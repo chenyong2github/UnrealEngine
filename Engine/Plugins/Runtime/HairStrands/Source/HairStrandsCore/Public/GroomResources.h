@@ -75,9 +75,22 @@ FORCEINLINE bool operator! (EHairResourceStatus A) { return static_cast<uint8>(A
 
 EHairResourceLoadingType GetHairResourceLoadingType(EHairGeometryType InGeometryType, int32 InLODIndex);
 
+struct FHairChunkRequest
+{
+	enum EStatus { None, Pending, Completed, Failed };
+	FSharedBuffer Data;
+	uint32 Offset = 0;
+	uint32 Size = 0;
+	EStatus Status = EStatus::None;
+	FHairBulkContainer* Container = nullptr;
+
+	const uint8* GetData() const { check(Status == Completed); return (const uint8*)Data.GetData(); }
+	void Release() { Data.Reset(); }
+};
+
 struct FHairResourceRequest
 {
-	void Request(FHairStrandsBulkCommon& In, bool bWait=false);
+	void Request(FHairStrandsBulkCommon& In, bool bWait=false, bool bFillBulkData=false);
 	bool IsNone() const ;
 	bool IsCompleted() const;
 
@@ -86,9 +99,8 @@ struct FHairResourceRequest
 	FBulkDataBatchRequest IORequest;
 #else
 	// DDC
-	enum EStatus { None, Pending, Completed };
-	EStatus Status = EStatus::None;
 	FString PathName;
+	TArray<FHairChunkRequest> Chunks;
 	TUniquePtr<UE::DerivedData::FRequestOwner> DDCRequestOwner;
 #endif
 };

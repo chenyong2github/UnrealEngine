@@ -1680,9 +1680,9 @@ static void InternalSerializeStrand(FArchive& Ar, UObject* Owner, FHairGroupPlat
 	// When cooking data, force loading of bulk data prior to saving them
 	if (Ar.IsCooking() && Ar.IsSaving())
 	{
-		{ FHairResourceRequest R; R.Request(StrandData.BulkData, true /*bWait*/); }
-		{ FHairResourceRequest R; R.Request(StrandData.InterpolationBulkData, true /*bWait*/); }
-		{ FHairResourceRequest R; R.Request(StrandData.ClusterCullingBulkData, true /*bWait*/); }
+		{ FHairResourceRequest R; R.Request(StrandData.BulkData, true /*bWait*/, true /*bFillBulkdata*/); }
+		{ FHairResourceRequest R; R.Request(StrandData.InterpolationBulkData, true /*bWait*/, true /*bFillBulkdata*/); }
+		{ FHairResourceRequest R; R.Request(StrandData.ClusterCullingBulkData, true /*bWait*/, true /*bFillBulkdata*/); }
 	}
 
 	if (!Ar.IsCooking() || !StrandData.bIsCookedOut)
@@ -2363,13 +2363,8 @@ bool UGroomAsset::CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey
 	auto FillDrivedDataKey = [&DerivedDataKey, &Name](FHairGroupPlatformData& In)
 	{
 		In.Strands.BulkData.DerivedDataKey = DerivedDataKey + FString(TEXT("_RestData"));
-		In.Strands.BulkData.Name = Name;
-	
 		In.Strands.InterpolationBulkData.DerivedDataKey = DerivedDataKey + FString(TEXT("_InterpolationData"));
-		In.Strands.InterpolationBulkData.Name = Name;
-	
 		In.Strands.ClusterCullingBulkData.DerivedDataKey = DerivedDataKey + FString(TEXT("_ClusterCullingData"));
-		In.Strands.ClusterCullingBulkData.Name = Name;
 	};
 
 	FHairGroupPlatformData& PlatformData = HairGroupsPlatformData[GroupIndex];
@@ -2428,7 +2423,6 @@ bool UGroomAsset::CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey
 				InternalSerializeGuide(Ar, this, PlatformData.Guides);
 				InternalSerializeStrand(Ar, this, PlatformData.Strands, true/*Header*/, false/*Data*/);
 
-
 				FRequestOwner AsyncOwner(EPriority::Normal);
 				GetCache().PutValue({ {Name, HeaderKey, FValue::Compress(MakeSharedBufferFromArray(MoveTemp(WriteData)))} }, AsyncOwner);
 				AsyncOwner.KeepAlive();
@@ -2436,44 +2430,32 @@ bool UGroomAsset::CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey
 
 			// Data (Rest)
 			{
-				TArray<uint8> WriteData;
-				FMemoryWriter Ar(WriteData, /*bIsPersistent*/ true);
-
-				PlatformData.Strands.BulkData.SerializeData(Ar, this);
-				
-				const FCacheKey DataKey = ConvertLegacyCacheKey(PlatformData.Strands.BulkData.DerivedDataKey);
+				TArray<FCachePutValueRequest> Out;
+				PlatformData.Strands.BulkData.Write_DDC(this, Out);
 
 				FRequestOwner AsyncOwner(EPriority::Normal);
-				GetCache().PutValue({ {Name, DataKey, FValue::Compress(MakeSharedBufferFromArray(MoveTemp(WriteData)))} }, AsyncOwner);
+				GetCache().PutValue(Out, AsyncOwner);
 				AsyncOwner.KeepAlive();
 			}
 
 			// Data (Interpolation)
-			if (PlatformData.Strands.InterpolationBulkData.HasData())
+			if (PlatformData.Strands.InterpolationBulkData.GetResourceCount() > 0)
 			{
-				TArray<uint8> WriteData;
-				FMemoryWriter Ar(WriteData, /*bIsPersistent*/ true);
-
-				PlatformData.Strands.InterpolationBulkData.SerializeData(Ar, this);
-				
-				const FCacheKey DataKey = ConvertLegacyCacheKey(PlatformData.Strands.InterpolationBulkData.DerivedDataKey);
+				TArray<FCachePutValueRequest> Out;
+				PlatformData.Strands.InterpolationBulkData.Write_DDC(this, Out);
 
 				FRequestOwner AsyncOwner(EPriority::Normal);
-				GetCache().PutValue({ {Name, DataKey, FValue::Compress(MakeSharedBufferFromArray(MoveTemp(WriteData)))} }, AsyncOwner);
+				GetCache().PutValue(Out, AsyncOwner);
 				AsyncOwner.KeepAlive();
 			}
 
 			// Data (cluster Culling)
 			{
-				TArray<uint8> WriteData;
-				FMemoryWriter Ar(WriteData, /*bIsPersistent*/ true);
-
-				PlatformData.Strands.ClusterCullingBulkData.SerializeData(Ar, this);
-				
-				const FCacheKey DataKey = ConvertLegacyCacheKey(PlatformData.Strands.ClusterCullingBulkData.DerivedDataKey);
+				TArray<FCachePutValueRequest> Out;
+				PlatformData.Strands.ClusterCullingBulkData.Write_DDC(this, Out);
 
 				FRequestOwner AsyncOwner(EPriority::Normal);
-				GetCache().PutValue({ {Name, DataKey, FValue::Compress(MakeSharedBufferFromArray(MoveTemp(WriteData)))} }, AsyncOwner);
+				GetCache().PutValue(Out, AsyncOwner);
 				AsyncOwner.KeepAlive();
 			}
 		}

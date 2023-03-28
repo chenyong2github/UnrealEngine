@@ -5,6 +5,11 @@
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "HairAttributes.h"
 
+#if WITH_EDITOR
+#include "DerivedDataCache.h"
+#include "DerivedDataRequestOwner.h"
+#endif
+
 void FHairStrandsInterpolationDatas::SetNum(const uint32 NumCurves)
 {
 	PointsSimCurvesVertexWeights.SetNum(NumCurves);
@@ -111,6 +116,121 @@ FArchive& operator<<(FArchive& Ar, FPackedHairVertex& Vertex)
 	return Ar;
 }
 
+namespace HairStrands
+{
+#if WITH_EDITOR
+	const UE::DerivedData::FValueId HairStrandsValueId = UE::DerivedData::FValueId::FromName("HairStrandsStreamingData");
+#endif
+}
+
+void FHairStrandsBulkCommon::Write_DDC(UObject* Owner, TArray<UE::DerivedData::FCachePutValueRequest>& Out)
+{
+#if WITH_EDITORONLY_DATA
+	FHairStrandsBulkCommon::FQuery Q;
+	Q.Type = FHairStrandsBulkCommon::FQuery::WriteDDC;
+	Q.OutWriteDDC = &Out;
+	Q.DerivedDataKey = &DerivedDataKey;
+	Q.Owner = Owner;
+	GetResources(Q);
+#endif
+}
+
+void FHairStrandsBulkCommon::Read_DDC(TArray<UE::DerivedData::FCacheGetChunkRequest>& Out)
+{
+#if WITH_EDITORONLY_DATA
+	FHairStrandsBulkCommon::FQuery Q;
+	Q.Type = FHairStrandsBulkCommon::FQuery::ReadDDC;
+	Q.OutReadDDC = &Out;
+	Q.DerivedDataKey = &DerivedDataKey;
+	GetResources(Q);
+#endif
+}
+
+void FHairStrandsBulkCommon::Read_IO(FBulkDataBatchRequest& Out)
+{
+	FBulkDataBatchRequest::FBatchBuilder Batch = Out.NewBatch(GetResourceCount());
+
+	FHairStrandsBulkCommon::FQuery Q;
+	Q.Type = FHairStrandsBulkCommon::FQuery::ReadIO;
+	Q.OutReadIO = &Batch;
+	GetResources(Q);
+	Q.OutReadIO->Issue(Out);
+}
+void FHairStrandsBulkCommon::Write_IO(FArchive& Ar, UObject* Owner)
+{
+	GetResourceVersion(Ar);
+
+	FHairStrandsBulkCommon::FQuery Q;
+	Q.Type = FHairStrandsBulkCommon::FQuery::ReadWriteIO;
+	Q.OutWriteIO = &Ar;
+	Q.Owner = Owner;
+	GetResources(Q);
+}
+
+void FHairStrandsBulkCommon::Serialize(FArchive& Ar, UObject* Owner)
+{
+	SerializeHeader(Ar, Owner);
+	SerializeData(Ar, Owner);
+}
+
+void FHairStrandsBulkCommon::SerializeData(FArchive& Ar, UObject* Owner)
+{
+	Write_IO(Ar, Owner);
+}
+
+void FHairStrandsBulkCommon::FQuery::Add(FHairBulkContainer& In, const TCHAR* InSuffix) 
+{
+	check(Type != None);
+#if WITH_EDITORONLY_DATA
+	if (Type == WriteDDC)
+	{
+		const int64 DataSizeInByte = In.Data.GetBulkDataSize();
+		TArray<uint8> WriteData;
+		WriteData.SetNum(DataSizeInByte);
+		FMemory::Memcpy(WriteData.GetData(), In.Data.Lock(LOCK_READ_ONLY), DataSizeInByte);
+		In.Data.Unlock();
+
+		using namespace UE::DerivedData;
+		FCachePutValueRequest& Out = OutWriteDDC->AddDefaulted_GetRef();
+		Out.Name 	= Owner->GetPathName();
+		Out.Key 	= ConvertLegacyCacheKey(*DerivedDataKey + InSuffix);
+		Out.Value 	= FValue::Compress(MakeSharedBufferFromArray(MoveTemp(WriteData)));
+		Out.Policy 	= ECachePolicy::Default;
+		Out.UserData= 0;
+	}
+	else if (Type == ReadDDC)
+	{
+		check(OutReadDDC);
+		using namespace UE::DerivedData;
+		FCacheGetChunkRequest& Out = OutReadDDC->AddDefaulted_GetRef();
+		Out.Id			= FValueId::Null; // HairStrands::HairStrandsValueId : This is only needed for cache record, not cache value.
+		Out.Key			= ConvertLegacyCacheKey(*DerivedDataKey + InSuffix);
+		Out.RawOffset	= 0; 			//In.Upload.Offset;
+		Out.RawSize		= MAX_uint64; 	//In.Upload.Size;
+		Out.RawHash		= FIoHash();
+		Out.UserData	= (uint64)&In;
+	}
+	else 
+#endif
+	if (Type == ReadIO)
+	{
+		check(OutReadIO);
+		OutReadIO->Read(In.Data);
+	}
+	else
+	{
+		check(Type == ReadWriteIO)
+		check(OutWriteIO);
+
+		if (OutWriteIO->IsSaving())
+		{
+			const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload;
+			In.Data.SetBulkDataFlags(BulkFlags);
+		}
+		In.Data.Serialize(*OutWriteIO, Owner, 0/*ChunkIndex*/, false /*bAttemptFileMapping*/);
+	}
+}
+
 void FHairStrandsInterpolationBulkData::Reset()
 {
 	Header.Flags = 0;
@@ -122,14 +242,8 @@ void FHairStrandsInterpolationBulkData::Reset()
 	Data.SimRootPointIndex.RemoveBulkData();
 
 	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
-	Data.Interpolation		= FByteBulkData();
-	Data.SimRootPointIndex	= FByteBulkData();
-}
-
-void FHairStrandsInterpolationBulkData::Serialize(FArchive& Ar, UObject* Owner)
-{
-	SerializeHeader(Ar, Owner);
-	SerializeData(Ar, Owner);
+	Data.Interpolation		= FHairBulkContainer();
+	Data.SimRootPointIndex	= FHairBulkContainer();
 }
 
 void FHairStrandsInterpolationBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
@@ -139,48 +253,25 @@ void FHairStrandsInterpolationBulkData::SerializeHeader(FArchive& Ar, UObject* O
 	Ar << Header.SimPointCount;
 }
 
-void FHairStrandsInterpolationBulkData::SerializeData(FArchive& Ar, UObject* Owner)
+uint32 FHairStrandsInterpolationBulkData::GetResourceCount() const
+{
+	return (Header.Flags & DataFlags_HasData) ? 2 : 0;
+}
+
+void FHairStrandsInterpolationBulkData::GetResources(FHairStrandsBulkCommon::FQuery& Out)
 {
 	static_assert(sizeof(FHairStrandsRootIndexFormat::BulkType) == sizeof(FHairStrandsRootIndexFormat::Type));
 
-	if (!!(Header.Flags & DataFlags_HasData))
+	if (Header.Flags & DataFlags_HasData)
 	{
-		const int32 ChunkIndex = 0;
-		bool bAttemptFileMapping = false;
-		Data.Interpolation.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		Data.SimRootPointIndex.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		Out.Add(Data.Interpolation, TEXT("_Interpolation"));
+		Out.Add(Data.SimRootPointIndex, TEXT("_SimRootPointIndex"));
 	}
-}
-
-bool FHairStrandsInterpolationBulkData::HasData() const
-{
-	return Header.Flags & DataFlags_HasData;
-}
-
-void FHairStrandsInterpolationBulkData::Request(FBulkDataBatchRequest& InRequest)
-{
-	if (!(Header.Flags & DataFlags_HasData))
-	{
-		return;
-	}
-
-	check(InRequest.IsNone());
-	FBulkDataBatchRequest::FBatchBuilder Batch = FBulkDataBatchRequest::NewBatch(2);
-	Batch.Read(Data.Interpolation);
-	Batch.Read(Data.SimRootPointIndex);
-	Batch.Issue(InRequest);
-}
-
-void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
-{
-	SerializeHeader(Ar, Owner);
-	SerializeData(Ar, Owner);
 }
 
 void FHairStrandsBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
 {
-	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
-	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+	GetResourceVersion(Ar);
 
 	Ar << Header.CurveCount;
 	Ar << Header.PointCount;
@@ -200,8 +291,18 @@ void FHairStrandsBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
 	Ar << Header.ImportedAttributeFlags;
 }
 
+void FHairStrandsBulkData::GetResourceVersion(FArchive& Ar) const
+{
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+}
 
-void FHairStrandsBulkData::SerializeData(FArchive& Ar, UObject* Owner)
+uint32 FHairStrandsBulkData::GetResourceCount() const
+{
+	return 5;
+}
+
+void FHairStrandsBulkData::GetResources(FHairStrandsBulkCommon::FQuery& Out)
 {
 	static_assert(sizeof(FHairStrandsPositionFormat::BulkType) == sizeof(FHairStrandsPositionFormat::Type));
 	static_assert(sizeof(FHairStrandsAttributeFormat::BulkType) == sizeof(FHairStrandsAttributeFormat::Type));
@@ -209,56 +310,16 @@ void FHairStrandsBulkData::SerializeData(FArchive& Ar, UObject* Owner)
 	static_assert(sizeof(FHairStrandsPointToCurveFormat32::BulkType) == sizeof(FHairStrandsPointToCurveFormat32::Type));
 	static_assert(sizeof(FHairStrandsRootIndexFormat::BulkType) == sizeof(FHairStrandsRootIndexFormat::Type)); 
 
-	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
-	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
-	  
-	// Forced not inline means the bulk data won't automatically be loaded when we deserialize
-	// but only when we explicitly take action to load it
-	if (Ar.IsSaving())
-	{
-		const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload;
-		Data.Positions.SetBulkDataFlags(BulkFlags);
-		Data.CurveAttributes.SetBulkDataFlags(BulkFlags);
-		if (Header.Flags & DataFlags_HasPointAttribute)
-		{
-			Data.PointAttributes.SetBulkDataFlags(BulkFlags);
-		}
-		Data.PointToCurve.SetBulkDataFlags(BulkFlags);
-		Data.Curves.SetBulkDataFlags(BulkFlags);
-	}
-
 	if (!!(Header.Flags & DataFlags_HasData))
 	{
-		const int32 ChunkIndex = 0;
-		bool bAttemptFileMapping = false;
-
-		Data.Positions.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+		Out.Add(Data.Positions, TEXT("_Positions"));
+		Out.Add(Data.CurveAttributes, TEXT("_CurveAttributes"));
 		if (Header.Flags & DataFlags_HasPointAttribute)
 		{
-			Data.PointAttributes.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
+			Out.Add(Data.PointAttributes, TEXT("_PointAttributes"));
 		}
-		Data.CurveAttributes.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		Data.PointToCurve.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-		Data.Curves.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
-	}
-}
-
-void FHairStrandsBulkData::Request(FBulkDataBatchRequest& In)
-{
-	if (!!(Header.Flags & DataFlags_HasData))
-	{
-		check(In.IsNone());
-
-		FBulkDataBatchRequest::FBatchBuilder Batch = FBulkDataBatchRequest::NewBatch(5);
-		Batch.Read(Data.Positions);
-		if (Header.Flags & DataFlags_HasPointAttribute)
-		{
-			Batch.Read(Data.PointAttributes);
-		}
-		Batch.Read(Data.CurveAttributes);
-		Batch.Read(Data.PointToCurve);
-		Batch.Read(Data.Curves);
-		Batch.Issue(In);
+		Out.Add(Data.PointToCurve, TEXT("_PointToCurve"));
+		Out.Add(Data.Curves, TEXT("_Curves"));
 	}
 }
 
@@ -286,11 +347,11 @@ void FHairStrandsBulkData::Reset()
 	Data.Curves.RemoveBulkData();
 
 	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
-	Data.Positions 		= FByteBulkData();
-	Data.CurveAttributes= FByteBulkData();
-	Data.PointAttributes= FByteBulkData();
-	Data.PointToCurve	= FByteBulkData();
-	Data.Curves			= FByteBulkData();
+	Data.Positions 		= FHairBulkContainer();
+	Data.CurveAttributes= FHairBulkContainer();
+	Data.PointAttributes= FHairBulkContainer();
+	Data.PointToCurve	= FHairBulkContainer();
+	Data.Curves			= FHairBulkContainer();
 }
 
 void FHairStrandsDatas::Reset()

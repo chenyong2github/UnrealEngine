@@ -13,6 +13,11 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogHairStrands, Log, All);
 
 enum class EHairAttribute : uint8;
+namespace UE::DerivedData
+{
+	struct FCacheGetChunkRequest;
+	struct FCachePutValueRequest;
+}
 
 struct FPackedHairVertex
 {
@@ -227,18 +232,55 @@ struct FHairStrandsRootUtils
 	static float	 PackUVsToFloat(const FVector2f& UV);
 };
 
+struct FHairBulkContainer
+{
+	// Streaming
+	TBitArray<> AvailableChunks;
+	FByteBulkData Data;
+
+	// Forward BulkData functions
+	bool IsBulkDataLoaded() const 		{ return Data.IsBulkDataLoaded(); }
+	int64 GetBulkDataSize() const 		{ return Data.GetBulkDataSize(); }
+	FString GetDebugName() const 		{ return Data.GetDebugName(); }
+	void SetBulkDataFlags(uint32 Flags) { Data.SetBulkDataFlags(Flags); }
+	void RemoveBulkData() 				{ Data.RemoveBulkData();  }
+	void Serialize(FArchive& Ar, UObject* Owner, int32 ChunkIndex, bool bAttemptFileMapping) { Data.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping); }
+};
 
 struct HAIRSTRANDSCORE_API FHairStrandsBulkCommon
 {
 	virtual ~FHairStrandsBulkCommon() { }
+	void Serialize(FArchive& Ar, UObject* Owner);
 	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) = 0;
-	virtual void SerializeData(FArchive& Ar, UObject* Owner) = 0;
-	virtual void Request(FBulkDataBatchRequest& In) = 0;
-	virtual bool HasData() const { return true; }
+	void SerializeData(FArchive& Ar, UObject* Owner);
+
+	void Write_DDC(UObject* Owner, TArray<UE::DerivedData::FCachePutValueRequest>& Out);
+	void Read_DDC(TArray<UE::DerivedData::FCacheGetChunkRequest>& Out);
+	void Write_IO(FArchive& Ar, UObject* Owner);
+	void Read_IO(FBulkDataBatchRequest& Out);
+
+	struct FQuery
+	{
+		void Add(FHairBulkContainer& In, TCHAR* InSuffix);
+
+		enum EQueryType { None, ReadDDC, WriteDDC, ReadIO, ReadWriteIO /* aka regular Serialize() */};
+		EQueryType Type = None;
+		FBulkDataBatchRequest::FBatchBuilder* 			OutReadIO = nullptr;
+		FArchive*										OutWriteIO = nullptr;
+	#if WITH_EDITORONLY_DATA
+		TArray<UE::DerivedData::FCacheGetChunkRequest>*	OutReadDDC = nullptr;
+		TArray<UE::DerivedData::FCachePutValueRequest>*	OutWriteDDC = nullptr;
+		FString* DerivedDataKey = nullptr;
+	#endif
+		UObject* Owner = nullptr; 
+	};
+
+	virtual uint32 GetResourceCount() const = 0;
+	virtual void GetResources(FQuery& Out) = 0;
+	virtual void GetResourceVersion(FArchive& Ar) const {}
 
 #if WITH_EDITORONLY_DATA
 	// Transient Name/DDCkey for streaming
-	FString Name;
 	FString DerivedDataKey;
 #endif
 };
@@ -282,11 +324,10 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData : FHairStrandsBulkC
 	};
 
 	void Reset();
-	void Serialize(FArchive& Ar, UObject* Owner);
 	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) override;
-	virtual void SerializeData(FArchive& Ar, UObject* Owner) override;
-	virtual void Request(FBulkDataBatchRequest& In) override;
-	virtual bool HasData() const override;
+
+	virtual uint32 GetResourceCount() const override;
+	virtual void GetResources(FQuery& Out) override;
 	uint32 GetPointCount() const { return Header.PointCount; };
 
 	struct FHeader
@@ -298,8 +339,8 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData : FHairStrandsBulkC
 
 	struct FData
 	{
-		FByteBulkData Interpolation;	// FHairStrandsInterpolationFormat  - Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for a 1 or 3 guide(s))
-		FByteBulkData SimRootPointIndex;// FHairStrandsRootIndexFormat      - Per-rendering-vertex index of the sim-root vertex
+		FHairBulkContainer Interpolation;		// FHairStrandsInterpolationFormat  - Per-rendering-vertex interpolation data (closest guides, weight factors, ...). Data for a 1 or 3 guide(s))
+		FHairBulkContainer SimRootPointIndex;	// FHairStrandsRootIndexFormat      - Per-rendering-vertex index of the sim-root vertex
 	} Data;
 };
 
@@ -429,10 +470,10 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData : FHairStrandsBulkCommon
 		DataFlags_HasPointAttribute = 4,	// Contains point attribute data.
 	};
 
-	void Serialize(FArchive& Ar, UObject* Owner);
 	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) override;
-	virtual void SerializeData(FArchive& Ar, UObject* Owner) override;
-	virtual void Request(FBulkDataBatchRequest& In) override;
+	virtual uint32 GetResourceCount() const override;
+	virtual void GetResources(FQuery& Out) override;
+	virtual void GetResourceVersion(FArchive& Ar) const override;
 
 	bool IsValid() const { return Header.CurveCount > 0 && Header.PointCount > 0; }
 	void Reset();
@@ -462,11 +503,11 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData : FHairStrandsBulkCommon
 
 	struct FData
 	{
-		FByteBulkData Positions;		// Size = PointCount
-		FByteBulkData CurveAttributes;	// Size = y*CurveCount (depends on the per-curve stored attributes)
-		FByteBulkData PointAttributes;	// Size = x*PointCount (depends on the per-point stored attributes)
-		FByteBulkData PointToCurve; 	// Size = PointCount
-		FByteBulkData Curves;			// Size = CurveCount
+		FHairBulkContainer Positions;		// Size = PointCount
+		FHairBulkContainer CurveAttributes;	// Size = y*CurveCount (depends on the per-curve stored attributes)
+		FHairBulkContainer PointAttributes;	// Size = x*PointCount (depends on the per-point stored attributes)
+		FHairBulkContainer PointToCurve; 	// Size = PointCount
+		FHairBulkContainer Curves;			// Size = CurveCount
 	} Data;
 };
 
@@ -746,10 +787,11 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulk
 {
 	FHairStrandsClusterCullingBulkData();
 	void Reset();
-	void Serialize(FArchive& Ar, UObject* Owner);
+
 	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) override;
-	virtual void SerializeData(FArchive& Ar, UObject* Owner) override;
-	virtual void Request(FBulkDataBatchRequest& In) override;
+	virtual uint32 GetResourceCount() const override;
+	virtual void GetResources(FQuery& Out) override;
+
 	bool IsValid() const { return Header.ClusterCount > 0 && Header.VertexCount > 0; }
 	void Validate(bool bIsSaving);
 
@@ -772,13 +814,11 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulk
 
 	struct FData
 	{
-
 		/* LOD info for the various clusters for LOD management on GPU */
-		FByteBulkData	PackedClusterInfos;		// Size - ClusterCount
-		FByteBulkData	ClusterLODInfos;		// Size - ClusterLODCount
-		FByteBulkData	VertexToClusterIds;		// Size - VertexCount
-		FByteBulkData	ClusterVertexIds;		// Size - VertexLODCount
+		FHairBulkContainer	PackedClusterInfos;		// Size - ClusterCount
+		FHairBulkContainer	ClusterLODInfos;		// Size - ClusterLODCount
+		FHairBulkContainer	VertexToClusterIds;		// Size - VertexCount
+		FHairBulkContainer	ClusterVertexIds;		// Size - VertexLODCount
 	} Data;
-
 };
 

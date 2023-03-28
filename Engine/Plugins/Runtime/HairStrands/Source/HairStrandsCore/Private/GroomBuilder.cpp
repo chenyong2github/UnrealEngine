@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8q");
+	return TEXT("v8r9");
 }
 
 namespace FHairStrandsDecimation
@@ -148,6 +148,12 @@ namespace HairStrandsBuilder
 		void* BulkBuffer = Out.Realloc(DataSizeInByte);
 		FMemory::Memcpy(BulkBuffer, Data.GetData(), DataSizeInByte);
 		Out.Unlock();
+	}
+
+	template<typename TFormatType>
+	void CopyToBulkData(FHairBulkContainer& Out, const TArray<typename TFormatType::Type>& Data)
+	{
+		CopyToBulkData<TFormatType>(Out.Data, Data);
 	}
 
 	/** Build the packed datas for gpu rendering/simulation */
