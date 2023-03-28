@@ -47,10 +47,7 @@ namespace UE::Tasks
 
 		// waits until the pipe is empty (its last task is executed)
 		// should be used only after no more tasks are launched in the pipe, e.g. preparing for the pipe destruction
-		void WaitUntilEmpty()
-		{
-			LowLevelTasks::FScheduler::Get().BusyWaitUntil([this] { return !HasWork(); });
-		}
+		CORE_API bool WaitUntilEmpty(FTimespan Timeout = FTimespan::FromMilliseconds(MAX_uint32));
 
 		// launches a task in the pipe
 		// @param InDebugName helps to identify the task in debugger and profiler
@@ -110,20 +107,22 @@ namespace UE::Tasks
 		friend class Private::FTaskBase;
 
 		// pushes given task into the pipe: adds the task as a subsequent to the last task if any and sets it as the new last task
-		// returns the previous piped task if we managed to register the given task as its subsequent, otherwise nullptr
-		Private::FTaskBase* PushIntoPipe(Private::FTaskBase& Task);
+		// returns the accounted reference to the previous piped task if we managed to register the given task as its subsequent, otherwise nullptr.
+		// the reference must be released by the caller when not needed anymore
+		[[nodiscard]] Private::FTaskBase* PushIntoPipe(Private::FTaskBase& Task);
+
 		// pipe holds a "weak" reference to a task. the task must be cleared from the pipe when its execution finished before its completion, 
-		// otherwise the next piped task can try to add itself as a subsequent to already destroyed task
-		void ClearTask(Private::FTaskBase& Task);
+		// otherwise the next piped task can try to add itself as a subsequent to already destroyed task.
+		// returns true if the task was still the last one and so was successfully cleared
+		bool TryClearTask(Private::FTaskBase& Task);
 
 		// notifications about pipe's task execution
 		void ExecutionStarted();
 		void ExecutionFinished();
 
 	private:
-		std::atomic<Private::FTaskBase*> LastTask{ nullptr }; // the last task that 
-		// a counter of how many threads trying to push a task into a pipe right now
-		std::atomic<int32> PushingThreadsNum{ 0 };
+		// pipe builds a chain (a linked list) of tasks and so needs to store only the last one. the last task is null if the pipe is not blocked
+		std::atomic<Private::FTaskBase*> LastTask{ nullptr };
 
 	public:
 		FORCENOINLINE const TCHAR* GetDebugName() const

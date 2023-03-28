@@ -655,6 +655,54 @@ namespace UE { namespace TasksTests
 		check(TasksExecutedNum == TasksNum);
 	}
 
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksPipeWaitUntilEmptyTest, "System.Core.Tasks.Pipe.WaitUntilEmpty", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+
+	bool FTasksPipeWaitUntilEmptyTest::RunTest(const FString& Parameters)
+	{
+		//for (int i = 0; i != 100000; ++i)
+		{	// waiting until an empty pipe is empty
+			FPipe Pipe{ UE_SOURCE_LOCATION };
+			Pipe.WaitUntilEmpty();
+		}
+
+		//for (int i = 0; i != 100000; ++i)
+		{	// waiting until a not empty pipe is empty
+			FPipe Pipe{ UE_SOURCE_LOCATION };
+			Pipe.Launch(UE_SOURCE_LOCATION, [] {});
+			Pipe.WaitUntilEmpty();
+		}
+
+		if (false) // disabled as it's an invalid case, but keep it compiling
+		//for (int i = 0; i != 100000; ++i)
+		{	// waiting until a not empty pipe is empty, while new tasks are piped. just an example, this would assert in `Pipe.WaitUntilEmtpy()`
+			// as no more tasks can be piped after that
+
+			FPipe Pipe{ UE_SOURCE_LOCATION };
+
+			std::atomic<bool> bQuit{ false };
+
+			auto TaskBody = [&Pipe, &bQuit](auto& TaskBodyRef) -> void
+			{
+				if (!bQuit)
+				{
+					Pipe.Launch(UE_SOURCE_LOCATION, [&TaskBodyRef] { TaskBodyRef(TaskBodyRef); });
+				}
+			};
+
+			// start the chain
+			TaskBody(TaskBody);
+
+			check(!Pipe.WaitUntilEmpty(FTimespan::FromMilliseconds(100))); // it's not empty until we break the chain
+
+			// break the chain
+			bQuit = true;
+
+			check(Pipe.WaitUntilEmpty());
+		}
+
+		return true;
+	}
+
 	struct FAutoTlsSlot
 	{
 		uint32 Slot;

@@ -540,7 +540,7 @@ namespace UE::Tasks
 							if (PrevPipedTask != nullptr) // the pipe is blocked
 							{
 								// the prev task in pipe's chain becomes this task's prerequisite, to enabled piped task retraction.
-								// no need to AddRef as it's already sorted in `FPipe::PushIntoPipe`
+								// its ref count already accounted for this ref. the ref will be released when the prereq is not needed anymore
 								Prerequisites.Push(PrevPipedTask);
 								return false;
 							}
