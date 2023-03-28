@@ -130,8 +130,11 @@ static void BuildRuntimeDataRecursive(UProxyTable* RootTable, UProxyTable* Table
 	{
 		return;
 	}
-	
-	OutDependencies.Add(Table);
+
+	if (Table != RootTable)
+	{
+		OutDependencies.Add(Table);
+	}
 	
 	for (const FProxyEntry& Entry : Table->Entries)
 	{
@@ -223,11 +226,11 @@ void UProxyTable::BuildRuntimeData()
 	for(const FProxyEntry& Entry : RuntimeEntries) 
 	{
 		if (Entry.Proxy)
-			{
+		{
 			ProxyDependencies.Add(Entry.Proxy);
-			}
 		}
 	}
+}
 
 
 void UProxyTable::PostLoad()
@@ -239,6 +242,7 @@ void UProxyTable::PostLoad()
 void UProxyTable::PostTransacted(const FTransactionObjectEvent& TransactionEvent)
 {
 	UObject::PostTransacted(TransactionEvent);
+	BuildRuntimeData();
 	OnProxyTableChanged.Broadcast();
 }
 
