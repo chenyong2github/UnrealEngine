@@ -84,7 +84,7 @@ protected:
 
 	bool SetPropertyValue(FText& Value, const FText& NewValue, UE::FieldNotification::FFieldId FieldId)
 	{
-		if (Value.IdenticalTo(Value))
+		if (Value.IdenticalTo(NewValue))
 		{
 			return false;
 		}
