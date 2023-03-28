@@ -432,7 +432,9 @@ bool FPlasticSourceControlProvider::UsesCheckout() const
 
 bool FPlasticSourceControlProvider::UsesFileRevisions() const
 {
-	return true;
+	// Only a Partial/Gluon workspace can sync/update files individually, operating on revisions (can use the context menu)
+	// while a regular workspace can only update all the files as a whole, operating at the changeset level (requires the global menu)
+	return IsPartialWorkspace();
 }
 
 bool FPlasticSourceControlProvider::UsesSnapshots() const
