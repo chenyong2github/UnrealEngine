@@ -291,9 +291,9 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshQueries|BoneWeights", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
-	GetBoneIndexForName(
+	GetBoneIndex(
 		UDynamicMesh* TargetMesh,
-		FString BoneName,
+		FName BoneName,
 		bool& bIsValidBoneName,
 		int& BoneIndex,
 		UGeometryScriptDebug* Debug = nullptr);
