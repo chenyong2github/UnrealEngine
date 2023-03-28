@@ -18,6 +18,7 @@
 #include "Algo/HeapSort.h"
 #include "Algo/IsHeap.h"
 #include "Algo/Impl/BinaryHeap.h"
+#include "Algo/StableSort.h"
 #include "Concepts/GetTypeHashable.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/IdentityFunctor.h"
@@ -2840,12 +2841,12 @@ public:
 	 *
 	 * @note: If your array contains raw pointers, they will be automatically dereferenced during sorting.
 	 *        Therefore, your array will be sorted by the values being pointed to, rather than the pointers' values.
-	 *        If this is not desirable, please use Algo::Sort(MyArray) instead.
+	 *        If this is not desirable, please use Algo::Sort(MyArray) directly instead.
 	 *        The auto-dereferencing behavior does not occur with smart pointers.
 	 */
 	void Sort()
 	{
-		::Sort(GetData(), Num());
+		Algo::Sort(*this, TDereferenceWrapper<ElementType, TLess<>>(TLess<>()));
 	}
 
 	/**
@@ -2855,13 +2856,14 @@ public:
 	 *
 	 * @note: If your array contains raw pointers, they will be automatically dereferenced during sorting.
 	 *        Therefore, your predicate will be passed references rather than pointers.
-	 *        If this is not desirable, please use Algo::Sort(MyArray, Predicate) instead.
+	 *        If this is not desirable, please use Algo::Sort(MyArray, Predicate) directly instead.
 	 *        The auto-dereferencing behavior does not occur with smart pointers.
 	 */
 	template <class PREDICATE_CLASS>
 	void Sort(const PREDICATE_CLASS& Predicate)
 	{
-		::Sort(GetData(), Num(), Predicate);
+		TDereferenceWrapper<ElementType, PREDICATE_CLASS> PredicateWrapper(Predicate);
+		Algo::Sort(*this, PredicateWrapper);
 	}
 
 	/**
@@ -2871,11 +2873,12 @@ public:
 	 *
 	 * @note: If your array contains raw pointers, they will be automatically dereferenced during sorting.
 	 *        Therefore, your array will be sorted by the values being pointed to, rather than the pointers' values.
+	 *        If this is not desirable, please use Algo::StableSort(MyArray) directly instead.
 	 *        The auto-dereferencing behavior does not occur with smart pointers.
 	 */
 	void StableSort()
 	{
-		::StableSort(GetData(), Num());
+		Algo::StableSort(*this, TDereferenceWrapper<ElementType, TLess<>>(TLess<>()));
 	}
 
 	/**
@@ -2887,12 +2890,14 @@ public:
 	 *
 	 * @note: If your array contains raw pointers, they will be automatically dereferenced during sorting.
 	 *        Therefore, your predicate will be passed references rather than pointers.
+	 *        If this is not desirable, please use Algo::StableSort(MyArray, Predicate) directly instead.
 	 *        The auto-dereferencing behavior does not occur with smart pointers.
 	 */
 	template <class PREDICATE_CLASS>
 	void StableSort(const PREDICATE_CLASS& Predicate)
 	{
-		::StableSort(GetData(), Num(), Predicate);
+		TDereferenceWrapper<ElementType, PREDICATE_CLASS> PredicateWrapper(Predicate);
+		Algo::StableSort(*this, PredicateWrapper);
 	}
 
 #if defined(_MSC_VER) && !defined(__clang__)	// Relies on MSVC-specific lazy template instantiation to support arrays of incomplete types

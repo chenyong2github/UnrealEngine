@@ -692,31 +692,45 @@ public:
 public:
 	/**
 	 * Sorts the array assuming < operator is defined for the item type.
+	 *
+	 * @note: If your array contains raw pointers, they will be automatically dereferenced during sorting.
+	 *        Therefore, your array will be sorted by the values being pointed to, rather than the pointers' values.
+	 *        If this is not desirable, please use Algo::Sort(MyArray) directly instead.
+	 *        The auto-dereferencing behavior does not occur with smart pointers.
 	 */
 	void Sort()
 	{
-		::Sort(GetData(), Num());
+		Algo::Sort(*this, TDereferenceWrapper<ElementType, TLess<>>(TLess<>()));
 	}
 
 	/**
 	 * Sorts the array using user define predicate class.
 	 *
 	 * @param Predicate Predicate class instance.
+	 * @note: If your array contains raw pointers, they will be automatically dereferenced during sorting.
+	 *        Therefore, your predicate will be passed references rather than pointers.
+	 *        If this is not desirable, please use Algo::Sort(MyArray, Predicate) directly instead.
+	 *        The auto-dereferencing behavior does not occur with smart pointers.
 	 */
 	template <class PREDICATE_CLASS>
 	void Sort(const PREDICATE_CLASS& Predicate)
 	{
-		::Sort(GetData(), Num(), Predicate);
+		TDereferenceWrapper<ElementType, PREDICATE_CLASS> PredicateWrapper(Predicate);
+		Algo::Sort(*this, PredicateWrapper);
 	}
 
 	/**
 	 * Stable sorts the array assuming < operator is defined for the item type.
 	 *
 	 * Stable sort is slower than non-stable algorithm.
+	 * @note: If your array contains raw pointers, they will be automatically dereferenced during sorting.
+	 *        Therefore, your array will be sorted by the values being pointed to, rather than the pointers' values.
+	 *        If this is not desirable, please use Algo::StableSort(MyArray) directly instead.
+	 *        The auto-dereferencing behavior does not occur with smart pointers.
 	 */
 	void StableSort()
 	{
-		::StableSort(GetData(), Num());
+		Algo::StableSort(*this, TDereferenceWrapper<ElementType, TLess<>>(TLess<>()));
 	}
 
 	/**
@@ -725,11 +739,16 @@ public:
 	 * Stable sort is slower than non-stable algorithm.
 	 *
 	 * @param Predicate Predicate class instance
+	 * @note: If your array contains raw pointers, they will be automatically dereferenced during sorting.
+	 *        Therefore, your predicate will be passed references rather than pointers.
+	 *        If this is not desirable, please use Algo::StableSort(MyArray, Predicate) directly instead.
+	 *        The auto-dereferencing behavior does not occur with smart pointers.
 	 */
 	template <class PREDICATE_CLASS>
 	void StableSort(const PREDICATE_CLASS& Predicate)
 	{
-		::StableSort(GetData(), Num(), Predicate);
+		TDereferenceWrapper<ElementType, PREDICATE_CLASS> PredicateWrapper(Predicate);
+		Algo::StableSort(*this, PredicateWrapper);
 	}
 
 private:

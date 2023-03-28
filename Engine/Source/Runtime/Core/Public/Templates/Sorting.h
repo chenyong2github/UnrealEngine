@@ -74,6 +74,7 @@ struct TIsContiguousContainer< TArrayRange<T> >
  * @param Predicate predicate class
  */
 template<class T, class PREDICATE_CLASS> 
+UE_DEPRECATED(5.3, "Sort is deprecated, please use Algo::Sort. Algo::Sort supports ranges with index types other than int32, and doesn't automatically dereference pointers.")
 void Sort( T* First, const int32 Num, const PREDICATE_CLASS& Predicate )
 {
 	TArrayRange<T> ArrayRange( First, Num );
@@ -88,6 +89,7 @@ void Sort( T* First, const int32 Num, const PREDICATE_CLASS& Predicate )
  * @param Predicate predicate class
  */
 template<class T, class PREDICATE_CLASS> 
+UE_DEPRECATED(5.3, "Sort is deprecated, please use Algo::Sort. Algo::Sort supports ranges with index types other than int32, and doesn't automatically dereference pointers.")
 void Sort( T** First, const int32 Num, const PREDICATE_CLASS& Predicate )
 {
 	TArrayRange<T*> ArrayRange( First, Num );
@@ -102,6 +104,7 @@ void Sort( T** First, const int32 Num, const PREDICATE_CLASS& Predicate )
  * @param	Num		the number of items to sort
  */
 template<class T> 
+UE_DEPRECATED(5.3, "Sort is deprecated, please use Algo::Sort. Algo::Sort supports ranges with index types other than int32, and doesn't automatically dereference pointers.")
 void Sort( T* First, const int32 Num )
 {
 	TArrayRange<T> ArrayRange( First, Num );
@@ -115,6 +118,7 @@ void Sort( T* First, const int32 Num )
  * @param	Num		the number of items to sort
  */
 template<class T> 
+UE_DEPRECATED(5.3, "Sort is deprecated, please use Algo::Sort. Algo::Sort supports ranges with index types other than int32, and doesn't automatically dereference pointers.")
 void Sort( T** First, const int32 Num )
 {
 	TArrayRange<T*> ArrayRange( First, Num );
@@ -369,6 +373,7 @@ void StableSortInternal(T* First, const int32 Num, const PREDICATE_CLASS& Predic
  * @param Predicate predicate class
  */
 template<class T, class PREDICATE_CLASS>
+UE_DEPRECATED(5.3, "StableSort is deprecated, please use Algo::StableSort. Algo::StableSort supports ranges with index types other than int32, and doesn't automatically dereference pointers.")
 void StableSort(T* First, const int32 Num, const PREDICATE_CLASS& Predicate)
 {
 	StableSortInternal(First, Num, TDereferenceWrapper<T, PREDICATE_CLASS>(Predicate));
@@ -383,6 +388,7 @@ void StableSort(T* First, const int32 Num, const PREDICATE_CLASS& Predicate)
  * @param Predicate predicate class
  */
 template<class T, class PREDICATE_CLASS>
+UE_DEPRECATED(5.3, "StableSort is deprecated, please use Algo::StableSort. Algo::StableSort supports ranges with index types other than int32, and doesn't automatically dereference pointers.")
 void StableSort(T** First, const int32 Num, const PREDICATE_CLASS& Predicate)
 {
 	StableSortInternal(First, Num, TDereferenceWrapper<T*, PREDICATE_CLASS>(Predicate));
@@ -398,6 +404,7 @@ void StableSort(T** First, const int32 Num, const PREDICATE_CLASS& Predicate)
  * @param	Num		the number of items to sort
  */
 template<class T>
+UE_DEPRECATED(5.3, "StableSort is deprecated, please use Algo::StableSort. Algo::StableSort supports ranges with index types other than int32, and doesn't automatically dereference pointers.")
 void StableSort(T* First, const int32 Num)
 {
 	StableSortInternal(First, Num, TDereferenceWrapper<T, TLess<T> >(TLess<T>()));
@@ -411,6 +418,7 @@ void StableSort(T* First, const int32 Num)
  * @param	Num		the number of items to sort
  */
 template<class T>
+UE_DEPRECATED(5.3, "StableSort is deprecated, please use Algo::StableSort. Algo::StableSort supports ranges with index types other than int32, and doesn't automatically dereference pointers.")
 void StableSort(T** First, const int32 Num)
 {
 	StableSortInternal(First, Num, TDereferenceWrapper<T*, TLess<T> >(TLess<T>()));

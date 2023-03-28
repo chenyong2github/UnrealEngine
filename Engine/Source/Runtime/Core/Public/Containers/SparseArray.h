@@ -588,7 +588,7 @@ public:
 			Compact();
 
 			// Sort the elements according to the provided comparison class.
-			::Sort( (FElementOrFreeListLink*)Data.GetData(), Num(), FElementCompareClass< PREDICATE_CLASS >( Predicate ) );
+			Algo::Sort(TArrayView<FElementOrFreeListLink>(Data.GetData(), Num()), FElementCompareClass< PREDICATE_CLASS >( Predicate ) );
 		}
 	}
 
@@ -608,7 +608,7 @@ public:
 			CompactStable();
 
 			// Sort the elements according to the provided comparison class.
-			::StableSort((FElementOrFreeListLink*)Data.GetData(), Num(), FElementCompareClass< PREDICATE_CLASS >(Predicate));
+			Algo::StableSort(TArrayView<FElementOrFreeListLink>(Data.GetData(), Num()), FElementCompareClass< PREDICATE_CLASS >(Predicate));
 		}
 	}
 
