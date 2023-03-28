@@ -717,43 +717,39 @@ class Node;
 		Ptr<ASTOp> Op = GenerateTableSwitch<NodeMeshTable::Private, TCT_MESH, OP_TYPE::ME_SWITCH>(*TableNode->GetPrivate(), 
 			[this, &NewResult, &t, &InOptions] (const NodeMeshTable::Private& node, int colIndex, int row, ErrorLog* pErrorLog)
 			{
-				NodeMeshConstantPtr pCell = new NodeMeshConstant();
 				MeshPtr pMesh = node.m_pTable->GetPrivate()->m_rows[row].m_values[colIndex].m_pMesh;
-
-				if (!pMesh)
-				{
-					char temp[256];
-					mutable_snprintf(temp, 256,
-						"Table has a missing mesh in column %d, row %d.", colIndex, row);
-					pErrorLog->GetPrivate()->Add(temp, ELMT_ERROR, node.m_errorContext);
-				}
-
-				pCell->SetValue(pMesh);
-
-				// TODO Take into account layout strategy
-				int numLayouts = node.m_layouts.Num();
-				pCell->SetLayoutCount(numLayouts);
-				for (int i = 0; i < numLayouts; ++i)
-				{
-					pCell->SetLayout(i, node.m_layouts[i]);
-				}
-
-				FMeshGenerationOptions TargetOptions = InOptions;
-
-				if (t != 0)
-				{
-					TargetOptions.OverrideLayouts = NewResult.GeneratedLayouts;
-				}
-
 				FMeshGenerationResult BranchResults;
-				GenerateMesh(TargetOptions, BranchResults, pCell);
 
-				if (t == 0)
+				if (pMesh)
 				{
-					NewResult = BranchResults;
-				}				
+					NodeMeshConstantPtr pCell = new NodeMeshConstant();
+					pCell->SetValue(pMesh);
 
-				++t;
+					// TODO Take into account layout strategy
+					int numLayouts = node.m_layouts.Num();
+					pCell->SetLayoutCount(numLayouts);
+					for (int i = 0; i < numLayouts; ++i)
+					{
+						pCell->SetLayout(i, node.m_layouts[i]);
+					}
+
+					FMeshGenerationOptions TargetOptions = InOptions;
+
+					if (t != 0)
+					{
+						TargetOptions.OverrideLayouts = NewResult.GeneratedLayouts;
+					}
+
+					GenerateMesh(TargetOptions, BranchResults, pCell);
+
+					if (t == 0)
+					{
+						NewResult = BranchResults;
+					}
+
+					++t;
+				}
+
 				return BranchResults.meshOp;
 			});
 

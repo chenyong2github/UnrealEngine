@@ -739,7 +739,11 @@ namespace mu
             check( pTable->GetPrivate()->m_rows[i].m_id <= 0xFFFF);
             auto condition = (uint16)pTable->GetPrivate()->m_rows[i].m_id;
             Ptr<ASTOp> Branch = GenerateOption( node, colIndex, (int)i, m_pErrorLog.get() );
-			SwitchOp->cases.Add(ASTOpSwitch::FCase(condition, SwitchOp, Branch ));
+
+			if (Branch || TYPE != TCT_MESH)
+			{
+				SwitchOp->cases.Add(ASTOpSwitch::FCase(condition, SwitchOp, Branch));
+			}
         }
 
         return SwitchOp;
