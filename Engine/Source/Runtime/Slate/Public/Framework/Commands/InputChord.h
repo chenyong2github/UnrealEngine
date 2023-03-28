@@ -121,14 +121,28 @@ struct SLATE_API FInputChord
 	 *
 	 * @param Other
 	 */
-	FInputChord( const FInputChord& Other )
-		: Key(Other.Key)
-		, bShift(Other.bShift)
-		, bCtrl(Other.bCtrl)
-		, bAlt(Other.bAlt)
-		, bCmd(Other.bCmd)
-	{
-	}
+	FInputChord(const FInputChord& Other) = default;
+
+	/**
+	 * Move constructor.
+	 *
+	 * @param Other
+	 */
+	FInputChord(FInputChord&& Other) = default;
+
+	/**
+	 * Copy assignment operator.
+	 *
+	 * @param Other
+	 */
+	FInputChord& operator=(const FInputChord& Other) = default;
+
+	/**
+	 * Move assignment operator.
+	 *
+	 * @param Other
+	 */
+	FInputChord& operator=(FInputChord&& Other) = default;
 
 	/**
 	 * Compares this input chord with another for equality.

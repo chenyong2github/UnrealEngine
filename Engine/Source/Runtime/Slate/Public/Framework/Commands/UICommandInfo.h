@@ -101,12 +101,10 @@ public:
 		check(!InStyleSetName.IsNone());
 	}
 
-	FBindingContext( const FBindingContext &Other )
-		: ContextName( Other.ContextName )
-		, ContextParent( Other.ContextParent )
-		, ContextDesc( Other.ContextDesc )
-		, StyleSetName( Other.StyleSetName )
-	{}
+	FBindingContext(const FBindingContext&) = default;
+	FBindingContext(FBindingContext&&) = default;
+	FBindingContext& operator=(const FBindingContext&) = default;
+	FBindingContext& operator=(FBindingContext&&) = default;
 
 	/**
 	 * Creates a new command declaration used to populate commands with data

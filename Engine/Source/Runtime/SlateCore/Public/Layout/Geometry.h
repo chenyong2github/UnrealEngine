@@ -48,6 +48,11 @@ public:
 	FGeometry();
 
 	/**
+	 * Copy constructor.
+	 */
+	FGeometry(const FGeometry& RHS) = default;
+
+	/**
 	 * !!! HACK!!! We're keeping members of FGeometry const to prevent mutability without making them private, for backward compatibility.
 	 * But this means the assignment operator no longer works. We implement one ourselves now and force a memcpy.
 	 */

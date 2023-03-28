@@ -924,6 +924,7 @@ public:
 		, CursorDelta(FVector2f(LastScreenSpacePosition) - FVector2f(ScreenSpacePosition))
 		, PressedButtons(&InPressedButtons)
 		, PointerIndex(0)
+		, TouchpadIndex(0)
 		, Force(1.0f)
 		, bIsTouchEvent(false)
 		, GestureType(InGestureType)
@@ -996,29 +997,6 @@ public:
 
 	/** Returns the full set of pressed buttons */
 	const TSet<FKey>& GetPressedButtons() const { return *PressedButtons; }
-
-	/** We override the assignment operator to allow generated code to compile with the const ref member. */
-	void operator=( const FPointerEvent& Other )
-	{
-		FInputEvent::operator=( Other );
-
-		// Pointer
-		ScreenSpacePosition = Other.ScreenSpacePosition;
-		LastScreenSpacePosition = Other.LastScreenSpacePosition;
-		CursorDelta = Other.CursorDelta;
-		PressedButtons = Other.PressedButtons;
-		EffectingButton = Other.EffectingButton;
-		UserIndex = Other.UserIndex;
-		PointerIndex = Other.PointerIndex;
-		TouchpadIndex = Other.TouchpadIndex;
-		Force = Other.Force;
-		bIsTouchEvent = Other.bIsTouchEvent;
-		GestureType = Other.GestureType;
-		WheelOrGestureDelta = Other.WheelOrGestureDelta;
-		bIsDirectionInvertedFromDevice = Other.bIsDirectionInvertedFromDevice;
-		bIsTouchForceChanged = Other.bIsTouchForceChanged;
-		bIsTouchFirstMove = Other.bIsTouchFirstMove;
-	}
 
 	virtual FText ToText() const override;
 
