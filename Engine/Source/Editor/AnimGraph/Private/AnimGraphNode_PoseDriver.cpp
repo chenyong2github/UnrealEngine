@@ -149,7 +149,16 @@ void UAnimGraphNode_PoseDriver::ValidateAnimNodeDuringCompilation(USkeleton* For
 			this, GetData(Node.PoseTargets[Node.SoloTargetIndex].DrivenName.ToString()));
 	}
 
-	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
+	// Note: UAnimGraphNode_PoseHandler::ValidateAnimNodeDuringCompilation checks if PoseAsset is valid, 
+	// This check is only necessary when using DrivePoses
+	if (Node.DriveOutput == EPoseDriverOutput::DrivePoses)
+	{
+		Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
+	}
+	else
+	{
+		UAnimGraphNode_AssetPlayerBase::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
+	}
 }
 
 FEditorModeID UAnimGraphNode_PoseDriver::GetEditorMode() const
