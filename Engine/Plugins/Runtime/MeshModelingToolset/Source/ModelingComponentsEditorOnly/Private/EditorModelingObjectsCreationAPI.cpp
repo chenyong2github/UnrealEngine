@@ -7,6 +7,7 @@
 
 #include "AssetUtils/CreateStaticMeshUtil.h"
 #include "AssetUtils/CreateTexture2DUtil.h"
+#include "Physics/ComponentCollisionUtil.h"
 
 #include "ConversionUtils/DynamicMeshToVolume.h"
 #include "MeshDescriptionToDynamicMesh.h"
@@ -241,9 +242,15 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateDynamicMeshActo
 	// configure collision
 	if (CreateMeshParams.bEnableCollision)
 	{
+		if (CreateMeshParams.CollisionShapeSet.IsSet())
+		{
+			UE::Geometry::SetSimpleCollision(NewComponent, CreateMeshParams.CollisionShapeSet.GetPtrOrNull());
+		}
+
 		NewComponent->CollisionType = CreateMeshParams.CollisionMode;
 		// enable complex collision so that raycasts can hit this object
 		NewComponent->bEnableComplexCollision = true;
+
 		// force collision update
 		NewComponent->UpdateCollision(false);
 	}
@@ -355,6 +362,13 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateStaticMeshAsset
 	for (int32 k = 0; k < ComponentMaterials.Num(); ++k)
 	{
 		StaticMeshComponent->SetMaterial(k, ComponentMaterials[k]);
+	}
+
+	// set simple collision geometry
+	if (CreateMeshParams.CollisionShapeSet.IsSet())
+	{
+		UE::Geometry::SetSimpleCollision(StaticMeshComponent, CreateMeshParams.CollisionShapeSet.GetPtrOrNull(),
+			UE::Geometry::GetCollisionSettings(StaticMeshComponent));
 	}
 
 	// re-connect the component (?)

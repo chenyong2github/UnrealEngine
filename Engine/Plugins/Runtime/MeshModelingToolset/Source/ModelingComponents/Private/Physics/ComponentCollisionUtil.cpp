@@ -14,6 +14,7 @@
 #include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 
 #include "Physics/PhysicsDataCollection.h"
+#include "Physics/CollisionGeometryConversion.h"
 
 #include "Components/BrushComponent.h"
 #include "Components/DynamicMeshComponent.h"
@@ -26,11 +27,22 @@
 using namespace UE::Geometry;
 
 bool UE::Geometry::ComponentTypeSupportsCollision(
-	const UPrimitiveComponent* Component)
+	const UPrimitiveComponent* Component, EComponentCollisionSupportLevel SupportLevel)
 {
-	// currently only supporting StaticMeshComponent
-	const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
-	return (StaticMeshComponent != nullptr);
+	// currently only supporting StaticMeshComponent and DynamicMeshComponent
+	if (Cast<UStaticMeshComponent>(Component) != nullptr)
+	{
+		return true; // ReadOnly and ReadWrite both supported
+	}
+	if (Cast<UDynamicMeshComponent>(Component) != nullptr)
+	{
+		return true; // ReadOnly and ReadWrite both supported
+	}
+	if (Cast<UBrushComponent>(Component) != nullptr)
+	{
+		return SupportLevel == EComponentCollisionSupportLevel::ReadOnly; // do not support write on BrushComponent
+	}
+	return false;
 }
 
 
@@ -38,21 +50,71 @@ FComponentCollisionSettings UE::Geometry::GetCollisionSettings(const UPrimitiveC
 {
 	FComponentCollisionSettings Settings;
 
-	const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
-	if (ensure(StaticMeshComponent))
+	if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component) )
 	{
-		const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-		if (ensure(StaticMesh))
+		if (const UBodySetup* BodySetup = GetBodySetup(Component))
 		{
-			UBodySetup* BodySetup = StaticMesh->GetBodySetup();
-			if (ensure(BodySetup))
-			{
-				Settings.CollisionTypeFlag = (int32)BodySetup->CollisionTraceFlag;
-			}
+			Settings.CollisionTypeFlag = (int32)BodySetup->CollisionTraceFlag;
 		}
 	}
+	else if (const UDynamicMeshComponent* DynamicMeshComponent = Cast<UDynamicMeshComponent>(Component))
+	{
+		Settings.CollisionTypeFlag = DynamicMeshComponent->CollisionType;
+	}
+	else if (const UBrushComponent* BrushComponent = Cast<UBrushComponent>(Component))
+	{
+		if (BrushComponent->BrushBodySetup)
+		{
+			Settings.CollisionTypeFlag = (int32)BrushComponent->BrushBodySetup->CollisionTraceFlag;
+		}
+	}
+
 	return Settings;
 }
+
+
+bool UE::Geometry::GetCollisionShapes(const UPrimitiveComponent* Component, FKAggregateGeom& AggGeom)
+{
+	if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
+	{
+		if (const UBodySetup* BodySetup = GetBodySetup(Component))
+		{
+			AggGeom = BodySetup->AggGeom;
+			return true;
+		}
+	}
+	else if (const UDynamicMeshComponent* DynamicMeshComponent = Cast<UDynamicMeshComponent>(Component))
+	{
+		AggGeom = DynamicMeshComponent->GetSimpleCollisionShapes();
+		return true;
+	}
+	else if (const UBrushComponent* BrushComponent = Cast<UBrushComponent>(Component))
+	{
+		if (BrushComponent->BrushBodySetup)
+		{
+			AggGeom = BrushComponent->BrushBodySetup->AggGeom;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UE::Geometry::GetCollisionShapes(const UPrimitiveComponent* Component, FSimpleShapeSet3d& ShapeSet)
+{
+	FKAggregateGeom AggGeom;
+	if (UE::Geometry::GetCollisionShapes(Component, AggGeom))
+	{
+		UE::Geometry::GetShapeSet(AggGeom, ShapeSet);
+		return true;
+	}
+
+	return false;
+}
+
+
+
+
 
 
 void UE::Geometry::UpdateSimpleCollision(
@@ -73,29 +135,34 @@ void UE::Geometry::UpdateSimpleCollision(
 	// rebuild physics meshes
 	BodySetup->CreatePhysicsMeshes();
 
-	StaticMesh->RecreateNavCollision();
-
-	// update physics state on all components using this StaticMesh
-	for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+	if (StaticMesh != nullptr)
 	{
-		UStaticMeshComponent* SMComponent = Cast<UStaticMeshComponent>(*Iter);
-		if (SMComponent->GetStaticMesh() == StaticMesh)
+		StaticMesh->RecreateNavCollision();
+
+		// update physics state on all components using this StaticMesh
+		for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
 		{
-			if (SMComponent->IsPhysicsStateCreated())
+			UStaticMeshComponent* SMComponent = Cast<UStaticMeshComponent>(*Iter);
+			if (SMComponent->GetStaticMesh() == StaticMesh)
 			{
-				SMComponent->RecreatePhysicsState();
+				if (SMComponent->IsPhysicsStateCreated())
+				{
+					SMComponent->RecreatePhysicsState();
+				}
 			}
 		}
-	}
 
-	// mark static mesh as dirty so it gets resaved?
-	[[maybe_unused]] bool MarkedDirty = StaticMesh->MarkPackageDirty();
+		// mark static mesh as dirty so it gets resaved?
+		[[maybe_unused]] bool MarkedDirty = StaticMesh->MarkPackageDirty();
 
 #if WITH_EDITORONLY_DATA
-	// mark the static mesh as having customized collision so it is not regenerated on reimport
-	StaticMesh->bCustomizedCollision = CollisionSettings.bIsGeneratedCollision;
+		// mark the static mesh as having customized collision so it is not regenerated on reimport
+		StaticMesh->bCustomizedCollision = CollisionSettings.bIsGeneratedCollision;
 #endif // WITH_EDITORONLY_DATA
+	}
 }
+
+
 
 
 const UBodySetup* UE::Geometry::GetBodySetup(const UPrimitiveComponent* Component)
@@ -157,12 +224,25 @@ bool UE::Geometry::SetSimpleCollision(
 	PhysicsData.Geometry = *ShapeSet;
 	PhysicsData.CopyGeometryToAggregate();
 
-	// FPhysicsDataCollection stores its references as const, but the input Component was non-const so this is ok to do
-	UStaticMesh* StaticMesh = const_cast<UStaticMesh*>(PhysicsData.SourceStaticMesh.Get());
-	UBodySetup* BodySetup = StaticMesh->GetBodySetup();
-	UpdateSimpleCollision(BodySetup, &PhysicsData.AggGeom, StaticMesh, CollisionSettings);
+	if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
+	{
+		if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
+		{
+			if (UBodySetup* BodySetup = StaticMesh->GetBodySetup())
+			{
+				UpdateSimpleCollision(BodySetup, &PhysicsData.AggGeom, StaticMesh, CollisionSettings);
+				return true;
+			}
+		}
+	}
+	else if (UDynamicMeshComponent* DynamicMeshComponent = Cast<UDynamicMeshComponent>(Component))
+	{
+		DynamicMeshComponent->CollisionType = (ECollisionTraceFlag)CollisionSettings.CollisionTypeFlag;
+		DynamicMeshComponent->SetSimpleCollisionShapes(PhysicsData.AggGeom, true);
+		return true;
+	}
 
-	return true;
+	return false;
 }
 
 
@@ -178,19 +258,29 @@ bool UE::Geometry::TransformSimpleCollision(
 		return false;
 	}
 
-	FComponentCollisionSettings Settings = GetCollisionSettings(Component);
-	Settings.bIsGeneratedCollision = false;
-
 	PhysicsData.Geometry.ApplyTransform(Transform);
 	PhysicsData.ClearAggregate();
 	PhysicsData.CopyGeometryToAggregate();
 
-	// FPhysicsDataCollection stores its references as const, but the input Component was non-const so this is ok to do
-	UStaticMesh* StaticMesh = const_cast<UStaticMesh*>(PhysicsData.SourceStaticMesh.Get());
-	UBodySetup* BodySetup = StaticMesh->GetBodySetup();
-	UpdateSimpleCollision(BodySetup, &PhysicsData.AggGeom, StaticMesh, Settings);
-
-	return true;
+	if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
+	{
+		FComponentCollisionSettings Settings = GetCollisionSettings(Component);
+		Settings.bIsGeneratedCollision = false;
+		if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
+		{
+			if (UBodySetup* BodySetup = StaticMesh->GetBodySetup())
+			{
+				UpdateSimpleCollision(BodySetup, &PhysicsData.AggGeom, StaticMesh, Settings);
+				return true;
+			}
+		}
+	}
+	else if (UDynamicMeshComponent* DynamicMeshComponent = Cast<UDynamicMeshComponent>(Component))
+	{
+		DynamicMeshComponent->SetSimpleCollisionShapes(PhysicsData.AggGeom, true);
+		return true;
+	}
+	return false;
 }
 
 

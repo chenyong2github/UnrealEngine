@@ -37,6 +37,9 @@ public:
 	// control whether the transfer materials option is displayed
 	UPROPERTY(meta = (TransientToolProperty))
 	bool bShowTransferMaterials = true;
+
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bTransferCollision = true;
 };
 
 

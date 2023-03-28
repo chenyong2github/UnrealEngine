@@ -10,6 +10,8 @@
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "ModelingToolTargetUtil.h"
+#include "Physics/ComponentCollisionUtil.h"
+#include "ShapeApproximation/SimpleShapeSet3.h"
 #include "Engine/StaticMesh.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TransferMeshTool)
@@ -179,6 +181,26 @@ void UTransferMeshTool::OnShutdown(EToolShutdownType ShutdownType)
 		else 
 		{
 			UE::ToolTarget::CommitMeshDescriptionUpdate(Targets[1], &SourceMesh, TransferMaterials);
+		}
+
+
+		if (BasicProperties->bTransferCollision)
+		{
+			UPrimitiveComponent* SourceComponent = UE::ToolTarget::GetTargetComponent(Targets[0]);
+			if (UE::Geometry::ComponentTypeSupportsCollision(SourceComponent, UE::Geometry::EComponentCollisionSupportLevel::ReadOnly))
+			{
+				UPrimitiveComponent* TargetComponent = UE::ToolTarget::GetTargetComponent(Targets[1]);
+				if (UE::Geometry::ComponentTypeSupportsCollision(TargetComponent))
+				{
+					FComponentCollisionSettings SourceCollisionSettings = UE::Geometry::GetCollisionSettings(SourceComponent);
+
+					FSimpleShapeSet3d SourceShapeSet;
+					if (UE::Geometry::GetCollisionShapes(SourceComponent, SourceShapeSet))
+					{
+						UE::Geometry::SetSimpleCollision(TargetComponent, &SourceShapeSet, SourceCollisionSettings);
+					}
+				}
+			}
 		}
 
 		GetToolManager()->EndUndoTransaction();

@@ -8,6 +8,7 @@
 #include "Engine/EngineTypes.h"   // FMeshNaniteSettings
 #include "MeshDescription.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "ShapeApproximation/SimpleShapeSet3.h"
 #include "Misc/Optional.h"
 
 #include "ModelingObjectsCreationAPI.generated.h"
@@ -137,6 +138,9 @@ struct MODELINGCOMPONENTS_API FCreateMeshObjectParams
 	/** Which Collision mode to enable on the new mesh object, if supported */
 	UPROPERTY(Category = "CreateMeshObjectParams", EditAnywhere)
 	TEnumAsByte<enum ECollisionTraceFlag> CollisionMode = ECollisionTraceFlag::CTF_UseComplexAsSimple;
+
+	/** Collision Shapes */
+	TOptional<UE::Geometry::FSimpleShapeSet3d> CollisionShapeSet;
 
 
 	//

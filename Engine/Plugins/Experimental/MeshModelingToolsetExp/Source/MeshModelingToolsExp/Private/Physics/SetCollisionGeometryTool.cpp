@@ -152,7 +152,12 @@ bool USetCollisionGeometryToolBuilder::CanBuildTool(const FToolBuilderState& Sce
 	UActorComponent* LastValidTarget = nullptr;
 	SceneState.TargetManager->EnumerateSelectedAndTargetableComponents(SceneState, GetTargetRequirements(),
 		[&](UActorComponent* Component) { LastValidTarget = Component; });
-	return (LastValidTarget != nullptr && Cast<UStaticMeshComponent>(LastValidTarget) != nullptr);
+	if (LastValidTarget != nullptr)
+	{
+		return (Cast<UStaticMeshComponent>(LastValidTarget) != nullptr) ||
+			(Cast<UDynamicMeshComponent>(LastValidTarget) != nullptr);
+	}
+	return false;
 }
 
 
@@ -347,13 +352,8 @@ void USetCollisionGeometryTool::OnShutdown(EToolShutdownType ShutdownType)
 
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("UpdateCollision", "Update Collision"));
 
-		// code below derived from FStaticMeshEditor::DuplicateSelectedPrims(), FStaticMeshEditor::OnCollisionSphere(), and GeomFitUtils.cpp::GenerateSphylAsSimpleCollision()
 
-		UPrimitiveComponent* Component = UE::ToolTarget::GetTargetComponent(Targets[Targets.Num() - 1]);
-		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
-		TObjectPtr<UStaticMesh> StaticMesh = (StaticMeshComponent) ? StaticMeshComponent->GetStaticMesh() : nullptr;
-		UBodySetup* BodySetup = (StaticMesh) ? StaticMesh->GetBodySetup() : nullptr;
-		if (BodySetup != nullptr)
+		auto UpdateBodySetup = [this](UBodySetup* BodySetup)
 		{
 			// mark the BodySetup for modification. Do we need to modify the UStaticMesh??
 			BodySetup->Modify();
@@ -369,33 +369,53 @@ void USetCollisionGeometryTool::OnShutdown(EToolShutdownType ShutdownType)
 
 			// rebuild physics meshes
 			BodySetup->CreatePhysicsMeshes();
+		};
 
-			StaticMesh->RecreateNavCollision();
 
-			// update physics state on all components using this StaticMesh
-			for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+		UPrimitiveComponent* Component = UE::ToolTarget::GetTargetComponent(Targets[Targets.Num() - 1]);
+		if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
+		{
+			// code below derived from FStaticMeshEditor::DuplicateSelectedPrims(), FStaticMeshEditor::OnCollisionSphere(), and GeomFitUtils.cpp::GenerateSphylAsSimpleCollision()
+			TObjectPtr<UStaticMesh> StaticMesh = (StaticMeshComponent) ? StaticMeshComponent->GetStaticMesh() : nullptr;
+			UBodySetup* BodySetup = (StaticMesh) ? StaticMesh->GetBodySetup() : nullptr;
+			if (BodySetup != nullptr)
 			{
-				UStaticMeshComponent* SMComponent = Cast<UStaticMeshComponent>(*Iter);
-				if (SMComponent->GetStaticMesh() == StaticMesh)
+				UpdateBodySetup(BodySetup);
+
+				StaticMesh->RecreateNavCollision();
+
+				// update physics state on all components using this StaticMesh
+				for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
 				{
-					if (SMComponent->IsPhysicsStateCreated())
+					UStaticMeshComponent* SMComponent = Cast<UStaticMeshComponent>(*Iter);
+					if (SMComponent->GetStaticMesh() == StaticMesh)
 					{
-						SMComponent->RecreatePhysicsState();
+						if (SMComponent->IsPhysicsStateCreated())
+						{
+							SMComponent->RecreatePhysicsState();
+						}
+						// Mark the render state dirty to make sure any CollisionTraceFlag changes get picked up
+						SMComponent->MarkRenderStateDirty();
 					}
-					// Mark the render state dirty to make sure any CollisionTraceFlag changes get picked up
-					SMComponent->MarkRenderStateDirty();
 				}
-			}
 
-			// do we need to do a post edit change here??
+				// do we need to do a post edit change here??
 
-			// mark static mesh as dirty so it gets resaved?
-			StaticMesh->MarkPackageDirty();
+				// mark static mesh as dirty so it gets resaved?
+				StaticMesh->MarkPackageDirty();
 
 #if WITH_EDITORONLY_DATA
-			// mark the static mesh as having customized collision so it is not regenerated on reimport
-			StaticMesh->bCustomizedCollision = true;
+				// mark the static mesh as having customized collision so it is not regenerated on reimport
+				StaticMesh->bCustomizedCollision = true;
 #endif // WITH_EDITORONLY_DATA
+			}
+		}
+		else if (UDynamicMeshComponent* DynamicMeshComponent = Cast<UDynamicMeshComponent>(Component))
+		{
+			if (UBodySetup* BodySetup = DynamicMeshComponent->GetBodySetup())
+			{
+				UpdateBodySetup(BodySetup);
+			}
 		}
 
 		// post the undo transaction

@@ -508,7 +508,7 @@ public:
 	 */
 	virtual void SetSimpleCollisionShapes(const struct FKAggregateGeom& AggGeom, bool bUpdateCollision);
 
-	virtual struct FKAggregateGeom& GetSimpleCollisionShapes()
+	const FKAggregateGeom& GetSimpleCollisionShapes() const
 	{
 		return AggGeom;
 	}

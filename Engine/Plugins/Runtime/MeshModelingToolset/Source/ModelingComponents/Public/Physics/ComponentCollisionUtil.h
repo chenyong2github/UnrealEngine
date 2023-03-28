@@ -29,11 +29,18 @@ struct MODELINGCOMPONENTS_API FComponentCollisionSettings
 	bool bIsGeneratedCollision = true;
 };
 
+
+enum EComponentCollisionSupportLevel
+{
+	ReadOnly = 0,
+	ReadWrite = 1
+};
+
 /**
  * @return true if the component type supports collision settings
  */
 MODELINGCOMPONENTS_API bool ComponentTypeSupportsCollision(
-	const UPrimitiveComponent* Component);
+	const UPrimitiveComponent* Component, EComponentCollisionSupportLevel SupportLevel = EComponentCollisionSupportLevel::ReadWrite);
 
 
 /**
@@ -41,6 +48,17 @@ MODELINGCOMPONENTS_API bool ComponentTypeSupportsCollision(
  */
 MODELINGCOMPONENTS_API FComponentCollisionSettings GetCollisionSettings(
 	const UPrimitiveComponent* Component);
+
+/**
+ * Get current Component collision shapes 
+ */
+MODELINGCOMPONENTS_API bool GetCollisionShapes(const UPrimitiveComponent* Component, FKAggregateGeom& AggGeomOut);
+
+/**
+ * Get current Component collision shapes 
+ */
+MODELINGCOMPONENTS_API bool GetCollisionShapes(const UPrimitiveComponent* Component, FSimpleShapeSet3d& ShapeSetOut);
+
 
 
 /**
@@ -79,14 +97,14 @@ MODELINGCOMPONENTS_API bool AppendSimpleCollision(
 
 /**
  * Replace existing Simple Collision geometry in BodySetup with that defined by NewGeometry,
- * and update the Component/BodySetup collision settings. Optional StaticMesh argument allows
+ * and update the Component/BodySetup collision settings. StaticMesh argument allows
  * for necessary updates to it and any active UStaticMeshComponent that reference it
  */
 MODELINGCOMPONENTS_API void UpdateSimpleCollision(
 	UBodySetup* BodySetup,
 	const FKAggregateGeom* NewGeometry,
-	UStaticMesh* StaticMesh = nullptr,
-	FComponentCollisionSettings CollisionSettings = FComponentCollisionSettings());
+	UStaticMesh* StaticMesh,
+	FComponentCollisionSettings NewCollisionSettings = FComponentCollisionSettings() );
 
 /**
  * @return BodySetup on the given SourceComponent, or nullptr if no BodySetup was found

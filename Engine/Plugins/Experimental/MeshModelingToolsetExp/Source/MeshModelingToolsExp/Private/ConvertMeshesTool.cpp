@@ -9,6 +9,8 @@
 #include "ModelingToolTargetUtil.h"
 #include "ModelingObjectsCreationAPI.h"
 #include "Selection/ToolSelectionUtil.h"
+#include "Physics/ComponentCollisionUtil.h"
+#include "ShapeApproximation/SimpleShapeSet3.h"
 
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
@@ -112,6 +114,23 @@ void UConvertMeshesTool::OnShutdown(EToolShutdownType ShutdownType)
 				NewMeshObjectParams.Materials = TransferMaterials->Materials;
 			}
 			NewMeshObjectParams.SetMesh(MoveTemp(SourceMesh));
+			
+			if (BasicProperties->bTransferCollision)
+			{
+				UPrimitiveComponent* SourceComponent = UE::ToolTarget::GetTargetComponent(Targets[k]);
+				if (UE::Geometry::ComponentTypeSupportsCollision(SourceComponent, UE::Geometry::EComponentCollisionSupportLevel::ReadOnly))
+				{
+					NewMeshObjectParams.bEnableCollision = true;
+					FComponentCollisionSettings CollisionSettings = UE::Geometry::GetCollisionSettings(SourceComponent);
+					NewMeshObjectParams.CollisionMode = (ECollisionTraceFlag)CollisionSettings.CollisionTypeFlag;
+
+					FSimpleShapeSet3d ShapeSet;
+					if (UE::Geometry::GetCollisionShapes(SourceComponent, ShapeSet))
+					{
+						NewMeshObjectParams.CollisionShapeSet = MoveTemp(ShapeSet);
+					}
+				}
+			}
 
 			NewMeshObjects.Add(MoveTemp(NewMeshObjectParams));
 		}

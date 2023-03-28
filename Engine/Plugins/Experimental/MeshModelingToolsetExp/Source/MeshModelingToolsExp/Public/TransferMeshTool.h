@@ -33,6 +33,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bTransferMaterials = true;
 
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bTransferCollision = false;
+
 	/** Specify which LOD from the Source (First) mesh to copy from */
 	UPROPERTY(EditAnywhere, Category = SourceMesh, meta = (DisplayName = "Source LOD", TransientToolProperty, NoResetToDefault, GetOptions = GetSourceLODNamesFunc, HideEditConditionToggle, EditCondition="bIsStaticMeshSource", EditConditionHides))
 	FString SourceLOD;
