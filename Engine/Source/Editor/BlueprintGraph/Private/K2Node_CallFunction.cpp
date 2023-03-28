@@ -1475,40 +1475,44 @@ bool UK2Node_CallFunction::CanEditorOnlyFunctionBeCalled(const UFunction* InFunc
 
 bool UK2Node_CallFunction::CanPasteHere(const UEdGraph* TargetGraph) const
 {
+	// If a BP class, prefer using the skeleton class.
+	// This ensures that there's agreement with the target graph's class when we call CanFunctionBeUsedInGraph.
+	const UClass* ParentClass = FunctionReference.GetMemberParentClass(GetBlueprintClassFromNode());
+	const UBlueprint* OwningBP = ParentClass ? Cast<UBlueprint>(ParentClass->ClassGeneratedBy) : nullptr;
+	if (OwningBP)
+	{
+		ParentClass = OwningBP->SkeletonGeneratedClass;
+	}
+	const UFunction* TargetFunction = ParentClass ? ParentClass->FindFunctionByName(FunctionReference.GetMemberName()) : nullptr;
+
 	// Basic check for graph compatibility, etc.
 	bool bCanPaste = Super::CanPasteHere(TargetGraph);
 
 	// Cannot paste editor only functions into runtime graphs
 	if (bCanPaste)
 	{
-		UFunction* TargetFunction = GetTargetFunction();
-
 		bCanPaste = CanEditorOnlyFunctionBeCalled(TargetFunction, TargetGraph);
 	}
 
 	// We check function context for placability only in the base class case; derived classes are typically bound to
 	// specific functions that should always be placeable, but may not always be explicitly callable (e.g. InternalUseOnly).
-	if(bCanPaste && GetClass() == StaticClass())
+	if (bCanPaste && GetClass() == StaticClass())
 	{
 		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 		uint32 AllowedFunctionTypes = UEdGraphSchema_K2::EFunctionType::FT_Pure | UEdGraphSchema_K2::EFunctionType::FT_Const | UEdGraphSchema_K2::EFunctionType::FT_Protected;
-		if(K2Schema->DoesGraphSupportImpureFunctions(TargetGraph))
+		if (K2Schema->DoesGraphSupportImpureFunctions(TargetGraph))
 		{
 			AllowedFunctionTypes |= UEdGraphSchema_K2::EFunctionType::FT_Imperative;
 		}
-		UFunction* TargetFunction = GetTargetFunction();
-		if( !TargetFunction )
+
+		if (TargetFunction)
 		{
-			TargetFunction = GetTargetFunctionFromSkeletonClass();
-		}
-		if (!TargetFunction)
-		{
-			// If the function doesn't exist and it is from self context, then it could be created from a CustomEvent node, that was also pasted (but wasn't compiled yet).
-			bCanPaste = FunctionReference.IsSelfContext();
+			bCanPaste = K2Schema->CanFunctionBeUsedInGraph(FBlueprintEditorUtils::FindBlueprintForGraphChecked(TargetGraph)->SkeletonGeneratedClass, TargetFunction, TargetGraph, AllowedFunctionTypes, false);
 		}
 		else
 		{
-			bCanPaste = K2Schema->CanFunctionBeUsedInGraph(FBlueprintEditorUtils::FindBlueprintForGraphChecked(TargetGraph)->GeneratedClass, TargetFunction, TargetGraph, AllowedFunctionTypes, false);
+			// If the function doesn't exist and it is from self context, then it could be created from a CustomEvent node, that was also pasted (but wasn't compiled yet).
+			bCanPaste = FunctionReference.IsSelfContext();
 		}
 	}
 	
