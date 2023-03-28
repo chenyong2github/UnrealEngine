@@ -69,9 +69,15 @@ public:
 
 	/** Default constructor. */
 	TScriptDelegate() 
-		: Object( nullptr ),
-		  FunctionName( NAME_None )
+		: Object( nullptr )
+		, FunctionName( NAME_None )
 	{ }
+
+	TScriptDelegate(const TScriptDelegate& Other)
+		: Object(Other.Object)
+		, FunctionName(Other.FunctionName)
+	{
+	}
 
 	template <
 		typename OtherDummy
