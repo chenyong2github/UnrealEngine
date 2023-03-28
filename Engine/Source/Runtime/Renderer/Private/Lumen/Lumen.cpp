@@ -12,13 +12,6 @@ static TAutoConsoleVariable<int32> CVarLumenAsyncCompute(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarLumenHardwareRayTracingAsyncCompute(
-	TEXT("r.Lumen.HardwareRayTracing.AsyncCompute"),
-	0,
-	TEXT("Whether Lumen when using Hardware Ray Tracing should use async compute if supported (default = 0)."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarLumenThreadGroupSize32(
 	TEXT("r.Lumen.ThreadGroupSize32"),
 	1,
@@ -34,7 +27,7 @@ bool Lumen::UseAsyncCompute(const FViewFamilyInfo& ViewFamily)
 	if (Lumen::UseHardwareRayTracing(ViewFamily))
 	{
 		// Async for Lumen HWRT path can only be used by inline ray tracing
-		bUseAsync &= CVarLumenHardwareRayTracingAsyncCompute.GetValueOnRenderThread() != 0 && Lumen::UseHardwareInlineRayTracing(ViewFamily);
+		bUseAsync &= CVarLumenAsyncCompute.GetValueOnRenderThread() != 0 && Lumen::UseHardwareInlineRayTracing(ViewFamily);
 	}
 
 	return bUseAsync;
