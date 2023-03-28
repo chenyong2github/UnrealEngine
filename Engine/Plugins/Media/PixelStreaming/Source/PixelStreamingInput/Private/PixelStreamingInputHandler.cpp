@@ -251,7 +251,8 @@ namespace UE::PixelStreamingInput
 			FMemoryReader Ar(Message.Data);
 			(*Message.Handler)(Ar);
 		}
-
+		
+		ProcessLatestAnalogInputFromThisTick();
 		BroadcastActiveTouchMoveEvents();
 	}
 
@@ -561,33 +562,10 @@ namespace UE::PixelStreamingInput
 
 	void FPixelStreamingInputHandler::HandleOnControllerAnalog(FMemoryReader Ar)
 	{
-		TPayloadThreeParam<uint8, uint8, double> Payload(Ar);
-		FKey* AxisPtr = FPixelStreamingInputConverter::GamepadInputToFKey.Find(MakeTuple(Payload.Param2, Action::Axis));
-		if (AxisPtr == nullptr)
-		{
-			return;
-		}
-
-		FInputDeviceId ControllerId = FInputDeviceId::CreateFromInternalId((int32)Payload.Param1);
-		float AnalogValue = (float)Payload.Param3;
-		FPlatformUserId UserId = IPlatformInputDeviceMapper::Get().GetPrimaryPlatformUser();
-
-		FSlateApplication& SlateApplication = FSlateApplication::Get();
-		FAnalogInputEvent AnalogInputEvent(
-			*AxisPtr,													  /* InKey */
-			SlateApplication.GetPlatformApplication()->GetModifierKeys(), /* InModifierKeys */
-			ControllerId,												  /* InDeviceId */
-			false,														  /* bInIsRepeat*/
-			0,															  /* InCharacterCode */
-			0,															  /* InKeyCode */
-			AnalogValue,												  /* InAnalogValue */
-			// TODO (william.belcher): This user idx should be the playerId
-			0 /* InUserIndex */
-		);
-		FSlateApplication::Get().ProcessAnalogInputEvent(AnalogInputEvent);
-
-		// Commented to reduce log spam
-		// UE_LOG(LogPixelStreamingInputHandler, Verbose, TEXT("GAMEPAD_ANALOG: ControllerId = %d; KeyName = %s; AnalogValue = %.4f;"), ControllerId.GetId(), *AxisPtr->ToString(), AnalogValue);
+		const TPayloadThreeParam<uint8, uint8, double> Payload(Ar);
+		const FInputDeviceId ControllerId = FInputDeviceId::CreateFromInternalId((int32)Payload.Param1);
+		// Overwrite the last data: every tick only process the latest
+		AnalogEventsReceivedThisTick.FindOrAdd(ControllerId).FindOrAdd(Payload.Param2) = Payload.Param3;
 	}
 
 	void FPixelStreamingInputHandler::HandleOnControllerButtonPressed(FMemoryReader Ar)
@@ -1253,6 +1231,41 @@ namespace UE::PixelStreamingInput
 				return false;
 		}
 		return true;
+	}
+
+	void FPixelStreamingInputHandler::ProcessLatestAnalogInputFromThisTick()
+	{
+		for (auto AnalogInputIt = AnalogEventsReceivedThisTick.CreateConstIterator(); AnalogInputIt; ++AnalogInputIt)
+		{
+			for (auto FKeyIt = AnalogInputIt->Value.CreateConstIterator(); FKeyIt; ++FKeyIt)
+			{
+				ProcessAnalog(AnalogInputIt->Key, FKeyIt->Key, FKeyIt->Value);
+			}
+		}
+		AnalogEventsReceivedThisTick.Reset();
+	}
+
+	void FPixelStreamingInputHandler::ProcessAnalog(const FInputDeviceId& ControllerId, FKeyId Key, FAnalogValue AnalogValue)
+	{
+		const FKey* AxisPtr = FPixelStreamingInputConverter::GamepadInputToFKey.Find(MakeTuple(Key, Action::Axis));
+		if (!AxisPtr)
+		{
+			return;
+		}
+		
+		FSlateApplication& SlateApplication = FSlateApplication::Get();
+		const FAnalogInputEvent AnalogInputEvent(
+			*AxisPtr,														/* InKey */
+			SlateApplication.GetPlatformApplication()->GetModifierKeys(),	/* InModifierKeys */
+			ControllerId,													/* InDeviceId */
+			false,													/* bInIsRepeat*/
+			0,													/* InCharacterCode */
+			0,														/* InKeyCode */
+			AnalogValue,													/* InAnalogValue */
+			// TODO (william.belcher): This user idx should be the playerId
+			0 /* InUserIndex */
+		);
+		FSlateApplication::Get().ProcessAnalogInputEvent(AnalogInputEvent);
 	}
 
 	void FPixelStreamingInputHandler::BroadcastActiveTouchMoveEvents()

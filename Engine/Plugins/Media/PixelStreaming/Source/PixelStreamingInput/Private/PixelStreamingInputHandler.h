@@ -63,6 +63,7 @@ namespace UE::PixelStreamingInput
 		// End IMotionController Interface
 
 	protected:
+		
 		/**
 		 * Key press handling
 		 */
@@ -134,6 +135,26 @@ namespace UE::PixelStreamingInput
 
 		// Keep a cache of the last touch events as we need to fire Touch Moved every frame while touch is down
 		TMap<int32, FCachedTouchEvent> CachedTouchEvents;
+		
+		using FKeyId = uint8;
+		using FAnalogValue = double;
+		/**
+		 * If more values are received in a single tick (e.g. could be temp network issue),
+		 * then we only forward the latest value.
+		 * 
+		 * Reason: The input system seems to expect at most one raw analog value per FKey per Tick.
+		 * If this is not done, the input system can get stuck on non-zero input value even if the user has
+		 * already stopped moving the analog stick. It would stay stuck until the next time the user moves the stick.
+		 * 
+		 * The values arrive in the order of recording: that means once the player releases the analog,
+		 * the last analog value would be 0.
+		 */
+		TMap<FInputDeviceId, TMap<FKeyId, FAnalogValue>> AnalogEventsReceivedThisTick;
+
+		/** Forwards the latest analog input received for each key this tick. */
+		void ProcessLatestAnalogInputFromThisTick();
+		/** Forward a single analog input the engine. */
+		void ProcessAnalog(const FInputDeviceId& ControllerId, FKeyId Key, FAnalogValue AnalogValue);
 
 		// Track which touch events we processed this frame so we can avoid re-processing them
 		TSet<int32> TouchIndicesProcessedThisFrame;
