@@ -528,8 +528,9 @@
 			]
 		},
 		{
-			"category": "GlobalAveragePool",
+			"category": "GlobalPool",
 			"targets": [
+				{ "target": "GlobalMaxPool" },
 				{ "target": "GlobalAveragePool", "absolute_tolerance": 1e-6 }
 			],
 			"runtimes": [
@@ -1185,13 +1186,13 @@
 			]
 		},
 		{
-			"name": "GlobalAveragePool.2D",
+			"name": "GlobalPool.2D",
 			"datasets": [
 				{ "inputs": [ { "shape": [ 2, 2, 128, 256 ] } ], "outputs": [ { "shape": [ 2, 2, 1, 1 ] } ] }
 			]
 		},
 		{
-			"name": "GlobalAveragePool.3D",
+			"name": "GlobalPool.3D",
 			"datasets": [
 				{ "inputs": [ { "shape": [ 2, 3, 128, 256, 64 ] } ], "outputs": [ { "shape": [ 2, 3, 1, 1, 1 ] } ] }
 			]

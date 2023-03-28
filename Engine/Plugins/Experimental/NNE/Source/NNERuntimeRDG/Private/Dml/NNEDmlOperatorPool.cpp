@@ -206,6 +206,7 @@ static FDmlOperator##OpName##Registrator RegisterDmlOperator##OpName;
 
 // Register pooling operator on Module startup
 NNE_DML_REGISTER_POOLING_OP(MaxPool, MAX, false)
+NNE_DML_REGISTER_POOLING_OP(GlobalMaxPool, MAX, true)
 NNE_DML_REGISTER_POOLING_OP(AveragePool, AVERAGE, false)
 NNE_DML_REGISTER_POOLING_OP(GlobalAveragePool, AVERAGE, true)
 
