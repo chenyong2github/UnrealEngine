@@ -206,28 +206,23 @@ namespace UE::PixelStreamingInput
 		EControllerHand DeviceHand;
 		if (GetHandEnumForSourceName(MotionSource, DeviceHand))
 		{
-			return GetControllerOrientationAndPosition(ControllerIndex, DeviceHand, OutOrientation, OutPosition, WorldToMetersScale);
+			FPixelStreamingXRController Controller = XRControllers.FindRef(DeviceHand);
+			OutOrientation = Controller.Transform.Rotator();
+			OutPosition = Controller.Transform.GetTranslation();
+			return true;
 		}
 		return false;
 	}
 
-	bool FPixelStreamingInputHandler::GetControllerOrientationAndPosition(const int32 ControllerIndex, const EControllerHand DeviceHand, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const
+	ETrackingStatus FPixelStreamingInputHandler::GetControllerTrackingStatus(const int32 ControllerIndex, const FName MotionSource) const
 	{
-		if (FPixelStreamingHMD* HMD = IPixelStreamingHMDModule::Get().GetPixelStreamingHMD(); (HMD == nullptr || ControllerIndex == INDEX_NONE))
+		EControllerHand DeviceHand;
+		if (GetHandEnumForSourceName(MotionSource, DeviceHand))
 		{
-			return false;
+			const FPixelStreamingXRController* Controller = XRControllers.Find(DeviceHand);
+			return (Controller != nullptr) ? ETrackingStatus::Tracked : ETrackingStatus::NotTracked;
 		}
-
-		FPixelStreamingXRController Controller = XRControllers.FindRef(DeviceHand);
-		OutOrientation = Controller.Transform.Rotator();
-		OutPosition = Controller.Transform.GetTranslation();
-		return true;
-	}
-
-	ETrackingStatus FPixelStreamingInputHandler::GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const
-	{
-		const FPixelStreamingXRController* Controller = XRControllers.Find(DeviceHand);
-		return (Controller != nullptr) ? ETrackingStatus::Tracked : ETrackingStatus::NotTracked;
+		return ETrackingStatus::NotTracked;
 	}
 
 	void FPixelStreamingInputHandler::EnumerateSources(TArray<FMotionControllerSource>& SourcesOut) const

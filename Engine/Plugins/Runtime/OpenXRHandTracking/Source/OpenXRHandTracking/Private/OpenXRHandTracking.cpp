@@ -387,60 +387,25 @@ bool FOpenXRHandTracking::GetControllerOrientationAndPosition(const int32 Contro
 		OutOrientation = ControllerTransform.GetRotation().Rotator();
 	}
 
-	// Then call super to handle a few of the default labels (eg AnyHand), for backward compatibility
-	if (bSupportLegacyControllerMotionSources)
-	{
-		FXRMotionControllerBase::GetControllerOrientationAndPosition(ControllerIndex, MotionSource, OutOrientation, OutPosition, WorldToMetersScale);
-	}
-
 	return bTracked;
 }
 
-bool FOpenXRHandTracking::GetControllerOrientationAndPosition(const int32 ControllerIndex, const EControllerHand DeviceHand, FRotator& OutOrientation, FVector& OutPosition, float WorldToMetersScale) const
-{
-	if (!bHandTrackingAvailable)
-	{
-		return false;
-	}
-
-	bool bControllerTracked = false;
-	if (ControllerIndex == DeviceIndex)
-	{
-		if (GetControllerTrackingStatus(ControllerIndex, DeviceHand) != ETrackingStatus::NotTracked)
-		{
-			const FTransform* ControllerTransform = nullptr;
-
-			if (DeviceHand == EControllerHand::Left)
-			{
-				ControllerTransform = &GetLeftHandState().GetTransform(EHandKeypoint::Palm);
-			}
-			else if (DeviceHand == EControllerHand::Right)
-			{
-				ControllerTransform = &GetRightHandState().GetTransform(EHandKeypoint::Palm);
-			}
-
-			if (ControllerTransform != nullptr)
-			{
-				OutPosition = ControllerTransform->GetLocation();
-				OutOrientation = ControllerTransform->GetRotation().Rotator();
-
-				bControllerTracked = true;
-			}
-		}
-	}
-
-	return bControllerTracked;
-}
-
-ETrackingStatus FOpenXRHandTracking::GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const
+ETrackingStatus FOpenXRHandTracking::GetControllerTrackingStatus(const int32 ControllerIndex, const FName MotionSource) const
 {
 	if (!bHandTrackingAvailable)
 	{
 		return ETrackingStatus::NotTracked;
 	}
 
-	const FOpenXRHandTracking::FHandState& HandState = (DeviceHand == EControllerHand::Left) ? GetLeftHandState() : GetRightHandState();
-	return HandState.ReceivedJointPoses ? ETrackingStatus::Tracked : ETrackingStatus::NotTracked;
+	const MotionSourceInfo* KeyPointInfoPtr = MotionSourceToKeypointMap.Find(MotionSource);
+	if (KeyPointInfoPtr)
+	{
+		const bool bIsLeft = KeyPointInfoPtr->Value;
+		const FOpenXRHandTracking::FHandState& HandState = bIsLeft ? GetLeftHandState() : GetRightHandState();
+		return HandState.ReceivedJointPoses ? ETrackingStatus::Tracked : ETrackingStatus::NotTracked;
+	}
+
+	return ETrackingStatus::NotTracked;
 }
 
 FName FOpenXRHandTracking::GetMotionControllerDeviceTypeName() const

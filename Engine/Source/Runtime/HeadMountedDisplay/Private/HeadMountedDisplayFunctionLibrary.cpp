@@ -10,7 +10,6 @@
 #include "IXRSystemAssets.h"
 #include "Components/PrimitiveComponent.h"
 #include "Features/IModularFeatures.h"
-#include "XRMotionControllerBase.h" // for GetHandEnumForSourceName()
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HeadMountedDisplayFunctionLibrary)
 

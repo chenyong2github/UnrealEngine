@@ -30,7 +30,7 @@ namespace OculusInput
 // FOculusInput
 //-------------------------------------------------------------------------------------------------
 
-class FOculusInput : public IInputDevice, public FXRMotionControllerBase, public IHapticDevice
+class FOculusInput : public IInputDevice, public FXRMotionControllerBaseLegacy, public IHapticDevice
 {
 	friend class FOculusHandTracking;
 

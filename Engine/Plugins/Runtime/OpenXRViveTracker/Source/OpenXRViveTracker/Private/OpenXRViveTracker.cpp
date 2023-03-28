@@ -279,7 +279,7 @@ bool FOpenXRViveTracker::GetControllerOrientationAndPositionForTime(const int32 
 	return false;
 }
 
-ETrackingStatus FOpenXRViveTracker::GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const
+ETrackingStatus FOpenXRViveTracker::GetControllerTrackingStatus(const int32 ControllerIndex, const FName MotionSource) const
 {
 	if (!bActionsAttached || OpenXRHMD == nullptr)
 	{
@@ -291,6 +291,13 @@ ETrackingStatus FOpenXRViveTracker::GetControllerTrackingStatus(const int32 Cont
 	{
 		return ETrackingStatus::NotTracked;
 	}
+
+	if (!(ControllerIndex == DeviceIndex && MotionSourceToEControllerHandMap.Contains(MotionSource)))
+	{
+		return ETrackingStatus::NotTracked;
+	}
+
+	const EControllerHand DeviceHand = MotionSourceToEControllerHandMap.FindChecked(MotionSource);
 
 	const FViveTracker* Tracker = Trackers.Find(DeviceHand);
 	if (!Tracker)
