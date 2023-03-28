@@ -88,7 +88,10 @@ void Main(
 			{
 				FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, V, L);
 				FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, true /*bEnableSpecular*/, Settings);
-				const float3 Weight = CurrentBSDF.LuminanceWeightV; // Use LuminanceWeightV instead of LuminanceWeight(..) as we only need to weight these value with the view transmittance, not the light transmittance;
+
+				// Use LuminanceWeightV instead of LuminanceWeight(..) as we only need to weight these value with the view transmittance, not the light transmittance;
+				const float3 Weight = CurrentBSDF.LuminanceWeightV; 
+
 				DiffuseColor  += Weight * (StrataEnvLight.DiffuseWeight + StrataEnvLight.DiffuseBackFaceWeight); // This is not correct, as the albedo/diffuse color can go above 1. However this is necessary to match legacy behavior.
 				SpecularColor += Weight * StrataEnvLight.SpecularWeight;
 				WorldNormal   += Weight * StrataBSDFContext.N;
