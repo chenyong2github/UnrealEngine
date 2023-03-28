@@ -37,6 +37,9 @@ public:
 
 	/** @return the filter weight given a 2D distance vector, in Texel units. */
 	float GetWeight(const FVector2d& Dist) const;
+
+	/** @return true if the given 2D distance vector, in Texel units, is in the region where the filter is defined and false otherwise */
+	bool IsInFilterRegion(const FVector2d& Dist) const;
 };
 
 template<EBCSplineType SplineType, bool bIsRadial>
@@ -109,6 +112,16 @@ float FBCSplineFilter<SplineType, bIsRadial>::GetWeight(const FVector2d& Dist) c
 		const float WeightY = ComputeWeight((float)Dist.Y);
 		return WeightX * WeightY;
 	}
+}
+
+template<EBCSplineType SplineType, bool bIsRadial>
+bool FBCSplineFilter<SplineType, bIsRadial>::IsInFilterRegion(const FVector2d& Dist) const
+{
+	if constexpr(bIsRadial)
+	{
+		return (FMathf::Abs((float)Dist.Length() / Radius) < 2.0f);
+	}
+	return (FMathf::Abs((float)Dist.X / Radius) < 2.0f) && (FMathf::Abs((float)Dist.Y / Radius) < 2.0f);
 }
 
 using FBSplineFilter = FBCSplineFilter<EBCSplineType::BSpline, /*bIsRadial*/ false>;

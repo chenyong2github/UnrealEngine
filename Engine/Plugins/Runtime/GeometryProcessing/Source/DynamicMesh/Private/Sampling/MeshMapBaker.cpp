@@ -21,6 +21,131 @@ FBoxFilter FMeshMapBaker::BoxFilter(BoxFilterRadius);
 FBSplineFilter FMeshMapBaker::BSplineFilter(BCFilterRadius);
 FMitchellNetravaliFilter FMeshMapBaker::MitchellNetravaliFilter(BCFilterRadius);
 
+namespace
+{
+
+void ComputeGutterTexelsUsingFilterKernelCoverage(
+	FImageOccupancyMap& OccupancyMap,
+	FImageTile Tile,
+	FImageDimensions Dimensions,
+	int32 FilterKernelSize,
+	bool(*IsInFilterRegionEval)(const FVector2d& Dist))
+{
+	const int64 TexelsPerTile = Tile.Num();
+	const int64 TexelsPerPaddedTile = OccupancyMap.Tile.Num();
+	const int32 SamplesPerTexel = OccupancyMap.PixelSampler.Num();
+
+	TArray64<int8> TexelIsGutter;
+	TexelIsGutter.Init(true, Tile.Num());
+
+	// First pass: Identify Gutter texels as the texels whose centers are not covered by any filter kernels
+	// placed at interior/border sample points of texels in the PaddedTile.
+	for (int64 TexelIndexInPaddedTile = 0; TexelIndexInPaddedTile < TexelsPerPaddedTile; ++TexelIndexInPaddedTile)
+	{
+		const FVector2i TexelCoordsInImage = OccupancyMap.Tile.GetSourceCoords(TexelIndexInPaddedTile);
+
+		// Check filter kernel coverage for each interior sample in the image texels
+		for (int32 SampleIndexInTexel = 0; SampleIndexInTexel < SamplesPerTexel; ++SampleIndexInTexel)
+		{
+			const int64 SampleIndexInPaddedTile = TexelIndexInPaddedTile * SamplesPerTexel + SampleIndexInTexel;
+			if (!OccupancyMap.IsInterior(SampleIndexInPaddedTile))
+			{
+				continue; // Not an interior sample, do nothing
+			}
+
+			const FVector2i KernelStartCoordsInImage(
+				FMath::Clamp(TexelCoordsInImage.X - FilterKernelSize, 0, Dimensions.GetWidth()),
+				FMath::Clamp(TexelCoordsInImage.Y - FilterKernelSize, 0, Dimensions.GetHeight())
+				);
+			const FVector2i KernelEndCoordsInImage(
+				FMath::Clamp(TexelCoordsInImage.X + FilterKernelSize + 1, 0, Dimensions.GetWidth()),
+				FMath::Clamp(TexelCoordsInImage.Y + FilterKernelSize + 1, 0, Dimensions.GetHeight())
+				);
+			const FImageTile KernelTile(KernelStartCoordsInImage, KernelEndCoordsInImage);
+			const int64 NbrTexelsPerKernelTile = KernelTile.Num();
+
+			for (int64 NbrTexelIndexInKernel = 0; NbrTexelIndexInKernel < NbrTexelsPerKernelTile; NbrTexelIndexInKernel++)
+			{
+				const FVector2i NbrTexelCoordsInImage = KernelTile.GetSourceCoords(NbrTexelIndexInKernel);
+
+				// Skip neighbour texels in the padding
+				if (!Tile.Contains(NbrTexelCoordsInImage.X, NbrTexelCoordsInImage.Y))
+				{
+					continue;
+				}
+
+				const int64 NbrTexelIndexInPaddedTile = OccupancyMap.Tile.GetIndexFromSourceCoords(NbrTexelCoordsInImage);
+				const int32 NbrTexelUVChart = OccupancyMap.TexelQueryUVChart[NbrTexelIndexInPaddedTile];
+				// Note: The occupancy map assigned UV chart indices to texels so all samples use this value
+				const int32 SampleUVChart = OccupancyMap.TexelQueryUVChart[TexelIndexInPaddedTile];
+
+				// Compute the filter coverage based on the UV distance from the neighbor texel center to the sample position
+				// Note: No contribution if the sample and neighbor texel are on different UV charts
+				if (SampleUVChart == NbrTexelUVChart)
+				{
+					// See :GridAlignedFilterKernels
+					FVector2d SampleUVInImage;
+					{
+						const FVector2d TexelSize = Dimensions.GetTexelSize();
+						const int64 TexelIndexInImage = Dimensions.GetIndex(TexelCoordsInImage.X, TexelCoordsInImage.Y);
+						const FVector2d TexelCenterUV = Dimensions.GetTexelUV(TexelIndexInImage);
+						const FVector2d SampleUVInTexel = OccupancyMap.PixelSampler.Sample(SampleIndexInTexel);
+						SampleUVInImage = TexelCenterUV - 0.5 * TexelSize + SampleUVInTexel * TexelSize;
+					}
+
+					const FVector2d NbrTexelCenterUV = Dimensions.GetTexelUV(NbrTexelCoordsInImage);
+
+					const FVector2d TexelDistance = Dimensions.GetTexelDistance(NbrTexelCenterUV, SampleUVInImage);
+					if (IsInFilterRegionEval(TexelDistance))
+					{
+						const int64 NbrTexelIndexInTile = Tile.GetIndexFromSourceCoords(NbrTexelCoordsInImage);
+						TexelIsGutter[NbrTexelIndexInTile] = false;
+					}
+				}
+			}
+		} // end sample loop
+	} // end texel loop
+
+	// Second pass: Construct Gutter texel to Interior texel mapping
+	for (int64 GutterTexelIndexInTile = 0; GutterTexelIndexInTile < TexelsPerTile; ++GutterTexelIndexInTile)
+	{
+		const FVector2i GutterTexelCoordsInImage = Tile.GetSourceCoords(GutterTexelIndexInTile);
+		const int64 GutterTexelIndexInImage = Dimensions.GetIndex(GutterTexelCoordsInImage);
+		if (!TexelIsGutter[GutterTexelIndexInTile])
+		{
+			continue; // Not a Gutter texel, do nothing
+		}
+
+		for (int32 SampleIndexInTexel = 0; SampleIndexInTexel < SamplesPerTexel; ++SampleIndexInTexel)
+		{
+			const int64 GutterTexelIndexInPaddedTile = OccupancyMap.Tile.GetIndexFromSourceCoords(GutterTexelCoordsInImage);
+			const int64 SampleIndexInPaddedTile = GutterTexelIndexInPaddedTile * SamplesPerTexel + SampleIndexInTexel;
+			if (OccupancyMap.TexelType[SampleIndexInPaddedTile] == OccupancyMap.GutterTexel)
+			{
+				// To avoid artifacts with mipmapping the gutter texels store the nearest interior texel and a
+				// post pass copies those nearest interior texel values to each gutter pixel. The mapped texel
+				// should be an interior texel since interior texels cover the UV mesh, so when we snap the
+				// closest UV point to the nearest texel it should be an interior texel
+				//
+				// TODO There can be interior texels closer to the gutter the texel than the one we find here. The texel
+				// found here is the interior texel that partially covers the UV mesh. Since we set interior texels from
+				// kernel coverage there will be a nearer texel. We could fix this by using the TexelQueryUV to define a
+				// search direction along which we can find the right texel, or better, use filter kernels to propogate
+				// known data into the gutter. Search :NearestInteriorGutterTexel for a related problem in the OccupancyMap
+				//
+				const FVector2d SampleUV = (FVector2d)OccupancyMap.TexelQueryUV[SampleIndexInPaddedTile];
+				const FVector2i NearestTexelCoordsInImage = Dimensions.UVToCoords(SampleUV);
+				const int64 MappedTexelIndexInImage = Dimensions.GetIndex(NearestTexelCoordsInImage);
+				const TTuple<int64, int64> GutterTexel(GutterTexelIndexInImage, MappedTexelIndexInImage);
+				OccupancyMap.GutterTexels.Add(GutterTexel);
+
+				break;
+			}
+		} // end sample loop
+	} // end tile pixel loop
+}
+
+} // end anonymous namespace
 
 void FMeshMapBaker::InitBake()
 {
@@ -324,7 +449,9 @@ void FMeshMapBaker::Bake()
 		FImageOccupancyMap OccupancyMap;
 		OccupancyMap.GutterSize = GutterSize;
 		OccupancyMap.Initialize(Dimensions, PaddedTile, SamplesPerPixel);
-		OccupancyMap.ComputeFromUVSpaceMesh(FlatMesh, [this](int32 TriangleID) { return FlatMesh.GetTriangleGroup(TriangleID); }, TargetMeshUVCharts);
+		const auto GetTriangleIDFunc = [this](int32 TriangleID) { return FlatMesh.GetTriangleGroup(TriangleID); };
+		OccupancyMap.ClassifySamplesFromUVSpaceMesh(FlatMesh, GetTriangleIDFunc, TargetMeshUVCharts);
+		ComputeGutterTexelsUsingFilterKernelCoverage(OccupancyMap, Tile, Dimensions, FilterKernelSize, IsInFilterRegionEval);
 		GutterTexelsPerTile[TileIdx] = OccupancyMap.GutterTexels;
 
 		const int64 NumTilePixels = Tile.Num();
@@ -367,22 +494,53 @@ void FMeshMapBaker::Bake()
 						const int64 LinearIdx = OccupancyMapLinearIdx * NumSamples + SampleIdx;
 						if (OccupancyMap.IsInterior(LinearIdx))
 						{
-							const FVector2d UVPosition = (FVector2d)OccupancyMap.TexelQueryUV[LinearIdx];
-							const int32 UVTriangleID = OccupancyMap.TexelQueryTriangle[LinearIdx];
+							// This block calls BakeSample on all interior/border samples of the OccupancyMap. In the code
+							// below QueryUVInImage is the UV coordinate in the multisampled texel image where the
+							// evaluators are evaluated. This coordinate is computed by the OccupancyMap and is the same
+							// as the sample's UV coordinate in the sample grid implied by the multisampled image
+							// (SampleUVInImage) if SampleUVInImage lies in the UV unwrap mesh. If SampleUVInImage is
+							// not in the UV mesh this sample is a border sample and the samples texel will not fully
+							// overlap with UV unwrap mesh. The evaluators must be evaluated at a UV position in the
+							// unwrap mesh so we must use QueryUVInImage position. The filter weights which apply the
+							// evaluated result to surrounding texels, however, could be could be placed at either of
+							// these positions. Until UE 5.2 we used QueryUVInImage but this contributed to issue UE-169350.
+							// QueryUVInImage points can be arbitrarily located relative to the texel centers which
+							// meant we ended up with kernels that narrowly overlapped with texel centers resulting
+							// in tiny filter weights and cases where the overall filter weight for the texel was zero
+							// (persumably because the Mitchell-Netravali filter function becomes negative near the
+							// edges so contributions from different samples can sum to zero). This resulted in speckles
+							// (aka black texels surrounded by neighbours of a very different value) in the final image.
+							// To fix this we now place filter kernels at SampleUVInImage which eliminates the
+							// small/arbitrary overlap between the filter kernel and texel centers (in fact the kernel
+							// overlaps are limited to a small number of possiblities determined by the sample positions
+							// in the texel and the kernel radius ie independent of the position of the uv unwrap mesh).
+							// This is also relevant for the code labeled :GridAlignedFilterKernels
+
+							FVector2d SampleUVInImage;
+							{
+								const FVector2d TexelSize = Dimensions.GetTexelSize();
+								const int64 TexelIndexInImage = Dimensions.GetIndex(ImageCoords.X, ImageCoords.Y);
+								const FVector2d TexelCenterUV = Dimensions.GetTexelUV(TexelIndexInImage);
+								const FVector2d SampleUVInTexel = OccupancyMap.PixelSampler.Sample(SampleIdx);
+								SampleUVInImage = TexelCenterUV - 0.5 * TexelSize + SampleUVInTexel * TexelSize;
+							}
+
+							const FVector2d QueryUVInImage = (FVector2d)OccupancyMap.TexelQueryUV[LinearIdx];
 
 							// Compute the per-sample correspondence data 
 							// Note: Since we check LinearIdx is an interior sample above we know we'll get a valid
 							// SampleInfo because interior samples all have valid UVTriangleIDs.
 							FMeshUVSampleInfo SampleInfo;
-							if (MeshUVSampler.QuerySampleInfo(UVTriangleID, UVPosition, SampleInfo))
+							const int32 UVTriangleID = OccupancyMap.TexelQueryTriangle[LinearIdx];
+							if (MeshUVSampler.QuerySampleInfo(UVTriangleID, QueryUVInImage, SampleInfo))
 							{
 								FMeshMapEvaluator::FCorrespondenceSample Sample;
 								bool bSampleValid = ComputeCorrespondenceSample(SampleInfo, Sample);
 								if (bSampleValid)
 								{
-									BakeSample(*TileBuffer, Sample, UVPosition, ImageCoords, OccupancyMap);
+									BakeSample(*TileBuffer, Sample, SampleUVInImage, ImageCoords, OccupancyMap);
 								}
-								InteriorSampleCallback(bSampleValid, Sample, UVPosition, ImageCoords);
+								InteriorSampleCallback(bSampleValid, Sample, SampleUVInImage, ImageCoords);
 							}
 						}
 					}
@@ -546,7 +704,7 @@ void FMeshMapBaker::Bake()
 void FMeshMapBaker::BakeSample(
 	FMeshMapTileBuffer& TileBuffer,
 	const FMeshMapEvaluator::FCorrespondenceSample& Sample,
-	const FVector2d& UVPosition,
+	const FVector2d& SampleFilterUVPosition,
 	const FVector2i& ImageCoords,
 	const FImageOccupancyMap& OccupancyMap)
 {
@@ -565,7 +723,8 @@ void FMeshMapBaker::BakeSample(
 	const int64 OccupancyMapSampleIdx = OccupancyMap.Tile.GetIndexFromSourceCoords(ImageCoords);
 	const int32 SampleUVChart = OccupancyMap.TexelQueryUVChart[OccupancyMapSampleIdx];
 
-	auto AddFn = [this, &ImageCoords, &UVPosition, &Tile, &TileBuffer, &OccupancyMap, SampleUVChart](const TArray<int32>& EvaluatorIds, const float* SourceBuffer, float Weight) -> void
+	auto AddFn = [this, &ImageCoords, &SampleFilterUVPosition, &Tile, &TileBuffer, &OccupancyMap, SampleUVChart]
+		(const TArray<int32>& EvaluatorIds, const float* SourceBuffer, float Weight) -> void
 	{
 		const FVector2i BoxFilterStart(
 			FMath::Clamp(ImageCoords.X - FilterKernelSize, 0, Dimensions.GetWidth()),
@@ -592,7 +751,8 @@ void FMeshMapBaker::BakeSample(
 			// Note: There will be no contribution if the sample and pixel are on different UV charts
 			float FilterWeight = Weight * static_cast<float>(SampleUVChart == BufferTilePixelUVChart);
 			{
-				FVector2d TexelDistance = Dimensions.GetTexelDistance(Dimensions.GetTexelUV(SourceCoords), UVPosition);
+				const FVector2d PixelCenterUVPosition = Dimensions.GetTexelUV(SourceCoords);
+				const FVector2d TexelDistance = Dimensions.GetTexelDistance(PixelCenterUVPosition, SampleFilterUVPosition);
 				FilterWeight *= TextureFilterEval(TexelDistance);
 			}
 
@@ -620,7 +780,8 @@ void FMeshMapBaker::BakeSample(
 		}
 	};
 
-	auto OverwriteFn = [this, &ImageCoords, &Tile, &TileBuffer](const TArray<int32>& EvaluatorIds, const float* SourceBuffer) -> void
+	auto OverwriteFn = [this, &ImageCoords, &Tile, &TileBuffer]
+		(const TArray<int32>& EvaluatorIds, const float* SourceBuffer) -> void
 	{
 		const int64 BufferTilePixelLinearIdx = Tile.GetIndexFromSourceCoords(ImageCoords); 
 		float* PixelBuffer = TileBuffer.GetPixel(BufferTilePixelLinearIdx);
@@ -646,7 +807,7 @@ void FMeshMapBaker::BakeSample(
 
 	if (SampleFilterF)
 	{
-		const float SampleMaskWeight = FMath::Clamp(SampleFilterF(ImageCoords, UVPosition, Sample.BaseSample.TriangleIndex), 0.0f, 1.0f);
+		const float SampleMaskWeight = FMath::Clamp(SampleFilterF(ImageCoords, SampleFilterUVPosition, Sample.BaseSample.TriangleIndex), 0.0f, 1.0f);
 		AddFn(EvaluatorIdsForMode(FMeshMapEvaluator::EAccumulateMode::Add), Buffer, SampleMaskWeight);
 		AddFn(EvaluatorIdsForMode(FMeshMapEvaluator::EAccumulateMode::Add), BakeDefaults.GetData(), 1.0f - SampleMaskWeight);
 		OverwriteFn(EvaluatorIdsForMode(FMeshMapEvaluator::EAccumulateMode::Overwrite), (SampleMaskWeight == 0) ? BakeDefaults.GetData() : Buffer);
@@ -726,15 +887,19 @@ void FMeshMapBaker::InitFilter()
 	case EBakeFilterType::None:
 		FilterKernelSize = 0;
 		TextureFilterEval = &EvaluateFilter<EBakeFilterType::None>;
+		IsInFilterRegionEval = &EvaluateIsInFilterRegion<EBakeFilterType::None>;
 		break;
 	case EBakeFilterType::Box:
 		TextureFilterEval = &EvaluateFilter<EBakeFilterType::Box>;
+		IsInFilterRegionEval = &EvaluateIsInFilterRegion<EBakeFilterType::Box>;
 		break;
 	case EBakeFilterType::BSpline:
 		TextureFilterEval = &EvaluateFilter<EBakeFilterType::BSpline>;
+		IsInFilterRegionEval = &EvaluateIsInFilterRegion<EBakeFilterType::BSpline>;
 		break;
 	case EBakeFilterType::MitchellNetravali:
 		TextureFilterEval = &EvaluateFilter<EBakeFilterType::MitchellNetravali>;
+		IsInFilterRegionEval = &EvaluateIsInFilterRegion<EBakeFilterType::MitchellNetravali>;
 		break;
 	}
 }
@@ -762,6 +927,28 @@ float FMeshMapBaker::EvaluateFilter(const FVector2d& Dist)
 	return Result;
 }
 
+template<FMeshMapBaker::EBakeFilterType BakeFilterType>
+bool FMeshMapBaker::EvaluateIsInFilterRegion(const FVector2d& Dist)
+{
+	bool Result = false;
+	if constexpr(BakeFilterType == EBakeFilterType::None)
+	{
+		Result = true;
+	}
+	else if constexpr(BakeFilterType == EBakeFilterType::Box)
+	{
+		Result = BoxFilter.IsInFilterRegion(Dist);
+	}
+	else if constexpr(BakeFilterType == EBakeFilterType::BSpline)
+	{
+		Result = BSplineFilter.IsInFilterRegion(Dist);
+	}
+	else if constexpr(BakeFilterType == EBakeFilterType::MitchellNetravali)
+	{
+		Result = MitchellNetravaliFilter.IsInFilterRegion(Dist);
+	}
+	return Result;
+}
 
 void FMeshMapBaker::ComputeUVCharts(const FDynamicMesh3& Mesh, TArray<int32>& MeshUVCharts)
 {

@@ -65,6 +65,12 @@ public:
 		return GetIndex(LocalCoords.X, LocalCoords.Y);
 	}
 
+	/** @return the coordinates into this tile given the linear index into this tile. */
+	FVector2i GetCoords(const int64 LinearIdx) const
+	{
+		return FVector2i((int32)(LinearIdx % Width), (int32)(LinearIdx / Width));
+	}
+
 	/** @return true if the given source coordinates are contained by this tile. */
 	bool Contains(const int32 X, const int32 Y) const
 	{

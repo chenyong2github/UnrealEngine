@@ -152,7 +152,7 @@ protected:
 	void BakeSample(
 		FMeshMapTileBuffer& TileBuffer,
 		const FMeshMapEvaluator::FCorrespondenceSample& Sample,
-		const FVector2d& UVPosition,
+		const FVector2d& QueryUVPosition,
 		const FVector2i& ImageCoords,
 		const FImageOccupancyMap& OccupancyMap);
 
@@ -211,9 +211,14 @@ protected:
 	/** Texture filter function */
 	using TextureFilterFn = float(*)(const FVector2d& Dist);
 	TextureFilterFn TextureFilterEval = nullptr;
+	using IsInFilterRegionFn = bool(*)(const FVector2d& Dist);
+	IsInFilterRegionFn IsInFilterRegionEval = nullptr;
 
 	template<EBakeFilterType BakeFilterType>
 	static float EvaluateFilter(const FVector2d& Dist);
+
+	template<EBakeFilterType BakeFilterType>
+	static bool EvaluateIsInFilterRegion(const FVector2d& Dist);
 
 	/** The total size of the temporary float buffer for BakeSample. */
 	int32 BakeSampleBufferSize = 0;

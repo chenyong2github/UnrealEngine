@@ -35,6 +35,12 @@ public:
 		// center texel weight changes compared to the weight for 0 < Radius < 1, which seems more
 		// intuitive for users.
 		//
+		return Dist.X >= -Radius && Dist.X <= Radius && Dist.Y >= -Radius && Dist.Y <= Radius;
+	}
+
+	/** @return true if the given 2D distance vector, in Texel units, is in the region where the filter is defined and false otherwise */
+	bool IsInFilterRegion(const FVector2d& Dist) const
+	{
 		return Dist.X >= -Radius && Dist.X <= Radius && Dist.Y >= -Radius && Dist.Y <= Radius; 
 	}
 };
