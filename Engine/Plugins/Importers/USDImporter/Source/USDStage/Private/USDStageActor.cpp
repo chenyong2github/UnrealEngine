@@ -973,6 +973,16 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 		bool bIsResync = false;
 		for (const UsdUtils::FObjectChangeNotice& ObjectChange : InfoChange.Value)
 		{
+			// We upgrade these mainly so that material binding changes refresh assets and components. Note that we
+			// just set material overrides on CreateComponents and not on UpdateComponents. In general, relationships
+			// likely won't be updated very often and can't have timeSamples, so it should be fine to resync on their
+			// changes
+			if (ObjectChange.Flags.bDidChangeRelationshipTargets)
+			{
+				bIsResync = true;
+				bHasResync = true;
+			}
+
 			for (const UsdUtils::FAttributeChange& AttributeChange : ObjectChange.AttributeChanges)
 			{
 				static const TSet<FString> StageResyncProperties = {

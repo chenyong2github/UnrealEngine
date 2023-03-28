@@ -1678,7 +1678,7 @@ FUsdScopedAssetCacheReferencer::FUsdScopedAssetCacheReferencer(UUsdAssetCache2* 
 	// For now we're assuming you can't nest these objects
 	if (ensure(InAssetCache))
 	{
-		ensure(Referencer && !InAssetCache->CurrentScopedReferencer);
+		ensure(Referencer && (!InAssetCache->CurrentScopedReferencer || InAssetCache->CurrentScopedReferencer == Referencer));
 		InAssetCache->CurrentScopedReferencer = Referencer;
 	}
 

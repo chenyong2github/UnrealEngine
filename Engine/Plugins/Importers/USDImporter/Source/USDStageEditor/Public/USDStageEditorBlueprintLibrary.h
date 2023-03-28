@@ -94,6 +94,22 @@ public:
 	UFUNCTION( BlueprintCallable, Category = "USD|Selection" )
 	static void SetSelectedPropertyNames( const TArray<FString>& NewSelection );
 
+	/**
+	 * Returns the names of the currently selected property metadata entries on the right panel of the USD Stage
+	 * Editor.
+	 * @return The names of selected metadata (e.g. ["documentation", "typeName"])
+	 */
+	UFUNCTION( BlueprintCallable, Category = "USD|Selection" )
+	static TArray<FString> GetSelectedPropertyMetadataNames();
+
+	/**
+	 * Sets the USD Stage Editor property metadata selection to the entries with names contained in NewSelection.
+	 * Provide an empty array to clear the selection.
+	 * @param NewSelection - The list of property names to select (e.g. ["documentation", "typeName"])
+	 */
+	UFUNCTION( BlueprintCallable, Category = "USD|Selection" )
+	static void SetSelectedPropertyMetadataNames( const TArray<FString>& NewSelection );
+
     /**
 	 * Creates a new memory-only layer and opens an USD Stage with that layer as its root.
 	 * Corresponds to the "File -> New" action on the USD Stage Editor menu bar.

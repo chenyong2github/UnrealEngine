@@ -35,15 +35,48 @@ void SUsdPrimInfo::Construct( const FArguments& InArgs )
 {
 	ChildSlot
 	[
-		SNew( SVerticalBox )
+		SNew(SVerticalBox)
 
 		+SVerticalBox::Slot()
-		.FillHeight( 1.f )
+		.FillHeight(1.f)
+		[
+			SNew(SBox)
+			.Content()
+			[
+				SAssignNew(PropertiesList, SUsdPrimPropertiesList)
+				.NameColumnText(LOCTEXT("PropertyName", "Name"))
+				.OnSelectionChanged_Lambda([this](const TSharedPtr<FUsdPrimAttributeViewModel>& NewSelection, ESelectInfo::Type SelectionType)
+				{
+					// Display property metadata if we have exactly one selected
+					TArray<FString> SelectedProperties = PropertiesList->GetSelectedPropertyNames();
+					if (PropertiesList && SelectedProperties.Num() == 1)
+					{
+						PropertyMetadataPanel->SetPrimPath(
+							PropertiesList->GetUsdStage(),
+							*(FString{PropertiesList->GetPrimPath()} + "." + SelectedProperties[0])
+						);
+					}
+					else
+					{
+						PropertyMetadataPanel->SetPrimPath({}, TEXT(""));
+					}
+				})
+			]
+		]
+
+		+SVerticalBox::Slot()
+		.AutoHeight()
 		[
 			SNew( SBox )
 			.Content()
 			[
-				SAssignNew( PropertiesList, SUsdPrimPropertiesList )
+				SAssignNew(PropertyMetadataPanel, SUsdPrimPropertiesList)
+				.NameColumnText_Lambda([this]() -> FText
+				{
+					FString PropertyName = FPaths::GetExtension(PropertyMetadataPanel->GetPrimPath());
+					return FText::FromString(FString::Printf(TEXT("%s metadata"), *PropertyName));
+				})
+				.Visibility(EVisibility::Collapsed)
 			]
 		]
 
@@ -84,6 +117,9 @@ void SUsdPrimInfo::SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* 
 	if ( PropertiesList )
 	{
 		PropertiesList->SetPrimPath( UsdStage, PrimPath );
+
+		PropertyMetadataPanel->SetPrimPath({}, TEXT(""));
+		PropertyMetadataPanel->ClearSelection();
 	}
 
 	if ( IntegrationsPanel )

@@ -21,6 +21,7 @@ public:
 private:
 	friend class SUsdStage;
 	TSharedPtr< class SUsdPrimPropertiesList > PropertiesList;
+	TSharedPtr< class SUsdPrimPropertiesList > PropertyMetadataPanel;
 	TSharedPtr< class SUsdIntegrationsPanel > IntegrationsPanel;
 	TSharedPtr< class SVariantsList > VariantsList;
 	TSharedPtr< class SUsdReferencesList > ReferencesList;

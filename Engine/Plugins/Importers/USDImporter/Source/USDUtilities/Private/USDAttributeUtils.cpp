@@ -186,15 +186,29 @@ void UsdUtils::NotifyIfOverriddenOpinion( const UE::FUsdAttribute& Attribute )
 		return;
 	}
 
-	pxr::UsdStageRefPtr Stage = UsdAttribute.GetPrim().GetStage();
-	if ( !Stage )
+	NotifyIfOverriddenOpinion(UsdAttribute);
+#endif // #if USE_USD_SDK
+}
+
+#if USE_USD_SDK
+void UsdUtils::NotifyIfOverriddenOpinion(const pxr::UsdProperty& Property)
+{
+	FScopedUsdAllocs Allocs;
+
+	if (!Property)
+	{
+		return;
+	}
+
+	pxr::UsdStageRefPtr Stage = Property.GetPrim().GetStage();
+	if (!Stage)
 	{
 		return;
 	}
 
 	const pxr::UsdEditTarget& EditTarget = Stage->GetEditTarget();
 	const pxr::SdfLayerHandle& Layer = EditTarget.GetLayer();
-	if ( !Layer )
+	if (!Layer)
 	{
 		return;
 	}
@@ -207,36 +221,36 @@ void UsdUtils::NotifyIfOverriddenOpinion( const UE::FUsdAttribute& Attribute )
 	// References:
 	// - https://graphics.pixar.com/usd/release/glossary.html#livrps-strength-ordering
 	// - https://groups.google.com/g/usd-interest/c/xTxFYQA_bRs/m/qbGkvx3yAgAJ
-	std::vector<pxr::SdfPropertySpecHandle> SpecStack = UsdAttribute.GetPropertyStack();
-	for ( const pxr::SdfPropertySpecHandle& Spec : SpecStack )
+	std::vector<pxr::SdfPropertySpecHandle> SpecStack = Property.GetPropertyStack();
+	for (const pxr::SdfPropertySpecHandle& Spec : SpecStack)
 	{
-		if ( !Spec )
+		if (!Spec)
 		{
 			continue;
 		}
 
 		const pxr::SdfLayerHandle& SpecLayer = Spec->GetLayer();
-		if ( SpecLayer != Layer )
+		if (SpecLayer != Layer)
 		{
-			const FText Text = LOCTEXT( "OverridenOpinionText", "USD: Overridden opinion" );
+			const FText Text = LOCTEXT("OverridenOpinionText", "USD: Overridden opinion");
 
 			const FText SubText = FText::Format(
-				LOCTEXT( "OverridenOpinionSubText", "Opinion authored for this attribute:\n\n{0}\n\nAt this layer:\n\n{1}\n\nIs overridden by another spec at this layer:\n\n{2}\n\nAnd so may not be visible on the composed stage. This means this edit may not be visible once the stage is reloaded." ),
-				FText::FromString( UsdToUnreal::ConvertPath( Spec->GetPath() ) ),
-				FText::FromString( UsdToUnreal::ConvertString( Layer->GetIdentifier() ) ),
-				FText::FromString( UsdToUnreal::ConvertString( SpecLayer->GetIdentifier() ) )
+				LOCTEXT("OverridenOpinionSubText", "Opinion authored for this attribute:\n\n{0}\n\nAt this layer:\n\n{1}\n\nIs overridden by another spec at this layer:\n\n{2}\n\nAnd so may not be visible on the composed stage. This means this edit may not be visible once the stage is reloaded."),
+				FText::FromString(UsdToUnreal::ConvertPath(Spec->GetPath())),
+				FText::FromString(UsdToUnreal::ConvertString(Layer->GetIdentifier())),
+				FText::FromString(UsdToUnreal::ConvertString(SpecLayer->GetIdentifier()))
 			);
 
-			UE_LOG( LogUsd, Warning, TEXT( "%s" ), *SubText.ToString().Replace( TEXT( "\n\n" ), TEXT( " " ) ) );
+			UE_LOG(LogUsd, Warning, TEXT("%s"), *SubText.ToString().Replace(TEXT("\n\n"), TEXT(" ")));
 
 			const UUsdProjectSettings* Settings = GetDefault<UUsdProjectSettings>();
-			if ( Settings && Settings->bShowOverriddenOpinionsWarning )
+			if (Settings && Settings->bShowOverriddenOpinionsWarning)
 			{
 				static TWeakPtr<SNotificationItem> Notification;
 
-				FNotificationInfo Toast( Text );
+				FNotificationInfo Toast(Text);
 				Toast.SubText = SubText;
-				Toast.Image = FCoreStyle::Get().GetBrush( TEXT( "MessageLog.Warning" ) );
+				Toast.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Warning"));
 				Toast.CheckBoxText = LOCTEXT("DontAskAgain", "Don't prompt again");
 				Toast.bUseLargeFont = false;
 				Toast.bFireAndForget = false;
@@ -245,37 +259,37 @@ void UsdUtils::NotifyIfOverriddenOpinion( const UE::FUsdAttribute& Attribute )
 				Toast.bUseThrobber = false;
 				Toast.bUseSuccessFailIcons = false;
 				Toast.ButtonDetails.Emplace(
-					LOCTEXT( "OverridenOpinionMessageOk", "Ok" ),
+					LOCTEXT("OverridenOpinionMessageOk", "Ok"),
 					FText::GetEmpty(),
-					FSimpleDelegate::CreateLambda([](){
-						if ( TSharedPtr<SNotificationItem> PinnedNotification = Notification.Pin() )
+					FSimpleDelegate::CreateLambda([]() {
+						if (TSharedPtr<SNotificationItem> PinnedNotification = Notification.Pin())
 						{
-							PinnedNotification->SetCompletionState( SNotificationItem::CS_Success );
+							PinnedNotification->SetCompletionState(SNotificationItem::CS_Success);
 							PinnedNotification->ExpireAndFadeout();
 						}
-					})
+						})
 				);
 				// This is flipped because the default checkbox message is "Don't prompt again"
 				Toast.CheckBoxState = Settings->bShowOverriddenOpinionsWarning ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
 				Toast.CheckBoxStateChanged = FOnCheckStateChanged::CreateStatic([](ECheckBoxState NewState)
-				{
-					if ( UUsdProjectSettings* Settings = GetMutableDefault<UUsdProjectSettings>() )
 					{
-						// This is flipped because the default checkbox message is "Don't prompt again"
-						Settings->bShowOverriddenOpinionsWarning = NewState == ECheckBoxState::Unchecked;
-						Settings->SaveConfig();
-					}
-				});
+						if (UUsdProjectSettings* Settings = GetMutableDefault<UUsdProjectSettings>())
+						{
+							// This is flipped because the default checkbox message is "Don't prompt again"
+							Settings->bShowOverriddenOpinionsWarning = NewState == ECheckBoxState::Unchecked;
+							Settings->SaveConfig();
+						}
+					});
 
 				// Only show one at a time
-				if ( !Notification.IsValid() )
+				if (!Notification.IsValid())
 				{
-					Notification = FSlateNotificationManager::Get().AddNotification( Toast );
+					Notification = FSlateNotificationManager::Get().AddNotification(Toast);
 				}
 
-				if ( TSharedPtr<SNotificationItem> PinnedNotification = Notification.Pin() )
+				if (TSharedPtr<SNotificationItem> PinnedNotification = Notification.Pin())
 				{
-					PinnedNotification->SetCompletionState( SNotificationItem::CS_Pending );
+					PinnedNotification->SetCompletionState(SNotificationItem::CS_Pending);
 				}
 			}
 		}
@@ -284,7 +298,7 @@ void UsdUtils::NotifyIfOverriddenOpinion( const UE::FUsdAttribute& Attribute )
 			break;
 		}
 	}
-#endif // #if USE_USD_SDK
 }
+#endif // #if USE_USD_SDK
 
 #undef LOCTEXT_NAMESPACE

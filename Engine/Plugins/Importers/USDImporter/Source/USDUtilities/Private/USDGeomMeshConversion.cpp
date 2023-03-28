@@ -1599,6 +1599,18 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments(
 			{
 				const pxr::SdfPath& TargetMaterialPrimPath = Targets[0];
 				pxr::UsdPrim MaterialPrim = UsdPrim.GetStage()->GetPrimAtPath( TargetMaterialPrimPath );
+				if (!MaterialPrim)
+				{
+					FUsdLogManager::LogMessage(
+						EMessageSeverity::Warning,
+						FText::Format(LOCTEXT("IgnoringMaterialInvalid", "Ignoring target material '{0}' bound to prim '{1}' as that prim doesn't exist on this stage"),
+							FText::FromString(UsdToUnreal::ConvertPath(TargetMaterialPrimPath)),
+							FText::FromString(UsdToUnreal::ConvertPath(UsdPrim.GetPath()))
+						)
+					);
+					return {};
+				}
+
 				pxr::UsdShadeMaterial UsdShadeMaterial{ MaterialPrim };
 				if ( !UsdShadeMaterial )
 				{

@@ -463,6 +463,24 @@ void SUsdStage::SetSelectedPropertyNames( const TArray<FString>& NewSelection )
 	}
 }
 
+TArray<FString> SUsdStage::GetSelectedPropertyMetadataNames() const
+{
+	if (UsdPrimInfoWidget && UsdPrimInfoWidget->PropertyMetadataPanel)
+	{
+		return UsdPrimInfoWidget->PropertyMetadataPanel->GetSelectedPropertyNames();
+	}
+
+	return {};
+}
+
+void SUsdStage::SetSelectedPropertyMetadataNames(const TArray<FString>& NewSelection)
+{
+	if (UsdPrimInfoWidget && UsdPrimInfoWidget->PropertyMetadataPanel)
+	{
+		UsdPrimInfoWidget->PropertyMetadataPanel->SetSelectedPropertyNames(NewSelection);
+	}
+}
+
 void SUsdStage::AttachToStageActor( AUsdStageActor* InUsdStageActor, bool bFlashButton )
 {
 	if ( ViewModel.UsdStageActor == InUsdStageActor )

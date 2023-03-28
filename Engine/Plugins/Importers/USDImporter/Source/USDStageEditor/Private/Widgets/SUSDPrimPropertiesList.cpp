@@ -30,6 +30,7 @@ namespace UsdPrimPropertiesListConstants
 	const FMargin ComboBoxItemPadding( 3.0f, 0.0f, 2.0f, 0.0f );
 	const FMargin NumericEntryBoxItemPadding( 0.0f, 0.0f, 2.0f, 0.0f );
 	const float DesiredNumericEntryBoxWidth = 80.0f;
+	const float DesiredTextEntryBoxWidth = 80.0f;
 
 	const TCHAR* NormalFont = TEXT("PropertyWindow.NormalFont");
 }
@@ -227,6 +228,33 @@ public:
 
 protected:
 	FText GetLabel() const { return FText::FromString( UsdPrimAttribute->Label ); }
+	FText GetType() const
+	{
+		const static FText TypeTexts[] = {
+			FText::FromString(TEXT("M")),
+			FText::FromString(TEXT("A")),
+			FText::FromString(TEXT("R"))
+		};
+
+		const int32 Index = static_cast<int32>(UsdPrimAttribute->Type);
+		return Index >= 0 && Index < static_cast<int32>(EAttributeModelType::MAX)
+			? TypeTexts[Index]
+			: FText::GetEmpty();
+	}
+
+	FText GetTypeToolTip() const
+	{
+		const static FText ToolTipTexts[] = {
+			LOCTEXT("MetadataTooltip", "Metadata"),
+			LOCTEXT("AttributeTooltip", "Attribute"),
+			LOCTEXT("RelationshipTooltip", "Relationship")
+		};
+
+		const int32 Index = static_cast<int32>(UsdPrimAttribute->Type);
+		return Index >= 0 && Index < static_cast<int32>(EAttributeModelType::MAX)
+			? ToolTipTexts[Index]
+			: FText::GetEmpty();
+	}
 
 	// Optional here because SNumericEntryBox uses optional values as input
 	template<typename T>
@@ -283,7 +311,7 @@ private:
 	template<typename T>
 	TArray<TAttribute<TOptional<T>>> GetAttributeArray();
 
-	TSharedRef< SWidget > GenerateTextWidget( const TAttribute<FText>& Attribute );
+	TSharedRef< SWidget > GenerateTextWidget(const TAttribute<FText>& Attribute, const TAttribute<FText>& ToolTipAttribute = {}, ETextJustify::Type TextJustify = ETextJustify::Left);
 	TSharedRef< SWidget > GenerateEditableTextWidget( const TAttribute<FText>& Attribute, bool bIsReadOnly );
 	TSharedRef< SWidget > GenerateCheckboxWidget( const TAttribute<ECheckBoxState>& Attribute );
 
@@ -321,9 +349,17 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateWidgetForColumn( const FName&
 
 	TSharedRef< SWidget > ColumnWidget = SNullWidget::NullWidget;
 
-	if ( ColumnName == TEXT("PropertyName") )
+	if (ColumnName == PrimAttributeColumnIds::TypeColumn)
 	{
-		ColumnWidget = GenerateTextWidget( { this, &SUsdPrimPropertyRow::GetLabel } );
+		ColumnWidget = GenerateTextWidget(
+			{this, &SUsdPrimPropertyRow::GetType},
+			{this, &SUsdPrimPropertyRow::GetTypeToolTip},
+			ETextJustify::Center
+		);
+	}
+	else if (ColumnName == PrimAttributeColumnIds::NameColumn)
+	{
+		ColumnWidget = GenerateTextWidget({this, &SUsdPrimPropertyRow::GetLabel});
 	}
 	else
 	{
@@ -366,6 +402,7 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateWidgetForColumn( const FName&
 				SAssignNew( ColumnWidget, SBox )
 				.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
 				.VAlign( VAlign_Center )
+				.HAlign( HAlign_Left )
 				[
 					SNew( SComboBox< TSharedPtr< FString > > )
 					.OptionsSource( Options )
@@ -404,18 +441,11 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateWidgetForColumn( const FName&
 		}
 	}
 
-	return SNew( SHorizontalBox )
-		+SHorizontalBox::Slot()
-		.HAlign( HAlign_Left )
-		.VAlign( VAlign_Fill )
-		.AutoWidth()
+	return SNew(SBox)
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Fill)
 		[
-			SNew(SBox)
-			.MinDesiredWidth( UsdPrimPropertiesListConstants::DesiredNumericEntryBoxWidth )
-			.VAlign(VAlign_Center)
-			[
-				ColumnWidget
-			]
+			ColumnWidget
 		];
 }
 
@@ -441,28 +471,30 @@ TArray<TAttribute<TOptional<T>>> SUsdPrimPropertyRow::GetAttributeArray()
 	return Attributes;
 }
 
-TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateTextWidget( const TAttribute<FText>& Attribute )
+TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateTextWidget(
+	const TAttribute<FText>& Attribute,
+	const TAttribute<FText>& ToolTipAttribute,
+	ETextJustify::Type TextJustify
+)
 {
-	return SNew( SBox )
-		.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
-		.MinDesiredWidth( UsdPrimPropertiesListConstants::DesiredNumericEntryBoxWidth )
-		.VAlign( VAlign_Center )
-		[
-			SNew( STextBlock )
-			.Text( Attribute )
-			.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
-			.Margin( UsdPrimPropertiesListConstants::RightRowPadding )
-		];
+	return SNew(STextBlock)
+		.Text(Attribute)
+		.Justification(TextJustify)
+		.ToolTipText(ToolTipAttribute)
+		.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
+		.Margin(UsdPrimPropertiesListConstants::RightRowPadding);
 }
 
 TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateEditableTextWidget( const TAttribute<FText>& Attribute, bool bIsReadOnly )
 {
 	return SNew( SBox )
 		.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
-		.MinDesiredWidth( UsdPrimPropertiesListConstants::DesiredNumericEntryBoxWidth )
-		.VAlign( VAlign_Center )
+		.MinDesiredWidth( UsdPrimPropertiesListConstants::DesiredTextEntryBoxWidth )
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Left)
 		[
 			SNew( SEditableTextBox )
+			.MinDesiredWidth( UsdPrimPropertiesListConstants::DesiredTextEntryBoxWidth )
 			.Text( Attribute )
 			.IsReadOnly( bIsReadOnly )
 			.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
@@ -477,6 +509,7 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateCheckboxWidget( const TAttrib
 	return SNew( SBox )
 		.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
 		.VAlign( VAlign_Center )
+		.HAlign(HAlign_Left)
 		[
 			SNew( SCheckBox )
 			.IsChecked( Attribute )
@@ -561,7 +594,13 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateSpinboxWidgets( const TArray<
 			];
 	}
 
-	return VertBox.ToSharedRef();
+	return SNew(SBox)
+		.MinDesiredWidth(UsdPrimPropertiesListConstants::DesiredNumericEntryBoxWidth)
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Left)
+		[
+			VertBox.ToSharedRef()
+		];
 }
 
 template<typename T>
@@ -658,13 +697,21 @@ void SUsdPrimPropertiesList::Construct( const FArguments& InArgs )
 
 	SAssignNew( HeaderRowWidget, SHeaderRow )
 
-	+SHeaderRow::Column( FName( TEXT("PropertyName") ) )
-	.DefaultLabel( LOCTEXT( "PropertyName", "Property Name" ) )
-	.FillWidth( 25.f )
+	+SHeaderRow::Column(PrimAttributeColumnIds::TypeColumn)
+	.DefaultLabel(FText::GetEmpty())
+	.FixedWidth(24.0f)
+	.SortMode(this, &SUsdPrimPropertiesList::GetColumnSortMode, PrimAttributeColumnIds::TypeColumn)
+	.OnSort(this, &SUsdPrimPropertiesList::Sort)
 
-	+SHeaderRow::Column( FName( TEXT("PropertyValue") ) )
+	+SHeaderRow::Column(PrimAttributeColumnIds::NameColumn)
+	.DefaultLabel(InArgs._NameColumnText)
+	.FillWidth( 40.f )
+	.SortMode(this, &SUsdPrimPropertiesList::GetColumnSortMode, PrimAttributeColumnIds::NameColumn)
+	.OnSort(this, &SUsdPrimPropertiesList::Sort)
+
+	+SHeaderRow::Column(PrimAttributeColumnIds::ValueColumn)
 	.DefaultLabel( LOCTEXT( "PropertyValue", "Value" ) )
-	.FillWidth( 75.f );
+	.FillWidth( 60.f );
 
 	SListView::Construct
 	(
@@ -673,6 +720,8 @@ void SUsdPrimPropertiesList::Construct( const FArguments& InArgs )
 		.OnGenerateRow( this, &SUsdPrimPropertiesList::OnGenerateRow )
 		.HeaderRow( HeaderRowWidget )
 	);
+
+	OnSelectionChanged = InArgs._OnSelectionChanged;
 }
 
 TSharedRef< ITableRow > SUsdPrimPropertiesList::OnGenerateRow( TSharedPtr< FUsdPrimAttributeViewModel > InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable )
@@ -686,9 +735,35 @@ void SUsdPrimPropertiesList::GeneratePropertiesList( const UE::FUsdStageWeak& Us
 	ViewModel.Refresh( UsdStage, InPrimPath, TimeCode );
 }
 
+void SUsdPrimPropertiesList::Sort(
+	const EColumnSortPriority::Type SortPriority,
+	const FName& ColumnId,
+	const EColumnSortMode::Type NewSortMode
+)
+{
+	ViewModel.CurrentSortColumn = ColumnId;
+	ViewModel.CurrentSortMode = NewSortMode;
+	ViewModel.Sort();
+
+	RequestListRefresh();
+}
+
+EColumnSortMode::Type SUsdPrimPropertiesList::GetColumnSortMode(const FName ColumnId) const
+{
+	if (ViewModel.CurrentSortColumn != ColumnId)
+	{
+		return EColumnSortMode::None;
+	}
+
+	return ViewModel.CurrentSortMode;
+}
+
 void SUsdPrimPropertiesList::SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath )
 {
 	GeneratePropertiesList( UsdStage, InPrimPath );
+
+	SetVisibility(ViewModel.PrimAttributes.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed);
+
 	RequestListRefresh();
 }
 
@@ -729,6 +804,16 @@ void SUsdPrimPropertiesList::SetSelectedPropertyNames( const TArray<FString>& Ne
 
 	const bool bSelected = true;
 	SetItemSelection( NewItemSelection, bSelected );
+}
+
+UE::FUsdStageWeak SUsdPrimPropertiesList::GetUsdStage() const
+{
+	return ViewModel.GetUsdStage();
+}
+
+FString SUsdPrimPropertiesList::GetPrimPath() const
+{
+	return ViewModel.GetPrimPath();
 }
 
 #undef LOCTEXT_NAMESPACE

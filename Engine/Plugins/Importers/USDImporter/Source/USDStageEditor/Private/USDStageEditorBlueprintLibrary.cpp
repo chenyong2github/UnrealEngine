@@ -119,6 +119,18 @@ void UUsdStageEditorBlueprintLibrary::SetSelectedPropertyNames( const TArray<FSt
 	StageEditorModule.SetSelectedPropertyNames( NewSelection );
 }
 
+TArray<FString> UUsdStageEditorBlueprintLibrary::GetSelectedPropertyMetadataNames()
+{
+	IUsdStageEditorModule& StageEditorModule = FModuleManager::GetModuleChecked< IUsdStageEditorModule >("USDStageEditor");
+	return StageEditorModule.GetSelectedPropertyMetadataNames();
+}
+
+void UUsdStageEditorBlueprintLibrary::SetSelectedPropertyMetadataNames(const TArray<FString>& NewSelection)
+{
+	IUsdStageEditorModule& StageEditorModule = FModuleManager::GetModuleChecked< IUsdStageEditorModule >("USDStageEditor");
+	StageEditorModule.SetSelectedPropertyMetadataNames(NewSelection);
+}
+
 void UUsdStageEditorBlueprintLibrary::FileNew()
 {
 	IUsdStageEditorModule& StageEditorModule = FModuleManager::GetModuleChecked< IUsdStageEditorModule >( "USDStageEditor" );

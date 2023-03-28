@@ -56,6 +56,9 @@ public:
 	TArray<FString> GetSelectedPropertyNames() const;
 	void SetSelectedPropertyNames( const TArray<FString>& NewSelection );
 
+	TArray<FString> GetSelectedPropertyMetadataNames() const;
+	void SetSelectedPropertyMetadataNames(const TArray<FString>& NewSelection);
+
 	// Main menu actions.
 	// For all of these, providing an empty path will cause us to pop open a dialog to let the user pick the path
 	// instead.

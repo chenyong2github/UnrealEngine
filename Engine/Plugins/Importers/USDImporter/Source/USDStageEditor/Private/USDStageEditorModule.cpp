@@ -538,6 +538,28 @@ void IUsdStageEditorModule::SetSelectedPropertyNames( const TArray<FString>& New
 #endif // USE_USD_SDK
 }
 
+TArray<FString> IUsdStageEditorModule::GetSelectedPropertyMetadataNames() const
+{
+#if USE_USD_SDK
+	if (TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor())
+	{
+		return UsdStageEditor->GetSelectedPropertyMetadataNames();
+	}
+#endif // USE_USD_SDK
+
+	return {};
+}
+
+void IUsdStageEditorModule::SetSelectedPropertyMetadataNames(const TArray<FString>& NewSelection) const
+{
+#if USE_USD_SDK
+	if (TSharedPtr<SUsdStage> UsdStageEditor = UE::UsdStageEditorModule::Private::GetUsdStageEditor())
+	{
+		UsdStageEditor->SetSelectedPropertyMetadataNames(NewSelection);
+	}
+#endif // USE_USD_SDK
+}
+
 void IUsdStageEditorModule::FileNew() const
 {
 #if USE_USD_SDK

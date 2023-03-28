@@ -6,6 +6,12 @@
 
 #include "UsdWrappers/ForwardDeclarations.h"
 
+#if USE_USD_SDK
+PXR_NAMESPACE_OPEN_SCOPE
+	class UsdProperty;
+PXR_NAMESPACE_CLOSE_SCOPE
+#endif // USE_USD_SDK
+
 namespace UE
 {
 	class FUsdAttribute;
@@ -31,5 +37,8 @@ namespace UsdUtils
 	 * the strongest opinion for the attribute already
 	 */
 	USDUTILITIES_API void NotifyIfOverriddenOpinion( const UE::FUsdAttribute& Attribute );
+#if USE_USD_SDK
+	USDUTILITIES_API void NotifyIfOverriddenOpinion( const pxr::UsdProperty& Property );
+#endif // USE_USD_SDK
 }
 
