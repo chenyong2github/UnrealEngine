@@ -16,6 +16,10 @@
 	"Plugins":
 	[
 		{
+			"Name": "RigVM",
+			"Enabled": true
+		},
+		{
 			"Name": "PythonScriptPlugin",
 			"Enabled": true,
 			"TargetAllowList": [
