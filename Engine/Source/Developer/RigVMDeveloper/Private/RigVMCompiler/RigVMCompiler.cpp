@@ -452,17 +452,21 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 	for(int32 GraphIndex=0; GraphIndex<VisitedGraphs.Num(); GraphIndex++)
 	{
 		URigVMGraph* VisitedGraph = VisitedGraphs[GraphIndex];
-		
+
+		if(URigVMController* VisitedGraphController = InController->GetControllerForGraph(VisitedGraph))
 		{
-			FRigVMControllerGraphGuard Guard(InController, VisitedGraph, false);
 			// make sure variables are up to date before validating other things.
 			// that is, make sure their cpp type and type object agree with each other
-			InController->EnsureLocalVariableValidity();
+			VisitedGraphController->EnsureLocalVariableValidity();
 		}
 		
 		for(URigVMNode* ModelNode : VisitedGraph->GetNodes())
 		{
-			FRigVMControllerGraphGuard Guard(InController, VisitedGraph, false);
+			URigVMController* VisitedGraphController = InController->GetControllerForGraph(VisitedGraph);
+			if(VisitedGraphController == nullptr)
+			{
+				return false;
+			}
 
 			// make sure pins are up to date before validating other things.
 			// that is, make sure their cpp type and type object agree with each other
@@ -502,7 +506,7 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 				bEncounteredGraphError = true;
 			}
 
-			if(!InController->RemoveUnusedOrphanedPins(ModelNode))
+			if(!VisitedGraphController->RemoveUnusedOrphanedPins(ModelNode))
 			{
 				static const FString LinkedMessage = TEXT("Node @@ uses pins that no longer exist. Please rewire the links and re-compile.");
 				Settings.ASTSettings.Report(EMessageSeverity::Error, ModelNode, LinkedMessage);
@@ -652,7 +656,7 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 					UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct(); 
 					if(ScriptStruct == nullptr)
 					{
-						InController->FullyResolveTemplateNode(UnitNode, INDEX_NONE, false);
+						VisitedGraphController->FullyResolveTemplateNode(UnitNode, INDEX_NONE, false);
 					}
 
 					if (UnitNode->GetScriptStruct() == nullptr || UnitNode->ResolvedFunctionName.IsEmpty())
@@ -1126,7 +1130,12 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 bool URigVMCompiler::CompileFunction(const URigVMLibraryNode* InLibraryNode, URigVMController* InController, FRigVMFunctionCompilationData* OutFunctionCompilationData)
 {
 	TGuardValue<const URigVMLibraryNode*> CompilationGuard(CurrentCompilationFunction, InLibraryNode);
-	FRigVMControllerGraphGuard ControllerGraphGuard(InController, InLibraryNode->GetContainedGraph(), false);
+
+	URigVMController* LibraryController = InController->GetControllerForGraph(InLibraryNode->GetContainedGraph());
+	if(LibraryController == nullptr)
+	{
+		return false;
+	}
 
 	double CompilationTime = 0;
 	FDurationTimer CompileTimer(CompilationTime);
@@ -1140,14 +1149,14 @@ bool URigVMCompiler::CompileFunction(const URigVMLibraryNode* InLibraryNode, URi
 	OutFunctionCompilationData->ByteCode.Reset();
 
 	TArray<FRigVMExternalVariable> ExternalVariables;
-	if (InController->GetExternalVariablesDelegate.IsBound())
+	if (LibraryController->GetExternalVariablesDelegate.IsBound())
 	{
-		ExternalVariables = InController->GetExternalVariablesDelegate.Execute(InLibraryNode->GetContainedGraph());
+		ExternalVariables = LibraryController->GetExternalVariablesDelegate.Execute(InLibraryNode->GetContainedGraph());
 	}
 	TMap<FString, FRigVMOperand> Operands;
 	
 	URigVM* TempVM = NewObject<URigVM>(InLibraryNode->GetContainedGraph());
-	const bool bSuccess = Compile({InLibraryNode->GetContainedGraph()}, InController, TempVM, ExternalVariables, &Operands, nullptr, OutFunctionCompilationData);
+	const bool bSuccess = Compile({InLibraryNode->GetContainedGraph()}, LibraryController, TempVM, ExternalVariables, &Operands, nullptr, OutFunctionCompilationData);
 	TempVM->ClearMemory();
 	TempVM->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
 	TempVM->MarkAsGarbage();

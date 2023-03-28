@@ -41,10 +41,11 @@ const UScriptStruct* FRigVMActionWrapper::GetScriptStruct() const
 FRigVMBaseAction* FRigVMActionWrapper::GetAction(URigVMController* InLastController) const
 {
 	FRigVMBaseAction* Action = (FRigVMBaseAction*)StructOnScope->GetStructMemory();
+	Action->EnsureControllerValidity();
 
 	// reuse the last controller so that we don't have to rely on resolving it
 	// from the soft object path each time
-	if(InLastController != nullptr && !Action->WeakController.IsValid())
+	if(Action->WeakController.IsValid() && IsValid(InLastController) && InLastController->IsValidGraph())
 	{
 		if(Action->ControllerPath.ToString() == InLastController->GetPathName())
 		{
@@ -245,6 +246,7 @@ void URigVMActionStack::LogAction(const UScriptStruct* InActionStruct, const FRi
 
 URigVMController* FRigVMBaseAction::GetController() const
 {
+	EnsureControllerValidity();
 	if(!WeakController.IsValid())
 	{
 		if(URigVMController* Controller = Cast<URigVMController>(ControllerPath.ResolveObject()))
@@ -253,6 +255,20 @@ URigVMController* FRigVMBaseAction::GetController() const
 		}
 	}
 	return WeakController.Get();
+}
+
+void FRigVMBaseAction::EnsureControllerValidity() const
+{
+	if(WeakController.IsValid())
+	{
+		if(const URigVMController* Controller = WeakController.Get())
+		{
+			if(!IsValid(Controller) || !Controller->IsValidGraph())
+			{
+				WeakController.Reset();
+			}
+		}
+	}
 }
 
 bool FRigVMBaseAction::Merge(const FRigVMBaseAction* Other)
@@ -284,12 +300,13 @@ bool FRigVMBaseAction::Undo()
 	for (int32 KeyIndex = SubActions.Num() - 1; KeyIndex >= 0; KeyIndex--)
 	{
 		FRigVMActionWrapper Wrapper(SubActions[KeyIndex]);
+		FRigVMBaseAction* SubAction = Wrapper.GetAction(Controller);
 #if RIGVM_ACTIONSTACK_VERBOSE_LOG		
-		Wrapper.GetAction(Controller)->LogAction(UndoPrefix);
+		SubAction->LogAction(UndoPrefix);
 #endif
-		if(!Wrapper.GetAction(Controller)->Undo())
+		if(!SubAction->Undo())
 		{
-			Controller->ReportAndNotifyErrorf(TEXT("Error while undoing action '%s'."), *Wrapper.GetAction(Controller)->Title);
+			Controller->ReportAndNotifyErrorf(TEXT("Error while undoing action '%s'."), *SubAction->Title);
 			Result = false;
 		}
 	}
@@ -1524,118 +1541,6 @@ bool FRigVMRenameNodeAction::Redo()
 	if (URigVMNode* Node = GetController()->GetGraph()->FindNode(OldNodeName))
 	{
 		return GetController()->RenameNode(Node, *NewNodeName, false);
-	}
-	return false;
-}
-
-FRigVMPushGraphAction::FRigVMPushGraphAction()
-: FRigVMBaseAction(nullptr)
-{
-}
-
-FRigVMPushGraphAction::FRigVMPushGraphAction(URigVMController* InController, UObject* InGraph)
-: FRigVMBaseAction(InController)
-{
-	GraphPath = TSoftObjectPtr<URigVMGraph>(Cast<URigVMGraph>(InGraph)).GetUniqueID();
-}
-
-bool FRigVMPushGraphAction::Undo()
-{
-	if (!FRigVMBaseAction::Undo())
-	{
-		return false;
-	}
-	
-	if(URigVMGraph* PoppedGraph = GetController()->PopGraph(false))
-	{
-		const FSoftObjectPath PoppedGraphPath = TSoftObjectPtr<URigVMGraph>(PoppedGraph).GetUniqueID();
-		return PoppedGraphPath == GraphPath;
-	}
-	
-	return false;
-}
-
-bool FRigVMPushGraphAction::Redo()
-{
-	if(!CanUndoRedo())
-	{
-		return false;
-	}
-	TSoftObjectPtr<URigVMGraph> GraphPtr(GraphPath);
-	if(URigVMGraph* Graph = GraphPtr.Get())
-	{
-		GetController()->PushGraph(Graph, false);
-		return FRigVMBaseAction::Redo();
-	}
-	return false;
-}
-
-bool FRigVMPushGraphAction::MakesObsolete(const FRigVMBaseAction* Other) const
-{
-	if (Other->GetScriptStruct() == FRigVMPopGraphAction::StaticStruct())
-	{
-		const FRigVMPopGraphAction* PopGraphAction = (const FRigVMPopGraphAction*)Other;
-		if(PopGraphAction->GraphPath == GraphPath)
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-FRigVMPopGraphAction::FRigVMPopGraphAction()
-: FRigVMBaseAction(nullptr)
-{
-}
-
-FRigVMPopGraphAction::FRigVMPopGraphAction(URigVMController* InController, UObject* InGraph)
-: FRigVMBaseAction(InController)
-{
-	GraphPath = TSoftObjectPtr<URigVMGraph>(Cast<URigVMGraph>(InGraph)).GetUniqueID();
-}
-
-bool FRigVMPopGraphAction::Undo()
-{
-	if (!FRigVMBaseAction::Undo())
-	{
-		return false;
-	}
-
-	TSoftObjectPtr<URigVMGraph> GraphPtr(GraphPath);
-	if (URigVMGraph* Graph = GraphPtr.Get())
-	{
-		GetController()->PushGraph(Graph, false);
-		return true;
-	}
-	return false;
-}
-
-bool FRigVMPopGraphAction::Redo()
-{
-	if(!CanUndoRedo())
-	{
-		return false;
-	}
-	if(URigVMGraph* PoppedGraph = GetController()->PopGraph(false))
-	{
-		const FSoftObjectPath PoppedGraphPath = TSoftObjectPtr<URigVMGraph>(PoppedGraph).GetUniqueID();
-		if(PoppedGraphPath == GraphPath)
-		{
-			return FRigVMBaseAction::Redo();
-		}
-	}
-	return false;
-}
-
-bool FRigVMPopGraphAction::MakesObsolete(const FRigVMBaseAction* Other) const
-{
-	if (Other->GetScriptStruct() == FRigVMPushGraphAction::StaticStruct())
-	{
-		const FRigVMPushGraphAction* PushGraphAction = (const FRigVMPushGraphAction*)Other;
-		if(PushGraphAction->GraphPath == GraphPath)
-		{
-			return true;
-		}
 	}
 	return false;
 }

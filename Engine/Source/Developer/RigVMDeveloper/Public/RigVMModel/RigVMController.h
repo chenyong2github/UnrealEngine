@@ -200,22 +200,26 @@ public:
 
 	// Sets the currently edited Graph of this controller.
 	// This causes a GraphChanged modified event.
-	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	UFUNCTION(BlueprintCallable, Category = RigVMController, meta=(DeprecatedFunction, DeprecationMessage="Function has been deprecated, please rely on GetControllerForGraph instead."))
 	void SetGraph(URigVMGraph* InGraph);
 
 	// Pushes a new graph to the stack
 	// This causes a GraphChanged modified event.
-	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	UFUNCTION(BlueprintCallable, Category = RigVMController, meta=(DeprecatedFunction, DeprecationMessage="Function has been deprecated, please rely on GetControllerForGraph instead."))
 	bool PushGraph(URigVMGraph* InGraph, bool bSetupUndoRedo = true);
 
 	// Pops the last graph off the stack
 	// This causes a GraphChanged modified event.
-	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	UFUNCTION(BlueprintCallable, Category = RigVMController, meta=(DeprecatedFunction, DeprecationMessage="Function has been deprecated, please rely on GetControllerForGraph instead."))
 	URigVMGraph* PopGraph(bool bSetupUndoRedo = true);
 	
 	// Returns the top level graph
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMGraph* GetTopLevelGraph() const;
+
+	// Returns another controller for a given graph
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	URigVMController* GetControllerForGraph(const URigVMGraph* InGraph) const;
 
 	// The Modified event used to subscribe to changes
 	// happening within the Graph. This is broadcasted to 
@@ -1171,8 +1175,8 @@ private:
 #endif
 
 
-	bool RenameObject(UObject* InObjectToRename, const TCHAR* InNewName, UObject* InNewOuter = nullptr);
-	void DestroyObject(UObject* InObjectToDestroy);
+	bool RenameObject(UObject* InObjectToRename, const TCHAR* InNewName, UObject* InNewOuter = nullptr) const;
+	void DestroyObject(UObject* InObjectToDestroy) const ;
 	static URigVMPin* MakeExecutePin(URigVMNode* InNode, const FName& InName);
 	static void MakeExecutePin(URigVMPin* InOutPin);
 	static void AddNodePin(URigVMNode* InNode, URigVMPin* InPin);
@@ -1425,51 +1429,10 @@ private:
 	friend struct FRigVMEjectNodeFromPinAction;
 	friend class FRigVMParserAST;
 	friend class FRigVMControllerCompileBracketScope;
-	friend class FRigVMControllerGraphGuard;
 	friend struct FPinInfoArray;
 	friend class FRigVMControllerNotifGuard;
 	friend struct FRigVMClient;
-};
-
-class FRigVMControllerGraphGuard
-{
-public:
-
-	FRigVMControllerGraphGuard(URigVMController* InController, URigVMGraph* InGraph, bool bSetupUndoRedo = true)
-		: Controller(InController)
-		, bUndo(bSetupUndoRedo)
-		, bEnabled(true)
-	{
-		bEnabled = Controller->PushGraph(InGraph, bUndo);
-		if(bEnabled)
-		{
-			NumGraphs = Controller->Graphs.Num();
-		}
-	}
-
-	~FRigVMControllerGraphGuard()
-	{
-		if(!bEnabled)
-		{
-			return;
-		}
-		
-		// an action can be cancelled in the middle of a graph guard,
-		// in that case CancelAction should have already popped the graph
-		if (Controller->Graphs.Num() < NumGraphs)
-		{
-			return;
-		}
-		Controller->PopGraph(bUndo);
-	}
-
-private:
-
-	URigVMController* Controller;
-	bool bUndo;
-	bool bEnabled;
-
-	int32 NumGraphs;
+	friend struct FRigVMActionWrapper;
 };
 
 class FRigVMControllerNotifGuard

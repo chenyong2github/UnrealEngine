@@ -3801,16 +3801,6 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 			{
 				if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InSubject))
 				{
-					// Fix the path to the contained graph controller
-					{
-						FSoftObjectPath ContainedGraphPath = CollapseNode->GetContainedGraph();
-						FString SubPathString = ContainedGraphPath.GetSubPathString();
-						FString OldSubPathString = SubPathString.Replace(*CollapseNode->GetName(), *CollapseNode->GetPreviousFName().ToString());
-						FSoftObjectPath OldContainedGraphPath = ContainedGraphPath;
-						OldContainedGraphPath.SetSubPathString(OldSubPathString);
-						RigVMClient.OnSubGraphRenamed(OldContainedGraphPath, ContainedGraphPath);
-					}
-					
 					FString NewNodePath = CollapseNode->GetNodePath(true /* recursive */);
 					FString Left, Right = NewNodePath;
 					URigVMNode::SplitNodePathAtEnd(NewNodePath, Left, Right);

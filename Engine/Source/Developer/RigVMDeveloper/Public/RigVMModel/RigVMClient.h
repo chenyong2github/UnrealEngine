@@ -112,6 +112,7 @@ public:
 	URigVMController* GetOrCreateController(const FString& InNodePathOrName);
 	URigVMController* GetOrCreateController(const URigVMGraph* InModel);
 	URigVMController* GetOrCreateController(const UObject* InEditorSideObject);
+	bool RemoveController(const URigVMGraph* InModel);
 	URigVMFunctionLibrary* GetFunctionLibrary() const { return FunctionLibrary; }
 	URigVMFunctionLibrary* GetOrCreateFunctionLibrary(bool bSetupUndoRedo, const FObjectInitializer* ObjectInitializer = nullptr, bool bCreateController = true);
 	TArray<FName> GetEntryNames() const;
@@ -123,7 +124,8 @@ public:
 	bool RemoveModel(const FString& InNodePathOrName, bool bSetupUndoRedo);
 	FName RenameModel(const FString& InNodePathOrName, const FName& InNewName, bool bSetupUndoRedo);
 	void PostTransacted(const FTransactionObjectEvent& TransactionEvent);
-	void OnSubGraphRenamed(const FSoftObjectPath& OldObjectPath, const FSoftObjectPath& NewObjectPath);
+	void OnCollapseNodeRenamed(const URigVMCollapseNode* InCollapseNode);
+	void OnCollapseNodeRemoved(const URigVMCollapseNode* InCollapseNode);
 
 	URigVMNode* FindNode(const FString& InNodePathOrName) const;
 	URigVMPin* FindPin(const FString& InPinPath) const;

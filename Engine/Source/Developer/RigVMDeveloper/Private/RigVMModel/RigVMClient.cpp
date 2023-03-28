@@ -176,6 +176,7 @@ URigVMController* FRigVMClient::GetController(const URigVMGraph* InModel) const
 		const FSoftObjectPath Key(InModel);
 		if(const TObjectPtr<URigVMController>* Controller = Controllers.Find(Key))
 		{
+			checkf(Controller->Get()->GetGraph() == InModel, TEXT("Controller %s contains unexpected graph."), *Controller->GetPathName());
 			return Controller->Get();
 		}
 	}
@@ -234,6 +235,20 @@ URigVMController* FRigVMClient::GetOrCreateController(const UObject* InEditorSid
 	}
 
 	return nullptr;
+}
+
+bool FRigVMClient::RemoveController(const URigVMGraph* InModel)
+{
+	const FSoftObjectPath Key(InModel);
+	URigVMController* Controller = GetController(InModel);
+	const bool bSuccess = Controllers.Remove(Key) > 0;
+	if(Controller)
+	{
+		Controller->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+		Controller->RemoveFromRoot();
+		Controller->MarkAsGarbage();
+	}
+	return bSuccess;
 }
 
 URigVMGraph* FRigVMClient::AddModel(const FName& InName, bool bSetupUndoRedo, const FObjectInitializer* ObjectInitializer, bool bCreateController)
@@ -408,10 +423,7 @@ bool FRigVMClient::RemoveModel(const FString& InNodePathOrName, bool bSetupUndoR
 #endif
 
 		// remove the controller
-		if(URigVMController* Controller = GetController(Model))
-		{
-			verify(Controller == Controllers.FindAndRemoveChecked(Model));
-		}
+		verify(RemoveController(Model));
 
 		if (GetOuter()->Implements<URigVMClientHost>())
 		{
@@ -566,14 +578,45 @@ void FRigVMClient::PostTransacted(const FTransactionObjectEvent& TransactionEven
 	}
 }
 
-void FRigVMClient::OnSubGraphRenamed(const FSoftObjectPath& OldObjectPath, const FSoftObjectPath& NewObjectPath)
+void FRigVMClient::OnCollapseNodeRenamed(const URigVMCollapseNode* InCollapseNode)
 {
-	if(OldObjectPath != NewObjectPath)
+	TMap<FSoftObjectPath, TObjectPtr<URigVMController>> OldControllers = Controllers;
+	for(const TPair<FSoftObjectPath, TObjectPtr<URigVMController>>& Pair : OldControllers)
 	{
-		if (TObjectPtr<URigVMController>* Controller = Controllers.Find(OldObjectPath))
+		if(URigVMController* Controller = Pair.Value)
 		{
-			Controllers.Add(NewObjectPath, *Controller);
-			Controllers.Remove(OldObjectPath);
+			if(const URigVMGraph* Graph = Controller->GetGraph())
+			{
+				if(Graph->IsInOuter(InCollapseNode))
+				{
+					const FSoftObjectPath& OldObjectPath = Pair.Key;
+					const FSoftObjectPath NewObjectPath(Graph);
+
+					if(OldObjectPath != NewObjectPath)
+					{
+						Controllers.Add(NewObjectPath, Controller);
+						Controllers.Remove(OldObjectPath);
+					}
+				}
+			}
+		}
+	}
+}
+
+void FRigVMClient::OnCollapseNodeRemoved(const URigVMCollapseNode* InCollapseNode)
+{
+	TMap<FSoftObjectPath, TObjectPtr<URigVMController>> OldControllers = Controllers;
+	for(const TPair<FSoftObjectPath, TObjectPtr<URigVMController>>& Pair : OldControllers)
+	{
+		if(URigVMController* Controller = Pair.Value)
+		{
+			if(const URigVMGraph* Graph = Controller->GetGraph())
+			{
+				if(Graph->IsInOuter(InCollapseNode))
+				{
+					RemoveController(Graph);
+				}
+			}
 		}
 	}
 }

@@ -199,6 +199,8 @@ protected:
 	{
 	}
 
+	void EnsureControllerValidity() const;
+
 	mutable TWeakObjectPtr<URigVMController> WeakController;
 
 	UPROPERTY()
@@ -1106,51 +1108,6 @@ public:
 	UPROPERTY()
 	FString NewNodeName;
 };
-
-/**
- * An action pushing a graph to the graph stack of the controller
- */
-USTRUCT()
-struct FRigVMPushGraphAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FRigVMPushGraphAction();
-	FRigVMPushGraphAction(URigVMController* InController, UObject* InGraph);
-	virtual ~FRigVMPushGraphAction() {};
-	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMPushGraphAction::StaticStruct(); }
-	virtual bool Undo() override;
-	virtual bool Redo() override;
-	virtual bool MakesObsolete(const FRigVMBaseAction* Other) const override;
-
-	UPROPERTY()
-	FSoftObjectPath GraphPath;
-};
-
-/**
- * An action popping a graph from the graph stack of the controller
- */
-USTRUCT()
-struct FRigVMPopGraphAction : public FRigVMBaseAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FRigVMPopGraphAction();
-	FRigVMPopGraphAction(URigVMController* InController, UObject* InGraph);
-	virtual ~FRigVMPopGraphAction() {};
-	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMPopGraphAction::StaticStruct(); }
-	virtual bool Undo() override;
-	virtual bool Redo() override;
-	virtual bool MakesObsolete(const FRigVMBaseAction* Other) const override;
-
-	UPROPERTY()
-	FSoftObjectPath GraphPath;
-};
-
 
 /**
  * An action exposing a pin as a parameter
