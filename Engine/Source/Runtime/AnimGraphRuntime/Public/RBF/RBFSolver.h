@@ -241,15 +241,15 @@ struct ANIMGRAPHRUNTIME_API FRBFParams
 	ERBFNormalizeMethod NormalizeMethod;
 
 	/** Rotation or position of median (used for normalization) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RBFData)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RBFData, meta = (EditCondition = "NormalizeMethod == ERBFNormalizeMethod::NormalizeWithinMedian"))
 	FVector MedianReference;
 
 	/** Minimum distance used for median */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RBFData, meta = (UIMin = "0", UIMax = "90"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RBFData, meta = (UIMin = "0", UIMax = "90", EditCondition = "NormalizeMethod == ERBFNormalizeMethod::NormalizeWithinMedian"))
 	float MedianMin;
 
 	/** Maximum distance used for median */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RBFData, meta = (UIMin = "0", UIMax = "90"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RBFData, meta = (UIMin = "0", UIMax = "90", EditCondition = "NormalizeMethod == ERBFNormalizeMethod::NormalizeWithinMedian"))
 	float MedianMax;
 
 	FRBFParams();

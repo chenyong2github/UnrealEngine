@@ -11,9 +11,9 @@
 
 
 FAnimNode_PoseDriver::FAnimNode_PoseDriver()
-	: DriveSource(EPoseDriverSource::Rotation)
+	: bOnlyDriveSelectedBones(false)
+	, DriveSource(EPoseDriverSource::Rotation)
 	, DriveOutput(EPoseDriverOutput::DrivePoses)
-	, bOnlyDriveSelectedBones(false)
 	, LODThreshold(INDEX_NONE)
 {
 	RBFParams.DistanceMethod = ERBFDistanceMethod::SwingAngle;
