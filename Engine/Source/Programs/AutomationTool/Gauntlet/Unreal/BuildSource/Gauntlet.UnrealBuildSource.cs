@@ -342,7 +342,7 @@ namespace Gauntlet
 					}
 				}
 
-				if (BuildPaths.Count() > 0)
+				if (BuildPaths.Any())
 				{
 					foreach (string Path in BuildPaths)
 					{
@@ -351,6 +351,11 @@ namespace Gauntlet
 
 						foreach (var BS in BuildSources)
 						{
+							if (!BS.BuildName.Contains(InPlatform.ToString(), StringComparison.OrdinalIgnoreCase))
+							{
+								continue;
+							}
+
 							IEnumerable<IBuild> Builds = BS.GetBuildsAtPath(ProjectName, Path);
 
 							foreach (IBuild Build in Builds)
