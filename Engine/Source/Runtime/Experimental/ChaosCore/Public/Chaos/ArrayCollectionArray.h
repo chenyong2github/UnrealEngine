@@ -18,6 +18,7 @@ class TArrayCollectionArray : public TArrayCollectionArrayBase, public TArray<T>
 	using TArray<T>::RemoveAtSwap;
 	using TArray<T>::Emplace;
 	using TArray<T>::Shrink;
+	using TArray<T>::Max;
 
 public:
 	constexpr static bool bAllowShrinkOnRemove = false;
@@ -57,9 +58,22 @@ public:
 		return NewArray;
 	}
 
-	void Shrink() override
+	// If we have more slack space than MaxSlackFraction x Num(), run the default Shrink policy
+	void ApplyShrinkPolicy(const float MaxSlackFraction, const int32 MinSlack) override
 	{
-		TArray<T>::Shrink();
+		// Never shrink below this size
+		const int32 Slack = Max() - Num();
+		if (Slack <= MinSlack)
+		{
+			return;
+		}
+
+		// Shrink if we exceed the maximum allowed slack
+		const int32 MaxSlack = FMath::Max(MinSlack, FMath::FloorToInt(MaxSlackFraction * float(Num())));
+		if (Slack > MaxSlack)
+		{
+			Shrink();
+		}
 	}
 
 	void Resize(const int Num) override

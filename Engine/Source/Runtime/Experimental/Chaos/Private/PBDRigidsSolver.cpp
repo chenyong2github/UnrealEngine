@@ -225,8 +225,12 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarChaosSolverCollisionDisable(TEXT("p.Chaos.Solver.Collision.Enabled"), bChaosSolverCollisionEnabled, TEXT("Enable/Disable collisions in the main scene."));
 
 		// Shrink particle arrays every frame to recove rmemory when a scene changes significantly
-		bool bChaosSolverShrinkArrays = true;
+		bool bChaosSolverShrinkArrays = false;
+		float ChaosArrayCollectionMaxSlackFraction = 0.5f;
+		int32 ChaosArrayCollectionMinSlack = 100;
 		FAutoConsoleVariableRef CVarChaosSolverShrinkArrays(TEXT("p.Chaos.Solver.ShrinkArrays"), bChaosSolverShrinkArrays, TEXT("Enable/Disable particle array shrinking in the main scene"));
+		FAutoConsoleVariableRef CVarChaosSolverArrayCollectionMaxSlackFraction(TEXT("p.Chaos.ArrayCollection.MaxSlackFraction"), ChaosArrayCollectionMaxSlackFraction, TEXT("Shrink particle arrays if the number of slack elements exceeds the number of elements by this fraction"));
+		FAutoConsoleVariableRef CVarChaosSolverArrayCollectionMinSlack(TEXT("p.Chaos.ArrayCollection.MinSlack"), ChaosArrayCollectionMinSlack, TEXT("Do not reduce the size of particle arrays if it would leave less slack than this"));
 
 		// Iteration count cvars
 		// These override the engine config if >= 0
@@ -493,7 +497,7 @@ namespace Chaos
 			if (bChaosSolverShrinkArrays)
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(ShrinkParticleArrays);
-				MSolver->GetParticles().ShrinkArrays();
+				MSolver->GetParticles().ShrinkArrays(CVars::ChaosArrayCollectionMaxSlackFraction, CVars::ChaosArrayCollectionMinSlack);
 			}
 
 			if (FRewindData* RewindData = MSolver->GetRewindData())

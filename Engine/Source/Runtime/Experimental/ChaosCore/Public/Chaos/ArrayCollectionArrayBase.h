@@ -8,7 +8,7 @@ namespace Chaos
 class TArrayCollectionArrayBase
 {
   public:
-	virtual void Shrink() = 0;
+	virtual void ApplyShrinkPolicy(const float MaxSlackFraction, const int32 MinSlack) = 0;
 	virtual void Resize(const int Num) = 0;
 	virtual void RemoveAt(const int Idx, const int Count) = 0;
 	virtual void RemoveAtSwap(const int Idx) = 0;

@@ -230,21 +230,21 @@ public:
 		check(0);
 	}
 
-	void ShrinkArrays()
+	void ShrinkArrays(const float MaxSlackFraction, const int32 MinSlack)
 	{
-		StaticParticles->ShrinkArrays();
-		StaticDisabledParticles->ShrinkArrays();
+		StaticParticles->ShrinkArrays(MaxSlackFraction, MinSlack);
+		StaticDisabledParticles->ShrinkArrays(MaxSlackFraction, MinSlack);
 
-		KinematicParticles->ShrinkArrays();;
-		KinematicDisabledParticles->ShrinkArrays();
+		KinematicParticles->ShrinkArrays(MaxSlackFraction, MinSlack);
+		KinematicDisabledParticles->ShrinkArrays(MaxSlackFraction, MinSlack);
 
-		DynamicDisabledParticles->ShrinkArrays();
-		DynamicParticles->ShrinkArrays();
-		DynamicKinematicParticles->ShrinkArrays();
+		DynamicDisabledParticles->ShrinkArrays(MaxSlackFraction, MinSlack);
+		DynamicParticles->ShrinkArrays(MaxSlackFraction, MinSlack);
+		DynamicKinematicParticles->ShrinkArrays(MaxSlackFraction, MinSlack);
 
-		ClusteredParticles->ShrinkArrays();
+		ClusteredParticles->ShrinkArrays(MaxSlackFraction, MinSlack);
 
-		GeometryCollectionParticles->ShrinkArrays();
+		GeometryCollectionParticles->ShrinkArrays(MaxSlackFraction, MinSlack);
 	}
 
 	void UpdateDirtyViews()
