@@ -351,9 +351,6 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateStaticMeshAsset
 
 	// this disconnects the component from various events
 	StaticMeshComponent->UnregisterComponent();
-	// Configure flags of the component. Is this necessary?
-	StaticMeshComponent->SetMobility(EComponentMobility::Movable);
-	StaticMeshComponent->bSelectable = true;
 	// replace the UStaticMesh in the component
 	StaticMeshComponent->SetStaticMesh(NewStaticMesh);
 
