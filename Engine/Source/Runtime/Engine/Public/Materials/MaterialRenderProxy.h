@@ -177,7 +177,7 @@ public:
 
 	void MarkForGarbageCollection()
 	{
-		MarkedForGarbageCollection = 1;
+		MarkedForGarbageCollection = -1;
 	}
 
 	bool IsMarkedForGarbageCollection() const

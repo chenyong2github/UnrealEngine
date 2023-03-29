@@ -2894,31 +2894,31 @@ bool FTimeline_S_ElementBuilder::ProcessAttribute(FManifestParserDASH* Builder, 
 	if (AttrEquals(t))
 	{
 		ParseUIntAttribute(CurrentElement->T, Builder, AttributeName, AttributeValue, GetXMLLineNumber());
-		CurrentElement->HaveT = 1;
+		CurrentElement->HaveT = -1;
 		return true;
 	}
 	else if (AttrEquals(n))
 	{
 		ParseUIntAttribute(CurrentElement->N, Builder, AttributeName, AttributeValue, GetXMLLineNumber());
-		CurrentElement->HaveN = 1;
+		CurrentElement->HaveN = -1;
 		return true;
 	}
 	else if (AttrEquals(d))
 	{
 		ParseUIntAttribute(CurrentElement->D, Builder, AttributeName, AttributeValue, GetXMLLineNumber());
-		CurrentElement->HaveD = 1;
+		CurrentElement->HaveD = -1;
 		return true;
 	}
 	else if (AttrEquals(r))
 	{
 		ParseIntAttribute(CurrentElement->R, Builder, AttributeName, AttributeValue, GetXMLLineNumber());
-		CurrentElement->HaveR = 1;
+		CurrentElement->HaveR = -1;
 		return true;
 	}
 	else if (AttrEquals(k))
 	{
 		ParseUIntAttribute(CurrentElement->K, Builder, AttributeName, AttributeValue, GetXMLLineNumber());
-		CurrentElement->HaveK = 1;
+		CurrentElement->HaveK = -1;
 		return true;
 	}
 	else
@@ -2977,13 +2977,13 @@ bool FFailOver_FCS_ElementBuilder::ProcessAttribute(FManifestParserDASH* Builder
 	if (AttrEquals(t))
 	{
 		ParseUIntAttribute(CurrentElement->T, Builder, AttributeName, AttributeValue, GetXMLLineNumber());
-		CurrentElement->HaveT = 1;
+		CurrentElement->HaveT = -1;
 		return true;
 	}
 	else if (AttrEquals(d))
 	{
 		ParseUIntAttribute(CurrentElement->D, Builder, AttributeName, AttributeValue, GetXMLLineNumber());
-		CurrentElement->HaveD = 1;
+		CurrentElement->HaveD = -1;
 		return true;
 	}
 	else

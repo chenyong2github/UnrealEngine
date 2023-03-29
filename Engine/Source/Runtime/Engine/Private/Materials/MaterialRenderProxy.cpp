@@ -555,7 +555,7 @@ FMaterialRenderProxy::~FMaterialRenderProxy()
 		HasVirtualTextureCallbacks = false;
 	}
 
-	DeletedFlag = 1;
+	DeletedFlag = -1;
 }
 
 void FMaterialRenderProxy::InitDynamicRHI()
