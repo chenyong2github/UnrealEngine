@@ -35,7 +35,7 @@ public:
 	bool bSmoothFocusChanges = false;
 
 	UPROPERTY()
-	FSoftObjectPath ActorToTrack;
+	FString ActorToTrack;
 
 	UPROPERTY()
 	FVector RelativeOffset = FVector::ZeroVector;
