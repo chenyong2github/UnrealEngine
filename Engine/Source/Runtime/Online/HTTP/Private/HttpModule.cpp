@@ -134,7 +134,7 @@ void FHttpModule::ShutdownModule()
 	if (HttpManager != nullptr)
 	{
 		// block on any http requests that have already been queued up
-		HttpManager->Flush(EHttpFlushReason::Shutdown);
+		HttpManager->Shutdown();
 	}
 
 	// at least on Linux, the code in HTTP manager (e.g. request destructors) expects platform to be initialized yet

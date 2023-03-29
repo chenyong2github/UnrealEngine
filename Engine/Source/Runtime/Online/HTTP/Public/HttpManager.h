@@ -75,16 +75,17 @@ public:
 	void Initialize();
 
 	/**
+	 * Shutdown logic should be called before quiting
+	 */
+	void Shutdown();
+
+	/**
 	 * Adds an Http request instance to the manager for tracking/ticking
 	 * Manager should always have a list of requests currently being processed
 	 *
 	 * @param Request - the request object to add
 	 */
 	void AddRequest(const FHttpRequestRef& Request);
-
-	/** Delegate that will get called once request added */
-	UE_DEPRECATED(5.2, "Direct access to RequestAddedDelegate is deprecated. Please use SetRequestAddedDelegate")
-	FHttpManagerRequestAddedDelegate RequestAddedDelegate;
 
 	void SetRequestAddedDelegate(const FHttpManagerRequestAddedDelegate& Delegate);
 	void SetRequestCompletedDelegate(const FHttpManagerRequestCompletedDelegate& Delegate);
@@ -105,14 +106,6 @@ public:
 	* @return true if the request is being tracked, false if not
 	*/
 	bool IsValidRequest(const IHttpRequest* RequestPtr) const;
-
-	/**
-	 * Block until all pending requests are finished processing
-	 *
-	 * @param bShutdown true if final flush during shutdown
-	 */
-	UE_DEPRECATED(5.0, "This method is deprecated. Please use Flush(EHttpFlushReason FlushReason) instead.")
-	void Flush(bool bShutdown);
 
 	/**
 	 * Block until all pending requests are finished processing
@@ -235,6 +228,8 @@ protected:
 
 	void ReloadFlushTimeLimits();
 
+	bool HasAnyBoundDelegate() const;
+
 protected:
 	/** List of Http requests that are actively being processed */
 	TArray<FHttpRequestRef> Requests;
@@ -249,6 +244,9 @@ protected:
 
 	// This variable is set to true in Flush(EHttpFlushReason), and prevents new Http requests from being launched
 	bool bFlushing;
+
+	/** Delegate that will get called once request added */
+	FHttpManagerRequestAddedDelegate RequestAddedDelegate;
 
 	/** Delegate that will get called when a request completes */
 	FHttpManagerRequestCompletedDelegate RequestCompletedDelegate;
