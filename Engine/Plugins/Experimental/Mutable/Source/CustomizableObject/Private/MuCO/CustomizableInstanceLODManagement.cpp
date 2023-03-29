@@ -50,7 +50,7 @@ static TAutoConsoleVariable<int32> CVarDistanceForFixedLOD2(
 
 static TAutoConsoleVariable<bool> CVarOnlyUpdateCloseCustomizableObjects(
 	TEXT("b.OnlyUpdateCloseCustomizableObjects"),
-	true,
+	false,
 	TEXT("If true, only CustomizableObjects within a predefined distance to the view centers will be generated"),
 	ECVF_Scalability);
 
