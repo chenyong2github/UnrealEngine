@@ -716,15 +716,20 @@ void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeom
 		// todo: we should not be creating unique geometry per actor
 		bool bMergeShapesArray = false;
 		{
-			if (InActor->GetGameThreadAPI().Geometry()) // geometry already exists - combine new geometry with the existing
+			if (InActor->GetGameThreadAPI().Geometry())
 			{
+				// Geometry already exists - combine new geometry with the existing
+				// NOTE: We do not need to set the AllowBVH flag because it will be cloned (see below)
 				InActor->GetGameThreadAPI().MergeGeometry(MoveTemp(Geoms));
 				bMergeShapesArray = true;
 			}
 			else
 			{
-				// we always have a union so we can support any future welding operations. (Non-trivial converting the SharedPtr to UniquePtr)
-				InActor->GetGameThreadAPI().SetGeometry(MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(Geoms)));
+				// We always have a union so we can support any future welding operations. (Non-trivial converting the SharedPtr to UniquePtr).
+				// The root union always supports BVH and is the only Union in the hierarchy that is allowed to do so.
+				TUniquePtr<Chaos::FImplicitObjectUnion> Union = MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(Geoms));
+				Union->SetAllowBVH(true);
+				InActor->GetGameThreadAPI().SetGeometry(MoveTemp(Union));
 			}
 		}
 

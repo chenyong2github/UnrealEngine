@@ -59,6 +59,17 @@ struct TImplicitObjectPtrStorage<T, d, true>
 	}
 };
 
+/**
+* A visitor for use in FImplicitObject hierarchy visiting functions.
+* @param Implicit The geometry we are currently visiting
+* @param Transform The net transform relative to the hierarchy root (the originating visit call)
+* @param RootObjectIndex The index of our ancestor in the root union. Will be INDEX_NONE if no Union at the root. Used to index into a Particle's ShapeInstances or get our ancenstor.
+* @param ObjectIndex A counter tracking the current implicit object index in the flattened hierarchy (pre-order, depth first)
+* @param LeafObjectIndex A counter tracking the current leaf index in the flattened hierarchy (pre-order, depth first). Used to differentiate between geometry when duplicated in the hierarchy. INDEX_NONE if not visiting a leaf.
+*/
+using FImplicitHierarchyVisitor = TFunctionRef<void(const FImplicitObject* Implicit, const FRigidTransform3& Transform, const int32 RootObjectIndex, const int32 ObjectIndex, const int32 LeafObjectIndex)>;
+
+
 /*
  * Base class for implicit collision geometry such as spheres, capsules, boxes, etc.
  * 
@@ -315,22 +326,85 @@ public:
 
 	virtual uint16 GetMaterialIndex(uint32 HintIndex) const { return 0; }
 
-	// Visit all the objects in the hierarchy that overlap the specified local-space bounds.
-	// The Visitor ChildId is an unique index into the hierarchy that can be used to distinguish ImplicitObjects when
-	// they are reused in multiple locations in the hierarchy.
-	void VisitOverlappingObjects(const FAABB3& LocalBounds, const TFunctionRef<void(const FImplicitObject* Implicit, const FRigidTransform3& Transform, const int32 ChildId)>& Visitor) const
+	/**
+	* Visit all the leaf objects in the hierarchy that overlap the specified local-space bounds.
+	* NOTE: Templated decorators like Instanced and Scaled cound as leafs, but object decorators like Transformed do not.
+	* @see FImplicitHierarchyVisitor for visitor notes
+	*/
+	void VisitOverlappingLeafObjects(const FAABB3& LocalBounds, const FImplicitHierarchyVisitor& Visitor) const
 	{
-		int32 VisitId = 0;
-		VisitOverlappingObjectsImpl(LocalBounds, FRigidTransform3::Identity, VisitId, Visitor);
+		int32 LeafObjectIndex = 0;
+		int32 ObjectIndex = 0;
+		const int32 RootObjectIndex = INDEX_NONE;
+		VisitOverlappingLeafObjectsImpl(LocalBounds, FRigidTransform3::Identity, RootObjectIndex, ObjectIndex, LeafObjectIndex, Visitor);
 	}
 
-	// This should not be public, but it needs to be callable by derived classes on another instance (e.g., see FImplicitObjectUnion::VisitOverlappingObjectsImpl)
-	virtual void VisitOverlappingObjectsImpl(const FAABB3& LocalBounds, const FRigidTransform3& ParentTM, int32& VisitId, const TFunctionRef<void(const FImplicitObject*, const FRigidTransform3&, const int32)>& VisitorFunc) const
+	/**
+	* Visit all the leaf objects in the hierarchy
+	* @see FImplicitHierarchyVisitor for visitor notes
+	*/
+	void VisitLeafObjects(const FImplicitHierarchyVisitor& Visitor) const
+	{
+		int32 LeafObjectIndex = 0;
+		int32 ObjectIndex = 0;
+		const int32 RootObjectIndex = INDEX_NONE;
+		VisitLeafObjectsImpl(FRigidTransform3::Identity, RootObjectIndex, ObjectIndex, LeafObjectIndex, Visitor);
+	}
+
+	/**
+	* Visit all the objects in the hierarchy, including inner nodes like Union and Transform
+	* @see FImplicitHierarchyVisitor for visitor notes
+	*/
+	void VisitObjects(const FImplicitHierarchyVisitor& Visitor) const
+	{
+		int32 LeafObjectIndex = 0;
+		int32 ObjectIndex = 0;
+		const int32 RootObjectIndex = INDEX_NONE;
+		VisitObjectsImpl(FRigidTransform3::Identity, RootObjectIndex, ObjectIndex, LeafObjectIndex, Visitor);
+	}
+
+//protected:
+	// This should not be public, but it needs to be callable by derived classes on another instance
+	virtual void VisitOverlappingLeafObjectsImpl(
+		const FAABB3& LocalBounds,
+		const FRigidTransform3& ObjectTransform,
+		const int32 RootObjectIndex,
+		int32& ObjectIndex,
+		int32& LeafObjectIndex,
+		const FImplicitHierarchyVisitor& VisitorFunc) const
 	{
 		if (!HasBoundingBox() || LocalBounds.Intersects(BoundingBox()))
 		{
-			VisitorFunc(this, ParentTM, VisitId);
+			VisitorFunc(this, ObjectTransform, RootObjectIndex, ObjectIndex, LeafObjectIndex);
 		}
+		++ObjectIndex;
+		++LeafObjectIndex;
+	}
+
+	// This should not be public, but it needs to be callable by derived classes on another instance
+	virtual void VisitLeafObjectsImpl(
+		const FRigidTransform3& ObjectTransform,
+		const int32 RootObjectIndex,
+		int32& ObjectIndex,
+		int32& LeafObjectIndex,
+		const FImplicitHierarchyVisitor& VisitorFunc) const
+	{
+		VisitorFunc(this, ObjectTransform, RootObjectIndex, ObjectIndex, LeafObjectIndex);
+		++ObjectIndex;
+		++LeafObjectIndex;
+	}
+
+	// This should not be public, but it needs to be callable by derived classes on another instance
+	virtual void VisitObjectsImpl(
+		const FRigidTransform3& ObjectTransform,
+		const int32 RootObjectIndex,
+		int32& ObjectIndex,
+		int32& LeafObjectIndex,
+		const FImplicitHierarchyVisitor& VisitorFunc) const
+	{
+		VisitorFunc(this, ObjectTransform, RootObjectIndex, ObjectIndex, LeafObjectIndex);
+		++ObjectIndex;
+		++LeafObjectIndex;
 	}
 
 protected:

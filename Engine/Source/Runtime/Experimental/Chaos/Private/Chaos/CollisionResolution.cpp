@@ -1274,10 +1274,20 @@ namespace Chaos
 
 			if (bDoOverlap)
 			{
-				Context.MultiShapeCollisionDetector->FindOrCreateConstraint(
-					Particle0, Implicit0, ImplicitID0, Shape0, Simplicial0, LocalTransform0,
-					Particle1, Implicit1, ImplicitID1, Shape1, Simplicial1, LocalTransform1,
-					CullDistance, ShapePairType, Context.GetSettings().bAllowManifolds, bEnableSweep, Context);
+				if (Context.MultiShapeCollisionDetector != nullptr)
+				{
+					Context.MultiShapeCollisionDetector->FindOrCreateConstraint(
+						Particle0, Implicit0, ImplicitID0, Shape0, Simplicial0, LocalTransform0,
+						Particle1, Implicit1, ImplicitID1, Shape1, Simplicial1, LocalTransform1,
+						CullDistance, ShapePairType, Context.GetSettings().bAllowManifolds, bEnableSweep, Context);
+				}
+				else if (Context.ParticlePairCollisionDetector != nullptr)
+				{
+					Context.ParticlePairCollisionDetector->FindOrCreateConstraint(
+						Particle0, Implicit0, ImplicitID0, Shape0, Simplicial0, LocalTransform0,
+						Particle1, Implicit1, ImplicitID1, Shape1, Simplicial1, LocalTransform1,
+						CullDistance, ShapePairType, Context.GetSettings().bAllowManifolds, bEnableSweep, Context);
+				}
 			}
 		}
 
@@ -1392,11 +1402,11 @@ namespace Chaos
 
 					// @todo(chaos): we shouldn't need to treat Union and ClusterUnion differentlty here - change how we get the simplicial to be more generic
 					const FImplicitObjectUnionClustered* ClusterUnion0 = Implicit0->template GetObject<FImplicitObjectUnionClustered>();
-					Implicit0->VisitOverlappingObjects(QueryBounds0,
-						[&](const FImplicitObject* ChildImplicit0, const FRigidTransform3& ChildTransform0, const int32 ChildId0)
+					Implicit0->VisitOverlappingLeafObjects(QueryBounds0,
+						[&](const FImplicitObject* ChildImplicit0, const FRigidTransform3& ChildTransform0, const int32 RootObjectIndex0, const int32 ObjectIndex, const int32 LeafObjectIndex0)
 						{
-							const FBVHParticles* ChildSimplicial0 = (ClusterUnion0 != nullptr) ? ClusterUnion0->GetChildSimplicial(ChildId0) : Simplicial0;
-							ConstructConstraintsRecursive(Particle0, Particle1, ChildImplicit0, Shape0, ChildSimplicial0, ChildId0, Implicit1, Shape1, Simplicial1, ImplicitID1, ParticleWorldTransform0, ChildTransform0 * LocalTransform0, ParticleWorldTransform1, LocalTransform1, CullDistance, Dt, bEnableSweep, Context);
+							const FBVHParticles* ChildSimplicial0 = (ClusterUnion0 != nullptr) ? ClusterUnion0->GetChildSimplicial(LeafObjectIndex0) : Simplicial0;
+							ConstructConstraintsRecursive(Particle0, Particle1, ChildImplicit0, Shape0, ChildSimplicial0, LeafObjectIndex0, Implicit1, Shape1, Simplicial1, ImplicitID1, ParticleWorldTransform0, ChildTransform0 * LocalTransform0, ParticleWorldTransform1, LocalTransform1, CullDistance, Dt, bEnableSweep, Context);
 						});
 					return;
 				}
@@ -1408,11 +1418,11 @@ namespace Chaos
 					const FAABB3 QueryBounds1 = Implicit0->HasBoundingBox() ? Implicit0->BoundingBox().TransformedAABB(TM0ToTM1) : FAABB3::FullAABB();
 
 					const FImplicitObjectUnionClustered* ClusterUnion1 = Implicit1->template GetObject<FImplicitObjectUnionClustered>();
-					Implicit1->VisitOverlappingObjects(QueryBounds1,
-						[&](const FImplicitObject* ChildImplicit1, const FRigidTransform3& ChildTransform1, const int32 ChildId1)
+					Implicit1->VisitOverlappingLeafObjects(QueryBounds1,
+						[&](const FImplicitObject* ChildImplicit1, const FRigidTransform3& ChildTransform1, const int32 RootObjectIndex1, const int32 ObjectIndex, const int32 LeafObjectIndex1)
 						{
-							const FBVHParticles* ChildSimplicial1 = (ClusterUnion1 != nullptr) ? ClusterUnion1->GetChildSimplicial(ChildId1) : Simplicial1;
-							ConstructConstraintsRecursive(Particle0, Particle1, Implicit0, Shape0, Simplicial0, ImplicitID0, ChildImplicit1, Shape1, Simplicial1, ChildId1, ParticleWorldTransform0, LocalTransform0, ParticleWorldTransform1, ChildTransform1 * LocalTransform1, CullDistance, Dt, bEnableSweep, Context);
+							const FBVHParticles* ChildSimplicial1 = (ClusterUnion1 != nullptr) ? ClusterUnion1->GetChildSimplicial(LeafObjectIndex1) : Simplicial1;
+							ConstructConstraintsRecursive(Particle0, Particle1, Implicit0, Shape0, Simplicial0, ImplicitID0, ChildImplicit1, Shape1, Simplicial1, LeafObjectIndex1, ParticleWorldTransform0, LocalTransform0, ParticleWorldTransform1, ChildTransform1 * LocalTransform1, CullDistance, Dt, bEnableSweep, Context);
 						});
 					return;
 				}

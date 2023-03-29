@@ -3,6 +3,7 @@
 #include "Chaos/BoundingVolumeHierarchy.h"
 #include "Chaos/BoundingVolume.h"
 #include "Chaos/BoundingVolumeUtilities.h"
+#include "Chaos/ImplicitObjectBVH.h"
 #include "Chaos/Tetrahedron.h"
 #include "ChaosStats.h"
 
@@ -423,8 +424,16 @@ namespace Chaos
 		LocalLeafs.SetNum(2);
 		TAABB<T, d> GlobalBox(GlobalMin, GlobalMax);
 		const TVector<T, d> WorldCenter = GlobalBox.Center();
-		const TVector<T, d> MinCenterSearch = TAABB<T, d>(GlobalMin, WorldCenter).Center();
-		const TVector<T, d> MaxCenterSearch = TAABB<T, d>(WorldCenter, GlobalMax).Center();
+
+		// @todo(chaos): I'm not sure what MinCenterSearch and MaxCenterSearch are supposed to be
+		// doing here, but using two different points and counting objects either side along each
+		// axis (see AccumulateNextLevelCount) will double-count objects. In the simplest case of
+		// a regular grid of objects, this results in always splitting along one axis rather than
+		// alternating between the three axes and that's probably not what was intended. Consider
+		// switching to KD Tree logic (sort along axis and pick median point for split position).
+		// OK, how super amazing was it that this comment block perfectly right-justified itself?
+		const TVector<T, d> MinCenterSearch = WorldCenter;//TAABB<T, d>(GlobalMin, WorldCenter).Center();
+		const TVector<T, d> MaxCenterSearch = WorldCenter;//TAABB<T, d>(WorldCenter, GlobalMax).Center();
 
 		for(int32 i = 0; i < Objects.Num(); ++i)
 		{
@@ -692,3 +701,5 @@ template class Chaos::TBoundingVolumeHierarchy<Chaos::TGeometryParticles<Chaos::
 template class Chaos::TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<Chaos::FReal, 3>, Chaos::TBoundingVolume<Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>*, Chaos::FReal, 3>, Chaos::FReal, 3>;
 template class Chaos::TBoundingVolumeHierarchy<Chaos::TGeometryParticles<Chaos::FReal, 3>, Chaos::TBoundingVolume<Chaos::TGeometryParticleHandle<Chaos::FReal, 3>*, Chaos::FReal, 3>, Chaos::FReal, 3>;
 template class Chaos::TBoundingVolumeHierarchy<TArray<TUniquePtr<Chaos::FImplicitObject>>, TArray<int32>, Chaos::FReal, 3>;
+template class Chaos::TBoundingVolumeHierarchy<TArray<Chaos::Private::FImplicitBVHObject>, TArray<int32>, Chaos::FReal, 3>;
+

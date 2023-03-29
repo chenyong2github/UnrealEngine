@@ -10,6 +10,7 @@ namespace Chaos
 		class FCollisionContextAllocator;
 	}
 	class FMultiShapePairCollisionDetector;
+	class FParticlePairCollisionDetector;
 
 	class FCollisionDetectorSettings
 	{
@@ -64,6 +65,7 @@ namespace Chaos
 			: Settings(nullptr)
 			, Allocator(nullptr)
 			, MultiShapeCollisionDetector(nullptr)
+			, ParticlePairCollisionDetector(nullptr)
 		{
 		}
 
@@ -72,6 +74,7 @@ namespace Chaos
 			Settings = nullptr;
 			Allocator = nullptr;
 			MultiShapeCollisionDetector = nullptr;
+			ParticlePairCollisionDetector = nullptr;
 		}
 
 		const FCollisionDetectorSettings& GetSettings() const { return *Settings; }
@@ -79,10 +82,6 @@ namespace Chaos
 
 		Private::FCollisionContextAllocator* GetAllocator() const { return Allocator; }
 		void SetAllocator(Private::FCollisionContextAllocator* InAllocator) { Allocator = InAllocator; }
-
-		FMultiShapePairCollisionDetector* GetMultiShapePairCollisionDetector() const { return MultiShapeCollisionDetector; }
-		void SetMultiShapePairCollisionDetector(FMultiShapePairCollisionDetector* InDetector) { MultiShapeCollisionDetector = InDetector; }
-
 
 		const FCollisionDetectorSettings* Settings;
 
@@ -92,5 +91,6 @@ namespace Chaos
 		// into the Particle's ShapesArray. Currently this is only Clusters.
 		// @todo(chaos): remove thsi from here and make it a parameter on ConstructCollisions and all inner functions.
 		FMultiShapePairCollisionDetector* MultiShapeCollisionDetector;
+		FParticlePairCollisionDetector* ParticlePairCollisionDetector;
 	};
 }

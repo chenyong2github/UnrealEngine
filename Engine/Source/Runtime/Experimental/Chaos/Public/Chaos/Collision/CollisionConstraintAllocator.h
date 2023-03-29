@@ -665,6 +665,42 @@ namespace Chaos
 	}
 
 	template<typename TLambda>
+	inline ECollisionVisitorResult FParticlePairCollisionDetector::VisitCollisions(const TLambda& Visitor, const bool bOnlyActive)
+	{
+		for (auto& KVP : Constraints)
+		{
+			const FPBDCollisionConstraintPtr& Constraint = KVP.Value;
+
+			if (Constraint.IsValid() && (!bOnlyActive || !Constraint->GetDisabled()))
+			{
+				if (Visitor(*Constraint) == ECollisionVisitorResult::Stop)
+				{
+					return ECollisionVisitorResult::Stop;
+				}
+			}
+		}
+		return ECollisionVisitorResult::Continue;
+	}
+
+	template<typename TLambda>
+	inline ECollisionVisitorResult FParticlePairCollisionDetector::VisitConstCollisions(const TLambda& Visitor, const bool bOnlyActive) const
+	{
+		for (auto& KVP : Constraints)
+		{
+			const FPBDCollisionConstraintPtr& Constraint = KVP.Value;
+
+			if (Constraint.IsValid() && (!bOnlyActive || !Constraint->GetDisabled()))
+			{
+				if (!bOnlyActive || (Visitor(*Constraint) == ECollisionVisitorResult::Stop))
+				{
+					return ECollisionVisitorResult::Stop;
+				}
+			}
+		}
+		return ECollisionVisitorResult::Continue;
+	}
+
+	template<typename TLambda>
 	inline ECollisionVisitorResult FParticlePairMidPhase::VisitCollisions(const TLambda& Visitor, const bool bOnlyActive)
 	{
 		for (FSingleShapePairCollisionDetector& ShapePair : ShapePairDetectors)
@@ -681,6 +717,14 @@ namespace Chaos
 		for (FMultiShapePairCollisionDetector& MultiShapePair : MultiShapePairDetectors)
 		{
 			if (MultiShapePair.VisitCollisions(Visitor, bOnlyActive) == ECollisionVisitorResult::Stop)
+			{
+				return ECollisionVisitorResult::Stop;
+			}
+		}
+
+		if (ParticlePairDetector.IsValid())
+		{
+			if (ParticlePairDetector->VisitCollisions(Visitor, bOnlyActive) == ECollisionVisitorResult::Stop)
 			{
 				return ECollisionVisitorResult::Stop;
 			}
@@ -707,6 +751,14 @@ namespace Chaos
 		for (const FMultiShapePairCollisionDetector& MultiShapePair : MultiShapePairDetectors)
 		{
 			if (MultiShapePair.VisitConstCollisions(Visitor, bOnlyActive) == ECollisionVisitorResult::Stop)
+			{
+				return ECollisionVisitorResult::Stop;
+			}
+		}
+
+		if (ParticlePairDetector.IsValid())
+		{
+			if (ParticlePairDetector->VisitConstCollisions(Visitor, bOnlyActive) == ECollisionVisitorResult::Stop)
 			{
 				return ECollisionVisitorResult::Stop;
 			}

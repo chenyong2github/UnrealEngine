@@ -168,6 +168,7 @@ namespace Chaos
 		friend class Private::FCollisionConstraintAllocator;
 		friend class Private::FCollisionContextAllocator;
 		friend class FMultiShapePairCollisionDetector;
+		friend class FParticlePairCollisionDetector;
 		friend class FParticlePairMidPhase;
 		friend class FPBDCollisionConstraints;
 		friend class FSingleShapePairCollisionDetector;

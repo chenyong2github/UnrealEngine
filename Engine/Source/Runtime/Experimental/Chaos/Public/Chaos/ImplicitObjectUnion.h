@@ -12,7 +12,15 @@
 namespace Chaos
 {
 
-struct FLargeImplicitObjectUnionData;
+namespace Private
+{
+	class FImplicitBVH;
+}
+
+namespace CVars
+{
+	extern bool bChaosUnionBVHEnabled;
+}
 
 class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 {
@@ -21,9 +29,6 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 	using FImplicitObject::GetTypeName;
 
 	FImplicitObjectUnion(TArray<TUniquePtr<FImplicitObject>>&& Objects);
-	void Combine(TArray<TUniquePtr<FImplicitObject>>& Objects);
-	void RemoveAt(int32 RemoveIndex);
-
 	FImplicitObjectUnion(const FImplicitObjectUnion& Other) = delete;
 	FImplicitObjectUnion(FImplicitObjectUnion&& Other);
 	virtual ~FImplicitObjectUnion();
@@ -31,6 +36,25 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 	FORCEINLINE static constexpr EImplicitObjectType StaticType()
 	{
 		return ImplicitObjectType::Union;
+	}
+
+	void Combine(TArray<TUniquePtr<FImplicitObject>>& Objects);
+	void RemoveAt(int32 RemoveIndex);
+
+	// The total number of leaf objects in the hierarchy
+	int32 GetNumLeafObjects() const
+	{
+		return int32(NumLeafObjects);
+	}
+
+	// Enable BVH suport for this Union. This should only be done for the root Union in a hierarchy
+	void SetAllowBVH(const bool bInAllowBVH)
+	{
+		if (bInAllowBVH != Flags.bAllowBVH)
+		{
+			Flags.bAllowBVH = bInAllowBVH;
+			RebuildBVH();
+		}
 	}
 
 	virtual TUniquePtr<FImplicitObject> Copy() const;
@@ -93,7 +117,8 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 	}
 
 	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, FRigidTransform3>>& Out, const FAABB3& LocalBounds) const;
-	virtual void CacheAllImplicitObjects();
+	
+	virtual void CacheAllImplicitObjects() { RebuildBVH(); }
 
 	virtual bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const override
 	{
@@ -178,7 +203,9 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 			}
 		}
 
-		return new FImplicitObjectUnion(MoveTemp(NewObjects));
+		FImplicitObjectUnion* Union = new FImplicitObjectUnion(MoveTemp(NewObjects));
+		Union->SetAllowBVH(Flags.bAllowBVH);
+		return Union;
 	}
 
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
@@ -214,16 +241,61 @@ protected:
 		return ClosestIntersection;
 	}
 
-	virtual void VisitOverlappingObjectsImpl(const FAABB3& LocalBounds, const FRigidTransform3& ParentTM, int32& VisitId, const TFunctionRef<void(const FImplicitObject*, const FRigidTransform3&, const int32)>& VisitorFunc) const override final;
+	virtual void VisitOverlappingLeafObjectsImpl(
+		const FAABB3& LocalBounds,
+		const FRigidTransform3& ObjectTransform,
+		const int32 RootObjectIndex,
+		int32& ObjectIndex,
+		int32& LeafObjectIndex,
+		const FImplicitHierarchyVisitor& VisitorFunc) const override final;
+
+	virtual void VisitLeafObjectsImpl(
+		const FRigidTransform3& ObjectTransform,
+		const int32 RootObjectIndex,
+		int32& ObjectIndex,
+		int32& LeafObjectIndex,
+		const FImplicitHierarchyVisitor& VisitorFunc) const override final;
+
+	virtual void VisitObjectsImpl(
+		const FRigidTransform3& ObjectTransform,
+		const int32 RootObjectIndex,
+		int32& ObjectIndex,
+		int32& LeafObjectIndex,
+		const FImplicitHierarchyVisitor& VisitorFunc) const override final;
 
   protected:
 	//needed for serialization
 	FImplicitObjectUnion();
 	friend FImplicitObject;	//needed for serialization
 
+	void SetNumLeafObjects(const int32 InNumLeafObjects);
+	void CreateBVH();
+	void DestroyBVH();
+	void RebuildBVH();
+
+	void LegacySerializeBVH(FChaosArchive& Ar);
+
+	union FFLags
+	{
+	public:
+		FFLags() : Bits(0) {}
+		struct
+		{
+			// NOTE: Flags are serialized. Ordering must be retained
+			uint8 bAllowBVH : 1;				// Are we allowed to use a BVH for this Union? (We generally only want a BVH in the root union)
+			uint8 bHasBVH : 1;					// Do we currently have a BVH? Equivalent to checking BVH pointer, but used by serialization to know whether to load a BVH
+		};
+		uint8 Bits;
+	};
+
 	TArray<TUniquePtr<FImplicitObject>> MObjects;
 	FAABB3 MLocalBoundingBox;
-	TUniquePtr<FLargeImplicitObjectUnionData> LargeUnionData;	//only needed when there are many objects
+
+	// BVH is only created when there are many objects.
+	// @todo(chaos): consider registering particles that may need BVH updated in evolution instead
+	TUniquePtr<Private::FImplicitBVH> BVH;
+	uint16 NumLeafObjects;
+	FFLags Flags;
 };
 
 struct FLargeUnionClusteredImplicitInfo

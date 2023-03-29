@@ -1,53 +1,38 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/ImplicitObjectUnion.h"
+#include "Chaos/ImplicitObjectBVH.h"
 #include "Chaos/BoundingVolumeHierarchy.h"
+
+#include "UObject/FortniteMainBranchObjectVersion.h"
+
+//UE_DISABLE_OPTIMIZATION
 
 namespace Chaos
 {
-struct FLargeImplicitObjectUnionData
-{
-	// @todo(chaos): FGeometryParticles is way too much data for this. Use a custom struct
-	FGeometryParticles GeomParticles;
-	TBoundingVolumeHierarchy<FGeometryParticles, TArray<int32>> Hierarchy;
-
-	FLargeImplicitObjectUnionData(const TArray<Pair<TSerializablePtr<FImplicitObject>,FRigidTransform3>>& SubObjects)
+	namespace CVars
 	{
-		const int32 NumObjects = SubObjects.Num();
-		GeomParticles.Resize(NumObjects);
-		for (int32 i = 0; i < NumObjects; ++i)
-		{
-			GeomParticles.X(i) = SubObjects[i].Second.GetLocation();
-			GeomParticles.R(i) = SubObjects[i].Second.GetRotation();
-			GeomParticles.SetGeometry(i, SubObjects[i].First);
-			//check(!SubObjects[i].First->IsUnderlyingUnion());	//we don't support union of unions
-		}
-
-		Hierarchy = TBoundingVolumeHierarchy<FGeometryParticles,TArray<int32>> (GeomParticles,1);
+		int32 ChaosUnionBVHMinShapes = 32;
+		int32 ChaosUnionBVHMaxDepth = 8;
+		bool bChaosUnionBVHEnabled = true;
+		FAutoConsoleVariableRef CVarChaosUnionBVHMinShapes(TEXT("p.Chaos.Collision.UnionBVH.NumShapes"), ChaosUnionBVHMinShapes, TEXT("If a geometry hierarchy has this many shapes, wrap it in a BVH for collision detection (negative to disable BVH)"));
+		FAutoConsoleVariableRef CVarChaosUnionBVHMaxDepth(TEXT("p.Chaos.Collision.UnionBVH.MaxDepth"), ChaosUnionBVHMaxDepth, TEXT("The allowed depth of the BVH when used to wrap a shape hiererchy"));
+		FAutoConsoleVariableRef CVarChaosUnionBVHEnabled(TEXT("p.Chaos.Collision.UnionBVH.Enabled"), bChaosUnionBVHEnabled, TEXT("Set to false to disable use of BVH during collision detection (without affecting creations and serialization)"));
 	}
 
-	void Serialize(FChaosArchive& Ar)
-	{
-		Ar << GeomParticles << Hierarchy;
-	}
-
-	FLargeImplicitObjectUnionData(){}
-
-	FLargeImplicitObjectUnionData(const FLargeImplicitObjectUnionData& Other) = delete;
-	FLargeImplicitObjectUnionData& operator=(const FLargeImplicitObjectUnionData& Other) = delete;
-};
-
-FChaosArchive& operator<<(FChaosArchive& Ar, FLargeImplicitObjectUnionData& LargeUnionData)
+FImplicitObjectUnion::FImplicitObjectUnion() 
+	: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Union)
+	, MLocalBoundingBox()
+	, NumLeafObjects(0)
+	, Flags()
 {
-	LargeUnionData.Serialize(Ar);
-	return Ar;
 }
-
-FImplicitObjectUnion::FImplicitObjectUnion() : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Union){}
 
 FImplicitObjectUnion::FImplicitObjectUnion(TArray<TUniquePtr<FImplicitObject>>&& Objects)
 	: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Union)
 	, MObjects(MoveTemp(Objects))
 	, MLocalBoundingBox()
+	, NumLeafObjects(0)
+	, Flags()
 {
 	ensure(MObjects.Num());
 	for (int32 i = 0; i < MObjects.Num(); ++i)
@@ -62,8 +47,20 @@ FImplicitObjectUnion::FImplicitObjectUnion(TArray<TUniquePtr<FImplicitObject>>&&
 		}
 	}
 
-	CacheAllImplicitObjects();
+	SetNumLeafObjects(Private::FImplicitBVH::CountLeafObjects(MakeArrayView(MObjects)));
 }
+
+FImplicitObjectUnion::FImplicitObjectUnion(FImplicitObjectUnion&& Other)
+	: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Union)
+	, MObjects(MoveTemp(Other.MObjects))
+	, MLocalBoundingBox(MoveTemp(Other.MLocalBoundingBox))
+	, BVH(MoveTemp(Other.BVH))
+	, NumLeafObjects(Other.NumLeafObjects)
+{
+	Flags.Bits = Other.Flags.Bits;
+}
+
+FImplicitObjectUnion::~FImplicitObjectUnion() = default;
 
 void FImplicitObjectUnion::Combine(TArray<TUniquePtr<FImplicitObject>>& OtherObjects)
 {
@@ -75,18 +72,22 @@ void FImplicitObjectUnion::Combine(TArray<TUniquePtr<FImplicitObject>>& OtherObj
 	}
 
 	MObjects.Reserve(MObjects.Num() + OtherObjects.Num());
-	for (TUniquePtr<FImplicitObject>& ChildObject: OtherObjects)
+	for (TUniquePtr<FImplicitObject>& ChildObject : OtherObjects)
 	{
+		SetNumLeafObjects(GetNumLeafObjects() + Private::FImplicitBVH::CountLeafObjects(MakeArrayView(&ChildObject, 1)));
+
 		MObjects.Add(MoveTemp(ChildObject));
 	}
 
-	CacheAllImplicitObjects();
+	RebuildBVH();
 }
 
 void FImplicitObjectUnion::RemoveAt(int32 RemoveIndex)
 {
 	if (RemoveIndex < MObjects.Num())
 	{
+		SetNumLeafObjects(GetNumLeafObjects() - Private::FImplicitBVH::CountLeafObjects(MakeArrayView(&MObjects[RemoveIndex], 1)));
+
 		MObjects[RemoveIndex].Reset(nullptr);
 		MObjects.RemoveAt(RemoveIndex);
 	}
@@ -104,31 +105,54 @@ void FImplicitObjectUnion::RemoveAt(int32 RemoveIndex)
 		}
 	}
 
-	CacheAllImplicitObjects();
-
+	RebuildBVH();
 }
 
-
-FImplicitObjectUnion::FImplicitObjectUnion(FImplicitObjectUnion&& Other)
-	: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Union)
-	, MObjects(MoveTemp(Other.MObjects))
-	, MLocalBoundingBox(MoveTemp(Other.MLocalBoundingBox))
-	, LargeUnionData(MoveTemp(Other.LargeUnionData))
+void FImplicitObjectUnion::SetNumLeafObjects(int32 InNumLeafObjects)
 {
+	constexpr int32 MaxNumLeafObjects = int32(TNumericLimits<decltype(NumLeafObjects)>::Max());
+	ensure(InNumLeafObjects <= MaxNumLeafObjects);
+	check(InNumLeafObjects >= 0);
+
+	NumLeafObjects = uint16(FMath::Min(InNumLeafObjects, MaxNumLeafObjects));
 }
 
-FImplicitObjectUnion::~FImplicitObjectUnion() = default;
-
-void FImplicitObjectUnion::FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*,FRigidTransform3>>& Out, const FAABB3& LocalBounds) const
+void FImplicitObjectUnion::CreateBVH()
 {
-	if (LargeUnionData)
+	if (Flags.bAllowBVH)
 	{
-		TArray<int32> Overlaps = LargeUnionData->Hierarchy.FindAllIntersections(LocalBounds);
+		const int32 MinBVHShapes = CVars::ChaosUnionBVHMinShapes;
+		const int32 MaxBVHDepth = CVars::ChaosUnionBVHMaxDepth;
+		BVH = Private::FImplicitBVH::TryMake(MakeArrayView(MObjects), MinBVHShapes, MaxBVHDepth);
+		Flags.bHasBVH = BVH.IsValid();
+	}
+}
+
+void FImplicitObjectUnion::DestroyBVH()
+{
+	if (BVH.IsValid())
+	{
+		BVH.Reset();
+		Flags.bHasBVH = false;
+	}
+}
+
+void FImplicitObjectUnion::RebuildBVH()
+{
+	DestroyBVH();
+	CreateBVH();
+}
+
+void FImplicitObjectUnion::FindAllIntersectingObjects(TArray<Pair<const FImplicitObject*,FRigidTransform3>>& Out, const FAABB3& LocalBounds) const
+{
+	if (BVH.IsValid() && CVars::bChaosUnionBVHEnabled)
+	{
+		TArray<int32> Overlaps = BVH->GetBVH().FindAllIntersections(LocalBounds);
 		Out.Reserve(Out.Num() + Overlaps.Num());
 		for (int32 Idx : Overlaps)
 		{
-			const FImplicitObject* Obj = LargeUnionData->GeomParticles.Geometry(Idx).Get();
-			Out.Add(MakePair(Obj,FRigidTransform3(LargeUnionData->GeomParticles.X(Idx), LargeUnionData->GeomParticles.R(Idx))));
+			const FImplicitObject* Obj = BVH->GetGeometry(Idx);
+			Out.Add(MakePair(Obj, BVH->GetTransform(Idx)));
 		}
 	}
 	else
@@ -140,55 +164,75 @@ void FImplicitObjectUnion::FindAllIntersectingObjects(TArray < Pair<const FImpli
 	}
 }
 
-void FImplicitObjectUnion::CacheAllImplicitObjects()
+void FImplicitObjectUnion::VisitOverlappingLeafObjectsImpl(
+	const FAABB3& LocalBounds,
+	const FRigidTransform3& ObjectTransform,
+	const int32 InRootObjectIndex,
+	int32& ObjectIndex,
+	int32& LeafObjectIndex,
+	const FImplicitHierarchyVisitor& VisitorFunc) const
 {
-	TArray < Pair<TSerializablePtr<FImplicitObject>,FRigidTransform3>> SubObjects;
-	AccumulateAllSerializableImplicitObjectsHelper(SubObjects,FRigidTransform3::Identity);
-	//build hierarchy
+	if (BVH.IsValid() && CVars::bChaosUnionBVHEnabled)
 	{
-		const int32 NumObjects = SubObjects.Num();
-		constexpr int32 MinSubObjectsToCache = 32;	//todo(make this tunable?)
-		if (NumObjects > MinSubObjectsToCache)
+		// Visit children
+		BVH->VisitAllIntersections(LocalBounds,
+			[this, &ObjectIndex, &LeafObjectIndex, &ObjectTransform, &VisitorFunc](const int32 BVHObjectIndex)
+			{
+				VisitorFunc(BVH->GetGeometry(BVHObjectIndex), BVH->GetTransform(BVHObjectIndex) * ObjectTransform, BVH->GetRootObjectIndex(BVHObjectIndex), BVH->GetObjectIndex(BVHObjectIndex), BVHObjectIndex);
+			});
+	}
+	else
+	{
+		// Skip self
+		++ObjectIndex;
+
+		for (int32 BVHObjectIndex = 0; BVHObjectIndex < MObjects.Num(); ++BVHObjectIndex)
 		{
-			LargeUnionData = MakeUnique<FLargeImplicitObjectUnionData>(SubObjects);
+			// If we are the root our object index is the root index, otherwise just pass on the value we were given (from the actual root)
+			const int32 RootObjectIndex = (InRootObjectIndex != INDEX_NONE) ? InRootObjectIndex : BVHObjectIndex;
+
+			MObjects[BVHObjectIndex]->VisitOverlappingLeafObjectsImpl(LocalBounds, ObjectTransform, RootObjectIndex, ObjectIndex, LeafObjectIndex, VisitorFunc);
 		}
 	}
 }
 
-void FImplicitObjectUnion::VisitOverlappingObjectsImpl(const FAABB3& LocalBounds, const FRigidTransform3& ParentTM, int32& VisitId, const TFunctionRef<void(const FImplicitObject*, const FRigidTransform3&, const int32)>& VisitorFunc) const
+void FImplicitObjectUnion::VisitLeafObjectsImpl(
+	const FRigidTransform3& ObjectTransform,
+	const int32 InRootObjectIndex,
+	int32& ObjectIndex,
+	int32& LeafObjectIndex,
+	const FImplicitHierarchyVisitor& VisitorFunc) const
 {
-	if (LargeUnionData.IsValid())
+	// Skip self
+	++ObjectIndex;
+
+	for (int32 BVHObjectIndex = 0; BVHObjectIndex < MObjects.Num(); ++BVHObjectIndex)
 	{
-		// @todo(chaos): can a child be in multiple leafs? If not we can ditch this visited array, but
-		// see TBoundingVolumeHierarchy::FindAllIntersectionsHelper which implies that dupes are possible
-		TArray<bool> LeafVisited;
-		LeafVisited.AddZeroed(LargeUnionData->GeomParticles.Size());
+		// If we are the root our object index is the root index, otherwise just pass on the value we were given (from the actual root)
+		const int32 RootObjectIndex = (InRootObjectIndex != INDEX_NONE) ? InRootObjectIndex : BVHObjectIndex;
 
-		// A visitor for the bounding volume.
-		// NOTE: The leaf data is an array of indices into the Hierarchy's flattened list of implicit objects
-		const auto& LeafVisitor = [this, &LeafVisited, &VisitorFunc](const TArray<int32>& Indices)
-		{
-			for (const int32 Index : Indices)
-			{
-				if (!LeafVisited[Index])
-				{
-					LeafVisited[Index] = true;
-					const FImplicitObject* Implicit = LargeUnionData->GeomParticles.Geometry(Index).Get();
-					const FRigidTransform3 Transform = FRigidTransform3(LargeUnionData->GeomParticles.X(Index), LargeUnionData->GeomParticles.R(Index));
-					VisitorFunc(Implicit, Transform, Index);
-				}
-			}
-		};
-
-		LargeUnionData->Hierarchy.VisitAllIntersections(LocalBounds, LeafVisitor);
+		MObjects[BVHObjectIndex]->VisitLeafObjectsImpl(ObjectTransform, RootObjectIndex, ObjectIndex, LeafObjectIndex, VisitorFunc);
 	}
-	else
+}
+
+void FImplicitObjectUnion::VisitObjectsImpl(
+	const FRigidTransform3& ObjectTransform,
+	const int32 InRootObjectIndex,
+	int32& ObjectIndex,
+	int32& LeafObjectIndex,
+	const FImplicitHierarchyVisitor& VisitorFunc) const
+{
+	// Visit self
+	VisitorFunc(this, ObjectTransform, InRootObjectIndex, ObjectIndex, INDEX_NONE);
+	++ObjectIndex;
+
+	// Visit Children
+	for (int32 BVHObjectIndex = 0; BVHObjectIndex < MObjects.Num(); ++BVHObjectIndex)
 	{
-		for (int32 ObjectIndex = 0; ObjectIndex < MObjects.Num(); ++ObjectIndex)
-		{
-			MObjects[ObjectIndex]->VisitOverlappingObjectsImpl(LocalBounds, ParentTM, VisitId, VisitorFunc);
-			++VisitId;
-		}
+		// If we are the root our object index is the root index, otherwise just pass on the value we were given (from the actual root)
+		const int32 RootObjectIndex = (InRootObjectIndex != INDEX_NONE) ? InRootObjectIndex : BVHObjectIndex;
+
+		MObjects[BVHObjectIndex]->VisitObjectsImpl(ObjectTransform, RootObjectIndex, ObjectIndex, LeafObjectIndex, VisitorFunc);
 	}
 }
 
@@ -196,7 +240,7 @@ TUniquePtr<FImplicitObject> FImplicitObjectUnion::Copy() const
 {
 	TArray<TUniquePtr<FImplicitObject>> CopyOfObjects;
 	CopyOfObjects.Reserve(MObjects.Num());
-	for (const TUniquePtr<FImplicitObject>& Object: MObjects)
+	for (const TUniquePtr<FImplicitObject>& Object : MObjects)
 	{
 		CopyOfObjects.Emplace(Object->Copy());
 	}
@@ -207,7 +251,7 @@ TUniquePtr<FImplicitObject> FImplicitObjectUnion::CopyWithScale(const FVec3& Sca
 {
 	TArray<TUniquePtr<FImplicitObject>> CopyOfObjects;
 	CopyOfObjects.Reserve(MObjects.Num());
-	for (const TUniquePtr<FImplicitObject>& Object: MObjects)
+	for (const TUniquePtr<FImplicitObject>& Object : MObjects)
 	{
 		CopyOfObjects.Emplace(Object->CopyWithScale(Scale));
 	}
@@ -218,7 +262,7 @@ TUniquePtr<FImplicitObject> FImplicitObjectUnion::DeepCopy() const
 {
 	TArray<TUniquePtr<FImplicitObject>> CopyOfObjects;
 	CopyOfObjects.Reserve(MObjects.Num());
-	for (const TUniquePtr<FImplicitObject>& Object: MObjects)
+	for (const TUniquePtr<FImplicitObject>& Object : MObjects)
 	{
 		CopyOfObjects.Emplace(Object->DeepCopy());
 	}
@@ -229,7 +273,7 @@ TUniquePtr<FImplicitObject> FImplicitObjectUnion::DeepCopyWithScale(const FVec3&
 {
 	TArray<TUniquePtr<FImplicitObject>> CopyOfObjects;
 	CopyOfObjects.Reserve(MObjects.Num());
-	for (const TUniquePtr<FImplicitObject>& Object: MObjects)
+	for (const TUniquePtr<FImplicitObject>& Object : MObjects)
 	{
 		CopyOfObjects.Emplace(Object->DeepCopyWithScale(Scale));
 	}
@@ -238,14 +282,15 @@ TUniquePtr<FImplicitObject> FImplicitObjectUnion::DeepCopyWithScale(const FVec3&
 
 void FImplicitObjectUnion::ForEachObject(TFunctionRef<bool(const FImplicitObject&, const FRigidTransform3&)> Lambda) const
 {
-	if (LargeUnionData)
+	// @todo(chaos): this implementation is strange. If we have as BVH we will visit all children in the hierarchy, but if not
+	// we only visit our immediate children, and not their children. It should probably just ignore the BVH?
+	if (BVH.IsValid())
 	{
-		for (int32 Index = 0; Index < static_cast<int32>(LargeUnionData->GeomParticles.Size()); ++Index)
+		for (int32 Index = 0; Index < BVH->NumObjects(); ++Index)
 		{
-			if (TSerializablePtr<FImplicitObject> SubObject = LargeUnionData->GeomParticles.Geometry(Index))
+			if (const FImplicitObject* SubObject = BVH->GetGeometry(Index))
 			{
-				const FRigidTransform3 SubTransform{ LargeUnionData->GeomParticles.X(Index), LargeUnionData->GeomParticles.R(Index) };
-				if (Lambda(*SubObject, SubTransform))
+				if (Lambda(*SubObject, BVH->GetTransform(Index)))
 				{
 					break;
 				}
@@ -266,36 +311,72 @@ void FImplicitObjectUnion::ForEachObject(TFunctionRef<bool(const FImplicitObject
 		}
 	}
 }
-	
+
 void FImplicitObjectUnion::Serialize(FChaosArchive& Ar)
 {
 	Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+
 	FChaosArchiveScopedMemory ScopedMemory(Ar, GetTypeName(), false);
 	FImplicitObject::SerializeImp(Ar);
 	Ar << MObjects;
-	TBox<FReal,3>::SerializeAsAABB(Ar, MLocalBoundingBox);
+	TBox<FReal, 3>::SerializeAsAABB(Ar, MLocalBoundingBox);
 
-	bool bHierarchyBuilt = LargeUnionData.Get() != nullptr;
-	if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::UnionObjectsCanAvoidHierarchy)
+	bool bHierarchyBuilt = BVH.IsValid();
+	if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::UnionObjectsCanAvoidHierarchy)
 	{
-		LargeUnionData = MakeUnique<FLargeImplicitObjectUnionData>();
-		Ar << *LargeUnionData;
+		LegacySerializeBVH(Ar);
 		Ar << bHierarchyBuilt;
+	}
+	else if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::ChaosImplicitObjectUnionBVHRefactor)
+	{
+		Ar << bHierarchyBuilt;
+		if (bHierarchyBuilt)
+		{
+			LegacySerializeBVH(Ar);
+		}
 	}
 	else
 	{
-		Ar << bHierarchyBuilt;
-		if(bHierarchyBuilt)
+		Ar << Flags.Bits;
+		Ar << NumLeafObjects;
+		if (Flags.bHasBVH)
 		{
-			if(Ar.IsLoading())
+			if (Ar.IsLoading())
 			{
-				LargeUnionData = MakeUnique<FLargeImplicitObjectUnionData>();
+				BVH = Private::FImplicitBVH::MakeEmpty();
 			}
-			Ar << *LargeUnionData;
+			Ar << *BVH;
 		}
 	}
 }
 
+void FImplicitObjectUnion::LegacySerializeBVH(FChaosArchive& Ar)
+{
+	// We should only ever be loading old data. never saving it
+	check(Ar.IsLoading());
+
+	// The old data structure used FGeometryParticles which contains a lot of data we don't need
+	struct FLargeImplicitObjectUnionData
+	{
+		FGeometryParticles GeomParticles;
+		TBoundingVolumeHierarchy<FGeometryParticles, TArray<int32>> Hierarchy;
+	};
+
+	// Load the old data structure and chuck it away
+	{
+		FLargeImplicitObjectUnionData LegacyData;
+		Ar << LegacyData.GeomParticles << LegacyData.Hierarchy;
+	}
+
+	// Count the objects in the hierarchy
+	SetNumLeafObjects(Private::FImplicitBVH::CountLeafObjects(MakeArrayView(MObjects)));
+
+	// Only the root Union should allow BVH, but we don't know which that is at this stage
+	// so just revert to the original behaviour of every Union potentially having a BVH
+	Flags.bAllowBVH = true;
+	RebuildBVH();
+}
 
 FImplicitObjectUnionClustered::FImplicitObjectUnionClustered()
 	: FImplicitObjectUnion()
@@ -341,15 +422,15 @@ FImplicitObjectUnionClustered::FImplicitObjectUnionClustered(FImplicitObjectUnio
 
 void FImplicitObjectUnionClustered::FindAllIntersectingClusteredObjects(TArray<FLargeUnionClusteredImplicitInfo>& Out, const FAABB3& LocalBounds) const
 {
-	if (LargeUnionData)
+	if (BVH.IsValid())
 	{
-		TArray<int32> Overlaps = LargeUnionData->Hierarchy.FindAllIntersections(LocalBounds);
+		TArray<int32> Overlaps = BVH->GetBVH().FindAllIntersections(LocalBounds);
 		Out.Reserve(Out.Num() + Overlaps.Num());
 		for (int32 Idx : Overlaps)
 		{
-			const FImplicitObject* Obj = LargeUnionData->GeomParticles.Geometry(Idx).Get();
+			const FImplicitObject* Obj = BVH->GetGeometry(Idx);
 			const FBVHParticles* Simplicial = MOriginalParticleLookupHack.IsValidIndex(Idx) ? MOriginalParticleLookupHack[Idx]->CollisionParticles().Get() : nullptr;
-			Out.Add(FLargeUnionClusteredImplicitInfo(Obj,FRigidTransform3(LargeUnionData->GeomParticles.X(Idx), LargeUnionData->GeomParticles.R(Idx)), Simplicial));
+			Out.Add(FLargeUnionClusteredImplicitInfo(Obj, BVH->GetTransform(Idx), Simplicial));
 		}
 	}
 	else
@@ -380,9 +461,9 @@ TArray<FPBDRigidParticleHandle*>
 FImplicitObjectUnionClustered::FindAllIntersectingChildren(const FAABB3& LocalBounds) const
 {
 	TArray<FPBDRigidParticleHandle*> IntersectingChildren;
-	if (LargeUnionData) //todo: make this work when hierarchy is not built
+	if (BVH.IsValid()) //todo: make this work when hierarchy is not built
 	{
-		TArray<int32> IntersectingIndices = LargeUnionData->Hierarchy.FindAllIntersections(LocalBounds);
+		TArray<int32> IntersectingIndices = BVH->GetBVH().FindAllIntersections(LocalBounds);
 		IntersectingChildren.Reserve(IntersectingIndices.Num());
 		for (const int32 Idx : IntersectingIndices)
 		{

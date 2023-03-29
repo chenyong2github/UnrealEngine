@@ -344,6 +344,133 @@ namespace Chaos
 	};
 
 	/**
+	 * 
+	 */
+	class FParticlePairCollisionDetector
+	{
+	public:
+		FParticlePairCollisionDetector(
+			FGeometryParticleHandle* InParticle0,
+			FGeometryParticleHandle* InParticle1,
+			FParticlePairMidPhase& MidPhase);
+		FParticlePairCollisionDetector(FParticlePairCollisionDetector&& R);
+		FParticlePairCollisionDetector(const FParticlePairCollisionDetector& R) = delete;
+		FParticlePairCollisionDetector& operator=(const FParticlePairCollisionDetector& R) = delete;
+		~FParticlePairCollisionDetector();
+
+		/**
+		 * @brief Perform a bounds check and run the narrow phase if necessary
+		 * @return The number of collisions constraints that were activated
+		*/
+		int32 GenerateCollisions(
+			const FReal CullDistance,
+			const FReal Dt,
+			const FCollisionContext& Context);
+
+		int32 GenerateCollisionsCCD(
+			const bool bEnableCCDSweep,
+			const FReal CullDistance,
+			const FReal Dt,
+			const FCollisionContext& Context);
+
+		/**
+		 * @brief Callback from the narrow phase to create a collision constraint for this particle pair.
+		 * We should never be asked for a collision for a different particle pair, but the
+		 * implicit objects may be children of the root shape.
+		*/
+		FPBDCollisionConstraint* FindOrCreateConstraint(
+			FGeometryParticleHandle* InParticle0,
+			const FImplicitObject* InImplicit0,
+			const int32 InImplicitId0,
+			const FShapeInstance* InShape0,
+			const FBVHParticles* InBVHParticles0,
+			const FRigidTransform3& InShapeRelativeTransform0,
+			FGeometryParticleHandle* InParticle1,
+			const FImplicitObject* Implicit1,
+			const int32 InImplicitId1,
+			const FShapeInstance* InShape1,
+			const FBVHParticles* InBVHParticles1,
+			const FRigidTransform3& InhapeRelativeTransform1,
+			const FReal CullDistance,
+			const EContactShapesType ShapePairType,
+			const bool bUseManifold,
+			const bool bEnableSweep,
+			const FCollisionContext& Context);
+
+		/**
+		 * @brief Reactivate the constraint
+		 * @parame SleepEpoch The tick on which the particle went to sleep.
+		 * Only constraints that were active when the particle went to sleep should be reactivated.
+		*/
+		void WakeCollisions(const int32 SleepEpoch, const int32 CurrentEpoch);
+
+		/**
+		 * @brief Visit all the collisions
+		 * @param Visitor functor with signature ECollisionVisitorResult(FPBDCollisionConstaint& Constraint)
+		*/
+		template<typename TLambda>
+		ECollisionVisitorResult VisitCollisions(const TLambda& Visitor, const bool bOnlyActive = true);
+
+		/**
+		 * @brief Visit all the collisions
+		 * @param Visitor functor with signature ECollisionVisitorResult(const FPBDCollisionConstaint& Constraint)
+		*/
+		template<typename TLambda>
+		ECollisionVisitorResult VisitConstCollisions(const TLambda& Visitor, const bool bOnlyActive = true) const;
+
+	private:
+		int32 GenerateCollisionsImpl(
+			const bool bEnableCCDSweep,
+			const FReal CullDistance,
+			const FReal Dt,
+			const FCollisionContext& Context);
+
+		FPBDCollisionConstraint* FindConstraint(const FCollisionParticlePairConstraintKey& Key);
+
+		FPBDCollisionConstraint* CreateConstraint(
+			FGeometryParticleHandle* Particle0,
+			const FImplicitObject* Implicit0,
+			const FPerShapeData* Shape0,
+			const FBVHParticles* BVHParticles0,
+			const FRigidTransform3& ShapeRelativeTransform0,
+			FGeometryParticleHandle* Particle1,
+			const FImplicitObject* Implicit1,
+			const FPerShapeData* Shape1,
+			const FBVHParticles* BVHParticles1,
+			const FRigidTransform3& ShapeRelativeTransform1,
+			const FReal CullDistance,
+			const EContactShapesType ShapePairType,
+			const bool bInUseManifold,
+			const FCollisionParticlePairConstraintKey& Key,
+			const FCollisionContext& Context);
+
+		int32 ProcessNewConstraints(
+			const FReal CullDistance,
+			const FReal Dt,
+			const FCollisionContext& Context);
+
+		void PruneConstraints(const int32 CurrentEpoch);
+
+		void UpdateCollision(
+			FPBDCollisionConstraint* Constraint,
+			const FReal CullDistance,
+			const FReal Dt,
+			const FCollisionContext& Context);
+
+		void UpdateCollisionCCD(
+			FPBDCollisionConstraint* Constraint,
+			const FReal CullDistance,
+			const FReal Dt,
+			const FCollisionContext& Context);
+
+		FParticlePairMidPhase& MidPhase;
+		TMap<uint32, FPBDCollisionConstraintPtr> Constraints;
+		TArray<FPBDCollisionConstraint*> NewConstraints;
+		FGeometryParticleHandle* Particle0;
+		FGeometryParticleHandle* Particle1;
+	};
+
+	/**
 	 * @brief Produce collisions for a particle pair
 	 * A FParticlePairMidPhase object is created for every particle pair whose bounds overlap. It is 
 	 * responsible for building a set of potentially colliding shape pairs and running collision
@@ -587,5 +714,6 @@ namespace Chaos
 
 		TArray<FMultiShapePairCollisionDetector> MultiShapePairDetectors; // 16 bytes
 		TArray<FSingleShapePairCollisionDetector, TInlineAllocator<1>> ShapePairDetectors; //88 bytes
+		TUniquePtr<FParticlePairCollisionDetector> ParticlePairDetector;
 	};
 }

@@ -359,10 +359,49 @@ public:
 	}
 
 protected:
-	virtual void VisitOverlappingObjectsImpl(const FAABB3& InLocalBounds, const FRigidTransform3& ParentTM, int32& VisitId, const TFunctionRef<void(const FImplicitObject*, const FRigidTransform3&, const int32)>& VisitorFunc) const
+	virtual void VisitOverlappingLeafObjectsImpl(
+		const FAABB3& InLocalBounds,
+		const FRigidTransform3& ObjectTransform,
+		const int32 RootObjectIndex,
+		int32& ObjectIndex,
+		int32& LeafObjectIndex,
+		const FImplicitHierarchyVisitor& VisitorFunc) const override
 	{
+		// Skip self
+		++ObjectIndex;
+
+		// Visit child
 		const FAABB3 LocalBounds = InLocalBounds.InverseTransformedAABB(MTransform);
-		MObject->VisitOverlappingObjectsImpl(LocalBounds, MTransform * ParentTM, VisitId, VisitorFunc);
+		MObject->VisitOverlappingLeafObjectsImpl(LocalBounds, MTransform * ObjectTransform, RootObjectIndex, ObjectIndex, LeafObjectIndex, VisitorFunc);
+	}
+
+	virtual void VisitLeafObjectsImpl(
+		const FRigidTransform3& ObjectTransform,
+		const int32 RootObjectIndex,
+		int32& ObjectIndex,
+		int32& LeafObjectIndex,
+		const FImplicitHierarchyVisitor& VisitorFunc) const override
+	{
+		// Skip self
+		++ObjectIndex;
+
+		// Visit child
+		MObject->VisitLeafObjectsImpl(MTransform * ObjectTransform, RootObjectIndex, ObjectIndex, LeafObjectIndex, VisitorFunc);
+	}
+
+	virtual void VisitObjectsImpl(
+		const FRigidTransform3& ObjectTransform,
+		const int32 RootObjectIndex,
+		int32& ObjectIndex,
+		int32& LeafObjectIndex,
+		const FImplicitHierarchyVisitor& VisitorFunc) const override
+	{
+		// Visit self
+		VisitorFunc(this, ObjectTransform, RootObjectIndex, ObjectIndex, INDEX_NONE);
+		++ObjectIndex;
+
+		// Visit child
+		MObject->VisitObjectsImpl(MTransform * ObjectTransform, RootObjectIndex, ObjectIndex, LeafObjectIndex, VisitorFunc);
 	}
 
 private:
@@ -406,5 +445,7 @@ namespace Utilities
 
 template <typename T, int d>
 using TImplicitObjectTransformedNonSerializable = TImplicitObjectTransformed<T, d, false>;
+
+using FImplicitObjectTransformed = TImplicitObjectTransformed<FReal, 3>;
 
 }

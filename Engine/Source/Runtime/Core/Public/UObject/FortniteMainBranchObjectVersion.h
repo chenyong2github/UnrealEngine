@@ -286,6 +286,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// FDataLayerInstanceDesc support for private data layers
 		WorldPartitionPrivateDataLayers,
 
+		// Reduce size and improve behaviour of Chaos::FImplicitObjectUnion
+		ChaosImplicitObjectUnionBVHRefactor,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
