@@ -55,7 +55,7 @@ void UNNERuntimeORTDmlImpl::Init()
 }
 
 #if PLATFORM_WINDOWS
-bool UNNERuntimeORTDmlImpl::CanCreateModelCPU(TObjectPtr<UNNEModelData> ModelData) const
+bool UNNERuntimeORTDmlImpl::CanCreateModelGPU(TObjectPtr<UNNEModelData> ModelData) const
 {
 	check(ModelData != nullptr);
 
@@ -73,14 +73,14 @@ bool UNNERuntimeORTDmlImpl::CanCreateModelCPU(TObjectPtr<UNNEModelData> ModelDat
 	return bResult;
 }
 
-TUniquePtr<UE::NNECore::IModelCPU> UNNERuntimeORTDmlImpl::CreateModelCPU(TObjectPtr<UNNEModelData> ModelData)
+TUniquePtr<UE::NNECore::IModelGPU> UNNERuntimeORTDmlImpl::CreateModelGPU(TObjectPtr<UNNEModelData> ModelData)
 {
 	check(ModelData != nullptr);
 	check(ORTEnvironment.IsValid());
 
-	if (!CanCreateModelCPU(ModelData))
+	if (!CanCreateModelGPU(ModelData))
 	{
-		return TUniquePtr<UE::NNECore::IModelCPU>();
+		return TUniquePtr<UE::NNECore::IModelGPU>();
 	}
 
 	const UE::NNERuntimeORT::Private::FRuntimeConf InConf;
@@ -90,22 +90,22 @@ TUniquePtr<UE::NNECore::IModelCPU> UNNERuntimeORTDmlImpl::CreateModelCPU(TObject
 	if (!Model->Init(Data))
 	{
 		delete Model;
-		return TUniquePtr<UE::NNECore::IModelCPU>();
+		return TUniquePtr<UE::NNECore::IModelGPU>();
 	}
-	UE::NNECore::IModelCPU* IModel = static_cast<UE::NNECore::IModelCPU*>(Model);
-	return TUniquePtr<UE::NNECore::IModelCPU>(IModel);
+	UE::NNECore::IModelGPU* IModel = static_cast<UE::NNECore::IModelGPU*>(Model);
+	return TUniquePtr<UE::NNECore::IModelGPU>(IModel);
 }
 
 #else // PLATFORM_WINDOWS
 
-bool UNNERuntimeORTDmlImpl::CanCreateModelCPU(TObjectPtr<UNNEModelData> ModelData) const
+bool UNNERuntimeORTDmlImpl::CanCreateModelGPU(TObjectPtr<UNNEModelData> ModelData) const
 {
 	return false;
 }
 
-TUniquePtr<UE::NNECore::IModelCPU> UNNERuntimeORTDmlImpl::CreateModelCPU(TObjectPtr<UNNEModelData> ModelData)
+TUniquePtr<UE::NNECore::IModelGPU> UNNERuntimeORTDmlImpl::CreateModelGPU(TObjectPtr<UNNEModelData> ModelData)
 {
-	return TUniquePtr<UE::NNECore::IModelCPU>();
+	return TUniquePtr<UE::NNECore::IModelGPU>();
 }
 
 #endif // PLATFORM_WINDOWS

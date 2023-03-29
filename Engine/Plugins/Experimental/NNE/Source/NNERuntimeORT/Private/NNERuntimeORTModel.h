@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "NNECoreModelBase.h"
-#include "NNECoreRuntimeCPU.h"
+#include "NNECoreRuntimeGPU.h"
 #include "NNECoreTensor.h"
 #include "NNECoreTypes.h"
 #include "NNEProfilingStatistics.h"
@@ -25,7 +25,7 @@ namespace UE::NNERuntimeORT::Private
 		EThreadPriority ThreadPriority = EThreadPriority::TPri_Normal;
 	};
 
-	class FModelORT : public NNECore::Internal::FModelBase<NNECore::IModelCPU>
+	class FModelORT : public NNECore::Internal::FModelBase<NNECore::IModelGPU>
 	{
 
 	public:
@@ -34,7 +34,7 @@ namespace UE::NNERuntimeORT::Private
 		virtual ~FModelORT() = default;
 
 		virtual int SetInputTensorShapes(TConstArrayView<NNECore::FTensorShape> InInputShapes) override;
-		virtual int RunSync(TConstArrayView<NNECore::FTensorBindingCPU> InInputBindings, TConstArrayView<NNECore::FTensorBindingCPU> InOutputBindings) override;
+		virtual int RunSync(TConstArrayView<NNECore::FTensorBindingGPU> InInputBindings, TConstArrayView<NNECore::FTensorBindingGPU> InOutputBindings) override;
 
 		bool Init(TConstArrayView<uint8> ModelData);
 		bool IsLoaded() const;
@@ -76,16 +76,6 @@ namespace UE::NNERuntimeORT::Private
 		UE::NNEProfiling::Internal::FStatisticsEstimator RunStatisticsEstimator;
 		UE::NNEProfiling::Internal::FStatisticsEstimator InputTransferStatisticsEstimator;
 
-	};
-
-	class FModelORTCpu : public FModelORT
-	{
-	public:
-		FModelORTCpu() {}
-		FModelORTCpu(Ort::Env* InORTEnvironment, const FRuntimeConf& InRuntimeConf) : FModelORT(InORTEnvironment, InRuntimeConf) {}
-		virtual ~FModelORTCpu() = default;
-	private:
-		virtual bool InitializedAndConfigureMembers();
 	};
 
 #if PLATFORM_WINDOWS

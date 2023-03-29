@@ -6,6 +6,7 @@
 #include "NNECore.h"
 #include "NNECoreRuntimeCPU.h"
 #include "NNECoreRuntimeFormat.h"
+#include "NNECoreRuntimeGPU.h"
 #include "NNECoreRuntimeRDG.h"
 #include "NNECoreTypes.h"
 #include "RenderGraphBuilder.h"
@@ -23,6 +24,7 @@ class FModelQA : NNECore::IModelCPU
 private:
 
 	TUniquePtr<NNECore::IModelCPU> ModelCPU;
+	TUniquePtr<NNECore::IModelGPU> ModelGPU;
 	TUniquePtr<NNECore::IModelRDG> ModelRDG;
 
 public:

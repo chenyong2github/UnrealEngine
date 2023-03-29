@@ -191,7 +191,7 @@ namespace UE::NNERuntimeORT::Private
 		OutputTensorShapes.Reset();
 
 		// Verify input shape are valid for the model and set InputTensorShapes
-		if (FModelBase<IModelCPU>::SetInputTensorShapes(InInputShapes) != 0)
+		if (FModelBase<IModelGPU>::SetInputTensorShapes(InInputShapes) != 0)
 		{
 			return -1;
 		}
@@ -225,7 +225,7 @@ namespace UE::NNERuntimeORT::Private
 		return 0;
 	}
 
-	int FModelORT::RunSync(TConstArrayView<NNECore::FTensorBindingCPU> InInputBindings, TConstArrayView<NNECore::FTensorBindingCPU> InOutputBindings)
+	int FModelORT::RunSync(TConstArrayView<NNECore::FTensorBindingGPU> InInputBindings, TConstArrayView<NNECore::FTensorBindingGPU> InOutputBindings)
 	{
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FModelORT_Run"), STAT_FModelORT_Run, STATGROUP_NNE);
 
@@ -320,18 +320,6 @@ namespace UE::NNERuntimeORT::Private
 	{
 		RunStatisticsEstimator.ResetStats();
 		InputTransferStatisticsEstimator.ResetStats();
-	}
-
-	bool FModelORTCpu::InitializedAndConfigureMembers()
-	{
-		if (!FModelORT::InitializedAndConfigureMembers())
-		{
-			return false;
-		}
-
-		SessionOptions->EnableCpuMemArena();
-
-		return true;
 	}
 
 #if PLATFORM_WINDOWS

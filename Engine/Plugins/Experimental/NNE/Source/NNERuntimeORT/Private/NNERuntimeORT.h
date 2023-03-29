@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "NNECoreRuntime.h"
-#include "NNECoreRuntimeCPU.h"
+#include "NNECoreRuntimeGPU.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
@@ -20,7 +20,7 @@ NNE_THIRD_PARTY_INCLUDES_END
 #include "NNERuntimeORT.generated.h"
 
 UCLASS()
-class UNNERuntimeORTDmlImpl : public UObject, public INNERuntime, public INNERuntimeCPU
+class UNNERuntimeORTDmlImpl : public UObject, public INNERuntime, public INNERuntimeGPU
 {
 	GENERATED_BODY()
 
@@ -40,6 +40,6 @@ public:
 	virtual bool CanCreateModelData(FString FileType, TConstArrayView<uint8> FileData) const override;
 	virtual TArray<uint8> CreateModelData(FString FileType, TConstArrayView<uint8> FileData) override;
 
-	virtual bool CanCreateModelCPU(TObjectPtr<UNNEModelData> ModelData) const override;
-	virtual TUniquePtr<UE::NNECore::IModelCPU> CreateModelCPU(TObjectPtr<UNNEModelData> ModelData) override;
+	virtual bool CanCreateModelGPU(TObjectPtr<UNNEModelData> ModelData) const override;
+	virtual TUniquePtr<UE::NNECore::IModelGPU> CreateModelGPU(TObjectPtr<UNNEModelData> ModelData) override;
 };

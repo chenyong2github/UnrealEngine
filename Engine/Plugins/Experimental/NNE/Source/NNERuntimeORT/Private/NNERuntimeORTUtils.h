@@ -4,7 +4,7 @@
 
 #include "HAL/UnrealMemory.h"
 #include "NNECore.h"
-#include "NNECoreRuntimeCPU.h"
+#include "NNECoreRuntimeGPU.h"
 #include "NNECoreTypes.h"
 #include "NNECoreTensor.h"
 #include "NNEThirdPartyWarningDisabler.h"
@@ -118,7 +118,7 @@ namespace UE::NNERuntimeORT::Private
 	}
 
 	inline void BindTensorsToORT(
-		TConstArrayView<NNECore::FTensorBindingCPU> InBindingTensors,
+		TConstArrayView<NNECore::FTensorBindingGPU> InBindingTensors,
 		TConstArrayView<NNECore::Internal::FTensor> InTensors,
 		TConstArrayView<ONNXTensorElementDataType> InTensorsORTType,
 		const Ort::MemoryInfo* InAllocatorInfo,
@@ -136,7 +136,7 @@ namespace UE::NNERuntimeORT::Private
 
 		for (uint32 Index = 0; Index < NumBinding; ++Index)
 		{
-			const NNECore::FTensorBindingCPU& Binding = InBindingTensors[Index];
+			const NNECore::FTensorBindingGPU& Binding = InBindingTensors[Index];
 			const NNECore::Internal::FTensor& Tensor = InTensors[Index];
 			const ONNXTensorElementDataType CurrentORTType = InTensorsORTType[Index];
 
@@ -164,7 +164,7 @@ namespace UE::NNERuntimeORT::Private
 
 	inline void CopyFromORTToBindings(
 		TConstArrayView<Ort::Value> InOrtTensors,
-		TConstArrayView<NNECore::FTensorBindingCPU> InBindingTensors,
+		TConstArrayView<NNECore::FTensorBindingGPU> InBindingTensors,
 		TConstArrayView<NNECore::FTensorDesc> InTensorDescs,
 		TArray<NNECore::Internal::FTensor>& OutTensors
 	)
@@ -180,7 +180,7 @@ namespace UE::NNERuntimeORT::Private
 
 		for (uint32 Index = 0; Index < NumBinding; ++Index)
 		{
-			const NNECore::FTensorBindingCPU& Binding = InBindingTensors[Index];
+			const NNECore::FTensorBindingGPU& Binding = InBindingTensors[Index];
 			const NNECore::FTensorDesc& TensorDesc = InTensorDescs[Index];
 			const Ort::Value& OrtTensor = InOrtTensors[Index];
 			const std::vector<int64_t>& OrtShape = OrtTensor.GetTensorTypeAndShapeInfo().GetShape();
