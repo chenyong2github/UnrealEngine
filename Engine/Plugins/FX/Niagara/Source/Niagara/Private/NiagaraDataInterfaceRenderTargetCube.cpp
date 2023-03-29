@@ -412,15 +412,18 @@ bool UNiagaraDataInterfaceRenderTargetCube::InitPerInstanceData(void* PerInstanc
 
 	FRenderTargetCubeRWInstanceData_GameThread* InstanceData = new (PerInstanceData) FRenderTargetCubeRWInstanceData_GameThread();
 
-	if (NiagaraDataInterfaceRenderTargetCommon::GIgnoreCookedOut && !IsUsedWithGPUEmitter())
-	{
-		return true;
-	}
+	//-TEMP: Until we prune data interface on cook this will avoid consuming memory
+	const bool bValidGpuDataInterface = NiagaraDataInterfaceRenderTargetCommon::GIgnoreCookedOut == 0 || IsUsedWithGPUEmitter();
 
 	ETextureRenderTargetFormat RenderTargetFormat;
 	if (NiagaraDataInterfaceRenderTargetCommon::GetRenderTargetFormat(bOverrideFormat, OverrideRenderTargetFormat, RenderTargetFormat) == false)
 	{
-		return false;
+		if (bValidGpuDataInterface)
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("NDIRTCube failed to find a render target format that supports UAV store"));
+			return false;
+		}
+		return true;
 	}
 
 	InstanceData->Size = FMath::Clamp<int>(int(float(Size) * NiagaraDataInterfaceRenderTargetCommon::GResolutionMultiplier), 1, GMaxCubeTextureDimensions);
@@ -611,13 +614,10 @@ bool UNiagaraDataInterfaceRenderTargetCube::PerInstanceTickPostSimulate(void* Pe
 #endif
 
 	//-TEMP: Until we prune data interface on cook this will avoid consuming memory
-	if (NiagaraDataInterfaceRenderTargetCommon::GIgnoreCookedOut && !IsUsedWithGPUEmitter())
-	{
-		return false;
-	}
+	const bool bValidGpuDataInterface = NiagaraDataInterfaceRenderTargetCommon::GIgnoreCookedOut == 0 || IsUsedWithGPUEmitter();
 
 	// Do we need to create a new texture?
-	if (!bInheritUserParameterSettings && (InstanceData->TargetTexture == nullptr))
+	if (bValidGpuDataInterface && !bInheritUserParameterSettings && (InstanceData->TargetTexture == nullptr))
 	{
 		InstanceData->TargetTexture = NewObject<UTextureRenderTargetCube>(this);
 		InstanceData->TargetTexture->bCanCreateUAV = true;
@@ -651,7 +651,7 @@ bool UNiagaraDataInterfaceRenderTargetCube::PerInstanceTickPostSimulate(void* Pe
 	}
 
 	//-TODO: We could avoid updating each frame if we cache the resource pointer or a serial number
-	bool bUpdateRT = true;
+	const bool bUpdateRT = true && bValidGpuDataInterface;
 	if (bUpdateRT)
 	{
 		FNiagaraDataInterfaceProxyRenderTargetCubeProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyRenderTargetCubeProxy>();

@@ -102,8 +102,6 @@ namespace NiagaraDataInterfaceRenderTargetCommon
 			}
 			if (PreviousFormat == OutRenderTargetFormat)
 			{
-				// This is fatal as we failed to find any format that supports typed UAV stores
-				UE_LOG(LogNiagara, Warning, TEXT("Failed to find a render target format that supports UAV store"));
 				return false;
 			}
 		}
