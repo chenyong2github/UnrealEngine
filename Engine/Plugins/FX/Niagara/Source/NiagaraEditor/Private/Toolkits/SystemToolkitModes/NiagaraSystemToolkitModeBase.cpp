@@ -155,8 +155,12 @@ void FNiagaraSystemToolkitModeBase::OnParameterPanelViewModelExternalSelectionCh
 			TArray<UObject*> SelectedNodes = ParamSel->GetSelectedObjects().Array();
 			if (SelectedNodes.Num() != 0)
 			{
-				ObjectSelection->SetSelectedObject(SelectedNodes[0]);
-				ObjectSelectionSubHeaderText = LOCTEXT("ParamPanelSel", "Parameter Panel Selection");
+				const TSet<UObject*>& CurrentlySelectedObjects = ObjectSelection->GetSelectedObjects();
+				if(CurrentlySelectedObjects.Array() != SelectedNodes)
+				{
+					ObjectSelection->SetSelectedObject(SelectedNodes[0]);
+					ObjectSelectionSubHeaderText = LOCTEXT("ParamPanelSel", "Parameter Panel Selection");
+				}
 			}
 		}
 	}

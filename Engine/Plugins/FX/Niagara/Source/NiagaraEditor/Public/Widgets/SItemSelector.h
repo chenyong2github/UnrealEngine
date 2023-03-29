@@ -1337,7 +1337,11 @@ private:
 			DefaultCategoryPaths = InDefaultCategoryPaths;
 			GetRootItems();
 
-			UpdateSuggestedItem();
+			// as the update to the suggested item will cause a selection, we want to avoid this when merely refreshing
+			if(bPreserveSelectionOnRefresh == false)
+			{
+				UpdateSuggestedItem();
+			}
 
 			TArray<TSharedRef<FItemSelectorItemViewModel>> Children;
 			// Set expansion state if necessary.
@@ -1375,6 +1379,7 @@ private:
 					GetChildrenRecursive(Children);
 				}
 
+				ItemTreeRef->ClearSelection();
 				for (const TSharedRef<FItemSelectorItemViewModel>& ChildItemViewModel : Children)
 				{
 					if (ChildItemViewModel->GetType() == EItemSelectorItemViewModelType::Item)
