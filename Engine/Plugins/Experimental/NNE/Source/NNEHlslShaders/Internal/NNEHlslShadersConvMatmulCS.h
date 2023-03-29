@@ -13,6 +13,10 @@ namespace UE::NNEHlslShaders::Internal
 		DECLARE_GLOBAL_SHADER(FConvMatmulCS);
 		SHADER_USE_PARAMETER_STRUCT(FConvMatmulCS, FGlobalShader)
 
+		class FConvMatmulAreWeightsTransposed : SHADER_PERMUTATION_BOOL("WEIGHTS_TRANSPOSED");
+		class FConvMatmulHasBias : SHADER_PERMUTATION_BOOL("HAS_BIAS");
+		using FPermutationDomain = TShaderPermutationDomain<FConvMatmulAreWeightsTransposed, FConvMatmulHasBias>;
+
 	public:
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, Input)

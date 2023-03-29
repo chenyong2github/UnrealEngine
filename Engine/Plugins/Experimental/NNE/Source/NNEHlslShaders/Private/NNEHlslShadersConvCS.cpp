@@ -181,6 +181,7 @@ namespace UE::NNEHlslShaders::Internal
 			WChannelSize *= WShape[2 + i];
 		}
 		
+		Parameters.NumWFeatures = WShape[0];
 		Parameters.NumWChannels = WShape[1];
 
 		Parameters.YBatchStride = YShape[1] * YMemoryStride;

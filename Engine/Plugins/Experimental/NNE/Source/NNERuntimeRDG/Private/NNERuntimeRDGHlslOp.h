@@ -14,6 +14,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		virtual ~FOperatorHlsl() = default;
 		virtual bool Initialize(TConstArrayView<NNECore::FTensorDesc> InputTensorDescs, TConstArrayView<NNECore::FTensorDesc> OutputTensorDescs, const NNECore::FAttributeMap& Attributes) = 0;
 		virtual void Dispatch(FRDGBuilder& GraphBuilder, TConstArrayView<FTensorRDGRef> InInputTensors, TConstArrayView<FTensorRDGRef> InOutputTensors) = 0;
+		virtual void OptimizeInputsWeights(TArrayView<FTensorRDGRef> InputWeights) {};
 	};
 
 	/**

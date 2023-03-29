@@ -35,6 +35,29 @@ FOperatorHlsl* OpCreate(const FString& OpName, TConstArrayView<NNECore::FTensorD
 	return Op;
 }
 
+FTensorRDGRef GetTensorRefIfWeightAndOnlyUsedByOperator(int32 TensorIndex, int32 OperatorIdx,
+	TConstArrayView<FNNEFormatOperatorDesc> Operators, TConstArrayView<int32> WeightTensorIndices, FTensorRDGArray& WeightTensorRDGs)
+{
+	for (int32 Idx = 0; Idx < Operators.Num(); ++Idx)
+	{
+		if (Idx == OperatorIdx)
+			continue;
+		for (int32 InputTensorIndex : Operators[Idx].InTensors)
+		{
+			if (InputTensorIndex == TensorIndex)
+				return nullptr;
+		}
+	}
+
+	int32 WeightIndex;
+	if (WeightTensorIndices.Find(TensorIndex, WeightIndex))
+	{
+		return &WeightTensorRDGs[WeightIndex];
+	}
+
+	return nullptr;
+}
+
 } // namespace ModelUtils
 
 bool FModel::PrepareModelRDG(FRDGBuilder& RDGBuilder)
@@ -93,21 +116,25 @@ bool FModel::Init(TConstArrayView<uint8> ModelData)
 		return false;
 	}
 
-	// Create HLSL tensor and upload to GPU
-	PrepareWeights();
+	TArray<NNECore::FTensorDesc> Inputs;
+	TArray<NNECore::FTensorDesc> Outputs;
+	TArray<FTensorRDGRef> InputsAsWeights;
 
 	// Loop over all operators in the model and create them
 	for (int32 Idx = 0; Idx < Format.Operators.Num(); ++Idx)
 	{
 		const FString TypeName = Format.Operators[Idx].TypeName;
-
-		TArray<NNECore::FTensorDesc> Inputs;
-		TArray<NNECore::FTensorDesc> Outputs;
+		Inputs.Reset();
+		Outputs.Reset();
+		InputsAsWeights.Reset();
 		UE::NNECore::FAttributeMap AttributeMap;
 
 		for (int32 InputTensorIndex : Format.Operators[Idx].InTensors)
 		{
+			FTensorRDGRef InputAsWeight = ModelUtils::GetTensorRefIfWeightAndOnlyUsedByOperator(InputTensorIndex, Idx, Format.Operators, WeightTensorIndices, WeightTensorRDGs);
+
 			Inputs.Emplace(AllSymbolicTensorDescs[InputTensorIndex]);
+			InputsAsWeights.Emplace(InputAsWeight);
 		}
 		for (int32 OutputTensorIndex : Format.Operators[Idx].OutTensors)
 		{
@@ -128,8 +155,13 @@ bool FModel::Init(TConstArrayView<uint8> ModelData)
 			return false;
 		}
 
+		Op->OptimizeInputsWeights(InputsAsWeights);
+
 		Operators.Add(Op);
 	}
+
+	// Create HLSL tensor and upload to GPU
+	PrepareWeights();
 
 	return true;
 }

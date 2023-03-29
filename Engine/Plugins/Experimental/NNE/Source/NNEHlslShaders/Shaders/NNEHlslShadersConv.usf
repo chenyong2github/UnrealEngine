@@ -17,7 +17,7 @@
 #endif
 
 Buffer<BUFFER_TYPE> X; // N x C x XD0 x ... x XDi
-Buffer<BUFFER_TYPE> W; // M x C/GROUPS x WD0 x ... x WDi
+Buffer<BUFFER_TYPE> W; // M x C/GROUPS x WD0 x ... x WDi OR WD0 x WD1 x C X M if WEIGHTS_TRANSPOSED (only supported for 4D)
 RWBuffer<BUFFER_TYPE> Y;  // N x M x YD0 x ... x YDi
 Buffer<BUFFER_TYPE> B; // B0, ..., BM
 
@@ -47,7 +47,8 @@ int4 XBlockStartStride_XBlockStride_WDimension_WDimensionDilationXBlockStride[MA
 // z: 1/XBlockStride
 float4 OneDiv_GroupStride_GroupThreadStride_XBlockStride[MAX_NUM_DIMENSIONS];
 
-int NumWChannels; // WShape[1]
+int NumWFeatures; // Number of features (aka output channels)
+int NumWChannels; // Number of input channels
 
 int YBatchStride;
 int YOutputKernelStride;
@@ -201,9 +202,18 @@ void Conv(in const uint3 DispatchThreadID : SV_DispatchThreadID, in const uint3 
         int WIndex = WChannelBatchOffset + GroupThreadID.x;
         if (GroupThreadID.x < WChannelBatchSize && WIndex < WOutputKernelStride)
         {
-            SharedMemoryW[GroupThreadID.x] = BUFFER_TO_WORK_TYPE(W[WChannelOutputKernelOffset + WIndex]);
+			#if WEIGHTS_TRANSPOSED
+				int MCHWIndex = WChannelOutputKernelOffset + WIndex;
+				int Whw = MCHWIndex % WChannelSize;
+				int Wc = (MCHWIndex / WChannelSize) % NumWChannels;
+				int Wm = (MCHWIndex / (NumWChannels * WChannelSize));
+				int HWCMIndex = Whw * NumWChannels * NumWFeatures + Wc * NumWFeatures + Wm;
+				SharedMemoryW[GroupThreadID.x] = BUFFER_TO_WORK_TYPE(W[HWCMIndex]);
+			#else
+				SharedMemoryW[GroupThreadID.x] = BUFFER_TO_WORK_TYPE(W[WChannelOutputKernelOffset + WIndex]);
+			#endif
             WChannelBatchOffset += WChannelBatchSize;
-        }
+		}
         
         // Each channel batch iterates over all consecutive elements of the loaded kernel channels
         // This results in bank conflict free lookups, as all threads of the same warp read exactly the same element which is then broadcasted

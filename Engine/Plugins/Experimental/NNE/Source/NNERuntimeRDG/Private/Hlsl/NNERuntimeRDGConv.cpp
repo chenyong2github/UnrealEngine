@@ -2,12 +2,13 @@
 
 #include "NNERuntimeRDGConv.h"
 #include "Algo/AnyOf.h"
-#include "NNEHlslShadersConvCS.h"
-#include "NNEHlslShadersConvMatmulCS.h"
 #include "NNECoreAttributeMap.h"
-#include "NNERuntimeRDGHlslHelper.h"
 #include "NNECoreTensor.h"
 #include "NNECoreTypes.h"
+#include "NNEHlslShadersConvCS.h"
+#include "NNEHlslShadersConvMatmulCS.h"
+#include "NNERuntimeRDGHelperTranspose.h"
+#include "NNERuntimeRDGHlslHelper.h"
 
 namespace UE::NNERuntimeRDG::Private::Hlsl
 {
@@ -41,6 +42,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 		int32 Group = 1;
 		TArray<int32> Pads;
 		TArray<int32> Strides;
+		bool bAreWeightsTransposed = false;
 
 	public:
 
@@ -133,6 +135,7 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			FConvCS::FPermutationDomain PermutationVector;
 
 			PermutationVector.Set<FConvCS::FConvAlgorithm>(Algorithm);
+			PermutationVector.Set<FConvCS::FConvAreWeightsTransposed>(bAreWeightsTransposed);
 			PermutationVector.Set<FConvCS::FConvGroupSize>(GroupSize);
 			PermutationVector.Set<FConvCS::FConvNumDimensions>(NumDimensions);
 			PermutationVector.Set<FConvCS::FConvNumReadsPerThread>(FConvCS::GetNumReadsPerThread(GroupSize, Weights.GetShape().GetData(), Dilations, Strides));
@@ -163,10 +166,8 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 				return false;
 			if (Weights.GetShape().Rank() != 4)
 				return false;
-			if (Bias == nullptr)
-				return false;
-			if (Bias->GetShape().Rank() != 1)
-				return false;
+			
+			bool bHasBias = Bias != nullptr;
 
 			const bool bHasDilation = Algo::AnyOf(Dilations, [](auto Dim) {return Dim != 1u; });
 			if (bHasDilation)
@@ -187,13 +188,11 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			int Hw = Weights.GetShape().GetData()[2];
 			int Ww = Weights.GetShape().GetData()[3];
 
-			check(Cw == Bias->GetShape().GetData()[0]);
-
-			if (Ci % 32 != 0)
+			if (Ci % 16 != 0)
 				return false;
 			if (Cw % 32 != 0)
 				return false;
-			if (Wo % 32 != 0)
+			if (Wo % 32 != 0) // Idea : support this by launching more threads and discard some results so a threadgroup still operator on only one value for H.
 				return false;
 
 			TArray<int32> Padding = FConvCS::GetPadding(Input.GetShape().GetData(), Weights.GetShape().GetData(), AutoPad, Dilations, Strides, Pads);
@@ -202,7 +201,9 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			FConvMatmulCS::FParameters* Params = GraphBuilder.AllocParameters<FConvMatmulCS::FParameters>();
 			Params->Input = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(Input.GetBuffer(), PF_R32_FLOAT));
 			Params->Weight= GraphBuilder.CreateSRV(FRDGBufferSRVDesc(Weights.GetBuffer(), PF_R32_FLOAT));
-			Params->Bias = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(Bias->GetBuffer(), PF_R32_FLOAT));
+			if (bHasBias) {
+				Params->Bias = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(Bias->GetBuffer(), PF_R32_FLOAT));
+			}
 			Params->Output = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Output.GetBuffer(), PF_R32_FLOAT));
 			Params->Ci = Ci;
 			Params->Hi = Hi;
@@ -218,6 +219,8 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			Params->PadLeft = Padding[1];
 
 			FConvMatmulCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FConvMatmulCS::FConvMatmulAreWeightsTransposed>(bAreWeightsTransposed);
+			PermutationVector.Set<FConvMatmulCS::FConvMatmulHasBias>(bHasBias);
 			TShaderMapRef<FConvMatmulCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 
 			RDG_EVENT_SCOPE(GraphBuilder, "NNE.Operator.Hlsl.Conv.Matmul");
@@ -263,6 +266,36 @@ namespace UE::NNERuntimeRDG::Private::Hlsl
 			}
 			DispatchConvDefault(GraphBuilder, Input, Weights, Bias, Output);
 		}
+
+		virtual void OptimizeInputsWeights(TArrayView<FTensorRDGRef> InputWeights) override
+		{
+			using namespace UE::NNEHlslShaders::Internal;
+
+			check(InputWeights.Num() >= 2);
+			FTensorRDGRef Weights = InputWeights[1];
+			if (Weights == nullptr)
+				return;
+
+			// Heuristics : only matmul implementation benefits from transposed weights
+			if (Weights->GetShape().Rank() != 4)
+				return;
+
+			uint32 Cw = Weights->GetShape().GetData()[0];
+			uint32 Ci = Weights->GetShape().GetData()[1];
+
+			if (Ci % 16 != 0)
+				return;
+			if (Cw % 32 != 0)
+				return;
+			if (Group != 1)
+				return;
+
+			//Transpose from CwCiHwWw to HwWwCiCw
+			if (Internal::CPUHelper::Transpose::TransposePreparedData(*Weights, {2,3,1,0} ))
+			{
+				bAreWeightsTransposed = true;
+			}
+		};
 	};
 
 	bool ValidateConvOperator(const NNECore::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNECore::FSymbolicTensorShape> InputShapes)

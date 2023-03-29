@@ -7,15 +7,19 @@
 #define BUFFER_TO_WORK_TYPE(x) x
 #define WORK_TO_BUFFER_TYPE(x) x
 
-#define LDS_IC 32 //Input channel cached in LDS
+#define LDS_IC 16 //Input channel cached in LDS
 #define TG_OC 32 //Number of output channel covered by a thread group
 #define TG_OP 32 //Number of output pixel covered by a thread group
 
-groupshared WORK_TYPE LDSInputs[LDS_IC][TG_OP]; //1024 WORK_TYPE
-groupshared WORK_TYPE LDSWeights[LDS_IC][TG_OC]; //1024 WORK_TYPE
+//To avoid bank conflict when writing out to DDR
+#define LDS_PADX 1
+#define LDS_PADY 2
+#define LDS_X_PADDEDSIZE ((4 + LDS_PADX) * 8 + LDS_PADY) //42
+
+groupshared WORK_TYPE LDSBuffer[32 * LDS_X_PADDEDSIZE]; //max (16*32+32,32*42) = 1344 WORK_TYPE 
 
 Buffer<BUFFER_TYPE> Input; // Ni x Ci x Hi x Wi
-Buffer<BUFFER_TYPE> Weight; // Cw x Ci x Hw x Ww
+Buffer<BUFFER_TYPE> Weight; // Cw x Ci x Hw x Ww OR Hw x Ww x Ci x Cw if WEIGHTS_TRANSPOSED
 Buffer<BUFFER_TYPE> Bias; // Cw
 RWBuffer<BUFFER_TYPE> Output; // Ni x Cw x Ho x Wo
 
@@ -32,7 +36,25 @@ int PadTop;
 int StrideH;
 int StrideW;
 
-//#define DEBUGVAL(val, pos, thread) {if (thread == GroupThreadIdx) Output[pos] = val;}
+WORK_TYPE ReadLDSWeights(int inputChannel, int outputChannel)
+{
+	return LDSBuffer[LDS_IC * TG_OP + inputChannel * TG_OC + outputChannel];
+}
+
+void WriteLDSWeights(int inputChannel, int outputChannel, WORK_TYPE value)
+{
+	LDSBuffer[LDS_IC * TG_OP + inputChannel * TG_OC + outputChannel] = value;
+}
+
+WORK_TYPE ReadLDSInputs(int inputChannel, int outputPixel)
+{
+	return LDSBuffer[inputChannel * TG_OP + outputPixel];
+}
+
+void WriteLDSInputs(int inputChannel, int outputPixel, WORK_TYPE value)
+{
+	LDSBuffer[inputChannel * TG_OP + outputPixel] = value;
+}
 
 [numthreads(8, 8, 1)]
 void ConvMatmul(
@@ -41,7 +63,6 @@ void ConvMatmul(
 	in const uint3 GroupThreadID : SV_GroupThreadID,
 	in const uint GroupIndex : SV_GroupIndex)
 {
-	
 	const int DispatchThreadOutputPixelOffset = 4 * DispatchThreadID.x;
 	const int DispatchThreadOutputChannelOffset = 4 * DispatchThreadID.y;
 	const int GroupThreadOutputPixelOffset = 4 * GroupThreadID.x;
@@ -59,10 +80,17 @@ void ConvMatmul(
 	const int cw = DispatchThreadOutputChannelOffset;
 	const int pi = DispatchThreadOutputPixelOffset;
 
+#if HAS_BIAS
 	WORK_TYPE BiasC0 = BUFFER_TO_WORK_TYPE(Bias[cw+0]);
 	WORK_TYPE BiasC1 = BUFFER_TO_WORK_TYPE(Bias[cw+1]);
 	WORK_TYPE BiasC2 = BUFFER_TO_WORK_TYPE(Bias[cw+2]);
 	WORK_TYPE BiasC3 = BUFFER_TO_WORK_TYPE(Bias[cw+3]);
+#else
+	WORK_TYPE BiasC0 = 0.0f;
+	WORK_TYPE BiasC1 = 0.0f;
+	WORK_TYPE BiasC2 = 0.0f;
+	WORK_TYPE BiasC3 = 0.0f;
+#endif
 	
 	int i;
 	// First index is thread output channel offset (on cw)
@@ -79,7 +107,7 @@ void ConvMatmul(
 	}
 	
 	int Scalar_KernelIdx = 0;
-	const int InputChannelOffset = GroupThreadIdx >= 32 ? 16 : 0;
+	const int InputChannelOffset = GroupThreadIdx >= 32 ? LDS_IC/2 : 0;
 	const int OutputPixelOffset = GroupThreadIdx % 32;
 	const int OutputChannelOffset = GroupThreadIdx % 32;
 	
@@ -99,25 +127,29 @@ void ConvMatmul(
 			for (int ci = 0; ci < Ci; ci += LDS_IC)
 			{
 				///— DDR → LDS
-				// We need to load 2048 floats
-				// 1024 weights (32 inputs channel, 32 output channels) and
-				// 1024 inputs (32 inputs channel, 32 inputs pixels)
-				// We have 64 threads thus each will read 16 inputs and 16 weights.
-				// the first 32 read the first 16 channels, while the next 32 read the remaining 16.
+				// We need to load 1024 floats
+				// 512 weights (16 inputs channel, 32 output channels) and
+				// 512 inputs (16 inputs channel, 32 inputs pixels)
+				// We have 64 threads thus each will read 8 inputs and 8 weights.
 
 				const int ReadOffsetI = Scalar_BatchInputOffset + (ci + InputChannelOffset) * Hi * Wi + InputPixelOffset;
-				const int ReadOffsetW = (Scalar_GroupOutputChannelOffset + OutputChannelOffset) * Ci * Hw * Ww + (ci + InputChannelOffset) * Hw * Ww + Scalar_KernelIdx;
+				#if WEIGHTS_TRANSPOSED
+					const int InputChannelStride = Cw;
+					const int ReadOffsetW = Scalar_KernelIdx + (ci + InputChannelOffset) * InputChannelStride + (Scalar_GroupOutputChannelOffset + OutputChannelOffset);
+				#else
+					const int InputChannelStride = Hw * Ww;
+					const int ReadOffsetW = (Scalar_GroupOutputChannelOffset + OutputChannelOffset) * Ci * InputChannelStride + (ci + InputChannelOffset) * InputChannelStride + Scalar_KernelIdx;
+				#endif
 				
 				UNROLL
 				for (i = 0; i < (LDS_IC / 2); ++i)
 				{
 					WORK_TYPE ValueI = BUFFER_TO_WORK_TYPE(Input[Hi * Wi * i + ReadOffsetI]);
 					ValueI = IsValidInput ? ValueI : 0.0f;
-					LDSInputs[InputChannelOffset + i][OutputPixelOffset] = ValueI;
+					WriteLDSInputs(InputChannelOffset + i, OutputPixelOffset, ValueI);
 
-					// Idea: Try to transpose weights to W[Kw, Ci, Cw] to get coalesced reads.
-					WORK_TYPE ValueW = BUFFER_TO_WORK_TYPE(Weight[Hw * Ww * i + ReadOffsetW]);
-					LDSWeights[InputChannelOffset + i][OutputChannelOffset] = ValueW;
+					WORK_TYPE ValueW = BUFFER_TO_WORK_TYPE(Weight[InputChannelStride * i + ReadOffsetW]);
+					WriteLDSWeights(InputChannelOffset + i, OutputChannelOffset, ValueW);
 				}
 				
 				GroupMemoryBarrierWithGroupSync();
@@ -137,8 +169,8 @@ void ConvMatmul(
 						UNROLL
 						for (i = 0; i < 4; ++i)
 						{
-							RegWeights[unrolledIdx][i] = LDSWeights[cachedCiBase + unrolledIdx][GroupThreadOutputChannelOffset + i];
-							RegInputs[unrolledIdx][i] = LDSInputs[cachedCiBase + unrolledIdx][GroupThreadOutputPixelOffset + i];
+							RegWeights[unrolledIdx][i] = ReadLDSWeights(cachedCiBase + unrolledIdx, GroupThreadOutputChannelOffset + i);
+							RegInputs[unrolledIdx][i] = ReadLDSInputs(cachedCiBase + unrolledIdx, GroupThreadOutputPixelOffset + i);
 						}
 
 						// Inner loop (16 mads)
@@ -155,18 +187,37 @@ void ConvMatmul(
 				
 				GroupMemoryBarrierWithGroupSync();
 			}
+			#if WEIGHTS_TRANSPOSED
+				Scalar_KernelIdx += Ci * Cw;
+			#else
 			++Scalar_KernelIdx;
+			#endif
 		}
 	}
 	
-	/// register to DDR
+	/// Write results back to DDR (via LDS)
 	UNROLL
 	for (i = 0; i < 4; ++i)
 	{
-		const int WriteOffset = Scalar_BatchOutputOffset + (cw + i) * Ho * Wo + pi;
-		Output[WriteOffset + 0] = Values[i][0];
-		Output[WriteOffset + 1] = Values[i][1];
-		Output[WriteOffset + 2] = Values[i][2];
-		Output[WriteOffset + 3] = Values[i][3];
+		const int LDSWriteOffsetY = 4 * GroupThreadID.y + i;
+		const int LDSWriteOffsetX = (LDS_PADX + 4) * GroupThreadID.x;
+		LDSBuffer[LDSWriteOffsetY * LDS_X_PADDEDSIZE + LDSWriteOffsetX + 0] = Values[i][0];
+		LDSBuffer[LDSWriteOffsetY * LDS_X_PADDEDSIZE + LDSWriteOffsetX + 1] = Values[i][1];
+		LDSBuffer[LDSWriteOffsetY * LDS_X_PADDEDSIZE + LDSWriteOffsetX + 2] = Values[i][2];
+		LDSBuffer[LDSWriteOffsetY * LDS_X_PADDEDSIZE + LDSWriteOffsetX + 3] = Values[i][3];
 	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	const int WriteOutChannelOffset = GroupThreadIdx >= 32 ? LDS_IC : 0;
+	const int WriteOutPixelOffset = GroupThreadIdx % 32;
+	const int LDSPixelOffset = (4 + LDS_PADX) * (WriteOutPixelOffset / 4) + WriteOutPixelOffset % 4;
+	
+	UNROLL
+	for (i = 0; i < LDS_IC; ++i)
+	{
+		const int WriteOffset = Scalar_BatchOutputOffset + (Scalar_GroupOutputChannelOffset + i + WriteOutChannelOffset) * Ho * Wo + Scalar_GroupOutputPixelOffset + WriteOutPixelOffset;
+		Output[WriteOffset] = LDSBuffer[(i + WriteOutChannelOffset) * LDS_X_PADDEDSIZE + LDSPixelOffset];
+	}
+
 }
