@@ -587,7 +587,7 @@ void ImageRasterProjected_Optimised( const Mesh* pMesh, Image* pImage,
 				!scratch->culledVertex[i1] ||
 				!scratch->culledVertex[i2])
 			{
-				Triangle(pImage->GetData(),
+				Triangle(pImage->GetData(), pImage->GetDataSize(),
 					sizeX, sizeY,
 					pixelSize,
 					scratch->vertices[i0],
@@ -712,7 +712,7 @@ void ImageRasterProjected_OptimisedWrapping( const Mesh* pMesh, Image* pImage, P
              !scratch->culledVertex[i1] ||
              !scratch->culledVertex[i2] )
         {
-            Triangle( pImage->GetData(),
+            Triangle( pImage->GetData(), pImage->GetDataSize(),
 				sizeX, sizeY,
 				pixelSize,
 				scratch->vertices[i0], scratch->vertices[i1], scratch->vertices[i2],

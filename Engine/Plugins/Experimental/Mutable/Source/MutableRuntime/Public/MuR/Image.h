@@ -91,7 +91,7 @@ namespace mu
 		}
 
 		//!
-		FImageSize m_size;
+		FImageSize m_size = FImageSize(0, 0);
 
 		//!
 		EImageFormat m_format;
@@ -251,7 +251,7 @@ namespace mu
 		//-----------------------------------------------------------------------------------------
 
 		//!
-		FImageSize m_size;
+		FImageSize m_size = FImageSize(0, 0);
 
 		//! Non-persistent internal id
 		mutable uint32 m_internalId = 0;

@@ -188,7 +188,7 @@ namespace mu
             // This reference has to be the smart pointer to avoid memory aliasing, keeping
             // processed nodes alive.
             NodePtrConst pNode;
-			UE::Math::TIntVector2<int32> imageSize;
+			UE::Math::TIntVector2<int32> imageSize = UE::Math::TIntVector2<int32>(0, 0);
             box< UE::Math::TIntVector2<int32> > imageRect;
             int state = -1;
 			TArray<mu::string> activeTags;
@@ -237,7 +237,7 @@ namespace mu
         //! image that we are generating.
         struct IMAGE_STATE
         {
-            UE::Math::TIntVector2<int32> m_imageSize;
+            UE::Math::TIntVector2<int32> m_imageSize = UE::Math::TIntVector2<int32>(0, 0);
             box< UE::Math::TIntVector2<int32> > m_imageRect;
             int32 m_layoutBlockId;
             LayoutPtrConst m_pLayout;

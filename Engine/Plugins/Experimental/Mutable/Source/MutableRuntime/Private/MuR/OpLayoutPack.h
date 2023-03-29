@@ -149,7 +149,7 @@ namespace mu
 		}
 
 		int32 index;
-		UE::Math::TIntVector2<uint16> size;
+		UE::Math::TIntVector2<uint16> size = UE::Math::TIntVector2<uint16>(0,0);
 		int32 priority;
 		bool useSymmetry;
 	};

@@ -164,8 +164,8 @@ namespace mu
 				bUseSymmetry = false;
 			}
 
-			UE::Math::TIntVector2<uint16> m_min;
-			UE::Math::TIntVector2<uint16> m_size;
+			UE::Math::TIntVector2<uint16> m_min = UE::Math::TIntVector2<uint16>(0,0);
+			UE::Math::TIntVector2<uint16> m_size = UE::Math::TIntVector2<uint16>(0, 0);
 
 			//! Absolute id used to control merging of various layouts
 			int32 m_id;
@@ -229,17 +229,17 @@ namespace mu
 
 
 		//!
-		UE::Math::TIntVector2<uint16> m_size;
+		UE::Math::TIntVector2<uint16> m_size = UE::Math::TIntVector2<uint16>(0, 0);
 
-		UE::Math::TIntVector2<uint16> m_maxsize;
+		UE::Math::TIntVector2<uint16> m_maxsize = UE::Math::TIntVector2<uint16>(0, 0);
 
 		//!
 		TArray<FBlock> m_blocks;
 
 		//! Packing strategy
 		EPackStrategy m_strategy = EPackStrategy::RESIZABLE_LAYOUT;
-
-		int32 FirstLODToIgnoreWarnings;
+		 
+		int32 FirstLODToIgnoreWarnings = 0;
 
 		EReductionMethod ReductionMethod = EReductionMethod::HALVE_REDUCTION;
 

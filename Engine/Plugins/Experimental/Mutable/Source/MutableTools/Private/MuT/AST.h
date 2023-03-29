@@ -79,7 +79,7 @@ namespace mu
         } type;
 
         // For constant sizes
-        FImageSize size;
+        FImageSize size = FImageSize(0, 0);
 
         // For layout factor sizes
         Ptr<class ASTOp> layout;

@@ -41,16 +41,18 @@ namespace mu
 	//! TODO Optimize anyway.
 	//! TODO Option for two sided? right now it culls back facing.
     template<class PIXEL_PROCESSOR, int NUM_INTERPOLATORS, typename INT=int64_t>
-	void Triangle( unsigned char* aBuffer, int aWidth, int aHeight, int aPixelSize
+	void Triangle( uint8* Buffer, int32 BufferSize, int Width, int Height, int PixelSize
 				 , const RasterVertex<NUM_INTERPOLATORS> &av1
 				 , const RasterVertex<NUM_INTERPOLATORS> &av2
 				 , const RasterVertex<NUM_INTERPOLATORS> &av3
 				 , PIXEL_PROCESSOR &processor
 				 , bool cullBackface = true )
 	{
+		check(Width * Height * PixelSize <= BufferSize);
+
 		float interpolatedValues[NUM_INTERPOLATORS];
 
-		int stride = aWidth*aPixelSize;
+		int Stride = Width*PixelSize;
 
 		// Check backface culling
 		// TODO better option than resorting vertices?
@@ -86,20 +88,24 @@ namespace mu
         const INT FDY23 = DY23 * 16;
         const INT FDY31 = DY31 * 16;
 
+		// Block size, standard 8x8 (must be power of two)
+		constexpr INT q = 8;
+
+		// Skip partial blocks
+		INT ClampWidth = Width & ~(q - 1);
+		INT ClampHeight = Height & ~(q - 1);
+
 	    // Bounding rectangle
-        INT minx = FMath::Max(INT(0),        (FMath::Min3(X1, X2, X3) + 0xF) / 16 );
-        INT maxx = FMath::Min(INT(aWidth-1), (FMath::Max3(X1, X2, X3) + 0xF) / 16 );
-        INT miny = FMath::Max(INT(0),		 (FMath::Min3(Y1, Y2, Y3) + 0xF) / 16 );
-        INT maxy = FMath::Min(INT(aHeight-1),(FMath::Max3(Y1, Y2, Y3) + 0xF) / 16 );
+        INT minx = FMath::Max(INT(0),				(FMath::Min3(X1, X2, X3) + 0xF) / 16 );
+        INT maxx = FMath::Min(INT(ClampWidth -1),	(FMath::Max3(X1, X2, X3) + 0xF) / 16 );
+        INT miny = FMath::Max(INT(0),				(FMath::Min3(Y1, Y2, Y3) + 0xF) / 16 );
+        INT maxy = FMath::Min(INT(ClampHeight -1),	(FMath::Max3(Y1, Y2, Y3) + 0xF) / 16 );
 
-	    // Block size, standard 8x8 (must be power of two)
-        const INT q = 8;
+		// Start in corner of 8x8 block
+		minx &= ~(q - 1);
+		miny &= ~(q - 1);
 
-	    // Start in corner of 8x8 block
-	    minx &= ~(q - 1);
-	    miny &= ~(q - 1);
-
-		aBuffer += miny * stride;
+		Buffer += miny * Stride;
 
 	    // Half-edge constants
         INT C1 = DY12 * X1 - DX12 * Y1;
@@ -153,9 +159,12 @@ namespace mu
                 INT c = (INT(c00) * 1) | (INT(c10) * 2) | (INT(c01) * 4) | (INT(c11) * 8);
 
 	            // Skip block when outside an edge
-	            if(a == 0x0 || b == 0x0 || c == 0x0) continue;
+				if (a == 0x0 || b == 0x0 || c == 0x0)
+				{
+					continue;
+				}
 
-				unsigned char *buffer = aBuffer;
+				uint8 *CurrentBuffer = Buffer;
 
 	            // Accept whole block when totally covered
 	            if(a == 0xF && b == 0xF && c == 0xF)
@@ -181,10 +190,10 @@ namespace mu
 							}
 
 	                        // Process pixel
-							processor.ProcessPixel( &buffer[ix*aPixelSize], interpolatedValues );
+							processor.ProcessPixel( &CurrentBuffer[ix*PixelSize], interpolatedValues );
 	                    }
 
-	                    buffer += stride;
+						CurrentBuffer += Stride;
 	                }
 	            }
 	            else // Partially covered block
@@ -219,7 +228,7 @@ namespace mu
 															+ beta * v3.interpolators[ii];
 								}
 
-								processor.ProcessPixel( &buffer[ix*aPixelSize], interpolatedValues );
+								processor.ProcessPixel( &CurrentBuffer[ix*PixelSize], interpolatedValues );
 	                        }
 
 	                        CX1 -= FDY12;
@@ -231,12 +240,12 @@ namespace mu
 	                    CY2 += FDX23;
 	                    CY3 += FDX31;
 
-	                    buffer += stride;
+						CurrentBuffer += Stride;
 	                }
 	            }
 	        }
 
-			aBuffer += q * stride;
+			Buffer += q * Stride;
 	    }
 	}
 
