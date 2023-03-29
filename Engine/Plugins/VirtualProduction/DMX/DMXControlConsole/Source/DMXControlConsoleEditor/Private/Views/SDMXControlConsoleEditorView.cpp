@@ -3,17 +3,17 @@
 #include "SDMXControlConsoleEditorView.h"
 
 #include "DMXControlConsole.h"
+#include "DMXControlConsoleData.h"
 #include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
-#include "DMXControlConsolePreset.h"
 #include "DMXEditorStyle.h"
 #include "Commands/DMXControlConsoleEditorCommands.h"
-#include "Customizations/DMXControlConsoleDetails.h"
+#include "Customizations/DMXControlConsoleDataDetails.h"
 #include "Customizations/DMXControlConsoleFaderGroupDetails.h"
 #include "Library/DMXEntityReference.h"
-#include "Models/DMXControlConsoleEditorPresetModel.h"
+#include "Models/DMXControlConsoleEditorModel.h"
 #include "Style/DMXControlConsoleEditorStyle.h"
 #include "Views/SDMXControlConsoleEditorFaderGroupRowView.h"
 #include "Widgets/SDMXControlConsoleEditorAddButton.h"
@@ -56,9 +56,9 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 {
 	RegisterCommands();
 
-	UDMXControlConsoleEditorPresetModel* PresetModel = GetMutableDefault<UDMXControlConsoleEditorPresetModel>();
-	PresetModel->GetOnPresetLoaded().AddSP(this, &SDMXControlConsoleEditorView::OnPresetLoaded);
-	PresetModel->GetOnPresetSaved().AddSP(this, &SDMXControlConsoleEditorView::OnPresetSaved);
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	EditorConsoleModel->GetOnConsoleLoaded().AddSP(this, &SDMXControlConsoleEditorView::OnConsoleLoaded);
+	EditorConsoleModel->GetOnConsoleSaved().AddSP(this, &SDMXControlConsoleEditorView::OnConsoleSaved);
 
 	FDMXControlConsoleEditorManager& ControlConsoleManager = FDMXControlConsoleEditorManager::Get();
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = ControlConsoleManager.GetSelectionHandler();
@@ -74,13 +74,13 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 	DetailsViewArgs.bHideSelectionTip = true;
 	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
 
-	ControlConsoleDetailsView = PropertyEditor.CreateDetailView(DetailsViewArgs);
+	ControlConsoleDataDetailsView = PropertyEditor.CreateDetailView(DetailsViewArgs);
 	FaderGroupsDetailsView = PropertyEditor.CreateDetailView(DetailsViewArgs);
 	FadersDetailsView = PropertyEditor.CreateDetailView(DetailsViewArgs);
 
-	FOnGetDetailCustomizationInstance ControlConsoleCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXControlConsoleDetails::MakeInstance);
-	ControlConsoleDetailsView->RegisterInstancedCustomPropertyLayout(UDMXControlConsole::StaticClass(), ControlConsoleCustomizationInstance);
-	ControlConsoleDetailsView->GetOnDisplayedPropertiesChanged().BindSP(this, &SDMXControlConsoleEditorView::UpdateFixturePatchRows);
+	FOnGetDetailCustomizationInstance ControlConsoleCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXControlConsoleDataDetails::MakeInstance);
+	ControlConsoleDataDetailsView->RegisterInstancedCustomPropertyLayout(UDMXControlConsoleData::StaticClass(), ControlConsoleCustomizationInstance);
+	ControlConsoleDataDetailsView->GetOnDisplayedPropertiesChanged().BindSP(this, &SDMXControlConsoleEditorView::UpdateFixturePatchRows);
 
 	FOnGetDetailCustomizationInstance FaderGroupsCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXControlConsoleFaderGroupDetails::MakeInstance);
 	FaderGroupsDetailsView->RegisterInstancedCustomPropertyLayout(UDMXControlConsoleFaderGroup::StaticClass(), FaderGroupsCustomizationInstance);
@@ -222,7 +222,7 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 						+ SVerticalBox::Slot()
 						.AutoHeight()
 						[
-							ControlConsoleDetailsView.ToSharedRef()	
+							ControlConsoleDataDetailsView.ToSharedRef()
 						]
 
 						+ SVerticalBox::Slot()
@@ -240,20 +240,20 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 	FSlateApplication::Get().SetKeyboardFocus(AsShared());
 }
 
-UDMXControlConsole* SDMXControlConsoleEditorView::GetControlConsole() const
+UDMXControlConsoleData* SDMXControlConsoleEditorView::GetControlConsoleData() const
 { 
-	return FDMXControlConsoleEditorManager::Get().GetDMXControlConsole();
+	return FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
 }
 
 void SDMXControlConsoleEditorView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	const TObjectPtr<UDMXControlConsole> ControlConsole = GetControlConsole();
-	if (!ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't update DMX Control Console state correctly.")))
+	const TObjectPtr<UDMXControlConsoleData> ControlConsoleData = GetControlConsoleData();
+	if (!ensureMsgf(ControlConsoleData, TEXT("Invalid DMX Control Console, can't update DMX Control Console state correctly.")))
 	{
 		return;
 	}
 
-	const TArray<UDMXControlConsoleFaderGroupRow*> FaderGroupRows = ControlConsole->GetFaderGroupRows();
+	const TArray<UDMXControlConsoleFaderGroupRow*> FaderGroupRows = ControlConsoleData->GetFaderGroupRows();
 
 	if (FaderGroupRows.Num() == FaderGroupRowViews.Num())
 	{
@@ -291,24 +291,24 @@ void SDMXControlConsoleEditorView::RegisterCommands()
 {
 	CommandList = MakeShared<FUICommandList>();
 
-	UDMXControlConsoleEditorPresetModel* PresetModel = GetMutableDefault<UDMXControlConsoleEditorPresetModel>();
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
 
 	CommandList->MapAction
 	(
-		FDMXControlConsoleEditorCommands::Get().CreateNewPreset,
-		FExecuteAction::CreateUObject(PresetModel, &UDMXControlConsoleEditorPresetModel::CreateNewPreset)
+		FDMXControlConsoleEditorCommands::Get().CreateNewConsole,
+		FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::CreateNewConsole)
 	);
 
 	CommandList->MapAction
 	(
-		FDMXControlConsoleEditorCommands::Get().SavePreset,
-		FExecuteAction::CreateUObject(PresetModel, &UDMXControlConsoleEditorPresetModel::SavePreset)
+		FDMXControlConsoleEditorCommands::Get().SaveConsole,
+		FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::SaveConsole)
 	);
 
 	CommandList->MapAction
 	(
-		FDMXControlConsoleEditorCommands::Get().SavePresetAs,
-		FExecuteAction::CreateUObject(PresetModel, &UDMXControlConsoleEditorPresetModel::SavePresetAs)
+		FDMXControlConsoleEditorCommands::Get().SaveConsoleAs,
+		FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::SaveConsoleAs)
 	);
 
 	FDMXControlConsoleEditorManager& ControlConsoleManager = FDMXControlConsoleEditorManager::Get();
@@ -346,7 +346,7 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 	ToolbarBuilder.BeginSection("AssetActions");
 	{		
 		ToolbarBuilder.AddToolBarButton(
-			FDMXControlConsoleEditorCommands::Get().CreateNewPreset,
+			FDMXControlConsoleEditorCommands::Get().CreateNewConsole,
 			NAME_None,
 			FText::GetEmpty(),
 			TAttribute<FText>(),
@@ -419,14 +419,14 @@ void SDMXControlConsoleEditorView::ForceUpdateDetailsViews()
 {
 	UpdateDetailsViewTimerHandle.Invalidate();
 
-	UDMXControlConsole* ControlConsole = GetControlConsole();
-	if (!ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't update details view correctly.")))
+	UDMXControlConsoleData* ControlConsoleData = GetControlConsoleData();
+	if (!ensureMsgf(ControlConsoleData, TEXT("Invalid DMX Control Console, can't update details view correctly.")))
 	{
 		return;
 	}
 
 	constexpr bool bForceRefresh = true;
-	ControlConsoleDetailsView->SetObject(ControlConsole, bForceRefresh);
+	ControlConsoleDataDetailsView->SetObject(ControlConsoleData, bForceRefresh);
 
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
 	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroups = SelectionHandler->GetSelectedFaderGroups();
@@ -448,7 +448,7 @@ void SDMXControlConsoleEditorView::UpdateFixturePatchRows()
 
 void SDMXControlConsoleEditorView::OnFaderGroupRowAdded()
 {
-	const UDMXControlConsole* ControlConsole = GetControlConsole();
+	const UDMXControlConsoleData* ControlConsole = GetControlConsoleData();
 	if (!ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't add new fader group row correctly.")))
 	{
 		return;
@@ -513,7 +513,7 @@ void SDMXControlConsoleEditorView::AddFaderGroupRow(UDMXControlConsoleFaderGroup
 
 void SDMXControlConsoleEditorView::OnFaderGroupRowRemoved()
 {
-	const UDMXControlConsole* ControlConsole = GetControlConsole();
+	const UDMXControlConsoleData* ControlConsole = GetControlConsoleData();
 	if (!ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't delete fader group row correctly.")))
 	{
 		return;
@@ -579,7 +579,7 @@ void SDMXControlConsoleEditorView::OnSearchTextChanged(const FText& SearchText)
 
 FReply SDMXControlConsoleEditorView::OnAddFirstFaderGroup()
 {
-	const TObjectPtr<UDMXControlConsole> ControlConsole = GetControlConsole();
+	const TObjectPtr<UDMXControlConsoleData> ControlConsole = GetControlConsoleData();
 	if (!ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't add fader group correctly.")))
 	{
 		return FReply::Unhandled();
@@ -594,21 +594,16 @@ FReply SDMXControlConsoleEditorView::OnAddFirstFaderGroup()
 	return FReply::Handled();
 }
 
-void SDMXControlConsoleEditorView::OnBrowseToPresetClicked()
+void SDMXControlConsoleEditorView::OnBrowseToAssetClicked()
 {
-	if (UDMXControlConsolePreset* Preset = FDMXControlConsoleEditorManager::Get().GetPreset())
+	if (UDMXControlConsole* EditorConsole = FDMXControlConsoleEditorManager::Get().GetEditorConsole())
 	{
-		TArray<UObject*> BrowseToObjects{ Preset };
+		TArray<UObject*> BrowseToObjects{ EditorConsole };
 		GEditor->SyncBrowserToObjects(BrowseToObjects);
 	}
 }
 
-bool SDMXControlConsoleEditorView::IsAnyPresetLoaded() const
-{
-	return FDMXControlConsoleEditorManager::Get().GetPreset() != nullptr;
-}
-
-void SDMXControlConsoleEditorView::OnPresetLoaded()
+void SDMXControlConsoleEditorView::OnConsoleLoaded()
 {
 	RequestUpdateDetailsViews();
 	OnFaderGroupRowAdded();
@@ -617,7 +612,7 @@ void SDMXControlConsoleEditorView::OnPresetLoaded()
 	FSlateApplication::Get().SetKeyboardFocus(AsShared());
 }
 
-void SDMXControlConsoleEditorView::OnPresetSaved()
+void SDMXControlConsoleEditorView::OnConsoleSaved()
 {
 	FSlateApplication::Get().SetKeyboardFocus(AsShared());
 }
@@ -675,13 +670,13 @@ bool SDMXControlConsoleEditorView::IsWidgetInTab(TSharedPtr<SDockTab> InDockTab,
 
 EVisibility SDMXControlConsoleEditorView::GetAddButtonVisibility() const
 {
-	UDMXControlConsole* ControlConsole = GetControlConsole();
-	if (!ControlConsole)
+	UDMXControlConsoleData* ControlConsoleData = GetControlConsoleData();
+	if (!ControlConsoleData)
 	{
 		return EVisibility::Collapsed;
 	}
 
-	return ControlConsole->GetFaderGroupRows().IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed;
+	return ControlConsoleData->GetFaderGroupRows().IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 #undef LOCTEXT_NAMESPACE

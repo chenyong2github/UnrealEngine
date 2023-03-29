@@ -7,7 +7,7 @@
 
 #include "DMXControlConsoleFaderGroupRow.generated.h"
 
-class UDMXControlConsole;
+class UDMXControlConsoleData;
 class UDMXControlConsoleFaderGroup;
 
 
@@ -34,8 +34,8 @@ public:
 	/** Gets the Index of this Row according to the DMX Control Console */
 	int32 GetRowIndex() const;
 
-	/** Returns a reference to the DMX Control Console */
-	UDMXControlConsole& GetOwnerControlConsoleChecked() const;
+	/** Returns the DMX Control Console Data that owns this row */
+	UDMXControlConsoleData& GetOwnerControlConsoleDataChecked() const;
 
 	/** Destroys this Fader Group Row */
 	void Destroy();

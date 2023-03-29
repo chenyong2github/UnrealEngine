@@ -5,8 +5,6 @@
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 
-class UDMXControlConsolePreset;
-
 struct FAssetData;
 class FUICommandList;
 class SComboButton;
@@ -32,8 +30,8 @@ private:
 	/** Creates the menu this picker consists of */
 	TSharedRef<SWidget> CreateMenu();
 
-	/** Returns the editor preset name as text */
-	FText GetEditorPresetName() const;
+	/** Returns the editor console name as text */
+	FText GetEditorConsoleName() const;
 
 	/** Called when an asset was selected in the asset picker */
 	void OnAssetSelected(const FAssetData& AssetData);

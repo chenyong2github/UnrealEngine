@@ -2,8 +2,8 @@
 
 #include "Factories/DMXControlConsoleActorFactory.h"
 
+#include "DMXControlConsole.h"
 #include "DMXControlConsoleActor.h"
-#include "DMXControlConsolePreset.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Level.h"
@@ -24,7 +24,7 @@ bool UDMXControlConsoleActorFactory::CanCreateActorFrom(const FAssetData& AssetD
 	if (AssetData.IsValid())
 	{
 		const UClass* AssetClass = AssetData.GetClass();
-		if (AssetClass && AssetClass == UDMXControlConsolePreset::StaticClass())
+		if (AssetClass && AssetClass == UDMXControlConsole::StaticClass())
 		{
 			return true;
 		}
@@ -35,8 +35,8 @@ bool UDMXControlConsoleActorFactory::CanCreateActorFrom(const FAssetData& AssetD
 
 AActor* UDMXControlConsoleActorFactory::SpawnActor(UObject* Asset, ULevel* InLevel, const FTransform& Transform, const FActorSpawnParameters& InSpawnParams)
 {
-	const UDMXControlConsolePreset* ControlConsolPreset = Cast<UDMXControlConsolePreset>(Asset);
-	if (!ControlConsolPreset)
+	const UDMXControlConsole* ControlConsole = Cast<UDMXControlConsole>(Asset);
+	if (!ControlConsole)
 	{
 		return nullptr;
 	}
@@ -68,7 +68,7 @@ AActor* UDMXControlConsoleActorFactory::SpawnActor(UObject* Asset, ULevel* InLev
 		ADMXControlConsoleActor* ControlConsoleActor = World->SpawnActor<ADMXControlConsoleActor>(ADMXControlConsoleActor::StaticClass());
 		if (ControlConsoleActor)
 		{
-			ControlConsoleActor->SetDMXControlConsole(ControlConsolPreset->GetControlConsole());
+			ControlConsoleActor->SetDMXControlConsoleData(ControlConsole->GetControlConsoleData());
 
 			return ControlConsoleActor;
 		}

@@ -2,99 +2,49 @@
 
 #pragma once
 
-#include "DMXProtocolCommon.h"
-
 #include "CoreMinimal.h"
-#include "Tickable.h"
 #include "UObject/Object.h"
 
 #include "DMXControlConsole.generated.h"
 
-class UDMXControlConsoleFaderGroup;
-class UDMXControlConsoleFaderGroupRow;
-class UDMXLibrary;
+class UDMXControlConsoleData;
 
 
 /** The DMX Control Console */
-UCLASS()
-class DMXCONTROLCONSOLE_API UDMXControlConsole 
+UCLASS(BlueprintType)
+class DMXCONTROLCONSOLE_API UDMXControlConsole
 	: public UObject
-	, public FTickableGameObject
 {
 	GENERATED_BODY()
 
 public:
-	/** Adds a Fader Group Row to this DMX Control Console */
-	UDMXControlConsoleFaderGroupRow* AddFaderGroupRow(const int32 RowIndex);
+	/** Constructor */
+	UDMXControlConsole();
 
-	/** Removes a Fader Group Row from this DMX Control Console */
-	void DeleteFaderGroupRow(const TObjectPtr<UDMXControlConsoleFaderGroupRow>& FaderGroupRow);
+	/** Gets the Control Console data used in this console */
+	UDMXControlConsoleData* GetControlConsoleData() const { return ControlConsoleData; }
 
-	/** Gets this DMX Control Console's Fader Group Rows array */
-	const TArray<UDMXControlConsoleFaderGroupRow*>& GetFaderGroupRows() const { return FaderGroupRows; }
+	/** Copies the provided Control Console Data into this instance */
+	void CopyControlConsoleData(UDMXControlConsoleData* InControlConsoleData);
 
-	/** Gets an array of all Fader Groups in this DMX Control Console */
-	TArray<UDMXControlConsoleFaderGroup*> GetAllFaderGroups() const;
-
-	/** Generates sorted Fader Groups based on the DMX Control Console's current DMX Library */
-	void GenerateFromDMXLibrary();
-
-	/** Gets this DMX Control Console's DMXLibrary */
-	UDMXLibrary* GetDMXLibrary() const { return DMXLibrary.Get(); }
-
-	/** Sends DMX on this DMX Control Console on tick */
-	void StartSendingDMX();
-
-	/** Stops DMX on this DMX Control Console on tick */
-	void StopSendingDMX();
-
-	/** Gets if DMX is sending DMX data or not */
-	bool IsSendingDMX() const { return bSendDMX; }
-
+	/** Returns an event that is broadcast when the control console asset is saved */
 #if WITH_EDITOR
-	/** Sets if the console can send DMX in Editor */
-	void SetSendDMXInEditorEnabled(bool bSendDMXInEditorEnabled) { bSendDMXInEditor = bSendDMXInEditorEnabled; }
-#endif // WITH_EDITOR 
-
-	/** Updates DMX Output Ports */
-	void UpdateOutputPorts(const TArray<FDMXOutputPortSharedRef> InOutputPorts);
-
-	/** Resets the DMX Control Console to its default */
-	void Reset();
-
-	// Property Name getters
-	FORCEINLINE static FName GetDMXLibraryPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsole, DMXLibrary); }
-	FORCEINLINE static FName GetFaderGroupRowsPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsole, FaderGroupRows); }
+	DECLARE_EVENT_OneParam(UDMXControlConsole, FDMXControlConsoleSavedEvent, const UDMXControlConsole*)
+	FDMXControlConsoleSavedEvent& GetOnControlConsoleSaved() { return OnControlConsoleSaved; }
+#endif // WITH_EDITOR
 
 protected:
-	// ~ Begin FTickableGameObject interface
-	virtual void Tick(float InDeltaTime) override;
-	virtual bool IsTickable() const override { return true; }
-	virtual bool IsTickableInEditor() const override { return true; }
-	virtual ETickableTickType GetTickableTickType() const override;
-	virtual TStatId GetStatId() const override;
-	// ~ End FTickableGameObject interface
+	//~ Begin UObject interface
+	virtual void Serialize(FArchive& Ar) override;
+	//~ End UObject interface
 
 private:
-	/** Clears FaderGroupRows array */
-	void ClearFaderGroupRows();
-
-	/** Library used to generate Fader Groups */
-	UPROPERTY(EditAnywhere, Category = "DMX Control Console")
-	TWeakObjectPtr<UDMXLibrary> DMXLibrary;
-
-	/** DMX Control Console's Fader Group Rows array */
+	/** Control Console reference */
 	UPROPERTY(VisibleAnywhere, Category = "DMX Control Console")
-	TArray<TObjectPtr<UDMXControlConsoleFaderGroupRow>> FaderGroupRows;
+	TObjectPtr<UDMXControlConsoleData> ControlConsoleData;
 
-	/** Output ports to output dmx to */
-	TArray<FDMXOutputPortSharedRef> OutputPorts;
-
-	/** True when this object is ticking */
-	bool bSendDMX = false;
-
+	/** Called when the asset is saved */
 #if WITH_EDITOR
-	/** True if the Control Console ticks in Editor */
-	bool bSendDMXInEditor = true;
+	FDMXControlConsoleSavedEvent OnControlConsoleSaved;
 #endif // WITH_EDITOR
 };

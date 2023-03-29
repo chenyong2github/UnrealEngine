@@ -2,7 +2,7 @@
 
 #include "SDMXControlConsoleEditorFixturePatchRowWidget.h"
 
-#include "DMXControlConsole.h"
+#include "DMXControlConsoleData.h"
 #include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "Library/DMXEntityFixturePatch.h"
@@ -192,8 +192,8 @@ const FSlateBrush* SDMXControlConsoleEditorFixturePatchRowWidget::GetBorderImage
 
 EVisibility SDMXControlConsoleEditorFixturePatchRowWidget::GetAddNextButtonVisibility() const
 {
-	const UDMXControlConsole* ControlConsole = FDMXControlConsoleEditorManager::Get().GetDMXControlConsole();
-	if (!ControlConsole || ControlConsole->GetFaderGroupRows().IsEmpty())
+	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	if (!EditorConsoleData || EditorConsoleData->GetFaderGroupRows().IsEmpty())
 	{
 		return EVisibility::Collapsed;
 	}

@@ -2,9 +2,10 @@
 
 #include "AssetDefinition_DMXControlConsole.h"
 
-#include "DMXControlConsolePreset.h"
+#include "DMXControlConsole.h"
+#include "DMXControlConsoleData.h"
 #include "DMXControlConsoleEditorModule.h"
-#include "Models/DMXControlConsoleEditorPresetModel.h"
+#include "Models/DMXControlConsoleEditorModel.h"
 
 
 #define LOCTEXT_NAMESPACE "AssetDefinition_DMXControlConsole"
@@ -21,7 +22,7 @@ FLinearColor UAssetDefinition_DMXControlConsole::GetAssetColor() const
 
 TSoftClassPtr<UObject> UAssetDefinition_DMXControlConsole::GetAssetClass() const
 { 
-	return UDMXControlConsolePreset::StaticClass(); 
+	return UDMXControlConsole::StaticClass(); 
 }
 
 TConstArrayView<FAssetCategoryPath> UAssetDefinition_DMXControlConsole::GetAssetCategories() const
@@ -33,8 +34,8 @@ EAssetCommandResult UAssetDefinition_DMXControlConsole::OpenAssets(const FAssetO
 {
 	if (!OpenArgs.Assets.IsEmpty())
 	{
-		UDMXControlConsoleEditorPresetModel* PresetModel = GetMutableDefault<UDMXControlConsoleEditorPresetModel>();
-		PresetModel->LoadPreset(OpenArgs.Assets[0]);
+		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		EditorConsoleModel->LoadConsole(OpenArgs.Assets[0]);
 		FDMXControlConsoleEditorModule::OpenControlConsole();
 	}
 

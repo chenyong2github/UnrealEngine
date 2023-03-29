@@ -2,7 +2,7 @@
 
 #include "SDMXControlConsoleEditorFixturePatchVerticalBox.h"
 
-#include "DMXControlConsole.h"
+#include "DMXControlConsoleData.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
 #include "DMXControlConsoleEditorManager.h"
@@ -65,13 +65,13 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::Construct(const FArguments
 
 void SDMXControlConsoleEditorFixturePatchVerticalBox::UpdateFixturePatchRows()
 {
-	UDMXControlConsole* ControlConsole = FDMXControlConsoleEditorManager::Get().GetDMXControlConsole();
-	if (!ControlConsole)
+	UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	if (!EditorConsoleData)
 	{
 		return;
 	}
 
-	UDMXLibrary* CurrentDMXLibrary = ControlConsole->GetDMXLibrary();
+	UDMXLibrary* CurrentDMXLibrary = EditorConsoleData->GetDMXLibrary();
 	if (CurrentDMXLibrary == DMXLibrary)
 	{
 		return;
@@ -86,9 +86,9 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::UpdateFixturePatchRows()
 
 	for (const FDMXEntityFixturePatchRef FixturePatchRef : FixturePatches)
 	{
-		auto DetailsRowVisibilityLambda = [ControlConsole, FixturePatchRef]()
+		auto DetailsRowVisibilityLambda = [EditorConsoleData, FixturePatchRef]()
 		{
-			const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = ControlConsole->GetAllFaderGroups();
+			const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = EditorConsoleData->GetAllFaderGroups();
 			for (UDMXControlConsoleFaderGroup* FaderGroup : AllFaderGroups)
 			{
 				if (!FaderGroup)
@@ -181,13 +181,13 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnSelectFixturePatchDetail
 
 void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatchOnLastRow(const TSharedRef<SDMXControlConsoleEditorFixturePatchRowWidget>& FixturePatchRow)
 {
-	UDMXControlConsole* ControlConsole = FDMXControlConsoleEditorManager::Get().GetDMXControlConsole();
-	if (!ControlConsole)
+	UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	if (!EditorConsoleData)
 	{
 		return;
 	}
 
-	const TArray<UDMXControlConsoleFaderGroupRow*> FaderGroupRows = ControlConsole->GetFaderGroupRows();
+	const TArray<UDMXControlConsoleFaderGroupRow*> FaderGroupRows = EditorConsoleData->GetFaderGroupRows();
 	if (FaderGroupRows.IsEmpty())
 	{
 		return;
@@ -228,8 +228,8 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatch
 
 void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatchOnNewRow(const TSharedRef<SDMXControlConsoleEditorFixturePatchRowWidget>& FixturePatchRow)
 {
-	UDMXControlConsole* ControlConsole = FDMXControlConsoleEditorManager::Get().GetDMXControlConsole();
-	if (!ControlConsole)
+	UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	if (!EditorConsoleData)
 	{
 		return;
 	}
@@ -240,7 +240,7 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatch
 	TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
 	if (SelectedFaderGroupsObjects.IsEmpty())
 	{
-		NewRowIndex = ControlConsole->GetFaderGroupRows().Num();
+		NewRowIndex = EditorConsoleData->GetFaderGroupRows().Num();
 	}
 	else
 	{
@@ -254,7 +254,7 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatch
 		NewRowIndex = SelectedFaderGroupRowIndex + 1;
 	}
 
-	UDMXControlConsoleFaderGroupRow* NewRow = ControlConsole->AddFaderGroupRow(NewRowIndex);
+	UDMXControlConsoleFaderGroupRow* NewRow = EditorConsoleData->AddFaderGroupRow(NewRowIndex);
 	if (NewRow->GetFaderGroups().IsEmpty())
 	{
 		return;
@@ -283,13 +283,13 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateSelectedFaderGro
 
 FReply SDMXControlConsoleEditorFixturePatchVerticalBox::OnAddAllPatchesClicked()
 {
-	UDMXControlConsole* ControlConsole = FDMXControlConsoleEditorManager::Get().GetDMXControlConsole();
-	if (ControlConsole)
+	UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	if (EditorConsoleData)
 	{
 		const FScopedTransaction AddAllPatchesTransaction(LOCTEXT("AddAllPatchesTransaction", "Generate from Library"));
-		ControlConsole->PreEditChange(nullptr);
-		ControlConsole->GenerateFromDMXLibrary();
-		ControlConsole->PostEditChange();
+		EditorConsoleData->PreEditChange(nullptr);
+		EditorConsoleData->GenerateFromDMXLibrary();
+		EditorConsoleData->PostEditChange();
 	}
 
 	return FReply::Handled();
@@ -297,8 +297,8 @@ FReply SDMXControlConsoleEditorFixturePatchVerticalBox::OnAddAllPatchesClicked()
 
 EVisibility SDMXControlConsoleEditorFixturePatchVerticalBox::GetAddAllPatchesButtonVisibility() const
 {
-	UDMXControlConsole* ControlConsole = FDMXControlConsoleEditorManager::Get().GetDMXControlConsole();
-	if (!ControlConsole)
+	UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	if (!EditorConsoleData)
 	{
 		return EVisibility::Collapsed;
 	}

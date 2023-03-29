@@ -12,14 +12,14 @@ class IPropertyUtilities;
 
 
 /** Details Customization for DMX DMX Control Console */
-class FDMXControlConsoleDetails
+class FDMXControlConsoleDataDetails
 	: public IDetailCustomization
 {
 public:
 	/** Makes an instance of this Details Customization */
 	static TSharedRef<IDetailCustomization> MakeInstance()
 	{
-		return MakeShared<FDMXControlConsoleDetails>();
+		return MakeShared<FDMXControlConsoleDataDetails>();
 	}
 
 	//~ Begin of IDetailCustomization interface

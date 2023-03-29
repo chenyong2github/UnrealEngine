@@ -3,9 +3,9 @@
 #include "DMXControlConsoleEditorManager.h"
 
 #include "DMXControlConsole.h"
+#include "DMXControlConsoleData.h"
 #include "DMXControlConsoleEditorSelection.h"
-#include "DMXControlConsolePreset.h"
-#include "Models/DMXControlConsoleEditorPresetModel.h"
+#include "Models/DMXControlConsoleEditorModel.h"
 
 #include "ScopedTransaction.h"
 #include "Misc/CoreDelegates.h"
@@ -31,17 +31,17 @@ FDMXControlConsoleEditorManager& FDMXControlConsoleEditorManager::Get()
 	return *Instance.Get();
 }
 
-UDMXControlConsolePreset* FDMXControlConsoleEditorManager::GetPreset() const
+UDMXControlConsole* FDMXControlConsoleEditorManager::GetEditorConsole() const
 {
-	UDMXControlConsoleEditorPresetModel* PresetModel = GetMutableDefault<UDMXControlConsoleEditorPresetModel>();
-	return PresetModel->GetEditorPreset();
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	return EditorConsoleModel->GetEditorConsole();
 }
 
-UDMXControlConsole* FDMXControlConsoleEditorManager::GetDMXControlConsole() const
+UDMXControlConsoleData* FDMXControlConsoleEditorManager::GetEditorConsoleData() const
 {
-	if (UDMXControlConsolePreset* Preset = GetPreset())
+	if (UDMXControlConsole* EditorConsole = GetEditorConsole())
 	{
-		return Preset->GetControlConsole();
+		return EditorConsole->GetControlConsoleData();
 	}
 
 	return nullptr;
@@ -59,43 +59,43 @@ TSharedRef<FDMXControlConsoleEditorSelection> FDMXControlConsoleEditorManager::G
 
 void FDMXControlConsoleEditorManager::SendDMX()
 {
-	UDMXControlConsole* ControlConsole = GetDMXControlConsole();
-	if (ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't send DMX correctly.")))
+	UDMXControlConsoleData* EditorConsoleData = GetEditorConsoleData();
+	if (ensureMsgf(EditorConsoleData, TEXT("Invalid Editor Control Console Data, can't send DMX correctly.")))
 	{
-		ControlConsole->StartSendingDMX();
+		EditorConsoleData->StartSendingDMX();
 	}
 }
 
 void FDMXControlConsoleEditorManager::StopDMX()
 {
-	UDMXControlConsole* ControlConsole = GetDMXControlConsole();
-	if (ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't stop DMX correctly.")))
+	UDMXControlConsoleData* EditorConsoleData = GetEditorConsoleData();
+	if (ensureMsgf(EditorConsoleData, TEXT("Invalid Editor Control Console Data, can't stop DMX correctly.")))
 	{
-		ControlConsole->StopSendingDMX();
+		EditorConsoleData->StopSendingDMX();
 	}
 }
 
 bool FDMXControlConsoleEditorManager::IsSendingDMX() const
 {
-	UDMXControlConsole* ControlConsole = GetDMXControlConsole();
-	if (ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't stop DMX correctly.")))
+	UDMXControlConsoleData* EditorConsoleData = GetEditorConsoleData();
+	if (ensureMsgf(EditorConsoleData, TEXT("Invalid Editor Control Console Data, cannot deduce if it is sending DMX.")))
 	{
-		return ControlConsole->IsSendingDMX();
+		return EditorConsoleData->IsSendingDMX();
 	}
 	return false;
 }
 
 void FDMXControlConsoleEditorManager::ClearAll()
 {
-	UDMXControlConsole* ControlConsole = GetDMXControlConsole();
-	if (ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't stop DMX correctly.")))
+	UDMXControlConsoleData* EditorConsoleData = GetEditorConsoleData();
+	if (ensureMsgf(EditorConsoleData, TEXT("Invalid Editor Console Data, cannot clear all its children.")))
 	{
 		SelectionHandler->ClearSelection();
 
 		const FScopedTransaction ClearAllTransaction(LOCTEXT("ClearAllTransaction", "Clear All"));
-		ControlConsole->Modify();
+		EditorConsoleData->Modify();
 
-		ControlConsole->Reset();
+		EditorConsoleData->Reset();
 	}
 }
 
@@ -106,10 +106,10 @@ FDMXControlConsoleEditorManager::FDMXControlConsoleEditorManager()
 
 void FDMXControlConsoleEditorManager::OnEnginePreExit()
 {
-	UDMXControlConsole* ControlConsole = GetDMXControlConsole();
-	if (ensureMsgf(ControlConsole, TEXT("Invalid DMX Control Console, can't stop DMX correctly.")))
+	UDMXControlConsoleData* EditorConsoleData = GetEditorConsoleData();
+	if (EditorConsoleData)
 	{
-		ControlConsole->StopSendingDMX();
+		StopDMX();
 	}
 
 	Instance.Reset();

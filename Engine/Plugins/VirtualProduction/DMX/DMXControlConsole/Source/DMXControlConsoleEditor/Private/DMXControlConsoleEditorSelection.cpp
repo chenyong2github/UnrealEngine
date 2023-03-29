@@ -3,6 +3,7 @@
 #include "DMXControlConsoleEditorSelection.h"
 
 #include "DMXControlConsole.h"
+#include "DMXControlConsoleData.h"
 #include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFaderGroup.h"
@@ -97,8 +98,8 @@ void FDMXControlConsoleEditorSelection::Multiselect(UObject* FaderOrFaderGroupOb
 	}
 
 	TArray<UObject*> FadersAndFaderGroups;
-	UDMXControlConsole* Console = FDMXControlConsoleEditorManager::Get().GetDMXControlConsole();
-	for (UDMXControlConsoleFaderGroup* AnyFaderGroup : Console->GetAllFaderGroups())
+	UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	for (UDMXControlConsoleFaderGroup* AnyFaderGroup : EditorConsoleData->GetAllFaderGroups())
 	{
 		FadersAndFaderGroups.AddUnique(AnyFaderGroup);
 		for (UDMXControlConsoleFaderBase* AnyFader : AnyFaderGroup->GetAllFaders())
@@ -164,13 +165,13 @@ void FDMXControlConsoleEditorSelection::ReplaceInSelection(UDMXControlConsoleFad
 
 	RemoveFromSelection(FaderGroup);
 
-	const UDMXControlConsole* ControlConsole = FDMXControlConsoleEditorManager::Get().GetDMXControlConsole();
-	if (!ControlConsole)
+	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	if (!EditorConsoleData)
 	{
 		return;
 	}
 
-	const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = ControlConsole->GetAllFaderGroups();
+	const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = EditorConsoleData->GetAllFaderGroups();
 	if (AllFaderGroups.Num() <= 1)
 	{
 		return;
@@ -307,13 +308,13 @@ UDMXControlConsoleFaderGroup* FDMXControlConsoleEditorSelection::GetFirstSelecte
 
 UDMXControlConsoleFaderBase* FDMXControlConsoleEditorSelection::GetFirstSelectedFader() const
 {
-	const UDMXControlConsole* ControlConsole = FDMXControlConsoleEditorManager::Get().GetDMXControlConsole();
-	if (!ControlConsole)
+	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	if (!EditorConsoleData)
 	{
 		return nullptr;
 	}
 
-	const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = ControlConsole->GetAllFaderGroups();
+	const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = EditorConsoleData->GetAllFaderGroups();
 	if (AllFaderGroups.IsEmpty())
 	{
 		return nullptr;

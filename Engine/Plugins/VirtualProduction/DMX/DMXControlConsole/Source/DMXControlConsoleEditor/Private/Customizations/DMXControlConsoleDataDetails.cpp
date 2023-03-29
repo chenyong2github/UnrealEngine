@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DMXControlConsoleDetails.h"
+#include "DMXControlConsoleDataDetails.h"
 
-#include "DMXControlConsole.h"
+#include "DMXControlConsoleData.h"
 #include "DMXControlConsoleEditorManager.h"
 #include "Widgets/SDMXControlConsoleEditorPortSelector.h"
 
@@ -13,26 +13,26 @@
 #include "PropertyHandle.h"
 
 
-#define LOCTEXT_NAMESPACE "DMXControlConsoleDetails"
+#define LOCTEXT_NAMESPACE "DMXControlConsoleDataDetails"
 
-void FDMXControlConsoleDetails::CustomizeDetails(IDetailLayoutBuilder& InDetailLayout)
+void FDMXControlConsoleDataDetails::CustomizeDetails(IDetailLayoutBuilder& InDetailLayout)
 {
 	PropertyUtilities = InDetailLayout.GetPropertyUtilities();
 
 	IDetailCategoryBuilder& ControlConsoleCategory = InDetailLayout.EditCategory("DMX Control Console", FText::GetEmpty());
-	const TSharedPtr<IPropertyHandle> FaderGroupRowsHandle = InDetailLayout.GetProperty(UDMXControlConsole::GetFaderGroupRowsPropertyName());
+	const TSharedPtr<IPropertyHandle> FaderGroupRowsHandle = InDetailLayout.GetProperty(UDMXControlConsoleData::GetFaderGroupRowsPropertyName());
 	InDetailLayout.HideProperty(FaderGroupRowsHandle);
 	
-	const TSharedPtr<IPropertyHandle> DMXLibraryHandle = InDetailLayout.GetProperty(UDMXControlConsole::GetDMXLibraryPropertyName());
+	const TSharedPtr<IPropertyHandle> DMXLibraryHandle = InDetailLayout.GetProperty(UDMXControlConsoleData::GetDMXLibraryPropertyName());
 	InDetailLayout.HideProperty(DMXLibraryHandle);
 	ControlConsoleCategory.AddProperty(DMXLibraryHandle);
-	DMXLibraryHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXControlConsoleDetails::ForceRefresh));
-	DMXLibraryHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXControlConsoleDetails::ForceRefresh));
+	DMXLibraryHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXControlConsoleDataDetails::ForceRefresh));
+	DMXLibraryHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXControlConsoleDataDetails::ForceRefresh));
 
 	GeneratePortSelectorRow(InDetailLayout);
 }
 
-void FDMXControlConsoleDetails::GeneratePortSelectorRow(IDetailLayoutBuilder& InDetailLayout)
+void FDMXControlConsoleDataDetails::GeneratePortSelectorRow(IDetailLayoutBuilder& InDetailLayout)
 {
 	IDetailCategoryBuilder& ControlConsoleCategory = InDetailLayout.EditCategory("DMX Control Console", FText::GetEmpty());
 
@@ -40,13 +40,13 @@ void FDMXControlConsoleDetails::GeneratePortSelectorRow(IDetailLayoutBuilder& In
 		.WholeRowContent()
 		[
 			SAssignNew(PortSelector, SDMXControlConsoleEditorPortSelector)
-			.OnPortsSelected(this, &FDMXControlConsoleDetails::OnSelectedPortsChanged)
+			.OnPortsSelected(this, &FDMXControlConsoleDataDetails::OnSelectedPortsChanged)
 		];
 
 	OnSelectedPortsChanged();
 }
 
-void FDMXControlConsoleDetails::ForceRefresh() const
+void FDMXControlConsoleDataDetails::ForceRefresh() const
 {
 	if (!PropertyUtilities.IsValid())
 	{
@@ -56,10 +56,10 @@ void FDMXControlConsoleDetails::ForceRefresh() const
 	PropertyUtilities->ForceRefresh();
 }
 
-void FDMXControlConsoleDetails::OnSelectedPortsChanged()
+void FDMXControlConsoleDataDetails::OnSelectedPortsChanged()
 {
-	UDMXControlConsole* ControlConsole = FDMXControlConsoleEditorManager::Get().GetDMXControlConsole();
-	if (!ControlConsole)
+	UDMXControlConsoleData* ConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	if (!ConsoleData)
 	{
 		return;
 	}
@@ -70,7 +70,7 @@ void FDMXControlConsoleDetails::OnSelectedPortsChanged()
 	}
 
 	const TArray<FDMXOutputPortSharedRef> SelectedOutputPorts = PortSelector->GetSelectedOutputPorts();
-	ControlConsole->UpdateOutputPorts(SelectedOutputPorts);
+	ConsoleData->UpdateOutputPorts(SelectedOutputPorts);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -2,7 +2,7 @@
 
 #include "DMXControlConsoleActor.h"
 
-#include "DMXControlConsole.h"
+#include "DMXControlConsoleData.h"
 
 #include "Components/SceneComponent.h"
 
@@ -16,35 +16,33 @@ ADMXControlConsoleActor::ADMXControlConsoleActor()
 }
 
 #if WITH_EDITOR
-void ADMXControlConsoleActor::SetDMXControlConsole(UDMXControlConsole* InDMXControlConsole)
+void ADMXControlConsoleActor::SetDMXControlConsoleData(UDMXControlConsoleData* InControlConsoleData)
 {
-	if (!ensureAlwaysMsgf(!DMXControlConsole, TEXT("Tried to set the DMXControlConsole for %s, but it already has one set. Changing the control console is not supported."), *GetName()))
+	if (!ensureAlwaysMsgf(!ControlConsoleData, TEXT("Tried to set the DMXControlConsole for %s, but it already has one set. Changing the control console is not supported."), *GetName()))
 	{
 		return;
 	}
 
-	if (!InDMXControlConsole || InDMXControlConsole == DMXControlConsole)
+	if (InControlConsoleData)
 	{
-		return;
+		ControlConsoleData = InControlConsoleData;
 	}
-
-	DMXControlConsole = InDMXControlConsole;
 }
 #endif // WITH_EDITOR
 
 void ADMXControlConsoleActor::StartSendingDMX()
 {
-	if (DMXControlConsole)
+	if (ControlConsoleData)
 	{
-		DMXControlConsole->StartSendingDMX();
+		ControlConsoleData->StartSendingDMX();
 	}
 }
 
 void ADMXControlConsoleActor::StopSendingDMX()
 {
-	if (DMXControlConsole)
+	if (ControlConsoleData)
 	{
-		DMXControlConsole->StopSendingDMX();
+		ControlConsoleData->StopSendingDMX();
 	}
 }
 
@@ -72,9 +70,9 @@ void ADMXControlConsoleActor::PostEditChangeProperty(FPropertyChangedEvent& Prop
 
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(ADMXControlConsoleActor, bSendDMXInEditor) &&
-		DMXControlConsole)
+		ControlConsoleData)
 	{
-		DMXControlConsole->SetSendDMXInEditorEnabled(bSendDMXInEditor);
+		ControlConsoleData->SetSendDMXInEditorEnabled(bSendDMXInEditor);
 	}
 }
 #endif // WITH_EDITOR

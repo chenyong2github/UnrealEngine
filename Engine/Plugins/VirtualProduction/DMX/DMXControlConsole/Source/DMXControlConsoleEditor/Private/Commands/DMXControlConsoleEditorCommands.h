@@ -18,9 +18,9 @@ public:
 
 	TSharedPtr<FUICommandInfo> OpenControlConsole;
 
-	TSharedPtr<FUICommandInfo> CreateNewPreset;
-	TSharedPtr<FUICommandInfo> SavePreset;
-	TSharedPtr<FUICommandInfo> SavePresetAs;
+	TSharedPtr<FUICommandInfo> CreateNewConsole;
+	TSharedPtr<FUICommandInfo> SaveConsole;
+	TSharedPtr<FUICommandInfo> SaveConsoleAs;
 	TSharedPtr<FUICommandInfo> SendDMX;
 	TSharedPtr<FUICommandInfo> StopDMX;
 	TSharedPtr<FUICommandInfo> ClearAll;

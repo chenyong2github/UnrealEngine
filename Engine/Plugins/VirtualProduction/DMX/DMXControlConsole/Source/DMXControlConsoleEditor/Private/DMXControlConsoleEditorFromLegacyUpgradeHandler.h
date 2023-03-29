@@ -6,8 +6,8 @@
 
 struct FDMXOutputConsoleFaderDescriptor;
 class UDMXControlConsole;
+class UDMXControlConsoleData;
 class UDMXControlConsoleFaderGroup;
-class UDMXControlConsolePreset;
 class UDMXControlConsoleRawFader;
 
 
@@ -20,14 +20,14 @@ public:
 
 private:
 	/** Creates Fader Groups based on FaderDescriptor array. Used only for compatibility with DMXControlConsole previous versions */
-	static UDMXControlConsole* CreateControlConsoleFromFaderDescriptorArray(const TArray<FDMXOutputConsoleFaderDescriptor>& FaderDescriptorArray);
+	static UDMXControlConsoleData* CreateControlConsoleDataFromFaderDescriptorArray(const TArray<FDMXOutputConsoleFaderDescriptor>& FaderDescriptorArray);
 
 	/** Creates a raw fader for the given Fader Group based on a FaderDescriptor. Used only for compatibility with DMXControlConsole previous versions */
 	static UDMXControlConsoleRawFader* CreateRawFaderFromFaderDescriptor(UDMXControlConsoleFaderGroup* FaderGroup, const FDMXOutputConsoleFaderDescriptor& FaderDescriptor);
 
-	/** Called when UpgradePathControlConsolePreset asset is saved */
-	static void OnUpgradePathControlConsolePresetSaved(const UDMXControlConsolePreset* ControlConsolePreset);
+	/** Called when UpgradePathControlConsole asset is saved */
+	static void OnUpgradePathControlConsoleSaved(const UDMXControlConsole* ControlConsole);
 
-	/** Weak reference to the Control Console Preset created by upgrade path process */
-	static TWeakObjectPtr<UDMXControlConsolePreset> UpgradePathControlConsolePreset;
+	/** Weak reference to the Control Console created by upgrade path process */
+	static TWeakObjectPtr<UDMXControlConsole> UpgradePathControlConsole;
 };

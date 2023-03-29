@@ -2,7 +2,7 @@
 
 #include "DMXControlConsoleFaderGroupRow.h"
 
-#include "DMXControlConsole.h"
+#include "DMXControlConsoleData.h"
 #include "DMXControlConsoleFaderGroup.h"
 
 
@@ -46,15 +46,15 @@ void UDMXControlConsoleFaderGroupRow::ClearFaderGroups()
 
 int32 UDMXControlConsoleFaderGroupRow::GetRowIndex() const
 {
-	const UDMXControlConsole& ControlConsole = GetOwnerControlConsoleChecked();
+	const UDMXControlConsoleData& ControlConsoleData = GetOwnerControlConsoleDataChecked();
 
-	const TArray<UDMXControlConsoleFaderGroupRow*> FaderGroupRows = ControlConsole.GetFaderGroupRows();
+	const TArray<UDMXControlConsoleFaderGroupRow*> FaderGroupRows = ControlConsoleData.GetFaderGroupRows();
 	return FaderGroupRows.IndexOfByKey(this);
 }
 
-UDMXControlConsole& UDMXControlConsoleFaderGroupRow::GetOwnerControlConsoleChecked() const
+UDMXControlConsoleData& UDMXControlConsoleFaderGroupRow::GetOwnerControlConsoleDataChecked() const
 {
-	UDMXControlConsole* Outer = Cast<UDMXControlConsole>(GetOuter());
+	UDMXControlConsoleData* Outer = Cast<UDMXControlConsoleData>(GetOuter());
 	checkf(Outer, TEXT("Invalid outer for '%s', cannot get fader group row owner correctly."), *GetName());
 
 	return *Outer;
@@ -62,15 +62,15 @@ UDMXControlConsole& UDMXControlConsoleFaderGroupRow::GetOwnerControlConsoleCheck
 
 void UDMXControlConsoleFaderGroupRow::Destroy()
 {
-	UDMXControlConsole& ControlConsole = GetOwnerControlConsoleChecked();
+	UDMXControlConsoleData& ControlConsoleData = GetOwnerControlConsoleDataChecked();
 
 #if WITH_EDITOR
-	ControlConsole.PreEditChange(UDMXControlConsole::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderGroup::GetFaderGroupNamePropertyName()));
+	ControlConsoleData.PreEditChange(UDMXControlConsoleData::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderGroup::GetFaderGroupNamePropertyName()));
 #endif // WITH_EDITOR
 
-	ControlConsole.DeleteFaderGroupRow(this);
+	ControlConsoleData.DeleteFaderGroupRow(this);
 
 #if WITH_EDITOR
-	ControlConsole.PostEditChange();
+	ControlConsoleData.PostEditChange();
 #endif // WITH_EDITOR
 }

@@ -7,10 +7,10 @@
 #include "UObject/GCObject.h"
 #include "UObject/ObjectPtr.h"
 
-class FDMXControlConsoleEditorSelection;
 class UDMXControlConsole;
-class UDMXControlConsoleEditorPresetModel;
-class UDMXControlConsolePreset;
+class UDMXControlConsoleData;
+class UDMXControlConsoleEditorModel;
+class FDMXControlConsoleEditorSelection;
 
 
 /** Manages lifetime and provides access to the DMX Control Console */
@@ -24,11 +24,11 @@ public:
 	/** Gets a reference to DMX Editor's DMX Control Console manager */
 	static FDMXControlConsoleEditorManager& Get();
 
-	/** Gets the Control Console Preset. Returns nullptr if no preset is loaded. */
-	UDMXControlConsolePreset* GetPreset() const;
+	/** Returns the Control Console currently being edited, or nullptr if no console is being edited. */
+	UDMXControlConsole* GetEditorConsole() const;
 
-	/** Gets a reference to the DMX Control Console */
-	UDMXControlConsole* GetDMXControlConsole() const;
+	/** Gets data of the Control Console currently being edited */
+	UDMXControlConsoleData* GetEditorConsoleData() const;
 
 	/** Gets a reference to the Selection Handler*/
 	TSharedRef<FDMXControlConsoleEditorSelection> GetSelectionHandler();

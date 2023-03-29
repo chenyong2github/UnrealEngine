@@ -9,9 +9,8 @@
 
 class SDMXControlConsoleEditorFaderGroupRowView;
 class SDMXControlConsoleEditorFixturePatchVerticalBox;
-class SDMXControlConsoleEditorPresetWidget;
 class UDMXControlConsoleFaderGroupRow;
-class UDMXControlConsole;
+class UDMXControlConsoleData;
 
 class FUICommandList;
 class IDetailsView;
@@ -36,7 +35,7 @@ public:
 	void Construct(const FArguments& InArgs);
 
 	/** Gets DMX Control Console */
-	UDMXControlConsole* GetControlConsole() const;
+	UDMXControlConsoleData* GetControlConsoleData() const;
 
 protected:
 	//~ Begin SWidget interface
@@ -80,17 +79,14 @@ private:
 	/** Called to add first first Fader Group */
 	FReply OnAddFirstFaderGroup();
 
-	/** Called when the browse to preset button was clicked */
-	void OnBrowseToPresetClicked();
+	/** Called when the browse to asset button was clicked */
+	void OnBrowseToAssetClicked();
 
-	/** Returns true if any preset was loaded to the console */
-	bool IsAnyPresetLoaded() const;
+	/** Called when a console was loaded */
+	void OnConsoleLoaded();
 
-	/** Called when a preset is loaded */
-	void OnPresetLoaded();
-
-	/** Called when a preset is saved */
-	void OnPresetSaved();
+	/** Called when a console was saved */
+	void OnConsoleSaved();
 
 	/** Called when the active tab in the editor changes */
 	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
@@ -107,8 +103,8 @@ private:
 	/** Reference to FixturePatchRows widgets container */
 	TSharedPtr<SDMXControlConsoleEditorFixturePatchVerticalBox> FixturePatchVerticalBox;
 
-	/** Shows DMX Control Console's details */
-	TSharedPtr<IDetailsView> ControlConsoleDetailsView;
+	/** Shows DMX Control Console Data's details */
+	TSharedPtr<IDetailsView> ControlConsoleDataDetailsView;
 
 	/** Shows details of the current selected Fader Groups */
 	TSharedPtr<IDetailsView> FaderGroupsDetailsView;

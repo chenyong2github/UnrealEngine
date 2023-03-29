@@ -3,12 +3,12 @@
 #include "DMXControlConsoleEditorFromLegacyUpgradeHandler.h"
 
 #include "DMXControlConsole.h"
+#include "DMXControlConsoleData.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
-#include "DMXControlConsolePreset.h"
 #include "DMXControlConsoleRawFader.h"
 #include "DMXEditorSettings.h"
-#include "Models/DMXControlConsoleEditorPresetModel.h"
+#include "Models/DMXControlConsoleEditorModel.h"
 
 #include "AssetToolsModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -20,7 +20,7 @@
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleEditorFromLegacyUpgradeHandler"
 
-TWeakObjectPtr<UDMXControlConsolePreset> FDMXControlConsoleEditorFromLegacyUpgradeHandler::UpgradePathControlConsolePreset;
+TWeakObjectPtr<UDMXControlConsole> FDMXControlConsoleEditorFromLegacyUpgradeHandler::UpgradePathControlConsole;
 
 bool FDMXControlConsoleEditorFromLegacyUpgradeHandler::TryUpgradePathFromLegacy()
 {
@@ -39,21 +39,21 @@ bool FDMXControlConsoleEditorFromLegacyUpgradeHandler::TryUpgradePathFromLegacy(
 	}
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UDMXControlConsole* ControlConsole = CreateControlConsoleFromFaderDescriptorArray(FaderDescriptorArray);
+	UDMXControlConsoleData* ControlConsoleData = CreateControlConsoleDataFromFaderDescriptorArray(FaderDescriptorArray);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	if (!ControlConsole)
+	if (!ControlConsoleData)
 	{
 		return false;
 	}
 
 	const FString AssetPath = TEXT("/Game");
-	const FString AssetName = TEXT("DefaultControlConsolePreset");
+	const FString AssetName = TEXT("DefaultControlConsole");
 
-	UDMXControlConsoleEditorPresetModel* PresetModel = GetMutableDefault<UDMXControlConsoleEditorPresetModel>();
-	UpgradePathControlConsolePreset = PresetModel->CreateNewPresetAsset(AssetPath, AssetName, ControlConsole);
-	if (UpgradePathControlConsolePreset.IsValid())
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	UpgradePathControlConsole = EditorConsoleModel->CreateNewConsoleAsset(AssetPath, AssetName, ControlConsoleData);
+	if (UpgradePathControlConsole.IsValid())
 	{
-		UpgradePathControlConsolePreset->GetOnControlConsolePresetSaved().AddStatic(&FDMXControlConsoleEditorFromLegacyUpgradeHandler::OnUpgradePathControlConsolePresetSaved);
+		UpgradePathControlConsole->GetOnControlConsoleSaved().AddStatic(&FDMXControlConsoleEditorFromLegacyUpgradeHandler::OnUpgradePathControlConsoleSaved);
 
 		return true;
 	}
@@ -62,11 +62,11 @@ bool FDMXControlConsoleEditorFromLegacyUpgradeHandler::TryUpgradePathFromLegacy(
 }
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-UDMXControlConsole* FDMXControlConsoleEditorFromLegacyUpgradeHandler::CreateControlConsoleFromFaderDescriptorArray(const TArray<FDMXOutputConsoleFaderDescriptor>& FaderDescriptorArray)
+UDMXControlConsoleData* FDMXControlConsoleEditorFromLegacyUpgradeHandler::CreateControlConsoleDataFromFaderDescriptorArray(const TArray<FDMXOutputConsoleFaderDescriptor>& FaderDescriptorArray)
 {
-	UDMXControlConsole* ControlConsole = NewObject<UDMXControlConsole>(GetTransientPackage(), NAME_None, RF_Transactional);
+	UDMXControlConsoleData* ControlConsoleData = NewObject<UDMXControlConsoleData>(GetTransientPackage(), NAME_None, RF_Transactional);
 
-	UDMXControlConsoleFaderGroupRow* FaderGroupRow = ControlConsole->AddFaderGroupRow(0);
+	UDMXControlConsoleFaderGroupRow* FaderGroupRow = ControlConsoleData->AddFaderGroupRow(0);
 	if (!FaderGroupRow)
 	{
 		return nullptr;
@@ -84,7 +84,7 @@ UDMXControlConsole* FDMXControlConsoleEditorFromLegacyUpgradeHandler::CreateCont
 		CreateRawFaderFromFaderDescriptor(FirstFaderGroup, FaderDescriptor);
 	}
 
-	return ControlConsole;
+	return ControlConsoleData;
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
@@ -111,14 +111,14 @@ UDMXControlConsoleRawFader* FDMXControlConsoleEditorFromLegacyUpgradeHandler::Cr
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-void FDMXControlConsoleEditorFromLegacyUpgradeHandler::OnUpgradePathControlConsolePresetSaved(const UDMXControlConsolePreset* ControlConsolePreset)
+void FDMXControlConsoleEditorFromLegacyUpgradeHandler::OnUpgradePathControlConsoleSaved(const UDMXControlConsole* ControlConsole)
 {
-	if (!UpgradePathControlConsolePreset.IsValid())
+	if (!UpgradePathControlConsole.IsValid())
 	{
 		return;
 	}
 
-	if (UpgradePathControlConsolePreset == ControlConsolePreset)
+	if (UpgradePathControlConsole == ControlConsole)
 	{
 		UDMXEditorSettings* DMXEditorSettings = GetMutableDefault<UDMXEditorSettings>();
 		if (!DMXEditorSettings)

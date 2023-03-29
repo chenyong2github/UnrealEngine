@@ -2,8 +2,8 @@
 
 #include "SDMXControlConsoleEditorAssetPicker.h"
 
-#include "DMXControlConsolePreset.h"
-#include "Models/DMXControlConsoleEditorPresetModel.h"
+#include "DMXControlConsole.h"
+#include "Models/DMXControlConsoleEditorModel.h"
 
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
@@ -32,7 +32,7 @@ void SDMXControlConsoleEditorAssetPicker::Construct(const FArguments& InArgs)
 				.ButtonContent()
 				[
 					SNew(STextBlock)
-					.Text(this, &SDMXControlConsoleEditorAssetPicker::GetEditorPresetName)
+					.Text(this, &SDMXControlConsoleEditorAssetPicker::GetEditorConsoleName)
 				]
 			]
 		];
@@ -42,17 +42,17 @@ void SDMXControlConsoleEditorAssetPicker::RegisterCommands()
 {
 	CommandList = MakeShared<FUICommandList>();
 
-	UDMXControlConsoleEditorPresetModel* PresetModel = GetMutableDefault<UDMXControlConsoleEditorPresetModel>();
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
 	CommandList->MapAction
 	(
-		FDMXControlConsoleEditorCommands::Get().SavePreset,
-		FExecuteAction::CreateUObject(PresetModel, &UDMXControlConsoleEditorPresetModel::SavePreset)
+		FDMXControlConsoleEditorCommands::Get().SaveConsole,
+		FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::SaveConsole)
 	);
 
 	CommandList->MapAction
 	(
-		FDMXControlConsoleEditorCommands::Get().SavePresetAs,
-		FExecuteAction::CreateUObject(PresetModel, &UDMXControlConsoleEditorPresetModel::SavePresetAs)
+		FDMXControlConsoleEditorCommands::Get().SaveConsoleAs,
+		FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::SaveConsoleAs)
 	);
 }
 
@@ -62,9 +62,9 @@ TSharedRef<SWidget> SDMXControlConsoleEditorAssetPicker::CreateMenu()
 
 	FMenuBuilder MenuBuilder(true, CommandList);
 
-	// Display the loaded preset name
+	// Display the loaded console name
 	{
-		const TSharedRef<SWidget> LoadedPresetNameWidget =
+		const TSharedRef<SWidget> LoadedConsoleNameWidget =
 			SNew(SBorder)
 			.BorderImage(FAppStyle::GetBrush("NoBorder"))
 			.Padding(20.f, 2.f)
@@ -72,11 +72,11 @@ TSharedRef<SWidget> SDMXControlConsoleEditorAssetPicker::CreateMenu()
 				SNew(STextBlock)
 				.Text_Lambda([this]()
 					{
-						return FText::Format(LOCTEXT("CurrentPresetLabel", "Current Preset: {0}"), GetEditorPresetName());
+						return FText::Format(LOCTEXT("CurrentConsoleLabel", "Current Console: {0}"), GetEditorConsoleName());
 					})
 			];
 
-		MenuBuilder.AddWidget(LoadedPresetNameWidget, FText::GetEmpty());
+		MenuBuilder.AddWidget(LoadedConsoleNameWidget, FText::GetEmpty());
 	}
 
 	// Separator
@@ -84,9 +84,9 @@ TSharedRef<SWidget> SDMXControlConsoleEditorAssetPicker::CreateMenu()
 		MenuBuilder.AddMenuSeparator();
 	}
 
-	// Save Preset button
+	// Save Console button
 	{
-		MenuBuilder.AddMenuEntry(FDMXControlConsoleEditorCommands::Get().SavePreset,
+		MenuBuilder.AddMenuEntry(FDMXControlConsoleEditorCommands::Get().SaveConsole,
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
@@ -94,9 +94,9 @@ TSharedRef<SWidget> SDMXControlConsoleEditorAssetPicker::CreateMenu()
 		);
 	}
 
-	// Save As Preset button
+	// Save Console As button
 	{
-		MenuBuilder.AddMenuEntry(FDMXControlConsoleEditorCommands::Get().SavePresetAs,
+		MenuBuilder.AddMenuEntry(FDMXControlConsoleEditorCommands::Get().SaveConsoleAs,
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
@@ -105,7 +105,7 @@ TSharedRef<SWidget> SDMXControlConsoleEditorAssetPicker::CreateMenu()
 	}
 
 	// Asset picker
-	MenuBuilder.BeginSection(NAME_None, LOCTEXT("LoadPresetMenuSection", "Load Preset"));
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("LoadConsoleMenuSection", "Load Console"));
 	{
 		IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
 
@@ -127,14 +127,14 @@ TSharedRef<SWidget> SDMXControlConsoleEditorAssetPicker::CreateMenu()
 			AssetPickerConfig.HiddenColumnNames.Add(TEXT("ItemDiskSize"));
 			AssetPickerConfig.HiddenColumnNames.Add(TEXT("HasVirtualizedData"));
 
-			AssetPickerConfig.AssetShowWarningText = LOCTEXT("NoPresetsFoundMessage", "No Presets Found");
-			AssetPickerConfig.Filter.ClassPaths.Add(UDMXControlConsolePreset::StaticClass()->GetClassPathName());
+			AssetPickerConfig.AssetShowWarningText = LOCTEXT("NoControlConsoleAssetsFoundMessage", "No Control Console assets found");
+			AssetPickerConfig.Filter.ClassPaths.Add(UDMXControlConsole::StaticClass()->GetClassPathName());
 			AssetPickerConfig.Filter.bRecursiveClasses = false;
 			AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SDMXControlConsoleEditorAssetPicker::OnAssetSelected);
 			AssetPickerConfig.OnAssetEnterPressed = FOnAssetEnterPressed::CreateSP(this, &SDMXControlConsoleEditorAssetPicker::OnAssetEnterPressed);
 		}
 
-		const TSharedRef<SWidget> PresetPicker = SNew(SBox)
+		const TSharedRef<SWidget> ConsolePicker = SNew(SBox)
 			.MinDesiredWidth(650.f)
 			.MinDesiredHeight(400.f)
 			[
@@ -143,29 +143,29 @@ TSharedRef<SWidget> SDMXControlConsoleEditorAssetPicker::CreateMenu()
 
 		constexpr bool bNoIndent = true;
 		constexpr bool bShowsSearch = false;
-		MenuBuilder.AddWidget(PresetPicker, FText(), bNoIndent, bShowsSearch);
+		MenuBuilder.AddWidget(ConsolePicker, FText(), bNoIndent, bShowsSearch);
 	}
 	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
 }
 
-FText SDMXControlConsoleEditorAssetPicker::GetEditorPresetName() const
+FText SDMXControlConsoleEditorAssetPicker::GetEditorConsoleName() const
 {
-	const UDMXControlConsoleEditorPresetModel* PresetModel = GetDefault<UDMXControlConsoleEditorPresetModel>();
-	const UDMXControlConsolePreset* EditorPreset = PresetModel->GetEditorPreset();
-	if (ensureMsgf(EditorPreset, TEXT("No Preset present in Control Console Editor, cannot display preset name.")))
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	const UDMXControlConsole* EditorConsole = EditorConsoleModel->GetEditorConsole();
+	if (ensureMsgf(EditorConsole, TEXT("No Console present in Control Console Editor, cannot display console name.")))
 	{
-		if (EditorPreset->IsAsset())
+		if (EditorConsole->IsAsset())
 		{
-			const bool bDirty = EditorPreset->GetOutermost()->IsDirty();
+			const bool bDirty = EditorConsole->GetOutermost()->IsDirty();
 			return bDirty ?
-				FText::FromString(EditorPreset->GetName() + TEXT(" *")) :
-				FText::FromString(EditorPreset->GetName());
+				FText::FromString(EditorConsole->GetName() + TEXT(" *")) :
+				FText::FromString(EditorConsole->GetName());
 		}
 		else
 		{
-			return LOCTEXT("UnsavedPresetName", "Unsaved Preset *");
+			return LOCTEXT("UnsavedConsoleName", "Unsaved Console *");
 		}
 	}
 	return FText::GetEmpty();
@@ -173,8 +173,8 @@ FText SDMXControlConsoleEditorAssetPicker::GetEditorPresetName() const
 
 void SDMXControlConsoleEditorAssetPicker::OnAssetSelected(const FAssetData& AssetData)
 {
-	UDMXControlConsoleEditorPresetModel* PresetModel = GetMutableDefault<UDMXControlConsoleEditorPresetModel>();
-	PresetModel->LoadPreset(AssetData);
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	EditorConsoleModel->LoadConsole(AssetData);
 
 	AssetComboButton->SetIsOpen(false);
 }
@@ -186,8 +186,8 @@ void SDMXControlConsoleEditorAssetPicker::OnAssetEnterPressed(const TArray<FAsse
 		return;
 	}
 
-	UDMXControlConsoleEditorPresetModel* PresetModel = GetMutableDefault<UDMXControlConsoleEditorPresetModel>();
-	PresetModel->LoadPreset(SelectedAssets[0]);
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	EditorConsoleModel->LoadConsole(SelectedAssets[0]);
 }
 
 #undef LOCTEXT_NAMESPACE

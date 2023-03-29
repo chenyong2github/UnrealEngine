@@ -2,7 +2,7 @@
 
 #include "SDMXControlConsoleEditorFaderGroupView.h"
 
-#include "DMXControlConsole.h"
+#include "DMXControlConsoleData.h"
 #include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderBase.h"
@@ -249,7 +249,7 @@ FReply SDMXControlConsoleEditorFaderGroupView::OnAddFaderGroupRowClicked() const
 	if (FaderGroup.IsValid())
 	{
 		UDMXControlConsoleFaderGroupRow& FaderGroupRow = FaderGroup->GetOwnerFaderGroupRowChecked();
-		UDMXControlConsole& ControlConsole = FaderGroupRow.GetOwnerControlConsoleChecked();
+		UDMXControlConsoleData& ControlConsole = FaderGroupRow.GetOwnerControlConsoleDataChecked();
 
 		const FScopedTransaction FaderGroupRowClickedTransaction(LOCTEXT("FaderGroupRowClickedTransaction", "Add Fader Group"));
 		ControlConsole.Modify();

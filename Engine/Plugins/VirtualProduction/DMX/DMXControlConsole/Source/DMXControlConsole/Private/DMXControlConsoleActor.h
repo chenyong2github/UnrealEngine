@@ -7,7 +7,7 @@
 
 #include "DMXControlConsoleActor.generated.h"
 
-class UDMXControlConsole;
+class UDMXControlConsoleData;
 
 class USceneComponent;
 
@@ -23,11 +23,11 @@ public:
 	/** Constructor */
 	ADMXControlConsoleActor();
 
-	/** Sets reference to a DMX Control Console */
-	void SetDMXControlConsole(UDMXControlConsole* InDMXControlConsole);
+	/** Sets the Control Console Data used in this actor */
+	void SetDMXControlConsoleData(UDMXControlConsoleData* InDMXControlConsoleData);
 
-	/** Gets this Actor reference to a DMX Control Console */
-	UDMXControlConsole* GetDMXControlConsole() const { return DMXControlConsole; }
+	/** Returns the Control Console Data used for this actor */
+	UDMXControlConsoleData* GetControlConsoleData() const { return ControlConsoleData; }
 
 	/** Sets current DMX Control Console to start sending DMX data */
 	UFUNCTION(BlueprintCallable, Category = "DMX Control Console")
@@ -39,7 +39,7 @@ public:
 
 #if WITH_EDITOR
 	// Property name getters
-	static FName GetDMXControlConsolePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(ADMXControlConsoleActor, DMXControlConsole); }
+	static FName GetControlConsoleDataPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(ADMXControlConsoleActor, ControlConsoleData); }
 	static FName GetAutoActivatePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(ADMXControlConsoleActor, bAutoActivate); }
 	static FName GetSendDMXInEditorPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(ADMXControlConsoleActor, bSendDMXInEditor); }
 #endif
@@ -54,9 +54,9 @@ protected:
 	//~ End AActor interface
 
 private:
-	/** Reference to a DMX Control Console */
+	/** The Control Console Data used in this actor */
 	UPROPERTY(VisibleAnywhere, Category = "DMX Control Console")
-	TObjectPtr<UDMXControlConsole> DMXControlConsole;
+	TObjectPtr<UDMXControlConsoleData> ControlConsoleData;
 
 	/** True if the Control Console should send DMX data in runtime */
 	UPROPERTY(EditAnywhere, Category = "DMX Control Console")
