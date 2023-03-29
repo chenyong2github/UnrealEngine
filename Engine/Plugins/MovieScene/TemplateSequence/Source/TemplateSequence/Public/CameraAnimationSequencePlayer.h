@@ -155,6 +155,8 @@ public:
 	FFrameRate GetInputRate() const { return PlayPosition.GetInputRate(); }
 	/** Get the sequence tick resolution */
 	FFrameRate GetOutputRate() const { return PlayPosition.GetOutputRate(); }
+	/** Get the start frame of the current sequence */
+	FFrameNumber GetStartFrame() const { return StartFrame; }
 	/** Get the duration of the current sequence in frames (display rate) */
 	FFrameTime GetDuration() const;
 	/** Gets the current play position in frames (display rate) */
