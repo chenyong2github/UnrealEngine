@@ -174,7 +174,6 @@ TConstArrayView<float> FPoseSearchIndex::GetReconstructedPoseValues(int32 PoseId
 	return BufferUsedForReconstruction;
 }
 
-#if WITH_EDITOR || ENABLE_DRAW_DEBUG
 TArray<float> FPoseSearchIndex::GetPoseValuesSafe(int32 PoseIdx) const
 {
 	TArray<float> PoseValues;
@@ -193,7 +192,6 @@ TArray<float> FPoseSearchIndex::GetPoseValuesSafe(int32 PoseIdx) const
 	}
 	return PoseValues;
 }
-#endif // WITH_EDITOR || ENABLE_DRAW_DEBUG
 
 FPoseSearchCost FPoseSearchIndex::ComparePoses(int32 PoseIdx, EPoseSearchBooleanRequest QueryMirrorRequest, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, float MirrorMismatchCostBias, TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues) const
 {
