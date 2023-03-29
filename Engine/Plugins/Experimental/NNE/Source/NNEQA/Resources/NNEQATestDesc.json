@@ -391,9 +391,6 @@
 		},
 		{
 			"category": "Dropout",
-			"runtimes": [
-				{ "name": "NNERuntimeRDGDml", "skip": true },
-			],
 			"targets": [
 				{ "target": "Dropout" }
 			]
