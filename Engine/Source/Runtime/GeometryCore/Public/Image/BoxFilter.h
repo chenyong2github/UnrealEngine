@@ -13,7 +13,6 @@ namespace Geometry
 class FBoxFilter
 {
 private:
-	// Measured in Texel units i.e., Radius of 1 <=> Radius of 1 texel side length
 	float Radius = 0.5f;
 	
 public:
@@ -22,26 +21,19 @@ public:
 	{		
 	}
 
-	/** @return the filter weight given a 2D distance vector, in Texel units. */
+	/** @return The filter weight given a 2D distance vector
+	 *  @note   Works on general 2D point sets i.e., does not assume Cartesian/pixel grids
+	 */
 	float GetWeight(const FVector2d& Dist) const
 	{
-		// Returns 1 if Dist is within the region [-Radius, Radius]x[-Radius, Radius] and 0 otherwise.
-		//
-		// Note: Including the entire boundary of the box region is motivated by considering the filter
-		// weight at the center pixel of a 3x3 image with 1 sample per texel. First, a consisten policy
-		// of including/excluding the entire boundary preserves mirror symmetry under texture filtering
-		// (the sample points in the corner texels all have the same contribution to the center texel),
-		// and second, by making this policy inclusive means that when the Radius is exactly 1 the
-		// center texel weight changes compared to the weight for 0 < Radius < 1, which seems more
-		// intuitive for users.
-		//
-		return Dist.X >= -Radius && Dist.X <= Radius && Dist.Y >= -Radius && Dist.Y <= Radius;
+		// Returns 1 if Dist is within the region [-Radius, Radius)x[-Radius, Radius) and 0 otherwise.
+		return -Radius <= Dist.X && Dist.X < Radius && -Radius <= Dist.Y && Dist.Y < Radius;
 	}
 
-	/** @return true if the given 2D distance vector, in Texel units, is in the region where the filter is defined and false otherwise */
+	/** @return true if the given 2D distance vector is in the region where the filter is defined and false otherwise */
 	bool IsInFilterRegion(const FVector2d& Dist) const
 	{
-		return Dist.X >= -Radius && Dist.X <= Radius && Dist.Y >= -Radius && Dist.Y <= Radius; 
+		return -Radius <= Dist.X && Dist.X < Radius && -Radius <= Dist.Y && Dist.Y < Radius;
 	}
 };
 
