@@ -493,7 +493,7 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 							Context.SetLeaderDelta(NewDeltaTime);
 							Sample.Animation->TickByMarkerAsLeader(SampleDataItem.MarkerTickRecord, Context.MarkerTickContext, SampleDataItem.Time, SampleDataItem.PreviousTime, NewDeltaTime, Instance.bLooping, Instance.MirrorDataTable);
 							check(!Instance.bLooping || Context.MarkerTickContext.IsMarkerSyncStartValid());
-							TickFollowerSamples(SampleDataList, HighestMarkerSyncWeightIndex, Context, bResetMarkerDataOnFollowers, Instance.MirrorDataTable);
+							TickFollowerSamples(SampleDataList, HighestMarkerSyncWeightIndex, Context, bResetMarkerDataOnFollowers, Instance.bLooping, Instance.MirrorDataTable);
 						}
 						NormalizedCurrentTime = SampleDataItem.Time / Sample.Animation->GetPlayLength();
 						*Instance.MarkerTickRecord = SampleDataItem.MarkerTickRecord;
@@ -534,7 +534,7 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 								SampleDataItem.Time = NormalizedCurrentTime * Sample.Animation->GetPlayLength();
 							}
 
-							TickFollowerSamples(SampleDataList, -1, Context, false, Instance.MirrorDataTable);
+							TickFollowerSamples(SampleDataList, -1, Context, false, Instance.bLooping, Instance.MirrorDataTable);
 						}
 						*Instance.MarkerTickRecord = SampleDataItem.MarkerTickRecord;
 						NormalizedCurrentTime = SampleDataItem.Time / Sample.Animation->GetPlayLength();
@@ -1595,7 +1595,9 @@ void UBlendSpace::InitializePerBoneBlend()
 	}
 }
 
-void UBlendSpace::TickFollowerSamples(TArray<FBlendSampleData>& SampleDataList, const int32 HighestWeightIndex, FAnimAssetTickContext& Context, bool bResetMarkerDataOnFollowers, const UMirrorDataTable* MirrorDataTable) const
+void UBlendSpace::TickFollowerSamples(
+	TArray<FBlendSampleData>& SampleDataList, const int32 HighestWeightIndex, FAnimAssetTickContext& Context, 
+	bool bResetMarkerDataOnFollowers, bool bLooping, const UMirrorDataTable* MirrorDataTable) const
 {
 	for (int32 SampleIndex = 0; SampleIndex < SampleDataList.Num(); ++SampleIndex)
 	{
@@ -1608,9 +1610,12 @@ void UBlendSpace::TickFollowerSamples(TArray<FBlendSampleData>& SampleDataList, 
 				SampleDataItem.MarkerTickRecord.Reset();
 			}
 
-			if (Sample.Animation->AuthoredSyncMarkers.Num() > 0) // Update followers who can do marker sync, others will be handled later in TickAssetPlayer
+			// Update followers who can do marker sync, others will be handled later in TickAssetPlayer
+			if (Sample.Animation->AuthoredSyncMarkers.Num() > 0) 
 			{
-				Sample.Animation->TickByMarkerAsFollower(SampleDataItem.MarkerTickRecord, Context.MarkerTickContext, SampleDataItem.Time, SampleDataItem.PreviousTime, Context.GetLeaderDelta(), true, MirrorDataTable);
+				Sample.Animation->TickByMarkerAsFollower(
+					SampleDataItem.MarkerTickRecord, Context.MarkerTickContext, SampleDataItem.Time, 
+					SampleDataItem.PreviousTime, Context.GetLeaderDelta(), bLooping, MirrorDataTable);
 			}
 		}
 	}

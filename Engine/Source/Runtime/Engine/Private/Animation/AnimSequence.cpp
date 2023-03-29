@@ -4245,7 +4245,9 @@ float UAnimSequence::GetCurrentTimeFromMarkers(FMarkerPair& PrevMarker, FMarkerP
 	return CurrentTime;
 }
 
-void UAnimSequence::GetMarkerIndicesForPosition(const FMarkerSyncAnimPosition& SyncPosition, bool bLooping, FMarkerPair& OutPrevMarker, FMarkerPair& OutNextMarker, float& OutCurrentTime, const UMirrorDataTable* MirrorTable) const
+void UAnimSequence::GetMarkerIndicesForPosition(
+	const FMarkerSyncAnimPosition& SyncPosition, bool bLooping, FMarkerPair& OutPrevMarker, 
+	FMarkerPair& OutNextMarker, float& OutCurrentTime, const UMirrorDataTable* MirrorTable) const
 {
 	auto GetMarkerName = [MirrorTable](const FAnimSyncMarker& SyncMarker)->FName
 	{
@@ -4253,7 +4255,8 @@ void UAnimSequence::GetMarkerIndicesForPosition(const FMarkerSyncAnimPosition& S
 	};
 
 	// If we're not looping, assume we're playing a transition and we need to stay where we are.
-	if (!bLooping)
+	// Also do this if we have no usable SyncPosition
+	if (!bLooping || (SyncPosition.PreviousMarkerName == NAME_None && SyncPosition.NextMarkerName == NAME_None))
 	{
 		OutPrevMarker.MarkerIndex = INDEX_NONE;
 		OutNextMarker.MarkerIndex = INDEX_NONE;
