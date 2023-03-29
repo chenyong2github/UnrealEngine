@@ -31,6 +31,7 @@ public:
 	/* IXRLoadingScreen interface */
 	virtual void ShowLoadingScreen() override;
 	virtual void HideLoadingScreen() override;
+	virtual bool IsPlayingLoadingMovie() const override;
 
 private:
 

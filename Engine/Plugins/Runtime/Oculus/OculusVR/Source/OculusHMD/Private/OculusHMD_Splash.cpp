@@ -670,6 +670,24 @@ void FSplash::UnloadTexture(FSplashLayer& InSplashLayer)
 	InSplashLayer.Layer.Reset();
 }
 
+bool FSplash::IsPlayingLoadingMovie() const
+{
+	if (!bIsShown)
+	{
+		return false;
+	}
+
+	for (FSplashLayer Splash : SplashLayers)
+	{
+		if (Splash.Desc.bIsDynamic)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 
 } // namespace OculusHMD
 

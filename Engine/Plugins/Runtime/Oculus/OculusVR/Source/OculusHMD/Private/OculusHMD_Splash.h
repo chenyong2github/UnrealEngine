@@ -87,6 +87,7 @@ public:
 	virtual void ClearSplashes() override;
 	virtual void AddSplash(const FSplashDesc& Splash) override;
 	virtual bool IsShown() const override { return bIsShown; }
+	virtual bool IsPlayingLoadingMovie() const override;
 
 protected:
 	void DoShow();

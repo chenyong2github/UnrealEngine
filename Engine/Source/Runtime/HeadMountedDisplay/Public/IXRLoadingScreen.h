@@ -83,6 +83,11 @@ public:
 	virtual bool IsShown() const = 0;
 
 	/**
+	 * Returns whether a loading movie is playing or not.
+	 */
+	virtual bool IsPlayingLoadingMovie() const = 0;
+
+	/**
 	 * Internal utility method for implementing backwards compatibility with IStereoLayers::Show/HideSplashScreen.
 	 * Should be called from implementations overriding IStereoLayer::UpdateSplashScreen()
 	 */

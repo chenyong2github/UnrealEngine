@@ -99,6 +99,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "IHeadMountedDisplayModule.h"
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
+#include "IXRLoadingScreen.h"
 #include "Stats/StatsFile.h"
 #include "Audio/AudioDebug.h"
 #include "AudioDevice.h"
@@ -14765,8 +14766,18 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 			// Display loading screen.		
 			// Check if a loading movie is playing.  If so it is not safe to redraw the viewport due to potential race conditions with font rendering
-			bool bIsLoadingMovieCurrentlyPlaying = FCoreDelegates::IsLoadingMovieCurrentlyPlaying.IsBound() ? FCoreDelegates::IsLoadingMovieCurrentlyPlaying.Execute() : false;
-			if(!bIsLoadingMovieCurrentlyPlaying)
+			bool bIsDesktopLoadingMovieCurrentlyPlaying = FCoreDelegates::IsLoadingMovieCurrentlyPlaying.IsBound() ? FCoreDelegates::IsLoadingMovieCurrentlyPlaying.Execute() : false;
+
+			// Check if a loading movie is playing on an XR device as well. Redrawing viewports with a dynamic OpenXR stereo layer active
+			// causes a race condition with CopyTexture_RenderThread that results in acquiring swapchain images twice without releasing
+			bool bIsXRLoadingMovieCurrentlyPlaying = false;
+			if (GEngine && GEngine->XRSystem.IsValid())
+			{
+				IXRLoadingScreen* XRLoadingScreen = GEngine->XRSystem->GetLoadingScreen();
+				bIsXRLoadingMovieCurrentlyPlaying = XRLoadingScreen ? XRLoadingScreen->IsPlayingLoadingMovie() : false;
+			}
+
+			if(!bIsDesktopLoadingMovieCurrentlyPlaying && !bIsXRLoadingMovieCurrentlyPlaying)
 			{
 				LoadMapRedrawViewports();
 			}

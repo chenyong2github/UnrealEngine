@@ -60,6 +60,24 @@ void FDefaultXRLoadingScreen::HideLoadingScreen()
 	}
 }
 
+bool FDefaultXRLoadingScreen::IsPlayingLoadingMovie() const
+{
+	if (!bShowing)
+	{
+		return false;
+	}
+
+	for (FSplashData Splash : Splashes)
+	{
+		if (Splash.Desc.bIsDynamic)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void FDefaultXRLoadingScreen::DoHideSplash(FSplashData& Splash)
 {
 	// Pop layer state will destroy all created layers, so we clear the layer id stored locally

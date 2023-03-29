@@ -96,6 +96,7 @@ public:
 	}
 
 	virtual bool IsShown() const override { return bShowing; }
+	virtual bool IsPlayingLoadingMovie() const = 0;
 
 
 protected:
