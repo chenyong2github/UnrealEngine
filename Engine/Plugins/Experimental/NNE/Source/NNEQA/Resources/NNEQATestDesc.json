@@ -254,6 +254,10 @@
 						{ "name": "NNERuntimeRDGDml"},
 						{ "name": "NNERuntimeRDGHlsl"}
 					], "absolute_tolerance": 1e-6 },
+				{	"target": "LogSoftmax", 
+					"runtimes": [{ "name": "NNERuntimeRDGHlsl",   "skip": true }],
+					"additional_datasets": [ "Elementwise.Softmax.AttributeTest" ]
+				},
 				{	"target": "Neg" },
 				{	"target": "Not", "input_type": "boolean", "output_type": "boolean", "runtimes": [
 						{ "name": "NNERuntimeRDGDml", "skip": true, "comment": "RDG need bool tensor support"},
