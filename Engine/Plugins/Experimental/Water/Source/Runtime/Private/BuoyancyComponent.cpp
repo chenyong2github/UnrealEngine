@@ -294,7 +294,7 @@ void UBuoyancyComponent::EnteredWaterBody(UWaterBodyComponent* WaterBodyComponen
 	}
 	if (bIsFirstBody)
 	{
-		bIsOverlappingWaterBody = true;
+		bIsOverlappingWaterBody = -1;
 	}
 }
 

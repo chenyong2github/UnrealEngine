@@ -90,7 +90,7 @@ void URuntimeAssetCacheBuilder_ObjectBase::GetFromCacheAsyncComplete(int32 Handl
 		// Once complete, call GetFromCacheAsync() again and it will loop back to this function, but should succeed.
 		if (!bProcessedCacheMiss)
 		{
-			bProcessedCacheMiss = true;
+			bProcessedCacheMiss = -1;
 			OnAssetCacheMiss();
 		}
 		else

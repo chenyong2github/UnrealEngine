@@ -269,7 +269,7 @@ IAllocatedVirtualTexture* FMaterialRenderProxy::GetPreallocatedVTStack(const FMa
 	}
 
 	GetRendererModule().AddVirtualTextureProducerDestroyedCallback(Texture->GetProducerHandle(), &OnVirtualTextureDestroyedCB, const_cast<FMaterialRenderProxy*>(this));
-	HasVirtualTextureCallbacks = true;
+	HasVirtualTextureCallbacks = -1;
 
 	return Texture->GetAllocatedVirtualTexture();
 }
@@ -346,7 +346,7 @@ IAllocatedVirtualTexture* FMaterialRenderProxy::AllocateVTStack(const FMaterialR
 
 	if (bFoundValidLayer)
 	{
-		HasVirtualTextureCallbacks = true;
+		HasVirtualTextureCallbacks = -1;
 		return GetRendererModule().AllocateVirtualTexture(VTDesc);
 	}
 	return nullptr;
@@ -598,7 +598,7 @@ void FMaterialRenderProxy::ReleaseDynamicRHI()
 
 void FMaterialRenderProxy::ReleaseResource()
 {
-	ReleaseResourceFlag = true;
+	ReleaseResourceFlag = -1;
 	FRenderResource::ReleaseResource();
 	if (HasVirtualTextureCallbacks)
 	{

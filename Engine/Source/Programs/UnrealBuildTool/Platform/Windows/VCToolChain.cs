@@ -808,8 +808,6 @@ namespace UnrealBuildTool
 					Arguments.Add("/we4458"); // 4458 - declaration of 'parameter' hides class member
 					Arguments.Add("/we4459"); // 4459 - declaration of 'LocalVariable' hides global declaration
 				}
-
-				Arguments.Add("/wd4463"); // 4463 - overflow; assigning 1 to bit-field that can only hold values from -1 to 0
 			}
 
 			if (CompileEnvironment.bEnableUndefinedIdentifierWarnings && !CompileEnvironment.bPreprocessOnly)
