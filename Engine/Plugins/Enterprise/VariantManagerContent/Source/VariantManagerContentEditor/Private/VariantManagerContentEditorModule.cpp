@@ -2,14 +2,15 @@
 
 #include "VariantManagerContentEditorModule.h"
 
+#include "Editor.h"
 #include "LevelVariantSets.h"
 #include "LevelVariantSetsActor.h"
 #include "LevelVariantSetsActorCustomization.h"
-#include "LevelVariantSetsAssetActions.h"
 #include "SwitchActorCustomization.h"
 #include "UObject/UObjectIterator.h"
 #include "VariantManagerContentEditorLog.h"
 
+#include "AssetToolsModule.h"
 #include "Factories/Factory.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
@@ -24,11 +25,6 @@ class FVariantManagerContentEditorModule : public IVariantManagerContentEditorMo
 public:
 	virtual void StartupModule() override
 	{
-		// Register asset actions for the LevelVariantSets asset
-		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools")).Get();
-		AssetActions = MakeShareable(new FLevelVariantSetsAssetActions());
-		AssetTools.RegisterAssetTypeActions(AssetActions.ToSharedRef());
-
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
 		PropertyModule.RegisterCustomClassLayout(TEXT("LevelVariantSetsActor"), FOnGetDetailCustomizationInstance::CreateStatic(&FLevelVariantSetsActorCustomization::MakeInstance));
 		PropertyModule.RegisterCustomClassLayout(TEXT("SwitchActor"), FOnGetDetailCustomizationInstance::CreateStatic(&FSwitchActorCustomization::MakeInstance));
@@ -36,14 +32,6 @@ public:
 
 	virtual void ShutdownModule() override
 	{
-        // Unregister asset actions for the LevelVariantSets asset
-		FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>(TEXT("AssetTools"));
-		if (AssetToolsModule != nullptr)
-		{
-			IAssetTools& AssetTools = AssetToolsModule->Get();
-			AssetTools.UnregisterAssetTypeActions(AssetActions.ToSharedRef());
-		}
-
         FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >(TEXT("PropertyEditor"));
 		PropertyModule.UnregisterCustomClassLayout(TEXT("LevelVariantSetsActor"));
 		PropertyModule.UnregisterCustomClassLayout(TEXT("SwitchActor"));
@@ -191,7 +179,6 @@ public:
 
 private:
 	FOnLevelVariantSetsEditor OnLevelVariantSetsEditor;
-	TSharedPtr<IAssetTypeActions> AssetActions;
 };
 
 IMPLEMENT_MODULE(FVariantManagerContentEditorModule, VariantManagerContentEditor);

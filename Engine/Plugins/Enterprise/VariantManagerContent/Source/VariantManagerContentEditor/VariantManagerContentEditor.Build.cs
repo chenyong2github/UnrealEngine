@@ -10,10 +10,13 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"AssetDefinition",
+					"ContentBrowser",
 					"Core",
 					"CoreUObject",
 					"EditorFramework",
 					"Engine",
+					"ToolMenus",
 					"UnrealEd",
 				}
 			);
