@@ -154,8 +154,9 @@ const FCustomizableObjectInstanceDescriptor& UCustomizableObjectInstance::GetDes
 
 void UCustomizableObjectInstance::SetDescriptor(const FCustomizableObjectInstanceDescriptor& InDescriptor)
 {
+	const bool bInvalidatePreviousData = GetCustomizableObject() != InDescriptor.CustomizableObject;
 	Descriptor = InDescriptor;
-	PrivateData->ReloadParameters(this);
+	PrivateData->ReloadParameters(this, bInvalidatePreviousData);
 }
 
 
