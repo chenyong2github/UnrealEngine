@@ -255,6 +255,18 @@ namespace UnrealBuildTool
 			Arguments.Add($"/Fa\"{AssemblyFileString}\""); // Set the output patj for the asm file
 		}
 
+		public static void AddAnalyzeLogFile(List<string> Arguments, FileItem AnalyzeLogFile)
+		{
+			string AnalyzeLogFileString = NormalizeCommandLinePath(AnalyzeLogFile);
+			Arguments.Add("/analyze:log " + Utils.MakePathSafeToUseWithCommandLine(AnalyzeLogFileString));
+		}
+
+		public static void AddExperimentalLogFile(List<string> Arguments, FileItem ExperimentalLogFile)
+		{
+			string ExperimentalLogFileString = NormalizeCommandLinePath(ExperimentalLogFile);
+			Arguments.Add("/experimental:log " + Utils.MakePathSafeToUseWithCommandLine(ExperimentalLogFileString));
+		}
+
 		public static void AddSourceDependenciesFile(List<string> Arguments, FileItem SourceDependenciesFile)
 		{
 			string SourceDependenciesFileString = NormalizeCommandLinePath(SourceDependenciesFile);
@@ -1663,6 +1675,17 @@ namespace UnrealBuildTool
 				{
 					CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"{SourceFile.Location.GetFileName()}.txt"));
 					CompileAction.bShowIncludes = Target.WindowsPlatform.bShowIncludes;
+				}
+
+				// Write cl errors and warnings to a file if supported
+				if (Target.WindowsPlatform.Compiler.IsMSVC() && Target.WindowsPlatform.bWriteSarif && EnvVars.CompilerVersion >= new VersionNumber(14, 34, 31933))
+				{
+					if (Target.StaticAnalyzer == StaticAnalyzer.Default && !CompileEnvironment.bDisableStaticAnalysis)
+					{
+						CompileAction.AnalyzeLogFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"{SourceFile.Location.GetFileName()}.sa.sarif"));
+					}
+
+					CompileAction.ExperimentalLogFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"{SourceFile.Location.GetFileName()}.sarif"));
 				}
 
 				// Allow derived toolchains to make further changes

@@ -65,6 +65,16 @@ namespace UnrealBuildTool
 		public FileItem? PreprocessedFile { get; set; }
 
 		/// <summary>
+		/// The output analyze warning and error log file
+		/// </summary>
+		public FileItem? AnalyzeLogFile { get; set; }
+
+		/// <summary>
+		/// The output experimental warning and error log file
+		/// </summary>
+		public FileItem? ExperimentalLogFile { get; set; }
+
+		/// <summary>
 		/// The dependency list file
 		/// </summary>
 		public FileItem? DependencyListFile { get; set; }
@@ -226,6 +236,14 @@ namespace UnrealBuildTool
 				{
 					yield return PreprocessedFile;
 				}
+				if (AnalyzeLogFile != null)
+				{
+					yield return AnalyzeLogFile;
+				}
+				if (ExperimentalLogFile != null)
+				{
+					yield return ExperimentalLogFile;
+				}
 				if (DependencyListFile != null)
 				{
 					yield return DependencyListFile;
@@ -317,6 +335,8 @@ namespace UnrealBuildTool
 			ObjectFile = InAction.ObjectFile;
 			AssemblyFile = InAction.AssemblyFile;
 			PreprocessedFile = InAction.PreprocessedFile;
+			AnalyzeLogFile = InAction.AnalyzeLogFile;
+			ExperimentalLogFile = InAction.ExperimentalLogFile;
 			DependencyListFile = InAction.DependencyListFile;
 			CompiledModuleInterfaceFile = InAction.CompiledModuleInterfaceFile;
 			TimingFile = InAction.TimingFile;
@@ -354,6 +374,8 @@ namespace UnrealBuildTool
 			ObjectFile = Reader.ReadFileItem();
 			AssemblyFile = Reader.ReadFileItem();
 			PreprocessedFile = Reader.ReadFileItem();
+			AnalyzeLogFile = Reader.ReadFileItem();
+			ExperimentalLogFile = Reader.ReadFileItem();
 			DependencyListFile = Reader.ReadFileItem();
 			CompiledModuleInterfaceFile = Reader.ReadFileItem();
 			TimingFile = Reader.ReadFileItem();
@@ -386,6 +408,8 @@ namespace UnrealBuildTool
 			Writer.WriteFileItem(ObjectFile);
 			Writer.WriteFileItem(AssemblyFile);
 			Writer.WriteFileItem(PreprocessedFile);
+			Writer.WriteFileItem(AnalyzeLogFile);
+			Writer.WriteFileItem(ExperimentalLogFile);
 			Writer.WriteFileItem(DependencyListFile);
 			Writer.WriteFileItem(CompiledModuleInterfaceFile);
 			Writer.WriteFileItem(TimingFile);
@@ -476,6 +500,16 @@ namespace UnrealBuildTool
 			if (AssemblyFile != null)
 			{
 				VCToolChain.AddAssemblyFile(Arguments, AssemblyFile);
+			}
+
+			if (AnalyzeLogFile != null)
+			{
+				VCToolChain.AddAnalyzeLogFile(Arguments, AnalyzeLogFile);
+			}
+
+			if (ExperimentalLogFile != null)
+			{
+				VCToolChain.AddExperimentalLogFile(Arguments, ExperimentalLogFile);
 			}
 
 			// A better way to express this? .json is used as output for /sourceDependencies), but .md.json is used as output for /sourceDependencies:directives)

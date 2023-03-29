@@ -365,6 +365,13 @@ namespace UnrealBuildTool
 		public bool bEnableAddressSanitizer = false;
 
 		/// <summary>
+		/// Whether .sarif files containing errors and warnings are written alongside each .obj, if supported
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration", Name = "bWriteSarif")]
+		[CommandLine("-Sarif")]
+		public bool bWriteSarif = false;
+
+		/// <summary>
 		/// Whether we should export a file containing .obj to source file mappings.
 		/// </summary>
 		[XmlConfigFile]
@@ -756,6 +763,11 @@ namespace UnrealBuildTool
 		public bool bEnableAddressSanitizer
 		{ 
 			get { return Inner.bEnableAddressSanitizer; }
+		}
+
+		public bool bWriteSarif
+		{
+			get { return Inner.bWriteSarif; }
 		}
 
 		public string? ObjSrcMapFile
