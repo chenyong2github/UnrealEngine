@@ -40,6 +40,8 @@ $ bLegalToDistributeBinary : Whether the output from this target can be publicly
 
 $ bUseVerse : Whether to use the verse script interface.
 
+$ bUseAutoRTFMCompiler : Whether to use the AutoRTFM Clang compiler.
+
 $ bUseInlining : Enable inlining for all modules.
 
 $ bUseDebugLiveCodingConsole : Whether to enable support for live coding

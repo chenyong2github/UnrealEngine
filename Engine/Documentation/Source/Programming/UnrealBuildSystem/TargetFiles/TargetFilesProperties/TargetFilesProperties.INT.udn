@@ -88,6 +88,8 @@ $ bEnableMeshEditor (Boolean): Whether to enable the mesh editor.
 
 $ bUseVerse (Boolean): Whether to use the verse script interface.
 
+$ bUseAutoRTFMCompiler (Boolean): Whether to use the AutoRTFM Clang compiler.
+
 $ bCompileChaos (Boolean): Whether to compile the Chaos physics plugin.
 
 $ bUseChaos (Boolean): Whether to use the Chaos physics interface. This overrides the physx flags to disable APEX and NvCloth
