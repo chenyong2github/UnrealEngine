@@ -2287,6 +2287,7 @@ void UAnimSequencerController::PopulateWithExistingModel(TScriptInterface<IAnima
 						Attributes.SetPostExtrapolation(Curve.FloatCurve.PostInfinityExtrap);						
 						SetCurveAttributes(CurveId, Attributes, false);
 						SetCurveKeys(CurveId, Curve.FloatCurve.GetConstRefOfKeys(), false);
+						SetCurveColor(CurveId, Curve.GetColor(), false);
 					}
 				}
 				
