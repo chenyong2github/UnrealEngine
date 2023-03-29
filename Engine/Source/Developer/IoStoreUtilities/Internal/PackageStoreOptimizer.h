@@ -157,7 +157,6 @@ private:
 		FString FullName;
 		FName FromPackageName;
 		int32 FromPackageNameLen = 0;
-		FPackageId FromPackageId;
 		bool bIsScriptImport = false;
 		bool bIsImportOfPackage = false;
 		bool bIsImportOptional = false;
@@ -209,6 +208,30 @@ private:
 		int32 IncomingEdgeCount = 0;
 	};
 
+	struct FImportedPackageRef
+	{
+		FImportedPackageRef(FName InName)
+			: Id(FPackageId::FromName(InName))
+			, Name(InName)
+		{
+		}
+
+		// Note: For Zen packages we currently don't know the package name but we also don't use it for anything
+		FImportedPackageRef(FPackageId InId)
+			: Id(InId)
+		{
+
+		}
+
+		bool operator<(const FImportedPackageRef& Other) const
+		{
+			return Id < Other.Id;
+		}
+
+		const FPackageId Id;
+		const FName Name;
+	};
+
 	FPackageId Id;
 	FName Name;
 
@@ -220,7 +243,7 @@ private:
 	TArray<FExportGraphNode> ExportGraphNodes;
 	FGraphData GraphData;
 
-	TArray<FPackageId> ImportedPackageIds;
+	TArray<FImportedPackageRef> ImportedPackages;
 	TArray<uint64> ImportedPublicExportHashes;
 	TArray<FBulkDataMapEntry> BulkDataEntries;
 
@@ -313,7 +336,7 @@ private:
 	void ProcessPreloadDependencies(const FZenPackageHeaderData& ZenHeaderData, FPackageStorePackage* Package) const;
 	void ProcessDataResources(const FCookedHeaderData& CookedHeaderData, FPackageStorePackage* Package) const;
 	TArray<FPackageStorePackage*> SortPackagesInLoadOrder(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap) const;
-	void SerializeGraphData(const TArray<FPackageId>& ImportedPackageIds, FPackageStorePackage::FGraphData& GraphData, FBufferWriter& GraphArchive) const;
+	void SerializeGraphData(const TArray<FPackageStorePackage::FImportedPackageRef>& ImportedPackages, FPackageStorePackage::FGraphData& GraphData, FBufferWriter& GraphArchive) const;
 	TArray<FPackageStorePackage::FExportGraphNode*> SortExportGraphNodesInLoadOrder(FPackageStorePackage* Package, FExportGraphEdges& Edges) const;
 	TArray<FPackageStorePackage::FExportBundleGraphNode*> SortExportBundleGraphNodesInLoadOrder(const TArray<FPackageStorePackage*>& Packages, FExportBundleGraphEdges& Edges) const;
 	void CreateExportBundles(FPackageStorePackage* Package) const;

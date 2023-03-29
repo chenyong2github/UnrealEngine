@@ -68,6 +68,7 @@ enum class EPackageStoreEntryFlags : uint32
 {
 	None		= 0,
 	AutoOptional= 0x02,
+	OptionalSegment = 0x04,
 };
 ENUM_CLASS_FLAGS(EPackageStoreEntryFlags);
 
@@ -106,6 +107,11 @@ struct FPackageStoreEntryResource
 	bool IsAutoOptional() const
 	{
 		return EnumHasAnyFlags(Flags, EPackageStoreEntryFlags::AutoOptional);
+	}
+
+	bool HasOptionalSegment() const
+	{
+		return EnumHasAnyFlags(Flags, EPackageStoreEntryFlags::OptionalSegment);
 	}
 
 	CORE_API friend FArchive& operator<<(FArchive& Ar, FPackageStoreEntryResource& PackageStoreEntry);

@@ -2289,8 +2289,7 @@ void InitializeContainerTargetsAndPackages(
 	TArray<FCookedPackage*>& Packages,
 	FPackageNameMap& PackageNameMap,
 	FPackageIdMap& PackageIdMap,
-	TArray<FContainerTargetSpec*>& ContainerTargets,
-	FPackageStoreOptimizer& PackageStoreOptimizer)
+	TArray<FContainerTargetSpec*>& ContainerTargets)
 {
 	auto CreateTargetFileFromCookedFile = [
 		&Arguments,
@@ -3533,7 +3532,7 @@ void CreateContainerHeader(FContainerTargetSpec& ContainerTarget, bool bIsOption
 	{
 		for (const FCookedPackage* Package : ContainerTarget.Packages)
 		{
-			if (Package->PackageStoreEntry.OptionalSegmentExportInfo.ExportCount)
+			if (Package->PackageStoreEntry.HasOptionalSegment())
 			{
 				if (Package->PackageStoreEntry.IsAutoOptional())
 				{
@@ -3609,7 +3608,7 @@ void CreateContainerHeader(FContainerTargetSpec& ContainerTarget, bool bIsOption
 		for (const FCookedPackage* Package : SortedPackages)
 		{
 			const FPackageStoreEntryResource& Entry = Package->PackageStoreEntry;
-			if (Entry.OptionalSegmentExportInfo.ExportCount)
+			if (Entry.HasOptionalSegment())
 			{
 				FStoreEntriesWriter* TargetEntriesWriter;
 				if (Entry.IsAutoOptional())
@@ -3730,7 +3729,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	UE_LOG(LogIoStore, Display, TEXT("Creating container targets..."));
 	{
 		IOSTORE_CPU_SCOPE(CreateContainerTargets);
-		InitializeContainerTargetsAndPackages(Arguments, Packages, PackageNameMap, PackageIdMap, ContainerTargets, PackageStoreOptimizer);
+		InitializeContainerTargetsAndPackages(Arguments, Packages, PackageNameMap, PackageIdMap, ContainerTargets);
 	}
 
 	TUniquePtr<FIoStoreWriterContext> IoStoreWriterContext;
@@ -3821,8 +3820,52 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	TArray<FShaderInfo*> Shaders;
 	ProcessShaderLibraries(Arguments, ContainerTargets, Shaders);
 
+	auto AppendTargetFileChunk = [&WriteRequestManager](FContainerTargetSpec* ContainerTarget, const FContainerTargetFile& TargetFile)
 	{
-		IOSTORE_CPU_SCOPE(AppendNonPackageChunks);
+		FIoWriteOptions WriteOptions;
+		WriteOptions.DebugName = *TargetFile.DestinationPath;
+		WriteOptions.bForceUncompressed = TargetFile.bForceUncompressed;
+		WriteOptions.bIsMemoryMapped = TargetFile.ChunkType == EContainerChunkType::MemoryMappedBulkData;
+		WriteOptions.FileName = TargetFile.DestinationPath;
+		FIoChunkId ChunkId = TargetFile.ChunkId;
+		bool bIsOptionalSegmentChunk = false;
+		switch (TargetFile.ChunkType)
+		{
+		case EContainerChunkType::OptionalSegmentPackageData:
+		{
+			if (TargetFile.Package->PackageStoreEntry.IsAutoOptional())
+			{
+				// Auto optional packages replace the non-optional part when the container is mounted
+				ChunkId = CreateIoChunkId(TargetFile.Package->GlobalPackageId.Value(), 0, EIoChunkType::ExportBundleData);
+			}
+			bIsOptionalSegmentChunk = true;
+			break;
+		}
+		case EContainerChunkType::OptionalSegmentBulkData:
+		{
+			if (TargetFile.Package->PackageStoreEntry.IsAutoOptional())
+			{
+				// Auto optional packages replace the non-optional part when the container is mounted
+				ChunkId = CreateIoChunkId(TargetFile.Package->GlobalPackageId.Value(), 0, EIoChunkType::BulkData);
+			}
+			bIsOptionalSegmentChunk = true;
+			break;
+		}
+		}
+
+		if (bIsOptionalSegmentChunk)
+		{
+			ContainerTarget->OptionalSegmentIoStoreWriter->Append(ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
+		}
+		else
+		{
+			ContainerTarget->IoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
+		}
+	};
+
+	{
+		// Append all chunks that don't change after this point
+		IOSTORE_CPU_SCOPE(AppendChunks);
 		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
 			if (ContainerTarget->IoStoreWriter)
@@ -3831,25 +3874,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				{
 					if (TargetFile.ChunkType != EContainerChunkType::PackageData && TargetFile.ChunkType != EContainerChunkType::OptionalSegmentPackageData)
 					{
-						FIoWriteOptions WriteOptions;
-						WriteOptions.DebugName = *TargetFile.DestinationPath;
-						WriteOptions.bForceUncompressed = TargetFile.bForceUncompressed;
-						WriteOptions.bIsMemoryMapped = TargetFile.ChunkType == EContainerChunkType::MemoryMappedBulkData;
-						WriteOptions.FileName = TargetFile.DestinationPath;
-						if (TargetFile.ChunkType == EContainerChunkType::OptionalSegmentBulkData)
-						{
-							FIoChunkId ChunkId = TargetFile.ChunkId;
-							if (TargetFile.Package->PackageStoreEntry.IsAutoOptional())
-							{
-								// Auto optional packages replace the non-optional part when the container is mounted
-								ChunkId = CreateIoChunkId(TargetFile.Package->GlobalPackageId.Value(), 0, EIoChunkType::BulkData);
-							}
-							ContainerTarget->OptionalSegmentIoStoreWriter->Append(ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
-						}
-						else
-						{
-							ContainerTarget->IoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
-						}
+						AppendTargetFileChunk(ContainerTarget, TargetFile);
 					}
 				}
 			}
@@ -3897,7 +3922,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	CreateDiskLayout(ContainerTargets, Packages, Arguments.OrderMaps, PackageIdMap, Arguments.bClusterByOrderFilePriority);
 
 	{
-		IOSTORE_CPU_SCOPE(AppendPackageChunks);
+		IOSTORE_CPU_SCOPE(AppendRemaningChunks);
 		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
 			if (ContainerTarget->IoStoreWriter)
@@ -3906,27 +3931,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				{
 					if (TargetFile.ChunkType == EContainerChunkType::PackageData || TargetFile.ChunkType == EContainerChunkType::OptionalSegmentPackageData)
 					{
-						check(TargetFile.Package);
-						FIoWriteOptions WriteOptions;
-						WriteOptions.DebugName = *TargetFile.DestinationPath;
-						WriteOptions.bForceUncompressed = TargetFile.bForceUncompressed;
-						WriteOptions.FileName = TargetFile.DestinationPath;
-						if (TargetFile.ChunkType == EContainerChunkType::OptionalSegmentPackageData)
-						{
-							check(ContainerTarget->OptionalSegmentIoStoreWriter);
-							check(TargetFile.Package->OptimizedOptionalSegmentPackage);
-							FIoChunkId ChunkId = TargetFile.ChunkId;
-							if (TargetFile.Package->OptimizedOptionalSegmentPackage->HasEditorData())
-							{
-								// Auto optional packages replace the non-optional part when the container is mounted
-								ChunkId = CreateIoChunkId(TargetFile.Package->GlobalPackageId.Value(), 0, EIoChunkType::ExportBundleData);
-							}
-							ContainerTarget->OptionalSegmentIoStoreWriter->Append(ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
-						}
-						else
-						{
-							ContainerTarget->IoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
-						}
+						AppendTargetFileChunk(ContainerTarget, TargetFile);
 					}
 				}
 
@@ -5217,7 +5222,6 @@ namespace DescribeUtils
 					const FPackageId& PackageId = ContainerHeader.PackageIds[PackageIndex++];
 					FPackageDesc* PackageDesc = new FPackageDesc();
 					PackageDesc->PackageId = PackageId;
-					PackageDesc->Exports.SetNum(ContainerEntry.ExportCount);
 					PackageDesc->ExportBundleCount = ContainerEntry.ExportBundleCount;
 					PackageDesc->ImportedPackageIds = TArrayView<FPackageId>(ContainerEntry.ImportedPackages.Data(), ContainerEntry.ImportedPackages.Num());
 					Job.Packages.Add(PackageDesc);
@@ -5338,6 +5342,7 @@ namespace DescribeUtils
 			}
 
 			const FExportMapEntry* ExportMap = reinterpret_cast<const FExportMapEntry*>(PackageSummaryData + PackageSummary->ExportMapOffset);
+			Job.PackageDesc->Exports.SetNum((PackageSummary->ExportBundleEntriesOffset - PackageSummary->ExportMapOffset) / sizeof(FExportMapEntry));
 			for (int32 ExportIndex = 0; ExportIndex < Job.PackageDesc->Exports.Num(); ++ExportIndex)
 			{
 				const FExportMapEntry& ExportMapEntry = ExportMap[ExportIndex];
