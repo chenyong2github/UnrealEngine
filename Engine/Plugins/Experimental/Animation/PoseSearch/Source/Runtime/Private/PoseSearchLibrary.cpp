@@ -442,19 +442,6 @@ void UPoseSearchLibrary::MotionMatch(
 	bIsMirrored = false;
 	BlendParameters = FVector::ZeroVector;
 
-	if (FutureAnimationStartTime < FiniteDelta)
-	{
-		UE_LOG(LogPoseSearch, Warning, TEXT("UPoseSearchLibrary::MotionMatch - provided FutureAnimationStartTime (%f) is too small to be able to calculate velocities. Clamping it to minimum value of %f"), TimeToFutureAnimationStart, FiniteDelta);
-		FutureAnimationStartTime = FiniteDelta;
-	}
-
-	const float MinTimeToFutureAnimationStart = FiniteDelta + UE_KINDA_SMALL_NUMBER;
-	if (TimeToFutureAnimationStart < MinTimeToFutureAnimationStart)
-	{
-		UE_LOG(LogPoseSearch, Warning, TEXT("UPoseSearchLibrary::MotionMatch - provided TimeToFutureAnimationStart (%f) is too small. Clamping it to minimum value of %f"), TimeToFutureAnimationStart, MinTimeToFutureAnimationStart);
-		TimeToFutureAnimationStart = MinTimeToFutureAnimationStart;
-	}
-
 	if (Searchable)
 	{
 		// ExtendedPoseHistory will hold future poses to match AssetSamplerBase (at FutureAnimationStartTime) TimeToFutureAnimationStart seconds in the future
@@ -529,6 +516,19 @@ void UPoseSearchLibrary::MotionMatch(
 
 					UnusedCurve.InitFrom(BoneContainer);
 					Pose.SetBoneContainer(&BoneContainer);
+
+					if (FutureAnimationStartTime < FiniteDelta)
+					{
+						UE_LOG(LogPoseSearch, Warning, TEXT("UPoseSearchLibrary::MotionMatch - provided FutureAnimationStartTime (%f) is too small to be able to calculate velocities. Clamping it to minimum value of %f"), FutureAnimationStartTime, FiniteDelta);
+						FutureAnimationStartTime = FiniteDelta;
+					}
+
+					const float MinTimeToFutureAnimationStart = FiniteDelta + UE_KINDA_SMALL_NUMBER;
+					if (TimeToFutureAnimationStart < MinTimeToFutureAnimationStart)
+					{
+						UE_LOG(LogPoseSearch, Warning, TEXT("UPoseSearchLibrary::MotionMatch - provided TimeToFutureAnimationStart (%f) is too small. Clamping it to minimum value of %f"), TimeToFutureAnimationStart, MinTimeToFutureAnimationStart);
+						TimeToFutureAnimationStart = MinTimeToFutureAnimationStart;
+					}
 
 					// extracting 2 poses to be able to calculate velocities
 					for (int i = 0; i < 2; ++i)
