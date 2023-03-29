@@ -2,6 +2,7 @@
 #include "Texture/TextureTranslatorUtilities.h"
 
 #include "CoreMinimal.h"
+#include "InterchangeImportLog.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTexture2DArrayNode.h"
 #include "InterchangeTexture2DNode.h"
@@ -9,12 +10,15 @@
 #include "InterchangeTextureCubeNode.h"
 #include "InterchangeTextureLightProfileNode.h"
 #include "InterchangeTextureNode.h"
+#include "InterchangeTranslatorBase.h"
 #include "InterchangeVolumeTextureNode.h"
 #include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+
+#define LOCTEXT_NAMESPACE "InterchangeTextureTranslator"
 
 namespace UE::Interchange::Private
 {
@@ -79,3 +83,61 @@ bool UE::Interchange::FTextureTranslatorUtilities::GenericTextureLightProfileTra
 {
 	return Private::GenericTextureTranslate(SourceData, BaseNodeContainer, UInterchangeTextureLightProfileNode::StaticClass());
 }
+
+void UE::Interchange::FTextureTranslatorUtilities::LogError(const UInterchangeTranslatorBase& TextureTranslator, FText&& ErrorText)
+{
+	UInterchangeResultError_Generic* ErrorMessage = TextureTranslator.AddMessage<UInterchangeResultError_Generic>();
+	ErrorMessage->AssetType = TextureTranslator.GetClass();
+
+	if (TextureTranslator.GetSourceData())
+	{
+		const FString Filename = TextureTranslator.GetSourceData()->GetFilename();
+		ErrorMessage->SourceAssetName = Filename;
+		ErrorMessage->InterchangeKey = FPaths::GetBaseFilename(Filename);
+	}
+	else
+	{
+		ErrorMessage->InterchangeKey = TEXT("Undefined");
+	}
+
+	ErrorMessage->Text = MoveTemp(ErrorText);
+}
+
+bool UE::Interchange::FTextureTranslatorUtilities::IsTranslatorValid(const UInterchangeTranslatorBase& TextureTranslator, const TCHAR* Format)
+{
+	const UInterchangeSourceData* SourceData = TextureTranslator.GetSourceData();
+
+	if (!SourceData)
+	{
+		LogError(TextureTranslator, FText::Format(LOCTEXT("TextureImportFailure_BadData", "Failed to import {0}, bad source data."), FText::FromString(Format)));
+		return false;
+	}
+
+	FString Filename = SourceData->GetFilename();
+
+	if (!FPaths::FileExists(Filename))
+	{
+		LogError(TextureTranslator, FText::Format(LOCTEXT("TextureImportFailure_OpenFile", "Failed to import {0}, cannot open file."), FText::FromString(Format)));
+		return false;
+	}
+
+	return true;
+}
+
+bool UE::Interchange::FTextureTranslatorUtilities::LoadSourceBuffer(const UInterchangeTranslatorBase& TextureTranslator, const TCHAR* Format, TArray64<uint8>& SourceDataBuffer)
+{
+	if (!IsTranslatorValid(TextureTranslator, Format))
+	{
+		return false;
+	}
+
+	if (!FFileHelper::LoadFileToArray(SourceDataBuffer, *TextureTranslator.GetSourceData()->GetFilename()))
+	{
+		LogError(TextureTranslator, FText::Format(LOCTEXT("TextureImportFailure_LoadBuffer", "Failed to import {0}, cannot load file content into an array."), FText::FromString(Format)));
+		return false;
+	}
+
+	return !SourceDataBuffer.IsEmpty();
+}
+
+#undef LOCTEXT_NAMESPACE

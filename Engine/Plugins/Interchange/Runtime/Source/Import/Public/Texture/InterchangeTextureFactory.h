@@ -72,6 +72,7 @@ private:
 	void CheckForInvalidResolutions(UE::Interchange::Private::InterchangeTextureFactory::FTexturePayloadVariant& InPayloadVariant, const UInterchangeSourceData* SourceData, const UInterchangeTextureFactoryNode* TextureFactoryNode);
 	
 	UE::Interchange::Private::InterchangeTextureFactory::FProcessedPayload ProcessedPayload;
+	TOptional<FString> AlternateTexturePath;
 
 #if WITH_EDITORONLY_DATA
 	//  The data for the source files will be stored here during the import

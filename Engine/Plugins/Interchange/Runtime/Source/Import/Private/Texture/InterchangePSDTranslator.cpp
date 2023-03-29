@@ -395,36 +395,14 @@ bool UInterchangePSDTranslator::Translate(UInterchangeBaseNodeContainer& BaseNod
 	return UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(GetSourceData(), BaseNodeContainer);
 }
 
-TOptional<UE::Interchange::FImportImage> UInterchangePSDTranslator::GetTexturePayloadData(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FImportImage> UInterchangePSDTranslator::GetTexturePayloadData(const FString& /*PayloadKey*/, TOptional<FString>& /*AlternateTexturePath*/) const
 {
-	check(PayloadSourceData == GetSourceData());
-
-	if (!GetSourceData())
-	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import PSD, bad source data."));
-		return TOptional<UE::Interchange::FImportImage>();
-	}
+	using namespace UE::Interchange;
 
 	TArray64<uint8> SourceDataBuffer;
-	FString Filename = GetSourceData()->GetFilename();
-
-	//Make sure the key fit the filename, The key should always be valid
-	if (!Filename.Equals(PayLoadKey))
+	if (!FTextureTranslatorUtilities::LoadSourceBuffer(*this, TEXT("PSD"), SourceDataBuffer))
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import PSD, wrong payload key. [%s]"), *Filename);
-		return TOptional<UE::Interchange::FImportImage>();
-	}
-
-	if (!FPaths::FileExists(Filename))
-	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import PSD, cannot open file. [%s]"), *Filename);
-		return TOptional<UE::Interchange::FImportImage>();
-	}
-
-	if (!FFileHelper::LoadFileToArray(SourceDataBuffer, *Filename))
-	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import PSD, cannot load file content into an array. [%s]"), *Filename);
-		return TOptional<UE::Interchange::FImportImage>();
+		return {};
 	}
 
 	const uint8* Buffer = SourceDataBuffer.GetData();
@@ -450,7 +428,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangePSDTranslator::GetTexturePa
 
 	if (!PSDHeader.IsSupported())
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Format of this PSD is not supported. Only Grayscale and RGBColor PSD images are currently supported, in 8-bit or 16-bit."));
+		FTextureTranslatorUtilities::LogError(*this, NSLOCTEXT("InterchangeDDSTranslator", "UnsupportedFormat", "Format of this PSD is not supported. Only Grayscale and RGBColor PSD images are currently supported, in 8-bit or 16-bit."));
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
@@ -467,7 +445,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangePSDTranslator::GetTexturePa
 
 	if (TextureFormat == TSF_Invalid)
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("PSD file contains data in an unsupported format."));
+		FTextureTranslatorUtilities::LogError(*this, NSLOCTEXT("InterchangeDDSTranslator", "UnsupportedPixelFormat", "This PSD file contains data in an unsupported pixel format."));
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
@@ -482,7 +460,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangePSDTranslator::GetTexturePa
 
 	if (!UE::Interchange::Private::ReadData(static_cast<uint8*>(PayloadData.RawData.GetData()), Buffer, PSDHeader))
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to read this PSD"));
+		FTextureTranslatorUtilities::LogError(*this, NSLOCTEXT("InterchangeDDSTranslator", "FailedRead", "Failed to read this PSD."));
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 

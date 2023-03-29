@@ -163,7 +163,7 @@ void UInterchangeFbxTranslator::ImportFinish()
 }
 
 
-TOptional<UE::Interchange::FImportImage> UInterchangeFbxTranslator::GetTexturePayloadData(const UInterchangeSourceData* InSourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FImportImage> UInterchangeFbxTranslator::GetTexturePayloadData(const FString& PayLoadKey, TOptional<FString>& AlternateTexturePath) const
 {
 	UInterchangeSourceData* PayloadSourceData = UInterchangeManager::GetInterchangeManager().CreateSourceData(PayLoadKey);
 	FGCObjectScopeGuard ScopedSourceData(PayloadSourceData);
@@ -179,7 +179,10 @@ TOptional<UE::Interchange::FImportImage> UInterchangeFbxTranslator::GetTexturePa
 	{
 		return TOptional<UE::Interchange::FImportImage>();
 	}
-	return TextureTranslator->GetTexturePayloadData(PayloadSourceData, PayLoadKey);
+
+	AlternateTexturePath = PayLoadKey;
+
+	return TextureTranslator->GetTexturePayloadData(PayLoadKey, AlternateTexturePath);
 }
 
 TFuture<TOptional<UE::Interchange::FMeshPayloadData>> UInterchangeFbxTranslator::GetMeshPayloadData(const FInterchangeMeshPayLoadKey& PayLoadKey) const

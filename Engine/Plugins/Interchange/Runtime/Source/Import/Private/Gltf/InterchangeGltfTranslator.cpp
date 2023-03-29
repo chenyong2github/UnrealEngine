@@ -1316,10 +1316,10 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 	return true;
 }
 
-TOptional< UE::Interchange::FImportImage > UInterchangeGltfTranslator::GetTexturePayloadData( const UInterchangeSourceData* InSourceData, const FString& PayLoadKey ) const
+TOptional< UE::Interchange::FImportImage > UInterchangeGltfTranslator::GetTexturePayloadData(const FString& PayloadKey, TOptional<FString>& AlternateTexturePath) const
 {
 	int32 TextureIndex = 0;
-	LexFromString( TextureIndex, *PayLoadKey );
+	LexFromString( TextureIndex, *PayloadKey);
 
 	if ( !GltfAsset.Textures.IsValidIndex( TextureIndex ) )
 	{
@@ -1355,7 +1355,9 @@ TOptional< UE::Interchange::FImportImage > UInterchangeGltfTranslator::GetTextur
 			return TOptional<UE::Interchange::FImportImage>();
 		}
 
-		return TextureTranslator->GetTexturePayloadData(PayloadSourceData, TextureFilePath);
+		AlternateTexturePath = TextureFilePath;
+
+		return TextureTranslator->GetTexturePayloadData(PayloadKey, AlternateTexturePath);
 	}
 }
 

@@ -23,13 +23,20 @@ class INTERCHANGEIMPORT_API IInterchangeSlicedTexturePayloadInterface
 	GENERATED_BODY()
 public:
 
+	UE_DEPRECATED(5.3, "Deprecated. Use GetSlicedTexturePayloadData(const FString&, TOptional<FString>&) instead.")
+	virtual TOptional<UE::Interchange::FImportSlicedImage> GetSlicedTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayloadKey) const
+	{
+		TOptional<FString> AlternateTexturePath;
+		return GetSlicedTexturePayloadData(PayloadKey, AlternateTexturePath);
+	}
+	
 	/**
 	 * Once the translation is done, the import process need a way to retrieve payload data.
 	 * This payload will be use by the factories to create the asset.
 	 *
-	 * @param SourceData - The source data containing the data to translate
 	 * @param PayloadKey - The key to retrieve the a particular payload contain into the specified source data.
+	 * @param AlternateTexturePath - When applicable, set to the path of the file actually loaded to create the FImportImage.
 	 * @return a PayloadData containing the import image data. The TOptional will not be set if there is an error.
 	 */
-	virtual TOptional<UE::Interchange::FImportSlicedImage> GetSlicedTexturePayloadData(const UInterchangeSourceData* SourceData, const FString& PayloadKey) const = 0;
+	virtual TOptional<UE::Interchange::FImportSlicedImage> GetSlicedTexturePayloadData(const FString& PayloadKey, TOptional<FString>& AlternateTexturePath) const PURE_VIRTUAL(IInterchangeSlicedTexturePayloadInterface::GetSlicedTexturePayloadData, return{};);
 };

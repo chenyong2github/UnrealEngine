@@ -47,17 +47,18 @@ bool UInterchangeJPGTranslator::Translate(UInterchangeBaseNodeContainer& BaseNod
 	return UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(GetSourceData(), BaseNodeContainer);
 }
 
-TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePayloadData(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePayloadData(const FString& /*PayloadKey*/, TOptional<FString>& AlternateTexturePath) const
 {
-	TArray64<uint8> SourceDataBuffer = LoadSourceFile(PayloadSourceData, PayLoadKey);
+	using namespace UE::Interchange;
 
-	if (SourceDataBuffer.IsEmpty())
+	TArray64<uint8> SourceDataBuffer;
+	if (!FTextureTranslatorUtilities::LoadSourceBuffer(*this, TEXT("JPEG"), SourceDataBuffer))
 	{
 		return {};
 	}
 
 	const bool bImportRaw = false;
-	return GetTexturePayloadImplementation(MoveTemp(SourceDataBuffer), PayLoadKey, bImportRaw);
+	return GetTexturePayloadImplementation(MoveTemp(SourceDataBuffer), bImportRaw);
 
 }
 
@@ -66,56 +67,23 @@ bool UInterchangeJPGTranslator::SupportCompressedTexturePayloadData() const
 	return true;
 }
 
-TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetCompressedTexturePayloadData(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetCompressedTexturePayloadData(const FString& /*PayloadKey*/, TOptional<FString>& /*AlternateTexturePath*/) const
 {
-	TArray64<uint8> SourceDataBuffer = LoadSourceFile(PayloadSourceData, PayLoadKey);
+	using namespace UE::Interchange;
 
-	if (SourceDataBuffer.IsEmpty())
+	TArray64<uint8> SourceDataBuffer;
+	if (!FTextureTranslatorUtilities::LoadSourceBuffer(*this, TEXT("JPEG"), SourceDataBuffer))
 	{
 		return {};
 	}
 
 	const bool bImportRaw = true;
-	return GetTexturePayloadImplementation(MoveTemp(SourceDataBuffer), PayLoadKey, bImportRaw);
+	return GetTexturePayloadImplementation(MoveTemp(SourceDataBuffer), bImportRaw);
 }
 
-TArray64<uint8> UInterchangeJPGTranslator::LoadSourceFile(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePayloadImplementation(TArray64<uint8>&& SourceDataBuffer, bool bShouldImportRaw) const
 {
-	check(PayloadSourceData == GetSourceData());
-
-	TArray64<uint8> SourceDataBuffer;
-
-	if (!GetSourceData())
-	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import JPEG, bad source data."));
-		return SourceDataBuffer;
-	}
-
-	FString Filename = GetSourceData()->GetFilename();
-
-	//Make sure the key fit the filename, The key should always be valid
-	if (!Filename.Equals(PayLoadKey))
-	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import JPEG, wrong payload key. [%s]"), *Filename);
-		return SourceDataBuffer;
-	}
-
-	if (!FPaths::FileExists(Filename))
-	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import JPEG, cannot open file. [%s]"), *Filename);
-		return SourceDataBuffer;
-	}
-
-	if (!FFileHelper::LoadFileToArray(SourceDataBuffer, *Filename))
-	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import JPEG, cannot load file content into an array. [%s]"), *Filename);
-	}
-
-	return SourceDataBuffer;
-}
-
-TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePayloadImplementation(TArray64<uint8>&& SourceDataBuffer, const FString& Filename, bool bShouldImportRaw) const
-{
+	using namespace UE::Interchange;
 
 	const uint8* Buffer = SourceDataBuffer.GetData();
 	const uint8* BufferEnd = Buffer + SourceDataBuffer.Num();
@@ -130,7 +98,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePa
 	TSharedPtr<IImageWrapper> JpegImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::JPEG);
 	if (!JpegImageWrapper.IsValid() || !JpegImageWrapper->SetCompressed(Buffer, Length))
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to decode JPEG. [%s]"), *Filename);
+		FTextureTranslatorUtilities::LogError(*this, NSLOCTEXT("InterchangeJPEGTranslator", "DecodingFailed", "Failed to decode JPEG."));
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
@@ -160,7 +128,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePa
 
 	if (TextureFormat == TSF_Invalid)
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("JPEG file [%s] contains data in an unsupported format"), *Filename);
+		FTextureTranslatorUtilities::LogError(*this, NSLOCTEXT("InterchangeJPEGTranslator", "UnsupportedFormat", "JPEG file contains data in an unsupported format."));
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
@@ -189,7 +157,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePa
 	}
 	else
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to decode JPEG. [%s]"), *Filename);
+		FTextureTranslatorUtilities::LogError(*this, NSLOCTEXT("InterchangeJPEGTranslator", "DecodingFailed", "Failed to decode JPEG."));
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 

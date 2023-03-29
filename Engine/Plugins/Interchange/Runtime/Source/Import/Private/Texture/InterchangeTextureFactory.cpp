@@ -498,8 +498,9 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 				TOptional<UE::Interchange::FImportImage> Payload;
 				if (Translator->CanImportSourceData(SourceDataForBlock))
 				{
+					TOptional<FString> DummyAlternateTexturePath;
 					Translator->SourceData = SourceDataForBlock;
-					Payload = TextureTranslator->GetTexturePayloadData(SourceDataForBlock, SourceDataForBlock->GetFilename());
+					Payload = TextureTranslator->GetTexturePayloadData(FString(), DummyAlternateTexturePath);
 				}
 
 				if (Payload.IsSet())
@@ -579,7 +580,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		return BlockedImage;
 	}
 
-	FTexturePayloadVariant GetTexturePayload(const UInterchangeSourceData* SourceData, const FString& PayloadKey, const FTextureNodeVariant& TextureNodeVariant, const FTextureFactoryNodeVariant& FactoryNodeVariant, const UInterchangeTranslatorBase* Translator)
+	FTexturePayloadVariant GetTexturePayload(const UInterchangeSourceData* SourceData, const FString& PayloadKey, const FTextureNodeVariant& TextureNodeVariant, const FTextureFactoryNodeVariant& FactoryNodeVariant, const UInterchangeTranslatorBase* Translator, TOptional<FString>& AlternateTexturePath)
 	{
 		static_assert(TVariantSize<FTextureFactoryNodeVariant>::Value == 7, "Please update the code below and this assert to reflect the change to the variant type.");
 
@@ -619,11 +620,11 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 
 					if (bShoudImportCompressedImage && TextureTranslator->SupportCompressedTexturePayloadData())
 					{
-						return FTexturePayloadVariant(TInPlaceType<TOptional<FImportImage>>(), TextureTranslator->GetCompressedTexturePayloadData(SourceData, PayloadKey));
+						return FTexturePayloadVariant(TInPlaceType<TOptional<FImportImage>>(), TextureTranslator->GetCompressedTexturePayloadData(PayloadKey, AlternateTexturePath));
 					}
 					else
 					{
-						return FTexturePayloadVariant(TInPlaceType<TOptional<FImportImage>>(), TextureTranslator->GetTexturePayloadData(SourceData, PayloadKey));
+						return FTexturePayloadVariant(TInPlaceType<TOptional<FImportImage>>(), TextureTranslator->GetTexturePayloadData(PayloadKey, AlternateTexturePath));
 					}
 				}
 				else
@@ -633,7 +634,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 			}
 			else if (const IInterchangeBlockedTexturePayloadInterface* BlockedTextureTranslator = Cast<IInterchangeBlockedTexturePayloadInterface>(Translator))
 			{
-				return FTexturePayloadVariant(TInPlaceType<TOptional<FImportBlockedImage>>(), BlockedTextureTranslator->GetBlockedTexturePayloadData(SourceData, PayloadKey));
+				return FTexturePayloadVariant(TInPlaceType<TOptional<FImportBlockedImage>>(), BlockedTextureTranslator->GetBlockedTexturePayloadData(PayloadKey, AlternateTexturePath));
 			}
 		}
 
@@ -643,7 +644,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		{
 			if (const IInterchangeSlicedTexturePayloadInterface* SlicedTextureTranslator = Cast<IInterchangeSlicedTexturePayloadInterface>(Translator))
 			{
-				return FTexturePayloadVariant(TInPlaceType<TOptional<FImportSlicedImage>>(), SlicedTextureTranslator->GetSlicedTexturePayloadData(SourceData, PayloadKey));
+				return FTexturePayloadVariant(TInPlaceType<TOptional<FImportSlicedImage>>(), SlicedTextureTranslator->GetSlicedTexturePayloadData(PayloadKey, AlternateTexturePath));
 			}
 		}
 
@@ -652,7 +653,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		{
 			if (const IInterchangeTextureLightProfilePayloadInterface* LightProfileTranslator = Cast<IInterchangeTextureLightProfilePayloadInterface>(Translator))
 			{
-				return FTexturePayloadVariant(TInPlaceType<TOptional<FImportLightProfile>>(), LightProfileTranslator->GetLightProfilePayloadData(SourceData, PayloadKey));
+				return FTexturePayloadVariant(TInPlaceType<TOptional<FImportLightProfile>>(), LightProfileTranslator->GetLightProfilePayloadData(PayloadKey, AlternateTexturePath));
 			}
 		}
 
@@ -1611,7 +1612,8 @@ UObject* UInterchangeTextureFactory::ImportAssetObject_Async(const FImportAssetO
 		return nullptr;
 	}
 
-	FTexturePayloadVariant TexturePayload = GetTexturePayload(Arguments.SourceData, PayLoadKey.GetValue(), TextureNodeVariant, TextureFactoryNodeVariant, Arguments.Translator);
+	AlternateTexturePath.Reset();
+	FTexturePayloadVariant TexturePayload = GetTexturePayload(Arguments.SourceData, PayLoadKey.GetValue(), TextureNodeVariant, TextureFactoryNodeVariant, Arguments.Translator, AlternateTexturePath);
 
 	if(TexturePayload.IsType<FEmptyVariantState>())
 	{
@@ -1787,6 +1789,13 @@ void UInterchangeTextureFactory::SetupObject_GameThread(const FSetupObjectParams
 		SetImportAssetDataParameters.SourceFiles = MoveTemp(SourceFiles);
 
 		Texture->AssetImportData = UE::Interchange::FFactoryCommon::SetImportAssetData(SetImportAssetDataParameters);
+		
+		if (AlternateTexturePath.IsSet())
+		{
+			// A file different from the source data has been used to create the texture.
+			// Set this file's path as the first file name
+			Texture->AssetImportData->AddFileName(AlternateTexturePath.GetValue(), 0);
+		}
 	}
 #endif
 }

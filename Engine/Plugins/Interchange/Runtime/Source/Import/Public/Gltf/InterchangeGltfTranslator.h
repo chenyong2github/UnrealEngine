@@ -47,7 +47,7 @@ public:
 
 	/* IInterchangeTexturePayloadInterface Begin */
 
-	virtual TOptional< UE::Interchange::FImportImage > GetTexturePayloadData( const UInterchangeSourceData* InSourceData, const FString& PayLoadKey ) const override;
+	virtual TOptional< UE::Interchange::FImportImage > GetTexturePayloadData(const FString& PayloadKey, TOptional<FString>& AlternateTexturePath) const override;
 
 	/* IInterchangeTexturePayloadInterface End */
 

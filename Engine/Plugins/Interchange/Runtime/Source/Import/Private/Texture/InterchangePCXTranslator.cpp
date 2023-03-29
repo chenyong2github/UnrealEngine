@@ -93,36 +93,14 @@ bool UInterchangePCXTranslator::Translate(UInterchangeBaseNodeContainer& BaseNod
 	return UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(GetSourceData(), BaseNodeContainer);
 }
 
-TOptional<UE::Interchange::FImportImage> UInterchangePCXTranslator::GetTexturePayloadData(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FImportImage> UInterchangePCXTranslator::GetTexturePayloadData(const FString& /*PayloadKey*/, TOptional<FString>& AlternateTexturePath) const
 {
-	check(PayloadSourceData == GetSourceData());
-
-	if (!GetSourceData())
-	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import PCX, bad source data."));
-		return TOptional<UE::Interchange::FImportImage>();
-	}
+	using namespace UE::Interchange;
 
 	TArray64<uint8> SourceDataBuffer;
-	FString Filename = GetSourceData()->GetFilename();
-	
-	//Make sure the key fit the filename, The key should always be valid
-	if (!Filename.Equals(PayLoadKey))
+	if (!FTextureTranslatorUtilities::LoadSourceBuffer(*this, TEXT("PCX"), SourceDataBuffer))
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import PCX, wrong payload key. [%s]"), *Filename);
-		return TOptional<UE::Interchange::FImportImage>();
-	}
-
-	if (!FPaths::FileExists(Filename))
-	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import PCX, cannot open file. [%s]"), *Filename);
-		return TOptional<UE::Interchange::FImportImage>();
-	}
-
-	if (!FFileHelper::LoadFileToArray(SourceDataBuffer, *Filename))
-	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import PCX, cannot load file content into an array. [%s]"), *Filename);
-		return TOptional<UE::Interchange::FImportImage>();
+		return {};
 	}
 
 	const uint8* Buffer = SourceDataBuffer.GetData();
@@ -238,13 +216,14 @@ TOptional<UE::Interchange::FImportImage> UInterchangePCXTranslator::GetTexturePa
 		}
 		else
 		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import PCX, unsupported format. (%i/%i) [%s]"), PCX->NumPlanes, PCX->BitsPerPixel, *Filename);
+			FText ErrorMessage = FText::Format(NSLOCTEXT("InterchangePCXTranslator", "UnsupportedFormat", "Failed to import PCX, unsupported format. ({0}{1})"), (int)PCX->NumPlanes, (int)PCX->BitsPerPixel);
+			FTextureTranslatorUtilities::LogError(*this, MoveTemp(ErrorMessage));
 			return TOptional<UE::Interchange::FImportImage>();
 		}
 	}
 	else
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import PCX, unsupported file version. [%s]"), *Filename);
+		FTextureTranslatorUtilities::LogError(*this, NSLOCTEXT("InterchangePCXTranslator", "UnsupportedVersion", "Failed to import PCX, unsupported file version."));
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 

@@ -122,31 +122,17 @@ bool UInterchangeImageWrapperTranslator::Translate(UInterchangeBaseNodeContainer
 	return UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(GetSourceData(), BaseNodeContainer);
 }
 
-TOptional<UE::Interchange::FImportImage> UInterchangeImageWrapperTranslator::GetTexturePayloadData(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const
+TOptional<UE::Interchange::FImportImage> UInterchangeImageWrapperTranslator::GetTexturePayloadData(const FString& /*PayloadKey*/, TOptional<FString>& /*AlternateTexturePath*/) const
 {
-	check(PayloadSourceData == GetSourceData());
+	using namespace UE::Interchange;
 
-	if (!GetSourceData())
+	if (!FTextureTranslatorUtilities::IsTranslatorValid(*this, TEXT("ImageWrapper")))
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import Texture, bad source data."));
-		return TOptional<UE::Interchange::FImportImage>();
+		return {};
 	}
 
 	TArray64<uint8> SourceDataBuffer;
 	FString Filename = GetSourceData()->GetFilename();
-
-	//Make sure the key fit the filename, The key should always be valid
-	if (!Filename.Equals(PayLoadKey))
-	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import Texture, wrong payload key. [%s]"), *Filename);
-		return TOptional<UE::Interchange::FImportImage>();
-	}
-
-	if (!FPaths::FileExists(Filename))
-	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import Texture, cannot open file. [%s]"), *Filename);
-		return TOptional<UE::Interchange::FImportImage>();
-	}
 
 	if (!FFileHelper::LoadFileToArray(SourceDataBuffer, *Filename))
 	{
