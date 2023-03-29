@@ -73,6 +73,7 @@ public:
 	template <int N>			TPayloadBuilder(const char (&Path)[N]);
 	template <int N> void		AddInteger(const char (&Name)[N], int64 Value);
 	template <int N> void		AddString(const char (&Name)[N], const char* Value, int32 Length=-1);
+	template <int N> void		AddStringArray(const char(&Name)[N], const TArray<FString>& Values);
 	FPayload					Done();
 
 private:
@@ -119,7 +120,20 @@ inline void TPayloadBuilder<Size>::AddString(
 	CborWriter.WriteValue(Name, N - 1);
 	CborWriter.WriteValue(Value, Length);
 }
-
+	
+////////////////////////////////////////////////////////////////////////////////
+template<int Size>
+template<int N>
+inline void TPayloadBuilder<Size>::AddStringArray(const char(&Name)[N], const TArray<FString>& Values)
+{
+	CborWriter.WriteValue(Name, N - 1);
+	CborWriter.WriteContainerStart(ECborCode::Array, Values.Num());
+	for (const FString& Elem : Values)
+	{
+		CborWriter.WriteValue(Elem);
+	}
+}
+	
 ////////////////////////////////////////////////////////////////////////////////
 template <int Size>
 inline FPayload TPayloadBuilder<Size>::Done()
@@ -142,6 +156,7 @@ public:
 	int64			GetInteger(const char* Key, int64 Default) const { return GetInt64Checked(Key, Default); }
 	template <int N>
 	FUtf8StringView	GetString(const char* Key, const char (&Default)[N]) const;
+	bool			GetStringArray(const char* Key, TArray<FString>& OutArray) const;
 	const uint8*	GetData() const;
 	uint32			GetSize() const;
 	uint8*			Reserve(uint32 Size);
@@ -160,6 +175,35 @@ inline EStatusCode FResponse::GetStatusCode() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+inline bool FResponse::GetStringArray(const char* Key, TArray<FString>& OutArray) const
+{
+	FMemoryReader MemoryReader(Buffer);
+	FCborReader CborReader(&MemoryReader, ECborEndianness::StandardCompliant);
+	FCborContext Context;
+	while (CborReader.ReadNext(Context))
+	{
+		if (Context.IsString())
+		{
+			uint32 Length = Context.AsLength();
+			uint32 Offset = uint32(MemoryReader.Tell());
+			auto* String = (const char*)(Buffer.GetData() + Offset - Length);
+			if (FCStringAnsi::Strncmp(Key, String, Length) == 0)
+			{
+				if (CborReader.ReadNext(Context) && Context.IsContainer() && Context.MajorType() == ECborCode::Array)
+				{
+					while (CborReader.ReadNext(Context) && Context.IsString())
+					{
+						OutArray.Emplace(Context.AsString());
+					}
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 inline const uint8* FResponse::GetData() const
 {
 	return Buffer.GetData();
@@ -174,7 +218,7 @@ inline uint32 FResponse::GetSize() const
 ////////////////////////////////////////////////////////////////////////////////
 inline uint8* FResponse::Reserve(uint32 Size)
 {
-	Buffer.SetNumUninitialized(Size);
+	Buffer.SetNumUninitialized(Size, false);
 	return Buffer.GetData();
 }
 

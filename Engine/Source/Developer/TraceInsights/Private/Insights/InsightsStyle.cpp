@@ -150,10 +150,16 @@ void FInsightsStyle::FStyle::Initialize()
 	// Trace Store, Connection, Launcher
 
 	Set("Icons.TraceStore", new IMAGE_BRUSH_SVG("TraceStore", Icon16x16));
+	Set("Icons.Expand", new CORE_IMAGE_BRUSH_SVG("Starship/Common/chevron-right", Icon16x16));
+	Set("Icons.Expanded", new CORE_IMAGE_BRUSH_SVG("Starship/Common/chevron-down", Icon16x16));
+	Set("Icons.AddWatchDir", new CORE_IMAGE_BRUSH_SVG("Starship/Common/folder-plus", Icon16x16));
+	Set("Icons.RemoveWatchDir", new CORE_IMAGE_BRUSH_SVG("Starship/Common/delete", Icon16x16));
 	Set("Icons.Connection", new IMAGE_BRUSH_SVG("Connection", Icon16x16));
 	Set("Icons.Online", new CORE_IMAGE_BRUSH_SVG("Starship/Common/check-circle", Icon16x16, FStyleColors::AccentGreen));
 	Set("Icons.Offline", new CORE_IMAGE_BRUSH_SVG("Starship/Common/alert-triangle", Icon16x16, FStyleColors::Warning));
 	Set("Icons.Launcher", new TODO_IMAGE_BRUSH(Icon16x16));
+	Set("Icons.UTrace", new IMAGE_BRUSH_SVG("UTrace", Icon16x16));
+	Set("Icons.UTraceStack", new IMAGE_BRUSH_SVG("UTrace", Icon16x16));
 
 	//////////////////////////////////////////////////
 	// Timing Insights

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Trace/StoreClient.h"
+#include "Algo/Transform.h"
 #include "Asio/Asio.h"
 #include "AsioStore.h"
 #include "CborPayload.h"
@@ -115,12 +116,16 @@ public:
 	bool					GetSessionInfo(uint32 Index);
 	bool					GetSessionInfoById(uint32 Id);
 	bool					GetSessionInfoByTraceId(uint32 TraceId);
+							bool SetStoreDirectories(const TCHAR* StoreDir, const TArray<FString>& AddWatchDirs,
+													const TArray<FString>& RemoveWatchDirs);
 
 private:
 	bool					Communicate(const FPayload& Payload);
 	asio::io_context&		IoContext;
 	asio::ip::tcp::socket	Socket;
 	FResponse				Response;
+	FString					Host;
+	uint16					Port;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -180,13 +185,13 @@ const FResponse& FStoreCborClient::GetResponse() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FStoreCborClient::Connect(const TCHAR* Host, uint16 Port)
+bool FStoreCborClient::Connect(const TCHAR* InHost, uint16 InPort)
 {
-	Port = (Port == 0) ? 1989 : Port;
+	InPort = (InPort == 0) ? 1989 : InPort;
 
-	FTCHARToUTF8 HostUtf8(Host);
+	FTCHARToUTF8 HostUtf8(InHost);
 	char PortString[8];
-	FCStringAnsi::Sprintf(PortString, "%d", Port);
+	FCStringAnsi::Sprintf(PortString, "%d", InPort);
 
 	asio::ip::tcp::resolver Resolver(IoContext);
 	asio::ip::tcp::resolver::results_type Endpoints = Resolver.resolve(
@@ -208,6 +213,10 @@ bool FStoreCborClient::Connect(const TCHAR* Host, uint16 Port)
 	{
 		return false;
 	}
+
+	// Save connection details if we need to reconnect
+	Host = InHost;
+	Port = InPort;
 
 	return true;
 }
@@ -371,6 +380,27 @@ bool FStoreCborClient::GetSessionInfoByTraceId(uint32 TraceId)
 	return Communicate(Payload);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+bool FStoreCborClient::SetStoreDirectories(const TCHAR* StoreDir, const TArray<FString>& AddWatchDirs, const TArray<FString>& RemoveWatchDir)
+{
+	TPayloadBuilder<> Builder("v1/settings/write");
+	if (StoreDir)
+	{
+		Builder.AddString("StoreDir", TCHAR_TO_ANSI(StoreDir));
+	}
+	if (!AddWatchDirs.IsEmpty())
+	{
+		Builder.AddStringArray("Additionalwatchdirs", AddWatchDirs);
+	}
+	if (!RemoveWatchDir.IsEmpty())
+	{
+		TArray<FString> RemoveDirs;
+		Algo::Transform(RemoveWatchDir, RemoveDirs, [](const FString& In) { return TEXT("-") + In; });
+		Builder.AddStringArray("Additionalwatchdirs", RemoveDirs);
+	}
+	return Communicate(Builder.Done());
+}
+	
 } // namespace Trace
 } // namespace UE
 
@@ -399,8 +429,19 @@ uint32 FStoreClient::FStatus::GetChangeSerial() const
 	return Response->GetUint32Checked("change_serial", 0);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+uint32 FStoreClient::FStatus::GetSettingsSerial() const
+{
+	const auto* Response = (const FResponse*)this;
+	return Response->GetUint32Checked("settings_serial", 0);
+}
 
-
+////////////////////////////////////////////////////////////////////////////////
+void FStoreClient::FStatus::GetWatchDirectories(TArray<FString>& OutDirs) const
+{
+	const auto* Response = (const FResponse*)this;
+	Response->GetStringArray("watch_dirs", OutDirs);
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -422,6 +463,13 @@ uint64 FStoreClient::FTraceInfo::GetTimestamp() const
 {
 	const auto* Response = (const FResponse*)this;
 	return Response->GetUint64Checked("timestamp", 0);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+FUtf8StringView FStoreClient::FTraceInfo::GetUri() const
+{
+	const auto* Response = (const FResponse*)this;
+	return Response->GetString("uri", "");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -569,6 +617,15 @@ FStoreClient::FTraceData FStoreClient::ReadTrace(uint32 Id)
 {
 	auto* Self = (FStoreCborClient*)this;
 	return FTraceData(Self->ReadTrace(Id));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FStoreClient::SetStoreDirectories(const TCHAR* StoreDir,
+										const TArray<FString>& AddWatchDirs,
+										const TArray<FString>& RemoveWatchDirs)
+{
+	auto* Self = (FStoreCborClient*) this;
+	return Self->SetStoreDirectories(StoreDir, AddWatchDirs, RemoveWatchDirs);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

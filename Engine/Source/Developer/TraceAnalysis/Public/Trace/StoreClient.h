@@ -22,6 +22,8 @@ public:
 		FUtf8StringView	GetStoreDir() const;
 		uint32			GetRecorderPort() const;
 		uint32			GetChangeSerial() const;
+		uint32			GetSettingsSerial() const;
+		void			GetWatchDirectories(TArray<FString>& OutDirs) const;
 	};
 
 	struct TRACEANALYSIS_API FTraceInfo
@@ -30,6 +32,7 @@ public:
 		uint32			GetId() const;
 		uint64			GetSize() const;
 		uint64			GetTimestamp() const;
+		FUtf8StringView GetUri() const;
 		//const TCHAR*	GetMetadata(const TCHAR* Key) const;
 		//template <typename Lambda> uint32 ReadMetadata(Lambda&& Callback) const;
 	};
@@ -52,6 +55,8 @@ public:
 	const FTraceInfo*	GetTraceInfo(uint32 Index);
 	const FTraceInfo*	GetTraceInfoById(uint32 Id);
 	FTraceData			ReadTrace(uint32 Id);
+	bool SetStoreDirectories(const TCHAR* StoreDir, const TArray<FString>& AddWatchDirs,
+							const TArray<FString>& RemoveWatchDirs);
 #if 0
 	template <typename Lambda> uint32 GetTraceInfos(uint32 StartIndex, uint32 Count, Lambda&& Callback) const;
 #endif // 0

@@ -140,7 +140,7 @@ void FStoreBrowser::UpdateTraces()
 			
 			if (bIsValid)
 			{
-				// If we gave just reconnected we need to reset known traces and change serials
+				// If we just reconnected we need to reset known traces and change serials
 				Refresh();
 			}
 		}
@@ -151,13 +151,30 @@ void FStoreBrowser::UpdateTraces()
 			// If there is no connection, no point in checking for sessions
 			return;
 		}
+		else
+		{
+			FScopeLock Lock(&TracesCriticalSection);
+			Host = FInsightsManager::Get()->GetLastStoreHost();
+		}
 	}
 	
 	FScopeLock StoreClientLock(&GetStoreClientCriticalSection());
 
-	// Check if the list of trace sessions has changed.
+	// Check if the list of trace sessions or store settings have changed.
 	{
 		const UE::Trace::FStoreClient::FStatus* Status = StoreClient->GetStatus();
+
+		if (Status != nullptr && SettingsChangeSerial != Status->GetSettingsSerial())
+		{
+			SettingsChangeSerial = Status->GetSettingsSerial();
+			
+			// Update watch dirs
+			FScopeLock Lock(&TracesCriticalSection);
+			WatchDirectories.Empty();
+			Status->GetWatchDirectories(WatchDirectories);
+			StoreDirectory = FString(Status->GetStoreDir());
+		}
+		
 		if (Status != nullptr && StoreChangeSerial != Status->GetChangeSerial())
 		{
 			StoreChangeSerial = Status->GetChangeSerial();
@@ -198,6 +215,7 @@ void FStoreBrowser::UpdateTraces()
 
 							const FUtf8StringView Utf8NameView = TraceInfo->GetName();
 							Trace.Name = FString(Utf8NameView);
+							Trace.Uri = FString(TraceInfo->GetUri());
 
 							Trace.Timestamp = FStoreBrowserTraceInfo::ConvertTimestamp(TraceInfo->GetTimestamp());
 							Trace.Size = TraceInfo->GetSize();

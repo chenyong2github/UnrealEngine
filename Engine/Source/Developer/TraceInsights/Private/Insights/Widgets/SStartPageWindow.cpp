@@ -3,33 +3,36 @@
 #include "SStartPageWindow.h"
 
 #include "DesktopPlatformModule.h"
+#include "IPAddress.h"
+#include "SlateOptMacros.h"
+#include "SocketSubsystem.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
 #include "Internationalization/Text.h"
-#include "IPAddress.h"
+#include "Logging/MessageLog.h"
 #include "Misc/MessageDialog.h"
-#include "SlateOptMacros.h"
-#include "SocketSubsystem.h"
 #include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
 #include "Trace/ControlClient.h"
 #include "Trace/StoreClient.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SToolTip.h"
+#include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/SToolTip.h"
 #include "Widgets/Testing/SStarshipSuite.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/STileView.h"
 
 #if WITH_EDITOR
 	#include "EngineAnalytics.h"
@@ -38,13 +41,13 @@
 #endif // WITH_EDITOR
 
 // Insights
-#include "Insights/Common/Stopwatch.h"
 #include "Insights/InsightsManager.h"
-#include "Insights/Log.h"
-#include "Insights/StoreService/StoreBrowser.h"
 #include "Insights/InsightsStyle.h"
+#include "Insights/Log.h"
 #include "Insights/Version.h"
+#include "Insights/Common/Stopwatch.h"
 #include "Insights/ImportTool/TableImportTool.h"
+#include "Insights/StoreService/StoreBrowser.h"
 #include "Insights/Widgets/SInsightsSettings.h"
 #include "Insights/Widgets/SLazyToolTip.h"
 
@@ -83,33 +86,50 @@ public:
 		{
 			TSharedPtr<SEditableTextBox> RenameTextBox;
 
-			TSharedRef<SWidget> Widget = SNew(SBox)
-				.Padding(FMargin(4.0f, 0.0f))
+			TSharedRef<SWidget> Widget = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SBox)
+				.WidthOverride(16.0)
+				.HeightOverride(16.0)
+				.Padding(FMargin(2.0))
 				[
-					SNew(SOverlay)
+					SNew(SImage)
+					.Image(FInsightsStyle::Get().GetBrush("Icons.UTrace"))
+					.ColorAndOpacity(this, &STraceListRow::GetColorForPath)
+				]
+				
+			]
+			
+			+ SHorizontalBox::Slot()
+			.Padding(4.0f, 0.0f)
+			.AutoWidth()
+			[
+				SNew(SOverlay)
+				
+				+ SOverlay::Slot()
+				[
+					SNew(STextBlock)
+					.Visibility_Lambda([this]() { return IsRenaming() ? EVisibility::Collapsed : EVisibility::Visible; })
+					.Text(this, &STraceListRow::GetTraceName)
+					.HighlightText(this, &STraceListRow::GetTraceNameHighlightText)
+					.HighlightColor(FLinearColor(0.75f, 0.75f, 0.75f, 1.0f))
+					.HighlightShape(FInsightsStyle::Get().GetBrush("DarkGreenBrush"))
+					.ToolTip(STraceListRow::GetTraceTooltip())
+				]
 
-					+ SOverlay::Slot()
-					[
-						SNew(STextBlock)
-						.Visibility_Lambda([this]() { return IsRenaming() ? EVisibility::Collapsed : EVisibility::Visible; })
-						.Text(this, &STraceListRow::GetTraceName)
-						.HighlightText(this, &STraceListRow::GetTraceNameHighlightText)
-						.HighlightColor(FLinearColor(0.75f, 0.75f, 0.75f, 1.0f))
-						.HighlightShape(FInsightsStyle::Get().GetBrush("DarkGreenBrush"))
-						.ToolTip(STraceListRow::GetTraceTooltip())
-					]
-
-					+ SOverlay::Slot()
-					[
-						SAssignNew(RenameTextBox, SEditableTextBox)
-						.Padding(FMargin(-1.0f, 0.0f, 0.0f, 0.0f))
-						.Visibility_Lambda([this]() { return IsRenaming() ? EVisibility::Visible : EVisibility::Collapsed; })
-						.Text(this, &STraceListRow::GetTraceName)
-						.ClearKeyboardFocusOnCommit(true)
-						.OnTextCommitted(this, &STraceListRow::RenameTextBox_OnValueCommitted)
-						.ToolTip(STraceListRow::GetTraceTooltip())
-					]
-				];
+				+ SOverlay::Slot()
+				[
+					SAssignNew(RenameTextBox, SEditableTextBox)
+					.Padding(0.0f)
+					.Visibility_Lambda([this]() { return IsRenaming() ? EVisibility::Visible : EVisibility::Collapsed; })
+					.Text(this, &STraceListRow::GetTraceName)
+					.ClearKeyboardFocusOnCommit(true)
+					.OnTextCommitted(this, &STraceListRow::RenameTextBox_OnValueCommitted)
+					.ToolTip(STraceListRow::GetTraceTooltip())
+				]
+			];
 
 			TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
 			if (TracePin.IsValid())
@@ -359,6 +379,19 @@ public:
 		else
 		{
 			return FText::GetEmpty();
+		}
+	}
+
+	FSlateColor GetColorForPath() const
+	{
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
+		{
+			return TracePin->DirectoryColor;
+		}
+		else
+		{
+			return FSlateColor::UseForeground();
 		}
 	}
 
@@ -1260,6 +1293,205 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructSessionsPanel()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+class STraceDirectoryItem : public SCompoundWidget
+{
+public:
+
+	SLATE_BEGIN_ARGS(STraceDirectoryItem) {}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, TSharedPtr<STraceStoreWindow::FTraceDirectoryModel> InClientItem);
+	
+private:
+	FSlateColor GetColor() const;
+	TSharedRef<SWidget> ConstructOperations();
+	FReply OnModifyStore();
+	FReply OnExplore();
+	FReply OnDelete();
+
+
+	TSharedPtr<STraceStoreWindow::FTraceDirectoryModel> Model;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STraceDirectoryItem::Construct(const FArguments& InArgs, TSharedPtr<STraceStoreWindow::FTraceDirectoryModel> InModel)
+{
+	Model = InModel;
+	
+	ChildSlot
+	[
+		SNew(SBorder)
+		.Padding(2.0f , 1.0f)
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.Padding(4.0, 2.0)
+			.AutoWidth()
+			.VAlign(EVerticalAlignment::VAlign_Center)
+			[
+				SNew(SBox)
+				.HeightOverride(16.0)
+				.WidthOverride(16.0)
+				[
+					SNew(SImage)
+					.Image(FInsightsStyle::Get().GetBrush("Icons.UTraceStack"))
+					.ColorAndOpacity(GetColor())
+				]
+			]
+			
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0)
+			.Padding(4.0, 2.0)
+			.VAlign(EVerticalAlignment::VAlign_Center)
+			[
+				 SNew(STextBlock)
+				 .Text(FText::FromString(Model->Path))
+			]
+			
+			+ SHorizontalBox::Slot()
+			.Padding(4.0, 2.0)
+			.AutoWidth()
+			[
+				ConstructOperations()
+			]
+		]
+	];
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FSlateColor STraceDirectoryItem::GetColor() const
+{
+	if (Model && Model->Color != NAME_None)
+	{
+		return FAppStyle::Get().GetSlateColor(Model->Color);			
+	}
+	return FSlateColor::UseForeground();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> STraceDirectoryItem::ConstructOperations() 
+{
+	TSharedRef<SHorizontalBox> Box = SNew(SHorizontalBox);
+	
+	if (Model && EnumHasAllFlags(Model->Operations, ETraceDirOperations::ModifyStore) )
+	{
+		Box->AddSlot()
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
+				.ToolTipText(LOCTEXT("SetTraceStoreDirButtonToolTip", "Set the Trace Store Directory"))
+				.OnClicked_Raw(this, &STraceDirectoryItem::OnModifyStore)
+				[
+					SNew(SImage)
+					.Image(FInsightsStyle::Get().GetBrush("Icons.Edit"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			 ];
+	}
+	if (Model && EnumHasAllFlags(Model->Operations, ETraceDirOperations::Delete) )
+	{
+		Box->AddSlot()
+			.AutoWidth()
+			[
+				 SNew(SButton)
+				 .ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
+				 .ToolTipText(LOCTEXT("WatchDirsRemoveTooltip", "Remove watch directory (files will not be deleted)"))
+				 .OnClicked_Raw(this, &STraceDirectoryItem::OnDelete)
+				 [
+					  SNew(SImage)
+					  .Image(FInsightsStyle::Get().GetBrush("Icons.RemoveWatchDir"))
+					  .ColorAndOpacity(FSlateColor::UseForeground())
+				 ]
+			 ];
+	}
+	if (Model && EnumHasAllFlags(Model->Operations, ETraceDirOperations::Explore))
+	{
+		Box->AddSlot()
+			.AutoWidth()
+			[
+				SNew(SButton)
+				.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
+				.ToolTipText(LOCTEXT("ExploreTraceStoreDirButtonToolTip", "Explore the Trace Store Directory"))
+				.OnClicked_Raw(this, &STraceDirectoryItem::OnExplore)
+				[
+					SNew(SImage)
+					.Image(FInsightsStyle::Get().GetBrush("Icons.FolderExplore"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			];
+	}
+
+	return Box;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply STraceDirectoryItem::OnModifyStore() 
+{
+	if (IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get())
+	{
+		const FString Title = LOCTEXT("SetTraceStoreDirectorySelectPopupTitle", "Set Trace store to ...").ToString();
+
+		FString CurrentDirectory = FInsightsManager::Get()->GetStoreDir();
+		FString SelectedDirectory;
+		const bool bHasSelected = DesktopPlatform->OpenDirectoryDialog(
+			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(AsShared()),
+			Title,
+			CurrentDirectory,
+			SelectedDirectory
+		);
+
+		if (bHasSelected)
+		{
+			FPaths::MakePlatformFilename(SelectedDirectory);
+			FPaths::MakePlatformFilename(CurrentDirectory);
+			TArray<FString> AddWatchDirs = { CurrentDirectory };
+			if (!FInsightsManager::Get()->GetStoreClient()->SetStoreDirectories(*SelectedDirectory, AddWatchDirs, TArray<FString>()))
+			{
+				FMessageLog(FInsightsManager::Get()->GetLogListingName()).Error(LOCTEXT("StoreCommunicationFail", "Failed to change settings on the store service."));
+			}
+		}
+	}
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply STraceDirectoryItem::OnExplore()
+{
+	if (Model)
+	{
+		FString FullPath(FPaths::ConvertRelativePathToFull(Model->Path));
+		FPlatformProcess::ExploreFolder(*FullPath);
+	}
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply STraceDirectoryItem::OnDelete()
+{
+	if (Model)
+	{
+		const EAppReturnType::Type bConfirmed = FMessageDialog::Open(EAppMsgType::OkCancel, FText::Format(
+			LOCTEXT("WatchDirRemoveConfirmBody", "This will remove {0} from watch directories?"),
+			LOCTEXT("WatchDirRemoveConfirmTitle", "Confirm removing watch directory")));
+		if (bConfirmed == EAppReturnType::Ok)
+		{
+			const TCHAR* Path = *Model->Path;
+			FInsightsManager::Get()->GetStoreClient()->SetStoreDirectories(nullptr, {}, { Path });
+		}
+	}
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TSharedRef<SWidget> STraceStoreWindow::ConstructLoadPanel()
 {
 	TSharedRef<SWidget> Widget = SNew(SHorizontalBox)
@@ -1315,51 +1547,173 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 {
 	TSharedRef<SWidget> Widget =
 
-		SNew(SHorizontalBox)
+		SNew(SVerticalBox)
 
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(0.0f, 0.0f, 4.0f, 0.0f)
-		.VAlign(VAlign_Center)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(.0f, .0f)
+		.HAlign(HAlign_Left)
 		[
-			 SNew(SImage)
-			 .Image_Raw(this, &STraceStoreWindow::GetConnectionStatusIcon)
-			 .ToolTip(SNew(SToolTip).Text_Raw(this, &STraceStoreWindow::GetConnectionStatusTooltip))
-		]
+			SNew(SHorizontalBox)
+			
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SButton)
+				.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
+				.ToolTipText(LOCTEXT("ManageWatchDirsTooltip", "Manage store settings."))
+				.OnClicked(this, &STraceStoreWindow::StoreSettingsArea_Toggle)
+				[
+					SNew(SImage)
+					.Image_Raw(this, &STraceStoreWindow::StoreSettingsToggle_Icon)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
 
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(0.0f, 0.0f)
-		.VAlign(VAlign_Center)
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("TraceStoreDirText", "Trace Store Directory"))
-		]
-
-		+ SHorizontalBox::Slot()
-		.FillWidth(1.0f)
-		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-		.VAlign(VAlign_Center)
-		[
-			SNew(SEditableTextBox)
-			.IsReadOnly(true)
-			.BackgroundColor(FSlateColor(EStyleColor::Background))
-			.Text(this, &STraceStoreWindow::GetTraceStoreDirectory)
-		]
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-		.VAlign(VAlign_Center)
-		[
-			SNew(SButton)
-			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
-			.ToolTipText(LOCTEXT("ExploreTraceStoreDirButtonToolTip", "Explore the Trace Store Directory"))
-			.OnClicked(this, &STraceStoreWindow::ExploreTraceStoreDirectory_OnClicked)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(4.0f, 0.0f, 4.0f, 0.0f)
+			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-				.Image(FInsightsStyle::Get().GetBrush("Icons.FolderExplore"))
-				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image_Raw(this, &STraceStoreWindow::GetConnectionStatusIcon)
+				.ToolTip(SNew(SToolTip)
+				.Text_Raw(this, &STraceStoreWindow::GetConnectionStatusTooltip))
+			]
+				
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("StoreHostText", "Store Host:"))
+			]
+
+			+ SHorizontalBox::Slot()
+			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			[
+				SAssignNew(StoreHostTextBox, SEditableTextBox)
+				.IsReadOnly(true)
+				.BackgroundColor(FSlateColor(EStyleColor::Background))
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(10.0f, 0.0f, 0.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("TraceStoreDirText", "Directory: "))
+			]
+
+			+ SHorizontalBox::Slot()
+			//.FillWidth(1.0f)
+			.AutoWidth()
+			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			[
+				SAssignNew(StoreDirTextBox, SEditableTextBox)
+				.IsReadOnly(true)
+				.BackgroundColor(FSlateColor(EStyleColor::Background))
+				.Text(this, &STraceStoreWindow::GetTraceStoreDirectory)
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SButton)
+				.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
+				.ToolTipText(LOCTEXT("ExploreTraceStoreDirButtonToolTip", "Explore the Trace Store Directory"))
+				.OnClicked(this, &STraceStoreWindow::ExploreTraceStoreDirectory_OnClicked)
+				[
+					SNew(SImage)
+					.Image(FInsightsStyle::Get().GetBrush("Icons.FolderExplore"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
+		]
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(.0f, 8.0f)
+		.HAlign(HAlign_Left)
+		[
+			SAssignNew(StoreSettingsArea, SVerticalBox)
+			.Visibility(EVisibility::Collapsed)
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0.0f, 4.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("StoreDirLabel", "Trace store directory. New traces will be stored here:"))
+			]
+			
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0.0f, 4.0f)
+			[
+				SAssignNew(StoreDirListView, SListView<TSharedPtr<FTraceDirectoryModel>>)
+				.ListItemsSource(&StoreDirectoryModel)
+				.OnGenerateRow(this, &STraceStoreWindow::TraceDirs_OnGenerateRow)
+				.SelectionMode(ESelectionMode::None)
+			]
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0.0f, 4.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("WatchDirsLabel", "Additional directories to monitor for traces:"))
+			]
+			
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0.0f, 4.0f)
+			[
+				SAssignNew(WatchDirsListView, SListView<TSharedPtr<FTraceDirectoryModel>>)
+				.ListItemsSource(&WatchDirectoriesModel)
+				.OnGenerateRow(this, &STraceStoreWindow::TraceDirs_OnGenerateRow)
+				//.Orientation(Orient_Horizontal)
+				.SelectionMode(ESelectionMode::None)
+			]
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0.0f, 4.0f)
+			.HAlign(HAlign_Left)
+			[
+				SNew(SButton)
+				.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Button"))
+				.ToolTipText(LOCTEXT("WatchDirsAddTooltip", "Add additonal watch directory..."))
+				.OnClicked(this, &STraceStoreWindow::AddWatchDir_Clicked)
+				[
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SImage)
+						.Image(FInsightsStyle::Get().GetBrush("Icons.AddWatchDir"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
+					]
+
+					+ SHorizontalBox::Slot()
+					.Padding(4.0, 0.0, 0.0, 0.0)
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(FText::FromStringView(TEXTVIEW("Add directory")))
+					]
+				]
 			]
 		];
 
@@ -1666,6 +2020,22 @@ FReply STraceStoreWindow::RefreshTraces_OnClicked()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FSlateColor STraceStoreWindow::GetColorByPath(const FString& Uri)
+{
+	const TSharedPtr<FTraceDirectoryModel>* Dir = WatchDirectoriesModel.FindByPredicate([&](const TSharedPtr<FTraceDirectoryModel>& Dir)
+	{
+		return FPaths::IsUnderDirectory(Uri, Dir->Path);
+	});
+	if (Dir)
+	{
+		return FAppStyle::Get().GetSlateColor((*Dir)->Color);
+	}
+	// If this is default trace store directory, use forground
+	return FSlateColor(FSlateColor::UseForeground());
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STraceStoreWindow::RefreshTraceList()
 {
 	FStopwatch StopwatchTotal;
@@ -1678,6 +2048,48 @@ void STraceStoreWindow::RefreshTraceList()
 	{
 		StoreBrowser->Lock();
 
+		const uint32 NewSettingsSerial = StoreBrowser->GetLockedSettingsSerial();
+		if (NewSettingsSerial != SettingsChangeSerial)
+		{
+			SettingsChangeSerial = NewSettingsSerial;
+
+			// Update the host text
+			StoreHostTextBox->SetText(FText::FromString(StoreBrowser->GetLockedHost()));
+
+			// Update the store text box
+			StoreDirTextBox->SetText(FText::FromString(StoreBrowser->GetLockedStoreDirectory()));
+
+			// Update store directory model
+			StoreDirectoryModel.Empty(1);
+			StoreDirectoryModel.Push(MakeShared<FTraceDirectoryModel>(
+				FString(StoreBrowser->GetLockedStoreDirectory()),
+				NAME_None,
+				ETraceDirOperations::ModifyStore|ETraceDirOperations::Explore
+			));
+			StoreDirListView->RequestListRefresh();
+
+			// Update additional watch directory models
+			static const FName DirColor[] = {
+				FName("Colors.AccentBlue"),
+				FName("Colors.AccentGreen"),
+				FName("Colors.AccentYellow"),
+				FName("Colors.AccentOrange"),
+				FName("Colors.AccentRed")
+			};
+			uint64 ColorIdx = 0;
+			WatchDirectoriesModel.Empty();
+			for (const auto& Dir : StoreBrowser->GetLockedWatchDirectories())
+			{
+				WatchDirectoriesModel.Emplace(MakeShared<FTraceDirectoryModel>(
+					FString(Dir),
+					DirColor[ColorIdx],
+					ETraceDirOperations::Delete|ETraceDirOperations::Explore
+				));
+				ColorIdx = FMath::Wrap(ColorIdx + 1, uint64(0u), uint64(UE_ARRAY_COUNT(DirColor)));
+			}
+			WatchDirsListView->RequestListRefresh();
+		}
+		
 		const uint64 NewChangeSerial = StoreBrowser->GetLockedTracesChangeSerial();
 		if (NewChangeSerial != TracesChangeSerial)
 		{
@@ -1730,9 +2142,10 @@ void STraceStoreWindow::RefreshTraceList()
 					FTraceViewModel& Trace = *TracePtr;
 					Trace.TraceId = SourceTrace.TraceId;
 					Trace.Name = FText::FromString(SourceTrace.Name);
-					FString Uri = FInsightsManager::Get()->GetStoreDir() + TEXT("/") + SourceTrace.Name + TEXT(".utrace");
+					FString Uri = SourceTrace.Uri;
 					FPaths::NormalizeFilename(Uri);
 					Trace.Uri = FText::FromString(Uri);
+					Trace.DirectoryColor = GetColorByPath(Uri);
 					UpdateTrace(Trace, SourceTrace);
 					TraceViewModels.Add(TracePtr);
 					TraceViewModelMap.Add(SourceTrace.TraceId, TracePtr);
@@ -2461,6 +2874,78 @@ FReply STraceStoreWindow::ExploreTraceStoreDirectory_OnClicked()
 {
 	FString FullPath(FPaths::ConvertRelativePathToFull(FInsightsManager::Get()->GetStoreDir()));
 	FPlatformProcess::ExploreFolder(*FullPath);
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<ITableRow> STraceStoreWindow::TraceDirs_OnGenerateRow(TSharedPtr<FTraceDirectoryModel> Item, const TSharedRef<STableViewBase>& Owner) const
+{
+	return SNew(STableRow<TSharedPtr<FTraceDirectoryModel>>, Owner)
+		.Content()
+		[
+			SNew(STraceDirectoryItem, Item)
+		];
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply STraceStoreWindow::StoreSettingsArea_Toggle() const
+{
+	if (StoreSettingsArea)
+	{
+		if(StoreSettingsArea->GetVisibility() == EVisibility::Visible)
+		{
+			StoreSettingsArea->SetVisibility(EVisibility::Collapsed);
+		}
+		else
+		{
+			StoreSettingsArea->SetVisibility(EVisibility::Visible);
+		}
+	}
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const FSlateBrush* STraceStoreWindow::StoreSettingsToggle_Icon() const
+{
+	if (StoreSettingsArea)
+	{
+		if(StoreSettingsArea->GetVisibility() == EVisibility::Visible)
+		{
+			return FInsightsStyle::Get().GetBrush("Icons.Expanded");
+		}
+	}
+	return FInsightsStyle::Get().GetBrush("Icons.Expand");
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply STraceStoreWindow::AddWatchDir_Clicked()
+{
+	if (IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get())
+	{
+		const FString Title = LOCTEXT("AddWatchDirectorySelectPopupTitle", "Add watch directory ...").ToString();
+
+		const FString StoreDirectory = FInsightsManager::Get()->GetStoreDir();
+		FString SelectedDirectory;
+		const bool bHasSelected = DesktopPlatform->OpenDirectoryDialog(
+			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(AsShared()),
+			Title,
+			StoreDirectory,
+			SelectedDirectory
+		);
+
+		if (bHasSelected && !SelectedDirectory.Equals(StoreDirectory))
+		{
+			FPaths::MakePlatformFilename(SelectedDirectory);
+			if (!FInsightsManager::Get()->GetStoreClient()->SetStoreDirectories(nullptr, { (*SelectedDirectory) }, {}))
+			{
+				FMessageLog(FInsightsManager::Get()->GetLogListingName()).Error(LOCTEXT("StoreCommunicationFail", "Failed to change settings on the store service."));
+			}
+		}
+	}
 	return FReply::Handled();
 }
 

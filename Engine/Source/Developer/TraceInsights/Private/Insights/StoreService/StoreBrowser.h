@@ -31,7 +31,7 @@ struct FStoreBrowserTraceInfo
 	uint64 ChangeSerial = 0;
 
 	FString Name;
-	//FString Uri;
+	FString Uri;
 
 	FDateTime Timestamp = 0;
 	uint64 Size = 0;
@@ -99,10 +99,13 @@ public:
 	bool IsLocked() const { return bTracesLocked; }
 	void Lock() { check(!bTracesLocked); bTracesLocked = true; TracesCriticalSection.Lock(); }
 	uint64 GetLockedTracesChangeSerial() const { check(bTracesLocked); return TracesChangeSerial; }
+	uint32 GetLockedSettingsSerial() const { check(bTracesLocked); return SettingsChangeSerial; };
 	const TArray<TSharedPtr<FStoreBrowserTraceInfo>>& GetLockedTraces() const { check(bTracesLocked); return Traces; }
 	const TMap<uint32, TSharedPtr<FStoreBrowserTraceInfo>>& GetLockedTraceMap() const { check(bTracesLocked); return TraceMap; }
+	const TArray<FString>& GetLockedWatchDirectories() const { check(bTracesLocked); return WatchDirectories; }
+	const FString& GetLockedStoreDirectory() const { check(bTracesLocked); return StoreDirectory; }
+	const FString& GetLockedHost() const { check(bTracesLocked); return Host; }
 	void Unlock() { check(bTracesLocked); bTracesLocked = false; TracesCriticalSection.Unlock(); }
-
 	void Refresh();
 
 private:
@@ -126,9 +129,13 @@ private:
 	std::atomic<EConnectionStatus> ConnectionStatus;
 	uint32 StoreChangeSerial;
 	uint64 TracesChangeSerial;
+	uint32 SettingsChangeSerial;
 	TArray<TSharedPtr<FStoreBrowserTraceInfo>> Traces;
 	TMap<uint32, TSharedPtr<FStoreBrowserTraceInfo>> TraceMap;
 	TMap<uint32, TSharedPtr<FStoreBrowserTraceInfo>> LiveTraceMap;
+	TArray<FString> WatchDirectories;
+	FString StoreDirectory;
+	FString Host;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

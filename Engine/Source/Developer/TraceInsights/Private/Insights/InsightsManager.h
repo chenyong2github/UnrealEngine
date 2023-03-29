@@ -124,6 +124,8 @@ public:
 	 * @return True on success, false on failure
 	 */
 	bool ReconnectToStore() const;
+
+	const FString& GetLastStoreHost() const { return LastStoreHost; }
 	
 	UE::Trace::FStoreClient* GetStoreClient() const { return StoreClient.Get(); }
 	FCriticalSection& GetStoreClientCriticalSection() const { return StoreClientCriticalSection; }
