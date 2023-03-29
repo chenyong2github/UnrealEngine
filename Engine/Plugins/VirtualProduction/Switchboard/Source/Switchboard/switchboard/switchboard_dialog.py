@@ -8,8 +8,7 @@ import os
 import threading
 import time
 import re
-import shutil
-from typing import List, Optional, Set, Union
+from typing import Callable, List, Optional, Set, Union
 
 from pathlib import Path
 
@@ -32,7 +31,7 @@ from switchboard import switchboard_widgets as sb_widgets
 from switchboard.add_config_dialog import AddConfigDialog
 from switchboard.config import CONFIG, DEFAULT_MAP_TEXT, ENABLE_UGS_SUPPORT, SETTINGS, EngineSyncMethod
 from switchboard.device_list_widget import DeviceListWidget, DeviceWidgetHeader
-from switchboard.devices.device_base import DeviceStatus
+from switchboard.devices.device_base import Device, DeviceStatus
 from switchboard.devices.device_manager import DeviceManager
 from switchboard.settings_dialog import SettingsDialog
 from switchboard.switchboard_logging import ConsoleStream, LOGGER
@@ -1100,28 +1099,46 @@ class SwitchboardDialog(QtCore.QObject):
     def sync_all_button_clicked(self):
         if not CONFIG.P4_ENABLED.get_value():
             return
-        device_widgets = self.device_list_widget.device_widgets()
 
-        for device_widget in device_widgets:
-            if device_widget.can_sync():
-                device_widget.sync_button_clicked()
+        self._sync_build_all(do_sync=True, do_build=False)
 
     def build_all_button_clicked(self):
-        device_widgets = self.device_list_widget.device_widgets()
-
-        for device_widget in device_widgets:
-            if device_widget.can_build():
-                device_widget.build_button_clicked()
+        self._sync_build_all(do_sync=False, do_build=True)
 
     def sync_and_build_all_button_clicked(self):
         if not CONFIG.P4_ENABLED.get_value():
             return
-        device_widgets = self.device_list_widget.device_widgets()
+        
+        self._sync_build_all(do_sync=True, do_build=True)
 
-        for device_widget in device_widgets:
-            if device_widget.can_sync() and device_widget.can_build():
-                device_widget.sync_button_clicked()
-                device_widget.build_button_clicked()
+    def _sync_build_all(self, *, do_sync: bool, do_build: bool):
+        actions_str = ' and '.join(filter(
+            None, ['sync' if do_sync else '', 'build' if do_build else '']))
+
+        workspace_to_device_map: dict[str, Device] = {}
+
+        for device in self.device_list_widget.devices():
+            can_sync = device.widget.can_sync()
+            can_build = device.widget.can_build()
+
+            if (do_sync and not can_sync) or (do_build and not can_build):
+                continue
+
+            workspace = CONFIG.SOURCE_CONTROL_WORKSPACE.get_value(
+                device.name).casefold()
+            if existing_device := workspace_to_device_map.get(workspace):
+                LOGGER.info(f'Skipping {actions_str} for {device.name} '
+                            f'because {existing_device.name} is already '
+                            'queued using the same workspace')
+                continue
+
+            workspace_to_device_map[workspace] = device
+
+            if do_sync:
+                device.widget.sync_button_clicked()
+
+            if do_build:
+                device.widget.build_button_clicked()
 
     def refresh_project_cl_button_clicked(self):
         self.p4_refresh_project_cl()
