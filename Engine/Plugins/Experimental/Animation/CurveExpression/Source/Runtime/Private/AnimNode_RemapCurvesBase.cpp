@@ -7,6 +7,7 @@
 
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
+#include "UObject/Package.h"
 
 
 // For reasons unknown, there's no generic GetTypeHash for TMap.
