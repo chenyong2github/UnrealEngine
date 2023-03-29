@@ -161,9 +161,11 @@ public:
 	 *
 	 * Also usable to test the 'restart handshake' feature, using the 'net RecreateSocket' command.
 	 *
+	 * @param OverridePort		optional port number to use with the new socket, otherwise falls back to GetClientPort()
+	 * 
 	 * @return	Returns the action taken (e.g. successfully kicked off recreation, or whether this failed or is already in progress etc.)
 	 */
-	UE::Net::ERecreateSocketResult RecreateSocket();
+	UE::Net::ERecreateSocketResult RecreateSocket(int32 OverridePort = INDEX_NONE);
 
 	/** Returns the last time socket recreation was kicked off or completed */
 	double GetLastRecreateSocketTime() const

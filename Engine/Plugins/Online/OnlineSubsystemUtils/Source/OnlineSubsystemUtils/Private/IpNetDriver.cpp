@@ -1663,7 +1663,15 @@ bool UIpNetDriver::HandleRecreateSocketCommand(const TCHAR* Cmd, FOutputDevice& 
 {
 	using namespace UE::Net;
 
-	ERecreateSocketResult Result = RecreateSocket();
+	FString PortStr;
+	int32 OverridePort = INDEX_NONE;
+
+	if (FParse::Token(Cmd, PortStr, false))
+	{
+		OverridePort = FCString::Atoi(*PortStr);
+	}
+
+	ERecreateSocketResult Result = RecreateSocket(OverridePort);
 
 	if (Result == ERecreateSocketResult::BeganRecreate)
 	{
@@ -1878,7 +1886,7 @@ void UIpNetDriver::TickNewIPTracking(float DeltaTime)
 	}
 }
 
-UE::Net::ERecreateSocketResult UIpNetDriver::RecreateSocket()
+UE::Net::ERecreateSocketResult UIpNetDriver::RecreateSocket(int32 OverridePort)
 {
 	using namespace UE::Net;
 	using namespace UE::Net::Private;
@@ -1894,8 +1902,10 @@ UE::Net::ERecreateSocketResult UIpNetDriver::RecreateSocket()
 
 		if (CurState == ESocketState::Ready)
 		{
+			const int32 BindPort = OverridePort != INDEX_NONE ? OverridePort : GetClientPort();
+
 			FString Error;
-			FUniqueSocket NewSocket = CreateAndBindSocket(LocalAddr.ToSharedRef(), GetClientPort(), false, ClientDesiredSocketReceiveBufferBytes,
+			FUniqueSocket NewSocket = CreateAndBindSocket(LocalAddr.ToSharedRef(), BindPort, false, ClientDesiredSocketReceiveBufferBytes,
 															ClientDesiredSocketSendBufferBytes, Error);
 
 			if (NewSocket.IsValid())
