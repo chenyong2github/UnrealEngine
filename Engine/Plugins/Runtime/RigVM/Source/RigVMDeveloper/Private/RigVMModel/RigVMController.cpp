@@ -4727,7 +4727,8 @@ URigVMCollapseNode* URigVMController::CollapseNodes(const TArray<URigVMNode*>& I
 #else
 	URigVMCollapseNode* CollapseNode = NewObject<URigVMCollapseNode>(Graph, *CollapseNodeName);
 #endif
-	CollapseNode->ContainedGraph = NewObject<URigVMGraph>(CollapseNode, TEXT("ContainedGraph"));
+	FString ContainedGraphName = CollapseNodeName + TEXT("_ContainedGraph");
+	CollapseNode->ContainedGraph = NewObject<URigVMGraph>(CollapseNode, *ContainedGraphName);
 
 #if UE_RIGVM_AGGREGATE_NODES_ENABLED
 	if (bIsAggregate)
@@ -9172,6 +9173,11 @@ bool URigVMController::BindPinToVariable(URigVMPin* InPin, const FString& InNewB
 		return false;
 	}
 
+	if (!InPin->IsRootPin())
+	{
+		return false;
+	}
+
 	FString VariableName = InNewBoundVariablePath, SegmentPath;
 	InNewBoundVariablePath.Split(TEXT("."), &VariableName, &SegmentPath);
 
@@ -11471,7 +11477,8 @@ URigVMLibraryNode* URigVMController::AddFunctionToLibrary(const FName& InFunctio
 
 	FString FunctionName = GetValidNodeName(InFunctionName.IsNone() ? FString(TEXT("Function")) : InFunctionName.ToString());
 	URigVMCollapseNode* CollapseNode = NewObject<URigVMCollapseNode>(Graph, *FunctionName);
-	CollapseNode->ContainedGraph = NewObject<URigVMGraph>(CollapseNode, TEXT("ContainedGraph"));
+	FString ContainedGraphName = FunctionName + TEXT("_ContainedGraph");
+	CollapseNode->ContainedGraph = NewObject<URigVMGraph>(CollapseNode, *ContainedGraphName);
 	CollapseNode->Position = InNodePosition;
 	Graph->Nodes.Add(CollapseNode);
 

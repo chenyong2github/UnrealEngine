@@ -1540,7 +1540,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						Cast<URigVMDispatchNode>(ModelPin->GetNode()) != nullptr || 
 						Cast<URigVMLibraryNode>(ModelPin->GetNode()) != nullptr)
 					{
-						if (ModelPin->GetDirection() == ERigVMPinDirection::Input && 
+						if (ModelPin->GetDirection() == ERigVMPinDirection::Input &&
+							ModelPin->IsRootPin() &&
 							bIsEditablePin)
 						{
 							if (!ModelPin->IsBoundToVariable())
