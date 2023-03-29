@@ -950,6 +950,8 @@ void UModelingToolsEditorMode::Enter()
 		ModelingToolkit->InitializeAfterModeSetup();
 	}
 
+	EditorClosedEventHandle = GEditor->OnEditorClose().AddUObject(this, &UModelingToolsEditorMode::OnEditorClosed);
+
 	// Need to know about selection changes to (eg) clear mesh selections. 
 	// Listening to USelection::SelectionChangedEvent here instead of the underlying UTypedElementSelectionSet
 	// events because they do not fire at the right times, particular wrt undo/redo. 
@@ -1138,6 +1140,28 @@ void UModelingToolsEditorMode::Exit()
 
 	// Call base Exit method to ensure proper cleanup
 	UEdMode::Exit();
+}
+
+void UModelingToolsEditorMode::OnEditorClosed()
+{
+	// On editor close, Exit() should run to clean up, but this happens very late.
+	// Close out any active Tools or Selections to mitigate any late-destruction issues.
+
+	if (SelectionManager != nullptr)
+	{
+		SelectionManager->ClearSelection();
+		SelectionManager->ClearActiveTargets();
+	}
+
+	if (GetToolManager()->HasAnyActiveTool())
+	{
+		GetToolManager()->DeactivateTool(EToolSide::Mouse, EToolShutdownType::Cancel);
+	}
+
+	if (EditorClosedEventHandle.IsValid() && GEditor)
+	{
+		GEditor->OnEditorClose().Remove(EditorClosedEventHandle);
+	}
 }
 
 void UModelingToolsEditorMode::OnToolsContextRender(IToolsContextRenderAPI* RenderAPI)

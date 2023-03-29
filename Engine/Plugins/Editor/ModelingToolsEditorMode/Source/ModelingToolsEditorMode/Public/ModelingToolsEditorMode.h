@@ -108,6 +108,9 @@ protected:
 	FDelegateHandle TextureCreatedEventHandle;
 	FDelegateHandle SelectionModifiedEventHandle;
 
+	FDelegateHandle EditorClosedEventHandle;
+	void OnEditorClosed();
+
 	TUniquePtr<FStylusStateTracker> StylusStateTracker;
 
 	TSharedPtr<FLevelObjectsObserver> LevelObjectsObserver;

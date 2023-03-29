@@ -11,10 +11,14 @@
 
 
 FLevelObjectsObserver::~FLevelObjectsObserver()
-{
-	ensure(!OnActorDeletedHandle.IsValid());
-	ensure(!OnActorAddedHandle.IsValid());
-	ensure(!OnActorListChangedHandle.IsValid());
+{	// These ensures are meant to catch missing Shutdown() calls. However if the Editor is closed, Shutdown()
+	// (which is generally called by UEdMode exit) will not get chance to happen before objects are GC'd.
+	if (GEditor && GEngine)
+	{
+		ensure(!OnActorDeletedHandle.IsValid());
+		ensure(!OnActorAddedHandle.IsValid());
+		ensure(!OnActorListChangedHandle.IsValid());
+	}
 }
 
 
