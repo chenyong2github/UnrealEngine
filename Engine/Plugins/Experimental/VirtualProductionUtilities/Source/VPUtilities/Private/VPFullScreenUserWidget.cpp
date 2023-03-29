@@ -13,6 +13,7 @@
 #include "RenderingThread.h"
 #include "RHI.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/Package.h"
 #include "VPUtilitiesModule.h"
 #include "HAL/PlatformApplicationMisc.h"
 
