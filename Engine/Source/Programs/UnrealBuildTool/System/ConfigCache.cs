@@ -206,7 +206,7 @@ namespace UnrealBuildTool
 					OtherKey.ProjectDir == ProjectDir &&
 					OtherKey.Platform == Platform &&
 					OtherKey.CustomConfig == CustomConfig &&
-					OtherKey.OverrideStrings == OverrideStrings;
+					OtherKey.OverrideStrings.SequenceEqual(OverrideStrings);
 			}
 
 			/// <summary>
@@ -215,12 +215,16 @@ namespace UnrealBuildTool
 			/// <returns>Hash value for this object</returns>
 			public override int GetHashCode()
 			{
-				return HashCode.Combine(
-					Type.GetHashCode,
-					(ProjectDir != null) ? ProjectDir.GetHashCode() : 0,
-					Platform.GetHashCode(),
-					CustomConfig.GetHashCode(),
-					OverrideStrings.GetHashCode());
+				int Hash = 17;
+				Hash = (Hash * 31) + Type.GetHashCode();
+				Hash = (Hash * 31) + ((ProjectDir == null) ? 0 : ProjectDir.GetHashCode());
+				Hash = (Hash * 31) + Platform.GetHashCode();
+				Hash = (Hash * 31) + CustomConfig.GetHashCode();
+				foreach (string OverrideString in OverrideStrings)
+				{
+					Hash = (Hash * 31) + OverrideString.GetHashCode();
+				}
+				return Hash;
 			}
 		}
 
