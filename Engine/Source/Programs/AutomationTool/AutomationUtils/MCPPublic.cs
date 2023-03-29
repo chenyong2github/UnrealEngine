@@ -647,8 +647,9 @@ namespace EpicGames.MCP.Automation
 			Online_v150,
 			Online_v151,
 			Online_v152,
+			Online_v160,
 
-			Online_Live = Online_v152
+			Online_Live = Online_v160
 		}
 
 		/// <summary>
@@ -749,6 +750,14 @@ namespace EpicGames.MCP.Automation
 			/// The commandline to send to the app on launch.
 			/// </summary>
 			public string AppLaunchCmdArgs;
+			/// <summary>
+			/// The custom uninstall action executable to launch right before product uninstall, relative to the build root.
+			/// </summary>
+			public string UninstallActionPath;
+			/// <summary>
+			/// The commandline to send to the custom uninstall action on launch.
+			/// </summary>
+			public string UninstallActionArgs;
 			/// <summary>
 			/// The list of prerequisite Ids that this prerequisite installer satisfies.
 			/// </summary>
@@ -875,6 +884,14 @@ namespace EpicGames.MCP.Automation
 			/// The commandline to send to the app on launch.
 			/// </summary>
 			public string AppLaunchCmdArgs;
+			/// <summary>
+			/// The custom uninstall action executable to launch right before product uninstall, relative to the build root.
+			/// </summary>
+			public string UninstallActionPath;
+			/// <summary>
+			/// The commandline to send to the custom uninstall action on launch.
+			/// </summary>
+			public string UninstallActionArgs;
 			/// <summary>
 			/// The list of prerequisite Ids that this prerequisite installer satisfies.
 			/// </summary>
