@@ -650,7 +650,8 @@ void FilterScreenProbes(
 
 		const bool bUseWaveOps = GLumenScreenProbeFilteringWaveOps != 0
 			&& GRHISupportsWaveOperations
-			&& GRHIMinimumWaveSize >= 32
+			&& GRHIMinimumWaveSize <= 64 
+			&& GRHIMaximumWaveSize >= 64
 			&& RHISupportsWaveOperations(View.GetShaderPlatform())
 			&& ConvertToSHThreadGroupSize * ConvertToSHThreadGroupSize <= (uint32)GRHIMaximumWaveSize;
 

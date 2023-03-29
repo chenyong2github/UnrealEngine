@@ -716,7 +716,8 @@ void TraceScreenProbes(
 
 			const bool bTerminateOnLowOccupancy = GLumenScreenProbeGatherScreenTracesMinimumOccupancy > 0
 				&& GRHISupportsWaveOperations
-				&& GRHIMinimumWaveSize >= 32
+				&& GRHIMinimumWaveSize <= 32
+				&& GRHIMaximumWaveSize >= 32
 				&& RHISupportsWaveOperations(View.GetShaderPlatform());
 
 			const bool bHZBTraversal = GLumenScreenProbeGatherHierarchicalScreenTraces != 0;
