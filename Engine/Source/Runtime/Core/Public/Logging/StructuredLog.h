@@ -220,7 +220,6 @@ namespace UE::Logging::Private
 struct FStaticLogDynamicData
 {
 	std::atomic<FLogTemplate*> Template;
-	FStaticLogDynamicData* Next = nullptr;
 };
 
 /** Data about a static log that is constant for every occurrence. */
