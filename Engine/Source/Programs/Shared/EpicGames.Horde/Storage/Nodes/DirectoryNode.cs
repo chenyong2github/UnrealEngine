@@ -17,267 +17,6 @@ using System.Threading.Tasks;
 namespace EpicGames.Horde.Storage.Nodes
 {
 	/// <summary>
-	/// Flags for a file entry
-	/// </summary>
-	[Flags]
-	public enum FileEntryFlags
-	{
-		/// <summary>
-		/// No other flags set
-		/// </summary>
-		None = 0,
-
-		/// <summary>
-		/// Indicates that the referenced file is executable
-		/// </summary>
-		Executable = 4,
-
-		/// <summary>
-		/// File should be stored as read-only
-		/// </summary>
-		ReadOnly = 8,
-
-		/// <summary>
-		/// File contents are utf-8 encoded text. Client may want to replace line-endings with OS-specific format.
-		/// </summary>
-		Text = 16,
-
-		/// <summary>
-		/// Used to indicate that custom data is included in the output. Used internally for serialization; not exposed to users.
-		/// </summary>
-		HasCustomData = 32,
-
-		/// <summary>
-		/// File should be materialized as UTF-16 (but is stored as a UTF-8 source)
-		/// </summary>
-		Utf16 = 64,
-	}
-
-	/// <summary>
-	/// Entry for a file within a directory node
-	/// </summary>
-	public sealed class FileEntry : TreeNodeRef<FileNode>
-	{
-		/// <summary>
-		/// Name of this file
-		/// </summary>
-		public Utf8String Name { get; }
-
-		/// <summary>
-		/// Flags for this file
-		/// </summary>
-		public FileEntryFlags Flags { get; set; }
-
-		/// <summary>
-		/// Length of this entry
-		/// </summary>
-		public long Length { get; }
-
-		/// <summary>
-		/// Hash of the target node
-		/// </summary>
-		public IoHash Hash { get; }
-
-		/// <summary>
-		/// Custom user data for this file entry
-		/// </summary>
-		public ReadOnlyMemory<byte> CustomData { get; set; } = ReadOnlyMemory<byte>.Empty;
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public FileEntry(Utf8String name, FileEntryFlags flags, long length, NodeHandle node)
-			: base(node)
-		{
-			Name = name;
-			Flags = flags;
-			Length = length;
-			Hash = node.Hash;
-		}
-
-		/// <summary>
-		/// Deserialize from a buffer
-		/// </summary>
-		/// <param name="reader"></param>
-		public FileEntry(ITreeNodeReader reader)
-			: base(reader)
-		{
-			Name = reader.ReadUtf8String();
-			Flags = (FileEntryFlags)reader.ReadUnsignedVarInt();
-			Length = (long)reader.ReadUnsignedVarInt();
-			Hash = reader.ReadIoHash();
-
-			if ((Flags & FileEntryFlags.HasCustomData) != 0)
-			{
-				CustomData = reader.ReadVariableLengthBytes();
-				Flags &= ~FileEntryFlags.HasCustomData;
-			}
-		}
-
-		/// <summary>
-		/// Serialize this entry
-		/// </summary>
-		/// <param name="writer"></param>
-		public override void Serialize(ITreeNodeWriter writer)
-		{
-			base.Serialize(writer);
-
-			FileEntryFlags flags = (CustomData.Length > 0) ? (Flags | FileEntryFlags.HasCustomData) : (Flags & ~FileEntryFlags.HasCustomData);
-
-			writer.WriteUtf8String(Name);
-			writer.WriteUnsignedVarInt((ulong)flags);
-			writer.WriteUnsignedVarInt((ulong)Length);
-			writer.WriteIoHash(Hash);
-
-			if ((flags & FileEntryFlags.HasCustomData) != 0)
-			{
-				writer.WriteVariableLengthBytes(CustomData.Span);
-			}
-		}
-
-		/// <summary>
-		/// Copies the contents of this node and its children to the given output stream
-		/// </summary>
-		/// <param name="reader">Reader for retrieving existing node data</param>
-		/// <param name="outputStream">The output stream to receive the data</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task CopyToStreamAsync(TreeReader reader, Stream outputStream, CancellationToken cancellationToken)
-		{
-			FileNode node = await ExpandAsync(reader, cancellationToken);
-			await node.CopyToStreamAsync(reader, outputStream, cancellationToken);
-		}
-
-		/// <summary>
-		/// Extracts the contents of this node to a file
-		/// </summary>
-		/// <param name="reader">Reader for retrieving existing node data</param>
-		/// <param name="file">File to write with the contents of this node</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns></returns>
-		public async Task CopyToFileAsync(TreeReader reader, FileInfo file, CancellationToken cancellationToken)
-		{
-			FileNode node = await ExpandAsync(reader, cancellationToken);
-			await node.CopyToFileAsync(reader, file, cancellationToken);
-		}
-
-		/// <inheritdoc/>
-		public override string ToString() => Name.ToString();
-	}
-
-	/// <summary>
-	/// Reference to a directory node, including the target hash and length
-	/// </summary>
-	public class DirectoryNodeRef : TreeNodeRef<DirectoryNode>
-	{
-		/// <summary>
-		/// Length of this directory tree
-		/// </summary>
-		public long Length => (Target == null) ? _cachedLength : Target.Length;
-
-		/// <summary>
-		/// Hash of the target node
-		/// </summary>
-		public IoHash Hash { get; private set; }
-
-		/// <summary>
-		/// Cached value for the length of this tree
-		/// </summary>
-		long _cachedLength;
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public DirectoryNodeRef(DirectoryNode node)
-			: base(node)
-		{
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="reader"></param>
-		public DirectoryNodeRef(ITreeNodeReader reader)
-			: base(reader)
-		{
-			_cachedLength = (long)reader.ReadUnsignedVarInt();
-			Hash = reader.ReadIoHash();
-		}
-
-		/// <summary>
-		/// Serialize this directory entry to disk
-		/// </summary>
-		/// <param name="writer"></param>
-		public override void Serialize(ITreeNodeWriter writer)
-		{
-			base.Serialize(writer);
-
-			writer.WriteUnsignedVarInt((ulong)Length);
-			writer.WriteIoHash(Hash);
-		}
-
-		/// <inheritdoc/>
-		protected override void OnCollapse()
-		{
-			base.OnCollapse();
-
-			Hash = Target!.Hash;
-			_cachedLength = Target!.Length;
-		}
-	}
-
-	/// <summary>
-	/// Entry for a directory within a directory node
-	/// </summary>
-	public class DirectoryEntry : DirectoryNodeRef
-	{
-		/// <summary>
-		/// Name of this directory
-		/// </summary>
-		public Utf8String Name { get; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public DirectoryEntry(Utf8String name)
-			: this(name, new DirectoryNode())
-		{
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public DirectoryEntry(Utf8String name, DirectoryNode node)
-			: base(node)
-		{
-			Name = name;
-		}
-
-		/// <summary>
-		/// Deserializing constructor
-		/// </summary>
-		/// <param name="reader"></param>
-		public DirectoryEntry(ITreeNodeReader reader)
-			: base(reader)
-		{
-			Name = reader.ReadUtf8String();
-		}
-
-		/// <summary>
-		/// Serialize this directory entry to disk
-		/// </summary>
-		/// <param name="writer"></param>
-		public override void Serialize(ITreeNodeWriter writer)
-		{
-			base.Serialize(writer);
-
-			writer.WriteUtf8String(Name);
-		}
-
-		/// <inheritdoc/>
-		public override string ToString() => Name.ToString();
-	}
-
-	/// <summary>
 	/// Stats reported for copy operations
 	/// </summary>
 	public interface ICopyStats
@@ -400,7 +139,7 @@ namespace EpicGames.Horde.Storage.Nodes
 
 			int directoryCount = (int)reader.ReadUnsignedVarInt();
 			_nameToDirectoryEntry.EnsureCapacity(directoryCount);
-			
+
 			for (int idx = 0; idx < directoryCount; idx++)
 			{
 				DirectoryEntry entry = new DirectoryEntry(reader);
@@ -556,6 +295,79 @@ namespace EpicGames.Horde.Storage.Nodes
 				return true;
 			}
 			return false;
+		}
+
+		/// <summary>
+		/// Attempts to get a file entry from a path
+		/// </summary>
+		/// <param name="reader">Reader for node data</param>
+		/// <param name="path">Path to the directory</param>
+		/// <param name="cancellationToken">Cancellation token</param>
+		/// <returns>The directory with the given path, or null if it was not found</returns>
+		public async ValueTask<FileEntry?> GetFileEntryByPathAsync(TreeReader reader, Utf8String path, CancellationToken cancellationToken)
+		{
+			FileEntry? fileEntry;
+
+			int slashIdx = path.LastIndexOf('/');
+			if (slashIdx == -1)
+			{
+				if (!TryGetFileEntry(path, out fileEntry))
+				{
+					return null;
+				}
+			}
+			else
+			{
+				DirectoryNode? directoryNode = await GetDirectoryByPathAsync(reader, path.Slice(0, slashIdx), cancellationToken);
+				if (directoryNode == null)
+				{
+					return null;
+				}
+				if (!directoryNode.TryGetFileEntry(path.Slice(slashIdx + 1), out fileEntry))
+				{
+					return null;
+				}
+			}
+
+			return fileEntry;
+		}
+
+		/// <summary>
+		/// Attempts to get a directory entry from a path
+		/// </summary>
+		/// <param name="reader">Reader for node data</param>
+		/// <param name="path">Path to the directory</param>
+		/// <param name="cancellationToken">Cancellation token</param>
+		/// <returns>The directory with the given path, or null if it was not found</returns>
+		public ValueTask<DirectoryNode?> GetDirectoryByPathAsync(TreeReader reader, Utf8String path, CancellationToken cancellationToken) => GetDirectoryByPathAsync(this, reader, path, cancellationToken);
+
+		static async ValueTask<DirectoryNode?> GetDirectoryByPathAsync(DirectoryNode directoryNode, TreeReader reader, Utf8String path, CancellationToken cancellationToken)
+		{
+			while(path.Length > 0)
+			{
+				Utf8String directoryName;
+
+				int slashIdx = path.IndexOf('/');
+				if (slashIdx == -1)
+				{
+					directoryName = path;
+					path = Utf8String.Empty;
+				}
+				else
+				{
+					directoryName = path.Slice(0, slashIdx);
+					path = path.Slice(slashIdx + 1);
+				}
+
+				DirectoryEntry? directoryEntry;
+				if (!directoryNode.TryGetDirectoryEntry(directoryName, out directoryEntry))
+				{
+					return null;
+				}
+
+				directoryNode = await directoryEntry.ExpandAsync(reader, cancellationToken);
+			}
+			return directoryNode;
 		}
 
 		/// <summary>
@@ -996,13 +808,13 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="reader">Reader for other nodes</param>
 		/// <returns>Stream containing zipped archive data</returns>
-		public Stream ToZipStream(TreeReader reader) => new ZippedDirectoryStream(reader, this);
+		public Stream AsZipStream(TreeReader reader) => new DirectoryNodeZipStream(reader, this);
 	}
 
 	/// <summary>
 	/// Stream which zips a directory node tree dynamically
 	/// </summary>
-	class ZippedDirectoryStream : Stream
+	class DirectoryNodeZipStream : Stream
 	{
 		/// <inheritdoc/>
 		public override bool CanRead => true;
@@ -1030,7 +842,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="reader">Reader to read nodes through</param>
 		/// <param name="node">Root node to copy from</param>
-		public ZippedDirectoryStream(TreeReader reader, DirectoryNode node)
+		public DirectoryNodeZipStream(TreeReader reader, DirectoryNode node)
 		{
 			_pipe = new Pipe();
 			_backgroundTask = BackgroundTask.StartNew(ctx => CopyToPipeAsync(reader, node, _pipe.Writer, ctx));

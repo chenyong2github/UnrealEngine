@@ -412,7 +412,7 @@ namespace Horde.Server.Tools
 			TreeReader reader = new TreeReader(client, _cache, _logger);
 			DirectoryNode node = await reader.ReadNodeAsync<DirectoryNode>(deployment.RefName, DateTime.UtcNow - TimeSpan.FromDays(2.0), cancellationToken);
 
-			return node.ToZipStream(reader);
+			return node.AsZipStream(reader);
 		}
 	}
 }

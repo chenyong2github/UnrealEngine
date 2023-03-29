@@ -2,7 +2,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -248,6 +250,77 @@ namespace Horde.Server.Artifacts
 
 			DirectoryNode directory = await directoryRef.ExpandAsync(reader, cancellationToken);
 			return PropertyFilter.Apply(new GetArtifactDirectoryResponse(directory), filter);
+		}
+
+		/// <summary>
+		/// Downloads an individual file from an artifact
+		/// </summary>
+		/// <param name="id">Identifier of the artifact to retrieve</param>
+		/// <param name="path">Path to fetch</param>
+		/// <param name="download">Whether to request the file be downloaded vs displayed inline</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Information about all the artifacts</returns>
+		[HttpGet]
+		[Route("/api/v2/artifacts/{id}/file")]
+		public async Task<ActionResult<object>> GetFileAsync(ArtifactId id, [FromQuery] string path, [FromQuery] bool download = false, CancellationToken cancellationToken = default)
+		{
+			IArtifact? artifact = await _artifactCollection.GetAsync(id, cancellationToken);
+			if (artifact == null)
+			{
+				return NotFound(id);
+			}
+			if (!_globalConfig.Authorize(artifact.AclScope, AclAction.ReadArtifact, User))
+			{
+				return Forbid(AclAction.ReadArtifact, artifact.AclScope);
+			}
+
+			TreeReader reader = await _storageService.GetReaderAsync(artifact.NamespaceId, cancellationToken);
+			TreeNodeRef<DirectoryNode> directoryRef = await reader.ReadNodeRefAsync<DirectoryNode>(artifact.RefName, DateTime.UtcNow.AddHours(1.0), cancellationToken);
+			DirectoryNode directory = await directoryRef.ExpandAsync(reader, cancellationToken);
+
+			FileEntry? fileEntry = await directory.GetFileEntryByPathAsync(reader, path, cancellationToken);
+			if (fileEntry == null)
+			{
+				return NotFound($"Unable to find file {path}");
+			}
+
+			Stream stream = fileEntry.AsStream(reader);
+			if (download)
+			{
+				return new FileStreamResult(stream, "application/octet-stream") { FileDownloadName = Path.GetFileName(path) };
+			}
+			else
+			{
+				return new InlineFileStreamResult(stream, "application/octet-stream", Path.GetFileName(path));
+			}
+		}
+
+		/// <summary>
+		/// Downloads an individual file from an artifact
+		/// </summary>
+		/// <param name="id">Identifier of the artifact to retrieve</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Information about all the artifacts</returns>
+		[HttpGet]
+		[Route("/api/v2/artifacts/{id}/zip")]
+		public async Task<ActionResult<object>> GetZipAsync(ArtifactId id, CancellationToken cancellationToken = default)
+		{
+			IArtifact? artifact = await _artifactCollection.GetAsync(id, cancellationToken);
+			if (artifact == null)
+			{
+				return NotFound(id);
+			}
+			if (!_globalConfig.Authorize(artifact.AclScope, AclAction.ReadArtifact, User))
+			{
+				return Forbid(AclAction.ReadArtifact, artifact.AclScope);
+			}
+
+			TreeReader reader = await _storageService.GetReaderAsync(artifact.NamespaceId, cancellationToken);
+			TreeNodeRef<DirectoryNode> directoryRef = await reader.ReadNodeRefAsync<DirectoryNode>(artifact.RefName, DateTime.UtcNow.AddHours(1.0), cancellationToken);
+			DirectoryNode directory = await directoryRef.ExpandAsync(reader, cancellationToken);
+
+			Stream stream = directory.AsZipStream(reader);
+			return new FileStreamResult(stream, "application/octet-stream") { FileDownloadName = $"{artifact.RefName}.zip" };
 		}
 
 		/// <summary>

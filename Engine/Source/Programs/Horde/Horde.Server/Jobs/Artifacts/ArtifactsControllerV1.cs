@@ -248,40 +248,6 @@ namespace Horde.Server.Jobs.Artifacts
 		}
 
 		/// <summary>
-		/// Class to return a file stream without the "content-disposition: attachment" header
-		/// </summary>
-		class InlineFileStreamResult : FileStreamResult
-		{
-			/// <summary>
-			/// The suggested download filename
-			/// </summary>
-			readonly string _fileName;
-
-			/// <summary>
-			/// Constructor
-			/// </summary>
-			/// <param name="stream"></param>
-			/// <param name="mimeType"></param>
-			/// <param name="fileName"></param>
-			public InlineFileStreamResult(System.IO.Stream stream, string mimeType, string fileName)
-				: base(stream, mimeType)
-			{
-				_fileName = fileName;
-			}
-
-			/// <inheritdoc/>
-			public override Task ExecuteResultAsync(ActionContext context)
-			{
-				ContentDisposition contentDisposition = new ContentDisposition();
-				contentDisposition.Inline = true;
-				contentDisposition.FileName = _fileName;
-				context.HttpContext.Response.Headers.Add("Content-Disposition", contentDisposition.ToString());
-				
-				return base.ExecuteResultAsync(context);
-			}
-		}
-
-		/// <summary>
 		/// Retrieve raw data for an artifact
 		/// </summary>
 		/// <param name="artifactId">Id of the artifact to get information about</param>
