@@ -132,7 +132,7 @@ CSV_DEFINE_CATEGORY(UObject, false);
 namespace LoadPackageStats
 {
 	static double LoadPackageTimeSec = 0.0;
-	static int NumPackagesLoaded = 0;
+	int NumPackagesLoaded = 0;
 	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
 	{
 		AddStat(TEXT("Package.Load"), FCookStatsManager::CreateKeyValueArray(
@@ -4960,7 +4960,10 @@ FArchive& FReferenceCollectorArchive::operator<<(UObject*& Object)
 
 FArchive& FReferenceCollectorArchive::operator<<(FObjectPtr& Object)
 {
-	Collector.AddStableReference(reinterpret_cast<UObject**>(&Object));
+	if (Object.IsResolved())
+	{
+		Collector.AddStableReference(reinterpret_cast<UObject**>(&Object));
+	}
 	return *this;
 }
 
