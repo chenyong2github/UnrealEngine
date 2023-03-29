@@ -298,14 +298,18 @@ static void AddDebugProjectionHairPass(
 	ShaderPrint::SetEnabled(true);
 
 	if (MeshLODIndex < 0 || MeshLODIndex >= RestRootResources->LODs.Num() || MeshLODIndex >= DeformedRootResources->LODs.Num())
+	{
 		return;
+	}
 	
 	const EPrimitiveType PrimitiveType = GeometryType == EDebugProjectionHairType::HairFrame ? PT_LineList : GeometryType == EDebugProjectionHairType::HairTriangle ? PT_TriangleList : PT_LineList;
 	const uint32 RootCount = EDebugProjectionHairType::HairSamples == GeometryType ? 3 * RestRootResources->LODs[MeshLODIndex].SampleCount : RestRootResources->BulkData.RootCount;
 	const uint32 PrimitiveCount = RootCount;
 
 	if (PrimitiveCount == 0)
+	{
 		return;
+	}
 
 	if (ShaderPrintData == nullptr || !ShaderPrint::IsEnabled(*ShaderPrintData))
 	{
@@ -317,11 +321,15 @@ static void AddDebugProjectionHairPass(
 
 	if (EDebugProjectionHairType::HairFrame == GeometryType &&
 		!RestRootResources->LODs[MeshLODIndex].RootBarycentricBuffer.Buffer)
+	{
 		return;
+	}
 
 	if (EDebugProjectionHairType::HairSamples == GeometryType &&
 		!RestRootResources->LODs[MeshLODIndex].RestSamplePositionsBuffer.Buffer)
+	{
 			return;
+	}
 
 	const FHairStrandsRestRootResource::FLOD& RestLODDatas = RestRootResources->LODs[MeshLODIndex];
 	const FHairStrandsDeformedRootResource::FLOD& DeformedLODDatas = DeformedRootResources->LODs[MeshLODIndex];
@@ -331,8 +339,10 @@ static void AddDebugProjectionHairPass(
 		!RestLODDatas.RestUniqueTrianglePosition2Buffer.Buffer ||
 		!DeformedLODDatas.DeformedUniqueTrianglePosition0Buffer[0].Buffer ||
 		!DeformedLODDatas.DeformedUniqueTrianglePosition1Buffer[0].Buffer ||
-		!DeformedLODDatas.DeformedUniqueTrianglePosition2Buffer[0].Buffer	)
+		!DeformedLODDatas.DeformedUniqueTrianglePosition2Buffer[0].Buffer)
+	{
 		return;
+	}
 
 	// Double buffering is disabled by default unless the read-only cvar r.HairStrands.ContinuousDecimationReordering is set
 	if (IsHairStrandContinuousDecimationReorderingEnabled() && (!DeformedLODDatas.DeformedUniqueTrianglePosition0Buffer[1].Buffer || !DeformedLODDatas.DeformedUniqueTrianglePosition1Buffer[1].Buffer || !DeformedLODDatas.DeformedUniqueTrianglePosition2Buffer[1].Buffer))
@@ -350,7 +360,7 @@ static void AddDebugProjectionHairPass(
 
 	if (EDebugProjectionHairType::HairFrame == GeometryType)
 	{
-		Parameters->RootBarycentricBuffer	= RegisterAsSRV(GraphBuilder, RestLODDatas.RootBarycentricBuffer);
+		Parameters->RootBarycentricBuffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RootBarycentricBuffer);
 	}
 
 	Parameters->RootToUniqueTriangleIndexBuffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RootToUniqueTriangleIndexBuffer);

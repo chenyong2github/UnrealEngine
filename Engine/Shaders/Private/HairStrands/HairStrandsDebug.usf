@@ -332,8 +332,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 #if PERMUTATION_INPUT_TYPE == INPUT_ROOT_FRAME  
 	const uint RootIndex = DispatchThreadId.x;
-
-	if (RootIndex > MaxRootCount) return;
+	if (RootIndex >= MaxRootCount) return;
 	{
 		const uint TriangleIndex = RootToUniqueTriangleIndexBuffer[RootIndex];
 		const FHairMeshTriangleWithUVs RestTriangle		= GetTriangleWithUVsTransformation(TriangleIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
@@ -375,62 +374,65 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 #if PERMUTATION_INPUT_TYPE == INPUT_ROOT_TRIANGLE
 	const uint TriangleIndex = DispatchThreadId.x;
-
-	if (TriangleIndex > MaxRootCount) return;
-
-	const FHairMeshTriangleWithUVs RestTriangle		= GetTriangleWithUVsTransformation(TriangleIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
-	const FHairMeshTriangleWithUVs DeformedTriangle = GetTriangleWithUVsTransformation(TriangleIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
-
-	FHairMeshTriangleWithUVs Tri;
-	if (DeformedFrameEnable > 0)
-		Tri = DeformedTriangle;
-	else
-		Tri = RestTriangle;
-	
-
-	// Debug: To test if the rest-triangle-to-deformed-triangle transformation works correctly
-	#if 0
-	if (DeformedFrameEnable > 0)
+	if (TriangleIndex < MaxRootCount)
 	{
-		float3 Barycentric = 0;
-		if (TriangleVertex == 0)
+		const FHairMeshTriangleWithUVs RestTriangle		= GetTriangleWithUVsTransformation(TriangleIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
+		const FHairMeshTriangleWithUVs DeformedTriangle = GetTriangleWithUVsTransformation(TriangleIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
+	
+		FHairMeshTriangleWithUVs Tri;
+		if (DeformedFrameEnable > 0)
+			Tri = DeformedTriangle;
+		else
+			Tri = RestTriangle;
+		
+	
+		// Debug: To test if the rest-triangle-to-deformed-triangle transformation works correctly
+		#if 0
+		if (DeformedFrameEnable > 0)
 		{
-			P = RestTriangle.P0;
-			Barycentric = float3(1, 0, 0);
+			float3 Barycentric = 0;
+			if (TriangleVertex == 0)
+			{
+				P = RestTriangle.P0;
+				Barycentric = float3(1, 0, 0);
+			}
+			if (TriangleVertex == 1)
+			{
+				P = RestTriangle.P1;
+				Barycentric = float3(0, 1, 0);
+			}
+			if (TriangleVertex == 2)
+			{
+				P = RestTriangle.P2;
+				Barycentric = float3(0, 0, 1);
+			}
+			P = TransformPoint(P, Barycentric, RestTriangle, DeformedTriangle);
 		}
-		if (TriangleVertex == 1)
-		{
-			P = RestTriangle.P1;
-			Barycentric = float3(0, 1, 0);
-		}
-		if (TriangleVertex == 2)
-		{
-			P = RestTriangle.P2;
-			Barycentric = float3(0, 0, 1);
-		}
-		P = TransformPoint(P, Barycentric, RestTriangle, DeformedTriangle);
+		#endif
+	
+		float4 Color = float4(Tri.UV0, 0, 1);
+		// Color = float4((Tri.N + 1) * 0.5f, 1);
+	
+		const float3 WP0 = mul(float4(Tri.P0, 1), RootLocalToWorld).xyz;
+		const float3 WP1 = mul(float4(Tri.P1, 1), RootLocalToWorld).xyz; 
+		const float3 WP2 = mul(float4(Tri.P2, 1), RootLocalToWorld).xyz;
+	
+		FShaderPrintContext Ctx = InitShaderPrintContext(true, uint2(0, 0));
+		AddLineWS(WP0, WP1, Color);
+		AddLineWS(WP1, WP2, Color);
+		AddLineWS(WP2, WP0, Color);
 	}
-	#endif
-
-	float4 Color = float4(Tri.UV0, 0, 1);
-	// Color = float4((Tri.N + 1) * 0.5f, 1);
-
-	AddFilledTriangleWS(
-		mul(float4(Tri.P0, 1), RootLocalToWorld).xyz, 
-		mul(float4(Tri.P1, 1), RootLocalToWorld).xyz, 
-		mul(float4(Tri.P2, 1), RootLocalToWorld).xyz, 
-		Color);
 #endif // INPUT_ROOT_TRIANGLE
 
 #if PERMUTATION_INPUT_TYPE == INPUT_ROOT_SAMPLES 
-	const uint PointIndex = DispatchThreadId.x;
-	
-	if (PointIndex > MaxRootCount) return;
+	const uint PointIndex = DispatchThreadId.x;	
+	if (PointIndex < MaxRootCount)
+	{
+		float3 P = (DeformedFrameEnable > 0) ? DeformedSamplePositionsBuffer[PointIndex].xyz : RestSamplePositionsBuffer[PointIndex].xyz;
+		P = mul(float4(P, 1), RootLocalToWorld).xyz;
 
-	float3 P = (DeformedFrameEnable > 0) ? DeformedSamplePositionsBuffer[PointIndex].xyz : RestSamplePositionsBuffer[PointIndex].xyz;
-	P = mul(float4(P, 1), RootLocalToWorld).xyz;
-
-	AddCrossWS(P, 1.f, ColorYellow);
+		AddCrossWS(P, 1.f, ColorYellow);
+	}
 #endif // INPUT_ROOT_SAMPLES
 }
 #endif // SHADER_MESH_PROJECTION_HAIR
