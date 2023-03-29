@@ -495,7 +495,7 @@ void FFeedbackContextEditor::FinalizeSlowTask()
 		const double SlowTaskDialogTime = FStudioAnalytics::GetAnalyticSeconds() - SlowTaskStartTime;
 		
 		const FText TaskName = ScopeStack.Num() > 0 ? ScopeStack[0]->DefaultMessage : FText::GetEmpty();
-		FStudioAnalytics::FireEvent_Loading(TEXT("SlowTaskDialog"), SlowTaskDialogTime, { FAnalyticsEventAttribute(TEXT("Task"), TaskName.ToString()) });
+		FStudioAnalytics::FireEvent_Loading(TEXT("SlowTaskDialog"), SlowTaskDialogTime, { FAnalyticsEventAttribute(TEXT("Task"), TaskName.ToString()), FAnalyticsEventAttribute(TEXT("MapName"), TEXT("SlowTask")) });
 
 		Window->SetContent(SNullWidget::NullWidget);
 		Window->RequestDestroyWindow();
