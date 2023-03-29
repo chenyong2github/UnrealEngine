@@ -165,7 +165,6 @@ FRayTracingLocalShaderBindings* FDeferredShadingSceneRenderer::BuildLumenHardwar
 		PermutationVector.Set<FLumenHardwareRayTracingMaterialHitGroup::FAvoidSelfIntersections>(true);
 		auto HitGroupShaderWithAvoidSelfIntersections = View.ShaderMap->GetShader<FLumenHardwareRayTracingMaterialHitGroup>(PermutationVector).GetRayTracingShader();
 
-		int32 ShaderIndexInPipelinePerHitGroup[2];
 		ShaderIndexInPipelinePerHitGroup[0] = FindRayTracingHitGroupIndex(View.LumenHardwareRayTracingMaterialPipeline, HitGroupShader, true);
 		ShaderIndexInPipelinePerHitGroup[1] = FindRayTracingHitGroupIndex(View.LumenHardwareRayTracingMaterialPipeline, HitGroupShaderWithAvoidSelfIntersections, true);
 	}
