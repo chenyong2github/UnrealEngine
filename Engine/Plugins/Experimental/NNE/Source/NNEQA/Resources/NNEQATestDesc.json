@@ -532,6 +532,15 @@
 			"runtimes": [
 				{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Not supported" }
 			]
+		},
+		{
+			"category": "Split",
+			"targets": [
+				{ "target": "Split" }
+			],
+			"runtimes": [
+				{ "name": "NNERuntimeRDGHlsl", "skip": true, "comment": "Not supported" }
+			]
 		}
 	],
 
@@ -1193,6 +1202,18 @@
 				{ "inputs": [ { "shape": [ 2, 3, 128, 256, 64 ] } ], "outputs": [ { "shape": [ 2, 3, 1, 1, 1 ] } ] }
 			]
 		},
+		{
+			"name": "Split.Axis2",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 1, 1, 6, 2 ] } ], "outputs": [ { "shape": [ 1, 1, 2, 2 ] }, { "shape": [ 1, 1, 1, 2 ] }, { "shape": [ 1, 1, 3, 2 ] } ] }
+			]
+		},
+		{
+			"name": "Split.Axis3",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 1, 1, 6, 2 ] } ], "outputs": [ { "shape": [ 1, 1, 6, 1 ] }, { "shape": [ 1, 1, 6, 1 ] } ] }
+			]
+		},
 		{ 
 			"name": "Reduce.Default",
 			"datasets": [
@@ -1716,6 +1737,26 @@
 						{ "name": "kernel_shape", "value": [2, 2], "type": "Int32Array" },
 						{ "name": "pads", "value": [0, 0, 0, 0], "type": "Int32Array" },
 						{ "name": "strides", "value": [2, 2], "type": "Int32Array" } 
+					]
+				}
+			]
+		},
+		{
+			"name": "Split.Axis2",
+			"attribute_maps": [
+				{ "attributes": [ 
+						{ "name": "axis", "value": 2, "type": "Int32" },
+						{ "name": "split", "value": [2, 1, 3], "type": "Int32Array" }
+					]
+				}
+			]
+		},
+		{
+			"name": "Split.Axis3",
+			"attribute_maps": [
+				{ "attributes": [ 
+						{ "name": "axis", "value": 3, "type": "Int32" },
+						{ "name": "split", "value": [1, 1], "type": "Int32Array" }
 					]
 				}
 			]
