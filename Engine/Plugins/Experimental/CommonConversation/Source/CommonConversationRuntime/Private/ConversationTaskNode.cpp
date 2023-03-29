@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConversationTaskNode.h"
+
 #include "CommonConversationRuntimeLogging.h"
-#include "ConversationContext.h"
-#include "ConversationRegistry.h"
 #include "ConversationChoiceNode.h"
+#include "ConversationContext.h"
+#include "ConversationInstance.h"
+#include "ConversationRegistry.h"
 #include "ConversationRequirementNode.h"
 #include "ConversationSideEffectNode.h"
 #include "Engine/World.h"
@@ -188,6 +190,16 @@ void UConversationTaskNode::GenerateChoicesForDestinations(FConversationBranchPo
 				}
 			}
 		}
+	}
+}
+
+void UConversationTaskNode::GenerateNextChoices(FConversationBranchPointBuilder& BranchBuilder, const FConversationContext& Context) const
+{
+	if (const UConversationInstance* Conversation = Context.GetActiveConversation())
+	{
+		const TArray<FGuid> CandidateDestinations = Context.GetConversationRegistry().GetOutputLinkGUIDs({ Conversation->GetCurrentChoiceReference().NodeReference.NodeGUID });
+
+		UConversationTaskNode::GenerateChoicesForDestinations(BranchBuilder, Context, CandidateDestinations);
 	}
 }
 

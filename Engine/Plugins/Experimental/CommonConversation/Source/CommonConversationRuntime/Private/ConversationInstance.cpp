@@ -435,11 +435,10 @@ void UConversationInstance::UpdateNextChoices(const FConversationContext& Contex
 	if (const UConversationTaskNode* TaskNode = Cast<UConversationTaskNode>(GetCurrentChoiceReference().NodeReference.TryToResolve(Context)))
 	{
 		FConversationContext ChoiceContext = Context.CreateChildContext(TaskNode);
-
-		const TArray<FGuid> CandidateDestinations = ChoiceContext.GetConversationRegistry().GetOutputLinkGUIDs({ GetCurrentChoiceReference().NodeReference.NodeGUID });
-		
 		FConversationBranchPointBuilder BranchBuilder;
-		UConversationTaskNode::GenerateChoicesForDestinations(BranchBuilder, ChoiceContext, CandidateDestinations);
+
+		TaskNode->GenerateNextChoices(BranchBuilder, ChoiceContext);
+
 		AllChoices = BranchBuilder.GetBranches();
 	}
 
