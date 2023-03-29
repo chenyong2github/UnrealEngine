@@ -211,7 +211,7 @@ namespace UE
 		TSharedRef<FJsonStringReader> JsonReader = FJsonStringReader::Create(FString(Content));
 		if (!FJsonSerializer::Deserialize(JsonReader.Get(), OverrideObject))
 		{
-			UE_LOG(LogEditorConfig, Error, TEXT("Failed to deserialize JSON string"));
+			UE_LOG(LogEditorConfig, Error, TEXT("Failed to deserialize JSON string: %s"), *JsonReader->GetErrorMessage());
 			return false;
 		}
 
