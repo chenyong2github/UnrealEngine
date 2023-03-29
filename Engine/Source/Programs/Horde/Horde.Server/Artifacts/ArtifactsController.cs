@@ -113,6 +113,17 @@ namespace Horde.Server.Artifacts
 	}
 
 	/// <summary>
+	/// Request to create a zip file with artifact data
+	/// </summary>
+	public class CreateZipRequest
+	{
+		/// <summary>
+		/// Filter lines for the zip. Uses standard <see cref="FileFilter"/> syntax.
+		/// </summary>
+		public List<string> Filter { get; set; } = new List<string>();
+	}
+
+	/// <summary>
 	/// Public interface for artifacts
 	/// </summary>
 	[Authorize]
@@ -306,11 +317,31 @@ namespace Horde.Server.Artifacts
 		/// Downloads an individual file from an artifact
 		/// </summary>
 		/// <param name="id">Identifier of the artifact to retrieve</param>
+		/// <param name="filter">Paths to include in the zip file. The post version of this request allows for more parameters than can fit in a request string.</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Information about all the artifacts</returns>
 		[HttpGet]
 		[Route("/api/v2/artifacts/{id}/zip")]
-		public async Task<ActionResult<object>> GetZipAsync(ArtifactId id, CancellationToken cancellationToken = default)
+		public async Task<ActionResult<object>> GetZipAsync(ArtifactId id, [FromQuery(Name = "filter")] string[]? filter, CancellationToken cancellationToken = default)
+		{
+			return await GetZipInternalAsync(id, filter, cancellationToken);
+		}
+
+		/// <summary>
+		/// Downloads an individual file from an artifact
+		/// </summary>
+		/// <param name="id">Identifier of the artifact to retrieve</param>
+		/// <param name="request">Filter for the zip file</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Information about all the artifacts</returns>
+		[HttpPost]
+		[Route("/api/v2/artifacts/{id}/zip")]
+		public async Task<ActionResult<object>> CreateZipFromFilterAsync(ArtifactId id, CreateZipRequest request, CancellationToken cancellationToken = default)
+		{
+			return await GetZipInternalAsync(id, request.Filter, cancellationToken);
+		}
+
+		async Task<ActionResult> GetZipInternalAsync(ArtifactId id, IEnumerable<string>? fileFilter, CancellationToken cancellationToken)
 		{
 			IArtifact? artifact = await _artifactCollection.GetAsync(id, cancellationToken);
 			if (artifact == null)
@@ -322,11 +353,17 @@ namespace Horde.Server.Artifacts
 				return Forbid(AclAction.ReadArtifact, artifact.AclScope);
 			}
 
+			FileFilter? filter = null;
+			if (fileFilter != null && fileFilter.Any())
+			{
+				filter = new FileFilter(fileFilter);
+			}
+
 			TreeReader reader = await _storageService.GetReaderAsync(artifact.NamespaceId, cancellationToken);
 			TreeNodeRef<DirectoryNode> directoryRef = await reader.ReadNodeRefAsync<DirectoryNode>(artifact.RefName, DateTime.UtcNow.AddHours(1.0), cancellationToken);
 			DirectoryNode directory = await directoryRef.ExpandAsync(reader, cancellationToken);
 
-			Stream stream = directory.AsZipStream(reader);
+			Stream stream = directory.AsZipStream(reader, filter);
 			return new FileStreamResult(stream, "application/zip") { FileDownloadName = $"{artifact.RefName}.zip" };
 		}
 

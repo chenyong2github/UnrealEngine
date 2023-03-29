@@ -807,8 +807,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// Returns a stream containing the zipped contents of this directory
 		/// </summary>
 		/// <param name="reader">Reader for other nodes</param>
+		/// <param name="filter">Filter for files to include in the zip</param>
 		/// <returns>Stream containing zipped archive data</returns>
-		public Stream AsZipStream(TreeReader reader) => new DirectoryNodeZipStream(reader, this);
+		public Stream AsZipStream(TreeReader reader, FileFilter? filter = null) => new DirectoryNodeZipStream(reader, this, filter);
 	}
 
 	/// <summary>
@@ -842,10 +843,11 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="reader">Reader to read nodes through</param>
 		/// <param name="node">Root node to copy from</param>
-		public DirectoryNodeZipStream(TreeReader reader, DirectoryNode node)
+		/// <param name="filter">Filter for files to include in the zip</param>
+		public DirectoryNodeZipStream(TreeReader reader, DirectoryNode node, FileFilter? filter)
 		{
 			_pipe = new Pipe();
-			_backgroundTask = BackgroundTask.StartNew(ctx => CopyToPipeAsync(reader, node, _pipe.Writer, ctx));
+			_backgroundTask = BackgroundTask.StartNew(ctx => CopyToPipeAsync(reader, node, filter, _pipe.Writer, ctx));
 		}
 
 		/// <inheritdoc/>
@@ -889,36 +891,44 @@ namespace EpicGames.Horde.Storage.Nodes
 			return length;
 		}
 
-		static async Task CopyToPipeAsync(TreeReader reader, DirectoryNode node, PipeWriter writer, CancellationToken cancellationToken)
+		static async Task CopyToPipeAsync(TreeReader reader, DirectoryNode node, FileFilter? filter, PipeWriter writer, CancellationToken cancellationToken)
 		{
 			using Stream outputStream = writer.AsStream();
 			using ZipArchive archive = new ZipArchive(outputStream, ZipArchiveMode.Create);
-			await CopyFilesAsync(reader, node, "", archive, cancellationToken);
+			await CopyFilesAsync(reader, node, "", filter, archive, cancellationToken);
 		}
 
-		static async Task CopyFilesAsync(TreeReader reader, DirectoryNode directory, string prefix, ZipArchive archive, CancellationToken cancellationToken)
+		static async Task CopyFilesAsync(TreeReader reader, DirectoryNode directory, string prefix, FileFilter? filter, ZipArchive archive, CancellationToken cancellationToken)
 		{
 			foreach (DirectoryEntry directoryEntry in directory.Directories)
 			{
-				DirectoryNode node = await directoryEntry.ExpandAsync(reader, cancellationToken);
-				await CopyFilesAsync(reader, node, $"{prefix}{directoryEntry.Name}/", archive, cancellationToken);
+				string directoryPath = $"{prefix}{directoryEntry.Name}/";
+				if (filter == null || filter.PossiblyMatches(directoryPath))
+				{
+					DirectoryNode node = await directoryEntry.ExpandAsync(reader, cancellationToken);
+					await CopyFilesAsync(reader, node, directoryPath, filter, archive, cancellationToken);
+				}
 			}
 
 			foreach (FileEntry fileEntry in directory.Files)
 			{
-				ZipArchiveEntry entry = archive.CreateEntry($"{prefix}{fileEntry}");
-
-				if ((fileEntry.Flags & FileEntryFlags.Executable) != 0)
+				string filePath = $"{prefix}{fileEntry}";
+				if (filter == null || filter.Matches(filePath))
 				{
-					entry.ExternalAttributes |= 0b_111_111_101 << 16; // rwx rwx r-x
-				}
-				else
-				{
-					entry.ExternalAttributes |= 0b_110_110_100 << 16; // rw- rw- r--
-				}
+					ZipArchiveEntry entry = archive.CreateEntry(filePath);
 
-				using Stream entryStream = entry.Open();
-				await fileEntry.CopyToStreamAsync(reader, entryStream, cancellationToken);
+					if ((fileEntry.Flags & FileEntryFlags.Executable) != 0)
+					{
+						entry.ExternalAttributes |= 0b_111_111_101 << 16; // rwx rwx r-x
+					}
+					else
+					{
+						entry.ExternalAttributes |= 0b_110_110_100 << 16; // rw- rw- r--
+					}
+
+					using Stream entryStream = entry.Open();
+					await fileEntry.CopyToStreamAsync(reader, entryStream, cancellationToken);
+				}
 			}
 		}
 
