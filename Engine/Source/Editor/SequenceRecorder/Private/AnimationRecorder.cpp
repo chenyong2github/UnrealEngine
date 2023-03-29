@@ -252,14 +252,14 @@ void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSeq
 	IAnimationDataController& Controller = AnimationObject->GetController();
 	Controller.SetModel(AnimationObject->GetDataModelInterface());
 
-	Controller.OpenBracket(LOCTEXT("StartRecord_Bracket", "Starting Animation Recording"));
+	Controller.OpenBracket(LOCTEXT("StartRecord_Bracket", "Starting Animation Recording"), bTransactRecording);
 
 	Controller.InitializeModel();
 
 	const bool bKeepNotifiesAndCurves = CVarKeepNotifyAndCurvesOnAnimationRecord->GetInt() == 0 ? false : true;
 	if (bKeepNotifiesAndCurves)
 	{
-		Controller.RemoveAllBoneTracks();
+		Controller.RemoveAllBoneTracks(bTransactRecording);
 	}
 	else
 	{
@@ -282,7 +282,7 @@ void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSeq
 		{
 			// add tracks for the bone existing
 			const FName BoneTreeName = AnimSkeleton->GetReferenceSkeleton().GetBoneName(BoneTreeIndex);
-			Controller.AddBoneCurve(BoneTreeName);			
+			Controller.AddBoneCurve(BoneTreeName, bTransactRecording);			
 			RawTracks.AddDefaulted();
 		}
 	}
@@ -378,8 +378,8 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 		AnimationObject->Interpolation = Interpolation;
 
 		// can't use TimePassed. That is just total time that has been passed, not necessarily match with frame count
-		Controller.SetFrameRate(RecordingRate);
-		Controller.SetNumberOfFrames( FMath::Max(LastFrame.Value,1) );
+		Controller.SetFrameRate(RecordingRate, bTransactRecording);
+		Controller.SetNumberOfFrames( FMath::Max(LastFrame.Value,1), bTransactRecording);
 
 		ProcessNotifies();
 
@@ -439,7 +439,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 							// add one and save the cache
 							// give default curve flag for recording 
 							const FAnimationCurveIdentifier CurveId(CurveName, ERawCurveTrackTypes::RCT_Float);
-							Controller.AddCurve(CurveId, AACF_DefaultCurve);
+							Controller.AddCurve(CurveId, AACF_DefaultCurve, bTransactRecording);
 							FloatCurveData = AnimationObject->GetDataModel()->FindFloatCurve(CurveId);
 						}
 
@@ -466,7 +466,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 					}
 
 					const FAnimationCurveIdentifier CurveId(FloatCurveData->GetName(), ERawCurveTrackTypes::RCT_Float);
-					Controller.SetCurveKeys(CurveId, Keys);
+					Controller.SetCurveKeys(CurveId, Keys, bTransactRecording);
 				}
 			}
 
@@ -486,7 +486,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 
 			if (!bShouldSkipName)
 			{
-				Controller.SetBoneTrackKeys(BoneName, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
+				Controller.SetBoneTrackKeys(BoneName, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys, bTransactRecording);
 			}
 			else
 			{
@@ -497,7 +497,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 				TArray<FVector3f> SingleScaleKey;
 				SingleScaleKey.Add(RawTrack.ScaleKeys[0]);
 
-				Controller.SetBoneTrackKeys(BoneName, SinglePosKey, SingleRotKey, SingleScaleKey);
+				Controller.SetBoneTrackKeys(BoneName, SinglePosKey, SingleRotKey, SingleScaleKey, bTransactRecording);
 
 				UE_LOG(LogAnimation, Log, TEXT("Animation Recorder skipping bone: %s"), *BoneName.ToString());
 			}
@@ -505,11 +505,11 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 
 		if (bRecordTransforms == false)
 		{
-			Controller.RemoveAllBoneTracks();
+			Controller.RemoveAllBoneTracks(bTransactRecording);
 		}
 
 		Controller.NotifyPopulated();
-		Controller.CloseBracket();
+		Controller.CloseBracket(bTransactRecording);
 
 
 		AnimationObject->MarkPackageDirty();
@@ -1118,6 +1118,7 @@ void FAnimRecorderInstance::InitInternal(USkeletalMeshComponent* InComponent, co
 	Recorder->bRecordMorphTargets = Settings.bRecordMorphTargets;
 	Recorder->bRecordAttributeCurves = Settings.bRecordAttributeCurves;
 	Recorder->bRecordMaterialCurves = Settings.bRecordMaterialCurves;
+	Recorder->bTransactRecording = Settings.bTransactRecording;
 	Recorder->IncludeAnimationNames = Settings.IncludeAnimationNames;
 	Recorder->ExcludeAnimationNames = Settings.ExcludeAnimationNames;
 

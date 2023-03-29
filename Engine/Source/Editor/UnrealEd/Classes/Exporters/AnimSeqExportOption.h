@@ -66,6 +66,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Export);
 	FFrameNumber DelayBeforeStart;
 
+	/** Whether or not to transact the animation sequence data recording */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Export)
+	bool bTransactRecording = true;
 
 	void ResetToDefault()
 	{
@@ -79,5 +82,6 @@ public:
 		bEvaluateAllSkeletalMeshComponents = true;
 		WarmUpFrames = 0;
 		DelayBeforeStart = 0;
+		bTransactRecording = true;
 	}
 };

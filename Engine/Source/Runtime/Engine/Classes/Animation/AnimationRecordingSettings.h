@@ -38,6 +38,7 @@ struct ENGINE_API FAnimationRecordingSettings
 		, bRecordMorphTargets(true)
 		, bRecordAttributeCurves(true)
 		, bRecordMaterialCurves(true)
+		, bTransactRecording(true) 
 	{}
 	
 	/** Whether to record animation in world space, defaults to true */
@@ -90,6 +91,10 @@ struct ENGINE_API FAnimationRecordingSettings
 	/** Whether or not to record material curves */
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bRecordMaterialCurves;
+
+	/** Whether or not to transact recording changes */
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	bool bTransactRecording;
 
 	/** Include only the animation bones/curves that match this list */
 	UPROPERTY(EditAnywhere, Category = "Settings")

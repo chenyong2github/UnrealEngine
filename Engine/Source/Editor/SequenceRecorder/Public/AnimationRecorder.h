@@ -147,6 +147,8 @@ public:
 	TArray<FString> IncludeAnimationNames;
 	/** Exclude list */
 	TArray<FString> ExcludeAnimationNames;
+	/** Whether or not to transact any IAnimationDataController changes */
+	bool bTransactRecording;
 public:
 	/** Helper function to get space bases depending on leader pose component */
 	static void GetBoneTransforms(USkeletalMeshComponent* Component, TArray<FTransform>& BoneTransforms);
