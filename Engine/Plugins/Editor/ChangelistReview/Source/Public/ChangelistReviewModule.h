@@ -5,6 +5,7 @@
 //#include "SSourceControlReview.h"
 #include "Modules/ModuleManager.h"
 
+class SSourceControlReview;
 class FSpawnTabArgs;
 class SDockTab;
 class SWidget;
@@ -18,12 +19,18 @@ public:
 	virtual void ShutdownModule() override;
 	void ShowReviewTab();
 	bool CanShowReviewTab() const;
+	TWeakPtr<SSourceControlReview> GetActiveReview();
+	
+	static FChangelistReviewModule& Get()
+	{
+		return FModuleManager::LoadModuleChecked<FChangelistReviewModule>("ChangelistReview");
+	}
 private:
 	TSharedRef<SDockTab> CreateReviewTab(const FSpawnTabArgs& Args);
 	TSharedPtr<SWidget> CreateReviewUI();
 	
 	TWeakPtr<SDockTab> ReviewTab;
-	//TWeakPtr<SSourceControlReview> ReviewWidget;
+	TWeakPtr<SSourceControlReview> ReviewWidget;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

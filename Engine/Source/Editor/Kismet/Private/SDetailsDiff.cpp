@@ -328,6 +328,7 @@ void SDetailsDiff::GenerateDifferencesList()
 SDetailsDiff::FDiffControl SDetailsDiff::GenerateDetailsPanel()
 {
 	TSharedPtr<FDetailsDiffControl> NewDiffControl = MakeShared<FDetailsDiffControl>(PanelOld.Object, PanelNew.Object, FOnDiffEntryFocused::CreateRaw(this, &SDetailsDiff::SetCurrentMode, DetailsMode), true);
+	NewDiffControl->EnableComments(DifferencesTreeView.ToWeakPtr());
 	NewDiffControl->GenerateTreeEntries(PrimaryDifferencesList, RealDifferences);
 
 	SDetailsDiff::FDiffControl Ret;

@@ -19,6 +19,7 @@ public:
 	
 	SLATE_BEGIN_ARGS(SSourceControlReviewEntry) {}
 		SLATE_ARGUMENT(FChangelistFileData, FileData);
+		SLATE_ARGUMENT(TWeakPtr<IReviewCommentAPI>, CommentsAPI);
 	SLATE_END_ARGS()
 	
 	/** Constructs the widget */
@@ -113,6 +114,14 @@ private:
 	 */
 	FText GetLocalAssetPathText() const;
 
+	const TArray<FReviewComment>* GetReviewComments() const;
+
+	FString GetReviewerUsername() const;
+
+	EVisibility GetUnreadCommentsIconVisibility() const;
+
+	FText GetUnreadCommentsTooltip() const;
+
 	/**
 	 * Returns asset name to be used for search/filter 
 	 */
@@ -126,6 +135,7 @@ private:
 private:
 	// File associated with this entry
 	FChangelistFileData ChangelistFileData;
+	TWeakPtr<IReviewCommentAPI> CommentsAPI;
 	
 	// Called to diff this file against it's previous revision
 	DECLARE_DELEGATE(FDiffMethod);

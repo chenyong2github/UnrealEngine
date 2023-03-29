@@ -335,7 +335,7 @@ TSharedPtr<FJsonObject> FReviewComment::ToJsonObject() const
 	SET_JSON_FIELD_NAMED(Result, *this, UpdatedTime, TEXT("updated"));
 	if (bIsClosed)
 	{
-		TrySetJsonObjectField(Result, TArray<FString>{TEXT("closed")}, TEXT("type"));
+		TrySetJsonObjectField(Result, TArray<FString>{TEXT("closed")}, TEXT("flags"));
 	}
 	
 	return Result;

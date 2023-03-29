@@ -312,6 +312,8 @@ public:
 		check( InGenerateWidget.IsBound() );
 	}
 
+	virtual ~FBlueprintDifferenceTreeEntry() = default;
+
 	/** Displays message to user saying there are no differences */
 	static TSharedPtr<FBlueprintDifferenceTreeEntry> NoDifferencesEntry();
 

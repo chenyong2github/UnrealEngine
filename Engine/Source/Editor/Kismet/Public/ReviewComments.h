@@ -66,7 +66,16 @@ public:
 	// returns topic in format "TopicType/ChangelistNum"
 	FString ToString() const;
 	static FReviewTopic FromString(const FString& ReviewTopic);
+	bool operator==(const FReviewTopic& Other) const
+	{
+		return ChangelistNum == Other.ChangelistNum;
+	}
 };
+
+inline uint32 GetTypeHash(const FReviewTopic& Topic)
+{
+	return GetTypeHash(Topic.ChangelistNum);
+}
 
 struct KISMET_API FReviewComment
 {
@@ -105,7 +114,7 @@ public:
 	static FReviewComment FromJson(const TSharedPtr<FJsonObject>& JsonObject);
 };
 
-class KISMET_API IReviewCommentAPI
+class KISMET_API IReviewCommentAPI : public TSharedFromThis<IReviewCommentAPI>
 {
 public:
 	DECLARE_DELEGATE_TwoParams(OnGetCommentsComplete, const TArray<FReviewComment>&, const FString& /*ErrorMessage*/)
@@ -120,9 +129,9 @@ public:
 	
 	virtual void GetComments(const FReviewTopic& Topic, const OnGetCommentsComplete& OnComplete) const = 0;
 	// Body must be set; username will get set by PostComment
-	virtual void PostComment(FReviewComment& Comment, const OnPostCommentComplete& OnComplete) const = 0;
+	virtual void PostComment(FReviewComment& Comment, const OnPostCommentComplete& OnComplete, bool bSilenceNotification = false) const = 0;
 	// all unset members will be left unchanged.
-	virtual void EditComment(const FReviewComment& Comment, const OnEditCommentComplete& OnComplete) const = 0;
+	virtual void EditComment(const FReviewComment& Comment, const OnEditCommentComplete& OnComplete, bool bSilenceNotification = false) const = 0;
 	
 	virtual void GetReviewTopicForCL(const FString &ChangelistNum, const OnGetReviewTopicForCLComplete& OnComplete) const = 0;
 };

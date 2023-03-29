@@ -4,6 +4,7 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "ClassIconFinder.h"
+#include "FSwarmCommentsAPI.h"
 #include "Framework/Views/TableViewMetadata.h"
 #include "ISourceControlModule.h"
 #include "SourceControlOperations.h"
@@ -28,6 +29,13 @@
 #define LOCTEXT_NAMESPACE "SourceControlReview"
 
 using namespace SourceControlReview;
+
+namespace UE::DiffControl
+{
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnCommentPosted, const FReviewComment&)
+	extern KISMET_API FOnCommentPosted GOnCommentPosted;
+}
+
 
 namespace ReviewHelpers
 {
@@ -80,6 +88,8 @@ void SSourceControlReview::Construct(const FArguments& InArgs)
 
 	const static FMargin InfoWidgetMargin(4.f, 2.f, 4.f, 8.f);
 
+	CommentsAPI = FSwarmCommentsAPI::TryConnect();
+	
 	LoadCLHistory();
 	
 	ChildSlot
@@ -305,6 +315,9 @@ void SSourceControlReview::LoadChangelist(const FString& Changelist)
 	}
 
 	ChangelistFiles.Empty();
+	GlobalReviewComments.Empty();
+	FileReviewComments.Empty();
+	TempLocalPathToDepotPath.Empty();
 
 	//This command runs p4 -describe (or similar for other version controls) to retrieve changelist record information
 	GetChangelistDetailsCommand = ISourceControlOperation::Create<FGetChangelistDetails>();
@@ -313,7 +326,130 @@ void SSourceControlReview::LoadChangelist(const FString& Changelist)
 	ISourceControlModule::Get().GetProvider().Execute(
 		GetChangelistDetailsCommand.ToSharedRef(),
 		EConcurrency::Asynchronous,
-		FSourceControlOperationComplete::CreateRaw(this, &SSourceControlReview::OnChangelistLoadComplete, Changelist));
+		FSourceControlOperationComplete::CreateRaw(this, &SSourceControlReview::OnGetChangelistDetails, Changelist));
+}
+
+
+const TArray<FReviewComment>* SSourceControlReview::GetReviewCommentsForFile(const FString& FilePath)
+{
+	return FileReviewComments.Find(AsDepotPath(FilePath));
+}
+
+void SSourceControlReview::UpdateReviewComments()
+{
+	if (bReviewCommentsDirty && CommentsAPI)
+	{
+		CommentsAPI->GetComments(ReviewTopic.GetValue(), FSwarmCommentsAPI::OnGetCommentsComplete::CreateRaw(this, &SSourceControlReview::OnGetReviewComments));
+		bReviewCommentsDirty = false;
+	}
+}
+
+void SSourceControlReview::PostComment(FReviewComment& Comment)
+{
+	if (!CommentsAPI)
+	{
+		return;
+	}
+	
+	bReviewCommentsDirty = true;
+	
+	// convert filepath from local to depot path
+	if (Comment.Context.File.IsSet())
+	{
+		FString& Path = Comment.Context.File.GetValue();
+		Path = AsDepotPath(Path);
+	}
+	
+	Comment.Topic = ReviewTopic;
+	CommentsAPI->PostComment(Comment, IReviewCommentAPI::OnPostCommentComplete::CreateLambda(
+		[](const FReviewComment& Comment, const FString& ErrorMessage)
+		{
+			if (!ErrorMessage.IsEmpty())
+			{
+				UE_LOG(LogSourceControl, Error, TEXT("IReviewCommentsAPI::PostComment Error: %s"), *ErrorMessage)
+				return;
+			}
+			// notify listeners that the comment successfully posted
+			if (UE::DiffControl::GOnCommentPosted.IsBound())
+			{
+				UE::DiffControl::GOnCommentPosted.Broadcast(Comment);
+			}
+		}));
+}
+
+void SSourceControlReview::EditComment(FReviewComment& Comment)
+{
+	if (!CommentsAPI)
+	{
+		return;
+	}
+	
+	bReviewCommentsDirty = true;
+	
+	// convert filepath from local to depot path
+	if (Comment.Context.File.IsSet())
+	{
+		FString& Path = Comment.Context.File.GetValue();
+		Path = AsDepotPath(Path);
+	}
+	
+	Comment.Topic = ReviewTopic;
+	CommentsAPI->EditComment(Comment, IReviewCommentAPI::OnEditCommentComplete::CreateLambda(
+		[](const FReviewComment& Comment, const FString& ErrorMessage)
+		{
+			if (!ErrorMessage.IsEmpty())
+			{
+				UE_LOG(LogSourceControl, Error, TEXT("IReviewCommentsAPI::EditComment Error: %s"), *ErrorMessage)
+			}
+		}));
+}
+
+FString SSourceControlReview::GetReviewerUsername() const
+{
+	return CommentsAPI? CommentsAPI->GetUsername() : FString{};
+}
+
+bool SSourceControlReview::IsFileInReview(const FString& File) const
+{
+	FString Path = File;
+	if (!Path.StartsWith(TEXT("//")))
+	{
+		// if a local path was passed in, commentable paths are found in TempLocalPathToDepotPath
+		Path = FPaths::ConvertRelativePathToFull(Path);
+		FPaths::NormalizeFilename(Path);
+		return TempLocalPathToDepotPath.Find(Path) != nullptr;
+	}
+
+	// if a depot path was passed in, we can early out if it's in FileReviewComments
+	if (FileReviewComments.Find(Path))
+	{
+		return true;
+	}
+
+	// if the file hasn't been commented on before, it might still be in the review. fallback to searching ChangelistFiles
+	for (const TSharedPtr<FChangelistFileData>& FileData : ChangelistFiles)
+	{
+		if (FileData->AssetDepotPath == Path)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+FString SSourceControlReview::AsDepotPath(const FString& FilePath)
+{
+	if (!FilePath.StartsWith(TEXT("//")))
+	{
+		FString LocalPath = FPaths::ConvertRelativePathToFull(FilePath);
+		FPaths::NormalizeFilename(LocalPath);
+		if (const FString* DepotPath = TempLocalPathToDepotPath.Find(LocalPath))
+		{
+			return *DepotPath;
+		}
+		return {};
+	}
+	return FilePath;
 }
 
 void SSourceControlReview::CommitTempChangelistNumToHistory()
@@ -353,7 +489,17 @@ void SSourceControlReview::RemoveUncommittedChangelistNumFromHistory()
 	}
 }
 
-void SSourceControlReview::OnChangelistLoadComplete(const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult, FString Changelist)
+void SSourceControlReview::IncrementItemsLoaded()
+{
+	NumItemsLoaded++;
+	LoadingProgressBar->SetPercent(NumItemsToLoad ? static_cast<float>(NumItemsLoaded) / static_cast<float>(NumItemsToLoad) : 1.f);
+	if (NumItemsToLoad == NumItemsLoaded)
+	{
+		OnLoadComplete();
+	}
+}
+
+void SSourceControlReview::OnGetChangelistDetails(const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult, FString Changelist)
 {
 	// this command is cancelled when this widget is destroyed. Exit immediately to avoid touching invalid data
 	if (InResult == ECommandResult::Cancelled)
@@ -374,9 +520,9 @@ void SSourceControlReview::OnChangelistLoadComplete(const FSourceControlOperatio
 	const TMap<FString, FString>& ChangelistRecord = Record[ReviewHelpers::RecordIndex];
 	
 	//Num files we are going to expect retrieved from source control
-	FilesToLoad = 0;
+	NumItemsToLoad = 0;
 	//Num files we've loaded so far
-	FilesLoaded = 0;
+	NumItemsLoaded = 0;
 
 	// TODO: @jordan.hoffmann revise for other version controls
 	//Each file in p4 has an index "depotFile0" this is the index that is updated by the while loop to find all the files "depotFile1", "depotFile2" etc...
@@ -389,17 +535,23 @@ void SSourceControlReview::OnChangelistLoadComplete(const FSourceControlOperatio
 	FString RecordRevisionMapKey = ReviewHelpers::FileRevisionKey + RecordFileIndexStr;
 	//The p4 records is the map a revision key starts with "action" and is followed by file index 
 	FString RecordActionMapKey = ReviewHelpers::FileActionKey + RecordFileIndexStr;
+	const bool bIsShelved = ChangelistRecord[ReviewHelpers::ChangelistStatusKey] == ReviewHelpers::ChangelistPendingStatusKey;
 
-	SetChangelistInfo(ChangelistRecord);
+	SetChangelistInfo(ChangelistRecord, Changelist);
 	CommitTempChangelistNumToHistory();
 	SaveCLHistory();
+	
+	NumItemsToLoad += 2; // require review topic and comments to be loaded before continuing
+	if (CommentsAPI)
+	{
+		CommentsAPI->GetReviewTopicForCL(Changelist, FSwarmCommentsAPI::OnGetReviewTopicForCLComplete::CreateRaw(this, &SSourceControlReview::OnGetReviewTopic));
+	}
 	
 	//the loop checks if we have a valid record "depotFile(Index)" in the records to add a file entry
 	while (ChangelistRecord.Contains(RecordFileMapKey) && ChangelistRecord.Contains(RecordRevisionMapKey))
 	{
 		const FString &FileDepotPath = ChangelistRecord[RecordFileMapKey];
 
-		const bool bIsShelved = ChangelistRecord[ReviewHelpers::ChangelistStatusKey] == ReviewHelpers::ChangelistPendingStatusKey;
 		const int32 AssetRevision = FCString::Atoi(*ChangelistRecord[RecordRevisionMapKey]);
 	
 		TSharedPtr<FChangelistFileData> ChangelistFileData = MakeShared<FChangelistFileData>();
@@ -437,7 +589,7 @@ void SSourceControlReview::OnChangelistLoadComplete(const FSourceControlOperatio
 		// retrieve files directly from source control into a temp location
 		if (ChangelistFileData->FileSourceControlAction != ESourceControlAction::Delete)
 		{
-			FilesToLoad++;
+			NumItemsToLoad++;
 			
 			TSharedRef<FGetFile> GetFileToReviewCommand = ISourceControlOperation::Create<FGetFile>(Changelist, ChangelistRecord[RecordRevisionMapKey], ChangelistRecord[RecordFileMapKey], bIsShelved);
 
@@ -446,7 +598,7 @@ void SSourceControlReview::OnChangelistLoadComplete(const FSourceControlOperatio
 		
 		if (ChangelistFileData->FileSourceControlAction != ESourceControlAction::Add && ChangelistFileData->FileSourceControlAction != ESourceControlAction::Branch)
 		{
-			FilesToLoad++;
+			NumItemsToLoad++;
 
 			TSharedRef<FGetFile> GetPreviousFileCommand = ISourceControlOperation::Create<FGetFile>(Changelist, PreviousAssetRevisionStr, ChangelistRecord[RecordFileMapKey], false);
 
@@ -463,10 +615,121 @@ void SSourceControlReview::OnChangelistLoadComplete(const FSourceControlOperatio
 	}
 
 	//If we have no files to load flip loading bar visibility
-	if (FilesToLoad == 0)
+	if (NumItemsToLoad == 0)
 	{
 		SetLoading(false);
 	}
+}
+
+
+void SSourceControlReview::OnGetReviewTopic(const FReviewTopic& Topic, const FString& ErrorMessage)
+{
+	if(!ErrorMessage.IsEmpty())
+	{
+		UE_LOG(LogSourceControl, Error, TEXT("IReviewCommentsAPI::GetReviewTopicForCL Error: %s"), *ErrorMessage)
+		ReviewTopic= {CurrentChangelistInfo.ChangelistNum, CurrentChangelistInfo.Author.ToString() == TEXT("Swarm") ? EReviewTopicType::Review : EReviewTopicType::Change};
+	}
+	else
+	{
+		ReviewTopic = Topic;
+	}
+	IncrementItemsLoaded();
+	
+	if (CommentsAPI)
+	{
+		CommentsAPI->GetComments(ReviewTopic.GetValue(), FSwarmCommentsAPI::OnGetCommentsComplete::CreateRaw(this, &SSourceControlReview::OnInitReviewComments));
+	}
+	
+	// every 3 seconds, check whether comment data is dirty and if so, grab the update from swarm
+	ChangelistInfoWidget.Get()->RegisterActiveTimer(3.f, FWidgetActiveTimerDelegate::CreateLambda([this](double, float)
+	{
+		UpdateReviewComments();
+		return EActiveTimerReturnType::Continue;
+	}));
+}
+
+void SSourceControlReview::OnGetReviewComments(const TArray<FReviewComment>& Comments, const FString& ErrorMessage)
+{
+	bReviewCommentsDirty = false;
+	if (!ErrorMessage.IsEmpty())
+	{
+		UE_LOG(LogSourceControl, Error, TEXT("IReviewCommentsAPI::GetComments Error: %s"), *ErrorMessage)
+		return;
+	}
+
+	FileReviewComments.Empty();
+	GlobalReviewComments.Empty();
+	for (const FReviewComment& Comment : Comments)
+	{
+		if (Comment.Context.File.IsSet())
+		{
+			const FString& File = Comment.Context.File.GetValue();
+			TArray<FReviewComment>& FileComments = FileReviewComments.FindOrAdd(File);
+			FileComments.Add(Comment);
+			continue;
+		}
+		GlobalReviewComments.Add(Comment);
+	}
+}
+
+void SSourceControlReview::OnInitReviewComments(const TArray<FReviewComment>& Comments, const FString& ErrorMessage)
+{
+	OnGetReviewComments(Comments, ErrorMessage);
+	IncrementItemsLoaded();
+}
+
+void SSourceControlReview::OnGetFileFromSourceControl(TSharedPtr<FChangelistFileData> ChangelistFileData)
+{
+	if (ChangelistFileData && ChangelistFileData->IsDataValidForEntry())
+	{
+		ChangelistFiles.Add(ChangelistFileData);
+		if (!ChangelistFileData->ReviewFileTempPath.IsEmpty())
+		{
+			TempLocalPathToDepotPath.Add(ChangelistFileData->ReviewFileTempPath, ChangelistFileData->AssetDepotPath);
+		}
+		if (!ChangelistFileData->PreviousFileTempPath.IsEmpty())
+		{
+			TempLocalPathToDepotPath.Add(ChangelistFileData->PreviousFileTempPath, ChangelistFileData->AssetDepotPath);
+		}
+	}
+	
+	IncrementItemsLoaded();
+}
+
+void SSourceControlReview::OnLoadComplete()
+{
+	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>( TEXT( "AssetRegistry" ) );
+
+	// Merge asset moves and renames into single entries
+	FixupRedirectors();
+		
+	Algo::Sort(ChangelistFiles, [](const TSharedPtr<FChangelistFileData> &A, const TSharedPtr<FChangelistFileData> &B)
+	{
+		return A->RelativeFilePath < B->RelativeFilePath;
+	});
+	
+	TArray<FString> ChangelistFilePaths;
+	for (const TSharedPtr<FChangelistFileData>& FileData : ChangelistFiles)
+	{
+		if(FileData)
+		{
+			ChangelistFilePaths.Add(FileData->ReviewFileTempPath);
+		}
+	}
+	
+	AssetRegistryModule.Get().ScanFilesSynchronous(ChangelistFilePaths);
+
+	// now that the files are in the asset registry, cache their associated class so their class icons can be created quickly
+	for (const TSharedPtr<FChangelistFileData>& FileData : ChangelistFiles)
+	{
+		if(FileData)
+		{
+			FileData->GetIconClass();
+		}
+	}
+	
+	ChangelistEntriesWidget->RebuildList();
+	SetLoading(false);
 }
 
 FReply SSourceControlReview::OnLoadChangelistClicked()
@@ -602,54 +865,6 @@ void SSourceControlReview::LoadCLHistory()
 			FText::FromString(Authors[I]),
 			FText::FromString(Descriptions[I])
 		));
-	}
-}
-
-void SSourceControlReview::OnGetFileFromSourceControl(TSharedPtr<FChangelistFileData> ChangelistFileData)
-{
-	if (ChangelistFileData && ChangelistFileData->IsDataValidForEntry())
-	{
-		ChangelistFiles.Add(ChangelistFileData);
-	}
-
-	FilesLoaded++;
-
-	LoadingProgressBar->SetPercent(FilesToLoad ? static_cast<float>(FilesLoaded) / static_cast<float>(FilesToLoad) : 1.f);
-
-	if (FilesToLoad == FilesLoaded)
-	{
-		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>( TEXT( "AssetRegistry" ) );
-
-		// Merge asset moves and renames into single entries
-		FixupRedirectors();
-		
-		Algo::Sort(ChangelistFiles, [](const TSharedPtr<FChangelistFileData> &A, const TSharedPtr<FChangelistFileData> &B)
-		{
-			return A->RelativeFilePath < B->RelativeFilePath;
-		});
-		
-		TArray<FString> ChangelistFilePaths;
-		for (const TSharedPtr<FChangelistFileData>& FileData : ChangelistFiles)
-		{
-			if(FileData)
-			{
-				ChangelistFilePaths.Add(FileData->ReviewFileTempPath);
-			}
-		}
-		
-		AssetRegistryModule.Get().ScanFilesSynchronous(ChangelistFilePaths);
-
-		// now that the files are in the asset registry, cache their associated class so their class icons can be created quickly
-		for (const TSharedPtr<FChangelistFileData>& FileData : ChangelistFiles)
-		{
-			if(FileData)
-			{
-				FileData->GetIconClass();
-			}
-		}
-		
-		ChangelistEntriesWidget->RebuildList();
-		SetLoading(false);
 	}
 }
 
@@ -796,18 +1011,20 @@ static FString GetSharedBranchPath(const TMap<FString, FString>& InChangelistRec
 	return TrimIndex == INDEX_NONE ? FString() : SharedBranchPath.Left(TrimIndex);
 }
 
-void SSourceControlReview::SetChangelistInfo(const TMap<FString, FString>& InChangelistRecord)
+void SSourceControlReview::SetChangelistInfo(const TMap<FString, FString>& InChangelistRecord, const FString& ChangelistNum)
 {
 	CurrentChangelistInfo.Author = FText::FromString(InChangelistRecord[ReviewHelpers::AuthorKey]);
 	CurrentChangelistInfo.Description = FText::FromString(InChangelistRecord[ReviewHelpers::DescriptionKey]);
 	CurrentChangelistInfo.Status = FText::FromString(InChangelistRecord[ReviewHelpers::ChangelistStatusKey]);
 	CurrentChangelistInfo.SharedPath = FText::FromString(GetSharedBranchPath(InChangelistRecord));
+	CurrentChangelistInfo.ChangelistNum = ChangelistNum;
 }
 
 TSharedRef<ITableRow> SSourceControlReview::OnGenerateFileRow(TSharedPtr<FChangelistFileData> FileData, const TSharedRef<STableViewBase>& Table) const
 {
 	return SNew(SSourceControlReviewEntry, Table)
-	.FileData(*FileData);
+	.FileData(*FileData)
+	.CommentsAPI(CommentsAPI);
 }
 
 FString SSourceControlReview::TrimSharedPath(FString FullCLPath) const
@@ -927,7 +1144,7 @@ SHeaderRow::FColumn::FArguments SSourceControlReview::HeaderColumn(FName HeaderN
 	if (HeaderName == ColumnIds::Status)
 	{
 		ColumnLabel = LOCTEXT("StatusColumnHeader", "Status");
-		ColumnWidth = 60;
+		ColumnWidth = 100;
 	}
 	else if (HeaderName == ColumnIds::File)
 	{

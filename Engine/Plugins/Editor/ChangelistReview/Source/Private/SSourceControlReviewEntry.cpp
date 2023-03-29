@@ -4,6 +4,7 @@
 
 #include "AssetDefinition.h"
 #include "AssetToolsModule.h"
+#include "ChangelistReviewModule.h"
 #include "ClassIconFinder.h"
 #include "DiffUtils.h"
 #include "Engine/Blueprint.h"
@@ -30,6 +31,7 @@ namespace ReviewEntryConsts
 void SSourceControlReviewEntry::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
 	ChangelistFileData = InArgs._FileData;
+	CommentsAPI = InArgs._CommentsAPI;
 	SMultiColumnTableRow::Construct(FSuperRowType::FArguments(), InOwnerTableView);
 
 	// figure out how this asset diffs, and bind it to this->DiffMethod
@@ -42,10 +44,25 @@ TSharedRef<SWidget> SSourceControlReviewEntry::GenerateWidgetForColumn(const FNa
 	
 	if (ColumnName == SourceControlReview::ColumnIds::Status)
 	{
-		SAssignNew(InnerContent, SImage)
-		.DesiredSizeOverride(FVector2D(20.f, 20.f))
-		.ColorAndOpacity(this, &SSourceControlReviewEntry::GetSourceControlIconColor)
-		.Image(this, &SSourceControlReviewEntry::GetSourceControlIcon);
+		SAssignNew(InnerContent, SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.Padding(0.f, 0.f, 5.f, 0.f)
+		[
+			SNew(SImage)
+			.DesiredSizeOverride(FVector2D(20.f, 20.f))
+			.ColorAndOpacity(this, &SSourceControlReviewEntry::GetSourceControlIconColor)
+			.Image(this, &SSourceControlReviewEntry::GetSourceControlIcon)
+		]
+		+SHorizontalBox::Slot()
+		.Padding(5.f, 0.f, 0.f, 0.f)
+		[
+			SNew(SImage)
+			.Visibility(this, &SSourceControlReviewEntry::GetUnreadCommentsIconVisibility)
+			.ToolTipText(this, &SSourceControlReviewEntry::GetUnreadCommentsTooltip)
+			.DesiredSizeOverride(FVector2D(20.f, 20.f))
+			.ColorAndOpacity(FStyleColors::Foreground)
+			.Image(FAppStyle::Get().GetBrush(TEXT("Icons.Comment")))
+		];
 	}
 	else if (ColumnName == SourceControlReview::ColumnIds::File)
 	{
@@ -439,6 +456,78 @@ FText SSourceControlReviewEntry::GetAssetNameText() const
 FText SSourceControlReviewEntry::GetLocalAssetPathText() const
 {
 	return FText::FromString(TEXT("...") + ChangelistFileData.RelativeFilePath);
+}
+
+const TArray<FReviewComment>* SSourceControlReviewEntry::GetReviewComments() const
+{
+	const TSharedPtr<SSourceControlReview> Review = FChangelistReviewModule::Get().GetActiveReview().Pin();
+	return Review? Review->GetReviewCommentsForFile(ChangelistFileData.AssetDepotPath) : nullptr;
+}
+
+FString SSourceControlReviewEntry::GetReviewerUsername() const
+{
+	const TSharedPtr<IReviewCommentAPI> ReviewComments = CommentsAPI.Pin();
+	return ReviewComments? ReviewComments->GetUsername() : FString();
+}
+
+static bool IsCommentUnread(const FReviewComment& Comment, const FString& Username)
+{
+	// treat archived comments as read
+	if (Comment.bIsClosed)
+	{
+		return false;
+	}
+	// if there is no 'ReadBy' set, then the comment is unread
+	if (!Comment.ReadBy.IsSet())
+	{
+		return true;
+	}
+	// if the logged in user isn't in the 'ReadBy' set, there's an unread comment
+	if (!Comment.ReadBy->Contains(Username))
+	{
+		return true;
+	}
+	return false;
+}
+
+EVisibility SSourceControlReviewEntry::GetUnreadCommentsIconVisibility() const
+{
+	const TArray<FReviewComment>* Comments = GetReviewComments();
+	const FString Username = GetReviewerUsername();
+	if (!Comments || Username.IsEmpty())
+	{
+		return EVisibility::Collapsed;
+	}
+	
+	for (const FReviewComment& Comment : *Comments)
+	{
+		if (IsCommentUnread(Comment, Username))
+		{
+			return EVisibility::Visible;
+		}
+	}
+	return EVisibility::Collapsed;
+}
+
+FText SSourceControlReviewEntry::GetUnreadCommentsTooltip() const
+{
+	const TArray<FReviewComment>* Comments = GetReviewComments();
+	const FString Username = GetReviewerUsername();
+	if (!Comments || Username.IsEmpty())
+	{
+		return {};
+	}
+	
+	int32 NumUnreadComments = 0;
+	for (const FReviewComment& Comment : *Comments)
+	{
+		if (IsCommentUnread(Comment, Username))
+		{
+			++NumUnreadComments;
+		}
+	}
+	
+	return FText::Format(LOCTEXT("UnreadCommentsTooltip", "{0} Unread {0}|plural(one=Comment,other=Comments)"), NumUnreadComments);
 }
 
 const FString& SSourceControlReviewEntry::GetSearchableString() const

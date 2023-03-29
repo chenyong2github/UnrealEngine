@@ -782,7 +782,10 @@ UPackage* DiffUtils::LoadPackageForDiff(const FPackagePath& InTempPackagePath, c
 {
 	// set up instancing context
 	FLinkerInstancingContext Context;
-	Context.AddPackageMapping(InOriginalPackagePath.GetPackageFName(), InTempPackagePath.GetPackageFName());
+	if (!InOriginalPackagePath.GetLocalFullPath().IsEmpty())
+	{
+		Context.AddPackageMapping(InOriginalPackagePath.GetPackageFName(), InTempPackagePath.GetPackageFName());
+	}
 	
 	return LoadPackage(nullptr, *InTempPackagePath.GetPackageName(),
 		LOAD_ForDiff | LOAD_DisableCompileOnLoad | LOAD_DisableEngineVersionChecks, nullptr, &Context);

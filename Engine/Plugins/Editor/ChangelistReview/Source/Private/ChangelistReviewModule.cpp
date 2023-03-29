@@ -12,6 +12,63 @@
 
 static const FName SourceControlReviewTabName = FName(TEXT("SourceControlChangelistReview"));
 
+namespace UE::DiffControl
+{
+	extern KISMET_API const TArray<FReviewComment>*(*GGetReviewCommentsForFile)(const FString&);
+	extern KISMET_API void(*GPostReviewComment)(FReviewComment&);
+	extern KISMET_API void(*GEditReviewComment)(FReviewComment&);
+	extern KISMET_API FString(*GGetReviewerUsername)(void);
+	extern KISMET_API bool (*GIsFileInReview)(const FString& File);
+}
+
+static const TArray<FReviewComment>* GetReviewCommentsForFile(const FString& FilePath)
+{
+	const TWeakPtr<SSourceControlReview> ReviewWeak = FChangelistReviewModule::Get().GetActiveReview();
+	if (const TSharedPtr<SSourceControlReview> Review = ReviewWeak.Pin())
+	{
+		return Review->GetReviewCommentsForFile(FilePath);
+	}
+	return nullptr;
+}
+
+static void PostReviewComment(FReviewComment& Comment)
+{
+	const TWeakPtr<SSourceControlReview> ReviewWeak = FChangelistReviewModule::Get().GetActiveReview();
+	if (const TSharedPtr<SSourceControlReview> Review = ReviewWeak.Pin())
+	{
+		Review->PostComment(Comment);
+	}
+}
+
+static void EditReviewComment(FReviewComment& Comment)
+{
+	const TWeakPtr<SSourceControlReview> ReviewWeak = FChangelistReviewModule::Get().GetActiveReview();
+	if (const TSharedPtr<SSourceControlReview> Review = ReviewWeak.Pin())
+	{
+		Review->EditComment(Comment);
+	}
+}
+
+static FString GetReviewerUsername()
+{
+	const TWeakPtr<SSourceControlReview> ReviewWeak = FChangelistReviewModule::Get().GetActiveReview();
+	if (const TSharedPtr<SSourceControlReview> Review = ReviewWeak.Pin())
+	{
+		return Review->GetReviewerUsername();
+	}
+	return {};
+}
+
+static bool IsFileInReview(const FString& File)
+{
+	const TWeakPtr<SSourceControlReview> ReviewWeak = FChangelistReviewModule::Get().GetActiveReview();
+	if (const TSharedPtr<SSourceControlReview> Review = ReviewWeak.Pin())
+	{
+		return Review->IsFileInReview(File);
+	}
+	return false;
+}
+
 void FChangelistReviewModule::StartupModule()
 {
 	UToolMenu* SourceControlMenu = UToolMenus::Get()->ExtendMenu("StatusBar.ToolBar.SourceControl");
@@ -37,10 +94,21 @@ void FChangelistReviewModule::StartupModule()
 		.SetTooltipText(LOCTEXT("ChangelistsTabTooltip", "Opens a dialog to review shelved and submitted changelists."))
 		.SetIcon(SourceControlIcon)
 		.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+	UE::DiffControl::GGetReviewCommentsForFile = GetReviewCommentsForFile;
+	UE::DiffControl::GPostReviewComment = PostReviewComment;
+	UE::DiffControl::GEditReviewComment = EditReviewComment;
+	UE::DiffControl::GGetReviewerUsername = GetReviewerUsername;
+	UE::DiffControl::GIsFileInReview = IsFileInReview;
 }
 
 void FChangelistReviewModule::ShutdownModule()
 {
+	UE::DiffControl::GGetReviewCommentsForFile = nullptr;
+	UE::DiffControl::GPostReviewComment = nullptr;
+	UE::DiffControl::GEditReviewComment = nullptr;
+	UE::DiffControl::GGetReviewerUsername = nullptr;
+	UE::DiffControl::GIsFileInReview = nullptr;
 }
 
 TSharedRef<SDockTab> FChangelistReviewModule::CreateReviewTab(const FSpawnTabArgs& Args)
@@ -54,13 +122,13 @@ TSharedRef<SDockTab> FChangelistReviewModule::CreateReviewTab(const FSpawnTabArg
 
 TSharedPtr<SWidget> FChangelistReviewModule::CreateReviewUI()
 {
-	TSharedPtr<SWidget> ReturnWidget;
+	TSharedPtr<SSourceControlReview> ReturnWidget;
 	if (IsInGameThread())
 	{
-		TSharedPtr<SSourceControlReview> SharedPtr = SNew(SSourceControlReview);
-		ReturnWidget = SharedPtr;
+		ReturnWidget = SNew(SSourceControlReview);
+		ReviewWidget = ReturnWidget;
 	}
-	 return ReturnWidget;
+	return ReturnWidget;
 }
 
 void FChangelistReviewModule::ShowReviewTab()
@@ -79,6 +147,11 @@ bool FChangelistReviewModule::CanShowReviewTab() const
 		return Provider.IsAvailable() && Provider.GetName().ToString() == TEXT("Perforce");
 	}
 	return false;
+}
+
+TWeakPtr<SSourceControlReview> FChangelistReviewModule::GetActiveReview()
+{
+	return ReviewWidget;
 }
 
 

@@ -244,6 +244,7 @@ protected:
 	FDiffControl GenerateDefaultsPanel();
 	FDiffControl GenerateClassSettingsPanel();
 	FDiffControl GenerateComponentsPanel();
+	FDiffControl GenerateGeneralFileCommentEntries();
 
 	TSharedRef<SOverlay> GenerateGraphWidgetForPanel(FDiffPanel& OutDiffPanel) const;
 	TSharedRef<SBox> GenerateRevisionInfoWidgetForPanel(TSharedPtr<SWidget>& OutGeneratedWidget,const FText& InRevisionText) const;

@@ -5,6 +5,7 @@
 #include "Misc/PackagePath.h"
 #include "SourceControlOperations.h"
 #include "Widgets/Views/SHeaderRow.h"
+#include "FSwarmCommentsAPI.h"
 
 template <typename OptionType> class SComboBox;
 
@@ -140,9 +141,51 @@ public:
 	 * @param Changelist Changelist number to get
 	 */
 	void LoadChangelist(const FString& Changelist);
+
+	/**
+	 * Returns an array of review comments that are 
+	 * @param FilePath the file to retrieve comments from. (supports AssetDepotPaths and temp local file paths)
+	 */
+	const TArray<FReviewComment>* GetReviewCommentsForFile(const FString& FilePath);
+
+
+	void UpdateReviewComments();
+	void PostComment(FReviewComment& Comment);
+	void EditComment(FReviewComment& Comment);
+	FString GetReviewerUsername() const;
+	bool IsFileInReview(const FString& File) const;
 	
 private:
-	void OnChangelistLoadComplete(const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult, FString Changelist);
+
+	FString AsDepotPath(const FString& FilePath);
+	
+	/**
+	 * Called when FGetChangelistDetails completes
+	 */
+	void OnGetChangelistDetails(const FSourceControlOperationRef& InOperation, ECommandResult::Type InResult, FString Changelist);
+	
+	/**
+	 * Called when FSwarmCommentsAPI::GetReviewTopicForCL completes
+	 */
+	void OnGetReviewTopic(const FReviewTopic& Topic, const FString& ErrorMessage);
+	
+	/**
+	 * Called when FSwarmCommentsAPI::OnGetReviewComments completes
+	 */
+	void OnGetReviewComments(const TArray<FReviewComment>& Comments, const FString& ErrorMessage);
+	void OnInitReviewComments(const TArray<FReviewComment>& Comments, const FString& ErrorMessage);
+	
+	/**
+	 * Called when file is retrieved from source control
+	 * @param ChangelistFileData carried through worker to be filled with information about retrieved file from source control
+	 */
+	void OnGetFileFromSourceControl(TSharedPtr<FChangelistFileData> ChangelistFileData);
+	
+	/**
+	 * Called when changelist details, changelist files, and changelist review info has all been retrieved
+	 */
+	void OnLoadComplete();
+	
 	FReply OnLoadChangelistClicked();
 	bool IsSourceControlActive() const;
 	FText LoadChangelistTooltip() const;
@@ -154,12 +197,6 @@ private:
 	void SaveCLHistory();
 	void LoadCLHistory();
 	
-	/**
-	 * Called when file is retrieved from
-	 * @param ChangelistFileData carried through worker to be filled with information about retrieved file from source control
-	 */
-	void OnGetFileFromSourceControl(TSharedPtr<FChangelistFileData> ChangelistFileData);
-
 	/**
 	 * Sets bChangelistLoading and then fires the BP_SetLoading event
 	 * @param bInLoading when true flips visibility on loading bar and is also blocking from loading multiple changelists at the same time until loading is finished
@@ -188,7 +225,7 @@ private:
 	/**
 	 * Sets changelist information Author, Description, Status and Depot name that changelist is going to
 	 */
-	void SetChangelistInfo(const TMap<FString, FString>& InChangelistRecord);
+	void SetChangelistInfo(const TMap<FString, FString>& InChangelistRecord, const FString& ChangelistNum);
 
 	TSharedRef<ITableRow> OnGenerateFileRow(TSharedPtr<FChangelistFileData> FileData, const TSharedRef<STableViewBase>& Table) const;
 
@@ -214,8 +251,10 @@ private:
 
 	// used for asynchronous changelist loading
 	bool bChangelistLoading = false;
-	uint32 FilesToLoad = 0;
-	uint32 FilesLoaded = 0;
+
+	void IncrementItemsLoaded();
+	uint32 NumItemsToLoad = 0; // counts the number of API calls (swarm, p4, etc) that need to be loaded.
+	uint32 NumItemsLoaded = 0; // counts the number of API calls (swarm, p4, etc) that have been loaded
 	TArray<TSharedPtr<FChangelistFileData>> ChangelistFiles;
 	TSharedPtr<FGetChangelistDetails> GetChangelistDetailsCommand;
 	TArray<TSharedPtr<SourceControlReview::FChangelistLightInfo>> CLHistory;
@@ -236,5 +275,16 @@ private:
 		FText SharedPath;
 		FText Status;
 		FText Description;
+		FString ChangelistNum;
 	} CurrentChangelistInfo;
+
+	TSharedPtr<IReviewCommentAPI> CommentsAPI;
+	TOptional<FReviewTopic> ReviewTopic;
+	// review comments that aren't attached to a specific file
+	TArray<FReviewComment> GlobalReviewComments;
+	// review comments mapped by the file they're attached to (keyed by both repository path and temp local path)
+	TMap<FString, TArray<FReviewComment>> FileReviewComments;
+	bool bReviewCommentsDirty = false;
+
+	TMap<FString, FString> TempLocalPathToDepotPath;
 };
