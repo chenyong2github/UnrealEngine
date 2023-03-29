@@ -144,7 +144,7 @@ namespace UnrealBuildBase
 		/// <param name="Plugins">Collection of built plugins</param>
 		/// <returns>True if the plugins compiled</returns>
 		public static bool BuildUbtPlugins(FileReference? ProjectFile, IEnumerable<FileReference> FoundPlugins,
-			List<string>? DefineConstants, ILogger Logger, out (FileReference ProjectFile, FileReference TargetAssembly)[]? Plugins)
+			IEnumerable<string>? DefineConstants, ILogger Logger, out (FileReference ProjectFile, FileReference TargetAssembly)[]? Plugins)
 		{
 			bool bBuildSuccess = true;
 			Plugins = null;
@@ -182,7 +182,7 @@ namespace UnrealBuildBase
 		}
 
 		private static bool BuildUbtPluginsInternal(PluginSet PluginSet, FileReference? ProjectFile, 
-			List<FileReference> Built, IEnumerable<FileReference> NotBuilt, List<string>? DefineConstants, ILogger Logger)
+			List<FileReference> Built, IEnumerable<FileReference> NotBuilt, IEnumerable<string>? DefineConstants, ILogger Logger)
 		{
 			// Collect the work to be done
 			IEnumerable<FileReference>? ToBuild = null;

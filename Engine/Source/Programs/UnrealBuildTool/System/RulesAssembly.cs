@@ -28,7 +28,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The compiled assembly
 		/// </summary>
-		private Assembly? CompiledAssembly;
+		private readonly Assembly? CompiledAssembly;
 
 		/// <summary>
 		/// Returns the simple name of the assembly e.g. "UE5ProgramRules"
@@ -46,43 +46,43 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The base directories for this assembly
 		/// </summary>
-		private List<DirectoryReference> BaseDirs;
+		private readonly IReadOnlyList<DirectoryReference> BaseDirs;
 
 		/// <summary>
 		/// All the plugins included in this assembly
 		/// </summary>
-		private IReadOnlyList<PluginInfo> Plugins;
+		private readonly IReadOnlyList<PluginInfo> Plugins;
 
 		/// <summary>
 		/// Maps module names to their actual xxx.Module.cs file on disk
 		/// </summary>
-		private Dictionary<string, FileReference> ModuleNameToModuleFile = new Dictionary<string, FileReference>(StringComparer.InvariantCultureIgnoreCase);
+		private readonly IReadOnlyDictionary<string, FileReference> ModuleNameToModuleFile;
 
 		/// <summary>
 		/// Maps target names to their actual xxx.Target.cs file on disk
 		/// </summary>
-		private Dictionary<string, FileReference> TargetNameToTargetFile = new Dictionary<string, FileReference>(StringComparer.InvariantCultureIgnoreCase);
+		private readonly IReadOnlyDictionary<string, FileReference> TargetNameToTargetFile;
 
 		/// <summary>
 		/// Mapping from module file to its context.
 		/// </summary>
-		private Dictionary<FileReference, ModuleRulesContext> ModuleFileToContext;
+		private readonly IReadOnlyDictionary<FileReference, ModuleRulesContext> ModuleFileToContext;
 
 		/// <summary>
 		/// Whether this assembly contains engine modules. Used to set default values for bTreatAsEngineModule.
 		/// </summary>
-		private bool bContainsEngineModules;
+		private readonly bool bContainsEngineModules;
 
 		/// <summary>
 		/// Whether to use backwards compatible default settings for module and target rules. This is enabled by default for game projects to support a simpler migration path, but
 		/// is disabled for engine modules.
 		/// </summary>
-		private BuildSettingsVersion? DefaultBuildSettings;
+		private readonly BuildSettingsVersion? DefaultBuildSettings;
 
 		/// <summary>
 		/// Whether the modules and targets in this assembly are read-only
 		/// </summary>
-		private bool bReadOnly;
+		private readonly bool bReadOnly;
 
 		/// <summary>
 		/// The parent rules assembly that this assembly inherits. Game assemblies inherit the engine assembly, and the engine assembly inherits nothing.
@@ -92,12 +92,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The set of files that were compiled to create this assembly
 		/// </summary>
-		public HashSet<FileReference>? AssemblySourceFiles { get; }
+		public IEnumerable<FileReference>? AssemblySourceFiles { get; }
 
 		/// <summary>
 		/// Any preprocessor defines that were set when this assembly was created
 		/// </summary>
-		public List<string>? PreprocessorDefines { get;  }
+		public IEnumerable<string>? PreprocessorDefines { get;  }
 
 		/// <summary>
 		/// Constructor. Compiles a rules assembly from the given source files.
@@ -127,12 +127,13 @@ namespace UnrealBuildTool
 			this.Parent = Parent;
 
 			// Find all the source files
-			AssemblySourceFiles = new HashSet<FileReference>();
-			AssemblySourceFiles.UnionWith(ModuleFileToContext.Keys);
-			AssemblySourceFiles.UnionWith(TargetFiles);
+			HashSet<FileReference> AssemblySourceFilesHashSet = new HashSet<FileReference>();
+			AssemblySourceFilesHashSet.UnionWith(ModuleFileToContext.Keys);
+			AssemblySourceFilesHashSet.UnionWith(TargetFiles);
+			AssemblySourceFiles = AssemblySourceFilesHashSet;
 
 			// Compile the assembly
-			if (AssemblySourceFiles.Count > 0)
+			if (AssemblySourceFiles.Any())
 			{
 				// Add the parent assemblies as references so they can be used
 				List<string>? ReferencedAssembies = null;
@@ -153,22 +154,26 @@ namespace UnrealBuildTool
 			}
 
 			// Setup the module map
+			Dictionary<string, FileReference> ModuleNameToModuleFileDict = new Dictionary<string, FileReference>(StringComparer.InvariantCultureIgnoreCase);
+			ModuleNameToModuleFile = ModuleNameToModuleFileDict;
 			foreach (FileReference ModuleFile in ModuleFileToContext.Keys)
 			{
 				string ModuleName = ModuleFile.GetFileNameWithoutAnyExtensions();
 				if (!ModuleNameToModuleFile.ContainsKey(ModuleName))
 				{
-					ModuleNameToModuleFile.Add(ModuleName, ModuleFile);
+					ModuleNameToModuleFileDict.Add(ModuleName, ModuleFile);
 				}
 			}
 
 			// Setup the target map
+			Dictionary<string, FileReference> TargetNameToTargetFileDict = new Dictionary<string, FileReference>(StringComparer.InvariantCultureIgnoreCase);
+			TargetNameToTargetFile = TargetNameToTargetFileDict;
 			foreach (FileReference TargetFile in TargetFiles)
 			{
 				string TargetName = TargetFile.GetFileNameWithoutAnyExtensions();
 				if (!TargetNameToTargetFile.ContainsKey(TargetName))
 				{
-					TargetNameToTargetFile.Add(TargetName, TargetFile);
+					TargetNameToTargetFileDict.Add(TargetName, TargetFile);
 				}
 			}
 

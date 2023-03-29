@@ -125,7 +125,7 @@ namespace EpicGames.MsBuild
 			}
 		}
 
-		static FileReference ConstructBuildRecordPath(CsProjBuildHook Hook, FileReference ProjectPath, List<DirectoryReference> BaseDirectories)
+		static FileReference ConstructBuildRecordPath(CsProjBuildHook Hook, FileReference ProjectPath, IEnumerable<DirectoryReference> BaseDirectories)
 		{
 			DirectoryReference BasePath = null;
 
@@ -161,8 +161,8 @@ namespace EpicGames.MsBuild
 		/// <param name="OnBuildingProjects">Action invoked to notify caller regarding the number of projects being built</param>
 		/// <param name="Logger">Destination logger</param>
 		public static Dictionary<FileReference, CsProjBuildRecordEntry> Build(HashSet<FileReference> FoundProjects,
-			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories, 
-			List<string> DefineConstants, Action<int> OnBuildingProjects, ILogger Logger)
+			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, IEnumerable<DirectoryReference> BaseDirectories,
+			IEnumerable<string> DefineConstants, Action<int> OnBuildingProjects, ILogger Logger)
 		{
 
 			// Register the MS build path prior to invoking the internal routine.  By not having the internal routine
@@ -184,7 +184,7 @@ namespace EpicGames.MsBuild
 		/// <param name="OnBuildingProjects">Action invoked to notify caller regarding the number of projects being built</param>
 		/// <param name="Logger">Destination logger</param>
 		private static Dictionary<FileReference, CsProjBuildRecordEntry> BuildInternal(HashSet<FileReference> FoundProjects,
-			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories, List<string> DefineConstants,
+			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, IEnumerable<DirectoryReference> BaseDirectories, IEnumerable<string> DefineConstants,
 			Action<int> OnBuildingProjects, ILogger Logger)
 		{
 			Dictionary<string, string> GlobalProperties = new Dictionary<string, string>
@@ -197,7 +197,7 @@ namespace EpicGames.MsBuild
 #endif
 			};
 
-			if (DefineConstants.Count > 0)
+			if (DefineConstants.Any())
 			{
 				GlobalProperties.Add("DefineConstants", String.Join(';', DefineConstants));
 			}

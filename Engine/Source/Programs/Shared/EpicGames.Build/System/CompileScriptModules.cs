@@ -275,7 +275,7 @@ namespace UnrealBuildBase
 		/// <param name="Logger"></param>
 		/// <returns>Collection of all the projects.  They will have been compiled.</returns>
 		public static Dictionary<FileReference, CsProjBuildRecordEntry> Build(Rules.RulesFileType RulesFileType,
-			HashSet<FileReference> FoundProjects, List<DirectoryReference> BaseDirectories, List<string>? DefineConstants, 
+			HashSet<FileReference> FoundProjects, IEnumerable<DirectoryReference> BaseDirectories, IEnumerable<string>? DefineConstants, 
 			BuildFlags BuildFlags, out bool bBuildSuccess, Action<int> OnBuildingProjects, ILogger Logger)
 		{
 			CsProjBuildHook Hook = new Hook(Logger, RulesFileType);
@@ -390,10 +390,10 @@ namespace UnrealBuildBase
 		/// </summary>
 		[MethodImpl(MethodImplOptions.NoInlining)]
 		static Dictionary<FileReference, CsProjBuildRecordEntry> Build(HashSet<FileReference> FoundProjects,
-			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories,
-			List<string>? DefineConstants, Action<int> OnBuildingProjects, ILogger Logger)
+			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, IEnumerable<DirectoryReference> BaseDirectories,
+			IEnumerable<string>? DefineConstants, Action<int> OnBuildingProjects, ILogger Logger)
 		{
-			return CsProjBuilder.Build(FoundProjects, bForceCompile, out bBuildSuccess, Hook, BaseDirectories, DefineConstants ?? (new()), OnBuildingProjects, Logger);
+			return CsProjBuilder.Build(FoundProjects, bForceCompile, out bBuildSuccess, Hook, BaseDirectories, DefineConstants ?? (Enumerable.Empty<string>()), OnBuildingProjects, Logger);
 		}
 
 		/// <summary>
@@ -403,7 +403,7 @@ namespace UnrealBuildBase
 		/// <param name="BaseDirectories"></param>
 		/// <param name="Logger"></param>
 		/// <returns></returns>
-		static Dictionary<FileReference, CsProjBuildRecordEntry> LoadExistingBuildRecords(CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories, ILogger Logger)
+		static Dictionary<FileReference, CsProjBuildRecordEntry> LoadExistingBuildRecords(CsProjBuildHook Hook, IEnumerable<DirectoryReference> BaseDirectories, ILogger Logger)
         {
 			Dictionary<FileReference, CsProjBuildRecordEntry> LoadedBuildRecords = new Dictionary<FileReference, CsProjBuildRecordEntry>();
 
