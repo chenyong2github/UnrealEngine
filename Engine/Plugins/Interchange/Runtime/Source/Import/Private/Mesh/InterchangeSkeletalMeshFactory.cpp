@@ -40,6 +40,10 @@
 #include "SkeletalMeshAttributes.h"
 #include "SkeletalMeshOperations.h"
 
+#if WITH_EDITOR
+#include "LODUtilities.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeSkeletalMeshFactory)
 
 #if WITH_EDITORONLY_DATA
@@ -881,9 +885,9 @@ UClass* UInterchangeSkeletalMeshFactory::GetFactoryClass() const
 	return USkeletalMesh::StaticClass();
 }
 
-UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
+UObject* UInterchangeSkeletalMeshFactory::BeginImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeSkeletalMeshFactory::ImportAssetObject_GameThread")
+	TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeSkeletalMeshFactory::BeginImportAssetObject_GameThread")
 #if !WITH_EDITOR || !WITH_EDITORONLY_DATA
 
 	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import skeletalMesh asset in runtime, this is an editor only feature."));
@@ -1077,7 +1081,6 @@ UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_Async(const FImportA
 
 	// Update skeletal materials
 	TArray<FSkeletalMaterial>& Materials = SkeletalMesh->GetMaterials();
-
 	auto UpdateOrAddSkeletalMaterial = [&Materials, bIsReImport](const FName& MaterialSlotName, UMaterialInterface* MaterialInterface)
 	{
 		UMaterialInterface* NewMaterial = MaterialInterface ? MaterialInterface : UMaterial::GetDefaultMaterial(MD_Surface);
@@ -1126,6 +1129,9 @@ UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_Async(const FImportA
 		UpdateOrAddSkeletalMaterial(MaterialSlotName, MaterialInterface ? MaterialInterface : nullptr);
 	}
 
+	ImportAssetObjectData.bIsReImport = bIsReImport;
+	ImportAssetObjectData.bApplySkinningOnly = bApplySkinningOnly;
+	
 	for (int32 LodIndex = 0; LodIndex < LodCount; ++LodIndex)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeSkeletalMeshFactory::CreateAsset_LOD")
@@ -1186,6 +1192,7 @@ UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_Async(const FImportA
 				UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton LOD when importing SkeletalMesh asset %s"), *Arguments.AssetName);
 				break;
 			}
+			ImportAssetObjectData.SkeletonReference = SkeletonReference;
 		}
 
 		FString RootJointNodeId;
@@ -1371,6 +1378,31 @@ UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_Async(const FImportA
 			FSkeletalMeshImportData::ReplaceSkeletalMeshGeometryImportData(SkeletalMesh, &SkeletalMeshImportData, CurrentLodIndex);
 		}
 
+		//Store the existing material import data before updating it so we can remap properly the material  and section data
+		TArray<FName> ExistingOriginalPerSectionMaterialImportName;
+		if (bIsReImport)
+		{
+			if (CurrentLodIndex != 0)
+			{
+				if (!SkeletalMesh->IsLODImportedDataEmpty(CurrentLodIndex))
+				{
+					FSkeletalMeshImportData LODImportData;
+					SkeletalMesh->LoadLODImportedData(CurrentLodIndex, LODImportData);
+					for (int32 SectionIndex = 0; SectionIndex < LODImportData.Materials.Num(); ++SectionIndex)
+					{
+						ExistingOriginalPerSectionMaterialImportName.Add(FName(*LODImportData.Materials[SectionIndex].MaterialImportName));
+					}
+				}
+			}
+			else
+			{
+				//LOD 0 import data is reorder to the material array before when building the LOD 0
+				for (int32 MaterialIndex = 0; MaterialIndex < Materials.Num(); ++MaterialIndex)
+				{
+					ExistingOriginalPerSectionMaterialImportName.Add(Materials[MaterialIndex].ImportedMaterialSlotName);
+				}
+			}
+		}
 		//Store the original fbx import data the SkelMeshImportDataPtr should not be modified after this
 		SkeletalMesh->SaveLODImportedData(CurrentLodIndex, SkeletalMeshImportData);
 
@@ -1410,50 +1442,6 @@ UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_Async(const FImportA
 			AddLodInfo();
 		}
 
-		const TArray<SkeletalMeshImportData::FMaterial>& ImportedMaterials = SkeletalMeshImportData.Materials;
-		if (FSkeletalMeshLODInfo* LodInfo = SkeletalMesh->GetLODInfo(CurrentLodIndex))
-		{
-			LodInfo->LODMaterialMap.Empty();
-
-			// Now set up the material mapping array.
-			for (int32 ImportedMaterialIndex = 0; ImportedMaterialIndex < ImportedMaterials.Num(); ImportedMaterialIndex++)
-			{
-				FName ImportedMaterialName = *(ImportedMaterials[ImportedMaterialIndex].MaterialImportName);
-				//Match by name
-				int32 LODMatIndex = INDEX_NONE;
-				for (int32 MaterialIndex = 0; MaterialIndex < Materials.Num(); ++MaterialIndex)
-				{
-					const FSkeletalMaterial& SkeletalMaterial = Materials[MaterialIndex];
-					if (SkeletalMaterial.ImportedMaterialSlotName != NAME_None && SkeletalMaterial.ImportedMaterialSlotName == ImportedMaterialName)
-					{
-						LODMatIndex = MaterialIndex;
-						break;
-					}
-				}
-
-				// If we don't have a match, add a new entry to the material list.
-				if (LODMatIndex == INDEX_NONE)
-				{
-					LODMatIndex = Materials.Add(FSkeletalMaterial(ImportedMaterials[ImportedMaterialIndex].Material.Get(), true, false, ImportedMaterialName, ImportedMaterialName));
-					LodInfo->LODMaterialMap.Add(LODMatIndex);
-				}
-				else
-				{
-					if (CurrentLodIndex == 0)
-					{
-						//For base lod, the skeletalmesh build will reorder the FSkeletalMeshImportData face in the correct order
-						//see FLODUtilities::AdjustImportDataFaceMaterialIndex function, so we dont need to set 
-						LodInfo->LODMaterialMap.Add(ImportedMaterialIndex);
-					}
-					else
-					{
-						//For non base lod we want to use the LODMatIndex
-						LodInfo->LODMaterialMap.Add(LODMatIndex);
-					}
-				}
-			}
-		}
-
 		//Update the bounding box if we are importing the LOD 0
 		if(CurrentLodIndex == 0)
 		{
@@ -1467,13 +1455,88 @@ UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_Async(const FImportA
 			FBoxSphereBounds BoxSphereBound((FBox)BoundingBox);
 			SkeletalMesh->SetImportedBounds(FBoxSphereBounds((FBox)BoundingBox));
 		}
-
+		//Copy the data into the game thread structure so we can finish the import in the game thread callback
+		FImportAssetObjectLODData& ImportAssetObjectLODData = ImportAssetObjectData.LodDatas.AddDefaulted_GetRef();
+		ImportAssetObjectLODData.LodIndex = CurrentLodIndex;
+		ImportAssetObjectLODData.ExistingOriginalPerSectionMaterialImportName = ExistingOriginalPerSectionMaterialImportName;
+		ImportAssetObjectLODData.ImportedMaterials = SkeletalMeshImportData.Materials;
+		
 		CurrentLodIndex++;
 	}
 
-	if(SkeletonReference)
+	//Getting the file Hash will cache it into the source data
+	Arguments.SourceData->GetFileContentHash();
+
+	return SkeletalMeshObject;
+
+#endif //else !WITH_EDITOR || !WITH_EDITORONLY_DATA
+}
+
+UObject* UInterchangeSkeletalMeshFactory::EndImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeSkeletalMeshFactory::EndImportAssetObject_GameThread")
+	
+	check(IsInGameThread());
+
+#if !WITH_EDITOR || !WITH_EDITORONLY_DATA
+
+	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import skeletalMesh asset in runtime, this is an editor only feature."));
+	return nullptr;
+
+#else
+	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
-		if ((!bApplySkinningOnly || !bIsReImport) && !SkeletonReference->MergeAllBonesToBoneTree(SkeletalMesh))
+		return nullptr;
+	}
+
+	UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = Cast<UInterchangeSkeletalMeshFactoryNode>(Arguments.AssetNode);
+	if (SkeletalMeshFactoryNode == nullptr)
+	{
+		return nullptr;
+	}
+
+	const UClass* SkeletalMeshClass = SkeletalMeshFactoryNode->GetObjectClass();
+	check(SkeletalMeshClass && SkeletalMeshClass->IsChildOf(GetFactoryClass()));
+
+	//Get the skeletal mesh asset
+	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName));
+	if (!ensure(SkeletalMesh))
+	{
+		if (Arguments.ReimportObject == nullptr)
+		{
+			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create skeletalMesh asset %s"), *Arguments.AssetName);
+		}
+		else
+		{
+			UE_LOG(LogInterchangeImport, Error, TEXT("Could not find reimported skeletalMesh asset %s"), *Arguments.AssetName);
+		}
+		return nullptr;
+	}
+
+	//Make sure we can modify the skeletalmesh properties
+	FSkinnedAssetAsyncBuildScope AsyncBuildScope(SkeletalMesh);
+
+	//Finish the import in the game thread so we can pop dialog if needed
+	if (ensure(ImportAssetObjectData.IsValid()))
+	{
+		for (FImportAssetObjectLODData& ImportAssetObjectLODData : ImportAssetObjectData.LodDatas)
+		{
+			if (FSkeletalMeshLODInfo* LodInfo = SkeletalMesh->GetLODInfo(ImportAssetObjectLODData.LodIndex))
+			{
+				FLODUtilities::FSkeletalMeshMatchImportedMaterialsParameters Parameters;
+				Parameters.bIsReImport = ImportAssetObjectData.bIsReImport;
+				Parameters.LodIndex = ImportAssetObjectLODData.LodIndex;
+				Parameters.SkeletalMesh = SkeletalMesh;
+				Parameters.ImportedMaterials = &ImportAssetObjectLODData.ImportedMaterials;
+				Parameters.ExistingOriginalPerSectionMaterialImportName = &ImportAssetObjectLODData.ExistingOriginalPerSectionMaterialImportName;
+				FLODUtilities::MatchImportedMaterials(Parameters);
+			}
+		}
+	}
+
+	if (USkeleton* SkeletonReference = ImportAssetObjectData.SkeletonReference)
+	{
+		if ((!ImportAssetObjectData.bApplySkinningOnly || !ImportAssetObjectData.bIsReImport) && !SkeletonReference->MergeAllBonesToBoneTree(SkeletalMesh))
 		{
 			TUniqueFunction<bool()> RecreateSkeleton = [this, WeakSkeletalMesh = TWeakObjectPtr<USkeletalMesh>(SkeletalMesh), WeakSkeleton = TWeakObjectPtr<USkeleton>(SkeletonReference)]()
 			{
@@ -1491,7 +1554,7 @@ UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_Async(const FImportA
 				if (GIsRunningUnattendedScript)
 				{
 					UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
-					Message->Text = NSLOCTEXT("InterchangeSkeletalMeshFactory", "ImportWithScriptIncompatibleSkeleton", "Interchange Import UInterchangeSkeletalMeshFactory::CreateAsset, cannot merge bone tree with the existing skeleton.");
+					Message->Text = NSLOCTEXT("InterchangeSkeletalMeshFactory", "ImportWithScriptIncompatibleSkeleton", "Interchange Import UInterchangeSkeletalMeshFactory::EndImportAssetObject_GameThread, cannot merge bone tree with the existing skeleton.");
 					return false;
 				}
 
@@ -1570,10 +1633,10 @@ UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_Async(const FImportA
 	}
 	else
 	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Interchange Import UInterchangeSkeletalMeshFactory::CreateAsset, USkeleton* SkeletonReference is nullptr."));
+		UE_LOG(LogInterchangeImport, Error, TEXT("Interchange Import UInterchangeSkeletalMeshFactory::EndImportAssetObject_GameThread, USkeleton* SkeletonReference is nullptr."));
 	}
 
-	if (bIsReImport)
+	if (ImportAssetObjectData.bIsReImport)
 	{
 		//We must reset the matrixs since CalculateInvRefMatrices only do the calculation if matrix count differ from the bone count.
 		SkeletalMesh->GetRefBasesInvMatrix().Reset();
@@ -1581,7 +1644,7 @@ UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_Async(const FImportA
 
 	SkeletalMesh->CalculateInvRefMatrices();
 
-	if (!bIsReImport)
+	if (!ImportAssetObjectData.bIsReImport)
 	{
 		/** Apply all SkeletalMeshFactoryNode custom attributes to the skeletal mesh asset */
 		SkeletalMeshFactoryNode->ApplyAllCustomAttributeToObject(SkeletalMesh);
@@ -1614,14 +1677,9 @@ UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_Async(const FImportA
 		CurrentNode->FillAllCustomAttributeFromObject(SkeletalMesh);
 		UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset(SkeletalMesh, PreviousNode, CurrentNode, SkeletalMeshFactoryNode);
 	}
-		
-	//Getting the file Hash will cache it into the source data
-	Arguments.SourceData->GetFileContentHash();
 
-	//The interchange completion task (call in the GameThread after the factories pass), will call PostEditChange which will trig another asynchronous system that will build all material in parallel
-	return SkeletalMeshObject;
-
-#endif //else !WITH_EDITOR || !WITH_EDITORONLY_DATA
+	return SkeletalMesh;
+#endif //WITH_EDITOR
 }
 
 void UInterchangeSkeletalMeshFactory::Cancel()
@@ -1760,3 +1818,25 @@ bool UInterchangeSkeletalMeshFactory::SetReimportSourceIndex(const UObject* Obje
 	return false;
 }
 
+bool UInterchangeSkeletalMeshFactory::FImportAssetObjectData::IsValid() const
+{
+	if (LodDatas.Num() < 1)
+	{
+		return false;
+	}
+	for (const FImportAssetObjectLODData& ImportAssetObjectLODData : LodDatas)
+	{
+		if (ImportAssetObjectLODData.LodIndex == INDEX_NONE)
+		{
+			return false;
+		}
+#if WITH_EDITOR
+		if (ImportAssetObjectLODData.ImportedMaterials.Num() < 1)
+		{
+			return false;
+		}
+#endif
+	}
+
+	return true;
+}

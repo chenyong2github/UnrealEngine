@@ -1459,7 +1459,7 @@ UClass* UInterchangeTextureFactory::GetFactoryClass() const
 	return UTexture::StaticClass();
 }
 
-UObject* UInterchangeTextureFactory::ImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
+UObject* UInterchangeTextureFactory::BeginImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
 {
 	using namespace  UE::Interchange::Private::InterchangeTextureFactory;
 

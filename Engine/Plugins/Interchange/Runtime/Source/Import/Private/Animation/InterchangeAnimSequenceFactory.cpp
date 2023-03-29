@@ -767,7 +767,7 @@ UClass* UInterchangeAnimSequenceFactory::GetFactoryClass() const
 	return UAnimSequence::StaticClass();
 }
 
-UObject* UInterchangeAnimSequenceFactory::ImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
+UObject* UInterchangeAnimSequenceFactory::BeginImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
 {
 #if !WITH_EDITOR || !WITH_EDITORONLY_DATA
 

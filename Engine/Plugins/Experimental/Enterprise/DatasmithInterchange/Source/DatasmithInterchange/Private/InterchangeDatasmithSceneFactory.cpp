@@ -15,7 +15,7 @@ UClass* UInterchangeDatasmithSceneFactory::GetFactoryClass() const
 }
 
 
-UObject* UInterchangeDatasmithSceneFactory::ImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
+UObject* UInterchangeDatasmithSceneFactory::BeginImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
 {
 	UDatasmithScene* DatasmithScene = nullptr;
 

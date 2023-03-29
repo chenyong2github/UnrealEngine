@@ -64,6 +64,7 @@
 #endif // #if WITH_EDITOR
 
 #include "Engine/StaticMeshSocket.h"
+#include "MaterialDomain.h"
 #include "EditorFramework/AssetImportData.h"
 #include "AI/Navigation/NavCollisionBase.h"
 #include "AI/NavigationSystemBase.h"
@@ -78,6 +79,10 @@
 #if PLATFORM_WINDOWS
 #include "Framework/Docking/TabManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#endif
+
+#if WITH_EDITORONLY_DATA
+#include "Materials/Material.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "StaticMesh"
@@ -4203,6 +4208,8 @@ bool UStaticMesh::SetCustomLOD(const UStaticMesh* SourceStaticMesh, int32 Destin
 		return false;
 	}
 
+	const bool bIsReimport = GetNumSourceModels() > DestinationLodIndex;
+
 	if(DestinationLodIndex >= GetNumSourceModels())
 	{
 		// Add one LOD 
@@ -4228,7 +4235,7 @@ bool UStaticMesh::SetCustomLOD(const UStaticMesh* SourceStaticMesh, int32 Destin
 	}
 
 	TArray<FStaticMaterial>& DestinationMaterials = GetStaticMaterials();
-
+	TMap<FName, FMeshSectionInfo> ExistingSectionInfos;
 	FMeshDescription* DestinationMeshDescription = GetMeshDescription(DestinationLodIndex);
 	if (DestinationMeshDescription == nullptr)
 	{
@@ -4243,58 +4250,81 @@ bool UStaticMesh::SetCustomLOD(const UStaticMesh* SourceStaticMesh, int32 Destin
 	}
 	else
 	{
+		ensure(bIsReimport);
+		FStaticMeshConstAttributes ExistingAttributes(*DestinationMeshDescription);
+		TPolygonGroupAttributesConstRef<FName> ExistingMaterialSlotNames = ExistingAttributes.GetPolygonGroupMaterialSlotNames();
+		int32 SectionIndex = 0;
+		for (FPolygonGroupID PolygonGroupID : DestinationMeshDescription->PolygonGroups().GetElementIDs())
+		{
+			FMeshSectionInfo& ExistingInfo = ExistingSectionInfos.FindOrAdd(ExistingMaterialSlotNames[PolygonGroupID]);
+			int32 MaterialSlotIndex = GetMaterialIndexFromImportedMaterialSlotName(ExistingMaterialSlotNames[PolygonGroupID]);
+			if (GetSectionInfoMap().IsValidSection(DestinationLodIndex, SectionIndex))
+			{
+				ExistingInfo = GetSectionInfoMap().Get(DestinationLodIndex, SectionIndex);
+			}
+			else
+			{
+				ExistingInfo.MaterialIndex = MaterialSlotIndex;
+			}
+			if (!DestinationMaterials.IsValidIndex(ExistingInfo.MaterialIndex))
+			{
+				//There was an invalid material index in the existing mesh section info
+				//Assign the raw material slot that match with the name if valid, otherwise set it at 0
+				ExistingInfo.MaterialIndex = MaterialSlotIndex != INDEX_NONE ? MaterialSlotIndex : 0;
+			}
+			SectionIndex++;
+		}
 		// clear out the old mesh data
 		DestinationMeshDescription->Empty();
 	}
 
 	//Make sure all materials use by the new LOD is pointing on a valid static material
+	int32 SectionIndex = 0;
 	for(const TPair<int32, FName>& SourceImportedMaterialNamePair : SourceImportedMaterialNameUsed)
 	{
-		bool bFoundMatch = false;
 		FName NameSearch = SourceImportedMaterialNamePair.Value;
-			
-		for (int32 MaterialIndex = 0; MaterialIndex < DestinationMaterials.Num(); ++MaterialIndex)
+		int32 MaterialSlotIndex = GetMaterialIndexFromImportedMaterialSlotName(NameSearch);
+		if (!ExistingSectionInfos.Contains(NameSearch))
 		{
-			const FStaticMaterial& StaticMaterial = DestinationMaterials[MaterialIndex];
-			if (NameSearch == StaticMaterial.ImportedMaterialSlotName)
+			if (MaterialSlotIndex == INDEX_NONE)
 			{
-				bFoundMatch = true;
-				break;
+				//Add the missing material slot
+				MaterialSlotIndex = DestinationMaterials.Add(FStaticMaterial(UMaterial::GetDefaultMaterial(MD_Surface), NameSearch, NameSearch));
 			}
+			FMeshSectionInfo NewInfo;
+			NewInfo.MaterialIndex = MaterialSlotIndex;
+			ExistingSectionInfos.Add(NameSearch, NewInfo);
 		}
-
-		if (!bFoundMatch)
-		{
-			//Add the missing material slot
-			FStaticMaterial StaticMaterial(nullptr, NameSearch, NameSearch);
-		}
+#if WITH_EDITOR
+		FMeshSectionInfo Info = ExistingSectionInfos.FindChecked(NameSearch);
+		GetSectionInfoMap().Remove(DestinationLodIndex, SectionIndex);
+		GetSectionInfoMap().Set(DestinationLodIndex, SectionIndex, Info);
+#endif //WITH_EDITOR
+		SectionIndex++;
 	}
 
 	//Copy the mesh description of the source into the destination
 	*DestinationMeshDescription = *SourceMeshDescription;
 	
-
-	if(IsInGameThread())
+	UStaticMesh* ThisMesh = this;
+	auto FinalizeSetCustomLODGameThread = [ThisMesh, DestinationLodIndex]()
 	{
-		PostEditChange();
+		check(IsInGameThread());
 		//Commit the mesh description to update the ddc key
 		FCommitMeshDescriptionParams CommitMeshDescriptionParams;
 		CommitMeshDescriptionParams.bMarkPackageDirty = true;
 		CommitMeshDescriptionParams.bUseHashAsGuid = false;
-		CommitMeshDescription(DestinationLodIndex, CommitMeshDescriptionParams);
+		ThisMesh->CommitMeshDescription(DestinationLodIndex, CommitMeshDescriptionParams);
+		ThisMesh->PostEditChange();
+	};
+
+	if(IsInGameThread())
+	{
+		FinalizeSetCustomLODGameThread();
 	}
 	else
 	{
-		UStaticMesh* ThisMesh = this;
-		Async(EAsyncExecution::TaskGraphMainThread, [ThisMesh, DestinationLodIndex]()
-		{
-			ThisMesh->PostEditChange();
-			//Commit the mesh description to update the ddc key
-			FCommitMeshDescriptionParams CommitMeshDescriptionParams;
-			CommitMeshDescriptionParams.bMarkPackageDirty = true;
-			CommitMeshDescriptionParams.bUseHashAsGuid = false;
-			ThisMesh->CommitMeshDescription(DestinationLodIndex, CommitMeshDescriptionParams);
-		});
+		Async(EAsyncExecution::TaskGraphMainThread, MoveTemp(FinalizeSetCustomLODGameThread));
 	}
 
 	if (IsSourceModelValid(DestinationLodIndex))

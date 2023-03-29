@@ -294,7 +294,7 @@ UClass* UInterchangeSceneVariantSetsFactory::GetFactoryClass() const
 	return ULevelVariantSets::StaticClass();
 }
 
-UObject* UInterchangeSceneVariantSetsFactory::ImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
+UObject* UInterchangeSceneVariantSetsFactory::BeginImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
 {
 #if !WITH_EDITOR || !WITH_EDITORONLY_DATA
 

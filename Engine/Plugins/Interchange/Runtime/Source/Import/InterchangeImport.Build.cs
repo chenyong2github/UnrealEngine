@@ -52,6 +52,7 @@ namespace UnrealBuildTool.Rules
 					{
 						"BSPUtils",
 						"MaterialEditor",
+						"SkeletalMeshUtilitiesCommon",
 						"UnrealEd",
 						"VariantManager",
 					}

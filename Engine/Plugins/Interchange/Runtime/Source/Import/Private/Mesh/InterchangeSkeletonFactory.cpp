@@ -17,7 +17,7 @@ UClass* UInterchangeSkeletonFactory::GetFactoryClass() const
 	return USkeleton::StaticClass();
 }
 
-UObject* UInterchangeSkeletonFactory::ImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
+UObject* UInterchangeSkeletonFactory::BeginImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
 {
 	UObject* Skeleton = nullptr;
 

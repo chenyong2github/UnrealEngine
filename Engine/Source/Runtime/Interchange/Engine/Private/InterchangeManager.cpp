@@ -313,8 +313,9 @@ FGraphEventArray UE::Interchange::FImportAsyncHelper::GetCompletionTaskGraphEven
 	FTaskGraphInterface::Get().WaitUntilTasksComplete(TasksToComplete, ENamedThreads::GameThread);
 	TasksToComplete.Reset();
 
-	TasksToComplete.Append(CreatePackageTasks);
-	TasksToComplete.Append(CreateAssetTasks);
+	TasksToComplete.Append(BeginImportObjectTasks);
+	TasksToComplete.Append(ImportObjectTasks);
+	TasksToComplete.Append(FinalizeImportObjectTasks);
 	TasksToComplete.Append(SceneTasks);
 	TasksToComplete.Append(PipelinePostImportTasks);
 
@@ -641,11 +642,21 @@ UInterchangeManager& UInterchangeManager::GetInterchangeManager()
 		//We cancel any running task when we pre exit the engine
 		FCoreDelegates::OnEnginePreExit.AddLambda([]()
 		{
-			//If a user run a editor commandlet, we want to finish the import before the editor close.
-			//In editor mode, the user cannot close the editor if an import task is running, so we should not endup here.
-			const bool bCancel = !GIsEditor;
-			//Synchronously wait all task to finish
-			InterchangeManager->WaitUntilAllTasksDone(bCancel);
+			//InterchangeManager should be valid at this point since this lambda is where the strong reference pointer get reset.
+			if (!ensure(InterchangeManager.IsValid()))
+			{
+				InterchangeManagerScopeOfLifeEnded = true;
+				return;
+			}
+
+			if (IsInterchangeImportEnabled())
+			{
+				//If a user run a editor commandlet, we want to finish the import before the editor close.
+				//In editor mode, the user cannot close the editor if an import task is running, so we should not endup here.
+				const bool bCancel = !GIsEditor;
+				//Synchronously wait all task to finish
+				InterchangeManager->WaitUntilAllTasksDone(bCancel);
+			}
 
 			//Task should have been cancel in the Engine pre exit callback
 			ensure(InterchangeManager->ImportTasks.Num() == 0);

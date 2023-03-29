@@ -292,20 +292,26 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 			if (ensureMsgf(!CreatedTasksAssetNames.Contains(AssetFullPath),
 				TEXT("Found multiple task data with the same asset name (%s). Only one will be executed."), *AssetFullPath))
 			{
-				//Add create package task has a prerequisite of FTaskImportObject_Async. Create package task is a game thread task
-				FGraphEventArray CreatePackagePrerequistes;
-				int32 CreatePackageTaskIndex = AsyncHelper->CreatePackageTasks.Add(
+				FGraphEventArray ImportObjectTasksPrerequistes;
+				int32 BeginImportObjectTaskIndex = AsyncHelper->BeginImportObjectTasks.Add(
 					TGraphTask<FTaskImportObject_GameThread>::CreateTask(&(TaskData.Prerequisites)).ConstructAndDispatchWhenReady(PackageBasePath, SourceIndex, WeakAsyncHelper, FactoryNode, FactoryClass)
 				);
-				CreatePackagePrerequistes.Add(AsyncHelper->CreatePackageTasks[CreatePackageTaskIndex]);
+				ImportObjectTasksPrerequistes.Add(AsyncHelper->BeginImportObjectTasks[BeginImportObjectTaskIndex]);
 
-				int32 CreateTaskIndex = AsyncHelper->CreateAssetTasks.Add(
-					TGraphTask<FTaskImportObject_Async>::CreateTask(&(CreatePackagePrerequistes)).ConstructAndDispatchWhenReady(PackageBasePath, SourceIndex, WeakAsyncHelper, FactoryNode)
+				int32 ImportObjectTaskIndex = AsyncHelper->ImportObjectTasks.Add(
+					TGraphTask<FTaskImportObject_Async>::CreateTask(&(ImportObjectTasksPrerequistes)).ConstructAndDispatchWhenReady(PackageBasePath, SourceIndex, WeakAsyncHelper, FactoryNode)
+				);
+
+				FGraphEventArray FinalizeImportObjectTasksPrerequistes;
+				FinalizeImportObjectTasksPrerequistes.Add(AsyncHelper->ImportObjectTasks[ImportObjectTaskIndex]);
+
+				int32 FinalizeCreateTaskIndex = AsyncHelper->FinalizeImportObjectTasks.Add(
+					TGraphTask<FTaskImportObjectFinalize_GameThread>::CreateTask(&(FinalizeImportObjectTasksPrerequistes)).ConstructAndDispatchWhenReady(PackageBasePath, SourceIndex, WeakAsyncHelper, FactoryNode)
 				);
 
 				CreatedTasksAssetNames.Add(AssetFullPath);
 
-				return AsyncHelper->CreateAssetTasks[CreateTaskIndex];
+				return AsyncHelper->FinalizeImportObjectTasks[FinalizeCreateTaskIndex];
 			}
 			else
 			{

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "InterchangeFactoryBase.h"
+#include "MeshDescription.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "Mesh/InterchangeMeshPayload.h"
@@ -15,7 +16,6 @@ class UBodySetup;
 class UStaticMesh;
 class UInterchangeStaticMeshFactoryNode;
 class UInterchangeStaticMeshLodDataNode;
-struct FMeshDescription;
 struct FKAggregateGeom;
 
 
@@ -30,8 +30,9 @@ public:
 
 	virtual UClass* GetFactoryClass() const override;
 	virtual EInterchangeFactoryAssetType GetFactoryAssetType() override { return EInterchangeFactoryAssetType::Meshes; }
-	virtual UObject* ImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments) override;
+	virtual UObject* BeginImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments) override;
 	virtual UObject* ImportAssetObject_Async(const FImportAssetObjectParams& Arguments) override;
+	virtual UObject* EndImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments) override;
 	virtual void SetupObject_GameThread(const FSetupObjectParams& Arguments) override;
 	virtual bool GetSourceFilenames(const UObject* Object, TArray<FString>& OutSourceFilenames) const override;
 	virtual bool SetSourceFilename(const UObject* Object, const FString& SourceFilename, int32 SourceIndex) const override;
@@ -68,4 +69,10 @@ private:
 #if WITH_EDITORONLY_DATA
 	void SetupSourceModelsSettings(UStaticMesh& StaticMesh, const TArray<FMeshDescription>& LodMeshDescriptions, int32 PreviousLodCount, int32 FinalLodCount, bool bIsAReimport);
 #endif
+	struct FImportAssetObjectData
+	{
+		bool bImportedCustomCollision = false;
+		TArray<FMeshDescription> LodMeshDescriptions;
+	};
+	FImportAssetObjectData ImportAssetObjectData;
 };

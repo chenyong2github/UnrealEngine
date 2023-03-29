@@ -202,8 +202,9 @@ namespace UE
 			TArray<FGraphEventRef> PipelineTasks;
 			TArray<FGraphEventRef> PipelinePostImportTasks;
 			FGraphEventRef ParsingTask;
-			TArray<FGraphEventRef> CreatePackageTasks;
-			TArray<FGraphEventRef> CreateAssetTasks;
+			TArray<FGraphEventRef> BeginImportObjectTasks;
+			TArray<FGraphEventRef> ImportObjectTasks;
+			TArray<FGraphEventRef> FinalizeImportObjectTasks;
 			TArray<FGraphEventRef> SceneTasks;
 
 			FGraphEventRef PreAsyncCompletionTask;
