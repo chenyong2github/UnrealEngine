@@ -20,7 +20,7 @@ UCustomizableObjectInstanceFactory::UCustomizableObjectInstanceFactory(const FOb
     : Super(ObjectInitializer)
 {
     DisplayName = LOCTEXT("CustomizableObjectInstanceDisplayName", "Customizable Object Instance");
-    NewActorClass = ASkeletalMeshActor::StaticClass();
+    NewActorClass = ACustomizableSkeletalMeshActor::StaticClass();
     bUseSurfaceOrientation = true;
 }
 
@@ -144,7 +144,7 @@ void UCustomizableObjectInstanceFactory::PostSpawnActor(UObject* Asset, AActor* 
 			}			
 		}
 
-		UActorFactory::PostSpawnActor(COInstance, NewActor);
+		Super::PostSpawnActor(COInstance, NewActor);
 	}
 }
 
