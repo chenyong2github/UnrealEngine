@@ -1645,6 +1645,8 @@ struct FGameFeaturePluginState_Unmounting : public FGameFeaturePluginState
 
 		if (StateProperties.bAddedPluginToManager)
 		{
+			UGameFeaturesSubsystem::Get().PruneCachedGameFeaturePluginDetails(StateProperties.PluginIdentifier.GetFullPluginURL(), StateProperties.PluginInstalledFilename);
+
 			verify(IPluginManager::Get().RemoveFromPluginsList(StateProperties.PluginInstalledFilename));
 			StateProperties.bAddedPluginToManager = false;
 		}
@@ -1937,7 +1939,7 @@ struct FGameFeaturePluginState_WaitingForDependencies : public FGameFeaturePlugi
 			UGameFeaturesSubsystem& GameFeaturesSubsystem = UGameFeaturesSubsystem::Get();
 
 			TArray<UGameFeaturePluginStateMachine*> Dependencies;
-			if (!GameFeaturesSubsystem.FindOrCreatePluginDependencyStateMachines(StateProperties.PluginInstalledFilename, Dependencies))
+			if (!GameFeaturesSubsystem.FindOrCreatePluginDependencyStateMachines(*StateProperties.PluginIdentifier.GetFullPluginURL(), StateProperties.PluginInstalledFilename, Dependencies))
 			{
 				// Failed to query dependencies
 				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorWaitingForDependencies, GetErrorResult(TEXT("Failed_Dependency_Query")));

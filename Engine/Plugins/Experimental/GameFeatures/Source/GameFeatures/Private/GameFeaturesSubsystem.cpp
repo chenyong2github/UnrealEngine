@@ -12,6 +12,7 @@
 #include "Interfaces/IPluginManager.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
+#include "Misc/PathViews.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/JsonSerializer.h"
 #include "Stats/StatsMisc.h"
@@ -1359,8 +1360,11 @@ EGameFeaturePluginState UGameFeaturesSubsystem::GetPluginState(FGameFeaturePlugi
 	}
 }
 
-bool UGameFeaturesSubsystem::GetGameFeaturePluginDetails(const TSharedRef<IPlugin>& Plugin, FString& OutPluginURL, struct FGameFeaturePluginDetails& OutPluginDetails) const
+bool UGameFeaturesSubsystem::GetGameFeaturePluginDetails(const TSharedRef<IPlugin>& Plugin, FString& OutPluginURL, FGameFeaturePluginDetails& OutPluginDetails) const
 {
+	// @TODO: this problematic because it assumes file protocol.
+	// Ideally this would work with any protocol, but for current uses cases the exact protocol doesn't seem to matter.
+
 	const FString& PluginDescriptorFilename = Plugin->GetDescriptorFileName();
 
 	// Make sure you are in a game feature plugins folder. All GameFeaturePlugins are rooted in a GameFeatures folder.
@@ -1378,14 +1382,14 @@ bool UGameFeaturesSubsystem::GetGameFeaturePluginDetails(const TSharedRef<IPlugi
 
 		if (bIsFileProtocol)
 		{
-			return GetGameFeaturePluginDetails(PluginDescriptorFilename, OutPluginDetails);
+			return GetGameFeaturePluginDetails(OutPluginURL, PluginDescriptorFilename, OutPluginDetails);
 		}
 	}
 
 	return false;
 }
 
-bool UGameFeaturesSubsystem::GetGameFeaturePluginDetails(const FString& PluginDescriptorFilename, FGameFeaturePluginDetails& OutPluginDetails) const
+bool UGameFeaturesSubsystem::GetGameFeaturePluginDetails(const FString& PluginURL, const FString& PluginDescriptorFilename, FGameFeaturePluginDetails& OutPluginDetails) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(GFP_GetPluginDetails);
 
@@ -1395,6 +1399,9 @@ bool UGameFeaturesSubsystem::GetGameFeaturePluginDetails(const FString& PluginDe
 	FDateTime FileTimeStamp;
 	if (UE::GameFeatures::GCachePluginDetails)
 	{
+		// Note: On file systems that don't support timestamps (current time is returned instead), 
+		// the pak file layer will end up caching the mount time, so this stamp will still be valid as long as the uplugin
+		// is in a pak and the pak is mounted.
 		FileTimeStamp = IFileManager::Get().GetTimeStamp(*PluginDescriptorFilename);
 		if (FCachedGameFeaturePluginDetails* ExistingDetails = CachedPluginDetailsByFilename.Find(PluginDescriptorFilename))
 		{
@@ -1410,25 +1417,35 @@ bool UGameFeaturesSubsystem::GetGameFeaturePluginDetails(const FString& PluginDe
 		}
 	}
 
-	// Read the file to a string
-	FString FileContents;
-	if (!FFileHelper::LoadFileToString(FileContents, *PluginDescriptorFilename))
+	TSharedPtr<FJsonObject> ObjectPtr;
 	{
-		UE_LOG(LogGameFeatures, Error, TEXT("UGameFeaturesSubsystem could not determine if feature was hotfixable. Failed to read file. File:%s Error:%d"), *PluginDescriptorFilename, FPlatformMisc::GetLastError());
-		return false;
-	}
+#if WITH_EDITOR
+		// In the editor we already have the plugin JSON cached
+		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(FPathViews::GetBaseFilename(PluginDescriptorFilename));
+		if (Plugin)
+		{
+			ObjectPtr = Plugin->GetDescriptorJson();
+		}
+		else
+#endif // WITH_EDITOR
+		{
+			// Read the file to a string
+			FString FileContents;
+			if (!FFileHelper::LoadFileToString(FileContents, *PluginDescriptorFilename))
+			{
+				UE_LOG(LogGameFeatures, Error, TEXT("UGameFeaturesSubsystem could not determine if feature was hotfixable. Failed to read file. File:%s Error:%d"), *PluginDescriptorFilename, FPlatformMisc::GetLastError());
+				return false;
+			}
 
-	// Deserialize a JSON object from the string
-	TSharedPtr< FJsonObject > ObjectPtr;
-	TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create(FileContents);
-	if (!FJsonSerializer::Deserialize(Reader, ObjectPtr) || !ObjectPtr.IsValid())
-	{
-		UE_LOG(LogGameFeatures, Error, TEXT("UGameFeaturesSubsystem could not determine if feature was hotfixable. Json invalid. File:%s. Error:%s"), *PluginDescriptorFilename, *Reader->GetErrorMessage());
-		return false;
+			// Deserialize a JSON object from the string	
+			TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create(FileContents);
+			if (!FJsonSerializer::Deserialize(Reader, ObjectPtr) || !ObjectPtr.IsValid())
+			{
+				UE_LOG(LogGameFeatures, Error, TEXT("UGameFeaturesSubsystem could not determine if feature was hotfixable. Json invalid. File:%s. Error:%s"), *PluginDescriptorFilename, *Reader->GetErrorMessage());
+				return false;
+			}
+		}
 	}
-
-	//@TODO: When we properly support downloaded plugins, will need to determine this
-	const bool bIsBuiltInPlugin = true;
 
 	// Read the properties
 
@@ -1437,7 +1454,7 @@ bool UGameFeaturesSubsystem::GetGameFeaturePluginDetails(const FString& PluginDe
 	ObjectPtr->TryGetBoolField(TEXT("Hotfixable"), OutPluginDetails.bHotfixable);
 
 	// Determine the initial plugin state
-	OutPluginDetails.BuiltInAutoState = bIsBuiltInPlugin ? DetermineBuiltInInitialFeatureState(ObjectPtr, PluginDescriptorFilename) : EBuiltInAutoState::Installed;
+	OutPluginDetails.BuiltInAutoState = DetermineBuiltInInitialFeatureState(ObjectPtr, PluginDescriptorFilename);
 
 	// Read any additional metadata the policy might want to consume (e.g., a release version number)
 	for (const FString& ExtraKey : GetDefault<UGameFeaturesSubsystemSettings>()->AdditionalPluginMetadataKeys)
@@ -1472,28 +1489,14 @@ bool UGameFeaturesSubsystem::GetGameFeaturePluginDetails(const FString& PluginDe
 						ElementObject->TryGetStringField(NameField, DependencyName);
 						if (!DependencyName.IsEmpty())
 						{
-							TSharedPtr<IPlugin> DependencyPlugin = IPluginManager::Get().FindPlugin(DependencyName);
-							if (DependencyPlugin.IsValid())
+							TValueOrError<FString, FString> ResolvedDepResult = GameSpecificPolicies->ReslovePluginDependency(PluginURL, DependencyName);
+							if (ResolvedDepResult.HasError())
 							{
-								FString DependencyURL;
-								if (!GetPluginURLByName(DependencyPlugin->GetName(), DependencyURL))
-								{
-									if (!DependencyPlugin->GetDescriptorFileName().IsEmpty() &&
-										GetDefault<UGameFeaturesSubsystemSettings>()->IsValidGameFeaturePlugin(FPaths::ConvertRelativePathToFull(DependencyPlugin->GetDescriptorFileName())) &&
-										FPaths::FileExists(DependencyPlugin->GetDescriptorFileName()))
-									{
-										DependencyURL = GetPluginURL_FileProtocol(DependencyPlugin->GetDescriptorFileName());
-									}
-								}
-
-								if (!DependencyURL.IsEmpty())
-								{
-									OutPluginDetails.PluginDependencies.Add(DependencyURL);
-								}
+								UE_LOG(LogGameFeatures, Error, TEXT("Game feature plugin '%s' has unknown dependency '%s' [%s]."), *PluginDescriptorFilename, *DependencyName, *ResolvedDepResult.GetError());
 							}
-							else
+							else if (ResolvedDepResult.HasValue() && !ResolvedDepResult.GetValue().IsEmpty()) // Dependency may not be a GFP
 							{
-								UE_LOG(LogGameFeatures, Display, TEXT("Game feature plugin '%s' has unknown dependency '%s'."), *PluginDescriptorFilename, *DependencyName);
+								OutPluginDetails.PluginDependencies.Add(ResolvedDepResult.StealValue());
 							}
 						}
 					}
@@ -1507,6 +1510,11 @@ bool UGameFeaturesSubsystem::GetGameFeaturePluginDetails(const FString& PluginDe
 		CachedPluginDetailsByFilename.Add(PluginDescriptorFilename, FCachedGameFeaturePluginDetails(OutPluginDetails, FileTimeStamp));
 	}
 	return true;
+}
+
+void UGameFeaturesSubsystem::PruneCachedGameFeaturePluginDetails(const FString& PluginURL, const FString& PluginDescriptorFilename) const
+{
+	CachedPluginDetailsByFilename.Remove(PluginDescriptorFilename);
 }
 
 UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindGameFeaturePluginStateMachineByPluginName(const FString& PluginName) const
@@ -1671,10 +1679,10 @@ void UGameFeaturesSubsystem::FinishTermination(UGameFeaturePluginStateMachine* M
 	TerminalGameFeaturePluginStateMachines.RemoveSwap(Machine);
 }
 
-bool UGameFeaturesSubsystem::FindOrCreatePluginDependencyStateMachines(const FString& PluginFilename, TArray<UGameFeaturePluginStateMachine*>& OutDependencyMachines)
+bool UGameFeaturesSubsystem::FindOrCreatePluginDependencyStateMachines(const FString& PluginURL, const FString& PluginFilename, TArray<UGameFeaturePluginStateMachine*>& OutDependencyMachines)
 {
 	FGameFeaturePluginDetails Details;
-	if (GetGameFeaturePluginDetails(PluginFilename, Details))
+	if (GetGameFeaturePluginDetails(PluginURL, PluginFilename, Details))
 	{
 		for (const FString& DependencyURL : Details.PluginDependencies)
 		{
