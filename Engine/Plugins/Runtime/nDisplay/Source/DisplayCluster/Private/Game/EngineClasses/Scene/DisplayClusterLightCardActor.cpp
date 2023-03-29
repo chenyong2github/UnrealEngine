@@ -577,6 +577,11 @@ void ADisplayClusterLightCardActor::SetIsLightCardFlag(bool bNewFlagValue)
 	bIsLightCardFlag = bNewFlagValue;
 }
 
+void ADisplayClusterLightCardActor::SetIsUVActor(bool bNewUVValue)
+{
+	bIsUVLightCard = bNewUVValue;
+}
+
 void ADisplayClusterLightCardActor::ShowLightCardLabel(const FDisplayClusterLabelConfiguration& InLabelConfiguration)
 {
 	if (IsUVActor())
