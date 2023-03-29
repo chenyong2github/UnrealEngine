@@ -23,7 +23,8 @@ namespace Audio
 
 	void FQuartzMetronome::Tick(int32 InNumSamples, int32 FramesOfLatency)
 	{
-		// TODO: update latency
+		LastTickCpuCycles64 = FPlatformTime::Cycles64();
+		
 		static bool bHasWarned = false;
 		if (!bHasWarned && (MusicalDurationsInFrames[EQuartzCommandQuantization::ThirtySecondNote] < InNumSamples))
 		{

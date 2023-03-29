@@ -49,6 +49,8 @@ namespace Audio
 
 		double GetTimeSinceStart() const { return TimeSinceStart; }
 
+		uint64 GetLastTickCpuCycles64() const { return LastTickCpuCycles64; }
+
 		void CalculateDurationPhases(float (&OutPhases)[static_cast<int32>(EQuartzCommandQuantization::Count)]) const;
 
 		// Event Subscription
@@ -73,6 +75,8 @@ namespace Audio
 		float CountNumSubdivisionsSinceBarStart(EQuartzCommandQuantization InSubdivision) const;
 
 		float CountNumSubdivisionsSinceStart(EQuartzCommandQuantization InSubdivision) const;
+
+		uint64 LastTickCpuCycles64{ 0 };
 
 		int32 ListenerFlags{ 0 };
 

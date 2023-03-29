@@ -314,10 +314,17 @@ float UQuartzClockHandle::GetBeatsPerMinute(const UObject* WorldContextObject) c
 	return 0.f;
 }
 
-float UQuartzClockHandle::GetBeatProgressPercent(EQuartzCommandQuantization QuantizationBoundary, float PhaseOffset)
+float UQuartzClockHandle::GetBeatProgressPercent(EQuartzCommandQuantization QuantizationBoundary, float PhaseOffset, float MsOffset)
 {
 	if(RawHandle.IsValid())
 	{
+		constexpr float ToMilliseconds = 1000.f;
+	    const float MsInQuantizationType = ToMilliseconds * RawHandle.GetDurationOfQuantizationTypeInSeconds(QuantizationBoundary, 1.f);
+	    if(!FMath::IsNearlyZero(MsInQuantizationType))
+	    {
+		    PhaseOffset += MsOffset / MsInQuantizationType;
+	    }
+
 		return FMath::Wrap(PhaseOffset + RawHandle.GetBeatProgressPercent(QuantizationBoundary), 0.f, 1.f);
 	}
 

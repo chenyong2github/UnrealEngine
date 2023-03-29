@@ -4,6 +4,7 @@
 #include "Quartz/AudioMixerClockManager.h"
 #include "AudioMixerSourceManager.h"
 #include "Sound/QuartzSubscription.h"
+#include "HAL/UnrealMemory.h" // Memcpy
 
 
 static float HeadlessClockSampleRateCvar = 100000.f;
@@ -380,7 +381,22 @@ namespace Audio
 		CachedClockState.TimeStamp = Metronome.GetTimeStamp();
 		CachedClockState.RunTimeInSeconds = (float)Metronome.GetTimeSinceStart();
 
+		const uint64 TempLastCacheTimestamp = CachedClockState.LastCacheTimestamp;
+		CachedClockState.LastCacheTimestamp = Metronome.GetLastTickCpuCycles64();
+		CachedClockState.LastCacheTimeDelta = CachedClockState.LastCacheTimestamp - TempLastCacheTimestamp;
+
+		// copy previous phases (as temp values)
+		FMemory::Memcpy(CachedClockState.MusicalDurationPhaseDeltas, CachedClockState.MusicalDurationPhases);
+		
+		// update current phases
 		Metronome.CalculateDurationPhases(CachedClockState.MusicalDurationPhases);
+		
+		// convert temp copy to deltas
+		constexpr int32 NumDurations = static_cast<int32>(EQuartzCommandQuantization::Count);
+		for(int32 i = 0; i < NumDurations; ++i)
+		{
+			CachedClockState.MusicalDurationPhaseDeltas[i] = FMath::Wrap(CachedClockState.MusicalDurationPhases[i] - CachedClockState.MusicalDurationPhaseDeltas[i], 0.f, 1.f);
+		}
 	}
 
 	void FQuartzClock::SetSampleRate(float InNewSampleRate)
@@ -556,7 +572,18 @@ namespace Audio
 
 	float FQuartzClock::GetBeatProgressPercent(const EQuartzCommandQuantization& QuantizationType) const
 	{
-		return CachedClockState.MusicalDurationPhases[static_cast<int32>(QuantizationType)];
+		if(CachedClockState.LastCacheTimeDelta == 0)
+		{
+			return CachedClockState.MusicalDurationPhases[static_cast<int32>(QuantizationType)];
+		}
+
+		// anticipate beat progress based on the amount of wall clock time that has passed since the last audio engine update
+		const float LastPhase = CachedClockState.MusicalDurationPhases[static_cast<int32>(QuantizationType)];
+		const float PhaseDelta = CachedClockState.MusicalDurationPhaseDeltas[static_cast<int32>(QuantizationType)];
+		const uint32 CyclesSinceLastTick = FPlatformTime::Cycles() - CachedClockState.LastCacheTimestamp;
+		const float EstimatedPercentToNextTick = static_cast<float>(CyclesSinceLastTick) / static_cast<float>(CachedClockState.LastCacheTimeDelta);
+
+		return LastPhase + PhaseDelta * EstimatedPercentToNextTick;
 	}
 
 	FQuartzTransportTimeStamp FQuartzClock::GetCurrentTimestamp()

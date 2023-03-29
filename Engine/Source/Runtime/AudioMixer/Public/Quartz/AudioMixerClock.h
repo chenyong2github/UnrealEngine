@@ -221,7 +221,11 @@ namespace Audio
 			FQuartzClockTickRate TickRate;
 			FQuartzTransportTimeStamp TimeStamp;
 			float RunTimeInSeconds;
-			float MusicalDurationPhases[static_cast<int32>(EQuartzCommandQuantization::Count)];
+			float MusicalDurationPhases[static_cast<int32>(EQuartzCommandQuantization::Count)] { 0 };
+			float MusicalDurationPhaseDeltas[static_cast<int32>(EQuartzCommandQuantization::Count)] { 0 };
+			uint64 LastCacheTimestamp = 0;
+			uint64 LastCacheTimeDelta = 0;
+			
 		} CachedClockState;
 
 		void TickInternal(int32 InNumFramesUntilNextTick, TArray<PendingCommand>& CommandsToTick, int32 FramesOfLatency = 0, int32 FramesOfDelay = 0);
