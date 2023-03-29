@@ -215,6 +215,25 @@ public:
 		}
 	}
 
+	template <typename ValueType>
+	bool GetAssetTagByObjectPath(const FSoftObjectPath& InObjectPath, FName InTagName, ValueType& OutTagValue) const
+	{
+		if (bIsEditor)
+		{
+			return AssetRegistryPrivate->GetAssetByObjectPath(InObjectPath, true /* bIncludeOnlyOnDiskAssets */).GetTagValue(InTagName, OutTagValue);
+		}
+		else if (RegistryStatePrivate)
+		{
+			const FAssetData* AssetData = RegistryStatePrivate->GetAssetByObjectPath(InObjectPath);
+			if (AssetData)
+			{
+				return AssetData->GetTagValue(InTagName, OutTagValue);
+			}
+			return false;
+		}
+		return false;
+	}
+
 	UE_DEPRECATED(5.1, "Asset path FNames have been deprecated, use FSoftObjectPath instead.")
 	FAssetData GetAssetByObjectPath(FName ObjectPath) const
 	{
@@ -362,11 +381,13 @@ public:
 	static const FName TotalUsageName;
 	static const FName CookRuleName;
 	static const FName ChunksName;
+	static const FName StageChunkSizeName;
+	static const FName StageChunkCompressedSizeName;
 
 	/** Gets the value of a "virtual" column for an asset data, this will query the AssetManager for you and takes current platform into account. Returns true and sets out parameter if found */
 	virtual bool GetStringValueForCustomColumn(const FAssetData& AssetData, FName ColumnName, FString& OutValue) = 0;
 
-	/** Gets a display text value for a vritual column. Returns true and sets out parameter if found */
+	/** Gets a display text value for a virtual column. Returns true and sets out parameter if found */
 	virtual bool GetDisplayTextForCustomColumn(const FAssetData& AssetData, FName ColumnName, FText& OutValue) = 0;
 
 	/** Gets the value of a "virtual" column for an asset data, this will query the AssetManager for you and takes current platform into account. Returns true and sets out parameter if found */
