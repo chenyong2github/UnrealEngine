@@ -29,7 +29,7 @@ public:
 	TArray<UMaterial *>Materials;
 	TArray<UMaterialFunctionInterface *> Functions;
 	TArray<UTexture2D*> SizeRejectedTextures;// The original selection of the user filtered by textures that match the threshold size
-	TArray<UTexture2D*> MaterialRejectedTextures; // Textures that could not be converted due to their usage in materials (connected to unsupported property)
+	TSet<UTexture2D*> MaterialRejectedTextures; // Textures that could not be converted due to their usage in materials (connected to unsupported property)
 
 	struct FAuditTrail
 	{
@@ -54,10 +54,10 @@ public:
 	}
 
 private:
-	void FindAllTexturesAndMaterials_Iteration(TArray<UMaterial*>& InAffectedMaterials,
-		TArray<UMaterialFunctionInterface*>& InAffectedFunctions,
-		TArray<UTexture2D*>& InAffectedTextures,
-		TArray<UTexture2D*>& InInvalidTextures,
+	void FindAllTexturesAndMaterials_Iteration(TSet<UMaterial*>& InAffectedMaterials,
+		TSet<UMaterialFunctionInterface*>& InAffectedFunctions,
+		TSet<UTexture2D*>& InAffectedTextures,
+		TSet<UTexture2D*>& InInvalidTextures,
 		FScopedSlowTask& Task);
 
 	void FindAllTexturesAndMaterials(TArray<UMaterial *> &OutAffectedMaterials, TArray<UMaterialFunctionInterface *> &OutAffectedFunctions, TArray<UTexture2D *> &OutAffectedTextures);
