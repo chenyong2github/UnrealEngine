@@ -30,6 +30,7 @@ namespace UE::ReferenceChainSearch
 
 		TMap<const UObject*, FGCObjectInfo*>& ObjectToInfoMap;
 		TMap<FGCObjectInfo*, FReferenceChainSearch::FGraphNode*>& AllNodes;
+		bool bGCOnly;
 
 		FPolicyUObjectHeap(
 			TMap<const UObject*, FGCObjectInfo*>& InObjectToInfoMap,
