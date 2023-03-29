@@ -56,8 +56,9 @@ public class Catch2 : ModuleRules
 			{
 				Arch = "x86_64-unknown-linux-gnu";
 			}
-			else if (Target.Platform == UnrealTargetPlatform.Win64)
+			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 			{
+				RelativeLibPath = "Win64";
 				Arch = "x64";
 				if (Target.WindowsPlatform.ToolChain == WindowsCompiler.VisualStudio2019)
 				{

@@ -7,7 +7,7 @@ public class DX11 : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 )
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			PublicSystemIncludePaths.Add(DirectX.GetIncludeDir(Target));
 

@@ -16,7 +16,14 @@ public class EOSSDK : ModuleRules
 	{
 		get
 		{
-			return Target.Platform.ToString();
+			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
+			{
+				return "Win64";
+			}
+			else
+			{
+				return Target.Platform.ToString();
+			}
 		}
 	}
 

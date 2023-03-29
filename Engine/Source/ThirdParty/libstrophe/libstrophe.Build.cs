@@ -43,9 +43,9 @@ public class libstrophe : ModuleRules
 			PublicAdditionalLibraries.Add(Path.Combine(StrophePackagePath, Target.Platform.ToString(), ConfigName, "libstrophe.a"));
 			PublicSystemLibraries.Add("resolv");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win64)
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
-			string LibrayPath = Path.Combine(StrophePackagePath, Target.Platform.ToString(), "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), ConfigName) + "/";
+			string LibrayPath = Path.Combine(StrophePackagePath, "Win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), ConfigName) + "/";
 			PublicAdditionalLibraries.Add(LibrayPath + "strophe.lib");
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))

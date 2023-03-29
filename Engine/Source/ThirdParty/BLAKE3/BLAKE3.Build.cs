@@ -16,7 +16,7 @@ public class BLAKE3 : ModuleRules
 
 		PublicSystemIncludePaths.Add(Path.Combine(VersionPath, "c"));
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Win64", "Release", "BLAKE3.lib"));
 		}

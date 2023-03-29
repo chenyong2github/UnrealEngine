@@ -13,7 +13,7 @@ public class XInput : ModuleRules
 		Type = ModuleType.External;
 
 		// Ensure correct include and link paths for xinput so the correct dll is loaded (xinput1_3.dll)
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			if (Target.Architecture.bIsX64)
 			{
