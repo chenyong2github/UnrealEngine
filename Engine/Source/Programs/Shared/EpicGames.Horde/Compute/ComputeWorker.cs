@@ -183,7 +183,7 @@ namespace EpicGames.Horde.Compute
 
 				newEnvVars[ComputeSocket.WorkerIpcEnvVar] = ipcChannel.GetStringHandle();
 
-				_logger.LogInformation("Launching {Executable} {Arguments}...", CommandLineArguments.Quote(executable), arguments);
+				_logger.LogInformation("Launching {Executable} {Arguments}", CommandLineArguments.Quote(executable), CommandLineArguments.Join(arguments));
 				await ExecuteProcessInternalAsync(channel, executable, arguments, workingDir, newEnvVars, cancellationToken);
 				_logger.LogInformation("Finished executing process");
 

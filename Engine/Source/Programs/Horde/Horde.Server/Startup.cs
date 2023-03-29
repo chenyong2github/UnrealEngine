@@ -647,14 +647,15 @@ namespace Horde.Server
 			// Hosted service that needs to run no matter the run mode of the process (server vs worker)
 			services.AddHostedService(provider => (DowntimeService)provider.GetRequiredService<IDowntimeService>());
 
+			// Always run agent service too; need to be able to listen to Redis for events on any server.
+			services.AddHostedService(provider => provider.GetRequiredService<AgentService>());
+
 			if (settings.IsRunModeActive(RunMode.Worker) && !settings.DatabaseReadOnlyMode)
 			{
 				services.AddHostedService<MongoUpgradeService>();
 
 				services.AddHostedService(provider => provider.GetRequiredService<FleetService>());
 				
-				services.AddHostedService(provider => provider.GetRequiredService<AgentService>());
-
 				if (settings.Commits.ReplicateMetadata)
 				{
 					services.AddHostedService(provider => provider.GetRequiredService<PerforceServiceCache>());

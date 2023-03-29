@@ -9,23 +9,19 @@ namespace RemoteServer
 	{
 		static async Task Main()
 		{
-			CancellationToken cancellationToken = CancellationToken.None;
-
 			await using IComputeSocket socket = ComputeSocket.ConnectAsWorker(NullLogger.Instance);
-			Console.WriteLine("Connected to client");
+			using IComputeBufferReader reader = await socket.AttachRecvBufferAsync(1, 1024 * 1024);
+			Console.WriteLine("Connected to client"); // Client will wait for output before sending data on channel 1
 
-			using IComputeBufferReader reader = await socket.AttachRecvBufferAsync(1, 1024 * 1024, cancellationToken);
 			while (!reader.IsComplete)
 			{
 				ReadOnlyMemory<byte> memory = reader.GetMemory();
-				if (memory.Length == 0)
+				if (memory.Length > 0)
 				{
-					await reader.WaitForDataAsync(0, cancellationToken);
-					continue;
+					Console.WriteLine("Read value {0}", memory.Span[0]);
+					reader.Advance(1);
 				}
-
-				Console.WriteLine("Received data: {0}", memory.Span[0]);
-				reader.Advance(1);
+				await reader.WaitForDataAsync(0);
 			}
 		}
 	}
