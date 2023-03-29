@@ -24,7 +24,7 @@
 
 FPCGContext::~FPCGContext()
 {
-	if (SettingsWithOverride)
+	if (SettingsWithOverride && bShouldUnrootSettingsOnDelete)
 	{
 		SettingsWithOverride->RemoveFromRoot();
 		SettingsWithOverride->MarkAsGarbage();

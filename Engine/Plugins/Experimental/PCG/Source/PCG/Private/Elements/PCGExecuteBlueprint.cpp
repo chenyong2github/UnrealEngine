@@ -573,8 +573,18 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* InContext) const
 			}
 		}
 
+		// Since the ExecuteWithContext method is a blueprint call, it will perform a copy of the context
+		// in a local variable. To prevent the overridden settings from being unrooted when the call finishes,
+		// we'll mark it temporarily off here. Note that for the same reason, the context is actually sliced
+		// so there should never be any members in the BP element context that are visible/accessible from blueprint
+		const bool bShouldUnrootSettingsOnDelete = Context->bShouldUnrootSettingsOnDelete;
+		Context->bShouldUnrootSettingsOnDelete = false;
+
 		/** Finally, execute the actual blueprint */
 		Context->BlueprintElementInstance->ExecuteWithContext(*Context, Context->InputData, Context->OutputData);
+
+		// Put back the proper unroot flag
+		Context->bShouldUnrootSettingsOnDelete = bShouldUnrootSettingsOnDelete;
 
 		// Log info on outputs
 		for (int32 OutputIndex = 0; OutputIndex < Context->OutputData.TaggedData.Num(); ++OutputIndex)
