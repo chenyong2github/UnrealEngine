@@ -397,11 +397,6 @@ public:
 		OutEnvironment.SetDefine(TEXT("ENABLE_CLUSTERED_LIGHTS"), bEnableLocalLights ? 1u : 0u);
 		OutEnvironment.SetDefine(TEXT("ENABLE_CLUSTERED_REFLECTION"), bEnableClusteredReflections ? 1u : 0u);
 		OutEnvironment.SetDefine(TEXT("USE_SHADOWMASKTEXTURE"), bMobileUsesShadowMaskTexture && !bTranslucentMaterial ? 1u : 0u);
-
-		if (!RHISupportsDualSourceBlending(Parameters.Platform))
-		{
-			OutEnvironment.SetDefine(TEXT("THIN_TRANSLUCENT_FALL_BACK"), TEXT("1"));
-		}
 	}
 	
 	/** Initialization constructor. */
