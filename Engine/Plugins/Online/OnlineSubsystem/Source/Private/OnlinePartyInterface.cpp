@@ -220,6 +220,23 @@ EPartyState EPartyStateFromString(const TCHAR* Value)
 	return EPartyState::None;
 }
 
+const TCHAR* ToString(const EMemberConnectionStatus Value)
+{
+	switch (Value)
+	{
+	case EMemberConnectionStatus::Uninitialized:
+		return TEXT("Uninitialized");
+	case EMemberConnectionStatus::Disconnected:
+		return TEXT("Disconnected");
+	case EMemberConnectionStatus::Initializing:
+		return TEXT("Initializing");
+	case EMemberConnectionStatus::Connected:
+		return TEXT("Connected");
+	}
+	checkNoEntry();
+	return TEXT("Uninitialized");
+}
+
 const TCHAR* ToString(const EMemberExitedReason Value)
 {
 	switch (Value)

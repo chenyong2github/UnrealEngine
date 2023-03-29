@@ -225,7 +225,6 @@ protected:
 	virtual void Shutdown();
 
 	FPartyMemberDataReplicator MemberDataReplicator;
-	void SetMemberConnectionStatus(EMemberConnectionStatus InMemberConnectionStatus);
 
 	TSharedPtr<const FOnlinePartyMember> GetOSSPartyMember() const { return OssPartyMember; }
 

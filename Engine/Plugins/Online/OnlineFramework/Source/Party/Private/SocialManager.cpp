@@ -63,10 +63,6 @@ USocialManager::FJoinPartyAttempt::FJoinPartyAttempt(const USocialUser* InTarget
 	, OnJoinComplete(InOnJoinComplete)
 {}
 
-USocialManager::FJoinPartyAttempt::FJoinPartyAttempt(const USocialUser* InTargetUser, const FOnlinePartyTypeId& InPartyTypeId, const FOnJoinPartyAttemptComplete& InOnJoinComplete)
-	: USocialManager::FJoinPartyAttempt::FJoinPartyAttempt(InTargetUser, InPartyTypeId, PartyJoinMethod::Unspecified, InOnJoinComplete)
-{}
-
 USocialManager::FJoinPartyAttempt::FJoinPartyAttempt(TSharedRef<const FRejoinableParty> InRejoinInfo)
 	: PartyTypeId(IOnlinePartySystem::GetPrimaryPartyTypeId())
 	, JoinMethod(InRejoinInfo->OriginalJoinMethod)
@@ -75,13 +71,12 @@ USocialManager::FJoinPartyAttempt::FJoinPartyAttempt(TSharedRef<const FRejoinabl
 
 FString USocialManager::FJoinPartyAttempt::ToDebugString() const
 {
-	return FString::Printf(TEXT("IsRejoin (%s), TargetUser (%s), PartyId (%s), TypeId (%d), TargetUserPlatformId (%s), PlatformSessionId (%s), JoinMethod (%s)"),
+	return FString::Printf(TEXT("IsRejoin (%s), TargetUser (%s), PartyId (%s), TypeId (%d), TargetUserPlatformId (%s), JoinMethod (%s)"),
 		RejoinInfo.IsValid() ? TEXT("true") : TEXT("false"),
 		TargetUser.IsValid() ? *TargetUser->ToDebugString() : TEXT("invalid"),
 		JoinInfo.IsValid() ? *JoinInfo->GetPartyId()->ToDebugString() : RejoinInfo.IsValid() ? *RejoinInfo->PartyId->ToDebugString() : TEXT("unknown"),
 		PartyTypeId.GetValue(),
 		*TargetUserPlatformId.ToDebugString(),
-		*PlatformSessionId,
 		*JoinMethod.ToString());
 }
 

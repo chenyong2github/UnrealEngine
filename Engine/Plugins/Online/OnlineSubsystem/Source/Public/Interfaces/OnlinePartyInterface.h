@@ -2072,6 +2072,8 @@ ONLINESUBSYSTEM_API const TCHAR* ToString(const EPartyState Value);
 ONLINESUBSYSTEM_API EPartyState EPartyStateFromString(const TCHAR* Value);
 
 /** @return the stringified version of the enum passed in */
+ONLINESUBSYSTEM_API const TCHAR* ToString(const EMemberConnectionStatus Value);
+/** @return the stringified version of the enum passed in */
 ONLINESUBSYSTEM_API const TCHAR* ToString(const EMemberExitedReason Value);
 /** @return the stringified version of the enum passed in */
 ONLINESUBSYSTEM_API const TCHAR* ToString(const EPartyInvitationRemovedReason Value);

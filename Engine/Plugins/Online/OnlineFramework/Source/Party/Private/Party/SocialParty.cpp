@@ -1621,21 +1621,21 @@ void USocialParty::PumpApprovalQueue()
 	}
 }
 
-namespace UE::Online::Party::Private
+namespace
 {
-	FPartyJoinDenialReason ReservationResponseToJoinDenialReason(const EPartyReservationResult::Type ReservationResponse)
+FPartyJoinDenialReason ReservationResponseToJoinDenialReason(const EPartyReservationResult::Type ReservationResponse)
+{
+	switch (ReservationResponse)
 	{
-		switch (ReservationResponse)
-		{
-		case EPartyReservationResult::PartyLimitReached:
-			return EPartyJoinDenialReason::GameFull;
-		case EPartyReservationResult::ReservationDenied:
-			return EPartyJoinDenialReason::GameFull; // Not really a more specific reason available
-		case EPartyReservationResult::ReservationDenied_CrossPlayRestriction:
-			return EPartyJoinDenialReason::JoinerCrossplayRestricted;
-		}
-		return EPartyJoinDenialReason::NoReason;
+	case EPartyReservationResult::PartyLimitReached:
+		return EPartyJoinDenialReason::GameFull;
+	case EPartyReservationResult::ReservationDenied:
+		return EPartyJoinDenialReason::GameFull; // Not really a more specific reason available
+	case EPartyReservationResult::ReservationDenied_CrossPlayRestriction:
+		return EPartyJoinDenialReason::JoinerCrossplayRestricted;
 	}
+	return EPartyJoinDenialReason::NoReason;
+}
 }
 
 void USocialParty::HandleReservationRequestComplete(EPartyReservationResult::Type ReservationResponse)
@@ -1643,7 +1643,7 @@ void USocialParty::HandleReservationRequestComplete(EPartyReservationResult::Typ
 	UE_LOG(LogParty, Verbose, TEXT("Reservation request complete with response: %s"), EPartyReservationResult::ToString(ReservationResponse));
 
 	const bool bReservationApproved = ReservationResponse == EPartyReservationResult::ReservationAccepted || ReservationResponse == EPartyReservationResult::ReservationDuplicate;
-	const FPartyJoinDenialReason DenialReason = UE::Online::Party::Private::ReservationResponseToJoinDenialReason(ReservationResponse);
+	const FPartyJoinDenialReason DenialReason = ReservationResponseToJoinDenialReason(ReservationResponse);
 
 	if (bReservationApproved || DenialReason.HasAnyReason())
 	{
@@ -2073,3 +2073,26 @@ void USocialParty::RunJoinInProgressTimer()
 		GetWorld()->GetTimerManager().SetTimer(JoinInProgressTimerHandle, this, &USocialParty::RunJoinInProgressTimer, static_cast<float>(NextTimer));
 	}
 }
+
+namespace UE::OnlineFramework::Party
+{
+TArray<FUniqueNetIdRepl> GetPartyMemberIds(const USocialParty* SocialParty)
+{
+	TArray<FUniqueNetIdRepl> PartyMemberIds;
+	if (SocialParty)
+	{
+		auto IsPartyMemberValid = [](const UPartyMember* PartyMember)
+		{
+			CA_ASSUME(PartyMember); // GetPartyMembers filters null members
+			return PartyMember->GetPrimaryNetId().IsValid();
+		};
+		auto GetPartyMemberId = [](const UPartyMember* PartyMember)
+		{
+			CA_ASSUME(PartyMember); // GetPartyMembers filters null members
+			return PartyMember->GetPrimaryNetId();
+		};
+		Algo::TransformIf(SocialParty->GetPartyMembers(), PartyMemberIds, IsPartyMemberValid, GetPartyMemberId);
+	}
+	return PartyMemberIds;
+}
+} // UE::OnlineFramework::Party

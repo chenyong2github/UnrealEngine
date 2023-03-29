@@ -497,6 +497,11 @@ private:
 	mutable FOnPartyJIPResponse OnPartyJIPResponseEvent;
 };
 
+namespace UE::OnlineFramework::Party
+{
+PARTY_API TArray<FUniqueNetIdRepl> GetPartyMemberIds(const USocialParty* SocialParty);
+} // UE::OnlineFramework::Party
+
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "PartyBeaconState.h"
 #endif
