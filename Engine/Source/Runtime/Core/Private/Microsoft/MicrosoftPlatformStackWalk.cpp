@@ -75,3 +75,76 @@ bool FMicrosoftPlatformStackWalk::ExtractInfoFromModule(void* ProcessHandle, voi
 
 	return true;
 }
+
+int32 FMicrosoftPlatformStackWalk::CaptureStackTraceInternal(uint64* OutBacktrace, uint32 MaxDepth, void* InContext, void* InThreadHandle, uint32* OutDepth)
+{
+	uint32 CurrentDepth = 0;
+	HANDLE ThreadHandle = reinterpret_cast<HANDLE>(InThreadHandle);
+	CONTEXT ContextCopy = *reinterpret_cast<PCONTEXT>(InContext);
+
+	*OutDepth = 0;
+
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+	__try
+#endif
+	{
+		UNWIND_HISTORY_TABLE UnwindHistoryTable;
+		RtlZeroMemory(&UnwindHistoryTable, sizeof(UNWIND_HISTORY_TABLE));
+
+		for (; CurrentDepth < MaxDepth; ++CurrentDepth)
+		{
+			// If we reach an RIP of zero, this means that we've walked off the end
+			// of the call stack and are done.
+			if (!ContextCopy.Rip)
+				break;
+
+			OutBacktrace[CurrentDepth] = ContextCopy.Rip;
+			*OutDepth = CurrentDepth;
+
+			ULONG64 ImageBase = 0;
+			if (PRUNTIME_FUNCTION RuntimeFunction = RtlLookupFunctionEntry(ContextCopy.Rip, &ImageBase, &UnwindHistoryTable); RuntimeFunction)
+			{
+				// Otherwise, call upon RtlVirtualUnwind to execute the unwind for us.
+				KNONVOLATILE_CONTEXT_POINTERS NVContext;
+				RtlZeroMemory(&NVContext, sizeof(KNONVOLATILE_CONTEXT_POINTERS));
+
+				PVOID HandlerData = nullptr;
+				ULONG64 EstablisherFrame = 0;
+
+				RtlVirtualUnwind(
+					0 /*UNW_FLAG_NHANDLER*/,
+					ImageBase,
+					ContextCopy.Rip,
+					RuntimeFunction,
+					&ContextCopy,
+					&HandlerData,
+					&EstablisherFrame,
+					&NVContext);
+			}
+			else
+			{
+				// https://docs.microsoft.com/en-us/cpp/build/x64-calling-convention?view=msvc-170
+				// Some functions are 'leaf' functions and do not have unwind info, they can be unwound
+				// by simulating a return instruction.
+				ContextCopy.Rip = (uint64)(*(uint64*)ContextCopy.Rsp);
+				ContextCopy.Rsp += 8;
+			}
+		}
+	}
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		// We need to catch any exceptions within this function so they don't get sent to
+		// the engine's error handler, hence causing an infinite loop.
+		return EXCEPTION_EXECUTE_HANDLER;
+	}
+#endif
+
+	// NULL out remaining entries.
+	for (; CurrentDepth < MaxDepth; CurrentDepth++)
+	{
+		OutBacktrace[CurrentDepth] = 0;
+	}
+
+	return EXCEPTION_EXECUTE_HANDLER;
+}
