@@ -35,13 +35,7 @@ UVCamPixelStreamingSubsystem* UVCamPixelStreamingSubsystem::Get()
 
 void UVCamPixelStreamingSubsystem::RegisterActiveOutputProvider(UVCamPixelStreamingSession* OutputProvider)
 {
-	if (!OutputProvider)
-	{
-		return;
-	}
-
-	ActiveOutputProviders.AddUnique(OutputProvider);
-	if (LiveLinkSource)
+	if (ensure(OutputProvider) && LiveLinkSource)
 	{
 		LiveLinkSource->CreateSubject(OutputProvider->GetFName());
 		LiveLinkSource->PushTransformForSubject(OutputProvider->GetFName(), FTransform::Identity);
@@ -50,49 +44,32 @@ void UVCamPixelStreamingSubsystem::RegisterActiveOutputProvider(UVCamPixelStream
 
 void UVCamPixelStreamingSubsystem::UnregisterActiveOutputProvider(UVCamPixelStreamingSession* OutputProvider)
 {
-	if (!OutputProvider)
-	{
-		return;
-	}
-
-	if (ActiveOutputProviders.Remove(OutputProvider) && LiveLinkSource)
+	if (ensure(OutputProvider) && LiveLinkSource)
 	{
 		LiveLinkSource->RemoveSubject(OutputProvider->GetFName());
 	}
 }
 
-TSharedPtr<FPixelStreamingLiveLinkSource> UVCamPixelStreamingSubsystem::TryGetLiveLinkSource()
-{
-	if (!LiveLinkSource.IsValid())
-	{
-		IModularFeatures& ModularFeatures = IModularFeatures::Get();
-		if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
-		{
-			ILiveLinkClient* LiveLinkClient = &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
-			LiveLinkSource = MakeShared<FPixelStreamingLiveLinkSource>();
-			LiveLinkClient->AddSource(LiveLinkSource);
-		}
-	}
-	return LiveLinkSource;
-}
-
 TSharedPtr<FPixelStreamingLiveLinkSource> UVCamPixelStreamingSubsystem::TryGetLiveLinkSource(UVCamPixelStreamingSession* OutputProvider)
 {
-	if (!LiveLinkSource.IsValid())
+	IModularFeatures& ModularFeatures = IModularFeatures::Get();
+	if (!ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
 	{
-		IModularFeatures& ModularFeatures = IModularFeatures::Get();
-		if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
-		{
-			ILiveLinkClient* LiveLinkClient = &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
-			LiveLinkSource = MakeShared<FPixelStreamingLiveLinkSource>();
-			LiveLinkClient->AddSource(LiveLinkSource);
+		return nullptr;
+	}
+	
+	ILiveLinkClient* LiveLinkClient = &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
+	if (!LiveLinkSource.IsValid()
+		// User can manually remove live link sources via UI
+		|| !LiveLinkClient->HasSourceBeenAdded(LiveLinkSource))
+	{
+		LiveLinkSource = MakeShared<FPixelStreamingLiveLinkSource>();
+		LiveLinkClient->AddSource(LiveLinkSource);
 
-			if (IsValid(OutputProvider))
-			{
-				ActiveOutputProviders.AddUnique(OutputProvider);
-				LiveLinkSource->CreateSubject(OutputProvider->GetFName());
-				LiveLinkSource->PushTransformForSubject(OutputProvider->GetFName(), FTransform::Identity);
-			}
+		if (IsValid(OutputProvider))
+		{
+			LiveLinkSource->CreateSubject(OutputProvider->GetFName());
+			LiveLinkSource->PushTransformForSubject(OutputProvider->GetFName(), FTransform::Identity);
 		}
 	}
 	return LiveLinkSource;

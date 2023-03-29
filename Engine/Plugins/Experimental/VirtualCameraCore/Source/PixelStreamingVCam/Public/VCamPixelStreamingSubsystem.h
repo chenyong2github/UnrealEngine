@@ -20,9 +20,6 @@ public:
 	static UVCamPixelStreamingSubsystem* Get();
 	void RegisterActiveOutputProvider(UVCamPixelStreamingSession* OutputProvider);
 	void UnregisterActiveOutputProvider(UVCamPixelStreamingSession* OutputProvider);
-
-	// Get the LiveLinkSource if it already exists or attempt to create one
-	TSharedPtr<FPixelStreamingLiveLinkSource> TryGetLiveLinkSource();
 	
 	// Get the LiveLinkSource if it already exists or attempt to create one
 	// Additionally registers the OutputProvider to the Source if a new source was created
@@ -32,9 +29,6 @@ public:
 	void StopSignallingServer();
 	
 private:
-	// Keep track of which output providers are currently active
-	UPROPERTY(Transient)
-	TArray<TWeakObjectPtr<UVCamPixelStreamingSession>> ActiveOutputProviders;
 
 	// Signalling/webserver
 	TSharedPtr<UE::PixelStreamingServers::IServer> Server;
