@@ -1,0 +1,98 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "ActorTestSpawner.h"
+#include "TestGameInstance.h"
+
+#include "EngineUtils.h"
+#include "Engine/Engine.h"
+
+namespace
+{
+	static constexpr bool bTriggerWorldDestroyCallbacks = true;
+
+	void DestroyWorld(UWorld* GameWorld)
+	{
+		if (GameWorld->AreActorsInitialized())
+		{
+			for (AActor* const Actor : FActorRange(GameWorld))
+			{
+				if (Actor)
+				{
+					Actor->RouteEndPlay(EEndPlayReason::LevelTransition);
+				}
+			}
+		}
+
+		GEngine->ShutdownWorldNetDriver(GameWorld);
+		GameWorld->DestroyWorld(bTriggerWorldDestroyCallbacks);
+		GameWorld->SetPhysicsScene(nullptr);
+		GEngine->DestroyWorldContext(GameWorld);
+	}
+
+	void DestroySpawnedActors(TArray<TWeakObjectPtr<AActor>>& SpawnedActors)
+	{
+		// Destroy actors in reverse order of creation
+		for (int32 Index = SpawnedActors.Num() - 1; Index >= 0; Index--)
+		{
+			if (AActor* CastActor = SpawnedActors[Index].Get())
+			{
+				CastActor->Destroy(true);
+			}
+		}
+
+		SpawnedActors.Empty();
+	}
+
+	void DestroySpawnedObjects(TArray<TWeakObjectPtr<UObject>>& InSpawnedObjects)
+	{
+		// Destroy objects in reverse order of creation
+		for (int32 Index = InSpawnedObjects.Num() - 1; Index >= 0; Index--)
+		{
+			if (UObject* Obj = InSpawnedObjects[Index].Get())
+			{
+				Obj->BeginDestroy();
+			}
+		}
+
+		InSpawnedObjects.Empty();
+	}
+} // namespace
+
+FActorTestSpawner::~FActorTestSpawner() {
+	if (GameInstance)
+	{
+		GameInstance->Shutdown();
+		GameInstance->RemoveFromRoot();
+		GameInstance = nullptr;
+	}
+
+	if (GameWorld)
+	{
+		DestroySpawnedActors(SpawnedActors);
+		DestroySpawnedObjects(SpawnedObjects);
+		DestroyWorld(GameWorld);
+		GameWorld->RemoveFromRoot();
+		GameWorld = nullptr;
+	}
+}
+
+UWorld* FActorTestSpawner::CreateWorld()
+{
+	FWorldContext& WorldContext = GEngine->CreateNewWorldContext(EWorldType::Game);
+	UWorld* Result = UWorld::CreateWorld(EWorldType::Game, false, NAME_None);
+	check(Result != nullptr);
+	Result->AddToRoot();
+	WorldContext.SetCurrentWorld(Result);
+
+	Result->InitializeActorsForPlay(FURL());
+	Result->CreatePhysicsScene();
+
+	return Result;
+}
+
+void FActorTestSpawner::InitializeGameSubsystems()
+{
+	GameInstance = NewObject<UTestGameInstance>();
+	GameInstance->AddToRoot();
+	GameInstance->InitializeForTest(GetWorld());
+}
