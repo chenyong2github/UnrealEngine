@@ -61,6 +61,9 @@ public:
 	static bool DeletePackages(const TArray<UPackage*>& Packages, FPackageSourceControlHelper& PackageHelper, bool bErrorsAsWarnings = false);
 	static bool DeletePackages(const TArray<FString>& PackageNames, FPackageSourceControlHelper& PackageHelper, bool bErrorsAsWarnings = false);
 
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FModifiedFilesHandler, const TArray<FString>&, const FString&); /*bool ModifiedFileHander(ModifiedFiles, ChangeDescription) */
+	void SetModifiedFilesHandler(const FModifiedFilesHandler& ModifiedFilesHandler);
+
 protected:
 	/**
 	 * Overridable method for derived classes to perform operations when world builder process starts.
@@ -86,7 +89,12 @@ protected:
 	 */
 	virtual bool ShouldSkipCell(const FWorldBuilderCellCoord& CellCoord) const { return false; }
 
+	bool OnFilesModified(const TArray<FString>& InModifiedFiles, const FString& InChangelistDescription) const;
+	bool OnPackagesModified(const TArray<UPackage*>& InModifiedPackages, const FString& InChangelistDescription) const;
+
+	UE_DEPRECATED(5.3, "Please use OnFilesModified")
 	bool AutoSubmitFiles(const TArray<FString>& InModifiedFiles, const FString& InChangelistDescription) const;
+	UE_DEPRECATED(5.3, "Please use OnPackagesModified")
 	bool AutoSubmitPackages(const TArray<UPackage*>& InModifiedPackages, const FString& InChangelistDescription) const;
 
 	virtual UWorld::InitializationValues GetWorldInitializationValues() const;
@@ -103,6 +111,5 @@ protected:
 	bool bLoadNonDynamicDataLayers = true;
 	bool bLoadInitiallyActiveDataLayers = true;
 
-	bool bAutoSubmit = false;
-	FString AutoSubmitTags;
+	FModifiedFilesHandler ModifiedFilesHandler;
 };

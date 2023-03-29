@@ -21,4 +21,13 @@ class UWorldPartitionBuilderCommandlet : public UCommandlet
 private:
 	TArray<FString> GatherMapsFromCollection(const FString& CollectionName) const;
 	bool RunBuilder(TSubclassOf<UWorldPartitionBuilder> InBuilderClass, const FString& InWorldPackageName);
+
+	bool OnFilesModified(const TArray<FString>& InModifiedFiles, const FString& InChangeDescription);
+	bool AutoSubmitModifiedFiles() const;
+
+private:
+	bool bAutoSubmit = false;
+	FString AutoSubmitTags;
+
+	TMap<FString, TArray<FString>> AutoSubmitFiles;
 };

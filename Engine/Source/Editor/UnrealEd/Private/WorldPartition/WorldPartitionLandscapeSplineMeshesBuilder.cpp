@@ -523,7 +523,7 @@ bool UWorldPartitionLandscapeSplineMeshesBuilder::RunInternal(UWorld* InWorld, c
 		Algo::Transform(PackagesToSave, ModifiedFiles, GetPackageFilename);
 
 		const FString ChangeDescription = FString::Printf(TEXT("Rebuilt landscape splines for %s"), *InWorld->GetName());
-		if (!AutoSubmitFiles(ModifiedFiles, ChangeDescription))
+		if (!OnFilesModified(ModifiedFiles, ChangeDescription))
 		{
 			return false;
 		}

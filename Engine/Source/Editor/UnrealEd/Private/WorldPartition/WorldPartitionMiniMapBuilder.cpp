@@ -240,5 +240,5 @@ bool UWorldPartitionMiniMapBuilder::PostRun(UWorld* World, FPackageSourceControl
 	}
 
 	const FString ChangeDescription = FString::Printf(TEXT("Rebuilt minimap for %s"), *World->GetName());
-	return AutoSubmitFiles({ PackageFileName }, ChangeDescription);
+	return OnFilesModified({ PackageFileName }, ChangeDescription);
 }

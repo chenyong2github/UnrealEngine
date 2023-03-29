@@ -253,12 +253,6 @@ bool UWorldPartitionHLODsBuilder::ValidateParams() const
 		}
 	}
 
-	if (ShouldRunStep(EHLODBuildStep::HLOD_Finalize) && bAutoSubmit && !ISourceControlModule::Get().GetProvider().IsEnabled())
-	{
-		UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Submit requires that a valid revision control provider is enabled, exiting..."), *BuildManifest);
-		return false;
-	}
-
 	return true;
 }
 
@@ -322,7 +316,7 @@ bool UWorldPartitionHLODsBuilder::RunInternal(UWorld* World, const FCellInfo& In
 		bRet = DeleteHLODActors();
 	}
 
-	if (bRet && ShouldRunStep(EHLODBuildStep::HLOD_Finalize) && bAutoSubmit)
+	if (bRet && ShouldRunStep(EHLODBuildStep::HLOD_Finalize))
 	{
 		bRet = SubmitHLODActors();
 	}
@@ -585,8 +579,8 @@ bool UWorldPartitionHLODsBuilder::SubmitHLODActors()
 	ModifiedFiles.Append(SourceControlHelper->GetModifiedFiles());
 
 	// Check in all modified files
-	const FString ChangeDescription = FString::Printf(TEXT("Rebuilt HLODs for %s"), *WorldPartition->GetWorld()->GetName());
-	return AutoSubmitFiles(ModifiedFiles.GetAllFiles(), ChangeDescription);
+	const FString ChangeDescription = FString::Printf(TEXT("Rebuilt HLODs for %s"), *WorldPartition->GetWorld()->GetPackage()->GetName());
+	return OnFilesModified(ModifiedFiles.GetAllFiles(), ChangeDescription);
 }
 
 bool UWorldPartitionHLODsBuilder::DumpStats()

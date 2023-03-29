@@ -8,7 +8,6 @@
 #include "EngineModule.h"
 #include "UObject/Linker.h"
 #include "HAL/PlatformFileManager.h"
-#include "StaticMeshCompiler.h"
 #include "Engine/World.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
@@ -20,10 +19,6 @@
 #include "Math/IntVector.h"
 #include "UObject/SavePackage.h"
 #include "Algo/Transform.h"
-
-#include "ISourceControlModule.h"
-#include "ISourceControlProvider.h"
-#include "SourceControlOperations.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionBuilder, All, All);
 
@@ -53,11 +48,6 @@ FCellInfo::FCellInfo()
 UWorldPartitionBuilder::UWorldPartitionBuilder(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	bAutoSubmit = FParse::Param(FCommandLine::Get(), TEXT("AutoSubmit"));
-	if (bAutoSubmit)
-	{
-		FParse::Value(FCommandLine::Get(), TEXT("AutoSubmitTags="), AutoSubmitTags);
-	}
 }
 
 UWorld::InitializationValues UWorldPartitionBuilder::GetWorldInitializationValues() const
@@ -421,40 +411,34 @@ bool UWorldPartitionBuilder::DeletePackages(const TArray<FString>& PackageNames,
 
 bool UWorldPartitionBuilder::AutoSubmitPackages(const TArray<UPackage*>& InModifiedPackages, const FString& InChangelistDescription) const
 {
-	TArray<FString> ModifiedFiles;
-	Algo::Transform(InModifiedPackages, ModifiedFiles, [](const UPackage* InPackage) { return USourceControlHelpers::PackageFilename(InPackage); });
-	return AutoSubmitFiles(ModifiedFiles, InChangelistDescription);
+	OnPackagesModified(InModifiedPackages, InChangelistDescription);
+	return true;
 }
 
 bool UWorldPartitionBuilder::AutoSubmitFiles(const TArray<FString>& InModifiedFiles, const FString& InChangelistDescription) const
 {
-	bool bSucceeded = true;
+	OnFilesModified(InModifiedFiles, InChangelistDescription);
+	return true;
+}
 
-	if (bAutoSubmit)
+bool UWorldPartitionBuilder::OnPackagesModified(const TArray<UPackage*>& InModifiedPackages, const FString& InChangelistDescription) const
+{
+	TArray<FString> ModifiedFiles;
+	Algo::Transform(InModifiedPackages, ModifiedFiles, [](const UPackage* InPackage) { return USourceControlHelpers::PackageFilename(InPackage); });
+	return OnFilesModified(ModifiedFiles, InChangelistDescription);
+}
+
+bool UWorldPartitionBuilder::OnFilesModified(const TArray<FString>& InModifiedFiles, const FString& InChangelistDescription) const
+{
+	if (ModifiedFilesHandler.IsBound())
 	{
-		UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Submitting changes to revision control..."));
-
-		if (!InModifiedFiles.IsEmpty())
-		{
-			FText ChangelistDescription = FText::FromString(FString::Printf(TEXT("%s\nBased on CL %d\n%s"), *InChangelistDescription, FEngineVersion::Current().GetChangelist(), *AutoSubmitTags));
-
-			TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
-			CheckInOperation->SetDescription(ChangelistDescription);
-			if (ISourceControlModule::Get().GetProvider().Execute(CheckInOperation, InModifiedFiles) != ECommandResult::Succeeded)
-			{
-				UE_LOG(LogWorldPartitionBuilder, Error, TEXT("Failed to submit changes to revision control."));
-				bSucceeded = false;
-			}
-			else
-			{
-				UE_LOG(LogWorldPartitionBuilder, Display, TEXT("Submitted changes to revision control"));
-			}
-		}
-		else
-		{
-			UE_LOG(LogWorldPartitionBuilder, Display, TEXT("No files to submit!"));
-		}
+		return ModifiedFilesHandler.Execute(InModifiedFiles, InChangelistDescription);
 	}
 
-	return bSucceeded;
+	return true;
+}
+
+void UWorldPartitionBuilder::SetModifiedFilesHandler(const UWorldPartitionBuilder::FModifiedFilesHandler& InModifiedFilesHandler)
+{
+	ModifiedFilesHandler = InModifiedFilesHandler;
 }

@@ -7,6 +7,7 @@
 #include "EditorWorldUtils.h"
 #include "Logging/LogMacros.h"
 #include "Misc/CommandLine.h"
+#include "Misc/EngineVersion.h"
 #include "HAL/PlatformFileManager.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "WorldPartition/WorldPartition.h"
@@ -18,6 +19,10 @@
 #include "ICollectionManager.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+
+#include "ISourceControlModule.h"
+#include "ISourceControlProvider.h"
+#include "SourceControlOperations.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionBuilderCommandlet, All, All);
 
@@ -40,6 +45,18 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 	{
 		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Missing world name"));
 		return 1;
+	}
+
+	bAutoSubmit = Switches.Contains(TEXT("AutoSubmit"));
+	if (bAutoSubmit)
+	{
+		if (!ISourceControlModule::Get().GetProvider().IsEnabled())
+		{
+			UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("-AutoSubmit requires that a valid revision control provider is enabled, exiting..."));
+			return 0;
+		}
+
+		FParse::Value(*Params, TEXT("AutoSubmitTags="), AutoSubmitTags);
 	}
 
 	if (Switches.Contains(TEXT("Verbose")))
@@ -99,6 +116,12 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 		{
 			return 1;
 		}
+	}
+
+	// Autosubmit
+	if (!AutoSubmitModifiedFiles())
+	{
+		return 1;
 	}
 
 	return 0;
@@ -185,6 +208,8 @@ bool UWorldPartitionBuilderCommandlet::RunBuilder(TSubclassOf<UWorldPartitionBui
 		return false;
 	}
 
+	Builder->SetModifiedFilesHandler(UWorldPartitionBuilder::FModifiedFilesHandler::CreateUObject(this, &UWorldPartitionBuilderCommandlet::OnFilesModified));
+
 	bool bResult;
 	{
 		FGCObjectScopeGuard BuilderGuard(Builder);
@@ -199,4 +224,51 @@ bool UWorldPartitionBuilderCommandlet::RunBuilder(TSubclassOf<UWorldPartitionBui
 	}
 
 	return bResult;
+}
+
+bool UWorldPartitionBuilderCommandlet::OnFilesModified(const TArray<FString>& InModifiedFiles, const FString& InChangeDescription)
+{
+	AutoSubmitFiles.Emplace(InChangeDescription, InModifiedFiles);
+	return true;
+}
+
+bool UWorldPartitionBuilderCommandlet::AutoSubmitModifiedFiles() const
+{
+	bool bSucceeded = true;
+
+	if (bAutoSubmit)
+	{
+		UE_LOG(LogWorldPartitionBuilderCommandlet, Display, TEXT("Submitting changes to revision control..."));
+
+		if (!AutoSubmitFiles.IsEmpty())
+		{
+			FString AllChanges;
+			TArray<FString> AllModifiedFiles;
+			for (const auto& [Description, Files] : AutoSubmitFiles)
+			{
+				AllChanges += Description + TEXT("\n");
+				AllModifiedFiles.Append(Files);
+			}
+
+			FText ChangelistDescription = FText::FromString(FString::Printf(TEXT("%s\nBased on CL %d\n%s"), *AllChanges, FEngineVersion::Current().GetChangelist(), *AutoSubmitTags));
+
+			TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
+			CheckInOperation->SetDescription(ChangelistDescription);
+			if (ISourceControlModule::Get().GetProvider().Execute(CheckInOperation, AllModifiedFiles) != ECommandResult::Succeeded)
+			{
+				UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Failed to submit changes to revision control."));
+				bSucceeded = false;
+			}
+			else
+			{
+				UE_LOG(LogWorldPartitionBuilderCommandlet, Display, TEXT("Submitted changes to revision control"));
+			}
+		}
+		else
+		{
+			UE_LOG(LogWorldPartitionBuilderCommandlet, Display, TEXT("No files to submit!"));
+		}
+	}
+
+	return bSucceeded;
 }
