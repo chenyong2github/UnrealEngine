@@ -245,7 +245,7 @@ void CopyLightProfile( const ULightComponent* In, Lightmass::FLightData& Out, TA
 
 			TArray64<uint8> MipData;
 
-			Source.GetMipData(MipData, 0);
+			verify( Source.GetMipData(MipData, 0) );
 
 			const uint32 Width = FMath::Sqrt( static_cast<float>(Lightmass::FLightData::LightProfileTextureDataSize) );
 			const uint32 Height = Lightmass::FLightData::LightProfileTextureDataSize / Width;
@@ -1156,7 +1156,7 @@ void FLightmassExporter::WriteLights( int32 Channel )
 				if ( SizeX > 1 || SizeY > 1 )
 				{
 					TArray64< uint8 > MipData;
-					Source.GetMipData( MipData, MipLevel );
+					verify( Source.GetMipData( MipData, MipLevel ) );
 
 					uint8* Pixel = MipData.GetData();
 					uint8* PixelEnd = Pixel + MipData.Num();

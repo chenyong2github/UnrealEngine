@@ -277,8 +277,9 @@ void UMeshPaintModeSubsystem::ImportVertexColorsToSkeletalMesh(USkeletalMesh* Sk
 	checkf(SkeletalMesh && Options && Texture, TEXT("Invalid ptr"));
 
 	// Extract color data from texture
+	// todo: better to use GetMipImage rather than GetMipData
 	TArray64<uint8> SrcMipData;
-	Texture->Source.GetMipData(SrcMipData, 0);
+	verify( Texture->Source.GetMipData(SrcMipData, 0) );
 	const uint8* MipData = SrcMipData.GetData();
 
 	TUniquePtr< FSkinnedMeshComponentRecreateRenderStateContext > RecreateRenderStateContext;
@@ -410,8 +411,9 @@ void UMeshPaintModeSubsystem::ImportVertexColorsToStaticMesh(UStaticMesh* Static
 	checkf(StaticMesh && Options && Texture, TEXT("Invalid ptr"));
 
 	// Extract color data from texture
+	// todo: better to use GetMipImage rather than GetMipData
 	TArray64<uint8> SrcMipData;
-	Texture->Source.GetMipData(SrcMipData, 0);
+	verify( Texture->Source.GetMipData(SrcMipData, 0) );
 	const uint8* MipData = SrcMipData.GetData();
 
 	TUniquePtr< FStaticMeshComponentRecreateRenderStateContext > RecreateRenderStateContext = MakeUnique<FStaticMeshComponentRecreateRenderStateContext>(StaticMesh);
@@ -455,8 +457,9 @@ void UMeshPaintModeSubsystem::ImportVertexColorsToStaticMeshComponent(UStaticMes
 	checkf(StaticMeshComponent && Options && Texture, TEXT("Invalid ptr"));
 
 	// Extract color data from texture
+	// todo: better to use GetMipImage rather than GetMipData
 	TArray64<uint8> SrcMipData;
-	Texture->Source.GetMipData(SrcMipData, 0);
+	verify( Texture->Source.GetMipData(SrcMipData, 0) );
 	const uint8* MipData = SrcMipData.GetData();
 
 	TUniquePtr< FComponentReregisterContext > ComponentReregisterContext;

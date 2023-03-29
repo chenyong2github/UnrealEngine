@@ -90,6 +90,7 @@ public:
 
 	void* LockMip(UTexture2D* Texture, int32 MipLevel)
 	{
+		check(Texture->Source.IsValid());
 		check(MipLevel < Texture->Source.GetNumMips());
 
 		TArray<FLockedMipDataInfo>* MipInfo = LockedMipInfoMap.Find(Texture);
@@ -104,7 +105,7 @@ public:
 
 		if( (*MipInfo)[MipLevel].MipData.Num() == 0 )
 		{
-			Texture->Source.GetMipData((*MipInfo)[MipLevel].MipData, MipLevel);
+			verify( Texture->Source.GetMipData((*MipInfo)[MipLevel].MipData, MipLevel) );
 		}
 		(*MipInfo)[MipLevel].LockCount++;
 

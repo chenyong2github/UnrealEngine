@@ -670,7 +670,7 @@ void FSubUVDerivedData::Build(UTexture2D* SubUVTexture, int32 SubImages_Horizont
 		DefaultFrame.BoundingVertices.Add(FVector2D(1, 0));
 	}
 
-	if (SubUVTexture)
+	if (SubUVTexture && SubUVTexture->Source.IsValid())
 	{
 		TArray64<uint8> MipData;
 		ETextureSourceFormat SourceFormat = SubUVTexture->Source.GetFormat();

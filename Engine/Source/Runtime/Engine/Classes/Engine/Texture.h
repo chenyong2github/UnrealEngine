@@ -268,10 +268,10 @@ struct FTextureSource
 	/** Unlock a mip. */
 	ENGINE_API void UnlockMip(int32 BlockIndex, int32 LayerIndex, int32 MipIndex);
 
-	/** Retrieve a copy of the data for a particular mip. */
+	/** Retrieve a copy of the data for a particular mip.  Prefer GetMipImage. */
 	ENGINE_API bool GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, int32 LayerIndex, int32 MipIndex, class IImageWrapperModule* ImageWrapperModule = nullptr);
 	
-	/** Legacy API that defaults to LayerIndex 0 */
+	/** Legacy API that defaults to LayerIndex 0.  Prefer GetMipImage. */
 	FORCEINLINE bool GetMipData(TArray64<uint8>& OutMipData, int32 MipIndex, class IImageWrapperModule* ImageWrapperModule = nullptr)
 	{
 		return GetMipData(OutMipData, 0, 0, MipIndex, ImageWrapperModule);

@@ -37,7 +37,7 @@ struct PAPER2D_API FAlphaBitmap
 		if (TextureSource != nullptr)
 		{
 			TArray64<uint8> TextureRawData;
-			TextureSource->GetMipData(TextureRawData, 0);
+			verify( TextureSource->GetMipData(TextureRawData, 0) );
 			int32 BytesPerPixel = TextureSource->GetBytesPerPixel();
 			ETextureSourceFormat PixelFormat = TextureSource->GetFormat();
 			Width = TextureSource->GetSizeX();

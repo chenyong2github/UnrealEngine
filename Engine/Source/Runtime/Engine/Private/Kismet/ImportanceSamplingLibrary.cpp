@@ -99,10 +99,13 @@ void FImportanceTexture::Initialize(UTexture2D *SourceTexture, TEnumAsByte<EImpo
 	int32 FirstMip = FMath::Max(0, SourceMips - MAX_MIP_LEVELS);
 	NumMips = SourceMips - FirstMip;
 	MipData.AddZeroed(NumMips);
+	// this gets the PlatformData mip data, not the Source:
 	SourceTexture->GetMipData(FirstMip, (void**)MipData.GetData());
 
 	// Copy just the needed MIP data and adjust size
+	// todo: why is it being copied? just use MipData
 	FIntPoint SrcSize = FIntPoint(SourceTexture->GetSizeX(), SourceTexture->GetSizeY());
+	// todo: this mip size computation looks wrong
 	Size = FIntPoint(((SrcSize.X - 1) >> FirstMip) + 1, ((SrcSize.Y - 1) >> FirstMip) + 1);
 	FIntPoint LastMipSize(((Size.X - 1) >> (NumMips - 1)) + 1, ((Size.Y - 1) >> (NumMips - 1)) + 1);
 	size_t MipDataSize = (4 * Size.X * Size.Y - LastMipSize.X * LastMipSize.Y) / 3;

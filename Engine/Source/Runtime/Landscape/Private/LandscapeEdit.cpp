@@ -1323,14 +1323,16 @@ void ULandscapeComponent::UpdateCollisionData(bool bInUpdateHeightfieldRegion)
 	TArray64<uint8> SimpleCollisionMipData;
 	TArray64<uint8> XYOffsetMipData;
 
-	GetHeightmap()->Source.GetMipData(CollisionMipData, CollisionMipLevel);
+	check( GetHeightmap()->Source.IsValid() );
+
+	verify( GetHeightmap()->Source.GetMipData(CollisionMipData, CollisionMipLevel) );
 	if (SimpleCollisionMipLevel > CollisionMipLevel)
 	{
-		GetHeightmap()->Source.GetMipData(SimpleCollisionMipData, SimpleCollisionMipLevel);
+		verify( GetHeightmap()->Source.GetMipData(SimpleCollisionMipData, SimpleCollisionMipLevel) );
 	}
 	if (XYOffsetmapTexture)
 	{
-		XYOffsetmapTexture->Source.GetMipData(XYOffsetMipData, CollisionMipLevel);
+		verify( XYOffsetmapTexture->Source.GetMipData(XYOffsetMipData, CollisionMipLevel) );
 	}
 
 	UpdateCollisionHeightData(
@@ -1727,7 +1729,7 @@ void ULandscapeComponent::UpdateCollisionLayerData()
 	for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapsTexture.Num(); ++WeightmapIdx)
 	{
 		TArray64<uint8>& MipData = WeightmapTextureMipData.AddDefaulted_GetRef();
-		ComponentWeightmapsTexture[WeightmapIdx]->Source.GetMipData(MipData, CollisionMipLevel);
+		verify( ComponentWeightmapsTexture[WeightmapIdx]->Source.GetMipData(MipData, CollisionMipLevel) );
 		WeightmapTextureMipDataParam.Add((FColor*)MipData.GetData());
 	}
 
@@ -1740,7 +1742,7 @@ void ULandscapeComponent::UpdateCollisionLayerData()
 		for (int32 WeightmapIdx = 0; WeightmapIdx < ComponentWeightmapsTexture.Num(); ++WeightmapIdx)
 		{
 			TArray64<uint8>& MipData = SimpleCollisionWeightmapMipData.AddDefaulted_GetRef();
-			ComponentWeightmapsTexture[WeightmapIdx]->Source.GetMipData(MipData, SimpleCollisionMipLevel);
+			verify( ComponentWeightmapsTexture[WeightmapIdx]->Source.GetMipData(MipData, SimpleCollisionMipLevel) );
 			SimpleCollisionWeightmapMipDataParam.Add((FColor*)MipData.GetData());
 		}
 	}
@@ -2162,6 +2164,7 @@ void ULandscapeComponent::GenerateHeightmapMips(TArray<FColor*>& HeightmapTextur
 
 void ULandscapeComponent::CreateEmptyTextureMips(UTexture2D* Texture, bool bClear /*= false*/)
 {
+	check( Texture->Source.IsValid() );
 	ETextureSourceFormat Format = Texture->Source.GetFormat();
 	int32 SizeU = Texture->Source.GetSizeX();
 	int32 SizeV = Texture->Source.GetSizeY();
@@ -2173,6 +2176,7 @@ void ULandscapeComponent::CreateEmptyTextureMips(UTexture2D* Texture, bool bClea
 		for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
 		{
 			uint8* MipData = Texture->Source.LockMip(MipIndex);
+			check( MipData );
 			FMemory::Memzero(MipData, Texture->Source.CalcMipSize(MipIndex));
 			Texture->Source.UnlockMip(MipIndex);
 		}
@@ -2180,10 +2184,11 @@ void ULandscapeComponent::CreateEmptyTextureMips(UTexture2D* Texture, bool bClea
 	else
 	{
 		TArray64<uint8> TopMipData;
-		Texture->Source.GetMipData(TopMipData, 0);
+		verify( Texture->Source.GetMipData(TopMipData, 0) );
 		Texture->Source.Init2DWithMipChain(SizeU, SizeV, Format);
 		int32 NumMips = Texture->Source.GetNumMips();
 		uint8* MipData = Texture->Source.LockMip(0);
+		check( MipData );
 		FMemory::Memcpy(MipData, TopMipData.GetData(), TopMipData.Num());
 		Texture->Source.UnlockMip(0);
 	}

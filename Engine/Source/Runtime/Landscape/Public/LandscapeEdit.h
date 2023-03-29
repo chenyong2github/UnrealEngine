@@ -90,7 +90,12 @@ struct FLandscapeTextureDataInfo
 		check( MipNum < MipInfo.Num() );
 		if( !MipInfo[MipNum].MipData )
 		{
+			// will Unlock in destructor
 			MipInfo[MipNum].MipData = Texture->Source.LockMip(MipNum);
+			// probably should check that we got the lock :
+			//check( MipInfo[MipNum].MipData != nullptr );
+			// also this return value is usually cast to FColor *
+			// should instead have a function that returns FColor * and ensures the mip actually is BGRA8
 		}
 		return MipInfo[MipNum].MipData;
 	}

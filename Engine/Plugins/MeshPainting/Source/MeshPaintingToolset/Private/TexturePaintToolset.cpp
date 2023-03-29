@@ -333,6 +333,9 @@ UTexture2D* UTexturePaintToolset::CreateScratchUncompressedTexture(UTexture2D* S
 {
 	check(SourceTexture->Source.IsValid());
 
+	// bad: this code assumes the TextureSource is RGBA8
+	//	use GetMipImage instead of GetMipData
+
 	// Decompress PNG image
 	TArray64<uint8> RawData;
 	SourceTexture->Source.GetMipData(RawData, 0);
@@ -353,6 +356,7 @@ UTexture2D* UTexturePaintToolset::CreateScratchUncompressedTexture(UTexture2D* S
 	for (int32 y = 0; y < Height; y++)
 	{
 		uint8* DestPtr = &MipData[(Height - 1 - y) * Width * sizeof(FColor)];
+		//bad: very unsafe cast and un-checked access of memory :
 		const FColor* SrcPtr = &((FColor*)(RawData.GetData()))[(Height - 1 - y) * Width];
 		for (int32 x = 0; x < Width; x++)
 		{

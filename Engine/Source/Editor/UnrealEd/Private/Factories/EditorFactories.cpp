@@ -2885,6 +2885,8 @@ void* FImportImage::GetMipData(int32 InMipIndex)
 	{
 		Offset += GetMipSize(MipIndex);
 	}
+	int64 CurMipSize = GetMipSize(InMipIndex);
+	check( Offset + CurMipSize <= RawData.Num() );
 	return &RawData[Offset];
 }
 
@@ -4630,7 +4632,7 @@ bool UTextureExporterPCX::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 	uint16 SizeX = IntCastChecked<uint16>(Texture->Source.GetSizeX());
 	uint16 SizeY = IntCastChecked<uint16>(Texture->Source.GetSizeY());
 	TArray64<uint8> RawData;
-	Texture->Source.GetMipData(RawData, 0);
+	verify( Texture->Source.GetMipData(RawData, 0) );
 
 	// Set all PCX file header properties.
 	FPCXFileHeader PCX;

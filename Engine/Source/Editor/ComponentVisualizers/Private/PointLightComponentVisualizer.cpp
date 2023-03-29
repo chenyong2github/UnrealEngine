@@ -267,7 +267,7 @@ bool FTextureLightProfileVisualizer::UpdateIntensitiesCache(UTextureLightProfile
 	using namespace TextureLightProfileVisualizerImpl;
 
 	// Only RGBA16F is supported for IES light profiles
-	if ( !TextureLightProfile || TextureLightProfile->Source.GetFormat() != TSF_RGBA16F )
+	if ( !TextureLightProfile || ! TextureLightProfile->Source.IsValid() || TextureLightProfile->Source.GetFormat() != TSF_RGBA16F )
 	{
 		CachedLightProfile = nullptr;
 		IntensitiesCache.Empty();
@@ -289,7 +289,7 @@ bool FTextureLightProfileVisualizer::UpdateIntensitiesCache(UTextureLightProfile
 	const FVector StartPos = LightTM.GetTranslation();
 
 	TArray64< uint8 > MipData;
-	TextureLightProfile->Source.GetMipData( MipData, 0 );
+	verify( TextureLightProfile->Source.GetMipData( MipData, 0 ) );
 
 	FTextureLightProfileData TextureLightProfileData{ MipData, TextureLightProfile->Source.GetSizeX(), TextureLightProfile->Source.GetSizeY(), TextureLightProfile->Source.GetBytesPerPixel() };
 

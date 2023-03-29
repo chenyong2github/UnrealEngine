@@ -181,11 +181,19 @@ public:
 	}
 
 	/**
-	 * Get mip data starting with the specified mip index.
+	 * Get the PlatformData mip data starting with the specified mip index.
+	 *
 	 * @param FirstMipToLoad - The first mip index to cache.
 	 * @param OutMipData -	Must point to an array of pointers with at least
 	 *						Mips.Num() - FirstMipToLoad + 1 entries. Upon
 	 *						return those pointers will contain mip data.
+	 *
+	 * prefer TryLoadMipsWithSizes
+	 *
+	 * todo: deprecate this API when possible
+	 * this API is also duplicated in Texture2DArray and TextureCube
+	 * unify and fix them all
+	 * also don't use "GetMipData" as that is the name used for TextureSource
 	 */
 	ENGINE_API void GetMipData(int32 FirstMipToLoad, void** OutMipData);
 

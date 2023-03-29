@@ -76,13 +76,13 @@ FLinearColor UBlueprintMaterialTextureNodesBPLibrary::Texture2D_SampleUV_EditorO
 			}
 		}
 		//Read Texture Source if platform data is unavailable
-		else
+		else if ( Texture->Source.IsValid() )
 		{
 			FTextureSource& TextureSource = Texture->Source;
 
 			// gets a copy of the whole mip to sample one pixel :
 			TArray64<uint8> SourceData;
-			Texture->Source.GetMipData(SourceData, Mip);
+			verify( Texture->Source.GetMipData(SourceData, Mip) );
 			ETextureSourceFormat SourceFormat = TextureSource.GetFormat();
 			int32 Index = ((Y * MipWidth) + X) * TextureSource.GetBytesPerPixel();
 			const uint8* PixelPtr = SourceData.GetData() + Index;

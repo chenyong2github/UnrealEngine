@@ -227,7 +227,7 @@ mu::NodeImagePtr GenerateMutableGroupProjection(const int32 NodeLOD, const int32
 						if (MaskTexture2D && MaskTexture2D->Source.GetNumMips() > 0)
 						{
 							TArray64<uint8> TempData;
-							MaskTexture2D->Source.GetMipData(TempData, 0, 0, 0);
+							verify( MaskTexture2D->Source.GetMipData(TempData, 0, 0, 0) );
 							uint32 TotalTexels = MaskTexture2D->Source.GetSizeX() * MaskTexture2D->Source.GetSizeY();
 
 							ETextureSourceFormat PixelFormat = MaskTexture2D->Source.GetFormat();

@@ -1013,6 +1013,7 @@ public:
 		TArray<uint8*> RawData2;
 		Size = Texture->GetImportedSize();
 		RawData2.AddZeroed(Texture->GetNumMips());
+		// this is PlatformData GetMipData , not Source :
 		Texture->GetMipData(0, (void**)RawData2.GetData());
 		const EPixelFormat NewFormat = Texture->GetPixelFormat();
 
@@ -1315,6 +1316,7 @@ bool FImageUtils::GetTexture2DSourceImage(UTexture2D* Texture, FImage & OutImage
 
 	/*
 	EPixelFormat PixelFormat = Texture->GetFormat();
+	// this is PlatformData GetMipData , not Source :
 	Texture->GetMipData(0, (void**)RawData2.GetData());
 	if (Texture->GetPlatformData()->Mips.Num() == 0)
 	*/

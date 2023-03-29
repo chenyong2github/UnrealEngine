@@ -99,6 +99,11 @@ static bool ReadTexture_SourceData(
 	UTexture2D* TextureMap,
 	TImageBuilder<FVector4f>& DestImage)
 {
+	if ( ! TextureMap->Source.IsValid() )
+	{
+		return false;
+	}
+
 	// TODO #jira UE-176086 Enable this code when it is less risky to do so, and after it has been tested. This code
 	// also fixes an issue where not all texture source formats are supported
 	if constexpr (false)
@@ -108,7 +113,7 @@ static bool ReadTexture_SourceData(
 		const int32 Height = TextureSource.GetSizeY();
 
 		FImage Image;
-		FImageUtils::GetTexture2DSourceImage(TextureMap, Image);
+		verify( FImageUtils::GetTexture2DSourceImage(TextureMap, Image) );
 
 		FImage LinearImage;
 		Image.Linearize(LinearImage);
@@ -139,7 +144,7 @@ static bool ReadTexture_SourceData(
 	const int64 Num = Dimensions.Num();
 
 	TArray64<uint8> SourceData;
-	TextureMap->Source.GetMipData(SourceData, 0, 0, 0);
+	verify( TextureMap->Source.GetMipData(SourceData, 0, 0, 0) );
 	const ETextureSourceFormat SourceFormat = TextureSource.GetFormat();
 	const int32 BytesPerPixel = TextureSource.GetBytesPerPixel();
 	const uint8* SourceDataPtr = SourceData.GetData();
@@ -283,7 +288,7 @@ bool UE::AssetUtils::ConvertToSingleChannel(UTexture2D* TextureMap)
 		NewSourceData.SetNum(Width * Height);
 
 		TArray64<uint8> SourceData;
-		TextureMap->Source.GetMipData(SourceData, 0, 0, 0);
+		verify( TextureMap->Source.GetMipData(SourceData, 0, 0, 0) );
 		int32 BytesPerPixel = TextureSource.GetBytesPerPixel();
 		check(BytesPerPixel == sizeof(FColor));
 		const uint8* SourceDataPtr = SourceData.GetData();
