@@ -314,29 +314,6 @@ struct TMassExternalSubsystemTraits<UMassTestEngineSubsystem>
 };
 
 UCLASS()
-class UMassTestCustomSubsystem : public USubsystem
-{
-	GENERATED_BODY()
-
-public:
-	static UMassTestCustomSubsystem* Create();
-	static UMassTestCustomSubsystem* Get();
-private:
-	static TWeakObjectPtr<UMassTestCustomSubsystem> Instance;
-};
-
-template<>
-struct TMassExternalSubsystemTraits<UMassTestCustomSubsystem>
-{
-	enum
-	{
-		GameThreadOnly = false,
-		ThreadSafeRead = true,
-		ThreadSafeWrite = false,
-	};
-};
-
-UCLASS()
 class UMassTestLocalPlayerSubsystem : public ULocalPlayerSubsystem
 {
 	GENERATED_BODY()
