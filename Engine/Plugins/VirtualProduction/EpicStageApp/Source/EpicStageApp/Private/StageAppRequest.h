@@ -400,6 +400,12 @@ struct FRCWebSocketNDisplayPreviewActorCreateBody : public FRCRequest
 	FLinearColor Color = FLinearColor::White;
 
 	/**
+	 * Whether this actor should be created as a flag if it's a lightcard.
+	 */
+	UPROPERTY()
+	bool bIsLightCardFlag = false;
+
+	/**
 	 * An optional number that will be passed back in the RequestedActorsCreated response to tell apart
 	 * the results of multiple requests.
 	 */

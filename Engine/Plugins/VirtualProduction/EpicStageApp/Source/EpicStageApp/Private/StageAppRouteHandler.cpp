@@ -858,6 +858,8 @@ void FStageAppRouteHandler::HandleWebSocketNDisplayPreviewActorCreate(const FRem
 		{
 			LightCard->Color = Body.Color;
 		}
+
+		LightCard->SetIsLightCardFlag(Body.bIsLightCardFlag);
 	}
 
 	// Override the location
