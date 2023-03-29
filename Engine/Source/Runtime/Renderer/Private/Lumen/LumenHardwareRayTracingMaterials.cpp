@@ -154,16 +154,21 @@ FRayTracingLocalShaderBindings* FDeferredShadingSceneRenderer::BuildLumenHardwar
 	FRHIUniformBuffer** UniformBufferArray = (FRHIUniformBuffer**)Alloc(sizeof(FRHIUniformBuffer*) * NumUniformBuffers, alignof(FRHIUniformBuffer*));
 	UniformBufferArray[0] = ReferenceView.LumenHardwareRayTracingUniformBuffer->GetRHI();
 
-	FLumenHardwareRayTracingMaterialHitGroup::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FLumenHardwareRayTracingMaterialHitGroup::FAvoidSelfIntersections>(false);
-	auto HitGroupShader = View.ShaderMap->GetShader<FLumenHardwareRayTracingMaterialHitGroup>(PermutationVector).GetRayTracingShader();
+	int32 ShaderIndexInPipelinePerHitGroup[2] = { 0, 1 };
 
-	PermutationVector.Set<FLumenHardwareRayTracingMaterialHitGroup::FAvoidSelfIntersections>(true);
-	auto HitGroupShaderWithAvoidSelfIntersections = View.ShaderMap->GetShader<FLumenHardwareRayTracingMaterialHitGroup>(PermutationVector).GetRayTracingShader();
+	if (GRHISupportsRayTracingShaders)
+	{
+		FLumenHardwareRayTracingMaterialHitGroup::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FLumenHardwareRayTracingMaterialHitGroup::FAvoidSelfIntersections>(false);
+		auto HitGroupShader = View.ShaderMap->GetShader<FLumenHardwareRayTracingMaterialHitGroup>(PermutationVector).GetRayTracingShader();
 
-	int32 ShaderIndexInPipelinePerHitGroup[2];
-	ShaderIndexInPipelinePerHitGroup[0] = FindRayTracingHitGroupIndex(View.LumenHardwareRayTracingMaterialPipeline, HitGroupShader, true);
-	ShaderIndexInPipelinePerHitGroup[1] = FindRayTracingHitGroupIndex(View.LumenHardwareRayTracingMaterialPipeline, HitGroupShaderWithAvoidSelfIntersections, true);
+		PermutationVector.Set<FLumenHardwareRayTracingMaterialHitGroup::FAvoidSelfIntersections>(true);
+		auto HitGroupShaderWithAvoidSelfIntersections = View.ShaderMap->GetShader<FLumenHardwareRayTracingMaterialHitGroup>(PermutationVector).GetRayTracingShader();
+
+		int32 ShaderIndexInPipelinePerHitGroup[2];
+		ShaderIndexInPipelinePerHitGroup[0] = FindRayTracingHitGroupIndex(View.LumenHardwareRayTracingMaterialPipeline, HitGroupShader, true);
+		ShaderIndexInPipelinePerHitGroup[1] = FindRayTracingHitGroupIndex(View.LumenHardwareRayTracingMaterialPipeline, HitGroupShaderWithAvoidSelfIntersections, true);
+	}
 
 	uint32 BindingIndex = 0;
 	for (const FVisibleRayTracingMeshCommand VisibleMeshCommand : ReferenceView.VisibleRayTracingMeshCommands)
