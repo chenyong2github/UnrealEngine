@@ -291,7 +291,7 @@ void FAnimTimelineTrack_FloatCurve::AddCurveTrackButton(TSharedPtr<SHorizontalBo
 		// Set display curves too
 		for(const TPair<FCurveModelID, TUniquePtr<FCurveModel>>& CurvePair : CurveEditor->GetCurves())
 		{
-			CurvePair.Value->SetColor(InNewColor);
+			CurvePair.Value->SetColor(InNewColor, false);
 		}
 	};
 
