@@ -22,23 +22,51 @@ void FMaterialXSurfaceUnlitShader::Translate(mx::NodePtr SurfaceUnlitNode)
 {
 	this->SurfaceShaderNode = SurfaceUnlitNode;
 
+	UInterchangeFunctionCallShaderNode* SurfaceUnlitShaderNode;
+
+	const FString NodeUID = UInterchangeShaderNode::MakeNodeUid(ANSI_TO_TCHAR(SurfaceUnlitNode->getName().c_str()), FStringView{});
+
+	if(SurfaceUnlitShaderNode = const_cast<UInterchangeFunctionCallShaderNode*>(Cast<UInterchangeFunctionCallShaderNode>(NodeContainer.GetNode(NodeUID))); !SurfaceUnlitShaderNode)
+	{
+		const FString NodeName = SurfaceUnlitNode->getName().c_str();
+		SurfaceUnlitShaderNode = NewObject<UInterchangeFunctionCallShaderNode>(&NodeContainer);
+		SurfaceUnlitShaderNode->InitializeNode(NodeUID, NodeName, EInterchangeNodeContainerType::TranslatedAsset);
+
+		SurfaceUnlitShaderNode->SetCustomMaterialFunction(TEXT("/Interchange/Functions/MX_SurfaceUnlit.MX_SurfaceUnlit"));
+		NodeContainer.AddNode(SurfaceUnlitShaderNode);
+
+		ShaderNodes.Add(NodeName, SurfaceUnlitShaderNode);
+	}
+
 	using namespace UE::Interchange::Materials;
 
-	ShaderGraphNode->SetCustomShaderType(SurfaceUnlit::Name.ToString());
-
 	//Emission
-	ConnectNodeOutputToInput(mx::SurfaceUnlit::Input::Emission, ShaderGraphNode, SurfaceUnlit::Parameters::Emission.ToString(), mx::SurfaceUnlit::DefaultValue::Float::Emission);
+	ConnectNodeOutputToInput(mx::SurfaceUnlit::Input::Emission, SurfaceUnlitShaderNode, SurfaceUnlit::Parameters::Emission.ToString(), mx::SurfaceUnlit::DefaultValue::Float::Emission);
 
 	//Emission Color
-	ConnectNodeOutputToInput(mx::SurfaceUnlit::Input::EmissionColor, ShaderGraphNode, SurfaceUnlit::Parameters::EmissionColor.ToString(), mx::SurfaceUnlit::DefaultValue::Color3::EmissionColor);
+	ConnectNodeOutputToInput(mx::SurfaceUnlit::Input::EmissionColor, SurfaceUnlitShaderNode, SurfaceUnlit::Parameters::EmissionColor.ToString(), mx::SurfaceUnlit::DefaultValue::Color3::EmissionColor);
 
 	//Opacity
-	ConnectNodeOutputToInput(mx::SurfaceUnlit::Input::Opacity, ShaderGraphNode, SurfaceUnlit::Parameters::Opacity.ToString(), mx::SurfaceUnlit::DefaultValue::Float::Opacity);
+	ConnectNodeOutputToInput(mx::SurfaceUnlit::Input::Opacity, SurfaceUnlitShaderNode, SurfaceUnlit::Parameters::Opacity.ToString(), mx::SurfaceUnlit::DefaultValue::Float::Opacity);
 
 	//Transmission
-	ConnectNodeOutputToInput(mx::SurfaceUnlit::Input::Transmission, ShaderGraphNode, SurfaceUnlit::Parameters::Transmission.ToString(), mx::SurfaceUnlit::DefaultValue::Float::Transmission);
+	ConnectNodeOutputToInput(mx::SurfaceUnlit::Input::Transmission, SurfaceUnlitShaderNode, SurfaceUnlit::Parameters::Transmission.ToString(), mx::SurfaceUnlit::DefaultValue::Float::Transmission);
 
 	//Transmission Color
-	ConnectNodeOutputToInput(mx::SurfaceUnlit::Input::TransmissionColor, ShaderGraphNode, SurfaceUnlit::Parameters::TransmissionColor.ToString(), mx::SurfaceUnlit::DefaultValue::Color3::TransmissionColor);
+	ConnectNodeOutputToInput(mx::SurfaceUnlit::Input::TransmissionColor, SurfaceUnlitShaderNode, SurfaceUnlit::Parameters::TransmissionColor.ToString(), mx::SurfaceUnlit::DefaultValue::Color3::TransmissionColor);
+
+	// Outputs
+	UInterchangeShaderPortsAPI::ConnectOuputToInputByName(ShaderGraphNode, PBR::Parameters::EmissiveColor.ToString(), SurfaceUnlitShaderNode->GetUniqueID(), PBR::Parameters::EmissiveColor.ToString());
+
+	//We can't have both Opacity and Opacity Mask we need to make a choice	
+	if(UInterchangeShaderPortsAPI::HasInput(SurfaceUnlitShaderNode, SurfaceUnlit::Parameters::Transmission))
+	{
+		UInterchangeShaderPortsAPI::ConnectOuputToInputByName(ShaderGraphNode, PBR::Parameters::Opacity.ToString(), SurfaceUnlitShaderNode->GetUniqueID(), PBR::Parameters::Opacity.ToString());
+	}
+	else if(UInterchangeShaderPortsAPI::HasInput(SurfaceUnlitShaderNode, SurfaceUnlit::Parameters::Opacity))
+	{
+		UInterchangeShaderPortsAPI::ConnectOuputToInputByName(ShaderGraphNode, PBR::Parameters::Opacity.ToString(), SurfaceUnlitShaderNode->GetUniqueID(), TEXT("OpacityMask"));
+		ShaderGraphNode->SetCustomOpacityMaskClipValue(1.f); // just to connect to the opacity mask
+	}
 }
 #endif

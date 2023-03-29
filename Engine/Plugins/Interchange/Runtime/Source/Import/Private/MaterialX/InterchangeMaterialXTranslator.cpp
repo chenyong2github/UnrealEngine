@@ -193,7 +193,17 @@ bool UInterchangeMaterialXTranslator::Translate(UInterchangeBaseNodeContainer& B
 
 TOptional<UE::Interchange::FImportImage> UInterchangeMaterialXTranslator::GetTexturePayloadData(const UInterchangeSourceData* InSourceData, const FString& PayloadKey) const
 {
-	UInterchangeSourceData* PayloadSourceData = UInterchangeManager::GetInterchangeManager().CreateSourceData(PayloadKey);
+	FString Filename = PayloadKey;
+	TextureCompressionSettings CompressionSettings = TextureCompressionSettings::TC_Default;
+
+#if WITH_EDITOR
+	if(int32 IndexTextureCompression; PayloadKey.FindChar(FMaterialXManager::TexturePayloadSeparator, IndexTextureCompression))
+	{
+		Filename = PayloadKey.Mid(0, IndexTextureCompression);
+		CompressionSettings = TextureCompressionSettings(FCString::Atoi(*PayloadKey.Mid(IndexTextureCompression + 1)));
+	}
+#endif
+	UInterchangeSourceData* PayloadSourceData = UInterchangeManager::GetInterchangeManager().CreateSourceData(Filename);
 	FGCObjectScopeGuard ScopedSourceData(PayloadSourceData);
 
 	if(!PayloadSourceData)
@@ -210,7 +220,14 @@ TOptional<UE::Interchange::FImportImage> UInterchangeMaterialXTranslator::GetTex
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
-	return TextureTranslator->GetTexturePayloadData(PayloadSourceData, PayloadKey);
+	TOptional<UE::Interchange::FImportImage> TexturePayloadData = TextureTranslator->GetTexturePayloadData(PayloadSourceData, Filename);
+
+	if(TexturePayloadData.IsSet())
+	{
+		TexturePayloadData.GetValue().CompressionSettings = CompressionSettings;
+	}
+
+	return TexturePayloadData;
 }
 
 #undef LOCTEXT_NAMESPACE

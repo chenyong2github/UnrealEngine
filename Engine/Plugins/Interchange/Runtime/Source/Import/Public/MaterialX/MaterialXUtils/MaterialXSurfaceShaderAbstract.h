@@ -3,10 +3,12 @@
 #pragma once
 
 #if WITH_EDITOR
+#include "Engine/TextureDefines.h"
 #include "InterchangeShaderGraphNode.h"
 #include "InterchangeTranslatorBase.h"
 #include "InterchangeTexture2DNode.h"
 #include "MaterialXBase.h"
+#include "MaterialXManager.h"
 
 class FMaterialXSurfaceShaderAbstract : public FMaterialXBase
 {
@@ -71,12 +73,15 @@ protected:
 	 * @param ShaderNode - The Interchange shader node to connect the MaterialX's node or node graph to
 	 * @param InputShaderName - The name of the input of the shader node to connect to
 	 * @param DefaultValue - The default value of the MaterialX input
+	 * @param OptionalTextureCompression - Set the texture compression for all textures along the path of an input
 	 */
 	template<typename T>
-	bool ConnectNodeOutputToInput(const char* InputName, UInterchangeShaderNode* ShaderNode, const FString& InputShaderName, T DefaultValue)
+	bool ConnectNodeOutputToInput(const char* InputName, UInterchangeShaderNode* ShaderNode, const FString& InputShaderName, T DefaultValue, const TOptional<TextureCompressionSettings>& OptionalTextureCompression = TOptional<TextureCompressionSettings>{})
 	{
 		MaterialX::DocumentPtr Document = SurfaceShaderNode->getDocument();
 		MaterialX::InputPtr Input = GetInput(SurfaceShaderNode, InputName);
+
+		TGuardValue<TOptional<TextureCompressionSettings>> InputTypeBeingProcessedGuard(TextureCompression, OptionalTextureCompression);
 
 		bool bIsConnected = ConnectNodeGraphOutputToInput(Input, ShaderNode, InputShaderName);
 
@@ -306,6 +311,12 @@ protected:
 
 					TextureNode->SetCustomWrapU(WrapModeU);
 					TextureNode->SetCustomWrapV(WrapModeV);
+
+					// Encode the compression in the payloadKey
+					if(TextureCompression.IsSet())
+					{
+						TextureNode->SetPayLoadKey(TextureNode->GetPayLoadKey().GetValue() + FMaterialXManager::TexturePayloadSeparator + FString::FromInt(TextureCompression.GetValue()));
+					}
 				}
 			}
 		}
@@ -390,5 +401,6 @@ protected:
 	/** Initialized by the material shader (e.g: surfacematerial), the derived class should only set the ShaderType */
 	UInterchangeShaderGraphNode* ShaderGraphNode;
 
+	TOptional<TextureCompressionSettings> TextureCompression;
 };
 #endif

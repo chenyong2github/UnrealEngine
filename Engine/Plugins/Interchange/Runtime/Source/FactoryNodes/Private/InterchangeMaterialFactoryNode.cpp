@@ -355,6 +355,16 @@ bool UInterchangeMaterialFactoryNode::SetCustomOpacityMaskClipValue(const float&
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeMaterialFactoryNode, OpacityMaskClipValue, float, UMaterial);
 }
 
+bool UInterchangeMaterialFactoryNode::GetCustomRefractionMethod(TEnumAsByte<ERefractionMode>& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(RefractionMethod, TEnumAsByte<ERefractionMode>);
+}
+
+bool UInterchangeMaterialFactoryNode::SetCustomRefractionMethod(const TEnumAsByte<ERefractionMode>& AttributeValue, bool bAddApplyDelegate)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeMaterialFactoryNode, RefractionMethod, TEnumAsByte<ERefractionMode>, UMaterial);
+}
+
 FString UInterchangeMaterialExpressionFactoryNode::GetTypeName() const
 {
 	const FString TypeName = TEXT("MaterialExpressionFactoryNode");

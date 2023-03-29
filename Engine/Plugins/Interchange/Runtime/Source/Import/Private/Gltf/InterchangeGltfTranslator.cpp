@@ -759,8 +759,9 @@ void UInterchangeGltfTranslator::HandleGltfSheen( UInterchangeBaseNodeContainer&
 		TVariant< FLinearColor, float > SheenRoughnessFactor;
 		SheenRoughnessFactor.Set< float >( GltfMaterial.Sheen.SheenRoughnessFactor );
 
+		const bool bInverse = true;
 		HandleGltfMaterialParameter( NodeContainer, GltfMaterial.Sheen.SheenRoughnessMap, ShaderGraphNode, Sheen::Parameters::SheenRoughness.ToString(),
-			SheenRoughnessFactor, Standard::Nodes::TextureSample::Outputs::A.ToString() );
+			SheenRoughnessFactor, Standard::Nodes::TextureSample::Outputs::A.ToString(), bInverse);
 	}
 }
 

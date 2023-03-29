@@ -15,6 +15,9 @@
 
 namespace mx = MaterialX;
 
+//not a good solution to use semicolon because of drive disk on Windows
+const TCHAR FMaterialXManager::TexturePayloadSeparator = TEXT('{');
+
 FMaterialXManager::FMaterialXManager()
 	: MatchingInputNames {
 		{{TEXT(""),                            TEXT("amplitude")}, TEXT("Amplitude")},

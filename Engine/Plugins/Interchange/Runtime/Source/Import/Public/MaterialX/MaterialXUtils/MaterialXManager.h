@@ -36,6 +36,8 @@ public:
 	FMaterialXManager(const FMaterialXManager&) = delete;
 	FMaterialXManager& operator=(const FMaterialXManager&) = delete;
 
+	static const TCHAR TexturePayloadSeparator;
+
 private:
 
 	FMaterialXManager();
