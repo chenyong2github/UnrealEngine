@@ -183,6 +183,51 @@ bool UMVVMView::SetViewModel(FName ViewModelName, TScriptInterface<INotifyFieldV
 }
 
 
+bool UMVVMView::SetViewModelByClass(TScriptInterface<INotifyFieldValueChanged> NewValue)
+{
+	if (!NewValue.GetObject())
+	{
+		UE::MVVM::FMessageLog Log(GetUserWidget());
+		Log.Error(LOCTEXT("SetViewModelInvalidObject", "The new viewmodel is null."));
+		return false;
+	}
+
+	if (ClassExtension == nullptr)
+	{
+		UE::MVVM::FMessageLog Log(GetUserWidget());
+		Log.Error(LOCTEXT("SetViewModelInvalidClass", "The view is not constructed."));
+		return false;
+	}
+
+	FName ViewModelName;
+	for (const FMVVMViewClass_SourceCreator& SourceCreator : ClassExtension->GetViewModelCreators())
+	{
+		if (NewValue.GetObject()->GetClass()->IsChildOf(SourceCreator.GetSourceClass()))
+		{
+			if (ViewModelName.IsNone())
+			{
+				ViewModelName = SourceCreator.GetSourceName();
+			}
+			else
+			{
+				UE::MVVM::FMessageLog Log(GetUserWidget());
+				Log.Error(FText::Format(LOCTEXT("SetViewModelViewModelNotUnique", "More than one viewmodel match the type of the passed instance. Make sure there exists only one viewmodel of type {0} in the widget blueprint, or try SetViewModel by name."), FText::FromName(NewValue.GetObject()->GetClass()->GetFName())));
+				return false;
+			}
+		}
+	}
+
+	if (ViewModelName.IsNone())
+	{
+		UE::MVVM::FMessageLog Log(GetUserWidget());
+		Log.Error(LOCTEXT("SetViewModelViewModelNotFound", "A created viewmodel matching the class of the passed instance could not be found."));
+		return false;
+	}
+
+	return SetViewModel(ViewModelName, NewValue);
+}
+
+
 bool UMVVMView::EvaluateSourceCreator(int32 SourceCreatorIndex)
 {
 	if (!ClassExtension->GetViewModelCreators().IsValidIndex(SourceCreatorIndex))

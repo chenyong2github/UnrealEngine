@@ -91,6 +91,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
 	bool SetViewModel(FName ViewModelName, TScriptInterface<INotifyFieldValueChanged> ViewModel);
 
+	/**
+	 * Set the first viewmodel matching the exact specified type. If none is found, set the first viewmodel matching a child of the specified type
+	 * The viewmodel needs to be settable and it should have a valid name.
+	 * If the view is initialized, all bindings that uses that viewmodel will be re-executed with the new viewmodel instance.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Viewmodel")
+	bool SetViewModelByClass(TScriptInterface<INotifyFieldValueChanged> NewValue);
+
 private:
 	bool EvaluateSourceCreator(int32 SourceIndex);
 	bool SetSourceInternal(FName ViewModelName, TScriptInterface<INotifyFieldValueChanged> ViewModel, bool bForDynamicSource);
