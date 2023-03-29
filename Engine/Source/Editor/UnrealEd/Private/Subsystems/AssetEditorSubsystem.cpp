@@ -840,6 +840,11 @@ void UAssetEditorSubsystem::SetAutoRestoreAndDisableSavingOverride(TOptional<boo
 
 }
 
+TOptional<bool> UAssetEditorSubsystem::GetAutoRestoreAndDisableSavingOverride() const
+{
+	return bAutoRestoreAndDisableSaving;
+}
+
 void UAssetEditorSubsystem::SpawnRestorePreviouslyOpenAssetsNotification(const bool bCleanShutdown, const TArray<FString>& AssetsToOpen)
 {
 	FText NotificationMessage = bCleanShutdown

@@ -797,10 +797,12 @@ void FLayoutsMenuLoad::ReloadCurrentLayout()
 	// Disable config saving
 	UAssetEditorSubsystem* AssetEditorSubsystem = (GEditor ? GEditor->GetEditorSubsystem<UAssetEditorSubsystem>() : nullptr);
 	const bool bAreAssetEditorOpened = (AssetEditorSubsystem ? AssetEditorSubsystem->GetAllEditedAssets().Num() > 0 : false); // Are there asset editors opened?
+	TOptional<bool> bAutoRestoreAndDisableSavingOverride;
 	if (bAreAssetEditorOpened)
 	{
 		// Save open asset editors + disable manual saving (no need to close them with AssetEditorSubsystem->CloseAllAssetEditors)
 		AssetEditorSubsystem->SaveOpenAssetEditors(true);
+		bAutoRestoreAndDisableSavingOverride = AssetEditorSubsystem->GetAutoRestoreAndDisableSavingOverride();
 		AssetEditorSubsystem->SetAutoRestoreAndDisableSavingOverride(true);
 	}
 	FUnrealEdMisc::Get().AllowSavingLayoutOnClose(false);
@@ -813,7 +815,7 @@ void FLayoutsMenuLoad::ReloadCurrentLayout()
 		check(AssetEditorSubsystem);
 		// Restore asset editors + disable manual saving and avoid trying to re-open the asset editors twice
 		AssetEditorSubsystem->RestorePreviouslyOpenAssets();
-		AssetEditorSubsystem->SetAutoRestoreAndDisableSavingOverride(TOptional<bool>());
+		AssetEditorSubsystem->SetAutoRestoreAndDisableSavingOverride(bAutoRestoreAndDisableSavingOverride);
 	}
 	// Save layout and create duplicated ini file (DuplicatedEditorLayoutIniFilePath)
 	FPrivateLayoutsMenu::SaveLayoutWithoutRemovingTempLayoutFiles();

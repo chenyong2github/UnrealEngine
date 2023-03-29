@@ -257,6 +257,9 @@ public:
 	/** Set/Unset the bAutoRestoreAndDisableSaving override, along with setting bRequestRestorePreviouslyOpenAssets to false to avoid running RestorePreviouslyOpenAssets() twice */
 	void SetAutoRestoreAndDisableSavingOverride(TOptional<bool> bInAutoRestoreAndDisableSaving);
 
+	/** Get the current value of bAutoRestoreAndDisableSaving */
+	TOptional<bool> GetAutoRestoreAndDisableSavingOverride() const;
+
 private:
 
 	/** Handles a package being reloaded */
