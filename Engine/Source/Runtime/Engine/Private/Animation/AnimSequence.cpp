@@ -687,7 +687,10 @@ void UAnimSequence::Serialize(FArchive& Ar)
 		{
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			SerializeCompressedData(Ar,false);
-			Ar << bUseRawDataOnly;
+			if (!bIsTransacting)
+			{
+				Ar << bUseRawDataOnly;
+			}
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
