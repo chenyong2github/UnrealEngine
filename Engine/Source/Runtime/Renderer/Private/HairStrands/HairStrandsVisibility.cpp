@@ -2245,8 +2245,8 @@ static FHairPrimaryTransmittance AddHairViewTransmittancePass(
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 		SceneDepthTexture,
 		ERenderTargetLoadAction::ELoad,
-		ERenderTargetLoadAction::ENoAction,
-		FExclusiveDepthStencil::DepthRead_StencilNop);
+		ERenderTargetLoadAction::ELoad,
+		FExclusiveDepthStencil::DepthRead_StencilRead);
 	AddHairVisibilityCommonPass(GraphBuilder, Scene, ViewInfo, MacroGroupDatas, RenderMode, PassParameters, InstanceCullingManager);
 
 	return Out;
