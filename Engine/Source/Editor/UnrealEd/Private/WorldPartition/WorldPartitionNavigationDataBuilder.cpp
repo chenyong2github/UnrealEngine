@@ -334,7 +334,7 @@ bool UWorldPartitionNavigationDataBuilder::PostRun(UWorld* World, FPackageSource
 	AddedPackagesToSubmit.Empty();
 	AddedPackagesToSubmitMap.Empty();
 
-	if (!AutoSubmitFiles(PackagesToSubmit, ChangeDescription))
+	if (!OnFilesModified(PackagesToSubmit, ChangeDescription))
 	{
 		UE_LOG(LogWorldPartitionNavigationDataBuilder, Error, TEXT("Error auto-submitting packages."));
 		return true;
