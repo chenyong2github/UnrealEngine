@@ -522,6 +522,21 @@ static void PreprocessSearchIndexPCAData(FPoseSearchIndex& SearchIndex, int32 Nu
 				const float Error = (ReconstructedValues - MapValues.row(RowIndex)).squaredNorm();
 				check(Error < UE_KINDA_SMALL_NUMBER);
 			}
+
+			TArray<float> ReconstructedPoseValues;
+			ReconstructedPoseValues.SetNumZeroed(NumDimensions);
+			for (int32 PoseIdx = 0; PoseIdx < NumPoses; ++PoseIdx)
+			{
+				SearchIndex.GetReconstructedPoseValues(PoseIdx, ReconstructedPoseValues);
+				TConstArrayView<float> PoseValues = SearchIndex.GetPoseValues(PoseIdx);
+
+				check(ReconstructedPoseValues.Num() == PoseValues.Num());
+				Eigen::Map<const Eigen::ArrayXf> VA(ReconstructedPoseValues.GetData(), ReconstructedPoseValues.Num());
+				Eigen::Map<const Eigen::ArrayXf> VB(PoseValues.GetData(), PoseValues.Num());
+
+				const float Error = (VA - VB).square().sum();
+				check(Error < UE_KINDA_SMALL_NUMBER);
+			}
 		}
 	}
 }
@@ -970,6 +985,12 @@ void FPoseSearchDatabaseAsyncCacheTask::OnGetComplete(UE::DerivedData::FCacheGet
 					UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(FullIndexKey.Hash), *Database->GetName());
 					SearchIndex.Reset();
 					return;
+				}
+
+				// removing SearchIndex.Values and relying on FPoseSearchIndex::GetReconstructedPoseValues to reconstruct the Values data from the PCAValues
+				if (Database->PoseSearchMode == EPoseSearchMode::PCAKDTree && Database->KDTreeQueryNumNeighbors <= 1)
+				{
+					SearchIndex.Values.Reset();
 				}
 
 				UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Succeeded"), *LexToString(FullIndexKey.Hash), *Database->GetName());

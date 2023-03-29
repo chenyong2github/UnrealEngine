@@ -69,6 +69,8 @@ struct FExtendedPoseHistory : public IPoseHistory
 {
 	void Init(const FPoseHistory* InPoseHistory);
 
+	bool IsInitialized() const;
+
 	// IPoseHistory interface
 	virtual float GetSampleTimeInterval() const override;
 	virtual bool GetComponentSpaceTransformAtTime(float Time, FBoneIndexType BoneIndexType, FTransform& OutBoneTransform, bool bExtrapolate = true) const override;

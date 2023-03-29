@@ -226,8 +226,11 @@ struct POSESEARCH_API FPoseSearchIndex : public FPoseSearchIndexBase
 
 	void Reset();
 	TConstArrayView<float> GetPoseValues(int32 PoseIdx) const;
-	TConstArrayView<float> GetPoseValuesSafe(int32 PoseIdx) const;
-	FPoseSearchCost ComparePoses(int32 PoseIdx, EPoseSearchBooleanRequest QueryMirrorRequest, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, float MirrorMismatchCostBias, TConstArrayView<float> QueryValues) const;
+	TConstArrayView<float> GetReconstructedPoseValues(int32 PoseIdx, TArrayView<float> BufferUsedForReconstruction) const;
+#if WITH_EDITOR || ENABLE_DRAW_DEBUG
+	TArray<float> GetPoseValuesSafe(int32 PoseIdx) const;
+#endif // WITH_EDITOR || ENABLE_DRAW_DEBUG
+	FPoseSearchCost ComparePoses(int32 PoseIdx, EPoseSearchBooleanRequest QueryMirrorRequest, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, float MirrorMismatchCostBias, TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues) const;
 
 	friend FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index);
 };

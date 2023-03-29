@@ -143,24 +143,62 @@ void FPoseSearchIndex::Reset()
 TConstArrayView<float> FPoseSearchIndex::GetPoseValues(int32 PoseIdx) const
 {
 	const int32 SchemaCardinality = WeightsSqrt.Num();
-	check(PoseIdx >= 0 && PoseIdx < GetNumPoses() && SchemaCardinality > 0);
+	check(!Values.IsEmpty() && PoseIdx >= 0 && PoseIdx < GetNumPoses() && SchemaCardinality > 0);
 	const int32 ValueOffset = PoseIdx * SchemaCardinality;
 	return MakeArrayView(&Values[ValueOffset], SchemaCardinality);
 }
 
-TConstArrayView<float> FPoseSearchIndex::GetPoseValuesSafe(int32 PoseIdx) const
+TConstArrayView<float> FPoseSearchIndex::GetReconstructedPoseValues(int32 PoseIdx, TArrayView<float> BufferUsedForReconstruction) const
 {
-	if (PoseIdx >= 0 && PoseIdx < GetNumPoses())
-	{
-		return GetPoseValues(PoseIdx);
-	}
-	return TConstArrayView<float>();
+	using namespace UE::PoseSearch;
+
+	const int32 NumDimensions = WeightsSqrt.Num();
+	const int32 NumPoses = GetNumPoses();
+	check(PoseIdx >= 0 && PoseIdx < NumPoses&& NumDimensions > 0);
+	check(BufferUsedForReconstruction.Num() == NumDimensions);
+
+	const int32 NumberOfPrincipalComponents = PCAValues.Num() / NumPoses;
+	check(NumPoses * NumberOfPrincipalComponents == PCAValues.Num());
+
+	const RowMajorVectorMapConst MapWeightsSqrt(WeightsSqrt.GetData(), 1, NumDimensions);
+	const ColMajorMatrixMapConst MapPCAProjectionMatrix(PCAProjectionMatrix.GetData(), NumDimensions, NumberOfPrincipalComponents);
+	const RowMajorVectorMapConst MapMean(Mean.GetData(), 1, NumDimensions);
+	const RowMajorMatrixMapConst MapPCAValues(PCAValues.GetData(), NumPoses, NumberOfPrincipalComponents);
+
+	const RowMajorVector ReciprocalWeightsSqrt = MapWeightsSqrt.cwiseInverse();
+	const RowMajorVector WeightedReconstructedValues = MapPCAValues.row(PoseIdx) * MapPCAProjectionMatrix.transpose() + MapMean;
+
+	RowMajorVectorMap ReconstructedPoseValues(BufferUsedForReconstruction.GetData(), 1, NumDimensions);
+	ReconstructedPoseValues = WeightedReconstructedValues.array() * ReciprocalWeightsSqrt.array();
+
+	return BufferUsedForReconstruction;
 }
 
-FPoseSearchCost FPoseSearchIndex::ComparePoses(int32 PoseIdx, EPoseSearchBooleanRequest QueryMirrorRequest, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, float MirrorMismatchCostBias, TConstArrayView<float> QueryValues) const
+#if WITH_EDITOR || ENABLE_DRAW_DEBUG
+TArray<float> FPoseSearchIndex::GetPoseValuesSafe(int32 PoseIdx) const
+{
+	TArray<float> PoseValues;
+	if (PoseIdx >= 0 && PoseIdx < GetNumPoses())
+	{
+		if (Values.IsEmpty())
+		{
+			const int32 NumDimensions = WeightsSqrt.Num();
+			PoseValues.SetNumUninitialized(NumDimensions);
+			GetReconstructedPoseValues(PoseIdx, PoseValues);
+		}
+		else
+		{
+			PoseValues = GetPoseValues(PoseIdx);
+		}
+	}
+	return PoseValues;
+}
+#endif // WITH_EDITOR || ENABLE_DRAW_DEBUG
+
+FPoseSearchCost FPoseSearchIndex::ComparePoses(int32 PoseIdx, EPoseSearchBooleanRequest QueryMirrorRequest, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, float MirrorMismatchCostBias, TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues) const
 {
 	// base dissimilarity cost representing how the associated PoseIdx differ, in a weighted way, from the query pose (QueryValues)
-	const float DissimilarityCost = UE::PoseSearch::CompareFeatureVectors(GetPoseValues(PoseIdx), QueryValues, WeightsSqrt);
+	const float DissimilarityCost = UE::PoseSearch::CompareFeatureVectors(PoseValues, QueryValues, WeightsSqrt);
 
 	// cost addend associated to a mismatch in mirror state between query and analyzed PoseIdx
 	float MirrorMismatchAddend = 0.f;

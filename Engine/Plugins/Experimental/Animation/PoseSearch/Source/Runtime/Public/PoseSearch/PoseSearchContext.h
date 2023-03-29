@@ -137,14 +137,9 @@ private:
 
 struct POSESEARCH_API FSearchContext
 {
-	EPoseSearchBooleanRequest QueryMirrorRequest = EPoseSearchBooleanRequest::Indifferent;
-	const IPoseHistory* History = nullptr;
-	const FTrajectorySampleRange* Trajectory = nullptr;
-	FSearchResult CurrentResult;
-	float PoseJumpThresholdTime = 0.f;
-	bool bForceInterrupt = false;
-	// can the continuing pose advance? (if not we skip evaluating it)
-	bool bCanAdvance = true;
+	FSearchContext(const FTrajectorySampleRange* InTrajectory, const IPoseHistory* InHistory, float InDesiredPermutationTimeOffset,
+		const FPoseIndicesHistory* InPoseIndicesHistory = nullptr, EPoseSearchBooleanRequest InQueryMirrorRequest = EPoseSearchBooleanRequest::Indifferent,
+		const FSearchResult& InCurrentResult = FSearchResult(), float InPoseJumpThresholdTime = 0.f, bool bInForceInterrupt = false, bool bInCanAdvance = true);
 
 	FQuat GetSampleRotation(float SampleTimeOffset, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx, bool bUseHistoryRoot = false, EPermutationTimeType PermutationTimeType = EPermutationTimeType::UseSampleTime);
 	FVector GetSamplePosition(float SampleTimeOffset, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx, bool bUseHistoryRoot = false, EPermutationTimeType PermutationTimeType = EPermutationTimeType::UseSampleTime);
@@ -161,18 +156,41 @@ struct POSESEARCH_API FSearchContext
 
 	bool IsCurrentResultFromDatabase(const UPoseSearchDatabase* Database) const;
 
-	TConstArrayView<float> GetCurrentResultPrevPoseVector() const;
-	TConstArrayView<float> GetCurrentResultPoseVector() const;
-	TConstArrayView<float> GetCurrentResultNextPoseVector() const;
+	TConstArrayView<float> GetCurrentResultPrevPoseVector() const { return CurrentResultPrevPoseVector; }
+	TConstArrayView<float> GetCurrentResultPoseVector() const { return CurrentResultPoseVector; }
+	TConstArrayView<float> GetCurrentResultNextPoseVector() const { return CurrentResultNextPoseVector; }
 
-	float DesiredPermutationTimeOffset = 0.f;
-
-	const FPoseIndicesHistory* PoseIndicesHistory = nullptr;
+	const FSearchResult& GetCurrentResult() const { return CurrentResult; }
+	float GetPoseJumpThresholdTime() const { return PoseJumpThresholdTime; }
+	EPoseSearchBooleanRequest GetQueryMirrorRequest() const { return QueryMirrorRequest; }
+	const FPoseIndicesHistory* GetPoseIndicesHistory() const { return PoseIndicesHistory; }
+	const IPoseHistory* GetHistory() const { return History; }
+	float GetDesiredPermutationTimeOffset() const { return DesiredPermutationTimeOffset; }
+	const FTrajectorySampleRange* GetTrajectory() const { return Trajectory; }
+	bool CanAdvance() const { return bCanAdvance; }
+	bool IsForceInterrupt() const { return bForceInterrupt; }
 
 private:
 	FTransform GetTransform(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaBoneIdx = RootSchemaBoneIdx, bool bUseHistoryRoot = false);
 	FTransform GetComponentSpaceTransform(float SampleTime, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx);
 	FVector GetSamplePositionInternal(float SampleTime, float OriginTime, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx = RootSchemaBoneIdx, int8 SchemaOriginBoneIdx = RootSchemaBoneIdx, bool bUseHistoryRoot = false);
+
+	const FTrajectorySampleRange* Trajectory = nullptr;
+	const IPoseHistory* History = nullptr;
+	float DesiredPermutationTimeOffset = 0.f;
+	const FPoseIndicesHistory* PoseIndicesHistory = nullptr;
+	EPoseSearchBooleanRequest QueryMirrorRequest = EPoseSearchBooleanRequest::Indifferent;
+	FSearchResult CurrentResult;
+	float PoseJumpThresholdTime = 0.f;
+	bool bForceInterrupt = false;
+	// can the continuing pose advance? (if not we skip evaluating it)
+	bool bCanAdvance = true;
+
+	// cached previous, current, and next pose data
+	TConstArrayView<float> CurrentResultNextPoseVector;
+	TConstArrayView<float> CurrentResultPoseVector;
+	TConstArrayView<float> CurrentResultPrevPoseVector;
+	TArray<float> CurrentResultPoseVectorData;
 
 	// transforms cached in component space
 	FCachedTransforms<FTransform> CachedTransforms;

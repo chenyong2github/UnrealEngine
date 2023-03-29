@@ -261,11 +261,11 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 		TraceState.CurrentPoseEntryIdx = PoseEntryIdx;
 	}
 
-	if (DeltaTime > SMALL_NUMBER && SearchContext.Trajectory)
+	if (DeltaTime > SMALL_NUMBER && SearchContext.GetTrajectory())
 	{
 		// simulation
-		const FTrajectorySample PrevSample = SearchContext.Trajectory->GetSampleAtTime(-DeltaTime);
-		const FTrajectorySample CurrSample = SearchContext.Trajectory->GetSampleAtTime(0.f);
+		const FTrajectorySample PrevSample = SearchContext.GetTrajectory()->GetSampleAtTime(-DeltaTime);
+		const FTrajectorySample CurrSample = SearchContext.GetTrajectory()->GetSampleAtTime(0.f);
 
 		const FTransform SimDelta = CurrSample.Transform.GetRelativeTransform(PrevSample.Transform);
 
@@ -315,27 +315,23 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 	const FSearchResult LastResult = InOutMotionMatchingState.CurrentSearchResult;
 #endif
 
-	// Build the search context
-	FSearchContext SearchContext;
-	SearchContext.Trajectory = &Trajectory;
-	SearchContext.bForceInterrupt = bForceInterrupt;
-	SearchContext.bCanAdvance = InOutMotionMatchingState.CanAdvance(DeltaTime);
-	SearchContext.CurrentResult = InOutMotionMatchingState.CurrentSearchResult;
-	SearchContext.PoseJumpThresholdTime = Settings.PoseJumpThresholdTime;
-	SearchContext.PoseIndicesHistory = &InOutMotionMatchingState.PoseIndicesHistory;
-
+	const IPoseHistory* History = nullptr;
 	if (IPoseHistoryProvider* PoseHistoryProvider = Context.GetMessage<IPoseHistoryProvider>())
 	{
-		SearchContext.History = &PoseHistoryProvider->GetPoseHistory();
+		History = &PoseHistoryProvider->GetPoseHistory();
 	}
-
+	
+	EPoseSearchBooleanRequest QueryMirrorRequest = EPoseSearchBooleanRequest::Indifferent;
 	if (const FPoseSearchIndexAsset* CurrentIndexAsset = InOutMotionMatchingState.CurrentSearchResult.GetSearchIndexAsset())
 	{
-		SearchContext.QueryMirrorRequest = CurrentIndexAsset->bMirrored ? EPoseSearchBooleanRequest::TrueValue : EPoseSearchBooleanRequest::FalseValue;
+		QueryMirrorRequest = CurrentIndexAsset->bMirrored ? EPoseSearchBooleanRequest::TrueValue : EPoseSearchBooleanRequest::FalseValue;
 	}
 
+	FSearchContext SearchContext(&Trajectory, History, 0.f, &InOutMotionMatchingState.PoseIndicesHistory, QueryMirrorRequest, 
+		InOutMotionMatchingState.CurrentSearchResult, Settings.PoseJumpThresholdTime, bForceInterrupt, InOutMotionMatchingState.CanAdvance(DeltaTime));
+
 	// If we can't advance or enough time has elapsed since the last pose jump then search
-	const bool bSearch = !SearchContext.bCanAdvance || (InOutMotionMatchingState.ElapsedPoseSearchTime >= Settings.SearchThrottleTime);
+	const bool bSearch = !SearchContext.CanAdvance() || (InOutMotionMatchingState.ElapsedPoseSearchTime >= Settings.SearchThrottleTime);
 	if (bSearch)
 	{
 		InOutMotionMatchingState.ElapsedPoseSearchTime = 0.f;
@@ -343,18 +339,25 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 		// Evaluate continuing pose
 		FPoseSearchCost ContinuingPoseCost;
 		FPoseSearchFeatureVectorBuilder ContinuingPoseComposedQuery;
-		if (!SearchContext.bForceInterrupt && SearchContext.bCanAdvance && SearchContext.CurrentResult.Database.IsValid()
+		if (!SearchContext.IsForceInterrupt() && SearchContext.CanAdvance() && SearchContext.GetCurrentResult().Database.IsValid()
 #if WITH_EDITOR
-			&& FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(SearchContext.CurrentResult.Database.Get(), ERequestAsyncBuildFlag::ContinueRequest)
+			&& FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(SearchContext.GetCurrentResult().Database.Get(), ERequestAsyncBuildFlag::ContinueRequest)
 #endif
 		)
 		{
-			const UPoseSearchDatabase* ContinuingPoseDatabase = SearchContext.CurrentResult.Database.Get();
+			const UPoseSearchDatabase* ContinuingPoseDatabase = SearchContext.GetCurrentResult().Database.Get();
 			if (ensure(ContinuingPoseDatabase->Schema))
 			{	
 				SearchContext.GetOrBuildQuery(ContinuingPoseDatabase->Schema, ContinuingPoseComposedQuery);
-				ContinuingPoseCost = ContinuingPoseDatabase->GetSearchIndex().ComparePoses(SearchContext.CurrentResult.PoseIdx, SearchContext.QueryMirrorRequest,
-					EPoseComparisonFlags::ContinuingPose, ContinuingPoseDatabase->Schema->MirrorMismatchCostBias, ContinuingPoseComposedQuery.GetValues());
+
+				const FPoseSearchIndex& SearchIndex = ContinuingPoseDatabase->GetSearchIndex();
+				const int32 PoseIdx = SearchContext.GetCurrentResult().PoseIdx;
+				const int32 NumDimensions = ContinuingPoseDatabase->Schema->SchemaCardinality;
+				TArrayView<float> ReconstructedPoseValuesBuffer((float*)FMemory_Alloca(NumDimensions * sizeof(float)), NumDimensions);
+				const TConstArrayView<float> PoseValues = SearchIndex.Values.IsEmpty() ? SearchIndex.GetReconstructedPoseValues(PoseIdx, ReconstructedPoseValuesBuffer) : SearchIndex.GetPoseValues(PoseIdx);
+
+				ContinuingPoseCost = ContinuingPoseDatabase->GetSearchIndex().ComparePoses(SearchContext.GetCurrentResult().PoseIdx, SearchContext.GetQueryMirrorRequest(),
+					EPoseComparisonFlags::ContinuingPose, ContinuingPoseDatabase->Schema->MirrorMismatchCostBias, PoseValues, ContinuingPoseComposedQuery.GetValues());
 				SearchContext.UpdateCurrentBestCost(ContinuingPoseCost);
 			}
 		}
@@ -454,11 +457,7 @@ void UPoseSearchLibrary::MotionMatch(
 
 	if (Searchable)
 	{
-		// Build the search context
-		FSearchContext SearchContext;
-		SearchContext.DesiredPermutationTimeOffset = TimeToFutureAnimationStart;
-		SearchContext.Trajectory = &Trajectory;
-
+		// ExtendedPoseHistory will hold future poses to match AssetSamplerBase (at FutureAnimationStartTime) TimeToFutureAnimationStart seconds in the future
 		FExtendedPoseHistory ExtendedPoseHistory;
 		if (AnimInstance)
 		{
@@ -468,14 +467,12 @@ void UPoseSearchLibrary::MotionMatch(
 				{
 					if (const FAnimNode_PoseSearchHistoryCollector_Base* PoseHistoryNode = TagSubsystem->FindNodeByTag<FAnimNode_PoseSearchHistoryCollector_Base>(PoseHistoryName, AnimInstance))
 					{
-						const FPoseHistory* PoseHistory = &PoseHistoryNode->GetPoseHistory();
-						ExtendedPoseHistory.Init(PoseHistory);
-						SearchContext.History = PoseHistory;
+						ExtendedPoseHistory.Init(&PoseHistoryNode->GetPoseHistory());
 					}
 				}
 			}
 
-			if (!SearchContext.History)
+			if (!ExtendedPoseHistory.IsInitialized())
 			{
 				if (FutureAnimation)
 				{
@@ -525,9 +522,6 @@ void UPoseSearchLibrary::MotionMatch(
 
 				if (AssetSamplerBase)
 				{
-					// ExtendedPoseHistory will hold future poses to match AssetSamplerBase (at FutureAnimationStartTime) TimeToFutureAnimationStart seconds in the future
-					SearchContext.History = &ExtendedPoseHistory;
-
 					FCompactPose Pose;
 					FBlendedCurve UnusedCurve;
 					FStackAttributeContainer UnusedAtrribute;
@@ -569,6 +563,8 @@ void UPoseSearchLibrary::MotionMatch(
 		}
 
 		// @todo: finish set up SearchContext by exposing or calculating additional members
+		FSearchContext SearchContext(&Trajectory, ExtendedPoseHistory.IsInitialized() ? &ExtendedPoseHistory : nullptr, TimeToFutureAnimationStart);
+
 		FSearchResult SearchResult = Searchable->Search(SearchContext);
 		if (SearchResult.IsValid())
 		{

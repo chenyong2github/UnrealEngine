@@ -26,7 +26,7 @@ void UPoseSearchFeatureChannel_PermutationTime::Finalize(UPoseSearchSchema* Sche
 void UPoseSearchFeatureChannel_PermutationTime::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	using namespace UE::PoseSearch;
-	FFeatureVectorHelper::EncodeFloat(InOutQuery.EditValues(), ChannelDataOffset, SearchContext.DesiredPermutationTimeOffset);
+	FFeatureVectorHelper::EncodeFloat(InOutQuery.EditValues(), ChannelDataOffset, SearchContext.GetDesiredPermutationTimeOffset());
 }
 
 #if WITH_EDITOR

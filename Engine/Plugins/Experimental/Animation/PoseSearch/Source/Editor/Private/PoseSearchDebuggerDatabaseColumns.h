@@ -345,7 +345,6 @@ struct FChannelBreakdownCostColumn : ITextColumn
 	int32 BreakdownCostIndex = INDEX_NONE;
 };
 
-#if WITH_EDITORONLY_DATA
 struct FCostModifier : ITextColumn
 {
 	using ITextColumn::ITextColumn;
@@ -365,7 +364,6 @@ struct FCostModifier : ITextColumn
 		return FText::AsNumber(Row->PoseCost.GetCostAddend());
 	}
 };
-#endif // WITH_EDITORONLY_DATA
 
 struct FMirrored : ITextColumn
 {

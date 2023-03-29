@@ -243,16 +243,50 @@ void FDebugDrawParams::DrawFeatureVector(TConstArrayView<float> PoseVector)
 
 void FDebugDrawParams::DrawFeatureVector(int32 PoseIdx)
 {
-	// if we're editing the schema while in PIE with Rewind Debugger active, PoseIdx could be out of bound / stale
-	if (CanDraw() && PoseIdx >= 0 && PoseIdx < GetSearchIndex()->GetNumPoses())
+	if (CanDraw())
 	{
-		DrawFeatureVector(GetSearchIndex()->GetPoseValues(PoseIdx));
+		DrawFeatureVector(GetSearchIndex()->GetPoseValuesSafe(PoseIdx));
 	}
 }
 #endif // ENABLE_DRAW_DEBUG
 
 //////////////////////////////////////////////////////////////////////////
 // FSearchContext
+FSearchContext::FSearchContext(const FTrajectorySampleRange* InTrajectory, const IPoseHistory* InHistory, float InDesiredPermutationTimeOffset, const FPoseIndicesHistory* InPoseIndicesHistory,
+	EPoseSearchBooleanRequest InQueryMirrorRequest, const FSearchResult& InCurrentResult, float InPoseJumpThresholdTime, bool bInForceInterrupt, bool bInCanAdvance)
+: Trajectory(InTrajectory)
+, History(InHistory)
+, DesiredPermutationTimeOffset(InDesiredPermutationTimeOffset)
+, PoseIndicesHistory(InPoseIndicesHistory)
+, QueryMirrorRequest(InQueryMirrorRequest)
+, CurrentResult(InCurrentResult)
+, PoseJumpThresholdTime(InPoseJumpThresholdTime)
+, bForceInterrupt(bInForceInterrupt)
+, bCanAdvance(bInCanAdvance)
+{
+	if (CurrentResult.IsValid())
+	{
+		const FPoseSearchIndex& SearchIndex = CurrentResult.Database->GetSearchIndex();
+		if (SearchIndex.Values.IsEmpty())
+		{
+			const int32 NumDimensions = CurrentResult.Database->Schema->SchemaCardinality;
+			CurrentResultPoseVectorData.AddUninitialized(NumDimensions * 3);
+
+			CurrentResultNextPoseVector = SearchIndex.GetReconstructedPoseValues(CurrentResult.NextPoseIdx, MakeArrayView(CurrentResultPoseVectorData.GetData(), NumDimensions));
+			CurrentResultPoseVector = SearchIndex.GetReconstructedPoseValues(CurrentResult.PoseIdx, MakeArrayView(CurrentResultPoseVectorData.GetData() + NumDimensions, NumDimensions));
+			CurrentResultPrevPoseVector = SearchIndex.GetReconstructedPoseValues(CurrentResult.PrevPoseIdx, MakeArrayView(CurrentResultPoseVectorData.GetData() + 2 * NumDimensions, NumDimensions));
+		}
+		else
+		{
+			CurrentResultNextPoseVector = SearchIndex.GetPoseValues(CurrentResult.NextPoseIdx);
+			CurrentResultPoseVector = SearchIndex.GetPoseValues(CurrentResult.PoseIdx);
+			CurrentResultPrevPoseVector = SearchIndex.GetPoseValues(CurrentResult.PrevPoseIdx);
+		}
+
+		check(CurrentResultNextPoseVector.Num() == CurrentResultPoseVector.Num() && CurrentResultPrevPoseVector.Num() == CurrentResultPoseVector.Num());
+	}
+}
+
 FQuat FSearchContext::GetSampleRotation(float SampleTimeOffset, const UPoseSearchSchema* Schema, int8 SchemaSampleBoneIdx, int8 SchemaOriginBoneIdx, bool bUseHistoryRoot, EPermutationTimeType PermutationTimeType)
 {
 	float PermutationSampleTimeOffset = 0.f;
@@ -447,27 +481,6 @@ void FSearchContext::GetOrBuildQuery(const UPoseSearchSchema* Schema, FPoseSearc
 bool FSearchContext::IsCurrentResultFromDatabase(const UPoseSearchDatabase* Database) const
 {
 	return CurrentResult.IsValid() && CurrentResult.Database == Database;
-}
-
-TConstArrayView<float> FSearchContext::GetCurrentResultPrevPoseVector() const
-{
-	check(CurrentResult.IsValid());
-	const FPoseSearchIndex& SearchIndex = CurrentResult.Database->GetSearchIndex();
-	return SearchIndex.GetPoseValues(CurrentResult.PrevPoseIdx);
-}
-
-TConstArrayView<float> FSearchContext::GetCurrentResultPoseVector() const
-{
-	check(CurrentResult.IsValid());
-	const FPoseSearchIndex& SearchIndex = CurrentResult.Database->GetSearchIndex();
-	return SearchIndex.GetPoseValues(CurrentResult.PoseIdx);
-}
-
-TConstArrayView<float> FSearchContext::GetCurrentResultNextPoseVector() const
-{
-	check(CurrentResult.IsValid());
-	const FPoseSearchIndex& SearchIndex = CurrentResult.Database->GetSearchIndex();
-	return SearchIndex.GetPoseValues(CurrentResult.NextPoseIdx);
 }
 
 FTransform MirrorTransform(const FTransform& InTransform, EAxis::Type MirrorAxis, const FQuat& ReferenceRotation)

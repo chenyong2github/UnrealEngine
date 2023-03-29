@@ -193,7 +193,7 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 					Row->PoseCost = PoseEntry.Cost;
 
 					Row->CostVector.SetNum(Database->Schema->SchemaCardinality);
-					TConstArrayView<float> PoseValues = SearchIndex.GetPoseValuesSafe(PoseEntry.DbPoseIdx);
+					const TArray<float> PoseValues = SearchIndex.GetPoseValuesSafe(PoseEntry.DbPoseIdx);
 
 					// in case we modify the schema while PIE is paused and displaying the Pose Search Editor, we could end up with a stale State with a DbEntry.QueryVector saved with the previous schema
 					// so the cardinality of DbEntry.QueryVector and PoseValues don't match. In that case we just use PoseValues as query to have all costs set to zero
@@ -365,9 +365,7 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 			AddColumn(MakeShared<FChannelBreakdownCostColumn>(ColumnIdx++, LabelIdx++, Label));
 		}
 
-#if WITH_EDITORONLY_DATA
 		AddColumn(MakeShared<FCostModifier>(ColumnIdx++));
-#endif // WITH_EDITORONLY_DATA
 		AddColumn(MakeShared<FFrame>(ColumnIdx++));
 		AddColumn(MakeShared<FMirrored>(ColumnIdx++));
 		AddColumn(MakeShared<FLooping>(ColumnIdx++));

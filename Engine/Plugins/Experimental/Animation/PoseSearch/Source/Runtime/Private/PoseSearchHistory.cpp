@@ -298,6 +298,11 @@ void FExtendedPoseHistory::Init(const FPoseHistory* InPoseHistory)
 	PoseHistory = InPoseHistory;
 }
 
+bool FExtendedPoseHistory::IsInitialized() const
+{
+	return PoseHistory != nullptr;
+}
+
 float FExtendedPoseHistory::GetSampleTimeInterval() const
 {
 	check(PoseHistory);
