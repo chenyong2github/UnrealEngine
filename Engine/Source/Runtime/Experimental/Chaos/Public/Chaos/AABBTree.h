@@ -1711,7 +1711,8 @@ public:
 		return false;
 	}
 
-	virtual void UpdateElement(const TPayloadType& Payload, const TAABB<T, 3>& NewBounds, bool bInHasBounds) override
+	// Returns true if element was updated, or false when it was added instead
+	virtual bool UpdateElement(const TPayloadType& Payload, const TAABB<T, 3>& NewBounds, bool bInHasBounds) override
 	{
 		if (UNLIKELY(!ensure(bModifyingTreeMultiThreadingFastCheck == false)))
 		{
@@ -1733,6 +1734,7 @@ public:
 				*NewBounds.Min().ToString(), *NewBounds.Max().ToString());
 		}
 
+		bool bElementExisted = true;
 		if (ensure(bMutable))
 		{
 			FAABBTreePayloadInfo* PayloadInfo = PayloadToInfo.Find(Payload);
@@ -1753,7 +1755,7 @@ public:
 								Leaves[PayloadInfo->LeafIdx].UpdateElement(Payload, NewBounds, bHasBounds);
 								Leaves[PayloadInfo->LeafIdx].RecomputeBounds();
 								bModifyingTreeMultiThreadingFastCheck = false;
-								return;
+								return bElementExisted;
 							}
 						}
 						else
@@ -1764,7 +1766,7 @@ public:
 								// We still need to update the constituent bounds
 								Leaves[PayloadInfo->LeafIdx].UpdateElement(Payload, NewBounds, bHasBounds);
 								bModifyingTreeMultiThreadingFastCheck = false;
-								return;
+								return bElementExisted;
 							}
 						}
 					}
@@ -1786,6 +1788,7 @@ public:
 			}
 			else
 			{
+				bElementExisted = false;
 				PayloadInfo = &PayloadToInfo.Add(Payload);
 			}
 
@@ -1924,6 +1927,7 @@ public:
 			ReoptimizeTree();
 		}
 		bModifyingTreeMultiThreadingFastCheck = false;
+		return bElementExisted;
 	}
 
 	int32 NumDirtyElements() const

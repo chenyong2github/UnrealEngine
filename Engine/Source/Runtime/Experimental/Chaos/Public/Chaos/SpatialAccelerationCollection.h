@@ -574,26 +574,34 @@ public:
 	{
 		const uint16 UseBucket = ((1 << SpatialIdx.Bucket) & this->ActiveBucketsMask) ? SpatialIdx.Bucket : 0;
 		const bool Success = Buckets[UseBucket].Objects[SpatialIdx.InnerIdx].Acceleration->RemoveElement(Payload);
-		//ensure(Success); // We are removing this element with the wrong spatial index
-		if (!Success)
+		//ensure(Success); // Debug check to see if SpatialIdx was what the caller expected it to be
+		// Make sure that we remove this Payload even if the SpatialIdx is wrong
+		for (FSpatialAccelerationIdx Idx : GetAllSpatialIndices())
 		{
-			// Make sure that we remove this Payload to prevent crashes
-			for (FSpatialAccelerationIdx Idx : GetAllSpatialIndices())
+			if (!(Idx == SpatialIdx))
 			{
-				if (!(Idx == SpatialIdx))
-				{
-					const uint16 Buckt = ((1 << Idx.Bucket) & this->ActiveBucketsMask) ? Idx.Bucket : 0;
-					const bool Removed = Buckets[Buckt].Objects[Idx.InnerIdx].Acceleration->RemoveElement(Payload);
-					//ensure(!Removed); // If this ensure hits, the payload was found in another substructure and successfully removed
-				}
+				const uint16 Buckt = ((1 << Idx.Bucket) & this->ActiveBucketsMask) ? Idx.Bucket : 0;
+				const bool Removed = Buckets[Buckt].Objects[Idx.InnerIdx].Acceleration->RemoveElement(Payload);					
 			}
-		}
+		}		
 	}
 
 	virtual void UpdateElementIn(const TPayloadType& Payload, const TAABB<T, d>& NewBounds, bool bHasBounds, FSpatialAccelerationIdx SpatialIdx)
 	{
 		const uint16 UseBucket = ((1 << SpatialIdx.Bucket) & this->ActiveBucketsMask) ? SpatialIdx.Bucket : 0;
-		Buckets[UseBucket].Objects[SpatialIdx.InnerIdx].Acceleration->UpdateElement(Payload, NewBounds, bHasBounds);
+		const bool bElementExisted = Buckets[UseBucket].Objects[SpatialIdx.InnerIdx].Acceleration->UpdateElement(Payload, NewBounds, bHasBounds);
+		// In case spatial index changed, remove this element in all other substructures
+		if (!bElementExisted)
+		{
+			for (FSpatialAccelerationIdx Idx : GetAllSpatialIndices())
+			{
+				if (!(Idx == SpatialIdx))
+				{
+					const uint16 Buckt = ((1 << Idx.Bucket) & this->ActiveBucketsMask) ? Idx.Bucket : 0;
+					Buckets[Buckt].Objects[Idx.InnerIdx].Acceleration->RemoveElement(Payload);
+				}
+			}
+		}
 	}
 
 	virtual TUniquePtr<ISpatialAcceleration<TPayloadType, T, d>> Copy() const

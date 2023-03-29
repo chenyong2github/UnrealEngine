@@ -261,9 +261,10 @@ public:
 		return false;
 	}
 
-	virtual void UpdateElement(const TPayloadType& Payload, const TAABB<T,d>& NewBounds, bool bHasBounds) override
+	virtual bool UpdateElement(const TPayloadType& Payload, const TAABB<T,d>& NewBounds, bool bHasBounds) override
 	{
 		SCOPE_CYCLE_COUNTER(STAT_BoundingVolumeUpdateElement);
+		bool bElementExisted = true;
 		if (FPayloadInfo* PayloadInfo = MPayloadInfo.Find(Payload))
 		{
 			ensure(bHasBounds || PayloadInfo->GlobalPayloadIdx != INDEX_NONE);
@@ -280,9 +281,11 @@ public:
 		}
 		else
 		{
+			bElementExisted = false;
 			FPayloadInfo& NewPayloadInfo = MPayloadInfo.Add(Payload);
 			AddElementToExistingGrid(Payload, NewPayloadInfo, NewBounds, bHasBounds);
 		}
+		return bElementExisted;
 	}
 
 	inline void AddElement(const TPayloadBoundsElement<TPayloadType, T>& Payload)
