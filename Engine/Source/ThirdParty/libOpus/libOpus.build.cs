@@ -17,10 +17,10 @@ public class libOpus : ModuleRules
 		Type = ModuleType.External;
 
 		string LibraryPath = OpusLibPath + "/";
-		bool IsWinPlatform = Target.Platform == UnrealTargetPlatform.Win64;
+		bool IsWinPlatform = Target.IsInPlatformGroup(UnrealPlatformGroup.Windows);
 		string OpusLibraryPath = Path.Combine(LibRootDirectory, "libOpus", "opus-1.3.1-12"); 
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			LibraryPath += "Windows/VS2012/x64/Release/";
 
@@ -40,7 +40,7 @@ public class libOpus : ModuleRules
 				ConfigPath = "Release";
 			}
 
-			string OpusBinaryPath = Path.Combine(OpusLibraryPath, "bin", Target.Platform.ToString(), ConfigPath);
+			string OpusBinaryPath = Path.Combine(OpusLibraryPath, "bin", "Win64", ConfigPath);
 			PublicAdditionalLibraries.Add(Path.Combine(OpusBinaryPath, "opus.lib"));
 			PublicAdditionalLibraries.Add(Path.Combine(OpusBinaryPath, "opus_sse41.lib"));
 		}

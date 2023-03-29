@@ -16,7 +16,7 @@ public class FreeType2 : ModuleRules
 			}
 			else if (Target.Platform == UnrealTargetPlatform.IOS ||
 				Target.Platform == UnrealTargetPlatform.Mac ||
-				Target.Platform == UnrealTargetPlatform.Win64 ||
+				Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix)
 			)
 			{
@@ -72,7 +72,7 @@ public class FreeType2 : ModuleRules
 			PublicDefinitions.Add("WITH_FREETYPE_V210=1"); // TODO: Remove this once everything is using FreeType 2.10.0
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			LibPath = Path.Combine(FreeType2LibPath,
 					"Win64",

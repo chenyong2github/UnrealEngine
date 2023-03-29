@@ -16,7 +16,7 @@ public class VorbisFile : ModuleRules
 		Type = ModuleType.External;
 
 		PublicSystemIncludePaths.Add(VorbisFileIncPath);
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(VorbisFileLibPath, "win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), "libvorbisfile_64.lib"));
 			PublicDelayLoadDLLs.Add("libvorbisfile_64.dll");

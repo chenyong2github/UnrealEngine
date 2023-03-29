@@ -50,7 +50,7 @@ public class SoundTouchZ : ModuleRules
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(LibraryRootDir, "lib", "IOS", "libSoundTouchZ-IOS-Shipping.a"));
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win64)
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
         {
 			PublicAdditionalLibraries.Add(Path.Combine(LibraryRootDir, "lib", "Win64", "libSoundTouchZ-Win64-Shipping.lib"));
 		}

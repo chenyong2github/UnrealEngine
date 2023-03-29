@@ -15,7 +15,7 @@ public class zlib : ModuleRules
 
 		PublicSystemIncludePaths.Add(Path.Combine(VersionPath, "include"));
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64)
 			{

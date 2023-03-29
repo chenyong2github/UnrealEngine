@@ -35,9 +35,9 @@ public class Expat : ModuleRules
         {
             PublicAdditionalLibraries.Add(Path.Combine(ExpatPackagePath, "TVOS", ConfigName, "libexpat.a"));
         }
-		else if (Target.Platform == UnrealTargetPlatform.Win64)
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
-			string LibraryPath = Path.Combine(ExpatPackagePath, Target.Platform.ToString(), "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+			string LibraryPath = Path.Combine(ExpatPackagePath, "Win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 
 			if (Target.WindowsPlatform.Architecture == UnrealArch.Arm64)
 			{

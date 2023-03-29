@@ -20,7 +20,7 @@ public class UEOgg : ModuleRules
 
 		string LibDir;
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			string BinDir = "$(EngineDir)/Binaries/ThirdParty/Ogg/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 			LibDir = Path.Combine(OggLibPath, "Win64", "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());

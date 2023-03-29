@@ -23,7 +23,7 @@ public class ICU : ModuleRules
 			if (Target.Platform == UnrealTargetPlatform.IOS ||
 				Target.Platform == UnrealTargetPlatform.TVOS ||
 				Target.Platform == UnrealTargetPlatform.Mac ||
-				Target.Platform == UnrealTargetPlatform.Win64 ||
+				Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Android) ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
@@ -54,6 +54,10 @@ public class ICU : ModuleRules
 			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 			{
 				return "Android";
+			}
+			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
+			{
+				return "Win64";
 			}
 			else
 			{
@@ -98,7 +102,7 @@ public class ICU : ModuleRules
 		PublicSystemIncludePaths.Add(Path.Combine(ICUIncRootPath, ICUVersion, "include"));
 
 		// Libs
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			string LibraryPath = Path.Combine(ICULibPath, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 			

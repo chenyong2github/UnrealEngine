@@ -10,7 +10,7 @@ public class HarfBuzz : ModuleRules
 		{
 			if (Target.Platform == UnrealTargetPlatform.IOS ||
 				Target.Platform == UnrealTargetPlatform.Mac ||
-				Target.Platform == UnrealTargetPlatform.Win64 ||
+				Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Android) ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix)
 				)
@@ -61,8 +61,8 @@ public class HarfBuzz : ModuleRules
 		{
 			PublicDefinitions.Add("WITH_HARFBUZZ=0");
 		}
-
-		string HarfBuzzLibPath = Path.Combine(LibHarfBuzzRootPath, Target.Platform.ToString());
+		string HarfBuzzPlatform = Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) ? "Win64" : Target.Platform.ToString();
+		string HarfBuzzLibPath = Path.Combine(LibHarfBuzzRootPath, HarfBuzzPlatform);
 		string BuildTypeFolderName = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 				? "Debug"
 				: "Release";
@@ -72,7 +72,7 @@ public class HarfBuzz : ModuleRules
 		PublicSystemIncludePaths.Add(IncHarfBuzzRootPath);
 
 		// Libs
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			LibPath = Path.Combine(HarfBuzzLibPath, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 
