@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "NiagaraStackCommentCollection.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "NiagaraStackRoot.generated.h"
 
@@ -31,6 +32,12 @@ public:
 	{
 		return RenderGroup;
 	}
+
+	UNiagaraStackCommentCollection* GetCommentCollection() const
+	{
+		return CommentCollection;
+	}
+	
 protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
@@ -72,6 +79,9 @@ private:
 	UPROPERTY()
 	TObjectPtr<UNiagaraStackRenderItemGroup> RenderGroup;
 
+	UPROPERTY()
+	TObjectPtr<UNiagaraStackCommentCollection> CommentCollection;
+	
 	UPROPERTY()
 	TObjectPtr<UNiagaraStackSummaryViewCollapseButton> SummaryCollapseButton;
 

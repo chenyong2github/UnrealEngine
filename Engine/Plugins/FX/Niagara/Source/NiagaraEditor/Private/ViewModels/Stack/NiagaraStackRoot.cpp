@@ -116,6 +116,16 @@ void UNiagaraStackRoot::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*
 		SystemUpdateGroup->Initialize(RequiredEntryData, DisplayName, ToolTip, GetSystemViewModel()->GetSystemScriptViewModel().ToSharedRef(), ENiagaraScriptUsage::SystemUpdateScript);
 	}
 
+	// we only allow comments in systems right now, not emitters
+	if(bIncludeSystemInformation && CommentCollection == nullptr)
+	{
+		CommentCollection = NewObject<UNiagaraStackCommentCollection>(this);
+		FRequiredEntryData RequiredEntryData(GetSystemViewModel(), GetEmitterViewModel(),
+			NAME_None, NAME_None,
+			GetSystemViewModel()->GetEditorData().GetStackEditorData());
+		CommentCollection->Initialize(RequiredEntryData);
+	}
+	
 	bool bShouldShowSummaryView = GetEmitterViewModel()? GetEmitterViewModel()->GetOrCreateEditorData().ShouldShowSummaryView() : false;
 
 	// we clear references to entries we don't want to display in summary view.
@@ -217,7 +227,8 @@ void UNiagaraStackRoot::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*
 		NewChildren.Add(SystemUserParametersGroup);
 		NewChildren.Add(SystemSpawnGroup);
 		NewChildren.Add(SystemUpdateGroup);
-	}
+		NewChildren.Add(CommentCollection);
+	}	
 
 	if (bIncludeEmitterInformation)
 	{

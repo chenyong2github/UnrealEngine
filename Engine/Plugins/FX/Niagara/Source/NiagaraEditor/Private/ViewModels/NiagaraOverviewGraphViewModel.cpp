@@ -19,6 +19,7 @@
 #include "ViewModels/Stack/NiagaraStackObject.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "NiagaraStackEditorData.h"
+#include "ViewModels/Stack/NiagaraStackRoot.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewGraphViewModel"
 
@@ -45,14 +46,6 @@ FNiagaraOverviewGraphViewModel::~FNiagaraOverviewGraphViewModel()
 			SystemViewModelPinned->GetSelectionViewModel()->OnEntrySelectionChanged().RemoveAll(this);
 		}
 	}
-
-	// Clean up stale entries
-	for (TWeakObjectPtr<UNiagaraStackObject>& TempStackObj : TempEntries)
-	{
-		if (TempStackObj.IsValid())
-			TempStackObj->Finalize();
-	}
-	TempEntries.Empty();
 }
 
 void FNiagaraOverviewGraphViewModel::Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel)
@@ -466,61 +459,37 @@ void FNiagaraOverviewGraphViewModel::GraphSelectionChanged()
 		TGuardValue<bool> UpdateGuard(bUpdatingSystemSelectionFromGraph, true);
 		bool bClearCurrentSelection = FSlateApplication::Get().GetModifierKeys().IsControlDown() == false;
 
+		UNiagaraStackEntry* RootEntry = GetSystemViewModel()->GetSystemStackViewModel()->GetRootEntry();
+		UNiagaraStackCommentCollection* CommentCollection = nullptr;
+
+		// we refresh the comment collection here to sync it with the current node selection
+		if(UNiagaraStackRoot* AsRoot = Cast<UNiagaraStackRoot>(RootEntry))
+		{
+			CommentCollection = AsRoot->GetCommentCollection();
+			CommentCollection->RefreshChildren();
+		}
+		
 		TArray<UNiagaraStackEntry*> EntriesToSelect;
 		TArray<UNiagaraStackEntry*> EntriesToDeselect;
 
 		TArray<FGuid> SelectedGuids;
-		TArray<TWeakObjectPtr<UNiagaraStackObject>> NewTempEntries;
-		if (!bClearCurrentSelection)
-			NewTempEntries = TempEntries;
-		TArray<TWeakObjectPtr<UNiagaraStackObject>> ClearTempEntries = TempEntries;
+		TArray<TObjectPtr<UNiagaraStackObject>> NewTempEntries;
 
 		for (UObject* SelectedObject : NodeSelection->GetSelectedObjects())
 		{
-			UNiagaraOverviewNode* SelectedOverviewNode = Cast<UNiagaraOverviewNode>(SelectedObject);
-			if (SelectedOverviewNode != nullptr)
+			if (UNiagaraOverviewNode* SelectedOverviewNode = Cast<UNiagaraOverviewNode>(SelectedObject))
 			{
 				SelectedGuids.AddUnique(SelectedOverviewNode->GetEmitterHandleGuid());
 			}
-			else
+			// we find the stack object mapped to the comment node we have selected in the graph to select it in the stack;
+			// this should always exist at this point as we have synced above
+			else if(UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(SelectedObject))
 			{
-				// Add other selected nodes as generic object entries
-				// See if we already have this object selected, if so, reuse
-				UNiagaraStackObject* StackObject = nullptr;
-				for (TWeakObjectPtr<UNiagaraStackObject>& TempStackObj : TempEntries)
+				if (UNiagaraStackObject* CommentStackObject = CommentCollection->FindStackObjectForCommentNode(CommentNode))
 				{
-					if (TempStackObj.IsValid() && TempStackObj->GetObject() == SelectedObject)
-					{
-						StackObject = TempStackObj.Get();
-						break;
-					}
-				}
-
-				// If not already in existence, create a temp one
-				if (!StackObject)
-				{
-					StackObject = NewObject<UNiagaraStackObject>(GetTransientPackage());
-					UNiagaraStackEditorData* EditorData = NewObject< UNiagaraStackEditorData >(GetTransientPackage());
-					UNiagaraStackEntry::FRequiredEntryData RequiredEntryData(GetSystemViewModel(), nullptr, TEXT("Custom"), NAME_None, *EditorData);
-					bool bIsTopLevelObject = true;
-					StackObject->Initialize(RequiredEntryData, SelectedObject, bIsTopLevelObject, TEXT(""));
-					NewTempEntries.AddUnique(StackObject);
-				}
-
-				if (StackObject)
-				{
-					EntriesToSelect.Add(StackObject);
-					ClearTempEntries.Remove(StackObject);
+					EntriesToSelect.Add(CommentStackObject);
 				}
 			}
-		}
-
-		// Keep track of previously created temp entries.
-		TempEntries = NewTempEntries;
-		for (TWeakObjectPtr<UNiagaraStackObject>& TempStackObj : ClearTempEntries)
-		{
-			if (TempStackObj.IsValid())
-				EntriesToDeselect.Add(TempStackObj.Get());
 		}
 
 		UNiagaraStackEntry* SystemRootEntry = GetSystemViewModel()->GetSystemStackViewModel()->GetRootEntry();
@@ -547,13 +516,6 @@ void FNiagaraOverviewGraphViewModel::GraphSelectionChanged()
 		}
 
 		GetSystemViewModel()->GetSelectionViewModel()->UpdateSelectedEntries(EntriesToSelect, EntriesToDeselect, bClearCurrentSelection);
-
-		// Clean up stale entries
-		for (TWeakObjectPtr<UNiagaraStackObject>& TempStackObj : ClearTempEntries)
-		{
-			if (TempStackObj.IsValid())
-				TempStackObj->Finalize();
-		}
 	}
 }
 

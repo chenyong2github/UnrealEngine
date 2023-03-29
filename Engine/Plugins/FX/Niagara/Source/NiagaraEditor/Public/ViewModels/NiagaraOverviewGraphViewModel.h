@@ -96,8 +96,6 @@ private:
 	/** The set of nodes objects currently selected in the graph. */
 	TSharedRef<FNiagaraObjectSelection> NodeSelection;
 
-	TArray<TWeakObjectPtr<class UNiagaraStackObject> > TempEntries;
-
 	bool bUpdatingSystemSelectionFromGraph;
 
 	bool bUpdatingGraphSelectionFromSystem;
