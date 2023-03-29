@@ -921,7 +921,7 @@ void FPCGGraphExecutor::Execute()
 			if (TidyCacheCountUntilGC <= 0)
 			{
 				TidyCacheCountUntilGC = 100;
-				CollectGarbage(RF_NoFlags, true);
+				CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
 			}
 		}
 #endif
