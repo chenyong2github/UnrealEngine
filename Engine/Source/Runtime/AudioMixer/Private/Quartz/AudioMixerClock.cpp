@@ -381,9 +381,9 @@ namespace Audio
 		CachedClockState.TimeStamp = Metronome.GetTimeStamp();
 		CachedClockState.RunTimeInSeconds = (float)Metronome.GetTimeSinceStart();
 
-		const uint64 TempLastCacheTimestamp = CachedClockState.LastCacheTimestamp;
-		CachedClockState.LastCacheTimestamp = Metronome.GetLastTickCpuCycles64();
-		CachedClockState.LastCacheTimeDelta = CachedClockState.LastCacheTimestamp - TempLastCacheTimestamp;
+		const uint64 TempLastCacheTimestamp = CachedClockState.LastCacheTickCpuCycles64;
+		CachedClockState.LastCacheTickCpuCycles64 = Metronome.GetLastTickCpuCycles64();
+		CachedClockState.LastCacheTickDeltaCpuCycles64 = CachedClockState.LastCacheTickCpuCycles64 - TempLastCacheTimestamp;
 
 		// copy previous phases (as temp values)
 		FMemory::Memcpy(CachedClockState.MusicalDurationPhaseDeltas, CachedClockState.MusicalDurationPhases);
@@ -572,7 +572,7 @@ namespace Audio
 
 	float FQuartzClock::GetBeatProgressPercent(const EQuartzCommandQuantization& QuantizationType) const
 	{
-		if(CachedClockState.LastCacheTimeDelta == 0)
+		if(CachedClockState.LastCacheTickDeltaCpuCycles64 == 0)
 		{
 			return CachedClockState.MusicalDurationPhases[static_cast<int32>(QuantizationType)];
 		}
@@ -580,8 +580,8 @@ namespace Audio
 		// anticipate beat progress based on the amount of wall clock time that has passed since the last audio engine update
 		const float LastPhase = CachedClockState.MusicalDurationPhases[static_cast<int32>(QuantizationType)];
 		const float PhaseDelta = CachedClockState.MusicalDurationPhaseDeltas[static_cast<int32>(QuantizationType)];
-		const uint32 CyclesSinceLastTick = FPlatformTime::Cycles() - CachedClockState.LastCacheTimestamp;
-		const float EstimatedPercentToNextTick = static_cast<float>(CyclesSinceLastTick) / static_cast<float>(CachedClockState.LastCacheTimeDelta);
+		const uint64 CyclesSinceLastTick = FPlatformTime::Cycles64() - CachedClockState.LastCacheTickCpuCycles64;
+		const float EstimatedPercentToNextTick = static_cast<float>(CyclesSinceLastTick) / static_cast<float>(CachedClockState.LastCacheTickDeltaCpuCycles64);
 
 		return LastPhase + PhaseDelta * EstimatedPercentToNextTick;
 	}

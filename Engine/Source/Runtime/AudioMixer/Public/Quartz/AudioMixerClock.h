@@ -223,8 +223,8 @@ namespace Audio
 			float RunTimeInSeconds;
 			float MusicalDurationPhases[static_cast<int32>(EQuartzCommandQuantization::Count)] { 0 };
 			float MusicalDurationPhaseDeltas[static_cast<int32>(EQuartzCommandQuantization::Count)] { 0 };
-			uint64 LastCacheTimestamp = 0;
-			uint64 LastCacheTimeDelta = 0;
+			uint64 LastCacheTickCpuCycles64 = 0;
+			uint64 LastCacheTickDeltaCpuCycles64 = 0;
 			
 		} CachedClockState;
 
