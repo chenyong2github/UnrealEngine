@@ -5588,38 +5588,6 @@ public:
 		}
 	}
 
-	/**
-	 * Checks if an element has already been added to the set
-	 *
-	 * @param	InBaseAddress	The base address of the set
-	 * @param	InElementValue	The element value to check for
-	 *
-	 * @return	True if the element is found in the set, false otherwise
-	 */
-	bool HasElement(void* InBaseAddress, const FString& InElementValue) const
-	{
-		for (int32 Index = 0, ItemsLeft = Num(); ItemsLeft > 0; ++Index)
-		{
-			if (IsValidIndex(Index))
-			{
-				--ItemsLeft;
-
-				const uint8* Element = GetElementPtr(Index);
-
-				FString ElementValue;
-				if (Element != InBaseAddress && ElementProp->ExportText_Direct(ElementValue, Element, Element, nullptr, 0))
-				{
-					if ((CastField<FObjectProperty>(ElementProp) != nullptr && ElementValue.Contains(InElementValue)) || ElementValue == InElementValue)
-					{
-						return true;
-					}
-				}
-			}
-		}
-
-		return false;
-	}
-
 	static FScriptSetHelper CreateHelperFormElementProperty(FProperty* InElementProperty, const void *InSet)
 	{
 		check(InElementProperty);
