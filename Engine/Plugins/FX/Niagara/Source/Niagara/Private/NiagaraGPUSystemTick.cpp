@@ -5,6 +5,16 @@
 #include "NiagaraSystemInstance.h"
 #include "NiagaraSystem.h"
 
+#if NIAGARA_VALIDATE_NDIPROXY_REFS
+FNiagaraComputeDataInterfaceInstanceData::~FNiagaraComputeDataInterfaceInstanceData()
+{
+	for (auto ProxyIt=InterfaceProxiesToOffsets.CreateIterator(); ProxyIt; ++ProxyIt)
+	{
+		--ProxyIt->Key->ProxyTickRefs;
+	}
+}
+#endif
+
 void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 {
 	ensure(InSystemInstance != nullptr);
@@ -49,6 +59,9 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 			Interface->ProvidePerInstanceDataForRenderThread(InstanceDataBase, PerInstanceData, SystemInstanceID);
 
 			// @todo rethink this. So ugly.
+		#if NIAGARA_VALIDATE_NDIPROXY_REFS
+			++Proxy->ProxyTickRefs;
+		#endif
 			DIInstanceData->InterfaceProxiesToOffsets.Add(Proxy, RunningOffset);
 
 			InstanceDataBase += RTDataSize;

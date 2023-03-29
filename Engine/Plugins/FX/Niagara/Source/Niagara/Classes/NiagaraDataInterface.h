@@ -50,6 +50,10 @@ struct FNDITransformHandler
 	FORCEINLINE void TransformRotation(FQuat4d& Q1, const FQuat4d& Q2) const { Q1 = Q2 * Q1; }
 };
 
+// FNiagaraDataInterfaceProxy should always outlive any ticks, etc, that are on the rendering thread.
+// Enabling this will incur cost but will validate that this contract is not broken
+#define NIAGARA_VALIDATE_NDIPROXY_REFS	!UE_BUILD_SHIPPING
+
 //////////////////////////////////////////////////////////////////////////
 // Some helper classes allowing neat, init time binding of templated vm external functions.
 
@@ -330,7 +334,12 @@ protected:
 struct FNiagaraDataInterfaceProxy
 {
 	FNiagaraDataInterfaceProxy() {}
-	virtual ~FNiagaraDataInterfaceProxy() {/*check(IsInRenderingThread());*/}
+	virtual ~FNiagaraDataInterfaceProxy()
+	{
+#if NIAGARA_VALIDATE_NDIPROXY_REFS
+		checkf(ProxyTickRefs == 0, TEXT("NiagaraDataInterfaceProxy(%p) is still referenced but being destroyed."));
+#endif
+	}
 
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const = 0;
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) { check(false); }
@@ -351,6 +360,10 @@ struct FNiagaraDataInterfaceProxy
 	virtual void FinalizePostStage(FRDGBuilder& GraphBuilder, const FNiagaraGpuComputeDispatchInterface& ComputeDispatchInterface) {}
 
 	virtual FNiagaraDataInterfaceProxyRW* AsIterationProxy() { return nullptr; }
+
+#if NIAGARA_VALIDATE_NDIPROXY_REFS
+	std::atomic<int32> ProxyTickRefs;
+#endif
 };
 
 //////////////////////////////////////////////////////////////////////////

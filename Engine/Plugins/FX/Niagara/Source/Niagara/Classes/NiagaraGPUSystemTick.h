@@ -9,6 +9,9 @@ struct FNiagaraComputeDataInterfaceInstanceData
 {
 	UE_NONCOPYABLE(FNiagaraComputeDataInterfaceInstanceData);
 	FNiagaraComputeDataInterfaceInstanceData() {}
+#if NIAGARA_VALIDATE_NDIPROXY_REFS
+	~FNiagaraComputeDataInterfaceInstanceData();
+#endif
 
 	void* PerInstanceDataForRT = nullptr;
 	TMap<FNiagaraDataInterfaceProxy*, int32> InterfaceProxiesToOffsets;
