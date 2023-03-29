@@ -1756,8 +1756,8 @@ void FLevelEditorToolBar::RegisterQuickSettingsMenu()
 
 		Section.AddSubMenu(
 			"FeatureLevelPreview",
-			LOCTEXT("FeatureLevelPreviewSubMenu", "Preview Rendering Level"),
-			LOCTEXT("FeatureLevelPreviewSubMenu_ToolTip", "Sets the rendering level used by the main editor"),
+			LOCTEXT("PreviewPlatformSubMenu", "Preview Platform"),
+			LOCTEXT("PreviewPlatformSubMenu_ToolTip", "Sets the preview platform used by the main editor"),
 			FNewToolMenuDelegate::CreateStatic(&MakeShaderModelPreviewMenu));
 	}
 

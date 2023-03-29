@@ -853,7 +853,7 @@ FText SEditorViewport::GetCurrentFeatureLevelPreviewText(bool bDrawOnlyLabel) co
 
 	if (bDrawOnlyLabel)
 	{
-		LabelName = LOCTEXT("FeatureLevelLabel", "Feature Level:");
+		LabelName = LOCTEXT("PreviewPlatformLabel", "Preview Platform:");
 	}
 	else
 	{
