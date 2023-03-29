@@ -7,6 +7,9 @@
 #include "Chaos/PBDJointConstraintUtilities.h"
 #include "Chaos/Utilities.h"
 
+
+//UE_DISABLE_OPTIMIZATION
+
 namespace Chaos
 {
 	
@@ -178,9 +181,6 @@ void FPBDJointCachedSolver::Init(
 	SolverBodies[0].SetShockPropagationScale(FReal(1));
 	SolverBodies[1].SetShockPropagationScale(FReal(1));
 
-	NetLinearImpulse = FVec3(0);
-	NetAngularImpulse = FVec3(0);
-
 	// Tolerances are positional errors below visible detection. But in PBD the errors
 	// we leave behind get converted to velocity, so we need to ensure that the resultant
 	// movement from that erroneous velocity is less than the desired position tolerance.
@@ -195,6 +195,7 @@ void FPBDJointCachedSolver::Init(
 	NumActiveConstraints = -1;
 	bIsActive = true;
 	bIsBroken = false;
+	bUsePositionBasedDrives = SolverSettings.bUsePositionBasedDrives;
 
 	SolverStiffness = 1.0f;
 
@@ -300,8 +301,6 @@ void FPBDJointCachedSolver::ApplyConstraints(
 		ApplyPositionDrives(Dt);
 		ApplyRotationDrives(Dt);
 	}
-
-	//UpdateIsActive();
 }
 
 void FPBDJointCachedSolver::ApplyVelocityConstraints(
@@ -322,14 +321,18 @@ void FPBDJointCachedSolver::ApplyVelocityConstraints(
 	{
 		ApplyAngularVelocityConstraints();
 		ApplyLinearVelocityConstraints();
+
+		ApplyRotationVelocityDrives(Dt);
+		ApplyPositionVelocityDrives(Dt);
 	}
 	else
 	{
 		ApplyLinearVelocityConstraints();
 		ApplyAngularVelocityConstraints();
-	}
 
-	// @todo(chaos): We can also apply velocity drives here rather than in the Pbd pass
+		ApplyPositionVelocityDrives(Dt);
+		ApplyRotationVelocityDrives(Dt);
+	}
 }
 
 /** UTILS FOR POSITION CONSTRAINT **************************************************************************************/
@@ -448,9 +451,20 @@ void FPBDJointCachedSolver::InitPositionDatasMass(
 	const FReal II0 = FVec3::DotProduct(AngularAxis0, IA0);
 	const FReal II1 = FVec3::DotProduct(AngularAxis1, IA1);
 
-	PositionDatas.UpdateMass(ConstraintIndex, IA0, IA1, InvM(0) + II0 + InvM(1) + II1, Dt);
+	PositionDatas.UpdateMass(ConstraintIndex, IA0, IA1, InvM(0) + II0 + InvM(1) + II1, Dt, bUsePositionBasedDrives);
 }
 	
+void FPBDJointCachedSolver::SetInitConstraintVelocity(
+	const FVec3& ConstraintArm0,
+	const FVec3& ConstraintArm1)
+
+{
+	const FVec3 CV0 = V(0) + FVec3::CrossProduct(W(0), ConstraintArm0);
+	const FVec3 CV1 = V(1) + FVec3::CrossProduct(W(1), ConstraintArm1);
+	const FVec3 CV = CV1 - CV0;
+	InitConstraintVelocity = CV;
+}
+
 void FPBDJointCachedSolver::InitPositionConstraintDatas(
 	const int32 ConstraintIndex,
 	const FVec3& ConstraintAxis,
@@ -480,11 +494,7 @@ void FPBDJointCachedSolver::InitPositionConstraintDatas(
 			ConstraintRestitution, true, ConstraintArm0, ConstraintArm1);
 	}
 
-	const FVec3 CV0 = V(0) + FVec3::CrossProduct(W(0), ConstraintArm0);
-	const FVec3 CV1 = V(1) + FVec3::CrossProduct(W(1), ConstraintArm1);
-	const FVec3 CV = CV1 - CV0;
-
-	InitConstraintAxisLinearVelocities[ConstraintIndex] = FVec3::DotProduct(CV, LocalAxis);
+	InitConstraintAxisLinearVelocities[ConstraintIndex] = FVec3::DotProduct(InitConstraintVelocity, LocalAxis);
 
 	InitPositionDatasMass(PositionConstraints, ConstraintIndex, Dt);
 }
@@ -515,6 +525,9 @@ void FPBDJointCachedSolver::InitLockedPositionConstraint(
 			
 		}
 	}
+
+	SetInitConstraintVelocity(ConstraintArm0, ConstraintArm1);
+
 	for(int32 ConstraintIndex = 0; ConstraintIndex < 3; ++ConstraintIndex)
 	{
 		if(LinearMotion[ConstraintIndex] == EJointMotionType::Locked)
@@ -543,6 +556,8 @@ void FPBDJointCachedSolver::InitSphericalPositionConstraint(
 	const FVec3 ConstraintArm0 = ConnectorXs[1] - CurrentPs[0];
 	const FVec3 ConstraintArm1 = ConnectorXs[1] - CurrentPs[1];
 	
+	SetInitConstraintVelocity(ConstraintArm0, ConstraintArm1);
+
 	InitPositionConstraintDatas(0, SphereAxis0,  SphereDelta0, JointSettings.LinearRestitution, Dt,
 		JointSettings.LinearLimit, EJointMotionType::Limited, ConstraintArm0, ConstraintArm1);
 
@@ -573,6 +588,8 @@ void FPBDJointCachedSolver::InitCylindricalPositionConstraint(
 	const FVec3 ConstraintArm0 = ConnectorXs[1] - CurrentPs[0];
 	const FVec3 ConstraintArm1 = ConnectorXs[1] - CurrentPs[1];
 	
+	SetInitConstraintVelocity(ConstraintArm0, ConstraintArm1);
+
 	InitPositionConstraintDatas((AxisIndex+1)%3, RadialAxis0, RadialDelta0, JointSettings.LinearRestitution, Dt,
 		JointSettings.LinearLimit, EJointMotionType::Limited, ConstraintArm0, ConstraintArm1);
 
@@ -592,6 +609,8 @@ void FPBDJointCachedSolver::InitPlanarPositionConstraint(
 	const FVec3 ConstraintArm0 = ConnectorXs[1] - CurrentPs[0];
 	const FVec3 ConstraintArm1 = ConnectorXs[1] - CurrentPs[1];
 	
+	SetInitConstraintVelocity(ConstraintArm0, ConstraintArm1);
+
 	InitPositionConstraintDatas(AxisIndex, PlaneAxis, PlaneDelta, JointSettings.LinearRestitution, Dt,
 		JointSettings.LinearLimit, EJointMotionType::Limited, ConstraintArm0, ConstraintArm1);
 }
@@ -632,7 +651,6 @@ void FPBDJointCachedSolver::SolvePositionConstraintDelta(
 		ApplyRotationDelta(1,DR1);
 	}
 
-	NetLinearImpulse += DX;
 	++NumActiveConstraints;
 }
 
@@ -727,9 +745,12 @@ void FPBDJointCachedSolver::SolveLinearVelocityConstraint(
 
 	const FReal DeltaLambda = SolverStiffness * PositionConstraints.ConstraintHardStiffness[ConstraintIndex] *
 	 (FVec3::DotProduct(CV, PositionConstraints.ConstraintAxis[ConstraintIndex]) - TargetVel) / PositionConstraints.ConstraintHardIM[ConstraintIndex];
+
+	// @todo(chaos): We should be adding to the net positional impulse here
+	//PositionConstraints.ConstraintLambda[ConstraintIndex] += DeltaLambda * Dt;
 	
 	const FVec3 MDV = DeltaLambda * PositionConstraints.ConstraintAxis[ConstraintIndex];
-
+	
 	if(Body(0).IsDynamic())
 	{
 		const FVec3 DV0 = InvM(0) * MDV;
@@ -746,16 +767,21 @@ void FPBDJointCachedSolver::SolveLinearVelocityConstraint(
 	}
 }
 
-void FPBDJointCachedSolver::ApplyAxisVelocityConstraint(const int32 ConstraintIndex)
+void FPBDJointCachedSolver::ApplyAxisVelocityConstraint(
+	const int32 ConstraintIndex)
 {
-	if(!NetLinearImpulse.IsNearlyZero() && (FMath::Abs(PositionConstraints.ConstraintLambda[ConstraintIndex]) > UE_SMALL_NUMBER) )
+	// Apply restitution for limited joints when we have exceeded the limits
+	// We also drive the velocity to zero for locked constraints (ignoring restitution)
+	if (FMath::Abs(PositionConstraints.ConstraintLambda[ConstraintIndex]) > UE_SMALL_NUMBER)
 	{
 		FReal TargetVel = 0.0f;
-		if (PositionConstraints.MotionType[ConstraintIndex] == EJointMotionType::Limited && PositionConstraints.ConstraintRestitution[ConstraintIndex] != 0.0f)
+		const FReal Restitution = PositionConstraints.ConstraintRestitution[ConstraintIndex];
+		const bool bIsLimited = (PositionConstraints.MotionType[ConstraintIndex] == EJointMotionType::Limited);
+		if (bIsLimited && (Restitution != 0.0f))
 		{
 			const FReal InitVel = InitConstraintAxisLinearVelocities[ConstraintIndex];
-			TargetVel = InitVel > Chaos_Joint_LinearVelocityThresholdToApplyRestitution ?
-				-PositionConstraints.ConstraintRestitution[ConstraintIndex] * InitVel : 0.0f; 
+			const FReal Threshold = Chaos_Joint_LinearVelocityThresholdToApplyRestitution;
+			TargetVel = (InitVel > Threshold) ? -Restitution * InitVel : 0.0f;
 		}
 		SolveLinearVelocityConstraint(ConstraintIndex, TargetVel);
 	}
@@ -909,7 +935,7 @@ void FPBDJointCachedSolver::InitRotationDatasMass(
 	const FReal II0 = FVec3::DotProduct(RotationDatas.ConstraintAxis[ConstraintIndex], IA0);
 	const FReal II1 = FVec3::DotProduct(RotationDatas.ConstraintAxis[ConstraintIndex], IA1);
 
-	RotationDatas.UpdateMass(ConstraintIndex,  IA0, IA1, II0 + II1, Dt);
+	RotationDatas.UpdateMass(ConstraintIndex,  IA0, IA1, II0 + II1, Dt, bUsePositionBasedDrives);
 }
 
 void FPBDJointCachedSolver::InitRotationConstraintDatas(
@@ -1118,7 +1144,6 @@ void FPBDJointCachedSolver::SolveRotationConstraintDelta(
 			DeltaImpulse * ( FVec3::DotProduct(ConstraintDatas.ConstraintAxis[ConstraintIndex], ConstraintDatas.ConstraintDRAxis[ConstraintIndex][1]));
 		ApplyRotationDelta(1, DR1);
 	}
-	NetAngularImpulse += DeltaImpulse;
 	++NumActiveConstraints;
 }
 
@@ -1214,6 +1239,9 @@ void FPBDJointCachedSolver::SolveAngularVelocityConstraint(
 	const FReal DeltaLambda = SolverStiffness * RotationConstraints.ConstraintHardStiffness[ConstraintIndex] *
 	 (FVec3::DotProduct(CW, RotationConstraints.ConstraintAxis[ConstraintIndex]) - TargetVel) / RotationConstraints.ConstraintHardIM[ConstraintIndex];
 
+	 // @todo(chaos): we should be adding to the net positional impulse here
+	 // RotationConstraints.ConstraintLambda[ConsraintIndex] += DeltaLambda * Dt;
+
 	if(Body(0).IsDynamic())
 	{
 		const FVec3 DW0 = RotationConstraints.ConstraintDRAxis[ConstraintIndex][0] * DeltaLambda;
@@ -1228,12 +1256,15 @@ void FPBDJointCachedSolver::SolveAngularVelocityConstraint(
 	}
 }
 
-void FPBDJointCachedSolver::ApplyAngularVelocityConstraint(const int32 ConstraintIndex)
+void FPBDJointCachedSolver::ApplyAngularVelocityConstraint(
+	const int32 ConstraintIndex)
 {
-	if(!NetAngularImpulse.IsNearlyZero() && (FMath::Abs(RotationConstraints.ConstraintLambda[ConstraintIndex]) > UE_SMALL_NUMBER))
+	// Apply restitution for limited joints when we have exceeded the limits
+	// We also drive the velocity to zero for locked constraints (ignoring restitution)
+	if (FMath::Abs(RotationConstraints.ConstraintLambda[ConstraintIndex]) > UE_SMALL_NUMBER)
 	{
 		FReal TargetVel = 0.0f;
-		if (RotationConstraints.ConstraintRestitution[ConstraintIndex] != 0.0f)
+		if ((RotationConstraints.MotionType[ConstraintIndex] == EJointMotionType::Limited) && (RotationConstraints.ConstraintRestitution[ConstraintIndex] != 0.0f))
 		{ 
 			const FReal InitVel = InitConstraintAxisAngularVelocities[ConstraintIndex];
 			TargetVel = InitVel > Chaos_Joint_AngularVelocityThresholdToApplyRestitution ?
@@ -1272,6 +1303,10 @@ void FPBDJointCachedSolver::InitPositionDrives(
 			const FVec3 XTarget = ConnectorXs[0] + ConnectorRs[0] * JointSettings.LinearDrivePositionTarget;
 			const FVec3 VTarget = ConnectorRs[0] * JointSettings.LinearDriveVelocityTarget;
 			const FVec3 CX = ConnectorXs[1] - XTarget;
+
+			const FVec3 ConstraintArm0 = ConnectorXs[1] - CurrentPs[0];
+			const FVec3 ConstraintArm1 = ConnectorXs[1] - CurrentPs[1];
+			SetInitConstraintVelocity(ConstraintArm0, ConstraintArm1);
 
 			for (int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex)
 			{
@@ -1531,7 +1566,7 @@ void FPBDJointCachedSolver::ApplyRotationTeleport(
 /** APPLY POSITION  DRIVES *********************************************************************************/
 
 void FPBDJointCachedSolver::ApplyPositionDrives(
-		const FReal Dt)
+	const FReal Dt)
 {
 	for(int32 ConstraintIndex = 0; ConstraintIndex < 3; ++ConstraintIndex)
 	{
@@ -1544,33 +1579,105 @@ void FPBDJointCachedSolver::ApplyPositionDrives(
 	
 
 void FPBDJointCachedSolver::ApplyAxisPositionDrive(
-		const int32 ConstraintIndex,
-		const FReal Dt)
+	const int32 ConstraintIndex,
+	const FReal Dt)
 {
+	const FReal Stiffness = PositionDrives.ConstraintSoftStiffness[ConstraintIndex];
+	const FReal Damping = PositionDrives.ConstraintSoftDamping[ConstraintIndex];
+	const FReal IM = PositionDrives.ConstraintSoftIM[ConstraintIndex];
+
 	const FVec3 Delta0 = Body(0).DP() + FVec3::CrossProduct(Body(0).DQ(), PositionDrives.ConstraintArms[ConstraintIndex][0]);
 	const FVec3 Delta1 = Body(1).DP() + FVec3::CrossProduct(Body(1).DQ(), PositionDrives.ConstraintArms[ConstraintIndex][1]);
+	const FReal CX = PositionDrives.ConstraintCX[ConstraintIndex] + FVec3::DotProduct(Delta1 - Delta0, PositionDrives.ConstraintAxis[ConstraintIndex]);
 
-	const FReal DeltaPos = PositionDrives.ConstraintCX[ConstraintIndex] + FVec3::DotProduct(Delta1 - Delta0, PositionDrives.ConstraintAxis[ConstraintIndex]);
-
-	FReal VelDt = 0;
-	if (PositionDrives.ConstraintSoftDamping[ConstraintIndex] > UE_KINDA_SMALL_NUMBER)
+	FReal CVDt = 0;
+	if (Damping > UE_KINDA_SMALL_NUMBER)
 	{
 		const FVec3 V0Dt = FVec3::CalculateVelocity(InitConnectorXs[0], ConnectorXs[0] + Delta0, 1.0f);
 		const FVec3 V1Dt = FVec3::CalculateVelocity(InitConnectorXs[1], ConnectorXs[1] + Delta1, 1.0f);
-		VelDt = PositionDrives.ConstraintVX[ConstraintIndex] * Dt + FVec3::DotProduct(V0Dt - V1Dt, PositionDrives.ConstraintAxis[ConstraintIndex] );
+		const FReal TargetVDt = PositionDrives.ConstraintVX[ConstraintIndex] * Dt;
+		CVDt = TargetVDt + FVec3::DotProduct(V0Dt - V1Dt, PositionDrives.ConstraintAxis[ConstraintIndex]);
 	}
 
-	FReal DeltaLambda = SolverStiffness * (PositionDrives.ConstraintSoftStiffness[ConstraintIndex] * DeltaPos -
-		PositionDrives.ConstraintSoftDamping[ConstraintIndex] * VelDt - PositionDrives.ConstraintLambda[ConstraintIndex]) /
-		PositionDrives.ConstraintSoftIM[ConstraintIndex];
-	FReal Lambda = PositionDrives.ConstraintLambda[ConstraintIndex] + DeltaLambda;
+	FReal Lambda = PositionDrives.ConstraintLambda[ConstraintIndex];
+	FReal DeltaLambda = SolverStiffness * (Stiffness * CX - Damping * CVDt - Lambda) / IM;
+	Lambda += DeltaLambda;
 
 	PositionDrives.ApplyMaxLambda(ConstraintIndex, DeltaLambda, Lambda);
-
 	PositionDrives.ConstraintLambda[ConstraintIndex] = Lambda;
 
 	SolvePositionConstraintDelta(ConstraintIndex, DeltaLambda, PositionDrives);
 }
+
+void FPBDJointCachedSolver::ApplyPositionVelocityDrives(
+	const FReal Dt)
+{
+	if (bUsePositionBasedDrives)
+	{
+		return;
+	}
+
+	for (int32 ConstraintIndex = 0; ConstraintIndex < 3; ++ConstraintIndex)
+	{
+		if (PositionDrives.bValidDatas[ConstraintIndex])
+		{
+			ApplyAxisPositionVelocityDrive(ConstraintIndex, Dt);
+		}
+	}
+}
+
+void FPBDJointCachedSolver::ApplyAxisPositionVelocityDrive(
+	const int32 ConstraintIndex,
+	const FReal Dt)
+{
+	// NOTE: Using the actual damping, not the PBD modified value
+	const FReal Damping = PositionDrives.SettingsSoftDamping[ConstraintIndex] * Dt;
+	if (Damping < UE_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	const FReal MassScale = PositionDrives.bAccelerationMode ? (FReal(1) / PositionDrives.ConstraintHardIM[ConstraintIndex]) : FReal(1);
+	const FReal IM = MassScale * Damping * PositionDrives.ConstraintHardIM[ConstraintIndex] + (FReal)1;
+
+	// Velocity error to correct
+	const FVec3 V0 = V(0) + FVec3::CrossProduct(W(0), PositionDrives.ConstraintArms[ConstraintIndex][0]);
+	const FVec3 V1 = V(1) + FVec3::CrossProduct(W(1), PositionDrives.ConstraintArms[ConstraintIndex][1]);
+	const FReal VRel = FVec3::DotProduct(V1 - V0, PositionDrives.ConstraintAxis[ConstraintIndex]);
+	const FReal TargetV = PositionDrives.ConstraintVX[ConstraintIndex];
+	const FReal CV = (VRel - TargetV);
+
+	// Implicit scheme: F(t) = -D x V(t+dt)
+	FReal& LambdaVel = PositionDrives.ConstraintLambdaVelocity[ConstraintIndex];
+	FReal DeltaLambdaVel = SolverStiffness * (MassScale * Damping * CV - LambdaVel) / IM;
+
+	// Apply limits and accumulate total impulse 
+	// (NOTE: Limits and net impulses are position based, not velocity based)
+	FReal DeltaLambda = DeltaLambdaVel * Dt;
+	FReal Lambda = PositionDrives.ConstraintLambda[ConstraintIndex] + DeltaLambda;
+	PositionDrives.ApplyMaxLambda(ConstraintIndex, DeltaLambda, Lambda);
+	PositionDrives.ConstraintLambda[ConstraintIndex] = Lambda;	
+	DeltaLambdaVel = DeltaLambda / Dt;
+
+	LambdaVel += DeltaLambdaVel;
+	const FVec3 Impulse = DeltaLambdaVel * PositionDrives.ConstraintAxis[ConstraintIndex];
+
+	if (Body(0).IsDynamic())
+	{
+		const FVec3 DV0 = InvM(0) * Impulse;
+		const FVec3 DW0 = PositionDrives.ConstraintDRAxis[ConstraintIndex][0] * DeltaLambdaVel;
+
+		Body(0).ApplyVelocityDelta(DV0, DW0);
+	}
+	if (Body(1).IsDynamic())
+	{
+		const FVec3 DV1 = -InvM(1) * Impulse;
+		const FVec3 DW1 = PositionDrives.ConstraintDRAxis[ConstraintIndex][1] * DeltaLambdaVel;
+
+		Body(1).ApplyVelocityDelta(DV1, DW1);
+	}
+}
+
 
 /** INIT ROTATION DRIVES *********************************************************************************/
 
@@ -1752,31 +1859,103 @@ void FPBDJointCachedSolver::ApplyRotationDrives(
 }
 
 void FPBDJointCachedSolver::ApplyAxisRotationDrive(
-		const int32 ConstraintIndex,
-		const FReal Dt)
+	const int32 ConstraintIndex,
+	const FReal Dt)
 {
-	const FReal DeltaConstraint = RotationDrives.ConstraintCX[ConstraintIndex]+
-		FVec3::DotProduct(Body(1).DQ()-Body(0).DQ(), RotationDrives.ConstraintAxis[ConstraintIndex]);
+	const FReal Stiffness = RotationDrives.ConstraintSoftStiffness[ConstraintIndex];
+	const FReal Damping = RotationDrives.ConstraintSoftDamping[ConstraintIndex];
+	const FReal IM = RotationDrives.ConstraintSoftIM[ConstraintIndex];
 
-	// Damping angular velocity
-	FReal AngVelDt = 0;
-	if (RotationDrives.ConstraintSoftDamping[ConstraintIndex] > UE_KINDA_SMALL_NUMBER)
+	// Stiffness position delta
+	FReal CX = 0;
+	if (Stiffness > UE_KINDA_SMALL_NUMBER)
+	{
+		const FReal DX = FVec3::DotProduct(Body(1).DQ() - Body(0).DQ(), RotationDrives.ConstraintAxis[ConstraintIndex]);
+		const FReal TargetX = RotationDrives.ConstraintCX[ConstraintIndex];
+		CX = TargetX + DX;
+	}
+
+	// Damping angular velocity delta
+	FReal CVDt = 0;
+	if (Damping > UE_KINDA_SMALL_NUMBER)
 	{
 		const FVec3 W0Dt = FVec3(Body(0).DQ()) + ConnectorWDts[0];
 		const FVec3 W1Dt = FVec3(Body(1).DQ()) + ConnectorWDts[1];
-		AngVelDt = RotationDrives.ConstraintVX[ConstraintIndex] * Dt + FVec3::DotProduct(RotationDrives.ConstraintAxis[ConstraintIndex] , W0Dt - W1Dt);
+		const FReal TargetW = RotationDrives.ConstraintVX[ConstraintIndex];
+		CVDt = (TargetW * Dt) + FVec3::DotProduct(RotationDrives.ConstraintAxis[ConstraintIndex] , W0Dt - W1Dt);
 	}
 
-	FReal DeltaLambda = SolverStiffness * (RotationDrives.ConstraintSoftStiffness[ConstraintIndex] * DeltaConstraint -
-		RotationDrives.ConstraintSoftDamping[ConstraintIndex] * AngVelDt - RotationDrives.ConstraintLambda[ConstraintIndex]) /
-		RotationDrives.ConstraintSoftIM[ConstraintIndex];
-	FReal Lambda = RotationDrives.ConstraintLambda[ConstraintIndex] + DeltaLambda;
+	FReal Lambda = RotationDrives.ConstraintLambda[ConstraintIndex];
+	FReal DeltaLambda = SolverStiffness * (Stiffness * CX - Damping * CVDt - Lambda) / IM;
+	Lambda += DeltaLambda;
 
 	RotationDrives.ApplyMaxLambda(ConstraintIndex, DeltaLambda, Lambda);
-
 	RotationDrives.ConstraintLambda[ConstraintIndex] = Lambda;
 
 	SolveRotationConstraintDelta(ConstraintIndex, DeltaLambda,true, RotationDrives);
+}
+
+void FPBDJointCachedSolver::ApplyRotationVelocityDrives(
+	const FReal Dt)
+{
+	if (bUsePositionBasedDrives)
+	{
+		return;
+	}
+
+	for (int32 ConstraintIndex = 0; ConstraintIndex < 3; ++ConstraintIndex)
+	{
+		if (RotationDrives.bValidDatas[ConstraintIndex])
+		{
+			ApplyAxisRotationVelocityDrive(ConstraintIndex, Dt);
+		}
+	}
+}
+
+void FPBDJointCachedSolver::ApplyAxisRotationVelocityDrive(
+	const int32 ConstraintIndex,
+	const FReal Dt)
+{
+	// NOTE: Using the actual damping, not the PBD modified value
+	const FReal Damping = RotationDrives.SettingsSoftDamping[ConstraintIndex] * Dt;
+	if (Damping < UE_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	const FReal MassScale = RotationDrives.bAccelerationMode ? (FReal(1) / RotationDrives.ConstraintHardIM[ConstraintIndex]) : FReal(1);
+	const FReal IM = MassScale * Damping * RotationDrives.ConstraintHardIM[ConstraintIndex] + (FReal)1;
+
+	// Angular velocity error to correct
+	const FReal WRel = FVec3::DotProduct(W(1) - W(0), RotationDrives.ConstraintAxis[ConstraintIndex]);
+	const FReal TargetW = RotationDrives.ConstraintVX[ConstraintIndex];
+	const FReal CV = (WRel - TargetW);
+
+	// Implicit scheme: F(t) = -D x W(t+dt)
+	FReal& LambdaVel = RotationDrives.ConstraintLambdaVelocity[ConstraintIndex];
+	FReal DeltaLambdaVel = SolverStiffness * (MassScale * Damping * CV - LambdaVel) / IM;
+
+	// Apply limits and accumulate total impulse 
+	// (NOTE: Limits and net impulses are position based, not velocity based)
+	FReal DeltaLambda = DeltaLambdaVel * Dt;
+	FReal Lambda = RotationDrives.ConstraintLambda[ConstraintIndex] + DeltaLambda;
+	RotationDrives.ApplyMaxLambda(ConstraintIndex, DeltaLambda, Lambda);
+	RotationDrives.ConstraintLambda[ConstraintIndex] = Lambda;
+	DeltaLambdaVel = DeltaLambda / Dt;
+
+	LambdaVel += DeltaLambdaVel;
+	const FVec3 Impulse = DeltaLambdaVel * RotationDrives.ConstraintAxis[ConstraintIndex];
+
+	if (Body(0).IsDynamic())
+	{
+		const FVec3 DW0 = RotationDrives.ConstraintDRAxis[ConstraintIndex][0] * DeltaLambdaVel;
+		Body(0).ApplyAngularVelocityDelta(DW0);
+	}
+	if (Body(1).IsDynamic())
+	{
+		const FVec3 DW1 = RotationDrives.ConstraintDRAxis[ConstraintIndex][1] * DeltaLambdaVel;
+		Body(1).ApplyAngularVelocityDelta(DW1);
+	}
 }
 
  // Joint utilities
@@ -1812,6 +1991,7 @@ void FAxisConstraintDatas::InitDatas(
 	bValidDatas[ConstraintIndex] = false;
 	bLimitsCheck[ConstraintIndex] = true;
 	ConstraintLambda = FVec3::Zero();
+	ConstraintLambdaVelocity = FVec3::Zero();
 	ConstraintLimits = FVec3::Zero();
 	MotionType[ConstraintIndex] = EJointMotionType::Free;
 }
@@ -1842,18 +2022,21 @@ void FAxisConstraintDatas::UpdateMass(
 		const FVec3& DatasIA0,
 		const FVec3& DatasIA1,
 		const FReal DatasIM,
-		const FReal Dt)
+		const FReal Dt,
+		const bool bUsePositionBasedDrives)
 {
 	ConstraintDRAxis[ConstraintIndex][0] = DatasIA0;
 	ConstraintDRAxis[ConstraintIndex][1] = -DatasIA1;
 	ConstraintHardIM[ConstraintIndex] = DatasIM;
 	ConstraintLambda = FVec3::Zero();
+	ConstraintLambdaVelocity = FVec3::Zero();
 
 	if(bSoftLimit[ConstraintIndex])
 	{
+		// If bUsePositionBasedDrives is false, we apply the velocity drive in the velocity solver phase so we don't include in the PBD settings
 		const FReal SpringMassScale = (bAccelerationMode) ? (FReal)1 / (ConstraintHardIM[ConstraintIndex]) : (FReal)1;
 		ConstraintSoftStiffness[ConstraintIndex] = SpringMassScale * SettingsSoftStiffness[ConstraintIndex] * Dt * Dt;
-		ConstraintSoftDamping[ConstraintIndex] = SpringMassScale * SettingsSoftDamping[ConstraintIndex] * Dt;
+		ConstraintSoftDamping[ConstraintIndex] = (bUsePositionBasedDrives) ? SpringMassScale * SettingsSoftDamping[ConstraintIndex] * Dt : 0;
 		ConstraintSoftIM[ConstraintIndex] = (ConstraintSoftStiffness[ConstraintIndex] + ConstraintSoftDamping[ConstraintIndex]) * ConstraintHardIM[ConstraintIndex] + (FReal)1;
 	}
 }

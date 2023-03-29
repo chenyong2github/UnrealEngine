@@ -232,6 +232,9 @@ namespace Chaos
 		// Solving position last leads to less separation at the joints when limits are being forced
 		bool bSolvePositionLast;
 
+		// Whether joints are position-based or velocity-based in the solver
+		bool bUsePositionBasedDrives;
+
 		// @todo(chaos): remove these TEMP overrides for testing
 		bool bEnableTwistLimits;
 		bool bEnableSwingLimits;

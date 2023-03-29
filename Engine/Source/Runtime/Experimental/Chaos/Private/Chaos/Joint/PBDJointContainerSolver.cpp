@@ -224,6 +224,7 @@ namespace Chaos
 					SolverType& Solver = Solvers[SolverConstraintIndex];
 
 					// NOTE: Particle order was revered in the solver...
+					// NOTE: Solver impulses are positional impulses
 					const FVec3 LinearImpulse = -Solver.GetNetLinearImpulse() / Dt;
 					const FVec3 AngularImpulse = -Solver.GetNetAngularImpulse() / Dt;
 					const FSolverBody* SolverBody0 = &Solver.Body0().SolverBody();

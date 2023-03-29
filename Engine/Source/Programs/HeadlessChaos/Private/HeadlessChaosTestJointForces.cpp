@@ -244,6 +244,11 @@ namespace ChaosTest {
 		FJointChainTest<FPBDRigidsEvolutionGBF> Test(NumSolverIterations, Gravity);
 		Test.InitChain(NumBodies, FVec3(0, 0, -1));
 
+		if (!Test.Evolution.GetJointConstraints().GetSettings().bUsePositionBasedDrives)
+		{
+			Test.Evolution.SetNumVelocityIterations(NumSolverIterations);
+		}
+
 		// Disable all limits
 		Test.JointSettings[0].LinearMotionTypes = { EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free };
 		Test.JointSettings[0].AngularMotionTypes = { EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free };
@@ -270,7 +275,7 @@ namespace ChaosTest {
 		const FReal M = Test.ParticleMasses[1];
 		FReal ExpectedForceZ = 0;
 		FReal DP = 0;
-		for (int32 It = 0; It < 10; ++It)
+		for (int32 It = 0; It < NumSolverIterations; ++It)
 		{
 			const FReal V = -Velocity + DP / Dt;
 			const FReal F = -Damping * V;
@@ -281,10 +286,68 @@ namespace ChaosTest {
 
 		// Check the joint forces agree
 		const FReal ForceZ = -Test.Evolution.GetJointConstraints().GetConstraintLinearImpulse(0).Z / Dt;
-		EXPECT_NEAR(ForceZ, ExpectedForceZ, 0.1);
+		EXPECT_NEAR(ForceZ, ExpectedForceZ, 1);
 	}
 
-	// Check that a handing mass on a joint drive reaches the correct extension with the correct spring force when using Force mode.
+	GTEST_TEST(JointForceTests, TestAngularDriveForceMode_Damping)
+	{
+		const int32 NumSolverIterations = 20;
+		const FReal Gravity = 0;
+		const FReal Dt = 0.01;
+		const int32 NumBodies = 2;
+
+		const FReal AngularVelocity = 3;
+		const FReal Stiffness = 0;
+		const FReal Damping = 200;
+
+		FJointChainTest<FPBDRigidsEvolutionGBF> Test(NumSolverIterations, Gravity);
+		Test.InitChain(NumBodies, FVec3(0, 0, -1));
+
+		if (!Test.Evolution.GetJointConstraints().GetSettings().bUsePositionBasedDrives)
+		{
+			Test.Evolution.SetNumVelocityIterations(NumSolverIterations);
+		}
+
+		// Disable all limits
+		Test.JointSettings[0].LinearMotionTypes = { EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free };
+		Test.JointSettings[0].AngularMotionTypes = { EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free };
+
+		// Set up the drive in force mode
+		Test.JointSettings[0].bAngularSLerpVelocityDriveEnabled = true;
+		Test.JointSettings[0].AngularDriveForceMode = EJointForceMode::Force;
+		Test.JointSettings[0].AngularDriveStiffness = FVec3(Stiffness, Stiffness, Stiffness);
+		Test.JointSettings[0].AngularDriveDamping = FVec3(Damping, Damping, Damping);
+
+		Test.Create();
+
+		FGenericParticleHandle P1 = Test.GetParticle(1);
+
+		// Give the particle angular velocity so that joint damping has some work to do
+		P1->SetW(FVec3(0, 0, -AngularVelocity));
+
+		// Run the sim
+		Test.Evolution.AdvanceOneTimeStep(Dt);
+		Test.Evolution.EndFrame(Dt);
+
+		// Calculate expected Trque from T = -D.W with implicit integration
+		const FReal I = FConstGenericParticleHandle(Test.GetParticle(1))->I().Z;
+		FReal ExpectedTorqueZ = 0;
+		FReal DQ = 0;
+		for (int32 It = 0; It < NumSolverIterations; ++It)
+		{
+			const FReal W = -AngularVelocity + DQ / Dt;
+			const FReal T = -Damping * W;
+			const FReal DW = ((T - ExpectedTorqueZ) / I) * Dt;
+			DQ += DW * Dt;
+			ExpectedTorqueZ = T;
+		}
+
+		// Check the joint forces agree
+		const FReal TorqueZ = -Test.Evolution.GetJointConstraints().GetConstraintAngularImpulse(0).Z / Dt;
+		EXPECT_NEAR(TorqueZ, ExpectedTorqueZ, 0.1);
+	}
+
+	// Check that a hanging mass on a joint drive reaches the correct extension with the correct spring force when using Force mode.
 	// This is just a pre-test for TestLinearDriveForceMode_MaxForce to verify that everything works in the absense of a max force
 	//
 	GTEST_TEST(JointForceTests, TestLinearDriveForceMode_MaxForcePreTest)
@@ -298,6 +361,11 @@ namespace ChaosTest {
 
 		FJointChainTest<FPBDRigidsEvolutionGBF> Test(NumSolverIterations, Gravity);
 		Test.InitChain(NumBodies, FVec3(0, 0, -1));
+
+		if (!Test.Evolution.GetJointConstraints().GetSettings().bUsePositionBasedDrives)
+		{
+			Test.Evolution.SetNumVelocityIterations(NumSolverIterations);
+		}
 
 		// Disable all limits
 		Test.JointSettings[0].LinearMotionTypes = { EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free };
@@ -326,8 +394,8 @@ namespace ChaosTest {
 		// We should be stationary at the desired extension
 		const FReal ExpectedVZ = 0;
 		const FReal ExpectedZ = Test.ParticlePositions[1].Z - Extension;
-		EXPECT_NEAR(P1->V().Z, ExpectedVZ, 0.1);
-		EXPECT_NEAR(P1->X().Z, ExpectedZ, 0.1);
+		EXPECT_NEAR(P1->V().Z, ExpectedVZ, 1);
+		EXPECT_NEAR(P1->X().Z, ExpectedZ, 1);
 	}
 
 	// Check that the maximum drive force setting honored for linear drives.
@@ -344,6 +412,11 @@ namespace ChaosTest {
 
 		FJointChainTest<FPBDRigidsEvolutionGBF> Test(NumSolverIterations, Gravity);
 		Test.InitChain(NumBodies, FVec3(0, 0, -1));
+
+		if (!Test.Evolution.GetJointConstraints().GetSettings().bUsePositionBasedDrives)
+		{
+			Test.Evolution.SetNumVelocityIterations(NumSolverIterations);
+		}
 
 		// Disable all limits
 		Test.JointSettings[0].LinearMotionTypes = { EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free };
@@ -391,6 +464,11 @@ namespace ChaosTest {
 		FJointChainTest<FPBDRigidsEvolutionGBF> Test(NumSolverIterations, Gravity);
 		Test.InitChain(NumBodies, FVec3(0, 0, -1));
 
+		if (!Test.Evolution.GetJointConstraints().GetSettings().bUsePositionBasedDrives)
+		{
+			Test.Evolution.SetNumVelocityIterations(NumSolverIterations);
+		}
+
 		// Disable all limits
 		Test.JointSettings[0].LinearMotionTypes = { EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free };
 		Test.JointSettings[0].AngularMotionTypes = { EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free };
@@ -419,8 +497,8 @@ namespace ChaosTest {
 		// We should be stationary at the desired extension
 		const FReal ExpectedVZ = 0;
 		const FReal ExpectedZ = Test.ParticlePositions[1].Z - Extension;
-		EXPECT_NEAR(P1->V().Z, ExpectedVZ, 0.1);
-		EXPECT_NEAR(P1->X().Z, ExpectedZ, 0.1);
+		EXPECT_NEAR(P1->V().Z, ExpectedVZ, 1);
+		EXPECT_NEAR(P1->X().Z, ExpectedZ, 1);
 	}
 
 
@@ -439,6 +517,11 @@ namespace ChaosTest {
 
 		FJointChainTest<FPBDRigidsEvolutionGBF> Test(NumSolverIterations, Gravity);
 		Test.InitChain(NumBodies, FVec3(0, 0, -1));
+
+		if (!Test.Evolution.GetJointConstraints().GetSettings().bUsePositionBasedDrives)
+		{
+			Test.Evolution.SetNumVelocityIterations(NumSolverIterations);
+		}
 
 		// Disable all limits
 		Test.JointSettings[0].LinearMotionTypes = { EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free };

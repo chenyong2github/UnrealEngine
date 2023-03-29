@@ -47,7 +47,8 @@ struct FAxisConstraintDatas
 		const FVec3& DatasIA0,
 		const FVec3& DatasIA1,
 		const FReal DatasIM,
-		const FReal Dt);
+		const FReal Dt,
+		const bool bUsePositionBasedDrives);
 
 	/** Apply the impulse limits to the impulse delta and net impulse */
 	void ApplyMaxLambda(
@@ -74,6 +75,7 @@ struct FAxisConstraintDatas
 	FVec3 ConstraintDRAxis[3][2];
 	FVec3 ConstraintRestitution;
 	FVec3 ConstraintLambda;
+	FVec3 ConstraintLambdaVelocity;
 	
 	bool bValidDatas[3];
 	bool bLimitsCheck[3];
@@ -183,14 +185,40 @@ struct FAxisConstraintDatas
 			return (InvM(BodyIndex) > 0);
 		}
 
-		inline const FVec3& GetNetLinearImpulse() const
+		// NOTE: This is a positional impulse
+		inline FVec3 GetNetLinearImpulse() const
 		{
-			return NetLinearImpulse;
+			FVec3 Impulse = FVec3(0);
+			for (int32 Axis = 0; Axis < 3; ++Axis)
+			{
+				if (PositionConstraints.bValidDatas[Axis])
+				{
+					Impulse += PositionConstraints.ConstraintLambda[Axis] * PositionConstraints.ConstraintAxis[Axis];
+				}
+				if (PositionDrives.bValidDatas[Axis])
+				{
+					Impulse += PositionDrives.ConstraintLambda[Axis] * PositionDrives.ConstraintAxis[Axis];
+				}
+			}
+			return Impulse;
 		}
 
-		inline const FVec3& GetNetAngularImpulse() const
+		// NOTE: This is a positional impulse
+		inline FVec3 GetNetAngularImpulse() const
 		{
-			return NetAngularImpulse;
+			FVec3 Impulse = FVec3(0);
+			for (int32 Axis = 0; Axis < 3; ++Axis)
+			{
+				if (RotationConstraints.bValidDatas[Axis])
+				{
+					Impulse += RotationConstraints.ConstraintLambda[Axis] * RotationConstraints.ConstraintAxis[Axis];
+				}
+				if (RotationDrives.bValidDatas[Axis])
+				{
+					Impulse += RotationDrives.ConstraintLambda[Axis] * RotationDrives.ConstraintAxis[Axis];
+				}
+			}
+			return Impulse;
 		}
 
 		inline int32 GetNumActiveConstraints() const
@@ -506,7 +534,8 @@ struct FAxisConstraintDatas
 			const int32 ConstraintIndex,
 			const FReal TargetVel);
 
-		void ApplyAngularVelocityConstraint(const int32 ConstraintIndex);
+		void ApplyAngularVelocityConstraint(
+			const int32 ConstraintIndex);
 
 		/** Init Position Drives */
 		
@@ -528,6 +557,13 @@ struct FAxisConstraintDatas
 			const FReal Dt);
 		
 		void ApplyAxisPositionDrive(
+			const int32 ConstraintIndex,
+			const FReal Dt);
+
+		void ApplyPositionVelocityDrives(
+			const FReal Dt);
+
+		void ApplyAxisPositionVelocityDrive(
 			const int32 ConstraintIndex,
 			const FReal Dt);
 
@@ -563,9 +599,20 @@ struct FAxisConstraintDatas
 			const FReal Dt);
 		
 		void ApplyAxisRotationDrive(
-    		const int32 ConstraintIndex,
-    		const FReal Dt);
-		
+			const int32 ConstraintIndex,
+			const FReal Dt);
+
+		void ApplyRotationVelocityDrives(
+			const FReal Dt);
+
+		void ApplyAxisRotationVelocityDrive(
+			const int32 ConstraintIndex,
+			const FReal Dt);
+
+		void SetInitConstraintVelocity(
+			const FVec3& ConstraintArm0,
+			const FVec3& ConstraintArm1);
+
 		
 		// The cached body state on which the joint operates
 		FConstraintSolverBody SolverBodies[MaxConstrainedBodies];
@@ -581,32 +628,30 @@ struct FAxisConstraintDatas
 		// XPBD Initial iteration world-space body state
 		FVec3 InitConnectorXs[MaxConstrainedBodies];		// World-space joint connector positions
 		FRotation3 InitConnectorRs[MaxConstrainedBodies];	// World-space joint connector rotations
+		FVec3 InitConstraintVelocity;						// Initial relative velocity at the constrained position
 
 		// Inverse Mass and Inertia
 		FReal InvMs[MaxConstrainedBodies];
 		FMatrix33 InvIs[MaxConstrainedBodies];				// World-space
-
-		// Accumulated Impulse and AngularImpulse (Impulse * Dt since they are mass multiplied position corrections)
-		FVec3 NetLinearImpulse;
-		FVec3 NetAngularImpulse;
 		
 		// Solver stiffness - increased over iterations for stability
 		// \todo(chaos): remove Stiffness from SolverSettings (because it is not a solver constant)
 		FReal SolverStiffness;
 
 		// Tolerances below which we stop solving
-		FReal PositionTolerance;					// Distance error below which we consider a constraint or drive solved
-		FReal AngleTolerance;						// Angle error below which we consider a constraint or drive solved
+		FReal PositionTolerance;							// Distance error below which we consider a constraint or drive solved
+		FReal AngleTolerance;								// Angle error below which we consider a constraint or drive solved
 
 		// Tracking whether the solver is resolved
-		FVec3 LastDPs[MaxConstrainedBodies];			// Positions at the beginning of the iteration
-		FVec3 LastDQs[MaxConstrainedBodies];	// Rotations at the beginning of the iteration
-		FVec3 CurrentPs[MaxConstrainedBodies];			// Positions at the beginning of the iteration
-		FRotation3 CurrentQs[MaxConstrainedBodies];	// Rotations at the beginning of the iteration
-		FVec3 InitConstraintAxisLinearVelocities; // Linear velocities along the constraint axes at the begining of the frame, used by restitution
-		FVec3 InitConstraintAxisAngularVelocities; // Angular velocities along the constraint axes at the begining of the frame, used by restitution
-		int32 NumActiveConstraints;					// The number of active constraints and drives in the last iteration (-1 initial value)
-		bool bIsActive;								// Whether any constraints actually moved any bodies in last iteration
+		FVec3 LastDPs[MaxConstrainedBodies];				// Positions at the beginning of the iteration
+		FVec3 LastDQs[MaxConstrainedBodies];				// Rotations at the beginning of the iteration
+		FVec3 CurrentPs[MaxConstrainedBodies];				// Positions at the beginning of the iteration
+		FRotation3 CurrentQs[MaxConstrainedBodies];			// Rotations at the beginning of the iteration
+		FVec3 InitConstraintAxisLinearVelocities;			// Linear velocities along the constraint axes at the begining of the frame, used by restitution
+		FVec3 InitConstraintAxisAngularVelocities;			// Angular velocities along the constraint axes at the begining of the frame, used by restitution
+		int32 NumActiveConstraints;							// The number of active constraints and drives in the last iteration (-1 initial value)
+		bool bIsActive;										// Whether any constraints actually moved any bodies in last iteration
+		bool bUsePositionBasedDrives;						// Whether to apply velocity drive in the PBD step of the VBD step
 		
 		FAxisConstraintDatas PositionConstraints;
 		FAxisConstraintDatas RotationConstraints;

@@ -364,6 +364,7 @@ namespace Chaos
 		, bUseLinearSolver(true)
 		, bSortEnabled(false)
 		, bSolvePositionLast(true)
+		, bUsePositionBasedDrives(true)
 		, bEnableTwistLimits(true)
 		, bEnableSwingLimits(true)
 		, bEnableDrives(true)
