@@ -17,9 +17,6 @@ public class GeForceNOW : ModuleRules
             String GFNPath = Target.UEThirdPartySourceDirectory + "NVIDIA/GeForceNOW/";
             PublicSystemIncludePaths.Add(GFNPath + "include");
 
-			String GFNLibPath = GFNPath + "lib/x64/";
-			PublicAdditionalLibraries.Add(GFNLibPath + "GfnSdk.lib");
-
             String GFNDllName = "GfnRuntimeSdk.dll";
 			String PlatformFolder = (Target.Platform == UnrealTargetPlatform.Win64 ? "Win64/" : "Win32/");
 			String GFNDLLPath = "$(EngineDir)/Binaries/ThirdParty/NVIDIA/GeForceNOW/" + PlatformFolder + GFNDllName;

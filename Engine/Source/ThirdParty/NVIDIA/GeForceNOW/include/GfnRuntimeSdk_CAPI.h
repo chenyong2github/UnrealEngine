@@ -76,7 +76,7 @@
 /// GFN cloud environments. In those cases, API calls will return a well-defined error code to denote the
 /// call was not applicable to the environment.
 ///
-/// Some of the APIs are used solely for authentication purposes in Account Linking and 
+/// Some of the APIs are used solely for authentication purposes in Account Linking and
 /// Single Sign-On scenarios. For more information about NVIDIA's Account Linking and Single Sign-On
 /// model, please refer to the SDK-GFN-ACCOUNT-LINKING-SSO-GUIDE.pdf document in the /doc folder.
 ///
@@ -186,6 +186,12 @@
 ///
 /// Language | API
 /// -------- | -------------------------------------
+/// C        | @ref gfnGetSessionInfo
+///
+/// @copydoc gfnGetSessionInfo
+///
+/// Language | API
+/// -------- | -------------------------------------
 /// C        | @ref gfnStartStream
 ///
 /// @copydoc gfnStartStream
@@ -210,9 +216,15 @@
 ///
 /// Language | API
 /// -------- | -------------------------------------
-/// C        | @ref gfnGetCustomData
+/// C        | @ref gfnGetPartnerData
 ///
-/// @copydoc gfnGetCustomData
+/// @copydoc gfnGetPartnerData
+///
+/// Language | API
+/// -------- | -------------------------------------
+/// C        | @ref gfnGetPartnerSecureData
+///
+/// @copydoc gfnGetPartnerSecureData
 ///
 /// Language | API
 /// -------- | -------------------------------------
@@ -220,6 +232,11 @@
 ///
 /// @copydoc gfnAppReady
 ///
+/// Language | API
+/// -------- | -------------------------------------
+/// C        | @ref gfnSetActionZone
+///
+/// @copydoc gfnSetActionZone
 /// @subsection callback_section Callback-related Methods
 /// @ref callbacks
 ///
@@ -249,9 +266,9 @@
 ///
 /// Language | API
 /// -------- | -------------------------------------
-/// C        | @ref gfnSetActionZone
+/// C        | @ref gfnRegisterSessionInitCallback
 ///
-/// @copydoc gfnSetActionZone
+/// @copydoc gfnRegisterSessionInitCallback
 ///
 /// Language | API
 /// -------- | -------------------------------------
@@ -259,6 +276,11 @@
 ///
 /// @copydoc gfnRegisterClientInfoCallback
 ///
+/// Language | API
+/// -------- | -------------------------------------
+/// C        | @ref gfnRegisterNetworkStatusCallback
+///
+/// @copydoc gfnRegisterNetworkStatusCallback
 
 #ifndef GFN_SDK_RUNTIME_CAPI_H
 #define GFN_SDK_RUNTIME_CAPI_H
@@ -320,11 +342,11 @@
         /// @brief Input data for gfnStartStream
         typedef struct StartStreamInput
         {
-            unsigned int uiTitleId;     ///< GFN-sourced game-specific unique identifier.
-            const char* pchAuthToken;   ///< NVIDIA IDM Token string
-            AuthType_t tokenType;       ///< Token identifier
-            const char* pchCustomData;  ///< Optional data that is passed to the streaming cloud instance and can be retrieved in that instance of application.
-            const char* pchCustomAuth;  ///< Optional client-specific token data that should be used to authenticate the user on the game seat for SSO purposes.
+            unsigned int uiTitleId;             ///< GFN-sourced game-specific unique identifier.
+            const char* pchAuthToken;           ///< NVIDIA IDM Token string
+            AuthType_t tokenType;               ///< Token identifier
+            const char* pchPartnerData;         ///< Optional non-secure partner data that is passed to the streaming cloud instance and can be retrieved in that instance of application.
+            const char* pchPartnerSecureData;   ///< Optional secure partner data that is guaranteed to be protected through the GFN pipeline.
         } StartStreamInput;
 
         /// @brief Input to the function registered via gfnRegisterInstallCallback (if any).
@@ -367,6 +389,7 @@
 
 
         /// @brief Specifies the action in GfnSetActionZone API
+        /// Deprecated with SetActionZone removal
         typedef enum GfnActionType
         {
             gfnActionNone = 0,    ///< No event
@@ -375,10 +398,11 @@
         } GfnActionType;
 
 
-    #define GfnClientInfoVersion    (1)
-    #define IP_V4_SIZE			    (17)	// INET_ADDRSTRLEN + NULL
-    #define CC_SIZE			        (3)	// ISO 3166-1 Alpha-2
-    #define LOCALE_SIZE		        (6)	// ISO 639-1 Alpha-2
+    #define IP_V4_SIZE              (17) // INET_ADDRSTRLEN + NULL
+    #define IP_V6_SIZE              (49) // INET6_ADDRSTRLEN + NULL
+    #define CC_SIZE                 (3)  // ISO 3166-1 Alpha-2
+    #define LOCALE_SIZE             (6)  // ISO 639-1 Alpha-2
+    #define SESSION_ID_SIZE         (38)
 
         /// @brief Types of operating systems that can be reported by the SDK
         typedef enum GfnOsType
@@ -401,30 +425,59 @@
         /// @brief Client info blob
         typedef struct
         {
-            unsigned int version;  // GfnClientInfoVersion
-            GfnOsType osType;
-            char ipV4[IP_V4_SIZE];  // ”192.168.0.1”
-            char country[CC_SIZE];  // ”us”
-            char locale[LOCALE_SIZE];   // ”en-us”
+            unsigned int version;              ///< Deprecated, value will be ignored
+            GfnOsType osType;                  ///< Operating System type
+            char ipV4[IP_V4_SIZE];             ///< IPV4 address, example - "192.168.0.1"
+            char country[CC_SIZE];             ///< ISO 3166-1 alpha-2 standard country code, example - "us"
+            char locale[LOCALE_SIZE];          ///< ISO 639-1 Alpha-2 standard locale, example - "en-us"
+            unsigned int RTDAverageLatencyMs;  ///< Round Trip Delay - Average Latency in milliseconds
         } GfnClientInfo;
 
         /// @brief Type of data which changed. This enum will be expanded over time
         typedef enum GfnClientInfoChangeType
         {
-            gfnOs = 0,
-            gfnClientDataChangeTypeMax = 0
+            gfnOs = 0,                      ///< Change in OS of GFN Client
+            gfnClientDataChangeTypeMax = 0  ///< Sentinel value for GfnClientInfoChangeType
         } GfnClientDataChangeType;
 
         /// @brief An update notification for a piece of client info data
         typedef struct GfnClientInfoUpdateData
         {
-            unsigned int version;
-            GfnClientDataChangeType updateType;
+            unsigned int version;               ///< Deprecated, value will be ignored
+            GfnClientDataChangeType updateType; ///< Type of GFN Client data that changed
             union
             {
-                GfnOsType osType;
+                GfnOsType osType;               ///< Operating System type
             } data;
         } GfnClientInfoUpdateData;
+
+        /// @brief The type of network status data which changed. This enum will likely be expanded over time.
+        typedef enum GfnNetworkStatusChangeType
+        {
+            gfnRTDAverageLatency          = 0, ///< Change in RTDAverageLatency
+            gfnNetworkStatusChangeTypeMax = 0  ///< Sentinel value for GfnNetworkStatusChangeType
+        } GfnNetworkStatusChangeType;
+
+        /// @brief An update notification for a piece of network status data. This structure will likely be expanded over time.
+        typedef struct GfnNetworkStatusUpdateData
+        {
+            unsigned int version;                   ///< Deprecated, value will be ignored
+            GfnNetworkStatusChangeType updateType;  ///< Network Status Update type
+            union
+            {
+                unsigned int RTDAverageLatencyMs;   ///< Round Trip Delay - Average Latency in milliseconds
+            } data;
+        } GfnNetworkStatusUpdateData;
+
+
+        /// @brief Session info blob
+        typedef struct
+        {
+            unsigned int sessionMaxDurationSec;      ///< Maximum total time allowed for the session in seconds
+            unsigned int sessionTimeRemainingSec;    ///< Nominal time remaining in the session in seconds
+            char sessionId[SESSION_ID_SIZE];         ///< NVIDIA-defined unique indentifier for the session
+            bool sessionRTXEnabled;                  ///< Defines if RTX support is enabled for the session
+        } GfnSessionInfo;
 
         // ============================================================================================
         // Callback signatures
@@ -447,6 +500,8 @@
         typedef GfnApplicationCallbackResult(GFN_CALLBACK* SessionInitCallbackSig)(const char* partnerInfoMutable, void* pUserContext);
         /// @brief Callback function for notifications on client info changes. Register via gfnRegisterClientInfoCallback API.
         typedef GfnApplicationCallbackResult(GFN_CALLBACK* ClientInfoCallbackSig)(GfnClientInfoUpdateData* pUpdate, const void* pUserContext);
+        /// @brief Callback function for notifications on network status changes. Register via gfnRegisterNetworkStatusCallback API.
+        typedef GfnApplicationCallbackResult(GFN_CALLBACK* NetworkStatusCallbackSig)(GfnNetworkStatusUpdateData* pUpdate, const void* pUserContext);
 
         // ============================================================================================
         // C API
@@ -514,7 +569,7 @@
         ///                                   registered callback. Can be NULL.
         ///
         /// @retval gfnSuccess              - On success, when running in a Geforce NOW environment
-        /// @retval gfnDLLNotPresent        - If callback could not be registered
+        /// @retval gfnInternalError        - If callback could not be registered
         /// @retval gfnInvalidParameter     - If exitCallback function pointer is NULL.
         /// @retval gfnCallWrongEnvironment - If callback could not be registered since this function
         ///                                   was called outside of a cloud execution environment
@@ -538,7 +593,7 @@
         ///                                   registered callback. Can be NULL.
         ///
         /// @retval gfnSuccess              - On success, when running in a Geforce NOW environment
-        /// @retval gfnDLLNotPresent        - If callback could not be registered
+        /// @retval gfnInternalError        - If callback could not be registered
         /// @retval gfnInvalidParameter     - If pauseCallback function pointer is NULL.
         /// @retval gfnCallWrongEnvironment - If callback could not be registered since this function
         ///                                   was called outside of a cloud execution environment
@@ -562,7 +617,7 @@
         ///                                     registered callback. Can be NULL.
         ///
         /// @retval gfnSuccess                - On success, when running in a Geforce NOW environment
-        /// @retval gfnDLLNotPresent          - If callback could not be registered
+        /// @retval gfnInternalError        - If callback could not be registered
         /// @retval gfnInvalidParameter       - If installCallback function pointer is NULL.
         /// @retval gfnCallWrongEnvironment   - If callback could not be registered since this function
         ///                                   was called outside of a cloud execution environment
@@ -605,7 +660,7 @@
         ///                                       callback specified. Can be NULL.
         ///
         /// @retval gfnSuccess                  - On success when running in a GFN environment
-        /// @retval gfnDLLNotPresent            - If callback was not registered
+        /// @retval gfnInternalError            - If callback was not registered
         NVGFNSDK_EXPORT GfnRuntimeError NVGFNSDKApi gfnRegisterSaveCallback(SaveCallbackSig saveCallback, void* pUserContext);
         /// @}
 
@@ -623,7 +678,7 @@
         ///
         /// @retval gfnSuccess                  - On success when running in a GFN environment
         /// @retval gfnInvalidParameter         - If callback was NULL
-        /// @retval gfnDllNotPresent            - If the on-seat dll was not present (Usually due to not running on a seat)
+        /// @retval gfnCloudLibraryNotFound     - If the on-seat dll was not present (Usually due to not running on a seat)
         /// @retval gfnAPINotFound              - If the API was not found in the GFN SDK Library
         /// @retval gfnCallWrongEnvironment     - If the on-seat dll detected that it was not on a game seat
         NVGFNSDK_EXPORT GfnRuntimeError NVGFNSDKApi gfnRegisterSessionInitCallback(SessionInitCallbackSig sessionInitCallback, void* pUserContext);
@@ -641,12 +696,31 @@
         ///
         /// @retval gfnSuccess                  - On success when running in a GFN environment
         /// @retval gfnInvalidParameter         - If callback was NULL
-        /// @retval gfnDllNotPresent            - If the on-seat dll was not present (Usually due to not running on a seat)
+        /// @retval gfnCloudLibraryNotFound     - If the on-seat dll was not present (Usually due to not running on a seat)
         /// @retval gfnAPINotFound              - If the API was not found in the GFN SDK Library
         /// @retval gfnCallWrongEnvironment     - If the on-seat dll detected that it was not on a game seat
         NVGFNSDK_EXPORT GfnRuntimeError NVGFNSDKApi gfnRegisterClientInfoCallback(ClientInfoCallbackSig clientInfoCallback, void* pUserContext);
         /// @}
 
+        ///
+        /// @par Description
+        /// Register an application callback with GFN to be called when client latency changes
+        ///
+        /// @par Usage
+        /// Register an application function to call when a the network latency from the GFN user's client system has changed
+        ///
+        /// @param networkStatusCallback        - Function pointer to application code to call when network latency has changed
+        /// @param updateRateMs                 - The targeted rate at which callbacks should occur
+        /// @param pUserContext                 - Pointer to user context, which will be passed unmodified to the
+        ///                                       callback specified. Can be NULL.
+        ///
+        /// @retval gfnSuccess                  - On success when running in a GFN environment
+        /// @retval gfnInvalidParameter         - If callback was NULL
+        /// @retval gfnCloudLibraryNotFound     - If the on-seat dll was not present (Usually due to not running on a seat)
+        /// @retval gfnAPINotFound              - If the API was not found in the GFN SDK Library
+        /// @retval gfnCallWrongEnvironment     - If the on-seat dll detected that it was not on a game seat
+        NVGFNSDK_EXPORT GfnRuntimeError NVGFNSDKApi gfnRegisterNetworkStatusCallback(NetworkStatusCallbackSig networkStatusCallback, unsigned int updateRateMs, void* pUserContext);
+        /// @}
 
         // ============================================================================================
         // Application -> Geforce NOW SDK communication
@@ -659,7 +733,7 @@
         ///
         /// @par Description
         /// Quickly determines if the calling application is running in GFN environment or not with a low
-        /// security assurance, and without requiring process elevation.
+        /// security assurance, and without requiring process registration.
         ///
         /// @par Environment
         /// Cloud and Client
@@ -690,15 +764,15 @@
         ///
         /// @par Environment
         /// Cloud and Client
-        /// Elevated Process
         ///
         /// @par Usage
-        /// Call from an elevated process to securely determine whether running in GFN cloud, and use the
+        /// Call from an NVIDIA-approved process to securely determine whether running in GFN cloud, and use the
         /// GfnIsRunningInCloudAssurance value to decide the risk to enable any application specific logic
         /// for that environment.
         ///
         /// @warning
-        /// This API must be called from a high-integrity elevated process, or it will fail by design. To prevent
+        /// This API must be called from a process that has been registered with NVIDIA, or it will return an error.
+        /// Refer to the Cloud Check API Guide on how to get your application registered. To prevent
         /// man-in-the-middle (MiM) attacks, you must also securely load the SDK library, checking the integrity
         /// of the digital signature on the binary. Make sure to use the value returned from GfnIsRunningInCloudAssurance
         /// to decide if the check was certain enough without tampering to enable the logic or feature associated
@@ -707,7 +781,6 @@
         /// @param assurance                 - Level of assurance that API is running in GFN cloud environment
         ///
         /// @retval gfnSuccess               - On success
-        /// @retval gfnElevationRequired     - Was called from non-elevated process
         ///
         /// @return Otherwise, appropriate error code
         NVGFNSDK_EXPORT GfnRuntimeError NVGFNSDKApi gfnIsRunningInCloudSecure(GfnIsRunningInCloudAssurance* assurance);
@@ -892,6 +965,33 @@
         /// @retval gfnCallWrongEnvironment  - If called in a client environment
         /// @return Otherwise, appropriate error code
         NVGFNSDK_EXPORT GfnRuntimeError gfnGetClientInfo(GfnClientInfo* clientInfo);
+
+        ///
+        /// @par Description
+        /// Gets various information about the current streaming session
+        ///
+        /// @par Environment
+        /// Cloud
+        ///
+        /// @par Usage
+        /// Call this from a streaming session to find out more information about the session, such
+        /// as session time remaining, or if RTX is enabled for the current session. 
+        ///
+        /// @param sessionInfo               - Pointer to a GfnSessionInfo struct.
+
+        ///
+        /// @retval gfnSuccess               - On success
+        /// @retval gfnInvalidParameter      - NULL pointer passed in or buffer length is too small
+        /// @retval gfnCallWrongEnvironment  - If called in a client environment
+        /// @return Otherwise, appropriate error code
+        /// @note
+        /// If the application has called @ref gfnRegisterSessionInitCallback to be notified when a
+        /// user connects, then this API should be called after that callback is triggered.
+        /// Certain data, such as session time limit or RTX support, can only be defined when a user
+        /// connects as the values depend on the user type. Calling before that point can result in 
+        /// obtaining incorrect data. 
+        NVGFNSDK_EXPORT GfnRuntimeError gfnGetSessionInfo(GfnSessionInfo* sessionInfo);
+
         ///
         /// @par Description
         /// Requests GFN client to start a streamed session of an application in an asynchronous fashion
@@ -964,36 +1064,36 @@
 
         ///
         /// @par Description
-        /// Retrieves custom data passed in by the client in the gfnStartStream call.
+        /// Retrieves non-secure partner data that is either a) passed by the client in the gfnStartStream call or b) sent using Deep Link parameter.
         ///
         /// @par Environment
         /// Cloud
         ///
         /// @par Usage
-        /// Use during cloud session to retrieve custom data
+        /// Use during cloud session to retrieve partner data
         ///
-        /// @param ppchCustomData            - Populated with the custom data.
-        ///                                    Call @ref gfnFree to release the memory when done.
+        /// @param ppchPartnerData          - Populated with the partner data.
+        ///                                 Call @ref gfnFree to release the memory when done.
         ///
-        /// @retval gfnSuccess               - On success
-        /// @retval gfnInvalidParameter      - NULL pointer passed in
-        /// @retval gfnCallWrongEnvironment  - If called in a client environment
+        /// @retval gfnSuccess              - On success
+        /// @retval gfnInvalidParameter     - NULL pointer passed in
+        /// @retval gfnCallWrongEnvironment - If called in a client environment
         /// @return Otherwise, appropriate error code
         /// @note
         /// To avoid leaking memory, call @ref gfnFree once done with the list
-        NVGFNSDK_EXPORT GfnRuntimeError NVGFNSDKApi gfnGetCustomData(const char** ppchCustomData);
+        NVGFNSDK_EXPORT GfnRuntimeError NVGFNSDKApi gfnGetPartnerData(const char** ppchPartnerData);
 
         ///
         /// @par Description
-        /// Retrieves custom authorization data passed in by the client in the gfnStartStream call.
+        /// Retrieves secure partner data that is either a) passed by the client in the gfnStartStream call or b) sent in response to Deep Link nonce validation.
         ///
         /// @par Environment
         /// Cloud
         ///
         /// @par Usage
-        /// Use during cloud session to retrieve custom data
+        /// Use during cloud session to retrieve secure partner data
         ///
-        /// @param ppchAuthData            - Populated with the custom data.
+        /// @param ppchPartnerSecureData     - Populated with the secure partner data.
         ///                                  Call @ref gfnFree to release the memory when done.
         ///
         /// @retval gfnSuccess               - On success
@@ -1002,12 +1102,12 @@
         /// @return Otherwise, appropriate error code
         /// @note
         /// To avoid leaking memory, call @ref gfnFree once done with the list
-        NVGFNSDK_EXPORT GfnRuntimeError NVGFNSDKApi gfnGetAuthData(const char** ppchAuthData);
+        NVGFNSDK_EXPORT GfnRuntimeError NVGFNSDKApi gfnGetPartnerSecureData(const char** ppchPartnerSecureData);
 
         ///
         /// @par Description
-        /// Releases memory allocated by Get functions such as, but not limited to, @ref gfnGetAuthData,
-        /// @ref gfnGetCustomData, or @ref gfnGetTitlesAvailable
+        /// Releases memory allocated by Get functions such as, but not limited to, @ref gfnGetPartnerData,
+        /// @ref gfnGetPartnerSecureData, or @ref gfnGetTitlesAvailable
         ///
         /// @par Environment
         /// Cloud
@@ -1063,7 +1163,6 @@
         /// @return Otherwise, appropriate error code
         NVGFNSDK_EXPORT GfnRuntimeError NVGFNSDKApi gfnSetActionZone(GfnActionType type, unsigned int id, GfnRect* zone);
         /// @}
-
 #ifdef __cplusplus
     } // extern "C"
 #endif

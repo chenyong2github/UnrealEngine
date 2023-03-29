@@ -14,7 +14,13 @@
 UE_PUSH_MACRO("TEXT")
 #undef TEXT
 THIRD_PARTY_INCLUDES_START
-#include "GfnRuntimeSdk_Wrapper.h"
+extern "C"
+{
+
+#include "GfnRuntimeSdk_Wrapper.c"
+#include "GfnSdk_SecureLoadLibrary.c"
+
+}
 THIRD_PARTY_INCLUDES_END
 UE_POP_MACRO("TEXT")
 
@@ -104,7 +110,7 @@ GfnRuntimeError GeForceNOWWrapper::Initialize()
 	FString GFNDllPath = FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries/ThirdParty/NVIDIA/GeForceNOW"), FPlatformProcess::GetBinariesSubdirectory(), TEXT("GfnRuntimeSdk.dll"));
 	FString GFNDllFullPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*GFNDllPath);
 	GFNDllFullPath.ReplaceInline(TEXT("/"), TEXT("\\"), ESearchCase::CaseSensitive);
-	const GfnRuntimeError ErrorCode = GfnInitializeSdkFromPath(gfnDefaultLanguage, *GFNDllFullPath);
+	const GfnRuntimeError ErrorCode = GfnInitializeSdkFromPathW(gfnDefaultLanguage, *GFNDllFullPath);
 	bIsInitialized = ErrorCode == gfnSuccess || ErrorCode == gfnInitSuccessClientOnly;
 
 	return ErrorCode;
@@ -264,21 +270,26 @@ GfnRuntimeError GeForceNOWWrapper::GetClientInfo(GfnClientInfo& OutClientInfo) c
 	return GfnGetClientInfo(&OutClientInfo);
 }
 
-GfnRuntimeError GeForceNOWWrapper::GetCustomData(FString& OutCustomData) const
+GfnRuntimeError GeForceNOWWrapper::GetSessionInfo(GfnSessionInfo& OutSessionInfo) const
 {
-	const char* CustomData = nullptr;
-	GfnRuntimeError ErrorCode = GfnGetCustomData(&CustomData);
-	OutCustomData = FString(CustomData);
-	Free(&CustomData);
-	return ErrorCode;
+	return GfnGetSessionInfo(&OutSessionInfo);
 }
 
-GfnRuntimeError GeForceNOWWrapper::GetAuthData(FString& OutAuthData) const
+GfnRuntimeError GeForceNOWWrapper::GetPartnerData(FString& OutPartnerData) const
 {
-	const char* AuthData = nullptr;
-	GfnRuntimeError ErrorCode = GfnGetAuthData(&AuthData);
-	OutAuthData = FString(AuthData);
-	Free(&AuthData);
+	const char* PartnerData = nullptr;
+	GfnRuntimeError ErrorCode = GfnGetPartnerData(&PartnerData);
+	OutPartnerData = FString(PartnerData);
+	Free(&PartnerData);
+	return ErrorCode;
+}	
+
+GfnRuntimeError GeForceNOWWrapper::GetPartnerSecureData(FString& OutPartnerSecureData) const
+{
+	const char* PartnerSecureData = nullptr;
+	GfnRuntimeError ErrorCode = GfnGetPartnerSecureData(&PartnerSecureData);
+	OutPartnerSecureData = FString(PartnerSecureData);
+	Free(&PartnerSecureData);
 	return ErrorCode;
 }
 

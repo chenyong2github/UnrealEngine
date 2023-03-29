@@ -89,10 +89,12 @@ public:
 	GfnRuntimeError GetClientCountryCode(FString& OutCountryCode) const;
 	/** Gets user's client data. */
 	GfnRuntimeError GetClientInfo(GfnClientInfo& OutClientInfo) const;
-	/** Retrieves custom data passed in by the client in the StartStream call. */
-	GfnRuntimeError GetCustomData(FString& OutCustomData) const;
-	/** Retrieves custom authorization passed in by the client in the StartStream call. */
-	GfnRuntimeError GetAuthData(FString& OutAuthData) const;
+	/** Gets user's session data. */
+	GfnRuntimeError GetSessionInfo(GfnSessionInfo& OutSessionInfo) const;
+	/** Retrieves secure partner data that is either a) passed by the client in the gfnStartStream call or b) sent in response to Deep Link nonce validation. */
+	GfnRuntimeError GetPartnerData(FString& OutPartnerData) const;
+	/** Use during cloud session to retrieve secure partner data. */
+	GfnRuntimeError GetPartnerSecureData(FString& OutPartnerSecureData) const;
 	/** Retrieves all titles that can be launched in the current game streaming session. */
 	GfnRuntimeError GetTitlesAvailable(FString& OutAvailableTitles) const;
 

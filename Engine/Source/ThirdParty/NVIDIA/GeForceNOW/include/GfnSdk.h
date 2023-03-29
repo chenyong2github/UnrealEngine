@@ -78,22 +78,29 @@ typedef char bool;
 #define NVGFNSDK_VERSION_MAJOR 1
 
 /// @brief GFN SDK Minor Version
-#define NVGFNSDK_VERSION_MINOR 7
+#define NVGFNSDK_VERSION_MINOR 11
 
 /// @brief GFN SDK Version
-#define NVGFNSDK_VERSION_SHORT 1.7
+#define NVGFNSDK_VERSION_SHORT 1.11
 
 /// @brief GFN SDK Patch Version
-#define NVGFNSDK_VERSION_PATCH 3039
+#define NVGFNSDK_VERSION_PATCH 0
 
 /// @brief GFN SDK Build Version
-#define NVGFNSDK_VERSION_BUILD 5783
+#define NVGFNSDK_VERSION_BUILD 32558885
 
 /// @brief GFN SDK Version
-#define NVGFNSDK_VERSION_LONG 1.7.3039.5783
+#define NVGFNSDK_VERSION_LONG 1.11.0.32558885
 
 /// @brief GFN SDK Version string
-#define NVGFNSDK_VERSION_STR   "1.7.3039.5783"
+#define NVGFNSDK_VERSION_STR   "1.11.0.32558885"
+#define NVGFNSDK_VERSION_STR_PROD "1.11.0"
+
+/// @brief GFN SDK Build CL
+#define NVGFNSDK_VERSION_BUILDCL 32558885
+#define NVGFNSDK_VERSION_BUILDH 3255
+#define NVGFNSDK_VERSION_BUILDL 8885
+
 
 #ifdef __cplusplus
     extern "C"
@@ -107,20 +114,21 @@ typedef char bool;
         typedef enum GfnError
         {
             gfnSuccess = 0, ///< Success
-            gfnInitSuccessClientOnly = 1, ///< SDK initialized, but only cloud independent functionality available (such as gfnStartStream).
-            gfnInitFailure = -1, ///< SDK initialization failure for any reason other than memory allocation failure.
+            gfnInitSuccessClientOnly = 1, ///< SDK initialized, but only cloud independent functionality available (such as gfnStartStream)
+            gfnInitSuccessCloudOnly = 2, ///< SDK initialized, but only cloud functionality is available
+            gfnInitFailure = -1, ///< SDK initialization failure for any reason other than memory allocation failure
             gfnDllNotPresent = -2, ///< DLL is not present
-            gfnComError = -3, ///< Geforce NOW SDK internal component communication error.
-            gfnLibraryCallFailure = -4, ///< Geforce NOW SDK components were reachable, but could not serve the request.
+            gfnComError = -3, ///< Geforce NOW SDK internal component communication error
+            gfnLibraryCallFailure = -4, ///< Geforce NOW SDK components were reachable, but could not serve the request
             gfnIncompatibleVersion = -5, ///< Incompatible version
             gfnUnableToAllocateMemory = -6, ///< Unable to allocate memory
             gfnInvalidParameter = -7, ///< Invalid parameter
-            gfnInternalError = -8, ///< Generic Geforce NOW SDK internal error.
+            gfnInternalError = -8, ///< Generic Geforce NOW SDK internal error
             gfnUnsupportedAPICall = -9, ///< API Call is not supported
             gfnInvalidToken = -10, ///< Invalid token
             gfnTimedOut = -11, ///< Operation timed out
             gfnSetupTitleFailure = -12, ///< Failed to setup title
-            gfnClientDownloadFailed = -13, ///< Failed to download the Geforce NOW client.
+            gfnClientDownloadFailed = -13, ///< Failed to download the Geforce NOW client
             gfnCallWrongEnvironment = -14, ///< Function limited to specific environment called in wrong environment
             gfnWebApiFailed = -15, ///< A call to a NVIDIA Web API failed to return valid data
             gfnStreamFailure = -16, ///< GeForceNOW Streamer hit a failure while starting a stream
@@ -132,7 +140,10 @@ typedef char bool;
             gfnCanceled = -22, ///< Activity was canceled, for example, user canceled the download of GFN client
             gfnElevationRequired = -23, ///< API call required to be run from an elevated process
             gfnThrottled = -24, ///< API call throttled
-            gfnInputExpected = -25 ///< API call was expecting input param to have a value
+            gfnInputExpected = -25, ///< API call was expecting input param to have a value
+            gfnBinarySignatureInvalid = -26, ///< An attempt to load a binary failed because the digital signature was found to be invalid
+            gfnCloudLibraryNotFound = -27, ///< Necessary GFN cloud-based SDK library cannot be found
+            gfnClientLibraryNotFound = -28 ///< Necessary GFN client-based SDK library cannot be found
         } GfnError;
 
         ///
@@ -173,7 +184,7 @@ typedef char bool;
             gfnDefaultLanguage = 0, ///< Uses the default system language
             gfn_bg_BG = 1, ///< Bulgarian (Bulgaria)
             gfn_cs_CZ = 2, ///< Czech (Czech Republic)
-            gfn_nl_NL = 3, ///< Dutch (Neatherlands)
+            gfn_nl_NL = 3, ///< Dutch (Netherlands)
             gfn_de_DE = 4, ///< German (Germany)
             gfn_el_GR = 5, ///< Greek (Greece)
             gfn_en_US = 6, ///< English (US)
@@ -236,8 +247,7 @@ typedef char bool;
             GfnRectFormat format; ///< rect format as listed in GfnRectFormat
         } GfnRect;
 
-        /// @brief Utility for converting UTF8 string to wide char
-        /// @brief Utility for converting wide char string to UTF8
+
 #ifdef __cplusplus
     } // extern "C"
 #endif
