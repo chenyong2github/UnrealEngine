@@ -240,10 +240,11 @@ namespace UnrealBuildTool
 			JsonOption.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
 			File.WriteAllText(ScriptFile.FullName, JsonSerializer.Serialize(new Dictionary<string, object>()
 			{
-				["jobs"] = Actions.ToDictionary(a => ActionIds[a], a =>
+				["jobs"] = Actions.Select(a =>
 				{
 					var Job = new Dictionary<string, object>()
 					{
+						["id"] = ActionIds[a],
 						["title"] = a.StatusDescription,
 						["command"] = $"\"{a.CommandPath}\" {a.CommandArguments}",
 						["working_directory"] = a.WorkingDirectory.FullName,
@@ -263,7 +264,7 @@ namespace UnrealBuildTool
 					Job["echo"] = $"{ProgressMarkupPrefix}{CommandDescription}:{a.StatusDescription}";
 
 					return Job;
-				})
+				}).ToArray()
 			}, JsonOption));
 
 			PrepareToolTemplates();
