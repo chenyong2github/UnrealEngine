@@ -3,7 +3,7 @@
 	"Version" : 1,
 	"VersionName" : "0.1",
 	"FriendlyName" : "Gameplay Graph",
-	"Description" : "Graphs are fun.",
+	"Description" : "A graph representation model and common graph alogrithms that can be used for gameplay.",
 	"Category": "Gameplay",
 	"CreatedBy" : "Epic Games, Inc.",
 	"CreatedByURL" : "http://epicgames.com",
