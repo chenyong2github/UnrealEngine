@@ -127,14 +127,14 @@ void UWaterBodyComponent::OnVisibilityChanged()
 {
 	Super::OnVisibilityChanged();
 
-	UpdateComponentVisibility(/* bAllowWaterMeshRebuild = */true);
+	UpdateComponentVisibility(/* bAllowWaterZoneRebuild = */true);
 }
 
 void UWaterBodyComponent::OnHiddenInGameChanged()
 {
 	Super::OnHiddenInGameChanged();
 
-	UpdateComponentVisibility(/* bAllowWaterMeshRebuild = */true);
+	UpdateComponentVisibility(/* bAllowWaterZoneRebuild = */true);
 }
 
 FPrimitiveSceneProxy* UWaterBodyComponent::CreateSceneProxy()
@@ -983,7 +983,7 @@ ALandscapeProxy* UWaterBodyComponent::FindLandscape() const
 	return Landscape.Get();
 }
 
-void UWaterBodyComponent::UpdateComponentVisibility(bool bAllowWaterMeshRebuild)
+void UWaterBodyComponent::UpdateComponentVisibility(bool bAllowWaterZoneRebuild)
 {
 	if (UWorld* World = GetWorld())
 	{
@@ -999,17 +999,24 @@ void UWaterBodyComponent::UpdateComponentVisibility(bool bAllowWaterMeshRebuild)
 	 		Component->SetHiddenInGame(bLocalHiddenInGame);
 	 	}
 
-		if (AWaterZone* WaterZone = GetWaterZone())
+		if (bAllowWaterZoneRebuild)
 		{
-			// If the component is being or can be rendered by the water mesh or renders into the water info texture, rebuild it in case its visibility has changed : 
-			if (bAllowWaterMeshRebuild && AffectsWaterMesh())
+			if (AWaterZone* WaterZone = GetWaterZone())
 			{
-				WaterZone->MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterMesh);
-			}
+				// If the component is being or can be rendered by the water mesh or renders into the water info texture, rebuild it in case its visibility has changed : 
 
-			if (AffectsWaterInfo())
-			{
-				WaterZone->MarkForRebuild(EWaterZoneRebuildFlags::UpdateWaterInfoTexture);
+				EWaterZoneRebuildFlags RebuildFlags = EWaterZoneRebuildFlags::None;
+				if (AffectsWaterMesh())
+				{
+					RebuildFlags |= EWaterZoneRebuildFlags::UpdateWaterMesh;
+				}
+
+				if (AffectsWaterInfo())
+				{
+					RebuildFlags |= EWaterZoneRebuildFlags::UpdateWaterInfoTexture;
+				}
+
+				WaterZone->MarkForRebuild(RebuildFlags);
 			}
 		}
 	}
@@ -1387,7 +1394,7 @@ void UWaterBodyComponent::UpdateAll(const FOnWaterBodyChangedParams& InParams)
 			UpdateWaterBodyRenderData();
 		}
 
-		UpdateComponentVisibility(/* bAllowWaterMeshRebuild = */true);
+		UpdateComponentVisibility(/* bAllowWaterZoneRebuild = */true);
 
 #if WITH_EDITOR
 		UpdateWaterSpriteComponent();

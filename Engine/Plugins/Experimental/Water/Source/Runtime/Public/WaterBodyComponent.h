@@ -362,9 +362,9 @@ public:
 	bool IsWorldLocationInExclusionVolume(const FVector& InWorldLocation) const;
 
 	/** Updates the bVisible/bHiddenInGame flags on the component and eventually the child renderable components (e.g. custom water body)
-	 - bAllowWaterMeshRebuild : if true, the function will request a rebuild of the water mesh (expensive), which is necessary to take into account visibility changes
+	 - bAllowWaterZoneRebuild : if true, the function will request a rebuild of the water zone (expensive), which is necessary to take into account visibility changes
 	*/
-	virtual void UpdateComponentVisibility(bool bAllowWaterMeshRebuild);
+	virtual void UpdateComponentVisibility(bool bAllowWaterZoneRebuild);
 
 	/** Creates/Destroys/Updates necessary MIDS */
 	virtual void UpdateMaterialInstances();
