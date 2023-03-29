@@ -650,6 +650,8 @@ struct FMutableGraphGenerationContext
 	// Data used for SkinWeightProfiles reconstruction
 	TArray<FMutableSkinWeightProfileInfo> SkinWeightProfilesInfo;
 
+	TArray<FAnimBpOverridePhysicsAssetsInfo> AnimBpOverridePhysicsAssetsInfo;
+
 	// Hierarchy of current ComponentNew nodes, each stored for every LOD
 	struct ObjectParent
 	{

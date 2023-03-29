@@ -330,6 +330,7 @@ void UCustomizableObject::ClearCompiledData()
 	ContributingClothingAssetsData.Empty();
 	ClothSharedConfigsData.Empty();
 	SkinWeightProfilesInfo.Empty();
+	AnimBpOverridePhysiscAssetsInfo.Empty();
 
 #if WITH_EDITORONLY_DATA
 	CustomizableObjectPathMap.Empty();
@@ -427,6 +428,8 @@ void UCustomizableObject::SaveCompiledData(FArchive& MemoryWriter, bool bSkipEdi
 	
 	MemoryWriter << SkinWeightProfilesInfo;
 
+	MemoryWriter << AnimBpOverridePhysiscAssetsInfo;
+
 	MemoryWriter << HashToStreamableBlock;
 
 	// All Editor Only data must be serialized here
@@ -523,6 +526,8 @@ void UCustomizableObject::LoadCompiledData(FArchive& MemoryReader, bool bSkipEdi
 		MemoryReader << ClothSharedConfigsData;
 
 		MemoryReader << SkinWeightProfilesInfo;
+
+		MemoryReader << AnimBpOverridePhysiscAssetsInfo;
 
 		MemoryReader << HashToStreamableBlock;
 

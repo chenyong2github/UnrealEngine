@@ -135,6 +135,7 @@ namespace mu
 
 	struct FReshapeVertexBindingDataBufferDescriptor
 	{
+		constexpr static int ElementSize = sizeof(FReshapeVertexBindingData);
 		constexpr static int Channels = 4;
 		constexpr static MESH_BUFFER_SEMANTIC Semantics[Channels] = { MBS_BARYCENTRICCOORDS, MBS_DISTANCE, MBS_TRIANGLEINDEX, MBS_OTHER };
 		constexpr static MESH_BUFFER_FORMAT Formats[Channels] = { MBF_FLOAT32, MBF_FLOAT32, MBF_INT32, MBF_FLOAT32 };
@@ -161,6 +162,7 @@ namespace mu
 
 	struct FReshapePointBindingDataBufferDescriptor
 	{
+		constexpr static int ElementSize = sizeof(FReshapeVertexBindingData);
 		constexpr static int Channels = 4;
 		constexpr static MESH_BUFFER_SEMANTIC Semantics[Channels] = { MBS_BARYCENTRICCOORDS, MBS_DISTANCE, MBS_TRIANGLEINDEX, MBS_OTHER };
 		constexpr static MESH_BUFFER_FORMAT Formats[Channels] = { MBF_FLOAT32, MBF_FLOAT32, MBF_INT32, MBF_FLOAT32 };
@@ -175,8 +177,9 @@ namespace mu
 		}
 	};
 	
-	struct FUsedIndicesBufferDescriptor
+	struct FIntBufferDescriptor
 	{
+		constexpr static int ElementSize = sizeof(int32);
 		constexpr static int Channels = 1;
 		constexpr static MESH_BUFFER_SEMANTIC Semantics[Channels] = { MBS_OTHER };
 		constexpr static MESH_BUFFER_FORMAT Formats[Channels] = { MBF_INT32 };
@@ -184,7 +187,7 @@ namespace mu
 		constexpr static int Offsets[Channels] = { 0 };
 		constexpr static int SemanticIndices[Channels] = { 0 };
 
-		FUsedIndicesBufferDescriptor()
+		FIntBufferDescriptor()
 		{
 		}
 	};
@@ -486,59 +489,95 @@ namespace mu
 		BindReshapePoint(ShapeMeshTree, BoundPoint, OutBindingData, BindTolerance);
 	}
 
-	inline TTuple<TArray<FReshapePointBindingData>, TArray<int32>> BindPhysicsBodies( 
-			const PhysicsBody* PBody, FShapeMeshTree& ShapeMeshTree, const Mesh* pMesh, 
+	inline TTuple<TArray<FReshapePointBindingData>, TArray<int32>, TArray<int32>> BindPhysicsBodies( 
+			TArray<const PhysicsBody*> PhysicsBodies, FShapeMeshTree& ShapeMeshTree, const Mesh* pMesh, 
 			const TArray<string>& PhysicsToDeform )
 	{
-		TTuple<TArray<FReshapePointBindingData>, TArray<int32>> ReturnValue;
+		TTuple<TArray<FReshapePointBindingData>, TArray<int32>, TArray<int32>> ReturnValue;
 
 		TArray<int32>& BodiesToDeformIndices = ReturnValue.Get<1>();
-	
-		BodiesToDeformIndices.Reserve(PhysicsToDeform.Num());
-		const int32 NumBodies = PBody->GetBodyCount();
-		for (int32 I = 0; I < NumBodies; ++I)
-		{
-			if (PhysicsToDeform.Contains(PBody->GetBodyBoneName(I)))
-			{
-				BodiesToDeformIndices.Add(I);
-			}
-		}
-		
-		// Count how many poinst will be needed.
-		const int32 NumBodiesToDeformIndices = BodiesToDeformIndices.Num();
-		int32 NumPoints = 0;
-		for (const int32 I : BodiesToDeformIndices)
-		{
-			NumPoints += PBody->GetSphereCount(I) * 6;
-			NumPoints += PBody->GetBoxCount(I) * 14;
-			NumPoints += PBody->GetSphylCount(I) * 14;
-			NumPoints += PBody->GetTaperedCapsuleCount(I) * 14;
+		TArray<int32>& BodiesToDeformOffsets = ReturnValue.Get<2>();
 
-			const int32 ConvexCount = PBody->GetConvexCount(I);
-			for ( int C = 0; C < ConvexCount; ++C )
+		const int32 NumPhysicsBodies = PhysicsBodies.Num();
+
+		BodiesToDeformIndices.Reserve(NumPhysicsBodies * PhysicsToDeform.Num());
+		BodiesToDeformOffsets.SetNum(NumPhysicsBodies + 1);
+	
+		BodiesToDeformOffsets[0] = 0;
+		for (int32 PhysicsBodyIndex = 0; PhysicsBodyIndex < NumPhysicsBodies; ++PhysicsBodyIndex)
+		{
+			if (const PhysicsBody* Body = PhysicsBodies[PhysicsBodyIndex])
+			{
+				const int32 NumBodies = PhysicsBodies[PhysicsBodyIndex]->GetBodyCount();
+				for (int32 BodyIndex = 0; BodyIndex < NumBodies; ++BodyIndex)
+				{
+					if (PhysicsToDeform.Contains(Body->GetBodyBoneName(BodyIndex)))
+					{
+						BodiesToDeformIndices.Add(BodyIndex);
+					}
+				}
+			}
+
+			BodiesToDeformOffsets[PhysicsBodyIndex + 1] = BodiesToDeformIndices.Num();
+		}
+
+		int32 TotalNumPoints = 0;
+		for (int32 PhysicsBodyIndex = 0; PhysicsBodyIndex < NumPhysicsBodies; ++PhysicsBodyIndex)
+		{
+			const int32 IndicesBegin = BodiesToDeformOffsets[PhysicsBodyIndex];
+			const int32 IndicesEnd = BodiesToDeformOffsets[PhysicsBodyIndex + 1];
+
+			TArrayView<int32> BodyIndices = TArrayView<int32>(
+				BodiesToDeformIndices.GetData() + IndicesBegin, IndicesEnd - IndicesBegin);
+
+			const PhysicsBody* Body = PhysicsBodies[PhysicsBodyIndex];
+		
+			int32 BodyNumPoints = 0;
+			for (const int32 I : BodyIndices)
+		{
+				BodyNumPoints += Body->GetSphereCount(I) * 6;
+				BodyNumPoints += Body->GetBoxCount(I) * 14;
+				BodyNumPoints += Body->GetSphylCount(I) * 14;
+				BodyNumPoints += Body->GetTaperedCapsuleCount(I) * 14;
+
+				const int32 ConvexCount = Body->GetConvexCount(I);
+				for (int C = 0; C < ConvexCount; ++C)
 			{
 				TArrayView<const FVector3f> Vertices;
 				TArrayView<const int32> Indices;
 
 				FTransform3f Transform;
-				PBody->GetConvex(I, C, Vertices, Indices, Transform);
+					Body->GetConvex(I, C, Vertices, Indices, Transform);
 
-				NumPoints += Vertices.Num();
+					BodyNumPoints += Vertices.Num();
 			}
 		}
 		
+			TotalNumPoints += BodyNumPoints;
+		}
+		
 		TArray<FVector3f> Points;
-		Points.SetNumUninitialized(NumPoints);
+		Points.SetNumUninitialized(TotalNumPoints);
 	
 		// Bone transform needs to be applied to the body's sample points so they are in mesh space.
 
 		// Create a point soup to be deformed based on the shapes in the aggregate.
-		// Currently using oriented bounding boxes corners for all shapes except convex which uses the deformed mesh directly.
 
 		int32 AddedPoints = 0;
-		for (const int32 B : BodiesToDeformIndices)
+
+		for (int32 PhysicsBodyIndex = 0; PhysicsBodyIndex < NumPhysicsBodies; ++PhysicsBodyIndex)
 		{
-			const char* BoneName = PBody->GetBodyBoneName(B);
+			const PhysicsBody* Body = PhysicsBodies[PhysicsBodyIndex];
+
+			const int32 IndicesBegin = BodiesToDeformOffsets[PhysicsBodyIndex];
+			const int32 IndicesEnd = BodiesToDeformOffsets[PhysicsBodyIndex + 1];
+
+			TArrayView<int32> BodyIndices = TArrayView<int32>(
+					BodiesToDeformIndices.GetData() + IndicesBegin, IndicesEnd - IndicesBegin);
+
+			for (const int32 B : BodyIndices)
+		{
+				const char* BoneName = Body->GetBodyBoneName(B);
 			int32 BoneIdx = pMesh->FindBonePose(BoneName);
 
 			FTransform3f T = FTransform3f::Identity;
@@ -547,13 +586,13 @@ namespace mu
 				pMesh->GetBoneTransform(BoneIdx, T);
 			}
 			
-			const int32 SphereCount = PBody->GetSphereCount(B);
-			for ( int32 I = 0; I < SphereCount; ++I, AddedPoints += 6)
+				const int32 SphereCount = Body->GetSphereCount(B);
+				for (int32 I = 0; I < SphereCount; ++I, AddedPoints += 6)
 			{
 				FVector3f P;
 				float R;
 
-				PBody->GetSphere(B, I, P, R);	
+					Body->GetSphere(B, I, P, R);
 
 				Points[AddedPoints + 0] = T.TransformPosition(P + FVector3f(R, 0.0f, 0.0f));
 				Points[AddedPoints + 1] = T.TransformPosition(P - FVector3f(R, 0.0f, 0.0f));
@@ -565,47 +604,47 @@ namespace mu
 				Points[AddedPoints + 5] = T.TransformPosition(P - FVector3f(0.0f, 0.0f, R));
 			}
 
-			const int32 BoxCount = PBody->GetBoxCount(B);
-			for ( int32 I = 0; I < BoxCount; ++I, AddedPoints += 14)
+				const int32 BoxCount = Body->GetBoxCount(B);
+				for (int32 I = 0; I < BoxCount; ++I, AddedPoints += 14)
 			{
 				FVector3f P;
 				FQuat4f Q;
 				FVector3f S;
 			
-				PBody->GetBox(B, I, P, Q, S);
+					Body->GetBox(B, I, P, Q, S);
 
 				const FVector3f BasisX = Q.RotateVector(FVector3f::UnitX());
 				const FVector3f BasisY = Q.RotateVector(FVector3f::UnitY());
 				const FVector3f BasisZ = Q.RotateVector(FVector3f::UnitZ());
 
-				Points[AddedPoints + 0] = T.TransformPosition(P + BasisX*S.X + BasisY*S.Y + BasisZ*S.Z);
-				Points[AddedPoints + 1] = T.TransformPosition(P + BasisX*S.X - BasisY*S.Y + BasisZ*S.Z);
-				Points[AddedPoints + 2] = T.TransformPosition(P - BasisX*S.X + BasisY*S.Y + BasisZ*S.Z);
-				Points[AddedPoints + 3] = T.TransformPosition(P - BasisX*S.X - BasisY*S.Y + BasisZ*S.Z);
+					Points[AddedPoints + 0] = T.TransformPosition(P + BasisX * S.X + BasisY * S.Y + BasisZ * S.Z);
+					Points[AddedPoints + 1] = T.TransformPosition(P + BasisX * S.X - BasisY * S.Y + BasisZ * S.Z);
+					Points[AddedPoints + 2] = T.TransformPosition(P - BasisX * S.X + BasisY * S.Y + BasisZ * S.Z);
+					Points[AddedPoints + 3] = T.TransformPosition(P - BasisX * S.X - BasisY * S.Y + BasisZ * S.Z);
 
-				Points[AddedPoints + 4] = T.TransformPosition(P + BasisX*S.X + BasisY*S.Y - BasisZ*S.Z);
-				Points[AddedPoints + 5] = T.TransformPosition(P + BasisX*S.X - BasisY*S.Y - BasisZ*S.Z);
-				Points[AddedPoints + 6] = T.TransformPosition(P - BasisX*S.X + BasisY*S.Y - BasisZ*S.Z);
-				Points[AddedPoints + 7] = T.TransformPosition(P - BasisX*S.X - BasisY*S.Y - BasisZ*S.Z);
+					Points[AddedPoints + 4] = T.TransformPosition(P + BasisX * S.X + BasisY * S.Y - BasisZ * S.Z);
+					Points[AddedPoints + 5] = T.TransformPosition(P + BasisX * S.X - BasisY * S.Y - BasisZ * S.Z);
+					Points[AddedPoints + 6] = T.TransformPosition(P - BasisX * S.X + BasisY * S.Y - BasisZ * S.Z);
+					Points[AddedPoints + 7] = T.TransformPosition(P - BasisX * S.X - BasisY * S.Y - BasisZ * S.Z);
 
-				Points[AddedPoints + 8]  = T.TransformPosition(P + BasisX*S.X);
-				Points[AddedPoints + 9]  = T.TransformPosition(P + BasisY*S.Y);
-				Points[AddedPoints + 10] = T.TransformPosition(P + BasisZ*S.Z);
+					Points[AddedPoints + 8] = T.TransformPosition(P + BasisX * S.X);
+					Points[AddedPoints + 9] = T.TransformPosition(P + BasisY * S.Y);
+					Points[AddedPoints + 10] = T.TransformPosition(P + BasisZ * S.Z);
 
-				Points[AddedPoints + 11] = T.TransformPosition(P - BasisX*S.X);
-				Points[AddedPoints + 12] = T.TransformPosition(P - BasisY*S.Y);
-				Points[AddedPoints + 13] = T.TransformPosition(P - BasisZ*S.Z);
+					Points[AddedPoints + 11] = T.TransformPosition(P - BasisX * S.X);
+					Points[AddedPoints + 12] = T.TransformPosition(P - BasisY * S.Y);
+					Points[AddedPoints + 13] = T.TransformPosition(P - BasisZ * S.Z);
 			}
 
-			const int32 SphylCount = PBody->GetSphylCount(B);
-			for ( int32 I = 0; I < SphylCount; ++I, AddedPoints += 14)
+				const int32 SphylCount = Body->GetSphylCount(B);
+				for (int32 I = 0; I < SphylCount; ++I, AddedPoints += 14)
 			{
 				FVector3f P;
 				FQuat4f Q;
 				float R;
 				float L;
 			
-				PBody->GetSphyl(B, I, P, Q, R, L);
+					Body->GetSphyl(B, I, P, Q, R, L);
 				
 				const float H = L * 0.5f;
 
@@ -614,31 +653,31 @@ namespace mu
 				const FVector3f BasisZ = Q.RotateVector(FVector3f::UnitZ());
 
 				// Top and Bottom
-				Points[AddedPoints + 0] = T.TransformPosition(P + BasisZ*(H+R));
-				Points[AddedPoints + 1] = T.TransformPosition(P - BasisZ*(H+R));
+					Points[AddedPoints + 0] = T.TransformPosition(P + BasisZ * (H + R));
+					Points[AddedPoints + 1] = T.TransformPosition(P - BasisZ * (H + R));
 
 				// Top ring
-				Points[AddedPoints + 2] = T.TransformPosition(P + BasisX*R + BasisZ*H);
-				Points[AddedPoints + 3] = T.TransformPosition(P - BasisX*R + BasisZ*H);
-				Points[AddedPoints + 4] = T.TransformPosition(P + BasisY*R + BasisZ*H);
-				Points[AddedPoints + 5] = T.TransformPosition(P - BasisY*R + BasisZ*H);
+					Points[AddedPoints + 2] = T.TransformPosition(P + BasisX * R + BasisZ * H);
+					Points[AddedPoints + 3] = T.TransformPosition(P - BasisX * R + BasisZ * H);
+					Points[AddedPoints + 4] = T.TransformPosition(P + BasisY * R + BasisZ * H);
+					Points[AddedPoints + 5] = T.TransformPosition(P - BasisY * R + BasisZ * H);
 
 				// Center ring
-				Points[AddedPoints + 6] = T.TransformPosition(P + BasisX*R);
-				Points[AddedPoints + 7] = T.TransformPosition(P - BasisX*R);
-				Points[AddedPoints + 8] = T.TransformPosition(P + BasisY*R);
-				Points[AddedPoints + 9] = T.TransformPosition(P - BasisY*R);
+					Points[AddedPoints + 6] = T.TransformPosition(P + BasisX * R);
+					Points[AddedPoints + 7] = T.TransformPosition(P - BasisX * R);
+					Points[AddedPoints + 8] = T.TransformPosition(P + BasisY * R);
+					Points[AddedPoints + 9] = T.TransformPosition(P - BasisY * R);
 	
 				// Bottom ring
-				Points[AddedPoints + 10] = T.TransformPosition(P + BasisX*R - BasisZ*H);
-				Points[AddedPoints + 11] = T.TransformPosition(P - BasisX*R - BasisZ*H);
-				Points[AddedPoints + 12] = T.TransformPosition(P + BasisY*R - BasisZ*H);
-				Points[AddedPoints + 13] = T.TransformPosition(P - BasisY*R - BasisZ*H);
+					Points[AddedPoints + 10] = T.TransformPosition(P + BasisX * R - BasisZ * H);
+					Points[AddedPoints + 11] = T.TransformPosition(P - BasisX * R - BasisZ * H);
+					Points[AddedPoints + 12] = T.TransformPosition(P + BasisY * R - BasisZ * H);
+					Points[AddedPoints + 13] = T.TransformPosition(P - BasisY * R - BasisZ * H);
 
 			}
 	
-			const int32 TaperedCapsuleCount = PBody->GetTaperedCapsuleCount(B);
-			for ( int32 I = 0; I < TaperedCapsuleCount; ++I, AddedPoints += 14)
+				const int32 TaperedCapsuleCount = Body->GetTaperedCapsuleCount(B);
+				for (int32 I = 0; I < TaperedCapsuleCount; ++I, AddedPoints += 14)
 			{
 				FVector3f P;
 				FQuat4f Q;
@@ -646,9 +685,9 @@ namespace mu
 				float R1;
 				float L;
 			
-				PBody->GetTaperedCapsule(B, I, P, Q, R0, R1, L);
+					Body->GetTaperedCapsule(B, I, P, Q, R0, R1, L);
 		
-				const float H = L*0.5f;
+					const float H = L * 0.5f;
 				const float RCenter = (R0 + R1) * 0.5f;
 
 				const FVector3f BasisX = Q.RotateVector(FVector3f::UnitX());
@@ -656,62 +695,62 @@ namespace mu
 				const FVector3f BasisZ = Q.RotateVector(FVector3f::UnitZ());
 
 				// Top and Bottom
-				Points[AddedPoints + 0] = T.TransformPosition(P + BasisZ*(H+R0));
-				Points[AddedPoints + 1] = T.TransformPosition(P - BasisZ*(H+R1));
+					Points[AddedPoints + 0] = T.TransformPosition(P + BasisZ * (H + R0));
+					Points[AddedPoints + 1] = T.TransformPosition(P - BasisZ * (H + R1));
 
 				// Top ring
-				Points[AddedPoints + 2] = T.TransformPosition(P + BasisX*R0 + BasisZ*H);
-				Points[AddedPoints + 3] = T.TransformPosition(P - BasisX*R0 + BasisZ*H);
-				Points[AddedPoints + 4] = T.TransformPosition(P + BasisY*R0 + BasisZ*H);
-				Points[AddedPoints + 5] = T.TransformPosition(P - BasisY*R0 + BasisZ*H);
+					Points[AddedPoints + 2] = T.TransformPosition(P + BasisX * R0 + BasisZ * H);
+					Points[AddedPoints + 3] = T.TransformPosition(P - BasisX * R0 + BasisZ * H);
+					Points[AddedPoints + 4] = T.TransformPosition(P + BasisY * R0 + BasisZ * H);
+					Points[AddedPoints + 5] = T.TransformPosition(P - BasisY * R0 + BasisZ * H);
 
 				// Center ring
-				Points[AddedPoints + 6] = T.TransformPosition(P + BasisX*RCenter);
-				Points[AddedPoints + 7] = T.TransformPosition(P - BasisX*RCenter);
-				Points[AddedPoints + 8] = T.TransformPosition(P + BasisY*RCenter);
-				Points[AddedPoints + 9] = T.TransformPosition(P - BasisY*RCenter);
+					Points[AddedPoints + 6] = T.TransformPosition(P + BasisX * RCenter);
+					Points[AddedPoints + 7] = T.TransformPosition(P - BasisX * RCenter);
+					Points[AddedPoints + 8] = T.TransformPosition(P + BasisY * RCenter);
+					Points[AddedPoints + 9] = T.TransformPosition(P - BasisY * RCenter);
 	
 				// Bottom ring
-				Points[AddedPoints + 10] = T.TransformPosition(P + BasisX*R1 - BasisZ*H);
-				Points[AddedPoints + 11] = T.TransformPosition(P - BasisX*R1 - BasisZ*H);
-				Points[AddedPoints + 12] = T.TransformPosition(P + BasisY*R1 - BasisZ*H);
-				Points[AddedPoints + 13] = T.TransformPosition(P - BasisY*R1 - BasisZ*H);
+					Points[AddedPoints + 10] = T.TransformPosition(P + BasisX * R1 - BasisZ * H);
+					Points[AddedPoints + 11] = T.TransformPosition(P - BasisX * R1 - BasisZ * H);
+					Points[AddedPoints + 12] = T.TransformPosition(P + BasisY * R1 - BasisZ * H);
+					Points[AddedPoints + 13] = T.TransformPosition(P - BasisY * R1 - BasisZ * H);
 			}
 
-			const int32 ConvexCount = PBody->GetConvexCount(B);
-			for ( int32 I = 0; I < ConvexCount; ++I )
+				const int32 ConvexCount = Body->GetConvexCount(B);
+				for (int32 I = 0; I < ConvexCount; ++I)
 			{
 			
 				TArrayView<const FVector3f> VerticesView;
 				TArrayView<const int32> IndicesView;
 				FTransform3f ConvexT;
 
-				PBody->GetConvex(B, I, VerticesView, IndicesView, ConvexT);
+					Body->GetConvex(B, I, VerticesView, IndicesView, ConvexT);
 
 				ConvexT = T * ConvexT;
-				for ( const FVector3f& P : VerticesView )
+					for (const FVector3f& P : VerticesView)
 				{
 					Points[AddedPoints++] = ConvexT.TransformPosition(P);
 				}	
 			}
 		}
+		}
 		
 		TArray<FReshapePointBindingData>& PhysicsBodyBindData = ReturnValue.Get<0>();
-		PhysicsBodyBindData.SetNumUninitialized( NumPoints );
+		PhysicsBodyBindData.SetNumUninitialized(TotalNumPoints);
 
 		FReshapeVertexBindingData VertexBindData;
 
-		for (int32 I = 0; I < NumPoints; ++I)
+		for (int32 PointIndex = 0; PointIndex < TotalNumPoints; ++PointIndex)
 		{
-			BindReshapePoint(ShapeMeshTree, Points[I], VertexBindData, 0.1f);
-			PhysicsBodyBindData[I] = FReshapePointBindingData
+			BindReshapePoint(ShapeMeshTree, Points[PointIndex], VertexBindData, 0.1f);
+			PhysicsBodyBindData[PointIndex] = FReshapePointBindingData
 				{ VertexBindData.S, VertexBindData.T, VertexBindData.D, VertexBindData.Triangle, VertexBindData.Weight };
 		}
 
 		return ReturnValue;
 	}
 
-	
 	inline TArray<FReshapeVertexBindingData> BindVerticesReshape(
 			const Mesh* BaseMesh, FShapeMeshTree& ShapeMeshTree, bool bEnableRigidParts )	
 	{
@@ -862,7 +901,7 @@ namespace mu
 		// Early out if nothing will be modified and the vertices discarted. return null in this
 		// case indicating nothing has modified so the Base Mesh can be reused.
 		const bool bSkeletonModification = BaseMesh->GetSkeleton() && bReshapeSkeleton;
-		const bool bPhysicsModification = BaseMesh->GetPhysicsBody() && bReshapePhysics;
+		const bool bPhysicsModification = (BaseMesh->GetPhysicsBody() || BaseMesh->AdditionalPhysicsBodies.Num()) && bReshapePhysics;
 
 		if (!bReshapeVertices && !bSkeletonModification && !bPhysicsModification)
 		{
@@ -935,14 +974,15 @@ namespace mu
 	
 		Ptr<Mesh> Result;
 		
-		// If no vertices are needed, it is assumed we only want to reshape physics or skeleton
+		// If no vertices are needed, it is assumed we only want to reshape physics or skeleton.
 		// In that case, remove everything except physics bodies, the skeleton and pose.
 		if (!bReshapeVertices)
 		{
 			constexpr EMeshCloneFlags CloneFlags = 
 					EMeshCloneFlags::WithSkeleton    | 
 					EMeshCloneFlags::WithPhysicsBody | 
-					EMeshCloneFlags::WithPoses;
+				EMeshCloneFlags::WithPoses |
+				EMeshCloneFlags::WithAdditionalPhysics;
 
 			Result = BaseMesh->Clone(CloneFlags);
 		}
@@ -954,14 +994,14 @@ namespace mu
 		int32 BindingDataIndex = 0;
 		if (bReshapeVertices)
 		{
-			TArray<FReshapeVertexBindingData> VerticesBindData = BindVerticesReshape( BaseMesh, ShapeMeshTree, bEnableRigidParts );
+			TArray<FReshapeVertexBindingData> VerticesBindData = BindVerticesReshape(BaseMesh, ShapeMeshTree, bEnableRigidParts);
 			
 			// Add the binding information to the mesh
 			// \TODO: Check that there is no other binding data.
 			// \TODO: Support specifying the binding data channel for multiple binding support.
 			FMeshBufferSet& VB = Result->GetVertexBuffers();
 			int NewBufferIndex = VB.GetBufferCount();
-			VB.SetBufferCount(NewBufferIndex+1);
+			VB.SetBufferCount(NewBufferIndex + 1);
 
 			FReshapeVertexBindingDataBufferDescriptor BufDesc(BindingDataIndex);
 			VB.SetBuffer(NewBufferIndex, sizeof(FReshapeVertexBindingData), BufDesc.Channels, BufDesc.Semantics, BufDesc.SemanticIndices, BufDesc.Formats, BufDesc.Components);
@@ -1006,14 +1046,29 @@ namespace mu
 		}
 
 		const PhysicsBody* ResultPhysicsBody = Result->m_pPhysicsBody.get();
-		if (bReshapePhysics && ResultPhysicsBody && PhysicsToDeform.Num())
+		if (bReshapePhysics && (ResultPhysicsBody || Result->AdditionalPhysicsBodies.Num()) && PhysicsToDeform.Num())
 		{
 			MUTABLE_CPUPROFILER_SCOPE(BindPhysicsBody);
 
-			TTuple<TArray<FReshapePointBindingData>, TArray<int32>> PhysicsBindingData = 
-					BindPhysicsBodies(ResultPhysicsBody, ShapeMeshTree, Result.get(), PhysicsToDeform);
+			// Gather bodies respecting order, firts main physics body then additional bodies.
+			// Null entries are need to be able to mantin that order.  
+			TArray<const PhysicsBody*> PhysicsBodiesToBind;
+			{
+				PhysicsBodiesToBind.Reserve(Result->AdditionalPhysicsBodies.Num() + 1);
+
+				PhysicsBodiesToBind.Add(ResultPhysicsBody);
+				for (const Ptr<const PhysicsBody>& Body : Result->AdditionalPhysicsBodies)
+				{
+					PhysicsBodiesToBind.Add(Body.get());
+				}
+			}
+
+			TTuple<TArray<FReshapePointBindingData>, TArray<int32>, TArray<int32>> PhysicsBindingData = 
+					BindPhysicsBodies(PhysicsBodiesToBind, ShapeMeshTree, Result.get(), PhysicsToDeform);
+
 			const TArray<FReshapePointBindingData>& PhysicsBindDataArray = PhysicsBindingData.Get<0>();
 			const TArray<int32>& DeformedBodyIndices = PhysicsBindingData.Get<1>();
+			const TArray<int32>& DeformedBodyIndicesOffsets = PhysicsBindingData.Get<2>();
 
 			FMeshBufferSet PhysicsBodyBuffer;
 			PhysicsBodyBuffer.SetBufferCount(1);
@@ -1024,21 +1079,23 @@ namespace mu
 			PhysicsBodyBuffer.SetBuffer(0, sizeof(FReshapePointBindingData), BufDesc.Channels, BufDesc.Semantics, BufDesc.SemanticIndices, BufDesc.Formats, BufDesc.Components, BufDesc.Offsets);	
 			FMemory::Memcpy(PhysicsBodyBuffer.GetBufferData(0), PhysicsBindDataArray.GetData(), PhysicsBindDataArray.Num() * sizeof(FReshapePointBindingData));
 
-			// Bone indices buffer
-			MESH_BUFFER_SEMANTIC BoneSemantics[1] = { MBS_OTHER };
-			MESH_BUFFER_FORMAT BoneFormats[1] = { MBF_INT32 };
-			int BoneSemanticIndices[1] = { 0 };
-			int BoneComponents[1] = { 1 };
-			int BoneOffsets[1] = { 0 };
+			FIntBufferDescriptor IntBufDesc;
 
 			FMeshBufferSet PhysicsBodySelectionBuffer;
 			PhysicsBodySelectionBuffer.SetBufferCount(1);
 			PhysicsBodySelectionBuffer.SetElementCount(DeformedBodyIndices.Num());
-			PhysicsBodySelectionBuffer.SetBuffer(0, sizeof(int32), 1, BoneSemantics, BoneSemanticIndices, BoneFormats, BoneComponents, BoneOffsets);	
+			PhysicsBodySelectionBuffer.SetBuffer(0, sizeof(int32), IntBufDesc.Channels, IntBufDesc.Semantics, IntBufDesc.SemanticIndices, IntBufDesc.Formats, IntBufDesc.Components, IntBufDesc.Offsets);	
 			FMemory::Memcpy(PhysicsBodySelectionBuffer.GetBufferData(0), DeformedBodyIndices.GetData(), DeformedBodyIndices.Num() * sizeof(int32));
+
+			FMeshBufferSet PhysicsBodySelectionOffsetsBuffer;
+			PhysicsBodySelectionOffsetsBuffer.SetBufferCount(1);
+			PhysicsBodySelectionOffsetsBuffer.SetElementCount(DeformedBodyIndicesOffsets.Num());
+			PhysicsBodySelectionOffsetsBuffer.SetBuffer(0, sizeof(int32), IntBufDesc.Channels, IntBufDesc.Semantics, IntBufDesc.SemanticIndices, IntBufDesc.Formats, IntBufDesc.Components, IntBufDesc.Offsets);	
+			FMemory::Memcpy(PhysicsBodySelectionOffsetsBuffer.GetBufferData(0), DeformedBodyIndicesOffsets.GetData(), DeformedBodyIndicesOffsets.Num() * sizeof(int32));
 
 			Result->m_AdditionalBuffers.Emplace(EMeshBufferType::PhysicsBodyDeformBinding, MoveTemp(PhysicsBodyBuffer));
 			Result->m_AdditionalBuffers.Emplace(EMeshBufferType::PhysicsBodyDeformSelection, MoveTemp(PhysicsBodySelectionBuffer));
+			Result->m_AdditionalBuffers.Emplace(EMeshBufferType::PhysicsBodyDeformOffsets, MoveTemp(PhysicsBodySelectionOffsetsBuffer));
 		}
 		
         return Result;

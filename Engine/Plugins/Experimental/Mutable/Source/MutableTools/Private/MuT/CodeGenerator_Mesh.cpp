@@ -1379,7 +1379,7 @@ class Node;
 		OpBind->BonesToDeform = node.m_bonesToDeform;
     	OpBind->bReshapePhysicsVolumes = node.m_reshapePhysicsVolumes;
 		OpBind->PhysicsToDeform = node.m_physicsToDeform;
-		OpBind->bReshapeVertices = true;
+		OpBind->bReshapeVertices = node.m_reshapeVertices;
 		OpBind->BindingMethod = static_cast<uint32>(EShapeBindingMethod::ReshapeClosestProject);
 
 		OpApply->bReshapeVertices = OpBind->bReshapeVertices;

@@ -33,7 +33,9 @@ public class CustomizableObjectEditor : ModuleRules
 				"WorkspaceMenuStructure",
 				"AdvancedPreviewScene",
 				"MessageLog",
-				"KismetWidgets"
+				"KismetWidgets",
+				"AnimGraphRuntime",
+				"AnimGraph",
 			}
 		);
 
@@ -70,6 +72,8 @@ public class CustomizableObjectEditor : ModuleRules
 				"UMG",
 				"Persona",
 				"CurveEditor",
+				"AnimGraphRuntime",
+				"AnimGraph",
 
 				"MutableRuntime",
 				"MutableTools",

@@ -119,7 +119,6 @@ struct FProfileParameterDat
 	TArray<FCustomizableObjectProjectorParameterValue> ProjectorParameters;
 };
 
-
 USTRUCT()
 struct FCompilationOptions
 {
@@ -176,6 +175,9 @@ struct FCompilationOptions
 
 	// Used to enable physics asset merge.
 	bool bPhysicsAssetMergeEnabled = false;
+
+	// Used to enable AnimBp override physics mainipualtion.  
+	bool bAnimBpPhysicsManipulationEnabled = false;
 
 	// Used to reduce the number of notifications when compiling objects
 	bool bSilentCompilation = true;
@@ -425,6 +427,57 @@ private:
 };
 
 
+
+USTRUCT()
+struct CUSTOMIZABLEOBJECT_API FAnimBpOverridePhysicsAssetsInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TSoftClassPtr<UAnimInstance> AnimInstanceClass;
+	
+	UPROPERTY()
+	TSoftObjectPtr<UPhysicsAsset> SourceAsset;
+	
+	UPROPERTY()
+	int32 PropertyIndex = -1;
+
+	friend FArchive& operator<<(FArchive& Ar, FAnimBpOverridePhysicsAssetsInfo& Info)
+	{
+		FString AnimInstanceClassPathString;
+		FString PhysicsAssetPathString;
+
+		if (Ar.IsLoading())
+		{	
+			Ar << AnimInstanceClassPathString;
+			Ar << PhysicsAssetPathString;
+			Ar << Info.PropertyIndex;
+
+			Info.AnimInstanceClass = TSoftClassPtr<UAnimInstance>(AnimInstanceClassPathString);
+			Info.SourceAsset = TSoftObjectPtr<UPhysicsAsset>(PhysicsAssetPathString);
+		}
+
+		if (Ar.IsSaving())
+		{
+			AnimInstanceClassPathString = Info.AnimInstanceClass.ToString();
+			PhysicsAssetPathString = Info.SourceAsset.ToString();
+
+			Ar << AnimInstanceClassPathString;
+			Ar << PhysicsAssetPathString;
+			Ar << Info.PropertyIndex;
+		}
+
+		return Ar;
+	}
+
+	friend bool operator==(const FAnimBpOverridePhysicsAssetsInfo& Lhs, const FAnimBpOverridePhysicsAssetsInfo& Rhs)
+	{
+		return Lhs.AnimInstanceClass == Rhs.AnimInstanceClass && 
+			   Lhs.SourceAsset	     == Rhs.SourceAsset       && 
+		 	   Lhs.PropertyIndex     == Rhs.PropertyIndex;
+	}
+};
+
 USTRUCT()
 struct FMorphTargetInfo
 {
@@ -618,6 +671,7 @@ struct FMutableSkinWeightProfileInfo
 		return Name == Other.Name;
 	}
 };
+
 
 
 UCLASS()
@@ -1165,6 +1219,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = CompileOptions)
 	bool bEnablePhysicsAssetMerge = false;
 
+	UPROPERTY(EditAnywhere, Category = CompileOptions)
+	bool bEnableAnimBpPhysicsAssetsManipualtion = false;
+
 	// Options when compiling this customizable object (see EMutableCompileMeshType declaration for info)
 	UPROPERTY(EditAnywhere, Category = CompileOptions)
 	EMutableCompileMeshType MeshCompileType = EMutableCompileMeshType::LocalAndChildren;
@@ -1368,7 +1425,7 @@ private:
 	// This is a manual version number for the binary blobs in this asset.
 	// Increasing it invalidates all the previously compiled models.
 	// Warning: If while merging code both versions have changed, take the highest+1.
-	static const int32 CurrentSupportedVersion = 377;
+	static const int32 CurrentSupportedVersion = 379;
 
 public:
 
@@ -1510,6 +1567,9 @@ public:
 	/** Stores the UAnimBlueprint assets gathered from the SkeletalMesh nodes during compilation, to be used in mesh generation in-game */
 	UPROPERTY()
 	TMap<FString, TSoftClassPtr<UAnimInstance>> AnimBPAssetsMap;
+
+	UPROPERTY()
+	TArray<FAnimBpOverridePhysicsAssetsInfo> AnimBpOverridePhysiscAssetsInfo;
 
 	UPROPERTY()
 	/** Stores the sockets provided by the part skeletal meshes, to be merged in the generated meshes */

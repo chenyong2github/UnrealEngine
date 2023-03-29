@@ -3,8 +3,11 @@
 #include "MuCO/CustomizableObjectInstance.h"
 
 #include "Algo/MaxElement.h"
+#include "Animation/AnimClassInterface.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/Skeleton.h"
+#include "BoneControllers/AnimNode_RigidBody.h"
 #include "ClothConfig.h"
 #include "ClothingAsset.h"
 #include "Engine/SkeletalMeshSocket.h"
@@ -26,7 +29,6 @@
 #include "SkeletalMergingLibrary.h"
 #include "UObject/UObjectIterator.h"
 #include "Widgets/Notifications/SNotificationList.h"
-
 // Required for engine branch preprocessor defines.
 #include "MuCO/UnrealPortabilityHelpers.h"
 #include "MuR/Model.h"
@@ -1059,7 +1061,271 @@ USkeleton* UCustomizableInstancePrivateData::MergeSkeletons(UCustomizableObjectI
 	return FinalSkeleton;
 }
 
-UPhysicsAsset* UCustomizableInstancePrivateData::GetOrBuildPhysicsAsset(
+namespace
+{
+	FKAggregateGeom MakeAggGeomFromMutablePhysics(int32 BodyIndex, const mu::PhysicsBody* MutablePhysicsBody)
+	{
+		FKAggregateGeom BodyAggGeom;
+
+		auto GetCollisionEnabledFormFlags = [](uint32 Flags) -> ECollisionEnabled::Type
+		{
+			return ECollisionEnabled::Type(Flags & 0xFF);
+		};
+
+		auto GetContributeToMassFromFlags = [](uint32 Flags) -> bool
+		{
+			return static_cast<bool>((Flags >> 8) & 1);
+		};
+
+		const int32 NumSpheres = MutablePhysicsBody->GetSphereCount(BodyIndex);
+		TArray<FKSphereElem>& AggSpheres = BodyAggGeom.SphereElems;
+		AggSpheres.Empty(NumSpheres);
+		for (int32 I = 0; I < NumSpheres; ++I)
+		{
+			uint32 Flags = MutablePhysicsBody->GetSphereFlags(BodyIndex, I);
+			FString Name = MutablePhysicsBody->GetSphereName(BodyIndex, I);
+
+			FVector3f Position;
+			float Radius;
+
+			MutablePhysicsBody->GetSphere(BodyIndex, I, Position, Radius);
+			FKSphereElem& NewElem = AggSpheres.AddDefaulted_GetRef();
+			
+			NewElem.Center = FVector(Position);
+			NewElem.Radius = Radius;
+			NewElem.SetContributeToMass(GetContributeToMassFromFlags(Flags));
+			NewElem.SetCollisionEnabled(GetCollisionEnabledFormFlags(Flags));
+			NewElem.SetName(FName(*Name));
+		}
+		
+		const int32 NumBoxes = MutablePhysicsBody->GetBoxCount(BodyIndex);
+		TArray<FKBoxElem>& AggBoxes = BodyAggGeom.BoxElems;
+		AggBoxes.Empty(NumBoxes);
+		for (int32 I = 0; I < NumBoxes; ++I)
+		{
+			uint32 Flags = MutablePhysicsBody->GetBoxFlags(BodyIndex, I);
+			FString Name = MutablePhysicsBody->GetBoxName(BodyIndex, I);
+
+			FVector3f Position;
+			FQuat4f Orientation
+				;
+			FVector3f Size;
+			MutablePhysicsBody->GetBox(BodyIndex, I, Position, Orientation, Size);
+
+			FKBoxElem& NewElem = AggBoxes.AddDefaulted_GetRef();
+			
+			NewElem.Center = FVector(Position);
+			NewElem.Rotation = FRotator(Orientation.Rotator());
+			NewElem.X = Size.X;
+			NewElem.Y = Size.Y;
+			NewElem.Z = Size.Z;
+			NewElem.SetContributeToMass(GetContributeToMassFromFlags(Flags));
+			NewElem.SetCollisionEnabled(GetCollisionEnabledFormFlags(Flags));
+			NewElem.SetName(FName(*Name));
+		}
+
+		//const int32 NumConvexes = MutablePhysicsBody->GetConvexCount( BodyIndex );
+		//TArray<FKConvexElem>& AggConvexes = BodyAggGeom.ConvexElems;
+		//AggConvexes.Empty();
+		//for (int32 I = 0; I < NumConvexes; ++I)
+		//{
+		//	uint32 Flags = MutablePhysicsBody->GetConvexFlags( BodyIndex, I );
+		//	FString Name = MutablePhysicsBody->GetConvexName( BodyIndex, I );
+
+		//	const FVector3f* Vertices;
+		//	const int32* Indices;
+		//	int32 NumVertices;
+		//	int32 NumIndices;
+		//	FTransform3f Transform;
+
+		//	MutablePhysicsBody->GetConvex( BodyIndex, I, Vertices, NumVertices, Indices, NumIndices, Transform );
+		//	
+		//	TArrayView<const FVector3f> VerticesView( Vertices, NumVertices );
+		//	TArrayView<const int32> IndicesView( Indices, NumIndices );
+		//}
+
+		TArray<FKSphylElem>& AggSphyls = BodyAggGeom.SphylElems;
+		const int32 NumSphyls = MutablePhysicsBody->GetSphylCount(BodyIndex);
+		AggSphyls.Empty(NumSphyls);
+
+		for (int32 I = 0; I < NumSphyls; ++I)
+		{
+			uint32 Flags = MutablePhysicsBody->GetSphylFlags(BodyIndex, I);
+			FString Name = MutablePhysicsBody->GetSphylName(BodyIndex, I);
+
+			FVector3f Position;
+			FQuat4f Orientation;
+			float Radius;
+			float Length;
+
+			MutablePhysicsBody->GetSphyl(BodyIndex, I, Position, Orientation, Radius, Length);
+
+			FKSphylElem& NewElem = AggSphyls.AddDefaulted_GetRef();
+			
+			NewElem.Center = FVector(Position);
+			NewElem.Rotation = FRotator(Orientation.Rotator());
+			NewElem.Radius = Radius;
+			NewElem.Length = Length;
+			
+			NewElem.SetContributeToMass(GetContributeToMassFromFlags(Flags));
+			NewElem.SetCollisionEnabled(GetCollisionEnabledFormFlags(Flags));
+			NewElem.SetName(FName(*Name));
+		}	
+
+		TArray<FKTaperedCapsuleElem>& AggTaperedCapsules = BodyAggGeom.TaperedCapsuleElems;
+		const int32 NumTaperedCapsules = MutablePhysicsBody->GetTaperedCapsuleCount(BodyIndex);
+		AggTaperedCapsules.Empty(NumTaperedCapsules);
+
+		for (int32 I = 0; I < NumTaperedCapsules; ++I)
+		{
+			uint32 Flags = MutablePhysicsBody->GetTaperedCapsuleFlags(BodyIndex, I);
+			FString Name = MutablePhysicsBody->GetTaperedCapsuleName(BodyIndex, I);
+
+			FVector3f Position;
+			FQuat4f Orientation;
+			float Radius0;
+			float Radius1;
+			float Length;
+
+			MutablePhysicsBody->GetTaperedCapsule(BodyIndex, I, Position, Orientation, Radius0, Radius1, Length);
+
+			FKTaperedCapsuleElem& NewElem = AggTaperedCapsules.AddDefaulted_GetRef();
+			
+			NewElem.Center = FVector(Position);
+			NewElem.Rotation = FRotator(Orientation.Rotator());
+			NewElem.Radius0 = Radius0;
+			NewElem.Radius1 = Radius1;
+			NewElem.Length = Length;
+			
+			NewElem.SetContributeToMass(GetContributeToMassFromFlags(Flags));
+			NewElem.SetCollisionEnabled(GetCollisionEnabledFormFlags(Flags));
+			NewElem.SetName(FName(*Name));
+		}	
+
+		return BodyAggGeom;
+	};
+
+	TObjectPtr<UPhysicsAsset> MakePhysicsAssetFromTemplateAndMutableBody(
+		TObjectPtr<UPhysicsAsset> TemplateAsset, const mu::PhysicsBody* MutablePhysics) 
+	{
+		check(TemplateAsset);
+		TObjectPtr<UPhysicsAsset> Result = NewObject<UPhysicsAsset>();
+
+		if (!Result)
+		{
+			return nullptr;
+		}
+
+		Result->SolverSettings = TemplateAsset->SolverSettings;
+		Result->SolverType = TemplateAsset->SolverType;
+
+		Result->bNotForDedicatedServer = TemplateAsset->bNotForDedicatedServer;
+
+		TMap<FName, int32> BonesInUse;
+
+		const int32 MutablePhysicsBodyCount = MutablePhysics->GetBodyCount();
+		BonesInUse.Reserve(MutablePhysicsBodyCount);
+		for ( int32 I = 0; I < MutablePhysicsBodyCount; ++I )
+		{
+			BonesInUse.Add(FName(MutablePhysics->GetBodyBoneName(I)), I);
+		}
+
+		const int32 PhysicsAssetBodySetupNum = TemplateAsset->SkeletalBodySetups.Num();
+		bool bTemplateBodyNotUsedFound = false;
+
+		TArray<uint8> UsageMap;
+		UsageMap.Init(1, PhysicsAssetBodySetupNum);
+
+		for (int32 BodySetupIndex = 0; BodySetupIndex < PhysicsAssetBodySetupNum; ++BodySetupIndex)
+		{
+			const TObjectPtr<USkeletalBodySetup>& BodySetup = TemplateAsset->SkeletalBodySetups[BodySetupIndex];
+
+			int32* MutableBodyIndex = BonesInUse.Find(BodySetup->BoneName);
+			if (!MutableBodyIndex)
+			{
+				bTemplateBodyNotUsedFound = true;
+				UsageMap[BodySetupIndex] = 0;
+				continue;
+			}
+
+			TObjectPtr<USkeletalBodySetup> NewBodySetup = NewObject<USkeletalBodySetup>(Result);
+			NewBodySetup->BodySetupGuid = FGuid::NewGuid();
+
+			// Copy Body properties 	
+			NewBodySetup->BoneName = BodySetup->BoneName;
+			NewBodySetup->PhysicsType = BodySetup->PhysicsType;
+			NewBodySetup->bConsiderForBounds = BodySetup->bConsiderForBounds;
+			NewBodySetup->bMeshCollideAll = BodySetup->bMeshCollideAll;
+			NewBodySetup->bDoubleSidedGeometry = BodySetup->bDoubleSidedGeometry;
+			NewBodySetup->bGenerateNonMirroredCollision = BodySetup->bGenerateNonMirroredCollision;
+			NewBodySetup->bSharedCookedData = BodySetup->bSharedCookedData;
+			NewBodySetup->bGenerateMirroredCollision = BodySetup->bGenerateMirroredCollision;
+			NewBodySetup->PhysMaterial = BodySetup->PhysMaterial;
+			NewBodySetup->CollisionReponse = BodySetup->CollisionReponse;
+			NewBodySetup->CollisionTraceFlag = BodySetup->CollisionTraceFlag;
+			NewBodySetup->DefaultInstance = BodySetup->DefaultInstance;
+			NewBodySetup->WalkableSlopeOverride = BodySetup->WalkableSlopeOverride;
+			NewBodySetup->BuildScale3D = BodySetup->BuildScale3D;
+			NewBodySetup->bSkipScaleFromAnimation = BodySetup->bSkipScaleFromAnimation;
+
+			// PhysicalAnimationProfiles can't be added with the current UPhysicsAsset API outside the editor.
+			// Don't pouplate them for now.	
+			//NewBodySetup->PhysicalAnimationData = BodySetup->PhysicalAnimationData;
+
+			NewBodySetup->AggGeom = MakeAggGeomFromMutablePhysics(*MutableBodyIndex, MutablePhysics);
+
+			Result->SkeletalBodySetups.Add(NewBodySetup);
+		}
+
+		if (!bTemplateBodyNotUsedFound)
+		{
+			Result->CollisionDisableTable = TemplateAsset->CollisionDisableTable;
+			Result->ConstraintSetup = TemplateAsset->ConstraintSetup;
+		}
+		else
+		{
+			// Recreate the collision disable entry
+			Result->CollisionDisableTable.Reserve(TemplateAsset->CollisionDisableTable.Num());
+			for (const TPair<FRigidBodyIndexPair, bool>& CollisionDisableEntry : TemplateAsset->CollisionDisableTable)
+			{
+				const bool bIndex0Used = UsageMap[CollisionDisableEntry.Key.Indices[0]] > 0;
+				const bool bIndex1Used = UsageMap[CollisionDisableEntry.Key.Indices[1]] > 0;
+
+				if (bIndex0Used && bIndex1Used)
+				{
+					Result->CollisionDisableTable.Add(CollisionDisableEntry);
+				}
+			}
+
+			// Only add constraints that are part of the bones used for the mutable physics volumes description.
+			for (const TObjectPtr<UPhysicsConstraintTemplate>& Constrain : TemplateAsset->ConstraintSetup)
+			{
+				const FName BoneA = Constrain->DefaultInstance.ConstraintBone1;
+				const FName BoneB = Constrain->DefaultInstance.ConstraintBone2;
+
+				if (BonesInUse.Find(BoneA) && BonesInUse.Find(BoneB))
+				{
+					Result->ConstraintSetup.Add(Constrain);
+				}	
+			}
+		}
+		
+		Result->ConstraintSetup = TemplateAsset->ConstraintSetup;
+		
+		Result->UpdateBodySetupIndexMap();
+		Result->UpdateBoundsBodiesArray();
+
+
+
+	#if WITH_EDITORONLY_DATA
+		Result->ConstraintProfiles = TemplateAsset->ConstraintProfiles;
+	#endif
+
+		return Result;
+	}
+}
+
+UPhysicsAsset* UCustomizableInstancePrivateData::GetOrBuildMainPhysicsAsset(
 	TObjectPtr<UPhysicsAsset> TemplateAsset,
 	const mu::PhysicsBody* MutablePhysics, int32 ComponentId,
 	bool bDisableCollisionsBetweenDifferentAssets)
@@ -1115,147 +1381,146 @@ UPhysicsAsset* UCustomizableInstancePrivateData::GetOrBuildPhysicsAsset(
 
 	Result->bNotForDedicatedServer = TemplateAsset->bNotForDedicatedServer;
 
+	//auto MakeAggGeomFromMutablePhysics = [](int32 BodyIndex, const mu::PhysicsBody* MutablePhysicsBody) -> FKAggregateGeom
+	//{
+	//	FKAggregateGeom BodyAggGeom;
 
-	auto MakeAggGeomFromMutablePhysics = [](int32 BodyIndex, const mu::PhysicsBody* MutablePhysicsBody) -> FKAggregateGeom
-	{
-		FKAggregateGeom BodyAggGeom;
+	//	auto GetCollisionEnabledFormFlags = [](uint32 Flags) -> ECollisionEnabled::Type
+	//	{
+	//		return ECollisionEnabled::Type( Flags & 0xFF ); 
+	//	};
 
-		auto GetCollisionEnabledFormFlags = [](uint32 Flags) -> ECollisionEnabled::Type
-		{
-			return ECollisionEnabled::Type( Flags & 0xFF ); 
-		};
+	//	auto GetContributeToMassFromFlags = [](uint32 Flags) -> bool
+	//	{
+	//		return static_cast<bool>( (Flags >> 8 ) & 1 );
+	//	};
 
-		auto GetContributeToMassFromFlags = [](uint32 Flags) -> bool
-		{
-			return static_cast<bool>( (Flags >> 8 ) & 1 );
-		};
+	//	const int32 NumSpheres = MutablePhysicsBody->GetSphereCount( BodyIndex );
+	//	TArray<FKSphereElem>& AggSpheres = BodyAggGeom.SphereElems;
+	//	AggSpheres.Empty(NumSpheres);
+	//	for (int32 I = 0; I < NumSpheres; ++I)
+	//	{
+	//		uint32 Flags = MutablePhysicsBody->GetSphereFlags( BodyIndex, I );
+	//		FString Name = MutablePhysicsBody->GetSphereName( BodyIndex, I );
 
-		const int32 NumSpheres = MutablePhysicsBody->GetSphereCount( BodyIndex );
-		TArray<FKSphereElem>& AggSpheres = BodyAggGeom.SphereElems;
-		AggSpheres.Empty(NumSpheres);
-		for (int32 I = 0; I < NumSpheres; ++I)
-		{
-			uint32 Flags = MutablePhysicsBody->GetSphereFlags( BodyIndex, I );
-			FString Name = MutablePhysicsBody->GetSphereName( BodyIndex, I );
+	//		FVector3f Position;
+	//		float Radius;
 
-			FVector3f Position;
-			float Radius;
+	//		MutablePhysicsBody->GetSphere( BodyIndex, I, Position, Radius );
+	//		FKSphereElem& NewElem = AggSpheres.AddDefaulted_GetRef();
+	//		
+	//		NewElem.Center = FVector(Position);
+	//		NewElem.Radius = Radius;
+	//		NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
+	//		NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
+	//		NewElem.SetName(FName(*Name));
+	//	}
+	//	
+	//	const int32 NumBoxes = MutablePhysicsBody->GetBoxCount( BodyIndex );
+	//	TArray<FKBoxElem>& AggBoxes = BodyAggGeom.BoxElems;
+	//	AggBoxes.Empty(NumBoxes);
+	//	for (int32 I = 0; I < NumBoxes; ++I)
+	//	{
+	//		uint32 Flags = MutablePhysicsBody->GetBoxFlags( BodyIndex, I );
+	//		FString Name = MutablePhysicsBody->GetBoxName( BodyIndex, I );
 
-			MutablePhysicsBody->GetSphere( BodyIndex, I, Position, Radius );
-			FKSphereElem& NewElem = AggSpheres.AddDefaulted_GetRef();
-			
-			NewElem.Center = FVector(Position);
-			NewElem.Radius = Radius;
-			NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
-			NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
-			NewElem.SetName(FName(*Name));
-		}
-		
-		const int32 NumBoxes = MutablePhysicsBody->GetBoxCount( BodyIndex );
-		TArray<FKBoxElem>& AggBoxes = BodyAggGeom.BoxElems;
-		AggBoxes.Empty(NumBoxes);
-		for (int32 I = 0; I < NumBoxes; ++I)
-		{
-			uint32 Flags = MutablePhysicsBody->GetBoxFlags( BodyIndex, I );
-			FString Name = MutablePhysicsBody->GetBoxName( BodyIndex, I );
+	//		FVector3f Position;
+	//		FQuat4f Orientation;
+	//		FVector3f Size;
+	//		MutablePhysicsBody->GetBox( BodyIndex, I, Position, Orientation, Size );
 
-			FVector3f Position;
-			FQuat4f Orientation;
-			FVector3f Size;
-			MutablePhysicsBody->GetBox( BodyIndex, I, Position, Orientation, Size );
+	//		FKBoxElem& NewElem = AggBoxes.AddDefaulted_GetRef();
+	//		
+	//		NewElem.Center = FVector( Position );
+	//		NewElem.Rotation = FRotator( Orientation.Rotator() );
+	//		NewElem.X = Size.X;
+	//		NewElem.Y = Size.Y;
+	//		NewElem.Z = Size.Z;
+	//		NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
+	//		NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
+	//		NewElem.SetName( FName(*Name) );
+	//	}
 
-			FKBoxElem& NewElem = AggBoxes.AddDefaulted_GetRef();
-			
-			NewElem.Center = FVector( Position );
-			NewElem.Rotation = FRotator( Orientation.Rotator() );
-			NewElem.X = Size.X;
-			NewElem.Y = Size.Y;
-			NewElem.Z = Size.Z;
-			NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
-			NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
-			NewElem.SetName( FName(*Name) );
-		}
+	//	//const int32 NumConvexes = MutablePhysicsBody->GetConvexCount( BodyIndex );
+	//	//TArray<FKConvexElem>& AggConvexes = BodyAggGeom.ConvexElems;
+	//	//AggConvexes.Empty();
+	//	//for (int32 I = 0; I < NumConvexes; ++I)
+	//	//{
+	//	//	uint32 Flags = MutablePhysicsBody->GetConvexFlags( BodyIndex, I );
+	//	//	FString Name = MutablePhysicsBody->GetConvexName( BodyIndex, I );
 
-		//const int32 NumConvexes = MutablePhysicsBody->GetConvexCount( BodyIndex );
-		//TArray<FKConvexElem>& AggConvexes = BodyAggGeom.ConvexElems;
-		//AggConvexes.Empty();
-		//for (int32 I = 0; I < NumConvexes; ++I)
-		//{
-		//	uint32 Flags = MutablePhysicsBody->GetConvexFlags( BodyIndex, I );
-		//	FString Name = MutablePhysicsBody->GetConvexName( BodyIndex, I );
+	//	//	const FVector3f* Vertices;
+	//	//	const int32* Indices;
+	//	//	int32 NumVertices;
+	//	//	int32 NumIndices;
+	//	//	FTransform3f Transform;
 
-		//	const FVector3f* Vertices;
-		//	const int32* Indices;
-		//	int32 NumVertices;
-		//	int32 NumIndices;
-		//	FTransform3f Transform;
+	//	//	MutablePhysicsBody->GetConvex( BodyIndex, I, Vertices, NumVertices, Indices, NumIndices, Transform );
+	//	//	
+	//	//	TArrayView<const FVector3f> VerticesView( Vertices, NumVertices );
+	//	//	TArrayView<const int32> IndicesView( Indices, NumIndices );
+	//	//}
 
-		//	MutablePhysicsBody->GetConvex( BodyIndex, I, Vertices, NumVertices, Indices, NumIndices, Transform );
-		//	
-		//	TArrayView<const FVector3f> VerticesView( Vertices, NumVertices );
-		//	TArrayView<const int32> IndicesView( Indices, NumIndices );
-		//}
+	//	TArray<FKSphylElem>& AggSphyls = BodyAggGeom.SphylElems;
+	//	const int32 NumSphyls = MutablePhysicsBody->GetSphylCount( BodyIndex );
+	//	AggSphyls.Empty(NumSphyls);
 
-		TArray<FKSphylElem>& AggSphyls = BodyAggGeom.SphylElems;
-		const int32 NumSphyls = MutablePhysicsBody->GetSphylCount( BodyIndex );
-		AggSphyls.Empty(NumSphyls);
+	//	for (int32 I = 0; I < NumSphyls; ++I)
+	//	{
+	//		uint32 Flags = MutablePhysicsBody->GetSphylFlags( BodyIndex, I );
+	//		FString Name = MutablePhysicsBody->GetSphylName( BodyIndex, I );
 
-		for (int32 I = 0; I < NumSphyls; ++I)
-		{
-			uint32 Flags = MutablePhysicsBody->GetSphylFlags( BodyIndex, I );
-			FString Name = MutablePhysicsBody->GetSphylName( BodyIndex, I );
+	//		FVector3f Position;
+	//		FQuat4f Orientation;
+	//		float Radius;
+	//		float Length;
 
-			FVector3f Position;
-			FQuat4f Orientation;
-			float Radius;
-			float Length;
+	//		MutablePhysicsBody->GetSphyl( BodyIndex, I, Position, Orientation, Radius, Length );
 
-			MutablePhysicsBody->GetSphyl( BodyIndex, I, Position, Orientation, Radius, Length );
+	//		FKSphylElem& NewElem = AggSphyls.AddDefaulted_GetRef();
+	//		
+	//		NewElem.Center = FVector( Position );
+	//		NewElem.Rotation = FRotator( Orientation.Rotator() );
+	//		NewElem.Radius = Radius;
+	//		NewElem.Length = Length;
+	//		
+	//		NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
+	//		NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
+	//		NewElem.SetName( FName(*Name) );
+	//	}	
 
-			FKSphylElem& NewElem = AggSphyls.AddDefaulted_GetRef();
-			
-			NewElem.Center = FVector( Position );
-			NewElem.Rotation = FRotator( Orientation.Rotator() );
-			NewElem.Radius = Radius;
-			NewElem.Length = Length;
-			
-			NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
-			NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
-			NewElem.SetName( FName(*Name) );
-		}	
+	//	TArray<FKTaperedCapsuleElem>& AggTaperedCapsules = BodyAggGeom.TaperedCapsuleElems;
+	//	const int32 NumTaperedCapsules = MutablePhysicsBody->GetTaperedCapsuleCount( BodyIndex );
+	//	AggTaperedCapsules.Empty(NumTaperedCapsules);
 
-		TArray<FKTaperedCapsuleElem>& AggTaperedCapsules = BodyAggGeom.TaperedCapsuleElems;
-		const int32 NumTaperedCapsules = MutablePhysicsBody->GetTaperedCapsuleCount( BodyIndex );
-		AggTaperedCapsules.Empty(NumTaperedCapsules);
+	//	for (int32 I = 0; I < NumTaperedCapsules; ++I)
+	//	{
+	//		uint32 Flags = MutablePhysicsBody->GetTaperedCapsuleFlags( BodyIndex, I );
+	//		FString Name = MutablePhysicsBody->GetTaperedCapsuleName( BodyIndex, I );
 
-		for (int32 I = 0; I < NumTaperedCapsules; ++I)
-		{
-			uint32 Flags = MutablePhysicsBody->GetTaperedCapsuleFlags( BodyIndex, I );
-			FString Name = MutablePhysicsBody->GetTaperedCapsuleName( BodyIndex, I );
+	//		FVector3f Position;
+	//		FQuat4f Orientation;
+	//		float Radius0;
+	//		float Radius1;
+	//		float Length;
 
-			FVector3f Position;
-			FQuat4f Orientation;
-			float Radius0;
-			float Radius1;
-			float Length;
+	//		MutablePhysicsBody->GetTaperedCapsule( BodyIndex, I, Position, Orientation, Radius0, Radius1, Length );
 
-			MutablePhysicsBody->GetTaperedCapsule( BodyIndex, I, Position, Orientation, Radius0, Radius1, Length );
+	//		FKTaperedCapsuleElem& NewElem = AggTaperedCapsules.AddDefaulted_GetRef();
+	//		
+	//		NewElem.Center = FVector( Position );
+	//		NewElem.Rotation = FRotator( Orientation.Rotator() );
+	//		NewElem.Radius0 = Radius0;
+	//		NewElem.Radius1 = Radius1;
+	//		NewElem.Length = Length;
+	//		
+	//		NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
+	//		NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
+	//		NewElem.SetName( FName(*Name) );	
+	//	}	
 
-			FKTaperedCapsuleElem& NewElem = AggTaperedCapsules.AddDefaulted_GetRef();
-			
-			NewElem.Center = FVector( Position );
-			NewElem.Rotation = FRotator( Orientation.Rotator() );
-			NewElem.Radius0 = Radius0;
-			NewElem.Radius1 = Radius1;
-			NewElem.Length = Length;
-			
-			NewElem.SetContributeToMass( GetContributeToMassFromFlags( Flags ) );
-			NewElem.SetCollisionEnabled( GetCollisionEnabledFormFlags( Flags ) );
-			NewElem.SetName( FName(*Name) );	
-		}	
-
-		return BodyAggGeom;
-	};
+	//	return BodyAggGeom;
+	//};
 
 	TMap<FName, int32> BonesInUse;
 
@@ -1715,20 +1980,61 @@ bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCust
 				break;
 			}
 
-			// Build PhysicsAsset Merge Physics Assets coming from SubMeshes of the newly generated Mesh
+			// Build PhysicsAsset merging physics assets coming from SubMeshes of the newly generated Mesh
 			if (mu::Ptr<const mu::PhysicsBody> MutablePhysics = Component.Mesh->GetPhysicsBody())
 			{
 				constexpr bool bDisallowCollisionBetweenAssets = true;
-				UPhysicsAsset* PhysicsAssetResult = GetOrBuildPhysicsAsset(
+				UPhysicsAsset* PhysicsAssetResult = GetOrBuildMainPhysicsAsset(
 					RefSkeletalMeshData->PhysicsAsset.Get(), MutablePhysics.get(), Component.Id, bDisallowCollisionBetweenAssets);
 
 				SkeletalMesh->SetPhysicsAsset(PhysicsAssetResult);
 
 				if (PhysicsAssetResult)
 				{
+					// We are setting the physics asset mesh preview to the generated skeletal mesh.
+					// this is fine if the phyiscs asset is also generated, but not sure about referenced assets.
+					// In any case, don't mark the asset as modified.
+
 					// This is only called in editor, no need to add editor guards.	
-					PhysicsAssetResult->SetPreviewMesh(SkeletalMesh);
+					constexpr bool bMarkAsDirty = false;
+					PhysicsAssetResult->SetPreviewMesh(SkeletalMesh, bMarkAsDirty);
 				}
+				}
+
+			const int32 NumAdditionalPhysicsNum = Component.Mesh->AdditionalPhysicsBodies.Num();
+			for (int32 I = 0; I < NumAdditionalPhysicsNum; ++I)
+			{
+				mu::Ptr<const mu::PhysicsBody> AdditionalPhysiscBody = Component.Mesh->AdditionalPhysicsBodies[I];
+				
+				check(AdditionalPhysiscBody);
+				if (!AdditionalPhysiscBody->bBodiesModified)
+				{
+					continue;
+				}
+
+				const int32 PhysicsBodyExternalId = Component.Mesh->AdditionalPhysicsBodies[I]->CustomId;
+				
+				const FAnimBpOverridePhysicsAssetsInfo& Info = CustomizableObject->AnimBpOverridePhysiscAssetsInfo[PhysicsBodyExternalId];
+
+				// Make sure the AnimInstance class is loaded. It is expected to be already loaded at this point though. 
+				UClass* AnimInstanceClassLoaded = Info.AnimInstanceClass.LoadSynchronous();
+				TSubclassOf<UAnimInstance> AnimInstanceClass = TSubclassOf<UAnimInstance>(AnimInstanceClassLoaded);
+				if (!ensureAlways(AnimInstanceClass))
+				{
+					continue;
+				}
+
+				FAnimBpGeneratedPhysicsAssets& PhysicsAssetsUsedByAnimBp = AnimBpPhysicsAssets.FindOrAdd(AnimInstanceClass);
+
+				TObjectPtr<UPhysicsAsset> PhysicsAssetTemplate = TObjectPtr<UPhysicsAsset>(Info.SourceAsset.Get());
+
+				check(PhysicsAssetTemplate);
+
+				FAnimInstanceOverridePhysicsAsset& Entry =
+					PhysicsAssetsUsedByAnimBp.AnimInstancePropertyIndexAndPhysicsAssets.Emplace_GetRef();
+
+				Entry.PropertyIndex = Info.PropertyIndex;
+				Entry.PhysicsAsset = MakePhysicsAssetFromTemplateAndMutableBody(PhysicsAssetTemplate, AdditionalPhysiscBody.get());
 			}
 
 			// Add sockets from the SkeletalMesh of reference and from the MutableMesh
@@ -4672,6 +4978,7 @@ FGraphEventRef UCustomizableInstancePrivateData::LoadAdditionalAssetsAsync(const
 
 	GatheredAnimBPs.Empty();
 	AnimBPGameplayTags.Reset();
+	AnimBpPhysicsAssets.Reset();
 
 	for (const FInstanceUpdateData::FSurface& Surface : OperationData->InstanceUpdateData.Surfaces)
 	{
@@ -4867,6 +5174,15 @@ FGraphEventRef UCustomizableInstancePrivateData::LoadAdditionalAssetsAsync(const
 				}
 #endif
 			}
+
+			const int32 AdditionalPhysicsNum = MutableMesh->AdditionalPhysicsBodies.Num();
+			for (int32 I = 0; I < AdditionalPhysicsNum; ++I)
+			{
+				const int32 ExternalId = MutableMesh->AdditionalPhysicsBodies[I]->CustomId;
+				
+				ComponentData->PhysicsAssets.AdditionalPhysicsAssetsToLoad.Add(ExternalId);
+				AssetsToStream.Add(CustomizableObject->AnimBpOverridePhysiscAssetsInfo[ExternalId].SourceAsset.ToSoftObjectPath());
+			}
 		}
 	}
 
@@ -5009,6 +5325,17 @@ void UCustomizableInstancePrivateData::AdditionalAssetsAsyncLoaded(UCustomizable
 			}
 #endif
 		}
+
+		const int32 AdditionalPhysicsNum = ComponentData.PhysicsAssets.AdditionalPhysicsAssetsToLoad.Num();
+		ComponentData.PhysicsAssets.AdditionalPhysicsAssets.Reserve(AdditionalPhysicsNum);
+		for (int32 I = 0; I < AdditionalPhysicsNum; ++I)
+		{
+			// Make the loaded assets references strong.
+			const int32 AnimBpPhysicsOverrideIndex = ComponentData.PhysicsAssets.AdditionalPhysicsAssetsToLoad[I];
+			ComponentData.PhysicsAssets.AdditionalPhysicsAssets.Add( 
+					CustomizableObject->AnimBpOverridePhysiscAssetsInfo[AnimBpPhysicsOverrideIndex].SourceAsset.Get());
+		}
+		ComponentData.PhysicsAssets.AdditionalPhysicsAssetsToLoad.Empty();
 	}
 }
 
@@ -6145,6 +6472,94 @@ void UCustomizableObjectInstance::ForEachAnimInstance(int32 ComponentIndex, FEac
 			}
 		}
 	}
+}
+
+bool UCustomizableObjectInstance::AnimInstanceNeedsFixup(TSubclassOf<UAnimInstance> AnimInstanceClass) const
+{
+	return PrivateData->AnimBpPhysicsAssets.Contains(AnimInstanceClass);
+}
+
+void UCustomizableObjectInstance::AnimInstanceFixup(UAnimInstance* InAnimInstance) const
+{
+	if (!InAnimInstance)
+	{
+		return;
+	}
+
+	TSubclassOf<UAnimInstance> AnimInstanceClass = InAnimInstance->GetClass();
+
+	const TArray<FAnimInstanceOverridePhysicsAsset>* AnimInstanceOverridePhysicsAssets = 
+			PrivateData->GetGeneratedPhysicsAssetsForAnimInstance(AnimInstanceClass);
+	
+	if (!AnimInstanceOverridePhysicsAssets)
+	{
+		return;
+	}
+
+	// Swap RigidBody anim nodes override physics assets with mutable generated ones.
+	if (UAnimBlueprintGeneratedClass* AnimClass = Cast<UAnimBlueprintGeneratedClass>(AnimInstanceClass))
+	{
+		bool bPropertyMismatchFound = false;
+		const int32 AnimNodePropertiesNum = AnimClass->AnimNodeProperties.Num();
+
+		for (const FAnimInstanceOverridePhysicsAsset& PropIndexAndAsset : *AnimInstanceOverridePhysicsAssets)
+		{
+			check(PropIndexAndAsset.PropertyIndex >= 0);
+			if (PropIndexAndAsset.PropertyIndex >= AnimNodePropertiesNum)
+			{
+				bPropertyMismatchFound = true;
+				continue;
+			}
+
+			const int32 AnimNodePropIndex = PropIndexAndAsset.PropertyIndex;
+
+			FStructProperty* StructProperty = AnimClass->AnimNodeProperties[AnimNodePropIndex];
+
+			if (!ensure(StructProperty))
+			{
+				bPropertyMismatchFound = true;
+				continue;
+			}
+
+			const bool bIsRigidBodyNode = StructProperty->Struct->IsChildOf(FAnimNode_RigidBody::StaticStruct());
+
+			if (!bIsRigidBodyNode)
+			{
+				bPropertyMismatchFound = true;
+				continue;
+			}
+
+			FAnimNode_RigidBody* RbanNode = StructProperty->ContainerPtrToValuePtr<FAnimNode_RigidBody>(InAnimInstance);
+
+			if (!ensure(RbanNode))
+			{
+				bPropertyMismatchFound = true;
+				continue;
+			}
+
+			RbanNode->OverridePhysicsAsset = PropIndexAndAsset.PhysicsAsset;
+		}
+#if WITH_EDITOR
+		if (bPropertyMismatchFound)
+		{
+			UE_LOG(LogMutable, Warning, TEXT("AnimBp %s is not in sync with the data stored in the CO %s. A CO recompilation may be needed."),
+				*AnimInstanceClass.Get()->GetName(), 
+				*GetCustomizableObject()->GetName());
+		}
+#endif
+	}
+}
+
+const TArray<FAnimInstanceOverridePhysicsAsset>* UCustomizableInstancePrivateData::GetGeneratedPhysicsAssetsForAnimInstance(TSubclassOf<UAnimInstance> AnimInstanceClass) const
+{
+	const FAnimBpGeneratedPhysicsAssets* Found = AnimBpPhysicsAssets.Find(AnimInstanceClass);
+
+	if (!Found)
+	{
+		return nullptr;
+	}
+
+	return &Found->AnimInstancePropertyIndexAndPhysicsAssets;
 }
 
 void UCustomizableObjectInstance::ForEachAnimInstance(int32 ComponentIndex, FEachComponentAnimInstanceClassNativeDelegate Delegate) const

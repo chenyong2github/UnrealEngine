@@ -27,11 +27,28 @@ namespace mu
 	{
 		mu::Ptr<PhysicsBody> pResult = new PhysicsBody();
 
+		pResult->CustomId = CustomId;
+
 		pResult->Bodies = Bodies;
 		pResult->Bones = Bones;
-		pResult->CustomIds = CustomIds;
+		pResult->BodiesCustomIds = BodiesCustomIds;
+
+		pResult->bBodiesModified = bBodiesModified;
+
 
 		return pResult;
+	}
+
+	//-------------------------------------------------------------------------------------------------
+	void PhysicsBody::SetCustomId(int32 InCustomId)
+	{
+		CustomId = InCustomId;
+	}
+
+	//-------------------------------------------------------------------------------------------------
+	int32 PhysicsBody::GetCustomId() const
+	{
+		return CustomId;
 	}
 
 	//-------------------------------------------------------------------------------------------------
@@ -39,7 +56,7 @@ namespace mu
 	{
 		Bodies.SetNum(Count);
 		Bones.SetNum(Count);
-		CustomIds.Init(-1, Count);
+		BodiesCustomIds.Init(-1, Count);
 	}
 
 	//-------------------------------------------------------------------------------------------------
@@ -67,17 +84,17 @@ namespace mu
 	//-------------------------------------------------------------------------------------------------
 	int32 PhysicsBody::GetBodyCustomId(int32 B) const
 	{
-		check(B >= 0 && B < CustomIds.Num());
+		check(B >= 0 && B < BodiesCustomIds.Num());
 
-		return CustomIds[B];
+		return BodiesCustomIds[B];
 	}
 
 	//-------------------------------------------------------------------------------------------------
-	void PhysicsBody::SetBodyCustomId(int32 B, int32 CustomId)
+	void PhysicsBody::SetBodyCustomId(int32 B, int32 BodyCustomId)
 	{
-		check(B >= 0 && B < CustomIds.Num());
+		check(B >= 0 && B < BodiesCustomIds.Num());
 
-		CustomIds[B] = CustomId;
+		BodiesCustomIds[B] = BodyCustomId;
 	}
 
 	//-------------------------------------------------------------------------------------------------

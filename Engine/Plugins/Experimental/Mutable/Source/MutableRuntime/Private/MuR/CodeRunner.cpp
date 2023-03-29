@@ -2013,17 +2013,17 @@ namespace mu
 
 		case OP_TYPE::ME_BINDSHAPE:
 		{
-			OP::MeshBindShapeArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshBindShapeArgs>(item.At);
-			const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.At);
+			OP::MeshBindShapeArgs Args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshBindShapeArgs>(item.At);
+			const uint8* Data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.At);
 
 			switch (item.Stage)
 			{
 			case 0:
-				if (args.mesh)
+				if (Args.mesh)
 				{
 					AddOp(FScheduledOp(item.At, item, 1),
-							FScheduledOp(args.mesh, item),
-							FScheduledOp(args.shape, item));
+							FScheduledOp(Args.mesh, item),
+							FScheduledOp(Args.shape, item));
 				}
 				else
 				{
@@ -2034,47 +2034,70 @@ namespace mu
 			case 1:
 			{
 				MUTABLE_CPUPROFILER_SCOPE(ME_BINDSHAPE_1)
+				Ptr<const Mesh> BaseMesh = GetMemory().GetMesh(FCacheAddress(Args.mesh, item));
+				Ptr<const Mesh> Shape = GetMemory().GetMesh(FCacheAddress(Args.shape, item));
 				
-				Ptr<const Mesh> BaseMesh = GetMemory().GetMesh(FCacheAddress(args.mesh, item));
-				Ptr<const Mesh> Shape = GetMemory().GetMesh(FCacheAddress(args.shape, item));
 				
-				EShapeBindingMethod BindingMethod = static_cast<EShapeBindingMethod>(args.bindingMethod); 
+				EShapeBindingMethod BindingMethod = static_cast<EShapeBindingMethod>(Args.bindingMethod); 
 
 				if (BindingMethod == EShapeBindingMethod::ReshapeClosestProject)
 				{ 
 					// Bones are stored after the args
-					data += sizeof(args);
+					Data += sizeof(Args);
 
 					// Rebuilding array of bone names ----
 					int32 NumBones;
-					FMemory::Memcpy(&NumBones, data, sizeof(int32)); 
-					data += sizeof(int32);
+					FMemory::Memcpy(&NumBones, Data, sizeof(int32)); 
+					Data += sizeof(int32);
 					
 					TArray<string> BonesToDeform;
 					BonesToDeform.SetNum(NumBones);
 					for (int32 b = 0; b < NumBones; ++b)
 					{
-						BonesToDeform[b] = pModel->GetPrivate()->m_program.m_constantStrings[*data].c_str();
-						data += sizeof(int32);
+						int32 ConstStringIndex;
+						FMemory::Memcpy(&ConstStringIndex, Data, sizeof(int32));
+						BonesToDeform[b] = pModel->GetPrivate()->m_program.m_constantStrings[ConstStringIndex].c_str();
+						Data += sizeof(int32);
 					}
 
 					int32 NumPhysicsBodies;
-					FMemory::Memcpy(&NumPhysicsBodies, data, sizeof(int32)); 
-					data += sizeof(int32);
+					FMemory::Memcpy(&NumPhysicsBodies, Data, sizeof(int32)); 
+					Data += sizeof(int32);
 
 					TArray<string> PhysicsToDeform;
 					PhysicsToDeform.SetNum(NumPhysicsBodies);
 					for (int32 b = 0; b < NumPhysicsBodies; ++b)
 					{
-						PhysicsToDeform[b] = pModel->GetPrivate()->m_program.m_constantStrings[*data].c_str();
-						data += sizeof(int32);
+						int32 ConstStringIndex;
+						FMemory::Memcpy(&ConstStringIndex, Data, sizeof(int32));
+						PhysicsToDeform[b] = pModel->GetPrivate()->m_program.m_constantStrings[ConstStringIndex].c_str();
+						Data += sizeof(int32);
 					}
 
+					const EMeshBindShapeFlags BindFlags = static_cast<EMeshBindShapeFlags>(Args.flags);
+
 					// -----------
-					Ptr<Mesh> pResult = MeshBindShapeReshape( BaseMesh.get(), Shape.get(), BonesToDeform, PhysicsToDeform, 
-						    static_cast<EMeshBindShapeFlags>(args.flags));
+					Ptr<Mesh> BindMesh = 
+						MeshBindShapeReshape( BaseMesh.get(), Shape.get(), BonesToDeform, PhysicsToDeform, BindFlags);
 					
-					GetMemory().SetMesh(item, pResult);
+					// null bind mesh indicates nothing has bond so the base mesh can be reused.
+					if (BindMesh)
+					{
+						if (!EnumHasAnyFlags(BindFlags, EMeshBindShapeFlags::ReshapeVertices))
+						{
+							Ptr<Mesh> BindMeshNoVerts = BaseMesh->Clone();
+							BindMeshNoVerts->m_AdditionalBuffers = MoveTemp(BindMesh->m_AdditionalBuffers);
+							GetMemory().SetMesh(item, BindMeshNoVerts);
+						}
+						else
+						{
+							GetMemory().SetMesh(item, BindMesh);
+						}
+					}
+					else
+					{
+						GetMemory().SetMesh(item, BaseMesh);
+					}	
 				}	
 				else
 				{
@@ -2118,10 +2141,37 @@ namespace mu
 				Ptr<const Mesh> BaseMesh = GetMemory().GetMesh(FCacheAddress(args.mesh, item));
 				Ptr<const Mesh> Shape = GetMemory().GetMesh(FCacheAddress(args.shape, item));
 
+				const EMeshBindShapeFlags ReshapeFlags = static_cast<EMeshBindShapeFlags>(args.flags);
+				Ptr<Mesh> ReshapedMesh = MeshApplyShape(BaseMesh.get(), Shape.get(), ReshapeFlags);
 
-				Ptr<Mesh> pResult = MeshApplyShape(BaseMesh.get(), Shape.get(), static_cast<EMeshBindShapeFlags>(args.flags));
+				const bool bReshapeVertices = EnumHasAnyFlags(ReshapeFlags, EMeshBindShapeFlags::ReshapeVertices);
 
-				GetMemory().SetMesh(item, pResult);
+				if (!ReshapedMesh)
+				{
+					GetMemory().SetMesh(item, BaseMesh);
+				}
+				else if (!bReshapeVertices)
+				{
+					// Clone without Skeleton, Physics or Poses 
+					EMeshCloneFlags CloneFlags = ~(
+							EMeshCloneFlags::WithSkeleton          | 
+							EMeshCloneFlags::WithPhysicsBody       |
+							EMeshCloneFlags::WithAdditionalPhysics |
+							EMeshCloneFlags::WithPoses);
+ 
+					Ptr<Mesh> Result = BaseMesh->Clone(CloneFlags);
+					Result->SetSkeleton(ReshapedMesh->GetSkeleton().get());
+					Result->SetPhysicsBody(ReshapedMesh->GetPhysicsBody().get());
+					Result->AdditionalPhysicsBodies = ReshapedMesh->AdditionalPhysicsBodies;
+					Result->BonePoses = ReshapedMesh->BonePoses;
+
+					GetMemory().SetMesh(item, Result);
+				}
+				else
+				{
+					GetMemory().SetMesh(item, ReshapedMesh);
+				}
+
 				break;
 			}
 

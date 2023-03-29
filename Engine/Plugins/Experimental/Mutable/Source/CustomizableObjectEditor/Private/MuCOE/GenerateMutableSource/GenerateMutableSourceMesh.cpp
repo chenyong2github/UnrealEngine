@@ -4,6 +4,9 @@
 
 #include "Algo/Count.h"
 #include "Animation/PoseAsset.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
+#include "Animation/AnimInstance.h"
+#include "AnimGraphNode_RigidBody.h"
 #include "ClothConfigBase.h"
 #include "ClothingAsset.h"
 #include "MeshUtilities.h"
@@ -372,13 +375,195 @@ void SetAndPropagatePoseBoneUsage(
 
 }
 
-mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD, int MaterialIndex, FMutableGraphGenerationContext& GenerationContext, const UCustomizableObjectNode* CurrentNode)
+TArray<TTuple<UPhysicsAsset*, int32>> GetPhysicsAssetsFromAnimInstance(const TSoftClassPtr<UAnimInstance>& AnimInstance)
+{
+	// TODO: Consider caching the result in the GenerationContext.
+	TArray<TTuple<UPhysicsAsset*, int32>> Result;
+
+	if (AnimInstance.IsNull())
+	{
+		return Result;
+	}
+
+	UClass* AnimInstanceClass = AnimInstance.LoadSynchronous();
+	UAnimBlueprintGeneratedClass* AnimClass = Cast<UAnimBlueprintGeneratedClass>(AnimInstanceClass);
+
+	if (AnimClass)
+	{
+		const int32 AnimNodePropertiesNum = AnimClass->AnimNodeProperties.Num();
+		for ( int32 PropertyIndex = 0; PropertyIndex < AnimNodePropertiesNum; ++PropertyIndex)
+		{
+			FStructProperty* StructProperty = AnimClass->AnimNodeProperties[PropertyIndex];
+
+			if (StructProperty->Struct->IsChildOf(FAnimNode_RigidBody::StaticStruct()))
+			{
+				FAnimNode_RigidBody* Rban = StructProperty->ContainerPtrToValuePtr<FAnimNode_RigidBody>(AnimInstanceClass->GetDefaultObject());
+			
+				if (Rban && Rban->OverridePhysicsAsset)
+				{
+					Result.Emplace(Rban->OverridePhysicsAsset, PropertyIndex);
+				}
+			}
+		}
+	}		
+
+	return Result;
+}
+
+TArray<uint8> MakePhysicsAssetBodySetupRelevancyMap(UPhysicsAsset* Asset, const mu::Ptr<mu::Mesh>& Mesh)
+{
+	const int32 BodySetupsNum = Asset->SkeletalBodySetups.Num();
+
+	TArray<uint8> RelevancyMap;
+	RelevancyMap.Init(0, BodySetupsNum);
+
+	if (!Mesh->GetSkeleton())
+	{
+		return RelevancyMap;
+	}
+
+	for (int32 BodyIndex = 0; BodyIndex < BodySetupsNum; ++BodyIndex)
+	{
+		FString BodyBoneName = Asset->SkeletalBodySetups[BodyIndex]->BoneName.ToString();
+
+		RelevancyMap[BodyIndex] = Mesh->GetSkeleton()->FindBone(TCHAR_TO_ANSI(*BodyBoneName)) >= 0;
+	}
+
+	return RelevancyMap;
+}
+
+mu::Ptr<mu::PhysicsBody> MakePhysicsBodyFromAsset(UPhysicsAsset* Asset, const TArray<uint8>& BodySetupRelevancyMap)
+{
+	check(Asset);
+	check(Asset->SkeletalBodySetups.Num() == BodySetupRelevancyMap.Num());
+
+	// Find BodySetups with relevant bones.
+	TArray<TObjectPtr<USkeletalBodySetup>>& SkeletalBodySetups = Asset->SkeletalBodySetups;
+	
+	const int32 NumRelevantSetups = Algo::CountIf(BodySetupRelevancyMap, [](uint8 V) { return V; });
+
+	mu::Ptr<mu::PhysicsBody> PhysicsBody = new mu::PhysicsBody;
+	
+	PhysicsBody->SetBodyCount(NumRelevantSetups);
+
+	auto GetKBodyElemFlags = [](const FKShapeElem& KElem) -> uint32
+	{
+		uint8 ElemCollisionEnabled = static_cast<uint8>( KElem.GetCollisionEnabled() );
+		
+		uint32 Flags = static_cast<uint32>( ElemCollisionEnabled );
+		Flags = Flags | (static_cast<uint32>(KElem.GetContributeToMass()) << 8);
+
+		return Flags; 
+	};
+
+	for (int32 B = 0, SourceBodyIndex = 0; B < NumRelevantSetups; ++B)
+	{
+		if (!BodySetupRelevancyMap[SourceBodyIndex])
+		{
+			continue;
+		}
+
+		TObjectPtr<USkeletalBodySetup>& BodySetup = SkeletalBodySetups[SourceBodyIndex++];
+
+		FString BodyBoneName = BodySetup->BoneName.ToString();
+		PhysicsBody->SetBodyBoneName(B, TCHAR_TO_ANSI(*BodyBoneName));
+		
+		const int32 NumSpheres = BodySetup->AggGeom.SphereElems.Num();
+		PhysicsBody->SetSphereCount(B, NumSpheres);
+
+		for (int32 I = 0; I < NumSpheres; ++I)
+		{
+			const FKSphereElem& SphereElem = BodySetup->AggGeom.SphereElems[I];
+			PhysicsBody->SetSphere(B, I, FVector3f(SphereElem.Center), SphereElem.Radius);
+
+			const FString ElemName = SphereElem.GetName().ToString();
+			PhysicsBody->SetSphereName(B, I, TCHAR_TO_ANSI(*ElemName));	
+			PhysicsBody->SetSphereFlags(B, I, GetKBodyElemFlags(SphereElem));
+		}
+
+		const int32 NumBoxes = BodySetup->AggGeom.BoxElems.Num();
+		PhysicsBody->SetBoxCount(B, NumBoxes);
+
+		for (int32 I = 0; I < NumBoxes; ++I)
+		{
+			const FKBoxElem& BoxElem = BodySetup->AggGeom.BoxElems[I];
+			PhysicsBody->SetBox(B, I, 
+					FVector3f(BoxElem.Center), 
+					FQuat4f(BoxElem.Rotation.Quaternion()), 
+					FVector3f(BoxElem.X, BoxElem.Y, BoxElem.Z));
+
+			const FString KElemName = BoxElem.GetName().ToString();
+			PhysicsBody->SetBoxName(B, I, TCHAR_TO_ANSI(*KElemName));
+			PhysicsBody->SetBoxFlags(B, I, GetKBodyElemFlags(BoxElem));
+		}
+
+		const int32 NumConvex = BodySetup->AggGeom.ConvexElems.Num();
+		PhysicsBody->SetConvexCount(B, NumConvex);
+		for (int32 I = 0; I < NumConvex; ++I)
+		{
+			const FKConvexElem& ConvexElem = BodySetup->AggGeom.ConvexElems[I];
+
+			// Convert to FVector3f
+			TArray<FVector3f> VertexData;
+			VertexData.SetNumUninitialized(ConvexElem.VertexData.Num());
+			for (int32 Elem = VertexData.Num() - 1; Elem >= 0; --Elem)
+			{
+				VertexData[Elem] = FVector3f(ConvexElem.VertexData[Elem]);
+			}
+			
+			PhysicsBody->SetConvexMesh(B, I,
+					TArrayView<const FVector3f>(VertexData.GetData(), ConvexElem.VertexData.Num()),
+					TArrayView<const int32>(ConvexElem.IndexData.GetData(), ConvexElem.IndexData.Num()));
+
+			PhysicsBody->SetConvexTransform(B, I, FTransform3f(ConvexElem.GetTransform()));
+			
+			const FString KElemName = ConvexElem.GetName().ToString();
+			PhysicsBody->SetConvexName(B, I, TCHAR_TO_ANSI(*KElemName));
+			PhysicsBody->SetConvexFlags(B, I, GetKBodyElemFlags(ConvexElem));
+		}
+
+		const int32 NumSphyls = BodySetup->AggGeom.SphylElems.Num();
+		PhysicsBody->SetSphylCount( B, NumSphyls );
+
+		for (int32 I = 0; I < NumSphyls; ++I)
+		{
+			const FKSphylElem& SphylElem = BodySetup->AggGeom.SphylElems[I];
+			PhysicsBody->SetSphyl( B, I, 
+					FVector3f(SphylElem.Center), 
+					FQuat4f(SphylElem.Rotation.Quaternion()), 
+					SphylElem.Radius, SphylElem.Length );
+
+			const FString KElemName = SphylElem.GetName().ToString();
+			PhysicsBody->SetSphylName(B, I, TCHAR_TO_ANSI(*KElemName));
+			PhysicsBody->SetSphylFlags(B, I, GetKBodyElemFlags(SphylElem));
+		}
+
+		const int32 NumTaperedCapsules = BodySetup->AggGeom.TaperedCapsuleElems.Num();
+		PhysicsBody->SetTaperedCapsuleCount( B, NumTaperedCapsules );
+
+		for (int32 I = 0; I < NumTaperedCapsules; ++I)
+		{
+			const FKTaperedCapsuleElem& TaperedCapsuleElem = BodySetup->AggGeom.TaperedCapsuleElems[I];
+			PhysicsBody->SetTaperedCapsule(B, I, 
+					FVector3f(TaperedCapsuleElem.Center), 
+					FQuat4f(TaperedCapsuleElem.Rotation.Quaternion()), 
+					TaperedCapsuleElem.Radius0, TaperedCapsuleElem.Radius1, TaperedCapsuleElem.Length);
+			
+			const FString KElemName = TaperedCapsuleElem.GetName().ToString();
+			PhysicsBody->SetTaperedCapsuleName(B, I, TCHAR_TO_ANSI(*KElemName));
+			PhysicsBody->SetTaperedCapsuleFlags(B, I, GetKBodyElemFlags(TaperedCapsuleElem));
+		}
+	}
+
+	return PhysicsBody;
+}
+
+mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, const TSoftClassPtr<UAnimInstance>& AnimBp, int LOD, int MaterialIndex, FMutableGraphGenerationContext& GenerationContext, const UCustomizableObjectNode* CurrentNode)
 {
 	// Get the mesh generation flags to use
 	const EMutableMeshConversionFlags CurrentFlags = GenerationContext.MeshGenerationFlags.Last();
 	const bool bIgnoreSkeleton = EnumHasAnyFlags(CurrentFlags, EMutableMeshConversionFlags::IgnoreSkinning);
-	const bool bIgnorePhysics = EnumHasAnyFlags(CurrentFlags, EMutableMeshConversionFlags::IgnorePhysics) || 
-								!GenerationContext.Options.bPhysicsAssetMergeEnabled;
+	const bool bIgnorePhysics = EnumHasAnyFlags(CurrentFlags, EMutableMeshConversionFlags::IgnorePhysics);
 
 	mu::MeshPtr MutableMesh = new mu::Mesh();
 		
@@ -1339,7 +1524,8 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 		}
 	}
 
-	if (!bIgnorePhysics && SkeletalMesh->GetPhysicsAsset() && MutableMesh->GetSkeleton())
+	const bool bPhysicsMergeEnabled = GenerationContext.Options.bPhysicsAssetMergeEnabled;
+	if (!bIgnorePhysics && SkeletalMesh->GetPhysicsAsset() && MutableMesh->GetSkeleton() && bPhysicsMergeEnabled)
 	{
 		// Find BodySetups with relevant bones.
 		TArray<TObjectPtr<USkeletalBodySetup>>& SkeletalBodySetups = SkeletalMesh->GetPhysicsAsset()->SkeletalBodySetups;
@@ -1555,6 +1741,36 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 		}
 	}
 
+	const bool bAnimPhysicsManipulationEnabled = GenerationContext.Options.bAnimBpPhysicsManipulationEnabled;
+
+	if (!bIgnorePhysics && !AnimBp.IsNull() && MutableMesh->GetSkeleton() && bAnimPhysicsManipulationEnabled)
+	{
+		using AnimPhysicsInfoType = TTuple<UPhysicsAsset*, int32>;
+		const TArray<AnimPhysicsInfoType> AnimPhysicsInfo = GetPhysicsAssetsFromAnimInstance(AnimBp);
+
+		for (const AnimPhysicsInfoType PropertyInfo : AnimPhysicsInfo)
+		{
+			UPhysicsAsset* const PropertyAsset = PropertyInfo.Get<UPhysicsAsset*>();
+			const int32 PropertyIndex = PropertyInfo.Get<int32>();
+
+			FAnimBpOverridePhysicsAssetsInfo Info;
+			{
+				Info.AnimInstanceClass = AnimBp;
+				Info.PropertyIndex = PropertyIndex;
+				Info.SourceAsset = TSoftObjectPtr<UPhysicsAsset>(PropertyAsset);
+			}
+
+			const int32 PhysicsAssetId = GenerationContext.AnimBpOverridePhysicsAssetsInfo.AddUnique(Info);
+
+			mu::Ptr<mu::PhysicsBody> MutableBody = MakePhysicsBodyFromAsset(
+					PropertyAsset,
+					MakePhysicsAssetBodySetupRelevancyMap(PropertyAsset, MutableMesh));
+			MutableBody->CustomId = PhysicsAssetId;
+
+			MutableMesh->AddAdditionalPhysicsBody(MutableBody);
+		}
+	}
+
 	return MutableMesh;
 }
 
@@ -1741,14 +1957,13 @@ mu::MeshPtr ConvertStaticMeshToMutable(UStaticMesh* StaticMesh, int LOD, int Mat
 		}
 	}
 
-
 	return MutableMesh;
 }
 
 
 // Convert a Mesh constant to a mutable format. UniqueTags are the tags that make this Mesh unique that cannot be merged in the cache 
 //  with the exact same Mesh with other tags
-mu::MeshPtr GenerateMutableMesh(UObject * Mesh, int32 LOD, int32 MaterialIndex, const FString& UniqueTags, FMutableGraphGenerationContext & GenerationContext, const UCustomizableObjectNode* CurrentNode)
+mu::MeshPtr GenerateMutableMesh(UObject * Mesh, const TSoftClassPtr<UAnimInstance>& AnimInstance, int32 LOD, int32 MaterialIndex, const FString& UniqueTags, FMutableGraphGenerationContext & GenerationContext, const UCustomizableObjectNode* CurrentNode)
 {
 	// Get the mesh generation flags to use
 	EMutableMeshConversionFlags CurrentFlags = GenerationContext.MeshGenerationFlags.Last();
@@ -1760,7 +1975,7 @@ mu::MeshPtr GenerateMutableMesh(UObject * Mesh, int32 LOD, int32 MaterialIndex, 
 	{
 		if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Mesh))
 		{
-			MutableMesh = ConvertSkeletalMeshToMutable(SkeletalMesh, LOD, MaterialIndex, GenerationContext, CurrentNode);
+			MutableMesh = ConvertSkeletalMeshToMutable(SkeletalMesh, AnimInstance, LOD, MaterialIndex, GenerationContext, CurrentNode);
 		}
 		else if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(Mesh))
 		{
@@ -1858,7 +2073,7 @@ mu::MeshPtr BuildMorphedMutableMesh(const UEdGraphPin* BaseSourcePin, const FStr
 
 
 		// Get the base mesh
-		mu::MeshPtr BaseSourceMesh = GenerateMutableMesh(SkeletalMesh, LODIndex, SectionIndex, FString(), GenerationContext, Node);
+		mu::MeshPtr BaseSourceMesh = GenerateMutableMesh(SkeletalMesh, TSoftClassPtr<UAnimInstance>(), LODIndex, SectionIndex, FString(), GenerationContext, Node);
 		if (BaseSourceMesh)
 		{
 			// Clone it (it will probably be shared)
@@ -1947,22 +2162,21 @@ void GenerateMorphFactor(const UCustomizableObjectNode* Node, const UEdGraphPin&
 	}
 }
 
-
-TArray<USkeletalMesh*> GetSkeletalMeshesForReshapeSelection(
+TArray<TTuple<USkeletalMesh*, TSoftClassPtr<UAnimInstance>>> GetSkeletalMeshesInfoForReshapeSelection(
 		const UEdGraphNode* SkeletalMeshOrTableNode, const UEdGraphPin* SourceMeshPin)
 {
-	TArray<USkeletalMesh*> SkeletalMeshes;
+	TArray<TTuple<USkeletalMesh*, TSoftClassPtr<UAnimInstance>>> SkeletalMeshesInfo;
 
 	if (!(SkeletalMeshOrTableNode && SourceMeshPin))
 	{
-		return SkeletalMeshes;
+		return SkeletalMeshesInfo;
 	}
 
 	if (const UCustomizableObjectNodeSkeletalMesh* SkeletalMeshNode = Cast<UCustomizableObjectNodeSkeletalMesh>(SkeletalMeshOrTableNode))
 	{
 		if (SkeletalMeshNode->SkeletalMesh)
 		{
-			SkeletalMeshes.Add(SkeletalMeshNode->SkeletalMesh);
+			SkeletalMeshesInfo.Emplace(SkeletalMeshNode->SkeletalMesh, SkeletalMeshNode->AnimInstance);
 		}
 	}
 	else if (const UCustomizableObjectNodeTable* TableNode = Cast<UCustomizableObjectNodeTable>(SkeletalMeshOrTableNode))
@@ -1972,10 +2186,11 @@ TArray<USkeletalMesh*> GetSkeletalMeshesForReshapeSelection(
 			for (const FName& RowName : TableNode->GetRowNames())
 			{
 				USkeletalMesh* SkeletalMesh = TableNode->GetSkeletalMeshAt(SourceMeshPin, RowName);
+				TSoftClassPtr<UAnimInstance> MeshAnimInstance = TableNode->GetAnimInstanceAt(SourceMeshPin, RowName);
 
 				if (SkeletalMesh)
 				{
-					SkeletalMeshes.Add(SkeletalMesh);
+					SkeletalMeshesInfo.Emplace(SkeletalMesh, MeshAnimInstance);
 				}
 			}
 		}	
@@ -1985,18 +2200,20 @@ TArray<USkeletalMesh*> GetSkeletalMeshesForReshapeSelection(
 		checkf(false, TEXT("Node not expected."));
 	}
 
-	return SkeletalMeshes;
+	return SkeletalMeshesInfo;
 }
 
 
 bool GetAndValidateReshapeBonesToDeform(
 	TArray<FString>& OutBonesToDeform,
 	const TArray<FMeshReshapeBoneReference>& InBonesToDeform,
-	const TArray<USkeletalMesh*>& SkeletalMeshes,
+	const TArray<TTuple<USkeletalMesh*, TSoftClassPtr<UAnimInstance>>>& SkeletalMeshesInfo,
 	const UCustomizableObjectNode* Node,
 	const EBoneDeformSelectionMethod SelectionMethod,
 	FMutableGraphGenerationContext& GenerationContext)
 {
+	using MeshInfoType = TTuple<USkeletalMesh*, TSoftClassPtr<UAnimInstance>>;
+
 	bool bSetRefreshWarning = false;
 
 	TArray<uint8> MissingBones;
@@ -2011,8 +2228,10 @@ bool GetAndValidateReshapeBonesToDeform(
 
 			const FName BoneName = InBonesToDeform[InBoneIndex].BoneName;
 
-			for (const USkeletalMesh* SkeletalMesh : SkeletalMeshes)
+			for (const MeshInfoType& Mesh : SkeletalMeshesInfo)
 			{
+				const USkeletalMesh* SkeletalMesh = Mesh.Get<USkeletalMesh*>();
+
 				int32 BoneIndex = SkeletalMesh->GetRefSkeleton().FindBoneIndex(BoneName);
 				if (BoneIndex != INDEX_NONE)
 				{
@@ -2074,13 +2293,13 @@ bool GetAndValidateReshapeBonesToDeform(
 
 	else if (SelectionMethod == EBoneDeformSelectionMethod::ALL_BUT_SELECTED)
 	{
-		for (const USkeletalMesh* SkeletalMesh : SkeletalMeshes)
+		for (const MeshInfoType& Mesh : SkeletalMeshesInfo)
 		{
-			int32 NumBonesToDeform = SkeletalMesh->GetRefSkeleton().GetRawBoneNum();
+			int32 NumBonesToDeform = Mesh.Get<USkeletalMesh*>()->GetRefSkeleton().GetRawBoneNum();
 
 			for (int32 BoneIndex = 0; BoneIndex < NumBonesToDeform; ++BoneIndex)
 			{
-				FName BoneName = SkeletalMesh->GetRefSkeleton().GetBoneName(BoneIndex);
+				FName BoneName = Mesh.Get<USkeletalMesh*>()->GetRefSkeleton().GetBoneName(BoneIndex);
 				bool bFound = false;
 				int32 InNumBonesToDeform = InBonesToDeform.Num();
 
@@ -2093,7 +2312,7 @@ bool GetAndValidateReshapeBonesToDeform(
 					}
 				}
 
-				if (!bFound && SkeletalMesh->GetRefSkeleton().GetParentIndex(BoneIndex) != INDEX_NONE)
+				if (!bFound && Mesh.Get<USkeletalMesh*>()->GetRefSkeleton().GetParentIndex(BoneIndex) != INDEX_NONE)
 				{
 					OutBonesToDeform.AddUnique(BoneName.ToString());
 				}
@@ -2121,8 +2340,10 @@ bool GetAndValidateReshapeBonesToDeform(
 		// Getting reference skeleton from the reference skeletal mesh of the current component
 		const FReferenceSkeleton RefSkeleton = GenerationContext.ComponentInfos[GenerationContext.CurrentMeshComponent].RefSkeletalMesh->GetRefSkeleton();
 
-		for (const USkeletalMesh* SkeletalMesh : SkeletalMeshes)
+		for (const MeshInfoType& Mesh : SkeletalMeshesInfo)
 		{
+			const USkeletalMesh* SkeletalMesh = Mesh.Get<USkeletalMesh*>();
+
 			int32 NumBones = SkeletalMesh->GetRefSkeleton().GetRawBoneNum();
 
 			for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
@@ -2145,7 +2366,7 @@ bool GetAndValidateReshapeBonesToDeform(
 bool GetAndValidateReshapePhysicsToDeform(
 	TArray<FString>& OutPhysiscsToDeform,
 	const TArray<FMeshReshapeBoneReference>& InPhysicsToDeform,
-	const TArray<USkeletalMesh*>& SkeletalMeshes,
+	const TArray<TTuple<USkeletalMesh*, TSoftClassPtr<UAnimInstance>>>& SkeletalMeshesInfo,
 	EBoneDeformSelectionMethod SelectionMethod,
 	const UCustomizableObjectNode* Node,
 	FMutableGraphGenerationContext& GenerationContext)
@@ -2155,25 +2376,83 @@ bool GetAndValidateReshapePhysicsToDeform(
 		SelectionMethod == EBoneDeformSelectionMethod::DEFORM_REF_SKELETON ||
 		SelectionMethod == EBoneDeformSelectionMethod::DEFORM_NONE_REF_SKELETON;
 
+	// Find all used Bone names;
+	TSet<FName> UsedBoneNames;
+
+	using MeshInfoType = TTuple<USkeletalMesh*, TSoftClassPtr<UAnimInstance>>;
+	using PhysicsInfoType = TTuple<UPhysicsAsset*, const FReferenceSkeleton&>;
+
+	const TArray<PhysicsInfoType> ContributingPhysicsAssetsInfo = Invoke([&]() -> TArray<PhysicsInfoType>
+	{
+		TArray<PhysicsInfoType> PhysicsAssetsInfo;
+
+		const bool bAnimBpOverridePhysicsManipulationEnabled = GenerationContext.Options.bAnimBpPhysicsManipulationEnabled;
+		for (const MeshInfoType& Mesh : SkeletalMeshesInfo)
+		{
+			const USkeletalMesh* SkeletalMesh = Mesh.Get<USkeletalMesh*>();
+
+			if (!SkeletalMesh)
+			{
+				continue;
+			}
+			
+			{
+				UPhysicsAsset* PhysicsAsset = SkeletalMesh->GetPhysicsAsset();
+
+				if (PhysicsAsset)
+				{
+					PhysicsAssetsInfo.Emplace(PhysicsAsset, SkeletalMesh->GetRefSkeleton());
+				}
+			}
+
+			if (bAnimBpOverridePhysicsManipulationEnabled)
+			{
+				TSoftClassPtr<UAnimInstance> AnimInstance = Mesh.Get<TSoftClassPtr<UAnimInstance>>();
+
+				TArray<TTuple<UPhysicsAsset*, int32>> AnimInstanceOverridePhysicsAssets = GetPhysicsAssetsFromAnimInstance(AnimInstance);
+
+				for (const TTuple<UPhysicsAsset*, int32>& AnimPhysicsAssetInfo : AnimInstanceOverridePhysicsAssets)
+				{
+					int32 PropertyIndex = AnimPhysicsAssetInfo.Get<int32>();
+					UPhysicsAsset* AnimPhysicsAsset = AnimPhysicsAssetInfo.Get<UPhysicsAsset*>();
+
+					const bool bIsAnimPhysicsValid = PropertyIndex >= 0 && AnimPhysicsAsset;
+					if (bIsAnimPhysicsValid)
+					{
+						PhysicsAssetsInfo.Emplace(AnimPhysicsAsset, SkeletalMesh->GetRefSkeleton());
+					}
+				}
+			}
+		}
+
+		return PhysicsAssetsInfo;
+	});	
+
 	// Get the participant bone names.
-	TArray<FName> BoneNamesInUserSelection;
+	const TArray<FName> BoneNamesInUserSelection = Invoke([&]() -> TArray<FName>
+	{
+		TArray<FName> BoneNames;
+
 	if (bIsReferenceSkeletalMeshMethod)
 	{
 		const FReferenceSkeleton& RefSkeleton =
 			GenerationContext.ComponentInfos[GenerationContext.CurrentMeshComponent].RefSkeletalMesh->GetRefSkeleton();
 
 		const int32 RefSkeletonNumBones = RefSkeleton.GetRawBoneNum();
-		BoneNamesInUserSelection.SetNum(RefSkeletonNumBones);
+			BoneNames.SetNum(RefSkeletonNumBones);
 		for (int32 I = 0; I < RefSkeletonNumBones; ++I)
 		{
-			BoneNamesInUserSelection[I] = RefSkeleton.GetBoneName(I);
+				BoneNames[I] = RefSkeleton.GetBoneName(I);
 		}
 	}
 	else
 	{
-		BoneNamesInUserSelection.Reserve(InPhysicsToDeform.Num());
-		Algo::Transform(InPhysicsToDeform, BoneNamesInUserSelection, [](const FMeshReshapeBoneReference& B) { return B.BoneName; });
+			BoneNames.Reserve(InPhysicsToDeform.Num());
+			Algo::Transform(InPhysicsToDeform, BoneNames, [](const FMeshReshapeBoneReference& B) { return B.BoneName; });
 	}
+
+		return BoneNames;
+	});
 
 	int32 NumUserSelectedBones = BoneNamesInUserSelection.Num();
 
@@ -2186,21 +2465,16 @@ bool GetAndValidateReshapePhysicsToDeform(
 	TArray<FMissingBoneStatus> MissingBones;
 	MissingBones.Init(FMissingBoneStatus{ false, true }, NumUserSelectedBones);
 
-	for (const USkeletalMesh* SkeletalMesh : SkeletalMeshes)
+	for (const PhysicsInfoType& PhysicsInfo : ContributingPhysicsAssetsInfo)
 	{
-		check(SkeletalMesh)
 		check(GenerationContext.ComponentInfos[GenerationContext.CurrentMeshComponent].RefSkeletalMesh);
-
-		UPhysicsAsset* PhysicsAsset = SkeletalMesh->GetPhysicsAsset();
-
-		if (!PhysicsAsset)
-		{
-			continue;
-		}
 
 		const FReferenceSkeleton& RefSkeleton = bIsReferenceSkeletalMeshMethod
 			? GenerationContext.ComponentInfos[GenerationContext.CurrentMeshComponent].RefSkeletalMesh->GetRefSkeleton()
-			: SkeletalMesh->GetRefSkeleton();
+			: PhysicsInfo.Get<const FReferenceSkeleton&>();
+
+		UPhysicsAsset* PhysicsAsset = PhysicsInfo.Get<UPhysicsAsset*>();
+		check(PhysicsAsset);
 
 		TArray<uint8> BoneInclusionSet;
 		BoneInclusionSet.Init(0, PhysicsAsset->SkeletalBodySetups.Num());
@@ -2451,7 +2725,8 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 					const UEdGraphPin* SourceMeshPin = ConnectedPin ? FindMeshBaseSource(*ConnectedPin, false) : nullptr;
 					const UEdGraphNode* SkeletalMeshNode = SourceMeshPin ? SourceMeshPin->GetOwningNode() : nullptr;
 
-					TArray<USkeletalMesh*> SkeletalMeshesToDeform = GetSkeletalMeshesForReshapeSelection(SkeletalMeshNode, SourceMeshPin);
+					TArray<TTuple<USkeletalMesh*, TSoftClassPtr<UAnimInstance>>> SkeletalMeshesToDeform = 
+							GetSkeletalMeshesInfoForReshapeSelection(SkeletalMeshNode, SourceMeshPin);
 
 					bool bWarningFound = false;
 					if (TypedMorphNode->bReshapeSkeleton)
@@ -2530,7 +2805,6 @@ void GenerateMorphTarget(const UCustomizableObjectNode* Node, const UEdGraphPin*
 		GenerationContext.Compiler->CompilerLog(LOCTEXT("MorphGenerationFailed", "Failed to generate morph target."), Node);
 	}
 }
-
 
 /** Convert a CustomizableObject Source Graph into a mutable source graph  */
 mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
@@ -2631,7 +2905,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 				MeshUniqueTags += AnimBPTag;
 			}
 
-			mu::MeshPtr MutableMesh = GenerateMutableMesh(TypedNodeSkel->SkeletalMesh, LOD, SectionIndex, MeshUniqueTags, GenerationContext, TypedNodeSkel);
+			mu::MeshPtr MutableMesh = GenerateMutableMesh(TypedNodeSkel->SkeletalMesh, TypedNodeSkel->AnimInstance, LOD, SectionIndex, MeshUniqueTags, GenerationContext, TypedNodeSkel);
 			if (MutableMesh)
 			{
 				MeshNode->SetValue(MutableMesh);
@@ -2822,7 +3096,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 			}
 			check(MaterialIndex < TypedNodeStatic->LODs[LOD].Materials.Num());
 
-			mu::MeshPtr MutableMesh = GenerateMutableMesh(TypedNodeStatic->StaticMesh, LOD, MaterialIndex, FString(), GenerationContext, TypedNodeStatic);
+			mu::MeshPtr MutableMesh = GenerateMutableMesh(TypedNodeStatic->StaticMesh, TSoftClassPtr<UAnimInstance>(), LOD, MaterialIndex, FString(), GenerationContext, TypedNodeStatic);
 			if (MutableMesh)
 			{
 				MeshNode->SetValue(MutableMesh);
@@ -3149,6 +3423,8 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 		}
 	
 		{
+
+			MeshNode->SetReshapeVertices(TypedNodeReshape->bReshapeVertices);
 			MeshNode->SetReshapeSkeleton(TypedNodeReshape->bReshapeSkeleton);
 			MeshNode->SetReshapePhysicsVolumes(TypedNodeReshape->bReshapePhysicsVolumes);
 			MeshNode->SetEnableRigidParts(TypedNodeReshape->bEnableRigidParts);
@@ -3157,7 +3433,8 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 			const UEdGraphPin* SourceMeshPin = ConnectedPin ? FindMeshBaseSource(*ConnectedPin, false) : nullptr;
 			const UEdGraphNode* SkeletalMeshNode = SourceMeshPin ? SourceMeshPin->GetOwningNode() : nullptr;
 
-			TArray<USkeletalMesh*> SkeletalMeshesToDeform = GetSkeletalMeshesForReshapeSelection(SkeletalMeshNode, SourceMeshPin);
+			TArray<TTuple<USkeletalMesh*, TSoftClassPtr<UAnimInstance>>> SkeletalMeshesToDeform = 
+					GetSkeletalMeshesInfoForReshapeSelection(SkeletalMeshNode, SourceMeshPin);
 
 			bool bWarningFound = false;
 			if (TypedNodeReshape->bReshapeSkeleton)

@@ -93,6 +93,11 @@ struct FReferencedPhysicsAssets
 	
 	UPROPERTY(Transient)
 	TArray< TObjectPtr<UPhysicsAsset> > PhysicsAssetsToMerge;
+
+	TArray<int32> AdditionalPhysicsAssetsToLoad;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UPhysicsAsset>> AdditionalPhysicsAssets;
 };
 
 
@@ -144,6 +149,26 @@ struct FCustomizableInstanceComponentData
 	bool operator==(const FCustomizableInstanceComponentData& Other) const { return ComponentIndex == Other.ComponentIndex; }
 };
 
+USTRUCT()
+struct FAnimInstanceOverridePhysicsAsset
+{
+	GENERATED_BODY()
+
+	UPROPERTY(Transient)
+	int32 PropertyIndex;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPhysicsAsset> PhysicsAsset;
+};
+
+USTRUCT()
+struct FAnimBpGeneratedPhysicsAssets
+{
+	GENERATED_BODY()
+
+	UPROPERTY(Transient)
+	TArray<FAnimInstanceOverridePhysicsAsset> AnimInstancePropertyIndexAndPhysicsAssets;
+};
 
 UCLASS()
 class UCustomizableInstancePrivateData : public UObject
@@ -238,6 +263,8 @@ public:
 
 	void DiscardResourcesAndSetReferenceSkeletalMesh(UCustomizableObjectInstance* Public);
 
+	const TArray<FAnimInstanceOverridePhysicsAsset>* GetGeneratedPhysicsAssetsForAnimInstance(TSubclassOf<UAnimInstance> AnimInstance) const;
+
 	/** 
 	* \param OnlyLOD: If not 0, extract and convert only one single LOD from the source image.
 	* \param ExtractChannel: If different than -1, extract a single-channel image with the specified source channel data.
@@ -267,12 +294,11 @@ private:
 	USkeleton* MergeSkeletons(UCustomizableObjectInstance* Public, const FMutableRefSkeletalMeshData* RefSkeletalMeshData, int32 ComponentIndex);
 
 	//
-	UPhysicsAsset* GetOrBuildPhysicsAsset(TObjectPtr<class UPhysicsAsset> TamplateAsset, const mu::PhysicsBody* PhysicsBody, int32 ComponentIndex, bool bDisableCollisionBetweenAssets);
+	UPhysicsAsset* GetOrBuildMainPhysicsAsset(TObjectPtr<class UPhysicsAsset> TamplateAsset, const mu::PhysicsBody* PhysicsBody, int32 ComponentIndex, bool bDisableCollisionBetweenAssets);
 	
 	// Create a transient texture and add it to the TextureTrackerArray
 	UTexture2D* CreateTexture();
 
-	
 	void InvalidateGeneratedData();
 
 	bool DoComponentsNeedUpdate(UCustomizableObjectInstance* CustomizableObjectInstance, const TSharedPtr<FMutableOperationData>& OperationData, TArray<bool>& OutComponentNeedsUpdate, bool& bOutEmptyMesh);
@@ -317,6 +343,9 @@ public:
 
 	UPROPERTY(Transient, Category = CustomizableObjectInstance, editfixedsize, VisibleAnywhere)
 	FGameplayTagContainer AnimBPGameplayTags;
+
+	UPROPERTY(Transient, Category = CustomizableObjectInstance, editfixedsize, VisibleAnywhere)
+	TMap<TSubclassOf<UAnimInstance>, FAnimBpGeneratedPhysicsAssets> AnimBpPhysicsAssets;
 
 	// Struct used during an update to avoid generating resources that can be reused.
 	FInstanceGeneratedData LastUpdateData;

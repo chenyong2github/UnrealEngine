@@ -95,7 +95,8 @@ namespace mu
 		None,
 		SkeletonDeformBinding,
 		PhysicsBodyDeformBinding,
-		PhysicsBodyDeformSelection
+		PhysicsBodyDeformSelection,
+		PhysicsBodyDeformOffsets
 	};
 	MUTABLE_DEFINE_ENUM_SERIALISABLE(EMeshBufferType)
 
@@ -124,7 +125,8 @@ namespace mu
 		WithAdditionalBuffers = 1 << 10,
 		WithLayouts           = 1 << 11,
 		WithPoses			  = 1 << 12,
-		WithSkeletonIDs		  = 1 << 13
+		WithSkeletonIDs		  = 1 << 13,
+		WithAdditionalPhysics = 1 << 14
 	};
 	
 	ENUM_CLASS_FLAGS(EMeshCloneFlags);
@@ -225,6 +227,10 @@ namespace mu
 
         void SetPhysicsBody( Ptr<const PhysicsBody> );
         Ptr<const PhysicsBody> GetPhysicsBody() const;
+
+		int32 AddAdditionalPhysicsBody(Ptr<const PhysicsBody> Body);
+		Ptr<const PhysicsBody> GetAdditionalPhysicsBody(int32 I) const;
+		//int32 GetAdditionalPhysicsBodyExternalId(int32 I) const;
 
         //! \}
 
@@ -347,6 +353,9 @@ namespace mu
 		Ptr<const Skeleton> m_pSkeleton;
 		Ptr<const PhysicsBody> m_pPhysicsBody;
 
+		//! Additional physics bodies referenced by the mesh that don't merge.
+		TArray<Ptr<const PhysicsBody>> AdditionalPhysicsBodies;
+
 		//! Texture Layout blocks attached to this mesh. They are const because they could be shared with
 		//! other meshes, so they need to be cloned and replaced if a modification is needed.
 		TArray<Ptr<const Layout>> m_layouts;
@@ -441,7 +450,7 @@ namespace mu
 		//!
 		inline void Serialise(OutputArchive& arch) const
 		{
-			uint32 ver = 14;
+			uint32 ver = 15;
 			arch << ver;
 
 			arch << m_IndexBuffers;
@@ -462,6 +471,8 @@ namespace mu
 			arch << m_tags;
 
 			arch << BonePoses;
+
+			arch << AdditionalPhysicsBodies;
 		}
 
 		//!
@@ -469,7 +480,7 @@ namespace mu
 		{
 			uint32 ver;
 			arch >> ver;
-			check(ver <= 14);
+			check(ver <= 15);
 
 			arch >> m_IndexBuffers;
 			arch >> m_VertexBuffers;
@@ -515,6 +526,11 @@ namespace mu
 					BonePoses[BoneIndex].BoneTransform = m_pSkeleton->m_boneTransforms_DEPRECATED[BoneIndex];
 				}
 			}
+
+			if (ver >= 15)
+			{
+				arch >> AdditionalPhysicsBodies;
+			}
 		}
 
 
@@ -547,14 +563,22 @@ namespace mu
 				equal &= (*m_layouts[i]) == (*o.m_layouts[i]);
 			}
 
+			equal &= m_AdditionalBuffers.Num() == o.m_AdditionalBuffers.Num();
 			for (int32 i = 0; equal && i < m_AdditionalBuffers.Num(); ++i)
 			{
 				equal &= m_AdditionalBuffers[i] == o.m_AdditionalBuffers[i];
 			}
 
+			equal &= BonePoses.Num() == o.BonePoses.Num();
 			for (int32 i = 0; equal && i < BonePoses.Num(); ++i)
 			{
 				equal &= BonePoses[i] == o.BonePoses[i];
+			}
+
+			equal &= AdditionalPhysicsBodies.Num() == o.AdditionalPhysicsBodies.Num();
+			for (int32 i = 0; equal && i < AdditionalPhysicsBodies.Num(); ++i)
+			{
+				equal &= *AdditionalPhysicsBodies[i] == *o.AdditionalPhysicsBodies[i];
 			}
 
 			return equal;

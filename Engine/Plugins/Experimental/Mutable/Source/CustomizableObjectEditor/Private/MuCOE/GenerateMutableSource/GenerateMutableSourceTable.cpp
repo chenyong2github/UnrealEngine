@@ -202,7 +202,8 @@ void FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 					MeshUniqueTags += GenerateGameplayTag(Tag.ToString());
 				}
 
-				mu::MeshPtr MutableMesh = GenerateMutableMesh(SkeletalMesh, CurrentLOD, MatIndex, MeshUniqueTags, GenerationContext, TableNode);
+				//TODO: Add AnimBp physics to Tables.
+				mu::MeshPtr MutableMesh = GenerateMutableMesh(SkeletalMesh, TSoftClassPtr<UAnimInstance>(), CurrentLOD, MatIndex, MeshUniqueTags, GenerationContext, TableNode);
 
 				if (MutableMesh)
 				{
@@ -298,7 +299,7 @@ void FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 					CurrentColumn = MutableTable->AddColumn(StringCast<ANSICHAR>(*MutableColumnName).Get(), mu::TABLE_COLUMN_TYPE::TCT_MESH);
 				}
 
-				mu::MeshPtr MutableMesh = GenerateMutableMesh(StaticMesh, CurrentLOD, MatIndex, FString(), GenerationContext, TableNode);
+				mu::MeshPtr MutableMesh = GenerateMutableMesh(StaticMesh, TSoftClassPtr<UAnimInstance>(), CurrentLOD, MatIndex, FString(), GenerationContext, TableNode);
 
 				if (MutableMesh)
 				{

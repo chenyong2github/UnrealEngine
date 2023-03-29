@@ -53,6 +53,8 @@ namespace mu
 		const NodeMeshPtr& GetTargetShape() const;
 		void SetTargetShape(const NodeMeshPtr&);
 
+		void SetReshapeVertices(bool);
+
 		/** Also deform the mesh skeleton. Disabled by default. */
 		void SetReshapeSkeleton(bool);
 		

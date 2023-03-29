@@ -130,6 +130,7 @@ public:
 	UPROPERTY(Transient, VisibleAnywhere, Category = CustomizableSkeletalMesh)
 	TArray< TObjectPtr<USkeletalMesh> > SkeletalMeshes;
 
+
 	// Will store status description of current skeletal mesh generation (for instance, "EmptyLOD0" or "EmptyMesh"
 	UPROPERTY()
 	FString SkeletalMeshStatus;
@@ -527,6 +528,9 @@ public:
 	void ForEachAnimInstance(int32 ComponentIndex, FEachComponentAnimInstanceClassDelegate Delegate) const;
 
 	void ForEachAnimInstance(int32 ComponentIndex, FEachComponentAnimInstanceClassNativeDelegate Delegate) const;
+
+	bool AnimInstanceNeedsFixup(TSubclassOf<UAnimInstance> AnimInstance) const;
+	void AnimInstanceFixup(UAnimInstance* AnimInstance) const;
 
 	/** Serializes/Deserializes all the customization parameters to/from a descriptor, ready to be sent/read, works like a typical UE4 Two-Way Save System Function  */
 	void SaveDescriptor(FArchive &CustomizableObjectDescriptor);

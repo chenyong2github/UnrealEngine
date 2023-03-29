@@ -28,6 +28,7 @@ public class CustomizableObject : ModuleRules
             "ApplicationCore",
 			"ClothingSystemRuntimeCommon",
 			"ClothingSystemRuntimeInterface",
+			"AnimGraphRuntime",
 			//"ClothingSystemEditor",
 			"UMG",
 			"MutableRuntime",
@@ -41,6 +42,7 @@ public class CustomizableObject : ModuleRules
 			"ClothingSystemRuntimeCommon",
             "GameplayTags",
 			"MutableRuntime",
+			"AnimGraphRuntime",
 		});
 
         PrivateIncludePathModuleNames.AddRange(

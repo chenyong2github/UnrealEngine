@@ -894,6 +894,40 @@ USkeletalMesh* UCustomizableObjectNodeTable::GetSkeletalMeshAt(const UEdGraphPin
 	return nullptr;
 }
 
+TSoftClassPtr<UAnimInstance> UCustomizableObjectNodeTable::GetAnimInstanceAt(const UEdGraphPin* Pin, const FName& RowName) const
+{
+	if (!Table || !Table->GetRowStruct() || !Pin || !Table->GetRowNames().Contains(RowName))
+	{
+		return TSoftClassPtr<UAnimInstance>();
+	}
+
+	// Getting Struct Pointer
+	const UScriptStruct* TableStruct = Table->GetRowStruct();
+
+	FString ColumnName = GetColumnNameByPin(Pin);
+
+	for (TFieldIterator<FProperty> It(TableStruct); It; ++It)
+	{
+		FProperty* ColumnProperty = *It;
+
+		if (!ColumnProperty || ColumnName != DataTableUtils::GetPropertyExportName(ColumnProperty))
+		{
+			continue;
+		}
+
+		if (const FSoftClassProperty* SoftClassProperty = CastField<FSoftClassProperty>(ColumnProperty))
+		{
+			TSoftClassPtr<UAnimInstance> AnimInstance(SoftClassProperty->GetPropertyValue(SoftClassProperty).ToSoftObjectPath());
+
+			if (!AnimInstance.IsNull())
+			{
+				return AnimInstance;
+			}
+		}
+	}
+
+	return TSoftClassPtr<UAnimInstance>();
+}
 
 TArray<FName> UCustomizableObjectNodeTable::GetRowNames() const
 {

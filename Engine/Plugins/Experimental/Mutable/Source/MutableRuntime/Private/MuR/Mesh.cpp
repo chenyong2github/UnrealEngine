@@ -75,6 +75,7 @@ MeshPtr Mesh::Clone() const
 
 	// Clone SkeletonIDs
 	pResult->SkeletonIDs = SkeletonIDs;
+	pResult->AdditionalPhysicsBodies = AdditionalPhysicsBodies;
 
     return pResult;
 }
@@ -89,43 +90,43 @@ MeshPtr Mesh::Clone(EMeshCloneFlags Flags) const
     pResult->m_internalId = m_internalId;
 	pResult->m_staticFormatFlags = m_staticFormatFlags;
 
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithSurfaces ))
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithSurfaces))
 	{
 		pResult->m_surfaces = m_surfaces;
 	}
 
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithSkeleton ))
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithSkeleton))
 	{
 		pResult->m_pSkeleton = m_pSkeleton;
 	}
 
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithPhysicsBody ))
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithPhysicsBody))
 	{
 		pResult->m_pPhysicsBody = m_pPhysicsBody;
 	}
 
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithFaceGroups ))
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithFaceGroups))
 	{
 		pResult->m_faceGroups = m_faceGroups;
 	}
 
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithTags ))
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithTags))
 	{
 		pResult->m_tags = m_tags;
 	}
 
     // Clone the main buffers
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithVertexBuffers ))
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithVertexBuffers))
     {
 		pResult->m_VertexBuffers = m_VertexBuffers;
 	}
 
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithIndexBuffers ))
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithIndexBuffers))
     {
 		pResult->m_IndexBuffers = m_IndexBuffers;
 	}
 
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithFaceBuffers ))
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithFaceBuffers))
     {
 		pResult->m_FaceBuffers = m_FaceBuffers;
 	}
@@ -156,6 +157,11 @@ MeshPtr Mesh::Clone(EMeshCloneFlags Flags) const
 	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithSkeletonIDs))
 	{
 		pResult->SkeletonIDs = SkeletonIDs;
+	}
+
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithAdditionalPhysics))
+	{
+		pResult->AdditionalPhysicsBodies = AdditionalPhysicsBodies;
 	}
 
     return pResult;
@@ -215,6 +221,20 @@ void Mesh::SetPhysicsBody( Ptr<const PhysicsBody> PhysicsBody )
 {
     m_pPhysicsBody = PhysicsBody;
 }
+
+//---------------------------------------------------------------------------------------------
+int32 Mesh::AddAdditionalPhysicsBody(Ptr<const PhysicsBody> Body)
+{
+	return AdditionalPhysicsBodies.Add(Body);
+}
+
+Ptr<const PhysicsBody> Mesh::GetAdditionalPhysicsBody(int32 I) const
+{
+	check(I >= 0 && I < AdditionalPhysicsBodies.Num());
+
+	return AdditionalPhysicsBodies[I];
+}
+
 
 //---------------------------------------------------------------------------------------------
 int Mesh::GetFaceCount() const

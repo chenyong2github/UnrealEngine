@@ -24,6 +24,7 @@ namespace mu
 		Ptr<NodeMesh> m_pBaseMesh;
 		Ptr<NodeMesh> m_pBaseShape;
 		Ptr<NodeMesh> m_pTargetShape;
+		bool m_reshapeVertices = true;
 		bool m_reshapeSkeleton = false;
 		bool m_enableRigidParts = false;
 		bool m_reshapePhysicsVolumes = false;
@@ -34,12 +35,13 @@ namespace mu
         //!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 7;
+            uint32_t ver = 8;
 			arch << ver;
 
 			arch << m_pBaseMesh;
 			arch << m_pBaseShape;
 			arch << m_pTargetShape;
+			arch << m_reshapeVertices;
 			arch << m_reshapeSkeleton;
 			arch << m_enableRigidParts;
 			arch << m_bonesToDeform;
@@ -52,11 +54,17 @@ namespace mu
 		{
             uint32_t ver;
 			arch >> ver;
-			check(ver <= 7);
+			check(ver <= 8);
 
 			arch >> m_pBaseMesh;
 			arch >> m_pBaseShape;
 			arch >> m_pTargetShape;
+			
+			if (ver >= 8)
+			{
+				arch >> m_reshapeVertices;
+			}
+
 			arch >> m_reshapeSkeleton;
 			arch >> m_enableRigidParts;
 

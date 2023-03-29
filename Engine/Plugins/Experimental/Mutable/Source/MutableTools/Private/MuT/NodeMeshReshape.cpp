@@ -116,6 +116,11 @@ namespace mu
 		m_pD->m_pTargetShape = pNode;
 	}
 
+	//---------------------------------------------------------------------------------------------
+	void NodeMeshReshape::SetReshapeVertices(bool bEnable)
+	{
+		m_pD->m_reshapeVertices = bEnable;
+	}
 
 	//---------------------------------------------------------------------------------------------
 	void NodeMeshReshape::SetReshapeSkeleton(bool bEnable)

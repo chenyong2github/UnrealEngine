@@ -515,8 +515,10 @@ namespace mu
 	}
 
 	inline void ApplyToPhysicsBodies(
-			PhysicsBody& PBody, const Mesh& BaseMesh, 
-			TArrayView<const FReshapePointBindingData> BindingData, TArrayView<const int32> UsedIndices, 
+			PhysicsBody& PBody, int32& InOutNumProcessedBindPoints, 
+			const Mesh& BaseMesh, 
+			TArrayView<const FReshapePointBindingData> BindingData, 
+			TArrayView<const int32> UsedIndices, 
 			const FShapeMeshDescriptorApply& Shape)
 	{
 #if DO_CHECK
@@ -530,8 +532,6 @@ namespace mu
 		}
 #endif
 		
-		int32 NumProcessedBindPoints = 0;
-
 		bool bAnyModified = false;
 
 		// Retrieve them in the same order the boxes where put in, so they can be linked to the physics body volumes.
@@ -553,7 +553,7 @@ namespace mu
 				float R;
 
 				TStaticArray<FVector3f, 6> Points; 
-				const bool bDeformed = GetDeformedPoints(Shape, &BindingData[NumProcessedBindPoints], Points);
+				const bool bDeformed = GetDeformedPoints(Shape, &BindingData[InOutNumProcessedBindPoints], Points);
 
 				if (bDeformed)
 				{
@@ -562,14 +562,14 @@ namespace mu
 					bAnyModified = true;
 				}
 
-				NumProcessedBindPoints += Points.Num();
+				InOutNumProcessedBindPoints += Points.Num();
 			}
 
 			const int32 NumBoxes = PBody.GetBoxCount(B);
 			for ( int32 I = 0; I < NumBoxes; ++I )
 			{
 				TStaticArray<FVector3f, 14> Points;
-				const bool bDeformed = GetDeformedPoints(Shape, &BindingData[NumProcessedBindPoints], Points);
+				const bool bDeformed = GetDeformedPoints(Shape, &BindingData[InOutNumProcessedBindPoints], Points);
 				
 				if (bDeformed)
 				{
@@ -582,14 +582,14 @@ namespace mu
 					bAnyModified = true;
 				}
 
-				NumProcessedBindPoints += Points.Num();
+				InOutNumProcessedBindPoints += Points.Num();
 			}
 			
 			const int32 NumSphyls = PBody.GetSphylCount(B);
 			for ( int32 I = 0; I < NumSphyls; ++I )
 			{
 				TStaticArray<FVector3f, 14> Points;
-				const bool bDeformed = GetDeformedPoints(Shape, &BindingData[NumProcessedBindPoints], Points);
+				const bool bDeformed = GetDeformedPoints(Shape, &BindingData[InOutNumProcessedBindPoints], Points);
 
 				if ( bDeformed )
 				{
@@ -603,14 +603,14 @@ namespace mu
 					bAnyModified = true;
 				}
 
-				NumProcessedBindPoints += Points.Num();
+				InOutNumProcessedBindPoints += Points.Num();
 			}
 
 			const int32 NumTaperedCapsules = PBody.GetTaperedCapsuleCount(B);
 			for ( int32 I = 0; I < NumTaperedCapsules; ++I )
 			{
 				TStaticArray<FVector3f, 14> Points;
-				const bool bDeformed = GetDeformedPoints(Shape, &BindingData[NumProcessedBindPoints], Points);
+				const bool bDeformed = GetDeformedPoints(Shape, &BindingData[InOutNumProcessedBindPoints], Points);
 
 				if ( bDeformed )
 				{
@@ -625,7 +625,7 @@ namespace mu
 					bAnyModified = true;
 				}
 				
-				NumProcessedBindPoints += Points.Num();
+				InOutNumProcessedBindPoints += Points.Num();
 			}
 
 			const int32 NumConvex = PBody.GetConvexCount(B);
@@ -638,7 +638,7 @@ namespace mu
 				FTransform3f ConvexTransform;
 				PBody.GetConvexTransform(B, I, ConvexTransform);
 
-				GetDeformedConvex(Shape, &BindingData[NumProcessedBindPoints], VerticesView);
+				GetDeformedConvex(Shape, &BindingData[InOutNumProcessedBindPoints], VerticesView);
 
 				FTransform3f InvConvexT = InvBoneTransform * ConvexTransform.Inverse();
 				for ( FVector3f& V : VerticesView )
@@ -646,12 +646,56 @@ namespace mu
 					V = InvConvexT.TransformPosition( V );				
 				}
 				
-				NumProcessedBindPoints += VerticesView.Num();
+				InOutNumProcessedBindPoints += VerticesView.Num();
 				bAnyModified = true;
 			}
 		}
 
 		PBody.bBodiesModified = bAnyModified;
+	}
+
+	inline void ApplyToAllPhysicsBodies(
+		Mesh& OutNewMesh, const Mesh& BaseMesh, 
+		TArrayView<const FReshapePointBindingData> BindingData,
+		TArrayView<const int32> UsedIndices,
+		TArrayView<const int32> BodyOffsets,
+		const FShapeMeshDescriptorApply& Shape)
+	{
+		if (!BodyOffsets.Num())
+		{
+			return; // Nothing to do.
+		}
+
+		int32 NumProcessedBindPoints = 0;
+
+		auto ApplyPhysicsBody = [&](PhysicsBody& OutBody, int32 IndicesBegin, int32 IndicesEnd) -> void
+		{
+			TArrayView<const int32> BodyUsedIndices(UsedIndices.GetData() + IndicesBegin, IndicesEnd - IndicesBegin);
+
+			ApplyToPhysicsBodies(OutBody, NumProcessedBindPoints, BaseMesh, BindingData, BodyUsedIndices, Shape);
+		};
+
+
+		check(BodyOffsets.Num() > 1);
+		check(OutNewMesh.AdditionalPhysicsBodies.Num() + 1 == BodyOffsets.Num() - 1);
+		const int32 PhysicsBodiesNum = BodyOffsets.Num() - 1;
+		
+		// Apply main physics body
+		if (BaseMesh.m_pPhysicsBody)
+		{
+			Ptr<PhysicsBody> NewBody = BaseMesh.m_pPhysicsBody->Clone();
+			ApplyPhysicsBody(*NewBody, 0, BodyOffsets[1]);
+			OutNewMesh.m_pPhysicsBody = NewBody;
+		}
+
+
+		// Apply additional physics bodies
+		for (int32 I = 1; I < PhysicsBodiesNum; ++I)
+		{	
+			Ptr<PhysicsBody> NewBody = BaseMesh.AdditionalPhysicsBodies[I - 1]->Clone();
+			ApplyPhysicsBody(*NewBody, BodyOffsets[I], BodyOffsets[I + 1]);
+			OutNewMesh.AdditionalPhysicsBodies[I - 1] = NewBody;
+		}
 
 		check(NumProcessedBindPoints == BindingData.Num());	
 	}
@@ -675,7 +719,7 @@ namespace mu
 
 		// Early out if nothing will be modified and the vertices discarted.
 		const bool bSkeletonModification = BaseMesh->GetSkeleton() && bReshapeSkeleton;
-		const bool bPhysicsModification = BaseMesh->GetPhysicsBody() && bReshapePhysicsVolumes;
+		const bool bPhysicsModification = (BaseMesh->GetPhysicsBody() || BaseMesh->AdditionalPhysicsBodies.Num()) && bReshapePhysicsVolumes;
 
 		if (!bReshapeVertices && !bSkeletonModification && !bPhysicsModification)
 		{
@@ -719,7 +763,8 @@ namespace mu
 			const bool bIsBindOpBuffer = 
 					A.Key == EMeshBufferType::SkeletonDeformBinding || 
 					A.Key == EMeshBufferType::PhysicsBodyDeformBinding ||
-					A.Key == EMeshBufferType::PhysicsBodyDeformSelection;
+					A.Key == EMeshBufferType::PhysicsBodyDeformSelection ||
+					A.Key == EMeshBufferType::PhysicsBodyDeformOffsets;
 	
 			if (!bIsBindOpBuffer)
 			{
@@ -844,8 +889,9 @@ namespace mu
 
 		// Transform physics volumes based on the deformed sampling points.
 		const PhysicsBody* OldPhysicsBody = Result->m_pPhysicsBody.get();
+		const int32 AdditionalPhysicsBodiesNum = Result->AdditionalPhysicsBodies.Num();
 
-		if (bReshapePhysicsVolumes && OldPhysicsBody)
+		if (bReshapePhysicsVolumes && (OldPhysicsBody || AdditionalPhysicsBodiesNum))
 		{	
 			MUTABLE_CPUPROFILER_SCOPE(ReshapePhysicsBodies);
 			
@@ -856,22 +902,29 @@ namespace mu
 			const BufferEntryType* FoundPhysicsBindSelectionBuffer = BaseMesh->m_AdditionalBuffers.FindByPredicate(
 					[](BufferEntryType& E){ return E.Key == EMeshBufferType::PhysicsBodyDeformSelection; });
 	
+			const BufferEntryType* FoundPhysicsBindOffsetsBuffer = BaseMesh->m_AdditionalBuffers.FindByPredicate(
+					[](BufferEntryType& E){ return E.Key == EMeshBufferType::PhysicsBodyDeformOffsets; });
+
 			BarycentricDataBuffer = -1;
 			if (FoundPhysicsBindBuffer)
 			{
 				FoundPhysicsBindBuffer->Value.FindChannel(MBS_BARYCENTRICCOORDS, BindingDataIndex, &BarycentricDataBuffer, &BarycentricDataChannel);
 			}
 			
-			if (FoundPhysicsBindBuffer && FoundPhysicsBindSelectionBuffer && BarycentricDataBuffer >= 0)
+			const bool bAllNeededBuffersFound =
+				FoundPhysicsBindBuffer && FoundPhysicsBindSelectionBuffer && FoundPhysicsBindOffsetsBuffer && BarycentricDataBuffer >= 0;
+
+			if (bAllNeededBuffersFound)
 			{
 				const FMeshBufferSet& PhysicsBindBuffer = FoundPhysicsBindBuffer->Value;
 				const FMeshBufferSet& PhyiscsBindSelectionBuffer = FoundPhysicsBindSelectionBuffer->Value;
+				const FMeshBufferSet& PhyiscsBindOffsetsBuffer = FoundPhysicsBindOffsetsBuffer->Value;
 
 				// \TODO: More checks
 				check(BarycentricDataChannel == 0);
 				check(PhysicsBindBuffer.GetElementSize(BarycentricDataBuffer) == (int)sizeof(FReshapePointBindingData));
 					
-				TArrayView<const FReshapePointBindingData> PhysicsBindingData(  
+				TArrayView<const FReshapePointBindingData> BindingData(  
 						(const FReshapePointBindingData*)PhysicsBindBuffer.GetBufferData(BarycentricDataBuffer),
 						PhysicsBindBuffer.GetElementCount() );
 
@@ -879,11 +932,11 @@ namespace mu
 						(const int32*)PhyiscsBindSelectionBuffer.GetBufferData(0), 
 					    PhyiscsBindSelectionBuffer.GetElementCount());
 
-				Ptr<PhysicsBody> NewPhysicsBody = OldPhysicsBody->Clone();
-				Result->SetPhysicsBody(NewPhysicsBody);
+				TArrayView<const int32> Offsets(
+						(const int32*)PhyiscsBindOffsetsBuffer.GetBufferData(0), 
+					    PhyiscsBindOffsetsBuffer.GetElementCount());
 
-				check(NewPhysicsBody);
-				ApplyToPhysicsBodies(*NewPhysicsBody, *Result, PhysicsBindingData, UsedIndices, ShapeDescriptor);
+				ApplyToAllPhysicsBodies(*Result, *BaseMesh, BindingData, UsedIndices, Offsets, ShapeDescriptor);
 			}
 		}
 		

@@ -571,11 +571,11 @@ namespace mu
 			auto AppendPhysicsBodiesUnique = [](PhysicsBody& OutPhysicsBody, const PhysicsBody& InPhysicsBody) -> bool
 			{
 				TArray<string>& OutBones = OutPhysicsBody.Bones;
-				TArray<int32>& OutCustomIds = OutPhysicsBody.CustomIds;
+				TArray<int32>& OutCustomIds = OutPhysicsBody.BodiesCustomIds;
 				TArray<FPhysicsBodyAggregate>& OutBodies = OutPhysicsBody.Bodies;
 
 				const TArray<string>& InBones = InPhysicsBody.Bones;
-				const TArray<int32>& InCustomIds = InPhysicsBody.CustomIds;
+				const TArray<int32>& InCustomIds = InPhysicsBody.BodiesCustomIds;
 				const TArray<FPhysicsBodyAggregate>& InBodies = InPhysicsBody.Bodies;
 
 				const int32 InBodyCount = InPhysicsBody.GetBodyCount();
@@ -679,7 +679,30 @@ namespace mu
 				pResult->SetPhysicsBody(MergedResultPhysicsBody);
 			}
 
+			// Additional physics bodies.
+			const int32 MaxAdditionalPhysicsResultNum = pFirst->AdditionalPhysicsBodies.Num() + pSecond->AdditionalPhysicsBodies.Num();
+
+			pResult->AdditionalPhysicsBodies.Reserve(MaxAdditionalPhysicsResultNum);
+			pResult->AdditionalPhysicsBodies.Append(pFirst->AdditionalPhysicsBodies);
+			
+			// Not very many additional bodies expected, do a quadratic search to have unique bodies based on external id.
+			const int32 NumSecondAdditionalBodies = pSecond->AdditionalPhysicsBodies.Num();
+			for (int32 Index = 0; Index < NumSecondAdditionalBodies; ++Index)
+			{
+				const int32 CustomIdToMerge = pSecond->AdditionalPhysicsBodies[Index]->CustomId;
+
+				const mu::Ptr<const PhysicsBody>* Found = pFirst->AdditionalPhysicsBodies.FindByPredicate(
+					[CustomIdToMerge](const Ptr<const mu::PhysicsBody>& Body) { return CustomIdToMerge == Body->CustomId; });
+
+				// TODO: current usages do not expect collisions, but same Id collision with bodies modified in differnet ways
+				// may need to be contemplated at some point.
+				if (!Found)
+				{
+					pResult->AdditionalPhysicsBodies.Add(pSecond->AdditionalPhysicsBodies[Index]);
+				}
+			}
 		}
+
 		// Vertices
 		//-----------------
 		{

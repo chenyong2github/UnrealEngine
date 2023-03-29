@@ -674,6 +674,9 @@ namespace mu
 
 		pResult->SkeletonIDs = pSource->SkeletonIDs;
 
+		// A shallow copy is done here, it should not be a problem.
+		pResult->AdditionalPhysicsBodies = pSource->AdditionalPhysicsBodies;
+
 		return pResult;
 
 	}

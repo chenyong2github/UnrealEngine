@@ -48,6 +48,10 @@ public:
 
 	/** Enable the deformation of the skeleton of the base mesh. */
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	bool bReshapeVertices = true;	
+
+	/** Enable the deformation of the skeleton of the base mesh. */
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	bool bReshapeSkeleton = false;	
 
 	/** Enable the deformation of physics volumes of the base mesh */
