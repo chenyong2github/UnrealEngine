@@ -290,9 +290,9 @@ struct FNDIArrayInstanceData_RenderThread
 			const FNiagaraGPUInstanceCountManager& CounterManager = ComputeInterface->GetGPUInstanceCounterManager();
 			const FRWBuffer& CountBuffer = CounterManager.GetInstanceCountBuffer();
 			
-			const TPair<uint32, int32> DataToClear(CountOffset, InArrayData.Num());
+			const TPair<uint32, uint32> DataToClear(CountOffset, InArrayData.Num());
 			RHICmdList.Transition(FRHITransitionInfo(CountBuffer.UAV, FNiagaraGPUInstanceCountManager::kCountBufferDefaultState, ERHIAccess::UAVCompute));
-			NiagaraClearCounts::ClearCountsInt(RHICmdList, CountBuffer.UAV, MakeArrayView(&DataToClear, 1));
+			NiagaraClearCounts::ClearCountsUInt(RHICmdList, CountBuffer.UAV, MakeArrayView(&DataToClear, 1));
 			RHICmdList.Transition(FRHITransitionInfo(CountBuffer.UAV, ERHIAccess::UAVCompute, FNiagaraGPUInstanceCountManager::kCountBufferDefaultState));
 		}
 	}
