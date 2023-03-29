@@ -19,4 +19,7 @@ public:
 	// Begin IModuleInterface
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
+
+private:
+	void* OrtLibHandle{};
 };

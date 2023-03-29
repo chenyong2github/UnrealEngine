@@ -5,6 +5,7 @@
 #include "NNERuntimeORT.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
+#include "Interfaces/IPluginManager.h"
 #include "Misc/Paths.h"
 #include "UObject/WeakInterfacePtr.h"
 
@@ -17,39 +18,29 @@ NNE_THIRD_PARTY_INCLUDES_END
 
 void FNNERuntimeORTModule::StartupModule()
 {
-	TArray<FString> DLLFileNames
+	const FString PluginDir = IPluginManager::Get().FindPlugin("NNE")->GetBaseDir();
+	const FString OrtBinPath = FPaths::Combine(PluginDir, TEXT(PREPROCESSOR_TO_STRING(ONNXRUNTIME_PLATFORM_PATH)));
+	const FString OrtLibPath = FPaths::Combine(OrtBinPath, TEXT(PREPROCESSOR_TO_STRING(ONNXRUNTIME_DLL_NAME)));
+
+	if (!FPaths::FileExists(OrtLibPath))
 	{
-		"onnxruntime",
-	};
-
-	const FString ORTDefaultRuntimeBinPath = TEXT(PREPROCESSOR_TO_STRING(ORTDEFAULT_PLATFORM_BIN_PATH));
-
-	FPlatformProcess::PushDllDirectory(*ORTDefaultRuntimeBinPath);
-
-	TArray<void*> DLLHandles;
-
-	for (FString DLLFileName : DLLFileNames)
-	{
-#if PLATFORM_WINDOWS
-		const FString DLLFilePath = ORTDefaultRuntimeBinPath / DLLFileName + ".dll";
-#elif PLATFORM_LINUX
-		const FString DLLFilePath = ORTDefaultRuntimeBinPath / "lib" + DLLFileName + ".so";
-#elif PLATFORM_MAC
-		const FString DLLFilePath = ORTDefaultRuntimeBinPath / "lib" + DLLFileName + ".dylib";
-#endif
-
-		// Sanity check
-		if (!FPaths::FileExists(DLLFilePath))
-		{
-			const FString ErrorMessage = FString::Format(TEXT("DLL file not found in \"{0}\"."),
-				{ IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*DLLFilePath) });
-			//UE_LOG(LogNNE, Error, TEXT("ORT StartupModule(): %s"), *ErrorMessage);
-			//checkf(false, TEXT("%s"), *ErrorMessage);
-		}
-		DLLHandles.Add(FPlatformProcess::GetDllHandle(*DLLFilePath));
-
+		UE_LOG(LogNNE, Error, TEXT("Failed to find the third party library %s. Plug-in will not be functional."), *OrtLibPath);
+		return;
 	}
-	FPlatformProcess::PopDllDirectory(*ORTDefaultRuntimeBinPath);
+
+	{
+		// FPlatformProcess::PushDllDirectory(*OrtBinPath);
+
+		OrtLibHandle = FPlatformProcess::GetDllHandle(*OrtLibPath);
+
+		// FPlatformProcess::PopDllDirectory(*OrtBinPath);
+	}
+
+	if (!OrtLibHandle)
+	{
+		UE_LOG(LogNNE, Error, TEXT("Failed to load the third party library %s. Plug-in will not be functional."), *OrtLibPath);
+		return;
+	}
 
 	Ort::InitApi();
 	
@@ -81,6 +72,9 @@ void FNNERuntimeORTModule::ShutdownModule()
 	}
 #endif
 
+	// Free the dll handle
+	FPlatformProcess::FreeDllHandle(OrtLibHandle);
+	OrtLibHandle = nullptr;
 }
 
 IMPLEMENT_MODULE(FNNERuntimeORTModule, NNERuntimeORT);

@@ -14,9 +14,6 @@ public class NNEOnnxruntimeEditor : ModuleRules
 			Target.Platform == UnrealTargetPlatform.Mac ||
 			Target.Platform == UnrealTargetPlatform.Linux)
 		{
-			// PublicSystemIncludePaths
-			// string IncPath = Path.Combine(ModuleDirectory, "include/");
-			// PublicSystemIncludePaths.Add(IncPath);
 
 			// PublicSystemIncludePaths
 			PublicSystemIncludePaths.AddRange(
@@ -28,35 +25,31 @@ public class NNEOnnxruntimeEditor : ModuleRules
 			);
 
 			// PublicAdditionalLibraries
-			string PlatformDir = Target.Platform.ToString();
-			string LibDirPath = Path.Combine(ModuleDirectory, "lib", PlatformDir);
-
-
 			string[] LibFileNames;
 			if(Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				LibFileNames = new string[] {
 					"onnxruntime",
-					"onnxruntime_providers_cuda",
-					"onnxruntime_providers_shared",
-					"custom_op_library",
-					"test_execution_provider"
+					//"onnxruntime_providers_cuda",
+					//"onnxruntime_providers_shared",
+					//"custom_op_library",
+					//"test_execution_provider"
 				};
 			}
 			else if(Target.Platform == UnrealTargetPlatform.Linux)
 			{
 				LibFileNames = new string[] {
 					"onnxruntime",
-					"onnxruntime_providers_shared",
-					"custom_op_library",
-					"test_execution_provider"
+					//"onnxruntime_providers_shared",
+					//"custom_op_library",
+					//"test_execution_provider"
 				};
 			}
 			else if(Target.Platform == UnrealTargetPlatform.Mac)
 			{
 				LibFileNames = new string[] {
 					"onnxruntime",
-					"custom_op_library"
+					//"custom_op_library"
 				};
 			}
 			else 
@@ -64,46 +57,37 @@ public class NNEOnnxruntimeEditor : ModuleRules
 				LibFileNames = new string[] {};
 			}
 
-			string BinaryThirdPartyDirPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "bin", PlatformDir));
+			string PlatformDir = Target.Platform.ToString();
+			string OrtPlatformRelativePath = Path.Combine("Binaries", "ThirdParty", "OnnxruntimeEditor", PlatformDir);
+			string OrtPlatformPath = Path.Combine(PluginDirectory, OrtPlatformRelativePath);
 			
 			foreach (string LibFileName in LibFileNames)
 			{
-
 				if(Target.Platform == UnrealTargetPlatform.Win64)
 				{
-					PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, LibFileName + ".lib"));
+					PublicAdditionalLibraries.Add(Path.Combine(ModuleDirectory, "lib", PlatformDir, LibFileName + ".lib"));
 					
 					// PublicDelayLoadDLLs
 					string DLLFileName = LibFileName + ".dll";
 					PublicDelayLoadDLLs.Add(DLLFileName);
 
 					// RuntimeDependencies
-					string DLLFullPath = Path.Combine(BinaryThirdPartyDirPath, DLLFileName);
+					string DLLFullPath = Path.Combine(OrtPlatformPath, DLLFileName);
 					RuntimeDependencies.Add(DLLFullPath);
 				} 
 				else if(Target.Platform == UnrealTargetPlatform.Linux)
 				{
-					string CurrentLibPath = Path.Combine(BinaryThirdPartyDirPath, "lib" + LibFileName + ".so");			
+					string CurrentLibPath = Path.Combine(OrtPlatformPath, "lib" + LibFileName + ".so");			
 					PublicAdditionalLibraries.Add(CurrentLibPath);
+					PublicDelayLoadDLLs.Add(CurrentLibPath);
 					RuntimeDependencies.Add(CurrentLibPath);
 
 				}
 				else if(Target.Platform == UnrealTargetPlatform.Mac)
 				{
-					string FullLibName = "lib" + LibFileName + ".dylib";
-
-					string CurrentLibPath = Path.Combine(BinaryThirdPartyDirPath, FullLibName);
-					PublicAdditionalLibraries.Add(CurrentLibPath);
+					string CurrentLibPath = Path.Combine(OrtPlatformPath, "lib" + LibFileName + ".dylib");
+					PublicDelayLoadDLLs.Add(CurrentLibPath);
 					RuntimeDependencies.Add(CurrentLibPath);
-
-
-					string DistributionFilePath = Path.Combine("$(TargetOutputDir)", FullLibName); 
-					RuntimeDependencies.Add(DistributionFilePath, CurrentLibPath);
-
-				}
-				else
-				{
-					
 				}
 			}
 
@@ -116,8 +100,7 @@ public class NNEOnnxruntimeEditor : ModuleRules
 				PublicDefinitions.Add("ORT_NO_EXCEPTIONS");
 			}
 			
-			PublicDefinitions.Add("ORTDEFAULT_PLATFORM_PATH=bin/" + PlatformDir);
-			PublicDefinitions.Add("ORTDEFAULT_PLATFORM_BIN_PATH=" + BinaryThirdPartyDirPath.Replace('\\', '/'));
+			PublicDefinitions.Add("ONNXRUNTIME_PLATFORM_PATH=" + OrtPlatformRelativePath.Replace('\\', '/'));
 			
 			if(Target.Platform == UnrealTargetPlatform.Win64)
 			{

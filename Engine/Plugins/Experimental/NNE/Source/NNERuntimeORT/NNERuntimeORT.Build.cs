@@ -21,6 +21,7 @@ public class NNERuntimeORT : ModuleRules
 			new string[] {
 				"Core",
 				"Engine",
+				"Projects",
 				"NNECore",
 				"NNEProfiling",
 			}
