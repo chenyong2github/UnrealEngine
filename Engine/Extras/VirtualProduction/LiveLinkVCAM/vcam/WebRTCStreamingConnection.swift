@@ -341,36 +341,6 @@ class WebRTCStreamingConnection : StreamingConnection {
             self.keyboardControls = KeyboardControls(webRTC)
             view.attachVideoTrack(track: track)
             view.attachTouchDelegate(delegate: self.touchControls!)
-            self.sendDeviceResolution()
-        }
-    }
-    
-    func sendDeviceResolution() {
-        if let client = self.webRTCClient {
-            let bounds = UIScreen.main.nativeBounds
-            
-            // the device nativeBounds are always in portrait orientation, so we swap them here because we always run
-            // in landscape.
-            let resolutionCommand = PixelStreamingToStreamerResolutionCommand(width: Int(bounds.height), height: Int(bounds.width))
-            
-            do {
-                let jsonData = try JSONEncoder().encode(resolutionCommand)
-                let jsonString = String(data: jsonData, encoding: .utf8)!
-                
-                var bytes: [UInt8] = []
-                // Append the message type
-                bytes.append(PixelStreamingToStreamerMessage.Command.rawValue)
-                bytes.append(contentsOf: UInt16(jsonString.count).toBytes())
-                // Append each character in the json string represented by its UTF16 character code
-                for char in jsonString {
-                    let charCode = char.utf16[char.utf16.index(char.utf16.startIndex, offsetBy: 0)]
-                    bytes.append(contentsOf: charCode.toBytes())
-                }
-                
-                client.sendData(Data(bytes))
-            } catch {
-                print(error)
-            }
         }
     }
 }
