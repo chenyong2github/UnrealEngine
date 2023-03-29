@@ -2,12 +2,11 @@
 
 #pragma once 
 
-#include "Camera/PlayerCameraManager.h"
 #include "EditorUndoClient.h"
 #include "TickableEditorObject.h"
 #include "UObject/GCObject.h"
 #include "Widgets/SCompoundWidget.h"
-#include "SCameraShakePreviewer.generated.h"
+#include "Evaluation/MovieSceneCameraShakePreviewer.h"
 
 class SButton;
 class UCameraModifier_CameraShake;
@@ -26,32 +25,19 @@ class FSceneView;
 class ITableRow;
 class STableViewBase;
 class UCameraAnimInst;
+class UCameraShakeBase;
 class UCameraShakeSourceComponent;
 class ULevel;
 class UWorld;
 struct FCameraShakeData;
 struct FEditorViewportViewModifierParams;
+struct FPostProcessSettings;
 struct FTogglePreviewCameraShakesParams;
 
-UCLASS()
-class APreviewPlayerCameraManager : public APlayerCameraManager
-{
-	GENERATED_BODY()
-
-public:
-	void ResetPostProcessSettings()
-	{
-		ClearCachedPPBlends();
-	}
-
-	void MergePostProcessSettings(TArray<FPostProcessSettings>& InSettings, TArray<float>& InBlendWeights)
-	{
-		InSettings.Append(PostProcessBlendCache);
-		InBlendWeights.Append(PostProcessBlendCacheWeights);
-	}
-};
-
-class FCameraShakePreviewUpdater : public FTickableEditorObject, public FGCObject
+/**
+ * Wrapper for the shake previewer that will tick it with the editor.
+ */
+class FCameraShakePreviewUpdater : public FTickableEditorObject
 {
 public:
 	FCameraShakePreviewUpdater();
@@ -62,35 +48,22 @@ public:
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(FCameraShakePreviewUpdater, STATGROUP_Tickables); }
 	virtual void Tick(float DeltaTime) override;
 
-	// FGCObject interface
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const override { return TEXT("SCameraShakePreviewer"); }
-
 	UCameraShakeBase* AddCameraShake(TSubclassOf<UCameraShakeBase> ShakeClass, const FAddCameraShakeParams& Params);
-	void RemoveAllCameraShakesFromSource(const UCameraShakeSourceComponent* SourceComponent);
 	void GetActiveCameraShakes(TArray<FActiveCameraShakeInfo>& ActiveCameraShakes) const;
 	void RemoveCameraShake(UCameraShakeBase* ShakeInstance);
+	void RemoveAllCameraShakesFromSource(const UCameraShakeSourceComponent* SourceComponent);
 	void RemoveAllCameraShakes();
 
 	void ModifyCamera(FEditorViewportViewModifierParams& Params);
 
-private:
-	void AddPostProcessBlend(const FPostProcessSettings& Settings, float Weight);
+	void Reinitialize(UWorld* InWorld);
 
+private:
 	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
+	void OnPrepareToCleanseEditorObject(UObject* Object);
 
 private:
-	APreviewPlayerCameraManager* PreviewCamera;
-	UCameraModifier_CameraShake* PreviewCameraShake;
-
-	TOptional<float> LastDeltaTime;
-
-	FVector LastLocationModifier;
-	FRotator LastRotationModifier;
-	float LastFOVModifier;
-
-	TArray<FPostProcessSettings> LastPostProcessSettings;
-	TArray<float> LastPostProcessBlendWeights;
+	FCameraShakePreviewer Previewer;
 };
 
 /**
@@ -114,7 +87,7 @@ public:
 
 private:
 	void Populate();
-	bool FindCurrentWorld();
+	UWorld* FindCurrentWorld();
 	void Refresh();
 
 	void OnTogglePreviewCameraShakes(const FTogglePreviewCameraShakesParams& Params);
@@ -151,6 +124,6 @@ private:
 	FLevelEditorViewportClient* ActiveViewportClient;
 	int ActiveViewportIndex;
 
-	TWeakObjectPtr<UWorld> CurrentWorld;
+	TWeakObjectPtr<UWorld> WeakCurrentWorld;
 	bool bNeedsRefresh;
 };

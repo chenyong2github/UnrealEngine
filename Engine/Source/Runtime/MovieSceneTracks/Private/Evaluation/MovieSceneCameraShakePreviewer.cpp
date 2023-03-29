@@ -7,8 +7,11 @@
 #include "LevelEditorViewport.h"
 #include "Camera/CameraModifier_CameraShake.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCameraShakePreviewer)
+
 FCameraShakePreviewer::FCameraShakePreviewer()
-	: PreviewCameraShake(NewObject<UCameraModifier_CameraShake>())
+	: PreviewCamera(nullptr)
+	, PreviewCameraShake(nullptr)
 	, LastLocationModifier(FVector::ZeroVector)
 	, LastRotationModifier(FRotator::ZeroRotator)
 	, LastFOVModifier(0.f)
@@ -22,7 +25,33 @@ FCameraShakePreviewer::~FCameraShakePreviewer()
 		UnRegisterViewModifier();
 	}
 
+	Teardown();
+}
+
+void FCameraShakePreviewer::Initialize(UWorld* InWorld)
+{
+	FActorSpawnParameters SpawnInfo;
+	SpawnInfo.ObjectFlags |= RF_Transient;
+	SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	PreviewCamera = InWorld->SpawnActor<APreviewPlayerCameraManager>(SpawnInfo);
+	PreviewCamera->SetIsTemporarilyHiddenInEditor(true);
+
+	PreviewCameraShake = CastChecked<UCameraModifier_CameraShake>(
+		PreviewCamera->AddNewCameraModifier(UCameraModifier_CameraShake::StaticClass()));
+
+	LastDeltaTime = 0.f;
+}
+
+void FCameraShakePreviewer::Teardown()
+{
+	if (PreviewCamera != nullptr)
+	{
+		PreviewCamera->Destroy(false, false);
+	}
+
 	PreviewCameraShake = nullptr;
+	PreviewCamera = nullptr;
 }
 
 void FCameraShakePreviewer::Update(float DeltaTime, bool bIsPlaying)
@@ -37,14 +66,25 @@ void FCameraShakePreviewer::Update(float DeltaTime, bool bIsPlaying)
 	}
 }
 
+void FCameraShakePreviewer::ModifyView(FEditorViewportViewModifierParams& Params)
+{
+	OnModifyView(Params);
+}
+
 void FCameraShakePreviewer::OnModifyView(FEditorViewportViewModifierParams& Params)
 {
 	const float DeltaTime = LastDeltaTime.Get(-1.f);
 	if (DeltaTime > 0.f)
 	{
+		LastPostProcessSettings.Reset();
+		LastPostProcessBlendWeights.Reset();
+		PreviewCamera->ResetPostProcessSettings();
+
 		FMinimalViewInfo OriginalPOV(Params.ViewInfo);
 
 		PreviewCameraShake->ModifyCamera(DeltaTime, Params.ViewInfo);
+
+		PreviewCamera->MergePostProcessSettings(LastPostProcessSettings, LastPostProcessBlendWeights);
 
 		LastLocationModifier = Params.ViewInfo.Location - OriginalPOV.Location;
 		LastRotationModifier = Params.ViewInfo.Rotation - OriginalPOV.Rotation;
@@ -57,6 +97,11 @@ void FCameraShakePreviewer::OnModifyView(FEditorViewportViewModifierParams& Para
 		Params.ViewInfo.Location += LastLocationModifier;
 		Params.ViewInfo.Rotation += LastRotationModifier;
 		Params.ViewInfo.FOV += LastFOVModifier;
+	}
+
+	for (int32 PPIndex = 0; PPIndex < LastPostProcessSettings.Num(); ++PPIndex)
+	{
+		Params.AddPostProcessBlend(LastPostProcessSettings[PPIndex], LastPostProcessBlendWeights[PPIndex]);
 	}
 }
 

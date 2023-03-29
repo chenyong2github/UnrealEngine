@@ -119,7 +119,7 @@ struct FCameraShakeSourceShakeStartExecutionToken : IMovieSceneExecutionToken
 
 #if WITH_EDITOR
 						// Also start playing the shake in our editor preview.
-						UCameraModifier_CameraShake* const PreviewCameraShake = InstanceData.Previewer.GetCameraShake();
+						UCameraModifier_CameraShake* const PreviewCameraShake = InstanceData.Previewer.GetCameraModifier();
 
 						FAddCameraShakeParams Params;
 						Params.SourceComponent = ShakeSourceComponent;
@@ -176,7 +176,7 @@ struct FCameraShakeSourceShakeBlendOutExecutionToken : IMovieSceneExecutionToken
 						ShakeSourceComponent->StopAllCameraShakesOfType(ShakeClass, bImmediately);
 
 #if WITH_EDITOR
-						UCameraModifier_CameraShake* const PreviewCameraShake = InstanceData.Previewer.GetCameraShake();
+						UCameraModifier_CameraShake* const PreviewCameraShake = InstanceData.Previewer.GetCameraModifier();
 						PreviewCameraShake->RemoveAllCameraShakesOfClassFromSource(ShakeClass, ShakeSourceComponent, bImmediately);
 #endif
 					}
@@ -211,6 +211,10 @@ void FMovieSceneCameraShakeSourceShakeSectionTemplate::Setup(FPersistentEvaluati
 	InstanceData.Status = ECameraShakeSourceShakeStatus::NotStarted;
 
 #if WITH_EDITOR
+	if (!InstanceData.Previewer.IsInitialized())
+	{
+		InstanceData.Previewer.Initialize(Player.GetPlaybackContext()->GetWorld());
+	}
 	InstanceData.Previewer.RegisterViewModifier();
 #endif
 }

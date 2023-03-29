@@ -50,7 +50,7 @@ struct FCameraShakeSourceTriggerExecutionToken : IMovieSceneExecutionToken
 
 #if WITH_EDITOR
 							// Also start playing the shake in our editor preview.
-							UCameraModifier_CameraShake* const PreviewCameraShake = InstanceData.Previewer.GetCameraShake();
+							UCameraModifier_CameraShake* const PreviewCameraShake = InstanceData.Previewer.GetCameraModifier();
 
 							FAddCameraShakeParams Params;
 							Params.SourceComponent = ShakeSourceComponent;
@@ -96,6 +96,10 @@ void FMovieSceneCameraShakeSourceTriggerSectionTemplate::Setup(FPersistentEvalua
 {
 	FCameraShakeSourceTriggerInstanceData& InstanceData = PersistentData.AddSectionData<FCameraShakeSourceTriggerInstanceData>();
 #if WITH_EDITOR
+	if (!InstanceData.Previewer.IsInitialized())
+	{
+		InstanceData.Previewer.Initialize(Player.GetPlaybackContext()->GetWorld());
+	}
 	InstanceData.Previewer.RegisterViewModifier();
 #endif
 }
