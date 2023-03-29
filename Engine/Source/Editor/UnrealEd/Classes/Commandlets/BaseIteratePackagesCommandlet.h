@@ -107,8 +107,6 @@ protected:
 	/** Similar to above, but applies to all packages rather than just maps **/
 	//bool bShouldBuildTextureStreamingForAll;
 
-	bool bForceFinishAllCompilationBeforeGC;
-
 	/** only process packages containing materials **/
 	bool bOnlyMaterials;
 

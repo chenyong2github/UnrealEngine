@@ -929,7 +929,7 @@ void UBaseIteratePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filena
 
 		if (!GarbageCollectionFrequency || Counter++ % GarbageCollectionFrequency == 0)
 		{
-			if (FApp::CanEverRender() || bForceFinishAllCompilationBeforeGC)
+			if (FApp::CanEverRender())
 			{
 				FAssetCompilingManager::Get().FinishAllCompilation();
 			}
@@ -1083,8 +1083,6 @@ int32 UBaseIteratePackagesCommandlet::Main( const FString& Params )
 	bOnlyPayloadTrailers = Switches.Contains(TEXT("OnlyPayloadTrailers"));
 	/** only process packages containing materials */
 	bOnlyMaterials = Switches.Contains(TEXT("onlymaterials"));
-
-	bForceFinishAllCompilationBeforeGC = false;
 
 	bUseWorldPartitionBuilder = false;
 
