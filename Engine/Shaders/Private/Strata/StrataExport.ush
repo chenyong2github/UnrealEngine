@@ -829,7 +829,11 @@ void PackStrataOut(
 
 }
 
-#if STRATA_MATERIAL_EXPORT_TYPE > 0
+#ifndef STRATA_GPU_LIGHTMASS
+#define STRATA_GPU_LIGHTMASS 0
+#endif
+
+#if STRATA_MATERIAL_EXPORT_TYPE > 0 || STRATA_GPU_LIGHTMASS > 0
 
 void StrataMaterialExportOut(
 	in FStrataIntegrationSettings Settings,
