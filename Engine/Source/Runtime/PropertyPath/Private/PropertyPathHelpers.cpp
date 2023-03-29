@@ -789,6 +789,8 @@ FCachedPropertyPath::FCachedPropertyPath(const FPropertyPathSegment& Segment)
 	Segments.Add(Segment);
 }
 
+FCachedPropertyPath::~FCachedPropertyPath() = default;
+
 void FCachedPropertyPath::MakeFromString(const FString& InPropertyPath)
 {
 	const TCHAR Delim = TEXT('.');

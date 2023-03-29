@@ -109,6 +109,9 @@ struct PROPERTYPATH_API FCachedPropertyPath
 	/** */
 	FCachedPropertyPath(const TArray<FString>& PathSegments);
 
+	/** */
+	~FCachedPropertyPath();
+
 	/** Check whether this property path is non-empty */
 	bool IsValid() const { return Segments.Num() > 0; }
 
