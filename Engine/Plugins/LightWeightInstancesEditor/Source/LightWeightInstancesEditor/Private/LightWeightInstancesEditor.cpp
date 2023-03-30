@@ -115,7 +115,11 @@ void FLightWeightInstancesEditorModule::ConvertActorsToLWIsUIAction(const TArray
 
 		ALightWeightInstanceManager* Manager = FLightWeightInstanceSubsystem::Get().FindOrAddLightWeightInstanceManager(*Actor->GetClass(), *Actor->GetWorld(), Actor->GetActorLocation(), DataLayerInstance);
 		check(Manager);
-		UDataLayerEditorSubsystem::Get()->OnActorDataLayersChanged().Broadcast(Manager);
+		
+		if(UDataLayerEditorSubsystem* DataLayerEditor = UDataLayerEditorSubsystem::Get())
+		{
+			DataLayerEditor->OnActorDataLayersChanged().Broadcast(Manager);
+		}
 
 		Manager->ConvertActorToLightWeightInstance(Actor);
 	}

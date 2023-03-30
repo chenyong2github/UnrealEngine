@@ -202,7 +202,12 @@ void ALightWeightInstanceStaticMeshManager::SetInstancedStaticMeshParams()
 	InstancedStaticMeshComponent->Mobility = EComponentMobility::Movable;
 	// Allows per-instance selection in the editor
 	InstancedStaticMeshComponent->bHasPerInstanceHitProxies = true;
-}
+
+	while(InstancedStaticMeshComponent->InstancingRandomSeed == 0)
+	{
+		InstancedStaticMeshComponent->InstancingRandomSeed = FMath::Rand();
+	}
+} 
 
 void ALightWeightInstanceStaticMeshManager::SetStaticMeshFromActor(AActor* InActor)
 {
