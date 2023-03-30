@@ -37,6 +37,7 @@
 #include "MaterialCachedData.h"
 #include "Components/DecalComponent.h"
 #include "UObject/ArchiveCookContext.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
 #include "ObjectCacheEventSink.h"
