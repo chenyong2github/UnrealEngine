@@ -10,7 +10,6 @@
 #include "RenderResource.h"
 #include "RenderGraphResources.h"
 #include "HairStrandsInterface.h"
-#include "HairStrandsRendering.h"
 #include "HairStrandsMeshProjection.h"
 
 

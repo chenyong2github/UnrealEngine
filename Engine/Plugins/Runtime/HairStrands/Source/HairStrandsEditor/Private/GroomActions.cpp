@@ -5,7 +5,6 @@
 
 #include "EditorFramework/AssetImportData.h"
 #include "HairStrandsCore.h"
-#include "HairStrandsRendering.h"
 #include "GeometryCache.h"
 #include "GroomAssetImportData.h"
 #include "GroomBuilder.h"

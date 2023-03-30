@@ -10,7 +10,6 @@
 #include "NiagaraSystem.h"
 #include "PrimitiveSceneProxy.h"
 #include "PhysicsEngine/PhysicsAsset.h"
-#include "HairStrandsRendering.h"
 #include "HairCardsVertexFactory.h"
 #include "HairStrandsVertexFactory.h"
 #include "RayTracingInstance.h"

@@ -8,13 +8,13 @@
 #include "VertexFactory.h"
 #include "RenderGraphResources.h"
 #include "HairStrandsDatas.h"
-#include "HairStrandsRendering.h"
 #include "HairStrandsInterface.h"
 #include "PrimitiveSceneProxy.h"
 
 class FMaterial;
 class FSceneView;
 struct FMeshBatchElement;
+struct FHairGroupInstance;
 
 /**
  * A vertex factory which simply transforms explicit vertex attributes from local to world space.

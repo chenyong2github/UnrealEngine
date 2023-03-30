@@ -8,7 +8,6 @@
 #include "VertexFactory.h"
 #include "RenderGraphResources.h"
 #include "HairCardsDatas.h"
-#include "HairStrandsRendering.h"
 #include "HairStrandsInterface.h"
 #include "PrimitiveSceneProxy.h"
 

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
-#include "HairStrandsRendering.h"
+#include "HairStrandsInterpolation.h"
 #include "HairStrandsDatas.h"
 #include "HairCardsBuilder.h"
 #include "RenderGraphBuilder.h"

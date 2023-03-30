@@ -17,6 +17,7 @@
 #include "GeometryCacheSceneProxy.h"
 #include "HAL/IConsoleManager.h"
 #include "SceneView.h"
+#include "HairStrandsInterpolation.h"
 #include "HairCardsVertexFactory.h"
 #include "HairStrandsVertexFactory.h"
 #include "RenderGraphEvent.h"
