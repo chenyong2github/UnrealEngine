@@ -4,7 +4,7 @@
 
 import { FontIcon, Stack } from '@fluentui/react';
 import React, { CSSProperties } from 'react';
-import { FindIssueResponse, GetAgentLeaseResponse, GetBatchResponse, GetIssueResponse, GetJobStepRefResponse, GetStepResponse, IssueSeverity, JobStepBatchError, JobStepOutcome, JobStepState, LabelOutcome, LabelState, LeaseOutcome } from '../backend/Api';
+import { FindIssueResponse, GetAgentLeaseResponse, GetBatchResponse, GetIssueResponse, GetJobStepRefResponse, GetStepResponse, IssueSeverity, JobStepBatchError, JobStepOutcome, JobStepState, LabelOutcome, LabelState, LeaseOutcome, LeaseState } from '../backend/Api';
 import dashboard, { StatusColor } from "../backend/Dashboard";
 import { JobLabel } from '../backend/JobDetails';
 
@@ -210,7 +210,7 @@ export const LeaseStatusIcon: React.FC<{ lease: GetAgentLeaseResponse, style?: C
    const icon = "Square";
    let color: string | undefined;
 
-   if (lease.executing) {
+   if (lease.executing || (lease.name === "Updating workspaces" && (lease.state === LeaseState.Active || lease.state === LeaseState.Pending))) {
       color = colors.get(StatusColor.Running);
    }
 
