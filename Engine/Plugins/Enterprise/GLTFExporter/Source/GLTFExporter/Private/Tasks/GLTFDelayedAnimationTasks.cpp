@@ -2,9 +2,10 @@
 
 #include "Tasks/GLTFDelayedAnimationTasks.h"
 #include "Builders/GLTFContainerBuilder.h"
-#include "Engine/Level.h"
 #include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFBoneUtilities.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/Level.h"
 #include "LevelSequence.h"
 #include "LevelSequenceActor.h"
 #include "LevelSequencePlayer.h"

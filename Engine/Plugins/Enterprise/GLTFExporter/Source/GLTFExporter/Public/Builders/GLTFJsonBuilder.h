@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Json/GLTFJsonRoot.h"
 #include "Builders/GLTFFileBuilder.h"
+#include "Json/GLTFJsonRoot.h"
 
 class GLTFEXPORTER_API FGLTFJsonBuilder : public FGLTFFileBuilder
 {
