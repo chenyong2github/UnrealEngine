@@ -107,6 +107,8 @@ static EMaterialGetParameterValueFlags MakeParameterValueFlags(bool bOveriddenOn
 	return Result;
 }
 
+#if WITH_EDITORONLY_DATA
+
 /** Deletes any invalid EditorOnlyData object with specified name that isn't the one assigned to specified interface. */
 static void DisposeInvalidEditorOnlyData(UMaterialInterface* MaterialInterface, const FString& EditorOnlyDataName)
 {
@@ -118,6 +120,8 @@ static void DisposeInvalidEditorOnlyData(UMaterialInterface* MaterialInterface, 
 		EditorOnlyExisting->MarkAsGarbage();
 	}
 }
+
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 
