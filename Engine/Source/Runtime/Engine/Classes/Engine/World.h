@@ -239,6 +239,9 @@ private:
 
 	void SetHandlerLoadedData(UObject* InLevelPackage, UWorld* InLoadedWorld);
 
+	/** Wrapper for loading transition or destination map, returns false if not found */
+	bool StartLoadingMap(FString MapPackageToLoadFrom);
+
 	/** called to kick off async loading of the destination map and any other packages it requires */
 	void StartLoadingDestination();
 

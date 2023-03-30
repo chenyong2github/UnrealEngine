@@ -7051,23 +7051,11 @@ bool FSeamlessTravelHandler::StartTravel(UWorld* InCurrentWorld, const FURL& InU
 				}
 				else
 				{
-					// Set the world type in the static map, so that UWorld::PostLoad can set the world type
-					UWorld::WorldTypePreLoadMap.FindOrAdd(*TransitionMap) = CurrentWorld->WorldType;
-
-					// first, load the entry level package
+					// Load the transition map, possibly with PIE prefix
 					STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "StartTravel - " ) + TransitionMap )) );
 					TRACE_BOOKMARK(TEXT("StartTravel - %s"), *TransitionMap);
-					FPackagePath PackagePath;
-					if (FPackagePath::TryFromMountedName(TransitionMap, PackagePath))
-					{
-						LoadPackageAsync(PackagePath, 
-							FName(),
-							FLoadPackageAsyncDelegate::CreateRaw(this, &FSeamlessTravelHandler::SeamlessTravelLoadCallback),
-							(CurrentWorld->WorldType == EWorldType::PIE ? PKG_PlayInEditor : PKG_None),
-							Context.PIEInstance
-							);
-					}
-					else
+
+					if (!StartLoadingMap(TransitionMap))
 					{
 						UE_LOG(LogWorld, Error, TEXT("StartTravel: Invalid TransitionMap \"%s\""), *TransitionMap);
 					}
@@ -7144,6 +7132,57 @@ void FSeamlessTravelHandler::SetPauseAtMidpoint(bool bNowPaused)
 	}
 }
 
+bool FSeamlessTravelHandler::StartLoadingMap(FString MapPackageToLoadFrom)
+{
+	if (MapPackageToLoadFrom.IsEmpty())
+	{
+		return false;
+	}
+
+	// In PIE we might want to mangle MapPackageName when traveling to a map loaded in the editor
+	FString MapPackageName = MapPackageToLoadFrom;
+	EPackageFlags PackageFlags = PKG_None;
+	int32 PIEInstanceID = INDEX_NONE;
+
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		FWorldContext& WorldContext = GEngine->GetWorldContextFromHandleChecked(WorldContextHandle);
+
+		PIEInstanceID = WorldContext.PIEInstance;
+		MapPackageName = UWorld::ConvertToPIEPackageName(MapPackageName, PIEInstanceID);
+
+		if (WorldContext.WorldType == EWorldType::PIE)
+		{
+			PackageFlags |= PKG_PlayInEditor;
+
+			// Prepare soft object paths for fixup
+			FSoftObjectPath::AddPIEPackageName(FName(*MapPackageName));
+		}
+	}
+#endif
+
+	// Set the world type in the static map, so that UWorld::PostLoad can set the world type
+	FName PackageFName(*MapPackageName);
+	UWorld::WorldTypePreLoadMap.FindOrAdd(PackageFName) = CurrentWorld->WorldType;
+
+	FPackagePath PackagePath;
+	if (FPackagePath::TryFromMountedName(MapPackageToLoadFrom, PackagePath))
+	{
+		LoadPackageAsync(
+			PackagePath,
+			PackageFName,
+			FLoadPackageAsyncDelegate::CreateRaw(this, &FSeamlessTravelHandler::SeamlessTravelLoadCallback),
+			PackageFlags,
+			PIEInstanceID
+		);
+
+		return true;
+	}
+
+	return false;
+}
+
 void FSeamlessTravelHandler::StartLoadingDestination()
 {
 	if (bTransitionInProgress && bSwitchedToDefaultMap)
@@ -7152,51 +7191,9 @@ void FSeamlessTravelHandler::StartLoadingDestination()
 
 		CurrentWorld->GetGameInstance()->PreloadContentForURL(PendingTravelURL);
 
-		const FName URLMapFName = FName(*PendingTravelURL.Map);
-
-		// In PIE we might want to mangle MapPackageName when traveling to a map loaded in the editor
-		FString URLMapPackageName = PendingTravelURL.Map;
-		FString URLMapPackageToLoadFrom = PendingTravelURL.Map;
-		EPackageFlags PackageFlags = PKG_None;
-		int32 PIEInstanceID = INDEX_NONE;
-		
-#if WITH_EDITOR
-		if (GIsEditor)
+		if (!StartLoadingMap(PendingTravelURL.Map))
 		{
-			FWorldContext &WorldContext = GEngine->GetWorldContextFromHandleChecked(WorldContextHandle);
-
-			PIEInstanceID = WorldContext.PIEInstance;
-			URLMapPackageName = UWorld::ConvertToPIEPackageName(URLMapPackageName, PIEInstanceID);
-
-			if (WorldContext.WorldType == EWorldType::PIE)
-			{
-				PackageFlags |= PKG_PlayInEditor;
-
-				// Prepare soft object paths for fixup
-				FSoftObjectPath::AddPIEPackageName(FName(*URLMapPackageName));
-			}
-		}
-#endif
-
-		// Set the world type in the static map, so that UWorld::PostLoad can set the world type
-		FName PackageName(*URLMapPackageName);
-		UWorld::WorldTypePreLoadMap.FindOrAdd(PackageName) = CurrentWorld->WorldType;
-
-		FStringView PackageNameToLoad(!URLMapPackageToLoadFrom.IsEmpty() ? FStringView(URLMapPackageToLoadFrom) : FStringView(URLMapPackageName));
-		FPackagePath PackagePath;
-		if (FPackagePath::TryFromMountedName(PackageNameToLoad, PackagePath))
-		{
-			LoadPackageAsync(
-				PackagePath,
-				PackageName,
-				FLoadPackageAsyncDelegate::CreateRaw(this, &FSeamlessTravelHandler::SeamlessTravelLoadCallback),
-				PackageFlags,
-				PIEInstanceID
-			);
-		}
-		else
-		{
-			UE_LOG(LogWorld, Error, TEXT("StartLoadingDestination: Invalid PackagePath \"%.*s\""), PackageNameToLoad.Len(), PackageNameToLoad.GetData());
+			UE_LOG(LogWorld, Error, TEXT("StartLoadingDestination: Invalid destination map \"%s\""), *PendingTravelURL.Map);
 		}
 	}
 	else
