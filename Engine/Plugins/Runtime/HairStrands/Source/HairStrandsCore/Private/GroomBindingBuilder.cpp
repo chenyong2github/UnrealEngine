@@ -62,25 +62,25 @@ FString FGroomBindingBuilder::GetVersion()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Common utils functions
-// These utils function are a copy of function in HairStrandsMeshProjectionCommon.ush
-uint32 FHairStrandsRootUtils::EncodeTriangleIndex(uint32 TriangleIndex, uint32 SectionIndex)
+// These utils function are a copy of function in HairStrandsBindingCommon.ush
+uint32 FHairStrandsRootUtils::PackTriangleIndex(uint32 TriangleIndex, uint32 SectionIndex)
 {
 	return ((SectionIndex & 0xFF) << 24) | (TriangleIndex & 0xFFFFFF);
 }
 
-// This function is a copy of DecodeTriangleIndex in HairStrandsMeshProjectionCommon.ush
-void FHairStrandsRootUtils::DecodeTriangleIndex(uint32 Encoded, uint32& OutTriangleIndex, uint32& OutSectionIndex)
+// This function is a copy of UnpackTriangleIndex in HairStrandsBindingCommon.ush
+void FHairStrandsRootUtils::UnpackTriangleIndex(uint32 Encoded, uint32& OutTriangleIndex, uint32& OutSectionIndex)
 {
 	OutSectionIndex = (Encoded >> 24) & 0xFF;
 	OutTriangleIndex = Encoded & 0xFFFFFF;
 }
 
-uint32 FHairStrandsRootUtils::EncodeBarycentrics(const FVector2f& B)
+uint32 FHairStrandsRootUtils::PackBarycentrics(const FVector2f& B)
 {
 	return uint32(FFloat16(B.X).Encoded) | (uint32(FFloat16(B.Y).Encoded)<<16);
 }
 
-FVector2f FHairStrandsRootUtils::DecodeBarycentrics(uint32 B)
+FVector2f FHairStrandsRootUtils::UnpackBarycentrics(uint32 B)
 {
 	FFloat16 BX;
 	BX.Encoded = (B & 0xFFFF);
@@ -662,7 +662,7 @@ namespace GroomBinding_RBFWeighting
 		{
 			uint32 SectionIndex = 0;
 			uint32 TriangleIndex = 0;
-			FHairStrandsRootUtils::DecodeTriangleIndex(EncodedTriangleId, TriangleIndex, SectionIndex);
+			FHairStrandsRootUtils::UnpackTriangleIndex(EncodedTriangleId, TriangleIndex, SectionIndex);
 			if (!ValidSection || (ValidSection && (SectionIndex == TargetSection)))
 			{
 				const IMeshSectionData& Section = MeshLODData.GetSection(SectionIndex);
@@ -1294,8 +1294,8 @@ namespace GroomBinding_RootProjection
 				check(ClosestDistance < FLT_MAX);
 
 				// Record closest triangle and the root's barycentrics
-				const uint32 EncodedBarycentrics = FHairStrandsRootUtils::EncodeBarycentrics(FVector2f(ClosestBarycentrics));	// LWC_TODO: Precision loss
-				const uint32 EncodedTriangleIndex = FHairStrandsRootUtils::EncodeTriangleIndex(ClosestTriangle.TriangleIndex, ClosestTriangle.SectionIndex);
+				const uint32 EncodedBarycentrics = FHairStrandsRootUtils::PackBarycentrics(FVector2f(ClosestBarycentrics));	// LWC_TODO: Precision loss
+				const uint32 EncodedTriangleIndex = FHairStrandsRootUtils::PackTriangleIndex(ClosestTriangle.TriangleIndex, ClosestTriangle.SectionIndex);
 				OutRootData.MeshProjectionLODs[LODIt].RootBarycentricBuffer[CurveIndex] = EncodedBarycentrics;
 
 				RootTriangleIndexBuffer[CurveIndex] = EncodedTriangleIndex;
@@ -1327,7 +1327,7 @@ namespace GroomBinding_RootProjection
 					// Add unique section
 					uint32 TriangleIndex;
 					uint32 SectionIndex;
-					FHairStrandsRootUtils::DecodeTriangleIndex(EncodedTriangleId, TriangleIndex, SectionIndex);
+					FHairStrandsRootUtils::UnpackTriangleIndex(EncodedTriangleId, TriangleIndex, SectionIndex);
 					UniqueSectionId.AddUnique(SectionIndex);
 
 					// Add unique triangle

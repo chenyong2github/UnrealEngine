@@ -3,6 +3,7 @@
 /*=============================================================================
 NiagaraDataInterfaceHairStrands.ush 
 =============================================================================*/
+#include "/Engine/Private/HairStrands/HairStrandsBindingCommon.ush"
 
 RWBuffer<uint4>		{ParameterName}_DeformedPositionBuffer;
 Buffer<uint4>		{ParameterName}_RestPositionBuffer;
@@ -651,7 +652,7 @@ void UpdateTriangleDisplace_{ParameterName}(in int StrandIndex, in float3 NodePo
 {
 	if( {ParameterName}_InterpolationMode >= 1)
 	{
-		const float2 ProjectionUV = ExtractBarycentrics({ParameterName}_RootBarycentricCoordinatesBuffer[StrandIndex]);
+		const float2 ProjectionUV = UnpackBarycentrics({ParameterName}_RootBarycentricCoordinatesBuffer[StrandIndex]).xy;
 		const uint TriangleIndex = {ParameterName}_RootToUniqueTriangleIndexBuffer[StrandIndex];
 
 		BuildRestTriangle_{ParameterName}(ProjectionUV, TriangleIndex, RestTrianglePosition, RestTriangleOrientation);
@@ -850,22 +851,14 @@ void GetLocalVector_{ParameterName}(in float3 WorldVector, in bool IsPosition, o
  * Attached the root to the skinned cache
  * -----------------------------------------------------------------
  */
-// Duplicate from #include "HairStrands/HairStrandsMeshProjectionCommon.ush" ApplyRBF()
+
 float3 ApplyRBF_{ParameterName}(in float3 RestControlPoint)
 {
-	float3 ControlPoint = RestControlPoint;
-	// Apply rbf interpolation from the samples set
-	for (int i = 0; i < {ParameterName}_SampleCount; ++i)
-	{
-		const float3 PositionDelta = RestControlPoint - {ParameterName}_RestSamplePositionsBuffer[i].xyz;
-		const float FunctionValue = sqrt(dot(PositionDelta, PositionDelta) + 1);
-		ControlPoint += FunctionValue * {ParameterName}_MeshSampleWeightsBuffer[i].xyz;
-	}
-	ControlPoint += {ParameterName}_MeshSampleWeightsBuffer[{ParameterName}_SampleCount].xyz;
-	ControlPoint += {ParameterName}_MeshSampleWeightsBuffer[{ParameterName}_SampleCount + 1].xyz * RestControlPoint.x;
-	ControlPoint += {ParameterName}_MeshSampleWeightsBuffer[{ParameterName}_SampleCount + 2].xyz * RestControlPoint.y;
-	ControlPoint += {ParameterName}_MeshSampleWeightsBuffer[{ParameterName}_SampleCount + 3].xyz * RestControlPoint.z;
-	return ControlPoint;
+	return ApplyRBF(
+		RestControlPoint, 
+		{ParameterName}_SampleCount, 
+		{ParameterName}_RestSamplePositionsBuffer,
+		{ParameterName}_MeshSampleWeightsBuffer);
 }
 
  // Compute the global position
@@ -898,7 +891,7 @@ void ComputeLocalState_{ParameterName}(in float3 RestPosition, in float4 RestOri
 	if( {ParameterName}_InterpolationMode >= 1)
 	{
 		const int StrandIndex = ExecIndex() / {ParameterName}_StrandSize;
-		const float2 ProjectionUV = ExtractBarycentrics({ParameterName}_RootBarycentricCoordinatesBuffer[StrandIndex]);
+		const float2 ProjectionUV = UnpackBarycentrics({ParameterName}_RootBarycentricCoordinatesBuffer[StrandIndex]);
 		const uint TriangleIndex = {ParameterName}_RootToUniqueTriangleIndexBuffer[StrandIndex];
 
 		float3 RestTrianglePosition = float3(0, 0, 0);
@@ -919,7 +912,7 @@ void AttachNodeState_{ParameterName}(in float3 LocalPosition, in float4 LocalOri
 	if( {ParameterName}_InterpolationMode >= 1)
 	{
 		const int StrandIndex = ExecIndex() / {ParameterName}_StrandSize;
-		const float2 ProjectionUV = ExtractBarycentrics({ParameterName}_RootBarycentricCoordinatesBuffer[StrandIndex]);
+		const float2 ProjectionUV = UnpackBarycentrics({ParameterName}_RootBarycentricCoordinatesBuffer[StrandIndex]);
 		const uint TriangleIndex = {ParameterName}_RootToUniqueTriangleIndexBuffer[StrandIndex];
 
 		float3 DeformedTrianglePosition = float3(0, 0, 0);

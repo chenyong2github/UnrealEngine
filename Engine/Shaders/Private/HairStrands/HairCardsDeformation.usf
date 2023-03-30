@@ -2,7 +2,7 @@
 
 #include "../Common.ush"
 #include "HairStrandsVertexFactoryCommon.ush"
-#include "HairStrandsMeshProjectionCommon.ush"
+#include "HairStrandsBindingCommon.ush"
 
 #define DEBUG_ENABLE 0
 
@@ -143,7 +143,7 @@ void MainCS(uint DispatchThreadId : SV_DispatchThreadID)
 	const uint RootIndex = GuideVertexToRootIndexBuffer[GuideIndex0];
 	const uint TriangleIndex = GuideRootToUniqueTriangleIndexBuffer[RootIndex];
 
-	const float3 RootBarycentric = DecodeBarycentrics(GuideRootBarycentricBuffer[RootIndex]);
+	const float3 RootBarycentric = UnpackBarycentrics(GuideRootBarycentricBuffer[RootIndex]);
 
 	const FHairMeshTriangle RestTriangle = GetTriangleTransformation(TriangleIndex, TriangleRestPositionBuffer);
 	const FHairMeshTriangle DeformedTriangle = GetTriangleTransformation(TriangleIndex, TriangleDeformedPositionBuffer);

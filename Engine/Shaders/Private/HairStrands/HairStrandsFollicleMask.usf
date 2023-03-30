@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
-#include "HairStrandsMeshProjectionCommon.ush"
+#include "HairStrandsBindingCommon.ush"
 
 #if SHADER_FOLLICLE_MASK
 
@@ -51,7 +51,7 @@ void MainVS(
 	const FHairMeshTriangleWithUVs Tri = GetTriangleWithUVsTransformation(UniqueTriangleIndex, UniqueTrianglePositionBuffer);
 
 	const uint EncodedBarycentric = RootBarycentricBuffer[RootIndex];
-	const float3 Barycentric = DecodeBarycentrics(EncodedBarycentric);
+	const float3 Barycentric = UnpackBarycentrics(EncodedBarycentric);
 	float2 RootUV = Barycentric.x * Tri.UV0 + Barycentric.y * Tri.UV1 + Barycentric.z * Tri.UV2;
 #endif
 

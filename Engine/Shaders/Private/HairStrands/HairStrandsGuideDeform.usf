@@ -2,7 +2,7 @@
 
 #include "../Common.ush"
 #include "HairStrandsClusterCommon.ush"
-#include "HairStrandsMeshProjectionCommon.ush"
+#include "HairStrandsBindingCommon.ush"
 
 #if SHADER_DEFORM_GUIDE
 
@@ -73,7 +73,7 @@ float3 DisplacePosition(uint VertexIndex, float3 Pos)
 
 #if PERMUTATION_DEFORMATION == DEFORMATION_OFFSET_GUIDE_DYNAMIC
 	const uint RootIndex = SimPointToCurveBuffer[VertexIndex];
-	const float3 RootBarycentric = DecodeBarycentrics(SimRootBarycentricBuffer[RootIndex]);
+	const float3 RootBarycentric = UnpackBarycentrics(SimRootBarycentricBuffer[RootIndex]);
 
 	const uint TriangleIndex = SimRootToUniqueTriangleIndexBuffer[RootIndex];
 	const FHairMeshTriangle RestTriangle = GetTriangleTransformation(TriangleIndex, SimRestPositionBuffer);

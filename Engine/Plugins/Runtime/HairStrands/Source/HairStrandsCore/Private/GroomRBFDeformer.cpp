@@ -120,7 +120,7 @@ void DeformStrands(
 		const FVector3f& Deform_Position = OutDeformedPositionBuffer[VertexOffset];
 
 		const uint32 PackedBarycentric = RootBarycentricBuffer[RootIndex];
-		const FVector2f B0 = FVector2f(FHairStrandsRootUtils::DecodeBarycentrics(PackedBarycentric));
+		const FVector2f B0 = FVector2f(FHairStrandsRootUtils::UnpackBarycentrics(PackedBarycentric));
 		const FVector3f   B  = FVector3f(B0.X, B0.Y, 1.f - B0.X - B0.Y);
 
 		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */
@@ -170,7 +170,7 @@ void ExtractUniqueTrianglePositions(
 		const uint32 PackedTriangleIndex = RestLODData.UniqueTriangleIndexBuffer[UniqueTriangleIndex];
 		uint32 TriangleIndex = 0;
 		uint32 SectionIndex = 0;
-		FHairStrandsRootUtils::DecodeTriangleIndex(PackedTriangleIndex, TriangleIndex, SectionIndex);
+		FHairStrandsRootUtils::UnpackTriangleIndex(PackedTriangleIndex, TriangleIndex, SectionIndex);
 
 		check(SectionIndex < SectionCount)
 		const uint32 TriangleCount = InMeshRenderData->LODRenderData[MeshLODIndex].RenderSections[SectionIndex].NumTriangles;

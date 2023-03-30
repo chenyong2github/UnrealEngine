@@ -224,10 +224,10 @@ struct FHairStrandsRootBarycentricFormat
 
 struct FHairStrandsRootUtils
 {
-	static uint32	 EncodeTriangleIndex(uint32 TriangleIndex, uint32 SectionIndex);
-	static void		 DecodeTriangleIndex(uint32 Encoded, uint32& OutTriangleIndex, uint32& OutSectionIndex);
-	static uint32	 EncodeBarycentrics(const FVector2f& B);
-	static FVector2f DecodeBarycentrics(uint32 B);
+	static uint32	 PackTriangleIndex(uint32 TriangleIndex, uint32 SectionIndex);
+	static void		 UnpackTriangleIndex(uint32 Encoded, uint32& OutTriangleIndex, uint32& OutSectionIndex);
+	static uint32	 PackBarycentrics(const FVector2f& B);
+	static FVector2f UnpackBarycentrics(uint32 B);
 	static uint32	 PackUVs(const FVector2f& UV);
 	static float	 PackUVsToFloat(const FVector2f& UV);
 };

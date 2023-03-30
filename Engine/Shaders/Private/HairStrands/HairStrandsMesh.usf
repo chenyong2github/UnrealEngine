@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
-#include "HairStrandsMeshProjectionCommon.ush"
+#include "HairStrandsBindingCommon.ush"
 
 ////////////////////////////////////////////////////////////////////////
 // Deform hair mesh basd on RBF weights
@@ -374,7 +374,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	if (UniqueTriangleIndex >= MaxUniqueTriangleCount)
 		return;
 	
-	const FHairTriangleIndex TriangleIndex = DecodeTriangleIndex(UniqueTriangleIndices[UniqueTriangleIndex]);
+	const FHairTriangleIndex TriangleIndex = UnpackTriangleIndex(UniqueTriangleIndices[UniqueTriangleIndex]);
 	if (TriangleIndex.SectionIndex >= MaxSectionCount)
 		return;
 

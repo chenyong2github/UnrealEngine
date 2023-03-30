@@ -193,39 +193,12 @@ float3 TransformPoint(float3 P, float3 B, const FHairMeshTriangle RestTriangle, 
 	return ToWorld(LocalP, B, DeformedTriangle);
 }
 
-struct FHairProjectionData
-{
-	uint TriangleIndex;
-	float2 Barycentrics;
-};
-
-FHairProjectionData DecodeHairProjectionData(uint4 Data)
-{
-	const float B0 = f16tof32(Data.z);
-	const float B1 = f16tof32(Data.w);
-
-	FHairProjectionData Out;
-	Out.Barycentrics = float2(B0, B1);
-	Out.TriangleIndex = (Data.x & 0xFFFF) | ((Data.y & 0xFFFF) << 16);
-	return Out;
-}
-
-uint4 EncodeHairProjectionData(FHairProjectionData Data)
-{
-	uint4 Out;
-	Out.x = Data.TriangleIndex & 0xFFFF;
-	Out.y = (Data.TriangleIndex>>16) & 0xFFFF;
-	Out.z = f32tof16(saturate(Data.Barycentrics.x));
-	Out.w = f32tof16(saturate(Data.Barycentrics.y));
-	return Out;
-}
-
-uint EncodeBarycentrics(float2 B)
+uint PackBarycentrics(float2 B)
 {
 	return f32tof16(B.x) | (f32tof16(B.y) << 16);
 }
 
-float3 DecodeBarycentrics(uint E)
+float3 UnpackBarycentrics(uint E)
 {
 	float3 Out;
 	Out.x = f16tof32(E & 0xFFFF);
@@ -234,19 +207,18 @@ float3 DecodeBarycentrics(uint E)
 	return Out;
 }
 
-
 struct FHairTriangleIndex
 {
 	uint TriangleIndex;
 	uint SectionIndex;
 };
 
-uint EncodeTriangleIndex(uint TriangleIndex, uint SectionIndex)
+uint PackTriangleIndex(uint TriangleIndex, uint SectionIndex)
 {
 	return ((SectionIndex & 0xFF)<<24) | (TriangleIndex & 0xFFFFFF);
 }
 
-FHairTriangleIndex DecodeTriangleIndex(uint Encoded)
+FHairTriangleIndex UnpackTriangleIndex(uint Encoded)
 {
 	FHairTriangleIndex Out;
 	Out.SectionIndex = (Encoded>>24) & 0xFF;

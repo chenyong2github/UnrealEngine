@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
-#include "HairStrandsMeshProjectionCommon.ush"
+#include "HairStrandsBindingCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsAABBCommon.ush" 
 #include "HairStrandsClusterCommon.ush"
@@ -224,7 +224,7 @@ FRootTriangleData GetRootTriangleData(uint VertexIndex, bool bSim)
 	{
 		Out.RootIndex		 = SimPointToCurveBuffer[VertexIndex];
 		Out.TriangleIndex	 = SimRootToUniqueTriangleIndexBuffer[Out.RootIndex];
-		Out.RootBarycentric  = DecodeBarycentrics(SimRootBarycentricBuffer[Out.RootIndex]);
+		Out.RootBarycentric  = UnpackBarycentrics(SimRootBarycentricBuffer[Out.RootIndex]);
 		Out.RestTriangle	 = GetTriangleTransformation(Out.TriangleIndex, SimRootRestPositionBuffer);
 		Out.DeformedTriangle = GetTriangleTransformation(Out.TriangleIndex, SimRootDeformedPositionBuffer);
 	}
@@ -232,7 +232,7 @@ FRootTriangleData GetRootTriangleData(uint VertexIndex, bool bSim)
 	{
 		Out.RootIndex		 = RenPointToCurveBuffer[VertexIndex];
 		Out.TriangleIndex	 = RenRootToUniqueTriangleIndexBuffer[Out.RootIndex];
-		Out.RootBarycentric  = DecodeBarycentrics(RenRootBarycentricBuffer[Out.RootIndex]);
+		Out.RootBarycentric  = UnpackBarycentrics(RenRootBarycentricBuffer[Out.RootIndex]);
 		Out.RestTriangle	 = GetTriangleTransformation(Out.TriangleIndex, RenRootRestPositionBuffer);
 		Out.DeformedTriangle = GetTriangleTransformation(Out.TriangleIndex, RenRootDeformedPositionBuffer);
 	}

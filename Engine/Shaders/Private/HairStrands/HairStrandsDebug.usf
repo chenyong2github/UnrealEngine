@@ -295,7 +295,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 #if SHADER_MESH_PROJECTION_HAIR
 
-#include "HairStrandsMeshProjectionCommon.ush" 
+#include "HairStrandsBindingCommon.ush" 
 #include "../ShaderPrint.ush"
 
 #define INPUT_ROOT_FRAME 0
@@ -339,7 +339,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		else
 			Tri = RestTriangle;
 
-		const float3 B  = DecodeBarycentrics(RootBarycentricBuffer[RootIndex]);
+		const float3 B  = UnpackBarycentrics(RootBarycentricBuffer[RootIndex]);
 		float3 P0 = B.x * Tri.P0 + B.y * Tri.P1 + B.z * Tri.P2;
 		float3 P1 = P0 + Tri.N;
 
@@ -438,7 +438,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 #if SHADER_MESH_PROJECTION_SKIN_CACHE
 
-#include "HairStrandsMeshProjectionCommon.ush"
+#include "HairStrandsBindingCommon.ush"
 #include "../ShaderPrint.ush"
 
 float4x4 LocalToWorld;
