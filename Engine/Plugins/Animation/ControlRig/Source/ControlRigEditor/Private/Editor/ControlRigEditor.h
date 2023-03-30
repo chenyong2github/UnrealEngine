@@ -498,6 +498,8 @@ protected:
 
 	bool bSuspendDetailsPanelRefresh;
 
+	bool bAllowBulkEdits;
+
 	TArray<TStrongObjectPtr<UDetailsViewWrapperObject>> WrapperObjects;
 	TWeakObjectPtr<AStaticMeshActor> WeakGroundActorPtr;
 

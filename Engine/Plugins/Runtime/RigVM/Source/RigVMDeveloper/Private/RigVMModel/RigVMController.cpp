@@ -802,15 +802,30 @@ void URigVMController::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 				URigVMNode* Node = CastChecked<URigVMNode>(InSubject);
 				check(Node);
 
-				if(const URigVMLibraryNode* Function = FunctionLibrary->FindFunctionForNode(Node))
+				bool bIsLocal = false;
+				if (InNotifType == ERigVMGraphNotifType::VariableAdded || InNotifType == ERigVMGraphNotifType::VariableRemoved)
 				{
-					FunctionLibrary->ForEachReference(Function->GetFName(), [this](URigVMFunctionReferenceNode* Reference)
-                    {
-						if(const URigVMController* ReferenceController = GetControllerForGraph(Reference->GetGraph()))
+					if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
+					{
+						if (VariableNode->IsLocalVariable() || VariableNode->IsInputArgument())
 						{
-							ReferenceController->Notify(ERigVMGraphNotifType::VariableRemappingChanged, Reference);
+							bIsLocal = true;
 						}
-                    });
+					}
+				}
+
+				if (!bIsLocal)
+				{
+					if(const URigVMLibraryNode* Function = FunctionLibrary->FindFunctionForNode(Node))
+					{
+						FunctionLibrary->ForEachReference(Function->GetFName(), [this](URigVMFunctionReferenceNode* Reference)
+                    	{
+							if(const URigVMController* ReferenceController = GetControllerForGraph(Reference->GetGraph()))
+							{
+								ReferenceController->Notify(ERigVMGraphNotifType::VariableRemappingChanged, Reference);
+							}
+                    	});
+					}
 				}
 			}
 		}
@@ -1593,7 +1608,7 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 			{
 				// Make sure there is no local variable with that name
 				bool bFoundLocalVariable = false;
-				for (FRigVMGraphVariableDescription& LocalVariable : OuterFunction->GetContainedGraph()->LocalVariables)
+				for (FRigVMGraphVariableDescription& LocalVariable : OuterFunction->GetContainedGraph()->GetLocalVariables(true))
 				{
 					if (LocalVariable.Name == InVariableName)
 					{
@@ -6289,7 +6304,7 @@ bool URigVMController::RemoveNodes(TArray<URigVMNode*> InNodes, bool bSetupUndoR
 						{
 							const FName VariableToRemove = VariableNode->GetVariableName();
 							bool bIsLocalVariable = false;
-							for (FRigVMGraphVariableDescription VariableDescription : OuterFunction->GetContainedGraph()->LocalVariables)
+							for (FRigVMGraphVariableDescription VariableDescription : OuterFunction->GetContainedGraph()->GetLocalVariables(true))
 							{
 								if (VariableDescription.Name == VariableToRemove)
 								{

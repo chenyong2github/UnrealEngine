@@ -229,6 +229,7 @@ FControlRigEditor::FControlRigEditor()
 	, RigHierarchyTabCount(0)
 	, HaltedAtNode(nullptr)
 	, bSuspendDetailsPanelRefresh(false)
+	, bAllowBulkEdits(false)
 	, bIsConstructionEventRunning(false)
 	, LastHierarchyHash(INDEX_NONE)
 {
@@ -5108,6 +5109,14 @@ void FControlRigEditor::OnRequestLocalizeFunctionDialog(FRigVMGraphFunctionIdent
 FRigVMController_BulkEditResult FControlRigEditor::OnRequestBulkEditDialog(UControlRigBlueprint* InBlueprint, URigVMController* InController,
 	URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType)
 {
+	if (bAllowBulkEdits)
+	{
+		FRigVMController_BulkEditResult Result;
+		Result.bCanceled = false; 
+		Result.bSetupUndoRedo = false;
+		return Result;
+	}
+	
 	const TArray<FAssetData> FirstLevelReferenceAssets = InController->GetAffectedAssets(InEditType, false);
 	if(FirstLevelReferenceAssets.Num() == 0)
 	{
@@ -5123,6 +5132,12 @@ FRigVMController_BulkEditResult FControlRigEditor::OnRequestBulkEditDialog(UCont
 	FRigVMController_BulkEditResult Result;
 	Result.bCanceled = BulkEditDialog->ShowModal() == EAppReturnType::Cancel; 
 	Result.bSetupUndoRedo = false;
+
+	if (!Result.bCanceled)
+	{
+		bAllowBulkEdits = true;
+	}
+	
 	return Result;
 }
 

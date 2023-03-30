@@ -70,6 +70,11 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 	{
 		return;
 	}
+	URigVMController* Controller = EdGraphNode->GetController();
+	if (!Controller)
+	{
+		return;
+	}
 
 	Blueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(this->GraphNode));
 
@@ -78,7 +83,6 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 
 	SetIsEditable(false);
 
-	URigVMController* Controller = EdGraphNode->GetController();
 	Controller->OnModified().AddSP(this, &SControlRigGraphNode::HandleModifiedEvent);
 
 	UpdatePinTreeView();
