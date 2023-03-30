@@ -1153,7 +1153,10 @@ void UModelingToolsEditorMode::OnEditorClosed()
 		SelectionManager->ClearActiveTargets();
 	}
 
-	if (GetToolManager()->HasAnyActiveTool())
+	if (GetModeManager() != nullptr 
+		&& GetInteractiveToolsContext() != nullptr 
+		&& GetToolManager() != nullptr 
+		&& GetToolManager()->HasAnyActiveTool())
 	{
 		GetToolManager()->DeactivateTool(EToolSide::Mouse, EToolShutdownType::Cancel);
 	}
