@@ -287,7 +287,13 @@ void UDisplayClusterPreviewComponent::ReleasePreviewMaterial()
 {
 	if (PreviewMaterialInstance != nullptr)
 	{
-		PreviewMaterialInstance->SetTextureParameterValue(TEXT("Preview"), nullptr);
+		// Clear the material parameters to ensure that no pointers to the texture resources are being kept around
+		// Materials destroy their resources in BeginDestroy, so only clear the parameters BeginDestroy hasn't already been called
+		if (!PreviewMaterialInstance->HasAnyFlags(RF_BeginDestroyed))
+		{
+			PreviewMaterialInstance->ClearParameterValues();
+		}
+
 		PreviewMaterialInstance = nullptr;
 	}
 }
