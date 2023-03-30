@@ -171,17 +171,6 @@ namespace UnrealBuildTool
 		/// <returns>The custom path lines for the project file; Empty string if it doesn't require one</returns>
 		public virtual void GetVisualStudioPathsEntries(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, TargetType TargetType, FileReference TargetRulesPath, FileReference ProjectFilePath, FileReference NMakeOutputPath, VCProjectFileFormat InProjectFileFormat, StringBuilder ProjectFileBuilder)
 		{
-			// NOTE: We are intentionally overriding defaults for these paths with empty strings.  We never want Visual Studio's
-			//       defaults for these fields to be propagated, since they are version-sensitive paths that may not reflect
-			//       the environment that UBT is building in.  We'll set these environment variables ourselves!
-			// NOTE: We don't touch 'ExecutablePath' because that would result in Visual Studio clobbering the system "Path"
-			//       environment variable
-			ProjectFileBuilder.AppendLine("    <IncludePath />");
-			ProjectFileBuilder.AppendLine("    <ReferencePath />");
-			ProjectFileBuilder.AppendLine("    <LibraryPath />");
-			ProjectFileBuilder.AppendLine("    <LibraryWPath />");
-			ProjectFileBuilder.AppendLine("    <SourcePath />");
-			ProjectFileBuilder.AppendLine("    <ExcludePath />");
 		}
 
 		/// <summary>
