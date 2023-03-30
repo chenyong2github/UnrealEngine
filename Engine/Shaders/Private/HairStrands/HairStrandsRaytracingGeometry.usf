@@ -322,12 +322,12 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex : SV_
 	if (!bIsAlreadyInvalid)
 	{
 		// Fetch vertex index if culling is enabled
-		uint VertexIndex0 = DispatchThreadId;
+		uint VertexIndex0 = DispatchThreadId.x;
 		bool bIsValid = VertexIndex0 < VertexCount;
 		if (bIsValid && HairStrandsVF_bCullingEnable)
 		{
 			const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
-			const uint FetchIndex0 = DispatchThreadId;
+			const uint FetchIndex0 = DispatchThreadId.x;
 			bIsValid = FetchIndex0 < VertexCountAfterCulling;
 			if (bIsValid)
 			{

@@ -66,8 +66,8 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 		const bool bSupportVoxelization = (bDoesMacroGroupSupportVoxelization >> MacroGroupId) & 0x1;
 		if (CPU_bUseCPUData > 0)
 		{
-			Bound.Min = CPU_TranslatedWorldMinAABB[MacroGroupId];
-			Bound.Max = CPU_TranslatedWorldMaxAABB[MacroGroupId];
+			Bound.Min = CPU_TranslatedWorldMinAABB[MacroGroupId].xyz;
+			Bound.Max = CPU_TranslatedWorldMaxAABB[MacroGroupId].xyz;
 		}
 		else
 		{
@@ -99,7 +99,7 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 			float3 MacroGroupSize = Bound.Max - Bound.Min;
 			if (CPU_bUseCPUData > 0) 
 			{ 
-				PageIndexResolution = CPU_PageIndexResolution[MacroGroupId]; 
+				PageIndexResolution = CPU_PageIndexResolution[MacroGroupId].xyz; 
 			}
 			else
 			{

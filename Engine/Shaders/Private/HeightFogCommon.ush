@@ -292,7 +292,7 @@ float3 ComputeHistoryVolumeUVFromNDC(float4 NDCPosition)
 {
 	NDCPosition.xy /= NDCPosition.w;
 	float3 VolumeUV = float3(NDCPosition.xy * float2(.5f, -.5f) + .5f, ComputeNormalizedZSliceFromDepth(NDCPosition.w));
-	return min(VolumeUV * float3(View.VolumetricFogViewGridUVToPrevViewRectUV.xy * float3(View.VolumetricFogPrevViewGridRectUVToResourceUV.xy, 1.0), 1.0), float3(View.VolumetricFogPrevUVMax, 1.0));
+	return min(VolumeUV * float3(View.VolumetricFogViewGridUVToPrevViewRectUV.xy * View.VolumetricFogPrevViewGridRectUVToResourceUV.xy, 1.0), float3(View.VolumetricFogPrevUVMax, 1.0));
 }
 float3 ComputeHistoryVolumeUV_DEPRECATED(float3 WorldPosition, float4x4 WorldToClip)
 {

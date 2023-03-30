@@ -24,8 +24,8 @@ void VisualizeDOFPS(
 {
 	OutColor = 0;
 
-	float SceneDeviceZ = DepthTexture.SampleLevel(DepthSampler, ApplyScreenTransform(SvPosition, SvPositionToColorUV), 0).r;
-	half3 SceneColor = Texture2DSample(ColorTexture, ColorSampler, ApplyScreenTransform(SvPosition, SvPositionToDepthUV)).rgb;
+	float SceneDeviceZ = DepthTexture.SampleLevel(DepthSampler, ApplyScreenTransform(SvPosition.xy, SvPositionToColorUV), 0).r;
+	half3 SceneColor = Texture2DSample(ColorTexture, ColorSampler, ApplyScreenTransform(SvPosition.xy, SvPositionToDepthUV)).rgb;
 
 	float SceneDepth = ConvertFromDeviceZ(SceneDeviceZ);
 

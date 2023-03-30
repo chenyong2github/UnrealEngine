@@ -391,7 +391,7 @@ void GBufferPostDecode(inout FGBufferData Ret, bool bChecker, bool bGetNormalize
 #elif ALLOW_STATIC_LIGHTING
 	Ret.GBufferAO = 1;
 	Ret.DiffuseIndirectSampleOcclusion = 0x0;
-	Ret.IndirectIrradiance = DecodeIndirectIrradiance(Ret.GenericAO.x);
+	Ret.IndirectIrradiance = half(DecodeIndirectIrradiance(Ret.GenericAO.x));
 #else
 	Ret.GBufferAO = Ret.GenericAO;
 	Ret.DiffuseIndirectSampleOcclusion = 0x0;

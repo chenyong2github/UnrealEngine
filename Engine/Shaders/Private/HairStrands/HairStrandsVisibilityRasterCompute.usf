@@ -1406,8 +1406,8 @@ void RasterMultiSampleCS(uint DispatchThreadID : SV_DispatchThreadID, uint Group
 				
 				if (bVisible)
 				{
-					const float2 SP0Clipped = lerp(SP0, SP1, T.x);
-					const float2 SP1Clipped = lerp(SP0, SP1, T.y);
+					const float2 SP0Clipped = lerp(SP0, SP1, T.x).xy;
+					const float2 SP1Clipped = lerp(SP0, SP1, T.y).xy;
 					const bool bIsSteep = abs(SP1.x - SP0.x) < abs(SP1.y - SP0.y);
 					const float X0 = bIsSteep ? min(SP0Clipped.y, SP1Clipped.y) : min(SP0Clipped.x, SP1Clipped.x);
 					const float X1 = bIsSteep ? max(SP0Clipped.y, SP1Clipped.y) : max(SP0Clipped.x, SP1Clipped.x);

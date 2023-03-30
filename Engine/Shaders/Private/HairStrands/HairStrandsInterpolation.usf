@@ -421,7 +421,7 @@ float3 ApplyDeformer(const FRootTriangleData RenTri, float3 InRestPostion, float
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	// 1. Find vertex index
-	uint VertexIndex = DispatchThreadId;
+	uint VertexIndex = DispatchThreadId.x;
 #if PERMUTATION_CULLING
 	if (HairStrandsVFTODO_bCullingEnable)
 	{
