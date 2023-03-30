@@ -21,6 +21,11 @@ public:
 	FMutex(const FMutex&) = delete;
 	FMutex& operator=(const FMutex&) = delete;
 
+	inline bool IsLocked() const
+	{
+		return (State.load(std::memory_order_relaxed) & IsLockedFlag);
+	}
+	
 	inline bool TryLock()
 	{
 		uint8 Expected = State.load(std::memory_order_acquire);
