@@ -141,8 +141,13 @@ protected: // Common SourceControl Code
 private:
 	FString CommandName;
 
+	TUniquePtr<ISourceControlProvider> OwnedSCCProvider;
+
 protected:
-	TUniquePtr<ISourceControlProvider> SCCProvider;
+
+	ISourceControlProvider* SCCProvider = nullptr;
+
+	
 };
 
 } // namespace UE::Virtualization

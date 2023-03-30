@@ -180,6 +180,9 @@ bool FVirtualizeCommand::ProcessProject(const FProject& Project, TUniquePtr<FCom
 	if (bShouldCheckout)
 	{
 		Options |= EVirtualizationOptions::Checkout;
+
+		// Make sure that we have a valid source control connection if we might try to checkout packages
+		TryConnectToSourceControl();
 	}
 
 	FVirtualizationResult Result = UE::Virtualization::IVirtualizationSystem::Get().TryVirtualizePackages(ProjectPackages, Options);

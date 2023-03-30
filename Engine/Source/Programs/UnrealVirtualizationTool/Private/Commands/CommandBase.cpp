@@ -110,7 +110,7 @@ FCommand::EPathResult FCommand::ParseSwitchForPaths(const FString& Switch, TArra
 
 bool FCommand::TryConnectToSourceControl(FStringView ClientSpecName)
 {
-	if (SCCProvider.IsValid())
+	if (SCCProvider != nullptr)
 	{
 		// Already connected so just return
 		return true;
@@ -118,29 +118,51 @@ bool FCommand::TryConnectToSourceControl(FStringView ClientSpecName)
 
 	UE_LOG(LogVirtualizationTool, Log, TEXT("Trying to connect to source control..."));
 
-	FSourceControlInitSettings SCCSettings(FSourceControlInitSettings::EBehavior::OverrideAll);
-	SCCSettings.AddSetting(TEXT("P4Client"), ClientSpecName);
-
-	SCCProvider = ISourceControlModule::Get().CreateProvider(FName("Perforce"), TEXT("UnrealVirtualizationTool"), SCCSettings);
-	if (SCCProvider.IsValid())
+	if (FPaths::IsProjectFilePathSet())
 	{
+		// If the project has been set then we can use the default source control provider
+		if (!ISourceControlModule::Get().GetProvider().IsEnabled())
+		{
+			// TODO - Warning
+			ISourceControlModule::Get().SetProvider(FName("Perforce"));
+		}
+
+		SCCProvider = &ISourceControlModule::Get().GetProvider();
 		SCCProvider->Init(true);
 
-		if (SCCProvider->IsAvailable())
-		{
-			return true;
-		}
-		else
-		{
-			UE_LOG(LogVirtualizationTool, Error, TEXT("Failed to establish a perforce connection"));
-			return false;
-		}
-		
+		return SCCProvider->IsAvailable();
 	}
 	else
 	{
-		UE_LOG(LogVirtualizationTool, Error, TEXT("Failed to instantiate a perforce revision control connection"));
-		return false;
+		// If we do not have a project set we need to create our own provider. We make the assumption that
+		// we should use perforce since the only reason we should need a provider without a project is if
+		// we are parsing a perforce changelist for files to operate on.
+		FSourceControlInitSettings SCCSettings(FSourceControlInitSettings::EBehavior::OverrideAll);
+		SCCSettings.SetConfigBehavior(FSourceControlInitSettings::EConfigBehavior::ReadOnly);
+		SCCSettings.AddSetting(TEXT("P4Client"), ClientSpecName);
+
+		OwnedSCCProvider = ISourceControlModule::Get().CreateProvider(FName("Perforce"), TEXT("UnrealVirtualizationTool"), SCCSettings);
+		if (OwnedSCCProvider.IsValid())
+		{
+			SCCProvider = OwnedSCCProvider.Get();
+			SCCProvider->Init(true);
+
+			if (SCCProvider->IsAvailable())
+			{
+				return true;
+			}
+			else
+			{
+				UE_LOG(LogVirtualizationTool, Error, TEXT("Failed to establish a perforce connection"));
+				return false;
+			}
+
+		}
+		else
+		{
+			UE_LOG(LogVirtualizationTool, Error, TEXT("Failed to instantiate a perforce revision control connection"));
+			return false;
+		}
 	}
 }
 
@@ -157,7 +179,7 @@ bool FCommand::TryParseChangelist(FStringView ClientSpecName, FStringView Change
 		return false;
 	}
 
-	if (!SCCProvider.IsValid())
+	if (SCCProvider == nullptr)
 	{
 		UE_LOG(LogVirtualizationTool, Error, TEXT("No valid source control connection found!"));
 		return false;
@@ -244,7 +266,7 @@ FString FCommand::FindClientSpecForChangelist(FStringView ChangelistNumber)
 		return FString();
 	}
 
-	if (!SCCProvider.IsValid())
+	if (SCCProvider == nullptr)
 	{
 		UE_LOG(LogVirtualizationTool, Error, TEXT("No valid source control connection found!"));
 		return FString();

@@ -112,6 +112,9 @@ bool FRehydrateCommand::ProcessProject(const FProject& Project, TUniquePtr<FComm
 	if (bShouldCheckout)
 	{
 		Options |= ERehydrationOptions::Checkout;
+
+		// Make sure that we have a valid source control connection if we might try to checkout packages
+		TryConnectToSourceControl();
 	}
 
 	FRehydrationResult Result = UE::Virtualization::IVirtualizationSystem::Get().TryRehydratePackages(ProjectPackages, Options);
