@@ -48,7 +48,7 @@ void UTargetingSelectionTask_AOE::ExecuteImmediateTrace(const FTargetingRequestH
 	ResetDebugString(TargetingHandle);
 #endif // ENABLE_DRAW_DEBUG
 
-	UWorld* World = GetSourceContextWorld(TargetingHandle);
+	const UWorld* World = GetSourceContextWorld(TargetingHandle);
 	if (World && TargetingHandle.IsValid())
 	{
 		const FVector SourceLocation = GetSourceLocation(TargetingHandle) + GetSourceOffset(TargetingHandle);
@@ -69,7 +69,7 @@ void UTargetingSelectionTask_AOE::ExecuteImmediateTrace(const FTargetingRequestH
 		}
 		else
 		{
-			FCollisionShape CollisionShape = GetCollisionShape();
+			const FCollisionShape CollisionShape = GetCollisionShape();
 			FCollisionQueryParams OverlapParams(TEXT("UTargetingSelectionTask_AOE"), SCENE_QUERY_STAT_ONLY(UTargetingSelectionTask_AOE_Shape), false);
 			InitCollisionParams(TargetingHandle, OverlapParams);
 
@@ -96,22 +96,7 @@ void UTargetingSelectionTask_AOE::ExecuteImmediateTrace(const FTargetingRequestH
 #if ENABLE_DRAW_DEBUG
 			if (UTargetingSubsystem::IsTargetingDebugEnabled())
 			{
-				switch (ShapeType)
-				{
-				case ETargetingAOEShape::Box:
-					DrawDebugBox(World, SourceLocation, CollisionShape.GetExtent(), FQuat::Identity, FColor::Red, false, 30.0f, 0, 2.0f);
-					break;
-				case ETargetingAOEShape::Sphere:
-					DrawDebugSphere(World, SourceLocation, CollisionShape.GetSphereRadius(), 32, FColor::Red, false, 30.0f, 0, 2.0f);
-					break;
-				case ETargetingAOEShape::Capsule:
-					DrawDebugCapsule(World, SourceLocation, CollisionShape.GetCapsuleHalfHeight(), CollisionShape.GetCapsuleRadius(), FQuat::Identity, FColor::Red, false, 30.0f, 0, 2.0f);
-					break;
-				case ETargetingAOEShape::Cylinder:
-					DrawDebugBox(World, SourceLocation, CollisionShape.GetExtent(), FQuat::Identity, FColor::Red, false, 30.0f, 0, 1.0f);
-					DrawDebugCylinder(World, -1.0f * CollisionShape.GetExtent(), CollisionShape.GetExtent(), CollisionShape.GetExtent().X, 32, FColor::Yellow, false, 30.0f, 0, 2.0f);
-					break;
-				}
+				DebugDrawBoundingVolume(TargetingHandle, FColor::Red);
 			}
 #endif // ENABLE_DRAW_DEBUG
 		}
@@ -120,6 +105,60 @@ void UTargetingSelectionTask_AOE::ExecuteImmediateTrace(const FTargetingRequestH
 	}
 
 	SetTaskAsyncState(TargetingHandle, ETargetingTaskAsyncState::Completed);
+}
+
+void UTargetingSelectionTask_AOE::DebugDrawBoundingVolume(const FTargetingRequestHandle& TargetingHandle, const FColor& Color) const
+{
+#if ENABLE_DRAW_DEBUG
+	const UWorld* World = GetSourceContextWorld(TargetingHandle);
+	const FVector SourceLocation = GetSourceLocation(TargetingHandle) + GetSourceOffset(TargetingHandle);
+	const FCollisionShape CollisionShape = GetCollisionShape();
+
+	const bool bPersistentLines = false;
+	const float LifeTime = 0.0f;
+	const uint8 DepthPriority = 0;
+	const float Thickness = 2.0f;
+
+	switch (ShapeType)
+	{
+	case ETargetingAOEShape::Box:
+		DrawDebugBox(World, SourceLocation, CollisionShape.GetExtent(), FQuat::Identity,
+			Color, bPersistentLines, LifeTime, DepthPriority, Thickness);
+		break;
+	case ETargetingAOEShape::Sphere:
+		DrawDebugCapsule(World, SourceLocation, CollisionShape.GetSphereRadius(), CollisionShape.GetSphereRadius(), FQuat::Identity,
+			Color, bPersistentLines, LifeTime, DepthPriority, Thickness);
+		break;
+	case ETargetingAOEShape::Capsule:
+		DrawDebugCapsule(World, SourceLocation, CollisionShape.GetCapsuleHalfHeight(), CollisionShape.GetCapsuleRadius(), FQuat::Identity,
+			Color, bPersistentLines, LifeTime, DepthPriority, Thickness);
+		break;
+	case ETargetingAOEShape::Cylinder:
+		DrawDebugCylinder(World, -1.0f * CollisionShape.GetExtent(), CollisionShape.GetExtent(), CollisionShape.GetExtent().X, 32,
+			Color, bPersistentLines, LifeTime, DepthPriority, Thickness);
+		break;
+	}
+#endif // ENABLE_DRAW_DEBUG
+}
+
+void UTargetingSelectionTask_AOE::SetShapeType(ETargetingAOEShape InShapeType)
+{
+	ShapeType = InShapeType;
+}
+
+void UTargetingSelectionTask_AOE::SetHalfExtent(FVector InHalfExtent)
+{
+	HalfExtent = InHalfExtent;
+}
+
+void UTargetingSelectionTask_AOE::SetRadius(FScalableFloat InRadius)
+{
+	Radius = InRadius;
+}
+
+void UTargetingSelectionTask_AOE::SetHalfHeight(FScalableFloat InHalfHeight)
+{
+	HalfHeight = InHalfHeight;
 }
 
 void UTargetingSelectionTask_AOE::ExecuteAsyncTrace(const FTargetingRequestHandle& TargetingHandle) const

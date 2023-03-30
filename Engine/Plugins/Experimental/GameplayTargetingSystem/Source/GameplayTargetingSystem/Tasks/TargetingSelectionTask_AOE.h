@@ -44,7 +44,7 @@ enum class ETargetingAOEShape : uint8
 *	SourceComponent - Use a collision component with a specific component tag as the shape
 */
 UCLASS(Blueprintable)
-class UTargetingSelectionTask_AOE : public UTargetingTask
+class TARGETINGSYSTEM_API UTargetingSelectionTask_AOE : public UTargetingTask
 {
 	GENERATED_BODY()
 
@@ -53,6 +53,14 @@ public:
 
 	/** Evaluation function called by derived classes to process the targeting request */
 	virtual void Execute(const FTargetingRequestHandle& TargetingHandle) const override;
+
+	/** Debug draws the outlines of the set shape type. */
+	void DebugDrawBoundingVolume(const FTargetingRequestHandle& TargetingHandle, const FColor& Color) const;
+
+	void SetShapeType(ETargetingAOEShape InShapeType);
+	void SetHalfExtent(FVector InHalfExtent);
+	void SetRadius(FScalableFloat InRadius);
+	void SetHalfHeight(FScalableFloat InHalfHeight);
 
 private:
 	/** Method to process the trace task immediately */
