@@ -3082,7 +3082,7 @@ void SContentBrowser::OnItemsActivated(TArrayView<const FContentBrowserItem> Act
 			
 			if (!SourceAndItemsPair.Key->BulkEditItems(SourceAndItemsPair.Value))
 			{
-				static const FText ErrorMessage = LOCTEXT("EditItemsFailure", "Failed to load assets");
+				static const FText ErrorMessage = LOCTEXT("EditItemsFailure", "Unable to edit assets");
 
 				FNotificationInfo WarningNotification(ErrorMessage);
 				WarningNotification.ExpireDuration = 5.0f;

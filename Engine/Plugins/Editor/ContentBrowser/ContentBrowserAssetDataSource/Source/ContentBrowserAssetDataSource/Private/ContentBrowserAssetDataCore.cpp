@@ -185,7 +185,7 @@ bool CanModifyPath(IAssetTools* InAssetTools, const FName InFolderPath, FText* O
 	const TSharedRef<FPathPermissionList>& WritableFolderFilter = InAssetTools->GetWritableFolderPermissionList();
 	if (!WritableFolderFilter->PassesStartsWithFilter(InFolderPath))
 	{
-		SetOptionalErrorMessage(OutErrorMsg, FText::Format(LOCTEXT("Error_FolderIsLocked", "Folder '{0}' is Locked"), FText::FromName(InFolderPath)));
+		SetOptionalErrorMessage(OutErrorMsg, FText::Format(LOCTEXT("Error_FolderIsLocked", "Folder '{0}' is read only and its contents cannot be edited"), FText::FromName(InFolderPath)));
 		return false;
 	}
 	return true;
