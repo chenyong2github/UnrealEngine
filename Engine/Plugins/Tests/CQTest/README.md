@@ -359,4 +359,3 @@ And creating a macro which uses it
 
 # Contribute
 Improvements like bug fixes and extensions are welcome when accompanied by unit tests.
-Feel free to reach out to [Dustin Randall](mailto:durandal@microsoft.com) with questions or comments
