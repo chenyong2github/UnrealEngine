@@ -50,7 +50,7 @@ public class CommonInput : ModuleRules
 
 	static public string ToCommonUIPlatform(UnrealTargetPlatform TargetPlatform)
 	{
-		if (TargetPlatform == UnrealTargetPlatform.Win64)
+		if (TargetPlatform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			return "PC";
 		}
