@@ -92,6 +92,7 @@ public:
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	//~ End UObject Interface
 
 #if WITH_EDITOR
@@ -468,7 +469,7 @@ private:
 	bool bIsEditorObjectButPIEIsRunning = false;
 
 	/** Initialize and deinitialize calls match our  */
-	FSubsystemCollection<UVCamSubsystem> SubsystemCollection;
+	FObjectSubsystemCollection<UVCamSubsystem> SubsystemCollection;
 
 	void EnsureInitialized();
 	virtual void Initialize();

@@ -262,6 +262,13 @@ void UVCamComponent::PostLoad()
 	ApplyInputProfile();
 }
 
+void UVCamComponent::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	UVCamComponent* This = CastChecked<UVCamComponent>(InThis);
+	This->SubsystemCollection.AddReferencedObjects(This, Collector);
+	Super::AddReferencedObjects(InThis, Collector);
+}
+
 #if WITH_EDITOR
 
 void UVCamComponent::CheckForErrors()
