@@ -5,6 +5,15 @@
 #include "WebSocket.h"
 
 #if USE_LIBWEBSOCKET
+
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+#include "Windows/PreWindowsApi.h"
+#include <winsock2.h>
+#include "Windows/PostWindowsApi.h"
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif
+
 // Work around a conflict between a UI namespace defined by engine code and a typedef in OpenSSL
 #define UI UI_ST
 THIRD_PARTY_INCLUDES_START
@@ -302,11 +311,22 @@ static int unreal_networking_server
 						BufferInfo->Socket->OnClose();
 					}
 				}
+				bRejectConnection = true;
 			}
 			break;
 		case LWS_CALLBACK_WSI_DESTROY:
 			break;
 		case LWS_CALLBACK_PROTOCOL_DESTROY:
+#if PLATFORM_WINDOWS
+		{
+			// There is a bug with our version of the LWS library that keeps a socket open even if we destroy the context so we have to manually shut it down.
+			lws_sockfd_type Fd = lws_get_socket_fd(Wsi);
+			if (Fd != INVALID_SOCKET)
+			{
+				closesocket(Fd);
+			}
+		}
+#endif
 			break;
 		case LWS_CALLBACK_FILTER_PROTOCOL_CONNECTION:
 			{
