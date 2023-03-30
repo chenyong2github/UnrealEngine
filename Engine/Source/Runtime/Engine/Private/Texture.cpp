@@ -69,6 +69,12 @@ static TAutoConsoleVariable<int32> CVarVirtualTexturesAutoImport(
 	TEXT("Enable virtual texture on texture import"),
 	ECVF_Default);
 
+static TAutoConsoleVariable<int32> CVarVirtualTexturesMenuRestricted(
+	TEXT("r.VT.MenuRestricted"),
+	0,
+	TEXT("Restrict virtual texture menu options"),
+	ECVF_Default);
+
 // GSkipInvalidDXTDimensions prevents crash with non-4x4 aligned DXT
 // if the Texture code is working correctly, this should not be necessary
 // turn this bool off when possible ; FORT-515901

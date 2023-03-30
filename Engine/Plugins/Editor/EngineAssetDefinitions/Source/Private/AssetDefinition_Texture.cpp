@@ -106,32 +106,44 @@ namespace MenuExtension_Texture
 							const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateStatic(&ExecuteCreateMaterial);
 							InSection.AddMenuEntry("Texture_CreateMaterial", Label, ToolTip, Icon, UIAction);
 						}
-					
-						const bool bHasVirtualTextures =
-							Algo::AnyOf(Context->SelectedAssets, [](const FAssetData& AssetData){ 
-								bool VirtualTextured = false;
-								AssetData.GetTagValue<bool>("VirtualTextureStreaming", VirtualTextured);
-								return VirtualTextured;
-							});
-
-						if (bHasVirtualTextures)
-						{
-							const TAttribute<FText> Label = LOCTEXT("Texture_ConvertToRegular", "Convert to Regular Texture");
-							const TAttribute<FText> ToolTip = LOCTEXT("Texture_ConvertToRegularTooltip", "Converts this texture to a regular 2D texture if it is a virtual texture.");
-							const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.Texture2D");
-							const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateStatic(&ExecuteConvertToRegularTexture);
-							InSection.AddMenuEntry("Texture_ConvertToVT", Label, ToolTip, Icon, UIAction);
-						}
+											
+						static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures"));
+						check(CVarVirtualTexturesEnabled);
 						
-						if (!bHasVirtualTextures)
-						{
-							const TAttribute<FText> Label = LOCTEXT("Texture_ConvertToVT", "Convert to Virtual Texture");
-							const TAttribute<FText> ToolTip = LOCTEXT("Texture_ConvertToVTTooltip", "Converts this texture to a virtual texture if it fits the size limit imposed in the texture importer settings.");
-							const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.Texture2D");
-							const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateStatic(&ExecuteConvertToVirtualTexture);
-							InSection.AddMenuEntry("Texture_ConvertToVT", Label, ToolTip, Icon, UIAction);
-						}
+						bool bVTEnabled = !! CVarVirtualTexturesEnabled->GetValueOnAnyThread();
+						
+						static const auto CVarVirtualTexturesMenuRestricted = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VT.MenuRestricted"));
+						check(CVarVirtualTexturesMenuRestricted);
+						
+						bool bVTMenuRestricted = !! CVarVirtualTexturesMenuRestricted->GetValueOnAnyThread();
 
+						if ( bVTEnabled && ! bVTMenuRestricted )
+						{
+							const bool bHasVirtualTextures =
+								Algo::AnyOf(Context->SelectedAssets, [](const FAssetData& AssetData){ 
+									bool VirtualTextured = false;
+									AssetData.GetTagValue<bool>("VirtualTextureStreaming", VirtualTextured);
+									return VirtualTextured;
+								});
+
+							if (bHasVirtualTextures)
+							{
+								const TAttribute<FText> Label = LOCTEXT("Texture_ConvertToRegular", "Convert to Regular Texture");
+								const TAttribute<FText> ToolTip = LOCTEXT("Texture_ConvertToRegularTooltip", "Converts this texture to a regular 2D texture if it is a virtual texture.");
+								const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.Texture2D");
+								const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateStatic(&ExecuteConvertToRegularTexture);
+								InSection.AddMenuEntry("Texture_ConvertToVT", Label, ToolTip, Icon, UIAction);
+							}
+						
+							if (!bHasVirtualTextures)
+							{
+								const TAttribute<FText> Label = LOCTEXT("Texture_ConvertToVT", "Convert to Virtual Texture");
+								const TAttribute<FText> ToolTip = LOCTEXT("Texture_ConvertToVTTooltip", "Converts this texture to a virtual texture if it fits the size limit imposed in the texture importer settings.");
+								const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.Texture2D");
+								const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateStatic(&ExecuteConvertToVirtualTexture);
+								InSection.AddMenuEntry("Texture_ConvertToVT", Label, ToolTip, Icon, UIAction);
+							}
+						}
 						
 						if ( Context->SelectedAssets.Num() == 1 )
 						{
