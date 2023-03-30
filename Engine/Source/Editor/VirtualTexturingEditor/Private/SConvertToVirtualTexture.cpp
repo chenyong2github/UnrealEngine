@@ -178,7 +178,8 @@ void SConvertToVirtualTexture::Construct(const FArguments& InArgs)
 			]
 	];
 
-	UpdateList();
+	// will be done by SetUserTextures :
+	//UpdateList();
 	bFilterButtonEnabled = false;
 }
 
@@ -615,6 +616,7 @@ FConvertToVTDlg::FConvertToVTDlg(const TArray<UTexture2D *> &Textures, bool bBac
 				.ParentWindow(DialogWindow)
 			];
 
+		// SetUserTextures will do UpdateList :
 		DialogWidget->SetBackwards(bBackwards);
 		DialogWidget->SetUserTextures(Textures);
 		DialogWindow->SetContent(DialogWrapper.ToSharedRef());
