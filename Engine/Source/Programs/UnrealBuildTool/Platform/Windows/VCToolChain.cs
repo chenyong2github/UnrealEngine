@@ -661,10 +661,10 @@ namespace UnrealBuildTool
 			//
 			//	PC
 			//
-			if (CompileEnvironment.bUseAVX)
+			if (CompileEnvironment.Architecture == UnrealArch.X64 && CompileEnvironment.MinCpuArchX64 != MinimumCpuArchitectureX64.None)
 			{
-				// Define /arch:AVX for the current compilation unit.  Machines without AVX support will crash on any SSE/AVX instructions if they run this compilation unit.
-				Arguments.Add("/arch:AVX");
+				// Define /arch:AVX[2,512] for the current compilation unit.  Machines without AVX support will crash on any SSE/AVX instructions if they run this compilation unit.
+				Arguments.Add($"/arch:{CompileEnvironment.MinCpuArchX64}");
 
 				// AVX available implies sse4 and sse2 available.
 				// Inform Unreal code that we have sse2, sse4, and AVX, both available to compile and available to run

@@ -2068,6 +2068,15 @@ namespace UnrealBuildTool
 		public CStandardVersion CStandard = CStandardVersion.Default;
 
 		/// <summary>
+		/// Direct the compiler to generate AVX instructions wherever SSE or AVX intrinsics are used, on the x64 platforms that support it.
+		/// Note that by enabling this you are changing the minspec for the PC platform, and the resultant executable will crash on machines without AVX support.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		[CommandLine("-MinCpuArchX64")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public MinimumCpuArchitectureX64 MinCpuArchX64 = MinimumCpuArchitectureX64.Default;
+
+		/// <summary>
 		/// Do not allow manifest changes when building this target. Used to cause earlier errors when building multiple targets with a shared build environment.
 		/// </summary>
 		[CommandLine("-NoManifestChanges")]
@@ -3778,6 +3787,11 @@ namespace UnrealBuildTool
 		public CStandardVersion CStandard
 		{
 			get { return Inner.CStandard; }
+		}
+
+		public MinimumCpuArchitectureX64 MinCpuArchX64
+		{
+			get { return Inner.MinCpuArchX64; }
 		}
 
 		internal bool bNoManifestChanges

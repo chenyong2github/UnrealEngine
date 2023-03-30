@@ -1673,7 +1673,6 @@ namespace UnrealBuildTool
 			Result.bUseUnity = Rules.bUseUnity;
 			Result.bOptimizeCode = ShouldEnableOptimization(Rules.OptimizeCode, Target.Configuration, Rules.bTreatAsEngineModule);
 			Result.bUseRTTI |= Rules.bUseRTTI;
-			Result.bUseAVX = Rules.bUseAVX;
 			Result.bEnableBufferSecurityChecks = Rules.bEnableBufferSecurityChecks;
 			Result.MinSourceFilesForUnityBuildOverride = Rules.MinSourceFilesForUnityBuildOverride;
 			Result.MinFilesUsingPrecompiledHeaderOverride = Rules.MinFilesUsingPrecompiledHeaderOverride;
@@ -1727,6 +1726,12 @@ namespace UnrealBuildTool
 			if (Rules.CStandard != null)
 			{
 				Result.CStandard = (CStandardVersion)Rules.CStandard;
+			}
+
+			// If the module overrides the x64 minimum arch, override it on the compile environment
+			if (Rules.MinCpuArchX64 != null)
+			{
+				Result.MinCpuArchX64 = (MinimumCpuArchitectureX64)Rules.MinCpuArchX64;
 			}
 
 			// Set the macro used to check whether monolithic headers can be used

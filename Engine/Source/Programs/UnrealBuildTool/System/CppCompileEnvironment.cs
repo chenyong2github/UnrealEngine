@@ -97,6 +97,39 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
+	/// Specifies the architecture for code generation on x64 for windows platforms.
+	/// Note that by enabling this you are changing the minspec for the PC platform, and the resultant executable will crash on machines without AVX support.
+	/// For more details please see https://learn.microsoft.com/en-us/cpp/build/reference/arch-x64
+	/// </summary>
+	public enum MinimumCpuArchitectureX64
+	{
+		/// <summary>
+		/// No minimum architecure
+		/// </summary>
+		None,
+
+		/// <summary>
+		/// Enables the use of Intel Advanced Vector Extensions instructions
+		/// </summary>
+		AVX,
+
+		/// <summary>
+		/// Enables the use of Intel Advanced Vector Extensions 2 instructions
+		/// </summary>
+		AVX2,
+
+		/// <summary>
+		/// Enables the use of Intel Advanced Vector Extensions 512 instructions
+		/// </summary>
+		AVX512,
+
+		/// <summary>
+		/// Use the default minimum architecure
+		/// </summary>
+		Default = None,
+	}
+
+	/// <summary>
 	/// The optimization level that may be compilation targets for C# files.
 	/// </summary>
 	enum CSharpTargetConfiguration
@@ -226,12 +259,6 @@ namespace UnrealBuildTool
 		/// Whether to compile ISPC files.
 		/// </summary>
 		public bool bCompileISPC = false;
-
-		/// <summary>
-		/// Direct the compiler to generate AVX instructions wherever SSE or AVX intrinsics are used.
-		/// Note that by enabling this you are changing the minspec for the PC platform, and the resultant executable will crash on machines without AVX support.
-		/// </summary>
-		public bool bUseAVX = false;
 
 		/// <summary>
 		/// Enable buffer security checks.   This should usually be enabled as it prevents severe security risks.
@@ -596,6 +623,12 @@ namespace UnrealBuildTool
 		public CStandardVersion CStandard = CStandardVersion.Default;
 
 		/// <summary>
+		/// Direct the compiler to generate AVX instructions wherever SSE or AVX intrinsics are used.
+		/// Note that by enabling this you are changing the minspec for the PC platform, and the resultant executable will crash on machines without AVX support.
+		/// </summary>
+		public MinimumCpuArchitectureX64 MinCpuArchX64 = MinimumCpuArchitectureX64.Default;
+
+		/// <summary>
 		/// The amount of the stack usage to report static analysis warnings.
 		/// </summary>
 		public int AnalyzeStackSizeWarning = 300000;
@@ -663,7 +696,6 @@ namespace UnrealBuildTool
 			bUseStackProtection = Other.bUseStackProtection;
 			bUseInlining = Other.bUseInlining;
 			bCompileISPC = Other.bCompileISPC;
-			bUseAVX = Other.bUseAVX;
 			bUseUnity = Other.bUseUnity;
 			MinSourceFilesForUnityBuildOverride = Other.MinSourceFilesForUnityBuildOverride;
 			MinFilesUsingPrecompiledHeaderOverride = Other.MinFilesUsingPrecompiledHeaderOverride;
@@ -724,6 +756,7 @@ namespace UnrealBuildTool
 			bHideSymbolsByDefault = Other.bHideSymbolsByDefault;
 			CppStandard = Other.CppStandard;
 			CStandard = Other.CStandard;
+			MinCpuArchX64 = Other.MinCpuArchX64;
 			bEnableCoroutines = Other.bEnableCoroutines;
 			IncludeOrderVersion = Other.IncludeOrderVersion;
 			bDeterministic = Other.bDeterministic;

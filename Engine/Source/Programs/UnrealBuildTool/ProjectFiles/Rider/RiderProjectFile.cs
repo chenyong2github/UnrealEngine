@@ -754,7 +754,7 @@ namespace UnrealBuildTool
 				bUseUnity = CompileEnvironment.bUseUnity,
 				bCreateDebugInfo = CompileEnvironment.bCreateDebugInfo,
 				bIsBuildingLibrary = CompileEnvironment.bIsBuildingLibrary,
-				bUseAVX = CompileEnvironment.bUseAVX,
+				MinCpuArchX64 = CompileEnvironment.MinCpuArchX64,
 				bIsBuildingDLL = CompileEnvironment.bIsBuildingDLL,
 				bUseDebugCRT = CompileEnvironment.bUseDebugCRT,
 				bUseRTTI = CompileEnvironment.bUseRTTI,
