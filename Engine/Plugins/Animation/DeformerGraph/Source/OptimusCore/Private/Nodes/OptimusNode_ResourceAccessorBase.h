@@ -44,7 +44,7 @@ public:
 	UOptimusResourceDescription* GetResourceDescription() const;
 
 	/** Returns name to use when creating each pin on the node. */
-	virtual FName GetResourcePinName(int32 InPinIndex) const;
+	virtual FName GetResourcePinName(int32 InPinIndex, FName InNameOverride = NAME_None) const;
 
 	// UOptimusNode overrides
 	FName GetNodeCategory() const override 

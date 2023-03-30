@@ -10,21 +10,39 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusVariableDescription)
 
 
-void UOptimusVariableDescription::ResetValueDataSize()
+bool UOptimusVariableDescription::EnsureValueContainer()
 {
-	DefaultValue = UOptimusValueContainer::MakeValueContainer(this, DataType);
+	bool bValueContainerChanged = false;
+	
+	// Check if the current default value storage matches, otherwise create a matching default value storage, otherwise
+	// if the variable type changes, we end up with mismatch in storage vs type.
+	const UClass* RequiredClass = UOptimusValueContainerGeneratorClass::GetClassForType(GetPackage(), DataType);
+
+	bool bValueContainerNeedsZeroing = false;
+	if (!DefaultValue || DefaultValue->GetClass() != RequiredClass)
+	{
+		DefaultValue = UOptimusValueContainer::MakeValueContainer(this, DataType);
+		bValueContainerChanged = true;
+		bValueContainerNeedsZeroing = true;
+	}
 
 	if (DataType->CanCreateProperty())
 	{
-		// Create a temporary property from the type so that we can get the size of the
-		// type for properly resizing the storage.
-		TUniquePtr<FProperty> TempProperty(DataType->CreateProperty(nullptr, NAME_None));
+		const FShaderValueType::FValue ShaderValue = DataType->MakeShaderValue();
 		
-		if (ValueData.Num() != TempProperty->GetSize())
+		if (bValueContainerNeedsZeroing || ValueData.Num() != ShaderValue.ShaderValue.Num())
 		{
-			ValueData.SetNumZeroed(TempProperty->GetSize());
+			ValueData.SetNumZeroed(ShaderValue.ShaderValue.Num());
+			bValueContainerChanged = true;
 		}
 	}
+	else if (!ValueData.IsEmpty())
+	{
+		ValueData.Reset();
+		bValueContainerChanged = true;
+	}
+
+	return bValueContainerChanged;
 }
 
 
@@ -33,6 +51,14 @@ UOptimusDeformer* UOptimusVariableDescription::GetOwningDeformer() const
 	const UOptimusVariableContainer* Container = CastChecked<UOptimusVariableContainer>(GetOuter());
 	return Container ? CastChecked<UOptimusDeformer>(Container->GetOuter()) : nullptr;
 }
+
+
+int32 UOptimusVariableDescription::GetIndex() const
+{
+	const UOptimusVariableContainer* Container = CastChecked<UOptimusVariableContainer>(GetOuter());
+	return Container->Descriptions.IndexOfByKey(this);
+}
+
 
 void UOptimusVariableDescription::PostLoad()
 {
@@ -45,7 +71,10 @@ void UOptimusVariableDescription::PostLoad()
 	if (DataType == FloatDataType)
 	{
 		DataType = DoubleDataType;
-		ResetValueDataSize();
+	}
+
+	if (EnsureValueContainer())
+	{
 		(void)MarkPackageDirty();
 	}
 }

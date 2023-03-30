@@ -82,6 +82,9 @@ public:
 	// FIXME: Move to interface-based system.
 	UOptimusDeformer* GetOwningDeformer() const;
 
+	/** Get the index of this binding within its container */
+	int32 GetIndex() const;
+
 	/** The name to give the binding, to disambiguate it from other bindings of same component type. */
 	UPROPERTY(EditAnywhere, Category=Binding, meta = (EditCondition = "!bIsPrimaryBinding", HideEditConditionToggle))
 	FName BindingName;

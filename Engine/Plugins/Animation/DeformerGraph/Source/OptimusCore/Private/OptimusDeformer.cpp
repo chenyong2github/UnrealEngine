@@ -194,7 +194,24 @@ bool UOptimusDeformer::RemoveVariable(
 		return false;
 	}
 
-	return GetActionStack()->RunAction<FOptimusVariableAction_RemoveVariable>(InVariableDesc);
+	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Remove Variable"));
+	
+	TMap<const UOptimusNodeGraph*, TArray<UOptimusNode*>> NodesByGraph;
+	for (UOptimusNode* Node: GetNodesUsingVariable(InVariableDesc))
+	{
+		UOptimusNode_GetVariable* VariableNode = Cast<UOptimusNode_GetVariable>(Node);
+		NodesByGraph.FindOrAdd(VariableNode->GetOwningGraph()).Add(VariableNode);
+	}
+
+	for (const TTuple<const UOptimusNodeGraph*, TArray<UOptimusNode*>>& GraphNodes: NodesByGraph)
+	{
+		const UOptimusNodeGraph* Graph = GraphNodes.Key;
+		Graph->RemoveNodesToAction(Action, GraphNodes.Value);
+	}
+
+	Action->AddSubAction<FOptimusVariableAction_RemoveVariable>(InVariableDesc);
+
+	return GetActionStack()->RunAction(Action);
 }
 
 
@@ -232,17 +249,13 @@ bool UOptimusDeformer::RenameVariable(
 	
 	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Rename Variable"));
 	
-	TArray<UOptimusNode*> AllVariableNodes = GetAllNodesOfClass(UOptimusNode_GetVariable::StaticClass());
-	for (UOptimusNode* Node: AllVariableNodes)
+	for (UOptimusNode* Node: GetNodesUsingVariable(InVariableDesc))
 	{
 		const UOptimusNode_GetVariable* VariableNode = Cast<UOptimusNode_GetVariable>(Node);
-		if (VariableNode->GetVariableDescription() == InVariableDesc)
+		if (ensure(VariableNode->GetPins().Num() == 1))
 		{
-			if (ensure(VariableNode->GetPins().Num() == 1))
-			{
-				Action->AddSubAction<FOptimusNodeAction_SetPinName>(VariableNode->GetPins()[0], InNewName);
-			}
-		}	
+			Action->AddSubAction<FOptimusNodeAction_SetPinName>(VariableNode->GetPins()[0], InNewName);
+		}
 	}
 
 	if (InNewName == InVariableDesc->VariableName)
@@ -289,36 +302,32 @@ bool UOptimusDeformer::SetVariableDataType(
 
 	TSet<TTuple<UOptimusNodePin* /*OutputPin*/, UOptimusNodePin* /*InputPin*/>> Links;
 	
-	TArray<UOptimusNode*> AllVariableNodes = GetAllNodesOfClass(UOptimusNode_GetVariable::StaticClass());
-	for (UOptimusNode* Node: AllVariableNodes)
+	for (UOptimusNode* Node: GetNodesUsingVariable(InVariableDesc))
 	{
-		const UOptimusNode_GetVariable* VariableNode = Cast<UOptimusNode_GetVariable>(Node);
-		if (VariableNode->GetVariableDescription() == InVariableDesc)
+		const UOptimusNode_GetVariable* VariableNode = CastChecked<UOptimusNode_GetVariable>(Node);
+		if (ensure(VariableNode->GetPins().Num() == 1))
 		{
-			if (ensure(VariableNode->GetPins().Num() == 1))
+			UOptimusNodePin* Pin = VariableNode->GetPins()[0];
+
+			// Update the pin type to match.
+			Action->AddSubAction<FOptimusNodeAction_SetPinType>(VariableNode->GetPins()[0], InDataType);
+
+			// Collect _unique_ links (in case there's a resource->resource link, since that would otherwise
+			// show up twice).
+			const UOptimusNodeGraph* Graph = Pin->GetOwningNode()->GetOwningGraph();
+
+			for (UOptimusNodePin* ConnectedPin: Graph->GetConnectedPins(Pin))
 			{
-				UOptimusNodePin* Pin = VariableNode->GetPins()[0];
-
-				// Update the pin type to match.
-				Action->AddSubAction<FOptimusNodeAction_SetPinType>(VariableNode->GetPins()[0], InDataType);
-
-				// Collect _unique_ links (in case there's a resource->resource link, since that would otherwise
-				// show up twice).
-				const UOptimusNodeGraph* Graph = Pin->GetOwningNode()->GetOwningGraph();
-
-				for (UOptimusNodePin* ConnectedPin: Graph->GetConnectedPins(Pin))
+				if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
 				{
-					if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
-					{
-						Links.Add({Pin, ConnectedPin});
-					}
-					else
-					{
-						Links.Add({ConnectedPin, Pin});
-					}
+					Links.Add({Pin, ConnectedPin});
+				}
+				else
+				{
+					Links.Add({ConnectedPin, Pin});
 				}
 			}
-		}	
+		}
 	}
 
 	for (auto [OutputPin, InputPin]: Links)
@@ -342,8 +351,25 @@ bool UOptimusDeformer::SetVariableDataType(
 	
 	// Make sure the value data container is still large enough to hold the property value.
 	InVariableDesc->ValueData.Reset();
-	InVariableDesc->ResetValueDataSize();
+	InVariableDesc->EnsureValueContainer();
 	return true;
+}
+
+TArray<UOptimusNode*> UOptimusDeformer::GetNodesUsingVariable(
+	const UOptimusVariableDescription* InVariableDesc
+	) const
+{
+	TArray<UOptimusNode*> UsedNodes;
+	TArray<UOptimusNode*> AllVariableNodes = GetAllNodesOfClass(UOptimusNode_GetVariable::StaticClass());
+	for (UOptimusNode* Node: AllVariableNodes)
+	{
+		const UOptimusNode_GetVariable* VariableNode = Cast<UOptimusNode_GetVariable>(Node);
+		if (VariableNode->GetVariableDescription() == InVariableDesc)
+		{
+			UsedNodes.Add(Node);
+		}
+	}
+	return UsedNodes;
 }
 
 
@@ -388,7 +414,8 @@ UOptimusVariableDescription* UOptimusDeformer::CreateVariableDirect(
 
 
 bool UOptimusDeformer::AddVariableDirect(
-	UOptimusVariableDescription* InVariableDesc
+	UOptimusVariableDescription* InVariableDesc,
+	const int32 InIndex
 	)
 {
 	if (!ensure(InVariableDesc))
@@ -401,7 +428,15 @@ bool UOptimusDeformer::AddVariableDirect(
 		return false;
 	}
 
-	Variables->Descriptions.Add(InVariableDesc);
+	if (Variables->Descriptions.IsValidIndex(InIndex))
+	{
+		Variables->Descriptions.Insert(InVariableDesc, InIndex);
+	}
+	else
+	{
+		Variables->Descriptions.Add(InVariableDesc);
+	}
+
 
 	Notify(EOptimusGlobalNotifyType::VariableAdded, InVariableDesc);
 
@@ -534,15 +569,10 @@ bool UOptimusDeformer::RemoveResource(UOptimusResourceDescription* InResourceDes
 	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Remove Resource"));
 	
 	TMap<const UOptimusNodeGraph*, TArray<UOptimusNode*>> NodesByGraph;
-	
-	TArray<UOptimusNode*> AllResourceNodes = GetAllNodesOfClass(UOptimusNode_ResourceAccessorBase::StaticClass());
-	for (UOptimusNode* Node: AllResourceNodes)
+	for (UOptimusNode* Node: GetNodesUsingResource(InResourceDesc))
 	{
 		UOptimusNode_ResourceAccessorBase* ResourceNode = Cast<UOptimusNode_ResourceAccessorBase>(Node);
-		if (ResourceNode->GetResourceDescription() == InResourceDesc)
-		{
-			NodesByGraph.FindOrAdd(ResourceNode->GetOwningGraph()).Add(ResourceNode);
-		}	
+		NodesByGraph.FindOrAdd(ResourceNode->GetOwningGraph()).Add(ResourceNode);
 	}
 
 	for (const TTuple<const UOptimusNodeGraph*, TArray<UOptimusNode*>>& GraphNodes: NodesByGraph)
@@ -592,17 +622,13 @@ bool UOptimusDeformer::RenameResource(
 
 	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Rename Resource"));
 
-	TArray<UOptimusNode*> AllResourceNodes = GetAllNodesOfClass(UOptimusNode_ResourceAccessorBase::StaticClass());
-	for (UOptimusNode* Node: AllResourceNodes)
+	for (UOptimusNode* Node: GetNodesUsingResource(InResourceDesc))
 	{
-		const UOptimusNode_ResourceAccessorBase* ResourceNode = Cast<UOptimusNode_ResourceAccessorBase>(Node);
-		if (ResourceNode->GetResourceDescription() == InResourceDesc)
+		const UOptimusNode_ResourceAccessorBase* ResourceNode = CastChecked<UOptimusNode_ResourceAccessorBase>(Node);
+		for (int32 PinIndex = 0; PinIndex < ResourceNode->GetPins().Num(); ++PinIndex)
 		{
-			for (int32 PinIndex = 0; PinIndex < ResourceNode->GetPins().Num(); ++PinIndex)
-			{
-				Action->AddSubAction<FOptimusNodeAction_SetPinName>(ResourceNode->GetPins()[PinIndex], ResourceNode->GetResourcePinName(PinIndex));
-			}
-		}	
+			Action->AddSubAction<FOptimusNodeAction_SetPinName>(ResourceNode->GetPins()[PinIndex], ResourceNode->GetResourcePinName(PinIndex, InNewName));
+		}
 	}	
 
 	if (InNewName == InResourceDesc->ResourceName)
@@ -649,33 +675,29 @@ bool UOptimusDeformer::SetResourceDataType(
 
 	TSet<TTuple<UOptimusNodePin* /*OutputPin*/, UOptimusNodePin* /*InputPin*/>> Links;
 	
-	TArray<UOptimusNode*> AllResourceNodes = GetAllNodesOfClass(UOptimusNode_ResourceAccessorBase::StaticClass());
-	for (UOptimusNode* Node: AllResourceNodes)
+	for (UOptimusNode* Node: GetNodesUsingResource(InResourceDesc))
 	{
-		const UOptimusNode_ResourceAccessorBase* ResourceNode = Cast<UOptimusNode_ResourceAccessorBase>(Node);
-		if (ResourceNode->GetResourceDescription() == InResourceDesc)
+		const UOptimusNode_ResourceAccessorBase* ResourceNode = CastChecked<UOptimusNode_ResourceAccessorBase>(Node);
+		for (UOptimusNodePin* Pin : ResourceNode->GetPins())
 		{
-			for (UOptimusNodePin* Pin : ResourceNode->GetPins())
+			// Update the pin type to match.
+			Action->AddSubAction<FOptimusNodeAction_SetPinType>(Pin, InDataType);
+
+			// Collect _unique_ links (in case there's a resource->resource link, since that would otherwise show up twice).
+			const UOptimusNodeGraph* Graph = Pin->GetOwningNode()->GetOwningGraph();
+
+			for (UOptimusNodePin* ConnectedPin: Graph->GetConnectedPins(Pin))
 			{
-				// Update the pin type to match.
-				Action->AddSubAction<FOptimusNodeAction_SetPinType>(Pin, InDataType);
-
-				// Collect _unique_ links (in case there's a resource->resource link, since that would otherwise show up twice).
-				const UOptimusNodeGraph* Graph = Pin->GetOwningNode()->GetOwningGraph();
-
-				for (UOptimusNodePin* ConnectedPin: Graph->GetConnectedPins(Pin))
+				if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
 				{
-					if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
-					{
-						Links.Add({Pin, ConnectedPin});
-					}
-					else
-					{
-						Links.Add({ConnectedPin, Pin});
-					}
+					Links.Add({Pin, ConnectedPin});
+				}
+				else
+				{
+					Links.Add({ConnectedPin, Pin});
 				}
 			}
-		}	
+		}
 	}
 
 	for (auto [OutputPin, InputPin]: Links)
@@ -716,31 +738,27 @@ bool UOptimusDeformer::SetResourceDataDomain(
 
 	TSet<TTuple<UOptimusNodePin* /*OutputPin*/, UOptimusNodePin* /*InputPin*/>> Links;
 	
-	TArray<UOptimusNode*> AllResourceNodes = GetAllNodesOfClass(UOptimusNode_ResourceAccessorBase::StaticClass());
-	for (UOptimusNode* Node: AllResourceNodes)
+	for (UOptimusNode* Node: GetNodesUsingResource(InResourceDesc))
 	{
-		const UOptimusNode_ResourceAccessorBase* ResourceNode = Cast<UOptimusNode_ResourceAccessorBase>(Node);
-		if (ResourceNode->GetResourceDescription() == InResourceDesc)
+		const UOptimusNode_ResourceAccessorBase* ResourceNode = CastChecked<UOptimusNode_ResourceAccessorBase>(Node);
+		for (UOptimusNodePin* Pin : ResourceNode->GetPins())
 		{
-			for (UOptimusNodePin* Pin : ResourceNode->GetPins())
+			// Update the pin type to match.
+			Action->AddSubAction<FOptimusNodeAction_SetPinDataDomain>(Pin, InDataDomain);
+
+			// Collect _unique_ links (in case there's a resource->resource link, since that would otherwise
+			// show up twice).
+			const UOptimusNodeGraph* Graph = Pin->GetOwningNode()->GetOwningGraph();
+
+			for (UOptimusNodePin* ConnectedPin: Graph->GetConnectedPins(Pin))
 			{
-				// Update the pin type to match.
-				Action->AddSubAction<FOptimusNodeAction_SetPinDataDomain>(Pin, InDataDomain);
-
-				// Collect _unique_ links (in case there's a resource->resource link, since that would otherwise
-				// show up twice).
-				const UOptimusNodeGraph* Graph = Pin->GetOwningNode()->GetOwningGraph();
-
-				for (UOptimusNodePin* ConnectedPin: Graph->GetConnectedPins(Pin))
+				if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
 				{
-					if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
-					{
-						Links.Add({Pin, ConnectedPin});
-					}
-					else
-					{
-						Links.Add({ConnectedPin, Pin});
-					}
+					Links.Add({Pin, ConnectedPin});
+				}
+				else
+				{
+					Links.Add({ConnectedPin, Pin});
 				}
 			}
 		}	
@@ -757,6 +775,24 @@ bool UOptimusDeformer::SetResourceDataDomain(
 	}
 
 	return GetActionStack()->RunAction(Action);
+}
+
+
+TArray<UOptimusNode*> UOptimusDeformer::GetNodesUsingResource(
+	const UOptimusResourceDescription* InResourceDesc
+	) const
+{
+	TArray<UOptimusNode*> UsedNodes;
+	TArray<UOptimusNode*> AllResourceNodes = GetAllNodesOfClass(UOptimusNode_ResourceAccessorBase::StaticClass());
+	for (UOptimusNode* Node: AllResourceNodes)
+	{
+		const UOptimusNode_ResourceAccessorBase* ResourceNode = Cast<UOptimusNode_ResourceAccessorBase>(Node);
+		if (ResourceNode->GetResourceDescription() == InResourceDesc)
+		{
+			UsedNodes.Add(Node);
+		}
+	}
+	return UsedNodes;
 }
 
 
@@ -797,7 +833,8 @@ UOptimusResourceDescription* UOptimusDeformer::CreateResourceDirect(
 
 
 bool UOptimusDeformer::AddResourceDirect(
-	UOptimusResourceDescription* InResourceDesc
+	UOptimusResourceDescription* InResourceDesc,
+	const int32 InIndex
 	)
 {
 	if (!ensure(InResourceDesc))
@@ -810,7 +847,15 @@ bool UOptimusDeformer::AddResourceDirect(
 		return false;
 	}
 
-	Resources->Descriptions.Add(InResourceDesc);
+	if (Resources->Descriptions.IsValidIndex(InIndex))
+	{
+		Resources->Descriptions.Insert(InResourceDesc, InIndex);
+	}
+	else
+	{
+		Resources->Descriptions.Add(InResourceDesc);
+	}
+	
 	Notify(EOptimusGlobalNotifyType::ResourceAdded, InResourceDesc);
 	(void)MarkPackageDirty();
 	
@@ -967,7 +1012,8 @@ UOptimusComponentSourceBinding* UOptimusDeformer::CreateComponentBindingDirect(
 
 
 bool UOptimusDeformer::AddComponentBindingDirect(
-	UOptimusComponentSourceBinding* InComponentBinding
+	UOptimusComponentSourceBinding* InComponentBinding,
+	const int32 InIndex
 	)
 {
 	if (!ensure(InComponentBinding))
@@ -983,8 +1029,15 @@ bool UOptimusDeformer::AddComponentBindingDirect(
 	{
 		InComponentBinding->bIsPrimaryBinding = true;
 	}
-	
-	Bindings->Bindings.Add(InComponentBinding);
+
+	if (Bindings->Bindings.IsValidIndex(InIndex))
+	{
+		Bindings->Bindings.Insert(InComponentBinding, InIndex);
+	}
+	else
+	{
+		Bindings->Bindings.Add(InComponentBinding);
+	}
 
 	Notify(EOptimusGlobalNotifyType::ComponentBindingAdded, InComponentBinding);
 
@@ -1017,14 +1070,9 @@ bool UOptimusDeformer::RemoveComponentBinding(
 	
 	TMap<const UOptimusNodeGraph*, TArray<UOptimusNode*>> NodesByGraph;
 	
-	TArray<UOptimusNode*> AllComponentSourceNodes = GetAllNodesOfClass(UOptimusNode_ComponentSource::StaticClass());
-	for (UOptimusNode* Node: AllComponentSourceNodes)
+	for (UOptimusNode* Node: GetNodesUsingComponentBinding(InBinding))
 	{
-		UOptimusNode_ComponentSource* ComponentNode = Cast<UOptimusNode_ComponentSource>(Node);
-		if (ComponentNode->GetComponentBinding() == InBinding)
-		{
-			NodesByGraph.FindOrAdd(ComponentNode->GetOwningGraph()).Add(ComponentNode);
-		}	
+		NodesByGraph.FindOrAdd(Node->GetOwningGraph()).Add(Node);
 	}
 
 	for (const TTuple<const UOptimusNodeGraph*, TArray<UOptimusNode*>>& GraphNodes: NodesByGraph)
@@ -1096,14 +1144,9 @@ bool UOptimusDeformer::RenameComponentBinding(
 
 	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Rename Component Binding"));
 
-	TArray<UOptimusNode*> AllComponentSourceNode = GetAllNodesOfClass(UOptimusNode_ComponentSource::StaticClass());
-	for (UOptimusNode* Node: AllComponentSourceNode)
+	for (UOptimusNode* Node: GetNodesUsingComponentBinding(InBinding))
 	{
-		UOptimusNode_ComponentSource* ComponentSourceNode = Cast<UOptimusNode_ComponentSource>(Node);
-		if (ComponentSourceNode->GetComponentBinding() == InBinding)
-		{
-			Action->AddSubAction<FOptimusNodeAction_RenameNode>(ComponentSourceNode, FText::FromName(InNewName));
-		}	
+		Action->AddSubAction<FOptimusNodeAction_RenameNode>(Node, FText::FromName(InNewName));
 	}	
 
 	if (InNewName == InBinding->BindingName)
@@ -1172,32 +1215,28 @@ bool UOptimusDeformer::SetComponentBindingSource(
 
 	FOptimusCompoundAction* Action = new FOptimusCompoundAction(TEXT("Set Component Binding Source"));
 	TSet<TTuple<UOptimusNodePin* /*OutputPin*/, UOptimusNodePin* /*InputPin*/>> Links;
-	TArray<UOptimusNode*> AllComponentSourceNode = GetAllNodesOfClass(UOptimusNode_ComponentSource::StaticClass());
-	for (UOptimusNode* Node: AllComponentSourceNode)
+	for (UOptimusNode* Node: GetNodesUsingComponentBinding(InBinding))
 	{
-		const UOptimusNode_ComponentSource* ComponentSourceNode = Cast<UOptimusNode_ComponentSource>(Node);
-		if (ComponentSourceNode->GetComponentBinding() == InBinding)
+		const UOptimusNode_ComponentSource* ComponentSourceNode = CastChecked<UOptimusNode_ComponentSource>(Node);
+		UOptimusNodePin* ComponentSourcePin = ComponentSourceNode->GetComponentPin();
+
+		const UOptimusNodeGraph* Graph = ComponentSourceNode->GetOwningGraph();
+
+		for (UOptimusNodePin* ConnectedPin: Graph->GetConnectedPins(ComponentSourcePin))
 		{
-			UOptimusNodePin* ComponentSourcePin = ComponentSourceNode->GetComponentPin();
-
-			const UOptimusNodeGraph* Graph = ComponentSourceNode->GetOwningGraph();
-
-			for (UOptimusNodePin* ConnectedPin: Graph->GetConnectedPins(ComponentSourcePin))
+			// Will this connection be invalid once the source is changed?
+			if (const UOptimusNode_DataInterface* DataInterfaceNode = Cast<UOptimusNode_DataInterface>(ConnectedPin->GetOwningNode()))
 			{
-				// Will this connection be invalid once the source is changed?
-				if (const UOptimusNode_DataInterface* DataInterfaceNode = Cast<UOptimusNode_DataInterface>(ConnectedPin->GetOwningNode()))
+				if (!DataInterfaceNode->IsComponentSourceCompatible(InComponentSource))
 				{
-					if (!DataInterfaceNode->IsComponentSourceCompatible(InComponentSource))
-					{
-						Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(ComponentSourcePin, ConnectedPin);
-					}
+					Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(ComponentSourcePin, ConnectedPin);
 				}
 			}
+		}
 
-			// Change the pin name _after_ the links are removed, since the link remove action uses the pin path, including
-			// the old name to resolve the pin.
-			Action->AddSubAction<FOptimusNodeAction_SetPinName>(ComponentSourcePin, InComponentSource->GetBindingName());
-		}	
+		// Change the pin name _after_ the links are removed, since the link remove action uses the pin path, including
+		// the old name to resolve the pin.
+		Action->AddSubAction<FOptimusNodeAction_SetPinName>(ComponentSourcePin, InComponentSource->GetBindingName());
 	}
 	
 	if (InBinding->ComponentType != InComponentSource->GetClass())
@@ -1210,6 +1249,24 @@ bool UOptimusDeformer::SetComponentBindingSource(
 	}
 
 	return GetActionStack()->RunAction(Action);
+}
+
+
+TArray<UOptimusNode*> UOptimusDeformer::GetNodesUsingComponentBinding(
+	const UOptimusComponentSourceBinding* InBinding
+	) const
+{
+	TArray<UOptimusNode*> UsedNodes;
+	TArray<UOptimusNode*> AllComponentSourceNode = GetAllNodesOfClass(UOptimusNode_ComponentSource::StaticClass());
+	for (UOptimusNode* Node: AllComponentSourceNode)
+	{
+		const UOptimusNode_ComponentSource* ComponentSourceNode = Cast<UOptimusNode_ComponentSource>(Node);
+		if (ComponentSourceNode->GetComponentBinding() == InBinding)
+		{
+			UsedNodes.Add(Node);
+		}
+	}
+	return UsedNodes;
 }
 
 

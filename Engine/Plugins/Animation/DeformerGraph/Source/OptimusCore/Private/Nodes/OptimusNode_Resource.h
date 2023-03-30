@@ -14,7 +14,7 @@ class UOptimusNode_Resource
 	GENERATED_BODY()
 
 	// UOptimusNode_Resource implementations
-	FName GetResourcePinName(int32 InPinIndex) const override;
+	FName GetResourcePinName(int32 InPinIndex, FName InNameOverride = NAME_None) const override;
 	// IOptimusDataInterfaceProvider implementations
 	int32 GetDataFunctionIndexFromPin(const UOptimusNodePin* InPin) const override;
 

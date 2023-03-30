@@ -52,7 +52,7 @@ bool FOptimusResourceAction_AddResource::Do(
 	Resource->DataType = DataType;
 	Resource->DataDomain = DataDomain;
 
-	if (!Deformer->AddResourceDirect(Resource))
+	if (!Deformer->AddResourceDirect(Resource, INDEX_NONE))
 	{
 		Resource->Rename(nullptr, GetTransientPackage());
 		return false;
@@ -86,6 +86,7 @@ FOptimusResourceAction_RemoveResource::FOptimusResourceAction_RemoveResource(
 	{
 		ResourceName = InResource->GetFName();
 		DataType = InResource->DataType;
+		ResourceIndex = InResource->GetIndex();
 
 		SetTitlef(TEXT("Remove resource '%s'"), *InResource->GetName());
 	}
@@ -131,7 +132,7 @@ bool FOptimusResourceAction_RemoveResource::Undo(
 		Optimus::FBinaryObjectReader ResourceArchive(Resource, ResourceData);
 	}
 
-	if (!Deformer->AddResourceDirect(Resource))
+	if (!Deformer->AddResourceDirect(Resource, ResourceIndex))
 	{
 		Resource->Rename(nullptr, GetTransientPackage());
 		return false;

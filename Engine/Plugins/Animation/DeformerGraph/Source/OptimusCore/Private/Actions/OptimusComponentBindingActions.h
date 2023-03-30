@@ -64,6 +64,9 @@ private:
 
 	// Stored component tags
 	TArray<FName> ComponentTags;
+
+	// The index of the binding in the list.
+	int32 ComponentBindingIndex = 0;
 };
 
 

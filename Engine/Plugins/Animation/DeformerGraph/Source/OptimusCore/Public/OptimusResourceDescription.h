@@ -30,6 +30,9 @@ public:
 	// FIXME: Move to interface-based system.
 	UOptimusDeformer* GetOwningDeformer() const;
 
+	/** Returns the index of the variable within the container */ 
+	int32 GetIndex() const;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ResourceDescription)
 	FName ResourceName;
 

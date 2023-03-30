@@ -17,6 +17,13 @@ UOptimusDeformer* UOptimusResourceDescription::GetOwningDeformer() const
 }
 
 
+int32 UOptimusResourceDescription::GetIndex() const
+{
+	const UOptimusResourceContainer* Container = CastChecked<UOptimusResourceContainer>(GetOuter());
+	return Container->Descriptions.IndexOfByKey(this);
+}
+
+
 void UOptimusResourceDescription::PostLoad()
 {
 	Super::PostLoad();

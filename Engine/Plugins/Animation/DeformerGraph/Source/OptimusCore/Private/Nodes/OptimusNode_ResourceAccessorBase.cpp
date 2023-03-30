@@ -177,15 +177,22 @@ UOptimusResourceDescription* UOptimusNode_ResourceAccessorBase::GetResourceDescr
 }
 
 
-FName UOptimusNode_ResourceAccessorBase::GetResourcePinName(int32 InPinIndex) const
+FName UOptimusNode_ResourceAccessorBase::GetResourcePinName(int32 InPinIndex, FName InNameOverride) const
 {
-	UOptimusResourceDescription const* Description = GetResourceDescription();
-	if (!ensure(Description))
+	if (InNameOverride.IsNone())
 	{
-		return {};
-	}
+		UOptimusResourceDescription const* Description = GetResourceDescription();
+		if (!ensure(Description))
+		{
+			return {};
+		}
 	
-	return Description->ResourceName;
+		return Description->ResourceName;
+	}
+	else
+	{
+		return InNameOverride;
+	}
 }
 
 

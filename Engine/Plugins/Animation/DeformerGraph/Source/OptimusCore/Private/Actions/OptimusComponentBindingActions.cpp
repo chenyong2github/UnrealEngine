@@ -56,7 +56,7 @@ bool FOptimusComponentBindingAction_AddBinding::Do(IOptimusPathResolver* InRoot)
 		return false;
 	}
 
-	if (!Deformer->AddComponentBindingDirect(Binding))
+	if (!Deformer->AddComponentBindingDirect(Binding, INDEX_NONE))
 	{
 		Binding->Rename(nullptr, GetTransientPackage());
 		return false;
@@ -88,6 +88,7 @@ FOptimusComponentBindingAction_RemoveBinding::FOptimusComponentBindingAction_Rem
 		ComponentSourceClassPath = InBinding->GetComponentSource()->GetClass()->GetStructPathName();
 		ComponentBindingName = InBinding->BindingName;
 		ComponentTags = InBinding->ComponentTags;
+		ComponentBindingIndex = InBinding->GetIndex();
 
 		SetTitlef(TEXT("Remove component binding '%s'"), *ComponentBindingName.ToString());
 	}
@@ -130,7 +131,7 @@ bool FOptimusComponentBindingAction_RemoveBinding::Undo(IOptimusPathResolver* In
 
 	Binding->ComponentTags = ComponentTags;
 
-	if (!Deformer->AddComponentBindingDirect(Binding))
+	if (!Deformer->AddComponentBindingDirect(Binding, ComponentBindingIndex))
 	{
 		Binding->Rename(nullptr, GetTransientPackage());
 		return false;

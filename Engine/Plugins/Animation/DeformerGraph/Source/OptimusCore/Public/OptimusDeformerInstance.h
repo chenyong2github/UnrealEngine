@@ -133,7 +133,7 @@ protected:
  * This implements the UMeshDeformerInstance interface to enqueue the graph execution.
  * It also contains the per instance deformer variable state and local state for each of the graphs in the deformer.
  */
-UCLASS(Blueprintable, BlueprintType)
+UCLASS(BlueprintType)
 class UOptimusDeformerInstance :
 	public UMeshDeformerInstance
 {
@@ -160,7 +160,7 @@ public:
 	void SetupFromDeformer(UOptimusDeformer* InDeformer);
 
 	/** Set the value of a boolean variable. */
-	UFUNCTION(BlueprintPure, Category="Deformer", meta=(DisplayName="Set Variable (Boolean)"))
+	UFUNCTION(BlueprintCallable, Category="Deformer", meta=(DisplayName="Set Variable (Boolean)"))
 	bool SetBoolVariable(FName InVariableName, bool InValue);
 
 	/** Set the value of an integer variable. */

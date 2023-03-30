@@ -66,6 +66,12 @@ UOptimusDeformer* UOptimusComponentSourceBinding::GetOwningDeformer() const
 	return Container ? CastChecked<UOptimusDeformer>(Container->GetOuter()) : nullptr;
 }
 
+int32 UOptimusComponentSourceBinding::GetIndex() const
+{
+	const UOptimusComponentSourceBindingContainer* Container = CastChecked<UOptimusComponentSourceBindingContainer>(GetOuter());
+	return Container->Bindings.IndexOfByKey(this);
+}
+
 const UOptimusComponentSource* UOptimusComponentSourceBinding::GetComponentSource() const
 {
 	if (ComponentType)

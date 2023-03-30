@@ -5,6 +5,8 @@
 #include "OptimusDeformer.h"
 #include "OptimusHelpers.h"
 #include "OptimusVariableDescription.h"
+#include "OptimusValueContainer.h"
+
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusVariableActions)
 
@@ -46,7 +48,9 @@ bool FOptimusVariableAction_AddVariable::Do(IOptimusPathResolver* InRoot)
 	Variable->VariableName = Variable->GetFName();
 	Variable->DataType = DataType;
 
-	if (!Deformer->AddVariableDirect(Variable))
+	Variable->EnsureValueContainer();
+
+	if (!Deformer->AddVariableDirect(Variable, INDEX_NONE))
 	{
 		Variable->Rename(nullptr, GetTransientPackage());
 		return false;
@@ -78,6 +82,7 @@ FOptimusVariableAction_RemoveVariable::FOptimusVariableAction_RemoveVariable(
 	{
 		VariableName = InVariable->GetFName();
 		DataType = InVariable->DataType;
+		VariableIndex = InVariable->GetIndex();
 
 		SetTitlef(TEXT("Remove variable '%s'"), *InVariable->GetName());
 	}
@@ -96,6 +101,11 @@ bool FOptimusVariableAction_RemoveVariable::Do(IOptimusPathResolver* InRoot)
 
 	{
 		Optimus::FBinaryObjectWriter VarArchive(Variable, VariableData);
+	}
+	
+	if (ensure(Variable->DefaultValue))
+	{
+		Optimus::FBinaryObjectWriter ValueArchive(Variable->DefaultValue, DefaultValueData);
 	}
 
 	return Deformer->RemoveVariableDirect(Variable);
@@ -120,7 +130,14 @@ bool FOptimusVariableAction_RemoveVariable::Undo(IOptimusPathResolver* InRoot)
 		Optimus::FBinaryObjectReader VarArchive(Variable, VariableData);
 	}
 
-	if (!Deformer->AddVariableDirect(Variable))
+	Variable->EnsureValueContainer();
+
+	if (!DefaultValueData.IsEmpty() && Variable->DefaultValue)
+	{
+		Optimus::FBinaryObjectReader VarArchive(Variable->DefaultValue, DefaultValueData);
+	}
+	
+	if (!Deformer->AddVariableDirect(Variable, VariableIndex))
 	{
 		Variable->Rename(nullptr, GetTransientPackage());
 		return false;

@@ -65,8 +65,14 @@ private:
 	// The data type of the variable
 	FOptimusDataTypeRef DataType;
 
+	// THe index of the variable in the list
+	int32 VariableIndex = 0;
+	
 	// The stored variable data.
 	TArray<uint8> VariableData;
+
+	// The stored default value data
+	TArray<uint8> DefaultValueData;
 };
 
 

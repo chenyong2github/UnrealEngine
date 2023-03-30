@@ -162,6 +162,10 @@ public:
 		bool bInForceChange = false
 		);
 
+	TArray<UOptimusNode*> GetNodesUsingVariable(
+	    const UOptimusVariableDescription* InVariableDesc
+		) const;
+
 	UFUNCTION(BlueprintGetter)
 	const TArray<UOptimusVariableDescription*>& GetVariables() const { return Variables->Descriptions; }
 
@@ -197,6 +201,10 @@ public:
 		bool bInForceChange = false
 		);
 	
+	TArray<UOptimusNode*> GetNodesUsingResource(
+		const UOptimusResourceDescription* InResourceDesc
+		) const;
+	
 	UFUNCTION(BlueprintGetter)
 	const TArray<UOptimusResourceDescription*>& GetResources() const { return Resources->Descriptions; }
 
@@ -225,6 +233,10 @@ public:
 		const UOptimusComponentSource *InComponentSource,
 		bool bInForceChange = false
 		);
+
+	TArray<UOptimusNode*> GetNodesUsingComponentBinding(
+		const UOptimusComponentSourceBinding* InBinding
+		) const;
 	
 	UFUNCTION(BlueprintGetter)
 	const TArray<UOptimusComponentSourceBinding*>& GetComponentBindings() const { return Bindings->Bindings; }
@@ -295,23 +307,28 @@ public:
 	UOptimusNodeGraph* CreateGraph(
 	    EOptimusNodeGraphType InType,
 	    FName InName,
-	    TOptional<int32> InInsertBefore) override;
+	    TOptional<int32> InInsertBefore
+	    ) override;
 	
 	bool AddGraph(
 	    UOptimusNodeGraph* InGraph,
-		int32 InInsertBefore) override;
+		int32 InInsertBefore
+		) override;
 	
 	bool RemoveGraph(
 	    UOptimusNodeGraph* InGraph,
-		bool bDeleteGraph) override;
+		bool bDeleteGraph
+		) override;
 
 	bool MoveGraph(
 	    UOptimusNodeGraph* InGraph,
-	    int32 InInsertBefore) override;
+	    int32 InInsertBefore
+	    ) override;
 
 	bool RenameGraph(
 	    UOptimusNodeGraph* InGraph,
-	    const FString& InNewName) override;
+	    const FString& InNewName
+	    ) override;
 	
 	UPROPERTY(EditAnywhere, Category=Preview)
 	TObjectPtr<USkeletalMesh> Mesh = nullptr;
@@ -344,7 +361,8 @@ protected:
 
 	/** Adds a resource that was created by this deformer and is owned by it. */
 	bool AddResourceDirect(
-		UOptimusResourceDescription* InResourceDesc
+		UOptimusResourceDescription* InResourceDesc,
+		const int32 InIndex
 		);
 
 	bool RemoveResourceDirect(
@@ -375,7 +393,8 @@ protected:
 
 	/** Adds a resource that was created by this deformer and is owned by it. */
 	bool AddVariableDirect(
-		UOptimusVariableDescription* InVariableDesc
+		UOptimusVariableDescription* InVariableDesc,
+		const int32 InIndex
 		);
 
 	bool RemoveVariableDirect(
@@ -398,7 +417,8 @@ protected:
 		);
 
 	bool AddComponentBindingDirect(
-		UOptimusComponentSourceBinding* InComponentBinding
+		UOptimusComponentSourceBinding* InComponentBinding,
+		const int32 InIndex
 		);
 
 	bool RemoveComponentBindingDirect(

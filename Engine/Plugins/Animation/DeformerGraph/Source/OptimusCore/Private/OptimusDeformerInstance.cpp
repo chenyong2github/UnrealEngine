@@ -474,8 +474,6 @@ namespace
 	template <typename T>
 	bool SetVariableValue(UOptimusVariableContainer const* InVariables, FName InVariableName, FName InTypeName, T const& InValue)
 	{
-		const uint8* ValueBytes = reinterpret_cast<const uint8*>(&InValue);
-
 		FOptimusDataTypeHandle WantedType = FOptimusDataTypeRegistry::Get().FindType(InTypeName);
 		for (UOptimusVariableDescription* VariableDesc : InVariables->Descriptions)
 		{
@@ -484,8 +482,9 @@ namespace
 				TUniquePtr<FProperty> Property(WantedType->CreateProperty(nullptr, NAME_None));
 				if (ensure(Property->GetSize() == sizeof(T)))
 				{
+					const uint8* ValueBytes = reinterpret_cast<const uint8*>(&InValue);
 					FShaderValueType::FValue ValueResult = WantedType->MakeShaderValue();
-					WantedType->ConvertPropertyValueToShader(TArrayView<const uint8>((const uint8*)&InValue, sizeof(T)), ValueResult);
+					WantedType->ConvertPropertyValueToShader(TArrayView<const uint8>(ValueBytes, sizeof(T)), ValueResult);
 					VariableDesc->ValueData = MoveTemp(ValueResult.ShaderValue);
 				}
 

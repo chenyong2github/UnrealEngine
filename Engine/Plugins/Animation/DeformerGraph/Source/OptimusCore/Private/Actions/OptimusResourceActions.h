@@ -71,6 +71,9 @@ private:
 	// The data type of the resource
 	FOptimusDataTypeRef DataType;
 
+	// The index of the removed resource within the resource list
+	int32 ResourceIndex = 0;
+
 	// The stored resource data.
 	TArray<uint8> ResourceData;
 };

@@ -26,15 +26,20 @@ int32 UOptimusNode_Resource::GetDataFunctionIndexFromPin(const UOptimusNodePin* 
 }
 
 
-FName UOptimusNode_Resource::GetResourcePinName(int32 InPinIndex) const
+FName UOptimusNode_Resource::GetResourcePinName(int32 InPinIndex, FName InNameOverride) const
 {
-	if (const UOptimusResourceDescription* Res = GetResourceDescription())
+	if (InNameOverride.IsNone())
 	{
-		if (ensure(InPinIndex >= 0 && InPinIndex < 2))
+		if (const UOptimusResourceDescription* Res = GetResourceDescription())
 		{
-			FString Suffix = InPinIndex == 0 ? TEXT("Set") : TEXT("Get");
-			return FName(Suffix + Res->ResourceName.ToString());
+			InNameOverride = Res->ResourceName;
 		}
+		
+	}
+	if (ensure(InPinIndex >= 0 && InPinIndex < 2))
+	{
+		FString Suffix = InPinIndex == 0 ? TEXT("Set") : TEXT("Get");
+		return FName(Suffix + InNameOverride.ToString());
 	}
 
 	return {};
