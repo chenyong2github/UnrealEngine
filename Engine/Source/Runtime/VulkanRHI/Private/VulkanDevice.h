@@ -60,9 +60,6 @@ struct FOptionalVulkanDeviceExtensions
 			uint64 HasQcomRenderPassTransform : 1;
 
 			// Promoted to 1.1
-			uint64 HasKHRMaintenance1 : 1;
-			uint64 HasKHRMaintenance2 : 1;
-			uint64 HasKHRDedicatedAllocation : 1;
 			uint64 HasKHRMultiview : 1;
 
 			// Promoted to 1.2
