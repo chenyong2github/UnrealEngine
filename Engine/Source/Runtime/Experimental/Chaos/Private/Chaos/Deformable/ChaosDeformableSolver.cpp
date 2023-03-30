@@ -126,7 +126,8 @@ namespace Chaos::Softs
 			/*CoefficientOfFriction = */(FSolverReal)0.,
 			/*FSolverReal Damping = */Property.Damping,
 			/*FSolverReal LocalDamping = */(FSolverReal)0.,
-			Property.bDoQuasistatics));
+			Property.bDoQuasistatics, 
+			false));
 		Evolution->Particles().AddArray(&MObjects);
 		if (Property.bDoSelfCollision || Property.CacheToFile)
 		{

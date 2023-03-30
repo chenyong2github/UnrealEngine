@@ -26,7 +26,8 @@ class CHAOS_API FPBDEvolution : public TArrayCollection
 		FSolverReal CoefficientOfFriction = (FSolverReal)0.,
 		FSolverReal Damping = (FSolverReal)0.04,
 		FSolverReal LocalDamping = (FSolverReal)0.,
-		bool bDoQuasistatics = false);
+		bool bDoQuasistatics = false, 
+		bool InbUsePerParticleDamping = false);
 	~FPBDEvolution() {}
 
 	// Advance one time step. Filter the input time step if specified.
@@ -170,8 +171,8 @@ class CHAOS_API FPBDEvolution : public TArrayCollection
 	bool GetUseCCD(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupUseCCDs[GroupId]; }
 	void SetUseCCD(const bool bUseCCD, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupUseCCDs[GroupId] = bUseCCD; }
 
-	FSolverReal GetParticleDamping(const uint32 ParticleIndex = 0) const { check(ParticleIndex < this->Particles().Size()); return MParticleDampings[ParticleIndex]; }
-	void SetParticleDamping(const FSolverReal Damping, const uint32 ParticleIndex = 0) { check(ParticleIndex < this->Particles().Size()); MParticleDampings[ParticleIndex] = Damping; }
+	FSolverReal GetParticleDamping(const uint32 ParticleIndex = 0) const { check(ParticleIndex < this->Particles().Size() && bUsePerParticleDamping); return MParticleDampings[ParticleIndex]; }
+	void SetParticleDamping(const FSolverReal Damping, const uint32 ParticleIndex = 0) { check(ParticleIndex < this->Particles().Size()); if (bUsePerParticleDamping) { MParticleDampings[ParticleIndex] = Damping; } }
 
 
 	UE_DEPRECATED(4.27, "Use GetCollisionStatus() instead")
@@ -242,6 +243,7 @@ private:
 	FSolverReal MLocalDamping;
 	FSolverReal MTime;
 	bool bDoQuasistatics = false;
+	bool bUsePerParticleDamping = false;
 };
 
 }  // End namespace Chaos::Softs
