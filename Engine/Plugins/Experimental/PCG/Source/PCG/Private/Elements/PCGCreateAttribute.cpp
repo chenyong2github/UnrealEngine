@@ -164,7 +164,7 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 	{
 		if (SourceParams.IsEmpty())
 		{
-			PCGE_LOG(Error, GraphAndLog, LOCTEXT("ParamNotProvided", "Source param was not provided"));
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("ParamNotProvided", "Source attribute was not provided"));
 			return true;
 		}
 
@@ -172,7 +172,7 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!SourceParamData->Metadata)
 		{
-			PCGE_LOG(Error, GraphAndLog, LOCTEXT("ParamMissingMetadata", "Source param data does not have metadata"));
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("ParamMissingMetadata", "Source Attribute Set data does not have metadata"));
 			return true;
 		}
 
@@ -180,7 +180,7 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!SourceParamData->Metadata->HasAttribute(SourceParamAttributeName))
 		{
-			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("ParamMissingAttribute", "Source param data does not have an attribute '{0}'"), FText::FromName(SourceParamAttributeName)));
+			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("ParamMissingAttribute", "Source Attribute Set data does not have an attribute '{0}'"), FText::FromName(SourceParamAttributeName)));
 			return true;
 		}
 	}
@@ -235,7 +235,7 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 		}
 		else
 		{
-			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidInputData", "Invalid data as input. Only Spatial and Param data supported."));
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidInputData", "Invalid data as input. Only Spatial and Attribute Set data supported."));
 			continue;
 		}
 

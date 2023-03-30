@@ -113,7 +113,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 		}
 		else
 		{
-			PCGE_LOG(Warning, LogOnly, FText::Format(LOCTEXT("InvalidInputDataTypeForPin", "Invalid data provided on pin {0}, must be of type Spatial or Param"), i));
+			PCGE_LOG(Warning, LogOnly, FText::Format(LOCTEXT("InvalidInputDataTypeForPin", "Invalid data provided on pin {0}, must be of type Spatial or Attribute Set"), i));
 			return true;
 		}
 	}
@@ -140,7 +140,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 			InputTaggedData[0].Data->GetClass() != InputTaggedData[i].Data->GetClass() &&
 			!InputTaggedData[i].Data->IsA<UPCGParamData>())
 		{
-			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("InputTypeMismatch", "Input {0} is not of the same type than input 0 and is not a Param Data. This is not supported."), i));
+			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("InputTypeMismatch", "Input {0} is not of the same type than input 0 and is not an Attribute Set. This is not supported."), i));
 			return true;
 		}
 

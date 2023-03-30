@@ -730,12 +730,12 @@ namespace PCGSplineSampler
 		}
 		else if (const UPCGLandscapeSplineData* LandscapeSplineData = Cast<UPCGLandscapeSplineData>(LineData))
 		{
-			UE_LOG(LogPCG, Error, TEXT("LandscapeSplines are not supported for interior sampling"));
+			PCGE_LOG_C(Error, GraphAndLog, Context, LOCTEXT("LandscapeSplinesNotSupported", "Input data of type Landscape Spline are not supported for interior sampling"));
 			return;
 		}
 		else
 		{
-			UE_LOG(LogPCG, Error, TEXT("Could not create UPCGSplineData from LineData"));
+			PCGE_LOG_C(Error, GraphAndLog, Context, LOCTEXT("CouldNotCreateSplineData", "Could not create UPCGSplineData from LineData"));
 			return;
 		}
 
@@ -743,7 +743,7 @@ namespace PCGSplineSampler
 
 		if (!Spline->IsClosedLoop())
 		{
-			UE_LOG(LogPCG, Error, TEXT("Interior sampling only generates for closed shapes"));
+			PCGE_LOG_C(Error, GraphAndLog, Context, LOCTEXT("ShapeNotClosed", "Interior sampling only generates for closed shapes, enable the 'Closed Loop' setting on the spline"));
 			return;
 		}
 
@@ -868,6 +868,11 @@ namespace PCGSplineSampler
 					MedialAxisEdges.Add(Edge);
 				}
 			}
+
+			if (MedialAxisEdges.IsEmpty())
+			{
+				PCGE_LOG_C(Warning, GraphAndLog, Context, LOCTEXT("MedialAxisFailed", "Failed to compute medial axis in interior region, density fall-off will not be applied. This functionality requires a closed spline with at least 4 spline points."));
+			}
 		}
 
 		TArray<FPCGPoint>& OutPoints = OutPointData->GetMutablePoints();
@@ -910,7 +915,7 @@ namespace PCGSplineSampler
 
 				if (Intersections.Num() % 2 != 0)
 				{
-					UE_LOG(LogPCG, Error, TEXT("Intersection test failed, skipping samples for this row"));
+					PCGE_LOG_C(Error, GraphAndLog, Context, LOCTEXT("IntersectionTestFailed", "Intersection test failed, skipping samples for this row"));
 					continue;
 				}
 

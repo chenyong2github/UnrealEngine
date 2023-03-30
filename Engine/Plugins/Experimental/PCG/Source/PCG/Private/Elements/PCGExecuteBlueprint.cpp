@@ -557,7 +557,8 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* InContext) const
 		{
 			if (Blueprint->Status == BS_Error)
 			{
-				UE_LOG(LogPCG, Error, TEXT("PCG blueprint element cannot be executed since %s is not properly compiled"), *Blueprint->GetFName().ToString());
+				PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("BPNotCompiled", "Blueprint cannot be executed since '{0}' is not properly compiled"),
+					FText::FromName(Blueprint->GetFName())));
 				return true;
 			}
 		}
@@ -739,7 +740,7 @@ void UPCGBlueprintElement::LoopNTimes(FPCGContext& InContext, int64 NumIteration
 {
 	if (NumIterations < 0)
 	{
-		UE_LOG(LogPCG, Error, TEXT("Invalid number of iterations in PCG blueprint element"));
+		PCGE_LOG_C(Error, GraphAndLog, &InContext, FText::Format(LOCTEXT("InvalidIterationCount", "Invalid number of iterations ({0})"), NumIterations));
 		return;
 	}
 

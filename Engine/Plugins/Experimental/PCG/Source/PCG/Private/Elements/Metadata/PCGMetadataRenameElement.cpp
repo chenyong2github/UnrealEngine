@@ -10,6 +10,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataRenameElement)
 
+#define LOCTEXT_NAMESPACE "PCGMetadataRenameElement"
 
 TArray<FPCGPinProperties> UPCGMetadataRenameSettings::OutputPinProperties() const
 {
@@ -39,7 +40,7 @@ bool FPCGMetadataRenameElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (NewAttributeName == NAME_None)
 	{
-		UE_LOG(LogPCG, Warning, TEXT("Metadata rename operation cannot rename from %s to %s"), *AttributeToRename.ToString(), *NewAttributeName.ToString());
+		PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("InvalidTargetAttributeName", "Invalid target attribute name '{0}'"), FText::FromName(NewAttributeName)));
 		// Bypass
 		Context->OutputData = Context->InputData;
 		return true;
@@ -64,7 +65,7 @@ bool FPCGMetadataRenameElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!Metadata)
 		{
-			UE_LOG(LogPCG, Warning, TEXT("Input is not supported, only supports spatial and params"));
+			PCGE_LOG(Warning, GraphAndLog, LOCTEXT("InvalidInputType", "Input data type is not supported, only supports Spatial and Attribute Set"));
 			Output.Data = nullptr;
 			continue;
 		}
@@ -81,9 +82,12 @@ bool FPCGMetadataRenameElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (!NewMetadata || !NewMetadata->RenameAttribute(LocalAttributeToRename, NewAttributeName))
 		{
-			UE_LOG(LogPCG, Warning, TEXT("Failed to rename attribute from %s to %s"), *LocalAttributeToRename.ToString(), *NewAttributeName.ToString());
+			PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("AttributeRenamedFailed", "Failed to rename attribute from '{0}' to '{1}'"),
+				FText::FromName(LocalAttributeToRename), FText::FromName(NewAttributeName)));
 		}
 	}
 
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

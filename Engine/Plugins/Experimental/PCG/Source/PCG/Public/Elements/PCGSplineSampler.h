@@ -106,7 +106,7 @@ struct PCG_API FPCGSplineSamplerParams
 	bool bProjectOntoSurface = false;
 
 	// TODO: DirtyCache for OnDependencyChanged when this float curve is an external asset
-	/** Defines the density for each sample based on its distance from the spline */
+	/** Defines the density for each sample based on its distance from the spline. X axis is normalized distance to boundary (0-1), Y axis is density value. */
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (EditCondition = "Dimension==EPCGSplineSamplingDimension::OnInterior"))
 	FRuntimeFloatCurve InteriorDensityFalloffCurve;
 

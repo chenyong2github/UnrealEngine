@@ -18,6 +18,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDebugElement)
 
+#define LOCTEXT_NAMESPACE "PCGDebugElement"
+
 namespace PCGDebugElement
 {
 	void ExecuteDebugDisplay(FPCGContext* Context)
@@ -43,7 +45,8 @@ namespace PCGDebugElement
 
 		if (!Mesh)
 		{
-			UE_LOG(LogPCG, Error, TEXT("Debug display was unable to load mesh %s"), *DebugSettings.PointMesh.ToString());
+			PCGE_LOG_C(Error, GraphAndLog, Context, FText::Format(LOCTEXT("UnableToLoadMesh", "Debug display was unable to load mesh '{0}'"),
+				FText::FromString(DebugSettings.PointMesh.ToString())));
 			return;
 		}
 
@@ -95,7 +98,7 @@ namespace PCGDebugElement
 			if (!TargetActor)
 			{
 				// No target actor
-				UE_LOG(LogPCG, Error, TEXT("Debug display cannot show data that have no target actor"));
+				PCGE_LOG_C(Error, GraphAndLog, Context, LOCTEXT("NoTargetActor", "Debug display cannot show data that have no target actor"));
 				continue;
 			}
 
@@ -230,10 +233,7 @@ FPCGElementPtr UPCGDebugSettings::CreateElement() const
 
 TArray<FPCGPinProperties> UPCGDebugSettings::OutputPinProperties() const
 {
-	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Any);
-
-	return PinProperties;
+	return TArray<FPCGPinProperties>();
 }
 
 bool FPCGDebugElement::ExecuteInternal(FPCGContext* Context) const
@@ -241,6 +241,7 @@ bool FPCGDebugElement::ExecuteInternal(FPCGContext* Context) const
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGDebugElement::Execute);
 	PCGDebugElement::ExecuteDebugDisplay(Context);
 	
-	Context->OutputData = Context->InputData;
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

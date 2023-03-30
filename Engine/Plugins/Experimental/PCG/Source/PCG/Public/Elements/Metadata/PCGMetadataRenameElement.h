@@ -14,7 +14,7 @@ class PCG_API UPCGMetadataRenameSettings : public UPCGSettings
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("AttributeRename")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Attribute Rename")); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
 #endif
 
