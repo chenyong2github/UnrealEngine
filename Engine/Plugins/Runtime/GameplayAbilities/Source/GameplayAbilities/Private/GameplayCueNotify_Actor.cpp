@@ -351,6 +351,9 @@ bool AGameplayCueNotify_Actor::Recycle()
 	bHasHandledOnActiveEvent = false;
 	bHasHandledWhileActiveEvent = false;
 	bHasHandledOnRemoveEvent = false;
+	CueInstigator = nullptr;
+	CueSourceObject = nullptr;
+
 	ClearOwnerDestroyedDelegate();
 	if (FinishTimerHandle.IsValid())
 	{

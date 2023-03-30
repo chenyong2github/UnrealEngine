@@ -145,10 +145,19 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = GameplayCue)
 	int32 NumPreallocatedInstances;
 
-	FGCNotifyActorKey NotifyKey;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.3, "NotifyKey is deprecated and unused.  See comments in FGCNotifyActorKey")
+	FGCNotifyActorKey NotifyKey = {};
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Set when the GC actor is in the recycle queue (E.g., not active in world. This is to prevent rentrancy in the recyle code since multiple paths can lead the GC actor there)
 	bool bInRecycleQueue;
+
+	// Keep track of the Instigator so we can decide if this GameplayCueNotify is one we're searching for.
+	TWeakObjectPtr<AActor> CueInstigator;
+
+	// Keep track of the SourceObject so we can decide if this GameplayCueNotify is one we're searching for.
+	TWeakObjectPtr<const UObject> CueSourceObject;
 	
 protected:
 	FTimerHandle FinishTimerHandle;

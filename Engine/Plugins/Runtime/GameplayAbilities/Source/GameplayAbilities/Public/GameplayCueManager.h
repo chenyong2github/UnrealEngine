@@ -179,8 +179,8 @@ class GAMEPLAYABILITIES_API UGameplayCueManager : public UDataAsset
 	/** Force any instanced GameplayCueNotifies to stop */
 	virtual void EndGameplayCuesFor(AActor* TargetActor);
 
-	/** Returns the cached instance cue. Creates it if it doesn't exist */
-	virtual AGameplayCueNotify_Actor* GetInstancedCueActor(AActor* TargetActor, UClass* CueClass, const FGameplayCueParameters& Parameters);
+	/** Returns the cached instance cue. Creates it if it doesn't exist. */
+	virtual AGameplayCueNotify_Actor* GetInstancedCueActor(AActor* TargetActor, UClass* GameplayCueNotifyActorClass, const FGameplayCueParameters& Parameters);
 
 	/** Notify that this actor is finished and should be destroyed or recycled */
 	virtual void NotifyGameplayCueActorFinished(AGameplayCueNotify_Actor* Actor);
@@ -263,6 +263,12 @@ protected:
 	/** returns list of valid gameplay cue paths. Subclasses may override this to specify locations that aren't part of the "always loaded" LoadedPaths array */
 	virtual TArray<FString>	GetValidGameplayCuePaths() { return GetAlwaysLoadedGameplayCuePaths(); }
 
+	/** Given a TargetActor and a CueClass, find an existing instance of the CueNotify Actor that we can reuse */
+	AGameplayCueNotify_Actor* FindExistingCueOnActor(const AActor& TargetActor, const TSubclassOf<AGameplayCueNotify_Actor>& CueClass, const FGameplayCueParameters& Parameters) const;
+
+	/** Given a CueClass, find an already spawned (but currently unused) recycled instance that exists in FindInWorld so that we may reuse it. Note: This function also compacts the recycled instances, removing stale ones. */
+	AGameplayCueNotify_Actor* FindRecycledCue(const TSubclassOf<AGameplayCueNotify_Actor>& CueClass, const UWorld& FindInWorld);
+
 	UPROPERTY(transient)
 	FGameplayCueObjectLibrary RuntimeGameplayCueObjectLibrary;
 
@@ -301,8 +307,6 @@ public:
 
 	FStreamableManager	StreamableManager;
 	
-	TMap<FGCNotifyActorKey, TWeakObjectPtr<AGameplayCueNotify_Actor> > NotifyMapActor;
-
 	void PrintGameplayCueNotifyMap();
 
 	virtual void PrintLoadedGameplayCueNotifyClasses();
@@ -397,7 +401,7 @@ protected:
 	/** Cached world we are currently handling cues for. Used for non instanced GC Notifies that need world. */
 	static UWorld* CurrentWorld;
 
-	FPreallocationInfo& GetPreallocationInfo(UWorld* World);
+	FPreallocationInfo& GetPreallocationInfo(const UWorld* World);
 
 	UPROPERTY(transient)
 	TArray<FPreallocationInfo>	PreallocationInfoList_Internal;
