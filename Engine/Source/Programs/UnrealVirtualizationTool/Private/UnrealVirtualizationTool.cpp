@@ -10,8 +10,10 @@ IMPLEMENT_APPLICATION(UnrealVirtualizationTool, "UnrealVirtualizationTool");
 
 DEFINE_LOG_CATEGORY(LogVirtualizationTool);
 
-bool UnrealVirtualizationToolMain(int32 ArgC, TCHAR* ArgV[])
+int32 UnrealVirtualizationToolMain(int32 ArgC, TCHAR* ArgV[])
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UnrealVirtualizationToolMain);
+
 	using namespace UE::Virtualization;
 
 	// Although standalone tools can set the project path via the cmdline this will not change the ProjectDir being
@@ -76,18 +78,31 @@ bool UnrealVirtualizationToolMain(int32 ArgC, TCHAR* ArgV[])
 
 	UE_CLOG(bRanSuccessfully, LogVirtualizationTool, Display, TEXT("UnrealVirtualizationTool ran successfully"));
 
-	// Even though we are exiting anyway we need to request an engine exit in order to get a clean shutdown
-	RequestEngineExit(TEXT("The process has finished"));
+	const uint8 ReturnCode = bRanSuccessfully ? 0 : 1;
 
-	FEngineLoop::AppPreExit();
-	FModuleManager::Get().UnloadModulesAtShutdown();
-	FEngineLoop::AppExit();
+	if (FParse::Param(FCommandLine::Get(), TEXT("fastexit")))
+	{
+		FPlatformMisc::RequestExitWithStatus(true, ReturnCode);
+	}
+	else
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Shutdown);
 
-	return bRanSuccessfully;
+		GConfig->DisableFileOperations(); // We don't want to write out any config file changes!
+
+		// Even though we are exiting anyway we need to request an engine exit in order to get a clean shutdown
+		RequestEngineExit(TEXT("The process has finished"));
+
+		FEngineLoop::AppPreExit();
+		FModuleManager::Get().UnloadModulesAtShutdown();
+		FEngineLoop::AppExit();
+	}
+
+	return ReturnCode;
 }
 
 INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 {
 	FTaskTagScope Scope(ETaskTag::EGameThread);
-	return UnrealVirtualizationToolMain(ArgC, ArgV) ? 0 : 1;
+	return UnrealVirtualizationToolMain(ArgC, ArgV);
 }
