@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -257,7 +258,7 @@ namespace UnrealBuildBase
 		}
 
 		// cached dictionary of BaseDir to extension directories
-		private static Dictionary<DirectoryReference, Tuple<List<DirectoryReference>, List<DirectoryReference>>> CachedExtensionDirectories = new Dictionary<DirectoryReference, Tuple<List<DirectoryReference>, List<DirectoryReference>>>();
+		private static ConcurrentDictionary<DirectoryReference, Tuple<List<DirectoryReference>, List<DirectoryReference>>> CachedExtensionDirectories = new ConcurrentDictionary<DirectoryReference, Tuple<List<DirectoryReference>, List<DirectoryReference>>>();
 
 		/// <summary>
 		/// Finds all the extension directories for the given base directory. This includes platform extensions and restricted folders.
@@ -269,24 +270,21 @@ namespace UnrealBuildBase
 		/// <returns>List of extension directories, including the given base directory</returns>
 		public static List<DirectoryReference> GetExtensionDirs(DirectoryReference BaseDir, bool bIncludePlatformDirectories = true, bool bIncludeRestrictedDirectories = true, bool bIncludeBaseDirectory = true)
 		{
-			Tuple<List<DirectoryReference>, List<DirectoryReference>>? CachedDirs;
-			if (!CachedExtensionDirectories.TryGetValue(BaseDir, out CachedDirs))
+			Tuple<List<DirectoryReference>, List<DirectoryReference>> CachedDirs = CachedExtensionDirectories.GetOrAdd(BaseDir, _ =>
 			{
-				CachedDirs = Tuple.Create(new List<DirectoryReference>(), new List<DirectoryReference>());
-
-				CachedExtensionDirectories[BaseDir] = CachedDirs;
+				Tuple<List<DirectoryReference>, List<DirectoryReference>> NewCachedDirs = Tuple.Create(new List<DirectoryReference>(), new List<DirectoryReference>());
 
 				DirectoryReference PlatformExtensionBaseDir = DirectoryReference.Combine(BaseDir, "Platforms");
 				if (DirectoryReference.Exists(PlatformExtensionBaseDir))
 				{
-					CachedDirs.Item1.AddRange(DirectoryReference.EnumerateDirectories(PlatformExtensionBaseDir));
+					NewCachedDirs.Item1.AddRange(DirectoryReference.EnumerateDirectories(PlatformExtensionBaseDir));
 				}
 
 				DirectoryReference RestrictedBaseDir = DirectoryReference.Combine(BaseDir, "Restricted");
 				if (DirectoryReference.Exists(RestrictedBaseDir))
 				{
 					IEnumerable<DirectoryReference> RestrictedDirs = DirectoryReference.EnumerateDirectories(RestrictedBaseDir);
-					CachedDirs.Item2.AddRange(RestrictedDirs);
+					NewCachedDirs.Item2.AddRange(RestrictedDirs);
 
 					// also look for nested platforms in the restricted
 					foreach (DirectoryReference RestrictedDir in RestrictedDirs)
@@ -294,18 +292,19 @@ namespace UnrealBuildBase
 						DirectoryReference RestrictedPlatformExtensionBaseDir = DirectoryReference.Combine(RestrictedDir, "Platforms");
 						if (DirectoryReference.Exists(RestrictedPlatformExtensionBaseDir))
 						{
-							CachedDirs.Item1.AddRange(DirectoryReference.EnumerateDirectories(RestrictedPlatformExtensionBaseDir));
+							NewCachedDirs.Item1.AddRange(DirectoryReference.EnumerateDirectories(RestrictedPlatformExtensionBaseDir));
 						}
 					}
 				}
 
 				// remove any platform directories in non-engine locations if the engine doesn't have the platform 
-				if (BaseDir != Unreal.EngineDirectory && CachedDirs.Item1.Count > 0)
+				if (BaseDir != Unreal.EngineDirectory && NewCachedDirs.Item1.Count > 0)
 				{
 					// if the DDPI.ini file doesn't exist, we haven't synced the platform, so just skip this directory
-					CachedDirs.Item1.RemoveAll(x => !DataDrivenPlatformInfoIniIsPresent(x.GetDirectoryName()));
+					NewCachedDirs.Item1.RemoveAll(x => !DataDrivenPlatformInfoIniIsPresent(x.GetDirectoryName()));
 				}
-			}
+				return NewCachedDirs;
+			});
 
 			// now return what the caller wanted (always include BaseDir)
 			List<DirectoryReference> ExtensionDirs = new List<DirectoryReference>();

@@ -62,132 +62,136 @@ namespace UnrealBuildTool
 			public ConfigFile? PlatformConfig = null;
 		};
 
-		static Dictionary<string, ConfigDataDrivenPlatformInfo>? PlatformInfos = null;
+		static IReadOnlyDictionary<string, ConfigDataDrivenPlatformInfo>? PlatformInfos = null;
+		static object LockObject = new object();
 
 		/// <summary>
 		/// Return all data driven infos found
 		/// </summary>
 		/// <returns></returns>
-		public static Dictionary<string, ConfigDataDrivenPlatformInfo> GetAllPlatformInfos()
+		public static IReadOnlyDictionary<string, ConfigDataDrivenPlatformInfo> GetAllPlatformInfos()
 		{
 			// need to init?
-			if (PlatformInfos == null)
+			lock (LockObject)
 			{
-				PlatformInfos = new Dictionary<string, ConfigDataDrivenPlatformInfo>(StringComparer.OrdinalIgnoreCase);
-				Dictionary<string, string> IniParents = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-				// find all platform directories (skipping NFL/NoRedist)
-				foreach (DirectoryReference EngineConfigDir in Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Config", bIncludeRestrictedDirectories:false))
+				if (PlatformInfos == null)
 				{
-					// look through all config dirs looking for the data driven ini file
-					foreach (string FilePath in Directory.EnumerateFiles(EngineConfigDir.FullName, "DataDrivenPlatformInfo.ini", SearchOption.AllDirectories))
+					var PlatformInfosDict = new Dictionary<string, ConfigDataDrivenPlatformInfo>(StringComparer.OrdinalIgnoreCase);
+					PlatformInfos = PlatformInfosDict;
+					Dictionary<string, string> IniParents = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+					// find all platform directories (skipping NFL/NoRedist)
+					foreach (DirectoryReference EngineConfigDir in Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Config", bIncludeRestrictedDirectories: false))
 					{
-						FileReference FileRef = new FileReference(FilePath);
-
-						// get the platform name from the path
-						string IniPlatformName;
-						if (FileRef.IsUnderDirectory(DirectoryReference.Combine(Unreal.EngineDirectory, "Config")))
+						// look through all config dirs looking for the data driven ini file
+						foreach (string FilePath in Directory.EnumerateFiles(EngineConfigDir.FullName, "DataDrivenPlatformInfo.ini", SearchOption.AllDirectories))
 						{
-							// Foo/Engine/Config/<Platform>/DataDrivenPlatformInfo.ini
-							IniPlatformName = Path.GetFileName(Path.GetDirectoryName(FilePath))!;
-						}
-						else
-						{
-							// Foo/Engine/Platforms/<Platform>/Config/DataDrivenPlatformInfo.ini
-							IniPlatformName = Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(FilePath)))!;
-						}
+							FileReference FileRef = new FileReference(FilePath);
 
-						// load the DataDrivenPlatformInfo from the path (with Add support in a file that doesn't use +'s in the arrays for C++ usage)
-						ConfigFile Config = new ConfigFile(FileRef, ConfigLineAction.Add);
-						ConfigDataDrivenPlatformInfo NewInfo = new ConfigDataDrivenPlatformInfo();
-
-
-						// we must have the key section 
-						ConfigFileSection? Section = null;
-						if (Config.TryGetSection("DataDrivenPlatformInfo", out Section))
-						{
-							ConfigHierarchySection ParsedSection = new ConfigHierarchySection(new List<ConfigFileSection>() { Section });
-
-							// get string values
-							string? IniParent;
-							if (ParsedSection.TryGetValue("IniParent", out IniParent))
+							// get the platform name from the path
+							string IniPlatformName;
+							if (FileRef.IsUnderDirectory(DirectoryReference.Combine(Unreal.EngineDirectory, "Config")))
 							{
-								IniParents[IniPlatformName] = IniParent;
+								// Foo/Engine/Config/<Platform>/DataDrivenPlatformInfo.ini
+								IniPlatformName = Path.GetFileName(Path.GetDirectoryName(FilePath))!;
+							}
+							else
+							{
+								// Foo/Engine/Platforms/<Platform>/Config/DataDrivenPlatformInfo.ini
+								IniPlatformName = Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(FilePath)))!;
 							}
 
-							// slightly nasty bool parsing for bool values
-							string? Temp;
-							if (ParsedSection.TryGetValue("bIsConfidential", out Temp))
-							{
-								ConfigHierarchy.TryParse(Temp, out NewInfo.bIsConfidential);
-							}
-							// unspecified means true for this property
-							NewInfo.bCanUseCrashReporter = true;
-							if (ParsedSection.TryGetValue("bCanUseCrashReporter", out Temp))
-							{
-								ConfigHierarchy.TryParse(Temp, out NewInfo.bCanUseCrashReporter);
-							}
+							// load the DataDrivenPlatformInfo from the path (with Add support in a file that doesn't use +'s in the arrays for C++ usage)
+							ConfigFile Config = new ConfigFile(FileRef, ConfigLineAction.Add);
+							ConfigDataDrivenPlatformInfo NewInfo = new ConfigDataDrivenPlatformInfo();
 
-							string HostKey = ConfigHierarchy.GetIniPlatformName(BuildHostPlatform.Current.Platform) + ":bIsEnabled";
-							string NormalKey = "bIsEnabled";
-							if (ParsedSection.TryGetValue(HostKey, out Temp) == true || ParsedSection.TryGetValue(NormalKey, out Temp) == true)
+
+							// we must have the key section 
+							ConfigFileSection? Section = null;
+							if (Config.TryGetSection("DataDrivenPlatformInfo", out Section))
 							{
-								ConfigHierarchy.TryParse(Temp, out NewInfo.bIsEnabled);
-							}
+								ConfigHierarchySection ParsedSection = new ConfigHierarchySection(new List<ConfigFileSection>() { Section });
 
-							if (ParsedSection.TryGetValue("HardwareCompressionFormat", out NewInfo.HardwareCompressionFormat) == false)
-							{
-								NewInfo.HardwareCompressionFormat = null;
-							}
+								// get string values
+								string? IniParent;
+								if (ParsedSection.TryGetValue("IniParent", out IniParent))
+								{
+									IniParents[IniPlatformName] = IniParent;
+								}
 
-							NewInfo.bNoAccountOverride = false;
-							if (ParsedSection.TryGetValue("bNoAccountOverride", out Temp))
-							{
-								ConfigHierarchy.TryParse(Temp, out NewInfo.bNoAccountOverride);
-							}
+								// slightly nasty bool parsing for bool values
+								string? Temp;
+								if (ParsedSection.TryGetValue("bIsConfidential", out Temp))
+								{
+									ConfigHierarchy.TryParse(Temp, out NewInfo.bIsConfidential);
+								}
+								// unspecified means true for this property
+								NewInfo.bCanUseCrashReporter = true;
+								if (ParsedSection.TryGetValue("bCanUseCrashReporter", out Temp))
+								{
+									ConfigHierarchy.TryParse(Temp, out NewInfo.bCanUseCrashReporter);
+								}
 
-							// get a list of additional restricted folders
-							IReadOnlyList<string>? AdditionalRestrictedFolders;
-							if(ParsedSection.TryGetValues("AdditionalRestrictedFolders", out AdditionalRestrictedFolders) && AdditionalRestrictedFolders.Count > 0)
-							{
-								NewInfo.AdditionalRestrictedFolders = AdditionalRestrictedFolders.Select(x => x.Trim()).Where(x => x.Length > 0).ToArray();
-							}
+								string HostKey = ConfigHierarchy.GetIniPlatformName(BuildHostPlatform.Current.Platform) + ":bIsEnabled";
+								string NormalKey = "bIsEnabled";
+								if (ParsedSection.TryGetValue(HostKey, out Temp) == true || ParsedSection.TryGetValue(NormalKey, out Temp) == true)
+								{
+									ConfigHierarchy.TryParse(Temp, out NewInfo.bIsEnabled);
+								}
 
-							// create cache it
-							NewInfo.PlatformConfig = Config;
-							PlatformInfos[IniPlatformName] = NewInfo;
-						}
-					}
-				}
+								if (ParsedSection.TryGetValue("HardwareCompressionFormat", out NewInfo.HardwareCompressionFormat) == false)
+								{
+									NewInfo.HardwareCompressionFormat = null;
+								}
 
-				// now that all are read in, calculate the ini parent chain, starting with parent-most
-				foreach (KeyValuePair<string, ConfigDataDrivenPlatformInfo> Pair in PlatformInfos)
-				{
-					string? CurrentPlatform;
+								NewInfo.bNoAccountOverride = false;
+								if (ParsedSection.TryGetValue("bNoAccountOverride", out Temp))
+								{
+									ConfigHierarchy.TryParse(Temp, out NewInfo.bNoAccountOverride);
+								}
 
-					// walk up the chain and build up the ini chain
-					List<string> Chain = new List<string>();
-					if (IniParents.TryGetValue(Pair.Key, out CurrentPlatform))
-					{
-						while (!string.IsNullOrEmpty(CurrentPlatform))
-						{
-							// insert at 0 to reverse the order
-							Chain.Insert(0, CurrentPlatform);
-							if (IniParents.TryGetValue(CurrentPlatform, out CurrentPlatform) == false)
-							{
-								break;
+								// get a list of additional restricted folders
+								IReadOnlyList<string>? AdditionalRestrictedFolders;
+								if (ParsedSection.TryGetValues("AdditionalRestrictedFolders", out AdditionalRestrictedFolders) && AdditionalRestrictedFolders.Count > 0)
+								{
+									NewInfo.AdditionalRestrictedFolders = AdditionalRestrictedFolders.Select(x => x.Trim()).Where(x => x.Length > 0).ToArray();
+								}
+
+								// create cache it
+								NewInfo.PlatformConfig = Config;
+								PlatformInfosDict[IniPlatformName] = NewInfo;
 							}
 						}
 					}
 
-					// bake it into the info
-					if (Chain.Count > 0)
+					// now that all are read in, calculate the ini parent chain, starting with parent-most
+					foreach (KeyValuePair<string, ConfigDataDrivenPlatformInfo> Pair in PlatformInfos)
 					{
-						Pair.Value.IniParentChain = Chain.ToArray();
+						string? CurrentPlatform;
+
+						// walk up the chain and build up the ini chain
+						List<string> Chain = new List<string>();
+						if (IniParents.TryGetValue(Pair.Key, out CurrentPlatform))
+						{
+							while (!string.IsNullOrEmpty(CurrentPlatform))
+							{
+								// insert at 0 to reverse the order
+								Chain.Insert(0, CurrentPlatform);
+								if (IniParents.TryGetValue(CurrentPlatform, out CurrentPlatform) == false)
+								{
+									break;
+								}
+							}
+						}
+
+						// bake it into the info
+						if (Chain.Count > 0)
+						{
+							Pair.Value.IniParentChain = Chain.ToArray();
+						}
 					}
 				}
 			}
-
 			return PlatformInfos;
 		}
 

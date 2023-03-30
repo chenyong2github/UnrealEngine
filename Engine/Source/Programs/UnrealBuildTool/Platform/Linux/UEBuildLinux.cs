@@ -14,7 +14,7 @@ namespace UnrealBuildTool
 {
 	partial struct UnrealArch
 	{
-		private static Dictionary<UnrealArch, string> LinuxToolchainArchitectures = new()
+		private static IReadOnlyDictionary<UnrealArch, string> LinuxToolchainArchitectures = new Dictionary<UnrealArch, string>()
 		{
 			{ UnrealArch.Arm64,         "aarch64-unknown-linux-gnueabi" },
 			{ UnrealArch.X64,           "x86_64-unknown-linux-gnu" },

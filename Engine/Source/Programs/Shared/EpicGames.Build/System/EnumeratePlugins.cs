@@ -3,6 +3,7 @@
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,7 +15,7 @@ namespace UnrealBuildBase
 		/// <summary>
 		/// Cache of plugin filenames under each directory
 		/// </summary>
-		static Dictionary<DirectoryReference, List<FileReference>> PluginFileCache = new Dictionary<DirectoryReference, List<FileReference>>();
+		static ConcurrentDictionary<DirectoryReference, List<FileReference>> PluginFileCache = new ConcurrentDictionary<DirectoryReference, List<FileReference>>();
 
 		/// <summary>
 		/// Cache of all UBT plugins that have been built.  When generating projects, there is a good chance that a UBT project
@@ -28,7 +29,7 @@ namespace UnrealBuildBase
 		/// </summary>
 		public static void InvalidateCache_SLOW()
 		{
-			PluginFileCache = new Dictionary<DirectoryReference, List<FileReference>>();
+			PluginFileCache = new ConcurrentDictionary<DirectoryReference, List<FileReference>>();
 			DirectoryItem.ResetAllCachedInfo_SLOW();
 		}
 
@@ -55,15 +56,14 @@ namespace UnrealBuildBase
 		/// <param name="ParentDirectory">Parent directory to look in. Plugins will be found in any *subfolders* of this directory.</param>
 		public static IEnumerable<FileReference> EnumeratePlugins(DirectoryReference ParentDirectory)
 		{
-			List<FileReference>? FileNames;
-			if (!PluginFileCache.TryGetValue(ParentDirectory, out FileNames))
+			return PluginFileCache.GetOrAdd(ParentDirectory, _ =>
 			{
-				FileNames = new List<FileReference>();
+				List<FileReference> FileNames = new List<FileReference>();
 
 				DirectoryItem ParentDirectoryItem = DirectoryItem.GetItemByDirectoryReference(ParentDirectory);
 				if (ParentDirectoryItem.Exists)
 				{
-					using(ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
+					using (ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
 					{
 						EnumeratePluginsInternal(ParentDirectoryItem, FileNames, Queue);
 					}
@@ -71,10 +71,8 @@ namespace UnrealBuildBase
 
 				// Sort the filenames to ensure that the plugin order is deterministic; otherwise response files will change with each build.
 				FileNames = FileNames.OrderBy(x => x.FullName, StringComparer.OrdinalIgnoreCase).ToList();
-
-				PluginFileCache.Add(ParentDirectory, FileNames);
-			}
-			return FileNames;
+				return FileNames;
+			});
 		}
 
 		/// <summary>

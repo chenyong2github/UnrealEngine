@@ -35,7 +35,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private static Dictionary<UnrealArch, WindowsArchInfo> WindowsToolchainArchitectures = new()
+		private static IReadOnlyDictionary<UnrealArch, WindowsArchInfo> WindowsToolchainArchitectures = new Dictionary<UnrealArch, WindowsArchInfo>()
 		{
 			{ UnrealArch.Arm64,         new WindowsArchInfo("arm64", "arm64", "arm64") },
 			{ UnrealArch.Arm64ec,       new WindowsArchInfo("arm64", "x64", "arm64") },
