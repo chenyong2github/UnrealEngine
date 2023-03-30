@@ -47,6 +47,7 @@
 class FArchive;
 class FObjectPreSaveContext;
 class UClass;
+class UK2Node;
 class UMovieSceneFolder;
 class UMovieSceneSection;
 class UMovieSceneTrack;
@@ -579,6 +580,15 @@ public:
 	static FIsTrackClassAllowedEvent IsTrackClassAllowedEvent;
 
 	static bool IsTrackClassAllowed(UClass* InClass);
+
+	void OnDynamicBindingUserDefinedPinRenamed(UK2Node* InNode, FName OldPinName, FName NewPinName)
+	{
+		FixupDynamicBindingPayloadParameterNameEvent.Broadcast(this, InNode, OldPinName, NewPinName);
+	}
+
+	DECLARE_MULTICAST_DELEGATE_FourParams(FFixupDynamicBindingPayloadParameterNameEvent, UMovieScene*, UK2Node*, FName, FName);
+
+	static FFixupDynamicBindingPayloadParameterNameEvent FixupDynamicBindingPayloadParameterNameEvent;
 
 #endif
 

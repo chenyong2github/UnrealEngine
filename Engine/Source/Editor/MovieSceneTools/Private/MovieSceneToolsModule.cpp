@@ -62,6 +62,7 @@
 #include "MovieSceneBuiltInEasingFunctionCustomization.h"
 #include "MovieSceneAlphaBlendOptionCustomization.h"
 #include "MovieSceneObjectBindingIDCustomization.h"
+#include "MovieSceneDynamicBindingCustomization.h"
 #include "MovieSceneEventCustomization.h"
 #include "SequencerClipboardReconciler.h"
 #include "ClipboardTypes.h"
@@ -193,6 +194,7 @@ void FMovieSceneToolsModule::StartupModule()
 		PropertyModule.RegisterCustomClassLayout("MovieSceneFloatPerlinNoiseChannelContainer", FOnGetDetailCustomizationInstance::CreateStatic(&FMovieSceneFloatPerlinNoiseChannelDetailsCustomization::MakeInstance));
 		PropertyModule.RegisterCustomClassLayout("MovieSceneDoublePerlinNoiseChannelContainer", FOnGetDetailCustomizationInstance::CreateStatic(&FMovieSceneDoublePerlinNoiseChannelDetailsCustomization::MakeInstance));
 		PropertyModule.RegisterCustomPropertyTypeLayout("MovieSceneObjectBindingID", FOnGetPropertyTypeCustomizationInstance::CreateLambda(&MakeShared<FMovieSceneObjectBindingIDCustomization>));
+		PropertyModule.RegisterCustomPropertyTypeLayout("MovieSceneDynamicBinding", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FMovieSceneDynamicBindingCustomization::MakeInstance));
 		PropertyModule.RegisterCustomPropertyTypeLayout("MovieSceneEvent", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FMovieSceneEventCustomization::MakeInstance));
 		PropertyModule.RegisterCustomPropertyTypeLayout("MovieSceneCVarOverrides", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&UE::MovieScene::FCVarOverridesPropertyTypeCustomization::MakeInstance));
 
@@ -235,7 +237,8 @@ void FMovieSceneToolsModule::StartupModule()
 		));
 	}
 
-	FixupPayloadParameterNameHandle = UMovieSceneEventSectionBase::FixupPayloadParameterNameEvent.AddStatic(FixupPayloadParameterNameForSection);
+	FixupDynamicBindingPayloadParameterNameHandle = UMovieScene::FixupDynamicBindingPayloadParameterNameEvent.AddStatic(FixupPayloadParameterNameForDynamicBinding);
+	FixupEventSectionPayloadParameterNameHandle = UMovieSceneEventSectionBase::FixupPayloadParameterNameEvent.AddStatic(FixupPayloadParameterNameForSection);
 	UMovieSceneEventSectionBase::UpgradeLegacyEventEndpoint.BindStatic(UpgradeLegacyEventEndpointForSection);
 	UMovieSceneEventSectionBase::PostDuplicateSectionEvent.BindStatic(PostDuplicateEventSection);
 	UMovieSceneEventSectionBase::RemoveForCookEvent.BindStatic(RemoveForCookEventSection);
@@ -271,7 +274,8 @@ void FMovieSceneToolsModule::StartupModule()
 
 void FMovieSceneToolsModule::ShutdownModule()
 {
-	UMovieSceneEventSectionBase::FixupPayloadParameterNameEvent.Remove(FixupPayloadParameterNameHandle);
+	UMovieScene::FixupDynamicBindingPayloadParameterNameEvent.Remove(FixupDynamicBindingPayloadParameterNameHandle);
+	UMovieSceneEventSectionBase::FixupPayloadParameterNameEvent.Remove(FixupEventSectionPayloadParameterNameHandle);
 	UMovieSceneEventSectionBase::UpgradeLegacyEventEndpoint = UMovieSceneEventSectionBase::FUpgradeLegacyEventEndpoint();
 	UMovieSceneEventSectionBase::PostDuplicateSectionEvent = UMovieSceneEventSectionBase::FPostDuplicateEvent();
 	UMovieSceneEventSectionBase::RemoveForCookEvent = UMovieSceneEventSectionBase::FRemoveForCookEvent();
@@ -566,6 +570,33 @@ void FMovieSceneToolsModule::FixupPayloadParameterNameForSection(UMovieSceneEven
 			EntryPoint.PayloadVariables.Add(NewPinName, MoveTemp(*Variable));
 			EntryPoint.PayloadVariables.Remove(OldPinName);
 		}
+	}
+}
+
+void FMovieSceneToolsModule::FixupPayloadParameterNameForDynamicBinding(UMovieScene* MovieScene, UK2Node* InNode, FName OldPinName, FName NewPinName)
+{
+	check(MovieScene);
+
+	auto FixupPayloadParameterName = [InNode, OldPinName, NewPinName](FMovieSceneDynamicBinding& DynamicBinding)
+	{
+		if (DynamicBinding.WeakEndpoint.Get() == InNode)
+		{
+			if (FMovieSceneDynamicBindingPayloadVariable* Variable = DynamicBinding.PayloadVariables.Find(OldPinName))
+			{
+				DynamicBinding.PayloadVariables.Add(NewPinName, MoveTemp(*Variable));
+				DynamicBinding.PayloadVariables.Remove(OldPinName);
+			}
+		}
+	};
+
+	for (int32 Index = 0, PossessableCount = MovieScene->GetPossessableCount(); Index < PossessableCount; ++Index)
+	{
+		FixupPayloadParameterName(MovieScene->GetPossessable(Index).DynamicBinding);
+	}
+
+	for (int32 Index = 0, SpawnableCount = MovieScene->GetSpawnableCount(); Index < SpawnableCount; ++Index)
+	{
+		FixupPayloadParameterName(MovieScene->GetSpawnable(Index).DynamicBinding);
 	}
 }
 

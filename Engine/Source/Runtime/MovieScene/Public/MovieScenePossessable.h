@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Misc/Guid.h"
+#include "MovieSceneDynamicBinding.h"
 #include "MovieSceneObjectBindingID.h"
 #include "MovieSceneSequenceID.h"
 #include "UObject/NameTypes.h"
@@ -146,6 +147,10 @@ public:
 	/** Array of tags that can be used for grouping and categorizing. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Actor)
 	TArray<FName> Tags;
+
+	/** Optional user-defined possessable lookup information */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category="Sequencer")
+	FMovieSceneDynamicBinding DynamicBinding;
 
 	/* Get the optional binding id for binding to a spawnable */
 	const FMovieSceneObjectBindingID& GetSpawnableObjectBindingID() const 

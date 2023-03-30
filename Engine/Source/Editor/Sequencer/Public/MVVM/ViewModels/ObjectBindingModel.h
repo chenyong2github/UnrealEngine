@@ -20,6 +20,8 @@ class UMovieScene;
 class UMovieSceneTrack;
 class FMenuBuilder;
 class FPropertyPath;
+class FStructOnScope;
+struct FMovieSceneDynamicBinding;
 enum class ECheckBoxState : uint8;
 
 namespace UE
@@ -128,6 +130,8 @@ private:
 	void AddSpawnLevelMenu(FMenuBuilder& MenuBuilder);
 	void AddTagMenu(FMenuBuilder& MenuBuilder);
 	void AddChangeClassMenu(FMenuBuilder& MenuBuilder);
+	void AddDynamicSpawnMenu(FMenuBuilder& MenuBuilder);
+	void AddDynamicPossessionMenu(FMenuBuilder& MenuBuilder);
 
 private:
 
@@ -140,6 +144,9 @@ private:
 	void HandleDeleteTag(FName TagName);
 	void HandleAddTag(FName TagName);
 	void HandleTemplateActorClassPicked(UClass* ChosenClass);
+
+	void AddDynamicBindingMenu(FMenuBuilder& MenuBuilder, FMovieSceneDynamicBinding& DynamicBinding);
+	void OnFinishedChangingDynamicBindingProperties(const FPropertyChangedEvent& ChangeEvent, TSharedPtr<FStructOnScope> ValueStruct);
 
 protected:
 

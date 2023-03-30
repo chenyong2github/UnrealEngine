@@ -12,31 +12,36 @@
 #include "MVVM/ViewModels/OutlinerViewModelDragDropOp.h"
 #include "MVVM/Views/SOutlinerObjectBindingView.h"
 #include "MVVM/Extensions/IRecyclableExtension.h"
-#include "Modules/ModuleManager.h"
-#include "ISequencerModule.h"
-#include "MovieScene.h"
-#include "MovieSceneFolder.h"
-#include "MovieSceneBinding.h"
-#include "PropertyPath.h"
-#include "ScopedTransaction.h"
-#include "Sequencer.h"
-#include "SequencerNodeTree.h"
-#include "SequencerCommands.h"
-#include "SequencerSettings.h"
-#include "SequencerUtilities.h"
-#include "ISequencerTrackEditor.h"
-#include "SObjectBindingTag.h"
-#include "Containers/ArrayBuilder.h"
-#include "ObjectBindingTagCache.h"
-#include "ObjectEditorUtils.h"
-#include "Styling/AppStyle.h"
-#include "Styling/SlateIconFinder.h"
-#include "Tracks/MovieSceneSpawnTrack.h"
-#include "ClassViewerModule.h"
 #include "Algo/Sort.h"
+#include "ClassViewerModule.h"
+#include "Containers/ArrayBuilder.h"
 #include "Engine/LevelStreaming.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "IDetailCustomization.h"
+#include "IDetailsView.h"
+#include "ISequencerModule.h"
+#include "ISequencerTrackEditor.h"
+#include "IStructureDetailsView.h"
+#include "Modules/ModuleManager.h"
+#include "MovieScene.h"
+#include "MovieSceneBinding.h"
+#include "MovieSceneDynamicBindingCustomization.h"
+#include "MovieSceneFolder.h"
+#include "ObjectBindingTagCache.h"
+#include "ObjectEditorUtils.h"
+#include "PropertyEditorModule.h"
+#include "PropertyPath.h"
+#include "SObjectBindingTag.h"
+#include "ScopedTransaction.h"
+#include "Sequencer.h"
+#include "SequencerCommands.h"
+#include "SequencerNodeTree.h"
+#include "SequencerSettings.h"
+#include "SequencerUtilities.h"
+#include "Styling/AppStyle.h"
+#include "Styling/SlateIconFinder.h"
+#include "Tracks/MovieSceneSpawnTrack.h"
 
 #define LOCTEXT_NAMESPACE "ObjectBindingModel"
 
@@ -961,6 +966,11 @@ void FObjectBindingModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 				LOCTEXT("ChangeClassTooltip", "Change the class (object template) that this spawns from"),
 				FNewMenuDelegate::CreateSP(this, &FObjectBindingModel::AddChangeClassMenu));
 
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("DynamicSpawn", "Dynamic Spawn"),
+				LOCTEXT("DynamicSpawnTooltip", "Specify a Blueprint method that will spawn or otherwise acquire a compatible actor for this binding"),
+				FNewMenuDelegate::CreateSP(this, &FObjectBindingModel::AddDynamicSpawnMenu));
+
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("ContinuouslyRespawn", "Continuously Respawn"),
 				LOCTEXT("ContinuouslyRespawnTooltip", "When enabled, this spawnable will always be respawned if it gets destroyed externally. When disabled, this object will only ever be spawned once for each spawn key even if it is destroyed externally"),
@@ -997,6 +1007,11 @@ void FObjectBindingModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			MenuBuilder.BeginSection("Possessable");
 
 			MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ConvertToSpawnable );
+
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("DynamicPossession", "Dynamic Possession"),
+				LOCTEXT("DynamicPossessionTooltip", "Specify a Blueprint method that will find a compatible possessable actor for this binding"),
+				FNewMenuDelegate::CreateSP(this, &FObjectBindingModel::AddDynamicPossessionMenu));
 
 			MenuBuilder.EndSection();
 		}
@@ -1225,6 +1240,102 @@ void FObjectBindingModel::HandleTemplateActorClassPicked(UClass* ChosenClass)
 
 		Sequencer->GetSpawnRegister().DestroySpawnedObject(Spawnable->GetGuid(), OwnerModel->GetSequenceID(), *Sequencer.Get());
 		Sequencer->ForceEvaluate();
+	}
+}
+
+void FObjectBindingModel::AddDynamicSpawnMenu(FMenuBuilder& MenuBuilder)
+{
+	UMovieScene* MovieScene = OwnerModel->GetMovieScene();
+	FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(ObjectBindingID);
+	if (!Spawnable)
+	{
+		return;
+	}
+
+	AddDynamicBindingMenu(MenuBuilder, Spawnable->DynamicBinding);
+}
+
+void FObjectBindingModel::AddDynamicPossessionMenu(FMenuBuilder& MenuBuilder)
+{
+	UMovieScene* MovieScene = OwnerModel->GetMovieScene();
+	FMovieScenePossessable* Possessable = MovieScene->FindPossessable(ObjectBindingID);
+	if (!Possessable)
+	{
+		return;
+	}
+
+	AddDynamicBindingMenu(MenuBuilder, Possessable->DynamicBinding);
+}
+
+void FObjectBindingModel::AddDynamicBindingMenu(FMenuBuilder& MenuBuilder, FMovieSceneDynamicBinding& DynamicBinding)
+{
+	FDetailsViewArgs DetailsViewArgs;
+	{
+		DetailsViewArgs.bAllowSearch = false;
+		DetailsViewArgs.bCustomFilterAreaLocation = true;
+		DetailsViewArgs.bCustomNameAreaLocation = true;
+		DetailsViewArgs.bHideSelectionTip = true;
+		DetailsViewArgs.bLockable = false;
+		DetailsViewArgs.bSearchInitialKeyFocus = true;
+		DetailsViewArgs.bUpdatesFromSelection = false;
+		DetailsViewArgs.bShowOptions = false;
+		DetailsViewArgs.bShowModifiedPropertiesOption = false;
+		DetailsViewArgs.bShowScrollBar = false;
+	}
+
+	FStructureDetailsViewArgs StructureViewArgs;
+	{
+		StructureViewArgs.bShowObjects = false;
+		StructureViewArgs.bShowAssets = true;
+		StructureViewArgs.bShowClasses = true;
+		StructureViewArgs.bShowInterfaces = false;
+	}
+
+	TSharedRef<IStructureDetailsView> StructureDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor")
+		.CreateStructureDetailView(DetailsViewArgs, StructureViewArgs, nullptr);
+
+	// Register details customizations for this instance
+	TSharedPtr<FSequencer> Sequencer = OwnerModel->GetSequencerImpl();
+	UMovieSceneSequence* Sequence = Sequencer->GetRootMovieSceneSequence();
+	StructureDetailsView->GetDetailsView()->RegisterInstancedCustomPropertyTypeLayout(
+		FMovieSceneDynamicBinding::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FMovieSceneDynamicBindingCustomization::MakeInstance, Sequence->GetMovieScene(), ObjectBindingID));
+
+	// We can't just show the FMovieSceneDynamicBinding struct in the details view, because Slate only uses
+	// the above details view customization for *properties* (not for the root object). So here we put a copy of
+	// our dynamic binding struct inside a container, and when the details view is done setting values on it,
+	// we copy these values back to the original dynamic binding.
+	TSharedPtr<FStructOnScope> StructOnScope = MakeShared<FStructOnScope>(FMovieSceneDynamicBindingContainer::StaticStruct());
+	FMovieSceneDynamicBindingContainer* BufferContainer = (FMovieSceneDynamicBindingContainer*)StructOnScope->GetStructMemory();
+	BufferContainer->DynamicBinding = DynamicBinding;
+	StructureDetailsView->SetStructureData(StructOnScope);
+
+	StructureDetailsView->GetOnFinishedChangingPropertiesDelegate().AddSP(this, &FObjectBindingModel::OnFinishedChangingDynamicBindingProperties, StructOnScope);
+
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("DynamicBindingHeader", "Dynamic Binding"));
+	{
+		TSharedRef<SWidget> Widget = StructureDetailsView->GetWidget().ToSharedRef();
+		MenuBuilder.AddWidget(Widget, FText());
+	}
+	MenuBuilder.EndSection();
+}
+
+void FObjectBindingModel::OnFinishedChangingDynamicBindingProperties(const FPropertyChangedEvent& ChangeEvent, TSharedPtr<FStructOnScope> ValueStruct)
+{
+	auto* Container = (FMovieSceneDynamicBindingContainer*)ValueStruct->GetStructMemory();
+
+	UMovieScene* MovieScene = OwnerModel->GetMovieScene();
+	FMovieScenePossessable* Possessable = MovieScene->FindPossessable(ObjectBindingID);
+	if (Possessable)
+	{
+		Possessable->DynamicBinding = Container->DynamicBinding;
+		return;
+	}
+	FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(ObjectBindingID);
+	if (Spawnable)
+	{
+		Spawnable->DynamicBinding = Container->DynamicBinding;
+		return;
 	}
 }
 

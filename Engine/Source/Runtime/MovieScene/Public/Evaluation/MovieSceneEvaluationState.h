@@ -26,6 +26,8 @@
 class IMovieScenePlayer;
 class UMovieSceneSequence;
 class UObject;
+struct FMovieSceneDynamicBinding;
+struct FMovieSceneDynamicBindingResolveParams;
 struct FMovieSceneEvaluationKey;
 struct FMovieSceneObjectBindingID;
 struct FSharedPersistentDataKey;
@@ -139,6 +141,16 @@ private:
 	 * @param Player			The movie scene player that is playing back the sequence
 	 */
 	void UpdateBindings(const FGuid& InGuid, IMovieScenePlayer& Player);
+
+	/**
+	 * Handles optional dynamic binding for a given object binding.
+	 */
+	bool ResolveDynamicBinding(const FGuid& InGuid, const FMovieSceneDynamicBinding& DynamicBinding, IMovieScenePlayer& Player, TArray<UObject*, TInlineAllocator<1>>& OutObjects);
+
+	/**
+	 * Invokes the custom function used to resolve a given dynamic object binding.
+	 */
+	UObject* InvokeDynamicBinding(UObject* DirectorInstance, const FMovieSceneDynamicBinding& DynamicBinding, const FMovieSceneDynamicBindingResolveParams& ResolveParams);
 
 	/**
 	 * Invalidate the object bindings for a specific object binding ID

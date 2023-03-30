@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
+#include "MovieSceneDynamicBinding.h"
+
 #include "MovieSceneSpawnable.generated.h"
 
 struct FMovieSceneSequenceID;
@@ -246,6 +248,10 @@ public:
 	/** When enabled, the actor will be spawned with a unique name so that it can be addressable between clients and servers. */
 	UPROPERTY(EditAnywhere, Category=Actor)
 	bool bNetAddressableName;
+
+	/** Optional user-defined spawning information */
+	UPROPERTY(EditAnywhere, Category="Sequencer")
+	FMovieSceneDynamicBinding DynamicBinding;
 
 private:
 

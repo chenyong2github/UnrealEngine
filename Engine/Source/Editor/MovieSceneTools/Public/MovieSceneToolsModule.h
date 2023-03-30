@@ -76,6 +76,7 @@ private:
 	void RegisterClipboardConversions();
 
 	static void FixupPayloadParameterNameForSection(UMovieSceneEventSectionBase* Section, UK2Node* InNode, FName OldPinName, FName NewPinName);
+	static void FixupPayloadParameterNameForDynamicBinding(UMovieScene* MovieScene, UK2Node* InNode, FName OldPinName, FName NewPinName);
 	static bool UpgradeLegacyEventEndpointForSection(UMovieSceneEventSectionBase* Section);
 	static void PostDuplicateEventSection(UMovieSceneEventSectionBase* Section);
 	static void RemoveForCookEventSection(UMovieSceneEventSectionBase* Section);
@@ -127,7 +128,8 @@ private:
 	FDelegateHandle CinematicShotTrackModelHandle;
 
 	FDelegateHandle GenerateEventEntryPointsHandle;
-	FDelegateHandle FixupPayloadParameterNameHandle;
+	FDelegateHandle FixupDynamicBindingPayloadParameterNameHandle;
+	FDelegateHandle FixupEventSectionPayloadParameterNameHandle;
 	FDelegateHandle UpgradeLegacyEventEndpointHandle;
 
 	FDelegateHandle OnObjectsReplacedHandle;
