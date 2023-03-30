@@ -107,16 +107,14 @@ FHairMeshTriangleWithUVs GetTriangleData(uint TriangleIndex, Buffer<float> InPos
 
 FHairMeshTriangle GetTriangleTransformation(
 	uint TriangleIndex,
-	Buffer<float4>  InPosition0Buffer,
-	Buffer<float4>  InPosition1Buffer,
-	Buffer<float4>  InPosition2Buffer)
+	Buffer<float4> InPositionBuffer)
 {
 	FHairMeshTriangle Out;
 
 	// Build orthonormal frame
-	Out.P0 = InPosition0Buffer[TriangleIndex].xyz;
-	Out.P1 = InPosition1Buffer[TriangleIndex].xyz;
-	Out.P2 = InPosition2Buffer[TriangleIndex].xyz;
+	Out.P0 = InPositionBuffer[TriangleIndex * 3 + 0].xyz;
+	Out.P1 = InPositionBuffer[TriangleIndex * 3 + 1].xyz;
+	Out.P2 = InPositionBuffer[TriangleIndex * 3 + 2].xyz;
 	Out.E0 = Out.P1 - Out.P0;
 	Out.E1 = Out.P2 - Out.P0;
 
@@ -129,15 +127,13 @@ FHairMeshTriangle GetTriangleTransformation(
 
 FHairMeshTriangleWithUVs GetTriangleWithUVsTransformation(
 	uint TriangleIndex,
-	Buffer<float4>  InPosition0Buffer,
-	Buffer<float4>  InPosition1Buffer,
-	Buffer<float4>  InPosition2Buffer)
+	Buffer<float4> InPositionBuffer)
 {
 	FHairMeshTriangleWithUVs Out;
 
-	const float4 V0 = InPosition0Buffer[TriangleIndex];
-	const float4 V1 = InPosition1Buffer[TriangleIndex];
-	const float4 V2 = InPosition2Buffer[TriangleIndex];
+	const float4 V0 = InPositionBuffer[TriangleIndex * 3 + 0];
+	const float4 V1 = InPositionBuffer[TriangleIndex * 3 + 1];
+	const float4 V2 = InPositionBuffer[TriangleIndex * 3 + 2];
 
 	// Build orthonormal frame
 	Out.P0 = V0.xyz;

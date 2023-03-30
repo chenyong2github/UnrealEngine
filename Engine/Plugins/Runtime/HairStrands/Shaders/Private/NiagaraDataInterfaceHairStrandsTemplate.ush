@@ -7,12 +7,8 @@ NiagaraDataInterfaceHairStrands.ush
 RWBuffer<uint4>		{ParameterName}_DeformedPositionBuffer;
 Buffer<uint4>		{ParameterName}_RestPositionBuffer;
 Buffer<uint>		{ParameterName}_CurvesOffsetsBuffer;
-Buffer<float4>		{ParameterName}_RestTrianglePositionABuffer;
-Buffer<float4>		{ParameterName}_RestTrianglePositionBBuffer;
-Buffer<float4>		{ParameterName}_RestTrianglePositionCBuffer;
-Buffer<float4>		{ParameterName}_DeformedTrianglePositionABuffer;
-Buffer<float4>		{ParameterName}_DeformedTrianglePositionBBuffer;
-Buffer<float4>		{ParameterName}_DeformedTrianglePositionCBuffer;
+Buffer<float4>		{ParameterName}_RestTrianglePositionBuffer;
+Buffer<float4>		{ParameterName}_DeformedTrianglePositionBuffer;
 Buffer<uint>		{ParameterName}_RootBarycentricCoordinatesBuffer;
 Buffer<uint>		{ParameterName}_RootToUniqueTriangleIndexBuffer;
 float4x4			{ParameterName}_WorldTransform;
@@ -609,9 +605,9 @@ void ComputeProjectionTriangle_{ParameterName}(in float2 ProjectionUV, in float3
 void BuildDeformedTriangle_{ParameterName}(in float2 ProjectionUV, in int TriangleIndex, out float3 OutTrianglePosition, out float4 OutTriangleRotation)
 {
 	ComputeProjectionTriangle_{ParameterName}(ProjectionUV, 
-		{ParameterName}_DeformedTrianglePositionABuffer[TriangleIndex].xyz,
-		{ParameterName}_DeformedTrianglePositionBBuffer[TriangleIndex].xyz,
-		{ParameterName}_DeformedTrianglePositionCBuffer[TriangleIndex].xyz,
+		{ParameterName}_DeformedTrianglePositionBuffer[TriangleIndex * 3 + 0].xyz,
+		{ParameterName}_DeformedTrianglePositionBuffer[TriangleIndex * 3 + 1].xyz,
+		{ParameterName}_DeformedTrianglePositionBuffer[TriangleIndex * 3 + 2].xyz,
 	    {ParameterName}_DeformedRootOffset, OutTrianglePosition, OutTriangleRotation);
 }
 
@@ -619,9 +615,9 @@ void BuildDeformedTriangle_{ParameterName}(in float2 ProjectionUV, in int Triang
 void BuildRestTriangle_{ParameterName}(in float2 ProjectionUV, in int TriangleIndex, out float3 OutTrianglePosition, out float4 OutTriangleRotation)
 {
 	ComputeProjectionTriangle_{ParameterName}(ProjectionUV, 
-		{ParameterName}_RestTrianglePositionABuffer[TriangleIndex].xyz,
-		{ParameterName}_RestTrianglePositionBBuffer[TriangleIndex].xyz,
-		{ParameterName}_RestTrianglePositionCBuffer[TriangleIndex].xyz,
+		{ParameterName}_RestTrianglePositionBuffer[TriangleIndex * 3 + 0].xyz,
+		{ParameterName}_RestTrianglePositionBuffer[TriangleIndex * 3 + 1].xyz,
+		{ParameterName}_RestTrianglePositionBuffer[TriangleIndex * 3 + 2].xyz,
 	    {ParameterName}_RestRootOffset, OutTrianglePosition, OutTriangleRotation);
 }
 

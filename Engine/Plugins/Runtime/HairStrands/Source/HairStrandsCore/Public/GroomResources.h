@@ -167,9 +167,7 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 			Total += GetBufferTotalNumBytes(LOD.UniqueTriangleIndexBuffer);
 			Total += GetBufferTotalNumBytes(LOD.RootToUniqueTriangleIndexBuffer);
 			Total += GetBufferTotalNumBytes(LOD.RootBarycentricBuffer);
-			Total += GetBufferTotalNumBytes(LOD.RestUniqueTrianglePosition0Buffer);
-			Total += GetBufferTotalNumBytes(LOD.RestUniqueTrianglePosition1Buffer);
-			Total += GetBufferTotalNumBytes(LOD.RestUniqueTrianglePosition2Buffer);
+			Total += GetBufferTotalNumBytes(LOD.RestUniqueTrianglePositionBuffer);
 			Total += GetBufferTotalNumBytes(LOD.MeshInterpolationWeightsBuffer);
 			Total += GetBufferTotalNumBytes(LOD.MeshSampleIndicesBuffer);
 			Total += GetBufferTotalNumBytes(LOD.RestSamplePositionsBuffer);
@@ -194,9 +192,7 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 		FRDGExternalBuffer RootBarycentricBuffer;
 
 		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */
-		FRDGExternalBuffer RestUniqueTrianglePosition0Buffer;
-		FRDGExternalBuffer RestUniqueTrianglePosition1Buffer;
-		FRDGExternalBuffer RestUniqueTrianglePosition2Buffer;
+		FRDGExternalBuffer RestUniqueTrianglePositionBuffer;
 
 		/* Strand hair mesh interpolation matrix and sample indices */
 		uint32 SampleCount = 0;
@@ -242,18 +238,14 @@ struct FHairStrandsDeformedRootResource : public FHairCommonResource
 		uint32 Total = 0;
 		for (const FLOD& LOD : LODs)
 		{
-			Total += GetBufferTotalNumBytes(LOD.DeformedUniqueTrianglePosition0Buffer[0]);
-			Total += GetBufferTotalNumBytes(LOD.DeformedUniqueTrianglePosition1Buffer[0]);
-			Total += GetBufferTotalNumBytes(LOD.DeformedUniqueTrianglePosition2Buffer[0]);
+			Total += GetBufferTotalNumBytes(LOD.DeformedUniqueTrianglePositionBuffer[0]);
 			Total += GetBufferTotalNumBytes(LOD.DeformedSamplePositionsBuffer[0]);
 			Total += GetBufferTotalNumBytes(LOD.MeshSampleWeightsBuffer[0]);
 
 			// Double buffering is disabled by default unless the read-only cvar r.HairStrands.ContinuousDecimationReordering is set
 			if (IsHairStrandContinuousDecimationReorderingEnabled())
 			{
-				Total += GetBufferTotalNumBytes(LOD.DeformedUniqueTrianglePosition0Buffer[1]);
-				Total += GetBufferTotalNumBytes(LOD.DeformedUniqueTrianglePosition1Buffer[1]);
-				Total += GetBufferTotalNumBytes(LOD.DeformedUniqueTrianglePosition2Buffer[1]);
+				Total += GetBufferTotalNumBytes(LOD.DeformedUniqueTrianglePositionBuffer[1]);
 				Total += GetBufferTotalNumBytes(LOD.DeformedSamplePositionsBuffer[1]);
 				Total += GetBufferTotalNumBytes(LOD.MeshSampleWeightsBuffer[1]);
 			}
@@ -281,9 +273,7 @@ struct FHairStrandsDeformedRootResource : public FHairCommonResource
 		int32 LODIndex = -1;
 
 		/* Strand hair roots translation and rotation in triangle-deformed position relative to the bound triangle. Positions are relative the deformed root center*/
-		FRDGExternalBuffer DeformedUniqueTrianglePosition0Buffer[2];
-		FRDGExternalBuffer DeformedUniqueTrianglePosition1Buffer[2];
-		FRDGExternalBuffer DeformedUniqueTrianglePosition2Buffer[2];
+		FRDGExternalBuffer DeformedUniqueTrianglePositionBuffer[2];
 
 		/* Strand hair mesh interpolation matrix and sample indices */
 		uint32 SampleCount = 0;
@@ -301,9 +291,7 @@ struct FHairStrandsDeformedRootResource : public FHairCommonResource
 
 		// Double buffering is disabled by default unless the read-only cvar r.HairStrands.ContinuousDecimationReordering is set
 		inline uint32 GetIndex(EFrameType T) const { return T == EFrameType::Current ? CurrentIndex : 1u - CurrentIndex; }
-		inline const FRDGExternalBuffer& GetDeformedUniqueTrianglePosition0Buffer(EFrameType T) const { return IsHairStrandContinuousDecimationReorderingEnabled() ? DeformedUniqueTrianglePosition0Buffer[GetIndex(T)] : DeformedUniqueTrianglePosition0Buffer[0]; }
-		inline const FRDGExternalBuffer& GetDeformedUniqueTrianglePosition1Buffer(EFrameType T) const { return IsHairStrandContinuousDecimationReorderingEnabled() ? DeformedUniqueTrianglePosition1Buffer[GetIndex(T)] : DeformedUniqueTrianglePosition1Buffer[0]; }
-		inline const FRDGExternalBuffer& GetDeformedUniqueTrianglePosition2Buffer(EFrameType T) const { return IsHairStrandContinuousDecimationReorderingEnabled() ? DeformedUniqueTrianglePosition2Buffer[GetIndex(T)] : DeformedUniqueTrianglePosition2Buffer[0]; }
+		inline const FRDGExternalBuffer& GetDeformedUniqueTrianglePositionBuffer(EFrameType T) const { return IsHairStrandContinuousDecimationReorderingEnabled() ? DeformedUniqueTrianglePositionBuffer[GetIndex(T)] : DeformedUniqueTrianglePositionBuffer[0]; }
 		inline const FRDGExternalBuffer& GetDeformedSamplePositionsBuffer(EFrameType T) const { return IsHairStrandContinuousDecimationReorderingEnabled() ? DeformedSamplePositionsBuffer[GetIndex(T)] : DeformedSamplePositionsBuffer[0]; }
 		inline const FRDGExternalBuffer& GetMeshSampleWeightsBuffer(EFrameType T) const { return IsHairStrandContinuousDecimationReorderingEnabled() ? MeshSampleWeightsBuffer[GetIndex(T)] : MeshSampleWeightsBuffer[0]; }
 		inline void SwapBuffer() { CurrentIndex = 1u - CurrentIndex; }

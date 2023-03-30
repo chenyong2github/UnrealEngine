@@ -29,13 +29,9 @@ Buffer<float4> CardsRestTangentBuffer;
 RWBuffer<float4> CardsDeformedTangentBuffer;
 
 // Guides == Strands going through the middle of the card geometry
-Buffer<float4>  TriangleRestPosition0Buffer;
-Buffer<float4>  TriangleRestPosition1Buffer;
-Buffer<float4>  TriangleRestPosition2Buffer;
+Buffer<float4>  TriangleRestPositionBuffer;
 
-Buffer<float4>  TriangleDeformedPosition0Buffer;
-Buffer<float4>  TriangleDeformedPosition1Buffer;
-Buffer<float4>  TriangleDeformedPosition2Buffer;
+Buffer<float4>  TriangleDeformedPositionBuffer;
 
 Buffer<uint>	GuideRootBarycentricBuffer;
 Buffer<uint>    GuideVertexToRootIndexBuffer;
@@ -149,8 +145,8 @@ void MainCS(uint DispatchThreadId : SV_DispatchThreadID)
 
 	const float3 RootBarycentric = DecodeBarycentrics(GuideRootBarycentricBuffer[RootIndex]);
 
-	const FHairMeshTriangle RestTriangle = GetTriangleTransformation(TriangleIndex, TriangleRestPosition0Buffer, TriangleRestPosition1Buffer, TriangleRestPosition2Buffer);
-	const FHairMeshTriangle DeformedTriangle = GetTriangleTransformation(TriangleIndex, TriangleDeformedPosition0Buffer, TriangleDeformedPosition1Buffer, TriangleDeformedPosition2Buffer);
+	const FHairMeshTriangle RestTriangle = GetTriangleTransformation(TriangleIndex, TriangleRestPositionBuffer);
+	const FHairMeshTriangle DeformedTriangle = GetTriangleTransformation(TriangleIndex, TriangleDeformedPositionBuffer);
 
 	const float3 Offset0 = ComputeDynamicGeometryOffset(GuideIndex0, 1, RestTriangle, DeformedTriangle, RootBarycentric, GuideDeformedPositionOffset);
 	const float3 Offset1 = ComputeDynamicGeometryOffset(GuideIndex1, 1, RestTriangle, DeformedTriangle, RootBarycentric, GuideDeformedPositionOffset);

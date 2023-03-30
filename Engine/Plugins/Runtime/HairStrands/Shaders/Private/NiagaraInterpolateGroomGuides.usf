@@ -15,12 +15,8 @@ NiagaraInterpolateGroomGuides.usf
 
 #include "NiagaraGroomInterpolationUtils.ush"
 
-Buffer<float4>		RestTrianglePositionABuffer;
-Buffer<float4>		RestTrianglePositionBBuffer;
-Buffer<float4>		RestTrianglePositionCBuffer;
-Buffer<float4>		DeformedTrianglePositionABuffer;
-Buffer<float4>		DeformedTrianglePositionBBuffer;
-Buffer<float4>		DeformedTrianglePositionCBuffer;
+Buffer<float4>		RestTrianglePositionBuffer;
+Buffer<float4>		DeformedTrianglePositionBuffer;
 Buffer<uint>		RootBarycentricCoordinatesBuffer;
 Buffer<uint>		RootToUniqueTriangleIndexBuffer;
 
@@ -50,9 +46,9 @@ void DIHairStrands_BuildDeformedTriangle(in float2 ProjectionUV, in uint Triangl
 {
 	DIHairStrands_ComputeProjectionTriangle(
 		ProjectionUV, 
-		DeformedTrianglePositionABuffer[TriangleIndex].xyz,
-		DeformedTrianglePositionBBuffer[TriangleIndex].xyz, 
-		DeformedTrianglePositionCBuffer[TriangleIndex].xyz, 
+		DeformedTrianglePositionBuffer[TriangleIndex * 3 + 0].xyz,
+		DeformedTrianglePositionBuffer[TriangleIndex * 3 + 1].xyz, 
+		DeformedTrianglePositionBuffer[TriangleIndex * 3 + 2].xyz, 
 		float3(0,0,0), OutTrianglePosition, OutTriangleRotation);
 }
 
@@ -61,9 +57,9 @@ void DIHairStrands_BuildRestTriangle(in float2 ProjectionUV, in uint TriangleInd
 {
 	DIHairStrands_ComputeProjectionTriangle(
 		ProjectionUV, 
-		RestTrianglePositionABuffer[TriangleIndex].xyz,
-		RestTrianglePositionBBuffer[TriangleIndex].xyz,
-		RestTrianglePositionCBuffer[TriangleIndex].xyz,
+		RestTrianglePositionBuffer[TriangleIndex * 3 + 0].xyz,
+		RestTrianglePositionBuffer[TriangleIndex * 3 + 1].xyz,
+		RestTrianglePositionBuffer[TriangleIndex * 3 + 2].xyz,
 		float3(0,0,0), OutTrianglePosition, OutTriangleRotation);
 }
 

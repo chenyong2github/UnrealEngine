@@ -314,13 +314,8 @@ Buffer<uint>   RootBarycentricBuffer;
 
 Buffer<uint>  RootToUniqueTriangleIndexBuffer;
 
-Buffer<float4>  RestPosition0Buffer;
-Buffer<float4>  RestPosition1Buffer;
-Buffer<float4>  RestPosition2Buffer;
-
-Buffer<float4>  DeformedPosition0Buffer;
-Buffer<float4>  DeformedPosition1Buffer;
-Buffer<float4>  DeformedPosition2Buffer;
+Buffer<float4>  RestPositionBuffer;
+Buffer<float4>  DeformedPositionBuffer;
 
 Buffer<float4> RestSamplePositionsBuffer;
 Buffer<float4> DeformedSamplePositionsBuffer;
@@ -335,8 +330,8 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	if (RootIndex >= MaxRootCount) return;
 	{
 		const uint TriangleIndex = RootToUniqueTriangleIndexBuffer[RootIndex];
-		const FHairMeshTriangleWithUVs RestTriangle		= GetTriangleWithUVsTransformation(TriangleIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
-		const FHairMeshTriangleWithUVs DeformedTriangle = GetTriangleWithUVsTransformation(TriangleIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
+		const FHairMeshTriangleWithUVs RestTriangle		= GetTriangleWithUVsTransformation(TriangleIndex, RestPositionBuffer);
+		const FHairMeshTriangleWithUVs DeformedTriangle = GetTriangleWithUVsTransformation(TriangleIndex, DeformedPositionBuffer);
 
 		FHairMeshTriangleWithUVs Tri;
 		if (DeformedFrameEnable > 0)
@@ -376,8 +371,8 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const uint TriangleIndex = DispatchThreadId.x;
 	if (TriangleIndex < MaxRootCount)
 	{
-		const FHairMeshTriangleWithUVs RestTriangle		= GetTriangleWithUVsTransformation(TriangleIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
-		const FHairMeshTriangleWithUVs DeformedTriangle = GetTriangleWithUVsTransformation(TriangleIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
+		const FHairMeshTriangleWithUVs RestTriangle		= GetTriangleWithUVsTransformation(TriangleIndex, RestPositionBuffer);
+		const FHairMeshTriangleWithUVs DeformedTriangle = GetTriangleWithUVsTransformation(TriangleIndex, DeformedPositionBuffer);
 	
 		FHairMeshTriangleWithUVs Tri;
 		if (DeformedFrameEnable > 0)

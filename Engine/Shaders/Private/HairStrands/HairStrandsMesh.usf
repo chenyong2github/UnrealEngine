@@ -321,14 +321,10 @@ Buffer<float2> MeshUVsBuffer8;
 uint MaxUniqueTriangleCount;
 Buffer<uint> UniqueTriangleIndices;
 
-RWBuffer<float4> OutUniqueTriangleCurrPosition0;
-RWBuffer<float4> OutUniqueTriangleCurrPosition1;
-RWBuffer<float4> OutUniqueTriangleCurrPosition2;
+RWBuffer<float4> OutUniqueTriangleCurrPosition;
 
 #if PERMUTATION_PREVIOUS
-RWBuffer<float4> OutUniqueTrianglePrevPosition0;
-RWBuffer<float4> OutUniqueTrianglePrevPosition1;
-RWBuffer<float4> OutUniqueTrianglePrevPosition2;
+RWBuffer<float4> OutUniqueTrianglePrevPosition;
 #endif
 
 #if PERMUTATION_WITHUV == 1
@@ -403,33 +399,33 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 #if PERMUTATION_WITHUV == 1
 	{
 		const FHairMeshTriangleWithUVs Tri = GetTriangleData(TriangleIndex, SectionSlotIndex, false);
-		OutUniqueTriangleCurrPosition0[UniqueTriangleIndex] = float4(Tri.P0, PackUVsToFloat(Tri.UV0));
-		OutUniqueTriangleCurrPosition1[UniqueTriangleIndex] = float4(Tri.P1, PackUVsToFloat(Tri.UV1));
-		OutUniqueTriangleCurrPosition2[UniqueTriangleIndex] = float4(Tri.P2, PackUVsToFloat(Tri.UV2));
+		OutUniqueTriangleCurrPosition[UniqueTriangleIndex * 3 + 0] = float4(Tri.P0, PackUVsToFloat(Tri.UV0));
+		OutUniqueTriangleCurrPosition[UniqueTriangleIndex * 3 + 1] = float4(Tri.P1, PackUVsToFloat(Tri.UV1));
+		OutUniqueTriangleCurrPosition[UniqueTriangleIndex * 3 + 2] = float4(Tri.P2, PackUVsToFloat(Tri.UV2));
 	}
 
 	#if PERMUTATION_PREVIOUS
 	{
 		const FHairMeshTriangleWithUVs Tri = GetTriangleData(TriangleIndex, SectionSlotIndex, true);
-		OutUniqueTrianglePrevPosition0[UniqueTriangleIndex] = float4(Tri.P0, PackUVsToFloat(Tri.UV0));
-		OutUniqueTrianglePrevPosition1[UniqueTriangleIndex] = float4(Tri.P1, PackUVsToFloat(Tri.UV1));
-		OutUniqueTrianglePrevPosition2[UniqueTriangleIndex] = float4(Tri.P2, PackUVsToFloat(Tri.UV2));
+		OutUniqueTrianglePrevPosition[UniqueTriangleIndex * 3 + 0] = float4(Tri.P0, PackUVsToFloat(Tri.UV0));
+		OutUniqueTrianglePrevPosition[UniqueTriangleIndex * 3 + 1] = float4(Tri.P1, PackUVsToFloat(Tri.UV1));
+		OutUniqueTrianglePrevPosition[UniqueTriangleIndex * 3 + 2] = float4(Tri.P2, PackUVsToFloat(Tri.UV2));
 	}
 	#endif
 #else
 	{
 		const FHairMeshTriangle Tri = GetTriangleData(TriangleIndex, SectionSlotIndex, false);
-		OutUniqueTriangleCurrPosition0[UniqueTriangleIndex] = (float4(Tri.P0, 1));
-		OutUniqueTriangleCurrPosition1[UniqueTriangleIndex] = (float4(Tri.P1, 1));
-		OutUniqueTriangleCurrPosition2[UniqueTriangleIndex] = (float4(Tri.P2, 1));
+		OutUniqueTriangleCurrPosition[UniqueTriangleIndex * 3 + 0] = (float4(Tri.P0, 1));
+		OutUniqueTriangleCurrPosition[UniqueTriangleIndex * 3 + 1] = (float4(Tri.P1, 1));
+		OutUniqueTriangleCurrPosition[UniqueTriangleIndex * 3 + 2] = (float4(Tri.P2, 1));
 	}
 
 	#if PERMUTATION_PREVIOUS
 	{
 		const FHairMeshTriangle Tri = GetTriangleData(TriangleIndex, SectionSlotIndex, true);
-		OutUniqueTrianglePrevPosition0[UniqueTriangleIndex] = (float4(Tri.P0, 1));
-		OutUniqueTrianglePrevPosition1[UniqueTriangleIndex] = (float4(Tri.P1, 1));
-		OutUniqueTrianglePrevPosition2[UniqueTriangleIndex] = (float4(Tri.P2, 1));
+		OutUniqueTrianglePrevPosition[UniqueTriangleIndex * 3 + 0] = (float4(Tri.P0, 1));
+		OutUniqueTrianglePrevPosition[UniqueTriangleIndex * 3 + 1] = (float4(Tri.P1, 1));
+		OutUniqueTrianglePrevPosition[UniqueTriangleIndex * 3 + 2] = (float4(Tri.P2, 1));
 	}
 	#endif
 #endif
@@ -443,12 +439,12 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 #if SHADER_OFFSET_UPDATE
 
 #if PERMUTATION_USE_GPU_OFFSET
-	Buffer<float4> RootTriangleCurrPosition0Buffer;
-	float3 GetOffsetCurrPosition()	{ return RootTriangleCurrPosition0Buffer[0].xyz; }
+	Buffer<float4> RootTriangleCurrPositionBuffer;
+	float3 GetOffsetCurrPosition()	{ return RootTriangleCurrPositionBuffer[0].xyz; }
 
 	#if PERMUTATION_PREVIOUS
-	Buffer<float4> RootTrianglePrevPosition0Buffer;
-	float3 GetOffsetPrevPosition()	{ return RootTrianglePrevPosition0Buffer[0].xyz; }
+	Buffer<float4> RootTrianglePrevPositionBuffer;
+	float3 GetOffsetPrevPosition()	{ return RootTrianglePrevPositionBuffer[0].xyz; }
 	#endif
 #else
 	float3 CPUCurrPositionOffset;

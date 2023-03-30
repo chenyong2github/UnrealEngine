@@ -569,9 +569,7 @@ struct FHairStrandsRootBulkData
 			Total += LOD.UniqueTriangleIndexBuffer.IsBulkDataLoaded() ?			LOD.UniqueTriangleIndexBuffer.GetBulkDataSize() : 0u;
 			Total += LOD.RootToUniqueTriangleIndexBuffer.IsBulkDataLoaded() ?	LOD.RootToUniqueTriangleIndexBuffer.GetBulkDataSize() : 0u;
 			Total += LOD.RootBarycentricBuffer.IsBulkDataLoaded() ?				LOD.RootBarycentricBuffer.GetBulkDataSize() : 0u;
-			Total += LOD.RestUniqueTrianglePosition0Buffer.IsBulkDataLoaded() ?	LOD.RestUniqueTrianglePosition0Buffer.GetBulkDataSize() : 0u;
-			Total += LOD.RestUniqueTrianglePosition1Buffer.IsBulkDataLoaded() ?	LOD.RestUniqueTrianglePosition1Buffer.GetBulkDataSize() : 0u;
-			Total += LOD.RestUniqueTrianglePosition2Buffer.IsBulkDataLoaded() ?	LOD.RestUniqueTrianglePosition2Buffer.GetBulkDataSize() : 0u;
+			Total += LOD.RestUniqueTrianglePositionBuffer.IsBulkDataLoaded() ?	LOD.RestUniqueTrianglePositionBuffer.GetBulkDataSize() : 0u;
 			Total += LOD.MeshInterpolationWeightsBuffer.IsBulkDataLoaded() ?	LOD.MeshInterpolationWeightsBuffer.GetBulkDataSize() : 0u;
 			Total += LOD.MeshSampleIndicesBuffer.IsBulkDataLoaded() ?			LOD.MeshSampleIndicesBuffer.GetBulkDataSize() : 0u;
 			Total += LOD.RestSamplePositionsBuffer.IsBulkDataLoaded() ?			LOD.RestSamplePositionsBuffer.GetBulkDataSize() : 0u;
@@ -594,9 +592,7 @@ struct FHairStrandsRootBulkData
 		FByteBulkData UniqueTriangleIndexBuffer;
 
 		/* Rest triangle positions (per-unique-triangle) */
-		FByteBulkData RestUniqueTrianglePosition0Buffer;
-		FByteBulkData RestUniqueTrianglePosition1Buffer;
-		FByteBulkData RestUniqueTrianglePosition2Buffer;
+		FByteBulkData RestUniqueTrianglePositionBuffer;
 
 		/* Number of samples used for the mesh interpolation */
 		uint32 SampleCount = 0;
@@ -644,9 +640,7 @@ struct FHairStrandsRootData
 
 		/* Strand hair roots translation and rotation in rest position relative to the bound triangle. Positions are relative to the rest root center */
 		TArray<FHairStrandsUniqueTriangleIndexFormat::Type> UniqueTriangleIndexBuffer;
-		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestUniqueTrianglePosition0Buffer;
-		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestUniqueTrianglePosition1Buffer;
-		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestUniqueTrianglePosition2Buffer;
+		TArray<FHairStrandsMeshTrianglePositionFormat::Type> RestUniqueTrianglePositionBuffer;
 
 		/* Number of samples used for the mesh interpolation */
 		uint32 SampleCount = 0;

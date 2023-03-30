@@ -22,13 +22,8 @@ RWBuffer<uint4> OutSimDeformedPositionBuffer;
 
 #if PERMUTATION_DEFORMATION == DEFORMATION_OFFSET_GUIDE_DYNAMIC
 
-Buffer<float4>  SimRestPosition0Buffer;
-Buffer<float4>  SimRestPosition1Buffer;
-Buffer<float4>  SimRestPosition2Buffer;
-
-Buffer<float4>  SimDeformedPosition0Buffer;
-Buffer<float4>  SimDeformedPosition1Buffer;
-Buffer<float4>  SimDeformedPosition2Buffer;
+Buffer<float4>  SimRestPositionBuffer;
+Buffer<float4>  SimDeformedPositionBuffer;
 
 Buffer<uint>	SimRootBarycentricBuffer;
 Buffer<uint>    SimPointToCurveBuffer;
@@ -81,8 +76,8 @@ float3 DisplacePosition(uint VertexIndex, float3 Pos)
 	const float3 RootBarycentric = DecodeBarycentrics(SimRootBarycentricBuffer[RootIndex]);
 
 	const uint TriangleIndex = SimRootToUniqueTriangleIndexBuffer[RootIndex];
-	const FHairMeshTriangle RestTriangle = GetTriangleTransformation(TriangleIndex, SimRestPosition0Buffer, SimRestPosition1Buffer, SimRestPosition2Buffer);
-	const FHairMeshTriangle DeformedTriangle = GetTriangleTransformation(TriangleIndex, SimDeformedPosition0Buffer, SimDeformedPosition1Buffer, SimDeformedPosition2Buffer);
+	const FHairMeshTriangle RestTriangle = GetTriangleTransformation(TriangleIndex, SimRestPositionBuffer);
+	const FHairMeshTriangle DeformedTriangle = GetTriangleTransformation(TriangleIndex, SimDeformedPositionBuffer);
 
 	return DeformGuideByTriangle(VertexIndex, RestTriangle, DeformedTriangle, RootBarycentric) - OutSimHairPositionOffset;
 #endif

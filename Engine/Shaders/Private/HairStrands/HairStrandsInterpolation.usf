@@ -107,25 +107,13 @@ RWBuffer<uint4> OutRenDeformedPositionBuffer;
 #if PERMUTATION_DYNAMIC_GEOMETRY >= 1 
 
 // Compact all these buffers into 2 buffers: translation + quaternion
-Buffer<float4>  RenRestPosition0Buffer;
-Buffer<float4>  RenRestPosition1Buffer;
-Buffer<float4>  RenRestPosition2Buffer;
-
-Buffer<float4>  RenDeformedPosition0Buffer;
-Buffer<float4>  RenDeformedPosition1Buffer;
-Buffer<float4>  RenDeformedPosition2Buffer;
-
+Buffer<float4>  RenRootRestPositionBuffer;
+Buffer<float4>  RenRootDeformedPositionBuffer;
 Buffer<uint>	RenRootBarycentricBuffer;
 Buffer<uint>	RenRootToUniqueTriangleIndexBuffer;
 
-Buffer<float4>  SimRestPosition0Buffer;
-Buffer<float4>  SimRestPosition1Buffer;
-Buffer<float4>  SimRestPosition2Buffer;
-
-Buffer<float4>  SimDeformedPosition0Buffer;
-Buffer<float4>  SimDeformedPosition1Buffer;
-Buffer<float4>  SimDeformedPosition2Buffer;
-
+Buffer<float4>  SimRootRestPositionBuffer;
+Buffer<float4>  SimRootDeformedPositionBuffer;
 Buffer<uint>	SimRootBarycentricBuffer;
 Buffer<uint>	SimRootToUniqueTriangleIndexBuffer;
 #endif
@@ -237,16 +225,16 @@ FRootTriangleData GetRootTriangleData(uint VertexIndex, bool bSim)
 		Out.RootIndex		 = SimPointToCurveBuffer[VertexIndex];
 		Out.TriangleIndex	 = SimRootToUniqueTriangleIndexBuffer[Out.RootIndex];
 		Out.RootBarycentric  = DecodeBarycentrics(SimRootBarycentricBuffer[Out.RootIndex]);
-		Out.RestTriangle	 = GetTriangleTransformation(Out.TriangleIndex, SimRestPosition0Buffer, SimRestPosition1Buffer, SimRestPosition2Buffer);
-		Out.DeformedTriangle = GetTriangleTransformation(Out.TriangleIndex, SimDeformedPosition0Buffer, SimDeformedPosition1Buffer, SimDeformedPosition2Buffer);
+		Out.RestTriangle	 = GetTriangleTransformation(Out.TriangleIndex, SimRootRestPositionBuffer);
+		Out.DeformedTriangle = GetTriangleTransformation(Out.TriangleIndex, SimRootDeformedPositionBuffer);
 	}
 	else
 	{
 		Out.RootIndex		 = RenPointToCurveBuffer[VertexIndex];
 		Out.TriangleIndex	 = RenRootToUniqueTriangleIndexBuffer[Out.RootIndex];
 		Out.RootBarycentric  = DecodeBarycentrics(RenRootBarycentricBuffer[Out.RootIndex]);
-		Out.RestTriangle	 = GetTriangleTransformation(Out.TriangleIndex, RenRestPosition0Buffer, RenRestPosition1Buffer, RenRestPosition2Buffer);
-		Out.DeformedTriangle = GetTriangleTransformation(Out.TriangleIndex, RenDeformedPosition0Buffer, RenDeformedPosition1Buffer, RenDeformedPosition2Buffer);
+		Out.RestTriangle	 = GetTriangleTransformation(Out.TriangleIndex, RenRootRestPositionBuffer);
+		Out.DeformedTriangle = GetTriangleTransformation(Out.TriangleIndex, RenRootDeformedPositionBuffer);
 	}
 	#endif
 	return Out;
@@ -437,7 +425,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 #if PERMUTATION_CULLING
 	if (HairStrandsVFTODO_bCullingEnable)
 	{
-		const uint FetchIndex = DispatchThreadId;
+		const uint FetchIndex = DispatchThreadId.x;
 		const uint VertexCountAfterCulling = HairStrandsVFTODO_CullingIndirectBuffer[3];
 		if (FetchIndex >= VertexCountAfterCulling)
 		{

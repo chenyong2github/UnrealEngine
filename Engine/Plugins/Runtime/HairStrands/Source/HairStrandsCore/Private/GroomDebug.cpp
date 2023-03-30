@@ -242,17 +242,10 @@ class FHairProjectionHairDebugCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, DeformedFrameEnable)
 		SHADER_PARAMETER(FMatrix44f, RootLocalToWorld)
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RestPosition0Buffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RestPosition1Buffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RestPosition2Buffer)
-
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, DeformedPosition0Buffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, DeformedPosition1Buffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, DeformedPosition2Buffer)
-
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RestPositionBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, DeformedPositionBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RestSamplePositionsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, DeformedSamplePositionsBuffer)
-
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RootBarycentricBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RootToUniqueTriangleIndexBuffer)
 
@@ -334,18 +327,13 @@ static void AddDebugProjectionHairPass(
 	const FHairStrandsRestRootResource::FLOD& RestLODDatas = RestRootResources->LODs[MeshLODIndex];
 	const FHairStrandsDeformedRootResource::FLOD& DeformedLODDatas = DeformedRootResources->LODs[MeshLODIndex];
 
-	if (!RestLODDatas.RestUniqueTrianglePosition0Buffer.Buffer ||
-		!RestLODDatas.RestUniqueTrianglePosition1Buffer.Buffer ||
-		!RestLODDatas.RestUniqueTrianglePosition2Buffer.Buffer ||
-		!DeformedLODDatas.DeformedUniqueTrianglePosition0Buffer[0].Buffer ||
-		!DeformedLODDatas.DeformedUniqueTrianglePosition1Buffer[0].Buffer ||
-		!DeformedLODDatas.DeformedUniqueTrianglePosition2Buffer[0].Buffer)
+	if (!RestLODDatas.RestUniqueTrianglePositionBuffer.Buffer || !DeformedLODDatas.DeformedUniqueTrianglePositionBuffer[0].Buffer)
 	{
 		return;
 	}
 
 	// Double buffering is disabled by default unless the read-only cvar r.HairStrands.ContinuousDecimationReordering is set
-	if (IsHairStrandContinuousDecimationReorderingEnabled() && (!DeformedLODDatas.DeformedUniqueTrianglePosition0Buffer[1].Buffer || !DeformedLODDatas.DeformedUniqueTrianglePosition1Buffer[1].Buffer || !DeformedLODDatas.DeformedUniqueTrianglePosition2Buffer[1].Buffer))
+	if (IsHairStrandContinuousDecimationReorderingEnabled() && !DeformedLODDatas.DeformedUniqueTrianglePositionBuffer[1].Buffer)
 	{
 		return;
 	}
@@ -365,13 +353,8 @@ static void AddDebugProjectionHairPass(
 
 	Parameters->RootToUniqueTriangleIndexBuffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RootToUniqueTriangleIndexBuffer);
 
-	Parameters->RestPosition0Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestUniqueTrianglePosition0Buffer);
-	Parameters->RestPosition1Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestUniqueTrianglePosition1Buffer);
-	Parameters->RestPosition2Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestUniqueTrianglePosition2Buffer);
-
-	Parameters->DeformedPosition0Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.GetDeformedUniqueTrianglePosition0Buffer(FHairStrandsDeformedRootResource::FLOD::Current));
-	Parameters->DeformedPosition1Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.GetDeformedUniqueTrianglePosition1Buffer(FHairStrandsDeformedRootResource::FLOD::Current));
-	Parameters->DeformedPosition2Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.GetDeformedUniqueTrianglePosition2Buffer(FHairStrandsDeformedRootResource::FLOD::Current));
+	Parameters->RestPositionBuffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestUniqueTrianglePositionBuffer);
+	Parameters->DeformedPositionBuffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.GetDeformedUniqueTrianglePositionBuffer(FHairStrandsDeformedRootResource::FLOD::Current));
 
 	Parameters->RestSamplePositionsBuffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestSamplePositionsBuffer);
 	Parameters->DeformedSamplePositionsBuffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.GetDeformedSamplePositionsBuffer(FHairStrandsDeformedRootResource::FLOD::Current));
