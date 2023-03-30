@@ -9,6 +9,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "SkeletalMeshAttributes.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMeshToolTarget)
 
@@ -258,7 +259,10 @@ bool USkeletalMeshReadOnlyToolTargetFactory::CanBuildTarget(UObject* SourceObjec
 	// just add another factory that allows that class specifically (but make sure that
 	// GetMeshDescription and such work properly)
 
-	return ExactCast<USkeletalMesh>(SourceObject) 
+	const USkeletalMesh* SkeletalMesh =  ExactCast<USkeletalMesh>(SourceObject);
+
+	return SkeletalMesh
+		&& !SkeletalMesh->GetOutermost()->bIsCookedForEditor
 		&& Requirements.AreSatisfiedBy(USkeletalMeshReadOnlyToolTarget::StaticClass());
 }
 
@@ -279,8 +283,11 @@ bool USkeletalMeshToolTargetFactory::CanBuildTarget(UObject* SourceObject, const
 	// If you want to make the tool target work with some subclass of USkeletalMesh,
 	// just add another factory that allows that class specifically (but make sure that
 	// GetMeshDescription and such work properly)
+	
+	const USkeletalMesh* SkeletalMesh =  ExactCast<USkeletalMesh>(SourceObject);
 
-	return ExactCast<USkeletalMesh>(SourceObject) 
+	return SkeletalMesh
+		&& !SkeletalMesh->GetOutermost()->bIsCookedForEditor
 		&& Requirements.AreSatisfiedBy(USkeletalMeshToolTarget::StaticClass());
 }
 

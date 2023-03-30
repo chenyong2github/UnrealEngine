@@ -12,6 +12,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "StaticMeshAttributes.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StaticMeshToolTarget)
 
@@ -341,7 +342,7 @@ bool UStaticMeshToolTargetFactory::CanBuildTarget(UObject* SourceObject, const F
 {
 	const UStaticMesh* StaticMesh = GetValid(Cast<UStaticMesh>(SourceObject));
 	return StaticMesh && !StaticMesh->IsUnreachable() && StaticMesh->IsValidLowLevel()
-		&& (StaticMesh->GetNumSourceModels() > 0)
+		&& !StaticMesh->GetOutermost()->bIsCookedForEditor
 		&& Requirements.AreSatisfiedBy(UStaticMeshToolTarget::StaticClass());
 }
 

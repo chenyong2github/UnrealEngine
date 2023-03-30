@@ -12,6 +12,7 @@
 #include "ToolTargets/StaticMeshToolTarget.h"
 #include "AssetUtils/MeshDescriptionUtil.h"
 #include "StaticMeshAttributes.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StaticMeshComponentToolTarget)
 
@@ -282,7 +283,7 @@ bool UStaticMeshComponentToolTargetFactory::CanBuildTarget(UObject* SourceObject
 {
 	const UStaticMeshComponent* Component = GetValid(Cast<UStaticMeshComponent>(SourceObject));
 	return Component && !Component->IsUnreachable() && Component->IsValidLowLevel() && Component->GetStaticMesh()
-		&& (Component->GetStaticMesh()->GetNumSourceModels() > 0)
+		&& !Component->GetStaticMesh()->GetOutermost()->bIsCookedForEditor
 		&& Requirements.AreSatisfiedBy(UStaticMeshComponentToolTarget::StaticClass());
 }
 
