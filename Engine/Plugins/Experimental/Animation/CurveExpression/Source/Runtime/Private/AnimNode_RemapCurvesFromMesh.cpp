@@ -23,8 +23,6 @@ void FAnimNode_RemapCurvesFromMesh::PreUpdate(
 	// may have changed from underneath us.
 	RefreshMeshComponent(InAnimInstance->GetSkelMeshComponent());
 
-	FAnimNode_RemapCurvesBase::PreUpdate(InAnimInstance);
-	
 	const USkeletalMeshComponent* CurrentMeshComponent = CurrentlyUsedSourceMeshComponent.IsValid() ? CurrentlyUsedSourceMeshComponent.Get() : nullptr;
 
 	if (CurrentMeshComponent && CurrentMeshComponent->GetSkeletalMeshAsset() && CurrentMeshComponent->IsRegistered())
@@ -109,8 +107,8 @@ void FAnimNode_RemapCurvesFromMesh::GatherDebugData(
 bool FAnimNode_RemapCurvesFromMesh::Serialize(FArchive& Ar)
 {
 	SerializeNode(Ar, this, StaticStruct());
-
-	if (IsLoading() && Ar.CustomVer(FCurveExpressionCustomVersion::GUID) < FCurveExpressionCustomVersion::SerializedExpressions)
+	
+	if (Ar.IsLoading() && Ar.CustomVer(FCurveExpressionCustomVersion::GUID) < FCurveExpressionCustomVersion::SerializedExpressions)
 	{
 		// Default to expression map if loading from an older version.
 		ExpressionSource = ERemapCurvesExpressionSource::ExpressionMap;

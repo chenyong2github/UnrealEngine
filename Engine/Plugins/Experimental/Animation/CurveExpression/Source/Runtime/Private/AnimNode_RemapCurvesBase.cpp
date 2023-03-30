@@ -30,6 +30,7 @@ void FAnimNode_RemapCurvesBase::Initialize_AnyThread(
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	Super::Initialize_AnyThread(Context);
 	SourcePose.Initialize(Context);
+	GetEvaluateGraphExposedInputs().Execute(Context);
 	
 	// Make sure the expressions are parsed and ready to go.
 	ParseAndCacheExpressions();
@@ -46,18 +47,6 @@ void FAnimNode_RemapCurvesBase::CacheBones_AnyThread(
 }
 
 
-void FAnimNode_RemapCurvesBase::PreUpdate(const UAnimInstance* InAnimInstance)
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(PreUpdate);
-	
-	// If we're using the expression map and the expressions are not constant, check if we need to reparse them here.
-	if (ExpressionSource == ERemapCurvesExpressionSource::ExpressionMap &&
-		(!bExpressionsImmutable || !ExpressionMapHash.IsSet() || GetTypeHash(CurveExpressions) != ExpressionMapHash.GetValue()))
-	{
-		ParseAndCacheExpressions();
-	}
-}
-
 void FAnimNode_RemapCurvesBase::Update_AnyThread(
 	const FAnimationUpdateContext& Context
 	)
@@ -69,6 +58,14 @@ void FAnimNode_RemapCurvesBase::Update_AnyThread(
 
 	// Evaluate any BP logic plugged into this node
 	GetEvaluateGraphExposedInputs().Execute(Context);
+
+	// If we have mutable expressions, check if they've changed here, and recompile if necessary. If the set of named 
+	// constants have changed, the new ones will not have the correct value until the next PreUpdate. 
+	if (ExpressionSource == ERemapCurvesExpressionSource::ExpressionMap && !bExpressionsImmutable &&
+		GetTypeHash(CurveExpressions) != ExpressionMapHash.GetValue())
+	{
+		ParseAndCacheExpressions();
+	}
 }
 
 

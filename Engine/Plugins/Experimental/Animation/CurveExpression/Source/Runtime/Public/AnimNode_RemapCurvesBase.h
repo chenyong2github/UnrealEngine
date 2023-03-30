@@ -26,7 +26,7 @@ struct CURVEEXPRESSION_API FAnimNode_RemapCurvesBase :
 
 	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = Links)
 	FPoseLink SourcePose;
-	
+
 	UPROPERTY(EditAnywhere, Category = Expressions)
 	ERemapCurvesExpressionSource ExpressionSource = ERemapCurvesExpressionSource::ExpressionList;
 
@@ -42,13 +42,11 @@ struct CURVEEXPRESSION_API FAnimNode_RemapCurvesBase :
 	/** The expression map given is immutable and will not change during runtime. Improves performance. */ 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Expressions, DisplayName = "Expression Map Does Not Change at Runtime", meta=(NeverAsPin, EditCondition="ExpressionSource==ERemapCurvesExpressionSource::ExpressionMap", EditConditionHides))
 	bool bExpressionsImmutable = true;
-
+	
 	
 	// FAnimNode_Base overrides
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual bool HasPreUpdate() const override { return true; }
-	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
 	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
 	
 
