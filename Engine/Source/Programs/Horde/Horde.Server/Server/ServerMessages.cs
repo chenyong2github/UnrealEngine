@@ -17,6 +17,11 @@ namespace Horde.Server.Server
 		/// </summary>
         public string ServerVersion { get; set; }
 
+		/// <summary>
+		/// The current agent version string
+		/// </summary>
+		public string? AgentVersion { get; set; }
+
         /// <summary>
         /// The operating system server is hosted on
         /// </summary>
@@ -25,10 +30,11 @@ namespace Horde.Server.Server
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public GetServerInfoResponse()
+		public GetServerInfoResponse(string? agentVersion)
         {
             FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location);		
-			ServerVersion = versionInfo.ProductVersion ?? String.Empty;			
+			ServerVersion = versionInfo.ProductVersion ?? String.Empty;
+			AgentVersion = agentVersion;
 			OsDescription = RuntimeInformation.OSDescription;			
 		}
 	}
