@@ -475,11 +475,12 @@ protected:
 	void Update(int32 PlayHeadFrame, float PlayRate, bool Loop);
 
 	/**
-	 * Adds an empty frame to the cache.
+	 * Adds an empty frame to the cache if no frame is present at the specified number.
 	 * 
 	 * @param FrameNumber Frame number to add.
+	 * @return True if the frame was added
 	 */
-	void AddEmptyFrame(int32 FrameNumber);
+	bool TryAddEmptyFrame(int32 FrameNumber);
 
 	/**
 	 * Adds a frame to the cache.
