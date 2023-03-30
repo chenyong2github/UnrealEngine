@@ -58,7 +58,6 @@ bool UGLTFAnimSequenceExporter::AddObject(FGLTFContainerBuilder& Builder, const 
 		}
 	}
 
-
 	Node->Skin = Builder.AddUniqueSkin(Node, SkeletalMesh);
 	if (Node->Skin == nullptr)
 	{

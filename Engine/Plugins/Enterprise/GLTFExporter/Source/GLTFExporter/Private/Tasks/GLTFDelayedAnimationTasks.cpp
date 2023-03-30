@@ -44,10 +44,10 @@ void FGLTFDelayedAnimSequenceTask::Process()
 	}
 
 	TArray<FBoneIndexType> BoneIndices;
-	FGLTFBoneUtilities::GetBoneIndices(AnimSequence->GetSkeleton(), BoneIndices);
+	FGLTFBoneUtilities::GetBoneIndices(SkeletalMesh->GetRefSkeleton(), BoneIndices);
 
 	TArray<TArray<FTransform>> FrameTransforms;
-	FGLTFBoneUtilities::GetBoneTransformsByFrame(AnimSequence, Timestamps, BoneIndices, FrameTransforms);
+	FGLTFBoneUtilities::GetBoneTransformsByFrame(SkeletalMesh, AnimSequence, BoneIndices, Timestamps, FrameTransforms);
 
 	for (const FBoneIndexType BoneIndex : BoneIndices)
 	{

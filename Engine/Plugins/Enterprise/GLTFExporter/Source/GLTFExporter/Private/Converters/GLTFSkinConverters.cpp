@@ -4,13 +4,11 @@
 #include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFBoneUtilities.h"
 #include "Builders/GLTFConvertBuilder.h"
-#include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
 
 FGLTFJsonSkin* FGLTFSkinConverter::Convert(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh)
 {
-	const USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
-	const FReferenceSkeleton& ReferenceSkeleton = FGLTFBoneUtilities::GetReferenceSkeleton(SkeletalMesh);
+	const FReferenceSkeleton& ReferenceSkeleton = SkeletalMesh->GetRefSkeleton();
 
 	const int32 BoneCount = ReferenceSkeleton.GetNum();
 	if (BoneCount == 0)
@@ -20,7 +18,7 @@ FGLTFJsonSkin* FGLTFSkinConverter::Convert(FGLTFJsonNode* RootNode, const USkele
 	}
 
 	FGLTFJsonSkin* JsonSkin = Builder.AddSkin();
-	JsonSkin->Name = Skeleton != nullptr ? Skeleton->GetName() : SkeletalMesh->GetName();
+	JsonSkin->Name = SkeletalMesh->GetName();
 	JsonSkin->Skeleton = RootNode;
 	JsonSkin->Joints.AddUninitialized(BoneCount);
 
