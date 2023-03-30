@@ -6,6 +6,7 @@
 #include "Tests/AutomationCommon.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/Engine.h"
+#include "Misc/Paths.h"
 
 void FMapTestSpawner::AddWaitUntilLoadedCommand(FAutomationTestBase* TestRunner)
 {
