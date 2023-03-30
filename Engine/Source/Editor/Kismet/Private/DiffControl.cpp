@@ -9,6 +9,9 @@
 #include "IDetailsView.h"
 #include "ReviewComments.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Framework/Application/SlateApplication.h"
 
 #define LOCTEXT_NAMESPACE "SBlueprintDif"
 

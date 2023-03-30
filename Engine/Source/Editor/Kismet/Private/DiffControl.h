@@ -18,6 +18,7 @@ struct FDiffResultItem;
 class SBlueprintDiff;
 class UEdGraph;
 struct FEdGraphEditAction;
+class SCheckBox;
 
 
 /** Interface responsible for generating FBlueprintDifferenceTreeEntry's for visual diff tools */
