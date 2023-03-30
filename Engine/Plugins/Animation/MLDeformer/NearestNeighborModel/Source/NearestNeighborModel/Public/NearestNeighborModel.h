@@ -157,7 +157,7 @@ namespace UE::NearestNeighborModel
  * The pca basis and the nearest neighbor data are compressed into morph targets.
  */
 UCLASS()
-class NEARESTNEIGHBORMODEL_API UNearestNeighborModel final 
+class NEARESTNEIGHBORMODEL_API UNearestNeighborModel
 	: public UMLDeformerMorphModel 
 {
 	GENERATED_BODY()

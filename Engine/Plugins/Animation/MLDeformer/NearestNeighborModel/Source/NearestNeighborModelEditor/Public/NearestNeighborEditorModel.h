@@ -24,7 +24,7 @@ namespace UE::NearestNeighborModel
 	class FNearestNeighborModelDetails;
 	class FNearestNeighborModelSampler;
 
-	class NEARESTNEIGHBORMODELEDITOR_API FNearestNeighborEditorModel final 
+	class NEARESTNEIGHBORMODELEDITOR_API FNearestNeighborEditorModel
 		: public UE::MLDeformer::FMLDeformerMorphModelEditorModel
 	{
 	public:

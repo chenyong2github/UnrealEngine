@@ -15,7 +15,7 @@ namespace UE::NearestNeighborModel
 };
 
 UCLASS()
-class NEARESTNEIGHBORMODEL_API UNearestNeighborModelInstance final
+class NEARESTNEIGHBORMODEL_API UNearestNeighborModelInstance
     : public UMLDeformerMorphModelInstance
 {
     GENERATED_BODY()

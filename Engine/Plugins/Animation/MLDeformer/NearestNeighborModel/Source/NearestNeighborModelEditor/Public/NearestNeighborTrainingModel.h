@@ -14,7 +14,7 @@ namespace UE::NearestNeighborModel
 class UNearestNeighborModel;
 
 UCLASS(Blueprintable)
-class NEARESTNEIGHBORMODELEDITOR_API UNearestNeighborTrainingModel final
+class NEARESTNEIGHBORMODELEDITOR_API UNearestNeighborTrainingModel
 	: public UMLDeformerTrainingModel
 {
 	GENERATED_BODY()
