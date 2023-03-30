@@ -380,7 +380,7 @@ namespace UE
 			const FAnimationAttributeIdentifier Identifier = UAnimationAttributeIdentifierExtensions::CreateAttributeIdentifier(AnimSequenceBase, AttributeName, BoneName, AttributeType::StaticStruct());
 
 			IAnimationDataController& Controller = AnimSequenceBase->GetController();
-			if (Controller.AddAttribute(Identifier))
+			if (AnimSequenceBase->GetDataModelInterface()->FindAttribute(Identifier) || Controller.AddAttribute(Identifier))
 			{
 				TArray<AttributeType> AttributeValues; 
 				Algo::Transform(Values, AttributeValues, [](const ValueType& Value)
