@@ -263,6 +263,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Remote Control")
 	bool bProtocolsGenerateTransactions = true;
 
+	/** The remote control web app bind address. */
+	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Interface", DisplayName = "Remote Control Web Interface bind address")
+	FString RemoteControlWebInterfaceBindAddress = TEXT("0.0.0.0");
+
 	/** The remote control web app http port. */
 	UPROPERTY(config, EditAnywhere, Category = "Remote Control Web Interface", DisplayName = "Remote Control Web Interface http Port")
 	uint32 RemoteControlWebInterfacePort = 30000;
@@ -339,7 +343,7 @@ public:
 	 * Controls whether a passphrase should be required when remote control is accessed by a client outside of localhost.
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Remote Control | Security", meta = (EditCondition = bRestrictServerAccess))
-	bool bEnforcePassphraseForRemoteClients = false;
+	bool bEnforcePassphraseForRemoteClients = true;
 
 	/** List of passphrases used for accessing remote control outside of localhost. */
 	UPROPERTY(config, EditAnywhere, Category = "Remote Control | Security", DisplayName = "Remote Control Passphrase", meta = (EditCondition=bEnforcePassphraseForRemoteClients, EditConditionHides))

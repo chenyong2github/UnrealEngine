@@ -32,7 +32,12 @@ export class App extends Server {
                     .catch(() => {});
 
       await this.startServer();
-      console.log('DONE: WebApp started, port:', Program.port);
+
+      var hostname = Program.hostname;
+      if (hostname == '0.0.0.0'){
+        hostname = '127.0.0.1';
+      }
+      console.log(`DONE: WebApp started, ${hostname}:${Program.port}`, );
 
     } catch (error) {
       console.error('ERROR:', error.message);
@@ -42,7 +47,7 @@ export class App extends Server {
 
   private startServer(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const server = this.app.listen(Program.port, async () => {
+      const server = this.app.listen(Program.port, Program.hostname,  async () => {
         await Notify.initialize(server);
         await UnrealEngine.initialize();
         await LogServer.initialize();

@@ -155,7 +155,9 @@ void FRemoteControlWebInterfaceModule::OnSettingsModified(UObject* Settings, FPr
 
 	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(URemoteControlSettings, RemoteControlWebInterfacePort) || PropertyName == GET_MEMBER_NAME_CHECKED(URemoteControlSettings, bForceWebAppBuildAtStartup))
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(URemoteControlSettings, RemoteControlWebInterfacePort)
+			|| PropertyName == GET_MEMBER_NAME_CHECKED(URemoteControlSettings, bForceWebAppBuildAtStartup)
+			|| PropertyName == GET_MEMBER_NAME_CHECKED(URemoteControlSettings, RemoteControlWebInterfaceBindAddress))
 		{
 			WebApp->Shutdown();
 			WebApp->Start();

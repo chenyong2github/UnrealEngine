@@ -6,6 +6,7 @@ class Program {
   readonly dev: boolean;
   readonly monitor: boolean;
   readonly port: number;
+  readonly hostname: string;
   readonly ueHttpPort: number;
   readonly ueWebSocketPort: number;
   readonly rootFolder: string;
@@ -15,6 +16,7 @@ class Program {
     this.dev = false;
     this.monitor = false;
     this.port = 7000;
+    this.hostname = '0.0.0.0';
     this.ueHttpPort = 30010;
     this.ueWebSocketPort = 30020;
     this.logger = false;
@@ -48,6 +50,9 @@ class Program {
         case '--log':
           this.logger = true;
           break;
+
+        case '--hostname':
+          this.hostname = process.argv[i + 1] || '0.0.0.0';
       }
     }
 

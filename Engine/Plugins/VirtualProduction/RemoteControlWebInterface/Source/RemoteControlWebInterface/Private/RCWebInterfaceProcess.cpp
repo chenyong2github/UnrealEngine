@@ -129,10 +129,11 @@ uint32 FRemoteControlWebInterfaceProcess::Run()
 
 	const URemoteControlSettings* RCSettings = GetDefault<URemoteControlSettings>();
 
-	FString Args = FString::Printf(TEXT("--port %d --uews %d --uehttp %d --monitor "),
+	FString Args = FString::Printf(TEXT("--port %d --uews %d --uehttp %d --monitor --hostname %s "),
 									RCSettings->RemoteControlWebInterfacePort,
 									RCSettings->RemoteControlWebSocketServerPort,
-									RCSettings->RemoteControlHttpServerPort);
+									RCSettings->RemoteControlHttpServerPort,
+									*RCSettings->RemoteControlWebInterfaceBindAddress);
 
 	if (RCSettings->bForceWebAppBuildAtStartup)
 	{
