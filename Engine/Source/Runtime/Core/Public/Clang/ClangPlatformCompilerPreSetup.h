@@ -200,6 +200,23 @@
 		_Pragma("clang diagnostic pop")
 #endif // PRAGMA_ENABLE_UNINITIALIZED_CONST_REFERENCE_WARNINGS
 
+#if __has_warning("-Wenum-constexpr-conversion")
+#define DISABLE_ENUM_CONSTEXPR_CONVERSION _Pragma("clang diagnostic ignored \"-Wenum-constexpr-conversion\"")
+#else
+#define DISABLE_ENUM_CONSTEXPR_CONVERSION
+#endif
+
+#ifndef PRAGMA_DISABLE_ENUM_CONSTEXPR_CONVERSION_WARNINGS
+#define PRAGMA_DISABLE_ENUM_CONSTEXPR_CONVERSION_WARNINGS \
+		_Pragma("clang diagnostic push") \
+        DISABLE_ENUM_CONSTEXPR_CONVERSION
+#endif // PRAGMA_DISABLE_ENUM_CONSTEXPR_CONVERSION_WARNINGS
+
+#ifndef PRAGMA_ENABLE_ENUM_CONSTEXPR_CONVERSION_WARNINGS
+#define PRAGMA_ENABLE_ENUM_CONSTEXPR_CONVERSION_WARNINGS \
+		_Pragma("clang diagnostic pop")
+#endif // PRAGMA_ENABLE_ENUM_CONSTEXPR_CONVERSION_WARNINGS
+
 #ifndef PRAGMA_POP
 	#define PRAGMA_POP \
 		_Pragma("clang diagnostic pop")
