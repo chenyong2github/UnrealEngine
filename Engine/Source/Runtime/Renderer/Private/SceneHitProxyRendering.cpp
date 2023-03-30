@@ -751,6 +751,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 
 	GEngine->GetPostRenderDelegateEx().Broadcast(GraphBuilder);
 
+	AddDispatchToRHIThreadPass(GraphBuilder);
 #endif
 }
 
