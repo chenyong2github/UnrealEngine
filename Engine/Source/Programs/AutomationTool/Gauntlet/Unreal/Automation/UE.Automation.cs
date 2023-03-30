@@ -131,6 +131,12 @@ namespace UE
 		public string DDC = "";
 
 		/// <summary>
+		/// Log Idle timeout in second
+		/// </summary>
+		[AutoParam]
+		public virtual int LogIdleTimeout { get; set; } = 30 * 60;
+
+		/// <summary>
 		/// Used for having the editor and any client communicate
 		/// </summary>
 		public string SessionID = Guid.NewGuid().ToString();
@@ -527,7 +533,11 @@ namespace UE
 		/// </summary>
 		public override void TickTest()
 		{
-			const float IdleTimeout = 30 * 60;
+			float IdleTimeout = 30 * 60;
+			if (GetConfiguration() is AutomationTestConfig Config && Config.LogIdleTimeout > 0)
+			{
+				IdleTimeout = Config.LogIdleTimeout;
+			}
 
 			List<string> ChannelEntries = new List<string>();
 			// We are primarily interested in what the editor is doing
