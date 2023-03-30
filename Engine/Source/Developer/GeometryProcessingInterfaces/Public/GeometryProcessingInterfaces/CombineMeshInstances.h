@@ -88,6 +88,9 @@ public:
 		int32 NumSimplifiedLODs = 3;
 		double SimplifyBaseTolerance = 1.0;
 		double SimplifyLODLevelToleranceScale = 2.0;
+		bool bSimplifyPreserveCorners = true;
+		double SimplifySharpEdgeAngleDeg = 44.0;
+		double SimplifyMinSalientDimension = 1.0;
 
 		double OptimizeBaseTriCost = 0.7;
 		double OptimizeLODLevelTriCostScale = 1.5;
