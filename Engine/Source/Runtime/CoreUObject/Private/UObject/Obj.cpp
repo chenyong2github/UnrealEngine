@@ -869,10 +869,10 @@ FString UObject::GetDetailedInfo() const
 
 #if WITH_ENGINE
 
-#if DO_CHECK
+#if DO_CHECK || WITH_EDITOR
 // Used to check to see if a derived class actually implemented GetWorld() or not
 thread_local bool bGetWorldOverridden = false;
-#endif
+#endif // #if DO_CHECK || WITH_EDITOR
 
 class UWorld* UObject::GetWorld() const
 {
@@ -881,7 +881,7 @@ class UWorld* UObject::GetWorld() const
 		return Outer->GetWorld();
 	}
 
-#if DO_CHECK
+#if DO_CHECK || WITH_EDITOR
 	bGetWorldOverridden = false;
 #endif
 	return nullptr;
@@ -928,18 +928,17 @@ class UWorld* UObject::GetWorldChecked(bool& bSupported) const
 	return World;
 }
 
+#if WITH_EDITOR
+
 bool UObject::ImplementsGetWorld() const
 {
-#if DO_CHECK
 	bGetWorldOverridden = true;
 	GetWorld();
 	return bGetWorldOverridden;
-#else
-	return true;
-#endif	
 }
 
-#endif
+#endif // #if WITH_EDITOR
+#endif // #if WITH_ENGINE
 
 #define PROFILE_ConditionalBeginDestroy (0)
 

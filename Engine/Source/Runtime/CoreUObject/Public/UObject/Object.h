@@ -698,9 +698,12 @@ public:
 	/** Internal function used by UEngine::GetWorldFromContextObject() */
 	class UWorld* GetWorldChecked(bool& bSupported) const;
 
-	/** Checks to see if GetWorld() is implemented on a specific class */
-	bool ImplementsGetWorld() const;
-#endif
+#if WITH_EDITOR
+	/** Checks to see if GetWorld() is implemented on a specific class. Optionally overridable in derived classes. */
+	virtual bool ImplementsGetWorld() const;
+#endif // #if WITH_EDITOR
+
+#endif // #if WITH_ENGINE
 
 	/**
 	 * Callback for retrieving a textual representation of natively serialized properties.  Child classes should implement this method if they wish
