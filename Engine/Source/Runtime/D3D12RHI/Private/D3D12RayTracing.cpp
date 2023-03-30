@@ -4847,10 +4847,11 @@ static bool SetRayTracingShaderResources(
 	if (InLooseParameterData && Shader->UsesGlobalUniformBuffer())
 	{
 		const uint32 CBVIndex = 0; // Global uniform buffer is always assumed to be in slot 0
-		D3D12_GPU_VIRTUAL_ADDRESS BufferAddress = Binder.CreateTransientConstantBuffer(InLooseParameterData, InLooseParameterDataSize);
+		const uint32 AlignedSize = Align(InLooseParameterDataSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+		D3D12_GPU_VIRTUAL_ADDRESS BufferAddress = Binder.CreateTransientConstantBuffer(InLooseParameterData, AlignedSize);
 
 	#if USE_STATIC_ROOT_SIGNATURE
-		Bindings.LocalCBVs[CBVIndex] = Binder.CreateTransientConstantBufferView(BufferAddress, InLooseParameterDataSize);
+		Bindings.LocalCBVs[CBVIndex] = Binder.CreateTransientConstantBufferView(BufferAddress, AlignedSize);
 	#else // USE_STATIC_ROOT_SIGNATURE
 		Bindings.LocalCBVs[CBVIndex] = BufferAddress;
 	#endif // USE_STATIC_ROOT_SIGNATURE
