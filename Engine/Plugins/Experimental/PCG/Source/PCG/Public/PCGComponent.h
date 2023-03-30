@@ -428,7 +428,7 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TArray<TWeakObjectPtr<ALandscapeProxy>> TrackedLandscapes;
+	TArray<TSoftObjectPtr<ALandscapeProxy>> TrackedLandscapes;
 #endif
 
 #if WITH_EDITORONLY_DATA
