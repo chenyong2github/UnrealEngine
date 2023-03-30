@@ -89,6 +89,16 @@ private:
 	 */
 	FScreenPassTexture PostProcessPassAfterSSRInput_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& Inputs);
 
+	/** Callback OnPostProcessPassAfterTonemap.
+	 *
+	 * @param GraphBuilder - RDG interface
+	 * @param View         - Scene View
+	 * @param Inputs       - PP Input resources
+	 *
+	 * @return - Screen pass texture
+	 */
+	FScreenPassTexture PostProcessPassAfterTonemap_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& Inputs);
+
 	/** Register callbacks to external modules (Renderer:ResolvedSceneColor). */
 	void RegisterCallbacks();
 

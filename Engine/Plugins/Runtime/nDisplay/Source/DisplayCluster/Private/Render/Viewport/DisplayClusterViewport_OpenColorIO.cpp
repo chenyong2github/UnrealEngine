@@ -16,6 +16,8 @@
 #include "SceneView.h"
 #include "ScreenPass.h"
 #include "CommonRenderResources.h"
+// for FPostProcessMaterialInputs
+#include "PostProcess/PostProcessMaterial.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FDisplayClusterViewport_OpenColorIO
@@ -111,6 +113,18 @@ bool FDisplayClusterViewport_OpenColorIO::IsConversionSettingsEqual(const FOpenC
 	return ConversionSettings.ToString() == InConversionSettings.ToString();
 }
 
+float FDisplayClusterViewport_OpenColorIO::GetDisplayGamma(const FDisplayClusterViewport_Context& InViewportContext) const
+{
+	const float DefaultDisplayGamma = FOpenColorIODisplayExtension::DefaultDisplayGamma;
+	const float EngineDisplayGamma = InViewportContext.RenderThreadData.EngineDisplayGamma;
+
+	// There is a special case where post processing and tonemapper are disabled. In this case tonemapper applies a static display Inverse of Gamma which defaults to 2.2.
+	// In the case when Both PostProcessing and ToneMapper are disabled we apply gamma manually. In every other case we apply inverse gamma before applying OCIO.
+	const float DisplayGamma = (InViewportContext.RenderThreadData.EngineShowFlags.Tonemapper == 0) || (InViewportContext.RenderThreadData.EngineShowFlags.PostProcessing == 0) ? DefaultDisplayGamma : DefaultDisplayGamma / EngineDisplayGamma;
+
+	return DisplayGamma;
+}
+
 bool FDisplayClusterViewport_OpenColorIO::AddPass_RenderThread(FRDGBuilder& GraphBuilder, const FDisplayClusterViewport_Context& InViewportContext,
 	FRHITexture2D* InputTextureRHI, const FIntRect& InputRect, FRHITexture2D* OutputTextureRHI, const FIntRect& OutputRect) const
 {
@@ -121,13 +135,6 @@ bool FDisplayClusterViewport_OpenColorIO::AddPass_RenderThread(FRDGBuilder& Grap
 
 		FScreenPassRenderTarget Output = FScreenPassRenderTarget(OutputTexture, OutputRect, ERenderTargetLoadAction::EClear);
 
-		const float DefaultDisplayGamma = FOpenColorIODisplayExtension::DefaultDisplayGamma;
-		const float EngineDisplayGamma = InViewportContext.RenderThreadData.EngineDisplayGamma;
-
-		// There is a special case where post processing and tonemapper are disabled. In this case tonemapper applies a static display Inverse of Gamma which defaults to 2.2.
-		// In the case when Both PostProcessing and ToneMapper are disabled we apply gamma manually. In every other case we apply inverse gamma before applying OCIO.
-		const float DisplayGamma = (InViewportContext.RenderThreadData.EngineShowFlags.Tonemapper == 0) || (InViewportContext.RenderThreadData.EngineShowFlags.PostProcessing == 0) ? DefaultDisplayGamma : DefaultDisplayGamma / EngineDisplayGamma;
-
 		FOpenColorIORendering::AddPass_RenderThread(
 			GraphBuilder,
 			FScreenPassViewInfo(),
@@ -135,11 +142,38 @@ bool FDisplayClusterViewport_OpenColorIO::AddPass_RenderThread(FRDGBuilder& Grap
 			FScreenPassTexture(InputTexture),
 			Output,
 			CachedResourcesRenderThread,
-			DisplayGamma
+			GetDisplayGamma(InViewportContext)
 		);
 
 		return true;
 	}
 
 	return false;
+}
+
+// This is a copy of FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_RenderThread()
+FScreenPassTexture FDisplayClusterViewport_OpenColorIO::PostProcessPassAfterTonemap_RenderThread(FRDGBuilder& GraphBuilder, const FDisplayClusterViewport_Context& InViewportContext, const FSceneView& View, const FPostProcessMaterialInputs& InOutInputs)
+{
+	const FScreenPassTexture& SceneColor = InOutInputs.GetInput(EPostProcessMaterialInput::SceneColor);
+	check(SceneColor.IsValid());
+	checkSlow(View.bIsViewInfo);
+	const FViewInfo& ViewInfo = static_cast<const FViewInfo&>(View);
+	FScreenPassRenderTarget Output = InOutInputs.OverrideOutput;
+
+	// If the override output is provided, it means that this is the last pass in post processing.
+	if (!Output.IsValid())
+	{
+		Output = FScreenPassRenderTarget::CreateFromInput(GraphBuilder, SceneColor, ViewInfo.GetOverwriteLoadAction(), TEXT("OCIORenderTarget"));
+	}
+
+	FOpenColorIORendering::AddPass_RenderThread(
+		GraphBuilder,
+		ViewInfo,
+		SceneColor,
+		Output,
+		CachedResourcesRenderThread,
+		GetDisplayGamma(InViewportContext)
+	);
+
+	return MoveTemp(Output);
 }

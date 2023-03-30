@@ -99,6 +99,17 @@ void FDisplayClusterViewportManagerViewExtension::SubscribeToPostProcessingPass(
 		}
 		break;
 
+	case EPostProcessingPass::Tonemap:
+		for (const FViewportProxy& ViewportIt : ViewportProxies)
+		{
+			if (ViewportIt.ViewportProxy.IsValid() && ViewportIt.ViewportProxy.Pin()->ShouldUsePostProcessPassTonemap())
+			{
+				InOutPassCallbacks.Add(FAfterPassCallbackDelegate::CreateRaw(this, &FDisplayClusterViewportManagerViewExtension::PostProcessPassAfterTonemap_RenderThread));
+				break;
+			}
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -136,6 +147,25 @@ FScreenPassTexture FDisplayClusterViewportManagerViewExtension::PostProcessPassA
 		if (ViewportProxyPtr->ShouldUsePostProcessPassAfterSSRInput())
 		{
 			return ViewportProxyPtr->OnPostProcessPassAfterSSRInput_RenderThread(GraphBuilder, View, Inputs, ContextNum);
+		}
+	}
+
+	return ReturnUntouchedSceneColorForPostProcessing(Inputs);
+}
+
+FScreenPassTexture FDisplayClusterViewportManagerViewExtension::PostProcessPassAfterTonemap_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& Inputs)
+{
+	if (!IsActive())
+	{
+		return ReturnUntouchedSceneColorForPostProcessing(Inputs);
+	}
+
+	uint32 ContextNum = 0;
+	if (FDisplayClusterViewportProxy* ViewportProxyPtr = ViewportManagerProxy.Pin()->ImplFindViewport_RenderThread(View.StereoViewIndex, &ContextNum))
+	{
+		if (ViewportProxyPtr->ShouldUsePostProcessPassTonemap())
+		{
+			return ViewportProxyPtr->OnPostProcessPassAfterTonemap_RenderThread(GraphBuilder, View, Inputs, ContextNum);
 		}
 	}
 

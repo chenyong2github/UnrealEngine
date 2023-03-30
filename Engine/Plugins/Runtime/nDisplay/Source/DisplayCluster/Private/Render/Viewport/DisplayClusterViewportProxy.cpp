@@ -458,6 +458,23 @@ bool FDisplayClusterViewportProxy::ImplGetResources_RenderThread(const EDisplayC
 	return false;
 }
 
+EDisplayClusterViewportOpenColorIOMode FDisplayClusterViewportProxy::GetOpenColorIOMode() const
+{
+	if (OpenColorIO.IsValid() && OpenColorIO->IsEnabled_RenderThread())
+	{
+		if (EnumHasAnyFlags(RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::UVLightcard | EDisplayClusterViewportRuntimeICVFXFlags::Lightcard | EDisplayClusterViewportRuntimeICVFXFlags::Chromakey))
+		{
+			// Rendering without post-processing, OCIO is applied last, to the RTT texture of the viewport
+			return EDisplayClusterViewportOpenColorIOMode::Resolved;
+		}
+
+		// By default, viewports render with a postprocess, OCIO must be done in between.
+		return EDisplayClusterViewportOpenColorIOMode::PostProcess;
+	}
+
+	return EDisplayClusterViewportOpenColorIOMode::None;
+}
+
 void FDisplayClusterViewportProxy::PostResolveViewport_RenderThread(FRHICommandListImmediate& RHICmdList) const
 {
 	check(IsInRenderingThread());
@@ -688,8 +705,8 @@ void FDisplayClusterViewportProxy::UpdateDeferredResources(FRHICommandListImmedi
 
 	bool bPass0Applied = false;
 
-	// Support OCIO on pass 0
-	if (OpenColorIO.IsValid() && OpenColorIO->IsEnabled_RenderThread())
+	// OCIO support on the first pass for an resolved RTT
+	if (GetOpenColorIOMode() == EDisplayClusterViewportOpenColorIOMode::Resolved)
 	{
 		TArray<FRHITexture2D*> Input, Output;
 		TArray<FIntRect> InputRects, OutputRects;
@@ -1064,6 +1081,16 @@ bool FDisplayClusterViewportProxy::ShouldUsePostProcessPassAfterFXAA() const
 	return false;
 }
 
+bool FDisplayClusterViewportProxy::ShouldUsePostProcessPassTonemap() const
+{
+	if(GetOpenColorIOMode() == EDisplayClusterViewportOpenColorIOMode::PostProcess)
+	{
+		return true;
+	}
+
+	return false;
+}
+
 void FDisplayClusterViewportProxy::OnResolvedSceneColor_RenderThread(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, const FDisplayClusterViewportProxy_Context& InProxyContext)
 {
 	const uint32 InContextNum = InProxyContext.ContextNum;
@@ -1112,6 +1139,17 @@ FScreenPassTexture FDisplayClusterViewportProxy::OnPostProcessPassAfterFXAA_Rend
 	}
 
 	return OutScreenPassTexture;
+}
+
+FScreenPassTexture FDisplayClusterViewportProxy::OnPostProcessPassAfterTonemap_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& Inputs, const uint32 ContextNum)
+{
+	// Perform OCIO rendering after the tonemapper
+	if (GetOpenColorIOMode() == EDisplayClusterViewportOpenColorIOMode::PostProcess)
+	{
+		return OpenColorIO->PostProcessPassAfterTonemap_RenderThread(GraphBuilder, GetContexts_RenderThread()[ContextNum], View, Inputs);
+	}
+
+	return FDisplayClusterViewportManagerViewExtension::ReturnUntouchedSceneColorForPostProcessing(Inputs);
 }
 
 void FDisplayClusterViewportProxy::OnPostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily, const FSceneView& InSceneView, const FDisplayClusterViewportProxy_Context& InProxyContext)

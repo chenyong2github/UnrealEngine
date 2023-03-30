@@ -12,28 +12,67 @@
 
 #include "Misc/DisplayClusterLog.h"
 
+
+int32 GDisplayClusterSceneColorFormat = 0;
+static FAutoConsoleVariableRef CVarDisplayClusterSceneColorFormat(
+	TEXT("nDisplay.render.SceneColorFormat"),
+	GDisplayClusterSceneColorFormat,
+	TEXT("Defines the memory layout (RGBA) used for the scene color\n"
+		"(affects performance, mostly through bandwidth, quality especially with translucency).\n"
+		" 0: Use the backbuffer format\n"
+		" 1: PF_FloatRGBA 64Bit (default, might be overkill, especially if translucency is mostly using SeparateTranslucency)\n"
+		" 2: PF_A32B32G32R32F 128Bit (unreasonable but good for testing)"),
+	ECVF_Default
+);
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 namespace DisplayClusterRenderTargetManager
 {
 	static EPixelFormat ImplGetCustomFormat(EDisplayClusterViewportCaptureMode CaptureMode)
 	{
+		EPixelFormat OutPixelFormat = EPixelFormat::PF_Unknown;
+
 		// Pre-defined formats for targets:
 		switch (CaptureMode)
 		{
 		case EDisplayClusterViewportCaptureMode::Chromakey:
 		case EDisplayClusterViewportCaptureMode::Lightcard:
 			// The Chromakey and LightCard always uses PF_FloatRGBA for OCIO support.
-			return EPixelFormat::PF_FloatRGBA;
+			OutPixelFormat = EPixelFormat::PF_FloatRGBA;
+			break;
 
 		case EDisplayClusterViewportCaptureMode::MoviePipeline:
 			// Movie pipeline always use PF_FloatRGBA
-			return EPixelFormat::PF_FloatRGBA;
+			OutPixelFormat = EPixelFormat::PF_FloatRGBA;
+			break;
 
 		default:
+			switch (GDisplayClusterSceneColorFormat)
+			{
+			case 1:
+				OutPixelFormat = EPixelFormat::PF_FloatRGBA;
+				break;
+			case 2:
+				OutPixelFormat = EPixelFormat::PF_A32B32G32R32F;
+				break;
+
+			default:
+				// by default use the backbuffer format (when function returns PF_Unknown its mean use default scene format)
+				break;
+			}
 			break;
 		}
 
-		return EPixelFormat::PF_Unknown;
+		if (OutPixelFormat != EPixelFormat::PF_Unknown)
+		{
+			// Fallback in case the scene color selected isn't supported.
+			if (!GPixelFormats[OutPixelFormat].Supported)
+			{
+				OutPixelFormat = PF_FloatRGBA;
+			}
+		}
+
+		return OutPixelFormat;
 	}
 
 	static void ImplViewportTextureResourceLogging(const FDisplayClusterViewport* InViewport, const uint32 ContextNum, const FString& ResourceId, const FDisplayClusterViewportTextureResource* InTextureResource)

@@ -41,6 +41,20 @@ enum class EDisplayClusterTextureCopyMode : uint8
 };
 
 /**
+ * OCIO is applied in different ways. It depends on the rendering workflow
+ */
+enum class EDisplayClusterViewportOpenColorIOMode : uint8
+{
+	None = 0,
+
+	// When the viewport renders with a postprocess, OCIO must be done in between
+	PostProcess,
+
+	// When the viewport is rendered without postprocessing, OCIO is applied last, to the RTT texture of the viewport
+	Resolved
+};
+
+/**
  * nDisplay viewport proxy implementation.
  */
 class FDisplayClusterViewportProxy
@@ -184,6 +198,20 @@ public:
 	 */
 	FScreenPassTexture OnPostProcessPassAfterSSRInput_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& Inputs, const uint32 ContextNum);
 
+	/** Allow callback OnPostProcessPassAfterTonemap. */
+	bool ShouldUsePostProcessPassTonemap() const;
+
+	/** Callback OnPostProcessPassAfterTonemap.
+	 *
+	 * @param GraphBuilder - RDG interface
+	 * @param View         - Scene View
+	 * @param Inputs       - PP Input resources
+	 * @param ContextNum   - viewport context index
+	 *
+	 * @return - Screen pass texture
+	 */
+	FScreenPassTexture OnPostProcessPassAfterTonemap_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& Inputs, const uint32 ContextNum);
+
 	/** Enable alpha channel for this viewport (useful for overlays with alpha channel: ChromaKey, LightCard). */
 	bool ShouldUseAlphaChannel_RenderThread() const;
 
@@ -276,6 +304,9 @@ private:
 
 	/** Check if there is an RTT source (internal or external) in this viewport proxy. */
 	bool IsInputRenderTargetResourceExists() const;
+
+	/** Returns the OCIO rendering type for the given viewport. */
+	EDisplayClusterViewportOpenColorIOMode GetOpenColorIOMode() const;
 
 protected:
 	friend FDisplayClusterViewportProxyData;

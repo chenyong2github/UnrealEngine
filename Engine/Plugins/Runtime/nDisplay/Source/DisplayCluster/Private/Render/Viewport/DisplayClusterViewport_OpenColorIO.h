@@ -12,6 +12,13 @@
 #include "RHIResources.h"
 #include "Templates/SharedPointer.h"
 
+class FSceneView;
+class FSceneViewFamily;
+struct FScreenPassTexture;
+struct FPostProcessMaterialInputs;
+class FRDGBuilder;
+class FDisplayClusterViewport_Context;
+
 /**
  * nDisplay OCIO implementation.
  * 
@@ -34,7 +41,7 @@ public:
 	 *
 	 * @return - none.
 	 */
-	void SetupSceneView(class FSceneViewFamily& InOutViewFamily, class FSceneView& InOutView) const;
+	void SetupSceneView(FSceneViewFamily& InOutViewFamily, FSceneView& InOutView) const;
 
 	/** Add OCIO render pass.
 	 *
@@ -47,8 +54,11 @@ public:
 	 *
 	 * @return - true if success.
 	 */
-	bool AddPass_RenderThread(class FRDGBuilder& GraphBuilder, const class FDisplayClusterViewport_Context& InViewportContext,
+	bool AddPass_RenderThread(FRDGBuilder& GraphBuilder, const FDisplayClusterViewport_Context& InViewportContext,
 		FRHITexture2D* InputTextureRHI, const FIntRect& InputRect, FRHITexture2D* OutputTextureRHI, const FIntRect& OutputRect) const;
+
+	/* This is a copy of FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_RenderThread() */
+	FScreenPassTexture PostProcessPassAfterTonemap_RenderThread(FRDGBuilder& GraphBuilder, const FDisplayClusterViewport_Context& InViewportContext, const FSceneView& View, const FPostProcessMaterialInputs& InOutInputs);
 
 	/** Is OCIO enabled for render thread */
 	bool IsEnabled_RenderThread() const;
@@ -66,6 +76,10 @@ public:
 	{
 		return ConversionSettings;
 	}
+
+private:
+	/* returns the DisplayGamma of OCIO for the viewport context.*/
+	float GetDisplayGamma(const FDisplayClusterViewport_Context& InViewportContext) const;
 
 private:
 	/** Cached pass resources required to apply conversion for render thread. */
