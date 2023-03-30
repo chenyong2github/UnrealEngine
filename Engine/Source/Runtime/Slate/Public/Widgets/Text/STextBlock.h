@@ -255,10 +255,7 @@ public:
 #endif
 	// End of SWidget interface
 
-private:
-	/** Get the computed text style to use with the text marshaller */
-	FTextBlockStyle GetComputedTextStyle() const;
-
+public:
 	/** Gets the current foreground color */
 	FSlateColor GetColorAndOpacity() const;
 
@@ -283,11 +280,18 @@ private:
 	/** Gets the current highlight shape */
 	const FSlateBrush* GetHighlightShape() const;
 
-	/** Call to invalidate this text block */
-	void InvalidateText(EInvalidateWidgetReason InvalidateReason);
+	/** Gets the current margin */
+	FMargin GetMargin() const;
+
+	/** Gets the current min desired width */
+	float GetMinDesiredWidth() const;
 
 private:
+	/** Get the computed text style to use with the text marshaller */
+	FTextBlockStyle GetComputedTextStyle() const;
 
+	/** Call to invalidate this text block */
+	void InvalidateText(EInvalidateWidgetReason InvalidateReason);
 
 private:
 	/** The text displayed in this text block */

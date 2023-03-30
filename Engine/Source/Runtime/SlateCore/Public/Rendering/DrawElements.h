@@ -460,6 +460,7 @@ struct FSlateCachedElementData
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
 
+	TArrayView<FSlateCachedElementList* const> GetListsWithNewData() const { return MakeArrayView(ListsWithNewData.GetData(), ListsWithNewData.Num()); }
 private:
 	/** Removes a cache node completely from the cache */
 	void RemoveList(FSlateCachedElementsHandle& CacheHandle);
@@ -669,6 +670,17 @@ public:
 	SLATECORE_API void SetIsInGameLayer(bool bInGameLayer);
 	SLATECORE_API bool GetIsInGameLayer();
 
+	TArrayView<FSlateCachedElementList* const> GetCurrentCachedElementWithNewData() const
+	{ 
+		if (GetCurrentCachedElementData() != nullptr)
+		{
+			return CachedElementDataList[CachedElementDataListStack.Top()]->GetListsWithNewData();
+		}
+		else
+		{
+			return TArrayView<FSlateCachedElementList* const>();
+		}
+	}
 private:
 	FSlateDrawElement& AddCachedElement();
 

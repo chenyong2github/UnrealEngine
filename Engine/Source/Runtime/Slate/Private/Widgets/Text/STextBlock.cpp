@@ -168,6 +168,16 @@ ETextTransformPolicy STextBlock::GetTransformPolicyImpl() const
 	return bIsAttributeTransformPolicySet ? TransformPolicy.Get() : TextStyle.TransformPolicy;
 }
 
+FMargin STextBlock::GetMargin() const
+{
+	return Margin.Get();
+}
+
+float STextBlock::GetMinDesiredWidth() const
+{
+	return MinDesiredWidth.Get();
+}
+
 void STextBlock::InvalidateText(EInvalidateWidgetReason InvalidateReason)
 {
 	if (bSimpleTextMode && EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::Layout))

@@ -208,7 +208,7 @@ public:
 #if WITH_ACCESSIBILITY
 	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
 #endif
-private:
+protected:
 	virtual FVector2D ComputeDesiredSize(float) const override;
 	//~ SWidget
 
