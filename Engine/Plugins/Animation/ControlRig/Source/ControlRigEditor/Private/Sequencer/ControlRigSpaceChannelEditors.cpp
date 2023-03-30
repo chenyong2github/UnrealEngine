@@ -351,18 +351,18 @@ FKeyHandle FControlRigSpaceChannelHelpers::SequencerKeyControlRigSpaceChannel(UC
 			}
 		}
 		SectionToKey->Modify();
-		//if we have no keys need to set key for current space at start frame, unless setting key at start time, where then don't do previous compensation
-		if (Channel->GetNumKeys() == 0 && Sequencer->GetFocusedMovieSceneSequence() && Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene())
+		const FFrameNumber StartFrame = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue();
+		if (StartFrame == Time)
 		{
-			FFrameNumber StartFrame = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue();
+			bSetPreviousKey = false;
+		}
+		//if we have no keys need to set key for current space at start frame, unless setting key at start time, where then don't do previous compensation
+		if (Channel->GetNumKeys() == 0)
+		{
 			if (StartFrame != Time)
 			{
 				FMovieSceneControlRigSpaceBaseKey Original = ExistingValue;
 				ChannelInterface.AddKey(StartFrame, Forward<FMovieSceneControlRigSpaceBaseKey>(Original));
-			}
-			else
-			{
-				bSetPreviousKey = false;
 			}
 		}
 
@@ -445,9 +445,9 @@ FKeyHandle FControlRigSpaceChannelHelpers::SequencerKeyControlRigSpaceChannel(UC
 		// set previous key if we're going to switch space
 		if (bSetPreviousKey)
 		{
-			FFrameTime GlobalTime(Time -1);
+			FFrameTime GlobalTime(Time - 1);
 			GlobalTime = GlobalTime * RootToLocalTransform.InverseLinearOnly();
-			
+
 			FMovieSceneContext SceneContext = FMovieSceneContext(FMovieSceneEvaluationRange(GlobalTime, TickResolution), Sequencer->GetPlaybackStatus()).SetHasJumped(true);
 			Sequencer->GetEvaluationTemplate().EvaluateSynchronousBlocking(SceneContext, *Sequencer);
 
