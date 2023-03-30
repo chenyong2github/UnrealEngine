@@ -2,8 +2,10 @@
 
 #include "../../Common.ush"
 #include "../../MonteCarlo.ush"
+#include "../../SHCommon.ush"
 #include "../LumenCardCommon.ush"
 #include "../LumenTracingCommon.ush"
+#include "../LumenSoftwareRayTracing.ush"
 #include "../LumenCardTile.ush"
 #include "LumenRadiosity.ush"
 #include "../../RayTracing/RayGenUtils.ush"
@@ -12,7 +14,7 @@
 	#define THREADGROUP_SIZE 1
 #endif
 
-RWBuffer<uint> RWIndirectArgs;
+RWBuffer<uint> RWIndirectArgs;	
 uint HardwareRayTracingThreadGroupSize;
 
 void SetIndirectArgs(uint ArgIndex, uint NumThreads, uint ThreadGroupSize)

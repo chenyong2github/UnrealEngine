@@ -3,6 +3,7 @@
 #include "../../Common.ush"
 #include "../../MonteCarlo.ush"
 #include "../../ComputeShaderUtils.ush"
+#include "../../SHCommon.ush"
 #include "../LumenCardCommon.ush"
 #include "../LumenTracingCommon.ush"
 #include "../LumenCardTile.ush"

@@ -1,15 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenTranslucencyLighting.usf
-=============================================================================*/
-
 #include "../Common.ush"
 #include "../SHCommon.ush"
 #include "../MonteCarlo.ush"
 #include "../OctahedralCommon.ush"
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"
+#include "LumenSoftwareRayTracing.ush"
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenRadianceCacheMarkCommon.ush"
 #include "LumenTranslucencyVolumeLightingShared.ush"

@@ -6,6 +6,7 @@
 #include "../ShaderPrint.ush"
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"
+#include "LumenSoftwareRayTracing.ush"
 #define RADIANCE_CACHE_DEPTH_TEST_SPHERE_PARALLAX 1
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenVisualizeTraces.ush"

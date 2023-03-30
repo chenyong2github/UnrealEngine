@@ -6,6 +6,7 @@
 #include "../RayTracing/RayTracingRayCone.ush"
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"
+#include "LumenSoftwareRayTracing.ush"
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenReflectionCommon.ush"
 #include "../SceneTextureParameters.ush"
@@ -18,7 +19,7 @@
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1
-#endif
+#endif	
 
 #define DEBUG_VISUALIZE_TRACE_TYPES 0
 

@@ -15,6 +15,7 @@
 #define DISTANCE_FIELD_IN_VIEW_UB 1
 #define DF_SHADOW_QUALITY 2
 #include "LumenTracingCommon.ush"
+#include "LumenSoftwareRayTracing.ush"
 #include "../DistanceFieldShadowingShared.ush"
 #include "LumenSceneDirectLightingPerLightShadowCommon.ush"
 #include "../LightDataUniforms.ush"
