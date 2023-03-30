@@ -52,6 +52,7 @@ struct FOptionalVulkanDeviceExtensions
 			uint64 HasDeferredHostOperations : 1;
 			uint64 HasEXTCalibratedTimestamps : 1;
 			uint64 HasEXTDescriptorBuffer : 1;
+			uint64 HasEXTDeviceFault : 1;
 
 			// Vendor specific
 			uint64 HasAMDBufferMarker : 1;

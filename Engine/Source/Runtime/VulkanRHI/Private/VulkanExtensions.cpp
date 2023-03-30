@@ -935,6 +935,39 @@ private:
 	VkDeviceDiagnosticsConfigCreateInfoNV DeviceDiagnosticsConfigCreateInfoNV;
 };
 
+// ***** VK_EXT_device_fault
+class FVulkanEXTDeviceFaultExtension : public FVulkanDeviceExtension
+{
+public:
+
+	FVulkanEXTDeviceFaultExtension(FVulkanDevice* InDevice)
+		: FVulkanDeviceExtension(InDevice, VK_EXT_DEVICE_FAULT_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED)
+	{
+	}
+
+	virtual void PrePhysicalDeviceFeatures(VkPhysicalDeviceFeatures2KHR& PhysicalDeviceFeatures2) override final
+	{
+		ZeroVulkanStruct(DeviceFaultFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_EXT);
+		AddToPNext(PhysicalDeviceFeatures2, DeviceFaultFeatures);
+	}
+
+	virtual void PostPhysicalDeviceFeatures(FOptionalVulkanDeviceExtensions& ExtensionFlags) override final
+	{
+		bRequirementsPassed = (DeviceFaultFeatures.deviceFault == VK_TRUE);
+		ExtensionFlags.HasEXTDeviceFault = bRequirementsPassed;
+	}
+
+	virtual void PreCreateDevice(VkDeviceCreateInfo& DeviceCreateInfo) override final
+	{
+		if (bRequirementsPassed)
+		{
+			AddToPNext(DeviceCreateInfo, DeviceFaultFeatures);
+		}
+	}
+
+private:
+	VkPhysicalDeviceFaultFeaturesEXT DeviceFaultFeatures;
+};
 
 // ***** VK_EXT_host_query_reset
 class FVulkanEXTHostQueryResetExtension : public FVulkanDeviceExtension
@@ -1184,6 +1217,7 @@ FVulkanDeviceExtensionArray FVulkanDeviceExtension::GetUESupportedDeviceExtensio
 	ADD_CUSTOM_EXTENSION(FVulkanEXTSubgroupSizeControlExtension);
 	ADD_CUSTOM_EXTENSION(FVulkanEXTCalibratedTimestampsExtension);
 	ADD_CUSTOM_EXTENSION(FVulkanEXTDescriptorBuffer);
+	ADD_CUSTOM_EXTENSION(FVulkanEXTDeviceFaultExtension);
 
 	// Needed for Raytracing
 	ADD_CUSTOM_EXTENSION(FVulkanKHRBufferDeviceAddressExtension);

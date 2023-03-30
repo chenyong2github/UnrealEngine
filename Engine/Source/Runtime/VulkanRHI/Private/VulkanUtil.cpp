@@ -921,6 +921,76 @@ namespace VulkanRHI
 		return Buffer;
 	}
 
+	void CheckDeviceFault(FVulkanDevice* InDevice)
+	{
+		if (InDevice->GetOptionalExtensions().HasEXTDeviceFault)
+		{
+			const VkDevice DeviceHandle = InDevice->GetInstanceHandle();
+			VkResult Result;
+
+			VkDeviceFaultCountsEXT FaultCounts;
+			ZeroVulkanStruct(FaultCounts, VK_STRUCTURE_TYPE_DEVICE_FAULT_COUNTS_EXT);
+			Result = vkGetDeviceFaultInfoEXT(DeviceHandle, &FaultCounts, nullptr);
+			if (Result == VK_SUCCESS)
+			{
+				VkDeviceFaultInfoEXT FaultInfo;
+				ZeroVulkanStruct(FaultInfo, VK_STRUCTURE_TYPE_DEVICE_FAULT_INFO_EXT);
+
+				TArray<VkDeviceFaultAddressInfoEXT> AddressInfos;
+				AddressInfos.SetNumZeroed(FaultCounts.addressInfoCount);
+				FaultInfo.pAddressInfos = AddressInfos.GetData();
+
+				TArray<VkDeviceFaultVendorInfoEXT> VendorInfos;
+				VendorInfos.SetNumZeroed(FaultCounts.vendorInfoCount);
+				FaultInfo.pVendorInfos = VendorInfos.GetData();
+
+				TArray<uint8> VendorBinaryData;
+				VendorBinaryData.SetNumZeroed(FaultCounts.vendorBinarySize);
+				FaultInfo.pVendorBinaryData = VendorBinaryData.GetData();
+
+				Result = vkGetDeviceFaultInfoEXT(DeviceHandle, &FaultCounts, &FaultInfo);
+				if (Result == VK_SUCCESS)
+				{
+					// :todo-jn: match these up to resources
+
+					auto ReportAddrToStr = [&AddressInfos]() {
+						FString AddrStr;
+						for (const VkDeviceFaultAddressInfoEXT& AddrInfo : AddressInfos)
+						{
+							const uint64_t LowerAddress = (AddrInfo.reportedAddress & ~(AddrInfo.addressPrecision - 1));
+							const uint64_t UpperAddress = (AddrInfo.reportedAddress | (AddrInfo.addressPrecision - 1));
+
+							AddrStr += FString::Printf(TEXT("\n    - %s : 0x%016llX (range:0x%016llX-0x%016llX)"), 
+								VK_TYPE_TO_STRING(VkDeviceFaultAddressTypeEXT, AddrInfo.addressType),
+								AddrInfo.reportedAddress, LowerAddress, UpperAddress);
+						}
+						return AddrStr;
+					};
+
+					auto ReportVendorToStr = [&VendorInfos]() {
+						FString VendorStr;
+						for (const VkDeviceFaultVendorInfoEXT& VendorInfo : VendorInfos)
+						{
+							VendorStr += FString::Printf(TEXT("\n    - %s (code:0x%016llX data:0x%016llX)"),
+								StringCast<TCHAR>((UTF8CHAR*)VendorInfo.description).Get(), VendorInfo.vendorFaultCode, VendorInfo.vendorFaultData);
+						}
+						return VendorStr;
+					};
+
+					UE_LOG(LogVulkanRHI, Error, 
+						TEXT("\nDEVICE FAULT REPORT:\n")
+						TEXT("* Description: %s\n")
+						TEXT("* Address Info: %s\n")
+						TEXT("* Vendor Info: %s\n")
+						TEXT("* Vendor Binary Size: %llu\n"),
+
+						StringCast<TCHAR>((UTF8CHAR*)FaultInfo.description).Get(), *ReportAddrToStr(), *ReportVendorToStr(), FaultCounts.vendorBinarySize
+					);
+				}
+			}
+		}
+	}
+
 	/**
 	 * Checks that the given result isn't a failure.  If it is, the application exits with an appropriate error message.
 	 * @param	Result - The result code to check
@@ -981,13 +1051,19 @@ namespace VulkanRHI
 		UE_LOG(LogVulkanRHI, Error, TEXT("%s failed, VkResult=%d\n at %s:%u \n with error %s"),
 			ANSI_TO_TCHAR(VkFunction), (int32)Result, ANSI_TO_TCHAR(Filename), Line, *ErrorString);
 
-#if VULKAN_SUPPORTS_GPU_CRASH_DUMPS
-		if (GIsGPUCrashed && GGPUCrashDebuggingEnabled)
+		if (GIsGPUCrashed)
 		{
 			FVulkanDevice* Device = GVulkanRHI->GetDevice();
-			Device->GetImmediateContext().GetGPUProfiler().DumpCrashMarkers(Device->GetCrashMarkerMappedPointer());
-		}
+
+#if VULKAN_SUPPORTS_GPU_CRASH_DUMPS
+			if (GGPUCrashDebuggingEnabled)
+			{
+				Device->GetImmediateContext().GetGPUProfiler().DumpCrashMarkers(Device->GetCrashMarkerMappedPointer());
+			}
 #endif
+
+			CheckDeviceFault(Device);
+		}
 
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 		if (bDumpMemory)

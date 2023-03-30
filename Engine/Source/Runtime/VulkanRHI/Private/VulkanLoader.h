@@ -213,7 +213,8 @@
 	EnumMacro(PFN_vkGetDescriptorSetLayoutBindingOffsetEXT, vkGetDescriptorSetLayoutBindingOffsetEXT) \
 	EnumMacro(PFN_vkCmdBindDescriptorBuffersEXT, vkCmdBindDescriptorBuffersEXT) \
 	EnumMacro(PFN_vkCmdSetDescriptorBufferOffsetsEXT, vkCmdSetDescriptorBufferOffsetsEXT) \
-	EnumMacro(PFN_vkGetDescriptorEXT, vkGetDescriptorEXT)
+	EnumMacro(PFN_vkGetDescriptorEXT, vkGetDescriptorEXT) \
+	EnumMacro(PFN_vkGetDeviceFaultInfoEXT, vkGetDeviceFaultInfoEXT)
 
 
 // List of all Vulkan entry points
