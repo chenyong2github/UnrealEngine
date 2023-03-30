@@ -82,6 +82,12 @@ namespace Commands
 			const FRemoteControlProtocolBinding* FoundElement = RCProperty->ProtocolBindings.FindByHash(GetTypeHash(InArgs.BindingId), InArgs.BindingId);
 			if (FoundElement)
 			{
+				// Unbind the protocol from the property explicitly while removing.
+				if (const TSharedPtr<IRemoteControlProtocol> Protocol = IRemoteControlProtocolModule::Get().GetProtocolByName(FoundElement->GetProtocolName()))
+				{
+					Protocol->Unbind(FoundElement->GetRemoteControlProtocolEntityPtr());
+				}
+
 				RCProperty->ProtocolBindings.RemoveByHash(GetTypeHash(InArgs.BindingId), InArgs.BindingId);
 
 				const FName RemovedProtocolName = FoundElement->GetProtocolName();
