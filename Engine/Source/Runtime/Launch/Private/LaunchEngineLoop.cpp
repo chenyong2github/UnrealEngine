@@ -3153,7 +3153,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bool bSlateApplication = !IsRunningDedicatedServer() && (bIsRegularClient || bHasEditorToken);
 	if (bSlateApplication)
 	{
-		if (FPlatformProcess::SupportsMultithreading())
+		if (FPlatformProcess::SupportsMultithreading() && !FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen")))
 		{
 			SCOPED_BOOT_TIMING("FPlatformSplash::Show()");
 			FPlatformSplash::Show();

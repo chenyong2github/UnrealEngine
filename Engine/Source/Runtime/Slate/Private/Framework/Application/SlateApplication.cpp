@@ -26,6 +26,7 @@
 #include "Input/Events.h"
 #include "Input/HittestGrid.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Null/NullPlatformApplicationMisc.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 
 #if WITH_ACCESSIBILITY
@@ -1816,15 +1817,17 @@ TSharedRef<SWindow> FSlateApplication::AddWindow( TSharedRef<SWindow> InSlateWin
 
 TSharedRef< FGenericWindow > FSlateApplication::MakeWindow( TSharedRef<SWindow> InSlateWindow, const bool bShowImmediately )
 {
+	// Windows and Linux support a NullPlatform which is handled in the Windows/LinuxApplication. Other platforms do not.
+#if !(PLATFORM_WINDOWS || PLATFORM_LINUX)
 	// When rendering off-screen don't render to screen, create a dummy generic window
 	if (bRenderOffScreen)
 	{
 		TSharedRef< FGenericWindow > NewWindow = MakeShareable(new FGenericWindow());
 		InSlateWindow->SetNativeWindow(NewWindow);
-
 		FSlateApplicationBase::Get().GetRenderer()->CreateViewport(InSlateWindow);
 		return NewWindow;
 	}
+#endif
 
 	TSharedPtr<FGenericWindow> NativeParent = nullptr;
 	TSharedPtr<SWindow> ParentWindow = InSlateWindow->GetParentWindow();

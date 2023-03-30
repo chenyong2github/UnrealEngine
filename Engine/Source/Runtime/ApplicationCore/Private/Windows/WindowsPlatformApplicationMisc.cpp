@@ -16,6 +16,7 @@
 #include "Windows/WindowsPlatformOutputDevices.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "Templates/RefCounting.h"
+#include "Null/NullPlatformApplicationMisc.h"
 
 // Resource includes.
 #include "Runtime/Launch/Resources/Windows/Resource.h"
@@ -76,6 +77,11 @@ class FFeedbackContext* FWindowsPlatformApplicationMisc::GetFeedbackContext()
 
 GenericApplication* FWindowsPlatformApplicationMisc::CreateApplication()
 {
+	if (FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen")))
+	{
+		return FNullPlatformApplicationMisc::CreateApplication();
+	}
+
 	HICON AppIconHandle = LoadIcon( hInstance, MAKEINTRESOURCE( GetAppIcon() ) );
 	if( AppIconHandle == NULL )
 	{

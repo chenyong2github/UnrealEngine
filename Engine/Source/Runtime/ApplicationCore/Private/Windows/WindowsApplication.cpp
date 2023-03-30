@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Windows/WindowsApplication.h"
-
+#include "Null/NullApplication.h"
 #include "Containers/StringConv.h"
 #include "CoreGlobals.h"
 #include "Internationalization/Text.h"
@@ -18,6 +18,7 @@
 #include "HAL/ThreadHeartBeat.h"
 #include "Templates/UniquePtr.h"
 #include "Windows/WindowsPlatformApplicationMisc.h"
+#include "Null/NullPlatformApplicationMisc.h"
 #include "Stats/Stats.h"
 #include "HAL/IConsoleManager.h"
 
@@ -844,30 +845,37 @@ static void GetMonitorsInfo(TArray<FMonitorInfo>& OutMonitorInfo)
 
 void FDisplayMetrics::RebuildDisplayMetrics(struct FDisplayMetrics& OutDisplayMetrics)
 {
-	// Total screen size of the primary monitor
-	OutDisplayMetrics.PrimaryDisplayWidth = ::GetSystemMetrics( SM_CXSCREEN );
-	OutDisplayMetrics.PrimaryDisplayHeight = ::GetSystemMetrics( SM_CYSCREEN );
-
-	// Get the screen rect of the primary monitor, excluding taskbar etc.
-	RECT WorkAreaRect;
-	if(!SystemParametersInfo(SPI_GETWORKAREA, 0, &WorkAreaRect, 0))
+	if (FNullPlatformApplicationMisc::IsUsingNullApplication())
 	{
-		WorkAreaRect.top = WorkAreaRect.bottom = WorkAreaRect.left = WorkAreaRect.right = 0;
+		FNullPlatformDisplayMetrics::RebuildDisplayMetrics(OutDisplayMetrics);
 	}
+	else
+	{
+		// Total screen size of the primary monitor
+		OutDisplayMetrics.PrimaryDisplayWidth = ::GetSystemMetrics( SM_CXSCREEN );
+		OutDisplayMetrics.PrimaryDisplayHeight = ::GetSystemMetrics( SM_CYSCREEN );
 
-	OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Left = WorkAreaRect.left;
-	OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Top = WorkAreaRect.top;
-	OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Right = WorkAreaRect.right;
-	OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Bottom = WorkAreaRect.bottom;
-	
-	// Virtual desktop area
-	OutDisplayMetrics.VirtualDisplayRect.Left = ::GetSystemMetrics( SM_XVIRTUALSCREEN );
-	OutDisplayMetrics.VirtualDisplayRect.Top = ::GetSystemMetrics( SM_YVIRTUALSCREEN );
-	OutDisplayMetrics.VirtualDisplayRect.Right = OutDisplayMetrics.VirtualDisplayRect.Left + ::GetSystemMetrics( SM_CXVIRTUALSCREEN );
-	OutDisplayMetrics.VirtualDisplayRect.Bottom = OutDisplayMetrics.VirtualDisplayRect.Top + ::GetSystemMetrics( SM_CYVIRTUALSCREEN );
+		// Get the screen rect of the primary monitor, excluding taskbar etc.
+		RECT WorkAreaRect;
+		if(!SystemParametersInfo(SPI_GETWORKAREA, 0, &WorkAreaRect, 0))
+		{
+			WorkAreaRect.top = WorkAreaRect.bottom = WorkAreaRect.left = WorkAreaRect.right = 0;
+		}
 
-	// Get connected monitor information
-	GetMonitorsInfo(OutDisplayMetrics.MonitorInfo);
+		OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Left = WorkAreaRect.left;
+		OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Top = WorkAreaRect.top;
+		OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Right = WorkAreaRect.right;
+		OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Bottom = WorkAreaRect.bottom;
+		
+		// Virtual desktop area
+		OutDisplayMetrics.VirtualDisplayRect.Left = ::GetSystemMetrics( SM_XVIRTUALSCREEN );
+		OutDisplayMetrics.VirtualDisplayRect.Top = ::GetSystemMetrics( SM_YVIRTUALSCREEN );
+		OutDisplayMetrics.VirtualDisplayRect.Right = OutDisplayMetrics.VirtualDisplayRect.Left + ::GetSystemMetrics( SM_CXVIRTUALSCREEN );
+		OutDisplayMetrics.VirtualDisplayRect.Bottom = OutDisplayMetrics.VirtualDisplayRect.Top + ::GetSystemMetrics( SM_CYVIRTUALSCREEN );
+
+		// Get connected monitor information
+		GetMonitorsInfo(OutDisplayMetrics.MonitorInfo);
+	}
 
 	// Apply the debug safe zones
 	OutDisplayMetrics.ApplyDefaultSafeZones();

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Linux/LinuxPlatformApplicationMisc.h"
+#include "Null/NullPlatformApplicationMisc.h"
 #include "Misc/CommandLine.h"
 #include "Misc/App.h"
 #include "HAL/ThreadHeartBeat.h"
@@ -413,6 +414,11 @@ class FFeedbackContext* FLinuxPlatformApplicationMisc::GetFeedbackContext()
 
 GenericApplication* FLinuxPlatformApplicationMisc::CreateApplication()
 {
+	if (FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen")))
+	{
+		return FNullPlatformApplicationMisc::CreateApplication();
+	}
+
 	return FLinuxApplication::CreateLinuxApplication();
 }
 
