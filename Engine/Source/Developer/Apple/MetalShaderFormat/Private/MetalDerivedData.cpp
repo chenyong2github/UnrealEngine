@@ -210,13 +210,7 @@ bool DoCompileMetalShader(
 	const FString& Standard,
 	const FString& MinOSVersion)
 {
-	int32 IABTier = 0;
-
-	FString const* IABVersion = Input.Environment.GetDefinitions().Find(TEXT("METAL_INDIRECT_ARGUMENT_BUFFERS"));
-	if (VersionEnum >= 4 && IABVersion && IABVersion->IsNumeric())
-	{
-		LexFromString(IABTier, *(*IABVersion));
-	}
+	int32 IABTier = VersionEnum >= 4 ? Input.Environment.GetCompileArgument(TEXT("METAL_INDIRECT_ARGUMENT_BUFFERS"), 0) : 0;
 
 	Output.bSucceeded = false;
 
@@ -226,34 +220,11 @@ bool DoCompileMetalShader(
 	bool const bZeroInitialise = Input.Environment.CompilerFlags.Contains(CFLAG_ZeroInitialise);
 	bool const bBoundsChecks = Input.Environment.CompilerFlags.Contains(CFLAG_BoundsChecking);
 
-    bool bSupportAppleA8 = false;
-    FString const* SupportAppleA8 = Input.Environment.GetDefinitions().Find(TEXT("SUPPORT_APPLE_A8"));
-    if (SupportAppleA8)
-    {
-        LexFromString(bSupportAppleA8, *(*SupportAppleA8));
-    }
-    
-	bool bSwizzleSample = false;
-	FString const* Swizzle = Input.Environment.GetDefinitions().Find(TEXT("METAL_SWIZZLE_SAMPLES"));
-	if (Swizzle)
-	{
-		LexFromString(bSwizzleSample, *(*Swizzle));
-	}
+	bool bSupportAppleA8 = Input.Environment.GetCompileArgument(TEXT("SUPPORT_APPLE_A8"), false);
+	bool bAllowFastIntrinsics = Input.Environment.GetCompileArgument(TEXT("METAL_USE_FAST_INTRINSICS"), false);
 
-	bool bAllowFastIntriniscs = false;
-	FString const* FastIntrinsics = Input.Environment.GetDefinitions().Find(TEXT("METAL_USE_FAST_INTRINSICS"));
-	if (FastIntrinsics)
-	{
-		LexFromString(bAllowFastIntriniscs, *(*FastIntrinsics));
-	}
-
-	bool bForceInvariance = false;
-	FString const* UsingWPO = Input.Environment.GetDefinitions().Find(TEXT("USES_WORLD_POSITION_OFFSET"));
-	if (UsingWPO && FString("1") == *UsingWPO)
-	{
-		// WPO requires that we make all multiply/sincos instructions invariant :(
-		bForceInvariance = true;
-	}
+	// WPO requires that we make all multiply/sincos instructions invariant :(
+	bool bForceInvariance = Input.Environment.GetCompileArgument(TEXT("USES_WORLD_POSITION_OFFSET"), false);
 	
 	FMetalShaderOutputMetaData OutputData;
 	
@@ -1408,7 +1379,7 @@ bool DoCompileMetalShader(
 	if (Result != 0)
 	{
 		Output.Target = Input.Target;
-		BuildMetalShaderOutput(Output, Input, GUIDHash, CCFlags, MetalSource.c_str(), MetalSource.length(), CRCLen, CRC, VersionEnum, *Standard, *MinOSVersion, TypeMode, Output.Errors, OutputData.TypedBuffers, OutputData.InvariantBuffers, OutputData.TypedUAVs, OutputData.ConstantBuffers, OutputData.TypedBufferFormats, bAllowFastIntriniscs);
+		BuildMetalShaderOutput(Output, Input, GUIDHash, CCFlags, MetalSource.c_str(), MetalSource.length(), CRCLen, CRC, VersionEnum, *Standard, *MinOSVersion, TypeMode, Output.Errors, OutputData.TypedBuffers, OutputData.InvariantBuffers, OutputData.TypedUAVs, OutputData.ConstantBuffers, OutputData.TypedBufferFormats, bAllowFastIntrinsics);
 		return Output.bSucceeded;
 	}
 	else

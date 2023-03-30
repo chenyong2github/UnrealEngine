@@ -1029,12 +1029,10 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 			uint32 RayTracingPayloadSize = 0;
 			if (bIsRayTracingShader)
 			{
-				const FString* RTPayloadTypePtr = Input.Environment.GetDefinitions().Find(TEXT("RT_PAYLOAD_TYPE"));
-				const FString* RTPayloadSizePtr = Input.Environment.GetDefinitions().Find(TEXT("RT_PAYLOAD_MAX_SIZE"));
-				checkf(RTPayloadTypePtr != nullptr, TEXT("Ray tracing shaders must provide a payload type as this information is required for offline RTPSO compilation. Check that FShaderType::ModifyCompilationEnvironment correctly set this value."));
-				checkf(RTPayloadSizePtr != nullptr, TEXT("Ray tracing shaders must provide a payload size as this information is required for offline RTPSO compilation. Check that FShaderType::ModifyCompilationEnvironment correctly set this value."));
-				RayTracingPayloadType = FCString::Atoi(**RTPayloadTypePtr);
-				RayTracingPayloadSize = FCString::Atoi(**RTPayloadSizePtr);
+				bool bArgFound = Input.Environment.GetCompileArgument(TEXT("RT_PAYLOAD_TYPE"), RayTracingPayloadType);
+				checkf(bArgFound, TEXT("Ray tracing shaders must provide a payload type as this information is required for offline RTPSO compilation. Check that FShaderType::ModifyCompilationEnvironment correctly set this value."));
+				bArgFound = Input.Environment.GetCompileArgument(TEXT("RT_PAYLOAD_MAX_SIZE"), RayTracingPayloadSize);
+				checkf(bArgFound, TEXT("Ray tracing shaders must provide a payload size as this information is required for offline RTPSO compilation. Check that FShaderType::ModifyCompilationEnvironment correctly set this value."));
 			}
 			auto PostSRTWriterCallback = [&](FMemoryWriter& Ar)
 			{

@@ -875,17 +875,8 @@ static void ConvertToNEWHeader(FOLDVulkanCodeHeader& OLDHeader,
 	OutHeader.DebugName = OLDHeader.ShaderName;
 #endif
 	OutHeader.InOutMask = OLDHeader.SerializedBindings.InOutMask.Bitmask;
-
-	OutHeader.RayTracingPayloadType = 0;
-	if (const FString* RTPayloadTypePtr = ShaderInput.Environment.GetDefinitions().Find(TEXT("RT_PAYLOAD_TYPE")))
-	{
-		OutHeader.RayTracingPayloadType = FCString::Atoi(**RTPayloadTypePtr);
-	}
-	OutHeader.RayTracingPayloadSize = 0;
-	if (const FString* RTPayloadSizePtr = ShaderInput.Environment.GetDefinitions().Find(TEXT("RT_PAYLOAD_MAX_SIZE")))
-	{
-		OutHeader.RayTracingPayloadSize = FCString::Atoi(**RTPayloadSizePtr);
-	}
+	OutHeader.RayTracingPayloadType = ShaderInput.Environment.GetCompileArgument(TEXT("RT_PAYLOAD_TYPE"), 0u);
+	OutHeader.RayTracingPayloadSize = ShaderInput.Environment.GetCompileArgument(TEXT("RT_PAYLOAD_MAX_SIZE"), 0u);
 }
 
 
@@ -2556,8 +2547,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	// By default we strip reflecion information for Android platform to avoid issues with older drivers
 	if (IsAndroidShaderFormat(Input.ShaderFormat))
 	{
-		const FString* StripReflect_Android = Input.Environment.GetDefinitions().Find(TEXT("STRIP_REFLECT_ANDROID"));
-		bStripReflect = !(StripReflect_Android && *StripReflect_Android == TEXT("0"));
+		bStripReflect = Input.Environment.GetCompileArgument(TEXT("STRIP_REFLECT_ANDROID"), true);
 	}
 
 	const CrossCompiler::FShaderConductorOptions::ETargetEnvironment MinTargetEnvironment = GetMinimumTargetEnvironment(Version);

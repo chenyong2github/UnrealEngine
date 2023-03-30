@@ -2671,35 +2671,23 @@ enum EDecalBlendFlags
 	Modulate		= 1 << 6,
 };
 
-bool EnvironmentHasMatchingKeyValue(const TMap<FString, FString>& Definitions, const FString& Key, const FString& Value)
-{
-	const FString* MatchedKey = Definitions.Find(Key);
-	if (MatchedKey)
-	{
-		return *MatchedKey == Value;
-	}
-	return false;
-}
-
 uint32_t GetDecalBlendFlags(const FShaderCompilerInput& Input)
 {
 	uint32_t Flags = 0;
 
-	const TMap<FString, FString>& Definitions = Input.Environment.GetDefinitions();
-	
-	if (EnvironmentHasMatchingKeyValue(Definitions, TEXT("DECAL_OUT_MRT0"), TEXT("1")))
+	if (Input.Environment.GetCompileArgument(TEXT("DECAL_OUT_MRT0"), false))
 	{
 		Flags |= EDecalBlendFlags::DecalOut_MRT0;
 	}
-	if (EnvironmentHasMatchingKeyValue(Definitions, TEXT("DECAL_OUT_MRT1"), TEXT("1")))
+	if (Input.Environment.GetCompileArgument(TEXT("DECAL_OUT_MRT1"), false))
 	{
 		Flags |= EDecalBlendFlags::DecalOut_MRT1;
 	}
-	if (EnvironmentHasMatchingKeyValue(Definitions, TEXT("DECAL_OUT_MRT2"), TEXT("1")))
+	if (Input.Environment.GetCompileArgument(TEXT("DECAL_OUT_MRT2"), false))
 	{
 		Flags |= EDecalBlendFlags::DecalOut_MRT2;
 	}
-	if (EnvironmentHasMatchingKeyValue(Definitions, TEXT("DECAL_OUT_MRT3"), TEXT("1")))
+	if (Input.Environment.GetCompileArgument(TEXT("DECAL_OUT_MRT3"), false))
 	{
 		Flags |= EDecalBlendFlags::DecalOut_MRT3;
 	}
@@ -2709,15 +2697,15 @@ uint32_t GetDecalBlendFlags(const FShaderCompilerInput& Input)
 		return 0;
 	}
 
-	if (EnvironmentHasMatchingKeyValue(Definitions, TEXT("MATERIALBLENDING_ALPHACOMPOSITE"), TEXT("1")))
+	if (Input.Environment.GetCompileArgument(TEXT("MATERIALBLENDING_ALPHACOMPOSITE"), false))
 	{
 		Flags |= EDecalBlendFlags::AlphaComposite;
 	}
-	else if (EnvironmentHasMatchingKeyValue(Definitions, TEXT("MATERIALBLENDING_MODULATE"), TEXT("1")))
+	else if (Input.Environment.GetCompileArgument(TEXT("MATERIALBLENDING_MODULATE"), false))
 	{
 		Flags |= EDecalBlendFlags::Modulate;
 	}
-	else if (EnvironmentHasMatchingKeyValue(Definitions, TEXT("MATERIALBLENDING_TRANSLUCENT"), TEXT("1")))
+	else if (Input.Environment.GetCompileArgument(TEXT("MATERIALBLENDING_TRANSLUCENT"), false))
 	{
 		Flags |= EDecalBlendFlags::Translucent;
 	}
@@ -3153,8 +3141,8 @@ static bool CompileToGlslWithShaderConductor(
 			//TargetDesc.CompileFlags.SetDefine(TEXT("force_temporary"), 1);
 
 			// If we have mobile multiview define set then set the view count and enable extension
-			const FString* MultiViewDefine = Input.Environment.GetDefinitions().Find(TEXT("MOBILE_MULTI_VIEW"));
-			if (Frequency == SF_Vertex && MultiViewDefine && *MultiViewDefine == "1")
+			const bool bMultiView = Input.Environment.GetCompileArgument(TEXT("MOBILE_MULTI_VIEW"), false);
+			if (Frequency == SF_Vertex && bMultiView)
 			{
 				TargetDesc.CompileFlags.SetDefine(TEXT("ovr_multiview_view_count"), 2);
 			}
@@ -3229,8 +3217,8 @@ static bool CompileToGlslWithShaderConductor(
 
 		// Handle PLS and FBF in OpenGL
 
-		if (EnvironmentHasMatchingKeyValue(Input.Environment.GetDefinitions(), TEXT("SHADING_PATH_MOBILE"), TEXT("1")) &&
-			EnvironmentHasMatchingKeyValue(Input.Environment.GetDefinitions(), TEXT("MOBILE_DEFERRED_SHADING"), TEXT("1")) &&
+		if (Input.Environment.GetCompileArgument(TEXT("SHADING_PATH_MOBILE"), false) &&
+			Input.Environment.GetCompileArgument(TEXT("MOBILE_DEFERRED_SHADING"), false) &&
 			Version == GLSL_ES3_1_ANDROID)
 		{
 			bCompilationFailed = !GenerateDeferredMobileShaders(GlslSource, GLSLCompileParams, SourceData, ReflectData, true, false, bEmulatedUBs, BlendFlags);
