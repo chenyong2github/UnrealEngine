@@ -955,6 +955,45 @@ void UClothingAssetCommon::BuildLodTransitionData()
 	}
 }
 
+void UClothingAssetCommon::PreEditUndo()
+{
+	Super::PreEditUndo();
+
+	// Stop the simulation
+	if (const USkeletalMesh* const OwnerMesh = Cast<USkeletalMesh>(GetOuter()))
+	{
+		for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
+		{
+			if (USkeletalMeshComponent* const Component = *It)
+			{
+				if (Component->GetSkeletalMeshAsset() == OwnerMesh)
+				{
+					Component->ReleaseAllClothingResources();
+				}
+			}
+		}
+	}
+}
+
+void UClothingAssetCommon::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	// Resume the simulation
+	if (const USkeletalMesh* const OwnerMesh = Cast<USkeletalMesh>(GetOuter()))
+	{
+		for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
+		{
+			if (USkeletalMeshComponent* const Component = *It)
+			{
+				if (Component->GetSkeletalMeshAsset() == OwnerMesh)
+				{
+					Component->RecreateClothingActors();
+				}
+			}
+		}
+	}
+}
 #endif // WITH_EDITOR
 
 void UClothingAssetCommon::RefreshBoneMapping(USkeletalMesh* InSkelMesh)

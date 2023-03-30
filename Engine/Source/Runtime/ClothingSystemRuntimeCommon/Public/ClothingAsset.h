@@ -157,6 +157,17 @@ public:
 	 */
 	void BuildLodTransitionData();
 
+	//~ Begin UObject interface
+	/**
+	 * Stop any simulation from using this asset.
+	 */
+	virtual void PreEditUndo() override;
+
+	/**
+	 * Restart simulation using this asset after undo change.
+	 */
+	virtual void PostEditUndo() override;
+	//~ End UObject interface
 #endif // WITH_EDITOR
 
 	/**
