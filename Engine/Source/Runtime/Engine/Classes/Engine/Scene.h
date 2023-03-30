@@ -668,11 +668,9 @@ struct FPostProcessSettingsDebugInfo
 // Each property consists of a bool to enable it (by default off),
 // the variable declaration and further down the default value for it.
 // The comment should include the meaning and usable range.
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 USTRUCT(BlueprintType, meta=(HiddenByDefault))
 struct FPostProcessSettings
 {
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	GENERATED_USTRUCT_BODY()
 
 	// first all bOverride_... as they get grouped together into bitfields
@@ -2335,8 +2333,14 @@ struct FPostProcessSettings
 
 	// good start values for a new volume, by default no value is overriding
 	ENGINE_API FPostProcessSettings();
-
-	ENGINE_API FPostProcessSettings(const FPostProcessSettings&);
+	
+	// Workaround for clang deprecation warnings for any deprecated members in implicitly-defined special member functions
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FPostProcessSettings(const FPostProcessSettings&) = default;
+	FPostProcessSettings(FPostProcessSettings&&) = default;
+	FPostProcessSettings& operator=(const FPostProcessSettings&) = default;
+	FPostProcessSettings& operator=(FPostProcessSettings&&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 		* Used to define the values before any override happens.
@@ -2359,9 +2363,7 @@ struct FPostProcessSettings
 	void PostSerialize(const FArchive& Ar);
 #endif
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 }; // struct FPostProcessSettings
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITORONLY_DATA
 template<>
