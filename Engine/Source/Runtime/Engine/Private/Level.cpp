@@ -86,6 +86,15 @@ static FAutoConsoleVariableRef CVarActorClusteringEnabled(
 	ECVF_Default
 );
 
+// RouteActorInit for a single actor generally takes about half the time to complete compared to component initialization
+float GRouteActorInitializationWorkUnitWeighting = 0.5f;
+static FAutoConsoleVariableRef CVarRouteActorInitializationWorkUnitWeighting(
+	TEXT("s.RouteActorInitializationWorkUnitWeighting"),
+	GRouteActorInitializationWorkUnitWeighting,
+	TEXT("Weighting to apply to RouteActorInitialization when computing work units (relative to component init)"),
+	ECVF_Default
+);
+
 #if WITH_EDITOR
 void FLevelActorFoldersHelper::SetUseActorFolders(ULevel* InLevel, bool bInEnabled)
 {
@@ -3290,6 +3299,33 @@ void ULevel::ResetRouteActorInitializationState()
 {
 	 RouteActorInitializationState = ERouteActorInitializationState::Preinitialize;
 	 RouteActorInitializationIndex = 0;
+}
+
+int32 ULevel::GetEstimatedAddToWorldWorkUnitsRemaining() const
+{
+	// We count "work units" as the number of actors requiring component update, plus the number of actors requiring initialization
+	if (bIsVisible)
+	{
+		return 0;
+	}
+	const int32 ActorCount = Actors.Num();
+	int32 TotalWorkUnits = 0;
+	if (!bAlreadyUpdatedComponents && IncrementalComponentState != EIncrementalComponentState::Finalize)
+	{
+		TotalWorkUnits += ActorCount - CurrentActorIndexForIncrementalUpdate;
+	}
+	if (!IsFinishedRouteActorInitialization())
+	{
+		// Count remaining work items from the current state, plus work items from the states that follow
+		const int32 NumStates = (int32)ERouteActorInitializationState::Finished;
+		int32 ActorInitWorkItemCount = ActorCount - RouteActorInitializationIndex;
+
+		int32 CompleteStatesRemaining = (int32)ERouteActorInitializationState::Finished - (int32)RouteActorInitializationState - 1;
+		ActorInitWorkItemCount += ActorCount * CompleteStatesRemaining;
+
+		TotalWorkUnits += ActorInitWorkItemCount * GRouteActorInitializationWorkUnitWeighting / NumStates;
+	}
+	return TotalWorkUnits;
 }
 
 void ULevel::RouteActorInitialize(int32 NumActorsToProcess)
