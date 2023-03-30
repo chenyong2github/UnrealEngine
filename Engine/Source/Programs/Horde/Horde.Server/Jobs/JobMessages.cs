@@ -342,6 +342,11 @@ namespace Horde.Server.Jobs
 		public DateTimeOffset UpdateTime { get; set; }
 
 		/// <summary>
+		/// Whether to use the V2 artifacts endpoint
+		/// </summary>
+		public bool UseArtifactsV2 { get; set; }
+
+		/// <summary>
 		/// Whether issues are being updated by this job
 		/// </summary>
 		public bool UpdateIssues { get; set; }
@@ -379,6 +384,7 @@ namespace Horde.Server.Jobs
 			Reports = job.Reports?.ConvertAll(x => new GetReportResponse(x));
 			Arguments = job.Arguments.ToList();
 			UpdateTime = new DateTimeOffset(job.UpdateTimeUtc);
+			UseArtifactsV2 = job.JobOptions?.UseNewTempStorage ?? false;
 			UpdateIssues = job.UpdateIssues;
 		}
 	}
