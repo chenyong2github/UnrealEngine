@@ -32,7 +32,7 @@ struct PixelStreamingToClientCommand: Decodable {
 
 struct PixelStreamingToClientShowOnScreenKeyboardCommand: Decodable {
     let showOnScreenKeyboard: Bool
-    let contents: String
+    let contents: String?
 }
 
 struct PixelStreamingToClientGamepadResponse: Decodable {

@@ -505,11 +505,11 @@ extension WebRTCStreamingConnection: WebRTCClientDelegate {
                             if commandJson.command == "onScreenKeyboard" {
                                 let showKeyboardJson: PixelStreamingToClientShowOnScreenKeyboardCommand = try JSONDecoder().decode(PixelStreamingToClientShowOnScreenKeyboardCommand.self, from: commandData)
 
-                                if showKeyboardJson.showOnScreenKeyboard {
-                                    self.delegate?.streamingConnection(self, requestsTextEditWithContents: showKeyboardJson.contents) { (success, newContents) in
-                                        guard let contents = newContents else { return }
+                                if showKeyboardJson.showOnScreenKeyboard, let contents = showKeyboardJson.contents {
+                                    self.delegate?.streamingConnection(self, requestsTextEditWithContents: contents) { (success, newContents) in
+                                        guard let enteredContents = newContents else { return }
                                         if success {
-                                            self.keyboardControls?.submitString(contents)
+                                            self.keyboardControls?.submitString(enteredContents)
                                         }
                                     }
                                 }
