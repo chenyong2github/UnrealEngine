@@ -4419,7 +4419,8 @@ static void RenderViewFamilies_RenderThread(FRHICommandListImmediate& RHICmdList
 			FGPUSkinCacheVisualizationData& VisualizationData = GetGPUSkinCacheVisualizationData();
 
 			// Only run visualization update once, but set debug flags for all view families if the mode is active
-			if (bUpdatedGPUSkinCacheVisualization || VisualizationData.Update(View.CurrentGPUSkinCacheVisualizationMode))
+			// Note VisualizationData.Update needs to be called per frame, as || lazy evaluation is used, so need to do it before evaluating VisualizeGPUSkinCache flag
+			if (bUpdatedGPUSkinCacheVisualization || VisualizationData.Update(View.CurrentGPUSkinCacheVisualizationMode) || ViewFamily.EngineShowFlags.VisualizeGPUSkinCache)
 			{
 				// When activating visualization from the command line, enable VisualizeGPUSkinCache.
 				ViewFamily.EngineShowFlags.SetVisualizeGPUSkinCache(true);

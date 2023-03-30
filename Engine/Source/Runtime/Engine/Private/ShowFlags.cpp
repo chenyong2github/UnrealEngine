@@ -356,7 +356,7 @@ void ApplyViewMode(EViewModeIndex ViewModeIndex, bool bPerspective, FEngineShowF
 			bPostProcessing = true;
 			break;
 		case VMI_VisualizeGPUSkinCache:
-			bPostProcessing = true;
+			bPostProcessing = false;
 			break;
 		case VMI_ReflectionOverride:
 			bPostProcessing = true;
