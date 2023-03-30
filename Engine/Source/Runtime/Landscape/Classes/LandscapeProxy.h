@@ -17,7 +17,6 @@
 #include "VT/RuntimeVirtualTextureEnum.h"
 #include "ActorPartition/PartitionActor.h"
 #include "ILandscapeSplineInterface.h"
-#include "LandscapeUtils.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "LandscapeComponent.h"
@@ -387,8 +386,6 @@ protected:
 	UPROPERTY(Transient)
 	TArray<FLandscapePerLODMaterialOverride> PreEditPerLODOverrideMaterials;
 #endif // WITH_EDITORONLY_DATA
-
-	UE::Landscape::EDelayedPostLoadState DelayedPostLoadState = UE::Landscape::EDelayedPostLoadState::Default;
 
 public:
 	LANDSCAPE_API TOptional<float> GetHeightAtLocation(FVector Location, EHeightfieldSource HeightFieldSource = EHeightfieldSource::Complex) const;
@@ -1315,14 +1312,9 @@ protected:
 	/** Initialize Layer with empty content if it hasn't been initialized yet. */
 	LANDSCAPE_API void InitializeLayerWithEmptyContent(const FGuid& InLayerGuid);
 
-#endif // WITH_EDITOR
-
-	/** Used to simulate a delayed PostLoad when PostRegisteringAllComponents. This is needed because at this time we have no guarantee the parent ALandscape is fully loaded. */
-	virtual void TryDelayedPostLoad();
-
 protected:
-#if WITH_EDITOR
 	FLandscapeMaterialChangedDelegate LandscapeMaterialChangedDelegate;
+
 #endif // WITH_EDITOR
 private:
 	/** Returns Grass Update interval */
