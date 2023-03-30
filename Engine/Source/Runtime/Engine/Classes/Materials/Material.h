@@ -985,6 +985,10 @@ public:
 	UPROPERTY(EditAnywhere, Category=Refraction)
 	TEnumAsByte<ERefractionMode> RefractionMethod;
 
+	/** Controls whether refraction takes into account the material surface coverage, or not. */
+	UPROPERTY(EditAnywhere, Category=Refraction)
+	TEnumAsByte<ERefractionCoverageMode> RefractionCoverageMode;
+
 	/** If multiple nodes with the same  type are inserted at the same point, this defined order and if they get combined, only used if domain is PostProcess */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = PostProcessMaterial, meta = (DisplayName = "Blendable Priority"))
 	int32 BlendablePriority;

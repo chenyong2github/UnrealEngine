@@ -128,7 +128,11 @@ void Main(
 	TopF0 = SanitizeF0(TopF0);	// Sanitize, in case a Add node has been used
 
 	const FStrataOperator RootOperator	= StrataTree.Operators[StrataData.OperatorIndex];
+#if DISTORTION_ACCOUNT_FOR_COVERAGE
 	const float RefractionCoverage		= RootOperator.Coverage;														// Coverage of the material
+#else
+	const float RefractionCoverage		= 1.0;																			// Behavior where coverage is always ignored (legacy support)
+#endif
 	const float RefractionDepthMeter	= length(MaterialParameters.WorldPosition_CamRelative) * CENTIMETER_TO_METER;	// Distance for camera in meters
 	const float RefractionLobeVariance	= Sigma;																		// The lobe variance that can be added to in the en recover a single lobe.
 

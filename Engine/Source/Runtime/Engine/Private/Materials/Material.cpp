@@ -1008,6 +1008,7 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	bIsMaterialEditorStatsMaterial = false;
 
 	RefractionMethod = RM_None;
+	RefractionCoverageMode = RCM_CoverageAccountedFor;
 
 #if WITH_EDITORONLY_DATA
 	MaterialGraph = NULL;
@@ -3327,6 +3328,7 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 		}
 
 		BlendMode = ConvertLegacyBlendMode(BlendMode, ShadingModels);
+		RefractionCoverageMode = RCM_CoverageIgnored;
 		bInvalidateShader = true;
 	}
 	else if (!bUseMaterialAttributes && !EditorOnly->FrontMaterial.IsConnected() && GetExpressions().IsEmpty())
@@ -3611,6 +3613,7 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 		}
 
 		BlendMode = ConvertLegacyBlendMode(BlendMode, ShadingModels);
+		RefractionCoverageMode = RCM_CoverageIgnored;
 	}
 
 	if (bRelinkCustomOutputNodes)
@@ -4417,9 +4420,9 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 			if (bStrataEnabled)
 			{
 				return ((MaterialDomain != MD_PostProcess && MaterialDomain != MD_LightFunction && MaterialDomain != MD_Volume) || (MaterialDomain == MD_PostProcess && BlendableOutputAlpha));
-		}
+			}
 			else
-		{
+			{
 				return (MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface || MaterialDomain == MD_Volume || MaterialDomain == MD_UI || (MaterialDomain == MD_PostProcess && BlendableOutputAlpha));
 			}
 		}
@@ -4445,6 +4448,11 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, RefractionDepthBias))
 		{
 			return EditorOnly->Refraction.IsConnected();
+		}
+
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, RefractionCoverageMode))
+		{
+			return bStrataEnabled;
 		}
 	
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, TranslucencyPass)

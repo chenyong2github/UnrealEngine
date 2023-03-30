@@ -390,6 +390,24 @@ enum ERefractionMode : int
 	RM_None UMETA(DisplayName = "None"),
 };
 
+/** Determines how the refraction account for the coverage with Substrate. It can only be used when Substrate is enabled. */
+UENUM()
+enum ERefractionCoverageMode : int
+{
+	/**
+	 * This is the pre-Substrate behavior: coverage is ignored and always 1.
+	 * When rough refraction is disabled, this is behavior is forced ON.
+	 */
+	RCM_CoverageIgnored UMETA(DisplayName = "Coverage Ignored"),
+
+	/**
+	 * This is a new behavior available with Substrate when rough refraction are enabled: account for roughness, coverage and depth.
+	 * This is a more physically based behavior: the background scene will be visible untouched according to (1-coverage),
+	 * while the blurred version will be visible according to coverage.
+	 */
+	RCM_CoverageAccountedFor UMETA(DisplayName = "Coverage Accounted For"),
+};
+
 /**
  * Enumerates available options for the translucency sort policy.
  */
