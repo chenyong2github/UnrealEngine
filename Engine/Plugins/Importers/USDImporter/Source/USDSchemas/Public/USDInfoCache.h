@@ -55,6 +55,26 @@ public:
 	UE::FSdfPath UnwindToNonCollapsedPath(const UE::FSdfPath& Path, ECollapsingType CollapsingType) const;
 
 public:
+	// Records that whenever we want to translate MainPrim, we need to read one or more attributes off AuxPrim
+	void RegisterAuxiliaryPrim(const UE::FSdfPath& MainPrimPath, const UE::FSdfPath& AuxPrimPath) const;
+	void RegisterAuxiliaryPrims(const UE::FSdfPath& MainPrimPath, const TSet<UE::FSdfPath>& AuxPrimPaths) const;
+
+	void RemoveAuxiliaryPrims(const UE::FSdfPath& MainPrimPath) const;
+
+	// Returns the paths to prims that, when translated into assets or components, also require reading the prim at
+	// 'Path'. e.g. providing the path to a Shader prim will return the paths to all Material prims for which the
+	// translation involves reading that particular Shader.
+	TSet<UE::FSdfPath> GetMainPrims(const UE::FSdfPath& AuxPrimPath) const;
+
+	// The inverse of the function above: Provide it with the path to a Material prim and it will return the set of
+	// paths to all Shader prims that need to be read to translate that Material prim into material assets
+	TSet<UE::FSdfPath> GetAuxiliaryPrims(const UE::FSdfPath& MainPrimPath) const;
+
+public:
+	// Returns the set of paths to all prims that have a material:binding relationship to the particular material at
+	// 'Path', if any.
+	// Returns a copy for thread safety.
+	TSet<UE::FSdfPath> GetMaterialUsers(const UE::FSdfPath& Path) const;
 	bool IsMaterialUsed(const UE::FSdfPath& Path) const;
 
 public:

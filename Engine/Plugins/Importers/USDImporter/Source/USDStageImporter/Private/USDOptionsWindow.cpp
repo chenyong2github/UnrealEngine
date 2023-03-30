@@ -117,7 +117,7 @@ bool SUsdOptionsWindow::ShowOptions(
 	// will be pushed to the end of FSlateApplication::ActiveModalWindows (SlateApplication.cpp) and cause our options
 	// dialog to pop out of its modal loop (FSlateApplication::AddModalWindow), instantly returning false to our caller
 	FScopedSlowTask Progress( 1, LOCTEXT( "ShowingDialog", "Picking options..." ) );
-	Progress.MakeDialog();
+	Progress.MakeDialogDelayed(0.25f);
 
 	const bool bSlowTaskWindow = false;
 	FSlateApplication::Get().AddModalWindow( Window, ParentWindow, bSlowTaskWindow );

@@ -12,7 +12,12 @@ struct FUsdSchemaTranslationContext;
 class FUsdGeomPointInstancerCreateAssetsTaskChain : public FBuildStaticMeshTaskChain
 {
 public:
-	explicit FUsdGeomPointInstancerCreateAssetsTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const UE::FSdfPath& InPrimPath, bool bIgnoreTopLevelTransformAndVisibility );
+	explicit FUsdGeomPointInstancerCreateAssetsTaskChain(
+		const TSharedRef<FUsdSchemaTranslationContext>& InContext,
+		const UE::FSdfPath& InPrimPath,
+		bool bIgnoreTopLevelTransformAndVisibility,
+		const TOptional<UE::FSdfPath>& AlternativePrimToLinkAssetsTo = {}
+	);
 
 protected:
 	virtual void SetupTasks() override;
@@ -38,6 +43,8 @@ public:
 	// collapsing even simple, not-nested point instancers).
 	virtual bool CollapsesChildren( ECollapsingType CollapsingType ) const override { return true; }
 	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override;
+
+	virtual TSet<UE::FSdfPath> CollectAuxiliaryPrims() const override;
 };
 
 #endif // #if USE_USD_SDK

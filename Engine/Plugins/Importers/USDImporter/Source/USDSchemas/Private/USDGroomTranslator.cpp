@@ -27,10 +27,12 @@
 #include "USDTypesConversion.h"
 
 #include "USDIncludesStart.h"
-#include "pxr/base/tf/type.h"
-#include "pxr/usd/usd/prim.h"
-#include "pxr/usd/usd/timeCode.h"
-#include "pxr/usd/usdGeom/curves.h"
+	#include "pxr/base/tf/type.h"
+	#include "pxr/usd/usd/prim.h"
+	#include "pxr/usd/usd/timeCode.h"
+	#include "pxr/usd/usdGeom/basisCurves.h"
+	#include "pxr/usd/usdGeom/curves.h"
+	#include "pxr/usd/usdGeom/imageable.h"
 #include "USDIncludesEnd.h"
 
 namespace UE::UsdGroomTranslator::Private
@@ -306,10 +308,7 @@ protected:
 				}
 				else if (Context->InfoCache)
 				{
-					Context->InfoCache->LinkAssetToPrim(
-						UE::FSdfPath{*UsdGroomTranslatorUtils::GetStrandsGroomCachePrimPath(PrimPath)},
-						GroomCache
-					);
+					Context->InfoCache->LinkAssetToPrim(PrimPath, GroomCache);
 				}
 
 				if (!bSuccess)
@@ -338,17 +337,14 @@ protected:
 				{
 #if WITH_EDITOR
 					UUsdAssetImportData* ImportData = NewObject<UUsdAssetImportData>(GroomCache, TEXT("UUSDAssetImportData"));
-					ImportData->PrimPath = UsdGroomTranslatorUtils::GetStrandsGroomCachePrimPath(PrimPath);
+					ImportData->PrimPath = PrimPath.GetString();
 					ImportData->ImportOptions = ImportOptions.Get();
 
 					GroomCache->AssetImportData = ImportData;
 #endif // WITH_EDITOR
 
 					Context->AssetCache->CacheAsset(GroomCacheHash.ToString(), GroomCache);
-					Context->InfoCache->LinkAssetToPrim(
-						UE::FSdfPath{*StrandsGroomCachePrimPath},
-						GroomCache
-					);
+					Context->InfoCache->LinkAssetToPrim(PrimPath, GroomCache);
 				}
 
 				return GroomCache != nullptr;
@@ -367,6 +363,8 @@ void FUsdGroomTranslator::CreateAssets()
 	{
 		return Super::CreateAssets();
 	}
+
+	RegisterAuxiliaryPrims();
 
 	Context->TranslatorTasks.Add(MakeShared<FUsdGroomCreateAssetsTaskChain>(Context, PrimPath));
 }
@@ -425,9 +423,7 @@ void FUsdGroomTranslator::UpdateComponents(USceneComponent* SceneComponent)
 
 			if (Groom)
 			{
-				UGroomCache* GroomCache = Context->InfoCache->GetSingleAssetForPrim<UGroomCache>(
-					UE::FSdfPath{*UsdGroomTranslatorUtils::GetStrandsGroomCachePrimPath(PrimPath)}
-				);
+				UGroomCache* GroomCache = Context->InfoCache->GetSingleAssetForPrim<UGroomCache>(PrimPath);
 				if (GroomCache != GroomComponent->GroomCache.Get())
 				{
 					GroomComponent->SetGroomCache(GroomCache);
@@ -465,6 +461,51 @@ bool FUsdGroomTranslator::CanBeCollapsed(ECollapsingType CollapsingType) const
 	}
 
 	return true;
+}
+
+TSet<UE::FSdfPath> FUsdGroomTranslator::CollectAuxiliaryPrims() const
+{
+	if (!IsGroomPrim())
+	{
+		return Super::CollectAuxiliaryPrims();
+	}
+
+	if (!Context->InfoCache.IsValid())
+	{
+		return {};
+	}
+
+	if (!Context->InfoCache->DoesPathCollapseChildren(PrimPath, ECollapsingType::Assets))
+	{
+		return {};
+	}
+
+	TSet<UE::FSdfPath> Result;
+	{
+		FScopedUsdAllocs UsdAllocs;
+
+		TFunction<void(const pxr::UsdPrim&)> RecursivelyRegisterPrims;
+		RecursivelyRegisterPrims = [&](const pxr::UsdPrim& UsdPrim)
+		{
+			if (pxr::UsdGeomBasisCurves Curves = pxr::UsdGeomBasisCurves(UsdPrim))
+			{
+				Result.Add(UE::FSdfPath{UsdPrim.GetPrimPath()});
+			}
+			else if (pxr::UsdGeomImageable(UsdPrim))
+			{
+				Result.Add(UE::FSdfPath{UsdPrim.GetPrimPath()});
+
+				for (const pxr::UsdPrim& Child : UsdPrim.GetChildren())
+				{
+					RecursivelyRegisterPrims(Child);
+				}
+			}
+		};
+
+		pxr::UsdPrim Prim = GetPrim();
+		RecursivelyRegisterPrims(Prim);
+	}
+	return Result;
 }
 
 #endif // #if USE_USD_SDK

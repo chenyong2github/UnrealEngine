@@ -1224,9 +1224,14 @@ namespace UsdGeomMeshTranslatorImpl
 #endif // WITH_EDITOR
 }
 
-FBuildStaticMeshTaskChain::FBuildStaticMeshTaskChain(const TSharedRef< FUsdSchemaTranslationContext >& InContext, const UE::FSdfPath& InPrimPath)
+FBuildStaticMeshTaskChain::FBuildStaticMeshTaskChain(
+	const TSharedRef< FUsdSchemaTranslationContext >& InContext,
+	const UE::FSdfPath& InPrimPath,
+	const TOptional<UE::FSdfPath>& InAlternativePrimToLinkAssetsTo
+)
 	: PrimPath(InPrimPath)
 	, Context(InContext)
+	, AlternativePrimToLinkAssetsTo(InAlternativePrimToLinkAssetsTo)
 {
 }
 
@@ -1271,7 +1276,10 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 			{
 				if (Context->InfoCache)
 				{
-					Context->InfoCache->LinkAssetToPrim(PrimPath, StaticMesh);
+					const UE::FSdfPath& TargetPath = AlternativePrimToLinkAssetsTo.IsSet()
+						? AlternativePrimToLinkAssetsTo.GetValue()
+						: PrimPath;
+					Context->InfoCache->LinkAssetToPrim(TargetPath, StaticMesh);
 				}
 
 #if WITH_EDITOR
@@ -1280,7 +1288,7 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 				if (bIsNew)
 				{
 					UUsdMeshAssetImportData* ImportData = NewObject<UUsdMeshAssetImportData>(StaticMesh, TEXT("UUSDAssetImportData"));
-					ImportData->PrimPath = PrimPathString;
+					ImportData->PrimPath = MeshName;
 					StaticMesh->AssetImportData = ImportData;
 				}
 #endif // WITH_EDITOR
@@ -1385,8 +1393,13 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 		});
 }
 
-FGeomMeshCreateAssetsTaskChain::FGeomMeshCreateAssetsTaskChain(const TSharedRef< FUsdSchemaTranslationContext >& InContext, const UE::FSdfPath& InPrimPath, const FTransform& InAdditionalTransform)
-	: FBuildStaticMeshTaskChain(InContext, InPrimPath)
+FGeomMeshCreateAssetsTaskChain::FGeomMeshCreateAssetsTaskChain(
+	const TSharedRef< FUsdSchemaTranslationContext >& InContext,
+	const UE::FSdfPath& InPrimPath,
+	const TOptional<UE::FSdfPath>& AlternativePrimToLinkAssetsTo,
+	const FTransform& InAdditionalTransform
+)
+	: FBuildStaticMeshTaskChain(InContext, InPrimPath, AlternativePrimToLinkAssetsTo)
 	, AdditionalTransform(InAdditionalTransform)
 {
 	SetupTasks();
@@ -1552,7 +1565,10 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 
 			if (GeometryCache && Context->InfoCache)
 			{
-				Context->InfoCache->LinkAssetToPrim(PrimPath, GeometryCache);
+				const UE::FSdfPath& TargetPath = AlternativePrimToLinkAssetsTo.IsSet()
+					? AlternativePrimToLinkAssetsTo.GetValue()
+					: PrimPath;
+				Context->InfoCache->LinkAssetToPrim(TargetPath, GeometryCache);
 			}
 
 			// We don't have any additional step
@@ -1564,6 +1580,8 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 void FUsdGeomMeshTranslator::CreateAssets()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FUsdGeomMeshTranslator::CreateAssets);
+
+	RegisterAuxiliaryPrims();
 
 #if WITH_EDITOR
 	if (!Context->bIsImporting && GUseGeometryCacheUSD && UsdGeomMeshTranslatorImpl::IsAnimated(GetPrim()))
@@ -1800,6 +1818,30 @@ bool FUsdGeomMeshTranslator::CanBeCollapsed(ECollapsingType CollapsingType) cons
 	}
 
 	return Super::CanBeCollapsed(CollapsingType);
+}
+
+TSet<UE::FSdfPath> FUsdGeomMeshTranslator::CollectAuxiliaryPrims() const
+{
+	TSet<UE::FSdfPath> Result;
+	{
+		FScopedUsdAllocs UsdAllocs;
+
+		pxr::UsdPrim Prim = GetPrim();
+
+		// The UsdGeomSubset prims are used to express multiple material assignments per mesh. A change in them could
+		// mean a change in triangle to material slot mapping
+		TArray<TUsdStore<pxr::UsdPrim>> ChildPrims = UsdUtils::GetAllPrimsOfType(
+			Prim,
+			pxr::TfType::Find<pxr::UsdGeomSubset>()
+		);
+
+		Result.Reserve(ChildPrims.Num());
+		for (const TUsdStore<pxr::UsdPrim>& ChildPrim : ChildPrims)
+		{
+			Result.Add(UE::FSdfPath{ChildPrim.Get().GetPrimPath()});
+		}
+	}
+	return Result;
 }
 
 #endif // #if USE_USD_SDK

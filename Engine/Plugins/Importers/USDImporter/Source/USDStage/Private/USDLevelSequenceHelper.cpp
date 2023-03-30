@@ -1853,7 +1853,7 @@ void FUsdLevelSequenceHelperImpl::AddSkeletalTracks(const UUsdPrimTwin& PrimTwin
 	// Fetch the UAnimSequence asset from the asset cache. Ideally we'd call AUsdStageActor::GetGeneratedAssets,
 	// but we may belong to a FUsdStageImportContext, and so there's no AUsdStageActor at all to use.
 	// At this point it doesn't matter much though, because we shouldn't need to uncollapse a SkelAnimation prim path anyway
-	const UE::FSdfPath PrimPath = SkelAnimationPrim.GetPrimPath();
+	const UE::FSdfPath PrimPath = Prim.GetPrimPath();
 	UAnimSequence* Sequence = InfoCache->GetSingleAssetForPrim<UAnimSequence>(
 		PrimPath
 	);
@@ -2204,6 +2204,8 @@ void FUsdLevelSequenceHelperImpl::UpdateControlRigTracks(UUsdPrimTwin& PrimTwin)
 		return;
 	}
 
+	ensure(UsdPrim.IsA(TEXT("SkelRoot")));
+
 	USkeletalMeshComponent* ComponentToBind = Cast<USkeletalMeshComponent>(PrimTwin.GetSceneComponent());
 	if (!ComponentToBind)
 	{
@@ -2229,8 +2231,6 @@ void FUsdLevelSequenceHelperImpl::UpdateControlRigTracks(UUsdPrimTwin& PrimTwin)
 		// If this SkelRoot doesn't have any animation, lets create a new one on the current edit target
 		SkelAnimationLayer = UsdStage.GetEditTarget();
 
-		ensure(UsdPrim.IsA(TEXT("SkelRoot")));
-
 		FString UniqueChildName = UsdUtils::GetValidChildName(TEXT("Animation"), UsdPrim);
 		SkelAnimationPrim = UsdStage.DefinePrim(
 			UsdPrim.GetPrimPath().AppendChild(*UniqueChildName),
@@ -2243,19 +2243,18 @@ void FUsdLevelSequenceHelperImpl::UpdateControlRigTracks(UUsdPrimTwin& PrimTwin)
 
 		UsdUtils::BindAnimationSource(UsdPrim, SkelAnimationPrim);
 	}
-
-	// Fetch the UAnimSequence asset from the asset cache. Ideally we'd call AUsdStageActor::GetGeneratedAssets,
-	// but we may belong to a FUsdStageImportContext, and so there's no AUsdStageActor at all to use.
-	// At this point it doesn't matter much though, because we shouldn't need to uncollapse a SkelAnimation prim path anyway
-	const UE::FSdfPath SkelAnimationPrimPath = SkelAnimationPrim.GetPrimPath();
-	UAnimSequence* AnimSequence = InfoCache->GetSingleAssetForPrim<UAnimSequence>(
-		SkelAnimationPrimPath
-	);
-
 	if (!SkelAnimationLayer)
 	{
 		return;
 	}
+
+	// Fetch the UAnimSequence asset from the asset cache. Ideally we'd call AUsdStageActor::GetGeneratedAssets,
+	// but we may belong to a FUsdStageImportContext, and so there's no AUsdStageActor at all to use.
+	// At this point it doesn't matter much though, because we shouldn't need to uncollapse a SkelAnimation prim path anyway
+	UAnimSequence* AnimSequence = InfoCache->GetSingleAssetForPrim<UAnimSequence>(
+		PrimPath
+	);
+
 	UE::FUsdEditContext EditContext{UsdStage, SkelAnimationLayer};
 	FString Identifier = SkelAnimationLayer.GetIdentifier();
 

@@ -30,7 +30,11 @@ namespace UsdUtils
 class FBuildStaticMeshTaskChain : public FUsdSchemaTranslatorTaskChain
 {
 public:
-	explicit FBuildStaticMeshTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const UE::FSdfPath& InPrimPath );
+	explicit FBuildStaticMeshTaskChain(
+		const TSharedRef< FUsdSchemaTranslationContext >& InContext,
+		const UE::FSdfPath& InPrimPath,
+		const TOptional<UE::FSdfPath>& AlternativePrimToLinkAssetsTo = {}
+	);
 
 protected:
 	// Inputs
@@ -41,6 +45,7 @@ protected:
 	TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo> LODIndexToMaterialInfo;
 
 	// Outputs
+	TOptional<UE::FSdfPath> AlternativePrimToLinkAssetsTo;
 	UStaticMesh* StaticMesh = nullptr;
 
 	// Required to prevent StaticMesh from being used for drawing while it is being rebuilt
@@ -55,7 +60,12 @@ protected:
 class FGeomMeshCreateAssetsTaskChain : public FBuildStaticMeshTaskChain
 {
 public:
-	explicit FGeomMeshCreateAssetsTaskChain( const TSharedRef< FUsdSchemaTranslationContext >& InContext, const UE::FSdfPath& PrimPath, const FTransform& AdditionalTransform = FTransform::Identity );
+	explicit FGeomMeshCreateAssetsTaskChain(
+		const TSharedRef< FUsdSchemaTranslationContext >& InContext,
+		const UE::FSdfPath& PrimPath,
+		const TOptional<UE::FSdfPath>& AlternativePrimToLinkAssetsTo = {},
+		const FTransform& AdditionalTransform = FTransform::Identity
+	);
 
 protected:
 	// Inputs
@@ -82,6 +92,7 @@ public:
 	virtual bool CollapsesChildren( ECollapsingType CollapsingType ) const override;
 	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override;
 
+	virtual TSet<UE::FSdfPath> CollectAuxiliaryPrims() const override;
 };
 
 #endif // #if USE_USD_SDK

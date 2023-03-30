@@ -19,6 +19,8 @@ public:
 
 	virtual bool CollapsesChildren( ECollapsingType CollapsingType ) const override;
 	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override;
+
+	virtual TSet<UE::FSdfPath> CollectAuxiliaryPrims() const override;
 };
 
 #endif // #if USE_USD_SDK

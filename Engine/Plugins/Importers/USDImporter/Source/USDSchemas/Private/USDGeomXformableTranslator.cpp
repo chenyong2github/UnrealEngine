@@ -264,13 +264,15 @@ void FUsdGeomXformableCreateAssetsTaskChain::SetupTasks()
 
 void FUsdGeomXformableTranslator::CreateAssets()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomMeshTranslator::CreateAssets );
+
 	if ( !CollapsesChildren( ECollapsingType::Assets ) )
 	{
 		// We only have to create assets when our children are collapsed together
 		return;
 	}
 
-	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomMeshTranslator::CreateAssets );
+	RegisterAuxiliaryPrims();
 
 	Context->TranslatorTasks.Add( MakeShared< FUsdGeomXformableCreateAssetsTaskChain >( Context, PrimPath ) );
 }
@@ -744,6 +746,40 @@ bool FUsdGeomXformableTranslator::CanBeCollapsed( ECollapsingType CollapsingType
 	}
 
 	return true;
+}
+
+TSet<UE::FSdfPath> FUsdGeomXformableTranslator::CollectAuxiliaryPrims() const
+{
+	if (!Context->InfoCache.IsValid())
+	{
+		return {};
+	}
+
+	if (!Context->InfoCache->DoesPathCollapseChildren(PrimPath, ECollapsingType::Assets))
+	{
+		return {};
+	}
+
+	TSet<UE::FSdfPath> Result;
+	{
+		FScopedUsdAllocs UsdAllocs;
+
+		pxr::UsdPrim Prim = GetPrim();
+
+		// We check imageable because that is the most basal schema that is still relevant for collapsed meshes (it
+		// holds the visibility attribute)
+		TArray<TUsdStore<pxr::UsdPrim>> ChildPrims = UsdUtils::GetAllPrimsOfType(
+			Prim,
+			pxr::TfType::Find<pxr::UsdGeomImageable>()
+		);
+
+		Result.Reserve(ChildPrims.Num());
+		for (const TUsdStore<pxr::UsdPrim>& ChildPrim : ChildPrims)
+		{
+			Result.Add(UE::FSdfPath{ChildPrim.Get().GetPrimPath()});
+		}
+	}
+	return Result;
 }
 
 #endif // #if USE_USD_SDK

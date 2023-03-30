@@ -905,7 +905,7 @@ void AUsdStageActor::IsolateLayer( const UE::FSdfLayer& Layer )
 void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& InfoChanges, const UsdUtils::FObjectChangesByPath& ResyncChanges)
 {
 #if USE_USD_SDK
-	if (!IsListeningToUsdNotices())
+	if (!IsListeningToUsdNotices() || !InfoCache.IsValid())
 	{
 		return;
 	}
@@ -973,14 +973,14 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 		bool bIsResync = false;
 		for (const UsdUtils::FObjectChangeNotice& ObjectChange : InfoChange.Value)
 		{
-			// We upgrade these mainly so that material binding changes refresh assets and components. Note that we
-			// just set material overrides on CreateComponents and not on UpdateComponents. In general, relationships
-			// likely won't be updated very often and can't have timeSamples, so it should be fine to resync on their
-			// changes
+			// This is in charge of resyncing components (and so calling CreateComponents instead of just
+			// UpdateComponents) whenever we change material assignments. This is important because
+			// CreateComponents is where we set our material overrides
 			if (ObjectChange.Flags.bDidChangeRelationshipTargets)
 			{
 				bIsResync = true;
 				bHasResync = true;
+				continue;
 			}
 
 			for (const UsdUtils::FAttributeChange& AttributeChange : ObjectChange.AttributeChanges)
@@ -1037,7 +1037,6 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 	// UpdateComponents/ReloadAssets below will already do this of course, but the point of this is that we unwind
 	// the collapsed prim paths *before* we rebuild the cache: We're really interested in whether this prim was
 	// collapsed or not before this change, as the change itself may have made the prim uncollapsible now
-	if (InfoCache.IsValid())
 	{
 		TMap<FString, bool> NewEntries;
 		NewEntries.Reserve(SortedPrimsChangedList.Num());
@@ -1077,7 +1076,7 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 	}
 
 	FScopedSlowTask RefreshStageTask(SortedPrimsChangedList.Num(), LOCTEXT("RefreshingUSDStage", "Refreshing USD Stage"));
-	RefreshStageTask.MakeDialog();
+	RefreshStageTask.MakeDialogDelayed(0.25f);
 
 	FScopedUsdMessageLog ScopedMessageLog;
 
@@ -1095,10 +1094,13 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 		// part of the tree (here we're just rebuilding the whole thing for now).
 		// However, if we know that only Prim resynced, we can traverse the tree root down and if we reach Prim and its collapsing state
 		// hasn't updated from before, we don't have to update its subtree at all, or sibling subtrees.
+		// Note that whenver we do a selective rebuild of the info cache we'll need to be very careful when to update
+		// certain info cache maps: For example whenever we delete a prim we need to make sure it's removed from MaterialUsers, etc.
 		TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext(this, TEXT("/"));
 		InfoCache->RebuildCacheForSubtree(Stage.GetPseudoRoot(), TranslationContext.Get());
 	}
 
+	bool bHasLoadedOrAbandonedAssets = false;
 	for (const TPair< FString, bool >& PrimChangedInfo : SortedPrimsChangedList)
 	{
 		RefreshStageTask.EnterProgressFrame();
@@ -1138,87 +1140,121 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 			return !PathToProcess.IsEmpty() && PathsProcessed.Contains(PathToProcess);
 		};
 
-		auto UpdateComponents = [&](const UE::FUsdPrim& Prim, const UE::FSdfPath& InPrimPath, const bool bInResync)
+		TFunction<void(const UE::FSdfPath& InPrimPath, const bool bInResync)> UpdateComponents;
+		UpdateComponents = [&](const UE::FSdfPath& InPrimPath, const bool bInResync)
 		{
-			// Don't query the InfoCache about prims that don't exist since that will ensure.
-			// We need to carry on though, because we must update components in case a prim is renamed or deleted,
-			// which will emit notices for prims that don't actually exist on the stage
-			UE::FSdfPath ComponentsPrimPath = (Prim && InfoCache.IsValid())
-				? InfoCache->UnwindToNonCollapsedPath(InPrimPath, ECollapsingType::Components)
-				: InPrimPath;
-
 			TSet< UE::FSdfPath >& RefreshedComponents = bInResync ? ResyncedComponents : UpdatedComponents;
 
-			if (!IsPathAlreadyProcessed(RefreshedComponents, ComponentsPrimPath))
+			TSet<UE::FSdfPath> MainPrimPaths = InfoCache->GetMainPrims(InPrimPath);
+			for (const UE::FSdfPath& MainPrimPath : MainPrimPaths)
 			{
-				TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext(this, ComponentsPrimPath.GetString());
-				UpdatePrim(ComponentsPrimPath, bInResync, *TranslationContext);
-				TranslationContext->CompleteTasks();
+				// Note: We don't need to "unwind" DependentPrim to a collapse root here: The entries for dependent
+				// prims on the TranslationDependency maps are always prims that were translated into assets before,
+				// so we know they must be "unwound" paths already
 
-				RefreshedComponents.Add(ComponentsPrimPath);
-
+				if (IsPathAlreadyProcessed(RefreshedComponents, MainPrimPath))
+				{
+					continue;
+				}
+				RefreshedComponents.Add(MainPrimPath);
 				if (bInResync)
 				{
 					// Consider that the path has been updated in the case of a resync
-					UpdatedComponents.Add(ComponentsPrimPath);
+					UpdatedComponents.Add(MainPrimPath);
 				}
+
+				UE_LOG(LogUsd, Verbose, TEXT("Prim '%s' was updated. Updating components for prim '%s'"),
+					*InPrimPath.GetString(),
+					*MainPrimPath.GetString()
+				);
+
+				// We could share this context, add all tasks for all Dependents and then call CompleteTasks once, but
+				// that could cause trouble in case we had a triangle of dependencies (A depends on B an C,
+				// and B depends on C) as that would prevent dependencies from being parsed before dependents
+				TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext(
+					this,
+					MainPrimPath.GetString()
+				);
+
+				UpdatePrim(MainPrimPath, bInResync, *TranslationContext);
+				TranslationContext->CompleteTasks();
+
+				// Now update the dependents of *this* prim
+				UpdateComponents(MainPrimPath, bInResync);
 			}
 		};
 
-		auto ReloadAssets = [&](const UE::FUsdPrim& Prim, const UE::FSdfPath& InPrimPath, const bool bInResync)
+		TFunction<void(const UE::FSdfPath& InPrimPath, const bool bInResync)> ReloadAssets;
+		ReloadAssets = [&](const UE::FSdfPath& InPrimPath, const bool bInResync)
 		{
-			UE::FSdfPath AssetsPrimPath = (Prim && InfoCache.IsValid())
-				? InfoCache->UnwindToNonCollapsedPath(InPrimPath, ECollapsingType::Assets)
-				: InPrimPath;
-
 			TSet< UE::FSdfPath >& RefreshedAssets = bInResync ? ResyncedAssets : UpdatedAssets;
 
-			if (!IsPathAlreadyProcessed(RefreshedAssets, AssetsPrimPath))
+			TSet<UE::FSdfPath> MainPrimPaths = InfoCache->GetMainPrims(InPrimPath);
+			for (const UE::FSdfPath& MainPrimPath : MainPrimPaths)
 			{
-				TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext(this, AssetsPrimPath.GetString());
-
-				if (bInResync && InfoCache)
+				if (IsPathAlreadyProcessed(RefreshedAssets, MainPrimPath))
 				{
-					UMaterialInterface* ExistingMaterial = InfoCache->GetSingleAssetForPrim<UMaterialInterface>(
-						AssetsPrimPath
-					);
+					continue;
+				}
+				RefreshedAssets.Add(MainPrimPath);
 
-					UE::FUsdPrim PrimToResync = GetOrLoadUsdStage().GetPrimAtPath(AssetsPrimPath);
-					LoadAssets(*TranslationContext, PrimToResync);
+				UE_LOG(LogUsd, Verbose, TEXT("Prim '%s' was updated. Reloading assets for prim '%s'"),
+					*InPrimPath.GetString(),
+					*MainPrimPath.GetString()
+				);
 
-					UMaterialInterface* NewMaterial = InfoCache->GetSingleAssetForPrim<UMaterialInterface>(
-						AssetsPrimPath
-					);
+				UE::FUsdPrim PrimToUpdate = GetOrLoadUsdStage().GetPrimAtPath(MainPrimPath);
+				if (!PrimToUpdate)
+				{
+					continue;
+				}
 
-					// For UE-120185: If we recreated a material for a prim path we also need to update all components that were using it.
-					// This could be fleshed out further if other asset types require this refresh of "dependent components" but materials
-					// seem to be the only ones that do at the moment
-					if (ExistingMaterial && (ExistingMaterial != NewMaterial))
-					{
-						for (const FString& MaterialUserPrim : UsdUtils::GetMaterialUsers(PrimToResync, MaterialPurpose))
-						{
-							const bool bResyncComponent = true; // We need to force resync to reassign materials
-							UE::FSdfPath MaterialPrimPath{*MaterialUserPrim};
-							UE::FUsdPrim MaterialPrim = GetOrLoadUsdStage().GetPrimAtPath(MaterialPrimPath);
-							UpdateComponents(MaterialPrim, MaterialPrimPath, bResyncComponent);
-						}
-					}
+				TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext(
+					this,
+					MainPrimPath.GetString()
+				);
+
+				UMaterialInterface* ExistingMaterial = InfoCache->GetSingleAssetForPrim<UMaterialInterface>(MainPrimPath);
+
+				if (bInResync)
+				{
+					bHasLoadedOrAbandonedAssets |= LoadAssets(*TranslationContext, PrimToUpdate);
 
 					// Resyncing also includes "updating" the prim
-					UpdatedAssets.Add(AssetsPrimPath);
+					UpdatedAssets.Add(MainPrimPath);
 				}
 				else
 				{
-					LoadAsset(*TranslationContext, GetOrLoadUsdStage().GetPrimAtPath(AssetsPrimPath));
+					bHasLoadedOrAbandonedAssets |= LoadAsset(*TranslationContext, PrimToUpdate);
 				}
 
-				RefreshedAssets.Add(AssetsPrimPath);
+				UMaterialInterface* NewMaterial = InfoCache->GetSingleAssetForPrim<UMaterialInterface>(
+					MainPrimPath
+				);
+
+				// For UE-120185: If we recreated a material for a prim path we also need to update all components that were using it.
+				// This could be fleshed out further if other asset types require this refresh of "dependent components" but materials
+				// seem to be the only ones that do at the moment.
+				// Note that even after UE-157644 this is still useful: Material prims are not marked as a dependency
+				// of Mesh prims, otherwise we'd have to regenerate the StaticMesh itself when material info changed.
+				// Ideally we'd just set a new material override on the component, which is what this does
+				if (ExistingMaterial && (ExistingMaterial != NewMaterial) && InfoCache.IsValid())
+				{
+					for (const UE::FSdfPath& MaterialUserPath : InfoCache->GetMaterialUsers(MainPrimPath))
+					{
+						const bool bResyncComponent = true; // We need to force resync to reassign materials
+						UE::FUsdPrim MaterialPrim = GetOrLoadUsdStage().GetPrimAtPath(MaterialUserPath);
+						UpdateComponents(MaterialUserPath, bResyncComponent);
+					}
+				}
+
+				// Now update the main prims of *this* prim as an auxiliary prim
+				ReloadAssets(MainPrimPath, bInResync);
 			}
 		};
 
-		UE::FUsdPrim Prim = GetOrLoadUsdStage().GetPrimAtPath(PrimPath);
-		ReloadAssets(Prim, PrimPath, bIsResync);
-		UpdateComponents(Prim, PrimPath, bIsResync);
+		ReloadAssets(PrimPath, bIsResync);
+		UpdateComponents(PrimPath, bIsResync);
 
 		if (HasAuthorityOverStage())
 		{
@@ -1232,7 +1268,7 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 		PrimsToAnimate.Reset();
 	}
 
-	if (bHasResync && UsdAssetCache)
+	if (bHasLoadedOrAbandonedAssets && UsdAssetCache)
 	{
 		UsdAssetCache->RefreshStorage();
 	}
@@ -1474,7 +1510,7 @@ void AUsdStageActor::UpdatePrim(const UE::FSdfPath& InUsdPrimPath, bool bResync,
 	TRACE_CPUPROFILER_EVENT_SCOPE(AUsdStageActor::UpdatePrim);
 
 	FScopedSlowTask SlowTask(1.f, LOCTEXT("UpdatingUSDPrim", "Updating USD Prim"));
-	SlowTask.MakeDialog();
+	SlowTask.MakeDialogDelayed(0.25f);
 	SlowTask.EnterProgressFrame();
 
 	UE::FSdfPath UsdPrimPath = InUsdPrimPath;
@@ -2066,7 +2102,7 @@ void AUsdStageActor::LoadUsdStage()
 	double StartTime = FPlatformTime::Cycles64();
 
 	FScopedSlowTask SlowTask(1.f, LOCTEXT("LoadingUDStage", "Loading USD Stage"));
-	SlowTask.MakeDialog();
+	SlowTask.MakeDialogDelayed(0.25f);
 
 	OnPreStageChanged.Broadcast();
 
@@ -2134,7 +2170,7 @@ void AUsdStageActor::LoadUsdStage()
 	InfoCache->RebuildCacheForSubtree(StageToLoad.GetPseudoRoot(), TranslationContext.Get());
 
 	SlowTask.EnterProgressFrame(0.7f);
-	LoadAssets(*TranslationContext, StageToLoad.GetPseudoRoot());
+	const bool bLoadedOrAbandonedAssets = LoadAssets(*TranslationContext, StageToLoad.GetPseudoRoot());
 
 	SlowTask.EnterProgressFrame(0.2f);
 	UpdatePrim(StageToLoad.GetPseudoRoot().GetPrimPath(), true, *TranslationContext);
@@ -2166,7 +2202,7 @@ void AUsdStageActor::LoadUsdStage()
 		}
 	}
 
-	if (UsdAssetCache)
+	if (bLoadedOrAbandonedAssets && UsdAssetCache)
 	{
 		UsdAssetCache->RefreshStorage();
 	}
@@ -3217,67 +3253,75 @@ void AUsdStageActor::OnSkelAnimationBaked(const FString& SkelRootPrimPath)
 #endif // #if USE_USD_SDK
 }
 
-void AUsdStageActor::LoadAsset(FUsdSchemaTranslationContext& TranslationContext, const UE::FUsdPrim& Prim)
+bool AUsdStageActor::LoadAsset(FUsdSchemaTranslationContext& TranslationContext, const UE::FUsdPrim& Prim)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(AUsdStageActor::LoadAsset);
+
+	if (!UsdAssetCache || !InfoCache)
+	{
+		return false;
+	}
+
+	// Clear existing prim/asset association
+	bool bAssetsDiscarded = false;
+	{
+		UE::FSdfPath UsdPrimPath = Prim.GetPrimPath();
+		TSet<TWeakObjectPtr<UObject>> OldAssets = InfoCache->RemoveAllAssetPrimLinks(UsdPrimPath);
+
+		for (const TWeakObjectPtr<UObject>& OldAsset : OldAssets)
+		{
+			// If there are any other prim paths linked to this asset that we *won't* be removing/reparsing
+			// in here, it means our stage actor as a whole is still "referencing" that asset
+			bool bAssetStillReferenced = false;
+			for (const UE::FSdfPath& LinkedPrim : InfoCache->GetPrimsForAsset(OldAsset.Get()))
+			{
+				if (LinkedPrim != UsdPrimPath)
+				{
+					bAssetStillReferenced = true;
+					break;
+				}
+			}
+
+			if (bAssetStillReferenced)
+			{
+				continue;
+			}
+
+			bAssetsDiscarded |= UsdAssetCache->RemoveAssetReference(OldAsset.Get(), this);
+		}
+	}
 
 	// Mark the assets as non transactional so that they don't get serialized in the transaction buffer
 	TGuardValue< EObjectFlags > ContextFlagsGuard(TranslationContext.ObjectFlags, TranslationContext.ObjectFlags & ~RF_Transactional);
 
-	FString PrimPath;
-#if USE_USD_SDK
-	PrimPath = UsdToUnreal::ConvertPath(Prim.GetPrimPath());
-#endif // #if USE_USD_SDK
-
-	if (InfoCache)
-	{
-		if (UsdAssetCache)
-		{
-			UE::FSdfPath UsdPrimPath = UE::FSdfPath{*PrimPath};
-			TSet<TWeakObjectPtr<UObject>> OldAssets = InfoCache->RemoveAllAssetPrimLinks(UsdPrimPath);
-
-			for (const TWeakObjectPtr<UObject>& OldAsset : OldAssets)
-			{
-				// If there are any other prim paths linked to this asset that we *won't* be removing/reparsing
-				// in here, it means our stage actor as a whole is still "referencing" that asset
-				bool bAssetStillReferenced = false;
-				for (const UE::FSdfPath& LinkedPrim : InfoCache->GetPrimsForAsset(OldAsset.Get()))
-				{
-					if (LinkedPrim != UsdPrimPath)
-					{
-						bAssetStillReferenced = true;
-						break;
-					}
-				}
-				if (bAssetStillReferenced)
-				{
-					continue;
-				}
-
-				UsdAssetCache->RemoveAssetReference(OldAsset.Get(), this);
-			}
-		}
-	}
+	int32 StartNumAssets = UsdAssetCache->GetNumAssets();
 
 	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >(TEXT("USDSchemas"));
-	if (TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema(TranslationContext.AsShared(), UE::FUsdTyped(Prim)))
+	if (TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema(
+		TranslationContext.AsShared(),
+		UE::FUsdTyped(Prim)
+	))
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(AUsdStageActor::CreateAssetsForPrim);
 		SchemaTranslator->CreateAssets();
 	}
 
 	TranslationContext.CompleteTasks(); // Finish the asset tasks before moving on
+
+	return bAssetsDiscarded || UsdAssetCache->GetNumAssets() != StartNumAssets;
 }
 
-void AUsdStageActor::LoadAssets(FUsdSchemaTranslationContext& TranslationContext, const UE::FUsdPrim& StartPrim)
+bool AUsdStageActor::LoadAssets(FUsdSchemaTranslationContext& TranslationContext, const UE::FUsdPrim& StartPrim)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(AUsdStageActor::LoadAssets);
 
-	// Mark the assets as non transactional so that they don't get serialized in the transaction buffer
-	TGuardValue< EObjectFlags > ContextFlagsGuard(TranslationContext.ObjectFlags, TranslationContext.ObjectFlags & ~RF_Transactional);
+	if (!UsdAssetCache || !InfoCache)
+	{
+		return false;
+	}
 
 	// Clear existing prim/asset association
-	if (InfoCache)
+	bool bAssetsDiscarded = false;
 	{
 		UE::FSdfPath StartPrimPath = StartPrim.GetPrimPath();
 		TSet<UE::FSdfPath> PrimPathsToRemove;
@@ -3290,34 +3334,36 @@ void AUsdStageActor::LoadAssets(FUsdSchemaTranslationContext& TranslationContext
 			}
 		}
 
-		if (UsdAssetCache)
+		for (const UE::FSdfPath& PrimPathToRemove : PrimPathsToRemove)
 		{
-			for (const UE::FSdfPath& PrimPathToRemove : PrimPathsToRemove)
+			TSet<TWeakObjectPtr<UObject>> OldAssets = InfoCache->RemoveAllAssetPrimLinks(PrimPathToRemove);
+			for (const TWeakObjectPtr<UObject>& OldAsset : OldAssets)
 			{
-				TSet<TWeakObjectPtr<UObject>> OldAssets = InfoCache->RemoveAllAssetPrimLinks(PrimPathToRemove);
-				for (const TWeakObjectPtr<UObject>& OldAsset : OldAssets)
+				// If there are any other prim paths linked to this asset that we *won't* be removing/reparsing
+				// in here, it means our stage actor as a whole is still "referencing" that asset
+				bool bAssetStillReferenced = false;
+				for (const UE::FSdfPath& LinkedPrim : InfoCache->GetPrimsForAsset(OldAsset.Get()))
 				{
-					// If there are any other prim paths linked to this asset that we *won't* be removing/reparsing
-					// in here, it means our stage actor as a whole is still "referencing" that asset
-					bool bAssetStillReferenced = false;
-					for (const UE::FSdfPath& LinkedPrim : InfoCache->GetPrimsForAsset(OldAsset.Get()))
+					if (!PrimPathsToRemove.Contains(LinkedPrim))
 					{
-						if (!PrimPathsToRemove.Contains(LinkedPrim))
-						{
-							bAssetStillReferenced = true;
-							break;
-						}
+						bAssetStillReferenced = true;
+						break;
 					}
-					if (bAssetStillReferenced)
-					{
-						continue;
-					}
-
-					UsdAssetCache->RemoveAssetReference(OldAsset.Get(), this);
 				}
+				if (bAssetStillReferenced)
+				{
+					continue;
+				}
+
+				bAssetsDiscarded |= UsdAssetCache->RemoveAssetReference(OldAsset.Get(), this);
 			}
 		}
 	}
+
+	// Mark the assets as non transactional so that they don't get serialized in the transaction buffer
+	TGuardValue< EObjectFlags > ContextFlagsGuard(TranslationContext.ObjectFlags, TranslationContext.ObjectFlags & ~RF_Transactional);
+
+	int32 StartNumAssets = UsdAssetCache->GetNumAssets();
 
 	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >(TEXT("USDSchemas"));
 
@@ -3329,7 +3375,10 @@ void AUsdStageActor::LoadAssets(FUsdSchemaTranslationContext& TranslationContext
 		{
 			Progress.EnterProgressFrame(1.f);
 
-			if (TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema(TranslationContext.AsShared(), UE::FUsdTyped(UsdPrim)))
+			if (TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema(
+				TranslationContext.AsShared(),
+				UE::FUsdTyped(UsdPrim)
+			))
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(AUsdStageActor::CreateAssetsForPrim);
 				SchemaTranslator->CreateAssets();
@@ -3341,7 +3390,10 @@ void AUsdStageActor::LoadAssets(FUsdSchemaTranslationContext& TranslationContext
 
 	auto PruneChildren = [&UsdSchemasModule, &TranslationContext](const UE::FUsdPrim& UsdPrim) -> bool
 	{
-		if (TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema(TranslationContext.AsShared(), UE::FUsdTyped(UsdPrim)))
+		if (TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema(
+			TranslationContext.AsShared(),
+			UE::FUsdTyped(UsdPrim)
+		))
 		{
 			return SchemaTranslator->CollapsesChildren(ECollapsingType::Assets);
 		}
@@ -3362,6 +3414,8 @@ void AUsdStageActor::LoadAssets(FUsdSchemaTranslationContext& TranslationContext
 		FScopedSlowTask AssetsProgress(AllPrimAssets.Num(), LOCTEXT("CreateAssets", "Creating assets"));
 		CreateAssetsForPrims(AllPrimAssets, AssetsProgress);
 	}
+
+	return bAssetsDiscarded || UsdAssetCache->GetNumAssets() != StartNumAssets;
 }
 
 void AUsdStageActor::AnimatePrims()

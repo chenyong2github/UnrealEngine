@@ -32,6 +32,8 @@ public:
 	virtual bool CollapsesChildren( ECollapsingType CollapsingType ) const override;
 	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override;
 
+	virtual TSet<UE::FSdfPath> CollectAuxiliaryPrims() const override;
+
 	// If the optional parameters are not set, we'll figure them out automatically.
 	USceneComponent* CreateComponentsEx( TOptional< TSubclassOf< USceneComponent > > ComponentType, TOptional< bool > bNeedsActor );
 

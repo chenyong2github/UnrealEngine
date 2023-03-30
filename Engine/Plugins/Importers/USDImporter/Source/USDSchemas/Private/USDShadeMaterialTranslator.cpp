@@ -222,6 +222,8 @@ namespace UE::UsdShadeTranslator::Private
 
 void FUsdShadeMaterialTranslator::CreateAssets()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdShadeMaterialTranslator::CreateAssets );
+
 	pxr::UsdShadeMaterial ShadeMaterial( GetPrim() );
 
 	if ( !ShadeMaterial )
@@ -238,7 +240,7 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 		}
 	}
 
-	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdShadeMaterialTranslator::CreateAssets );
+	RegisterAuxiliaryPrims();
 
 	const pxr::TfToken RenderContextToken =
 		Context->RenderContext.IsNone() ?
@@ -481,6 +483,66 @@ bool FUsdShadeMaterialTranslator::CollapsesChildren( ECollapsingType CollapsingT
 bool FUsdShadeMaterialTranslator::CanBeCollapsed( ECollapsingType CollapsingType ) const
 {
 	return false;
+}
+
+TSet<UE::FSdfPath> FUsdShadeMaterialTranslator::CollectAuxiliaryPrims() const
+{
+	TSet<UE::FSdfPath> Result;
+	{
+		TFunction<void(const pxr::UsdShadeInput&)> TraverseShadeInput;
+		TraverseShadeInput = [&TraverseShadeInput, &Result](const pxr::UsdShadeInput& ShadeInput)
+		{
+			if (!ShadeInput)
+			{
+				return;
+			}
+
+			pxr::UsdShadeConnectableAPI Source;
+			pxr::TfToken SourceName;
+			pxr::UsdShadeAttributeType AttributeType;
+			if (pxr::UsdShadeConnectableAPI::GetConnectedSource(ShadeInput.GetAttr(), &Source, &SourceName, &AttributeType))
+			{
+				pxr::UsdPrim ConnectedPrim = Source.GetPrim();
+				UE::FSdfPath ConnectedPrimPath = UE::FSdfPath{ConnectedPrim.GetPrimPath()};
+
+				if (!Result.Contains(ConnectedPrimPath))
+				{
+					Result.Add(ConnectedPrimPath);
+
+					for (const pxr::UsdShadeInput& ChildInput : Source.GetInputs())
+					{
+						TraverseShadeInput(ChildInput);
+					}
+				}
+			}
+		};
+
+		FScopedUsdAllocs UsdAllocs;
+
+		pxr::UsdPrim Prim = GetPrim();
+		pxr::UsdShadeMaterial UsdShadeMaterial{Prim};
+		if (!UsdShadeMaterial)
+		{
+			return {};
+		}
+
+		const pxr::TfToken RenderContextToken = Context->RenderContext.IsNone()
+			? pxr::UsdShadeTokens->universalRenderContext
+			: UnrealToUsd::ConvertToken(*Context->RenderContext.ToString()).Get();
+		pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource({RenderContextToken});
+		if (!SurfaceShader)
+		{
+			return {};
+		}
+
+		Result.Add(UE::FSdfPath{SurfaceShader.GetPrim().GetPrimPath()});
+
+		for (const pxr::UsdShadeInput& ShadeInput : SurfaceShader.GetInputs())
+		{
+			TraverseShadeInput(ShadeInput);
+		}
+	}
+	return Result;
 }
 
 #endif // #if USE_USD_SDK

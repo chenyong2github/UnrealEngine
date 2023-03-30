@@ -2,6 +2,7 @@
 
 #include "USDInfoCache.h"
 
+#include "USDAssetCache2.h"
 #include "USDGeomMeshConversion.h"
 #include "USDGeomXformableTranslator.h"
 #include "USDLog.h"
@@ -64,10 +65,16 @@ struct FUsdInfoCache::FUsdInfoCacheImpl
 	TMap<TWeakObjectPtr<UObject>, TSet<UE::FSdfPath>> AssetToPrimPaths;
 	mutable FRWLock PrimPathToAssetsLock;
 
-	// Paths to material prims that are actually used by mesh prims in the scene, given the current settings for
+	// Paths to material prims to the mesh prims they are bound to in the scene, given the current settings for
 	// render context, material purpose, variant selections, etc.
-	TSet<UE::FSdfPath> UsedMaterialPaths;
-	mutable FRWLock UsedMaterialPathsLock;
+	TMap<UE::FSdfPath, TSet<UE::FSdfPath>> MaterialUsers;
+	mutable FRWLock MaterialUsersLock;
+
+	// Maps from prims, to all the prims that require also reading this prim to be translated into an asset.
+	// Mainly used to update these assets whenever the depencency prim is updated.
+	TMap<UE::FSdfPath, TSet<UE::FSdfPath>> AuxToMainPrims;
+	TMap<UE::FSdfPath, TSet<UE::FSdfPath>> MainToAuxPrims;
+	mutable FRWLock AuxiliaryPrimsLock;
 };
 
 FUsdInfoCache::FUsdInfoCache()
@@ -93,8 +100,13 @@ bool FUsdInfoCache::Serialize( FArchive& Ar )
 			Ar << ImplPtr->AssetToPrimPaths;
 		}
 		{
-			FWriteScopeLock ScopeLock(ImplPtr->UsedMaterialPathsLock);
-			Ar << ImplPtr->UsedMaterialPaths;
+			FWriteScopeLock ScopeLock(ImplPtr->MaterialUsersLock);
+			Ar << ImplPtr->MaterialUsers;
+		}
+		{
+			FWriteScopeLock ScopeLock(ImplPtr->AuxiliaryPrimsLock);
+			Ar << ImplPtr->AuxToMainPrims;
+			Ar << ImplPtr->MainToAuxPrims;
 		}
 	}
 
@@ -190,13 +202,123 @@ UE::FSdfPath FUsdInfoCache::UnwindToNonCollapsedPath( const UE::FSdfPath& Path, 
 	return Path;
 }
 
+void FUsdInfoCache::RegisterAuxiliaryPrim(const UE::FSdfPath& MainPrimPath, const UE::FSdfPath& AuxPrimPath) const
+{
+	if (FUsdInfoCacheImpl* ImplPtr = Impl.Get())
+	{
+		FWriteScopeLock ScopeLock(ImplPtr->AuxiliaryPrimsLock);
+
+		UE_LOG(LogUsd, Verbose, TEXT("Registering main prim '%s' and aux prim '%s'"),
+			*MainPrimPath.GetString(),
+			*AuxPrimPath.GetString()
+		);
+
+		ImplPtr->MainToAuxPrims.FindOrAdd(MainPrimPath).Add(AuxPrimPath);
+		ImplPtr->AuxToMainPrims.FindOrAdd(AuxPrimPath).Add(MainPrimPath);
+	}
+}
+
+void FUsdInfoCache::RegisterAuxiliaryPrims(const UE::FSdfPath& MainPrimPath, const TSet<UE::FSdfPath>& AuxPrimPaths) const
+{
+	if (FUsdInfoCacheImpl* ImplPtr = Impl.Get())
+	{
+		FWriteScopeLock ScopeLock(ImplPtr->AuxiliaryPrimsLock);
+
+		ImplPtr->MainToAuxPrims.FindOrAdd(MainPrimPath).Append(AuxPrimPaths);
+
+		for (const UE::FSdfPath& AuxPrimPath : AuxPrimPaths)
+		{
+			UE_LOG(LogUsd, Verbose, TEXT("Registering main prim '%s' and aux prim '%s'"),
+				*MainPrimPath.GetString(),
+				*AuxPrimPath.GetString()
+			);
+
+			ImplPtr->AuxToMainPrims.FindOrAdd(AuxPrimPath).Add(MainPrimPath);
+		}
+	}
+}
+
+void FUsdInfoCache::RemoveAuxiliaryPrims(const UE::FSdfPath& MainPrimPath) const
+{
+	if (FUsdInfoCacheImpl* ImplPtr = Impl.Get())
+	{
+		FWriteScopeLock ScopeLock(ImplPtr->AuxiliaryPrimsLock);
+
+		TSet<UE::FSdfPath> AuxPrimPaths;
+		ImplPtr->MainToAuxPrims.RemoveAndCopyValue(MainPrimPath, AuxPrimPaths);
+
+		for (const UE::FSdfPath& AuxPrimPath : AuxPrimPaths)
+		{
+			UE_LOG(LogUsd, Verbose, TEXT("Removing auxilliary prim '%s' from main prim '%s'"),
+				*AuxPrimPath.GetString(),
+				*MainPrimPath.GetString()
+			);
+
+			TSet<UE::FSdfPath>* MainPrimPaths = ImplPtr->AuxToMainPrims.Find(AuxPrimPath);
+			if (ensure(MainPrimPaths))
+			{
+				MainPrimPaths->Remove(MainPrimPath);
+			}
+		}
+	}
+}
+
+TSet<UE::FSdfPath> FUsdInfoCache::GetMainPrims(const UE::FSdfPath& AuxPrimPath) const
+{
+	if (FUsdInfoCacheImpl* ImplPtr = Impl.Get())
+	{
+		FReadScopeLock ScopeLock(ImplPtr->AuxiliaryPrimsLock);
+
+		if (const TSet<UE::FSdfPath>* FoundMainPrims = ImplPtr->AuxToMainPrims.Find(AuxPrimPath))
+		{
+			TSet<UE::FSdfPath> Result = *FoundMainPrims;
+			Result.Add(AuxPrimPath);
+			return Result;
+		}
+	}
+
+	return {AuxPrimPath};
+}
+
+TSet<UE::FSdfPath> FUsdInfoCache::GetAuxiliaryPrims(const UE::FSdfPath& MainPrimPath) const
+{
+	if (FUsdInfoCacheImpl* ImplPtr = Impl.Get())
+	{
+		FReadScopeLock ScopeLock(ImplPtr->AuxiliaryPrimsLock);
+
+		if (const TSet<UE::FSdfPath>* FoundAuxPrims = ImplPtr->MainToAuxPrims.Find(MainPrimPath))
+		{
+			TSet<UE::FSdfPath> Result = *FoundAuxPrims;
+			Result.Add(MainPrimPath);
+			return Result;
+		}
+	}
+
+	return {MainPrimPath};
+}
+
+TSet<UE::FSdfPath> FUsdInfoCache::GetMaterialUsers(const UE::FSdfPath& Path) const
+{
+	if (FUsdInfoCacheImpl* ImplPtr = Impl.Get())
+	{
+		FReadScopeLock ScopeLock(ImplPtr->MaterialUsersLock);
+
+		if (const TSet<UE::FSdfPath>* FoundUsers = ImplPtr->MaterialUsers.Find(Path))
+		{
+			return *FoundUsers;
+		}
+	}
+
+	return {};
+}
+
 bool FUsdInfoCache::IsMaterialUsed(const UE::FSdfPath& Path) const
 {
 	if (FUsdInfoCacheImpl* ImplPtr = Impl.Get())
 	{
-		FReadScopeLock ScopeLock(ImplPtr->UsedMaterialPathsLock);
+		FReadScopeLock ScopeLock(ImplPtr->MaterialUsersLock);
 
-		return ImplPtr->UsedMaterialPaths.Contains(Path);
+		return ImplPtr->MaterialUsers.Contains(Path);
 	}
 
 	return false;
@@ -345,8 +467,8 @@ namespace UE::USDInfoCacheImpl::Private
 			{
 				if (pxr::UsdShadeMaterial ShadeMaterial = BindingAPI.ComputeBoundMaterial(MaterialPurposeToken))
 				{
-					FWriteScopeLock ScopeLock(Impl.UsedMaterialPathsLock);
-					Impl.UsedMaterialPaths.Add(UE::FSdfPath{ShadeMaterial.GetPrim().GetPath()});
+					FWriteScopeLock ScopeLock(Impl.MaterialUsersLock);
+					Impl.MaterialUsers.FindOrAdd(UE::FSdfPath{ShadeMaterial.GetPrim().GetPath()}).Add(UE::FSdfPath{UsdPrimPath});
 				}
 			}
 			else if (pxr::UsdRelationship Relationship = UsdPrim.GetRelationship(pxr::UsdShadeTokens->materialBinding))
@@ -361,8 +483,8 @@ namespace UE::USDInfoCacheImpl::Private
 					pxr::UsdShadeMaterial UsdShadeMaterial{MaterialPrim};
 					if (UsdShadeMaterial)
 					{
-						FWriteScopeLock ScopeLock(Impl.UsedMaterialPathsLock);
-						Impl.UsedMaterialPaths.Add(UE::FSdfPath{TargetMaterialPrimPath});
+						FWriteScopeLock ScopeLock(Impl.MaterialUsersLock);
+						Impl.MaterialUsers.FindOrAdd(UE::FSdfPath{TargetMaterialPrimPath}).Add(UE::FSdfPath{UsdPrimPath});
 					}
 				}
 			}
@@ -797,11 +919,6 @@ TOptional<TArray<UsdUtils::FUsdPrimMaterialSlot>> FUsdInfoCache::GetSubtreeMater
 
 void FUsdInfoCache::LinkAssetToPrim(const UE::FSdfPath& Path, UObject* Asset)
 {
-	if (!Asset)
-	{
-		return;
-	}
-
 	FUsdInfoCacheImpl* ImplPtr = Impl.Get();
 	if (!ImplPtr)
 	{
@@ -826,6 +943,10 @@ TSet<TWeakObjectPtr<UObject>> FUsdInfoCache::RemoveAllAssetPrimLinks(const UE::F
 		return {};
 	}
 	FWriteScopeLock ScopeLock(ImplPtr->PrimPathToAssetsLock);
+
+	UE_LOG(LogUsd, Verbose, TEXT("Removing asset prim links for path '%s'"),
+		*Path.GetString()
+	);
 
 	TSet<TWeakObjectPtr<UObject>> Assets;
 	ImplPtr->PrimPathToAssets.RemoveAndCopyValue(Path, Assets);
@@ -917,14 +1038,15 @@ void FUsdInfoCache::RebuildCacheForSubtree( const UE::FUsdPrim& Prim, FUsdSchema
 		}
 
 		// Don't call Clear() here as we don't want to get rid of PrimPathToAssets because we're rebuilding the cache,
-		// as that info is also linked to the asset cache
+		// as that info is also linked to the asset cache. The same for the aux prim maps, that currently gets
+		// filled in on-demand.
 		{
 			FWriteScopeLock ScopeLock(ImplPtr->InfoMapLock);
 			ImplPtr->InfoMap.Empty();
 		}
 		{
-			FWriteScopeLock ScopeLock(ImplPtr->UsedMaterialPathsLock);
-			ImplPtr->UsedMaterialPaths.Empty();
+			FWriteScopeLock ScopeLock(ImplPtr->MaterialUsersLock);
+			ImplPtr->MaterialUsers.Empty();
 		}
 
 		IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT( "USDSchemas" ) );
@@ -993,8 +1115,13 @@ void FUsdInfoCache::Clear()
 			ImplPtr->AssetToPrimPaths.Empty();
 		}
 		{
-			FWriteScopeLock ScopeLock(ImplPtr->UsedMaterialPathsLock);
-			ImplPtr->UsedMaterialPaths.Empty();
+			FWriteScopeLock ScopeLock(ImplPtr->MaterialUsersLock);
+			ImplPtr->MaterialUsers.Empty();
+		}
+		{
+			FWriteScopeLock ScopeLock(ImplPtr->AuxiliaryPrimsLock);
+			ImplPtr->AuxToMainPrims.Empty();
+			ImplPtr->MainToAuxPrims.Empty();
 		}
 	}
 }

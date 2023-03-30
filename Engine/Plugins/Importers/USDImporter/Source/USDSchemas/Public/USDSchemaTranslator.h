@@ -276,6 +276,12 @@ public:
 
 	virtual ~FUsdSchemaTranslator() = default;
 
+	/**
+	 * Translates the prim at PrimPath, creating assets.
+	 * Derived classes that wish to implement FUsdSchemaTranslator::CreateAssets should manually call
+	 * FUsdSchemaTranslator::RegisterAuxiliaryPrims and implement CollectAuxiliaryPrims to catalog their
+	 * dependency prims and regenerate assets when those prims are updated.
+	 */
 	virtual void CreateAssets() {}
 
 	virtual USceneComponent* CreateComponents() { return nullptr; }
@@ -283,10 +289,21 @@ public:
 
 	virtual bool CollapsesChildren( ECollapsingType CollapsingType ) const { return false; }
 
+	/**
+	 * Returns the set of prims that also need to be read in order to translate the prim at PrimPath.
+	 * Note: This function never needs to return PrimPath itself, as the query function in the InfoCache will always
+	 * append it to the result
+	 */
+	virtual TSet<UE::FSdfPath> CollectAuxiliaryPrims() const { return {}; }
+
 	bool IsCollapsed( ECollapsingType CollapsingType ) const;
 	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const { return false; }
 
 	UE::FUsdPrim GetPrim() const { return Context->Stage.GetPrimAtPath(PrimPath); }
+
+protected:
+	/** Calls CollectAuxiliaryPrims to record the current dependencies in the Context's InfoCache */
+	void RegisterAuxiliaryPrims();
 
 protected:
 	UE::FSdfPath PrimPath;

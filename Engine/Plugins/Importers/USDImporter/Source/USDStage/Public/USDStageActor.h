@@ -263,10 +263,10 @@ public:
 
 protected:
 	/** Loads the asset for a single prim */
-	void LoadAsset(FUsdSchemaTranslationContext& TranslationContext, const UE::FUsdPrim& Prim);
+	bool LoadAsset(FUsdSchemaTranslationContext& TranslationContext, const UE::FUsdPrim& Prim);
 
 	/** Loads the assets for all prims from StartPrim and its children */
-	void LoadAssets(FUsdSchemaTranslationContext& TranslationContext, const UE::FUsdPrim& StartPrim);
+	bool LoadAssets(FUsdSchemaTranslationContext& TranslationContext, const UE::FUsdPrim& StartPrim);
 
 	void Refresh() const;
 	void AnimatePrims();

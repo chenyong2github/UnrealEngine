@@ -27,8 +27,10 @@ public:
 	virtual USceneComponent* CreateComponents() override;
 	virtual void UpdateComponents( USceneComponent* SceneComponent ) override;
 
-	virtual bool CollapsesChildren( ECollapsingType CollapsingType ) const override { return true; }
-	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override { return false; }
+	virtual bool CollapsesChildren(ECollapsingType CollapsingType) const override;
+	virtual bool CanBeCollapsed(ECollapsingType CollapsingType) const override;
+
+	virtual TSet<UE::FSdfPath> CollectAuxiliaryPrims() const override;
 };
 
 #endif //#if USE_USD_SDK

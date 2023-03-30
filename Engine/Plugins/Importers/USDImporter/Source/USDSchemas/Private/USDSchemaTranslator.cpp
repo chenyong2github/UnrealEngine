@@ -201,6 +201,18 @@ void FUsdSchemaTranslationContext::CompleteTasks()
 	}
 }
 
+void FUsdSchemaTranslator::RegisterAuxiliaryPrims()
+{
+	if (Context->InfoCache.IsValid())
+	{
+		TSet<UE::FSdfPath> AuxPrims = CollectAuxiliaryPrims();
+		if (AuxPrims.Num() > 0)
+		{
+			Context->InfoCache->RegisterAuxiliaryPrims(PrimPath, AuxPrims);
+		}
+	}
+}
+
 bool FUsdSchemaTranslator::IsCollapsed( ECollapsingType CollapsingType ) const
 {
 #if USE_USD_SDK
