@@ -716,7 +716,7 @@ bool ULevelEditorSubsystem::BuildLightMaps(ELightingBuildQuality Quality, bool b
 	}
 
 	FEditorDelegates::OnLightingBuildFailed.Remove(BuildFailedDelegateHandle);
-	FEditorDelegates::OnLightingBuildFailed.Remove(BuildSucceededDelegateHandle);
+	FEditorDelegates::OnLightingBuildSucceeded.Remove(BuildSucceededDelegateHandle);
 
 	return Success;
 }
