@@ -268,7 +268,7 @@ void USplineComponent::UpdateSpline()
 	MARK_PROPERTY_DIRTY_FROM_NAME(USplineComponent, bSplineHasBeenEdited, this);
 	MARK_PROPERTY_DIRTY_FROM_NAME(USplineComponent, bInputSplinePointsToConstructionScript, this);
 
-#if !UE_BUILD_SHIPPING
+#if UE_ENABLE_DEBUG_DRAWING
 	if (bDrawDebug)
 	{
 		MarkRenderStateDirty();
