@@ -113,6 +113,14 @@ namespace EpicGames.Horde.Compute.Buffers
 		}
 
 		/// <summary>
+		/// Opens a <see cref="SharedMemoryBuffer"/> from handles
+		/// </summary>
+		public SharedMemoryBuffer(IntPtr memoryHandle, IntPtr readerEventHandle, IntPtr writerEventHandle)
+			: this(OpenMemoryMappedFileFromHandle(memoryHandle), new Native.EventHandle(readerEventHandle, true), new Native.EventHandle(writerEventHandle, true))
+		{
+		}
+
+		/// <summary>
 		/// Creates a shared memory buffer from a memory mapped file
 		/// </summary>
 		internal SharedMemoryBuffer(MemoryMappedFile memoryMappedFile, Native.EventHandle writtenEvent, Native.EventHandle flushedEvent)
@@ -144,7 +152,7 @@ namespace EpicGames.Horde.Compute.Buffers
 		/// Opens an IpcBuffer from a string passed in from another process
 		/// </summary>
 		/// <param name="handle">Descriptor for the buffer to open</param>
-		public static MemoryMappedFile OpenMemoryMappedFileFromHandle(IntPtr handle)
+		static MemoryMappedFile OpenMemoryMappedFileFromHandle(IntPtr handle)
 		{
 			MethodInfo? setHandleInfo = typeof(SafeMemoryMappedFileHandle).GetMethod("SetHandle", BindingFlags.Instance | BindingFlags.NonPublic, new[] { typeof(IntPtr) });
 			if (setHandleInfo == null)
@@ -165,67 +173,36 @@ namespace EpicGames.Horde.Compute.Buffers
 		}
 
 		/// <summary>
-		/// Opens a <see cref="SharedMemoryBuffer"/> from handles returned by <see cref="GetIpcHandle()"/>
+		/// Gets a string that can be used to open the same buffer in another process
 		/// </summary>
-		public static SharedMemoryBuffer OpenIpcHandle(string handle)
+		public void GetHandles(out IntPtr memoryHandle, out IntPtr readerEventHandle, out IntPtr writerEventHandle)
 		{
-			IntPtr[] handles = handle.Split('.').Select(x => new IntPtr((long)UInt64.Parse(x, NumberStyles.None, null))).ToArray();
-			if (handles.Length != 3)
-			{
-				throw new ArgumentException($"Malformed ipc handle string: {handle}", nameof(handle));
-			}
-
-			MemoryMappedFile memoryMappedFile = OpenMemoryMappedFileFromHandle(handles[0]);
-			Native.EventHandle writtenEvent = new Native.EventHandle(handles[1], true);
-			Native.EventHandle flushedEvent = new Native.EventHandle(handles[2], true);
-
-			return new SharedMemoryBuffer(memoryMappedFile, writtenEvent, flushedEvent);
+			memoryHandle = _memoryMappedFile.SafeMemoryMappedFileHandle.DangerousGetHandle();
+			readerEventHandle = _readerEvent.SafeWaitHandle.DangerousGetHandle();
+			writerEventHandle = _writerEvent.SafeWaitHandle.DangerousGetHandle();
 		}
 
 		/// <summary>
 		/// Gets a string that can be used to open the same buffer in another process
 		/// </summary>
-		public string GetIpcHandle()
-		{
-			IntPtr memoryHandle = _memoryMappedFile.SafeMemoryMappedFileHandle.DangerousGetHandle();
-			IntPtr writtenEventHandle = _readerEvent.SafeWaitHandle.DangerousGetHandle();
-			IntPtr flushedEventHandle = _writerEvent.SafeWaitHandle.DangerousGetHandle();
-			return GetIpcHandle(memoryHandle, writtenEventHandle, flushedEventHandle);
-		}
-
-		/// <summary>
-		/// Duplicates handles for this buffer into the given process, and returns a string that the target process can use to open it.
-		/// </summary>
-		/// <param name="targetProcessHandle">Handle to the target process</param>
-		/// <returns>String that the target process can pass into a call to <see cref="OpenIpcHandle(String)"/> to open the buffer.</returns>
-		public string GetIpcHandle(IntPtr targetProcessHandle)
+		public void DuplicateHandles(IntPtr targetProcessHandle, out IntPtr targetMemoryHandle, out IntPtr targetReaderEventHandle, out IntPtr targetWriterEventHandle)
 		{
 			IntPtr sourceProcessHandle = Native.GetCurrentProcess();
 
-			IntPtr targetMemoryHandle;
 			if (!Native.DuplicateHandle(sourceProcessHandle, _memoryMappedFile.SafeMemoryMappedFileHandle.DangerousGetHandle(), targetProcessHandle, out targetMemoryHandle, 0, false, Native.DUPLICATE_SAME_ACCESS))
 			{
 				throw new Win32Exception();
 			}
 
-			IntPtr targetWrittenEventHandle;
-			if (!Native.DuplicateHandle(sourceProcessHandle, _readerEvent.SafeWaitHandle.DangerousGetHandle(), targetProcessHandle, out targetWrittenEventHandle, 0, false, Native.DUPLICATE_SAME_ACCESS))
+			if (!Native.DuplicateHandle(sourceProcessHandle, _readerEvent.SafeWaitHandle.DangerousGetHandle(), targetProcessHandle, out targetReaderEventHandle, 0, false, Native.DUPLICATE_SAME_ACCESS))
 			{
 				throw new Win32Exception();
 			}
 
-			IntPtr targetFlushedEventHandle;
-			if(!Native.DuplicateHandle(sourceProcessHandle, _writerEvent.SafeWaitHandle.DangerousGetHandle(), targetProcessHandle, out targetFlushedEventHandle, 0, false, Native.DUPLICATE_SAME_ACCESS))
+			if (!Native.DuplicateHandle(sourceProcessHandle, _writerEvent.SafeWaitHandle.DangerousGetHandle(), targetProcessHandle, out targetWriterEventHandle, 0, false, Native.DUPLICATE_SAME_ACCESS))
 			{
 				throw new Win32Exception();
 			}
-
-			return GetIpcHandle(targetMemoryHandle, targetWrittenEventHandle, targetFlushedEventHandle);
-		}
-
-		static string GetIpcHandle(IntPtr memoryHandle, IntPtr writtenEventHandle, IntPtr flushedEventHandle)
-		{
-			return $"{(ulong)memoryHandle.ToInt64()}.{(ulong)writtenEventHandle.ToInt64()}.{(ulong)flushedEventHandle.ToInt64()}";
 		}
 
 		/// <inheritdoc/>

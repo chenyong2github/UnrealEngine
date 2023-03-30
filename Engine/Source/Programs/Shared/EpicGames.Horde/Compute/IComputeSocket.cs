@@ -43,32 +43,10 @@ namespace EpicGames.Horde.Compute
 	public static class ComputeSocket
 	{
 		/// <summary>
-		/// Environment variable for channel info for communicating with the worker process
-		/// </summary>
-		public const string WorkerIpcEnvVar = "UE_HORDE_COMPUTE_IPC";
-
-		/// <summary>
 		/// Creates a socket for a worker
 		/// </summary>
 		/// <param name="logger">Logger for diagnostic messages</param>
-		public static IComputeSocket ConnectAsWorker(ILogger logger)
-		{
-			string? handle = Environment.GetEnvironmentVariable(WorkerIpcEnvVar);
-			if (handle == null)
-			{
-				throw new InvalidOperationException($"Environment variable {WorkerIpcEnvVar} is not defined; cannot connect as worker.");
-			}
-
-			try
-			{
-				IpcComputeMessageChannel channel = IpcComputeMessageChannel.FromStringHandle(handle, logger);
-				return new WorkerComputeSocket(channel, logger);
-			}
-			catch(Exception ex)
-			{
-				throw new Exception($"While connecting using '{handle}'", ex);
-			}
-		}
+		public static IComputeSocket ConnectAsWorker(ILogger logger) => WorkerComputeSocket.FromEnvironment(logger);
 	}
 
 	/// <summary>

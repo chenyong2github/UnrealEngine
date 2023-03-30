@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -8,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Compute.Buffers;
+using EpicGames.Horde.Compute.Sockets;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
 using Microsoft.Extensions.Caching.Memory;
@@ -169,8 +171,8 @@ namespace EpicGames.Horde.Compute
 
 		async Task ExecuteProcessWindowsAsync(IComputeSocket socket, IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
 		{
-			await using IpcComputeMessageChannel ipcChannel = new IpcComputeMessageChannel(4096, _logger);
-			await using (BackgroundTask ipcTask = BackgroundTask.StartNew(ctx => RunIpcChannel(socket, ipcChannel, ctx)))
+			using SharedMemoryBuffer ipcBuffer = new SharedMemoryBuffer(4096);
+			await using (BackgroundTask ipcTask = BackgroundTask.StartNew(ctx => RunIpcChannel(socket, ipcBuffer, ctx)))
 			{
 				Dictionary<string, string?> newEnvVars = new Dictionary<string, string?>();
 				if (envVars != null)
@@ -181,54 +183,68 @@ namespace EpicGames.Horde.Compute
 					}
 				}
 
-				newEnvVars[ComputeSocket.WorkerIpcEnvVar] = ipcChannel.GetStringHandle();
+				newEnvVars[WorkerComputeSocket.IpcEnvVar] = WorkerComputeSocket.GetIpcEnvVarValue(ipcBuffer);
 
 				_logger.LogInformation("Launching {Executable} {Arguments}", CommandLineArguments.Quote(executable), CommandLineArguments.Join(arguments));
 				await ExecuteProcessInternalAsync(channel, executable, arguments, workingDir, newEnvVars, cancellationToken);
 				_logger.LogInformation("Finished executing process");
 
-				ipcChannel.ForceComplete();
+				Memory<byte> buffer = ipcBuffer.GetWriteMemory();
+				buffer.Span[0] = (byte)IpcMessageType.Finish;
+				ipcBuffer.AdvanceWritePosition(1);
+
 				await ipcTask.Task.WaitAsync(TimeSpan.FromSeconds(5.0), cancellationToken);
 			}
 			_logger.LogInformation("Child process has shut down");
 		}
 
-		async Task RunIpcChannel(IComputeSocket socket, IpcComputeMessageChannel ipcChannel, CancellationToken cancellationToken)
+		async Task RunIpcChannel(IComputeSocket socket, SharedMemoryBuffer ipcBuffer, CancellationToken cancellationToken)
 		{
 			List<IDisposable> buffers = new List<IDisposable>();
 			try
 			{
 				for (; ; )
 				{
-					using IComputeMessage message = await ipcChannel.ReceiveAsync(cancellationToken);
-					switch (message.Type)
+					ReadOnlyMemory<byte> memory = ipcBuffer.GetReadMemory();
+					if (memory.Length == 0)
 					{
-						case ComputeMessageType.None:
+						await ipcBuffer.WaitForDataAsync(0, cancellationToken);
+						continue;
+					}
+
+					IpcMessageType messageType = (IpcMessageType)memory.Span[0];
+					switch (messageType)
+					{
+						case IpcMessageType.Finish:
 							return;
-						case ComputeMessageType.AttachRecvBuffer:
+						case IpcMessageType.AttachRecvBuffer:
 							{
-								AttachRecvBufferRequest attachRecvBuffer = IpcComputeMessageChannel.ParseAttachRecvBuffer(message);
+								IpcAttachBufferRequest attachRecvBuffer = IpcAttachBufferRequest.Read(ipcBuffer);
+
 								_logger.LogInformation("Attaching receive buffer to channel {Id}", attachRecvBuffer.ChannelId);
 #pragma warning disable CA2000 // Dispose objects before losing scope
-								(IComputeBufferReader reader, IComputeBufferWriter writer) = SharedMemoryBuffer.OpenIpcHandle(attachRecvBuffer.Handle).ToShared();
+								SharedMemoryBuffer buffer = new SharedMemoryBuffer(attachRecvBuffer.MemoryHandle, attachRecvBuffer.ReaderEventHandle, attachRecvBuffer.WriterEventHandle);
+								(IComputeBufferReader reader, IComputeBufferWriter writer) = buffer.ToShared();
 								reader.Dispose();
 								await socket.AttachRecvBufferAsync(attachRecvBuffer.ChannelId, writer, cancellationToken);
 #pragma warning restore CA2000 // Dispose objects before losing scope
 							}
 							break;
-						case ComputeMessageType.AttachSendBuffer:
+						case IpcMessageType.AttachSendBuffer:
 							{
-								AttachSendBufferRequest attachSendBuffer = IpcComputeMessageChannel.ParseAttachSendBuffer(message);
+								IpcAttachBufferRequest attachSendBuffer = IpcAttachBufferRequest.Read(ipcBuffer);
+
 								_logger.LogInformation("Attaching send buffer to channel {Id}", attachSendBuffer.ChannelId);
 #pragma warning disable CA2000 // Dispose objects before losing scope
-								(IComputeBufferReader reader, IComputeBufferWriter writer) = SharedMemoryBuffer.OpenIpcHandle(attachSendBuffer.Handle).ToShared();
+								SharedMemoryBuffer buffer = new SharedMemoryBuffer(attachSendBuffer.MemoryHandle, attachSendBuffer.ReaderEventHandle, attachSendBuffer.WriterEventHandle);
+								(IComputeBufferReader reader, IComputeBufferWriter writer) = buffer.ToShared();
 								writer.Dispose();
 								await socket.AttachSendBufferAsync(attachSendBuffer.ChannelId, reader, cancellationToken);
 #pragma warning restore CA2000 // Dispose objects before losing scope
 							}
 							break;
 						default:
-							throw new ComputeInvalidMessageException(message);
+							throw new ComputeInternalException($"Invalid IPC message type: {messageType}");
 					}
 				}
 			}

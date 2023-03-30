@@ -25,13 +25,15 @@ namespace RemoteClient
 
 		[CommandLine("-Condition=")]
 		public string? Condition { get; set; }
+
+		[CommandLine("-Cpp")]
+		public bool UseCppWorker { get; set; }
 	}
 
 	class ClientApp
 	{
 		static FileReference CurrentAssemblyFile { get; } = new FileReference(Assembly.GetExecutingAssembly().Location);
 		static DirectoryReference ClientSourceDir { get; } = DirectoryReference.Combine(CurrentAssemblyFile.Directory, "../../..");
-		static FileReference RemoteServerFile { get; } = FileReference.Combine(ClientSourceDir, "../RemoteServer", CurrentAssemblyFile.Directory.MakeRelativeTo(ClientSourceDir), "RemoteServer.dll");
 
 		static async Task Main(string[] args)
 		{
@@ -60,6 +62,21 @@ namespace RemoteClient
 				return;
 			}
 
+			// Run the worker
+			if (options.UseCppWorker)
+			{
+				FileReference remoteServerFile = FileReference.Combine(ClientSourceDir, "../RemoteWorkerCpp/bin/RemoteServerCpp.exe");
+				await RunRemoteAsync(lease, remoteServerFile.Directory, "RemoteWorkerCpp.exe", new List<string>(), logger);
+			}
+			else
+			{
+				FileReference remoteServerFile = FileReference.Combine(ClientSourceDir, "../RemoteWorker", CurrentAssemblyFile.Directory.MakeRelativeTo(ClientSourceDir), "RemoteWorker.dll");
+				await RunRemoteAsync(lease, remoteServerFile.Directory, @"C:\Program Files\dotnet\dotnet.exe", new List<string> { remoteServerFile.GetFileName() }, logger);
+			}
+		}
+
+		static async Task RunRemoteAsync(IComputeLease lease, DirectoryReference uploadDir, string executable, List<string> arguments, ILogger logger)
+		{
 			// Create a message channel on channel id 0. The Horde Agent always listens on this channel for requests.
 			const int ControlChannelId = 0;
 			await using IComputeMessageChannel channel = await lease.Socket.CreateMessageChannelAsync(ControlChannelId, 4 * 1024 * 1024, logger);
@@ -70,13 +87,13 @@ namespace RemoteClient
 			using (TreeWriter treeWriter = new TreeWriter(storage))
 			{
 				DirectoryNode sandbox = new DirectoryNode();
-				await sandbox.CopyFromDirectoryAsync(RemoteServerFile.Directory.ToDirectoryInfo(), new ChunkingOptions(), treeWriter, null);
+				await sandbox.CopyFromDirectoryAsync(uploadDir.ToDirectoryInfo(), new ChunkingOptions(), treeWriter, null);
 				NodeHandle handle = await treeWriter.FlushAsync(sandbox);
 				await channel.UploadFilesAsync("", handle.Locator, storage);
 			}
 
 			// Run the task remotely in the background and echo the output to the console
-			await using (IComputeProcess process = await channel.ExecuteAsync(@"C:\Program Files\dotnet\dotnet.exe", new List<string> { RemoteServerFile.GetFileName() }, null, null))
+			await using (IComputeProcess process = await channel.ExecuteAsync(executable, arguments, null, null))
 			{
 				string? line = await process.ReadLineAsync();
 				logger.LogInformation("[REMOTE] {Line}", line);

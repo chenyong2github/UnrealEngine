@@ -92,20 +92,6 @@ namespace EpicGames.Horde.Compute
 
 		#endregion
 
-		#region Buffers
-
-		/// <summary>
-		/// Registers a send buffer created by a child process
-		/// </summary>
-		AttachSendBuffer = 0x30,
-
-		/// <summary>
-		/// Registers a receive buffer created by a child process
-		/// </summary>
-		AttachRecvBuffer = 0x31,
-
-		#endregion
-
 		#region Test Requests
 
 		/// <summary>
@@ -179,16 +165,6 @@ namespace EpicGames.Horde.Compute
 	/// Creates a blob read request
 	/// </summary>
 	public record struct ReadBlobMessage(BlobLocator Locator, int Offset, int Length);
-
-	/// <summary>
-	/// Request a receive buffer in a worker process
-	/// </summary>
-	public record struct AttachSendBufferRequest(int ChannelId, string Handle);
-
-	/// <summary>
-	/// Request a receive buffer in a worker process
-	/// </summary>
-	public record struct AttachRecvBufferRequest(int ChannelId, string Handle);
 
 	/// <summary>
 	/// Message for running an XOR command
