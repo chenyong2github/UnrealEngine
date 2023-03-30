@@ -1183,8 +1183,6 @@ bool URigVMCompiler::CompileFunction(const URigVMLibraryNode* InLibraryNode, URi
 							}
 						}
 					}
-
-					ClientHost->GetRigVMClient()->UpdateFunctionReferences(Data->Header, true, false);
 				}
 		
 				Store->UpdateFunctionCompilationData(InLibraryNode->GetFunctionIdentifier(), *OutFunctionCompilationData);
