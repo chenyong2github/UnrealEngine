@@ -2394,6 +2394,8 @@ void main(void)
 			name = this.subresource_version_info['resource'];
 		}
 
+		name = `${name}.${this.resource_desc['Format']}`;
+
 		if (this.subresource_version_info['subresource'] && !this.subresource_version_info['subresource'].startsWith('mip'))
 		{
 			name = `${name}.${this.subresource_version_info['subresource']}`;
