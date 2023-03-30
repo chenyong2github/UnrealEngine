@@ -1607,6 +1607,14 @@ void UCommonUserSubsystem::ProcessLoginRequest(TSharedRef<FUserLoginRequest> Req
 	{
 		Request->OverallLoginState = ECommonUserAsyncTaskState::Failed;
 	}
+	else if (Request->OverallLoginState == ECommonUserAsyncTaskState::InProgress &&
+		Request->LoginUIState != ECommonUserAsyncTaskState::InProgress &&
+		Request->AutoLoginState != ECommonUserAsyncTaskState::InProgress &&
+		Request->TransferPlatformAuthState != ECommonUserAsyncTaskState::InProgress)
+	{
+		// If none of the substates are still in progress but we haven't successfully logged in, mark this as a failure to avoid stalling forever
+		Request->OverallLoginState = ECommonUserAsyncTaskState::Failed;
+	}
 
 	if (Request->OverallLoginState == ECommonUserAsyncTaskState::Done)
 	{
