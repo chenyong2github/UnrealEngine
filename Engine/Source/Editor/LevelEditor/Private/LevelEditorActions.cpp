@@ -671,7 +671,20 @@ void FLevelEditorActionCallbacks::SetPreviewPlatform(FPreviewPlatformInfo NewPre
 
 bool FLevelEditorActionCallbacks::CanExecutePreviewPlatform(FPreviewPlatformInfo NewPreviewPlatform)
 {
-	return NewPreviewPlatform.PreviewFeatureLevel <= GMaxRHIFeatureLevel;
+	// TODO: Prevent switching from a platform with VSM to a platform without VSM at the same FeatureLevel until all issues are resolved.
+	// (for instance, GlobalShaderMap does not contain the shaders necessary for FVirtualShadowMapArrayCacheManager::ProcessInvalidations anymore)
+	// Currently this is mostly meant to isolate going to/from VULKAN_SM5 which is wildly different and causes issues with preview mechanics.
+	if (NewPreviewPlatform.PreviewFeatureLevel == GMaxRHIFeatureLevel)
+	{
+		if (FDataDrivenShaderPlatformInfo::IsValid(NewPreviewPlatform.ShaderPlatform) &&
+			FDataDrivenShaderPlatformInfo::GetIsPreviewPlatform(NewPreviewPlatform.ShaderPlatform))
+		{
+			const EShaderPlatform ParentShaderPlatform = FDataDrivenShaderPlatformInfo::GetPreviewShaderPlatformParent(NewPreviewPlatform.ShaderPlatform);
+			return (DoesPlatformSupportVirtualShadowMaps(GMaxRHIShaderPlatform) == DoesPlatformSupportVirtualShadowMaps(ParentShaderPlatform));
+		}
+	}
+
+	return (NewPreviewPlatform.PreviewFeatureLevel < GMaxRHIFeatureLevel);
 }
 
 bool FLevelEditorActionCallbacks::IsPreviewPlatformChecked(FPreviewPlatformInfo PreviewPlatform)
