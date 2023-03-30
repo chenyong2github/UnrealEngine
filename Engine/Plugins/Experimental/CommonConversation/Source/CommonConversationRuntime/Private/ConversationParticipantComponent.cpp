@@ -222,7 +222,7 @@ void UConversationParticipantComponent::SendClientRefreshedTaskChoiceData(const 
 				{
 					LastOption.ExtraData = CurrentOption.ExtraData;
 					LastOption.ChoiceReference.NodeParameters = CurrentOption.ChoiceReference.NodeParameters;
-					ClintUpdateConversationTaskChoiceData(Handle, LastOption);
+					ClientUpdateConversationTaskChoiceData(Handle, LastOption);
 					break;
 				}
 			}
