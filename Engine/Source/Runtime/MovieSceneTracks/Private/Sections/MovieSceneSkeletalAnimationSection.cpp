@@ -274,10 +274,12 @@ void UMovieSceneSkeletalAnimationSection::PostLoad()
 
 TOptional<TRange<FFrameNumber> > UMovieSceneSkeletalAnimationSection::GetAutoSizeRange() const
 {
-	FFrameRate FrameRate = GetTypedOuter<UMovieScene>()->GetTickResolution();
+	const FFrameRate FrameRate = GetTypedOuter<UMovieScene>()->GetTickResolution();
+	const float AnimPlayRate = FMath::IsNearlyZero(Params.PlayRate) || Params.Animation == nullptr ? 1.0f : Params.PlayRate * Params.Animation->RateScale;
 
-	FFrameTime AnimationLength = Params.GetSequenceLength() * FrameRate;
-	int32 IFrameNumber = AnimationLength.FrameNumber.Value + (int)(AnimationLength.GetSubFrame() + 0.5f);
+	const FFrameTime UnscaledAnimationLength = FMath::Max(Params.GetSequenceLength() * FrameRate - Params.FirstLoopStartFrameOffset - Params.StartFrameOffset - Params.EndFrameOffset, FFrameTime(1));
+	const FFrameTime AnimationLength = UnscaledAnimationLength / AnimPlayRate;
+	const int32 IFrameNumber = AnimationLength.FrameNumber.Value + (int)(AnimationLength.GetSubFrame() + 0.5f);
 
 	return TRange<FFrameNumber>(GetInclusiveStartFrame(), GetInclusiveStartFrame() + IFrameNumber + 1);
 }

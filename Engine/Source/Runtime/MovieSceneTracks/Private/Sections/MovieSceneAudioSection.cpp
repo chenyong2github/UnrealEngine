@@ -256,9 +256,9 @@ TOptional<TRange<FFrameNumber> > UMovieSceneAudioSection::GetAutoSizeRange() con
 		return TRange<FFrameNumber>();
 	}
 
-	float SoundDuration = MovieSceneHelpers::GetSoundDuration(Sound);
+	const float SoundDuration = MovieSceneHelpers::GetSoundDuration(Sound);
 
-	FFrameRate FrameRate = GetTypedOuter<UMovieScene>()->GetTickResolution();
+	const FFrameRate FrameRate = GetTypedOuter<UMovieScene>()->GetTickResolution();
 
 	// determine initial duration
 	// @todo Once we have infinite sections, we can remove this
@@ -267,10 +267,11 @@ TOptional<TRange<FFrameNumber> > UMovieSceneAudioSection::GetAutoSizeRange() con
 
 	if (SoundDuration != INDEFINITELY_LOOPING_DURATION)
 	{
-		DurationToUse = SoundDuration * FrameRate;
+		DurationToUse = FMath::Max(SoundDuration * FrameRate - StartFrameOffset, FFrameTime(1));
 	}
 
-	return TRange<FFrameNumber>(GetInclusiveStartFrame(), GetInclusiveStartFrame() + DurationToUse.FrameNumber);
+	const int32 IFrameNumber = DurationToUse.FrameNumber.Value + (int)(DurationToUse.GetSubFrame() + 0.5f);
+	return TRange<FFrameNumber>(GetInclusiveStartFrame(), GetInclusiveStartFrame() + IFrameNumber);
 }
 
 	

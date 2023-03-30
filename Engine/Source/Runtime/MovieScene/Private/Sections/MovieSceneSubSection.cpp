@@ -347,15 +347,16 @@ UMovieSceneSection* UMovieSceneSubSection::SplitSection( FQualifiedFrameTime Spl
 
 TOptional<TRange<FFrameNumber> > UMovieSceneSubSection::GetAutoSizeRange() const
 {
-	if (SubSequence && SubSequence->GetMovieScene())
+	UMovieScene* MovieScene = SubSequence ? SubSequence->GetMovieScene() : nullptr;
+	if (MovieScene)
 	{
 		// We probably want to just auto-size the section to the sub-sequence's scaled playback range... if this section
-		// is looping, however, it's hard to know what we want to do.
-		FMovieSceneTimeTransform InnerToOuter = OuterToInnerTransform().InverseLinearOnly();
-		UMovieScene* InnerMovieScene = SubSequence->GetMovieScene();
+		// is looping, however, it's hard to know what we want to do. Let's just size it to one loop.
+		const FMovieSceneTimeTransform InnerToOuter = OuterToInnerTransform().InverseLinearOnly();
+		const TRange<FFrameNumber> InnerPlaybackRange = UMovieSceneSubSection::GetValidatedInnerPlaybackRange(Parameters, *MovieScene);
 
-		FFrameTime IncAutoStartTime = FFrameTime(UE::MovieScene::DiscreteInclusiveLower(InnerMovieScene->GetPlaybackRange())) * InnerToOuter;
-		FFrameTime ExcAutoEndTime   = FFrameTime(UE::MovieScene::DiscreteExclusiveUpper(InnerMovieScene->GetPlaybackRange())) * InnerToOuter;
+		const FFrameTime IncAutoStartTime = FFrameTime(UE::MovieScene::DiscreteInclusiveLower(InnerPlaybackRange)) * InnerToOuter;
+		const FFrameTime ExcAutoEndTime = FFrameTime(UE::MovieScene::DiscreteExclusiveUpper(InnerPlaybackRange)) * InnerToOuter;
 
 		return TRange<FFrameNumber>(GetInclusiveStartFrame(), GetInclusiveStartFrame() + (ExcAutoEndTime.RoundToFrame() - IncAutoStartTime.RoundToFrame()));
 	}
