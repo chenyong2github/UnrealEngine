@@ -33,7 +33,19 @@ extension VideoViewController : StreamingConnectionDelegate {
                 self.reconnect()
             }
         }
+    }
+    
+    func streamingConnection(_ connection: StreamingConnection, exitWithErr err: Error?) {
+        DispatchQueue.main.async {
+            self.presentingViewController?.dismiss(animated: true, completion: nil)
+            
+            let alert = UIAlertController(title: nil, message: err?.localizedDescription, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: Localized.buttonOK(), style: .default) {_ in
+                self.forceDisconnectAndDismiss()
+            })
 
+            self.present(alert, animated: true)
+        }
     }
     
     func streamingConnection(_ connection: StreamingConnection, requestsTextEditWithContents contents: String, handler: @escaping (Bool, String?) -> Void) {

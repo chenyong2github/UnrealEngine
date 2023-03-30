@@ -46,6 +46,9 @@ extension StartViewController : StreamingConnectionDelegate {
         }
     }
     
+    func streamingConnection(_ connection: StreamingConnection, exitWithErr err: Error?) {
+    }
+    
     func streamingConnection(_ connection: StreamingConnection, requestsTextEditWithContents contents: String, handler: @escaping (Bool, String?) -> Void) {
     }
     

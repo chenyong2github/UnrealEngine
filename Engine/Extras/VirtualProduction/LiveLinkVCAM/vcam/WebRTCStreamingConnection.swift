@@ -19,7 +19,7 @@ class WebRTCStreamingConnection : StreamingConnection {
     private var keyboardControls: KeyboardControls?
     private var webRTCView : WebRTCView?
     private var rtcVideoTrack : RTCVideoTrack?
-    
+    private var subscribedStream : String = ""
     private var signalingConnected = false
     private var hasRemoteSdp = false
     private var hasLocalSdp = false
@@ -426,13 +426,40 @@ extension WebRTCStreamingConnection: SignalClientDelegate {
     }
     
     func signalClient(_ signalClient: SignalingClient, didReceiveStreamerList streamerList: Array<String>) {
-        // If we only have a single streamer, no need to show the selection dialogue
-        if streamerList.count == 1 {
-            signalClient.subscribe(streamerList[0])
-        } else if streamerList.count > 1 {
-            // Otherwise make sure we have more than 1 and display the picker
-            self.delegate?.streamingConnection(self, requestStreamerSelectionWithStreamers: streamerList) { (selectedStreamer) in
-                signalClient.subscribe(selectedStreamer)
+        if signalClient.isReconnecting
+        {
+            if streamerList.contains(subscribedStream)
+            {
+                // The stream we were originally subscribed to has come back, so reconnect to it
+                signalClient.isReconnecting = false;
+                signalClient.reconnectAttempt = 0;
+                signalClient.subscribe(subscribedStream)
+            }
+            else if(signalClient.reconnectAttempt < 3)
+            {
+                // The stream's still not back up, try reconnecting a few more times
+                signalClient.reconnect()
+            }
+            else
+            {
+                // We've tried a few times and still no stream, return to main menu
+                Log.info("Unable to reconnect to previously connected VCam")
+                self.delegate?.streamingConnection(self, exitWithErr: NSError(domain: "", code: 1, userInfo: [NSLocalizedDescriptionKey : "Unable to reconnect to VCam after 3 tries" ] ))
+            }
+            
+        }
+        else
+        {
+            // If we only have a single streamer, no need to show the selection dialogue
+            if streamerList.count == 1 {
+                self.subscribedStream = streamerList[0]
+                signalClient.subscribe(streamerList[0])
+            } else if streamerList.count > 1 {
+                // Otherwise make sure we have more than 1 and display the picker
+                self.delegate?.streamingConnection(self, requestStreamerSelectionWithStreamers: streamerList) { (selectedStreamer) in
+                    self.subscribedStream = selectedStreamer
+                    signalClient.subscribe(selectedStreamer)
+                }
             }
         }
     }
