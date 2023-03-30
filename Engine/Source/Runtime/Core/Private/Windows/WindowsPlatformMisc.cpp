@@ -3636,9 +3636,9 @@ IPlatformChunkInstall* FWindowsPlatformMisc::GetPlatformChunkInstall()
 		{
 			FString InstallModule;
 			GConfig->GetString(TEXT("StreamingInstall"), TEXT("DefaultProviderName"), InstallModule, GEngineIni);
-			FModuleStatus Status;
-			if (FModuleManager::Get().QueryModule(*InstallModule, Status))
-			{
+
+			if (!InstallModule.IsEmpty())
+			{			
 				PlatformChunkInstallModule = FModuleManager::LoadModulePtr<IPlatformChunkInstallModule>(*InstallModule);
 				if (PlatformChunkInstallModule != nullptr)
 				{
