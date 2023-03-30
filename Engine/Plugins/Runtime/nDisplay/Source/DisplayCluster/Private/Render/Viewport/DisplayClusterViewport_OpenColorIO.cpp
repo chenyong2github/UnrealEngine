@@ -169,6 +169,7 @@ FScreenPassTexture FDisplayClusterViewport_OpenColorIO::PostProcessPassAfterTone
 	FOpenColorIORendering::AddPass_RenderThread(
 		GraphBuilder,
 		ViewInfo,
+		ViewInfo.GetFeatureLevel(),
 		SceneColor,
 		Output,
 		CachedResourcesRenderThread,
