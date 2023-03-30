@@ -221,6 +221,29 @@ groupshared tsr_half4 SharedArray11[GROUP_SHARED_SIZE];
 
 //------------------------------------------------------- WAVE
 
+#if COMPILER_SUPPORTS_MED3
+
+CALL_SITE_DEBUGLOC
+tsr_half3x2 med3(tsr_half3x2 a, tsr_half3x2 b, tsr_half3x2 c)
+{
+	return tsr_half3x2(
+		med3(a[0], b[0], c[0]),
+		med3(a[1], b[1], c[1]),
+		med3(a[2], b[2], c[2]));
+} 
+
+CALL_SITE_DEBUGLOC
+tsr_half4x2 med3(tsr_half4x2 a, tsr_half4x2 b, tsr_half4x2 c)
+{
+	return tsr_half4x2(
+		med3(a[0], b[0], c[0]),
+		med3(a[1], b[1], c[1]),
+		med3(a[2], b[2], c[2]),
+		med3(a[3], b[3], c[3]));
+} 
+
+#endif
+
 #if PLATFORM_SUPPORTS_WAVE_BROADCAST
 
 CALL_SITE_DEBUGLOC
@@ -357,7 +380,7 @@ T BilinearSampleColorHistory(Texture2D<T> Texture, float2 SampleUV)
 	{
 		float BilinearWeight = GetSampleWeight(BilinearInter, i);
 		uint2 PixelPos = GetSamplePixelCoord(BilinearInter, i);
-		PixelPos = clamp(PixelPos, PrevHistoryInfo_ViewportMin, PrevHistoryInfo_ViewportMax - 1);
+		PixelPos = fastClamp(PixelPos, PrevHistoryInfo_ViewportMin, PrevHistoryInfo_ViewportMax - 1);
 
 		T RawSample = Texture[PixelPos];
 		
@@ -822,8 +845,8 @@ void MainCS(
 		// Sample raw history
 		{
 			float2x2 PrevHistoryBufferUV = ApplyScreenTransform(PrevScreenPos, ScreenPosToPrevHistoryBufferUV);
-			PrevHistoryBufferUV[0] = clamp(PrevHistoryBufferUV[0], PrevHistoryInfo_UVViewportBilinearMin[0], PrevHistoryInfo_UVViewportBilinearMax[0]);
-			PrevHistoryBufferUV[1] = clamp(PrevHistoryBufferUV[1], PrevHistoryInfo_UVViewportBilinearMin[1], PrevHistoryInfo_UVViewportBilinearMax[1]);
+			PrevHistoryBufferUV[0] = fastClamp(PrevHistoryBufferUV[0], PrevHistoryInfo_UVViewportBilinearMin[0], PrevHistoryInfo_UVViewportBilinearMax[0]);
+			PrevHistoryBufferUV[1] = fastClamp(PrevHistoryBufferUV[1], PrevHistoryInfo_UVViewportBilinearMin[1], PrevHistoryInfo_UVViewportBilinearMax[1]);
 
 			FCatmullRomSamples Samples0 = GetBicubic2DCatmullRomSamples(
 				dpv_lo(PrevHistoryBufferUV), PrevHistoryInfo_Extent, PrevHistoryInfo_ExtentInverse);
@@ -832,8 +855,8 @@ void MainCS(
 			
 			#if CONFIG_GRAND_REPROJECTION
 				float2x2 GrandPrevHistoryBufferUV = ApplyScreenTransform(GrandPrevScreenPos, ScreenPosToGrandPrevHistoryBufferUV);
-				GrandPrevHistoryBufferUV[0] = clamp(GrandPrevHistoryBufferUV[0], PrevHistoryInfo_UVViewportBilinearMin[0], PrevHistoryInfo_UVViewportBilinearMax[0]);
-				GrandPrevHistoryBufferUV[1] = clamp(GrandPrevHistoryBufferUV[1], PrevHistoryInfo_UVViewportBilinearMin[1], PrevHistoryInfo_UVViewportBilinearMax[1]);
+				GrandPrevHistoryBufferUV[0] = fastClamp(GrandPrevHistoryBufferUV[0], PrevHistoryInfo_UVViewportBilinearMin[0], PrevHistoryInfo_UVViewportBilinearMax[0]);
+				GrandPrevHistoryBufferUV[1] = fastClamp(GrandPrevHistoryBufferUV[1], PrevHistoryInfo_UVViewportBilinearMin[1], PrevHistoryInfo_UVViewportBilinearMax[1]);
 
 				FCatmullRomSamples GrandSamples0 = GetBicubic2DCatmullRomSamples(
 					dpv_lo(GrandPrevHistoryBufferUV), PrevHistoryInfo_Extent, PrevHistoryInfo_ExtentInverse);
@@ -865,8 +888,8 @@ void MainCS(
 				UNROLL_N(BICUBIC_CATMULL_ROM_SAMPLES)
 				for (uint i = 0; i < BICUBIC_CATMULL_ROM_SAMPLES; i++)
 				{
-					float2 SampleUV0 = clamp(Samples0.UV[i], PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
-					float2 SampleUV1 = clamp(Samples1.UV[i], PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
+					float2 SampleUV0 = fastClamp(Samples0.UV[i], PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
+					float2 SampleUV1 = fastClamp(Samples1.UV[i], PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
 					
 					tsr_half2 KernelWeight = dpv_force_interleave_registers(tsr_half(Samples0.Weight[i]), tsr_half(Samples1.Weight[i]));
 
@@ -898,8 +921,8 @@ void MainCS(
 							#endif
 
 							{
-								float2 GrandSampleUV0 = clamp(GrandSamples0.UV[i], PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
-								float2 GrandSampleUV1 = clamp(GrandSamples1.UV[i], PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
+								float2 GrandSampleUV0 = fastClamp(GrandSamples0.UV[i], PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
+								float2 GrandSampleUV1 = fastClamp(GrandSamples1.UV[i], PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
 					
 								float2 GrandSampleUV = PixelId == 0 ? GrandSampleUV0 : GrandSampleUV1;
 						
@@ -1398,7 +1421,7 @@ void MainCS(
 	#endif
 
 	{
-		tsr_halfCx2 ClampedPrevHighFrequencyColor = clamp(PrevHighFrequencyColor, InputMinColor, InputMaxColor);
+		tsr_halfCx2 ClampedPrevHighFrequencyColor = fastClamp(PrevHighFrequencyColor, InputMinColor, InputMaxColor);
 		tsr_halfCx2 BlendedPrevHighFrequencyColor;
 		BlendedPrevHighFrequencyColor[0] = lerp(ClampedPrevHighFrequencyColor[0], PrevHighFrequencyColor[0], BlendClamp);
 		BlendedPrevHighFrequencyColor[1] = lerp(ClampedPrevHighFrequencyColor[1], PrevHighFrequencyColor[1], BlendClamp);
@@ -1454,9 +1477,9 @@ void MainCS(
 
 			// Clamp error imprecision.
 			bool2 bIsOverblurLegal = (
-				and(clamp(PrevReprojectionOverblur[0], -BoxSize[0], BoxSize[0]) == PrevReprojectionOverblur[0],
-				and(clamp(PrevReprojectionOverblur[1], -BoxSize[1], BoxSize[1]) == PrevReprojectionOverblur[1],
-				    clamp(PrevReprojectionOverblur[2], -BoxSize[2], BoxSize[2]) == PrevReprojectionOverblur[2])));
+				and(fastClamp(PrevReprojectionOverblur[0], -BoxSize[0], BoxSize[0]) == PrevReprojectionOverblur[0],
+				and(fastClamp(PrevReprojectionOverblur[1], -BoxSize[1], BoxSize[1]) == PrevReprojectionOverblur[1],
+				    fastClamp(PrevReprojectionOverblur[2], -BoxSize[2], BoxSize[2]) == PrevReprojectionOverblur[2])));
 
 			tsr_half2 PrevReprojectionOverblurScale = select(bIsOverblurLegal, tsr_half(1.0), tsr_half(0.0));
 
@@ -1481,16 +1504,16 @@ void MainCS(
 
 				tsr_halfCx2 CorrectedFinalHighFrequencyColor = FinalHighFrequencyColor + Correction;
 
-				FinalHighFrequencyColor = clamp(CorrectedFinalHighFrequencyColor, min(FinalHighFrequencyColor, PrevHistoryMomentMin), max(FinalHighFrequencyColor, PrevHistoryMomentMax));
+				FinalHighFrequencyColor = fastClamp(CorrectedFinalHighFrequencyColor, min(FinalHighFrequencyColor, PrevHistoryMomentMin), max(FinalHighFrequencyColor, PrevHistoryMomentMax));
 
 			#elif CONFIG_GRAND_REPROJECTION == 2
 				// Compute MeasuredResultant of the previous frame
 				tsr_halfCx2 PrevResultant;
-				PrevResultant[0] = clamp(GrandPrevToPrevResultant[0] * SafeRcp(GrandPrevToPrev[0]), tsr_half(0.0), tsr_half(1.0));
-				PrevResultant[1] = clamp(GrandPrevToPrevResultant[1] * SafeRcp(GrandPrevToPrev[1]), tsr_half(0.0), tsr_half(1.0));
-				PrevResultant[2] = clamp(GrandPrevToPrevResultant[2] * SafeRcp(GrandPrevToPrev[2]), tsr_half(0.0), tsr_half(1.0));
+				PrevResultant[0] = fastClamp(GrandPrevToPrevResultant[0] * SafeRcp(GrandPrevToPrev[0]), tsr_half(0.0), tsr_half(1.0));
+				PrevResultant[1] = fastClamp(GrandPrevToPrevResultant[1] * SafeRcp(GrandPrevToPrev[1]), tsr_half(0.0), tsr_half(1.0));
+				PrevResultant[2] = fastClamp(GrandPrevToPrevResultant[2] * SafeRcp(GrandPrevToPrev[2]), tsr_half(0.0), tsr_half(1.0));
 				#if CONFIG_SCENE_COLOR_ALPHA
-					PrevResultant[3] = clamp(GrandPrevToPrevResultant[3] * SafeRcp(GrandPrevToPrev[3]), tsr_half(0.0), tsr_half(1.0));
+					PrevResultant[3] = fastClamp(GrandPrevToPrevResultant[3] * SafeRcp(GrandPrevToPrev[3]), tsr_half(0.0), tsr_half(1.0));
 				#endif
 
 				FinalPrevHighFrequencyColorResultant = dpv_scale(PrevHighFrequencyColor, MeasuredResultant);
@@ -1512,7 +1535,7 @@ void MainCS(
 		tsr_half2 TranslucencyLumaHistory  = Luma4(GetColorChannel(PrevHistoryTranslucency));
 		tsr_half2 TranslucencyLumaFiltered = Luma4(GetColorChannel(FilteredTranslucencyColor));
 
-		tsr_half4x2 ClampedPrevHistoryTranslucency = clamp(PrevHistoryTranslucency, TranslucencyMinColor, TranslucencyMaxColor);
+		tsr_half4x2 ClampedPrevHistoryTranslucency = fastClamp(PrevHistoryTranslucency, TranslucencyMinColor, TranslucencyMaxColor);
 		
 		#if CONFIG_SCENE_COLOR_ALPHA
 			tsr_half2 HighFrequencyTranslucencyRejection = MeasureRejectionFactor(

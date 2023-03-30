@@ -66,6 +66,8 @@
 #endif
 
 #include "/Engine/Public/BindlessResources.ush"
+#include "/Engine/Public/OverloadMacros.ush"
+
 
 // ---------------------------------------------------- DDC invalidation
 // to support the console command "r.InvalidateShaderCache"
@@ -571,6 +573,10 @@ void ShaderYield()
 #define COMPILER_SUPPORTS_GATHER_UINT 0
 #endif
 
+#ifndef COMPILER_SUPPORTS_MED3
+#define COMPILER_SUPPORTS_MED3 0
+#endif
+
 #if ES3_1_PROFILE && !METAL_PROFILE
 #define HALF_TYPE half
 #define HALF2_TYPE half2
@@ -815,139 +821,87 @@ void WriteDispatchIndirectArgs(RWBuffer<uint> RWIndirectDispatchArgsBuffer, in u
 
 #if !COMPILER_SUPPORTS_MINMAX3
 
-float min3( float a, float b, float c )
+float min3(float a, float b, float c)
 {
-	return min( a, min( b, c ) );
+	return min(a, min(b, c));
 }
 
-float max3( float a, float b, float c )
+int min3(int a, int b, int c)
 {
-	return max( a, max( b, c ) );
+	return min(a, min(b, c));
 }
 
-float2 min3( float2 a, float2 b, float2 c )
+uint min3(uint a, uint b, uint c)
 {
-	return float2(
-		min3( a.x, b.x, c.x ),
-		min3( a.y, b.y, c.y )
-	);
+	return min(a, min(b, c));
 }
 
-float2 max3( float2 a, float2 b, float2 c )
+DECLARE_VECTOR_FUNCTION_OVERLOAD_3_PARAM(min3, float)
+DECLARE_VECTOR_FUNCTION_OVERLOAD_3_PARAM(min3, int)
+DECLARE_VECTOR_FUNCTION_OVERLOAD_3_PARAM(min3, uint)
+
+float max3(float a, float b, float c)
 {
-	return float2(
-		max3( a.x, b.x, c.x ),
-		max3( a.y, b.y, c.y )
-	);
+	return max(a, max(b, c));
 }
 
-float3 max3( float3 a, float3 b, float3 c )
+int max3(int a, int b, int c)
 {
-	return float3(
-		max3( a.x, b.x, c.x ),
-		max3( a.y, b.y, c.y ),
-		max3( a.z, b.z, c.z )
-	);
+	return max(a, max(b, c));
 }
 
-float3 min3( float3 a, float3 b, float3 c )
+uint max3(uint a, uint b, uint c)
 {
-	return float3(
-		min3( a.x, b.x, c.x ),
-		min3( a.y, b.y, c.y ),
-		min3( a.z, b.z, c.z )
-	);
+	return max(a, max(b, c));
 }
 
-float4 min3( float4 a, float4 b, float4 c )
-{
-	return float4(
-		min3( a.x, b.x, c.x ),
-		min3( a.y, b.y, c.y ),
-		min3( a.z, b.z, c.z ),
-		min3( a.w, b.w, c.w )
-	);
-}
-
-float4 max3( float4 a, float4 b, float4 c )
-{
-	return float4(
-		max3( a.x, b.x, c.x ),
-		max3( a.y, b.y, c.y ),
-		max3( a.z, b.z, c.z ),
-		max3( a.w, b.w, c.w )
-	);
-}
+DECLARE_VECTOR_FUNCTION_OVERLOAD_3_PARAM(max3, float)
+DECLARE_VECTOR_FUNCTION_OVERLOAD_3_PARAM(max3, int)
+DECLARE_VECTOR_FUNCTION_OVERLOAD_3_PARAM(max3, uint)
 
 #if PLATFORM_SUPPORTS_REAL_TYPES
 
-half min3( half a, half b, half c )
+half min3(half a, half b, half c)
 {
-	return min( a, min( b, c ) );
+	return min(a, min(b, c));
 }
 
-half max3( half a, half b, half c )
+int16_t min3(int16_t a, int16_t b, int16_t c)
 {
-	return max( a, max( b, c ) );
+	return min(a, min(b, c));
 }
 
-half2 min3( half2 a, half2 b, half2 c )
+uint16_t min3(uint16_t a, uint16_t b, uint16_t c)
 {
-	return half2(
-		min3( a.x, b.x, c.x ),
-		min3( a.y, b.y, c.y )
-	);
+	return min(a, min(b, c));
 }
 
-half2 max3( half2 a, half2 b, half2 c )
+DECLARE_VECTOR_FUNCTION_OVERLOAD_3_PARAM(min3, half)
+DECLARE_VECTOR_FUNCTION_OVERLOAD_3_PARAM(min3, int16_t)
+DECLARE_VECTOR_FUNCTION_OVERLOAD_3_PARAM(min3, uint16_t)
+
+half max3(half a, half b, half c)
 {
-	return half2(
-		max3( a.x, b.x, c.x ),
-		max3( a.y, b.y, c.y )
-	);
+	return max(a, max(b, c));
 }
 
-half3 max3( half3 a, half3 b, half3 c )
+int16_t max3(int16_t a, int16_t b, int16_t c)
 {
-	return half3(
-		max3( a.x, b.x, c.x ),
-		max3( a.y, b.y, c.y ),
-		max3( a.z, b.z, c.z )
-	);
+	return max(a, max(b, c));
 }
 
-half3 min3( half3 a, half3 b, half3 c )
+uint16_t max3(uint16_t a, uint16_t b, uint16_t c)
 {
-	return half3(
-		min3( a.x, b.x, c.x ),
-		min3( a.y, b.y, c.y ),
-		min3( a.z, b.z, c.z )
-	);
+	return max(a, max(b, c));
 }
 
-half4 min3( half4 a, half4 b, half4 c )
-{
-	return half4(
-		min3( a.x, b.x, c.x ),
-		min3( a.y, b.y, c.y ),
-		min3( a.z, b.z, c.z ),
-		min3( a.w, b.w, c.w )
-	);
-}
+DECLARE_VECTOR_FUNCTION_OVERLOAD_3_PARAM(max3, half)
+DECLARE_VECTOR_FUNCTION_OVERLOAD_3_PARAM(max3, int16_t)
+DECLARE_VECTOR_FUNCTION_OVERLOAD_3_PARAM(max3, uint16_t)
 
-half4 max3( half4 a, half4 b, half4 c )
-{
-	return half4(
-		max3( a.x, b.x, c.x ),
-		max3( a.y, b.y, c.y ),
-		max3( a.z, b.z, c.z ),
-		max3( a.w, b.w, c.w )
-	);
-}
+#endif // PLATFORM_SUPPORTS_REAL_TYPES
 
-#endif
-
-#endif
+#endif // !COMPILER_SUPPORTS_MINMAX3
 
 // https://devblogs.microsoft.com/directx/announcing-hlsl-2021/
 // HLSL 2021 supports Logical Operator Short Circuiting. To do vector bool operations, need to use and() or() select()

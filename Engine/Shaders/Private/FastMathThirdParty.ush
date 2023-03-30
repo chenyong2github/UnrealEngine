@@ -91,85 +91,11 @@ float3 normalizeFast( float3 v )
 	return v * rsqrtFast( LengthSqr );
 }
 
-float4 fastClamp(float4 x, float4 Min, float4 Max)
-{
-#if COMPILER_PSSL
-	// Warning: only correct if Min is smaller than Max
-	return med3(x, Min, Max);
+#if COMPILER_SUPPORTS_MED3
+	#define fastClamp(x, Min, Max) med3(x, Min, Max)
 #else
-	return clamp(x, Min, Max);
+	#define fastClamp(x, Min, Max) clamp(x, Min, Max)
 #endif
-}
-
-float3 fastClamp(float3 x, float3 Min, float3 Max)
-{
-#if COMPILER_PSSL
-	// Warning: only correct if Min is smaller than Max
-	return med3(x, Min, Max);
-#else
-	return clamp(x, Min, Max);
-#endif
-}
-
-float2 fastClamp(float2 x, float2 Min, float2 Max)
-{
-#if COMPILER_PSSL
-	// Warning: only correct if Min is smaller than Max
-	return med3(x, Min, Max);
-#else
-	return clamp(x, Min, Max);
-#endif
-}
-
-float fastClamp(float x, float Min, float Max)
-{
-#if COMPILER_PSSL
-	// Warning: only correct if Min is smaller than Max
-	return med3(x, Min, Max);
-#else
-	return clamp(x, Min, Max);
-#endif
-}
-
-int4 fastClamp(int4 x, int4 Min, int4 Max)
-{
-#if COMPILER_PSSL
-	// Warning: only correct if Min is smaller than Max
-	return med3(x, Min, Max);
-#else
-	return clamp(x, Min, Max);
-#endif
-}
-
-int3 fastClamp(int3 x, int3 Min, int3 Max)
-{
-#if COMPILER_PSSL
-	// Warning: only correct if Min is smaller than Max
-	return med3(x, Min, Max);
-#else
-	return clamp(x, Min, Max);
-#endif
-}
-
-int2 fastClamp(int2 x, int2 Min, int2 Max)
-{
-#if COMPILER_PSSL
-	// Warning: only correct if Min is smaller than Max
-	return med3(x, Min, Max);
-#else
-	return clamp(x, Min, Max);
-#endif
-}
-
-int fastClamp(int x, int Min, int Max)
-{
-#if COMPILER_PSSL
-	// Warning: only correct if Min is smaller than Max
-	return med3(x, Min, Max);
-#else
-	return clamp(x, Min, Max);
-#endif
-}
 
 //
 // Trigonometric functions

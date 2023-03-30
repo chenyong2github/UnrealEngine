@@ -128,13 +128,13 @@ tsr_simd_halfC ClampFireFliersWithGuide(tsr_simd_halfC ToClamp, tsr_simd_halfC G
 	tsr_simd_halfC ToClampMax;
 	MinMax3x3(ToClamp, /* out */ ToClampMin, /* out */ ToClampMax);
 
-	tsr_simd_halfC ClampedGuide = clamp(Guide, ToClampMin, ToClampMax);
+	tsr_simd_halfC ClampedGuide = fastClamp(Guide, ToClampMin, ToClampMax);
 	
 	tsr_simd_halfC ClampedGuideMin;
 	tsr_simd_halfC ClampedGuideMax;
 	MinMax3x3(ClampedGuide, /* out */ ClampedGuideMin, /* out */ ClampedGuideMax);
 	
-	return clamp(ToClamp, ClampedGuideMin, ClampedGuideMax);
+	return fastClamp(ToClamp, ClampedGuideMin, ClampedGuideMax);
 }
 
 
@@ -184,7 +184,7 @@ void MainCS(
 			float2 TranslucencyTextureUV = ApplyScreenTransform(float2(ClampedFetchPixelPos), InputPixelPosToTranslucencyTextureUV);
 
 			ClampedFetchPixelPos = ClampPixelOffset(ClampedFetchPixelPos, InputPixelPosMin, InputPixelPosMax);
-			TranslucencyTextureUV = clamp(TranslucencyTextureUV, TranslucencyTextureUVMin, TranslucencyTextureUVMax);
+			TranslucencyTextureUV = fastClamp(TranslucencyTextureUV, TranslucencyTextureUVMin, TranslucencyTextureUVMax);
 
 			OriginalOpaqueInput.SetElement(SimdIndex, InputTexture[ClampedFetchPixelPos]);
 			#if CONFIG_COMPOSE_TRANSLUCENCY
@@ -304,7 +304,7 @@ void MainCS(
 		MinMax3x3(InputLuma, /* out */ InputLumaMin, /* out */ InputLumaMax);
 
 		// Clamp and contribue the history.		
-		tsr_simd_half ClampedPrevFlickeringHistory = clamp(PrevFlickeringHistory, InputLumaMin, InputLumaMax);
+		tsr_simd_half ClampedPrevFlickeringHistory = fastClamp(PrevFlickeringHistory, InputLumaMin, InputLumaMax);
 		tsr_simd_half FinalFlickeringHistory = InputLuma * tsr_simd_half::Const(BlendFinal) - ClampedPrevFlickeringHistory * tsr_simd_half::Const(BlendFinal - tsr_half(1.0));
 	
 		// Measure the flickering gradient of the current frame.
@@ -433,7 +433,7 @@ void MainCS(
 		FilteredBoxMin = FilteredBoxMin - BackbufferError;
 		FilteredBoxMax = FilteredBoxMax + BackbufferError;
 		
-		tsr_simd_halfC FlickeringClampedFilteredHistory = clamp(FilteredHistory, FilteredBoxMin, FilteredBoxMax);
+		tsr_simd_halfC FlickeringClampedFilteredHistory = fastClamp(FilteredHistory, FilteredBoxMin, FilteredBoxMax);
 
 		tsr_simd_halfC ClampedFilteredHistory;
 		#if CONFIG_MOIRE_DETECTION
@@ -459,7 +459,7 @@ void MainCS(
 			tsr_simd_halfC StableFilteredBoxMin = min(FilteredBoxMin, FilteredBoxMax - MoireErrorSize);
 			tsr_simd_halfC StableFilteredBoxMax = max(FilteredBoxMax, FilteredBoxMin + MoireErrorSize);
 			
-			ClampedFilteredHistory = clamp(FilteredHistory, StableFilteredBoxMin, StableFilteredBoxMax);
+			ClampedFilteredHistory = fastClamp(FilteredHistory, StableFilteredBoxMin, StableFilteredBoxMax);
 		}
 		#else
 			ClampedFilteredHistory = FlickeringClampedFilteredHistory;
@@ -501,8 +501,8 @@ void MainCS(
 		tsr_simd_halfC RawFactor      = saturate(tsr_simd_halfC::Const(1.0) - max(RawClampedEnergy - ClampError, tsr_simd_halfC::Const(0.0)) * rcp(max(Delta, BoxSize)));
 		tsr_simd_halfC FilteredFactor = saturate(tsr_simd_halfC::Const(1.0) - max(FilteredClampedEnergy - ClampError, tsr_simd_halfC::Const(0.0)) * rcp(max(Delta, BoxSize)));
 		
-		tsr_simd_half RawRejection      = min(RawFactor[0], min(RawFactor[1], RawFactor[2]));
-		tsr_simd_half FilteredRejection = min(FilteredFactor[0], min(FilteredFactor[1], FilteredFactor[2]));
+		tsr_simd_half RawRejection      = min3(RawFactor[0], RawFactor[1], RawFactor[2]);
+		tsr_simd_half FilteredRejection = min3(FilteredFactor[0], FilteredFactor[1], FilteredFactor[2]);
 		
 		RejectionBlendFinal = saturate(FilteredRejection + tsr_simd_half::Const(1.0) - bIsValid);
 		

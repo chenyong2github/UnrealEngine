@@ -330,12 +330,12 @@ TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> Min3x3(TLaneVect
 	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> CN;
 	AccessNeighborTexels3x1(CO, tsr_short2(1, 0), /* out */ CP, /* out */ CN);
 	
-	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> MinO = min(CN, min(CP, CO));
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> MinO = min3(CN, CP, CO);
 	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> MinP;
 	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> MinN;
 	AccessNeighborTexels3x1(MinO, tsr_short2(0, 1), /* out */ MinP, /* out */ MinN);
 
-	return min(MinN, min(MinP, MinO));
+	return min3(MinN, MinP, MinO);
 }
 
 CALL_SITE_DEBUGLOC
@@ -347,12 +347,12 @@ TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> Max3x3(TLaneVect
 	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> CN;
 	AccessNeighborTexels3x1(CO, tsr_short2(1, 0), /* out */ CP, /* out */ CN);
 	
-	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> MaxO = max(CN, max(CP, CO));
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> MaxO = max3(CN, CP, CO);
 	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> MaxP;
 	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> MaxN;
 	AccessNeighborTexels3x1(MaxO, tsr_short2(0, 1), /* out */ MaxP, /* out */ MaxN);
 
-	return max(MaxN, max(MaxP, MaxO));
+	return max3(MaxN, MaxP, MaxO);
 }
 
 CALL_SITE_DEBUGLOC
@@ -368,18 +368,18 @@ void MinMax3x3(
 	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> CN;
 	AccessNeighborTexels3x1(CO, tsr_short2(1, 0), /* out */ CP, /* out */ CN);
 	
-	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> MinO = min(CN, min(CP, CO));
-	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> MaxO = max(CN, max(CP, CO));
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> MinO = min3(CN, CP, CO);
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> MaxO = max3(CN, CP, CO);
 
 	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> MinP;
 	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> MinN;
 	AccessNeighborTexels3x1(MinO, tsr_short2(0, 1), /* out */ MinP, /* out */ MinN);
-	OutMin = min(MinN, min(MinP, MinO));
+	OutMin = min3(MinN, MinP, MinO);
 
 	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> MaxP;
 	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> MaxN;
 	AccessNeighborTexels3x1(MaxO, tsr_short2(0, 1), /* out */ MaxP, /* out */ MaxN);
-	OutMax = max(MaxN, max(MaxP, MaxO));
+	OutMax = max3(MaxN, MaxP, MaxO);
 }
 #else
 {
@@ -395,8 +395,14 @@ void MinMax3x3(
 CALL_SITE_DEBUGLOC
 template<typename FSampleType>
 void LMHOperator(FSampleType A, FSampleType B, FSampleType C, out FSampleType L, out FSampleType M, out FSampleType H)
+#if COMPILER_SUPPORTS_MED3
 {
-	// TODO: min3, max3, med3.
+	L = min3(A, B, C);
+	M = med3(A, B, C);
+	H = max3(A, B, C);
+}
+#else
+{
 	FSampleType X = min(B, C);
 	FSampleType Y = max(B, C);
 	
@@ -406,17 +412,23 @@ void LMHOperator(FSampleType A, FSampleType B, FSampleType C, out FSampleType L,
 	M = min(Z, Y);
 	H = max(Z, Y);
 }
+#endif
 
 // 3 samples median.
 CALL_SITE_DEBUGLOC
 template<typename FSampleType>
 FSampleType Median(FSampleType A, FSampleType B, FSampleType C)
+#if COMPILER_SUPPORTS_MED3
 {
-	// TODO: med3.
+	return med3(A, B, C);
+}
+#else
+{
 	FSampleType L, M, H;
 	LMHOperator(A, B, C, L, M, H);
 	return M;
 }
+#endif
 
 // 9 samples median using Smith1996.
 CALL_SITE_DEBUGLOC
@@ -433,11 +445,10 @@ FSampleType Median9(FSampleType In[9])
 	}
 	
 	// Second layer.
-	// TODO: min3, max3.
 	FSampleType M1[3];
-	M1[0] = max(max(L0[0], L0[1]), L0[2]);
+	M1[0] = max3(L0[0], L0[1], L0[2]);
 	M1[1] = Median(M0[0], M0[1], M0[2]);
-	M1[2] = min(min(H0[0], H0[1]), H0[2]);
+	M1[2] = min3(H0[0], H0[1], H0[2]);
 	
 	// Third layer.
 	return Median(M1[0], M1[1], M1[2]);
@@ -448,35 +459,34 @@ template<typename ScalarType, uint VectorSize, uint LaneStrideX, uint LaneStride
 TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> Median3x3(TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> Center)
 #if 1
 {
-	WriteToLDSForAccessNeighborTexel(Center);
-	
 	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> C0 = Center;
-	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> C1 = AccessNeighborTexel(Center, tsr_short2( 1, 0));
-	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> C2 = AccessNeighborTexel(Center, tsr_short2(-1, 0));
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> C1;
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> C2;
+	AccessNeighborTexels3x1(C0, tsr_short2(1, 0), /* out */ C1, /* out */ C2);
 	
+	// First layer.
 	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> M0L0;
 	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> M0M0;
 	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> M0H0;
 	LMHOperator(C0, C1, C2, M0L0, M0M0, M0H0);
 	
-	WriteToLDSForAccessNeighborTexel(M0L0);
-	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> M0L1 = AccessNeighborTexel(M0L0, tsr_short2(0,  1));
-	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> M0L2 = AccessNeighborTexel(M0L0, tsr_short2(0, -1));
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> M0L1;
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> M0L2;
+	AccessNeighborTexels3x1(M0L0, tsr_short2(0, 1), /* out */ M0L1, /* out */ M0L2);
 	
-	WriteToLDSForAccessNeighborTexel(M0M0);
-	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> M0M1 = AccessNeighborTexel(M0M0, tsr_short2(0,  1));
-	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> M0M2 = AccessNeighborTexel(M0M0, tsr_short2(0, -1));
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> M0M1;
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> M0M2;
+	AccessNeighborTexels3x1(M0M0, tsr_short2(0, 1), /* out */ M0M1, /* out */ M0M2);
 	
-	WriteToLDSForAccessNeighborTexel(M0H0);
-	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> M0H1 = AccessNeighborTexel(M0H0, tsr_short2(0,  1));
-	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> M0H2 = AccessNeighborTexel(M0H0, tsr_short2(0, -1));
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> M0H1;
+	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> M0H2;
+	AccessNeighborTexels3x1(M0H0, tsr_short2(0, 1), /* out */ M0H1, /* out */ M0H2);
 	
 	// Second layer.
-	// TODO: min3, max3.
 	TLaneVector2D<ScalarType, VectorSize, LaneStrideX, LaneStrideY> M1[3];
-	M1[0] = max(max(M0L0, M0L1), M0L2);
+	M1[0] = max3(M0L0, M0L1, M0L2);
 	M1[1] = Median(M0M0, M0M1, M0M2);
-	M1[2] = min(min(M0H0, M0H1), M0H2);
+	M1[2] = min3(M0H0, M0H1, M0H2);
 	
 	// Third layer.
 	return Median(M1[0], M1[1], M1[2]);

@@ -427,22 +427,9 @@ tsr_short2x2 ClampPixelOffset(
 	tsr_short2x2 SamplePixelPos,
 	int2 MinPixelPos, int2 MaxPixelPos)
 {
-	tsr_short2 SamplePixelPos0 = dpv_lo(SamplePixelPos);
-	tsr_short2 SamplePixelPos1 = dpv_hi(SamplePixelPos);
-
-	SamplePixelPos0.x = min(SamplePixelPos0.x, tsr_short(MaxPixelPos.x));
-	SamplePixelPos0.x = max(SamplePixelPos0.x, tsr_short(MinPixelPos.x));
-		
-	SamplePixelPos0.y = min(SamplePixelPos0.y, tsr_short(MaxPixelPos.y));
-	SamplePixelPos0.y = max(SamplePixelPos0.y, tsr_short(MinPixelPos.y));
-	
-	SamplePixelPos1.x = min(SamplePixelPos1.x, tsr_short(MaxPixelPos.x));
-	SamplePixelPos1.x = max(SamplePixelPos1.x, tsr_short(MinPixelPos.x));
-		
-	SamplePixelPos1.y = min(SamplePixelPos1.y, tsr_short(MaxPixelPos.y));
-	SamplePixelPos1.y = max(SamplePixelPos1.y, tsr_short(MinPixelPos.y));
-
-	return dpv_interleave_registers(SamplePixelPos0, SamplePixelPos1);
+	SamplePixelPos[0] = fastClamp(SamplePixelPos[0], tsr_short2(MinPixelPos.xx), tsr_short2(MaxPixelPos.xx));
+	SamplePixelPos[1] = fastClamp(SamplePixelPos[1], tsr_short2(MinPixelPos.yy), tsr_short2(MaxPixelPos.yy));
+	return SamplePixelPos;
 }
 
 CALL_SITE_DEBUGLOC
@@ -450,13 +437,7 @@ tsr_short2 ClampPixelOffset(
 	tsr_short2 SamplePixelPos,
 	int2 MinPixelPos, int2 MaxPixelPos)
 {
-	SamplePixelPos.x = min(SamplePixelPos.x, tsr_short(MaxPixelPos.x));
-	SamplePixelPos.x = max(SamplePixelPos.x, tsr_short(MinPixelPos.x));
-		
-	SamplePixelPos.y = min(SamplePixelPos.y, tsr_short(MaxPixelPos.y));
-	SamplePixelPos.y = max(SamplePixelPos.y, tsr_short(MinPixelPos.y));
-
-	return SamplePixelPos;
+	return fastClamp(SamplePixelPos, tsr_short2(MinPixelPos), tsr_short2(MaxPixelPos));
 }
 
 CALL_SITE_DEBUGLOC
@@ -1024,7 +1005,7 @@ tsr_subpixel_payload GetClosestSubpixelPayload(FSubpixelNeighborhood Neighborhoo
 CALL_SITE_DEBUGLOC
 tsr_subpixel_payload CompressParallaxFactor(tsr_half ParallaxFactor)
 {
-	return clamp(
+	return fastClamp(
 		tsr_subpixel_payload((ParallaxFactor - tsr_half(1.0)) * tsr_half(float(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK) / MAX_PARALLAX_FACTOR)),
 		tsr_subpixel_payload(0), tsr_subpixel_payload(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK));
 }
@@ -1106,8 +1087,8 @@ uint2 EncodeSpatialAntiAliasingOffset(tsr_half2x2 TexelOffset)
 	tsr_half Multiply = tsr_half(float(Zero) / SPATIAL_ANTI_ALIASING_OFFSET_RANGE);
 
 	uint2 EncodedTexelOffset = 0;
-	EncodedTexelOffset |= clamp(uint2(int2(round(TexelOffset[0] * Multiply)) + int(1 + Zero)), uint(1), Mask) << 0;
-	EncodedTexelOffset |= clamp(uint2(int2(round(TexelOffset[1] * Multiply)) + int(1 + Zero)), uint(1), Mask) << SPATIAL_ANTI_ALIASING_OFFSET_BITDEPTH_PER_CHANNEL;
+	EncodedTexelOffset |= fastClamp(uint2(int2(round(TexelOffset[0] * Multiply)) + int(1 + Zero)), uint(1), Mask) << 0;
+	EncodedTexelOffset |= fastClamp(uint2(int2(round(TexelOffset[1] * Multiply)) + int(1 + Zero)), uint(1), Mask) << SPATIAL_ANTI_ALIASING_OFFSET_BITDEPTH_PER_CHANNEL;
 	return EncodedTexelOffset;
 }
 
@@ -1155,7 +1136,7 @@ uint EncodeHoleFillingVelocity(float2 PixelVelocity)
 	uint iEncodedAngle = uint(round(EncodedAngle)) & (AngleBitDepth - 1);
 
 	float EncodedLength = length(PixelVelocity) * LengthPixelPrecision;
-	uint iEncodedLength = clamp(uint(ceil(EncodedLength)), 0u, LengthBitDepth - 1u);
+	uint iEncodedLength = fastClamp(uint(ceil(EncodedLength)), 0u, LengthBitDepth - 1u);
 
 	uint EncodedHoleFillingVelocity = iEncodedAngle * LengthBitDepth + iEncodedLength;
 	return EncodedHoleFillingVelocity;
@@ -1237,8 +1218,8 @@ uint CompressSubpixelDepth(FTSRSubpixelDepth SubpixelDepth)
 {
 	uint CompressedSubpixelDepth = 0u;
 	CompressedSubpixelDepth |= f32tof16(SubpixelDepth.DeviceZ) << 17u;
-	CompressedSubpixelDepth |= uint(clamp(int(round(SubpixelDepth.Offset.x * 16.00 + 16.0)), 0, 31)) << 12u;
-	CompressedSubpixelDepth |= uint(clamp(int(round(SubpixelDepth.Offset.y * 16.00 + 16.0)), 0, 31)) <<  7u;
+	CompressedSubpixelDepth |= uint(fastClamp(int(round(SubpixelDepth.Offset.x * 16.00 + 16.0)), 0, 31)) << 12u;
+	CompressedSubpixelDepth |= uint(fastClamp(int(round(SubpixelDepth.Offset.y * 16.00 + 16.0)), 0, 31)) <<  7u;
 	CompressedSubpixelDepth |= (SubpixelDepth.Age) << 0u;
 	return CompressedSubpixelDepth;
 }
