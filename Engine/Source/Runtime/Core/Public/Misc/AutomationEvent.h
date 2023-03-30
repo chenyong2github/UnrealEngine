@@ -62,4 +62,5 @@ struct CORE_API FAutomationExecutionEntry
 	}
 
 	FString ToString() const;
+	FString ToStringFormattedEditorLog() const;
 };

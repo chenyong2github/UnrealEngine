@@ -996,6 +996,30 @@ FString FAutomationExecutionEntry::ToString() const
 	return ComplexString;
 }
 
+FString FAutomationExecutionEntry::ToStringFormattedEditorLog() const
+{
+	FString ComplexString;
+
+	ComplexString = Event.Message;
+
+	if (!Event.Context.IsEmpty())
+	{
+		ComplexString += TEXT(" [");
+		ComplexString += Event.Context;
+		ComplexString += TEXT("] ");
+	}
+
+	if (!Filename.IsEmpty() && LineNumber > 0)
+	{
+		ComplexString += TEXT(" ");
+		ComplexString += Filename;
+		ComplexString += TEXT("(");
+		ComplexString += FString::FromInt(LineNumber);
+		ComplexString += TEXT(")");
+	}
+
+	return ComplexString;
+}
 //------------------------------------------------------------------------------
 
 void FAutomationTestExecutionInfo::Clear()

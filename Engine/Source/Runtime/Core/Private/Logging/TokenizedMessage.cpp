@@ -143,9 +143,9 @@ TSharedPtr<IMessageToken> FTokenizedMessage::GetMessageLink() const
 	return MessageLink;
 }
 
-TSharedRef<FTextToken> FTextToken::Create(const FText& InMessage)
+TSharedRef<FTextToken> FTextToken::Create(const FText& InMessage, bool InIsSourceLinkOnLeft)
 {
-	return MakeShared<FTextToken>(FPrivateToken(), InMessage);
+	return MakeShared<FTextToken>(FPrivateToken(), InMessage, InIsSourceLinkOnLeft);
 }
 
 TSharedRef<FDynamicTextToken> FDynamicTextToken::Create(const TAttribute<FText>& InMessage)

@@ -1469,24 +1469,27 @@ void FAutomationControllerManager::ReportAutomationResult(const TSharedPtr<IAuto
 
 	for (const FAutomationExecutionEntry& Entry : Results.GetEntries())
 	{
+#if WITH_EDITOR
+		TSharedRef<FTextToken> TextToken = FTextToken::Create(FText::FromString(Entry.ToStringFormattedEditorLog()), false);
+#endif
 		switch (Entry.Event.Type)
 		{
 		case EAutomationEventType::Info:
 			UE_LOG(LogAutomationController, Log, TEXT("%s"), *Entry.ToString());
 #if WITH_EDITOR
-			AutomationEditorLog.Info(FText::FromString(Entry.ToString()));
+			AutomationEditorLog.Info()->AddToken(TextToken);
 #endif
 			break;
 		case EAutomationEventType::Warning:
 			UE_LOG(LogAutomationController, Warning, TEXT("%s"), *Entry.ToString());
 #if WITH_EDITOR
-			AutomationEditorLog.Warning(FText::FromString(Entry.ToString()));
+			AutomationEditorLog.Warning()->AddToken(TextToken);
 #endif
 			break;
 		case EAutomationEventType::Error:
 			UE_LOG(LogAutomationController, Error, TEXT("%s"), *Entry.ToString());
 #if WITH_EDITOR
-			AutomationEditorLog.Error(FText::FromString(Entry.ToString()));
+			AutomationEditorLog.Error()->AddToken(TextToken);
 #endif
 			break;
 		}

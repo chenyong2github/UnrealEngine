@@ -256,10 +256,16 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 		else
 		{
 			FString MessageString = InMessageToken->ToText().ToString();
+			const TSharedRef<FTextToken> TextToken = StaticCastSharedRef<FTextToken>(InMessageToken);
 
 			// ^((?:[\w]\:|\\)(?:(?:\\[a-z_\-\s0-9\.]+)+)\.(?:cpp|h))\((\d+)\)
-			// https://regex101.com/r/vV4cV7/1
-			FRegexPattern FileAndLinePattern(TEXT("^((?:[\\w]\\:|\\\\)(?:(?:\\\\[a-z_\\-\\s0-9\\.]+)+)\\.(?:cpp|h))\\((\\d+)\\)"));
+			// https://regex101.com/r/ccAnMS/1
+			FRegexPattern FileAndLinePattern(TEXT("^((?:[\\w]\\:|\\\\)(?:(?:\\\\[A-Za-z_\\-\\s0-9\\.]+)+)\\.(?:cpp|h))\\((\\d+)\\)"));
+			if (!TextToken->IsSourceLinkOnLeft())
+			{
+				FileAndLinePattern = FRegexPattern(TEXT("((?:[\\w]\\:|\\\\)(?:(?:\\\\[A-Za-z_\\-\\s0-9\\.]+)+)\\.(?:cpp|h))\\((\\d+)\\)$"));
+			}
+
 			FRegexMatcher FileAndLineRegexMatcher(FileAndLinePattern, MessageString);
 
 			TSharedRef<SWidget> SourceLink = SNullWidget::NullWidget;
@@ -270,7 +276,14 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 				int32 LineNumber = FCString::Atoi(*FileAndLineRegexMatcher.GetCaptureGroup(2));
 
 				// Remove the hyperlink from the message, since we're splitting it into its own string.
-				MessageString.RightChopInline(FileAndLineRegexMatcher.GetMatchEnding(), false);
+				if (TextToken->IsSourceLinkOnLeft())
+				{
+					MessageString.RightChopInline(FileAndLineRegexMatcher.GetMatchEnding(), false);
+				}
+				else
+				{
+					MessageString.LeftChopInline(FileAndLineRegexMatcher.GetCaptureGroup(0).Len(), false);
+				}
 
 				SourceLink = SNew(SHyperlink)
 					.Style(FAppStyle::Get(), "Common.GotoNativeCodeHyperlink")
@@ -279,22 +292,45 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 					.Text(FText::FromString(FileAndLineRegexMatcher.GetCaptureGroup(0)));
 			}
 
-			RowContent = SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(0)
-			[
-				SourceLink
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(FMargin(0.f, 4.f))
-			[
-				SNew(STextBlock)
-				.Text(FText::FromString(MessageString))
-				.ColorAndOpacity(FSlateColor::UseForeground())
-				.TextStyle(FAppStyle::Get(), "MessageLog")
-			];
+			if (TextToken->IsSourceLinkOnLeft())
+			{
+				RowContent = SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(0)
+					[
+						SourceLink
+					]
+				+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(FMargin(0.f, 4.f))
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(MessageString))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.TextStyle(FAppStyle::Get(), "MessageLog")
+					];
+			}
+			else
+			{
+				RowContent = SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(FMargin(0.f, 4.f))
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(MessageString))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.TextStyle(FAppStyle::Get(), "MessageLog")
+					]
+				+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(0)
+					[
+						SourceLink
+					];
+			}
+
 		}
 	}
 		break;

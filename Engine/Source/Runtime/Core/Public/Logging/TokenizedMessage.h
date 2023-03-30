@@ -229,7 +229,7 @@ class FTextToken : public IMessageToken
 
 public:
 	/** Factory method, tokens can only be constructed as shared refs */
-	CORE_API static TSharedRef<FTextToken> Create(const FText& InMessage);
+	CORE_API static TSharedRef<FTextToken> Create(const FText& InMessage, bool InIsSourceLinkOnLeft = true);
 
 	/** Begin IMessageToken interface */
 	virtual EMessageToken::Type GetType() const override
@@ -239,10 +239,20 @@ public:
 	/** End IMessageToken interface */
 
 	/** Private constructor */
-	FTextToken(FPrivateToken, const FText& InMessage)
+	FTextToken(FPrivateToken, const FText& InMessage, bool InIsSourceLinkOnLeft)
 	{
 		CachedText = InMessage;
+		bIsSourceLinkOnLeft = InIsSourceLinkOnLeft;
 	}
+
+	bool IsSourceLinkOnLeft() const
+	{
+		return bIsSourceLinkOnLeft;
+	}
+
+private:
+	/** Whether the source address is located on the left or right of the text message. */
+	bool bIsSourceLinkOnLeft;
 };
 
 /** Message token with a localized attribute text payload */
