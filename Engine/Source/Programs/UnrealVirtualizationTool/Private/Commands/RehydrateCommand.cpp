@@ -76,7 +76,7 @@ void FRehydrateCommand::Serialize(FJsonSerializerBase& Serializer)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRehydrateCommand::Serialize);
 
-	// The command has no additional data when launched as a child process
+	Serializer.Serialize(TEXT("ShouldCheckout"), bShouldCheckout);
 }
 
 bool FRehydrateCommand::ProcessProject(const FProject& Project, TUniquePtr<FCommandOutput>& Output)
