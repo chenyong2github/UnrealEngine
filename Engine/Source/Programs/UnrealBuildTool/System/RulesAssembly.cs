@@ -115,7 +115,7 @@ namespace UnrealBuildTool
 		/// <param name="bForceCompile">Whether to always compile this assembly</param>
 		/// <param name="Parent">The parent rules assembly</param>
 		/// <param name="Logger"></param>
-		internal RulesAssembly(RulesScope Scope, List<DirectoryReference> BaseDirs, IReadOnlyList<PluginInfo> Plugins, Dictionary<FileReference, ModuleRulesContext> ModuleFileToContext, List<FileReference> TargetFiles, FileReference AssemblyFileName, bool bContainsEngineModules, BuildSettingsVersion? DefaultBuildSettings, bool bReadOnly, bool bSkipCompile, bool bForceCompile, RulesAssembly? Parent, ILogger Logger)
+		internal RulesAssembly(RulesScope Scope, IReadOnlyList<DirectoryReference> BaseDirs, IReadOnlyList<PluginInfo> Plugins, IReadOnlyDictionary<FileReference, ModuleRulesContext> ModuleFileToContext, IReadOnlyList<FileReference> TargetFiles, FileReference AssemblyFileName, bool bContainsEngineModules, BuildSettingsVersion? DefaultBuildSettings, bool bReadOnly, bool bSkipCompile, bool bForceCompile, RulesAssembly? Parent, ILogger Logger)
 		{
 			this.Scope = Scope;
 			this.BaseDirs = BaseDirs;

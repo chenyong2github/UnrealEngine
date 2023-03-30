@@ -1613,52 +1613,61 @@ namespace UnrealBuildTool
 		/// </summary>
 		internal void PrepareModuleForTests()
 		{
-			if (Name != "LowLevelTestsRunner" && System.IO.Directory.Exists(TestsDirectory))
+			TestTargetRules? TestTargetRules = Target.InnerTestTargetRules;
+			if (TestTargetRules == null) 
 			{
-				if (!PrivateIncludePathModuleNames.Contains("LowLevelTestsRunner"))
-				{
-					PrivateIncludePathModuleNames.Add("LowLevelTestsRunner");
-				}
-			}
-			else if (Name == "LowLevelTestsRunner")
-			{
-				TestTargetRules.LowLevelTestsRunnerModule = this;
+				return;
 			}
 
-			if (Name == "Engine" && !TestTargetRules.bNeverCompileAgainstEngine)
+			lock (TestTargetRules)
 			{
-				TestTargetRules.bTestsRequireEngine = true;
-			}
-			if (Name == "UnrealEd" && !TestTargetRules.bNeverCompileAgainstEditor)
-			{
-				TestTargetRules.bTestsRequireEditor = true;
-			}
-			if (Name == "ApplicationCore" && !TestTargetRules.bNeverCompileAgainstApplicationCore)
-			{
-				TestTargetRules.bTestsRequireApplicationCore = true;
-			}
-			if (Name == "CoreUObject" && !TestTargetRules.bNeverCompileAgainstCoreUObject)
-			{
-				TestTargetRules.bTestsRequireCoreUObject = true;
-			}
+				if (Name != "LowLevelTestsRunner" && System.IO.Directory.Exists(TestsDirectory))
+				{
+					if (!PrivateIncludePathModuleNames.Contains("LowLevelTestsRunner"))
+					{
+						PrivateIncludePathModuleNames.Add("LowLevelTestsRunner");
+					}
+				}
+				else if (Name == "LowLevelTestsRunner")
+				{
+					TestTargetRules.LowLevelTestsRunnerModule = this;
+				}
 
-			if (TestTargetRules.LowLevelTestsRunnerModule != null)
-			{
-				if (TestTargetRules.bTestsRequireEditor && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("UnrealEd"))
+				if (Name == "Engine" && !TestTargetRules.bNeverCompileAgainstEngine)
 				{
-					TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("UnrealEd");
+					TestTargetRules.bTestsRequireEngine = true;
 				}
-				if (TestTargetRules.bTestsRequireEngine && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("Engine"))
+				if (Name == "UnrealEd" && !TestTargetRules.bNeverCompileAgainstEditor)
 				{
-					TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("Engine");
+					TestTargetRules.bTestsRequireEditor = true;
 				}
-				if (TestTargetRules.bTestsRequireApplicationCore && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("ApplicationCore"))
+				if (Name == "ApplicationCore" && !TestTargetRules.bNeverCompileAgainstApplicationCore)
 				{
-					TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("ApplicationCore");
+					TestTargetRules.bTestsRequireApplicationCore = true;
 				}
-				if (TestTargetRules.bTestsRequireCoreUObject && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("CoreUObject"))
+				if (Name == "CoreUObject" && !TestTargetRules.bNeverCompileAgainstCoreUObject)
 				{
-					TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("CoreUObject");
+					TestTargetRules.bTestsRequireCoreUObject = true;
+				}
+
+				if (TestTargetRules.LowLevelTestsRunnerModule != null)
+				{
+					if (TestTargetRules.bTestsRequireEditor && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("UnrealEd"))
+					{
+						TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("UnrealEd");
+					}
+					if (TestTargetRules.bTestsRequireEngine && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("Engine"))
+					{
+						TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("Engine");
+					}
+					if (TestTargetRules.bTestsRequireApplicationCore && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("ApplicationCore"))
+					{
+						TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("ApplicationCore");
+					}
+					if (TestTargetRules.bTestsRequireCoreUObject && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("CoreUObject"))
+					{
+						TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("CoreUObject");
+					}
 				}
 			}
 		}

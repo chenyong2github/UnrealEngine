@@ -17,27 +17,27 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Keeps track if low level tests executable must build with the Editor.
 		/// </summary>
-		internal static bool bTestsRequireEditor = false;
+		internal bool bTestsRequireEditor = false;
 
 		/// <summary>
 		/// Keeps track if low level tests executable must build with the Engine.
 		/// </summary>
-		internal static bool bTestsRequireEngine = false;
+		internal bool bTestsRequireEngine = false;
 
 		/// <summary>
 		/// Keeps track if low level tests executable must build with the ApplicationCore.
 		/// </summary>
-		internal static bool bTestsRequireApplicationCore = false;
+		internal bool bTestsRequireApplicationCore = false;
 
 		/// <summary>
 		/// Keeps track if low level tests executable must build with the CoreUObject.
 		/// </summary>
-		internal static bool bTestsRequireCoreUObject = false;
+		internal bool bTestsRequireCoreUObject = false;
 
 		/// <summary>
 		/// Keep track of low level test runner module instance.
 		/// </summary>
-		internal static ModuleRules? LowLevelTestsRunnerModule;
+		internal ModuleRules? LowLevelTestsRunnerModule;
 
 		/// <summary>
 		/// Associated tested target of this test target, if defined.

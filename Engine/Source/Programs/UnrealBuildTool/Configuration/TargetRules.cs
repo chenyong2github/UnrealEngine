@@ -3956,6 +3956,11 @@ namespace UnrealBuildTool
 			get { return Inner.OptedInModulePlatforms; } 
 		}
 
+		public TestTargetRules? InnerTestTargetRules
+		{
+			get { return Inner as TestTargetRules; }
+		}
+
 #pragma warning restore C1591
 		#endregion
 
