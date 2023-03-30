@@ -18,13 +18,12 @@ struct TWeakInterfacePtr
 {
 	using ElementType = T;
 	
-	/**
-	 * Construct a new default weak pointer, pointing to null object.
-	 */
-	TWeakInterfacePtr() 
-		: InterfaceInstance(nullptr) 
-	{
-	}
+	FORCEINLINE TWeakInterfacePtr() = default;
+	FORCEINLINE TWeakInterfacePtr(const TWeakInterfacePtr& Other) = default;
+	FORCEINLINE TWeakInterfacePtr(TWeakInterfacePtr&& Other) = default;
+	FORCEINLINE ~TWeakInterfacePtr() = default;
+	FORCEINLINE TWeakInterfacePtr& operator=(const TWeakInterfacePtr& Other) = default;
+	FORCEINLINE TWeakInterfacePtr& operator=(TWeakInterfacePtr&& Other) = default;
 
 	/**
 	 * Construct from an object pointer
@@ -48,7 +47,6 @@ struct TWeakInterfacePtr
 	 * @param Interface The interface pointer to create a weak pointer to. There must be a UObject behind the interface.
 	 */
 	TWeakInterfacePtr(T* Interface)
-		: InterfaceInstance(nullptr)
 	{
 		ObjectInstance = Cast<UObject>(Interface);
 		if (ObjectInstance != nullptr)
@@ -59,7 +57,6 @@ struct TWeakInterfacePtr
 
 	UE_DEPRECATED(4.27, "Please use the constructor that takes a pointer")
 	TWeakInterfacePtr(T& Interface)
-		: InterfaceInstance(nullptr)
 	{
 		ObjectInstance = Cast<UObject>(&Interface);
 		if (ObjectInstance != nullptr)
@@ -145,16 +142,6 @@ struct TWeakInterfacePtr
 	}
 
 	/**
-	 * Assign from another weak pointer.
-	 */
-	FORCEINLINE TWeakInterfacePtr<T>& operator=(const TWeakInterfacePtr<T>& Other)
-	{
-		ObjectInstance = Other.ObjectInstance;
-		InterfaceInstance = Other.InterfaceInstance;
-		return *this;
-	}
-
-	/**
 	 * Assign from a script interface.
 	 */
 	FORCEINLINE TWeakInterfacePtr<T>& operator=(const TScriptInterface<T>& Other)
@@ -198,5 +185,5 @@ struct TWeakInterfacePtr
 
 private:
 	TWeakObjectPtr<UObject> ObjectInstance;
-	T* InterfaceInstance;
+	T* InterfaceInstance = nullptr;
 };

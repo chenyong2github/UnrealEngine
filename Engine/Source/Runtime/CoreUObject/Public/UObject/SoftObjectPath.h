@@ -40,21 +40,12 @@ struct FUObjectSerializeContext;
  */
 struct COREUOBJECT_API FSoftObjectPath
 {
-	FSoftObjectPath() {}
-
-	/** Construct from another soft object path */
-	FSoftObjectPath(const FSoftObjectPath& Other)
-		: AssetPath(Other.AssetPath)
-		, SubPathString(Other.SubPathString)
-	{
-	}
-
-	/** Construct from a moveable soft object path */
-	FSoftObjectPath(FSoftObjectPath&& Other)
-		: AssetPath(Other.AssetPath)
-		, SubPathString(MoveTemp(Other.SubPathString))
-	{
-	}
+	FSoftObjectPath() = default;
+	FSoftObjectPath(const FSoftObjectPath& Other) = default;
+	FSoftObjectPath(FSoftObjectPath&& Other) = default;
+	~FSoftObjectPath() = default;
+	FSoftObjectPath& operator=(const FSoftObjectPath& Path) = default;
+	FSoftObjectPath& operator=(FSoftObjectPath&& Path) = default;
 
 	/** Construct from a path string. Non-explicit for backwards compatibility. */
 	FSoftObjectPath(const FString& Path)						{ SetPath(FStringView(Path)); }
@@ -106,11 +97,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 		}
 	}
 
-	~FSoftObjectPath() {}
-PRAGMA_DISABLE_DEPRECATION_WARNINGS	
-	FSoftObjectPath& operator=(const FSoftObjectPath& Path)	= default;
-	FSoftObjectPath& operator=(FSoftObjectPath&& Path) = default;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FSoftObjectPath& operator=(const FTopLevelAssetPath Path)			{ SetPath(Path); return *this; }
 	FSoftObjectPath& operator=(const FString& Path)						{ SetPath(FStringView(Path)); return *this; }
 	FSoftObjectPath& operator=(FWideStringView Path)					{ SetPath(Path); return *this; }
@@ -397,12 +383,12 @@ inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FSoftOb
  */
 struct COREUOBJECT_API FSoftClassPath : public FSoftObjectPath
 {
-	FSoftClassPath()
-	{ }
-
-	FSoftClassPath(FSoftClassPath const& Other)
-		: FSoftObjectPath(Other)
-	{ }
+	FSoftClassPath() = default;
+	FSoftClassPath(const FSoftClassPath& Other) = default;
+	FSoftClassPath(FSoftClassPath&& Other) = default;
+	~FSoftClassPath() = default;
+	FSoftClassPath& operator=(const FSoftClassPath& Path) = default;
+	FSoftClassPath& operator=(FSoftClassPath&& Path) = default;
 
 	/**
 	 * Construct from a path string

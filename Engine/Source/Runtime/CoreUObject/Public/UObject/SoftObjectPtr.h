@@ -21,24 +21,18 @@
 struct FSoftObjectPtr : public TPersistentObjectPtr<FSoftObjectPath>
 {
 public:	
-	/** Default constructor, will be null */
-	FORCEINLINE FSoftObjectPtr()
-	{
-	}
+	FORCEINLINE FSoftObjectPtr() = default;
+	FORCEINLINE FSoftObjectPtr(const FSoftObjectPtr& Other) = default;
+	FORCEINLINE FSoftObjectPtr(FSoftObjectPtr&& Other) = default;
+	FORCEINLINE ~FSoftObjectPtr() = default;
+	FORCEINLINE FSoftObjectPtr& operator=(const FSoftObjectPtr& Other) = default;
+	FORCEINLINE FSoftObjectPtr& operator=(FSoftObjectPtr&& Other) = default;
 
-	/** Construct from another soft pointer */
-	FORCEINLINE FSoftObjectPtr(const FSoftObjectPtr& Other)
-	{
-		(*this)=Other;
-	}
-
-	/** Construct from a soft object path */
 	explicit FORCEINLINE FSoftObjectPtr(const FSoftObjectPath& ObjectPath)
 		: TPersistentObjectPtr<FSoftObjectPath>(ObjectPath)
 	{
 	}
 
-	/** Construct from an object already in memory */
 	explicit FORCEINLINE FSoftObjectPtr(const UObject* Object)
 	{
 		(*this)=Object;
@@ -115,10 +109,12 @@ struct TSoftObjectPtr
 public:
 	using ElementType = T;
 	
-	/** Default constructor, will be null */
-	FORCEINLINE TSoftObjectPtr()
-	{
-	}
+	FORCEINLINE TSoftObjectPtr() = default;
+	FORCEINLINE TSoftObjectPtr(const TSoftObjectPtr& Other) = default;
+	FORCEINLINE TSoftObjectPtr(TSoftObjectPtr&& Other) = default;
+	FORCEINLINE ~TSoftObjectPtr() = default;
+	FORCEINLINE TSoftObjectPtr& operator=(const TSoftObjectPtr& Other) = default;
+	FORCEINLINE TSoftObjectPtr& operator=(TSoftObjectPtr&& Other) = default;
 	
 	/** Construct from another soft pointer */
 	template <class U, class = decltype(ImplicitConv<T*>((U*)nullptr))>
