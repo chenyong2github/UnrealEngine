@@ -92,6 +92,12 @@ TSharedRef<FSlateStyleSet> FSequencerPlaylistsStyle::Create()
 	Style->Set("SequencerPlaylists.Loop.Disabled", new IMAGE_BRUSH_SVG("LoopNot", Icon16x16));
 	Style->Set("SequencerPlaylists.Loop.Finite", new IMAGE_BRUSH_SVG("LoopNumber", Icon16x16));
 
+	// Play, Stop, Reset are registered under a different root below.
+	Style->Set("SequencerPlaylists.Pause", new IMAGE_BRUSH_SVG("Pause", Icon20x20));
+	Style->Set("SequencerPlaylists.Pause.Small", new IMAGE_BRUSH_SVG("Pause", Icon16x16));
+	Style->Set("SequencerPlaylists.PlayReverse", new IMAGE_BRUSH_SVG("PlayReverse", Icon20x20));
+	Style->Set("SequencerPlaylists.PlayReverse.Small", new IMAGE_BRUSH_SVG("PlayReverse", Icon16x16));
+
 	// Main toolbar
 	{
 		const FToolBarStyle& SlimToolbarStyle = FAppStyle::Get().GetWidgetStyle<FToolBarStyle>("SlimToolBar");
@@ -278,15 +284,11 @@ TSharedRef<FSlateStyleSet> FSequencerPlaylistsStyle::Create()
 			Style->Set("SequencerPlaylists.SavePlaylist", new IMAGE_BRUSH_SVG("Starship/Common/SaveCurrent", Icon16x16));
 
 			Style->Set("SequencerPlaylists.Play", new IMAGE_BRUSH_SVG("Starship/Common/play", Icon20x20));
-			Style->Set("SequencerPlaylists.Play.Small", new IMAGE_BRUSH_SVG("Starship/Common/play", Icon12x12));
-			Style->Set("SequencerPlaylists.Pause", new IMAGE_BRUSH_SVG("Starship/MainToolbar/pause", Icon20x20)); // FIXME
-			Style->Set("SequencerPlaylists.Pause.Small", new IMAGE_BRUSH_SVG("Starship/MainToolbar/pause", Icon12x12)); // FIXME
-			Style->Set("SequencerPlaylists.PlayReverse", new IMAGE_BRUSH("Sequencer/Transport_Bar/Backwards_24x", Icon20x20)); // FIXME
-			Style->Set("SequencerPlaylists.PlayReverse.Small", new IMAGE_BRUSH("Sequencer/Transport_Bar/Backwards_24x", Icon12x12)); // FIXME
+			Style->Set("SequencerPlaylists.Play.Small", new IMAGE_BRUSH_SVG("Starship/Common/play", Icon16x16));
 			Style->Set("SequencerPlaylists.Stop", new IMAGE_BRUSH_SVG("Starship/Common/stop", Icon20x20));
-			Style->Set("SequencerPlaylists.Stop.Small", new IMAGE_BRUSH_SVG("Starship/Common/stop", Icon12x12));
+			Style->Set("SequencerPlaylists.Stop.Small", new IMAGE_BRUSH_SVG("Starship/Common/stop", Icon16x16));
 			Style->Set("SequencerPlaylists.Reset", new IMAGE_BRUSH_SVG("Starship/Common/Reset", Icon20x20));
-			Style->Set("SequencerPlaylists.Reset.Small", new IMAGE_BRUSH_SVG("Starship/Common/Reset", Icon12x12));
+			Style->Set("SequencerPlaylists.Reset.Small", new IMAGE_BRUSH_SVG("Starship/Common/Reset", Icon16x16));
 		}
 	}
 

@@ -474,7 +474,7 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_ItemListView()
 			SNew(SHeaderRow)
 			+ SHeaderRow::Column(ColumnName_HoverTransport)
 				.DefaultLabel(FText::GetEmpty())
-				.FillSized(30.0f)
+				.FillSized(60.0f)
 			+ SHeaderRow::Column(ColumnName_Items)
 				.DefaultLabel(LOCTEXT("ColumnLabelItems", "Playlist Items"))
 				.FillWidth(1.0f)
@@ -483,7 +483,7 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_ItemListView()
 				.FillSized(45.0f)
 			+ SHeaderRow::Column(ColumnName_Pause)
 				.DefaultLabel(LOCTEXT("ColumnLabelPause", "Pause"))
-				.FillSized(35.0f)
+				.FillSized(45.0f)
 				.HAlignCell(HAlign_Center)
 			+ SHeaderRow::Column(ColumnName_Loop)
 				.DefaultLabel(LOCTEXT("ColumnLabelLoop", "Loop"))
@@ -1273,72 +1273,82 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 	{
 		return SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
-			.Padding(8.0f, 4.0f, 0.0f, 2.0f)
+			.Padding(12.0f, 4.0f, 0.0f, 2.0f)
 			[
-				SNew(SButton)
-				.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.HoverTransport.Play")
-				.ContentPadding(0)
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.Visibility_Lambda([this]() { return (IsHovered() && !InPlayMode()) ? EVisibility::Visible : EVisibility::Hidden; })
-				.OnClicked_Lambda([this]() { return PlayClickedDelegate.Execute(*this); })
-				.ToolTipText(PlayItemTooltipText)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(0.0f, 0.0f, 0.0f, 0.0f)
 				[
-					SNew(SImage)
-					.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Play.Small"))
-					.ColorAndOpacity(FSlateColor::UseForeground())
+					SNew(SButton)
+					.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.HoverTransport.PlayReverse")
+					.ContentPadding(0)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.Visibility_Lambda([this]() { return (IsHovered() && !InPlayMode()) ? EVisibility::Visible : EVisibility::Hidden; })
+					.OnClicked_Lambda([this]() { return PlayReverseClickedDelegate.Execute(*this); })
+					.ToolTipText(PlayReverseItemTooltipText)
+					[
+						SNew(SImage)
+						.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.PlayReverse.Small"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+				[
+					SNew(SButton)
+					.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.HoverTransport.Play")
+					.ContentPadding(0)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.Visibility_Lambda([this]() { return (IsHovered() && !InPlayMode()) ? EVisibility::Visible : EVisibility::Hidden; })
+					.OnClicked_Lambda([this]() { return PlayClickedDelegate.Execute(*this); })
+					.ToolTipText(PlayItemTooltipText)
+					[
+						SNew(SImage)
+						.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Play.Small"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
+					]
 				]
 			]
 			+ SVerticalBox::Slot()
-			.Padding(8.0f, 2.0f, 0.0f, 2.0f)
+			.Padding(12.0f, 2.0f, 0.0f, 4.0f)
 			[
-				SNew(SButton)
-				.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.HoverTransport.PlayReverse")
-				.ContentPadding(0)
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.Visibility_Lambda([this]() { return (IsHovered() && !InPlayMode()) ? EVisibility::Visible : EVisibility::Hidden; })
-				.OnClicked_Lambda([this]() { return PlayReverseClickedDelegate.Execute(*this); })
-				.ToolTipText(PlayReverseItemTooltipText)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(0.0f, 0.0f, 0.0f, 0.0f)
 				[
-					SNew(SImage)
-					.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.PlayReverse.Small"))
-					.ColorAndOpacity(FSlateColor::UseForeground())
+					SNew(SButton)
+					.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.HoverTransport.Stop")
+					.ContentPadding(0)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.Visibility_Lambda([this]() { return (IsPlaying.Get() || (IsHovered() && !InPlayMode())) ? EVisibility::Visible : EVisibility::Hidden; })
+					.ForegroundColor_Lambda([this]() { return IsPlaying.Get() ? FStyleColors::AccentRed : FSlateColor::UseStyle(); })
+					.OnClicked_Lambda([this]() { return StopClickedDelegate.Execute(*this); })
+					.ToolTipText(StopItemTooltipText)
+					[
+						SNew(SImage)
+						.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Stop.Small"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
+					]
 				]
-			]
-			+ SVerticalBox::Slot()
-			.Padding(8.0f, 2.0f, 0.0f, 2.0f)
-			[
-				SNew(SButton)
-				.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.HoverTransport.Stop")
-				.ContentPadding(0)
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.Visibility_Lambda([this]() { return (IsPlaying.Get() || (IsHovered() && !InPlayMode())) ? EVisibility::Visible : EVisibility::Hidden; })
-				.ForegroundColor_Lambda([this]() { return IsPlaying.Get() ? FStyleColors::AccentRed : FSlateColor::UseStyle(); })
-				.OnClicked_Lambda([this]() { return StopClickedDelegate.Execute(*this); })
-				.ToolTipText(StopItemTooltipText)
+				+ SHorizontalBox::Slot()
+				.Padding(2.0f, 0.0f, 0.0f, 0.0f)
 				[
-					SNew(SImage)
-					.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Stop.Small"))
-					.ColorAndOpacity(FSlateColor::UseForeground())
-				]
-			]
-			+ SVerticalBox::Slot()
-			.Padding(8.0f, 2.0f, 0.0f, 4.0f)
-			[
-				SNew(SButton)
-				.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.HoverTransport.Reset")
-				.ContentPadding(0)
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.Visibility_Lambda([this]() { return (IsHovered() && !InPlayMode()) ? EVisibility::Visible : EVisibility::Hidden; })
-				.OnClicked_Lambda([this]() { return ResetClickedDelegate.Execute(*this); })
-				.ToolTipText(ResetItemTooltipText)
-				[
-					SNew(SImage)
-					.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Reset.Small"))
-					.ColorAndOpacity(FSlateColor::UseForeground())
+					SNew(SButton)
+					.ButtonStyle(FSequencerPlaylistsStyle::Get(), "SequencerPlaylists.HoverTransport.Reset")
+					.ContentPadding(FMargin(0.0f, 0.0f, 0.0f, 1.0f))
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.Visibility_Lambda([this]() { return (IsHovered() && !InPlayMode()) ? EVisibility::Visible : EVisibility::Hidden; })
+					.OnClicked_Lambda([this]() { return ResetClickedDelegate.Execute(*this); })
+					.ToolTipText(ResetItemTooltipText)
+					[
+						SNew(SImage)
+						.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Reset.Small"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
+					]
 				]
 			];
 	}
@@ -1420,7 +1430,7 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 			[
 				SNew(SImage)
 				.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Pause"))
-				//.ColorAndOpacity(FStyleColors::AccentBlue)
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			];
 
 		return SNew(SVerticalBox)
