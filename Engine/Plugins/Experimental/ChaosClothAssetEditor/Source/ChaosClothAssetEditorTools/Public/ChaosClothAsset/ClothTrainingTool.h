@@ -12,8 +12,9 @@
 
 #include "ClothTrainingTool.generated.h"
 
-class UChaosClothComponent;
+class UChaosCache;
 class UChaosCacheCollection;
+class UChaosClothComponent;
 class UClothTrainingTool;
 
 
@@ -24,16 +25,35 @@ struct FSkinnedMeshVertices
 };
 
 UCLASS()
-class CHAOSCLOTHASSETEDITORTOOLS_API UClothTrainingToolProperties : public UObject
+class CHAOSCLOTHASSETEDITORTOOLS_API UClothTrainingToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
 
-	UPROPERTY(EditAnywhere, Category = Files)
+	UPROPERTY(EditAnywhere, Category = Input)
 	TObjectPtr<UAnimSequence> AnimationSequence;
 
-	UPROPERTY(EditAnywhere, Category = Files, meta = (DisplayName = "Generated Cache"))
+	/* e.g. "0, 2, 5-10, 12-15". If left empty, all frames will be used */
+	UPROPERTY(EditAnywhere, Category = Input)
+	FString FramesToSimulate;
+
+	UPROPERTY(EditAnywhere, Category = Output, meta = (DisplayName = "Generated Cache", EditCondition = "!bDebug"))
 	TObjectPtr<UChaosCacheCollection> CacheCollection;
+
+	UPROPERTY(EditAnywhere, Category = Output)
+	bool bDebug = false;
+
+	UPROPERTY(EditAnywhere, Category = Output, meta = (Min = 0, EditCondition = "bDebug"))
+	uint32 DebugFrame = 0;
+
+	UPROPERTY(EditAnywhere, Category = Output, meta = (EditCondition = "bDebug", DisplayName = "Debug Cache"))
+	TObjectPtr<UChaosCacheCollection> DebugCacheCollection;
+
+	UPROPERTY(EditAnywhere, Category = "Simulation Settings", meta = (Min = 0))
+	float TimeStep = 1.f / 30;
+
+	UPROPERTY(EditAnywhere, Category = "Simulation Settings", meta = (Min = 0))
+	int32 NumSteps = 200;
 };
 
 UENUM()
@@ -55,8 +75,8 @@ public:
 
 	void PostAction(EClothTrainingToolActions Action);
 
-	UFUNCTION(CallInEditor, Category = Actions, meta = (DisplayName = "Begin Training", DisplayPriority = 1))
-		void StartTraining()
+	UFUNCTION(CallInEditor, Category = Actions, meta = (DisplayName = "Begin Generating", DisplayPriority = 1))
+		void StartGenerating()
 	{
 		PostAction(EClothTrainingToolActions::Train);
 	}
@@ -92,6 +112,7 @@ public:
 	// UInteractiveTool
 	virtual void Setup() override;
 	virtual void OnTick(float DeltaTime) override;
+	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
 private:
 	class FClothSimulationDataGenerationProxy;
@@ -115,7 +136,6 @@ private:
 	void RequestAction(EClothTrainingToolActions ActionType);
 
 	void RunTraining();
-
 };
 
 
