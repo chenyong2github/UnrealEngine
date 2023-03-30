@@ -6,12 +6,14 @@
 #include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimNode_SequencePlayer.h"
 #include "Animation/AnimRootMotionProvider.h"
+#include "Animation/AnimComposite.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimSubsystem_Tag.h"
 #include "Animation/BlendSpace.h"
 #include "InstancedStruct.h"
 #include "PoseSearch/AnimNode_MotionMatching.h"
 #include "PoseSearch/AnimNode_PoseSearchHistoryCollector.h"
+#include "PoseSearch/PoseSearchAnimNotifies.h"
 #include "PoseSearch/PoseSearchDatabase.h"
 #include "PoseSearch/PoseSearchDerivedData.h"
 #include "PoseSearch/PoseSearchSchema.h"
@@ -356,8 +358,58 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 				TArrayView<float> ReconstructedPoseValuesBuffer((float*)FMemory_Alloca(NumDimensions * sizeof(float)), NumDimensions);
 				const TConstArrayView<float> PoseValues = SearchIndex.Values.IsEmpty() ? SearchIndex.GetReconstructedPoseValues(PoseIdx, ReconstructedPoseValuesBuffer) : SearchIndex.GetPoseValues(PoseIdx);
 
+				const float SampleTime = ContinuingPoseDatabase->GetAssetTime(PoseIdx);
+
+				const FPoseSearchIndexAsset& SearchIndexAsset = SearchIndex.GetAssetForPose(PoseIdx);
+				const FInstancedStruct& DatabaseAssetStruct = ContinuingPoseDatabase->GetAnimationAssetStruct(SearchIndexAsset);
+
+				// @todo: create a unified sampler to sample any animation asset
+				// @todo: change ExtractPoseSearchNotifyStates api to avoid NotifyStates allocation
+
+				// extracting notifies from the database animation asset at time SampleTime to search for UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias eventually overriding the schema ContinuingPoseCostBias
+				TArray<UAnimNotifyState_PoseSearchBase*> NotifyStates;
+				if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseSequence>())
+				{
+					FSequenceBaseSampler SequenceBaseSampler;
+					FSequenceBaseSampler::FInput Input;
+					Input.SequenceBase = DatabaseSequence->Sequence;
+					SequenceBaseSampler.Init(Input);
+					SequenceBaseSampler.ExtractPoseSearchNotifyStates(SampleTime, NotifyStates);
+				}
+				else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimComposite>())
+				{
+					FSequenceBaseSampler SequenceBaseSampler;
+					FSequenceBaseSampler::FInput Input;
+					Input.SequenceBase = DatabaseAnimComposite->AnimComposite;
+					SequenceBaseSampler.Init(Input);
+					SequenceBaseSampler.ExtractPoseSearchNotifyStates(SampleTime, NotifyStates);
+				}
+				else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseBlendSpace>())
+				{
+					FBlendSpaceSampler BlendSpaceSampler;
+					FBlendSpaceSampler::FInput Input;
+					Input.BlendSpace = DatabaseBlendSpace->BlendSpace;
+					Input.BlendParameters = SearchIndexAsset.BlendParameters;
+					BlendSpaceSampler.Init(Input);
+					BlendSpaceSampler.ExtractPoseSearchNotifyStates(SampleTime, NotifyStates);
+				}
+				else
+				{
+					checkNoEntry();
+				}
+
+				float ContinuingPoseCostBias = ContinuingPoseDatabase->Schema->ContinuingPoseCostBias;
+				for (const UAnimNotifyState_PoseSearchBase* PoseSearchNotify : NotifyStates)
+				{
+					if (const UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias* ContinuingPoseCostBiasNotify = Cast<const UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias>(PoseSearchNotify))
+					{
+						ContinuingPoseCostBias = ContinuingPoseCostBiasNotify->CostAddend;
+						break;
+					}
+				}
+
 				ContinuingPoseCost = ContinuingPoseDatabase->GetSearchIndex().ComparePoses(SearchContext.GetCurrentResult().PoseIdx, SearchContext.GetQueryMirrorRequest(),
-					EPoseComparisonFlags::ContinuingPose, ContinuingPoseDatabase->Schema->MirrorMismatchCostBias, PoseValues, ContinuingPoseComposedQuery.GetValues());
+					ContinuingPoseCostBias, ContinuingPoseDatabase->Schema->MirrorMismatchCostBias, PoseValues, ContinuingPoseComposedQuery.GetValues());
 				SearchContext.UpdateCurrentBestCost(ContinuingPoseCost);
 			}
 		}

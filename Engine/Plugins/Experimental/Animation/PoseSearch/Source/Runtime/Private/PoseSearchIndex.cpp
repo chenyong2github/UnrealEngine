@@ -35,10 +35,8 @@ void CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, T
 // FPoseSearchPoseMetadata
 FArchive& operator<<(FArchive& Ar, FPoseSearchPoseMetadata& Metadata)
 {
-	Ar << Metadata.Flags;
+	Ar << Metadata.Data;
 	Ar << Metadata.CostAddend;
-	Ar << Metadata.ContinuingPoseCostAddend;
-	Ar << Metadata.AssetIndex;
 	return Ar;
 }
 
@@ -71,7 +69,7 @@ FArchive& operator<<(FArchive& Ar, FPoseSearchStats& Stats)
 // FPoseSearchBaseIndex
 const FPoseSearchIndexAsset& FPoseSearchIndexBase::GetAssetForPose(int32 PoseIdx) const
 {
-	const int32 AssetIndex = PoseMetadata[PoseIdx].AssetIndex;
+	const uint32 AssetIndex = PoseMetadata[PoseIdx].GetAssetIndex();
 	return Assets[AssetIndex];
 }
 
@@ -79,7 +77,7 @@ const FPoseSearchIndexAsset* FPoseSearchIndexBase::GetAssetForPoseSafe(int32 Pos
 {
 	if (PoseMetadata.IsValidIndex(PoseIdx))
 	{
-		const int32 AssetIndex = PoseMetadata[PoseIdx].AssetIndex;
+		const uint32 AssetIndex = PoseMetadata[PoseIdx].GetAssetIndex();
 		if (Assets.IsValidIndex(AssetIndex))
 		{
 			return &Assets[AssetIndex];
@@ -102,7 +100,7 @@ FArchive& operator<<(FArchive& Ar, FPoseSearchIndexBase& Index)
 {
 	Ar << Index.Values;
 	Ar << Index.PoseMetadata;
-	Ar << Index.OverallFlags;
+	Ar << Index.bAnyBlockTransition;
 	Ar << Index.Assets;
 	Ar << Index.MinCostAddend;
 	Ar << Index.Stats;
@@ -193,7 +191,7 @@ TArray<float> FPoseSearchIndex::GetPoseValuesSafe(int32 PoseIdx) const
 	return PoseValues;
 }
 
-FPoseSearchCost FPoseSearchIndex::ComparePoses(int32 PoseIdx, EPoseSearchBooleanRequest QueryMirrorRequest, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, float MirrorMismatchCostBias, TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues) const
+FPoseSearchCost FPoseSearchIndex::ComparePoses(int32 PoseIdx, EPoseSearchBooleanRequest QueryMirrorRequest, float ContinuingPoseCostBias, float MirrorMismatchCostBias, TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues) const
 {
 	// base dissimilarity cost representing how the associated PoseIdx differ, in a weighted way, from the query pose (QueryValues)
 	const float DissimilarityCost = UE::PoseSearch::CompareFeatureVectors(PoseValues, QueryValues, WeightsSqrt);
@@ -212,15 +210,9 @@ FPoseSearchCost FPoseSearchIndex::ComparePoses(int32 PoseIdx, EPoseSearchBoolean
 		}
 	}
 
-	const FPoseSearchPoseMetadata& PoseIdxMetadata = PoseMetadata[PoseIdx];
-
 	// cost addend associated to Schema->BaseCostBias or overriden by UAnimNotifyState_PoseSearchModifyCost
-	const float NotifyAddend = PoseIdxMetadata.CostAddend;
-
-	// cost addend associated to Schema->ContinuingPoseCostBias or overriden by UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias
-	const float ContinuingPoseCostAddend = EnumHasAnyFlags(PoseComparisonFlags, UE::PoseSearch::EPoseComparisonFlags::ContinuingPose) ? PoseIdxMetadata.ContinuingPoseCostAddend : 0.f;
-
-	return FPoseSearchCost(DissimilarityCost, NotifyAddend, MirrorMismatchAddend, ContinuingPoseCostAddend);
+	const float NotifyAddend = PoseMetadata[PoseIdx].GetCostAddend();
+	return FPoseSearchCost(DissimilarityCost, NotifyAddend, MirrorMismatchAddend, ContinuingPoseCostBias);
 }
 
 FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index)

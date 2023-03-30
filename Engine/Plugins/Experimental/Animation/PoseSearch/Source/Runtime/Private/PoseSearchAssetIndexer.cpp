@@ -110,7 +110,7 @@ void FAssetIndexer::Process(int32 AssetIdx)
 		const float SampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->GetSamplingInterval(), SequenceLength);
 		float CostAddend = IndexingContext.Schema->BaseCostBias;
 		float ContinuingPoseCostAddend = IndexingContext.Schema->ContinuingPoseCostBias;
-		EPoseSearchPoseFlags Flags = EPoseSearchPoseFlags::None;
+		bool bBlockTransition = false;
 
 		TArray<UAnimNotifyState_PoseSearchBase*> NotifyStates;
 		IndexingContext.AssetSampler->ExtractPoseSearchNotifyStates(SampleTime, NotifyStates);
@@ -118,15 +118,11 @@ void FAssetIndexer::Process(int32 AssetIdx)
 		{
 			if (PoseSearchNotify->GetClass()->IsChildOf<UAnimNotifyState_PoseSearchBlockTransition>())
 			{
-				EnumAddFlags(Flags, EPoseSearchPoseFlags::BlockTransition);
+				bBlockTransition = true;
 			}
 			else if (const UAnimNotifyState_PoseSearchModifyCost* ModifyCostNotify = Cast<const UAnimNotifyState_PoseSearchModifyCost>(PoseSearchNotify))
 			{
 				CostAddend = ModifyCostNotify->CostAddend;
-			}
-			else if (const UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias* ContinuingPoseCostBias = Cast<const UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias>(PoseSearchNotify))
-			{
-				ContinuingPoseCostAddend = ContinuingPoseCostBias->CostAddend;
 			}
 		}
 
@@ -135,12 +131,7 @@ void FAssetIndexer::Process(int32 AssetIdx)
 			CostAddend += IndexingContext.Schema->LoopingCostBias;
 		}
 
-		const int32 VectorIdx = GetVectorIdx(SampleIdx);
-		FPoseSearchPoseMetadata& Metadata = PoseMetadata[VectorIdx];
-		Metadata.Flags = Flags;
-		Metadata.CostAddend = CostAddend;
-		Metadata.ContinuingPoseCostAddend = ContinuingPoseCostAddend;
-		Metadata.AssetIndex = AssetIdx;
+		PoseMetadata[GetVectorIdx(SampleIdx)].Init(AssetIdx, bBlockTransition, CostAddend);
 	}
 
 	// Generate pose features data

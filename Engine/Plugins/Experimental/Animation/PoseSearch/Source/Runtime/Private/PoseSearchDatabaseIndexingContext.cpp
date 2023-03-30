@@ -229,10 +229,14 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 	}
 
 	// Joining Metadata.Flags into OverallFlags
-	SearchIndexBase.OverallFlags = EPoseSearchPoseFlags::None;
+	SearchIndexBase.bAnyBlockTransition = false;
 	for (const FPoseSearchPoseMetadata& Metadata : SearchIndexBase.PoseMetadata)
 	{
-		SearchIndexBase.OverallFlags |= Metadata.Flags;
+		if (Metadata.IsBlockTransition())
+		{
+			SearchIndexBase.bAnyBlockTransition = true;
+			break;
+		}
 	}
 
 	// Joining Stats
@@ -263,9 +267,9 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 		SearchIndexBase.MinCostAddend = MAX_FLT;
 		for (const FPoseSearchPoseMetadata& PoseMetadata : SearchIndexBase.PoseMetadata)
 		{
-			if (PoseMetadata.CostAddend < SearchIndexBase.MinCostAddend)
+			if (PoseMetadata.GetCostAddend() < SearchIndexBase.MinCostAddend)
 			{
-				SearchIndexBase.MinCostAddend = PoseMetadata.CostAddend;
+				SearchIndexBase.MinCostAddend = PoseMetadata.GetCostAddend();
 			}
 		}
 	}

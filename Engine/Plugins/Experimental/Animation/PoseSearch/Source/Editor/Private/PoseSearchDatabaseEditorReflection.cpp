@@ -123,7 +123,10 @@ void UPoseSearchDatabaseStatistics::Initialize(const UPoseSearchDatabase* PoseSe
 		uint32 NumOfSearchablePoses = 0;
 		for (const FPoseSearchPoseMetadata& PoseMetadata : SearchIndex.PoseMetadata)
 		{
-			NumOfSearchablePoses += PoseMetadata.Flags != EPoseSearchPoseFlags::BlockTransition;
+			if (!PoseMetadata.IsBlockTransition())
+			{
+				++NumOfSearchablePoses;
+			}
 		}
 		SearchableFrames = NumOfSearchablePoses;
 		SearchableTime = FText::Format(TimeFormat, static_cast<double>(NumOfSearchablePoses) / SampleRate);

@@ -12,13 +12,6 @@ namespace UE::PoseSearch
 float CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt);
 POSESEARCH_API void CompareFeatureVectors(TConstArrayView<float> A, TConstArrayView<float> B, TConstArrayView<float> WeightsSqrt, TArrayView<float> Result);
 
-enum class EPoseComparisonFlags : int32
-{
-	None = 0,
-	ContinuingPose = 1 << 0,
-};
-ENUM_CLASS_FLAGS(EPoseComparisonFlags);
-
 } // namespace UE::PoseSearch
 
 UENUM()
@@ -32,16 +25,6 @@ enum class EPoseSearchBooleanRequest : uint8
 	Invalid = Num UMETA(Hidden)
 };
 
-UENUM()
-enum class EPoseSearchPoseFlags : uint8
-{
-	None = 0,
-
-	// Don't return this pose as a search result
-	BlockTransition = 1 << 0,
-};
-ENUM_CLASS_FLAGS(EPoseSearchPoseFlags);
-
 /**
  * This is kept for each pose in the search index along side the feature vector values and is used to influence the search.
  */
@@ -50,22 +33,37 @@ struct POSESEARCH_API FPoseSearchPoseMetadata
 {
 	GENERATED_BODY()
 
+private:
+	// bits 0-30 represent the AssetIndex, bit 31 represents bBlockTransition
 	UPROPERTY(meta = (NeverInHash))
-	EPoseSearchPoseFlags Flags = EPoseSearchPoseFlags::None;
+	uint32 Data = 0;
 
-	// @todo: consider float16
 	UPROPERTY(meta = (NeverInHash))
-	float CostAddend = 0.0f;
+	float CostAddend = 0.f;
 
-	// @todo: consider float16
-	UPROPERTY(meta = (NeverInHash))
-	float ContinuingPoseCostAddend = 0.0f;
+public:
+	void Init(uint32 AssetIndex, bool bBlockTransition, float InCostAddend)
+	{
+		check((AssetIndex & (1 << 31)) == 0);
+		Data = AssetIndex | (bBlockTransition ? 1 << 31 : 0);
 
-	// @todo: consider uint16
-	UPROPERTY(meta = (NeverInHash))
-	int32 AssetIndex = INDEX_NONE;
+		CostAddend = InCostAddend;
+	}
 
-	bool IsInitialized() const { return AssetIndex != INDEX_NONE; }
+	bool IsBlockTransition() const
+	{
+		return Data & (1 << 31);
+	}
+
+	uint32 GetAssetIndex() const
+	{
+		return Data & ~(1 << 31);
+	}
+
+	float GetCostAddend() const
+	{
+		return CostAddend;
+	}
 
 	friend FArchive& operator<<(FArchive& Ar, FPoseSearchPoseMetadata& Metadata);
 };
@@ -160,7 +158,7 @@ struct POSESEARCH_API FPoseSearchIndexBase
 	TArray<FPoseSearchPoseMetadata> PoseMetadata;
 
 	UPROPERTY(meta = (NeverInHash))
-	EPoseSearchPoseFlags OverallFlags = EPoseSearchPoseFlags::None;
+	bool bAnyBlockTransition = false;
 
 	UPROPERTY(meta = (NeverInHash))
 	TArray<FPoseSearchIndexAsset> Assets;
@@ -228,7 +226,7 @@ struct POSESEARCH_API FPoseSearchIndex : public FPoseSearchIndexBase
 	TConstArrayView<float> GetPoseValues(int32 PoseIdx) const;
 	TConstArrayView<float> GetReconstructedPoseValues(int32 PoseIdx, TArrayView<float> BufferUsedForReconstruction) const;
 	TArray<float> GetPoseValuesSafe(int32 PoseIdx) const;
-	FPoseSearchCost ComparePoses(int32 PoseIdx, EPoseSearchBooleanRequest QueryMirrorRequest, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, float MirrorMismatchCostBias, TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues) const;
+	FPoseSearchCost ComparePoses(int32 PoseIdx, EPoseSearchBooleanRequest QueryMirrorRequest, float ContinuingPoseCostBias, float MirrorMismatchCostBias, TConstArrayView<float> PoseValues, TConstArrayView<float> QueryValues) const;
 
 	friend FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index);
 };
