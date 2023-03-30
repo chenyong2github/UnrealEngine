@@ -113,20 +113,9 @@ void BuildBoundingBox_{ParameterName}(in float3 NodePosition, out bool FunctionS
  * Utilities regarding strands curve
  * -----------------------------------------------------------------
  */
-struct FHairCurve
-{
-	uint PointIndex;
-	uint PointCount;
-};
-
 FHairCurve UnpackCurve_{ParameterName}(in uint InCurveIndex)
 {
-	const uint In = {ParameterName}_CurvesOffsetsBuffer[InCurveIndex];
-
-	FHairCurve Out = (FHairCurve)0;
-	Out.PointIndex = In & 0xFFFFFF;
-	Out.PointCount = In>>24;
-	return Out;
+	return UnpackHairCurve({ParameterName}_CurvesOffsetsBuffer[InCurveIndex]);
 }
 
 /* -----------------------------------------------------------------
@@ -891,7 +880,7 @@ void ComputeLocalState_{ParameterName}(in float3 RestPosition, in float4 RestOri
 	if( {ParameterName}_InterpolationMode >= 1)
 	{
 		const int StrandIndex = ExecIndex() / {ParameterName}_StrandSize;
-		const float2 ProjectionUV = UnpackBarycentrics({ParameterName}_RootBarycentricCoordinatesBuffer[StrandIndex]);
+		const float2 ProjectionUV = UnpackBarycentrics({ParameterName}_RootBarycentricCoordinatesBuffer[StrandIndex]).xy;
 		const uint TriangleIndex = {ParameterName}_RootToUniqueTriangleIndexBuffer[StrandIndex];
 
 		float3 RestTrianglePosition = float3(0, 0, 0);
@@ -912,7 +901,7 @@ void AttachNodeState_{ParameterName}(in float3 LocalPosition, in float4 LocalOri
 	if( {ParameterName}_InterpolationMode >= 1)
 	{
 		const int StrandIndex = ExecIndex() / {ParameterName}_StrandSize;
-		const float2 ProjectionUV = UnpackBarycentrics({ParameterName}_RootBarycentricCoordinatesBuffer[StrandIndex]);
+		const float2 ProjectionUV = UnpackBarycentrics({ParameterName}_RootBarycentricCoordinatesBuffer[StrandIndex]).xy;
 		const uint TriangleIndex = {ParameterName}_RootToUniqueTriangleIndexBuffer[StrandIndex];
 
 		float3 DeformedTrianglePosition = float3(0, 0, 0);

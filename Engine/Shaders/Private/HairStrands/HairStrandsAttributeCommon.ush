@@ -2,7 +2,7 @@
 
 #pragma once 
 
-#include "/Engine/Private/HairStrands/HairStrandsVertexFactoryCommon.ush"
+#include "/Engine/Private/HairStrands/HairStrandsPack.ush"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Data stride in bytes
@@ -89,6 +89,9 @@ bool IsAttributeValid(uint InOffset)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Attribute access with explicit resources
+
+#include "/Engine/Private/HairStrands/HairStrandsVertexFactoryCommon.ush"
+
 #if HAIR_STRAND_MESH_FACTORY
 
 float InternalGetHairStrandsWorldRadius(uint HairPrimitiveId, float2 VertexUV)

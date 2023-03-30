@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "HairStrandsPack.ush"
+
 struct FHairMeshTriangle
 {
 	float3 P0;
@@ -18,29 +20,6 @@ struct FHairMeshTriangleWithUVs : FHairMeshTriangle
 	float2 UV1;
 	float2 UV2;
 };
-
-uint PackUVs(float2 UV)
-{
-	return (f32tof16(UV.x) & 0xFFFF) | ((f32tof16(UV.y) & 0xFFFF) << 16);
-}
-
-float PackUVsToFloat(float2 UV)
-{
-	return asfloat(PackUVs(UV));
-}
-
-float2 UnPackUVs(uint InUV)
-{
-	float2 Out;
-	Out.x = f16tof32(InUV & 0xFFFF);
-	Out.y = f16tof32((InUV >> 16) & 0xFFFF);
-	return Out;
-}
-
-float2 UnPackUVs(float InUV)
-{
-	return UnPackUVs(asuint(InUV));
-}
 
 float2 GetVertexUV(uint VId, Buffer<float2> InUVBuffer, Buffer<uint> InIndexBuffer, uint InIndexOffset, uint InMaxIndexCount, uint InMaxVertexCount, uint InMeshUVsChannelOffset, uint InMeshUVsChannelCount)
 {
@@ -191,39 +170,6 @@ float3 TransformPoint(float3 P, float3 B, const FHairMeshTriangle RestTriangle, 
 {
 	float3 LocalP = ToTriangle(P, B, RestTriangle);
 	return ToWorld(LocalP, B, DeformedTriangle);
-}
-
-uint PackBarycentrics(float2 B)
-{
-	return f32tof16(B.x) | (f32tof16(B.y) << 16);
-}
-
-float3 UnpackBarycentrics(uint E)
-{
-	float3 Out;
-	Out.x = f16tof32(E & 0xFFFF);
-	Out.y = f16tof32((E >> 16) & 0xFFFF);
-	Out.z = 1 - Out.x - Out.y;
-	return Out;
-}
-
-struct FHairTriangleIndex
-{
-	uint TriangleIndex;
-	uint SectionIndex;
-};
-
-uint PackTriangleIndex(uint TriangleIndex, uint SectionIndex)
-{
-	return ((SectionIndex & 0xFF)<<24) | (TriangleIndex & 0xFFFFFF);
-}
-
-FHairTriangleIndex UnpackTriangleIndex(uint Encoded)
-{
-	FHairTriangleIndex Out;
-	Out.SectionIndex = (Encoded>>24) & 0xFF;
-	Out.TriangleIndex = Encoded & 0xFFFFFF;
-	return Out;
 }
 
 // Apply RBF weight onto a control point
