@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Assert/NoDiscardAsserter.h"
 #include "Internationalization/Regex.h"
 #include "Assert/CQTestConvert.h"
 
