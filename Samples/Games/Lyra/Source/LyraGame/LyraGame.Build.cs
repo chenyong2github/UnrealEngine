@@ -41,7 +41,8 @@ public class LyraGame : ModuleRules
 				"CommonLoadingScreen",
 				"Niagara",
 				"AsyncMixin",
-				"ControlFlows"
+				"ControlFlows",
+				"PropertyPath"
 			}
 		);
 
