@@ -98,7 +98,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = AutoCluster, meta = (EditCondition = "bEnforceConnectivity == true && ClusterSizeMethod != EClusterSizeMethod::ByGrid"))
 	bool bEnforceSiteParameters = true;
 
-	/** If true, prevent the creation of clusters with only a single child. Either by merging into a neighboring cluster, or not creating the cluster. */
+	/** If true, prevent the creation of clusters with only a single child, skipping creation of a new cluster in such cases. */
 	UPROPERTY(EditAnywhere, Category = AutoCluster)
 	bool bAvoidIsolated = true;
 };

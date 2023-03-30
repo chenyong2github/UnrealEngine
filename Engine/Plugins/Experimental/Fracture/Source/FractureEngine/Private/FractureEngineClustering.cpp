@@ -620,11 +620,10 @@ void FFractureEngineClustering::AutoCluster(FGeometryCollection& GeometryCollect
 			VoronoiPartition.SplitDisconnectedPartitions(&GeometryCollection);
 		}
 
-		if (bAvoidIsolated)
-		{
-			// attempt to remove isolated via merging (may not succeed, as it only merges if there is a cluster in proximity)
-			VoronoiPartition.MergeSingleElementPartitions(&GeometryCollection);
-		}
+		// Note: Previously if bAvoidIsolated was set, we'd attempt to merge clusters of one here via
+		//  VoronoiPartition.MergeSingleElementPartitions(&GeometryCollection);
+		// However this results in some overly-large clusters, especially with grid clustering,
+		// so we prefer to simply skip clustering in such cases.
 
 		if (MinimumClusterSize > 0)
 		{
