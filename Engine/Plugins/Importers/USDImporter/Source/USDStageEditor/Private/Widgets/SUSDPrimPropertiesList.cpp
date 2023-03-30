@@ -762,8 +762,6 @@ void SUsdPrimPropertiesList::SetPrimPath( const UE::FUsdStageWeak& UsdStage, con
 {
 	GeneratePropertiesList( UsdStage, InPrimPath );
 
-	SetVisibility(ViewModel.PrimAttributes.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed);
-
 	RequestListRefresh();
 }
 

@@ -49,16 +49,20 @@ void SUsdPrimInfo::Construct( const FArguments& InArgs )
 				{
 					// Display property metadata if we have exactly one selected
 					TArray<FString> SelectedProperties = PropertiesList->GetSelectedPropertyNames();
-					if (PropertiesList && SelectedProperties.Num() == 1)
+					if (PropertiesList && SelectedProperties.Num() == 1 && NewSelection &&
+						(NewSelection->Type == EAttributeModelType::Attribute || NewSelection->Type == EAttributeModelType::Relationship)
+					)
 					{
 						PropertyMetadataPanel->SetPrimPath(
 							PropertiesList->GetUsdStage(),
 							*(FString{PropertiesList->GetPrimPath()} + "." + SelectedProperties[0])
 						);
+						PropertyMetadataPanel->SetVisibility(EVisibility::Visible);
 					}
 					else
 					{
 						PropertyMetadataPanel->SetPrimPath({}, TEXT(""));
+						PropertyMetadataPanel->SetVisibility(EVisibility::Collapsed);
 					}
 				})
 			]
