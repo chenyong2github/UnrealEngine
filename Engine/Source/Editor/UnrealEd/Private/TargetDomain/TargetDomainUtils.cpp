@@ -150,24 +150,33 @@ bool TryCollectKeyAndDependencies(UPackage* Package, const ITargetPlatform* Targ
 		UE::AssetRegistry::EDependencyQuery::Game);
 
 	FPackageBuildDependencyTracker& Tracker = FPackageBuildDependencyTracker::Get();
-	TArray<FBuildDependencyAccessData> AccessDatas = Tracker.GetAccessDatas(PackageName);
 
-	BuildDependencies.Reserve(AccessDatas.Num());
-	for (FBuildDependencyAccessData& AccessData : AccessDatas)
+	if (Tracker.IsEnabled())
 	{
-		if (AccessData.TargetPlatform == TargetPlatform || AccessData.TargetPlatform == nullptr)
+		TArray<FBuildDependencyAccessData> AccessDatas = Tracker.GetAccessDatas(PackageName);
+
+		BuildDependencies.Reserve(AccessDatas.Num());
+		for (FBuildDependencyAccessData& AccessData : AccessDatas)
 		{
-			BuildDependencies.Add(AccessData.ReferencedPackage);
+			if (AccessData.TargetPlatform == TargetPlatform || AccessData.TargetPlatform == nullptr)
+			{
+				BuildDependencies.Add(AccessData.ReferencedPackage);
+			}
+		}
+
+		RuntimeOnlyDependencies.Reserve(AssetDependencies.Num());
+		for (FName DependencyName : AssetDependencies)
+		{
+			if (!BuildDependencies.Contains(DependencyName))
+			{
+				RuntimeOnlyDependencies.Add(DependencyName);
+			}
 		}
 	}
-
-	RuntimeOnlyDependencies.Reserve(AccessDatas.Num());
-	for (FName DependencyName : AssetDependencies)
+	else
 	{
-		if (!BuildDependencies.Contains(DependencyName))
-		{
-			RuntimeOnlyDependencies.Add(DependencyName);
-		}
+		// Defensively treat all asset dependencies as build dependencies and have zero runtime only dependencies
+		BuildDependencies.Append(AssetDependencies);
 	}
 
 	TArray<FName> SortedBuild;

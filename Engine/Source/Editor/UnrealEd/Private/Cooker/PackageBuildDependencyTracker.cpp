@@ -13,8 +13,28 @@ DEFINE_LOG_CATEGORY_STATIC(LogPackageBuildDependencyTracker, Log, All);
 
 FPackageBuildDependencyTracker FPackageBuildDependencyTracker::Singleton;
 
+void FPackageBuildDependencyTracker::Disable()
+{
+	if (bEnabled)
+	{
+		UE::CoreUObject::RemoveObjectHandleReadCallback(ObjectHandleReadHandle);
+		ObjectHandleReadHandle = UE::CoreUObject::FObjectHandleTrackingCallbackId {};
+		bEnabled = false;
+	}
+}
+
+bool FPackageBuildDependencyTracker::IsEnabled() const
+{
+	return bEnabled;
+}
+
 void FPackageBuildDependencyTracker::DumpStats() const
 {
+	if (!IsEnabled())
+	{
+		return;
+	}
+
 	FScopeLock RecordsScopeLock(&RecordsLock);
 	uint64 ReferencingPackageCount = 0;
 	uint64 ReferenceCount = 0;
@@ -57,11 +77,12 @@ TArray<FBuildDependencyAccessData> FPackageBuildDependencyTracker::GetAccessData
 FPackageBuildDependencyTracker::FPackageBuildDependencyTracker()
 {
 	ObjectHandleReadHandle = UE::CoreUObject::AddObjectHandleReadCallback(StaticOnObjectHandleRead);
+	bEnabled = true;
 }
 
 FPackageBuildDependencyTracker::~FPackageBuildDependencyTracker()
 {
-	UE::CoreUObject::RemoveObjectHandleReadCallback(ObjectHandleReadHandle);
+	Disable();
 }
 
 void FPackageBuildDependencyTracker::StaticOnObjectHandleRead(TArrayView<const UObject* const> Objects)

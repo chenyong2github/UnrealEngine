@@ -32,6 +32,8 @@ class FPackageBuildDependencyTracker: public FNoncopyable
 public:
 	static FPackageBuildDependencyTracker& Get() { return Singleton; }
 
+	void Disable();
+	bool IsEnabled() const;
 	void DumpStats() const;
 	TArray<FBuildDependencyAccessData> GetAccessDatas(FName ReferencerPackage) const;
 
@@ -48,6 +50,7 @@ private:
 	FBuildDependencyAccessData LastAccessData{ NAME_None, nullptr };
 	TSet<FBuildDependencyAccessData>* LastReferencerSet = nullptr;
 	UE::CoreUObject::FObjectHandleTrackingCallbackId ObjectHandleReadHandle;
+	bool bEnabled = false;
 	static FPackageBuildDependencyTracker Singleton;
 };
 
