@@ -40,6 +40,10 @@ void FGameplayTagContainerCustomization::CustomizeHeader(TSharedRef<class IPrope
 {
 	StructPropertyHandle = InStructPropertyHandle;
 
+	// We are registering to a global callback used to let us know when the GameplayTags have updated across the project.
+	// We are using this to piggyback on notifications that can be sent by other Properties to update ourselves. In particular, FInheritedTagContainer::CombinedTags.
+	UGameplayTagsManager::OnEditorRefreshGameplayTagTree.AddSP(this, &FGameplayTagContainerCustomization::RefreshTagList);
+
 	FSimpleDelegate OnTagContainerChanged = FSimpleDelegate::CreateSP(this, &FGameplayTagContainerCustomization::RefreshTagList);
 	StructPropertyHandle->SetOnPropertyValueChanged(OnTagContainerChanged);
 

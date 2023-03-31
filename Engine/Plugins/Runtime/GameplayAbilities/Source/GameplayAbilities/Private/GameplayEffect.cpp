@@ -5162,6 +5162,11 @@ void FInheritedTagContainer::UpdateInheritedTagProperties(const FInheritedTagCon
 			CombinedTags.AddTag(*Itr);
 		}
 	}
+
+#if WITH_EDITOR
+	// Notify any open editor windows that we should refresh these properties, specifically for refreshing CombinedTags.
+	UGameplayTagsManager::OnEditorRefreshGameplayTagTree.Broadcast();
+#endif
 }
 
 void FInheritedTagContainer::PostInitProperties()
