@@ -30,6 +30,7 @@
 #include "GeometryCollection/GeometryCollectionISMPoolActor.h"
 #include "GeometryCollection/GeometryCollectionISMPoolComponent.h"
 #include "GeometryCollection/GeometryCollectionISMPoolRenderer.h"
+#include "GeometryCollection/GeometryCollectionISMPoolSubSystem.h"
 #include "Math/Sphere.h"
 #include "Modules/ModuleManager.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -2405,6 +2406,15 @@ void UGeometryCollectionComponent::OnRegister()
 		UGeometryCollectionCustomRendererISMPool* ISMPoolRenderer = NewObject<UGeometryCollectionCustomRendererISMPool>(this);
 		ISMPoolRenderer->ISMPoolActor = ISMPool;
 		CustomRenderer = (UGeometryCollectionExternalRenderInterface*)ISMPoolRenderer;
+	}
+	if (!CustomRenderer && bAutoAssignISMPool)
+	{
+		if (UGeometryCollectionISMPoolSubSystem* ISMPoolSubSystem = UWorld::GetSubsystem<UGeometryCollectionISMPoolSubSystem>(GetWorld()))
+		{
+			UGeometryCollectionCustomRendererISMPool* ISMPoolRenderer = NewObject<UGeometryCollectionCustomRendererISMPool>(this);
+			ISMPoolRenderer->ISMPoolActor = ISMPoolSubSystem->FindISMPoolActor(*this);
+			CustomRenderer = (UGeometryCollectionExternalRenderInterface*)ISMPoolRenderer;
+		}
 	}
 
 	Super::OnRegister();
