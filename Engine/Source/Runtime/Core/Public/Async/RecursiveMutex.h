@@ -28,25 +28,7 @@ public:
 	UE_API void Unlock();
 
 private:
-	union FState
-	{
-		struct
-		{
-			uint32 bIsLocked : 1;
-			uint32 bHasWaitingThreads : 1;
-			uint32 RecurseCount : 30;
-		};
-		uint32 Value = 0;
-
-		constexpr FState() = default;
-
-		constexpr explicit FState(uint32 State)
-			: Value(State)
-		{
-		}
-
-		constexpr bool operator==(const FState& Other) const { return Value == Other.Value; }
-	};
+	union FState;
 
 	void LockSlow(FState CurrentState, const uint32 CurrentThreadId);
 	void UnlockSlow(FState CurrentState);

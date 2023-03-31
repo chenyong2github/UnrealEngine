@@ -9,6 +9,26 @@
 namespace UE
 {
 
+union FRecursiveMutex::FState
+{
+	struct
+	{
+		uint32 bIsLocked : 1;
+		uint32 bHasWaitingThreads : 1;
+		uint32 RecurseCount : 30;
+	};
+	uint32 Value = 0;
+
+	constexpr FState() = default;
+
+	constexpr explicit FState(uint32 State)
+		: Value(State)
+	{
+	}
+
+	constexpr bool operator==(const FState& Other) const { return Value == Other.Value; }
+};
+
 bool FRecursiveMutex::TryLock()
 {
 	const uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
