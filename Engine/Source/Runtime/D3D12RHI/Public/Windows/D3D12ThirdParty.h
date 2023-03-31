@@ -6,6 +6,8 @@
 #pragma warning(push)
 #pragma warning(disable : 4005)	// macro redefinition
 
+#include "HAL/Platform.h"
+
 #if PLATFORM_64BITS
 	#pragma pack(push,16)
 #else
@@ -13,6 +15,7 @@
 #endif
 
 #include "Microsoft/AllowMicrosoftPlatformTypes.h"
+#define INITGUID
 THIRD_PARTY_INCLUDES_START
 	#include <d3d12.h>
 	#include <d3dx12.h>
