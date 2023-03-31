@@ -53,26 +53,28 @@
 			PRAGMA_ENABLE_ORDERED_COMPARE_FUNCTION_POINTERS
 	#endif // THIRD_PARTY_INCLUDES_END
 #else
-	#ifndef DISABLE_DEPRECATION
+	#ifndef PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		#define PRAGMA_DISABLE_DEPRECATION_WARNINGS \
 			__pragma (warning(push)) \
 			__pragma (warning(disable: 4995)) /* 'function': name was marked as #pragma deprecated */ \
 			__pragma (warning(disable: 4996)) /* The compiler encountered a deprecated declaration. */
+	#endif // PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
+	#ifndef PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		#define PRAGMA_ENABLE_DEPRECATION_WARNINGS \
 			__pragma (warning(pop))
-	#endif // DISABLE_DEPRECATION
+	#endif // PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	#ifndef PRAGMA_DISABLE_BUFFER_OVERRUN_WARNING
 		#define PRAGMA_DISABLE_BUFFER_OVERRUN_WARNING \
 			__pragma (warning(push)) \
 			__pragma (warning(disable:4789)) /* buffer 'identifier' of size N bytes will be overrun; M bytes will be written starting at offset L */
-	#endif
+	#endif // PRAGMA_DISABLE_BUFFER_OVERRUN_WARNING
 
 	#ifndef PRAGMA_ENABLE_BUFFER_OVERRUN_WARNING
 		#define PRAGMA_ENABLE_BUFFER_OVERRUN_WARNING \
 			__pragma (warning(pop))
-	#endif
+	#endif // PRAGMA_ENABLE_BUFFER_OVERRUN_WARNING
 
 	#ifndef PRAGMA_DISABLE_SHADOW_VARIABLE_WARNINGS
 		#define PRAGMA_DISABLE_SHADOW_VARIABLE_WARNINGS \

@@ -4,16 +4,18 @@
 
 // HEADER_UNIT_UNSUPPORTED - Clang not supporting header units
 
-#ifndef DISABLE_DEPRECATION
-	#pragma clang diagnostic warning "-Wdeprecated-declarations"
+#pragma clang diagnostic warning "-Wdeprecated-declarations"
 
+#ifndef PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	#define PRAGMA_DISABLE_DEPRECATION_WARNINGS \
 		_Pragma("clang diagnostic push") \
 		_Pragma("clang diagnostic ignored \"-Wdeprecated-declarations\"")
+#endif // PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
+#ifndef PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	#define PRAGMA_ENABLE_DEPRECATION_WARNINGS \
 		_Pragma("clang diagnostic pop")
-#endif // DISABLE_DEPRECATION
+#endif // PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #ifndef PRAGMA_DISABLE_OVERLOADED_VIRTUAL_WARNINGS
 	#define PRAGMA_DISABLE_OVERLOADED_VIRTUAL_WARNINGS \
