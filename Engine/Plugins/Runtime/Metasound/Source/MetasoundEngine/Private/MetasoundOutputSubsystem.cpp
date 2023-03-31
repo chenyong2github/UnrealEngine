@@ -81,18 +81,6 @@ bool UMetaSoundOutputSubsystem::WatchOutput(
 
 	// either way, add the delegate to the map
 	GeneratorInfo->OutputChangedDelegates.FindOrAdd(OutputName).FindOrAdd(AnalyzerOutputName).AddUnique(OnOutputValueChanged);
-
-	// set up the output handler
-	GeneratorInfo->HandleOutputChanged = [GeneratorInfo](const FName GeneratorOutputName, const FMetaSoundOutput& AnalyzerOutput)
-	{
-		if (TMap<FName, FOnOutputValueChangedMulticast>* Map = GeneratorInfo->OutputChangedDelegates.Find(GeneratorOutputName))
-		{
-			if (const FOnOutputValueChangedMulticast* Delegate = Map->Find(AnalyzerOutput.Name))
-			{
-				Delegate->Broadcast(AnalyzerOutput);
-			}
-		}
-	};
 	
 	return true;
 }
@@ -116,7 +104,10 @@ void UMetaSoundOutputSubsystem::Tick(float DeltaTime)
 		{
 			for (Metasound::Private::FMetasoundOutputWatcher& Watcher : GeneratorIt->OutputWatchers)
 			{
-				Watcher.Update(GeneratorIt->HandleOutputChanged);
+				Watcher.Update([&GeneratorIt](FName OutputName, const FMetaSoundOutput& Output)
+				{
+					GeneratorIt->HandleOutputChanged(OutputName, Output);
+				});
 			}
 		}
 	}
@@ -131,6 +122,17 @@ void UMetaSoundOutputSubsystem::RegisterPassthroughAnalyzerForType(const FName T
 {
 	check(!PassthroughAnalyzers.Contains(TypeName));
 	PassthroughAnalyzers.Add(TypeName, AnalyzerName);
+}
+
+void UMetaSoundOutputSubsystem::FGeneratorInfo::HandleOutputChanged(FName OutputName, const FMetaSoundOutput& Output)
+{
+	if (TMap<FName, FOnOutputValueChangedMulticast>* Map = OutputChangedDelegates.Find(OutputName))
+	{
+		if (const FOnOutputValueChangedMulticast* Delegate = Map->Find(Output.Name))
+		{
+			Delegate->Broadcast(Output);
+		}
+	}
 }
 
 bool UMetaSoundOutputSubsystem::FGeneratorInfo::IsValid() const

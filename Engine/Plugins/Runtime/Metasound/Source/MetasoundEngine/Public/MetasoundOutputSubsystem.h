@@ -83,7 +83,7 @@ private:
 		TQueue<Metasound::Frontend::FAnalyzerAddress> AnalyzersToCreate;
 		TMap<FName, TMap<FName, FOnOutputValueChangedMulticast>> OutputChangedDelegates;
 		TArray<Metasound::Private::FMetasoundOutputWatcher> OutputWatchers;
-		TFunction<void(FName, const FMetaSoundOutput&)> HandleOutputChanged;
+		void HandleOutputChanged(FName OutputName, const FMetaSoundOutput& Output);
 		bool IsValid() const;
 	};
 
