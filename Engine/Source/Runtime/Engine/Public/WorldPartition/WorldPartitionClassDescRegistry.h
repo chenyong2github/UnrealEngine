@@ -56,7 +56,7 @@ private:
 	void RegisterClass(UClass* Class);
 	void RegisterClasses();
 
-	void UpdateClassDescriptor(UObject* InObject);
+	void UpdateClassDescriptor(UObject* InObject, bool bOnlyIfExists);
 
 	void ValidateInternalState();
 
