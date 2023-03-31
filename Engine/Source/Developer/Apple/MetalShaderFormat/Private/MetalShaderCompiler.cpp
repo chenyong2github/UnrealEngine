@@ -793,58 +793,6 @@ void BuildMetalShaderOutput(
 	External interface.
 ------------------------------------------------------------------------------*/
 
-FString CreateRemoteDataFromEnvironment(const FShaderCompilerEnvironment& Environment)
-{
-	FString Line = TEXT("\n#if 0 /*BEGIN_REMOTE_SERVER*/\n");
-	for (auto Pair : Environment.RemoteServerData)
-	{
-		Line += FString::Printf(TEXT("%s=%s\n"), *Pair.Key, *Pair.Value);
-	}
-	Line += TEXT("#endif /*END_REMOTE_SERVER*/\n");
-	return Line;
-}
-
-void CreateEnvironmentFromRemoteData(const FString& String, FShaderCompilerEnvironment& OutEnvironment)
-{
-	FString Prolog = TEXT("#if 0 /*BEGIN_REMOTE_SERVER*/");
-	int32 FoundBegin = String.Find(Prolog, ESearchCase::CaseSensitive);
-	if (FoundBegin == INDEX_NONE)
-	{
-		return;
-	}
-	int32 FoundEnd = String.Find(TEXT("#endif /*END_REMOTE_SERVER*/"), ESearchCase::CaseSensitive, ESearchDir::FromStart, FoundBegin);
-	if (FoundEnd == INDEX_NONE)
-	{
-		return;
-	}
-
-	// +1 for EOL
-	const TCHAR* Ptr = &String[FoundBegin + 1 + Prolog.Len()];
-	const TCHAR* PtrEnd = &String[FoundEnd];
-	while (Ptr < PtrEnd)
-	{
-		FString Key;
-		if (!CrossCompiler::ParseIdentifier(Ptr, Key))
-		{
-			return;
-		}
-		if (!CrossCompiler::Match(Ptr, TEXT("=")))
-		{
-			return;
-		}
-		FString Value;
-		if (!CrossCompiler::ParseString(Ptr, Value))
-		{
-			return;
-		}
-		if (!CrossCompiler::Match(Ptr, '\n'))
-		{
-			return;
-		}
-		OutEnvironment.RemoteServerData.FindOrAdd(Key) = Value;
-	}
-}
-
 void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutput& Output,const FString& WorkingDirectory)
 {
 	auto Input = _Input;
@@ -1062,7 +1010,6 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 
 		// Remove const as we are on debug-only mode
 		CrossCompiler::CreateEnvironmentFromResourceTable(PreprocessedShader, (FShaderCompilerEnvironment&)Input.Environment);
-		CreateEnvironmentFromRemoteData(PreprocessedShader, (FShaderCompilerEnvironment&)Input.Environment);
 	}
 	else
 	{
@@ -1126,14 +1073,6 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 	{
 		UE::ShaderCompilerCommon::FDebugShaderDataOptions DebugDataOptions;
 		DebugDataOptions.HlslCCFlags = CCFlags;
-		DebugDataOptions.AppendPostSource = [&Input]()
-		{
-			// add the remote data if necessary
-//			if (IsRemoteBuildingConfigured(&Input.Environment))
-			{
-				return CreateRemoteDataFromEnvironment(Input.Environment);
-			}
-		};
 		UE::ShaderCompilerCommon::DumpDebugShaderData(Input, PreprocessedShader, DebugDataOptions);
 	}
 

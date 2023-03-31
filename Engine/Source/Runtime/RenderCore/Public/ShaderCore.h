@@ -525,6 +525,8 @@ struct FShaderCompilerEnvironment
 	TMap<uint32,uint8> RenderTargetOutputFormatsMap;
 	TMap<FString, FResourceTableEntry> ResourceTableMap;
 	TMap<FString, FUniformBufferEntry> UniformBufferMap;
+
+	UE_DEPRECATED(5.3, "RemoteServerData field is deprecated (no longer used in compilation backends).")
 	TMap<FString, FString> RemoteServerData;
 
 	const ITargetPlatform* TargetPlatform = nullptr;
@@ -545,9 +547,20 @@ struct FShaderCompilerEnvironment
 	{
 	}
 
-	// Used as a baseclasss, make sure we're not incorrectly destroyed through a baseclass pointer
+	// Used as a baseclass, make sure we're not incorrectly destroyed through a baseclass pointer
 	// This will be expensive to destroy anyway, additional vcall overhead should be small
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// Temporarily disable deprecation warnings for this default destructor triggering due to the 
+	// deprecated RemoteServerData field. When the field is removed warning disable should be as 
+	// well, but the defaulted destructor should remain due to the above comment.
 	virtual ~FShaderCompilerEnvironment() = default;
+
+	// Explicitly default assignment operator and copy constructor operator with warnings disabled
+	// to avoid warnings in implicitly-generated functions due to deprecation of RemoteServerData. 
+	// These can be removed entirely (revert to implicitly-generated) when the field itself is.
+	FShaderCompilerEnvironment(const FShaderCompilerEnvironment&) = default;
+	FShaderCompilerEnvironment& operator=(const FShaderCompilerEnvironment&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Works for TCHAR
@@ -632,7 +645,6 @@ struct FShaderCompilerEnvironment
 		Ar << RenderTargetOutputFormatsMap;
 		Ar << ResourceTableMap;
 		Ar << UniformBufferMap;
-		Ar << RemoteServerData;
 		Ar << FullPrecisionInPS;
 	}
 
@@ -673,7 +685,6 @@ struct FShaderCompilerEnvironment
 		Definitions.Merge(Other.Definitions);
 		CompileArgs.Append(Other.CompileArgs);
 		RenderTargetOutputFormatsMap.Append(Other.RenderTargetOutputFormatsMap);
-		RemoteServerData.Append(Other.RemoteServerData);
 		FullPrecisionInPS |= Other.FullPrecisionInPS;
 	}
 
