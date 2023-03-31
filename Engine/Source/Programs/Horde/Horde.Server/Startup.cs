@@ -1010,9 +1010,9 @@ namespace Horde.Server
 
 			if (DirectoryReference.Exists(dashboardDir)) 
 			{
-				app.UseSpaStaticFiles();
+				app.UseWhen(IsSpaRequest, builder => builder.UseSpaStaticFiles());
 			}
-						
+
 			app.UseRouting();
 
 			app.UseAuthentication();
@@ -1034,16 +1034,18 @@ namespace Horde.Server
 
 			if (DirectoryReference.Exists(dashboardDir)) 
 			{
-				app.UseSpa(spa =>
-				{ 
-					spa.Options.SourcePath = "DashboardApp";        
-				});
+				app.MapWhen(IsSpaRequest, builder => builder.UseSpa(spa => spa.Options.SourcePath = "DashboardApp"));
 			}
 
 			if (settings.Value.OpenBrowser && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
 				lifetime.ApplicationStarted.Register(() => LaunchBrowser(app));
 			}
+		}
+
+		static bool IsSpaRequest(HttpContext context)
+		{
+			return !context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase);
 		}
 
 		static void LaunchBrowser(IApplicationBuilder app)
