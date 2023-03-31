@@ -5,6 +5,7 @@
 #include "SequencerCoreFwd.h"
 #include "MVVM/ViewModelTypeID.h"
 #include "Curves/KeyHandle.h"
+#include "Templates/MemoryOps.h"
 
 struct FGuid;
 
@@ -46,6 +47,14 @@ struct SEQUENCER_API FSnapPoint
 
 	/** The type of snap */
 	ESnapType Type;
+
+private:
+
+	friend void ::DefaultConstructItems<FSnapPoint, int32>(void*, int32);
+
+	// uninitialized default constructor - only for use by containers
+	FSnapPoint()
+	{}
 };
 
 class SEQUENCER_API ISnapField
@@ -59,7 +68,32 @@ public:
 /** Interface that defines how to construct an FSequencerSnapField */
 struct SEQUENCER_API ISnapCandidate
 {
+	enum class EDefaultApplicability
+	{
+		None                   = 0,
+
+		Keys                   = 1 << 0,
+		SectionBounds          = 1 << 1,
+		CustomSnaps            = 1 << 2,
+
+		All = Keys | SectionBounds | CustomSnaps,
+	};
+
+	enum class ESnapCapabilities
+	{
+		None                            = 0,
+
+		IsKeyApplicable                 = 1 << 0,
+		AreSectionBoundsApplicable      = 1 << 1,
+		AreSectionCustomSnapsApplicable = 1 << 2,
+
+		All = IsKeyApplicable | AreSectionBoundsApplicable | AreSectionCustomSnapsApplicable,
+	};
+
 	virtual ~ISnapCandidate() { }
+
+	/** Retrieve the capabilities of this snap candidate instance as a bitmask. Zero bits will prevent virtual functions being called as an optimziation*/
+	virtual void GetCapabilities(EDefaultApplicability& OutDefaultApplicability, ESnapCapabilities& OutCapabilities) const { OutDefaultApplicability = EDefaultApplicability::All; OutCapabilities = ESnapCapabilities::None; }
 
 	/** Return true to include the specified key in the snap field */
 	virtual bool IsKeyApplicable(FKeyHandle KeyHandle, const UE::Sequencer::FViewModelPtr& Owner) const { return true; }
@@ -81,6 +115,8 @@ public:
 
 	virtual void AddToSnapField(const ISnapCandidate& Candidate, ISnapField& SnapField) const = 0;
 };
+
+ENUM_CLASS_FLAGS(ISnapCandidate::ESnapCapabilities);
 
 } // namespace Sequencer
 } // namespace UE

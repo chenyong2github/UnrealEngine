@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tools/SequencerSnapField.h"
+#include "Containers/PagedArray.h"
 #include "MovieScene.h"
 #include "SSequencer.h"
 #include "MovieSceneTimeHelpers.h"
 #include "MovieSceneSequence.h"
 #include "ISequencerSection.h"
+#include "IKeyArea.h"
 #include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/Views/SOutlinerView.h"
 #include "MVVM/Extensions/ISnappableExtension.h"
@@ -15,17 +17,56 @@ struct FSnapGridVisitor : ISequencerEntityVisitor, UE::Sequencer::ISnapField
 	FSnapGridVisitor(UE::Sequencer::ISnapCandidate& InCandidate, uint32 EntityMask)
 		: ISequencerEntityVisitor(EntityMask)
 		, Candidate(InCandidate)
-	{}
+	{
+		InCandidate.GetCapabilities(Applicability, Capabilities);
+	}
 
-	virtual void VisitKey(FKeyHandle KeyHandle, FFrameNumber KeyTime, const UE::Sequencer::TViewModelPtr<UE::Sequencer::FChannelModel>& Channel, UMovieSceneSection* Section) const
+	virtual void VisitKeys(const UE::Sequencer::TViewModelPtr<UE::Sequencer::FChannelModel>& Channel, const TRange<FFrameNumber>& VisitRangeFrames) const override
 	{
 		using namespace UE::Sequencer;
 
-		if (Candidate.IsKeyApplicable(KeyHandle, Channel))
+		const bool bCallFunction = EnumHasAnyFlags(Capabilities, ISnapCandidate::ESnapCapabilities::IsKeyApplicable);
+		const bool bDefaultState = EnumHasAnyFlags(Applicability, ISnapCandidate::EDefaultApplicability::Keys);
+
+		if (!bCallFunction)
 		{
-			Snaps.Add(FSnapPoint{ FSnapPoint::Key, KeyTime });
+			if (bDefaultState)
+			{
+				// Faster implementation if we need to add all the keys.
+				// Only need to allocate space for the times in this case
+				TimesScratch.Reset();
+				Channel->GetKeyArea()->GetKeyInfo(nullptr, &TimesScratch, VisitRangeFrames);
+
+				const int32 StartNum = Snaps.Num();
+				const int32 NumKeys = TimesScratch.Num();
+				Snaps.SetNum(Snaps.Num() + NumKeys);
+
+				for (int32 Index = 0; Index < NumKeys; ++Index)
+				{
+					Snaps[StartNum + Index] = FSnapPoint(FSnapPoint::Key, TimesScratch[Index]);
+				}
+			}
+		}
+		else
+		{
+			// Call the function for each key individually. Much slower.
+			// Need to allocate handles as well
+			HandlesScratch.Reset();
+			TimesScratch.Reset();
+			Channel->GetKeyArea()->GetKeyInfo(&HandlesScratch, &TimesScratch, VisitRangeFrames);
+
+			for (int32 Index = 0; Index < HandlesScratch.Num(); ++Index)
+			{
+				FKeyHandle KeyHandle = HandlesScratch[Index];
+
+				if (Candidate.IsKeyApplicable(KeyHandle, Channel))
+				{
+					Snaps.Add(FSnapPoint{ FSnapPoint::Key, TimesScratch[Index] });
+				}
+			}
 		}
 	}
+
 	virtual void VisitDataModel(UE::Sequencer::FViewModel* DataModel) const
 	{
 		using namespace UE::Sequencer;
@@ -38,11 +79,17 @@ struct FSnapGridVisitor : ISequencerEntityVisitor, UE::Sequencer::ISnapField
 
 	virtual void AddSnapPoint(const UE::Sequencer::FSnapPoint& SnapPoint) override
 	{
-		Snaps.Add(SnapPoint);
+		Snaps.Emplace(SnapPoint);
 	}
 
 	UE::Sequencer::ISnapCandidate& Candidate;
-	mutable TArray<UE::Sequencer::FSnapPoint> Snaps;
+	/** utilize a chunked array to reduce the number of resize/grow memcpies for very large data sets (ie, > 1million keys) */
+	mutable TPagedArray<UE::Sequencer::FSnapPoint> Snaps;
+	mutable TArray<FKeyHandle> HandlesScratch;
+	mutable TArray<FFrameNumber> TimesScratch;
+
+	UE::Sequencer::ISnapCandidate::ESnapCapabilities Capabilities;
+	UE::Sequencer::ISnapCandidate::EDefaultApplicability Applicability;
 };
 
 FSequencerSnapField::FSequencerSnapField(const FSequencer& InSequencer, UE::Sequencer::ISnapCandidate& Candidate, uint32 EntityMask)
@@ -85,42 +132,35 @@ void FSequencerSnapField::Initialize(const FSequencer& InSequencer, UE::Sequence
 	TRange<FFrameNumber> PlaybackRange = InSequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
 	if(UE::MovieScene::DiscreteSize(PlaybackRange) > 0)
 	{
-		Visitor.Snaps.Add(FSnapPoint{ FSnapPoint::PlaybackRange, UE::MovieScene::DiscreteInclusiveLower(PlaybackRange)});
-		Visitor.Snaps.Add(FSnapPoint{ FSnapPoint::PlaybackRange, UE::MovieScene::DiscreteExclusiveUpper(PlaybackRange)});
+		Visitor.Snaps.Emplace(FSnapPoint{ FSnapPoint::PlaybackRange, UE::MovieScene::DiscreteInclusiveLower(PlaybackRange)});
+		Visitor.Snaps.Emplace(FSnapPoint{ FSnapPoint::PlaybackRange, UE::MovieScene::DiscreteExclusiveUpper(PlaybackRange)});
 	}
 
 	// Add the current time as a potential snap candidate
-	Visitor.Snaps.Add(FSnapPoint{ FSnapPoint::CurrentTime, InSequencer.GetLocalTime().Time.FrameNumber });
+	Visitor.Snaps.Emplace(FSnapPoint{ FSnapPoint::CurrentTime, InSequencer.GetLocalTime().Time.FrameNumber });
 
 	// Add the selection range bounds as a potential snap candidate
 	TRange<FFrameNumber> SelectionRange = InSequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetSelectionRange();
 	if (UE::MovieScene::DiscreteSize(SelectionRange) > 0)
 	{
-		Visitor.Snaps.Add(FSnapPoint{ FSnapPoint::InOutRange, UE::MovieScene::DiscreteInclusiveLower(SelectionRange)});
-		Visitor.Snaps.Add(FSnapPoint{ FSnapPoint::InOutRange, UE::MovieScene::DiscreteExclusiveUpper(SelectionRange) - 1});
+		Visitor.Snaps.Emplace(FSnapPoint{ FSnapPoint::InOutRange, UE::MovieScene::DiscreteInclusiveLower(SelectionRange)});
+		Visitor.Snaps.Emplace(FSnapPoint{ FSnapPoint::InOutRange, UE::MovieScene::DiscreteExclusiveUpper(SelectionRange) - 1});
 	}
 
 	// Add in the marked frames
 	for (const FMovieSceneMarkedFrame& MarkedFrame : InSequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetMarkedFrames())
 	{
-		Visitor.Snaps.Add( FSnapPoint{ FSnapPoint::Mark, MarkedFrame.FrameNumber } );
+		Visitor.Snaps.Emplace( FSnapPoint{ FSnapPoint::Mark, MarkedFrame.FrameNumber } );
 	}
 
 	// Add in the global marked frames
 	for (const FMovieSceneMarkedFrame& MarkedFrame : InSequencer.GetGlobalMarkedFrames())
 	{
-		Visitor.Snaps.Add(FSnapPoint{ FSnapPoint::Mark, MarkedFrame.FrameNumber });
+		Visitor.Snaps.Emplace(FSnapPoint{ FSnapPoint::Mark, MarkedFrame.FrameNumber });
 	}
 
-
-	if (SortedSnaps.Num() == 0)
-	{
-		SortedSnaps = MoveTemp(Visitor.Snaps);
-	}
-	else
-	{
-		SortedSnaps.Append(Visitor.Snaps);
-	}
+	// Copy the paged array to our linear array ready for final sorting
+	Visitor.Snaps.ToArray(SortedSnaps);
 
 	TickResolution = InSequencer.GetFocusedTickResolution();
 	DisplayRate = InSequencer.GetFocusedDisplayRate();
@@ -136,29 +176,33 @@ void FSequencerSnapField::Finalize()
 		return A.Time < B.Time;
 	});
 
+
+	const int32 NumSnaps = SortedSnaps.Num();
+
+	TArray<FSnapPoint> FinalSnaps;
+	FinalSnaps.Reserve(NumSnaps);
+
+	const FSnapPoint* const RESTRICT Snaps = SortedSnaps.GetData();
+
 	// Remove duplicates
-	for (int32 Index = 0; Index < SortedSnaps.Num(); ++Index)
+	for (int32 Index = 0; Index < NumSnaps; /* incremented inside inner loop */)
 	{
 		const FFrameNumber CurrentTime = SortedSnaps[Index].Time;
 
-		float FinalWeight = SortedSnaps[Index].Weighting;
-		int32 NumToMerge = 0;
-		for (int32 DuplIndex = Index + 1; DuplIndex < SortedSnaps.Num(); ++DuplIndex)
+		FSnapPoint FinalSnap = Snaps[Index];
+		FinalSnap.Weighting = 0.f;
+
+		// Add up all weights of the same time
+		for ( ; Index < NumSnaps && Snaps[Index].Time == CurrentTime; ++Index)
 		{
-			if (CurrentTime != SortedSnaps[DuplIndex].Time)
-			{
-				break;
-			}
-			++NumToMerge;
-			FinalWeight += SortedSnaps[DuplIndex].Weighting;
+			FinalSnap.Weighting += Snaps[Index].Weighting;
 		}
 
-		if (NumToMerge)
-		{
-			SortedSnaps[Index].Weighting = FinalWeight;
-			SortedSnaps.RemoveAt(Index + 1, NumToMerge, false);
-		}
+		FinalSnaps.Add(FinalSnap);
 	}
+
+	FinalSnaps.Shrink();
+	Swap(FinalSnaps, SortedSnaps);
 }
 
 TOptional<FSequencerSnapField::FSnapResult> FSequencerSnapField::Snap(const FFrameTime& InTime, const FFrameTime& Threshold) const

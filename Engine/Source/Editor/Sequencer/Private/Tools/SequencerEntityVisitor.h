@@ -41,7 +41,8 @@ struct ISequencerEntityVisitor
 {
 	ISequencerEntityVisitor(uint32 InEntityMask = ESequencerEntity::Everything) : EntityMask(InEntityMask) {}
 
-	virtual void VisitKey(FKeyHandle KeyHandle, FFrameNumber KeyTime, const UE::Sequencer::TViewModelPtr<UE::Sequencer::FChannelModel>& Channel, UMovieSceneSection* Section) const { }
+	virtual void VisitKeys(const UE::Sequencer::TViewModelPtr<UE::Sequencer::FChannelModel>& Channel, const TRange<FFrameNumber>& VisitRangeFrames) const { }
+
 	virtual void VisitDataModel(UE::Sequencer::FViewModel* Item) const { }
 
 	/** Check if the specified type of entity is applicable to this visitor */

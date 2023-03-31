@@ -209,28 +209,15 @@ void FSequencerEntityWalker::VisitChannel(const ISequencerEntityVisitor& Visitor
 {
 	using namespace UE::Sequencer;
 
-	TSharedPtr<IKeyArea> KeyArea = Channel->GetKeyArea();
-	UMovieSceneSection* Section = KeyArea->GetOwningSection();
-	if (!Section)
+	UMovieSceneSection* Section = Channel->GetSection();
+	if (Section)
 	{
-		return;
-	}
+		const FFrameTime HalfKeySizeFrames   = (VirtualKeySize.X*.5f) * Range.TickResolution;
+		const FFrameTime RangeStartFrame     = Range.Range.GetLowerBoundValue() * Range.TickResolution;
+		const FFrameTime RangeEndFrame       = Range.Range.GetUpperBoundValue() * Range.TickResolution;
 
-	TArray<FKeyHandle> Handles;
-	TArray<FFrameNumber> Times;
-
-	const FFrameTime HalfKeySizeFrames   = (VirtualKeySize.X*.5f) * Range.TickResolution;
-	const FFrameTime RangeStartFrame     = Range.Range.GetLowerBoundValue() * Range.TickResolution;
-	const FFrameTime RangeEndFrame       = Range.Range.GetUpperBoundValue() * Range.TickResolution;
-
-	TRange<FFrameNumber> VisitRangeFrames( (RangeStartFrame-HalfKeySizeFrames).CeilToFrame(), (RangeEndFrame+HalfKeySizeFrames).FloorToFrame() );
-
-	VisitRangeFrames = TRange<FFrameNumber>::Intersection(Section->GetRange(), VisitRangeFrames);
-
-	KeyArea->GetKeyInfo(&Handles, &Times, VisitRangeFrames);
-
-	for (int32 Index = 0; Index < Times.Num(); ++Index)
-	{
-		Visitor.VisitKey(Handles[Index], Times[Index], Channel, Section);
+		TRange<FFrameNumber> VisitRangeFrames( (RangeStartFrame-HalfKeySizeFrames).CeilToFrame(), (RangeEndFrame+HalfKeySizeFrames).FloorToFrame() );
+		VisitRangeFrames = TRange<FFrameNumber>::Intersection(Section->GetRange(), VisitRangeFrames);
+		Visitor.VisitKeys(Channel, VisitRangeFrames);
 	}
 }

@@ -7,6 +7,7 @@
 #include "ISequencerEditTool.h"
 #include "ISequencerSection.h"
 #include "SequencerHotspots.h"
+#include "IKeyArea.h"
 #include "Tools/SequencerEntityVisitor.h"
 #include "MVVM/Views/ISequencerTreeView.h"
 #include "MVVM/Views/ITrackAreaHotspot.h"
@@ -32,7 +33,7 @@ struct FSelectionPreviewVisitor final
 		, bPinned(bInPinned)
 	{}
 
-	virtual void VisitKey(FKeyHandle KeyHandle, FFrameNumber KeyTime, const UE::Sequencer::TViewModelPtr<UE::Sequencer::FChannelModel>& Channel, UMovieSceneSection* Section) const override
+	virtual void VisitKeys(const UE::Sequencer::TViewModelPtr<UE::Sequencer::FChannelModel>& Channel, const TRange<FFrameNumber>& VisitRangeFrames) const override
 	{
 		using namespace UE::Sequencer;
 
@@ -42,21 +43,33 @@ struct FSelectionPreviewVisitor final
 			return;
 		}
 
-		// Under default behavior keys have priority, so if a key is changing selection state then we remove any sections from the selection. The user can bypass this
-		// by holding down the control key which will allow selecting both keys and sections.
-		bool bKeySelectionHasPriority = !FSlateApplication::Get().GetModifierKeys().IsControlDown();
-		bool bKeyIsSelected = ExistingSelection.Contains(KeyHandle);
-
-		if (bKeySelectionHasPriority && 
-			((bKeyIsSelected && SetStateTo == ESelectionPreviewState::NotSelected) ||
-			(!bKeyIsSelected && SetStateTo == ESelectionPreviewState::Selected)))
+		UMovieSceneSection* Section = Channel->GetSection();
+		if (!Section)
 		{
-			// Clear selected models
-			SelectionPreview.EmptyDefinedModelStates();
+			return;
 		}
 
-		FSequencerSelectedKey Key(*Section, TSharedPtr<FChannelModel>(Channel), KeyHandle);
-		SelectionPreview.SetSelectionState(Key, SetStateTo);
+		KeyHandlesScratch.Reset();
+		Channel->GetKeyArea()->GetKeyInfo(&KeyHandlesScratch, nullptr, VisitRangeFrames);
+
+		for (int32 Index = 0; Index < KeyHandlesScratch.Num(); ++Index)
+		{
+			// Under default behavior keys have priority, so if a key is changing selection state then we remove any sections from the selection. The user can bypass this
+			// by holding down the control key which will allow selecting both keys and sections.
+			bool bKeySelectionHasPriority = !FSlateApplication::Get().GetModifierKeys().IsControlDown();
+			bool bKeyIsSelected = ExistingSelection.Contains(KeyHandlesScratch[Index]);
+
+			if (bKeySelectionHasPriority && 
+				((bKeyIsSelected && SetStateTo == ESelectionPreviewState::NotSelected) ||
+				(!bKeyIsSelected && SetStateTo == ESelectionPreviewState::Selected)))
+			{
+				// Clear selected models
+				SelectionPreview.EmptyDefinedModelStates();
+			}
+
+			FSequencerSelectedKey Key(*Section, Channel, KeyHandlesScratch[Index]);
+			SelectionPreview.SetSelectionState(Key, SetStateTo);
+		}
 	}
 
 	virtual void VisitDataModel(UE::Sequencer::FViewModel* DataModel) const override
@@ -84,6 +97,7 @@ private:
 
 	FSequencerSelectionPreview& SelectionPreview;
 	const TSet<FKeyHandle>& ExistingSelection;
+	mutable TArray<FKeyHandle> KeyHandlesScratch;
 	ESelectionPreviewState SetStateTo;
 	bool bPinned;
 };
