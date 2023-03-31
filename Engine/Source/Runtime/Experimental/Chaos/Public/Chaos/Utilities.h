@@ -996,5 +996,59 @@ namespace Chaos
 			ConnectedComponentsDFSIterative(AdjacencyList, ConnectedComponents);
 		}
 
+		inline void FindConnectedRegions(const TArray<FIntVector3>& Elements, TArray<TArray<int32>>& ConnectedComponents)
+		{
+			TArray<int32> AllEntries, ElementIndices, Ordering, Ranges;
+			int32 count = 0;
+			AllEntries.Init(-1, Elements.Num() * 3);
+			ElementIndices.Init(-1, Elements.Num() * 3);
+			Ordering.Init(-1, Elements.Num() * 3);
+			Ranges.Init(-1, Elements.Num() * 3 + 1);
+			for (int32 i = 0; i < Elements.Num(); i++)
+			{
+				for (int32 j = 0; j < 3; j++)
+				{
+					AllEntries[3 * i + j] = Elements[i][j];
+					ElementIndices[3 * i + j] = i;
+					Ordering[3 * i + j] = count;
+					Ranges[3 * i + j] = count++;
+				}
+			}
+			Ranges[Elements.Num() * 3] = count;
+
+			if (AllEntries.Num() == 0)
+				return;
+
+			Ordering.Sort([&AllEntries](int32 a, int32 b) { return AllEntries[a] < AllEntries[b]; });
+			TArray<int32> UniqueRanges({ 0 });
+
+			for (int32 i = 0; i < Ranges.Num() - 2; ++i)
+			{
+				if (AllEntries[Ordering[i]] != AllEntries[Ordering[i + 1]])
+				{
+					UniqueRanges.Emplace(i + 1);
+				}
+			}
+
+			UniqueRanges.Emplace(count);
+
+			TArray<TArray<int32>> AdjacencyList;
+			AdjacencyList.Init(TArray<int32>(), Elements.Num());
+			for (int32 r = 0; r < UniqueRanges.Num() - 1; r++)
+			{
+				if (UniqueRanges[r + 1] - UniqueRanges[r] > 1)
+				{
+					for (int32 i = UniqueRanges[r]; i < UniqueRanges[r + 1]; i++)
+					{
+						for (int32 j = i + 1; j < UniqueRanges[r + 1]; j++)
+						{
+							AdjacencyList[ElementIndices[Ordering[i]]].Emplace(ElementIndices[Ordering[j]]);
+							AdjacencyList[ElementIndices[Ordering[j]]].Emplace(ElementIndices[Ordering[i]]);
+						}
+					}
+				}
+			}
+			ConnectedComponentsDFSIterative(AdjacencyList, ConnectedComponents);
+		}
 	} // namespace Utilities
 } // namespace Chaos

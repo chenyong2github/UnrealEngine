@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Dataflow/ChaosFleshEngineAssetNodes.h"
+#include "Dataflow/ChaosFleshTetrahedralNodes.h"
 
 #include "Chaos/Math/Poisson.h"
 #include "Chaos/Utilities.h"
@@ -25,6 +26,8 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FComputeFiberFieldNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FComputeIslandsNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGenerateOriginInsertionNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FIsolateComponentNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetSurfaceIndicesNode);
 	}
 }
 
@@ -554,4 +557,91 @@ void FGenerateOriginInsertionNode::Evaluate(Dataflow::FContext& Context, const F
 		SetValue<TArray<int32>>(Context, OutOriginIndices, &OriginIndicesOut);
 		SetValue<TArray<int32>>(Context, OutInsertionIndices, &InsertionIndicesOut);
 	}
+}
+
+void FIsolateComponentNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{	
+		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		TArray<int32> DeleteList;
+		if (TManagedArray<FIntVector>* Indices = InCollection.FindAttribute<FIntVector>("Indices", FGeometryCollection::FacesGroup))
+		{
+			if (TManagedArray<bool>* FaceVisibility = InCollection.FindAttribute<bool>("Visible", FGeometryCollection::FacesGroup))
+			{
+				if (TManagedArray<int32>* ComponentIndex = InCollection.FindAttribute<int32>("ComponentIndex", FGeometryCollection::VerticesGroup))
+				{	
+					TSet<int32> ComponentSet;
+					TArray<FString> StrArray;
+					TargetComponentIndex.ParseIntoArray(StrArray, *FString(" "));
+					for (FString Elem : StrArray)
+					{
+						if (Elem.Len() && FCString::IsNumeric(*Elem))
+						{
+							ComponentSet.Add(FCString::Atoi(*Elem));
+						}
+					}
+					for (int32 i = 0; i < Indices->Num(); i++)
+					{
+						if (!ComponentSet.Contains((*ComponentIndex)[(*Indices)[i][0]]))
+						{
+							(*FaceVisibility)[i] = false;
+							DeleteList.AddUnique(i);
+						}
+					}
+				}
+			}
+		}
+		if (bDeleteHiddenFaces)
+		{
+			DeleteList.Sort();
+			InCollection.RemoveElements(FGeometryCollection::FacesGroup, DeleteList);
+		}
+		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+	}
+}
+
+void FGetSurfaceIndicesNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+	TArray<int32> SurfaceIndicesLocal;
+	if (TManagedArray<FIntVector>* Indices = InCollection.FindAttribute<FIntVector>("Indices", FGeometryCollection::FacesGroup))
+	{
+		if (FindInput(&GeometryGroupGuidsIn) && FindInput(&GeometryGroupGuidsIn)->GetConnection())
+		{
+			TArray<FString> GeometryGroupGuidsLocal = GetValue<TArray<FString>>(Context, &GeometryGroupGuidsIn);
+			TManagedArray<int32>* IndicesStart = InCollection.FindAttribute<int32>("FaceStart", FGeometryCollection::GeometryGroup);
+			TManagedArray<int32>* IndicesCount = InCollection.FindAttribute<int32>("FaceCount", FGeometryCollection::GeometryGroup);
+			if (TManagedArray<FString>* Guids = InCollection.FindAttribute<FString>("Guid", FGeometryCollection::GeometryGroup))
+			{
+				for (int32 Idx = 0; Idx < IndicesStart->Num(); Idx++)
+				{
+					if (GeometryGroupGuidsLocal.Num() && Guids)
+					{
+						if (GeometryGroupGuidsLocal.Contains((*Guids)[Idx]))
+						{
+							for (int32 i = (*IndicesStart)[Idx]; i < (*IndicesStart)[Idx] + (*IndicesCount)[Idx]; i++)
+							{
+								for (int32 j = 0; j < 3; j++)
+								{
+									SurfaceIndicesLocal.AddUnique((*Indices)[i][j]);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			for (int32 i = 0; i < Indices->Num(); i++)
+			{
+				for (int32 j = 0; j < 3; j++)
+				{
+					SurfaceIndicesLocal.AddUnique((*Indices)[i][j]);
+				}
+			}
+		}
+	}
+	SetValue<TArray<int32>>(Context, SurfaceIndicesLocal, &SurfaceIndicesOut);
 }

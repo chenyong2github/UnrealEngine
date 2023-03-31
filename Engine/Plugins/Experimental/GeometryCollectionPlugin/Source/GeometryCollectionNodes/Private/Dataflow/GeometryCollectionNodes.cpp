@@ -84,7 +84,7 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FMultiplyTransformDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FInvertTransformDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSelectionToVertexListDataflowNode);
-		
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FUnionIntArraysDataflowNode);
 
 		// GeometryCollection
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY_NODE_COLORS_BY_CATEGORY("GeometryCollection", FLinearColor(0.55f, 0.45f, 1.0f), CDefaultNodeBodyTintColor);
@@ -130,9 +130,19 @@ void FAppendCollectionAssetsDataflowNode::Evaluate(Dataflow::FContext& Context, 
 	{
 		FManagedArrayCollection InCollection1 = GetValue<DataType>(Context, &Collection1);
 		const FManagedArrayCollection& InCollection2 = GetValue<DataType>(Context, &Collection2);
-
+		TArray<FString> GeometryGroupGuidsLocal1, GeometryGroupGuidsLocal2;
+		if (const TManagedArray<FString>* GuidArray1 = InCollection1.FindAttribute<FString>("Guid", FGeometryCollection::GeometryGroup))
+		{
+			GeometryGroupGuidsLocal1 = GuidArray1->GetConstArray();
+		}
 		InCollection1.Append(InCollection2);
 		SetValue<DataType>(Context, InCollection1, &Collection1);
+		if (const TManagedArray<FString>* GuidArray2 = InCollection2.FindAttribute<FString>("Guid", FGeometryCollection::GeometryGroup))
+		{
+			GeometryGroupGuidsLocal2 = GuidArray2->GetConstArray();
+		}
+		SetValue<TArray<FString>>(Context, GeometryGroupGuidsLocal1, &GeometryGroupGuidsOut1);
+		SetValue<TArray<FString>>(Context, GeometryGroupGuidsLocal2, &GeometryGroupGuidsOut2);
 	}
 }
 
@@ -1363,5 +1373,24 @@ void FInvertTransformDataflowNode::Evaluate(Dataflow::FContext& Context, const F
 		FTransform InXf = GetValue<FTransform>(Context, &InTransform, FTransform::Identity);
 		FTransform OutXf = InXf.Inverse();
 		SetValue<FTransform>(Context, OutXf, &OutTransform);
+	}
+}
+
+void FUnionIntArraysDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<TArray<int32>>(&OutArray))
+	{
+		TArray<int32> Array1 = GetValue<TArray<int32>>(Context, &InArray1);
+		TArray<int32> Array2 = GetValue<TArray<int32>>(Context, &InArray2);
+		TArray<int32> OutputArray;
+		for (int32 i = 0; i < Array1.Num(); i++)
+		{
+			OutputArray.AddUnique(Array1[i]);
+		}
+		for (int32 i = 0; i < Array2.Num(); i++)
+		{
+			OutputArray.AddUnique(Array2[i]);
+		}
+		SetValue<TArray<int32>>(Context, OutputArray, &OutArray);
 	}
 }

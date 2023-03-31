@@ -3,6 +3,7 @@
 #include "Dataflow/ChaosFleshTetrahedralNodes.h"
 #include "Dataflow/ChaosFleshEngineAssetNodes.h"
 
+#include "Async/ParallelFor.h"
 #include "Chaos/Deformable/Utilities.h"
 #include "ChaosFlesh/ChaosFlesh.h"
 #include "Chaos/Tetrahedron.h"
@@ -255,17 +256,72 @@ void FGenerateTetrahedralCollectionDataflowNodes::Evaluate(Dataflow::FContext& C
 				Converter.Convert(&SourceMesh, DynamicMesh);
 			}
 
-			if (Method == TetMeshingMethod::IsoStuffing)
+			if (!bComputeByComponent)
 			{
-				EvaluateIsoStuffing(Context, InCollection, DynamicMesh);
-			}
-			else if (Method == TetMeshingMethod::TetWild)
-			{
-				EvaluateTetWild(Context, InCollection, DynamicMesh);
+				if (Method == TetMeshingMethod::IsoStuffing)
+				{
+					EvaluateIsoStuffing(Context, InCollection, DynamicMesh);
+				}
+				else if (Method == TetMeshingMethod::TetWild)
+				{
+					EvaluateTetWild(Context, InCollection, DynamicMesh);
+				}
+				else
+				{
+					ensureMsgf(false, TEXT("FGenerateTetrahedralCollectionDataflowNodes unsupported Method."));
+				}
 			}
 			else
 			{
-				ensureMsgf(false, TEXT("FGenerateTetrahedralCollectionDataflowNodes unsupported Method."));
+				TArray<TArray<int32>> ConnectedComponents;
+				
+				TArray<FIntVector3> Faces;
+				Faces.SetNum(DynamicMesh.TriangleCount());
+				for (int32 i = 0; i < DynamicMesh.TriangleCount(); ++i)
+				{
+					Faces[i] = FIntVector3(DynamicMesh.GetTriangle(i));
+				}
+				Chaos::Utilities::FindConnectedRegions(Faces, ConnectedComponents);
+				TArray<TUniquePtr<FFleshCollection>> CollectionBuffer;
+				for (int32 i = 0; i < ConnectedComponents.Num(); i++)
+				{
+					CollectionBuffer.Add(TUniquePtr<FFleshCollection>(new FFleshCollection()));
+					//CollectionBuffer[i]->AddElement(1, FGeometryCollection::TransformGroup);
+				}
+				ParallelFor(ConnectedComponents.Num(), [&](int32 i)
+				{		
+					UE::Geometry::FDynamicMesh3 ComponentDynamicMesh;
+					TArray<FIntVector3> ComponentFaces;
+					ComponentFaces.SetNum(ConnectedComponents[i].Num());
+					for (FVector V : DynamicMesh.VerticesItr())
+					{
+						ComponentDynamicMesh.AppendVertex(V);
+					}
+					for (int32 j = 0; j < ConnectedComponents[i].Num(); j++)
+					{
+						int32 ElementIndex = ConnectedComponents[i][j];
+						for (int32 ie = 0; ie < 3; ie++)
+						{
+							ComponentDynamicMesh.AppendTriangle(Faces[ElementIndex][0], Faces[ElementIndex][1], Faces[ElementIndex][2]);
+						}
+					}
+					ComponentDynamicMesh.CompactInPlace();
+					if (Method == TetMeshingMethod::IsoStuffing)
+					{
+						EvaluateIsoStuffing(Context, CollectionBuffer[i], ComponentDynamicMesh);
+					}
+					else if (Method == TetMeshingMethod::TetWild)
+					{
+						EvaluateTetWild(Context, CollectionBuffer[i], ComponentDynamicMesh);
+					}
+				});
+				for (int32 i = 0; i < ConnectedComponents.Num(); i++)
+				{
+					if (CollectionBuffer[i]->NumElements(FGeometryCollection::VerticesGroup))
+					{
+						int32 GeomIndex = InCollection->AppendGeometry(*CollectionBuffer[i].Get());
+					}
+				}
 			}
 #else
 			ensureMsgf(false, TEXT("FGenerateTetrahedralCollectionDataflowNodes is an editor only node."));

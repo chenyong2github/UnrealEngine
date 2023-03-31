@@ -70,6 +70,11 @@ public:
 	UPROPERTY(meta = (DataflowInput, DisplayName = "Collection"))
 	FManagedArrayCollection Collection2;
 
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "GeometryGroupIndicesOut1"))
+	TArray<FString> GeometryGroupGuidsOut1;
+
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "GeometryGroupIndicesOut2"))
+		TArray<FString> GeometryGroupGuidsOut2;
 
 	FAppendCollectionAssetsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
@@ -77,6 +82,8 @@ public:
 		RegisterInputConnection(&Collection1);
 		RegisterInputConnection(&Collection2);
 		RegisterOutputConnection(&Collection1, &Collection1);
+		RegisterOutputConnection(&GeometryGroupGuidsOut1);
+		RegisterOutputConnection(&GeometryGroupGuidsOut2);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
@@ -1675,6 +1682,32 @@ public:
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
 
+USTRUCT()
+struct FUnionIntArraysDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+		DATAFLOW_NODE_DEFINE_INTERNAL(FUnionIntArraysDataflowNode, "UnionIntArrays", "Utilities", "")
+
+public:
+	UPROPERTY(meta = (DataflowInput, DisplayName = "InArray1"));
+	TArray<int32> InArray1;
+
+	UPROPERTY(meta = (DataflowInput, DisplayName = "InArray2"));
+	TArray<int32> InArray2;
+
+	UPROPERTY(meta = (DataflowOutput, DisplayName = "OutArray", DataflowPassthrough = "InArray1"));
+	TArray<int32> OutArray;
+
+	FUnionIntArraysDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&InArray1);
+		RegisterInputConnection(&InArray2);
+		RegisterOutputConnection(&OutArray, &InArray1);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+};
 
 namespace Dataflow
 {
