@@ -2468,22 +2468,25 @@ void FHLSLMaterialTranslator::GetSharedInputsMaterialCode(FString& PixelMembersD
 			PixelMembersInitializationEpilog += DerivativeVariations[DerivativeVariation].TranslatedCodeChunkDefinitions[LastProperty] + TEXT("\n");
 		}
 
-		PixelMembersDeclaration += FString::Printf(TEXT("\t#if STRATA_USE_FULLYSIMPLIFIED_MATERIAL == 1\n"));
-		PixelMembersDeclaration += FString::Printf(TEXT("\t%s FullySimplifiedFrontMaterial;\n"), HLSLTypeString(FMaterialAttributeDefinitionMap::GetValueType(MP_FrontMaterial)));
-		PixelMembersDeclaration += FString::Printf(TEXT("\t#endif\n"));
-		if (!FullySimplifiedStrataFrontMaterialTranslatedCodeChunks.IsEmpty())
+		if (Strata::IsStrataEnabled())
 		{
-			PixelInputInitializerValues += FString::Printf(TEXT("\t#if STRATA_USE_FULLYSIMPLIFIED_MATERIAL == 1\n"));
-			PixelInputInitializerValues += FString::Printf(TEXT("\tPixelMaterialInputs.FullySimplifiedFrontMaterial = %s;\n"), *FullySimplifiedStrataFrontMaterialTranslatedCodeChunks);
-			PixelInputInitializerValues += FString::Printf(TEXT("\t#endif\n"));
-		}
-
-		for (uint32 StrataCompilationContextIndex = 0; StrataCompilationContextIndex < EStrataCompilationContext::SCC_MAX; ++StrataCompilationContextIndex) // sebok
-		{
-			FStrataCompilationContext& StrataCtx = StrataCompilationContext[StrataCompilationContextIndex];
-			if (StrataCtx.CodeChunkToStrataSharedLocalBasis.Num() > 0)
+			PixelMembersDeclaration += FString::Printf(TEXT("\t#if STRATA_USE_FULLYSIMPLIFIED_MATERIAL == 1\n"));
+			PixelMembersDeclaration += FString::Printf(TEXT("\t%s FullySimplifiedFrontMaterial;\n"), HLSLTypeString(FMaterialAttributeDefinitionMap::GetValueType(MP_FrontMaterial)));
+			PixelMembersDeclaration += FString::Printf(TEXT("\t#endif\n"));
+			if (!FullySimplifiedStrataFrontMaterialTranslatedCodeChunks.IsEmpty())
 			{
-				PixelInputInitializerValues += StrataCtx.StrataPixelNormalInitializerValues;
+				PixelInputInitializerValues += FString::Printf(TEXT("\t#if STRATA_USE_FULLYSIMPLIFIED_MATERIAL == 1\n"));
+				PixelInputInitializerValues += FString::Printf(TEXT("\tPixelMaterialInputs.FullySimplifiedFrontMaterial = %s;\n"), *FullySimplifiedStrataFrontMaterialTranslatedCodeChunks);
+				PixelInputInitializerValues += FString::Printf(TEXT("\t#endif\n"));
+			}
+
+			for (uint32 StrataCompilationContextIndex = 0; StrataCompilationContextIndex < EStrataCompilationContext::SCC_MAX; ++StrataCompilationContextIndex) // sebok
+			{
+				FStrataCompilationContext& StrataCtx = StrataCompilationContext[StrataCompilationContextIndex];
+				if (StrataCtx.CodeChunkToStrataSharedLocalBasis.Num() > 0)
+				{
+					PixelInputInitializerValues += StrataCtx.StrataPixelNormalInitializerValues;
+				}
 			}
 		}
 
