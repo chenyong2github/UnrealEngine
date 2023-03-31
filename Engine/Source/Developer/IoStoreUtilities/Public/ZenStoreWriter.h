@@ -113,6 +113,7 @@ private:
 		TFuture<FCompressedBuffer> CompressedPayload;
 		FBulkDataInfo Info;
 		FCbObjectId ChunkId;
+		TArray<FFileRegion> FileRegions;
 		bool IsValid = false;
 	};
 
@@ -124,6 +125,7 @@ private:
 		FPackageInfo Info;
 		FCbObjectId ChunkId;
 		TUniquePtr<class FPackageStorePackage> OptimizedPackage;
+		TArray<FFileRegion> FileRegions;
 		bool IsValid = false;
 	};
 

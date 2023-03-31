@@ -229,19 +229,18 @@ void FZenStoreWriter::WritePackageData(const FPackageInfo& Info, FLargeMemoryWri
 	FIoBuffer CookedExportsBuffer = FIoBuffer(PackageData.Data() + Info.HeaderSize, PackageData.DataSize() - Info.HeaderSize, PackageData);
 	Entry.OptimizedPackage.Reset(PackageStoreOptimizer->CreatePackageFromCookedHeader(Info.PackageName, CookedHeaderBuffer));
 	PackageStoreOptimizer->FinalizePackage(Entry.OptimizedPackage.Get());
-	TArray<FFileRegion> FileRegionsCopy(FileRegions);
-	for (FFileRegion& Region : FileRegionsCopy)
+	Entry.FileRegions = FileRegions;
+	for (FFileRegion& Region : Entry.FileRegions)
 	{
 		// Adjust regions so they are relative to the start of the exports buffer
 		Region.Offset -= Info.HeaderSize;
 	}
-	FIoBuffer PackageBuffer = PackageStoreOptimizer->CreatePackageBuffer(Entry.OptimizedPackage.Get(), CookedExportsBuffer, &FileRegionsCopy);
-	for (FFileRegion& Region : FileRegionsCopy)
+	FIoBuffer PackageBuffer = PackageStoreOptimizer->CreatePackageBuffer(Entry.OptimizedPackage.Get(), CookedExportsBuffer, &Entry.FileRegions);
+	for (FFileRegion& Region : Entry.FileRegions)
 	{
-		// Adjust regions once more so they are relative to the exports bundle buffer
+		// Adjust regions once more so they are relative to the start of the exports data again
 		Region.Offset -= Entry.OptimizedPackage->GetHeaderSize();
 	}
-	//WriteFileRegions(*FPaths::ChangeExtension(Info.LooseFilePath, FString(".uexp") + FFileRegion::RegionsFileExtension), FileRegionsCopy);
 
 	// Commit to Zen build store
 
@@ -303,8 +302,7 @@ void FZenStoreWriter::WriteBulkData(const FBulkDataInfo& Info, const FIoBuffer& 
 	BulkEntry.Info		= Info;
 	BulkEntry.ChunkId	= ChunkOid;
 	BulkEntry.IsValid	= true;
-
-	//	WriteFileRegions(*(Info.LooseFilePath + FFileRegion::RegionsFileExtension), FileRegions);
+	BulkEntry.FileRegions = FileRegions;
 }
 
 void FZenStoreWriter::WriteAdditionalFile(const FAdditionalFileInfo& Info, const FIoBuffer& FileData)
@@ -818,6 +816,24 @@ void FZenStoreWriter::CommitPackageInternal(FZenCommitInfo&& ZenCommitInfo)
 		OplogEntryDesc << "key" << PackageNameKey;
 		OplogEntryDesc << "packagestoreentry" << PackageStoreEntry;
 		
+		auto AppendFileNameAndRegionsToOplog = [this, &OplogEntryDesc](const FString& LooseFilePath, const TArray<FFileRegion>& FileRegions)
+		{
+			FStringView RelativePathView;
+			if (FPathViews::TryMakeChildPathRelativeTo(LooseFilePath, OutputPath, RelativePathView))
+			{
+				OplogEntryDesc << "filename" << RelativePathView;
+			}
+			if (!FileRegions.IsEmpty())
+			{
+				OplogEntryDesc.BeginArray("fileregions");
+				for (const FFileRegion& FileRegion : FileRegions)
+				{
+					OplogEntryDesc << FileRegion;
+				}
+				OplogEntryDesc.EndArray();
+			}
+		};
+
 		OplogEntryDesc.BeginArray("packagedata");
 		
 		for (FPackageDataEntry& PkgData : PackageState->PackageData)
@@ -834,11 +850,7 @@ void FZenStoreWriter::CommitPackageInternal(FZenCommitInfo&& ZenCommitInfo)
 			OplogEntryDesc.BeginObject();
 			OplogEntryDesc << "id" << PkgData.ChunkId;
 			OplogEntryDesc << "data" << PkgDataAttachment;
-			FStringView RelativePathView;
-			if (FPathViews::TryMakeChildPathRelativeTo(PkgData.Info.LooseFilePath, OutputPath, RelativePathView))
-			{
-				OplogEntryDesc << "filename" << RelativePathView;
-			}
+			AppendFileNameAndRegionsToOplog(PkgData.Info.LooseFilePath, PkgData.FileRegions);
 			OplogEntryDesc.EndObject();
 		}
 
@@ -863,11 +875,7 @@ void FZenStoreWriter::CommitPackageInternal(FZenCommitInfo&& ZenCommitInfo)
 				OplogEntryDesc << "id" << Bulk.ChunkId;
 				OplogEntryDesc << "type" << LexToString(Bulk.Info.BulkDataType);
 				OplogEntryDesc << "data" << BulkAttachment;
-				FStringView RelativePathView;
-				if (FPathViews::TryMakeChildPathRelativeTo(Bulk.Info.LooseFilePath, OutputPath, RelativePathView))
-				{
-					OplogEntryDesc << "filename" << RelativePathView;
-				}
+				AppendFileNameAndRegionsToOplog(Bulk.Info.LooseFilePath, Bulk.FileRegions);
 				OplogEntryDesc.EndObject();
 			}
 

@@ -4,6 +4,8 @@
 
 #include "Misc/AssertionMacros.h"
 #include "Serialization/Archive.h"
+#include "Serialization/CompactBinary.h"
+#include "Serialization/CompactBinaryWriter.h"
 
 const TCHAR* FFileRegion::RegionsFileExtension = TEXT(".uregs");
 
@@ -14,6 +16,28 @@ inline FArchive& operator<<(FArchive& Ar, FFileRegion& Region)
 	Ar << Region.Length;
 	Ar << Region.Type;
 	return Ar;
+}
+
+FCbWriter& operator<<(FCbWriter& Writer, const FFileRegion& Region)
+{
+	Writer.BeginObject();
+
+	Writer << "offset" << Region.Offset;
+	Writer << "length" << Region.Length;
+	Writer << "type" << static_cast<uint8>(Region.Type);
+
+	Writer.EndObject();
+
+	return Writer;
+}
+
+bool FFileRegion::LoadFromCompactBinary(FCbFieldView Obj, FFileRegion& OutRegion)
+{
+	OutRegion.Offset = Obj["offset"].AsUInt64();
+	OutRegion.Length = Obj["length"].AsUInt64();
+	OutRegion.Type = static_cast<EFileRegionType>(Obj["type"].AsUInt8());
+
+	return true;
 }
 
 // NOTE: This serialization function must match FileRegion::ReadRegionsFromFile in AutomationUtils/FileRegions.cs

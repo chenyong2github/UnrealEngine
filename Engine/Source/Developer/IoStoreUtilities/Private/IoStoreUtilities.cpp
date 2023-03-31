@@ -655,6 +655,14 @@ struct FContainerTargetFile
 class FCookedPackageStore
 {
 public:
+	struct FChunkInfo
+	{
+		FIoChunkId ChunkId;
+		FName PackageName;
+		FString RelativeFileName;
+		TArray<FFileRegion> FileRegions;
+	};
+
 	FCookedPackageStore(const FString& InCookedDir)
 		: CookedDir(InCookedDir)
 	{
@@ -706,19 +714,26 @@ public:
 					FCbObject ChunkObj = ChunkEntry.AsObject();
 					FIoChunkId ChunkId;
 					ChunkId.Set(ChunkObj["id"].AsObjectId().GetView());
-					ChunkIdToPackageNameMap.Add(ChunkId, PackageStoreEntry.PackageName);
+					FChunkInfo& ChunkInfo = ChunkInfoMap.Add(ChunkId);
+					ChunkInfo.ChunkId = ChunkId;
+					ChunkInfo.PackageName = PackageStoreEntry.PackageName;
 					if (ChunkObj["filename"])
 					{
 						TStringBuilder<1024> RelativeFilename;
 						RelativeFilename.Append(ChunkObj["filename"].AsString());
-						ChunkIdToRelativeFileNameMap.Add(ChunkId, *RelativeFilename);
+						ChunkInfo.RelativeFileName = RelativeFilename;
 						TStringBuilder<1024> PathBuilder;
 						FPathViews::AppendPath(PathBuilder, CookedDir);
 						FPathViews::AppendPath(PathBuilder, RelativeFilename);
 						FPathViews::NormalizeFilename(PathBuilder);
 						FilenameToChunkIdMap.Add(*PathBuilder, ChunkId);
-						FString FilenameWithoutExtension = FPathViews::ChangeExtension(PathBuilder, FStringView());
-						FilenameToPackageNameMap.Add(MoveTemp(FilenameWithoutExtension), PackageStoreEntry.PackageName);
+					}
+					const FCbArrayView RegionsArray = ChunkObj["fileregions"].AsArrayView();
+					ChunkInfo.FileRegions.Reserve(RegionsArray.Num());
+					for (FCbFieldView RegionObj : RegionsArray)
+					{
+						FFileRegion& Region = ChunkInfo.FileRegions.AddDefaulted_GetRef();
+						FFileRegion::LoadFromCompactBinary(RegionObj, Region);
 					}
 				}
 			};
@@ -736,20 +751,36 @@ public:
 		return FilenameToChunkIdMap.FindRef(*Filename);
 	}
 
+	const FChunkInfo* GetChunkInfoFromFileName(const FString& Filename) const
+	{
+		FIoChunkId ChunkId = GetChunkIdFromFileName(Filename);
+		return ChunkInfoMap.Find(ChunkId);
+	}
+
 	FString GetRelativeFilenameFromChunkId(const FIoChunkId& ChunkId) const
 	{
-		return ChunkIdToRelativeFileNameMap.FindRef(ChunkId);
+		const FChunkInfo* FindChunkInfo = ChunkInfoMap.Find(ChunkId);
+		if (!FindChunkInfo)
+		{
+			return FString();
+		}
+		return FindChunkInfo->RelativeFileName;
 	}
 
 	FName GetPackageNameFromChunkId(const FIoChunkId& ChunkId) const
 	{
-		return ChunkIdToPackageNameMap.FindRef(ChunkId);
+		const FChunkInfo* FindChunkInfo = ChunkInfoMap.Find(ChunkId);
+		if (!FindChunkInfo)
+		{
+			return NAME_None;
+		}
+		return FindChunkInfo->PackageName;
 	}
 
 	FName GetPackageNameFromFileName(const FString& Filename) const
 	{
-		FString FilenameWithoutExtension = FPaths::ChangeExtension(Filename, FString());
-		return FilenameToPackageNameMap.FindRef(FilenameWithoutExtension);
+		FIoChunkId ChunkId = GetChunkIdFromFileName(Filename);
+		return GetPackageNameFromChunkId(ChunkId);
 	}
 
 	const FPackageStoreEntryResource* GetPackageStoreEntry(FPackageId PackageId) const
@@ -844,9 +875,7 @@ private:
 	FString CookedDir;
 	TMap<FPackageId, FPackageStoreEntryResource> PackageIdToEntry;
 	TMap<FString, FIoChunkId> FilenameToChunkIdMap;
-	TMap<FIoChunkId, FString> ChunkIdToRelativeFileNameMap;
-	TMap<FIoChunkId, FName> ChunkIdToPackageNameMap;
-	TMap<FString, FName> FilenameToPackageNameMap;
+	TMap<FIoChunkId, FChunkInfo> ChunkInfoMap;
 };
 
 struct FFileOrderMap
@@ -2444,13 +2473,13 @@ void InitializeContainerTargetsAndPackages(
 			return true;
 		}
 
-		OutTargetFile.ChunkId = PackageStore.GetChunkIdFromFileName(SourceFile.NormalizedPath);
-		if (!OutTargetFile.ChunkId.IsValid())
+		const FCookedPackageStore::FChunkInfo* ChunkInfo = PackageStore.GetChunkInfoFromFileName(SourceFile.NormalizedPath);
+		if (!ChunkInfo)
 		{
 			UE_LOG(LogIoStore, Warning, TEXT("File not found in manifest: '%s'"), *SourceFile.NormalizedPath);
 			return false;
 		}
-
+		OutTargetFile.ChunkId = ChunkInfo->ChunkId;
 		TIoStatusOr<uint64> ChunkSize = PackageStore.GetChunkSize(OutTargetFile.ChunkId);
 		if (!ChunkSize.IsOk())
 		{
@@ -2459,18 +2488,17 @@ void InitializeContainerTargetsAndPackages(
 		}
 		OutTargetFile.SourceSize = ChunkSize.ValueOrDie();
 
-		FName PackageName = PackageStore.GetPackageNameFromChunkId(OutTargetFile.ChunkId);
-		if (PackageName.IsNone())
+		if (ChunkInfo->PackageName.IsNone())
 		{
 			UE_LOG(LogIoStore, Warning, TEXT("Package name not found for: '%s'"), *SourceFile.NormalizedPath);
 			return false;
 		}
 
-		OutTargetFile.Package = &FindOrAddPackage(Arguments, PackageName, Packages, PackageNameMap, PackageIdMap);
+		OutTargetFile.Package = &FindOrAddPackage(Arguments, ChunkInfo->PackageName, Packages, PackageNameMap, PackageIdMap);
 		const FPackageStoreEntryResource* PackageStoreEntry = PackageStore.GetPackageStoreEntry(OutTargetFile.Package->GlobalPackageId);
 		if (!PackageStoreEntry)
 		{
-			UE_LOG(LogIoStore, Warning, TEXT("Failed to find package store entry for package: '%s'"), *PackageName.ToString());
+			UE_LOG(LogIoStore, Warning, TEXT("Failed to find package store entry for package: '%s'"), *ChunkInfo->PackageName.ToString());
 			return false;
 		}
 		OutTargetFile.Package->PackageStoreEntry = *PackageStoreEntry;
@@ -2511,18 +2539,10 @@ void InitializeContainerTargetsAndPackages(
 		}
 
 		// Only keep the regions for the file if neither compression nor encryption are enabled, otherwise the regions will be meaningless.
-		// TODO: There are no region files when cooking for Zen
-		//if (Arguments.bFileRegions && !SourceFile.bNeedsCompression && !SourceFile.bNeedsEncryption)
-		//{
-		//	FString RegionsFilename = OutTargetFile.ChunkType == EContainerChunkType::PackageData
-		//		? FPaths::ChangeExtension(SourceFile.NormalizedPath, FString(TEXT(".uexp")) + FFileRegion::RegionsFileExtension)
-		//		: SourceFile.NormalizedPath + FFileRegion::RegionsFileExtension;
-		//	TUniquePtr<FArchive> RegionsFile(IFileManager::Get().CreateFileReader(*RegionsFilename));
-		//	if (RegionsFile.IsValid())
-		//	{
-		//		FFileRegion::SerializeFileRegions(*RegionsFile.Get(), OutTargetFile.FileRegions);
-		//	}
-		//}
+		if (Arguments.bFileRegions && !SourceFile.bNeedsCompression && !SourceFile.bNeedsEncryption)
+		{
+			OutTargetFile.FileRegions = ChunkInfo->FileRegions;
+		}
 		
 		return true;
 	};
@@ -2913,8 +2933,16 @@ private:
 						check(TargetFile.Package->UAssetSize > 0);
 						const uint64 HeaderSize = TargetFile.Package->UAssetSize;
 						FIoBuffer ExportsBuffer(SourceBuffer.Data() + HeaderSize, SourceBuffer.DataSize() - HeaderSize, SourceBuffer);
-						SourceBuffer = Manager.PackageStoreOptimizer.CreatePackageBuffer(TargetFile.Package->OptimizedPackage, ExportsBuffer, bHasUpdatedExportBundleRegions ? nullptr : &FileRegions);
-						bHasUpdatedExportBundleRegions = true;
+						SourceBuffer = Manager.PackageStoreOptimizer.CreatePackageBuffer(TargetFile.Package->OptimizedPackage, ExportsBuffer, nullptr);
+						if (!bHasUpdatedExportBundleRegions)
+						{
+							// The regions are relative to the start of the export data, adjust to include the the new header size
+							for (FFileRegion& Region : FileRegions)
+							{
+								Region.Offset += TargetFile.Package->OptimizedPackage->GetHeaderSize();
+							}
+							bHasUpdatedExportBundleRegions = true;
+						}
 					}
 					OnSourceBufferLoaded();
 				});
