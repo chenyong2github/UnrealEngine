@@ -282,9 +282,22 @@ void FSetVertexTetrahedraPositionTargetBindingDataflowNode::Evaluate(Dataflow::F
 					TManagedArray<int32>* TetrahedronStart = InCollection.FindAttribute<int32>(FTetrahedralCollection::TetrahedronStartAttribute, FGeometryCollection::GeometryGroup);
 					TManagedArray<int32>* TetrahedronCount = InCollection.FindAttribute<int32>(FTetrahedralCollection::TetrahedronCountAttribute, FGeometryCollection::GeometryGroup);
 					if (TetrahedronStart && TetrahedronCount)
-					{
+					{	
+						TArray<FString> GeometryGroupGuidsLocal;
+						if (FindInput(&GeometryGroupGuidsIn) && FindInput(&GeometryGroupGuidsIn)->GetConnection())
+						{
+							GeometryGroupGuidsLocal = GetValue<TArray<FString>>(Context, &GeometryGroupGuidsIn);
+						}
+						TManagedArray<FString>* Guids = InCollection.FindAttribute<FString>("Guid", FGeometryCollection::GeometryGroup);
 						for (int32 TetMeshIdx = 0; TetMeshIdx < TetrahedronStart->Num(); TetMeshIdx++)
 						{
+							if (GeometryGroupGuidsLocal.Num() && Guids)
+							{
+								if (!GeometryGroupGuidsLocal.Contains((*Guids)[TetMeshIdx]))
+								{
+									continue;
+								}
+							}
 							const int32 TetMeshStart = (*TetrahedronStart)[TetMeshIdx];
 							const int32 TetMeshCount = (*TetrahedronCount)[TetMeshIdx];
 

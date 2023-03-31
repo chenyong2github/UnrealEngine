@@ -154,6 +154,9 @@ public:
 	UPROPERTY(meta = (DataflowInput, DisplayName = "TargetIndicesIn"))
 		TArray<int32> TargetIndicesIn;
 
+	UPROPERTY(meta = (DataflowInput, DisplayName = "GeometryGroupGuidsIn"))
+		TArray<FString> GeometryGroupGuidsIn;
+
 	UPROPERTY(EditAnywhere, Category = "Dataflow")
 		float PositionTargetStiffness = 10000.f;
 
@@ -165,6 +168,7 @@ public:
 		RegisterInputConnection(&Collection);
 		RegisterOutputConnection(&Collection, &Collection);
 		RegisterInputConnection(&TargetIndicesIn);
+		RegisterInputConnection(&GeometryGroupGuidsIn);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;

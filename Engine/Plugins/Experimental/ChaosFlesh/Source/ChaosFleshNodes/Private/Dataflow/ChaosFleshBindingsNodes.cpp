@@ -216,9 +216,17 @@ FGenerateSurfaceBindings::Evaluate(Dataflow::FContext& Context, const FDataflowO
 					}
 				}
 			}
-
+			TArray<FString> GeometryGroupGuidsLocal = GetValue<TArray<FString>>(Context, &GeometryGroupGuidsIn);
+			TManagedArray<FString>* Guids = OutCollection.FindAttribute<FString>("Guid", FGeometryCollection::GeometryGroup);
 			for (int32 TetMeshIdx = 0; TetMeshIdx < TetrahedronStart->Num(); TetMeshIdx++)
 			{
+				if (GeometryGroupGuidsLocal.Num() && Guids)
+				{
+					if (!GeometryGroupGuidsLocal.Contains((*Guids)[TetMeshIdx]))
+					{
+						continue;
+					}
+				}
 				const int32 TetMeshStart = (*TetrahedronStart)[TetMeshIdx];
 				const int32 TetMeshCount = (*TetrahedronCount)[TetMeshIdx];
 
@@ -400,7 +408,10 @@ FGenerateSurfaceBindings::Evaluate(Dataflow::FContext& Context, const FDataflowO
 					// 
 					// Advancing front orphan reparenting
 					//
-
+					if (!MeshNeighborNodes.IsValidIndex(LOD))
+					{
+						continue;
+					}
 					const TArray<TArray<uint32>>& NeighborNodes = MeshNeighborNodes[LOD];
 					TSet<int32> OrphanSet(Orphans);
 					while (bDoOrphanReparenting && Orphans.Num())
@@ -413,6 +424,10 @@ FGenerateSurfaceBindings::Evaluate(Dataflow::FContext& Context, const FDataflowO
 						for (int32 i = 0; i < Orphans.Num(); i++)
 						{
 							int32 CurrOrphan = Orphans[i];
+							if (!NeighborNodes.IsValidIndex(CurrOrphan))
+							{
+								continue;
+							}
 							const TArray<uint32>& Neighbors = NeighborNodes[CurrOrphan];
 							int32 OrphanCount = 0;
 							int32 NonOrphanCount = 0;

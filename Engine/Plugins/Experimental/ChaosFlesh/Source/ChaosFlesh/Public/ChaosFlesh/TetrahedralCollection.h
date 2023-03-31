@@ -87,6 +87,12 @@ public:
 	static const FName IncidentElementsLocalIndexAttribute;
 	TManagedArray<TArray<int32>> IncidentElementsLocalIndex;
 
+	/*
+	* Guid Attribute
+	*/
+	static const FName GuidAttribute;
+	TManagedArray<FString> Guid;
+
 protected:
 
 	void Construct();

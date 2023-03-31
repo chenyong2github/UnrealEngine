@@ -14,6 +14,7 @@ const FName FTetrahedralCollection::TetrahedronStartAttribute("TetrahedronStart"
 const FName FTetrahedralCollection::TetrahedronCountAttribute("TetrahedronCount");
 const FName FTetrahedralCollection::IncidentElementsAttribute("IncidentElements");
 const FName FTetrahedralCollection::IncidentElementsLocalIndexAttribute("IncidentElementsLocalIndex");
+const FName FTetrahedralCollection::GuidAttribute("Guid");
 
 FTetrahedralCollection::FTetrahedralCollection()
 	: Super::FGeometryCollection()
@@ -37,6 +38,8 @@ void FTetrahedralCollection::Construct()
 	// Geometry Group
 	AddExternalAttribute<int32>(FTetrahedralCollection::TetrahedronStartAttribute, FGeometryCollection::GeometryGroup, TetrahedronStart, TetrahedronDependency);
 	AddExternalAttribute<int32>(FTetrahedralCollection::TetrahedronCountAttribute, FGeometryCollection::GeometryGroup, TetrahedronCount, TetrahedronDependency);
+	AddExternalAttribute<FString>(FTetrahedralCollection::GuidAttribute, FGeometryCollection::GeometryGroup, Guid);
+	for (FString& g : Guid) { g = FGuid::NewGuid().ToString(); }
 }
 
 
@@ -61,6 +64,7 @@ FTetrahedralCollection* FTetrahedralCollection::NewTetrahedralCollection(
 {
 	FTetrahedralCollection* Collection = new FTetrahedralCollection();
 	FTetrahedralCollection::Init(Collection, Vertices, SurfaceElements, Elements, bReverseVertexOrder);
+	for (FString& g : Collection->Guid) { g = FGuid::NewGuid().ToString(); }
 	return Collection;
 }
 void FTetrahedralCollection::Init(
@@ -159,6 +163,12 @@ int32 FTetrahedralCollection::AppendGeometry(
 	{
 		TetrahedronStart[NumGeometry + Idx] = NumTets + Other.TetrahedronStart[Idx];
 		TetrahedronCount[NumGeometry + Idx] = Other.TetrahedronCount[Idx];
+	}
+
+	check(Guid.Num() == NumGeometry + Other.Guid.Num());
+	for (int32 Idx = 0; Idx < Other.Guid.Num(); Idx++)
+	{
+		Guid[NumGeometry + Idx] = Other.Guid[Idx];
 	}
 
 	// --- VERTICES GROUP --

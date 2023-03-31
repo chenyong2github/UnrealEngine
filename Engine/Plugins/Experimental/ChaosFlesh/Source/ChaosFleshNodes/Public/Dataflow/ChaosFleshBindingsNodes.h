@@ -36,6 +36,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (DataflowInput, DisplayName = "SkeletalMesh"))
 	TObjectPtr<const USkeletalMesh> SkeletalMeshIn = nullptr;
 
+	UPROPERTY(meta = (DataflowInput, DisplayName = "(Optional)GeometryGroupGuidsIn"))
+	TArray<FString> GeometryGroupGuidsIn;
+
 	// Enable binding to the exterior hull of the tetrahedron mesh.
 	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (DisplayName = "DoSurfaceProjection"))
 	bool bDoSurfaceProjection = true;
@@ -55,6 +58,7 @@ public:
 		RegisterOutputConnection(&Collection, &Collection);
 		RegisterInputConnection(&StaticMeshIn);
 		RegisterInputConnection(&SkeletalMeshIn);
+		RegisterInputConnection(&GeometryGroupGuidsIn);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
