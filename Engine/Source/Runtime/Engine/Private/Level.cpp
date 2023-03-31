@@ -3301,6 +3301,12 @@ void ULevel::ResetRouteActorInitializationState()
 	 RouteActorInitializationIndex = 0;
 }
 
+int32 ULevel::GetEstimatedAddToWorldWorkUnitsTotal() const
+{
+	const int32 ActorCount = Actors.Num();
+	return ActorCount + ActorCount * GRouteActorInitializationWorkUnitWeighting;
+}
+
 int32 ULevel::GetEstimatedAddToWorldWorkUnitsRemaining() const
 {
 	// We count "work units" as the number of actors requiring component update, plus the number of actors requiring initialization

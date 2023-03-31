@@ -1310,8 +1310,10 @@ public:
 	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
 	//~ End IInterface_AssetUserData Interface
 
-	/** Estimate the amount of work remaining for AddToWorld for this level. Used by the adaptive level streaming timeslice (see s.AdaptiveAddToWorld.Enabled) */
+	/** Estimate the amount of AddToWorld work for this level. Used by the adaptive level streaming timeslice (see s.AdaptiveAddToWorld.Enabled) */
 	int32 GetEstimatedAddToWorldWorkUnitsRemaining() const;
+	/** Estimate the total amount of AddToWorld work for this level. Used by the adaptive level streaming timeslice (see s.AdaptiveAddToWorld.Enabled) */
+	int32 GetEstimatedAddToWorldWorkUnitsTotal() const;
 
 #if WITH_EDITOR
 	/** meant to be called only from editor, calculating and storing static geometry to be used with off-line and/or on-line navigation building */
