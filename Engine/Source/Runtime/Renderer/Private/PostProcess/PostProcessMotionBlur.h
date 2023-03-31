@@ -59,11 +59,11 @@ struct FVelocityFlattenTextures
 	static constexpr int32 kTileSize = 16;
 
 	FScreenPassTexture VelocityFlatten;
-	FScreenPassTexture VelocityTile[kMaxVelocityTileTextureCount];
+	FScreenPassTexture VelocityTileArray;
 
 	bool IsValid() const
 	{
-		return VelocityFlatten.IsValid() && VelocityTile[0].IsValid();
+		return VelocityFlatten.IsValid() && VelocityTileArray.IsValid();
 	}
 
 	// returns whether FVelocityFlattenTextures can be generated in external system.

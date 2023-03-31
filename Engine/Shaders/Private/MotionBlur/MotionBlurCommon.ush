@@ -230,14 +230,13 @@ FVelocityRange PolarToCartesian(FVelocityRange PolarRange)
 }
 
 void StoreVelocityRange(
-	RWTexture2D<float4> VelocityFlatTexture_0,
-	RWTexture2D<float4>	VelocityTileTexture_1,
+	RWTexture2DArray<float4> VelocityFlatTextureArray,
 	uint2 PixelCoord,
 	FVelocityRange CartesianRange)
 {
-	VelocityFlatTexture_0[PixelCoord] = float4(CartesianRange.Min, CartesianRange.Max[0]);
+	VelocityFlatTextureArray[uint3(PixelCoord, 0)] = float4(CartesianRange.Min, CartesianRange.Max[0]);
 	#if CONFIG_MAX_RANGE_SIZE > 1
-		VelocityTileTexture_1[PixelCoord] = float4(CartesianRange.Max[1], 0.0, 0.0);
+		VelocityFlatTextureArray[uint3(PixelCoord, 1)] = float4(CartesianRange.Max[1], 0.0, 0.0);
 	#endif
 }
 

@@ -29,8 +29,7 @@ Texture2D VelocityTexture;
 Texture2D DepthTexture;
 
 RWTexture2D<float3>	OutVelocityFlatTexture;
-RWTexture2D<float4>	OutVelocityTile_Textures_0;
-RWTexture2D<float4>	OutVelocityTile_Textures_1;
+RWTexture2DArray<float4>	OutVelocityTileArray;
 
 RWTexture2D<float4>	DebugOutput;
 
@@ -138,7 +137,7 @@ void MainCS(
 	// Output tile
 	{
 		uint2 OutputPos = GroupIndex == 0 ? GroupId : uint(~0).xx;
-		StoreVelocityRange(OutVelocityTile_Textures_0, OutVelocityTile_Textures_1, OutputPos, PolarToCartesian(VelocityPolarRange));
+		StoreVelocityRange(OutVelocityTileArray, OutputPos, PolarToCartesian(VelocityPolarRange));
 	}
 	
 #if DEBUG_MOTION_BLUR_OUTPUT

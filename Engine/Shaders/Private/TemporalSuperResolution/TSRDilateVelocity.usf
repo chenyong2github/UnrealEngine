@@ -62,8 +62,7 @@ RWTexture2DArray<uint> R8Output;
 RWTexture2D<uint> SubpixelDepthOutput;
 
 RWTexture2D<float3>	VelocityFlattenOutput;
-RWTexture2D<float4>	VelocityTileOutput0;
-RWTexture2D<float4>	VelocityTileOutput1;
+RWTexture2DArray<float4> VelocityTileArrayOutput;
 
 
 //------------------------------------------------------- ENTRY POINT
@@ -470,7 +469,7 @@ void MainCS(
 			VelocityFlattenOutput[OutputPixelPos] = EncodeVelocityFlatten(VelocityPolar, ClosestDeviceZ);
 			
 			uint2 OutputTilePos = GroupThreadIndex == 0 ? GroupId : uint(~0).xx;
-			StoreVelocityRange(VelocityTileOutput0, VelocityTileOutput1, OutputTilePos, PolarToCartesian(VelocityPolarRange));
+			StoreVelocityRange(VelocityTileArrayOutput, OutputTilePos, PolarToCartesian(VelocityPolarRange));
 		}
 		#endif
 

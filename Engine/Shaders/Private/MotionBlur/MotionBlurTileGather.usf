@@ -16,8 +16,7 @@ Texture2D CenterVelocityTileTextures_Textures_1;
 Texture2D VelocityTileTextures_Textures_0;
 Texture2D VelocityTileTextures_Textures_1;
 
-RWTexture2D<float4>	OutVelocityTile_Textures_0;
-RWTexture2D<float4>	OutVelocityTile_Textures_1;
+RWTexture2DArray<float4>	OutVelocityTileArray;
 
 
 //------------------------------------------------------- ENTRY POINT
@@ -87,6 +86,6 @@ void MainCS(
 	BRANCH
 	if (all(PixelPos.xy < VelocityTile_ViewportMax))
 	{
-		StoreVelocityRange(OutVelocityTile_Textures_0, OutVelocityTile_Textures_1, PixelPos, PolarToCartesian(VelocityPolarRange));
+		StoreVelocityRange(OutVelocityTileArray, PixelPos, PolarToCartesian(VelocityPolarRange));
 	}
 }
