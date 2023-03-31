@@ -19,6 +19,7 @@ namespace AutomationUtils.Automation
 			public List<string> Tags { get; set; }
 			public List<string> Dependencies { get; set; }
 			public List<string> FileRegex { get; set; }
+			public List<string> Files { get; set; }
 			public bool bFoundParent { get; set; }
 			public bool bContainsShaderLibrary { get; set; }
 			public int Order { get; set; }
@@ -94,6 +95,17 @@ namespace AutomationUtils.Automation
 					}
 				}
 				{
+					List<string> Files;
+					if (BundleConfig.GetArray(SectionName, "Files", out Files))
+					{
+						Bundle.Files = Files;
+					}
+					else
+					{
+						Bundle.Files = new List<string>();
+					}
+				}
+				{
 					bool bContainsShaderLibrary;
 					if (BundleConfig.GetBool(SectionName, "ContainsShaderLibrary", out bContainsShaderLibrary))
 					{
@@ -128,12 +140,19 @@ namespace AutomationUtils.Automation
 		public static TPlatformBundleSettings MatchBundleSettings<TPlatformBundleSettings>(
 			string FileName, IReadOnlyDictionary<string, TPlatformBundleSettings> InstallBundles) where TPlatformBundleSettings : BundleSettings
 		{
-			// Try to find a matching chunk regex
+			// Try to find a matching chunk regex or exact filename
 			foreach (var Bundle in InstallBundles.Values)
 			{
 				foreach (string RegexString in Bundle.FileRegex)
 				{
 					if (Regex.Match(FileName, RegexString, RegexOptions.IgnoreCase).Success)
+					{
+						return Bundle;
+					}
+				}
+				foreach(string FileString in Bundle.Files)
+				{
+					if (FileString.Equals(FileName, StringComparison.OrdinalIgnoreCase))
 					{
 						return Bundle;
 					}
