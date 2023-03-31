@@ -116,7 +116,7 @@ namespace ELogTimes
 }
 
 /** Generic axis enum (mirrored for native use in Axis.h). */
-UENUM(meta=(ScriptName="AxisType"))
+UENUM(BlueprintType, meta=(ScriptName="AxisType"))
 namespace EAxis
 {
 	enum Type : int
