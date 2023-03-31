@@ -60,6 +60,7 @@ void SPropertyValueWidget::Construct( const FArguments& InArgs, TSharedPtr<FProp
 {
 	MinDesiredWidth = 0.0f;
 	MaxDesiredWidth = 0.0f;
+	WidgetRow = InArgs._InWidgetRow;
 
 	SetEnabled( TAttribute<bool>( PropertyEditor.ToSharedRef(), &FPropertyEditor::IsPropertyEditingEnabled ) );
 
@@ -173,9 +174,11 @@ TSharedRef<SWidget> SPropertyValueWidget::ConstructPropertyEditorWidget( TShared
 		}
 		else if ( SPropertyEditorAsset::Supports( PropertyEditorRef ) )
 		{
+			// SPropertyEditorAsset has its own copy & paste that need to be bound to the widget row's
 			TSharedRef<SPropertyEditorAsset> AssetWidget = 
 				SAssignNew( PropertyWidget, SPropertyEditorAsset, PropertyEditorRef )
-				.ThumbnailPool( InPropertyUtilities.IsValid() ? InPropertyUtilities->GetThumbnailPool() : nullptr );
+				.ThumbnailPool( InPropertyUtilities.IsValid() ? InPropertyUtilities->GetThumbnailPool() : nullptr )
+				.InWidgetRow(WidgetRow);
 			
 			AssetWidget->GetDesiredWidth( MinDesiredWidth, MaxDesiredWidth );
 		}

@@ -25,6 +25,7 @@ class IPropertyHandle;
 class SBorder;
 class SComboButton;
 class UFactory;
+class FDetailWidgetRow;
 
 /**
  * A widget used to edit Asset-type properties (UObject-derived properties).
@@ -80,6 +81,7 @@ public:
 		SLATE_ARGUMENT(TSharedPtr<IPropertyHandle>, PropertyHandle)
 		SLATE_ARGUMENT(TArray<FAssetData>, OwnerAssetDataArray)
 		SLATE_EVENT(FOnShouldFilterActor, OnShouldFilterActor)
+		SLATE_ATTRIBUTE(FDetailWidgetRow*, InWidgetRow)
 
 	SLATE_END_ARGS()
 
