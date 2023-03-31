@@ -182,7 +182,7 @@ namespace UnrealBuildTool
 		public bool bIsHighPriority { get => CreatePchFile != null; }
 
 		/// <inheritdoc/>
-		public float Weight { get; set; } = 1.0f;
+		public double Weight { get; set; } = 1.0;
 		#endregion
 
 		#region Implementation of IAction

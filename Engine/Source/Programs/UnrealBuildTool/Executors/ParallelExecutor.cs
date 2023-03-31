@@ -218,8 +218,8 @@ namespace UnrealBuildTool
 
 			var ActiveTasks = new Task<ExecuteResults>[ActualNumParallelProcesses];
 			var ActiveActionIndices = new int[ActualNumParallelProcesses];
-			float MaxParallelProcessWeight = (float)ActualNumParallelProcesses;
-			float ActiveTaskWeight = 0.0f;
+			double MaxParallelProcessWeight = ActualNumParallelProcesses;
+			double ActiveTaskWeight = 0.0;
 			int ActiveTaskCount = 0;
 			bool Success = true;
 			List<float> LoggedCpuUtilization = new List<float>();
