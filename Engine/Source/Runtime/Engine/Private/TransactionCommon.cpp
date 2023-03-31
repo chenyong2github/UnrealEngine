@@ -14,7 +14,7 @@ FPersistentObjectRef::FPersistentObjectRef(UObject* InObject)
 	{
 		auto UseOuter = [](const UObject* Obj)
 		{
-			if (Obj == nullptr)
+			if (Obj == nullptr || Obj->IsCapturingAsRootObjectForTransaction())
 			{
 				return false;
 			}

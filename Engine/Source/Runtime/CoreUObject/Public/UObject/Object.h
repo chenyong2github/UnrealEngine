@@ -286,6 +286,7 @@ public:
 	 */
 	virtual void PreSave(FObjectPreSaveContext SaveContext);
 
+#if WITH_EDITOR
 	/**
 	 * Note that the object will be modified.  If we are currently recording into the 
 	 * transaction buffer (undo/redo), save a copy of this object into the buffer and 
@@ -295,13 +296,16 @@ public:
 	 *								currently recording an active undo/redo transaction
 	 * @return true if the object was saved to the transaction buffer
 	 */
-#if WITH_EDITOR
 	virtual bool Modify( bool bAlwaysMarkDirty=true );
+
+	/** Method to disable the sub object special handling in the transaction buffer for this object*/
+	virtual bool IsCapturingAsRootObjectForTransaction() const;
 
 	/** Utility to allow overrides of Modify to avoid doing work if this object cannot be safely modified */
 	bool CanModify() const;
 #else
 	FORCEINLINE bool Modify(bool bAlwaysMarkDirty = true) { return false; }
+	FORCEINLINE bool IsCapturingAsRootObjectForTransaction() const { return false; };
 #endif
 
 #if WITH_EDITOR

@@ -1297,6 +1297,11 @@ bool UObject::Modify( bool bAlwaysMarkDirty/*=true*/ )
 
 	return bSavedToTransactionBuffer;
 }
+
+bool UObject::IsCapturingAsRootObjectForTransaction() const
+{
+	return false;
+}
 #endif
 
 bool UObject::IsSelected() const
