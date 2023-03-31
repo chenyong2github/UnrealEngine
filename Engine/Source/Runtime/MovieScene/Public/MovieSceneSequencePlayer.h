@@ -593,6 +593,16 @@ private:
 	 */
 	FFrameTime UpdateServerTimeSamples();
 
+	/**
+	 * Check and correct network synchronization for the clients of this sequence player.
+	 */
+	void UpdateNetworkSync();
+
+	/**
+	 * Compute the latency for the client connection.
+	 */
+	float GetPing() const;
+
 protected:
 
 	/** Movie player status. */
@@ -611,6 +621,9 @@ protected:
 
 	/** Flag that allows the player to tick its time controller without actually evaluating the sequence */
 	uint32 bSkipNextUpdate : 1;
+
+	/** Flag that notifies the player to check network synchronization on next update */
+	uint32 bUpdateNetSync : 1;
 
 	/** The sequence to play back */
 	UPROPERTY(transient)
