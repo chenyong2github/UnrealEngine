@@ -13,6 +13,7 @@
 #include "UObject/LinkerPlaceholderClass.h"
 #include "UObject/LinkerPlaceholderExportObject.h"
 #include "UObject/LinkerLoadImportBehavior.h"
+#include "UObject/UObjectThreadContext.h"
 #include "Misc/StringBuilder.h"
 
 /*-----------------------------------------------------------------------------
