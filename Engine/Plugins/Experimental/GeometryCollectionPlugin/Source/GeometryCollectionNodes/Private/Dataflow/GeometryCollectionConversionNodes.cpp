@@ -16,6 +16,8 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FIntToStringDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBoolToStringDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FIntToFloatDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FFloatToDoubleDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FIntToDoubleDataflowNode)
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FFloatToIntDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FIntToBoolDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBoolToIntDataflowNode);
@@ -64,10 +66,28 @@ void FBoolToStringDataflowNode::Evaluate(Dataflow::FContext& Context, const FDat
 
 void FIntToFloatDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA<float>(&Float))
+	if (Out->IsA(&Float))
 	{
 		float Value = float(GetValue<int32>(Context, &Int));
-		SetValue<float>(Context, Value, &Float);
+		SetValue(Context, Value, &Float);
+	}
+}
+
+void FIntToDoubleDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA(&Double))
+	{
+		double Value = double(GetValue<int32>(Context, &Int));
+		SetValue(Context, Value, &Double);
+	}
+}
+
+void FFloatToDoubleDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA(&Double))
+	{
+		double Value = double(GetValue<float>(Context, &Float));
+		SetValue(Context, Value, &Double);
 	}
 }
 

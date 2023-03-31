@@ -149,8 +149,64 @@ public:
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
 };
+
+/**
+ *
+ * Converts an Int to a Double
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FIntToDoubleDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FIntToDoubleDataflowNode, "IntToDouble", "Math|Conversions", "")
+
+public:
+	UPROPERTY(EditAnywhere, Category = "Int", meta = (DataflowInput))
+	int32 Int = 0;
+
+	UPROPERTY(meta = (DataflowOutput))
+	double Double = 0.0;
+
+	FIntToDoubleDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Int);
+		RegisterOutputConnection(&Double);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+};
+
+/**
+ *
+ * Converts an Float to a Double
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FFloatToDoubleDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FFloatToDoubleDataflowNode, "FloatToDouble", "Math|Conversions", "")
+
+public:
+	UPROPERTY(EditAnywhere, Category = "Int", meta = (DataflowInput))
+	float Float = 0.f;
+
+	UPROPERTY(meta = (DataflowOutput))
+	double Double = 0.0;
+
+	FFloatToDoubleDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Float);
+		RegisterOutputConnection(&Double);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+};
+
 
 UENUM(BlueprintType)
 enum class EFloatToIntFunctionEnum : uint8
