@@ -724,6 +724,33 @@ protected:
 	// GetArithmeticResultType
 	EMaterialValueType GetArithmeticResultType(EMaterialValueType TypeA, EMaterialValueType TypeB);
 
+	// Same as GetConstParameterValue, but ensures that the value that comes out has zero in components that are not included in EMaterialValueType
+	FLinearColor GetTypeMaskedValue(EMaterialValueType Type, FLinearColor ConstValue, bool* OutSuccess);
+
+	// Same as GetConstParameterValue, but ensures that the value that comes out has zero in components that are not included in EMaterialValueType
+	bool GetConstMaskedParameterValue(EMaterialValueType Type, FMaterialUniformExpression* Expression, FLinearColor& OutConstValue);
+
+	// Attempts to fetch the constant value for a parameter code.
+	// returns true if the value was a valid const expression
+	// OutConstValue will only get filled in if it is valid
+	bool GetConstParameterValue(FMaterialUniformExpression* Expression, FLinearColor& OutConstValue);
+
+	// Properly casts a const type to another const type
+	FLinearColor CoerceConstantType(FLinearColor SourceValue, EMaterialValueType SourceType, EMaterialValueType DestinationType);
+	FLinearColor CastConstantType(FLinearColor SourceValue, EMaterialValueType SourceType, EMaterialValueType DestinationType, EMaterialCastFlags Flags);
+
+	// Returns a constant of the specified typ
+	int32 ConstResultValue(EMaterialValueType Type, FLinearColor ConstantValue);
+	int32 ConstResultValue(EMaterialValueType Type, float ConstantValue);
+	
+
+	// Returns a valid constant result for an arithmetic expression that has a known const value
+	int32 ConstArithmeticResultValue(int LeftEpression, int RightExpression, FLinearColor ConstantValue);
+	int32 ConstArithmeticResultValue(int LeftEpression, int RightExpression, float ConstantValue);
+
+	// Returns true of the expression results in a specific constant value
+	bool IsExpressionConstantValue(int Code, float ConstantValue);
+
 	int32 GenericSwitch(const TCHAR* Function, int32 IfTrue, int32 IfFalse);
 
 	FString StrataGetCastParameterCode(int32 Index, EMaterialValueType DestType);
