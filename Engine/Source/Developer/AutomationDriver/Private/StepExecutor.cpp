@@ -3,6 +3,7 @@
 #include "StepExecutor.h"
 #include "IStepExecutor.h"
 #include "IAutomationDriver.h"
+#include "AutomatedApplication.h"
 
 #include "DriverConfiguration.h"
 
@@ -86,8 +87,10 @@ public:
 private:
 
 	FStepExecutor(
-		const TSharedRef<FDriverConfiguration, ESPMode::ThreadSafe>& InConfiguration)
+		const TSharedRef<FDriverConfiguration, ESPMode::ThreadSafe>& InConfiguration,
+		const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe>& InApplication)
 		: Configuration(InConfiguration)
+		, Application(InApplication)
 		, Steps()
 		, CurrentStepIndex(0)
 		, Promise()
@@ -107,7 +110,7 @@ private:
 
 			// If we've encountered an invalid step that's greater then zero then we were just waiting
 			// a little bit after the last step completed before signaling completion.
-			if (StepIndex > 0 && !Steps.IsValidIndex(StepIndex))
+			if ((StepIndex > 0 && !Steps.IsValidIndex(StepIndex)) || !Application->IsHandlingMessages())
 			{
 				Promise->SetValue(true);
 				Promise.Reset();
@@ -153,6 +156,7 @@ private:
 private:
 
 	const TSharedRef<FDriverConfiguration, ESPMode::ThreadSafe> Configuration;
+	const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe>& Application;
 
 	TArray<FExecuteStepDelegate> Steps;
 	int32 CurrentStepIndex;
@@ -166,7 +170,8 @@ private:
 };
 
 TSharedRef<IStepExecutor, ESPMode::ThreadSafe> FStepExecutorFactory::Create(
-	const TSharedRef<FDriverConfiguration, ESPMode::ThreadSafe>& Configuration)
+	const TSharedRef<FDriverConfiguration, ESPMode::ThreadSafe>& Configuration,
+	const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe>& Application)
 {
-	return MakeShareable(new FStepExecutor(Configuration));
+	return MakeShareable(new FStepExecutor(Configuration, Application));
 }

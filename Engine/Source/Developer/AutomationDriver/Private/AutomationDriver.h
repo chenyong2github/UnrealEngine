@@ -55,7 +55,7 @@ public:
 private:
 
 	FAsyncAutomationDriver(
-		FAutomatedApplication* const InApplication,
+		const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe>& InApplication,
 		const TSharedRef<FDriverConfiguration, ESPMode::ThreadSafe>& InConfiguration)
 		: Application(InApplication)
 		, Configuration(InConfiguration)
@@ -65,7 +65,7 @@ private:
 
 private:
 
-	FAutomatedApplication* const Application;
+	const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe> Application;
 	const TSharedRef<FDriverConfiguration, ESPMode::ThreadSafe> Configuration;
 
 	TSet<FKey> PressedModifiers;
@@ -82,10 +82,10 @@ class FAsyncAutomationDriverFactory
 public:
 
 	static TSharedRef<FAsyncAutomationDriver, ESPMode::ThreadSafe> Create(
-		FAutomatedApplication* const AutomatedApplication);
+		const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe>& AutomatedApplication);
 
 	static TSharedRef<FAsyncAutomationDriver, ESPMode::ThreadSafe> Create(
-		FAutomatedApplication* const AutomatedApplication,
+		const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe>& AutomatedApplication,
 		const TSharedRef<FDriverConfiguration, ESPMode::ThreadSafe>& Configuration);
 };
 
@@ -129,7 +129,7 @@ public:
 private:
 
 	FAutomationDriver(
-		FAutomatedApplication* const InApplication,
+		const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe>& InApplication,
 		const TSharedRef<FAsyncAutomationDriver, ESPMode::ThreadSafe>& InAsyncDriver)
 		: Application(InApplication)
 		, AsyncDriver(InAsyncDriver)
@@ -137,7 +137,7 @@ private:
 
 private:
 
-	FAutomatedApplication* const Application;
+	const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe> Application;
 	const TSharedRef<FAsyncAutomationDriver, ESPMode::ThreadSafe> AsyncDriver;
 
 	friend FAutomationDriverFactory;
@@ -148,9 +148,9 @@ class FAutomationDriverFactory
 public:
 
 	static TSharedRef<FAutomationDriver, ESPMode::ThreadSafe> Create(
-		FAutomatedApplication* const AutomatedApplication);
+		const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe>& AutomatedApplication);
 
 	static TSharedRef<FAutomationDriver, ESPMode::ThreadSafe> Create(
-		FAutomatedApplication* const AutomatedApplication,
+		const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe>& AutomatedApplication,
 		const TSharedRef<FDriverConfiguration, ESPMode::ThreadSafe>& Configuration);
 };

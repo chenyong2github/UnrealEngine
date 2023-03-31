@@ -728,6 +728,10 @@ public:
 
 	TAsyncResult<bool> Perform()
 	{
+		if (!Application->IsHandlingMessages())
+		{
+			return false;
+		}
 		return StepsExecutor->Execute();
 	}
 
@@ -735,7 +739,7 @@ private:
 
 	FAsyncActionSequence(
 		const TSharedRef<FAsyncAutomationDriver, ESPMode::ThreadSafe>& InAsyncDriver,
-		FAutomatedApplication* const InApplication,
+		const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe>& InApplication,
 		const TSharedRef<IStepExecutor, ESPMode::ThreadSafe>& InStepsExecutor)
 		: AsyncDriver(InAsyncDriver)
 		, Application(InApplication)
@@ -1338,7 +1342,7 @@ private:
 private:
 
 	const TSharedRef<FAsyncAutomationDriver, ESPMode::ThreadSafe> AsyncDriver;
-	FAutomatedApplication* const Application;
+	const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe> Application;
 	const TSharedRef<IStepExecutor, ESPMode::ThreadSafe> StepsExecutor;
 
 	friend FAsyncActionSequenceFactory;
@@ -1346,12 +1350,12 @@ private:
 
 TSharedRef<FAsyncActionSequence, ESPMode::ThreadSafe> FAsyncActionSequenceFactory::Create(
 	const TSharedRef<FAsyncAutomationDriver, ESPMode::ThreadSafe>& AsyncDriver,
-	FAutomatedApplication* const Application)
+	const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe>& Application)
 {
 	return MakeShareable(new FAsyncActionSequence(
 		AsyncDriver,
 		Application,
-		FStepExecutorFactory::Create(AsyncDriver->GetConfiguration())));
+		FStepExecutorFactory::Create(AsyncDriver->GetConfiguration(), Application)));
 }
 
 class FAsyncDriverSequence
@@ -1854,7 +1858,7 @@ private:
 TSharedRef<FActionSequence, ESPMode::ThreadSafe> FActionSequenceFactory::Create(
 	const TSharedRef<FAutomationDriver, ESPMode::ThreadSafe>& Driver,
 	const TSharedRef<FAsyncAutomationDriver, ESPMode::ThreadSafe>& AsyncDriver,
-	FAutomatedApplication* const Application)
+	const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe>& Application)
 {
 	return MakeShareable(new FActionSequence(
 		Driver,

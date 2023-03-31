@@ -17,7 +17,7 @@ public:
 
 	static TSharedRef<FAsyncActionSequence, ESPMode::ThreadSafe> Create(
 		const TSharedRef<FAsyncAutomationDriver, ESPMode::ThreadSafe>& AsyncDriver,
-		FAutomatedApplication* const Application);
+		const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe>& Application);
 };
 
 class FAsyncDriverSequenceFactory
@@ -41,7 +41,7 @@ public:
 	static TSharedRef<FActionSequence, ESPMode::ThreadSafe> Create(
 		const TSharedRef<FAutomationDriver, ESPMode::ThreadSafe>& Driver,
 		const TSharedRef<FAsyncAutomationDriver, ESPMode::ThreadSafe>& AsyncDriver,
-		FAutomatedApplication* const Application);
+		const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe>& Application);
 };
 
 class FDriverSequenceFactory

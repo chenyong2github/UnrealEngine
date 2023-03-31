@@ -23,22 +23,22 @@ public:
 
 	virtual TSharedRef<IAutomationDriver, ESPMode::ThreadSafe> CreateDriver() const override
 	{
-		return FAutomationDriverFactory::Create(AutomatedApplication.Get());
+		return FAutomationDriverFactory::Create(AutomatedApplication.ToSharedRef());
 	}
 
 	virtual TSharedRef<IAutomationDriver, ESPMode::ThreadSafe> CreateDriver(const TSharedRef<FDriverConfiguration, ESPMode::ThreadSafe>& Configuration) const override
 	{
-		return FAutomationDriverFactory::Create(AutomatedApplication.Get(), Configuration);
+		return FAutomationDriverFactory::Create(AutomatedApplication.ToSharedRef(), Configuration);
 	}
 
 	virtual TSharedRef<IAsyncAutomationDriver, ESPMode::ThreadSafe> CreateAsyncDriver() const override
 	{
-		return FAsyncAutomationDriverFactory::Create(AutomatedApplication.Get());
+		return FAsyncAutomationDriverFactory::Create(AutomatedApplication.ToSharedRef());
 	}
 
 	virtual TSharedRef<IAsyncAutomationDriver, ESPMode::ThreadSafe> CreateAsyncDriver(const TSharedRef<FDriverConfiguration, ESPMode::ThreadSafe>& Configuration) const override
 	{
-		return FAsyncAutomationDriverFactory::Create(AutomatedApplication.Get(), Configuration);
+		return FAsyncAutomationDriverFactory::Create(AutomatedApplication.ToSharedRef(), Configuration);
 	}
 
 	virtual bool IsEnabled() const override
@@ -48,7 +48,7 @@ public:
 
 	virtual void Enable() override
 	{
-		if (AutomatedApplication.IsValid())
+		if (IsEnabled())
 		{
 			return;
 		}
@@ -69,7 +69,7 @@ public:
 
 	virtual void Disable() override
 	{
-		if (!AutomatedApplication.IsValid())
+		if (!IsEnabled())
 		{
 			return;
 		}

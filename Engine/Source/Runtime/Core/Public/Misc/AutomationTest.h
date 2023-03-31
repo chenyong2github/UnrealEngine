@@ -2251,6 +2251,7 @@ private:
 					return true;
 				}
 
+				bDone = false;
 				Predicate(FDoneDelegate::CreateSP(this, &FUntilDoneLatentCommand::Done));
 				bIsRunning = true;
 				StartedRunning = FDateTime::UtcNow();
@@ -2275,7 +2276,10 @@ private:
 
 		void Done()
 		{
-			bDone = true;
+			if (bIsRunning)
+			{
+				bDone = true;
+			}
 		}
 
 		void Reset()
@@ -2322,6 +2326,7 @@ private:
 					return true;
 				}
 
+				bDone = false;
 				Future = Async(Execution, [this]() {
 					Predicate(FDoneDelegate::CreateRaw(this, &FAsyncUntilDoneLatentCommand::Done));
 				});
@@ -2348,14 +2353,17 @@ private:
 
 		void Done()
 		{
-			bDone = true;
+			if (Future.IsValid())
+			{
+				bDone = true;
+			}
 		}
 
 		void Reset()
 		{
 			// Reset the done for the next potential run of this command
 			bDone = false;
-			Future = TFuture<void>();
+			Future.Reset();
 		}
 
 	private:
@@ -2396,9 +2404,10 @@ private:
 					return true;
 				}
 
+				bDone = false;
 				Future = Async(Execution, [this]() {
 					Predicate();
-					bDone = true;
+					Done();
 				});
 
 				StartedRunning = FDateTime::UtcNow();
@@ -2423,14 +2432,17 @@ private:
 
 		void Done()
 		{
-			bDone = true;
+			if (Future.IsValid())
+			{
+				bDone = true;
+			}
 		}
 
 		void Reset()
 		{
 			// Reset the done for the next potential run of this command
 			bDone = false;
-			Future = TFuture<void>();
+			Future.Reset();
 		}
 
 	private:

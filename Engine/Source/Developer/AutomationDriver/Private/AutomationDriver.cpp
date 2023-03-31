@@ -255,7 +255,7 @@ void FAsyncAutomationDriver::Initialize()
 }
 
 TSharedRef<FAsyncAutomationDriver, ESPMode::ThreadSafe> FAsyncAutomationDriverFactory::Create(
-	FAutomatedApplication* const AutomatedApplication)
+	const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe>& AutomatedApplication)
 {
 	TSharedRef<FAsyncAutomationDriver, ESPMode::ThreadSafe> Instance = MakeShareable(new FAsyncAutomationDriver(
 		AutomatedApplication,
@@ -266,7 +266,7 @@ TSharedRef<FAsyncAutomationDriver, ESPMode::ThreadSafe> FAsyncAutomationDriverFa
 }
 
 TSharedRef<FAsyncAutomationDriver, ESPMode::ThreadSafe> FAsyncAutomationDriverFactory::Create(
-	FAutomatedApplication* const AutomatedApplication,
+	const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe>& AutomatedApplication,
 	const TSharedRef<FDriverConfiguration, ESPMode::ThreadSafe>& Configuration)
 {
 	return MakeShareable(new FAsyncAutomationDriver(
@@ -382,7 +382,7 @@ bool FAutomationDriver::IsPressed(EMouseButtons::Type Button) const
 }
 
 TSharedRef<FAutomationDriver, ESPMode::ThreadSafe> FAutomationDriverFactory::Create(
-	FAutomatedApplication* const AutomatedApplication)
+	const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe>& AutomatedApplication)
 {
 	return MakeShareable(new FAutomationDriver(
 		AutomatedApplication,
@@ -390,7 +390,7 @@ TSharedRef<FAutomationDriver, ESPMode::ThreadSafe> FAutomationDriverFactory::Cre
 }
 
 TSharedRef<FAutomationDriver, ESPMode::ThreadSafe> FAutomationDriverFactory::Create(
-	FAutomatedApplication* const AutomatedApplication,
+	const TSharedRef<FAutomatedApplication, ESPMode::ThreadSafe>& AutomatedApplication,
 	const TSharedRef<FDriverConfiguration, ESPMode::ThreadSafe>& Configuration)
 {
 	return MakeShareable(new FAutomationDriver(

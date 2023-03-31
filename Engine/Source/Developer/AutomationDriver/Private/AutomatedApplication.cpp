@@ -201,6 +201,21 @@ public:
 		}
 	}
 
+	virtual bool IsHandlingMessages() override
+	{
+		if (!PassThroughMessageHandler.IsValid() || !PassThroughMessageHandler->IsHandlingMessages())
+		{
+			return false;
+		}
+
+		if (!AutomatedCursor.IsValid() || !AutomatedCursor->IsHandlingMessages())
+		{
+			return false;
+		}
+
+		return true;
+	}
+
 	virtual void SetMessageHandler(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override
 	{
 		RealMessageHandler = InMessageHandler;

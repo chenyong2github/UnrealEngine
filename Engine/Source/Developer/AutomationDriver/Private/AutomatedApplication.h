@@ -18,6 +18,7 @@ public:
 
 	virtual void AllowPlatformMessageHandling() = 0;
 	virtual void DisablePlatformMessageHandling() = 0;
+	virtual bool IsHandlingMessages() = 0;
 
 	virtual void SetFakeModifierKeys(FModifierKeysState Value) = 0;
 
