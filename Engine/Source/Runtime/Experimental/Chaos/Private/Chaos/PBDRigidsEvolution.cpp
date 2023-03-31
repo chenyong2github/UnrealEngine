@@ -21,9 +21,6 @@ FAutoConsoleVariableRef CVarChaosNumPushOutIterationsOverride(TEXT("p.ChaosNumPu
 int32 ChaosNumContactIterationsOverride = -1;
 FAutoConsoleVariableRef CVarChaosNumContactIterationsOverride(TEXT("p.ChaosNumContactIterationsOverride"), ChaosNumContactIterationsOverride, TEXT("Override for num contact iterations if >= 0. [def:-1]"));
 
-int32 ChaosNonMovingKinematicUpdateOptimization = 1;
-FAutoConsoleVariableRef CVarChaosNonMovingKinematicUpdateOptimization(TEXT("p.ChaosNonMovingKinematicUpdateOptimization"), ChaosNonMovingKinematicUpdateOptimization, TEXT("When enabled (1), keep track of moving kinematics and only call ApplyKinematicTargets for those ones. [def:1]"));
-
 namespace Chaos
 {
 	CHAOS_API int32 FixBadAccelerationStructureRemoval = 1;

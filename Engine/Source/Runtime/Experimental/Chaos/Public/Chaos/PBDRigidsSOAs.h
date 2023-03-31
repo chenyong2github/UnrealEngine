@@ -372,7 +372,7 @@ public:
 			}
 
 			RemoveFromActiveArray(PBDRigid, /*bStillDirty=*/ false);
-			MovingKinematicsMapArray.Remove(PBDRigid->CastToKinematicParticle());
+			MovingKinematicsMapArray.Remove(PBDRigid);
 
 			if (auto PBDRigidClustered = Particle->CastToClustered())
 			{
@@ -654,7 +654,7 @@ public:
 
 			if (Particle->ObjectState() != EObjectStateType::Kinematic)
 			{
-				MovingKinematicsMapArray.Remove(Particle->CastToKinematicParticle());
+				MovingKinematicsMapArray.Remove(Particle);
 			}
 
 			// Move to appropriate dynamic SOA
@@ -720,7 +720,10 @@ public:
 
 	void MarkMovingKinematic(FKinematicGeometryParticleHandle* Particle)
 	{
-		MovingKinematicsMapArray.Insert(Particle);
+		if (FPBDRigidParticleHandle* Rigid = Particle->CastToRigidParticle())
+		{
+			MovingKinematicsMapArray.Insert(Rigid);
+		}
 	}
 
 	void UpdateAllMovingKinematic()
@@ -734,7 +737,13 @@ public:
 			if (MovingKinematicsMapArray.GetArray()[Index]->KinematicTarget().GetMode() == EKinematicTargetMode::None)
 			{
 				// remove and do not increment Index
-				MovingKinematicsMapArray.Remove(MovingKinematicsMapArray.GetArray()[Index]);
+				FPBDRigidParticleHandle* Rigid = MovingKinematicsMapArray.GetArray()[Index];
+				MovingKinematicsMapArray.Remove(Rigid);
+
+				// Particle may not be moving, but its velocity was just changed (to zero), so it
+				// needs to be in a dirty list. Since it are no longer in MovingKinematicsMapArray
+				// we must put it the transient dirty list
+				MarkTransientDirtyParticle(Rigid);
 			}
 			else
 			{
@@ -824,14 +833,14 @@ public:
 	const TParticleView<FKinematicGeometryParticles>& GetActiveKinematicParticlesView() const { return ActiveKinematicParticlesView; }
 	TParticleView<FKinematicGeometryParticles>& GetActiveKinematicParticlesView() { return ActiveKinematicParticlesView; }
 
-	const TParticleView<FKinematicGeometryParticles>& GetActiveMovingKinematicParticlesView() const { return ActiveMovingKinematicParticlesView; }
-	TParticleView<FKinematicGeometryParticles>& GetActiveMovingKinematicParticlesView() { return ActiveMovingKinematicParticlesView; }
+	const TParticleView<FPBDRigidParticles>& GetActiveMovingKinematicParticlesView() const { return ActiveMovingKinematicParticlesView; }
+	TParticleView<FPBDRigidParticles>& GetActiveMovingKinematicParticlesView() { return ActiveMovingKinematicParticlesView; }
 
 	const TParticleView<FGeometryParticles>& GetActiveStaticParticlesView() const { return ActiveStaticParticlesView; }
 	TParticleView<FGeometryParticles>& GetActiveStaticParticlesView() { return ActiveStaticParticlesView; }
 
-	const TParticleView<FKinematicGeometryParticles>& GetActiveDynamicMovingKinematicParticlesView() const { return ActiveDynamicMovingKinematicParticlesView; }
-	TParticleView<FKinematicGeometryParticles>& GetActiveDynamicMovingKinematicParticlesView() { return ActiveDynamicMovingKinematicParticlesView; }
+	const TParticleView<FPBDRigidParticles>& GetActiveDynamicMovingKinematicParticlesView() const { return ActiveDynamicMovingKinematicParticlesView; }
+	TParticleView<FPBDRigidParticles>& GetActiveDynamicMovingKinematicParticlesView() { return ActiveDynamicMovingKinematicParticlesView; }
 
 	const TGeometryParticleHandles<FReal, 3>& GetParticleHandles() const { return ParticleHandles; }
 	TGeometryParticleHandles<FReal, 3>& GetParticleHandles() { return ParticleHandles; }
@@ -1113,7 +1122,7 @@ private:
 			NonDisabledDynamicView = MakeParticleView(MoveTemp(TmpArray));
 		}
 		{
-			TArray<TSOAView<FKinematicGeometryParticles>> TmpArray = 
+			TArray<TSOAView<FPBDRigidParticles>> TmpArray =
 			{ 
 				{&ActiveParticlesMapArray.GetArray()},
 				{&MovingKinematicsMapArray.GetArray()},
@@ -1144,12 +1153,13 @@ private:
 			? TArray<TSOAView<FPBDRigidParticles>>
 			{
 				{&ResimActiveParticlesMapArray.GetArray()},
-				{&TransientDirtyMapArray.GetArray() }
+				{&TransientDirtyMapArray.GetArray()}
 			}
 			: TArray<TSOAView<FPBDRigidParticles>>
 			{
 				{&ActiveParticlesMapArray.GetArray()},
 				//	{&DynamicClusteredMapArray.GetArray()},  Cluster particles appear in the ActiveParticlesArray
+				(&MovingKinematicsMapArray.GetArray()),
 				{&KinematicGeometryCollectionArray},
 				{&DynamicGeometryCollectionArray},
 				{&FellAsleepGeometryCollectionArray.GetArray()},
@@ -1190,7 +1200,7 @@ private:
 		}
 		{
 			// todo(chaos) handle resim ?
-			TArray<TSOAView<FKinematicGeometryParticles>> TmpArray =
+			TArray<TSOAView<FPBDRigidParticles>> TmpArray =
 			{
 				{&MovingKinematicsMapArray.GetArray()},
 			};
@@ -1302,7 +1312,7 @@ private:
 	TParticleMapArray<FPBDRigidParticleHandle> TransientDirtyMapArray;
 	
 	// keep track of kinematic that have their kinematic target set for this current frame
-	TParticleMapArray<FKinematicGeometryParticleHandle> MovingKinematicsMapArray;
+	TParticleMapArray<FPBDRigidParticleHandle> MovingKinematicsMapArray;
 
 	// Structures for maintaining a subset view during a resim (TParticleMapArray used when we need to dynamically add/remove during resim)
 	TParticleMapArray<FPBDRigidParticleHandle> ResimActiveParticlesMapArray;
@@ -1318,15 +1328,15 @@ private:
 	TParticleMapArray<FPBDRigidClusteredParticleHandle> DynamicClusteredMapArray;
 
 	//Particle Views
-	TParticleView<FGeometryParticles> NonDisabledView;							//all particles that are not disabled
+	TParticleView<FGeometryParticles> NonDisabledView;								//all particles that are not disabled
 	TParticleView<FPBDRigidParticles> NonDisabledDynamicView;						//all dynamic particles that are not disabled
 	TParticleView<FPBDRigidClusteredParticles> NonDisabledClusteredView;			//all clustered particles that are not disabled
-	TParticleView<FPBDRigidParticles> ActiveParticlesView;						//all particles that are active
+	TParticleView<FPBDRigidParticles> ActiveParticlesView;							//all particles that are active
 	TParticleView<FPBDRigidParticles> DirtyParticlesView;							//all particles that are active + any that were put to sleep this frame
-	TParticleView<FGeometryParticles> AllParticlesView;							//all particles
+	TParticleView<FGeometryParticles> AllParticlesView;								//all particles
 	TParticleView<FKinematicGeometryParticles> ActiveKinematicParticlesView;		//all kinematic particles that are not disabled
-	TParticleView<FKinematicGeometryParticles> ActiveMovingKinematicParticlesView;//all moving kinematic particles that are not disabled
-	TParticleView<FKinematicGeometryParticles> ActiveDynamicMovingKinematicParticlesView;//all moving kinematic particles that are not disabled + all dynamic particles
+	TParticleView<FPBDRigidParticles> ActiveMovingKinematicParticlesView;			//all moving kinematic particles that are not disabled
+	TParticleView<FPBDRigidParticles> ActiveDynamicMovingKinematicParticlesView;	//all moving kinematic particles that are not disabled + all dynamic particles
 	TParticleView<FGeometryParticles> ActiveStaticParticlesView;					//all static particles that are not disabled
 	TParticleView<TPBDGeometryCollectionParticles<FReal, 3>> ActiveGeometryCollectionParticlesView; // all geom collection particles that are not disabled
 

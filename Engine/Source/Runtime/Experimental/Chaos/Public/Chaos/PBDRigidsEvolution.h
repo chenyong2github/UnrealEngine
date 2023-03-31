@@ -24,7 +24,6 @@ extern int32 ChaosRigidsEvolutionApplyAllowEarlyOutCVar;
 extern int32 ChaosRigidsEvolutionApplyPushoutAllowEarlyOutCVar;
 extern int32 ChaosNumPushOutIterationsOverride;
 extern int32 ChaosNumContactIterationsOverride;
-extern int32 ChaosNonMovingKinematicUpdateOptimization;
 
 namespace Chaos
 {
@@ -414,14 +413,11 @@ public:
 	{
 		if (KinematicHandle)
 		{
-			if (ChaosNonMovingKinematicUpdateOptimization)
+			// optimization : we keep track of moving kinematic targets ( list gets clear every frame )
+			if (NewKinematicTarget.GetMode() != EKinematicTargetMode::None)
 			{
-				// optimization : we keep track of moving kinematic targets ( list gets clear every frame )
-				if (NewKinematicTarget.GetMode() != EKinematicTargetMode::None)
-				{
-					// move particle from "non-moving" kinematics to "moving" kinematics
-					Particles.MarkMovingKinematic(KinematicHandle);
-				}
+				// move particle from "non-moving" kinematics to "moving" kinematics
+				Particles.MarkMovingKinematic(KinematicHandle);
 			}
 			KinematicHandle->SetKinematicTarget(NewKinematicTarget);
 		}
@@ -756,24 +752,16 @@ public:
 
 		const bool IsLastStep = (FMath::IsNearlyEqual(StepFraction, (FReal)1, (FReal)UE_KINDA_SMALL_NUMBER));
 
-		const FReal MinDt = 1e-6f;
-		auto GetKinematicView = [this]()
-		{
-			if (ChaosNonMovingKinematicUpdateOptimization)
-			{
-				return Particles.GetActiveMovingKinematicParticlesView();
-			}
-			return Particles.GetActiveKinematicParticlesView();
-		};
-
-		// We do not update the particle views every time we change a particle - we do it once at the end
-		const bool bUpdateParticleViews = false;
-
-		for (auto& Particle : GetKinematicView())
+		// NOTE: ApplyKinematicTargetForParticle is run in a parallel-for. We only write to particle state
+		const auto& ApplyParticleKinematicTarget = 
+		[Dt, StepFraction, IsLastStep]
+		(FTransientPBDRigidParticleHandle& Particle, const int32 ParticleIndex)
+		-> void
 		{
 			TKinematicTarget<FReal, 3>& KinematicTarget = Particle.KinematicTarget();
 			const FVec3 CurrentX = Particle.X();
 			const FRotation3 CurrentR = Particle.R();
+			constexpr FReal MinDt = 1e-6f;
 
 			bool bMoved = false;
 			switch (KinematicTarget.GetMode())
@@ -788,7 +776,6 @@ public:
 				Particle.V() = FVec3(0, 0, 0);
 				Particle.W() = FVec3(0, 0, 0);
 				KinematicTarget.SetMode(EKinematicTargetMode::None);
-				Particles.MarkTransientDirtyParticle(Particle.Handle(), bUpdateParticleViews);
 				break;
 			}
 
@@ -812,26 +799,26 @@ public:
 					NewR = FRotation3::Slerp(CurrentR, KinematicTarget.GetTarget().GetRotation(), decltype(FQuat::X)(StepFraction));
 				}
 
-				bMoved = !FVec3::IsNearlyEqual(NewX, CurrentX, UE_SMALL_NUMBER) || !FRotation3::IsNearlyEqual(NewR, CurrentR, UE_SMALL_NUMBER);
-				FVec3 V = FVec3(0);
-				FVec3 W = FVec3(0);
-				if (bMoved)
+				const bool bPositionChanged = !FVec3::IsNearlyEqual(NewX, CurrentX, UE_SMALL_NUMBER);
+				const bool bRotationChanged = !FRotation3::IsNearlyEqual(NewR, CurrentR, UE_SMALL_NUMBER);
+				bMoved = bPositionChanged || bRotationChanged;
+				FVec3 NewV = FVec3(0);
+				FVec3 NewW = FVec3(0);
+				if (Dt > MinDt)
 				{
-					if (Dt > MinDt)
+					if (bPositionChanged)
 					{
-						V = FVec3::CalculateVelocity(CurrentX, NewX, Dt);
-						Particle.V() = V;
-
-						W = FRotation3::CalculateAngularVelocity(CurrentR, NewR, Dt);
-						Particle.W() = W;
+						NewV = FVec3::CalculateVelocity(CurrentX, NewX, Dt);
 					}
-
-					Particle.X() = NewX;
-					Particle.R() = NewR;
+					if (bRotationChanged)
+					{
+						NewW = FRotation3::CalculateAngularVelocity(CurrentR, NewR, Dt);
+					}
 				}
-				Particle.V() = V;
-				Particle.W() = W;
-				Particles.MarkTransientDirtyParticle(Particle.Handle(), bUpdateParticleViews);
+				Particle.X() = NewX;
+				Particle.R() = NewR;
+				Particle.V() = NewV;
+				Particle.W() = NewW;
 
 				break;
 			}
@@ -842,37 +829,35 @@ public:
 				bMoved = true;
 				Particle.X() = Particle.X() + Particle.V() * Dt;
 				Particle.R() = FRotation3::IntegrateRotationWithAngularVelocity(Particle.R(), Particle.W(), Dt);
-				Particles.MarkTransientDirtyParticle(Particle.Handle(), bUpdateParticleViews);
 				break;
 			}
 			}
 			
 			// Set positions and previous velocities if we can
 			// Note: At present kininematics are in fact rigid bodies
-			auto* Rigid = Particle.CastToRigidParticle();
-			if (Rigid)
-			{
-				Rigid->P() = Rigid->X();
-				Rigid->Q() = Rigid->R();
-				Rigid->PreV() = Rigid->V();
-				Rigid->PreW() = Rigid->W();
+			Particle.P() = Particle.X();
+			Particle.Q() = Particle.R();
+			Particle.PreV() = Particle.V();
+			Particle.PreW() = Particle.W();
 
-				if (bMoved)
+			if (bMoved)
+			{
+				if (!Particle.CCDEnabled())
 				{
-					if (!Rigid->CCDEnabled())
-					{
-						Rigid->UpdateWorldSpaceState(FRigidTransform3(Rigid->P(), Rigid->Q()), FVec3(0));
-					}
-					else
-					{
-						Rigid->UpdateWorldSpaceStateSwept(FRigidTransform3(Rigid->P(), Rigid->Q()), FVec3(0), -Rigid->V() * Dt);
-					}
+					Particle.UpdateWorldSpaceState(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(0));
+				}
+				else
+				{
+					Particle.UpdateWorldSpaceStateSwept(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(0), -Particle.V() * Dt);
 				}
 			}
-		}
+		};
+
+		// Apply kinematic targets in parallel
+		Particles.GetActiveMovingKinematicParticlesView().ParallelFor(ApplyParticleKinematicTarget);
 
 		// done with update, let's clear the tracking structures
-		if (IsLastStep && ChaosNonMovingKinematicUpdateOptimization)
+		if (IsLastStep)
 		{
 			Particles.UpdateAllMovingKinematic();
 		}

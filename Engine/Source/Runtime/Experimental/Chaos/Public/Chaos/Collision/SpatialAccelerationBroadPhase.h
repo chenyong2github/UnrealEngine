@@ -449,7 +449,7 @@ namespace Chaos
 			if(!bNeedsResim)
 			{
 				const TParticleView<TPBDRigidParticles<FReal, 3>>& DynamicSleepingView = Particles.GetNonDisabledDynamicView();
-				const TParticleView<TKinematicGeometryParticles<FReal, 3>>& DynamicMovingKinematicView = Particles.GetActiveDynamicMovingKinematicParticlesView();
+				const TParticleView<TPBDRigidParticles<FReal, 3>>& DynamicMovingKinematicView = Particles.GetActiveDynamicMovingKinematicParticlesView();
 
 				// Usually we ignore sleeping particles in the outer loop and iterate over awake-dynamics and moving-kinematics. 
 				// However, for scenes with a very large number of moving kinematics, it is faster to loop over awake-dynamics

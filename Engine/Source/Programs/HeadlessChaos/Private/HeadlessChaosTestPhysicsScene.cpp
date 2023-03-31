@@ -1394,8 +1394,12 @@ namespace ChaosTest {
 			Scene.StartFrame();
 			Scene.EndFrame();
 			// Test X and V on GT
-			EXPECT_EQ(Particle.X(), CorrectX);
-			EXPECT_EQ(Particle.V(), CorrectV);
+			EXPECT_EQ(Particle.X().X, CorrectX.X);
+			EXPECT_EQ(Particle.X().Y, CorrectX.Y);
+			EXPECT_EQ(Particle.X().Z, CorrectX.Z);
+			EXPECT_EQ(Particle.V().X, CorrectV.X);
+			EXPECT_EQ(Particle.V().Y, CorrectV.Y);
+			EXPECT_EQ(Particle.V().Z, CorrectV.Z);
 			// Test X and V on PT, this is going to be used in OnPreSimulate_Internal in next frame.
 			Callback->GetProducerInputData_External()->CorrectX = CorrectX;
 			Callback->GetProducerInputData_External()->CorrectV = CorrectV;
