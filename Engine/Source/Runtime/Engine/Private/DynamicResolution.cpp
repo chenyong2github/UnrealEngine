@@ -1141,7 +1141,7 @@ public:
 		if (Event == EDynamicResolutionStateEvent::BeginFrame)
 		{
 			check(bRecordThisFrame == false);
-			bRecordThisFrame = bIsEnabled;
+			bRecordThisFrame = bIsEnabled && IsSupported();
 		}
 
 		// Early return if not recording this frame.
