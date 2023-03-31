@@ -15,7 +15,6 @@
 #define HZB_TRACE_INCLUDE_FULL_RES_DEPTH 1
 #include "LumenScreenTracing.ush"
 #include "LumenHairTracing.ush"
-#include "LumenFog.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1

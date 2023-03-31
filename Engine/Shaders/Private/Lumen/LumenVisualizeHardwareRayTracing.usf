@@ -435,8 +435,6 @@ float NearFieldSceneRadius;
 uint ApplySkylightStage;
 uint MaxReflectionBounces;
 
-#include "LumenFog.ush"
-
 LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 {
 	uint ThreadIndex = DispatchThreadIndex.x;

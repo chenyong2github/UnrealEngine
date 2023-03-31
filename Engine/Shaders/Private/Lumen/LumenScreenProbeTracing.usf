@@ -10,7 +10,6 @@
 #include "LumenScreenProbeCommon.ush"
 #include "LumenScreenProbeTracingCommon.ush"
 #include "LumenVisualizeTraces.ush"
-#include "LumenFog.ush"
 
 #define IS_SSGI_SHADER 0
 #include "../SHCommon.ush"

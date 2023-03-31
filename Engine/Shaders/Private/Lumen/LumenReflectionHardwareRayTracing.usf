@@ -23,7 +23,6 @@
 #include "LumenScreenTracing.ush"
 #define USE_HAIRSTRANDS_VOXEL DIM_HAIRSTRANDS_VOXEL
 #include "LumenHairTracing.ush"
-#include "LumenFog.ush"
 
 #ifndef THREADGROUP_SIZE_2D
 #define THREADGROUP_SIZE_2D 8
