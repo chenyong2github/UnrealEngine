@@ -191,6 +191,11 @@ namespace Chaos
 
 		for (const FConstPhysicsObjectHandle& Handle : InObjects)
 		{
+			if (!Handle)
+			{
+				continue;
+			}
+
 			if (TThreadParticle<Id>* Particle = Handle->GetParticle<Id>())
 			{
 				Particles.Add(Particle);
