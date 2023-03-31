@@ -177,13 +177,21 @@ FBlueprintContext::FBlueprintContext()
 	ensure(BlueprintContextVirtualStackAllocatorDecommitMode >= 0 && BlueprintContextVirtualStackAllocatorDecommitMode < (int)EVirtualStackAllocatorDecommitMode::NumModes);
 }
 
+// pulled the thread_local into a separate function to workaround
+// a compile error complaining about having it live local to the
+// lambda below
+FBlueprintContext* FBlueprintContextGetThreadSingletonImpl()
+{
+	static thread_local FBlueprintContext ThreadLocalContext;
+	return &ThreadLocalContext;
+}
+
 FBlueprintContext* FBlueprintContext::GetThreadSingleton()
 {
 	FBlueprintContext* Result;
 	AutoRTFM::Open([&Result]
 	{
-		static thread_local FBlueprintContext ThreadLocalContext;
-		Result = &ThreadLocalContext;
+		Result = FBlueprintContextGetThreadSingletonImpl();
 	});
 	return Result;
 }
