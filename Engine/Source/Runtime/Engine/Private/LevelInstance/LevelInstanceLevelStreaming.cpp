@@ -360,11 +360,10 @@ void ULevelStreamingLevelInstance::OnLevelLoadedChanged(ULevel* InLevel)
 			LevelTransform = FTransform(WorldSettings->LevelInstancePivotOffset) * LevelTransform;
 		}
 
-#if WITH_EDITOR
 		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
 		{
 			LevelInstanceSubsystem->RegisterLoadedLevelStreamingLevelInstance(this);
-
+#if WITH_EDITOR
 			if (!GDisableLevelInstanceEditorPartialLoading)
 			{
 				if (UWorldPartition* WorldPartition = NewLoadedLevel->GetWorldPartition())
@@ -382,7 +381,7 @@ void ULevelStreamingLevelInstance::OnLevelLoadedChanged(ULevel* InLevel)
 					}
 				}
 			}
-		}
 #endif
+		}
 	}
 }
