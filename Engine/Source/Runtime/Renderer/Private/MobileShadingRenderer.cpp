@@ -1125,6 +1125,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			// Finish rendering for each view, or the full stereo buffer if enabled
 			{
 				RDG_EVENT_SCOPE(GraphBuilder, "PostProcessing");
+				RDG_GPU_STAT_SCOPE(GraphBuilder, Postprocessing);
 				SCOPE_CYCLE_COUNTER(STAT_FinishRenderViewTargetTime);
 
 				FMobilePostProcessingInputs PostProcessingInputs;
