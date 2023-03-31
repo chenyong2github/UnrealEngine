@@ -311,7 +311,7 @@ void UContextualAnimSceneActorComponent::OnRep_LateJoinData()
 	HandleLateJoin(RepLateJoinData.Actor, RepLateJoinData.Role, RepLateJoinData.ExternalWarpTargets);
 }
 
-bool UContextualAnimSceneActorComponent::TransitionContextualAnimScene(FName SectionName, const TArray<FContextualAnimWarpTarget>& ExternalWarpTargets)
+bool UContextualAnimSceneActorComponent::TransitionContextualAnimScene(FName SectionName, int32 AnimSetIdx, const TArray<FContextualAnimWarpTarget>& ExternalWarpTargets)
 {
 	if (!GetOwner()->HasAuthority())
 	{
@@ -326,7 +326,7 @@ bool UContextualAnimSceneActorComponent::TransitionContextualAnimScene(FName Sec
 		{
 			if (UContextualAnimSceneActorComponent* Comp = Leader->GetSceneActorComponent())
 			{
-				return Comp->TransitionContextualAnimScene(SectionName, ExternalWarpTargets);
+				return Comp->TransitionContextualAnimScene(SectionName, AnimSetIdx, ExternalWarpTargets);
 			}
 		}
 	}
@@ -339,11 +339,11 @@ bool UContextualAnimSceneActorComponent::TransitionContextualAnimScene(FName Sec
 			UE_LOG(LogContextualAnim, Log, TEXT("%-21s UContextualAnimSceneActorComponent::TransitionTo Actor: %s SectionName: %s"),
 				*UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwner()->GetLocalRole()), *GetNameSafe(GetOwner()), *SectionName.ToString());
 
-			HandleTransitionEveryone(SectionIdx, 0, ExternalWarpTargets);
+			HandleTransitionEveryone(SectionIdx, AnimSetIdx, ExternalWarpTargets);
 
 			RepTransitionData.Id = Bindings.GetID();
 			RepTransitionData.SectionIdx = SectionIdx;
-			RepTransitionData.AnimSetIdx = 0;
+			RepTransitionData.AnimSetIdx = AnimSetIdx;
 			RepTransitionData.ExternalWarpTargets = ExternalWarpTargets;
 			RepTransitionData.IncrementRepCounter();
 			MARK_PROPERTY_DIRTY_FROM_NAME(UContextualAnimSceneActorComponent, RepTransitionData, this);
@@ -354,6 +354,12 @@ bool UContextualAnimSceneActorComponent::TransitionContextualAnimScene(FName Sec
 	}
 
 	return false;
+}
+
+bool UContextualAnimSceneActorComponent::TransitionContextualAnimScene(FName SectionName, const TArray<FContextualAnimWarpTarget>& ExternalWarpTargets)
+{
+	//@TODO: Run selection criteria to find best AnimSet
+	return TransitionContextualAnimScene(SectionName, 0, ExternalWarpTargets);
 }
 
 void UContextualAnimSceneActorComponent::HandleTransitionEveryone(int32 NewSectionIdx, int32 NewAnimSetIdx, const TArray<FContextualAnimWarpTarget>& ExternalWarpTargets)
