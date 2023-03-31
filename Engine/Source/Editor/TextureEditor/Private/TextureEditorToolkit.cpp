@@ -1161,6 +1161,11 @@ TSharedRef<SWidget> FTextureEditorToolkit::BuildTexturePropertiesWidget( )
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	TexturePropertiesWidget = PropertyModule.CreateDetailView(Args);
 	TexturePropertiesWidget->SetObject(Texture);
+	
+	// todo, maybe :
+	// check cvar "r.VT.MenuRestricted"
+	// if set, hide the "VirtualTextureStreaming" property
+	// TexturePropertiesWidget->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &FTextureEditorToolkit::ShowTextureProperty));
 
 	return TexturePropertiesWidget.ToSharedRef();
 }
