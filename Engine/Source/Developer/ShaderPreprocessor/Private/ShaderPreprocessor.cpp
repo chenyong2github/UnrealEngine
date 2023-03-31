@@ -209,22 +209,42 @@ FMcppAllocator GMcppAlloc;
 
 #endif
 
-static void DumpShaderDefinesAsCommentedCode(const FShaderCompilerInput& ShaderInput, FString* OutDefines)
+static void AddStbDefine(stb_arena* MacroArena, macro_definition**& StbDefines, const TCHAR* Name, const TCHAR* Value);
+static void AddStbDefines(stb_arena* MacroArena, macro_definition**& StbDefines, TMap<FString, FString> DefinitionsMap);
+
+class FShaderPreprocessorUtilities
 {
-	const TMap<FString, FString>& Definitions = ShaderInput.Environment.GetDefinitions();
-
-	TArray<FString> Keys;
-	Definitions.GetKeys(/* out */ Keys);
-	Keys.Sort();
-
-	FString Defines;
-	for (const FString& Key : Keys)
+public:
+	static void DumpShaderDefinesAsCommentedCode(const FShaderCompilerInput& ShaderInput, FString* OutDefines)
 	{
-		Defines += FString::Printf(TEXT("// #define %s %s\n"), *Key, *Definitions[Key]);
+		const TMap<FString, FString>& Definitions = ShaderInput.Environment.Definitions.GetDefinitionMap();
+
+		TArray<FString> Keys;
+		Definitions.GetKeys(/* out */ Keys);
+		Keys.Sort();
+
+		FString Defines;
+		for (const FString& Key : Keys)
+		{
+			Defines += FString::Printf(TEXT("// #define %s %s\n"), *Key, *Definitions[Key]);
+		}
+
+		*OutDefines = MakeInjectedShaderCodeBlock(TEXT("DumpShaderDefinesAsCommentedCode"), Defines);
 	}
 
-	*OutDefines = MakeInjectedShaderCodeBlock(TEXT("DumpShaderDefinesAsCommentedCode"), Defines);
-}
+	static void PopulateDefinesMcpp(const FShaderCompilerInput& Input, const FShaderCompilerDefinitions& AdditionalDefines, TArray<TArray<ANSICHAR>>& OutDefines)
+	{
+		AddMcppDefines(OutDefines, Input.Environment.Definitions.GetDefinitionMap());
+		AddMcppDefines(OutDefines, AdditionalDefines.GetDefinitionMap());
+	}
+
+	static void PopulateDefinesStb(const FShaderCompilerInput& Input, const FShaderCompilerDefinitions& AdditionalDefines, stb_arena* MacroArena, macro_definition**& OutDefines)
+	{
+		AddStbDefines(MacroArena, OutDefines, Input.Environment.Definitions.GetDefinitionMap());
+		AddStbDefines(MacroArena, OutDefines, AdditionalDefines.GetDefinitionMap());
+		AddStbDefine(MacroArena, OutDefines, TEXT("_STB_PREPROCESS"), TEXT("1"));
+	}
+};
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -244,8 +264,7 @@ bool InnerPreprocessShaderMcpp(
 		FMcppFileLoader FileLoader(ShaderInput, ShaderOutput);
 
 		TArray<TArray<ANSICHAR>> McppOptions;
-		AddMcppDefines(McppOptions, ShaderInput.Environment.GetDefinitions());
-		AddMcppDefines(McppOptions, AdditionalDefines.GetDefinitionMap());
+		FShaderPreprocessorUtilities::PopulateDefinesMcpp(ShaderInput, AdditionalDefines, McppOptions);
 
 		// MCPP is not threadsafe.
 
@@ -569,10 +588,7 @@ bool InnerPreprocessShaderStb(
 {
 	stb_arena MacroArena = { 0 };
 	macro_definition** StbDefines = nullptr;
-
-	AddStbDefines(&MacroArena, StbDefines, ShaderInput.Environment.GetDefinitions());
-	AddStbDefines(&MacroArena, StbDefines, AdditionalDefines.GetDefinitionMap());
-	AddStbDefine(&MacroArena, StbDefines, TEXT("_STB_PREPROCESS"), TEXT("1"));
+	FShaderPreprocessorUtilities::PopulateDefinesStb(ShaderInput, AdditionalDefines, &MacroArena, StbDefines);
 
 	FStbPreprocessContext Context{ ShaderInput };
 
@@ -670,7 +686,7 @@ bool PreprocessShader(
 	// List the defines used for compilation in the preprocessed shaders, especially to know witch permutation vector this shader is.
 	if (DefinesPolicy == EDumpShaderDefines::AlwaysIncludeDefines || (DefinesPolicy == EDumpShaderDefines::DontCare && ShaderInput.DumpDebugInfoPath.Len() > 0))
 	{
-		DumpShaderDefinesAsCommentedCode(ShaderInput, &OutPreprocessedShader);
+		FShaderPreprocessorUtilities::DumpShaderDefinesAsCommentedCode(ShaderInput, &OutPreprocessedShader);
 	}
 
 	OutPreprocessedShader += PreprocessorOutput;

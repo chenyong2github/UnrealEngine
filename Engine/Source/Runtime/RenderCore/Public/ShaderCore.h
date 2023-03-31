@@ -43,6 +43,8 @@ class Error;
 class FMemoryImageWriter;
 class FMemoryUnfreezeContent;
 class FPointerTableBase;
+class FShaderCompileUtilities;
+class FShaderPreprocessorUtilities;
 class FSHA1;
 class ITargetPlatform;
 
@@ -610,6 +612,7 @@ struct FShaderCompilerEnvironment
 		return false;
 	}
 
+	UE_DEPRECATED(5.3, "GetDefinitions is deprecated; preprocessor defines must now only be accessed by core shader system code. Use Get/SetCompileArgument for generic params instead.")
 	const TMap<FString,FString>& GetDefinitions() const
 	{
 		return Definitions.GetDefinitionMap();
@@ -675,6 +678,9 @@ struct FShaderCompilerEnvironment
 	}
 
 private:
+
+	friend class FShaderCompileUtilities;
+	friend class FShaderPreprocessorUtilities;
 
 	FShaderCompilerDefinitions Definitions;
 	TMap<FString, TVariant<bool, float, int32, uint32>> CompileArgs;
