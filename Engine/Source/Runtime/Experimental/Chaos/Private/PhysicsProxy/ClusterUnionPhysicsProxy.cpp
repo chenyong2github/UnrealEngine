@@ -294,7 +294,7 @@ namespace Chaos
 		for (const FDirtyClusterUnionParticleData& InData : PullData.ChildParticles)
 		{
 			FClusterUnionChildData ConvertedData;
-			ConvertedData.Particle = InData.Particle;
+			ConvertedData.ParticleIdx = InData.ParticleIdx;
 			ConvertedData.ChildToParent = InData.ChildToParent;
 			SyncedData_External.ChildParticles.Add(ConvertedData);
 		}
@@ -401,13 +401,13 @@ namespace Chaos
 
 			for (FPBDRigidParticleHandle* Particle : ClusterUnion->ChildParticles)
 			{
-				if (!ensure(Particle->GTGeometryParticle()))
+				if (!ensure(Particle))
 				{
 					continue;
 				}
 
 				FDirtyClusterUnionParticleData Data;
-				Data.Particle = Particle->GTGeometryParticle()->CastToRigidParticle();
+				Data.ParticleIdx = Particle->UniqueIdx();
 				if (FPBDRigidClusteredParticleHandle* ClusteredParticle = Particle->CastToClustered())
 				{
 					Data.ChildToParent = ClusteredParticle->ChildToParent();
@@ -432,7 +432,7 @@ namespace Chaos
 		for (const FClusterUnionChildData& Data : SyncedData_External.ChildParticles)
 		{
 			FDirtyClusterUnionParticleData ConvertedData;
-			ConvertedData.Particle = Data.Particle;
+			ConvertedData.ParticleIdx = Data.ParticleIdx;
 			ConvertedData.ChildToParent = Data.ChildToParent;
 			BufferData.ChildParticles.Add(ConvertedData);
 		}

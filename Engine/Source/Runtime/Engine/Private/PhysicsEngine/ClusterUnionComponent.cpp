@@ -14,27 +14,6 @@
 
 DEFINE_LOG_CATEGORY(LogClusterUnion);
 
-namespace
-{
-	// This can probably be generalized into the physics engine somewhere.
-	UPrimitiveComponent* GetComponentFromUserData(void* UserData)
-	{
-		if (!UserData)
-		{
-			return nullptr;
-		}
-		else if (FBodyInstance* BodyInstance = FChaosUserData::Get<FBodyInstance>(UserData))
-		{
-			return BodyInstance->OwnerComponent.Get();
-		}
-		else if (UPrimitiveComponent* Component = FChaosUserData::Get<UPrimitiveComponent>(UserData))
-		{
-			return Component;
-		}
-		return nullptr;
-	}
-}
-
 UClusterUnionComponent::UClusterUnionComponent(const FObjectInitializer& ObjectInitializer)
 	: UPrimitiveComponent(ObjectInitializer)
 {
@@ -75,11 +54,27 @@ void UClusterUnionComponent::AddComponentToCluster(UPrimitiveComponent* InCompon
 
 	PendingComponentsToAdd.Remove(InComponent);
 
-	TArray<Chaos::FPhysicsObjectHandle> Objects;
+	TArray<Chaos::FPhysicsObjectHandle> AllObjects = InComponent->GetAllPhysicsObjects();
+	FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(AllObjects);
 
+	for (Chaos::FPhysicsObjectHandle Handle : AllObjects)
+	{
+		TArray<Chaos::FGeometryParticle*> Particles = Interface->GetAllParticles({ &Handle, 1 });
+		if (Particles.IsEmpty() || !Particles[0])
+		{
+			continue;
+		}
+
+		FClusterUnionParticleCandidateData Data;
+		Data.Component = InComponent;
+		Data.BoneId = Chaos::FPhysicsObjectInterface::GetId(Handle);
+		UniqueIdxToComponent.Add(Particles[0]->UniqueIdx().Idx, Data);
+	}
+
+	TArray<Chaos::FPhysicsObjectHandle> Objects;
 	if (BoneIds.IsEmpty())
 	{
-		Objects = InComponent->GetAllPhysicsObjects();
+		Objects = AllObjects;
 	}
 	else
 	{
@@ -89,8 +84,6 @@ void UClusterUnionComponent::AddComponentToCluster(UPrimitiveComponent* InCompon
 			Objects.Add(InComponent->GetPhysicsObjectById(Id));
 		}
 	}
-
-	FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(Objects);
 
 	if (BoneIds.IsEmpty())
 	{
@@ -351,10 +344,9 @@ void UClusterUnionComponent::SyncClusterUnionFromProxy()
 	TMap<TObjectKey<UPrimitiveComponent>, TMap<int32, FTransform>> MappedData;
 	for (const Chaos::FClusterUnionChildData& ChildData : FullData.ChildParticles)
 	{
-		if (UPrimitiveComponent* Component = GetComponentFromUserData(ChildData.Particle->UserData()))
+		if (FClusterUnionParticleCandidateData* Data = UniqueIdxToComponent.Find(ChildData.ParticleIdx.Idx))
 		{
-			const int32 BoneId = Component->GetIdFromGTParticle(ChildData.Particle);
-			MappedData.FindOrAdd(Component).Add(BoneId, ChildData.ChildToParent);
+			MappedData.FindOrAdd(Data->Component).Add(Data->BoneId, ChildData.ChildToParent);
 		}
 	}
 
@@ -467,8 +459,10 @@ void UClusterUnionComponent::HandleAddOrModifiedClusteredComponent(UPrimitiveCom
 	{
 		Chaos::FPhysicsObjectHandle PhysicsObject = ChangedComponent->GetPhysicsObjectById(Kvp.Key);
 		ComponentData.PhysicsObjects.Add(PhysicsObject);
-		PhysicsObjectToComponent.Add(PhysicsObject, ChangedComponent);
 	}
+
+	ComponentData.AllPhysicsObjects.Empty();
+	ComponentData.AllPhysicsObjects.Append(ChangedComponent->GetAllPhysicsObjects());
 }
 
 void UClusterUnionComponent::HandleRemovedClusteredComponent(UPrimitiveComponent* ChangedComponent, bool bDestroyReplicatedProxy)
@@ -488,9 +482,15 @@ void UClusterUnionComponent::HandleRemovedClusteredComponent(UPrimitiveComponent
 
 	if (FClusteredComponentData* ComponentData = ComponentToPhysicsObjects.Find(ChangedComponent))
 	{
-		for (Chaos::FPhysicsObjectHandle Handle : ComponentData->PhysicsObjects)
+		FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(ComponentData->AllPhysicsObjects);
+		for (Chaos::FGeometryParticle* Particle : Interface->GetAllParticles(ComponentData->AllPhysicsObjects))
 		{
-			PhysicsObjectToComponent.Remove(Handle);
+			if (!Particle)
+			{
+				continue;
+			}
+
+			UniqueIdxToComponent.Remove(Particle->UniqueIdx().Idx);
 		}
 
 		if (IsAuthority())

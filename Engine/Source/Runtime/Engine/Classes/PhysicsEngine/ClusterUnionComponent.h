@@ -31,7 +31,11 @@ struct FClusteredComponentData
 {
 	GENERATED_BODY()
 
+	// Set of physics objects that we actually added into the cluster union.
 	TSet<Chaos::FPhysicsObjectHandle> PhysicsObjects;
+
+	// Every physics object associated with this particular component.
+	TArray<Chaos::FPhysicsObjectHandle> AllPhysicsObjects;
 
 	// Using a TWeakObjectPtr here because the UClusterUnionReplicatedProxyComponent will have a pointer back
 	// and we don't want to get into a situation where a circular reference occurs.
@@ -79,6 +83,22 @@ struct FClusterUnionPendingAddData
 
 	UPROPERTY()
 	TArray<int32> BoneIds;
+};
+
+/**
+ * For every possible particle that could ever possibly be added into the cluster union,
+ * keep track of its component and its bone id.
+ */
+USTRUCT()
+struct FClusterUnionParticleCandidateData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TObjectPtr<UPrimitiveComponent> Component;
+
+	UPROPERTY()
+	int32 BoneId;
 };
 
 /**
@@ -147,11 +167,6 @@ private:
 	// side benefit here is being able to track which components are clustered.
 	TMap<TObjectKey<UPrimitiveComponent>, FClusteredComponentData> ComponentToPhysicsObjects;
 
-	// Similarly, we need to keep track of the mapping from physics object handles to primitive components.
-	// The physics proxy will only have data about these handles, so when we get an update from the proxy
-	// about a particular handle we will want to map it back to a component here.
-	TMap<Chaos::FPhysicsObjectHandle, UPrimitiveComponent*> PhysicsObjectToComponent;
-
 	// Also keep track of which actors we are clustering and their components. We make modifications on
 	// actors that get clustered so we need to make sure we undo those changes only once all its clustered
 	// components are removed from the cluster.
@@ -160,6 +175,12 @@ private:
 	// Sometimes we might be in the process of waiting for a component to create it physics state before adding to the cluster.
 	// Make sure we don't try to add the component multiples times while the add is pending.
 	TMap<TObjectKey<UPrimitiveComponent>, FClusterUnionPendingAddData> PendingComponentsToAdd;
+
+	// Given a unique index of a particle that we're adding to the cluster union - map it back to the component that owns it.
+	// This works decently because we assume that when we're using a cluster union component, we will only try to add to the
+	// cluster union via the GT so we can guarantee to have a decent mapping here.
+	UPROPERTY()
+	TMap<int32, FClusterUnionParticleCandidateData> UniqueIdxToComponent;
 
 	// Data that can be changed at runtime to keep state about the cluster union consistent between the server and client.
 	UPROPERTY(ReplicatedUsing=OnRep_RigidState)

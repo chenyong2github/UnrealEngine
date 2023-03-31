@@ -65,7 +65,7 @@ struct FDirtyGeometryCollectionData : public TBasePullData<FGeometryCollectionPh
 
 struct FDirtyClusterUnionParticleData
 {
-	FPBDRigidParticle* Particle = nullptr;
+	FUniqueIdx ParticleIdx;
 	FRigidTransform3 ChildToParent;
 };
 

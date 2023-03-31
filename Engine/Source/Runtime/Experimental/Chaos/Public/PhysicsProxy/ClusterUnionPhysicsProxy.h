@@ -19,7 +19,7 @@ namespace Chaos
 
 	struct FClusterUnionChildData
 	{
-		FPBDRigidParticle* Particle = nullptr;
+		FUniqueIdx ParticleIdx;
 		FTransform ChildToParent;
 	};
 
