@@ -3071,7 +3071,7 @@ struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket
 		WriteView.bUsesCustomDepth |= bUsesCustomDepth;
 		WriteView.bUsesCustomStencil |= bUsesCustomStencil;
 		WriteView.StrataViewData.MaxBSDFCount = FMath::Max(WriteView.StrataViewData.MaxBSDFCount, 8u - FMath::CountLeadingZeros8(StrataBSDFCountMask));
-		WriteView.StrataViewData.MaxBytePerPixel = FMath::Max(WriteView.StrataViewData.MaxBytePerPixel, StrataUintPerPixel * 4u);
+		WriteView.StrataViewData.MaxBytesPerPixel = FMath::Max(WriteView.StrataViewData.MaxBytesPerPixel, StrataUintPerPixel * 4u);
 		DirtyIndirectLightingCacheBufferPrimitives.AppendTo(WriteView.DirtyIndirectLightingCacheBufferPrimitives);
 
 		WriteView.MeshDecalBatches.Append(MeshDecalBatches);

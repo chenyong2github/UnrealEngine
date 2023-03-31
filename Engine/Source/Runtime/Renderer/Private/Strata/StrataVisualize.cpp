@@ -120,8 +120,8 @@ class FStrataSystemInfoCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, Classification8bits)
 		SHADER_PARAMETER(uint32, bRoughRefraction)
 		SHADER_PARAMETER(uint32, bTileOverflowUseMaterialData)
-		SHADER_PARAMETER(uint32, ProjectMaxBytePerPixel)
-		SHADER_PARAMETER(uint32, ViewsMaxBytePerPixel)
+		SHADER_PARAMETER(uint32, ProjectMaxBytesPerPixel)
+		SHADER_PARAMETER(uint32, ViewsMaxBytesPerPixel)
 		SHADER_PARAMETER(uint32, MaterialBufferAllocationInBytes)
 		SHADER_PARAMETER(uint32, MaterialBufferAllocationMode)
 		SHADER_PARAMETER(float, TileOverflowRatio)
@@ -306,8 +306,8 @@ static void AddVisualizeSystemInfoPasses(FRDGBuilder& GraphBuilder, const FViewI
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 	PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
-	PassParameters->ProjectMaxBytePerPixel = GetBytePerPixel(View.GetShaderPlatform());
-	PassParameters->ViewsMaxBytePerPixel = View.StrataViewData.SceneData->ViewsMaxBytePerPixel;
+	PassParameters->ProjectMaxBytesPerPixel = GetBytePerPixel(View.GetShaderPlatform());
+	PassParameters->ViewsMaxBytesPerPixel = View.StrataViewData.SceneData->ViewsMaxBytesPerPixel;
 	PassParameters->MaterialBufferAllocationMode = GetMaterialBufferAllocationMode();
 	PassParameters->MaterialBufferAllocationInBytes = MaterialBufferDesc.Extent.X * MaterialBufferDesc.Extent.Y * MaterialBufferDesc.ArraySize * sizeof(uint32);
 	ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintParameters);

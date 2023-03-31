@@ -1476,8 +1476,8 @@ uint ClassificationAsync;
 uint Classification8bits;
 uint bRoughRefraction;
 uint bTileOverflowUseMaterialData;
-uint ViewsMaxBytePerPixel;
-uint ProjectMaxBytePerPixel;
+uint ViewsMaxBytesPerPixel;
+uint ProjectMaxBytesPerPixel;
 uint MaterialBufferAllocationInBytes;
 uint MaterialBufferAllocationMode;
 
@@ -1507,16 +1507,16 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		Print(Context, TEXT(" Max byte per pixel : "), LegendColor); 
 		Print(Context, Strata.MaxBytesPerPixel, ValueColor, 3, 0);
 		Print(Context, TEXT(" / "), FontWhite); 
-		Print(Context, ProjectMaxBytePerPixel, ValueColor, 3, 0);
+		Print(Context, ProjectMaxBytesPerPixel, ValueColor, 3, 0);
 		Print(Context, TEXT(" ["), FontWhite); 
 		Print(Context, uint(DivideAndRoundUp(MaterialBufferAllocationInBytes, 1000000.f)), ValueColor, 4, 0);
 		Print(Context, TEXT("Mb]"), FontWhite);
 		Newline(Context);
 
 		Print(Context, TEXT(" Views max. byte    : "), LegendColor); 
-		Print(Context, ViewsMaxBytePerPixel, ValueColor, 3, 0);
+		Print(Context, ViewsMaxBytesPerPixel, ValueColor, 3, 0);
 		Print(Context, TEXT(" / "), FontWhite); 
-		Print(Context, ProjectMaxBytePerPixel, ValueColor, 3, 0);
+		Print(Context, ProjectMaxBytesPerPixel, ValueColor, 3, 0);
 		Newline(Context);
 
 		Print(Context, TEXT(" Allocation Mode    : "), LegendColor);

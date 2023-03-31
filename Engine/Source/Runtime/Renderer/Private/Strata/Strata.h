@@ -95,7 +95,7 @@ const TCHAR* ToString(EStrataTileType Type);
 
 struct FStrataSceneData
 {
-	uint32 ViewsMaxBytePerPixel = 0;
+	uint32 ViewsMaxBytesPerPixel = 0;
 	uint32 MinBytesPerPixel = 0;
 	uint32 MaxBytesPerPixel = 0;
 	int32 PeelLayersAboveDepth = -1;
@@ -136,7 +136,7 @@ struct FStrataViewData
 {
 	// Max BSDF count among all visible materials
 	uint32 MaxBSDFCount = 0;
-	uint32 MaxBytePerPixel = 0;
+	uint32 MaxBytesPerPixel = 0;
 
 	FIntPoint TileCount  = FIntPoint(0, 0);
 	FIntPoint TileOffset = FIntPoint(0, 0);

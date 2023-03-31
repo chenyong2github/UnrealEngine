@@ -75,10 +75,10 @@ void FStrataViewData::Reset()
 {
 	// Preserve old max BSDF count which is set prior to the reset operation
 	const uint32 OldMaxBSDFCount = MaxBSDFCount;
-	const uint32 OldMaxBytePerPixel = MaxBytePerPixel;
+	const uint32 OldMaxBytesPerPixel = MaxBytesPerPixel;
 	*this = FStrataViewData();
 	MaxBSDFCount = OldMaxBSDFCount;
-	MaxBytePerPixel = OldMaxBytePerPixel;
+	MaxBytesPerPixel = OldMaxBytesPerPixel;
 	for (uint32 i = 0; i < EStrataTileType::ECount; ++i)
 	{
 		ClassificationTileListBuffer[i] = nullptr;
@@ -368,17 +368,17 @@ void InitialiseStrataFrameSceneData(FRDGBuilder& GraphBuilder, FSceneRenderer& S
 		}
 
 		// Gather views' requirements
-		Out.ViewsMaxBytePerPixel = 0;
+		Out.ViewsMaxBytesPerPixel = 0;
 		for (const FViewInfo& View : SceneRenderer.Views)
 		{
 			bNeedBSDFOffsets = bNeedBSDFOffsets || NeedBSDFOffsets(SceneRenderer.Scene, View);
 			bNeedUAV = bNeedUAV || IsDBufferPassEnabled(View.GetShaderPlatform());
-			Out.ViewsMaxBytePerPixel = FMath::Max(Out.ViewsMaxBytePerPixel, View.StrataViewData.MaxBytePerPixel);
+			Out.ViewsMaxBytesPerPixel = FMath::Max(Out.ViewsMaxBytesPerPixel, View.StrataViewData.MaxBytesPerPixel);
 
 			// Only use primary views max. byte per pixel as reflection/capture views can bias allocation requirement when using growing-only mode
 			if (!View.bIsPlanarReflection && !View.bIsReflectionCapture && !View.bIsSceneCapture)
 			{
-				Out.MinBytesPerPixel = FMath::Max(Out.MinBytesPerPixel, View.StrataViewData.MaxBytePerPixel);
+				Out.MinBytesPerPixel = FMath::Max(Out.MinBytesPerPixel, View.StrataViewData.MaxBytesPerPixel);
 			}
 		}
 
@@ -386,16 +386,16 @@ void InitialiseStrataFrameSceneData(FRDGBuilder& GraphBuilder, FSceneRenderer& S
 		// * 0: Allocate material buffer based on view requirement 
 		// * 2: Allocate material buffer based on view requirement, but can only grow over frame to minimize buffer reallocation and hitches
 		// * 1: Allocate material buffer based on platform settings. 
-		uint32 MaxBytePerPixel = 0;
+		uint32 MaxBytesPerPixel = 0;
 		switch (GetMaterialBufferAllocationMode())
 		{
-			case 0: MaxBytePerPixel = Out.ViewsMaxBytePerPixel; break;
-			case 1: MaxBytePerPixel = FMath::Max(Out.ViewsMaxBytePerPixel, Out.MinBytesPerPixel); break;
-			case 2: MaxBytePerPixel = GetBytePerPixel(SceneRenderer.ShaderPlatform); break;
+			case 0: MaxBytesPerPixel = Out.ViewsMaxBytesPerPixel; break;
+			case 1: MaxBytesPerPixel = FMath::Max(Out.ViewsMaxBytesPerPixel, Out.MinBytesPerPixel); break;
+			case 2: MaxBytesPerPixel = GetBytePerPixel(SceneRenderer.ShaderPlatform); break;
 		}
 		const uint32 RoundToValue = 4u;
-		MaxBytePerPixel = FMath::Clamp(MaxBytePerPixel, 4u * STRATA_BASE_PASS_MRT_OUTPUT_COUNT, GetBytePerPixel(SceneRenderer.ShaderPlatform));
-		Out.MaxBytesPerPixel = FMath::DivideAndRoundUp(MaxBytePerPixel, RoundToValue) * RoundToValue;
+		MaxBytesPerPixel = FMath::Clamp(MaxBytesPerPixel, 4u * STRATA_BASE_PASS_MRT_OUTPUT_COUNT, GetBytePerPixel(SceneRenderer.ShaderPlatform));
+		Out.MaxBytesPerPixel = FMath::DivideAndRoundUp(MaxBytesPerPixel, RoundToValue) * RoundToValue;
 
 		FIntPoint SceneTextureExtent = SceneRenderer.GetActiveSceneTexturesConfig().Extent;
 		
