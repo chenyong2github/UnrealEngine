@@ -3107,9 +3107,6 @@ namespace UnrealBuildTool
 			// Setup the target's binaries.
 			SetupBinaries(Logger);
 
-			// Setup the target's modules referenced in the .uproject
-			SetupProjectModules(Logger);
-
 			// Setup the target's plugins
 			SetupPlugins(Logger);
 
@@ -3926,26 +3923,6 @@ namespace UnrealBuildTool
 
 			// Allow the platform to customize the output path (and output several executables at once if necessary)
 			return UEBuildPlatform.GetBuildPlatform(Platform).FinalizeBinaryPaths(BinaryFile, ProjectFile, Rules);
-		}
-
-		/// <summary>
-		/// Sets up the uproject modules for this target
-		/// </summary>
-		public void SetupProjectModules(ILogger Logger)
-		{
-			if (ProjectDescriptor?.Modules == null)
-			{
-				return;
-			}
-
-			foreach (ModuleDescriptor Descriptor in ProjectDescriptor.Modules.Where(x => x.IsCompiledInConfiguration(Platform, Configuration, TargetName, TargetType, Rules.bBuildDeveloperTools, Rules.bBuildRequiresCookedData)))
-			{
-				UEBuildModuleCPP Module = FindOrCreateCppModuleByName(Descriptor.Name, TargetRulesFile.GetFileName(), Logger);
-				if (Module.Binary == null)
-				{
-					AddModuleToBinary(Module);
-				}
-			}
 		}
 
 		/// <summary>
