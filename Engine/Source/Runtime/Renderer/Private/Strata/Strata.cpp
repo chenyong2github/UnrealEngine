@@ -63,6 +63,12 @@ static TAutoConsoleVariable<int32> CVarSubstrateDBufferPassDedicatedTiles(
 	TEXT("Use dedicated tile for DBuffer application when DBuffer pass is enabled."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarSubstrateBytePerPixelMode(
+	TEXT("r.Substrate.BytesPerPixel.Mode"),
+	0,
+	TEXT("Substrate material allocation mode. \n 0: Allocate material buffer based on view requirement \n 1: Allocate material buffer based on platform settings. \n 2: Allocate material buffer based on view requirement, but can only grow over frame to minimize buffer reallocation. "),
+	ECVF_RenderThreadSafe);
+
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, "Strata");
 
 void FStrataViewData::Reset()
@@ -101,6 +107,11 @@ const TCHAR* ToString(EStrataTileType Type)
 
 namespace Strata
 {
+
+uint32 GetMaterialBufferAllocationMode()
+{
+	return FMath::Clamp(CVarSubstrateBytePerPixelMode.GetValueOnAnyThread(), 0, 2);
+}
 
 enum EStrataTileSpace
 {
@@ -325,7 +336,13 @@ static EPixelFormat GetTopLayerTextureFormat()
 void InitialiseStrataFrameSceneData(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer)
 {
 	FStrataSceneData& Out = SceneRenderer.Scene->StrataSceneData;
-	Out = FStrataSceneData();
+
+	// Reset Substrate scene data
+	{
+		const uint32 MinBytesPerPixel = Out.MinBytesPerPixel;
+		Out = FStrataSceneData();
+		Out.MinBytesPerPixel = MinBytesPerPixel;
+	}
 
 	auto UpdateMaterialBufferToTiledResolution = [](FIntPoint InBufferSizeXY, FIntPoint& OutMaterialBufferSizeXY)
 	{
@@ -334,16 +351,9 @@ void InitialiseStrataFrameSceneData(FRDGBuilder& GraphBuilder, FSceneRenderer& S
 		OutMaterialBufferSizeXY.Y = FMath::DivideAndRoundUp(InBufferSizeXY.Y, STRATA_TILE_SIZE) * STRATA_TILE_SIZE;
 	};
 
+	// Compute the max byte per pixels required by the views
 	bool bNeedBSDFOffsets = false;
 	bool bNeedUAV = false;
-	uint32 MaxBytePerPixel = 0;
-	for (const FViewInfo& View : SceneRenderer.Views)
-	{
-		bNeedBSDFOffsets = bNeedBSDFOffsets || NeedBSDFOffsets(SceneRenderer.Scene, View);
-		bNeedUAV = bNeedUAV || IsDBufferPassEnabled(View.GetShaderPlatform());
-		MaxBytePerPixel = FMath::Max(MaxBytePerPixel, View.StrataViewData.MaxBytePerPixel);
-	}
-	MaxBytePerPixel = FMath::Clamp(MaxBytePerPixel, 4u * STRATA_BASE_PASS_MRT_OUTPUT_COUNT, GetBytePerPixel(SceneRenderer.ShaderPlatform));
 
 	FIntPoint MaterialBufferSizeXY;
 	UpdateMaterialBufferToTiledResolution(FIntPoint(1, 1), MaterialBufferSizeXY);
@@ -357,13 +367,40 @@ void InitialiseStrataFrameSceneData(FRDGBuilder& GraphBuilder, FSceneRenderer& S
 			bAnalyticsInitialized = true;
 		}
 
+		// Gather views' requirements
+		Out.ViewsMaxBytePerPixel = 0;
+		for (const FViewInfo& View : SceneRenderer.Views)
+		{
+			bNeedBSDFOffsets = bNeedBSDFOffsets || NeedBSDFOffsets(SceneRenderer.Scene, View);
+			bNeedUAV = bNeedUAV || IsDBufferPassEnabled(View.GetShaderPlatform());
+			Out.ViewsMaxBytePerPixel = FMath::Max(Out.ViewsMaxBytePerPixel, View.StrataViewData.MaxBytePerPixel);
+
+			// Only use primary views max. byte per pixel as reflection/capture views can bias allocation requirement when using growing-only mode
+			if (!View.bIsPlanarReflection && !View.bIsReflectionCapture && !View.bIsSceneCapture)
+			{
+				Out.MinBytesPerPixel = FMath::Max(Out.MinBytesPerPixel, View.StrataViewData.MaxBytePerPixel);
+			}
+		}
+
+		// Material buffer allocation can use different modes:
+		// * 0: Allocate material buffer based on view requirement 
+		// * 2: Allocate material buffer based on view requirement, but can only grow over frame to minimize buffer reallocation and hitches
+		// * 1: Allocate material buffer based on platform settings. 
+		uint32 MaxBytePerPixel = 0;
+		switch (GetMaterialBufferAllocationMode())
+		{
+			case 0: MaxBytePerPixel = Out.ViewsMaxBytePerPixel; break;
+			case 1: MaxBytePerPixel = FMath::Max(Out.ViewsMaxBytePerPixel, Out.MinBytesPerPixel); break;
+			case 2: MaxBytePerPixel = GetBytePerPixel(SceneRenderer.ShaderPlatform); break;
+		}
+		const uint32 RoundToValue = 4u;
+		MaxBytePerPixel = FMath::Clamp(MaxBytePerPixel, 4u * STRATA_BASE_PASS_MRT_OUTPUT_COUNT, GetBytePerPixel(SceneRenderer.ShaderPlatform));
+		Out.MaxBytesPerPixel = FMath::DivideAndRoundUp(MaxBytePerPixel, RoundToValue) * RoundToValue;
+
 		FIntPoint SceneTextureExtent = SceneRenderer.GetActiveSceneTexturesConfig().Extent;
 		
 		// We need to allocate enough for the tiled memory addressing of material data to always work
 		UpdateMaterialBufferToTiledResolution(SceneTextureExtent, MaterialBufferSizeXY);
-
-		const uint32 RoundToValue = 4u;
-		Out.MaxBytesPerPixel = FMath::DivideAndRoundUp(MaxBytePerPixel, RoundToValue) * RoundToValue;
 
 		// Top layer texture
 		{

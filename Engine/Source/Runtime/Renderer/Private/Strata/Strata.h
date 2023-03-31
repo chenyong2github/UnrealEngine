@@ -95,15 +95,17 @@ const TCHAR* ToString(EStrataTileType Type);
 
 struct FStrataSceneData
 {
-	uint32 MaxBytesPerPixel;
-	bool bRoughDiffuse;
-	int32 PeelLayersAboveDepth;
-	bool bRoughnessTracking;
+	uint32 ViewsMaxBytePerPixel = 0;
+	uint32 MinBytesPerPixel = 0;
+	uint32 MaxBytesPerPixel = 0;
+	int32 PeelLayersAboveDepth = -1;
+	bool bRoughDiffuse = false;
+	bool bRoughnessTracking = false;
 
-	int32 SliceStoringDebugStrataTreeDataWithoutMRT;
-	int32 SliceStoringDebugStrataTreeData;
-	int32 FirstSliceStoringStrataSSSDataWithoutMRT;
-	int32 FirstSliceStoringStrataSSSData;
+	int32 SliceStoringDebugStrataTreeDataWithoutMRT = -1;
+	int32 SliceStoringDebugStrataTreeData = -1;
+	int32 FirstSliceStoringStrataSSSDataWithoutMRT = -1;
+	int32 FirstSliceStoringStrataSSSData = -1;
 
 	// Resources allocated and updated each frame
 
