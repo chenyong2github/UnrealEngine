@@ -97,5 +97,5 @@ private:
 	TWeakObjectPtr<const UWorldPartitionRuntimeLevelStreamingCell> StreamingCell;
 
 	UPROPERTY()
-	TWeakObjectPtr<UWorldPartition> OuterWorldPartition;
+	TObjectPtr<UWorldPartition> OuterWorldPartition;
 };
