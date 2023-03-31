@@ -1,0 +1,195 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#include "GeometryCollection/GeometryCollectionISMPoolRenderer.h"
+
+#include "Engine/StaticMesh.h"
+#include "GeometryCollection/Facades/CollectionInstancedMeshFacade.h"
+#include "GeometryCollection/GeometryCollection.h"
+#include "GeometryCollection/GeometryCollectionISMPoolActor.h"
+#include "GeometryCollection/GeometryCollectionISMPoolComponent.h"
+#include "GeometryCollection/GeometryCollectionISMPoolSubSystem.h"
+#include "GeometryCollection/GeometryCollectionObject.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionISMPoolRenderer)
+
+void UGeometryCollectionCustomRendererISMPool::UpdateState(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, bool bIsBroken)
+{
+	if (!bIsBroken && MergedMeshGroup.GroupIndex == INDEX_NONE)
+	{
+		// Remove broken primitives.
+		ReleaseGroup(InstancesGroup);
+
+		// Add merged mesh.
+		InitMergedMeshFromGeometryCollection(InGeometryCollection);
+		UpdateMergedMeshTransforms(InBaseTransform);
+	}
+
+	if (bIsBroken && InstancesGroup.GroupIndex == INDEX_NONE)
+	{
+		// Remove merged mesh.
+		ReleaseGroup(MergedMeshGroup);
+
+		// Add broken primitives.
+		InitInstancesFromGeometryCollection(InGeometryCollection);
+	}
+}
+
+void UGeometryCollectionCustomRendererISMPool::UpdateTransforms(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, TArrayView<const FMatrix> InMatrices)
+{
+	UpdateInstanceTransforms(InGeometryCollection, InBaseTransform, InMatrices);
+}
+
+void UGeometryCollectionCustomRendererISMPool::OnUnregisterGeometryCollection()
+{
+	ReleaseGroup(MergedMeshGroup);
+	ReleaseGroup(InstancesGroup);
+
+	ISMPoolActor = nullptr;
+}
+
+void UGeometryCollectionCustomRendererISMPool::InitMergedMeshFromGeometryCollection(UGeometryCollection const& InGeometryCollection)
+{
+	if (InGeometryCollection.RootProxyData.ProxyMeshes.Num() == 0)
+	{
+		return;
+	}
+
+	UGeometryCollectionISMPoolComponent* ISMPoolComponent = ISMPoolActor != nullptr ? ISMPoolActor->GetISMPoolComp() : nullptr;
+	MergedMeshGroup.GroupIndex = ISMPoolComponent != nullptr ? ISMPoolComponent->CreateMeshGroup() : INDEX_NONE;
+
+	if (MergedMeshGroup.GroupIndex == INDEX_NONE)
+	{
+		return;
+	}
+
+	for (UStaticMesh* StaticMesh : InGeometryCollection.RootProxyData.ProxyMeshes)
+	{
+		if (StaticMesh == nullptr)
+		{
+			continue;
+		}
+
+		FGeometryCollectionStaticMeshInstance StaticMeshInstance;
+		StaticMeshInstance.StaticMesh = StaticMesh;
+
+		TArray<float> DummyCustomData;
+		MergedMeshGroup.MeshIds.Add(ISMPoolComponent->AddMeshToGroup(MergedMeshGroup.GroupIndex, StaticMeshInstance, 1, DummyCustomData, true));
+	}
+}
+
+void UGeometryCollectionCustomRendererISMPool::InitInstancesFromGeometryCollection(UGeometryCollection const& InGeometryCollection)
+{
+	const int32 NumMeshes = InGeometryCollection.AutoInstanceMeshes.Num();
+	if (NumMeshes == 0)
+	{
+		return;
+	}
+
+	UGeometryCollectionISMPoolComponent* ISMPoolComponent = ISMPoolActor != nullptr ? ISMPoolActor->GetISMPoolComp() : nullptr;
+	InstancesGroup.GroupIndex = ISMPoolComponent != nullptr ? ISMPoolComponent->CreateMeshGroup() : INDEX_NONE;
+
+	if (InstancesGroup.GroupIndex == INDEX_NONE)
+	{
+		return;
+	}
+
+	InstancesGroup.MeshIds.Reserve(NumMeshes);
+
+	for (const FGeometryCollectionAutoInstanceMesh& AutoInstanceMesh : InGeometryCollection.AutoInstanceMeshes)
+	{
+		if (const UStaticMesh* StaticMesh = AutoInstanceMesh.Mesh)
+		{
+			bool bMaterialOverride = false;
+			for (int32 MatIndex = 0; MatIndex < AutoInstanceMesh.Materials.Num(); MatIndex++)
+			{
+				const UMaterialInterface* OriginalMaterial = StaticMesh->GetMaterial(MatIndex);
+				if (OriginalMaterial != AutoInstanceMesh.Materials[MatIndex])
+				{
+					bMaterialOverride = true;
+					break;
+				}
+			}
+			FGeometryCollectionStaticMeshInstance StaticMeshInstance;
+			StaticMeshInstance.StaticMesh = const_cast<UStaticMesh*>(StaticMesh);
+			if (bMaterialOverride)
+			{
+				StaticMeshInstance.MaterialsOverrides = AutoInstanceMesh.Materials;
+			}
+
+			TArray<float> DummyCustomData;
+			InstancesGroup.MeshIds.Add(ISMPoolComponent->AddMeshToGroup(InstancesGroup.GroupIndex, StaticMeshInstance, AutoInstanceMesh.NumInstances, DummyCustomData, true));
+		}
+	}
+}
+
+void UGeometryCollectionCustomRendererISMPool::UpdateMergedMeshTransforms(FTransform const& InBaseTransform)
+{
+	if (MergedMeshGroup.GroupIndex == INDEX_NONE)
+	{
+		return;
+	}
+
+	UGeometryCollectionISMPoolComponent* ISMPoolComponent = ISMPoolActor != nullptr ? ISMPoolActor->GetISMPoolComp() : nullptr;
+	if (ISMPoolComponent == nullptr)
+	{
+		return;
+	}
+
+	TArray<FTransform> InstanceTransforms;
+	InstanceTransforms.Add(InBaseTransform);
+
+	for (int32 MeshIndex = 0; MeshIndex < MergedMeshGroup.MeshIds.Num(); MeshIndex++)
+	{
+		ISMPoolComponent->BatchUpdateInstancesTransforms(MergedMeshGroup.GroupIndex, MergedMeshGroup.MeshIds[MeshIndex], 0, InstanceTransforms, true/*bWorldSpace*/, false/*bMarkRenderStateDirty*/, false/*bTeleport*/);
+	}
+}
+
+void UGeometryCollectionCustomRendererISMPool::UpdateInstanceTransforms(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, TArrayView<const FMatrix> InMatrices)
+{
+	if (InstancesGroup.GroupIndex == INDEX_NONE)
+	{
+		return;
+	}
+
+	UGeometryCollectionISMPoolComponent* ISMPoolComponent = ISMPoolActor != nullptr ? ISMPoolActor->GetISMPoolComp() : nullptr;
+	if (ISMPoolComponent == nullptr)
+	{
+		return;
+	}
+
+	const GeometryCollection::Facades::FCollectionInstancedMeshFacade InstancedMeshFacade(*InGeometryCollection.GetGeometryCollection());
+	if (!InstancedMeshFacade.IsValid())
+	{
+		return;
+	}
+
+	const int32 NumTransforms = InGeometryCollection.NumElements(FGeometryCollection::TransformAttribute);
+	const TManagedArray<TSet<int32>>& Children = InGeometryCollection.GetGeometryCollection()->Children;
+
+	TArray<FTransform> InstanceTransforms;
+	for (int32 MeshIndex = 0; MeshIndex < InstancesGroup.MeshIds.Num(); MeshIndex++)
+	{
+		InstanceTransforms.Reset(NumTransforms); // Allocate for worst case
+		for (int32 TransformIndex = 0; TransformIndex < NumTransforms; TransformIndex++)
+		{
+			const int32 AutoInstanceMeshIndex = InstancedMeshFacade.GetIndex(TransformIndex);
+			if (AutoInstanceMeshIndex == MeshIndex && Children[TransformIndex].Num() == 0)
+			{
+				InstanceTransforms.Add(FTransform(InMatrices[TransformIndex]) * InBaseTransform);
+			}
+		}
+		
+		ISMPoolComponent->BatchUpdateInstancesTransforms(InstancesGroup.GroupIndex, InstancesGroup.MeshIds[MeshIndex], 0, InstanceTransforms, true/*bWorldSpace*/, false/*bMarkRenderStateDirty*/, false/*bTeleport*/);
+	}
+}
+
+void UGeometryCollectionCustomRendererISMPool::ReleaseGroup(FISMPoolGroup& InOutGroup)
+{
+	UGeometryCollectionISMPoolComponent* ISMPoolComponent = ISMPoolActor != nullptr ? ISMPoolActor->GetISMPoolComp() : nullptr;
+	if (ISMPoolComponent != nullptr)
+	{
+		ISMPoolComponent->DestroyMeshGroup(InOutGroup.GroupIndex);
+	}
+
+	InOutGroup.GroupIndex = INDEX_NONE;
+	InOutGroup.MeshIds.Empty();
+}

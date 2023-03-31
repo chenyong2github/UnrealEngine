@@ -47,6 +47,7 @@ struct FGeometryCollectionSection;
 struct FDamageCollector;
 class FPhysScene_Chaos;
 class AGeometryCollectionISMPoolActor;
+class UGeometryCollectionExternalRenderInterface;
 enum ESimulationInitializationState : uint8;
 enum class EClusterConnectionTypeEnum : uint8;
 enum class EInitialVelocityTypeEnum : uint8;
@@ -1012,7 +1013,6 @@ public:
 	const FGeometryDynamicCollection* GetDynamicCollection() const;
 	FGeometryDynamicCollection* GetDynamicCollection();  // TEMP HACK?
 
-	UInstancedStaticMeshComponent* GetRootProxyISM() const;
 	TArray<UStaticMeshComponent*> CreateProxyComponents() const;
 
 public:
@@ -1053,6 +1053,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|General")
 	bool bStoreVelocities;
 
+	/** An custom renderer object. */
+	UPROPERTY(Transient)
+	TObjectPtr<UGeometryCollectionExternalRenderInterface> CustomRenderer;
+
 protected:
 	/** Display Bone Colors instead of assigned materials */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|General")
@@ -1075,21 +1079,6 @@ protected:
 	/** ISM pool to use to render the geometry collection - only works for unfractured geometry collections  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Rendering", meta = (DisplayName = "ISM Pool"))
 	TObjectPtr<AGeometryCollectionISMPoolActor> ISMPool;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Rendering")
-	bool bAutoAssignISMPool;
-
-	/** 
-	 * Values that will be added to the Per Instance Custom Data for every instance in all ISMPools. 
-	 * This will be added in slots after values that come from the Geometry Collection AutoInstanceMaterialCustomData. 
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Rendering)
-	TArray<float> ISMPoolMaterialCustomData;
-
-	TObjectPtr<AGeometryCollectionISMPoolActor> AssignedISMPool = nullptr;
-	int32 ISMPoolMeshGroupIndex = INDEX_NONE;
-	TArray<int32> ISMPoolRootProxyMeshIds;
-	TArray<int32> ISMPoolAutoInstancesMeshIds;
 
 	/** Populate the dynamic particle data for the render thread. */
 	FGeometryCollectionDynamicData* InitDynamicData(bool bInitialization);
@@ -1253,17 +1242,10 @@ private:
 	bool IsEmbeddedGeometryValid() const;
 	void ClearEmbeddedGeometry();
 
-	/** return true is an ISM pool is set and the feature is enabled */
-	bool CanUseISMPool() const;
-
-	/** If an ISM pool is set, register to it  */
-	void RegisterToISMPool();
-
-	/** If an ISM pool is set, unregister to it  */
-	void UnregisterFromISMPool();
-
-	/** update ISM transforms */
-	void RefreshISMPoolInstances();
+	/** return true if a a custom renderer has been set and the feature is enabled */
+	bool CanUseCustomRenderer() const;
+	/** update the custom renderer */
+	void RefreshCustomRenderer();
 
 	/** return true if the root cluster is not longer active at runtime */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
@@ -1285,8 +1267,6 @@ private:
 	void LoadCollisionProfiles();
 
 	void OnPostPhysicsSync();
-
-	void AddAutoInstancesToISMPool();
 
 	bool HasVisibleGeometry() const;
 

@@ -10,7 +10,6 @@
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
-#include "GeometryCollectionComponent.h"
 #include "GeometryCollectionISMPoolActor.h"
 #include "GeometryCollectionISMPoolComponent.h"
 #include "Misc/CoreDelegates.h"
@@ -178,13 +177,7 @@ void UGeometryCollectionISMPoolDebugDrawComponent::TickComponent(float DeltaTime
 					const bool bHit = World->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility, TraceParams);
 					if (bHit && HitResult.GetComponent() != nullptr)
 					{
-						if (UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(HitResult.GetComponent()))
-						{
-							// We hit the GC but don't have any information which part.
-							// For now we just select the ISM of the root proxy.
-							FoundISM = GeometryCollectionComponent->GetRootProxyISM();
-						}
-						else if (UInstancedStaticMeshComponent* ISMComponent = Cast<UInstancedStaticMeshComponent>(HitResult.GetComponent()))
+						if (UInstancedStaticMeshComponent* ISMComponent = Cast<UInstancedStaticMeshComponent>(HitResult.GetComponent()))
 						{
 							FoundISM = ISMComponent;
 						}
