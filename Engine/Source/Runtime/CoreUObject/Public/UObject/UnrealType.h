@@ -2690,6 +2690,14 @@ protected:
 	virtual bool AllowObjectTypeReinterpretationTo(const FObjectPropertyBase* Other) const;
 	// End of FObjectPropertyBase interface
 
+	/**
+	 * Constructs a new object if the existing one is missing or is not compatible with the property class
+	 * Used for making sure non-nullable properties have valid values.
+	 * @param ExistingValue Previous object value (can be null)
+	 * @return Non-null object that was assigned to this property value address
+	 */
+	UObject* ConstructDefaultObjectValueIfNecessary(UObject* ExistingValue) const;
+
 	/* Helper functions for UObject property types that wrap the object pointer in a smart pointer */
 	template <typename T>
 	void GetWrappedUObjectPtrValues(UObject** OutObjects, const void* SrcAddress, EPropertyMemoryAccess SrcAccess, int32 ArrayIndex, int32 ArrayCount) const
