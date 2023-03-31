@@ -142,12 +142,14 @@ UE::FStallDetectorStats::FStallDetectorStats(const TCHAR* InName, const double I
 	, ReportingMode(InReportingMode)
 	, bReported(false)
 	, TriggerCount(
+		TraceCounterNameType_Static,
 		(
 			FCString::Strcat(TriggerCountCounterName, TEXT("StallDetector/")),
 			FCString::Strcat(TriggerCountCounterName, InName),
 			FCString::Strcat(TriggerCountCounterName, TEXT(" TriggerCount"))
 		), TraceCounterDisplayHint_None)
 	, OverageSeconds(
+		TraceCounterNameType_Static,
 		(
 			FCString::Strcat(OverageSecondsCounterName, TEXT("StallDetector/")),
 			FCString::Strcat(OverageSecondsCounterName, InName),
