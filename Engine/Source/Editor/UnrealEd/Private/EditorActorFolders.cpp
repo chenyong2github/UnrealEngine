@@ -5,6 +5,7 @@
 #include "GameFramework/Actor.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "Misc/LazySingleton.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -36,7 +37,6 @@ FOnActorFolderDelete	FActorFolders::OnFolderDelete;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 //~ End Deprecated
 
-FActorFolders* FActorFolders::Singleton;
 FOnActorFolderCreated	FActorFolders::OnFolderCreated;
 FOnActorFolderMoved		FActorFolders::OnFolderMoved;
 FOnActorFolderDeleted	FActorFolders::OnFolderDeleted;
@@ -51,18 +51,28 @@ FActorFolders::FActorFolders()
 	FEditorDelegates::MapChange.AddRaw(this, &FActorFolders::OnMapChange);
 	FEditorDelegates::PostSaveWorldWithContext.AddRaw(this, &FActorFolders::OnWorldSaved);
 	FEditorDelegates::PostSaveExternalActors.AddRaw(this, &FActorFolders::SaveWorldFoldersState);
+
+	check(GEditor);
+	UActorEditorContextSubsystem::Get()->RegisterClient(this);
 }
 
 FActorFolders::~FActorFolders()
 {
-	check(GEngine);
-	GEngine->OnLevelActorFolderChanged().RemoveAll(this);
-	GEngine->OnLevelActorListChanged().RemoveAll(this);
-	GEngine->OnActorFolderAdded().RemoveAll(this);
+	if (GEngine)
+	{
+		GEngine->OnLevelActorFolderChanged().RemoveAll(this);
+		GEngine->OnLevelActorListChanged().RemoveAll(this);
+		GEngine->OnActorFolderAdded().RemoveAll(this);
+	}
 
 	FEditorDelegates::MapChange.RemoveAll(this);
 	FEditorDelegates::PostSaveWorldWithContext.RemoveAll(this);
 	FEditorDelegates::PostSaveExternalActors.RemoveAll(this);
+
+	if (GEditor)
+	{
+		UActorEditorContextSubsystem::Get()->UnregisterClient(this);
+	}
 }
 
 void FActorFolders::AddReferencedObjects(FReferenceCollector& Collector)
@@ -73,21 +83,7 @@ void FActorFolders::AddReferencedObjects(FReferenceCollector& Collector)
 
 FActorFolders& FActorFolders::Get()
 {
-	check(Singleton);
-	return *Singleton;
-}
-
-void FActorFolders::Init()
-{
-	Singleton = new FActorFolders;
-	UActorEditorContextSubsystem::Get()->RegisterClient(Singleton);
-}
-
-void FActorFolders::Cleanup()
-{
-	UActorEditorContextSubsystem::Get()->UnregisterClient(Singleton);
-	delete Singleton;
-	Singleton = nullptr;
+	return TLazySingleton<FActorFolders>::Get();
 }
 
 void FActorFolders::Housekeeping()

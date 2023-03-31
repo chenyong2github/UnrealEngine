@@ -118,14 +118,10 @@ FActorHierarchy::~FActorHierarchy()
 	FWorldDelegates::LevelAddedToWorld.RemoveAll(this);
 	FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
 
-
-	if (FActorFolders::IsAvailable())
-	{
-		auto& Folders = FActorFolders::Get();
-		Folders.OnFolderCreated.RemoveAll(this);
-		Folders.OnFolderMoved.RemoveAll(this);
-		Folders.OnFolderDeleted.RemoveAll(this);
-	}
+	auto& Folders = FActorFolders::Get();
+	Folders.OnFolderCreated.RemoveAll(this);
+	Folders.OnFolderMoved.RemoveAll(this);
+	Folders.OnFolderDeleted.RemoveAll(this);
 }
 
 FSceneOutlinerTreeItemPtr FActorHierarchy::FindOrCreateParentItem(const ISceneOutlinerTreeItem& Item, const TMap<FSceneOutlinerTreeItemID, FSceneOutlinerTreeItemPtr>& Items, bool bCreate)

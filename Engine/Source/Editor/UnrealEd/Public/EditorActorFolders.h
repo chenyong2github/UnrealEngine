@@ -42,17 +42,8 @@ struct UNREALED_API FActorFolders : public FGCObject, public IActorEditorContext
 	}
 	// End FGCObject Interface
 
-	/** Check whether the singleton is valid */
-	static bool IsAvailable() { return Singleton != nullptr; }
-
-	/** Singleton access - only valid if IsAvailable() */
+	/** Singleton access */
 	static FActorFolders& Get();
-
-	/** Initialize the singleton instance - called on Editor Startup */
-	static void Init();
-
-	/** Clean up the singleton instance - called on Editor Exit */
-	static void Cleanup();
 
 	/** Folder creation and deletion events. Called whenever a folder is created or deleted in a world. */
 	static FOnActorFolderCreated OnFolderCreated;
@@ -231,9 +222,6 @@ private:
 
 	/** Delegate used to notify changes to ActorEditorContextSubsystem */
 	FOnActorEditorContextClientChanged ActorEditorContextClientChanged;
-
-	/** Singleton instance maintained by the editor */
-	static FActorFolders* Singleton;
 
 	friend UWorldFolders;
 };

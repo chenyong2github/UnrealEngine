@@ -127,7 +127,7 @@ int32 EditorInit( IEngineLoop& EngineLoop )
 	SlowTask.EnterProgressFrame(40);
 
 	// Set up the actor folders singleton
-	FActorFolders::Init();
+	FActorFolders::Get();
 
 	// Initialize the misc editor
 	FUnrealEdMisc::Get().OnInit();
@@ -241,8 +241,6 @@ void EditorExit()
 	GEditor->SaveConfig();
 	GLevelEditorModeTools().SaveConfig();
 
-	// Clean up the actor folders singleton
-	FActorFolders::Cleanup();
 
 	// Save out default file directories
 	FEditorDirectories::Get().SaveLastDirectories();
