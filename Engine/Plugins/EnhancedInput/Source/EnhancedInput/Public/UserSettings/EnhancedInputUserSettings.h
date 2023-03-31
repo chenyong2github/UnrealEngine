@@ -15,6 +15,7 @@ class UEnhancedPlayerInput;
 class ULocalPlayer;
 struct FEnhancedActionKeyMapping;
 class UInputAction;
+class UCanvas;
 
 /**
  * The "Slot" that a player mappable key is in.
@@ -613,7 +614,16 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Enhanced Input|User Settings")
 	bool IsMappingContextRegistered(const UInputMappingContext* IMC) const;
 	
+	/** Draw debug information on the screen for these user settings. */
+	void ShowDebugInfo(UCanvas* Canvas) const;
+
 protected:
+
+	/** 
+	* Provides a space for subclasses to add additional debug info if desired.
+	* By default this will draw info about all player mapped keys.
+	*/
+	virtual void ShowDebugInfoInternal(UCanvas* Canvas) const;
 
 	/** The current key profile that is equipped by the user. */
 	UPROPERTY(SaveGame)

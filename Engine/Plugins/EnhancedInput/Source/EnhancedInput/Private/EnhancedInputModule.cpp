@@ -13,6 +13,7 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
 #include "EnhancedInputDeveloperSettings.h"
+#include "UserSettings/EnhancedInputUserSettings.h"
 
 #define LOCTEXT_NAMESPACE "EnhancedInput"
 
@@ -321,6 +322,7 @@ void FEnhancedInputModule::OnShowDebugInfo(AHUD* HUD, UCanvas* Canvas, const FDe
 {
 	static const FName NAME_EnhancedInput("EnhancedInput");
 	static const FName NAME_WorldSubsystemInput("WorldSubsystemInput");
+	static const FName NAME_InputSettings("InputSettings");
 
 	if (Canvas)
 	{
@@ -348,6 +350,31 @@ void FEnhancedInputModule::OnShowDebugInfo(AHUD* HUD, UCanvas* Canvas, const FDe
 				It->ShowDebugInfo(Canvas);
 			}
 		}
+
+#if ENABLE_DRAW_DEBUG
+		// Show the debug info for input user settings
+		if (HUD->ShouldDisplayDebug(NAME_InputSettings))
+		{
+			// TODO: some way to page through different local players instead of
+			// only showing the first player
+			TObjectIterator<UEnhancedInputLocalPlayerSubsystem> FirstPlayer;
+			if (FirstPlayer)
+			{
+				if (UEnhancedInputUserSettings* Settings = FirstPlayer->GetUserSettings())
+				{
+					Settings->ShowDebugInfo(Canvas);
+				}
+				else
+				{
+					FDisplayDebugManager& DisplayDebugManager = Canvas->DisplayDebugManager;
+					DisplayDebugManager.SetFont(GEngine->GetLargeFont());
+					DisplayDebugManager.SetDrawColor(FColor::Red);
+					DisplayDebugManager.DrawString(TEXT("No Input User Settings found! Did you enable it in project settings?"));
+				}
+			}
+		}
+#endif	// ENABLE_DRAW_DEBUG
+
 	}
 	else
 	{
