@@ -91,7 +91,8 @@ private:
 	UPROPERTY()
 	bool bIsPendingDeletion = false;
 
-	void DeferUntilChildClusteredComponentInParentUnion(TFunction<void()> Func);
+	FTimerHandle DeferSetChildToParentHandle;
+	void DeferSetChildToParentChildUntilClusteredComponentInParentUnion();
 
 	//~ Begin UActorComponent Interface
 public:

@@ -40,6 +40,13 @@ void UClusterUnionReplicatedProxyComponent::EndPlay(const EEndPlayReason::Type E
 {
 	UActorComponent::EndPlay(EndPlayReason);
 
+	MarkPendingDeletion();
+
+	if (AActor* Owner = GetOwner(); Owner && DeferSetChildToParentHandle.IsValid())
+	{
+		Owner->GetWorldTimerManager().ClearTimer(DeferSetChildToParentHandle);
+	}
+
 	if (!GetOwner()->HasAuthority() && ParentClusterUnion && ChildClusteredComponent)
 	{
 		ParentClusterUnion->RemoveComponentFromCluster(ChildClusteredComponent);
@@ -124,36 +131,31 @@ void UClusterUnionReplicatedProxyComponent::PostRepNotifies()
 
 	if (bIsValid && bNetUpdateParticleChildToParents && ParticleBoneIds.Num() == ParticleChildToParents.Num())
 	{
-		// This particular bit can't happen utnil *after* we add the component to the cluster union. There's an additional deferral
+		// This particular bit can't happen until *after* we add the component to the cluster union. There's an additional deferral
 		// in AddComponentToCluster that we have to wait for.
-		DeferUntilChildClusteredComponentInParentUnion(
-			[this]()
-			{
-				ParentClusterUnion->ForceSetChildToParent(ChildClusteredComponent, ParticleBoneIds, ParticleChildToParents);
-			}
-		);
+		if (!DeferSetChildToParentHandle.IsValid())
+		{
+			DeferSetChildToParentChildUntilClusteredComponentInParentUnion();
+		}
 		bNetUpdateParticleChildToParents = false;
 	}
 }
 
-void UClusterUnionReplicatedProxyComponent::DeferUntilChildClusteredComponentInParentUnion(TFunction<void()> Func)
+void UClusterUnionReplicatedProxyComponent::DeferSetChildToParentChildUntilClusteredComponentInParentUnion()
 {
-	if (!ParentClusterUnion || !ChildClusteredComponent)
+	if (!ParentClusterUnion || !ChildClusteredComponent || IsPendingDeletion())
 	{
 		return;
 	}
 
+	DeferSetChildToParentHandle.Invalidate();
+
 	if (ParentClusterUnion->IsComponentAdded(ChildClusteredComponent))
 	{
-		Func();
+		ParentClusterUnion->ForceSetChildToParent(ChildClusteredComponent, ParticleBoneIds, ParticleChildToParents);
 	}
-	else
+	else if (AActor* Owner = GetOwner())
 	{
-		GetOwner()->GetWorldTimerManager().SetTimerForNextTick(
-			[this, Func]()
-			{
-				DeferUntilChildClusteredComponentInParentUnion(Func);
-			}
-		);
+		DeferSetChildToParentHandle = Owner->GetWorldTimerManager().SetTimerForNextTick(this, &UClusterUnionReplicatedProxyComponent::DeferSetChildToParentChildUntilClusteredComponentInParentUnion);
 	}
 }
