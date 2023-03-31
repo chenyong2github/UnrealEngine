@@ -292,7 +292,14 @@ void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
 
 	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::WorldPartitionActorFilter)
 	{
-		Ar << Filter;
+		if(Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::LevelInstanceActorDescDeltaSerializeFilter)
+		{
+			Ar << TDeltaSerialize<FWorldPartitionActorFilter>(Filter);
+		}
+		else
+		{
+			Ar << Filter;
+		}
 	}
 }
 

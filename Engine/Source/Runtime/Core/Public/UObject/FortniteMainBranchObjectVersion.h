@@ -289,6 +289,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Reduce size and improve behaviour of Chaos::FImplicitObjectUnion
 		ChaosImplicitObjectUnionBVHRefactor,
 
+		// FLevelInstanceActorDesc DeltaSerialize Filter
+		LevelInstanceActorDescDeltaSerializeFilter,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
