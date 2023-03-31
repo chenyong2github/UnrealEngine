@@ -866,13 +866,18 @@ HRESULT CollectRewriteHelper(TranslationUnitDecl *tu, LPCSTR pEntryPoint,
   pendingFunctions.push_back(entryFnDecl);
   while (!pendingFunctions.empty()) {
     FunctionDecl *pendingDecl = pendingFunctions.pop_back_val();
-    visitedFunctions.insert(pendingDecl);
-    // UE Change Begin: Mark template pattern as visited as well
-    if (FunctionDecl *primaryTmplFnDecl = pendingDecl->getTemplateInstantiationPattern()) {
-      visitedFunctions.insert(primaryTmplFnDecl);
+	// UE Change Begin: Also visit re-declarations of forward declared functions
+    for (FunctionDecl *pendingDeclOrRedecl : pendingDecl->redecls()) {
+      visitedFunctions.insert(pendingDeclOrRedecl);
+      // UE Change Begin: Mark template pattern as visited as well
+      if (FunctionDecl *primaryTmplFnDecl =
+              pendingDeclOrRedecl->getTemplateInstantiationPattern()) {
+        visitedFunctions.insert(primaryTmplFnDecl);
+      }
+      // UE Change End: Mark template pattern as visited as well
+      visitor.TraverseDecl(pendingDeclOrRedecl);
     }
-    // UE Change End: Mark template pattern as visited as well
-    visitor.TraverseDecl(pendingDecl);
+    // UE Change End: Also visit re-declarations of forward declared functions
   }
 
   // UE Change Begin: Track structure initialization and don't elide any
@@ -899,7 +904,11 @@ HRESULT CollectRewriteHelper(TranslationUnitDecl *tu, LPCSTR pEntryPoint,
 
   // Don't remove visited functions.
   for (FunctionDecl *visitedFn : visitedFunctions) {
-    unusedFunctions.erase(visitedFn);
+	// UE Change Begin: If a forward declaration is used, its other forward declarations and implementation are used, too
+    for (FunctionDecl* visitedFnDecl : visitedFn->redecls()) {
+      unusedFunctions.erase(visitedFnDecl);
+    }
+	// UE Change End: If a forward declaration is used, its other forward declarations and implementation are used, too
   }
   w << "//found " << unusedFunctions.size() << " functions to remove\n";
 
@@ -1046,9 +1055,9 @@ static HRESULT DoRewriteUnused( TranslationUnitDecl *tu,
     // UE Change Begin: Remove parent template declaration and not just sub declaration of templates
     if (CXXMethodDecl *methodDecl = dyn_cast<CXXMethodDecl>(unusedFn)) {
       if (TemplateDecl *methodTmplDecl = methodDecl->getDescribedFunctionTemplate()) {
-        methodDecl->getParent()->removeDecl(methodTmplDecl);
+        methodDecl->getLexicalParent()->removeDecl(methodTmplDecl);
       } else {
-        methodDecl->getParent()->removeDecl(unusedFn);
+        methodDecl->getLexicalParent()->removeDecl(unusedFn);
       }
     } else {
       if (TemplateDecl *tmplDecl = unusedFn->getDescribedFunctionTemplate()) {
