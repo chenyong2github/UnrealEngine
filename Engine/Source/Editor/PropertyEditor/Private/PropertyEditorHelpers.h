@@ -61,7 +61,7 @@ public:
 		: _ShowPropertyButtons( true )
 	{}
 		SLATE_ARGUMENT( bool, ShowPropertyButtons )
-		SLATE_ARGUMENT(FDetailWidgetRow*, InWidgetRow)
+		SLATE_ARGUMENT(TOptional<FDetailWidgetRow*>, InWidgetRow)
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs, TSharedPtr<FPropertyEditor> InPropertyEditor, TSharedPtr<IPropertyUtilities> InPropertyUtilities );
@@ -81,7 +81,7 @@ private:
 	/** The maximum desired with if this property value */
 	float MaxDesiredWidth;
 	/** The widget row this value widget is part of */
-	FDetailWidgetRow* WidgetRow;
+	TOptional<FDetailWidgetRow*> WidgetRow;
 
 };
 

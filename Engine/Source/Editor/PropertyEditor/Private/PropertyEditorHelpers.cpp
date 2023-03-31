@@ -60,7 +60,10 @@ void SPropertyValueWidget::Construct( const FArguments& InArgs, TSharedPtr<FProp
 {
 	MinDesiredWidth = 0.0f;
 	MaxDesiredWidth = 0.0f;
-	WidgetRow = InArgs._InWidgetRow;
+	if(InArgs._InWidgetRow.IsSet())
+	{
+		WidgetRow = InArgs._InWidgetRow;
+	}
 
 	SetEnabled( TAttribute<bool>( PropertyEditor.ToSharedRef(), &FPropertyEditor::IsPropertyEditingEnabled ) );
 

@@ -81,7 +81,7 @@ public:
 		SLATE_ARGUMENT(TSharedPtr<IPropertyHandle>, PropertyHandle)
 		SLATE_ARGUMENT(TArray<FAssetData>, OwnerAssetDataArray)
 		SLATE_EVENT(FOnShouldFilterActor, OnShouldFilterActor)
-		SLATE_ATTRIBUTE(FDetailWidgetRow*, InWidgetRow)
+		SLATE_ARGUMENT(TOptional<FDetailWidgetRow*>, InWidgetRow)
 
 	SLATE_END_ARGS()
 

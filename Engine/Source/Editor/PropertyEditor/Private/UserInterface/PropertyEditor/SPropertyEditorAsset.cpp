@@ -246,17 +246,17 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 	OnShouldFilterActor = InArgs._OnShouldFilterActor;
 	ObjectPath = InArgs._ObjectPath;
 
-	if(InArgs._InWidgetRow.IsSet() && InArgs._InWidgetRow.Get() != nullptr)
+	if(InArgs._InWidgetRow.IsSet() && InArgs._InWidgetRow.GetValue() != nullptr)
 	{
-		if (!InArgs._InWidgetRow.Get()->CopyMenuAction.IsBound())
+		if (!InArgs._InWidgetRow.GetValue()->CopyMenuAction.IsBound())
 		{
-			InArgs._InWidgetRow.Get()->CopyMenuAction = FUIAction(
+			InArgs._InWidgetRow.GetValue()->CopyMenuAction = FUIAction(
 				FExecuteAction::CreateSP(this, &SPropertyEditorAsset::OnCopy),
 				FCanExecuteAction());
 		}
-		if (!InArgs._InWidgetRow.Get()->PasteMenuAction.IsBound())
+		if (!InArgs._InWidgetRow.GetValue()->PasteMenuAction.IsBound())
 		{
-			InArgs._InWidgetRow.Get()->PasteMenuAction = FUIAction(
+			InArgs._InWidgetRow.GetValue()->PasteMenuAction = FUIAction(
 				FExecuteAction::CreateSP(this, &SPropertyEditorAsset::OnPaste),
 				FCanExecuteAction::CreateSP(this, &SPropertyEditorAsset::CanPaste));
 		}
