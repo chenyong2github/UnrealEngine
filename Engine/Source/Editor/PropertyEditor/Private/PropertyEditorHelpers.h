@@ -14,7 +14,6 @@
 
 class FNotifyHook;
 class FObjectPropertyNode;
-class FDetailWidgetRow;
 
 /** Property button enums. */
 namespace EPropertyButton
@@ -61,7 +60,6 @@ public:
 		: _ShowPropertyButtons( true )
 	{}
 		SLATE_ARGUMENT( bool, ShowPropertyButtons )
-		SLATE_ARGUMENT(FDetailWidgetRow*, InWidgetRow)
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs, TSharedPtr<FPropertyEditor> InPropertyEditor, TSharedPtr<IPropertyUtilities> InPropertyUtilities );
@@ -80,9 +78,6 @@ private:
 	float MinDesiredWidth;
 	/** The maximum desired with if this property value */
 	float MaxDesiredWidth;
-	/** The widget row this value widget is part of */
-	FDetailWidgetRow* WidgetRow;
-
 };
 
 class SEditConditionWidget : public SCompoundWidget
