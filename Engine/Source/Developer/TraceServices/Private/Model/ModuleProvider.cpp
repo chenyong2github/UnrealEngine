@@ -426,9 +426,11 @@ FResolvedSymbolFilter::FResolvedSymbolFilter()
 	IgnoreSymbolsByFunctionName.Add(TEXT("FWindowsPlatformMemory::"));
 	IgnoreSymbolsByFunctionName.Add(TEXT("FCachedOSPageAllocator::"));
 	IgnoreSymbolsByFunctionName.Add(TEXT("FMallocBinned"));
+	IgnoreSymbolsByFunctionName.Add(TEXT("FD3D12Adapter::TraceMemoryAllocation"));
 
 	IgnoreSymbolsByFilePath.Add(FRegexPattern(FString(TEXT(".*/Containers/.*"))));
 	IgnoreSymbolsByFilePath.Add(FRegexPattern(FString(TEXT(".*/ConcurrentLinearAllocator.*"))));
+	IgnoreSymbolsByFilePath.Add(FRegexPattern(FString(TEXT(".*/D3D12PoolAllocator.*"))));
 }
 
 /////////////////////////////////////////////////////////////////////
