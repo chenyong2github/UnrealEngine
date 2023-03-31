@@ -250,7 +250,7 @@ TSharedRef<FTabManager::FLayout> FNiagaraSystemToolkitMode_Scalability::ChooseTa
 {
 	if(SystemToolkit.Pin()->GetSystemViewModel()->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
 	{
-		return FTabManager::NewLayout("Standalone_Niagara_System_Layout_Scalability_v30")
+		return FTabManager::NewLayout("Standalone_Niagara_System_Layout_Scalability_v31")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -317,10 +317,9 @@ TSharedRef<FTabManager::FLayout> FNiagaraSystemToolkitMode_Scalability::ChooseTa
 						FTabManager::NewStack()
 						->SetSizeCoefficient(0.3f)
 						->AddTab(ResolvedScalabilityTabID, ETabState::OpenedTab)
-						->AddTab(SelectedEmitterStackTabID, ETabState::OpenedTab)
+						->AddTab(DetailsTabID, ETabState::OpenedTab)
 						->AddTab(SelectedEmitterGraphTabID, ETabState::ClosedTab)
 						->AddTab(SystemScriptTabID, ETabState::ClosedTab)
-						->AddTab(SystemDetailsTabID, ETabState::ClosedTab)
 						->AddTab(DebugSpreadsheetTabID, ETabState::ClosedTab)
 						->AddTab(PreviewSettingsTabId, ETabState::ClosedTab)
 						->AddTab(GeneratedCodeTabID, ETabState::ClosedTab)
@@ -389,10 +388,9 @@ TSharedRef<FTabManager::FLayout> FNiagaraSystemToolkitMode_Scalability::ChooseTa
 					(
 						FTabManager::NewStack()
 						->SetSizeCoefficient(0.65f)
-						->AddTab(SelectedEmitterStackTabID, ETabState::OpenedTab)
+						->AddTab(DetailsTabID, ETabState::OpenedTab)
 						->AddTab(SelectedEmitterGraphTabID, ETabState::ClosedTab)
 						->AddTab(SystemScriptTabID, ETabState::ClosedTab)
-						->AddTab(SystemDetailsTabID, ETabState::ClosedTab)
 						->AddTab(DebugSpreadsheetTabID, ETabState::ClosedTab)
 						->AddTab(PreviewSettingsTabId, ETabState::ClosedTab)
 						->AddTab(GeneratedCodeTabID, ETabState::ClosedTab)

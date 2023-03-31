@@ -17,7 +17,7 @@
 
 FNiagaraSystemToolkitMode_Default::FNiagaraSystemToolkitMode_Default(TWeakPtr<FNiagaraSystemToolkit> InSystemToolkit) : FNiagaraSystemToolkitModeBase(FNiagaraSystemToolkit::DefaultModeName, InSystemToolkit)
 {
-	TabLayout = FTabManager::NewLayout("Standalone_Niagara_System_Layout_v28")
+	TabLayout = FTabManager::NewLayout("Standalone_Niagara_System_Layout_v29")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -71,10 +71,9 @@ FNiagaraSystemToolkitMode_Default::FNiagaraSystemToolkitMode_Default(TWeakPtr<FN
 					// Right
 					FTabManager::NewStack()
 					->SetSizeCoefficient(0.33f)
-					->AddTab(SelectedEmitterStackTabID, ETabState::OpenedTab)
+					->AddTab(DetailsTabID, ETabState::OpenedTab)
 					->AddTab(SelectedEmitterGraphTabID, ETabState::ClosedTab)
 					->AddTab(SystemScriptTabID, ETabState::ClosedTab)
-					->AddTab(SystemDetailsTabID, ETabState::ClosedTab)
 					->AddTab(DebugSpreadsheetTabID, ETabState::ClosedTab)
 					->AddTab(PreviewSettingsTabId, ETabState::ClosedTab)
 					->AddTab(GeneratedCodeTabID, ETabState::ClosedTab)

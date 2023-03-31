@@ -32,7 +32,7 @@ private:
 	TSharedRef<SDockTab> SpawnTab_SystemScript(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_SystemParameters(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_SystemParameterDefinitions(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_SelectedEmitterStack(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_Details(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_SelectedEmitterGraph(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_DebugSpreadsheet(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_DebugCapture(const FSpawnTabArgs& Args);
@@ -73,10 +73,9 @@ public:
 	static const FName CurveEditorTabID;
 	static const FName SequencerTabID;
 	static const FName SystemScriptTabID;
-	static const FName SystemDetailsTabID;
 	static const FName SystemParametersTabID;
 	static const FName SystemParameterDefinitionsTabID;
-	static const FName SelectedEmitterStackTabID;
+	static const FName DetailsTabID;
 	static const FName SelectedEmitterGraphTabID;
 	static const FName DebugSpreadsheetTabID;
 	static const FName DebugCaptureTabID;
