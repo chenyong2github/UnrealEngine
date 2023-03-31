@@ -230,6 +230,27 @@ public:
 				break;
 			}
 
+			case mu::OP_TYPE::IM_PLAINCOLOUR:
+			{
+				mu::OP::ImagePlainColourArgs Args = Program.GetOpArgs<mu::OP::ImagePlainColourArgs>(RowItem->MutableOperation);
+				OpName += TEXT(" format: ");
+				OpName += StringCast<TCHAR>(mu::TypeInfo::s_imageFormatName[int32(Args.format)]).Get();
+				OpName += FString::Printf(TEXT(" size %d x %d"), Args.size[0], Args.size[1]);
+				OpName += FString::Printf(TEXT(" mips %d"), Args.LODs);
+				break;
+			}
+
+			case mu::OP_TYPE::IN_ADDIMAGE:
+			{
+				mu::OP::InstanceAddArgs Args = Program.GetOpArgs<mu::OP::InstanceAddArgs>(RowItem->MutableOperation);
+				if (Program.m_constantStrings.IsValidIndex(Args.name))
+				{
+					OpName += TEXT(" name: ");
+					OpName += FString(Program.m_constantStrings[Args.name].c_str());
+				}
+ 				break;
+			}
+
 			default:
 				break;
 			}

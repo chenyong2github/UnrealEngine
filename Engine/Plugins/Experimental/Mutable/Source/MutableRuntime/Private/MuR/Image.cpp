@@ -708,8 +708,8 @@ namespace mu
 				if (res)
 				{
 					colour[0] = r / 255.0f;
-					colour[0] = g / 255.0f;
-					colour[0] = b / 255.0f;
+					colour[1] = g / 255.0f;
+					colour[2] = b / 255.0f;
 					colour[3] = 1.0f;
 				}
 				break;
