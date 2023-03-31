@@ -4,7 +4,7 @@
 #include "UDynamicMesh.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
-#include "DynamicMesh/Public/Operations/GeodesicPath.h"
+#include "Operations/GeodesicPath.h"
 #include "Math/UnrealMathUtility.h"
 #include "Parameterization/MeshDijkstra.h"
 
