@@ -218,6 +218,11 @@ static bool BuildNanite(
 	TArray< Nanite::IBuilderModule::FOutputMeshData, TInlineAllocator<4> > OutputLODMeshData;
 	OutputLODMeshData.SetNum( PercentTriangles.Num() );
 
+	for (int32 LodIndex = 0; LodIndex < OutputLODMeshData.Num(); LodIndex++)
+	{
+		OutputLODMeshData[LodIndex].PercentTriangles = PercentTriangles[LodIndex];
+	}
+
 	const uint32 TriangleCount = InputMeshData.TriangleIndices.Num() / 3;
 
 	if (!NaniteBuilderModule.BuildMaterialIndices(InputMeshData.Sections, TriangleCount, InputMeshData.MaterialIndices))
