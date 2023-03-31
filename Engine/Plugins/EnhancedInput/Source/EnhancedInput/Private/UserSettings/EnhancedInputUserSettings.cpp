@@ -31,12 +31,12 @@ namespace UE::EnhancedInput
 	/** The name of the slot that these settings will save to */
 	static const FString SETTINGS_SLOT_NAME = TEXT("EnhancedInputUserSettings");
 
-	UE_DEFINE_GAMEPLAY_TAG(TAG_DefaultProfileIdentifier, "InputUserSettings.Profiles.Default");
+	UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_DefaultProfileIdentifier, "InputUserSettings.Profiles.Default");
 	static const FText DefaultProfileDisplayName = LOCTEXT("Default_Profile_name", "Default Profile");
 	
-	UE_DEFINE_GAMEPLAY_TAG(TAG_InvalidMappingName, "InputUserSettings.FailureReasons.InvalidMappingName");
-	UE_DEFINE_GAMEPLAY_TAG(TAG_NoKeyProfile, "InputUserSettings.FailureReasons.NoKeyProfile");
-	UE_DEFINE_GAMEPLAY_TAG(TAG_NoMatchingMappings, "InputUserSettings.FailureReasons.NoMatchingMappings");
+	UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_InvalidMappingName, "InputUserSettings.FailureReasons.InvalidMappingName");
+	UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_NoKeyProfile, "InputUserSettings.FailureReasons.NoKeyProfile");
+	UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_NoMatchingMappings, "InputUserSettings.FailureReasons.NoMatchingMappings");
 	
 	// TODO: Break this out to somewhere else, probably the EI library. 
 	static ULocalPlayer* GetLocalPlayer(const UEnhancedPlayerInput* PlayerInput)
@@ -213,7 +213,6 @@ void FPlayerKeyMapping::UpdateOriginalKey(const FEnhancedActionKeyMapping& Origi
 	
 	DefaultKey = OriginalMapping.Key;
 	DisplayName = OriginalMapping.GetDisplayName();
-	DisplayCategory = OriginalMapping.GetDisplayCategory();
 	AssociatedInputAction = OriginalMapping.Action;
 
 	// If the mapping is the same as the default key, make sure that it is not marked as
@@ -635,6 +634,46 @@ void UEnhancedInputUserSettings::OnAsyncSaveComplete(const FString& SlotName, co
 	{
 		UE_LOG(LogEnhancedInput, Error, TEXT("[UEnhancedInputUserSettings::OnAsyncSaveComplete] Failed async save of slot '%s' for user index '%d'"), *SlotName, UserIndex);
 	}
+}
+
+namespace UE::EnhancedInput
+{
+	static const int32 GPlayerMappableSaveVersion = 1;
+
+	struct FKeyMappingSaveData
+	{
+		friend FArchive& operator<<(FArchive& Ar, FKeyMappingSaveData& Data)
+		{
+			Ar << Data.ActionName;
+			Ar << Data.CurrentKeyName;
+			Ar << Data.HardwareDeviceId;
+			Ar << Data.Slot;
+			return Ar;
+		}
+		
+		FName ActionName = NAME_None;
+		FName CurrentKeyName = NAME_None;
+		FHardwareDeviceIdentifier HardwareDeviceId = FHardwareDeviceIdentifier::Invalid;
+		EPlayerMappableKeySlot Slot = EPlayerMappableKeySlot::Unspecified;
+	};
+
+	/** Struct used to store info about the mappable profile subobjects */
+	struct FMappableKeysHeader
+	{
+		friend FArchive& operator<<(FArchive& Ar, FMappableKeysHeader& Header)
+		{
+			Ar << Header.ProfileIdentifier;
+			Ar << Header.ClassPath;
+			Ar << Header.ObjectPath;
+			Ar << Header.DirtyMappings;
+			return Ar;
+		}
+
+		FGameplayTag ProfileIdentifier;
+		FString ClassPath;
+		FString ObjectPath;
+		TArray<FKeyMappingSaveData> DirtyMappings;
+	};
 }
 
 void UEnhancedInputUserSettings::Serialize(FArchive& Ar)
