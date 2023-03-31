@@ -533,6 +533,12 @@ public:
 
 	FCompileConstantResolver ConstantResolver;
 
+	/** An optional emitter handle guid you can register. This will skip parameter map building of all emitters that don't match this one, if set.
+	 * Reason for this is to be able to build parameter map history for a system, while excluding certain emitters.
+	 * Useful for emitter context UI that should retrieve system parameters & emitter parameters, but only emitter parameters of the given emitter.
+	 */
+	TOptional<FGuid> ExclusiveEmitterHandle;
+
 	bool bShouldBuildSubHistories = true;
 
 	int32 MaxGraphDepthTraversal = INDEX_NONE;

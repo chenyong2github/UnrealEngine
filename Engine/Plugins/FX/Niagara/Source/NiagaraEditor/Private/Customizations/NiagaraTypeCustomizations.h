@@ -190,6 +190,8 @@ private:
 	class UNiagaraSimulationStageBase* SimulationStage = nullptr;
 	struct FNiagaraVariableAttributeBinding* TargetVariableBinding = nullptr;
 	const struct FNiagaraVariableAttributeBinding* DefaultVariableBinding = nullptr;
+	/** The emitter handle guid this binding is used in. Used to gather available parameters for the system & this emitter (not all emitters) */
+	FGuid EmitterHandleGuid;
 };
 
 class FNiagaraUserParameterBindingCustomization : public IPropertyTypeCustomization

@@ -298,7 +298,7 @@ void UNiagaraNodeEmitter::BuildParameterMapHistory(FNiagaraParameterMapHistoryBu
 {
 	Super::BuildParameterMapHistory(OutHistory, bRecursive, bFilterForCompilation);
 
-	if (!IsNodeEnabled() && OutHistory.GetIgnoreDisabled())
+	if ((!IsNodeEnabled() && OutHistory.GetIgnoreDisabled()) || (OutHistory.ExclusiveEmitterHandle.IsSet() && (OutHistory.ExclusiveEmitterHandle != GetEmitterHandleId())))
 	{
 		RouteParameterMapAroundMe(OutHistory, bRecursive);
 		return;

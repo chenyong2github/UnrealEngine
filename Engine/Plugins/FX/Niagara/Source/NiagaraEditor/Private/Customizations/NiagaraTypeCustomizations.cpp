@@ -41,6 +41,7 @@
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraSystem.h"
 #include "NiagaraTypes.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
 
 #include "Widgets/SNiagaraParameterMenu.h"
 #include "Widgets/Input/SSuggestionTextBox.h"
@@ -153,8 +154,6 @@ TArray<FNiagaraVariableBase> FNiagaraStackAssetAction_VarBind::FindVariables(con
 		}
 	}
 	
-
-
 	for (const FNiagaraParameterMapHistory& History : Histories)
 	{
 		for (const FNiagaraVariable& Var : History.Variables)
@@ -271,14 +270,43 @@ TArray<FName> FNiagaraVariableAttributeBindingCustomization::GetNames(const FVer
 	{
 		return Names;
 	}
+	
+	TArray<UNiagaraGraph*> GraphsToTraverse;
+	
+	GraphsToTraverse.Add(Cast<UNiagaraScriptSource>(BaseEmitter.GetEmitterData()->GraphSource)->NodeGraph);
+	UNiagaraSystem* System = BaseEmitter.Emitter->GetTypedOuter<UNiagaraSystem>();
+	GraphsToTraverse.Add(Cast<UNiagaraScriptSource>(System->GetSystemUpdateScript()->GetLatestSource())->NodeGraph);
 
-	const bool bSystem = true;
-	const bool bEmitter = true;
-	const bool bParticles = true;
-	const bool bUser = true;
-	const bool bAllowStatic = true;
-	TArray<FNiagaraVariableBase> Vars = FNiagaraStackAssetAction_VarBind::FindVariables(InEmitter, bSystem, bEmitter, bParticles, bUser, bAllowStatic);
+	TSet<FNiagaraVariableBase> Vars;
+	TArray<TArray<FNiagaraVariable>> MapHistoryVars;
+	for(UNiagaraGraph* Graph : GraphsToTraverse)
+	{
+		TArray<UNiagaraNodeOutput*> OutputNodes;
+		Graph->GetNodesOfClass<UNiagaraNodeOutput>(OutputNodes);
 
+		for(UNiagaraNodeOutput* NodeOutput : OutputNodes)
+		{
+			FNiagaraParameterMapHistoryBuilder Builder;
+			Builder.ExclusiveEmitterHandle = EmitterHandleGuid;
+			
+			Builder.BuildParameterMaps(NodeOutput);
+
+			for(FNiagaraParameterMapHistory& History : Builder.Histories)
+			{
+				MapHistoryVars.Add(History.Variables);
+			}
+		}
+	}
+
+	for(TArray<FNiagaraVariable>& MapHistoryVariables : MapHistoryVars)
+	{
+		for(FNiagaraVariable& MapHistoryVariable : MapHistoryVariables)
+		{
+			Vars.Add(MapHistoryVariable);
+		}
+	}
+
+	bool bAllowStatic = true;
 	for (const FNiagaraVariableBase& Var : Vars)
 	{
 		if (!bAllowStatic && Var.GetType() != TargetVariableBinding->GetType() )
@@ -451,6 +479,10 @@ void FNiagaraVariableAttributeBindingCustomization::CustomizeHeader(TSharedRef<I
 
 		if (BaseEmitter.Emitter)
 		{
+			UNiagaraSystem* System = BaseEmitter.Emitter->GetTypedOuter<UNiagaraSystem>();
+			TSharedPtr<FNiagaraSystemViewModel> SystemViewModel = TNiagaraViewModelManager<UNiagaraSystem, FNiagaraSystemViewModel>::GetExistingViewModelForObject(System);
+			EmitterHandleGuid = SystemViewModel->GetEmitterHandleViewModelForEmitter(BaseEmitter)->GetId();
+			
 			TargetVariableBinding = (FNiagaraVariableAttributeBinding*)PropertyHandle->GetValueBaseAddress((uint8*)Objects[0]);
 			DefaultVariableBinding = (FNiagaraVariableAttributeBinding*)PropertyHandle->GetValueBaseAddress((uint8*)Objects[0]->GetClass()->GetDefaultObject());
 				
