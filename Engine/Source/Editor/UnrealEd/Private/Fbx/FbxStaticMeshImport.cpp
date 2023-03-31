@@ -803,6 +803,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 
 			bool bFaceMaterialIndexInconsistencyErrorDisplayed = false;
 			bool bUnsupportedSmoothingGroupErrorDisplayed = false;
+			bool bCorruptedMsgDone = false;
 			//Polygons
 			for (int32 PolygonIndex = 0; PolygonIndex < PolygonCount; PolygonIndex++)
 			{
@@ -825,11 +826,27 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 					float ComparisonThreshold = GetTriangleAreaThreshold();
 					P.Reset();
 					P.AddUninitialized(PolygonVertexCount);
+					bool bAllCornerValid = true;
 					for (int32 CornerIndex = 0; CornerIndex < PolygonVertexCount; CornerIndex++)
 					{
 						const int32 ControlPointIndex = Mesh->GetPolygonVertex(PolygonIndex, CornerIndex);
 						const FVertexID VertexID(VertexOffset + ControlPointIndex);
+						if (!MeshDescription->Vertices().IsValid(VertexID))
+						{
+							bAllCornerValid = false;
+							break;
+						}
 						P[CornerIndex] = VertexPositions[VertexID];
+					}
+					if (!bAllCornerValid)
+					{
+						if (!bCorruptedMsgDone)
+						{
+							AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("Error_CorruptedFbxPolygon", "Corrupted triangle for the mesh '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::StaticMesh_BuildError);
+							bCorruptedMsgDone = true;
+						}
+						SkippedVertexInstance += PolygonVertexCount;
+						continue;
 					}
 					check(P.Num() > 2); //triangle is the smallest polygon we can have
 					const FVector3f Normal = ((P[1] - P[2]) ^ (P[0] - P[2])).GetSafeNormal(ComparisonThreshold);

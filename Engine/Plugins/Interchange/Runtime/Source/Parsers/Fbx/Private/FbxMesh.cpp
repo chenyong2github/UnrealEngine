@@ -664,6 +664,7 @@ bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TAr
 			TArray<FVertexID> CornerVerticesIDs;
 			TArray<FVector, TInlineAllocator<3>> P;
 
+			bool bCorruptedMsgDone = false;
 			//Polygons
 			for (int32 PolygonIndex = 0; PolygonIndex < PolygonCount; PolygonIndex++)
 			{
@@ -673,11 +674,29 @@ bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TAr
 					float ComparisonThreshold = SMALL_NUMBER;
 					P.Reset();
 					P.AddUninitialized(PolygonVertexCount);
+					bool bAllCornerValid = true;
 					for (int32 CornerIndex = 0; CornerIndex < PolygonVertexCount; CornerIndex++)
 					{
 						const int32 ControlPointIndex = Mesh->GetPolygonVertex(PolygonIndex, CornerIndex);
 						const FVertexID VertexID(VertexOffset + ControlPointIndex);
+						if (!MeshDescription->Vertices().IsValid(VertexID))
+						{
+							bAllCornerValid = false;
+							break;
+						}
 						P[CornerIndex] = (FVector)VertexPositions[VertexID];
+					}
+					if (!bAllCornerValid)
+					{
+						if (!bCorruptedMsgDone)
+						{
+							UInterchangeResultMeshError_Generic* Message = AddMessage<UInterchangeResultMeshError_Generic>(Mesh);
+							Message->Text = LOCTEXT("CorruptedFbxPolygon", "Corrupted triangle for the mesh '{MeshName}'.");
+							bCorruptedMsgDone = true;
+						}
+
+						SkippedVertexInstance += PolygonVertexCount;
+						continue;
 					}
 					check(P.Num() > 2); //triangle is the smallest polygon we can have
 					const FVector Normal = ((P[1] - P[2]) ^ (P[0] - P[2])).GetSafeNormal(ComparisonThreshold);
