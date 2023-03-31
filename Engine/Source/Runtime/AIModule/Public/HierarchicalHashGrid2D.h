@@ -227,7 +227,7 @@ public:
 	void Remove(const ItemIDType ID, const FBox& OldBounds)
 	{
 		const FCellLocation OldLocation = CalcCellLocation(OldBounds);
-		Remove(OldLocation, ID);
+		Remove(ID, OldLocation);
 	}
 
 	/** Removes item based on the cell location it was added with.
