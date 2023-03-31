@@ -127,7 +127,7 @@ namespace Chaos::Softs
 			/*FSolverReal Damping = */Property.Damping,
 			/*FSolverReal LocalDamping = */(FSolverReal)0.,
 			Property.bDoQuasistatics, 
-			false));
+			true));
 		Evolution->Particles().AddArray(&MObjects);
 		if (Property.bDoSelfCollision || Property.CacheToFile)
 		{
