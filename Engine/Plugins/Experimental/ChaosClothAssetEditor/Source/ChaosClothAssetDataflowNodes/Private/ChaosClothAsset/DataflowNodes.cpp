@@ -12,6 +12,7 @@
 #include "ChaosClothAsset/SimulationDefaultConfigNode.h"
 #include "ChaosClothAsset/SimulationXPBDConfigNode.h"
 #include "ChaosClothAsset/BindToRootBoneNode.h"
+#include "ChaosClothAsset/AddWeightMapNode.h"
 #include "Dataflow/DataflowNodeFactory.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -33,6 +34,7 @@ namespace UE::Chaos::ClothAsset::DataflowNodes
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FChaosClothAssetSimulationDefaultConfigNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FChaosClothAssetSimulationXPBDConfigNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FChaosClothAssetBindToRootBoneNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FChaosClothAssetAddWeightMapNode);
 	}
 
 	void LogAndToastWarning(const FText& Error)

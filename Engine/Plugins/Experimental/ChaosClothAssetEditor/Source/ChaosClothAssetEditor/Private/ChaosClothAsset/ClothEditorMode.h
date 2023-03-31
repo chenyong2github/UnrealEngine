@@ -26,9 +26,12 @@ class UChaosClothComponent;
 class FEditorViewportClient;
 class FChaosClothEditorRestSpaceViewportClient;
 class FViewport;
+class UDataflow;
 class UDataflowComponent;
 class FChaosClothPreviewScene;
 class FChaosClothAssetEditor3DViewportClient;
+class SDataflowGraphEditor;
+struct FManagedArrayCollection;
 
 /**
  * The cloth editor mode is the mode used in the cloth asset editor. It holds most of the inter-tool state.
@@ -117,6 +120,16 @@ private:
 	void SetRestSpaceViewportClient(TWeakPtr<FChaosClothEditorRestSpaceViewportClient, ESPMode::ThreadSafe> ViewportClient);
 	void RefocusRestSpaceViewportClient();
 
+	// intended to be called by the toolkit when selected node in the Dataflow graph changes
+	void SetSelectedClothCollection(TSharedPtr<FManagedArrayCollection> Collection);
+
+	// gets the currently selected cloth collection, as specified by the toolkit
+	TSharedPtr<FManagedArrayCollection> GetClothCollection();
+
+	void SetDataflowGraphEditor(TSharedPtr<SDataflowGraphEditor> InGraphEditor);
+
+	void InitializeContextObject();
+	void DeleteContextObject();
 
 	// Rest space wireframes. They have to get ticked to be able to respond to setting changes. 
 	UPROPERTY()
@@ -162,15 +175,12 @@ private:
 
 	// Whether to combine all patterns into a single DynamicMeshComponent, or have separate components for each pattern
 	// TODO: Expose this to the user
-	bool bCombineAllPatterns = false;
+	bool bCombineAllPatterns = true;
 
 	bool IsComponentSelected(const UPrimitiveComponent* InComponent);
 
 	// Create dynamic mesh components from the cloth component's rest space info
 	void ReinitializeDynamicMeshComponents();
-
-	// Set up the preview simulation mesh from the given rest-space mesh
-	void UpdateSimulationMeshes();
 
 	// Simulation controls
 	bool bShouldResetSimulation = false;
@@ -181,6 +191,14 @@ private:
 	TObjectPtr<UDataflowComponent> DataflowComponent = nullptr;
 
 	UPROPERTY()
+	TObjectPtr<UDataflow> DataflowGraph = nullptr;
+
+	TWeakPtr<SDataflowGraphEditor> DataflowGraphEditor;
+
+	UPROPERTY()
 	TObjectPtr<UEditorInteractiveToolsContext> ActiveToolsContext = nullptr;
+
+
+	TSharedPtr<FManagedArrayCollection> SelectedClothCollection = nullptr;
 };
 

@@ -26,6 +26,7 @@
 class UMeshElementsVisualizer;
 class UWeightMapEraseBrushOpProps;
 class UWeightMapPaintBrushOpProps;
+class UClothEditorContextObject;
 
 DECLARE_STATS_GROUP(TEXT("WeightMapPaintTool"), STATGROUP_WeightMapPaintTool, STATCAT_Advanced);
 DECLARE_CYCLE_STAT(TEXT("WeightMapPaintTool_UpdateROI"), WeightMapPaintTool_UpdateROI, STATGROUP_WeightMapPaintTool);
@@ -163,9 +164,6 @@ enum class EClothEditorWeightMapPaintToolActions
 
 	FloodFillCurrent,
 	ClearAll,
-
-	AddWeightMap,
-	DeleteWeightMap
 };
 
 
@@ -205,26 +203,26 @@ public:
 
 
 UCLASS()
-class CHAOSCLOTHASSETEDITORTOOLS_API UClothEditorWeightMapActions : public UClothEditorWeightMapPaintToolActionPropertySet
+class CHAOSCLOTHASSETEDITORTOOLS_API UClothEditorAddWeightMapProperties : public UClothEditorWeightMapPaintToolActionPropertySet
 {
 	GENERATED_BODY()
 
 public:
 
-	UPROPERTY(EditAnywhere, Category = AddWeightMap, meta = (DisplayName = "New Weight Map Name"))
-	FString NewWeightMapName;
+	UPROPERTY(EditAnywhere, Category = AddNode, meta = (DisplayName = "Name"))
+	FString Name = "WeightMap";
+};
 
-	UFUNCTION(CallInEditor, Category = AddWeightMap, meta = (DisplayPriority = 2))
-	void AddNewWeightMap()
-	{
-		PostAction(EClothEditorWeightMapPaintToolActions::AddWeightMap);
-	}
 
-	UFUNCTION(CallInEditor, Category = DeleteWeightMap, meta = (DisplayPriority = 3))
-	void DeleteSelectedWeightMap()
-	{
-		PostAction(EClothEditorWeightMapPaintToolActions::DeleteWeightMap);
-	}
+UCLASS()
+class CHAOSCLOTHASSETEDITORTOOLS_API UClothEditorUpdateWeightMapProperties : public UClothEditorWeightMapPaintToolActionPropertySet
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(VisibleAnywhere, Category = UpdateNode, meta = (DisplayName = "Name"))
+	FString Name;
 };
 
 /**
@@ -246,7 +244,7 @@ public:
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
-	virtual bool CanAccept() const override { return true; }
+	virtual bool CanAccept() const override;
 
 	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
 
@@ -256,11 +254,10 @@ public:
 
 	virtual void CommitResult(UBaseDynamicMeshComponent* Component, bool bModifiedTopology) override;
 
+	void SetClothEditorContextObject(TObjectPtr<UClothEditorContextObject> InClothEditorContextObject);
 
 public:
 
-	UPROPERTY()
-	TObjectPtr<UWeightMapSetProperties> WeightMapSetProperties;
 
 	/** Filters on paint brush */
 	UPROPERTY()
@@ -277,9 +274,6 @@ private:
 public:
 	void FloodFillCurrentWeightAction();
 	void ClearAllWeightsAction();
-
-	void AddWeightMapAction(const FName& NewWeightMapName);
-	void DeleteWeightMapAction(const FName& SelectedWeightMapName);
 
 	void SetVerticesToWeightMap(const TSet<int32>& Vertices, double WeightValue, bool bIsErase);
 
@@ -321,7 +315,10 @@ public:
 	TObjectPtr<UMeshWeightMapPaintToolActions> ActionsProps;
 
 	UPROPERTY()
-	TObjectPtr<UClothEditorWeightMapActions> ClothEditorWeightMapActions;
+	TObjectPtr<UClothEditorAddWeightMapProperties> AddWeightMapProperties;
+
+	UPROPERTY()
+	TObjectPtr<UClothEditorUpdateWeightMapProperties> UpdateWeightMapProperties;
 
 protected:
 	bool bHavePendingAction = false;
@@ -356,6 +353,9 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UMeshElementsVisualizer> MeshElementsDisplay;
 
+	UPROPERTY()
+	TObjectPtr<UClothEditorContextObject> ClothEditorContextObject = nullptr;
+
 	// realtime visualization
 	void OnDynamicMeshComponentChanged(UDynamicMeshComponent* Component, const FMeshVertexChange* Change, bool bRevert);
 	FDelegateHandle OnDynamicMeshComponentChangedHandle;
@@ -365,8 +365,8 @@ protected:
 	double GetCurrentWeightValueUnderBrush() const;
 	FVector3d CurrentBaryCentricCoords;
 	int32 GetBrushNearestVertex() const;
-	void OnSelectedWeightMapChanged();
-	void UpdateActiveWeightMap();
+
+	void GetCurrentWeightMap(TArray<float>& OutWeights) const;
 
 	void UpdateSubToolType(EClothEditorWeightMapPaintInteractionType NewType);
 
@@ -418,13 +418,16 @@ protected:
 	TArray<int32> NormalSeamEdges;
 	void PrecomputeFilterData();
 
-	// Populate the drop-down WeightMapsList in WeightMapSetProperties
-	void InitializeWeightMapNames();
-
 protected:
 	virtual bool ShowWorkPlane() const override { return false; }
 
+	friend class UClothEditorWeightMapPaintToolBuilder;
 
+	// Node graph editor support
+	bool GetSelectedNodeInfo(FString& OutMapName, TArray<float>& OutWeights);
+	void AddNewNode(const FString& NewMapName);
+	void UpdateSelectedNode();
+	bool bShouldUpdateExistingNode = true;
 };
 
 

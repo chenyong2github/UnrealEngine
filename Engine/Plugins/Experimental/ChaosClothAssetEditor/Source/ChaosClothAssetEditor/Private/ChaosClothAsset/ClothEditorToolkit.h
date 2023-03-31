@@ -104,6 +104,18 @@ private:
 	void PopulateOutliner();
 	void OnClothAssetChanged();
 
+	// Dataflow
+	void EvaluateNode(FDataflowNode* Node, FDataflowOutput* Out);
+	TSharedRef<SDataflowGraphEditor> CreateGraphEditorWidget();
+	void ReinitializeGraphEditorWidget();
+	TSharedPtr<IStructureDetailsView> CreateNodeDetailsEditorWidget(UObject* ObjectToEdit);
+
+	// DataflowEditorActions
+	void OnPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent);
+	bool OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* GraphNode, FText& OutErrorMessage) const;
+	void OnNodeTitleCommitted(const FText& InNewText, ETextCommit::Type InCommitType, UEdGraphNode* GraphNode) const;
+	void OnNodeSelectionChanged(const TSet<UObject*>& NewSelection) const;
+
 
 	/** Scene in which the 3D sim space preview meshes live. Ownership shared with AdvancedPreviewSettingsWidget*/
 	TSharedPtr<FChaosClothPreviewScene> ClothPreviewScene;
@@ -125,33 +137,18 @@ private:
 	TArray<FName> ClothCollectionGroupNames;		// Data source for SelectedGroupNameComboBox
 
 
-	//~ Begin Dataflow support
-	 
+	// Dataflow
 	UDataflow* Dataflow = nullptr;
-
-	void EvaluateNode(FDataflowNode* Node, FDataflowOutput* Out);
-
-	static const FName GraphCanvasTabId;
-	TSharedPtr<SDockTab> GraphEditorTab;
-	TSharedPtr<SDataflowGraphEditor> GraphEditor;
-	TSharedRef<SDataflowGraphEditor> CreateGraphEditorWidget();
-	void ReinitializeGraphEditorWidget();
-
-	static const FName NodeDetailsTabId;
-	TSharedPtr<SDockTab> NodeDetailsTab;
-	TSharedPtr<IStructureDetailsView> NodeDetailsEditor;
-	TSharedPtr<IStructureDetailsView> CreateNodeDetailsEditorWidget(UObject* ObjectToEdit);
-
 	FString DataflowTerminalPath = "";
 	TSharedPtr<Dataflow::FEngineContext> DataflowContext;
 	Dataflow::FTimestamp LastDataflowNodeTimestamp = Dataflow::FTimestamp::Invalid;
 
-	// DataflowEditorActions
-	void OnPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent);
-	bool OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* GraphNode, FText& OutErrorMessage) const;
-	void OnNodeTitleCommitted(const FText& InNewText, ETextCommit::Type InCommitType, UEdGraphNode* GraphNode) const;
-	void OnNodeSelectionChanged(const TSet<UObject*>& NewSelection) const;
+	static const FName GraphCanvasTabId;
+	TSharedPtr<SDockTab> GraphEditorTab;
+	TSharedPtr<SDataflowGraphEditor> GraphEditor;
 
-	//~ End Dataflow support
+	static const FName NodeDetailsTabId;
+	TSharedPtr<SDockTab> NodeDetailsTab;
+	TSharedPtr<IStructureDetailsView> NodeDetailsEditor;
 };
 

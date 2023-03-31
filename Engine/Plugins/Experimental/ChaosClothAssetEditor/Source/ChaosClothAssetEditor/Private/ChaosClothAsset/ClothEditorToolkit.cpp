@@ -12,6 +12,8 @@
 #include "ChaosClothAsset/ClothComponent.h"
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/ClothEditorModeToolkit.h"
+#include "ChaosClothAsset/ClothCollection.h"
+#include "ChaosClothAsset/CollectionClothFacade.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "AssetEditorModeManager.h"
 #include "AdvancedPreviewScene.h"
@@ -33,6 +35,7 @@
 #include "Algo/RemoveIf.h"
 #include "AdvancedPreviewSceneModule.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "DynamicMesh/DynamicMesh3.h"
 
 #define LOCTEXT_NAMESPACE "ChaosClothAssetEditorToolkit"
 
@@ -451,6 +454,9 @@ void FChaosClothAssetEditorToolkit::PostInitAssetEditor()
 	}
 
 	InitDetailsViewPanel();
+
+	ClothMode->DataflowGraph = Dataflow;
+	ClothMode->SetDataflowGraphEditor(GraphEditor);
 }
 
 //~ End FAssetEditorToolkit overrides
@@ -752,6 +758,10 @@ void FChaosClothAssetEditorToolkit::OnFinishedChangingAssetProperties(const FPro
 				GraphEditorTab.Get()->SetContent(SNew(SSpacer));
 				NodeDetailsTab.Get()->SetContent(SNew(SSpacer));
 			}
+
+			UChaosClothAssetEditorMode* const ClothMode = CastChecked<UChaosClothAssetEditorMode>(EditorModeManager->GetActiveScriptableMode(UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId));
+			ClothMode->DataflowGraph = Dataflow;
+			ClothMode->SetDataflowGraphEditor(GraphEditor);
 		}
 	}
 }
@@ -844,7 +854,7 @@ void FChaosClothAssetEditorToolkit::ReinitializeGraphEditorWidget()
 
 	GraphEditor->Construct(Args, ClothAsset);
 
-	GraphEditor->OnSelectionChangedMulticast.Clear();
+	GraphEditor->OnSelectionChangedMulticast.RemoveAll(this);
 	GraphEditor->OnSelectionChangedMulticast.AddSP(this, &FChaosClothAssetEditorToolkit::OnNodeSelectionChanged);
 }
 
@@ -899,24 +909,58 @@ void FChaosClothAssetEditorToolkit::OnNodeTitleCommitted(const FText& InNewText,
 
 void FChaosClothAssetEditorToolkit::OnNodeSelectionChanged(const TSet<UObject*>& NewSelection) const
 {
-	if (Dataflow)
+	auto GetClothCollectionIfPossible = [](const TSharedPtr<const FDataflowNode> DataflowNode, const TSharedPtr<Dataflow::FEngineContext> DataflowContext) -> TSharedPtr<FManagedArrayCollection>
 	{
-		// remove nodes if they don't have the render box checked
-		int32 NewLen = Algo::RemoveIf(Dataflow->RenderTargets, [](const UDataflowEdNode* Node)
+		for (const FDataflowOutput* const Output : DataflowNode->GetOutputs())
 		{
-			return !Node->bRenderInAssetEditor;
-		});
-		Dataflow->RenderTargets.SetNum(NewLen);
-
-		for (UObject* Selected : NewSelection)
-		{
-			if (UDataflowEdNode* Node = Cast<UDataflowEdNode>(Selected))
+			if (Output->GetType() == FName("FManagedArrayCollection"))
 			{
-				Dataflow->RenderTargets.Add(Node);
+				const FManagedArrayCollection DefaultValue;
+				TSharedPtr<FManagedArrayCollection> Collection = MakeShared<FManagedArrayCollection>(Output->GetValue<FManagedArrayCollection>(*DataflowContext, DefaultValue));
+
+				// see if the output collection is a ClothCollection
+				const UE::Chaos::ClothAsset::FCollectionClothConstFacade ClothFacade(Collection);
+				if (ClothFacade.IsValid())
+				{
+					return Collection;
+				}
+
+				return MakeShared<FManagedArrayCollection>();
 			}
 		}
+
+		return TSharedPtr<FManagedArrayCollection>();
+	};
+
+
+	TSharedPtr<FManagedArrayCollection> Collection = nullptr;
+
+	if (Dataflow)
+	{
+		// Get any selected node with a ClothCollection output
+		for (const UObject* const Selected : NewSelection)
+		{
+			if (const UDataflowEdNode* const Node = Cast<UDataflowEdNode>(Selected))
+			{
+				Dataflow->RenderTargets.Add(Node);
+
+				if (const TSharedPtr<const FDataflowNode> DataflowNode = Node->GetDataflowNode())
+				{
+					Collection = GetClothCollectionIfPossible(DataflowNode, this->DataflowContext);
+				}
+			}
+		}
+
 		Dataflow->LastModifiedRenderTarget = Dataflow::FTimestamp::Current();
 	}
+
+	UChaosClothAssetEditorMode* const ClothMode = CastChecked<UChaosClothAssetEditorMode>(EditorModeManager->GetActiveScriptableMode(UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId));
+	if (ClothMode)
+	{
+		ClothMode->SetSelectedClothCollection(Collection);
+		ClothMode->RefocusRestSpaceViewportClient();
+	}
+
 }
 
 //~ Ends DataflowEditorActions

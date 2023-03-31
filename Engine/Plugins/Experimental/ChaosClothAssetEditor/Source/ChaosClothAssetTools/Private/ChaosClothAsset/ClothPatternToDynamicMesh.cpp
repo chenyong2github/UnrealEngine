@@ -217,12 +217,10 @@ private:
 };
 
 
-void FClothPatternToDynamicMesh::Convert(const UChaosClothAsset* ClothAssetMeshIn, int32 LODIndex, int32 PatternIndex, bool bGet2DPattern, UE::Geometry::FDynamicMesh3& MeshOut)
+void FClothPatternToDynamicMesh::Convert(const TSharedPtr<const FManagedArrayCollection> ClothCollection, int32 LODIndex, int32 PatternIndex, bool bGet2DPattern, UE::Geometry::FDynamicMesh3& MeshOut)
 {
 	using namespace UE::Chaos::ClothAsset;
 
-	const TSharedPtr<const FManagedArrayCollection> ClothCollection = ClothAssetMeshIn->GetClothCollection();
-	check(ClothCollection.IsValid());
 	const FCollectionClothConstFacade ClothFacade(ClothCollection);
 
 	// Actual conversion
@@ -247,6 +245,13 @@ void FClothPatternToDynamicMesh::Convert(const UChaosClothAsset* ClothAssetMeshI
 	}
 }
 
+void FClothPatternToDynamicMesh::Convert(const UChaosClothAsset* ClothAssetMeshIn, int32 LODIndex, int32 PatternIndex, bool bGet2DPattern, UE::Geometry::FDynamicMesh3& MeshOut)
+{
+	const TSharedPtr<const FManagedArrayCollection> ClothCollection = ClothAssetMeshIn->GetClothCollection();
+	check(ClothCollection.IsValid());
+
+	Convert(ClothCollection, LODIndex, PatternIndex, bGet2DPattern, MeshOut);
+}
 
 #else
 

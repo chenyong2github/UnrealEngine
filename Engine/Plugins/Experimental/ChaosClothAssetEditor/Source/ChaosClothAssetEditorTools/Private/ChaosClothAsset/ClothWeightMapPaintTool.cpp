@@ -30,6 +30,17 @@
 
 #include "CanvasTypes.h"
 #include "CanvasItem.h"
+#include "ChaosClothAsset/ClothEditorContextObject.h"
+#include "ContextObjectStore.h"
+#include "Dataflow/DataflowEdNode.h"
+#include "Dataflow/DataflowObject.h"
+#include "ChaosClothAsset/AddWeightMapNode.h"
+#include "ChaosClothAsset/DataflowNodes.h"
+#include "GraphEditor.h"
+#include "Dataflow/DataflowSNode.h"
+#include "Dataflow/DataflowGraphEditor.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ClothWeightMapPaintTool)
 
@@ -37,7 +48,7 @@ using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UClothEditorWeightMapPaintTool"
 
-namespace
+namespace UE::Chaos::ClothAsset::Private
 {
 	// probably should be something defined for the whole tool framework...
 #if WITH_EDITOR
@@ -53,9 +64,15 @@ namespace
  */
 UMeshSurfacePointTool* UClothEditorWeightMapPaintToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	UClothEditorWeightMapPaintTool* SculptTool = NewObject<UClothEditorWeightMapPaintTool>(SceneState.ToolManager);
-	SculptTool->SetWorld(SceneState.World);
-	return SculptTool;
+	UClothEditorWeightMapPaintTool* PaintTool = NewObject<UClothEditorWeightMapPaintTool>(SceneState.ToolManager);
+	PaintTool->SetWorld(SceneState.World);
+
+	if (UClothEditorContextObject* ContextObject = SceneState.ToolManager->GetContextObjectStore()->FindContext<UClothEditorContextObject>())
+	{
+		PaintTool->SetClothEditorContextObject(ContextObject);
+	}
+
+	return PaintTool;
 }
 
 
@@ -104,12 +121,12 @@ void UClothEditorWeightMapPaintTool::Setup()
 	Mesh->EnableVertexColors(FVector3f::One());
 	FAxisAlignedBox3d Bounds = Mesh->GetBounds(true);
 
-	TFuture<void> PrecomputeFuture = Async(WeightPaintToolAsyncExecTarget, [&]()
+	TFuture<void> PrecomputeFuture = Async(UE::Chaos::ClothAsset::Private::WeightPaintToolAsyncExecTarget, [&]()
 	{
 		PrecomputeFilterData();
 	});
 
-	TFuture<void> OctreeFuture = Async(WeightPaintToolAsyncExecTarget, [&]()
+	TFuture<void> OctreeFuture = Async(UE::Chaos::ClothAsset::Private::WeightPaintToolAsyncExecTarget, [&]()
 	{
 		// initialize dynamic octree
 		if (Mesh->TriangleCount() > 100000)
@@ -141,18 +158,13 @@ void UClothEditorWeightMapPaintTool::Setup()
 	PolyLassoMechanic->SpacingTolerance = 10.0f;
 	PolyLassoMechanic->OnDrawPolyLassoFinished.AddUObject(this, &UClothEditorWeightMapPaintTool::OnPolyLassoFinished);
 
-	WeightMapSetProperties = NewObject<UWeightMapSetProperties>(this);
-	WeightMapSetProperties->RestoreProperties(this, TEXT("ClothEditorWeightMapPaintTool"));
+	AddWeightMapProperties = NewObject<UClothEditorAddWeightMapProperties>(this);
+	AddWeightMapProperties->Initialize(this);
+	AddToolPropertySource(AddWeightMapProperties);
 
-	InitializeWeightMapNames();
-
-	WeightMapSetProperties->WatchProperty(WeightMapSetProperties->WeightMap, [&](FName) { OnSelectedWeightMapChanged(); });
-	UpdateActiveWeightMap();
-	AddToolPropertySource(WeightMapSetProperties);
-
-	ClothEditorWeightMapActions = NewObject<UClothEditorWeightMapActions>(this);
-	ClothEditorWeightMapActions->Initialize(this);
-	AddToolPropertySource(ClothEditorWeightMapActions);
+	UpdateWeightMapProperties = NewObject<UClothEditorUpdateWeightMapProperties>(this);
+	UpdateWeightMapProperties->Initialize(this);
+	AddToolPropertySource(UpdateWeightMapProperties);
 
 	// initialize other properties
 	FilterProperties = NewObject<UClothEditorWeightMapPaintBrushFilterProperties>(this);
@@ -210,7 +222,8 @@ void UClothEditorWeightMapPaintTool::Setup()
 	MeshElementsDisplay->CreateInWorld(DynamicMeshComponent->GetWorld(), DynamicMeshComponent->GetComponentTransform());
 	if (ensure(MeshElementsDisplay->Settings))
 	{
-		MeshElementsDisplay->Settings->RestoreProperties(this, TEXT("ClothEditorWeightMapPaintTool"));
+		MeshElementsDisplay->Settings->bShowNormalSeams = false;
+		MeshElementsDisplay->Settings->RestoreProperties(this, TEXT("ClothEditorWeightMapPaintTool2"));
 		AddToolPropertySource(MeshElementsDisplay->Settings);
 	}
 	MeshElementsDisplay->SetMeshAccessFunction([this](UMeshElementsVisualizer::ProcessDynamicMeshFunc ProcessFunc) {
@@ -246,6 +259,50 @@ void UClothEditorWeightMapPaintTool::Setup()
 
 	PrecomputeFuture.Wait();
 	OctreeFuture.Wait();
+
+
+	// Create an attribute layer to temporarily paint into
+	const int NumAttributeLayers = Mesh->Attributes()->NumWeightLayers();
+	Mesh->Attributes()->SetNumWeightLayers(NumAttributeLayers + 1);
+	ActiveWeightMap = Mesh->Attributes()->GetWeightLayer(NumAttributeLayers);
+	ActiveWeightMap->SetName(FName("PaintLayer"));
+
+	// Check if there is a weight map node selected
+	FString CurrentMapName;
+	TArray<float> CurrentWeights;
+	const bool bWeightMapNodeIsSelected = GetSelectedNodeInfo(CurrentMapName, CurrentWeights);
+
+	bShouldUpdateExistingNode = bWeightMapNodeIsSelected && (Mesh->VertexCount() == CurrentWeights.Num());
+
+	if (bShouldUpdateExistingNode)
+	{
+		check(Mesh->VertexCount() == CurrentWeights.Num());		// true if bShouldUpdateExistingNode is true
+
+		for (int32 VertexID = 0; VertexID < Mesh->VertexCount(); ++VertexID)
+		{
+			ActiveWeightMap->SetValue(VertexID, &CurrentWeights[VertexID]);
+		}
+
+		UpdateWeightMapProperties->Name = CurrentMapName;
+		SetToolPropertySourceEnabled(AddWeightMapProperties, false);
+		SetToolPropertySourceEnabled(UpdateWeightMapProperties, true);
+	}
+	else
+	{
+		SetToolPropertySourceEnabled(AddWeightMapProperties, true);
+		SetToolPropertySourceEnabled(UpdateWeightMapProperties, false);
+	}
+
+	// update colors
+	DynamicMeshComponent->FastNotifyVertexAttributesUpdated(EMeshRenderAttributeFlags::VertexColors);
+	GetToolManager()->PostInvalidation();
+
+}
+
+
+void UClothEditorWeightMapPaintTool::SetClothEditorContextObject(TObjectPtr<UClothEditorContextObject> InClothEditorContextObject)
+{
+	ClothEditorContextObject = InClothEditorContextObject;
 }
 
 void UClothEditorWeightMapPaintTool::Shutdown(EToolShutdownType ShutdownType)
@@ -257,13 +314,11 @@ void UClothEditorWeightMapPaintTool::Shutdown(EToolShutdownType ShutdownType)
 
 	if (ensure(MeshElementsDisplay->Settings))
 	{
-		MeshElementsDisplay->Settings->SaveProperties(this, TEXT("ClothEditorWeightMapPaintTool"));
+		MeshElementsDisplay->Settings->SaveProperties(this, TEXT("ClothEditorWeightMapPaintTool2"));
 	}
 	MeshElementsDisplay->Disconnect();
 
 	FilterProperties->SaveProperties(this);
-	WeightMapSetProperties->SaveProperties(this, TEXT("ClothEditorWeightMapPaintTool"));
-
 	if (PreviewMeshActor != nullptr)
 	{
 		PreviewMeshActor->Destroy();
@@ -277,10 +332,16 @@ void UClothEditorWeightMapPaintTool::Shutdown(EToolShutdownType ShutdownType)
 void UClothEditorWeightMapPaintTool::CommitResult(UBaseDynamicMeshComponent* Component, bool bModifiedTopology)
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("WeightPaintToolTransactionName", "Paint Weights"));
-	Component->ProcessMesh([&](const FDynamicMesh3& CurMesh)
+
+	if (bShouldUpdateExistingNode)
 	{
-		UE::ToolTarget::CommitDynamicMeshUpdate(Target, CurMesh, true);
-	});
+		UpdateSelectedNode();
+	}
+	else
+	{
+		AddNewNode(AddWeightMapProperties->Name);
+	}
+
 	GetToolManager()->EndUndoTransaction();
 }
 
@@ -1119,7 +1180,7 @@ void UClothEditorWeightMapPaintTool::OnTick(float DeltaTime)
 
 			// append updated ROI to modified region (async)
 			FDynamicMesh3* Mesh = GetSculptMesh();
-			TFuture<void> AccumulateROI = Async(WeightPaintToolAsyncExecTarget, [&]()
+			TFuture<void> AccumulateROI = Async(UE::Chaos::ClothAsset::Private::WeightPaintToolAsyncExecTarget, [&]()
 			{
 				UE::Geometry::VertexToTriangleOneRing(Mesh, VertexROI, AccumulatedTriangleROI);
 			});
@@ -1141,6 +1202,17 @@ void UClothEditorWeightMapPaintTool::OnTick(float DeltaTime)
 
 }
 
+bool UClothEditorWeightMapPaintTool::CanAccept() const
+{
+	if (bShouldUpdateExistingNode)
+	{
+		return true;
+	}
+	else
+	{
+		return !(AddWeightMapProperties->Name.IsEmpty());
+	}
+}
 
 
 
@@ -1220,105 +1292,117 @@ void UClothEditorWeightMapPaintTool::ClearAllWeightsAction()
 }
 
 
-void UClothEditorWeightMapPaintTool::InitializeWeightMapNames()
+bool UClothEditorWeightMapPaintTool::GetSelectedNodeInfo(FString& OutMapName, TArray<float>& OutWeights)
 {
-	const FDynamicMesh3* const Mesh = GetSculptMesh();
-
-	if (!WeightMapSetProperties || !Mesh || !Mesh->HasAttributes())
+	const TSharedPtr<const SDataflowGraphEditor> GraphEditor = ClothEditorContextObject->GetDataflowGraphEditor().Pin();
+	if (const UEdGraphNode* const SingleSelectedNode = GraphEditor->GetSingleSelectedNode())
 	{
-		return;
+		const UDataflowEdNode* const SelectedDataflowEdNode = Cast<UDataflowEdNode>(SingleSelectedNode);
+		const TSharedPtr<const FDataflowNode> DataflowNode = SelectedDataflowEdNode->GetDataflowNode();
+		if (const FChaosClothAssetAddWeightMapNode* const WeightMapNode = DataflowNode->AsType<FChaosClothAssetAddWeightMapNode>())
+		{
+			OutMapName = WeightMapNode->Name;
+			OutWeights = WeightMapNode->VertexWeights;
+			return true;
+		}
 	}
 
-	TArray<FString>& PropWeightMapNames = WeightMapSetProperties->WeightMapsList;
-	PropWeightMapNames.Reset();
-	PropWeightMapNames.Add(TEXT("None"));
-
-	// get names from the mesh attributes
-	for (int32 WeightMapIndex = 0; WeightMapIndex < Mesh->Attributes()->NumWeightLayers(); ++WeightMapIndex)
-	{
-		const FName& MeshWeightMapName = Mesh->Attributes()->GetWeightLayer(WeightMapIndex)->GetName();
-		PropWeightMapNames.Add(MeshWeightMapName.ToString());
-	}
-
-	// if selected weight map name is no longer in the list of valid names, reset it
-	if (!PropWeightMapNames.Contains(WeightMapSetProperties->WeightMap.ToString()))
-	{
-		WeightMapSetProperties->WeightMap = FName(PropWeightMapNames[0]);
-	}
+	// No single node selected, or the selected node is not FChaosClothAssetAddWeightMapNode
+	return false;
 }
 
 
-void UClothEditorWeightMapPaintTool::AddWeightMapAction(const FName& NewWeightMapName)
+void UClothEditorWeightMapPaintTool::AddNewNode(const FString& NewMapName)
 {
-	if (DynamicMeshComponent && DynamicMeshComponent->GetMesh() && DynamicMeshComponent->GetMesh()->HasAttributes())
+	check(ActiveWeightMap);
+	TArray<float> CurrentWeights;
+	GetCurrentWeightMap(CurrentWeights);
+
+	// TODO: If we are operating on a single pattern, expand the weight map to cover the whole LOD
+
+	TSharedPtr<SDataflowGraphEditor> GraphEditor = ClothEditorContextObject->GetDataflowGraphEditor().Pin();
+
+	//
+	// We want to turn this:
+	// 
+	// [SelectedNode] ----> [ExistingDownstreamNode(s)]
+	// 
+	// to this:
+	//
+	// [SelectedNode] ----> [NewNode] ----> [ExistingDownstreamNode(s)]
+	//
+
+	// First find the Collection output of the currently selected node, and any nodes it's connected to
+
+	const UEdGraphNode* const SingleSelectedNode = GraphEditor->GetSingleSelectedNode();
+	checkf(SingleSelectedNode, TEXT("There should be a single selected node in the Dataflow graph"));
+
+	const UDataflowEdNode* const SelectedDataflowEdNode = CastChecked<UDataflowEdNode>(SingleSelectedNode);
+	const TSharedPtr<const FDataflowNode> DataflowNode = SelectedDataflowEdNode->GetDataflowNode();
+	UEdGraphPin* SelectedNodeOutputPin = nullptr;
+	TArray<UEdGraphPin*> ExistingNodeInputPins;
+	for (const FDataflowOutput* Output : DataflowNode->GetOutputs())
 	{
-		FDynamicMesh3* const Mesh = DynamicMeshComponent->GetMesh();
-
-		FDynamicMeshAttributeSet* const MeshAttributes = Mesh->Attributes();
-		const int32 NumExistingWeights = MeshAttributes->NumWeightLayers();
-		
-		if (NewWeightMapName.IsNone())
+		if (Output->GetType() == FName("FManagedArrayCollection"))
 		{
-			GetToolManager()->DisplayMessage(LOCTEXT("InvalidAttributeName", "Invalid weight map name"), EToolMessageLevel::UserWarning);
-			return;
-		}
-
-		// Check for matching name	
-		for (int32 WeightMapIndex = 0; WeightMapIndex < NumExistingWeights; ++WeightMapIndex)
-		{
-			const FDynamicMeshWeightAttribute* const ExistingWeightMap = MeshAttributes->GetWeightLayer(WeightMapIndex);
-			if (ExistingWeightMap->GetName() == NewWeightMapName)
-			{
-				GetToolManager()->DisplayMessage(LOCTEXT("ErrorAddingDuplicateNameMessage", "Weight map with this name already exists"), EToolMessageLevel::UserWarning);
-				return;
-			}
-		}
-
-		MeshAttributes->SetNumWeightLayers(NumExistingWeights + 1);
-
-		const int32 NewWeightMapIndex = NumExistingWeights;
-		FDynamicMeshWeightAttribute* const NewWeightMap = MeshAttributes->GetWeightLayer(NewWeightMapIndex);
-		NewWeightMap->SetName(NewWeightMapName);
-
-		// Refresh the drop down of available weight maps and select the new one
-		InitializeWeightMapNames();
-		WeightMapSetProperties->SetSelectedFromWeightMapIndex(NewWeightMapIndex);
-
-		// Clear the New Name text field
-		ClothEditorWeightMapActions->NewWeightMapName.Empty();
-	}
-}
-
-
-void UClothEditorWeightMapPaintTool::DeleteWeightMapAction(const FName& SelectedWeightMapName)
-{
-	FDynamicMeshAttributeSet* const MeshAttributes = DynamicMeshComponent->GetMesh()->Attributes();
-
-	bool bFoundSelectedWeightMap = false;
-	
-	const int32 NumWeightMaps = MeshAttributes->NumWeightLayers();
-	for (int32 WeightMapIndex = 0; WeightMapIndex < NumWeightMaps; ++WeightMapIndex)
-	{
-		const FDynamicMeshWeightAttribute* const WeightMap = MeshAttributes->GetWeightLayer(WeightMapIndex);
-		if (WeightMap->GetName() == SelectedWeightMapName)
-		{
-			bFoundSelectedWeightMap = true;
-			MeshAttributes->RemoveWeightLayer(WeightMapIndex);		// Hopefully nothing else is holding indices into this...
+			SelectedNodeOutputPin = SelectedDataflowEdNode->FindPin(*Output->GetName().ToString(), EGPD_Output);
+			ExistingNodeInputPins = SelectedNodeOutputPin->LinkedTo;
 			break;
 		}
 	}
 
-	if (!bFoundSelectedWeightMap)
+	// Now add the new node and re-wire the graph
+
+	const TObjectPtr<UDataflow> Dataflow = ClothEditorContextObject->GetDataflowGraph();
+	const TSharedPtr<FAssetSchemaAction_Dataflow_CreateNode_DataflowEdNode> NodeAction = FAssetSchemaAction_Dataflow_CreateNode_DataflowEdNode::CreateAction(Dataflow, "FChaosClothAssetAddWeightMapNode");
+
+	UEdGraphNode* const NewEdNode = NodeAction->PerformAction(Dataflow, nullptr, GraphEditor->GetPasteLocation(), true);
+	UDataflowEdNode* const NewDataflowEdNode = CastChecked<UDataflowEdNode>(NewEdNode);
+	const TSharedPtr<FDataflowNode> NewDataflowNode = NewDataflowEdNode->GetDataflowNode();
+	FChaosClothAssetAddWeightMapNode* const NewWeightMapNode = NewDataflowNode->AsType<FChaosClothAssetAddWeightMapNode>();
+
+	NewWeightMapNode->VertexWeights = CurrentWeights;
+	NewWeightMapNode->Name = AddWeightMapProperties->Name;
+	// NewWeightMapNode->SetName(FName(AddWeightMapProperties->NewMapName));   TODO: This doesn't seem to work to set the Node name
+
+	// Re-wire the graph
+	FDataflowInput* NewNodeCollectionInput = NewWeightMapNode->FindInput(&(NewWeightMapNode->Collection));
+	FDataflowOutput* NewNodeCollectionOutput = NewWeightMapNode->FindOutput(&(NewWeightMapNode->Collection));
+	UEdGraphPin* NewNodeInputPin = NewDataflowEdNode->FindPin(*NewNodeCollectionInput->GetName().ToString(), EGPD_Input);
+	UEdGraphPin* NewNodeOutputPin = NewDataflowEdNode->FindPin(*NewNodeCollectionInput->GetName().ToString(), EGPD_Output);
+
+	bool bWasAnythingChanged = Dataflow->GetSchema()->TryCreateConnection(SelectedNodeOutputPin, NewNodeInputPin);
+
+	for (UEdGraphPin* DownstreamInputPin : ExistingNodeInputPins)
 	{
-		GetToolManager()->DisplayMessage(LOCTEXT("InvalidExistingWeightMapName", "No weight map with the specified name exists"), EToolMessageLevel::UserWarning);
+		bWasAnythingChanged |= Dataflow->GetSchema()->TryCreateConnection(NewNodeOutputPin, DownstreamInputPin);
 	}
-	else
+
+	if (bWasAnythingChanged)
 	{
-		InitializeWeightMapNames();
-		UpdateActiveWeightMap();
-		GetToolManager()->DisplayMessage(FText(), EToolMessageLevel::UserWarning);
+		Dataflow->NotifyGraphChanged();
 	}
+
 }
+
+
+void UClothEditorWeightMapPaintTool::UpdateSelectedNode()
+{
+	check(ActiveWeightMap);
+	TArray<float> CurrentWeights;
+	GetCurrentWeightMap(CurrentWeights);
+
+	const TSharedPtr<SGraphEditor> GraphEditor = ClothEditorContextObject->GetDataflowGraphEditor().Pin();
+	UEdGraphNode* const SingleSelectedNode = GraphEditor->GetSingleSelectedNode();
+	checkf(SingleSelectedNode, TEXT("There should be a single selected node in the Dataflow graph"));
+
+	UDataflowEdNode* const SelectedDataflowEdNode = CastChecked<UDataflowEdNode>(SingleSelectedNode);
+	const TSharedPtr<FDataflowNode> DataflowNode = SelectedDataflowEdNode->GetDataflowNode();
+	FChaosClothAssetAddWeightMapNode* const WeightMapNode = DataflowNode->AsType<FChaosClothAssetAddWeightMapNode>();
+	WeightMapNode->VertexWeights = CurrentWeights;
+	WeightMapNode->Invalidate();
+}
+
 
 //
 // Change Tracking
@@ -1510,66 +1594,18 @@ int32 UClothEditorWeightMapPaintTool::GetBrushNearestVertex() const
 	return Vertices[TriangleVertex];
 }
 
-
-void UClothEditorWeightMapPaintTool::OnSelectedWeightMapChanged()
+void UClothEditorWeightMapPaintTool::GetCurrentWeightMap(TArray<float>& OutWeights) const
 {
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("ChangeActiveWeightLayer", "Change Weight Layer"));
-
-	FDynamicMeshWeightAttribute* CurrentActiveLayer = ActiveWeightMap;
-	UpdateActiveWeightMap();
-	FDynamicMeshWeightAttribute* NewActiveLayer = ActiveWeightMap; 
-
-	if (CurrentActiveLayer != NewActiveLayer)
+	if (ActiveWeightMap)
 	{
-		// A value of -1 matches the property set's "None" label.
-		int32 CurrentActiveLayerIndex = -1;
-		int32 NewActiveLayerIndex = -1;
-		if (CurrentActiveLayer) {
-			WeightMapSetProperties->GetWeightMapsFunc().Find(CurrentActiveLayer->GetName().ToString(), CurrentActiveLayerIndex);
-			CurrentActiveLayerIndex = CurrentActiveLayerIndex - 1;
-		}
-		if (NewActiveLayer)
+		const FDynamicMesh3* Mesh = GetSculptMesh();
+		const int32 NumVertices = Mesh->VertexCount();
+		OutWeights.SetNumUninitialized(NumVertices);
+		for (int32 VertexID = 0; VertexID < NumVertices; ++VertexID)
 		{
-			WeightMapSetProperties->GetWeightMapsFunc().Find(NewActiveLayer->GetName().ToString(), NewActiveLayerIndex);
-			NewActiveLayerIndex = NewActiveLayerIndex - 1;
+			ActiveWeightMap->GetValue(VertexID, &OutWeights[VertexID]);
 		}
-
-		TUniquePtr<TSimpleValueLambdaChange<int32>> WeightLayerChange = MakeUnique<TSimpleValueLambdaChange<int32>>();
-		WeightLayerChange->FromValue = CurrentActiveLayerIndex;
-		WeightLayerChange->ToValue = NewActiveLayerIndex;
-		WeightLayerChange->ValueChangeFunc = [this](UObject*, int32 FromIndex, int32 ToIndex, bool)
-		{
-			this->WeightMapSetProperties->SetSelectedFromWeightMapIndex(ToIndex);
-			this->WeightMapSetProperties->SilentUpdateWatched();		// to prevent OnSelectedWeightMapChanged() from being called immediately
-			this->UpdateActiveWeightMap();
-		};
-		GetToolManager()->EmitObjectChange(this, MoveTemp(WeightLayerChange), LOCTEXT("ChangeActiveWeightSet", "Change Weight Set"));
 	}
-
-	GetToolManager()->EndUndoTransaction();
-}
-
-
-void UClothEditorWeightMapPaintTool::UpdateActiveWeightMap()
-{
-	int32 SelectedWeightSetIndex;
-	FName SelectedName = WeightMapSetProperties->WeightMap;
-	WeightMapSetProperties->GetWeightMapsFunc().Find(SelectedName.ToString(), SelectedWeightSetIndex);
-
-	FDynamicMesh3* Mesh = GetSculptMesh();
-	// Properties are 1-indexed, due to an initial None option
-	if (Mesh->Attributes()->NumWeightLayers() >= SelectedWeightSetIndex && SelectedWeightSetIndex > 0)
-	{
-		ActiveWeightMap = Mesh->Attributes()->GetWeightLayer(SelectedWeightSetIndex-1);
-	}
-	else
-	{
-		ActiveWeightMap = nullptr;
-	}
-
-	// update colors
-	DynamicMeshComponent->FastNotifyVertexAttributesUpdated(EMeshRenderAttributeFlags::VertexColors);
-	GetToolManager()->PostInvalidation();
 }
 
 
@@ -1624,15 +1660,6 @@ void UClothEditorWeightMapPaintTool::ApplyAction(EClothEditorWeightMapPaintToolA
 	case EClothEditorWeightMapPaintToolActions::ClearAll:
 		ClearAllWeightsAction();
 		break;
-
-	case EClothEditorWeightMapPaintToolActions::AddWeightMap:
-		AddWeightMapAction(FName(ClothEditorWeightMapActions->NewWeightMapName));
-		break;
-
-	case EClothEditorWeightMapPaintToolActions::DeleteWeightMap:
-		DeleteWeightMapAction(WeightMapSetProperties->WeightMap);
-		break;
-
 	}
 }
 

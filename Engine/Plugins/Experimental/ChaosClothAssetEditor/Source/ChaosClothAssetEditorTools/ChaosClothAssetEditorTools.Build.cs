@@ -55,6 +55,10 @@ public class ChaosClothAssetEditorTools : ModuleRules
 				"SkeletalMeshDescription",
 				"ChaosClothAsset",
 				"ChaosCaching",
+				"ChaosClothAssetDataflowNodes",
+				"DataflowCore",
+				"DataflowEngine",
+				"DataflowEditor"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
