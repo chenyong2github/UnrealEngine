@@ -23,6 +23,7 @@ class ENHANCEDINPUT_API UEnhancedInputLocalPlayerSubsystem : public ULocalPlayer
 public:
 
 	// Begin ULocalPlayerSubsystem
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void PlayerControllerChanged(APlayerController* NewPlayerController) override;
 	// End ULocalPlayerSubsystem
 	

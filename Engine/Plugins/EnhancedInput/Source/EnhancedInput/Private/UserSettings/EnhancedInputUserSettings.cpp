@@ -37,19 +37,6 @@ namespace UE::EnhancedInput
 	UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_InvalidMappingName, "InputUserSettings.FailureReasons.InvalidMappingName");
 	UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_NoKeyProfile, "InputUserSettings.FailureReasons.NoKeyProfile");
 	UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_NoMatchingMappings, "InputUserSettings.FailureReasons.NoMatchingMappings");
-	
-	// TODO: Break this out to somewhere else, probably the EI library. 
-	static ULocalPlayer* GetLocalPlayer(const UEnhancedPlayerInput* PlayerInput)
-	{
-		if (PlayerInput)
-		{
-			if (APlayerController* PC = PlayerInput->GetOuterAPlayerController())
-			{
-				return PC->GetLocalPlayer();
-			}
-		}
-		return nullptr;
-	}
 
 	static void DumpAllKeyProfilesToLog(const TArray<FString>& Args)
 	{
@@ -528,11 +515,9 @@ void UEnhancedPlayerMappableKeyProfile::K2_FindKeyMapping(FPlayerKeyMapping& Out
 ///////////////////////////////////////////////////////////
 // UEnhancedInputUserSettings
 
-UEnhancedInputUserSettings* UEnhancedInputUserSettings::LoadOrCreateSettings(UEnhancedPlayerInput* PlayerInput)
+UEnhancedInputUserSettings* UEnhancedInputUserSettings::LoadOrCreateSettings(ULocalPlayer* LocalPlayer)
 {
 	UEnhancedInputUserSettings* Settings = nullptr;
-
-	ULocalPlayer* LocalPlayer = UE::EnhancedInput::GetLocalPlayer(PlayerInput);
 
 	if (!LocalPlayer)
 	{
@@ -559,17 +544,24 @@ UEnhancedInputUserSettings* UEnhancedInputUserSettings::LoadOrCreateSettings(UEn
 
 	if (ensure(Settings))
 	{
-		Settings->Initialize(PlayerInput);
+		Settings->Initialize(LocalPlayer);
     	Settings->ApplySettings();	
 	}
 
 	return Settings;
 }
 
-void UEnhancedInputUserSettings::Initialize(UEnhancedPlayerInput* InPlayerInput)
+void UEnhancedInputUserSettings::Initialize(ULocalPlayer* InLocalPlayer)
 {
-	OwningPlayerInput = InPlayerInput;
-	ensureMsgf(GetPlayerInput(), TEXT("UEnhancedInputUserSettings is missing a player input!"));
+	// If the local player hasn't changed, then we don't need to do anything.
+	// This may be the case if the Player Controller has changed
+	if (InLocalPlayer == GetLocalPlayer())
+	{
+		return;
+	}
+	
+	OwningLocalPlayer = InLocalPlayer;
+	ensureMsgf(OwningLocalPlayer.IsValid(), TEXT("UEnhancedInputUserSettings is missing an owning local player!"));
 
 	// Create a default key mapping profile in the case where one doesn't exist
 	if (!GetCurrentKeyProfile())
@@ -588,7 +580,6 @@ void UEnhancedInputUserSettings::Initialize(UEnhancedPlayerInput* InPlayerInput)
 
 void UEnhancedInputUserSettings::ApplySettings()
 {
-	ensureMsgf(GetPlayerInput(), TEXT("UEnhancedInputUserSettings is missing a player input!"));
 	UE_LOG(LogEnhancedInput, Verbose, TEXT("Enhanced Input User Settings applied!"));
 
 	OnSettingsApplied.Broadcast();
@@ -596,8 +587,6 @@ void UEnhancedInputUserSettings::ApplySettings()
 
 void UEnhancedInputUserSettings::SaveSettings()
 {
-	ensureMsgf(GetPlayerInput(), TEXT("UEnhancedInputUserSettings is missing a player input!"));
-	
 	if (ULocalPlayer* OwningPlayer = GetLocalPlayer())
 	{
 		UGameplayStatics::SaveGameToSlot(this, UE::EnhancedInput::SETTINGS_SLOT_NAME, OwningPlayer->GetLocalPlayerIndex());
@@ -773,27 +762,9 @@ void UEnhancedInputUserSettings::Serialize(FArchive& Ar)
 	}
 }
 
-UEnhancedPlayerInput* UEnhancedInputUserSettings::GetPlayerInput() const
-{
-	return OwningPlayerInput.Get();
-}
-
-APlayerController* UEnhancedInputUserSettings::GetPlayerController() const
-{
-	if (UEnhancedPlayerInput* PlayerInput = GetPlayerInput())
-	{
-		return Cast<APlayerController>(PlayerInput->GetOuter());
-	}
-	return nullptr;
-}
-
 ULocalPlayer* UEnhancedInputUserSettings::GetLocalPlayer() const
 {
-	if (APlayerController* PC = GetPlayerController())
-	{
-		return PC->GetLocalPlayer();
-	}
-	return nullptr;
+	return OwningLocalPlayer.Get();
 }
 
 void UEnhancedInputUserSettings::MapPlayerKey(const FMapPlayerKeyArgs& InArgs, FGameplayTagContainer& FailureReason)
@@ -941,10 +912,9 @@ const UInputAction* UEnhancedInputUserSettings::FindInputActionForMapping(const 
 
 bool UEnhancedInputUserSettings::SetKeyProfile(const FGameplayTag& InProfileId)
 {
-	UEnhancedPlayerInput* PlayerInput = GetPlayerInput();
-	if (!PlayerInput)
+	if (!GetLocalPlayer())
 	{
-		UE_LOG(LogEnhancedInput, Error, TEXT("Failed to find the PlayerInput associated with the Enhanced Input user settings!"), *InProfileId.ToString());
+		UE_LOG(LogEnhancedInput, Error, TEXT("Failed to find the Local Player associated with the Enhanced Input user settings!"), *InProfileId.ToString());
 		return false;
 	}
 

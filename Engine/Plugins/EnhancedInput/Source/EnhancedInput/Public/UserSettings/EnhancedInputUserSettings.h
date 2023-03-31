@@ -453,8 +453,8 @@ public:
 	//~ End UObject Interface
 	
 	/** Loads or creates new user settings for the owning local player of the given player input */
-	static UEnhancedInputUserSettings* LoadOrCreateSettings(UEnhancedPlayerInput* PlayerInput);
-	virtual void Initialize(UEnhancedPlayerInput* PlayerInput);
+	static UEnhancedInputUserSettings* LoadOrCreateSettings(ULocalPlayer* LP);
+	virtual void Initialize(ULocalPlayer* LP);
 
 	/**
 	 * Apply any custom input settings to your user. By default, this will just broadcast the OnSettingsApplied delegate
@@ -485,9 +485,7 @@ protected:
 
 public:
 	
-	UEnhancedPlayerInput* GetPlayerInput() const;
 	ULocalPlayer* GetLocalPlayer() const;
-	APlayerController* GetPlayerController() const;
 	
 	/** Fired when the user settings have changed, such as their key mappings. */
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEnhancedInputUserSettingsChanged, UEnhancedInputUserSettings*, Settings);
@@ -615,9 +613,9 @@ protected:
 	UPROPERTY(SaveGame)
 	TMap<FGameplayTag, TObjectPtr<UEnhancedPlayerMappableKeyProfile>> SavedKeyProfiles;
 	
-	/** The owning Player Input object of these settings */
+	/** The owning Local Player object of these settings */
 	UPROPERTY(Transient)
-	TWeakObjectPtr<UEnhancedPlayerInput> OwningPlayerInput;
+	TWeakObjectPtr<ULocalPlayer> OwningLocalPlayer;
 	
 	/**
 	 * Set of currently registered input mapping contexts that may not be currently

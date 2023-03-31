@@ -23,12 +23,20 @@ DEFINE_LOG_CATEGORY(LogWorldSubsystemInput);
 // *
 // **************************************************************************************************
 
+void UEnhancedInputLocalPlayerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+	
+	if (GetDefault<UEnhancedInputDeveloperSettings>()->bEnableUserSettings)
+	{
+		InitalizeUserSettings();
+	}
+}
+
 void UEnhancedInputLocalPlayerSubsystem::PlayerControllerChanged(APlayerController* NewPlayerController)
 {
 	Super::PlayerControllerChanged(NewPlayerController);
-
-	// Now that there is a valid player controller, we should have access to a valid PlayerInput pointer.
-	// That means that we can listen for changes to that player's settings!
+	
 	if (GetDefault<UEnhancedInputDeveloperSettings>()->bEnableUserSettings)
 	{
 		InitalizeUserSettings();
@@ -55,11 +63,19 @@ UEnhancedInputUserSettings* UEnhancedInputLocalPlayerSubsystem::GetUserSettings(
 
 void UEnhancedInputLocalPlayerSubsystem::InitalizeUserSettings()
 {
+	ULocalPlayer* LP = GetLocalPlayer();
+
+	if (!LP)
+	{
+		UE_LOG(LogEnhancedInput, Error, TEXT("Failed to initalize user settings, there is no valid local player!"));
+		return;
+	}
+	
 	// If the user settings are already created then we just want to update it's pointer to the 
-	// player input object, as that may have changed with a new player controller.
+	// local player object, as that may have changed with a new player controller.
 	if (UserSettings)
 	{
-		UserSettings->Initialize(GetPlayerInput());
+		UserSettings->Initialize(LP);
 		return;
 	}
 
@@ -68,15 +84,8 @@ void UEnhancedInputLocalPlayerSubsystem::InitalizeUserSettings()
 		UE_LOG(LogEnhancedInput, Verbose, TEXT("bEnableUserSettings is set to false, skipping creation of UEnhancedInputUserSettings!"));
 		return;
 	}
-
-	UEnhancedPlayerInput* PlayerInput = GetPlayerInput();
-	if (!PlayerInput)
-	{
-		UE_LOG(LogEnhancedInput, Error, TEXT("Unable to find a valid player input to initalize user settings with!"));
-		return;
-	}
 	
-	UserSettings = UEnhancedInputUserSettings::LoadOrCreateSettings(PlayerInput);
+	UserSettings = UEnhancedInputUserSettings::LoadOrCreateSettings(LP);
 
 	// Bind delegates to the user settings if it was successfully created
 	if (ensure(UserSettings))
