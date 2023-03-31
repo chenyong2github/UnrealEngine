@@ -117,7 +117,7 @@ class FMobileFogPS : public FGlobalShader
 
 IMPLEMENT_SHADER_TYPE(, FMobileFogPS, TEXT("/Engine/Private/MobileFog.usf"), TEXT("MobileFogPS"), SF_Pixel);
 
-void FMobileSceneRenderer::RenderFog(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
+void FMobileSceneRenderer::RenderFog(FRHICommandList& RHICmdList, const FViewInfo& View)
 {	
 	static const auto* CVarDisableVertexFog = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.DisableVertexFog"));
 	if (CVarDisableVertexFog && CVarDisableVertexFog->GetValueOnRenderThread() == 0)

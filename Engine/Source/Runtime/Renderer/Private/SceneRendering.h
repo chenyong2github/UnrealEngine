@@ -2317,9 +2317,7 @@ public:
 	/** Get the ParallelExecuteFlags depending on FeatureLevel*/
 	static ERDGBuilderFlags GetRDGParalelExecuteFlags(ERHIFeatureLevel::Type FeatureLevel)
 	{
-		return  FeatureLevel == ERHIFeatureLevel::ES3_1
-			? ERDGBuilderFlags::None
-			: ERDGBuilderFlags::AllowParallelExecute;
+		return ERDGBuilderFlags::AllowParallelExecute;
 	}
 
 	FORCEINLINE FSceneTextures& GetActiveSceneTextures() { return ViewFamily.GetSceneTextures(); }
@@ -2720,25 +2718,25 @@ protected:
 		FVirtualTextureUpdater* VirtualTextureUpdater,
 		FInitViewTaskDatas& TaskDatas);
 
-	void RenderPrePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
-	void RenderMaskedPrePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+	void RenderPrePass(FRHICommandList& RHICmdList, const FViewInfo& View);
+	void RenderMaskedPrePass(FRHICommandList& RHICmdList, const FViewInfo& View);
 	void RenderFullDepthPrepass(FRDGBuilder& GraphBuilder, FSceneTextures& SceneTextures);
 
 	/** Renders the opaque base pass for mobile. */
-	void RenderMobileBasePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+	void RenderMobileBasePass(FRHICommandList& RHICmdList, const FViewInfo& View);
 
-	void PostRenderBasePass(FRHICommandListImmediate& RHICmdList, FViewInfo& View);
+	void PostRenderBasePass(FRHICommandList& RHICmdList, FViewInfo& View);
 
 	void RenderMobileEditorPrimitives(FRHICommandList& RHICmdList, const FViewInfo& View, const FMeshPassProcessorRenderState& DrawRenderState);
 
 	/** Renders the debug view pass for mobile. */
-	void RenderMobileDebugView(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+	void RenderMobileDebugView(FRHICommandList& RHICmdList, const FViewInfo& View);
 
 	/** Render modulated shadow projections in to the scene, loops over any unrendered shadows until all are processed.*/
-	void RenderModulatedShadowProjections(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const FViewInfo& View);
+	void RenderModulatedShadowProjections(FRHICommandList& RHICmdList, int32 ViewIndex, const FViewInfo& View);
 
 	/** Issues occlusion queries */
-	void RenderOcclusion(FRHICommandListImmediate& RHICmdList);
+	void RenderOcclusion(FRHICommandList& RHICmdList);
 	
 	bool ShouldRenderHZB();
 
@@ -2751,19 +2749,19 @@ protected:
 	int32 ComputeNumOcclusionQueriesToBatch() const;
 
 	/** Whether platform requires multiple render-passes for SceneColor rendering */
-	bool RequiresMultiPass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View) const;
+	bool RequiresMultiPass(const FViewInfo& View) const;
 
 	/** Renders decals. */
-	void RenderDecals(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+	void RenderDecals(FRHICommandList& RHICmdList, const FViewInfo& View);
 
 	/** Renders the atmospheric and height fog */
-	void RenderFog(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+	void RenderFog(FRHICommandList& RHICmdList, const FViewInfo& View);
 
 	/** Renders the base pass for translucency. */
-	void RenderTranslucency(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+	void RenderTranslucency(FRHICommandList& RHICmdList, const FViewInfo& View);
 
 	/** On chip pre-tonemap before scene color MSAA resolve (iOS only) */
-	void PreTonemapMSAA(FRHICommandListImmediate& RHICmdList, const FMinimalSceneTextures& SceneTextures);
+	void PreTonemapMSAA(FRHICommandList& RHICmdList, const FMinimalSceneTextures& SceneTextures);
 
 	void SetupMobileBasePassAfterShadowInit(FExclusiveDepthStencil::Type BasePassDepthStencilAccess, TArrayView<FViewCommands> ViewCommandsPerView, FInstanceCullingManager& InstanceCullingManager);
 

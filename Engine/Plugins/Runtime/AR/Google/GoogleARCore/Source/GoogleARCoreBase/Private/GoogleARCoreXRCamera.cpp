@@ -79,7 +79,7 @@ void FGoogleARCoreXRCamera::PostRenderBasePassDeferred_RenderThread(FRDGBuilder&
 	});
 }
 
-void FGoogleARCoreXRCamera::PostRenderBasePassMobile_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView)
+void FGoogleARCoreXRCamera::PostRenderBasePassMobile_RenderThread(FRHICommandList& RHICmdList, FSceneView& InView)
 {
 	PassthroughRenderer->RenderVideoOverlay_RenderThread(RHICmdList, InView);
 }

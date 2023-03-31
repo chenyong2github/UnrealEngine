@@ -1434,7 +1434,7 @@ void FProjectedShadowInfo::RenderProjectionInternal(
 }
 
 void FProjectedShadowInfo::RenderMobileModulatedShadowProjection(
-	FRHICommandListImmediate& RHICmdList,
+	FRHICommandList& RHICmdList,
 	int32 ViewIndex,
 	const FViewInfo* View,
 	const FLightSceneProxy* LightSceneProxy,
@@ -2343,7 +2343,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 	}
 }
 
-void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const FViewInfo& View)
+void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandList& RHICmdList, int32 ViewIndex, const FViewInfo& View)
 {
 	if (!ViewFamily.EngineShowFlags.DynamicShadows || View.bIsPlanarReflection || bRequiresShadowProjections)
 	{

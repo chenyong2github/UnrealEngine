@@ -163,7 +163,7 @@ public:
 	/**
 	 * Called right after Base Pass rendering finished when using the mobile renderer.
 	 */
-	virtual void PostRenderBasePassMobile_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) {}
+	virtual void PostRenderBasePassMobile_RenderThread(FRHICommandList& RHICmdList, FSceneView& InView) {}
 
 	/**
 	 * Called right before Post Processing rendering begins

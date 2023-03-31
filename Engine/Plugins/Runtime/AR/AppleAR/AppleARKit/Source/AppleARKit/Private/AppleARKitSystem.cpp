@@ -198,7 +198,7 @@ private:
 		}
 	}
 
-	virtual void PostRenderBasePassMobile_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override
+	virtual void PostRenderBasePassMobile_RenderThread(FRHICommandList& RHICmdList, FSceneView& InView) override
 	{
 		if (ARKitSystem.RenderThreadFrame.IsValid())
 		{

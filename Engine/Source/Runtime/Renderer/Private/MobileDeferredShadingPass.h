@@ -17,7 +17,7 @@ struct FSortedLightSetSceneInfo;
 extern int32 GMobileUseClusteredDeferredShading;
 
 void MobileDeferredShadingPass(
-	FRHICommandListImmediate& RHICmdList,
+	FRHICommandList& RHICmdList,
 	int32 ViewIndex,
 	int32 NumViews,
 	const FViewInfo& View,

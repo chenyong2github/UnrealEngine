@@ -599,7 +599,7 @@ public:
 	 * Projects the mobile modulated shadow onto the scene for a particular view.
 	 */
 	void RenderMobileModulatedShadowProjection(
-		FRHICommandListImmediate& RHICmdList,
+		FRHICommandList& RHICmdList,
 		int32 ViewIndex,
 		const FViewInfo* View,
 		const FLightSceneProxy* LightSceneProxy,

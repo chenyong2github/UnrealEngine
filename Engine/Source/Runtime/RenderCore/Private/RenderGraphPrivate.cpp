@@ -367,7 +367,7 @@ FAutoConsoleVariableRef CVarRDGParallelExecute(
 				GRDGParallelExecutePassMax = 1;
 			}
 
-			if (GRDGParallelExecutePassMin < GRDGParallelExecutePassMax)
+			if (GRDGParallelExecutePassMax < GRDGParallelExecutePassMin)
 			{
 				GRDGParallelExecutePassMin = GRDGParallelExecutePassMax;
 			}
@@ -634,7 +634,7 @@ bool IsParallelExecuteEnabled()
 		&& !IsImmediateMode()
 		&& !GRDGDebug
 		&& !GRDGTransitionLog
-		&& !IsMobilePlatform(GMaxRHIShaderPlatform)
+		&& !IsOpenGLPlatform(GMaxRHIShaderPlatform)
 		&& GRHISupportsMultithreadedShaderCreation
 #if WITH_DUMPGPU
 		&& !IsDumpingRDGResources()
@@ -651,7 +651,7 @@ bool IsParallelSetupEnabled()
 		&& !IsImmediateMode()
 		&& !GRDGDebug
 		&& !GRDGTransitionLog
-		&& !IsMobilePlatform(GMaxRHIShaderPlatform)
+		&& !IsOpenGLPlatform(GMaxRHIShaderPlatform)
 		&& GRHISupportsMultithreadedShaderCreation
 #if WITH_DUMPGPU
 		&& !IsDumpingRDGResources()

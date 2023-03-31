@@ -226,8 +226,9 @@ FVulkanUniformBuffer::FVulkanUniformBuffer(FVulkanDevice& InDevice, const FRHIUn
 	{
 		const bool bInRenderingThread = IsInRenderingThread();
 		const bool bInRHIThread = IsInRHIThread();
-
-		if (UseRingBuffer(InUsage) && (bInRenderingThread || bInRHIThread))
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (UseRingBuffer(InUsage) && (bInRenderingThread || bInRHIThread) && !UE::Tasks::Private::IsThreadRetractingTask())
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			if (Contents)
 			{
@@ -268,6 +269,7 @@ FVulkanUniformBuffer::FVulkanUniformBuffer(FVulkanDevice& InDevice, const FRHIUn
 				Allocation.FlushMappedMemory(Device);
 			}
 		}
+
 	}
 }
 

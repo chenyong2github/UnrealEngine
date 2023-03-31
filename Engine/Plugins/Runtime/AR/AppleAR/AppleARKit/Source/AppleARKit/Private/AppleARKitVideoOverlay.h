@@ -82,7 +82,7 @@ public:
 
 	void SetCameraTexture(UARTextureCameraImage* InCameraImage);
 
-	void RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, struct FAppleARKitFrame& Frame, const float WorldToMeterScale);
+	void RenderVideoOverlay_RenderThread(FRHICommandList& RHICmdList, const FSceneView& InView, struct FAppleARKitFrame& Frame, const float WorldToMeterScale);
 	bool GetPassthroughCameraUVs_RenderThread(TArray<FVector2D>& OutUVs, const EDeviceScreenOrientation DeviceOrientation);
 
 	void SetOverlayTexture(UARTextureCameraImage* InCameraImage);
@@ -102,7 +102,7 @@ private:
 	}
 	//~ FGCObject
 	
-	void RenderVideoOverlayWithMaterial(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, struct FAppleARKitFrame& Frame, UMaterialInstanceDynamic* RenderingOverlayMaterial, const bool bRenderingOcclusion);
+	void RenderVideoOverlayWithMaterial(FRHICommandList& RHICmdList, const FSceneView& InView, struct FAppleARKitFrame& Frame, UMaterialInstanceDynamic* RenderingOverlayMaterial, const bool bRenderingOcclusion);
 	void UpdateOcclusionTextures(const FAppleARKitFrame& Frame);
 	void UpdateVideoTextures(const FAppleARKitFrame& Frame);
 	
