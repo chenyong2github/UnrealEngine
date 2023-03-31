@@ -28,6 +28,7 @@
 #include "Landscape.h"
 #include "LevelInstance/LevelInstanceActor.h"
 #include "Sound/AmbientSound.h"
+#include "SourceControlHelpers.h"
 
 #define LOCTEXT_NAMESPACE "LevelEditorOutlinerSettings"
 
@@ -294,16 +295,16 @@ void FLevelEditorOutlinerSettings::CreateDefaultFilters()
 
 bool FLevelEditorOutlinerSettings::DoesActorPassUnsavedFilter(const ISceneOutlinerTreeItem& InItem)
 {
-	return UnsavedAssets.Contains(SceneOutliner::FSceneOutlinerHelpers::GetExternalPackageName(InItem));
+	return UnsavedAssets.Contains(USourceControlHelpers::PackageFilename(SceneOutliner::FSceneOutlinerHelpers::GetExternalPackageName(InItem)));
 }
 
 bool FLevelEditorOutlinerSettings::DoesActorPassUncontrolledFilter(const ISceneOutlinerTreeItem& InItem)
 {
-	FString ExternalPackageName = SceneOutliner::FSceneOutlinerHelpers::GetExternalPackageName(InItem);
+	FString ExternalPackageFilename = USourceControlHelpers::PackageFilename(SceneOutliner::FSceneOutlinerHelpers::GetExternalPackageName(InItem));
 	
 	for (const TSharedRef<FUncontrolledChangelistState>& UncontrolledChangelistState : UncontrolledChangelistStates)
 	{
-		return UncontrolledChangelistState->GetFilenames().Contains(ExternalPackageName);
+		return UncontrolledChangelistState->GetFilenames().Contains(ExternalPackageFilename);
 	}
 	
 	return false;
