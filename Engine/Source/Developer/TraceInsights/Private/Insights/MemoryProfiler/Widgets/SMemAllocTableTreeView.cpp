@@ -141,26 +141,27 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 				}
 				TableTreeNodes.Reserve(TotalAllocCount);
 
-				uint32 HeapAllocCount(0);
+				uint32 HeapAllocCount = 0;
 				const FName BaseNodeName(TEXT("alloc"));
 				const FName BaseHeapName(TEXT("heap"));
 				for (int32 AllocIndex = TableTreeNodes.Num(); AllocIndex < TotalAllocCount; ++AllocIndex)
 				{
 					const FMemoryAlloc* Alloc = MemAllocTable->GetMemAlloc(AllocIndex);
 
-					// Until we have an UX story around heap allocations
-					// remove them from the list
-					if (Alloc->bIsBlock)
+					if (Alloc->bIsHeap)
 					{
 						++HeapAllocCount;
-						continue;
+						if (!bIncludeHeapAllocs)
+						{
+							continue;
+						}
 					}
 
-					FName NodeName(Alloc->bIsBlock ? BaseHeapName : BaseNodeName, static_cast<int32>(Alloc->GetStartEventIndex() + 1));
+					FName NodeName(Alloc->bIsHeap ? BaseHeapName : BaseNodeName, static_cast<int32>(Alloc->GetStartEventIndex() + 1));
 					FMemAllocNodePtr NodePtr = MakeShared<FMemAllocNode>(NodeName, MemAllocTable, AllocIndex);
 					TableTreeNodes.Add(NodePtr);
 				}
-				ensure(TableTreeNodes.Num() == TotalAllocCount - HeapAllocCount);
+				ensure(TableTreeNodes.Num() == (bIncludeHeapAllocs ? TotalAllocCount : TotalAllocCount - HeapAllocCount));
 				UpdateQueryInfo();
 			}
 		}
@@ -460,7 +461,7 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 					}
 
 					Alloc.RootHeap = Allocation->GetRootHeap();
-					Alloc.bIsBlock = Allocation->IsHeap();
+					Alloc.bIsHeap = Allocation->IsHeap();
 
 					Alloc.bIsDecline = false;
 					if (Rule->GetValue() == TraceServices::IAllocationsProvider::EQueryRule::aAfaBf)

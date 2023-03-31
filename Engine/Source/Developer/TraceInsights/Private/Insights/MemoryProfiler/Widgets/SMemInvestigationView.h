@@ -98,6 +98,8 @@ private:
 
 	TSharedPtr<SComboBox<TSharedPtr<Insights::FMemoryRuleSpec>>> QueryRuleComboBox;
 
+	bool bIncludeHeapAllocs;
+
 	TSharedPtr<SComboBox<TSharedPtr<Insights::FQueryTargetWindowSpec>>> QueryTargetComboBox;
 	
 	TSharedPtr<STextBlock> SymbolPathsTextBlock;

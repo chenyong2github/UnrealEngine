@@ -23,7 +23,7 @@ FMemoryAlloc::FMemoryAlloc()
 	, Callstack(nullptr)
 	, FreeCallstack(nullptr)
 	, RootHeap(0)
-	, bIsBlock(false)
+	, bIsHeap(false)
 	, bIsDecline(false)
 {
 }

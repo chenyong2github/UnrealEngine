@@ -61,13 +61,21 @@ public:
 	 */
 	virtual void RebuildTree(bool bResync);
 
-	void SetQueryParams(TSharedPtr<FMemoryRuleSpec> InRule, double TimeA = 0.0, double TimeB = 0.0, double TimeC = 0.0, double TimeD = 0.0)
+	struct FQueryParams
 	{
-		Rule = InRule;
-		TimeMarkers[0] = TimeA;
-		TimeMarkers[1] = TimeB;
-		TimeMarkers[2] = TimeC;
-		TimeMarkers[3] = TimeD;
+		TSharedPtr<FMemoryRuleSpec> Rule;
+		double TimeMarkers[4] = { 0.0, 0.0, 0.0, 0.0 };
+		bool bIncludeHeapAllocs = false;
+	};
+
+	void SetQueryParams(const FQueryParams& InQueryParams)
+	{
+		Rule = InQueryParams.Rule;
+		TimeMarkers[0] = InQueryParams.TimeMarkers[0];
+		TimeMarkers[1] = InQueryParams.TimeMarkers[1];
+		TimeMarkers[2] = InQueryParams.TimeMarkers[2];
+		TimeMarkers[3] = InQueryParams.TimeMarkers[3];
+		bIncludeHeapAllocs = InQueryParams.bIncludeHeapAllocs;
 		OnQueryInvalidated();
 	}
 
@@ -127,6 +135,7 @@ private:
 	int32 TabIndex = -1;
 	TSharedPtr<FMemoryRuleSpec> Rule = nullptr;
 	double TimeMarkers[4];
+	bool bIncludeHeapAllocs = false;
 	TraceServices::IAllocationsProvider::FQueryHandle Query = 0;
 	FText QueryInfo;
 	FText QueryInfoTooltip;

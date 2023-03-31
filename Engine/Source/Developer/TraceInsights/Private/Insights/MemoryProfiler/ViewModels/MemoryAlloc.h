@@ -29,6 +29,7 @@ public:
 	uint64 GetAddress() const { return Address; }
 	uint64 GetPage() const { return Address & ~(4llu*1024-1); }
 	int64 GetSize() const { return Size; }
+	bool IsHeap() const { return bIsHeap; }
 	TraceServices::TagIdType GetTagId() const { return TagId; }
 	const TCHAR* GetTag() const { return Tag; }
 	const TCHAR* GetAsset() const { return Asset; }
@@ -59,7 +60,7 @@ private:
 	const TraceServices::FCallstack* Callstack;
 	const TraceServices::FCallstack* FreeCallstack;
 	HeapId RootHeap;
-	bool bIsBlock;
+	bool bIsHeap;
 	bool bIsDecline;
 };
 
