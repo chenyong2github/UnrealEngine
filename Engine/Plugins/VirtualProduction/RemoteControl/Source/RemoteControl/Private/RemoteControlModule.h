@@ -2,6 +2,7 @@
 #pragma once
 
 #include "AssetRegistry/AssetData.h"
+#include "Containers/Ticker.h"
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "Factories/IRCDefaultValueFactory.h"
@@ -256,6 +257,9 @@ private:
 
 	/** Handle to the timer that that ends the ongoing change in regards to PostEditChange and transactions. */
 	FTimerHandle OngoingChangeTimer;
+	
+	/** Handle to the timer that that ends the ongoing change in regards to PostEditChange and transactions. */
+	FTSTicker::FDelegateHandle FallbackOngoingChangeTimer;
 
 	/** Delay before we check if a modification is no longer ongoing. */
 	static constexpr float SecondsBetweenOngoingChangeCheck = 0.2f;

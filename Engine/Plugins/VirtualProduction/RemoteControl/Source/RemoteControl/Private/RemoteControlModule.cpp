@@ -56,7 +56,7 @@ struct FRCInterceptionPayload
 
 #if WITH_EDITOR
 static TAutoConsoleVariable<int32> CVarRemoteControlEnableOngoingChangeOptimization(TEXT("RemoteControl.EnableOngoingChangeOptimization"), 1, TEXT("Enable an optimization that keeps track of the ongoing remote control change in order to improve performance."));
-#endif
+#endif // WITH_EDITOR
 
 #define REMOTE_CONTROL_LOG_ONCE(Verbosity, Format, ...) (LogOnce(ELogVerbosity::Verbosity, *FString::Printf(Format, ##__VA_ARGS__), FString(__FILE__), __LINE__))
 
@@ -112,6 +112,8 @@ namespace RemoteControlUtil
 	{
 #if WITH_EDITOR
 		URemoteControlSettings* RCSettings = GetMutableDefault<URemoteControlSettings>();
+		// Override this flag to false if we are running in Editor Mode with -game flag.
+		bObjectInGamePackage = false;
 #endif
 		// The property is allowed to be accessed if it exists...
 		return InProperty &&
@@ -606,7 +608,7 @@ void FRemoteControlModule::StartupModule()
 #if WITH_EDITOR
 	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FRemoteControlModule::HandleEnginePostInit);
 	FCoreUObjectDelegates::PreLoadMap.AddRaw(this, &FRemoteControlModule::HandleMapPreLoad);
-#endif
+#endif // WITH_EDITOR
 	
 	// Register Default Value Factories
 	RegisterDefaultValueFactories();
@@ -2676,6 +2678,16 @@ void FRemoteControlModule::RegisterEditorDelegates()
 	{
 		GEditor->GetTimerManager()->SetTimer(OngoingChangeTimer, FTimerDelegate::CreateRaw(this, &FRemoteControlModule::TestOrFinalizeOngoingChange, false), SecondsBetweenOngoingChangeCheck, true);
 	}
+	else
+	{
+		FallbackOngoingChangeTimer = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([&](float DeltaTime)
+			{
+				TestOrFinalizeOngoingChange(false);
+
+				return true;
+			}
+		), SecondsBetweenOngoingChangeCheck);
+	}
 }
 	
 void FRemoteControlModule::UnregisterEditorDelegates()
@@ -2683,6 +2695,10 @@ void FRemoteControlModule::UnregisterEditorDelegates()
 	if (GEditor)
 	{ 
 		GEditor->GetTimerManager()->ClearTimer(OngoingChangeTimer);
+	}
+	else
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(FallbackOngoingChangeTimer);
 	}
 }
 
