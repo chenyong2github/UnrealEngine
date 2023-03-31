@@ -79,6 +79,7 @@ FPlayerKeyMapping::FPlayerKeyMapping()
 	, DisplayName(FText::GetEmpty())
 	, DisplayCategory(FText::GetEmpty())
 	, Slot(EPlayerMappableKeySlot::Unspecified)
+	, bIsDirty(false)
 	, DefaultKey(EKeys::Invalid)
 	, CurrentKey(EKeys::Invalid)
 	, HardwareDeviceId(FHardwareDeviceIdentifier::Invalid)
@@ -86,14 +87,18 @@ FPlayerKeyMapping::FPlayerKeyMapping()
 {
 }
 
-FPlayerKeyMapping::FPlayerKeyMapping(const FEnhancedActionKeyMapping& OriginalMapping, EPlayerMappableKeySlot InSlot /* = EPlayerMappableKeySlot::Unspecified */)
+FPlayerKeyMapping::FPlayerKeyMapping(
+	const FEnhancedActionKeyMapping& OriginalMapping,
+	EPlayerMappableKeySlot InSlot /* = EPlayerMappableKeySlot::Unspecified */,
+	const FHardwareDeviceIdentifier& InHardwareDevice /* = FHardwareDeviceIdentifier::Invalid */)
 	: MappingName(OriginalMapping.GetMappingName())
 	, DisplayName(OriginalMapping.GetDisplayName())
 	, DisplayCategory(OriginalMapping.GetDisplayCategory())
 	, Slot(InSlot)
+	, bIsDirty(false)
 	, DefaultKey(OriginalMapping.Key)
-	, CurrentKey(EKeys::Invalid)
-	, HardwareDeviceId(FHardwareDeviceIdentifier::Invalid)
+	, CurrentKey(OriginalMapping.Key)
+	, HardwareDeviceId(InHardwareDevice)
 	, AssociatedInputAction(OriginalMapping.Action)
 {
 }
@@ -104,7 +109,7 @@ FPlayerKeyMapping FPlayerKeyMapping::InvalidMapping = FPlayerKeyMapping();
 
 bool FPlayerKeyMapping::IsCustomized() const
 {
-	return CurrentKey.IsValid() && (CurrentKey != DefaultKey);
+	return (CurrentKey != DefaultKey);
 }
 
 bool FPlayerKeyMapping::IsValid() const
@@ -161,6 +166,16 @@ const FHardwareDeviceIdentifier& FPlayerKeyMapping::GetHardwareDeviceId() const
 	return HardwareDeviceId;
 }
 
+EHardwareDevicePrimaryType FPlayerKeyMapping::GetPrimaryDeviceType() const
+{
+	return HardwareDeviceId.PrimaryDeviceType;
+}
+
+EHardwareDeviceSupportedFeatures::Type FPlayerKeyMapping::GetHardwareDeviceSupportedFeatures() const
+{
+	return static_cast<EHardwareDeviceSupportedFeatures::Type>(HardwareDeviceId.SupportedFeaturesMask);
+}
+
 const UInputAction* FPlayerKeyMapping::GetAssociatedInputAction() const
 {
 	return AssociatedInputAction;
@@ -190,8 +205,17 @@ void FPlayerKeyMapping::ResetToDefault()
 
 void FPlayerKeyMapping::SetCurrentKey(const FKey& NewKey)
 {
+	if (NewKey != CurrentKey)
+	{
+		bIsDirty = true;
+	}
+	
 	CurrentKey = NewKey;
-	bIsDirty = true;
+}
+
+void FPlayerKeyMapping::SetHardwareDeviceId(const FHardwareDeviceIdentifier& InDeviceId)
+{
+	HardwareDeviceId = InDeviceId;
 }
 
 void FPlayerKeyMapping::UpdateOriginalKey(const FEnhancedActionKeyMapping& OriginalMapping)
@@ -199,6 +223,7 @@ void FPlayerKeyMapping::UpdateOriginalKey(const FEnhancedActionKeyMapping& Origi
 	ensure(OriginalMapping.IsPlayerMappable() && OriginalMapping.GetMappingName() == MappingName);
 	
 	DefaultKey = OriginalMapping.Key;
+	DisplayCategory = OriginalMapping.GetDisplayCategory();
 	DisplayName = OriginalMapping.GetDisplayName();
 	AssociatedInputAction = OriginalMapping.Action;
 
@@ -791,7 +816,7 @@ void UEnhancedInputUserSettings::MapPlayerKey(const FMapPlayerKeyArgs& InArgs, F
 		OnSettingsChanged.Broadcast(this);
 	}
 	// If it doesn't exist, then we need to make it if there is a valid action name
-	else if (FKeyMappingRow* MappingRow = KeyProfile->PlayerMappedKeys.Find(InArgs.MappingName))
+	else if (FKeyMappingRow* MappingRow = KeyProfile->FindKeyMappingRowMutable(InArgs.MappingName))
 	{
 		// If one doesn't exist, then we need to create a new mapping in the given slot.
 		// 

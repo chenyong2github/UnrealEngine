@@ -44,7 +44,7 @@ enum class EPlayerMappableKeySlot : uint8
 
 /** Arguments that can be used when mapping a player key */
 USTRUCT(BlueprintType)
-struct ENHANCEDINPUT_API FMapPlayerKeyArgs
+struct ENHANCEDINPUT_API FMapPlayerKeyArgs final
 {
 	GENERATED_BODY()
 
@@ -80,7 +80,7 @@ struct ENHANCEDINPUT_API FMapPlayerKeyArgs
 
 /** Represents a single key mapping that is set by the player */
 USTRUCT(BlueprintType)
-struct ENHANCEDINPUT_API FPlayerKeyMapping
+struct ENHANCEDINPUT_API FPlayerKeyMapping final
 {
 	GENERATED_BODY()
 	friend class UEnhancedInputUserSettings;
@@ -89,7 +89,10 @@ public:
 	
 	FPlayerKeyMapping();
 	
-	FPlayerKeyMapping(const FEnhancedActionKeyMapping& OriginalMapping, EPlayerMappableKeySlot InSlot = EPlayerMappableKeySlot::Unspecified);
+	FPlayerKeyMapping(
+		const FEnhancedActionKeyMapping& OriginalMapping,
+		EPlayerMappableKeySlot InSlot = EPlayerMappableKeySlot::Unspecified,
+		const FHardwareDeviceIdentifier& InHardwareDevice = FHardwareDeviceIdentifier::Invalid);
 
 	/** A static invalid player key mapping to be used for easy comparisons in blueprint */
 	static FPlayerKeyMapping InvalidMapping;
@@ -114,7 +117,7 @@ public:
 
 	/**
 	 * The unique FName associated with this mapping. This is defined by this mappings owning Input Action
-	 * or the individual Enhanced Action Key Mapping if it is overriden
+	 * or the individual Enhanced Action Key Mapping if it is overridden
 	 */
 	const FName GetMappingName() const;
 
@@ -128,9 +131,15 @@ public:
 	EPlayerMappableKeySlot GetSlot() const;
 
 	/** Returns the optional hardware device ID that this mapping is specific to */
-	const FHardwareDeviceIdentifier& GetHardwareDeviceId() const; 
+	const FHardwareDeviceIdentifier& GetHardwareDeviceId() const;
 
-	/** Returns the input actoin asset associated with this player key mapping */
+	/** Gets the primary device type associated with this key mapping. Taken from the HardwareDeviceId. */
+	EHardwareDevicePrimaryType GetPrimaryDeviceType() const;
+
+	/** Gets the supported hardware device feature flags associated with this key mapping. Taken from the HardwareDeviceId. */
+	EHardwareDeviceSupportedFeatures::Type GetHardwareDeviceSupportedFeatures() const;
+
+	/** Returns the input action asset associated with this player key mapping */
 	const UInputAction* GetAssociatedInputAction() const;
 
 	/** Resets the current mapping to the default one */
@@ -138,6 +147,9 @@ public:
 
 	/** Sets the value of the current key to the one given */
 	void SetCurrentKey(const FKey& NewKey);
+
+	/** Sets the value of the hardware device ID that this custom key mapping is associated with. This can be used to filter key mappings per input device */
+	void SetHardwareDeviceId(const FHardwareDeviceIdentifier& InDeviceId);
 
 	/**
 	 * Updates the metadata properties on this player mapped key based on the given
@@ -199,7 +211,7 @@ protected:
  * this needs to be a struct (blueprint don't support nested containers).
  */
 USTRUCT(BlueprintType)
-struct ENHANCEDINPUT_API FKeyMappingRow
+struct ENHANCEDINPUT_API FKeyMappingRow final
 {
 	GENERATED_BODY()
 
@@ -215,7 +227,7 @@ struct ENHANCEDINPUT_API FKeyMappingRow
 * key profile. 
 */
 USTRUCT(BlueprintType)
-struct ENHANCEDINPUT_API FPlayerMappableKeyQueryOptions
+struct ENHANCEDINPUT_API FPlayerMappableKeyQueryOptions final
 {
 	GENERATED_BODY()
 
@@ -316,7 +328,7 @@ public:
 
 	/**
 	 * Called during IEnhancedInputSubsystemInterface::RebuildControlMappings, this provides your user settings
-	 * the oppurtunity to decide what key mappings get added for a given FEnhancedActionKeyMapping, and applied to the player.
+	 * the opportunity to decide what key mappings get added for a given FEnhancedActionKeyMapping, and applied to the player.
 	 *
 	 * Override this to change what query options are being used during the controls being rebuilt of enhanced input.
 	 *
@@ -402,7 +414,7 @@ protected:
 
 /** Arguments that can be used when creating a new mapping profile */
 USTRUCT(BlueprintType)
-struct ENHANCEDINPUT_API FPlayerMappableKeyProfileCreationArgs
+struct ENHANCEDINPUT_API FPlayerMappableKeyProfileCreationArgs final
 {
 	GENERATED_BODY()
 	
@@ -429,8 +441,8 @@ struct ENHANCEDINPUT_API FPlayerMappableKeyProfileCreationArgs
 
 /**
  * The Enhanced Input User Settings class is a place where you can put all of your Input Related settings
- * that you want your user to be able to change. Things like their key mappings, aim sensativity, accessibility
- * settings, etc. This also provies a Registration point for Input Mappings Contexts (IMC) from possibly unloaded
+ * that you want your user to be able to change. Things like their key mappings, aim sensitivity, accessibility
+ * settings, etc. This also provides a Registration point for Input Mappings Contexts (IMC) from possibly unloaded
  * plugins (i.e. Game Feature Plugins). You can register your IMC from a Game Feature Action plugin here, and then
  * have access to all the key mappings available. This is very useful for building settings screens because you can
  * now access all the mappings in your game, even if the entire plugin isn't loaded yet. 
@@ -590,7 +602,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
 	virtual bool UnregisterInputMappingContext(const UInputMappingContext* IMC);
 
-	/** Removes miltiple mapping contexts from the registered mapping contexts */
+	/** Removes multiple mapping contexts from the registered mapping contexts */
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
 	bool UnregisterInputMappingContexts(const TSet<UInputMappingContext*>& MappingContexts);
 
