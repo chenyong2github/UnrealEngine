@@ -521,6 +521,16 @@ namespace Chaos
 		return INDEX_NONE;
 	}
 
+	bool FClusterUnionManager::IsClusterUnionParticle(FPBDRigidClusteredParticleHandle* Particle)
+	{
+		FClusterUnionIndex UnionIndex = FindClusterUnionIndexFromParticle(Particle);
+		if (FClusterUnion* Union = FindClusterUnion(UnionIndex))
+		{
+			return Union->InternalCluster == Particle;
+		}
+		return false;
+	}
+
 	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::UpdateClusterUnionParticlesChildToParent"), STAT_UpdateClusterUnionParticlesChildToParent, STATGROUP_Chaos);
 	void FClusterUnionManager::UpdateClusterUnionParticlesChildToParent(FClusterUnionIndex Index, const TArray<FPBDRigidParticleHandle*>& Particles, const TArray<FTransform>& ChildToParent)
 	{

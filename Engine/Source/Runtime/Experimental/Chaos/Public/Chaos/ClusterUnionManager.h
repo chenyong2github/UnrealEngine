@@ -96,6 +96,9 @@ namespace Chaos
 
 		FClusterUnionIndex FindClusterUnionIndexFromParticle(FPBDRigidParticleHandle* Particle);
 
+		// An extension to FindClusterUnionIndexFromParticle to check whether or not the given particle is the cluster union particle itself.
+		bool IsClusterUnionParticle(FPBDRigidClusteredParticleHandle* Particle);
+
 		// Changes the ChildToParent of a number of particles in a cluster union.
 		void UpdateClusterUnionParticlesChildToParent(FClusterUnionIndex Index, const TArray<FPBDRigidParticleHandle*>& Particles, const TArray<FTransform>& ChildToParent);
 

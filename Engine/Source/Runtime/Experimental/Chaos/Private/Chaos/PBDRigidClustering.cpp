@@ -922,6 +922,7 @@ namespace Chaos
 
 		if (ActivatedChildren.Num() > 0)
 		{
+			const bool bIsClusterUnion = ClusterUnionManager.IsClusterUnionParticle(ClusteredParticle);
 			if (Children.Num() == 0)
 			{
 				// Free the memory if we can do so cheaply (no data copies).
@@ -938,7 +939,10 @@ namespace Chaos
 					RemoveNodeConnections(Child);
 				}
 
-				if (Children.Num())
+				// If we're breaking a geometry collection, we'll need to create internal clusters to parent the remaining particles.
+				// However, we do not need to do this if we're currently operating on a cluster union! Its remaining particles should stay
+				// attached to the cluster union because they can handle particles being dynamically added/removed.
+				if (Children.Num() && !bIsClusterUnion)
 				{
 					TArray<FParticleIsland> Islands = FindIslandsInChildren(ClusteredParticle);
 					for (const FParticleIsland& Island: Islands)
@@ -964,8 +968,11 @@ namespace Chaos
 				UpdateKinematicProperties(Child, MChildren, MEvolution);
 			}
 
-			//disable cluster
-			DisableCluster(ClusteredParticle);
+			// Disable the cluster only if we're not a cluster union. Cluster unions will handle themselves separately.
+			if (!bIsClusterUnion)
+			{
+				DisableCluster(ClusteredParticle);
+			}
 		}
 
 		return ActivatedChildren;
