@@ -10,6 +10,11 @@ namespace UnrealBuildTool.Rules
 	{
 		public UnrealUSDWrapper(ReadOnlyTargetRules Target) : base(Target)
 		{
+			// Does not compile with C++20:
+			// error C2666: 'UE::FDummyWeakPtrType::operator ==': overloaded functions have similar conversions
+			// error C2666: 'UE::FDummyRefPtrType::operator ==': overloaded functions have similar conversions
+			CppStandard = CppStandardVersion.Cpp17;
+
 			bUseRTTI = true;
 
 			PublicDependencyModuleNames.AddRange(

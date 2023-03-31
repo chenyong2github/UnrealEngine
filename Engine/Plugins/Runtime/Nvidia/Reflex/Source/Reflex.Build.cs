@@ -10,6 +10,10 @@ namespace UnrealBuildTool.Rules
 		{
 			PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
+			// Reevaulaute if ThirdParty\reflexstats.h is updated to compile with c++20
+			// error C4002: too many arguments for function-like macro invocation '_TLG_FOR_imp0'
+			CppStandard = CppStandardVersion.Cpp17;
+
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

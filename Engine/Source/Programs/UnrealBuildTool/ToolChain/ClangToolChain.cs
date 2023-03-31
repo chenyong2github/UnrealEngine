@@ -548,9 +548,12 @@ namespace UnrealBuildTool
 			Arguments.Add("-Wno-enum-enum-conversion");                 // https://clang.llvm.org/docs/DiagnosticsReference.html#wenum-enum-conversion					// ?? no reason given
 			Arguments.Add("-Wno-enum-float-conversion");                // https://clang.llvm.org/docs/DiagnosticsReference.html#wenum-float-conversion					// ?? no reason given
 
+			// C++20 warnings that should be addressed
 			if (CompileEnvironment.CppStandard >= CppStandardVersion.Cpp20)
 			{
-				Arguments.Add("-Wno-deprecated-anon-enum-enum-conversion"); // https://clang.llvm.org/docs/DiagnosticsReference.html#wdeprecated-anon-enum-enum-conversion // new warning for C++20
+				Arguments.Add("-Wno-ambiguous-reversed-operator");          // https://clang.llvm.org/docs/DiagnosticsReference.html#wambiguous-reversed-operator
+				Arguments.Add("-Wno-deprecated-anon-enum-enum-conversion"); // https://clang.llvm.org/docs/DiagnosticsReference.html#wdeprecated-anon-enum-enum-conversion
+				Arguments.Add("-Wno-deprecated-volatile");                  // https://clang.llvm.org/docs/DiagnosticsReference.html#wdeprecated-volatile
 			}
 
 			if (CompilerVersionGreaterOrEqual(13, 0, 0))

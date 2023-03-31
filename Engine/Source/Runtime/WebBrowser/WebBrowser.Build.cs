@@ -7,6 +7,9 @@ public class WebBrowser : ModuleRules
 {
 	public WebBrowser(ReadOnlyTargetRules Target) : base(Target)
 	{
+		// CEF3 does not compile with C++20 on all platforms, remove if updated
+		CppStandard = CppStandardVersion.Cpp17;
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{

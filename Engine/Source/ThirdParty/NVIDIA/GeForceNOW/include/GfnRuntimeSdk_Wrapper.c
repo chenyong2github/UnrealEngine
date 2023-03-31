@@ -343,7 +343,7 @@ GfnRuntimeError gfnInitializeCloudSdk(void)
 
     if (g_pCloudLibrary->InitializeRuntimeSdkV3)
     {
-        g_cloudLibraryStatus = g_pCloudLibrary->InitializeRuntimeSdkV3(NVGFNSDK_VERSION_STR);
+        g_cloudLibraryStatus = g_pCloudLibrary->InitializeRuntimeSdkV3((char *)NVGFNSDK_VERSION_STR);
     }
     // Old Initialization method. Deprecate when all libraries have updated to 1.7.1 or greater.
     else if (g_pCloudLibrary->InitializeRuntimeSdk)

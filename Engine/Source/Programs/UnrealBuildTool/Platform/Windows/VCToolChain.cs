@@ -1097,6 +1097,14 @@ namespace UnrealBuildTool
 				{
 					Arguments.Add("-Wno-ordered-compare-function-pointers");
 				}
+
+				// C++20 warnings that should be addressed
+				if (CompileEnvironment.CppStandard >= CppStandardVersion.Cpp20)
+				{
+					Arguments.Add("-Wno-ambiguous-reversed-operator");
+					Arguments.Add("-Wno-deprecated-anon-enum-enum-conversion");
+					Arguments.Add("-Wno-deprecated-volatile");
+				}
 			}
 		}
 

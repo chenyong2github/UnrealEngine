@@ -6,6 +6,8 @@ public class ONNXRuntime : ModuleRules
 {
 	public ONNXRuntime( ReadOnlyTargetRules Target ) : base( Target )
 	{
+		CppStandard = CppStandardVersion.Cpp17;
+
 		ShortName = "ORT"; // Shorten to avoid path-too-long errors
 
 		if (Target.StaticAnalyzer == StaticAnalyzer.None)
