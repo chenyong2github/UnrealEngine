@@ -8,6 +8,7 @@
 
 #include "RHIValidationCommon.h"
 #include "RHIValidationUtils.h"
+#include "RHIValidation.h"
 
 #if ENABLE_RHI_VALIDATION
 

@@ -35,6 +35,7 @@
 
 #include "DynamicRHI.h"
 #include "RHITypes.h"
+#include "RHIGlobals.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(RHI_API, RHITStalls);
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(RHI_API, RHITFlushes);

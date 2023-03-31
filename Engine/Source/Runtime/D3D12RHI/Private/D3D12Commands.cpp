@@ -1994,3 +1994,12 @@ void FD3D12CommandContext::RHISubmitCommandsHint()
 {
 	// Nothing to do
 }
+
+#if WITH_FIXED_RHI_CLASS
+
+	#define INTERNAL_DECORATOR(Method)         ((FD3D12CommandContext&)CmdList.GetContext()       ).FD3D12CommandContext::Method
+	#define INTERNAL_DECORATOR_COMPUTE(Method) ((FD3D12CommandContext&)CmdList.GetComputeContext()).FD3D12CommandContext::Method
+
+	#include "RHICommandListCommandExecutes.inl"
+
+#endif // WITH_FIXED_RHI_CLASS

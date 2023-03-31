@@ -20,14 +20,13 @@
 #include "VulkanLLM.h"
 #include "Misc/EngineVersion.h"
 #include "GlobalShader.h"
-#include "RHIValidation.h"
 #include "RHIUtilities.h"
 #include "IHeadMountedDisplayModule.h"
 #include "VulkanRenderpass.h"
 #include "VulkanTransientResourceAllocator.h"
 #include "VulkanExtensions.h"
 #include "VulkanRayTracing.h"
-
+#include "DataDrivenShaderPlatformInfo.h"
 
 
 // Use Vulkan Profiles to verify feature level support on startup
@@ -371,16 +370,7 @@ FDynamicRHI* FVulkanDynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type InRequest
 	checkf(GMaxRHIShaderPlatform != SP_NumPlatforms, TEXT("Requested feature level [%s] mapped to unsupported shader platform!"), *LexToString(InRequestedFeatureLevel));
 
 	GVulkanRHI = new FVulkanDynamicRHI();
-	FDynamicRHI* FinalRHI = GVulkanRHI;
-
-#if ENABLE_RHI_VALIDATION
-	if (FParse::Param(FCommandLine::Get(), TEXT("RHIValidation")))
-	{
-		FinalRHI = new FValidationRHI(FinalRHI);
-	}
-#endif
-
-	return FinalRHI;
+	return GVulkanRHI;
 }
 
 IMPLEMENT_MODULE(FVulkanDynamicRHIModule, VulkanRHI);

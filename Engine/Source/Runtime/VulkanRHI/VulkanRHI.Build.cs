@@ -4,6 +4,7 @@ using UnrealBuildTool;
 using System;
 using System.IO;
 
+[RHIModule]
 public class VulkanRHI : ModuleRules
 {
 	public VulkanRHI(ReadOnlyTargetRules Target) : base(Target)

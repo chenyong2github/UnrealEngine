@@ -4,15 +4,6 @@
 	RHICommandListCommandExecutes.inl: RHI Command List execute functions.
 =============================================================================*/
 
-#if !defined(INTERNAL_DECORATOR)
-	#define INTERNAL_DECORATOR(Method) CmdList.GetContext().Method
-#endif
-
-//for functions where the signatures do not match between gfx and compute commandlists
-#if !defined(INTERNAL_DECORATOR_COMPUTE)
-#define INTERNAL_DECORATOR_COMPUTE(Method) CmdList.GetComputeContext().Method
-#endif
-
 #include "RHIResourceUpdates.h"
 
 class FRHICommandListBase;
@@ -59,6 +50,23 @@ struct FRHICommandRayTraceDispatch;
 struct FRHICommandSetRayTracingBindings;
 
 template <typename TRHIShader> struct FRHICommandSetLocalUniformBuffer;
+
+//
+// If MGPU is enabled, we can't de-virtualize the RHI command calls,
+// since some RHIs use separate context types for single and multi GPU.
+//
+#if WITH_MGPU
+	#undef INTERNAL_DECORATOR
+	#undef INTERNAL_DECORATOR_COMPUTE
+#endif
+
+#ifndef INTERNAL_DECORATOR
+	#define INTERNAL_DECORATOR(Method) CmdList.GetContext().Method
+#endif
+
+#ifndef INTERNAL_DECORATOR_COMPUTE
+	#define INTERNAL_DECORATOR_COMPUTE(Method) CmdList.GetComputeContext().Method
+#endif
 
 #if WITH_MGPU
 void FRHICommandSetGPUMask::Execute(FRHICommandListBase& CmdList)
@@ -640,3 +648,6 @@ void FRHICommandDiscardRenderTargets::Execute(FRHICommandListBase& CmdList)
 	RHISTAT(RHIDiscardRenderTargets);
 	INTERNAL_DECORATOR(RHIDiscardRenderTargets)(Depth, Stencil, ColorBitMask);
 }
+
+#undef INTERNAL_DECORATOR
+#undef INTERNAL_DECORATOR_COMPUTE

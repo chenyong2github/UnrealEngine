@@ -16,6 +16,7 @@
 #include "PipelineStateCache.h"
 #include "RHI.h"
 #include "RHIFwd.h"
+#include "RHIValidation.h"
 #include "TextureProfiler.h"
 #include "DataDrivenShaderPlatformInfo.h"
 #include "RHICommandList.h"
@@ -28,10 +29,6 @@ IMPLEMENT_TYPE_LAYOUT(FRayTracingGeometrySegment);
 
 static_assert(sizeof(FRayTracingGeometryInstance) <= 104,
 	"Ray tracing instance descriptor is expected to be no more than 104 bytes, as there may be a very large number of them.");
-
-#ifndef PLATFORM_ALLOW_NULL_RHI
-	#define PLATFORM_ALLOW_NULL_RHI		0
-#endif
 
 // Globals.
 FDynamicRHI* GDynamicRHI = NULL;
@@ -66,6 +63,7 @@ static TAutoConsoleVariable<int32> CVarDisableDriverWarningPopupIfGFN(
 	TEXT("If non-zero, disable driver version warning popup if running on a GFN cloud machine."),
 	ECVF_RenderThreadSafe);
 
+#if WITH_NULL_RHI
 void InitNullRHI()
 {
 	// Use the null RHI if it was specified on the command line, or if a commandlet is running.
@@ -86,6 +84,7 @@ void InitNullRHI()
 	// Update the crash context analytics
 	FGenericCrashContext::SetEngineData(TEXT("RHI.RHIName"), TEXT("NullRHI"));
 }
+#endif
 
 #if PLATFORM_WINDOWS || PLATFORM_UNIX
 static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
@@ -300,6 +299,10 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 }
 #endif // PLATFORM_WINDOWS
 
+#if USE_NULL_RHI && !WITH_NULL_RHI
+#error NullRHI is forced by the USE_NULL_RHI build option, but the NullRHI module is not part of the build.
+#endif
+
 void RHIInit(bool bHasEditorToken)
 {
 	if (!GDynamicRHI)
@@ -313,80 +316,85 @@ void RHIInit(bool bHasEditorToken)
 
 		GRHICommandList.LatchBypass(); // read commandline for bypass flag
 
+#if WITH_NULL_RHI
 		if (!FApp::CanEverRender())
 		{
 			InitNullRHI();
 		}
 		else
+#endif // WITH_NULL_RHI
 		{
 			LLM_SCOPE(ELLMTag::RHIMisc);
 
 			GDynamicRHI = PlatformCreateDynamicRHI();
-			if (GDynamicRHI)
+			if (!GDynamicRHI)
 			{
+				UE_LOG(LogRHI, Fatal, TEXT("Failed to create platform RHI."));
+			}
+
+#if ENABLE_RHI_VALIDATION
+			if (FParse::Param(FCommandLine::Get(), TEXT("RHIValidation")))
+			{
+				UE_LOG(LogRHI, Log, TEXT("Creating RHI validation layer wrapper."));
+				GDynamicRHI = new FValidationRHI(GDynamicRHI);
+			}
+#endif // ENABLE_RHI_VALIDATION
+
 #if PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_UNIX
 
-				// Get driver version. Creating GDynamicRHI is expected to set GRHIAdapterName.
-				FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(GRHIAdapterName);
-				if (GPUDriverInfo.IsValid())
-				{
-					// GetGPUDriverInfo is not implemented on Linux, so it returns an invalid driver info object. However, the FVulkanDynamicRHI constructor
-					// sets these values on that platform, so we'll still have data we can log.
-					GRHIAdapterUserDriverVersion = GPUDriverInfo.UserDriverVersion;
-					GRHIAdapterInternalDriverVersion = GPUDriverInfo.InternalDriverVersion;
-					GRHIAdapterDriverDate = GPUDriverInfo.DriverDate;
-				}
+			// Get driver version. Creating GDynamicRHI is expected to set GRHIAdapterName.
+			FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(GRHIAdapterName);
+			if (GPUDriverInfo.IsValid())
+			{
+				// GetGPUDriverInfo is not implemented on Linux, so it returns an invalid driver info object. However, the FVulkanDynamicRHI constructor
+				// sets these values on that platform, so we'll still have data we can log.
+				GRHIAdapterUserDriverVersion = GPUDriverInfo.UserDriverVersion;
+				GRHIAdapterInternalDriverVersion = GPUDriverInfo.InternalDriverVersion;
+				GRHIAdapterDriverDate = GPUDriverInfo.DriverDate;
+			}
 
-				UE_LOG(LogRHI, Log, TEXT("RHI Adapter Info:"));
-				UE_LOG(LogRHI, Log, TEXT("            Name: %s"), *GRHIAdapterName);
-				UE_LOG(LogRHI, Log, TEXT("  Driver Version: %s (internal:%s, unified:%s)"), *GRHIAdapterUserDriverVersion, *GRHIAdapterInternalDriverVersion, *GPUDriverInfo.GetUnifiedDriverVersion());
-				UE_LOG(LogRHI, Log, TEXT("     Driver Date: %s"), *GRHIAdapterDriverDate);
+			UE_LOG(LogRHI, Log, TEXT("RHI Adapter Info:"));
+			UE_LOG(LogRHI, Log, TEXT("            Name: %s"), *GRHIAdapterName);
+			UE_LOG(LogRHI, Log, TEXT("  Driver Version: %s (internal:%s, unified:%s)"), *GRHIAdapterUserDriverVersion, *GRHIAdapterInternalDriverVersion, *GPUDriverInfo.GetUnifiedDriverVersion());
+			UE_LOG(LogRHI, Log, TEXT("     Driver Date: %s"), *GRHIAdapterDriverDate);
 
-				RHIDetectAndWarnOfBadDrivers(bHasEditorToken);
+			RHIDetectAndWarnOfBadDrivers(bHasEditorToken);
 #endif
 
-				GDynamicRHI->Init();
+			GDynamicRHI->Init();
 
-				// Validation of contexts.
-				GRHICommandList.GetImmediateCommandList().GetContext();
-				check(GIsRHIInitialized);
+			// Validation of contexts.
+			GRHICommandList.GetImmediateCommandList().GetContext();
+			check(GIsRHIInitialized);
 
-				// Set default GPU mask to all GPUs. This is necessary to ensure that any commands
-				// that create and initialize resources are executed on all GPUs. Scene rendering
-				// will restrict itself to a subset of GPUs as needed.
-				GRHICommandList.GetImmediateCommandList().SetGPUMask(FRHIGPUMask::All());
+			// Set default GPU mask to all GPUs. This is necessary to ensure that any commands
+			// that create and initialize resources are executed on all GPUs. Scene rendering
+			// will restrict itself to a subset of GPUs as needed.
+			GRHICommandList.GetImmediateCommandList().SetGPUMask(FRHIGPUMask::All());
 
-				FString FeatureLevelString;
-				GetFeatureLevelName(GMaxRHIFeatureLevel, FeatureLevelString);
+			FString FeatureLevelString;
+			GetFeatureLevelName(GMaxRHIFeatureLevel, FeatureLevelString);
 
-				if (bHasEditorToken && GMaxRHIFeatureLevel < ERHIFeatureLevel::SM5)
-				{
-					FString ShaderPlatformString = LegacyShaderPlatformToShaderFormat(GetFeatureLevelShaderPlatform(GMaxRHIFeatureLevel)).ToString();
-					FString Error = FString::Printf(TEXT("A Feature Level 5 video card is required to run the editor.\nAvailableFeatureLevel = %s, ShaderPlatform = %s"), *FeatureLevelString, *ShaderPlatformString);
-					FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Error));
-					FPlatformMisc::RequestExit(true, TEXT("RHIInit"));
-				}
+			if (bHasEditorToken && GMaxRHIFeatureLevel < ERHIFeatureLevel::SM5)
+			{
+				FString ShaderPlatformString = LegacyShaderPlatformToShaderFormat(GetFeatureLevelShaderPlatform(GMaxRHIFeatureLevel)).ToString();
+				FString Error = FString::Printf(TEXT("A Feature Level 5 video card is required to run the editor.\nAvailableFeatureLevel = %s, ShaderPlatform = %s"), *FeatureLevelString, *ShaderPlatformString);
+				FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Error));
+				FPlatformMisc::RequestExit(true, TEXT("RHIInit"));
+			}
 
-				// Update the crash context analytics
-				FGenericCrashContext::SetEngineData(TEXT("RHI.RHIName"), GDynamicRHI ? (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 ? FString(GDynamicRHI->GetName()) + TEXT("_ES31") : GDynamicRHI->GetName()) : TEXT("Unknown"));
-				FGenericCrashContext::SetEngineData(TEXT("RHI.AdapterName"), GRHIAdapterName);
-				FGenericCrashContext::SetEngineData(TEXT("RHI.UserDriverVersion"), GRHIAdapterUserDriverVersion);
-				FGenericCrashContext::SetEngineData(TEXT("RHI.InternalDriverVersion"), GRHIAdapterInternalDriverVersion);
-				FGenericCrashContext::SetEngineData(TEXT("RHI.DriverDate"), GRHIAdapterDriverDate);
-				FGenericCrashContext::SetEngineData(TEXT("RHI.FeatureLevel"), FeatureLevelString);
-				FGenericCrashContext::SetEngineData(TEXT("RHI.GPUVendor"), RHIVendorIdToString());
-				FGenericCrashContext::SetEngineData(TEXT("RHI.DeviceId"), FString::Printf(TEXT("%04X"), GRHIDeviceId));
+			// Update the crash context analytics
+			FGenericCrashContext::SetEngineData(TEXT("RHI.RHIName"), GDynamicRHI ? (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 ? FString(GDynamicRHI->GetName()) + TEXT("_ES31") : GDynamicRHI->GetName()) : TEXT("Unknown"));
+			FGenericCrashContext::SetEngineData(TEXT("RHI.AdapterName"), GRHIAdapterName);
+			FGenericCrashContext::SetEngineData(TEXT("RHI.UserDriverVersion"), GRHIAdapterUserDriverVersion);
+			FGenericCrashContext::SetEngineData(TEXT("RHI.InternalDriverVersion"), GRHIAdapterInternalDriverVersion);
+			FGenericCrashContext::SetEngineData(TEXT("RHI.DriverDate"), GRHIAdapterDriverDate);
+			FGenericCrashContext::SetEngineData(TEXT("RHI.FeatureLevel"), FeatureLevelString);
+			FGenericCrashContext::SetEngineData(TEXT("RHI.GPUVendor"), RHIVendorIdToString());
+			FGenericCrashContext::SetEngineData(TEXT("RHI.DeviceId"), FString::Printf(TEXT("%04X"), GRHIDeviceId));
 
 #if TEXTURE_PROFILER_ENABLED
-				FTextureProfiler::Get()->Init();
-#endif
-			}
-#if PLATFORM_ALLOW_NULL_RHI
-			else
-			{
-				// If the platform supports doing so, fall back to the NULL RHI on failure
-				InitNullRHI();
-			}
+			FTextureProfiler::Get()->Init();
 #endif
 		}
 

@@ -13,40 +13,35 @@ public class RHI : ModuleRules
 
 		if (Target.bCompileAgainstEngine)
 		{
-			DynamicallyLoadedModuleNames.Add("NullDrv");
-
-			if (Target.Type != TargetRules.TargetType.Server)   // Dedicated servers should skip loading everything but NullDrv
+			if (Target.Type == TargetRules.TargetType.Server)
+			{
+				// Dedicated servers should skip loading everything but NullDrv
+				DynamicallyLoadedModuleNames.Add("NullDrv");
+			}
+			else
 			{
 				if (Target.Platform.IsInGroup(UnrealPlatformGroup.Desktop))
                 {
 					PublicDefinitions.Add("RHI_WANT_BREADCRUMB_EVENTS=1");
+					DynamicallyLoadedModuleNames.Add("NullDrv");
 				}
 
 				if (Target.Configuration != UnrealTargetConfiguration.Shipping && Target.Configuration != UnrealTargetConfiguration.Test)
                 {
 					PublicDefinitions.Add("RHI_WANT_RESOURCE_INFO=1");
-                }
-
-				// UEBuildAndroid.cs adds VulkanRHI for Android builds if it is enabled
+				}
+				
 				if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 				{
 					DynamicallyLoadedModuleNames.Add("D3D11RHI");
-				}
-
-				if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
-				{
-					//#todo-rco: D3D12 requires different SDK headers not compatible with WinXP
 					DynamicallyLoadedModuleNames.Add("D3D12RHI");
-				}
-
-				if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) || Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
-				{
+					DynamicallyLoadedModuleNames.Add("OpenGLDrv");
 					DynamicallyLoadedModuleNames.Add("VulkanRHI");
 				}
 
-				if ((Target.Platform.IsInGroup(UnrealPlatformGroup.Windows)) ||
-					(Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) && Target.Type != TargetRules.TargetType.Server))  // @todo should servers on all platforms skip this?
+				if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 				{
+					DynamicallyLoadedModuleNames.Add("VulkanRHI");
 					DynamicallyLoadedModuleNames.Add("OpenGLDrv");
 				}
 			}

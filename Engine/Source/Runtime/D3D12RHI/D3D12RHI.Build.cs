@@ -2,6 +2,7 @@
 
 using UnrealBuildTool;
 
+[RHIModule]
 public class D3D12RHI : ModuleRules
 {
 	protected virtual bool bUsesWindowsD3D12 { get => Target.Platform.IsInGroup(UnrealPlatformGroup.Windows); }

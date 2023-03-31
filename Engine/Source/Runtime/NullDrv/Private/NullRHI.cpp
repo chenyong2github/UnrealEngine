@@ -87,8 +87,14 @@ void* FNullDynamicRHI::GetStaticTextureBuffer(int32 SizeX, int32 SizeY, EPixelFo
 This is used to get the same behavior as the old *_OR_IMMEDIATE present modes. */
 uint32 GPresentImmediateThreshold = 100;
 
-
-
-
 // Suppress linker warning "warning LNK4221: no public symbols found; archive member will be inaccessible"
 int32 NullRHILinkerHelper;
+
+#if WITH_FIXED_RHI_CLASS
+
+	#define INTERNAL_DECORATOR(Method)         ((FNullDynamicRHI&)CmdList.GetContext()       ).FNullDynamicRHI::Method
+	#define INTERNAL_DECORATOR_COMPUTE(Method) ((FNullDynamicRHI&)CmdList.GetComputeContext()).FNullDynamicRHI::Method
+
+	#include "RHICommandListCommandExecutes.inl"
+
+#endif // WITH_FIXED_RHI_CLASS

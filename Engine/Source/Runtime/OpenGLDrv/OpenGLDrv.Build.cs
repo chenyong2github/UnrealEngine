@@ -4,6 +4,7 @@ using UnrealBuildTool;
 
 [SupportedPlatforms("Linux", "Android", "LinuxArm64")]
 [SupportedPlatformGroups("Windows")]
+[RHIModule]
 public class OpenGLDrv : ModuleRules
 {
 	public OpenGLDrv(ReadOnlyTargetRules Target) : base(Target)
