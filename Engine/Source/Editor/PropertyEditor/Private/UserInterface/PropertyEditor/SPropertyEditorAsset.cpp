@@ -34,11 +34,10 @@
 #include "FileHelpers.h"
 #include "Presentation/PropertyEditor/PropertyEditor.h"
 #include "AssetThumbnail.h"
+#include "DetailWidgetRow.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 
-DECLARE_DELEGATE( FOnCopy );
-DECLARE_DELEGATE( FOnPaste );
 
 // Helper to retrieve the correct property that has the applicable metadata.
 static const FProperty* GetActualMetadataProperty(const FProperty* Property)
@@ -246,6 +245,22 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 	OnShouldFilterAsset = InArgs._OnShouldFilterAsset;
 	OnShouldFilterActor = InArgs._OnShouldFilterActor;
 	ObjectPath = InArgs._ObjectPath;
+
+	if(InArgs._InWidgetRow.IsSet() && InArgs._InWidgetRow.Get() != nullptr)
+	{
+		if (!InArgs._InWidgetRow.Get()->CopyMenuAction.IsBound())
+		{
+			InArgs._InWidgetRow.Get()->CopyMenuAction = FUIAction(
+				FExecuteAction::CreateSP(this, &SPropertyEditorAsset::OnCopy),
+				FCanExecuteAction());
+		}
+		if (!InArgs._InWidgetRow.Get()->PasteMenuAction.IsBound())
+		{
+			InArgs._InWidgetRow.Get()->PasteMenuAction = FUIAction(
+				FExecuteAction::CreateSP(this, &SPropertyEditorAsset::OnPaste),
+				FCanExecuteAction::CreateSP(this, &SPropertyEditorAsset::CanPaste));
+		}
+	}
 
 	FProperty* Property = nullptr;
 	if (PropertyEditor.IsValid())

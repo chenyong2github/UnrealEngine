@@ -878,6 +878,7 @@ void FDetailPropertyRow::MakeValueWidget( FDetailWidgetRow& Row, const TSharedPt
 		[
 			SAssignNew( PropertyValue, SPropertyValueWidget, PropertyEditor, GetPropertyUtilities() )
 			.ShowPropertyButtons( false ) // We handle this ourselves
+			.InWidgetRow(&Row)
 		];
 		
 		MinWidth = PropertyValue->GetMinDesiredWidth();
