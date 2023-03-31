@@ -1578,15 +1578,12 @@ int32 FStateTreeEditorNodeDetails::FilterNodeTypesChildren(const TArray<FString>
 		{
 			if (ItemName.Contains(Filter))
 			{
-				UE_LOG(LogTemp, Error, TEXT("%s contains %s"), *ItemName, *Filter);
 				return true;
 			}
 		}
 		return false;
 	};
 
-	UE_LOG(LogTemp, Error, TEXT("FilterNodeTypesChildren"));
-	
 	for (const TSharedPtr<FStateTreeNodeTypeItem>& SourceItem : SourceArray)
 	{
 		// Check if our name matches the filters
