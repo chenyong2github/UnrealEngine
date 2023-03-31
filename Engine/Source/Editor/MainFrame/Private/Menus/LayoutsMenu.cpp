@@ -362,13 +362,7 @@ void FPrivateLayoutsMenu::DisplayLayoutsInternal(FToolMenuSection& InSection, co
 	// If there are Layout ini files, read them
 	for (int32 LayoutIndex = 0; LayoutIndex < InLayoutIniFileNames.Num(); ++LayoutIndex)
 	{
-		FString LayoutFilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(
-			*FPaths::Combine(InLayoutsDirectory, InLayoutIniFileNames[LayoutIndex]));
-
-		if (LayoutFilePath.StartsWith(TEXT("Pak: ")))
-		{
-			LayoutFilePath = FPaths::Combine(InLayoutsDirectory, InLayoutIniFileNames[LayoutIndex]);
-		}
+		FString LayoutFilePath = FConfigCacheIni::NormalizeConfigIniPath(*FPaths::Combine(InLayoutsDirectory, InLayoutIniFileNames[LayoutIndex]));
 
 		// Make sure it is a layout file
 		GConfig->UnloadFile(LayoutFilePath); // We must re-read it to avoid the Editor to use a previously cached name and description
