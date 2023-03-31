@@ -150,6 +150,7 @@ private:
 
 #if WITH_EDITOR
 	bool bUseEditorLevelViewports = false;
+	bool bIgnorePlayerControllersDueToSimulation = false;
 #endif // WITH_EDITOR
 
 	/** Free list of indices in the sparse viewer array */

@@ -8,6 +8,7 @@
 #include "MassSimulationSubsystem.h"
 #if WITH_EDITOR
 #include "CoreGlobals.h" // GIsEditor
+#include "Editor.h" // GEditor
 #include "LevelEditorViewport.h"
 #include "Editor/EditorEngine.h"
 #endif // WITH_EDITOR
@@ -38,7 +39,8 @@ void UMassLODSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		check(SimSystem);
 		SimSystem->GetOnProcessingPhaseStarted(EMassProcessingPhase::PrePhysics).AddUObject(this, &UMassLODSubsystem::OnPrePhysicsPhaseStarted);
 #if WITH_EDITOR
-		bUseEditorLevelViewports = (GIsEditor && World->WorldType == EWorldType::Editor);
+		bIgnorePlayerControllersDueToSimulation = (GEditor && GEditor->IsSimulateInEditorInProgress());
+		bUseEditorLevelViewports = bIgnorePlayerControllersDueToSimulation || (GIsEditor && World->WorldType == EWorldType::Editor);
 #endif // WITH_EDITOR
 	}
 
@@ -145,7 +147,11 @@ void UMassLODSubsystem::SynchronizeViewers()
 			continue;
 		}
 
-		if (ViewerInfo.PlayerController != nullptr)
+		if (ViewerInfo.PlayerController != nullptr
+#if WITH_EDITOR
+			&& bIgnorePlayerControllersDueToSimulation == false
+#endif // WITH_EDITOR
+			)
 		{
 			LocalViewerMap.Add(GetTypeHash(ViewerInfo.PlayerController->GetFName()), ViewerInfo.Handle);
 		}
@@ -206,7 +212,10 @@ void UMassLODSubsystem::SynchronizeViewers()
 			if (LevelVC && LevelVC->IsPerspective())
 			{
 				const int32 HashValue = GetTypeHash(LevelVC);
-				AddEditorViewer(HashValue, ClientIndex);
+				if (LocalViewerMap.Remove(HashValue) == 0)
+				{
+					AddEditorViewer(HashValue, ClientIndex);
+				}
 			}
 		}
 	}
@@ -298,6 +307,13 @@ void UMassLODSubsystem::AddViewer(APlayerController* PlayerController, FName Str
 
 void UMassLODSubsystem::AddPlayerViewer(APlayerController& PlayerController)
 {
+#if WITH_EDITOR
+	if (bIgnorePlayerControllersDueToSimulation)
+	{
+		return;
+	}
+#endif // WITH_EDITOR
+
 	const int32 HashValue = GetTypeHash(PlayerController.GetFName());
 
 	FMassViewerHandle& ViewerHandle = ViewerMap.FindOrAdd(HashValue, FMassViewerHandle());
