@@ -39,7 +39,7 @@ struct FDatabaseIndexingContext
 
 private:
 	FAssetSamplingContext SamplingContext;
-	TArray<TSharedPtr<FAssetSamplerBase>> Samplers;
+	TArray<FAnimationAssetSampler> Samplers;
 	TArray<FAssetIndexer> Indexers;
 };
 

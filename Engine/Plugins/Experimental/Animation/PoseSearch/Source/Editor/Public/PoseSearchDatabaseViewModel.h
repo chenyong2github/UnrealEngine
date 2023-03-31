@@ -45,12 +45,10 @@ namespace UE::PoseSearch
 		TWeakObjectPtr<AActor> Actor = nullptr;
 		int32 IndexAssetIndex = INDEX_NONE;
 		int32 CurrentPoseIndex = INDEX_NONE;
-
-		TSharedPtr<FAssetSamplerBase> Sampler;
+		FAnimationAssetSampler Sampler;
 
 		bool IsValid() const;
 		void Process();
-		const FAssetSamplerBase* GetSampler() const;
 		UDebugSkelMeshComponent* GetDebugSkelMeshComponent();
 		UAnimPreviewInstance* GetAnimPreviewInstance();
 	};

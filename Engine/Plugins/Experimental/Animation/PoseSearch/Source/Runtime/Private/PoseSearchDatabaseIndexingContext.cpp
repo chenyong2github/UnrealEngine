@@ -58,34 +58,11 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 	}
 
 	// Prepare samplers for all animation assets.
-	TMap<const UAnimationAsset*, int32> SamplerMap;
-	TMap<TPair<const UBlendSpace*, FVector>, int32> BlendSpaceSamplerMap;
+	Samplers.Reset();
+	TMap<TPair<const UAnimationAsset*, FVector>, int32> SamplerMap;
 	for (const FInstancedStruct& DatabaseAssetStruct : Database.AnimationAssets)
 	{
-		auto AddSequenceBaseSampler = [&](const UAnimSequenceBase* Sequence)
-		{
-			if (Sequence && !SamplerMap.Contains(Sequence))
-			{
-				FSequenceBaseSampler::FInput Input;
-				Input.SequenceBase = Sequence;
-
-				SamplerMap.Add(Sequence, Samplers.Num());
-
-				TSharedPtr<FSequenceBaseSampler> Sampler = MakeShared<FSequenceBaseSampler>();
-				Sampler->Init(Input);
-				Samplers.Add(Sampler);
-			}
-		};
-
-		if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseSequence>())
-		{
-			AddSequenceBaseSampler(DatabaseSequence->Sequence);
-		}
-		else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimComposite>())
-		{
-			AddSequenceBaseSampler(DatabaseAnimComposite->AnimComposite);
-		}
-		else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseBlendSpace>())
+		if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseBlendSpace>())
 		{
 			if (DatabaseBlendSpace->BlendSpace)
 			{
@@ -98,44 +75,29 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 					{
 						const FVector BlendParameters = DatabaseBlendSpace->BlendParameterForSampleRanges(HorizontalIndex, VerticalIndex);
 
-						if (!BlendSpaceSamplerMap.Contains({ DatabaseBlendSpace->BlendSpace, BlendParameters }))
+						if (!SamplerMap.Contains({ DatabaseBlendSpace->BlendSpace, BlendParameters }))
 						{
-							FBlendSpaceSampler::FInput Input;
-							Input.BoneContainer = BoneContainer;
-							Input.BlendSpace = DatabaseBlendSpace->BlendSpace;
-							Input.BlendParameters = BlendParameters;
-
-							BlendSpaceSamplerMap.Add({ DatabaseBlendSpace->BlendSpace, BlendParameters }, Samplers.Num());
-
-							TSharedPtr<FBlendSpaceSampler> Sampler = MakeShared<FBlendSpaceSampler>();
-							Sampler->Init(Input);
-							Samplers.Add(Sampler);
+							SamplerMap.Add({ DatabaseBlendSpace->BlendSpace, BlendParameters }, Samplers.Num());
+							Samplers.Emplace(DatabaseBlendSpace->BlendSpace, BlendParameters, BoneContainer);
 						}
 					}
 				}
 			}
 		}
-		else if (const FPoseSearchDatabaseAnimMontage* DatabaseAnimMontage = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimMontage>())
+		else if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAssetBase = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimationAssetBase>())
 		{
-			if (DatabaseAnimMontage->AnimMontage && !SamplerMap.Contains(DatabaseAnimMontage->AnimMontage))
+			if (const UAnimationAsset* AnimationAsset = DatabaseAnimationAssetBase->GetAnimationAsset())
 			{
-				FAnimMontageSampler::FInput Input;
-				Input.AnimMontage = DatabaseAnimMontage->AnimMontage;
-
-				SamplerMap.Add(DatabaseAnimMontage->AnimMontage, Samplers.Num());
-
-				TSharedPtr<FAnimMontageSampler> Sampler = MakeShared<FAnimMontageSampler>();
-				Sampler->Init(Input);
-				Samplers.Add(Sampler);
+				if (!SamplerMap.Contains({ AnimationAsset, FVector::ZeroVector }))
+				{
+					SamplerMap.Add({ AnimationAsset, FVector::ZeroVector }, Samplers.Num());
+					Samplers.Emplace(AnimationAsset);
+				}
 			}
-		}
-		else
-		{
-			checkNoEntry();
 		}
 	}
 
-	ParallelFor(Samplers.Num(), [this](int32 SamplerIdx) { Samplers[SamplerIdx]->Process(); }, ParallelForFlags);
+	ParallelFor(Samplers.Num(), [this](int32 SamplerIdx) { Samplers[SamplerIdx].Process(); }, ParallelForFlags);
 
 	if (Owner.IsCanceled())
 	{
@@ -158,38 +120,11 @@ bool FDatabaseIndexingContext::IndexDatabase(FPoseSearchIndexBase& SearchIndexBa
 		IndexerContext.bMirrored = SearchIndexAsset.bMirrored;
 
 		const FInstancedStruct& DatabaseAsset = Database.GetAnimationAssetStruct(SearchIndexAsset.SourceAssetIdx);
-		if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAsset.GetPtr<FPoseSearchDatabaseSequence>())
+		const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAssetBase = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimationAssetBase>();
+		check(DatabaseAnimationAssetBase);
+		if (DatabaseAnimationAssetBase->GetAnimationAsset())
 		{
-			if (DatabaseSequence->Sequence)
-			{
-				const float SequenceLength = DatabaseSequence->Sequence->GetPlayLength();
-				IndexerContext.AssetSampler = Samplers[SamplerMap[DatabaseSequence->Sequence]];
-			}
-		}
-		else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimComposite>())
-		{
-			if (DatabaseAnimComposite->AnimComposite)
-			{
-				IndexerContext.AssetSampler = Samplers[SamplerMap[DatabaseAnimComposite->AnimComposite]];
-			}
-		}
-		else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAsset.GetPtr<FPoseSearchDatabaseBlendSpace>())
-		{
-			if (DatabaseBlendSpace->BlendSpace)
-			{
-				IndexerContext.AssetSampler = Samplers[BlendSpaceSamplerMap[{DatabaseBlendSpace->BlendSpace, SearchIndexAsset.BlendParameters}]];
-			}
-		}
-		else if (const FPoseSearchDatabaseAnimMontage* DatabaseAnimMontage = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimMontage>())
-		{
-			if (DatabaseAnimMontage->AnimMontage)
-			{
-				IndexerContext.AssetSampler = Samplers[SamplerMap[DatabaseAnimMontage->AnimMontage]];
-			}
-		}
-		else
-		{
-			checkNoEntry();
+			IndexerContext.AssetSampler = &Samplers[SamplerMap[{ DatabaseAnimationAssetBase->GetAnimationAsset(), SearchIndexAsset.BlendParameters }]];
 		}
 
 		const int32 NewIndexerIdx = Indexers.Emplace(IndexerContext, BoneContainer, SearchIndexAsset);

@@ -16,11 +16,7 @@ namespace UE::PoseSearch
 //////////////////////////////////////////////////////////////////////////
 // Root motion extrapolation
 
-static FTransform ExtrapolateRootMotion(
-	FTransform SampleToExtrapolate,
-	float SampleStart, 
-	float SampleEnd, 
-	float ExtrapolationTime)
+static FTransform ExtrapolateRootMotion(FTransform SampleToExtrapolate, float SampleStart, float SampleEnd, float ExtrapolationTime)
 {
 	const float SampleDelta = SampleEnd - SampleStart;
 	check(!FMath::IsNearlyZero(SampleDelta));
@@ -55,322 +51,50 @@ static FTransform ExtrapolateRootMotion(
 	return ExtrapolatedRootMotion;
 }
 
-//////////////////////////////////////////////////////////////////////////
-// FSequenceBaseSampler
-void FSequenceBaseSampler::Init(const FInput& InInput)
+static FTransform ExtractRootTransformInternal(const UAnimMontage* AnimMontage, float StartTime, float EndTime)
 {
-	check(InInput.SequenceBase.Get());
-	Input = InInput;
-}
-
-void FSequenceBaseSampler::Process()
-{
-}
-
-float FSequenceBaseSampler::GetPlayLength() const
-{
-	return Input.SequenceBase->GetPlayLength();
-}
-
-float FSequenceBaseSampler::GetScaledTime(float Time) const
-{
-	return Time;
-}
-
-bool FSequenceBaseSampler::IsLoopable() const
-{
-	return Input.SequenceBase->bLoop;
-}
-
-void FSequenceBaseSampler::ExtractPose(const FAnimExtractContext& ExtractionCtx, FAnimationPoseData& OutAnimPoseData) const
-{
-	Input.SequenceBase->GetAnimationPose(OutAnimPoseData, ExtractionCtx);
-}
-
-FTransform FSequenceBaseSampler::GetTotalRootTransform() const
-{
-	const FTransform InitialRootTransform = ExtractRootTransform(0.f);
-	const FTransform LastRootTransform = ExtractRootTransform(GetPlayLength());
-	const FTransform TotalRootTransform = LastRootTransform.GetRelativeTransform(InitialRootTransform);
-	return TotalRootTransform;
-}
-
-FTransform FSequenceBaseSampler::ExtractRootTransform(float Time) const
-{
-	FTransform RootTransform = FTransform::Identity;
-	const UAnimSequenceBase* SequenceBase = Input.SequenceBase.Get();
-
-	if (IsLoopable())
+	// @todo: add support for SlotName / multiple SlotAnimTracks
+	if (AnimMontage->SlotAnimTracks.Num() != 1)
 	{
-		RootTransform = SequenceBase->ExtractRootMotion(0.0f, Time, true);
-	}
-	else
-	{
-		const float PlayLength = SequenceBase->GetPlayLength();
-		const float ClampedTime = FMath::Clamp(Time, 0.0f, PlayLength);
-		const float ExtrapolationTime = Time - ClampedTime;
-
-		// If Time is less than zero, ExtrapolationTime will be negative. In this case, we extrapolate the beginning of the 
-		// animation to estimate where the root would be at Time
-		if (ExtrapolationTime < -SMALL_NUMBER)
-		{
-			FTransform SampleToExtrapolate = SequenceBase->ExtractRootMotionFromRange(0.0f, ExtrapolationSampleTime);
-
-			const FTransform ExtrapolatedRootMotion = UE::PoseSearch::ExtrapolateRootMotion(
-				SampleToExtrapolate,
-				0.0f, ExtrapolationSampleTime,
-				ExtrapolationTime);
-			RootTransform = ExtrapolatedRootMotion;
-		}
-		else
-		{
-			RootTransform = SequenceBase->ExtractRootMotionFromRange(0.0f, ClampedTime);
-
-			// If Time is greater than PlayLength, ExtrapolationTime will be a positive number. In this case, we extrapolate
-			// the end of the animation to estimate where the root would be at Time
-			if (ExtrapolationTime > SMALL_NUMBER)
-			{
-				FTransform SampleToExtrapolate = SequenceBase->ExtractRootMotionFromRange(PlayLength - ExtrapolationSampleTime, PlayLength);
-
-				const FTransform ExtrapolatedRootMotion = UE::PoseSearch::ExtrapolateRootMotion(
-					SampleToExtrapolate,
-					PlayLength - ExtrapolationSampleTime, PlayLength,
-					ExtrapolationTime);
-				RootTransform = ExtrapolatedRootMotion * RootTransform;
-			}
-		}
+		UE_LOG(LogPoseSearch, Error, TEXT("ExtractRootTransformInternal: so far we support only montages with one SlotAnimTracks. %s has %d"), *AnimMontage->GetName(), AnimMontage->SlotAnimTracks.Num());
+		return FTransform::Identity;
 	}
 
-	return RootTransform;
-}
-
-void FSequenceBaseSampler::ExtractPoseSearchNotifyStates(
-	float Time, 
-	TArray<UAnimNotifyState_PoseSearchBase*>& NotifyStates) const
-{
-	// getting pose search notifies in an interval of size ExtractionInterval, centered on Time
-	FAnimNotifyContext NotifyContext;
-	Input.SequenceBase->GetAnimNotifies(Time - (ExtractionInterval * 0.5f), ExtractionInterval, NotifyContext);
-
-	// check which notifies actually overlap Time and are of the right base type
-	for (const FAnimNotifyEventReference& EventReference : NotifyContext.ActiveNotifies)
+	const FAnimTrack& RootMotionAnimTrack = AnimMontage->SlotAnimTracks[0].AnimTrack;
+	TArray<FRootMotionExtractionStep> RootMotionExtractionSteps;
+	RootMotionAnimTrack.GetRootMotionExtractionStepsForTrackRange(RootMotionExtractionSteps, StartTime, EndTime);
+	FRootMotionMovementParams AccumulatedRootMotionParams;
+	for (const FRootMotionExtractionStep& CurStep : RootMotionExtractionSteps)
 	{
-		const FAnimNotifyEvent* NotifyEvent = EventReference.GetNotify();
-		if (!NotifyEvent)
+		if (CurStep.AnimSequence)
 		{
-			continue;
-		}
-
-		if (NotifyEvent->GetTriggerTime() > Time ||
-			NotifyEvent->GetEndTriggerTime() < Time)
-		{
-			continue;
-		}
-
-		UAnimNotifyState_PoseSearchBase* PoseSearchAnimNotify = 
-			Cast<UAnimNotifyState_PoseSearchBase>(NotifyEvent->NotifyStateClass);
-		if (PoseSearchAnimNotify)
-		{
-			NotifyStates.Add(PoseSearchAnimNotify);
+			AccumulatedRootMotionParams.Accumulate(CurStep.AnimSequence->ExtractRootMotionFromRange(CurStep.StartPosition, CurStep.EndPosition));
 		}
 	}
+	return AccumulatedRootMotionParams.GetRootMotionTransform();
 }
 
-const UAnimationAsset* FSequenceBaseSampler::GetAsset() const
-{
-	return Input.SequenceBase.Get();
-}
-
-//////////////////////////////////////////////////////////////////////////
-// FBlendSpaceSampler
-void FBlendSpaceSampler::Init(const FInput& InInput)
-{
-	check(InInput.BlendSpace.Get());
-	Input = InInput;
-}
-
-void FBlendSpaceSampler::Process()
-{
-	FMemMark Mark(FMemStack::Get());
-
-	ProcessPlayLength();
-	ProcessRootTransform();
-}
-
-float FBlendSpaceSampler::GetScaledTime(float Time) const
-{
-	const float ScaledTime = GetPlayLength() > UE_KINDA_SMALL_NUMBER ? Time / GetPlayLength() : 0.f;
-	return ScaledTime;
-}
-
-bool FBlendSpaceSampler::IsLoopable() const
-{
-	return Input.BlendSpace->bLoop;
-}
-
-void FBlendSpaceSampler::ExtractPose(const FAnimExtractContext& ExtractionCtx, FAnimationPoseData& OutAnimPoseData) const
-{
-	TArray<FBlendSampleData> BlendSamples;
-	int32 TriangulationIndex = 0;
-	Input.BlendSpace->GetSamplesFromBlendInput(Input.BlendParameters, BlendSamples, TriangulationIndex, true);
-
-	for (int32 BlendSampleIdex = 0; BlendSampleIdex < BlendSamples.Num(); BlendSampleIdex++)
-	{
-		float Scale = BlendSamples[BlendSampleIdex].Animation->GetPlayLength() / PlayLength;
-
-		FDeltaTimeRecord BlendSampleDeltaTimeRecord;
-		BlendSampleDeltaTimeRecord.Set(ExtractionCtx.DeltaTimeRecord.GetPrevious() * Scale, ExtractionCtx.DeltaTimeRecord.Delta * Scale);
-
-		BlendSamples[BlendSampleIdex].DeltaTimeRecord = BlendSampleDeltaTimeRecord;
-		BlendSamples[BlendSampleIdex].PreviousTime = ExtractionCtx.DeltaTimeRecord.GetPrevious() * Scale;
-		BlendSamples[BlendSampleIdex].Time = ExtractionCtx.CurrentTime * Scale;
-	}
-
-	Input.BlendSpace->GetAnimationPose(BlendSamples, ExtractionCtx, OutAnimPoseData);
-}
-
-FTransform FBlendSpaceSampler::GetTotalRootTransform() const
-{
-	const FTransform InitialRootTransform = ExtractBlendSpaceRootTrackTransform(0.f);
-	const FTransform LastRootTransform = ExtractBlendSpaceRootTrackTransform(PlayLength);
-	const FTransform TotalRootTransform = LastRootTransform.GetRelativeTransform(InitialRootTransform);
-	return TotalRootTransform;
-}
-
-FTransform FBlendSpaceSampler::ExtractRootTransform(float Time) const
-{
-	FTransform RootTransform = FTransform::Identity;
-	if (IsLoopable())
-	{
-		RootTransform = ExtractBlendSpaceRootMotion(0.0f, Time, true);
-	}
-	else
-	{
-		const float ClampedTime = FMath::Clamp(Time, 0.0f, PlayLength);
-		const float ExtrapolationTime = Time - ClampedTime;
-
-
-		// If Time is less than zero, ExtrapolationTime will be negative. In this case, we extrapolate the beginning of the 
-		// animation to estimate where the root would be at Time
-		if (ExtrapolationTime < -SMALL_NUMBER)
-		{
-			FTransform SampleToExtrapolate = ExtractBlendSpaceRootMotionFromRange(0.0f, ExtrapolationSampleTime);
-
-			const FTransform ExtrapolatedRootMotion = UE::PoseSearch::ExtrapolateRootMotion(
-				SampleToExtrapolate,
-				0.0f, ExtrapolationSampleTime,
-				ExtrapolationTime);
-			RootTransform = ExtrapolatedRootMotion;
-		}
-		else
-		{
-			RootTransform = ExtractBlendSpaceRootMotionFromRange(0.0f, ClampedTime);
-
-			// If Time is greater than PlayLength, ExtrapolationTime will be a positive number. In this case, we extrapolate
-			// the end of the animation to estimate where the root would be at Time
-			if (ExtrapolationTime > SMALL_NUMBER)
-			{
-				FTransform SampleToExtrapolate = ExtractBlendSpaceRootMotionFromRange(PlayLength - ExtrapolationSampleTime, PlayLength);
-
-				const FTransform ExtrapolatedRootMotion = UE::PoseSearch::ExtrapolateRootMotion(
-					SampleToExtrapolate,
-					PlayLength - ExtrapolationSampleTime, PlayLength,
-					ExtrapolationTime);
-				RootTransform = ExtrapolatedRootMotion * RootTransform;
-			}
-		}
-	}
-
-	return RootTransform;
-}
-
-static int32 GetHighestWeightSample(const TArray<struct FBlendSampleData>& SampleDataList)
-{
-	int32 HighestWeightIndex = 0;
-	float HighestWeight = SampleDataList[HighestWeightIndex].GetClampedWeight();
-	for (int32 I = 1; I < SampleDataList.Num(); I++)
-	{
-		if (SampleDataList[I].GetClampedWeight() > HighestWeight)
-		{
-			HighestWeightIndex = I;
-			HighestWeight = SampleDataList[I].GetClampedWeight();
-		}
-	}
-	return HighestWeightIndex;
-}
-
-void FBlendSpaceSampler::ExtractPoseSearchNotifyStates(
-	float Time,
-	TArray<UAnimNotifyState_PoseSearchBase*>& NotifyStates) const
-{
-	if (Input.BlendSpace->NotifyTriggerMode == ENotifyTriggerMode::HighestWeightedAnimation)
-	{
-		// Set up blend samples
-		TArray<FBlendSampleData> BlendSamples;
-		int32 TriangulationIndex = 0;
-		Input.BlendSpace->GetSamplesFromBlendInput(Input.BlendParameters, BlendSamples, TriangulationIndex, true);
-
-		// Find highest weighted
-		const int32 HighestWeightIndex = GetHighestWeightSample(BlendSamples);
-
-		check(HighestWeightIndex != -1);
-
-		// getting pose search notifies in an interval of size ExtractionInterval, centered on Time
-		float SampleTime = Time * (BlendSamples[HighestWeightIndex].Animation->GetPlayLength() / PlayLength);
-
-		// Get notifies for highest weighted
-		FAnimNotifyContext NotifyContext;
-		BlendSamples[HighestWeightIndex].Animation->GetAnimNotifies(
-			(SampleTime - (ExtractionInterval * 0.5f)),
-			ExtractionInterval, 
-			NotifyContext);
-
-		// check which notifies actually overlap Time and are of the right base type
-		for (const FAnimNotifyEventReference& EventReference : NotifyContext.ActiveNotifies)
-		{
-			const FAnimNotifyEvent* NotifyEvent = EventReference.GetNotify();
-			if (!NotifyEvent)
-			{
-				continue;
-			}
-
-			if (NotifyEvent->GetTriggerTime() > SampleTime ||
-				NotifyEvent->GetEndTriggerTime() < SampleTime)
-			{
-				continue;
-			}
-
-			UAnimNotifyState_PoseSearchBase* PoseSearchAnimNotify =
-				Cast<UAnimNotifyState_PoseSearchBase>(NotifyEvent->NotifyStateClass);
-			if (PoseSearchAnimNotify)
-			{
-				NotifyStates.Add(PoseSearchAnimNotify);
-			}
-		}
-	}
-}
-
-FTransform FBlendSpaceSampler::ExtractBlendSpaceRootTrackTransform(float Time) const
+static FTransform ExtractBlendSpaceRootTrackTransform(float Time, const TArray<FTransform>& AccumulatedRootTransform, int32 RootTransformSamplingRate)
 {
 	checkf(AccumulatedRootTransform.Num() > 0, TEXT("ProcessRootTransform must be run first"));
 
-	const int32 Index = Time * Input.RootTransformSamplingRate;
+	const int32 Index = Time * RootTransformSamplingRate;
 	const int32 FirstIndexClamped = FMath::Clamp(Index + 0, 0, AccumulatedRootTransform.Num() - 1);
 	const int32 SecondIndexClamped = FMath::Clamp(Index + 1, 0, AccumulatedRootTransform.Num() - 1);
-	const float Alpha = FMath::Fmod(Time * Input.RootTransformSamplingRate, 1.0f);
+	const float Alpha = FMath::Fmod(Time * RootTransformSamplingRate, 1.0f);
 	FTransform OutputTransform;
 	OutputTransform.Blend(AccumulatedRootTransform[FirstIndexClamped], AccumulatedRootTransform[SecondIndexClamped], Alpha);
 	return OutputTransform;
 }
 
-FTransform FBlendSpaceSampler::ExtractBlendSpaceRootMotionFromRange(float StartTrackPosition, float EndTrackPosition) const
+static FTransform ExtractBlendSpaceRootMotionFromRange(float StartTrackPosition, float EndTrackPosition, const TArray<FTransform>& AccumulatedRootTransform, int32 RootTransformSamplingRate)
 {
 	checkf(AccumulatedRootTransform.Num() > 0, TEXT("ProcessRootTransform must be run first"));
 
-	FTransform RootTransformRefPose = ExtractBlendSpaceRootTrackTransform(0.0f);
+	FTransform RootTransformRefPose = ExtractBlendSpaceRootTrackTransform(0.f, AccumulatedRootTransform, RootTransformSamplingRate);
 
-	FTransform StartTransform = ExtractBlendSpaceRootTrackTransform(StartTrackPosition);
-	FTransform EndTransform = ExtractBlendSpaceRootTrackTransform(EndTrackPosition);
+	FTransform StartTransform = ExtractBlendSpaceRootTrackTransform(StartTrackPosition, AccumulatedRootTransform, RootTransformSamplingRate);
+	FTransform EndTransform = ExtractBlendSpaceRootTrackTransform(EndTrackPosition, AccumulatedRootTransform, RootTransformSamplingRate);
 
 	// Transform to Component Space
 	const FTransform RootToComponent = RootTransformRefPose.Inverse();
@@ -380,7 +104,7 @@ FTransform FBlendSpaceSampler::ExtractBlendSpaceRootMotionFromRange(float StartT
 	return EndTransform.GetRelativeTransform(StartTransform);
 }
 
-FTransform FBlendSpaceSampler::ExtractBlendSpaceRootMotion(float StartTime, float DeltaTime, bool bAllowLooping) const
+static FTransform ExtractBlendSpaceRootMotion(float StartTime, float DeltaTime, bool bAllowLooping, float CachedPlayLength, const TArray<FTransform>& AccumulatedRootTransform, int32 RootTransformSamplingRate)
 {
 	FRootMotionMovementParams RootMotionParams;
 
@@ -395,13 +119,14 @@ FTransform FBlendSpaceSampler::ExtractBlendSpaceRootMotion(float StartTime, floa
 		do
 		{
 			// Disable looping here. Advance to desired position, or beginning / end of animation 
-			const ETypeAdvanceAnim AdvanceType = FAnimationRuntime::AdvanceTime(false, DesiredDeltaMove, CurrentPosition, PlayLength);
+			check(CachedPlayLength >= 0.f);
+			const ETypeAdvanceAnim AdvanceType = FAnimationRuntime::AdvanceTime(false, DesiredDeltaMove, CurrentPosition, CachedPlayLength);
 
 			// Verify position assumptions
 			//ensureMsgf(bPlayingBackwards ? (CurrentPosition <= PreviousPosition) : (CurrentPosition >= PreviousPosition), TEXT("in Animation %s(Skeleton %s) : bPlayingBackwards(%d), PreviousPosition(%0.2f), Current Position(%0.2f)"),
 			//	*GetName(), *GetNameSafe(GetSkeleton()), bPlayingBackwards, PreviousPosition, CurrentPosition);
 
-			RootMotionParams.Accumulate(ExtractBlendSpaceRootMotionFromRange(PreviousPosition, CurrentPosition));
+			RootMotionParams.Accumulate(ExtractBlendSpaceRootMotionFromRange(PreviousPosition, CurrentPosition, AccumulatedRootTransform, RootTransformSamplingRate));
 
 			// If we've hit the end of the animation, and we're allowed to loop, keep going.
 			if ((AdvanceType == ETAA_Finished) && bAllowLooping)
@@ -409,7 +134,7 @@ FTransform FBlendSpaceSampler::ExtractBlendSpaceRootMotion(float StartTime, floa
 				const float ActualDeltaMove = (CurrentPosition - PreviousPosition);
 				DesiredDeltaMove -= ActualDeltaMove;
 
-				PreviousPosition = bPlayingBackwards ? PlayLength : 0.f;
+				PreviousPosition = bPlayingBackwards ? CachedPlayLength : 0.f;
 				CurrentPosition = PreviousPosition;
 			}
 			else
@@ -422,221 +147,435 @@ FTransform FBlendSpaceSampler::ExtractBlendSpaceRootMotion(float StartTime, floa
 	return RootMotionParams.GetRootMotionTransform();
 }
 
-void FBlendSpaceSampler::ProcessPlayLength()
+static void ProcessPlayLength(const UBlendSpace* BlendSpace, const FVector& BlendParameters, float& CachedPlayLength)
 {
 	TArray<FBlendSampleData> BlendSamples;
 	int32 TriangulationIndex = 0;
-	Input.BlendSpace->GetSamplesFromBlendInput(Input.BlendParameters, BlendSamples, TriangulationIndex, true);
-
-	PlayLength = Input.BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
+	if (BlendSpace->GetSamplesFromBlendInput(BlendParameters, BlendSamples, TriangulationIndex, true))
+	{
+		CachedPlayLength = BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
+	}
 }
 
-void FBlendSpaceSampler::ProcessRootTransform()
+static void ProcessRootTransform(const UBlendSpace* BlendSpace, const FVector& BlendParameters, float CachedPlayLength, const FBoneContainer& BoneContainer,
+	int32 RootTransformSamplingRate, bool bIsLoopable, TArray<FTransform>& AccumulatedRootTransform)
 {
 	// Pre-compute root motion
-
-	int32 NumRootSamples = FMath::Max(PlayLength * Input.RootTransformSamplingRate + 1, 1);
+	check(CachedPlayLength >= 0.f);
+	int32 NumRootSamples = FMath::Max(CachedPlayLength * RootTransformSamplingRate + 1, 1);
 	AccumulatedRootTransform.SetNumUninitialized(NumRootSamples);
 
 	TArray<FBlendSampleData> BlendSamples;
 	int32 TriangulationIndex = 0;
-	Input.BlendSpace->GetSamplesFromBlendInput(Input.BlendParameters, BlendSamples, TriangulationIndex, true);
-
-	FTransform RootMotionAccumulation = FTransform::Identity;
-
-	AccumulatedRootTransform[0] = RootMotionAccumulation;
-
-	for (int32 SampleIdx = 1; SampleIdx < NumRootSamples; ++SampleIdx)
+	if (BlendSpace->GetSamplesFromBlendInput(BlendParameters, BlendSamples, TriangulationIndex, true))
 	{
-		float PreviousTime = float(SampleIdx - 1) / Input.RootTransformSamplingRate;
-		float CurrentTime = float(SampleIdx - 0) / Input.RootTransformSamplingRate;
+		FTransform RootMotionAccumulation = FTransform::Identity;
 
-		FDeltaTimeRecord DeltaTimeRecord;
-		DeltaTimeRecord.Set(PreviousTime, CurrentTime - PreviousTime);
-		FAnimExtractContext ExtractionCtx(static_cast<double>(CurrentTime), true, DeltaTimeRecord, IsLoopable());
+		AccumulatedRootTransform[0] = RootMotionAccumulation;
 
-		for (int32 BlendSampleIdex = 0; BlendSampleIdex < BlendSamples.Num(); BlendSampleIdex++)
+		for (int32 SampleIdx = 1; SampleIdx < NumRootSamples; ++SampleIdx)
 		{
-			float Scale = BlendSamples[BlendSampleIdex].Animation->GetPlayLength() / PlayLength;
+			float PreviousTime = float(SampleIdx - 1) / RootTransformSamplingRate;
+			float CurrentTime = float(SampleIdx - 0) / RootTransformSamplingRate;
 
-			FDeltaTimeRecord BlendSampleDeltaTimeRecord;
-			BlendSampleDeltaTimeRecord.Set(DeltaTimeRecord.GetPrevious() * Scale, DeltaTimeRecord.Delta * Scale);
+			FDeltaTimeRecord DeltaTimeRecord;
+			DeltaTimeRecord.Set(PreviousTime, CurrentTime - PreviousTime);
+			FAnimExtractContext ExtractionCtx(static_cast<double>(CurrentTime), true, DeltaTimeRecord, bIsLoopable);
 
-			BlendSamples[BlendSampleIdex].DeltaTimeRecord = BlendSampleDeltaTimeRecord;
-			BlendSamples[BlendSampleIdex].PreviousTime = PreviousTime * Scale;
-			BlendSamples[BlendSampleIdex].Time = CurrentTime * Scale;
-		}
-
-		FCompactPose Pose;
-		FBlendedCurve BlendedCurve;
-		UE::Anim::FStackAttributeContainer StackAttributeContainer;
-		FAnimationPoseData AnimPoseData(Pose, BlendedCurve, StackAttributeContainer);
-
-		Pose.SetBoneContainer(&Input.BoneContainer);
-		BlendedCurve.InitFrom(Input.BoneContainer);
-
-		Input.BlendSpace->GetAnimationPose(BlendSamples, ExtractionCtx, AnimPoseData);
-
-		const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get();
-
-		if (RootMotionProvider)
-		{
-			if (RootMotionProvider->HasRootMotion(StackAttributeContainer))
+			for (int32 BlendSampleIdex = 0; BlendSampleIdex < BlendSamples.Num(); BlendSampleIdex++)
 			{
-				FTransform RootMotionDelta;
-				RootMotionProvider->ExtractRootMotion(StackAttributeContainer, RootMotionDelta);
-				RootMotionAccumulation = RootMotionDelta * RootMotionAccumulation;
+				float Scale = BlendSamples[BlendSampleIdex].Animation->GetPlayLength() / CachedPlayLength;
+
+				FDeltaTimeRecord BlendSampleDeltaTimeRecord;
+				BlendSampleDeltaTimeRecord.Set(DeltaTimeRecord.GetPrevious() * Scale, DeltaTimeRecord.Delta * Scale);
+
+				BlendSamples[BlendSampleIdex].DeltaTimeRecord = BlendSampleDeltaTimeRecord;
+				BlendSamples[BlendSampleIdex].PreviousTime = PreviousTime * Scale;
+				BlendSamples[BlendSampleIdex].Time = CurrentTime * Scale;
+			}
+
+			FCompactPose Pose;
+			FBlendedCurve BlendedCurve;
+			UE::Anim::FStackAttributeContainer StackAttributeContainer;
+			FAnimationPoseData AnimPoseData(Pose, BlendedCurve, StackAttributeContainer);
+
+			Pose.SetBoneContainer(&BoneContainer);
+			BlendedCurve.InitFrom(BoneContainer);
+
+			BlendSpace->GetAnimationPose(BlendSamples, ExtractionCtx, AnimPoseData);
+
+			const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get();
+
+			if (RootMotionProvider)
+			{
+				if (RootMotionProvider->HasRootMotion(StackAttributeContainer))
+				{
+					FTransform RootMotionDelta;
+					RootMotionProvider->ExtractRootMotion(StackAttributeContainer, RootMotionDelta);
+					RootMotionAccumulation = RootMotionDelta * RootMotionAccumulation;
+				}
+				else
+				{
+					UE_LOG(LogPoseSearch, Error, TEXT("ProcessRootTransform: Blend Space '%s' has no Root Motion Attribute"), *BlendSpace->GetName());
+				}
 			}
 			else
 			{
-				UE_LOG(LogPoseSearch, Error, TEXT("FBlendSpaceSampler::ProcessRootTransform: Blend Space '%s' has no Root Motion Attribute"), *Input.BlendSpace->GetName());
+				UE_LOG(LogPoseSearch, Error, TEXT("ProcessRootTransform: Could not get Root Motion Provider for BlendSpace '%s'"), *BlendSpace->GetName());
 			}
-		}
-		else
-		{
-			UE_LOG(LogPoseSearch, Error, TEXT("FBlendSpaceSampler::ProcessRootTransform: Could not get Root Motion Provider for BlendSpace '%s'"), *Input.BlendSpace->GetName());
-		}
 
-		AccumulatedRootTransform[SampleIdx] = RootMotionAccumulation;
+			AccumulatedRootTransform[SampleIdx] = RootMotionAccumulation;
+		}
 	}
 }
 
-const UAnimationAsset* FBlendSpaceSampler::GetAsset() const
+static int32 GetHighestWeightSample(const TArray<struct FBlendSampleData>& SampleDataList)
 {
-	return Input.BlendSpace.Get();
+	check(!SampleDataList.IsEmpty());
+	int32 HighestWeightIndex = 0;
+	float HighestWeight = SampleDataList[HighestWeightIndex].GetClampedWeight();
+	for (int32 I = 1; I < SampleDataList.Num(); I++)
+	{
+		if (SampleDataList[I].GetClampedWeight() > HighestWeight)
+		{
+			HighestWeightIndex = I;
+			HighestWeight = SampleDataList[I].GetClampedWeight();
+		}
+	}
+	return HighestWeightIndex;
 }
 
 //////////////////////////////////////////////////////////////////////////
-// FAnimMontageSampler
-void FAnimMontageSampler::Init(const FInput& InInput)
+// FAssetSamplerBase
+FAnimationAssetSampler::FAnimationAssetSampler(TWeakObjectPtr<const UAnimationAsset> InAnimationAsset, const FVector& InBlendParameters, const FBoneContainer& InBoneContainer, int32 InRootTransformSamplingRate)
 {
-	check(InInput.AnimMontage.Get());
-	Input = InInput;
+	Init(InAnimationAsset, InBlendParameters, InBoneContainer, InRootTransformSamplingRate);
 }
 
-void FAnimMontageSampler::Process()
+void FAnimationAssetSampler::Init(TWeakObjectPtr<const UAnimationAsset> InAnimationAsset, const FVector& InBlendParameters, const FBoneContainer& InBoneContainer, int32 InRootTransformSamplingRate)
 {
+	AnimationAsset = InAnimationAsset;
+	BlendParameters = InBlendParameters;
+	BoneContainer = InBoneContainer;
+	RootTransformSamplingRate = InRootTransformSamplingRate;
 }
 
-float FAnimMontageSampler::GetPlayLength() const
+bool FAnimationAssetSampler::IsInitialized() const
 {
-	return Input.AnimMontage->GetPlayLength();
+	return AnimationAsset != nullptr;
 }
 
-float FAnimMontageSampler::GetScaledTime(float Time) const
+const UAnimationAsset* FAnimationAssetSampler::GetAsset() const
 {
+	return AnimationAsset.Get();
+}
+
+float FAnimationAssetSampler::GetScaledTime(float Time) const
+{
+	// Asset player time for blend spaces is normalized [0, 1] so we convert it to scaled time by dividing it by CachedPlayLength
+	if (Cast<UBlendSpace>(AnimationAsset.Get()))
+	{
+		check(CachedPlayLength >= 0.f);
+		return CachedPlayLength > UE_KINDA_SMALL_NUMBER ? Time / CachedPlayLength : 0.f;
+	}
+
 	return Time;
 }
 
-bool FAnimMontageSampler::IsLoopable() const
+float FAnimationAssetSampler::GetPlayLength() const
 {
-	return Input.AnimMontage->bLoop;
+	if (Cast<UBlendSpace>(AnimationAsset.Get()))
+	{
+		check(CachedPlayLength >= 0.f);
+		return CachedPlayLength;
+	}
+	return AnimationAsset->GetPlayLength();
 }
 
-void FAnimMontageSampler::ExtractPose(const FAnimExtractContext& ExtractionCtx, FAnimationPoseData& OutAnimPoseData) const
+bool FAnimationAssetSampler::IsLoopable() const
 {
-	// @todo: add support for SlotName / multiple SlotAnimTracks
-	if (Input.AnimMontage->SlotAnimTracks.Num() != 1)
+	if (const UAnimSequenceBase* SequenceBase = Cast<UAnimSequenceBase>(AnimationAsset.Get()))
 	{
-		UE_LOG(LogPoseSearch, Error, TEXT("FAnimMontageSampler::ExtractPose: so far we support only montages with one SlotAnimTracks. %s has %d"), *Input.AnimMontage->GetName(), Input.AnimMontage->SlotAnimTracks.Num());
-		OutAnimPoseData.GetPose().ResetToRefPose();
-		return;
+		return SequenceBase->bLoop;
 	}
 
-	Input.AnimMontage->SlotAnimTracks[0].AnimTrack.GetAnimationPose(OutAnimPoseData, ExtractionCtx);
+	if (const UBlendSpace* BlendSpace = Cast<UBlendSpace>(AnimationAsset.Get()))
+	{
+		return BlendSpace->bLoop;
+	}
+
+	checkNoEntry();
+	return false;
 }
 
-FTransform FAnimMontageSampler::GetTotalRootTransform() const
+FTransform FAnimationAssetSampler::GetTotalRootTransform() const
 {
-	// @todo: add support for SlotName / multiple SlotAnimTracks
-	if (Input.AnimMontage->SlotAnimTracks.Num() != 1)
+	if (Cast<UBlendSpace>(AnimationAsset.Get()))
 	{
-		UE_LOG(LogPoseSearch, Error, TEXT("FAnimMontageSampler::GetTotalRootTransform: so far we support only montages with one SlotAnimTracks. %s has %d"), *Input.AnimMontage->GetName(), Input.AnimMontage->SlotAnimTracks.Num());
-		return FTransform::Identity;
+		check(CachedPlayLength >= 0.f);
+		const FTransform InitialRootTransform = ExtractBlendSpaceRootTrackTransform(0.f, AccumulatedRootTransform, RootTransformSamplingRate);
+		const FTransform LastRootTransform = ExtractBlendSpaceRootTrackTransform(CachedPlayLength, AccumulatedRootTransform, RootTransformSamplingRate);
+		const FTransform TotalRootTransform = LastRootTransform.GetRelativeTransform(InitialRootTransform);
+		return TotalRootTransform;
 	}
 
-	// @todo: optimize me
+	if (const UAnimMontage* AnimMontage = Cast<UAnimMontage>(AnimationAsset.Get()))
+	{
+		// @todo: add support for SlotName / multiple SlotAnimTracks
+		if (AnimMontage->SlotAnimTracks.Num() != 1)
+		{
+			UE_LOG(LogPoseSearch, Error, TEXT("FAssetSamplerBase::GetTotalRootTransform: so far we support only montages with one SlotAnimTracks. %s has %d"), *AnimMontage->GetName(), AnimMontage->SlotAnimTracks.Num());
+			return FTransform::Identity;
+		}
+
+		// @todo: optimize me
+		const FTransform InitialRootTransform = ExtractRootTransform(0.f);
+		const FTransform LastRootTransform = ExtractRootTransform(GetPlayLength());
+		const FTransform TotalRootTransform = LastRootTransform.GetRelativeTransform(InitialRootTransform);
+		return TotalRootTransform;
+	}
+
 	const FTransform InitialRootTransform = ExtractRootTransform(0.f);
 	const FTransform LastRootTransform = ExtractRootTransform(GetPlayLength());
 	const FTransform TotalRootTransform = LastRootTransform.GetRelativeTransform(InitialRootTransform);
 	return TotalRootTransform;
 }
 
-FTransform FAnimMontageSampler::ExtractRootTransformInternal(float StartTime, float EndTime) const
+void FAnimationAssetSampler::ExtractPose(const FAnimExtractContext& ExtractionCtx, FAnimationPoseData& OutAnimPoseData) const
 {
-	// @todo: add support for SlotName / multiple SlotAnimTracks
-	if (Input.AnimMontage->SlotAnimTracks.Num() != 1)
+	if (const UBlendSpace* BlendSpace = Cast<UBlendSpace>(AnimationAsset.Get()))
 	{
-		UE_LOG(LogPoseSearch, Error, TEXT("FAnimMontageSampler::ExtractRootTransform: so far we support only montages with one SlotAnimTracks. %s has %d"), *Input.AnimMontage->GetName(), Input.AnimMontage->SlotAnimTracks.Num());
-		return FTransform::Identity;
-	}
-
-	const FAnimTrack& RootMotionAnimTrack = Input.AnimMontage->SlotAnimTracks[0].AnimTrack;
-	TArray<FRootMotionExtractionStep> RootMotionExtractionSteps;
-	RootMotionAnimTrack.GetRootMotionExtractionStepsForTrackRange(RootMotionExtractionSteps, StartTime, EndTime);
-	FRootMotionMovementParams AccumulatedRootMotionParams;
-	for (const FRootMotionExtractionStep& CurStep : RootMotionExtractionSteps)
-	{
-		if (CurStep.AnimSequence)
+		TArray<FBlendSampleData> BlendSamples;
+		int32 TriangulationIndex = 0;
+		if (BlendSpace->GetSamplesFromBlendInput(BlendParameters, BlendSamples, TriangulationIndex, true))
 		{
-			AccumulatedRootMotionParams.Accumulate(CurStep.AnimSequence->ExtractRootMotionFromRange(CurStep.StartPosition, CurStep.EndPosition));
+			check(CachedPlayLength >= 0.f);
+			for (int32 BlendSampleIdex = 0; BlendSampleIdex < BlendSamples.Num(); BlendSampleIdex++)
+			{
+				float Scale = BlendSamples[BlendSampleIdex].Animation->GetPlayLength() / CachedPlayLength;
+
+				FDeltaTimeRecord BlendSampleDeltaTimeRecord;
+				BlendSampleDeltaTimeRecord.Set(ExtractionCtx.DeltaTimeRecord.GetPrevious() * Scale, ExtractionCtx.DeltaTimeRecord.Delta * Scale);
+
+				BlendSamples[BlendSampleIdex].DeltaTimeRecord = BlendSampleDeltaTimeRecord;
+				BlendSamples[BlendSampleIdex].PreviousTime = ExtractionCtx.DeltaTimeRecord.GetPrevious() * Scale;
+				BlendSamples[BlendSampleIdex].Time = ExtractionCtx.CurrentTime * Scale;
+			}
+
+			BlendSpace->GetAnimationPose(BlendSamples, ExtractionCtx, OutAnimPoseData);
 		}
 	}
-	return AccumulatedRootMotionParams.GetRootMotionTransform();
-}
-
-FTransform FAnimMontageSampler::ExtractRootTransform(float Time) const
-{
-	FTransform RootTransform = FTransform::Identity;
-	if (IsLoopable())
+	else if (const UAnimMontage* AnimMontage = Cast<UAnimMontage>(AnimationAsset.Get()))
 	{
-		RootTransform = ExtractRootTransformInternal(0.f, Time);
+		// @todo: add support for SlotName / multiple SlotAnimTracks
+		if (AnimMontage->SlotAnimTracks.Num() != 1)
+		{
+			UE_LOG(LogPoseSearch, Error, TEXT("FAnimMontageSampler::ExtractPose: so far we support only montages with one SlotAnimTracks. %s has %d"), *AnimMontage->GetName(), AnimMontage->SlotAnimTracks.Num());
+			OutAnimPoseData.GetPose().ResetToRefPose();
+			return;
+		}
+
+		AnimMontage->SlotAnimTracks[0].AnimTrack.GetAnimationPose(OutAnimPoseData, ExtractionCtx);
+	}
+	else if (const UAnimSequenceBase* SequenceBase = Cast<UAnimSequenceBase>(AnimationAsset.Get()))
+	{
+		SequenceBase->GetAnimationPose(OutAnimPoseData, ExtractionCtx);
 	}
 	else
 	{
-		const float PlayLength = GetPlayLength();
-		const float ClampedTime = FMath::Clamp(Time, 0.f, PlayLength);
-		const float ExtrapolationTime = Time - ClampedTime;
+		checkNoEntry();
+	}
+}
 
-		// If Time is less than zero, ExtrapolationTime will be negative. In this case, we extrapolate the beginning of the 
-		// animation to estimate where the root would be at Time
-		if (ExtrapolationTime < -SMALL_NUMBER)
+FTransform FAnimationAssetSampler::ExtractRootTransform(float Time) const
+{
+	FTransform RootTransform = FTransform::Identity;
+	
+	if (const UBlendSpace* BlendSpace = Cast<UBlendSpace>(AnimationAsset.Get()))
+	{
+		if (IsLoopable())
 		{
-			FTransform SampleToExtrapolate = ExtractRootTransformInternal(0.f, ExtrapolationSampleTime);
-
-			const FTransform ExtrapolatedRootMotion = UE::PoseSearch::ExtrapolateRootMotion(
-				SampleToExtrapolate,
-				0.0f, ExtrapolationSampleTime,
-				ExtrapolationTime);
-			RootTransform = ExtrapolatedRootMotion;
+			RootTransform = ExtractBlendSpaceRootMotion(0.0f, Time, true, CachedPlayLength, AccumulatedRootTransform, RootTransformSamplingRate);
 		}
 		else
 		{
-			RootTransform = ExtractRootTransformInternal(0.f, ClampedTime);
+			check(CachedPlayLength >= 0.f);
+			const float ClampedTime = FMath::Clamp(Time, 0.0f, CachedPlayLength);
+			const float ExtrapolationTime = Time - ClampedTime;
 
-			// If Time is greater than PlayLength, ExtrapolationTime will be a positive number. In this case, we extrapolate
-			// the end of the animation to estimate where the root would be at Time
-			if (ExtrapolationTime > SMALL_NUMBER)
+			// If Time is less than zero, ExtrapolationTime will be negative. In this case, we extrapolate the beginning of the 
+			// animation to estimate where the root would be at Time
+			if (ExtrapolationTime < -SMALL_NUMBER)
 			{
-				FTransform SampleToExtrapolate = ExtractRootTransformInternal(PlayLength - ExtrapolationSampleTime, PlayLength);
+				FTransform SampleToExtrapolate = ExtractBlendSpaceRootMotionFromRange(0.0f, ExtrapolationSampleTime, AccumulatedRootTransform, RootTransformSamplingRate);
 
 				const FTransform ExtrapolatedRootMotion = UE::PoseSearch::ExtrapolateRootMotion(
 					SampleToExtrapolate,
-					PlayLength - ExtrapolationSampleTime, PlayLength,
+					0.0f, ExtrapolationSampleTime,
 					ExtrapolationTime);
-				RootTransform = ExtrapolatedRootMotion * RootTransform;
+				RootTransform = ExtrapolatedRootMotion;
+			}
+			else
+			{
+				RootTransform = ExtractBlendSpaceRootMotionFromRange(0.0f, ClampedTime, AccumulatedRootTransform, RootTransformSamplingRate);
+
+				// If Time is greater than PlayLength, ExtrapolationTime will be a positive number. In this case, we extrapolate
+				// the end of the animation to estimate where the root would be at Time
+				if (ExtrapolationTime > SMALL_NUMBER)
+				{
+					FTransform SampleToExtrapolate = ExtractBlendSpaceRootMotionFromRange(CachedPlayLength - ExtrapolationSampleTime, CachedPlayLength, AccumulatedRootTransform, RootTransformSamplingRate);
+
+					const FTransform ExtrapolatedRootMotion = UE::PoseSearch::ExtrapolateRootMotion(
+						SampleToExtrapolate,
+						CachedPlayLength - ExtrapolationSampleTime, CachedPlayLength,
+						ExtrapolationTime);
+					RootTransform = ExtrapolatedRootMotion * RootTransform;
+				}
 			}
 		}
+	}
+	else if (const UAnimMontage* AnimMontage = Cast<UAnimMontage>(AnimationAsset.Get()))
+	{
+		if (IsLoopable())
+		{
+			RootTransform = ExtractRootTransformInternal(AnimMontage, 0.f, Time);
+		}
+		else
+		{
+			const float PlayLength = GetPlayLength();
+			const float ClampedTime = FMath::Clamp(Time, 0.f, PlayLength);
+			const float ExtrapolationTime = Time - ClampedTime;
+
+			// If Time is less than zero, ExtrapolationTime will be negative. In this case, we extrapolate the beginning of the 
+			// animation to estimate where the root would be at Time
+			if (ExtrapolationTime < -SMALL_NUMBER)
+			{
+				FTransform SampleToExtrapolate = ExtractRootTransformInternal(AnimMontage, 0.f, ExtrapolationSampleTime);
+
+				const FTransform ExtrapolatedRootMotion = UE::PoseSearch::ExtrapolateRootMotion(
+					SampleToExtrapolate,
+					0.0f, ExtrapolationSampleTime,
+					ExtrapolationTime);
+				RootTransform = ExtrapolatedRootMotion;
+			}
+			else
+			{
+				RootTransform = ExtractRootTransformInternal(AnimMontage, 0.f, ClampedTime);
+
+				// If Time is greater than PlayLength, ExtrapolationTime will be a positive number. In this case, we extrapolate
+				// the end of the animation to estimate where the root would be at Time
+				if (ExtrapolationTime > SMALL_NUMBER)
+				{
+					FTransform SampleToExtrapolate = ExtractRootTransformInternal(AnimMontage, PlayLength - ExtrapolationSampleTime, PlayLength);
+
+					const FTransform ExtrapolatedRootMotion = UE::PoseSearch::ExtrapolateRootMotion(
+						SampleToExtrapolate,
+						PlayLength - ExtrapolationSampleTime, PlayLength,
+						ExtrapolationTime);
+					RootTransform = ExtrapolatedRootMotion * RootTransform;
+				}
+			}
+		}
+	}
+	else if (const UAnimSequenceBase* SequenceBase = Cast<UAnimSequenceBase>(AnimationAsset.Get()))
+	{
+		if (IsLoopable())
+		{
+			RootTransform = SequenceBase->ExtractRootMotion(0.0f, Time, true);
+		}
+		else
+		{
+			const float PlayLength = GetPlayLength();
+			const float ClampedTime = FMath::Clamp(Time, 0.0f, PlayLength);
+			const float ExtrapolationTime = Time - ClampedTime;
+
+			// If Time is less than zero, ExtrapolationTime will be negative. In this case, we extrapolate the beginning of the 
+			// animation to estimate where the root would be at Time
+			if (ExtrapolationTime < -SMALL_NUMBER)
+			{
+				FTransform SampleToExtrapolate = SequenceBase->ExtractRootMotionFromRange(0.0f, ExtrapolationSampleTime);
+
+				const FTransform ExtrapolatedRootMotion = UE::PoseSearch::ExtrapolateRootMotion(
+					SampleToExtrapolate,
+					0.0f, ExtrapolationSampleTime,
+					ExtrapolationTime);
+				RootTransform = ExtrapolatedRootMotion;
+			}
+			else
+			{
+				RootTransform = SequenceBase->ExtractRootMotionFromRange(0.0f, ClampedTime);
+
+				// If Time is greater than PlayLength, ExtrapolationTime will be a positive number. In this case, we extrapolate
+				// the end of the animation to estimate where the root would be at Time
+				if (ExtrapolationTime > SMALL_NUMBER)
+				{
+					FTransform SampleToExtrapolate = SequenceBase->ExtractRootMotionFromRange(PlayLength - ExtrapolationSampleTime, PlayLength);
+
+					const FTransform ExtrapolatedRootMotion = UE::PoseSearch::ExtrapolateRootMotion(
+						SampleToExtrapolate,
+						PlayLength - ExtrapolationSampleTime, PlayLength,
+						ExtrapolationTime);
+					RootTransform = ExtrapolatedRootMotion * RootTransform;
+				}
+			}
+		}
+	}
+	else
+	{
+		checkNoEntry();
 	}
 
 	return RootTransform;
 }
 
-void FAnimMontageSampler::ExtractPoseSearchNotifyStates(float Time, TArray<UAnimNotifyState_PoseSearchBase*>& NotifyStates) const
+void FAnimationAssetSampler::Process()
 {
-	// getting pose search notifies in an interval of size ExtractionInterval, centered on Time
+	if (const UBlendSpace* BlendSpace = Cast<UBlendSpace>(AnimationAsset.Get()))
+	{
+		FMemMark Mark(FMemStack::Get());
+
+		ProcessPlayLength(BlendSpace, BlendParameters, CachedPlayLength);
+		ProcessRootTransform(BlendSpace, BlendParameters, CachedPlayLength, BoneContainer, RootTransformSamplingRate, IsLoopable(), AccumulatedRootTransform);
+	}
+}
+
+void FAnimationAssetSampler::ExtractPoseSearchNotifyStates(float Time, TArray<UAnimNotifyState_PoseSearchBase*>& NotifyStates) const
+{
+	float SampleTime = Time;
 	FAnimNotifyContext NotifyContext;
-	Input.AnimMontage->GetAnimNotifies(Time - (ExtractionInterval * 0.5f), ExtractionInterval, NotifyContext);
+	if (const UBlendSpace* BlendSpace = Cast<UBlendSpace>(AnimationAsset.Get()))
+	{
+		if (BlendSpace->NotifyTriggerMode == ENotifyTriggerMode::HighestWeightedAnimation)
+		{
+			// Set up blend samples
+			TArray<FBlendSampleData> BlendSamples;
+			int32 TriangulationIndex = 0;
+			if (BlendSpace->GetSamplesFromBlendInput(BlendParameters, BlendSamples, TriangulationIndex, true))
+			{
+				// Find highest weighted
+				const int32 HighestWeightIndex = GetHighestWeightSample(BlendSamples);
+
+				// getting pose search notifies in an interval of size ExtractionInterval, centered on Time
+				check(CachedPlayLength >= 0.f);
+				SampleTime = Time * (BlendSamples[HighestWeightIndex].Animation->GetPlayLength() / CachedPlayLength);
+
+				// Get notifies for highest weighted
+				BlendSamples[HighestWeightIndex].Animation->GetAnimNotifies(
+					(SampleTime - (ExtractionInterval * 0.5f)),
+					ExtractionInterval,
+					NotifyContext);
+			}
+		}
+	}
+	else if (const UAnimSequenceBase* SequenceBase = Cast<UAnimSequenceBase>(AnimationAsset.Get()))
+	{
+		// getting pose search notifies in an interval of size ExtractionInterval, centered on Time
+		SequenceBase->GetAnimNotifies(Time - (ExtractionInterval * 0.5f), ExtractionInterval, NotifyContext);
+	}
+	else
+	{
+		checkNoEntry();
+	}
 
 	// check which notifies actually overlap Time and are of the right base type
 	for (const FAnimNotifyEventReference& EventReference : NotifyContext.ActiveNotifies)
@@ -647,24 +586,17 @@ void FAnimMontageSampler::ExtractPoseSearchNotifyStates(float Time, TArray<UAnim
 			continue;
 		}
 
-		if (NotifyEvent->GetTriggerTime() > Time ||
-			NotifyEvent->GetEndTriggerTime() < Time)
+		// @todo: is this condition necessary? can we just rely on the ExtractionInterval?
+		if (NotifyEvent->GetTriggerTime() > SampleTime || NotifyEvent->GetEndTriggerTime() < SampleTime)
 		{
 			continue;
 		}
 
-		UAnimNotifyState_PoseSearchBase* PoseSearchAnimNotify =
-			Cast<UAnimNotifyState_PoseSearchBase>(NotifyEvent->NotifyStateClass);
-		if (PoseSearchAnimNotify)
+		if (UAnimNotifyState_PoseSearchBase* PoseSearchAnimNotify = Cast<UAnimNotifyState_PoseSearchBase>(NotifyEvent->NotifyStateClass))
 		{
 			NotifyStates.Add(PoseSearchAnimNotify);
 		}
 	}
-}
-
-const UAnimationAsset* FAnimMontageSampler::GetAsset() const
-{
-	return Input.AnimMontage.Get();
 }
 
 } // namespace UE::PoseSearch

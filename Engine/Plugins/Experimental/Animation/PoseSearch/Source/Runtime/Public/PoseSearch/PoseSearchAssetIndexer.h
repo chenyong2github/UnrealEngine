@@ -16,7 +16,7 @@ struct FPoseSearchPoseMetadata;
 namespace UE::PoseSearch
 {
 
-struct FAssetSamplerBase;
+struct FAnimationAssetSampler;
 struct FAssetSamplingContext;
 
 /**
@@ -26,9 +26,9 @@ struct FAssetIndexingContext
 {
 	const FAssetSamplingContext* SamplingContext = nullptr;
 	const UPoseSearchSchema* Schema = nullptr;
-	TSharedPtr<FAssetSamplerBase> AssetSampler;
+	const FAnimationAssetSampler* AssetSampler = nullptr;
 	bool bMirrored = false;
-	FFloatInterval RequestedSamplingRange = FFloatInterval(0.0f, 0.0f);
+	FFloatInterval RequestedSamplingRange = FFloatInterval(0.f, 0.f);
 };
 
 class FAssetIndexer
@@ -68,7 +68,6 @@ private:
 
 	struct FSampleInfo
 	{
-		TSharedPtr<FAssetSamplerBase> Clip;
 		FTransform RootTransform;
 		float ClipTime = 0.f;
 		bool bClamped = false;

@@ -208,13 +208,11 @@ FAssetIndexer::FSampleInfo FAssetIndexer::GetSampleInfo(float SampleTime) const
 
 	const FSamplingParam SamplingParam = WrapOrClampSamplingParam(bCanWrap, PlayLength, MainRelativeTime);
 
-	Sample.Clip = IndexingContext.AssetSampler;
-
 	if (FMath::Abs(SamplingParam.Extrapolation) > SMALL_NUMBER)
 	{
 		Sample.bClamped = true;
 		Sample.ClipTime = SamplingParam.WrappedParam + SamplingParam.Extrapolation;
-		Sample.RootTransform = Sample.Clip->ExtractRootTransform(Sample.ClipTime);
+		Sample.RootTransform = IndexingContext.AssetSampler->ExtractRootTransform(Sample.ClipTime);
 	}
 	else
 	{
@@ -222,7 +220,7 @@ FAssetIndexer::FSampleInfo FAssetIndexer::GetSampleInfo(float SampleTime) const
 		Sample.RootTransform = FTransform::Identity;
 
 		// Find the remaining motion deltas after wrapping
-		FTransform RootMotionRemainder = Sample.Clip->ExtractRootTransform(Sample.ClipTime);
+		FTransform RootMotionRemainder = IndexingContext.AssetSampler->ExtractRootTransform(Sample.ClipTime);
 
 		const bool bNegativeSampleTime = SampleTime < 0.f;
 		if (SamplingParam.NumCycles > 0 || bNegativeSampleTime)
@@ -291,8 +289,8 @@ FAssetIndexer::CachedEntry& FAssetIndexer::GetEntry(float SampleTime)
 		float CurrentTime = Sample.ClipTime;
 		float PreviousTime = CurrentTime - SamplingContext->FiniteDelta;
 
-		const bool bLoopable = Sample.Clip->IsLoopable();
-		const float PlayLength = Sample.Clip->GetPlayLength();
+		const bool bLoopable = IndexingContext.AssetSampler->IsLoopable();
+		const float PlayLength = IndexingContext.AssetSampler->GetPlayLength();
 		if (!bLoopable)
 		{
 			// if not loopable we clamp the pose at time zero or PlayLength
@@ -321,7 +319,7 @@ FAssetIndexer::CachedEntry& FAssetIndexer::GetEntry(float SampleTime)
 		UnusedCurve.InitFrom(BoneContainer);
 		Pose.SetBoneContainer(&BoneContainer);
 
-		Sample.Clip->ExtractPose(ExtractionCtx, AnimPoseData);
+		IndexingContext.AssetSampler->ExtractPose(ExtractionCtx, AnimPoseData);
 		Pose[FCompactPoseBoneIndex(RootBoneIndexType)].SetIdentity();
 
 		if (IndexingContext.bMirrored)

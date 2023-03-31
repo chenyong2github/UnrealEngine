@@ -49,72 +49,34 @@ void FMotionMatchingState::AdjustAssetTime(float AssetTime)
 
 bool FMotionMatchingState::CanAdvance(float DeltaTime) const
 {
-	if (!CurrentSearchResult.IsValid())
+	if (CurrentSearchResult.IsValid())
 	{
-		return false;
-	}
-
-	const FPoseSearchIndexAsset* SearchIndexAsset = CurrentSearchResult.GetSearchIndexAsset(true);
-
-	const FInstancedStruct& DatabaseAsset = CurrentSearchResult.Database->GetAnimationAssetStruct(*SearchIndexAsset);
-	if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAsset.GetPtr<FPoseSearchDatabaseSequence>())
-	{
-		const float AssetLength = DatabaseSequence->Sequence->GetPlayLength();
-
+		ETypeAdvanceAnim AdvanceType = ETypeAdvanceAnim::ETAA_Default;
 		float SteppedTime = CurrentSearchResult.AssetTime;
-		ETypeAdvanceAnim AdvanceType = FAnimationRuntime::AdvanceTime(
-			DatabaseSequence->Sequence->bLoop,
-			DeltaTime,
-			SteppedTime,
-			AssetLength);
+		const FPoseSearchIndexAsset* SearchIndexAsset = CurrentSearchResult.GetSearchIndexAsset(true);
+		const FInstancedStruct& DatabaseAsset = CurrentSearchResult.Database->GetAnimationAssetStruct(*SearchIndexAsset);
+		if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAsset.GetPtr<FPoseSearchDatabaseBlendSpace>())
+		{
+			TArray<FBlendSampleData> BlendSamples;
+			int32 TriangulationIndex = 0;
+			DatabaseBlendSpace->BlendSpace->GetSamplesFromBlendInput(SearchIndexAsset->BlendParameters, BlendSamples, TriangulationIndex, true);
+
+			const float PlayLength = DatabaseBlendSpace->BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
+
+			// Asset player time for blend spaces is normalized [0, 1] so we need to convert it back to real time before we advance it
+			SteppedTime = CurrentSearchResult.AssetTime * PlayLength;
+			AdvanceType = FAnimationRuntime::AdvanceTime(DatabaseBlendSpace->IsLooping(), DeltaTime, SteppedTime, PlayLength);
+		}
+		else if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAssetBase = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimationAssetBase>())
+		{
+			const float AssetLength = DatabaseAnimationAssetBase->GetAnimationAsset()->GetPlayLength();
+			AdvanceType = FAnimationRuntime::AdvanceTime(DatabaseAnimationAssetBase->IsLooping(), DeltaTime, SteppedTime, AssetLength);
+		}
 
 		if (AdvanceType != ETAA_Finished)
 		{
 			return SearchIndexAsset->SamplingInterval.Contains(SteppedTime);
 		}
-	}
-	else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimComposite>())
-	{
-		const float AssetLength = DatabaseAnimComposite->GetAnimationAsset()->GetPlayLength();
-
-		float SteppedTime = CurrentSearchResult.AssetTime;
-		ETypeAdvanceAnim AdvanceType = FAnimationRuntime::AdvanceTime(
-			DatabaseAnimComposite->IsLooping(),
-			DeltaTime,
-			SteppedTime,
-			AssetLength);
-
-		if (AdvanceType != ETAA_Finished)
-		{
-			return SearchIndexAsset->SamplingInterval.Contains(SteppedTime);
-		}
-	}
-	else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAsset.GetPtr<FPoseSearchDatabaseBlendSpace>())
-	{
-		TArray<FBlendSampleData> BlendSamples;
-		int32 TriangulationIndex = 0;
-		DatabaseBlendSpace->BlendSpace->GetSamplesFromBlendInput(SearchIndexAsset->BlendParameters, BlendSamples, TriangulationIndex, true);
-
-		float PlayLength = DatabaseBlendSpace->BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
-
-		// Asset player time for blendspaces is normalized [0, 1] so we need to convert 
-		// to a real time before we advance it
-		float RealTime = CurrentSearchResult.AssetTime * PlayLength;
-		float SteppedTime = RealTime;
-		ETypeAdvanceAnim AdvanceType = FAnimationRuntime::AdvanceTime(
-			DatabaseBlendSpace->BlendSpace->bLoop,
-			DeltaTime,
-			SteppedTime,
-			PlayLength);
-
-		if (AdvanceType != ETAA_Finished)
-		{
-			return SearchIndexAsset->SamplingInterval.Contains(SteppedTime);
-		}
-	}
-	else
-	{
-		checkNoEntry();
 	}
 
 	return false;
@@ -358,45 +320,16 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 				TArrayView<float> ReconstructedPoseValuesBuffer((float*)FMemory_Alloca(NumDimensions * sizeof(float)), NumDimensions);
 				const TConstArrayView<float> PoseValues = SearchIndex.Values.IsEmpty() ? SearchIndex.GetReconstructedPoseValues(PoseIdx, ReconstructedPoseValuesBuffer) : SearchIndex.GetPoseValues(PoseIdx);
 
+				// extracting notifies from the database animation asset at time SampleTime to search for UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias eventually overriding the schema ContinuingPoseCostBias
+				const FPoseSearchIndexAsset& SearchIndexAsset = SearchIndex.GetAssetForPose(PoseIdx);
+				const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAssetBase = ContinuingPoseDatabase->GetAnimationAssetStruct(SearchIndexAsset).GetPtr<FPoseSearchDatabaseAnimationAssetBase>();
+				check(DatabaseAnimationAssetBase);
+				const FAnimationAssetSampler SequenceBaseSampler(DatabaseAnimationAssetBase->GetAnimationAsset(), SearchIndexAsset.BlendParameters);
 				const float SampleTime = ContinuingPoseDatabase->GetAssetTime(PoseIdx);
 
-				const FPoseSearchIndexAsset& SearchIndexAsset = SearchIndex.GetAssetForPose(PoseIdx);
-				const FInstancedStruct& DatabaseAssetStruct = ContinuingPoseDatabase->GetAnimationAssetStruct(SearchIndexAsset);
-
-				// @todo: create a unified sampler to sample any animation asset
 				// @todo: change ExtractPoseSearchNotifyStates api to avoid NotifyStates allocation
-
-				// extracting notifies from the database animation asset at time SampleTime to search for UAnimNotifyState_PoseSearchOverrideContinuingPoseCostBias eventually overriding the schema ContinuingPoseCostBias
 				TArray<UAnimNotifyState_PoseSearchBase*> NotifyStates;
-				if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseSequence>())
-				{
-					FSequenceBaseSampler SequenceBaseSampler;
-					FSequenceBaseSampler::FInput Input;
-					Input.SequenceBase = DatabaseSequence->Sequence;
-					SequenceBaseSampler.Init(Input);
-					SequenceBaseSampler.ExtractPoseSearchNotifyStates(SampleTime, NotifyStates);
-				}
-				else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimComposite>())
-				{
-					FSequenceBaseSampler SequenceBaseSampler;
-					FSequenceBaseSampler::FInput Input;
-					Input.SequenceBase = DatabaseAnimComposite->AnimComposite;
-					SequenceBaseSampler.Init(Input);
-					SequenceBaseSampler.ExtractPoseSearchNotifyStates(SampleTime, NotifyStates);
-				}
-				else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseBlendSpace>())
-				{
-					FBlendSpaceSampler BlendSpaceSampler;
-					FBlendSpaceSampler::FInput Input;
-					Input.BlendSpace = DatabaseBlendSpace->BlendSpace;
-					Input.BlendParameters = SearchIndexAsset.BlendParameters;
-					BlendSpaceSampler.Init(Input);
-					BlendSpaceSampler.ExtractPoseSearchNotifyStates(SampleTime, NotifyStates);
-				}
-				else
-				{
-					checkNoEntry();
-				}
+				SequenceBaseSampler.ExtractPoseSearchNotifyStates(SampleTime, NotifyStates);
 
 				float ContinuingPoseCostBias = ContinuingPoseDatabase->Schema->ContinuingPoseCostBias;
 				for (const UAnimNotifyState_PoseSearchBase* PoseSearchNotify : NotifyStates)
@@ -466,6 +399,7 @@ void UPoseSearchLibrary::MotionMatch(
 	bool& bLoop,
 	bool& bIsMirrored,
 	FVector& BlendParameters,
+	float& SearchCost,
 	const UAnimationAsset* FutureAnimation,
 	float FutureAnimationStartTime,
 	float TimeToFutureAnimationStart,
@@ -493,6 +427,7 @@ void UPoseSearchLibrary::MotionMatch(
 	bLoop = false;
 	bIsMirrored = false;
 	BlendParameters = FVector::ZeroVector;
+	SearchCost = MAX_flt;
 
 	if (Searchable)
 	{
@@ -525,92 +460,58 @@ void UPoseSearchLibrary::MotionMatch(
 			else if (FutureAnimation)
 			{
 				const FBoneContainer& BoneContainer = AnimInstance->GetRequiredBonesOnAnyThread();
+				// @todo... add input BlendParameters to support sampling FutureAnimation blendspaces
+				const FAnimationAssetSampler Sampler(FutureAnimation, FVector::ZeroVector, BoneContainer);
 
-				FBlendSpaceSampler BlendSpaceSampler;
-				FSequenceBaseSampler SequenceBaseSampler;
-				FAnimMontageSampler AnimMontageSampler;
-				const FAssetSamplerBase* AssetSamplerBase = nullptr;
-				if (const UBlendSpace* BlendSpace = Cast<UBlendSpace>(FutureAnimation))
+				FCompactPose Pose;
+				FBlendedCurve UnusedCurve;
+				FStackAttributeContainer UnusedAtrribute;
+				FAnimationPoseData AnimPoseData = { Pose, UnusedCurve, UnusedAtrribute };
+
+				UnusedCurve.InitFrom(BoneContainer);
+				Pose.SetBoneContainer(&BoneContainer);
+
+				if (FutureAnimationStartTime < FiniteDelta)
 				{
-					FBlendSpaceSampler::FInput Input;
-					Input.BoneContainer = BoneContainer;
-					Input.BlendSpace = BlendSpace;
-					// @todo... add BlendParameters
-					//Input.BlendParameters = BlendParameters;
-					BlendSpaceSampler.Init(Input);
-					AssetSamplerBase = &BlendSpaceSampler;
-				}
-				else if (const UAnimMontage* AnimMontage = Cast<UAnimMontage>(FutureAnimation))
-				{
-					FAnimMontageSampler::FInput Input;
-					Input.AnimMontage = AnimMontage;
-					AnimMontageSampler.Init(Input);
-					AssetSamplerBase = &AnimMontageSampler;
-				}
-				else if (const UAnimSequenceBase* SequenceBase = Cast<UAnimSequenceBase>(FutureAnimation))
-				{
-					FSequenceBaseSampler::FInput Input;
-					Input.SequenceBase = SequenceBase;
-					SequenceBaseSampler.Init(Input);
-					AssetSamplerBase = &SequenceBaseSampler;
-				}
-				else
-				{
-					UE_LOG(LogPoseSearch, Error, TEXT("UPoseSearchLibrary::MotionMatch - unsupported FutureAnimation '%s'"), *GetNameSafe(FutureAnimation));
+					UE_LOG(LogPoseSearch, Warning, TEXT("UPoseSearchLibrary::MotionMatch - provided FutureAnimationStartTime (%f) is too small to be able to calculate velocities. Clamping it to minimum value of %f"), FutureAnimationStartTime, FiniteDelta);
+					FutureAnimationStartTime = FiniteDelta;
 				}
 
-				if (AssetSamplerBase)
+				const float MinTimeToFutureAnimationStart = FiniteDelta + UE_KINDA_SMALL_NUMBER;
+				if (TimeToFutureAnimationStart < MinTimeToFutureAnimationStart)
 				{
-					FCompactPose Pose;
-					FBlendedCurve UnusedCurve;
-					FStackAttributeContainer UnusedAtrribute;
-					FAnimationPoseData AnimPoseData = { Pose, UnusedCurve, UnusedAtrribute };
+					UE_LOG(LogPoseSearch, Warning, TEXT("UPoseSearchLibrary::MotionMatch - provided TimeToFutureAnimationStart (%f) is too small. Clamping it to minimum value of %f"), TimeToFutureAnimationStart, MinTimeToFutureAnimationStart);
+					TimeToFutureAnimationStart = MinTimeToFutureAnimationStart;
+				}
 
-					UnusedCurve.InitFrom(BoneContainer);
-					Pose.SetBoneContainer(&BoneContainer);
+				// extracting 2 poses to be able to calculate velocities
+				for (int i = 0; i < 2; ++i)
+				{
+					const float ExtractionTime = FutureAnimationStartTime + (i - 1) * FiniteDelta;
+					const float FutureAnimationTime = TimeToFutureAnimationStart + (i - 1) * FiniteDelta;
 
-					if (FutureAnimationStartTime < FiniteDelta)
-					{
-						UE_LOG(LogPoseSearch, Warning, TEXT("UPoseSearchLibrary::MotionMatch - provided FutureAnimationStartTime (%f) is too small to be able to calculate velocities. Clamping it to minimum value of %f"), FutureAnimationStartTime, FiniteDelta);
-						FutureAnimationStartTime = FiniteDelta;
-					}
+					FDeltaTimeRecord DeltaTimeRecord;
+					DeltaTimeRecord.Set(ExtractionTime - FiniteDelta, FiniteDelta);
+					FAnimExtractContext ExtractionCtx(double(ExtractionTime), false, DeltaTimeRecord, false);
 
-					const float MinTimeToFutureAnimationStart = FiniteDelta + UE_KINDA_SMALL_NUMBER;
-					if (TimeToFutureAnimationStart < MinTimeToFutureAnimationStart)
-					{
-						UE_LOG(LogPoseSearch, Warning, TEXT("UPoseSearchLibrary::MotionMatch - provided TimeToFutureAnimationStart (%f) is too small. Clamping it to minimum value of %f"), TimeToFutureAnimationStart, MinTimeToFutureAnimationStart);
-						TimeToFutureAnimationStart = MinTimeToFutureAnimationStart;
-					}
+					Sampler.ExtractPose(ExtractionCtx, AnimPoseData);
 
-					// extracting 2 poses to be able to calculate velocities
-					for (int i = 0; i < 2; ++i)
-					{
-						const float ExtractionTime = FutureAnimationStartTime + (i - 1) * FiniteDelta;
-						const float FutureAnimationTime = TimeToFutureAnimationStart + (i - 1) * FiniteDelta;
+					FCSPose<FCompactPose> ComponentSpacePose;
+					ComponentSpacePose.InitPose(Pose);
 
-						FDeltaTimeRecord DeltaTimeRecord;
-						DeltaTimeRecord.Set(ExtractionTime - FiniteDelta, FiniteDelta);
-						FAnimExtractContext ExtractionCtx(double(ExtractionTime), false, DeltaTimeRecord, false);
+					const FTrajectorySample TrajectorySample = Trajectory.GetSampleAtTime(ExtractionTime);
+					const FTransform& ComponentTransform = AnimInstance->GetOwningComponent()->GetComponentTransform();
+					const FTransform FutureComponentTransform = TrajectorySample.Transform * ComponentTransform;
 
-						AssetSamplerBase->ExtractPose(ExtractionCtx, AnimPoseData);
-
-						FCSPose<FCompactPose> ComponentSpacePose;
-						ComponentSpacePose.InitPose(Pose);
-
-						const FTrajectorySample TrajectorySample = Trajectory.GetSampleAtTime(ExtractionTime);
-						const FTransform& ComponentTransform = AnimInstance->GetOwningComponent()->GetComponentTransform();
-						const FTransform FutureComponentTransform = TrajectorySample.Transform * ComponentTransform;
-
-						ExtendedPoseHistory.AddFuturePose(FutureAnimationTime, ComponentSpacePose, FutureComponentTransform);
-					}
+					ExtendedPoseHistory.AddFuturePose(FutureAnimationTime, ComponentSpacePose, FutureComponentTransform);
+				}
 
 #if ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
-					if (CVarAnimMotionMatchDrawHistoryEnable.GetValueOnAnyThread())
-					{
-						ExtendedPoseHistory.DebugDraw(UAnimInstanceProxyProvider::GetAnimInstanceProxy(AnimInstance));
-					}
-#endif // ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
+				if (CVarAnimMotionMatchDrawHistoryEnable.GetValueOnAnyThread())
+				{
+					ExtendedPoseHistory.DebugDraw(UAnimInstanceProxyProvider::GetAnimInstanceProxy(AnimInstance));
 				}
+#endif // ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
 			}
 		}
 
@@ -628,6 +529,7 @@ void UPoseSearchLibrary::MotionMatch(
 				bLoop = DatabaseAsset->IsLooping();
 				bIsMirrored = SearchIndexAsset->bMirrored;
 				BlendParameters = SearchIndexAsset->BlendParameters;
+				SearchCost = SearchResult.PoseCost.GetTotalCost();
 			}
 		}
 

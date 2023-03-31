@@ -158,6 +158,7 @@ public:
 	* @param bLoop							Output selected animation looping state
 	* @param bIsMirrored					Output selected animation mirror state
 	* @param BlendParameters				Output selected animation blend space parameters (if SelectedAnimation is a blend space)
+	* @param SearchCost						Output search associated cost
 	* @param FutureAnimation				Input animation we want to match after TimeToFutureAnimationStart seconds
 	* @param FutureAnimationStartTime		Input start time for the first pose of FutureAnimation
 	* @param TimeToFutureAnimationStart		Input time in seconds before start playing FutureAnimation (from FutureAnimationStartTime seconds)
@@ -174,6 +175,7 @@ public:
 		bool& bLoop,
 		bool& bIsMirrored,
 		FVector& BlendParameters,
+		float& SearchCost,
 		const UAnimationAsset* FutureAnimation = nullptr,
 		float FutureAnimationStartTime = 0.f,
 		float TimeToFutureAnimationStart = 0.f,
