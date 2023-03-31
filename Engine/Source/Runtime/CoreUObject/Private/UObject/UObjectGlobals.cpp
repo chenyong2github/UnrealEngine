@@ -73,6 +73,7 @@
 #include "UObject/UObjectGlobalsInternal.h"
 #include "Serialization/AsyncPackageLoader.h"
 #include "Containers/VersePath.h"
+#include "AutoRTFM/AutoRTFM.h"
 
 #if UE_USE_VERSE_PATHS
 #include "Interfaces/IPluginManager.h"
@@ -3851,7 +3852,12 @@ void FObjectInitializer::PostConstructInit()
 	// Allow custom property initialization to happen before PostInitProperties is called
 	if (PropertyInitCallback)
 	{
-		PropertyInitCallback();
+		// autortfm todo: if this transaction aborts and we are in a transaction's open nest,
+		// we need to have a way of propagating out that abort
+		AutoRTFM::Transact([this] 
+		{
+			PropertyInitCallback();
+		});
 	}
 	// After the call to `PropertyInitCallback` to allow the callback to modify the instancing graph
 	if (bNeedInstancing || bNeedSubobjectInstancing)

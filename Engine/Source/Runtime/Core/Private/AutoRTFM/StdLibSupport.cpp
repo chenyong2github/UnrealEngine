@@ -28,9 +28,6 @@ UE_AUTORTFM_REGISTER_OPEN_FUNCTION_EXPLICIT(memcpy, Memcpy);
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION_EXPLICIT(memmove, Memmove);
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION_EXPLICIT(memset, Memset);
 
-// TODO: We need this to stop link errors looking for `DidAllocate` below?
-#pragma clang optimize off
-
 void* STM_malloc(size_t Size, FContext* Context)
 {
     void* Result = malloc(Size);
@@ -41,8 +38,6 @@ void* STM_malloc(size_t Size, FContext* Context)
     Context->DidAllocate(Result, Size);
     return Result;
 }
-
-#pragma clang optimize on
 
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(malloc);
 
@@ -186,24 +181,29 @@ UE_AUTORTFM_REGISTER_SELF_FUNCTION(static_cast<float(*)(float, float)>(&powf));
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(static_cast<double(*)(double, double)>(&pow));
 
 #if PLATFORM_WINDOWS
+UE_AUTORTFM_REGISTER_SELF_FUNCTION(_tcslen);
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(_isnan);
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(_finite);
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(IsDebuggerPresent);
-UE_AUTORTFM_REGISTER_SELF_FUNCTION(EnterCriticalSection);
-UE_AUTORTFM_REGISTER_SELF_FUNCTION(LeaveCriticalSection);
+
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(QueryPerformanceCounter);
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(QueryPerformanceFrequency);
-UE_AUTORTFM_REGISTER_SELF_FUNCTION(TlsGetValue);
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(GetCurrentThreadId);
 
-// TODO: need to instrument these because in the case of abort, the
-// constructed object will be undone
-extern "C" void* _Init_thread_header();
-extern "C" void* _Init_thread_abort();
-extern "C" void* _Init_thread_footer();
-UE_AUTORTFM_REGISTER_SELF_FUNCTION(_Init_thread_header);
-UE_AUTORTFM_REGISTER_SELF_FUNCTION(_Init_thread_abort);
-UE_AUTORTFM_REGISTER_SELF_FUNCTION(_Init_thread_footer);
+UE_AUTORTFM_REGISTER_SELF_FUNCTION(TlsGetValue);
+
+BOOL STM_TlsSetValue(DWORD dwTlsIndex, LPVOID lpTlsValue, FContext* Context)
+{
+	LPVOID CurrentValue = TlsGetValue(dwTlsIndex);
+
+	AutoRTFM::OpenAbort([dwTlsIndex, CurrentValue]
+	{
+		TlsSetValue(dwTlsIndex, CurrentValue);
+	});
+
+	return TlsSetValue(dwTlsIndex, lpTlsValue);
+}
+UE_AUTORTFM_REGISTER_OPEN_FUNCTION(TlsSetValue);
 #endif // PLATFORM_WINDOWS
 
 wchar_t* STM_wcsncpy(wchar_t* Dst, const wchar_t* Src, size_t Count, FContext* Context)

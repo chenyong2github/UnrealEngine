@@ -31,6 +31,7 @@
 #include "UObject/ScriptMacros.h"
 #include "UObject/UObjectThreadContext.h"
 #include "HAL/IConsoleManager.h"
+#include "AutoRTFM/AutoRTFM.h"
 
 DEFINE_LOG_CATEGORY(LogScriptFrame);
 DEFINE_LOG_CATEGORY_STATIC(LogScriptCore, Log, All);
@@ -178,8 +179,13 @@ FBlueprintContext::FBlueprintContext()
 
 FBlueprintContext* FBlueprintContext::GetThreadSingleton()
 {
-	static thread_local FBlueprintContext ThreadLocalContext;
-	return &ThreadLocalContext;
+	FBlueprintContext* Result;
+	AutoRTFM::Open([&Result]
+	{
+		static thread_local FBlueprintContext ThreadLocalContext;
+		Result = &ThreadLocalContext;
+	});
+	return Result;
 }
 
 void FBlueprintCoreDelegates::ThrowScriptException(const UObject* ActiveObject, FFrame& StackFrame, const FBlueprintExceptionInfo& Info)

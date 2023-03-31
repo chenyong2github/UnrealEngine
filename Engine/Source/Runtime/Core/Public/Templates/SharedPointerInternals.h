@@ -10,6 +10,7 @@
 #include "Templates/RemoveReference.h"
 #include "Templates/SharedPointerFwd.h"
 #include "Templates/TypeCompatibleBytes.h"
+#include "AutoRTFM/AutoRTFM.h"
 #include <atomic>
 #include <type_traits>
 
@@ -186,21 +187,24 @@ namespace SharedPointerInternals
 		{
 			if constexpr (Mode == ESPMode::ThreadSafe)
 			{
-				// std::memory_order_acq_rel is used here so that, if we do end up executing the destructor, it's not possible
-				// for side effects from executing the destructor end up being visible before we've determined that the shared
-				// reference count is actually zero.
-
-				int32 OldSharedCount = SharedReferenceCount.fetch_sub(1, std::memory_order_acq_rel);
-				checkSlow(OldSharedCount > 0);
-				if (OldSharedCount == 1)
+				AutoRTFM::OpenCommit([this]
 				{
-					// Last shared reference was released!  Destroy the referenced object.
-					DestroyObject();
+					// std::memory_order_acq_rel is used here so that, if we do end up executing the destructor, it's not possible
+					// for side effects from executing the destructor end up being visible before we've determined that the shared
+					// reference count is actually zero.
 
-					// No more shared referencers, so decrement the weak reference count by one.  When the weak
-					// reference count reaches zero, this object will be deleted.
-					ReleaseWeakReference();
-				}
+					int32 OldSharedCount = SharedReferenceCount.fetch_sub(1, std::memory_order_acq_rel);
+					checkSlow(OldSharedCount > 0);
+					if (OldSharedCount == 1)
+					{
+						// Last shared reference was released!  Destroy the referenced object.
+						DestroyObject();
+
+						// No more shared referencers, so decrement the weak reference count by one.  When the weak
+						// reference count reaches zero, this object will be deleted.
+						ReleaseWeakReference();
+					}
+				});
 			}
 			else
 			{

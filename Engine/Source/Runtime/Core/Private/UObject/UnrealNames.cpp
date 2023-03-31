@@ -37,6 +37,7 @@
 #include "Templates/AlignmentTemplates.h"
 #include "Templates/Greater.h"
 #include "Misc/AsciiSet.h"
+#include "AutoRTFM/AutoRTFM.h"
 
 PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
@@ -1165,10 +1166,15 @@ public:
 
 	FNameEntryId Find(const FNameValue<Sensitivity>& Value) const
 	{
-		FRWScopeLock _(Lock, FRWScopeLockType::SLT_ReadOnly);
+		FNameEntryId Result;
+		AutoRTFM::Open([&Result, this, &Value]
+		{
+			FRWScopeLock _(Lock, FRWScopeLockType::SLT_ReadOnly);
 
-		FNameSlot& Slot = Probe(Value);
-		return Slot.GetId();
+			FNameSlot& Slot = Probe(Value);
+			Result = Slot.GetId();
+		});
+		return Result;
 	}
 
 	template<class ScopeLock = FWriteScopeLock>

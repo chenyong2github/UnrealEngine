@@ -2,6 +2,7 @@
 
 #include "UObject/ObjectHandleTracking.h"
 #include "Misc/ScopeRWLock.h"
+#include "AutoRTFM/AutoRTFM.h"
 
 #if UE_WITH_OBJECT_HANDLE_TRACKING
 
@@ -19,122 +20,166 @@ namespace UE::CoreUObject
 
 			void OnHandleRead(TArrayView<const UObject* const> Objects)
 			{
-				FReadScopeLock _(HandleLock);
-				for (auto&& Pair : ReadHandleCallbacks)
+				AutoRTFM::Open([this, Objects]
 				{
-					Pair.Value(Objects);
-				}
+					FReadScopeLock _(HandleLock);
+					for (auto&& Pair : ReadHandleCallbacks)
+					{
+						Pair.Value(Objects);
+					}
+				});
 			}
 
 			void OnClassReferenceResolved(const FObjectRef& ObjectRef, UPackage* Package, UClass* Class)
 			{
-				FReadScopeLock _(HandleLock);
-				for (auto&& Pair : ClassResolvedCallbacks)
+				AutoRTFM::Open([this, &ObjectRef, Package, Class]
 				{
-					Pair.Value(ObjectRef, Package, Class);
-				}
+					FReadScopeLock _(HandleLock);
+					for (auto&& Pair : ClassResolvedCallbacks)
+					{
+						Pair.Value(ObjectRef, Package, Class);
+					}
+				});
 			}
 
 			void OnReferenceResolved(const FObjectRef& ObjectRef, UPackage* Package, UObject* Object)
 			{
-				FReadScopeLock _(HandleLock);
-				for (auto&& Pair : HandleResolvedCallbacks)
+				AutoRTFM::Open([this, &ObjectRef, Package, Object]
 				{
-					Pair.Value(ObjectRef, Package, Object);
-				}
+					FReadScopeLock _(HandleLock);
+					for (auto&& Pair : HandleResolvedCallbacks)
+					{
+						Pair.Value(ObjectRef, Package, Object);
+					}
+				});
 			}
 
 			void OnReferenceLoaded(const FObjectRef& ObjectRef, UPackage* Package, UObject* Object)
 			{
-				FReadScopeLock _(HandleLock);
-				for (auto&& Pair : HandleLoadedCallbacks)
+				AutoRTFM::Open([this, &ObjectRef, Package, Object]
 				{
-					Pair.Value(ObjectRef, Package, Object);
-				}
+					FReadScopeLock _(HandleLock);
+					for (auto&& Pair : HandleLoadedCallbacks)
+					{
+						Pair.Value(ObjectRef, Package, Object);
+					}
+				});
 			}
 
 			FObjectHandleTrackingCallbackId AddObjectHandleReadCallback(FObjectHandleReadFunc Func)
 			{
-				FWriteScopeLock _(HandleLock);
-				NextHandleId++;
-				ReadHandleCallbacks.Add({ NextHandleId, Func });
-				return { NextHandleId };
+				FObjectHandleTrackingCallbackId Result;
+				AutoRTFM::Open([&Result, this, &Func]
+				{
+					FWriteScopeLock _(HandleLock);
+					NextHandleId++;
+					ReadHandleCallbacks.Add({ NextHandleId, Func });
+					Result = FObjectHandleTrackingCallbackId{ NextHandleId };
+				});
+				return Result;
 			}
 
 			void RemoveObjectHandleReadCallback(FObjectHandleTrackingCallbackId Handle)
 			{
-				FWriteScopeLock _(HandleLock);
-				for (int32 i = ReadHandleCallbacks.Num() - 1; i >= 0; --i)
+				AutoRTFM::Open([this, Handle]
 				{
-					auto& Pair = ReadHandleCallbacks[i];
-					if (Pair.Key == Handle.Id)
+					FWriteScopeLock _(HandleLock);
+					for (int32 i = ReadHandleCallbacks.Num() - 1; i >= 0; --i)
 					{
-						ReadHandleCallbacks.RemoveAt(i);
+						auto& Pair = ReadHandleCallbacks[i];
+						if (Pair.Key == Handle.Id)
+						{
+							ReadHandleCallbacks.RemoveAt(i);
+						}
 					}
-				}
+				});
 			}
 
 			FObjectHandleTrackingCallbackId AddObjectHandleClassResolvedCallback(FObjectHandleClassResolvedFunc Func)
 			{
-				FWriteScopeLock _(HandleLock);
-				NextHandleId++;
-				ClassResolvedCallbacks.Add({ NextHandleId, Func });
-				return { NextHandleId };
+				FObjectHandleTrackingCallbackId Result;
+				AutoRTFM::Open([&Result, this, &Func]
+				{
+					FWriteScopeLock _(HandleLock);
+					NextHandleId++;
+					ClassResolvedCallbacks.Add({ NextHandleId, Func });
+					Result = FObjectHandleTrackingCallbackId{ NextHandleId };
+				});
+				return Result;
 			}
 
 			void RemoveObjectHandleClassResolvedCallback(FObjectHandleTrackingCallbackId Handle)
 			{
-				FWriteScopeLock _(HandleLock);
-				for (int32 i = ClassResolvedCallbacks.Num() - 1; i >= 0; --i)
+				AutoRTFM::Open([this, Handle]
 				{
-					auto& Pair = ClassResolvedCallbacks[i];
-					if (Pair.Key == Handle.Id)
+					FWriteScopeLock _(HandleLock);
+					for (int32 i = ClassResolvedCallbacks.Num() - 1; i >= 0; --i)
 					{
-						ClassResolvedCallbacks.RemoveAt(i);
+						auto& Pair = ClassResolvedCallbacks[i];
+						if (Pair.Key == Handle.Id)
+						{
+							ClassResolvedCallbacks.RemoveAt(i);
+						}
 					}
-				}
+				});
 			}
 
 			FObjectHandleTrackingCallbackId AddObjectHandleReferenceResolvedCallback(FObjectHandleReferenceResolvedFunc Func)
 			{
-				FWriteScopeLock _(HandleLock);
-				NextHandleId++;
-				HandleResolvedCallbacks.Add({ NextHandleId, Func });
-				return { NextHandleId };
+				FObjectHandleTrackingCallbackId Result;
+				AutoRTFM::Open([&Result, this, &Func]
+				{
+					FWriteScopeLock _(HandleLock);
+					NextHandleId++;
+					HandleResolvedCallbacks.Add({ NextHandleId, Func });
+					Result = FObjectHandleTrackingCallbackId{ NextHandleId };
+				});
+				return Result;
 			}
 
 			void RemoveObjectHandleReferenceResolvedCallback(FObjectHandleTrackingCallbackId Handle)
 			{
-				FWriteScopeLock _(HandleLock);
-				for (int32 i = HandleResolvedCallbacks.Num() - 1; i >= 0; --i)
+				AutoRTFM::Open([this, Handle]
 				{
-					auto& Pair = HandleResolvedCallbacks[i];
-					if (Pair.Key == Handle.Id)
+					FWriteScopeLock _(HandleLock);
+					for (int32 i = HandleResolvedCallbacks.Num() - 1; i >= 0; --i)
 					{
-						HandleResolvedCallbacks.RemoveAt(i);
+						auto& Pair = HandleResolvedCallbacks[i];
+						if (Pair.Key == Handle.Id)
+						{
+							HandleResolvedCallbacks.RemoveAt(i);
+						}
 					}
-				}
+				});
 			}
 
 			FObjectHandleTrackingCallbackId AddObjectHandleReferenceLoadedCallback(FObjectHandleReferenceLoadedFunc Func)
 			{
-				FWriteScopeLock _(HandleLock);
-				NextHandleId++;
-				HandleLoadedCallbacks.Add({ NextHandleId, Func });
-				return { NextHandleId };
+				FObjectHandleTrackingCallbackId Result;
+				AutoRTFM::Open([&Result, this, &Func]
+				{
+					FWriteScopeLock _(HandleLock);
+					NextHandleId++;
+					HandleLoadedCallbacks.Add({ NextHandleId, Func });
+					Result = FObjectHandleTrackingCallbackId{ NextHandleId };
+				});
+				return Result;
 			}
 
 			void RemoveObjectHandleReferenceLoadedCallback(FObjectHandleTrackingCallbackId Handle)
 			{
-				FWriteScopeLock _(HandleLock);
-				for (int32 i = HandleLoadedCallbacks.Num() - 1; i >= 0; --i)
+				AutoRTFM::Open([this, Handle]
 				{
-					auto& Pair = HandleLoadedCallbacks[i];
-					if (Pair.Key == Handle.Id)
+					FWriteScopeLock _(HandleLock);
+					for (int32 i = HandleLoadedCallbacks.Num() - 1; i >= 0; --i)
 					{
-						HandleLoadedCallbacks.RemoveAt(i);
+						auto& Pair = HandleLoadedCallbacks[i];
+						if (Pair.Key == Handle.Id)
+						{
+							HandleLoadedCallbacks.RemoveAt(i);
+						}
 					}
-				}
+				});
 			}
 
 		private:

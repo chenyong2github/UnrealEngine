@@ -59,6 +59,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "HAL/PlatformStackWalk.h"
 #include "String/Find.h"
+#include "AutoRTFM/AutoRTFM.h"
 
 // This flag enables some expensive class tree validation that is meant to catch mutations of 
 // the class tree outside of SetSuperStruct. It has been disabled because loading blueprints 
@@ -5866,47 +5867,51 @@ UFunction* UClass::FindFunctionByName(FName InName, EIncludeSuperFlag::Type Incl
 	LLM_SCOPE(ELLMTag::UObject);
 
 	UFunction* Result = nullptr;
-	{
-		FReadScopeLock ScopeLock(FuncMapLock);
-		Result = FuncMap.FindRef(InName);
-	}
 
-	if (Result == nullptr && IncludeSuper == EIncludeSuperFlag::IncludeSuper)
+	AutoRTFM::Open([&Result, this, &InName, IncludeSuper]
 	{
-		UClass* SuperClass = GetSuperClass();
-		if (SuperClass || Interfaces.Num() > 0)
 		{
-			bool bFoundInSuperFuncMap = false;
-			{
-				FReadScopeLock ScopeLock(SuperFuncMapLock);
-				if (UFunction** SuperResult = SuperFuncMap.Find(InName))
-				{
-					Result = *SuperResult;
-					bFoundInSuperFuncMap = true;
-				}
-			}
+			FReadScopeLock ScopeLock(FuncMapLock);
+			Result = FuncMap.FindRef(InName);
+		}
 
-			if (!bFoundInSuperFuncMap)
+		if (Result == nullptr && IncludeSuper == EIncludeSuperFlag::IncludeSuper)
+		{
+			UClass* SuperClass = GetSuperClass();
+			if (SuperClass || Interfaces.Num() > 0)
 			{
-				for (const FImplementedInterface& Inter : Interfaces)
+				bool bFoundInSuperFuncMap = false;
 				{
-					Result = Inter.Class ? Inter.Class->FindFunctionByName(InName) : nullptr;
-					if (Result)
+					FReadScopeLock ScopeLock(SuperFuncMapLock);
+					if (UFunction** SuperResult = SuperFuncMap.Find(InName))
 					{
-						break;
+						Result = *SuperResult;
+						bFoundInSuperFuncMap = true;
 					}
 				}
 
-				if (SuperClass && Result == nullptr)
+				if (!bFoundInSuperFuncMap)
 				{
-					Result = SuperClass->FindFunctionByName(InName);
-				}
+					for (const FImplementedInterface& Inter : Interfaces)
+					{
+						Result = Inter.Class ? Inter.Class->FindFunctionByName(InName) : nullptr;
+						if (Result)
+						{
+							break;
+						}
+					}
 
-				FWriteScopeLock ScopeLock(SuperFuncMapLock);
-				SuperFuncMap.Add(InName, Result);
+					if (SuperClass && Result == nullptr)
+					{
+						Result = SuperClass->FindFunctionByName(InName);
+					}
+
+					FWriteScopeLock ScopeLock(SuperFuncMapLock);
+					SuperFuncMap.Add(InName, Result);
+				}
 			}
 		}
-	}
+	});
 
 	return Result;
 }

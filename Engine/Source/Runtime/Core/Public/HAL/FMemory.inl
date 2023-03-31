@@ -75,7 +75,8 @@ FMEMORY_INLINE_FUNCTION_DECORATOR void* FMemory::Realloc(void* Original, SIZE_T 
 		if (Original)
 		{
 			SIZE_T OriginalCount = GetAllocSize(Original);
-			Memcpy(Ptr, Original, OriginalCount);
+			SIZE_T CopyCount = FGenericPlatformMath::Min(Count, OriginalCount); // handle the case where the new size is smaller
+			Memcpy(Ptr, Original, CopyCount);
 			Free(Original);
 		}
 
