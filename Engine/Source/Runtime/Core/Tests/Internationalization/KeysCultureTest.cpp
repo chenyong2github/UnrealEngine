@@ -45,7 +45,15 @@ FString CreateExpectedOutputFromPolyglotData(const FPolyglotTextData& InData)
 	return FString::Printf(TEXT("%s, %s"), *Key, *Namespace);
 }
 
+>>>> ORIGINAL //Fortnite/Dev-EngineMerge/Engine/Source/Runtime/Core/Private/Tests/Internationalization/KeysCultureTest.cpp#2
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKeysCultureTest, "System.Core.Misc.KeysCulture", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
+bool FKeysCultureTest::RunTest (const FString& Parameters)
+==== THEIRS //Fortnite/Dev-EngineMerge/Engine/Source/Runtime/Core/Private/Tests/Internationalization/KeysCultureTest.cpp#3
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKeysCultureTest, "Development.System.Core.Misc.KeysCulture", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
+bool FKeysCultureTest::RunTest (const FString& Parameters)
+==== YOURS //Marc.Audy_UE5_Release-Engine-Staging/Engine/Source/Runtime/Core/Tests/Internationalization/KeysCultureTest.cpp
 TEST_CASE_NAMED(FKeysCultureTest, "System::Core::Misc::KeysCulture", "[.][EditorContext][ClientContext][EngineFilter]")
+<<<<
 {
 	FRestoreCultureStateGuard RestoreCultureStateGuard;
 	
