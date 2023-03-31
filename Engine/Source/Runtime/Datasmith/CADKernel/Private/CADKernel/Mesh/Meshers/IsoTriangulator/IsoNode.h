@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CADKernel/Core/Types.h"
+#include "CADKernel/Math/SlopeUtils.h"
 #include "CADKernel/Mesh/MeshEnum.h"
 #include "CADKernel/Mesh/Structure/Grid.h"
 
