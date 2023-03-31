@@ -375,6 +375,7 @@ NNEUTILS_API bool CreateONNXModelForOperator(bool UseVariadicShapeForModel, cons
 		OperatorName == TEXT("ReduceProd") ||			// current implementation is opset 11 (next version is 13)
 		OperatorName == TEXT("ReduceSum") ||			// current implementation is opset 11 (next version is 13)
 		OperatorName == TEXT("ReduceSumSquare") ||		// current implementation is opset 11 (next version is 13)
+		OperatorName == TEXT("Resize") ||				// current implementation is opset 11 (next version is 13)
 		OperatorName == TEXT("Squeeze") ||				// current implementation is opset 11 (next version is 13)
 		OperatorName == TEXT("Unsqueeze")				// current implementation is opset 11 (next version is 13)
 		)

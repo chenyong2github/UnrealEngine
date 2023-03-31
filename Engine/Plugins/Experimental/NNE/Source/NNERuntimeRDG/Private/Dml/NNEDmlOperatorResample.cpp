@@ -76,15 +76,28 @@ public:
 
 		if (!ScaleTensor.HasPreparedData())
 		{
-			UE_LOG(LogNNE, Warning, TEXT("scale should be a constant tensor, it is here a variable tensor of name %s."), *ScaleTensor.GetName());
+			UE_LOG(LogNNE, Warning, TEXT("scales should be a constant tensor, it is here a variable tensor of name %s."), *ScaleTensor.GetName());
+			return false;
+		}
+
+		if (ScaleTensor.GetShape().Volume() != InputTensor.GetShape().Rank())
+		{
+			UE_LOG(LogNNE, Warning, TEXT("scales tensor should contain N entries, where N is rank of X."));
 			return false;
 		}
 		
 		// Read attributes
 		DML_INTERPOLATION_MODE Mode = ModeFromString(Attributes.GetValue<FString>(TEXT("mode")));
 
+		DmlUtil::FSmallArray<float> InputPixelOffsets, OutputPixelOffsets;
+		InputPixelOffsets.Init(0.5f, InputTensor.GetShape().Rank());
+		OutputPixelOffsets.Init(-0.5f, InputTensor.GetShape().Rank());
+
+		DmlUtil::FSmallArray<float> Scales ( ScaleTensor.GetPreparedData<float>() );
+
 		if constexpr (IsResize)
 		{
+
 			if (Mode == DML_INTERPOLATION_MODE_NEAREST_NEIGHBOR)
 			{
 				FString NeareastMode = Attributes.GetValueOrDefault<FString>(TEXT("nearest_mode"), TEXT("round_prefer_floor"));
@@ -95,10 +108,71 @@ public:
 			}
 
 			FString CoordinateTransformationMode = Attributes.GetValueOrDefault<FString>(TEXT("coordinate_transformation_mode"), TEXT("half_pixel"));
-			if (FCString::Stricmp(*CoordinateTransformationMode, TEXT("half_pixel")) != 0)
+			for(int Idx = 0; Idx < InputTensor.GetShape().Rank(); ++Idx)
 			{
-				UE_LOG(LogNNE, Warning, TEXT("Unsupported coordinate transformation mode:%s, using half_pixel instead"), *CoordinateTransformationMode);
+				float LengthResized = (float) OutputTensor.GetShape().GetData()[Idx];
+				float LengthOriginal = (float) InputTensor.GetShape().GetData()[Idx];
+				
+				if(CoordinateTransformationMode == TEXT("align_corners"))
+				{
+					Scales[Idx] = (LengthResized - 1.0f) / (LengthOriginal - 1.0f);
+					InputPixelOffsets[Idx] = 0.f;
+					OutputPixelOffsets[Idx] = 0.f;
+				}
+				else if(CoordinateTransformationMode == TEXT("asymmetric"))
+				{
+					InputPixelOffsets[Idx] = 0.f;
+					OutputPixelOffsets[Idx] = 0.f;
+				}
+				else if(CoordinateTransformationMode == TEXT("tf_half_pixel_for_nn"))
+				{
+					InputPixelOffsets[Idx] = 0.0f;
+					OutputPixelOffsets[Idx] = -0.5f;
+				}
+				else if(CoordinateTransformationMode == TEXT("tf_crop_and_resize"))
+				{
+					// NOTE: no tests for this, ORT erroneously puts all 0.0fs in the output tensor in this case.
+					
+					const NNECore::Internal::FTensor& RoiTensor = InputTensors[1];
+					if (!RoiTensor.HasPreparedData())
+					{
+						UE_LOG(LogNNE, Warning, TEXT("roi should be a constant tensor, it is here a variable tensor of name %s."), *RoiTensor.GetName());
+						return false;
+					}
+					if (RoiTensor.GetShape().Rank() != 1)
+					{
+						UE_LOG(LogNNE, Warning, TEXT("roi tensor should be 1-D."));
+						return false;
+					}
+					if (RoiTensor.GetShape().GetData()[0] != 2 * InputTensor.GetShape().Rank())
+					{
+						UE_LOG(LogNNE, Warning, TEXT("roi tensor should contain 2*N entries, where N is rank of X."));
+						return false;
+					}
+					float Start = RoiTensor.GetPreparedData<float>()[Idx];
+					float End = RoiTensor.GetPreparedData<float>()[Idx + InputTensor.GetShape().Rank()];
+					if(LengthResized > 1)
+					{
+						Scales[Idx] = (LengthResized - 1.0f) / FMath::Max( (End - Start) * (LengthOriginal - 1.0f), 1.0f );
+						InputPixelOffsets[Idx] = Start * (1.0f - LengthOriginal);
+						OutputPixelOffsets[Idx] = 0.0f;
+					}
+					else
+					{
+						UE_LOG(LogNNE, Warning, TEXT("Unsupported combination of transformation mode tf_crop_and_resize and length of resized dimension (%d) <= 1"), Idx);
+						return false;
+					}
+					
+				}
+				else
+				{
+					if(CoordinateTransformationMode != TEXT("half_pixel"))
+					{
+						UE_LOG(LogNNE, Warning, TEXT("Unsupported coordinate transformation mode:%s, using half_pixel instead"), *CoordinateTransformationMode);
+					}
+				}
 			}
+			
 		}
 
 		// Initialize tensor descriptors
@@ -123,7 +197,7 @@ public:
 			ConstantCPUInputs.Add(i);
 		}
 
-		TConstArrayView<float> Scales = ScaleTensor.GetPreparedData<float>();
+		
 		
 		// Find any useless dimensions of size 1 that occur in both input and output
 		DmlUtil::FSmallUIntArray	SqueezeInds;
@@ -147,21 +221,25 @@ public:
 			RemoveValuesByIndex(SqueezeInds, SqueezedInputShape, true);
 			RemoveValuesByIndex(SqueezeInds, SqueezedOutputShape, true);
 			RemoveValuesByIndex(SqueezeInds, ScaleValues, true);
+			RemoveValuesByIndex(SqueezeInds, InputPixelOffsets, true);
+			RemoveValuesByIndex(SqueezeInds, OutputPixelOffsets, true);
 
 			DmlInputTensor.UpdateShapeAndStrides(SqueezedInputShape);
 			DmlOutputTensor.UpdateShapeAndStrides(SqueezedOutputShape);
 			Scales = ScaleValues;
 		}
 
-		DML_RESAMPLE_OPERATOR_DESC	OpDesc{};
+		DML_RESAMPLE1_OPERATOR_DESC	OpDesc{};
 
 		OpDesc.InputTensor = &DmlInputTensor.Desc;
 		OpDesc.OutputTensor = &DmlOutputTensor.Desc;
 		OpDesc.InterpolationMode = Mode;
-		OpDesc.ScaleCount = Scales.Num();
+		OpDesc.DimensionCount = Scales.Num();
 		OpDesc.Scales = Scales.GetData();
+		OpDesc.InputPixelOffsets = InputPixelOffsets.GetData();
+		OpDesc.OutputPixelOffsets = OutputPixelOffsets.GetData();
 
-		return CreateOperator(Device, DML_OPERATOR_DESC { DML_OPERATOR_RESAMPLE, &OpDesc });
+		return CreateOperator(Device, DML_OPERATOR_DESC { DML_OPERATOR_RESAMPLE1, &OpDesc });
 	}
 };
 

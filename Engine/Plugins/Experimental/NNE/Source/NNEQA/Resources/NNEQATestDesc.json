@@ -432,6 +432,16 @@
 			]
 		},
 		{
+			"category": "Resize",
+			"runtimes": [	
+				{ "name": "NNERuntimeRDGHlsl", "skip": true },
+				{ "name": "NNERuntimeORTDml", "skip": true }
+			],
+			"targets": [
+				{ "target": "Resize", "absolute_tolerance": 1e-5 }
+			]
+		},
+		{
 			"category": "Gather",
 			"runtimes": [	
 				{ "name": "NNERuntimeRDGHlsl", "skip": true }
@@ -946,6 +956,13 @@
 				{ "inputs":  [ { "shape": [ 3 ] } ],              "weights": [ { "shape": [ 1 ], "source": [ "1"    ],                  "type": "float" } ], "outputs": [ { "shape": [ 3 ]} ] },
 				{ "inputs":  [ { "shape": [ 1, 128, 50, 55 ] } ], "weights": [ { "shape": [ 4 ], "source": [ "1", "1", "2", "2" ],      "type": "float" } ], "outputs": [ { "shape": [ 1, 128, 100, 110 ]} ] },
 				{ "inputs":  [ { "shape": [ 2, 1, 3, 1, 2 ] } ],  "weights": [ { "shape": [ 5 ], "source": [ "1", "2", "2", "1", "2" ], "type": "float" } ], "outputs": [ { "shape": [ 2, 2, 6, 1, 4 ]} ] }
+			]
+		},
+		{
+			"name": "Resize.Downsample.Linear",
+			"datasets": [
+				{ "inputs":  [ { "shape": [ 10, 10 ] } ],	"weights": [ { "shape": [ 4 ], "source": [ "2", "1", "8", "9" ], "type": "float" }, { "shape": [ 2 ], "source": [ "0.6", "0.8"  ], "type": "float" } ],	"outputs": [ { "shape": [ 6, 8 ]} ] },
+				{ "inputs":  [ { "shape": [ 20, 15 ] } ],	"weights": [ { "shape": [ 4 ], "source": [ "5", "3", "19", "14" ], "type": "float" }, { "shape": [ 2 ], "source": [ "0.5", "0.4"  ], "type": "float" } ],	"outputs": [ { "shape": [ 10, 6 ]} ] }
 			]
 		},
 		{
@@ -1639,6 +1656,25 @@
 				{ "attributes": [
 					{ "name": "pads", "value": [ 0, 1, 1, 3, 0, 0, 2, 4 ], "type": "Int32Array" }
 				] }
+			]
+		},
+		{
+			"name": "Resize.Downsample.Linear",
+			"attribute_maps": [
+				{
+					"attributes": [ 
+						{ "name": "mode", "value": "linear", "type": "String" }
+					]
+				}
+			]
+		},
+		{
+			"name": "Resize.Downsample.Linear.Transform",
+			"multiply_with_attribute_sets": [ "Resize.Downsample.Linear" ],
+			"attribute_maps": [
+				{ "attributes": [ { "name": "coordinate_transformation_mode", "value": "align_corners", "type": "String" } ] },
+				{ "attributes": [ { "name": "coordinate_transformation_mode", "value": "asymmetric", "type": "String" } ] },
+				{ "attributes": [ { "name": "coordinate_transformation_mode", "value": "tf_half_pixel_for_nn", "type": "String" } ] }
 			]
 		},
 		{
