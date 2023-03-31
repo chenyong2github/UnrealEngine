@@ -9,13 +9,8 @@ NiagaraDataInterfaceHairStrands.ush
 static const float M_PI = 3.14159265;
 static const float3 MAX_POS = float3(1e+8,1e+8,1e+8);
 
-float2 ExtractBarycentrics(in uint PackedCoordinates)
+float3 Uint3ToFloat3( in uint3 Uint3Vector)
 {
-	return float2(f16tof32(PackedCoordinates & 0xFFFF), f16tof32((PackedCoordinates >> 16) & 0xFFFF));
-}
-
- float3 Uint3ToFloat3( in uint3 Uint3Vector)
- {
 	uint3 SignedVector = Uint3Vector;
 	SignedVector.x ^= (((SignedVector.x >> 31)-1) | 0x80000000);
 	SignedVector.y ^= (((SignedVector.y >> 31)-1) | 0x80000000);

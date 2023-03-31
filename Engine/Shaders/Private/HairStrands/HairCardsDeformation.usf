@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
+#include "HairStrandsPack.ush"
 #include "HairStrandsVertexFactoryCommon.ush"
 #include "HairStrandsBindingCommon.ush"
 
@@ -46,10 +47,10 @@ float3 ComputeDynamicGeometryOffset(
 	float3 RootBarycentric,
 	float3 GuideDeformedPositionOffset)
 {
-	const float3 RestGuidePoint = f16tof32(GuideRestPositionBuffer[GuideIndex].xyz) + GuideRestPositionOffset;
+	const float3 RestGuidePoint = UnpackHairControlPointPosition(GuideRestPositionBuffer[GuideIndex], GuideRestPositionOffset);
 	const float3 LocalRestGuidePoint = ToTriangle(RestGuidePoint, RootBarycentric, RestTriangle);
 
-	const float3 DeformedGuidePoint = f16tof32(GuideDeformedPositionBuffer[GuideIndex].xyz) + GuideDeformedPositionOffset;
+	const float3 DeformedGuidePoint = UnpackHairControlPointPosition(GuideDeformedPositionBuffer[GuideIndex], GuideDeformedPositionOffset);
 	const float3 LocalDeformedGuidePoint = ToTriangle(DeformedGuidePoint, RootBarycentric, DeformedTriangle);
 
 	return (LocalDeformedGuidePoint - LocalRestGuidePoint) * GuideVertexWeight;

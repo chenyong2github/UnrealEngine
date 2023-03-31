@@ -48,9 +48,3 @@ float4 DIHairStrands_TriangleWorldOrientation(in float3 TrianglePosition, in flo
 {
 	return NormalizeQuat(MultiplyQuat(TriangleRotation, LocalOrientation));
 }
-
-float2 ExtractBarycentrics(in uint PackedCoordinates)
-{
-	return float2(f16tof32(PackedCoordinates & 0xFFFF), f16tof32((PackedCoordinates >> 16) & 0xFFFF));
-}
-

@@ -28,10 +28,10 @@ uint4 PackHairControlPoint(
 
 FHairControlPoint UnpackHairControlPoint(
 	uint4 InPackedData,
-	float3 InVF_PositionOffset,
-	float InVF_Radius,
-	float InVF_RootScale,
-	float InVF_TipScale)
+	float3 InVF_PositionOffset=0,
+	float InVF_Radius=1,
+	float InVF_RootScale=1,
+	float InVF_TipScale=1)
 {
 	const uint PackedAlpha	= asuint(InPackedData.a);
 
@@ -52,12 +52,12 @@ float UnpackHairControlPointCoordU(uint4 InPackedData)
 	return ((PackedAlpha & 0xFF00) >> 8) / 255.f;
 }
 
-float3 UnpackHairControlPointPosition(uint4 InPackedData, float3 InVF_PositionOffset)
+float3 UnpackHairControlPointPosition(uint4 InPackedData, float3 InVF_PositionOffset=0)
 {
 	return f16tof32(InPackedData.xyz) + InVF_PositionOffset;
 }
 
-uint4 PackHairControlPointPosition(uint4 InPackedData, float3 InNewPosition, float3 InPositionOffset)
+uint4 PackHairControlPointPosition(uint4 InPackedData, float3 InNewPosition, float3 InPositionOffset=0)
 {
 	return uint4(f32tof16(InNewPosition.xyz - InPositionOffset), InPackedData.w);
 }

@@ -137,9 +137,9 @@ float3 ComputeStaticGeometryOffset(
 	float GuideVertexWeight, 
 	float3 OutSimHairPositionOffset)
 {
-	const float3 RestGuidePoint = f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) + InSimHairPositionOffset;
+	const float3 RestGuidePoint = UnpackHairControlPointPosition(SimRestPosePositionBuffer[GuideIndex], InSimHairPositionOffset);
 
-	const float3 DeformedGuidePoint = f16tof32(SimDeformedPositionBuffer[GuideIndex].xyz) + OutSimHairPositionOffset;
+	const float3 DeformedGuidePoint = UnpackHairControlPointPosition(SimDeformedPositionBuffer[GuideIndex], OutSimHairPositionOffset);
 
 	return (DeformedGuidePoint - RestGuidePoint) * GuideVertexWeight;
 }
@@ -150,9 +150,9 @@ float3 ComputeLocalGeometryOffset(
 {
 	const uint RootIndex = SimRootPointIndexBuffer[GuideIndex];
 
-	const float3 RestGuidePoint = f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) - f16tof32(SimRestPosePositionBuffer[RootIndex].xyz) ;
+	const float3 RestGuidePoint = UnpackHairControlPointPosition(SimRestPosePositionBuffer[GuideIndex]) - UnpackHairControlPointPosition(SimRestPosePositionBuffer[RootIndex]);
 
-	const float3 DeformedGuidePoint = f16tof32(SimDeformedPositionBuffer[GuideIndex].xyz) - f16tof32(SimDeformedPositionBuffer[RootIndex].xyz) ;
+	const float3 DeformedGuidePoint = UnpackHairControlPointPosition(SimDeformedPositionBuffer[GuideIndex]) - UnpackHairControlPointPosition(SimDeformedPositionBuffer[RootIndex]);
 
 	return (DeformedGuidePoint - RestGuidePoint) * GuideVertexWeight;
 }
@@ -165,10 +165,10 @@ float3 ComputeDynamicGeometryOffset(
 	float3 RootBarycentric,
 	float3 OutSimHairPositionOffset)
 {
-	const float3 RestGuidePoint = f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) + InSimHairPositionOffset;
+	const float3 RestGuidePoint = UnpackHairControlPointPosition(SimRestPosePositionBuffer[GuideIndex], InSimHairPositionOffset);
 	const float3 LocalRestGuidePoint = ToTriangle(RestGuidePoint, RootBarycentric, RestTriangle);
 
-	const float3 DeformedGuidePoint = f16tof32(SimDeformedPositionBuffer[GuideIndex].xyz) + OutSimHairPositionOffset;
+	const float3 DeformedGuidePoint = UnpackHairControlPointPosition(SimDeformedPositionBuffer[GuideIndex], OutSimHairPositionOffset);
 	const float3 LocalDeformedGuidePoint = ToTriangle(DeformedGuidePoint, RootBarycentric, DeformedTriangle);
 
 	return (LocalDeformedGuidePoint - LocalRestGuidePoint) * GuideVertexWeight;
@@ -180,9 +180,9 @@ float3 ComputeTranslateGeometryOffset(
 {
 	const uint RootIndex = SimRootPointIndexBuffer[GuideIndex];
 
-	const float3 RestGuidePoint = f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) - f16tof32(SimRestPosePositionBuffer[RootIndex].xyz) ;
+	const float3 RestGuidePoint = UnpackHairControlPointPosition(SimRestPosePositionBuffer[GuideIndex]) - UnpackHairControlPointPosition(SimRestPosePositionBuffer[RootIndex]) ;
 
-	const float3 DeformedGuidePoint = f16tof32(SimDeformedPositionBuffer[GuideIndex].xyz) - f16tof32(SimDeformedPositionBuffer[RootIndex].xyz) ;
+	const float3 DeformedGuidePoint = UnpackHairControlPointPosition(SimDeformedPositionBuffer[GuideIndex]) - UnpackHairControlPointPosition(SimDeformedPositionBuffer[RootIndex]) ;
 
 	return (DeformedGuidePoint - RestGuidePoint) * GuideVertexWeight;
 }
@@ -195,10 +195,10 @@ float3 ComputeRotateGeometryOffset(
 {	
 	const uint RootIndex = SimRootPointIndexBuffer[GuideIndex];
 
-	const float3 RestGuidePoint = f16tof32(SimRestPosePositionBuffer[GuideIndex].xyz) - f16tof32(SimRestPosePositionBuffer[RootIndex].xyz) ;
+	const float3 RestGuidePoint = UnpackHairControlPointPosition(SimRestPosePositionBuffer[GuideIndex]) - UnpackHairControlPointPosition(SimRestPosePositionBuffer[RootIndex]) ;
 	const float3 LocalRestGuidePoint = VectorToTriangle(RestGuidePoint, RestTriangle);
 
-	const float3 DeformedGuidePoint = f16tof32(SimDeformedPositionBuffer[GuideIndex].xyz) - f16tof32(SimDeformedPositionBuffer[RootIndex].xyz) ;
+	const float3 DeformedGuidePoint = UnpackHairControlPointPosition(SimDeformedPositionBuffer[GuideIndex]) - UnpackHairControlPointPosition(SimDeformedPositionBuffer[RootIndex]) ;
 	const float3 LocalDeformedGuidePoint = VectorToTriangle(DeformedGuidePoint, DeformedTriangle);
 
 	return (LocalDeformedGuidePoint - LocalRestGuidePoint) * GuideVertexWeight;

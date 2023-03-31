@@ -222,6 +222,7 @@ uint GetControlPointCount()
 	return ControlPointCount.Load(uint3(0,0,0));
 }
 
+// Custom encoding for forward rasterizer. Position are 32bits float. This is temporary.
 FHairControlPoint UnpackHairControlPoint(uint InPrimId)
 {
 	const float4 Packed = ControlPoints[InPrimId];
