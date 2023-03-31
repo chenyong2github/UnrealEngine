@@ -102,7 +102,7 @@ bool UWorldPartitionBlueprintLibrary::GetActorDescs(const UActorDescContainer* I
 		if (ActorDescIt->IsContainerInstance())
 		{
 			FWorldPartitionActorDesc::FContainerInstance ContainerInstance;
-			if (ActorDescIt->GetContainerInstance(FWorldPartitionActorDesc::FGetContainerInstanceParams(), ContainerInstance))
+			if (ActorDescIt->GetContainerInstance(ContainerInstance))
 			{
 				bResult &= GetActorDescs(ContainerInstance.Container, ContainerInstance.Transform * InTransform, OutActorDescs);
 			}
@@ -127,7 +127,7 @@ bool UWorldPartitionBlueprintLibrary::HandleIntersectingActorDesc(const FWorldPa
 	if (ActorDesc->IsContainerInstance())
 	{
 		FWorldPartitionActorDesc::FContainerInstance ContainerInstance;
-		if (ActorDesc->GetContainerInstance(FWorldPartitionActorDesc::FGetContainerInstanceParams(), ContainerInstance))
+		if (ActorDesc->GetContainerInstance(ContainerInstance))
 		{
 			bResult &= GetIntersectingActorDescs(ContainerInstance.Container, InBox, ContainerInstance.Transform * InTransform, OutActorDescs);
 		}

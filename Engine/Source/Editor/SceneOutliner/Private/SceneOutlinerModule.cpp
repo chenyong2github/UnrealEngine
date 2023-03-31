@@ -386,9 +386,9 @@ void FSceneOutlinerModule::CreateActorInfoColumns(FSceneOutlinerInitializationOp
 		{
 			if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.Get())
 			{
-				if (FName LevelPackage = ActorDesc->GetLevelPackage(); !LevelPackage.IsNone())
+				if (FName LevelPackage = ActorDesc->GetContainerPackage(); !LevelPackage.IsNone())
 				{
-					return ActorDesc->GetLevelPackage().ToString();
+					return ActorDesc->GetContainerPackage().ToString();
 				}
 			}
 		}

@@ -41,7 +41,7 @@ void ILoaderAdapterSpatial::HandleIntersectingContainer(UWorldPartition* InWorld
 			if (ActorHandle->GetIsSpatiallyLoaded() && ActorHandle->IsContainerInstance())
 			{
 				FWorldPartitionActorDesc::FContainerInstance ContainerInstance;
-				if (ActorHandle->GetContainerInstance(FWorldPartitionActorDesc::FGetContainerInstanceParams(), ContainerInstance))
+				if (ActorHandle->GetContainerInstance(ContainerInstance))
 				{
 					if (ContainerInstance.bSupportsPartialEditorLoading)
 					{

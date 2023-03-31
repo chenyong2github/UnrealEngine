@@ -26,8 +26,9 @@ public:
 	virtual ~FLevelInstanceActorDesc() override;
 
 	virtual bool IsContainerInstance() const override;
-	virtual FName GetLevelPackage() const override { return LevelPackage; }
-	virtual bool GetContainerInstance(const FGetContainerInstanceParams& InParams, FContainerInstance& OutContainerInstance) const override;
+	virtual bool IsContainerFilter() const override { return IsContainerInstance(); }
+	virtual FName GetContainerPackage() const override { return LevelPackage; }
+	virtual bool GetContainerInstance(FContainerInstance& OutContainerInstance) const override;
 	virtual const FWorldPartitionActorFilter* GetContainerFilter() const override { return &Filter; }
 	virtual void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const override;
 

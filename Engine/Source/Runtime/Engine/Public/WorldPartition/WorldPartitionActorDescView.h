@@ -12,6 +12,7 @@ class AActor;
 class IStreamingGenerationErrorHandler;
 class UActorDescContainer;
 class UWorldPartition;
+struct FWorldPartitionActorFilter;
 
 /**
  * A view on top of an actor desc, used to cache information that can be (potentially) different than the actor desc
@@ -58,10 +59,14 @@ public:
 	const FGuid& GetFolderGuid() const;
 
 	FGuid GetContentBundleGuid() const;
-
+	FName GetContainerPackage() const;
 	bool IsContainerInstance() const;
-	FName GetLevelPackage() const;
-	bool GetContainerInstance(const FWorldPartitionActorDesc::FGetContainerInstanceParams& InParams, FWorldPartitionActorDesc::FContainerInstance& OutContainerInstance) const;
+	bool GetContainerInstance(FWorldPartitionActorDesc::FContainerInstance& OutContainerInstance) const;
+	bool IsContainerFilter() const;
+	const FWorldPartitionActorFilter* GetContainerFilter() const;
+	
+	UE_DEPRECATED(5.3, "GetLevelPackage is deprecated use GetContainerPackage instead.")
+	FName GetLevelPackage() const { return GetContainerPackage(); }
 
 	void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const;
 

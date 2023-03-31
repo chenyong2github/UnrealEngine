@@ -164,7 +164,7 @@ FWorldPartitionActorFilter UWorldPartitionSubsystem::GetWorldPartitionActorFilte
 			check(!WorldDataLayersActorDesc);
 			WorldDataLayersActorDesc = static_cast<const FWorldDataLayersActorDesc*>(*ActorDescIt);
 		}
-		else if (ActorDescIt->IsContainerInstance())
+		else if (ActorDescIt->IsContainerFilter())
 		{
 			ContainerActorDescs.Add(*ActorDescIt);
 		}
@@ -189,7 +189,7 @@ FWorldPartitionActorFilter UWorldPartitionSubsystem::GetWorldPartitionActorFilte
 		TSet<FString> VisitedPackagesCopy(InOutVisitedPackages);
 
 		// Get World Default Filter
-		FWorldPartitionActorFilter* ChildFilter = new FWorldPartitionActorFilter(GetWorldPartitionActorFilterInternal(ContainerActorDesc->GetLevelPackage().ToString(), VisitedPackagesCopy));
+		FWorldPartitionActorFilter* ChildFilter = new FWorldPartitionActorFilter(GetWorldPartitionActorFilterInternal(ContainerActorDesc->GetContainerPackage().ToString(), VisitedPackagesCopy));
 		ChildFilter->DisplayName = ContainerActorDesc->GetActorLabelOrName().ToString();
 
 		// Apply Filter to Default
@@ -231,7 +231,22 @@ TMap<FActorContainerID, TSet<FGuid>> UWorldPartitionSubsystem::GetFilteredActors
 
 	ProcessFilter(InContainerID, ContainerFilter);
 
-	TFunction<void(const FActorContainerID&, const UActorDescContainer*)> ProcessContainers = [&DataLayerFiltersPerContainer, &FilteredActors, &ProcessContainers](const FActorContainerID& InContainerID, const UActorDescContainer* InContainer)
+	// Keep track of registered containers to unregister them
+	TMap<FName, UActorDescContainer*> RegisteredContainers;
+
+	TFunction<UActorDescContainer* (FName)> FindOrRegisterContainer = [this, &RegisteredContainers](FName ContainerPackage)
+	{
+		if (UActorDescContainer** FoundContainer = RegisteredContainers.Find(ContainerPackage))
+		{
+			return *FoundContainer;
+		}
+		
+		UActorDescContainer* RegisteredContainer = RegisterContainer(ContainerPackage);
+		RegisteredContainers.Add(ContainerPackage, RegisteredContainer);
+		return RegisteredContainer;
+	};
+
+	TFunction<void(const FActorContainerID&, const UActorDescContainer*)> ProcessContainers = [&FindOrRegisterContainer, &DataLayerFiltersPerContainer, &FilteredActors, &ProcessContainers](const FActorContainerID& InContainerID, const UActorDescContainer* InContainer)
 	{
 		const TMap<FSoftObjectPath, FWorldPartitionActorFilter::FDataLayerFilter>& DataLayerFilters = DataLayerFiltersPerContainer.FindChecked(InContainerID);
 		for (FActorDescList::TConstIterator<> ActorDescIt(InContainer); ActorDescIt; ++ActorDescIt)
@@ -262,20 +277,23 @@ TMap<FActorContainerID, TSet<FGuid>> UWorldPartitionSubsystem::GetFilteredActors
 				}
 			}
 
-			if (ActorDescIt->IsContainerInstance())
+			if (ActorDescIt->IsContainerFilter())
 			{
-				FWorldPartitionActorDesc::FContainerInstance ChildContainerInstance;
-				if (ActorDescIt->GetContainerInstance(FWorldPartitionActorDesc::FGetContainerInstanceParams(), ChildContainerInstance))
-				{
-					ProcessContainers(FActorContainerID(InContainerID, ActorDescIt->GetGuid()), ChildContainerInstance.Container);
-				}
+				UActorDescContainer* ChildContainer = FindOrRegisterContainer(ActorDescIt->GetContainerPackage());
+				check(ChildContainer);
+				ProcessContainers(FActorContainerID(InContainerID, ActorDescIt->GetGuid()), ChildContainer);
 			}
 		}
 	};
 
-	UActorDescContainer* Container = RegisterContainer(*InWorldPackage);
+	UActorDescContainer* Container = FindOrRegisterContainer(*InWorldPackage);
 	ProcessContainers(InContainerID, Container);
-	UnregisterContainer(Container);
+	
+	// Unregister Containers
+	for (auto& [Name, RegisteredContainer] : RegisteredContainers)
+	{
+		UnregisterContainer(RegisteredContainer);
+	}
 
 	return FilteredActors;
 }

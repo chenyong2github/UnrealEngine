@@ -28,7 +28,7 @@ void FLoaderAdapterList::HandleActorContainer(const FWorldPartitionHandle& InAct
 	if (InActor->IsContainerInstance())
 	{
 		FWorldPartitionActorDesc::FContainerInstance ContainerInstance;
-		if (InActor->GetContainerInstance(FWorldPartitionActorDesc::FGetContainerInstanceParams(), ContainerInstance))
+		if (InActor->GetContainerInstance(ContainerInstance))
 		{
 			if (ContainerInstance.bSupportsPartialEditorLoading)
 			{

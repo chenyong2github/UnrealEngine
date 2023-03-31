@@ -89,15 +89,6 @@ public:
 		TMap<FActorContainerID, TSet<FGuid>> FilteredActors;
 	};
 
-	struct FGetContainerInstanceParams
-	{
-		FActorContainerID ContainerID;
-		bool bBuildFilter = false;
-
-		FGetContainerInstanceParams& SetContainerID(FActorContainerID InContainerID) { ContainerID = InContainerID; return *this; }
-		FGetContainerInstanceParams& SetBuildFilter(bool bInBuildFilter) { bBuildFilter = bInBuildFilter; return *this; }
-	};
-
 	virtual ~FWorldPartitionActorDesc() {}
 
 	inline const FGuid& GetGuid() const { return Guid; }
@@ -153,9 +144,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	inline bool IsDefaultActorDesc() const { return bIsDefaultActorDesc; }
 
 	virtual bool IsContainerInstance() const { return false; }
-	virtual FName GetLevelPackage() const { return NAME_None; }
+	virtual bool IsContainerFilter() const { return false; }
+	virtual FName GetContainerPackage() const { return NAME_None; }
+	
 	virtual const FWorldPartitionActorFilter* GetContainerFilter() const { return nullptr; }
-	virtual bool GetContainerInstance(const FGetContainerInstanceParams& InParams, FContainerInstance& OutContainerInstance) const { return false; }
+	virtual bool GetContainerInstance(FContainerInstance& OutContainerInstance) const { return false; }
 
 	FGuid GetContentBundleGuid() const;
 
@@ -167,6 +160,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	UE_DEPRECATED(5.2, "ShouldValidateRuntimeGrid is deprecated and should not be used.")
 	virtual bool ShouldValidateRuntimeGrid() const { return true; }
+
+	UE_DEPRECATED(5.3, "GetLevelPackage is deprecated use GetContainerPackage instead.")
+	virtual FName GetLevelPackage() const { return GetContainerPackage(); }
 
 	bool operator==(const FWorldPartitionActorDesc& Other) const
 	{

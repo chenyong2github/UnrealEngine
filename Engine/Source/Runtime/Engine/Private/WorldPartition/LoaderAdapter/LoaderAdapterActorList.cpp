@@ -67,7 +67,7 @@ void FLoaderAdapterActorList::RemoveActors(const TArray<FWorldPartitionHandle>& 
 		if (ActorHandle->IsContainerInstance())
 		{
 			FWorldPartitionActorDesc::FContainerInstance ContainerInstance;
-			if (ActorHandle->GetContainerInstance(FWorldPartitionActorDesc::FGetContainerInstanceParams(), ContainerInstance))
+			if (ActorHandle->GetContainerInstance(ContainerInstance))
 			{
 				if (ContainerInstance.bSupportsPartialEditorLoading)
 				{

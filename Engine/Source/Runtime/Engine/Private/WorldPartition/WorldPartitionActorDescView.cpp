@@ -179,14 +179,25 @@ bool FWorldPartitionActorDescView::IsContainerInstance() const
 	return ActorDesc->IsContainerInstance();
 }
 
-FName FWorldPartitionActorDescView::GetLevelPackage() const
+bool FWorldPartitionActorDescView::IsContainerFilter() const
 {
-	return ActorDesc->GetLevelPackage();
+	return ActorDesc->IsContainerFilter();
 }
 
-bool FWorldPartitionActorDescView::GetContainerInstance(const FWorldPartitionActorDesc::FGetContainerInstanceParams& InParams, FWorldPartitionActorDesc::FContainerInstance& OutContainerInstance) const
+FName FWorldPartitionActorDescView::GetContainerPackage() const
 {
-	return ActorDesc->GetContainerInstance(InParams, OutContainerInstance);
+	return ActorDesc->GetContainerPackage();
+}
+
+bool FWorldPartitionActorDescView::GetContainerInstance(FWorldPartitionActorDesc::FContainerInstance& OutContainerInstance) const
+{
+	return ActorDesc->GetContainerInstance(OutContainerInstance);
+}
+
+const FWorldPartitionActorFilter* FWorldPartitionActorDescView::GetContainerFilter() const
+{
+	check(IsContainerFilter());
+	return ActorDesc->GetContainerFilter();
 }
 
 void FWorldPartitionActorDescView::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const

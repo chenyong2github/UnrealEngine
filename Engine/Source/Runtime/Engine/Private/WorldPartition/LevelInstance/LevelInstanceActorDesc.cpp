@@ -174,7 +174,7 @@ bool FLevelInstanceActorDesc::IsContainerInstanceInternal() const
 	return ULevelInstanceSubsystem::CanUsePackage(LevelPackage);
 }
 
-bool FLevelInstanceActorDesc::GetContainerInstance(const FGetContainerInstanceParams& InParams, FContainerInstance& OutContainerInstance) const
+bool FLevelInstanceActorDesc::GetContainerInstance(FContainerInstance& OutContainerInstance) const
 {
 	if (LevelInstanceContainer.IsValid())
 	{
@@ -187,15 +187,6 @@ bool FLevelInstanceActorDesc::GetContainerInstance(const FGetContainerInstancePa
 		// Apply level instance pivot offset
 		FTransform LevelInstancePivotOffsetTransform = FTransform(ULevel::GetLevelInstancePivotOffsetFromPackage(LevelInstanceContainer->GetContainerPackage()));
 		OutContainerInstance.Transform = LevelInstancePivotOffsetTransform * LevelInstanceTransform;		
-
-		if (InParams.bBuildFilter)
-		{
-			// Fill Container Instance Filter
-			UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(LevelInstanceContainerWorldContext.Get());
-			check(WorldPartitionSubsystem);
-
-			OutContainerInstance.FilteredActors = WorldPartitionSubsystem->GetFilteredActorsPerContainer(InParams.ContainerID, LevelInstanceContainer->GetContainerPackage().ToString(), Filter);
-		}
 		return true;
 	}
 
