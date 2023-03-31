@@ -711,6 +711,7 @@ void FProximityDataflowNode::Evaluate(Dataflow::FContext& Context, const FDatafl
 			FGeometryCollectionProximityPropertiesInterface::FProximityProperties Properties = GeomCollection->GetProximityProperties();
 
 			Properties.Method = (EProximityMethod)ProximityMethod;
+			Properties.ContactMethod = (EProximityContactMethod)FilterContactMethod;
 			Properties.DistanceThreshold = DistanceThreshold;
 			Properties.bUseAsConnectionGraph = bUseAsConnectionGraph;
 			Properties.RequireContactAmount = ContactThreshold;

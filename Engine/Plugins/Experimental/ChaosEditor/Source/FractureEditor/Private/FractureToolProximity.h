@@ -27,7 +27,8 @@ public:
 	EProximityMethod Method = EProximityMethod::Precise;
 
 	// If hull-based proximity detection is enabled, amount to expand hulls when searching for overlapping neighbors
-	UPROPERTY(EditAnywhere, Category = Automatic, meta = (ClampMin = "0", EditCondition = "Method == EProximityMethod::ConvexHull"))
+	UPROPERTY(EditAnywhere, Category = Automatic, meta = (ClampMin = "0", 
+		EditCondition = "Method == EProximityMethod::ConvexHull || ContactMethod == EProximityContactMethod::ConvexHullSharpContact || ContactMethod == EProximityContactMethod::ConvexHullAreaContact"))
 	double DistanceThreshold = 1;
 
 	// Method to use to determine the contact between two pieces, if the Contact Threshold is greater than 0

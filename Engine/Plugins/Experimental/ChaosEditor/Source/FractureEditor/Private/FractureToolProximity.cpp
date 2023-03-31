@@ -188,8 +188,12 @@ void UFractureToolProximity::Render(const FSceneView* View, FViewport* Viewport,
 
 			for (int32 CenterIndex = 0; CenterIndex < Vis.GeoCenters.Num(); CenterIndex++)
 			{
-				FVector P = WorldTransform.TransformPosition(Vis.GeoCenters[CenterIndex] + GetExplodedOffset(CenterIndex));
-				PDI->DrawPoint(P, ProximitySettings->CenterColor, ProximitySettings->CenterSize, SDPG_Foreground);
+				// Draw centers for geometry (clusters can have geometry but it is not visible and won't be connected in the proximity graph)
+				if (Collection.SimulationType[Collection.TransformIndex[CenterIndex]] == FGeometryCollection::ESimulationTypes::FST_Rigid)
+				{
+					FVector P = WorldTransform.TransformPosition(Vis.GeoCenters[CenterIndex] + GetExplodedOffset(CenterIndex));
+					PDI->DrawPoint(P, ProximitySettings->CenterColor, ProximitySettings->CenterSize, SDPG_Foreground);
+				}
 			}
 		}
 	}
