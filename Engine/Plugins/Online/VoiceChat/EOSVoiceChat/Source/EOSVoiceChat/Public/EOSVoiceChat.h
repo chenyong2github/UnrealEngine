@@ -206,6 +206,8 @@ protected:
 	FOnVoiceChatAvailableAudioDevicesChangedDelegate OnVoiceChatAvailableAudioDevicesChangedDelegate;
 
 	TArray<FEOSVoiceChatUserRef> VoiceChatUsers;
+	TArray<FEOSVoiceChatUserRef> ReleasedVoiceChatUsers;
+	void ScheduleReleaseUser(IVoiceChatUser* User);
 
 	FEOSVoiceChatUser& GetVoiceChatUser();
 	FEOSVoiceChatUser& GetVoiceChatUser() const;

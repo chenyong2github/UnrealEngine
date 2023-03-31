@@ -310,20 +310,12 @@ void FEOSVoiceChat::ReleaseUser(IVoiceChatUser* User)
 					UE_LOG(LogEOSVoiceChat, Warning, TEXT("ReleaseUser User=[%p] Logout failed, Result=[%s]"), User, *LexToString(Result))
 				}
 
-				UE_LOG(LogEOSVoiceChat, Log, TEXT("ReleaseUser User=[%p] Removing"), User);
-				VoiceChatUsers.RemoveAll([User](const FEOSVoiceChatUserRef& OtherUser)
-				{
-					return User == &OtherUser.Get();
-				});
+				ScheduleReleaseUser(User);
 			}));
 		}
 		else
 		{
-			UE_LOG(LogEOSVoiceChat, Log, TEXT("ReleaseUser User=[%p] Removing"), User);
-			VoiceChatUsers.RemoveAll([User](const FEOSVoiceChatUserRef& OtherUser)
-			{
-				return User == &OtherUser.Get();
-			});
+			ScheduleReleaseUser(User);
 		}
 	}
 }
@@ -834,6 +826,24 @@ void FEOSVoiceChat::OnAudioDevicesChanged()
 
 		StrongThis->OnVoiceChatAvailableAudioDevicesChangedDelegate.Broadcast();
 	}));
+}
+
+void FEOSVoiceChat::ScheduleReleaseUser(IVoiceChatUser* User)
+{
+	FEOSVoiceChatUserRef UserRef = static_cast<FEOSVoiceChatUser*>(User)->AsShared();
+	ReleasedVoiceChatUsers.Add(UserRef);
+	VoiceChatUsers.Remove(UserRef);
+
+	AsyncTask(ENamedThreads::GameThread, [this, WeakThis = AsWeak()]()
+	{
+		CHECKPIN();
+
+		while (ReleasedVoiceChatUsers.Num() > 0)
+		{
+			UE_LOG(LogEOSVoiceChat, Log, TEXT("Releasing User=[%p]"), &ReleasedVoiceChatUsers[0].Get());
+			ReleasedVoiceChatUsers.RemoveAtSwap(0);
+		}
+	});
 }
 
 FEOSVoiceChatUser& FEOSVoiceChat::GetVoiceChatUser()
