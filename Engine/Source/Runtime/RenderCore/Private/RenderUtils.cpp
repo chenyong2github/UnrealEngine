@@ -505,15 +505,19 @@ RENDERCORE_API bool MobileRequiresSceneDepthAux(const FStaticShaderPlatform Plat
 	static const auto CVarMobileHDR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
 	const bool bMobileHDR = (CVarMobileHDR && CVarMobileHDR->GetValueOnAnyThread() != 0);
 
-	// SceneDepthAux is used on tiled GPUs (iOS, Android) with forward shading and on iOS only with deferred
-	if (IsMetalMobilePlatform(Platform))
+	if (!MobileUsesFullDepthPrepass(Platform))
 	{
-		return true;
+		// SceneDepthAux is used on tiled GPUs (iOS, Android) with forward shading and on iOS only with deferred
+		if (IsMetalMobilePlatform(Platform))
+		{
+			return true;
+		}
+		else if (bMobileHDR && !IsMobileDeferredShadingEnabled(Platform))
+		{
+			return (IsAndroidOpenGLESPlatform(Platform) || IsVulkanMobilePlatform(Platform));
+		}
 	}
-	else if (bMobileHDR && !IsMobileDeferredShadingEnabled(Platform))
-	{
-		return (IsAndroidOpenGLESPlatform(Platform) || IsVulkanMobilePlatform(Platform));
-	}
+
 	return false;
 }
 
@@ -640,6 +644,13 @@ RENDERCORE_API bool MobileBasePassAlwaysUsesCSM(const FStaticShaderPlatform Plat
 	{
 		return CVar && (CVar->GetValueOnAnyThread() & 0xF) == 5 && IsMobileDistanceFieldEnabled(Platform);
 	}
+}
+
+RENDERCORE_API bool MobileUsesFullDepthPrepass(const FStaticShaderPlatform Platform)
+{
+	static TConsoleVariableData<int32>* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.EarlyZPassOnlyMaterialMasking"));
+
+	return MobileUsesShadowMaskTexture(Platform) || IsMobileAmbientOcclusionEnabled(Platform) || (CVar && CVar->GetValueOnAnyThread() == 1);
 }
 
 RENDERCORE_API bool SupportsGen4TAA(const FStaticShaderPlatform Platform)

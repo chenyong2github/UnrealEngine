@@ -925,7 +925,8 @@ namespace DecalRendering
 		if (IsMobilePlatform(Platform))
 		{
 			// On mobile decals are rendered in a "depth read" sub-pass
-			OutEnvironment.SetDefine(TEXT("IS_MOBILE_DEPTHREAD_SUBPASS"), 1u);
+			const bool bMobileForceDepthRead = MobileUsesFullDepthPrepass(Platform);
+			OutEnvironment.SetDefine(TEXT("IS_MOBILE_DEPTHREAD_SUBPASS"), bMobileForceDepthRead ? 0u : 1u);
 		}
 	}
 }

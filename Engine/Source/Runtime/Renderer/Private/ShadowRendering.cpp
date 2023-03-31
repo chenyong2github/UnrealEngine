@@ -1130,7 +1130,6 @@ void FProjectedShadowInfo::RenderProjection(
 	const FLightSceneProxy* LightSceneProxy,
 	const FSceneRenderer* SceneRender,
 	bool bProjectingForForwardShading,
-	bool bMobileModulatedProjections,
 	bool bSubPixelShadow) const
 {
 	// Find the shadow's view relevance.
@@ -1255,9 +1254,9 @@ void FProjectedShadowInfo::RenderProjection(
 		RDG_EVENT_NAME("%s", *EventName),
 		PassParameters,
 		ERDGPassFlags::Raster | PassFlags,
-		[this, SceneRender, View, ViewIndex, LightSceneProxy, bProjectingForForwardShading, bMobileModulatedProjections, &InstanceCullingDrawParams, bSubPixelShadow, PassParameters](FRHICommandList& RHICmdList)
+		[this, SceneRender, View, ViewIndex, LightSceneProxy, bProjectingForForwardShading, &InstanceCullingDrawParams, bSubPixelShadow, PassParameters](FRHICommandList& RHICmdList)
 	{
-		RenderProjectionInternal(RHICmdList, ViewIndex, View, LightSceneProxy, SceneRender, bProjectingForForwardShading, bMobileModulatedProjections, InstanceCullingDrawParams, bSubPixelShadow && PassParameters->HairStrands ? PassParameters->HairStrands.GetUniformBuffer()->GetRHI() : nullptr);
+		RenderProjectionInternal(RHICmdList, ViewIndex, View, LightSceneProxy, SceneRender, bProjectingForForwardShading, false, InstanceCullingDrawParams, bSubPixelShadow && PassParameters->HairStrands ? PassParameters->HairStrands.GetUniformBuffer()->GetRHI() : nullptr);
 	});
 }
 
@@ -2018,8 +2017,7 @@ void FSceneRenderer::RenderShadowProjections(
 	const FLightSceneProxy* LightSceneProxy,
 	TArrayView<const FProjectedShadowInfo* const> Shadows,
 	bool bSubPixelShadow,
-	bool bProjectingForForwardShading,
-	bool bMobileModulatedProjections)
+	bool bProjectingForForwardShading)
 {
 	CheckShadowDepthRenderCompleted();
 
@@ -2073,7 +2071,7 @@ void FSceneRenderer::RenderShadowProjections(
 					}
 					else
 					{
-						ProjectedShadowInfo->RenderProjection(GraphBuilder, CommonPassParameters, ViewIndex, &View, LightSceneProxy, this, bProjectingForForwardShading, bMobileModulatedProjections, bSubPixelShadow);
+						ProjectedShadowInfo->RenderProjection(GraphBuilder, CommonPassParameters, ViewIndex, &View, LightSceneProxy, this, bProjectingForForwardShading, bSubPixelShadow);
 					}
 				}
 			}
@@ -2129,7 +2127,6 @@ void FSceneRenderer::RenderShadowProjections(
 			GetLightNameForDrawEvent(LightSceneProxy, LightNameWithLevel);
 			RDG_EVENT_SCOPE(GraphBuilder, "%s", *LightNameWithLevel);
 
-			const bool bMobileModulatedProjections = false;
 			FSceneRenderer::RenderShadowProjections(
 				GraphBuilder,
 				OutputTexture,
@@ -2137,8 +2134,7 @@ void FSceneRenderer::RenderShadowProjections(
 				LightSceneProxy,
 				NormalShadows,
 				bSubPixel,
-				bProjectingForForwardShading,
-				bMobileModulatedProjections);
+				bProjectingForForwardShading);
 		};
 
 		{
@@ -2410,8 +2406,7 @@ void InitMobileShadowProjectionOutputs(FRHICommandListImmediate& RHICmdList, con
 }
 
 void FMobileSceneRenderer::RenderMobileShadowProjections(
-	FRDGBuilder& GraphBuilder, 
-	FRDGTextureRef SceneDepthTexture)
+	FRDGBuilder& GraphBuilder)
 {
 	RDG_RHI_EVENT_SCOPE(GraphBuilder, RenderMobileShadowProjections);
 

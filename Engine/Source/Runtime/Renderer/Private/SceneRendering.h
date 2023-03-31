@@ -2379,8 +2379,7 @@ protected:
 		const FLightSceneProxy* LightSceneProxy,
 		TArrayView<const FProjectedShadowInfo* const> Shadows,
 		bool bSubPixelShadow,
-		bool bProjectingForForwardShading,
-		bool bMobileModulatedProjections);
+		bool bProjectingForForwardShading);
 
 
 	void RenderShadowProjections(
@@ -2785,7 +2784,7 @@ protected:
 
 	void RenderPixelProjectedReflection(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthTexture, FRDGTextureRef PixelProjectedReflectionTexture, const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy);
 
-	void RenderMobileShadowProjections(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture);
+	void RenderMobileShadowProjections(FRDGBuilder& GraphBuilder);
 private:
 	const bool bGammaSpace;
 	const bool bDeferredShading;

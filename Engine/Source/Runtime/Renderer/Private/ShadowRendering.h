@@ -582,7 +582,6 @@ public:
 		const FLightSceneProxy* LightSceneProxy,
 		const FSceneRenderer* SceneRender,
 		bool bProjectingForForwardShading,
-		bool bMobileModulatedProjections,
 		bool bSubPixelShadow) const;
 
 	void RenderProjectionInternal(
@@ -1223,8 +1222,8 @@ public:
 		OutEnvironment.SetDefine(TEXT("USE_FADE_PLANE"), (uint32)(bUseFadePlane ? 1 : 0));
 		OutEnvironment.SetDefine(TEXT("USE_TRANSMISSION"), (uint32)(bUseTransmission ? 1 : 0));
 
-		const bool bMobileVulkanForceDepthRead = IsVulkanMobilePlatform(Parameters.Platform) && MobileUsesShadowMaskTexture(Parameters.Platform);
-		OutEnvironment.SetDefine(TEXT("FORCE_DEPTH_TEXTURE_READS"), (uint32)(bMobileVulkanForceDepthRead ? 1 : 0));
+		const bool bMobileForceDepthRead = MobileUsesFullDepthPrepass(Parameters.Platform);
+		OutEnvironment.SetDefine(TEXT("FORCE_DEPTH_TEXTURE_READS"), (uint32)(bMobileForceDepthRead ? 1 : 0));
 	}
 
 	/**
@@ -1282,7 +1281,8 @@ public:
 	{
 		TShadowProjectionPS<Quality, false, true>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("MODULATED_SHADOWS"), 1);
-		OutEnvironment.SetDefine(TEXT("IS_MOBILE_DEPTHREAD_SUBPASS"), 1);
+		const bool bMobileForceDepthRead = MobileUsesFullDepthPrepass(Parameters.Platform);
+		OutEnvironment.SetDefine(TEXT("IS_MOBILE_DEPTHREAD_SUBPASS"), bMobileForceDepthRead ? 0u : 1u);
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)

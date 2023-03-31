@@ -4729,15 +4729,7 @@ void FScene::GetEarlyZPassMode(ERHIFeatureLevel::Type InFeatureLevel, EDepthDraw
 			OutZPassMode = DDM_MaskedOnly;
 		}
 
-		const bool bIsMobileAmbientOcclusionEnabled = IsMobileAmbientOcclusionEnabled(ShaderPlatform);
-		const bool bMobileUsesShadowMaskTexture = MobileUsesShadowMaskTexture(ShaderPlatform);
-		if (bIsMobileAmbientOcclusionEnabled || bMobileUsesShadowMaskTexture)
-		{
-			OutZPassMode = DDM_AllOpaque;
-		}
-
-		bool bMobileForceFullDepthPrepass = CVarMobileEarlyZPass.GetValueOnAnyThread() == 1;
-		if (bMobileForceFullDepthPrepass)
+		if (MobileUsesFullDepthPrepass(ShaderPlatform))
 		{
 			OutZPassMode = DDM_AllOpaque;
 		}
