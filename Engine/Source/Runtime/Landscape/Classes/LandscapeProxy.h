@@ -17,7 +17,6 @@
 #include "VT/RuntimeVirtualTextureEnum.h"
 #include "ActorPartition/PartitionActor.h"
 #include "ILandscapeSplineInterface.h"
-#include "LandscapeUtils.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "LandscapeComponent.h"
@@ -387,8 +386,6 @@ protected:
 	UPROPERTY(Transient)
 	TArray<FLandscapePerLODMaterialOverride> PreEditPerLODOverrideMaterials;
 #endif // WITH_EDITORONLY_DATA
-
-	UE::Landscape::EDelayedPostLoadState DelayedPostLoadState = UE::Landscape::EDelayedPostLoadState::Default;
 
 public:
 	LANDSCAPE_API TOptional<float> GetHeightAtLocation(FVector Location, EHeightfieldSource HeightFieldSource = EHeightfieldSource::Complex) const;
@@ -990,7 +987,7 @@ public:
 	LANDSCAPE_API TArray<float> GetLODScreenSizeArray() const;
 
 	// Copy properties from parent Landscape actor
-	LANDSCAPE_API void GetSharedProperties(ALandscapeProxy* Landscape, const bool bIncludeLandscapeMaterial);
+	LANDSCAPE_API void GetSharedProperties(ALandscapeProxy* Landscape);
 
 	// Get Landscape Material assigned to this Landscape
 	virtual UMaterialInterface* GetLandscapeMaterial(int8 InLODIndex = INDEX_NONE) const;
@@ -1055,7 +1052,7 @@ public:
 	LANDSCAPE_API void ChangedPhysMaterial();
 
 	// Assign only mismatching data and mark proxy package dirty
-	LANDSCAPE_API virtual void FixupSharedData(ALandscape* Landscape);
+	LANDSCAPE_API void FixupSharedData(ALandscape* Landscape);
 
 	/** Set landscape absolute location in section space */
 	LANDSCAPE_API void SetAbsoluteSectionBase(FIntPoint SectionOffset);
@@ -1315,14 +1312,9 @@ protected:
 	/** Initialize Layer with empty content if it hasn't been initialized yet. */
 	LANDSCAPE_API void InitializeLayerWithEmptyContent(const FGuid& InLayerGuid);
 
-#endif // WITH_EDITOR
-
-	/** Used to simulate a delayed PostLoad when PostRegisteringAllComponents. This is needed because at this time we have no guarantee the parent ALandscape is fully loaded. */
-	virtual void TryDelayedPostLoad();
-
 protected:
-#if WITH_EDITOR
 	FLandscapeMaterialChangedDelegate LandscapeMaterialChangedDelegate;
+
 #endif // WITH_EDITOR
 private:
 	/** Returns Grass Update interval */

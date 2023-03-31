@@ -979,9 +979,8 @@ bool FWorldTileModel::CreateAdjacentLandscapeProxy(ALandscapeProxy* SourceLandsc
 	ALandscapeProxy* AdjacentLandscape = ImportLandscapeTile(ImportSettings);
 	if (AdjacentLandscape)
 	{
-		// Copy source landscape properties, including materials since this proxy could exist by itself, without a parent ALandscape.
-		const bool bIncludeLandscapeMaterial = true;
-		AdjacentLandscape->GetSharedProperties(SourceLandscape, bIncludeLandscapeMaterial);
+		// Copy source landscape properties 
+		AdjacentLandscape->GetSharedProperties(SourceLandscape);
 		
 		// Refresh level model bounding box
 		FBox AdjacentLandscapeBounds = AdjacentLandscape->GetComponentsBoundingBox(true);

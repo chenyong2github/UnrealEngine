@@ -58,12 +58,6 @@ public:
 #endif
 	//~ End ALandscapeBase Interface
 
-	//~ Begin ALandscapeProxy Interface
-#if WITH_EDITOR
-	virtual void FixupSharedData(ALandscape* Landscape) override;
-#endif
-	//~ End ALandscapeProxy Interface
-
 	// Check input Landscape actor is match for this LandscapeProxy (by GUID)
 	bool IsValidLandscapeActor(ALandscape* Landscape);
 };

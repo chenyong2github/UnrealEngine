@@ -69,10 +69,8 @@ ALandscapeProxy* FLandscapeConfigHelper::FindOrAddLandscapeStreamingProxy(UActor
 		const FIntPoint CellLocation(static_cast<int32>(InCellCoord.X) * Landscape->GridSize, static_cast<int32>(InCellCoord.Y) * Landscape->GridSize);
 
 		ALandscapeProxy* LandscapeProxy = CastChecked<ALandscapeProxy>(PartitionActor);
-		// copy shared properties to this new proxy. Not including materials since in this architecture, we share the material with the parent ALandscape.
-		const bool bIncludeLandscapeMaterial = false;
-		LandscapeProxy->GetSharedProperties(Landscape, bIncludeLandscapeMaterial);
-
+		// copy shared properties to this new proxy
+		LandscapeProxy->GetSharedProperties(Landscape);
 		const FVector ProxyLocation = Landscape->GetActorLocation() + FVector(CellLocation.X * Landscape->GetActorRelativeScale3D().X, CellLocation.Y * Landscape->GetActorRelativeScale3D().Y, 0.0f);
 
 		LandscapeProxy->CreateLandscapeInfo();
@@ -486,10 +484,8 @@ ULandscapeInfo* FLandscapeConfigHelper::ChangeConfiguration(ULandscapeInfo* InLa
 			
 	FActorSpawnParameters SpawnParams;
 	ALandscape* NewLandscape = World->SpawnActor<ALandscape>(OldLandscape->GetActorLocation() + ActorOffset, OldLandscape->GetActorRotation(), SpawnParams);
-	// We'll clone the previous actor properties to the new one, including materials.
-	const bool bIncludeLandscapeMaterial = true;
-
-	NewLandscape->GetSharedProperties(OldLandscape, bIncludeLandscapeMaterial);
+	
+	NewLandscape->GetSharedProperties(OldLandscape);
 	NewLandscape->SetLandscapeGuid(FGuid::NewGuid());
 	NewLandscape->GridSize = InNewConfig.GetGridSizeQuads();
 	NewLandscape->ComponentSizeQuads = InNewConfig.GetComponentSizeQuads();

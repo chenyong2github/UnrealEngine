@@ -12,7 +12,6 @@
 #include "Serialization/BulkData.h"
 #include "LandscapePhysicalMaterial.h"
 #include "LandscapeInfo.h"
-#include "LandscapeUtils.h"
 #include "LandscapeWeightmapUsage.h"
 #include "Containers/ArrayView.h"
 #include "Engine/StreamableRenderAsset.h"
@@ -457,9 +456,6 @@ class ULandscapeComponent : public UPrimitiveComponent
 	UPROPERTY()
 	TLazyObjectPtr<ULandscapeHeightfieldCollisionComponent> CollisionComponent_DEPRECATED;
 #endif // !WITH_EDITORONLY_DATA
-
-protected:
-	UE::Landscape::EDelayedPostLoadState DelayedPostLoadState = UE::Landscape::EDelayedPostLoadState::Default;
 
 private:
 	/** Reference to associated collision component */
@@ -1139,9 +1135,6 @@ protected:
 	{
 		return true;
 	}
-
-	/** Used to simulate a delayed PostLoad when registering component. This is needed because at this time we have no guarantee the parent ALandscape is fully loaded. */
-	virtual void TryDelayedPostLoad();
 
 #if WITH_EDITOR
 public:
