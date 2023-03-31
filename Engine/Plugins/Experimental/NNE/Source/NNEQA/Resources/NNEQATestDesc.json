@@ -227,8 +227,7 @@
 					]},
 				{	"target": "Atanh" },
 				{	"target": "BitShift", "skip": true, "comment": "TODO need attributes" },
-				{	"target": "Cast",     "skip": true, "comment": "TODO need attributes" },
-				{	"target": "Ceil"},
+				{	"target": "Ceil" },
 				{	"target": "Clip", "additional_datasets": [ "Elementwise.Clip.AttributeTest" ] },
 				{	"target": "Cos" },
 				{	"target": "Cosh" },
@@ -360,6 +359,15 @@
 			"category": "Gemm",
 			"targets": [
 				{ "target": "Gemm", "tags": [ "SmokeTest" ] }
+			]
+		},
+		{
+			"category": "CastOp",
+			"runtimes": [	
+				{ "name": "NNERuntimeRDGHlsl", "skip": true }
+			],
+			"targets": [
+				{ "target": "Cast", "tags": [ "SmokeTest" ] }
 			]
 		},
 		{
@@ -562,6 +570,12 @@
 				{ "inputs": [ { "shape": [ 1,3,224,224 ] } ] },
 				{ "inputs": [ { "shape": [ 1,3,128,64 ] } ] },
 				{ "inputs": [ { "shape": [ 1,3,720,1280] } ] }
+			]
+		},
+		{
+			"name": "CastOp",
+			"datasets": [
+				{ "inputs": [ { "shape": [ 32 ] } ] , "outputs": [ { "shape": [ 32 ], "type": "float" } ]}
 			]
 		},
 		{
@@ -1380,6 +1394,12 @@
 			"name": "Gemm.ThreeInputs.AllTransposed",
 			"attribute_maps": [
 				{ "attributes": [ { "name": "transA", "value": 1, "type": "Int32" }, { "name": "transB", "value": 1, "type": "Int32" } ] }
+			]
+		},
+		{
+			"name": "CastOp",
+			"attribute_maps": [
+				{ "attributes": [ { "name": "to", "value": 1, "type": "Int32" } ] }
 			]
 		},
 		{
