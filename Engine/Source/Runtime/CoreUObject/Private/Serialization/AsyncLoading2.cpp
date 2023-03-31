@@ -89,6 +89,42 @@ FArchive& operator<<(FArchive& Ar, FZenPackageVersioningInfo& VersioningInfo)
 	return Ar;
 }
 
+FArchive& operator<<(FArchive& Ar, FZenPackageImportedPackageNamesContainer& Container)
+{
+	TArray<FDisplayNameEntryId> NameEntries;
+	if (Ar.IsSaving())
+	{
+#if ALLOW_NAME_BATCH_SAVING
+		NameEntries.Reserve(Container.Names.Num());
+		for (FName ImportedPackageName : Container.Names)
+		{
+			NameEntries.Emplace(ImportedPackageName);
+		}
+		SaveNameBatch(NameEntries, Ar);
+		for (FName ImportedPackageName : Container.Names)
+		{
+			int32 Number = ImportedPackageName.GetNumber();
+			Ar << Number;
+		}
+#else
+		check(false);
+#endif
+	}
+	else
+	{
+		NameEntries = LoadNameBatch(Ar);
+		Container.Names.SetNum(NameEntries.Num());
+		for (int32 Index = 0; Index < NameEntries.Num(); ++Index)
+		{
+			int32 Number;
+			Ar << Number;
+			Container.Names[Index] = NameEntries[Index].ToName(Number);
+		}
+	}
+
+	return Ar;
+}
+
 FArchive& operator<<(FArchive& Ar, FExportBundleEntry& ExportBundleEntry)
 {
 	Ar << ExportBundleEntry.LocalExportIndex;
@@ -3452,7 +3488,9 @@ private:
 #endif
 		check(DataPtr - Data.MemoryBuffer0 == MemoryBufferSize);
 
-#if ALT2_ENABLE_LINKERLOAD_SUPPORT
+#if WITH_EDITOR
+		const bool bCanImportPackagesWithIdsOnly = false;
+#elif ALT2_ENABLE_LINKERLOAD_SUPPORT
 		const bool bIsZenPackage = !AsyncPackage->LinkerLoadState.IsSet();
 		bool bCanImportPackagesWithIdsOnly = bIsZenPackage;
 #else
@@ -4006,11 +4044,6 @@ bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState
 			{
 				bIsZenPackage = false;
 				PackageStatus = EPackageStoreEntryStatus::Ok;
-			}
-			if (bIsZenPackage && PackageStatus == EPackageStoreEntryStatus::Ok && !PackageEntry.UncookedPackageName.IsNone())
-			{
-				// This means that the package was added as an uncooked package to the store at one point and was later deleted from disk
-				PackageStatus = EPackageStoreEntryStatus::Missing;
 			}
 #endif
 
@@ -4677,30 +4710,15 @@ void FAsyncPackage2::ImportPackagesRecursiveInner(FAsyncLoadingThreadState2& Thr
 			}
 		}
 		ImportedPackageStatus = PackageStore.GetPackageStoreEntry(ImportedPackageIdToLoad, ImportedPackageEntry);
-#if WITH_EDITOR
-		if (ImportedPackageStatus == EPackageStoreEntryStatus::Ok && !ImportedPackageEntry.UncookedPackageName.IsNone())
-		{
-			ImportedPackageNameToLoad = ImportedPackageEntry.UncookedPackageName;
-			if (ImportedPackageUPackageName.IsNone())
-			{
-				ImportedPackageUPackageName = ImportedPackageNameToLoad;
-			}
-		}
-#endif
 
 		FPackagePath ImportedPackagePath;
-#if ALT2_ENABLE_LINKERLOAD_SUPPORT
+#if ALT2_ENABLE_LINKERLOAD_SUPPORT || WITH_EDITOR
 		bool bIsZenPackage = !LinkerLoadState.IsSet();
 		bool bIsZenPackageImport = true;
 		if (AsyncLoadingThread.ShouldLoadPackageFromFileSystem(ImportedPackageNameToLoad, ImportedPackagePath))
 		{
 			bIsZenPackageImport = false;
 			ImportedPackageStatus = EPackageStoreEntryStatus::Ok;
-		}
-		if (bIsZenPackageImport && ImportedPackageStatus == EPackageStoreEntryStatus::Ok && !ImportedPackageEntry.UncookedPackageName.IsNone())
-		{
-			// This means that the package was added as an uncooked package to the store at one point and was later deleted from disk
-			ImportedPackageStatus = EPackageStoreEntryStatus::Missing;
 		}
 #else
 		constexpr bool bIsZenPackage = true;
@@ -4709,16 +4727,14 @@ void FAsyncPackage2::ImportPackagesRecursiveInner(FAsyncLoadingThreadState2& Thr
 
 		FLoadedPackageRef& ImportedPackageRef = ImportStore.AddImportedPackageReference(ImportedPackageId, ImportedPackageUPackageName);
 #if WITH_EDITOR
-		if (AsyncLoadingThread.UncookedPackageLoader && ImportedPackageStatus == EPackageStoreEntryStatus::Ok && !ImportedPackageEntry.UncookedPackageName.IsNone())
+		if (AsyncLoadingThread.UncookedPackageLoader && ImportedPackageStatus == EPackageStoreEntryStatus::Ok && !bIsZenPackageImport)
 		{
 			UPackage* UncookedPackage = ImportedPackageRef.GetPackage();
 			if (!ImportedPackageRef.AreAllPublicExportsLoaded())
 			{
-				UE_ASYNC_PACKAGE_LOG(Verbose, Desc, TEXT("ImportPackages: LoadUncookedImport"), TEXT("Loading imported uncooked package '%s' '0x%llX'"), *ImportedPackageEntry.UncookedPackageName.ToString(), ImportedPackageId.ValueForDebugging());
+				UE_ASYNC_PACKAGE_LOG(Verbose, Desc, TEXT("ImportPackages: LoadUncookedImport"), TEXT("Loading imported uncooked package '%s' '0x%llX'"), *ImportedPackageNameToLoad.ToString(), ImportedPackageId.ValueForDebugging());
 				check(IsInGameThread());
 				IoBatch.Issue(); // The batch might already contain requests for packages being imported from the uncooked one we're going to load so make sure that those are started before blocking
-				ImportedPackagePath = FPackagePath::FromPackageNameUnchecked(ImportedPackageEntry.UncookedPackageName);
-				ImportedPackagePath.SetHeaderExtension(static_cast<EPackageExtension>(ImportedPackageEntry.UncookedPackageHeaderExtension));
 				int32 ImportRequestId = AsyncLoadingThread.UncookedPackageLoader->LoadPackage(ImportedPackagePath, NAME_None, FLoadPackageAsyncDelegate(), PKG_None, INDEX_NONE, 0, nullptr, LOAD_None);
 				AsyncLoadingThread.UncookedPackageLoader->FlushLoading(ImportRequestId);
 				UncookedPackage = FindObjectFast<UPackage>(nullptr, ImportedPackagePath.GetPackageFName());
@@ -4768,7 +4784,7 @@ void FAsyncPackage2::ImportPackagesRecursiveInner(FAsyncLoadingThreadState2& Thr
 			{
 				ImportedPackageRef.SetHasFailed();
 				UE_ASYNC_PACKAGE_LOG(Warning, Desc, TEXT("ImportPackages: SkipPackage"),
-					TEXT("Failed to load uncooked imported package with id '0x%llX' ('%s')"), ImportedPackageId.Value(), *ImportedPackageEntry.UncookedPackageName.ToString());
+					TEXT("Failed to load uncooked imported package with id '0x%llX' ('%s')"), ImportedPackageId.Value(), *ImportedPackageNameToLoad.ToString());
 			}
 			continue;
 		}
@@ -5124,8 +5140,17 @@ static void ReadAsyncPackageHeader(FAsyncPackageSerializationState& Serializatio
 
 	const uint64 ExportBundleHeadersSize = sizeof(FExportBundleHeader) * HeaderData.ExportBundleHeaders.Num();
 	const uint64 ArcsDataOffset = ExportBundleHeadersOffset + ExportBundleHeadersSize;
-	const uint64 ArcsDataSize = PackageSummary->HeaderSize - ArcsDataOffset;
+	const uint64 ArcsDataSize = PackageSummary->ImportedPackageNamesOffset - ArcsDataOffset;
 	HeaderData.ArcsData = TArrayView64<const uint8>(PackageHeaderDataPtr + ArcsDataOffset, ArcsDataSize);
+
+#if WITH_EDITOR
+	// Only read the imported package names in editor builds where we need to interact with uncooked packages
+	TArrayView<const uint8> ImportedPackageNamesDataView(PackageHeaderDataPtr + PackageSummary->ImportedPackageNamesOffset, PackageSummary->HeaderSize - PackageSummary->ImportedPackageNamesOffset);
+	FMemoryReaderView ImportedPackageNamesDataReader(ImportedPackageNamesDataView);
+	FZenPackageImportedPackageNamesContainer Container;
+	ImportedPackageNamesDataReader << Container;
+	HeaderData.ImportedPackageNames = MoveTemp(Container.Names);
+#endif
 
 	SerializationState.AllExportDataPtr = PackageHeaderDataPtr + PackageSummary->HeaderSize;
 }

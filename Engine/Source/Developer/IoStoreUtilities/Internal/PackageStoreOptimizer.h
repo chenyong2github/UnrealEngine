@@ -216,13 +216,6 @@ private:
 		{
 		}
 
-		// Note: For Zen packages we currently don't know the package name but we also don't use it for anything
-		FImportedPackageRef(FPackageId InId)
-			: Id(InId)
-		{
-
-		}
-
 		bool operator<(const FImportedPackageRef& Other) const
 		{
 			return Id < Other.Id;
@@ -308,7 +301,7 @@ private:
 	{
 		FZenPackageSummary Summary;
 		TOptional<FZenPackageVersioningInfo> VersioningInfo;
-		TArray<FPackageId> ImportedPackageIds;
+		TArray<FName> ImportedPackageNames;
 		TArray<uint64> ImportedPublicExportHashes;
 		TArray<FDisplayNameEntryId> NameMap;
 		TArray<FBulkDataMapEntry> BulkDataEntries;
@@ -325,7 +318,7 @@ private:
 
 	static uint64 GetPublicExportHash(FStringView PackageRelativeExportPath);
 	FCookedHeaderData LoadCookedHeader(const FIoBuffer& CookedHeaderBuffer) const;
-	FZenPackageHeaderData LoadZenPackageHeader(const FIoBuffer& HeaderBuffer, int32 ExportBundleCount, const TArrayView<const FPackageId>& ImportedPackageIds) const;
+	FZenPackageHeaderData LoadZenPackageHeader(const FIoBuffer& HeaderBuffer, int32 ExportBundleCount) const;
 	void ResolveImport(FPackageStorePackage::FUnresolvedImport* Imports, const FObjectImport* ObjectImports, int32 LocalImportIndex) const;
 	void ProcessImports(const FCookedHeaderData& CookedHeaderData, FPackageStorePackage* Package, TArray<FPackageStorePackage::FUnresolvedImport>& UnresolvedImports) const;
 	void ProcessImports(const FZenPackageHeaderData& ZenHeaderData, FPackageStorePackage* Package) const;

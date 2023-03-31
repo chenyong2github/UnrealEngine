@@ -138,7 +138,7 @@ FPackageStorePackage* FPackageStoreOptimizer::CreatePackageFromZenPackageHeader(
 
 	Package->Name = Name;
 	
-	FZenPackageHeaderData ZenHeaderData = LoadZenPackageHeader(Buffer, ExportBundleCount, ImportedPackageIds);
+	FZenPackageHeaderData ZenHeaderData = LoadZenPackageHeader(Buffer, ExportBundleCount);
 	if (ZenHeaderData.VersioningInfo.IsSet())
 	{
 		Package->VersioningInfo.Emplace(ZenHeaderData.VersioningInfo.GetValue());
@@ -265,7 +265,7 @@ FPackageStoreOptimizer::FCookedHeaderData FPackageStoreOptimizer::LoadCookedHead
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-FPackageStoreOptimizer::FZenPackageHeaderData FPackageStoreOptimizer::LoadZenPackageHeader(const FIoBuffer& HeaderBuffer, int32 ExportBundleCount, const TArrayView<const FPackageId>& ImportedPackageIds) const
+FPackageStoreOptimizer::FZenPackageHeaderData FPackageStoreOptimizer::LoadZenPackageHeader(const FIoBuffer& HeaderBuffer, int32 ExportBundleCount) const
 {
 	FZenPackageHeaderData ZenPackageHeaderData;
 
@@ -296,8 +296,11 @@ FPackageStoreOptimizer::FZenPackageHeaderData FPackageStoreOptimizer::LoadZenPac
 		ZenPackageHeaderData.BulkDataEntries = MakeArrayView(reinterpret_cast<const FBulkDataMapEntry*>(BulkDataMapData), BulkDataMapSize / sizeof(FBulkDataMapEntry));
 	}
 
-	ZenPackageHeaderData.ImportedPackageIds = ImportedPackageIds;
-
+	TArrayView<const uint8> ImportedPackageNamesDataView(HeaderData + Summary.ImportedPackageNamesOffset, Summary.HeaderSize - Summary.ImportedPackageNamesOffset);
+	FMemoryReaderView ImportedPackageNamesDataReader(ImportedPackageNamesDataView);
+	FZenPackageImportedPackageNamesContainer ImportedPackageNamesContainer;
+	ImportedPackageNamesDataReader << ImportedPackageNamesContainer;
+	ZenPackageHeaderData.ImportedPackageNames = MoveTemp(ImportedPackageNamesContainer.Names);
 
 	ZenPackageHeaderData.ImportedPublicExportHashes =
 		MakeArrayView<const uint64>(
@@ -340,7 +343,7 @@ FPackageStoreOptimizer::FZenPackageHeaderData FPackageStoreOptimizer::LoadZenPac
 		ArcsAr << InternalArc.ToExportBundleIndex;
 	}
 
-	for (FPackageId ImportedPackageId : ZenPackageHeaderData.ImportedPackageIds)
+	for (FName ImportedPackageName : ZenPackageHeaderData.ImportedPackageNames)
 	{
 		int32 ExternalArcsCount = 0;
 		ArcsAr << ExternalArcsCount;
@@ -466,10 +469,10 @@ void FPackageStoreOptimizer::ProcessImports(const FCookedHeaderData& CookedHeade
 
 void FPackageStoreOptimizer::ProcessImports(const FZenPackageHeaderData& ZenHeaderData, FPackageStorePackage* Package) const
 {
-	Package->ImportedPackages.Reserve(ZenHeaderData.ImportedPackageIds.Num());
-	for (FPackageId ImportedPackageId : ZenHeaderData.ImportedPackageIds)
+	Package->ImportedPackages.Reserve(ZenHeaderData.ImportedPackageNames.Num());
+	for (FName ImportedPackageName : ZenHeaderData.ImportedPackageNames)
 	{
-		Package->ImportedPackages.Emplace(ImportedPackageId);
+		Package->ImportedPackages.Emplace(ImportedPackageName);
 	}
 	Package->ImportedPublicExportHashes = ZenHeaderData.ImportedPublicExportHashes;
 	Package->Imports = ZenHeaderData.Imports;
@@ -1227,6 +1230,16 @@ void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package
 	Package->NameMapBuilder.MarkNameAsReferenced(Package->Name);
 	FMappedName MappedPackageName = Package->NameMapBuilder.MapName(Package->Name);
 
+	FZenPackageImportedPackageNamesContainer ImportedPackageNamesContainer;
+	ImportedPackageNamesContainer.Names.Reserve(Package->ImportedPackages.Num());
+	for (const FPackageStorePackage::FImportedPackageRef& ImportedPackage : Package->ImportedPackages)
+	{
+		ImportedPackageNamesContainer.Names.Add(ImportedPackage.Name);
+	}
+	FBufferWriter ImportedPackagesArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
+	ImportedPackagesArchive << ImportedPackageNamesContainer;
+	uint64 ImportedPackagesSize = ImportedPackagesArchive.Tell();
+
 	FBufferWriter NameMapArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
 	SaveNameBatch(Package->NameMapBuilder.GetNameMap(), NameMapArchive);
 	uint64 NameMapSize = NameMapArchive.Tell();
@@ -1255,6 +1268,7 @@ void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package
 		+ ExportMapSize
 		+ ExportBundleEntriesSize
 		+ GraphDataSize
+		+ ImportedPackagesSize
 		+ BulkDataMapSize + sizeof(int64);
 
 	Package->HeaderBuffer = FIoBuffer(Package->HeaderSize);
@@ -1293,6 +1307,8 @@ void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package
 	HeaderArchive.Serialize(ExportBundleEntriesArchive.GetWriterData(), ExportBundleEntriesArchive.Tell());
 	PackageSummary->GraphDataOffset = HeaderArchive.Tell();
 	HeaderArchive.Serialize(GraphArchive.GetWriterData(), GraphArchive.Tell());
+	PackageSummary->ImportedPackageNamesOffset = HeaderArchive.Tell();
+	HeaderArchive.Serialize(ImportedPackagesArchive.GetWriterData(), ImportedPackagesArchive.Tell());
 	check(HeaderArchive.Tell() == PackageSummary->HeaderSize)
 }
 

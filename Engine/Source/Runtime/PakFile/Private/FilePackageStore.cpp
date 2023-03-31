@@ -29,61 +29,16 @@ namespace FilePackageStore
 
 FFilePackageStoreBackend::FFilePackageStoreBackend()
 {
-#if WITH_EDITOR
-	OnContentPathMountedDelegateHandle = FPackageName::OnContentPathMounted().AddLambda([this](const FString& InAssetPath, const FString& InFilesystemPath)
-		{
-			{
-				FScopeLock _(&UncookedPackageRootsLock);
-				PendingAddUncookedPackageRoots.Add(InFilesystemPath);
-			}
-			{
-				FWriteScopeLock _(EntriesLock);
-				bNeedsUncookedPackagesUpdate = true;
-			}
-		});
-
-	OnContentPathDismountedDelegateHandle = FPackageName::OnContentPathDismounted().AddLambda([this](const FString& InAssetPath, const FString& InFilesystemPath)
-		{
-			{
-				FScopeLock _(&UncookedPackageRootsLock);
-				PendingRemoveUncookedPackageRoots.Add(InAssetPath);
-				PendingAddUncookedPackageRoots.Remove(InFilesystemPath);
-			}
-			{
-				FWriteScopeLock _(EntriesLock);
-				bNeedsUncookedPackagesUpdate = true;
-			}
-		});
-
-	TArray<FString> RootPaths;
-	FPackageName::QueryRootContentPaths(RootPaths);
-	{
-		FScopeLock _(&UncookedPackageRootsLock);
-		PendingAddUncookedPackageRoots.Append(RootPaths);
-	}
-	{
-		FWriteScopeLock _(EntriesLock);
-		bNeedsUncookedPackagesUpdate = true;
-	}
-#endif //if WITH_EDITOR
 }
 
 FFilePackageStoreBackend::~FFilePackageStoreBackend()
 {
-#if WITH_EDITOR
-	FPackageName::OnContentPathMounted().Remove(OnContentPathMountedDelegateHandle);
-	FPackageName::OnContentPathDismounted().Remove(OnContentPathDismountedDelegateHandle);
-#endif
 }
 
 void FFilePackageStoreBackend::BeginRead()
 {
 	EntriesLock.ReadLock();
-	if (bNeedsContainerUpdate
-#if WITH_EDITOR
-		|| bNeedsUncookedPackagesUpdate
-#endif
-		)
+	if (bNeedsContainerUpdate)
 	{
 		Update();
 	}
@@ -96,15 +51,6 @@ void FFilePackageStoreBackend::EndRead()
 
 EPackageStoreEntryStatus FFilePackageStoreBackend::GetPackageStoreEntry(FPackageId PackageId, FPackageStoreEntry& OutPackageStoreEntry)
 {
-#if WITH_EDITOR
-	const FUncookedPackage* FindUncookedPackage = UncookedPackagesMap.Find(PackageId);
-	if (FindUncookedPackage)
-	{
-		OutPackageStoreEntry.UncookedPackageName = FindUncookedPackage->PackageName;
-		OutPackageStoreEntry.UncookedPackageHeaderExtension = static_cast<uint8>(FindUncookedPackage->HeaderExtension);
-		return EPackageStoreEntryStatus::Ok;
-	}
-#endif
 	const FFilePackageStoreEntry* FindEntry = StoreEntriesMap.FindRef(PackageId);
 	if (FindEntry)
 	{
@@ -257,80 +203,6 @@ void FFilePackageStoreBackend::Update()
 		}
 		bNeedsContainerUpdate = false;
 	}
-
-#if WITH_EDITOR
-	if (bNeedsUncookedPackagesUpdate)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UpdateUncookedPackages);
-		FScopeLock _(&UncookedPackageRootsLock);
-
-		if (!PendingRemoveUncookedPackageRoots.IsEmpty())
-		{
-			UE_LOG(LogFilePackageStore, Display, TEXT("Removing uncooked packages from %d old roots..."), PendingRemoveUncookedPackageRoots.Num());
-			uint64 TotalRemovedCount = RemoveUncookedPackagesFromRoot(PendingRemoveUncookedPackageRoots);
-			PendingRemoveUncookedPackageRoots.Empty();
-			UE_LOG(LogFilePackageStore, Display, TEXT("Removed %lld uncooked packages"), TotalRemovedCount);
-		}
-
-		if (!PendingAddUncookedPackageRoots.IsEmpty())
-		{
-			UE_LOG(LogFilePackageStore, Display, TEXT("Adding uncooked packages from %d new roots..."), PendingAddUncookedPackageRoots.Num());
-			uint64 TotalAddedCount = 0;
-			for (const FString& RootPath : PendingAddUncookedPackageRoots)
-			{
-				TotalAddedCount += AddUncookedPackagesFromRoot(RootPath);
-			}
-			PendingAddUncookedPackageRoots.Empty();
-			UE_LOG(LogFilePackageStore, Display, TEXT("Added %lld uncooked packages"), TotalAddedCount);
-		}
-		bNeedsUncookedPackagesUpdate = false;
-	}
-#endif //if WITH_EDITOR
 }
-
-#if WITH_EDITOR
-uint64 FFilePackageStoreBackend::AddUncookedPackagesFromRoot(const FString& RootPath)
-{
-	uint64 Count = 0;
-	FPackageName::IteratePackagesInDirectory(RootPath, [this, &RootPath, &Count](const TCHAR* InPackageFileName) -> bool
-		{
-			FPackagePath PackagePath = FPackagePath::FromLocalPath(InPackageFileName);
-			FName PackageName = PackagePath.GetPackageFName();
-			if (!PackageName.IsNone())
-			{
-				FPackageId PackageId = FPackageId::FromName(PackageName);
-				FUncookedPackage& UncookedPackage = UncookedPackagesMap.FindOrAdd(PackageId);
-				UncookedPackage.PackageName = PackageName;
-				UncookedPackage.HeaderExtension = PackagePath.GetHeaderExtension();
-				++Count;
-			}
-			return true;
-		});
-	return Count;
-}
-
-uint64 FFilePackageStoreBackend::RemoveUncookedPackagesFromRoot(const TSet<FString>& RootPaths)
-{
-	uint64 Count = 0;
-	TMap<FPackageId, FUncookedPackage> RemainingUncookedPackagesMap;
-	RemainingUncookedPackagesMap.Reserve(UncookedPackagesMap.Num());
-	for (auto& Pair : UncookedPackagesMap)
-	{
-		const FNameBuilder PackageName(Pair.Value.PackageName);
-		const FStringView PackageRootPath = FilePackageStore::GetRootPathFromPackageName(PackageName);
-		if (RootPaths.ContainsByHash(GetTypeHash(PackageRootPath), PackageRootPath))
-		{
-			++Count;
-		}
-		else
-		{
-			RemainingUncookedPackagesMap.Add(Pair.Key, MoveTemp(Pair.Value));
-		}
-	}
-	UncookedPackagesMap = MoveTemp(RemainingUncookedPackagesMap);
-	return Count;
-}
-#endif //if WITH_EDITOR
-
 
 //PRAGMA_ENABLE_OPTIMIZATION

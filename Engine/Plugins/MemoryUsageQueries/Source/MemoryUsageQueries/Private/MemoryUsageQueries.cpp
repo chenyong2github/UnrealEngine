@@ -1455,7 +1455,6 @@ class FPackageDependenciesLazyDatabase final
 				// Add leafs
 				if (ImportedPackageIds.IsEmpty()
 #if WITH_EDITOR
-					&& PackageEntry.UncookedPackageName.IsNone()
 					&& OptionalImportedPackageIds.IsEmpty()
 #endif
 				)

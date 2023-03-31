@@ -246,6 +246,7 @@ enum class EZenPackageVersion : uint32
 {
 	Initial,
 	DataResourceTable,
+	ImportedPackageNames,
 
 	LatestPlusOne,
 	Latest = LatestPlusOne - 1
@@ -259,6 +260,13 @@ struct FZenPackageVersioningInfo
 	FCustomVersionContainer CustomVersions;
 
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FZenPackageVersioningInfo& ExportBundleEntry);
+};
+
+struct FZenPackageImportedPackageNamesContainer
+{
+	TArray<FName> Names;
+
+	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FZenPackageImportedPackageNamesContainer& Container);
 };
 
 /**
@@ -276,6 +284,7 @@ struct FZenPackageSummary
 	int32 ExportMapOffset;
 	int32 ExportBundleEntriesOffset;
 	int32 GraphDataOffset;
+	int32 ImportedPackageNamesOffset;
 };
 
 /**
