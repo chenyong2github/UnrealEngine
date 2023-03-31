@@ -89,6 +89,7 @@ struct FTraceViewModel
 
 	bool bIsMetadataUpdated = false;
 	bool bIsRenaming = false;
+	bool bWasJustRenamed = false;
 	bool bIsLive = false;
 	uint32 IpAddress = 0;
 
@@ -369,18 +370,17 @@ private:
 	/** View model for a source of traces. This could be the trace store default directory or a watch directory.*/
 	struct FTraceDirectoryModel
 	{
-		
 		FTraceDirectoryModel(FString&& InPath, const FName& InColor, ETraceDirOperations InOperations)
 			: Path(MoveTemp(InPath)), Color(InColor), Operations(InOperations) {}
 
 		/** Path to directory */
-		FString		Path;
+		FString Path;
 		/** Assigned color */
-		FName		Color;
+		FName Color;
 		/** Supported operations */
-		ETraceDirOperations	Operations;
+		ETraceDirOperations Operations;
 	};
-	
+
 	TSharedRef<ITableRow> TraceDirs_OnGenerateRow(TSharedPtr<FTraceDirectoryModel> Item, const TSharedRef<STableViewBase>& Owner) const;
 	FReply StoreSettingsArea_Toggle() const;
 	const FSlateBrush* StoreSettingsToggle_Icon() const;
@@ -388,7 +388,7 @@ private:
 
 	TArray<TSharedPtr<FTraceDirectoryModel>> StoreDirectoryModel;
 	TArray<TSharedPtr<FTraceDirectoryModel>> WatchDirectoriesModel;
-	
+
 	friend class STraceWatchDirTableRow;
 
 	//////////////////////////////////////////////////
@@ -564,6 +564,8 @@ private:
 	bool bEnableAutomaticTesting = false;
 	bool bEnableDebugTools = false;
 	bool bStartProcessWithStompMalloc = false;
+
+	bool bSetKeyboardFocusOnNextTick = false;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
