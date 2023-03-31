@@ -9,6 +9,8 @@
 #include "ActorTestSpawner.h"
 #include "CQTest.h"
 
+#if WITH_AUTOMATION_WORKER
+
 TEST_CLASS(ObjectBuilder_Success, "TestFramework.CQTest")
 {
 	FActorTestSpawner Spawner;
@@ -1155,3 +1157,4 @@ TEST_CLASS(ObjectBuilder_PostSpawnErrors, "TestFramework.CQTest")
 		Builder.AddChildActorComponentTo<AActor>();
 	}
 };
+#endif

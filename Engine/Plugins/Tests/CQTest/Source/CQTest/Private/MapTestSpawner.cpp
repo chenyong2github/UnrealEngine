@@ -10,6 +10,7 @@
 
 void FMapTestSpawner::AddWaitUntilLoadedCommand(FAutomationTestBase* TestRunner)
 {
+#if WITH_AUTOMATION_TESTS
 	check(PieWorld == nullptr);
 
 	const FString FileName = FString::Printf(TEXT("%s.%s"), *MapName, *MapName);
@@ -29,6 +30,9 @@ void FMapTestSpawner::AddWaitUntilLoadedCommand(FAutomationTestBase* TestRunner)
 
 		return false;
 	}));
+#else
+	checkf(false, TEXT("AddWaitUntilLoadedCommand can't call AutomationOpenMap if WITH_AUTOMATION_TESTS=false"));
+#endif
 }
 
 UWorld* FMapTestSpawner::CreateWorld()

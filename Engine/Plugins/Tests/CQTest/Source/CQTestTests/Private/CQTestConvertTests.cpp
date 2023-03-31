@@ -11,7 +11,7 @@ struct TypeWithExplicitOverride
 };
 
 template <>
-FString CQTestConvert::ToString(const TypeWithExplicitOverride&)
+inline FString CQTestConvert::ToString(const TypeWithExplicitOverride&)
 {
 	return OverrideStr;
 }
@@ -41,7 +41,7 @@ struct TypeWithToStringAndOverride
 };
 
 template<>
-FString CQTestConvert::ToString(const TypeWithToStringAndOverride&) {
+inline FString CQTestConvert::ToString(const TypeWithToStringAndOverride&) {
 	return OverrideStr;
 }
 

@@ -55,7 +55,7 @@ namespace
 namespace CQTestConvert
 {
 	template <typename T>
-	FString ToString(const T& Input)
+	inline FString ToString(const T& Input)
 	{
 		if constexpr (THasToString<T>::value)
 		{
@@ -79,13 +79,13 @@ namespace CQTestConvert
 	}
 
 	template <>
-	FString ToString(const FString& Input)
+	inline FString ToString(const FString& Input)
 	{
 		return Input;
 	}
 
 	template<typename TElement, typename TAllocator>
-	FString ToString(const TArray<TElement, TAllocator>& Input)
+	inline FString ToString(const TArray<TElement, TAllocator>& Input)
 	{
 		FString result = FString::JoinBy(Input, TEXT(", "), [](const TElement& e) {
 			return CQTestConvert::ToString(e);
@@ -94,7 +94,7 @@ namespace CQTestConvert
 	}
 
 	template <typename TElement, typename TAllocator>
-	FString ToString(const TSet<TElement, TAllocator>& Input)
+	inline FString ToString(const TSet<TElement, TAllocator>& Input)
 	{
 		FString result = FString::JoinBy(Input, TEXT(", "), [](const TElement& e) {
 			return CQTestConvert::ToString(e);
@@ -103,7 +103,7 @@ namespace CQTestConvert
 	}
 
 	template<typename TKey, typename TValue>
-	FString ToString(const TMap<TKey, TValue>& Input)
+	inline FString ToString(const TMap<TKey, TValue>& Input)
 	{
 		return FString::JoinBy(Input, TEXT(", "), [](const auto& kvp) {
 			return TEXT("{") + CQTestConvert::ToString(kvp.Key) + TEXT(":") + CQTestConvert::ToString(kvp.Value) + TEXT("}");

@@ -3,7 +3,7 @@
 #include "Internationalization/Regex.h"
 #include "Assert/CQTestConvert.h"
 
-void FNoDiscardAsserter::ExpectError(FString Error, int32 Count)
+inline void FNoDiscardAsserter::ExpectError(FString Error, int32 Count)
 {
 	static const FRegexPattern Pattern(TEXT("([\\[\\]{}()^$.?\\\\*+|])"));
 	FRegexMatcher Matcher(Pattern, Error);
