@@ -146,6 +146,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			GroupId));
 
 		Solver->AddCloth(Cloths[ClothIndex].Get());
+		Cloths[ClothIndex]->Reset();
 
 		// Create solver config simulation thread object
 		const int32 SolverConfigIndex = Configs.Emplace(MakeUnique<FClothingSimulationConfig>(ClothComponent.GetPropertyCollection()));  // TODO: Use a separate solver config for outfits
