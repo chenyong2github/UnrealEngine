@@ -603,7 +603,7 @@ FCompactedReflectionTraceParameters LumenReflections::CompactTraces(
 		PassParameters->CompactionMaxTraceDistance = CompactionMaxTraceDistance;
 		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 		PassParameters->IndirectArgs = ReflectionCompactionIndirectArgs;
-
+	
 		FReflectionCompactTracesCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FReflectionCompactTracesCS::FTraceCompactionMode>(TraceCompactionMode);
 		PermutationVector.Set<FReflectionCompactTracesCS::FWaveOps>(bWaveOps);
