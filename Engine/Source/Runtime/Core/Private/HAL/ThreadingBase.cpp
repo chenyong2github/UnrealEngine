@@ -1341,50 +1341,26 @@ FQueuedThread::Run()
 
 FTlsAutoCleanup* FThreadSingletonInitializer::Get( TFunctionRef<FTlsAutoCleanup*()> CreateInstance, uint32& InOutTlsSlot )
 {
->>>> ORIGINAL //Fortnite/Dev-EngineMerge/Engine/Source/Runtime/Core/Private/HAL/ThreadingBase.cpp#35
-	if (TlsSlot == 0xFFFFFFFF)
-==== THEIRS //Fortnite/Dev-EngineMerge/Engine/Source/Runtime/Core/Private/HAL/ThreadingBase.cpp#36
-	AutoRTFM::Open([&TlsSlot]
-==== YOURS //Marc.Audy_UE5_Release-Engine-Staging/Engine/Source/Runtime/Core/Private/HAL/ThreadingBase.cpp
-	uint32 TlsSlot = (uint32)FPlatformAtomics::AtomicRead_Relaxed((int32*)&InOutTlsSlot);
-	if (TlsSlot == 0xFFFFFFFF)
-<<<<
+	AutoRTFM::Open([&InOutTlsSlot]
 	{
->>>> ORIGINAL //Fortnite/Dev-EngineMerge/Engine/Source/Runtime/Core/Private/HAL/ThreadingBase.cpp#35
-		const uint32 ThisTlsSlot = FPlatformTLS::AllocTlsSlot();
-		check(FPlatformTLS::IsValidTlsSlot(ThisTlsSlot));
-		const uint32 PrevTlsSlot = FPlatformAtomics::InterlockedCompareExchange( (int32*)&TlsSlot, (int32)ThisTlsSlot, 0xFFFFFFFF );
-		if (PrevTlsSlot != 0xFFFFFFFF)
-==== THEIRS //Fortnite/Dev-EngineMerge/Engine/Source/Runtime/Core/Private/HAL/ThreadingBase.cpp#36
+		uint32 TlsSlot = (uint32)FPlatformAtomics::AtomicRead_Relaxed((int32*)&InOutTlsSlot);
 		if (TlsSlot == 0xFFFFFFFF)
-==== YOURS //Marc.Audy_UE5_Release-Engine-Staging/Engine/Source/Runtime/Core/Private/HAL/ThreadingBase.cpp
-		const uint32 ThisTlsSlot = FPlatformTLS::AllocTlsSlot();
-		check(FPlatformTLS::IsValidTlsSlot(ThisTlsSlot));
-		const uint32 PrevTlsSlot = FPlatformAtomics::InterlockedCompareExchange( (int32*)&InOutTlsSlot, (int32)ThisTlsSlot, 0xFFFFFFFF );
-		if (PrevTlsSlot != 0xFFFFFFFF)
-<<<<
 		{
->>>> ORIGINAL //Fortnite/Dev-EngineMerge/Engine/Source/Runtime/Core/Private/HAL/ThreadingBase.cpp#35
-			FPlatformTLS::FreeTlsSlot( ThisTlsSlot );
-==== THEIRS //Fortnite/Dev-EngineMerge/Engine/Source/Runtime/Core/Private/HAL/ThreadingBase.cpp#36
 			const uint32 ThisTlsSlot = FPlatformTLS::AllocTlsSlot();
 			check(FPlatformTLS::IsValidTlsSlot(ThisTlsSlot));
-			const uint32 PrevTlsSlot = FPlatformAtomics::InterlockedCompareExchange( (int32*)&TlsSlot, (int32)ThisTlsSlot, 0xFFFFFFFF );
+			const uint32 PrevTlsSlot = FPlatformAtomics::InterlockedCompareExchange( (int32*)&InOutTlsSlot, (int32)ThisTlsSlot, 0xFFFFFFFF );
 			if (PrevTlsSlot != 0xFFFFFFFF)
 			{
 				FPlatformTLS::FreeTlsSlot( ThisTlsSlot );
+				TlsSlot = PrevTlsSlot;
 			}
-==== YOURS //Marc.Audy_UE5_Release-Engine-Staging/Engine/Source/Runtime/Core/Private/HAL/ThreadingBase.cpp
-			FPlatformTLS::FreeTlsSlot( ThisTlsSlot );
-			TlsSlot = PrevTlsSlot;
-		}
-		else
-		{
-			TlsSlot = ThisTlsSlot;
-<<<<
+			else
+			{
+				TlsSlot = ThisTlsSlot;
+			}
 		}
 	});
-
+	
 	FTlsAutoCleanup* ThreadSingleton = (FTlsAutoCleanup*)FPlatformTLS::GetTlsValue( TlsSlot );
 	if( !ThreadSingleton )
 	{
