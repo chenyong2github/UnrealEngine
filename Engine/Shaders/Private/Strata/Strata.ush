@@ -49,7 +49,7 @@
 
 // During the unpacking of the Strata material data, if a slab has some sub-surface scattering, its BaseColor/Specular value will be 
 // patched/overriden with white albedo (and optionally no specular) for computing the incoming irradiance without any albedo information. 
-// This is required by the post-process/screen-space sub-surface methods. This overriden can be opt-out. This is used during the classification 
+// This is required by the post-process/screen-space sub-surface methods. This override can be opt-out. This is used during the classification 
 // pass for writing out the correct base color value into the FStrataSubsurfaceData
 #ifndef STRATA_SSS_MATERIAL_OVERRIDE
 #define STRATA_SSS_MATERIAL_OVERRIDE 1
@@ -747,7 +747,7 @@ FStrataOpaqueRoughRefractionData StrataUnpackOpaqueRoughRefractionData(float3 In
 //			|
 //			|
 //			v
-//	------------------- ^	Surfcace of roughness R
+//	------------------- ^	Surface of roughness R
 //		   /|\			|
 //		  / | \			| Depth D
 //		 /  |  \		|
@@ -765,7 +765,7 @@ float GetVarianceFromRoughness(float Roughness)
 ///////////////////////////////////////////////////////////////////////////////
 // Sub-surface 
 
-// Stored in frist slice as UINT
+// Stored in first slice as UINT
 // This is hot data that is often accessed by intrested passes.
 struct FStrataSubsurfaceHeader
 {

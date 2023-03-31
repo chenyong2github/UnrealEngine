@@ -12,6 +12,9 @@
 // This should be good enough for path tracing and avoids having to bind an extra buffer
 #define EYE_ADAPTATION_PREV_FRAME_EXPOSURE 1
 
+// Ensure that SSS albedo comes through in the material
+#define STRATA_SSS_MATERIAL_OVERRIDE 0
+
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/RayTracing/RayTracingCommon.ush"
 #include "/Engine/Private/RayTracing/RayTracingHitGroupCommon.ush"
@@ -79,6 +82,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(GPULightmassMaterialCHS,
 	const bool bIsFrontFace = HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE;
 	{
 		const float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
+		MaterialParameters.CameraVector = -WorldRayDirection();
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
 	}
 

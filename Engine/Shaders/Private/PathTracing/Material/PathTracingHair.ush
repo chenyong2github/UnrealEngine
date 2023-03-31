@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "PathTracingMaterialCommon.ush"
 
 #define PATH_TRACER_HAIR_SHADING_MODEL				1 // 0: zinke diffuse (a simple, cheap model for performance testing)
                                                       // 1: chiang principled hair (a sophisticated model with specular reflection/transmission)
@@ -52,20 +53,20 @@ FMaterialSample Hair_SampleMaterial(
 	float3x3 HairBasis = GetHairBasis(Payload.WorldTangent, V_World);
 
 	// sample a random position across the width of the fiber
-	float h = 2 * RandSample.x - 1;
+	const float h = 2 * RandSample.x - 1;
 	// create a normal vector in the plane tangent to the fiber
-	float2 N = float2(h, sqrt(1 - h * h));
+	const float2 N = float2(h, sqrt(1 - h * h));
 	// sample a cosine weighted direction
-	float4 SampledValue = CosineSampleHemisphere(RandSample.yz);
+	const float4 SampledValue = CosineSampleHemisphere(RandSample.yz);
 	// rotate this sampled direction about the (random) normal vector
-	float3 L = float3(SampledValue.x * N.y + SampledValue.z * N.x,
-					  SampledValue.z * N.y - SampledValue.x * N.x,
-					  SampledValue.y);
+	const float3 L = float3(SampledValue.x * N.y + SampledValue.z * N.x,
+			                SampledValue.z * N.y - SampledValue.x * N.x,
+		                    SampledValue.y);
 	// finally transform into world space
-	float3 L_World = mul(L, HairBasis);
+	const float3 L_World = mul(L, HairBasis);
 
-	float Pdf = ZinkeHairDiffuse(L);
-	return CreateMaterialSample(L_World, Payload.BaseColor, Pdf, sign(dot(Payload.WorldGeoNormal, L_World)), 1.0, PATHTRACER_SCATTER_DIFFUSE);
+	const float Pdf = ZinkeHairDiffuse(L);
+	return CreateMaterialSample(L_World, Payload.GetBaseColor(), Pdf, sign(dot(Payload.WorldGeoNormal, L_World)), 1.0, PATHTRACER_SCATTER_DIFFUSE);
 }
 
 FMaterialEval Hair_EvalMaterial(
@@ -75,12 +76,12 @@ FMaterialEval Hair_EvalMaterial(
 	float2 DiffuseSpecularScale
 )
 {
-	float3x3 HairBasis = GetHairBasis(Payload.WorldTangent, V_World);
+	const float3x3 HairBasis = GetHairBasis(Payload.WorldTangent, V_World);
 
-	float3 L = mul(HairBasis, L_World);
+	const float3 L = mul(HairBasis, L_World);
 
-	float Pdf = ZinkeHairDiffuse(L);
-	return CreateMaterialEval(Payload.BaseColor * DiffuseSpecularScale.x, Pdf);
+	const float Pdf = ZinkeHairDiffuse(L);
+	return CreateMaterialEval(Payload.GetBaseColor() * DiffuseSpecularScale.x, Pdf);
 }
 
 
@@ -196,7 +197,7 @@ struct FHairData
 	float3 A2;
 	float3 A3;
 	float4 LobePdf;
-	float4 LobeCdf; // Normalized sum to help select a lobe
+	float3 LobeCdf; // Normalized sum to help select a lobe
 };
 
 FHairData PrepareHairData(float3 V, float3 Color, float LongitudinalRoughness, float AzimuthalRoughness, float h, float Specular)
@@ -280,19 +281,8 @@ FHairData PrepareHairData(float3 V, float3 Color, float LongitudinalRoughness, f
 	// Chiang et al. - Eq(6)
 	Result.A3 = Result.A2 * F * T * rcp(1.00001 - F * T); // avoid dividing by 0 when F*T=1
 
-	Result.LobePdf = float4(
-		Result.A0,
-		max3(Result.A1.x, Result.A1.y, Result.A1.z),
-		max3(Result.A2.x, Result.A2.y, Result.A2.z),
-		max3(Result.A3.x, Result.A3.y, Result.A3.z)
-	);
-
-	Result.LobeCdf.x = Result.LobePdf.x;
-	Result.LobeCdf.y = Result.LobeCdf.x + Result.LobePdf.y;
-	Result.LobeCdf.z = Result.LobeCdf.y + Result.LobePdf.z;
-	Result.LobeCdf.w = Result.LobeCdf.z + Result.LobePdf.w;
-
-	Result.LobePdf /= Result.LobeCdf.w + 1e-6;
+	Result.LobeCdf = LobeSelectionCdf(Result.A0, Result.A1, Result.A2, Result.A3);
+	Result.LobePdf = LobeSelectionPdf(Result.LobeCdf);
 
 	return Result;
 }
@@ -306,45 +296,42 @@ FMaterialSample Hair_SampleMaterial(
 
 	const float3 V = mul(HairBasis, V_World); // TODO: simplify this since HairBasis is already sort of aligned with V ?
 	const float h = 2 * Payload.GetHairPrimitiveUV().y - 1; // remap back to [-1,1]
-	const float AzimuthalRoughness = lerp(1.0, 0.1, Payload.Metallic);
-	const FHairData HairData = PrepareHairData(V, Payload.BaseColor, Payload.Roughness, AzimuthalRoughness, h, Payload.Specular);
+	const float LongitudinalRoughness = Payload.GetHairLongitudinalRoughness();
+	const float AzimuthalRoughness = lerp(1.0, 0.1, Payload.GetHairAzimuthalRoughness());
+	const FHairData HairData = PrepareHairData(V, Payload.GetBaseColor(), LongitudinalRoughness, AzimuthalRoughness, h, Payload.GetHairSpecular());
 
 	// 1) Decide which lobe to sample
-	float u = RandSample.z * HairData.LobeCdf.w;
+	float u = RandSample.z;
 	int p = 0;
 	float v = 0, SinThetaOp = 0;
 	if (u < HairData.LobeCdf.x)
 	{
-		u /= HairData.LobeCdf.x;
+		u = RescaleRandomNumber(u, 0.0, HairData.LobeCdf.x);
 		p = 0;
 		v = HairData.v0;
 		SinThetaOp = HairData.SinThetaO.x;
 	}
 	else if (u < HairData.LobeCdf.y)
 	{
-		u -= HairData.LobeCdf.x;
-		u /= HairData.LobeCdf.y - HairData.LobeCdf.x;
+		u = RescaleRandomNumber(u, HairData.LobeCdf.x, HairData.LobeCdf.y);
 		p = 1;
 		v = HairData.v1;
 		SinThetaOp = HairData.SinThetaO.y;
 	}
 	else if (u < HairData.LobeCdf.z)
 	{
-		u -= HairData.LobeCdf.y;
-		u /= HairData.LobeCdf.z - HairData.LobeCdf.y;
+		u = RescaleRandomNumber(u, HairData.LobeCdf.y, HairData.LobeCdf.z);
 		p = 2;
 		v = HairData.v2;
 		SinThetaOp = HairData.SinThetaO.z;
 	}
 	else
 	{
-		u -= HairData.LobeCdf.z;
-		u /= HairData.LobeCdf.w - HairData.LobeCdf.z;
+		u = RescaleRandomNumber(u, HairData.LobeCdf.z, 1.0);
 		p = 3;
 		v = HairData.v3;
 		SinThetaOp = HairData.SinThetaO.w;
 	}
-	u = saturate(u);
 
 	// 2) Sample longitudinal angle
 	const float CosTheta = 1 + v * log(RandSample.x + (1 - RandSample.x) * exp(-2 / v));
@@ -360,7 +347,7 @@ FMaterialSample Hair_SampleMaterial(
 	// transform direction into world space
 	const float3 L_World = mul(L, HairBasis);
 
-	FMaterialSample Result = CreateMaterialSample(L_World, 0.0, 0.0, sign(dot(Payload.WorldGeoNormal, L_World)), Payload.Roughness, PATHTRACER_SCATTER_SPECULAR);
+	FMaterialSample Result = CreateMaterialSample(L_World, 0.0, 0.0, sign(dot(Payload.WorldGeoNormal, L_World)), LongitudinalRoughness, PATHTRACER_SCATTER_SPECULAR);
 
 	const float InvS = rcp(HairData.s);
 	const float Pdf0 = Mp(SinThetaI, HairData.SinThetaO.x, HairData.v0) * Np(PhiI, 0, InvS, HairData.GammaO, HairData.GammaT);
@@ -387,10 +374,10 @@ FMaterialEval Hair_EvalMaterial(
 
 	const float3 V = mul(HairBasis, V_World);
 	const float3 L = mul(HairBasis, L_World);
-
 	const float h = 2 * Payload.GetHairPrimitiveUV().y - 1; // remap back to [-1,1]
-	const float AzimuthalRoughness = lerp(1.0, 0.1, Payload.Metallic);
-	const FHairData HairData = PrepareHairData(V, Payload.BaseColor, Payload.Roughness, AzimuthalRoughness, h, Payload.Specular);
+	const float LongitudinalRoughness = Payload.GetHairLongitudinalRoughness();
+	const float AzimuthalRoughness = lerp(1.0, 0.1, Payload.GetHairAzimuthalRoughness());
+	const FHairData HairData = PrepareHairData(V, Payload.GetBaseColor(), LongitudinalRoughness, AzimuthalRoughness, h, Payload.GetHairSpecular());
 
 	// precompute data based of lighting direction
 	const float SinThetaI = L.z;

@@ -26,13 +26,13 @@ FEyeData PrepareEyeData(FPathTracingPayload Payload, float3 V_World)
 	FEyeData Data = (FEyeData)0;
 
 	Data.Basis = GetTangentBasis(Payload.WorldNormal);
-	Data.Alpha = GetGGXAlpha(Payload.Roughness);
+	Data.Alpha = GetGGXAlpha(Payload.GetEyeRoughness());
 	Data.V = mul(Data.Basis, V_World);
 
 	const float NoV = saturate(Data.V.z);
-	Data.Spec = ComputeGGXSpecEnergyTermsRGB(Payload.Roughness, NoV, Payload.SpecularColor);
+	Data.Spec = ComputeGGXSpecEnergyTermsRGB(Payload.GetEyeRoughness(), NoV, Payload.SpecularColor);
 
-	Data.DiffWeight = (1 - Data.Spec.E) * Payload.DiffuseColor;
+	Data.DiffWeight = (1 - Luminance(Data.Spec.E)) * Payload.DiffuseColor;
 
 	// Probability of picking diffuse lobe vs. specular lobe
 	Data.LobeProb = LobeSelectionProb(Data.DiffWeight, Data.Spec.E);
@@ -161,7 +161,7 @@ FMaterialSample Eye_SampleMaterial(
 		
 		Result.AddLobeWithMIS(SpecWeight, SpecPdf, 1.0 - Data.LobeProb);
 		Result.Pdf += Data.LobeProb * DiffPdf;
-		Result.Roughness = Payload.Roughness;
+		Result.Roughness = Payload.GetEyeRoughness();
 		Result.ScatterType = PATHTRACER_SCATTER_SPECULAR;
 	}
 	Result.Weight *= Payload.BSDFOpacity;

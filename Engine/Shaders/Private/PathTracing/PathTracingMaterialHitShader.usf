@@ -12,6 +12,9 @@
 // This should be good enough for path tracing and avoids having to bind an extra buffer
 #define EYE_ADAPTATION_PREV_FRAME_EXPOSURE 1
 
+// Ensure that SSS albedo comes through in the material
+#define STRATA_SSS_MATERIAL_OVERRIDE 0
+
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/RayTracing/RayTracingCommon.ush"
 #include "/Engine/Private/RayTracing/RayTracingHitGroupCommon.ush"
@@ -26,8 +29,12 @@
 #include "/Engine/Private/BurleyNormalizedSSSCommon.ush"
 #include "/Engine/Private/PathTracing/PathTracingCommon.ush"
 #include "/Engine/Private/PathTracing/Material/PathTracingFresnel.ush"
+#if STRATA_ENABLED
+#define MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING 0
+#include "/Engine/Private/Strata/StrataExport.ush"
+#else
 #include "/Engine/Private/PathTracing/Material/PathTracingThinGlass.ush"
-
+#endif
 
 float AdjustMaterialRoughness(float Roughness, float PathRoughness)
 {
@@ -135,6 +142,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #if MATERIALBLENDING_MODULATE || (MATERIALBLENDING_MASKED && MATERIAL_DITHER_OPACITY_MASK) || MATERIALBLENDING_ALPHACOMPOSITE || MATERIALBLENDING_TRANSLUCENT
 	if (PackedPayload.IsVisibilityRay())
 	{
+		// STRATA_TODO: Handle transparent shadows here ...
 #if MATERIALBLENDING_MODULATE
 		const float3 Transparency = GetMaterialEmissive(PixelMaterialInputs);
 #elif MATERIALBLENDING_ALPHACOMPOSITE
@@ -326,6 +334,317 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	}
 #endif
 
+	float GeoNormalSign = MaterialParameters.TwoSidedSign;
+#if !VF_SUPPORTS_RAYTRACING_PREPARE_MATERIAL_PIXEL_PARAMETERS
+	// Because the geometric normal is computed directly in world space
+	// it doesn't reflect the sign flip from the object transform, so apply it here
+	GeoNormalSign *= GetPrimitive_DeterminantSign_FromFlags(PrimitiveFlags);
+#endif
+	Payload.WorldGeoNormal = GeoNormalSign * GeoNormal;
+	Payload.WorldSmoothNormal = MaterialParameters.TwoSidedSign * TransformTangentNormalToWorld(MaterialParameters.TangentToWorld, float3(0, 0, 1));
+	Payload.WorldSmoothNormal = AdjustShadingNormal(Payload.WorldSmoothNormal, Payload.WorldGeoNormal, WorldRayDirection());
+
+
+#if STRATA_ENABLED
+	// unless proven otherwise, we are a basic unlit material
+	Payload.ShadingModelID = SHADINGMODELID_UNLIT;
+
+#if STRATA_OPTIMIZED_UNLIT
+	FStrataBSDF UnlitBSDF = PixelMaterialInputs.GetFrontStrataData().InlinedBSDF;
+	Payload.Radiance = BSDF_GETEMISSIVE(UnlitBSDF);
+#if STRATA_OPAQUE_MATERIAL
+	Payload.BSDFOpacity = 1;
+	Payload.TransparencyColor = 0;
+#else
+	Payload.BSDFOpacity = UnlitBSDF.Coverage;
+	Payload.TransparencyColor = 1 - Payload.BSDFOpacity; // STRATA_TODO: is this right?
+#endif
+
+#else // STRATA_OPTIMIZED_UNLIT
+
+	// STRATA_TODO: Handle transparency blend modes ...
+	Payload.BSDFOpacity = 1;
+	Payload.TransparencyColor = 0;
+
+	const float3 V_World = MaterialParameters.CameraVector;
+	FStrataData StrataData= PixelMaterialInputs.GetFrontStrataData();
+	FStrataPixelHeader StrataPixelHeader = MaterialParameters.GetFrontStrataHeader();
+	FStrataIntegrationSettings IntegrationSettings = InitStrataIntegrationSettings();
+	FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
+	FStrataTree StrataTree = StrataPixelHeader.StrataTree;
+	if (StrataTree.BSDFCount > 0)
+	{
+		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, V_World, IntegrationSettings);
+
+	
+		{
+#if HAIR_STRAND_MESH_FACTORY
+			Payload.WorldSmoothNormal = Payload.WorldGeoNormal;
+#else
+			// Nudge normal to avoid dark edges in bump
+			// Not that we must recompute tangent vector to keep the basis frame orthogonal
+			for (uint i = 0; i < StrataPixelHeader.SharedLocalBases.Count; ++i)
+			{
+				float3 N = StrataPixelHeader.SharedLocalBases.Normals[i];
+				float3 T = StrataPixelHeader.SharedLocalBases.Tangents[i];
+				N = AdjustShadingNormal(N, Payload.WorldGeoNormal, WorldRayDirection());
+				float3 B = normalize(cross(N, T)); // N and T are no longer orthogonal to each other, need to normalize
+				StrataPixelHeader.SharedLocalBases.Normals[i]  = N;
+				StrataPixelHeader.SharedLocalBases.Tangents[i] = cross(B, N); // no normalize needed here, will be orthogonal
+				
+			}
+#endif
+		}
+
+#define BSDF StrataTree.BSDFs[BSDFIdx]
+
+#if STRATA_CLAMPED_BSDF_COUNT > 1
+		// The material might be using more than one slab -- insert code to stochastically pick one 
+		int BSDFIdx = 0;
+		float SlabPdf = 1.0;
+		if (StrataTree.BSDFCount > 1)
+		{
+			float SlabCDF[STRATA_CLAMPED_BSDF_COUNT];
+			float SlabCDFSum = 0.0;
+			for (BSDFIdx = 0; BSDFIdx < StrataTree.BSDFCount; ++BSDFIdx)
+			{
+				float Pdf = 0.0; // The goal is to predict the weight of each BSDF
+				switch (BSDF_GETTYPE(BSDF))
+				{
+					case STRATA_BSDF_TYPE_SLAB:
+					{
+						const float3 WeightV = BSDF.LuminanceWeightV;
+						const float3 TransmittanceN = BSDF.TransmittanceAboveAlongN;
+						const float CoverageAboveAlongN = BSDF.CoverageAboveAlongN;
+						const float3 MaxLobeWeight = WeightV * lerp(1.0f, TransmittanceN, CoverageAboveAlongN); // largest value LobeWeight() could return
+
+						// accumulate visibility
+						Payload.Radiance += WeightV * BSDF_GETEMISSIVE(BSDF);
+
+						// Is the slab even visible at all?
+						if (any(MaxLobeWeight > 0.0))
+						{
+							const float3x3 Basis = StrataGetBSDFSharedBasis_InlineShading(StrataPixelHeader, BSDF, NullStrataAddressing);
+							const float3 V = mul(Basis, V_World);
+
+							float3 DiffuseColor = SLAB_DIFFUSEALBEDO(BSDF);
+							float3 F0 = SLAB_F0(BSDF);
+							float3 F90 = SLAB_F90(BSDF);
+							{
+								// make sure F0=0.0 fades off the specular lobe completely
+								const float SpecularMicroOcclusion = F0RGBToMicroOcclusion(F0);
+								F0 *= SpecularMicroOcclusion;
+								F90 *= SpecularMicroOcclusion;
+							}
+
+							float Roughness0 = MakeRoughnessSafe(SLAB_ROUGHNESS(BSDF), PackedPayload.GetPathRoughness());
+							float Roughness1 = Roughness0;
+							float SpecBlend = 0.0;
+							if (BSDF_GETHASHAZINESS(BSDF))
+							{
+								const FHaziness Haziness = UnpackHaziness(SLAB_HAZINESS(BSDF));
+								// STRATA_TODO: Ideally clearcoat in the path tracer would be handled via actual layering rather than this backwards compatibility trick
+								if (!Haziness.bSimpleClearCoat)
+								{
+									SpecBlend = Haziness.Weight;
+									Roughness1 = MakeRoughnessSafe(Haziness.Roughness, PackedPayload.GetPathRoughness());
+								}
+							}
+							float FuzzAmount = 0.0;
+							float FuzzRoughness = 1.0;
+							float3 FuzzColor = 0.0;
+							if (BSDF_GETHASFUZZ(BSDF))
+							{
+								FuzzAmount = SLAB_FUZZ_AMOUNT(BSDF);
+								FuzzColor = SLAB_FUZZ_COLOR(BSDF);
+								FuzzRoughness = SLAB_FUZZ_ROUGHNESS(BSDF);
+								FuzzRoughness = MakeRoughnessSafe(FuzzRoughness, STRATA_MIN_FUZZ_ROUGHNESS);
+							}
+
+							const float NoV = saturate(V.z);
+							// STRATA_TODO: Support Fresnel82?
+							const FBxDFEnergyTermsRGB Spec0 = ComputeGGXSpecEnergyTermsRGB(Roughness0, NoV, F0, F90);
+							const FBxDFEnergyTermsRGB Spec1 = ComputeGGXSpecEnergyTermsRGB(Roughness1, NoV, F0, F90);
+							const FBxDFEnergyTermsA   Fuzz  = ComputeClothEnergyTermsA(FuzzRoughness, NoV);
+							const float3 SpecE = lerp(Spec0.E, Spec1.E, SpecBlend);
+							const float FuzzAttenuation = 1.0 - FuzzAmount * Fuzz.E;
+							const float DiffuseWeight = FuzzAttenuation * (1.0 - Luminance(SpecE));
+							const float3 Spec0Albedo  = FuzzAttenuation * (1.0 - SpecBlend) * Spec0.E;
+							const float3 Spec1Albedo  = FuzzAttenuation * (      SpecBlend) * Spec1.E;
+							const float  FuzzAlbedo   = FuzzAmount * Fuzz.E;
+							const float3 SlabAlbedo = MaxLobeWeight * (DiffuseWeight * DiffuseColor + Spec0Albedo + Spec1Albedo + FuzzAlbedo);
+							Pdf = LobeColorToWeight(SlabAlbedo);
+						}
+						break;
+					}
+					default:
+					{
+						// In theory none of the other slab types can be layered
+						break;
+					}
+				}
+				SlabCDFSum += Pdf;
+				SlabCDF[BSDFIdx] = SlabCDFSum;
+			}
+			if (SlabCDFSum > 0.0)
+			{
+				// linear search
+				float PreviousCdfValue = 0;
+				float RandSample = SlabCDFSum * PackedPayload.GetStochasticSlabRand();
+				for (BSDFIdx = 0; BSDFIdx < StrataTree.BSDFCount - 1; ++BSDFIdx)
+				{
+					if (RandSample < SlabCDF[BSDFIdx])
+					{
+						break;
+					}
+					PreviousCdfValue = SlabCDF[BSDFIdx];
+				}
+				SlabPdf = (SlabCDF[BSDFIdx] - PreviousCdfValue) / SlabCDFSum;
+			}
+			else
+			{
+				BSDFIdx = 0;
+				SlabPdf = 0.0;
+			}
+		}
+		if (SlabPdf > 0)
+		{
+#elif STRATA_CLAMPED_BSDF_COUNT == 1
+		if (StrataTree.BSDFCount > 0)
+		{
+			// there is only one slab active
+			const int BSDFIdx = 0;
+#else
+// shouldn't be possible to reach this point
+#error Unexpected BSDF Count
+#endif // STRATA_CLAMPED_BSDF_COUNT 
+
+
+			Payload.WorldNormal = StrataPixelHeader.SharedLocalBases.Normals[BSDF_GETSHAREDLOCALBASISID(BSDF)];
+			Payload.WorldTangent = StrataPixelHeader.SharedLocalBases.Tangents[BSDF_GETSHAREDLOCALBASISID(BSDF)];
+
+			switch (BSDF_GETTYPE(BSDF))
+			{
+				case STRATA_BSDF_TYPE_SLAB:
+				{
+					Payload.DiffuseColor      = SLAB_DIFFUSEALBEDO(BSDF);
+					Payload.SpecularColor     = SLAB_F0(BSDF);
+					Payload.SpecularEdgeColor = SLAB_F90(BSDF);
+					Payload.RoughnessData.x   = MakeRoughnessSafe(SLAB_ROUGHNESS(BSDF), PackedPayload.GetPathRoughness());
+					Payload.RoughnessData.y = Payload.RoughnessData.x;
+					Payload.RoughnessData.z = 0;
+					if (BSDF_GETHASHAZINESS(BSDF))
+					{
+						const FHaziness Haziness = UnpackHaziness(SLAB_HAZINESS(BSDF));
+						// STRATA_TODO: detect this and use the old SHADINGMODELID_CLEARCOAT?
+						if (!Haziness.bSimpleClearCoat)
+						{
+							Payload.RoughnessData.y = MakeRoughnessSafe(Haziness.Roughness, PackedPayload.GetPathRoughness());
+							Payload.RoughnessData.z = Haziness.Weight;
+						}
+					}
+					Payload.Anisotropy = BSDF_GETHASANISOTROPY(BSDF) ? SLAB_ANISOTROPY(BSDF) : 0.0;
+					if (BSDF_GETHASFUZZ(BSDF))
+					{
+						Payload.FuzzAmount    = SLAB_FUZZ_AMOUNT(BSDF);
+						Payload.FuzzColor     = SLAB_FUZZ_COLOR(BSDF);
+						Payload.FuzzRoughness = MakeRoughnessSafe(SLAB_FUZZ_ROUGHNESS(BSDF), STRATA_MIN_FUZZ_ROUGHNESS);
+					}
+					else
+					{
+						Payload.FuzzAmount    = 0.0;
+						Payload.FuzzColor     = 0.0;
+						Payload.FuzzRoughness = 0.0;
+					}
+					if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION)
+					{
+						Payload.MeanFreePath = SLAB_SSSMFP(BSDF);
+						Payload.PhaseG       = SLAB_SSSPHASEANISOTROPY(BSDF); // STRATA_TODO: evaluate if we always want this or not ...
+					}
+					else
+					{
+						// STRATA_TODO: Do something meaningful for the other SSS types ...
+						Payload.MeanFreePath = 0;
+						Payload.PhaseG       = 0;
+					}
+					Payload.WeightV             = BSDF.LuminanceWeightV;
+					Payload.TransmittanceN      = BSDF.TransmittanceAboveAlongN;
+					Payload.CoverageAboveAlongN = BSDF.CoverageAboveAlongN;
+					Payload.Ior                 = 0.0; // STRATA_TODO: figure out when to use refraction ...
+					Payload.ShadingModelID      = SHADINGMODELID_STRATA;
+					break;
+				}
+				case STRATA_BSDF_TYPE_HAIR:
+				{
+					// clamp the roughness to whatever came along the path
+					Payload.SetBaseColor(HAIR_BASECOLOR(BSDF));
+					Payload.SetHairLongitudinalRoughness(max(HAIR_ROUGHNESS(BSDF), PackedPayload.GetPathRoughness()));
+					Payload.SetHairAzimuthalRoughness(HAIR_SCATTER(BSDF)); // STRATA_TODO: Map from scatter param to azimuthal roughness here instead of in the raygen
+					Payload.SetHairSpecular(HAIR_SPECULAR(BSDF));
+
+	#if HAIR_STRAND_MESH_FACTORY
+					Payload.WorldSmoothNormal = Payload.WorldNormal = Payload.WorldGeoNormal;
+					Payload.WorldTangent      = MaterialParameters.TangentToWorld[2];
+					Payload.SetHairPrimitiveUV(MaterialParameters.HairPrimitiveUV);
+	#else
+					Payload.SetHairPrimitiveUV(0.5);
+	#endif
+					Payload.ShadingModelID = SHADINGMODELID_HAIR;
+					break;
+				}
+				case STRATA_BSDF_TYPE_EYE:
+				{
+					Payload.DiffuseColor = EYE_DIFFUSEALBEDO(BSDF);
+					Payload.SpecularColor = EYE_F0(BSDF);
+					// NOTE: EYE_F90 is always 1.0 (does not exist in legacy model), so don't bother with it
+					Payload.SetEyeRoughness(max(EYE_ROUGHNESS(BSDF), PackedPayload.GetPathRoughness()));
+
+					// STRATA_TODO: handle EYE_SSSPROFILEID(BSDF)
+
+					float IrisMask = EYE_IRISMASK(BSDF);
+					float IrisDistance = EYE_IRISDISTANCE(BSDF);
+
+					// see logic in non-substrate code below
+					const float3 PlaneNormal = normalize(EYE_IRISPLANENORMAL(BSDF));
+					const float3 CausticNormal = normalize(lerp(PlaneNormal, -Payload.WorldNormal, IrisMask * IrisDistance));
+
+					Payload.SetEyeCausticNormal(CausticNormal);
+					Payload.SetEyeIrisMask(IrisMask);
+					Payload.SetEyeIrisNormal(normalize(EYE_IRISNORMAL(BSDF)));
+					Payload.ShadingModelID = SHADINGMODELID_EYE;
+					break;
+				}
+				default:
+				{
+					// STRATA_TODO: handle all other cases
+					break;
+				}
+			}
+#if STRATA_CLAMPED_BSDF_COUNT > 1
+			// account for the probability of having chosen this slab
+			Payload.BSDFOpacity /= SlabPdf;
+#endif
+		} // close brace opened by STRATA_CLAMPED_BSDF_COUNT > 1 or STRATA_CLAMPED_BSDF_COUNT == 1 ifdefs above
+#undef  BSDF
+	} // if BSDFCount > 0
+
+#endif // STRATA_OPTIMIZED_UNLIT
+
+
+#if TWO_SIDED_MATERIAL == 0
+	if (MaterialParameters.TwoSidedSign < 0)
+	{
+		// when viewing the surface from "inside", don't include emission
+		Payload.Radiance = 0;
+	}
+#endif
+
+#else // STRATA_ENABLED
+	Payload.Radiance = GetMaterialEmissive(PixelMaterialInputs);
+
+	Payload.WorldNormal = MaterialParameters.WorldNormal;
+	Payload.WorldNormal = AdjustShadingNormal(Payload.WorldNormal, Payload.WorldGeoNormal, WorldRayDirection());
+
 	// Store the results in local variables and reuse instead of calling the functions multiple times.
 	half3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
 	half  Metallic = GetMaterialMetallic(PixelMaterialInputs);
@@ -338,22 +657,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	Ior = GetRefractionIor(PixelMaterialInputs);
 #endif
 
-	Payload.TranslatedWorldPos = LWCToFloat(LWCAdd(MaterialParameters.AbsoluteWorldPosition, ResolvedView.PreViewTranslation));
-	float GeoNormalSign = MaterialParameters.TwoSidedSign;
-#if !VF_SUPPORTS_RAYTRACING_PREPARE_MATERIAL_PIXEL_PARAMETERS
-	// Because the geometric normal is computed directly in world space
-	// it doesn't reflect the sign flip from the object transform, so apply it here
-	GeoNormalSign *= GetPrimitive_DeterminantSign(MaterialParameters.PrimitiveId);
-#endif
-	Payload.WorldGeoNormal = GeoNormalSign * GeoNormal;
-	Payload.WorldNormal = MaterialParameters.WorldNormal;
-	Payload.WorldSmoothNormal = MaterialParameters.TwoSidedSign * TransformTangentNormalToWorld(MaterialParameters.TangentToWorld, float3(0, 0, 1));
 
-	// fix dark edges in reflections from shading normals
-	Payload.WorldNormal       = AdjustShadingNormal(Payload.WorldNormal      , Payload.WorldGeoNormal, WorldRayDirection());
-	Payload.WorldSmoothNormal = AdjustShadingNormal(Payload.WorldSmoothNormal, Payload.WorldGeoNormal, WorldRayDirection());
-
-	Payload.Radiance = GetMaterialEmissive(PixelMaterialInputs);
 	Payload.Radiance *= Payload.BSDFOpacity; // pre-multiply
 
 
@@ -706,6 +1010,9 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 
 	// adjust after everything else (because SSS profile case needs to decode the dual spec info from the unmodified roughness)
 	Payload.Roughness = AdjustMaterialRoughness(Payload.Roughness, PackedPayload.GetPathRoughness());
+
+#endif
+
 
 	PackedPayload = PackPathTracingPayload(Payload);
 }

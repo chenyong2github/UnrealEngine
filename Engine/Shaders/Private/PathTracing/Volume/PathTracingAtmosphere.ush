@@ -147,7 +147,7 @@ FPackedPathTracingPayload AtmosphereGetBlockerHit(float3 Origin, float3 Directio
 	float3 WorldN = normalize(WorldP - Center);
 
 	FPathTracingPayload Payload = (FPathTracingPayload)0;
-	Payload.BaseColor = Atmosphere.GroundAlbedo.rgb;
+	Payload.SetBaseColor(Atmosphere.GroundAlbedo.rgb);
 	Payload.BSDFOpacity = 1.0;
 	Payload.WorldNormal = Payload.WorldGeoNormal = Payload.WorldSmoothNormal = WorldN;
 	Payload.ShadingModelID = SHADINGMODELID_NUM; // defaults to diffuse

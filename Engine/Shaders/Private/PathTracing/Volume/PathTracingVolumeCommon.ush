@@ -207,7 +207,7 @@ FPathTracingPayload CreateMediumHitPayload(float HitT, float3 TranslatedWorldPos
 	const float3 SigmaS = ShadedResult.SigmaSRayleigh + ShadedResult.SigmaSHG;
 	const float3 RayleighWeight = select(SigmaS > 0.0, min(ShadedResult.SigmaSRayleigh, SigmaS) / SigmaS, 0.0);
 	const float3 HGWeight = select(SigmaS > 0, min(ShadedResult.SigmaSHG, SigmaS) / SigmaS, 0.0);
-	Result.BaseColor = RayleighWeight;
+	Result.SetBaseColor(RayleighWeight);
 	Result.SetHG(HGWeight, ShadedResult.PhaseG);
 	return Result;
 }

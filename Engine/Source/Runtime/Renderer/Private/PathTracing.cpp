@@ -337,6 +337,26 @@ TAutoConsoleVariable<int32> CVarPathTracingOutputPostProcessResources(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingSubstrateUseSimplifiedMaterial(
+	TEXT("r.PathTracing.Substrate.UseSimplifiedMaterials"),
+	0,
+	TEXT("Instead of evaluating all layers, use an optimized material in which all slabs have been merged. This is mainly intended for debugging and requires r.PathTracing.Substrate.CompileSimplifiedMaterials to be true.\n")
+	TEXT("0: off (default)\n")
+	TEXT("1: on\n"),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarPathTracingSubstrateCompileSimplifiedMaterial(
+	TEXT("r.PathTracing.Substrate.CompileSimplifiedMaterials"),
+	0,
+	TEXT("Compile a simplified representation of Substrate materials which merges all slabs into one. This is mainly intended for debugging purposes. Enabling this double the number of path tracing shader permutations.\n")
+	TEXT("0: off (default)\n")
+	TEXT("1: on\n"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly
+);
+
+
+
 BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingData, )
 	SHADER_PARAMETER(float, BlendFactor)
 	SHADER_PARAMETER(uint32, Iteration)
@@ -781,7 +801,13 @@ static FPathTracingFogParameters PrepareFogParameters(const FViewInfo& View, con
 	return Parameters;
 }
 
-IMPLEMENT_RT_PAYLOAD_TYPE(ERayTracingPayloadType::PathTracingMaterial, 64); // TODO: Expand this when strata is enabled (use GetStrataRaytracingMaterialPayload())
+static uint32 GetPathtracingMaterialPayloadSize()
+{
+	// Strata uses a slightly bigger payload as the basic slab contains more information
+	return Strata::IsStrataEnabled() ? 76u : 64u;
+}
+
+IMPLEMENT_RT_PAYLOAD_TYPE_FUNCTION(ERayTracingPayloadType::PathTracingMaterial, GetPathtracingMaterialPayloadSize);
 IMPLEMENT_RT_PAYLOAD_TYPE(ERayTracingPayloadType::GPULightmass, 32);
 
 class FPathTracingRG : public FGlobalShader
@@ -1211,7 +1237,7 @@ static bool NeedsAnyHitShader(const FMaterial& RESTRICT MaterialResource)
 	return NeedsAnyHitShader(MaterialResource.IsMasked(), MaterialResource.IsDitherMasked());
 }
 
-template<bool UseAnyHitShader, bool UseIntersectionShader, bool IsGPULightmass>
+template<bool UseAnyHitShader, bool UseIntersectionShader, bool IsGPULightmass, bool SimplifyStrata>
 class TPathTracingMaterial : public FMeshMaterialShader
 {
 	DECLARE_SHADER_TYPE(TPathTracingMaterial, MeshMaterial);
@@ -1249,6 +1275,13 @@ public:
 			// only need to compile the intersection shader permutation if the VF actually requires it
 			return false;
 		}
+		if (SimplifyStrata && (!Strata::IsStrataEnabled() || CVarPathTracingSubstrateCompileSimplifiedMaterial.GetValueOnAnyThread() == 0))
+		{
+			// don't compile the extra strata permutation if:
+			//    Substrate is not enabled on this project
+			// or the user did not request the extra permutations to be compiled (default)
+			return false;
+		}
 		if (IsGPULightmass)
 		{
 			return ShouldCompileGPULightmassShadersForProject(Parameters);
@@ -1267,6 +1300,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("USE_RAYTRACED_TEXTURE_RAYCONE_LOD"), 0);
 		OutEnvironment.SetDefine(TEXT("SCENE_TEXTURES_DISABLED"), 1);
 		OutEnvironment.SetDefine(TEXT("SIMPLIFIED_MATERIAL_SHADER"), IsGPULightmass);
+		OutEnvironment.SetDefine(TEXT("STRATA_USE_FULLYSIMPLIFIED_MATERIAL"), IsGPULightmass || SimplifyStrata);
 		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
@@ -1307,19 +1341,29 @@ public:
 
 
 // TODO: It would be nice to avoid this template boilerplate and just use ordinary permutations. This would require allowing the FunctionName for the material to be dependent on the permutation somehow
-using FPathTracingMaterialCHS        = TPathTracingMaterial<false, false, false>;
-using FPathTracingMaterialCHS_AHS    = TPathTracingMaterial<true , false, false>;
-using FPathTracingMaterialCHS_IS     = TPathTracingMaterial<false, true , false>;
-using FPathTracingMaterialCHS_AHS_IS = TPathTracingMaterial<true , true , false>;
+using FPathTracingMaterialCHS        = TPathTracingMaterial<false, false, false, false>;
+using FPathTracingMaterialCHS_AHS    = TPathTracingMaterial<true , false, false, false>;
+using FPathTracingMaterialCHS_IS     = TPathTracingMaterial<false, true , false, false>;
+using FPathTracingMaterialCHS_AHS_IS = TPathTracingMaterial<true , true , false, false>;
+using FPathTracingMaterialSimplifiedCHS        = TPathTracingMaterial<false, false, false, true>;
+using FPathTracingMaterialSimplifiedCHS_AHS    = TPathTracingMaterial<true , false, false, true>;
+using FPathTracingMaterialSimplifiedCHS_IS     = TPathTracingMaterial<false, true , false, true>;
+using FPathTracingMaterialSimplifiedCHS_AHS_IS = TPathTracingMaterial<true , true , false, true>;
+
 
 // NOTE: lightmass doesn't work with intersection shader VFs at the moment, so avoid instantiating permutations that will never generate any shaders
-using FGPULightmassCHS               = TPathTracingMaterial<false, false, true>;
-using FGPULightmassCHS_AHS           = TPathTracingMaterial<true , false, true>;
+using FGPULightmassCHS               = TPathTracingMaterial<false, false, true, true>;
+using FGPULightmassCHS_AHS           = TPathTracingMaterial<true , false, true, true>;
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS       , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS"), SF_RayHitGroup);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS_AHS   , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS"), SF_RayHitGroup);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS_IS    , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS intersection=MaterialIS"), SF_RayHitGroup);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS_AHS_IS, TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS intersection=MaterialIS"), SF_RayHitGroup);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialSimplifiedCHS       , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS"), SF_RayHitGroup);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialSimplifiedCHS_AHS   , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS"), SF_RayHitGroup);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialSimplifiedCHS_IS    , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS intersection=MaterialIS"), SF_RayHitGroup);
+IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialSimplifiedCHS_AHS_IS, TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS intersection=MaterialIS"), SF_RayHitGroup);
+
 IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FGPULightmassCHS              , TEXT("/Engine/Private/PathTracing/PathTracingGPULightmassMaterialHitShader.usf"), TEXT("closesthit=GPULightmassMaterialCHS"), SF_RayHitGroup);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FGPULightmassCHS_AHS          , TEXT("/Engine/Private/PathTracing/PathTracingGPULightmassMaterialHitShader.usf"), TEXT("closesthit=GPULightmassMaterialCHS anyhit=GPULightmassMaterialAHS"), SF_RayHitGroup);
 
@@ -1407,19 +1451,43 @@ bool FRayTracingMeshProcessor::ProcessPathTracing(
 		{
 			case ERayTracingMeshCommandsMode::PATH_TRACING:
 			{
+				// In order to use Substrate simplified materials, strata has to be enabled, we have to have _compiled_ the extra permutations _and_ the runtime toggle must be true
+				const bool bUseSimplifiedMaterial = Strata::IsStrataEnabled() &&
+					CVarPathTracingSubstrateCompileSimplifiedMaterial.GetValueOnRenderThread() != 0 &&
+					CVarPathTracingSubstrateUseSimplifiedMaterial.GetValueOnRenderThread() != 0;
 				if (NeedsAnyHitShader(MaterialResource))
 				{
-					if (bUseProceduralPrimitive)
-						ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS_IS>();
+					if (bUseSimplifiedMaterial)
+					{
+						if (bUseProceduralPrimitive)
+							ShaderTypes.AddShaderType<FPathTracingMaterialSimplifiedCHS_AHS_IS>();
+						else
+							ShaderTypes.AddShaderType<FPathTracingMaterialSimplifiedCHS_AHS>();
+					}
 					else
-						ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS>();
+					{
+						if (bUseProceduralPrimitive)
+							ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS_IS>();
+						else
+							ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS>();
+					}
 				}
 				else
 				{
-					if (bUseProceduralPrimitive)
-						ShaderTypes.AddShaderType<FPathTracingMaterialCHS_IS>();
+					if (bUseSimplifiedMaterial)
+					{
+						if (bUseProceduralPrimitive)
+							ShaderTypes.AddShaderType<FPathTracingMaterialSimplifiedCHS_IS>();
+						else
+							ShaderTypes.AddShaderType<FPathTracingMaterialSimplifiedCHS>();
+					}
 					else
-						ShaderTypes.AddShaderType<FPathTracingMaterialCHS>();
+					{
+						if (bUseProceduralPrimitive)
+							ShaderTypes.AddShaderType<FPathTracingMaterialCHS_IS>();
+						else
+							ShaderTypes.AddShaderType<FPathTracingMaterialCHS>();
+					}
 				}
 				break;
 			}
@@ -2170,6 +2238,11 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	Config.LightShowFlags |= View.Family->EngineShowFlags.LightingOnlyOverride       ? 1 << 11 : 0;
 	Config.LightShowFlags |= View.Family->EngineShowFlags.ReflectionOverride         ? 1 << 12 : 0;
 	Config.LightShowFlags |= View.Family->EngineShowFlags.SubsurfaceScattering       ? 1 << 13 : 0;
+	// the following affects which material shaders get used and therefore change the image
+	if (Strata::IsStrataEnabled() && CVarPathTracingSubstrateCompileSimplifiedMaterial.GetValueOnRenderThread() != 0)
+	{
+		Config.LightShowFlags |= CVarPathTracingSubstrateUseSimplifiedMaterial.GetValueOnRenderThread() != 0 ? 1 << 14 : 0;
+	}
 
 	PreparePathTracingData(Scene, View, Config.PathTracingData);
 

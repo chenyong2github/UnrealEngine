@@ -9,13 +9,19 @@ FMaterialSample Lambert_SampleMaterial(
 	FPathTracingPayload Payload,
 	float3 RandSample)
 {
-	float3 N_World = Payload.WorldNormal;
+	const float3 N_World = Payload.WorldNormal;
+	const float3 BaseColor = Payload.GetBaseColor();
 
 	float4 SampledValue = CosineSampleHemisphere(RandSample.xy);
 
 	float3 L_World = TangentToWorld(SampledValue.xyz, N_World);
+#if SIMPLIFIED_MATERIAL_SHADER
+	float ShadowTerminator = 1;
+#else
+	float ShadowTerminator = ShadowTerminatorTerm(L_World, N_World, Payload.WorldSmoothNormal);
+#endif
 
-	return CreateMaterialSample(L_World, Payload.BSDFOpacity * Payload.BaseColor * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal), SampledValue.w, 1.0, 1.0, PATHTRACER_SCATTER_DIFFUSE);
+	return CreateMaterialSample(L_World, Payload.BSDFOpacity * BaseColor * ShadowTerminator, SampledValue.w, 1.0, 1.0, PATHTRACER_SCATTER_DIFFUSE);
 }
 
 FMaterialEval Lambert_EvalMaterial(
@@ -24,10 +30,17 @@ FMaterialEval Lambert_EvalMaterial(
 	float2 DiffuseSpecularScale
 )
 {
-	float3 N_World = Payload.WorldNormal;
-	float NoL = saturate(dot(N_World, L_World));
+	const float3 N_World = Payload.WorldNormal;
+	const float3 BaseColor = Payload.GetBaseColor();
 
-	return CreateMaterialEval(Payload.BSDFOpacity * Payload.BaseColor * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal) * DiffuseSpecularScale.x, NoL / PI);
+	float NoL = saturate(dot(N_World, L_World));
+#if SIMPLIFIED_MATERIAL_SHADER
+	float ShadowTerminator = 1;
+#else
+	float ShadowTerminator = ShadowTerminatorTerm(L_World, N_World, Payload.WorldSmoothNormal);
+#endif
+
+	return CreateMaterialEval(Payload.BSDFOpacity * BaseColor * ShadowTerminator * DiffuseSpecularScale.x, NoL / PI);
 }
 
 #if SIMPLIFIED_MATERIAL_SHADER

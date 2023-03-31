@@ -16,7 +16,7 @@ FMaterialSample Medium_SampleMaterial(
 	FPathTracingPayload Payload,
 	float3 RandSample)
 {
-	const float3 RayleighWeight = Payload.BaseColor;
+	const float3 RayleighWeight = Payload.GetBaseColor();
 	const float3 HGWeight = Payload.GetHGWeight();
 	const float G = Payload.GetHGPhaseG();
 
@@ -28,8 +28,8 @@ FMaterialSample Medium_SampleMaterial(
 	const float LobeProb = LobeSelectionProb(RayleighWeight, HGWeight);
 
 	const float CosTheta = RandSample.x < LobeProb ?
-		RayleighPhaseInvertCdf(RandSample.x / LobeProb) :
-		HenyeyGreensteinPhaseInvertCDF((RandSample.x - LobeProb) / (1.0 - LobeProb), G);
+		RayleighPhaseInvertCdf(RescaleRandomNumber(RandSample.x, 0.0, LobeProb)) :
+		HenyeyGreensteinPhaseInvertCDF(RescaleRandomNumber(RandSample.x, LobeProb, 1.0), G);
 	const float SinTheta = sqrt(saturate(1.0 - CosTheta * CosTheta));
 	const float Phi = RandSample.y * (2.0 * PI);
 
@@ -49,7 +49,7 @@ FMaterialEval Medium_EvalMaterial(
 	float2 DiffuseSpecularScale
 )
 {
-	const float3 RayleighWeight = Payload.BaseColor;
+	const float3 RayleighWeight = Payload.GetBaseColor();
 	const float3 HGWeight = Payload.GetHGWeight();
 	const float G = Payload.GetHGPhaseG();
 

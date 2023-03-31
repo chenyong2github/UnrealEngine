@@ -235,13 +235,6 @@ FMaterialSample RadianceProbe_SampleMaterial(
 	return CreateMaterialSample(TangentToWorld(SampledValue.xyz, N_World), 1.0, SampledValue.w, 1.0, 1.0, PATHTRACER_SCATTER_DIFFUSE);
 }
 
-float RadianceProbe_Pdf(float3 L_World, FPathTracingPayload Payload)
-{
-	float3 N_World = Payload.WorldNormal;
-	float NoL = saturate(dot(N_World, L_World));
-	return NoL / PI;
-}
-
 FMaterialEval RadianceProbe_EvalMaterial(
 	float3 L_World,
 	FPathTracingPayload Payload

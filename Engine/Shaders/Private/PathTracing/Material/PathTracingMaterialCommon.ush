@@ -12,7 +12,8 @@ PathTracingMaterialCommon.usf: Brdf utility functions
 float LobeColorToWeight(float3 C)
 {
 	// TODO: What is the best heuristic to use here?
-	// average seems to perform slightly better, but needs more careful testing
+	// Sum seems to perform slightly better sometimes, while max3 is better in others. Need to look at more cases to be sure
+	// Also tried Luminance, but the result was very close to the plain sum
 #if 1
 	return C.x + C.y + C.z;
 #else
