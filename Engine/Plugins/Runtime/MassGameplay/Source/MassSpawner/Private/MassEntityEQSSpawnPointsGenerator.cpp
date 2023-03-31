@@ -47,6 +47,7 @@ void UMassEntityEQSSpawnPointsGenerator::OnEQSQueryFinished(TSharedPtr<FEnvQuery
 	{
 		UE_VLOG_UELOG(this, LogMassSpawner, Error, TEXT("EQS query failed or result is invalid"));
 		// Return empty result.
+		Results.Reset();
 		FinishedGeneratingSpawnPointsDelegate.Execute(Results);
 		return;
 	}
