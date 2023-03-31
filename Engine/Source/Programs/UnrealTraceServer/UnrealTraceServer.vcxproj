@@ -47,6 +47,8 @@
     <AdditionalOptions>/std:c++17</AdditionalOptions>
     <OutDir>$(SolutionDir)_build\windows\debug\</OutDir>
     <IntDir>$(SolutionDir)_intermediate\windows\$(Platform)\$(Configuration)\</IntDir>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommand>$(OutDir)UnrealTraceServer.exe</LocalDebuggerCommand>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <NMakeBuildCommandLine>nmake</NMakeBuildCommandLine>
@@ -56,6 +58,8 @@
     <AdditionalOptions>/std:c++17</AdditionalOptions>
     <OutDir>$(SolutionDir)_build\windows\development\</OutDir>
     <IntDir>$(SolutionDir)_intermediate\windows\$(Platform)\$(Configuration)\</IntDir>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommand>$(OutDir)UnrealTraceServer.exe</LocalDebuggerCommand>
   </PropertyGroup>
   <ItemDefinitionGroup>
   </ItemDefinitionGroup>
