@@ -343,6 +343,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Change the default for facing & alignment to be automatic
 		NiagaraSpriteRendererFacingAlignmentAutoDefault,
 
+		// Change the default for facing & alignment to be automatic
+		GroomAssetRemoveInAssetSerialization,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
