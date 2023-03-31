@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CADKernel/Core/Types.h"
+
 namespace UE::CADKernel
 {
 /**
@@ -18,6 +20,33 @@ enum EGridSpace : uint8
 	UniformScaled = 2,
 	EndGridSpace
 };
+
+enum EMeshingState : uint8
+{
+	NotMeshed = 0,
+	PartiallyMeshed,
+	FullyMeshed
+};
+
+namespace GridSpace
+{
+
+inline FString ToString(EGridSpace Space)
+{
+	switch (Space)
+	{
+	case Default2D:
+		return FString(TEXT("Default2D"));
+	case Scaled:
+		return FString(TEXT("Scaled"));
+	case UniformScaled:
+		return FString(TEXT("UniformScaled"));
+	default:
+		return FString(TEXT(""));
+	}
+}
+
+} // namespace GridSpace
 
 } // namespace UE::CADKernel
 

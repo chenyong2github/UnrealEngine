@@ -7,6 +7,12 @@
 #include "CADKernel/Math/Point.h"
 #include "CADKernel/UI/Visu.h"
 
+#ifdef CADKERNEL_DEV
+#include "CADKernel/Mesh/Meshers/IsoTriangulator/DefineForDebug.h"
+#else
+static const double DisplayScale = 1.;
+#endif
+
 class FString;
 
 namespace UE::CADKernel
@@ -143,6 +149,17 @@ void DisplayPoint(const TPoint& Point, EVisuProperty Property, FIdent Ident)
 	DrawPoint(Point, Property);
 }
 
+static void DisplayPoint2DWithScale(const FPoint2D& Point, EVisuProperty Property = EVisuProperty::BluePoint)
+{
+	DrawPoint(Point * DisplayScale, Property);
+}
+
+static void DisplayPoint2DWithScale(const FPoint2D& Point, EVisuProperty Property, FIdent Ident)
+{
+	F3DDebugSegment G(Ident);
+	DrawPoint(Point * DisplayScale, Property);
+}
+
 template<typename TPoint>
 void DisplayPoints(FString Message, const TArray<TPoint>& Points, EVisuProperty Property = EVisuProperty::BluePoint, bool bDisplay = true)
 {
@@ -192,6 +209,11 @@ CADKERNEL_API void Display2D(const FTopologicalFace& Face);
 CADKERNEL_API void Display2D(const FTopologicalLoop& Loop);
 CADKERNEL_API void Display2D(const FSurface& CarrierSurface);
 
+CADKERNEL_API void Display2DWithScale(const FTopologicalEdge& Edge, EVisuProperty Property = EVisuProperty::BlueCurve);
+CADKERNEL_API void Display2DWithScale(const FTopologicalFace& Face);
+CADKERNEL_API void Display2DWithScale(const FTopologicalLoop& Loop);
+CADKERNEL_API void Display2DWithScale(const FSurface& CarrierSurface);
+
 CADKERNEL_API void DisplayMesh(const FFaceMesh& Mesh);
 CADKERNEL_API void DisplayMesh(const FEdgeMesh& Mesh);
 CADKERNEL_API void DisplayMesh(const FVertexMesh& Mesh);
@@ -202,7 +224,7 @@ CADKERNEL_API void DisplayControlPolygon(const FCurve& Entity);
 CADKERNEL_API void DisplayControlPolygon(const FSurface& Entity);
 
 template<typename TPoint>
-void DisplaySegment(const TPoint& Point1, const TPoint& Point2, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::Element, bool bWithOrientation = false)
+void DisplaySegment(const TPoint& Point1, const TPoint& Point2, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::BlueCurve, bool bWithOrientation = false)
 {
 	F3DDebugSegment G(Ident);
 	if (bWithOrientation)
@@ -213,10 +235,34 @@ void DisplaySegment(const TPoint& Point1, const TPoint& Point2, FIdent Ident = 0
 };
 
 template<typename TPoint>
+void DisplaySegmentWithScale(const TPoint& Point1, const TPoint& Point2, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::BlueCurve, bool bWithOrientation = false)
+{
+	F3DDebugSegment G(Ident);
+	if (bWithOrientation)
+	{
+		DrawSegmentOrientation(Point1 * DisplayScale, Point2 * DisplayScale, Property);
+	}
+	DrawSegment(Point1 * DisplayScale, Point2 * DisplayScale, Property);
+};
+
+template<typename TPoint>
 void DisplayPolyline(const TArray<TPoint>& Points, EVisuProperty Property)
 {
 	Open3DDebugSegment(0);
 	Draw(Points, Property);
+	Close3DDebugSegment();
+}
+
+static void DisplayPolylineWithScale(const TArray<FPoint2D>& Points, EVisuProperty Property)
+{
+	TArray<FPoint2D> PointsWithScale = Points;
+	for (FPoint2D& Point : PointsWithScale)
+	{
+		Point *= DisplayScale;
+	}
+
+	Open3DDebugSegment(0);
+	Draw(PointsWithScale, Property);
 	Close3DDebugSegment();
 }
 
@@ -236,6 +282,7 @@ CADKERNEL_API void DrawQuadripode(double Height, double Base, FPoint& Centre, FP
 CADKERNEL_API void Draw(const FTopologicalEdge& Edge, EVisuProperty Property = EVisuProperty::BlueCurve);
 CADKERNEL_API void Draw(const FTopologicalFace& Face);
 CADKERNEL_API void Draw2D(const FTopologicalFace& Face);
+CADKERNEL_API void Draw2DWithScale(const FTopologicalFace& Face);
 CADKERNEL_API void Draw(const FShell& Shell);
 
 CADKERNEL_API void Draw(const FCurve& Curve, EVisuProperty Property = EVisuProperty::BlueCurve);

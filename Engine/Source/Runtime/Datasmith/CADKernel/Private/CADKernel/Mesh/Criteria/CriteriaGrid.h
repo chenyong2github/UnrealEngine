@@ -2,20 +2,30 @@
 #pragma once
 
 #include "CADKernel/Core/Types.h"
-#include "CADKernel/Geo/GeoPoint.h"
+#include "CADKernel/Mesh/Structure/GridBase.h"
+
 #include "CADKernel/Geo/Sampling/SurfacicSampling.h"
 
 namespace UE::CADKernel
 {
 class FTopologicalFace;
 
-class FCriteriaGrid
+class FCriteriaGrid : public FGridBase
 {
+
+private:
+
+	/*
+	 * Cutting coordinates of the face respecting the meshing criteria
+	 */
+	FCoordinateGrid CoordinateGrid;
+
 protected:
 
-	const FCoordinateGrid& CoordinateGrid;
-	int32 TrueUcoorindateCount;
-	FSurfacicSampling Grid;
+	virtual const FCoordinateGrid& GetCoordinateGrid() const override
+	{
+		return CoordinateGrid;
+	}
 
 	int32 GetIndex(int32 UIndex, int32 VIndex, bool bIsInternalU, bool bIsInternalV) const
 	{
@@ -29,76 +39,51 @@ protected:
 		{
 			++TrueVIndex;
 		}
-		return TrueVIndex * TrueUcoorindateCount + TrueUIndex;
+		return TrueVIndex * CuttingCount[EIso::IsoU] + TrueUIndex;
 	}
 
-	const FPoint& GetPoint(int32 UIndex, int32 VIndex, bool bIsInternalU, bool bIsInternalV, FVector3f* OutNormal = nullptr) const
+	const FPoint& GetPoint(int32 UIndex, int32 VIndex, bool bIsInternalU, bool bIsInternalV) const
 	{
 		int32 Index = GetIndex(UIndex, VIndex, bIsInternalU, bIsInternalV);
-		ensureCADKernel(Grid.Points3D.IsValidIndex(Index));
-
-		if (OutNormal)
-		{
-			*OutNormal = Grid.Normals[Index];
-		}
-		return Grid.Points3D[Index];
+		ensureCADKernel(Points3D.IsValidIndex(Index));
+		return Points3D[Index];
 	}
 
-	void Init(const FTopologicalFace& Face);
-
-public:
-
-	FCriteriaGrid(const FTopologicalFace& InFace);
+	void Init();
 
 	double GetCoordinate(EIso Iso, int32 ind) const
 	{
 		return CoordinateGrid[Iso][ind];
 	}
 
-	constexpr const TArray<double>& GetCoordinates(EIso Iso) const
+public:
+
+	FCriteriaGrid(FTopologicalFace& InFace);
+
+
+	const FPoint& GetPoint(int32 iU, int32 iV) const
 	{
-		return CoordinateGrid[Iso];
+		return GetPoint(iU, iV, false, false);
 	}
 
-	int32 GetCoordinateCount(EIso Iso) const
+	const FPoint& GetIntermediateU(int32 iU, int32 iV) const
 	{
-		return CoordinateGrid.IsoCount(Iso);
+		return GetPoint(iU, iV, true, false);
 	}
 
-	const TArray<FPoint>& GetGridPoints() const
+	const FPoint& GetIntermediateV(int32 iU, int32 iV) const
 	{
-		return Grid.Points3D;
+		return GetPoint(iU, iV, false, true);
 	}
 
-	const TArray<FVector3f>& GetGridNormals() const
+	const FPoint& GetIntermediateUV(int32 iU, int32 iV) const
 	{
-		return Grid.Normals;
+		return GetPoint(iU, iV, true, true);
 	}
 
-	const FPoint& GetPoint(int32 iU, int32 iV, FVector3f* normal = nullptr) const
-	{
-		return GetPoint(iU, iV, false, false, normal);
-	}
-
-	const FPoint& GetIntermediateU(int32 iU, int32 iV, FVector3f* normal = nullptr) const
-	{
-		return GetPoint(iU, iV, true, false, normal);
-	}
-
-	const FPoint& GetIntermediateV(int32 iU, int32 iV, FVector3f* normal = nullptr) const
-	{
-		return GetPoint(iU, iV, false, true, normal);
-	}
-
-	const FPoint& GetIntermediateUV(int32 iU, int32 iV, FVector3f* normal = nullptr) const
-	{
-		return GetPoint(iU, iV, true, true, normal);
-	}
-
-#ifdef DISPLAY_CRITERIA_GRID
+#ifdef CADKERNEL_DEV
 	void Display() const;
 #endif
-
 };
 }
 

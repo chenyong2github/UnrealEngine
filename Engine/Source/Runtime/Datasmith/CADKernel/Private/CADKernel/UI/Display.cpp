@@ -379,7 +379,7 @@ void Display(const FPlane& Plane, FIdent Ident)
 	TArray<FPoint> Points;
 
 	const FVector Point = Plane.GetOrigin();
-	
+
 	FVector VTemp;
 
 	VTemp = Point + UAxis + VAxis;
@@ -655,17 +655,19 @@ void DisplayControlPolygon(const FCurve& Curve)
 	};
 
 	F3DDebugSegment GraphicSegment(Curve.GetId());
-	if (Curve.GetCurveType() == ECurve::Bezier)
+	switch (Curve.GetCurveType())
+	{
+	case  ECurve::Bezier:
 	{
 		const FBezierCurve& Bezier = (const FBezierCurve&)Curve;
 		DisplayHull(Bezier.GetPoles());
 		return;
 	}
-	if (Curve.GetCurveType() == ECurve::Nurbs)
+	case ECurve::Nurbs:
 	{
 		const FNURBSCurve& Nurbs = (const FNURBSCurve&)Curve;
 		const TArray<FPoint>& Poles = Nurbs.GetPoles();
-		DisplayHull(Nurbs.GetPoles());
+		DisplayHull(Poles);
 		return;
 	}
 #endif
@@ -733,6 +735,14 @@ void Display2D(const FTopologicalFace& Face)
 #endif
 }
 
+void Display2DWithScale(const FTopologicalFace& Face)
+{
+#ifdef CADKERNEL_DEV
+	F3DDebugSegment GraphicSegment(Face.GetId());
+	Draw2D(Face);
+#endif
+}
+
 void Draw(const FTopologicalFace& Face)
 {
 #ifdef CADKERNEL_DEV
@@ -745,7 +755,7 @@ void Draw(const FTopologicalFace& Face)
 				switch (Edge.Entity->GetTwinEntityCount())
 				{
 				case 1:
-					Property =  Edge.Entity->IsDegenerated() ? EVisuProperty::OrangeCurve : EVisuProperty::BorderEdge;
+					Property = Edge.Entity->IsDegenerated() ? EVisuProperty::OrangeCurve : EVisuProperty::BorderEdge;
 					break;
 				case 2:
 					Property = EVisuProperty::BlueCurve;
@@ -821,7 +831,6 @@ void Draw2D(const FTopologicalFace& Face)
 	DrawIsos(IsoVCount, EIso::IsoV);
 #endif
 }
-
 
 void DrawIsoCurves(const FTopologicalFace& Face)
 {
@@ -906,6 +915,21 @@ void Display2D(const FTopologicalEdge& Edge, EVisuProperty Property)
 	TArray<FPoint2D> Polyline;
 	Edge.GetCurve()->GetDiscretizationPoints(Edge.GetBoundary(), EOrientation::Front, Polyline);
 	DisplayPolyline(Polyline, Property);
+#endif
+}
+
+void Display2DWithScale(const FTopologicalEdge& Edge, EVisuProperty Property)
+{
+#ifdef CADKERNEL_DEV
+	F3DDebugSegment GraphicSegment(Edge.GetId());
+	TArray<FPoint2D> Polyline;
+	Edge.GetCurve()->GetDiscretizationPoints(Edge.GetBoundary(), EOrientation::Front, Polyline);
+	DisplayPolylineWithScale(Polyline, Property);
+
+	for (const FPoint2D& Point : Polyline)
+	{
+		DisplayPoint2DWithScale(Point, EVisuProperty::RedPoint);
+	}
 #endif
 }
 
@@ -1223,6 +1247,16 @@ void Display2D(const FTopologicalLoop& Loop)
 	for (const FOrientedEdge& Edge : Loop.GetEdges())
 	{
 		Display2D(*Edge.Entity);
+	}
+#endif
+}
+
+void Display2DWithScale(const FTopologicalLoop& Loop)
+{
+#ifdef CADKERNEL_DEV
+	for (const FOrientedEdge& Edge : Loop.GetEdges())
+	{
+		Display2DWithScale(*Edge.Entity);
 	}
 #endif
 }

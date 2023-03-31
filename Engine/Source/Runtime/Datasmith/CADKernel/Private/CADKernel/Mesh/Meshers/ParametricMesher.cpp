@@ -101,17 +101,25 @@ void FParametricMesher::PreMeshingTasks()
 
 	const TArray<TSharedPtr<FCriterion>>& Criteria = GetMeshModel().GetCriteria();
 
+#ifdef CADKERNEL_DEV
+	for(FTopologicalFace* Face : Faces)
+	{
+#else
 	TArray<FTopologicalFace*>& LocalFaces = Faces;
 	ParallelFor(Faces.Num(), [&LocalFaces, &Criteria](int32 Index)
 		{
 			FTopologicalFace* Face = LocalFaces[Index];
+#endif
 			if (Face == nullptr || Face->IsDeleted() || Face->IsMeshed())
 			{
 				return;
 			}
 			ApplyFaceCriteria(*Face, Criteria);
 			Face->ComputeSurfaceSideProperties();
-		});
+		}
+#ifndef CADKERNEL_DEV
+	);
+#endif
 
 #ifdef CADKERNEL_DEV
 	MesherReport.Chronos.ApplyCriteriaDuration = FChrono::Elapse(ApplyCriteriaStartTime);
@@ -301,7 +309,9 @@ void FParametricMesher::GenerateCloud(FGrid& Grid)
 	if (bFindThinZone)
 	{
 		FTimePoint StartTime = FChrono::Now();
+#ifdef THIN_ZONES
 		Grid.SearchThinZones();
+#endif
 
 		if (Grid.GetFace().HasThinZone())
 		{
@@ -323,8 +333,11 @@ void FParametricMesher::GenerateCloud(FGrid& Grid)
 	}
 
 #ifdef DEBUG_THIN_ZONES
-	Grid.DisplayInnerDomainPoints(TEXT("FGrid::PointCloud 2D"), Grid.GetInner2DPoints(EGridSpace::Default2D));
-	//Wait(Grid.bDisplay);
+	if(Grid.bDisplay)
+	{
+		Grid.DisplayInnerDomainPoints(TEXT("FGrid::PointCloud 2D"), Grid.GetInner2DPoints(EGridSpace::Default2D));
+		Wait();
+	}
 #endif
 
 	FTimePoint StartTime = FChrono::Now();
@@ -1280,7 +1293,7 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 // =========================================================================================================================================================================================================
 //
 //
-//                                                                            NOT YET REVIEWED
+//                                                                            NOT YET IMPLEMENTED
 //
 //
 // =========================================================================================================================================================================================================
@@ -1289,6 +1302,7 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 
 void FParametricMesher::MeshThinZoneEdges(FGrid& Grid)
 {
+#ifdef UNUSED
 #ifdef DEBUG_MESHTHINSURF
 	Open3DDebugSession(FString::Printf(TEXT("thin Surfaces cutting on surf %d"), Grid.GetFace()->GetId()));
 #endif
@@ -1400,7 +1414,7 @@ void FParametricMesher::MeshThinZoneEdges(FGrid& Grid)
 #ifdef CADKERNEL_DEV
 	MesherReport.Chronos.GlobalMeshThinZones += FChrono::Elapse(MeshStartTime);
 #endif
-
+#endif
 }
 
 static void AddActiveEdgeThinZone(TSharedPtr<FTopologicalEdge> Edge, TSharedPtr<FTopologicalEdge> ActiveEdge, FLinearBoundary& SideEdgeCoordinate)
@@ -1418,6 +1432,7 @@ static void AddActiveEdgeThinZone(TSharedPtr<FTopologicalEdge> Edge, TSharedPtr<
 
 void FParametricMesher::GetThinZoneBoundary(const FThinZoneSide& Side)
 {
+#ifdef UNUSED
 	TSharedPtr<FTopologicalEdge> Edge = nullptr;
 	TSharedPtr<FTopologicalEdge> ActiveEdge = nullptr;
 	FLinearBoundary SideEdgeCoordinate;
@@ -1446,10 +1461,12 @@ void FParametricMesher::GetThinZoneBoundary(const FThinZoneSide& Side)
 		}
 	};
 	AddActiveEdgeThinZone(Edge, ActiveEdge, SideEdgeCoordinate);
+#endif
 }
 
 void FParametricMesher::MeshThinZoneSide(const FThinZoneSide& Side)
 {
+#ifdef UNUSED
 	typedef TFunction<bool(double, double)> CompareMethode;
 
 	TSharedPtr<FTopologicalEdge> Edge;
@@ -1642,7 +1659,7 @@ void FParametricMesher::MeshThinZoneSide(const FThinZoneSide& Side)
 	Close3DDebugSession();
 	Close3DDebugSession();
 #endif
-
+#endif
 }
 
 #ifdef DEBUG_INTERSECTEDGEISOS

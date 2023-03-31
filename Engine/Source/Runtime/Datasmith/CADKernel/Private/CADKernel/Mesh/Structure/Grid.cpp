@@ -11,29 +11,21 @@
 #include "CADKernel/Utils/Util.h"
 #include "CADKernel/Utils/ArrayUtils.h"
 
-//#define DEBUG_GRID
 //#define DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
 namespace UE::CADKernel
 {
 
 FGrid::FGrid(FTopologicalFace& InFace, FModelMesh& InMeshModel)
-	: Face(InFace)
+	: FGridBase(InFace)
+	, CoordinateGrid(InFace.GetCuttingPointCoordinates())
 	, FaceTolerance(InFace.GetIsoTolerances())
-	, Tolerance3D(InFace.GetCarrierSurface()->Get3DTolerance())
 	, MinimumElementSize(Tolerance3D * 2.)
 	, MeshModel(InMeshModel)
-	, ThinZoneFinder(*this)
-	, CuttingCoordinates(InFace.GetCuttingPointCoordinates())
 {
 #ifdef DEBUG_ONLY_SURFACE_TO_DEBUG
-	bDisplay = (Face.GetId() == FaceToDebug);
-	Open3DDebugSession(bDisplay, FString::Printf(TEXT("Grid %d"), Face.GetId()));
+	bDisplay = (InFace.GetId() == FaceToDebug);
+	Open3DDebugSession(bDisplay, FString::Printf(TEXT("Grid %d"), InFace.GetId()));
 #endif
-}
-
-void FGrid::PrintTimeElapse() const
-{
-	Chronos.PrintTimeElapse();
 }
 
 void FGrid::ProcessPointCloud()
@@ -105,13 +97,13 @@ void FGrid::DefineCuttingParameters()
 {
 	FTimePoint StartTime = FChrono::Now();
 
-	FCuttingGrid PreferredCuttingParametersFormLoops;
-	GetPreferredUVCuttingParametersFromLoops(PreferredCuttingParametersFormLoops);
+	FCuttingGrid PreferredCuttingParametersFromLoops;
+	GetPreferredUVCuttingParametersFromLoops(PreferredCuttingParametersFromLoops);
 
-	DefineCuttingParameters(EIso::IsoU, PreferredCuttingParametersFormLoops);
-	DefineCuttingParameters(EIso::IsoV, PreferredCuttingParametersFormLoops);
+	DefineCuttingParameters(EIso::IsoU, PreferredCuttingParametersFromLoops);
+	DefineCuttingParameters(EIso::IsoV, PreferredCuttingParametersFromLoops);
 
-	CuttingSize = CuttingCoordinates.Count();
+	CuttingSize = CoordinateGrid.Count();
 
 	Chronos.DefineCuttingParametersDuration = FChrono::Elapse(StartTime);
 }
@@ -195,7 +187,7 @@ void FGrid::DefineCuttingParameters(EIso Iso, FCuttingGrid& Neighbors)
 		//Wait();
 	}
 #endif
-	CuttingCount[Iso] = CuttingCoordinates.IsoCount(Iso);
+	CuttingCount[Iso] = CoordinateGrid.IsoCount(Iso);
 
 	Chronos.DefineCuttingParametersDuration = FChrono::Elapse(StartTime);
 }
@@ -328,35 +320,16 @@ bool FGrid::GeneratePointCloud()
 {
 	FTimePoint StartTime = FChrono::Now();
 
-	ComputeMaxDeltaUV();
-	if (MaxDeltaUV[EIso::IsoU] < FaceTolerance[EIso::IsoU] || MaxDeltaUV[EIso::IsoV] < FaceTolerance[EIso::IsoV])
+	if (CheckIf2DGridIsDegenerate())
 	{
-		SetAsDegenerated();
 		return false;
 	}
 
 	NodeMarkers.Init(ENodeMarker::None, CuttingSize);
 
+	EvaluatePointGrid(CoordinateGrid, true);
+
 	CountOfInnerNodes = CuttingSize;
-	for (int32 Index = 0; Index < EGridSpace::EndGridSpace; ++Index)
-	{
-		Points2D[Index].SetNum(CuttingSize);
-	}
-	Points3D.SetNum(CuttingSize);
-	Normals.SetNum(CuttingSize);
-
-	int32 Index = 0;
-	for (int32 IPointV = 0; IPointV < CuttingCount[EIso::IsoV]; ++IPointV)
-	{
-		for (int32 IPointU = 0; IPointU < CuttingCount[EIso::IsoU]; ++IPointU, ++Index)
-		{
-			Points2D[EGridSpace::Default2D][Index].Set(Face.GetCuttingCoordinatesAlongIso(EIso::IsoU)[IPointU], Face.GetCuttingCoordinatesAlongIso(EIso::IsoV)[IPointV]);
-		}
-	}
-
-	Face.EvaluateGrid(*this);
-
-	ComputeMaxElementSize();
 
 	if (!ScaleGrid())
 	{
@@ -365,33 +338,6 @@ bool FGrid::GeneratePointCloud()
 
 	Chronos.GeneratePointCloudDuration += FChrono::Elapse(StartTime);
 	return true;
-}
-
-void FGrid::ComputeMaxElementSize()
-{
-	MaxElementSize[EIso::IsoV] = 0;
-	for (int32 IndexU = 0; IndexU < CuttingCount[EIso::IsoU]; ++IndexU)
-	{
-		int32 Index = IndexU;
-		for (int32 IndexV = 1; IndexV < CuttingCount[EIso::IsoV]; ++IndexV, Index += CuttingCount[EIso::IsoU])
-		{
-			MaxElementSize[EIso::IsoV] = FMath::Max(Points3D[Index].SquareDistance(Points3D[Index + CuttingCount[EIso::IsoU]]), MaxElementSize[EIso::IsoV]);
-		}
-	}
-
-	MaxElementSize[EIso::IsoU] = 0;
-	for (int32 IndexV = 0, Index = 0; IndexV < CuttingCount[EIso::IsoV]; ++IndexV)
-	{
-		for (int32 IndexU = 1; IndexU < CuttingCount[EIso::IsoU]; ++IndexU, ++Index)
-		{
-			MaxElementSize[EIso::IsoU] = FMath::Max(Points3D[Index].SquareDistance(Points3D[Index + 1]), MaxElementSize[EIso::IsoU]);
-		}
-		++Index;
-	}
-
-	MaxElementSize[EIso::IsoU] = sqrt(MaxElementSize[EIso::IsoU]);
-	MaxElementSize[EIso::IsoV] = sqrt(MaxElementSize[EIso::IsoV]);
-	MinOfMaxElementSize = FMath::Min(MaxElementSize[EIso::IsoU], MaxElementSize[EIso::IsoV]);
 }
 
 void FGrid::FindPointsCloseToLoop()
@@ -418,10 +364,10 @@ void FGrid::FindPointsCloseToLoop()
 		if (bDisplay)
 		{
 			F3DDebugSession _(*FString::Printf(TEXT("Cell %d"), CellIndex++));
-			DisplayPoint(Points2D[EGridSpace::UniformScaled][GlobalIndex] * DisplayScale);
-			DisplayPoint(Points2D[EGridSpace::UniformScaled][GlobalIndex - 1] * DisplayScale);
-			DisplayPoint(Points2D[EGridSpace::UniformScaled][GlobalIndex - 1 - CuttingCount[EIso::IsoU]] * DisplayScale);
-			DisplayPoint(Points2D[EGridSpace::UniformScaled][GlobalIndex - CuttingCount[EIso::IsoU]] * DisplayScale);
+			DisplayPoint2DWithScale(Points2D[EGridSpace::UniformScaled][GlobalIndex]);
+			DisplayPoint2DWithScale(Points2D[EGridSpace::UniformScaled][GlobalIndex - 1]);
+			DisplayPoint2DWithScale(Points2D[EGridSpace::UniformScaled][GlobalIndex - 1 - CuttingCount[EIso::IsoU]]);
+			DisplayPoint2DWithScale(Points2D[EGridSpace::UniformScaled][GlobalIndex - CuttingCount[EIso::IsoU]]);
 			Wait(bWaitCell);
 		}
 	};
@@ -582,7 +528,7 @@ void FGrid::FindPointsCloseToLoop()
 			if (bDisplay)
 			{
 				F3DDebugSession _(TEXT("SEG"));
-				DisplaySegment(*PointB * DisplayScale, *PointA * DisplayScale);
+				DisplaySegmentWithScale(*PointB, *PointA);
 			}
 #endif
 
@@ -1122,17 +1068,10 @@ void FGrid::GetMeshOfLoop(const FTopologicalLoop& Loop)
 	}
 }
 
-//#define DEBUG_GET_BOUNDARY_MESH
 bool FGrid::GetMeshOfLoops()
 {
-	int32 ThinZoneNum = 0;
-	if (Face.HasThinZone())
-	{
-		ThinZoneNum = ThinZoneFinder.GetThinZones().Num();
-	}
-
 	int32 LoopCount = Face.GetLoops().Num();
-	FaceLoops2D[EGridSpace::Default2D].Reserve(LoopCount + ThinZoneNum);
+	FaceLoops2D[EGridSpace::Default2D].Reserve(LoopCount);
 
 	FaceLoops3D.Reserve(LoopCount);
 	NormalsOfFaceLoops.Reserve(LoopCount);
@@ -1160,43 +1099,9 @@ bool FGrid::GetMeshOfLoops()
 		}
 	}
 
-	if (CheckIfDegenerated())
+	if (CheckIfExternalLoopIsDegenerate())
 	{
 		return false;
-	}
-
-	if (ThinZoneNum)
-	{
-		for (const FThinZone2D& ThinZone : ThinZoneFinder.GetThinZones())
-		{
-			int32 PointNum = ThinZone.GetFirstSide().GetSegments().Num();
-			PointNum += ThinZone.GetSecondSide().GetSegments().Num();
-			TArray<FPoint2D>& LoopPoints = FaceLoops2D[EGridSpace::Default2D].Emplace_GetRef();
-			LoopPoints.Reserve(PointNum + 4);
-
-			// First point Side1
-			{
-				const FEdgeSegment* Segment = ThinZone.GetFirstSide().GetSegments()[0];
-				LoopPoints.Emplace(Segment->GetEdge()->Approximate2DPoint(Segment->GetCoordinate(ELimit::Start)));
-			}
-
-			for (const FEdgeSegment* Segment : ThinZone.GetFirstSide().GetSegments())
-			{
-				LoopPoints.Emplace(Segment->GetEdge()->Approximate2DPoint(Segment->GetCoordinate(ELimit::End)));
-			}
-
-			// First point Side2
-			{
-				const FEdgeSegment* Segment = ThinZone.GetSecondSide().GetSegments().Last();
-				LoopPoints.Emplace(Segment->GetEdge()->Approximate2DPoint(Segment->GetCoordinate(ELimit::Start)));
-			}
-
-			const TArray<FEdgeSegment*>& Segments = ThinZone.GetSecondSide().GetSegments();
-			for (int32 Index = Segments.Num() - 1; Index >= 0; --Index)
-			{
-				LoopPoints.Emplace(Segments[Index]->GetEdge()->Approximate2DPoint(Segments[Index]->GetCoordinate(ELimit::End)));
-			}
-		}
 	}
 
 	// Fit boundaries to Surface bounds.
@@ -1209,218 +1114,6 @@ bool FGrid::GetMeshOfLoops()
 		}
 	}
 	return true;
-}
-
-bool FGrid::ScaleGrid()
-{
-	FTimePoint StartTime = FChrono::Now();
-
-	TFunction<double(const TArray<double>&)> GetMean = [](const TArray<double>& Lengths)
-	{
-		double MeanLength = 0;
-		for (double Length : Lengths)
-		{
-			MeanLength += Length;
-		}
-		MeanLength /= Lengths.Num();
-		return MeanLength;
-	};
-
-	TFunction<double(const TArray<double>&, const double)> StandardDeviation = [](const TArray<double>& Lengths, const double MeanLength)
-	{
-		double StandardDeviation = 0;
-		for (double Length : Lengths)
-		{
-			StandardDeviation += FMath::Square(Length - MeanLength);
-		}
-		StandardDeviation /= Lengths.Num();
-		StandardDeviation = sqrt(StandardDeviation);
-		return StandardDeviation;
-	};
-
-	TFunction<void(const TArray<double>&, const double, TArray<double>&)> ScaleCoordinates = [](const TArray<double>& InCoordinates, const double ScaleFactor, TArray<double>& OutCoordinatesScaled)
-	{
-		OutCoordinatesScaled.Reserve(InCoordinates.Num());
-
-		for (double Coordinate : InCoordinates)
-		{
-			OutCoordinatesScaled.Add(Coordinate * ScaleFactor);
-		}
-	};
-
-	TFunction<int32(const TArray<double>&, const double)> GetMiddleIndex = [](const TArray<double>& Coordinates, double Middle)
-	{
-		int32 StartIndexUp = 1;
-		for (; StartIndexUp < Coordinates.Num(); ++StartIndexUp)
-		{
-			if (Coordinates[StartIndexUp] > Middle)
-			{
-				break;
-			}
-		}
-		return StartIndexUp;
-	};
-
-	TArray<double> LengthsV;
-	LengthsV.SetNum(CuttingCount[EIso::IsoU]);
-	for (int32 IndexU = 0; IndexU < CuttingCount[EIso::IsoU]; ++IndexU)
-	{
-		int32 Index = IndexU;
-		double Length = 0;
-		for (int32 IndexV = 1; IndexV < CuttingCount[EIso::IsoV]; ++IndexV)
-		{
-			Length += Points3D[Index].Distance(Points3D[Index + CuttingCount[EIso::IsoU]]);
-			Index += CuttingCount[EIso::IsoU];
-		}
-		LengthsV[IndexU] = Length;
-	}
-
-	TArray<double> LengthsU;
-	LengthsU.SetNum(CuttingCount[EIso::IsoV]);
-	for (int32 IndexV = 0, Index = 0; IndexV < CuttingCount[EIso::IsoV]; ++IndexV)
-	{
-		double Length = 0;
-		for (int32 IndexU = 1; IndexU < CuttingCount[EIso::IsoU]; ++IndexU)
-		{
-			Length += Points3D[Index].Distance(Points3D[Index + 1]);
-			Index++;
-		}
-		Index++;
-		LengthsU[IndexV] = Length;
-	}
-
-	double MeanLengthV = GetMean(LengthsV);
-	double MeanLengthU = GetMean(LengthsU);
-	if(MeanLengthV < Tolerance3D || MeanLengthU < Tolerance3D)
-	{
-		SetAsDegenerated();
-		return false;
-	}
-
-	double FactorV = MeanLengthV / (CuttingCoordinates[EIso::IsoV].Last() - CuttingCoordinates[EIso::IsoV][0]);
-	double FactorU = MeanLengthU / (CuttingCoordinates[EIso::IsoU].Last() - CuttingCoordinates[EIso::IsoU][0]);
-
-	//TArray<double> ScaledCuttingCoordinates;
-	ScaleCoordinates(CuttingCoordinates[EIso::IsoU], FactorU, UniformCuttingCoordinates[EIso::IsoU]);
-	ScaleCoordinates(CuttingCoordinates[EIso::IsoV], FactorV, UniformCuttingCoordinates[EIso::IsoV]);
-
-	{
-		int32 NumUV = 0;
-		for (int32 IPointV = 0; IPointV < CuttingCount[EIso::IsoV]; ++IPointV)
-		{
-			for (int32 IPointU = 0; IPointU < CuttingCount[EIso::IsoU]; ++IPointU, ++NumUV)
-			{
-				Points2D[EGridSpace::UniformScaled][NumUV].Set(UniformCuttingCoordinates[EIso::IsoU][IPointU], UniformCuttingCoordinates[EIso::IsoV][IPointV]);
-			}
-		}
-	}
-
-	double StandardDeviationU = StandardDeviation(LengthsU, MeanLengthU);
-	double StandardDeviationV = StandardDeviation(LengthsV, MeanLengthV);
-
-	if (StandardDeviationV > StandardDeviationU)
-	{
-		double MiddleV = (CuttingCoordinates[EIso::IsoV].Last() + CuttingCoordinates[EIso::IsoV][0]) * 0.5;
-
-		FCoordinateGrid Grid;
-		Grid[EIso::IsoU] = CuttingCoordinates[EIso::IsoU];
-		Grid[EIso::IsoV].Add(MiddleV);
-
-		FSurfacicSampling MiddlePoints;
-		Face.EvaluatePointGrid(Grid, MiddlePoints);
-
-		int32 StartIndexUp = GetMiddleIndex(CuttingCoordinates[EIso::IsoV], MiddleV);
-		int32 StartIndexDown = StartIndexUp - 1;
-
-		int32 NumUV = 0;
-		for (int32 IPointU = 0; IPointU < CuttingCount[EIso::IsoU]; ++IPointU)
-		{
-			double Length = 0;
-			FPoint LastPoint = MiddlePoints.Points3D[IPointU];
-			for (int32 IPointV = StartIndexUp; IPointV < CuttingCount[EIso::IsoV]; ++IPointV)
-			{
-				NumUV = IPointV * CuttingCount[EIso::IsoU] + IPointU;
-				Length += LastPoint.Distance(Points3D[NumUV]);
-				Points2D[EGridSpace::Scaled][NumUV].Set(Points2D[EGridSpace::UniformScaled][NumUV].U, Length);
-				LastPoint = Points3D[NumUV];
-			}
-
-			Length = 0;
-			LastPoint = MiddlePoints.Points3D[IPointU];
-			for (int32 IPointV = StartIndexDown; IPointV >= 0; --IPointV)
-			{
-				NumUV = IPointV * CuttingCount[EIso::IsoU] + IPointU;
-				Length -= LastPoint.Distance(Points3D[NumUV]);
-				Points2D[EGridSpace::Scaled][NumUV].Set(Points2D[EGridSpace::UniformScaled][NumUV].U, Length);
-				LastPoint = Points3D[NumUV];
-			}
-		}
-	}
-	else
-	{
-		double MiddleU = (CuttingCoordinates[EIso::IsoU].Last() + CuttingCoordinates[EIso::IsoU][0]) * 0.5;
-
-		FCoordinateGrid Grid;
-		Grid[EIso::IsoU].Add(MiddleU);
-		Grid[EIso::IsoV] = CuttingCoordinates[EIso::IsoV];
-
-		FSurfacicSampling MiddlePoints;
-		Face.EvaluatePointGrid(Grid, MiddlePoints);
-
-		int32 StartIndexUp = GetMiddleIndex(CuttingCoordinates[EIso::IsoU], MiddleU);
-		int32 StartIndexDown = StartIndexUp - 1;
-
-		int32 NumUV = 0;
-		for (int32 IPointV = 0; IPointV < CuttingCount[EIso::IsoV]; ++IPointV)
-		{
-			double Length = 0;
-			FPoint LastPoint = MiddlePoints.Points3D[IPointV];
-			for (int32 IPointU = StartIndexUp; IPointU < CuttingCount[EIso::IsoU]; ++IPointU)
-			{
-				NumUV = IPointV * CuttingCount[EIso::IsoU] + IPointU;
-				Length += LastPoint.Distance(Points3D[NumUV]);
-				Points2D[EGridSpace::Scaled][NumUV].Set(Length, Points2D[EGridSpace::UniformScaled][NumUV].V);
-				LastPoint = Points3D[NumUV];
-			}
-
-			Length = 0;
-			LastPoint = MiddlePoints.Points3D[IPointV];
-			for (int32 IPointU = StartIndexDown; IPointU >= 0; --IPointU)
-			{
-				NumUV = IPointV * CuttingCount[EIso::IsoU] + IPointU;
-				Length -= LastPoint.Distance(Points3D[NumUV]);
-				Points2D[EGridSpace::Scaled][NumUV].Set(Length, Points2D[EGridSpace::UniformScaled][NumUV].V);
-				LastPoint = Points3D[NumUV];
-			}
-		}
-	}
-	Chronos.ScaleGridDuration = FChrono::Elapse(StartTime);
-	return true;
-}
-
-void FGrid::TransformPoints(EGridSpace DestinationSpace, const TArray<FPoint2D>& InPointsToScale, TArray<FPoint2D>& OutTransformedPoints) const
-{
-	OutTransformedPoints.SetNum(InPointsToScale.Num());
-
-	int32 IndexU = 0;
-	int32 IndexV = 0;
-	for (int32 Index = 0; Index < InPointsToScale.Num(); ++Index)
-	{
-		const FPoint2D& Point = InPointsToScale[Index];
-
-		ArrayUtils::FindCoordinateIndex(CuttingCoordinates[EIso::IsoU], Point.U, IndexU);
-		ArrayUtils::FindCoordinateIndex(CuttingCoordinates[EIso::IsoV], Point.V, IndexV);
-
-		ComputeNewCoordinate(Points2D[DestinationSpace], IndexU, IndexV, Point, OutTransformedPoints[Index]);
-	}
-}
-
-void FGrid::SearchThinZones()
-{
-	ensure(false);
-	double Size = GetMinElementSize();
-	ThinZoneFinder.Set(Size / 3.);
-	ThinZoneFinder.SearchThinZones();
 }
 
 void FGrid::ScaleLoops()
@@ -1443,8 +1136,8 @@ void FGrid::ScaleLoops()
 		{
 			const FPoint2D& Point = Loop[Index];
 
-			ArrayUtils::FindCoordinateIndex(CuttingCoordinates[EIso::IsoU], Point.U, IndexU);
-			ArrayUtils::FindCoordinateIndex(CuttingCoordinates[EIso::IsoV], Point.V, IndexV);
+			ArrayUtils::FindCoordinateIndex(CoordinateGrid[EIso::IsoU], Point.U, IndexU);
+			ArrayUtils::FindCoordinateIndex(CoordinateGrid[EIso::IsoV], Point.V, IndexV);
 
 			ComputeNewCoordinate(Points2D[EGridSpace::Scaled], IndexU, IndexV, Point, ScaledLoop[Index]);
 			ComputeNewCoordinate(Points2D[EGridSpace::UniformScaled], IndexU, IndexV, Point, UniformScaledLoop[Index]);
@@ -1453,21 +1146,28 @@ void FGrid::ScaleLoops()
 	}
 }
 
-void FGrid::ComputeMaxDeltaUV()
+bool FGrid::CheckIf2DGridIsDegenerate() const
 {
-	MaxDeltaUV[EIso::IsoU] = 0;
-	for (int32 Index = 1; Index < CuttingCoordinates[EIso::IsoU].Num(); ++Index)
+	TFunction<bool(EIso)> IsDegenerate = [&](EIso Iso) -> bool
 	{
-		double Delta = CuttingCoordinates[EIso::IsoU][Index] - CuttingCoordinates[EIso::IsoU][Index - 1];
-		MaxDeltaUV[EIso::IsoU] = FMath::Max(MaxDeltaUV[EIso::IsoU], Delta);
-	}
+		double MaxDelta = 0;
+		for (int32 Index = 1; Index < CoordinateGrid[Iso].Num(); ++Index)
+		{
+			double Delta = CoordinateGrid[Iso][Index] - CoordinateGrid[Iso][Index - 1];
+			if (Delta > MaxDelta)
+			{
+				MaxDelta = Delta;
+			}
+		}
+		return MaxDelta < FaceTolerance[Iso];
+	};
 
-	MaxDeltaUV[EIso::IsoV] = 0;
-	for (int32 Index = 1; Index < CuttingCoordinates[EIso::IsoV].Num(); ++Index)
+	if (IsDegenerate(EIso::IsoU) || IsDegenerate(EIso::IsoV))
 	{
-		double Delta = CuttingCoordinates[EIso::IsoV][Index] - CuttingCoordinates[EIso::IsoV][Index - 1];
-		MaxDeltaUV[EIso::IsoV] = FMath::Max(MaxDeltaUV[EIso::IsoV], Delta);
+		SetAsDegenerated();
+		return true;
 	}
+	return false;
 }
 
 void FGrid::FindInnerFacePoints()
@@ -1480,19 +1180,24 @@ void FGrid::FindInnerFacePoints()
 
 	FTimePoint StartTime = FChrono::Now();
 
-	TArray<char> NbIntersectUForward; // we need to know if intersect is pair 0, 2, 4... intersection of impair 1, 3, 5... false is pair, true is impaire 
-	TArray<char> NbIntersectUBackward;
-	TArray<char> NbIntersectVForward;
-	TArray<char> NbIntersectVBackward;
+	TFunction<void(TArray<char>&, int32)> AddIntersection = [](TArray<char>& Intersect, int32 Index)
+	{
+		Intersect[Index] = Intersect[Index] > 0 ? 0 : 1;
+	};
+
+	TArray<char> VForwardIntersectCount; // we need to know if intersect is pair 0, 2, 4... intersection of impair 1, 3, 5... false is pair, true is impair 
+	TArray<char> VBackwardIntersectCount;
+	TArray<char> UForwardIntersectCount;
+	TArray<char> UBackwardIntersectCount;
 	TArray<char> IntersectLoop;
 
 	IntersectLoop.Init(0, CuttingSize);
 	NodeMarkers.Init(ENodeMarker::IsInside, CuttingSize);
 
-	NbIntersectUForward.Init(0, CuttingSize);
-	NbIntersectUBackward.Init(0, CuttingSize);
-	NbIntersectVForward.Init(0, CuttingSize);
-	NbIntersectVBackward.Init(0, CuttingSize);
+	VForwardIntersectCount.Init(0, CuttingSize);
+	VBackwardIntersectCount.Init(0, CuttingSize);
+	UForwardIntersectCount.Init(0, CuttingSize);
+	UBackwardIntersectCount.Init(0, CuttingSize);
 
 	// Loop node too close to one of CoordinateU or CoordinateV are moved a little to avoid floating error of comparison 
 	// This step is necessary instead of all points could be considered outside...
@@ -1636,22 +1341,22 @@ void FGrid::FindInnerFacePoints()
 
 					if (UniformCuttingCoordinates[EIso::IsoU][IndexU] < UMin)
 					{
-						NbIntersectVForward[Index] = NbIntersectVForward[Index] > 0 ? 0 : 1;
+						AddIntersection(UForwardIntersectCount, Index);
 					}
 					else if (UniformCuttingCoordinates[EIso::IsoU][IndexU] > Umax)
 					{
-						NbIntersectVBackward[Index] = NbIntersectVBackward[Index] > 0 ? 0 : 1;
+						AddIntersection(UBackwardIntersectCount, Index);
 					}
 					else
 					{
 						double APvectAB = UniformCuttingCoordinates[EIso::IsoV][IndexV] * ABu - UniformCuttingCoordinates[EIso::IsoU][IndexU] * ABv + AuABVMinusAvABu;
 						if (APvectAB > DOUBLE_SMALL_NUMBER)
 						{
-							NbIntersectVForward[Index] = NbIntersectVForward[Index] > 0 ? 0 : 1;
+							AddIntersection(UForwardIntersectCount, Index);
 						}
 						else if (APvectAB < DOUBLE_SMALL_NUMBER)
 						{
-							NbIntersectVBackward[Index] = NbIntersectVBackward[Index] > 0 ? 0 : 1;
+							AddIntersection(UBackwardIntersectCount, Index);
 						}
 						else
 						{
@@ -1721,22 +1426,22 @@ void FGrid::FindInnerFacePoints()
 
 					if (UniformCuttingCoordinates[EIso::IsoV][IndexV] < VMin)
 					{
-						NbIntersectUForward[Index] = NbIntersectUForward[Index] > 0 ? 0 : 1;
+						AddIntersection(VForwardIntersectCount, Index);
 					}
 					else if (UniformCuttingCoordinates[EIso::IsoV][IndexV] > Vmax)
 					{
-						NbIntersectUBackward[Index] = NbIntersectUBackward[Index] > 0 ? 0 : 1;
+						AddIntersection(VBackwardIntersectCount, Index);
 					}
 					else
 					{
 						double APvectAB = UniformCuttingCoordinates[EIso::IsoV][IndexV] * ABu - UniformCuttingCoordinates[EIso::IsoU][IndexU] * ABv + AuABVMinusAvABu;
 						if (APvectAB > DOUBLE_SMALL_NUMBER)
 						{
-							NbIntersectUBackward[Index] = NbIntersectUBackward[Index] > 0 ? 0 : 1;
+							AddIntersection(VBackwardIntersectCount, Index);
 						}
 						else if (APvectAB < DOUBLE_SMALL_NUMBER)
 						{
-							NbIntersectUForward[Index] = NbIntersectUForward[Index] > 0 ? 0 : 1;
+							AddIntersection(VForwardIntersectCount, Index);
 						}
 						else
 						{
@@ -1759,19 +1464,19 @@ void FGrid::FindInnerFacePoints()
 		}
 
 		int32 IsInside = 0;
-		if (NbIntersectVForward[Index] > 0)
+		if (UForwardIntersectCount[Index] > 0)
 		{
 			IsInside++;
 		}
-		if (NbIntersectVBackward[Index] > 0)
+		if (UBackwardIntersectCount[Index] > 0)
 		{
 			IsInside++;
 		}
-		if (NbIntersectUForward[Index] > 0)
+		if (VForwardIntersectCount[Index] > 0)
 		{
 			IsInside++;
 		}
-		if (NbIntersectUBackward[Index] > 0)
+		if (VBackwardIntersectCount[Index] > 0)
 		{
 			IsInside++;
 		}
@@ -1785,7 +1490,7 @@ void FGrid::FindInnerFacePoints()
 	Chronos.FindInnerDomainPointsDuration += FChrono::Elapse(StartTime);
 }
 
-bool FGrid::CheckIfDegenerated()
+bool FGrid::CheckIfExternalLoopIsDegenerate() const
 {
 	if (FaceLoops2D[EGridSpace::Default2D].Num() == 0)
 	{
@@ -1804,6 +1509,6 @@ bool FGrid::CheckIfDegenerated()
 	return false;
 }
 
-}
+} // NS CADKernel
 
 

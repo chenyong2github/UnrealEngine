@@ -14,9 +14,9 @@
 #ifndef CADKERNEL_DEV
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
+#include "Tasks/Task.h"
 #endif
 
-#include "Tasks/Task.h"
 #include "Templates/UnrealTemplate.h"
 
 namespace CADLibrary
@@ -330,11 +330,13 @@ FTechSoftFileParser::FTechSoftFileParser(FCADFileData& InCADData, const FString&
 ECADParsingResult FTechSoftFileParser::Process()
 {
 	bProcessIsRunning = true;
+#ifndef CADKERNEL_DEV
 	TArray<UE::Tasks::FTask> Checkers;
 	if(FImportParameters::bValidationProcess)
 	{
 		Checkers.Emplace(UE::Tasks::Launch(TEXT("MemoryChecker"), [&]() { CheckMemory(); }));
 	}
+#endif
 
 	//FPlatformMemoryStats StartMem = FPlatformMemory::GetStats();
 	uint64 StartTime = FPlatformTime::Cycles64();
@@ -463,7 +465,10 @@ ECADParsingResult FTechSoftFileParser::Process()
 	ProcessReport.LoadProcessTime = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartTime);
 
 	bProcessIsRunning = false;
+
+#ifndef CADKERNEL_DEV
 	UE::Tasks::Wait(Checkers);
+#endif
 
 	return Result;
 }
@@ -2003,17 +2008,17 @@ void FTechSoftFileParser::ReadMaterialsAndColors()
 
 void FTechSoftFileParser::CheckMemory()
 {
-	CADFileData.GetRecord().StartMemoryUsed = FPlatformMemory::GetStats().UsedPhysical;
-	uint64& MaxMemoryUsed = CADFileData.GetRecord().MaxMemoryUsed;
-	while (bProcessIsRunning)
-	{
-		FPlatformProcess::Sleep(0.1);
-		const uint64 MemoryUsed = FPlatformMemory::GetStats().UsedPhysical;
-		if (MaxMemoryUsed < MemoryUsed)
-		{
-			MaxMemoryUsed = MemoryUsed;
-		}
-	}
+	//CADFileData.GetRecord().StartMemoryUsed = FPlatformMemory::GetStats().UsedPhysical;
+	//uint64& MaxMemoryUsed = CADFileData.GetRecord().MaxMemoryUsed;
+	//while (bProcessIsRunning)
+	//{
+	//	FPlatformProcess::Sleep(0.1);
+	//	const uint64 MemoryUsed = FPlatformMemory::GetStats().UsedPhysical;
+	//	if (MaxMemoryUsed < MemoryUsed)
+	//	{
+	//		MaxMemoryUsed = MemoryUsed;
+	//	}
+	//}
 }
 
 

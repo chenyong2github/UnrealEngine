@@ -7,6 +7,8 @@
 #include "CADFileParser.h"
 #include "TechSoftInterface.h"
 
+#include <atomic>
+
 typedef void A3DAsmProductOccurrence;
 typedef void A3DRiRepresentationItem;
 

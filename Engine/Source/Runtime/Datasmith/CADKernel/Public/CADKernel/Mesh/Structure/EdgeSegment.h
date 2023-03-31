@@ -21,14 +21,14 @@ class FTopologicalVertex;
 class FEdgeSegment : public FHaveStates
 {
 private:
-	TSharedPtr<FTopologicalEdge> Edge;
+	FTopologicalEdge* Edge;
 	double Coordinates[2];
 	FPoint2D Points[2];
 
 	FEdgeSegment* NextSegment;
 	FEdgeSegment* PreviousSegment;
 
-	FEdgeSegment* ClosedSegment[2] = { nullptr, nullptr };
+	FEdgeSegment* ClosedSegment;
 
 	FSurfacicBoundary Boundary;
 	double AxisMin;
@@ -43,19 +43,23 @@ private:
 
 public:
 	FEdgeSegment()
-		: NextSegment(nullptr)
+		: Edge(nullptr)
+		, NextSegment(nullptr)
 		, PreviousSegment(nullptr)
+		, ClosedSegment(nullptr)
 		, AxisMin(0.)
 		, SquareDistanceToClosedSegment(HUGE_VALUE)
 		, Length(-1.)
-		, ChainIndex(0)
+		, ChainIndex(Ident::Undefined)
 		, Id(0)
 	{
 	};
 
+	FEdgeSegment(const FEdgeSegment& Segment) = default;
+
 	virtual ~FEdgeSegment() = default;
 
-	void SetBoundarySegment(bool bInIsInnerLoop, const TSharedPtr<FTopologicalEdge>& InEdge, double InStartU, double InEndU, const FPoint2D& InStartPoint, const FPoint2D& InEndPoint)
+	void SetBoundarySegment(bool bInIsInnerLoop, FTopologicalEdge* InEdge, double InStartU, double InEndU, const FPoint2D& InStartPoint, const FPoint2D& InEndPoint)
 	{
 		if (bInIsInnerLoop)
 		{
@@ -69,19 +73,41 @@ public:
 		Points[ELimit::End] = InEndPoint;
 		NextSegment = nullptr;
 		PreviousSegment = nullptr;
-		ClosedSegment[0] = nullptr;
-		ClosedSegment[1] = nullptr;
+		ClosedSegment = nullptr;
 
 		SquareDistanceToClosedSegment = HUGE_VAL;
 		Length = Points[ELimit::Start].Distance(Points[ELimit::End]);
 
 		Id = ++LastId;
-		ChainIndex = 0;
+		ChainIndex = Ident::Undefined;
 
 		Boundary.Set(Points[ELimit::Start], Points[ELimit::End]);
 
 		AxisMin = Boundary[EIso::IsoU].Min + Boundary[EIso::IsoV].Min;
 	};
+
+	void UpdateReferences(TMap<int32, FEdgeSegment*>& Map)
+	{
+		TFunction<void(FEdgeSegment*&)> UpdateReference = [&](FEdgeSegment*& Reference)
+		{
+			if (Reference)
+			{
+				FEdgeSegment** NewReference = Map.Find(Reference->GetId());
+				if (NewReference)
+				{
+					Reference = *NewReference;
+				}
+				else
+				{
+					Reference = nullptr;
+				}
+			}
+		};
+
+		UpdateReference(NextSegment);
+		UpdateReference(PreviousSegment);
+		UpdateReference(ClosedSegment);
+	}
 
 	double GetAxeMin() const
 	{
@@ -108,65 +134,56 @@ public:
 		States |= EHaveStates::IsInner;
 	}
 
-	FIdent GetId()
+	FIdent GetId() const
 	{
 		return Id;
 	}
 
-	const TSharedPtr<FTopologicalEdge> GetEdge() const
+	const FTopologicalEdge* GetEdge() const
 	{
 		return Edge;
 	}
 
-	//const TSharedPtr<FTopologicalLoop>& GetLoop() const
-	//{
-	//	return Edge->GetLoop();
-	//}
+	FTopologicalEdge* GetEdge()
+	{
+		return Edge;
+	}
 
 	double GetLength() const
 	{
 		return Length;
 	}
 
-	FPoint GetCenter() const
+	FPoint2D GetCenter() const
 	{
 		return (Points[ELimit::Start] + Points[ELimit::End]) * 0.5;
 	}
 
-	FPoint ComputeEdgePoint(double EdgeParamU) const
+	FPoint2D ComputeEdgePoint(double EdgeParamU) const
 	{
 		double SegmentParamS = (EdgeParamU - Coordinates[ELimit::Start]) / (Coordinates[ELimit::End] - Coordinates[ELimit::Start]);
 		return Points[ELimit::Start] + (Points[ELimit::End] - Points[ELimit::Start]) * SegmentParamS;
 	}
 
-	constexpr const FPoint2D& GetExtemity(const ELimit Limit) const
+	const FPoint2D& GetExtemity(const ELimit Limit) const
 	{
-		if (Limit == Start)
-		{
-			return Points[ELimit::Start];
-		}
-		else
-		{
-			return Points[ELimit::End];
-		}
+		return Points[Limit];
 	}
 
-	constexpr double GetCoordinate(const ELimit Limit) const
+	double GetCoordinate(const ELimit Limit) const
 	{
-		if (Limit == Start)
-		{
-			return Coordinates[ELimit::Start];
-		}
-		else
-		{
-			return Coordinates[ELimit::End];
-		}
+		return Coordinates[Limit];
+	}
+
+	bool IsForward()
+	{
+		return (Coordinates[ELimit::End] - Coordinates[ELimit::Start]) >= 0;
 	}
 
 	/**
 	 * Compute the slope of the input Segment according to this.
 	 */
-	double ComputeUnorientedSlopeOf(FEdgeSegment* Segment)
+	double ComputeUnorientedSlopeOf(const FEdgeSegment* Segment)
 	{
 		double ReferenceSlope = ComputeSlope(Points[ELimit::Start], Points[ELimit::End]);
 		return ComputeUnorientedSlope(Segment->Points[ELimit::Start], Segment->Points[ELimit::End], ReferenceSlope);
@@ -175,7 +192,7 @@ public:
 	/**
 	 * Compute the slope of the Segment defined by the two input points according to this.
 	 */
-	double ComputeUnorientedSlopeOf(FPoint2D& Middle, FPoint2D& Projection)
+	double ComputeUnorientedSlopeOf(const FPoint2D& Middle, const FPoint2D& Projection)
 	{
 		double ReferenceSlope = ComputeSlope(Points[ELimit::Start], Points[ELimit::End]);
 		return ComputeUnorientedSlope(Projection, Middle, ReferenceSlope);
@@ -191,44 +208,34 @@ public:
 		return PreviousSegment;
 	}
 
-	FEdgeSegment* GetClosedSegment() const
+	FEdgeSegment* GetCloseSegment() const
 	{
-		return ClosedSegment[0];
+		return ClosedSegment;
 	}
 
-	void ResetClosedData()
+	void ResetCloseData()
 	{
-		if (ClosedSegment[0]->ClosedSegment[0] == this)
+		if (ClosedSegment->ClosedSegment == this)
 		{
-			ClosedSegment[0]->ClosedSegment[0] = ClosedSegment[0]->ClosedSegment[1];
+			ClosedSegment->ClosedSegment = nullptr;
 		}
-		else
-		{
-			ClosedSegment[0]->ClosedSegment[1] = nullptr;
-		}
-
-		ClosedSegment[0] = nullptr;
+		ClosedSegment = nullptr;
 		SquareDistanceToClosedSegment = HUGE_VAL;
 	}
 
-	void SetClosedSegment(FEdgeSegment* InSegmentA, FEdgeSegment* InSegmentB, double InDistance, bool bFirstChoice)
+	void SetCloseSegment(FEdgeSegment* InSegmentA, double InDistance)
 	{
-		ClosedSegment[0] = InSegmentA;
+		ClosedSegment = InSegmentA;
 		SquareDistanceToClosedSegment = InDistance;
 
-		if (bFirstChoice && InDistance < InSegmentA->SquareDistanceToClosedSegment)
+		if (InDistance < InSegmentA->SquareDistanceToClosedSegment)
 		{
-			InSegmentA->ClosedSegment[0] = this;
+			InSegmentA->ClosedSegment = this;
 			InSegmentA->SquareDistanceToClosedSegment = InDistance;
-		}
-		if (InSegmentB && InDistance < InSegmentB->SquareDistanceToClosedSegment)
-		{
-			InSegmentB->ClosedSegment[0] = this;
-			InSegmentB->SquareDistanceToClosedSegment = InDistance;
 		}
 	}
 
-	double GetClosedSquareDistance() const
+	double GetCloseSquareDistance() const
 	{
 		return SquareDistanceToClosedSegment;
 	}
@@ -252,7 +259,6 @@ public:
 private:
 	void SetPrevious(FEdgeSegment* Segment)
 	{
-
 		PreviousSegment = Segment;
 	}
 };

@@ -86,6 +86,7 @@ inline double TransformIntoPositiveSlope(double Slope)
  *		 60   = 1.5
  *		 76.  = 1.75
  *		 90   = 2
+ *		120   = 2.5
  *		135   = 3
  *		180   = 4
  *		360   = 8

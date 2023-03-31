@@ -20,6 +20,12 @@ typedef uint32 FIdent;
 
 namespace UE::CADKernel
 {
+
+namespace Ident
+{
+static const FIdent Undefined = (FIdent)-1;
+}
+
 enum class EValue : uint8
 {
 	Entity,
