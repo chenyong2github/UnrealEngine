@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeTask_FindSlotEntranceLocation.h"
 #include "StateTreeExecutionContext.h"
@@ -49,6 +49,7 @@ bool FStateTreeTask_FindSlotEntranceLocation::UpdateResult(const FStateTreeExecu
 	Request.bCheckEntranceLocationOverlap = bCheckEntranceLocationOverlap;
 	Request.bCheckSlotLocationOverlap = bCheckSlotLocationOverlap;
 	Request.bCheckTransitionTrajectory = bCheckTransitionTrajectory;
+	Request.LocationType = LocationType;
 	
 	FSmartObjectSlotEntranceLocationResult EntryLocation;
 	if (SmartObjectSubsystem.FindEntranceLocationForSlot(InstanceData.ReferenceSlot, Request, EntryLocation))
