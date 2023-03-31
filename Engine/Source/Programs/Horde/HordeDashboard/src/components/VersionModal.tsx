@@ -2,14 +2,13 @@
 import { DetailsList, DetailsListLayoutMode, IColumn, IconButton, Label, Modal, PrimaryButton, SelectionMode, Stack, Text } from '@fluentui/react';
 import React, { useState } from 'react';
 import backend from '../backend';
-import { GetAgentSoftwareChannelResponse, GetServerInfoResponse } from '../backend/Api';
-import dashboard from '../backend/Dashboard';
+import { GetServerInfoResponse } from '../backend/Api';
 import { hordeClasses } from '../styles/Styles';
 
 
 export const VersionModal: React.FC<{ show: boolean, onClose: () => void }> = ({ show, onClose }) => {
 
-   const [version, setVersion] = useState<{ serverInfo?: GetServerInfoResponse, agentInfo?: GetAgentSoftwareChannelResponse, querying?: boolean }>({});
+   const [version, setVersion] = useState<{ serverInfo?: GetServerInfoResponse, querying?: boolean }>({});
 
    type GeneralItem = {
       name: string;
@@ -25,19 +24,10 @@ export const VersionModal: React.FC<{ show: boolean, onClose: () => void }> = ({
       setVersion({ querying: true });
 
       (async () => {
-         let agentInfo: GetAgentSoftwareChannelResponse | undefined;
 
          const serverInfo = await backend.getServerInfo();
 
-         try {
-            if (dashboard.hordeAdmin) {
-               agentInfo = await backend.getAgentSoftwareChannel();
-            }
-         } catch (error) {
-            console.error(`Unable to get agent version: ${error}`);
-         }
-
-         setVersion({ serverInfo: serverInfo, agentInfo: agentInfo })
+         setVersion({ serverInfo: serverInfo})
       })()
 
    }
@@ -66,8 +56,8 @@ export const VersionModal: React.FC<{ show: boolean, onClose: () => void }> = ({
 
    versionItems.push({ name: "Server", value: version.serverInfo?.serverVersion ?? "Querying" });
 
-   if (dashboard.hordeAdmin) {
-      versionItems.push({ name: "Agent", value: version.agentInfo?.version ?? "Querying" });
+   if (version.serverInfo?.agentVersion) {
+      versionItems.push({ name: "Agent", value: version.serverInfo?.agentVersion });
    }
 
    const onRenderItemColumn = (item: GeneralItem, index?: number, columnIn?: IColumn) => {

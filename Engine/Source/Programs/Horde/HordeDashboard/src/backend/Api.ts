@@ -1113,6 +1113,9 @@ export type GetJobResponse = {
 	/** Whether to update issues based on the outcome of this job */
 	updateIssues?: boolean;
 
+	/** Whether to use the V2 artifacts endpoint */
+	useArtifactsV2?: boolean;
+
 	/**  Custom permissions for this object */
 	acl?: GetAclResponse;
 
@@ -1417,6 +1420,59 @@ export type GetArtifactZipRequest = {
 	artifactIds?: string[];
 }
 
+
+// Artifacts V2
+
+export type ArtifactContextType = "step-trace" | "step-output" | "step-saved";
+
+/// Request to create a zip file with artifact data
+export type CreateZipRequest = {
+	/// Filter lines for the zip. Uses standard <see cref="FileFilter"/> syntax.
+	filter: string[];
+}
+
+
+/** Describes an artifact */
+export type GetArtifactResponseV2 = {
+	
+	id: string;
+
+	type: ArtifactContextType;
+
+	keys: string[]
+
+}
+
+/** Result of an artifact search */
+export type FindArtifactsResponse =  {	
+	/** List of artifacts matching the search criteria*/
+	artifacts: GetArtifactResponseV2[];
+}
+
+/** Describes a file within an artifact */
+export type GetArtifactFileEntryResponse = {
+
+	name: string;
+	length: number;
+	ioHash: string;
+}
+
+/** Describes a directory within an artifact */
+export type GetArtifactDirectoryEntryResponse = {
+	name: string;
+	length: number;
+	ioHash: string;
+}
+
+/** Describes a directory within an artifact */
+export type GetArtifactDirectoryResponse = {
+
+	/** Names of sub-directories */
+	directories: GetArtifactDirectoryEntryResponse[];
+
+	/** Files within the directory */
+	files: GetArtifactFileEntryResponse[];
+}
 
 /**Parameters required to update a log file */
 export type UpdateLogFileRequest = {
@@ -3941,6 +3997,9 @@ export type GetServerInfoResponse = {
 
 	/// Server version info
 	serverVersion: string;
+
+	/// The current agent version
+	agentVersion?: string;
 
 	/// The operating system server is hosted on
 	osDescription: string;
