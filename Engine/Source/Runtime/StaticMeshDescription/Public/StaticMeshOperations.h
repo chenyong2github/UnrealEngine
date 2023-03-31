@@ -190,4 +190,13 @@ public:
 	 */
 	static int32 GetUniqueVertexCount(const FMeshDescription& MeshDescription);
 	static int32 GetUniqueVertexCount(const FMeshDescription& MeshDescription, const FOverlappingCorners& OverlappingCorners);
+
+	/**
+	 * Reorder the destination mesh description polygon groups in the same order has the source mesh description polygon groups.
+	 * This function use the imported material name to reorder the section.
+	 */
+	static void ReorderMeshDescriptionPolygonGroups(const FMeshDescription& SourceMeshDescription
+		, FMeshDescription& DestinationMeshDescription
+		, TOptional<const FString> UnmatchMaterialNameWarning
+		, TOptional<const FString> MoreDestinationPolygonGroupWarning);
 };

@@ -276,6 +276,8 @@
 #include "TextureReferenceResolver.h"
 #include "UDIMUtilities.h"
 #include "FileHelpers.h"
+#include "StaticMeshOperations.h"
+
 
 DEFINE_LOG_CATEGORY(LogEditorFactories);
 
@@ -6160,6 +6162,20 @@ EReimportResult::Type UReimportFbxStaticMeshFactory::Reimport( UObject* Obj )
 				}
 
 				FFbxImporter->ImportStaticMeshGlobalSockets(Mesh);
+
+				if (Mesh->IsHiResMeshDescriptionValid())
+				{
+					FMeshDescription* HiresMeshDescription = Mesh->GetHiResMeshDescription();
+					FMeshDescription* Lod0MeshDescription = Mesh->GetMeshDescription(0);
+					if (HiresMeshDescription && Lod0MeshDescription)
+					{
+						Mesh->ModifyHiResMeshDescription();
+						FString MaterialNameConflictMsg = TEXT("[Asset ") + Mesh->GetPathName() + TEXT("] Nanite hi - res import have some material name that differ from the LOD 0 material name.Your nanite hi - res should use the same material names the LOD 0 use to ensure we can remap the section in the same order.");
+						FString MaterialCountConflictMsg = TEXT("[Asset ") + Mesh->GetPathName() + TEXT("] Nanite hi-res import use more material then LOD 0. Your nanite hi-res should have less or equal number of material. Any extra material will be remap to the first material use by LOD 0.");
+						FStaticMeshOperations::ReorderMeshDescriptionPolygonGroups(*Lod0MeshDescription, *HiresMeshDescription, MaterialNameConflictMsg, MaterialCountConflictMsg);
+						Mesh->CommitHiResMeshDescription();
+					}
+				}
 			}
 			else
 			{

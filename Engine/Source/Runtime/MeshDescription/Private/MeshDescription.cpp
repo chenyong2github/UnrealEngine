@@ -1986,6 +1986,33 @@ void FMeshDescription::RemapPolygonGroups(const TMap<FPolygonGroupID, FPolygonGr
 	}
 }
 
+void FMeshDescription::TransferPolygonGroup(FPolygonGroupID SourceID, FPolygonGroupID DestinationID)
+{
+	if (SourceID == DestinationID || !IsPolygonGroupValid(SourceID) || !IsPolygonGroupValid(DestinationID))
+	{
+		//Cannot transfer on self or if we have invalid polygon group ID
+		return;
+	}
+	TArray<FTriangleID> Triangles;
+	Triangles = PolygonGroupToTriangles.Find<FTriangleID>(SourceID);
+	TArray<FPolygonID> Polygons;
+	Polygons = PolygonGroupToPolygons.Find<FPolygonID>(SourceID);
+	PolygonGroupElements->Get().Remove(SourceID);
+	PolygonGroupToPolygons.RemoveKey(SourceID);
+	PolygonGroupToTriangles.RemoveKey(SourceID);
+
+	for (const FTriangleID TriangleID : Triangles)
+	{
+		TrianglePolygonGroups[TriangleID] = DestinationID;
+		PolygonGroupToTriangles.AddReferenceToKey(DestinationID, TriangleID);
+	}
+
+	for (const FPolygonID PolygonID : Polygons)
+	{
+		PolygonPolygonGroups[PolygonID] = DestinationID;
+		PolygonGroupToPolygons.AddReferenceToKey(DestinationID, PolygonID);
+	}
+}
 
 #if WITH_EDITORONLY_DATA
 

@@ -40,6 +40,7 @@
 #include "ClothingAsset.h"
 #include "SkinWeightsUtilities.h"
 #include "LODUtilities.h"
+#include "StaticMeshOperations.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogExportMeshUtils, Log, All);
 
@@ -377,10 +378,17 @@ namespace FbxMeshUtils
 
 					BaseStaticMesh->ModifyHiResMeshDescription();
 
-					FMeshDescription* LOD0MeshDescription = TempStaticMesh->GetMeshDescription(0);
-					check(LOD0MeshDescription);
+					FMeshDescription* TempLOD0MeshDescription = TempStaticMesh->GetMeshDescription(0);
+					check(TempLOD0MeshDescription);
 
-					*HiResMeshDescription = MoveTemp(*LOD0MeshDescription);
+					if (FMeshDescription* BaseMeshDescription = BaseStaticMesh->GetMeshDescription(0))
+					{
+						FString MaterialNameConflictMsg = TEXT("[Asset ") + BaseStaticMesh->GetPathName() + TEXT("] Nanite hi - res import have some material name that differ from the LOD 0 material name.Your nanite hi - res should use the same material names the LOD 0 use to ensure we can remap the section in the same order.");
+						FString MaterialCountConflictMsg = TEXT("[Asset ") + BaseStaticMesh->GetPathName() + TEXT("] Nanite hi-res import use more material then LOD 0. Your nanite hi-res should have less or equal number of material. Any extra material will be remap to the first material use by LOD 0.");
+						FStaticMeshOperations::ReorderMeshDescriptionPolygonGroups(*BaseMeshDescription, *TempLOD0MeshDescription, MaterialNameConflictMsg, MaterialCountConflictMsg);
+					}
+					
+					*HiResMeshDescription = MoveTemp(*TempLOD0MeshDescription);
 
 					BaseStaticMesh->CommitHiResMeshDescription();
 

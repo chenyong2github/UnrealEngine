@@ -640,6 +640,21 @@ UObject* UInterchangeStaticMeshFactory::EndImportAssetObject_GameThread(const FI
 		UInterchangeBaseNode::CopyStorage(StaticMeshFactoryNode, CurrentNode);
 		CurrentNode->FillAllCustomAttributeFromObject(StaticMesh);
 		UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset(StaticMesh, PreviousNode, CurrentNode, StaticMeshFactoryNode);
+
+		//Reorder the Hires mesh description in the same order has the lod 0 mesh description
+		if (StaticMesh->IsHiResMeshDescriptionValid())
+		{
+			FMeshDescription* HiresMeshDescription = StaticMesh->GetHiResMeshDescription();
+			FMeshDescription* Lod0MeshDescription = StaticMesh->GetMeshDescription(0);
+			if (HiresMeshDescription && Lod0MeshDescription)
+			{
+				StaticMesh->ModifyHiResMeshDescription();
+				FString MaterialNameConflictMsg = TEXT("[Asset ") + StaticMesh->GetPathName() + TEXT("] Nanite hi - res import have some material name that differ from the LOD 0 material name.Your nanite hi - res should use the same material names the LOD 0 use to ensure we can remap the section in the same order.");
+				FString MaterialCountConflictMsg = TEXT("[Asset ") + StaticMesh->GetPathName() + TEXT("] Nanite hi-res import use more material then LOD 0. Your nanite hi-res should have less or equal number of material. Any extra material will be remap to the first material use by LOD 0.");
+				FStaticMeshOperations::ReorderMeshDescriptionPolygonGroups(*Lod0MeshDescription, *HiresMeshDescription, MaterialNameConflictMsg, MaterialCountConflictMsg);
+				StaticMesh->CommitHiResMeshDescription();
+			}
+		}
 	}
 #endif // WITH_EDITOR
 

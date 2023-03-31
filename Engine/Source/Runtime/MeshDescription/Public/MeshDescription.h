@@ -1194,7 +1194,9 @@ public:
 
 	/** Remaps polygon groups according to the supplied map */
 	void RemapPolygonGroups(const TMap<FPolygonGroupID, FPolygonGroupID>& Remap);
-
+	
+	/** Transfer the source polygon group data to the destination polygon group. The source data is append to the destination */
+	void TransferPolygonGroup(FPolygonGroupID SourceID, FPolygonGroupID DestinationID);
 
 	//////////////////////////////////////////////////////////////////////
 	// Whole mesh operations
