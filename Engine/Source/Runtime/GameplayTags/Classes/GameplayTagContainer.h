@@ -12,6 +12,7 @@
 
 class UEditableGameplayTagQuery;
 struct FGameplayTagContainer;
+class FJsonObject;
 struct FPropertyTag;
 
 GAMEPLAYTAGS_API DECLARE_LOG_CATEGORY_EXTERN(LogGameplayTags, Log, All);
@@ -746,19 +747,16 @@ struct FGameplayTagCreationWidgetHelper
 
 /** Enumerates the list of supported query expression types. */
 UENUM()
-namespace EGameplayTagQueryExprType
+enum class EGameplayTagQueryExprType : uint8
 {
-	enum Type : int
-	{
-		Undefined = 0,
-		AnyTagsMatch,
-		AllTagsMatch,
-		NoTagsMatch,
-		AnyExprMatch,
-		AllExprMatch,
-		NoExprMatch,
-	};
-}
+	Undefined = 0,
+	AnyTagsMatch,
+	AllTagsMatch,
+	NoTagsMatch,
+	AnyExprMatch,
+	AllExprMatch,
+	NoExprMatch
+};
 
 namespace EGameplayTagQueryStreamVersion
 {
@@ -983,9 +981,11 @@ struct GAMEPLAYTAGS_API FGameplayTagQueryExpression
 	void EmitTokens(TArray<uint8>& TokenStream, TArray<FGameplayTag>& TagDictionary) const;
 
 	/** Which type of expression this is. */
-	EGameplayTagQueryExprType::Type ExprType;
+	EGameplayTagQueryExprType ExprType;
+
 	/** Expression list, for expression types that need it */
 	TArray<struct FGameplayTagQueryExpression> ExprSet;
+
 	/** Tag list, for expression types that need it */
 	TArray<FGameplayTag> TagSet;
 
@@ -999,6 +999,12 @@ struct GAMEPLAYTAGS_API FGameplayTagQueryExpression
 	{
 		return (ExprType == EGameplayTagQueryExprType::AllExprMatch) || (ExprType == EGameplayTagQueryExprType::AnyExprMatch) || (ExprType == EGameplayTagQueryExprType::NoExprMatch);
 	}
+
+	/** Converts the existing TagQueryExpression into a json object. Returns true on success */
+	bool ConvertToJsonObject(TSharedRef<FJsonObject>& OutObject) const;
+
+	/** Uses the input json object and fills out the OutQueryExpression with the data. */
+	static bool MakeFromJsonObject(const TSharedRef<FJsonObject>& InObject, FGameplayTagQueryExpression& OutQueryExpression);
 };
 
 template<>
