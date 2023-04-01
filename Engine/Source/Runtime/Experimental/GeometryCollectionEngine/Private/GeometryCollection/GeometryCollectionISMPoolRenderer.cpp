@@ -11,7 +11,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionISMPoolRenderer)
 
-void UGeometryCollectionCustomRendererISMPool::UpdateState(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, bool bIsBroken)
+void UGeometryCollectionCustomRendererISMPool::UpdateState(UGeometryCollection const& InGeometryCollection, bool bIsBroken)
 {
 	if (!bIsBroken && MergedMeshGroup.GroupIndex == INDEX_NONE)
 	{
@@ -20,7 +20,6 @@ void UGeometryCollectionCustomRendererISMPool::UpdateState(UGeometryCollection c
 
 		// Add merged mesh.
 		InitMergedMeshFromGeometryCollection(InGeometryCollection);
-		UpdateMergedMeshTransforms(InBaseTransform);
 	}
 
 	if (bIsBroken && InstancesGroup.GroupIndex == INDEX_NONE)
@@ -31,6 +30,11 @@ void UGeometryCollectionCustomRendererISMPool::UpdateState(UGeometryCollection c
 		// Add broken primitives.
 		InitInstancesFromGeometryCollection(InGeometryCollection);
 	}
+}
+
+void UGeometryCollectionCustomRendererISMPool::UpdateRootTransform(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, FTransform const& InRootTransform)
+{
+	UpdateMergedMeshTransforms(InRootTransform * InBaseTransform);
 }
 
 void UGeometryCollectionCustomRendererISMPool::UpdateTransforms(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, TArrayView<const FMatrix> InMatrices)

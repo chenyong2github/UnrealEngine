@@ -16,7 +16,8 @@ class UGeometryCollectionCustomRendererISMPool : public UObject, public IGeometr
 
 public:
 	//~ Begin IGeometryCollectionExternalRenderInterface Interface.
-	virtual void UpdateState(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, bool bInIsBroken) override;
+	virtual void UpdateState(UGeometryCollection const& InGeometryCollection, bool bInIsBroken) override;
+	virtual void UpdateRootTransform(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, FTransform const& InRootTransform) override;
 	virtual void UpdateTransforms(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, TArrayView<const FMatrix> InMatrices) override;
 	virtual void OnUnregisterGeometryCollection() override;
 	//~ End IGeometryCollectionExternalRenderInterface Interface.

@@ -19,7 +19,8 @@ class GEOMETRYCOLLECTIONENGINE_API IGeometryCollectionExternalRenderInterface
 	GENERATED_BODY()
 
 public:
-	virtual void UpdateState(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, bool bInIsBroken) = 0;
+	virtual void UpdateState(UGeometryCollection const& InGeometryCollection, bool bInIsBroken) = 0;
+	virtual void UpdateRootTransform(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, FTransform const& InRootTransform) = 0;
 	virtual void UpdateTransforms(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, TArrayView<const FMatrix> InMatrices) = 0;
 	virtual void OnUnregisterGeometryCollection() = 0;
 };

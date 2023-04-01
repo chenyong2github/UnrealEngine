@@ -4309,14 +4309,22 @@ void UGeometryCollectionComponent::RefreshCustomRenderer()
 		{
 			if (RestCollection != nullptr)
 			{
+				CalculateGlobalMatrices();
+				
+				const FTransform ComponentTransform = GetComponentTransform();
 				const int32 RootIndex = GetRootIndex();
 				const bool bIsBroken = DynamicCollection ? !DynamicCollection->Active[RootIndex] : false;
-				RendererInterface->UpdateState(*RestCollection, GetComponentTransform(), bIsBroken);
+
+				RendererInterface->UpdateState(*RestCollection, bIsBroken);
 
 				if (bIsBroken)
 				{
-					CalculateGlobalMatrices();
-					RendererInterface->UpdateTransforms(*RestCollection, GetComponentTransform(), GlobalMatrices);
+					RendererInterface->UpdateTransforms(*RestCollection, ComponentTransform, GlobalMatrices);
+				}
+				else
+				{
+					const FTransform RootTransform = GlobalMatrices.IsValidIndex(RootIndex) ? FTransform(GlobalMatrices[RootIndex]) : FTransform::Identity;
+					RendererInterface->UpdateRootTransform(*RestCollection, ComponentTransform, RootTransform);
 				}
 			}
 		}
