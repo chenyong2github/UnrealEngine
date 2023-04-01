@@ -78,13 +78,13 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 #if WITH_EDITOR
 		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(MotionMatchingState.CurrentSearchResult.Database.Get(), ERequestAsyncBuildFlag::ContinueRequest))
 		{
-			const UPoseSearchDatabase* Database = MotionMatchingState.CurrentSearchResult.Database.Get();
-			const FPoseSearchIndex& SearchIndex = Database->GetSearchIndex();
+			const UPoseSearchDatabase* CurrentResultDatabase = MotionMatchingState.CurrentSearchResult.Database.Get();
+			const FPoseSearchIndex& SearchIndex = CurrentResultDatabase->GetSearchIndex();
 			if (!SearchIndex.IsValidPoseIndex(MotionMatchingState.CurrentSearchResult.PrevPoseIdx) ||
 				!SearchIndex.IsValidPoseIndex(MotionMatchingState.CurrentSearchResult.NextPoseIdx) ||
-				Database->Schema != MotionMatchingState.CurrentSearchResult.ComposedQuery.GetSchema())
+				CurrentResultDatabase->Schema != MotionMatchingState.CurrentSearchResult.ComposedQuery.GetSchema())
 			{
-				// MotionMatchingState is out of sync with Database: we need to reset the MM state. This could happen if PIE is paused, and we edit the database,
+				// MotionMatchingState is out of sync with CurrentResultDatabase: we need to reset the MM state. This could happen if PIE is paused, and we edit the database,
 				// so FAnimNode_MotionMatching::UpdateAssetPlayer is never called and FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex never returns false here
 				MotionMatchingState.Reset();
 			}
@@ -103,27 +103,44 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 	}
 	UpdateCounter.SynchronizeWith(Context.AnimInstanceProxy->GetUpdateCounter());
 
+	// If the Database property hasn't been overridden, set it as the only database to search.
+	if (!bOverrideDatabaseInput && Database)
+	{
+		DatabasesToSearch.Reset(1);
+		DatabasesToSearch.Add(Database);
+	}
+	// @todo: Delete this after removing Searchable.
+	else if (Searchable)
+	{
+		if (!bOverrideDatabaseInput && Searchable->IsA(UPoseSearchDatabase::StaticClass()))
+		{
+			DatabasesToSearch.Reset(1);
+			DatabasesToSearch.Add(Cast<UPoseSearchDatabase>(Searchable));
+		}
+		UE_LOG(LogPoseSearch, Warning, TEXT("FAnimNode_MotionMatching: The Searchable variable will be removed soon."));
+	}
+
 	// Execute core motion matching algorithm
 	UPoseSearchLibrary::UpdateMotionMatchingState(
 		Context,
-		Searchable,
+		DatabasesToSearch,
 		Trajectory,
 		Settings,
 		MotionMatchingState,
-		bForceInterrupt
+		bForceInterrupt | bForceInterruptNextUpdate
 	);
 
 	// If a new pose is requested, blend into the new asset via BlendStackNode
 	if (MotionMatchingState.bJumpedToPose)
 	{
 		const FPoseSearchIndexAsset* SearchIndexAsset = MotionMatchingState.CurrentSearchResult.GetSearchIndexAsset();
-		const UPoseSearchDatabase* Database = MotionMatchingState.CurrentSearchResult.Database.Get();
-		if (SearchIndexAsset && Database && Database->Schema)
+		const UPoseSearchDatabase* CurrentResultDatabase = MotionMatchingState.CurrentSearchResult.Database.Get();
+		if (SearchIndexAsset && CurrentResultDatabase && CurrentResultDatabase->Schema)
 		{
-			if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAsset = Database->GetAnimationAssetBase(*SearchIndexAsset))
+			if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAsset = CurrentResultDatabase->GetAnimationAssetBase(*SearchIndexAsset))
 			{
 				BlendStackNode.BlendTo(DatabaseAsset->GetAnimationAsset(), MotionMatchingState.CurrentSearchResult.AssetTime,
-					DatabaseAsset->IsLooping(), SearchIndexAsset->bMirrored, Database->Schema->MirrorDataTable.Get(),
+					DatabaseAsset->IsLooping(), SearchIndexAsset->bMirrored, CurrentResultDatabase->Schema->MirrorDataTable.Get(),
 					Settings.MaxActiveBlends, Settings.BlendTime, Settings.BlendProfile, Settings.BlendOption, SearchIndexAsset->BlendParameters, MotionMatchingState.WantedPlayRate);
 			}
 		}
@@ -193,11 +210,91 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		}
 	} 
 #endif
+
+	bForceInterruptNextUpdate = false;
 }
 
 void FAnimNode_MotionMatching::GatherDebugData(FNodeDebugData& DebugData)
 {
 	Source.GatherDebugData(DebugData);
+}
+
+void FAnimNode_MotionMatching::SetDatabaseToSearch(UPoseSearchDatabase* InDatabase, bool bForceInterruptIfNew)
+{
+	if (DatabasesToSearch.Num() == 1 && DatabasesToSearch[0] == InDatabase)
+	{
+		UE_LOG(LogPoseSearch, Verbose, TEXT("FAnimNode_MotionMatching::SetDatabaseToSearch - Database(%s) is already set."), *GetNameSafe(InDatabase));
+	}
+	else
+	{
+		DatabasesToSearch.Reset();
+		bOverrideDatabaseInput = false;
+		if (InDatabase)
+		{
+			DatabasesToSearch.Add(InDatabase);
+			bOverrideDatabaseInput = true;
+		}
+
+		bForceInterruptNextUpdate |= bForceInterruptIfNew;
+
+		UE_LOG(LogPoseSearch, Verbose, TEXT("FAnimNode_MotionMatching::SetDatabaseToSearch - Setting to Database(%s), bForceInterruptIfNew(%d)."), *GetNameSafe(InDatabase), bForceInterruptIfNew);
+	}
+}
+
+void FAnimNode_MotionMatching::SetDatabasesToSearch(const TArray<UPoseSearchDatabase*>& InDatabases, bool bForceInterruptIfNew)
+{
+	// Check if InDatabases and DatabasesToSearch are the same.
+	bool bDatabasesAlreadySet = true;
+	if (DatabasesToSearch.Num() != InDatabases.Num())
+	{
+		bDatabasesAlreadySet = false;
+	}
+	else
+	{
+		for (int32 Index = 0; Index < InDatabases.Num(); ++Index)
+		{
+			if (DatabasesToSearch[Index] != InDatabases[Index])
+			{
+				bDatabasesAlreadySet = false;
+				break;
+			}
+		}
+	}
+
+	if (bDatabasesAlreadySet)
+	{
+		UE_LOG(LogPoseSearch, Verbose, TEXT("FAnimNode_MotionMatching::SetDatabasesToSearch - Databases(#%d) already set."), InDatabases.Num());
+	}
+	else
+	{
+		DatabasesToSearch.Reset();
+		bOverrideDatabaseInput = false;
+		if (!InDatabases.IsEmpty())
+		{
+			DatabasesToSearch.Append(InDatabases);
+			bOverrideDatabaseInput = true;
+		}
+
+		bForceInterruptNextUpdate |= bForceInterruptIfNew;
+
+		UE_LOG(LogPoseSearch, Verbose, TEXT("FAnimNode_MotionMatching::SetDatabaseToSearch - Setting to Databases(#%d), bForceInterruptIfNew(%d)."), InDatabases.Num(), bForceInterruptIfNew);
+	}
+}
+
+void FAnimNode_MotionMatching::ResetDatabasesToSearch(bool bInForceInterrupt)
+{
+	DatabasesToSearch.Reset();
+	bOverrideDatabaseInput = false;
+	bForceInterruptNextUpdate = bInForceInterrupt;
+
+	UE_LOG(LogPoseSearch, Verbose, TEXT("FAnimNode_MotionMatching::ResetDatabasesToSearch - Resetting databases, bInForceInterrupt(%d)."), bInForceInterrupt);
+}
+
+void FAnimNode_MotionMatching::ForceInterruptNextUpdate()
+{
+	bForceInterruptNextUpdate = true;
+
+	UE_LOG(LogPoseSearch, Verbose, TEXT("FAnimNode_MotionMatching::ForceInterruptNextUpdate - Forcing interrupt."));
 }
 
 // FAnimNode_AssetPlayerBase interface

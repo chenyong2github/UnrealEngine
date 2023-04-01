@@ -252,7 +252,7 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 
 void UPoseSearchLibrary::UpdateMotionMatchingState(
 	const FAnimationUpdateContext& Context,
-	const UPoseSearchSearchableAsset* Searchable,
+	const TArray<TObjectPtr<const UPoseSearchDatabase>>& Databases,
 	const FTrajectorySampleRange& Trajectory,
 	const FMotionMatchingSettings& Settings,
 	FMotionMatchingState& InOutMotionMatchingState,
@@ -262,11 +262,11 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 
 	using namespace UE::PoseSearch;
 
-	if (!Searchable)
+	if (Databases.IsEmpty())
 	{
 		Context.LogMessage(
 			EMessageSeverity::Error,
-			LOCTEXT("NoSearchable", "No searchable asset provided for motion matching."));
+			LOCTEXT("NoDatabases", "No database assets provided for motion matching."));
 		return;
 	}
 
@@ -347,11 +347,19 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 			}
 		}
 
-		// Search the database for the nearest match to the updated query vector
-		FSearchResult SearchResult = Searchable->Search(SearchContext);
-		if (SearchResult.PoseCost.IsValid())
+		FSearchResult SearchResult;
+		for (TObjectPtr<const UPoseSearchDatabase> Database : Databases)
 		{
-			SearchContext.UpdateCurrentBestCost(SearchResult.PoseCost);
+			if (ensure(Database))
+			{
+				FSearchResult NewSearchResult = Database->Search(SearchContext);
+				if (NewSearchResult.PoseCost.GetTotalCost() < SearchResult.PoseCost.GetTotalCost())
+				{
+					SearchResult = NewSearchResult;
+					SearchContext.UpdateCurrentBestCost(SearchResult.PoseCost);
+				}
+			}
+
 		}
 
 		if (SearchResult.PoseCost.GetTotalCost() < ContinuingPoseCost.GetTotalCost())
@@ -383,7 +391,8 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 	// Record debugger details
 	if (IsTracing(Context))
 	{
-		TraceMotionMatchingState(Searchable, SearchContext, InOutMotionMatchingState.CurrentSearchResult, LastResult, InOutMotionMatchingState.ElapsedPoseSearchTime,
+		// @todo: Update this to account for multiple databases.
+		TraceMotionMatchingState(Databases[0], SearchContext, InOutMotionMatchingState.CurrentSearchResult, LastResult, InOutMotionMatchingState.ElapsedPoseSearchTime,
 			InOutMotionMatchingState.RootMotionTransformDelta, Context.AnimInstanceProxy->GetAnimInstanceObject(), Context.GetCurrentNodeId(), DeltaTime, bSearch);
 	}
 #endif
@@ -391,7 +400,7 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 
 void UPoseSearchLibrary::MotionMatch(
 	UAnimInstance* AnimInstance,
-	const UPoseSearchSearchableAsset* Searchable,
+	const UPoseSearchDatabase* Database,
 	const FTrajectorySampleRange Trajectory,
 	const FName PoseHistoryName,
 	UAnimationAsset*& SelectedAnimation,
@@ -429,7 +438,7 @@ void UPoseSearchLibrary::MotionMatch(
 	BlendParameters = FVector::ZeroVector;
 	SearchCost = MAX_flt;
 
-	if (Searchable)
+	if (Database)
 	{
 		// ExtendedPoseHistory will hold future poses to match AssetSamplerBase (at FutureAnimationStartTime) TimeToFutureAnimationStart seconds in the future
 		FExtendedPoseHistory ExtendedPoseHistory;
@@ -518,7 +527,7 @@ void UPoseSearchLibrary::MotionMatch(
 		// @todo: finish set up SearchContext by exposing or calculating additional members
 		FSearchContext SearchContext(&Trajectory, ExtendedPoseHistory.IsInitialized() ? &ExtendedPoseHistory : nullptr, TimeToFutureAnimationStart);
 
-		FSearchResult SearchResult = Searchable->Search(SearchContext);
+		FSearchResult SearchResult = Database->Search(SearchContext);
 		if (SearchResult.IsValid())
 		{
 			const FPoseSearchIndexAsset* SearchIndexAsset = SearchResult.GetSearchIndexAsset();
@@ -553,7 +562,7 @@ void UPoseSearchLibrary::MotionMatch(
 #endif // ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
-			TraceMotionMatchingState(Searchable, SearchContext, SearchResult, FSearchResult(), 0.f, FTransform::Identity, AnimInstance, DebugSessionUniqueIdentifier, AnimInstance->GetDeltaSeconds(), true);
+			TraceMotionMatchingState(Database, SearchContext, SearchResult, FSearchResult(), 0.f, FTransform::Identity, AnimInstance, DebugSessionUniqueIdentifier, AnimInstance->GetDeltaSeconds(), true);
 #endif // UE_POSE_SEARCH_TRACE_ENABLED
 		}
 	}

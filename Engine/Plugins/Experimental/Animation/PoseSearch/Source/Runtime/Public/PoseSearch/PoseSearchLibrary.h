@@ -132,7 +132,7 @@ public:
 	* Implementation of the core motion matching algorithm
 	*
 	* @param Context						Input animation update context providing access to the proxy and delta time
-	* @param Searchable						Input collection of animations for motion matching
+	* @param Databases						Input array of databases to search
 	* @param Trajectory						Input motion trajectory samples for pose search queries
 	* @param Settings						Input motion matching algorithm configuration settings
 	* @param InOutMotionMatchingState		Input/Output encapsulated motion matching algorithm and state
@@ -140,7 +140,7 @@ public:
 	*/
 	static void UpdateMotionMatchingState(
 		const FAnimationUpdateContext& Context,
-		const UPoseSearchSearchableAsset* Searchable,
+		const TArray<TObjectPtr<const UPoseSearchDatabase>>& Databases,
 		const FTrajectorySampleRange& Trajectory,
 		const FMotionMatchingSettings& Settings,
 		FMotionMatchingState& InOutMotionMatchingState,
@@ -150,7 +150,7 @@ public:
 	* Implementation of the core motion matching algorithm
 	*
 	* @param AnimInstance					Input animation instance
-	* @param Searchable						Input searchable asset
+	* @param Database						Input database to search
 	* @param Trajectory						Input motion trajectory samples for pose search queries
 	* @param PoseHistoryName				Input tag of the associated PoseSearchHistoryCollector node in the anim graph
 	* @param SelectedAnimation				Output selected animation from the searchable asset
@@ -167,7 +167,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Animation|Pose Search", meta = (BlueprintThreadSafe, Keywords = "PoseMatch"))
 	static void MotionMatch(
 		UAnimInstance* AnimInstance,
-		const UPoseSearchSearchableAsset* Searchable,
+		const UPoseSearchDatabase* Database,
 		const FTrajectorySampleRange Trajectory,
 		const FName PoseHistoryName,
 		UAnimationAsset*& SelectedAnimation,
