@@ -30,7 +30,6 @@ export struct FSolverBody
 	float WPad;
 
 	// World-space inverse inertia
-	// @todo(chaos): do we need this, or should we force all systems to use the FConstraintSolverBody decorator?
 	FMatrix33f InvI;
 
 	// Actor-space center of mass rotation
@@ -70,17 +69,6 @@ export struct FSolverBody
 	int32 Level;
 
 	float AlignmentPadding[2];
-};
-
-export struct FConstraintSolverBody
-{
-	// The body we decorate
-	FSolverBody* Body;
-
-	// The body modifiers
-	float InvMScale;
-	float InvIScale;
-	float ShockPropagationScale;
 };
 
 export struct FWorldContactPoint
@@ -149,213 +137,13 @@ export struct FPBDCollisionSolver
 	float Stiffness;
 
 	// Bodies and contacts
-	FConstraintSolverBody SolverBodies[2];
+	FSolverBody* SolverBodies[2];
+	float InvMs[2];
 	FPBDCollisionSolverManifoldPoint* ManifoldPoints;
 	int32 NumManifoldPoints;
 	int32 MaxManifoldPoints;
 };
 
-
-//
-//
-// GENERAL FUNCTIONS
-//
-//
-
-
-static inline uniform bool Body_IsDynamic(const uniform FSolverBody* uniform Body)
-{ 
-	return (Body->InvM > FLOAT_SMALL_NUMBER); 
-}
-
-static inline void Body_ApplyPositionDelta(uniform FSolverBody* uniform Body, const uniform FVector3f DP)
+export void SolvePositionNoFriction()
 {
-	Body->DP = Body->DP + DP;
-}
-
-static inline void Body_ApplyRotationDelta(uniform FSolverBody* uniform Body, const uniform FVector3f DQ)
-{
-	Body->DQ = Body->DQ + DQ;
-}
-
-static inline uniform float CalculatePositionErrorNormal(
-	uniform FPBDCollisionSolverManifoldPoint* uniform SolverManifoldPoint, 
-	const uniform FSolverBody* uniform Body0, 
-	const uniform FSolverBody* uniform Body1, 
-	const uniform float MaxPushOut)
-{
-	// Linear version: calculate the contact delta assuming linear motion after applying a positional impulse at the contact point. There will be an error that depends on the size of the rotation.
-	const uniform FVector3f ContactDelta0 = Body0->DP + VectorCross(Body0->DQ, SolverManifoldPoint->WorldContact.RelativeContactPoints[0]);
-	const uniform FVector3f ContactDelta1 = Body1->DP + VectorCross(Body1->DQ, SolverManifoldPoint->WorldContact.RelativeContactPoints[1]);
-	const uniform FVector3f ContactDelta = ContactDelta0 - ContactDelta1;
-
-	uniform float ContactDeltaNormal = SolverManifoldPoint->WorldContact.ContactDeltaNormal + VectorDot(ContactDelta, SolverManifoldPoint->WorldContact.ContactNormal);
-
-	// NOTE: ContactDeltaNormal is negative for penetration
-	// NOTE: MaxPushOut == 0 disables the pushout limits
-	if ((MaxPushOut > 0) && (ContactDeltaNormal < -MaxPushOut))
-	{
-		ContactDeltaNormal = -MaxPushOut;
-	}
-
-	return ContactDeltaNormal;
-}
-
-static inline uniform float CalculatePositionCorrectionNormal(
-	const uniform float Stiffness,
-	const uniform float ContactDeltaNormal,
-	const uniform float ContactMassNormal,
-	const uniform float NetPushOutNormal)
-{
-	const uniform float PushOutNormal = -Stiffness * ContactDeltaNormal * ContactMassNormal;
-
-	// The total pushout so far this sub-step
-	// Unilateral constraint: Net-negative impulses not allowed (negative incremental impulses are allowed as long as the net is positive)
-	return (NetPushOutNormal + PushOutNormal) > 0 ? PushOutNormal : -NetPushOutNormal;
-}
-
-
-//
-//
-// GAUSS SEIDEL SOLVER
-//
-//
-
-static inline void CollisionSolverApplyPositionCorrectionNormal(
-	uniform FPBDCollisionSolver* uniform Solver,
-	const uniform float Stiffness,
-	const uniform float ContactDeltaNormal,
-	uniform FPBDCollisionSolverManifoldPoint* uniform ManifoldPoint,
-	uniform FSolverBody* uniform Body0,
-	uniform FSolverBody* uniform Body1)
-{
-	const uniform float PushOutNormal = CalculatePositionCorrectionNormal(Stiffness, ContactDeltaNormal, ManifoldPoint->ContactMassNormal, ManifoldPoint->NetPushOutNormal);
-
-	ManifoldPoint->NetPushOutNormal = ManifoldPoint->NetPushOutNormal + PushOutNormal;
-
-	// Update the particle state based on the pushout
-	if (Body_IsDynamic(Body0))
-	{
-		const uniform FVector3f DX0 = ManifoldPoint->WorldContact.ContactNormal * (Body0->InvM * PushOutNormal);
-		const uniform FVector3f DR0 = ManifoldPoint->WorldContactNormalAngular0 * PushOutNormal;
-		Body_ApplyPositionDelta(Body0, DX0);
-		Body_ApplyRotationDelta(Body0, DR0);
-	}
-	if (Body_IsDynamic(Body1))
-	{
-		const uniform FVector3f DX1 = ManifoldPoint->WorldContact.ContactNormal * (Body1->InvM * -PushOutNormal);
-		const uniform FVector3f DR1 = ManifoldPoint->WorldContactNormalAngular1 * -PushOutNormal;
-		Body_ApplyPositionDelta(Body1, DX1);
-		Body_ApplyRotationDelta(Body1, DR1);
-	}
-}
-
-static inline void CollisionSolverSolvePositionNoFriction(
-	uniform FPBDCollisionSolver* uniform Solver, 
-	const uniform float Dt, 
-	const uniform float MaxPushOut)
-{
-	for (uniform int PointIndex = 0; PointIndex < Solver->NumManifoldPoints; ++PointIndex)
-	{
-		uniform FPBDCollisionSolverManifoldPoint* uniform SolverManifoldPoint = &Solver->ManifoldPoints[PointIndex];
-
-		const uniform float ContactDeltaNormal = CalculatePositionErrorNormal(SolverManifoldPoint, Solver->SolverBodies[0].Body, Solver->SolverBodies[1].Body, MaxPushOut);
-
-		const uniform bool bProcessManifoldPoint = (ContactDeltaNormal < 0) || (SolverManifoldPoint->NetPushOutNormal > FLOAT_SMALL_NUMBER);
-		if (bProcessManifoldPoint)
-		{
-			CollisionSolverApplyPositionCorrectionNormal(Solver, Solver->Stiffness, ContactDeltaNormal, SolverManifoldPoint, Solver->SolverBodies[0].Body, Solver->SolverBodies[1].Body);
-		}
-	}
-}
-
-export void SolvePositionNoFriction(
-	uniform FPBDCollisionSolver* uniform Solvers, 
-	const uniform int NumSolvers, 
-	const uniform float Dt, 
-	const uniform float MaxPushOut)
-{
-	for (uniform int SolverIndex = 0; SolverIndex < NumSolvers; ++SolverIndex)
-	{
-		CollisionSolverSolvePositionNoFriction(&Solvers[SolverIndex], Dt, MaxPushOut);
-	}
-}
-
-
-//
-//
-// PARTIAL-JACOBI SOLVER
-//
-//
-
-static void CollisionSolver_SolvePositionNoFriction_Jacobi(
-	uniform FPBDCollisionSolver* uniform Solver, 
-	const uniform float Dt, 
-	const uniform float MaxPushOut,
-	const uniform float JacobiStiffness)
-{
-	uniform FSolverBody* uniform Body0 = Solver->SolverBodies[0].Body;
-	uniform FSolverBody* uniform Body1 = Solver->SolverBodies[1].Body;
-
-	uniform FVector3f DX0 = FloatZeroVector;
-	uniform FVector3f DX1 = FloatZeroVector;
-	uniform FVector3f DR0 = FloatZeroVector;
-	uniform FVector3f DR1 = FloatZeroVector;
-
-	const uniform float Stiffness = JacobiStiffness * Solver->Stiffness;
-
-	for (uniform int PointIndex = 0; PointIndex < Solver->NumManifoldPoints; ++PointIndex)
-	{
-		uniform FPBDCollisionSolverManifoldPoint* uniform ManifoldPoint = &Solver->ManifoldPoints[PointIndex];
-
-		const uniform float ContactDeltaNormal = CalculatePositionErrorNormal(ManifoldPoint, Solver->SolverBodies[0].Body, Solver->SolverBodies[1].Body, MaxPushOut);
-
-		const uniform bool bProcessManifoldPoint = (ContactDeltaNormal < 0) || (ManifoldPoint->NetPushOutNormal > FLOAT_SMALL_NUMBER);
-		if (bProcessManifoldPoint)
-		{
-			const uniform float PushOutNormal = CalculatePositionCorrectionNormal(Stiffness, ContactDeltaNormal, ManifoldPoint->ContactMassNormal, ManifoldPoint->NetPushOutNormal);
-
-			ManifoldPoint->NetPushOutNormal = ManifoldPoint->NetPushOutNormal + PushOutNormal;
-
-			if (Body_IsDynamic(Body0))
-			{
-				const uniform FVector3f DDX0 = ManifoldPoint->WorldContact.ContactNormal * (Body0->InvM * PushOutNormal);
-				const uniform FVector3f DDR0 = ManifoldPoint->WorldContactNormalAngular0 * PushOutNormal;
-				DX0 = DX0 + DDX0;
-				DR0 = DR0 + DDR0;
-			}
-			if (Body_IsDynamic(Body1))
-			{
-				const uniform FVector3f DDX1 = ManifoldPoint->WorldContact.ContactNormal * (Body1->InvM * PushOutNormal);
-				const uniform FVector3f DDR1 = ManifoldPoint->WorldContactNormalAngular1 * PushOutNormal;
-				DX1 = DX1 - DDX1;
-				DR1 = DR1 - DDR1;
-			}
-		}
-	}
-
-	if (Body_IsDynamic(Body0))
-	{
-		Body_ApplyPositionDelta(Body0, DX0);
-		Body_ApplyRotationDelta(Body0, DR0);
-	}
-	if (Body_IsDynamic(Body1))
-	{
-		Body_ApplyPositionDelta(Body1, DX1);
-		Body_ApplyRotationDelta(Body1, DR1);
-	}
-}
-
-
-export void SolvePositionNoFrictionJacobi(
-	uniform FPBDCollisionSolver* uniform Solvers, 
-	const uniform int NumSolvers, 
-	const uniform float Dt, 
-	const uniform float MaxPushOut,
-	const uniform float JacobiStiffness)
-{
-	for (uniform int SolverIndex = 0; SolverIndex < NumSolvers; ++SolverIndex)
-	{
-		CollisionSolver_SolvePositionNoFriction_Jacobi(&Solvers[SolverIndex], Dt, MaxPushOut, JacobiStiffness);
-	}
 }

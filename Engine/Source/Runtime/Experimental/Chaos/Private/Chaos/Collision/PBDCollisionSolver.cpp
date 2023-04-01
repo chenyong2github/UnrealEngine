@@ -69,72 +69,11 @@ namespace Chaos
 
 	namespace Private
 	{
-		//////////////////////////////////////////////////////////////////////////////////////////////////
-		//////////////////////////////////////////////////////////////////////////////////////////////////
-		//////////////////////////////////////////////////////////////////////////////////////////////////
-		//////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-		void FPBDCollisionSolver::EnablePositionShockPropagation()
-		{
-			SetShockPropagationInvMassScale(Chaos_PBDCollisionSolver_Position_MinInvMassScale);
-		}
-
-		void FPBDCollisionSolver::EnableVelocityShockPropagation()
-		{
-			SetShockPropagationInvMassScale(Chaos_PBDCollisionSolver_Velocity_MinInvMassScale);
-		}
-
-		void FPBDCollisionSolver::DisableShockPropagation()
-		{
-			SetShockPropagationInvMassScale(FReal(1));
-		}
-
-		void FPBDCollisionSolver::SetShockPropagationInvMassScale(const FSolverReal InvMassScale)
-		{
-			FConstraintSolverBody& Body0 = SolverBody0();
-			FConstraintSolverBody& Body1 = SolverBody1();
-
-			// Shock propagation decreases the inverse mass of bodies that are lower in the pile
-			// of objects. This significantly improves stability of heaps and stacks. Height in the pile is indictaed by the "level". 
-			// No need to set an inverse mass scale if the other body is kinematic (with inv mass of 0).
-			// Bodies at the same level do not take part in shock propagation.
-			if (Body0.IsDynamic() && Body1.IsDynamic() && (Body0.Level() != Body1.Level()))
-			{
-				// Set the inv mass scale of the "lower" body to make it heavier
-				bool bInvMassUpdated = false;
-				if (Body0.Level() < Body1.Level())
-				{
-					if (Body0.ShockPropagationScale() != InvMassScale)
-					{
-						Body0.SetShockPropagationScale(InvMassScale);
-						bInvMassUpdated = true;
-					}
-				}
-				else
-				{
-					if (Body1.ShockPropagationScale() != InvMassScale)
-					{
-						Body1.SetShockPropagationScale(InvMassScale);
-						bInvMassUpdated = true;
-					}
-				}
-
-				// If the masses changed, we need to rebuild the contact mass for each manifold point
-				if (bInvMassUpdated)
-				{
-					for (int32 PointIndex = 0; PointIndex < NumManifoldPoints(); ++PointIndex)
-					{
-						State.ManifoldPoints[PointIndex].UpdateMassNormal(Body0, Body1);
-					}
-				}
-			}
-		}
-
 		void FPBDCollisionSolver::SolveVelocityAverage(const FSolverReal Dt)
 		{
-			FConstraintSolverBody& Body0 = SolverBody0();
-			FConstraintSolverBody& Body1 = SolverBody1();
+			FSolverReal InvM0, InvM1;
+			FSolverMatrix33 InvI0, InvI1;
+			GetDynamicMassProperties(InvM0, InvI0, InvM1, InvI1);
 
 			// Generate a new contact point at the average of all the active contacts
 			int32 NumActiveManifoldPoints = 0;
@@ -146,7 +85,7 @@ namespace Chaos
 			for (int32 PointIndex = 0; PointIndex < NumManifoldPoints(); ++PointIndex)
 			{
 				FPBDCollisionSolverManifoldPoint& SolverManifoldPoint = State.ManifoldPoints[PointIndex];
-				if (SolverManifoldPoint.ShouldSolveVelocity())
+				if (ShouldSolveVelocity(SolverManifoldPoint))
 				{
 					RelativeContactPosition0 += SolverManifoldPoint.WorldContact.RelativeContactPoints[0];
 					RelativeContactPosition1 += SolverManifoldPoint.WorldContact.RelativeContactPoints[1];
@@ -183,17 +122,17 @@ namespace Chaos
 				FSolverVec3 WorldContactNormalAngular0 = FSolverVec3(0);
 				FSolverVec3 WorldContactNormalAngular1 = FSolverVec3(0);
 				FSolverReal ContactMassInvNormal = FSolverReal(0);
-				if (Body0.IsDynamic())
+				if (IsDynamic(0))
 				{
 					const FSolverVec3 R0xN = FSolverVec3::CrossProduct(RelativeContactPosition0, WorldContactNormal);
-					WorldContactNormalAngular0 = Body0.InvI() * R0xN;
-					ContactMassInvNormal += FSolverVec3::DotProduct(R0xN, WorldContactNormalAngular0) + Body0.InvM();
+					WorldContactNormalAngular0 = InvI0 * R0xN;
+					ContactMassInvNormal += FSolverVec3::DotProduct(R0xN, WorldContactNormalAngular0) + InvM0;
 				}
-				if (Body1.IsDynamic())
+				if (IsDynamic(1))
 				{
 					const FSolverVec3 R1xN = FSolverVec3::CrossProduct(RelativeContactPosition1, WorldContactNormal);
-					WorldContactNormalAngular1 = Body1.InvI() * R1xN;
-					ContactMassInvNormal += FSolverVec3::DotProduct(R1xN, WorldContactNormalAngular1) + Body1.InvM();
+					WorldContactNormalAngular1 = InvI1 * R1xN;
+					ContactMassInvNormal += FSolverVec3::DotProduct(R1xN, WorldContactNormalAngular1) + InvM1;
 				}
 				AverageManifoldPoint.ContactMassNormal = (ContactMassInvNormal > FSolverReal(UE_SMALL_NUMBER)) ? FSolverReal(1) / ContactMassInvNormal : FSolverReal(0);
 				AverageManifoldPoint.WorldContactNormalAngular0 = WorldContactNormalAngular0;
@@ -219,7 +158,7 @@ namespace Chaos
 				AverageManifoldPoint.StaticFrictionRatio = FSolverReal(0);
 
 				FSolverReal ContactVelocityDeltaNormal;
-				AverageManifoldPoint.CalculateContactVelocityErrorNormal(Body0, Body1, ContactVelocityDeltaNormal);
+				CalculateContactVelocityErrorNormal(AverageManifoldPoint, ContactVelocityDeltaNormal);
 
 				const FSolverReal MinImpulseNormal = FMath::Min(FSolverReal(0), -AverageManifoldPoint.NetPushOutNormal / Dt);
 
@@ -227,15 +166,13 @@ namespace Chaos
 					State.Stiffness,
 					ContactVelocityDeltaNormal,
 					MinImpulseNormal,
-					AverageManifoldPoint,
-					Body0,
-					Body1);
+					AverageManifoldPoint);
 
 				// Now distribute the net impulse among the active points so we don't over-correct pushout from initial overlaps
 				for (int32 PointIndex = 0; PointIndex < NumManifoldPoints(); ++PointIndex)
 				{
 					FPBDCollisionSolverManifoldPoint& SolverManifoldPoint = State.ManifoldPoints[PointIndex];
-					if (SolverManifoldPoint.ShouldSolveVelocity())
+					if (ShouldSolveVelocity(SolverManifoldPoint))
 					{
 						SolverManifoldPoint.NetImpulseNormal += AverageManifoldPoint.NetImpulseNormal * InvCount;
 					}
@@ -248,53 +185,64 @@ namespace Chaos
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 
+		void CachePrefetchSolver(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const int32 ConstraintIndex)
+		{
+			//if (ConstraintIndex < CollisionSolvers.Num())
+			//{
+			//	if (ConstraintIndex < CollisionSolvers.Num() - 1)
+			//	{
+			//		FPlatformMisc::PrefetchBlock(&CollisionSolvers[ConstraintIndex + 1], sizeof(Private::FPBDCollisionSolver));
+			//	}
+
+			//	const int32 NumManifoldPoints = CollisionSolvers[ConstraintIndex].NumManifoldPoints();
+			//	if (NumManifoldPoints > 0)
+			//	{
+			//		FPlatformMisc::PrefetchBlock(&CollisionSolvers[ConstraintIndex].GetManifoldPoint(0), NumManifoldPoints * sizeof(Private::FPBDCollisionSolverManifoldPoint));
+			//	}
+			//}
+		}
+
 		void FPBDCollisionSolverHelper::SolvePositionNoFriction(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const FSolverReal MaxPushOut)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_SolvePositionNoFriction);
 
-#if INTEL_ISPC
-			if (CVars::bChaos_PBDCollisionSolver_ISPC)
+			for (int32 SolverIndex = 0; SolverIndex < CollisionSolvers.Num(); ++SolverIndex)
 			{
-				ispc::SolvePositionNoFriction(
-					(ispc::FPBDCollisionSolver*)CollisionSolvers.GetData(), 
-					CollisionSolvers.Num(), 
-					Dt, 
-					MaxPushOut);
-				return;
-			}
-#endif
+				CachePrefetchSolver(CollisionSolvers, SolverIndex + 1);
 
-			for (FPBDCollisionSolver& CollisionSolver : CollisionSolvers)
-			{
-				CollisionSolver.SolvePositionNoFriction(Dt, MaxPushOut);
+				CollisionSolvers[SolverIndex].SolvePositionNoFriction(Dt, MaxPushOut);
 			}
 		}
 
 		void FPBDCollisionSolverHelper::SolvePositionWithFriction(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const FSolverReal MaxPushOut)
 		{
-			for (FPBDCollisionSolver& CollisionSolver : CollisionSolvers)
+			for (int32 SolverIndex = 0; SolverIndex < CollisionSolvers.Num(); ++SolverIndex)
 			{
-				CollisionSolver.SolvePositionWithFriction(Dt, MaxPushOut);
+				CachePrefetchSolver(CollisionSolvers, SolverIndex + 1);
+
+				CollisionSolvers[SolverIndex].SolvePositionWithFriction(Dt, MaxPushOut);
 			}
 		}
 
 		void FPBDCollisionSolverHelper::SolveVelocity(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const bool bApplyDynamicFriction)
 		{
-			for (FPBDCollisionSolver& CollisionSolver : CollisionSolvers)
+			for (int32 SolverIndex = 0; SolverIndex < CollisionSolvers.Num(); ++SolverIndex)
 			{
-				CollisionSolver.SolveVelocity(Dt, bApplyDynamicFriction);
+				CachePrefetchSolver(CollisionSolvers, SolverIndex + 1);
+
+				CollisionSolvers[SolverIndex].SolveVelocity(Dt, bApplyDynamicFriction);
 			}
 		}
 
 		void FPBDCollisionSolverHelper::CheckISPC()
 		{
-#if INTEL_ISPC
-			check(sizeof(ispc::FPBDCollisionSolver) == sizeof(Private::FPBDCollisionSolver));
-			check(sizeof(ispc::FPBDCollisionSolverManifoldPoint) == sizeof(Private::FPBDCollisionSolverManifoldPoint));
-			check(sizeof(ispc::FWorldContactPoint) == sizeof(FWorldContactPoint));
-			check(sizeof(ispc::FConstraintSolverBody) == sizeof(FConstraintSolverBody));
-			check(sizeof(ispc::FSolverBody) == sizeof(FSolverBody));
-#endif
+//#if INTEL_ISPC
+//			check(sizeof(ispc::FPBDCollisionSolver) == sizeof(Private::FPBDCollisionSolver));
+//			check(sizeof(ispc::FPBDCollisionSolverManifoldPoint) == sizeof(Private::FPBDCollisionSolverManifoldPoint));
+//			check(sizeof(ispc::FWorldContactPoint) == sizeof(FWorldContactPoint));
+//			check(sizeof(ispc::FConstraintSolverBody) == sizeof(FConstraintSolverBody));
+//			check(sizeof(ispc::FSolverBody) == sizeof(FSolverBody));
+//#endif
 		}
 
 	}	// namespace Private

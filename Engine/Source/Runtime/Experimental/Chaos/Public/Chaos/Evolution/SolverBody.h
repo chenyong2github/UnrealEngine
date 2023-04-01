@@ -98,6 +98,8 @@ namespace Chaos
 	class FSolverBody
 	{
 	public:
+		static constexpr FSolverReal ZeroMassThreshold() { return std::numeric_limits<FSolverReal>::min(); }
+
 
 		/**
 		 * A factory method to create a safely initialized Solverbody. 
@@ -332,7 +334,7 @@ namespace Chaos
 		 * @brief Whether the body has a finite mass
 		 * @note This is based on the current inverse mass, so a "dynamic" particle with 0 inverse mass will return true here.
 		*/
-		inline bool IsDynamic() const { return (State.InvM > UE_SMALL_NUMBER); }
+		inline bool IsDynamic() const { return (State.InvM > FSolverBody::ZeroMassThreshold()); }
 
 		/**
 		 * @brief Apply a world-space position and rotation delta to the body center of mass, and update inverse mass
@@ -617,7 +619,7 @@ namespace Chaos
 		/**
 		 * @brief Whether the body is dynamic (i.e., has a finite mass) after scaling is applied
 		*/
-		inline bool IsDynamic() const { return (InvM() > TNumericLimits<FSolverReal>::Min()); }
+		inline bool IsDynamic() const { return (InvM() > FSolverBody::ZeroMassThreshold()); }
 
 		//
 		// From here all methods just forward to the FSolverBody

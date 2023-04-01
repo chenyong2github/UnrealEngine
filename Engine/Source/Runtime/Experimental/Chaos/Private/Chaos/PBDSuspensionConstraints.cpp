@@ -274,7 +274,7 @@ namespace Chaos
 
 				// inject a manifold for our suspension Hard-stop - behaves like a regular friction-less collision, prevents the vehicle chassis from ever hitting the ground
 				Solver->AddManifoldPoint();
-				Solver->SetManifoldPoint(
+				Solver->InitManifoldPoint(
 					0,										// ManifoldIndex
 					FSolverReal(Dt),						// Delta Time
 					FSolverVec3(WorldArm),					// RelativeContactPosition0,
@@ -287,7 +287,7 @@ namespace Chaos
 					FSolverReal(0),							// WorldContactDeltaTangentV
 					FSolverReal(0)							// WorldTargetContactVelocityNormal
 					);
-
+				Solver->FinalizeManifold();
 			}
 		}
 

@@ -80,7 +80,6 @@ namespace Chaos
 			// For testing
 			const FConstraintSolverId& GetConstraintSolverId(const int32 ConstraintIndex) const { return ConstraintSolverIds[ConstraintIndex]; }
 			const TPBDCollisionSolverSimd<4>& GetConstraintSolver(const int32 SolverIndex) const { return SimdData.SimdSolvers[SolverIndex]; }
-			const TPBDCollisionSolverManifoldPointsSimd<4>& GetManifoldPointSolver(const int32 PointIndex) const { return SimdData.SimdManifoldPoints[PointIndex]; }
 			TArrayView<const TPBDCollisionSolverManifoldPointsSimd<4>> GetManifoldPointBuffer() const { return MakeArrayView(SimdData.SimdManifoldPoints); }
 
 		private:

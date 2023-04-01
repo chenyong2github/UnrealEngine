@@ -407,9 +407,10 @@ namespace Chaos
 				const FVec3f ContactTangentU = ManifoldPoint.SimdContactTangentU.GetValue(LaneIndex);
 				const FVec3f ContactTangentV = ManifoldPoint.SimdContactTangentV.GetValue(LaneIndex);
 
-				if (Body0.IsDynamic())
+				const FSolverReal InvM0 = InvMScale0 * Body0.InvM();
+				const FSolverReal InvM1 = InvMScale1 * Body1.InvM();
+				if (InvM0 > 0)
 				{
-					const FSolverReal InvM0 = InvMScale0 * Body0.InvM();
 					const FSolverMatrix33 InvI0 = InvIScale0 * Body0.InvI();
 
 					const FVec3f RelativeContactPoint0 = ManifoldPoint.SimdRelativeContactPoint0.GetValue(LaneIndex);
@@ -430,9 +431,8 @@ namespace Chaos
 					ContactMassInvTangentU += FSolverVec3::DotProduct(R0xU, IR0xU) + InvM0;
 					ContactMassInvTangentV += FSolverVec3::DotProduct(R0xV, IR0xV) + InvM0;
 				}
-				if (Body1.IsDynamic())
+				if (InvM1 > 0)
 				{
-					const FSolverReal InvM1 = InvMScale1 * Body1.InvM();
 					const FSolverMatrix33 InvI1 = InvIScale1 * Body1.InvI();
 
 					const FVec3f RelativeContactPoint1 = ManifoldPoint.SimdRelativeContactPoint1.GetValue(LaneIndex);
@@ -487,9 +487,10 @@ namespace Chaos
 
 				const FVec3f ContactNormal = ManifoldPoint.SimdContactNormal.GetValue(LaneIndex);
 
-				if (Body0.IsDynamic())
+				const FSolverReal InvM0 = InvMScale0 * Body0.InvM();
+				const FSolverReal InvM1 = InvMScale1 * Body1.InvM();
+				if (InvM0 > 0)
 				{
-					const FSolverReal InvM0 = InvMScale0 * Body0.InvM();
 					const FSolverMatrix33 InvI0 = InvIScale0 * Body0.InvI();
 
 					const FVec3f RelativeContactPoint0 = ManifoldPoint.SimdRelativeContactPoint0.GetValue(LaneIndex);
@@ -502,9 +503,8 @@ namespace Chaos
 
 					ContactMassInvNormal += FSolverVec3::DotProduct(R0xN, IR0xN) + InvM0;
 				}
-				if (Body1.IsDynamic())
+				if (InvM1 > 0)
 				{
-					const FSolverReal InvM1 = InvMScale1 * Body1.InvM();
 					const FSolverMatrix33 InvI1 = InvIScale1 * Body1.InvI();
 
 					const FVec3f RelativeContactPoint1 = ManifoldPoint.SimdRelativeContactPoint1.GetValue(LaneIndex);
