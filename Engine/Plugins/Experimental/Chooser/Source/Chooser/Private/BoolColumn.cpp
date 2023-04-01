@@ -4,6 +4,7 @@
 
 bool FBoolContextProperty::GetValue(const UObject* ContextObject, bool& OutResult) const
 {
+	
 	UStruct* StructType = ContextObject->GetClass();
 	const void* Container = ContextObject;
 	
@@ -13,6 +14,23 @@ bool FBoolContextProperty::GetValue(const UObject* ContextObject, bool& OutResul
 		{
 			OutResult = *Property->ContainerPtrToValuePtr<bool>(Container);
 			return true;
+		}
+		
+	    if (UClass* ClassType = Cast<UClass>(StructType))
+	    {
+			if (UFunction* Function = ClassType->FindFunctionByName(Binding.PropertyBindingChain.Last()))
+			{
+				UObject* Object = reinterpret_cast<UObject*>(const_cast<void*>(Container));
+				if (Function->IsNative())
+				{
+					FFrame Stack(Object, Function, nullptr, nullptr, Function->ChildProperties);
+					Function->Invoke(Object, Stack, &OutResult);
+				}
+				else
+				{
+					Object->ProcessEvent(Function, &OutResult);
+				}
+			} 
 		}
 	}
 

@@ -2,11 +2,11 @@
 
 #include "FloatRangeColumnEditor.h"
 #include "FloatRangeColumn.h"
-#include "ContextPropertyWidget.h"
 #include "ObjectChooserWidgetFactories.h"
 #include "ChooserTableEditor.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "GraphEditorSettings.h"
+#include "SPropertyAccessChainWidget.h"
 
 #define LOCTEXT_NAMESPACE "FloatRangeColumnEditor"
 
@@ -14,7 +14,19 @@ namespace UE::ChooserEditor
 {
 TSharedRef<SWidget> CreateFloatPropertyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ContextClass, UClass* ResultBaseClass)
 {
-	return CreatePropertyWidget<FFloatContextProperty>(bReadOnly, TransactionObject, Value, ContextClass, GetDefault<UGraphEditorSettings>()->FloatPinTypeColor);
+	IHasContextClass* HasContextClass = Cast<IHasContextClass>(TransactionObject);
+
+	FFloatContextProperty* ContextProperty = reinterpret_cast<FFloatContextProperty*>(Value);
+
+	return SNew(SPropertyAccessChainWidget).ContextClassOwner(HasContextClass).AllowFunctions(true).BindingColor("FloatPinTypeColor").TypeFilter("double")
+	.PropertyBindingValue(&ContextProperty->Binding)
+	.OnAddBinding_Lambda(
+		[ContextProperty, TransactionObject](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
+		{
+			const FScopedTransaction Transaction(NSLOCTEXT("ContextPropertyWidget", "Change Property Binding", "Change Property Binding"));
+			TransactionObject->Modify(true);
+			ContextProperty->SetBinding(InBindingChain);	
+		});
 }
 	
 TSharedRef<SWidget> CreateFloatRangeColumnWidget(UChooserTable* Chooser, FChooserColumnBase* Column, int Row)

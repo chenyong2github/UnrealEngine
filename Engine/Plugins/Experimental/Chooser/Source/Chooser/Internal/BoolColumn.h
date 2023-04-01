@@ -25,7 +25,7 @@ public:
 	UPROPERTY()
 	TArray<FName> PropertyBindingChain_DEPRECATED;
 	
-	UPROPERTY(EditAnywhere, Meta = (BindingType = "bool", BindingColor = "BooleanPinTypeColor"), Category = "Binding")
+	UPROPERTY(EditAnywhere, Meta = (BindingType = "bool", BindingAllowFunctions = "true", BindingColor = "BooleanPinTypeColor"), Category = "Binding")
 	FChooserPropertyBinding Binding;
 	
 	virtual bool GetValue(const UObject* ContextObject, bool& OutResult) const override;

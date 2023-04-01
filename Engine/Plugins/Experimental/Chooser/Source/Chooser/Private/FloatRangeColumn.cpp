@@ -6,7 +6,7 @@ bool FFloatContextProperty::GetValue(const UObject* ContextObject, float& OutRes
 {
 	UStruct* StructType = ContextObject->GetClass();
 	const void* Container = ContextObject;
-	
+
 	if (UE::Chooser::ResolvePropertyChain(Container, StructType, Binding.PropertyBindingChain))
 	{
 		if (const FDoubleProperty* DoubleProperty = FindFProperty<FDoubleProperty>(StructType, Binding.PropertyBindingChain.Last()))
@@ -19,6 +19,44 @@ bool FFloatContextProperty::GetValue(const UObject* ContextObject, float& OutRes
 		{
 			OutResult = *FloatProperty->ContainerPtrToValuePtr<float>(Container);
 			return true;
+		}
+
+	    if (UClass* ClassType = Cast<UClass>(StructType))
+	    {
+			if (UFunction* Function = ClassType->FindFunctionByName(Binding.PropertyBindingChain.Last()))
+			{
+				bool bReturnsDouble = CastField<FDoubleProperty>(Function->GetReturnProperty()) != nullptr;
+					
+				UObject* Object = reinterpret_cast<UObject*>(const_cast<void*>(Container));
+				if (Function->IsNative())
+				{
+					FFrame Stack(Object, Function, nullptr, nullptr, Function->ChildProperties);
+					if (bReturnsDouble)
+					{
+						double result;
+						Function->Invoke(Object, Stack, &result);
+						OutResult = result;
+					}
+					else
+					{
+						Function->Invoke(Object, Stack, &OutResult);
+					}
+				}
+				else
+				{
+					if (bReturnsDouble)
+					{
+						double result = 0;
+						Object->ProcessEvent(Function, &result);
+						OutResult = result;
+					}
+					else
+					{
+						Object->ProcessEvent(Function, &OutResult);
+					}
+				}
+				return true;
+			} 
 		}
 	}
 

@@ -154,7 +154,13 @@ void SPropertyBinding::ForEachBindableFunction(UClass* FromClass, Predicate Pred
 					}
 				}
 
-				if(bValidObjectFunction || bValidStructFunction || Args.OnCanBindFunction.Execute(Function))
+				bool bValidThreadSafety = true;
+				if (Args.bAllowOnlyThreadSafeFunctions)
+				{
+					bValidThreadSafety = FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(Function);
+				}
+
+				if(bValidThreadSafety && (bValidObjectFunction || bValidStructFunction || Args.OnCanBindFunction.Execute(Function)))
 				{
 					Pred(FFunctionInfo(Function));
 				}

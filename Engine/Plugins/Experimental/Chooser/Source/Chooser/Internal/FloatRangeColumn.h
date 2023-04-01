@@ -18,7 +18,7 @@ struct CHOOSER_API FFloatContextProperty :  public FChooserParameterFloatBase
 	UPROPERTY()
 	TArray<FName> PropertyBindingChain_DEPRECATED;
 	
-	UPROPERTY(EditAnywhere, Meta = (BindingType = "double", BindingColor = "FloatPinTypeColor"), Category = "Binding")
+	UPROPERTY(EditAnywhere, Meta = (BindingType = "double", BindingAllowFunctions = "true", BindingColor = "FloatPinTypeColor"), Category = "Binding")
 	FChooserPropertyBinding Binding;
 
 	virtual void PostLoad() override

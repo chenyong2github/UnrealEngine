@@ -223,6 +223,9 @@ struct FPropertyBindingWidgetArgs
 
 	/** Whether to allow UObject functions as non-leaf nodes */
 	bool bAllowUObjectFunctions = false;
+	
+	/** Whether to allow only functions marked thread safe */
+	bool bAllowOnlyThreadSafeFunctions = false;
 
 	/** Whether to allow UScriptStruct functions as non-leaf nodes */
 	bool bAllowStructFunctions = false;	

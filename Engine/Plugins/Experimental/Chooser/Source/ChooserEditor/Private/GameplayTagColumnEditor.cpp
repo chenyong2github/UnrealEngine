@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayTagColumnEditor.h"
-#include "ContextPropertyWidget.h"
-#include "ChooserTableEditor.h"
+#include "SPropertyAccessChainWidget.h"
 #include "GameplayTagColumn.h"
 #include "ObjectChooserWidgetFactories.h"
 #include "SGameplayTagWidget.h"
@@ -51,7 +50,19 @@ TSharedRef<SWidget> CreateGameplayTagColumnWidget(UChooserTable* Chooser, FChoos
 
 TSharedRef<SWidget> CreateGameplayTagPropertyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ContextClass, UClass* ResultBaseClass)
 {
-	return CreatePropertyWidget<FGameplayTagContextProperty>(bReadOnly, TransactionObject, Value, ContextClass, GetDefault<UGraphEditorSettings>()->StructPinTypeColor);
+	IHasContextClass* HasContextClass = Cast<IHasContextClass>(TransactionObject);
+
+	FGameplayTagContextProperty* ContextProperty = reinterpret_cast<FGameplayTagContextProperty*>(Value);
+
+	return SNew(SPropertyAccessChainWidget).ContextClassOwner(HasContextClass).AllowFunctions(false).BindingColor("StructPinTypeColor").TypeFilter("FGameplayTagContainer")
+	.PropertyBindingValue(&ContextProperty->Binding)
+	.OnAddBinding_Lambda(
+		[ContextProperty, TransactionObject](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
+		{
+			const FScopedTransaction Transaction(NSLOCTEXT("ContextPropertyWidget", "Change Property Binding", "Change Property Binding"));
+			TransactionObject->Modify(true);
+			ContextProperty->SetBinding(InBindingChain);	
+		});
 }
 	
 void RegisterGameplayTagWidgets()

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ObjectColumnEditor.h"
-#include "ContextPropertyWidget.h"
+#include "SPropertyAccessChainWidget.h"
 #include "GraphEditorSettings.h"
 #include "ObjectChooserWidgetFactories.h"
 #include "ObjectColumn.h"
@@ -143,7 +143,19 @@ namespace UE::ChooserEditor
 
 	static TSharedRef<SWidget> CreateObjectPropertyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ContextClass, UClass* ResultBaseClass)
 	{
-		return CreatePropertyWidget<FObjectContextProperty>(bReadOnly, TransactionObject, Value, ContextClass, GetDefault<UGraphEditorSettings>()->ObjectPinTypeColor);
+		IHasContextClass* HasContextClass = Cast<IHasContextClass>(TransactionObject);
+
+		FObjectContextProperty* ContextProperty = reinterpret_cast<FObjectContextProperty*>(Value);
+
+		return SNew(SPropertyAccessChainWidget).ContextClassOwner(HasContextClass).AllowFunctions(false).BindingColor("ObjectPinTypeColor").TypeFilter("object")
+		.PropertyBindingValue(&ContextProperty->Binding)
+		.OnAddBinding_Lambda(
+			[ContextProperty, TransactionObject](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
+			{
+				const FScopedTransaction Transaction(NSLOCTEXT("ContextPropertyWidget", "Change Property Binding", "Change Property Binding"));
+				TransactionObject->Modify(true);
+				ContextProperty->SetBinding(InBindingChain);	
+			});
 	}
 
 	void RegisterObjectWidgets()

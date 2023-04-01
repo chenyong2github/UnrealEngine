@@ -3,9 +3,9 @@
 #include "BoolColumnEditor.h"
 #include "BoolColumn.h"
 #include "OutputBoolColumn.h"
-#include "ContextPropertyWidget.h"
-#include "ChooserTableEditor.h"
+#include "SPropertyAccessChainWidget.h"
 #include "ObjectChooserWidgetFactories.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "GraphEditorSettings.h"
@@ -57,26 +57,46 @@ TSharedRef<SWidget> CreateOutputBoolColumnWidget(UChooserTable* Chooser, FChoose
 {
 	FOutputBoolColumn* BoolColumn = static_cast<FOutputBoolColumn*>(Column);
 
-	return SNew (SCheckBox)
-	.OnCheckStateChanged_Lambda([Chooser, BoolColumn,Row](ECheckBoxState State)
-	{
-		if (Row < BoolColumn->RowValues.Num())
+	return
+	
+	SNew(SHorizontalBox)
+	+ SHorizontalBox::Slot().FillWidth(1)
+	+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+	[
+		SNew (SCheckBox)
+		.OnCheckStateChanged_Lambda([Chooser, BoolColumn,Row](ECheckBoxState State)
 		{
-			const FScopedTransaction Transaction(LOCTEXT("Change Bool Value", "Change Bool Value"));
-			Chooser->Modify(true);
-			BoolColumn->RowValues[Row] = (State == ECheckBoxState::Checked);
-		}
-	})
-	.IsChecked_Lambda([BoolColumn, Row]()
-	{
-		const bool value = (Row < BoolColumn->RowValues.Num()) ? BoolColumn->RowValues[Row] : false;
-		return value ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-	});
+			if (Row < BoolColumn->RowValues.Num())
+			{
+				const FScopedTransaction Transaction(LOCTEXT("Change Bool Value", "Change Bool Value"));
+				Chooser->Modify(true);
+				BoolColumn->RowValues[Row] = (State == ECheckBoxState::Checked);
+			}
+		})
+		.IsChecked_Lambda([BoolColumn, Row]()
+		{
+			const bool value = (Row < BoolColumn->RowValues.Num()) ? BoolColumn->RowValues[Row] : false;
+			return value ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		})
+	]
+	+ SHorizontalBox::Slot().FillWidth(1);
 }
 	
 TSharedRef<SWidget> CreateBoolPropertyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ContextClass, UClass* ResultBaseClass)
 {
-	return CreatePropertyWidget<FBoolContextProperty>(bReadOnly, TransactionObject, Value, ContextClass, GetDefault<UGraphEditorSettings>()->BooleanPinTypeColor);
+	IHasContextClass* HasContextClass = Cast<IHasContextClass>(TransactionObject);
+
+	FBoolContextProperty* ContextProperty = reinterpret_cast<FBoolContextProperty*>(Value);
+
+	return SNew(SPropertyAccessChainWidget).ContextClassOwner(HasContextClass).AllowFunctions(true).BindingColor("BooleanPinTypeColor").TypeFilter("bool")
+	.PropertyBindingValue(&ContextProperty->Binding)
+	.OnAddBinding_Lambda(
+		[ContextProperty, TransactionObject](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
+		{
+			const FScopedTransaction Transaction(NSLOCTEXT("ContextPropertyWidget", "Change Property Binding", "Change Property Binding"));
+			TransactionObject->Modify(true);
+			ContextProperty->SetBinding(InBindingChain);	
+		});
 }
 	
 void RegisterBoolWidgets()

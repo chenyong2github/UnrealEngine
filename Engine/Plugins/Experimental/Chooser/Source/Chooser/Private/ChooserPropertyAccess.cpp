@@ -35,7 +35,40 @@ namespace UE::Chooser
 			}
 			else
 			{
-				return false;
+				// check if it's a member function
+				if (UClass* ClassType = Cast<UClass>(StructType))
+				{
+					if (UFunction* Function = ClassType->FindFunctionByName(PropertyBindingChain[PropertyChainIndex]))
+					{
+						UObject* Object = reinterpret_cast<UObject*>(const_cast<void*>(Container));
+						if (Function->IsNative())
+						{
+							FFrame Stack(Object, Function, nullptr, nullptr, Function->ChildProperties);
+							Function->Invoke(Object, Stack, &Container);
+						}
+						else
+						{
+							Object->ProcessEvent(Function, &Container);
+						}
+						
+						if (Container == nullptr)
+						{
+							return false;
+						}
+						else
+						{
+							StructType = reinterpret_cast<UObject*>(const_cast<void*>(Container))->GetClass();
+						}
+					}
+					else
+					{
+						return false;
+					}
+				}
+				else
+				{
+					return false;
+				}
 			}
 		}
 	

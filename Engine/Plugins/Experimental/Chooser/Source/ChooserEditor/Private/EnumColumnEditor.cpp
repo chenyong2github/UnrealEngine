@@ -2,7 +2,7 @@
 
 #include "EnumColumnEditor.h"
 #include "EnumColumn.h"
-#include "ContextPropertyWidget.h"
+#include "SPropertyAccessChainWidget.h"
 #include "ObjectChooserWidgetFactories.h"
 #include "ChooserTableEditor.h"
 #include "GraphEditorSettings.h"
@@ -153,7 +153,19 @@ TSharedRef<SWidget> CreateEnumColumnWidget(UChooserTable* Chooser, FChooserColum
 
 TSharedRef<SWidget> CreateEnumPropertyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ContextClass, UClass* ResultBaseClass)
 {
-	return CreatePropertyWidget<FEnumContextProperty>(bReadOnly, TransactionObject, Value, ContextClass, GetDefault<UGraphEditorSettings>()->BytePinTypeColor);
+		IHasContextClass* HasContextClass = Cast<IHasContextClass>(TransactionObject);
+    
+    	FEnumContextProperty* ContextProperty = reinterpret_cast<FEnumContextProperty*>(Value);
+    
+    	return SNew(SPropertyAccessChainWidget).ContextClassOwner(HasContextClass).AllowFunctions(false).BindingColor("BytePinTypeColor").TypeFilter("enum")
+    	.PropertyBindingValue(&ContextProperty->Binding)
+    	.OnAddBinding_Lambda(
+    		[ContextProperty, TransactionObject](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
+    		{
+    			const FScopedTransaction Transaction(NSLOCTEXT("ContextPropertyWidget", "Change Property Binding", "Change Property Binding"));
+    			TransactionObject->Modify(true);
+    			ContextProperty->SetBinding(InBindingChain);	
+    		});
 }
 	
 void RegisterEnumWidgets()

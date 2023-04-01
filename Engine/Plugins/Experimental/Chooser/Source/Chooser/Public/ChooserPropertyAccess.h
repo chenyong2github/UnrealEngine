@@ -61,6 +61,7 @@ struct FChooserObjectPropertyBinding : public FChooserPropertyBinding
 namespace UE::Chooser
 {
 	CHOOSER_API bool ResolvePropertyChain(const void*& Container, UStruct*& StructType, const TArray<FName>& PropertyBindingChain);
+
 #if WITH_EDITOR
 	CHOOSER_API void CopyPropertyChain(const TArray<FBindingChainElement>& InBindingChain, TArray<FName>& OutPropertyBindingChain);
 #endif
