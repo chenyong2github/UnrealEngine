@@ -10,8 +10,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "start": "node dist/robo/watchdog.js -botname=TEST -devMode",
-    "test": "node dist/robo/unit-tests.js",
-    "postinstall": "node install-graphviz.js"
+    "test": "node dist/robo/unit-tests.js"
   },
   "dependencies": {
     "@hpcc-js/graph": "^2.27.0",

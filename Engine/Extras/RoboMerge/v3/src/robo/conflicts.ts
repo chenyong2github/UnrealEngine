@@ -233,7 +233,7 @@ export class Conflicts {
 	 * This happens before a tick, so that all other bots will have had a chance
 	 * to update, so that resolving changelists will have been seen
 	 */
-	checkForResolvedConflicts(nodeCL: Number, edges: Map<string, EdgeBot>) {
+	checkForResolvedConflicts(nodeCL: number, edges: Map<string, EdgeBot>) {
 		if (this.conflicts.length === 0) {
 			return
 		}
