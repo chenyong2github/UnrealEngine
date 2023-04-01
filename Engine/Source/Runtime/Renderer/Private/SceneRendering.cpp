@@ -400,6 +400,7 @@ FASTVRAM_CVAR(GBufferVelocity, 0);
 FASTVRAM_CVAR(HZB, 1);
 FASTVRAM_CVAR(SceneDepth, 1);
 FASTVRAM_CVAR(SceneColor, 1);
+FASTVRAM_CVAR(Bloom, 1);
 FASTVRAM_CVAR(BokehDOF, 1);
 FASTVRAM_CVAR(CircleDOF, 1);
 FASTVRAM_CVAR(CombineLUTs, 1);
@@ -606,6 +607,7 @@ void FFastVramConfig::Update()
 	bDirty |= UpdateTextureFlagFromCVar(CVarFastVRam_HZB, HZB);
 	bDirty |= UpdateTextureFlagFromCVar(CVarFastVRam_SceneDepth, SceneDepth);
 	bDirty |= UpdateTextureFlagFromCVar(CVarFastVRam_SceneColor, SceneColor);
+	bDirty |= UpdateTextureFlagFromCVar(CVarFastVRam_Bloom, Bloom);
 	bDirty |= UpdateTextureFlagFromCVar(CVarFastVRam_BokehDOF, BokehDOF);
 	bDirty |= UpdateTextureFlagFromCVar(CVarFastVRam_CircleDOF, CircleDOF);
 	bDirty |= UpdateTextureFlagFromCVar(CVarFastVRam_CombineLUTs, CombineLUTs);

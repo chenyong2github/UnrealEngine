@@ -2838,6 +2838,7 @@ struct FFastVramConfig
 	ETextureCreateFlags HZB;
 	ETextureCreateFlags SceneDepth;
 	ETextureCreateFlags SceneColor;
+	ETextureCreateFlags Bloom;
 	ETextureCreateFlags BokehDOF;
 	ETextureCreateFlags CircleDOF;
 	ETextureCreateFlags CombineLUTs;

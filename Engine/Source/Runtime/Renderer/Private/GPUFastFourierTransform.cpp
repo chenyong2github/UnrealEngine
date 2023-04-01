@@ -8,7 +8,12 @@
 #include "SystemTextures.h"
 #include "DataDrivenShaderPlatformInfo.h"
 
-bool ShouldCompileGPUFFT(EShaderPlatform Platform)
+bool ShouldCompileFullGPUFFT(EShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetSupportsFFTBloom(Platform) && !FDataDrivenShaderPlatformInfo::GetIsConsole(Platform);
+}
+
+bool ShouldCompileGroupSharedGPUFFT(EShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetSupportsFFTBloom(Platform);
 }
@@ -152,7 +157,7 @@ class FFFTShader : public FGlobalShader
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileGPUFFT(Parameters.Platform);
+		return ShouldCompileFullGPUFFT(Parameters.Platform);
 	}
 
 	FFFTShader() = default;
@@ -322,6 +327,11 @@ class FGSComplexTransformCS : public FFFTShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DstTexture)
 	END_SHADER_PARAMETER_STRUCT()
 
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileGroupSharedGPUFFT(Parameters.Platform);
+	}
+
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
@@ -356,6 +366,11 @@ class FGSTwoForOneTransformCS : public FFFTShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DstTexture)
 	END_SHADER_PARAMETER_STRUCT()
 
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileGroupSharedGPUFFT(Parameters.Platform);
+	}
+
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
@@ -387,6 +402,11 @@ class FGSConvolutionWithTextureCS : public FFFTShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FilterTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DstTexture)
 	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileGroupSharedGPUFFT(Parameters.Platform);
+	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -1297,9 +1317,11 @@ void GPUFFT::ConvolutionWithTextureImage2D(
 	FRDGTextureRef SrcTexture, const FIntRect& ROIRect,
 	FRDGTextureRef DstTexture, const FIntRect& DstRect,
 	const FPreFilter& PreFilter,
-	FRDGBufferRef PostFilterParameters)
+	FRDGBufferRef PostFilterParameters,
+	ETextureCreateFlags AdditionalTextureCreateFlags)
 {
 	FRDGTextureDesc SpectralDesc = CreateFrequencyDesc(FrequencySize, bHorizontalFirst, ROIRect.Size());
+	SpectralDesc.Flags |= AdditionalTextureCreateFlags;
 
 	// This will be for the actual output.
 	const FIntRect FFTResultRect = ROIRect;

@@ -795,7 +795,7 @@ FFFTBloomOutput AddFFTBloomPass(
 		FFTInputSceneColor.Texture->Desc.Extent,
 		FFTInputSceneColor.Texture->Desc.Format,
 		FClearValueBinding::None,
-		TexCreate_ShaderResource | TexCreate_UAV);
+		TexCreate_ShaderResource | TexCreate_UAV | GFastVRamConfig.Bloom);
 		
 	BloomOutput.BloomTexture.Texture = GraphBuilder.CreateTexture(OutputSceneColorDesc, TEXT("Bloom.FFT.ScatterDispersion"));
 	BloomOutput.BloomTexture.ViewRect = FFTInputSceneColor.ViewRect;
@@ -810,7 +810,8 @@ FFFTBloomOutput AddFFTBloomPass(
 		FFTInputSceneColor.Texture, FFTInputSceneColor.ViewRect,
 		BloomOutput.BloomTexture.Texture, BloomOutput.BloomTexture.ViewRect,
 		Intermediates.PreFilter,
-		FFTMulitplyParameters);
+		FFTMulitplyParameters,
+		GFastVRamConfig.Bloom);
 
 	return BloomOutput;
 }

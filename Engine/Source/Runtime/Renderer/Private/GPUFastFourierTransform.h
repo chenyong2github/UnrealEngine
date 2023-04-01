@@ -291,7 +291,8 @@ namespace GPUFFT
 		FRDGTextureRef SrcTexture, const FIntRect& ROIRect,
 		FRDGTextureRef DstTexture, const FIntRect& DstRect,
 		const FPreFilter& PreFilter,
-		FRDGBufferRef PostFilterParameters);
+		FRDGBufferRef PostFilterParameters,
+		ETextureCreateFlags AdditionalTextureCreateFlags);
 
 	FIntPoint Convolution2DBufferSize(const FIntPoint& FrequencySize, const bool bHorizontalFirst, const FIntPoint& SrcExtent);
 
