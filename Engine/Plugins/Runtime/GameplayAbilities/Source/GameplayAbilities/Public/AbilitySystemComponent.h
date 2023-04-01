@@ -643,31 +643,26 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	FORCEINLINE void AddReplicatedLooseGameplayTag(const FGameplayTag& GameplayTag)
 	{
 		GetReplicatedLooseTags_Mutable().AddTag(GameplayTag);
-		bIsNetDirty = true;
 	}
 
 	FORCEINLINE void AddReplicatedLooseGameplayTags(const FGameplayTagContainer& GameplayTags)
 	{
 		GetReplicatedLooseTags_Mutable().AddTags(GameplayTags);
-		bIsNetDirty = true;
 	}
 
 	FORCEINLINE void RemoveReplicatedLooseGameplayTag(const FGameplayTag& GameplayTag)
 	{
 		GetReplicatedLooseTags_Mutable().RemoveTag(GameplayTag);
-		bIsNetDirty = true;
 	}
 
 	FORCEINLINE void RemoveReplicatedLooseGameplayTags(const FGameplayTagContainer& GameplayTags)
 	{
 		GetReplicatedLooseTags_Mutable().RemoveTags(GameplayTags);
-		bIsNetDirty = true;
 	}
 
 	FORCEINLINE void SetReplicatedLooseGameplayTagCount(const FGameplayTag& GameplayTag, int32 NewCount)
 	{
 		GetReplicatedLooseTags_Mutable().SetTagCount(GameplayTag, NewCount);
-		bIsNetDirty = true;
 	}
 
 	/** 	 
@@ -677,25 +672,21 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	FORCEINLINE void AddMinimalReplicationGameplayTag(const FGameplayTag& GameplayTag)
 	{
 		GetMinimalReplicationTags_Mutable().AddTag(GameplayTag);
-		bIsNetDirty = true;
 	}
 
 	FORCEINLINE void AddMinimalReplicationGameplayTags(const FGameplayTagContainer& GameplayTags)
 	{
 		GetMinimalReplicationTags_Mutable().AddTags(GameplayTags);
-		bIsNetDirty = true;
 	}
 
 	FORCEINLINE void RemoveMinimalReplicationGameplayTag(const FGameplayTag& GameplayTag)
 	{
 		GetMinimalReplicationTags_Mutable().RemoveTag(GameplayTag);
-		bIsNetDirty = true;
 	}
 
 	FORCEINLINE void RemoveMinimalReplicationGameplayTags(const FGameplayTagContainer& GameplayTags)
 	{
 		GetMinimalReplicationTags_Mutable().RemoveTags(GameplayTags);
-		bIsNetDirty = true;
 	}
 
 	/** Allow events to be registered for specific gameplay tags being added or removed */

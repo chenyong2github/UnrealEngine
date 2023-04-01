@@ -69,11 +69,6 @@ private:
 
 	uint8 bInEventProcessingInProgress : 1;
 
-public:
-	/** Set to indicate that GameplayTasksComponent needs immediate replication. @TODO could just use ForceReplication(), but this allows initial implementation to be game specific. */
-	UPROPERTY()
-	uint8 bIsNetDirty:1;
-
 protected:
 	/** Indicates what's the highest priority among currently running tasks */
 	uint8 TopActivePriority;

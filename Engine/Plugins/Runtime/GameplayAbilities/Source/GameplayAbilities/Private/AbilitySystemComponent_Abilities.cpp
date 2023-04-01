@@ -74,7 +74,6 @@ void UAbilitySystemComponent::InitializeComponent()
 		if (Set)  
 		{
 			SpawnedAttributes.AddUnique(Set);
-			bIsNetDirty = true;
 		}
 	}
 
@@ -409,7 +408,6 @@ void UAbilitySystemComponent::ClearAllAbilities()
 
 	ActivatableAbilities.Items.Empty(ActivatableAbilities.Items.Num());
 	ActivatableAbilities.MarkArrayDirty();
-	bIsNetDirty = true;
 
 	CheckForClearedAbilities();
 }
@@ -437,7 +435,6 @@ void UAbilitySystemComponent::ClearAbility(const FGameplayAbilitySpecHandle& Han
 		return;
 	}
 
-	bIsNetDirty = true;
 	for (int Idx = 0; Idx < AbilityPendingAdds.Num(); ++Idx)
 	{
 		if (AbilityPendingAdds[Idx].Handle == Handle)
@@ -798,7 +795,6 @@ void UAbilitySystemComponent::MarkAbilitySpecDirty(FGameplayAbilitySpec& Spec, b
 		// Don't mark dirty for specs that are server only unless it was an add/remove
 		if (!(Spec.Ability && Spec.Ability->NetExecutionPolicy == EGameplayAbilityNetExecutionPolicy::ServerOnly && !WasAddOrRemove))
 		{
-			bIsNetDirty = true;
 			ActivatableAbilities.MarkItemDirty(Spec);
 		}
 		AbilitySpecDirtiedCallbacks.Broadcast(Spec);
@@ -1232,7 +1228,6 @@ void UAbilitySystemComponent::UnBlockAbilitiesWithTags(const FGameplayTagContain
 
 void UAbilitySystemComponent::BlockAbilityByInputID(int32 InputID)
 {
-	bIsNetDirty = true;
 	const TArray<uint8>& ConstBlockedAbilityBindings = GetBlockedAbilityBindings();
 	if (InputID >= 0 && InputID < ConstBlockedAbilityBindings.Num())
 	{
@@ -1242,7 +1237,6 @@ void UAbilitySystemComponent::BlockAbilityByInputID(int32 InputID)
 
 void UAbilitySystemComponent::UnBlockAbilityByInputID(int32 InputID)
 {
-	bIsNetDirty = true;
 	const TArray<uint8>& ConstBlockedAbilityBindings = GetBlockedAbilityBindings();
 	if (InputID >= 0 && InputID < ConstBlockedAbilityBindings.Num() && ConstBlockedAbilityBindings[InputID] > 0)
 	{
@@ -2478,7 +2472,6 @@ void UAbilitySystemComponent::BindAbilityActivationToInputComponent(UInputCompon
 void UAbilitySystemComponent::SetBlockAbilityBindingsArray(FGameplayAbilityInputBinds BindInfo)
 {
 	UEnum* EnumBinds = BindInfo.GetBindEnum();
-	bIsNetDirty = true;
 	GetBlockedAbilityBindings_Mutable().SetNumZeroed(EnumBinds->NumEnums());
 }
 
