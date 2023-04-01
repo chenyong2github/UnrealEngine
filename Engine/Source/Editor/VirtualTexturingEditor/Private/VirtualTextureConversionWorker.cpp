@@ -460,9 +460,9 @@ void FVirtualTextureConversionWorker::FindAllTexturesAndMaterials(TArray<UMateri
 			break;
 		}
 
-		LastNumMaterials = OutAffectedMaterials.Num();
-		LastNumTextures = OutAffectedTextures.Num();
-		LastNumFunctions = OutAffectedFunctions.Num();
+		LastNumMaterials = AffectedMaterials.Num();
+		LastNumTextures = AffectedTextures.Num();
+		LastNumFunctions = AffectedFunctions.Num();
 	}
 	OutAffectedMaterials = AffectedMaterials.Array();
 	OutAffectedFunctions = AffectedFunctions.Array();
