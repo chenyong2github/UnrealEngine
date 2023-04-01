@@ -133,27 +133,27 @@ namespace Chaos
 				const Private::TPBDCollisionSolverManifoldPointsSimd<4>& ManifoldPointSolverB = ConstraintSolverB.GetManifoldPoint(ManifoldPointIndex, SolverB.GetManifoldPointBuffer());
 				bool bIsError = false;
 
-				if (ManifoldPointSolverA.WorldContact.ContactNormal != ManifoldPointSolverB.SimdContactNormal.GetValue(LaneIndexB))
+				if (ManifoldPointSolverA.ContactNormal != ManifoldPointSolverB.SimdContactNormal.GetValue(LaneIndexB))
 				{
 					UE_LOG(LogChaos, Warning, TEXT("ContactNormal mismatch"));
 					bIsError = true;
 				}
-				if (ManifoldPointSolverA.WorldContact.ContactTangentU != ManifoldPointSolverB.SimdContactTangentU.GetValue(LaneIndexB))
+				if (ManifoldPointSolverA.ContactTangentU != ManifoldPointSolverB.SimdContactTangentU.GetValue(LaneIndexB))
 				{
 					UE_LOG(LogChaos, Warning, TEXT("ContactTangentU mismatch"));
 					bIsError = true;
 				}
-				if (ManifoldPointSolverA.WorldContact.ContactTangentV != ManifoldPointSolverB.SimdContactTangentV.GetValue(LaneIndexB))
+				if (ManifoldPointSolverA.ContactTangentV != ManifoldPointSolverB.SimdContactTangentV.GetValue(LaneIndexB))
 				{
 					UE_LOG(LogChaos, Warning, TEXT("ContactTangentV mismatch"));
 					bIsError = true;
 				}
-				if (ManifoldPointSolverA.WorldContact.RelativeContactPoints[0] != ManifoldPointSolverB.SimdRelativeContactPoint0.GetValue(LaneIndexB))
+				if (ManifoldPointSolverA.RelativeContactPoints[0] != ManifoldPointSolverB.SimdRelativeContactPoint0.GetValue(LaneIndexB))
 				{
 					UE_LOG(LogChaos, Warning, TEXT("RelativeContactPoints mismatch"));
 					bIsError = true;
 				}
-				if (ManifoldPointSolverA.WorldContact.RelativeContactPoints[1] != ManifoldPointSolverB.SimdRelativeContactPoint1.GetValue(LaneIndexB))
+				if (ManifoldPointSolverA.RelativeContactPoints[1] != ManifoldPointSolverB.SimdRelativeContactPoint1.GetValue(LaneIndexB))
 				{
 					UE_LOG(LogChaos, Warning, TEXT("RelativeContactPoints mismatch"));
 					bIsError = true;
@@ -175,12 +175,12 @@ namespace Chaos
 				}
 				if (Body0.IsDynamic())
 				{
-					if (ManifoldPointSolverA.WorldContactTangentUAngular0 != ManifoldPointSolverB.SimdContactTangentUAngular0.GetValue(LaneIndexB))
+					if (ManifoldPointSolverA.ContactTangentUAngular0 != ManifoldPointSolverB.SimdContactTangentUAngular0.GetValue(LaneIndexB))
 					{
 						UE_LOG(LogChaos, Warning, TEXT("ContactTangentUAngular0 mismatch"));
 						bIsError = true;
 					}
-					if (ManifoldPointSolverA.WorldContactTangentVAngular0 != ManifoldPointSolverB.SimdContactTangentVAngular0.GetValue(LaneIndexB))
+					if (ManifoldPointSolverA.ContactTangentVAngular0 != ManifoldPointSolverB.SimdContactTangentVAngular0.GetValue(LaneIndexB))
 					{
 						UE_LOG(LogChaos, Warning, TEXT("ContactTangentVAngular0 mismatch"));
 						bIsError = true;
@@ -188,12 +188,12 @@ namespace Chaos
 				}
 				if (Body1.IsDynamic())
 				{
-					if (ManifoldPointSolverA.WorldContactTangentUAngular1 != ManifoldPointSolverB.SimdContactTangentUAngular1.GetValue(LaneIndexB))
+					if (ManifoldPointSolverA.ContactTangentUAngular1 != ManifoldPointSolverB.SimdContactTangentUAngular1.GetValue(LaneIndexB))
 					{
 						UE_LOG(LogChaos, Warning, TEXT("ContactTangentUAngular1 mismatch"));
 						bIsError = true;
 					}
-					if (ManifoldPointSolverA.WorldContactTangentVAngular1 != ManifoldPointSolverB.SimdContactTangentVAngular1.GetValue(LaneIndexB))
+					if (ManifoldPointSolverA.ContactTangentVAngular1 != ManifoldPointSolverB.SimdContactTangentVAngular1.GetValue(LaneIndexB))
 					{
 						UE_LOG(LogChaos, Warning, TEXT("ContactTangentVAngular1 mismatch"));
 						bIsError = true;

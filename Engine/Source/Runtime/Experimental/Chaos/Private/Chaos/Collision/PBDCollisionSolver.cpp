@@ -87,10 +87,10 @@ namespace Chaos
 				FPBDCollisionSolverManifoldPoint& SolverManifoldPoint = State.ManifoldPoints[PointIndex];
 				if (ShouldSolveVelocity(SolverManifoldPoint))
 				{
-					RelativeContactPosition0 += SolverManifoldPoint.WorldContact.RelativeContactPoints[0];
-					RelativeContactPosition1 += SolverManifoldPoint.WorldContact.RelativeContactPoints[1];
-					WorldContactVelocityTargetNormal += SolverManifoldPoint.WorldContact.ContactTargetVelocityNormal;
-					WorldContactNormal = SolverManifoldPoint.WorldContact.ContactNormal;	// Take last value - should all be similar
+					RelativeContactPosition0 += SolverManifoldPoint.RelativeContactPoints[0];
+					RelativeContactPosition1 += SolverManifoldPoint.RelativeContactPoints[1];
+					WorldContactVelocityTargetNormal += SolverManifoldPoint.ContactTargetVelocityNormal;
+					WorldContactNormal = SolverManifoldPoint.ContactNormal;	// Take last value - should all be similar
 					NetPushOutNormal += SolverManifoldPoint.NetPushOutNormal;
 					++NumActiveManifoldPoints;
 				}
@@ -107,10 +107,10 @@ namespace Chaos
 				const FSolverReal InvCount = FSolverReal(1) / FSolverReal(NumActiveManifoldPoints);
 
 				FPBDCollisionSolverManifoldPoint AverageManifoldPoint;
-				AverageManifoldPoint.WorldContact.RelativeContactPoints[0] = RelativeContactPosition0 * InvCount;
-				AverageManifoldPoint.WorldContact.RelativeContactPoints[1] = RelativeContactPosition1 * InvCount;
-				AverageManifoldPoint.WorldContact.ContactNormal = WorldContactNormal;
-				AverageManifoldPoint.WorldContact.ContactTargetVelocityNormal = WorldContactVelocityTargetNormal * InvCount;
+				AverageManifoldPoint.RelativeContactPoints[0] = RelativeContactPosition0 * InvCount;
+				AverageManifoldPoint.RelativeContactPoints[1] = RelativeContactPosition1 * InvCount;
+				AverageManifoldPoint.ContactNormal = WorldContactNormal;
+				AverageManifoldPoint.ContactTargetVelocityNormal = WorldContactVelocityTargetNormal * InvCount;
 			
 				// Total pushout (not average) which is correct if the average point is also the centroid but otherwise probably an overestimate.
 				// This is used to limit the possibly-attractive impulse that corrects implicit velocity errors from the PBD solve, but it
@@ -135,19 +135,19 @@ namespace Chaos
 					ContactMassInvNormal += FSolverVec3::DotProduct(R1xN, WorldContactNormalAngular1) + InvM1;
 				}
 				AverageManifoldPoint.ContactMassNormal = (ContactMassInvNormal > FSolverReal(UE_SMALL_NUMBER)) ? FSolverReal(1) / ContactMassInvNormal : FSolverReal(0);
-				AverageManifoldPoint.WorldContactNormalAngular0 = WorldContactNormalAngular0;
-				AverageManifoldPoint.WorldContactNormalAngular1 = WorldContactNormalAngular1;
+				AverageManifoldPoint.ContactNormalAngular0 = WorldContactNormalAngular0;
+				AverageManifoldPoint.ContactNormalAngular1 = WorldContactNormalAngular1;
 
 				// @todo(chaos): we don't use these - maybe do the calculation without an actual manifold point object...
-				AverageManifoldPoint.WorldContact.ContactTangentU = FSolverVec3(0);
-				AverageManifoldPoint.WorldContact.ContactTangentV = FSolverVec3(0);
-				AverageManifoldPoint.WorldContact.ContactDeltaNormal = FSolverReal(0);
-				AverageManifoldPoint.WorldContact.ContactDeltaTangentU = FSolverReal(0);
-				AverageManifoldPoint.WorldContact.ContactDeltaTangentV = FSolverReal(0);
-				AverageManifoldPoint.WorldContactTangentUAngular0 = FSolverVec3(0);
-				AverageManifoldPoint.WorldContactTangentVAngular0 = FSolverVec3(0);
-				AverageManifoldPoint.WorldContactTangentUAngular1 = FSolverVec3(0);
-				AverageManifoldPoint.WorldContactTangentVAngular1 = FSolverVec3(0);
+				AverageManifoldPoint.ContactTangentU = FSolverVec3(0);
+				AverageManifoldPoint.ContactTangentV = FSolverVec3(0);
+				AverageManifoldPoint.ContactDeltaNormal = FSolverReal(0);
+				AverageManifoldPoint.ContactDeltaTangentU = FSolverReal(0);
+				AverageManifoldPoint.ContactDeltaTangentV = FSolverReal(0);
+				AverageManifoldPoint.ContactTangentUAngular0 = FSolverVec3(0);
+				AverageManifoldPoint.ContactTangentVAngular0 = FSolverVec3(0);
+				AverageManifoldPoint.ContactTangentUAngular1 = FSolverVec3(0);
+				AverageManifoldPoint.ContactTangentVAngular1 = FSolverVec3(0);
 				AverageManifoldPoint.ContactMassTangentU = FSolverReal(0);
 				AverageManifoldPoint.ContactMassTangentV = FSolverReal(0);
 				AverageManifoldPoint.NetPushOutTangentU = FSolverReal(0);

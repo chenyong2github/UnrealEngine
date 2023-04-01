@@ -252,14 +252,14 @@ namespace Chaos
 				const Private::FPBDCollisionSolverManifoldPoint& SolverManifoldPoint = Solver.GetManifoldPoint(SolverManifoldPointIndex);
 
 				NetPushOut =
-					SolverManifoldPoint.NetPushOutNormal * SolverManifoldPoint.WorldContact.ContactNormal +
-					SolverManifoldPoint.NetPushOutTangentU * SolverManifoldPoint.WorldContact.ContactTangentU +
-					SolverManifoldPoint.NetPushOutTangentV * SolverManifoldPoint.WorldContact.ContactTangentV;
+					SolverManifoldPoint.NetPushOutNormal * SolverManifoldPoint.ContactNormal +
+					SolverManifoldPoint.NetPushOutTangentU * SolverManifoldPoint.ContactTangentU +
+					SolverManifoldPoint.NetPushOutTangentV * SolverManifoldPoint.ContactTangentV;
 
 				NetImpulse =
-					SolverManifoldPoint.NetImpulseNormal * SolverManifoldPoint.WorldContact.ContactNormal +
-					SolverManifoldPoint.NetImpulseTangentU * SolverManifoldPoint.WorldContact.ContactTangentU +
-					SolverManifoldPoint.NetImpulseTangentV * SolverManifoldPoint.WorldContact.ContactTangentV;
+					SolverManifoldPoint.NetImpulseNormal * SolverManifoldPoint.ContactNormal +
+					SolverManifoldPoint.NetImpulseTangentU * SolverManifoldPoint.ContactTangentU +
+					SolverManifoldPoint.NetImpulseTangentV * SolverManifoldPoint.ContactTangentV;
 
 				StaticFrictionRatio = SolverManifoldPoint.StaticFrictionRatio;
 
