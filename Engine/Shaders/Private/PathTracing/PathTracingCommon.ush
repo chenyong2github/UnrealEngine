@@ -398,8 +398,8 @@ struct FPathTracingPayload : FMinimalPayload
 	float3 GetEyeCausticNormal() { return 2.0 * FuzzColor - 1.0; } // STRATA_TODO: not optimal since packed as color
 	void SetEyeCausticNormal(float3 CausticNormal) { FuzzColor = 0.5 * CausticNormal + 0.5; }
 	float GetEyeIrisMask() { return Anisotropy; }
-	float3 GetEyeIrisNormal() { return WorldTangent; }
 	void SetEyeIrisMask(float IrisMask) { Anisotropy = IrisMask; }
+	float3 GetEyeIrisNormal() { return WorldTangent; }
 	void SetEyeIrisNormal(float3 IrisNormal) { WorldTangent = IrisNormal; }
 
 	// SHADINGMODELID_HAIR
@@ -451,8 +451,8 @@ struct FPathTracingPayload : FMinimalPayload
 	float3 GetEyeCausticNormal() { return CustomData1.xyz; }
 	void SetEyeCausticNormal(float3 CausticNormal) { CustomData1.xyz = CausticNormal; }
 	float GetEyeIrisMask() { return Anisotropy; }
-	float3 GetEyeIrisNormal() { return WorldTangent; }
 	void SetEyeIrisMask(float IrisMask) { Anisotropy = IrisMask; }
+	float3 GetEyeIrisNormal() { return WorldTangent; }
 	void SetEyeIrisNormal(float3 IrisNormal) { WorldTangent = IrisNormal; }
 
 	// SHADINGMODELID_HAIR

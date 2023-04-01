@@ -35,10 +35,7 @@ float3 EstimateMaterialAlbedo(FPathTracingPayload Payload)
 		// this object does not scatter light
 		return 0;
 	}
-#if PATHTRACING_STRATA_PAYLOAD
-	const float3 MaxWeight = Payload.WeightV * Payload.BSDFOpacity * lerp(1.0, Payload.TransmittanceN, Payload.CoverageAboveAlongN);
-#endif
-	// TODO: make this more accurate by estimating the directional albedo
+	// TODO: make this more accurate by estimating the directional albedo?
 	float3 Albedo = 0;
 	switch (Payload.ShadingModelID)
 	{
@@ -51,11 +48,12 @@ float3 EstimateMaterialAlbedo(FPathTracingPayload Payload)
 #elif PATHTRACING_STRATA_PAYLOAD
 		case SHADINGMODELID_STRATA:
 		{
-			Albedo = MaxWeight * (Payload.DiffuseColor + Payload.SpecularColor + Payload.FuzzAmount * Payload.FuzzColor);
+			Albedo = Payload.DiffuseColor + Payload.SubsurfaceColor + Payload.SpecularColor + Payload.FuzzAmount * Payload.FuzzColor;
+			Albedo *= Payload.GetMaxLobeWeight();
 			break;
 		}
 		case SHADINGMODELID_EYE:
-			Albedo = MaxWeight * (Payload.DiffuseColor + Payload.SpecularColor);
+			Albedo = Payload.DiffuseColor + Payload.SubsurfaceColor + Payload.SpecularColor;
 			break;
 		case SHADINGMODELID_HAIR:
 		// STRATA_TODO: Add more cases here?
@@ -92,7 +90,8 @@ float3 EstimateMaterialAlbedo(FPathTracingPayload Payload)
 			break;
 	}
 	Albedo *= Payload.BSDFOpacity;
-#if !SIMPLIFIED_MATERIAL_SHADER
+
+#if !SIMPLIFIED_MATERIAL_SHADER && !PATHTRACING_STRATA_PAYLOAD
 	if (Payload.HasRefraction())
 	{
 		Albedo += 1 - Payload.BSDFOpacity; // glass albedo is 1.0
@@ -286,6 +285,14 @@ FPathTracingPayload UnpackPathTracingPayloadMaterial(FPackedPathTracingPayload P
 			HitPayload.DiffuseColor = 0;
 			break;
 		}
+		case SHADINGMODELID_EYE:
+		{
+			// eye still needs a diffuse component for the iris center
+			float IrisMask = HitPayload.GetEyeIrisMask();
+			HitPayload.SubsurfaceColor = HitPayload.DiffuseColor - IrisMask * HitPayload.DiffuseColor;
+			HitPayload.DiffuseColor *= IrisMask;
+			break;
+		}
 	}
 #else
 	switch (HitPayload.ShadingModelID)
@@ -387,7 +394,6 @@ FSSSRandomWalkInfo GetMaterialSSSInfo(FPathTracingPayload Payload, float3 V_Worl
 {
 	FSSSRandomWalkInfo Result = (FSSSRandomWalkInfo)0;
 #if PATHTRACING_STRATA_PAYLOAD
-	// STRATA_TODO: figure out how to handle the multi-slab case as well
 	if (Payload.ShadingModelID == SHADINGMODELID_STRATA)
 	{
 		if (any(Payload.MeanFreePath > 0.0))
@@ -409,6 +415,24 @@ FSSSRandomWalkInfo GetMaterialSSSInfo(FPathTracingPayload Payload, float3 V_Worl
 				MaxLobeWeight * (Payload.SubsurfaceColor * Data.DiffuseWeight),
 				MaxLobeWeight * (Payload.DiffuseColor * Data.DiffuseWeight + Spec0Albedo + Spec1Albedo + FuzzAlbedo));
 			// STRATA_TODO: evaluate if we want to set Result.G in all cases?
+		}
+	}
+	if (Payload.ShadingModelID == SHADINGMODELID_EYE)
+	{
+		if (any(Payload.MeanFreePath > 0.0))
+		{
+			Result.Color = Payload.SubsurfaceColor;
+			Result.Radius = Payload.MeanFreePath;
+			const float NoV = saturate(dot(Payload.WorldNormal, V_World));
+			const float3 SpecE = ComputeGGXSpecEnergyTermsRGB(Payload.GetEyeRoughness(), NoV, Payload.SpecularColor).E;
+
+			const float DiffWeight = (1 - Luminance(SpecE));
+			const float3 SSSAlbedo  = DiffWeight * Payload.SubsurfaceColor;
+			const float3 DiffAlbedo = DiffWeight * Payload.DiffuseColor;
+			const float3 SpecAlbedo = SpecE;
+			Result.Prob = LobeSelectionProb(SSSAlbedo, DiffAlbedo + SpecAlbedo);
+			Result.Weight = Payload.BSDFOpacity * DiffWeight;
+
 		}
 	}
 #else
