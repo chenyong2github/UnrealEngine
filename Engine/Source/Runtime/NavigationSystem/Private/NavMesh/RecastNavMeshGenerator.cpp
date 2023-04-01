@@ -2744,6 +2744,8 @@ void FRecastTileGenerator::RasterizeGeometryRecast(FNavMeshBuildContext& BuildCo
 	}
 
 #if RECAST_INTERNAL_DEBUG_DATA
+	BuildContext.InternalDebugData.TriangleCount += NumFaces;
+
 	if (IsTileDebugActive() && TileDebugSettings.bCollisionGeometry) 
 	{
 		TArray<FVector::FReal> Normals;
