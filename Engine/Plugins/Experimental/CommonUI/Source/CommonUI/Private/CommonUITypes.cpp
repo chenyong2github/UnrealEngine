@@ -27,6 +27,7 @@ FCommonInputTypeInfo::FCommonInputTypeInfo()
 	OverrideBrush.DrawAs = ESlateBrushDrawType::NoDrawType;
 	bActionRequiresHold = false;
 	HoldTime = 0.5f;
+	HoldRollbackTime = 0.0f;
 }
 
 FKey FCommonInputTypeInfo::GetKey() const

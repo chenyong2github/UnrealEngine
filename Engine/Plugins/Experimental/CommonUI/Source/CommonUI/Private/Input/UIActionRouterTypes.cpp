@@ -17,6 +17,8 @@
 #include "Input/UIActionBinding.h"
 #include "Widgets/SViewport.h"
 #include "CommonButtonBase.h"
+#include "CommonUIEditorSettings.h"
+#include "ICommonUIModule.h"
 
 DEFINE_LOG_CATEGORY(LogUIActionRouter);
 
@@ -117,6 +119,7 @@ FUIActionBinding::FUIActionBinding(const UWidget& InBoundWidget, const FBindUIAc
 	, InputAction(BindArgs.InputAction)
 {
 	OnHoldActionProgressed.Add(BindArgs.OnHoldActionProgressed);
+	OnHoldActionPressed.Add(BindArgs.OnHoldActionPressed);
 
 	const auto RegisterKeyMappingFunc = 
 		[this](const FUIActionKeyMapping& KeyMapping)
@@ -164,22 +167,31 @@ FUIActionBinding::FUIActionBinding(const UWidget& InBoundWidget, const FBindUIAc
 			ActionDisplayName = LegacyActionData->DisplayName;
 		}
 
+		FName CurrentGamepadName = UCommonUIActionRouterBase::Get(InBoundWidget)->GetInputSubsystem().GetCurrentGamepadName();
+		
 		// KB/M
 		const FCommonInputTypeInfo& LegacyMapping_KBM = LegacyActionData->GetInputTypeInfo(ECommonInputType::MouseAndKeyboard, FCommonInputDefaults::GamepadGeneric);
-		FUIActionKeyMapping KeyMapping_KBM(LegacyMapping_KBM.GetKey(), LegacyMapping_KBM.bActionRequiresHold ? LegacyMapping_KBM.HoldTime : 0.f);
-		RegisterKeyMappingFunc(KeyMapping_KBM);
+		FUIActionKeyMapping KeyMapping_KBM(LegacyMapping_KBM.GetKey(), LegacyMapping_KBM.bActionRequiresHold ? LegacyMapping_KBM.HoldTime : 0.f, LegacyMapping_KBM.bActionRequiresHold ? LegacyMapping_KBM.HoldRollbackTime : 0.f);
 
 		// Touch
 		const FCommonInputTypeInfo& LegacyMapping_Touch = LegacyActionData->GetInputTypeInfo(ECommonInputType::Touch, FCommonInputDefaults::GamepadGeneric);
-		FUIActionKeyMapping KeyMapping_Touch(LegacyMapping_Touch.GetKey(), LegacyMapping_Touch.bActionRequiresHold ? LegacyMapping_Touch.HoldTime : 0.f);
-		RegisterKeyMappingFunc(KeyMapping_Touch);
+		FUIActionKeyMapping KeyMapping_Touch(LegacyMapping_Touch.GetKey(), LegacyMapping_Touch.bActionRequiresHold ? LegacyMapping_Touch.HoldTime : 0.f, LegacyMapping_Touch.bActionRequiresHold ? LegacyMapping_Touch.HoldRollbackTime : 0.f);
 
 		// Gamepad
-		// Note: This is definitely a wonky and roundabout way to get the gamepad type, but given that it's for legacy fixup we'll let it go until this can be deleted
-		UCommonUIActionRouterBase* ActionRouter = UCommonUIActionRouterBase::Get(InBoundWidget);
-		check(ActionRouter);
-		const FCommonInputTypeInfo& LegacyMapping_Gamepad = LegacyActionData->GetInputTypeInfo(ECommonInputType::Gamepad, ActionRouter->GetInputSubsystem().GetCurrentGamepadName());
-		FUIActionKeyMapping KeyMapping_Gamepad(LegacyMapping_Gamepad.GetKey(), LegacyMapping_Gamepad.bActionRequiresHold ? LegacyMapping_Gamepad.HoldTime : 0.f);
+		const FCommonInputTypeInfo& LegacyMapping_Gamepad = LegacyActionData->GetInputTypeInfo(ECommonInputType::Gamepad, CurrentGamepadName);
+		FUIActionKeyMapping KeyMapping_Gamepad(LegacyMapping_Gamepad.GetKey(), LegacyMapping_Gamepad.bActionRequiresHold ? LegacyMapping_Gamepad.HoldTime : 0.f, LegacyMapping_Gamepad.bActionRequiresHold ? LegacyMapping_Gamepad.HoldRollbackTime : 0.f);
+
+		if (BindArgs.bForceHold && ICommonUIModule::GetEditorSettings().GetDefaultHoldData().GetDefaultObject())
+		{
+			UCommonUIHoldData* CommonUIHoldBehaviorValues = ICommonUIModule::GetEditorSettings().GetDefaultHoldData().GetDefaultObject();
+			
+			KeyMapping_KBM.HoldTime = KeyMapping_KBM.HoldTime > 0.f ? KeyMapping_KBM.HoldTime : CommonUIHoldBehaviorValues->KeyboardAndMouse.HoldTime;
+			KeyMapping_Touch.HoldTime = KeyMapping_Touch.HoldTime > 0.f ? KeyMapping_Touch.HoldTime : CommonUIHoldBehaviorValues->Touch.HoldTime;
+			KeyMapping_Gamepad.HoldTime = KeyMapping_Gamepad.HoldTime > 0.f ? KeyMapping_Gamepad.HoldTime : CommonUIHoldBehaviorValues->Gamepad.HoldTime;
+		}
+		
+		RegisterKeyMappingFunc(KeyMapping_KBM);
+		RegisterKeyMappingFunc(KeyMapping_Touch);
 		RegisterKeyMappingFunc(KeyMapping_Gamepad);
 	}
 
@@ -283,18 +295,25 @@ FString FUIActionBinding::ToDebugString() const
 
 void FUIActionBinding::BeginHold()
 {
+	if (HoldProgressRollbackTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(HoldProgressRollbackTickerHandle);
+		HoldProgressRollbackTickerHandle = nullptr;
+	}
+	
 	UE_LOG(LogUIActionRouter, VeryVerbose, TEXT("Hold pressed: %s"), *ActionName.ToString());
-
 	HoldStartTime = FPlatformTime::Seconds();
-	OnHoldActionProgressed.Broadcast(0.0f);
+	const float HoldStartPercent = HoldTime > 0.f ? HoldStartSecond / HoldTime : 0.f;
+	OnHoldActionProgressed.Broadcast(HoldStartPercent);
 }
 
 bool FUIActionBinding::UpdateHold(float TargetHoldTime)
 {
-	const float SecondsHeld = GetSecondsHeld();
-	UE_LOG(LogUIActionRouter, VeryVerbose, TEXT("Hold repeating: %s for %f"), *ActionName.ToString(), SecondsHeld);
-
-	const float HeldPercent = FMath::Clamp(SecondsHeld / TargetHoldTime, 0.f, 1.f);
+	CurrentHoldSecond = FMath::Clamp(GetSecondsHeld() + HoldStartSecond, 0.f, TargetHoldTime);
+	UE_LOG(LogUIActionRouter, VeryVerbose, TEXT("Hold repeating: %s for %f"), *ActionName.ToString(), CurrentHoldSecond);
+	
+	const float HeldPercent = FMath::Clamp(CurrentHoldSecond / TargetHoldTime, 0.f, 1.f);
+	
 	OnHoldActionProgressed.Broadcast(HeldPercent);
 
 	if (HeldPercent >= 1.f)
@@ -302,8 +321,10 @@ bool FUIActionBinding::UpdateHold(float TargetHoldTime)
 		CancelHold();
 		OnHoldActionProgressed.Broadcast(0.0f); //approximate CommonButton::OnActionComplete without adding extra bind
 		OnExecuteAction.ExecuteIfBound();
+		HoldStartSecond = 0.0f;
+		CurrentHoldSecond = 0.0f;
 
-		UE_LOG(LogUIActionRouter, VeryVerbose, TEXT("Hold repeating: Fired completed action! %s after %f"), *ActionName.ToString(), SecondsHeld);
+		UE_LOG(LogUIActionRouter, VeryVerbose, TEXT("Hold repeating: Fired completed action! %s after %f"), *ActionName.ToString(), CurrentHoldSecond);
 		return true;
 	}
 	return false;
@@ -324,10 +345,52 @@ void FUIActionBinding::CancelHold()
 	HoldStartTime = -1.0;
 }
 
+void FUIActionBinding::BeginRollback(float TargetHoldRollbackTime, float InHoldTime, FUIActionBindingHandle BindingHandle)
+{
+	HoldRollbackMultiplier = InHoldTime / TargetHoldRollbackTime;
+	HoldTime = InHoldTime;
+
+	if (TSharedPtr<FUIActionBinding> InBinding = FindBinding(BindingHandle))
+	{
+		HoldProgressRollbackTickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([InBinding](float DeltaTime)
+			{
+				const float HoldRollbackTime = InBinding->HoldTime / InBinding->HoldRollbackMultiplier;
+				InBinding->CurrentHoldSecond = FMath::Clamp(InBinding->CurrentHoldSecond - (DeltaTime * InBinding->HoldRollbackMultiplier), 0.f, HoldRollbackTime);
+				const float HoldRollbackPercent = FMath::Clamp(InBinding->CurrentHoldSecond / InBinding->HoldTime, 0.f, 1.f);
+				InBinding->OnHoldActionProgressed.Broadcast(HoldRollbackPercent);
+				InBinding->HoldStartSecond = InBinding->CurrentHoldSecond;
+
+				if (HoldRollbackPercent <= 0.f)
+				{
+					FTSTicker::GetCoreTicker().RemoveTicker(InBinding->HoldProgressRollbackTickerHandle);
+					InBinding->HoldProgressRollbackTickerHandle = nullptr;
+					InBinding->HoldStartSecond = 0.f;
+					InBinding->CurrentHoldSecond = 0.f;
+						
+					return false;
+				}
+
+				return true;
+			}));
+	}
+}
+
 bool FUIActionBinding::IsHoldActive() const
 {
 	return HoldStartTime >= 0.0;
 }
+
+void FUIActionBinding::ResetHold()
+{
+	if (HoldProgressRollbackTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(HoldProgressRollbackTickerHandle);
+		HoldProgressRollbackTickerHandle = nullptr;
+	}
+	HoldStartSecond = 0.0f;
+	CurrentHoldSecond = 0.0f;
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 // FBindUIActionArgs
@@ -386,6 +449,14 @@ void FUIActionBindingHandle::Unregister()
 
 	FUIActionBinding::AllRegistrationsByHandle.Remove(*this);
 	RegistrationId = INDEX_NONE;
+}
+
+void FUIActionBindingHandle::ResetHold()
+{
+	if (TSharedPtr<FUIActionBinding> Binding = FUIActionBinding::FindBinding(*this))
+	{
+		Binding->ResetHold();
+	}
 }
 
 FName FUIActionBindingHandle::GetActionName() const
@@ -499,6 +570,7 @@ EProcessHoldActionResult FActionRouterBindingCollection::ProcessHoldInput(ECommo
 						{
 							Binding->BeginHold();
 							ProcessResult = EProcessHoldActionResult::Handled;
+							Binding->OnHoldActionPressed.Broadcast();
 						}
 						else if (Binding->IsHoldActive())
 						{
@@ -514,8 +586,17 @@ EProcessHoldActionResult FActionRouterBindingCollection::ProcessHoldInput(ECommo
 								const float SecondsHeld = Binding->GetSecondsHeld();
 
 								UE_LOG(LogUIActionRouter, VeryVerbose, TEXT("Hold released: %s after %f"), *Binding->ActionName.ToString(), SecondsHeld);
-								Binding->CancelHold();
-								Binding->OnHoldActionProgressed.Broadcast(0.0f);
+
+								if (HoldMapping.HoldRollbackTime <= UE_SMALL_NUMBER)
+								{
+									Binding->OnHoldActionProgressed.Broadcast(0.f);
+									Binding->CancelHold();
+								}
+								else
+								{
+									Binding->CancelHold();
+									Binding->BeginRollback(HoldMapping.HoldRollbackTime, HoldMapping.HoldTime, Binding->Handle);
+								}
 
 								static const float PressToHoldThreshold = 0.25f;
 								if (SecondsHeld <= PressToHoldThreshold && SecondsHeld < HoldMapping.HoldTime)

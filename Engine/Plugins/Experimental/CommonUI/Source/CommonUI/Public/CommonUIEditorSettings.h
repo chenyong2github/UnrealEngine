@@ -28,6 +28,9 @@ public:
 
 	const TSubclassOf<UCommonBorderStyle>& GetTemplateBorderStyle() const;
 
+	/** Default Hold Data */
+	const TSubclassOf<UCommonUIHoldData>& GetDefaultHoldData() const;
+
 private:
 	void LoadEditorData();
 #endif
@@ -40,6 +43,13 @@ private:
 	/** Newly created CommonButton Widgets will use this style. */
 	UPROPERTY(config, EditAnywhere, Category = "Buttons")
 	TSoftClassPtr<UCommonButtonStyle> TemplateButtonStyle;
+
+	/**
+	 * Newly created CommonButton widgets will use these hold values by default if bRequiresHold is true.
+	 * Inherits from UCommonUIHoldData.
+	 */
+	UPROPERTY(EditAnywhere, Config, Category = "Buttons|Hold")
+	TSoftClassPtr<UCommonUIHoldData> DefaultHoldData;
 
 	/** Newly created CommonBorder Widgets will use this style. */
 	UPROPERTY(config, EditAnywhere, Category = "Border")
@@ -54,6 +64,9 @@ private:
 
 	UPROPERTY(Transient)
 	TSubclassOf<UCommonBorderStyle> TemplateBorderStyleClass;
+
+	UPROPERTY(Transient)
+	TSubclassOf<UCommonUIHoldData> DefaultHoldDataClass;
 #endif
 private:
 	bool bDefaultDataLoaded;

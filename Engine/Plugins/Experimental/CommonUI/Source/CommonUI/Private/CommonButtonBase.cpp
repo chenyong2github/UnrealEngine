@@ -529,6 +529,26 @@ void UCommonButtonBase::BindTriggeringInputActionToClick()
 		return;
 	}
 
+	}
+}
+
+void UCommonButtonBase::BindTriggeringInputActionToClick()
+{
+	if (CommonUI::IsEnhancedInputSupportEnabled() && TriggeringEnhancedInputAction)
+	{
+		FBindUIActionArgs BindArgs(TriggeringEnhancedInputAction, false, FSimpleDelegate::CreateUObject(this, &UCommonButtonBase::HandleTriggeringActionCommited));
+		BindArgs.OnHoldActionProgressed.BindUObject(this, &UCommonButtonBase::NativeOnActionProgress);
+		BindArgs.OnHoldActionPressed.BindUObject(this, &UCommonButtonBase::HoldReset);
+        BindArgs.bIsPersistent = bIsPersistentBinding;
+        BindArgs.bForceHold = GetConvertInputActionToHold()
+
+		BindArgs.InputMode = InputModeOverride;
+
+		TriggeringBindingHandle = RegisterUIActionBinding(BindArgs);
+
+		return;
+	}
+
 	if (TriggeringInputAction.IsNull() || !TriggeredInputAction.IsNull())
 	{
 		return;

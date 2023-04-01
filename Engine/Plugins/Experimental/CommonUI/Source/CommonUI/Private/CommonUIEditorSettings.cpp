@@ -31,6 +31,7 @@ void UCommonUIEditorSettings::LoadEditorData()
 		TemplateTextStyleClass = TemplateTextStyle.LoadSynchronous();
 		TemplateButtonStyleClass = TemplateButtonStyle.LoadSynchronous();
 		TemplateBorderStyleClass = TemplateBorderStyle.LoadSynchronous();
+		DefaultHoldDataClass = DefaultHoldData.LoadSynchronous();
 
 		if (GUObjectArray.IsDisregardForGC(this))
 		{
@@ -45,6 +46,10 @@ void UCommonUIEditorSettings::LoadEditorData()
 			if (TemplateBorderStyleClass)
 			{
 				TemplateBorderStyleClass->AddToRoot();
+			}
+			if (DefaultHoldDataClass)
+			{
+				DefaultHoldDataClass->AddToRoot();
 			}
 		}
 
@@ -71,5 +76,12 @@ const TSubclassOf<UCommonBorderStyle>& UCommonUIEditorSettings::GetTemplateBorde
 	ensure(bDefaultDataLoaded);
 
 	return TemplateBorderStyleClass;
+}
+
+const TSubclassOf<UCommonUIHoldData>& UCommonUIEditorSettings::GetDefaultHoldData() const
+{
+	ensure(bDefaultDataLoaded);
+
+	return DefaultHoldDataClass;
 }
 #endif

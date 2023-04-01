@@ -3,12 +3,14 @@
 #pragma once
 
 #include "Binding/States/WidgetStateRegistration.h"
+#include "CommonInputBaseTypes.h"
 #include "CommonUserWidget.h"
 #include "Components/Button.h"
 #include "Engine/DataTable.h"
 #include "FieldNotification/WidgetEventField.h"
 #include "Types/ISlateMetaData.h"
 #include "CommonInputModeTypes.h"
+#include "Containers/Ticker.h"
 #include "CommonButtonBase.generated.h"
 
 class UCommonButtonBase;
@@ -48,7 +50,6 @@ public:
 		return bHasSound;
 	}
 };
-
 
 /* ---- All properties must be EditDefaultsOnly, BlueprintReadOnly !!! -----
  *       we return the CDO to blueprints, so we cannot allow any changes (blueprint doesn't support const variables)
@@ -508,6 +509,10 @@ protected:
 	UFUNCTION()
 	virtual void OnInputMethodChanged(ECommonInputType CurrentInputType);
 
+	/** If HoldData is valid, assigns its values to Keyboard and Mouse, Gamepad and Touch, based off the Current Input Type. */
+	UFUNCTION()
+	virtual void UpdateHoldData(ECommonInputType CurrentInputType);
+
 	/** Associates this button at its priority with the given key */
 	virtual void BindTriggeringInputActionToClick();
 
@@ -633,16 +638,35 @@ protected:
 	/** Callback fired continously during hold interactions */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Common Button")
 	void OnActionProgress(float HeldPercent);
-	
+
+	/**
+	 * By default, if bRequiresHold is true, the bound Input Action will be forced to require hold as well.
+	 * The Bound Input action will use the row's hold values regardless of the row's bRequiresHold state.
+	 */
+	UFUNCTION()
+	virtual bool GetConvertInputActionToHold();
+
+	/** Bound to the hold progress of the bound key from the input action */
 	UFUNCTION()
 	virtual void NativeOnActionProgress(float HeldPercent);
 
+	/** Bound to the hold progress not related to the bound key */
+	UFUNCTION()
+	virtual bool NativeOnHoldProgress(float DeltaTime);
+	
+	/** Bound to the hold progress rollback not related to the bound key */
+	UFUNCTION()
+	virtual bool NativeOnHoldProgressRollback(float DeltaTime);
+	
 	/** Callback fired when hold events complete */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Common Button")
 	void OnActionComplete();
 
 	UFUNCTION()
 	virtual void NativeOnActionComplete();
+	
+	UFUNCTION()
+	virtual void HoldReset();
 
 	virtual bool GetButtonAnalyticInfo(FString& ButtonName, FString& ABTestName, FString& ExtraData) const;
 
@@ -739,6 +763,14 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (ExposeOnSpawn = true))
 	uint8 bShouldUseFallbackDefaultInputAction:1;
 
+	/** True if this button should have a press and hold behavior, triggering the click when the specified hold time is met */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Hold", meta = (ExposeOnSpawn = true))
+	uint8 bRequiresHold:1;
+
+	/** Press and Hold values used for Keyboard and Mouse, Gamepad and Touch, depending on the current input type */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Hold", meta = (EditCondition="bRequiresHold", ExposeOnSpawn = true))
+	TSubclassOf<UCommonUIHoldData> HoldData;
+
 private:
 
 	/** True if this button is currently selected */
@@ -771,8 +803,8 @@ public:
 	int32 InputPriority;
 
 	/** 
-	 *	The input action that is bound to this button. The common input manager will trigger this button to 
-	 *	click if the action was pressed 
+	 * The input action that is bound to this button. The common input manager will trigger this button to 
+	 * click if the action was pressed 
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (ExposeOnSpawn = true, RowType = "/Script/CommonUI.CommonInputActionDataBase"))
 	FDataTableRowHandle TriggeringInputAction;
@@ -815,6 +847,25 @@ protected:
 	FCommonButtonBaseClicked OnButtonBaseUnhovered;
 
 	FUIActionBindingHandle TriggeringBindingHandle;
+	
+	/** Press and hold time in seconds */
+	float HoldTime;
+
+	/**
+	 * Time (in seconds) for hold progress to go from 1.0 (completed) to 0.0.
+	 * Used when the press and hold is interrupted.
+	 * If set to 0, there will be no rollback and the hold progress will reset immediately.
+	 */
+	float HoldRollbackTime;
+
+	/** Current hold time for this button */
+	float CurrentHoldTime;
+
+	/** Handle for ticker spawned for press and hold */
+	FTSTicker::FDelegateHandle HoldTickerHandle;
+
+	/** Handle for ticker spawned for button hold rollback */
+	FTSTicker::FDelegateHandle HoldProgressRollbackTickerHandle;
 
 private:
 	friend class UCommonButtonGroupBase;
