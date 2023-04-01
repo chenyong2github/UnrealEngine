@@ -44,6 +44,10 @@ void FMaterialOverrideNanite::RefreshOverrideMaterial(UObject* OptionalOwner)
 						{
 							if (UMaterialInterface* Material = WeakOverrideMaterial.Get())
 							{
+								// Use a MaterialUpdateContext to make sure dependent interfaces (e.g. MIDs) update as well
+								FMaterialUpdateContext UpdateContext;
+								UpdateContext.AddMaterialInterface(Material);
+
 								Material->ForceRecompileForRendering();
 							}
 						}));
