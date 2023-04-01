@@ -6,6 +6,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "StaticMeshResources.h"
+#include "Math/Bounds.h"
 
 struct FMeshBuildVertexView;
 struct FMeshNaniteSettings;
@@ -50,7 +51,7 @@ public:
 		TArray<uint32> TriangleCounts;
 		TArray<int32>  MaterialIndices;
 		FStaticMeshSectionArray Sections;
-		FBoxSphereBounds VertexBounds;
+		FBounds3f VertexBounds;
 		uint32 NumTexCoords;
 		float PercentTriangles;
 		float MaxDeviation;

@@ -510,12 +510,6 @@ bool FBuilderModule::Build(
 		InputMeshData.NumTexCoords = NANITE_MAX_UVS;
 	}
 
-	FBounds3f VertexBounds
-	{
-		FVector3f(InputMeshData.VertexBounds.Origin - InputMeshData.VertexBounds.BoxExtent),
-		FVector3f(InputMeshData.VertexBounds.Origin + InputMeshData.VertexBounds.BoxExtent)
-	};
-
 	if( InputMeshData.TriangleCounts.Num() == 1 && Settings.TrimRelativeError != 0.0f )
 	{
 		uint32 Time0 = FPlatformTime::Cycles();
@@ -570,7 +564,7 @@ bool FBuilderModule::Build(
 					VertexView,
 					TConstArrayView<const uint32>( &InputMeshData.TriangleIndices[BaseTriangle * 3], NumTriangles * 3 ),
 					TConstArrayView<const int32>( &InputMeshData.MaterialIndices[BaseTriangle], NumTriangles ),
-					Clusters, VertexBounds, InputMeshData.NumTexCoords, bHasVertexColor, Settings.bPreserveArea );
+					Clusters, InputMeshData.VertexBounds, InputMeshData.NumTexCoords, bHasVertexColor, Settings.bPreserveArea );
 			}
 			ClusterCountPerMesh.Add(Clusters.Num() - NumClustersBefore);
 			BaseTriangle += NumTriangles;
@@ -582,7 +576,7 @@ bool FBuilderModule::Build(
 		SurfaceArea += Cluster.SurfaceArea;
 
 	int32 FallbackTargetNumTris = Resources.NumInputTriangles * Settings.FallbackPercentTriangles;
-	float FallbackTargetError = Settings.FallbackRelativeError * 0.01f * FMath::Sqrt( FMath::Min( 2.0f * SurfaceArea, VertexBounds.GetSurfaceArea() ) );
+	float FallbackTargetError = Settings.FallbackRelativeError * 0.01f * FMath::Sqrt( FMath::Min( 2.0f * SurfaceArea, InputMeshData.VertexBounds.GetSurfaceArea() ) );
 
 	bool bFallbackIsReduced = Settings.FallbackPercentTriangles < 1.0f || FallbackTargetError > 0.0f;
 	
@@ -610,7 +604,7 @@ bool FBuilderModule::Build(
 	if( Settings.KeepPercentTriangles < 1.0f || Settings.TrimRelativeError > 0.0f )
 	{
 		int32 TargetNumTris = Resources.NumInputTriangles * Settings.KeepPercentTriangles;
-		float TargetError = Settings.TrimRelativeError * 0.01f * FMath::Sqrt( FMath::Min( 2.0f * SurfaceArea, VertexBounds.GetSurfaceArea() ) );
+		float TargetError = Settings.TrimRelativeError * 0.01f * FMath::Sqrt( FMath::Min( 2.0f * SurfaceArea, InputMeshData.VertexBounds.GetSurfaceArea() ) );
 
 		TBitArray<> SelectedGroupsMask;
 		FBinaryHeap< float > Heap = FindDAGCut( Groups, Clusters, TargetNumTris, TargetError, 0, &SelectedGroupsMask );

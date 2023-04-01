@@ -152,6 +152,7 @@ struct FGeometryCollectionBuiltMeshData
 	TArray<int32> MaterialsPerTriangle;
 	TArray<bool> InternalPerTriangle;
 	TArray<uint32> MeshTriangleCounts;
+	FBounds3f VertexBounds;
 };
 
 /** Get the data needed to build render data from a Geometry Collection. */
@@ -218,14 +219,20 @@ bool BuildMeshDataFromGeometryCollection(FGeometryCollection& InCollection, FGeo
 
 		BonesPerVertex.AddUninitialized(NumBuildVertices);
 
-		ParallelFor(NumGeometry, [&](int32 GeometryGroupIndex)
+		TArray<FBounds3f> Bounds;
+
+		ParallelForWithTaskContext(Bounds, NumGeometry, [&](FBounds3f& BatchBounds, int32 GeometryGroupIndex)
 		{
 			const int32 VertexStart = VertexStartArray[GeometryGroupIndex];
 			const int32 VertexCount = VertexCountArray[GeometryGroupIndex];
 			const int32 DestVertexStart = DestVertexStarts[GeometryGroupIndex];
 
-			ParallelFor(TEXT("GC:BuildVertices"), VertexCount, 500, [&](int32 VertexIndex)
+			TArray<FBounds3f> GeometryBounds;
+
+			ParallelForWithTaskContext(TEXT("GC:BuildVertices"), GeometryBounds, VertexCount, 500, [&](FBounds3f& BatchGeometryBounds, int32 VertexIndex)
 			{
+				BatchGeometryBounds += VertexArray[VertexStart + VertexIndex];
+
 				BuildVertexData.Position[DestVertexStart + VertexIndex] = VertexArray[VertexStart + VertexIndex];
 				BuildVertexData.TangentX[DestVertexStart + VertexIndex] = TangentUArray[VertexStart + VertexIndex];
 				BuildVertexData.TangentY[DestVertexStart + VertexIndex] = TangentVArray[VertexStart + VertexIndex];
@@ -249,7 +256,13 @@ bool BuildMeshDataFromGeometryCollection(FGeometryCollection& InCollection, FGeo
 				const int32 BoneIndex = BoneMapArray[VertexStart + VertexIndex];
 				BonesPerVertex[DestVertexStart + VertexIndex] = (uint16)BoneIndex;
 			});
+
+			for (const FBounds3f& B : GeometryBounds)
+				BatchBounds += B;
 		});
+
+		for (const FBounds3f& B : Bounds)
+			OutMeshData.VertexBounds += B;
 	}
 
 	bool bAllOpaqueWhite = true;
@@ -621,7 +634,7 @@ void CreateMeshData(FGeometryCollection& InCollection, FGeometryCollectionBuiltM
 	OutRenderData.MeshDescription.PreSkinnedBounds = BuildPreSkinnedBounds(InCollection);
 }
 
-void CreateNaniteData(FGeometryCollectionBuiltMeshData& InMeshData, FGeometryCollectionRenderData& OutRenderData)
+void CreateNaniteData(FGeometryCollectionBuiltMeshData&& InMeshData, FGeometryCollectionRenderData& OutRenderData)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FGeometryCollectionRenderData::CreateNaniteData);
 
@@ -647,6 +660,7 @@ void CreateNaniteData(FGeometryCollectionBuiltMeshData& InMeshData, FGeometryCol
 	InputMeshData.MaterialIndices = MoveTemp(InMeshData.MaterialsPerTriangle);
 	InputMeshData.TriangleCounts = MoveTemp(InMeshData.MeshTriangleCounts);
 	InputMeshData.NumTexCoords = InMeshData.NumTexCoords;
+	InputMeshData.VertexBounds = InMeshData.VertexBounds;
 
 	auto OnFreeInputMeshData = Nanite::IBuilderModule::FOnFreeInputMeshData::CreateLambda([&InputMeshData](bool bFallbackIsReduced)
 	{
@@ -680,15 +694,15 @@ TUniquePtr<FGeometryCollectionRenderData> FGeometryCollectionRenderData::Create(
 	FGeometryCollectionBuiltMeshData MeshBuildData;
 	if (BuildMeshDataFromGeometryCollection(InCollection, MeshBuildData))
 	{
-		if (bInEnableNanite)
-		{
-			CreateNaniteData(MeshBuildData, *RenderData.Get());
-		}
-		else
-		{
-			// Could always create mesh data if we want to be able to enable/disable nanite at runtime in cooked build.
-			CreateMeshData(InCollection, MeshBuildData, bInUseFullPrecisionUVs, *RenderData.Get());
-		}
+	if (bInEnableNanite)
+	{
+		CreateNaniteData(MoveTemp(MeshBuildData), *RenderData.Get());
+	}
+	else
+	{
+		// Could always create mesh data if we want to be able to enable/disable nanite at runtime in cooked build.
+		CreateMeshData(InCollection, MeshBuildData, bInUseFullPrecisionUVs, *RenderData.Get());
+	}
 	}
 
 	return RenderData;

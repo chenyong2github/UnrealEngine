@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 
 #include "Containers/Array.h"
+#include "Math/Bounds.h"
 
 struct FMeshBuildVertexData;
 struct FNaniteDisplacedMeshParams;
@@ -14,7 +15,8 @@ bool DisplaceNaniteMesh(
 	const uint32 NumTextureCoord,
 	FMeshBuildVertexData& Verts,
 	TArray< uint32 >& Indexes,
-	TArray< int32 >& MaterialIndexes
+	TArray< int32 >& MaterialIndexes,
+	FBounds3f& VertexBounds
 );
 
 #endif

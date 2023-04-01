@@ -473,7 +473,8 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 			NumTextureCoord,
 			InputMeshData.Vertices,
 			InputMeshData.TriangleIndices,
-			InputMeshData.MaterialIndices)
+			InputMeshData.MaterialIndices,
+			InputMeshData.VertexBounds)
 		)
 	{
 		UE_LOG(LogNaniteDisplacedMesh, Error, TEXT("Failed to build perform displacement mapping for Nanite displaced mesh asset."));

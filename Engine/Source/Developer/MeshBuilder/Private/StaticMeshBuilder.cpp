@@ -209,10 +209,16 @@ static bool BuildNanite(
 
 	Nanite::IBuilderModule& NaniteBuilderModule = Nanite::IBuilderModule::Get();
 
+	FBounds3f VertexBounds
+	{
+		FVector3f(BoundsOut.Origin - BoundsOut.BoxExtent),
+		FVector3f(BoundsOut.Origin + BoundsOut.BoxExtent)
+	};
+
 	// Setup the input data
 	InputMeshData.Sections = StaticMeshLOD.Sections;
 	InputMeshData.NumTexCoords = NumTextureCoord;
-	InputMeshData.VertexBounds = BoundsOut;
+	InputMeshData.VertexBounds = VertexBounds;
 									
 	// Request output LODs for each LOD resource
 	TArray< Nanite::IBuilderModule::FOutputMeshData, TInlineAllocator<4> > OutputLODMeshData;

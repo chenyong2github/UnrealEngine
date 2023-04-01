@@ -156,7 +156,8 @@ bool DisplaceNaniteMesh(
 	const uint32 NumTextureCoord,
 	FMeshBuildVertexData& Verts,
 	TArray< uint32 >& Indexes,
-	TArray< int32 >& MaterialIndexes
+	TArray< int32 >& MaterialIndexes,
+	FBounds3f& VertexBounds
 )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(DisplaceNaniteMesh);
@@ -345,6 +346,8 @@ bool DisplaceNaniteMesh(
 		{
 			Verts.Color[LerpIndex] = LerpVert.Color.ToFColor(false);
 		}
+
+		VertexBounds += LerpVert.Position;
 	}
 
 	uint32 Time1 = FPlatformTime::Cycles();
