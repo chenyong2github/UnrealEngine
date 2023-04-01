@@ -75,9 +75,6 @@ struct COMMONUI_API FBindUIActionArgs
 	/** Whether this binding can/should be displayed in a CommonActionBar (if one exists) */
 	bool bDisplayInActionBar = true;
 
-	/** True implies we will add default hold times if the current action is not a hold action */
-	bool bForceHold = false;
-
 	/** Optional display name to associate with this binding instead of the default */
 	FText OverrideDisplayName;
 
@@ -86,10 +83,6 @@ struct COMMONUI_API FBindUIActionArgs
 	/** If the bound action has any hold mappings, this will fire each frame while held. Has no bearing on actual execution and wholly irrelevant for non-hold actions */
 	DECLARE_DELEGATE_OneParam(FOnHoldActionProgressed, float);
 	FOnHoldActionProgressed OnHoldActionProgressed;
-
-	/** If the bound action has any hold mappings, this will fire when the hold begins. Has no bearing on actual execution and wholly irrelevant for non-hold actions */
-	DECLARE_DELEGATE(FOnHoldActionPressed);
-	FOnHoldActionPressed OnHoldActionPressed;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

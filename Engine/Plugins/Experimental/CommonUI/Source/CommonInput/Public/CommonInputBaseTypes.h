@@ -77,19 +77,6 @@ struct FInputDeviceIdentifierPair
 	FString HardwareDeviceIdentifier;
 };
 
-/* Data values needed for Hold interaction per input type. */
-USTRUCT()
-struct FInputHoldData
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditDefaultsOnly, Category = "Properties", meta = (ClampMin = "0.0", UIMin = "0.0"))
-	float HoldTime;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Properties", meta = (ClampMin = "0.0", UIMin = "0.0"))
-	float HoldRollbackTime;
-};
-
 /* Derive from this class to store the Input data. It is referenced in the Common Input Settings, found in the project settings UI. */
 UCLASS(Abstract, Blueprintable, ClassGroup = Input, meta = (Category = "Common Input"))
 class COMMONINPUT_API UCommonUIInputData : public UObject
@@ -111,33 +98,6 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Properties", meta = (EditCondition = "CommonInput.CommonInputSettings.IsEnhancedInputSupportEnabled", EditConditionHides))
 	TObjectPtr<UInputAction> EnhancedInputBackAction;
-};
-
-/* Defines values for hold behavior per input type: for mouse Press and Hold, for gamepad focused Press and Hold, for touch Press and Hold. */
-UCLASS(Abstract, Blueprintable, ClassGroup = Input, meta = (Category = "Common Input"))
-class COMMONINPUT_API UCommonUIHoldData : public UObject
-{
-	GENERATED_BODY()
-
-public:
-	UCommonUIHoldData()
-	{
-		KeyboardAndMouse.HoldTime = 0.75f;
-		KeyboardAndMouse.HoldRollbackTime = 0.0f;
-		Gamepad.HoldTime = 0.75f;
-		Gamepad.HoldRollbackTime = 0.0f;
-		Touch.HoldTime = 0.75f;
-		Touch.HoldRollbackTime = 0.0f;
-	}
-	
-	UPROPERTY(EditDefaultsOnly, Category = "KeyboardAndMouse", meta = (ShowOnlyInnerProperties))
-	FInputHoldData KeyboardAndMouse;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Gamepad", meta = (ShowOnlyInnerProperties))
-	FInputHoldData Gamepad;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Touch", meta = (ShowOnlyInnerProperties))
-	FInputHoldData Touch;
 };
 
 /* Derive from this class to store the Input data. It is referenced in the Common Input Settings, found in the project settings UI. */

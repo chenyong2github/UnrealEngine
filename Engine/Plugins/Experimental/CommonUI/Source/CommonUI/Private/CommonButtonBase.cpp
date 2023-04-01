@@ -529,19 +529,17 @@ void UCommonButtonBase::BindTriggeringInputActionToClick()
 		return;
 	}
 
+	if (TriggeringInputAction.IsNull() || !TriggeredInputAction.IsNull())
+	{
+		return;
 	}
-}
 
-void UCommonButtonBase::BindTriggeringInputActionToClick()
-{
 	if (!TriggeringBindingHandle.IsValid())
 	{
 		FBindUIActionArgs BindArgs(TriggeringInputAction, false, FSimpleDelegate::CreateUObject(this, &UCommonButtonBase::HandleTriggeringActionCommited));
 		BindArgs.OnHoldActionProgressed.BindUObject(this, &UCommonButtonBase::NativeOnActionProgress);
-		BindArgs.OnHoldActionPressed.BindUObject(this, &UCommonButtonBase::HoldReset);
 		BindArgs.bIsPersistent = bIsPersistentBinding;
-		BindArgs.bForceHold = GetConvertInputActionToHold();
-		
+
 		BindArgs.InputMode = InputModeOverride;
 		
 		TriggeringBindingHandle = RegisterUIActionBinding(BindArgs);

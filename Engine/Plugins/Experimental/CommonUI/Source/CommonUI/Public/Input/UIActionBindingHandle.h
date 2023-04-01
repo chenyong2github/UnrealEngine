@@ -17,9 +17,6 @@ public:
 	bool IsValid() const;
 	void Unregister();
 
-	/** Calls ResetHold() on the Action Binding, which in turn resets the hold progress to 0.0  */
-	void ResetHold();
-
 	FName GetActionName() const;
 
 	FText GetDisplayName() const;

@@ -15,10 +15,9 @@ struct FUIActionKeyMapping
 
 public:
 	FUIActionKeyMapping() {}
-	FUIActionKeyMapping(FKey InKey, float InHoldTime, float InHoldRollbackTime)
+	FUIActionKeyMapping(FKey InKey, float InHoldTime)
 		: Key(InKey)
 		, HoldTime(InHoldTime)
-		, HoldRollbackTime(InHoldRollbackTime)
 	{}
 
 	/** A key that triggers this action */
@@ -28,10 +27,6 @@ public:
 	/** How long must the key be held down for the action to be executed? */
 	UPROPERTY(EditAnywhere, Config, Category = "UI Action Key Mapping")
 	float HoldTime = 0.f;
-	
-	/** Time (in seconds) for hold progress to go from 1.0 (completed) to 0.0. */
-    UPROPERTY(EditAnywhere, Config, Category = "UI Action Key Mapping")
-    float HoldRollbackTime = 0.f;
 
 	//@todo DanH: Is this actually wanted/needed at all? Do we really want different bindings for the same thing on Platform A vs Platform B, for instance?
 	///** 
