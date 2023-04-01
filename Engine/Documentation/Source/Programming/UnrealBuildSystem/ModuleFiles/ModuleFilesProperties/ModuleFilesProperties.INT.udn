@@ -22,6 +22,8 @@ $ ModuleDirectory (String): Property for the directory containing this module. U
 
 $ TestsDirectory (String): Returns module's low level tests directory "Tests".
 
+$ IsRHIModule (Boolean): True if this UE module implements an RHI.
+
 $ IsVcPackageSupported (Boolean): Returns if VcPkg is supported for the build configuration.
 
 
@@ -40,7 +42,7 @@ $ bTreatAsEngineModule (Boolean): Whether this module should be treated as an en
 
 $ bUseRTTI (Boolean): Use run time type information
 
-$ bUseAVX (Boolean): Direct the compiler to generate AVX instructions wherever SSE or AVX intrinsics are used, on the platforms that support it. Note that by enabling this you are changing the minspec for the PC platform, and the resultant executable will crash on machines without AVX support.
+$ MinCpuArchX64 (Nullable&lt;MinimumCpuArchitectureX64&gt;): Direct the compiler to generate AVX instructions wherever SSE or AVX intrinsics are used, on the x64 platforms that support it. Note that by enabling this you are changing the minspec for the PC platform, and the resultant executable will crash on machines without AVX support.
 
 $ bEnableBufferSecurityChecks (Boolean): Enable buffer security checks.  This should usually be enabled as it prevents severe security risks.
 
@@ -185,6 +187,8 @@ $ PCHUsage (PCHUsageMode): Precompiled header usage for this module
 $ DefaultBuildSettings (BuildSettingsVersion): Which engine version's build settings to use by default.
 
 $ IncludeOrderVersion (EngineIncludeOrderVersion): What version of include order to use when compiling this module. Can be overridden via -ForceIncludeOrder on the command line or in a module's rules.
+
+$ bUseAVX (Boolean): Obsolete: Direct the compiler to generate AVX instructions wherever SSE or AVX intrinsics are used, on the platforms that support it. Note that by enabling this you are changing the minspec for the PC platform, and the resultant executable will crash on machines without AVX support.
 
 $ DeterministicWarningLevel (WarningLevel): How to treat deterministic warnings (experimental).
 
