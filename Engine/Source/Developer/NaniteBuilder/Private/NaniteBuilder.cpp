@@ -514,7 +514,7 @@ bool FBuilderModule::Build(
 	{
 		uint32 Time0 = FPlatformTime::Cycles();
 
-		TessellateAndDisplace( InputMeshData.Vertices, InputMeshData.TriangleIndices, InputMeshData.MaterialIndices, VertexBounds, Settings );
+		TessellateAndDisplace( InputMeshData.Vertices, InputMeshData.TriangleIndices, InputMeshData.MaterialIndices, InputMeshData.VertexBounds, Settings );
 		InputMeshData.TriangleCounts[0] = InputMeshData.TriangleIndices.Num() / 3;
 
 		uint32 Time1 = FPlatformTime::Cycles();
