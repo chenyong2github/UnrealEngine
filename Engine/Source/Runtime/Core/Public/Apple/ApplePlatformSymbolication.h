@@ -32,6 +32,7 @@ struct FApplePlatformSymbolDatabase
 	
 	TSharedPtr<FGenericPlatformSymbolDatabase> GenericDB;
 	FApplePlatformSymbolCache AppleDB;
+	FString Architecture;
 };
 
 /**

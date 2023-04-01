@@ -243,11 +243,11 @@ bool FApplePlatformSymbolication::LoadSymbolDatabaseForBinary(FString SourceFold
 	if(!bOK && GAllowApplePlatformSymbolication && (IFileManager::Get().FileSize(*BinaryPath) > 0))
 	{
 		CSSymbolicatorRef Symbolicator = OutDatabase.AppleDB;
-		if( CSIsNull(Symbolicator) )
+		if( CSIsNull(Symbolicator) && (OutDatabase.Architecture == TEXT("") || OutDatabase.Architecture == TEXT("X86_64")))
 		{
 			Symbolicator = CSSymbolicatorCreateWithPathAndArchitecture(TCHAR_TO_UTF8(*BinaryPath), CPU_TYPE_X86_64);
 		}
-        if (CSIsNull(Symbolicator))
+        if (CSIsNull(Symbolicator) && (OutDatabase.Architecture == TEXT("") || OutDatabase.Architecture == TEXT("ARM-64")))
         {
             Symbolicator = CSSymbolicatorCreateWithPathAndArchitecture(TCHAR_TO_UTF8(*BinaryPath), CPU_TYPE_ARM64);
         }
