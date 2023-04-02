@@ -29,7 +29,7 @@
 #include "Render/Viewport/Configuration/DisplayClusterViewportConfigurationHelpers_Postprocess.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////
-int32 GDisplayClusterPreviewEnableViewState = 0;
+int32 GDisplayClusterPreviewEnableViewState = 1;
 static FAutoConsoleVariableRef CVarDisplayClusterPreviewEnableViewState(
 	TEXT("nDisplay.preview.EnableViewState"),
 	GDisplayClusterPreviewEnableViewState,
