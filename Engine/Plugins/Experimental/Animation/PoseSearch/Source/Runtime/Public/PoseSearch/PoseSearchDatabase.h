@@ -248,6 +248,11 @@ public:
 	TArray<FPoseSearchDatabaseSequence> Sequences_DEPRECATED;
 	UPROPERTY()
 	TArray<FPoseSearchDatabaseBlendSpace> BlendSpaces_DEPRECATED;
+
+	// If null, the default preview mesh for the skeleton will be used. Otherwise, this will be used in preview scenes.
+	// @todo: Move this to be a setting in the Pose Search Database editor. 
+	UPROPERTY(EditAnywhere, Category = "Preview")
+	TObjectPtr<USkeletalMesh> PreviewMesh = nullptr;
 #endif // WITH_EDITORONLY_DATA
 
 	UPROPERTY(EditAnywhere, Category="Database")

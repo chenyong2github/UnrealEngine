@@ -207,7 +207,8 @@ namespace UE::PoseSearch
 		Mesh->PreviewInstance = AnimInstance;
 		AnimInstance->InitializeAnimation();
 
-		Mesh->SetSkeletalMesh(PoseSearchDatabase->Schema->Skeleton->GetPreviewMesh(true));
+		USkeletalMesh* DatabasePreviewMesh = PoseSearchDatabase->PreviewMesh;
+		Mesh->SetSkeletalMesh(DatabasePreviewMesh ? DatabasePreviewMesh : PoseSearchDatabase->Schema->Skeleton->GetPreviewMesh(true));
 		Mesh->EnablePreview(true, PreviewAsset);
 		
 		AnimInstance->SetAnimationAsset(PreviewAsset, false, 0.0f);
