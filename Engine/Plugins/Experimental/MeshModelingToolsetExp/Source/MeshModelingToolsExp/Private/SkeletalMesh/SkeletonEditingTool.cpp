@@ -356,13 +356,13 @@ void USkeletonEditingTool::ParentBones(const FName& InParentName)
 	const bool bBonesParented = SkeletonModifier.ParentBones(GetSelectedBones(), {InParentName});
 	if (bBonesParented)
 	{
-		Operation = EEditingOperation::Select;
 		EndChange();
-		return;
 	}
-
+	else
+	{
+		CancelChange();
+	}
 	Operation = EEditingOperation::Select;
-	CancelChange();
 }
 
 void USkeletonEditingTool::MoveBones()
