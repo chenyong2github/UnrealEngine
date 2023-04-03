@@ -159,7 +159,10 @@ void UEditNormalsTool::OnShutdown(EToolShutdownType ShutdownType)
 {
 	BasicProperties->SaveProperties(this);
 	AdvancedProperties->SaveProperties(this);
-	PolygroupLayerProperties->SaveProperties(this, TEXT("EditNormalsTool"));
+	if (PolygroupLayerProperties)
+	{
+		PolygroupLayerProperties->SaveProperties(this, TEXT("EditNormalsTool"));
+	}
 
 	// Restore (unhide) the source meshes
 	for (int32 ComponentIdx = 0, NumTargets = Targets.Num(); ComponentIdx < NumTargets; ComponentIdx++)
