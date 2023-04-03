@@ -778,7 +778,7 @@ void RecaptureClipmapForMeshSDFStreamingIfNeeded(
 		if (ClipmapViewState.HasPendingStreamingReadbackBuffers[Index]->IsReady())
 		{
 			ClipmapViewState.ReadbackBuffersNumPending--;
-			LatestReadbackBuffer = ClipmapViewState.HasPendingStreamingReadbackBuffers[Index];
+			LatestReadbackBuffer = ClipmapViewState.HasPendingStreamingReadbackBuffers[Index].Get();
 		}
 		else
 		{
@@ -2377,13 +2377,13 @@ void UpdateGlobalDistanceFieldVolume(
 							{
 								FGlobalDistanceFieldClipmapState& ClipmapViewState = View.ViewState->GlobalDistanceFieldData->ClipmapState[ClipmapIndex];
 
-								if (!ClipmapViewState.HasPendingStreamingReadbackBuffers[ClipmapViewState.ReadbackBuffersWriteIndex])
+								if (!ClipmapViewState.HasPendingStreamingReadbackBuffers[ClipmapViewState.ReadbackBuffersWriteIndex].IsValid())
 								{
-									FRHIGPUBufferReadback* GPUBufferReadback = new FRHIGPUBufferReadback(TEXT("GlobalDistanceField.HasPendingStreamingReadback"));
-									ClipmapViewState.HasPendingStreamingReadbackBuffers[ClipmapViewState.ReadbackBuffersWriteIndex] = GPUBufferReadback;
+									ClipmapViewState.HasPendingStreamingReadbackBuffers[ClipmapViewState.ReadbackBuffersWriteIndex] = 
+										MakeUnique<FRHIGPUBufferReadback>(TEXT("GlobalDistanceField.HasPendingStreamingReadback"));
 								}
 
-								FRHIGPUBufferReadback* ReadbackBuffer = ClipmapViewState.HasPendingStreamingReadbackBuffers[ClipmapViewState.ReadbackBuffersWriteIndex];
+								FRHIGPUBufferReadback* ReadbackBuffer = ClipmapViewState.HasPendingStreamingReadbackBuffers[ClipmapViewState.ReadbackBuffersWriteIndex].Get();
 
 								AddReadbackBufferPass(GraphBuilder, RDG_EVENT_NAME("GlobalDistanceField.HasPendingStreamingReadback"), HasPendingStreamingReadbackBuffer,
 									[ReadbackBuffer, HasPendingStreamingReadbackBuffer](FRHICommandList& RHICmdList)

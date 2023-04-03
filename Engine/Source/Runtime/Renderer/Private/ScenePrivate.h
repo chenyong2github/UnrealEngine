@@ -460,7 +460,7 @@ public:
 		CacheMostlyStaticSeparately = 1;
 		LastUsedSceneDataForFullUpdate = nullptr;
 
-		HasPendingStreamingReadbackBuffers.AddZeroed(MaxPendingStreamingReadbackBuffers);
+		HasPendingStreamingReadbackBuffers.SetNum(MaxPendingStreamingReadbackBuffers);
 	}
 
 	FInt64Vector FullUpdateOriginInPages;
@@ -471,7 +471,7 @@ public:
 	float CachedClipmapExtent;
 	float CacheClipmapInfluenceRadius;
 
-	TArray<FRHIGPUBufferReadback*> HasPendingStreamingReadbackBuffers;
+	TArray<TUniquePtr<FRHIGPUBufferReadback>> HasPendingStreamingReadbackBuffers;
 	uint32 MaxPendingStreamingReadbackBuffers = 4;
 	uint32 ReadbackBuffersWriteIndex = 0;
 	uint32 ReadbackBuffersNumPending = 0;
