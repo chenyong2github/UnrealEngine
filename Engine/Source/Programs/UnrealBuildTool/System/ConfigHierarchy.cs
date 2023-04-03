@@ -195,22 +195,6 @@ namespace UnrealBuildTool
         /// </summary>
         System.Threading.ReaderWriterLockSlim NameToSectionLock = new System.Threading.ReaderWriterLockSlim();
 
-		static readonly string? PersonalConfigFolder = null;
-
-		static ConfigHierarchy()
-		{
-			// Some user accounts (eg. SYSTEM on Windows) don't have a home directory. Ignore them if Environment.GetFolderPath() returns an empty string.
-			string PersonalFolder = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
-			if (!String.IsNullOrEmpty(PersonalFolder))
-			{
-				PersonalConfigFolder = PersonalFolder;
-				if (RuntimePlatform.IsMac || RuntimePlatform.IsLinux)
-				{
-					PersonalConfigFolder = System.IO.Path.Combine(PersonalConfigFolder, "Documents");
-				}
-			}
-		}
-
 		/// <summary>
 		/// Construct a config hierarchy from the given files
 		/// </summary>
@@ -981,12 +965,6 @@ namespace UnrealBuildTool
 			new ConfigLayerExpansion { Before1 = "{ENGINE}/Config/{PLATFORM}/", After1 = "{ENGINE}/Restricted/NoRedist/Platforms/{PLATFORM}/Config/",          Before2 = "{PROJECT}/Config/{PLATFORM}/", After2 = "{RESTRICTEDPROJECT_NR}/Platforms/{PLATFORM}/{OPT_SUBDIR}Config/" },
 		};
 
-		// Match FPlatformProcess::UserDir()
-		private static string? GetUserDir()
-		{
-			return PersonalConfigFolder;
-		}
-
 		private static string PerformBasicReplacements(string InString, string BaseIniName, string CustomConfig)
 		{
 			string OutString = InString.Replace("{TYPE}", BaseIniName);
@@ -997,7 +975,12 @@ namespace UnrealBuildTool
 				OutString = OutString.Replace("{USERSETTINGS}", UserSettingsDir.FullName);
 			}
 
-			OutString = OutString.Replace("{USER}", GetUserDir());
+			DirectoryReference? UserDir = Unreal.UserDirectory;
+			if (UserDir != null)
+			{
+				OutString = OutString.Replace("{USER}", UserDir.FullName);
+			}
+			
 			OutString = OutString.Replace("{CUSTOMCONFIG}", CustomConfig);
 
 			return OutString;
@@ -1082,7 +1065,7 @@ namespace UnrealBuildTool
 				// skip certain layers if we are platform-less, project-less, or userdir-less
 				if ((bHasPlatformTag && PlatformName == "None") ||
 					(bHasProjectTag && ProjectDir == null) ||
-					(bHasUserTag && GetUserDir() == null) ||
+					(bHasUserTag && Unreal.UserSettingDirectory == null) ||
 					(bHasCustomConfigTag && String.IsNullOrEmpty(CustomConfig)))
 				{
 					continue;

@@ -150,6 +150,11 @@ namespace UnrealBuildBase
 		static public readonly DirectoryReference UserSettingDirectory = GetUserSettingDirectory();
 
 		/// <summary>
+		/// Returns the User Directory path. This matches FPlatformProcess::UserDir().
+		/// </summary>
+		static public readonly DirectoryReference? UserDirectory = GetUserDirectory();
+
+		/// <summary>
 		/// Writable engine directory. Uses the user's settings folder for installed builds.
 		/// </summary>
 		public static readonly DirectoryReference WritableEngineDirectory = IsEngineInstalled() ? DirectoryReference.Combine(UserSettingDirectory, "UnrealEngine") : EngineDirectory;
@@ -368,6 +373,27 @@ namespace UnrealBuildBase
 			}
 
 			return DirectoryReference.Combine(EngineDirectory, "Saved");
+		}
+
+		/// <summary>
+		/// Returns the User Directory path. This matches FPlatformProcess::UserDir().
+		/// </summary>
+		private static DirectoryReference? GetUserDirectory()
+		{
+			// Some user accounts (eg. SYSTEM on Windows) don't have a home directory. Ignore them if Environment.GetFolderPath() returns an empty string.
+			string PersonalFolder = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
+			if (!String.IsNullOrEmpty(PersonalFolder))
+			{
+				if (RuntimePlatform.IsMac || RuntimePlatform.IsLinux)
+				{
+					return new DirectoryReference(System.IO.Path.Combine(PersonalFolder, "Documents"));
+				}
+				else
+				{
+					return new DirectoryReference(PersonalFolder);
+				}
+			}
+			return null;
 		}
 	}
 }

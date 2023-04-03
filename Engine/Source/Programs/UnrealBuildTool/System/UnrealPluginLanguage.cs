@@ -3499,20 +3499,7 @@ namespace UnrealBuildTool
 			}
 
 			DirectoryReference? UserSettingsFolder = Unreal.UserSettingDirectory; // Match FPlatformProcess::UserSettingsDir()
-			DirectoryReference? PersonalFolder = null; // Match FPlatformProcess::UserDir()
-			if (RuntimePlatform.IsMac || RuntimePlatform.IsLinux)
-			{
-				PersonalFolder = new DirectoryReference(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Documents"));
-			}
-			else
-			{
-				// Not all user accounts have a local application data directory (eg. SYSTEM, used by Jenkins for builds).
-				string PersonalFolderSetting = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
-				if (!String.IsNullOrEmpty(PersonalFolderSetting))
-				{
-					PersonalFolder = new DirectoryReference(PersonalFolderSetting);
-				}
-			}
+			DirectoryReference? PersonalFolder = Unreal.UserDirectory; // Match FPlatformProcess::UserDir()
 
 			if(UserSettingsFolder != null)
 			{
