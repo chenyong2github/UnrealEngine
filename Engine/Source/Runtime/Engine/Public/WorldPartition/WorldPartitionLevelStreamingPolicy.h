@@ -30,10 +30,10 @@ public:
 	virtual TSubclassOf<class UWorldPartitionRuntimeCell> GetRuntimeCellClass() const override;
 	virtual void PrepareActorToCellRemapping() override;
 	virtual void RemapSoftObjectPath(FSoftObjectPath& ObjectPath) override;
-	virtual bool ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath) const override;
 	static FString GetCellPackagePath(const FName& InCellName, const UWorld* InWorld);
 #endif
 
+	virtual bool ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath) const override;
 	virtual UObject* GetSubObject(const TCHAR* SubObjectPath) override;
 
 protected:

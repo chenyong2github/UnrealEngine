@@ -136,10 +136,12 @@ public:
 	// Simulate an engine frame tick
 	static void FakeEngineTick(UWorld* World);
 
-	// Editor/Runtime conversions
+	// Runtime/Editor conversions
 	static bool ConvertRuntimePathToEditorPath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath);
-	static bool ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath);
 #endif // WITH_EDITOR
+
+	// Editor/Runtime conversions
+	static bool ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath);
 };
 
 

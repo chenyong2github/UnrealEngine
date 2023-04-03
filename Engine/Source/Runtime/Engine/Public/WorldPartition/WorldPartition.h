@@ -145,6 +145,9 @@ public:
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	//~ End UObject Interface
 
+	// Editor/Runtime conversions
+	bool ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath) const;
+
 #if WITH_EDITOR
 	void SetInstanceTransform(const FTransform& InInstanceTransform) { InstanceTransform = InInstanceTransform; }
 	FName GetWorldPartitionEditorName() const;
@@ -191,9 +194,6 @@ public:
 
 	void RemapSoftObjectPath(FSoftObjectPath& ObjectPath);
 	bool IsValidPackageName(const FString& InPackageName);
-
-	// Editor/Runtime conversions
-	bool ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath) const;
 
 	// Begin Cooking
 	void BeginCook(IWorldPartitionCookPackageContext& CookContext);

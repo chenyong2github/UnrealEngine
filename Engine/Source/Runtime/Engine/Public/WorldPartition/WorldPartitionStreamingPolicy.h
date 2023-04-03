@@ -65,15 +65,14 @@ public:
 	// PIE/Game methods
 	virtual void PrepareActorToCellRemapping() {}
 	virtual void RemapSoftObjectPath(FSoftObjectPath& ObjectPath) {}
-
-	// Editor/Runtime conversions
-	virtual bool ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath) const { return false; }
 #endif
 
 #if !UE_BUILD_SHIPPING
 	virtual void GetOnScreenMessages(FCoreDelegates::FSeverityMessageMap& OutMessages);
 #endif
 
+	// Editor/Runtime conversions
+	virtual bool ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath) const { return false; }
 	virtual UObject* GetSubObject(const TCHAR* SubObjectPath) { return nullptr; }
 
 	const TArray<FWorldPartitionStreamingSource>& GetStreamingSources() const { return StreamingSources; }

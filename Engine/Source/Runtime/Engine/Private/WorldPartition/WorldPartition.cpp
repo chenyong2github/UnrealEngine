@@ -358,11 +358,6 @@ bool UWorldPartition::IsValidPackageName(const FString& InPackageName)
 	return false;
 }
 
-bool UWorldPartition::ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath) const
-{
-	return StreamingPolicy ? StreamingPolicy->ConvertEditorPathToRuntimePath(InPath, OutPath) : false;
-}
-
 void UWorldPartition::OnPreBeginPIE(bool bStartSimulate)
 {
 	check(!bIsPIE);
@@ -1593,6 +1588,11 @@ void UWorldPartition::EnableStreamingIn()
 {
 	check(!bStreamingInEnabled);
 	bStreamingInEnabled = true;
+}
+
+bool UWorldPartition::ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath) const
+{
+	return StreamingPolicy ? StreamingPolicy->ConvertEditorPathToRuntimePath(InPath, OutPath) : false;
 }
 
 #if WITH_EDITOR

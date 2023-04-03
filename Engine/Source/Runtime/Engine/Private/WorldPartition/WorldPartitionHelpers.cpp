@@ -291,9 +291,16 @@ bool FWorldPartitionHelpers::ConvertRuntimePathToEditorPath(const FSoftObjectPat
 			}
 		}
 	}
+	else
+	{
+		OutPath = UWorld::RemovePIEPrefix(InPath.ToString());
+		return true;
+	}
 
 	return false;
 }
+
+#endif // #if WITH_EDITOR
 
 bool FWorldPartitionHelpers::ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath)
 {
@@ -314,5 +321,3 @@ bool FWorldPartitionHelpers::ConvertEditorPathToRuntimePath(const FSoftObjectPat
 
 	return false;
 }
-
-#endif // #if WITH_EDITOR
