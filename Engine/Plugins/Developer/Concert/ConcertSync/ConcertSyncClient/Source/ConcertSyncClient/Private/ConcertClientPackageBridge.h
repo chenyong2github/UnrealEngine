@@ -27,6 +27,10 @@ public:
 	virtual bool& GetIgnoreLocalSaveRef() override;
 	virtual bool& GetIgnoreLocalDiscardRef() override;
 
+	virtual void RegisterPackageFilter(FName FilterName, FPackageFilterDelegate FilterHandle) override;
+	virtual void UnregisterPackageFilter(FName FilterName) override;
+	virtual EPackageFilterResult IsPackageFiltered(const FConcertPackageInfo& PackageInfo) const override;
+
 private:
 	/** Handle any deferred tasks that should be run on the game thread. */
 	void OnEndFrame();
@@ -57,6 +61,9 @@ private:
 
 	/** Called when a local package discard happens */
 	FOnConcertClientLocalPackageDiscarded OnLocalPackageDiscardedDelegate;
+
+	/** Map of named packages filters that can override what is included / excluded by package bridge*/
+	TMap<FName, FPackageFilterDelegate> PackageFilters;
 
 	/** Flag to ignore package change events, used when we do not want to record package changes we generate ourselves */
 	bool bIgnoreLocalSave;

@@ -8,6 +8,7 @@
 
 #include "Engine/World.h"
 #include "Engine/Engine.h"
+#include "IConcertClientPackageBridge.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
@@ -358,6 +359,33 @@ void FConcertClientPackageBridge::HandleMapChanged(UWorld* InWorld, EMapChangeTy
 			UE_LOG(LogConcert, Verbose, TEXT("Asset Discarded: %s"), *Package->GetName());
 		}
 	}
+}
+
+void FConcertClientPackageBridge::RegisterPackageFilter(FName FilterName, FPackageFilterDelegate FilterHandle)
+{
+	check(PackageFilters.Find(FilterName) == nullptr);
+	PackageFilters.Add(FilterName) = MoveTemp(FilterHandle);
+}
+
+EPackageFilterResult FConcertClientPackageBridge::IsPackageFiltered(const FConcertPackageInfo& PackageInfo) const
+{
+	for (const auto& Item : PackageFilters)
+	{
+		if(Item.Value.IsBound())
+		{
+			EPackageFilterResult Result = Item.Value.Execute(PackageInfo);
+			if (Result != EPackageFilterResult::UseDefault)
+			{
+				return Result;
+			}
+		}
+	}
+	return EPackageFilterResult::UseDefault;
+}
+
+void FConcertClientPackageBridge::UnregisterPackageFilter(FName FilterName)
+{
+	PackageFilters.FindAndRemoveChecked(FilterName);
 }
 
 #undef LOCTEXT_NAMESPACE

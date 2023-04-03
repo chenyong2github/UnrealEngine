@@ -42,6 +42,7 @@ public:
 
 	virtual void SetFileSharingService(TSharedPtr<IConcertFileSharingService> InFileSharingService) override;
 	virtual IConcertClientTransactionBridge* GetTransactionBridge() const override;
+	virtual IConcertClientPackageBridge* GetPackageBridge() const override;
 
 private:
 	void CreateWorkspace(const TSharedRef<FConcertSyncClientLiveSession>& InLiveSession);

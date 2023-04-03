@@ -12,7 +12,7 @@
 #include "SQLitePreparedStatement.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
-#include "Async/Async.h"
+#include "Tasks/Task.h"
 
 /** Contains an asynchronous representation of the FConcertPackageDataStream */
 namespace PackageDataUtil
@@ -34,8 +34,8 @@ struct FConcertPackageAsyncDataStream
 		PackageStream = {nullptr, InStream.DataSize, &PackageData};
 	}
 
-	FName								CachedPackageName;
-	TFuture<bool>						AsyncTask;
+	FName CachedPackageName;
+	UE::Tasks::TTask<bool> AsyncTask;
 	PackageDataUtil::WritePackageResult Result;
 
 	FConcertPackageDataStream   PackageStream;
@@ -2845,27 +2845,33 @@ bool FConcertSyncSessionDatabase::LoadPackage(const FString& InPackageBlobFilena
 
 void FConcertSyncSessionDatabase::FlushAsynchronousTasks()
 {
-	for (const auto& Item : DeferredLargePackageIOPtr->GetMap())
+	while (!DeferredLargePackageIOPtr->GetMap().IsEmpty())
 	{
-		if (Item.Value->AsyncTask.Get())
-		{
-			HandleWritePackageResult(Item.Value->CachedPackageName, Item.Key, PackageFileCache, MoveTemp(Item.Value->Result));
-		}
-		else
-		{
-			UE_LOG(LogConcert, Error, TEXT("Async task failed to write package %s"), *Item.Value->CachedPackageName.ToString());
-		}
+		UpdateAsynchronousTasks();
+		const float SleepTimeInSeconds = 0.010f;
+		FPlatformProcess::Sleep(SleepTimeInSeconds);
 	}
-	DeferredLargePackageIOPtr->Clear();
+}
+
+bool FConcertSyncSessionDatabase::HasWritePackageTasksCompleted() const
+{
+	return DeferredLargePackageIOPtr->GetMap().IsEmpty();
 }
 
 void FConcertSyncSessionDatabase::UpdateAsynchronousTasks()
 {
 	for (auto It = DeferredLargePackageIOPtr->GetMap().CreateIterator(); It; ++It)
 	{
-		if (It->Value->AsyncTask.IsReady())
+		if (It->Value->AsyncTask.IsCompleted())
 		{
-			HandleWritePackageResult(It->Value->CachedPackageName, It->Key, PackageFileCache, MoveTemp(It->Value->Result));
+			if (It->Value->AsyncTask.GetResult())
+			{
+				HandleWritePackageResult(It->Value->CachedPackageName, It->Key, PackageFileCache, MoveTemp(It->Value->Result));
+			}
+			else
+			{
+				UE_LOG(LogConcert, Error, TEXT("Async task failed to write package %s"), *It->Value->CachedPackageName.ToString());
+			}
 			It.RemoveCurrent();
 		}
 	}
@@ -2914,11 +2920,13 @@ void FConcertSyncSessionDatabase::ScheduleAsyncWrite(const FName& InPackageName,
 	FConcertPackageAsyncDataStreamPtr SharedStream = MakeShared<FConcertPackageAsyncDataStream,ESPMode::ThreadSafe>(InPackageDataStream, InPackageName);
 	if(FConcertPackageAsyncDataStreamPtr* Item = DeferredLargePackageIOPtr->GetMap().Find(InDstPackageBlobPathname))
 	{
-		(*Item)->AsyncTask.Get();
-		HandleWritePackageResult((*Item)->CachedPackageName, InDstPackageBlobPathname, PackageFileCache, MoveTemp((*Item)->Result));
+		if ((*Item)->AsyncTask.GetResult())
+		{
+			HandleWritePackageResult((*Item)->CachedPackageName, InDstPackageBlobPathname, PackageFileCache, MoveTemp((*Item)->Result));
+		}
 	}
 	DeferredLargePackageIOPtr->GetMap().FindOrAdd(InDstPackageBlobPathname) = SharedStream;
-	SharedStream->AsyncTask = Async(EAsyncExecution::TaskGraph, [InDstPackageBlobPathname,SharedStream]()
+	SharedStream->AsyncTask = UE::Tasks::Launch(TEXT("ConcertWritePackageAsync"), [InDstPackageBlobPathname,SharedStream]()
 	{
 		TUniquePtr<FArchive> DstAr(IFileManager::Get().CreateFileWriter(*InDstPackageBlobPathname));
 		ensureMsgf(DstAr, TEXT("ConcertSyncSessionDatabase: Unable to open a file for writing. Ensure you have enough disk space and long paths are enabled."));

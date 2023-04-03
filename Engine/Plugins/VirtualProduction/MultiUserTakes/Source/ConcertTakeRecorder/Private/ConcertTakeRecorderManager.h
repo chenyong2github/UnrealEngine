@@ -12,6 +12,7 @@ class UTakePreset;
 enum class EConcertClientStatus : uint8;
 enum class EConcertConnectionStatus : uint8;
 enum class ETransactionFilterResult : uint8;
+enum class EPackageFilterResult : uint8;
 struct FConcertClientRecordSetting;
 struct FConcertMultiUserSyncChangeEvent;
 struct FConcertRecordSettingsChangeEvent;
@@ -20,6 +21,7 @@ struct FConcertRecordingFinishedEvent;
 struct FConcertRecordingNamedLevelSequenceEvent;
 struct FConcertSessionClientInfo;
 struct FConcertTakeInitializedEvent;
+struct FConcertPackageInfo;
 struct FFrameNumber;
 struct FTakeRecorderParameters;
 
@@ -107,6 +109,8 @@ private:
 	void ConnectToSession(IConcertClientSession&);
 
 	ETransactionFilterResult ShouldObjectBeTransacted(UObject* InObject, UPackage* InPackage);
+	EPackageFilterResult ShouldPackageBeFiltered(const FConcertPackageInfo& InPackage);
+
 private:
 	FTakeRecorderParameters SetupTakeParametersForMultiuser(const FTakeRecorderParameters& Input);
 

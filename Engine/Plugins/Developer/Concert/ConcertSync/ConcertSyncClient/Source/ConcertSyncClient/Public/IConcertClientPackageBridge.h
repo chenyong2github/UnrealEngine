@@ -11,6 +11,15 @@ struct FConcertPackageInfo;
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConcertClientLocalPackageEvent, const FConcertPackageInfo&, const FString&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnConcertClientLocalPackageDiscarded, UPackage*);
 
+enum class EPackageFilterResult : uint8
+{
+	Include,
+	Exclude,
+	UseDefault
+};
+
+DECLARE_DELEGATE_RetVal_OneParam(EPackageFilterResult, FPackageFilterDelegate, const FConcertPackageInfo&);
+
 /**
  * Bridge between the editor package events and Concert.
  * Deals with converting package update events to Concert package data.
@@ -47,6 +56,15 @@ public:
 	 * Called when a local package is discarded.
 	 */
 	virtual FOnConcertClientLocalPackageDiscarded& OnLocalPackageDiscarded() = 0;
+
+	/** Register a package filter to exclude/include certain packagins from the session. */
+	virtual void RegisterPackageFilter(FName FilterName, FPackageFilterDelegate FilterHandle) = 0;
+
+	/** Returns true if the package should be filtered from the local sandbox.  */
+	virtual EPackageFilterResult IsPackageFiltered(const FConcertPackageInfo& PackageInfo) const = 0;
+
+	/** Unregister package filter for handling package filtering. */
+	virtual void UnregisterPackageFilter(FName FilterName) = 0;
 
 protected:
 	/**

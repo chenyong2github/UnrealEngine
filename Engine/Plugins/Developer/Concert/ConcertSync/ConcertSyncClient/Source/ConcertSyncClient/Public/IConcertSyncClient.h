@@ -15,6 +15,7 @@ class IConcertClientPresenceManager;
 class IConcertClientSequencerManager;
 struct FConcertSessionClientInfo;
 class IConcertClientTransactionBridge;
+class IConcertClientPackageBridge;
 class IConcertSyncClient;
 class IConcertFileSharingService;
 
@@ -97,4 +98,7 @@ public:
 
 	/** Get the current transaction bridge for this client */
 	virtual IConcertClientTransactionBridge* GetTransactionBridge() const = 0;
+
+	/** Get the current package bridge for this client. */
+	virtual IConcertClientPackageBridge* GetPackageBridge() const = 0;
 };

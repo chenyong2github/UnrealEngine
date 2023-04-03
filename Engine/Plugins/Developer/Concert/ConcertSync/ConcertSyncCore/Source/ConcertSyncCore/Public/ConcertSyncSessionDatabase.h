@@ -705,6 +705,11 @@ public:
 	 */
 	void FlushAsynchronousTasks();
 
+	/**
+	 * Has all asynchronous package tasks completed.
+	 */
+	bool HasWritePackageTasksCompleted() const;
+
 	FOnActivityProduced& OnActivityProduced() { return ActivityProducedEvent; }
 	
 private:

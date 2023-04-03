@@ -2,6 +2,7 @@
 
 #include "ConcertClientPackageManager.h"
 
+#include "IConcertClientPackageBridge.h"
 #include "IConcertSession.h"
 #include "IConcertFileSharingService.h"
 #include "ConcertSyncClientLiveSession.h"
@@ -394,6 +395,12 @@ bool FConcertClientPackageManager::ApplyPackageFilters(const FConcertPackageInfo
 	// (We do not want to run package filtering on Disaster Recovery session and we identify it by not having the ShouldUsePackageSandbox flag for now)
 	if (EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::ShouldUsePackageSandbox))
 	{
+		EPackageFilterResult Result = PackageBridge->IsPackageFiltered(InPackageInfo);
+		if (Result != EPackageFilterResult::UseDefault)
+		{
+			return Result == EPackageFilterResult::Include ? true : false;
+		}
+
 		const UConcertSyncConfig* SyncConfig = GetDefault<UConcertSyncConfig>();
 		// Ignore packages that passes the ExcludePackageClassFilters
 		if (SyncConfig->ExcludePackageClassFilters.Num() > 0 && ConcertClientPackageManagerUtil::RunPackageFilters(SyncConfig->ExcludePackageClassFilters, InPackageInfo))
@@ -638,10 +645,13 @@ bool FConcertClientPackageManager::CanHotReloadOrPurge() const
 void FConcertClientPackageManager::HotReloadPendingPackages()
 {
 	SCOPED_CONCERT_TRACE(FConcertClientPackageManager_HotReloadPendingPackages);
-	if (CanHotReloadOrPurge())
+	if (CanHotReloadOrPurge() && PackagesPendingHotReload.Num() > 0)
 	{
 		TGuardValue<bool> HotReloadGuard(bHotReloading, true);
-		LiveSession->GetSessionDatabase().FlushAsynchronousTasks();
+		if (!LiveSession->GetSessionDatabase().HasWritePackageTasksCompleted())
+		{
+			LiveSession->GetSessionDatabase().FlushAsynchronousTasks();
+		}
 		ConcertSyncClientUtil::HotReloadPackages(PackagesPendingHotReload);
 		PackagesPendingHotReload.Reset();
 	}
@@ -650,7 +660,7 @@ void FConcertClientPackageManager::HotReloadPendingPackages()
 void FConcertClientPackageManager::PurgePendingPackages()
 {
 	SCOPED_CONCERT_TRACE(FConcertClientPackageManager_PurgePendingPackages);
-	if (CanHotReloadOrPurge())
+	if (CanHotReloadOrPurge() && PackagesPendingPurge.Num() > 0)
 	{
 		ConcertSyncClientUtil::PurgePackages(PackagesPendingPurge);
 		PackagesPendingPurge.Reset();
