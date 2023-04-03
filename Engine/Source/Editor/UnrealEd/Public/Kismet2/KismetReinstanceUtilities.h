@@ -39,6 +39,8 @@ public:
 
 struct UNREALED_API FReplaceInstancesOfClassParameters
 {
+	UE_NONCOPYABLE(FReplaceInstancesOfClassParameters)
+
 	FReplaceInstancesOfClassParameters() = default;
 
 	UE_DEPRECATED(5.2, "Please use the default constructor instead.")
