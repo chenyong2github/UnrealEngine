@@ -37,7 +37,7 @@ int32 RunDsymExporter(int32 ArgC, TCHAR* Argv[])
         bHaveSigArg = true;
     }
 	FString Signature = SigArg.RightChop(6);
-	bool bOK = FPlatformSymbolication::LoadSymbolDatabaseForBinary(TEXT(""), PathArg, Signature, Symbols);
+	bool bOK = FPlatformSymbolication::LoadSymbolDatabaseForBinary(TEXT(""), PathArg, Signature, {}, Symbols);
 	if(bOK)
 	{
 		FString OutputFolder = FPaths::GetPath(Argv[1]);

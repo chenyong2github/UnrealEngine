@@ -237,17 +237,17 @@ void FApplePlatformSymbolication::EnableCoreSymbolication(bool const bEnable)
 	}
 }
 
-bool FApplePlatformSymbolication::LoadSymbolDatabaseForBinary(FString SourceFolder, FString BinaryPath, FString BinarySignature, FApplePlatformSymbolDatabase& OutDatabase)
+bool FApplePlatformSymbolication::LoadSymbolDatabaseForBinary(FString SourceFolder, FString BinaryPath, FString BinarySignature, TOptional<FString> Architecture, FApplePlatformSymbolDatabase& OutDatabase)
 {
-	bool bOK = FGenericPlatformSymbolication::LoadSymbolDatabaseForBinary(SourceFolder, BinaryPath, BinarySignature, *OutDatabase.GenericDB);
+	bool bOK = FGenericPlatformSymbolication::LoadSymbolDatabaseForBinary(SourceFolder, BinaryPath, BinarySignature, Architecture, *OutDatabase.GenericDB);
 	if(!bOK && GAllowApplePlatformSymbolication && (IFileManager::Get().FileSize(*BinaryPath) > 0))
 	{
 		CSSymbolicatorRef Symbolicator = OutDatabase.AppleDB;
-		if( CSIsNull(Symbolicator) && (OutDatabase.Architecture == TEXT("") || OutDatabase.Architecture == TEXT("X86_64")))
+		if( CSIsNull(Symbolicator) && (!Architecture.IsSet() || *Architecture == TEXT("X86_64")))
 		{
 			Symbolicator = CSSymbolicatorCreateWithPathAndArchitecture(TCHAR_TO_UTF8(*BinaryPath), CPU_TYPE_X86_64);
 		}
-        if (CSIsNull(Symbolicator) && (OutDatabase.Architecture == TEXT("") || OutDatabase.Architecture == TEXT("ARM-64")))
+        if (CSIsNull(Symbolicator) && (!Architecture.IsSet() || *Architecture == TEXT("ARM-64")))
         {
             Symbolicator = CSSymbolicatorCreateWithPathAndArchitecture(TCHAR_TO_UTF8(*BinaryPath), CPU_TYPE_ARM64);
         }

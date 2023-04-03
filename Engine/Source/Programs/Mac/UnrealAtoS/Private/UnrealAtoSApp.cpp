@@ -83,7 +83,7 @@ int32 RunUnrealAtoS(int32 ArgC, TCHAR* Argv[])
 		
 		FString ModuleSignature = ModuleSig;
 		FPlatformSymbolDatabase SymbolDb;
-		if(FPlatformSymbolication::LoadSymbolDatabaseForBinary(FString(SymbolPath), ModulePath, ModuleSignature, SymbolDb))
+		if(FPlatformSymbolication::LoadSymbolDatabaseForBinary(FString(SymbolPath), ModulePath, ModuleSignature, {}, SymbolDb))
 		{
 			bOK = FPlatformSymbolication::SymbolInfoForStrippedSymbol(SymbolDb, ProgramCounter, ModuleBase, ModuleSignature, Info);
 		}

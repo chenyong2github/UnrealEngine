@@ -32,7 +32,6 @@ struct FApplePlatformSymbolDatabase
 	
 	TSharedPtr<FGenericPlatformSymbolDatabase> GenericDB;
 	FApplePlatformSymbolCache AppleDB;
-	FString Architecture;
 };
 
 /**
@@ -76,7 +75,10 @@ struct CORE_API FApplePlatformSymbolication
 {
 	static void EnableCoreSymbolication(bool const bEnable);
 	
-	static bool LoadSymbolDatabaseForBinary(FString SourceFolder, FString Binary, FString BinarySignature, FApplePlatformSymbolDatabase& OutDatabase);
+	/**
+	 * @param Architecture Specify the architecture in case of universal binary, if no architecture is given, will try X86_64 then ARM-64
+	 */
+	static bool LoadSymbolDatabaseForBinary(FString SourceFolder, FString Binary, FString BinarySignature, TOptional<FString> Architecture, FApplePlatformSymbolDatabase& OutDatabase);
 	static bool SaveSymbolDatabaseForBinary(FString TargetFolder, FString Name, FString BinarySignature, FApplePlatformSymbolDatabase& Database);
 	
 	static bool SymbolInfoForStrippedSymbol(FApplePlatformSymbolDatabase const& Database, uint64 ProgramCounter, uint64 ModuleOffset, FString ModuleSignature, FProgramCounterSymbolInfo& Info);

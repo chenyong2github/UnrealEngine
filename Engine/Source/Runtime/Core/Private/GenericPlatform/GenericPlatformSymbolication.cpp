@@ -12,7 +12,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogGenericPlatformSymbolication, Log, All);
 
-bool FGenericPlatformSymbolication::LoadSymbolDatabaseForBinary(FString SourceFolder, FString Binary, FString ModuleSignature, FGenericPlatformSymbolDatabase& OutDatabase)
+bool FGenericPlatformSymbolication::LoadSymbolDatabaseForBinary(FString SourceFolder, FString Binary, FString ModuleSignature, TOptional<FString> Architecture, FGenericPlatformSymbolDatabase& OutDatabase)
 {
 	bool bOk = false;
 	

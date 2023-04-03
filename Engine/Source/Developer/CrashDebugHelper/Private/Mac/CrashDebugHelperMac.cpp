@@ -427,8 +427,7 @@ static int32 SymboliseStackInfo(FPlatformSymbolDatabaseSet& SymbolCache, TArray<
 	if(!Db)
 	{
 		FApplePlatformSymbolDatabase Database;
-		Database.Architecture = Architecture;
-		if(FPlatformSymbolication::LoadSymbolDatabaseForBinary(TEXT(""), Module.Name, Module.Report, Database))
+		if(FPlatformSymbolication::LoadSymbolDatabaseForBinary(TEXT(""), Module.Name, Module.Report, Architecture, Database))
 		{
 			SymbolCache.Add(Database);
 			Db = SymbolCache.Find(Module.Report);
