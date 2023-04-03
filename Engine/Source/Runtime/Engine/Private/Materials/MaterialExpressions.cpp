@@ -18225,6 +18225,45 @@ bool UMaterialExpressionRerouteBase::IsResultStrataMaterial(int32 OutputIndex)
 	return false;
 }
 
+void UMaterialExpressionRerouteBase::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
+{
+	FExpressionInput Input;
+	if (GetRerouteInput(Input))
+	{
+		// Most code checks to make sure that there aren't loops before going here. In our case, we rely on the fact that
+		// UMaterialExpressionReroute's implementation of TraceInputsToRealExpression is resistant to input loops.
+		if (Input.IsConnected() && Input.Expression != nullptr && OutputIndex == 0)
+		{
+			int32 RealExpressionOutputIndex = -1;
+			UMaterialExpression* RealExpression = TraceInputsToRealExpression(RealExpressionOutputIndex);
+			if (RealExpression != nullptr)
+			{
+				RealExpression->GatherStrataMaterialInfo(StrataMaterialInfo, RealExpressionOutputIndex);
+			}
+		}
+	}
+}
+
+FStrataOperator* UMaterialExpressionRerouteBase::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
+{
+	FExpressionInput Input;
+	if (GetRerouteInput(Input))
+	{
+		// Most code checks to make sure that there aren't loops before going here. In our case, we rely on the fact that
+		// UMaterialExpressionReroute's implementation of TraceInputsToRealExpression is resistant to input loops.
+		if (Input.IsConnected() && Input.Expression != nullptr && OutputIndex == 0)
+		{
+			int32 RealExpressionOutputIndex = -1;
+			UMaterialExpression* RealExpression = TraceInputsToRealExpression(RealExpressionOutputIndex);
+			if (RealExpression != nullptr)
+			{
+				RealExpression->StrataGenerateMaterialTopologyTree(Compiler, Parent, RealExpressionOutputIndex);
+			}
+		}
+	}
+	return nullptr;
+}
+
 #endif // WITH_EDITOR
 
 
