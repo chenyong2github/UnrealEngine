@@ -128,6 +128,8 @@ bool FGeometryCacheStreamBase::RequestFrameData()
 
 	if (ReadIndices.Num() > 0)
 	{
+		PrepareRead();
+
 		// Get any ReadIndex available
 		const int32 ReadIndex = ReadIndices.Pop(false);
 
@@ -372,6 +374,8 @@ void FGeometryCacheStreamBase::LoadFrameData(int32 FrameIndex)
 	{
 		return;
 	}
+
+	PrepareRead();
 
 	FGeometryCacheMeshData* MeshData = new FGeometryCacheMeshData;
 	GetMeshData(FrameIndex, 0, *MeshData);

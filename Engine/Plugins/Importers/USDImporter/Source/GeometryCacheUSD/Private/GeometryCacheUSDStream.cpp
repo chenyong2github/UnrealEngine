@@ -64,6 +64,7 @@ FGeometryCacheUsdStream::FGeometryCacheUsdStream(UGeometryCacheTrackUsd* InUsdTr
 		InUsdTrack->EndFrameIndex})
 , UsdTrack(InUsdTrack)
 , ReadFunc(InReadFunc)
+, bReadyForRead(false)
 {
 }
 
@@ -90,7 +91,7 @@ bool FGeometryCacheUsdStream::GetFrameData(int32 FrameIndex, FGeometryCacheMeshD
 	return true;
 }
 
-void FGeometryCacheUsdStream::UpdateRequestStatus( TArray<int32>& OutFramesCompleted )
+void FGeometryCacheUsdStream::UpdateRequestStatus(TArray<int32>& OutFramesCompleted)
 {
 	FGeometryCacheStreamBase::UpdateRequestStatus( OutFramesCompleted );
 
@@ -99,6 +100,16 @@ void FGeometryCacheUsdStream::UpdateRequestStatus( TArray<int32>& OutFramesCompl
 	if ( FramesNeeded.Num() == 0 && FramesRequested.Num() == 0 && UsdTrack && UsdTrack->CurrentStagePinned )
 	{
 		UsdTrack->UnloadUsdStage();
+		bReadyForRead = false;
+	}
+}
+
+void FGeometryCacheUsdStream::PrepareRead()
+{
+	// Do this before calling the ReadFunc as FUsdStreamDDCUtils::GetUsdStreamDDCKey also needs a valid stage to work with
+	if (!bReadyForRead)
+	{
+		bReadyForRead = UsdTrack->LoadUsdStage();
 	}
 }
 
@@ -106,8 +117,7 @@ void FGeometryCacheUsdStream::GetMeshData(int32 FrameIndex, int32 ConcurrencyInd
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FGeometryCacheUsdStream::GetMeshData);
 
-	// Do this before calling the ReadFunc as FUsdStreamDDCUtils::GetUsdStreamDDCKey also needs a valid stage to work with
-	if ( !UsdTrack->LoadUsdStage() )
+	if (!bReadyForRead)
 	{
 		return;
 	}

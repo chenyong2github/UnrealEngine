@@ -46,8 +46,10 @@ public:
 	void UpdateCurrentFrameIndex(int32 FrameIndex);
 
 protected:
+	/* Function called from main thread to prepare for GetMeshData */
+	virtual void PrepareRead() {}
 
-	/* Derived class must provide a way to get the mesh data for the given FrameIndex */
+	/* Derived class must provide a way to get the mesh data for the given FrameIndex, called from worker threads */
 	virtual void GetMeshData(int32 FrameIndex, int32 ReadConcurrencyIndex, FGeometryCacheMeshData& OutMeshData) = 0;
 
 	void LoadFrameData(int32 FrameIndex);

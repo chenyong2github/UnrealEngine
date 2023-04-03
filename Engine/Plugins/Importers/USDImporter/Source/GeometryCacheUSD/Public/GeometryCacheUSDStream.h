@@ -5,6 +5,8 @@
 #include "GeometryCacheStreamBase.h"
 #include "GeometryCacheTrackUSDTypes.h"
 
+#include <atomic>
+
 class UGeometryCacheTrackUsd;
 
 class FGeometryCacheUsdStream : public FGeometryCacheStreamBase
@@ -14,13 +16,15 @@ public:
 
 	//~ Begin IGeometryCacheStream Interface
 	virtual bool GetFrameData(int32 FrameIndex, FGeometryCacheMeshData& OutMeshData) override;
-	virtual void UpdateRequestStatus( TArray<int32>& OutFramesCompleted ) override;
+	virtual void UpdateRequestStatus(TArray<int32>& OutFramesCompleted) override;
+	//~ End IGeometryCacheStream Interface
 
 protected:
+	virtual void PrepareRead() override;
 	virtual void GetMeshData(int32 FrameIndex, int32 ConcurrencyIndex, FGeometryCacheMeshData& OutMeshData) override;
-	//~ End IGeometryCacheStream Interface
 
 	UGeometryCacheTrackUsd* UsdTrack;
 	FReadUsdMeshFunction ReadFunc;
+	std::atomic<bool> bReadyForRead;
 };
 
