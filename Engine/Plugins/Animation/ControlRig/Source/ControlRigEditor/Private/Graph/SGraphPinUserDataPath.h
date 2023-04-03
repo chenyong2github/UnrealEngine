@@ -6,6 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Input/SMenuAnchor.h"
+#include "Widgets/Input/SButton.h"
 #include "SGraphPin.h"
 #include "RigVMModel/RigVMPin.h"
 #include "ControlRigBlueprint.h"
