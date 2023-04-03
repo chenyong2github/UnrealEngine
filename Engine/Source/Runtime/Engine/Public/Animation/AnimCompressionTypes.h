@@ -769,6 +769,7 @@ struct FAnimCompressedCurveIndexedName
 struct ENGINE_API FCompressedAnimSequence
 {
 public:
+	UE_NONCOPYABLE(FCompressedAnimSequence)
 
 	/**
 	 * Version of TrackToSkeletonMapTable for the compressed tracks. Due to baking additive data
