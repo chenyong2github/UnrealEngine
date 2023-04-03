@@ -39,8 +39,9 @@ export void ApplyXPBDSpringConstraints(uniform FVector4f PandInvM[],
 		const float Distance = SafeNormalize(Direction);
 
 		const varying float Dist = Dists[i];
+		const varying float FinalStiffness = select(Dist < FLOAT_SMALL_NUMBER, Stiffness, Stiffness / Dist);
 		const varying float Lambda = Lambdas[i];
-		const uniform float Alpha = (uniform float)1.f / (Stiffness * Dt * Dt);
+		const varying float Alpha = (uniform float)1.f / (FinalStiffness * Dt * Dt);
 		const varying float Offset = Distance - Dist;
 
 		const float CombinedInvMass = InvM2 + InvM1;
@@ -95,12 +96,13 @@ export void ApplyXPBDSpringConstraintsWithDamping(uniform FVector4f PandInvM[],
 		const varying FVector3f X2 = VectorGather(&X[i2]);
 
 		const varying float Dist = Dists[i];
+		const varying float FinalStiffness = select(Dist < FLOAT_SMALL_NUMBER, Stiffness, Stiffness / Dist);
 		const varying float Lambda = Lambdas[i];
-		const uniform float Alpha = (uniform float)1.f / (Stiffness * Dt * Dt);
+		const varying float Alpha = (uniform float)1.f / (FinalStiffness * Dt * Dt);
 		const varying float Offset = Distance - Dist;
 
 		const float CombinedInvMass = InvM2 + InvM1;
-		const varying float Damping = (uniform float)2.f * DampingRatio * sqrt(Stiffness / CombinedInvMass);
+		const varying float Damping = (uniform float)2.f * DampingRatio * sqrt(FinalStiffness / CombinedInvMass);
 		const varying float Gamma = Alpha * Damping * Dt;
 		const varying FVector3f RelativeVelocityTimesDt = P1 - X1 - P2 + X2;
 
@@ -160,12 +162,14 @@ export void ApplyXPBDSpringConstraintsWithWeightMaps(uniform FVector4f PandInvM[
 		#pragma ignore warning(perf)
 		const varying float Stiffness = StiffnessTable[StiffnessIndex];
 
-		const varying float Alpha = (uniform float)1.f / (Stiffness * Dt * Dt);
+		const varying float FinalStiffness = select(Dist < FLOAT_SMALL_NUMBER, Stiffness, Stiffness / Dist);
+
+		const varying float Alpha = (uniform float)1.f / (FinalStiffness * Dt * Dt);
 
 		const float CombinedInvMass = InvM2 + InvM1;
 
 		const varying float ComputedDLambda = (Offset - Alpha * Lambda) / (CombinedInvMass + Alpha);
-		const varying float DLambda = select(Stiffness < MinStiffness, 0.f, ComputedDLambda);
+		const varying float DLambda = select(FinalStiffness < MinStiffness, 0.f, ComputedDLambda);
 
 		const FVector3f ComputedDelta = DLambda * Direction;
 
@@ -230,16 +234,18 @@ export void ApplyXPBDSpringConstraintsWithDampingAndWeightMaps(uniform FVector4f
 		const varying float Stiffness = StiffnessTable[StiffnessIndex];
 		#pragma ignore warning(perf)
 		const varying float DampingRatio = DampingTable[DampingIndex];
+		
+		const varying float FinalStiffness = select(Dist < FLOAT_SMALL_NUMBER, Stiffness, Stiffness / Dist);
 
-		const varying float Alpha = (uniform float)1.f / (Stiffness * Dt * Dt);
+		const varying float Alpha = (uniform float)1.f / (FinalStiffness * Dt * Dt);
 
 		const float CombinedInvMass = InvM2 + InvM1;
-		const varying float Damping = (uniform float)2.f * DampingRatio * sqrt(Stiffness / CombinedInvMass);
+		const varying float Damping = (uniform float)2.f * DampingRatio * sqrt(FinalStiffness / CombinedInvMass);
 		const varying float Gamma = Alpha * Damping * Dt;
 		const varying FVector3f RelativeVelocityTimesDt = P1 - X1 - P2 + X2;
 
 		const varying float ComputedDLambda = (Offset - Alpha * Lambda + Gamma * VectorDot(Direction, RelativeVelocityTimesDt)) / ((1.f + Gamma)*CombinedInvMass + Alpha);
-		const varying float DLambda = select(Stiffness < MinStiffness, 0.f, ComputedDLambda);
+		const varying float DLambda = select(FinalStiffness < MinStiffness, 0.f, ComputedDLambda);
 
 		const FVector3f ComputedDelta = DLambda * Direction;
 

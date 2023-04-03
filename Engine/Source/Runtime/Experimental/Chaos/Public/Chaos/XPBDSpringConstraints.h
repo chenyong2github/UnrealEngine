@@ -9,7 +9,7 @@
 namespace Chaos::Softs
 {
 
-// Stiffness is in kg/s^2
+// Stiffness is in kg cm /s^2
 UE_DEPRECATED(5.2, "Use FXPBDSpringConstraints::MinStiffness instead.")
 static const FSolverReal XPBDSpringMinStiffness = (FSolverReal)1e-4; // Stiffness below this will be considered 0 since all of our calculations are actually based on 1 / stiffness.
 UE_DEPRECATED(5.2, "Use FXPBDSpringConstraints::MaxStiffness instead.")
@@ -119,7 +119,10 @@ private:
 
 		const FSolverReal CombinedInvMass = Particles.InvM(i2) + Particles.InvM(i1);
 
-		const FSolverReal Damping = DampingRatioValue * 2.f * FMath::Sqrt(StiffnessValue / CombinedInvMass);
+		// This scale factor makes things more resolution independent.
+		const FSolverReal FinalStiffnessValue = Dists[ConstraintIndex] < UE_SMALL_NUMBER ? StiffnessValue : StiffnessValue / Dists[ConstraintIndex];
+
+		const FSolverReal Damping = DampingRatioValue * 2.f * FMath::Sqrt(FinalStiffnessValue / CombinedInvMass);
 
 		const FSolverVec3& P1 = Particles.P(i1);
 		const FSolverVec3& P2 = Particles.P(i2);
@@ -134,7 +137,7 @@ private:
 
 
 		FSolverReal& Lambda = Lambdas[ConstraintIndex];
-		const FSolverReal Alpha = (FSolverReal)1.f / (StiffnessValue * Dt * Dt);
+		const FSolverReal Alpha = (FSolverReal)1.f / (FinalStiffnessValue * Dt * Dt);
 		const FSolverReal Gamma = Alpha * Damping * Dt;
 
 		const FSolverReal DLambda = (Offset - Alpha * Lambda + Gamma * FSolverVec3::DotProduct(Direction, RelativeVelocityTimesDt)) / (((FSolverReal)1.f + Gamma) * CombinedInvMass + Alpha);
