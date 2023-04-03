@@ -7,9 +7,11 @@
 #include "Rigs/RigCurveContainer.h"
 #include "AnimationDataSource.h"
 #include "Animation/AttributesRuntime.h"
+#include "ControlRigAssetUserData.h"
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "RigUnitContext.generated.h"
 
+class UControlRigShapeLibrary;
 /**
  * The type of interaction happening on a rig
  */
@@ -109,6 +111,35 @@ struct FControlRigExecuteContext : public FRigVMExecuteContext
 		Hierarchy = OtherContext->Hierarchy;
 	}
 
+	/**
+     * Finds a name spaced user data object
+     */
+	const UNameSpacedUserData* FindUserData(const FString& InNameSpace) const
+	{
+		// walk in reverse since asset user data at the end with the same
+		// namespace overrides previously listed user data
+		for(int32 Index = AssetUserData.Num() - 1; AssetUserData.IsValidIndex(Index); Index--)
+		{
+			if(!IsValid(AssetUserData[Index]))
+			{
+				continue;
+			}
+			if(const UNameSpacedUserData* NameSpacedUserData = Cast<UNameSpacedUserData>(AssetUserData[Index]))
+			{
+				if(NameSpacedUserData->NameSpace.Equals(InNameSpace, ESearchCase::CaseSensitive))
+				{
+					return NameSpacedUserData;
+				}
+			}
+		}
+		return nullptr;
+	}
+
+	/** The list of available asset user data object */
+	TArray<const UAssetUserData*> AssetUserData;
+
+	DECLARE_DELEGATE_FiveParams(FOnAddShapeLibrary, const FControlRigExecuteContext* InContext, const FString&, UControlRigShapeLibrary*, bool /* replace? */, bool /* log results */);
+	FOnAddShapeLibrary OnAddShapeLibraryDelegate; 
 	FRigUnitContext UnitContext;
 	URigHierarchy* Hierarchy;
 };

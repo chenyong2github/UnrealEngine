@@ -4483,7 +4483,13 @@ void FControlRigEditor::CacheNameLists()
 			{
 				continue;
 			}
-			RigGraph->CacheNameLists(Hierarchy, &ControlRigBP->DrawContainer, ControlRigBP->ShapeLibraries);
+
+			const TArray<TSoftObjectPtr<UControlRigShapeLibrary>>* ShapeLibraries = &ControlRigBP->ShapeLibraries;
+			if(const UControlRig* DebuggedControlRig = Hierarchy->GetTypedOuter<UControlRig>())
+			{
+				ShapeLibraries = &DebuggedControlRig->GetShapeLibraries();
+			}
+			RigGraph->CacheNameLists(Hierarchy, &ControlRigBP->DrawContainer, *ShapeLibraries);
 		}
 	}
 }

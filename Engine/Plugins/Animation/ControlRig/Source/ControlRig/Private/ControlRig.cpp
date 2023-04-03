@@ -162,6 +162,115 @@ void UControlRig::Initialize(bool bRequestInit)
 	GetHierarchy()->UpdateVisibilityOnProxyControls();
 }
 
+void UControlRig::OnAddShapeLibrary(const FControlRigExecuteContext* InContext, const FString& InLibraryName, UControlRigShapeLibrary* InShapeLibrary, bool bReplaceExisting, bool bLogResults)
+{
+	// don't ever change the CDO
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return;
+	}
+
+	if(InShapeLibrary == nullptr)
+	{
+		if(InContext)
+		{
+			static constexpr TCHAR Message[] = TEXT("No shape library provided.");
+			InContext->Log(EMessageSeverity::Error, Message);
+		}
+		return;
+	}
+
+	// remove the shape library in case it was there before
+	ShapeLibraryNameMap.Remove(InShapeLibrary->GetName());
+	ShapeLibraries.Remove(InShapeLibrary);
+
+	// if we've removed all shape libraries - let's add the ones from the CDO back
+	if (ShapeLibraries.IsEmpty())
+	{
+		UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>();
+		ShapeLibraries = CDO->ShapeLibraries;
+	}
+
+	// if we are supposed to replace the library and the library name is empty
+	FString LibraryName = InLibraryName;
+	if(LibraryName.IsEmpty() && bReplaceExisting)
+	{
+		if(ShapeLibraries.Num() == 1)
+		{
+			LibraryName = ShapeLibraries[0]->GetName();
+		}
+	}
+
+	if(LibraryName.IsEmpty())
+	{
+		LibraryName = InShapeLibrary->GetName();
+	}
+
+	if(LibraryName != InShapeLibrary->GetName())
+	{
+		ShapeLibraryNameMap.FindOrAdd(InShapeLibrary->GetName()) = LibraryName;
+	}
+
+	if(bReplaceExisting)
+	{
+		for(int32 Index = 0; Index < ShapeLibraries.Num(); Index++)
+		{
+			const TSoftObjectPtr<UControlRigShapeLibrary>& ExistingShapeLibrary = ShapeLibraries[Index];
+			if(ExistingShapeLibrary.IsNull())
+			{
+				continue;
+			}
+			if(ExistingShapeLibrary->GetName().Equals(LibraryName, ESearchCase::IgnoreCase))
+			{
+				ShapeLibraries[Index] = InShapeLibrary;
+				break;
+			}
+		}
+	}
+
+	ShapeLibraries.AddUnique(InShapeLibrary);
+
+#if WITH_EDITOR
+	if(bLogResults)
+	{
+		static constexpr TCHAR MapFormat[] = TEXT("Control Rig '%s': Shape Library Name Map: '%s' -> '%s'");
+		static constexpr TCHAR LibraryFormat[] = TEXT("Control Rig '%s': Shape Library '%s' uses asset '%s'");
+		static constexpr TCHAR DefaultShapeFormat[] = TEXT("Control Rig '%s': Shape Library '%s' has default shape '%s'");
+		static constexpr TCHAR ShapeFormat[] = TEXT("Control Rig '%s': Shape Library '%s' contains shape %03d: '%s'");
+
+		const FString PathName = GetPathName();
+
+		for(const TPair<FString, FString>& Pair: ShapeLibraryNameMap)
+		{
+			UE_LOG(LogControlRig, Display, MapFormat, *PathName, *Pair.Key, *Pair.Value);
+		}
+
+		const int32 NumShapeLibraries = ShapeLibraries.Num();
+		
+		for(int32 Index = 0; Index <NumShapeLibraries; Index++)
+		{
+			const TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibrary = ShapeLibraries[Index];
+			if(ShapeLibrary.IsNull())
+			{
+				continue;
+			}
+
+			UE_LOG(LogControlRig, Display, LibraryFormat, *PathName, *ShapeLibrary->GetName(), *ShapeLibrary->GetPathName());
+
+			const bool bUseNameSpace = ShapeLibraries.Num() > 1;
+			const FString DefaultShapeName = UControlRigShapeLibrary::GetShapeName(ShapeLibrary.Get(), bUseNameSpace, ShapeLibraryNameMap, ShapeLibrary->DefaultShape);
+			UE_LOG(LogControlRig, Display, DefaultShapeFormat, *PathName, *ShapeLibrary->GetName(), *DefaultShapeName);
+
+			for(int32 ShapeIndex = 0; ShapeIndex < ShapeLibrary->Shapes.Num(); ShapeIndex++)
+			{
+				const FString ShapeName = UControlRigShapeLibrary::GetShapeName(ShapeLibrary.Get(), bUseNameSpace, ShapeLibraryNameMap, ShapeLibrary->Shapes[ShapeIndex]);
+				UE_LOG(LogControlRig, Display, ShapeFormat, *PathName, *ShapeLibrary->GetName(), ShapeIndex, *ShapeName);
+			}
+		}
+	}
+#endif
+}
+
 bool UControlRig::InitializeVM(const FName& InEventName)
 {
 	if(!Super::InitializeVM(InEventName))
@@ -306,6 +415,11 @@ bool UControlRig::Execute(const FName& InEventName)
 	
 	FRigVMExtendedExecuteContext& ExtendedExecuteContext = GetVM()->GetContext();
 	FControlRigExecuteContext& PublicContext = ExtendedExecuteContext.GetPublicDataSafe<FControlRigExecuteContext>();
+
+#if WITH_EDITOR
+	PublicContext.SetLog(RigVMLog); // may be nullptr
+#endif
+
 	PublicContext.SetDeltaTime(DeltaTime);
 	PublicContext.SetAbsoluteTime(AbsoluteTime);
 	PublicContext.SetFramesPerSecond(GetCurrentFramesPerSecond());
@@ -403,6 +517,9 @@ bool UControlRig::Execute(const FName& InEventName)
 	Context.HierarchySettings = HierarchySettings;
 	check(PublicContext.Hierarchy);
 
+	// allow access to the shape libraries
+	PublicContext.OnAddShapeLibraryDelegate.BindUObject(this, &UControlRig::OnAddShapeLibrary);
+
 	// allow access to the default hierarchy to allow to reset
 	if(!HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -449,6 +566,21 @@ bool UControlRig::Execute(const FName& InEventName)
 			}
 		}
 	}
+	
+	// setup the user data
+	// first using the data from the rig,
+	// followed by the data coming from the skeleton
+	// then the data coming from the skeletal mesh,
+	// and in the future we'll also add the data from the control rig component
+	PublicContext.AssetUserData.Reset();
+	if(const TArray<UAssetUserData*>* ControlRigUserDataArray = GetAssetUserDataArray())
+	{
+		for(const UAssetUserData* ControlRigUserData : *ControlRigUserDataArray)
+		{
+			PublicContext.AssetUserData.Add(ControlRigUserData);
+		}
+	}
+	PublicContext.AssetUserData.Remove(nullptr);
 
 	// if we have any referenced elements dirty them
 	if(GetHierarchy())
@@ -547,6 +679,13 @@ bool UControlRig::Execute(const FName& InEventName)
 	#endif
 						// reset the pose to initial such that construction event can run from a deterministic initial state
 						GetHierarchy()->ResetPoseToInitial(ERigElementType::All);
+					}
+
+					// clone the shape libraries again from the CDO 
+					if (!HasAnyFlags(RF_ClassDefaultObject) && ShapeLibraries.IsEmpty())
+					{
+						UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>();
+						ShapeLibraries = CDO->ShapeLibraries;
 					}
 
 					if (PreConstructionEvent.IsBound())
@@ -1428,7 +1567,7 @@ const TArray<TSoftObjectPtr<UControlRigShapeLibrary>>& UControlRig::GetShapeLibr
 {
 	const TArray<TSoftObjectPtr<UControlRigShapeLibrary>>* LibrariesPtr = &ShapeLibraries;
 
-	if(!GetClass()->IsNative())
+	if(!GetClass()->IsNative() && ShapeLibraries.IsEmpty())
 	{
 		if (UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject()))
 		{
@@ -2168,6 +2307,46 @@ void UControlRig::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	}
 }
 #endif
+
+const TArray<UAssetUserData*>* UControlRig::GetAssetUserDataArray() const
+{
+	if(HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return &ToRawPtrTArrayUnsafe(AssetUserData);
+	}
+
+	CombinedAssetUserData.Reset();
+	CombinedAssetUserData.Append(AssetUserData);
+
+	if(OuterSceneComponent.IsValid())
+	{
+		if(const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(OuterSceneComponent))
+		{
+			if(USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset())
+			{
+				if(const USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
+				{
+					if(const TArray<UAssetUserData*>* SkeletonUserDataArray = Skeleton->GetAssetUserDataArray())
+					{
+						for(UAssetUserData* SkeletonUserData : *SkeletonUserDataArray)
+						{
+							CombinedAssetUserData.Add(SkeletonUserData);
+						}
+					}
+				}
+				if(const TArray<UAssetUserData*>* SkeletalMeshUserDataArray = SkeletalMesh->GetAssetUserDataArray())
+				{
+					for(UAssetUserData* SkeletalMeshUserData : *SkeletalMeshUserDataArray)
+					{
+						CombinedAssetUserData.Add(SkeletalMeshUserData);
+					}
+				}
+			}
+		}
+	}
+
+	return &ToRawPtrTArrayUnsafe(CombinedAssetUserData);
+}
 
 void UControlRig::CopyPoseFromOtherRig(UControlRig* Subject)
 {

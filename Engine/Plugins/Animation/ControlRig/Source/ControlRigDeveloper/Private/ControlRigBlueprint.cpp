@@ -2895,7 +2895,12 @@ bool UControlRigBlueprint::ChangeMemberVariableType(const FName& InName, const F
 
 const FControlRigShapeDefinition* UControlRigBlueprint::GetControlShapeByName(const FName& InName) const
 {
-	return UControlRigShapeLibrary::GetShapeByName(InName, ShapeLibraries);
+	TMap<FString, FString> LibraryNameMap;
+	if(UControlRig* ControlRig = Cast<UControlRig>(GetObjectBeingDebugged()))
+	{
+		LibraryNameMap = ControlRig->ShapeLibraryNameMap;
+	}
+	return UControlRigShapeLibrary::GetShapeByName(InName, ShapeLibraries, LibraryNameMap);
 }
 
 FName UControlRigBlueprint::AddTransientControl(URigVMPin* InPin)

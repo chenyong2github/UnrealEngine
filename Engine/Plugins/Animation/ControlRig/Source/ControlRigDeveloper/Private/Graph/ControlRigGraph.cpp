@@ -206,6 +206,12 @@ void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FRigVMDr
 	ShapeNameList.Reset();
 	ShapeNameList.Add(MakeShared<FString>(FName(NAME_None).ToString()));
 
+	TMap<FString, FString> LibraryNameMap;
+	if(UControlRig* ControlRig = InHierarchy->GetTypedOuter<UControlRig>())
+	{
+		LibraryNameMap = ControlRig->ShapeLibraryNameMap;
+	}
+
 	for(const TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibrary : ShapeLibraries)
 	{
 		if(ShapeLibrary.IsNull() || !ShapeLibrary.IsValid())
@@ -219,11 +225,17 @@ void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FRigVMDr
 		}
 
 		const bool bUseNameSpace = ShapeLibraries.Num() > 1;
-		const FString NameSpace = bUseNameSpace ? ShapeLibrary->GetName() + TEXT(".") : FString();
-		ShapeNameList.Add(MakeShared<FString>(NameSpace + ShapeLibrary->DefaultShape.ShapeName.ToString()));
+		FString LibraryName = ShapeLibrary->GetName();
+		if(const FString* RemappedName = LibraryNameMap.Find(LibraryName))
+		{
+			LibraryName = *RemappedName;
+		}
+		
+		const FString NameSpace = bUseNameSpace ? LibraryName + TEXT(".") : FString();
+		ShapeNameList.Add(MakeShared<FString>(UControlRigShapeLibrary::GetShapeName(ShapeLibrary.Get(), bUseNameSpace, LibraryNameMap, ShapeLibrary->DefaultShape)));
 		for (const FControlRigShapeDefinition& Shape : ShapeLibrary->Shapes)
 		{
-			ShapeNameList.Add(MakeShared<FString>(NameSpace + Shape.ShapeName.ToString()));
+			ShapeNameList.Add(MakeShared<FString>(UControlRigShapeLibrary::GetShapeName(ShapeLibrary.Get(), bUseNameSpace, LibraryNameMap, Shape)));
 		}
 	}
 }

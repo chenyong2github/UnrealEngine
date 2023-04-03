@@ -3281,7 +3281,7 @@ void FControlRigEditMode::CreateShapeActors(UControlRig* ControlRig)
 			Param.ShapeTransform = ControlRig->GetHierarchy()->GetControlShapeTransform(ControlElement, ERigTransformType::CurrentLocal);
 			Param.bSelectable = ControlElement->Settings.IsSelectable(false);
 
-			if (const FControlRigShapeDefinition* ShapeDef = UControlRigShapeLibrary::GetShapeByName(ControlElement->Settings.ShapeName, ShapeLibraries))
+			if (const FControlRigShapeDefinition* ShapeDef = UControlRigShapeLibrary::GetShapeByName(ControlElement->Settings.ShapeName, ShapeLibraries, ControlRig->ShapeLibraryNameMap))
 			{
 				Param.MeshTransform = ShapeDef->Transform;
 				Param.StaticMesh = ShapeDef->StaticMesh;
@@ -4092,7 +4092,7 @@ void FControlRigEditMode::ChangeControlShapeTransform(AControlRigShapeActor* Sha
 
 				FTransform MeshTransform = FTransform::Identity;
 				FTransform ShapeTransform = CurrentLocalShapeTransform;
-				if (const FControlRigShapeDefinition* Gizmo = UControlRigShapeLibrary::GetShapeByName(ControlElement->Settings.ShapeName, ControlRig->GetShapeLibraries()))
+				if (const FControlRigShapeDefinition* Gizmo = UControlRigShapeLibrary::GetShapeByName(ControlElement->Settings.ShapeName, ControlRig->GetShapeLibraries(), ControlRig->ShapeLibraryNameMap))
 				{
 					MeshTransform = Gizmo->Transform;
 				}

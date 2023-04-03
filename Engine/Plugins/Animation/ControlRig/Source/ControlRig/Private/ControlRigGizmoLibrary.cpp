@@ -110,7 +110,7 @@ const FControlRigShapeDefinition* UControlRigShapeLibrary::GetShapeByName(const 
 	return nullptr;
 }
 
-const FControlRigShapeDefinition* UControlRigShapeLibrary::GetShapeByName(const FName& InName, const TArray<TSoftObjectPtr<UControlRigShapeLibrary>>& InShapeLibraries)
+const FControlRigShapeDefinition* UControlRigShapeLibrary::GetShapeByName(const FName& InName, const TArray<TSoftObjectPtr<UControlRigShapeLibrary>>& InShapeLibraries, const TMap<FString, FString>& InLibraryNameMap)
 {
 	const FString InString = InName.ToString();
 	FString Left, Right;
@@ -133,7 +133,13 @@ const FControlRigShapeDefinition* UControlRigShapeLibrary::GetShapeByName(const 
 			continue;
 		}
 
-		if(ShapeLibrary->GetName().Equals(Left) || Left.IsEmpty())
+		FString ShapeLibraryName = ShapeLibrary->GetName();
+		if(const FString* RemappedName = InLibraryNameMap.Find(ShapeLibraryName))
+		{
+			ShapeLibraryName = *RemappedName;
+		}
+
+		if(ShapeLibraryName.Equals(Left) || Left.IsEmpty())
 		{
 			if(const FControlRigShapeDefinition* Shape = ShapeLibrary->GetShapeByName(RightName))
 			{
@@ -143,6 +149,18 @@ const FControlRigShapeDefinition* UControlRigShapeLibrary::GetShapeByName(const 
 	}
 
 	return nullptr;
+}
+
+const FString UControlRigShapeLibrary::GetShapeName(const UControlRigShapeLibrary* InShapeLibrary, bool bUseNameSpace, const TMap<FString, FString>& InLibraryNameMap, const FControlRigShapeDefinition& InShape)
+{
+	FString LibraryName = InShapeLibrary->GetName();
+	if(const FString* RemappedName = InLibraryNameMap.Find(LibraryName))
+	{
+		LibraryName = *RemappedName;
+	}
+		
+	const FString NameSpace = bUseNameSpace ? LibraryName + TEXT(".") : FString();
+	return NameSpace + InShape.ShapeName.ToString();
 }
 
 const TArray<FName> UControlRigShapeLibrary::GetUpdatedNameList(bool bReset)

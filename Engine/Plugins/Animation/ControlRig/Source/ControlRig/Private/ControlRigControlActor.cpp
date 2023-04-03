@@ -206,7 +206,7 @@ void AControlRigControlActor::Refresh()
 				case ERigControlType::TransformNoScale:
 				case ERigControlType::EulerTransform:
 				{
-					if (const FControlRigShapeDefinition* ShapeDef = UControlRigShapeLibrary::GetShapeByName(ControlElement->Settings.ShapeName, ShapeLibraries))
+					if (const FControlRigShapeDefinition* ShapeDef = UControlRigShapeLibrary::GetShapeByName(ControlElement->Settings.ShapeName, ShapeLibraries, ControlRig->ShapeLibraryNameMap))
 					{
 						UMaterialInterface* BaseMaterial = nullptr;
 						if (MaterialOverride && !ColorParameter.IsEmpty())

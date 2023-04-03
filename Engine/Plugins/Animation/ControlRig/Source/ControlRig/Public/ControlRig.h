@@ -350,6 +350,9 @@ protected:
 	UPROPERTY()
 	TArray<TSoftObjectPtr<UControlRigShapeLibrary>> ShapeLibraries;
 
+	UPROPERTY(transient)
+	TMap<FString, FString> ShapeLibraryNameMap;
+
 	/** Runtime object binding */
 	TSharedPtr<IControlRigObjectBinding> ObjectBinding;
 
@@ -457,7 +460,9 @@ private:
 	void HandleHierarchyEvent(URigHierarchy* InHierarchy, const FRigEventContext& InEvent);
 	FRigEventDelegate RigEventDelegate;
 
+	void OnAddShapeLibrary(const FControlRigExecuteContext* InContext, const FString& InLibraryName, UControlRigShapeLibrary* InShapeLibrary, bool bReplaceExisting, bool bLogResults);
 	virtual void InitializeFromCDO() override;
+
 
 	UPROPERTY()
 	FRigInfluenceMapPerEvent Influences;
@@ -491,6 +496,13 @@ public:
 #endif
 
 	float GetDebugBoneRadiusMultiplier() const { return DebugBoneRadiusMultiplier; }
+
+public:
+	//~ Begin IInterface_AssetUserData Interface
+	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
+	//~ End IInterface_AssetUserData Interface
+protected:
+	mutable TArray<TObjectPtr<UAssetUserData>> CombinedAssetUserData;
 
 private:
 
@@ -697,6 +709,9 @@ private:
 	friend struct FAnimNode_ControlRig;
 	friend class URigHierarchy;
 	friend class UFKControlRig;
+	friend class UControlRigGraph;
+	friend class AControlRigControlActor;
+	friend class AControlRigShapeActor;
 };
 
 class CONTROLRIG_API FControlRigBracketScope

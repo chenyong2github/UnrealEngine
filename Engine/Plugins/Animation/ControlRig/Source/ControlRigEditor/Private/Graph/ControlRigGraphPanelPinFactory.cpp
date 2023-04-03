@@ -8,6 +8,8 @@
 #include "Graph/SControlRigGraphPinCurveFloat.h"
 #include "Graph/SControlRigGraphPinVariableName.h"
 #include "Graph/SControlRigGraphPinVariableBinding.h"
+#include "Graph/SGraphPinUserDataNameSpace.h"
+#include "Graph/SGraphPinUserDataPath.h"
 #include "KismetPins/SGraphPinExec.h"
 #include "SGraphPinComboBox.h"
 #include "ControlRig.h"
@@ -349,6 +351,15 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 							static TArray<TSharedPtr<FString>> EmptyNameList;
 							return &EmptyNameList;
 						});
+				}
+				else if (CustomWidgetName == TEXT("UserDataNameSpace"))
+				{
+					return SNew(SGraphPinUserDataNameSpace, InPin);
+				}
+				else if (CustomWidgetName == TEXT("UserDataPath"))
+				{
+					return SNew(SGraphPinUserDataPath, InPin)
+						.ModelPins({ModelPin});
 				}
 			}
 
