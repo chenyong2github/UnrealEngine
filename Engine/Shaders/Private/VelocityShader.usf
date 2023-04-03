@@ -152,7 +152,7 @@ void MainPixelShader(
 		// Update tree (coverage/transmittance/luminace weights)
 		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings();
 		const float3 V = MaterialParameters.CameraVector;
-		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, V, Settings);
+		StrataPixelHeader.StrataUpdateTree(NullStrataAddressing, V, Settings);
 
 		MaterialOpacity = StrataTree.Operators[StrataData.OperatorIndex].Coverage;
 	}

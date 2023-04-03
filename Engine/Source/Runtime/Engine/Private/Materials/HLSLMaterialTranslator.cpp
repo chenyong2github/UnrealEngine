@@ -1644,7 +1644,7 @@ bool FHLSLMaterialTranslator::Translate()
 						check(StrataCtx.StrataMaterialRootOperator);
 						int32 RootMaximumDistanceToLeaves = StrataCtx.StrataMaterialRootOperator->MaxDistanceFromLeaves;
 
-						ResourcesString += FString::Printf(TEXT("void PreUpdateAllBSDFWithBottomUpOperatorVisit%s(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataAddressing NullStrataAddressing, float3 V)\n"), *TreeFunctionPostFix);
+						ResourcesString += FString::Printf(TEXT("void  FStrataPixelHeader::PreUpdateAllBSDFWithBottomUpOperatorVisit%s(FStrataAddressing NullStrataAddressing, float3 V)\n"), *TreeFunctionPostFix);
 						ResourcesString += "{\n";
 						for (uint32 BSDFIndex = 0; BSDFIndex < StrataCtx.StrataMaterialBSDFCount; ++BSDFIndex)
 						{
@@ -1668,7 +1668,7 @@ bool FHLSLMaterialTranslator::Translate()
 										}
 										case STRATA_OPERATOR_VERTICAL:
 										{
-											// example ResourcesString += FString::Printf(TEXT("\t PreUpdateAllBSDFWithBottomUpOperatorVisit_Vertical(StrataPixelHeader, StrataTree, StrataTree.BSDFs[%d], NullStrataAddressing, V, %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
+											// example ResourcesString += FString::Printf(TEXT("\t PreUpdateAllBSDFWithBottomUpOperatorVisit_Vertical(this, StrataTree, StrataTree.BSDFs[%d], NullStrataAddressing, V, %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
 											break; // NOP
 										}
 										case STRATA_OPERATOR_ADD:
@@ -1705,11 +1705,11 @@ bool FHLSLMaterialTranslator::Translate()
 
 					// Update the coverage/transmittance of each leaves (==BSDFs) of the strata tree.
 					{
-						ResourcesString += FString::Printf(TEXT("void UpdateAllBSDFsOperatorCoverageTransmittance%s(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V)\n"), *TreeFunctionPostFix);
+						ResourcesString += FString::Printf(TEXT("void FStrataPixelHeader::UpdateAllBSDFsOperatorCoverageTransmittance%s(FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V)\n"), *TreeFunctionPostFix);
 						ResourcesString += "{\n";
 						for (uint32 BSDFIndex = 0; BSDFIndex < StrataCtx.StrataMaterialBSDFCount; ++BSDFIndex)
 						{
-							ResourcesString += FString::Printf(TEXT("\t UpdateSingleBSDFOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, StrataTree.BSDFs[%d], Settings, NullStrataAddressing, V);\n"), BSDFIndex);
+							ResourcesString += FString::Printf(TEXT("\t StrataTree.UpdateSingleBSDFOperatorCoverageTransmittance(this, %d, Settings, NullStrataAddressing, V);\n"), BSDFIndex);
 						}
 						ResourcesString += "}\n";
 					}
@@ -1720,7 +1720,7 @@ bool FHLSLMaterialTranslator::Translate()
 						check(StrataCtx.StrataMaterialRootOperator);
 						int32 RootMaximumDistanceToLeaves = StrataCtx.StrataMaterialRootOperator->MaxDistanceFromLeaves;
 
-						ResourcesString += FString::Printf(TEXT("void UpdateAllOperatorsCoverageTransmittance%s(inout FStrataTree StrataTree)\n"), *TreeFunctionPostFix);
+						ResourcesString += FString::Printf(TEXT("void FStrataPixelHeader::UpdateAllOperatorsCoverageTransmittance%s()\n"), *TreeFunctionPostFix);
 						ResourcesString += "{\n";
 						for (int32 DistanceToLeaves = 1; DistanceToLeaves <= RootMaximumDistanceToLeaves; ++DistanceToLeaves)
 						{
@@ -1729,7 +1729,7 @@ bool FHLSLMaterialTranslator::Translate()
 							{
 								if (!It.IsDiscarded() && It.MaxDistanceFromLeaves == DistanceToLeaves)
 								{
-									ResourcesString += FString::Printf(TEXT("\t UpdateSingleOperatorCoverageTransmittance(StrataTree, %d /*operator index*/);\n"), It.Index);
+									ResourcesString += FString::Printf(TEXT("\t StrataTree.UpdateSingleOperatorCoverageTransmittance(%d /*operator index*/);\n"), It.Index);
 								}
 							}
 						}
@@ -1742,7 +1742,7 @@ bool FHLSLMaterialTranslator::Translate()
 						check(StrataCtx.StrataMaterialRootOperator);
 						int32 RootMaximumDistanceToLeaves = StrataCtx.StrataMaterialRootOperator->MaxDistanceFromLeaves;
 
-						ResourcesString += FString::Printf(TEXT("void UpdateAllBSDFWithBottomUpOperatorVisit%s(inout FStrataTree StrataTree)\n"), *TreeFunctionPostFix);
+						ResourcesString += FString::Printf(TEXT("void FStrataPixelHeader::UpdateAllBSDFWithBottomUpOperatorVisit%s()\n"), *TreeFunctionPostFix);
 						ResourcesString += "{\n";
 						for (uint32 BSDFIndex = 0; BSDFIndex < StrataCtx.StrataMaterialBSDFCount; ++BSDFIndex)
 						{
@@ -1757,17 +1757,17 @@ bool FHLSLMaterialTranslator::Translate()
 										{
 										case STRATA_OPERATOR_WEIGHT:
 										{
-											ResourcesString += FString::Printf(TEXT("\t UpdateAllBSDFWithBottomUpOperatorVisit_Weight(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, 1);
+											ResourcesString += FString::Printf(TEXT("\t StrataTree.UpdateAllBSDFWithBottomUpOperatorVisit_Weight(%d /*BSDFIndex*/, %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, 1);
 											break;
 										}
 										case STRATA_OPERATOR_HORIZONTAL:
 										{
-											ResourcesString += FString::Printf(TEXT("\t UpdateAllBSDFWithBottomUpOperatorVisit_Horizontal(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
+											ResourcesString += FString::Printf(TEXT("\t StrataTree.UpdateAllBSDFWithBottomUpOperatorVisit_Horizontal(%d /*BSDFIndex*/, %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
 											break;
 										}
 										case STRATA_OPERATOR_VERTICAL:
 										{
-											ResourcesString += FString::Printf(TEXT("\t UpdateAllBSDFWithBottomUpOperatorVisit_Vertical(StrataTree, StrataTree.BSDFs[%d], %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
+											ResourcesString += FString::Printf(TEXT("\t StrataTree.UpdateAllBSDFWithBottomUpOperatorVisit_Vertical(%d /*BSDFIndex*/, %d /*Op index*/, %d /*PreviousIsInputA*/);\n"), BSDFIndex, CurrentOperator.Index, CurrentOperator.LeftIndex == PreviousOperatorIndex ? 1 : 0);
 											break;
 										}
 										case STRATA_OPERATOR_ADD:
@@ -1820,14 +1820,14 @@ bool FHLSLMaterialTranslator::Translate()
 
 				// Adde default strata functions
 				ResourcesString += "#if TEMPLATE_USES_STRATA\n";
-				ResourcesString += "void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V) {}\n";
+				ResourcesString += "void PreUpdateAllBSDFWithBottomUpOperatorVisit(FStrataAddressing NullStrataAddressing, float3 V) {}\n";
+				ResourcesString += "void UpdateAllBSDFsOperatorCoverageTransmittance(FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V) {}\n";
 				ResourcesString += "void UpdateAllOperatorsCoverageTransmittance(inout FStrataTree StrataTree) {}\n";
 				ResourcesString += "void UpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataTree StrataTree) {}\n";
-				ResourcesString += "void PreUpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataAddressing NullStrataAddressing, float3 V) {}\n";
-				ResourcesString += "void UpdateAllBSDFsOperatorCoverageTransmittance_FullySimplified(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V) {}\n";
+				ResourcesString += "void PreUpdateAllBSDFWithBottomUpOperatorVisit_FullySimplified(FStrataAddressing NullStrataAddressing, float3 V) {}\n";
+				ResourcesString += "void UpdateAllBSDFsOperatorCoverageTransmittance_FullySimplified(FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V) {}\n";
 				ResourcesString += "void UpdateAllOperatorsCoverageTransmittance_FullySimplified(inout FStrataTree StrataTree) {}\n";
 				ResourcesString += "void UpdateAllBSDFWithBottomUpOperatorVisit_FullySimplified(inout FStrataTree StrataTree) {}\n";
-				ResourcesString += "void PreUpdateAllBSDFWithBottomUpOperatorVisit_FullySimplified(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataAddressing NullStrataAddressing, float3 V) {}\n";
 				ResourcesString += "#endif\n";
 			}
 		}
@@ -11929,7 +11929,8 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 			return INDEX_NONE;
 		}
 		return AddCodeChunk(
-			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.%s.Types) /* Normal = %s ; Tangent = %s ; Thickness = %s */, Parameters.%s, %u, %u, %u, %u)"),
+			MCT_Strata, TEXT("Parameters.%s.PromoteParameterBlendedBSDFToOperator(GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.%s.Types) /* Normal = %s ; Tangent = %s ; Thickness = %s */, %u, %u, %u, %u)"),
+			*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 			*StrataGetCastParameterCode(DiffuseAlbedo,			MCT_Float3),
 			*StrataGetCastParameterCode(F0,						MCT_Float3),
 			*StrataGetCastParameterCode(F90,					MCT_Float3),
@@ -11954,7 +11955,6 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 			*NormalCode,
 			*TangentCode,
 			*ThicknessCode,
-			*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 			PromoteToOperator->Index,
 			PromoteToOperator->BSDFIndex,
 			PromoteToOperator->LayerDepth,
@@ -12023,7 +12023,8 @@ int32 FHLSLMaterialTranslator::StrataConversionFromLegacy(
 		}
 
 		return AddCodeChunk(
-			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(StrataConvertLegacyMaterial%s(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.%s.Types) /* Normal = %s ; Tangent = %s ; ClearCoat_Normal = %s ; ClearCoat_Tangent = %s */, Parameters.%s, %u, %u, %u, %u)"),
+			MCT_Strata, TEXT("Parameters.%s.PromoteParameterBlendedBSDFToOperator(StrataConvertLegacyMaterial%s(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.%s.Types) /* Normal = %s ; Tangent = %s ; ClearCoat_Normal = %s ; ClearCoat_Tangent = %s */, %u, %u, %u, %u)"),
+			*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 			bHasDynamicShadingModels ? TEXT("Dynamic") : TEXT("Static"),
 			*StrataGetCastParameterCode(BaseColor,						MCT_Float3),
 			*StrataGetCastParameterCode(Specular,						MCT_Float),
@@ -12056,7 +12057,6 @@ int32 FHLSLMaterialTranslator::StrataConversionFromLegacy(
 			// Clear coat bottom layer normal basis
 			*ClearCoat_NormalCode,
 			*ClearCoat_TangentCode,
-			*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 			PromoteToOperator->Index,
 			PromoteToOperator->BSDFIndex,
 			PromoteToOperator->LayerDepth,
@@ -12124,7 +12124,8 @@ int32 FHLSLMaterialTranslator::StrataUnlitBSDF(int32 EmissiveColor, int32 Transm
 int32 FHLSLMaterialTranslator::StrataHairBSDF(int32 BaseColor, int32 Scatter, int32 Specular, int32 Roughness, int32 Backlit, int32 EmissiveColor, int32 Tangent, const FString& SharedLocalBasisIndexMacro, FStrataOperator* PromoteToOperator)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(GetStrataHairBSDF(%s, %s, %s, %s, %s, %s, %s), Parameters.%s, %u, %u, %u, %u) /* Tangent:%s */"),
+		MCT_Strata, TEXT("Parameters.%s.PromoteParameterBlendedBSDFToOperator(GetStrataHairBSDF(%s, %s, %s, %s, %s, %s, %s), %u, %u, %u, %u) /* Tangent:%s */"),
+		*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 		*StrataGetCastParameterCode(BaseColor,			MCT_Float3),
 		*StrataGetCastParameterCode(Scatter,			MCT_Float),
 		*StrataGetCastParameterCode(Specular,			MCT_Float),
@@ -12132,7 +12133,6 @@ int32 FHLSLMaterialTranslator::StrataHairBSDF(int32 BaseColor, int32 Scatter, in
 		*StrataGetCastParameterCode(Backlit,			MCT_Float),
 		*StrataGetCastParameterCode(EmissiveColor,		MCT_Float3),
 		*SharedLocalBasisIndexMacro,
-		*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 		PromoteToOperator->Index,
 		PromoteToOperator->BSDFIndex,
 		PromoteToOperator->LayerDepth,
@@ -12144,7 +12144,8 @@ int32 FHLSLMaterialTranslator::StrataHairBSDF(int32 BaseColor, int32 Scatter, in
 int32 FHLSLMaterialTranslator::StrataEyeBSDF(int32 DiffuseAlbedo, int32 Roughness, int32 IrisMask, int32 IrisDistance, int32 IrisNormal, int32 IrisPlaneNormal, int32 SSSProfileId, int32 EmissiveColor, int32 CorneaNormal, const FString& SharedLocalBasisIndexMacro, FStrataOperator* PromoteToOperator)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(GetStrataEyeBSDF(%s, %s, %s, %s, %s, %s, %s, %s, %s), Parameters.%s, %u, %u, %u, %u) /* Cornea:%s Iris:%s */"),
+		MCT_Strata, TEXT("Parameters.%s.PromoteParameterBlendedBSDFToOperator(GetStrataEyeBSDF(%s, %s, %s, %s, %s, %s, %s, %s, %s), %u, %u, %u, %u) /* Cornea:%s Iris:%s */"),
+		*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 		*StrataGetCastParameterCode(DiffuseAlbedo, MCT_Float3),
 		*StrataGetCastParameterCode(Roughness, MCT_Float),
 		*StrataGetCastParameterCode(IrisMask, MCT_Float),
@@ -12154,7 +12155,6 @@ int32 FHLSLMaterialTranslator::StrataEyeBSDF(int32 DiffuseAlbedo, int32 Roughnes
 		*StrataGetCastParameterCode(SSSProfileId, MCT_Float),
 		*StrataGetCastParameterCode(EmissiveColor, MCT_Float3),
 		*SharedLocalBasisIndexMacro,
-		*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 		PromoteToOperator->Index,
 		PromoteToOperator->BSDFIndex,
 		PromoteToOperator->LayerDepth,
@@ -12170,7 +12170,8 @@ int32 FHLSLMaterialTranslator::StrataSingleLayerWaterBSDF(
 	FStrataOperator* PromoteToOperator)
 {
 	return AddCodeChunk(
-		MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(GetStrataSingleLayerWaterBSDF(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s), Parameters.%s, %u, %u, %u, %u) /* Normal:%s */"),
+		MCT_Strata, TEXT("Parameters.%s.PromoteParameterBlendedBSDFToOperator(GetStrataSingleLayerWaterBSDF(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s), %u, %u, %u, %u) /* Normal:%s */"),
+		*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 		*StrataGetCastParameterCode(BaseColor,				MCT_Float3),
 		*StrataGetCastParameterCode(Metallic,				MCT_Float),
 		*StrataGetCastParameterCode(Specular,				MCT_Float),
@@ -12182,7 +12183,6 @@ int32 FHLSLMaterialTranslator::StrataSingleLayerWaterBSDF(
 		*StrataGetCastParameterCode(WaterPhaseG,			MCT_Float),
 		*StrataGetCastParameterCode(ColorScaleBehindWater,	MCT_Float3),
 		*SharedLocalBasisIndexMacro,
-		*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 		PromoteToOperator->Index,
 		PromoteToOperator->BSDFIndex,
 		PromoteToOperator->LayerDepth,
@@ -12198,11 +12198,11 @@ int32 FHLSLMaterialTranslator::StrataHorizontalMixing(int32 Background, int32 Fo
 		return INDEX_NONE;
 	}
 	return AddCodeChunk(
-		MCT_Strata, TEXT("StrataHorizontalMixing(%s, %s, %s, Parameters.%s, %u, %u)"),
+		MCT_Strata, TEXT("Parameters.%s.StrataHorizontalMixing(%s, %s, %s, %u, %u)"),
+		*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 		*GetParameterCode(Background),
 		*GetParameterCode(Foreground),
 		*GetParameterCode(Mix),
-		*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 		OperatorIndex,
 		MaxDistanceFromLeaves
 	);
@@ -12221,13 +12221,13 @@ int32 FHLSLMaterialTranslator::StrataHorizontalMixingParameterBlending(
 		check(PromoteToOperator->Index != INDEX_NONE);
 		check(PromoteToOperator->BSDFIndex != INDEX_NONE);
 		return AddCodeChunk(
-			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(StrataHorizontalMixingParameterBlending(%s, %s, %s, %s, %s), Parameters.%s, %u, %u, %u, %u)"),
+			MCT_Strata, TEXT("Parameters.%s.PromoteParameterBlendedBSDFToOperator(StrataHorizontalMixingParameterBlending(%s, %s, %s, %s, %s), %u, %u, %u, %u)"),
+			*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 			*GetParameterCode(Background),
 			*GetParameterCode(Foreground),
 			*GetParameterCode(HorizontalMixCodeChunk),
 			*GetParameterCode(NormalMixCodeChunk),
 			*SharedLocalBasisIndexMacro,
-			*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 			PromoteToOperator->Index,
 			PromoteToOperator->BSDFIndex,
 			PromoteToOperator->LayerDepth,
@@ -12253,10 +12253,10 @@ int32 FHLSLMaterialTranslator::StrataVerticalLayering(int32 Top, int32 Base, int
 	}
 	const FString ThicknessCode = Thickness != INDEX_NONE ? GetParameterCode(Thickness) : TEXT("NONE");;
 	return AddCodeChunk(
-		MCT_Strata, TEXT("StrataVerticalLayering(%s, %s, Parameters.%s, %u, %u) /* Thickness = %s */"),
+		MCT_Strata, TEXT("Parameters.%s.StrataVerticalLayering(%s, %s, %u, %u) /* Thickness = %s */"),
+		*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 		*GetParameterCode(Top),
 		*GetParameterCode(Base),
-		*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 		OperatorIndex,
 		MaxDistanceFromLeaves,
 		*ThicknessCode
@@ -12277,13 +12277,13 @@ int32 FHLSLMaterialTranslator::StrataVerticalLayeringParameterBlending(int32 Top
 		check(PromoteToOperator->Index != INDEX_NONE);
 		check(PromoteToOperator->BSDFIndex != INDEX_NONE);
 		return AddCodeChunk(
-			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(StrataVerticalLayeringParameterBlending(%s, %s, %s, dot(%s, %s)), Parameters.%s, %u, %u, %u, %u) /* Thickness = %s */"),
+			MCT_Strata, TEXT("Parameters.%s.PromoteParameterBlendedBSDFToOperator(StrataVerticalLayeringParameterBlending(%s, %s, %s, dot(%s, %s)), %u, %u, %u, %u) /* Thickness = %s */"),
+			*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 			*GetParameterCode(Top),
 			*GetParameterCode(Base),
 			*SharedLocalBasisIndexMacro,
 			*GetParameterCode(TopBSDFNormalCodeChunk),
 			*GetParameterCode(CameraVector()),
-			*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 			PromoteToOperator->Index,
 			PromoteToOperator->BSDFIndex,
 			PromoteToOperator->LayerDepth,
@@ -12310,10 +12310,10 @@ int32 FHLSLMaterialTranslator::StrataAdd(int32 A, int32 B, int OperatorIndex, ui
 		return INDEX_NONE;
 	}
 	return AddCodeChunk(
-		MCT_Strata, TEXT("StrataAdd(%s, %s, Parameters.%s, %u, %u)"),
+		MCT_Strata, TEXT("Parameters.%s.StrataAdd(%s, %s, %u, %u)"),
+		*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 		*GetParameterCode(A),
 		*GetParameterCode(B),
-		*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 		OperatorIndex,
 		MaxDistanceFromLeaves
 	);
@@ -12331,12 +12331,12 @@ int32 FHLSLMaterialTranslator::StrataAddParameterBlending(int32 A, int32 B, int3
 		check(PromoteToOperator->Index != INDEX_NONE);
 		check(PromoteToOperator->BSDFIndex != INDEX_NONE);
 		return AddCodeChunk(
-			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(StrataAddParameterBlending(%s, %s, %s, %s), Parameters.%s, %u, %u, %u, %u)"),
+			MCT_Strata, TEXT("Parameters.%s.PromoteParameterBlendedBSDFToOperator(StrataAddParameterBlending(%s, %s, %s, %s), %u, %u, %u, %u)"),
+			*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 			*GetParameterCode(A),
 			*GetParameterCode(B),
 			*GetParameterCode(AMixWeight),
 			*SharedLocalBasisIndexMacro,
-			*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 			PromoteToOperator->Index,
 			PromoteToOperator->BSDFIndex,
 			PromoteToOperator->LayerDepth,
@@ -12360,10 +12360,10 @@ int32 FHLSLMaterialTranslator::StrataWeight(int32 A, int32 Weight, int OperatorI
 		return INDEX_NONE;
 	}
 	return AddCodeChunk(
-		MCT_Strata, TEXT("StrataWeight(%s, %s, Parameters.%s, %u, %u)"),
+		MCT_Strata, TEXT("Parameters.%s.StrataWeight(%s, %s, %u, %u)"),
+		*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 		*GetParameterCode(A),
 		*GetParameterCode(Weight),
-		*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 		OperatorIndex,
 		MaxDistanceFromLeaves
 	);
@@ -12381,10 +12381,10 @@ int32 FHLSLMaterialTranslator::StrataWeightParameterBlending(int32 A, int32 Weig
 		check(PromoteToOperator->Index != INDEX_NONE);
 		check(PromoteToOperator->BSDFIndex != INDEX_NONE);
 		return AddCodeChunk(
-			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(StrataWeightParameterBlending(%s, %s), Parameters.%s, %u, %u, %u, %u)"),
+			MCT_Strata, TEXT("Parameters.%s.PromoteParameterBlendedBSDFToOperator(StrataWeightParameterBlending(%s, %s), %u, %u, %u, %u)"),
+			*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 			*GetParameterCode(A),
 			*GetParameterCode(Weight),
-			*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 			PromoteToOperator->Index,
 			PromoteToOperator->BSDFIndex,
 			PromoteToOperator->LayerDepth,

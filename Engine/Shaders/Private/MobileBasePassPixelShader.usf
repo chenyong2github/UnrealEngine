@@ -410,16 +410,16 @@ void Main(
 	FStrataData StrataData = PixelMaterialInputs.GetFrontStrataData();
 	FStrataPixelHeader StrataPixelHeader = MaterialParameters.GetFrontStrataHeader();
 	StrataPixelHeader.IrradianceAO.MaterialAO = MaterialAO;
-	SetCastContactShadow(StrataPixelHeader, GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW);
-	SetDynamicIndirectShadowCasterRepresentation(StrataPixelHeader, GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAPSULE_REPRESENTATION);
+	StrataPixelHeader.SetCastContactShadow(GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW);
+	StrataPixelHeader.SetDynamicIndirectShadowCasterRepresentation(GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAPSULE_REPRESENTATION);
 #endif
 
 #if STRATA_ENABLED && STRATA_INLINE_SINGLELAYERWATER
-	SetMaterialMode(StrataPixelHeader, HEADER_MATERIALMODE_SLWATER);
+	StrataPixelHeader.SetMaterialMode(HEADER_MATERIALMODE_SLWATER);
 
 	// Override GBuffer data with Strata SLW water BSDF to run forward shadfing code.
 	// STRATA_TODO: run the shading through a strata path? (by adding a special BSDF?)
-	SanitizeStrataSingleLayerWater(StrataPixelHeader.StrataTree.BSDFs[0]);
+	StrataPixelHeader.StrataTree.BSDFs[0].StrataSanitizeBSDF();
 	FStrataBSDF SLWBSDF = StrataPixelHeader.StrataTree.BSDFs[0];
 
 	half3 BaseColor = SLW_BASECOLOR(SLWBSDF);
@@ -561,26 +561,26 @@ void Main(
 	{
 		// Encode shadow mask only if the shadow mask is entirely non-zero and non-one
 	#if WRITES_PRECSHADOWFACTOR_ZERO
-		SetHasPrecShadowMask(StrataPixelHeader, false);
-		SetZeroPrecShadowMask(StrataPixelHeader, true);
+		StrataPixelHeader.SetHasPrecShadowMask(false);
+		StrataPixelHeader.SetZeroPrecShadowMask(true);
 	#else
 	  #if ALLOW_STATIC_LIGHTING
 		const bool bAllZero = all(GBuffer.PrecomputedShadowFactors == 0);
 		const bool bAllOne  = all(GBuffer.PrecomputedShadowFactors == 1);
 		if (!bAllZero && !bAllOne)
 		{
-			SetHasPrecShadowMask(StrataPixelHeader, true);
+			StrataPixelHeader.SetHasPrecShadowMask(true);
 		}
 		else if (bAllZero)
 		{
-			SetHasPrecShadowMask(StrataPixelHeader, false);
-			SetZeroPrecShadowMask(StrataPixelHeader, true);
+			StrataPixelHeader.SetHasPrecShadowMask(false);
+			StrataPixelHeader.SetZeroPrecShadowMask(true);
 		}
 		else if (bAllOne)
 	  #endif
 		{
-			SetHasPrecShadowMask(StrataPixelHeader, false);
-			SetZeroPrecShadowMask(StrataPixelHeader, false);
+			StrataPixelHeader.SetHasPrecShadowMask(false);
+			StrataPixelHeader.SetZeroPrecShadowMask(false);
 		}
 	#endif
 	}
@@ -661,7 +661,7 @@ void Main(
 
 	// Unlit forces a single BSDF
 	FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
-	SanitizeStrataUnlit(UnlitBSDF);
+	UnlitBSDF.StrataSanitizeBSDF();
 
 	DualBlendSurfaceLuminancePostCoverage = BSDF_GETEMISSIVE(UnlitBSDF);
 	DualBlendSurfaceTransmittancePreCoverage = UNLIT_TRANSMITTANCE(UnlitBSDF);

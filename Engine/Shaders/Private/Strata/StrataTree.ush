@@ -1,9 +1,14 @@
 
+#pragma once
+
 #include "/Engine/Private/Strata/StrataEvaluation.ush"
 #include "/Engine/Private/ShadingCommon.ush"
 
+//#ifndef STRATA_OPAQUE_MATERIAL
+//#define STRATA_OPAQUE_MATERIAL 0
+//#endif
 #ifndef STRATA_OPAQUE_MATERIAL
-#define STRATA_OPAQUE_MATERIAL 0
+#error STRATA_OPAQUE_MATERIAL not defined
 #endif
 
 // STRATA_TODO We assume layers all have the same IOR. But we should take into account the material later.
@@ -11,66 +16,21 @@
 #define WATER_IOR		1.0f 
 #define AIR_IOR			1.0f
 
-
-///////////////////////////////////////////////////////////////////////////////
-// Utilities
-
-void PostProcessSlabBeforeLighting(inout FStrataBSDF BSDF)
-{
-	// Two sided lighting can only be evaluated on the bottom layer, together with option SSS. Otherwise, the simple volume will be used.
-	// At the moment, a material can't be thin & simple volume at the same time. This should be fixed by unifying SSSDiffusion|SSSWrap|SimpleVolume into a single evaluation function
-	const bool bIsThin = BSDF.bIsBottom && BSDF_GETISTHIN(BSDF);
-
-	// We want simple volumetric only if the MFP input is pluged in, otherwise we avoid dealing with simple volumetric.
-	// We also do not want to use the simple volumetric path if we are dealing with an opaque material and this slab is not at the bottom.
-	// And when opaque, the bottom layer must be opaque and thus will ahve a solid opaque diffuse color.
-	const bool bIsSimpleVolume = !bIsThin && BSDF_GETHASMFP(BSDF) && (!STRATA_OPAQUE_MATERIAL || (STRATA_OPAQUE_MATERIAL && !BSDF.bIsBottom));
-
-	if (bIsSimpleVolume)
-	{
-		EnableSlabBSDFSimpleVolumetric(BSDF);
-	}
-
-	if (bIsThin)
-	{
-		EnableSlabBSDFIsThin(BSDF);
-	}
-	else
-	{
-		// If not selected or not possible to have two sided lighting enabled (not bottom layer or SSSProfile is enabled), let's make sure we disable the feature.
-		BSDF_SETISTHIN(BSDF, 0);
-	}
-}
-
-void PostProcessBSDFBeforeLighting(inout FStrataBSDF BSDF)
-{
-	switch (BSDF_GETTYPE(BSDF))
-	{
-	case STRATA_BSDF_TYPE_SLAB:
-	{
-		PostProcessSlabBeforeLighting(BSDF);
-		break;
-	}
-	}
-}
-
-
-
 ///////////////////////////////////////////////////////////////////////////////
 // Tree processing functions
 
-void UpdateSingleBSDFOperatorCoverageTransmittance(
+void FStrataTree::UpdateSingleBSDFOperatorCoverageTransmittance(
 	FStrataPixelHeader StrataPixelHeader,
-	inout FStrataTree StrataTree, 
-	inout FStrataBSDF CurrentBSDF,
+	int BSDFIndex,
 	FStrataIntegrationSettings Settings,
 	FStrataAddressing NullStrataAddressing,
-	float3 V
-)
+	float3 V)
 {
 #if STRATA_INLINE_SHADING
 
-#define Op StrataTree.Operators[CurrentBSDF.OperatorIndex]
+	
+#define CurrentBSDF this.BSDFs[BSDFIndex]
+#define Op this.Operators[CurrentBSDF.OperatorIndex]
 
 	// this feature is only needed for development/editor - we can compile it out for a shipping build (see r.CompileShadersForDevelopment cvar help)
 #if USE_DEVELOPMENT_SHADERS
@@ -87,7 +47,7 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 #endif
 
 	// Sanitize BSDF before it is used for forward shading or exported to GBuffer
-	StrataSanitizeBSDF(CurrentBSDF);
+	CurrentBSDF.StrataSanitizeBSDF();
 
 	// Distortion and translucency passes accumnulate pass calls for colored transmittance, coverage and TopDownRefractionLobeStat to be setup correctly.
 #if STRATA_COMPLEXPATH || MATERIALBLENDING_ANY_TRANSLUCENT
@@ -98,7 +58,8 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 	Op.OpaqueRoughRefractCoverage	  = CurrentBSDF.bIsTop    ? CurrentBSDF.Coverage	: 0.0f;
 	Op.OpaqueRoughRefractTopRoughness = CurrentBSDF.bIsTop    ? Roughness				: 0.0f;
 
-	PostProcessBSDFBeforeLighting(CurrentBSDF);
+	const bool bIsStrataOpaqueMaterial = STRATA_OPAQUE_MATERIAL > 0;
+	CurrentBSDF.PostProcessBSDFBeforeLighting(bIsStrataOpaqueMaterial);
 
 	// Compute current BSDF transmittance
 	float3 LEqualN = TangentBasis[2];
@@ -169,18 +130,19 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 	Op.TopDownRefractionWorldNormal = TangentBasis[2];
 
 #undef Op
+#undef CurrentBSDF
 
 #endif // STRATA_INLINE_SHADING
 }
 
 
-void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int OpIndex)
+void FStrataTree::UpdateSingleOperatorCoverageTransmittance(int OpIndex)
 {
 #if STRATA_INLINE_SHADING
 
-#define Op StrataTree.Operators[OpIndex]
-#define OpA StrataTree.Operators[StrataTree.Operators[OpIndex].LeftIndex]
-#define OpB StrataTree.Operators[StrataTree.Operators[OpIndex].RightIndex]
+#define Op this.Operators[OpIndex]
+#define OpA this.Operators[this.Operators[OpIndex].LeftIndex]
+#define OpB this.Operators[this.Operators[OpIndex].RightIndex]
 
 	// Propagate bIsTop:
 	//  - horizontal, add, weight operations: Any of the operand bIsTop should be enough to determine this operator depth
@@ -336,12 +298,12 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 
 
 
-#define Op StrataTree.Operators[OpIndex]
+#define CurrentBSDF this.BSDFs[BSDFIndex]
+#define Op this.Operators[OpIndex]
 
 // Post-update visit operators
-void UpdateAllBSDFWithBottomUpOperatorVisit_Weight(
-	inout FStrataTree StrataTree,
-	inout FStrataBSDF CurrentBSDF,
+void FStrataTree::UpdateAllBSDFWithBottomUpOperatorVisit_Weight(
+	int BSDFIndex,
 	int OpIndex,
 	int PreviousIsInputA)
 {
@@ -356,9 +318,8 @@ void UpdateAllBSDFWithBottomUpOperatorVisit_Weight(
 #endif // STRATA_INLINE_SHADING
 }
 
-void UpdateAllBSDFWithBottomUpOperatorVisit_Horizontal(
-	inout FStrataTree StrataTree,
-	inout FStrataBSDF CurrentBSDF,
+void FStrataTree::UpdateAllBSDFWithBottomUpOperatorVisit_Horizontal(
+	int BSDFIndex,
 	int OpIndex,
 	int PreviousIsInputA)
 {
@@ -376,9 +337,8 @@ void UpdateAllBSDFWithBottomUpOperatorVisit_Horizontal(
 #endif // STRATA_INLINE_SHADING
 }
 
-void UpdateAllBSDFWithBottomUpOperatorVisit_Vertical(
-	inout FStrataTree StrataTree,
-	inout FStrataBSDF CurrentBSDF,
+void FStrataTree::UpdateAllBSDFWithBottomUpOperatorVisit_Vertical(
+	int BSDFIndex,
 	int OpIndex,
 	int PreviousIsInputA)
 {
@@ -422,12 +382,13 @@ void UpdateAllBSDFWithBottomUpOperatorVisit_Vertical(
 		const float BottomUpInterfaceEta = bIsTop ? WATER_IOR / AIR_IOR : 1.0f;
 		FStrataLobeStatistic RefractedLobe = StrataGetRefractedLobe(StrataOppositeLobe(ReflectedLobe), DummyInterfaceDFG, StrataLobeVarianceToRoughness(TopLayerSigma), BottomUpInterfaceEta);
 
-		StrataSetBSDFRoughness(CurrentBSDF, StrataLobeVarianceToRoughness(RefractedLobe.Sigma));
+		CurrentBSDF.StrataSetBSDFRoughness(StrataLobeVarianceToRoughness(RefractedLobe.Sigma));
 	}
 
 #endif // STRATA_INLINE_SHADING
 }
 
 #undef Op
+#undef CurrentBSDF
 
 

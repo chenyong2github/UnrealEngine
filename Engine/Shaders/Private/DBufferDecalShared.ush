@@ -241,7 +241,7 @@ void ApplyDBufferData(in FStrataDBuffer StrataDBufferData, inout FStrataPixelHea
 
 					FStrataPixelHeader StrataDecalHeader;
 					FStrataData StrataDecalData;
-					StrataConvertFromDBuffer(LocalStrataDBufferData, StrataDecalHeader, StrataDecalData);
+					StrataDecalHeader.StrataConvertFromDBuffer(LocalStrataDBufferData, StrataDecalData);
 
 					// Parameters blend attributes
 					const float Coverage = StrataDecalData.Layers[l].BSDFs[i].Coverage;

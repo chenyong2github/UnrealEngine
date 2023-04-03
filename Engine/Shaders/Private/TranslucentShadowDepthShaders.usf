@@ -102,17 +102,16 @@ void MainOpacityPS(
 
 	float Sigma = 0.0f;
 	float3 RefractionWorldNormal = MaterialParameters.CameraVector;
-	FStrataTree StrataTree = StrataPixelHeader.StrataTree;
-	if (StrataTree.BSDFCount > 0)
+	if (StrataPixelHeader.StrataTree.BSDFCount > 0)
 	{
 		const float3 V = MaterialParameters.CameraVector;
 
 		// Update tree (coverage/transmittance/luminace weights)
 		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse /*bRoughDiffuseEnabled*/, Strata.PeelLayersAboveDepth, Strata.bRoughnessTracking);
-		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, V, Settings);
+		StrataPixelHeader.StrataUpdateTree(NullStrataAddressing, V, Settings);
 
 		const float StrataTreeRootOperatorIndex = StrataData.OperatorIndex;
-		const FStrataOperator RootOperator = StrataTree.Operators[StrataTreeRootOperatorIndex];
+		const FStrataOperator RootOperator = StrataPixelHeader.StrataTree.Operators[StrataTreeRootOperatorIndex];
 
 		Density = (1.0 - RootOperator.Coverage) + RootOperator.Coverage * dot(RootOperator.ThroughputAlongV, (1.0f / 3.0f).xxx);
 	}

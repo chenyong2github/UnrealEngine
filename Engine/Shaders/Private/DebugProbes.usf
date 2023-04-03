@@ -20,14 +20,14 @@ uint MaxBytesPerPixel;
 uint bRoughDiffuse;
 
 // Default functions for PackStrataOut to function properly
-void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V) {}
-void UpdateAllOperatorsCoverageTransmittance(inout FStrataTree StrataTree) {}
-void UpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataTree StrataTree) {}
-void PreUpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataAddressing NullStrataAddressing, float3 V) {}
-void UpdateAllBSDFsOperatorCoverageTransmittance_FullySimplified(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V) {}
-void UpdateAllOperatorsCoverageTransmittance_FullySimplified(inout FStrataTree StrataTree) {}
-void UpdateAllBSDFWithBottomUpOperatorVisit_FullySimplified(inout FStrataTree StrataTree) {}
-void PreUpdateAllBSDFWithBottomUpOperatorVisit_FullySimplified(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataAddressing NullStrataAddressing, float3 V) {}
+void FStrataPixelHeader::PreUpdateAllBSDFWithBottomUpOperatorVisit(FStrataAddressing NullStrataAddressing, float3 V) {}
+void FStrataPixelHeader::UpdateAllBSDFsOperatorCoverageTransmittance(FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V) {}
+void FStrataPixelHeader::UpdateAllOperatorsCoverageTransmittance() {}
+void FStrataPixelHeader::UpdateAllBSDFWithBottomUpOperatorVisit() {}
+void FStrataPixelHeader::PreUpdateAllBSDFWithBottomUpOperatorVisit_FullySimplified(FStrataAddressing NullStrataAddressing, float3 V) {}
+void FStrataPixelHeader::UpdateAllBSDFsOperatorCoverageTransmittance_FullySimplified(FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V) {}
+void FStrataPixelHeader::UpdateAllOperatorsCoverageTransmittance_FullySimplified() {}
+void FStrataPixelHeader::UpdateAllBSDFWithBottomUpOperatorVisit_FullySimplified() {}
 
 #endif // STRATA_ENABLED
 
@@ -110,7 +110,7 @@ void WriteOutMaterial(
 	StrataPixelHeader.StrataTree = GetInitialisedStrataTree();
 	StrataPixelHeader.IrradianceAO = InitIrradianceAndOcclusion();
 	StrataPixelHeader.IrradianceAO.MaterialAO = 1.0f - IndirectIrradianceAndAO;
-	SetCastContactShadow(StrataPixelHeader, 0);
+	StrataPixelHeader.SetCastContactShadow(0);
 
 	uint SharedLocalBasisIndex = 0;
 	const float3 NormalizedNormal = normalize(Normal);
@@ -142,7 +142,7 @@ void WriteOutMaterial(
 		/*uint SharedLocalBasisIndex			*/SharedLocalBasisIndex,
 		/*inout uint SharedLocalBasisTypes		*/StrataPixelHeader.SharedLocalBases.Types);
 
-	FStrataData StrataData = PromoteParameterBlendedBSDFToOperator(StrataSlabData, StrataPixelHeader.StrataTree, /*int OperatorIndex*/0, /*int BSDFIndex*/0, /*int LayerDepth*/0, /*int bIsBottom*/1);
+	FStrataData StrataData = StrataPixelHeader.StrataTree.PromoteParameterBlendedBSDFToOperator(StrataSlabData, /*int OperatorIndex*/0, /*int BSDFIndex*/0, /*int LayerDepth*/0, /*int bIsBottom*/1);
 	StrataPixelHeader.StrataTree.BSDFs[0].LuminanceWeightV = 1.0f;
 	StrataPixelHeader.StrataTree.BSDFs[0].TransmittanceAboveAlongN = 1.0f;
 	StrataPixelHeader.StrataTree.BSDFs[0].TopLayerDataWeight = 1.0f;

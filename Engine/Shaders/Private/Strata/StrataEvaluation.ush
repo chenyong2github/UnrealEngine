@@ -108,6 +108,8 @@ struct FStrataBSDFContext
 	float3 TangentV;
 	float3 TangentH;
 	float3 TangentB;
+
+	void StrataUpdateBSDFContext(float3 NewL);
 };
 
 FStrataBSDFContext StrataCreateBSDFContext(float3x3 TangentBasis, FStrataBSDF BSDF, float3 V, float3 L, bool bHasValidL=true)
@@ -168,20 +170,20 @@ FStrataBSDFContext StrataCreateBSDFContext(FStrataPixelHeader StrataPixelHeader,
 	return StrataCreateBSDFContext(TangentBasis, BSDF, V, L, true);
 }
 
-void StrataUpdateBSDFContext(inout FStrataBSDFContext BSDFContext, float3 NewL)
+void FStrataBSDFContext::StrataUpdateBSDFContext(float3 NewL)
 {
 	// Update all the data related to L
-	BSDFContext.L = NewL;
-	Init(BSDFContext.Context, BSDFContext.N, BSDFContext.V, BSDFContext.L);
-	BSDFContext.R		 = 2 * dot(BSDFContext.V, BSDFContext.N) * BSDFContext.N - BSDFContext.V;
-	BSDFContext.H		 = normalize(BSDFContext.V + BSDFContext.L);
-	BSDFContext.B		 = normalize(BSDFContext.R + BSDFContext.L);
+	this.L = NewL;
+	Init(this.Context, this.N, this.V, this.L);
+	this.R		 = 2 * dot(this.V, this.N) * this.N - this.V;
+	this.H		 = normalize(this.V + this.L);
+	this.B		 = normalize(this.R + this.L);
 
-	BSDFContext.TangentH = mul(BSDFContext.TangentBasis, BSDFContext.H);
-	BSDFContext.TangentB = mul(BSDFContext.TangentBasis, BSDFContext.B);
+	this.TangentH = mul(this.TangentBasis, this.H);
+	this.TangentB = mul(this.TangentBasis, this.B);
 
-	BSDFContext.SatNoL	 = saturate(BSDFContext.Context.NoL);
-	BSDFContext.SatNoV	 = saturate(BSDFContext.Context.NoV);
+	this.SatNoL	 = saturate(this.Context.NoL);
+	this.SatNoV	 = saturate(this.Context.NoV);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1144,7 +1146,7 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataBSDFContext BSDF
 			}
 
 			// Evaluate lobes
-			StrataUpdateBSDFContext(BSDFContext, Out.L);
+			BSDFContext.StrataUpdateBSDFContext(Out.L);
 			const FStrataEvaluateResult Evaluate = StrataEvaluateBSDF(BSDFContext, Settings);
 
 			// Add lobes mixtures
@@ -1239,7 +1241,7 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataBSDFContext BSDF
 			}
 
 			// Evaluate lobes
-			StrataUpdateBSDFContext(BSDFContext, Out.L);
+			BSDFContext.StrataUpdateBSDFContext(Out.L);
 			const FStrataEvaluateResult Evaluate = StrataEvaluateBSDF(BSDFContext, Settings);
 
 			// Add lobes mixtures

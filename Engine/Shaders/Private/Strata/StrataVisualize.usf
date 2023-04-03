@@ -93,12 +93,12 @@ RWBuffer<uint> RWPositionOffsetBuffer;
 
 void PrintPixelType(inout FShaderPrintContext Ctx, in FStrataPixelHeader Header, FFontColor InColor)
 {
-	if (IsSimpleMaterial(Header))			Print(Ctx, TEXT("Simple  "), InColor);
-	else if (IsSingleMaterial(Header))		Print(Ctx, TEXT("Single  "), InColor);
-	else if (IsComplexMaterial(Header))		Print(Ctx, TEXT("Complex "), InColor);
-	else if (IsSingleLayerWater(Header))	Print(Ctx, TEXT("SLWater "), InColor);
-	else if (IsHair(Header))				Print(Ctx, TEXT("Hair    "), InColor);
-	else if (IsEye(Header))					Print(Ctx, TEXT("Eye     "), InColor);
+	if (Header.IsSimpleMaterial())			Print(Ctx, TEXT("Simple  "), InColor);
+	else if (Header.IsSingleMaterial())		Print(Ctx, TEXT("Single  "), InColor);
+	else if (Header.IsComplexMaterial())	Print(Ctx, TEXT("Complex "), InColor);
+	else if (Header.IsSingleLayerWater())	Print(Ctx, TEXT("SLWater "), InColor);
+	else if (Header.IsHair())				Print(Ctx, TEXT("Hair    "), InColor);
+	else if (Header.IsEye())				Print(Ctx, TEXT("Eye     "), InColor);
 	else									Print(Ctx, TEXT("Error - Unkown pixel type"), FontRed);
 }
 
@@ -360,7 +360,7 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 			const float3x3 IrisPlaneTangentBasis = GetTangentBasis(EYE_IRISPLANENORMAL(BSDF));
 			DrawReferentialTWS(WorldPosition, IrisPlaneTangentBasis[0], IrisPlaneTangentBasis[1], IrisPlaneTangentBasis[2], float3(1, 0, 1));
 
-			const bool bHasSSS = HasSubsurface(Header);
+			const bool bHasSSS = Header.HasSubsurface();
 			const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.MaterialTextureArray, Strata.FirstSliceStoringStrataSSSData, StrataAddressing.PixelCoords);
 			const bool bIsValid = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
 			const bool bIsProfile = StrataSubSurfaceHeaderGetIsProfile(SSSHeader);
@@ -431,8 +431,8 @@ void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData((STRATA_TOP_LAYER_TYPE)Strata.TopLayerTexture.Load(uint3(InCoord, 0)));
 
 		const bool bStrataMaterial = Header.BSDFCount > 0;
-		const bool bIsSimpleMaterial = IsSimpleMaterial(Header) || Header.BSDFCount == 0;
-		const bool bIsSingleMaterial = !IsSimpleMaterial(Header) && IsSingleMaterial(Header);
+		const bool bIsSimpleMaterial = Header.IsSimpleMaterial() || Header.BSDFCount == 0;
+		const bool bIsSingleMaterial = !Header.IsSimpleMaterial() && Header.IsSingleMaterial();
 
 		FStrataIrradianceAndOcclusion IrradianceAndOcclusion = StrataGetIrradianceAndAO(Header);
 
@@ -476,11 +476,11 @@ void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 		Print(Context, IrradianceAndOcclusion.MaterialAO, FontHeaderPropValue, 5, 3);					Print(Context, TEXT(" "));
 		Print(Context, IrradianceAndOcclusion.IndirectIrradiance, FontHeaderPropValue, 6, 3);			Print(Context, TEXT(" "));
 		Print(Context, TopLayerData.Roughness, FontHeaderPropValue, 5, 3);								Print(Context, TEXT("        "));
-		PrintBool(Context, HasPrecShadowMask(Header));													Print(Context, TEXT("      "));
-		PrintBool(Context, HasZeroPrecShadowMask(Header));												Print(Context, TEXT("       "));
-		PrintBool(Context, DoesCastContactShadow(Header));												Print(Context, TEXT("         "));
-		PrintBool(Context, HasDynamicIndirectShadowCasterRepresentation(Header));						Print(Context, TEXT("         "));
-		PrintBool(Context, HasSubsurface(Header));
+		PrintBool(Context, Header.HasPrecShadowMask());													Print(Context, TEXT("      "));
+		PrintBool(Context, Header.HasZeroPrecShadowMask());												Print(Context, TEXT("       "));
+		PrintBool(Context, Header.DoesCastContactShadow());												Print(Context, TEXT("         "));
+		PrintBool(Context, Header.HasDynamicIndirectShadowCasterRepresentation());						Print(Context, TEXT("         "));
+		PrintBool(Context, Header.HasSubsurface());
 		Newline(Context, RectMax);
 		Newline(Context);
 		
@@ -509,8 +509,8 @@ void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 	if (BSDFIndex+1 == Header.BSDFCount)
 	{
 		const bool bStrataMaterial = Header.BSDFCount > 0;
-		const bool bIsSimpleMaterial = IsSimpleMaterial(Header) || Header.BSDFCount == 0;
-		const bool bIsSingleMaterial = !IsSimpleMaterial(Header) && IsSingleMaterial(Header);
+		const bool bIsSimpleMaterial = Header.IsSimpleMaterial() || Header.BSDFCount == 0;
+		const bool bIsSingleMaterial = !Header.IsSimpleMaterial() && Header.IsSingleMaterial();
 
 		const uint FootPrint_PostBSDFs = StrataAddressing.ReadBytes;
 
@@ -527,13 +527,13 @@ void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 		RectMin = Context.Pos;
 		RectMax = Context.StartPos;
 		Print(Context, TEXT("Memory"), FontEmerald); Newline(Context, RectMax);
-		if (bIsSingleMaterial || IsEye(Header) || IsHair(Header))
+		if (bIsSingleMaterial || Header.IsEye() || Header.IsHair())
 		{
 			Print(Context, TEXT(" Header       "), FontSilver); Print(Context, HeaderSize - TopLayerDataBytes,				FontSilver, 3, 0); Print(Context, TEXT("bytes"), FontSilver); Newline(Context, RectMax);
 			Print(Context, TEXT(" TopNormalTex "), FontSilver); Print(Context, TopLayerDataBytes,							FontSilver, 3, 0); Print(Context, TEXT("bytes"), FontSilver); Newline(Context, RectMax);
 			Print(Context, TEXT(" BSDF         "), FontSilver); Print(Context, BSDFsSize,									FontSilver, 3, 0); Print(Context, TEXT("bytes"), FontSilver); Newline(Context, RectMax);
 		}
-		else if (bIsSimpleMaterial || IsSingleLayerWater(Header))
+		else if (bIsSimpleMaterial || Header.IsSingleLayerWater())
 		{
 			Print(Context, TEXT(" Header+BSDF  "), FontSilver); Print(Context, HeaderSize + BSDFsSize - TopLayerDataBytes,	FontSilver, 3, 0); Print(Context, TEXT("bytes"), FontSilver); Newline(Context, RectMax);
 			Print(Context, TEXT(" TopNormalTex "), FontSilver); Print(Context, TopLayerDataBytes,							FontSilver, 3, 0); Print(Context, TEXT("bytes"), FontSilver); Newline(Context, RectMax);

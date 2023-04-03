@@ -101,7 +101,7 @@ float ShadowRayCast(
 		uint2 PixelPos = View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy * SampleUVz.xy;
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), StrataRayCast.MaxBytesPerPixel);
 		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(StrataRayCast.MaterialTextureArray, StrataAddressing, StrataRayCast.TopLayerTexture);
-		bOutHitCastContactShadow = DoesCastContactShadow(StrataPixelHeader);
+		bOutHitCastContactShadow = StrataPixelHeader.DoesCastContactShadow();
 		#endif
 	#else
 		FGBufferData SampleGBuffer = GetGBufferData( SampleUVz.xy );

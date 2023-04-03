@@ -457,10 +457,10 @@ void MainPS(
 			#endif
 
 			#if STRATA_ENABLED
-			{			
+			{
 				FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
-				const FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
-				if (GetMaterialMode(StrataPixelHeader) > HEADER_MATERIALMODE_NONE)
+				FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
+				if (StrataPixelHeader.GetMaterialMode() > HEADER_MATERIALMODE_NONE)
 				{
 					const FStrataDeferredLighting IndirectLighting_Strata = StrataIndirectLighting(
 						PixelPos,

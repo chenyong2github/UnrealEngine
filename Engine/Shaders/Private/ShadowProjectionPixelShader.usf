@@ -258,11 +258,11 @@ void Main(
 	#if STRATA_ENABLED
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord.xy, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 		FStrataPixelHeader StrataHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
-		if (IsStrataMaterial(StrataHeader))
+		if (StrataHeader.IsStrataMaterial())
 		{
-			bIsEyeOrHair				= StrataGetBSDFType(StrataHeader) == STRATA_BSDF_TYPE_HAIR || StrataGetBSDFType(StrataHeader) == STRATA_BSDF_TYPE_EYE;
-			bHasSubsurface				= HasSubsurface(StrataHeader) || bIsEyeOrHair;
-			bHasSubsurfaceTransmission	= HasSubsurface(StrataHeader);
+			bIsEyeOrHair				= StrataHeader.StrataGetBSDFType() == STRATA_BSDF_TYPE_HAIR || StrataHeader.StrataGetBSDFType() == STRATA_BSDF_TYPE_EYE;
+			bHasSubsurface				= StrataHeader.HasSubsurface() || bIsEyeOrHair;
+			bHasSubsurfaceTransmission	= StrataHeader.HasSubsurface();
 		}
 	#else // STRATA_ENABLED
 		FGBufferData GBufferData = GetGBufferData(ScreenUV);

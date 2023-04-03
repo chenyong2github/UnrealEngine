@@ -211,8 +211,8 @@ FEvaluateOutput Evaluate(
 
 #if STRATA_ENABLED && MATERIAL_IS_STRATA && MATERIAL_SHADINGMODEL_HAIR
 		FStrataPixelHeader StrataPixelHeader = MaterialParameters.GetFrontStrataHeader();
-		SetCastContactShadow(StrataPixelHeader, GetPrimitiveData(MaterialParameters).Flags & 0x100);
-		SetDynamicIndirectShadowCasterRepresentation(StrataPixelHeader, GetPrimitiveData(MaterialParameters).Flags & 0x80);
+		StrataPixelHeader.SetCastContactShadow(GetPrimitiveData(MaterialParameters).Flags & 0x100);
+		StrataPixelHeader.SetDynamicIndirectShadowCasterRepresentation(GetPrimitiveData(MaterialParameters).Flags & 0x80);
 
 		float3 Tangent = float3(0,1,0);
 		//if (StrataPixelHeader.StrataTree.BSDFCount > 0)
@@ -223,7 +223,7 @@ FEvaluateOutput Evaluate(
 			FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
 			const float3 V = MaterialParameters.CameraVector;
 			const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, false /*bRoughDiffuse*/, -1 /*PeelLayersAboveDepth*/, false/*bRoughnessTracking*/);
-			StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataPixelHeader.StrataTree, V, Settings);
+			StrataPixelHeader.StrataUpdateTree(NullStrataAddressing, V, Settings);
 			FStrataBSDF HairBSDF = StrataPixelHeader.StrataTree.BSDFs[0];
 
 			OutSample.BaseColor = HAIR_BASECOLOR(HairBSDF);

@@ -232,20 +232,20 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 
 #if STRATA_MATERIALCONTAINER_IS_VIEWRESOURCE
 
-	FStrataAddressing StrataAddressing			= GetStrataPixelDataByteOffset(InPixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
-	const FStrataPixelHeader StrataPixelHeader	= UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
-	const FStrataSubsurfaceHeader SSSHeader		= StrataLoadSubsurfaceHeader(Strata.MaterialTextureArray, Strata.FirstSliceStoringStrataSSSData, InPixelPos);
+	FStrataAddressing StrataAddressing	= GetStrataPixelDataByteOffset(InPixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+	FStrataPixelHeader StrataPixelHeader= UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
+	FStrataSubsurfaceHeader SSSHeader	= StrataLoadSubsurfaceHeader(Strata.MaterialTextureArray, Strata.FirstSliceStoringStrataSSSData, InPixelPos);
 
 	// When Lumen is not used, only MaterialAO and ShadingID (see IsValid) are read, sourced form the single UINT read for the StrataPixelHeader.
-	const uint BSDFType = StrataGetBSDFType(StrataPixelHeader);
+	const uint BSDFType = StrataPixelHeader.StrataGetBSDFType();
 
 	Out.MaterialAO						= StrataGetIrradianceAndAO(StrataPixelHeader).MaterialAO;
-	Out.ShadingID						= IsStrataMaterial(StrataPixelHeader) ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT;
+	Out.ShadingID						= StrataPixelHeader.IsStrataMaterial() ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT;
 	Out.DiffuseIndirectSampleOcclusion	= StrataGetIrradianceAndAO(StrataPixelHeader).DiffuseIndirectSampleOcclusion;
 	Out.bNeedsSeparateLightAccumulation = StrataSubSurfaceHeaderGetUseDiffusion(SSSHeader);
 	Out.bIsSLW							= BSDFType == STRATA_BSDF_TYPE_SINGLELAYERWATER;
 	Out.bIsHair							= BSDFType == STRATA_BSDF_TYPE_HAIR;
-	Out.bHasBackfaceDiffuse				= BSDFType == STRATA_BSDF_TYPE_SLAB && HasSubsurface(StrataPixelHeader);
+	Out.bHasBackfaceDiffuse				= BSDFType == STRATA_BSDF_TYPE_SLAB && StrataPixelHeader.HasSubsurface();
 	Out.bRequiresBxDFImportanceSampling = Out.bIsHair;
 
 	// STRATA_TODO: For now, use only the last BSDF (arbitrary)

@@ -142,7 +142,7 @@ void MainCS(
 	}
 
 	BRANCH
-	if (IsSimpleMaterial(StrataPixelHeader) || IsSingleMaterial(StrataPixelHeader))
+	if (StrataPixelHeader.IsSimpleMaterial() || StrataPixelHeader.IsSingleMaterial())
 	{
 		// 1. Load BSDF data
 		const float Dither = InterleavedGradientNoise(PixelCoord + 0.5f, View.StateFrameIndexMod8);
@@ -178,7 +178,7 @@ void MainCS(
 		// STRATA_TODO: For now, doing manual reencoding by duplicating logic from Strata export. Need to refactor Strata export to have small reusable packing functions
 		
 		// Roughness / DiffuseColor / F0
-		if (IsSimpleMaterial(StrataPixelHeader))
+		if (StrataPixelHeader.IsSimpleMaterial())
 		{
 			const uint PackedDiffuse20Bits = PackR7G7B6Gamma2(DiffuseAlbedo, Dither);
 			const uint PackedDiffuse12Bits = PackedDiffuse20Bits & 0xFFF;
@@ -191,7 +191,7 @@ void MainCS(
 			MaterialTextureArrayUAV[uint3(PixelCoord, 1)] = PackedF020Bits | (PackedDiffuse12Bits << 20);
 		}
 		#if !STRATA_FASTPATH
-		else if (IsSingleMaterial(StrataPixelHeader))
+		else if (StrataPixelHeader.IsSingleMaterial())
 		{
 			const uint OptimisedLegacyMode = (StrataPixelHeader.SharedLocalBasesTypes_PackedHeader >> (HEADER_SINGLEENCODING_BIT_COUNT)) & HEADER_SINGLE_OPTLEGACYMODE_BIT_MASK;
 			if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_NONE)

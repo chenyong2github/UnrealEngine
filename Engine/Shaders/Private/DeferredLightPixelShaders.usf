@@ -184,7 +184,7 @@ float3 GetStableTranslatedLargeWorldPosition(float2 SVPos, float DeviceZ)
 
 float4 StrataReadPrecomputedShadowFactors(FStrataPixelHeader StrataPixelHeader, int2 PixelPos)
 {
-	if (HasPrecShadowMask(StrataPixelHeader))
+	if (StrataPixelHeader.HasPrecShadowMask())
 	{
 #if ALLOW_STATIC_LIGHTING
 		float4 GBufferE = SceneTexturesStruct.GBufferETexture.Load(int3(PixelPos, 0));
@@ -193,7 +193,7 @@ float4 StrataReadPrecomputedShadowFactors(FStrataPixelHeader StrataPixelHeader, 
 #endif
 		return GBufferE;
 	}
-	return HasZeroPrecShadowMask(StrataPixelHeader) ? 0.0f : 1.0f;
+	return StrataPixelHeader.HasZeroPrecShadowMask() ? 0.0f : 1.0f;
 }
 
 #endif // STRATA_ENABLED

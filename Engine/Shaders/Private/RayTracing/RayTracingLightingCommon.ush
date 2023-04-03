@@ -382,8 +382,8 @@ bool HasBackfaceDiffuse(FPackedMaterialClosestHitPayload Payload)
 	{
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(0,0,0);
 		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Payload.StrataData, StrataAddressing, Payload.StrataData);
-		const uint BSDFType = StrataGetBSDFType(StrataPixelHeader);
-		return BSDFType == STRATA_BSDF_TYPE_SLAB && HasSubsurface(StrataPixelHeader);
+		const uint BSDFType = StrataPixelHeader.StrataGetBSDFType();
+		return BSDFType == STRATA_BSDF_TYPE_SLAB && StrataPixelHeader.HasSubsurface();
 	}
 	#else
 	{

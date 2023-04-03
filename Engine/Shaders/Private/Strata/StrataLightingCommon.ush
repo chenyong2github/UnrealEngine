@@ -8,7 +8,7 @@
 half4 GetPrecomputedShadowFactors(FStrataPixelHeader StrataPixelHeader, float3 TranslatedWorldPosition)
 {
 	// PrecomputedShadowFactors are not supported on mobile at the moment
-	float4 OutPrecomputedShadowFactors = HasZeroPrecShadowMask(StrataPixelHeader) ? 0.0f : 1.0f;
+	float4 OutPrecomputedShadowFactors = StrataPixelHeader.HasZeroPrecShadowMask() ? 0.0f : 1.0f;
 #if TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING && !SHADING_PATH_MOBILE
 	OutPrecomputedShadowFactors.x = ComputeDirectionalLightStaticShadowing(TranslatedWorldPosition).x; // Is that actually correct for forward & deferred?
 #else

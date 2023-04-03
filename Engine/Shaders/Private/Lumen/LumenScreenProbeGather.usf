@@ -1478,7 +1478,7 @@ void ScreenProbeIntegrateCS(
 
 				// We set slabs BSDFs as having a single specular lob without haziness.
 				// This is to ensure the pdf is computed from a single lobe in order to be able to compute a matching cone angle.
-				StrataSetBSDFRoughness(BSDF, Material.Roughness);
+				BSDF.StrataSetBSDFRoughness(Material.Roughness);
 				if (StrataGetBSDFType(BSDF) == STRATA_BSDF_TYPE_SLAB)
 				{
 					BSDF_SETHASHAZINESS(BSDF, 0);

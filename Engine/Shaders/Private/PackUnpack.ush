@@ -73,14 +73,14 @@ uint2 UnpackUInt2FromUInt(uint Packed)
 //	float2 <-> u32 as f16.f16
 //
 
-uint PackFloat2ToUInt(float X, float Y)
+uint Pack2FloatsToUInt(float X, float Y)
 {
 	return PackUInt2ToUInt(f32tof16(X), f32tof16(Y));
 }
 
 uint PackFloat2ToUInt(float2 XY)
 {
-	return PackFloat2ToUInt(XY.x, XY.y);
+	return Pack2FloatsToUInt(XY.x, XY.y);
 }
 
 float2 UnpackFloat2FromUInt(uint In)

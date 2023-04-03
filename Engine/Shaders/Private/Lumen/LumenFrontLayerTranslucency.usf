@@ -84,12 +84,12 @@ void MainPS(
 
 		float TotalCoverage = 1.f;
 		FStrataTree StrataTree = StrataPixelHeader.StrataTree;
-		if (StrataTree.BSDFCount > 0)
+		if (StrataPixelHeader.StrataTree.BSDFCount > 0)
 		{
 			const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, true /*bRoughDiffuseEnabled*/, 0 /*PeelLayersAboveDepth*/, false/*bRoughnessTracking*/);
 			float3 TotalTransmittancePreCoverage = 0;
 			FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
-			StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, StrataData, V, Settings, TotalCoverage, TotalTransmittancePreCoverage);
+			StrataPixelHeader.StrataUpdateTree(NullStrataAddressing, StrataData, V, Settings, TotalCoverage, TotalTransmittancePreCoverage);
 
 			// Clip pixels that will never receive any lumen front material reflections.
 			// We cannot generalise and use GetMaterialClippingVelocity for that because this function clips with a 1/255 threshold...that can result in NaN refelctions if some pixels are not genrated correctly.
@@ -100,9 +100,9 @@ void MainPS(
 			Roughness = 0;
 			float TopLayerTotalWeight = 0.0f;
 			STRATA_UNROLL_N(STRATA_CLAMPED_BSDF_COUNT)
-			for (int BSDFIdx = 0; BSDFIdx < StrataTree.BSDFCount; ++BSDFIdx)
+			for (int BSDFIdx = 0; BSDFIdx < StrataPixelHeader.StrataTree.BSDFCount; ++BSDFIdx)
 			{
-				#define CurrentBSDF StrataTree.BSDFs[BSDFIdx]
+				#define CurrentBSDF StrataPixelHeader.StrataTree.BSDFs[BSDFIdx]
 				if (StrataIsBSDFVisible(CurrentBSDF))
 				{
 					FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, V, L);

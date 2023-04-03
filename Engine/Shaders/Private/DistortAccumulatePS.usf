@@ -96,18 +96,17 @@ void Main(
 	// Retrieve rough refraction variance
 	float Sigma = 0.0f;
 	float3 RefractionWorldNormal = MaterialParameters.CameraVector;
-	FStrataTree StrataTree = StrataPixelHeader.StrataTree;
-	if (StrataTree.BSDFCount > 0)
+	if (StrataPixelHeader.StrataTree.BSDFCount > 0)
 	{
 		const float3 V = MaterialParameters.CameraVector;
 
 		// Update tree (coverage/transmittance/luminace weights)
 		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse /*bRoughDiffuseEnabled*/, Strata.PeelLayersAboveDepth, Strata.bRoughnessTracking);
-		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, V, Settings);
+		StrataPixelHeader.StrataUpdateTree(NullStrataAddressing, V, Settings);
 
-		RefractionWorldNormal = StrataTree.Operators[StrataData.OperatorIndex].TopDownRefractionWorldNormal;
+		RefractionWorldNormal = StrataPixelHeader.StrataTree.Operators[StrataData.OperatorIndex].TopDownRefractionWorldNormal;
 
-		FStrataLobeStatistic RefractionLobeStat = StrataTree.Operators[StrataData.OperatorIndex].TopDownRefractionLobeStat;
+		FStrataLobeStatistic RefractionLobeStat = StrataPixelHeader.StrataTree.Operators[StrataData.OperatorIndex].TopDownRefractionLobeStat;
 
 		Sigma = RefractionLobeStat.Sigma;
 	}
@@ -115,9 +114,9 @@ void Main(
 	// We accumulate F0 only from the top layer to evaluate the material F0 used to evaluate distortion
 	float3 TopF0 = 0.0f;
 	STRATA_UNROLL_N(STRATA_CLAMPED_BSDF_COUNT)
-	for (int BSDFIdx = 0; BSDFIdx < StrataTree.BSDFCount; ++BSDFIdx)
+	for (int BSDFIdx = 0; BSDFIdx < StrataPixelHeader.StrataTree.BSDFCount; ++BSDFIdx)
 	{
-	#define BSDF StrataTree.BSDFs[BSDFIdx]
+	#define BSDF StrataPixelHeader.StrataTree.BSDFs[BSDFIdx]
 		const bool bIsVisible = StrataIsBSDFVisible(BSDF);
 		if (bIsVisible)
 		{
@@ -127,7 +126,7 @@ void Main(
 	}
 	TopF0 = SanitizeF0(TopF0);	// Sanitize, in case a Add node has been used
 
-	const FStrataOperator RootOperator	= StrataTree.Operators[StrataData.OperatorIndex];
+	const FStrataOperator RootOperator	= StrataPixelHeader.StrataTree.Operators[StrataData.OperatorIndex];
 #if DISTORTION_ACCOUNT_FOR_COVERAGE
 	const float RefractionCoverage		= RootOperator.Coverage;														// Coverage of the material
 #else

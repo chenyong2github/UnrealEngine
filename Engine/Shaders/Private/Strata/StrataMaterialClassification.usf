@@ -126,13 +126,13 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		const uint PackedHeader = MaterialTextureArrayUAV[uint3(PixelCoord, 0)];
 		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(PackedHeader, StrataAddressing, TopLayerTexture);
 
-		const bool bIsSimple =  IsSimpleMaterial(StrataPixelHeader) || StrataPixelHeader.BSDFCount == 0; // BSDFCount == 0 ensures that non-strata pixel, like sky pixels, won't make a simple tile flagged as complex
-		const bool bIsSingle = !IsSimpleMaterial(StrataPixelHeader) && IsSingleMaterial(StrataPixelHeader);
+		const bool bIsSimple =  StrataPixelHeader.IsSimpleMaterial() || StrataPixelHeader.BSDFCount == 0; // BSDFCount == 0 ensures that non-strata pixel, like sky pixels, won't make a simple tile flagged as complex
+		const bool bIsSingle = !StrataPixelHeader.IsSimpleMaterial() && StrataPixelHeader.IsSingleMaterial();
 		bContainsStrataMaterial  = StrataPixelHeader.BSDFCount > 0;
 		bContainsSimpleMaterial  = bIsSimple;
 		bContainsSingleMaterial  = bIsSingle;
 		bContainsComplexMaterial = !bIsSingle && !bIsSimple;
-		bContainsScreenSpaceSubsurfaceScattering = HasSubsurface(StrataPixelHeader);
+		bContainsScreenSpaceSubsurfaceScattering = StrataPixelHeader.HasSubsurface();
 
 	#if PERMUTATION_DECAL
 		const uint DBufferResponseMask = SceneStencilTexture.Load(uint3(PixelCoord, 0)) STENCIL_COMPONENT_SWIZZLE;

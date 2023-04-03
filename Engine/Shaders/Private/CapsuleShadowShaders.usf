@@ -969,7 +969,7 @@ void ApplySelfShadowingIntensityForDeferred(float2 ScreenUV, inout float Visibil
 		uint2 PixelPos = View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy * ScreenUV.xy;
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
-		const bool bHasDynamicIndirectShadowCasterRepresentation = HasDynamicIndirectShadowCasterRepresentation(StrataPixelHeader);
+		const bool bHasDynamicIndirectShadowCasterRepresentation = StrataPixelHeader.HasDynamicIndirectShadowCasterRepresentation();
 #else
 		FGBufferData GBufferData = GetGBufferData(ScreenUV);
 		const bool bHasDynamicIndirectShadowCasterRepresentation = HasDynamicIndirectShadowCasterRepresentation(GBufferData);

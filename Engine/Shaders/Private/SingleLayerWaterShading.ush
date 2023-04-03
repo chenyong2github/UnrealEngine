@@ -132,7 +132,7 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 		const float BehindWaterDeltaDepth = CameraIsUnderWater ? WaterDepth : max(0.0f, SceneDepth - WaterDepth);
 
 #if STRATA_INLINE_SINGLELAYERWATER
-		SanitizeStrataSingleLayerWater(MaterialParameters.StrataTree.BSDFs[0]);
+		MaterialParameters.StrataTree.BSDFs[0].StrataSanitizeBSDF();
 		FStrataBSDF SLWBSDF = MaterialParameters.StrataTree.BSDFs[0];
 		const float3 Albedo = SLW_WATERALBEDO(SLWBSDF);
 		const float3 ExtinctionCoeff = SLW_WATEREXTINCTION(SLWBSDF);

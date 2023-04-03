@@ -166,7 +166,7 @@ half4 GetMaterialColor( VertexToPixelInterpolants InVertex, float2 MeshUV )
 
 	// UI element are always rendered with a unlit BSDF behind the scene
 	FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.InlinedBSDF;
-	SanitizeStrataUnlit(UnlitBSDF);
+	UnlitBSDF.StrataSanitizeBSDF();
 
 #if ((STRATA_OPAQUE_DEFERRED || (STRATA_OPAQUE_MATERIAL && STRATA_FORWARD_SHADING)))
 	OutColor = half4(BSDF_GETEMISSIVE(UnlitBSDF), 1.0f);

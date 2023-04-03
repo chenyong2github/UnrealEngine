@@ -370,10 +370,10 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	FStrataPixelHeader StrataPixelHeader = MaterialParameters.GetFrontStrataHeader();
 	FStrataIntegrationSettings IntegrationSettings = InitStrataIntegrationSettings();
 	FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
-	FStrataTree StrataTree = StrataPixelHeader.StrataTree;
-	if (StrataTree.BSDFCount > 0)
+	const uint BSDFCount = StrataPixelHeader.StrataTree.BSDFCount;
+	if (BSDFCount > 0)
 	{
-		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, V_World, IntegrationSettings);
+		StrataPixelHeader.StrataUpdateTree(NullStrataAddressing, V_World, IntegrationSettings);
 
 	
 		{
@@ -395,11 +395,11 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 #endif
 		}
 
-#define BSDF StrataTree.BSDFs[BSDFIdx]
+#define BSDF StrataPixelHeader.StrataTree.BSDFs[BSDFIdx]
 
 		// Accumulate radiance across all BSDFs
 		Payload.Radiance = 0.0;
-		for (int BSDFIdx = 0; BSDFIdx < StrataTree.BSDFCount; ++BSDFIdx)
+		for (int BSDFIdx = 0; BSDFIdx < BSDFCount; ++BSDFIdx)
 		{
 			Payload.Radiance += BSDF.LuminanceWeightV * BSDF_GETEMISSIVE(BSDF);
 		}
@@ -409,11 +409,11 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		// The material might be using more than one slab -- insert code to stochastically pick one 
 		int BSDFIdx = 0;
 		float SlabPdf = 1.0;
-		if (StrataTree.BSDFCount > 1)
+		if (BSDFCount > 1)
 		{
 			float SlabCDF[STRATA_CLAMPED_BSDF_COUNT];
 			float SlabCDFSum = 0.0;
-			for (BSDFIdx = 0; BSDFIdx < StrataTree.BSDFCount; ++BSDFIdx)
+			for (BSDFIdx = 0; BSDFIdx < BSDFCount; ++BSDFIdx)
 			{
 				float Pdf = 0.0; // The goal is to predict the weight of each BSDF
 				switch (BSDF_GETTYPE(BSDF))
@@ -497,7 +497,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 				// linear search
 				float PreviousCdfValue = 0;
 				float RandSample = SlabCDFSum * PackedPayload.GetStochasticSlabRand();
-				for (BSDFIdx = 0; BSDFIdx < StrataTree.BSDFCount - 1; ++BSDFIdx)
+				for (BSDFIdx = 0; BSDFIdx < BSDFCount - 1; ++BSDFIdx)
 				{
 					if (RandSample < SlabCDF[BSDFIdx])
 					{
@@ -516,7 +516,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 		if (SlabPdf > 0)
 		{
 #elif STRATA_CLAMPED_BSDF_COUNT == 1
-		if (StrataTree.BSDFCount > 0)
+		if (BSDFCount > 0)
 		{
 			// there is only one slab active
 			const int BSDFIdx = 0;
