@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-enum ESonyControllerType : unsigned int;
+enum class ESonyControllerType : unsigned int;
 
 namespace Audio
 {
