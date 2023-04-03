@@ -353,9 +353,14 @@ void UMovieSceneDMXLibrarySection::Serialize(FArchive& Ar)
 				}
 			}
 		}
-
-		UpdateChannelProxy();
 	}
+}
+
+void UMovieSceneDMXLibrarySection::PostLoad()
+{
+	Super::PostLoad();
+
+	UpdateChannelProxy();
 }
 
 void UMovieSceneDMXLibrarySection::PostEditImport()
