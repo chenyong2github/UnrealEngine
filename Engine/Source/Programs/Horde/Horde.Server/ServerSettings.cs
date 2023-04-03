@@ -227,9 +227,9 @@ namespace Horde.Server
 		public bool ReplicateMetadata { get; set; } = true;
 
 		/// <summary>
-		/// Whether to mirror commit metadata to the database
+		/// Whether to mirror commit data to storage
 		/// </summary>
-		public bool ReplicateContent { get; set; } = false;
+		public bool ReplicateContent { get; set; } = true;
 
 		/// <summary>
 		/// Options for how objects are packed together
@@ -505,6 +505,11 @@ namespace Horde.Server
 		/// Whether to log requests to the UpdateSession and QueryServerState RPC endpoints
 		/// </summary>
 		public bool LogSessionRequests { get; set; } = false;
+		
+		/// <summary>
+		/// Whether to enable the hosted LogService running background jobs
+		/// </summary>
+		public bool EnableLogService { get; set; } = true;
 
 		/// <summary>
 		/// Default fleet manager to use (when not specified by pool)

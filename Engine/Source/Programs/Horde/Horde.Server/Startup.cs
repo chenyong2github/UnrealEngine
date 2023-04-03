@@ -653,35 +653,42 @@ namespace Horde.Server
 			if (settings.IsRunModeActive(RunMode.Worker) && !settings.DatabaseReadOnlyMode)
 			{
 				services.AddHostedService<MongoUpgradeService>();
-
 				services.AddHostedService(provider => provider.GetRequiredService<FleetService>());
+				services.AddHostedService(provider => provider.GetRequiredService<ConsistencyService>());
+				services.AddHostedService(provider => provider.GetRequiredService<IssueService>());
+				services.AddHostedService<IssueReportService>();
+				services.AddHostedService(provider => (NotificationService)provider.GetRequiredService<INotificationService>());
+				services.AddHostedService<MetricService>();
+				services.AddHostedService(provider => provider.GetRequiredService<PerforceLoadBalancer>());
+				services.AddHostedService<PoolUpdateService>();
+				services.AddHostedService<TelemetryService>();
+				services.AddHostedService(provider => provider.GetRequiredService<DeviceService>());
+				services.AddHostedService(provider => provider.GetRequiredService<TestDataService>());
 				
 				if (settings.Commits.ReplicateMetadata)
 				{
 					services.AddHostedService(provider => provider.GetRequiredService<PerforceServiceCache>());
 				}
 
-				services.AddHostedService(provider => provider.GetRequiredService<ConsistencyService>());
-				services.AddHostedService(provider => provider.GetRequiredService<IssueService>());
-				services.AddHostedService<IssueReportService>();
-				services.AddHostedService(provider => (LogFileService)provider.GetRequiredService<ILogFileService>());
-				services.AddHostedService(provider => (NotificationService)provider.GetRequiredService<INotificationService>());
-				services.AddHostedService(provider => provider.GetRequiredService<ReplicationService>());
+				if (settings.Commits.ReplicateContent)
+				{
+					services.AddHostedService(provider => provider.GetRequiredService<ReplicationService>());
+				}
+
+				if (settings.EnableLogService)
+				{
+					services.AddHostedService(provider => (LogFileService)provider.GetRequiredService<ILogFileService>());
+				}
+				
 				if (!settings.DisableSchedules)
 				{
 					services.AddHostedService(provider => provider.GetRequiredService<ScheduleService>());
 				}
 
-				services.AddHostedService<MetricService>();
-				services.AddHostedService(provider => provider.GetRequiredService<PerforceLoadBalancer>());
-				services.AddHostedService<PoolUpdateService>();
 				if (settings.SlackToken != null)
 				{
 					services.AddHostedService(provider => provider.GetRequiredService<SlackNotificationSink>());
 				}
-				services.AddHostedService<TelemetryService>();
-				services.AddHostedService(provider => provider.GetRequiredService<DeviceService>());
-				services.AddHostedService(provider => provider.GetRequiredService<TestDataService>());
 			}
 
 			services.AddHostedService(provider => provider.GetRequiredService<IExternalIssueService>());
