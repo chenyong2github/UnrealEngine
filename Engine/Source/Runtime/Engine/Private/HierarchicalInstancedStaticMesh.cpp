@@ -3492,7 +3492,7 @@ void UHierarchicalInstancedStaticMeshComponent::GetNavigationPerInstanceTransfor
 		const TArray<FClusterNode>& ClusterTree = *ClusterTreePtr;
 		if (ClusterTree.Num())
 		{
-			GatherInstanceTransformsInArea(*this, AreaBox, 0, InstanceData);
+			GetOverlappingBoxTransforms(AreaBox, InstanceData);
 		}
 	}
 	else
