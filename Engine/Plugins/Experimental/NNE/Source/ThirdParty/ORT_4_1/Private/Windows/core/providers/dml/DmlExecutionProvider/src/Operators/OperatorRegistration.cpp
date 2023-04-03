@@ -677,7 +677,7 @@ constexpr static OperatorRegistrationInformation operatorRegistrationInformation
 template<typename T> 
 MLOperatorEdgeDescription EdgeDesc()
 {
-    return {MLOperatorEdgeType::Tensor, static_cast<uint64_t>(MLTypeTraits<T>::TensorType)};
+    return {MLOperatorEdgeType::Tensor, {static_cast<uint64_t>(MLTypeTraits<T>::TensorType)}};
 }
 
 void RegisterDmlOperators(IMLOperatorRegistry* registry)
