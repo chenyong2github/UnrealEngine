@@ -3936,7 +3936,6 @@ void UAssetToolsImpl::ExportAssetsInternal(const TArray<UObject*>& ObjectsToExpo
 			}
 			Extensions += AllExtensions[ExtIndex];
 		}
-		FileTypes = FString::Printf(TEXT("%s|All Files (%s)|%s"), *FileTypes, *Extensions, *Extensions);
 
 		FString SaveFileName;
 		if (bPromptIndividualFilenames)
