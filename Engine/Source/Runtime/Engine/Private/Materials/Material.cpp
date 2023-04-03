@@ -4856,13 +4856,29 @@ void UMaterial::RebuildShadingModelField()
 			{
 				if (BlendMode == EBlendMode::BLEND_Opaque || BlendMode == EBlendMode::BLEND_Masked) 
 				{
-					// We only consider SSS subsurface post process for opaque materials)
-					StrataMaterialInfo = FStrataMaterialInfo();
-					StrataMaterialInfo.AddShadingModel(SSM_SubsurfaceLit);
+					// We only consider SSS subsurface post process for opaque materials.
+					// STRATA_TODO what does this case cover?
+					StrataMaterialInfo.SetSingleShadingModel(SSM_SubsurfaceLit);
 				}
 				else
 				{
 					// For transparent, we will fall back to use DefaultLit with simple volumetric
+					bSanitizeMaterial = true;
+				}
+			}
+			else if (StrataMaterialInfo.CountShadingModels() > 1 && StrataMaterialInfo.HasShadingModel(EStrataShadingModel::SSM_SubsurfaceLit))
+			{
+				// When we gather the worst case slab material, we can hit multiple shading models when gathering from multiple BSDF possibilities of switch nodes.
+				// We do not want to sanitize the material in this case, but only keep the worst case: subsurface with all potential features on a slab.
+				if (BlendMode == EBlendMode::BLEND_Opaque || BlendMode == EBlendMode::BLEND_Masked) 
+				{
+					// We only consider SSS subsurface post process for opaque materials. This can also be triggered by switch node accumulating multiple slab node.
+					// We still keep all the other material info to consider the worst case when encountering multiple shading models. And we also keep around the encountered subsurface profiles.
+					StrataMaterialInfo.SetSingleShadingModel(SSM_SubsurfaceLit);
+				}
+				else
+				{
+					// For transparent, we will fall back to use DefaultLit worst case with simple volumetric.
 					bSanitizeMaterial = true;
 				}
 			}
