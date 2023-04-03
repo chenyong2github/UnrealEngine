@@ -45,6 +45,7 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(MEDIA_API, MediaStreaming);
 
 DECLARE_GPU_STAT_NAMED(MediaTextureResource, TEXT("MediaTextureResource"));
 
+static const FMatrix44f SplatMtx = { {1.0f, 0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f, 0.0f} };
 
 /* GPU data deletion helper
  *****************************************************************************/
@@ -171,8 +172,12 @@ namespace MediaTextureResourceHelpers
 		case EMediaTextureSampleFormat::CharBMP:
 		case EMediaTextureSampleFormat::CharUYVY:
 		case EMediaTextureSampleFormat::CharYUY2:
+		case EMediaTextureSampleFormat::Char2VUY:
 		case EMediaTextureSampleFormat::CharYVYU:
 			return PF_B8G8R8A8;
+
+		case EMediaTextureSampleFormat::CharRGBA:
+			return PF_R8G8B8A8;
 
 		case EMediaTextureSampleFormat::CharNV12:
 		case EMediaTextureSampleFormat::CharNV21:
@@ -187,17 +192,44 @@ namespace MediaTextureResourceHelpers
 		case EMediaTextureSampleFormat::CharBGR10A2:
 			return PF_A2B10G10R10;
 
+		case EMediaTextureSampleFormat::ABGR16:
+			return PF_A16B16G16R16;
+
+		case EMediaTextureSampleFormat::RGBA16:
+			return PF_R16G16B16A16_UNORM;
+
+		case EMediaTextureSampleFormat::ARGB16_BIG:
+			return PF_R16G16B16A16_UINT;
+
 		case EMediaTextureSampleFormat::YUVv210:
-			return PF_R32G32B32A32_UINT;
+			return PF_A2B10G10R10;
+
+		case EMediaTextureSampleFormat::YUVv216:
+			return PF_A16B16G16R16;
 
 		case EMediaTextureSampleFormat::Y416:
 			return PF_A16B16G16R16;
+
+		case EMediaTextureSampleFormat::R4FL:
+			return PF_A32B32G32R32F;
 
 		case EMediaTextureSampleFormat::P010:
 			return PF_G16; // note: right now this case will be encountered only if CPU-side data in NV12/21 format is in sample -> in this case we cannot create a true P010 texture OR the platforms view it as U16s anyway 
 
 		case EMediaTextureSampleFormat::P010_RGB1010102:
 			return PF_A2B10G10R10;
+
+		case EMediaTextureSampleFormat::DXT1:
+			return PF_DXT1;
+
+		case EMediaTextureSampleFormat::DXT5:
+			return PF_DXT5;
+
+		case EMediaTextureSampleFormat::BC4:
+			return PF_BC4;
+
+		case EMediaTextureSampleFormat::YCoCg_DXT5:
+			return PF_DXT5;
 
 		default:
 			return PF_Unknown;
@@ -214,24 +246,35 @@ namespace MediaTextureResourceHelpers
 		switch (Sample->GetFormat())
 		{
 		case EMediaTextureSampleFormat::CharBGR10A2:
+		case EMediaTextureSampleFormat::YUVv210:
 		{
-			if (Sample->GetEncodingType() == UE::Color::EEncoding::ST2084)
+			if (Sample->GetEncodingType() != UE::Color::EEncoding::Linear)
 			{
 				return PF_FloatRGB;
 			}
 			return PF_A2B10G10R10;
 		}
-		case EMediaTextureSampleFormat::YUVv210:
-			return PF_A2B10G10R10;
 
 		case EMediaTextureSampleFormat::FloatRGB:
-		case EMediaTextureSampleFormat::Y416:
 		case EMediaTextureSampleFormat::P010:
+		case EMediaTextureSampleFormat::YUVv216:
 			return PF_FloatRGB;
 
+		case EMediaTextureSampleFormat::Y416:
+		case EMediaTextureSampleFormat::R4FL:
 		case EMediaTextureSampleFormat::FloatRGBA:
 		case EMediaTextureSampleFormat::P010_RGB1010102:
 			return PF_FloatRGBA;
+
+		case EMediaTextureSampleFormat::BC4:
+			return PF_A8;
+
+		case EMediaTextureSampleFormat::RGBA16:
+			return PF_R16G16B16A16_UNORM;
+
+		case EMediaTextureSampleFormat::ABGR16:
+		case EMediaTextureSampleFormat::ARGB16_BIG:
+			return PF_A16B16G16R16;
 
 		// Everything else maps to 8-bit RGB...
 		default:
@@ -264,14 +307,13 @@ namespace MediaTextureResourceHelpers
 		}
 		/*
 		* Input textures created to receive CPU side buffer sample data are ONLY created with sRGB attributes
-		* if we have any RGB(A) format. Any YUV (etc.) format does the conversion in SW when applicable in the
+		* if we have any 8-bit RGB(A) format. Any YUV (etc.) format does the conversion in SW when applicable in the
 		* conversion process!
 		*/
 		EMediaTextureSampleFormat Fmt = Sample->GetFormat();
 		return Fmt == EMediaTextureSampleFormat::CharBGRA ||
-			Fmt == EMediaTextureSampleFormat::CharBMP ||
-			Fmt == EMediaTextureSampleFormat::FloatRGB ||
-			Fmt == EMediaTextureSampleFormat::FloatRGBA;
+			Fmt == EMediaTextureSampleFormat::CharRGBA ||
+			Fmt == EMediaTextureSampleFormat::CharBMP;
 	}
 
 } //namespace
@@ -677,67 +719,6 @@ void FMediaTextureResource::ReleaseDynamicRHI()
 /* FMediaTextureResource implementation
  *****************************************************************************/
 
- void FMediaTextureResource::ClearTexture(const FLinearColor& ClearColor, bool SrgbOutput)
-{
-	// create output render target if we don't have one yet
-	constexpr uint8 NumMips = 1;
-	constexpr bool bNeedsUAVTexture = false;
-	CreateOutputRenderTarget(FIntPoint(2, 2), PF_B8G8R8A8, SrgbOutput, ClearColor, NumMips, bNeedsUAVTexture);
-
-	// draw the clear color
-	FRHICommandListImmediate& CommandList = FRHICommandListExecutor::GetImmediateCommandList();
-	{
-		SCOPED_DRAW_EVENT(CommandList, FMediaTextureResource_ClearTexture);
-		SCOPED_GPU_STAT(CommandList, MediaTextureResource);
-
-		CommandList.Transition(FRHITransitionInfo(RenderTargetTextureRHI, ERHIAccess::SRVMask, ERHIAccess::RTV));
-
-		FRHIRenderPassInfo RPInfo(RenderTargetTextureRHI, ERenderTargetActions::Clear_Store);
-		CommandList.BeginRenderPass(RPInfo, TEXT("ClearTexture"));
-		CommandList.EndRenderPass();
-		CommandList.Transition(FRHITransitionInfo(RenderTargetTextureRHI, ERHIAccess::RTV, ERHIAccess::SRVMask));
-	}
-
-	Cleared = true;
-}
-
-
- bool FMediaTextureResource::RequiresConversion(const FTextureRHIRef& SampleTexture, const FIntPoint & OutputDim, uint8 InNumMips) const
- {
-	 if (Owner.NewStyleOutput)
-	 {
-		 //
-		 // New Style
-		 // 
-
-		 // For now we only allow this, single SRGB-style output format
-		 check(Owner.OutputFormat == MTOF_SRGB_LINOUT || Owner.OutputFormat == MTOF_Default);
-
-		 // If we have no mips in the sample, but want to have some in the output, we use the conversion pass
-		 // to setup level 0 and have a suitable output texture
-		 if (SampleTexture->GetNumMips() == 1 && InNumMips != 1)
-		 {
-			 return true;
-		 }
-	 }
-
-	 if (SampleTexture->GetSizeXY() != OutputDim)
-	 {
-		 return true;
-	 }
-
-	 // Only the following pixel formats are supported natively.
-	 // All other formats require a conversion on the GPU.
-
-	 const EPixelFormat Format = SampleTexture->GetFormat();
-
-	 return ((Format != PF_B8G8R8A8) &&
-		 (Format != PF_R8G8B8A8) &&
-		 (Format != PF_FloatRGB) &&
-		 (Format != PF_FloatRGBA));
- }
- 
-
 void FMediaTextureResource::SetJustInTimeRenderParams(const FRenderParams& InJustInTimeRenderParams)
 {
 	check(IsInRenderingThread());
@@ -764,44 +745,127 @@ void FMediaTextureResource::JustInTimeRender()
 	}
 }
 
- bool FMediaTextureResource::RequiresConversion(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, uint8 InNumMips) const
- {
-	 if (Owner.NewStyleOutput)
-	 {
-		 //
-		 // New Style
-		 // 
 
-		 // For now we only allow this, single SRGB-style output format
-		 check(Owner.OutputFormat == MTOF_SRGB_LINOUT || Owner.OutputFormat == MTOF_Default);
+void FMediaTextureResource::ClearTexture(const FLinearColor& ClearColor, bool SrgbOutput)
+{
+	// create output render target if we don't have one yet
+	constexpr uint8 NumMips = 1;
+	constexpr bool bNeedsUAVTexture = false;
+	CreateOutputRenderTarget(FIntPoint(2, 2), PF_B8G8R8A8, SrgbOutput, ClearColor, NumMips, bNeedsUAVTexture);
 
-		 FRHITexture *Texture = Sample->GetTexture();
+	// draw the clear color
+	FRHICommandListImmediate& CommandList = FRHICommandListExecutor::GetImmediateCommandList();
+	{
+		SCOPED_DRAW_EVENT(CommandList, FMediaTextureResource_ClearTexture);
+		SCOPED_GPU_STAT(CommandList, MediaTextureResource);
 
-		 // If we have no mips in the sample, but want to have some in the output, we use the conversion pass
-		 // to setup level 0 and have a suitable output texture
-		 if (Texture && Texture->GetNumMips() == 1 && InNumMips != 1)
-		 {
-			 return true;
-		 }
-	 }
+		CommandList.Transition(FRHITransitionInfo(RenderTargetTextureRHI, ERHIAccess::SRVMask, ERHIAccess::RTV));
 
-	 // If the output dimensions are not the same as the sample's
-	 // dimensions, a resizing conversion on the GPU is required.
+		FRHIRenderPassInfo RPInfo(RenderTargetTextureRHI, ERenderTargetActions::Clear_Store);
+		CommandList.BeginRenderPass(RPInfo, TEXT("ClearTexture"));
+		CommandList.EndRenderPass();
+		CommandList.Transition(FRHITransitionInfo(RenderTargetTextureRHI, ERHIAccess::RTV, ERHIAccess::SRVMask));
+	}
 
-	 if (Sample->GetDim() != Sample->GetOutputDim())
-	 {
-		 return true;
-	 }
+	Cleared = true;
+}
 
-	 // Only the following pixel formats are supported natively.
-	 // All other formats require a conversion on the GPU.
 
-	 const EMediaTextureSampleFormat Format = Sample->GetFormat();
+bool FMediaTextureResource::RequiresConversion(const FTextureRHIRef& SampleTexture, const FIntPoint & OutputDim, uint8 InNumMips) const
+{
+	if (Owner.NewStyleOutput)
+	{
+		//
+		// New Style
+		// 
 
-	 return ((Format != EMediaTextureSampleFormat::CharBGRA) &&
-		 (Format != EMediaTextureSampleFormat::FloatRGB) &&
-		 (Format != EMediaTextureSampleFormat::FloatRGBA));
- }
+		// For now we only allow this, single SRGB-style output format
+		check(Owner.OutputFormat == MTOF_SRGB_LINOUT || Owner.OutputFormat == MTOF_Default);
+
+		// If we have no mips in the sample, but want to have some in the output, we use the conversion pass
+		// to setup level 0 and have a suitable output texture
+		if (SampleTexture->GetNumMips() == 1 && InNumMips != 1)
+		{
+			return true;
+		}
+	}
+
+	if (SampleTexture->GetSizeXY() != OutputDim)
+	{
+		return true;
+	}
+
+	// Only the following pixel formats are supported natively.
+	// All other formats require a conversion on the GPU.
+
+	const EPixelFormat Format = SampleTexture->GetFormat();
+
+	return ((Format != PF_B8G8R8A8) &&
+		(Format != PF_R8G8B8A8) &&
+		(Format != PF_FloatRGB) &&
+		(Format != PF_A16B16G16R16) &&
+		(Format != PF_FloatRGBA));
+}
+ 
+
+bool FMediaTextureResource::RequiresConversion(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, uint8 InNumMips) const
+{
+	if (Owner.NewStyleOutput)
+	{
+		//
+		// New Style
+		// 
+
+		// For now we only allow this, single SRGB-style output format
+		check(Owner.OutputFormat == MTOF_SRGB_LINOUT || Owner.OutputFormat == MTOF_Default);
+
+		FRHITexture *Texture = Sample->GetTexture();
+
+		// If we have no mips in the sample, but want to have some in the output, we use the conversion pass
+		// to setup level 0 and have a suitable output texture
+		if (Texture && Texture->GetNumMips() == 1 && InNumMips != 1)
+		{
+			return true;
+		}
+	}
+
+	// If the output dimensions are not the same as the sample's
+	// dimensions, a resizing conversion on the GPU is required.
+
+	if (Sample->GetDim() != Sample->GetOutputDim())
+	{
+		return true;
+	}
+
+//TODO: CS Changes should trigger conversion in any case
+
+	UE::Color::EEncoding ColorEncoding = Sample->GetEncodingType();
+	EMediaTextureSampleFormat Format = Sample->GetFormat();
+
+	bool b8BitRGBA = (Format == EMediaTextureSampleFormat::CharBGRA || Format == EMediaTextureSampleFormat::CharRGBA);
+
+	// 8-Bit RGBA will need no processing if its either linear or sRGB (we configure the texture objects as sRGB an get the conversion for free)
+	if (b8BitRGBA && (ColorEncoding == UE::Color::EEncoding::sRGB || ColorEncoding == UE::Color::EEncoding::Linear))
+	{
+		return false;
+	}
+
+	bool bRGBA = b8BitRGBA ||
+				 Format == EMediaTextureSampleFormat::FloatRGB ||
+				 Format == EMediaTextureSampleFormat::FloatRGBA ||
+				 Format == EMediaTextureSampleFormat::ABGR16 ||
+				 Format == EMediaTextureSampleFormat::RGBA16 ||
+				 Format == EMediaTextureSampleFormat::CharBGR10A2;
+
+	// If we got RGBA (not caught by the special case above) with an encoding other than linear we need to convert...
+	if (bRGBA && ColorEncoding != UE::Color::EEncoding::Linear)
+	{
+		return true;
+	}
+
+	// And if we get here: any RGBA will be able to go out unchanged!
+	return !bRGBA;
+	}
 
 
 void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FLinearColor& ClearColor, uint8 InNumMips)
@@ -914,14 +978,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 
 			FMatrix YUVToRGBMatrix = Sample->GetYUVToRGBMatrix();
 			FVector YUVOffset;
-			if (Sample->GetFormat() == EMediaTextureSampleFormat::YUVv210)
-			{
-				YUVOffset = Sample->GetFullRange() ? MediaShaders::YUVOffsetNoScale10bits : MediaShaders::YUVOffset10bits;
-			}
-			else
-			{
-				YUVOffset = Sample->GetFullRange() ? MediaShaders::YUVOffsetNoScale8bits : MediaShaders::YUVOffset8bits;
-			}
+			YUVOffset = Sample->GetFullRange() ? MediaShaders::YUVOffsetNoScale8bits : MediaShaders::YUVOffset8bits;
 
 			bool bIsSampleOutputSrgb = Sample->IsOutputSrgb();
 
@@ -931,15 +988,6 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 			// Use the sample format to choose the conversion path
 			switch (Sample->GetFormat())
 			{
-				case EMediaTextureSampleFormat::CharAYUV:
-				{
-					TShaderMapRef<FAYUVConvertPS> ConvertShader(ShaderMap);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
-					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
-				}
-				break;
-
 				case EMediaTextureSampleFormat::CharBMP:
 				{
 					// Simple 1:1 copy plus flip & color adjustment (but using normal texture sampler: sRGB conversions may occur depending on setup; any manual sRGB/linear conversion is disabled)
@@ -991,15 +1039,6 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				}
 				break;
 
-				case EMediaTextureSampleFormat::CharYUY2:
-				{
-					TShaderMapRef<FYUY2ConvertPS> ConvertShader(ShaderMap);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
-					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
-				}
-				break;
-
 				case EMediaTextureSampleFormat::CharYVYU:
 				{
 					TShaderMapRef<FYVYUConvertPS> ConvertShader(ShaderMap);
@@ -1009,52 +1048,10 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				}
 				break;
 
-				case EMediaTextureSampleFormat::YUVv210:
+				case EMediaTextureSampleFormat::CharYUY2:		// Y0CbY1Cr
+				case EMediaTextureSampleFormat::Char2VUY:		// CbY0CrY1
+				case EMediaTextureSampleFormat::YUVv216:		// CbY0CrY1
 				{
-					TShaderMapRef<FYUVv210ConvertPS> ConvertShader(ShaderMap);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
-					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
-				}
-				break;
-
-				case EMediaTextureSampleFormat::Y416:
-				{
-					TShaderMapRef<FYUVY416ConvertPS> ConvertShader(ShaderMap);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
-					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-					FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(InputTexture, 0, 1, PF_A16B16G16R16);
-
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, SRV, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
-				}
-				break;
-
-				case EMediaTextureSampleFormat::CharBGR10A2:
-				case EMediaTextureSampleFormat::CharBGRA:
-				case EMediaTextureSampleFormat::FloatRGB:
-				case EMediaTextureSampleFormat::FloatRGBA:
-				{
-					// Simple 1:1 copy (we have a real sRGB texture here if sRGB  is encoded)
-					// (as RGB formats normally do not see any conversion, we only get here if mips need to be generated - in that case this populates mip level 0)
-					TShaderMapRef<FRGBConvertPS> ConvertShader(ShaderMap);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
-					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, false, false, FMatrix44f::Identity);
-				}
-				break;
-
-				case EMediaTextureSampleFormat::P010:
-				{
-					/*
-					For now we assume this data in the P010 surface:
-
-					- PQ EOTF (which should be fine for all, but HLG10)
-
-					Output is assumed to be wanted in the "working colorspace" & linear
-
-					*** Output into a 3D scene without HDR output might result in incorrect color representation (sRGB is expected, we deliver scRGB) ***
-					*/
-
 					// Get the complete matrix to convert sample data to RGB
 					auto YUVMtx = Sample->GetSampleToRGBMatrix();
 
@@ -1062,7 +1059,117 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 					const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
 					FMatrix44f ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
 					// Normalize output (e.g. 80 or 100 nits == 1.0)
-					ColorSpaceMtx = ColorSpaceMtx.ApplyScale(kMediaSample_HDR_NitsNormalizationFactor);
+					ColorSpaceMtx = ColorSpaceMtx.ApplyScale(Sample->GetHDRNitsNormalizationFactor());
+
+					TShaderMapRef<FYUVv216ConvertPS> ConvertShader(ShaderMap);
+					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
+					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, YUVMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084, ColorSpaceMtx, Sample->GetFormat() != EMediaTextureSampleFormat::CharYUY2, InputTexture->GetFormat() == PF_A8R8G8B8);
+				}
+				break;
+
+				case EMediaTextureSampleFormat::YUVv210:
+				{
+					// Get the complete matrix to convert sample data to RGB
+					auto YUVMtx = Sample->GetSampleToRGBMatrix();
+
+					// Setup conversion from Rec2020 to current working color space
+					const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
+					FMatrix44f ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
+					// Normalize output (e.g. 80 or 100 nits == 1.0)
+					ColorSpaceMtx = ColorSpaceMtx.ApplyScale(Sample->GetHDRNitsNormalizationFactor());
+
+					TShaderMapRef<FYUVv210ConvertPS> ConvertShader(ShaderMap);
+					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
+					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, YUVMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084, ColorSpaceMtx, Sample->GetFormat() != EMediaTextureSampleFormat::CharYUY2);
+				}
+				break;
+
+				case EMediaTextureSampleFormat::CharAYUV:
+				case EMediaTextureSampleFormat::Y416:
+				case EMediaTextureSampleFormat::R4FL:
+				{
+					// Get the complete matrix to convert sample data to RGB
+					auto YUVMtx = Sample->GetSampleToRGBMatrix();
+
+					// Setup conversion from Rec2020 to current working color space
+					const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
+					FMatrix44f ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
+					// Normalize output (e.g. 80 or 100 nits == 1.0)
+					ColorSpaceMtx = ColorSpaceMtx.ApplyScale(Sample->GetHDRNitsNormalizationFactor());
+
+					TShaderMapRef<FYUVY416ConvertPS> ConvertShader(ShaderMap);
+					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
+					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
+					FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(InputTexture, 0, 1, (Sample->GetFormat() == EMediaTextureSampleFormat::Y416) ? PF_A16B16G16R16 : PF_A32B32G32R32F);
+
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, SRV, YUVMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084, ColorSpaceMtx, InputTexture->GetFormat() == PF_A8R8G8B8);
+				}
+				break;
+
+				case EMediaTextureSampleFormat::CharBGR10A2:
+				case EMediaTextureSampleFormat::CharRGBA:
+				case EMediaTextureSampleFormat::CharBGRA:
+				case EMediaTextureSampleFormat::FloatRGB:
+				case EMediaTextureSampleFormat::FloatRGBA:
+				case EMediaTextureSampleFormat::RGBA16:
+				case EMediaTextureSampleFormat::ABGR16:
+				{
+					// We get here if we detect the need for an inverse EOTF application, CS conversion OR if we need to generate mips for RGBA samples
+
+					// Inverse EOTF?
+					bool bConvertFromSRGB;
+					bool bConvertFromST2084;
+					if ((uint32)InputTexture->GetFlags() & (uint32)TexCreate_SRGB)
+					{
+						// We do not need one: sRGB will be handled in HW
+						bConvertFromSRGB = false;
+						bConvertFromST2084 = false;
+					}
+					else
+					{
+						// See what we need...
+						bConvertFromSRGB = (Sample->GetEncodingType() == UE::Color::EEncoding::sRGB);
+						bConvertFromST2084 = (Sample->GetEncodingType() == UE::Color::EEncoding::ST2084);
+					}
+
+					const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
+					FMatrix44f ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
+					ColorSpaceMtx = ColorSpaceMtx.ApplyScale(Sample->GetHDRNitsNormalizationFactor());
+
+					TShaderMapRef<FRGBConvertPS> ConvertShader(ShaderMap);
+					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
+					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, bConvertFromSRGB, bConvertFromST2084, ColorSpaceMtx);
+				}
+				break;
+
+				case EMediaTextureSampleFormat::ARGB16_BIG:
+				{
+					const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
+					FMatrix44f ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
+					ColorSpaceMtx = ColorSpaceMtx.ApplyScale(Sample->GetHDRNitsNormalizationFactor());
+
+					TShaderMapRef<FARGB16BigConvertPS> ConvertShader(ShaderMap);
+					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
+					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
+					FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(InputTexture, 0, 1, PF_R16G16B16A16_UINT);
+
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, SRV, OutputDim, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084, ColorSpaceMtx);
+				}
+				break;
+
+				case EMediaTextureSampleFormat::P010:
+				{
+					// Get the complete matrix to convert sample data to RGB
+					auto YUVMtx = Sample->GetSampleToRGBMatrix();
+
+					// Setup conversion from Rec2020 to current working color space
+					const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
+					FMatrix44f ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
+					// Normalize output (e.g. 80 or 100 nits == 1.0)
+					ColorSpaceMtx = ColorSpaceMtx.ApplyScale(Sample->GetHDRNitsNormalizationFactor());
 
 					FIntPoint TexDim = InputTexture->GetSizeXY();
 					if (InputTexture->GetFormat() == PF_P010)
@@ -1083,6 +1190,74 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 
 						SetShaderParametersLegacyPS(CommandList, ConvertShader, TexDim, InputTexture, OutputDim, YUVMtx, ColorSpaceMtx, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084);
 					}
+				}
+				break;
+
+				case EMediaTextureSampleFormat::DXT1:
+				case EMediaTextureSampleFormat::DXT5:
+				{
+					// Note: the shader used here will pass-through alpha data
+					
+					// Inverse EOTF?
+					bool bConvertFromSRGB;
+					if ((uint32)InputTexture->GetFlags() & (uint32)TexCreate_SRGB)
+					{
+						// We do not need one: sRGB will be handled in HW
+						bConvertFromSRGB = false;
+					}
+					else
+					{
+						// See what we need...
+						bConvertFromSRGB = (Sample->GetEncodingType() == UE::Color::EEncoding::sRGB);
+					}
+
+					const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
+					FMatrix44f ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
+
+					// Convert the DXn compressed data into RGBA so we can more easily process it using the existing logic (e.g mip generation)
+					// (this also will deal with any sRGB/Rec703 conversions - as well as any color space conversions)
+					TShaderMapRef<FRGBConvertPS> ConvertShader(ShaderMap);
+					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
+					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, bConvertFromSRGB, false, ColorSpaceMtx);
+				}
+				break;
+
+				case EMediaTextureSampleFormat::BC4:
+				{
+					// We are using the RGB conversion shader to just pipe BC4 data (read into R) and remap it to be usable with L8 or A8 etc. (RRRR) using the otherwise idle CS conversion matrix
+					// (note: no EOTF - this is alpha only!)
+					TShaderMapRef<FRGBConvertPS> ConvertShader(ShaderMap);
+					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
+					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, false, false, SplatMtx);
+				}
+				break;
+
+				case EMediaTextureSampleFormat::YCoCg_DXT5:
+				{
+					// Inverse EOTF?
+					bool bConvertFromSRGB;
+					if ((uint32)InputTexture->GetFlags() & (uint32)TexCreate_SRGB)
+					{
+						// We do not need one: sRGB will be handled in HW
+						bConvertFromSRGB = false;
+					}
+					else
+					{
+						// See what we need...
+						bConvertFromSRGB = (Sample->GetEncodingType() == UE::Color::EEncoding::sRGB);
+					}
+
+					const UE::Color::FColorSpace& Working = UE::Color::FColorSpace::GetWorking();
+					FMatrix44f ColorSpaceMtx = UE::Color::Transpose<float>(Working.GetXYZToRgb()) * Sample->GetGamutToXYZMatrix();
+
+					// Convert the DXn compressed YCoCg data into RGBA so we can more easily process it using the existing logic (e.g mip generation)
+					// (this also will deal with any sRGB/Rec703 conversions - as well as any color space conversions)
+					TShaderMapRef<FYCoCgConvertPS> ConvertShader(ShaderMap);
+					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
+					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, bConvertFromSRGB, false, ColorSpaceMtx);
 				}
 				break;
 

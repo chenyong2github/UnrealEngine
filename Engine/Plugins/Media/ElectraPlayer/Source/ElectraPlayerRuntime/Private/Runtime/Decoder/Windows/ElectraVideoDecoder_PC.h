@@ -4,7 +4,6 @@
 
 #include "PlayerCore.h"
 #include "ElectraPlayerPrivate.h"
-#include "ElectraPlayerPrivate_Platform.h"
 #include "MediaVideoDecoderOutputPC.h"
 
 /*********************************************************************************************************************/
@@ -32,42 +31,36 @@ THIRD_PARTY_INCLUDES_END
 class FElectraPlayerVideoDecoderOutputPC : public FVideoDecoderOutputPC
 {
 public:
-	FElectraPlayerVideoDecoderOutputPC();
+	FElectraPlayerVideoDecoderOutputPC() : SampleDim(0, 0)
+	{ }
 
 	// Hardware decode to buffer (Win7/DX12)
-	void InitializeWithBuffer(const void* InBuffer, uint32 InSize, uint32 InStride, FIntPoint Dim, Electra::FParamDict* InParamDict);
+	void InitializeWithBuffer(const void* InBuffer, uint32 InSize, uint32 InStride, FIntPoint Dim, TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict);
 
-	// Hardware decode to shared DX11 texture (Win8+)
-	void InitializeWithSharedTexture(const TRefCountPtr<ID3D11Device>& InD3D11Device, const TRefCountPtr<ID3D11DeviceContext> InDeviceContext, const TRefCountPtr<IMFSample>& MFSample, const FIntPoint& OutputDim, Electra::FParamDict* InParamDict);
+	void InitializeWithBuffer(TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> InBuffer, uint32 InStride, FIntPoint Dim, TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict);
 
-	// Software decode (into texture if DX11 device specified - available only Win8+)
-	void SetSWDecodeTargetBufferSize(uint32 InTargetBufferSize);
-	bool PreInitForDecode(FIntPoint OutputDim, const TFunction<void(int32 /*ApiReturnValue*/, const FString& /*Message*/, uint16 /*Code*/, UEMediaError /*Error*/)>& PostError);
-	void ProcessDecodeOutput(FIntPoint OutputDim, Electra::FParamDict* InParamDict);
+	// Hardware decode to shared DX11 texture (Win8+) from IMFSample
+	void InitializeWithSharedTexture(const TRefCountPtr<ID3D11Device>& InD3D11Device, const TRefCountPtr<ID3D11DeviceContext> InDeviceContext, const TRefCountPtr<IMFSample> MFSample, const FIntPoint& OutputDim, TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict);
+
+	// Hardware decode to shared DX11 texture (Win8+) from DX11 texture
+	void InitializeWithSharedTexture(const TRefCountPtr<ID3D11Device>& InD3D11Device, const TRefCountPtr<ID3D11DeviceContext> InDeviceContext, const TRefCountPtr<ID3D11Texture2D> DecoderTexture, const FIntPoint& OutputDim, TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict);
 
 	void SetOwner(const TSharedPtr<IDecoderOutputOwner, ESPMode::ThreadSafe>& InOwningRenderer) override;
-
 	void ShutdownPoolable() override;
-
-	virtual EOutputType GetOutputType() const override;
-
-	virtual TRefCountPtr<IMFSample> GetMFSample() const override;
-
-	virtual const TArray<uint8>& GetBuffer() const override;
-
-	virtual uint32 GetStride() const override;
-
-	virtual TRefCountPtr<IUnknown> GetTexture() const override;
-
-	virtual TRefCountPtr<ID3D11Device> GetDevice() const override;
-
-	virtual FIntPoint GetDim() const override;
-
-	virtual TRefCountPtr<IUnknown> GetSync(uint64& SyncValue) const override;
+	EOutputType GetOutputType() const override;
+	TRefCountPtr<IMFSample> GetMFSample() const override;
+	const TArray<uint8>& GetBuffer() const override;
+	uint32 GetStride() const override;
+	TRefCountPtr<IUnknown> GetTexture() const override;
+	TRefCountPtr<ID3D11Device> GetDevice() const override;
+	FIntPoint GetDim() const override;
+	TRefCountPtr<IUnknown> GetSync(uint64& SyncValue) const override;
 
 private:
+	void _InitializeWithSharedTexture(const TRefCountPtr<ID3D11Device>& InD3D11Device, const TRefCountPtr<ID3D11DeviceContext> InDeviceContext, const TRefCountPtr<ID3D11Texture2D> DecoderTexture, uint32 ViewIndex, const FIntPoint& OutputDim, TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict);
+
 	// Decoder output type
-	EOutputType OutputType;
+	EOutputType OutputType = EOutputType::Unknown;
 
 	// Output texture (with device that created it) for SW decoder output Win8+
 	TRefCountPtr<ID3D11Texture2D> Texture;
@@ -75,13 +68,12 @@ private:
 	TRefCountPtr<ID3D11Device> D3D11Device;
 
 	// CPU-side buffer
-	TOptional<uint32> TargetBufferAllocSize;
-	TArray<uint8> Buffer;
-	uint32 Stride;
+	TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> Buffer;
+	uint32 Stride = 0;
 
 	// WMF sample (owned by this class if SW decoder is used)
 	TRefCountPtr<IMFSample> MFSample;
-	uint32 AllocatedBufferSize;
+	uint32 AllocatedBufferSize = 0;
 
 	// Dimension of any internally allocated buffer - stored explicitly to cover various special cases for DX
 	FIntPoint SampleDim;

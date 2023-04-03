@@ -35,10 +35,7 @@ public:
 
 	//~ IMediaTextureSample interface
 
-	virtual const void* GetBuffer() override
-	{
-		return nullptr;
-	}
+	virtual const void* GetBuffer() override;
 
 	virtual EMediaTextureSampleFormat GetFormat() const override;
 
@@ -49,10 +46,7 @@ public:
 		return Texture;
 	}
 
-    virtual IMediaTextureSampleConverter* GetMediaTextureSampleConverter() override
-    {
-        return this;
-    }
+	virtual IMediaTextureSampleConverter* GetMediaTextureSampleConverter() override;
 
 private:
 	/** The sample's texture resource. */
@@ -79,7 +73,7 @@ public:
     ~FElectraMediaTexConvApple();
 
 #if WITH_ENGINE
-    void ConvertTexture(FTexture2DRHIRef & InDstTexture, CVImageBufferRef InImageBufferRef, bool bFullRange, EMediaTextureSampleFormat Format, const FMatrix44f& YUVMtx, const FMatrix44f& GamutToXYZMtx, UE::Color::EEncoding EncodingType);
+    void ConvertTexture(FTexture2DRHIRef & InDstTexture, CVImageBufferRef InImageBufferRef, bool bFullRange, EMediaTextureSampleFormat Format, const FMatrix44f& YUVMtx, const FMatrix44f& GamutToXYZMtx, UE::Color::EEncoding EncodingType, float NormalizationFactor);
 #endif
 
 private:

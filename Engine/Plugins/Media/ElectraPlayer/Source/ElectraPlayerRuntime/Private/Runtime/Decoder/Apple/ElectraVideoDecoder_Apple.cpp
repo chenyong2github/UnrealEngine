@@ -20,9 +20,9 @@ FElectraPlayerVideoDecoderOutputApple::~FElectraPlayerVideoDecoderOutputApple()
 	}
 }
 
-void FElectraPlayerVideoDecoderOutputApple::Initialize(CVImageBufferRef InImageBufferRef, FParamDict* InParamDict)
+void FElectraPlayerVideoDecoderOutputApple::Initialize(CVImageBufferRef InImageBufferRef, TSharedPtr<FParamDict, ESPMode::ThreadSafe> InParamDict)
 {
-	FVideoDecoderOutputApple::Initialize(InParamDict);
+	FVideoDecoderOutputApple::Initialize(MoveTemp(InParamDict));
 
 	if (ImageBufferRef)
 	{
@@ -35,6 +35,25 @@ void FElectraPlayerVideoDecoderOutputApple::Initialize(CVImageBufferRef InImageB
 
 		Stride = CVPixelBufferGetBytesPerRow(ImageBufferRef);
 	}
+}
+
+void FElectraPlayerVideoDecoderOutputApple::InitializeWithBuffer(const void* InBuffer, uint32 InSize, uint32 InStride, FIntPoint Dim, TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict)
+{
+	FVideoDecoderOutput::Initialize(MoveTemp(InParamDict));
+
+	Buffer = MakeShared<TArray<uint8>, ESPMode::ThreadSafe>();
+	Buffer->Append((uint8*)InBuffer, InSize);
+
+	Stride = InStride;
+}
+
+void FElectraPlayerVideoDecoderOutputApple::InitializeWithBuffer(TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> InBuffer, uint32 InStride, FIntPoint Dim, TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict)
+{
+	FVideoDecoderOutput::Initialize(MoveTemp(InParamDict));
+
+	Buffer = MoveTemp(InBuffer);
+
+	Stride = InStride;
 }
 
 void FElectraPlayerVideoDecoderOutputApple::SetOwner(const TSharedPtr<IDecoderOutputOwner, ESPMode::ThreadSafe>& InOwningRenderer)
@@ -55,6 +74,19 @@ void FElectraPlayerVideoDecoderOutputApple::ShutdownPoolable()
 	if (lockedVideoRenderer.IsValid())
 	{
 		lockedVideoRenderer->SampleReleasedToPool(this);
+	}
+}
+
+const TArray<uint8>& FElectraPlayerVideoDecoderOutputApple::GetBuffer() const
+{
+	if (Buffer.IsValid())
+	{
+		return *Buffer;
+	}
+	else
+	{
+		static TArray<uint8> Empty;
+		return Empty;
 	}
 }
 

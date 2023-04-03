@@ -237,6 +237,21 @@ namespace Electra
 				EReferenceType Reference = EReferenceType::Undefined;
 			};
 
+			struct FEncryptionInfo
+			{
+				TArray<uint8> DefaultKID;
+				TArray<uint8> DefaultIV;
+				int32 DefaultIVSize = 0;
+				uint32 Scheme = 0;
+				struct FCDMInfo
+				{
+					TArray<uint8> SystemID;
+					TArray<TArray<uint8>> KIDs;
+					TArray<uint8> Data;
+				};
+				TArray<FCDMInfo> CDMInfos;
+			};
+
 			virtual ~ITrack() = default;
 
 			virtual uint32 GetID() const = 0;
@@ -251,6 +266,7 @@ namespace Electra
 			virtual const FStreamCodecInformation& GetCodecInformation() const = 0;
 			virtual const FBitrateInfo& GetBitrateInfo() const = 0;
 			virtual const FString GetLanguage() const = 0;
+			virtual bool GetEncryptionInfo(FEncryptionInfo& OutEncryptionInfo) const = 0;
 			virtual void GetPSSHBoxes(TArray<TArray<uint8>>& OutBoxes, bool bFromMOOV, bool bFromMOOF) const = 0;
 			virtual void GetPRFTBoxes(TArray<FProducerReferenceTime>& OutBoxes) const = 0;
 		};

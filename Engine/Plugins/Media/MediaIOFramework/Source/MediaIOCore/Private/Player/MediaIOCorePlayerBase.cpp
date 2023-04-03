@@ -627,9 +627,9 @@ void FMediaIOCorePlayerBase::CreateAndRegisterTextures(const IMediaOptions* Opti
 				}
 				else if (ColorFormat == EMediaIOCoreColorFormat::YUV10)
 				{
-					InputFormat = EPixelFormat::PF_R32G32B32A32_UINT;
-					TextureWidth /= 6;
-					Stride = TextureWidth * 16;
+					InputFormat = EPixelFormat::PF_A2B10G10R10;
+					TextureWidth = 4 * (TextureWidth / 6);
+					Stride = TextureWidth * 4;
 				}
 				else
 				{

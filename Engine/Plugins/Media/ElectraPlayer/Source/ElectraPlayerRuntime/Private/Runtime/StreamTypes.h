@@ -49,9 +49,11 @@ namespace Electra
 			// --- Video ---
 			H264 = 1,
 			H265,
+			Video4CC,
 			// --- Audio ---
 			AAC = 100,
 			EAC3,
+			Audio4CC,
 			// --- Subtitle / Caption ---
 			WebVTT = 200,
 			TTML,
@@ -78,6 +80,16 @@ namespace Electra
 		{
 			StreamType = InStreamType;
 		}
+		
+		uint32 GetCodec4CC() const
+		{
+			return Codec4CC;
+		}
+
+		void SetCodec4CC(uint32 In4CC)
+		{
+			Codec4CC = In4CC;
+		}
 
 		ECodec GetCodec() const
 		{
@@ -97,6 +109,7 @@ namespace Electra
 			{
 				case ECodec::H264:
 				case ECodec::H265:
+				case ECodec::Video4CC:
 					return true;
 				default:
 					return false;
@@ -109,6 +122,7 @@ namespace Electra
 			{
 				case ECodec::AAC:
 				case ECodec::EAC3:
+				case ECodec::Audio4CC:
 					return true;
 				default:
 					return false;
@@ -318,7 +332,11 @@ namespace Electra
 
 		void SetFrameRate(const FTimeFraction& InFrameRate)
 		{
-			FrameRate = InFrameRate;
+		// Temporary hack to avoid some malformed streams to send in ridiculous frame rates.
+			if (InFrameRate.IsValid() && InFrameRate.GetAsDouble() <= 120.5)
+			{
+				FrameRate = InFrameRate;
+			}
 		}
 
 		void SetProfileSpace(int32 InProfileSpace)
@@ -501,6 +519,7 @@ namespace Electra
 			AudioDecodingComplexity = 0;
 			AudioAccessibility = 0;
 			NumberOfAudioObjects = 0;
+			Codec4CC = 0;
 			Extras.Clear();
 			CSD.Empty();
 		}
@@ -592,6 +611,7 @@ namespace Electra
 		int32			AudioDecodingComplexity;	//!< Format specific audio decoding complexity
 		int32			AudioAccessibility;			//!< Format specific audio accessibility
 		int32			NumberOfAudioObjects;		//!< Format specific number of audio objects
+		uint32			Codec4CC;
 		FParamDict		Extras;						//!< Additional details/properties, depending on playlist.
 		TArray<uint8>	CSD;						//!< Codec specific data, if available.
 	};

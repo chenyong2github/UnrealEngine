@@ -67,10 +67,10 @@ namespace Electra
 		virtual int32 GetNominalOutputSampleNum(int32 InSampleRate, double InMinSlowdown) { return 0; }
 		virtual void SetTempo(double InTempo) {}
 		virtual void SetMaxOutputSamples(int32 InMaxSamples) {}
-		virtual void EnqueueStartSamples(const int16* InSourceSamples, int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount) {}
-		virtual void EnqueueRunningSamples(const int16* InSourceSamples, int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount) {}
-		virtual void EnqueueLastSamples(const int16* InSourceSamples, int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount) {}
-		virtual int32 DequeueSamples(FTimespan& OutTimestamp, int64& OutSequenceIndex, int16* OutSamples) { return 0; }
+		virtual void EnqueueStartSamples(const float* InSourceSamples, int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount) {}
+		virtual void EnqueueRunningSamples(const float* InSourceSamples, int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount) {}
+		virtual void EnqueueLastSamples(const float* InSourceSamples, int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount) {}
+		virtual int32 DequeueSamples(FTimespan& OutTimestamp, int64& OutSequenceIndex, float* OutSamples) { return 0; }
 		virtual bool HaveResiduals() { return false; }
 		virtual void Reset() {}
 	};
@@ -183,7 +183,7 @@ namespace Electra
 			FConfig CurrentConfig;
 			TUniquePtr<ISoundTouchFilter> TempoChanger;
 			EState CurrentState = EState::Disengaged;
-			int16 LastSampleValuePerChannel[16];
+			float LastSampleValuePerChannel[256];
 			bool bNextBlockNeedsInterpolation = false;
 
 			int64 OriginalAudioBufferNum = 0;
@@ -191,7 +191,7 @@ namespace Electra
 			int64 AudioBufferSize = 0;
 			int32 NumAudioBuffersInUse = 0;
 			double RateScale = 1.0;
-			int16* AudioTempSourceBuffer = nullptr;
+			float* AudioTempSourceBuffer = nullptr;
 			int32 MaxOutputSampleBlockSize = 0;
 
 			FAudioVars()
@@ -213,28 +213,28 @@ namespace Electra
 				FMemory::Memzero(LastSampleValuePerChannel);
 				bNextBlockNeedsInterpolation = false;
 			}
-			void UpdateLastSampleValue(const int16* InSamples, int32 NumSamples, int32 NumChannels)
+			void UpdateLastSampleValue(const float* InSamples, int32 NumSamples, int32 NumChannels)
 			{
 				if (NumSamples)
 				{
 					InSamples += (NumSamples - 1) * NumChannels;
-					check(NumChannels <= 16);
-					FMemory::Memcpy(LastSampleValuePerChannel, InSamples, sizeof(int16) * NumChannels);
+					check(NumChannels <= UE_ARRAY_COUNT(LastSampleValuePerChannel));
+					FMemory::Memcpy(LastSampleValuePerChannel, InSamples, sizeof(float) * NumChannels);
 				}
 			}
-			void InterpolateFromLastSampleValue(int16* InSamples, int32 NumSamples, int32 NumChannels, int32 SampleRate, int32 NumInterpolationSamples)
+			void InterpolateFromLastSampleValue(float* InSamples, int32 NumSamples, int32 NumChannels, int32 SampleRate, int32 NumInterpolationSamples)
 			{
 				// Number of samples over which to interpolate depends on sampling rate.
 				int32 NumInter = Utils::Min((int32)(NumInterpolationSamples * (SampleRate / 48000.0)), NumSamples);
 				if (NumInter)
 				{
-					const int16 *LastInterpSample = InSamples + (NumInter-1) * NumChannels;
+					const float *LastInterpSample = InSamples + (NumInter-1) * NumChannels;
 					const float Step = 1.0f / (NumInter-1);
 					for(int32 i=1; i<NumInter; ++i)
 					{
 						for(int32 j=0; j<NumChannels; ++j)
 						{
-							InSamples[j] = (int16)((float) LastSampleValuePerChannel[j] + ((LastInterpSample[j] - LastSampleValuePerChannel[j]) * (i*Step)));
+							InSamples[j] = LastSampleValuePerChannel[j] + ((LastInterpSample[j] - LastSampleValuePerChannel[j]) * (i*Step));
 						}
 						InSamples += NumChannels;
 					}
@@ -334,7 +334,7 @@ UEMediaError FAdaptiveStreamingWrappedRenderer::CreateBufferPool(const FParamDic
 		{
 			// We need an occasional extra buffer when the input sample sequence counter changes. Double the number of buffers to accommodate.
 			Parameters.SetOrUpdate(AUDIO_BUFFER_NUM, FVariantValue(AudioVars.OriginalAudioBufferNum * 2));
-			AudioVars.AudioTempSourceBuffer = (int16*)FMemory::Malloc(AudioVars.OriginalAudioBufferSize);
+			AudioVars.AudioTempSourceBuffer = (float*)FMemory::Malloc(AudioVars.OriginalAudioBufferSize);
 
 			int32 SamplesPerBlock = (int32) Parameters.GetValue(AUDIO_BUFFER_SAMPLES_PER_BLOCK).SafeGetInt64(2048);
 			int32 MaxChannels = (int32) Parameters.GetValue(AUDIO_BUFFER_MAX_CHANNELS).SafeGetInt64(8);
@@ -344,7 +344,7 @@ UEMediaError FAdaptiveStreamingWrappedRenderer::CreateBufferPool(const FParamDic
 			int32 NumResampleSamples = (int32)(SamplesPerBlock / MinPlaybackSpeed + 0.5);
 
 			AudioVars.MaxOutputSampleBlockSize = Utils::Max(Utils::Max(NumTempoSamples, NumResampleSamples), SamplesPerBlock);
-			AudioVars.AudioBufferSize = AudioVars.MaxOutputSampleBlockSize * MaxChannels * sizeof(int16);
+			AudioVars.AudioBufferSize = AudioVars.MaxOutputSampleBlockSize * MaxChannels * sizeof(float);
 			Parameters.SetOrUpdate(AUDIO_BUFFER_SIZE, FVariantValue(AudioVars.AudioBufferSize));
 			AudioVars.TempoChanger->SetMaxOutputSamples(AudioVars.MaxOutputSampleBlockSize);
 		}
@@ -469,30 +469,30 @@ UEMediaError FAdaptiveStreamingWrappedRenderer::ReturnBufferCommon(IBuffer* Buff
 
 	if (bRender)
 	{
-		bool bHoldback = !bIsRunning;
-		// If the video renderer shall not hold back the first frame (used for scrubbing video)
-		// then we pass it out. The count is reset in Flush().
-		if (Type == EStreamType::Video && bDoNotHoldBackFirstVideoFrame)
-		{
-			if (NumBuffersNotHeldBack == 0)
-			{
-				bHoldback = false;
-			}
-			if (!bHoldback)
-			{
-				++NumBuffersNotHeldBack;
-			}
-		}
-		if (bHoldback)
-		{
-			FPendingReturnBuffer pb;
-			pb.Buffer = Buffer;
-			pb.bRender = bRender;
-			pb.Properties = InSampleProperties;
-			PendingReturnBuffers.Enqueue(MoveTemp(pb));
-			++NumPendingReturnBuffers;
-			return UEMEDIA_ERROR_OK;
-		}
+	    bool bHoldback = !bIsRunning;
+	    // If the video renderer shall not hold back the first frame (used for scrubbing video)
+	    // then we pass it out. The count is reset in Flush().
+	    if (Type == EStreamType::Video && bDoNotHoldBackFirstVideoFrame)
+	    {
+		    if (NumBuffersNotHeldBack == 0)
+		    {
+			    bHoldback = false;
+		    }
+		    if (!bHoldback)
+		    {
+			    ++NumBuffersNotHeldBack;
+		    }
+	    }
+	    if (bHoldback)
+	    {
+		    FPendingReturnBuffer pb;
+		    pb.Buffer = Buffer;
+		    pb.bRender = bRender;
+		    pb.Properties = InSampleProperties;
+		    PendingReturnBuffers.Enqueue(MoveTemp(pb));
+		    ++NumPendingReturnBuffers;
+		    return UEMEDIA_ERROR_OK;
+	    }
 	}
 	lock.Unlock();
 	return WrappedRenderer->ReturnBuffer(Buffer, bRender, InSampleProperties);
@@ -650,9 +650,9 @@ bool FAdaptiveStreamingWrappedRenderer::ProcessAudio(bool& bOutNeed2ndBuffer, IB
 	FTimeValue Timestamp = InSampleProperties.GetValue(TIMESTAMP_VALUE_KEY).SafeGetTimeValue(FTimeValue::GetInvalid());
 	FTimeValue Duration = InSampleProperties.GetValue(DURATION_VALUE_KEY).SafeGetTimeValue(FTimeValue::GetZero());
 	int32 NumChannels = (int32)InSampleProperties.GetValue(AUDIO_BUFFER_NUM_CHANNELS).SafeGetInt64();
-	int32 NumSamples = SizeInBytes / NumChannels / sizeof(int16);
+	int32 NumSamples = SizeInBytes / NumChannels / sizeof(float);
 	int32 SampleRate = (int32)InSampleProperties.GetValue(AUDIO_BUFFER_SAMPLE_RATE).SafeGetInt64();
-	int16* BufferAddress = (int16*)Buffer->GetBufferProperties().GetValue(AUDIO_BUFFER_ALLOCATED_ADDRESS).GetPointer();
+	float* BufferAddress = (float*)Buffer->GetBufferProperties().GetValue(AUDIO_BUFFER_ALLOCATED_ADDRESS).GetPointer();
 
 	if (AudioVars.CurrentConfig.DiffersFrom(SampleRate, NumChannels))
 	{
@@ -712,38 +712,25 @@ bool FAdaptiveStreamingWrappedRenderer::ProcessAudio(bool& bOutNeed2ndBuffer, IB
 
 					double Offset = 0.0;
 					int32 o = 0;
-					#if 0
-						while(Offset < NumSamples && o < MaxOutSamples)
+					double Step = (double)NumSamples / (double)NumOutputSamples;
+					while(o < NumOutputSamples && o < MaxOutSamples)
+					{
+						int32 I0 = (int32)Offset;
+						if (I0+1 >= NumSamples)
 						{
-							int32 I0 = (int32)Offset;
-							for(int32 nC=0; nC<NumChannels; ++nC)
-							{
-								BufferAddress[o * NumChannels + nC] = AudioVars.AudioTempSourceBuffer[I0 * NumChannels + nC];
-							}
-							++o;
-							Offset += InRate;
+							break;
 						}
-					#else
-						double Step = (double)NumSamples / (double)NumOutputSamples;
-						while(o < NumOutputSamples && o < MaxOutSamples)
+						double F0 = Offset - I0;
+						for(int32 nC=0; nC<NumChannels; ++nC)
 						{
-							int32 I0 = (int32)Offset;
-							if (I0+1 >= NumSamples)
-							{
-								break;
-							}
-							double F0 = Offset - I0;
-							for(int32 nC=0; nC<NumChannels; ++nC)
-							{
-								double S0 = AudioVars.AudioTempSourceBuffer[I0       * NumChannels + nC];
-								double S1 = AudioVars.AudioTempSourceBuffer[(I0 + 1) * NumChannels + nC];
-								double S = S0 + (S1-S0) * F0;
-								BufferAddress[o * NumChannels + nC] = (int16) S;
-							}
-							++o;
-							Offset += Step;
+							double S0 = AudioVars.AudioTempSourceBuffer[I0       * NumChannels + nC];
+							double S1 = AudioVars.AudioTempSourceBuffer[(I0 + 1) * NumChannels + nC];
+							double S = S0 + (S1-S0) * F0;
+							BufferAddress[o * NumChannels + nC] = (float) S;
 						}
-					#endif
+						++o;
+						Offset += Step;
+					}
 					NumSamples = o;
 					bUpdateProperties = true;
 				}
@@ -783,8 +770,8 @@ bool FAdaptiveStreamingWrappedRenderer::ProcessAudio(bool& bOutNeed2ndBuffer, IB
 
 	if (bUpdateProperties)
 	{
-		check(NumSamples <= AudioVars.AudioBufferSize / NumChannels / sizeof(int16));
-		InSampleProperties.SetOrUpdate(AUDIO_BUFFER_BYTE_SIZE, FVariantValue((int64)(NumSamples * sizeof(int16) * NumChannels)));
+		check(NumSamples <= AudioVars.AudioBufferSize / NumChannels / sizeof(float));
+		InSampleProperties.SetOrUpdate(AUDIO_BUFFER_BYTE_SIZE, FVariantValue((int64)(NumSamples * sizeof(float) * NumChannels)));
 		InSampleProperties.SetOrUpdate(TIMESTAMP_VALUE_KEY, FVariantValue(Timestamp));
 		InSampleProperties.SetOrUpdate(DURATION_VALUE_KEY, FVariantValue(FTimeValue(NumSamples, SampleRate, 0)));
 	}
@@ -814,10 +801,10 @@ public:
 	int32 GetNominalOutputSampleNum(int32 InSampleRate, double InMinSlowdown) override;
 	void SetTempo(double InTempo) override;
 	void SetMaxOutputSamples(int32 InMaxSamples) override;
-	void EnqueueStartSamples(const int16* InSourceSamples, int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount) override;
-	void EnqueueRunningSamples(const int16* InSourceSamples, int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount) override;
-	void EnqueueLastSamples(const int16* InSourceSamples, int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount) override;
-	int32 DequeueSamples(FTimespan& OutTimestamp, int64& OutSequenceIndex, int16* OutSamples) override;
+	void EnqueueStartSamples(const float* InSourceSamples, int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount) override;
+	void EnqueueRunningSamples(const float* InSourceSamples, int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount) override;
+	void EnqueueLastSamples(const float* InSourceSamples, int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount) override;
+	int32 DequeueSamples(FTimespan& OutTimestamp, int64& OutSequenceIndex, float* OutSamples) override;
 	bool HaveResiduals() override;
 	void Reset() override;
 
@@ -858,7 +845,7 @@ private:
 
 	void ApplyConfiguration(FSoundTouch& InST);
 	void PrepareTempBuffer(int32 InNumSamples, int32 InNumChannels, bool bFillZero=false);
-	int32 ConvertInputToFloatInTempBuffer(const int16* InSamples, int32 InNumSamples, int32 InNumChannels, bool bAddEndMarker=false);
+	int32 PrepareInputInTempBuffer(const float* InSamples, int32 InNumSamples, int32 InNumChannels, bool bAddEndMarker=false);
 
 	void AppendEnqueuedSampleInfo(int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount);
 
@@ -884,19 +871,17 @@ void FSoundTouchFilter::PrepareTempBuffer(int32 InNumSamples, int32 InNumChannel
 	}
 }
 
-int32 FSoundTouchFilter::ConvertInputToFloatInTempBuffer(const int16* InSamples, int32 InNumSamples, int32 InNumChannels, bool bAddEndMarker)
+int32 FSoundTouchFilter::PrepareInputInTempBuffer(const float* InSamples, int32 InNumSamples, int32 InNumChannels, bool bAddEndMarker)
 {
 	const int32 MarkerBlockSize = bAddEndMarker ? ST.GetSetting(FSoundTouch::ESetting::NominalInputSequence) + 512 : 0;
 	int32 ns = InNumSamples + MarkerBlockSize;
 
 	PrepareTempBuffer(ns, InNumChannels);
 	float* Flt = TempBuffer;
-	for(int32 i=0, iMax=InNumSamples*InNumChannels; i<iMax; ++i)
-	{
-		*Flt++ = *InSamples++ / 32768.0f;
-	}
+	FMemory::Memcpy(Flt, InSamples, InNumSamples*InNumChannels*sizeof(float));
 	if (bAddEndMarker)
 	{
+		Flt += InNumSamples*InNumChannels;
 		for(int32 i=0; i<MarkerBlockSize; ++i)
 		{
 			for(int32 j=0; j<InNumChannels; ++j)
@@ -959,7 +944,7 @@ void FSoundTouchFilter::ApplyConfiguration(FSoundTouch& InST)
 	InST.SetSetting(FSoundTouch::ESetting::UseAAFilter, 0);
 }
 
-void FSoundTouchFilter::EnqueueStartSamples(const int16* InSourceSamples, int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount)
+void FSoundTouchFilter::EnqueueStartSamples(const float* InSourceSamples, int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount)
 {
 	Reset();
 	ST.SetSampleRate(InSampleRate);
@@ -972,7 +957,7 @@ void FSoundTouchFilter::EnqueueStartSamples(const int16* InSourceSamples, int32 
 	uint32 UnprocessedBeforeAdded = ST.NumUnprocessedSamples();
 	ST.PutSamples(TempBuffer, DiscardFirstNSamples);
 
-	ConvertInputToFloatInTempBuffer(InSourceSamples, InNumSamples, InNumChannels);
+	PrepareInputInTempBuffer(InSourceSamples, InNumSamples, InNumChannels);
 	ST.PutSamples(TempBuffer, InNumSamples);
 	AppendEnqueuedSampleInfo(InNumSamples, InSampleRate, InNumChannels, InTimestamp, InSequenceCount);
 	NumProcessedThisCall = UnprocessedBeforeAdded + InNumSamples + DiscardFirstNSamples - ST.NumUnprocessedSamples();
@@ -981,22 +966,22 @@ void FSoundTouchFilter::EnqueueStartSamples(const int16* InSourceSamples, int32 
 	DiscardFirstNSamples += 4;
 }
 
-void FSoundTouchFilter::EnqueueRunningSamples(const int16* InSourceSamples, int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount)
+void FSoundTouchFilter::EnqueueRunningSamples(const float* InSourceSamples, int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount)
 {
 	ST.SetTempo(Tempo);
 	uint32 UnprocessedBeforeAdded = ST.NumUnprocessedSamples();
-	ConvertInputToFloatInTempBuffer(InSourceSamples, InNumSamples, InNumChannels);
+	PrepareInputInTempBuffer(InSourceSamples, InNumSamples, InNumChannels);
 	ST.PutSamples(TempBuffer, InNumSamples);
 	AppendEnqueuedSampleInfo(InNumSamples, InSampleRate, InNumChannels, InTimestamp, InSequenceCount);
 	NumProcessedThisCall = UnprocessedBeforeAdded + InNumSamples - ST.NumUnprocessedSamples();
 	ResidualSampleBlockOffset = 0;
 }
 
-void FSoundTouchFilter::EnqueueLastSamples(const int16* InSourceSamples, int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount)
+void FSoundTouchFilter::EnqueueLastSamples(const float* InSourceSamples, int32 InNumSamples, int32 InSampleRate, int32 InNumChannels, const FTimespan& InTimestamp, int64 InSequenceCount)
 {
 	ST.SetTempo(1.0);
 	uint32 UnprocessedBeforeAdded = ST.NumUnprocessedSamples();
-	InNumSamples = ConvertInputToFloatInTempBuffer(InSourceSamples, InNumSamples, InNumChannels, true);
+	InNumSamples = PrepareInputInTempBuffer(InSourceSamples, InNumSamples, InNumChannels, true);
 	ST.PutSamples(TempBuffer, InNumSamples);
 	AppendEnqueuedSampleInfo(InNumSamples, InSampleRate, InNumChannels, InTimestamp, InSequenceCount);
 	NumProcessedThisCall = UnprocessedBeforeAdded + InNumSamples - ST.NumUnprocessedSamples();
@@ -1004,7 +989,7 @@ void FSoundTouchFilter::EnqueueLastSamples(const int16* InSourceSamples, int32 I
 	bTerminalBlockAdded = true;
 }
 
-int32 FSoundTouchFilter::DequeueSamples(FTimespan& OutTimestamp, int64& OutSequenceIndex, int16* OutSamples)
+int32 FSoundTouchFilter::DequeueSamples(FTimespan& OutTimestamp, int64& OutSequenceIndex, float* OutSamples)
 {
 	// If there is output at the beginning from engaging the processor to discard, discard it right now.
 	if (DiscardFirstNSamples)
@@ -1120,11 +1105,7 @@ int32 FSoundTouchFilter::DequeueSamples(FTimespan& OutTimestamp, int64& OutSeque
 	const float* Flt = TempBuffer + SampleOffset * NumChannels;
 	numGot = Min(numGot, MaxOutputSampleNum);
 
-	for(int32 i=0, iMax=numGot*NumChannels; i<iMax; ++i)
-	{
-		int32 S = *Flt++ * 32768.0f;
-		*OutSamples++ = (int16) Min(Max(-32768, S), 32767);
-	}
+	FMemory::Memcpy(OutSamples, Flt, sizeof(float)*numGot*NumChannels);
 	return (int32) numGot;
 }
 

@@ -5,7 +5,7 @@
 #include "PlayerCore.h"
 #include "Player/PlayerSessionServices.h"
 #include "Renderer/RendererBase.h"
-
+#include "ParameterDictionary.h"
 
 namespace Electra
 {
@@ -21,6 +21,7 @@ namespace Electra
 	public:
 		virtual ~IDecoderBase() = default;
 		virtual void SetRenderer(TSharedPtr<IMediaRenderer, ESPMode::ThreadSafe> InRenderer) = 0;
+		//virtual void SuspendOrResumeDecoder(bool bSuspend, const FParamDict& InOptions) = 0;
 	};
 
 
@@ -56,7 +57,7 @@ namespace Electra
 			DrainingFinished
 		};
 
-		static TSharedPtrTS<IPlayerMessage> Create(EReason InReason, IDecoderBase* InDecoderInstance, EStreamType InStreamType, FStreamCodecInformation::ECodec InCodec)
+		static TSharedPtrTS<IPlayerMessage> Create(EReason InReason, IDecoderBase* InDecoderInstance, EStreamType InStreamType, FStreamCodecInformation::ECodec InCodec=FStreamCodecInformation::ECodec::Unknown)
 		{
 			TSharedPtrTS<FDecoderMessage> p(new FDecoderMessage(InReason, InDecoderInstance, InStreamType, InCodec));
 			return p;

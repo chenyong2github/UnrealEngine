@@ -7,6 +7,7 @@
 #include "PlayerTime.h"
 #include "Templates/TypeCompatibleBytes.h"
 #include "Containers/Array.h"
+#include "Misc/Variant.h"
 
 
 namespace Electra
@@ -55,6 +56,7 @@ public:
 	{
 		Set(PointerValue);
 	}
+	explicit FVariantValue(const TArray<uint8>& ArrayValue);
 
 	FVariantValue& Set(const FString& StringValue);
 	FVariantValue& Set(double DoubleValue);
@@ -69,6 +71,7 @@ public:
 		DataType = EDataType::TypeSharedPointer;
 		return *this;
 	}
+	FVariantValue& Set(const TArray<uint8>& ArrayValue);
 
 	// Returns variant value. Type *must* match. Otherwise an empty/zero value is returned.
 	const FString& GetFString() const;
@@ -90,6 +93,7 @@ public:
 			return TSharedPtr<T, ESPMode::ThreadSafe>();
 		}
 	}
+	const TArray<uint8>& GetArray() const;
 
 	// Returns variant value. If type does not match the specified default will be returned.
 	const FString& SafeGetFString(const FString& Default = FString()) const;
@@ -109,6 +113,7 @@ public:
 		TypeTimeValue,
 		TypeVoidPointer,
 		TypeSharedPointer,
+		TypeU8Array,
 	};
 	EDataType GetDataType() const
 	{
@@ -136,6 +141,7 @@ private:
 		uint8 MemSizeBoolean[sizeof(bool)];
 		uint8 MemSizeTimeValue[sizeof(FTimeValue)];
 		uint8 MemSizeSharedPtrValue[sizeof(TSharedPtrHolder<uint8>)];
+		uint8 MemSizeTArray[sizeof(TArray<uint8>)];
 	};
 
 	void Clear();
@@ -169,6 +175,10 @@ public:
 		Dictionary.Add(Key, Value); 
 	}
 
+	void ConvertTo(TMap<FString, FVariant>& OutVariantMap, const FString& InAddPrefixToKey) const;
+	void ConvertKeysStartingWithTo(TMap<FString, FVariant>& OutVariantMap, const FString& InKeyStartsWith, const FString& InAddPrefixToKey) const;
+
+	void GetKeys(TArray<FString>& Keys) const;
 	void GetKeysStartingWith(const FString& StartsWith, TArray<FString>& Keys) const;
 private:
 	void InternalCopy(const FParamDict& Other);

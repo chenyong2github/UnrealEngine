@@ -14,6 +14,33 @@ namespace
 	}
 }
 
+
+FString FDRMManager::MakeHexStringFromArray(const TArray<uint8>& InArray)
+{
+	return FString::FromHexBlob(InArray.GetData(), InArray.Num());
+}
+
+FString FDRMManager::MakePrintableStringFromUint32(uint32 InUint32)
+{
+	FString Out;
+	// Not so much just printable as alphanumeric.
+	for(uint32 i=0, Atom=InUint32; i<4; ++i, Atom<<=8)
+	{
+		int32 v = Atom >> 24;
+		if ((v >= 'A' && v <= 'Z') || (v >= 'a' && v <= 'z') || (v >= '0' && v <= '9') || v == '_')
+		{
+			Out.AppendChar(v);
+		}
+		else
+		{
+			// Not alphanumeric, return it as a hex string.
+			return FString::Printf(TEXT("%08x"), InUint32);
+		}
+	}
+	return Out;
+}
+
+
 FDRMManager::FDRMManager(IPlayerSessionServices* InPlayerSessionServices)
 	: PlayerSessionServices(InPlayerSessionServices)
 {

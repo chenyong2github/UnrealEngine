@@ -66,6 +66,17 @@ public:
 
 public:
 	// IModuleInterface interface
+	static void GetDynamicRHIInfo(void** OutGDynamicRHI, int64* OutGDynamicRHIType)
+	{
+		if (OutGDynamicRHI)
+		{
+			*OutGDynamicRHI = GDynamicRHI ? GDynamicRHI->RHIGetNativeDevice() : nullptr;
+		}
+		if (OutGDynamicRHIType)
+		{
+			*OutGDynamicRHIType = (int64)RHIGetInterfaceType();
+		}
+	}
 
 	void StartupModule() override
 	{
@@ -89,15 +100,17 @@ public:
 			// to detect cooking and other commandlets that run with NullRHI
 			if (GDynamicRHI == nullptr || RHIGetInterfaceType() == ERHIInterfaceType::Null)
 			{
-				UE_LOG(LogElectraPlayerPlugin, Log, TEXT("Dummy Dynamic RHI detected. Electra Player plugin is not initialised"));
+				UE_LOG(LogElectraPlayerPlugin, Log, TEXT("Dummy Dynamic RHI detected. Electra Player plugin is not initialised."));
 				return;
 			}
 
 			Electra::FParamDict Params;
-			Params.Set("DeviceName", Electra::FVariantValue(FString(GDynamicRHI->GetName())));
-			Params.Set("DeviceType", Electra::FVariantValue(int64(RHIGetInterfaceType())));
-			FElectraPlayerPlugin::PlatformSetupResourceParams(Params);
-			FElectraPlayerPlatform::StartupPlatformResources(Params);
+			Params.Set("GetDeviceTypeCallback", Electra::FVariantValue((void*)&FElectraPlayerPluginModule::GetDynamicRHIInfo));
+			if (!FElectraPlayerPlatform::StartupPlatformResources(Params))
+			{
+				UE_LOG(LogElectraPlayerPlugin, Log, TEXT("Platform resource setup failed! Electra Player plugin is not initialised."));
+				return;
+			}
 
 			bInitialized = true;
 		}

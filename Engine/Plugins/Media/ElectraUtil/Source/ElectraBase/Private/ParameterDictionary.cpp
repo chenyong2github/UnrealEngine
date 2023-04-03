@@ -5,7 +5,6 @@
 namespace Electra
 {
 
-
 FVariantValue::FVariantValue()
 	: DataType(EDataType::TypeUninitialized)
 {
@@ -68,6 +67,11 @@ FVariantValue::FVariantValue(void* PointerValue)
 	Set(PointerValue);
 }
 
+FVariantValue::FVariantValue(const TArray<uint8>& ArrayValue)
+	: DataType(EDataType::TypeUninitialized)
+{
+	Set(ArrayValue);
+}
 
 
 void FVariantValue::CopyInternal(const FVariantValue& FromOther)
@@ -104,6 +108,9 @@ void FVariantValue::CopyInternal(const FVariantValue& FromOther)
 			DataType = FromOther.DataType;
 			break;
 		}
+		case EDataType::TypeU8Array:
+			Set(FromOther.GetArray());
+			break;
 		default:
 			Clear();
 			check(!"Whoops");
@@ -138,6 +145,12 @@ void FVariantValue::Clear()
 		{
 			FSharedPtrHolderBase* Pointer = reinterpret_cast<FSharedPtrHolderBase*>(&DataBuffer);
 			Pointer->~FSharedPtrHolderBase();
+			break;
+		}
+		case EDataType::TypeU8Array:
+		{
+			TArray<uint8>* Array = reinterpret_cast<TArray<uint8>*>(&DataBuffer);
+			Array->~TArray<uint8>();
 			break;
 		}
 		default:
@@ -201,6 +214,15 @@ FVariantValue& FVariantValue::Set(void* PointerValue)
 	void** ValuePtr = reinterpret_cast<void**>(&DataBuffer);
 	*ValuePtr = PointerValue;
 	DataType = EDataType::TypeVoidPointer;
+	return *this;
+}
+
+FVariantValue& FVariantValue::Set(const TArray<uint8>& ArrayValue)
+{
+	Clear();
+	TArray<uint8>* ValuePtr = reinterpret_cast<TArray<uint8>*>(&DataBuffer);
+	new(ValuePtr) TArray<uint8>(ArrayValue);
+	DataType = EDataType::TypeU8Array;
 	return *this;
 }
 
@@ -293,6 +315,22 @@ void* const & FVariantValue::GetPointer() const
 		return Empty;
 	}
 }
+
+const TArray<uint8>& FVariantValue::GetArray() const
+{
+	check(DataType == EDataType::TypeU8Array);
+	if (DataType == EDataType::TypeU8Array)
+	{
+		const TArray<uint8>* Array = reinterpret_cast<const TArray<uint8>*>(&DataBuffer);
+		return *Array;
+	}
+	else
+	{
+		static TArray<uint8> Empty;
+		return Empty;
+	}
+}
+
 
 const FString& FVariantValue::SafeGetFString(const FString& Default) const
 {
@@ -417,10 +455,15 @@ FVariantValue FParamDict::GetValue(const FString& Key) const
 	return VariantValue ? *VariantValue : Empty;
 }
 
+void FParamDict::GetKeys(TArray<FString>& Keys) const
+{
+	GetKeysStartingWith(FString(), Keys);
+}
+
 void FParamDict::GetKeysStartingWith(const FString& StartsWith, TArray<FString>& Keys) const
 {
-	FScopeLock lock(&Lock);
 	Keys.Empty();
+	FScopeLock lock(&Lock);
 	if (StartsWith.IsEmpty())
 	{
 		Dictionary.GenerateKeyArray(Keys);
@@ -437,6 +480,67 @@ void FParamDict::GetKeysStartingWith(const FString& StartsWith, TArray<FString>&
 	}
 }
 
+void FParamDict::ConvertKeysStartingWithTo(TMap<FString, FVariant>& OutVariantMap, const FString& InKeyStartsWith, const FString& InAddPrefixToKey) const
+{
+	FScopeLock lock(&Lock);
+	for(const TPair<FString, FVariantValue>& Pair : Dictionary)
+	{
+		if (!InKeyStartsWith.IsEmpty() && !Pair.Key.StartsWith(InKeyStartsWith, ESearchCase::CaseSensitive))
+		{
+			continue;
+		}
+
+		FString NewKey = InAddPrefixToKey;
+		NewKey.Append(Pair.Key);
+		switch(Pair.Value.GetDataType())
+		{
+			case FVariantValue::EDataType::TypeFString:
+			{
+				OutVariantMap.Emplace(NewKey, Pair.Value.GetFString());
+				break;
+			}
+			case FVariantValue::EDataType::TypeDouble:
+			{
+				OutVariantMap.Emplace(NewKey, Pair.Value.GetDouble());
+				break;
+			}
+			case FVariantValue::EDataType::TypeInt64:
+			{
+				OutVariantMap.Emplace(NewKey, Pair.Value.GetInt64());
+				break;
+			}
+			case FVariantValue::EDataType::TypeBoolean:
+			{
+				OutVariantMap.Emplace(NewKey, Pair.Value.GetInt64());
+				break;
+			}
+			case FVariantValue::EDataType::TypeTimeValue:
+			{
+				OutVariantMap.Emplace(NewKey, Pair.Value.GetTimeValue().GetAsTimespan());
+				break;
+			}
+			case FVariantValue::EDataType::TypeVoidPointer:
+			{
+				OutVariantMap.Emplace(NewKey, (uint64) Pair.Value.GetPointer());
+				break;
+			}
+			case FVariantValue::EDataType::TypeU8Array:
+			{
+				OutVariantMap.Emplace(NewKey, Pair.Value.GetArray());
+				break;
+			}
+			default:
+			{
+				break;
+			}
+		}
+	}
+}
+
+void FParamDict::ConvertTo(TMap<FString, FVariant>& OutVariantMap, const FString& InAddPrefixToKey) const
+{
+	ConvertKeysStartingWithTo(OutVariantMap, FString(), InAddPrefixToKey);
+}
+
+
 } // namespace Electra
-
-

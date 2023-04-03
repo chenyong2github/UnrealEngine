@@ -2,11 +2,7 @@
 
 #pragma once
 
-#include "Decoder/VideoDecoderH264.h"
-#include "Decoder/VideoDecoderH265.h"
-#include "Decoder/AudioDecoderAAC.h"
 #include "StreamAccessUnitBuffer.h"
-
 
 namespace Electra
 {
@@ -16,12 +12,6 @@ namespace Electra
 		{
 			FConfiguration()
 			{
-				// TODO: set certain configuration items for this type of player that make sense (like image size auto config)
-
-				WorkerThread.Priority = TPri_Normal;
-				WorkerThread.StackSize = 32768;
-				WorkerThread.CoreAffinity = -1;
-
 				// Set default values to maximum permitted values.
 				StreamBufferConfigVideo.MaxDataSize = 128 << 20;
 				StreamBufferConfigVideo.MaxDuration.SetFromSeconds(6.0);
@@ -54,23 +44,19 @@ namespace Electra
 			};
 
 
-			FMediaRunnable::Param								WorkerThread;
-
 			FAccessUnitBuffer::FConfiguration					StreamBufferConfigVideo;
 			FAccessUnitBuffer::FConfiguration					StreamBufferConfigAudio;
 			FAccessUnitBuffer::FConfiguration					StreamBufferConfigText;
-
-			IVideoDecoderH264::FInstanceConfiguration			DecoderCfg264;
-			IAudioDecoderAAC::FInstanceConfiguration			DecoderCfgAAC;
-
-			FVideoDecoderLimit									H264LimitUpto30fps;
-			FVideoDecoderLimit									H264LimitAbove30fps;
 
 			bool												bHoldLastFrameDuringSeek;
 
 			double												InitialBufferMinTimeAvailBeforePlayback;
 			double												SeekBufferMinTimeAvailBeforePlayback;
 			double												RebufferMinTimeAvailBeforePlayback;
+
+		// Deprecate these soon
+			FVideoDecoderLimit									H264LimitUpto30fps;
+			FVideoDecoderLimit									H264LimitAbove30fps;
 		};
 
 	} // namespace AdaptiveStreamingPlayerConfig

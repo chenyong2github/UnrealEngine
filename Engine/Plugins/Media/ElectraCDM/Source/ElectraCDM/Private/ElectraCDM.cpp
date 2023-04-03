@@ -59,6 +59,17 @@ private:
 		sb.ReplaceInline(TEXT("-"), TEXT(""), ESearchCase::CaseSensitive);
 		return sa.Equals(sb, ESearchCase::IgnoreCase);
 	}
+	bool CompareSchemeIds(const FString& schemeA, const TArray<FString>& listOfSchemesB)
+	{
+		for(auto& schemeB : listOfSchemesB)
+		{
+			if (CompareSchemeIds(schemeA, schemeB))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
 
 	FCriticalSection Lock;
 	TArray<TWeakPtr<IMediaCDMSystem, ESPMode::ThreadSafe>> CDMSystems;
@@ -106,7 +117,7 @@ void FMediaDRM::GetCDMCustomJSONPrefixes(const FString& InCDMScheme, const FStri
 	for(int32 i=0; i<CDMSystems.Num(); ++i)
 	{
 		TSharedPtr<IMediaCDMSystem, ESPMode::ThreadSafe> CDMSystem = CDMSystems[i].Pin();
-		if (CDMSystem.IsValid() && CompareSchemeIds(InCDMScheme, CDMSystem->GetSchemeID()))
+		if (CDMSystem.IsValid() && CompareSchemeIds(InCDMScheme, CDMSystem->GetSchemeIDs()))
 		{
 			CDMSystem->GetCDMCustomJSONPrefixes(OutAttributePrefix, OutTextPropertyName, bOutNoNamespaces);
 			break;
@@ -123,7 +134,7 @@ TSharedPtr<IMediaCDMCapabilities, ESPMode::ThreadSafe> FMediaDRM::GetCDMCapabili
 	for(int32 i=0; i<CDMSystems.Num(); ++i)
 	{
 		TSharedPtr<IMediaCDMSystem, ESPMode::ThreadSafe> CDMSystem = CDMSystems[i].Pin();
-		if (CDMSystem.IsValid() && CompareSchemeIds(InCDMScheme, CDMSystem->GetSchemeID()))
+		if (CDMSystem.IsValid() && CompareSchemeIds(InCDMScheme, CDMSystem->GetSchemeIDs()))
 		{
 			Capabilities = CDMSystem->GetCDMCapabilities(InValue, InAdditionalElements);
 			if (Capabilities.IsValid())
@@ -162,7 +173,7 @@ ECDMError FMediaDRM::CreateDRMClient(TSharedPtr<IMediaCDMClient, ESPMode::Thread
 	for(int32 i=0; i<CDMSystems.Num(); ++i)
 	{
 		TSharedPtr<IMediaCDMSystem, ESPMode::ThreadSafe> CDMSystem = CDMSystems[i].Pin();
-		if (CDMSystem.IsValid() && CompareSchemeIds(CDMSystem->GetSchemeID(), InCandidates[0].SchemeId))
+		if (CDMSystem.IsValid() && CompareSchemeIds(InCandidates[0].SchemeId, CDMSystem->GetSchemeIDs()))
 		{
 			SelectedCDMSystem = CDMSystem;
 			break;
@@ -175,7 +186,7 @@ ECDMError FMediaDRM::CreateDRMClient(TSharedPtr<IMediaCDMClient, ESPMode::Thread
 		TArray<FCDMCandidate> CDMCandidateList;
 		for(auto &Cand : InCandidates)
 		{
-			if (CompareSchemeIds(SelectedCDMSystem->GetSchemeID(), Cand.SchemeId))
+			if (CompareSchemeIds(Cand.SchemeId, SelectedCDMSystem->GetSchemeIDs()))
 			{
 				CDMCandidateList.Emplace(Cand);
 			}

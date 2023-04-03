@@ -10,9 +10,6 @@
 #include "Renderer/RendererVideo.h"
 
 #include "Renderer/RendererAudio.h"
-#include "Decoder/VideoDecoderH264.h"
-#include "Decoder/VideoDecoderH265.h"
-#include "Decoder/AudioDecoderAAC.h"
 
 #include "ElectraPlayerPrivate.h"
 #include "IElectraPlayerRuntimeModule.h"
@@ -47,15 +44,6 @@ public:
 		LLM_SCOPE_BYNAME(TEXT("StartupModule"));
 		check(!bInitialized);
 
-		if (!Electra::PlatformEarlyStartup())
-		{
-
-			return;
-		}
-
-		// Hook-up platform memory system (if any)
-		Electra::PlatformMemorySetup();
-
 		// Core
 		Electra::Configuration ElectraConfig;
 		FString AnalyticsEventsFromIni;
@@ -81,16 +69,6 @@ public:
 		FElectraRendererAudio::SystemConfiguration SysCfgAudio;
 		FElectraRendererAudio::Startup(SysCfgAudio);
 
-		// H.264 decoder
-		IVideoDecoderH264::FSystemConfiguration SysCfgH264;
-		IVideoDecoderH264::Startup(SysCfgH264);
-		// H.265 decoder
-		FParamDict NoOptions;
-		IVideoDecoderH265::Startup(NoOptions);
-		// AAC decoder
-		IAudioDecoderAAC::FSystemConfiguration SysCfgAAC;
-		IAudioDecoderAAC::Startup(SysCfgAAC);
-
 		// The HTTP stream module is required.
 		FModuleManager::LoadModuleChecked<IElectraHTTPStreamModule>("ElectraHTTPStream");
 
@@ -105,9 +83,6 @@ public:
 			// to avoid potential hangs in there.
 			if (Electra::WaitForAllPlayersToHaveTerminated())
 			{
-				IAudioDecoderAAC::Shutdown();
-				IVideoDecoderH265::Shutdown();
-				IVideoDecoderH264::Shutdown();
 				FElectraRendererAudio::Shutdown();
 				FElectraRendererVideo::Shutdown();
 				Electra::Shutdown();
@@ -131,4 +106,3 @@ private:
 IMPLEMENT_MODULE(FElectraPlayerRuntimeModule, ElectraPlayerRuntime);
 
 #undef LOCTEXT_NAMESPACE
-

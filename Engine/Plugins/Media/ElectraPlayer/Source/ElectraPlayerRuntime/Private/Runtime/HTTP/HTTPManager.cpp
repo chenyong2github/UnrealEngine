@@ -6,7 +6,9 @@
 #include "Utilities/URLParser.h"
 #include "PlayerTime.h"
 #include "Player/PlayerSessionServices.h"
+#include "Player/IExternalDataReader.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/PlatformMisc.h"
 
 // For base64 encoding/decoding
 #include "Misc/Base64.h"
@@ -39,7 +41,7 @@ DEFINE_LOG_CATEGORY(LogElectraHTTPManager);
 
 
 #define ELECTRA_HTTPMANAGER_USER_AGENT					TEXT("X-UnrealEngine-Agent")
-//#define ELECTRA_HTTPMANAGER_DEBUG_PROXY_ADDRESS			TEXT("10.29.4.30:8888")
+//#define ELECTRA_HTTPMANAGER_DEBUG_PROXY_ADDRESS			TEXT("10.29.4.42:8888")
 //#define ELECTRA_HTTPMANAGER_ALLOW_UNSAFE_CONNECTIONS	1
 
 namespace Electra
@@ -85,8 +87,8 @@ namespace Electra
 		struct FFileStream : public FLocalByteStream
 		{
 			virtual ~FFileStream() = default;
-			virtual void SetConnected(TSharedPtrTS<FRequest> Request) override;
-			virtual int32 Read(TSharedPtrTS<FReceiveBuffer> RcvBuffer, TSharedPtrTS<FRequest> Request) override;
+			void SetConnected(TSharedPtrTS<FRequest> Request) override;
+			int32 Read(TSharedPtrTS<FReceiveBuffer> RcvBuffer, TSharedPtrTS<FRequest> Request) override;
 			TSharedPtr<FArchive, ESPMode::ThreadSafe>	Archive;
 			FString										Filename;
 		};
@@ -95,12 +97,32 @@ namespace Electra
 		{
 			virtual ~FDataUrl() = default;
 			bool SetData(const FString& InUrl);
-			virtual void SetConnected(TSharedPtrTS<FRequest> Request) override;
-			virtual int32 Read(TSharedPtrTS<FReceiveBuffer> RcvBuffer, TSharedPtrTS<FRequest> Request) override;
+			void SetConnected(TSharedPtrTS<FRequest> Request) override;
+			int32 Read(TSharedPtrTS<FReceiveBuffer> RcvBuffer, TSharedPtrTS<FRequest> Request) override;
 			TArray<uint8>								Data;
 			FString										MimeType;
 		};
 
+		struct FExternalReader : public FLocalByteStream, public TSharedFromThis<FExternalReader, ESPMode::ThreadSafe>
+		{
+			virtual ~FExternalReader() = default;
+			void SetConnected(TSharedPtrTS<FRequest> Request) override;
+			int32 Read(TSharedPtrTS<FReceiveBuffer> RcvBuffer, TSharedPtrTS<FRequest> Request) override;
+			void OnReadComplete(IExternalDataReader::FResponseDataPtr InResponseData, int64 InTotalFileSize, const IExternalDataReader::FReadParams& InFromRequestParams)
+			{
+				ResponseData = MoveTemp(InResponseData);
+				TotalFileSize = InTotalFileSize;
+				FPlatformMisc::MemoryBarrier();
+				bCompleted = true;
+			}
+			TSharedPtrTS<IExternalDataReader> ExternalDataReader;
+			IExternalDataReader::FReadParams ReadParams;
+			IExternalDataReader::FElectraExternalDataReadCompleted CompletionDelegate;
+			IExternalDataReader::FResponseDataPtr ResponseData;
+			int64 TotalFileSize = -1;
+			volatile bool bCompleted = false;
+			bool bRangedRequest = false;
+		};
 
 		class FHTTPCallbackWrapper
 		{
@@ -142,8 +164,11 @@ namespace Electra
 			{
 				if (HandleType == EHandleType::LocalHandle)
 				{
-					delete LocalByteStream;
-					LocalByteStream = nullptr;
+					LocalByteStream.Reset();
+				}
+				else if (HandleType == EHandleType::ExternalHandle)
+				{
+					LocalByteStream.Reset();
 				}
 				else if (HandleType == EHandleType::HTTPHandle)
 				{
@@ -272,6 +297,7 @@ namespace Electra
 			{
 				Undefined,
 				LocalHandle,
+				ExternalHandle,
 				HTTPHandle
 			};
 
@@ -280,7 +306,7 @@ namespace Electra
 			EHandleType				HandleType = EHandleType::Undefined;
 
 			// Local file handle (for file:// and data:)
-			FLocalByteStream*		LocalByteStream = nullptr;
+			TSharedPtrTS<FLocalByteStream> LocalByteStream;
 
 			// HTTP handle
 			IElectraHTTPStreamRequestPtr							HttpRequest;
@@ -344,6 +370,7 @@ namespace Electra
 		};
 
 		FHandle* CreateLocalFileHandle(const FTimeValue& Now, FTransportError& OutError, const TSharedPtrTS<FRequest>& Request);
+		FHandle* CreateExternalHandle(const FTimeValue& Now, FTransportError& OutError, const TSharedPtrTS<FRequest>& Request);
 		FHandle* CreateHTTPHandle(const FTimeValue& Now, FTransportError& OutError, const TSharedPtrTS<FRequest>& Request);
 		bool PrepareHTTPHandle(const FTimeValue& Now, FHandle* InHandle, const TSharedPtrTS<FRequest>& Request, bool bIsFirstSetup);
 		void AddPendingRequests(const FTimeValue& Now);
@@ -352,6 +379,7 @@ namespace Electra
 		void HandlePeriodicCallbacks(const FTimeValue& Now);
 		void HandleTimeouts(const FTimeValue& Now);
 		void HandleLocalFileRequests();
+		void HandleExternalDataRequests();
 		void HandleCachedHTTPRequests(const FTimeValue& Now);
 		void HandleHTTPRequests(const FTimeValue& Now);
 		void HandleHTTPResponses(const FTimeValue& Now);
@@ -527,7 +555,7 @@ namespace Electra
 		if (Request->Parameters.URL.Left(5).Equals(TEXT("data:")))
 		{
 			FDataUrl* DataUrl = new FDataUrl;
-			Handle->LocalByteStream = DataUrl;
+			Handle->LocalByteStream = MakeShareable<FLocalByteStream>(DataUrl);
 			if (!DataUrl->SetData(Request->Parameters.URL))
 			{
 				OutError.Set(ERRCODE_HTTP_FILE_COULDNT_READ_FILE, FString::Printf(TEXT("Failed to use data URL \"%s\""), *Request->Parameters.URL));
@@ -541,7 +569,7 @@ namespace Electra
 			if (FURL_RFC3986::UrlDecode(Filename, Request->Parameters.URL))
 			{
 				FFileStream* FileStream = new FFileStream;
-				Handle->LocalByteStream = FileStream;
+				Handle->LocalByteStream = MakeShareable<FLocalByteStream>(FileStream);
 				FileStream->Filename = Filename.Mid(7); /* file:// */
 				FileStream->Archive = MakeShareable(IFileManager::Get().CreateFileReader(*FileStream->Filename));
 				if (!FileStream->Archive.IsValid())
@@ -557,6 +585,26 @@ namespace Electra
 			}
 		}
 		return Handle.Release();
+	}
+
+	FElectraHttpManager::FHandle* FElectraHttpManager::CreateExternalHandle(const FTimeValue& Now, FTransportError& OutError, const TSharedPtrTS<IElectraHttpManager::FRequest>& Request)
+	{
+		TSharedPtrTS<IExternalDataReader> ExternalDataReader = Request->ExternalDataReader.Pin();
+		if (ExternalDataReader.IsValid())
+		{
+			TUniquePtr<FHandle> Handle(new FHandle);
+			Handle->Owner = this;
+			Handle->HandleType = FHandle::EHandleType::ExternalHandle;
+			FExternalReader* ExternalStream = new FExternalReader;
+			Handle->LocalByteStream = MakeShareable<FExternalReader>(ExternalStream);
+			ExternalStream->ExternalDataReader = MoveTemp(ExternalDataReader);
+			return Handle.Release();
+		}
+		else
+		{
+			OutError.Set(ERRCODE_HTTP_FILE_COULDNT_READ_FILE, FString::Printf(TEXT("External data reader is not valid to read from \"%s\""), *Request->Parameters.URL));
+			return nullptr;
+		}
 	}
 
 	FElectraHttpManager::FHandle* FElectraHttpManager::CreateHTTPHandle(const FTimeValue& Now, FTransportError& OutError, const TSharedPtrTS<IElectraHttpManager::FRequest>& Request)
@@ -706,9 +754,28 @@ namespace Electra
 			FTransportError HttpError;
 			Request->ConnectionInfo.EffectiveURL = Request->Parameters.URL;
 
-			// Is this a local file?
-			if ((Request->Parameters.URL.Len() > 7 && Request->Parameters.URL.Left(7) == TEXT("file://")) ||
-				(Request->Parameters.URL.Len() > 5 && Request->Parameters.URL.Left(5) == TEXT("data:")))
+			// If there is an external data reader set and this is _not_ a data url
+			if (Request->ExternalDataReader.IsValid() && !(Request->Parameters.URL.Len() > 5 && Request->Parameters.URL.Left(5) == TEXT("data:")))
+			{
+				FHandle* Handle = CreateExternalHandle(Now, HttpError, Request);
+				if (Handle)
+				{
+					ActiveRequests.Add(Handle, Request);
+
+					Request->ConnectionInfo.RequestStartTime = Now;
+					Handle->RequestStartTime = Now;
+					Handle->TimeAtNextProgressCallback = Now + ProgressInterval;
+					Handle->TimeAtConnectionTimeoutCheck.SetToPositiveInfinity();
+				}
+				else
+				{
+					Request->ConnectionInfo.StatusInfo.ErrorDetail.SetError(UEMEDIA_ERROR_INTERNAL).SetFacility(Facility::EFacility::HTTPReader).SetMessage(HttpError.Message).SetCode((uint16)HttpError.ErrorCode);
+					RequestsCompleted.Enqueue(Request);
+				}
+			}
+			// Otherwise, is this a local file or a data url?
+			else if ((Request->Parameters.URL.Len() > 7 && Request->Parameters.URL.Left(7) == TEXT("file://")) ||
+					 (Request->Parameters.URL.Len() > 5 && Request->Parameters.URL.Left(5) == TEXT("data:")))
 			{
 				FHandle* Handle = CreateLocalFileHandle(Now, HttpError, Request);
 				if (Handle)
@@ -726,6 +793,7 @@ namespace Electra
 					RequestsCompleted.Enqueue(Request);
 				}
 			}
+			// Finally it has to be a http request.
 			else
 			{
 				FHandle* Handle = CreateHTTPHandle(Now, HttpError, Request);
@@ -1010,7 +1078,8 @@ namespace Electra
 
 		// Handle local file requests.
 		HandleLocalFileRequests();
-
+		// Handle external requests.
+		HandleExternalDataRequests();
 		// Handle requests that have a cached response.
 		HandleCachedHTTPRequests(Now);
 
@@ -1033,12 +1102,49 @@ namespace Electra
 		for(TMap<FHandle*, TSharedPtrTS<FRequest>>::TIterator It = ActiveRequests.CreateIterator(); It; ++It)
 		{
 			FHandle* Handle = It.Key();
-			if (Handle->HandleType == FHandle::EHandleType::LocalHandle && Handle->LocalByteStream)
+			if (Handle->HandleType == FHandle::EHandleType::LocalHandle && Handle->LocalByteStream.IsValid())
 			{
 				TSharedPtrTS<FRequest> Request = It.Value();
 				// Establish the file handle as "connected"
 				Handle->LocalByteStream->SetConnected(Request);
 				// Read from local file
+				TSharedPtrTS<FReceiveBuffer> ReceiveBuffer = Request->ReceiveBuffer.Pin();
+				if (ReceiveBuffer.IsValid())
+				{
+					int32 NumBytesRead = Handle->LocalByteStream->Read(ReceiveBuffer, Request);
+					if (NumBytesRead > 0)
+					{
+						Handle->LastTimeDataReceived = MEDIAutcTime::Current();
+					}
+					// Reading done?
+					if (Handle->LocalByteStream->FileSizeToGo <= 0)
+					{
+						Request->ConnectionInfo.RequestEndTime = Request->ConnectionInfo.StatusInfo.OccurredAtUTC = MEDIAutcTime::Current();
+						RequestsCompleted.Enqueue(Request);
+					}
+				}
+				else
+				{
+					// With the receive buffer having been released we can abort the transfer.
+					Request->ConnectionInfo.bWasAborted = true;
+					Request->ConnectionInfo.RequestEndTime = Request->ConnectionInfo.StatusInfo.OccurredAtUTC = MEDIAutcTime::Current();
+					RequestsCompleted.Enqueue(Request);
+				}
+			}
+		}
+	}
+
+	void FElectraHttpManager::HandleExternalDataRequests()
+	{
+		for (TMap<FHandle*, TSharedPtrTS<FRequest>>::TIterator It = ActiveRequests.CreateIterator(); It; ++It)
+		{
+			FHandle* Handle = It.Key();
+			if (Handle->HandleType == FHandle::EHandleType::ExternalHandle)
+			{
+				TSharedPtrTS<FRequest> Request = It.Value();
+				// Establish the file handle as "connected"
+				Handle->LocalByteStream->SetConnected(Request);
+				// Read data
 				TSharedPtrTS<FReceiveBuffer> ReceiveBuffer = Request->ReceiveBuffer.Pin();
 				if (ReceiveBuffer.IsValid())
 				{
@@ -1546,6 +1652,80 @@ namespace Electra
 			}
 		}
 		return NumToRead;
+	}
+
+
+	void FElectraHttpManager::FExternalReader::SetConnected(TSharedPtrTS<FRequest> Request)
+	{
+		if (!bIsConnected)
+		{
+			bIsConnected = true;
+			// Go through the notions of this being a network request.
+			Request->ConnectionInfo.bIsConnected = true;
+			Request->ConnectionInfo.bHaveResponseHeaders = true;
+			Request->ConnectionInfo.ContentType = "application/octet-stream";
+			Request->ConnectionInfo.EffectiveURL = Request->Parameters.URL;
+			Request->ConnectionInfo.HTTPVersionReceived = 11;
+			Request->ConnectionInfo.bIsChunked = false;
+
+			// Trigger the external read request.
+			ReadParams.URI = Request->Parameters.URL;
+			if (!Request->Parameters.Range.IsSet())
+			{
+				ReadParams.AbsoluteFileOffset = 0;
+				ReadParams.NumBytesToRead = TNumericLimits<int64>::Max();
+			}
+			else
+			{
+				int64 end = Request->Parameters.Range.EndIncluding;
+				int64 numBytes = (end >= 0) ? end - Request->Parameters.Range.Start + 1 : TNumericLimits<int64>::Max();
+				ReadParams.AbsoluteFileOffset = Request->Parameters.Range.Start;
+				ReadParams.NumBytesToRead = numBytes;
+				bRangedRequest = true;
+			}
+			FileStartOffset = ReadParams.AbsoluteFileOffset;
+			FileSizeToGo = ReadParams.NumBytesToRead;
+
+			CompletionDelegate.BindThreadSafeSP(AsShared(), &FExternalReader::OnReadComplete);
+			ExternalDataReader->ReadData(ReadParams, CompletionDelegate);
+		}
+	}
+
+	int32 FElectraHttpManager::FExternalReader::Read(TSharedPtrTS<FReceiveBuffer> RcvBuffer, TSharedPtrTS<FRequest> Request)
+	{
+		if (bCompleted)
+		{
+			int64 NumBytesRead = ResponseData.IsValid() ? ResponseData->Num() : 0;
+			FileSize = TotalFileSize;
+			FileSizeToGo = 0;
+			if (FileSize >= 0)
+			{
+				RcvBuffer->Buffer.SetExternalData(MoveTemp(ResponseData));
+				if (!bRangedRequest)
+				{
+					Request->ConnectionInfo.StatusInfo.HTTPStatus = 200;
+					Request->ConnectionInfo.ContentLength = FileSize;
+					Request->ConnectionInfo.ContentLengthHeader = FString::Printf(TEXT("Content-Length: %lld"), (long long int)FileSize);
+				}
+				else
+				{
+					Request->ConnectionInfo.StatusInfo.HTTPStatus = 206;
+					Request->ConnectionInfo.ContentLength = NumBytesRead;
+					Request->ConnectionInfo.ContentLengthHeader = FString::Printf(TEXT("Content-Length: %lld"), (long long int)NumBytesRead);
+					Request->ConnectionInfo.ContentRangeHeader = FString::Printf(TEXT("Content-Range: bytes %lld-%lld/%lld"), (long long int)FileStartOffset, (long long int)FileStartOffset+NumBytesRead-1, (long long int)TotalFileSize);
+				}
+				return NumBytesRead;
+			}
+			else
+			{
+				HTTP::FConnectionInfo& ci = Request->ConnectionInfo;
+				ci.StatusInfo.HTTPStatus = 404;
+				ci.StatusInfo.ErrorDetail.SetError(UEMEDIA_ERROR_READ_ERROR).SetFacility(Facility::EFacility::HTTPReader).SetCode(ERRCODE_HTTPMODULE_FAILURE);
+				ci.StatusInfo.ErrorDetail.SetMessage(FString::Printf(TEXT("External reader returned -1 for resource size, indicating file not found (HTTP status %d)"), ci.StatusInfo.HTTPStatus));
+				ci.StatusInfo.ErrorCode = ERRCODE_HTTP_RETURNED_ERROR;
+			}
+		}
+		return -1;
 	}
 
 

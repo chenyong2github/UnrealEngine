@@ -98,12 +98,13 @@ namespace Electra
 		// they will not be unloaded on shutdown before this module here, otherwise there could be crashes.
 		FModuleManager::Get().LoadModule(TEXT("ElectraBase"));
 		FModuleManager::Get().LoadModule(TEXT("ElectraSamples"));
+		FModuleManager::Get().LoadModule(TEXT("ElectraCodecFactory"));
 		FModuleManager::Get().LoadModule(TEXT("ElectraHTTPStream"));
 		FModuleManager::Get().LoadModule(TEXT("ElectraSubtitles"));
 		FModuleManager::Get().LoadModule(TEXT("ElectraCDM"));
 
 		EnabledAnalyticsEvents = InConfiguration.EnabledAnalyticsEvents;
-		return(true);
+		return true;
 	}
 
 

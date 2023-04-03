@@ -57,12 +57,20 @@
 			"Enabled": true
 		},
 		{
-			"Name": "ElectraCDM",
+			"Name": "ElectraCodecs",
 			"Enabled": true
 		},
 		{
-			"Name": "ElectraSubtitles",
+			"Name": "ElectraCDM",
 			"Enabled": true
-		}
+		},
+    {
+      "Name": "ElectraSubtitles",
+      "Enabled": true
+    },
+    {
+      "Name": "OpusDecoderElectra",
+      "Enabled": true
+    }
 	]
 }

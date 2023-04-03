@@ -27,7 +27,7 @@
 #include "Utilities/Utilities.h"
 #include "Utilities/TimeUtilities.h"
 #include "Utilities/ISO639-Map.h"
-#include "Utilities/UtilsMPEGAudio.h"
+#include "Utils/MPEG/ElectraUtilsMPEGAudio.h"
 
 #include "Player/DRM/DRMManager.h"
 
@@ -1635,7 +1635,7 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 							uint32 v = 0;
 							LexFromString(v, *AudioChannelConfigurations[nACC]->GetValue());
 							Representation->CodecInfo.SetChannelConfiguration(v);
-							Representation->CodecInfo.SetNumberOfChannels(MPEG::AACUtils::GetNumberOfChannelsFromChannelConfiguration(v));
+							Representation->CodecInfo.SetNumberOfChannels(ElectraDecodersUtil::MPEG::AACUtils::GetNumberOfChannelsFromChannelConfiguration(v));
 							break;
 						}
 						else if (AudioChannelConfigurations[nACC]->GetSchemeIdUri().Equals(AudioChannelConfigurationDolby))	// "tag:dolby.com,2014:dash:audio_channel_configuration:2011"

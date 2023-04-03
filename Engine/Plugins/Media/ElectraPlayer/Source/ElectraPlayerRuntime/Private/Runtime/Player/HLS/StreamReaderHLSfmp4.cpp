@@ -444,6 +444,7 @@ FStreamReaderHLSfmp4::FStreamHandler::ELicenseKeyResult FStreamReaderHLSfmp4::FS
 				ProgressListener->ProgressDelegate   = IElectraHttpManager::FProgressListener::FProgressDelegate::CreateRaw(this, &FStreamHandler::HTTPProgressCallback);
 				ProgressListener->CompletionDelegate = IElectraHttpManager::FProgressListener::FCompletionDelegate::CreateRaw(this, &FStreamHandler::HTTPCompletionCallback);
 				HTTP->ProgressListener = ProgressListener;
+				HTTP->ExternalDataReader = PlayerSessionService->GetExternalDataReader();
 				PlayerSessionService->GetHTTPManager()->AddRequest(HTTP, false);
 				while(!HasReadBeenAborted())
 				{
@@ -547,6 +548,7 @@ FStreamReaderHLSfmp4::FStreamHandler::EInitSegmentResult FStreamReaderHLSfmp4::F
 			// Set timeouts for init segment retrieval
 			HTTP->Parameters.ConnectTimeout = FTimeValue().SetFromMilliseconds(1000 * 4);
 			HTTP->Parameters.NoDataTimeout = FTimeValue().SetFromMilliseconds(1000 * 2);
+			HTTP->ExternalDataReader = PlayerSessionService->GetExternalDataReader();
 
 			ProgressReportCount = 0;
 			DownloadCompleteSignal.Reset();
@@ -834,6 +836,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 				// Set timeouts for media segment retrieval
 				HTTP->Parameters.ConnectTimeout = FTimeValue().SetFromMilliseconds(1000 * 4);
 				HTTP->Parameters.NoDataTimeout = FTimeValue().SetFromMilliseconds(1000 * 2);
+				HTTP->ExternalDataReader = PlayerSessionService->GetExternalDataReader();
 
 				ProgressReportCount = 0;
 				DownloadCompleteSignal.Reset();

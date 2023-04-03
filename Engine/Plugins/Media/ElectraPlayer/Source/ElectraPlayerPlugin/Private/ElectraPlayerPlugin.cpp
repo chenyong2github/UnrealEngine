@@ -638,14 +638,6 @@ bool FElectraPlayerPlugin::Open(const FString& Url, const IMediaOptions* Options
 		PlayerOptions.Set("max_resoY_above_30fps", Electra::FVariantValue(MaxVerticalHeightAt60));
 		UE_LOG(LogElectraPlayerPlugin, Log, TEXT("[%p] IMediaPlayer::Open: Limiting vertical resolution to %d for streams >30fps"), this, (int32)MaxVerticalHeightAt60);
 	}
-
-	int64 MaxVerticalHeightForWindowsSoftware = Options->GetMediaOption(TEXT("MaxElectraVerticalResolutionOfWindowsSWD"), (int64)-1);
-	if (MaxVerticalHeightForWindowsSoftware > 0)
-	{
-		PlayerOptions.Set("max_resoY_windows_software", Electra::FVariantValue(MaxVerticalHeightForWindowsSoftware));
-		UE_LOG(LogElectraPlayerPlugin, Log, TEXT("[%p] IMediaPlayer::Open: Limiting vertical resolution to %d for Windows software decoding"), this, (int32)MaxVerticalHeightForWindowsSoftware);
-	}
-
 	double LiveEdgeDistanceForNormalPresentation = Options->GetMediaOption(TEXT("ElectraLivePresentationOffset"), (double)-1.0);
 	if (LiveEdgeDistanceForNormalPresentation > 0.0)
 	{

@@ -18,6 +18,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogElectraHTTPManager, Log, All);
 
 namespace Electra
 {
+	class IExternalDataReader;
 	class IHTTPResponseCache;
 
 	namespace HTTP
@@ -256,6 +257,7 @@ namespace Electra
 			TWeakPtrTS<FReceiveBuffer>			ReceiveBuffer;
 			TWeakPtrTS<FProgressListener>		ProgressListener;
 			TSharedPtrTS<IHTTPResponseCache>	ResponseCache;
+			TWeakPtrTS<IExternalDataReader>		ExternalDataReader;
 			bool								bAutoRemoveWhenComplete = false;
 		};
 

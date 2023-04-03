@@ -4,6 +4,7 @@
 
 #include <CoreMinimal.h>
 #include <Containers/Array.h>
+#include "ElectraCDM.h"
 
 namespace ElectraCDM
 {
@@ -13,7 +14,7 @@ class IMediaCDMSystem
 public:
 	virtual FString GetLastErrorMessage() = 0;
 
-	virtual const FString& GetSchemeID() = 0;
+	virtual const TArray<FString>& GetSchemeIDs() = 0;
 
 	virtual void GetCDMCustomJSONPrefixes(FString& OutAttributePrefix, FString& OutTextPropertyName, bool& bOutNoNamespaces) = 0;
 

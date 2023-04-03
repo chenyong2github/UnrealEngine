@@ -3,7 +3,7 @@
 #pragma once
 
 #include "PlayerCore.h"
-#include "Utilities/UtilsMPEGVideo.h"
+#include "Utils/MPEG/ElectraUtilsMPEGVideo.h"
 #include "MediaVideoDecoderOutput.h"
 #include "ParameterDictionary.h"
 
@@ -16,44 +16,11 @@ namespace MPEG
 class FColorimetryHelper
 {
 public:
-	void Reset()
-	{
-		CurrentColorimetry.Reset();
-	}
-	void Update(uint8 colour_primaries, uint8 transfer_characteristics, uint8 matrix_coeffs, uint8 video_full_range_flag, uint8 video_format)
-	{
-		if (CurrentColorimetry.IsValid() &&
-			CurrentColorimetry->Colorimetry.ColourPrimaries == colour_primaries &&
-			CurrentColorimetry->Colorimetry.MatrixCoefficients == matrix_coeffs &&
-			CurrentColorimetry->Colorimetry.TransferCharacteristics == transfer_characteristics &&
-			CurrentColorimetry->Colorimetry.VideoFullRangeFlag == video_full_range_flag &&
-			CurrentColorimetry->Colorimetry.VideoFormat == video_format)
-		{
-			return;
-		}
-		CurrentColorimetry = MakeShareable(new FVideoDecoderColorimetry(colour_primaries, transfer_characteristics, matrix_coeffs, video_full_range_flag, video_format));
-	}
-
-	void UpdateParamDict(FParamDict& InOutDictionary)
-	{
-		InOutDictionary.Set(TEXT("colorimetry"), FVariantValue(CurrentColorimetry));
-	}
-
-	bool GetCurrentValues(uint8& colour_primaries, uint8& transfer_characteristics, uint8& matrix_coeffs) const
-	{
-		if (CurrentColorimetry.IsValid() && CurrentColorimetry->GetMPEGDefinition())
-		{
-			colour_primaries = CurrentColorimetry->GetMPEGDefinition()->ColourPrimaries;
-			transfer_characteristics = CurrentColorimetry->GetMPEGDefinition()->TransferCharacteristics;
-			matrix_coeffs = CurrentColorimetry->GetMPEGDefinition()->MatrixCoefficients;
-			return true;
-		}
-		else
-		{
-			colour_primaries = transfer_characteristics = matrix_coeffs = 2;
-			return false;
-		}
-	}
+	void Reset();
+	void Update(uint8 colour_primaries, uint8 transfer_characteristics, uint8 matrix_coeffs, uint8 video_full_range_flag, uint8 video_format);
+	void Update(const TArray<uint8>& InFromCOLRBox);
+	void UpdateParamDict(FParamDict& InOutDictionary);
+	bool GetCurrentValues(uint8& colour_primaries, uint8& transfer_characteristics, uint8& matrix_coeffs) const;
 
 private:
 	class FVideoDecoderColorimetry : public IVideoDecoderColorimetry
@@ -82,7 +49,8 @@ class FHDRHelper
 {
 public:
 	void Reset();
-	void Update(int32 BitDepth, const FColorimetryHelper& InColorimetry, const TArray<FSEIMessage>& InGlobalPrefixSEIs, const TArray<FSEIMessage>& InLocalPrefixSEIs, bool bIsNewCLVS);
+	void Update(int32 BitDepth, const FColorimetryHelper& InColorimetry, const TArray<ElectraDecodersUtil::MPEG::FSEIMessage>& InGlobalPrefixSEIs, const TArray<ElectraDecodersUtil::MPEG::FSEIMessage>& InLocalPrefixSEIs, bool bIsNewCLVS);
+	void UpdateFromMPEGBoxes(int32 BitDepth, const FColorimetryHelper& InColorimetry, const TArray<uint8>& InMDCVBox, const TArray<uint8>& InCLLIBox);
 	void UpdateParamDict(FParamDict& InOutDictionary);
 private:
 	class FVideoDecoderHDRInformation : public IVideoDecoderHDRInformation
@@ -107,9 +75,9 @@ private:
 		TOptional<FVideoDecoderHDRMetadata_content_light_level_info> ContentLightLevelInfo;
 	};
 	TSharedPtr<FVideoDecoderHDRInformation, ESPMode::ThreadSafe> CurrentHDRInfo;
-	TOptional<FSEIMessage> ActiveMasteringDisplayColourVolume;
-	TOptional<FSEIMessage> ActiveContentLightLevelInfo;
-	TOptional<FSEIMessage> ActiveAlternativeTransferCharacteristics;
+	TOptional<ElectraDecodersUtil::MPEG::FSEIMessage> ActiveMasteringDisplayColourVolume;
+	TOptional<ElectraDecodersUtil::MPEG::FSEIMessage> ActiveContentLightLevelInfo;
+	TOptional<ElectraDecodersUtil::MPEG::FSEIMessage> ActiveAlternativeTransferCharacteristics;
 	bool bIsFirst = true;
 	int32 CurrentAlternativeTransferCharacteristics = -1;
 };

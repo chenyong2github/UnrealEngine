@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/ArrayView.h"
+#include "IElectraDecoderOutputAudio.h"
 
 namespace Electra
 {
@@ -18,8 +19,9 @@ namespace Electra
 	class FAudioChannelMapper
 	{
 	public:
+/*
 		// Channel position as per ISO/IEC 23001-8 Table 7.
-		enum class EChannelPosition
+		enum class IElectraDecoderAudioOutput::EChannelPosition
 		{
 			L, R, C, LFE, Ls, Rs, Lc, Rc,
 			Lsr, Rsr, Cs, Lsd, Rsd, Lss, Rss, Lw,
@@ -27,10 +29,10 @@ namespace Electra
 			Rvss, Ts, LFE2, Lb, Rb, Cb, Lvs, Rvs,
 			Disabled = 255
 		};
-
+*/
 		struct FSourceLayout
 		{
-			EChannelPosition ChannelPosition = EChannelPosition::Disabled;
+			IElectraDecoderAudioOutput::EChannelPosition ChannelPosition = IElectraDecoderAudioOutput::EChannelPosition::Disabled;
 		};
 
 		FAudioChannelMapper();
@@ -52,15 +54,18 @@ namespace Electra
 		// Maps the supported input channels to the output channels in UE internal layout.
 		void MapChannels(void* OutputBuffer, uint32 OutputBufferSize, const void* InputBuffer, uint32 InputBufferSize, int32 NumSamplesPerChannel) const;
 
+		bool Initialize(TSharedPtr<IElectraDecoderAudioOutput, ESPMode::ThreadSafe> InSampleBlock);
+
 	private:
 		struct FTargetSource
 		{
-			EChannelPosition ChannelPosition = EChannelPosition::Disabled;
+			IElectraDecoderAudioOutput::EChannelPosition ChannelPosition = IElectraDecoderAudioOutput::EChannelPosition::Disabled;
 			int32 FirstOffset = 0;
 			int32 Stride = 0;
 		};
 
 		static bool CanBeCopiedDirectly(TArrayView<const FSourceLayout> ChannelPositions);
+		bool CanBeCopiedDirectly(TSharedPtr<IElectraDecoderAudioOutput, ESPMode::ThreadSafe> InSampleBlock);
 		int32 MatchesResamplerLayout(TArray<FTargetSource>& InputSources);
 		void CreateResamplerChannelMapping(int32 ResamplerChannelIndex, const TArray<FTargetSource>& InSources);
 

@@ -99,6 +99,11 @@ static bool IsAACCodec(const FString& Codec)
 	return Codec.Find(TEXT("mp4a.40.")) == 0;
 }
 
+static bool IsOpusCodec(const FString& Codec)
+{
+	return Codec.Find(TEXT("Opus")) == 0;
+}
+
 static bool IsH264Codec(TArray<FString>& OutResults, const FString& Codec)
 {
 	if (Codec.Find(TEXT("avc1.")) == 0)
@@ -583,6 +588,19 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 				{
 					si.SetStreamType(EStreamType::Audio);
 					si.SetCodec(FStreamCodecInformation::ECodec::AAC);
+					si.SetCodecSpecifierRFC6381(CodecList[nCodec]);
+					// For lack of knowledge pretend this is stereo.
+					si.SetChannelConfiguration(2);
+					si.SetNumberOfChannels(2);
+					si.SetBitrate(vs->Bandwidth);
+					bHasAudio = true;
+				}
+				// Match for Opus audio?
+				else if (IsOpusCodec(CodecList[nCodec]))
+				{
+					si.SetStreamType(EStreamType::Audio);
+					si.SetCodec(FStreamCodecInformation::ECodec::Audio4CC);
+					si.SetCodec4CC(0x4f707573);	// Make4CC('O','p','u','s'));
 					si.SetCodecSpecifierRFC6381(CodecList[nCodec]);
 					// For lack of knowledge pretend this is stereo.
 					si.SetChannelConfiguration(2);

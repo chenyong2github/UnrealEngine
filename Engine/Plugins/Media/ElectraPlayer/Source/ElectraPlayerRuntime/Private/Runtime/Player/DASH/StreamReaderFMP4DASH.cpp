@@ -969,6 +969,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 			HTTP->ReceiveBuffer    = ReadBuffer.ReceiveBuffer;
 			HTTP->ProgressListener = ProgressListener;
 			HTTP->ResponseCache = PlayerSessionService->GetHTTPResponseCache();
+			HTTP->ExternalDataReader = PlayerSessionService->GetExternalDataReader();
 			HTTP->Parameters.Range.Set(Request->Segment.MediaURL.Range);
 			HTTP->Parameters.AcceptEncoding.Set(TEXT("identity"));
 			if (Request->Segment.MediaURL.CustomHeader.Len())

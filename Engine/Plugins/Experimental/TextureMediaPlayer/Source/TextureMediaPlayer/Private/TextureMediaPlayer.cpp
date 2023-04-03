@@ -405,7 +405,7 @@ void FTextureMediaPlayer::OnFrame(const TArray<uint8>& TextureBuffer, FIntPoint 
 		TextureMediaPlayerVideoDecoderOutput* VideoDecoderOutput = static_cast<TextureMediaPlayerVideoDecoderOutput*>(NewVideoDecoderOutput.Get());
 
 		// Set up parameters.
-		TUniquePtr<Electra::FParamDict> OutputBufferSampleProperties(new Electra::FParamDict());
+		TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> OutputBufferSampleProperties(new Electra::FParamDict());
 		Electra::FTimeValue TimeStamp;
 		TimeStamp.SetFromHNS((int64)1);	// Duration as HNS; should not be 0 but is unknown. Use a small value instead.
 		OutputBufferSampleProperties->Set("duration", Electra::FVariantValue(TimeStamp));
@@ -414,7 +414,7 @@ void FTextureMediaPlayer::OnFrame(const TArray<uint8>& TextureBuffer, FIntPoint 
 		OutputBufferSampleProperties->Set("width", Electra::FVariantValue((int64)Width));
 		OutputBufferSampleProperties->Set("height", Electra::FVariantValue((int64)Height));
 
-		VideoDecoderOutput->Initialize(OutputBufferSampleProperties.Release(), TextureBuffer, Size);
+		VideoDecoderOutput->Initialize(MoveTemp(OutputBufferSampleProperties), TextureBuffer, Size);
 
 		// We are dealing with real time video here, so it is important we show the most recent frame received.
 		// Older frames that may have accumulated in the queue past a certain point are not relevant any more.
@@ -458,7 +458,7 @@ void FTextureMediaPlayer::OnFrame(FTextureRHIRef TextureRHIRef, TRefCountPtr<ID3
 		TextureMediaPlayerVideoDecoderOutput* VideoDecoderOutput = static_cast<TextureMediaPlayerVideoDecoderOutput*>(NewVideoDecoderOutput.Get());
 
 		// Set up parameters.
-		TUniquePtr<Electra::FParamDict> OutputBufferSampleProperties(new Electra::FParamDict());
+		TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> OutputBufferSampleProperties(new Electra::FParamDict());
 		Electra::FTimeValue TimeStamp;
 		TimeStamp.SetFromHNS((int64)1);	// Duration as HNS; should not be 0 but is unknown. Use a small value instead.
 		OutputBufferSampleProperties->Set("duration", Electra::FVariantValue(TimeStamp));
@@ -467,7 +467,7 @@ void FTextureMediaPlayer::OnFrame(FTextureRHIRef TextureRHIRef, TRefCountPtr<ID3
 		OutputBufferSampleProperties->Set("width", Electra::FVariantValue((int64)Width));
 		OutputBufferSampleProperties->Set("height", Electra::FVariantValue((int64)Height));
 
-		VideoDecoderOutput->Initialize(OutputBufferSampleProperties.Release(), TextureRHIRef, FIntPoint(Width, SampleHeight), D3DFence, FenceValue);
+		VideoDecoderOutput->Initialize(MoveTemp(OutputBufferSampleProperties), TextureRHIRef, FIntPoint(Width, SampleHeight), D3DFence, FenceValue);
 
 		// We are dealing with real time video here, so it is important we show the most recent frame received.
 		// Older frames that may have accumulated in the queue past a certain point are not relevant any more.

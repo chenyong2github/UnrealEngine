@@ -104,6 +104,22 @@ public:
 };
 
 
+//! Interpretation of delivered pixel data
+enum class EVideoDecoderPixelEncoding
+{
+	Native = 0,		//!< Pixel formats native representation
+	RGB,			//!< Interpret as RGB
+	RGBA,			//!< Interpret as RGBA
+	YCbCr,			//!< Interpret as YCbCR
+	YCbCr_Alpha,	//!< Interpret as YCbCR with alpha
+	YCoCg,			//!< Interpret as scaled YCoCg
+	YCoCg_Alpha,	//!< Interpret as scaled YCoCg with trailing BC4 alpha data
+	CbY0CrY1,		//!< Interpret as CbY0CrY1
+	Y0CbY1Cr,		//!< Interpret as Y0CbY1Cr
+	ARGB_BigEndian,	//!< Interpret as ARGB, big endian
+};
+
+
 class FVideoDecoderOutput : public IDecoderOutput
 {
 public:
@@ -202,6 +218,15 @@ public:
 		return (EPixelFormat)ParamDict->GetValue("pixelfmt").SafeGetInt64((int64)EPixelFormat::PF_Unknown);
 	}
 
+	virtual EVideoDecoderPixelEncoding GetFormatEncoding() const
+	{
+		if (!ParamDict)
+		{
+			return EVideoDecoderPixelEncoding::Native;
+		}
+		return (EVideoDecoderPixelEncoding)ParamDict->GetValue("pixelenc").SafeGetInt64((int64)EVideoDecoderPixelEncoding::Native);
+	}
+
 	virtual EVideoOrientation GetOrientation() const
 	{
 		if (!ParamDict)
@@ -248,10 +273,10 @@ public:
 protected:
 	FVideoDecoderOutput() = default;
 
-	void Initialize(Electra::FParamDict* InParamDict)
+	void Initialize(TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict)
 	{
 		Cached.Flags = 0;
-		ParamDict.Reset(InParamDict);
+		ParamDict = MoveTemp(InParamDict);
 	}
 
 private:
@@ -274,7 +299,7 @@ private:
 		uint32 Flags = 0;
 	};
 	mutable FCached Cached;
-	TUniquePtr<Electra::FParamDict> ParamDict;
+	TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> ParamDict;
 };
 
 using FVideoDecoderOutputPtr = TSharedPtr<FVideoDecoderOutput, ESPMode::ThreadSafe>;

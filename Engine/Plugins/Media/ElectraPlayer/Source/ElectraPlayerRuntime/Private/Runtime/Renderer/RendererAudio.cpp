@@ -41,9 +41,6 @@ FElectraRendererAudio::FElectraRendererAudio(TSharedPtr<FElectraPlayer, ESPMode:
 
 FElectraRendererAudio::~FElectraRendererAudio()
 {
-	// We need to track this. Otherwise the audio buffers in flight may cause corruption...
-//	check(NumOutputAudioBuffersInUse == 0);
-//TRUE? THE POOL GONE IS CHECKED. THE RENDERER GONE, TOO... SOOO?
 }
 
 FElectraRendererAudio::OpenError FElectraRendererAudio::Open(const FElectraRendererAudio::InstanceConfiguration& Config)
@@ -183,7 +180,7 @@ UEMediaError FElectraRendererAudio::ReturnBuffer(IBuffer* Buffer, bool bRender, 
 		//UE_LOG(LogElectraPlayer, VeryVerbose, TEXT("-- FElectraRendererAudio::ReturnBuffer: Audio sample for time %s"), *InPts.ToString(TEXT("%h:%m:%s.%f")));
 
 		DecoderOutput->GetMutablePropertyDictionary() = InSampleProperties;
-		DecoderOutput->Initialize(IAudioDecoderOutput::ESampleFormat::Int16, InNumChannels, InSampleRate, InDuration, FDecoderTimeStamp(InPts, InSequenceIndex), InUsedBufferBytes);
+		DecoderOutput->Initialize(IAudioDecoderOutput::ESampleFormat::Float, InNumChannels, InSampleRate, InDuration, FDecoderTimeStamp(InPts, InSequenceIndex), InUsedBufferBytes);
 
 		// Push buffer to output queue...
 		if (TSharedPtr<FElectraPlayer, ESPMode::ThreadSafe> PinnedPlayer = Player.Pin())

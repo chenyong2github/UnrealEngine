@@ -22,7 +22,7 @@ public:
 
 	void SetDecodedImage(TSharedPtr<ILibavDecoderDecodedImage, ESPMode::ThreadSafe> InDecodedImage);
 
-	bool InitializeForBuffer(FIntPoint Dim, EPixelFormat PixFmt, int32 InNumBits, FParamDict* InParamDict);
+	bool InitializeForBuffer(FIntPoint Dim, EPixelFormat PixFmt, int32 InNumBits, TSharedPtr<FParamDict, ESPMode::ThreadSafe> InParamDict);
 	TArray<uint8>& GetMutableBuffer();
 	FIntPoint GetBufferDimensions() const override;
 

@@ -46,7 +46,7 @@ public:
 	FClearKeyCDM() = default;
 	virtual ~FClearKeyCDM() = default;
 	virtual FString GetLastErrorMessage() override;
-	virtual const FString& GetSchemeID() override;
+	virtual const TArray<FString>& GetSchemeIDs() override;
 	virtual void GetCDMCustomJSONPrefixes(FString& OutAttributePrefix, FString& OutTextPropertyName, bool& bOutNoNamespaces) override;
 	virtual TSharedPtr<IMediaCDMCapabilities, ESPMode::ThreadSafe> GetCDMCapabilities(const FString& InValue, const FString& InAdditionalElements) override;
 	virtual ECDMError CreateDRMClient(TSharedPtr<IMediaCDMClient, ESPMode::ThreadSafe>& OutClient, IMediaCDM::IPlayerSession* InForPlayerSession, const TArray<IMediaCDM::FCDMCandidate>& InCandidates) override;
@@ -256,10 +256,12 @@ TSharedPtr<FClearKeyCDM, ESPMode::ThreadSafe> FClearKeyCDM::Get()
  * Returns the scheme ID of ClearKey.
  * This is the official ID used with DASH.
  */
-const FString& FClearKeyCDM::GetSchemeID()
+const TArray<FString>& FClearKeyCDM::GetSchemeIDs()
 {
-	static FString SchemeID(TEXT("e2719d58-a985-b3c9-781a-b030af78d30e"));
-	return SchemeID;
+	static TArray<FString> SchemeIDs({TEXT("e2719d58-a985-b3c9-781a-b030af78d30e"),			// DASH
+									  TEXT("1077efec-c0b2-4d02-ace3-3c1e52e2fb4b")			// W3C
+									 });
+	return SchemeIDs;
 }
 
 //-----------------------------------------------------------------------------
@@ -289,7 +291,7 @@ void FClearKeyCDM::GetCDMCustomJSONPrefixes(FString& OutAttributePrefix, FString
  */
 TSharedPtr<IMediaCDMCapabilities, ESPMode::ThreadSafe> FClearKeyCDM::GetCDMCapabilities(const FString& InValue, const FString& InAdditionalElements)
 {
-	if (InValue.Equals(TEXT("ClearKey1.0")))
+	if (InValue.IsEmpty() || InValue.Equals(TEXT("ClearKey1.0")))
 	{
 		return AsShared();
 	}
@@ -951,6 +953,11 @@ void FClearKeyDRMClient::GetValuesFromConfigurations()
 	FScopeLock lock(&Lock);
 	for(auto &Config : CDMConfigurations)
 	{
+		if (Config.AdditionalElements.IsEmpty())
+		{
+			continue;
+		}
+
 		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Config.AdditionalElements);
 		TSharedPtr<FJsonObject> ConfigJSON;
 		if (FJsonSerializer::Deserialize(Reader, ConfigJSON))

@@ -11,10 +11,10 @@ class ILibavDecoderAAC : public ILibavDecoder
 public:
 	// Checks if the AAC decoder is available.
 	static LIBAV_API bool IsAvailable();
-	
+
 	// Create an instance of the decoder. If not available nullptr is returned.
 	static LIBAV_API TSharedPtr<ILibavDecoderAAC, ESPMode::ThreadSafe> Create(const TArray<uint8>& InCodecSpecificData);
-	
+
 	virtual ~ILibavDecoderAAC() = default;
 
 	struct FInputAU : public ILibavDecoder::FInputAccessUnit
@@ -36,4 +36,5 @@ public:
 	virtual void Reset() = 0;
 	virtual EOutputStatus HaveOutput(FOutputInfo& OutInfo) = 0;
 	virtual bool GetOutputAsS16(int16* OutInterleavedBuffer, int32 OutBufferSizeInBytes) = 0;
+	virtual bool GetOutputAsF32(float* OutInterleavedBuffer, int32 OutBufferSizeInBytes) = 0;
 };

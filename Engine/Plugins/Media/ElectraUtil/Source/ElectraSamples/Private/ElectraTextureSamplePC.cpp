@@ -20,13 +20,14 @@
 /*
 	Short summary of how we get data:
 
-	- Win10+ (HW decode is used at all times)
+	- Win10+ (HW decode is used at all times if handling H.264/5)
 	-- DX11:   we receive data in GPU space as NV12/P010 texture
 	-- DX12:   we receive data in CPU(yes) space as NV12/P010 texture
 	-- Vulkan: we receive data in CPU(yes) space as NV12/P010 texture
+	-- Other codec's data usually arrives as CPU space texture buffer
 
 	- Win8:
-	-- SW-decode fallback: we receive data in a shared DX11 texture (despite it being SW decode) in NV12 format
+	-- SW-decode fall back: we receive data in a shared DX11 texture (despite it being SW decode) in NV12 format
 
 	- Win7:
 	-- we receive data in a CPU space buffer in NV12 format (no P010 support)
@@ -42,7 +43,120 @@ void FElectraTextureSample::Initialize(FVideoDecoderOutput *InVideoDecoderOutput
 {
 	IElectraTextureSampleBase::Initialize(InVideoDecoderOutput);
 	VideoDecoderOutputPC = static_cast<FVideoDecoderOutputPC*>(InVideoDecoderOutput);
-	SampleFormat = (VideoDecoderOutput->GetFormat() == PF_NV12) ? EMediaTextureSampleFormat::CharNV12 : EMediaTextureSampleFormat::P010;
+
+	EPixelFormat Format = VideoDecoderOutput->GetFormat();
+	switch (Format)
+	{
+	case PF_NV12: SampleFormat = EMediaTextureSampleFormat::CharNV12; break;
+	case PF_P010: SampleFormat = EMediaTextureSampleFormat::P010; break;
+	case PF_DXT1: SampleFormat = EMediaTextureSampleFormat::DXT1; break;
+	case PF_DXT5:
+	{
+		switch (VideoDecoderOutput->GetFormatEncoding())
+		{
+		case EVideoDecoderPixelEncoding::YCoCg:				SampleFormat = EMediaTextureSampleFormat::YCoCg_DXT5; break;
+		case EVideoDecoderPixelEncoding::YCoCg_Alpha:		SampleFormat = EMediaTextureSampleFormat::YCoCg_DXT5_Alpha_BC4; break;
+		case EVideoDecoderPixelEncoding::Native:			SampleFormat = EMediaTextureSampleFormat::DXT5; break;
+		default:
+			{
+			check(!"Unsupported pixel format encoding");
+			SampleFormat = EMediaTextureSampleFormat::Undefined;
+			break;
+			}
+		}
+		break;
+	}
+	case PF_BC4:											SampleFormat = EMediaTextureSampleFormat::BC4; break;
+	case PF_A16B16G16R16:
+	{
+		switch (VideoDecoderOutput->GetFormatEncoding())
+		{
+		case EVideoDecoderPixelEncoding::CbY0CrY1:			SampleFormat = EMediaTextureSampleFormat::YUVv216; break;
+		case EVideoDecoderPixelEncoding::Y0CbY1Cr:			SampleFormat = EMediaTextureSampleFormat::Undefined; break; // TODO!!!!!!!! ("swapped" v216 - seems there is no real format for this?)
+		case EVideoDecoderPixelEncoding::YCbCr_Alpha:		SampleFormat = EMediaTextureSampleFormat::Y416; break;
+		case EVideoDecoderPixelEncoding::ARGB_BigEndian:	SampleFormat = EMediaTextureSampleFormat::ARGB16_BIG; break;
+		case EVideoDecoderPixelEncoding::Native:			SampleFormat = EMediaTextureSampleFormat::ABGR16; break;
+		default:
+			{
+			check(!"Unsupported pixel format encoding");
+			SampleFormat = EMediaTextureSampleFormat::Undefined;
+			break;
+			}
+		}
+		break;
+	}
+	case PF_R16G16B16A16_UNORM:
+	{
+		check(VideoDecoderOutput->GetFormatEncoding() == EVideoDecoderPixelEncoding::Native);
+		SampleFormat = EMediaTextureSampleFormat::RGBA16;
+		break;
+	}
+	case PF_A32B32G32R32F:
+	{
+		switch (VideoDecoderOutput->GetFormatEncoding())
+		{
+		case EVideoDecoderPixelEncoding::Native:			SampleFormat = EMediaTextureSampleFormat::FloatRGBA; break;
+		case EVideoDecoderPixelEncoding::YCbCr_Alpha:		SampleFormat = EMediaTextureSampleFormat::R4FL; break;
+		default:
+		{
+			check(!"Unsupported pixel format encoding");
+			SampleFormat = EMediaTextureSampleFormat::Undefined;
+			break;
+		}
+		}
+		break;
+	}
+	case PF_B8G8R8A8:
+	{
+		switch (VideoDecoderOutput->GetFormatEncoding())
+		{
+		case EVideoDecoderPixelEncoding::CbY0CrY1:		SampleFormat = EMediaTextureSampleFormat::Char2VUY; break;
+		case EVideoDecoderPixelEncoding::Y0CbY1Cr:		SampleFormat = EMediaTextureSampleFormat::CharYUY2; break;
+		case EVideoDecoderPixelEncoding::YCbCr_Alpha:	SampleFormat = EMediaTextureSampleFormat::CharAYUV; break;
+		case EVideoDecoderPixelEncoding::Native:		SampleFormat = EMediaTextureSampleFormat::CharBGRA; break;
+		default:
+		{
+			check(!"Unsupported pixel format encoding");
+			SampleFormat = EMediaTextureSampleFormat::Undefined;
+			break;
+		}
+		}
+		break;
+	}
+	case PF_R8G8B8A8:
+	{
+		switch (VideoDecoderOutput->GetFormatEncoding())
+		{
+		case EVideoDecoderPixelEncoding::Native:		SampleFormat = EMediaTextureSampleFormat::CharRGBA; break;
+		default:
+		{
+			check(!"Unsupported pixel format encoding");
+			SampleFormat = EMediaTextureSampleFormat::Undefined;
+			break;
+		}
+		}
+		break;
+	}
+	case PF_A2B10G10R10:
+	{
+		switch (VideoDecoderOutput->GetFormatEncoding())
+		{
+		case EVideoDecoderPixelEncoding::CbY0CrY1:			SampleFormat = EMediaTextureSampleFormat::YUVv210; break;
+		case EVideoDecoderPixelEncoding::Native:			SampleFormat = EMediaTextureSampleFormat::CharBGR10A2; break;
+		default:
+			{
+			check(!"Unsupported pixel format encoding");
+			SampleFormat = EMediaTextureSampleFormat::Undefined;
+			break;
+			}
+		}
+		break;
+	}
+	default:
+		check(!"Decoder sample format not supported in Electra texture sample!");
+	}
+
+	bCanUseSRGB = (Format == PF_B8G8R8A8 || Format == PF_R8G8B8A8 || Format == PF_DXT1 || Format == PF_DXT5 || Format == PF_BC4);
 
 	if (RHIGetInterfaceType() == ERHIInterfaceType::D3D12)
 	{
@@ -64,8 +178,20 @@ void FElectraTextureSample::Initialize(FVideoDecoderOutput *InVideoDecoderOutput
 
 IMediaTextureSampleConverter* FElectraTextureSample::GetMediaTextureSampleConverter()
 {
-	// All versions might need SW fallback - check if we have a real texture as source -> converter needed
-	return (VideoDecoderOutputPC && VideoDecoderOutputPC->GetTexture()) ? this : nullptr;
+	if (VideoDecoderOutputPC)
+	{
+		bool bHasTexture = !!VideoDecoderOutputPC->GetTexture();
+
+		// DXT5 & BC4 combo-data in CPU side buffer?
+		if (!bHasTexture && SampleFormat == EMediaTextureSampleFormat::YCoCg_DXT5_Alpha_BC4)
+		{
+			return this;
+		}
+
+		// All other versions might need SW fallback - check if we have a real texture as source -> converter needed
+		return VideoDecoderOutputPC->GetTexture() ? this : nullptr;
+	}
+	return nullptr;
 }
 
 
@@ -240,6 +366,14 @@ bool FElectraTextureSample::Convert(FTexture2DRHIRef& InDstTexture, const FConve
 	// Get actual sample dimensions
 	FIntPoint Dim = VideoDecoderOutput->GetDim();
 
+	// Is this YCoCg data?
+	if (SampleFormat == EMediaTextureSampleFormat::YCoCg_DXT5_Alpha_BC4)
+	{
+		check(!VideoDecoderOutputPC->GetTexture());
+		check(!"EMediaTextureSampleFormat::YCoCg_DXT5_Alpha_BC4 special conversion code not yet implemented!");
+		return false;
+	}
+
 	// Note: the converter is not used at all if we have texture data in a SW buffer!
 
 	bool bCrossDeviceCopy;
@@ -280,7 +414,7 @@ bool FElectraTextureSample::Convert(FTexture2DRHIRef& InDstTexture, const FConve
 	{
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("FElectraTextureSample"), Dim, Format)
-			.SetFlags(ETextureCreateFlags::Dynamic);
+			.SetFlags(ETextureCreateFlags::Dynamic | ((bCanUseSRGB && IsOutputSrgb()) ? ETextureCreateFlags::SRGB : ETextureCreateFlags::None));
 
 		Texture = RHICreateTexture(Desc);
 	}

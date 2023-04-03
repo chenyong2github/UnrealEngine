@@ -286,13 +286,10 @@ public:
 
 
 	//-------------------------------------------------------------------------
-	// Platform specific functions
+	// Special functions needed for application suspend & resume.
 	//
-#if PLATFORM_ANDROID
-	virtual void Android_UpdateSurface(const TSharedPtr<IOptionPointerValueContainer>& Surface) = 0;
-	virtual void Android_SuspendOrResumeDecoder(bool bSuspend) = 0;
-	static FParamDict& Android_Workarounds(FStreamCodecInformation::ECodec InForCodec);
-#endif
+	virtual void SuspendOrResumeDecoders(bool bSuspend, const FParamDict& InOptions) = 0;
+
 
 	//-------------------------------------------------------------------------
 	// Debug functions

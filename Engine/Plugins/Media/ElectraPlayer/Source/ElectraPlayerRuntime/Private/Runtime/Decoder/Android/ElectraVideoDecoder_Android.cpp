@@ -7,9 +7,9 @@
 namespace Electra
 {
 
-void FElectraPlayerVideoDecoderOutputAndroid::Initialize(EOutputType InOutputType, int32 InBufferIndex, int32 InValidCount, const TFunction<void(uint32, const FDecoderTimeStamp&)>& InSurfaceReleaseFN, uint32 InNativeDecoderID, FParamDict* InParamDict)
+void FElectraPlayerVideoDecoderOutputAndroid::Initialize(EOutputType InOutputType, int32 InBufferIndex, int32 InValidCount, const TFunction<void(uint32, const FDecoderTimeStamp&)>& InSurfaceReleaseFN, uint32 InNativeDecoderID, TSharedPtr<FParamDict, ESPMode::ThreadSafe> InParamDict)
 {
-	FVideoDecoderOutputAndroid::Initialize(InParamDict);
+	FVideoDecoderOutputAndroid::Initialize(MoveTemp(InParamDict));
 	SurfaceReleaseFN = InSurfaceReleaseFN;
 	OutputType = InOutputType;
 	BufferIndex = InBufferIndex;

@@ -433,9 +433,10 @@ void FABROnDemandPlus::ReportDownloadEnd(const Metrics::FSegmentDownloadStats& S
 
 			// Calculate download bandwidth
 			int64 Bandwidth = -1;
-			if (SegmentDownloadStats.NumBytesDownloaded && SegmentDownloadStats.TimeToDownload > 0.0)
+			if (SegmentDownloadStats.NumBytesDownloaded)
 			{
-				const double DlBandwidth = SegmentDownloadStats.NumBytesDownloaded * 8 / (SegmentDownloadStats.TimeToDownload - SegmentDownloadStats.TimeToFirstByte);
+				double ttdl = SegmentDownloadStats.TimeToDownload - SegmentDownloadStats.TimeToFirstByte;
+				const double DlBandwidth = SegmentDownloadStats.NumBytesDownloaded * 8 / (ttdl > 0.0 ? ttdl : 0.1);
 				if (DlBandwidth > 0.0)
 				{
 					Bandwidth = (int64) Utils::Min(DlBandwidth, Utils::Max(WorkVars->HighestQualityStreamBitrate * ClampBandwidthToMaxStreamBitrateScaleFactor, ClampBandwidthToMaxNonStreamBitrate));

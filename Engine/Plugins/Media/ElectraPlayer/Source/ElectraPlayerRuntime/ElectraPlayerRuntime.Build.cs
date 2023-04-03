@@ -19,6 +19,8 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"Json",
 					"ElectraBase",
+					"ElectraCodecFactory",
+					"ElectraDecoders",
 					"ElectraHTTPStream",
 					"ElectraCDM",
 					"ElectraSubtitles",
@@ -39,31 +41,15 @@ namespace UnrealBuildTool.Rules
 			//
 			// Common platform setup...
 			//
-			PrivateDefinitions.Add("ELECTRA_DISABLE_HDR=0");
-
 			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
 				PublicSystemIncludePaths.Add(DirectX.GetIncludeDir(Target));
 
 				PrivateDefinitions.Add("_CRT_SECURE_NO_WARNINGS=1");
 
-				PrivateDefinitions.Add("ELECTRA_ENABLE_MFDECODER");
-				PrivateDefinitions.Add("ELECTRA_ENABLE_SWDECODE");
-				PrivateDefinitions.Add("ELECTRA_PLATFORM_HAS_H265_DECODER=1");
-				PrivateDefinitions.Add("ELECTRA_PLATFORM_ENABLE_HDR=1");
-
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "WinHttp");
 
-				if (WinSupportsDX9())
-				{
-					AddEngineThirdPartyPrivateStaticDependencies(Target, "DX9");
-					PrivateDefinitions.Add("ELECTRA_HAVE_DX9"); 	// video decoding on Win7 enabled - uses DX9
-				}
-
-				if (WinSupportsDX11())
-				{
-					PrivateDefinitions.Add("ELECTRA_HAVE_DX11");	// video decoding for DX11 enabled (Win8+)
-				}
+				PrivateDefinitions.Add("ELECTRA_HAVE_DX11");	// video decoding for DX11 enabled (Win8+)
 
 				if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) && Target.WindowsPlatform.Architecture != UnrealArch.Arm64)
 				{
@@ -99,9 +85,6 @@ namespace UnrealBuildTool.Rules
 								"QuartzCore"
 				});
 
-				PrivateDefinitions.Add("ELECTRA_PLATFORM_HAS_H265_DECODER=1");
-				PrivateDefinitions.Add("ELECTRA_PLATFORM_ENABLE_HDR=1");
-
 				PublicIncludePaths.Add("$(ModuleDir)/Public/Apple");
 
 				PrivateIncludePaths.Add("ElectraPlayerRuntime/Private/Runtime/Decoder/Apple");
@@ -118,9 +101,6 @@ namespace UnrealBuildTool.Rules
 								"QuartzCore"
 				});
 
-				PrivateDefinitions.Add("ELECTRA_PLATFORM_HAS_H265_DECODER=1");
-				PrivateDefinitions.Add("ELECTRA_PLATFORM_ENABLE_HDR=1");
-
 				PublicIncludePaths.Add("$(ModuleDir)/Public/Apple");
 
 				PrivateIncludePaths.Add("ElectraPlayerRuntime/Private/Runtime/Decoder/Apple");
@@ -133,12 +113,6 @@ namespace UnrealBuildTool.Rules
 				{
 					PublicDefinitions.Add("CURL_ENABLE_NO_TIMEOUTS_OPTION=1");
 				}
-
-				string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
-				AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "ElectraPlayerRuntime_UPL.xml"));
-
-				PrivateDefinitions.Add("ELECTRA_PLATFORM_HAS_H265_DECODER=1");
-				PrivateDefinitions.Add("ELECTRA_PLATFORM_ENABLE_HDR=1");
 
 				PublicIncludePaths.Add("$(ModuleDir)/Public/Android");
 
@@ -153,24 +127,11 @@ namespace UnrealBuildTool.Rules
 					PublicDefinitions.Add("CURL_ENABLE_NO_TIMEOUTS_OPTION=1");
 				}
 
-				PrivateDefinitions.Add("ELECTRA_PLATFORM_HAS_H265_DECODER=1");
-				PrivateDefinitions.Add("ELECTRA_PLATFORM_ENABLE_HDR=1");
-
 				PublicIncludePaths.Add("$(ModuleDir)/Public/Linux");
 				PrivateIncludePaths.Add("ElectraPlayerRuntime/Private/Runtime/Decoder/Linux");
 
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "libav");
 			}
-		}
-
-		protected virtual bool WinSupportsDX9()
-		{
-			return Target.WindowsPlatform.Architecture != UnrealArch.Arm64;
-		}
-
-		protected virtual bool WinSupportsDX11()
-		{
-			return true;
 		}
 	}
 }

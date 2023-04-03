@@ -2,20 +2,20 @@
 
 #include "TextureMediaPlayerVideoDecoderOutput.h"
 
-void TextureMediaPlayerVideoDecoderOutput::Initialize(Electra::FParamDict* InParamDict, const TArray<uint8>& InBuffer, const FIntPoint& InSampleDim)
+void TextureMediaPlayerVideoDecoderOutput::Initialize(TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict, const TArray<uint8>& InBuffer, const FIntPoint& InSampleDim)
 {
-	FVideoDecoderOutputPC::Initialize(InParamDict);
+	FVideoDecoderOutputPC::Initialize(MoveTemp(InParamDict));
 	ByteBuffer = MakeShared<TArray<uint8>, ESPMode::ThreadSafe>(InBuffer);
 	SampleDim = InSampleDim;
 }
 
 #if PLATFORM_WINDOWS
-void TextureMediaPlayerVideoDecoderOutput::Initialize(Electra::FParamDict* InParamDict, FTexture2DRHIRef InTexture, const FIntPoint& InSampleDim, TRefCountPtr<ID3D12Fence> InFence, uint64 InFenceValue)
+void TextureMediaPlayerVideoDecoderOutput::Initialize(TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict, FTexture2DRHIRef InTexture, const FIntPoint& InSampleDim, TRefCountPtr<ID3D12Fence> InFence, uint64 InFenceValue)
 #else
-void TextureMediaPlayerVideoDecoderOutput::Initialize(Electra::FParamDict* InParamDict, FTexture2DRHIRef InTexture, const FIntPoint& InSampleDim, FGPUFenceRHIRef InFence, uint64 InFenceValue)
+void TextureMediaPlayerVideoDecoderOutput::Initialize(TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict, FTexture2DRHIRef InTexture, const FIntPoint& InSampleDim, FGPUFenceRHIRef InFence, uint64 InFenceValue)
 #endif
 {
-	FVideoDecoderOutputPC::Initialize(InParamDict);
+	FVideoDecoderOutputPC::Initialize(MoveTemp(InParamDict));
 	Texture = InTexture;
 	SampleDim = InSampleDim;
 	Fence = InFence;

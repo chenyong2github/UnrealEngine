@@ -143,7 +143,6 @@ private:
 	bool SetVideoTrackFrameRate(int32 TrackIndex, int32 FormatIndex, float FrameRate) override;
 
 	IElectraPlayerResourceDelegate* PlatformCreatePlayerResourceDelegate();
-	static void PlatformSetupResourceParams(Electra::FParamDict& Params);
 
 	// IElectraPlayerAdapterDelegate impl
 	class FPlayerAdapterDelegate : public IElectraPlayerAdapterDelegate

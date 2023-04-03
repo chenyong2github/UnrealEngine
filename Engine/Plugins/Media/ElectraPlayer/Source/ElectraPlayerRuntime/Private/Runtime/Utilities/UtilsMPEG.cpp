@@ -1,20 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Utilities/UtilsMPEG.h"
-#include "BitDataStream.h"
-
-
+#include "Utils/ElectraBitstreamReader.h"
 
 namespace Electra
 {
 	namespace MPEG
 	{
-
-		class FMP4BitReader : public FBitDataStream
+		class FMP4BitReader : public ElectraDecodersUtil::FElectraBitstreamReader
 		{
 		public:
 			FMP4BitReader(const void* pData, int64 nData)
-				: FBitDataStream(pData, nData)
+				: ElectraDecodersUtil::FElectraBitstreamReader(pData, nData)
 			{
 			}
 			int32 ReadMP4Length()

@@ -32,6 +32,9 @@ class FAvidDNxMediaModule : public IModuleInterface
 	{
 		void* DllHandle = nullptr;
 
+// The DLLs are copied across into the Engine/Binaries/Win64 folder now when building.
+// There is no need to construct a path and load from there any more.
+#if 0
 		// determine directory paths
 		FString DllPath = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("AvidDNxMedia"))->GetBaseDir(), TEXT("/Binaries/ThirdParty/Win64"));
 		FPlatformProcess::PushDllDirectory(*DllPath);
@@ -48,6 +51,13 @@ class FAvidDNxMediaModule : public IModuleInterface
 		{
 			UE_LOG(LogAvidDNxMedia, Error, TEXT("Failed to load required library %s. Plug-in will not be functional."), *DllPath);
 		}
+#else
+		DllHandle = FPlatformProcess::GetDllHandle(InDllName);
+		if (!DllHandle)
+		{
+			UE_LOG(LogAvidDNxMedia, Error, TEXT("Failed to load required library %s. Plug-in will not be functional."), InDllName);
+		}
+#endif
 
 		return DllHandle;
 	}

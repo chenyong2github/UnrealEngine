@@ -25,6 +25,7 @@ public:
 	/** Default constructor. */
 	FElectraTextureSample()
 		: SampleFormat(EMediaTextureSampleFormat::Undefined)
+		, bCanUseSRGB(false)
 	{ }
 
 	void Initialize(FVideoDecoderOutput* VideoDecoderOutput);
@@ -65,6 +66,9 @@ private:
 
 	/** Destination Texture resource (from Rendering device) */
 	FTexture2DRHIRef Texture;
+
+	/** True if texture format could support sRGB conversion in HW */
+	bool bCanUseSRGB;
 
 	/** Output data from video decoder. Baseclass holds reference */
 	FVideoDecoderOutputPC* VideoDecoderOutputPC;

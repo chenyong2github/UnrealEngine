@@ -125,14 +125,3 @@ static inline uint64 MEDIA_FROM_LITTLE_ENDIAN(uint64 value)	{ return(value); }
 //
 #define MEDIA_UNUSED_VAR(var)	((void)&var)
 
-//---------------------------------------------------------------------------------------
-// Utilities for pointer operations
-//
-namespace Electra
-{
-	template <typename T, typename C>
-	T AdvancePointer(T pPointer, C numBytes)
-	{
-		return(T(UPTRINT(pPointer) + UPTRINT(numBytes)));
-	}
-};

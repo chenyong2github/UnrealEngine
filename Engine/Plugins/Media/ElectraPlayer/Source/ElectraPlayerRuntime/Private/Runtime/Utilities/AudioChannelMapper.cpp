@@ -2,6 +2,7 @@
 
 #include "AudioChannelMapper.h"
 #include "Core/MediaMacros.h"
+#include "Utilities/Utilities.h"
 
 namespace Electra
 {
@@ -10,7 +11,7 @@ namespace Electra
 	{
 		// This defines the order in which FMediaAudioResampler expects the source channels.
 		// See comments in MediaAudioResampler.cpp regarding the row order.
-		#define CP FAudioChannelMapper::EChannelPosition
+		#define CP IElectraDecoderAudioOutput::EChannelPosition
 		static const CP _1[] = { CP::C };
 		static const CP _2[] = { CP::L, CP::R };
 		static const CP _3[] = { CP::L, CP::R, CP::C };
@@ -32,10 +33,84 @@ namespace Electra
 	}
 
 
+	bool FAudioChannelMapper::Initialize(TSharedPtr<IElectraDecoderAudioOutput, ESPMode::ThreadSafe> InSampleBlock)
+	{
+		Reset();
+
+		check(InSampleBlock->GetSampleFormat() == IElectraDecoderAudioOutput::ESampleFormat::Int16 ||
+			  InSampleBlock->GetSampleFormat() == IElectraDecoderAudioOutput::ESampleFormat::Float);
+		if (InSampleBlock->GetSampleFormat() != IElectraDecoderAudioOutput::ESampleFormat::Int16 && InSampleBlock->GetSampleFormat() != IElectraDecoderAudioOutput::ESampleFormat::Float)
+		{
+			return false;
+		}
+
+		const int32 Stride = InSampleBlock->GetBytesPerFrame();
+		const int32 NumBytesPerSample = InSampleBlock->GetBytesPerSample();
+		BytesPerSample = NumBytesPerSample;
+
+		bCanCopyDirectly = CanBeCopiedDirectly(InSampleBlock);
+		if (bCanCopyDirectly)
+		{
+			// Even though we can copy the source over directly we still set up the target source layout
+			// for later use. GetNumTargetChannels() requires this.
+			for(int32 i=0; i<InSampleBlock->GetNumChannels(); ++i)
+			{
+				FTargetSource& ts = TargetSources.AddDefaulted_GetRef();
+				ts.ChannelPosition = InSampleBlock->GetChannelPosition(i);
+				ts.FirstOffset = BytesPerSample * i;
+				ts.Stride = Stride;
+			}
+		}
+		else
+		{
+			// Setup the mapping from the input channels as a mutable array.
+			TArray<FTargetSource> InputSources;
+			for(int32 i=0; i<InSampleBlock->GetNumChannels(); ++i)
+			{
+				FTargetSource& ts = InputSources.AddDefaulted_GetRef();
+				ts.ChannelPosition = InSampleBlock->GetChannelPosition(i);
+				ts.FirstOffset = NumBytesPerSample * i;
+				ts.Stride = Stride;
+			}
+			// Now remove all the inputs the resampler does not support.
+			for(int32 i=0; i<InputSources.Num(); ++i)
+			{
+				if (InputSources[i].ChannelPosition != IElectraDecoderAudioOutput::EChannelPosition::C &&
+					InputSources[i].ChannelPosition != IElectraDecoderAudioOutput::EChannelPosition::L &&
+					InputSources[i].ChannelPosition != IElectraDecoderAudioOutput::EChannelPosition::R &&
+					InputSources[i].ChannelPosition != IElectraDecoderAudioOutput::EChannelPosition::LFE &&
+					InputSources[i].ChannelPosition != IElectraDecoderAudioOutput::EChannelPosition::Ls &&
+					InputSources[i].ChannelPosition != IElectraDecoderAudioOutput::EChannelPosition::Rs &&
+					InputSources[i].ChannelPosition != IElectraDecoderAudioOutput::EChannelPosition::Lsr &&
+					InputSources[i].ChannelPosition != IElectraDecoderAudioOutput::EChannelPosition::Rsr)
+				{
+					InputSources.RemoveAt(i);
+					--i;
+				}
+			}
+
+			// Find the smallest resampler layout that contains all the required channels in any order.
+			int32 ResamplerChannelLayout = MatchesResamplerLayout(InputSources);
+			// At the very least the last 8 channel layout has to match since we removed all other channels.
+			// If no channels remain we can't do anything.
+			if (ResamplerChannelLayout == 0)
+			{
+				return false;
+			}
+
+			// Create a channel mapping matching the channel layout of the resampler.
+			// Channels that the resampler uses but are not present are filled with empty
+			// mappings that create silence for that channel.
+			CreateResamplerChannelMapping(ResamplerChannelLayout-1, InputSources);
+		}
+		return true;
+	}
+
+
 	bool FAudioChannelMapper::Initialize(int32 NumBytesPerSample, uint32 ChannelConfiguration)
 	{
 		Reset();
-		#define CP(ch) { EChannelPosition::ch }
+		#define CP(ch) { IElectraDecoderAudioOutput::EChannelPosition::ch }
 		switch(ChannelConfiguration)
 		{
 			default:
@@ -147,14 +222,14 @@ namespace Electra
 			// Now remove all the inputs we do not support.
 			for(int32 i=0; i<InputSources.Num(); ++i)
 			{
-				if (InputSources[i].ChannelPosition != EChannelPosition::C &&
-					InputSources[i].ChannelPosition != EChannelPosition::L &&
-					InputSources[i].ChannelPosition != EChannelPosition::R &&
-					InputSources[i].ChannelPosition != EChannelPosition::LFE &&
-					InputSources[i].ChannelPosition != EChannelPosition::Ls &&
-					InputSources[i].ChannelPosition != EChannelPosition::Rs &&
-					InputSources[i].ChannelPosition != EChannelPosition::Lsr &&
-					InputSources[i].ChannelPosition != EChannelPosition::Rsr)
+				if (InputSources[i].ChannelPosition != IElectraDecoderAudioOutput::EChannelPosition::C &&
+					InputSources[i].ChannelPosition != IElectraDecoderAudioOutput::EChannelPosition::L &&
+					InputSources[i].ChannelPosition != IElectraDecoderAudioOutput::EChannelPosition::R &&
+					InputSources[i].ChannelPosition != IElectraDecoderAudioOutput::EChannelPosition::LFE &&
+					InputSources[i].ChannelPosition != IElectraDecoderAudioOutput::EChannelPosition::Ls &&
+					InputSources[i].ChannelPosition != IElectraDecoderAudioOutput::EChannelPosition::Rs &&
+					InputSources[i].ChannelPosition != IElectraDecoderAudioOutput::EChannelPosition::Lsr &&
+					InputSources[i].ChannelPosition != IElectraDecoderAudioOutput::EChannelPosition::Rsr)
 				{
 					InputSources.RemoveAt(i);
 					--i;
@@ -220,7 +295,7 @@ namespace Electra
 					int32 InStride = TargetSources[Ch].Stride;
 					if (BytesPerSample == 2)
 					{
-						if (TargetSources[Ch].ChannelPosition == EChannelPosition::Disabled)
+						if (TargetSources[Ch].ChannelPosition == IElectraDecoderAudioOutput::EChannelPosition::Disabled)
 						{
 							for(int32 i=0; i<NumSamplesPerChannel; ++i)
 							{
@@ -240,7 +315,7 @@ namespace Electra
 					}
 					else if (BytesPerSample == 4)
 					{
-						if (TargetSources[Ch].ChannelPosition == EChannelPosition::Disabled)
+						if (TargetSources[Ch].ChannelPosition == IElectraDecoderAudioOutput::EChannelPosition::Disabled)
 						{
 							for(int32 i=0; i<NumSamplesPerChannel; ++i)
 							{
@@ -267,11 +342,49 @@ namespace Electra
 		}
 	}
 
+
+	bool FAudioChannelMapper::CanBeCopiedDirectly(TSharedPtr<IElectraDecoderAudioOutput, ESPMode::ThreadSafe> InSampleBlock)
+	{
+		int32 nc = InSampleBlock->GetNumChannels();
+		int32 NumUnspecifiedChannels = 0;
+		for(int32 i=0; i<nc; ++i)
+		{
+			IElectraDecoderAudioOutput::EChannelPosition cp = InSampleBlock->GetChannelPosition(i);
+			if (cp >= IElectraDecoderAudioOutput::EChannelPosition::Unspec0 && cp <= IElectraDecoderAudioOutput::EChannelPosition::Unspec31)
+			{
+				++NumUnspecifiedChannels;
+			}
+		}
+		// If all channel positions are unspecified then we can copy directly. There are no known
+		// positions, so it could be anything really.
+		if (NumUnspecifiedChannels == nc)
+		{
+			return true;
+		}
+
+		if (nc >= 1 && nc <= 8)
+		{
+			const IElectraDecoderAudioOutput::EChannelPosition * const ResamplerOrder = DirectlyCopyable::ResamplerOrderMap[nc - 1];
+			if (ResamplerOrder)
+			{
+				for(int32 i=0; i<nc; ++i)
+				{
+					if (InSampleBlock->GetChannelPosition(i) != ResamplerOrder[i])
+					{
+						return false;
+					}
+				}
+				return true;
+			}
+		}
+		return false;
+	}
+
 	bool FAudioChannelMapper::CanBeCopiedDirectly(TArrayView<const FSourceLayout> ChannelPositions)
 	{
 		if (ChannelPositions.Num() >= 1 && ChannelPositions.Num() <= 8)
 		{
-			const FAudioChannelMapper::EChannelPosition * const ResamplerOrder = DirectlyCopyable::ResamplerOrderMap[ChannelPositions.Num() - 1];
+			const IElectraDecoderAudioOutput::EChannelPosition * const ResamplerOrder = DirectlyCopyable::ResamplerOrderMap[ChannelPositions.Num() - 1];
 			if (ResamplerOrder)
 			{
 				for(int32 i=0; i<ChannelPositions.Num(); ++i)
@@ -293,7 +406,7 @@ namespace Electra
 		{
 			for(int32 i=InputSources.Num(); i<=UE_ARRAY_COUNT(DirectlyCopyable::ResamplerOrderMap); ++i)
 			{
-				TArrayView<const FAudioChannelMapper::EChannelPosition> ResamplerChannels(DirectlyCopyable::ResamplerOrderMap[i-1], i);
+				TArrayView<const IElectraDecoderAudioOutput::EChannelPosition> ResamplerChannels(DirectlyCopyable::ResamplerOrderMap[i-1], i);
 				bool bAllChannelsPresent = true;
 				for(int32 j=0; j<InputSources.Num(); ++j)
 				{
@@ -317,7 +430,7 @@ namespace Electra
 		check(ResamplerChannelIndex >= 0 && ResamplerChannelIndex < UE_ARRAY_COUNT(DirectlyCopyable::ResamplerOrderMap));
 		if (ResamplerChannelIndex >= 0 && ResamplerChannelIndex < UE_ARRAY_COUNT(DirectlyCopyable::ResamplerOrderMap))
 		{
-			TArrayView<const FAudioChannelMapper::EChannelPosition> ResamplerChannels(DirectlyCopyable::ResamplerOrderMap[ResamplerChannelIndex], ResamplerChannelIndex+1);
+			TArrayView<const IElectraDecoderAudioOutput::EChannelPosition> ResamplerChannels(DirectlyCopyable::ResamplerOrderMap[ResamplerChannelIndex], ResamplerChannelIndex+1);
 			for(auto &ResamplerChannel : ResamplerChannels)
 			{
 				FTargetSource ts;

@@ -26,6 +26,7 @@ public:
 	void Reset() override;
 	ILibavDecoder::EOutputStatus HaveOutput(FOutputInfo& OutInfo) override;
 	bool GetOutputAsS16(int16* OutInterleavedBuffer, int32 OutBufferSizeInBytes) override;
+	bool GetOutputAsF32(float* OutInterleavedBuffer, int32 OutBufferSizeInBytes) override;
 
 	EDecoderError Create(const TArray<uint8>& InCodecSpecificData);
 
@@ -117,7 +118,6 @@ ILibavDecoder::EDecoderError FLibavDecoderAAC::DecodeAccessUnit(const ILibavDeco
 	{
 		Packet = av_packet_alloc();
 		check(Packet);
-		av_init_packet(Packet);
 		PacketBufferSize = 0;
 	}
 	if (PacketBufferSize < InInputAccessUnit.DataSize)
@@ -295,6 +295,94 @@ bool FLibavDecoderAAC::GetOutputAsS16(int16* OutInterleavedBuffer, int32 OutBuff
 			{
 				int32 s = *Src++ * 32768.0f;
 				*Out = (int16)(s < -32768 ? -32768 : s > 32767 ? 32767 : s);
+				Out += CurrentOutputInfo.NumChannels;
+			}
+		}
+		return true;
+	}
+	return false;
+}
+
+
+bool FLibavDecoderAAC::GetOutputAsF32(float* OutInterleavedBuffer, int32 OutBufferSizeInBytes)
+{
+	if (!bHasPendingOutput)
+	{
+		return false;
+	}
+
+	bHasPendingOutput = false;
+	int32 Format = Frame->format;
+	int32 Count = Frame->linesize[0];
+
+	int32 MaxSamples = OutBufferSizeInBytes / CurrentOutputInfo.NumChannels / sizeof(float);
+	MaxSamples = CurrentOutputInfo.NumSamples < MaxSamples ? CurrentOutputInfo.NumSamples : MaxSamples;
+
+	if (Format == AV_SAMPLE_FMT_S16)
+	{
+		const int16* Src = (const int16*)Frame->data[0];
+		if (Src)
+		{
+			for(int32 i=0; i<MaxSamples; ++i)
+			{
+				for(int32 j=0; j<CurrentOutputInfo.NumChannels; ++j)
+				{
+					float s = *Src++ / 32768.0f;
+					*OutInterleavedBuffer++ = s;
+				}
+			}
+		}
+		return Src != nullptr;
+	}
+	else if (Format == AV_SAMPLE_FMT_FLT)
+	{
+		const float* Src = (const float*)Frame->data[0];
+		if (Src)
+		{
+			for(int32 i=0; i<MaxSamples; ++i)
+			{
+				for(int32 j=0; j<CurrentOutputInfo.NumChannels; ++j)
+				{
+					float s = *Src++;
+					*OutInterleavedBuffer++ = s;
+				}
+			}
+		}
+		return Src != nullptr;
+	}
+	else if (Format == AV_SAMPLE_FMT_S16P)
+	{
+		for(int32 i=0; i<CurrentOutputInfo.NumChannels; ++i)
+		{
+			const int16* Src = (const int16*)Frame->data[i];
+			if (!Src)
+			{
+				return false;
+			}
+			float* Out = OutInterleavedBuffer + i;
+			for(int32 j=0;j<MaxSamples;++j)
+			{
+				float s = *Src++ / 32768.0f;
+				*Out = s;
+				Out += CurrentOutputInfo.NumChannels;
+			}
+		}
+		return true;
+	}
+	else if (Format == AV_SAMPLE_FMT_FLTP)
+	{
+		for(int32 i=0; i<CurrentOutputInfo.NumChannels; ++i)
+		{
+			const float* Src = (const float*)Frame->data[i];
+			if (!Src)
+			{
+				return false;
+			}
+			float* Out = OutInterleavedBuffer + i;
+			for(int32 j=0;j<MaxSamples;++j)
+			{
+				float s = *Src++;
+				*Out = s;
 				Out += CurrentOutputInfo.NumChannels;
 			}
 		}

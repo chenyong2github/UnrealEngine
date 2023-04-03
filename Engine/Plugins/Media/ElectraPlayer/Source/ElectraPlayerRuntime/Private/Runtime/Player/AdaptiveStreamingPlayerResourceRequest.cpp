@@ -111,9 +111,10 @@ bool FHTTPResourceRequest::SetFromJSON(const FString& InJSONParams)
 
 void FHTTPResourceRequest::StartGet(IPlayerSessionServices* InPlayerSessionServices)
 {
-	HTTPManager = InPlayerSessionServices->GetHTTPManager();
+	PlayerSessionServices = InPlayerSessionServices;
+	HTTPManager = PlayerSessionServices->GetHTTPManager();
 	// Is there a static resource provider that we can try?
-	TSharedPtr<IAdaptiveStreamingPlayerResourceProvider, ESPMode::ThreadSafe> StaticResourceProvider = InPlayerSessionServices->GetStaticResourceProvider();
+	TSharedPtr<IAdaptiveStreamingPlayerResourceProvider, ESPMode::ThreadSafe> StaticResourceProvider = PlayerSessionServices->GetStaticResourceProvider();
 	if (StaticQueryType.IsSet() && StaticResourceProvider.IsValid())
 	{
 		TSharedPtr<FStaticResourceRequest, ESPMode::ThreadSafe>	StaticRequest = MakeShared<FStaticResourceRequest, ESPMode::ThreadSafe>(AsShared());
@@ -121,6 +122,8 @@ void FHTTPResourceRequest::StartGet(IPlayerSessionServices* InPlayerSessionServi
 	}
 	else
 	{
+		// Is an external reader to be used?
+		Request->ExternalDataReader = PlayerSessionServices->GetExternalDataReader();
 		bWasAdded = true;
 		TSharedPtrTS<IElectraHttpManager> PinnedHTTPManager = HTTPManager.Pin();
 		if (PinnedHTTPManager.IsValid())
@@ -155,6 +158,11 @@ void FHTTPResourceRequest::StaticDataReady()
 		if (!bStaticDataReady)
 		{
 			// Do the actual HTTP request now.
+			// Is an external reader to be used?
+			if (!Request->ExternalDataReader.IsValid())
+			{
+				Request->ExternalDataReader = PlayerSessionServices->GetExternalDataReader();
+			}
 			bWasAdded = true;
 			TSharedPtrTS<IElectraHttpManager> PinnedHTTPManager = HTTPManager.Pin();
 			if (PinnedHTTPManager.IsValid())

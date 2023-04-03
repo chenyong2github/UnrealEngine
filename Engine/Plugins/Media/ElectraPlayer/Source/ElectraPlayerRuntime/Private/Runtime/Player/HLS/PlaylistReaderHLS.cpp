@@ -186,16 +186,19 @@ private:
 			virtual ~FStaticResourceRequest()
 			{ }
 
-			virtual EPlaybackResourceType GetResourceType() const override
+			EPlaybackResourceType GetResourceType() const override
 			{ return EPlaybackResourceType::Playlist; }
 
-			virtual FString GetResourceURL() const override
+			FString GetResourceURL() const override
 			{ return URL; }
 
-			virtual void SetPlaybackData(TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe>	PlaybackData) override
+			FBinaryDataParams GetBinaryDataParams() const override
+			{ FBinaryDataParams None; return None; }
+
+			void SetPlaybackData(TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe>	PlaybackData, int64 TotalResourceSize) override
 			{ Data = PlaybackData; }
 
-			virtual void SignalDataReady() override;
+			void SignalDataReady() override;
 
 			bool IsDone() const
 			{ return bIsDone;}
@@ -678,6 +681,7 @@ void FPlaylistReaderHLS::FPlaylistRequest::Execute(TSharedPtrTS<IElectraHttpMana
 
 	HTTPRequest->ReceiveBuffer    = ReceiveBuffer;
 	HTTPRequest->ProgressListener = InProgressListener;
+	HTTPRequest->ExternalDataReader = InPlayerSessionServices->GetExternalDataReader();
 	// Add the request.
 	InPlayerSessionServices->GetHTTPManager()->AddRequest(HTTPRequest, false);
 }

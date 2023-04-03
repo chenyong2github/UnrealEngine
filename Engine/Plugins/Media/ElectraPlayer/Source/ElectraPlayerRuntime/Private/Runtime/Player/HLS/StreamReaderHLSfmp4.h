@@ -156,8 +156,11 @@ private:
 			FString GetResourceURL() const override
 			{ return URL; }
 
-			void SetPlaybackData(TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe>	PlaybackData) override
+			void SetPlaybackData(TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe>	PlaybackData, int64 TotalResourceSize) override
 			{ Data = PlaybackData; }
+
+			FBinaryDataParams GetBinaryDataParams() const override
+			{ FBinaryDataParams None; return None; }
 
 			void SignalDataReady() override
 			{ DoneSignal.Signal(); }

@@ -2,15 +2,12 @@
 
 #pragma once
 
-#include "PlayerCore.h"
-#include "BitDataStream.h"
-
+#include <CoreMinimal.h>
 
 namespace Electra
 {
 	namespace MPEG
 	{
-
 		class FESDescriptor
 		{
 		public:
@@ -83,5 +80,3 @@ namespace Electra
 
 	} // namespace MPEG
 } // namespace Electra
-
-

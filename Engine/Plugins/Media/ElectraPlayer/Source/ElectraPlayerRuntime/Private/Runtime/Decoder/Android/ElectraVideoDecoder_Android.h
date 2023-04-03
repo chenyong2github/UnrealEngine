@@ -22,7 +22,7 @@ public:
 
 	static void ReleaseToSurface(uint32 NativeDecoderID, const FDecoderTimeStamp& Time);
 
-	void Initialize(EOutputType InOutputType, int32 InBufferIndex, int32 InValidCount, const TFunction<void(uint32, const FDecoderTimeStamp&)>& InSurfaceReleaseFN, uint32 InNativeDecoderID, FParamDict* InParamDict);
+	void Initialize(EOutputType InOutputType, int32 InBufferIndex, int32 InValidCount, const TFunction<void(uint32, const FDecoderTimeStamp&)>& InSurfaceReleaseFN, uint32 InNativeDecoderID, TSharedPtr<FParamDict, ESPMode::ThreadSafe> InParamDict);
 
 	void ReleaseToSurface() const override;
 

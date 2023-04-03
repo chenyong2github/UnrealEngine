@@ -83,7 +83,7 @@ public:
 	virtual TSharedPtr<ILibavDecoderDecodedImage, ESPMode::ThreadSafe> GetOutput() = 0;
 };
 
-class ILibavDecoderDecodedImage
+class ILibavDecoderDecodedImage : public TSharedFromThis<ILibavDecoderDecodedImage, ESPMode::ThreadSafe>
 {
 public:
 	virtual ~ILibavDecoderDecodedImage() = default;

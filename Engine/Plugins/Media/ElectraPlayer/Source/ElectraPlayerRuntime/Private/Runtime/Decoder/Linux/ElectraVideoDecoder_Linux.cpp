@@ -20,9 +20,9 @@ void FElectraPlayerVideoDecoderOutputLinux::SetDecodedImage(TSharedPtr<ILibavDec
 	DecodedImage = MoveTemp(InDecodedImage);
 }
 
-bool FElectraPlayerVideoDecoderOutputLinux::InitializeForBuffer(FIntPoint Dim, EPixelFormat PixFmt, int32 InNumBits, FParamDict* InParamDict)
+bool FElectraPlayerVideoDecoderOutputLinux::InitializeForBuffer(FIntPoint Dim, EPixelFormat PixFmt, int32 InNumBits, TSharedPtr<FParamDict, ESPMode::ThreadSafe> InParamDict)
 {
-	FVideoDecoderOutputLinux::Initialize(InParamDict);
+	FVideoDecoderOutputLinux::Initialize(MoveTemp(InParamDict));
 	NumBits = InNumBits;
 	check(PixFmt == EPixelFormat::PF_NV12 || PixFmt == EPixelFormat::PF_P010);
 	if (PixFmt != EPixelFormat::PF_NV12 && PixFmt != EPixelFormat::PF_P010)

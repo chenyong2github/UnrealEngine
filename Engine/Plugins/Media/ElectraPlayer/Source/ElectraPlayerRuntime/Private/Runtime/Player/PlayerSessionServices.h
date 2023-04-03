@@ -20,6 +20,7 @@ namespace Electra
 	class IAdaptiveStreamingPlayerAEMSHandler;
 	class FDRMManager;
 	class IHTTPResponseCache;
+	class IExternalDataReader;
 
 
 	class IPlayerMessage
@@ -85,6 +86,13 @@ namespace Electra
 		 * @return Pointer to the HTTP manager.
 		 */
 		virtual TSharedPtrTS<IElectraHttpManager> GetHTTPManager() = 0;
+
+		/**
+		 * Returns the optional external data reader.
+		 * 
+		 * @return Pointer to the external data reader, or nullptr if none is to be used.
+		 */
+		virtual TSharedPtrTS<IExternalDataReader> GetExternalDataReader() = 0;
 
 		/**
 		 * Returns the ABR stream selector instance.

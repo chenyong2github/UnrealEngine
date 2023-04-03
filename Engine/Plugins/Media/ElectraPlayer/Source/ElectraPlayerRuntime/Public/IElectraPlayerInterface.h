@@ -94,6 +94,48 @@ public:
 	virtual TSharedPtr<IElectraPlayerResourceDelegate, ESPMode::ThreadSafe> GetResourceDelegate() const = 0;
 };
 
+
+class IElectraPlayerExternalDataReader : public TSharedFromThis<IElectraPlayerExternalDataReader, ESPMode::ThreadSafe>
+{
+public:
+	virtual ~IElectraPlayerExternalDataReader() = default;
+
+	struct FReadParam
+	{
+		FString URL;
+		int64 AbsoluteFileOffset = 0;
+		int64 NumBytesToRead = 0;
+		void* Custom = nullptr;
+	};
+
+	using FResponseDataPtr = TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe>;
+	DECLARE_DELEGATE_ThreeParams(FElectraPlayerExternalDataReaderOnRequestCompleted, FResponseDataPtr /*ResponseData*/, int64 /*TotalFileSize*/, const FReadParam& FromRequestParams);
+
+	/**
+	 * Called to read data by some external means.
+	 * When done the provided completion delegate must be called.
+	 * Passing a nullptr for the response data will trigger a read error and a subsequent playback error.
+	 * Returning fewer bytes than requested implicitly means the end of the file was reached while reading.
+	 * If a read request for 0 bytes at offset 0 is made you are to return the total size of the file. For this
+	 * request it is permitted to return a nullptr for response data without resulting in an error.
+	 * Read requests may set the number of bytes to read to MAX_INT64 to indicate reading until the end of the file.
+	 * The player has no upfront knowledge about the size of the file so it cannot always adjust the number of
+	 * bytes to be read. Even when returning the size of the file in an earlier read there is no guarantee
+	 * that the number of bytes to be read will be adjusted accordingly.
+	 * Returning a negative value for the total size of the file is treated as an error and will be handled
+	 * like a file-not-found error, even though that should not be possible.
+	 * You are providing this reader class to the player knowing that the URL to play exists and is valid.
+	 * If the offset to read from is given as a negative value this is an indication that you may close the
+	 * file, but such a call is optional. You may close the file after having closed the player.
+	 * You may however open and close the file with every read request if that is more convenient for you.
+	 * The player will wait indefinitely for the response data to be provided. There are no timeouts.
+	 * You *must* call the provided delegate even for failures.
+	 */
+	virtual void ReadDataFromFile(const FReadParam& InReadParam, FElectraPlayerExternalDataReaderOnRequestCompleted OutCompletionDelegate) = 0;
+};
+
+
+
 // Container class to be passed through options as shared pointer to allow passing any non-standard ref-counted entities to the player
 class IOptionPointerValueContainer
 {
@@ -136,6 +178,8 @@ public:
 		TOptional<int32>			MaxVerticalStreamResolution;
 		TOptional<int32>			MaxBandwidthForStreaming;
 		bool						bDoNotPreload = false;
+		
+		TSharedPtr<IElectraPlayerExternalDataReader, ESPMode::ThreadSafe> ExternalDataReader;
 	};
 
 	enum class EOpenType
@@ -257,7 +301,7 @@ public:
 	virtual void NotifyOfOptionChange() = 0;
 
 	// Suspends or resumes decoder instances. Not supported on all platforms.
-	virtual void SuspendOrResumeDecoders(bool bSuspend) = 0;
+	virtual void SuspendOrResumeDecoders(bool bSuspend, const Electra::FParamDict& InOptions) = 0;
 
 	enum
 	{

@@ -4,6 +4,7 @@
 #include "Player/AdaptiveStreamingPlayerInternal.h"
 #include "Player/AdaptivePlayerOptionKeynames.h"
 #include "Decoder/SubtitleDecoder.h"
+#include "Decoder/AudioDecoder.h"
 #include "Utilities/Utilities.h"
 #include "ParameterDictionary.h"
 
@@ -80,59 +81,13 @@ bool FAdaptiveStreamingPlayer::CanDecodeStream(const FStreamCodecInformation& In
 			return false;
 		}
 
-		double Rate = InStreamCodecInfo.GetFrameRate().IsValid() ? InStreamCodecInfo.GetFrameRate().GetAsDouble() : 30.0;
-		if (InStreamCodecInfo.GetCodec() == FStreamCodecInformation::ECodec::H264)
+		// Check with (soon to be deprecated) limits
+		if (!Deprecate_InternalStreamAllowedAsPerLimits(InStreamCodecInfo))
 		{
-			const AdaptiveStreamingPlayerConfig::FConfiguration::FVideoDecoderLimit* DecoderLimit = &PlayerConfig.H264LimitUpto30fps;
-			if (Rate > 31.0)
-			{
-				DecoderLimit = &PlayerConfig.H264LimitAbove30fps;
-			}
-			// Check against user configured resolution limit
-			if (DecoderLimit->MaxResolution.Height && InStreamCodecInfo.GetResolution().Height > DecoderLimit->MaxResolution.Height)
-			{
-				return false;
-			}
+			return false;
+		}
 
-			// Check against video decoder capabilities.
-			IVideoDecoderH264::FStreamDecodeCapability StreamParam, Capability;
-			StreamParam.Width = InStreamCodecInfo.GetResolution().Width;
-			StreamParam.Height = InStreamCodecInfo.GetResolution().Height;
-			StreamParam.Profile = InStreamCodecInfo.GetProfile();
-			StreamParam.Level = InStreamCodecInfo.GetProfileLevel();
-			StreamParam.FPS = Rate;
-			if (IVideoDecoderH264::GetStreamDecodeCapability(Capability, StreamParam))
-			{
-				if (Capability.DecoderSupportType == IVideoDecoderH264::FStreamDecodeCapability::ESupported::NotSupported)
-				{
-					return false;
-				}
-			}
-		}
-		else if (InStreamCodecInfo.GetCodec() == FStreamCodecInformation::ECodec::H265)
-		{
-			#if ELECTRA_PLATFORM_HAS_H265_DECODER
-				// Check against video decoder capabilities.
-				IVideoDecoderH265::FStreamDecodeCapability StreamParam, Capability;
-				StreamParam.Width = InStreamCodecInfo.GetResolution().Width;
-				StreamParam.Height = InStreamCodecInfo.GetResolution().Height;
-				StreamParam.Tier = InStreamCodecInfo.GetProfileTier();
-				StreamParam.CompatibilityFlags = InStreamCodecInfo.GetProfileCompatibilityFlags();
-				StreamParam.Profile = InStreamCodecInfo.GetProfile();
-				StreamParam.Level = InStreamCodecInfo.GetProfileLevel();
-				StreamParam.ConstraintFlags = InStreamCodecInfo.GetProfileConstraints();
-				StreamParam.FPS = Rate;
-				if (IVideoDecoderH265::GetStreamDecodeCapability(Capability, StreamParam))
-				{
-					if (Capability.DecoderSupportType == IVideoDecoderH265::FStreamDecodeCapability::ESupported::NotSupported)
-					{
-						return false;
-					}
-				}
-			#else
-				return false;
-			#endif
-		}
+		return IVideoDecoder::CanDecodeStream(InStreamCodecInfo);;
 	}
 	else if (InStreamCodecInfo.IsAudioCodec())
 	{
@@ -141,10 +96,7 @@ bool FAdaptiveStreamingPlayer::CanDecodeStream(const FStreamCodecInformation& In
 		{
 			return false;
 		}
-		if (InStreamCodecInfo.GetCodec() == FStreamCodecInformation::ECodec::AAC)
-		{
-			return IAudioDecoderAAC::CanDecodeStream(InStreamCodecInfo);
-		}
+		return IAudioDecoder::CanDecodeStream(InStreamCodecInfo);
 	}
 	else if (InStreamCodecInfo.IsSubtitleCodec())
 	{
@@ -167,10 +119,15 @@ bool FAdaptiveStreamingPlayer::CanDecodeSubtitle(const FString& MimeType, const 
 
 
 
-bool FAdaptiveStreamingPlayer::FindMatchingStreamInfo(FStreamCodecInformation& OutStreamInfo, const FString& InPeriodID, const FTimeValue& AtTime, int32 MaxWidth, int32 MaxHeight)
+bool FAdaptiveStreamingPlayer::FindMatchingStreamInfo(FStreamCodecInformation& OutStreamInfo, const FString& InPeriodID, const FTimeValue& AtTime, const FStreamCodecInformation& InForCodec)
 {
-	TArray<FStreamCodecInformation> VideoCodecInfos;
 	TSharedPtrTS<ITimelineMediaAsset> Asset;
+
+	// Not used at the moment.
+	int32 MaxWidth = 0;
+	int32 MaxHeight = 0;
+	MaxWidth = MaxWidth ? MaxWidth : 32768;
+	MaxHeight = MaxHeight ? MaxHeight : 32768;
 
 	// Locate the period by ID or the specified time.
 	ActivePeriodCriticalSection.Lock();
@@ -210,115 +167,56 @@ bool FAdaptiveStreamingPlayer::FindMatchingStreamInfo(FStreamCodecInformation& O
 	ActivePeriodCriticalSection.Unlock();
 	if (Asset.IsValid())
 	{
-		if (Asset->GetNumberOfAdaptationSets(EStreamType::Video) > 0)
+		for(int32 nAdapt=0, nAdaptMax=Asset->GetNumberOfAdaptationSets(EStreamType::Video); nAdapt<nAdaptMax; ++nAdapt)
 		{
-			// What if this is more than one?
-			TSharedPtrTS<IPlaybackAssetAdaptationSet> VideoSet = Asset->GetAdaptationSetByTypeAndIndex(EStreamType::Video, 0);
-			check(VideoSet.IsValid());
+			TSharedPtrTS<IPlaybackAssetAdaptationSet> VideoSet = Asset->GetAdaptationSetByTypeAndIndex(EStreamType::Video, nAdapt);
 			if (VideoSet.IsValid())
 			{
-				for(int32 i = 0, iMax = VideoSet->GetNumberOfRepresentations(); i < iMax; ++i)
+				TArray<FStreamCodecInformation> VideoCodecInfos;
+
+				// Filter the streams by permitted max.resolution
+				int32 LowestBW = TNumericLimits<int32>::Max();
+				for(int32 i=0, iMax=VideoSet->GetNumberOfRepresentations(); i<iMax; ++i)
 				{
-					VideoCodecInfos.Push(VideoSet->GetRepresentationByIndex(i)->GetCodecInformation());
+					if (VideoSet->GetRepresentationByIndex(i)->GetBitrate() < LowestBW)
+					{
+						LowestBW = VideoSet->GetRepresentationByIndex(i)->GetBitrate();
+					}
+					const FStreamCodecInformation& ci = VideoSet->GetRepresentationByIndex(i)->GetCodecInformation();
+					if (!ci.GetResolution().ExceedsLimit(MaxWidth, MaxHeight))
+					{
+						VideoCodecInfos.Push(ci);
+					}
 				}
-				check(VideoCodecInfos.Num());
-				if (VideoCodecInfos.Num())
+				if (VideoCodecInfos.Num() == 0)
 				{
-					if (MaxWidth == 0 && MaxHeight == 0)
+					for(int32 i=0, iMax=VideoSet->GetNumberOfRepresentations(); i<iMax; ++i)
 					{
-						FStreamCodecInformation Best = VideoCodecInfos[0];
-						for(int32 i=1; i<VideoCodecInfos.Num(); ++i)
+						if (VideoSet->GetRepresentationByIndex(i)->GetBitrate() <= LowestBW)
 						{
-							const FStreamCodecInformation::FResolution& Res = VideoCodecInfos[i].GetResolution();
-							if (Res.Width > Best.GetResolution().Width)
-							{
-								Best.SetResolution(FStreamCodecInformation::FResolution(Res.Width, Best.GetResolution().Height));
-							}
-							if (Res.Height > Best.GetResolution().Height)
-							{
-								Best.SetResolution(FStreamCodecInformation::FResolution(Best.GetResolution().Width, Res.Height));
-							}
-							// Note: the final RFC 6381 codec string will be bogus since we do not re-create it here.
-							if (VideoCodecInfos[i].GetProfile() > Best.GetProfile())
-							{
-								Best.SetProfile(VideoCodecInfos[i].GetProfile());
-							}
-							if (VideoCodecInfos[i].GetProfileLevel() > Best.GetProfileLevel())
-							{
-								Best.SetProfileLevel(VideoCodecInfos[i].GetProfileLevel());
-							}
-							if (VideoCodecInfos[i].GetExtras().GetValue("b_frames").SafeGetInt64(0))
-							{
-								Best.GetExtras().Set("b_frames", FVariantValue((int64) 1));
-							}
+							VideoCodecInfos.Push(VideoSet->GetRepresentationByIndex(i)->GetCodecInformation());
+							break;
 						}
-						OutStreamInfo = Best;
 					}
-					else
-					{
-						if (MaxWidth == 0)
-						{
-							MaxWidth = 32768;
-						}
-						if (MaxHeight == 0)
-						{
-							MaxHeight = 32768;
-						}
-						FStreamCodecInformation		Best;
-						bool bFirst = true;
-						for(int32 i=0; i<VideoCodecInfos.Num(); ++i)
-						{
-							const FStreamCodecInformation::FResolution& Res = VideoCodecInfos[i].GetResolution();
-							if (Res.ExceedsLimit(MaxWidth, MaxHeight))
-							{
-								continue;
-							}
-							if (bFirst)
-							{
-								bFirst = false;
-								Best = VideoCodecInfos[i];
-							}
-							if (Res.Width > Best.GetResolution().Width)
-							{
-								Best.SetResolution(FStreamCodecInformation::FResolution(Res.Width, Best.GetResolution().Height));
-							}
-							if (Res.Height > Best.GetResolution().Height)
-							{
-								Best.SetResolution(FStreamCodecInformation::FResolution(Best.GetResolution().Width, Res.Height));
-							}
-							// Note: the final RFC 6381 codec string will be bogus since we do not re-create it here.
-							if (VideoCodecInfos[i].GetProfile() > Best.GetProfile())
-							{
-								Best.SetProfile(VideoCodecInfos[i].GetProfile());
-							}
-							if (VideoCodecInfos[i].GetProfileLevel() > Best.GetProfileLevel())
-							{
-								Best.SetProfileLevel(VideoCodecInfos[i].GetProfileLevel());
-							}
-							if (VideoCodecInfos[i].GetExtras().GetValue("b_frames").SafeGetInt64(0))
-							{
-								Best.GetExtras().Set("b_frames", FVariantValue((int64) 1));
-							}
-						}
-						// Found none? (resolution limit set too low)
-						if (bFirst)
-						{
-							// Find smallest by bandwidth
-							Best = VideoCodecInfos[0];
-							int32 BestBW = VideoSet->GetRepresentationByIndex(0)->GetBitrate();
-							for(int32 i=1; i<VideoCodecInfos.Num(); ++i)
-							{
-								if (VideoSet->GetRepresentationByIndex(i)->GetBitrate() < BestBW)
-								{
-									Best = VideoCodecInfos[i];
-									BestBW = VideoSet->GetRepresentationByIndex(i)->GetBitrate();
-								}
-							}
-						}
-						OutStreamInfo = Best;
-					}
-					return true;
 				}
+
+				// Check codec.
+				if (VideoCodecInfos[0].GetCodec() != InForCodec.GetCodec())
+				{
+					continue;
+				}
+
+				// Reduce to those having the highest profile.
+				VideoCodecInfos.Sort([](const FStreamCodecInformation& a, const FStreamCodecInformation& b) { return a.GetProfile() > b.GetProfile(); });
+				VideoCodecInfos = VideoCodecInfos.FilterByPredicate([BestProfile=VideoCodecInfos[0].GetProfile()](const FStreamCodecInformation& e)	{ return e.GetProfile() >= BestProfile; });
+				// Reduce to those having the highest level.
+				VideoCodecInfos.Sort([](const FStreamCodecInformation& a, const FStreamCodecInformation& b) { return a.GetProfileLevel() > b.GetProfileLevel(); });
+				VideoCodecInfos = VideoCodecInfos.FilterByPredicate([BestLevel=VideoCodecInfos[0].GetProfileLevel()](const FStreamCodecInformation& e) { return e.GetProfileLevel() >= BestLevel; });
+				// Sort by resolution
+				VideoCodecInfos.Sort([](const FStreamCodecInformation& a, const FStreamCodecInformation& b) { return a.GetResolution().Width*a.GetResolution().Height > a.GetResolution().Width*a.GetResolution().Height; });
+
+				OutStreamInfo = VideoCodecInfos[0];
+				return true;
 			}
 		}
 	}
@@ -358,7 +256,7 @@ int32 FAdaptiveStreamingPlayer::CreateDecoder(EStreamType type)
 				// This is only an initial selection as there could be other adaptation sets in upcoming periods
 				// that have a larger resolution that is still within the allowed limits.
 				FStreamCodecInformation HighestStream;
-				if (!FindMatchingStreamInfo(HighestStream, PeriodID, DecodeTime, 0, 0))
+				if (!FindMatchingStreamInfo(HighestStream, PeriodID, DecodeTime, VideoDecoder.CurrentCodecInfo))
 				{
 					FErrorDetail err;
 					err.SetFacility(Facility::EFacility::Player);
@@ -368,81 +266,32 @@ int32 FAdaptiveStreamingPlayer::CreateDecoder(EStreamType type)
 					return -1;
 				}
 
-				if (VideoDecoder.CurrentCodecInfo.GetCodec() == FStreamCodecInformation::ECodec::H264)
+				// Create the video decoder
+				VideoDecoder.Decoder = IVideoDecoder::Create();
+				if (VideoDecoder.Decoder)
 				{
-					// Create H.264 video decoder
-					IVideoDecoderH264* DecoderH264 = IVideoDecoderH264::Create();
-					if (DecoderH264)
+					VideoDecoder.Parent = this;
+					VideoDecoder.Decoder->SetPlayerSessionServices(this);
+
+					// Add in any player options that are for decoder use
+					FParamDict AdditionalOptions;
+					TArray<FString> DecoderOptionKeys;
+					PlayerOptions.GetKeysStartingWith("videoDecoder", DecoderOptionKeys);
+					for (const FString & Key : DecoderOptionKeys)
 					{
-						VideoDecoder.Decoder = DecoderH264;
-						VideoDecoder.Parent = this;
-						DecoderH264->SetPlayerSessionServices(this);
-						IVideoDecoderH264::FInstanceConfiguration h264Cfg = PlayerConfig.DecoderCfg264;
-						h264Cfg.ProfileIdc = HighestStream.GetProfile();
-						h264Cfg.LevelIdc = HighestStream.GetProfileLevel();
-						h264Cfg.MaxFrameWidth = HighestStream.GetResolution().Width;
-						h264Cfg.MaxFrameHeight = HighestStream.GetResolution().Height;
-						h264Cfg.AdditionalOptions = HighestStream.GetExtras();
-
-						// Add in any player options that are for decoder use
-						TArray<FString> DecoderOptionKeys;
-						PlayerOptions.GetKeysStartingWith("videoDecoder", DecoderOptionKeys);
-						for (const FString & Key : DecoderOptionKeys)
-						{
-							h264Cfg.AdditionalOptions.Set(Key, PlayerOptions.GetValue(Key));
-						}
-
-						// Attach video decoder buffer monitor.
-						DecoderH264->SetAUInputBufferListener(&VideoDecoder);
-						DecoderH264->SetReadyBufferListener(&VideoDecoder);
-						// Have the video decoder send its output to the video renderer
-						DecoderH264->SetRenderer(VideoRender.Renderer);
-						// Hand it (may be nullptr) a delegate for platform for resource queries
-						DecoderH264->SetResourceDelegate(VideoDecoderResourceDelegate.Pin());
-						// Open the decoder after having set all listeners.
-						DecoderH264->Open(h264Cfg);
+						AdditionalOptions.Set(Key, PlayerOptions.GetValue(Key));
 					}
-				}
-#if ELECTRA_PLATFORM_HAS_H265_DECODER
-				else if (VideoDecoder.CurrentCodecInfo.GetCodec() == FStreamCodecInformation::ECodec::H265)
-				{
-					// Create H.265 video decoder
-					IVideoDecoderH265* DecoderH265 = IVideoDecoderH265::Create();
-					if (DecoderH265)
-					{
-						VideoDecoder.Decoder = DecoderH265;
-						VideoDecoder.Parent = this;
-						DecoderH265->SetPlayerSessionServices(this);
-						IVideoDecoderH265::FInstanceConfiguration h265Cfg;// = PlayerConfig.DecoderCfg265;
-						h265Cfg.Tier = HighestStream.GetProfileTier();
-						h265Cfg.Profile = HighestStream.GetProfile();
-						h265Cfg.Level = HighestStream.GetProfileLevel();
-						h265Cfg.MaxFrameWidth = HighestStream.GetResolution().Width;
-						h265Cfg.MaxFrameHeight = HighestStream.GetResolution().Height;
-						h265Cfg.MaxFrameRate = HighestStream.GetFrameRate().IsValid()? HighestStream.GetFrameRate().GetAsDouble() : 0.0;
-						h265Cfg.ProfileCompatibilityFlags = HighestStream.GetProfileCompatibilityFlags();
-						h265Cfg.GeneralConstraintBits48 = HighestStream.GetProfileConstraints();
-						h265Cfg.AdditionalOptions = HighestStream.GetExtras();
-						// Add in any player options that are for decoder use
-						TArray<FString> DecoderOptionKeys;
-						PlayerOptions.GetKeysStartingWith("videoDecoder", DecoderOptionKeys);
-						for (const FString & Key : DecoderOptionKeys)
-						{
-							h265Cfg.AdditionalOptions.Set(Key, PlayerOptions.GetValue(Key));
-						}
 
-						// Attach video decoder buffer monitor.
-						DecoderH265->SetAUInputBufferListener(&VideoDecoder);
-						DecoderH265->SetReadyBufferListener(&VideoDecoder);
-						// Have the video decoder send its output to the video renderer
-						DecoderH265->SetRenderer(VideoRender.Renderer);
-						// Hand it (may be nullptr) a delegate for platform for resource queries
-						DecoderH265->SetResourceDelegate(VideoDecoderResourceDelegate.Pin());
-						// Open the decoder after having set all listeners.
-						DecoderH265->Open(h265Cfg);
-					}
+					// Attach video decoder buffer monitor.
+					VideoDecoder.Decoder->SetAUInputBufferListener(&VideoDecoder);
+					VideoDecoder.Decoder->SetReadyBufferListener(&VideoDecoder);
+					// Have the video decoder send its output to the video renderer
+					VideoDecoder.Decoder->SetRenderer(VideoRender.Renderer);
+					// Hand it (may be nullptr) a delegate for platform for resource queries
+					VideoDecoder.Decoder->SetVideoResourceDelegate(VideoDecoderResourceDelegate);
+					// Open the decoder after having set all listeners.
+					VideoDecoder.Decoder->Open(VideoDecoder.LastSentAUCodecData, AdditionalOptions, &HighestStream);
 				}
-#endif
 
 				VideoDecoder.CheckIfNewDecoderMustBeSuspendedImmediately();
 				if (VideoDecoder.Decoder)
@@ -481,19 +330,19 @@ int32 FAdaptiveStreamingPlayer::CreateDecoder(EStreamType type)
 				}
 				FAccessUnit::Release(AccessUnit);
 
-				if (AudioDecoder.CurrentCodecInfo.GetCodec() == FStreamCodecInformation::ECodec::AAC)
+					// Create the audio decoder
+				AudioDecoder.Decoder = IAudioDecoder::Create();
+				if (AudioDecoder.Decoder)
 				{
-					// Create an AAC audio decoder
-					AudioDecoder.Decoder = IAudioDecoderAAC::Create();
-					AudioDecoder.Decoder->SetPlayerSessionServices(this);
 					AudioDecoder.Parent = this;
+					AudioDecoder.Decoder->SetPlayerSessionServices(this);
 					// Attach buffer monitors.
 					AudioDecoder.Decoder->SetAUInputBufferListener(&AudioDecoder);
 					AudioDecoder.Decoder->SetReadyBufferListener(&AudioDecoder);
 					// Have to audio decoder send its output to the audio renderer
 					AudioDecoder.Decoder->SetRenderer(AudioRender.Renderer);
 					// Open the decoder after having set all listeners.
-					AudioDecoder.Decoder->Open(PlayerConfig.DecoderCfgAAC);
+					AudioDecoder.Decoder->Open(AudioDecoder.LastSentAUCodecData);
 				}
 
 				AudioDecoder.CheckIfNewDecoderMustBeSuspendedImmediately();
@@ -854,25 +703,6 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, IAccessUnitBufferIn
 				FAccessUnit::Release(PeekedAU);
 				PeekedAU = nullptr;
 
-				if (Type == EStreamType::Video && VideoDecoder.bApplyNewLimits)
-				{
-					FStreamCodecInformation StreamInfo;
-					FTimeValue DecodeTime = AccessUnit->EarliestPTS.IsValid() ? AccessUnit->EarliestPTS : AccessUnit->PTS;
-					check(AccessUnit->BufferSourceInfo.IsValid());
-					FString PeriodID = AccessUnit->BufferSourceInfo.IsValid() ? AccessUnit->BufferSourceInfo->PeriodID : FString();
-					if (FindMatchingStreamInfo(StreamInfo, PeriodID, DecodeTime, VideoResolutionLimitWidth, VideoResolutionLimitHeight))
-					{
-						if (VideoDecoder.Decoder)
-						{
-							if (VideoDecoder.CurrentCodecInfo.GetCodec() == FStreamCodecInformation::ECodec::H264 && StreamInfo.GetCodec() == FStreamCodecInformation::ECodec::H264)
-							{
-								static_cast<IVideoDecoderH264*>(VideoDecoder.Decoder)->SetMaximumDecodeCapability(StreamInfo.GetResolution().Width, StreamInfo.GetResolution().Height, StreamInfo.GetProfile(), StreamInfo.GetProfileLevel(), StreamInfo.GetExtras());
-							}
-						}
-					}
-					VideoDecoder.bApplyNewLimits = false;
-				}
-
 				if (Decoder)
 				{
 					// Since we are providing a new access unit now the decoder won't be at EOD any more.
@@ -896,7 +726,7 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, IAccessUnitBufferIn
 					}
 					*LastSentAUCodecData = AccessUnit->AUCodecData;
 				}
-				
+
 				// Check for presence of encoder latency and store it.
 				// This may be updated by different streams/decoders which can't be helped. There should only be one actively
 				// observed element but we have seen manifests that have the same <ProducerReferenceTime@id> in multiple AdaptationSets.
@@ -961,6 +791,45 @@ bool FAdaptiveStreamingPlayer::IsSeamlessBufferSwitchPossible(EStreamType InStre
 	}
 	return false;
 }
+
+
+void FAdaptiveStreamingPlayer::Deprecate_InternalInitializeDecoderLimits()
+{
+	// Set up video decoder resolution limits. As the media playlists are parsed the video streams will be
+	// compared against these limits and those that exceed the limit will not be considered for playback.
+
+	// Maximum allowed vertical resolution specified?
+	if (PlayerOptions.HaveKey(TEXT("max_resoY")))
+	{
+		PlayerConfig.H264LimitUpto30fps.MaxResolution.Height = (int32)PlayerOptions.GetValue(TEXT("max_resoY")).GetInt64();
+		PlayerConfig.H264LimitAbove30fps.MaxResolution.Height = (int32)PlayerOptions.GetValue(TEXT("max_resoY")).GetInt64();
+	}
+	// A limit in vertical resolution for streams with more than 30fps?
+	if (PlayerOptions.HaveKey(TEXT("max_resoY_above_30fps")))
+	{
+		PlayerConfig.H264LimitAbove30fps.MaxResolution.Height = (int32)PlayerOptions.GetValue(TEXT("max_resoY_above_30fps")).GetInt64();
+	}
+}
+
+bool FAdaptiveStreamingPlayer::Deprecate_InternalStreamAllowedAsPerLimits(const FStreamCodecInformation& InStreamCodecInfo) const
+{
+	if (InStreamCodecInfo.GetCodec() == FStreamCodecInformation::ECodec::H264)
+	{
+		const double Rate = InStreamCodecInfo.GetFrameRate().IsValid() ? InStreamCodecInfo.GetFrameRate().GetAsDouble() : 30.0;
+		const AdaptiveStreamingPlayerConfig::FConfiguration::FVideoDecoderLimit* DecoderLimit = &PlayerConfig.H264LimitUpto30fps;
+		if (Rate > 31.0)
+		{
+			DecoderLimit = &PlayerConfig.H264LimitAbove30fps;
+		}
+		// Check against user configured resolution limit
+		if (DecoderLimit->MaxResolution.Height && InStreamCodecInfo.GetResolution().Height > DecoderLimit->MaxResolution.Height)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 
 
 } // namespace Electra

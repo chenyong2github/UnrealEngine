@@ -122,27 +122,58 @@ void NV21ConvertPS(
 	OutColor.w = 1.0f;
 }
 
-
-// shader to resize an RGB texture
+// shader to convert an RGB texture
 void RGBConvertPS(
 	float4 InPosition : SV_POSITION,
 	float2 InUV : TEXCOORD0,
 	out float4 OutColor : SV_Target0)
 {
 	float2 ScaledUV = InUV * RGBConvertUB.UVScale;
-	OutColor = float4(RGBConvertUB.Texture.Sample(RGBConvertUB.Sampler, ScaledUV).xyz, 1);
+	float4 Color = RGBConvertUB.Texture.Sample(RGBConvertUB.Sampler, ScaledUV);
 	// Inverse EOTF
 	if (RGBConvertUB.EOTF != 0)
 	{
-		OutColor.xyz = (RGBConvertUB.EOTF == 1) ? sRGBToLinear(OutColor.xyz) : ST2084ToLinear(OutColor.xyz);
+		Color.xyz = (RGBConvertUB.EOTF == 1) ? sRGBToLinear(Color.xyz) : ST2084ToLinear(Color.xyz);
 	}
 	// Adjust colorspace
-	float4 Col4 = float4(OutColor.xyz, 1);
+	float4 Col4 = float4(Color.xyz, 1);
 	OutColor.x = dot(RGBConvertUB.CSTransform[0], Col4);
 	OutColor.y = dot(RGBConvertUB.CSTransform[1], Col4);
 	OutColor.z = dot(RGBConvertUB.CSTransform[2], Col4);
+	OutColor.a = dot(RGBConvertUB.CSTransform[3], Color);
 }
 
+static const float4 kYCoCgOffsets = float4(-0.50196078431373, -0.50196078431373, 0, 0);
+
+// shader to convert an YCoCg texture (usually in DXT5 format - note: no alpha present; it is part of the encoding)
+void YCoCgConvertPS(
+	float4 InPosition : SV_POSITION,
+	float2 InUV : TEXCOORD0,
+	out float4 OutColor : SV_Target0)
+{
+	float2 ScaledUV = InUV * YCoCgConvertUB.UVScale;
+
+	float4 CoCgSY = YCoCgConvertUB.Texture.Sample(YCoCgConvertUB.Sampler, ScaledUV);
+
+	CoCgSY += kYCoCgOffsets;
+	
+	float Scale = (CoCgSY.z * (255.0 / 8.0)) + 1.0;
+	float Co = CoCgSY.x / Scale;
+	float Cg = CoCgSY.y / Scale;
+	float Y = CoCgSY.w;
+	float4 Col4 = float4(Y + Co - Cg, Y + Cg, Y - Co - Cg, 1.0);
+
+	// Inverse EOTF
+	if (YCoCgConvertUB.EOTF != 0)
+	{
+		Col4.xyz = (YCoCgConvertUB.EOTF == 1) ? sRGBToLinear(Col4.xyz) : ST2084ToLinear(Col4.xyz);
+	}
+	// Adjust colorspace
+	OutColor.x = dot(YCoCgConvertUB.CSTransform[0], Col4);
+	OutColor.y = dot(YCoCgConvertUB.CSTransform[1], Col4);
+	OutColor.z = dot(YCoCgConvertUB.CSTransform[2], Col4);
+	OutColor.w = 1.0;
+}
 
 // shader to convert a luma (Y) and chroma (CbCr) texture to RGBA
 void YCbCrConvertPS(
@@ -201,7 +232,56 @@ void UYVYConvertPS(
 }
 
 
+// shader to convert YUV v216/2yuv/vuy2 (YUV 422) to RGB
+/*
+	Input data os expected as RGBA16 data [representing the Cb:Y0:Cr:Y1 or Y0:Cb:Y1:Cr data for each pixel pair]
+	(data could represent 10, 12, 14 or 16 bits per component - storage is always 16-bit OR plain old 8-bit)
+*/
+void YUVv216ConvertPS(
+	float4 InPosition : SV_POSITION,
+	float2 InUV : TEXCOORD0,
+	out float4 OutColor : SV_Target0)
+{
+	// Read 422 data from source (1 input texel generates 2 output texels)
+	uint3 PosUV = uint3(InUV * float2(YUVv216ConvertUB.OutputDimX * 0.5, YUVv216ConvertUB.OutputDimY), 0u);
+	float4 InRaw = YUVv216ConvertUB.YUVTexture.Load(PosUV);
+
+	// Assemble YUV data from input
+	InRaw = (YUVv216ConvertUB.IsARGBFmt != 0u) ? InRaw.zyxw : InRaw;								// PF_ARGB8 vs. PF_ABGR16 ordering
+	float4 CbY0CrY1 = (YUVv216ConvertUB.IsCbY0CrY1 != 0u) ? InRaw : InRaw.yxwz;						// CbY0CrY1 vs. Y0CbY1Cr ordering
+	float3 YUV = (uint(InUV.x * YUVv216ConvertUB.OutputDimX) & 1u) ? CbY0CrY1.wxz : CbY0CrY1.yxz;	// Decode to YCbCr for odd/even pixels
+
+	// YUV -> RGB (using a plain 4x4 matrix - not the common 3x3 & offset setup)
+	float3 Color;
+	float4 YUV4 = float4(YUV, 1);
+	Color.x = dot(YUVv216ConvertUB.ColorTransform[0], YUV4);
+	Color.y = dot(YUVv216ConvertUB.ColorTransform[1], YUV4);
+	Color.z = dot(YUVv216ConvertUB.ColorTransform[2], YUV4);
+
+	// Make sure we safely stay above zero
+	Color = max(Color, 0.0f);
+
+	// Go linear
+	if (YUVv216ConvertUB.EOTF != 0u)
+	{
+		Color = (YUVv216ConvertUB.EOTF == 1u) ? sRGBToLinear(Color) : ST2084ToLinear(Color);
+	}
+
+	// Adjust colorspace
+	float4 Col4 = float4(Color, 1);
+	Color.x = dot(YUVv216ConvertUB.CSTransform[0], Col4);
+	Color.y = dot(YUVv216ConvertUB.CSTransform[1], Col4);
+	Color.z = dot(YUVv216ConvertUB.CSTransform[2], Col4);
+
+	// Output with solid alpha
+	OutColor = float4(Color, 1.0f); 
+}
+
+
 // shader to convert YUV v210 to RGB
+/*
+	Input data is expected as R10G10B10A2 data [representing the Cb:Y0:Cr:Y1 data for each pixel pair, A2 is discarded]
+*/
 void YUVv210ConvertPS(
 	float4 InPosition : SV_POSITION,
 	float2 InUV : TEXCOORD0,
@@ -210,61 +290,63 @@ void YUVv210ConvertPS(
 	uint PosX = InUV.x * YUVv210ConvertUB.OutputDimX;
 
 	uint PixelIndex = Mod(PosX, 6);
-	uint3 Position = uint3(PosX / 6, InUV.y * YUVv210ConvertUB.OutputDimY, 0);
-	uint4 W = YUVv210ConvertUB.YUVTexture.Load(Position);
+	uint3 PosUV = uint3(4 * (PosX / 6), InUV.y * YUVv210ConvertUB.OutputDimY, 0u);
 
-	uint W0 = W.x;
-	uint W1 = W.y;
-	uint W2 = W.z;
-	uint W3 = W.w;
+	float3 In0 = YUVv210ConvertUB.YUVTexture.Load(PosUV, int2(0,0));	// Cb0, Y0, Cr0
+	float3 In1 = YUVv210ConvertUB.YUVTexture.Load(PosUV, int2(1,0));	// Y1, Cb1, Y2
+	float3 In2 = YUVv210ConvertUB.YUVTexture.Load(PosUV, int2(2,0));	// Cr1, Y3, Cb2
+	float3 In3 = YUVv210ConvertUB.YUVTexture.Load(PosUV, int2(3,0));	// Y4, Cr2, Y5
 
-	float3 YUV = float3(0.0f, 0.0f, 0.0f);  
-
+	float3 YUV;
 	if (PixelIndex == 0)
 	{
-		float Y0 = float((W0 >> 10) & 0x3FF);
-		float U0 = float(W0 & 0x3FF);
-		float V0 = float((W0 >> 20) & 0x3FF);
-		YUV = float3(Y0, U0, V0);
-	}
+		YUV = In0.yxz;
+	} 
 	else if (PixelIndex == 1)
 	{
-		float Y1 = float(W1 & 0x3FF);
-		float U0 = float(W0 & 0x3FF);
-		float V0 = float((W0 >> 20) & 0x3FF);
-		YUV = float3(Y1, U0, V0);
+		YUV = float3(In1.x, In0.xz);
 	}
 	else if (PixelIndex == 2)
 	{
-		float Y2 = float((W1 >> 20) & 0x3FF);
-		float U2 = float((W1 >> 10) & 0x3FF);
-		float V2 = float(W2 & 0x3FF);
-		YUV = float3(Y2, U2, V2);
+		YUV = float3(In1.zy, In2.x);
 	}
 	else if (PixelIndex == 3)
 	{
-		float Y3 = float((W2 >> 10) & 0x3FF);
-		float U2 = float((W1 >> 10) & 0x3FF);
-		float V2 = float(W2 & 0x3FF);
-		YUV = float3(Y3, U2, V2);
+		YUV = float3(In2.y, In1.y, In2.x);
 	}
 	else if (PixelIndex == 4)
 	{
-		float Y4 = float(W3 & 0x3FF);
-		float U4 = float((W2 >> 20) & 0x3FF);
-		float V4 = float((W3 >> 10) & 0x3FF);
-		YUV = float3(Y4, U4, V4);
+		YUV = float3(In3.x, In2.z, In3.y);
 	}
 	else
 	{
-		float Y5 = float((W3 >> 20) & 0x3FF);
-		float U4 = float((W2 >> 20) & 0x3FF);
-		float V4 = float((W3 >> 10) & 0x3FF);
-		YUV = float3(Y5, U4, V4);
+		YUV = float3(In3.z, In2.z, In3.y);
 	}
 
-	OutColor.xyz = YuvToRgb(YUV / 1023.0f, YUVv210ConvertUB.ColorTransform, YUVv210ConvertUB.SrgbToLinear);
-	OutColor.w = 1.0f;
+	// YUV -> RGB (using a plain 4x4 matrix - not the common 3x3 & offset setup)
+	float3 Color;
+	float4 YUV4 = float4(YUV, 1);
+	Color.x = dot(YUVv210ConvertUB.ColorTransform[0], YUV4);
+	Color.y = dot(YUVv210ConvertUB.ColorTransform[1], YUV4);
+	Color.z = dot(YUVv210ConvertUB.ColorTransform[2], YUV4);
+
+	// Make sure we safely stay above zero
+	Color = max(Color, 0.0f);
+
+	// Go linear
+	if (YUVv210ConvertUB.EOTF != 0u)
+	{
+		Color = (YUVv210ConvertUB.EOTF == 1u) ? sRGBToLinear(Color) : ST2084ToLinear(Color);
+	}
+
+	// Adjust colorspace
+	float4 Col4 = float4(Color, 1);
+	Color.x = dot(YUVv210ConvertUB.CSTransform[0], Col4);
+	Color.y = dot(YUVv210ConvertUB.CSTransform[1], Col4);
+	Color.z = dot(YUVv210ConvertUB.CSTransform[2], Col4);
+
+	// Output with solid alpha
+	OutColor = float4(Color, 1.0f); 
 }
 
 
@@ -275,9 +357,63 @@ void YUVY416ConvertPS(
 	out float4 OutColor : SV_Target0)
 {
 	float4 AVYU = YUVY416ConvertUB.SRV_Y.Sample(YUVY416ConvertUB.BilinearClampedSamplerUV, InUV);
-	
-	OutColor.xyz = YuvToRgb(AVYU.yzw, YUVY416ConvertUB.ColorTransform, YUVY416ConvertUB.SrgbToLinear);
-	OutColor.w = AVYU.x;
+	AVYU = (YUVY416ConvertUB.bIsARGBFmt != 0u) ? AVYU.zyxw : AVYU;	// PF_ARGB8 vs. PF_ABGR16 ordering
+
+	float3 YUV = AVYU.yzw;
+
+	// YUV -> RGB (using a plain 4x4 matrix - not the common 3x3 & offset setup)
+	float3 Color;
+	float4 YUV4 = float4(YUV, 1);
+	Color.x = dot(YUVY416ConvertUB.ColorTransform[0], YUV4);
+	Color.y = dot(YUVY416ConvertUB.ColorTransform[1], YUV4);
+	Color.z = dot(YUVY416ConvertUB.ColorTransform[2], YUV4);
+
+	// Make sure we safely stay above zero
+	Color = max(Color, 0.0f);
+
+	// Inverse EOTF
+	if (YUVY416ConvertUB.EOTF != 0)
+	{
+		Color = (YUVY416ConvertUB.EOTF == 1) ? sRGBToLinear(Color) : ST2084ToLinear(Color);
+	}
+
+	// Adjust colorspace
+	float4 Col4 = float4(Color, 1);
+	Color.x = dot(YUVY416ConvertUB.CSTransform[0], Col4);
+	Color.y = dot(YUVY416ConvertUB.CSTransform[1], Col4);
+	Color.z = dot(YUVY416ConvertUB.CSTransform[2], Col4);
+
+	// Output with alpha from sample
+	OutColor = float4(Color, AVYU.x); 
+}
+
+
+// shader to convert ARGB16 big endian to RGB
+void ARGB16BigConvertPS(
+	float4 InPosition : SV_POSITION,
+	float2 InUV : TEXCOORD0,
+	out float4 OutColor : SV_Target0)
+{
+	uint4 InRaw = ARGB16BigConvertUB.Texture.Load(uint3(ARGB16BigConvertUB.OutputWidth * InUV.x, ARGB16BigConvertUB.OutputHeight * InUV.y, 0));
+	InRaw = (InRaw >> 8u) | ((InRaw & 0xff) << 8u);
+	float4 In = float4(InRaw) * (1.0 / 65535.0);
+
+	float3 Color = In.yzw;
+
+	// Inverse EOTF
+	if (ARGB16BigConvertUB.EOTF != 0)
+	{
+		Color = (ARGB16BigConvertUB.EOTF == 1) ? sRGBToLinear(Color) : ST2084ToLinear(Color);
+	}
+
+	// Adjust colorspace
+	float4 Col4 = float4(Color, 1);
+	Color.x = dot(ARGB16BigConvertUB.CSTransform[0], Col4);
+	Color.y = dot(ARGB16BigConvertUB.CSTransform[1], Col4);
+	Color.z = dot(ARGB16BigConvertUB.CSTransform[2], Col4);
+
+	// Output with alpha from sample
+	OutColor = float4(Color, In.x); 
 }
 
 
@@ -298,7 +434,6 @@ void YUVConvertPS(
 	OutColor.w = 1.0f;
 }
 
-
 // shader to convert a YUY2 texture to RGBA
 void YUY2ConvertPS(
 	float4 InPosition : SV_POSITION,
@@ -317,7 +452,6 @@ void YUY2ConvertPS(
 	OutColor.xyz = YuvToRgb(YUV, YUY2ConvertUB.ColorTransform, YUY2ConvertUB.SrgbToLinear);
 	OutColor.w = 1.0f;
 }
-
 
 // shader to convert a YVYU texture to RGBA
 void YVYUConvertPS(

@@ -21,7 +21,9 @@ public:
 
 	~FElectraPlayerVideoDecoderOutputApple();
 
-    void Initialize(CVImageBufferRef InImageBufferRef, FParamDict* InParamDict);
+    void Initialize(CVImageBufferRef InImageBufferRef, TSharedPtr<FParamDict, ESPMode::ThreadSafe> InParamDict);
+	void InitializeWithBuffer(const void* InBuffer, uint32 InSize, uint32 InStride, FIntPoint Dim, TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict);
+	void InitializeWithBuffer(TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> InBuffer, uint32 InStride, FIntPoint Dim, TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict);
 
 	void SetOwner(const TSharedPtr<IDecoderOutputOwner, ESPMode::ThreadSafe>& InOwningRenderer) override;
 
@@ -31,9 +33,12 @@ public:
 
 	CVImageBufferRef GetImageBuffer() const override;
 
+	const TArray<uint8>& GetBuffer() const override;
+
 private:
 	uint32 Stride;
 
+	TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> Buffer;
 	CVImageBufferRef ImageBufferRef;
 
 	// We hold a weak reference to the video renderer. During destruction the video renderer could be destroyed while samples are still out there..

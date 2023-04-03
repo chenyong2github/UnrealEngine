@@ -36,6 +36,8 @@ namespace Electra
 	//! (bool) true to emit the first decoded video frame while prerolling so it can be displayed while scrubbing.
 	const TCHAR* const OptionKeyDoNotHoldBackFirstVideoFrame = TEXT("do_not_hold_back_first_frame");
 	
+	//! (bool) true to have every request to read data break out to an external data reader.
+	const TCHAR* const OptionKeyUseExternalDataReader = TEXT("use_external_data_reader");
 
 
 	const TCHAR* const OptionKeyCurrentAvgStartingVideoBitrate = TEXT("current:avg_video_bitrate");

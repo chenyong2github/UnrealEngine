@@ -14,7 +14,7 @@ public:
 	static void RegisterWith(IMediaCDM& InDRMManager);
 	virtual ~IClearKeyCDM() = default;
 	virtual FString GetLastErrorMessage() = 0;
-	virtual const FString& GetSchemeID() = 0;
+	virtual const TArray<FString>& GetSchemeIDs() = 0;
 
 	/*
 		Elements that are parsed from a XML document, like:

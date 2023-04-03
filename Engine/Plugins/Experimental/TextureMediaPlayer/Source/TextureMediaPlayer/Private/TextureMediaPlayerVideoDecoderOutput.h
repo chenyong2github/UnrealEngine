@@ -16,12 +16,12 @@ THIRD_PARTY_INCLUDES_END
 class TextureMediaPlayerVideoDecoderOutput : public FVideoDecoderOutputPC
 {
 public:
-	void Initialize(Electra::FParamDict* InParamDict, const TArray<uint8>& InBuffer, const FIntPoint& InSampleDim);
+	void Initialize(TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict, const TArray<uint8>& InBuffer, const FIntPoint& InSampleDim);
 
 #if PLATFORM_WINDOWS
-	void Initialize(Electra::FParamDict* InParamDict, FTexture2DRHIRef InTexture, const FIntPoint& InSampleDim, TRefCountPtr<ID3D12Fence> InFence, uint64 InFenceValue);
+	void Initialize(TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict, FTexture2DRHIRef InTexture, const FIntPoint& InSampleDim, TRefCountPtr<ID3D12Fence> InFence, uint64 InFenceValue);
 #else
-	void Initialize(Electra::FParamDict* InParamDict, FTexture2DRHIRef InTexture, const FIntPoint& InSampleDim, FGPUFenceRHIRef InFence, uint64 InFenceValue);
+	void Initialize(TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict, FTexture2DRHIRef InTexture, const FIntPoint& InSampleDim, FGPUFenceRHIRef InFence, uint64 InFenceValue);
 #endif // PLATFORM_WINDOWS
 
 	// FVideoDecoderOutputPC interface.

@@ -34,17 +34,6 @@ void IAdaptiveStreamingPlayer::DebugHandle(void* pPlayer, void (*debugDrawPrintf
 	FAdaptiveStreamingPlayer::DebugHandle(pPlayer, debugDrawPrintf);
 }
 
-
-#if PLATFORM_ANDROID
-
-FParamDict& IAdaptiveStreamingPlayer::Android_Workarounds(FStreamCodecInformation::ECodec InForCodec)
-{
-	return FAdaptiveStreamingPlayer::Android_Workarounds(InForCodec);
-}
-
-#endif
-
-
 //---------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -972,6 +961,11 @@ bool FAdaptiveStreamingPlayer::IsTrackDeselected(EStreamType StreamType)
 	}
 }
 
+void FAdaptiveStreamingPlayer::SuspendOrResumeDecoders(bool bSuspend, const FParamDict& InOptions)
+{
+	VideoDecoder.SuspendOrResume(bSuspend, InOptions);
+	AudioDecoder.SuspendOrResume(bSuspend, InOptions);
+}
 
 //-----------------------------------------------------------------------------
 /**
@@ -1095,6 +1089,11 @@ TSharedPtr<IAdaptiveStreamingPlayerResourceProvider, ESPMode::ThreadSafe> FAdapt
 TSharedPtrTS<IElectraHttpManager> FAdaptiveStreamingPlayer::GetHTTPManager()
 {
 	return HttpManager;
+}
+
+TSharedPtrTS<IExternalDataReader> FAdaptiveStreamingPlayer::GetExternalDataReader()
+{
+	return GetStaticResourceProvider().IsValid() ? ExternalDataReader : nullptr;
 }
 
 TSharedPtrTS<IAdaptiveStreamSelector> FAdaptiveStreamingPlayer::GetStreamSelector()
@@ -1664,8 +1663,8 @@ void FAdaptiveStreamingPlayer::HandleSeeking()
 
 		// Not playing on the Live edge. This may get set to true later on handling the start segment.
 		PlaybackState.SetShouldPlayOnLiveEdge(false);
-		// On a user-induced seek the sequence index is supposed to be increased
-		// We need to reset this even when we would not actually issue the seek.
+		// On a user-induced seek the sequence index is supposed to be increased.
+		// We need to do this even when we would not actually issue the seek.
 
 		if (!SeekVars.PendingRequest.GetValue().bIgnoreForSequenceIndex.Get(false))
 		{
@@ -3938,7 +3937,6 @@ void FAdaptiveStreamingPlayer::UpdateDataAvailabilityState(Metrics::FDataAvailab
 void FAdaptiveStreamingPlayer::UpdateStreamResolutionLimit()
 {
 	StreamSelector->SetMaxVideoResolution(VideoResolutionLimitWidth, VideoResolutionLimitHeight);
-	VideoDecoder.bApplyNewLimits = true;
 }
 
 
@@ -4404,66 +4402,18 @@ void FAdaptiveStreamingPlayer::InternalInitialize()
 	// Create an HTTP response cache.
 	HttpResponseCache = IHTTPResponseCache::Create(this, PlayerOptions);
 
+	// If all read requests for this player are to be routed to an external reader we need to create a wrapper for it.
+	if (PlayerOptions.GetValue(OptionKeyUseExternalDataReader).SafeGetBool(false))
+	{
+		ExternalDataReader = MakeSharedTS<FExternalDataReader>(this);
+	}
+
 	// Create the ABR stream selector.
 	StreamSelector = IAdaptiveStreamSelector::Create(this, this);
 	AddMetricsReceiver(StreamSelector.Get());
 
 	// Create renderers.
 	CreateRenderers();
-
-	// Set up video decoder resolution limits. As the media playlists are parsed the video streams will be
-	// compared against these limits and those that exceed the limit will not be considered for playback.
-
-	// Maximum allowed vertical resolution specified?
-	if (PlayerOptions.HaveKey(TEXT("max_resoY")))
-	{
-		PlayerConfig.H264LimitUpto30fps.MaxResolution.Height = (int32)PlayerOptions.GetValue(TEXT("max_resoY")).GetInt64();
-		PlayerConfig.H264LimitAbove30fps.MaxResolution.Height = (int32)PlayerOptions.GetValue(TEXT("max_resoY")).GetInt64();
-	}
-	// A limit in vertical resolution for streams with more than 30fps?
-	if (PlayerOptions.HaveKey(TEXT("max_resoY_above_30fps")))
-	{
-		PlayerConfig.H264LimitAbove30fps.MaxResolution.Height = (int32)PlayerOptions.GetValue(TEXT("max_resoY_above_30fps")).GetInt64();
-	}
-	// Note: We could add additional limits here if need be.
-	//       Eventually these need to be differentiated based on codec as well.
-
-	// Get global video decoder capabilities and if supported, set the stream resolution limit accordingly.
-	IVideoDecoderH264::FStreamDecodeCapability Capability, StreamParam;
-	// Do a one-time global capability check with a default-empty stream param structure.
-	// This then gets used in the individual stream capability checks.
-	if (IVideoDecoderH264::GetStreamDecodeCapability(Capability, StreamParam))
-	{
-		if (Capability.Profile && Capability.Level)
-		{
-			PlayerConfig.H264LimitUpto30fps.MaxTierProfileLevel.Profile = Capability.Profile;
-			PlayerConfig.H264LimitUpto30fps.MaxTierProfileLevel.Level = Capability.Level;
-			PlayerConfig.H264LimitAbove30fps.MaxTierProfileLevel.Profile = Capability.Profile;
-			PlayerConfig.H264LimitAbove30fps.MaxTierProfileLevel.Level = Capability.Level;
-		}
-		if (Capability.Height)
-		{
-			PlayerConfig.H264LimitUpto30fps.MaxResolution.Height = Utils::Min(PlayerConfig.H264LimitUpto30fps.MaxResolution.Height, Capability.Height);
-			PlayerConfig.H264LimitAbove30fps.MaxResolution.Height = Utils::Min(PlayerConfig.H264LimitAbove30fps.MaxResolution.Height, Capability.Height);
-		}
-
-		// If this is software decoding only and there is limit for this in place on Windows, apply it.
-		if (PlayerOptions.HaveKey(TEXT("max_resoY_windows_software")) && Capability.DecoderSupportType == IVideoDecoderH264::FStreamDecodeCapability::ESupported::SoftwareOnly)
-		{
-			int32 MaxWinSWHeight = (int32)PlayerOptions.GetValue(TEXT("max_resoY_windows_software")).GetInt64();
-			PlayerConfig.H264LimitUpto30fps.MaxResolution.Height = Utils::Min(PlayerConfig.H264LimitUpto30fps.MaxResolution.Height, MaxWinSWHeight);
-			PlayerConfig.H264LimitAbove30fps.MaxResolution.Height = Utils::Min(PlayerConfig.H264LimitAbove30fps.MaxResolution.Height, MaxWinSWHeight);
-		}
-
-		// If the maximum fps is only up to 30 fps set the resolution for streams above 30fps so small
-		// that they will get rejected.
-		if (Capability.FPS > 0.0 && Capability.FPS <= 30.0)
-		{
-			PlayerConfig.H264LimitAbove30fps.MaxResolution.Height = 16;
-			PlayerConfig.H264LimitAbove30fps.MaxTierProfileLevel.Profile = 66;
-			PlayerConfig.H264LimitAbove30fps.MaxTierProfileLevel.Level = 10;
-		}
-	}
 
 	// Check for codecs that are not to be used as per the user's choice, even if the device supports them.
 	auto GetExcludedCodecPrefixes = [](TArray<FString>& OutList, const FParamDict& InOptions, const FString& InKey) -> void
@@ -4505,6 +4455,10 @@ void FAdaptiveStreamingPlayer::InternalInitialize()
 	{
 		PlayerOptions.Set(OptionKeyFrameAccurateSeek, FVariantValue(true));
 	}
+
+	// Initialize decoder limits.
+	// NOTE: This is to be deprecated as soon as possible.
+	Deprecate_InternalInitializeDecoderLimits();
 }
 
 
@@ -4535,6 +4489,7 @@ void FAdaptiveStreamingPlayer::InternalClose()
 	HttpManager.Reset();
 	EntityCache.Reset();
 	HttpResponseCache.Reset();
+	ExternalDataReader.Reset();
 
 	// Reset remaining internal state
 	CurrentState   	= EPlayerState::eState_Idle;
@@ -4831,53 +4786,6 @@ void FAdaptiveStreamingPlayer::ABRTriggerPlaylistRefresh()
 }
 
 
-
-
-
-
-
-
-
-
-//-----------------------------------------------------------------------------
-/**
-*/
-#if PLATFORM_ANDROID
-void FAdaptiveStreamingPlayer::Android_UpdateSurface(const TSharedPtr<IOptionPointerValueContainer>& Surface)
-{
-	if (VideoDecoder.Decoder)
-	{
-		VideoDecoder.Decoder->Android_UpdateSurface(Surface);
-	}
-}
-
-void FAdaptiveStreamingPlayer::Android_SuspendOrResumeDecoder(bool bSuspend)
-{
-	VideoDecoder.SuspendOrResume(bSuspend);
-	AudioDecoder.SuspendOrResume(bSuspend);
-}
-
-
-FParamDict& FAdaptiveStreamingPlayer::Android_Workarounds(FStreamCodecInformation::ECodec InForCodec)
-{
-	if (InForCodec == FStreamCodecInformation::ECodec::H264)
-	{
-		return IVideoDecoderH264::Android_Workarounds();
-	}
-#if ELECTRA_PLATFORM_HAS_H265_DECODER
-	else if (InForCodec == FStreamCodecInformation::ECodec::H265)
-	{
-		return IVideoDecoderH265::Android_Workarounds();
-	}
-#endif
-	else
-	{
-		static FParamDict Dummy;
-		return Dummy;
-	}
-}
-
-#endif
 
 //-----------------------------------------------------------------------------
 /**

@@ -20,6 +20,7 @@ namespace Playlist
 {
 static const FString MIMETypeMP4(TEXT("video/mp4"));
 static const FString MIMETypeMP4A(TEXT("audio/mp4"));
+static const FString MIMETypeQuickTime(TEXT("video/quicktime"));
 static const FString MIMETypeHLS(TEXT("application/vnd.apple.mpegURL"));
 static const FString MIMETypeDASH(TEXT("application/dash+xml"));
 
@@ -68,6 +69,7 @@ FString GetMIMETypeForURL(const FString& URL)
 		static const FString kTextMP4(TEXT("mp4"));
 		static const FString kTextMP4V(TEXT("m4v"));
 		static const FString kTextMP4A(TEXT("m4a"));
+		static const FString kTextMOV(TEXT("mov"));
 		static const FString kTextMPD(TEXT("mpd"));
 		static const FString kTextM3U8(TEXT("m3u8"));
 		if (LowerCaseExtension == kTextMP4 || LowerCaseExtension == kTextMP4V)
@@ -77,6 +79,10 @@ FString GetMIMETypeForURL(const FString& URL)
 		else if (LowerCaseExtension == kTextMP4A)
 		{
 			MimeType = MIMETypeMP4A;
+		}
+		else if (LowerCaseExtension == kTextMOV)
+		{
+			MimeType = MIMETypeQuickTime;
 		}
 		else if (LowerCaseExtension == kTextMPD)
 		{
@@ -194,7 +200,7 @@ void FAdaptiveStreamingPlayer::InternalLoadManifest(const FString& InURL, const 
 				ManifestReader = IPlaylistReaderHLS::Create(this);
 				ManifestType = EMediaFormatType::HLS;
 			}
-			else if (mimeType == Playlist::MIMETypeMP4)
+			else if (mimeType == Playlist::MIMETypeMP4 || mimeType == Playlist::MIMETypeMP4A || mimeType == Playlist::MIMETypeQuickTime)
 			{
 				ManifestReader = IPlaylistReaderMP4::Create(this);
 				ManifestType = EMediaFormatType::ISOBMFF;

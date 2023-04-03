@@ -27,8 +27,6 @@ namespace Electra
 			VideoRenderer,
 			AudioRenderer,
 			SubtitleRenderer,
-			AACDecoder,
-			H264Decoder,
 			MP4PlaylistReader,
 			MP4Playlist,
 			MP4StreamReader,
@@ -40,8 +38,9 @@ namespace Electra
 			DASHFMP4Reader,
 			EntityCache,
 			DRM,
-			H265Decoder,
 			SubtitleDecoder,
+			AudioDecoder,
+			VideoDecoder,
 			LastEntry = 255
 		};
 
@@ -77,10 +76,6 @@ namespace Electra
 					return TEXT("Audio renderer");
 				case EFacility::SubtitleRenderer:
 					return TEXT("Subtitle renderer");
-				case EFacility::AACDecoder:
-					return TEXT("AAC decoder");
-				case EFacility::H264Decoder:
-					return TEXT("H.264 decoder");
 				case EFacility::MP4PlaylistReader:
 					return TEXT("MP4 playlist reader");
 				case EFacility::MP4Playlist:
@@ -103,10 +98,12 @@ namespace Electra
 					return TEXT("Entity cache");
 				case EFacility::DRM:
 					return TEXT("DRM");
-				case EFacility::H265Decoder:
-					return TEXT("H.265 decoder");
 				case EFacility::SubtitleDecoder:
 					return TEXT("Subtitle decoder");
+				case EFacility::AudioDecoder:
+					return TEXT("Audio decoder");
+				case EFacility::VideoDecoder:
+					return TEXT("Video decoder");
 			}
 			return TEXT("???");
 		}

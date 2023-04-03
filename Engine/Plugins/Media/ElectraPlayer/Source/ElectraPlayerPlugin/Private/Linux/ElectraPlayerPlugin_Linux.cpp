@@ -8,7 +8,3 @@ IElectraPlayerResourceDelegate* FElectraPlayerPlugin::PlatformCreatePlayerResour
 {
 	return nullptr;
 }
-
-void FElectraPlayerPlugin::PlatformSetupResourceParams(Electra::FParamDict& Params)
-{
-}

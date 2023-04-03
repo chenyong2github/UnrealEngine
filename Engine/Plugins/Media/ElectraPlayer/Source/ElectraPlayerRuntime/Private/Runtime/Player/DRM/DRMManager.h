@@ -30,6 +30,9 @@ public:
 
 	virtual void OnCDMEvent(ElectraCDM::IMediaCDMEventListener::ECDMEventType InEventType, TSharedPtr<ElectraCDM::IMediaCDMClient, ESPMode::ThreadSafe> InDrmClient, void* InEventId, const TArray<uint8>& InCustomData) override;
 
+	static FString MakeHexStringFromArray(const TArray<uint8>& InArray);
+	static FString MakePrintableStringFromUint32(uint32 InUint32);
+
 private:
 
 	struct FDRMAsyncRequest : public IHTTPResourceRequestObject

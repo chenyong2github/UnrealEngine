@@ -340,7 +340,6 @@ ILibavDecoder::EDecoderError FLibavDecoderVideoCommon::DecodeAccessUnit(const IL
 	{
 		Packet = av_packet_alloc();
 		check(Packet);
-		av_init_packet(Packet);
 		PacketBufferSize = 0;
 	}
 	if (PacketBufferSize < InInputAccessUnit.DataSize)

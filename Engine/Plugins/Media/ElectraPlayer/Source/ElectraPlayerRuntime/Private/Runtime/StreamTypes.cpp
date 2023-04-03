@@ -8,6 +8,38 @@
 namespace Electra
 {
 
+	namespace
+	{
+		static constexpr uint32 Make4CC(const uint8 A, const uint8 B, const uint8 C, const uint8 D)
+		{
+			return (static_cast<uint32>(A) << 24) | (static_cast<uint32>(B) << 16) | (static_cast<uint32>(C) << 8) | static_cast<uint32>(D);
+		}
+		static constexpr uint32 Make4CC(const uint32 FourCC)
+		{
+			return Make4CC((FourCC >> 24) & 255, (FourCC >> 16) & 255, (FourCC >> 8) & 255, FourCC & 255);
+		}
+		FString Printable4CC(const uint32 In4CC)
+		{
+			FString Out;
+			// Not so much just printable as alphanumeric.
+			for(uint32 i=0, Atom=In4CC; i<4; ++i, Atom<<=8)
+			{
+				int32 v = Atom >> 24;
+				if ((v >= 'A' && v <= 'Z') || (v >= 'a' && v <= 'z') || (v >= '0' && v <= '9') || v == '_')
+				{
+					Out.AppendChar(v);
+				}
+				else
+				{
+					// Not alphanumeric, return it as a hex string.
+					return FString::Printf(TEXT("%08x"), In4CC);
+				}
+			}
+			return Out;
+		}
+	}
+
+
 	FString FStreamCodecInformation::GetMimeType() const
 	{
 		if (!MimeType.IsEmpty())
@@ -214,6 +246,14 @@ namespace Electra
 			// Presently not supported.
 			return false;
 		}
+		else if (CodecOTI.Equals("Opus"))
+		{
+			StreamType = EStreamType::Audio;
+			CodecSpecifier = CodecOTI;
+			Codec = ECodec::Audio4CC;
+			Codec4CC = Make4CC('O','p','u','s');
+			return true;
+		}
 		else if (CodecOTI.Equals(TEXT("wvtt")))
 		{
 			StreamType = EStreamType::Subtitle;
@@ -266,6 +306,9 @@ namespace Electra
 				return FString(TEXT("tx3g"));
 			case FStreamCodecInformation::ECodec::OtherSubtitle:
 				return FString(TEXT("subt"));
+			case FStreamCodecInformation::ECodec::Video4CC:
+			case FStreamCodecInformation::ECodec::Audio4CC:
+				return Printable4CC(Codec4CC);
 			default:
 				return FString(TEXT("unknown"));
 		}

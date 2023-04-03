@@ -14,12 +14,16 @@
 #include "ElectraPlayerPrivate.h"
 #include "Player/AdaptiveStreamingPlayerResourceRequest.h"
 #include "Player/AdaptivePlayerOptionKeynames.h"
+#include "Player/PlayerStreamFilter.h"
 #include "Player/mp4/StreamReaderMP4.h"
 #include "Player/mp4/ManifestMP4.h"
+#include "Player/DRM/DRMManager.h"
 
 
 #define ERRCODE_MANIFEST_MP4_NO_PLAYABLE_STREAMS		1
 #define ERRCODE_MANIFEST_MP4_STARTSEGMENT_NOT_FOUND		2
+#define ERRCODE_MANIFEST_MP4_DRM_ERROR					3
+
 
 
 DECLARE_CYCLE_STAT(TEXT("FPlayPeriodMP4::FindSegment"), STAT_ElectraPlayer_MP4_FindSegment, STATGROUP_ElectraPlayer);
@@ -644,6 +648,9 @@ FErrorDetail FManifestMP4Internal::FTimelineAssetMP4::Build(IPlayerSessionServic
 	PlayerSessionServices = InPlayerSessionServices;
 	MediaURL = URL;
 
+	TSharedPtrTS<FDRMManager> DRMManager = InPlayerSessionServices->GetDRMManager();
+	TArray<ElectraCDM::IMediaCDM::FCDMCandidate> DRMCandidates;
+
 	// Go over the supported tracks and create an internal manifest-like structure for the player to work with.
 	LongestTrackDuration = FTimeValue::GetZero();
 	for(int32 nTrack=0,nMaxTrack=MP4Parser->GetNumberOfTracks(); nTrack < nMaxTrack; ++nTrack)
@@ -651,39 +658,100 @@ FErrorDetail FManifestMP4Internal::FTimelineAssetMP4::Build(IPlayerSessionServic
 		const IParserISO14496_12::ITrack* Track = MP4Parser->GetTrackByIndex(nTrack);
 		if (Track)
 		{
+			//bool bIsLocalPlayback = TimelineAsset->GetMediaURL().StartsWith(TEXT("file:"));
+			bool bIsUsable = false;
+
+			// Can we decode this track?
+			IPlayerStreamFilter* StreamFilter = InPlayerSessionServices->GetStreamFilter();
+			if (StreamFilter && StreamFilter->CanDecodeStream(Track->GetCodecInformation()))
+			{
+				bIsUsable = true;
+			}
+
+			IParserISO14496_12::ITrack::FEncryptionInfo EncInfo;
+			// Using encryption?
+			if (bIsUsable && Track->GetEncryptionInfo(EncInfo))
+			{
+				// Encrypted.
+				if (DRMManager.IsValid())
+				{
+					FString Scheme = FDRMManager::MakePrintableStringFromUint32(EncInfo.Scheme);
+					TSharedPtr<ElectraCDM::IMediaCDMCapabilities, ESPMode::ThreadSafe> DRMCapabilities;
+					for(int32 i=0; i<EncInfo.CDMInfos.Num(); ++i)
+					{
+						FString uuid = FDRMManager::MakeHexStringFromArray(EncInfo.CDMInfos[i].SystemID);
+						DRMCapabilities = DRMManager->GetCDMCapabilitiesForScheme(uuid, FString(), FString());
+						if (DRMCapabilities.IsValid())
+						{
+							ElectraCDM::IMediaCDMCapabilities::ESupportResult Result;
+							Result = DRMCapabilities->SupportsCipher(Scheme);
+							if (Result == ElectraCDM::IMediaCDMCapabilities::ESupportResult::Supported)
+							{
+								bIsUsable = true;
+
+								ElectraCDM::IMediaCDM::FCDMCandidate cand;
+
+								cand.SchemeId = uuid;
+								cand.CommonScheme = Scheme;
+								for(int32 j=0; j<EncInfo.CDMInfos[i].KIDs.Num(); ++j)
+								{
+									cand.DefaultKIDs.Emplace(FDRMManager::MakeHexStringFromArray(EncInfo.CDMInfos[i].KIDs[j]));
+								}
+								DRMCandidates.Emplace(MoveTemp(cand));
+							}
+							else
+							{
+								bIsUsable = false;
+							}
+						}
+						else
+						{
+							bIsUsable = false;
+						}
+					}
+				}
+				else
+				{
+					bIsUsable = false;
+				}
+			}
+
 			// In an mp4 file we treat every track as a single adaptation set with one representation only.
 			// That's because by definition an adaptation set contains the same content at different bitrates and resolutions, but
 			// the type, language and codec has to be the same.
-			FErrorDetail err;
-			TSharedPtrTS<FAdaptationSetMP4> AdaptationSet = MakeSharedTS<FAdaptationSetMP4>();
-			err = AdaptationSet->CreateFrom(Track, URL);
-			if (err.IsOK())
+			if (bIsUsable)
 			{
-				// Add this track to the proper category.
-				switch(Track->GetCodecInformation().GetStreamType())
+				FErrorDetail err;
+				TSharedPtrTS<FAdaptationSetMP4> AdaptationSet = MakeSharedTS<FAdaptationSetMP4>();
+				err = AdaptationSet->CreateFrom(Track, URL);
+				if (err.IsOK())
 				{
-					case EStreamType::Video:
-						VideoAdaptationSets.Add(AdaptationSet);
-						break;
-					case EStreamType::Audio:
-						AudioAdaptationSets.Add(AdaptationSet);
-						break;
-					case EStreamType::Subtitle:
-						SubtitleAdaptationSets.Add(AdaptationSet);
-						break;
-					default:
-						break;
+					// Add this track to the proper category.
+					switch(Track->GetCodecInformation().GetStreamType())
+					{
+						case EStreamType::Video:
+							VideoAdaptationSets.Add(AdaptationSet);
+							break;
+						case EStreamType::Audio:
+							AudioAdaptationSets.Add(AdaptationSet);
+							break;
+						case EStreamType::Subtitle:
+							SubtitleAdaptationSets.Add(AdaptationSet);
+							break;
+						default:
+							break;
+					}
+					FTimeValue TrkDur;
+					TrkDur.SetFromTimeFraction(Track->GetDuration());
+					if (TrkDur > LongestTrackDuration)
+					{
+						LongestTrackDuration = TrkDur;
+					}
 				}
-				FTimeValue TrkDur;
-				TrkDur.SetFromTimeFraction(Track->GetDuration());
-				if (TrkDur > LongestTrackDuration)
+				else
 				{
-					LongestTrackDuration = TrkDur;
+					return err;
 				}
-			}
-			else
-			{
-				return err;
 			}
 		}
 	}
@@ -724,6 +792,26 @@ FErrorDetail FManifestMP4Internal::FTimelineAssetMP4::Build(IPlayerSessionServic
 			MediaMetadata.Reset();
 		}
 	}
+
+	if (DRMCandidates.Num())
+	{
+		ElectraCDM::ECDMError Result = DRMManager->CreateDRMClient(DrmClient, DRMCandidates);
+		if (Result == ElectraCDM::ECDMError::Success && DrmClient.IsValid())
+		{
+			DrmClient->RegisterEventListener(DRMManager);
+			DrmClient->SetLicenseServerURL(URL);
+			DrmClient->PrepareLicenses();
+		}
+		else
+		{
+			FErrorDetail err;
+			err.SetFacility(Facility::EFacility::MP4Playlist);
+			err.SetMessage(FString::Printf(TEXT("Failed to create DRM client with error %d"), (int32)Result));
+			err.SetCode(ERRCODE_MANIFEST_MP4_DRM_ERROR);
+			return err;
+		}
+	}
+
 	return FErrorDetail();
 }
 
@@ -963,6 +1051,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					{
 						req->DependentStreamTypes.Add(EStreamType::Subtitle);
 					}
+					req->DrmClient = DrmClient;
 
 					LimitSegmentDownloadSize(OutSegment);
 					if (req->SegmentInternalSize > 0)
@@ -1108,6 +1197,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					{
 						req->DependentStreamTypes.Add(EStreamType::Subtitle);
 					}
+					req->DrmClient = DrmClient;
 
 					LimitSegmentDownloadSize(OutSegment);
 					if (req->SegmentInternalSize > 0)

@@ -13,7 +13,7 @@
 #include "Player/PlayerStreamReader.h"
 #include "Utilities/URLParser.h"
 #include "Utilities/UtilsMP4.h"
-
+#include "ElectraCDMClient.h"
 
 namespace Electra
 {
@@ -261,6 +261,7 @@ public:
 		FPlayRangeEndInfo								PlayRangeEndInfo;
 		// Metadata from the 'meta' box, if any.
 		TSharedPtrTS<UtilsMP4::FMetadataParser>			MediaMetadata;
+		TSharedPtrTS<ElectraCDM::IMediaCDMClient>		DrmClient;
 	};
 
 

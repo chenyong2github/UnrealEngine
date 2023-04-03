@@ -139,7 +139,7 @@ public:
 
 	void NotifyOfOptionChange() override;
 
-	void SuspendOrResumeDecoders(bool bSuspend) override;
+	void SuspendOrResumeDecoders(bool bSuspend, const Electra::FParamDict& InOptions) override;
 
 private:
 	DECLARE_DELEGATE_TwoParams(FOnMediaPlayerEventReceivedDelegate, TSharedPtrTS<IAdaptiveStreamingPlayerAEMSEvent> /*InEvent*/, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode /*InDispatchMode*/);
@@ -311,7 +311,7 @@ private:
 	bool PresentSubtitle(const ISubtitleDecoderOutputPtr& DecoderOutput);
 
 	void PlatformNotifyOfOptionChange();
-	void PlatformSuspendOrResumeDecoders(bool bSuspend);
+	void PlatformSuspendOrResumeDecoders(bool bSuspend, const Electra::FParamDict& InOptions);
 
 	void OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStreamingPlayerAEMSEvent> InEvent, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode);
 
@@ -498,11 +498,12 @@ private:
 	class FAdaptiveStreamingPlayerResourceProvider : public IAdaptiveStreamingPlayerResourceProvider
 	{
 	public:
-		FAdaptiveStreamingPlayerResourceProvider(const TWeakPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe> & AdapterDelegate);
-		virtual ~FAdaptiveStreamingPlayerResourceProvider() = default;
+		FAdaptiveStreamingPlayerResourceProvider(const TWeakPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe>& AdapterDelegate);
+		virtual ~FAdaptiveStreamingPlayerResourceProvider();
 
 		virtual void ProvideStaticPlaybackDataForURL(TSharedPtr<IAdaptiveStreamingPlayerResourceRequest, ESPMode::ThreadSafe> InOutRequest) override;
 
+		void SetExternalDataReader(TWeakPtr<IElectraPlayerExternalDataReader, ESPMode::ThreadSafe> InExternalDataReader);
 		void ProcessPendingStaticResourceRequests();
 		void ClearPendingRequests();
 
@@ -511,7 +512,11 @@ private:
 		TQueue<TSharedPtr<IAdaptiveStreamingPlayerResourceRequest, ESPMode::ThreadSafe>, EQueueMode::Mpsc> PendingStaticResourceRequests;
 
 		// Player adapter delegate
-		TWeakPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe>	AdapterDelegate;
+		TWeakPtr<IElectraPlayerAdapterDelegate, ESPMode::ThreadSafe> AdapterDelegate;
+		// External data reader
+		TWeakPtr<IElectraPlayerExternalDataReader, ESPMode::ThreadSafe> ExternalDataReader;
+		IElectraPlayerExternalDataReader::FElectraPlayerExternalDataReaderOnRequestCompleted ExternalDataCompletedDelegate;
+		static void OnExternalDataReadCompleted(IElectraPlayerExternalDataReader::FResponseDataPtr InResponseData, int64 InTotalFileSize, const IElectraPlayerExternalDataReader::FReadParam& InFromRequestParams);
 	};
 
 	TSharedPtr<FAdaptiveStreamingPlayerResourceProvider, ESPMode::ThreadSafe> StaticResourceProvider;

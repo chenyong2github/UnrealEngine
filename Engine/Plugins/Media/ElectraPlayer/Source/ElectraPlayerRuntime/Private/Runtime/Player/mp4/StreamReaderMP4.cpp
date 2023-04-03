@@ -286,13 +286,6 @@ void FStreamReaderMP4::HandleRequest()
 	// Clear the active track map.
 	ActiveTrackMap.Reset();
 
-	// Check if a remote stream contains a track that is not supported or decodable on this platform.
-	// Local files are not checked since they are supposed to be valid. This is to guard against streams
-	// of unknown origin.
-	IPlayerStreamFilter* StreamFilter = PlayerSessionServices ? PlayerSessionServices->GetStreamFilter() : nullptr;
-	bool bIsRemotePlayback = TimelineAsset->GetMediaURL().StartsWith(TEXT("https:")) || TimelineAsset->GetMediaURL().StartsWith(TEXT("http:"));
-	bool bHasUnsupportTrack = false;
-
 	// Get the list of all the tracks that have been selected in the asset.
 	// This does not mean their data will be _used_ for playback, only that the track is usable by the player
 	// with regards to type and codec.
@@ -324,11 +317,6 @@ void FStreamReaderMP4::HandleRequest()
 				for(int32 nRepr=0; nRepr<NumRepr; ++nRepr)
 				{
 					TSharedPtrTS<IPlaybackAssetRepresentation> Representation = AdaptationSet->GetRepresentationByIndex(nRepr);
-
-					if (bIsRemotePlayback && StreamFilter && !StreamFilter->CanDecodeStream(Representation->GetCodecInformation()))
-					{
-						bHasUnsupportTrack = true;
-					}
 
 					// Note: By definition the representations unique identifier is a string of the numeric track ID and can thus be parsed back into a number.
 					FString ReprID = Representation->GetUniqueIdentifier();
@@ -415,6 +403,7 @@ void FStreamReaderMP4::HandleRequest()
 	HTTP->ReceiveBuffer = ReadBuffer.ReceiveBuffer;
 	HTTP->ProgressListener = ProgressListener;
 	HTTP->ResponseCache = PlayerSessionServices->GetHTTPResponseCache();
+	HTTP->ExternalDataReader = PlayerSessionServices->GetExternalDataReader();
 	PlayerSessionServices->GetHTTPManager()->AddRequest(HTTP, false);
 
 
@@ -428,12 +417,17 @@ void FStreamReaderMP4::HandleRequest()
 		AllTrackIterator = TimelineAsset->GetMoovBoxParser()->CreateAllTrackIteratorByFilePos(Request->FileStartOffset);
 	}
 
-	// If a track cannot be used on this platforms we set up an error now.
-	if (bHasUnsupportTrack)
+	// Encrypted?
+	TSharedPtr<ElectraCDM::IMediaCDMDecrypter, ESPMode::ThreadSafe> Decrypter;
+	if (Request->DrmClient.IsValid())
 	{
-		ds.bParseFailure  = true;
-		ParsingErrorMessage = FString::Printf(TEXT("Segment contains unsupported or non-decodable tracks."));
-		bHasErrored = true;
+		if (Request->DrmClient->CreateDecrypter(Decrypter, FString()) != ElectraCDM::ECDMError::Success)
+		{
+			bDone = true;
+			bHasErrored = true;
+			ds.FailureReason = FString::Printf(TEXT("Failed to create decrypter for segment. %s"), *Request->DrmClient->GetLastErrorMessage());
+			LogMessage(IInfoLog::ELevel::Error, ds.FailureReason);
+		}
 	}
 
 	uint32 PlaybackSequenceID = Request->GetPlaybackSequenceID();
@@ -452,8 +446,6 @@ void FStreamReaderMP4::HandleRequest()
 				CSD->CodecSpecificData = Track->GetCodecSpecificData();
 				CSD->RawCSD			   = Track->GetCodecSpecificDataRAW();
 				CSD->ParsedInfo		   = Track->GetCodecInformation();
-				// Set information not necessarily available on the CSD.
-				CSD->ParsedInfo.SetBitrate(st.Bitrate);
 				st.CSD = MoveTemp(CSD);
 			}
 			if (!st.BufferSourceInfo.IsValid())
@@ -467,6 +459,10 @@ void FStreamReaderMP4::HandleRequest()
 					st.bIsSelectedTrack = true;
 					st.StreamType = SelectedTrackMetadata->Type;
 					st.Bitrate = SelectedTrackMetadata->Bitrate;
+					if (st.CSD.IsValid())
+					{
+						st.CSD->ParsedInfo.SetBitrate(st.Bitrate);
+					}
 					meta->Kind = SelectedTrackMetadata->Kind;
 					meta->Language = SelectedTrackMetadata->Language;
 					meta->Codec = st.CSD.IsValid() ? st.CSD->ParsedInfo.GetCodecName() : FString();
@@ -623,6 +619,35 @@ void FStreamReaderMP4::HandleRequest()
 							// Note: we continue reading this segment all the way to the end on purpose in case there are further 'emsg' boxes.
 							AccessUnit->bIsLastInPeriod = true;
 							SelectedTrack.bReadPastLastPTS = true;
+						}
+
+						ElectraCDM::FMediaCDMSampleInfo SampleEncryptionInfo;
+						bool bIsSampleEncrypted = TrackIt->GetEncryptionInfo(SampleEncryptionInfo);
+						// If we need to decrypt we have to wait for the decrypter to become ready.
+						if (bIsSampleEncrypted && Decrypter.IsValid())
+						{
+							while(!bTerminate && !HasBeenAborted() && 
+								(Decrypter->GetState() == ElectraCDM::ECDMState::WaitingForKey || Decrypter->GetState() == ElectraCDM::ECDMState::Idle))
+							{
+								FMediaRunnable::SleepMilliseconds(100);
+							}
+							ElectraCDM::ECDMError DecryptResult = ElectraCDM::ECDMError::Failure;
+							if (Decrypter->GetState() == ElectraCDM::ECDMState::Ready)
+							{
+								SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_MP4_StreamReader);
+								CSV_SCOPED_TIMING_STAT(ElectraPlayer, MP4_StreamReader);
+								DecryptResult = Decrypter->DecryptInPlace((uint8*) AccessUnit->AUData, (int32) AccessUnit->AUSize, SampleEncryptionInfo);
+							}
+							if (DecryptResult != ElectraCDM::ECDMError::Success)
+							{
+								FAccessUnit::Release(AccessUnit);
+								AccessUnit = nullptr;
+								ds.FailureReason = FString::Printf(TEXT("Failed to decrypt segment with error %d (%s)"), (int32)DecryptResult, *Decrypter->GetLastErrorMessage());
+								LogMessage(IInfoLog::ELevel::Error, ds.FailureReason);
+								bHasErrored = true;
+								bDone = true;
+								break;
+							}
 						}
 
 						while(!bSentOff && !HasBeenAborted() && !bTerminate)

@@ -14,6 +14,7 @@
 #include "ElectraPlayerPrivate.h"
 #include "Player/PlayerStreamReader.h"
 #include "StreamAccessUnitBuffer.h"
+#include "Player/DRM/DRMManager.h"
 
 
 
@@ -81,6 +82,10 @@ public:
 	Metrics::FSegmentDownloadStats						DownloadStats;
 	HTTP::FConnectionInfo								ConnectionInfo;
 	int64												CurrentIteratorBytePos;
+
+	// Encryption
+	TSharedPtrTS<ElectraCDM::IMediaCDMClient>			DrmClient;
+	FString												DrmMimeType;
 };
 
 

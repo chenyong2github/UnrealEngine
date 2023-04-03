@@ -7,15 +7,19 @@
 #include "Demuxer/ParserISO14496-12.h"
 
 #include "Utilities/UtilsMPEG.h"
-#include "Utilities/UtilsMPEGAudio.h"
-#include "Utilities/UtilsMPEGVideo.h"
+#include "Utils/MPEG/ElectraUtilsMPEGAudio.h"
+#include "Utils/MPEG/ElectraUtilsMPEGVideo.h"
 #include "Utilities/ISO639-Map.h"
 #include "InfoLog.h"
 #include "Player/PlayerSessionServices.h"
 #include "Player/PlayerStreamFilter.h"
 #include "Decoder/SubtitleDecoder.h"
 
-#if UE_BUILD_DEBUG
+#include "IElectraCodecFactoryModule.h"
+#include "IElectraCodecFactory.h"
+
+
+#if !UE_BUILD_SHIPPING
 #define MEDIA_DEBUG_HAS_BOX_NAMES 1
 #endif
 
@@ -41,6 +45,26 @@ namespace Electra
 		T ValueToBigEndian(const T value)
 		{
 			return MEDIA_TO_BIG_ENDIAN(value);
+		}
+
+		FString Printable4CC(const uint32 In4CC)
+		{
+			FString Out;
+			// Not so much just printable as alphanumeric.
+			for(uint32 i=0, Atom=In4CC; i<4; ++i, Atom<<=8)
+			{
+				int32 v = Atom >> 24;
+				if ((v >= 'A' && v <= 'Z') || (v >= 'a' && v <= 'z') || (v >= '0' && v <= '9') || v == '_')
+				{
+					Out.AppendChar(v);
+				}
+				else
+				{
+					// Not alphanumeric, return it as a hex string.
+					return FString::Printf(TEXT("%08x"), In4CC);
+				}
+			}
+			return Out;
 		}
 	}
 
@@ -358,7 +382,7 @@ private:
 			return CurrentMediaHandlerBox;
 		}
 
-		UEMediaError ReadAndParseNextBox(FMP4Box* ParentBox, bool bWarnIfUnsupported=true);
+		UEMediaError ReadAndParseNextBox(FMP4Box* ParentBox, int64 BoxEndByteOffset=-1);
 
 		const FMP4Box* GetRootBox() const
 		{
@@ -539,7 +563,7 @@ private:
 		const FMP4Box* FindBox(IParserISO14496_12::FBoxType BoxTypeIn, int32 MaxDepth = 32) const
 		{
 			// First sweep, check children
-			for(int32 i = 0, iMax = ChildBoxes.Num(); i < iMax; ++i)
+			for(int32 i=0, iMax=ChildBoxes.Num(); i<iMax; ++i)
 			{
 				if (ChildBoxes[i]->GetType() == BoxTypeIn)
 				{
@@ -549,7 +573,7 @@ private:
 			// Second sweep, check children recursively
 			if (MaxDepth > 0)
 			{
-				for(int32 i = 0, iMax = ChildBoxes.Num(); i < iMax; ++i)
+				for(int32 i=0, iMax=ChildBoxes.Num(); i<iMax; ++i)
 				{
 					const FMP4Box* Box = ChildBoxes[i]->FindBox(BoxTypeIn, MaxDepth - 1);
 					if (Box)
@@ -655,6 +679,7 @@ private:
 		static const IParserISO14496_12::FBoxType kBox_uuid = MAKE_BOX_ATOM('u', 'u', 'i', 'd');
 		static const IParserISO14496_12::FBoxType kBox_free = MAKE_BOX_ATOM('f', 'r', 'e', 'e');
 		static const IParserISO14496_12::FBoxType kBox_skip = MAKE_BOX_ATOM('s', 'k', 'i', 'p');
+		static const IParserISO14496_12::FBoxType kBox_wide = MAKE_BOX_ATOM('w', 'i', 'd', 'e');
 		static const IParserISO14496_12::FBoxType kBox_iods = MAKE_BOX_ATOM('i', 'o', 'd', 's');
 		static const IParserISO14496_12::FBoxType kBox_sidx = MAKE_BOX_ATOM('s', 'i', 'd', 'x');
 		static const IParserISO14496_12::FBoxType kBox_moov = MAKE_BOX_ATOM('m', 'o', 'o', 'v');
@@ -681,6 +706,7 @@ private:
 		static const IParserISO14496_12::FBoxType kBox_stsd = MAKE_BOX_ATOM('s', 't', 's', 'd');
 		static const IParserISO14496_12::FBoxType kBox_btrt = MAKE_BOX_ATOM('b', 't', 'r', 't');
 		static const IParserISO14496_12::FBoxType kBox_pasp = MAKE_BOX_ATOM('p', 'a', 's', 'p');
+		static const IParserISO14496_12::FBoxType kBox_tapt = MAKE_BOX_ATOM('t', 'a', 'p', 't');
 		static const IParserISO14496_12::FBoxType kBox_fiel = MAKE_BOX_ATOM('f', 'i', 'e', 'l');
 		static const IParserISO14496_12::FBoxType kBox_avcC = MAKE_BOX_ATOM('a', 'v', 'c', 'C');
 		static const IParserISO14496_12::FBoxType kBox_hvcC = MAKE_BOX_ATOM('h', 'v', 'c', 'C');
@@ -716,6 +742,12 @@ private:
 		static const IParserISO14496_12::FBoxType kBox_sgpd = MAKE_BOX_ATOM('s', 'g', 'p', 'd');
 		static const IParserISO14496_12::FBoxType kBox_saiz = MAKE_BOX_ATOM('s', 'a', 'i', 'z');
 		static const IParserISO14496_12::FBoxType kBox_saio = MAKE_BOX_ATOM('s', 'a', 'i', 'o');
+		static const IParserISO14496_12::FBoxType kBox_wave = MAKE_BOX_ATOM('w', 'a', 'v', 'e');
+		static const IParserISO14496_12::FBoxType kBox_chan = MAKE_BOX_ATOM('c', 'h', 'a', 'n');
+		static const IParserISO14496_12::FBoxType kBox_enda = MAKE_BOX_ATOM('e', 'n', 'd', 'a');
+		static const IParserISO14496_12::FBoxType kBox_mdcv = MAKE_BOX_ATOM('m', 'd', 'c', 'v');
+		static const IParserISO14496_12::FBoxType kBox_clli = MAKE_BOX_ATOM('c', 'l', 'l', 'i');
+		static const IParserISO14496_12::FBoxType kBox_coll = MAKE_BOX_ATOM('c', 'o', 'l', 'l');
 
 		/**
 		 * Encryption related boxes
@@ -765,6 +797,11 @@ private:
 		 */
 		static const IParserISO14496_12::FBoxType kEncryptionScheme_cenc = MAKE_BOX_ATOM('c', 'e', 'n', 'c');
 		static const IParserISO14496_12::FBoxType kEncryptionScheme_cbcs = MAKE_BOX_ATOM('c', 'b', 'c', 's');
+
+		/**
+		 * Brands
+		 */
+		static const IParserISO14496_12::FBoxType kBrand_QT = MAKE_BOX_ATOM('q', 't', ' ', ' ');
 
 		/**
 		 * Known UUIDs for PIFF boxes before they were added to ISO/IEC 14496-12
@@ -1531,12 +1568,16 @@ private:
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Reserved[1]));			// reserved[1] (In QuickTime this was "Component Flags")
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Reserved[2]));			// reserved[2] (In QuickTime this was "Component Flags Mask")
 
-			uint32 BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
+			int32 BytesRemaining = (int32)(BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
 			RETURN_IF_ERROR(ParseInfo->Reader()->ReadString(NameUTF8, BytesRemaining));
 
-			// Ideally this has now all bytes of this box consumed. That's not required though but good form.
-			check(0 == BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
-
+			// Ideally this has now all bytes of this box consumed. That's not required though and we will consume anything that's left.
+			BytesRemaining = (int32)(BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
+			check(BytesRemaining >= 0);
+			if (BytesRemaining > 0)
+			{
+				RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(nullptr, BytesRemaining));
+			}
 			return Error;
 		}
 
@@ -1955,6 +1996,16 @@ private:
 		{
 		}
 
+		int32 GetWidth() const
+		{
+			return Width;
+		}
+
+		int32 GetHeight() const
+		{
+			return Height;
+		}
+
 	private:
 		FMP4BoxVisualSampleEntry() = delete;
 		FMP4BoxVisualSampleEntry(const FMP4BoxVisualSampleEntry&) = delete;
@@ -1989,15 +2040,19 @@ private:
 				return UEMEDIA_ERROR_FORMAT_ERROR;
 			}
 			// There can now be additional boxes following, most notably 'pasp' and 'clap'.
-			uint32 BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
-			if (BytesRemaining)
+			int64 NowAt = ParseInfo->Reader()->GetCurrentReadOffset();
+			int32 BytesRemaining = (int32)(BoxSize - (NowAt - StartOffset));
+			if (BytesRemaining > 0)
 			{
-				// Now that there are additional boxes we ourselves are no longer a leaf box.
 				bIsLeafBox = false;
-				// This will read all the boxes in here and add them as children.
-				RETURN_IF_ERROR(ParseInfo->ReadAndParseNextBox(this));
+				RETURN_IF_ERROR(ParseInfo->ReadAndParseNextBox(this, NowAt + BytesRemaining));
+				BytesRemaining = (int32)(BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
+				check(BytesRemaining >= 0);
+				if (BytesRemaining > 0)
+				{
+					RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(nullptr, BytesRemaining));
+				}
 			}
-
 			return Error;
 		}
 
@@ -2019,12 +2074,42 @@ private:
 	public:
 		FMP4BoxAudioSampleEntry(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox, int32 InSTSDBoxVersion)
 			: FMP4BoxSampleEntry(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
-			, STSDBoxVersion(InSTSDBoxVersion), SampleRate(0), ChannelCount(0), SampleSize(0)
+			, STSDBoxVersion(InSTSDBoxVersion)
 		{
 		}
 
 		virtual ~FMP4BoxAudioSampleEntry()
 		{
+		}
+
+		uint32 GetSampleRate() const
+		{
+			return SampleRate;
+		}
+		int32 GetChannelCount() const
+		{
+			return ChannelCount;
+		}
+		int32 GetSampleSize() const
+		{
+			return SampleSize;
+		}
+
+		bool HaveFormatSpecificFlags() const
+		{
+			return Version == 2;
+		}
+		int32 GetFormatSpecificFlags() const
+		{
+			return FormatSpecificFlags;
+		}
+		uint32 GetConstBytesPerAudioPacket() const
+		{
+			return ConstBytesPerAudioPacket;
+		}
+		uint32 GetConstLPCMFramesPerAudioPacket() const
+		{
+			return ConstLPCMFramesPerAudioPacket;
 		}
 
 	private:
@@ -2039,7 +2124,7 @@ private:
 			// version 1 sample was allowed in a version 0 'stsd'. The version 1 sample is not identical between ISO and QT
 			// so we do some special handling based on version numbers.
 			uint32 Value32 = 0;
-			uint16 Value16 = 0, Version = 0;
+			uint16 Value16 = 0;
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxSampleEntry::ReadAndParseAttributes(ParseInfo));
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Version));					// entry_version for v1, reserved for v0 (in QuickTime this was "Version")
@@ -2047,40 +2132,88 @@ private:
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value16));					// reserved (in QuickTime this was "Revision Level")
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));					// reserved (in QuickTime this was "Vendor")
 
-			RETURN_IF_ERROR(ParseInfo->Reader()->Read(ChannelCount));				// channelcount
-			RETURN_IF_ERROR(ParseInfo->Reader()->Read(SampleSize));					// samplesize
-			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value16));					// pre_defined (in QuickTime this was "Compression ID")
-			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value16));					// reserved (in QuickTime this was "Packet size")
-			RETURN_IF_ERROR(ParseInfo->Reader()->Read(SampleRate));					// samplerate (16.16 fixed point; must be 1<<16 for ISO v1 with additional 'srat' box following)
-
-			// Handle a special case of version 1 QuickTime box. In ISO/IEC 14496-12 the SampleRate must be set to 0x00010000 (1 Hz).
-			// If this is not the case we assume this to be a QuickTime box which adds 4 additional fields *before* any optional boxes.
-			if (STSDBoxVersion == 0 && Version == 1 && SampleRate != (1 << 16))
+			// As defined by ISO/IEC
+			if (Version == 0 || Version == 1)
 			{
-				// Assume QT and read the following elements
-				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));				// Samples per packet
-				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));				// Bytes per packet
-				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));				// Bytes per frame
-				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));				// Bytes per Sample
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(ChannelCount));				// channelcount
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(SampleSize));					// samplesize
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value16));					// pre_defined (in QuickTime this was "Compression ID")
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value16));					// reserved (in QuickTime this was "Packet size")
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(SampleRate));					// samplerate (16.16 fixed point; must be 1<<16 for ISO v1 with additional 'srat' box following)
+
+				// Handle a special case of version 1 QuickTime box. In ISO/IEC 14496-12 the SampleRate must be set to 0x00010000 (1 Hz).
+				// If this is not the case we assume this to be a QuickTime box which adds 4 additional fields *before* any optional boxes.
+				if (STSDBoxVersion == 0 && Version == 1 && SampleRate != (1 << 16))
+				{
+					// Assume QT and read the following elements
+					RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));				// Samples per packet
+					RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));				// Bytes per packet
+					RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));				// Bytes per frame
+					RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));				// Bytes per Sample
+				}
+				SampleRate >>= 16;
+			}
+			// As defined by: https://developer.apple.com/library/archive/documentation/QuickTime/QTFF/QTFFChap3/qtff3.html
+			else if (Version == 2)
+			{
+				int32 SizeOfStructOnly = 0;
+				int32 NumChannels = 0;
+				int32 ConstBitsPerChannel = 0;
+				union Int64toDouble
+				{
+					uint64 ui64;
+					double dbl64;
+				};
+				Int64toDouble SampleRateCnv;
+				SampleRateCnv.ui64 = 0;
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value16));					// always 3
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value16));					// always 16
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value16));					// always 0xfffe
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value16));					// always 0
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));					// always 65536
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(SizeOfStructOnly));
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(SampleRateCnv.ui64));
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(NumChannels));
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(Value32));					// always 0x7f000000
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(ConstBitsPerChannel));
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(FormatSpecificFlags));
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(ConstBytesPerAudioPacket));
+				RETURN_IF_ERROR(ParseInfo->Reader()->Read(ConstLPCMFramesPerAudioPacket));
+
+				SampleRate = (uint32) SampleRateCnv.dbl64;
+				ChannelCount = (uint16) NumChannels;
+				SampleSize = (uint16) ConstBitsPerChannel;
+			}
+			else
+			{
+				return UEMEDIA_ERROR_FORMAT_ERROR;
 			}
 
 			// There can now be additional boxes following (channel layout, downmix, DRC, sample rate)
-			uint32 BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
-			if (BytesRemaining)
+			int64 NowAt = ParseInfo->Reader()->GetCurrentReadOffset();
+			int32 BytesRemaining = (int32)(BoxSize - (NowAt - StartOffset));
+			if (BytesRemaining > 0)
 			{
-				// Now that there are additional boxes we ourselves are no longer a leaf box.
 				bIsLeafBox = false;
-				// This will read all the boxes in here and add them as children.
-				RETURN_IF_ERROR(ParseInfo->ReadAndParseNextBox(this));
+				RETURN_IF_ERROR(ParseInfo->ReadAndParseNextBox(this, NowAt + BytesRemaining));
+				BytesRemaining = (int32)(BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
+				check(BytesRemaining >= 0);
+				if (BytesRemaining > 0)
+				{
+					RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(nullptr, BytesRemaining));
+				}
 			}
-
 			return Error;
 		}
 
-		int32		STSDBoxVersion;
-		uint32		SampleRate;
-		uint16		ChannelCount;
-		uint16		SampleSize;
+		int32		STSDBoxVersion = 0;
+		uint16		Version = 0;
+		uint32		SampleRate = 0;
+		int32		FormatSpecificFlags = 0;
+		uint32		ConstBytesPerAudioPacket = 0;
+		uint32		ConstLPCMFramesPerAudioPacket = 0;
+		uint16		ChannelCount = 0;
+		uint16		SampleSize = 0;
 	};
 
 
@@ -2588,7 +2721,7 @@ private:
 		{
 		}
 
-		const MPEG::FAVCDecoderConfigurationRecord& GetDecoderConfigurationRecord() const
+		const ElectraDecodersUtil::MPEG::FAVCDecoderConfigurationRecord& GetDecoderConfigurationRecord() const
 		{
 			return ConfigurationRecord;
 		}
@@ -2619,7 +2752,7 @@ private:
 			return Error;
 		}
 
-		MPEG::FAVCDecoderConfigurationRecord		ConfigurationRecord;
+		ElectraDecodersUtil::MPEG::FAVCDecoderConfigurationRecord		ConfigurationRecord;
 	};
 
 	/**
@@ -2637,7 +2770,7 @@ private:
 		{
 		}
 
-		const MPEG::FHEVCDecoderConfigurationRecord& GetDecoderConfigurationRecord() const
+		const ElectraDecodersUtil::MPEG::FHEVCDecoderConfigurationRecord& GetDecoderConfigurationRecord() const
 		{
 			return ConfigurationRecord;
 		}
@@ -2668,7 +2801,7 @@ private:
 			return Error;
 		}
 
-		MPEG::FHEVCDecoderConfigurationRecord ConfigurationRecord;
+		ElectraDecodersUtil::MPEG::FHEVCDecoderConfigurationRecord ConfigurationRecord;
 	};
 
 
@@ -2865,6 +2998,14 @@ private:
 
 		virtual ~FMP4BoxPASP()
 		{
+		}
+		uint32 GetHSpacing() const
+		{
+			return HSpacing;
+		}
+		uint32 GetVSpacing() const
+		{
+			return VSpacing;
 		}
 
 	private:
@@ -3104,7 +3245,6 @@ private:
 	public:
 		FMP4BoxSTSD(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
 			: FMP4BoxFull(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
-			, bIsSupportedFormat(false)
 		{
 		}
 
@@ -3112,9 +3252,22 @@ private:
 		{
 		}
 
+		enum class ESampleType
+		{
+			Video,
+			Audio,
+			Subtitles,
+			Ignored
+		};
+
+		ESampleType GetSampleType() const
+		{
+			return SampleType;
+		}
+
 		bool IsSupportedFormat() const
 		{
-			return bIsSupportedFormat;
+			return SampleType != ESampleType::Ignored;
 		}
 
 	private:
@@ -3138,32 +3291,25 @@ private:
 			uint32 EntryCount;
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(EntryCount));					// entry_count
 
-			enum EExpectedSampleType
-			{
-				ESTVideo,
-				ESTAudio,
-				ESTSubtitles,
-				ESTIgnored
-			};
-			EExpectedSampleType ExpectedSampleType = EExpectedSampleType::ESTIgnored;
+			SampleType = ESampleType::Ignored;
 			// Check for media handler first.
 			if (ParseInfo->GetCurrentMediaHandlerBox())
 			{
 				switch(ParseInfo->GetCurrentMediaHandlerBox()->GetType())
 				{
 					case FMP4Box::kBox_vmhd:
-						ExpectedSampleType = EExpectedSampleType::ESTVideo;
+						SampleType = ESampleType::Video;
 						break;
 					case FMP4Box::kBox_smhd:
-						ExpectedSampleType = EExpectedSampleType::ESTAudio;
+						SampleType = ESampleType::Audio;
 						break;
 					case FMP4Box::kBox_nmhd:
 					case FMP4Box::kBox_sthd:
-						ExpectedSampleType = EExpectedSampleType::ESTSubtitles;
+						SampleType = ESampleType::Subtitles;
 						break;
 					case FMP4Box::kBox_gmhd:
 					default:
-						ExpectedSampleType = EExpectedSampleType::ESTIgnored;
+						SampleType = ESampleType::Ignored;
 						break;
 				}
 			}
@@ -3173,19 +3319,16 @@ private:
 				switch(CurrentHandler->GetHandlerType())
 				{
 					case FMP4Box::kTrack_vide:
-						ExpectedSampleType = EExpectedSampleType::ESTVideo;
+						SampleType = ESampleType::Video;
 						break;
 					case FMP4Box::kTrack_soun:
-						ExpectedSampleType = EExpectedSampleType::ESTAudio;
+						SampleType = ESampleType::Audio;
 						break;
 					default:
-						ExpectedSampleType = EExpectedSampleType::ESTIgnored;
+						SampleType = ESampleType::Ignored;
 						break;
 				}
 			}
-
-			// Check if this is a supported sample format.
-			bIsSupportedFormat = ExpectedSampleType != EExpectedSampleType::ESTIgnored;
 
 			for(uint32 i=0; i<EntryCount; ++i)
 			{
@@ -3201,15 +3344,15 @@ private:
 #endif
 				int64 BoxDataOffset = ParseInfo->Reader()->GetCurrentReadOffset();
 				FMP4Box* NextBox = nullptr;
-				switch(ExpectedSampleType)
+				switch(SampleType)
 				{
-					case EExpectedSampleType::ESTVideo:
+					case ESampleType::Video:
 						NextBox = new FMP4BoxVisualSampleEntry(ChildBoxType, ChildBoxSize, BoxStartOffset, BoxDataOffset, true);
 						break;
-					case EExpectedSampleType::ESTAudio:
+					case ESampleType::Audio:
 						NextBox = new FMP4BoxAudioSampleEntry(ChildBoxType, ChildBoxSize, BoxStartOffset, BoxDataOffset, true, Version);
 						break;
-					case EExpectedSampleType::ESTSubtitles:
+					case ESampleType::Subtitles:
 						if (ChildBoxType == FMP4Box::kSample_tx3g)
 						{
 							NextBox = new FMP4BoxTX3GSampleEntry(ChildBoxType, ChildBoxSize, BoxStartOffset, BoxDataOffset, true, Version);
@@ -3272,7 +3415,7 @@ private:
 		}
 
 	private:
-		bool	bIsSupportedFormat;
+		ESampleType SampleType = ESampleType::Ignored;
 	};
 
 
@@ -4624,6 +4767,7 @@ private:
 
 			if (SampleCount)
 			{
+				Entries.Empty();
 				Entries.Reserve(SampleCount);
 				for(uint32 i=0; i<SampleCount; ++i)
 				{
@@ -4898,20 +5042,18 @@ private:
 		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
-
-			bIsLeafBox = false;
-			int32 BytesRemaining = (int32) (BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
-			if (BytesRemaining >= 8)
+			int64 NowAt = ParseInfo->Reader()->GetCurrentReadOffset();
+			int32 BytesRemaining = (int32)(BoxSize - (NowAt - StartOffset));
+			if (BytesRemaining > 0)
 			{
-				RETURN_IF_ERROR(ParseInfo->ReadAndParseNextBox(this, false));
-			}
-			// If there is still something left that is not a complete box, skip over it.
-			// There may be a 32 bit integer zero value to terminate the list.
-			// See: "User Data Atoms" in https://developer.apple.com/library/archive/documentation/QuickTime/QTFF/QTFFChap2/qtff2.html
-			BytesRemaining = (int32) (BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
-			if (BytesRemaining)
-			{
-				RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(nullptr, BytesRemaining));
+				bIsLeafBox = false;
+				RETURN_IF_ERROR(ParseInfo->ReadAndParseNextBox(this, NowAt + BytesRemaining));
+				BytesRemaining = (int32)(BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
+				check(BytesRemaining >= 0);
+				if (BytesRemaining > 0)
+				{
+					RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(nullptr, BytesRemaining));
+				}
 			}
 			return Error;
 		}
@@ -4968,19 +5110,74 @@ private:
 		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
-			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
 
-			bIsLeafBox = false;
-			int32 BytesRemaining = (int32) (BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
-			if (BytesRemaining >= 8)
+			// Parsing of the 'meta' box depends on the major brand. In QuickTime it is not a full box, in ISO it is.
+			const FMP4BoxFTYP* ftypBox = static_cast<const FMP4BoxFTYP*>(ParseInfo->GetCurrentStypBox() ? ParseInfo->GetCurrentStypBox() : ParseInfo->GetCurrentFtypBox());
+			if (ftypBox && ftypBox->GetBrand(0) != FMP4Box::kBrand_QT)
 			{
-				RETURN_IF_ERROR(ParseInfo->ReadAndParseNextBox(this, false));
+				RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
+			}
+
+			int64 NowAt = ParseInfo->Reader()->GetCurrentReadOffset();
+			int32 BytesRemaining = (int32)(BoxSize - (NowAt - StartOffset));
+			if (BytesRemaining > 0)
+			{
+				bIsLeafBox = false;
+				RETURN_IF_ERROR(ParseInfo->ReadAndParseNextBox(this, NowAt + BytesRemaining));
+				BytesRemaining = (int32)(BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
+				check(BytesRemaining >= 0);
+				if (BytesRemaining > 0)
+				{
+					RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(nullptr, BytesRemaining));
+				}
 			}
 			Handler = static_cast<const FMP4BoxHDLR*>(FindBox(kBox_hdlr, 0));
 			return Error;
 		}
 	private:
 		const FMP4BoxHDLR* Handler = nullptr;
+	};
+
+
+	/**
+	 * 'wave' atom from Apple QuickTime. See https://developer.apple.com/library/archive/documentation/QuickTime/QTFF/QTFFChap3/qtff3.html
+	 *
+	 * | "This atom contains other atoms with audio decompressor settings and is a required extension to the sound sample description for MPEG-4 audio.
+	 * |  A 'wave' chunk for 'mp4a' typically contains (in order) at least a 'frma' atom, an 'mp4a' atom, an 'esds' atom, and a Terminator Atom (0x00000000) atom."
+	 */
+	class FMP4BoxWAVE : public FMP4BoxBasic
+	{
+	public:
+		FMP4BoxWAVE(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
+			: FMP4BoxBasic(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+		{
+		}
+
+		virtual ~FMP4BoxWAVE() = default;
+
+	private:
+		FMP4BoxWAVE() = delete;
+		FMP4BoxWAVE(const FMP4BoxWAVE&) = delete;
+
+	protected:
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+			int64 NowAt = ParseInfo->Reader()->GetCurrentReadOffset();
+			int32 BytesRemaining = (int32)(BoxSize - (NowAt - StartOffset));
+			if (BytesRemaining > 0)
+			{
+				bIsLeafBox = false;
+				RETURN_IF_ERROR(ParseInfo->ReadAndParseNextBox(this, NowAt + BytesRemaining));
+				BytesRemaining = (int32)(BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
+				check(BytesRemaining >= 0);
+				if (BytesRemaining > 0)
+				{
+					RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(nullptr, BytesRemaining));
+				}
+			}
+			return Error;
+		}
 	};
 
 
@@ -5052,7 +5249,7 @@ private:
 	}
 
 
-	UEMediaError FMP4ParseInfo::ReadAndParseNextBox(FMP4Box* ParentBox, bool bWarnIfUnsupported)
+	UEMediaError FMP4ParseInfo::ReadAndParseNextBox(FMP4Box* ParentBox, int64 BoxEndByteOffset)
 	{
 		IParserISO14496_12::FBoxType	BoxType;
 		int64							BoxSize;
@@ -5074,6 +5271,14 @@ private:
 				}
 
 				int64 BoxStartOffset = BoxReader->GetCurrentReadOffset();
+
+				// See if we have reached the end of the optionally passed end offset.
+				// If we do not have enough bytes to read the next box size and type we are done.
+				if (BoxEndByteOffset >= 0 && BoxStartOffset+8 > BoxEndByteOffset)
+				{
+					return UEMEDIA_ERROR_OK;
+				}
+
 				// Get the type and size of the first box.
 				Error = ReadBoxTypeAndSize(BoxType, BoxSize, BoxUUID);
 				if (Error != UEMEDIA_ERROR_OK)
@@ -5220,6 +5425,9 @@ private:
 						case FMP4Box::kBox_hvcC:
 							NextBox = new FMP4BoxHVCC(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
+						case FMP4Box::kBox_wave:
+							NextBox = new FMP4BoxWAVE(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							break;
 						case FMP4Box::kBox_btrt:
 							NextBox = new FMP4BoxBTRT(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
@@ -5296,6 +5504,12 @@ private:
 						case FMP4Box::kBox_trep:
 						case FMP4Box::kBox_sdtp:
 						case FMP4Box::kBox_gmhd:
+						case FMP4Box::kBox_tapt:
+						case FMP4Box::kBox_chan:
+						case FMP4Box::kBox_enda:
+						case FMP4Box::kBox_mdcv:
+						case FMP4Box::kBox_clli:
+						case FMP4Box::kBox_coll:
 							NextBox = new FMP4BoxIgnored(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
 						case FMP4Box::kBox_udta:
@@ -5305,6 +5519,7 @@ private:
 							NextBox = new FMP4BoxMETA(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
 						case FMP4Box::kBox_skip:
+						case FMP4Box::kBox_wide:
 						case FMP4Box::kBox_VOID:
 							NextBox = new FMP4BoxIgnored(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
@@ -5361,10 +5576,7 @@ private:
 
 						default:
 #if MEDIA_DEBUG_HAS_BOX_NAMES
-							if (bWarnIfUnsupported)
-							{
-								UE_LOG(LogElectraMP4Parser, Log, TEXT("Ignoring mp4 box: '%c%c%c%c' %lld B @ %lld"), boxName[0]?boxName[0]:'?', boxName[1]?boxName[1]:'?', boxName[2]?boxName[2]:'?', boxName[3]?boxName[3]:'?', (long long int)BoxSize, (long long int)BoxStartOffset);
-							}
+//							UE_LOG(LogElectraMP4Parser, Log, TEXT("Ignoring mp4 box: '%c%c%c%c' %lld B @ %lld"), boxName[0]?boxName[0]:'?', boxName[1]?boxName[1]:'?', boxName[2]?boxName[2]:'?', boxName[3]?boxName[3]:'?', (long long int)BoxSize, (long long int)BoxStartOffset);
 #endif
 							NextBox = new FMP4BoxIgnored(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
@@ -5374,7 +5586,7 @@ private:
 						++NumTotalBoxesParsed;
 						ParentBox->AddChildBox(NextBox);
 						IncreaseNestingLevel();
-						Error = ReadAndParseNextBox(NextBox, bWarnIfUnsupported);
+						Error = ReadAndParseNextBox(NextBox, BoxEndByteOffset);
 						DecreaseNestingLevel();
 						if (Error == UEMEDIA_ERROR_OK)
 						{
@@ -5639,6 +5851,7 @@ private:
 			const FStreamCodecInformation& GetCodecInformation() const override;
 			const FBitrateInfo& GetBitrateInfo() const override;
 			const FString GetLanguage() const override;
+			bool GetEncryptionInfo(FEncryptionInfo& OutEncryptionInfo) const override;
 			void GetPSSHBoxes(TArray<TArray<uint8>>& OutBoxes, bool bFromMOOV, bool bFromMOOF) const override;
 			void GetPRFTBoxes(TArray<ITrack::FProducerReferenceTime>& OutBoxes) const override;
 
@@ -5680,8 +5893,8 @@ private:
 			int64									EmptyEditDurationInMediaTimeUnits = 0;
 			int64									CompositionTimeEditOffset = 0;
 
-			MPEG::FAVCDecoderConfigurationRecord	CodecSpecificDataAVC;
-			MPEG::FHEVCDecoderConfigurationRecord	CodecSpecificDataHEVC;
+			ElectraDecodersUtil::MPEG::FAVCDecoderConfigurationRecord	CodecSpecificDataAVC;
+			ElectraDecodersUtil::MPEG::FHEVCDecoderConfigurationRecord	CodecSpecificDataHEVC;
 			MPEG::FESDescriptor						CodecSpecificDataMP4A;
 			TArray<uint8>							CodecSpecificDataRAW;
 			FBitrateInfo							BitrateInfo;
@@ -5753,16 +5966,38 @@ private:
 		};
 
 
+		void AddExtraBoxToCodecInfo(FStreamCodecInformation& InOutCodecInformation, const FMP4Box* InBox, IParserISO14496_12::FBoxType InBoxType, const FString& InAs)
+		{
+			const FMP4BoxIgnored* Box = static_cast<const FMP4BoxIgnored*>(InBox->FindBox(InBoxType, 3));
+			if (Box && Box->GetFillerData())
+			{
+				TArray<uint8> Data((const uint8*)Box->GetFillerData()->Data, Box->GetFillerData()->Size);
+				InOutCodecInformation.GetExtras().Set(InAs, FVariantValue(Data));
+			}
+		}
+		void AddExtraBoxToCodecInfo(FStreamCodecInformation& InOutCodecInformation, const FMP4Box* InBox, const FString& InAs)
+		{
+			const FMP4BoxIgnored* Box = static_cast<const FMP4BoxIgnored*>(InBox);
+			if (Box && Box->GetFillerData())
+			{
+				TArray<uint8> Data((const uint8*)Box->GetFillerData()->Data, Box->GetFillerData()->Size);
+				InOutCodecInformation.GetExtras().Set(InAs, FVariantValue(Data));
+			}
+		}
+
 		UEMediaError ParseAVCxSampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4Box* SampleBox, int32 InAvcType);
 		UEMediaError ParseHVC1SampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4Box* SampleBox);
 		UEMediaError ParseMP4ASampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4Box* SampleBox);
 		UEMediaError ParseTX3GSampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4Box* SampleBox);
 		UEMediaError ParseWVTTSampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4Box* SampleBox);
 		UEMediaError ParseSTPPSampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4Box* SampleBox);
+		UEMediaError ParseGenericSampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4BoxSTSD* STSDBox, const FMP4BoxFRMA* FRMABox);
 
 		FMP4ParseInfo* ParsedData;
 
 		FTrackInfo* ParsedTrackInfo;
+		
+		IElectraCodecFactoryModule* DecoderFactoryModule;
 	};
 
 
@@ -5929,6 +6164,29 @@ private:
 		FString Language = MDHDBox ? MDHDBox->GetLanguage() : FString(TEXT("und"));
 		// Try to map the ISO-639-2T language code to the shorter ISO-639-1 code if possible.
 		return ISO639::MapTo639_1(Language);
+	}
+
+	bool FParserISO14496_12::FTrack::GetEncryptionInfo(FEncryptionInfo& OutEncryptionInfo) const
+	{
+		if (TENCBox)
+		{
+			OutEncryptionInfo.DefaultKID = TENCBox->GetDefaultKID();
+			OutEncryptionInfo.DefaultIVSize = TENCBox->GetDefaultPerSampleIVSize();
+			OutEncryptionInfo.DefaultIV = TENCBox->GetDefaultConstantIV();
+			if (SCHMBox)
+			{
+				OutEncryptionInfo.Scheme = SCHMBox->GetSchemeType();
+			}
+			for(int32 i=0; i<PSSHBoxesFromInit.Num(); ++i)
+			{
+				FEncryptionInfo::FCDMInfo& cdm = OutEncryptionInfo.CDMInfos.AddDefaulted_GetRef();
+				cdm.SystemID = PSSHBoxesFromInit[i]->GetSystemID();
+				cdm.KIDs = PSSHBoxesFromInit[i]->GetKIDs();
+				cdm.Data = PSSHBoxesFromInit[i]->GetData();
+			}
+			return true;
+		}
+		return false;
 	}
 
 	void FParserISO14496_12::FTrack::GetPSSHBoxes(TArray<TArray<uint8>>& OutBoxes, bool bFromMOOV, bool bFromMOOF) const
@@ -6612,16 +6870,17 @@ private:
 		if (Track->SENCBox)
 		{
 			const TArray<FMP4BoxSENC::FEntry>& SencEntries = Track->SENCBox->GetEntries();
-			check((int32) SampleNumberInTRUN < SencEntries.Num());
-			if ((int32) SampleNumberInTRUN >= SencEntries.Num())
+			int32 Index = bIsFragmented ? SampleNumberInTRUN : CurrentSampleNumber;
+			check((int32) Index < SencEntries.Num());
+			if ((int32) Index >= SencEntries.Num())
 			{
 				return false;
 			}
-			if (SencEntries[SampleNumberInTRUN].IV.Num())
+			if (SencEntries[Index].IV.Num())
 			{
-				OutSampleEncryptionInfo.IV = SencEntries[SampleNumberInTRUN].IV;
+				OutSampleEncryptionInfo.IV = SencEntries[Index].IV;
 			}
-			OutSampleEncryptionInfo.SubSamples = SencEntries[SampleNumberInTRUN].SubSamples;
+			OutSampleEncryptionInfo.SubSamples = SencEntries[Index].SubSamples;
 		}
 		OutSampleEncryptionInfo.Scheme4CC = Track->SCHMBox ? Track->SCHMBox->GetSchemeType() : 0;
 		return true;
@@ -6639,7 +6898,7 @@ private:
 		: ParsedData(nullptr)
 		, ParsedTrackInfo(nullptr)
 	{
-
+		DecoderFactoryModule = static_cast<IElectraCodecFactoryModule*>(FModuleManager::Get().GetModule(TEXT("ElectraCodecFactory")));
 	}
 
 	FParserISO14496_12::~FParserISO14496_12()
@@ -6722,7 +6981,7 @@ private:
 							}
 							else
 							{
-								const MPEG::FISO14496_10_seq_parameter_set_data& sps = Track->CodecSpecificDataAVC.GetParsedSPS(0);
+								const ElectraDecodersUtil::MPEG::FISO14496_10_seq_parameter_set_data& sps = Track->CodecSpecificDataAVC.GetParsedSPS(0);
 								int32 CropL, CropR, CropT, CropB;
 								sps.GetCrop(CropL, CropR, CropT, CropB);
 								Track->CodecInformation.SetResolution(FStreamCodecInformation::FResolution(sps.GetWidth() - CropL - CropR, sps.GetHeight() - CropT - CropB));
@@ -6730,7 +6989,7 @@ private:
 								FStreamCodecInformation::FAspectRatio ar;
 								sps.GetAspect(ar.Width, ar.Height);
 								Track->CodecInformation.SetAspectRatio(ar);
-								Track->CodecInformation.SetFrameRate(sps.GetTiming());
+								Track->CodecInformation.SetFrameRate(sps.GetTiming().Denom ? FTimeFraction(sps.GetTiming().Num, sps.GetTiming().Denom) : FTimeFraction());
 								Track->CodecInformation.SetProfile(sps.profile_idc);
 								Track->CodecInformation.SetProfileLevel(sps.level_idc);
 								uint8 Constraints = (sps.constraint_set0_flag << 7) | (sps.constraint_set1_flag << 6) | (sps.constraint_set2_flag << 5) | (sps.constraint_set3_flag << 4) | (sps.constraint_set4_flag << 3) | (sps.constraint_set5_flag << 2);
@@ -6801,7 +7060,7 @@ private:
 							{
 								return UEMEDIA_ERROR_FORMAT_ERROR;
 							}
-							const MPEG::FISO23008_2_seq_parameter_set_data& sps = Track->CodecSpecificDataHEVC.GetParsedSPS(0);
+							const ElectraDecodersUtil::MPEG::FISO23008_2_seq_parameter_set_data& sps = Track->CodecSpecificDataHEVC.GetParsedSPS(0);
 							int32 CropL, CropR, CropT, CropB;
 							sps.GetCrop(CropL, CropR, CropT, CropB);
 							Track->CodecInformation.SetResolution(FStreamCodecInformation::FResolution(sps.GetWidth() - CropL - CropR, sps.GetHeight() - CropT - CropB));
@@ -6809,7 +7068,7 @@ private:
 							FStreamCodecInformation::FAspectRatio ar;
 							sps.GetAspect(ar.Width, ar.Height);
 							Track->CodecInformation.SetAspectRatio(ar);
-							Track->CodecInformation.SetFrameRate(sps.GetTiming());
+							Track->CodecInformation.SetFrameRate(sps.GetTiming().Denom ? FTimeFraction(sps.GetTiming().Num, sps.GetTiming().Denom) : FTimeFraction());
 							Track->CodecInformation.SetProfileSpace(sps.general_profile_space);
 							Track->CodecInformation.SetProfileTier(sps.general_tier_flag);
 							Track->CodecInformation.SetProfile(sps.general_profile_idc);
@@ -6854,6 +7113,71 @@ private:
 
 	UEMediaError FParserISO14496_12::ParseMP4ASampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4Box* SampleBox)
 	{
+		auto HandleESDS = [PlayerSession, Track](const FMP4BoxESDS* ESDSBox, bool& bGotAudioFormat, bool& bIsSupported) -> bool
+		{
+			if (!ESDSBox)
+			{
+				bIsSupported = false;
+				return false;
+			}
+			Track->CodecSpecificDataMP4A = ESDSBox->GetESDescriptor();
+			bool bOk = Track->CodecSpecificDataMP4A.Parse();
+			if (bOk)
+			{
+				// Is this AAC audio?
+				if (Track->CodecSpecificDataMP4A.GetObjectTypeID() == MPEG::FESDescriptor::FObjectTypeID::MPEG4_Audio &&
+					Track->CodecSpecificDataMP4A.GetStreamType() == MPEG::FESDescriptor::FStreamType::AudioStream)
+				{
+					Track->CodecInformation.SetStreamType(EStreamType::Audio);
+					Track->CodecInformation.SetCodec(FStreamCodecInformation::ECodec::AAC);
+					Track->CodecInformation.SetCodecSpecificData(Track->CodecSpecificDataRAW);
+					Track->CodecInformation.SetStreamLanguageCode(Track->GetLanguage());
+
+					ElectraDecodersUtil::MPEG::FAACDecoderConfigurationRecord ConfigRecord;
+					if (ConfigRecord.ParseFrom(Track->CodecSpecificDataMP4A.GetCodecSpecificData().GetData(), Track->CodecSpecificDataMP4A.GetCodecSpecificData().Num()))
+					{
+						Track->CodecInformation.SetCodecSpecifierRFC6381(FString::Printf(TEXT("mp4a.40.%d"), ConfigRecord.ExtAOT ? ConfigRecord.ExtAOT : ConfigRecord.AOT));
+						Track->CodecInformation.SetSamplingRate(ConfigRecord.ExtSamplingFrequency ? ConfigRecord.ExtSamplingFrequency : ConfigRecord.SamplingRate);
+						Track->CodecInformation.SetChannelConfiguration(ConfigRecord.ChannelConfiguration);
+						Track->CodecInformation.SetNumberOfChannels(ElectraDecodersUtil::MPEG::AACUtils::GetNumberOfChannelsFromChannelConfiguration(ConfigRecord.ChannelConfiguration));
+						// We assume that all platforms can decode PS (parametric stereo). As such we change the channel count from mono to stereo
+						// to convey the _decoded_ format, not the source format.
+						if (ConfigRecord.ChannelConfiguration == 1 && ConfigRecord.PSSignal > 0)
+						{
+							Track->CodecInformation.SetNumberOfChannels(2);
+						}
+						Track->CodecInformation.GetExtras().Set(TEXT("samples_per_block"), FVariantValue(ConfigRecord.SBRSignal > 0 ? (int64)2048 : (int64)1024));
+					}
+
+					// Typically an mp4a track will not have a 'btrt' box because the bitrate is stored in the DecoderConfigDescriptor.
+					Track->BitrateInfo.BufferSizeDB = Track->CodecSpecificDataMP4A.GetBufferSize();
+					Track->BitrateInfo.MaxBitrate = Track->CodecSpecificDataMP4A.GetMaxBitrate();
+					Track->BitrateInfo.AvgBitrate = Track->CodecSpecificDataMP4A.GetAvgBitrate();
+					Track->CodecInformation.SetBitrate(Track->BitrateInfo.MaxBitrate);
+
+					bGotAudioFormat = true;
+
+					if (PlayerSession)
+					{
+						IPlayerStreamFilter* StreamFilter = PlayerSession->GetStreamFilter();
+						if (StreamFilter && !StreamFilter->CanDecodeStream(Track->CodecInformation))
+						{
+							bIsSupported = false;
+						}
+					}
+				}
+				else
+				{
+					// Not expected format. Ignore this track.
+					bIsSupported = false;
+					// Got the info, just not the format we want.
+					bGotAudioFormat = true;
+				}
+			}
+			return bOk;
+		};
+
+
 		const FMP4BoxAudioSampleEntry* AudioSampleEntry = static_cast<const FMP4BoxAudioSampleEntry*>(Track->STSDBox->GetChildBox(0));
 		check(AudioSampleEntry->GetNumberOfChildren() > 0);
 		if (AudioSampleEntry->GetNumberOfChildren() > 0)
@@ -6861,7 +7185,17 @@ private:
 			// There may be several entries. Usually there is the required sample format box (eg 'mp4a') and optional boxes like 'btrt'
 			bool bGotAudioFormat = false;
 			bool bIsSupported = true;
-			for(int32 j = 0, jMax = AudioSampleEntry->GetNumberOfChildren(); j < jMax; ++j)
+
+			if (SampleBox && SampleBox->GetParentBox())
+			{
+				if (AudioSampleEntry->HaveFormatSpecificFlags())
+				{
+					Track->CodecInformation.GetExtras().Set(TEXT("FormatSpecificFlags"), FVariantValue((int64) AudioSampleEntry->GetFormatSpecificFlags()));
+				}
+				AddExtraBoxToCodecInfo(Track->CodecInformation, SampleBox->GetParentBox(), FMP4Box::kBox_chan, TEXT("chan_box"));
+			}
+
+			for(int32 j=0, jMax=AudioSampleEntry->GetNumberOfChildren(); j<jMax; ++j)
 			{
 				const FMP4Box* SampleEntry = AudioSampleEntry->GetChildBox(j);
 				switch(SampleEntry->GetType())
@@ -6869,62 +7203,18 @@ private:
 					case FMP4Box::kBox_esds:
 					{
 						const FMP4BoxESDS* ESDSBox = static_cast<const FMP4BoxESDS*>(AudioSampleEntry->GetChildBox(0));
-						Track->CodecSpecificDataMP4A = ESDSBox->GetESDescriptor();
-						bool bOk = Track->CodecSpecificDataMP4A.Parse();
-						if (bOk)
+						bool bOk = HandleESDS(ESDSBox, bGotAudioFormat, bIsSupported);
+						if (!bOk)
 						{
-							// Is this AAC audio?
-							if (Track->CodecSpecificDataMP4A.GetObjectTypeID() == MPEG::FESDescriptor::FObjectTypeID::MPEG4_Audio &&
-								Track->CodecSpecificDataMP4A.GetStreamType() == MPEG::FESDescriptor::FStreamType::AudioStream)
-							{
-								Track->CodecInformation.SetStreamType(EStreamType::Audio);
-								Track->CodecInformation.SetCodec(FStreamCodecInformation::ECodec::AAC);
-								Track->CodecInformation.SetCodecSpecificData(Track->CodecSpecificDataRAW);
-								Track->CodecInformation.SetStreamLanguageCode(Track->GetLanguage());
-
-								MPEG::FAACDecoderConfigurationRecord ConfigRecord;
-								if (ConfigRecord.ParseFrom(Track->CodecSpecificDataMP4A.GetCodecSpecificData().GetData(), Track->CodecSpecificDataMP4A.GetCodecSpecificData().Num()))
-								{
-									Track->CodecInformation.SetCodecSpecifierRFC6381(FString::Printf(TEXT("mp4a.40.%d"), ConfigRecord.ExtAOT ? ConfigRecord.ExtAOT : ConfigRecord.AOT));
-									Track->CodecInformation.SetSamplingRate(ConfigRecord.ExtSamplingFrequency ? ConfigRecord.ExtSamplingFrequency : ConfigRecord.SamplingRate);
-									Track->CodecInformation.SetChannelConfiguration(ConfigRecord.ChannelConfiguration);
-									Track->CodecInformation.SetNumberOfChannels(MPEG::AACUtils::GetNumberOfChannelsFromChannelConfiguration(ConfigRecord.ChannelConfiguration));
-									// We assume that all platforms can decode PS (parametric stereo). As such we change the channel count from mono to stereo
-									// to convey the _decoded_ format, not the source format.
-									if (ConfigRecord.ChannelConfiguration == 1 && ConfigRecord.PSSignal > 0)
-									{
-										Track->CodecInformation.SetNumberOfChannels(2);
-									}
-									Track->CodecInformation.GetExtras().Set(TEXT("samples_per_block"), FVariantValue(ConfigRecord.SBRSignal > 0 ? (int64)2048 : (int64)1024));
-								}
-
-								// Typically an mp4a track will not have a 'btrt' box because the bitrate is stored in the DecoderConfigDescriptor.
-								Track->BitrateInfo.BufferSizeDB = Track->CodecSpecificDataMP4A.GetBufferSize();
-								Track->BitrateInfo.MaxBitrate = Track->CodecSpecificDataMP4A.GetMaxBitrate();
-								Track->BitrateInfo.AvgBitrate = Track->CodecSpecificDataMP4A.GetAvgBitrate();
-								Track->CodecInformation.SetBitrate(Track->BitrateInfo.MaxBitrate);
-
-								bGotAudioFormat = true;
-
-								if (PlayerSession)
-								{
-									IPlayerStreamFilter* StreamFilter = PlayerSession->GetStreamFilter();
-									if (StreamFilter && !StreamFilter->CanDecodeStream(Track->CodecInformation))
-									{
-										bIsSupported = false;
-									}
-								}
-
-							}
-							else
-							{
-								// Not expected format. Ignore this track.
-								bIsSupported = false;
-								// Got the info, just not the format we want.
-								bGotAudioFormat = true;
-							}
+							return UEMEDIA_ERROR_FORMAT_ERROR;
 						}
-						else
+						break;
+					}
+					case FMP4Box::kBox_wave:
+					{
+						const FMP4BoxESDS* ESDSBox = static_cast<const FMP4BoxESDS*>(AudioSampleEntry->FindBox(FMP4Box::kBox_esds, 1));
+						bool bOk = HandleESDS(ESDSBox, bGotAudioFormat, bIsSupported);
+						if (!bOk)
 						{
 							return UEMEDIA_ERROR_FORMAT_ERROR;
 						}
@@ -7016,6 +7306,149 @@ private:
 		return UEMEDIA_ERROR_NOT_SUPPORTED;
 	}
 
+	UEMediaError FParserISO14496_12::ParseGenericSampleType(IPlayerSessionServices* PlayerSession, FTrack* Track, const FMP4BoxSTSD* STSDBox, const FMP4BoxFRMA* FRMABox)
+	{
+		if (Track && STSDBox)
+		{
+			FStreamCodecInformation CodecInformation;
+			TMap<FString, FVariant> Options;
+			switch(STSDBox->GetSampleType())
+			{
+				case FMP4BoxSTSD::ESampleType::Video:
+				{
+					const FMP4BoxVisualSampleEntry* VisualSampleEntry = static_cast<const FMP4BoxVisualSampleEntry*>(STSDBox->GetChildBox(0));
+					if (!VisualSampleEntry)
+					{
+						return UEMEDIA_ERROR_NOT_SUPPORTED;
+					}
+					CodecInformation.SetStreamType(EStreamType::Video);
+					CodecInformation.SetCodec(FStreamCodecInformation::ECodec::Video4CC);
+					CodecInformation.SetCodec4CC(FRMABox ? FRMABox->GetDataFormat() : VisualSampleEntry->GetType());
+					CodecInformation.SetStreamLanguageCode(Track->GetLanguage());
+					CodecInformation.SetResolution(FStreamCodecInformation::FResolution(VisualSampleEntry->GetWidth(), VisualSampleEntry->GetHeight()));
+					CodecInformation.SetCodecSpecifierRFC6381(Utils::Printable4CC(CodecInformation.GetCodec4CC()));
+					// Try to get the framerate
+					if (Track->MDHDBox && Track->STTSBox && Track->STTSBox->GetNumTotalSamples())
+					{
+						FTimeFraction Rate(Track->MDHDBox->GetTimescale(), Track->STTSBox->GetEntry(0).SampleDelta);
+						CodecInformation.SetFrameRate(Rate);
+					}
+					// Look at the additional boxes
+					for(int32 i=0,iMax=VisualSampleEntry->GetNumberOfChildren(); i<iMax; ++i)
+					{
+						const FMP4Box* SampleEntry = VisualSampleEntry->GetChildBox(i);
+						switch (SampleEntry->GetType())
+						{
+							case FMP4Box::kBox_pasp:
+							{
+								const FMP4BoxPASP* PASP = static_cast<const FMP4BoxPASP*>(SampleEntry);
+								CodecInformation.SetAspectRatio(FStreamCodecInformation::FAspectRatio((int32)PASP->GetHSpacing(), (int32)PASP->GetVSpacing()));
+								break;
+							}
+							case FMP4Box::kBox_btrt:
+							{
+								const FMP4BoxBTRT* BTRTBox = static_cast<const FMP4BoxBTRT*>(SampleEntry);
+								Track->BitrateInfo.BufferSizeDB = BTRTBox->GetBufferSizeDB();
+								Track->BitrateInfo.MaxBitrate = BTRTBox->GetMaxBitrate();
+								Track->BitrateInfo.AvgBitrate = BTRTBox->GetAverageBitrate();
+								break;
+							}
+							default:
+							{
+								// Note: adding the box via the filler data only works as long as these boxes are not explicitly handled in this module!
+								FString BoxName = Utils::Printable4CC(SampleEntry->GetType());
+								BoxName.Append(TEXT("_box"));
+								AddExtraBoxToCodecInfo(CodecInformation, SampleEntry, BoxName);
+								break;
+							}
+						}
+					}
+
+					if (PlayerSession)
+					{
+						IPlayerStreamFilter* StreamFilter = PlayerSession->GetStreamFilter();
+						if (StreamFilter && StreamFilter->CanDecodeStream(CodecInformation))
+						{
+							Track->CodecInformation = CodecInformation;
+							return UEMEDIA_ERROR_OK;
+						}
+					}
+					break;
+				}
+				case FMP4BoxSTSD::ESampleType::Audio:
+				{
+					const FMP4BoxAudioSampleEntry* AudioSampleEntry = static_cast<const FMP4BoxAudioSampleEntry*>(STSDBox->GetChildBox(0));
+					if (!AudioSampleEntry)
+					{
+						return UEMEDIA_ERROR_NOT_SUPPORTED;
+					}
+
+					CodecInformation.SetStreamType(EStreamType::Audio);
+					CodecInformation.SetCodec(FStreamCodecInformation::ECodec::Audio4CC);
+					CodecInformation.SetCodec4CC(FRMABox ? FRMABox->GetDataFormat() : AudioSampleEntry->GetType());
+					CodecInformation.SetStreamLanguageCode(Track->GetLanguage());
+					CodecInformation.SetSamplingRate((int32) AudioSampleEntry->GetSampleRate());
+					CodecInformation.SetNumberOfChannels(AudioSampleEntry->GetChannelCount());
+					CodecInformation.SetCodecSpecifierRFC6381(Utils::Printable4CC(CodecInformation.GetCodec4CC()));
+
+					CodecInformation.GetExtras().Set(TEXT("SampleSize"), FVariantValue((int64)AudioSampleEntry->GetSampleSize()));
+					if (AudioSampleEntry->HaveFormatSpecificFlags())
+					{
+						CodecInformation.GetExtras().Set(TEXT("FormatSpecificFlags"), FVariantValue((int64) AudioSampleEntry->GetFormatSpecificFlags()));
+						CodecInformation.GetExtras().Set(TEXT("ConstBytesPerAudioPacket"), FVariantValue((int64)AudioSampleEntry->GetConstBytesPerAudioPacket()));
+						CodecInformation.GetExtras().Set(TEXT("ConstLPCMFramesPerAudioPacket"), FVariantValue((int64)AudioSampleEntry->GetConstLPCMFramesPerAudioPacket()));
+					}
+
+					// Look at the additional boxes
+					for(int32 i=0,iMax=AudioSampleEntry->GetNumberOfChildren(); i<iMax; ++i)
+					{
+						const FMP4Box* SampleEntry = AudioSampleEntry->GetChildBox(i);
+						switch (SampleEntry->GetType())
+						{
+							case FMP4Box::kBox_btrt:
+							{
+								const FMP4BoxBTRT* BTRTBox = static_cast<const FMP4BoxBTRT*>(SampleEntry);
+								Track->BitrateInfo.BufferSizeDB = BTRTBox->GetBufferSizeDB();
+								Track->BitrateInfo.MaxBitrate = BTRTBox->GetMaxBitrate();
+								Track->BitrateInfo.AvgBitrate = BTRTBox->GetAverageBitrate();
+								break;
+							}
+							default:
+							{
+								// Note: adding the box via the filler data only works as long as these boxes are not explicitly handled in this module!
+								FString BoxName = Utils::Printable4CC(SampleEntry->GetType());
+								BoxName.Append(TEXT("_box"));
+								AddExtraBoxToCodecInfo(CodecInformation, SampleEntry, BoxName);
+								break;
+							}
+						}
+					}
+
+					if (PlayerSession)
+					{
+						IPlayerStreamFilter* StreamFilter = PlayerSession->GetStreamFilter();
+						if (StreamFilter && StreamFilter->CanDecodeStream(CodecInformation))
+						{
+							Track->CodecInformation = CodecInformation;
+							return UEMEDIA_ERROR_OK;
+						}
+					}
+					break;
+				}
+				case FMP4BoxSTSD::ESampleType::Subtitles:
+				{
+					break;
+				}
+				default:
+				{
+					break;
+				}
+			}
+
+		}
+		return UEMEDIA_ERROR_NOT_SUPPORTED;
+	}
+
 	UEMediaError FParserISO14496_12::PrepareTracks(IPlayerSessionServices* PlayerSession, TSharedPtrTS<const IParserISO14496_12> OptionalMP4InitSegment)
 	{
 		delete ParsedTrackInfo;
@@ -7065,7 +7498,7 @@ private:
 			// Is this a fragmented stream?
 			const FMP4BoxMVEX* MVEXBox = static_cast<const FMP4BoxMVEX*>(MOOVBox->FindBox(FMP4Box::kBox_mvex, 0));
 
-			for(int32 i = 0, iMax = MOOVBox->GetNumberOfChildren(); i < iMax; ++i)
+			for(int32 i=0, iMax=MOOVBox->GetNumberOfChildren(); i<iMax; ++i)
 			{
 				const FMP4Box* Box = MOOVBox->GetChildBox(i);
 				switch(Box->GetType())
@@ -7170,7 +7603,7 @@ private:
 						}
 
 						// Get the sample description boxes from the 'stbl'
-						for(int32 j = 0, jMax = Track->STBLBox->GetNumberOfChildren(); j < jMax; ++j)
+						for(int32 j=0, jMax=Track->STBLBox->GetNumberOfChildren(); j<jMax; ++j)
 						{
 							const FMP4Box* SampleInfoBox = Track->STBLBox->GetChildBox(j);
 							switch(SampleInfoBox->GetType())
@@ -7256,6 +7689,23 @@ private:
 								// Remember the encryption boxes.
 								Track->SCHMBox = SCHMBox;
 								Track->TENCBox = static_cast<const FMP4BoxTENC*>(STSDFirstChildBox->GetBoxPath(FMP4Box::kBox_sinf, FMP4Box::kBox_schi, FMP4Box::kBox_tenc));
+								Track->SAIZBox = static_cast<const FMP4BoxSAIZ*>(Box->FindBox(FMP4Box::kBox_saiz, 4));
+								Track->SAIOBox = static_cast<const FMP4BoxSAIO*>(Box->FindBox(FMP4Box::kBox_saio, 4));
+								Track->SENCBox = static_cast<const FMP4BoxSENC*>(Box->FindBox(FMP4Box::kBox_senc, 4));
+								if (Track->SENCBox)
+								{
+									Error = const_cast<FMP4BoxSENC*>(Track->SENCBox)->Parse(Track->TENCBox, Track->SAIZBox, Track->SAIOBox);
+									if (Error != UEMEDIA_ERROR_OK)
+									{
+										return Error;
+									}
+								}
+								TArray<const FMP4Box*> AllPSSHBoxes;
+								MOOVBox->GetAllBoxInstances(AllPSSHBoxes, FMP4Box::kBox_pssh);
+								for(int32 nPSSHs=0; nPSSHs<AllPSSHBoxes.Num(); ++nPSSHs)
+								{
+									Track->PSSHBoxesFromInit.Add(static_cast<const FMP4BoxPSSH*>(AllPSSHBoxes[nPSSHs]));
+								}
 								break;
 							}
 							case FMP4Box::kSample_enca:
@@ -7266,29 +7716,57 @@ private:
 								{
 									return UEMEDIA_ERROR_FORMAT_ERROR;
 								}
-								// Expecting mp4a for audio right now.
-								if (FRMABox->GetDataFormat() != FMP4Box::kSample_mp4a)
-								{
-									return UEMEDIA_ERROR_FORMAT_ERROR;
-								}
-								// Likewise fo encryption it needs to be 'cenc' or 'cbcs'
+								// Encryption needs to be 'cenc' or 'cbcs'
 								if (SCHMBox->GetSchemeType() != FMP4Box::kEncryptionScheme_cenc && SCHMBox->GetSchemeType() != FMP4Box::kEncryptionScheme_cbcs)
 								{
 									return UEMEDIA_ERROR_FORMAT_ERROR;
 								}
-								// Parse the sample
-								UEMediaError Error = ParseMP4ASampleType(PlayerSession, Track.Get(), STSDFirstChildBox);
-								if (Error == UEMEDIA_ERROR_NOT_SUPPORTED)
+								UEMediaError Error = UEMEDIA_ERROR_FORMAT_ERROR;
+								if (FRMABox->GetDataFormat() == FMP4Box::kSample_mp4a)
 								{
-									bIsSupported = false;
+									// Parse the sample
+									Error = ParseMP4ASampleType(PlayerSession, Track.Get(), STSDFirstChildBox);
+									if (Error == UEMEDIA_ERROR_NOT_SUPPORTED)
+									{
+										bIsSupported = false;
+									}
+									else if (Error != UEMEDIA_ERROR_OK)
+									{
+										return Error;
+									}
 								}
-								else if (Error != UEMEDIA_ERROR_OK)
+								else
 								{
-									return Error;
+									Error = ParseGenericSampleType(PlayerSession, Track.Get(), Track->STSDBox, FRMABox);
+									if (Error == UEMEDIA_ERROR_NOT_SUPPORTED)
+									{
+										bIsSupported = false;
+									}
+									else if (Error != UEMEDIA_ERROR_OK)
+									{
+										return Error;
+									}
 								}
 								// Remember the encryption boxes.
 								Track->SCHMBox = SCHMBox;
 								Track->TENCBox = static_cast<const FMP4BoxTENC*>(STSDFirstChildBox->GetBoxPath(FMP4Box::kBox_sinf, FMP4Box::kBox_schi, FMP4Box::kBox_tenc));
+								Track->SAIZBox = static_cast<const FMP4BoxSAIZ*>(Box->FindBox(FMP4Box::kBox_saiz, 4));
+								Track->SAIOBox = static_cast<const FMP4BoxSAIO*>(Box->FindBox(FMP4Box::kBox_saio, 4));
+								Track->SENCBox = static_cast<const FMP4BoxSENC*>(Box->FindBox(FMP4Box::kBox_senc, 4));
+								if (Track->SENCBox)
+								{
+									Error = const_cast<FMP4BoxSENC*>(Track->SENCBox)->Parse(Track->TENCBox, Track->SAIZBox, Track->SAIOBox);
+									if (Error != UEMEDIA_ERROR_OK)
+									{
+										return Error;
+									}
+								}
+								TArray<const FMP4Box*> AllPSSHBoxes;
+								MOOVBox->GetAllBoxInstances(AllPSSHBoxes, FMP4Box::kBox_pssh);
+								for(int32 nPSSHs=0; nPSSHs<AllPSSHBoxes.Num(); ++nPSSHs)
+								{
+									Track->PSSHBoxesFromInit.Add(static_cast<const FMP4BoxPSSH*>(AllPSSHBoxes[nPSSHs]));
+								}
 								break;
 							}
 							case FMP4Box::kSample_avc1:
@@ -7375,6 +7853,15 @@ private:
 							}
 							default:
 							{
+								UEMediaError Error = ParseGenericSampleType(PlayerSession, Track.Get(), Track->STSDBox, nullptr);
+								if (Error == UEMEDIA_ERROR_NOT_SUPPORTED)
+								{
+									bIsSupported = false;
+								}
+								else if (Error != UEMEDIA_ERROR_OK) //-V547
+								{
+									return Error;
+								}
 								break;
 							}
 						}
@@ -7437,6 +7924,7 @@ private:
 
 									// Get the PSSH boxes from the init segment.
 									TArray<const FMP4Box*> AllPSSHBoxes;
+									Track->PSSHBoxesFromInit.Empty();
 									if (MOOVBox)
 									{
 										MOOVBox->GetAllBoxInstances(AllPSSHBoxes, FMP4Box::kBox_pssh);

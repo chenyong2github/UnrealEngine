@@ -13,8 +13,11 @@
 
 #include "Demuxer/ParserISO14496-12.h"
 #include "Decoder/SubtitleDecoder.h"
+#include "Decoder/AudioDecoder.h"
+#include "Decoder/VideoDecoder.h"
 
 #include "Player/AdaptiveStreamingPlayerResourceRequest.h"
+#include "Player/ExternalDataReader.h"
 #include "Player/PlayerStreamReader.h"
 #include "Player/PlaylistReader.h"
 #include "Player/PlayerStreamFilter.h"
@@ -38,6 +41,7 @@
 #define INTERR_FRAGMENT_READER_REQUEST			0x102
 #define INTERR_CREATE_FRAGMENT_READER			0x103
 #define INTERR_REBUFFER_SHALL_THROW_ERROR		0x200
+
 
 
 namespace Electra
@@ -978,11 +982,7 @@ public:
 	void DeselectTrack(EStreamType StreamType) override;
 	bool IsTrackDeselected(EStreamType StreamType) override;
 
-#if PLATFORM_ANDROID
-	void Android_UpdateSurface(const TSharedPtr<IOptionPointerValueContainer>& Surface) override;
-	void Android_SuspendOrResumeDecoder(bool bSuspend) override;
-	static FParamDict& Android_Workarounds(FStreamCodecInformation::ECodec InForCodec);
-#endif
+	void SuspendOrResumeDecoders(bool bSuspend, const FParamDict& InOptions) override;
 
 	void DebugPrint(void* pPlayer, void (*debugDrawPrintf)(void* pPlayer, const char *pFmt, ...));
 	static void DebugHandle(void* pPlayer, void (*debugDrawPrintf)(void* pPlayer, const char *pFmt, ...));
@@ -996,6 +996,7 @@ private:
 	ISynchronizedUTCTime* GetSynchronizedUTCTime() override;
 	TSharedPtr<IAdaptiveStreamingPlayerResourceProvider, ESPMode::ThreadSafe> GetStaticResourceProvider() override;
 	TSharedPtrTS<IElectraHttpManager> GetHTTPManager() override;
+	TSharedPtrTS<IExternalDataReader> GetExternalDataReader() override;
 	TSharedPtrTS<IAdaptiveStreamSelector> GetStreamSelector() override;
 	IPlayerStreamFilter* GetStreamFilter() override;
 	const FCodecSelectionPriorities& GetCodecSelectionPriorities(EStreamType ForStream) override;
@@ -1177,13 +1178,11 @@ private:
 				Decoder->AUdataClearEOD();
 			}
 		}
-		void SuspendOrResume(bool bInSuspend)
+		void SuspendOrResume(bool bInSuspend, const FParamDict& InOptions)
 		{
 			if (Decoder && ((bInSuspend && !bSuspended) || (!bInSuspend && bSuspended)))
 			{
-#if PLATFORM_ANDROID
-				Decoder->Android_SuspendOrResumeDecoder(bInSuspend);
-#endif
+				Decoder->SuspendOrResumeDecoder(bInSuspend, InOptions);
 			}
 			bSuspended = bInSuspend;
 		}
@@ -1191,9 +1190,7 @@ private:
 		{
 			if (Decoder && bSuspended)
 			{
-#if PLATFORM_ANDROID
-				Decoder->Android_SuspendOrResumeDecoder(bSuspended);
-#endif
+				Decoder->SuspendOrResumeDecoder(true, FParamDict());
 			}
 		}
 		virtual void DecoderInputNeeded(const IAccessUnitBufferListener::FBufferStats& currentInputBufferStats)
@@ -1215,10 +1212,9 @@ private:
 		FStreamCodecInformation CurrentCodecInfo;
 		TSharedPtrTS<FAccessUnit::CodecData> LastSentAUCodecData;
 		FAdaptiveStreamingPlayer* Parent = nullptr;
-		IVideoDecoderBase* Decoder = nullptr;
+		IVideoDecoder* Decoder = nullptr;
 		bool bDrainingForCodecChange = false;
 		bool bDrainingForCodecChangeDone = false;
-		bool bApplyNewLimits = false;
 		bool bSuspended = false;
 	};
 
@@ -1249,13 +1245,11 @@ private:
 				Decoder->AUdataClearEOD();
 			}
 		}
-		void SuspendOrResume(bool bInSuspend)
+		void SuspendOrResume(bool bInSuspend, const FParamDict& InOptions)
 		{
 			if (Decoder && ((bInSuspend && !bSuspended) || (!bInSuspend && bSuspended)))
 			{
-#if PLATFORM_ANDROID
-				Decoder->Android_SuspendOrResumeDecoder(bInSuspend);
-#endif
+				Decoder->SuspendOrResumeDecoder(bInSuspend, InOptions);
 			}
 			bSuspended = bInSuspend;
 		}
@@ -1263,9 +1257,7 @@ private:
 		{
 			if (Decoder && bSuspended)
 			{
-#if PLATFORM_ANDROID
-				Decoder->Android_SuspendOrResumeDecoder(bSuspended);
-#endif
+				Decoder->SuspendOrResumeDecoder(true, FParamDict());
 			}
 		}
 		virtual void DecoderInputNeeded(const IAccessUnitBufferListener::FBufferStats& currentInputBufferStats)
@@ -1287,7 +1279,7 @@ private:
 		FStreamCodecInformation CurrentCodecInfo;
 		TSharedPtrTS<FAccessUnit::CodecData> LastSentAUCodecData;
 		FAdaptiveStreamingPlayer* Parent = nullptr;
-		IAudioDecoderAAC* Decoder = nullptr;
+		IAudioDecoder* Decoder = nullptr;
 		bool bSuspended = false;
 	};
 
@@ -1972,7 +1964,7 @@ private:
 
 	int32 CreateDecoder(EStreamType type);
 	void DestroyDecoders();
-	bool FindMatchingStreamInfo(FStreamCodecInformation& OutStreamInfo, const FString& InPeriodID, const FTimeValue& AtTime, int32 MaxWidth, int32 MaxHeight);
+	bool FindMatchingStreamInfo(FStreamCodecInformation& OutStreamInfo, const FString& InPeriodID, const FTimeValue& AtTime, const FStreamCodecInformation& InForCodec);
 	void UpdateStreamResolutionLimit();
 	void AddUpcomingPeriod(TSharedPtrTS<IManifest::IPlayPeriod> InUpcomingPeriod);
 	void RequestNewPeriodStreams(EStreamType InType, FPendingSegmentRequest& InOutCurrentRequest);
@@ -1989,6 +1981,9 @@ private:
 	bool OnFragmentAccessUnitReceived(FAccessUnit* pAccessUnit) override;
 	void OnFragmentReachedEOS(EStreamType InStreamType, TSharedPtr<const FBufferSourceInfo, ESPMode::ThreadSafe> InStreamSourceInfo) override;
 	void OnFragmentClose(TSharedPtrTS<IStreamSegment> pRequest) override;
+
+	void Deprecate_InternalInitializeDecoderLimits();
+	bool Deprecate_InternalStreamAllowedAsPerLimits(const FStreamCodecInformation& InStreamCodecInfo) const;
 
 	void InternalInitialize();
 	void InternalHandleOnce();
@@ -2113,6 +2108,7 @@ private:
 	TSharedPtrTS<IElectraHttpManager>									HttpManager;
 	TSharedPtrTS<IPlayerEntityCache>									EntityCache;
 	TSharedPtrTS<IHTTPResponseCache>									HttpResponseCache;
+	TSharedPtrTS<IExternalDataReader>									ExternalDataReader;
 
 	TSharedPtrTS<FDRMManager>											DrmManager;
 
