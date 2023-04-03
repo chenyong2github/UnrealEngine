@@ -159,7 +159,7 @@ uint32 LumenReflections::GetMaxReflectionBounces(const FViewInfo& View)
 	{
 		MaxBounces = View.FinalPostProcessSettings.LumenMaxReflectionBounces;
 	}
-	return FMath::Clamp(MaxBounces, 1, 8);
+	return FMath::Clamp(MaxBounces, 1, 64);
 }
 
 class FReflectionClearTracesCS : public FGlobalShader
