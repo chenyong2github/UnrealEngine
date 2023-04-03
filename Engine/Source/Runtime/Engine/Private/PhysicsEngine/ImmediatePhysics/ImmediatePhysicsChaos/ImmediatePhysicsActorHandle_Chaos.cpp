@@ -278,7 +278,7 @@ namespace ImmediatePhysics_Chaos
 						Dynamic->SetAngularEtherDrag(BodyInstance->AngularDamping);
 						Dynamic->SetGravityEnabled(BodyInstance->bEnableGravity);
 					}
-					Dynamic->Disabled() = true;
+					Dynamic->SetDisabled(true);
 				}
 			}
 		}
@@ -320,7 +320,7 @@ namespace ImmediatePhysics_Chaos
 		Chaos::FPBDRigidParticleHandle* Dynamic = ParticleHandle->CastToRigidParticle();
 		if (Dynamic && Dynamic->ObjectState() == Chaos::EObjectStateType::Dynamic)
 		{
-			Dynamic->Disabled() = !bEnabled;
+			Dynamic->SetDisabled(!bEnabled);
 		}
 	}
 

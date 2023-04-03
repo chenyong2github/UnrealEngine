@@ -611,6 +611,9 @@ public:
 	const TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>* CastToClustered() const;
 	TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>* CastToClustered();
 
+	const TPBDGeometryCollectionParticleHandleImp<T, d, bPersistent>* CastToGeometryCollection() const;
+	TPBDGeometryCollectionParticleHandleImp<T, d, bPersistent>* CastToGeometryCollection();
+
 	const TGeometryParticleHandle<T, d>* Handle() const { return GetHandleHelper(this);}
 	TGeometryParticleHandle<T, d>* Handle() { return GetHandleHelper(this); }
 	
@@ -921,6 +924,7 @@ public:
 	uint32 CollisionConstraintFlags() const { return PBDRigidParticles->CollisionConstraintFlags(ParticleIdx); }
 
 	bool Disabled() const { return PBDRigidParticles->Disabled(ParticleIdx); }
+	//UE_DEPRECATED(5.3, "This method should not be used anymore. SetDisabled should be used instead.")
 	bool& Disabled() { return PBDRigidParticles->DisabledRef(ParticleIdx); }
 
 	// See Comment on TRigidParticle::SetDisabledLowLevel. State changes in Evolution should accompany this call.
@@ -1401,6 +1405,13 @@ const TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>* TGeometryParticleH
 
 template <typename T, int d, bool bPersistent>
 TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>* TGeometryParticleHandleImp<T, d, bPersistent>::CastToClustered() { checkSlow( Type <= EParticleType::Clustered || Type == EParticleType::GeometryCollection); return Type >= EParticleType::Clustered ? static_cast<TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>*>(this) : nullptr; }
+
+template <typename T, int d, bool bPersistent>
+const TPBDGeometryCollectionParticleHandleImp<T, d, bPersistent>* TGeometryParticleHandleImp<T, d, bPersistent>::CastToGeometryCollection() const { checkSlow(Type <= EParticleType::GeometryCollection || Type == EParticleType::GeometryCollection); return Type >= EParticleType::GeometryCollection ? static_cast<const TPBDGeometryCollectionParticleHandleImp<T, d, bPersistent>*>(this) : nullptr; }
+
+template <typename T, int d, bool bPersistent>
+TPBDGeometryCollectionParticleHandleImp<T, d, bPersistent>* TGeometryParticleHandleImp<T, d, bPersistent>::CastToGeometryCollection() { checkSlow(Type <= EParticleType::GeometryCollection|| Type == EParticleType::GeometryCollection); return Type >= EParticleType::GeometryCollection ? static_cast<TPBDGeometryCollectionParticleHandleImp<T, d, bPersistent>*>(this) : nullptr; }
+
 
 template <typename T, int d, bool bPersistent>
 EObjectStateType TGeometryParticleHandleImp<T,d, bPersistent>::ObjectState() const

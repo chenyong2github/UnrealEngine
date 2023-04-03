@@ -1423,11 +1423,6 @@ namespace Chaos
 			}
 		});
 
-		if(NumInitializedGCProxies > 0)
-		{
-			GetParticles().UpdateGeometryCollectionViews(true);
-		}
-
 		//need to create new constraint handles
 		DirtyProxiesData->ForEachProxy([this, Manager, RewindData](int32 DataIdx, FDirtyProxy& Dirty)
 		{

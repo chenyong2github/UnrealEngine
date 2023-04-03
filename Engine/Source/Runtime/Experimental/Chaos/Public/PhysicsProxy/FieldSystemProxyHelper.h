@@ -259,9 +259,6 @@ namespace Chaos
 	{
 		if (UpdatedParticleIndices.Num() > 0)
 		{
-			// chaos(todo) : do we really need this ? 
-			RigidSolver->GetParticles().UpdateGeometryCollectionViews(true);
-
 			TSet<FPBDRigidClusteredParticleHandle*> TopParentClusters;
 			for (const FFieldContextIndex& ParticleIndex: UpdatedParticleIndices)
 			{
@@ -403,6 +400,10 @@ namespace Chaos
 				if (bHasStateChanged)
 				{
 					UpdateSolverParticlesState(RigidSolver, EvaluatedSamples, ParticleHandles);
+					for (Chaos::FGeometryParticleHandle* ParticleHandle : ParticleHandles)
+					{
+						RigidSolver->GetEvolution()->EnableParticle(ParticleHandle);
+					}
 				}
 			}
 		}
