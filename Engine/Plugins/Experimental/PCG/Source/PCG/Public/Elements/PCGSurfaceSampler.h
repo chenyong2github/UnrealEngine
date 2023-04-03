@@ -125,6 +125,8 @@ namespace PCGSurfaceSampler
 
 struct FPCGSurfaceSamplerContext : public FPCGContext
 {
+	virtual ~FPCGSurfaceSamplerContext();
+
 	// Keep all data that won't be recomputed at every execution
 	const UPCGSpatialData* BoundingShapeSpatialInput = nullptr;
 	TArray<const UPCGSpatialData*, TInlineAllocator<16>> GeneratingShapes;
@@ -132,6 +134,9 @@ struct FPCGSurfaceSamplerContext : public FPCGContext
 	FBox BoundingShapeBounds = FBox(EForceInit::ForceInit);
 	int32 CurrentGeneratingShape = 0;
 	bool bDataPrepared = false;
+
+	/** True if BoundingShapeSpatialInput is data that was createdand rooted during data preparation */
+	bool bUnionDataCreated = false;
 };
 
 class FPCGSurfaceSamplerElement : public IPCGElement

@@ -8,6 +8,7 @@
 #include "PCGSettings.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
+#include "Data/PCGUnionData.h"
 
 #include "HAL/IConsoleManager.h"
 #include "Serialization/ArchiveCrc32.h"
@@ -152,6 +153,52 @@ TArray<FPCGTaggedData> FPCGDataCollection::GetInputsByPin(const FName& InPinLabe
 		});
 }
 
+const UPCGSpatialData* FPCGDataCollection::GetSpatialUnionOfInputsByPin(const FName& InPinLabel, bool& bOutUnionDataCreated) const
+{
+	TArray<FPCGTaggedData> SpatialDataOnPin = TaggedData.FilterByPredicate([&InPinLabel](const FPCGTaggedData& Data) {
+		return Data.Pin == InPinLabel && Data.Data && Data.Data->IsA<UPCGSpatialData>();
+	});
+
+	const UPCGSpatialData* Result = nullptr;
+	UPCGUnionData* Union = nullptr;
+	for (const FPCGTaggedData& Data : SpatialDataOnPin)
+	{
+		const UPCGSpatialData* SpatialInput = Data.Data ? Cast<const UPCGSpatialData>(Data.Data) : nullptr;
+		if (!ensure(SpatialInput))
+		{
+			continue;
+		}
+
+		if (!Result)
+		{
+			// First valid data
+			Result = SpatialInput;
+		}
+		else
+		{
+			if (!Union)
+			{
+				// Second valid data - set up union
+				Union = NewObject<UPCGUnionData>();
+				Union->Initialize(Result, SpatialInput);
+
+				// Make result union
+				Result = Union;
+			}
+			else
+			{
+				// Nth valid data
+				Union->AddData(SpatialInput);
+			}
+		}
+	}
+
+	// Indicate whether we created a union data
+	bOutUnionDataCreated = !!Union;
+
+	return Result;
+}
+
 TArray<FPCGTaggedData> FPCGDataCollection::GetTaggedInputs(const FString& InTag) const
 {
 	return TaggedData.FilterByPredicate([&InTag](const FPCGTaggedData& Data) {
@@ -212,7 +259,7 @@ UPCGParamData* FPCGDataCollection::GetParamsWithDeprecation(const UPCGNode* Node
 			{
 				if (UPCGParamData* Params = Cast<UPCGParamData>(TaggedDatum.Data))
 				{
-					UE_LOG(LogPCG, Warning, TEXT("[%s] Found a param data on an input pin that should not accept params. Make sure to re-wire it to the param pin if it is used for overrides"), *Node->GetNodeTitle().ToString());
+					UE_LOG(LogPCG, Warning, TEXT("[%s] Found an Attribute Set data on an input pin that should not accept attributes. Make sure to re-wire it to the Overrides pin if it is used for overrides."), *Node->GetNodeTitle().ToString());
 					return Params;
 				}
 			}

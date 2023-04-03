@@ -307,6 +307,19 @@ bool UPCGSurfaceSamplerSettings::IsPinUsedByNodeExecution(const UPCGPin* InPin) 
 }
 #endif
 
+FPCGSurfaceSamplerContext::~FPCGSurfaceSamplerContext()
+{
+	if (bUnionDataCreated && BoundingShapeSpatialInput)
+	{
+		// We created the data so can cast away constness
+		UPCGSpatialData* BoundingShapeMutable = const_cast<UPCGSpatialData*>(BoundingShapeSpatialInput);
+		BoundingShapeMutable->RemoveFromRoot();
+		BoundingShapeMutable->MarkAsGarbage();
+
+		BoundingShapeSpatialInput = nullptr;
+	}
+}
+
 FPCGElementPtr UPCGSurfaceSamplerSettings::CreateElement() const
 {
 	return MakeShared<FPCGSurfaceSamplerElement>();
@@ -346,12 +359,15 @@ bool FPCGSurfaceSamplerElement::AddGeneratingShapesToContext(FPCGSurfaceSamplerC
 
 	if (!Settings->bUnbounded)
 	{
-		if (BoundingShapeInputs.Num() > 0)
+		InContext->BoundingShapeSpatialInput = InContext->InputData.GetSpatialUnionOfInputsByPin(PCGSurfaceSamplerConstants::BoundingShapeLabel, InContext->bUnionDataCreated);
+
+		// Root dynamically created data to keep it safe from GC
+		if (InContext->bUnionDataCreated && InContext->BoundingShapeSpatialInput)
 		{
-			ensure(BoundingShapeInputs.Num() == 1);
-			InContext->BoundingShapeSpatialInput = Cast<UPCGSpatialData>(BoundingShapeInputs[0].Data);
+			const_cast<UPCGSpatialData*>(InContext->BoundingShapeSpatialInput)->AddToRoot();
 		}
-		else if (InContext->SourceComponent.IsValid())
+
+		if (!InContext->BoundingShapeSpatialInput && InContext->SourceComponent.IsValid())
 		{
 			// Fallback to getting bounds from actor
 			InContext->BoundingShapeSpatialInput = Cast<UPCGSpatialData>(InContext->SourceComponent->GetActorPCGData());

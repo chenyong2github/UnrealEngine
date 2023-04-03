@@ -179,18 +179,16 @@ bool FPCGVolumeSamplerElement::ExecuteInternal(FPCGContext* Context) const
 
 	// Grab the Bounding Shape input if there is one.
 	TArray<FPCGTaggedData> BoundingShapeInputs = Context->InputData.GetInputsByPin(PCGVolumeSamplerConstants::BoundingShapeLabel);
-	const UPCGSpatialData* BoundingShapeSpatialInput = nullptr;
+	const UPCGSpatialData* BoundingShape = nullptr;
 
 	if (!Settings->bUnbounded)
 	{
-		if (BoundingShapeInputs.Num() > 0)
+		// TODO: Once we support time-slicing, put this in the context and root (see FPCGSurfaceSamplerContext)
+		bool bUnionCreated = false;
+		BoundingShape = Context->InputData.GetSpatialUnionOfInputsByPin(PCGVolumeSamplerConstants::BoundingShapeLabel, bUnionCreated);
+		if (!BoundingShape && Context->SourceComponent.IsValid())
 		{
-			ensure(BoundingShapeInputs.Num() == 1);
-			BoundingShapeSpatialInput = Cast<UPCGSpatialData>(BoundingShapeInputs[0].Data);
-		}
-		else if (Context->SourceComponent.IsValid())
-		{
-			BoundingShapeSpatialInput = Cast<UPCGSpatialData>(Context->SourceComponent->GetActorPCGData());
+			BoundingShape = Cast<UPCGSpatialData>(Context->SourceComponent->GetActorPCGData());
 		}
 	}
 	else if (BoundingShapeInputs.Num() > 0)
@@ -200,9 +198,9 @@ bool FPCGVolumeSamplerElement::ExecuteInternal(FPCGContext* Context) const
 
 	// Compute bounds of bounding shape input
 	FBox BoundingShapeBounds(EForceInit::ForceInit);
-	if (BoundingShapeSpatialInput)
+	if (BoundingShape)
 	{
-		BoundingShapeBounds = BoundingShapeSpatialInput->GetBounds();
+		BoundingShapeBounds = BoundingShape->GetBounds();
 	}
 
 	// Construct a list of shapes to generate samples from. Prefer to get these directly from the first input pin.
@@ -217,9 +215,9 @@ bool FPCGVolumeSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	}
 
 	// If no shapes were obtained from the first input pin, try to find a shape to sample from nodes connected to the second pin.
-	if (GeneratingShapes.Num() == 0 && BoundingShapeSpatialInput)
+	if (GeneratingShapes.Num() == 0 && BoundingShape)
 	{
-		GeneratingShapes.Add(BoundingShapeSpatialInput);
+		GeneratingShapes.Add(BoundingShape);
 
 		// If there was a bounding shape input, use it as the starting point to get the tags
 		if (BoundingShapeInputs.Num() > 0)
@@ -279,7 +277,7 @@ bool FPCGVolumeSamplerElement::ExecuteInternal(FPCGContext* Context) const
 		}
 
 		// Sample volume
-		const UPCGPointData* SampledData = PCGVolumeSampler::SampleVolume(Context, GeneratingShape, BoundingShapeSpatialInput, InputBounds, SamplerSettings);
+		const UPCGPointData* SampledData = PCGVolumeSampler::SampleVolume(Context, GeneratingShape, BoundingShape, InputBounds, SamplerSettings);
 		Outputs[GenerationIndex].Data = SampledData;
 
 		if (SampledData)

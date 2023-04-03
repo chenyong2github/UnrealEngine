@@ -11,9 +11,10 @@
 
 class FArchiveCrc32;
 class UPCGNode;
+class UPCGParamData;
 class UPCGSettings;
 class UPCGSettingsInterface;
-class UPCGParamData;
+class UPCGSpatialData;
 
 /**
 * Base class for any "data" class in the PCG framework.
@@ -97,6 +98,8 @@ struct PCG_API FPCGDataCollection
 	TArray<FPCGTaggedData> GetInputs() const;
 	/** Returns all data on a given pin */
 	TArray<FPCGTaggedData> GetInputsByPin(const FName& InPinLabel) const;
+	/** Returns spatial union of all data on a given pin, returns null if no such data exists. bOutUnionDataCreated indicates if new data created that may need rooting. */
+	const UPCGSpatialData* GetSpatialUnionOfInputsByPin(const FName& InPinLabel, bool& bOutUnionDataCreated) const;
 	/** Returns all spatial data in the collection with the given tag */
 	TArray<FPCGTaggedData> GetTaggedInputs(const FString& InTag) const;
 	/** Returns all settings in the collection */

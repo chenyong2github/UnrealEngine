@@ -1142,19 +1142,15 @@ bool FPCGSplineSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	check(Settings);
 
 	TArray<FPCGTaggedData> SplineInputs = Context->InputData.GetInputsByPin(PCGSplineSamplerConstants::SplineLabel);
+	TArray<FPCGTaggedData> BoundingShapeInputs = Context->InputData.GetInputsByPin(PCGSplineSamplerConstants::BoundingShapeLabel);
 
 	// Grab the Bounding Shape input if there is one.
-	TArray<FPCGTaggedData> BoundingShapeInputs = Context->InputData.GetInputsByPin(PCGSplineSamplerConstants::BoundingShapeLabel);
-	const UPCGSpatialData* BoundingShapeSpatialInput = nullptr;
-	if (BoundingShapeInputs.Num() > 0)
+	// TODO: Once we support time-slicing, put this in the context and root (see FPCGSurfaceSamplerContext)
+	bool bUnionCreated = false;
+	const UPCGSpatialData* BoundingShape = Context->InputData.GetSpatialUnionOfInputsByPin(PCGSplineSamplerConstants::BoundingShapeLabel, bUnionCreated);
+	if (!BoundingShape && BoundingShapeInputs.Num() > 0)
 	{
-		ensure(BoundingShapeInputs.Num() == 1);
-		BoundingShapeSpatialInput = Cast<UPCGSpatialData>(BoundingShapeInputs[0].Data);
-
-		if (!BoundingShapeSpatialInput)
-		{
-			PCGE_LOG(Warning, GraphAndLog, LOCTEXT("BoundingShapeMissing", "Bounding Shape input is missing or of unsupported type and will not be used."));
-		}
+		PCGE_LOG(Warning, GraphAndLog, LOCTEXT("BoundingShapeMissing", "Bounding Shape input is missing or of unsupported type and will not be used"));
 	}
 
 	const FPCGSplineSamplerParams& SamplerParams = Settings->SamplerParams;
@@ -1193,11 +1189,11 @@ bool FPCGSplineSamplerElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (SamplerParams.Dimension == EPCGSplineSamplingDimension::OnInterior)
 		{
-			PCGSplineSampler::SampleInteriorData(Context, LineData, BoundingShapeSpatialInput, ProjectionTarget, ProjectionParams, SamplerParams, SampledPointData);
+			PCGSplineSampler::SampleInteriorData(Context, LineData, BoundingShape, ProjectionTarget, ProjectionParams, SamplerParams, SampledPointData);
 		}
 		else
 		{
-			PCGSplineSampler::SampleLineData(LineData, BoundingShapeSpatialInput, ProjectionTarget, ProjectionParams, SamplerParams, SampledPointData);
+			PCGSplineSampler::SampleLineData(LineData, BoundingShape, ProjectionTarget, ProjectionParams, SamplerParams, SampledPointData);
 		}
 	}
 
