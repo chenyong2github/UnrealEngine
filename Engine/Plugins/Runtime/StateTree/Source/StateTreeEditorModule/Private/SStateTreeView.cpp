@@ -274,6 +274,8 @@ void SStateTreeView::UpdateTree(bool bExpandPersistent)
 	TreeView->ClearSelection();
 	TreeView->SetItemSelection(SelectedStates, true);
 
+	TreeView->RequestTreeRefresh();
+
 	bItemsDirty = false;
 }
 
