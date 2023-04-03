@@ -30,7 +30,6 @@
 #include "GeometryCollection/GeometryCollectionISMPoolActor.h"
 #include "GeometryCollection/GeometryCollectionISMPoolComponent.h"
 #include "GeometryCollection/GeometryCollectionISMPoolRenderer.h"
-#include "GeometryCollection/GeometryCollectionISMPoolSubSystem.h"
 #include "Math/Sphere.h"
 #include "Modules/ModuleManager.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -108,7 +107,7 @@ bool bChaos_GC_CacheComponentSpaceBounds = true;
 FAutoConsoleVariableRef CVarChaosGCCacheComponentSpaceBounds(TEXT("p.Chaos.GC.CacheComponentSpaceBounds"), bChaos_GC_CacheComponentSpaceBounds, TEXT("Cache component space bounds for performance"));
 
 bool bChaos_GC_UseCustomRenderer = true;
-FAutoConsoleVariableRef CVarChaosGCUseISMPool(TEXT("p.Chaos.GC.UseCustomRenderer"), bChaos_GC_UseCustomRenderer, TEXT("When enabled, use a custom renderer if specified"));
+FAutoConsoleVariableRef CVarChaosGCUseCustomRenderer(TEXT("p.Chaos.GC.UseCustomRenderer"), bChaos_GC_UseCustomRenderer, TEXT("When enabled, use a custom renderer if specified"));
 
 bool bChaos_GC_InitConstantDataUseParallelFor = true;
 FAutoConsoleVariableRef CVarChaosGCInitConstantDataUseParallelFor(TEXT("p.Chaos.GC.InitConstantDataUseParallelFor"), bChaos_GC_InitConstantDataUseParallelFor, TEXT("When enabled, InitConstant data will use parallelFor for copying some of the data"));
@@ -2398,22 +2397,15 @@ void UGeometryCollectionComponent::OnRegister()
 
 	InitializeEmbeddedGeometry();
 
-	// Look for any attached custom renderer.
-	CustomRenderer = GetOwner()->FindComponentByInterface<UGeometryCollectionExternalRenderInterface>();
-	// Use the ISMPool custom renderer if it was set.
-	if (!CustomRenderer && ISMPool)
+	// Create a custom renderer object if a type is set on the component or the GC asset.
+	UClass* Type = bOverrideCustomRenderer ? CustomRendererType : (RestCollection ? RestCollection->CustomRendererType : nullptr);
+	if (Type && Type->ImplementsInterface(UGeometryCollectionExternalRenderInterface::StaticClass()))
 	{
-		UGeometryCollectionCustomRendererISMPool* ISMPoolRenderer = NewObject<UGeometryCollectionCustomRendererISMPool>(this);
-		ISMPoolRenderer->ISMPoolActor = ISMPool;
-		CustomRenderer = (UGeometryCollectionExternalRenderInterface*)ISMPoolRenderer;
-	}
-	if (!CustomRenderer && bAutoAssignISMPool)
-	{
-		if (UGeometryCollectionISMPoolSubSystem* ISMPoolSubSystem = UWorld::GetSubsystem<UGeometryCollectionISMPoolSubSystem>(GetWorld()))
+		CustomRenderer = (UGeometryCollectionExternalRenderInterface*)NewObject<UObject>(this, Type);
+
+		if (IGeometryCollectionExternalRenderInterface* RendererInterface = Cast<IGeometryCollectionExternalRenderInterface>(CustomRenderer))
 		{
-			UGeometryCollectionCustomRendererISMPool* ISMPoolRenderer = NewObject<UGeometryCollectionCustomRendererISMPool>(this);
-			ISMPoolRenderer->ISMPoolActor = ISMPoolSubSystem->FindISMPoolActor(*this);
-			CustomRenderer = (UGeometryCollectionExternalRenderInterface*)ISMPoolRenderer;
+			RendererInterface->OnRegisterGeometryCollection(*this);
 		}
 	}
 
@@ -2424,11 +2416,15 @@ void UGeometryCollectionComponent::OnUnregister()
 {
 	Super::OnUnregister();
 
-	if (IGeometryCollectionExternalRenderInterface* RendererInterface = Cast<IGeometryCollectionExternalRenderInterface>(CustomRenderer))
+	// Remove any custom renderer.
+	if (CustomRenderer)
 	{
-		RendererInterface->OnUnregisterGeometryCollection();
+		if (IGeometryCollectionExternalRenderInterface* RendererInterface = Cast<IGeometryCollectionExternalRenderInterface>(CustomRenderer))
+		{
+			RendererInterface->OnUnregisterGeometryCollection();
+		}
+		CustomRenderer = nullptr;
 	}
-	CustomRenderer = nullptr;
 }
 
 void UGeometryCollectionComponent::ResetDynamicCollection()
@@ -4840,6 +4836,15 @@ void UGeometryCollectionComponent::PostLoad()
 	{
 		BodyInstance.SetPhysMaterialOverride(PhysicalMaterialOverride_DEPRECATED.Get());
 		PhysicalMaterialOverride_DEPRECATED = nullptr;
+	}
+
+	// Convert deprecated ISMPool and bAutoAssignISMPool settings to use the a CustomRendererType.
+	if ((ISMPool_DEPRECATED || bAutoAssignISMPool_DEPRECATED) && !(bOverrideCustomRenderer || CustomRendererType))
+	{
+		bOverrideCustomRenderer = true;
+		CustomRendererType = UGeometryCollectionISMPoolRenderer::StaticClass();
+		ISMPool_DEPRECATED = nullptr;
+		bAutoAssignISMPool_DEPRECATED = false;
 	}
 }
 

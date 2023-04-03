@@ -2,8 +2,10 @@
 #include "GeometryCollection/GeometryCollectionISMPoolRenderer.h"
 
 #include "Engine/StaticMesh.h"
+#include "Engine/World.h"
 #include "GeometryCollection/Facades/CollectionInstancedMeshFacade.h"
 #include "GeometryCollection/GeometryCollection.h"
+#include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionISMPoolActor.h"
 #include "GeometryCollection/GeometryCollectionISMPoolComponent.h"
 #include "GeometryCollection/GeometryCollectionISMPoolSubSystem.h"
@@ -11,7 +13,23 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionISMPoolRenderer)
 
-void UGeometryCollectionCustomRendererISMPool::UpdateState(UGeometryCollection const& InGeometryCollection, bool bIsBroken)
+void UGeometryCollectionISMPoolRenderer::OnRegisterGeometryCollection(UGeometryCollectionComponent const& InComponent)
+{
+	if (UGeometryCollectionISMPoolSubSystem* ISMPoolSubSystem = UWorld::GetSubsystem<UGeometryCollectionISMPoolSubSystem>(GetWorld()))
+	{
+		ISMPoolActor = ISMPoolSubSystem->FindISMPoolActor(InComponent);
+	}
+}
+
+void UGeometryCollectionISMPoolRenderer::OnUnregisterGeometryCollection()
+{
+	ReleaseGroup(MergedMeshGroup);
+	ReleaseGroup(InstancesGroup);
+
+	ISMPoolActor = nullptr;
+}
+
+void UGeometryCollectionISMPoolRenderer::UpdateState(UGeometryCollection const& InGeometryCollection, bool bIsBroken)
 {
 	if (!bIsBroken && MergedMeshGroup.GroupIndex == INDEX_NONE)
 	{
@@ -32,25 +50,17 @@ void UGeometryCollectionCustomRendererISMPool::UpdateState(UGeometryCollection c
 	}
 }
 
-void UGeometryCollectionCustomRendererISMPool::UpdateRootTransform(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, FTransform const& InRootTransform)
+void UGeometryCollectionISMPoolRenderer::UpdateRootTransform(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, FTransform const& InRootTransform)
 {
 	UpdateMergedMeshTransforms(InRootTransform * InBaseTransform);
 }
 
-void UGeometryCollectionCustomRendererISMPool::UpdateTransforms(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, TArrayView<const FMatrix> InMatrices)
+void UGeometryCollectionISMPoolRenderer::UpdateTransforms(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, TArrayView<const FMatrix> InMatrices)
 {
 	UpdateInstanceTransforms(InGeometryCollection, InBaseTransform, InMatrices);
 }
 
-void UGeometryCollectionCustomRendererISMPool::OnUnregisterGeometryCollection()
-{
-	ReleaseGroup(MergedMeshGroup);
-	ReleaseGroup(InstancesGroup);
-
-	ISMPoolActor = nullptr;
-}
-
-void UGeometryCollectionCustomRendererISMPool::InitMergedMeshFromGeometryCollection(UGeometryCollection const& InGeometryCollection)
+void UGeometryCollectionISMPoolRenderer::InitMergedMeshFromGeometryCollection(UGeometryCollection const& InGeometryCollection)
 {
 	if (InGeometryCollection.RootProxyData.ProxyMeshes.Num() == 0)
 	{
@@ -80,7 +90,7 @@ void UGeometryCollectionCustomRendererISMPool::InitMergedMeshFromGeometryCollect
 	}
 }
 
-void UGeometryCollectionCustomRendererISMPool::InitInstancesFromGeometryCollection(UGeometryCollection const& InGeometryCollection)
+void UGeometryCollectionISMPoolRenderer::InitInstancesFromGeometryCollection(UGeometryCollection const& InGeometryCollection)
 {
 	const int32 NumMeshes = InGeometryCollection.AutoInstanceMeshes.Num();
 	if (NumMeshes == 0)
@@ -125,7 +135,7 @@ void UGeometryCollectionCustomRendererISMPool::InitInstancesFromGeometryCollecti
 	}
 }
 
-void UGeometryCollectionCustomRendererISMPool::UpdateMergedMeshTransforms(FTransform const& InBaseTransform)
+void UGeometryCollectionISMPoolRenderer::UpdateMergedMeshTransforms(FTransform const& InBaseTransform)
 {
 	if (MergedMeshGroup.GroupIndex == INDEX_NONE)
 	{
@@ -147,7 +157,7 @@ void UGeometryCollectionCustomRendererISMPool::UpdateMergedMeshTransforms(FTrans
 	}
 }
 
-void UGeometryCollectionCustomRendererISMPool::UpdateInstanceTransforms(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, TArrayView<const FMatrix> InMatrices)
+void UGeometryCollectionISMPoolRenderer::UpdateInstanceTransforms(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, TArrayView<const FMatrix> InMatrices)
 {
 	if (InstancesGroup.GroupIndex == INDEX_NONE)
 	{
@@ -186,7 +196,7 @@ void UGeometryCollectionCustomRendererISMPool::UpdateInstanceTransforms(UGeometr
 	}
 }
 
-void UGeometryCollectionCustomRendererISMPool::ReleaseGroup(FISMPoolGroup& InOutGroup)
+void UGeometryCollectionISMPoolRenderer::ReleaseGroup(FISMPoolGroup& InOutGroup)
 {
 	UGeometryCollectionISMPoolComponent* ISMPoolComponent = ISMPoolActor != nullptr ? ISMPoolActor->GetISMPoolComp() : nullptr;
 	if (ISMPoolComponent != nullptr)

@@ -1053,10 +1053,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|General")
 	bool bStoreVelocities;
 
-	/** An custom renderer object. */
-	UPROPERTY(Transient)
-	TObjectPtr<UGeometryCollectionExternalRenderInterface> CustomRenderer;
-
 protected:
 	/** Display Bone Colors instead of assigned materials */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|General")
@@ -1075,13 +1071,26 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "ChaosPhysics|General")
 	FGuid RunTimeDataCollectionGuid;
 #endif
-	
-	/** ISM pool to use to render the geometry collection - only works for unfractured geometry collections  */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Rendering", meta = (DisplayName = "ISM Pool"))
-	TObjectPtr<AGeometryCollectionISMPoolActor> ISMPool;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Rendering")
-	bool bAutoAssignISMPool = false;
+	/** Deprecated for CustomRendererType. */
+	UPROPERTY()
+	TObjectPtr<AGeometryCollectionISMPoolActor> ISMPool_DEPRECATED;
+
+	/** Deprecated for CustomRendererType. */
+	UPROPERTY()
+	bool bAutoAssignISMPool_DEPRECATED = false;
+
+	/** If true, CustomRendererType will be used. If false, CustomRendererType comes from the RestCollection. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Rendering", meta = (InlineEditConditionToggle))
+	bool bOverrideCustomRenderer = false;
+
+	/** Custom class type that will be used to render the geometry collection instead of using the native rendering. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Rendering", meta = (editcondition = "bOverrideCustomRenderer", MustImplement = "/Script/GeometryCollectionEngine.GeometryCollectionExternalRenderInterface"))
+	TObjectPtr<UClass> CustomRendererType;
+
+	/** A custom renderer object created from CustomRenderType. */
+	UPROPERTY(Transient)
+	TObjectPtr<UGeometryCollectionExternalRenderInterface> CustomRenderer;
 
 	/** Populate the dynamic particle data for the render thread. */
 	FGeometryCollectionDynamicData* InitDynamicData(bool bInitialization);

@@ -8,18 +8,19 @@
 
 class AGeometryCollectionISMPoolActor;
 
-/** Implementation of a custom renderer that pushes AutoInstanceMeshes to an ISMPool. */
+/** Implementation of a geometry collection custom renderer that pushes AutoInstanceMeshes to an ISMPool. */
 UCLASS()
-class UGeometryCollectionCustomRendererISMPool : public UObject, public IGeometryCollectionExternalRenderInterface
+class UGeometryCollectionISMPoolRenderer : public UObject, public IGeometryCollectionExternalRenderInterface
 {
 	GENERATED_BODY()
 
 public:
 	//~ Begin IGeometryCollectionExternalRenderInterface Interface.
+	virtual void OnRegisterGeometryCollection(UGeometryCollectionComponent const& InComponent) override;
+	virtual void OnUnregisterGeometryCollection() override;
 	virtual void UpdateState(UGeometryCollection const& InGeometryCollection, bool bInIsBroken) override;
 	virtual void UpdateRootTransform(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, FTransform const& InRootTransform) override;
 	virtual void UpdateTransforms(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, TArrayView<const FMatrix> InMatrices) override;
-	virtual void OnUnregisterGeometryCollection() override;
 	//~ End IGeometryCollectionExternalRenderInterface Interface.
 
 	/** Instanced Static Mesh Pool actor that is used to render our meshes. */

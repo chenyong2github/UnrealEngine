@@ -550,16 +550,20 @@ public:
 
 	/**
 	 * Strip unnecessary render data from the Geometry Collection to keep the memory footprint as small as possible.
-	 * This may be used if the cooked build uses an alternative render path such as ISMPools.
+	 * This may be used if the cooked build uses a custom renderer such as the ISMPool renderer.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
 	bool bStripRenderDataOnCook;
 
-	/** static mesh to use as a proxy for rendering until the geometry collection is broken */
+	/** Custom class type that will be used to render the geometry collection instead of using the native rendering. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering", meta = (MustImplement = "/Script/GeometryCollectionEngine.GeometryCollectionExternalRenderInterface"))
+	TObjectPtr<UClass> CustomRendererType;
+
+	/** Static mesh to use as a proxy for rendering until the geometry collection is broken. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Rendering")
 	FGeometryCollectionProxyMeshData RootProxyData;
 
-	/** list of unique static mesh / materials pairs for auto instancing*/
+	/** List of unique static mesh / materials pairs for auto instancing. */
 	UPROPERTY(EditAnywhere, Category = "Rendering")
 	TArray<FGeometryCollectionAutoInstanceMesh> AutoInstanceMeshes;
 
