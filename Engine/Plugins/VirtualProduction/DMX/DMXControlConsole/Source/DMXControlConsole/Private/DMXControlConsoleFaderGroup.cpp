@@ -636,7 +636,12 @@ void UDMXControlConsoleFaderGroup::SubscribeToFixturePatchDelegates()
 
 void UDMXControlConsoleFaderGroup::GetNextAvailableUniverseAndAddress(int32& OutUniverse, int32& OutAddress) const
 {
-	if (!Elements.IsEmpty())
+	if (Elements.IsEmpty())
+	{
+		OutUniverse = 1;
+		OutAddress = 1;
+	}
+	else
 	{
 		const UDMXControlConsoleRawFader* LastFader = Cast<UDMXControlConsoleRawFader>(Elements.Last().GetObject());
 		if (LastFader)
