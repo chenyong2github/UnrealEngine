@@ -9,6 +9,7 @@
 #include "PCGContext.generated.h"
 
 class UPCGComponent;
+class UPCGGraphInterface;
 class UPCGSettingsInterface;
 class UPCGSpatialData;
 struct FPCGGraphCache;
@@ -103,6 +104,7 @@ struct PCG_API FPCGContext
 
 protected:
 	virtual UObject* GetExternalContainerForOverridableParam(const FPCGSettingsOverridableParam& InParam) { return nullptr; }
+	virtual void* GetUnsafeExternalContainerForOverridableParam(const FPCGSettingsOverridableParam& InParam) { return nullptr; }
 
 private:
 	template<typename SettingsType>

@@ -368,6 +368,32 @@ bool UPCGNode::IsOutputPinConnected(const FName& Label) const
 	}
 }
 
+void UPCGNode::RenameInputPin(const FName& OldLabel, const FName& NewLabel)
+{
+	if (UPCGPin* Pin = GetInputPin(OldLabel))
+	{
+		Pin->Modify();
+		Pin->Properties.Label = NewLabel;
+
+#if WITH_EDITOR
+		OnNodeChangedDelegate.Broadcast(this, EPCGChangeType::Node);
+#endif // WITH_EDITOR
+	}
+}
+
+void UPCGNode::RenameOutputPin(const FName& OldLabel, const FName& NewLabel)
+{
+	if (UPCGPin* Pin = GetOutputPin(OldLabel))
+	{
+		Pin->Modify();
+		Pin->Properties.Label = NewLabel;
+
+#if WITH_EDITOR
+		OnNodeChangedDelegate.Broadcast(this, EPCGChangeType::Node);
+#endif // WITH_EDITOR
+	}
+}
+
 bool UPCGNode::HasInboundEdges() const
 {
 	for (const UPCGPin* InputPin : InputPins)

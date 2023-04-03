@@ -108,10 +108,10 @@ public:
 	UPCGGraph* GetGraph() const;
 	UPCGGraphInstance* GetGraphInstance() const { return GraphInstance; }
 
-	void SetGraphLocal(UPCGGraph* InGraph);
+	void SetGraphLocal(UPCGGraphInterface* InGraph);
 
 	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = PCG)
-	void SetGraph(UPCGGraph* InGraph);
+	void SetGraph(UPCGGraphInterface* InGraph);
 
 	/** Registers some managed resource to the current component */
 	UFUNCTION(BlueprintCallable, Category = PCG)
@@ -274,7 +274,7 @@ public:
 	static UPCGData* CreateActorPCGData(AActor* Actor, const UPCGComponent* Component, bool bParseActor = true);
 
 protected:
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = PCG, Instanced, meta = (NoResetToDefault, ShowOnlyInnerProperties))
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = PCG, Instanced, meta = (NoResetToDefault))
 	TObjectPtr<UPCGGraphInstance> GraphInstance;
 
 #if WITH_EDITORONLY_DATA

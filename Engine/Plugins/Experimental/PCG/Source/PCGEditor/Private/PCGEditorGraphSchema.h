@@ -33,7 +33,7 @@ public:
 	//~ End EdGraphSchema Interface
 
 private:
-	void GetNativeElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const;
+	void GetNativeElementActions(FGraphActionMenuBuilder& ActionMenuBuilder, const UEdGraph* CurrentGraph = nullptr) const;
 	void GetBlueprintElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const;
 	void GetSubgraphElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const;
 	void GetSettingsElementActions(FGraphActionMenuBuilder& ActionMenuBuilder, bool bIsContextual) const;

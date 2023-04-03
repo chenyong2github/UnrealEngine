@@ -10,6 +10,7 @@
 class UEdGraph;
 class UEdGraphPin;
 class UPCGBlueprintElement;
+class UPCGNode;
 class UPCGSettings;
 class UPCGEditorGraph;
 
@@ -43,6 +44,27 @@ struct FPCGEditorGraphSchemaAction_NewNativeElement : public FEdGraphSchemaActio
 	virtual FName GetTypeId() const override { return StaticGetTypeId(); }
 	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
 	//~ End FEdGraphSchemaAction Interface
+
+protected:
+	virtual void PostCreation(UPCGNode* NewNode) {}
+};
+
+USTRUCT()
+struct FPCGEditorGraphSchemaAction_NewGetParameterElement : public FPCGEditorGraphSchemaAction_NewNativeElement
+{
+	GENERATED_BODY()
+
+	// Inherit the base class's constructors
+	using FPCGEditorGraphSchemaAction_NewNativeElement::FPCGEditorGraphSchemaAction_NewNativeElement;
+
+	UPROPERTY()
+	FGuid PropertyGuid;
+
+	UPROPERTY()
+	FName PropertyName;
+
+protected:
+	virtual void PostCreation(UPCGNode* NewNode) override;
 };
 
 USTRUCT()

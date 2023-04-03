@@ -24,7 +24,7 @@ bool UPCGVolumeFactory::CanCreateActorFrom(const FAssetData& AssetData, FText& O
 		return true;
 	}
 
-	if ( AssetData.IsValid() && !AssetData.IsInstanceOf(UPCGGraph::StaticClass()))
+	if ( AssetData.IsValid() && !AssetData.IsInstanceOf<UPCGGraphInterface>())
 	{
 		OutErrorMsg = LOCTEXT("NoPCGGraph", "A valid PCG graph asset must be specified.");
 		return false;
@@ -43,7 +43,7 @@ void UPCGVolumeFactory::PostSpawnActor(UObject* Asset, AActor* NewActor)
 		return;
 	}
 
-	if (UPCGGraph* PCGGraph = Cast<UPCGGraph>(Asset))
+	if (UPCGGraphInterface* PCGGraph = Cast<UPCGGraphInterface>(Asset))
 	{
 		const UPCGEngineSettings* Settings = GetDefault<UPCGEngineSettings>();
 		

@@ -2012,6 +2012,11 @@ void FPCGEditor::SaveAsset_Execute()
 
 void FPCGEditor::OnClose()
 {
+	if (PCGEditorGraph)
+	{
+		PCGEditorGraph->OnClose();
+	}
+
 	// Extra nodes are replicated on editor close, to be saved in the underlying PCGGraph
 	ReplicateExtraNodes();
 

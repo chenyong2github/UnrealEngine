@@ -110,6 +110,22 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 				InputNodeTask->Inputs.Emplace(PreId, nullptr, nullptr);
 			}
 
+			// Hook nodes to the PreTask if they require so.
+			// Only do it for nodes that are directly under the subgraph, not in subsequent subgraphs.
+			for (FPCGGraphTask& Subtask : Subtasks)
+			{
+				if (!Subtask.Node || Subtask.Node->GetOuter() != Subgraph)
+				{
+					continue;
+				}
+
+				const UPCGSettings* Settings = Subtask.Node->GetSettings();
+				if (Settings && Settings->ShouldHookToPreTask())
+				{
+					Subtask.Inputs.Emplace(PreId, nullptr, nullptr);
+				}
+			}
+
 			// Merge subgraph tasks into current tasks.
 			CompiledTasks.Append(Subtasks);
 

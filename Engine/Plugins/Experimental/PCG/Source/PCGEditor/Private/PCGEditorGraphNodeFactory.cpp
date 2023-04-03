@@ -6,7 +6,9 @@
 #include "PCGEditorGraphNodeReroute.h"
 #include "PCGNode.h"
 #include "SPCGEditorGraphNode.h"
+#include "SPCGEditorGraphVarNode.h"
 #include "Elements/PCGReroute.h"
+#include "Elements/PCGUserParameterGet.h"
 
 #include "SGraphNodeKnot.h"
 
@@ -40,6 +42,10 @@ TSharedPtr<SGraphNode> FPCGEditorGraphNodeFactory::CreateNode(UEdGraphNode* InNo
 		if (PCGNode && Cast<UPCGRerouteSettings>(PCGNode->GetSettings()))
 		{
 			SAssignNew(VisualNode, SPCGEditorGraphNodeKnot, GraphNode);
+		}
+		else if (PCGNode && Cast<UPCGUserParameterGetSettings>(PCGNode->GetSettings()))
+		{
+			SAssignNew(VisualNode, SPCGEditorGraphVarNode, GraphNode);
 		}
 		else
 		{

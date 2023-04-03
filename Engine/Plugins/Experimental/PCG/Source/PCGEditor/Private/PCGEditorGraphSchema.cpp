@@ -6,6 +6,7 @@
 #include "PCGEdge.h"
 #include "PCGGraph.h"
 #include "PCGPin.h"
+#include "Elements/PCGUserParameterGet.h"
 
 #include "PCGEditorCommon.h"
 #include "PCGEditorGraph.h"
@@ -53,7 +54,7 @@ void UPCGEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Con
 {
 	Super::GetGraphContextActions(ContextMenuBuilder);
 
-	GetNativeElementActions(ContextMenuBuilder);
+	GetNativeElementActions(ContextMenuBuilder, ContextMenuBuilder.CurrentGraph);
 	GetSubgraphElementActions(ContextMenuBuilder);
 	GetBlueprintElementActions(ContextMenuBuilder);
 	GetSettingsElementActions(ContextMenuBuilder, /*bIsContextual=*/true);
@@ -200,7 +201,7 @@ void UPCGEditorGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphP
 	PCGGraph->RemoveEdge(SourcePCGNode, SourcePin->PinName, TargetPCGNode, TargetPin->PinName);
 }
 
-void UPCGEditorGraphSchema::GetNativeElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const
+void UPCGEditorGraphSchema::GetNativeElementActions(FGraphActionMenuBuilder& ActionMenuBuilder, const UEdGraph* CurrentGraph) const
 {
 	TArray<UClass*> SettingsClasses;
 	for (TObjectIterator<UClass> It; It; ++It)
@@ -227,6 +228,32 @@ void UPCGEditorGraphSchema::GetNativeElementActions(FGraphActionMenuBuilder& Act
 				TSharedPtr<FPCGEditorGraphSchemaAction_NewNativeElement> NewAction(new FPCGEditorGraphSchemaAction_NewNativeElement(Category, MenuDesc, Description, 0));
 				NewAction->SettingsClass = SettingsClass;
 				ActionMenuBuilder.AddAction(NewAction);
+			}
+		}
+	}
+
+	if (const UPCGEditorGraph* Graph = Cast<UPCGEditorGraph>(CurrentGraph))
+	{
+		if (const UPCGGraph* PCGGraph = const_cast<UPCGEditorGraph*>(Graph)->GetPCGGraph())
+		{
+			if (const FInstancedPropertyBag* UserParameters = PCGGraph->GetUserParametersStruct())
+			{
+				if (const UPropertyBag* BagStruct = UserParameters->GetPropertyBagStruct())
+				{
+					const FText Category = LOCTEXT("UserParametersCategoryName", "User Parameters");
+
+					for (const FPropertyBagPropertyDesc& PropertyDesc : BagStruct->GetPropertyDescs())
+					{
+						const FText MenuDesc = FText::Format(FText::FromString(TEXT("Get {0}")), FText::FromName(PropertyDesc.Name));
+						const FText Description = FText::Format(LOCTEXT("NodeTooltip", "Get the value from '{0}' parameter, can be overridden by the graph instance."), FText::FromName(PropertyDesc.Name));
+
+						TSharedPtr<FPCGEditorGraphSchemaAction_NewGetParameterElement> NewAction(new FPCGEditorGraphSchemaAction_NewGetParameterElement(Category, MenuDesc, Description, 0));
+						NewAction->SettingsClass = UPCGUserParameterGetSettings::StaticClass();
+						NewAction->PropertyName = PropertyDesc.Name;
+						NewAction->PropertyGuid = PropertyDesc.ID;
+						ActionMenuBuilder.AddAction(NewAction);
+					}
+				}
 			}
 		}
 	}

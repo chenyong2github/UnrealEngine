@@ -2,15 +2,17 @@
 
 #include "PCGEditorGraphSchemaActions.h"
 
-#include "Elements/PCGExecuteBlueprint.h"
-#include "Elements/PCGReroute.h"
 #include "PCGEditorCommon.h"
 #include "PCGEditorGraph.h"
 #include "PCGEditorGraphNode.h"
 #include "PCGEditorGraphNodeReroute.h"
 #include "PCGEditorModule.h"
 #include "PCGGraph.h"
+#include "PCGNode.h"
 #include "PCGSubgraph.h"
+#include "Elements/PCGExecuteBlueprint.h"
+#include "Elements/PCGReroute.h"
+#include "Elements/PCGUserParameterGet.h"
 
 #include "EdGraphNode_Comment.h"
 #include "GraphEditor.h"
@@ -43,6 +45,14 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewNativeElement::PerformAction(UEdGra
 	UPCGSettings* DefaultNodeSettings = nullptr;
 	UPCGNode* NewPCGNode = PCGGraph->AddNodeOfType(SettingsClass, DefaultNodeSettings);
 
+	if (!NewPCGNode)
+	{
+		UE_LOG(LogPCGEditor, Error, TEXT("Failed to add a node of type %s"), *SettingsClass->GetName());
+		return nullptr;
+	}
+
+	PostCreation(NewPCGNode);
+
 	FGraphNodeCreator<UPCGEditorGraphNode> NodeCreator(*EditorGraph);
 	UPCGEditorGraphNode* NewNode = NodeCreator.CreateUserInvokedNode(bSelectNewNode);
 	NewNode->Construct(NewPCGNode);
@@ -59,6 +69,18 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewNativeElement::PerformAction(UEdGra
 	}
 
 	return NewNode;
+}
+
+void FPCGEditorGraphSchemaAction_NewGetParameterElement::PostCreation(UPCGNode* NewNode)
+{
+	check(NewNode);
+	UPCGUserParameterGetSettings* Settings = CastChecked<UPCGUserParameterGetSettings>(NewNode->GetSettings());
+
+	Settings->PropertyGuid = PropertyGuid;
+	Settings->PropertyName = PropertyName;
+
+	// We need to set the settings to update the pins.
+	NewNode->SetSettingsInterface(Settings);
 }
 
 UEdGraphNode* FPCGEditorGraphSchemaAction_NewSettingsElement::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)

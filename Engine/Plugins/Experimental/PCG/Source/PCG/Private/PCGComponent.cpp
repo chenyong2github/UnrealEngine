@@ -103,7 +103,7 @@ void UPCGComponent::SetIsPartitioned(bool bIsNowPartitioned)
 	}
 }
 
-void UPCGComponent::SetGraph_Implementation(UPCGGraph* InGraph)
+void UPCGComponent::SetGraph_Implementation(UPCGGraphInterface* InGraph)
 {
 	SetGraphInterfaceLocal(InGraph);
 }
@@ -113,7 +113,7 @@ UPCGGraph* UPCGComponent::GetGraph() const
 	return (GraphInstance ? GraphInstance->GetGraph() : nullptr);
 }
 
-void UPCGComponent::SetGraphLocal(UPCGGraph* InGraph)
+void UPCGComponent::SetGraphLocal(UPCGGraphInterface* InGraph)
 {
 	SetGraphInterfaceLocal(InGraph);
 }
@@ -194,6 +194,8 @@ void UPCGComponent::SetPropertiesFromOriginal(const UPCGComponent* Original)
 		}
 	}
 
+	const bool bGraphInstanceIsDifferent = !GraphInstance->IsEquivalent(Original->GraphInstance);
+
 #if WITH_EDITOR
 	const bool bHasDirtyInput = InputType != NewInputType;
 	const bool bHasDirtyExclusions = !(ExcludedTags.Num() == Original->ExcludedTags.Num() && ExcludedTags.Includes(Original->ExcludedTags));
@@ -204,14 +206,23 @@ void UPCGComponent::SetPropertiesFromOriginal(const UPCGComponent* Original)
 	Original->CachedTrackedTagsToSettings.GetKeys(OriginalTrackedTags);
 	const bool bHasDirtyTracking = !(TrackedTags.Num() == OriginalTrackedTags.Num() && TrackedTags.Includes(OriginalTrackedTags));
 
-	const bool bGraphInstanceIsDifferent = !GraphInstance->IsEquivalent(Original->GraphInstance);
 	const bool bIsDirty = bHasDirtyInput || bHasDirtyExclusions || bHasDirtyTracking || bGraphInstanceIsDifferent;
 #endif // WITH_EDITOR
 
 	InputType = NewInputType;
 	Seed = Original->Seed;
-	GraphInstance->SetGraph(Original->GraphInstance ? Original->GraphInstance->GetGraph() : nullptr);
 	GenerationTrigger = Original->GenerationTrigger;
+
+	UPCGGraph* OriginalGraph = Original->GraphInstance ? Original->GraphInstance->GetGraph() : nullptr;
+	if (OriginalGraph != GraphInstance->GetGraph())
+	{
+		GraphInstance->SetGraph(OriginalGraph);
+	}
+
+	if (bGraphInstanceIsDifferent && OriginalGraph)
+	{
+		GraphInstance->CopyParameterOverrides(Original->GraphInstance);
+	}
 
 #if WITH_EDITOR
 	if (bHasDirtyExclusions || bHasDirtyTracking)

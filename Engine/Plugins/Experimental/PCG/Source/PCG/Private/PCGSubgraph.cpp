@@ -5,6 +5,8 @@
 #include "PCGComponent.h"
 #include "PCGPin.h"
 #include "PCGSubsystem.h"
+#include "Data/PCGUserParametersData.h"
+#include "Helpers/PCGSettingsHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSubgraph)
 
@@ -167,6 +169,54 @@ TArray<FPCGPinProperties> UPCGBaseSubgraphSettings::OutputPinProperties() const
 	}
 }
 
+void UPCGBaseSubgraphSettings::FixingOverridableParamPropertyClass(FPCGSettingsOverridableParam& Param) const
+{
+	bool bFound = false;
+	const UPCGGraph* PCGGraph = GetSubgraph();
+
+	if (PCGGraph && !Param.PropertiesNames.IsEmpty())
+	{
+		if (const FInstancedPropertyBag* UserParameterStruct = PCGGraph->GetUserParametersStruct())
+		{
+			const UScriptStruct* ScriptStruct = UserParameterStruct->GetPropertyBagStruct();
+			if (ScriptStruct && ScriptStruct->FindPropertyByName(Param.PropertiesNames[0]))
+			{
+				Param.PropertyClass = ScriptStruct;
+				bFound = true;
+			}
+		}
+	}
+
+	if (!bFound)
+	{
+		Super::FixingOverridableParamPropertyClass(Param);
+	}
+}
+
+#if WITH_EDITOR
+TArray<FPCGSettingsOverridableParam> UPCGBaseSubgraphSettings::GatherOverridableParams() const
+{
+	TArray<FPCGSettingsOverridableParam> OverridableParams = Super::GatherOverridableParams();
+
+	const UPCGGraph* PCGGraph = GetSubgraph();
+	if (PCGGraph)
+	{
+		if (const FInstancedPropertyBag* UserParameterStruct = PCGGraph->GetUserParametersStruct())
+		{
+			if (const UScriptStruct* ScriptStruct = UserParameterStruct->GetPropertyBagStruct())
+			{
+				PCGSettingsHelpers::FPCGGetAllOverridableParamsConfig Config;
+				Config.bExcludeSuperProperties = true;
+				Config.ExcludePropertyFlags = CPF_DisableEditOnInstance;
+				OverridableParams.Append(PCGSettingsHelpers::GetAllOverridableParams(ScriptStruct, Config));
+			}
+		}
+	}
+
+	return OverridableParams;
+}
+#endif // WITH_EDITOR
+
 UPCGSubgraphSettings::UPCGSubgraphSettings(const FObjectInitializer& InObjectInitializer)
 	: Super(InObjectInitializer)
 {
@@ -240,12 +290,54 @@ TObjectPtr<UPCGGraphInterface> UPCGSubgraphNode::GetSubgraphInterface() const
 	return Settings ? Settings->GetSubgraphInterface() : nullptr;
 }
 
+void* FPCGSubgraphContext::GetUnsafeExternalContainerForOverridableParam(const FPCGSettingsOverridableParam& InParam)
+{
+	const UPCGSubgraphSettings* Settings = GetInputSettings<UPCGSubgraphSettings>();
+	check(Settings);
+	const UPCGGraphInterface* Graph = Settings->GetSubgraphInterface();
+	const FInstancedPropertyBag* UserParameters = Graph ? Graph->GetUserParametersStruct() : nullptr;
+
+	if (UserParameters && !InParam.PropertiesNames.IsEmpty() && UserParameters->FindPropertyDescByName(InParam.PropertiesNames[0]) && GraphInstanceParametersOverride.IsValid())
+	{
+		return GraphInstanceParametersOverride.GetMutableMemory();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
 FPCGContext* FPCGSubgraphElement::Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node)
 {
 	FPCGSubgraphContext* Context = new FPCGSubgraphContext();
 	Context->InputData = InputData;
 	Context->SourceComponent = SourceComponent;
 	Context->Node = Node;
+
+	// Only duplicate the UserParameters if we have overriable params and we have at least one param pin connected.
+	const UPCGSubgraphSettings* Settings = Context->GetInputSettings<UPCGSubgraphSettings>();
+	check(Settings);
+	const TArray<FPCGSettingsOverridableParam>& OverridableParams = Settings->OverridableParams();
+
+	const UPCGGraphInterface* Graph = Settings->GetSubgraphInterface();
+	const FInstancedPropertyBag* UserParameters = Graph ? Graph->GetUserParametersStruct() : nullptr;
+	FConstStructView UserParametersView = UserParameters ? UserParameters->GetValue() : FConstStructView{};
+
+	if (!OverridableParams.IsEmpty() && UserParametersView.IsValid())
+	{
+		bool bHasParamConnected = InputData.GetParamsWithDeprecation(Node) != nullptr;
+
+		int32 Index = 0;
+		while (!bHasParamConnected && Index < OverridableParams.Num())
+		{
+			bHasParamConnected |= !InputData.GetParamsByPin(OverridableParams[Index++].Label).IsEmpty();
+		}
+
+		if (bHasParamConnected)
+		{
+			Context->GraphInstanceParametersOverride = FInstancedStruct(UserParametersView);
+		}
+	}
 
 	return Context;
 }
@@ -254,6 +346,9 @@ bool FPCGSubgraphElement::ExecuteInternal(FPCGContext* InContext) const
 {
 	FPCGSubgraphContext* Context = static_cast<FPCGSubgraphContext*>(InContext);
 
+	const UPCGSubgraphSettings* Settings = Context->GetInputSettings<UPCGSubgraphSettings>();
+	check(Settings);
+
 	const UPCGSubgraphNode* SubgraphNode = Cast<const UPCGSubgraphNode>(Context->Node);
 	if (SubgraphNode && SubgraphNode->bDynamicGraph)
 	{
@@ -261,10 +356,7 @@ bool FPCGSubgraphElement::ExecuteInternal(FPCGContext* InContext) const
 
 		if (!Context->bScheduledSubgraph)
 		{
-			const UPCGSubgraphSettings* Settings = Context->GetInputSettings<UPCGSubgraphSettings>();
-			check(Settings);
 			UPCGGraph* Subgraph = Settings->GetSubgraph();
-
 			UPCGSubsystem* Subsystem = Context->SourceComponent.IsValid() ? Context->SourceComponent->GetSubsystem() : nullptr;
 
 			if (Subsystem && Subgraph)
@@ -319,6 +411,25 @@ bool FPCGSubgraphElement::ExecuteInternal(FPCGContext* InContext) const
 	else
 	{
 		Context->OutputData = Context->InputData;
+
+		// Also create a new data containing information about the original subgraph and the parameters override
+		// It is used mainly by the UseParameterGetElement to access the correct value.
+		if (const UPCGGraphInterface* SubgraphInterface = Settings->GetSubgraphInterface())
+		{
+			UPCGUserParametersData* UserParamData = NewObject<UPCGUserParametersData>();
+			UserParamData->OriginalGraph = SubgraphInterface;
+			if (Context->GraphInstanceParametersOverride.IsValid())
+			{
+				UserParamData->UserParameters = std::move(Context->GraphInstanceParametersOverride);
+			}
+
+			FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
+			TaggedData.Data = UserParamData;
+			TaggedData.Tags.Add(PCGBaseSubgraphConstants::UserParameterTagData);
+			// Mark this data pinless, since it is internal data, not meant to be shown in the graph editor.
+			TaggedData.bPinlessData = true;
+		}
+
 		return true;
 	}
 }

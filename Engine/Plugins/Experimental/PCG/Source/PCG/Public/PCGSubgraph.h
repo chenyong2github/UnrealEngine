@@ -10,6 +10,11 @@
 
 #include "PCGSubgraph.generated.h"
 
+namespace PCGBaseSubgraphConstants
+{
+	static const FString UserParameterTagData = TEXT("PCGUserParametersTagData");
+}
+
 UCLASS(Abstract)
 class PCG_API UPCGBaseSubgraphSettings : public UPCGSettings
 {
@@ -45,6 +50,13 @@ protected:
 #if WITH_EDITOR
 	void OnSubgraphChanged(UPCGGraphInterface* InGraph, EPCGChangeType ChangeType);
 #endif
+
+protected:
+	// Overrides
+	virtual void FixingOverridableParamPropertyClass(FPCGSettingsOverridableParam& Param) const;
+#if WITH_EDITOR
+	virtual TArray<FPCGSettingsOverridableParam> GatherOverridableParams() const override;
+#endif // WITH_EDITOR
 };
 
 UCLASS(BlueprintType, ClassGroup=(Procedural))
@@ -87,7 +99,7 @@ protected:
 	//~End UPCGBaseSubgraphSettings interface
 
 public:
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Properties, Instanced, meta = (NoResetToDefault, ShowOnlyInnerProperties))
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Properties, Instanced, meta = (NoResetToDefault))
 	TObjectPtr<UPCGGraphInstance> SubgraphInstance;
 
 #if WITH_EDITORONLY_DATA
@@ -124,6 +136,10 @@ struct PCG_API FPCGSubgraphContext : public FPCGContext
 {
 	FPCGTaskId SubgraphTaskId = InvalidPCGTaskId;
 	bool bScheduledSubgraph = false;
+	FInstancedStruct GraphInstanceParametersOverride;
+
+protected:
+	virtual void* GetUnsafeExternalContainerForOverridableParam(const FPCGSettingsOverridableParam& InParam) override;
 };
 
 class PCG_API FPCGSubgraphElement : public IPCGElement

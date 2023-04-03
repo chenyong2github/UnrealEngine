@@ -72,6 +72,10 @@ struct PCG_API FPCGTaggedData
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
 	FName Pin = NAME_None;
 
+	// Special flag for data that are forwarded to other nodes, but without a pin. Useful for internal data.
+	UPROPERTY()
+	bool bPinlessData = false;
+
 	bool operator==(const FPCGTaggedData& Other) const;
 	bool operator!=(const FPCGTaggedData& Other) const;
 };
@@ -110,6 +114,10 @@ struct PCG_API FPCGDataCollection
 	TArray<FPCGTaggedData> GetTaggedParams(const FString& InTag) const;
 	/** Returns all params on a given pin */
 	TArray<FPCGTaggedData> GetParamsByPin(const FName& InPinLabel) const;
+
+	/** Returns all data in the collection with the given tag and given type */
+	template <typename PCGDataType>
+	TArray<FPCGTaggedData> GetTaggedTypedInputs(const FString& InTag) const;
 
 	UE_DEPRECATED(5.2, "GetParams is deprecated, please use GetParamsByPin or GetFirstParamsOnParamsPin.")
 	/** Returns the first params found in the collection */
@@ -165,6 +173,14 @@ inline const SettingsType* FPCGDataCollection::GetSettings() const
 		});
 
 	return MatchingData ? Cast<const SettingsType>(MatchingData->Data) : nullptr;
+}
+
+template <typename PCGDataType>
+inline TArray<FPCGTaggedData> FPCGDataCollection::GetTaggedTypedInputs(const FString& InTag) const
+{
+	return TaggedData.FilterByPredicate([&InTag](const FPCGTaggedData& Data) {
+		return Data.Tags.Contains(InTag) && Cast<PCGDataType>(Data.Data);
+	});
 }
 
 UCLASS()

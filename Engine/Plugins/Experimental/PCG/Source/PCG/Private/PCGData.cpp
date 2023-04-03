@@ -201,9 +201,7 @@ const UPCGSpatialData* FPCGDataCollection::GetSpatialUnionOfInputsByPin(const FN
 
 TArray<FPCGTaggedData> FPCGDataCollection::GetTaggedInputs(const FString& InTag) const
 {
-	return TaggedData.FilterByPredicate([&InTag](const FPCGTaggedData& Data) {
-		return Data.Tags.Contains(InTag) && Cast<UPCGSpatialData>(Data.Data);
-		});
+	return GetTaggedTypedInputs<UPCGSpatialData>(InTag);
 }
 
 TArray<FPCGTaggedData> FPCGDataCollection::GetAllSettings() const

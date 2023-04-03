@@ -160,12 +160,15 @@ void FPCGContext::OverrideSettings()
 		if (!SettingsWithOverride->GetClass()->IsChildOf(Param.PropertyClass))
 		{
 			UObject* ObjectPtr = GetExternalContainerForOverridableParam(Param);
-			if (!ObjectPtr || !ObjectPtr->IsA(Param.Properties[0]->GetOwnerClass()))
+			if (ObjectPtr && ObjectPtr->IsA(Param.Properties[0]->GetOwnerClass()))
 			{
-				continue;
+				Container = ObjectPtr;
 			}
-
-			Container = ObjectPtr;
+			else if (!ObjectPtr)
+			{
+				// It's the responsability of the callee to make sure we have a valid memory space to read from.
+				Container = GetUnsafeExternalContainerForOverridableParam(Param);
+			}
 		}
 		else
 		{
@@ -177,7 +180,10 @@ void FPCGContext::OverrideSettings()
 			Container = SettingsWithOverride.Get();
 		}
 
-		check(Container);
+		if (!Container)
+		{
+			continue;
+		}
 
 		FName AttributeName = NAME_None;
 		TUniquePtr<const IPCGAttributeAccessor> AttributeAccessor = PCGAttributeAccessorHelpers::CreateConstAccessorForOverrideParam(InputData, Param, &AttributeName);

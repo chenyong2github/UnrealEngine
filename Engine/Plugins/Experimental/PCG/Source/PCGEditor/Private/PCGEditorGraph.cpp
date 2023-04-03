@@ -11,6 +11,7 @@
 #include "PCGGraph.h"
 #include "PCGPin.h"
 #include "Elements/PCGReroute.h"
+#include "Elements/PCGUserParameterGet.h"
 
 #include "EdGraph/EdGraphPin.h"
 
@@ -18,6 +19,8 @@ void UPCGEditorGraph::InitFromNodeGraph(UPCGGraph* InPCGGraph)
 {
 	check(InPCGGraph && !PCGGraph);
 	PCGGraph = InPCGGraph;
+
+	PCGGraph->OnGraphParametersChangedDelegate.AddUObject(this, &UPCGEditorGraph::OnGraphUserParametersChanged);
 
 	TMap<UPCGNode*, UPCGEditorGraphNodeBase*> NodeLookup;
 	const bool bSelectNewNode = false;
@@ -76,6 +79,21 @@ void UPCGEditorGraph::InitFromNodeGraph(UPCGGraph* InPCGGraph)
 			const bool bIsUserAction = false;
 			AddNode(NewNode, bIsUserAction, bSelectNewNode);
 		}
+	}
+}
+
+void UPCGEditorGraph::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	OnClose();
+}
+
+void UPCGEditorGraph::OnClose()
+{
+	if (PCGGraph)
+	{
+		PCGGraph->OnGraphParametersChangedDelegate.RemoveAll(this);
 	}
 }
 
@@ -183,5 +201,44 @@ void UPCGEditorGraph::CreateLinks(UPCGEditorGraphNodeBase* GraphNode, bool bCrea
 				}
 			}
 		}
+	}
+}
+
+void UPCGEditorGraph::OnGraphUserParametersChanged(UPCGGraphInterface* InGraph, EPCGGraphParameterEvent ChangeType, FName ChangedPropertyName)
+{
+	if (ChangeType != EPCGGraphParameterEvent::Removed || InGraph != PCGGraph)
+	{
+		return;
+	}
+
+	// If a parameter was removed, just look for getter nodes that do exists in the editor graph, but not in the PCG graph.
+	TArray<UPCGEditorGraphNodeBase*> NodesToRemove;
+	for (UEdGraphNode* EditorNode : Nodes)
+	{
+		if (UPCGEditorGraphNodeBase* PCGEditorNode = Cast<UPCGEditorGraphNodeBase>(EditorNode))
+		{
+			if (UPCGNode* PCGNode = PCGEditorNode->GetPCGNode())
+			{
+				if (UPCGUserParameterGetSettings* Settings = Cast<UPCGUserParameterGetSettings>(PCGNode->GetSettings()))
+				{
+					if (!PCGGraph->Contains(PCGNode))
+					{
+						NodesToRemove.Add(PCGEditorNode);
+					}
+				}
+			}
+		}
+	}
+
+	if (NodesToRemove.IsEmpty())
+	{
+		return;
+	}
+
+	Modify();
+
+	for (UPCGEditorGraphNodeBase* NodeToRemove : NodesToRemove)
+	{
+		NodeToRemove->DestroyNode();
 	}
 }

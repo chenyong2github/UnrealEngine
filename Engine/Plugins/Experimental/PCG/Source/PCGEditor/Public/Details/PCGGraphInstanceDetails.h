@@ -3,6 +3,9 @@
 #pragma once
 
 #include "IDetailCustomization.h"
+
+#include "Containers/Array.h"
+#include "Input/Reply.h" // IWYU pragma: keep
 #include "UObject/WeakObjectPtrTemplates.h"
 
 class UPCGGraphInstance;
@@ -15,10 +18,8 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
 private:
+	bool SaveInstanceButtonEnabled() const;
+	FReply OnSaveInstanceClicked();
+
 	TArray<TWeakObjectPtr<UPCGGraphInstance>> SelectedGraphInstances;
 };
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Input/Reply.h"
-#include "UObject/WeakObjectPtr.h"
-#endif

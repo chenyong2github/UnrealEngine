@@ -3,6 +3,10 @@
 #include "PCGGraphFactory.h"
 #include "PCGGraph.h"
 
+/////////////////////////
+// PCGGraph
+/////////////////////////
+
 UPCGGraphFactory::UPCGGraphFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -19,4 +23,26 @@ UObject* UPCGGraphFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, 
 bool UPCGGraphFactory::ShouldShowInNewMenu() const
 {
 	return true;
+}
+
+/////////////////////////
+// PCGGraphInstance
+/////////////////////////
+
+UPCGGraphInstanceFactory::UPCGGraphInstanceFactory(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	SupportedClass = UPCGGraphInstance::StaticClass();
+	bCreateNew = true;
+	bEditAfterNew = true;
+}
+
+UObject* UPCGGraphInstanceFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
+{
+	return NewObject<UPCGGraphInstance>(InParent, InClass, InName, Flags);
+}
+
+bool UPCGGraphInstanceFactory::ShouldShowInNewMenu() const
+{
+	return false;
 }

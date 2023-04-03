@@ -5,13 +5,62 @@
 #include "PCGNode.h"
 #include "PCGSettings.h"
 
+#include "PropertyBag.h"
 #include "UObject/ObjectPtr.h"
 
 #include "PCGGraph.generated.h"
 
+enum class EPCGGraphParameterEvent
+{
+	GraphChanged,
+	GraphPostLoad,
+	Added,
+	Removed,
+	PropertyModified,
+	ValueModifiedLocally,
+	ValueModifiedByParent
+};
+
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPCGGraphChanged, UPCGGraphInterface* /*Graph*/, EPCGChangeType /*ChangeType*/);
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPCGGraphParametersChanged, UPCGGraphInterface* /*Graph*/, EPCGGraphParameterEvent /*ChangeType*/, FName /*ChangedPropertyName*/);
 #endif // WITH_EDITOR
+
+/**
+* Extended version of FInstancedPropertyBag, to support overrides and have a custom UI for it
+* Must only be used with PCGGraphInstances.
+* TODO: Should be made generic and moved to ScriptUtils.
+*/
+USTRUCT()
+struct PCG_API FPCGOverrideInstancedPropertyBag
+{
+	GENERATED_BODY()
+
+public:
+	/** Add/Remove given property from overrides, and reset its value if it is removed. Returns true if the value was changed. */
+	bool UpdatePropertyOverride(const FProperty* InProperty, bool bMarkAsOverridden, const FInstancedPropertyBag* ParentUserParameters);
+
+	/** Return if the property is currently marked overridden. */
+	bool IsPropertyOverridden(const FProperty* InProperty) const;
+
+	/** Reset the struct. */
+	void Reset();
+
+	/** Return if the parameters are valid */
+	bool IsValid() { return Parameters.IsValid(); }
+
+	/** Will migrate to a new property bag instanced, and will remove porperties that doesn't exists anymore or have changed types. */
+	void MigrateToNewBagInstance(const FInstancedPropertyBag& NewBagInstance);
+
+	/** Handle the sync between the parent parameters and the overrides. Will return true if something changed. */
+	bool RefreshParameters(const FInstancedPropertyBag* ParentUserParameters, EPCGGraphParameterEvent InChangeType, FName InChangedPropertyName);
+
+	UPROPERTY(EditAnywhere, Category = "")
+	FInstancedPropertyBag Parameters;
+
+	UPROPERTY(VisibleAnywhere, Category = "", meta = (Hidden))
+	TSet<FGuid> PropertiesIDsOverridden;
+};
 
 UCLASS(Abstract)
 class PCG_API UPCGGraphInterface : public UObject
@@ -30,6 +79,8 @@ public:
 	virtual UPCGGraph* GetGraph() PURE_VIRTUAL(UPCGGraphInterface::GetGraph, return nullptr;)
 	virtual const UPCGGraph* GetGraph() const PURE_VIRTUAL(UPCGGraphInterface::GetGraph, return nullptr;)
 
+	virtual const FInstancedPropertyBag* GetUserParametersStruct() const PURE_VIRTUAL(UPCGGraphInterface::GetUserParametersStruct, return nullptr;)
+
 	bool IsInstance() const;
 
 	/** A graph interface is equivalent to another graph interface if they are the same (same ptr), or if they have the same graph. Will be overriden when graph instance supports overrides. */
@@ -37,6 +88,7 @@ public:
 
 #if WITH_EDITOR
 	FOnPCGGraphChanged OnGraphChangedDelegate;
+	FOnPCGGraphParametersChanged OnGraphParametersChangedDelegate;
 #endif // WITH_EDITOR
 };
 
@@ -60,6 +112,7 @@ public:
 	virtual void BeginDestroy() override;
 
 #if WITH_EDITOR
+	virtual void PreEditChange(FProperty* InProperty) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	/** ~End UObject interface */
@@ -177,16 +230,28 @@ protected:
 	TArray<TObjectPtr<UObject>> ExtraEditorNodes;
 #endif // WITH_EDITORONLY_DATA
 
+	// Parameters
+	UPROPERTY(EditAnywhere, Category = Instance)
+	FInstancedPropertyBag UserParameters;
+
+public:
+	virtual const FInstancedPropertyBag* GetUserParametersStruct() const override { return &UserParameters; }
+
 #if WITH_EDITOR
 private:
 	void NotifyGraphChanged(EPCGChangeType ChangeType);
 	void OnNodeChanged(UPCGNode* InNode, EPCGChangeType ChangeType);
+
+	void NotifyGraphParametersChanged(EPCGGraphParameterEvent InChangeType, FName InChangedPropertyName);
+	void OnGraphParametersChanged(EPCGGraphParameterEvent InChangeType, FName InChangedPropertyName);
 
 	int32 GraphChangeNotificationsDisableCounter = 0;
 	bool bDelayedChangeNotification = false;
 	EPCGChangeType DelayedChangeType = EPCGChangeType::None;
 	bool bIsNotifying = false;
 	bool bUserPausedNotificationsInGraphEditor = false;
+	int32 NumberOfUserParametersPreEdit = 0;
+	FName UserParameterModifiedName = NAME_None;
 #endif // WITH_EDITOR
 };
 
@@ -216,20 +281,33 @@ public:
 protected:
 #if WITH_EDITOR
 	void OnGraphChanged(UPCGGraphInterface* InGraph, EPCGChangeType ChangeType);
+	void NotifyGraphParametersChanged(EPCGGraphParameterEvent InChangeType, FName InChangedPropertyName);
+	void OnGraphParametersChanged(UPCGGraphInterface* InGraph, EPCGGraphParameterEvent InChangeType, FName InChangedPropertyName);
 #endif
+	void RefreshParameters(EPCGGraphParameterEvent InChangeType, FName InChangedPropertyName = NAME_None);
 
 public:
 	static TObjectPtr<UPCGGraphInterface> CreateInstance(UObject* InOwner, UPCGGraphInterface* InGraph);
 
 	void SetGraph(UPCGGraphInterface* InGraph);
+	void CopyParameterOverrides(UPCGGraphInterface* InGraph);
+	void UpdatePropertyOverride(const FProperty* InProperty, bool bMarkAsOverridden);
+	bool IsPropertyOverridden(const FProperty* InProperty) { return ParametersOverrides.IsPropertyOverridden(InProperty); }
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Instance)
 	TObjectPtr<UPCGGraphInterface> Graph;
 
-#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = Instance)
+	FPCGOverrideInstancedPropertyBag ParametersOverrides;
+
+	virtual const FInstancedPropertyBag* GetUserParametersStruct() const override { return &ParametersOverrides.Parameters; }
+
 private:
+#if WITH_EDITORONLY_DATA
 	// Transient, to keep track the undo/redo changed the graph.
 	UPCGGraphInterface* UndoRedoGraphCache = nullptr;
+
+	FName UserParameterModifiedName = NAME_None;
 #endif // WITH_EDITORONLY_DATA
 };
 
