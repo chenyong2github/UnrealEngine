@@ -24,7 +24,7 @@ public:
 	 *
 	 * @param InFileServerOptions Network file server options
 	 */
-	FCookOnTheFlyServerTCP(int32 InPort, const TArray<ITargetPlatform*>& InTargetPlatforms, const FString& InZenProjectName);
+	FCookOnTheFlyServerTCP(int32 InPort, const TArray<ITargetPlatform*>& InTargetPlatforms);
 
 	/**
 	 * Destructor.

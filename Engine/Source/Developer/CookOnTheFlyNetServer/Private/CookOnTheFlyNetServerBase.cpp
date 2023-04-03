@@ -91,7 +91,9 @@ bool FCookOnTheFlyClientConnectionBase::Initialize()
 	FBufferArchive HandshakeResponsePayload;
 	HandshakeResponsePayload << bIsOk;
 	HandshakeResponsePayload << PlatformNameString;
-	HandshakeResponsePayload << Owner.ZenProjectName;
+	HandshakeResponsePayload << ZenProjectId;
+	HandshakeResponsePayload << ZenHostName;
+	HandshakeResponsePayload << ZenHostPort;
 
 	if (!SendPayload(HandshakeResponsePayload))
 	{
@@ -144,9 +146,8 @@ bool FCookOnTheFlyClientConnectionBase::SendMessage(const UE::Cook::FCookOnTheFl
 	return SendPayload(Payload);
 }
 
-FCookOnTheFlyNetworkServerBase::FCookOnTheFlyNetworkServerBase(const TArray<ITargetPlatform*>& InActiveTargetPlatforms, const FString& InZenProjectName)
+FCookOnTheFlyNetworkServerBase::FCookOnTheFlyNetworkServerBase(const TArray<ITargetPlatform*>& InActiveTargetPlatforms)
 	: ActiveTargetPlatforms(InActiveTargetPlatforms)
-	, ZenProjectName(InZenProjectName)
 {
 
 }

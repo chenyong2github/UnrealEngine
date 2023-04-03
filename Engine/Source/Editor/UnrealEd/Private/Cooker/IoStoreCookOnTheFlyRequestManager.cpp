@@ -25,6 +25,7 @@
 #include "SocketSubsystem.h"
 #include "Templates/Function.h"
 #include "UObject/SavePackage.h"
+#include "ZenStoreWriter.h"
 
 class FPackageRegistry
 {
@@ -392,7 +393,12 @@ private:
 		{
 			IPackageStoreWriter* PackageWriter = CookOnTheFlyServer.GetPackageWriter(TargetPlatform).AsPackageStoreWriter();
 			check(PackageWriter); // This class should not be used except when COTFS is using an IPackageStoreWriter
-
+			FZenStoreWriter* ZenStoreWriter = PackageWriter->AsZenStoreWriter();
+			if (ZenStoreWriter != nullptr)
+			{
+				FZenStoreWriter::ZenHostInfo HostInfo = ZenStoreWriter->GetHostInfo();
+				Connection.SetZenInfo(HostInfo.ProjectId, HostInfo.OplogId, HostInfo.HostName, HostInfo.HostPort);
+			}
 			FName PlatformName = Connection.GetPlatformName();
 			FScopeLock _(&ContextsCriticalSection);
 			if (!PlatformContexts.Contains(PlatformName))

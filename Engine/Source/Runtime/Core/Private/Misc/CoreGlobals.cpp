@@ -750,11 +750,7 @@ bool IsRunningCookOnTheFly()
 		FCookOnTheFlyCommandline(const TCHAR* CmdLine)
 		{
 			FString Host;
-			bParsed = FParse::Param(CmdLine, TEXT("CookOnTheFly")) && FParse::Value(CmdLine, TEXT("-ZenStoreHost="), Host);
-			if (!bParsed)	
-			{
-				bParsed = FParse::Value(CmdLine, TEXT("-FileHostIP="), Host);
-			}
+			bParsed = FParse::Value(CmdLine, TEXT("-FileHostIP="), Host);
 		}
 	} CookOnTheFlyCommandline(FCommandLine::Get());
 	

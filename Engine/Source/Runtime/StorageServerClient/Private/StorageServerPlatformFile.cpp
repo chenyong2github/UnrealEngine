@@ -249,6 +249,16 @@ FStorageServerPlatformFile::~FStorageServerPlatformFile()
 
 bool FStorageServerPlatformFile::ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const
 {
+#if WITH_COTF
+	UE::Cook::ICookOnTheFlyModule& CookOnTheFlyModule = FModuleManager::LoadModuleChecked<UE::Cook::ICookOnTheFlyModule>(TEXT("CookOnTheFly"));
+	TSharedPtr<UE::Cook::ICookOnTheFlyServerConnection> DefaultConnection = CookOnTheFlyModule.GetDefaultServerConnection();
+	if (DefaultConnection.IsValid() && !DefaultConnection->GetZenProjectName().IsEmpty())
+	{
+		HostAddrs.Add(DefaultConnection->GetZenHostName());
+		HostPort = DefaultConnection->GetZenHostPort();
+		return true;
+	}
+#endif
 	FString Host;
 	if (FParse::Value(FCommandLine::Get(), TEXT("-ZenStoreHost="), Host))
 	{
@@ -257,18 +267,6 @@ bool FStorageServerPlatformFile::ShouldBeUsed(IPlatformFile* Inner, const TCHAR*
 			HostAddrs.Add(Host);
 		}
 	}
-	else 
-	{
-#if WITH_COTF
-		UE::Cook::ICookOnTheFlyModule& CookOnTheFlyModule = FModuleManager::LoadModuleChecked<UE::Cook::ICookOnTheFlyModule>(TEXT("CookOnTheFly"));
-		TSharedPtr<UE::Cook::ICookOnTheFlyServerConnection> DefaultConnection = CookOnTheFlyModule.GetDefaultServerConnection();
-		if (DefaultConnection.IsValid() && !DefaultConnection->GetZenProjectName().IsEmpty())
-		{
-			HostAddrs.Add(DefaultConnection->GetHost());
-		}
-#endif
-	}
-
 	return HostAddrs.Num() > 0;
 }
 
@@ -300,7 +298,7 @@ void FStorageServerPlatformFile::InitializeAfterProjectFilePath()
 	Connection.Reset(new FStorageServerConnection());
 	const TCHAR* ProjectOverride = ServerProject.IsEmpty() ? nullptr : *ServerProject;
 	const TCHAR* PlatformOverride = ServerPlatform.IsEmpty() ? nullptr : *ServerPlatform;
-	if (Connection->Initialize(HostAddrs, 1337, ProjectOverride, PlatformOverride))
+	if (Connection->Initialize(HostAddrs, HostPort, ProjectOverride, PlatformOverride))
 	{
 		if (SendGetFileListMessage())
 		{

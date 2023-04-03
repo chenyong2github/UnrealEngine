@@ -33,9 +33,6 @@ struct FCookOnTheFlyNetworkServerOptions
 
 	/* Active target platform(s) */
 	TArray<ITargetPlatform*> TargetPlatforms;
-
-	/* Zen project name */
-	FString ZenProjectName;
 };
 
 class ICookOnTheFlyClientConnection
@@ -47,6 +44,7 @@ public:
 	virtual const ITargetPlatform* GetTargetPlatform() const = 0;
 	virtual bool GetIsSingleThreaded() const = 0;
 	virtual bool SendMessage(const FCookOnTheFlyMessage& Message) = 0;
+	virtual void SetZenInfo(const FString& InProjectId, const FString& InOplogId, const FString& InHostName, uint16 InHostPort) = 0;
 };
 
 class ICookOnTheFlyNetworkServer

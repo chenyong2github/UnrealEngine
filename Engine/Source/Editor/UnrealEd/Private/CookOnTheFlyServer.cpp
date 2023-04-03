@@ -598,10 +598,6 @@ bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyStartupOptions InCookOn
 	{
 		NetworkServerOptions.TargetPlatforms = TPM.GetTargetPlatforms();
 	}
-	if (IsUsingZenStore())
-	{
-		NetworkServerOptions.ZenProjectName = FApp::GetZenStoreProjectId();
-	}
 
 	ICookOnTheFlyNetworkServerModule& CookOnTheFlyNetworkServerModule = FModuleManager::LoadModuleChecked<ICookOnTheFlyNetworkServerModule>(TEXT("CookOnTheFlyNetServer"));
 	CookOnTheFlyNetworkServer = CookOnTheFlyNetworkServerModule.CreateServer(NetworkServerOptions);

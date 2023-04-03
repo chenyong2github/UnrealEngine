@@ -581,14 +581,13 @@ namespace AutomationScripts
 					TempCmdLine += Params.MapToRun + " ";
 				}
 
+				String FileHostCommandline = GetFileHostCommandline(Params, SC);
+				if (!string.IsNullOrEmpty(FileHostCommandline))
+				{
+					TempCmdLine += FileHostCommandline + " ";
+				}
 				if (Params.CookOnTheFly || Params.FileServer)
 				{
-					String FileHostCommandline = GetFileHostCommandline(Params, SC);
-					if (!string.IsNullOrEmpty(FileHostCommandline))
-					{
-						TempCmdLine += FileHostCommandline + " ";
-					}
-
 					if (Params.CookOnTheFlyStreaming)
 					{
 						TempCmdLine += "-streaming ";
@@ -818,12 +817,12 @@ namespace AutomationScripts
 				}
 			}
 
-			if (Params.ZenStore)
+			if (Params.CookOnTheFly)
 			{
-				if (Params.CookOnTheFly)
-				{
-					FileHostParams += "-cookonthefly ";
-				}
+				FileHostParams += "-filehostip=";
+			}
+			else if (Params.ZenStore)
+			{
 				FileHostParams += "-zenstoreproject=" + ProjectUtils.GetProjectPathId(SC.RawProjectPath) + " ";
 				FileHostParams += "-zenstorehost=";
 			}

@@ -18,9 +18,9 @@ public:
 		switch (Options.Protocol)
 		{
 		case ECookOnTheFlyNetworkServerProtocol::Tcp:
-			return MakeShared<FCookOnTheFlyServerTCP>(Options.Port, Options.TargetPlatforms, Options.ZenProjectName);
+			return MakeShared<FCookOnTheFlyServerTCP>(Options.Port, Options.TargetPlatforms);
 		case ECookOnTheFlyNetworkServerProtocol::Platform:
-			return MakeShared<FCookOnTheFlyServerPlatformProtocol>(Options.TargetPlatforms, Options.ZenProjectName);
+			return MakeShared<FCookOnTheFlyServerPlatformProtocol>(Options.TargetPlatforms);
 		default:
 			UE_LOG(LogCookOnTheFlyNetworkServer, Fatal, TEXT("Unsupported protocol: %d"), Options.Protocol);
 			return nullptr;

@@ -30,6 +30,14 @@ public:
 		return bIsSingleThreaded;
 	}
 
+	void SetZenInfo(const FString& InProjectId, const FString& InOplogId, const FString& InHostName, uint16 InHostPort)
+	{
+		ZenProjectId = InProjectId;
+		check(InOplogId == PlatformName);
+		ZenHostName = InHostName;
+		ZenHostPort = InHostPort;
+	}
+
 	bool Initialize();
 
 	bool SendMessage(const UE::Cook::FCookOnTheFlyMessage& Message) override;
@@ -80,6 +88,10 @@ private:
 	TAtomic<bool> bRunning{ true };
 	FRunnableThread* WorkerThread = nullptr;
 	bool bClientConnectedBroadcasted = false;
+
+	FString ZenProjectId;
+	FString ZenHostName;
+	uint16 ZenHostPort = 0;
 };
 
 class FCookOnTheFlyNetworkServerBase
@@ -88,7 +100,7 @@ class FCookOnTheFlyNetworkServerBase
 	friend class FCookOnTheFlyClientConnectionBase;
 
 public:
-	FCookOnTheFlyNetworkServerBase(const TArray<ITargetPlatform*>& InActiveTargetPlatforms, const FString& InZenProjectName);
+	FCookOnTheFlyNetworkServerBase(const TArray<ITargetPlatform*>& InActiveTargetPlatforms);
 
 	bool ProcessRequest(FCookOnTheFlyClientConnectionBase& Connection, const UE::Cook::FCookOnTheFlyRequest& Request);
 
@@ -110,5 +122,4 @@ private:
 	FClientConnectionEvent ClientDisconnectedEvent;
 	TMap<UE::Cook::ECookOnTheFlyMessage, FHandleRequestDelegate> Handlers;
 	TArray<ITargetPlatform*> ActiveTargetPlatforms;
-	FString ZenProjectName;
 };

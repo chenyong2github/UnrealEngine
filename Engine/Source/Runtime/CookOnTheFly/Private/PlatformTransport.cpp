@@ -115,6 +115,11 @@ bool FPlatformTransport::HasPendingPayload()
 	return false;
 }
 
+FString FPlatformTransport::GetHostName() const
+{
+	return "platform://";
+}
+
 void FPlatformTransport::Disconnect()
 {
 	IPlatformHostCommunication& HostCommunication = FPlatformMisc::GetPlatformHostCommunication();

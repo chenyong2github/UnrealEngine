@@ -56,6 +56,7 @@ bool FTCPTransport::Initialize(const TCHAR* InHostIp)
 			FileSocket = NULL;
 			UE_LOG(LogCookOnTheFly, Error, TEXT("Failed to connect to COTF server at %s."), *Addr->ToString(true));
 		}
+		HostName = Addr->ToString(false);
 	}
 
 #if USE_MCSOCKET_FOR_NFS
@@ -93,6 +94,11 @@ bool FTCPTransport::HasPendingPayload()
 	uint32 PendingDataSize;
 	return FileSocket->HasPendingData(PendingDataSize);
 #endif
+}
+
+FString FTCPTransport::GetHostName() const
+{
+	return HostName;
 }
 
 void FTCPTransport::Disconnect()

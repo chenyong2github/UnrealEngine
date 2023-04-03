@@ -30,7 +30,7 @@ public:
 	 *
 	 * @param InFileServerOptions Network file server options
 	 */
-	FCookOnTheFlyServerPlatformProtocol(const TArray<ITargetPlatform*>& TargetPlatforms, const FString& InZenProjectName);
+	FCookOnTheFlyServerPlatformProtocol(const TArray<ITargetPlatform*>& TargetPlatforms);
 
 	/**
 	 * Destructor.

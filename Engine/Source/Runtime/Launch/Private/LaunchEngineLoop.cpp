@@ -958,47 +958,9 @@ void LaunchFixProjectPathCase()
 {
 	if (FPaths::IsProjectFilePathSet())
 	{
-#if PLATFORM_WINDOWS
-		// GetFilenameOnDisk on Windows will resolve directory junctions and resolving those here has negative consequences
-		// for workflows that use a junction at their root (eg: p4 gets confused about paths and operations fail).
-		// There is a way to get a case-accurate path on Windows without resolving directory junctions, but it is slow.
-		// We can use it here for this one-off situation without causing all uses of GetFilenameOnDisk to be slower.
 		FString ProjectFilePath = FPaths::GetProjectFilePath();
-		TStringBuilder<MAX_PATH> Builder;
-		FPathViews::IterateComponents(
-			ProjectFilePath,
-			[&Builder](FStringView CurrentPathComponent)
-			{
-				if (Builder.Len() != 0)
-				{
-					Builder.AppendChar(TEXT('/'));
-				}
-
-				int32 LenBeforeCurrentComponent = Builder.Len();
-
-				Builder.Append(CurrentPathComponent);
-
-				// Skip over all segments that are either empty or contain relative transforms or start with the volume separator, they should remain as-is
-				const bool bIsIgnoredSegment = CurrentPathComponent.IsEmpty() || CurrentPathComponent.Equals(TEXTVIEW(".")) || CurrentPathComponent.Equals(TEXTVIEW("..")) || CurrentPathComponent.EndsWith(TEXT(':'));
-				if (bIsIgnoredSegment)
-				{
-					return;
-				}
-
-				WIN32_FIND_DATAW Data;
-				HANDLE Handle = FindFirstFileW(StringCast<WIDECHAR>(*Builder, Builder.Len() + 1).Get(), &Data);
-				if (Handle != INVALID_HANDLE_VALUE)
-				{
-					Builder.RemoveSuffix(Builder.Len() - LenBeforeCurrentComponent);
-					Builder.Append(Data.cFileName);
-					FindClose(Handle);
-				}
-			}
-		);
-		FPaths::SetProjectFilePath(Builder.ToString());
-#else
-		FPaths::SetProjectFilePath(IFileManager::Get().GetFilenameOnDisk(*FPaths::GetProjectFilePath()));
-#endif
+		FString ProjectFilePathCorrectCase = FPaths::FindCorrectCase(ProjectFilePath);
+		FPaths::SetProjectFilePath(ProjectFilePathCorrectCase);
 	}
 }
 

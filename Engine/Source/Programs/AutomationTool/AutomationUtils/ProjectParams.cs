@@ -345,7 +345,6 @@ namespace AutomationTool
 			this.Pak = InParams.Pak;
 			this.IgnorePaksFromDifferentCookSource = InParams.IgnorePaksFromDifferentCookSource;
 			this.IoStore = InParams.IoStore;
-			this.Cook4IoStore = InParams.Cook4IoStore;
 			this.ZenStore = InParams.ZenStore;
 			this.NoZenAutoLaunch = InParams.NoZenAutoLaunch;
 			this.GenerateOptimizationData = InParams.GenerateOptimizationData;
@@ -550,7 +549,6 @@ namespace AutomationTool
 			bool? Pak = null,
 			bool? IgnorePaksFromDifferentCookSource = null,
 			bool? IoStore = null,
-			bool? Cook4IoStore = null,
 			bool? ZenStore = null,
 			string NoZenAutoLaunch = null,
 			bool? SkipIoStore = null,
@@ -754,12 +752,6 @@ namespace AutomationTool
 			this.IgnorePaksFromDifferentCookSource = GetParamValueIfNotSpecified(Command, IgnorePaksFromDifferentCookSource, this.IgnorePaksFromDifferentCookSource, "IgnorePaksFromDifferentCookSource");
 			this.IoStore = GetParamValueIfNotSpecified(Command, IoStore, this.IoStore, "iostore");
 			this.SkipIoStore = GetParamValueIfNotSpecified(Command, SkipIoStore, this.SkipIoStore, "skipiostore");
-			this.Cook4IoStore = GetParamValueIfNotSpecified(Command, Cook4IoStore, this.Cook4IoStore, "cook4iostore");
-			if (this.Cook4IoStore)
-			{
-				this.IoStore = true;
-				this.AdditionalCookerOptions += " -IoStore";
-			}
 			this.ZenStore = GetParamValueIfNotSpecified(Command, ZenStore, this.ZenStore, "zenstore");
 			if (this.ZenStore && this.Cook && !this.SkipCook)
 			{
@@ -1412,12 +1404,6 @@ namespace AutomationTool
 		/// </summary>
 		[Help("iostore", "generate I/O store container file(s)")]
 		public bool IoStore { private set; get; }
-
-		/// <summary>
-		/// Shared: True if the cooker should write directly to container file(s)
-		/// </summary>
-		[Help("cook4iostore", "generate I/O store container file(s)")]
-		public bool Cook4IoStore { private set; get; }
 		
 		/// <summary>
 		/// Shared: True if the cooker should store the cooked output to the Zen storage server
@@ -2097,7 +2083,7 @@ namespace AutomationTool
 
 
 		/// <summary>
-		/// Run: The client runs with cooked data provided by UnrealFileServer, command line: -fileserver
+		/// Run: The client runs with cooked data provided by UnrealFileServer, command line: -fileserver = CookByTheBook with ZenServer (zenstore)
 		/// </summary>
 		[Help("fileserver", "run the client with cooked data provided by UnrealFileServer")]
 		public bool FileServer { private set; get; }
@@ -3181,7 +3167,6 @@ namespace AutomationTool
 				Logger.LogDebug("IgnorePaksFromDifferentCookSource={IgnorePaksFromDifferentCookSource}", IgnorePaksFromDifferentCookSource);
 				Logger.LogDebug("IoStore={IoStore}", IoStore);
 				Logger.LogDebug("SkipIoStore={SkipIoStore}", SkipIoStore);
-				Logger.LogDebug("Cook4IoStore={Cook4IoStore}", Cook4IoStore);
 				Logger.LogDebug("ZenStore={ZenStore}", ZenStore);
 				Logger.LogDebug("NoZenAutoLaunch={NoZenAutoLaunch}", NoZenAutoLaunch);
 				Logger.LogDebug("SkipEncryption={SkipEncryption}", SkipEncryption);

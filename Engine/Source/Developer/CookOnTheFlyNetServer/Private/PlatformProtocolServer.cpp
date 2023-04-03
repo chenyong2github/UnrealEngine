@@ -104,8 +104,8 @@ private:
 };
 
 
-FCookOnTheFlyServerPlatformProtocol::FCookOnTheFlyServerPlatformProtocol(const TArray<ITargetPlatform*>& InTargetPlatforms, const FString& InZenProjectName)
-	: FCookOnTheFlyNetworkServerBase(InTargetPlatforms, InZenProjectName)
+FCookOnTheFlyServerPlatformProtocol::FCookOnTheFlyServerPlatformProtocol(const TArray<ITargetPlatform*>& InTargetPlatforms)
+	: FCookOnTheFlyNetworkServerBase(InTargetPlatforms)
 	, TargetPlatforms(InTargetPlatforms)
 {
 	Running = false;

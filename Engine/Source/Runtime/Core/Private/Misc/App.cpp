@@ -396,8 +396,8 @@ FString FApp::GetZenStoreProjectId()
 	if (FPaths::IsProjectFilePathSet())
 	{
 		FString ProjectFilePath = FPaths::GetProjectFilePath();
-		FPaths::NormalizeFilename(ProjectFilePath);
 		FString AbsProjectFilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProjectFilePath);
+		AbsProjectFilePath = FPaths::FindCorrectCase(AbsProjectFilePath);
 		FTCHARToUTF8 AbsProjectFilePathUTF8(*AbsProjectFilePath);
 
 		FString HashString = FMD5::HashBytes((unsigned char*)AbsProjectFilePathUTF8.Get(), AbsProjectFilePathUTF8.Length()).Left(8);

@@ -60,6 +60,22 @@ public:
 
 	IOSTOREUTILITIES_API ~FZenStoreWriter();
 
+	/** Identify as a implmenter of this class from the IPackageStoreWriter api. */
+	IOSTOREUTILITIES_API virtual FZenStoreWriter* AsZenStoreWriter() override
+	{
+		return this;
+	};
+
+	struct ZenHostInfo
+	{
+		FString ProjectId;
+		FString OplogId;
+		FString HostName;
+		uint16 HostPort;
+	};
+
+	IOSTOREUTILITIES_API ZenHostInfo GetHostInfo() const;
+
 	IOSTOREUTILITIES_API virtual void BeginPackage(const FBeginPackageInfo& Info) override;
 	IOSTOREUTILITIES_API virtual void CommitPackage(FCommitPackageInfo&& Info) override;
 

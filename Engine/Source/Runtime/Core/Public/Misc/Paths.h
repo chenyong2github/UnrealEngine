@@ -494,6 +494,9 @@ public:
 	/** Convert all / and \ to TEXT("/") */
 	static void NormalizeFilename(FString& InPath);
 
+	/** Converts the path casing to match the casing found on disk without resolving directory junctions */
+	static FString FindCorrectCase(const FString& Path);
+
 	/**
 	 * Checks if two paths are the same.
 	 *

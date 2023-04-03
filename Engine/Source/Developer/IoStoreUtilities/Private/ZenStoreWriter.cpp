@@ -638,6 +638,23 @@ void FZenStoreWriter::EndCook(const FCookInfo& Info)
 	UE_LOG(LogZenStoreWriter, Display, TEXT("Output:\t%d Public runtime script objects"), PackageStoreOptimizer->GetTotalScriptObjectCount());
 }
 
+FZenStoreWriter::ZenHostInfo FZenStoreWriter::GetHostInfo() const
+{
+	FZenStoreWriter::ZenHostInfo Info;
+	Info.ProjectId = ProjectId;
+	Info.OplogId = OplogId;
+	if (IsLocalConnection)
+	{
+		Info.HostName = "localhost";
+	}
+	else
+	{
+		Info.HostName = HttpClient->GetHostName();
+	}
+	Info.HostPort = HttpClient->GetPort();
+	return Info;
+}
+
 void FZenStoreWriter::BeginPackage(const FBeginPackageInfo& Info)
 {
 	FPendingPackageState& State = AddPendingPackage(Info.PackageName);

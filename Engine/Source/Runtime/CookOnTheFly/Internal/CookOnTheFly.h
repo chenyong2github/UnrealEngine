@@ -307,6 +307,10 @@ public:
 
 	virtual const FString& GetPlatformName() const = 0;
 
+	virtual const FString& GetZenHostName() const = 0;
+
+	virtual const uint16 GetZenHostPort() const = 0;
+
 	/**
 	 * Returns whether connected to the cook-on-the-fly server.
 	 */

@@ -61,6 +61,14 @@ public:
 		}
 		ResponsePayload << PlatformName;
 		ResponsePayload << ZenProjectName;
+		ResponsePayload << ZenHostName;
+		ResponsePayload << ZenHostPort;
+
+		// If our server is running its zenserver locally, we get "localhost" as a reply and we should use the same host for the zenserver
+		if (ZenHostName == "localhost")
+		{
+			ZenHostName = Transport->GetHostName();
+		}
 
 		FCoreDelegates::OnEnginePreExit.AddRaw(this, &FCookOnTheFlyServerConnection::OnEnginePreExit);
 
@@ -91,6 +99,16 @@ public:
 	virtual const FString& GetZenProjectName() const override
 	{
 		return ZenProjectName;
+	}
+
+	virtual const FString& GetZenHostName() const override
+	{
+		return ZenHostName;
+	}
+
+	virtual const uint16 GetZenHostPort() const override
+	{
+		return ZenHostPort;
 	}
 
 	virtual const FString& GetPlatformName() const override
@@ -307,6 +325,8 @@ private:
 	const bool bIsSingleThreaded;
 	FString PlatformName;
 	FString ZenProjectName;
+	FString ZenHostName;
+	uint16 ZenHostPort;
 
 	FCriticalSection RequestsCriticalSection;
 	TMap<uint32, TUniquePtr<FPendingRequest>> PendingRequests;

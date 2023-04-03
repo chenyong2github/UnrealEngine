@@ -58,8 +58,8 @@ private:
 /* FCookOnTheFlyServerTCP constructors
  *****************************************************************************/
 
-FCookOnTheFlyServerTCP::FCookOnTheFlyServerTCP(int32 InPort, const TArray<ITargetPlatform*>& InTargetPlatforms, const FString& InZenProjectName)
-	: FCookOnTheFlyNetworkServerBase(InTargetPlatforms, InZenProjectName)
+FCookOnTheFlyServerTCP::FCookOnTheFlyServerTCP(int32 InPort, const TArray<ITargetPlatform*>& InTargetPlatforms)
+	: FCookOnTheFlyNetworkServerBase(InTargetPlatforms)
 	, Port(InPort)
 {
 	if (Port < 0)

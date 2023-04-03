@@ -18,8 +18,15 @@
 #include "Misc/LazySingleton.h"
 #include "Misc/Parse.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/PathViews.h"
 #include "String/ParseTokens.h"
 #include "UObject/NameTypes.h"
+
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+#include <fileapi.h>
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogPaths, Log, All);
 
@@ -765,6 +772,58 @@ void FPaths::SetProjectFilePath( const FString& NewGameProjectFilePath )
 	FScopeLock Lock(&StaticData.GameProjectFilePathLock);
 	StaticData.GameProjectFilePath = NewGameProjectFilePath;
 	FPaths::NormalizeFilename(StaticData.GameProjectFilePath);
+}
+
+FString FPaths::FindCorrectCase(const FString& Path)
+{
+#if PLATFORM_WINDOWS
+	// GetFilenameOnDisk on Windows will resolve directory junctions and resolving those here has negative consequences
+	// for workflows that use a junction at their root (eg: p4 gets confused about paths and operations fail).
+	// There is a way to get a case-accurate path on Windows without resolving directory junctions, but it is slow.
+	// We can use it here for this one-off situation without causing all uses of GetFilenameOnDisk to be slower.
+	FString ProjectFilePath = FPaths::GetProjectFilePath();
+	TStringBuilder<MAX_PATH> Builder;
+	FPathViews::IterateComponents(
+		ProjectFilePath,
+		[&Builder](FStringView CurrentPathComponent)
+		{
+			if (Builder.Len() != 0)
+			{
+				Builder.AppendChar(TEXT('/'));
+			}
+
+			// Any volume name should be upper case
+			const bool bIsVolumeSegment = CurrentPathComponent.EndsWith(TEXT(':'));
+			if (bIsVolumeSegment)
+			{
+				Builder.Append(FString(CurrentPathComponent).ToUpper());
+				return;
+			}
+
+			int32 LenBeforeCurrentComponent = Builder.Len();
+			Builder.Append(CurrentPathComponent);
+
+			// Skip over all segments that are either empty or contain relative transforms, they should remain as-is
+			const bool bIsIgnoredSegment = CurrentPathComponent.IsEmpty() || CurrentPathComponent.Equals(TEXTVIEW(".")) || CurrentPathComponent.Equals(TEXTVIEW(".."));
+			if (bIsIgnoredSegment)
+			{
+				return;
+			}
+
+			WIN32_FIND_DATAW Data;
+			HANDLE Handle = FindFirstFileW(StringCast<WIDECHAR>(*Builder, Builder.Len() + 1).Get(), &Data);
+			if (Handle != INVALID_HANDLE_VALUE)
+			{
+				Builder.RemoveSuffix(Builder.Len() - LenBeforeCurrentComponent);
+				Builder.Append(Data.cFileName);
+				FindClose(Handle);
+			}
+		}
+	);
+	return Builder.ToString();
+#else
+	return IFileManager::Get().GetFilenameOnDisk(*Path);
+#endif
 }
 
 FString FPaths::GetExtension( const FString& InPath, bool bIncludeDot )
