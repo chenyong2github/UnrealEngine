@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma  once
+#pragma once
 
+#include "Containers/Array.h"
+#include "Templates/SharedPointer.h"
 #include "TraceServices/Model/AnalysisSession.h"
-#include "Templates/Function.h"
+#include "UObject/NameTypes.h"
 
 namespace TraceServices
 {
@@ -28,9 +30,10 @@ class IScreenshotProvider
 public:
 	virtual ~IScreenshotProvider() = default;
 
-	virtual const TSharedPtr<const FScreenshot> GetScreenshot(uint32 Id) const = 0 ;
+	virtual const TSharedPtr<const FScreenshot> GetScreenshot(uint32 Id) const = 0;
 };
 
+TRACESERVICES_API FName GetScreenshotProviderName();
 TRACESERVICES_API const IScreenshotProvider& ReadScreenshotProvider(const IAnalysisSession& Session);
 
 } // namespace TraceServices

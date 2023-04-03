@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TraceServices/Model/Bookmarks.h"
-#include "Common/FormatArgs.h"
 #include "Model/BookmarksPrivate.h"
+
 #include "AnalysisServicePrivate.h"
-#include "RegionsPrivate.h"
+#include "Common/FormatArgs.h"
 #include "Common/ProviderLock.h"
+#include "RegionsPrivate.h"
 #include "TraceServices/Model/Regions.h"
 
 namespace TraceServices
@@ -139,7 +140,7 @@ void FBookmarkProvider::EnumerateBookmarks(double IntervalStart, double Interval
 
 FName GetBookmarkProviderName()
 {
-	static FName Name(TEXT("BookmarkProvider"));
+	static const FName Name("BookmarkProvider");
 	return Name;
 }
 

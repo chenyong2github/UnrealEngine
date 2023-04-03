@@ -6,8 +6,7 @@
 #include "HAL/PlatformAffinity.h"
 #include "Templates/Function.h"
 #include "TraceServices/Model/AnalysisSession.h"
-
-template <typename FuncType> class TFunctionRef;
+#include "UObject/NameTypes.h"
 
 namespace TraceServices
 {
@@ -40,7 +39,7 @@ public:
 
 	/*
 	* Note the existence of a new thread.
-	* 
+	*
 	* @param Id			The thread identity.
 	* @param Name		The name the user may know the thread by, if available.
 	* @param Priority	The system priority level of the thread, if available.
@@ -48,6 +47,7 @@ public:
 	virtual void AddThread(uint32 Id, const TCHAR* Name, EThreadPriority Priority) = 0;
 };
 
+TRACESERVICES_API FName GetThreadProviderName();
 TRACESERVICES_API const IThreadProvider& ReadThreadProvider(const IAnalysisSession& Session);
 TRACESERVICES_API IEditableThreadProvider& EditThreadProvider(IAnalysisSession& Session);
 

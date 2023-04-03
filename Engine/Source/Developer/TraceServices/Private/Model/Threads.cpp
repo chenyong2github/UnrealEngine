@@ -2,19 +2,17 @@
 
 #include "TraceServices/Model/Threads.h"
 #include "Model/ThreadsPrivate.h"
-#include "Misc/ScopeLock.h"
+
 #include "AnalysisServicePrivate.h"
 #include "Common/StringStore.h"
+#include "Misc/ScopeLock.h"
 
 namespace TraceServices
 {
 
-const FName FThreadProvider::ProviderName = "ThreadProvider";
-
 FThreadProvider::FThreadProvider(IAnalysisSession& InSession)
 	: Session(InSession)
 {
-
 }
 
 FThreadProvider::~FThreadProvider()
@@ -214,14 +212,20 @@ bool FThreadProvider::FThreadInfoInternal::operator<(const FThreadInfoInternal& 
 	return GroupSortOrder < Other.GroupSortOrder;
 }
 
+FName GetThreadProviderName()
+{
+	static const FName Name("ThreadProvider");
+	return Name;
+}
+
 const IThreadProvider& ReadThreadProvider(const IAnalysisSession& Session)
 {
-	return *Session.ReadProvider<IThreadProvider>(FThreadProvider::ProviderName);
+	return *Session.ReadProvider<IThreadProvider>(GetThreadProviderName());
 }
 
 IEditableThreadProvider& EditThreadProvider(IAnalysisSession& Session)
 {
-	return *Session.EditProvider<IEditableThreadProvider>(FThreadProvider::ProviderName);
+	return *Session.EditProvider<IEditableThreadProvider>(GetThreadProviderName());
 }
 
 } // namespace TraceServices

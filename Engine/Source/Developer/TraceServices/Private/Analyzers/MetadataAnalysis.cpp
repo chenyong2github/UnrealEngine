@@ -1,4 +1,5 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "MetadataAnalysis.h"
 
 #include "Common/ProviderLock.h"
@@ -14,10 +15,12 @@ namespace TraceServices
 {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template<typename ArrayType>
 static void WriteData(ArrayType& OutData, const UE::Trace::IAnalyzer::FEventData& EventData, uint16 MetadataTypeId, const FMetadataProvider* MetadataProvider, IAnalysisSession& Session);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FMetadataAnalysis::FMetadataAnalysis(IAnalysisSession& InSession, FMetadataProvider* InProvider)
 	: Session(InSession)
 	, MetadataProvider(InProvider)
@@ -25,11 +28,13 @@ FMetadataAnalysis::FMetadataAnalysis(IAnalysisSession& InSession, FMetadataProvi
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FMetadataAnalysis::~FMetadataAnalysis()
 {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FMetadataAnalysis::OnAnalysisBegin(const FOnAnalysisContext& Context)
 {
 	FInterfaceBuilder& Builder = Context.InterfaceBuilder;
@@ -44,6 +49,7 @@ void FMetadataAnalysis::OnAnalysisBegin(const FOnAnalysisContext& Context)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FMetadataAnalysis::OnAnalysisEnd()
 {
 	FProviderEditScopeLock _(*MetadataProvider);
@@ -51,6 +57,7 @@ void FMetadataAnalysis::OnAnalysisEnd()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
 bool FMetadataAnalysis::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
 	FProviderEditScopeLock _(*MetadataProvider);
@@ -127,6 +134,7 @@ bool FMetadataAnalysis::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
 uint16 FMetadataAnalysis::GetOrRegisterType(const FEventTypeInfo& EventInfo)
 {
 	if (const uint16* CachedTypeId = EncounteredMetadataTypes.Find(EventInfo.GetId()))
@@ -179,8 +187,8 @@ uint16 FMetadataAnalysis::GetOrRegisterType(const FEventTypeInfo& EventInfo)
 		case FEventFieldInfo::EType::WideString:
 		case FEventFieldInfo::EType::AnsiString:
 			{
-				//Note that we don't have a ansi string store yet, so we store any ansi
-				//string as wide for metadata.
+				// Note that we don't have an ANSI string store yet, so we store any ANSI
+				// string as WIDE for metadata.
 				constexpr auto FieldType = FMetadataSchema::EFieldType::WideStringPtr;
 				Builder.AddField<TCHAR*>(Name, FieldType);
 			}
@@ -211,6 +219,7 @@ uint16 FMetadataAnalysis::GetOrRegisterType(const FEventTypeInfo& EventInfo)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template<typename ArrayType>
 static void WriteData(ArrayType& OutData, const UE::Trace::IAnalyzer::FEventData& EventData, uint16 MetadataTypeId, const FMetadataProvider* MetadataProvider, IAnalysisSession& Session)
 {
@@ -293,4 +302,5 @@ static void WriteData(ArrayType& OutData, const UE::Trace::IAnalyzer::FEventData
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
 } // namespace TraceServices

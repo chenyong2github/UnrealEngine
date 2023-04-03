@@ -829,7 +829,7 @@ ITable<FNetProfilerAggregatedStatsCounterStats>* FNetProfilerProvider::CreateSta
 
 FName GetNetProfilerProviderName()
 {
-	static FName Name(TEXT("NetProfilerProvider"));
+	static const FName Name("NetProfilerProvider");
 	return Name;
 }
 

@@ -2,13 +2,13 @@
 
 #pragma once
 
+#include "Templates/SharedPointer.h"
+#include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/Model/Counters.h"
 #include "TraceServices/Model/Frames.h"
-#include "TraceServices/Model/AnalysisSession.h"
-#include "Templates/SharedPointer.h"
 
 // We need to test data pattern and measure performance for more trace sessions
-// before completly switching to variable paged array.
+// before completely switching to variable paged array.
 #define USE_VARIABLE_PAGED_ARRAY 1
 
 #if USE_VARIABLE_PAGED_ARRAY
@@ -249,18 +249,24 @@ class FCounterProvider
 	, public IEditableCounterProvider
 {
 public:
-	static const FName ProviderName;
-
 	explicit FCounterProvider(IAnalysisSession& Session, IFrameProvider& FrameProvider);
 	virtual ~FCounterProvider();
+
+	//////////////////////////////////////////////////
+	// Read operations
+
 	virtual uint64 GetCounterCount() const override { return Counters.Num(); }
 	virtual void EnumerateCounters(TFunctionRef<void(uint32, const ICounter&)> Callback) const override;
 	virtual bool ReadCounter(uint32 CounterId, TFunctionRef<void(const ICounter&)> Callback) const override;
 
-	// implement IEditableCounterProvider
+	//////////////////////////////////////////////////
+	// Edit operations
+
 	virtual const ICounter* GetCounter(IEditableCounter* EditableCounter) override;
 	virtual IEditableCounter* CreateEditableCounter() override;
 	virtual void AddCounter(const ICounter* Counter) override;
+
+	//////////////////////////////////////////////////
 
 private:
 	IAnalysisSession& Session;

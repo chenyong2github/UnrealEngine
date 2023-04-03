@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TraceServices/ModuleService.h"
+#include "ModuleServicePrivate.h"
 
 #include "Features/IModularFeatures.h"
 #include "HAL/LowLevelMemTracker.h"
-#include "ModuleServicePrivate.h"
 #include "UObject/NameTypes.h"
 
 LLM_DECLARE_TAG(Insights_TraceServices);
@@ -16,7 +16,6 @@ const FName ModuleFeatureName("TraceModuleFeature");
 
 FModuleService::FModuleService()
 {
-
 }
 
 void FModuleService::Initialize()

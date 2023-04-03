@@ -5,13 +5,13 @@
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 #include "Containers/StringFwd.h"
+#include "HAL/Platform.h"
 #include "HAL/PlatformMath.h"
 #include "Model/MonotonicTimeline.h"
 #include "TraceServices/Containers/Tables.h"
 #include "TraceServices/Containers/Timelines.h"
 #include "TraceServices/Model/AnalysisSession.h"
-
-template <typename FuncType> class TFunctionRef;
+#include "UObject/NameTypes.h"
 
 namespace TraceServices
 {
@@ -120,18 +120,18 @@ public:
 
 	/*
 	* A new CPU timer object has been found.
-	* 
+	*
 	* @param Name	The name attached to the timer.
 	* @param File	The source file in which the timer is defined.
 	* @param Line	The line number of the source file in which the timer is defined.
-	* 
+	*
 	* @return The identity of the CPU timer object.
 	*/
 	virtual uint32 AddCpuTimer(FStringView Name, const TCHAR* File, uint32 Line) = 0;
 
 	/*
 	* Update an existing timer with information. Some information is unavailable when it's created.
-	* 
+	*
 	* @param TimerId	The identity of the timer to update.
 	* @param Name		The name attached to the timer.
 	* @param File		The source file in which the timer is defined.
@@ -141,33 +141,34 @@ public:
 
 	/*
 	* Add metadata to a timer.
-	* 
+	*
 	* @param OriginalTimerId	The identity of the timer to add metadata to.
 	* @param Metadata			The metadata.
-	* 
+	*
 	* @return The identity of the metadata.
 	*/
 	virtual uint32 AddMetadata(uint32 OriginalTimerId, TArray<uint8>&& Metadata) = 0;
 
 	/*
 	* Get metadata for a timer.
-	* 
+	*
 	* @param TimerId	The identity of the metadata to retrieve.
-	* 
+	*
 	* @return The metadata.
 	*/
 	virtual TArrayView<const uint8> GetMetadata(uint32 TimerId) const = 0;
 
 	/*
 	* Get an object to receive ordered timeline events for a thread.
-	* 
+	*
 	* @param ThreadId	The thread for which the events are for.
-	* 
+	*
 	* @return The object to receive the serial events for the specified thread.
 	*/
 	virtual IEditableTimeline<FTimingProfilerEvent>& GetCpuThreadEditableTimeline(uint32 ThreadId) = 0;
 };
 
+TRACESERVICES_API FName GetTimingProfilerProviderName();
 TRACESERVICES_API const ITimingProfilerProvider* ReadTimingProfilerProvider(const IAnalysisSession& Session);
 TRACESERVICES_API IEditableTimingProfilerProvider* EditTimingProfilerProvider(IAnalysisSession& Session);
 

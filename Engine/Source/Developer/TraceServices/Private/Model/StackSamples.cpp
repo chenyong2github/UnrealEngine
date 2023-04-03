@@ -8,8 +8,6 @@
 namespace TraceServices
 {
 
-const FName FStackSamplesProvider::ProviderName = "StackSamplesProvider";
-
 FStackSamplesProvider::FStackSamplesProvider(IAnalysisSession& InSession)
 	: Session(InSession)
 	, AddressValues(Session.GetLinearAllocator(), 4096)
@@ -41,7 +39,7 @@ void FStackSamplesProvider::Add(uint32 ThreadId, double Time, uint32 Count, cons
 	{
 		StackSamples = &Threads.Add(ThreadId, new TPagedArray<FStackSample>(Session.GetLinearAllocator(), 4096));
 	}
-	
+
 	FStackSample& StackSample = (*StackSamples)->PushBack();
 	StackSample.Time = Time;
 	StackSample.Count = Count;
@@ -72,9 +70,15 @@ void FStackSamplesProvider::Add(uint32 ThreadId, double Time, uint32 Count, cons
 	StackSample.Addresses = &AddressValues.Last() - Count;
 }
 
+FName GetStackSamplesProviderName()
+{
+	static const FName Name("StackSamplesProvider");
+	return Name;
+}
+
 const IStackSamplesProvider& ReadStackSamplesProvider(const IAnalysisSession& Session)
 {
-	return *Session.ReadProvider<IStackSamplesProvider>(FStackSamplesProvider::ProviderName);
+	return *Session.ReadProvider<IStackSamplesProvider>(GetStackSamplesProviderName());
 }
 
 } // namespace TraceServices

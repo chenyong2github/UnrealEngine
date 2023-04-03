@@ -35,8 +35,6 @@ class FLogProvider
 	, public IEditableLogProvider
 {
 public:
-	static const FName ProviderName;
-
 	explicit FLogProvider(IAnalysisSession& Session);
 	virtual ~FLogProvider() {}
 

@@ -12,8 +12,6 @@ class FScreenshotProvider
 	: public IScreenshotProvider
 {
 public:
-	static const FName ProviderName;
-
 	explicit FScreenshotProvider(IAnalysisSession& Session);
 	virtual ~FScreenshotProvider() {}
 

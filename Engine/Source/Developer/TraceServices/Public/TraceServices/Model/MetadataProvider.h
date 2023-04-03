@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "AnalysisSession.h"
-#include "CoreTypes.h"
-#include "UObject/NameTypes.h"
+#include "HAL/Platform.h"
 #include "Internationalization/Text.h"
 #include "Memory/SharedBuffer.h"
+#include "Templates/Function.h"
+#include "TraceServices/Model/AnalysisSession.h"
+#include "UObject/NameTypes.h"
 
 namespace TraceServices
 {

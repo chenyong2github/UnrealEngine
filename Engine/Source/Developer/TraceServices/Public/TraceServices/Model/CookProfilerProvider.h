@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "Common/ProviderLock.h"
 #include "HAL/Platform.h"
 #include "Templates/Function.h"
 #include "TraceServices/Model/AnalysisSession.h"
+#include "UObject/NameTypes.h"
 
 namespace TraceServices
 {
@@ -49,6 +49,7 @@ public:
 	virtual FPackageData* EditPackage(uint64 Id) = 0;
 };
 
+TRACESERVICES_API FName GetCookProfilerProviderName();
 TRACESERVICES_API const ICookProfilerProvider* ReadCookProfilerProvider(const IAnalysisSession& Session);
 TRACESERVICES_API IEditableCookProfilerProvider* EditCookProfilerProvider(IAnalysisSession& Session);
 

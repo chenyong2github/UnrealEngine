@@ -2,19 +2,17 @@
 
 #include "TraceServices/Model/Counters.h"
 #include "Model/CountersPrivate.h"
+
 #include "AnalysisServicePrivate.h"
 
 namespace TraceServices
 {
-
-const FName FCounterProvider::ProviderName("CounterProvider");
 
 FCounter::FCounter(ILinearAllocator& Allocator, const TArray64<double>& InFrameStartTimes)
 	: FrameStartTimes(InFrameStartTimes)
 	, IntCounterData(Allocator)
 	, DoubleCounterData(Allocator)
 {
-
 }
 
 void FCounter::SetIsFloatingPoint(bool bInIsFloatingPoint)
@@ -30,6 +28,7 @@ static void EnumerateCounterValuesInternal(const TCounterData<CounterType>& Coun
 	{
 		return;
 	}
+
 	TArray64<double> NoFrameStartTimes;
 	auto CounterIterator = bResetEveryFrame ? CounterData.GetIterator(FrameStartTimes) : CounterData.GetIterator(NoFrameStartTimes);
 	bool bFirstValue = true;
@@ -98,6 +97,7 @@ static void EnumerateCounterOpsInternal(const TCounterData<CounterType>& Counter
 	{
 		return;
 	}
+
 	TArray64<double> NoFrameStartTimes;
 	auto CounterIterator = bResetEveryFrame ? CounterData.GetIterator(FrameStartTimes) : CounterData.GetIterator(NoFrameStartTimes);
 	bool bFirstValue = true;
@@ -264,14 +264,20 @@ void FCounterProvider::AddCounter(const ICounter* Counter)
 	Counters.Add(Counter);
 }
 
+FName GetCounterProviderName()
+{
+	static const FName Name("CounterProvider");
+	return Name;
+}
+
 const ICounterProvider& ReadCounterProvider(const IAnalysisSession& Session)
 {
-	return *Session.ReadProvider<ICounterProvider>(FCounterProvider::ProviderName);
+	return *Session.ReadProvider<ICounterProvider>(GetCounterProviderName());
 }
 
 IEditableCounterProvider& EditCounterProvider(IAnalysisSession& Session)
 {
-	return *Session.EditProvider<IEditableCounterProvider>(FCounterProvider::ProviderName);
+	return *Session.EditProvider<IEditableCounterProvider>(GetCounterProviderName());
 }
 
 } // namespace TraceServices

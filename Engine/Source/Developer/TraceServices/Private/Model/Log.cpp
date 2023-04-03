@@ -2,13 +2,12 @@
 
 #include "TraceServices/Model/Log.h"
 #include "Model/LogPrivate.h"
+
 #include "AnalysisServicePrivate.h"
 #include "Common/FormatArgs.h"
 
 namespace TraceServices
 {
-
-const FName FLogProvider::ProviderName("LogProvider");
 
 FLogProvider::FLogProvider(IAnalysisSession& InSession)
 	: Session(InSession)
@@ -243,14 +242,20 @@ void FLogProvider::EnumerateCategories(TFunctionRef<void(const FLogCategoryInfo&
 	}
 }
 
+FName GetLogProviderName()
+{
+	static const FName Name("LogProvider");
+	return Name;
+}
+
 const ILogProvider& ReadLogProvider(const IAnalysisSession& Session)
 {
-	return *Session.ReadProvider<ILogProvider>(FLogProvider::ProviderName);
+	return *Session.ReadProvider<ILogProvider>(GetLogProviderName());
 }
 
 IEditableLogProvider& EditLogProvider(IAnalysisSession& Session)
 {
-	return *Session.EditProvider<IEditableLogProvider>(FLogProvider::ProviderName);
+	return *Session.EditProvider<IEditableLogProvider>(GetLogProviderName());
 }
 
 void FormatString(TCHAR* OutputString, uint32 OutputStringCount, const TCHAR* FormatString, const uint8* FormatArgs)

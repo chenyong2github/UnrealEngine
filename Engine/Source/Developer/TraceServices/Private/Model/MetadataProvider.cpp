@@ -659,7 +659,7 @@ void FMetadataProvider::EnumerateMetadata(uint32 InThreadId, uint32 InMetadataId
 
 FName GetMetadataProviderName()
 {
-	static FName Name(TEXT("MetadataProvider"));
+	static const FName Name("MetadataProvider");
 	return Name;
 }
 

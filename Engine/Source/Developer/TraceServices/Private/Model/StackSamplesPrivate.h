@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "Common/PagedArray.h"
+#include "Containers/Map.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/Model/StackSamples.h"
-#include "Containers/Map.h"
 
 namespace TraceServices
 {
@@ -13,8 +14,6 @@ class FStackSamplesProvider
 	: public IStackSamplesProvider
 {
 public:
-	static const FName ProviderName;
-
 	explicit FStackSamplesProvider(IAnalysisSession& Session);
 	virtual ~FStackSamplesProvider();
 

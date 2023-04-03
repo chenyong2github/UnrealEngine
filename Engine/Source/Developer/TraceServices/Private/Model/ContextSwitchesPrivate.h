@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "Common/PagedArray.h" // TraceServices
+#include "Containers/Map.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/Model/ContextSwitches.h"
-#include "Containers/Map.h"
 
 namespace TraceServices
 {
@@ -13,8 +14,6 @@ class FContextSwitchesProvider
 	: public IContextSwitchesProvider
 {
 public:
-	static const FName ProviderName;
-
 	explicit FContextSwitchesProvider(IAnalysisSession& Session);
 	virtual ~FContextSwitchesProvider();
 

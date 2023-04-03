@@ -1,17 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CallstacksProvider.h"
+
+#include "Algo/Unique.h"
+#include "Containers/ArrayView.h"
 #include "Misc/ScopeRWLock.h"
 #include "ModuleProvider.h"
 #include "TraceServices/Model/AnalysisSession.h"
-#include "Algo/Unique.h"
-#include "Containers/ArrayView.h"
 #include "UObject/NameTypes.h"
 
 namespace TraceServices
 {
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 static const FResolvedSymbol GNeverResolveSymbol(ESymbolQueryResult::NotLoaded, nullptr, nullptr, nullptr, 0, EResolvedSymbolFilterStatus::NotFiltered);
 static const FResolvedSymbol GNotFoundSymbol(ESymbolQueryResult::NotFound, TEXT("Unknown"), nullptr, nullptr, 0, EResolvedSymbolFilterStatus::NotFiltered);
 static const FResolvedSymbol GNoSymbol(ESymbolQueryResult::NotFound, TEXT("No callstack recorded"), nullptr, nullptr, 0, EResolvedSymbolFilterStatus::NotFiltered);
@@ -19,17 +21,19 @@ static constexpr FStackFrame GNotFoundStackFrame = { 0, &GNotFoundSymbol };
 static constexpr FStackFrame GNoStackFrame = { 0, &GNoSymbol };
 static const FCallstack GNotFoundCallstack(&GNotFoundStackFrame, 1);
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #ifdef TRACE_CALLSTACK_STATS
 static struct FCallstackProviderStats
 {
-	uint64		Callstacks;
-	uint64		Frames;
-	uint64		FrameCountHistogram[256];
+	uint64 Callstacks;
+	uint64 Frames;
+	uint64 FrameCountHistogram[256];
 } GCallstackStats;
 #endif
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FCallstacksProvider::FCallstacksProvider(IAnalysisSession& InSession)
 	: Session(InSession)
 	, ModuleProvider(nullptr)
@@ -41,7 +45,8 @@ FCallstacksProvider::FCallstacksProvider(IAnalysisSession& InSession)
 	FirstCallstack.Init(&GNoStackFrame, 1);
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FCallstacksProvider::AddCallstack(uint32 InCallstackId, const uint64* InFrames, uint8 InFrameCount)
 {
 	if (InCallstackId == 0)
@@ -114,7 +119,8 @@ void FCallstacksProvider::AddCallstack(uint32 InCallstackId, const uint64* InFra
 	}
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 uint32 FCallstacksProvider::AddCallstackWithHash(uint64 InCallstackHash, const uint64* InFrames, uint8 InFrameCount)
 {
 	if (InCallstackHash == 0)
@@ -133,7 +139,8 @@ uint32 FCallstacksProvider::AddCallstackWithHash(uint64 InCallstackHash, const u
 	return CallstackId;
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 uint32 FCallstacksProvider::GetCallstackIdForHash(uint64 InCallstackHash) const
 {
 	if (InCallstackHash == 0)
@@ -152,7 +159,8 @@ uint32 FCallstacksProvider::GetCallstackIdForHash(uint64 InCallstackHash) const
 	}
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 const FCallstack* FCallstacksProvider::GetCallstack(uint32 CallstackId) const
 {
 	FRWScopeLock ReadLock(EntriesLock, SLT_ReadOnly);
@@ -166,7 +174,8 @@ const FCallstack* FCallstacksProvider::GetCallstack(uint32 CallstackId) const
 	}
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FCallstacksProvider::GetCallstacks(const TArrayView<uint32>& CallstackIds, FCallstack const** OutCallstacks) const
 {
 	uint64 OutIdx(0);
@@ -187,16 +196,21 @@ void FCallstacksProvider::GetCallstacks(const TArrayView<uint32>& CallstackIds, 
 	}
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FName GetCallstacksProviderName()
 {
-	static FName Name(TEXT("CallstacksProvider"));
+	static const FName Name("CallstacksProvider");
 	return Name;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const ICallstacksProvider* ReadCallstacksProvider(const IAnalysisSession& Session)
 {
 	return Session.ReadProvider<ICallstacksProvider>(GetCallstacksProviderName());
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 } // namespace TraceServices

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma  once
+#pragma once
 
 #include "Containers/ContainersFwd.h"
 #include "Delegates/Delegate.h"
@@ -8,8 +8,7 @@
 #include "ProfilingDebugging/MiscTrace.h"
 #include "Templates/Function.h"
 #include "TraceServices/Model/AnalysisSession.h"
-
-template <typename FuncType> class TFunctionRef;
+#include "UObject/NameTypes.h"
 
 namespace TraceServices
 {
@@ -45,14 +44,14 @@ public:
 	virtual void EnumerateFrames(ETraceFrameType FrameType, uint64 Start, uint64 End, TFunctionRef<void(const FFrame&)> Callback) const = 0;
 	/**
 	* Enumerate frames whose duration intersects [StartTime, EndTime].
-	* 
+	*
 	* @param FrameType	The frame type to enumerate.
 	* @param StartTime	The start timestamp in seconds.
 	* @param EndTime	The end timestamp in seconds.
 	* @param Callback	The callback to be called for each frame.
 	*/
 	virtual void EnumerateFrames(ETraceFrameType FrameType, double StartTime, double EndTime, TFunctionRef<void(const FFrame&)> Callback) const = 0;
-	
+
 	/**
 	 * Gets the array of frame start times, for the specified frame type.
 	 * @param FrameType - type of frames
@@ -88,6 +87,7 @@ public:
 	virtual uint32 GetFrameNumberForTimestamp(ETraceFrameType FrameType, double Time) const = 0;
 };
 
+TRACESERVICES_API FName GetFrameProviderName();
 TRACESERVICES_API const IFrameProvider& ReadFrameProvider(const IAnalysisSession& Session);
 
 } // namespace TraceServices

@@ -1,19 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "TraceServices/Model/Screenshot.h"
 #include "Model/ScreenshotProviderPrivate.h"
+
 #include "AnalysisServicePrivate.h"
 #include "Common/FormatArgs.h"
 
 namespace TraceServices
 {
 
-const FName FScreenshotProvider::ProviderName("ScreenshotProvider");
-
 FScreenshotProvider::FScreenshotProvider(IAnalysisSession& InSession)
 	: Session(InSession)
 {
-
-} 
+}
 
 TSharedPtr<FScreenshot> FScreenshotProvider::AddScreenshot(uint32 Id)
 {
@@ -24,7 +23,7 @@ TSharedPtr<FScreenshot> FScreenshotProvider::AddScreenshot(uint32 Id)
 void FScreenshotProvider::AddScreenshotChunk(uint32 Id, uint32 ChunkNum, uint16 Size, const TArrayView<const uint8>& ChunkData)
 {
 	TSharedPtr<FScreenshot> *ScreenshotPtr = Screenshots.Find(Id);
-	
+
 	if (ScreenshotPtr == nullptr)
 	{
 		return;
@@ -50,9 +49,15 @@ const TSharedPtr<const FScreenshot> FScreenshotProvider::GetScreenshot(uint32 Id
 	return *ScreenshotPtr;
 }
 
+FName GetScreenshotProviderName()
+{
+	static const FName Name("ScreenshotProvider");
+	return Name;
+}
+
 const IScreenshotProvider& ReadScreenshotProvider(const IAnalysisSession& Session)
 {
-	return *Session.ReadProvider<IScreenshotProvider>(FScreenshotProvider::ProviderName);
+	return *Session.ReadProvider<IScreenshotProvider>(GetScreenshotProviderName());
 }
 
 } // namespace TraceServices

@@ -11,8 +11,6 @@
 namespace TraceServices
 {
 
-const FName FFrameProvider::ProviderName("FrameProvider");
-
 FFrameProvider::FFrameProvider(IAnalysisSession& InSession)
 	: Session(InSession)
 {
@@ -98,7 +96,7 @@ const FFrame* FFrameProvider::GetFrame(ETraceFrameType FrameType, uint64 Index) 
 void FFrameProvider::BeginFrame(ETraceFrameType FrameType, double Time)
 {
 	Session.WriteAccessCheck();
-	
+
 	uint64 Index = Frames[FrameType].Num();
 	FFrame& Frame = Frames[FrameType].PushBack();
 	Frame.StartTime = Time;
@@ -137,9 +135,15 @@ uint32 FFrameProvider::GetFrameNumberForTimestamp(ETraceFrameType FrameType, dou
 	return uint32(LowerBound - 1);
 }
 
+FName GetFrameProviderName()
+{
+	static const FName Name("FrameProvider");
+	return Name;
+}
+
 const IFrameProvider& ReadFrameProvider(const IAnalysisSession& Session)
 {
-	return *Session.ReadProvider<IFrameProvider>(FFrameProvider::ProviderName);
+	return *Session.ReadProvider<IFrameProvider>(GetFrameProviderName());
 }
 
 } // namespace TraceServices

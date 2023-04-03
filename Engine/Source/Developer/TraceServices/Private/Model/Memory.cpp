@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "TraceServices/Model/Memory.h"
 #include "Model/MemoryPrivate.h"
 
@@ -232,7 +233,7 @@ void FMemoryProvider::EnumerateTagSamples(FMemoryTrackerId TrackerId, FMemoryTag
 
 FName GetMemoryProviderName()
 {
-	static FName Name(TEXT("MemoryProvider"));
+	static const FName Name("MemoryProvider");
 	return Name;
 }
 

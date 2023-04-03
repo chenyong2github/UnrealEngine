@@ -1,7 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
-#include "Common/PagedArray.h"
 #include "Containers/Map.h"
 #include "HAL/CriticalSection.h"
 #include "Misc/ScopeRWLock.h"
@@ -15,8 +15,6 @@ namespace TraceServices
 class FDefinitionProvider : public IDefinitionProvider
 {
 public:
-	static const FName ProviderName;
-
 	FDefinitionProvider(IAnalysisSession* InSession);
 
 	virtual void BeginRead() const override { Lock.ReadLock(); }

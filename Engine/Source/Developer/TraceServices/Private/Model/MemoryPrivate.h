@@ -28,15 +28,12 @@ public:
 	virtual void EnumerateTrackers(TFunctionRef<void(const FMemoryTrackerInfo&)> Callback) const override;
 	virtual uint64 GetTagSampleCount(FMemoryTrackerId Tracker, FMemoryTagId Tag) const override;
 	virtual void EnumerateTagSamples(
-		FMemoryTrackerId Tracker, 
-		FMemoryTagId Tag, 
-		double StartTime, 
-		double EnddTime, 
+		FMemoryTrackerId Tracker,
+		FMemoryTagId Tag,
+		double StartTime,
+		double EnddTime,
 		bool bIncludeRangeNeighbours,
 		TFunctionRef<void(double Time, double Duration, const FMemoryTagSample&)> Callback) const override;
-
-public:
-	static FName ProviderName;
 
 private:
 	enum {

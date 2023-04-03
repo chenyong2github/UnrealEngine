@@ -5,14 +5,15 @@
 #include "Containers/Array.h"
 #include "HAL/Platform.h"
 #include "Serialization/LoadTimeTrace.h"
+#include "Templates/Function.h"
 #include "TraceServices/Containers/Tables.h"
 #include "TraceServices/Containers/Timelines.h"
 #include "TraceServices/Model/AnalysisSession.h"
-
-template <typename FuncType> class TFunctionRef;
+#include "UObject/NameTypes.h"
 
 namespace TraceServices
 {
+
 template <typename RowType> class ITable;
 
 struct FFileInfo
@@ -179,7 +180,10 @@ public:
 	virtual const ITable<FLoadRequest>& GetRequestsTable() const = 0;
 };
 
+TRACESERVICES_API FName GetLoadTimeProfilerProviderName();
 TRACESERVICES_API const ILoadTimeProfilerProvider* ReadLoadTimeProfilerProvider(const IAnalysisSession& Session);
+
+TRACESERVICES_API FName GetFileActivityProviderName();
 TRACESERVICES_API const IFileActivityProvider* ReadFileActivityProvider(const IAnalysisSession& Session);
 
 } // namespace TraceServices

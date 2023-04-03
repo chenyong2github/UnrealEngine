@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "TraceServices/Model/Frames.h"
-#include "ProfilingDebugging/MiscTrace.h"
 #include "Common/PagedArray.h"
+#include "ProfilingDebugging/MiscTrace.h"
+#include "TraceServices/Model/Frames.h"
 
 namespace TraceServices
 {
@@ -15,8 +15,6 @@ class FFrameProvider
 	: public IFrameProvider
 {
 public:
-	static const FName ProviderName;
-
 	explicit FFrameProvider(IAnalysisSession& Session);
 	virtual ~FFrameProvider() {}
 

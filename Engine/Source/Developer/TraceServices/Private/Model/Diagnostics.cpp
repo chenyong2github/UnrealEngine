@@ -32,7 +32,7 @@ const FSessionInfo& FDiagnosticsProvider::GetSessionInfo() const
 
 FName GetDiagnosticsProviderName()
 {
-	static FName Name(TEXT("DiagnosticsProvider"));
+	static const FName Name("DiagnosticsProvider");
 	return Name;
 }
 

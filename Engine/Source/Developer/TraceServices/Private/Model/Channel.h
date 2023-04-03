@@ -12,15 +12,13 @@ namespace TraceServices
 class FChannelProvider : public IChannelProvider
 {
 public:
-	static const FName ProviderName;
-
 	FChannelProvider();
 	virtual ~FChannelProvider() {}
 
 	void AnnounceChannel(const TCHAR* ChannelName, uint32 Id, bool bReadOnly);
 	void UpdateChannel(uint32 Id, bool bEnabled);
 
-	virtual uint64	GetChannelCount() const override;
+	virtual uint64 GetChannelCount() const override;
 	virtual const TArray<FChannelEntry>& GetChannels() const override;
 
 	virtual FDateTime GetTimeStamp() const override;

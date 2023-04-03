@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "AnalysisSession.h"
-#include "CoreTypes.h"
-#include "Templates/UniquePtr.h"
+#include "HAL/Platform.h"
 #include "ProfilingDebugging/MemoryTrace.h"
+#include "Templates/Function.h"
+#include "Templates/UniquePtr.h"
+#include "TraceServices/Model/AnalysisSession.h"
+#include "UObject/NameTypes.h"
 
 #include <new>
 
@@ -14,7 +16,7 @@ namespace TraceServices
 
 // Id type for tags
 typedef uint32 TagIdType;
-	
+
 class IAllocationsProvider : public IProvider
 {
 public:

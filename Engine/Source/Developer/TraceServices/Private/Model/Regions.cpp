@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TraceServices/Model/Regions.h"
+#include "Model/RegionsPrivate.h"
 
 #include "AnalysisServicePrivate.h"
 #include "Common/FormatArgs.h"
 #include "Common/Utils.h"
 #include "Internationalization/Internationalization.h"
 #include "Logging/MessageLog.h"
-#include "Model/RegionsPrivate.h"
 
 #define LOCTEXT_NAMESPACE "RegionProvider"
 
@@ -235,7 +235,7 @@ bool FRegionLane::EnumerateRegions(double IntervalStart, double IntervalEnd, TFu
 
 FName GetRegionProviderName()
 {
-	static FName Name(TEXT("RegionProvider"));
+	static const FName Name("RegionProvider");
 	return Name;
 }
 

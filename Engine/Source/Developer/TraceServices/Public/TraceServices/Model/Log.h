@@ -2,13 +2,12 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "HAL/Platform.h"
 #include "Logging/LogVerbosity.h"
 #include "Templates/Function.h"
 #include "TraceServices/Containers/Tables.h"
 #include "TraceServices/Model/AnalysisSession.h"
-
-template <typename FuncType> class TFunctionRef;
+#include "UObject/NameTypes.h"
 
 namespace TraceServices
 {
@@ -131,6 +130,7 @@ public:
 	virtual void AppendMessage(uint64 LogPoint, double Time, const TCHAR* Text) = 0;
 };
 
+TRACESERVICES_API FName GetLogProviderName();
 TRACESERVICES_API const ILogProvider& ReadLogProvider(const IAnalysisSession& Session);
 TRACESERVICES_API IEditableLogProvider& EditLogProvider(IAnalysisSession& Session);
 TRACESERVICES_API void FormatString(TCHAR* OutputString, uint32 OutputStringCount, const TCHAR* FormatString, const uint8* FormatArgs);

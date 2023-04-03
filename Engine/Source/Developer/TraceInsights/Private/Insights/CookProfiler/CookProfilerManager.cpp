@@ -2,6 +2,7 @@
 
 #include "CookProfilerManager.h"
 
+#include "Common/ProviderLock.h" // TraceServices
 #include "Features/IModularFeatures.h"
 #include "Framework/Docking/TabManager.h"
 #include "Modules/ModuleManager.h"

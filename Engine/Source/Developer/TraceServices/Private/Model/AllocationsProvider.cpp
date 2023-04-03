@@ -2651,7 +2651,7 @@ uint32 FAllocationsProvider::GetNumLiveAllocs() const
 
 FName GetAllocationsProviderName()
 {
-	static FName Name(TEXT("AllocationsProvider"));
+	static const FName Name("AllocationsProvider");
 	return Name;
 }
 

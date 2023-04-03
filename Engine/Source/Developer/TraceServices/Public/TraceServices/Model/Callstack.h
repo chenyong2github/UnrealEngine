@@ -2,9 +2,11 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/Model/Memory.h"
 #include "TraceServices/Model/Modules.h"
+#include "UObject/NameTypes.h"
 
 namespace TraceServices
 {
@@ -21,9 +23,9 @@ struct TRACESERVICES_API FCallstack
 {
 	/** Creates an empty callstack. */
 	FCallstack();
-	/** Creates an callstack initialised with a certain number of stack frames. */
+	/** Creates an callstack initialized with a certain number of stack frames. */
 	FCallstack(const FStackFrame* FirstEntry, uint8 FrameCount);
-	/** Initialises the callstack with a certain number of stack frames. */
+	/** Initializes the callstack with a certain number of stack frames. */
 	void Init(const FStackFrame* FirstEntry, uint8 FrameCount);
 	/** Gets the number of stack frames in callstack. */
 	uint32 Num() const;
@@ -68,7 +70,7 @@ public:
 	virtual void GetCallstacks(const TArrayView<uint32>& CallstackIds, FCallstack const** OutCallstacks) const = 0;
 
 	/**
-	  * Gets a callstack id for a registerd callstack hash.
+	  * Gets a callstack id for a registered callstack hash.
 	  * @param CallstackHash The callstack hash.
 	  * @returns The callstack id.
 	  */

@@ -1,9 +1,13 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "Containers/Map.h"
+#include "HAL/Platform.h"
+#include "Templates/Function.h"
 #include "TraceServices/Model/AnalysisSession.h"
-#include "Trace/Analyzer.h"
+#include "Trace/Analyzer.h" // TraceAnalysis
+#include "UObject/NameTypes.h"
 
 namespace TraceServices
 {
@@ -81,7 +85,7 @@ public:
 
 	/**
 	 * Gets the definition as a owned string.
-	 * @param Reference Id used to uniqely identify the definition.
+	 * @param Reference Id used to uniquely identify the definition.
 	 * @return A string describing the referenced value
 	 */
 	template<typename DefinitionType>
@@ -106,6 +110,7 @@ protected:
 	TMap<uint32, StringifierFn> Stringifiers;
 };
 
+TRACESERVICES_API FName GetDefinitionProviderName();
 TRACESERVICES_API const IDefinitionProvider* ReadDefinitionProvider(const IAnalysisSession& Session);
 TRACESERVICES_API IDefinitionProvider* EditDefinitionProvider(IAnalysisSession& Session);
 

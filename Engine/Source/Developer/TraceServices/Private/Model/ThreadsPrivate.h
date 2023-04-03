@@ -2,11 +2,11 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "HAL/PlatformAffinity.h"
+#include "ProfilingDebugging/MiscTrace.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/Model/Threads.h"
-#include "ProfilingDebugging/MiscTrace.h"
-#include "HAL/PlatformAffinity.h"
-#include "Containers/Map.h"
 
 namespace TraceServices
 {
@@ -16,8 +16,6 @@ class FThreadProvider
 	, public IEditableThreadProvider
 {
 public:
-	static const FName ProviderName;
-
 	explicit FThreadProvider(IAnalysisSession& Session);
 	virtual ~FThreadProvider();
 

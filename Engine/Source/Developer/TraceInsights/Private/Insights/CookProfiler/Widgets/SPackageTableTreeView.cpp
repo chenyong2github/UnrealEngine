@@ -2,6 +2,7 @@
 
 #include "SPackageTableTreeView.h"
 
+#include "Common/ProviderLock.h" // TraceServices
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Input/STextComboBox.h"

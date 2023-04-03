@@ -2,9 +2,9 @@
 
 #include "TraceServices/AnalysisService.h"
 #include "AnalysisServicePrivate.h"
-#include "ModuleServicePrivate.h"
-#include "Analyzers/LogTraceAnalysis.h"
+
 #include "Analyzers/BookmarksTraceAnalysis.h"
+#include "Analyzers/LogTraceAnalysis.h"
 #include "Analyzers/MiscTraceAnalysis.h"
 #include "Analyzers/StringsAnalyzer.h"
 #include "HAL/PlatformFile.h"
@@ -19,6 +19,7 @@
 #include "Model/RegionsPrivate.h"
 #include "Model/ScreenshotProviderPrivate.h"
 #include "Model/ThreadsPrivate.h"
+#include "ModuleServicePrivate.h"
 #include "Trace/Analysis.h"
 #include "Trace/Analyzer.h"
 #include "Trace/DataStream.h"
@@ -242,25 +243,25 @@ TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(uint32 TraceI
 	Session->AddProvider(GetRegionProviderName(), RegionProvider, RegionProvider);
 
 	TSharedPtr<FLogProvider> LogProvider = MakeShared<FLogProvider>(*Session);
-	Session->AddProvider(FLogProvider::ProviderName, LogProvider, LogProvider);
+	Session->AddProvider(GetLogProviderName(), LogProvider, LogProvider);
 
 	TSharedPtr<FThreadProvider> ThreadProvider = MakeShared<FThreadProvider>(*Session);
-	Session->AddProvider(FThreadProvider::ProviderName, ThreadProvider, ThreadProvider);
+	Session->AddProvider(GetThreadProviderName(), ThreadProvider, ThreadProvider);
 
 	TSharedPtr<FFrameProvider> FrameProvider = MakeShared<FFrameProvider>(*Session);
-	Session->AddProvider(FFrameProvider::ProviderName, FrameProvider);
+	Session->AddProvider(GetFrameProviderName(), FrameProvider);
 
 	TSharedPtr<FCounterProvider> CounterProvider = MakeShared<FCounterProvider>(*Session, *FrameProvider);
-	Session->AddProvider(FCounterProvider::ProviderName, CounterProvider, CounterProvider);
+	Session->AddProvider(GetCounterProviderName(), CounterProvider, CounterProvider);
 
 	TSharedPtr<FChannelProvider> ChannelProvider = MakeShared<FChannelProvider>();
-	Session->AddProvider(FChannelProvider::ProviderName, ChannelProvider);
+	Session->AddProvider(GetChannelProviderName(), ChannelProvider);
 
 	TSharedPtr<FScreenshotProvider> ScreenshotProvider = MakeShared<FScreenshotProvider>(*Session);
-	Session->AddProvider(FScreenshotProvider::ProviderName, ScreenshotProvider);
+	Session->AddProvider(GetScreenshotProviderName(), ScreenshotProvider);
 
 	TSharedPtr<FDefinitionProvider> DefProvider = MakeShared<FDefinitionProvider>(&Session.Get());
-	Session->AddProvider(FDefinitionProvider::ProviderName, DefProvider, DefProvider);
+	Session->AddProvider(GetDefinitionProviderName(), DefProvider, DefProvider);
 
 	Session->AddAnalyzer(new FMiscTraceAnalyzer(*Session, *ThreadProvider, *LogProvider, *FrameProvider, *ChannelProvider, *ScreenshotProvider, *RegionProvider));
 	Session->AddAnalyzer(new FBookmarksAnalyzer(*Session, *BookmarkProvider, LogProvider.Get()));

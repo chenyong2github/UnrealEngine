@@ -6,8 +6,7 @@
 #include "HAL/Platform.h"
 #include "Templates/Function.h"
 #include "TraceServices/Model/AnalysisSession.h"
-
-template <typename FuncType> class TFunctionRef;
+#include "UObject/NameTypes.h"
 
 namespace TraceServices
 {

@@ -9,8 +9,6 @@
 #include "TraceServices/Model/AnalysisSession.h"
 #include "UObject/NameTypes.h"
 
-template <typename FuncType> class TFunctionRef;
-
 namespace TraceServices
 {
 

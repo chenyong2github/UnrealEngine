@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma  once
+#pragma once
 
 #include "HAL/Platform.h"
 #include "Templates/Function.h"
 #include "TraceServices/Model/AnalysisSession.h"
-
-template <typename FuncType> class TFunctionRef;
+#include "UObject/NameTypes.h"
 
 namespace TraceServices
 {
@@ -37,7 +36,7 @@ public:
 
 	/*
 	* Update the information in the Bookmark.
-	* 
+	*
 	* @param BookmarkPoint	The unique identity (memory address) of the bookmark.
 	* @param FormatString	The format string of the bookmark's message.
 	* @param File			The source file the bookmark is in.
@@ -56,7 +55,7 @@ public:
 
 	/*
 	* Append a new instance of a bookmark from the trace session.
-	* 
+	*
 	* @param BookmarkPoint	The unique identity (memory address) of the bookmark.
 	* @param Time			The time in seconds of the event.
 	* @param Text			The fully formatted bookmark string for this instance. This may vary between instances.

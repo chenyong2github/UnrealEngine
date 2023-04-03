@@ -8,8 +8,6 @@
 #include "HAL/Platform.h"
 #include "UObject/NameTypes.h"
 
-class FName;
-
 namespace TraceServices
 {
 
@@ -33,13 +31,12 @@ class IModule
 	: public IModularFeature
 {
 public:
-	virtual bool ShouldBeEnabledByDefault() const { return true; }
 	virtual void GetModuleInfo(FModuleInfo& OutModuleInfo) = 0;
-	virtual void OnAnalysisBegin(IAnalysisSession& Session) = 0;
-	virtual void GenerateReports(const IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory) {}
-
+	virtual bool ShouldBeEnabledByDefault() const { return true; }
 	virtual void GetLoggers(TArray<const TCHAR*>& OutLoggers) {}
 	virtual const TCHAR* GetCommandLineArgument() { return nullptr; }
+	virtual void OnAnalysisBegin(IAnalysisSession& Session) = 0;
+	virtual void GenerateReports(const IAnalysisSession& Session, const TCHAR* CmdLine, const TCHAR* OutputDirectory) {}
 };
 
 class IModuleService

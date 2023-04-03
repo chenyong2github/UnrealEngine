@@ -33,9 +33,11 @@
 #include "DbgHelpResolver.h"
 #endif
 
-namespace TraceServices {
+namespace TraceServices
+{
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class FResolvedSymbolFilter : public IResolvedSymbolFilter
 {
 public:
@@ -49,7 +51,8 @@ private:
 	TArray<FRegexPattern> IgnoreSymbolsByFilePath;
 };
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template<typename SymbolResolverType>
 class TModuleProvider : public IModuleAnalysisProvider
 {
@@ -57,23 +60,23 @@ public:
 	explicit TModuleProvider(IAnalysisSession& Session);
 	virtual ~TModuleProvider();
 
-	//Query interface
-	const FResolvedSymbol*		GetSymbol(uint64 Address) override;
-	uint32						GetNumModules() const override;
-	void						EnumerateModules(uint32 Start, TFunctionRef<void(const FModule& Module)> Callback) const override;
-	FGraphEventRef				LoadSymbolsForModuleUsingPath(uint64 Base, const TCHAR* Path) override;
-	void						EnumerateSymbolSearchPaths(TFunctionRef<void(FStringView Path)> Callback) const override;
-	void						GetStats(FStats* OutStats) const override;
+	// Query interface
+	const FResolvedSymbol* GetSymbol(uint64 Address) override;
+	uint32 GetNumModules() const override;
+	void EnumerateModules(uint32 Start, TFunctionRef<void(const FModule& Module)> Callback) const override;
+	FGraphEventRef LoadSymbolsForModuleUsingPath(uint64 Base, const TCHAR* Path) override;
+	void EnumerateSymbolSearchPaths(TFunctionRef<void(FStringView Path)> Callback) const override;
+	void GetStats(FStats* OutStats) const override;
 
-	//Analysis interface
-	void						OnModuleLoad(const FStringView& Module, uint64 Base, uint32 Size, const uint8* Checksum, uint32 ChecksumSize) override;
-	void 						OnModuleUnload(uint64 Base) override;
-	void						OnAnalysisComplete() override;
-	void						SaveSymbolsToCache(IAnalysisCache& Cache);
-	void						LoadSymbolsFromCache(IAnalysisCache& Cache);
+	// Analysis interface
+	void OnModuleLoad(const FStringView& Module, uint64 Base, uint32 Size, const uint8* Checksum, uint32 ChecksumSize) override;
+	void OnModuleUnload(uint64 Base) override;
+	void OnAnalysisComplete() override;
+	void SaveSymbolsToCache(IAnalysisCache& Cache);
+	void LoadSymbolsFromCache(IAnalysisCache& Cache);
 
 private:
-	uint32						GetNumCachedSymbolsFromModule(uint64 Base, uint32 Size);
+	uint32 GetNumCachedSymbolsFromModule(uint64 Base, uint32 Size);
 
 	struct FSavedSymbol
 	{
@@ -84,10 +87,10 @@ private:
 		uint32 Line;
 	};
 
-	mutable FRWLock				ModulesLock;
-	TPagedArray<FModule>		Modules;
+	mutable FRWLock ModulesLock;
+	TPagedArray<FModule> Modules;
 
-	FRWLock				SymbolsLock;
+	FRWLock SymbolsLock;
 	// Persistently stored symbol strings
 	FCachedStringStore Strings;
 	// Efficient representation of symbols
@@ -99,16 +102,17 @@ private:
 	// Number of discovered symbols
 	std::atomic<uint32> SymbolsDiscovered;
 
-	IAnalysisSession&			Session;
-	FString						Platform;
-	TUniquePtr<SymbolResolverType>	Resolver;
-	FGraphEventRef				LoadSymbolsTask;
-	bool						LoadSymbolsAbort = false;
+	IAnalysisSession& Session;
+	FString Platform;
+	TUniquePtr<SymbolResolverType> Resolver;
+	FGraphEventRef LoadSymbolsTask;
+	bool LoadSymbolsAbort = false;
 
-	FResolvedSymbolFilter		SymbolFilter;
+	FResolvedSymbolFilter SymbolFilter;
 };
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template<typename SymbolResolverType>
 TModuleProvider<SymbolResolverType>::TModuleProvider(IAnalysisSession& Session)
 	: Modules(Session.GetLinearAllocator(), 128)
@@ -121,7 +125,8 @@ TModuleProvider<SymbolResolverType>::TModuleProvider(IAnalysisSession& Session)
 	LoadSymbolsFromCache(Session.GetCache());
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template <typename SymbolResolverType>
 TModuleProvider<SymbolResolverType>::~TModuleProvider()
 {
@@ -135,7 +140,8 @@ TModuleProvider<SymbolResolverType>::~TModuleProvider()
 	SaveSymbolsToCache(Session.GetCache());
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template<typename SymbolResolverType>
 const FResolvedSymbol* TModuleProvider<SymbolResolverType>::GetSymbol(uint64 Address)
 {
@@ -172,7 +178,8 @@ const FResolvedSymbol* TModuleProvider<SymbolResolverType>::GetSymbol(uint64 Add
 	return ResolvedSymbol;
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template <typename SymbolResolverType>
 uint32 TModuleProvider<SymbolResolverType>::GetNumModules() const
 {
@@ -180,7 +187,8 @@ uint32 TModuleProvider<SymbolResolverType>::GetNumModules() const
 	return static_cast<uint32>(Modules.Num());
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template <typename SymbolResolverType>
 void TModuleProvider<SymbolResolverType>::EnumerateModules(uint32 Start, TFunctionRef<void(const FModule& Module)> Callback) const
 {
@@ -191,7 +199,8 @@ void TModuleProvider<SymbolResolverType>::EnumerateModules(uint32 Start, TFuncti
 	}
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template <typename SymbolResolverType>
 FGraphEventRef TModuleProvider<SymbolResolverType>::LoadSymbolsForModuleUsingPath(uint64 Base, const TCHAR* Path)
 {
@@ -272,14 +281,16 @@ FGraphEventRef TModuleProvider<SymbolResolverType>::LoadSymbolsForModuleUsingPat
 	return FGraphEventRef();
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template <typename SymbolResolverType>
 void TModuleProvider<SymbolResolverType>::EnumerateSymbolSearchPaths(TFunctionRef<void(FStringView Path)> Callback) const
 {
 	Resolver->EnumerateSymbolSearchPaths(Callback);
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template<typename SymbolResolverType>
 void TModuleProvider<SymbolResolverType>::GetStats(FStats* OutStats) const
 {
@@ -289,7 +300,8 @@ void TModuleProvider<SymbolResolverType>::GetStats(FStats* OutStats) const
 	OutStats->SymbolsResolved += NumCachedSymbols;
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template<typename SymbolResolverType>
 void TModuleProvider<SymbolResolverType>::OnModuleLoad(const FStringView& Module, uint64 Base, uint32 Size, const uint8* ImageId, uint32 ImageIdSize)
 {
@@ -312,21 +324,24 @@ void TModuleProvider<SymbolResolverType>::OnModuleLoad(const FStringView& Module
 	Resolver->QueueModuleLoad(ImageId, ImageIdSize, &NewModule);
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template<typename SymbolResolverType>
 void TModuleProvider<SymbolResolverType>::OnModuleUnload(uint64 Base)
 {
 	//todo: Find entry, set bLoaded to false
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template<typename SymbolResolverType>
 void TModuleProvider<SymbolResolverType>::OnAnalysisComplete()
 {
 	Resolver->OnAnalysisComplete();
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template <typename SymbolResolverType>
 void TModuleProvider<SymbolResolverType>::SaveSymbolsToCache(IAnalysisCache& Cache)
 {
@@ -359,7 +374,8 @@ void TModuleProvider<SymbolResolverType>::SaveSymbolsToCache(IAnalysisCache& Cac
 	UE_LOG(LogTraceServices, Display, TEXT("Added %d symbols to the %d previously saved symbols."), NumSavedSymbols, NumPreviouslySavedSymbols);
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template <typename SymbolResolverType>
 void TModuleProvider<SymbolResolverType>::LoadSymbolsFromCache(IAnalysisCache& Cache)
 {
@@ -391,7 +407,8 @@ void TModuleProvider<SymbolResolverType>::LoadSymbolsFromCache(IAnalysisCache& C
 	UE_LOG(LogTraceServices, Display, TEXT("Loaded %d symbols from cache."), SymbolCacheLookup.Num());
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template <typename SymbolResolverType>
 uint32 TModuleProvider<SymbolResolverType>::GetNumCachedSymbolsFromModule(uint64 Base, uint32 Size)
 {
@@ -410,7 +427,8 @@ uint32 TModuleProvider<SymbolResolverType>::GetNumCachedSymbolsFromModule(uint64
 	return Count;
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FResolvedSymbolFilter::FResolvedSymbolFilter()
 {
 	IgnoreSymbolsByFunctionName.Add(TEXT("FMemory::"));
@@ -433,12 +451,14 @@ FResolvedSymbolFilter::FResolvedSymbolFilter()
 	IgnoreSymbolsByFilePath.Add(FRegexPattern(FString(TEXT(".*/D3D12PoolAllocator.*"))));
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FResolvedSymbolFilter::~FResolvedSymbolFilter()
 {
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FResolvedSymbolFilter::Update(FResolvedSymbol& InSymbol) const
 {
 	bool bIsFiltered = false;
@@ -476,7 +496,8 @@ void FResolvedSymbolFilter::Update(FResolvedSymbol& InSymbol) const
 	InSymbol.FilterStatus.store(FilterStatus, std::memory_order_release);
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 TSharedPtr<IModuleAnalysisProvider> CreateModuleProvider(IAnalysisSession& InSession, const FAnsiStringView& InSymbolFormat)
 {
 	TSharedPtr<IModuleAnalysisProvider> Provider;
@@ -496,20 +517,22 @@ TSharedPtr<IModuleAnalysisProvider> CreateModuleProvider(IAnalysisSession& InSes
 	return Provider;
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FName GetModuleProviderName()
 {
-	static FName Name(TEXT("ModuleProvider"));
+	static const FName Name("ModuleProvider");
 	return Name;
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 const IModuleProvider* ReadModuleProvider(const IAnalysisSession& Session)
 {
 	return Session.ReadProvider<IModuleProvider>(GetModuleProviderName());
 }
 
-/////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 } // namespace TraceServices
 

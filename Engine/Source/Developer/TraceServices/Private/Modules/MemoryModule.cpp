@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MemoryModule.h"
+
 #include "Analyzers/AllocationsAnalysis.h"
 #include "Analyzers/CallstacksAnalysis.h"
 #include "Analyzers/MemoryAnalysis.h"
@@ -14,10 +15,10 @@
 namespace TraceServices
 {
 
-static const FName MemoryModuleName("TraceModule_Memory");
-
 void FMemoryModule::GetModuleInfo(FModuleInfo& OutModuleInfo)
 {
+	static const FName MemoryModuleName("TraceModule_Memory");
+
 	OutModuleInfo.Name = MemoryModuleName;
 	OutModuleInfo.DisplayName = TEXT("Memory");
 }

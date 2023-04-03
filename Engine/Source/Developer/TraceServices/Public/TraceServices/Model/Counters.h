@@ -5,8 +5,7 @@
 #include "HAL/Platform.h"
 #include "Templates/Function.h"
 #include "TraceServices/Model/AnalysisSession.h"
-
-template <typename FuncType> class TFunctionRef;
+#include "UObject/NameTypes.h"
 
 namespace TraceServices
 {
@@ -52,49 +51,49 @@ public:
 
 	/*
 	* Sets the name of the counter.
-	* 
+	*
 	* @param Name	The name of the counter.
 	*/
 	virtual void SetName(const TCHAR* Name) = 0;
 
 	/*
 	* Sets the group of the counter.
-	* 
+	*
 	* @param Group	The group name of the counter.
 	*/
 	virtual void SetGroup(const TCHAR* Group) = 0;
 
 	/*
 	* Sets the description of the counter.
-	* 
+	*
 	* @param Description	The description of the counter.
 	*/
 	virtual void SetDescription(const TCHAR* Description) = 0;
 
 	/*
 	* Sets whether the counter is an integral or floating point number.
-	* 
+	*
 	* @param bIsFloatingPoint	True if the counter is floating point, false if it is integral.
 	*/
 	virtual void SetIsFloatingPoint(bool bIsFloatingPoint) = 0;
 
 	/*
 	* Sets whether the counter value is reset every frame. This can be used for counters polled from stats.
-	* 
+	*
 	* @param bInIsResetEveryFrame	True if the counter is reset every frame.
 	*/
 	virtual void SetIsResetEveryFrame(bool bInIsResetEveryFrame) = 0;
 
 	/*
 	* Sets the display hint for this counter.
-	* 
+	*
 	* @param DisplayHint	The display hint for this counter.
 	*/
 	virtual void SetDisplayHint(ECounterDisplayHint DisplayHint) = 0;
 
 	/*
 	* Add a value to the value counter.
-	* 
+	*
 	* @param Time	The time at which the value was added in seconds.
 	* @param Value	The value to add to the current value of the counter.
 	*/
@@ -110,7 +109,7 @@ public:
 
 	/*
 	* Set the value of the counter.
-	* 
+	*
 	* @param Time	The time at which the value was set in seconds.
 	* @param Value	The new value for the counter.
 	*/
@@ -145,7 +144,7 @@ public:
 	virtual ~IEditableCounterProvider() = default;
 
 	/*
-	* Retreive the counter interface to an editable counter.
+	* Retrieve the counter interface to an editable counter.
 	*
 	* @return The interface the counter.
 	*         This can be null if the provider doesn't care about deriving new counters from existing editable counters.
@@ -154,7 +153,7 @@ public:
 
 	/*
 	* Create a new counter mutation interface.
-	* 
+	*
 	* @return The interface to mutate the counter.
 	*/
 	virtual IEditableCounter* CreateEditableCounter() = 0;
@@ -165,6 +164,7 @@ public:
 	virtual void AddCounter(const ICounter* Counter) = 0;
 };
 
+TRACESERVICES_API FName GetCounterProviderName();
 TRACESERVICES_API const ICounterProvider& ReadCounterProvider(const IAnalysisSession& Session);
 TRACESERVICES_API IEditableCounterProvider& EditCounterProvider(IAnalysisSession& Session);
 

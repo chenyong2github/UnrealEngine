@@ -2,13 +2,12 @@
 
 #include "TraceServices/Model/ContextSwitches.h"
 #include "Model/ContextSwitchesPrivate.h"
-#include "AnalysisServicePrivate.h"
+
 #include "Algo/Sort.h"
+#include "AnalysisServicePrivate.h"
 
 namespace TraceServices
 {
-
-const FName FContextSwitchesProvider::ProviderName = "ContextSwitchesProvider";
 
 FContextSwitchesProvider::FContextSwitchesProvider(IAnalysisSession& InSession)
 	: Session(InSession)
@@ -389,12 +388,18 @@ void FContextSwitchesProvider::AddThreadInfo(uint32 ThreadId, uint32 SystemThrea
 
 void FContextSwitchesProvider::AddThreadName(uint32 SystemTreadId, uint32 SystemProcessId, FStringView Name)
 {
-	//
+	//TODO
+}
+
+FName GetContextSwitchesProviderName()
+{
+	static const FName Name("ContextSwitchesProvider");
+	return Name;
 }
 
 const IContextSwitchesProvider* ReadContextSwitchesProvider(const IAnalysisSession& Session)
 {
-	return Session.ReadProvider<IContextSwitchesProvider>(FContextSwitchesProvider::ProviderName);
+	return Session.ReadProvider<IContextSwitchesProvider>(GetContextSwitchesProviderName());
 }
 
 } // namespace TraceServices

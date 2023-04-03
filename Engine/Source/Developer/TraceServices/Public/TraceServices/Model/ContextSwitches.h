@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "Common/PagedArray.h"
 #include "HAL/Platform.h"
 #include "Templates/Function.h"
 #include "TraceServices/Model/AnalysisSession.h"
+#include "UObject/NameTypes.h"
 
 namespace TraceServices
 {
@@ -58,6 +58,7 @@ public:
 	virtual void EnumerateContextSwitches(uint32 ThreadId, double StartTime, double EndTime, ContextSwitchCallback Callback) const = 0;
 };
 
+TRACESERVICES_API FName GetContextSwitchesProviderName();
 TRACESERVICES_API const IContextSwitchesProvider* ReadContextSwitchesProvider(const IAnalysisSession& Session);
 
 } // namespace TraceServices

@@ -12,8 +12,8 @@ class FDiagnosticsModule
 {
 public:
 	virtual void GetModuleInfo(FModuleInfo& OutModuleInfo) override;
+	virtual void GetLoggers(TArray<const TCHAR*>& OutLoggers) override;
 	virtual void OnAnalysisBegin(IAnalysisSession& Session) override;
-	virtual void GetLoggers(TArray<const TCHAR *>& OutLoggers) override;
 };
 
 } // namespace TraceServices
