@@ -577,25 +577,24 @@ void UTakeRecorder::DiscoverSourceWorld()
 	check(WorldToRecordIn);
 	WeakWorld = WorldToRecordIn;
 
-	// If CountdownSeconds is zero and the framerate is high, then we can create the overlay but it
-	// never ends up being visible. However, when the framerate is low (e.g. in debug) it does show
-	// for a single frame, which is undesirable, so only make it if it's going to last some time.
-	if (CountdownSeconds > 0)
-	{
-		UClass* Class = StaticLoadClass(UTakeRecorderOverlayWidget::StaticClass(), nullptr, TEXT("/Takes/UMG/DefaultRecordingOverlay.DefaultRecordingOverlay_C"));
-		if (Class)
-		{
-			OverlayWidget = CreateWidget<UTakeRecorderOverlayWidget>(WorldToRecordIn, Class);
-			OverlayWidget->SetFlags(RF_Transient);
-			OverlayWidget->SetRecorder(this);
-			OverlayWidget->AddToViewport();
-		}
-	}
-
 	bool bPlayInGame = WorldToRecordIn->WorldType == EWorldType::PIE || WorldToRecordIn->WorldType == EWorldType::Game;
 	// If recording via PIE, be sure to stop recording cleanly when PIE ends
 	if ( bPlayInGame )
 	{
+		// If CountdownSeconds is zero and the framerate is high, then we can create the overlay but it
+		// never ends up being visible. However, when the framerate is low (e.g. in debug) it does show
+		// for a single frame, which is undesirable, so only make it if it's going to last some time.
+		if (CountdownSeconds > 0)
+		{
+			UClass* Class = StaticLoadClass(UTakeRecorderOverlayWidget::StaticClass(), nullptr, TEXT("/Takes/UMG/DefaultRecordingOverlay.DefaultRecordingOverlay_C"));
+			if (Class)
+			{
+				OverlayWidget = CreateWidget<UTakeRecorderOverlayWidget>(WorldToRecordIn, Class);
+				OverlayWidget->SetFlags(RF_Transient);
+				OverlayWidget->SetRecorder(this);
+				OverlayWidget->AddToViewport();
+			}
+		}
 		FEditorDelegates::EndPIE.AddUObject(this, &UTakeRecorder::HandlePIE);
 	}
 	// If not recording via PIE, be sure to stop recording if PIE Starts
