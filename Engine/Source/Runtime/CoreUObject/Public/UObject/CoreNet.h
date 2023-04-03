@@ -406,7 +406,7 @@ public:
 
 
 public:
-	FNetBitReader(UPackageMap* InPackageMap=nullptr, uint8* Src=nullptr, int64 CountBits=0);
+	FNetBitReader(UPackageMap* InPackageMap=nullptr, const uint8* Src=nullptr, int64 CountBits=0);
 
 	virtual FArchive& operator<<(FName& Name) override;
 	virtual FArchive& operator<<(UObject*& Object) override;

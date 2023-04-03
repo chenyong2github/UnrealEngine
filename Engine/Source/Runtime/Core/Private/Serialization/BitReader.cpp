@@ -140,7 +140,7 @@ void appBitsCpy( uint8* Dest, int32 DestBit, uint8* Src, int32 SrcBit, int32 Bit
 //
 // Reads bitstreams.
 //
-FBitReader::FBitReader(uint8* Src, int64 CountBits)
+FBitReader::FBitReader(const uint8* Src, int64 CountBits)
 	: Num(CountBits)
 	, Pos(0)
 {

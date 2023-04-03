@@ -26,7 +26,7 @@ struct CORE_API FBitReader : public FBitArchive
 	friend struct FBitReaderMark;
 
 public:
-	FBitReader( uint8* Src = nullptr, int64 CountBits = 0 );
+	FBitReader( const uint8* Src = nullptr, int64 CountBits = 0 );
 
 	FBitReader(const FBitReader&) = default;
     FBitReader& operator=(const FBitReader&) = default;
