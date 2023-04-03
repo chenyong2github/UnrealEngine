@@ -9,6 +9,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameplayCamerasModule.h"
 #include "Kismet/GameplayStatics.h"
+#include "UObject/Object.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CameraAnimationCameraModifier)
 
@@ -184,10 +185,10 @@ UCameraAnimationCameraModifier* UCameraAnimationCameraModifier::GetCameraAnimati
 
 UCameraAnimationCameraModifier* UCameraAnimationCameraModifier::GetCameraAnimationCameraModifierFromPlayerController(const APlayerController* PlayerController)
 {
-	if (ensure(PlayerController))
+	if (PlayerController)
 	{
 		UCameraModifier* CameraModifier = PlayerController->PlayerCameraManager->FindCameraModifierByClass(UCameraAnimationCameraModifier::StaticClass());
-		return CastChecked<UCameraAnimationCameraModifier>(CameraModifier);
+		return CastChecked<UCameraAnimationCameraModifier>(CameraModifier, ECastCheckedType::NullAllowed);
 	}
 	return nullptr;
 }
