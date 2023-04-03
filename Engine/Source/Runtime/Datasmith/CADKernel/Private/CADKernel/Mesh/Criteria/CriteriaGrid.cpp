@@ -1,7 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "CADKernel/Mesh/Criteria/CriteriaGrid.h"
 
+#include "CADKernel/Mesh/Criteria/Criterion.h"
+#include "CADKernel/Geo/Surfaces/Surface.h"
 #include "CADKernel/Topo/TopologicalFace.h"
+#include "CADKernel/UI/Display.h"
+
+#ifdef CADKERNEL_DEV
+#include "CADKernel/UI/DefineForDebug.h"
+#endif
 
 namespace UE::CADKernel
 {
@@ -28,8 +35,7 @@ void FCriteriaGrid::Init()
 	ComputeMiddlePointsCoordinates(EIso::IsoU);
 	ComputeMiddlePointsCoordinates(EIso::IsoV);
 
-	const bool bWithNormals = false;
-	EvaluatePointGrid(CoordinateGrid, bWithNormals);
+	EvaluatePointGrid(CoordinateGrid, false);
 }
 
 FCriteriaGrid::FCriteriaGrid(FTopologicalFace& InFace)

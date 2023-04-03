@@ -53,10 +53,10 @@ public:
 
 protected:
 
-	virtual A3DStatus AdaptBRepModel()
-	{
-		return A3DStatus::A3D_SUCCESS;
-	}
+	virtual A3DStatus AdaptBRepModel();
+	//{
+	//	return A3DStatus::A3D_SUCCESS;
+	//}
 
 	/**
 	 * If the tessellator is TechSoft, SewModel call TechSoftInterface::SewModel
@@ -144,8 +144,9 @@ private:
 	void ExtractGeneralTransformation(const A3DMiscTransformation* GeneralTransformation, FArchiveCADObject& Component);
 	void ExtractTransformation3D(const A3DMiscTransformation* CartesianTransformation, FArchiveCADObject& Component);
 
+#ifndef CADKERNEL_DEV
 	void CheckMemory();
-
+#endif  
 
 #endif
 

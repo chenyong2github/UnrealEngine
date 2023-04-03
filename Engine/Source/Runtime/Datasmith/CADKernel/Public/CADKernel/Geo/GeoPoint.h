@@ -121,7 +121,7 @@ struct FCoordinateGrid
 
 	int32 Count() const
 	{
-		return Coordinates[0].Num() * Coordinates[1].Num();
+		return Coordinates[EIso::IsoU].Num() * Coordinates[EIso::IsoV].Num();
 	}
 
 	int32 IsoCount(EIso Iso) const

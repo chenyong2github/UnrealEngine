@@ -10,7 +10,7 @@
 #include "CADKernel/UI/Display.h"
 
 #ifdef CADKERNEL_DEV
-#include "CADKernel/Mesh/Meshers/IsoTriangulator/DefineForDebug.h"
+#include "CADKernel/UI/DefineForDebug.h"
 #endif
 
 
@@ -95,12 +95,9 @@ protected:
 	TArray<ENodeMarker> NodeMarkers;
 
 public:
-	FGridChronos Chronos;
-
-public:
 	FGrid(FTopologicalFace& InFace, FModelMesh& InShellMesh);
 
-#ifndef CADKERNEL_DEV
+#ifndef CADKERNEL_DEBUG
 	virtual ~FGrid() = default;
 #else
 	virtual ~FGrid()
@@ -424,7 +421,7 @@ public:
 	// ======================================================================================================================================================================================================================
 	// Display Methodes   ================================================================================================================================================================================================
 	// ======================================================================================================================================================================================================================
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	bool bDisplay = false;
 
 	void DisplayIsoNode(EGridSpace Space, const int32 PointIndex, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::BluePoint) const;
@@ -482,7 +479,7 @@ public:
 
 	void DisplayNodes(const TCHAR* Message, EGridSpace Space, const TArray<const FIsoNode*>& Nodes, EVisuProperty Property) const;
 
-	void DisplayGridPoints(EGridSpace DisplaySpace) const;
+	virtual void DisplayGridPoints(EGridSpace DisplaySpace) const override;
 	void DisplayInnerPoints(TCHAR* Message, EGridSpace DisplaySpace) const;
 
 	void DisplayGridNormal() const;

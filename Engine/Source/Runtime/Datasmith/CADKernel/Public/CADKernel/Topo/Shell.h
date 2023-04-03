@@ -67,7 +67,7 @@ private:
 
 public:
 
-	virtual ~FShell()
+	virtual ~FShell() override
 	{
 		FShell::Empty();
 	}

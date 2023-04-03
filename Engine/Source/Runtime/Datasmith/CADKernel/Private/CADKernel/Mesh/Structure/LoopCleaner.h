@@ -447,7 +447,7 @@ private:
 		SegmentCount--;
 	}
 
-#ifdef CADKERNEL_DEV		
+#ifdef CADKERNEL_DEBUG
 	void DisplayIntersection(const TPair<double, double>& Intersection)
 	{
 		if (bDisplay)

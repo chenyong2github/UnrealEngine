@@ -27,12 +27,33 @@ enum ECoordinateType : uint8
 	OtherCoordinate
 };
 
+/**
+ * Cutting point used for thin zone purpose
+ */
+struct CADKERNEL_API FImposedCuttingPoint
+{
+	/**
+	 * coordinate of the edge's mesh nodes
+	 */
+	double Coordinate = 0;
+	int32 OppositNodeIndex = -1;
+
+	FImposedCuttingPoint()
+	{
+	}
+
+	FImposedCuttingPoint(double InCoordinate, int32 NodeIndex1)
+		: Coordinate(InCoordinate)
+		, OppositNodeIndex(NodeIndex1)
+	{
+	};
+};
+
 template<typename FCuttingPointType>
 void GetCuttingPointCoordinates(const TArray<FCuttingPointType>& CuttingPoints, TArray<double>& CuttingPointCoordinates);
 
 struct FEdge2DProperties;
 struct FCuttingPoint;
-struct FImposedCuttingPoint;
 
 class FModelMesh;
 class FEdgeMesh;
@@ -486,6 +507,26 @@ public:
 		return CrossingPointDeltaUMaxs;
 	}
 
+	double GetDeltaUFor(double Coordinate, int32& Index) const 
+	{
+		for (; Index < CrossingPointUs.Num() - 1; ++Index)
+		{
+			if (Coordinate < CrossingPointUs[Index + 1])
+			{
+				if (Coordinate > CrossingPointUs[Index] - DOUBLE_SMALL_NUMBER)
+				{
+					break;
+				}
+				Index = 0;
+				if(Coordinate < CrossingPointUs[1])
+				{
+					break;
+				}
+			}
+		}
+		return CrossingPointDeltaUMaxs[Index];
+	}
+
 	TArray<FCuttingPoint>& GetCuttingPoints()
 	{
 		return CuttingPointUs;
@@ -497,8 +538,12 @@ public:
 	}
 
 	// For thin zone purpose
+	void SortImposedCuttingPoints()
+	{
+		Algo::Sort(ImposedCuttingPointUs, [](const FImposedCuttingPoint& C1, const FImposedCuttingPoint& C2) { return C1.Coordinate < C2.Coordinate; });
+	}
 
-	const TArray<FImposedCuttingPoint>& GetImposedCuttingPoints()
+	const TArray<FImposedCuttingPoint>& GetImposedCuttingPoints() const
 	{
 		return ImposedCuttingPointUs;
 	}
@@ -645,11 +690,11 @@ public:
 		Curve->GetDiscretizationPoints(Boundary, Orientation, OutPoints);
 	}
 
-	double TransformLocalCoordinateToActiveEdgeCoordinate(const double LocalCoordinate);
-	double TransformActiveEdgeCoordinateToLocalCoordinate(const double ActiveEdgeCoordinate);
+	double TransformLocalCoordinateToActiveEdgeCoordinate(const double LocalCoordinate) const;
+	double TransformActiveEdgeCoordinateToLocalCoordinate(const double ActiveEdgeCoordinate) const;
 
-	void TransformActiveEdgeCoordinatesToLocalCoordinates(const TArray<double>& InActiveEdgeCoordinate, TArray<double>& OutLocalCoordinate);
-	void TransformLocalCoordinatesToActiveEdgeCoordinates(const TArray<double>& InLocalCoordinate, TArray<double>& OutActiveEdgeCoordinate);
+	void TransformActiveEdgeCoordinatesToLocalCoordinates(const TArray<double>& InActiveEdgeCoordinate, TArray<double>& OutLocalCoordinate) const;
+	void TransformLocalCoordinatesToActiveEdgeCoordinates(const TArray<double>& InLocalCoordinate, TArray<double>& OutActiveEdgeCoordinate) const;
 
 	/**
 	 * Compute the edge 2D properties i.e. the mean and standard deviation of the slop of the edge in the parametric space of the carrier surface
@@ -696,17 +741,30 @@ public:
 		return FHaveStates::IsDegenerated();
 	}
 
+	/**
+	 * An edge is a thin peak means that this edge is a small edge at the extremity of a peak thin zone
+	 * So this edge must not be meshed (except at its extremities)
+	 *
+	 *                         ThinSide 0
+	 *           #-------------------------------------#
+	 *          /
+	 *         /  <- Thin peak edge
+	 *        /
+	 *       #-----------------------------------------#
+	 *                         ThinSide 1
+	 *
+	 */
 	bool IsThinPeak() const
 	{
 		return ((States & EHaveStates::ThinPeak) == EHaveStates::ThinPeak);
 	}
 
-	virtual void SetThinPeak() const
+	virtual void SetThinPeakMarker() const
 	{
 		States |= EHaveStates::ThinPeak;
 	}
 
-	virtual void ResetThinPeak() const
+	virtual void ResetThinPeakMarker() const
 	{
 		States &= ~EHaveStates::ThinPeak;
 	}
@@ -716,12 +774,12 @@ public:
 		return ((States & EHaveStates::IsVirtuallyMeshed) == EHaveStates::IsVirtuallyMeshed);
 	}
 
-	virtual void SetAsVirtuallyMeshed() const
+	virtual void SetVirtuallyMeshedMarker() const
 	{
 		States |= EHaveStates::IsVirtuallyMeshed;
 	}
 
-	virtual void ResetVirtuallyMeshed() const
+	virtual void ResetVirtuallyMeshedMarker() const
 	{
 		States &= ~EHaveStates::IsVirtuallyMeshed;
 	}
@@ -825,28 +883,6 @@ struct CADKERNEL_API FEdge2DProperties
 		}
 	}
 
-};
-
-/**
- * Cutting point used for thin zone purpose
- */
-struct CADKERNEL_API FImposedCuttingPoint
-{
-	/**
-	 * coordinate of the edge's mesh nodes
-	 */
-	double Coordinate = 0;
-	int32 OppositNodeIndex = -1;
-
-	FImposedCuttingPoint()
-	{
-	}
-
-	FImposedCuttingPoint(double InCoordinate, int32 NodeIndex1)
-		: Coordinate(InCoordinate)
-		, OppositNodeIndex(NodeIndex1)
-	{
-	};
 };
 
 /**

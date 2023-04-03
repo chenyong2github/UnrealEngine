@@ -23,11 +23,11 @@ namespace UE::CADKernel
 
 FDatabase::FDatabase()
 {
-	Model = FEntity::MakeShared<FModel>();
-
 	DatabaseEntities.Reserve(DataBaseInitialSize);
 	AvailableIdents.Reserve(DataBaseInitialSize);
 	DatabaseEntities.Add(TSharedPtr<FEntity>());
+
+	Model = FEntity::MakeShared<FModel>();
 
 	AddEntity(Model.ToSharedRef());
 }

@@ -530,70 +530,62 @@ int32 FTopologicalEdge::EvaluateCuttingPointNum()
 	return (int32)Num;
 }
 
-double FTopologicalEdge::TransformLocalCoordinateToActiveEdgeCoordinate(const double InLocalCoordinate)
+double FTopologicalEdge::TransformLocalCoordinateToActiveEdgeCoordinate(const double InLocalCoordinate) const
 {
 	if (IsActiveEntity())
 	{
 		return InLocalCoordinate;
 	}
 
-	TSharedPtr<FTopologicalEdge> ActiveEdge = GetLinkActiveEntity();
+	const FTopologicalEdge& ActiveEdge = *GetLinkActiveEntity();
 	FPoint PointOnEdge = Curve->Approximate3DPoint(InLocalCoordinate);
 	FPoint ProjectedPoint;
-	return ActiveEdge->GetCurve()->GetCoordinateOfProjectedPoint(Boundary, PointOnEdge, ProjectedPoint);
+	return ActiveEdge.GetCurve()->GetCoordinateOfProjectedPoint(Boundary, PointOnEdge, ProjectedPoint);
 }
 
-double FTopologicalEdge::TransformActiveEdgeCoordinateToLocalCoordinate(const double InActiveEdgeCoordinate)
+double FTopologicalEdge::TransformActiveEdgeCoordinateToLocalCoordinate(const double InActiveEdgeCoordinate) const
 {
 	if (IsActiveEntity())
 	{
 		return InActiveEdgeCoordinate;
 	}
 
-	TSharedPtr<FTopologicalEdge> ActiveEdge = GetLinkActiveEntity();
-	FPoint PointOnEdge = ActiveEdge->GetCurve()->Approximate3DPoint(InActiveEdgeCoordinate);
+	const FTopologicalEdge& ActiveEdge = *GetLinkActiveEntity();
+	FPoint PointOnEdge = ActiveEdge.GetCurve()->Approximate3DPoint(InActiveEdgeCoordinate);
 	FPoint ProjectedPoint;
 	return Curve->GetCoordinateOfProjectedPoint(Boundary, PointOnEdge, ProjectedPoint);
 }
 
-void FTopologicalEdge::TransformLocalCoordinatesToActiveEdgeCoordinates(const TArray<double>& InLocalCoordinate, TArray<double>& OutActiveEdgeCoordinates)
+void FTopologicalEdge::TransformLocalCoordinatesToActiveEdgeCoordinates(const TArray<double>& InLocalCoordinate, TArray<double>& OutActiveEdgeCoordinates) const
 {
 	if (IsActiveEntity())
 	{
 		OutActiveEdgeCoordinates = InLocalCoordinate;
 	}
-	TSharedPtr<FTopologicalEdge> ActiveEdge = GetLinkActiveEntity();
+	const FTopologicalEdge& ActiveEdge = *GetLinkActiveEntity();
 	TArray<FPoint> EdgePoints;
 	Curve->Approximate3DPoints(InLocalCoordinate, EdgePoints);
 	TArray<FPoint> ProjectedPoints;
-	ActiveEdge->GetCurve()->ProjectPoints(Boundary, EdgePoints, OutActiveEdgeCoordinates, ProjectedPoints);
+	ActiveEdge.GetCurve()->ProjectPoints(Boundary, EdgePoints, OutActiveEdgeCoordinates, ProjectedPoints);
 }
 
-void FTopologicalEdge::TransformActiveEdgeCoordinatesToLocalCoordinates(const TArray<double>& InActiveEdgeCoordinate, TArray<double>& OutLocalCoordinates)
+void FTopologicalEdge::TransformActiveEdgeCoordinatesToLocalCoordinates(const TArray<double>& InActiveEdgeCoordinate, TArray<double>& OutLocalCoordinates) const
 {
 	if (IsActiveEntity())
 	{
 		OutLocalCoordinates = InActiveEdgeCoordinate;
+		return;
 	}
 
-	TSharedPtr<FTopologicalEdge> ActiveEdge = GetLinkActiveEntity();
+	const FTopologicalEdge& ActiveEdge = *GetLinkActiveEntity();
 	TArray<FPoint> ActiveEdgePoint;
-	ActiveEdge->GetCurve()->Approximate3DPoints(InActiveEdgeCoordinate, ActiveEdgePoint);
+	ActiveEdge.GetCurve()->Approximate3DPoints(InActiveEdgeCoordinate, ActiveEdgePoint);
 	TArray<FPoint> ProjectedPoints;
 	Curve->ProjectPoints(Boundary, ActiveEdgePoint, OutLocalCoordinates, ProjectedPoints);
 }
 
 void FTopologicalEdge::AddImposedCuttingPointU(const double ImposedCuttingPointU, int32 OppositeNodeIndex)
 {
-	if (!IsActiveEntity())
-	{
-		ensureCADKernel(false);
-		FPoint Point = Curve->Approximate3DPoint(ImposedCuttingPointU);
-		FPoint ProjectedPoint;
-		double ActiveEdgeParamU = GetLinkActiveEntity()->ProjectPoint(Point, ProjectedPoint);
-		return GetLinkActiveEntity()->AddImposedCuttingPointU(ActiveEdgeParamU, OppositeNodeIndex);
-	}
-
 	ImposedCuttingPointUs.Emplace(ImposedCuttingPointU, OppositeNodeIndex);
 }
 

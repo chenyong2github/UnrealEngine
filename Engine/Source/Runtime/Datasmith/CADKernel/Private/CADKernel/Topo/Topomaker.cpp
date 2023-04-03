@@ -1136,6 +1136,7 @@ void FTopomaker::SplitIntoConnectedShells()
 		if (FaceSubset.MainShell != nullptr)
 		{
 			FShell* Shell = (FShell*)FaceSubset.MainShell;
+			ensure(Shell->GetFaces().Num() == 0);
 			Shell->Add(FaceSubset.Faces);
 		}
 		else
@@ -1176,6 +1177,16 @@ void FTopomaker::SplitIntoConnectedShells()
 
 void FTopomaker::RemoveEmptyShells()
 {
+#ifdef CADKERNEL_DEV
+	{
+		FModel& Model = Session.GetModel();
+		for (const TSharedPtr<FBody>& Body : Model.GetBodies())
+		{
+			ensureCADKernel(!Body->HasMarker1());
+		}
+	}
+#endif
+
 	TArray<FBody*> Bodies;
 	Bodies.Reserve(Shells.Num());
 

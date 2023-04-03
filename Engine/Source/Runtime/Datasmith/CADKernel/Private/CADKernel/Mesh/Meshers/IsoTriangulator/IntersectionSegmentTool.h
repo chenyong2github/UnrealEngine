@@ -15,11 +15,19 @@ class FIsoInnerNode;
 class FIsoSegment;
 class FPoint2D;
 
+enum class EConnectionType : uint8
+{
+	DoesntStartFrom = 0,
+	StartFrom,
+	SuperimposedByOrOn,
+	SameSegment,
+};
+
 namespace IntersectionToolBase
 {
 struct FSegment
 {
-	const TSegment<FPoint2D> Segment2D;
+	const FSegment2D Segment2D;
 
 	/**
 	 * Segment's axis aligned bounding box
@@ -56,34 +64,74 @@ struct FSegment
 		return nullptr;
 	}
 
-	bool DoesItStartFrom(const FIsoNode* StartNode, const FIsoNode* EndNode) const
+	EConnectionType IsSuperimposed(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD, bool bSameOrientation) const
 	{
-		if (GetFirstNode() == StartNode || GetSecondNode() == StartNode)
+		const FPoint2D AB = SegmentAB.GetVector();
+		const FPoint2D CD = SegmentCD.GetVector(); 
+		const double ParallelCoef = AB ^ CD;
+		if (FMath::IsNearlyZero(ParallelCoef, DOUBLE_KINDA_SMALL_NUMBER))
 		{
-			return true;
+			const double OrientationCoef = AB * CD;
+			if ((OrientationCoef >= 0) == bSameOrientation)
+			{
+				return EConnectionType::SuperimposedByOrOn;
+			}
+		}
+		return EConnectionType::StartFrom;
+	};
+
+	EConnectionType DoesItStartFromAndSuperimposed(const FIsoNode* StartNode, const FPoint2D* EndPoint, const FSegment2D& InSegment) const
+	{
+		if (GetFirstNode() == StartNode)
+		{
+			constexpr bool bSameOrientation = true;
+			return IsSuperimposed(Segment2D, InSegment, bSameOrientation);
+		}
+		if (GetSecondNode() == StartNode)
+		{
+			constexpr bool bNotSameOrientation = true;
+			return IsSuperimposed(Segment2D, InSegment, bNotSameOrientation);
 		}
 
-		if (GetFirstNode() == EndNode || GetSecondNode() == EndNode)
-		{
-			return true;
-		}
-
-		return false;
+		return EConnectionType::DoesntStartFrom;
 	}
 
-	bool DoesItStartFrom(const FIsoNode* StartNode, const FPoint2D* EndPoint) const
+	EConnectionType DoesItStartFromAndSuperimposed(const FPoint2D* StartPoint, const FPoint2D* EndPoint, const FSegment2D& InSegment) const
 	{
-		if (GetFirstNode() == StartNode || GetSecondNode() == StartNode)
-		{
-			return true;
-		}
-
-		return false;
+		return EConnectionType::DoesntStartFrom;
 	}
 
-	bool DoesItStartFrom(const FPoint2D* StartPoint, const FPoint2D* EndPoint) const
+	EConnectionType DoesItStartFromAndSuperimposed(const FIsoNode* StartNode, const FIsoNode* EndNode, const FSegment2D& InSegment) const
 	{
-		return false;
+		if (GetFirstNode() == StartNode)
+		{
+			if (GetSecondNode() == EndNode)
+			{
+				return EConnectionType::SameSegment;
+			}
+			return IsSuperimposed(Segment2D, InSegment, true);
+		}
+
+		if (GetSecondNode() == EndNode)
+		{
+			return IsSuperimposed(Segment2D, InSegment, true);
+		}
+
+		if (GetFirstNode() == EndNode )
+		{
+			if (GetSecondNode() == StartNode)
+			{
+				return EConnectionType::SameSegment;
+			}
+			return IsSuperimposed(Segment2D, InSegment, false);
+		}
+
+		if (GetSecondNode() == StartNode)
+		{
+			return IsSuperimposed(Segment2D, InSegment, false);
+		}
+
+		return EConnectionType::DoesntStartFrom;
 	}
 
 	bool IsFullyBefore(const FSegment& Segment) const
@@ -262,11 +310,18 @@ public:
 				{
 					break;
 				}
-}
+			}
 
-			if (Segment.DoesItStartFrom(StartExtremity, EndExtremity))
+			switch (Segment.DoesItStartFromAndSuperimposed(StartExtremity, EndExtremity, InSegment.Segment2D))
 			{
+			case EConnectionType::SameSegment:
+			case EConnectionType::StartFrom:
 				continue;
+			case EConnectionType::SuperimposedByOrOn:
+				return Segment.IsoSegment;
+			case EConnectionType::DoesntStartFrom:
+			default:
+				break;
 			}
 
 			if (Segment.DoesItIntersect(InSegment))
@@ -306,11 +361,24 @@ public:
 				{
 					break;
 				}
-}
+			}
 
-			if (Segment.DoesItStartFrom(StartExtremity, EndExtremity))
+			switch (Segment.DoesItStartFromAndSuperimposed(StartExtremity, EndExtremity, InSegment.Segment2D))
 			{
+			case EConnectionType::StartFrom:
+			case EConnectionType::SameSegment:
 				continue;
+
+			case EConnectionType::SuperimposedByOrOn:
+				++IntersectionCount;
+				if (OutIntersectedSegments)
+				{
+					OutIntersectedSegments->Add(Segment.GetIsoSegment());
+				}
+				continue;
+			case EConnectionType::DoesntStartFrom:
+			default:
+				break;
 			}
 
 			if (Segment.DoesItIntersect(InSegment))
@@ -326,7 +394,7 @@ public:
 		return IntersectionCount;
 	}
 
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	virtual void Display(bool bDisplay, const TCHAR* Message, EVisuProperty Property = EVisuProperty::BlueCurve) const
 	{
 		if (!bDisplay)

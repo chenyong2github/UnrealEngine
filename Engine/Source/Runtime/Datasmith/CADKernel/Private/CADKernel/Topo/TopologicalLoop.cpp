@@ -1173,5 +1173,14 @@ bool FTopologicalLoop::IsInside(const FTopologicalLoop& OtherLoop) const
 	return InsidePoint > OutsidePoint;
 }
 
+double FTopologicalLoop::Length() const
+{
+	double Length = 0;
+	for (const FOrientedEdge& Edge : GetEdges())
+	{
+		Length += Edge.Entity->Length();
+	}
+	return Length;
+}
 
 }

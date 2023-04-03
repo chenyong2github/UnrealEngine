@@ -200,7 +200,8 @@ public:
 
 	bool HasTriangleOnRightAndLeft()
 	{
-		return (States & EIsoSegmentStates::RightTriangle) == EIsoSegmentStates::RightTriangle && (States & EIsoSegmentStates::LeftTriangle) == EIsoSegmentStates::LeftTriangle;
+		constexpr EIsoSegmentStates BoothSides = EIsoSegmentStates::RightTriangle | EIsoSegmentStates::LeftTriangle;
+		return (States & BoothSides) == BoothSides;
 	}
 
 	void SetHasTriangleOnRight()

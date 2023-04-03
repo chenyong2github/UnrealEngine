@@ -407,6 +407,15 @@ public:
 		TArray<double> CurvilinearCoordinates;
 		double CurveLength = ComputeCurvilinearCoordinatesOfPolyline(InBoundary, CurvilinearCoordinates, BoundaryIndices);
 
+		if (CurveLength < 2. * DesiredSegmentLength)
+		{
+			OutCoordinates.SetNum(3);
+			OutCoordinates[0] = InBoundary.GetMin();
+			OutCoordinates[1] = InBoundary.GetMiddle();
+			OutCoordinates[2] = InBoundary.GetMax();
+			return;
+		}
+
 		int32 SegmentNum = (int32)FMath::Max(CurveLength / DesiredSegmentLength + 0.5, 1.0);
 
 		double SectionLength = CurveLength / (double)(SegmentNum);

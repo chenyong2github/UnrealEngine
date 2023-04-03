@@ -176,6 +176,8 @@ void FModel::FillTopologyReport(FTopologyReport& Report) const
 	{
 		Body->FillTopologyReport(Report);
 	}
+
+	Report.ResetMarkers();
 }
 #endif
 

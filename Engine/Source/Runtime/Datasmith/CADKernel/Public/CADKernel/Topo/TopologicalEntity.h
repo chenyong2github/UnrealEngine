@@ -51,6 +51,18 @@ public:
 		States &= ~EHaveStates::IsApplyCriteria;
 	}
 
+	bool IsNotMeshable() const
+	{
+		constexpr EHaveStates MeshedOrDeletedOrDegenerated = EHaveStates::IsMeshed | EHaveStates::Degenerated | EHaveStates::IsDeleted;
+		return ((States & MeshedOrDeletedOrDegenerated) != EHaveStates::None);
+	}
+
+	bool IsMeshable() const
+	{
+		constexpr EHaveStates MeshedOrDeletedOrDegenerated = EHaveStates::IsMeshed | EHaveStates::Degenerated | EHaveStates::IsDeleted;
+		return ((States & MeshedOrDeletedOrDegenerated) == EHaveStates::None);
+	}
+
 	bool IsMeshed() const
 	{
 		return ((States & EHaveStates::IsMeshed) == EHaveStates::IsMeshed);

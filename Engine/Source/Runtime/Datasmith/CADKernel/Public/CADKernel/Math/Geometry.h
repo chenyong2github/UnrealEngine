@@ -29,7 +29,7 @@ CADKERNEL_API inline FPoint2D ComputeCircumCircleCenter(const FPoint2D& InPoint0
 	FPoint2D Segment_P0_P2 = InPoint2 - InPoint0;
 
 	// D = 2(BuCv - BvCu)
-	double D = 2 * Segment_P0_P1 ^ Segment_P0_P2;
+	double D = 2. * Segment_P0_P1 ^ Segment_P0_P2;
 	if (FMath::IsNearlyZero(D, SMALL_NUMBER_SQUARE))
 	{
 		return FPoint2D::ZeroPoint;
@@ -61,7 +61,7 @@ CADKERNEL_API inline FPoint ComputeCircumCircleCenter(const FPoint& Point0, cons
 	FPoint2D D2Point1 = MatrixInverse * Point1;
 	FPoint2D D2Point2 = MatrixInverse * Point2;
 
-	double D = 2 * D2Point1 ^ D2Point2;
+	double D = 2. * D2Point1 ^ D2Point2;
 	if (FMath::IsNearlyZero(D, SMALL_NUMBER_SQUARE))
 	{
 		return FPoint::ZeroPoint;
@@ -83,7 +83,7 @@ CADKERNEL_API inline FPoint2D ComputeCircumCircleCenterAndSquareRadius(const FPo
 	FPoint2D Segment_P0_P1 = InPoint1 - InPoint0;
 	FPoint2D Segment_P0_P2 = InPoint2 - InPoint0;
 
-	double D = 2 * Segment_P0_P1 ^ Segment_P0_P2;
+	double D = 2. * Segment_P0_P1 ^ Segment_P0_P2;
 	if (FMath::IsNearlyZero(D, SMALL_NUMBER_SQUARE))
 	{
 		OutSquareRadius = 0;
@@ -132,7 +132,14 @@ struct CADKERNEL_API TSegment
 		return Point0.SquareDistance(Point1);
 	}
 
+	PointType GetVector() const
+	{
+		return Point1 - Point0;
+	}
 };
+
+using FSegment2D = TSegment<FPoint2D>;
+using FSegment3D = TSegment<FPoint>;
 
 template<class PointType>
 struct CADKERNEL_API TTriangle

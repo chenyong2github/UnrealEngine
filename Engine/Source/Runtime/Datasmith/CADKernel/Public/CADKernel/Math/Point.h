@@ -787,9 +787,21 @@ inline FPoint operator*(double Scale, const FPoint& Point)
 	return FPoint(Point.X * Scale, Point.Y * Scale, Point.Z * Scale);
 }
 
-inline FPoint2D operator*(double s, const FPoint2D& Point)
+inline FPoint operator*(float Scale, const FPoint& Point)
 {
-	return FPoint2D(Point.U * s, Point.V * s);
+	double ScaleD = static_cast<double>(Scale);
+	return FPoint(Point.X * ScaleD, Point.Y * ScaleD, Point.Z * ScaleD);
+}
+
+inline FPoint2D operator*(double Scale, const FPoint2D& Point)
+{
+	return FPoint2D(Point.U * Scale, Point.V * Scale);
+}
+
+inline FPoint2D operator*(float Scale, const FPoint2D& Point)
+{
+	double ScaleD = static_cast<double>(Scale);
+	return FPoint2D(Point.U * ScaleD, Point.V * ScaleD);
 }
 
 }

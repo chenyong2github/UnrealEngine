@@ -46,8 +46,12 @@ protected:
 public:
 
 	static TSharedPtr<FCurve> MakeNurbsCurve(FNurbsCurveData& InNurbsData);
+	static TSharedPtr<FCurve> MakeBezierCurve(const TArray<FPoint>& InPoles);
+	static TSharedPtr<FCurve> MakeSplineCurve(const TArray<FPoint>& InPoles);
+	static TSharedPtr<FCurve> MakeSplineCurve(const TArray<FPoint>& InPoles, const TArray<FPoint>& Tangents);
+	static TSharedPtr<FCurve> MakeSplineCurve(const TArray<FPoint>& InPoles, const TArray<FPoint>& ArriveTangents, const TArray<FPoint>& LeaveTangents);
+
 	// TODO
-	//static TSharedPtr<FCurve> MakeBezierCurve(const double InToleranceGeometric, int32 InUDegre, int32 InVDegre, const TArray<FPoint>& InPoles);
 	//static TSharedPtr<FCurve> MakeConeCurve(const double InToleranceGeometric, const FMatrixH& InMatrix, double InStartRadius, double InConeAngle, const FSurfacicBoundary& InBoundary);
 	//static TSharedPtr<FCurve> MakeCylinderCurve(const double InToleranceGeometric, const FMatrixH& InMatrix, const double InRadius, const FSurfacicBoundary& InBoundary);
 	//static TSharedPtr<FCurve> MakePlaneCurve(const double InToleranceGeometric, const FMatrixH& InMatrix, const FSurfacicBoundary& InBoundary);
@@ -106,7 +110,7 @@ public:
 	virtual TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH& InMatrix) const override = 0;
 	virtual void Offset(const FPoint& OffsetDirection) = 0;
 
-	double GetLength(double Tolerance) const;
+	virtual double GetLength(double Tolerance) const;
 
 	/**
 	 * Evaluate exact 3D point of the curve at the input Coordinate

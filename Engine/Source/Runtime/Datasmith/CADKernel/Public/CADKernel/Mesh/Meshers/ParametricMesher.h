@@ -44,6 +44,8 @@ protected:
 
 	TArray<FTopologicalFace*> Faces;
 
+	bool bThinZoneMeshing = false;
+
 #ifdef CADKERNEL_DEV
 	FMesherReport MesherReport;
 	bool bDisplay = false;
@@ -78,12 +80,14 @@ public:
 
 	void MeshFaceLoops(FGrid& Grid);
 
-	void MeshThinZoneEdges(FGrid&);
-	void MeshThinZoneSide(const FThinZoneSide& Side);
-	void GetThinZoneBoundary(const FThinZoneSide& Side);
+	void MeshThinZoneEdges(FTopologicalFace& Face);
+	void MeshThinZoneSide(FThinZoneSide& Side);
+	void FindThinZoneBoundary(FThinZoneSide& Side);
 
-	void GenerateCloud(FGrid& Grid);
-
+	/**
+	 * @return false if the process fails i.e. the grid is degenerated or else. 
+	 */
+	bool GenerateCloud(FGrid& Grid);
 
 #ifdef CADKERNEL_DEV
 	void SetMeshReport(const FMesherReport& InMesherReport)
@@ -112,7 +116,7 @@ protected:
 	void MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfaceSet);
 
 	void ApplyEdgeCriteria(FTopologicalEdge& Edge);
-	static void ApplyFaceCriteria(FTopologicalFace& Face, const TArray<TSharedPtr<FCriterion>>& Criteria);
+	static void ApplyFaceCriteria(FTopologicalFace& Face, const TArray<TSharedPtr<FCriterion>>& Criteria, bool);
 
 	/**
 	 * Generate Edge Elements on active edge from Edge cutting points

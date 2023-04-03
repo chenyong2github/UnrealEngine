@@ -433,11 +433,6 @@ void FTopologicalFace::GetEdgeIndex(const FTopologicalEdge& Edge, int32& OutBoun
 	OutBoundaryIndex = INDEX_NONE;
 }
 
-void FTopologicalFace::EvaluateGrid(FGrid& Grid) const
-{
-	CarrierSurface->EvaluateGrid(Grid);
-}
-
 const void FTopologicalFace::Get2DLoopSampling(TArray<TArray<FPoint2D>>& LoopSamplings) const
 {
 	LoopSamplings.Empty(GetLoops().Num());
@@ -527,14 +522,13 @@ void FTopologicalFace::ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& Crite
 	{
 		if (CoordNextMinusCoord < DOUBLE_SMALL_NUMBER)
 		{
-			return Length;
+			return;
 		}
 		const double ElemLength = Length * DeltaMax / CoordNextMinusCoord;
 		if (ElementLengthMin > ElemLength)
 		{
 			ElementLengthMin = ElemLength;
 		}
-		return ElemLength;
 	};
 
 	for (int32 IndexV = 0; IndexV < CrossingCoordinates[EIso::IsoV].Num() - 1; ++IndexV)

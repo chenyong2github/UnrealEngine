@@ -9,6 +9,7 @@
 #include "CADKernel/Geo/Curves/BezierCurve.h"
 #include "CADKernel/Geo/Curves/NURBSCurve.h"
 #include "CADKernel/Geo/Curves/RestrictionCurve.h"
+#include "CADKernel/Geo/Curves/SplineCurve.h"
 #include "CADKernel/Geo/Sampler/SamplerOnChord.h"
 #include "CADKernel/Geo/Sampler/SamplerOnParam.h"
 #include "CADKernel/Geo/Surfaces/BezierSurface.h"
@@ -31,7 +32,7 @@
 namespace UE::CADKernel
 {
 
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 void Open3DDebugSession(FString name, const TArray<FIdent>& IdArray)
 {
 	FSystem::Get().GetVisu()->Open3DDebugSession(*name, IdArray);
@@ -57,42 +58,42 @@ void Wait(bool bMakeWait)
 
 void Open3DDebugSegment(FIdent Ident)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	FSystem::Get().GetVisu()->Open3DDebugSegment(Ident);
 #endif
 }
 
 void Close3DDebugSegment()
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	FSystem::Get().GetVisu()->Close3DDebugSegment();
 #endif
 }
 
 void FlushVisu()
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	FSystem::Get().GetVisu()->UpdateViewer();
 #endif
 }
 
 void DrawElement(int32 Dimension, TArray<FPoint>& Points, EVisuProperty Property)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	FSystem::Get().GetVisu()->DrawElement(Dimension, Points, Property);
 #endif
 }
 
 void DrawMesh(const FMesh& Mesh)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	FSystem::Get().GetVisu()->DrawMesh(Mesh.GetId());
 #endif
 }
 
 void Draw(const FLinearBoundary& Boundary, const FRestrictionCurve& Curve, EVisuProperty Property)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	if (Boundary.IsDegenerated())
 	{
 		return;
@@ -126,7 +127,7 @@ void Draw(const FLinearBoundary& Boundary, const FRestrictionCurve& Curve, EVisu
 
 void Draw2D(const FCurve& Curve, const FLinearBoundary& Boundary, EVisuProperty Property)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	if (Boundary.IsDegenerated())
 	{
 		return;
@@ -159,7 +160,7 @@ void Draw2D(const FCurve& Curve, const FLinearBoundary& Boundary, EVisuProperty 
 
 void Draw3D(const FCurve& Curve, const FLinearBoundary& Boundary, EVisuProperty Property)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	if (Boundary.IsDegenerated())
 	{
 		return;
@@ -192,7 +193,7 @@ void Draw3D(const FCurve& Curve, const FLinearBoundary& Boundary, EVisuProperty 
 
 void Draw(const FCurve& Curve, const FLinearBoundary& Boundary, EVisuProperty Property)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	if (Curve.GetDimension() == 3)
 	{
 		Draw3D(Curve, Boundary, Property);
@@ -207,7 +208,7 @@ void Draw(const FCurve& Curve, const FLinearBoundary& Boundary, EVisuProperty Pr
 
 void Draw(const FCurve& Curve, EVisuProperty Property)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	const FLinearBoundary& Bounds = Curve.GetBoundary();
 	Draw(Curve, Bounds, Property);
 #endif
@@ -215,7 +216,7 @@ void Draw(const FCurve& Curve, EVisuProperty Property)
 
 void DrawQuadripode(double Height, double Base, FPoint& Center, FPoint& InDirection)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	FPoint Direction = InDirection;
 	Direction.Normalize();
 
@@ -254,7 +255,7 @@ void DrawQuadripode(double Height, double Base, FPoint& Center, FPoint& InDirect
 
 void DisplayEntity(const FEntity& Entity)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	if (Entity.IsDeleted())
 	{
 		return;
@@ -312,7 +313,7 @@ void DisplayEntity(const FEntity& Entity)
 
 void DisplayEntity2D(const FEntity& Entity)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	if (Entity.IsDeleted())
 	{
 		return;
@@ -350,7 +351,7 @@ void DisplayEntity2D(const FEntity& Entity)
 
 void Display(const FPlane& Plane, FIdent Ident)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	FVector Normal = Plane.GetNormal();
 	if (Normal.Size() < DOUBLE_SMALL_NUMBER)
 	{
@@ -379,7 +380,7 @@ void Display(const FPlane& Plane, FIdent Ident)
 	TArray<FPoint> Points;
 
 	const FVector Point = Plane.GetOrigin();
-
+	
 	FVector VTemp;
 
 	VTemp = Point + UAxis + VAxis;
@@ -404,7 +405,7 @@ void Display(const FPlane& Plane, FIdent Ident)
 
 void DisplayEdgeCriteriaGrid(int32 EdgeId, const TArray<FPoint>& Points3D)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	FString Name = FString::Printf(TEXT("Edge Grid %d"), EdgeId);
 	F3DDebugSession G(Name);
 	{
@@ -426,7 +427,7 @@ void DisplayEdgeCriteriaGrid(int32 EdgeId, const TArray<FPoint>& Points3D)
 
 void DisplayAABB(const FAABB& Aabb, FIdent Ident)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	TFunction<void(int32, FPoint&, FPoint&)> GetWire = [&](int32 Segment, FPoint& A, FPoint& B)
 	{
 		int32 Corner1;
@@ -477,7 +478,7 @@ void DisplayAABB(const FAABB& Aabb, FIdent Ident)
 
 void DisplayAABB2D(const FAABB2D& aabb, FIdent Ident)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	FPoint A(aabb.GetMin().U, aabb.GetMin().V, 0.);
 	FPoint B(aabb.GetMin().U, aabb.GetMax().V, 0.);
 	FPoint C(aabb.GetMax().U, aabb.GetMax().V, 0.);
@@ -495,7 +496,7 @@ void DisplayAABB2D(const FAABB2D& aabb, FIdent Ident)
 
 void Display(const FTopologicalVertex& Vertex)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	F3DDebugSegment G(Vertex.GetId());
 	DrawPoint(Vertex.GetCoordinates());
 #endif
@@ -503,7 +504,7 @@ void Display(const FTopologicalVertex& Vertex)
 
 void Display(const FCurve& Curve)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	F3DDebugSegment G(Curve.GetId());
 	Draw(Curve, Curve.GetBoundary());
 #endif
@@ -511,7 +512,7 @@ void Display(const FCurve& Curve)
 
 void Display(const FShell& Shell)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	FProgress Progress(Shell.GetFaces().Num(), TEXT("Display Shell"));
 	for (const FOrientedFace& Face : Shell.GetFaces())
 	{
@@ -522,7 +523,7 @@ void Display(const FShell& Shell)
 
 void Draw(const FShell& Shell)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	FProgress Progress(Shell.GetFaces().Num(), TEXT("Display Shell"));
 	for (const FOrientedFace& Face : Shell.GetFaces())
 	{
@@ -534,7 +535,7 @@ void Draw(const FShell& Shell)
 
 void Display(const FBody& Body)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	FProgress Progress(Body.GetShells().Num(), TEXT("Display Body"));
 
 	F3DDebugSegment GraphicSegment(Body.GetId());
@@ -551,7 +552,7 @@ void Display(const FBody& Body)
 
 void Display(const FSurface& Surface)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	FProgress Progress(TEXT("Display Surface"));
 
 	F3DDebugSegment GraphicSegment(Surface.GetId());
@@ -591,7 +592,7 @@ void Display(const FSurface& Surface)
 
 void Display2D(const FSurface& Surface)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	double StepU, StepV;
 
 	F3DDebugSegment G(Surface.GetId());
@@ -621,7 +622,7 @@ void Display2D(const FSurface& Surface)
 
 void DisplayIsoCurve(const FSurface& Surface, double Coordinate, EIso IsoType)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	const double VisuSag = FSystem::Get().GetVisu()->GetParameters()->ChordError;
 
 	F3DDebugSegment G(Surface.GetId());
@@ -639,7 +640,7 @@ void DisplayIsoCurve(const FSurface& Surface, double Coordinate, EIso IsoType)
 
 void DisplayControlPolygon(const FCurve& Curve)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	TFunction<void(const TArray<FPoint>&)> DisplayHull = [](const TArray<FPoint>& Poles)
 	{
 		for (const FPoint& Pole : Poles)
@@ -670,12 +671,32 @@ void DisplayControlPolygon(const FCurve& Curve)
 		DisplayHull(Poles);
 		return;
 	}
+	case ECurve::Spline:
+	{
+		const FSplineCurve& Spline = (const FSplineCurve&)Curve;
+		const FInterpCurveFPoint& Poles = Spline.GetSplinePointsPosition();
+
+		for (const auto& Pole : Poles.Points)
+		{
+			DisplayPoint(Pole.OutVal, EVisuProperty::BluePoint);
+		}
+
+		for (const auto& Pole : Poles.Points)
+		{
+			DisplaySegment(Pole.OutVal - Pole.ArriveTangent / 2., Pole.OutVal, 0, EVisuProperty::GreenCurve);
+			DisplaySegment(Pole.OutVal, Pole.OutVal + Pole.LeaveTangent / 2., 0, EVisuProperty::GreenCurve);
+		}
+		return;
+	}
+
+	}
+
 #endif
 }
 
 void DisplayControlPolygon(const FSurface& Surface)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	TFunction<void(const TArray<FPoint>&, int32, int32)> DisplayHull = [](const TArray<FPoint>& Poles, int32 PoleUNum, int32 PoleVNum)
 	{
 		for (int32 Index = 0; Index < Poles.Num(); Index++)
@@ -721,7 +742,7 @@ void DisplayControlPolygon(const FSurface& Surface)
 
 void Display(const FTopologicalFace& Face)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	F3DDebugSegment GraphicSegment(Face.GetId());
 	Draw(Face);
 #endif
@@ -729,7 +750,7 @@ void Display(const FTopologicalFace& Face)
 
 void Display2D(const FTopologicalFace& Face)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	F3DDebugSegment GraphicSegment(Face.GetId());
 	Draw2D(Face);
 #endif
@@ -737,7 +758,7 @@ void Display2D(const FTopologicalFace& Face)
 
 void Display2DWithScale(const FTopologicalFace& Face)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	F3DDebugSegment GraphicSegment(Face.GetId());
 	Draw2D(Face);
 #endif
@@ -745,7 +766,7 @@ void Display2DWithScale(const FTopologicalFace& Face)
 
 void Draw(const FTopologicalFace& Face)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	{
 		for (const TSharedPtr<FTopologicalLoop>& Loop : Face.GetLoops())
 		{
@@ -755,7 +776,7 @@ void Draw(const FTopologicalFace& Face)
 				switch (Edge.Entity->GetTwinEntityCount())
 				{
 				case 1:
-					Property = Edge.Entity->IsDegenerated() ? EVisuProperty::OrangeCurve : EVisuProperty::BorderEdge;
+					Property =  Edge.Entity->IsDegenerated() ? EVisuProperty::OrangeCurve : EVisuProperty::BorderEdge;
 					break;
 				case 2:
 					Property = EVisuProperty::BlueCurve;
@@ -774,7 +795,7 @@ void Draw(const FTopologicalFace& Face)
 
 void Draw2D(const FTopologicalFace& Face)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	TArray<TArray<FPoint2D>> BoundaryApproximation;
 	Face.Get2DLoopSampling(BoundaryApproximation);
 
@@ -834,7 +855,7 @@ void Draw2D(const FTopologicalFace& Face)
 
 void DrawIsoCurves(const FTopologicalFace& Face)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	TArray<TArray<FPoint2D>> BoundaryApproximation;
 	Face.Get2DLoopSampling(BoundaryApproximation);
 
@@ -902,7 +923,7 @@ void DrawIsoCurves(const FTopologicalFace& Face)
 
 void Display(const FTopologicalEdge& Edge, EVisuProperty Property)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	F3DDebugSegment GraphicSegment(Edge.GetId());
 	Draw(Edge, Property);
 #endif
@@ -910,7 +931,7 @@ void Display(const FTopologicalEdge& Edge, EVisuProperty Property)
 
 void Display2D(const FTopologicalEdge& Edge, EVisuProperty Property)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	F3DDebugSegment GraphicSegment(Edge.GetId());
 	TArray<FPoint2D> Polyline;
 	Edge.GetCurve()->GetDiscretizationPoints(Edge.GetBoundary(), EOrientation::Front, Polyline);
@@ -920,7 +941,7 @@ void Display2D(const FTopologicalEdge& Edge, EVisuProperty Property)
 
 void Display2DWithScale(const FTopologicalEdge& Edge, EVisuProperty Property)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	F3DDebugSegment GraphicSegment(Edge.GetId());
 	TArray<FPoint2D> Polyline;
 	Edge.GetCurve()->GetDiscretizationPoints(Edge.GetBoundary(), EOrientation::Front, Polyline);
@@ -928,14 +949,14 @@ void Display2DWithScale(const FTopologicalEdge& Edge, EVisuProperty Property)
 
 	for (const FPoint2D& Point : Polyline)
 	{
-		DisplayPoint2DWithScale(Point, EVisuProperty::RedPoint);
+		DisplayPoint2DWithScale(Point, EVisuProperty ::RedPoint);
 	}
 #endif
 }
 
 void Draw(const FTopologicalEdge& Edge, EVisuProperty Property)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	const FLinearBoundary& Boundary = Edge.GetBoundary();
 	Draw(Boundary, *Edge.GetCurve(), Property);
 #endif
@@ -943,7 +964,7 @@ void Draw(const FTopologicalEdge& Edge, EVisuProperty Property)
 
 void Display(const FModel& Model)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	FProgress MainProgress(2, TEXT("Display model"));
 	{
 		const TArray<TSharedPtr<FBody>>& Bodies = Model.GetBodies();
@@ -959,7 +980,7 @@ void Display(const FModel& Model)
 
 void DisplayProductTree(const FModel& Model)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %d"), Model.GetTypeName(), Model.GetId()), { Model.GetId() });
 
 	FProgress MainProgress(2, TEXT("Display Model"));
@@ -977,7 +998,7 @@ void DisplayProductTree(const FModel& Model)
 
 void DisplayProductTree(const FBody& Body)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 #ifdef CORETECHBRIDGE_DEBUG
 	F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %s KioId: %d Id: %d"), Body.GetTypeName(), Body.GetName(), Body.GetKioId(), Body.GetId()), { Body.GetId() });
 #else
@@ -998,7 +1019,7 @@ void DisplayProductTree(const FBody& Body)
 
 void DisplayProductTree(const FShell& Shell)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 #ifdef CORETECHBRIDGE_DEBUG
 	F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %s KioId: %d Id: %d"), Shell.GetTypeName(), Shell.GetName(), Shell.GetKioId(), Shell.GetId()), { Shell.GetId() });
 #else
@@ -1010,7 +1031,7 @@ void DisplayProductTree(const FShell& Shell)
 
 void DisplayProductTree(const FEntity& Entity)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	FTimePoint StartTime = FChrono::Now();
 
 	switch (Entity.GetEntityType())
@@ -1038,7 +1059,7 @@ void DisplayProductTree(const FEntity& Entity)
 
 void Display(const FGroup& Group)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	TArray<TSharedPtr<FEntity>> Entities;
 
 	Group.GetValidEntities(Entities);
@@ -1053,7 +1074,7 @@ void Display(const FGroup& Group)
 
 void DisplayMesh(const FFaceMesh& Mesh)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	TMap<int32, const FPoint*> NodeIdToCoordinates;
 	Mesh.GetNodeIdToCoordinates(NodeIdToCoordinates);
 
@@ -1122,7 +1143,7 @@ void DisplayMesh(const FFaceMesh& Mesh)
 
 void DisplayMesh(const FEdgeMesh& Mesh)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	const FModelMesh& MeshModel = Mesh.GetMeshModel();
 
 	const TArray<int32>& NodeIds = Mesh.EdgeVerticesIndex;
@@ -1174,14 +1195,14 @@ void DisplayMesh(const FEdgeMesh& Mesh)
 
 void DisplayMesh(const FVertexMesh& Mesh)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	DisplayPoint(Mesh.GetNodeCoordinates()[0], EVisuProperty::NodeMesh, Mesh.GetId());
 #endif
 }
 
 void Display(const FModelMesh& MeshModel)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	for (const TSharedPtr<FFaceMesh>& Mesh : MeshModel.GetFaceMeshes())
 	{
 		if (Mesh.IsValid())
@@ -1194,7 +1215,7 @@ void Display(const FModelMesh& MeshModel)
 
 void DisplaySegment(const FPoint& Point1, const FPoint& Point2, FIdent Ident, EVisuProperty Property)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	F3DDebugSegment G(Ident);
 	DrawSegment(Point1, Point2, Property);
 #endif
@@ -1202,7 +1223,7 @@ void DisplaySegment(const FPoint& Point1, const FPoint& Point2, FIdent Ident, EV
 
 void DisplaySegment(const FPoint2D& Point1, const FPoint2D& Point2, FIdent Ident, EVisuProperty Property, bool bWithOrientation)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	F3DDebugSegment G(Ident);
 	if (bWithOrientation)
 	{
@@ -1214,7 +1235,7 @@ void DisplaySegment(const FPoint2D& Point1, const FPoint2D& Point2, FIdent Ident
 
 void DisplaySegment(const FPointH& Point1, const FPointH& Point2, FIdent Ident, EVisuProperty Property)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	F3DDebugSegment G(Ident);
 	DrawSegment(Point1, Point2, Property);
 #endif
@@ -1222,7 +1243,7 @@ void DisplaySegment(const FPointH& Point1, const FPointH& Point2, FIdent Ident, 
 
 void DisplayLoop(const FTopologicalFace& Surface)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	for (const TSharedPtr<FTopologicalLoop>& Loop : Surface.GetLoops())
 	{
 		Display(*Loop);
@@ -1233,7 +1254,7 @@ void DisplayLoop(const FTopologicalFace& Surface)
 
 void Display(const FTopologicalLoop& Loop)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	for (const FOrientedEdge& Edge : Loop.GetEdges())
 	{
 		Display(*Edge.Entity);
@@ -1243,7 +1264,7 @@ void Display(const FTopologicalLoop& Loop)
 
 void Display2D(const FTopologicalLoop& Loop)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	for (const FOrientedEdge& Edge : Loop.GetEdges())
 	{
 		Display2D(*Edge.Entity);
@@ -1253,7 +1274,7 @@ void Display2D(const FTopologicalLoop& Loop)
 
 void Display2DWithScale(const FTopologicalLoop& Loop)
 {
-#ifdef CADKERNEL_DEV
+#ifdef CADKERNEL_DEBUG
 	for (const FOrientedEdge& Edge : Loop.GetEdges())
 	{
 		Display2DWithScale(*Edge.Entity);

@@ -9,6 +9,7 @@
 #include "CADKernel/Mesh/Structure/EdgeMesh.h"
 #include "CADKernel/Mesh/Structure/FaceMesh.h"
 #include "CADKernel/Mesh/Structure/ModelMesh.h"
+#include "CADKernel/Mesh/Structure/ThinZone2DFinder.h"
 #include "CADKernel/Mesh/Structure/VertexMesh.h"
 #include "CADKernel/Topo/Body.h"
 #include "CADKernel/Topo/Model.h"
@@ -16,7 +17,9 @@
 #include "CADKernel/Topo/TopologicalFace.h"
 #include "CADKernel/Utils/Util.h"
 
+#ifndef CADKERNEL_DEV
 #include "Async/ParallelFor.h"
+#endif
 
 #ifdef CADKERNEL_DEV
 #include "CADKernel/Mesh/Meshers/MesherReport.h"
@@ -29,6 +32,7 @@ namespace UE::CADKernel
 
 FParametricMesher::FParametricMesher(FModelMesh& InMeshModel)
 	: MeshModel(InMeshModel)
+	, bThinZoneMeshing(false)
 {
 }
 
@@ -101,22 +105,29 @@ void FParametricMesher::PreMeshingTasks()
 
 	const TArray<TSharedPtr<FCriterion>>& Criteria = GetMeshModel().GetCriteria();
 
-#ifdef CADKERNEL_DEV
-	for(FTopologicalFace* Face : Faces)
-	{
-#else
+	// ============================================================================================================
+	//      Apply Surface Criteria
+	// ============================================================================================================
+
 	TArray<FTopologicalFace*>& LocalFaces = Faces;
-	ParallelFor(Faces.Num(), [&LocalFaces, &Criteria](int32 Index)
-		{
-			FTopologicalFace* Face = LocalFaces[Index];
+#ifndef CADKERNEL_DEV
+	ParallelFor(Faces.Num(), [&LocalFaces, &Criteria, &bThinZone = bThinZoneMeshing](int32 Index)
+#else
+	bool bThinZone = bThinZoneMeshing;
+	for (int32 Index = 0; Index < Faces.Num(); ++Index)
 #endif
-			if (Face == nullptr || Face->IsDeleted() || Face->IsMeshed())
-			{
-				return;
-			}
-			ApplyFaceCriteria(*Face, Criteria);
+	{
+		FTopologicalFace* Face = LocalFaces[Index];
+		if (Face == nullptr || Face->IsNotMeshable())
+		{
+			return;
+		}
+		ApplyFaceCriteria(*Face, Criteria, bThinZone);
+		if (!Face->IsDeletedOrDegenerated())
+		{
 			Face->ComputeSurfaceSideProperties();
 		}
+	}
 #ifndef CADKERNEL_DEV
 	);
 #endif
@@ -175,7 +186,7 @@ void FParametricMesher::MeshEntities()
 
 }
 
-void FParametricMesher::ApplyFaceCriteria(FTopologicalFace& Face, const TArray<TSharedPtr<FCriterion>>& Criteria)
+void FParametricMesher::ApplyFaceCriteria(FTopologicalFace& Face, const TArray<TSharedPtr<FCriterion>>& Criteria, bool bThinZoneMeshing)
 {
 	if (Face.IsApplyCriteria())
 	{
@@ -192,6 +203,38 @@ void FParametricMesher::ApplyFaceCriteria(FTopologicalFace& Face, const TArray<T
 
 	Face.InitDeltaUs();
 	Face.ApplyCriteria(Criteria, Grid);
+
+	if (bThinZoneMeshing)
+	{
+		Grid.ScaleGrid();
+
+#ifdef DEBUG_ONLY_SURFACE_TO_DEBUG
+		if (Grid.bDisplay)
+		{
+			Grid.DisplayGridPoints(EGridSpace::Default2D);
+			Grid.DisplayGridPoints(EGridSpace::UniformScaled);
+			Grid.DisplayGridPoints(EGridSpace::Scaled);
+		}
+#endif
+		FThinZone2DFinder ThinZoneFinder(Grid, Face);
+
+		// Size (length of segment of the loop sampling) is equal to MinimalElementLength / ElementRatio
+		// With this ratio each edges of the mesh should be defined by at least 3 segments. 
+		// This should ensure to identified all thin zones according to the mesh size and minimizing the size of the loop sampling
+		constexpr double ElementRatio = 3.;
+		const double Size = Face.GetEstimatedMinimalElementLength() / ElementRatio;
+		const bool bHasThinZones = ThinZoneFinder.SearchThinZones(Size);
+		if (bHasThinZones)
+		{
+			Face.SetHasThinZone();
+			Face.MoveThinZones(ThinZoneFinder.GetThinZones());
+		}
+	}
+
+	if (Face.IsDegenerated())
+	{
+		Face.Remove();
+	}
 }
 
 void FParametricMesher::ApplyEdgeCriteria(FTopologicalEdge& Edge)
@@ -231,7 +274,7 @@ void FParametricMesher::Mesh(FTopologicalFace& Face)
 	bDisplay = (Face.GetId() == FaceToDebug);
 #endif
 
-	if (Face.IsDeleted() || Face.IsMeshed())
+	if (Face.IsNotMeshable())
 	{
 		return;
 	}
@@ -249,19 +292,17 @@ void FParametricMesher::Mesh(FTopologicalFace& Face)
 	FTimePoint GenerateCloudStartTime = FChrono::Now();
 
 	FGrid Grid(Face, MeshModel);
-	GenerateCloud(Grid);
-
-	FDuration GenerateCloudDuration = FChrono::Elapse(GenerateCloudStartTime);
-
-	if (Grid.IsDegenerated())
+	if (!GenerateCloud(Grid) || Grid.IsDegenerated())
 	{
 #ifdef CADKERNEL_DEV
 		MesherReport.Logs.AddDegeneratedGrid();
- #endif
+#endif
 		FMessage::Printf(EVerboseLevel::Log, TEXT("The meshing of the surface %d failed due to a degenerated grid\n"), Face.GetId());
 		Face.SetMeshed();
 		return;
 	}
+
+	FDuration GenerateCloudDuration = FChrono::Elapse(GenerateCloudStartTime);
 
 	FTimePoint IsoTriangulerStartTime = FChrono::Now();
 
@@ -297,48 +338,25 @@ void FParametricMesher::Mesh(FTopologicalFace& Face)
 
 }
 
-void FParametricMesher::GenerateCloud(FGrid& Grid)
+bool FParametricMesher::GenerateCloud(FGrid& Grid)
 {
 	Grid.DefineCuttingParameters();
 	if (!Grid.GeneratePointCloud())
 	{
-		return;
+		return false;
 	}
 
-	bool bFindThinZone = false;
-	if (bFindThinZone)
+	if (bThinZoneMeshing)
 	{
 		FTimePoint StartTime = FChrono::Now();
-#ifdef THIN_ZONES
-		Grid.SearchThinZones();
-#endif
-
 		if (Grid.GetFace().HasThinZone())
 		{
-#ifdef DEBUG_THIN_ZONES
-			{
-				F3DDebugSession _(TEXT("Thin Surface"));
-				Display(Grid.GetSurface());
-			}
-#endif
-			FTimePoint MeshThinZonesTime = FChrono::Now();
-			MeshThinZoneEdges(Grid);
-#ifdef CADKERNEL_DEV
-			MesherReport.Chronos.GlobalMeshThinZones += FChrono::Elapse(MeshThinZonesTime);
-#endif
+			MeshThinZoneEdges(Grid.GetFace());
 		}
 #ifdef CADKERNEL_DEV
 		MesherReport.Chronos.GlobalThinZones += FChrono::Elapse(StartTime);
 #endif
 	}
-
-#ifdef DEBUG_THIN_ZONES
-	if(Grid.bDisplay)
-	{
-		Grid.DisplayInnerDomainPoints(TEXT("FGrid::PointCloud 2D"), Grid.GetInner2DPoints(EGridSpace::Default2D));
-		Wait();
-	}
-#endif
 
 	FTimePoint StartTime = FChrono::Now();
 	MeshFaceLoops(Grid);
@@ -348,6 +366,8 @@ void FParametricMesher::GenerateCloud(FGrid& Grid)
 #ifdef CADKERNEL_DEV
 	MesherReport.Chronos.GlobalMeshAndGetLoopNodes += FChrono::Elapse(StartTime);
 #endif
+
+	return true;
 }
 
 void FParametricMesher::MeshFaceLoops(FGrid& Grid)
@@ -382,6 +402,15 @@ static void FillImposedIsoCuttingPoints(TArray<double>& UEdgeSetOfIntersectionWi
 		if ((InterU - EdgeToleranceGeo) < EdgeBoundary.GetMin() || (InterU + EdgeToleranceGeo) > EdgeBoundary.GetMax())
 		{
 			continue;
+		}
+
+		// Remove coordinate inside thin zone
+		for (FLinearBoundary ThinZone : Edge.GetThinZoneBounds())
+		{
+			if (ThinZone.Contains(InterU))
+			{
+				continue;
+			}
 		}
 
 		// Remove nearly duplicate 
@@ -456,7 +485,7 @@ void FParametricMesher::Mesh(FTopologicalEdge& InEdge, const FTopologicalFace& F
 			// In this case, the loop is flat i.e. in 2d the meshes of the 2d line and 2d curve are coincident
 			// So the grid is degenerated and the surface is not meshed
 			// to avoid this case, the Edge is virtually meshed i.e. the nodes inside the edge have the id of the mesh of the vertices.
-			InEdge.SetAsVirtuallyMeshed();
+			InEdge.SetVirtuallyMeshedMarker();
 		}
 
 		if (ActiveEdge.IsThinPeak())
@@ -481,7 +510,7 @@ void FParametricMesher::Mesh(FTopologicalEdge& InEdge, const FTopologicalFace& F
 	ApplyEdgeCriteria(InEdge);
 
 #ifdef DEBUG_MESH_EDGE
-	if(bDisplay)
+	if (bDisplay)
 	{
 		F3DDebugSession _(FString::Printf(TEXT("EdgePointsOnDomain %d"), InEdge.GetId()));
 		Display2D(InEdge);
@@ -518,16 +547,33 @@ void FParametricMesher::Mesh(FTopologicalEdge& InEdge, const FTopologicalFace& F
 		}
 		Wait();
 	}
+	{
+		F3DDebugSession _(FString::Printf(TEXT("Thin Zone")));
+		for (FLinearBoundary ThinZone : InEdge.GetThinZoneBounds())
+		{
+			TArray<double> Coords;
+			Coords.Add(ThinZone.GetMin());
+			Coords.Add(ThinZone.GetMax());
+			TArray<FPoint2D> ThinZone2D;
+			InEdge.Approximate2DPoints(Coords, ThinZone2D);
+			DisplaySegment(ThinZone2D[0], ThinZone2D[1], EVisuProperty::YellowCurve);
+		}
+		Wait();
+
+	}
 #endif
 
 	FLinearBoundary EdgeBounds = InEdge.GetBoundary();
 
 	TArray<double>& DeltaUs = InEdge.GetDeltaUMaxs();
 
+	InEdge.SortImposedCuttingPoints();
+	const TArray<FImposedCuttingPoint>& EdgeImposedCuttingPoints = InEdge.GetImposedCuttingPoints();
+
 	// build a edge mesh compiling inner surface cutting (based on criteria applied on the surface) and edge cutting (based on criteria applied on the curve)
 	TArray<FCuttingPoint> ImposedIsoCuttingPoints;
 	{
-		int32 NbImposedCuttingPoints = InEdge.GetImposedCuttingPoints().Num() + EdgeIntersectionWithIsoU_Coordinates.Num() + EdgeIntersectionWithIsoV_Coordinates.Num() + 2;
+		int32 NbImposedCuttingPoints = EdgeImposedCuttingPoints.Num() + EdgeIntersectionWithIsoU_Coordinates.Num() + EdgeIntersectionWithIsoV_Coordinates.Num() + 2;
 		ImposedIsoCuttingPoints.Reserve(NbImposedCuttingPoints);
 	}
 
@@ -536,26 +582,12 @@ void FParametricMesher::Mesh(FTopologicalEdge& InEdge, const FTopologicalFace& F
 	ImposedIsoCuttingPoints.Emplace(EdgeBounds.GetMin(), ECoordinateType::VertexCoordinate, -1, ExtremityTolerances[0]);
 	ImposedIsoCuttingPoints.Emplace(EdgeBounds.GetMax(), ECoordinateType::VertexCoordinate, -1, ExtremityTolerances[1]);
 
-	double MinDeltaU = HUGE_VALUE;
-	for (const double& DeltaU : DeltaUs)
+	int32 Index = 0;
+	for (const FImposedCuttingPoint& CuttingPoint : EdgeImposedCuttingPoints)
 	{
-		MinDeltaU = FMath::Min(MinDeltaU, DeltaU);
+		double CuttingPointDeltaU = InEdge.GetDeltaUFor(CuttingPoint.Coordinate, Index);
+		ImposedIsoCuttingPoints.Emplace(CuttingPoint.Coordinate, ECoordinateType::ImposedCoordinate, CuttingPoint.OppositNodeIndex, CuttingPointDeltaU * AThird);
 	}
-
-#ifdef DEBUG_MESH_EDGE
-	if (bDisplay)
-	{
-		F3DDebugSession _(FString::Printf(TEXT("Edge %d"), InEdge.GetId()));
-		for (int32 Index = 0; Index < InEdge.GetImposedCuttingPoints().Num(); ++Index)
-		{
-			const FImposedCuttingPoint& CuttingPoint = InEdge.GetImposedCuttingPoints()[Index];
-			ImposedIsoCuttingPoints.Emplace(CuttingPoint.Coordinate, ECoordinateType::ImposedCoordinate, CuttingPoint.OppositNodeIndex, MinDeltaU * AThird);
-			FCurvePoint Point;
-			InEdge.EvaluatePoint(CuttingPoint.Coordinate, 0, Point);
-			DisplayPoint(Point.Point);
-		}
-	}
-#endif
 
 	// Add Edge intersection with inner surface grid Iso
 	double EdgeTolerance = FMath::Min(ExtremityTolerances[0], ExtremityTolerances[1]);
@@ -571,7 +603,7 @@ void FParametricMesher::Mesh(FTopologicalEdge& InEdge, const FTopologicalFace& F
 
 	ImposedIsoCuttingPoints.Sort([](const FCuttingPoint& Point1, const FCuttingPoint& Point2) { return Point1.Coordinate < Point2.Coordinate; });
 
-	auto MergeImposedCuttingPoints = [&](int32& Index, int32& NewIndex, ECoordinateType NewType)
+	TFunction<void(int32&, int32&, ECoordinateType)> MergeImposedCuttingPoints = [&](int32& Index, int32& NewIndex, ECoordinateType NewType)
 	{
 		double DeltaU = FMath::Max(ImposedIsoCuttingPoints[NewIndex].IsoDeltaU, ImposedIsoCuttingPoints[Index].IsoDeltaU);
 		if (ImposedIsoCuttingPoints[NewIndex].Type <= ImposedCoordinate && ImposedIsoCuttingPoints[Index].Type <= ImposedCoordinate)
@@ -632,17 +664,17 @@ void FParametricMesher::Mesh(FTopologicalEdge& InEdge, const FTopologicalFace& F
 	if (ImposedIsoCuttingPoints.Num() > 1)
 	{
 		int32 NewIndex = 0;
-		for (int32 Index = 1; Index < ImposedIsoCuttingPoints.Num(); ++Index)
+		for (int32 Andex = 1; Andex < ImposedIsoCuttingPoints.Num(); ++Andex)
 		{
-			if (ImposedIsoCuttingPoints[Index].Type > ECoordinateType::ImposedCoordinate)
+			if (ImposedIsoCuttingPoints[Andex].Type > ECoordinateType::ImposedCoordinate)
 			{
 				bool bIsDelete = false;
 				for (const FLinearBoundary& ThinZone : InEdge.GetThinZoneBounds())
 				{
-					if (ThinZone.Contains(ImposedIsoCuttingPoints[Index].Coordinate))
+					if (ThinZone.Contains(ImposedIsoCuttingPoints[Andex].Coordinate))
 					{
 						bIsDelete = true;
-						continue;
+						break; // or copntinue
 					}
 				}
 				if (bIsDelete)
@@ -651,18 +683,18 @@ void FParametricMesher::Mesh(FTopologicalEdge& InEdge, const FTopologicalFace& F
 				}
 			}
 
-			if (ImposedIsoCuttingPoints[NewIndex].Type == ECoordinateType::ImposedCoordinate || ImposedIsoCuttingPoints[Index].Type == ECoordinateType::ImposedCoordinate)
+			if (ImposedIsoCuttingPoints[NewIndex].Type == ECoordinateType::ImposedCoordinate || ImposedIsoCuttingPoints[Andex].Type == ECoordinateType::ImposedCoordinate)
 			{
-				MergeImposedCuttingPoints(Index, NewIndex, ECoordinateType::ImposedCoordinate);
+				MergeImposedCuttingPoints(Andex, NewIndex, ECoordinateType::ImposedCoordinate);
 			}
-			else if (ImposedIsoCuttingPoints[NewIndex].Type != ImposedIsoCuttingPoints[Index].Type)
+			else if (ImposedIsoCuttingPoints[NewIndex].Type != ImposedIsoCuttingPoints[Andex].Type)
 			{
-				MergeImposedCuttingPoints(Index, NewIndex, ECoordinateType::IsoUVCoordinate);
+				MergeImposedCuttingPoints(Andex, NewIndex, ECoordinateType::IsoUVCoordinate);
 			}
 			else
 			{
 				++NewIndex;
-				ImposedIsoCuttingPoints[NewIndex] = ImposedIsoCuttingPoints[Index];
+				ImposedIsoCuttingPoints[NewIndex] = ImposedIsoCuttingPoints[Andex];
 			}
 		}
 		ImposedIsoCuttingPoints.SetNum(NewIndex + 1);
@@ -678,13 +710,22 @@ void FParametricMesher::Mesh(FTopologicalEdge& InEdge, const FTopologicalFace& F
 		ImposedIsoCuttingPoints.Emplace(EdgeBounds.GetMax(), ECoordinateType::VertexCoordinate, -1, InEdge.GetDeltaUMaxs().Last() * AQuarter);
 	}
 
-	// max vertex of the edge
-	int32 MaxNumberOfVertex = (int32)((EdgeBounds.GetMax() - EdgeBounds.GetMin()) / MinDeltaU) + 5;
-
 	// Final array of the edge mesh vertex 
 	TArray<FCuttingPoint>& FinalEdgeCuttingPointCoordinates = InEdge.GetCuttingPoints();
+	{
+		// max count of vertex
+		double MinDeltaU = HUGE_VALUE;
+		for (const double& DeltaU : DeltaUs)
+		{
+			if (DeltaU < MinDeltaU)
+			{
+				MinDeltaU = DeltaU;
+			}
+		}
 
-	FinalEdgeCuttingPointCoordinates.Empty(ImposedIsoCuttingPoints.Num() + MaxNumberOfVertex);
+		int32 MaxNumberOfVertex = FMath::IsNearlyZero(MinDeltaU) ? 5 : (int32)((EdgeBounds.GetMax() - EdgeBounds.GetMin()) / MinDeltaU) + 5;
+		FinalEdgeCuttingPointCoordinates.Empty(ImposedIsoCuttingPoints.Num() + MaxNumberOfVertex);
+	}
 
 #ifdef DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
 	TArray<double> CuttingPoints2;
@@ -717,36 +758,69 @@ void FParametricMesher::Mesh(FTopologicalEdge& InEdge, const FTopologicalFace& F
 	{
 		TArray<double> CuttingPoints;
 		FMesherTools::ComputeFinalCuttingPointsWithImposedCuttingPoints(InEdge.GetCrossingPointUs(), InEdge.GetDeltaUMaxs(), ImposedIsoCuttingPoints, CuttingPoints);
+		int32 ImposedIndex = 0;
+		int32 ImposedIsoCuttingPointsCount = ImposedIsoCuttingPoints.Num();
 		for (const double& Coordinate : CuttingPoints)
 		{
-			FinalEdgeCuttingPointCoordinates.Emplace(Coordinate, ECoordinateType::OtherCoordinate);
+			if (FMath::IsNearlyEqual(ImposedIsoCuttingPoints[ImposedIndex].Coordinate, Coordinate))
+			{
+				FinalEdgeCuttingPointCoordinates.Emplace(ImposedIsoCuttingPoints[ImposedIndex]);
+				++ImposedIndex;
+			}
+			else
+			{
+				while (ImposedIndex < ImposedIsoCuttingPointsCount && ImposedIsoCuttingPoints[ImposedIndex].Coordinate < Coordinate)
+				{
+					++ImposedIndex;
+				}
+				FinalEdgeCuttingPointCoordinates.Emplace(Coordinate, ECoordinateType::OtherCoordinate);
+			}
 		}
 
 #ifdef DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
+		if (InEdge.IsThinZone() && EdgeImposedCuttingPoints.Num())
 		{
 			F3DDebugSession G(TEXT("Mesh(TSharedRef<FEdge> InEdge"));
 			{
 				F3DDebugSession G(TEXT("U From Iso"));
 				for (const FCuttingPoint& CuttingU : ImposedIsoCuttingPoints)
 				{
-					UE::CADKernel::DisplayPoint(FPoint2D(CuttingU.Coordinate, 0.0));
+					if (CuttingU.OppositNodeIndex >= 0)
+					{
+						UE::CADKernel::DisplayPoint(FPoint2D(CuttingU.Coordinate, 0.0), EVisuProperty::RedPoint);
+					}
+					else
+					{
+						UE::CADKernel::DisplayPoint(FPoint2D(CuttingU.Coordinate, 0.0));
+					}
 				}
 			}
+			{
+				F3DDebugSession _(InEdge.GetThinZoneBounds().Num() != 0, FString::Printf(TEXT("Thin Zone"), InEdge.GetId()));
+				for (FLinearBoundary ThinZone : InEdge.GetThinZoneBounds())
+				{
+					UE::CADKernel::DisplayPoint(FPoint2D(ThinZone.GetMin(), 0.01), EVisuProperty::BluePoint);
+					UE::CADKernel::DisplayPoint(FPoint2D(ThinZone.GetMax(), 0.01), EVisuProperty::BluePoint);
+					DisplaySegment(FPoint2D(ThinZone.GetMin(), 0.01), FPoint2D(ThinZone.GetMax(), 0.01), EVisuProperty::BlueCurve);
+				}
+				Wait();
+			}
+
 			{
 				F3DDebugSession G(TEXT("U From Criteria"));
 				for (double CuttingU : CuttingPoints2)
 				{
-					UE::CADKernel::DisplayPoint(FPoint2D(CuttingU, 0.05), EVisuProperty::NonManifoldEdge);
+					UE::CADKernel::DisplayPoint(FPoint2D(CuttingU, 0.02), EVisuProperty::RedPoint);
 				}
 			}
 			{
 				F3DDebugSession G(TEXT("U Final (Criteria & Iso)"));
 				for (double CuttingU : CuttingPoints)
 				{
-					UE::CADKernel::DisplayPoint(FPoint2D(CuttingU, 0.1), EVisuProperty::PurplePoint);
+					UE::CADKernel::DisplayPoint(FPoint2D(CuttingU, 0.04), EVisuProperty::YellowPoint);
 				}
 			}
-			//Wait();
+			Wait();
 		}
 #endif
 
@@ -1064,7 +1138,7 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 
 	for (FTopologicalFace* Face : Faces)
 	{
-		if (Face == nullptr)
+		if (Face == nullptr || Face->IsDeletedOrDegenerated())
 		{
 			continue;
 		}
@@ -1078,6 +1152,8 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 
 	TArray<FTopologicalFace*> SecondChoiceOfCandidateFacesForMesh; // first in first out
 	SecondChoiceOfCandidateFacesForMesh.Reserve(100);
+
+	static bool bStop = false;
 
 	TFunction<void(FTopologicalFace&)> MeshFace = [&](FTopologicalFace& Face)
 	{
@@ -1093,7 +1169,7 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 		{
 			F3DDebugSession A(FString::Printf(TEXT("Mesh %d"), Face.GetId()));
 			DisplayMesh(*Face.GetOrCreateMesh(GetMeshModel()));
-			//Wait();
+			Wait(bStop);
 		}
 #endif
 
@@ -1174,7 +1250,7 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 
 	TFunction<void(FTopologicalFace&)> MeshFacesByFront = [&](FTopologicalFace& Face)
 	{
-		if (Face.IsMeshed())
+		if (Face.IsNotMeshable())
 		{
 			return;
 		}
@@ -1199,7 +1275,7 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 				for (; Index < CandidateFacesForMesh.Num(); ++Index)
 				{
 					FTopologicalFace* CandidateSurface = CandidateFacesForMesh[Index];
-					if (CandidateSurface->IsMeshed())
+					if (CandidateSurface->IsNotMeshable())
 					{
 						CandidateFacesForMesh.RemoveAt(Index);
 						--Index;
@@ -1224,7 +1300,7 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 					for (; Index < CandidateFacesForMesh.Num(); ++Index)
 					{
 						FTopologicalFace* CandidateSurface = CandidateFacesForMesh[Index];
-						if (CandidateSurface->IsMeshed())
+						if (CandidateSurface->IsNotMeshable())
 						{
 							CandidateFacesForMesh.RemoveAt(Index);
 							--Index;
@@ -1249,7 +1325,7 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 			for (int32 Index = 0; Index < SecondChoiceOfCandidateFacesForMesh.Num(); ++Index)
 			{
 				FTopologicalFace* CandidateSurface = SecondChoiceOfCandidateFacesForMesh[Index];
-				if (CandidateSurface->IsMeshed())
+				if (CandidateSurface->IsNotMeshable())
 				{
 					SecondChoiceOfCandidateFacesForMesh.RemoveAt(Index);
 					--Index;
@@ -1280,7 +1356,7 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 	// the the other surface
 	for (FTopologicalFace* Face : Faces)
 	{
-		if (Face != nullptr && !Face->IsMeshed())
+		if (Face != nullptr && Face->IsMeshable())
 		{
 			MeshFacesByFront(*Face);
 		}
@@ -1288,171 +1364,79 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 
 }
 
-// =========================================================================================================================================================================================================
-// =========================================================================================================================================================================================================
-// =========================================================================================================================================================================================================
-//
-//
-//                                                                            NOT YET IMPLEMENTED
-//
-//
-// =========================================================================================================================================================================================================
-// =========================================================================================================================================================================================================
-// =========================================================================================================================================================================================================
-
-void FParametricMesher::MeshThinZoneEdges(FGrid& Grid)
+void FParametricMesher::MeshThinZoneEdges(FTopologicalFace& Face)
 {
-#ifdef UNUSED
+	TArray<FThinZone2D>& ThinZones = Face.GetThinZones();
+
+	{
 #ifdef DEBUG_MESHTHINSURF
-	Open3DDebugSession(FString::Printf(TEXT("thin Surfaces cutting on surf %d"), Grid.GetFace()->GetId()));
+		if(bDisplay)
+		{
+			F3DDebugSession _(bDisplay, FString::Printf(TEXT("Mesh Thin Face %d"), Face.GetId()));
+		}
 #endif
 
-	const TArray<FThinZone2D>& ThinZones = Grid.GetThinZones();
-
-	FTimePoint MeshStartTime = FChrono::Now();
-
-	for (const FThinZone2D& Zone : ThinZones)
-	{
-		bool bFirstSideIsPartiallyMeshed = Zone.GetFirstSide().IsPartiallyMeshed();
-		bool bSecondSideIsPartiallyMeshed = Zone.GetSecondSide().IsPartiallyMeshed();
-
-		if (bFirstSideIsPartiallyMeshed && bSecondSideIsPartiallyMeshed)
+		for (FThinZone2D& Zone : ThinZones)
 		{
-			// the most meshed edge is meshed first
-			double FirstSideMeshedLength = Zone.GetFirstSide().GetMeshedLength();
-			double SecondSideMeshedLength = Zone.GetSecondSide().GetMeshedLength();
-			if (FirstSideMeshedLength > SecondSideMeshedLength)
-			{
-				bSecondSideIsPartiallyMeshed = false;
-			}
-			else
-			{
-				bFirstSideIsPartiallyMeshed = false;
-			}
+			FindThinZoneBoundary(Zone.GetFirstSide());
+			FindThinZoneBoundary(Zone.GetSecondSide());
 		}
 
-		if (!bFirstSideIsPartiallyMeshed && !bSecondSideIsPartiallyMeshed)
+		for (FThinZone2D& Zone : ThinZones)
 		{
-			if (Zone.GetFirstSide().GetLength() > Zone.GetSecondSide().GetLength())
-			{
-				GetThinZoneBoundary(Zone.GetFirstSide());
-				GetThinZoneBoundary(Zone.GetSecondSide());
+			EMeshingState bFirstSideMeshingState = Zone.GetFirstSide().GetMeshingState();
+			EMeshingState bSecondSideMeshingState = Zone.GetSecondSide().GetMeshingState();
 
+			if (bFirstSideMeshingState == EMeshingState::FullyMeshed)
+			{
+				MeshThinZoneSide(Zone.GetFirstSide());
+			}
+			else if (bSecondSideMeshingState == EMeshingState::FullyMeshed)
+			{
+				MeshThinZoneSide(Zone.GetSecondSide());
+			}
+			else if (bFirstSideMeshingState == EMeshingState::PartiallyMeshed)
+			{
+				MeshThinZoneSide(Zone.GetFirstSide());
+			}
+			else if (bSecondSideMeshingState == EMeshingState::PartiallyMeshed)
+			{
+				MeshThinZoneSide(Zone.GetSecondSide());
+			}
+			else if (Zone.GetFirstSide().Length() > Zone.GetSecondSide().Length())
+			{
 				MeshThinZoneSide(Zone.GetFirstSide());
 			}
 			else
 			{
-				GetThinZoneBoundary(Zone.GetFirstSide());
-				GetThinZoneBoundary(Zone.GetSecondSide());
-
 				MeshThinZoneSide(Zone.GetSecondSide());
 			}
-		}
-		else if (bFirstSideIsPartiallyMeshed && !bSecondSideIsPartiallyMeshed)
-		{
-			MeshThinZoneSide(Zone.GetFirstSide());
-			GetThinZoneBoundary(Zone.GetSecondSide());
-		}
-		else if (!bFirstSideIsPartiallyMeshed && bSecondSideIsPartiallyMeshed)
-		{
-			MeshThinZoneSide(Zone.GetSecondSide());
-			GetThinZoneBoundary(Zone.GetFirstSide());
 		}
 	}
 
 	// if the extremity of the thin zone are connected by a short edges path, the edges path are not discretized to avoid a well discretized edge connecting to thin sides
 
-#ifdef DEBUG_MESHTHINSURF
-	Close3DDebugSession();
-#endif
-
-#ifdef DEBUG_MESHTHINSURF
-	Open3DDebugSession(FString("Mesh of ThinZone 2D of surf " + Utils::ToFString(Grid.GetFace()->GetId())));
-	for (const FThinZone2D& Zone : ThinZones)
-	{
-		TArray<TSharedPtr<FTopologicalEdge>> OutEdges;
-		Zone.GetFirstSide().GetEdges(OutEdges);
-		for (TSharedPtr<FTopologicalEdge> Edge : OutEdges)
-		{
-			TSharedPtr<FTopologicalEdge> ActiveEdge = StaticCastSharedRef<FTopologicalEdge>(Edge->GetLinkActiveEntity());
-
-			TArray<double> ImposedCuttingPointEdgeCoordinates;
-			GetCuttingPointCoordinates(ActiveEdge->GetImposedCuttingPoints(), ImposedCuttingPointEdgeCoordinates);
-
-			TArray<double> ImposedCuttingPointU;
-			Edge->TransformActiveEdgeCoordinatesToLocalCoordinates(ImposedCuttingPointEdgeCoordinates, ImposedCuttingPointU);
-
-			TArray<FPoint> ImposedCuttingPoint2D;
-			Edge->Approximate2DPoints(ImposedCuttingPointU, ImposedCuttingPoint2D);
-			for (FPoint Point : ImposedCuttingPoint2D)
-			{
-				Display(Point);
-			}
-		}
-
-		Zone.GetSecondSide().GetEdges(OutEdges);
-		for (TSharedPtr<FTopologicalEdge> Edge : OutEdges)
-		{
-			TSharedPtr<FTopologicalEdge> ActiveEdge = StaticCastSharedRef<FTopologicalEdge>(Edge->GetLinkActiveEntity());
-
-			TArray<double> ImposedCuttingPointEdgeCoordinates;
-			GetCuttingPointCoordinates(ActiveEdge->GetImposedCuttingPoints(), ImposedCuttingPointEdgeCoordinates);
-
-			TArray<double> ImposedCuttingPointCoordinates;
-			Edge->TransformActiveEdgeCoordinatesToLocalCoordinates(ImposedCuttingPointEdgeCoordinates, ImposedCuttingPointCoordinates);
-
-			TArray<FPoint> ImposedCuttingPoint2D;
-			Edge->Approximate2DPoints(ImposedCuttingPointCoordinates, ImposedCuttingPoint2D);
-			for (FPoint Point : ImposedCuttingPoint2D)
-			{
-				Display(Point);
-			}
-		}
-	}
-	Close3DDebugSession();
-#endif
-#ifdef CADKERNEL_DEV
-	MesherReport.Chronos.GlobalMeshThinZones += FChrono::Elapse(MeshStartTime);
-#endif
-#endif
 }
 
-static void AddActiveEdgeThinZone(TSharedPtr<FTopologicalEdge> Edge, TSharedPtr<FTopologicalEdge> ActiveEdge, FLinearBoundary& SideEdgeCoordinate)
+void FParametricMesher::FindThinZoneBoundary(FThinZoneSide& Side)
 {
-	TArray<double> SideEdgeBound;
-	SideEdgeBound.SetNum(2);
-	SideEdgeBound[0] = SideEdgeCoordinate.GetMin();
-	SideEdgeBound[1] = SideEdgeCoordinate.GetMax();
-
-	TArray<double> ActiveEdgeThinZone;
-	Edge->TransformActiveEdgeCoordinatesToLocalCoordinates(SideEdgeBound, ActiveEdgeThinZone);
-	FLinearBoundary ThinZoneBoundary(ActiveEdgeThinZone[0], ActiveEdgeThinZone[1]);
-	ActiveEdge->AddThinZone(ThinZoneBoundary);
-};
-
-void FParametricMesher::GetThinZoneBoundary(const FThinZoneSide& Side)
-{
-#ifdef UNUSED
-	TSharedPtr<FTopologicalEdge> Edge = nullptr;
-	TSharedPtr<FTopologicalEdge> ActiveEdge = nullptr;
+	FTopologicalEdge* Edge = nullptr;
 	FLinearBoundary SideEdgeCoordinate;
 
-	for (const FEdgeSegment* EdgeSegment : Side.GetSegments())
+	for (FEdgeSegment& EdgeSegment : Side.GetSegments())
 	{
-		double UMin = EdgeSegment->GetCoordinate(ELimit::Start);
-		double UMax = EdgeSegment->GetCoordinate(ELimit::End);
+		double UMin = EdgeSegment.GetCoordinate(ELimit::Start);
+		double UMax = EdgeSegment.GetCoordinate(ELimit::End);
 		GetMinMax(UMin, UMax);
 
-		if (Edge != EdgeSegment->GetEdge())
+		if (Edge != EdgeSegment.GetEdge())
 		{
 			if (Edge)
 			{
-				AddActiveEdgeThinZone(Edge, ActiveEdge, SideEdgeCoordinate);
+				Edge->AddThinZone(SideEdgeCoordinate);
 			}
 
-			Edge = EdgeSegment->GetEdge();
-			ActiveEdge = StaticCastSharedRef<FTopologicalEdge>(Edge->GetLinkActiveEntity());
-
+			Edge = EdgeSegment.GetEdge();
 			SideEdgeCoordinate.Set(UMin, UMax);
 		}
 		else
@@ -1460,206 +1444,165 @@ void FParametricMesher::GetThinZoneBoundary(const FThinZoneSide& Side)
 			SideEdgeCoordinate.ExtendTo(UMin, UMax);
 		}
 	};
-	AddActiveEdgeThinZone(Edge, ActiveEdge, SideEdgeCoordinate);
-#endif
+	Edge->AddThinZone(SideEdgeCoordinate);
 }
 
-void FParametricMesher::MeshThinZoneSide(const FThinZoneSide& Side)
+#define DEBUG_MESHTHINSURF
+void FParametricMesher::MeshThinZoneSide(FThinZoneSide& Side)
 {
-#ifdef UNUSED
 	typedef TFunction<bool(double, double)> CompareMethode;
 
-	TSharedPtr<FTopologicalEdge> Edge;
-	TSharedPtr<FTopologicalEdge> ActiveEdge;
+	FTopologicalEdge* Edge = nullptr;
+
 	int32 Index = 0;
 	int32 Increment = 1;
+	double UMin = 0.;
+	double UMax = 0.;
+
 	TArray<double> EdgeCuttingPointCoordinates;
-	FLinearBoundary SideEdgeCoordinate;
 	const TArray<int32>* NodeIndices = nullptr;
 
-	TFunction<void(int32&, int32&, const FEdgeSegment*, double, double)> AddImposedCuttingPoint = [&](int32& Index, int32& Increment, const FEdgeSegment* EdgeSegment, double UMin, double UMax)
+	TFunction<void(const FEdgeSegment&)> AddImposedCuttingPoint = [&](const FEdgeSegment& EdgeSegment)
 	{
-#ifdef DebugMeshThinSurf
-		DisplaySegment(EdgeSegment->GetExtemity(ELimit::End), EdgeSegment->GetExtemity(ELimit::Start));
-#endif
 		for (; Index >= 0 && Index < EdgeCuttingPointCoordinates.Num(); Index += Increment)
 		{
-			if (EdgeCuttingPointCoordinates[Index] < UMin)
+			if (EdgeCuttingPointCoordinates[Index] < UMin || EdgeCuttingPointCoordinates[Index] > UMax)
 			{
 				break;
 			}
-			if (EdgeCuttingPointCoordinates[Index] > UMax)
-			{
-				break;
-			}
-			FPoint CuttingPoint3D = EdgeSegment->ComputeEdgePoint(EdgeCuttingPointCoordinates[Index]);
 
-			const FEdgeSegment* ClosedSegment = EdgeSegment->GetClosedSegment();
+			FPoint2D CuttingPoint = EdgeSegment.ComputeEdgePoint(EdgeCuttingPointCoordinates[Index]);
+
+			FEdgeSegment* ClosedSegment = EdgeSegment.GetCloseSegment();
 			if (ClosedSegment == nullptr)
 			{
 #ifdef CADKERNEL_DEV
+				ensureCADKernel(false);
 				Wait();
 #endif
 				continue;
 			}
+
 			double OppositeCuttingPointSegmentU;
-			FPoint OppositeCuttingPoint3D = ClosedSegment->ProjectPoint(CuttingPoint3D, OppositeCuttingPointSegmentU);
+			FPoint2D OppositeCuttingPoint = ClosedSegment->ProjectPoint(CuttingPoint, OppositeCuttingPointSegmentU);
 
 			double OppositeCuttingPointU = 0;
-			TSharedPtr<FTopologicalEdge> OpositEdge = nullptr;
-			if (OppositeCuttingPointSegmentU == 0 && ClosedSegment->GetPrevious()->GetClosedSegment())
+			FTopologicalEdge* OppositeEdge = nullptr;
+			if (FMath::IsNearlyZero(OppositeCuttingPointSegmentU) && ClosedSegment->GetPrevious()->GetCloseSegment())
 			{
-				OppositeCuttingPoint3D = ClosedSegment->GetPrevious()->ProjectPoint(CuttingPoint3D, OppositeCuttingPointSegmentU);
-				OppositeCuttingPointU = ClosedSegment->GetPrevious()->ComputeEdgeCoordinate(OppositeCuttingPointSegmentU);
-				OpositEdge = ClosedSegment->GetPrevious()->GetEdge();
+				FEdgeSegment* PreviousClosedSegment = ClosedSegment->GetPrevious();
+				OppositeCuttingPoint = PreviousClosedSegment->ProjectPoint(CuttingPoint, OppositeCuttingPointSegmentU);
+				OppositeCuttingPointU = PreviousClosedSegment->ComputeEdgeCoordinate(OppositeCuttingPointSegmentU);
+				OppositeEdge = PreviousClosedSegment->GetEdge();
 			}
-			else if (OppositeCuttingPointSegmentU == 1 && ClosedSegment->GetNext()->GetClosedSegment())
+			else if (FMath::IsNearlyEqual(OppositeCuttingPointSegmentU, 1.) && ClosedSegment->GetNext()->GetCloseSegment())
 			{
-				OppositeCuttingPoint3D = ClosedSegment->GetNext()->ProjectPoint(CuttingPoint3D, OppositeCuttingPointSegmentU);
-				OppositeCuttingPointU = ClosedSegment->GetNext()->ComputeEdgeCoordinate(OppositeCuttingPointSegmentU);
-				OpositEdge = ClosedSegment->GetNext()->GetEdge();
+				FEdgeSegment* NextClosedSegment = ClosedSegment->GetNext();
+				OppositeCuttingPoint = NextClosedSegment->ProjectPoint(CuttingPoint, OppositeCuttingPointSegmentU);
+				OppositeCuttingPointU = NextClosedSegment->ComputeEdgeCoordinate(OppositeCuttingPointSegmentU);
+				OppositeEdge = NextClosedSegment->GetEdge();
 			}
 			else
 			{
-				OpositEdge = ClosedSegment->GetEdge();
+				OppositeEdge = ClosedSegment->GetEdge();
 				OppositeCuttingPointU = ClosedSegment->ComputeEdgeCoordinate(OppositeCuttingPointSegmentU);
 			}
 
-			double OppositeActiveEdgeCuttingPointU = OpositEdge->TransformLocalCoordinateToActiveEdgeCoordinate(OppositeCuttingPointU);
+			if (OppositeEdge != Edge)
+			{
+				OppositeEdge->AddImposedCuttingPointU(OppositeCuttingPointU, (*NodeIndices)[Index]);
+#ifdef DEBUG_MESHTHINSURF
+				DisplayPoint2DWithScale(CuttingPoint, EVisuProperty::RedPoint);
+				DisplaySegmentWithScale(ClosedSegment->GetExtemity(ELimit::End), ClosedSegment->GetExtemity(ELimit::Start));
+				DisplayPoint2DWithScale(OppositeCuttingPoint);
+				DisplaySegmentWithScale(CuttingPoint, OppositeCuttingPoint);
+				Wait(false);
+#endif
+			}
+		}
+	};
+
+	TFunction<void(double, CompareMethode)> FindFirstIndex = [&](double ULimit, CompareMethode Compare)
+	{
+		for (; Index >= 0 && Index < EdgeCuttingPointCoordinates.Num(); Index += Increment)
+		{
+			if (Compare(ULimit, EdgeCuttingPointCoordinates[Index]))
+			{
+				break;
+			}
+		}
+	};
 
 #ifdef DEBUG_MESHTHINSURF
-			DisplayPoint(CuttingPoint3D);
-			DisplaySegment(ClosedSegment->GetExtemity(ELimit::End), ClosedSegment->GetExtemity(ELimit::Start));
-			DisplayPoint(OppositeCuttingPoint3D);
-			DisplaySegment(CuttingPoint3D, OppositeCuttingPoint3D);
+	Open3DDebugSession(TEXT("MeshThinZoneSide"));
 #endif
-			OpositEdge->GetLinkActiveEdge()->AddImposedCuttingPointU(OppositeActiveEdgeCuttingPointU, (*NodeIndices)[Index]);
-		}
-	};
 
-	TFunction<void(TArray<double>&, double, int32&, CompareMethode)> FindFirstIndexForward = [](TArray<double>& EdgeCuttingPointU, double ULimit, int32& OutIndex, CompareMethode Compare)
+	for (FEdgeSegment& EdgeSegment : Side.GetSegments())
 	{
-		for (; OutIndex < EdgeCuttingPointU.Num(); ++OutIndex)
-		{
-			if (Compare(ULimit, EdgeCuttingPointU[OutIndex]))
-			{
-				break;
-			}
-		}
-	};
-
-	TFunction<void(TArray<double>&, double, int32&, CompareMethode)> FindFirstIndexBackward = [](TArray<double>& EdgeCuttingPointU, double ULimit, int32& OutIndex, CompareMethode Compare)
-	{
-		for (; OutIndex >= 0; --OutIndex)
-		{
-			if (Compare(ULimit, EdgeCuttingPointU[OutIndex]))
-			{
-				break;
-			}
-		}
-	};
-
-	TFunction<void(const FEdgeSegment* EdgeSegment)> Process = [&](const FEdgeSegment* EdgeSegment)
-	{
-		double UMin = EdgeSegment->GetCoordinate(ELimit::Start);
-		double UMax = EdgeSegment->GetCoordinate(ELimit::End);
+		UMin = EdgeSegment.GetCoordinate(ELimit::Start);
+		UMax = EdgeSegment.GetCoordinate(ELimit::End);
 		GetMinMax(UMin, UMax);
 
-		if (Edge != EdgeSegment->GetEdge())
+		if (Edge != EdgeSegment.GetEdge())
 		{
+#ifdef DEBUG_MESHTHINSURF
 			if (Edge)
 			{
-				AddActiveEdgeThinZone(Edge, ActiveEdge, SideEdgeCoordinate);
-#ifdef DebugMeshThinSurf
 				Close3DDebugSession();
-#endif
 			}
-
-			Edge = EdgeSegment->GetEdge();
-			ActiveEdge = StaticCastSharedRef<FTopologicalEdge>(Edge->GetLinkActiveEntity());
-
-			SideEdgeCoordinate.Set(UMin, UMax);
-
-			if (!ActiveEdge->IsMeshed())
-			{
-				Mesh(*Edge.ToSharedRef(), *Edge->GetFace());
-#ifdef DebugMeshThinSurf
-				Open3DDebugSession(TEXT("Mesh of Edge"));
-				DisplayMesh((const TSharedPtr<FEdgeMesh>&) ActiveEdge->GetMesh());
-				Close3DDebugSession();
-#endif
-			}
-#ifdef DebugMeshThinSurf
 			Open3DDebugSession(TEXT("Projection of mesh"));
 #endif
-			NodeIndices = &ActiveEdge->GetOrCreateMesh(MeshModel)->EdgeVerticesIndex;
+			Edge = EdgeSegment.GetEdge();
 
-			TArray<double> CuttingPointCoordinates;
-			GetCuttingPointCoordinates(ActiveEdge->GetCuttingPoints(), CuttingPointCoordinates);
+			if (!Edge->IsMeshed())
+			{
+				Mesh(*Edge, *Edge->GetFace());
+			}
 
-			Edge->TransformActiveEdgeCoordinatesToLocalCoordinates(CuttingPointCoordinates, EdgeCuttingPointCoordinates);
+			FEdgeMesh& EdgeMesh = *Edge->GetOrCreateMesh(MeshModel);
+			NodeIndices = &EdgeMesh.EdgeVerticesIndex;
+			GetCuttingPointCoordinates(Edge->GetCuttingPoints(), EdgeCuttingPointCoordinates);
 
-			if ((EdgeCuttingPointCoordinates[0] < EdgeCuttingPointCoordinates[1]) == (EdgeSegment->GetCoordinate(ELimit::Start) < EdgeSegment->GetCoordinate(ELimit::End)))
+
+			if (EdgeCuttingPointCoordinates.Num() == 0)
+			{
+				TArray<FPoint>& NodeCoordinates = EdgeMesh.GetNodeCoordinates();
+				TArray<FPoint> ProjectedPoints;
+				Edge->ProjectPoints(NodeCoordinates, EdgeCuttingPointCoordinates, ProjectedPoints);
+				if (EdgeCuttingPointCoordinates.Num() > 1 && EdgeCuttingPointCoordinates[0] > EdgeCuttingPointCoordinates[1])
+				{
+					Algo::Reverse(EdgeCuttingPointCoordinates);
+				}
+				EdgeCuttingPointCoordinates.EmplaceAt(0, Edge->GetStartCurvilinearCoordinates());
+				EdgeCuttingPointCoordinates.Emplace(Edge->GetEndCurvilinearCoordinates());
+			}
+
+			ensureCADKernel(EdgeCuttingPointCoordinates[0] < EdgeCuttingPointCoordinates[1]);
+
+			bool bEdgeIsForward = EdgeSegment.IsForward();
+			if (bEdgeIsForward)
 			{
 				Index = 0;
-				if (EdgeCuttingPointCoordinates[0] < EdgeCuttingPointCoordinates[1])
-				{
-					FindFirstIndexForward(EdgeCuttingPointCoordinates, UMin, Index, [](double Value1, double Value2) {return (Value1 < Value2); });
-				}
-				else
-				{
-					FindFirstIndexForward(EdgeCuttingPointCoordinates, UMax, Index, [](double Value1, double Value2) {return (Value1 > Value2); });
-				}
 				Increment = 1;
+				FindFirstIndex(UMin, [](double Value1, double Value2) {return (Value1 < Value2); });
 			}
 			else
 			{
 				Index = (int32)EdgeCuttingPointCoordinates.Num() - 1;
-				if (EdgeCuttingPointCoordinates[0] < EdgeCuttingPointCoordinates[1])
-				{
-					FindFirstIndexBackward(EdgeCuttingPointCoordinates, UMax, Index, [](double Value1, double Value2) {return (Value1 > Value2); });
-				}
-				else
-				{
-					FindFirstIndexBackward(EdgeCuttingPointCoordinates, UMax, Index, [](double Value1, double Value2) {return (Value1 < Value2); });
-				}
 				Increment = -1;
+				FindFirstIndex(UMax, [](double Value1, double Value2) {return (Value1 > Value2); });
 			}
 		}
-		else
-		{
-			SideEdgeCoordinate.ExtendTo(UMin, UMax);
-		}
 
-		AddImposedCuttingPoint(Index, Increment, EdgeSegment, UMin, UMax);
-	};
-
-#ifdef DebugMeshThinSurf
-	Open3DDebugSession(TEXT("MeshThinZoneSide"));
-#endif
-
-	if (Side.IsFirstSide())
-	{
-		for (const FEdgeSegment* EdgeSegment : Side.GetSegments())
-		{
-			Process(EdgeSegment);
-		}
+		AddImposedCuttingPoint(EdgeSegment);
 	}
-	else
-	{
-		const TArray<FEdgeSegment*>& Segments = Side.GetSegments();
-		for (int32 SegmentIndex = Segments.Num() - 1; SegmentIndex >= 0; --SegmentIndex)
-		{
-			Process(Segments[SegmentIndex]);
-		}
-	}
-	AddActiveEdgeThinZone(Edge, ActiveEdge, SideEdgeCoordinate);
 
-#ifdef DebugMeshThinSurf
+#ifdef DEBUG_MESHTHINSURF
 	Close3DDebugSession();
 	Close3DDebugSession();
+	//Wait();
 #endif
-#endif
+
 }
 
 #ifdef DEBUG_INTERSECTEDGEISOS

@@ -150,7 +150,7 @@ public:
 		return ((States & EHaveStates::ThinZone) == EHaveStates::ThinZone);
 	}
 
-	virtual void SetThinZone()
+	virtual void SetThinZoneMarker()
 	{
 		States |= EHaveStates::ThinZone;
 	}

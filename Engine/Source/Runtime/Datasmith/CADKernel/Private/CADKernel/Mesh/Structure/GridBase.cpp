@@ -108,7 +108,7 @@ bool FGridBase::ScaleGrid()
 
 	double MeanLengthV = GetMean(LengthsV);
 	double MeanLengthU = GetMean(LengthsU);
-	if (MeanLengthV < Tolerance3D || MeanLengthU < Tolerance3D)
+	if(MeanLengthV < Tolerance3D || MeanLengthU < Tolerance3D)
 	{
 		SetAsDegenerated();
 		return false;
@@ -210,7 +210,9 @@ bool FGridBase::ScaleGrid()
 			}
 		}
 	}
+#ifdef CADKERNEL_DEV
 	Chronos.ScaleGridDuration = FChrono::Elapse(StartTime);
+#endif
 	return true;
 }
 
@@ -248,6 +250,13 @@ void FGridBase::EvaluatePointGrid(const FCoordinateGrid& CoordGrid, bool bWithNo
 		Normals = MoveTemp(Grid.Normals);
 	}
 }
+
+#ifdef CADKERNEL_DEV
+void FGrid::PrintTimeElapse() const
+{
+	Chronos.PrintTimeElapse();
+}
+#endif
 
 }
 

@@ -116,11 +116,6 @@ public:
 	void Sew();
 
 	/**
-	 * Check topology of each body
-	 */
-	void CheckTopology();
-
-	/**
 	 * Split into connected shell and put each shell into the appropriate body
 	 */
 	void SplitIntoConnectedShells();
@@ -156,6 +151,9 @@ private:
 
 	void EmptyShells();
 
+	/**
+	 * Remove a subset of faces of their shell and keep the other shell's faces in the shell
+	 */
 	void RemoveFacesFromShell();
 
 	void RemoveEmptyShells();

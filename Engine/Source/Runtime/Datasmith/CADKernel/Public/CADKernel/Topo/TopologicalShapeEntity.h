@@ -18,6 +18,11 @@ private:
 
 public:
 
+	virtual ~FTopologicalShapeEntity() override 
+	{
+		FTopologicalShapeEntity::Empty();
+	}
+
 	virtual void Serialize(FCADKernelArchive& Ar) override
 	{
 		FTopologicalEntity::Serialize(Ar);

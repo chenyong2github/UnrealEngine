@@ -11,7 +11,7 @@
 #include "CADKernel/UI/Visu.h"
 
 #ifdef CADKERNEL_DEV
-#include "CADKernel/Mesh/Meshers/IsoTriangulator/DefineForDebug.h"
+#include "CADKernel/UI/DefineForDebug.h"
 #include "CADKernel/Mesh/Meshers/MesherReport.h"
 #endif
 

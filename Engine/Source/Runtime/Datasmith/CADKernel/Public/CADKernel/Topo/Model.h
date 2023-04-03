@@ -32,7 +32,7 @@ protected:
 	}
 
 public:
-	
+
 	virtual ~FModel() override
 	{
 		FModel::Empty();

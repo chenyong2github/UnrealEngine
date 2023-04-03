@@ -35,6 +35,7 @@ protected:
 	}
 
 public:
+
 	virtual ~TTopologicalLink() override
 	{
 		TTopologicalLink::Empty();

@@ -22,7 +22,7 @@ FGrid::FGrid(FTopologicalFace& InFace, FModelMesh& InMeshModel)
 	, MinimumElementSize(Tolerance3D * 2.)
 	, MeshModel(InMeshModel)
 {
-#ifdef DEBUG_ONLY_SURFACE_TO_DEBUG
+#ifdef CADKERNEL_DEBUG
 	bDisplay = (InFace.GetId() == FaceToDebug);
 	Open3DDebugSession(bDisplay, FString::Printf(TEXT("Grid %d"), InFace.GetId()));
 #endif
@@ -320,7 +320,7 @@ bool FGrid::GeneratePointCloud()
 {
 	FTimePoint StartTime = FChrono::Now();
 
-	if (CheckIf2DGridIsDegenerate())
+	if(CheckIf2DGridIsDegenerate())
 	{
 		return false;
 	}
@@ -364,10 +364,10 @@ void FGrid::FindPointsCloseToLoop()
 		if (bDisplay)
 		{
 			F3DDebugSession _(*FString::Printf(TEXT("Cell %d"), CellIndex++));
-			DisplayPoint2DWithScale(Points2D[EGridSpace::UniformScaled][GlobalIndex]);
-			DisplayPoint2DWithScale(Points2D[EGridSpace::UniformScaled][GlobalIndex - 1]);
-			DisplayPoint2DWithScale(Points2D[EGridSpace::UniformScaled][GlobalIndex - 1 - CuttingCount[EIso::IsoU]]);
-			DisplayPoint2DWithScale(Points2D[EGridSpace::UniformScaled][GlobalIndex - CuttingCount[EIso::IsoU]]);
+			DisplayPoint2DWithScale(Points2D[EGridSpace::UniformScaled][GlobalIndex] );
+			DisplayPoint2DWithScale(Points2D[EGridSpace::UniformScaled][GlobalIndex - 1] );
+			DisplayPoint2DWithScale(Points2D[EGridSpace::UniformScaled][GlobalIndex - 1 - CuttingCount[EIso::IsoU]] );
+			DisplayPoint2DWithScale(Points2D[EGridSpace::UniformScaled][GlobalIndex - CuttingCount[EIso::IsoU]] );
 			Wait(bWaitCell);
 		}
 	};
@@ -528,7 +528,7 @@ void FGrid::FindPointsCloseToLoop()
 			if (bDisplay)
 			{
 				F3DDebugSession _(TEXT("SEG"));
-				DisplaySegmentWithScale(*PointB, *PointA);
+				DisplaySegmentWithScale(*PointB , *PointA );
 			}
 #endif
 
@@ -1068,10 +1068,17 @@ void FGrid::GetMeshOfLoop(const FTopologicalLoop& Loop)
 	}
 }
 
+//#define DEBUG_GET_BOUNDARY_MESH
 bool FGrid::GetMeshOfLoops()
 {
+	int32 ThinZoneNum = 0;
+	if (Face.HasThinZone())
+	{
+		ThinZoneNum = Face.GetThinZones().Num();
+	}
+
 	int32 LoopCount = Face.GetLoops().Num();
-	FaceLoops2D[EGridSpace::Default2D].Reserve(LoopCount);
+	FaceLoops2D[EGridSpace::Default2D].Reserve(LoopCount + ThinZoneNum);
 
 	FaceLoops3D.Reserve(LoopCount);
 	NormalsOfFaceLoops.Reserve(LoopCount);
@@ -1102,6 +1109,30 @@ bool FGrid::GetMeshOfLoops()
 	if (CheckIfExternalLoopIsDegenerate())
 	{
 		return false;
+	}
+
+	TFunction<void(TArray<FPoint2D>&, const TArray<FEdgeSegment>&)> AddThinZoneInLoopPoints = [](TArray<FPoint2D>& LoopPoints, const TArray<FEdgeSegment>& Segments)
+	{
+		const FEdgeSegment& Segment = Segments[0];
+		LoopPoints.Emplace(Segment.GetEdge()->Approximate2DPoint(Segment.GetCoordinate(ELimit::Start)));
+		for (const FEdgeSegment& SegmentIter : Segments)
+		{
+			LoopPoints.Emplace(SegmentIter.GetEdge()->Approximate2DPoint(SegmentIter.GetCoordinate(ELimit::End)));
+		}
+	};
+
+	if (ThinZoneNum)
+	{
+		for (const FThinZone2D& ThinZone : Face.GetThinZones())
+		{
+			int32 PointNum = ThinZone.GetFirstSide().GetSegments().Num();
+			PointNum += ThinZone.GetSecondSide().GetSegments().Num();
+			TArray<FPoint2D>& LoopPoints = FaceLoops2D[EGridSpace::Default2D].Emplace_GetRef();
+			LoopPoints.Reserve(PointNum + 4);
+
+			AddThinZoneInLoopPoints(LoopPoints, ThinZone.GetFirstSide().GetSegments());
+			AddThinZoneInLoopPoints(LoopPoints, ThinZone.GetSecondSide().GetSegments());
+		}
 	}
 
 	// Fit boundaries to Surface bounds.
@@ -1154,7 +1185,7 @@ bool FGrid::CheckIf2DGridIsDegenerate() const
 		for (int32 Index = 1; Index < CoordinateGrid[Iso].Num(); ++Index)
 		{
 			double Delta = CoordinateGrid[Iso][Index] - CoordinateGrid[Iso][Index - 1];
-			if (Delta > MaxDelta)
+			if(Delta > MaxDelta)
 			{
 				MaxDelta = Delta;
 			}

@@ -129,6 +129,8 @@ public:
 		return EEntity::TopologicalLoop;
 	}
 
+	double Length() const;
+	
 	const int32 EdgeCount() const
 	{
 		return Edges.Num();

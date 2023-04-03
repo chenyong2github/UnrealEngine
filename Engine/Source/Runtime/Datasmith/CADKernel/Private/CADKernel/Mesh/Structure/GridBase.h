@@ -10,7 +10,7 @@
 #include "CADKernel/UI/Display.h"
 
 #ifdef CADKERNEL_DEV
-#include "CADKernel/Mesh/Meshers/IsoTriangulator/DefineForDebug.h"
+#include "CADKernel/UI/DefineForDebug.h"
 #endif
 
 
@@ -104,6 +104,8 @@ protected:
 
 public:
 	FGridChronos Chronos;
+#ifdef CADKERNEL_DEV
+#endif
 
 public:
 	FGridBase(FTopologicalFace& InFace);
@@ -162,7 +164,7 @@ protected:
 			PointU0V0 +
 			(PointU0V0 - PointU1V0) * (U0MinusU / U1MinusU0) +
 			(PointU0V0 - PointU0V1) * (V0MinusV / V1MinusV0) +
-			(PointU0V0 - PointU0V1 + PointU1V1 - PointU1V0) * ((U0MinusU * V0MinusV) / (U1MinusU0 * V1MinusV0));	
+			(PointU0V0 - PointU0V1 + PointU1V1 - PointU1V0) * ((U0MinusU * V0MinusV) / (U1MinusU0 * V1MinusV0));
 	};
 
 public:
@@ -227,7 +229,7 @@ public:
 		return Points2D[(int32)Space];
 	}
 
-	const FTopologicalFace& GetFace() const
+const FTopologicalFace& GetFace() const
 	{
 		return Face;
 	}
@@ -245,7 +247,18 @@ public:
 		return IndexV * CuttingCount[EIso::IsoU] + IndexU;
 	}
 
-#ifdef CADKERNEL_DEV
+#ifdef WIP
+	/**
+	 * @return the Index of the position in the arrays of a point [IndexU, IndexV] of the grid
+	 */
+	void UVIndexFromGlobalIndex(int32 GLobalIndex, int32& OutIndexU, int32& OutIndexV) const
+	{
+		OutIndexU = GLobalIndex % CuttingCount[EIso::IsoU];
+		OutIndexV = GLobalIndex / CuttingCount[EIso::IsoU];
+	}
+#endif
+
+#ifdef CADKERNEL_DEBUG
 
 	// ======================================================================================================================================================================================================================
 	// Display Methodes   ================================================================================================================================================================================================
@@ -255,7 +268,9 @@ public:
 	void DisplayIsoNode(EGridSpace Space, const int32 PointIndex, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::BluePoint) const;
 	virtual void DisplayGridPoints(EGridSpace DisplaySpace) const;
 	void DisplayInnerPoints(TCHAR* Message, EGridSpace DisplaySpace) const;
+#endif
 
+#ifdef CADKERNEL_DEV
 	void PrintTimeElapse() const;
 #endif
 };

@@ -126,6 +126,12 @@ public:
 		States &= ~EHaveStates::IsDeleted;
 	}
 
+	virtual bool IsDeletedOrDegenerated() const
+	{
+		constexpr EHaveStates DeletedOrDegenerated = EHaveStates::Degenerated | EHaveStates::IsDeleted;
+		return ((States & DeletedOrDegenerated) != EHaveStates::None);
+	}
+
 	virtual bool IsDegenerated() const
 	{
 		return ((States & EHaveStates::Degenerated) == EHaveStates::Degenerated);

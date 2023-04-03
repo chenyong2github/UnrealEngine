@@ -6,7 +6,7 @@
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoCell.h"
 #include "CADKernel/UI/Display.h"
 #ifdef CADKERNEL_DEV
-#include "CADKernel/Mesh/Meshers/IsoTriangulator/DefineForDebug.h"
+#include "CADKernel/UI/DefineForDebug.h"
 #endif
 
 namespace UE::CADKernel
@@ -68,7 +68,7 @@ public:
 			for (const TPair<int32, FPoint2D>& Vertex : Vertices)
 			{
 				//F3DDebugSession _(TEXT("Vertex"));
-				DisplayPoint(Vertex.Value * DisplayScale, EVisuProperty::YellowPoint, Vertex.Key);
+				DisplayPoint2DWithScale(Vertex.Value , EVisuProperty::YellowPoint, Vertex.Key);
 			}
 			//Wait();
 		}

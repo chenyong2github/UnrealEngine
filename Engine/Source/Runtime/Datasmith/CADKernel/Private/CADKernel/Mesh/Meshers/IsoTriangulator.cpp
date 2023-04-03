@@ -94,8 +94,8 @@ bool FIsoTriangulator::Triangulate()
 
 #ifdef DEBUG_ISOTRIANGULATOR
 	DisplayLoops(TEXT("FIsoTrianguler::LoopSegments after fix intersection"), true, false);
-	Grid.DisplayIsoSegments(TEXT("FIsoTrianguler::LoopSegments orientation"), DisplaySpace, LoopSegments, false, true, EVisuProperty::YellowCurve);
-	Grid.DisplayIsoSegments(TEXT("FIsoTrianguler::LoopSegments"), DisplaySpace, LoopSegments, true, false, EVisuProperty::YellowCurve);
+	Grid.DisplayIsoSegments(TEXT("FIsoTrianguler::LoopSegments orientation"), DisplaySpace, LoopSegments, false, true, false, EVisuProperty::YellowCurve);
+	Grid.DisplayIsoSegments(TEXT("FIsoTrianguler::LoopSegments"), DisplaySpace, LoopSegments, true, false, false, EVisuProperty::YellowCurve);
 	Wait(false);
 #endif
 
@@ -117,7 +117,7 @@ bool FIsoTriangulator::Triangulate()
 #ifdef DEBUG_ISOTRIANGULATOR
 	{
 		F3DDebugSession A(bDisplay, TEXT("FIsoTrianguler::FinalInnerSegments"));
-		Grid.DisplayIsoSegments(DisplaySpace, FinalInnerSegments, true, false, EVisuProperty::BlueCurve);
+		Grid.DisplayIsoSegments(DisplaySpace, FinalInnerSegments, true, false, false, EVisuProperty::BlueCurve);
 	}
 	InnerToOuterSegmentsIntersectionTool.Display(bDisplay, TEXT("FIsoTrianguler::IntersectionTool InnerToOuter"), EVisuProperty::RedCurve);
 	Chronos.TriangulateDuration1 = FChrono::Elapse(StartTime);
@@ -143,14 +143,15 @@ bool FIsoTriangulator::Triangulate()
 	// 	           - find the shortest segment to connect each connected loop by Delaunay
 	// =============================================================================================================
 #ifdef DEBUG_ISOTRIANGULATOR
-	Grid.DisplayIsoSegments(TEXT("FIsoTrianguler::Final To Loops Before"), DisplaySpace, FinalToLoops, false, false, EVisuProperty::YellowCurve);
+	Grid.DisplayIsoSegments(TEXT("FIsoTrianguler::Final To Loops Before"), DisplaySpace, FinalToLoops, false, false, false, EVisuProperty::YellowCurve);
 	//Wait(bDisplay);
 #endif
 
 	ConnectCellLoops();
 
 #ifdef DEBUG_ISOTRIANGULATOR
-	Grid.DisplayIsoSegments(TEXT("FIsoTrianguler::Final Iso ToLink Inner To Loops"), DisplaySpace, FinalToLoops, false, false, EVisuProperty::YellowCurve);
+	Grid.DisplayIsoSegments(TEXT("FIsoTrianguler::Final Iso ToLink Inner To Loops"), DisplaySpace, FinalToLoops, false, false, true, EVisuProperty::YellowCurve);
+	Wait(bDisplay);
 #endif
 
 	// =============================================================================================================
@@ -524,7 +525,7 @@ void FIsoTriangulator::BuildInnerSegments()
 #ifdef DEBUG_BUILDINNERSEGMENTS
 			if (bDisplay)
 			{
-				DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1) * DisplayScale, Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2) * DisplayScale, IndexNode1, EVisuProperty::PinkCurve);
+				DisplaySegmentWithScale(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2), IndexNode1, EVisuProperty::PinkCurve);
 			}
 #endif
 			AddToInnerToOuterSegmentsIntersectionTool(IndexNode1, IndexNode2, InType);
@@ -537,7 +538,7 @@ void FIsoTriangulator::BuildInnerSegments()
 			if (bDisplay)
 			{
 				F3DDebugSession _(bDisplay, TEXT("Segment"));
-				DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1) * DisplayScale, Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2) * DisplayScale, IndexNode1, EVisuProperty::RedCurve);
+				DisplaySegmentWithScale(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2), IndexNode1, EVisuProperty::RedCurve);
 			}
 #endif
 			return;
@@ -548,7 +549,7 @@ void FIsoTriangulator::BuildInnerSegments()
 #ifdef DEBUG_BUILDINNERSEGMENTS
 			if (bDisplay)
 			{
-				DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1) * DisplayScale, Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2) * DisplayScale, IndexNode1, EVisuProperty::PinkCurve);
+				DisplaySegmentWithScale(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2), IndexNode1, EVisuProperty::PinkCurve);
 			}
 #endif
 			if (LoopSegmentsIntersectionTool.DoesIntersect(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2))
@@ -569,7 +570,7 @@ void FIsoTriangulator::BuildInnerSegments()
 #ifdef DEBUG_BUILDINNERSEGMENTS
 			if (bDisplay)
 			{
-				DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1) * DisplayScale, Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2) * DisplayScale, IndexNode1, EVisuProperty::BlueCurve);
+				DisplaySegmentWithScale(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2), IndexNode1, EVisuProperty::BlueCurve);
 			}
 #endif
 			AddToInnerSegments(IndexNode1, IndexNode2, InType);
@@ -581,7 +582,7 @@ void FIsoTriangulator::BuildInnerSegments()
 #ifdef DEBUG_BUILDINNERSEGMENTS
 			if (bDisplay)
 			{
-				DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1) * DisplayScale, Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2) * DisplayScale, IndexNode1, EVisuProperty::GreenCurve);
+				DisplaySegmentWithScale(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2), IndexNode1, EVisuProperty::GreenCurve);
 			}
 #endif
 			return;
@@ -590,7 +591,7 @@ void FIsoTriangulator::BuildInnerSegments()
 #ifdef DEBUG_BUILDINNERSEGMENTS
 		if (bDisplay)
 		{
-			DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1) * DisplayScale, Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2) * DisplayScale, IndexNode1, EVisuProperty::YellowCurve);
+			DisplaySegmentWithScale(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2), IndexNode1, EVisuProperty::YellowCurve);
 		}
 #endif
 		AddToInnerToOuterSegmentsIntersectionTool(IndexNode1, IndexNode2, InType);
@@ -1229,38 +1230,38 @@ void FIsoTriangulator::ConnectCellLoops()
 		ConnectCellSubLoopsByNeighborhood(Cell);
 
 #ifdef DEBUG_CONNECT_CELL_LOOPS
-		Grid.DisplayIsoSegments(TEXT("ConnectCellLoops::Step 0"), EGridSpace::UniformScaled, Cell.FinalSegments, false, false, EVisuProperty::YellowCurve);
+		Grid.DisplayIsoSegments(TEXT("ConnectCellLoops::Step 0"), EGridSpace::UniformScaled, Cell.FinalSegments, false, false, false, EVisuProperty::YellowCurve);
 #endif
 
 		if (Cell.bHasOuterLoop)
 		{
 			FindIsoSegmentToLinkOuterLoopNodes(Cell);
 #ifdef DEBUG_CONNECT_CELL_LOOPS
-			Grid.DisplayIsoSegments(TEXT("ConnectCellLoops::Step 1"), EGridSpace::UniformScaled, Cell.FinalSegments, false, false, EVisuProperty::YellowCurve);
+			Grid.DisplayIsoSegments(TEXT("ConnectCellLoops::Step 1"), EGridSpace::UniformScaled, Cell.FinalSegments, false, false, false, EVisuProperty::YellowCurve);
 #endif
 
 			if (Cell.CandidateSegments.Num() == 0)
 			{
 				FindSegmentToLinkOuterLoopNodes(Cell);
 #ifdef DEBUG_CONNECT_CELL_LOOPS
-				Grid.DisplayIsoSegments(TEXT("ConnectCellLoops::Step 2"), EGridSpace::UniformScaled, Cell.FinalSegments, false, false, EVisuProperty::YellowCurve);
+				Grid.DisplayIsoSegments(TEXT("ConnectCellLoops::Step 2"), EGridSpace::UniformScaled, Cell.FinalSegments, false, false, false, EVisuProperty::YellowCurve);
 #endif
 
 				FindSegmentToLinkOuterToInnerLoopNodes(Cell);
 #ifdef DEBUG_CONNECT_CELL_LOOPS
-				Grid.DisplayIsoSegments(TEXT("ConnectCellLoops::Step 3"), EGridSpace::UniformScaled, Cell.FinalSegments, false, false, EVisuProperty::YellowCurve);
+				Grid.DisplayIsoSegments(TEXT("ConnectCellLoops::Step 3"), EGridSpace::UniformScaled, Cell.FinalSegments, false, false, false, EVisuProperty::YellowCurve);
 #endif
 			}
 		}
 		ConnectCellCornerToInnerLoop(Cell);
 #ifdef DEBUG_CONNECT_CELL_LOOPS
-		Grid.DisplayIsoSegments(TEXT("ConnectCellLoops::Step 4"), EGridSpace::UniformScaled, Cell.FinalSegments, false, false, EVisuProperty::YellowCurve);
+		Grid.DisplayIsoSegments(TEXT("ConnectCellLoops::Step 4"), EGridSpace::UniformScaled, Cell.FinalSegments, false, false, false, EVisuProperty::YellowCurve);
 #endif
 
 		FinalToLoops.Append(Cell.FinalSegments);
 
 #ifdef DEBUG_CONNECT_CELL_LOOPS
-		Grid.DisplayIsoSegments(TEXT("ConnectCellLoops::Final Iso ToLink Inner To Loops"), EGridSpace::UniformScaled, FinalToLoops, false, false, EVisuProperty::YellowCurve);
+		Grid.DisplayIsoSegments(TEXT("ConnectCellLoops::Final Iso ToLink Inner To Loops"), EGridSpace::UniformScaled, FinalToLoops, false, false, false, EVisuProperty::YellowCurve);
 #endif
 	}
 }
@@ -3234,14 +3235,6 @@ void FIsoTriangulator::TryToConnectTwoSubLoopsWithTheMostIsoSegment(FCell& Cell,
 bool FIsoTriangulator::TryToCreateSegment(FCell& Cell, FLoopNode* NodeA, const FPoint2D& ACoordinates, FIsoNode* NodeB, const FPoint2D& BCoordinates, const double FlatAngle)
 {
 
-#ifdef DEBUG_TRY_TO_CREATE_SEGMENT
-	{
-		F3DDebugSession _(TEXT("Test"));
-		DisplaySegment(NodeA->Get2DPoint(EGridSpace::UniformScaled, Grid), NodeB->Get2DPoint(EGridSpace::UniformScaled, Grid), 0, EVisuProperty::RedCurve);
-		//Wait(false);
-	}
-#endif
-
 	if (NodeA->GetSegmentConnectedTo(NodeB))
 	{
 		return false;
@@ -3266,6 +3259,14 @@ bool FIsoTriangulator::TryToCreateSegment(FCell& Cell, FLoopNode* NodeA, const F
 	{
 		return false;
 	}
+
+#ifdef DEBUG_TRY_TO_CREATE_SEGMENT
+	{
+		F3DDebugSession _(TEXT("Test"));
+		DisplaySegmentWithScale(NodeA->Get2DPoint(EGridSpace::UniformScaled, Grid), NodeB->Get2DPoint(EGridSpace::UniformScaled, Grid), 0, EVisuProperty::RedCurve);
+		Wait(false);
+	}
+#endif
 
 	// Is Outside and not too flat at NodeA
 	if (NodeA->IsSegmentBeInsideFace(BCoordinates, Grid, FlatAngle))
