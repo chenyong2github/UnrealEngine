@@ -43,7 +43,7 @@ struct FDepthRange
 
 uint PackDepthRange(FDepthRange In)
 {
-	return Pack2FloatsToUInt(In.MinZ, In.MaxZ);
+	return PackFloat2ToUInt(In.MinZ, In.MaxZ);
 }
 
 FDepthRange UnpackDepthRange(uint In)
