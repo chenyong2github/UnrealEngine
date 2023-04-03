@@ -801,6 +801,7 @@ void URigVMTemplateNode::InvalidateCache()
 	
 	CachedFunction = nullptr;
 	CachedTemplate = nullptr;
+	ResolvedPermutation = INDEX_NONE;
 
 	if (HasWildCardPin())
 	{

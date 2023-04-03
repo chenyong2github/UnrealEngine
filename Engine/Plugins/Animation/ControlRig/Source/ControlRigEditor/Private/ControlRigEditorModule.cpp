@@ -1465,10 +1465,11 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 									{
 										if(!Argument->IsSingleton())
 										{
+											TArray<TRigVMTypeIndex> ResolvedTypeIndices = Argument->GetSupportedTypeIndices(TemplateNode->GetResolvedPermutationIndices(true));
 											TSharedRef<SControlRigChangePinType> ChangePinTypeWidget =
 											SNew(SControlRigChangePinType)
 											.Blueprint(RigBlueprint)
-											.Types(Argument->GetTypeIndices())
+											.Types(ResolvedTypeIndices)
 											.OnTypeSelected_Lambda([RigBlueprint, ModelPin](const TRigVMTypeIndex& TypeSelected)
 											{
 												if (URigVMController* Controller = RigBlueprint->GetController(ModelPin->GetGraph()))
