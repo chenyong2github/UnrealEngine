@@ -76,16 +76,13 @@ bool FMaterialXSurfaceShaderAbstract::AddAttributeFromValueOrInterface(MaterialX
 
 bool FMaterialXSurfaceShaderAbstract::AddFloatAttribute(MaterialX::InputPtr Input, const FString& InputChannelName, UInterchangeShaderNode* ShaderNode, float DefaultValue) const
 {
-	if(Input)
+	if(Input && Input->hasValue())
 	{
-		if(Input->hasValue())
-		{
-			float Value = mx::fromValueString<float>(Input->getValueString());
+		float Value = mx::fromValueString<float>(Input->getValueString());
 
-			if(!FMath::IsNearlyEqual(Value, DefaultValue))
-			{
-				return ShaderNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputChannelName), Value);
-			}
+		if(!FMath::IsNearlyEqual(Value, DefaultValue))
+		{
+			return ShaderNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputChannelName), Value);
 		}
 	}
 
@@ -94,16 +91,28 @@ bool FMaterialXSurfaceShaderAbstract::AddFloatAttribute(MaterialX::InputPtr Inpu
 
 bool FMaterialXSurfaceShaderAbstract::AddLinearColorAttribute(MaterialX::InputPtr Input, const FString& InputChannelName, UInterchangeShaderNode* ShaderNode, const FLinearColor& DefaultValue) const
 {
-	if(Input)
+	if(Input && Input->hasValue())
 	{
-		if(Input->hasValue())
-		{
-			const FLinearColor Value = GetLinearColor(Input);
+		const FLinearColor Value = GetLinearColor(Input);
 
-			if(!Value.Equals(DefaultValue))
-			{
-				return ShaderNode->AddLinearColorAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputChannelName), Value);
-			}
+		if(!Value.Equals(DefaultValue))
+		{
+			return ShaderNode->AddLinearColorAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputChannelName), Value);
+		}
+	}
+
+	return false;
+}
+
+bool FMaterialXSurfaceShaderAbstract::AddVectorAttribute(MaterialX::InputPtr Input, const FString& InputChannelName, UInterchangeShaderNode* ShaderNode, const FVector4f& DefaultValue) const
+{
+	if(Input && Input->hasValue())
+	{
+		const FLinearColor Value = GetVector(Input);
+
+		if(!Value.Equals(DefaultValue))
+		{
+			return ShaderNode->AddLinearColorAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputChannelName), Value);
 		}
 	}
 
@@ -182,7 +191,7 @@ void FMaterialXSurfaceShaderAbstract::ConnectNodeCategoryOutputToInput(const Mat
 		{
 			if(mx::NodePtr DownstreamNode = DownstreamElement->asA<mx::Node>())
 			{
-				if(UInterchangeShaderNode** FoundNode = ShaderNodes.Find(GetAttributeParentName(DownstreamNode)))// DownstreamNode->getName().c_str()))
+				if(UInterchangeShaderNode** FoundNode = ShaderNodes.Find(GetAttributeParentName(DownstreamNode)))
 				{
 					ParentShaderNode = *FoundNode;
 				}

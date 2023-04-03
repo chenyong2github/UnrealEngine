@@ -34,19 +34,27 @@ void FInterchangeMaterialXPipelineSettingsCustomization::CustomizeChildren(TShar
 			TSharedPtr<IPropertyHandle> ChildPropertyHandle = SurfaceShaderProperty->GetChildHandle(i);
 			TSharedPtr<IPropertyHandle> KeyPropertyHandle = ChildPropertyHandle->GetKeyHandle();
 
-			OnShouldFilterAssetFunc OnShouldFilterAsset = &FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetStandardSurface;
+			OnShouldFilterAssetFunc OnShouldFilterAsset = &FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAsset;
 
 			if(KeyPropertyHandle.IsValid())
 			{
 				FString Str;
 				KeyPropertyHandle->GetValueAsDisplayString(Str);
-				if(Str == TEXT("Standard Surface Transmission"))
+				if(Str == TEXT("Standard Surface"))
+				{
+					OnShouldFilterAsset = &FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetStandardSurface;
+				}
+				else if(Str == TEXT("Standard Surface Transmission"))
 				{
 					OnShouldFilterAsset = &FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetStandardSurfaceTransmission;
 				}
 				else if(Str == TEXT("Surface Unlit"))
 				{
 					OnShouldFilterAsset = &FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetSurfaceUnlit;
+				}
+				else if(Str == TEXT("Usd Preview Surface"))
+				{
+					OnShouldFilterAsset = &FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetUsdPreviewSurface;
 				}
 			}
 
@@ -97,4 +105,9 @@ bool FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetStan
 bool FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetSurfaceUnlit(const FAssetData& InAssetData)
 {
 	return FMaterialXPipelineSettings::ShouldFilterAssets(Cast<UMaterialFunction>(InAssetData.GetAsset()), FMaterialXPipelineSettings::SurfaceUnlitInputs, FMaterialXPipelineSettings::SurfaceUnlitOutputs);
+}
+
+bool FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetUsdPreviewSurface(const FAssetData& InAssetData)
+{
+	return FMaterialXPipelineSettings::ShouldFilterAssets(Cast<UMaterialFunction>(InAssetData.GetAsset()), FMaterialXPipelineSettings::UsdPreviewSurfaceInputs, FMaterialXPipelineSettings::UsdPreviewSurfaceOutputs);
 }

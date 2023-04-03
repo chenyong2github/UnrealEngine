@@ -425,6 +425,28 @@ namespace Interchange
 			}
 		}
 
+		namespace UsdPreviewSurface
+		{
+			const FName Name = TEXT("UsdPreviewSurface");
+
+			namespace Parameters
+			{
+				const FName DiffuseColor = TEXT("diffuseColor");
+				const FName EmissiveColor = TEXT("emissiveColor");
+				const FName SpecularColor = TEXT("specularColor");
+				const FName Metallic = TEXT("metallic");
+				const FName Roughness = TEXT("roughness");
+				const FName Clearcoat = TEXT("clearcoat");
+				const FName ClearcoatRoughness = TEXT("clearcoatRoughness");
+				const FName Opacity = TEXT("opacity");
+				const FName OpacityThreshold = TEXT("opacityThreshold");
+				const FName IOR = TEXT("ior");
+				const FName Normal = TEXT("normal");
+				const FName Displacement = TEXT("displacement");
+				const FName Occlusion = TEXT("occlusion");
+			}
+		}
+
 		namespace Unlit
 		{
 			namespace Parameters

@@ -6,6 +6,8 @@
 #if WITH_EDITOR
 
 #include "Math/Color.h"
+#include "Math/MathFwd.h"
+#include "Math/Vector.h"
 
 THIRD_PARTY_INCLUDES_START
 #include "MaterialXCore/Library.h"
@@ -143,6 +145,54 @@ MATERIALX_NAMESPACE_BEGIN
 			{
 				constexpr FLinearColor EmissionColor{ 1, 1, 1 };
 				constexpr FLinearColor TransmissionColor{ 1, 1, 1 };
+			}
+		}
+	}
+
+	namespace UsdPreviewSurface
+	{
+		namespace Input
+		{
+			static constexpr const char* DiffuseColor = "diffuseColor";
+			static constexpr const char* EmissiveColor = "emissiveColor";
+			static constexpr const char* SpecularColor = "specularColor";
+			static constexpr const char* Metallic = "metallic";
+			static constexpr const char* Roughness = "roughness";
+			static constexpr const char* Clearcoat = "clearcoat";
+			static constexpr const char* ClearcoatRoughness = "clearcoatRoughness";
+			static constexpr const char* Opacity = "opacity";
+			static constexpr const char* OpacityThreshold = "opacityThreshold";
+			static constexpr const char* IOR = "ior";
+			static constexpr const char* Normal = "normal";
+			static constexpr const char* Displacement = "displacement";
+			static constexpr const char* Occlusion = "occlusion";
+		}
+
+		namespace DefaultValue
+		{
+			namespace Float
+			{
+				constexpr float Metallic = 0.f;
+				constexpr float Roughness = 0.5f;
+				constexpr float Clearcoat = 0.f;
+				constexpr float ClearcoatRoughness = 0.01f;
+				constexpr float Opacity = 1.f;
+				constexpr float OpacityThreshold = 0.f;
+				constexpr float IOR = 1.5f;
+				constexpr float Displacement = 0.f;
+				constexpr float Occlusion = 1.f;
+			}
+
+			namespace Color3
+			{
+				constexpr FLinearColor DiffuseColor{ 0.18f, 0.18f, 0.18f };
+				constexpr FLinearColor EmissiveColor{ 0, 0, 0 };
+				constexpr FLinearColor SpecularColor{ 0, 0, 0 };
+			}
+			
+			namespace Vector3
+			{
+				static const FVector3f Normal{ 0.f, 0.f, 1.f };
 			}
 		}
 	}

@@ -24,7 +24,8 @@ void FMaterialXBase::UpdateDocumentRecursively(MaterialX::GraphElementPtr Graph)
 		mx::Category::Separate2,
 		mx::Category::Separate3,
 		mx::Category::Separate4,
-		mx::Category::StandardSurface
+		mx::Category::StandardSurface,
+		mx::Category::UsdPreviewSurface
 	};
 
 	auto FilterNode = [](mx::NodePtr Node)

@@ -19,7 +19,9 @@ public:
 
 protected:
 
+	bool OnShouldFilterAsset(const FAssetData&){return false;}
 	bool OnShouldFilterAssetStandardSurface(const FAssetData & InAssetData);
 	bool OnShouldFilterAssetStandardSurfaceTransmission(const FAssetData& InAssetData);
 	bool OnShouldFilterAssetSurfaceUnlit(const FAssetData& InAssetData);
+	bool OnShouldFilterAssetUsdPreviewSurface(const FAssetData& InAssetData);
 };

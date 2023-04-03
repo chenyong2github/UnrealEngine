@@ -42,7 +42,9 @@ enum class EInterchangeMaterialXShaders : uint8
 	StandardSurfaceTransmission,
 
 	/** Shader used for unlit surface*/
-	SurfaceUnlit
+	SurfaceUnlit,
+
+	UsdPreviewSurface
 };
 
 USTRUCT(BlueprintType)
@@ -73,6 +75,8 @@ private:
 	static TSet<FName> TransmissionSurfaceOutputs;
 	static TSet<FName> SurfaceUnlitInputs;
 	static TSet<FName> SurfaceUnlitOutputs;
+	static TSet<FName> UsdPreviewSurfaceInputs;
+	static TSet<FName> UsdPreviewSurfaceOutputs;
 #endif // WITH_EDITOR
 };
 

@@ -82,6 +82,7 @@ FMaterialXPipelineSettings::FMaterialXPipelineSettings()
 	SurfaceShader.FindOrAdd(EInterchangeMaterialXShaders::StandardSurface, FSoftObjectPath{ TEXT("MaterialFunction'/Interchange/Functions/MX_StandardSurface.MX_StandardSurface'") });
 	SurfaceShader.FindOrAdd(EInterchangeMaterialXShaders::StandardSurfaceTransmission, FSoftObjectPath{ TEXT("MaterialFunction'/Interchange/Functions/MX_TransmissionSurface.MX_TransmissionSurface'") });
 	SurfaceShader.FindOrAdd(EInterchangeMaterialXShaders::SurfaceUnlit, FSoftObjectPath{ TEXT("MaterialFunction'/Interchange/Functions/MX_SurfaceUnlit.MX_SurfaceUnlit'") });
+	SurfaceShader.FindOrAdd(EInterchangeMaterialXShaders::UsdPreviewSurface, FSoftObjectPath{ TEXT("MaterialFunction'/Interchange/Functions/MX_UsdPreviewSurface.MX_UsdPreviewSurface'") });
 }
 
 bool FMaterialXPipelineSettings::AreRequiredPackagesLoaded()
@@ -120,7 +121,10 @@ bool FMaterialXPipelineSettings::AreRequiredPackagesLoaded()
 						{
 							bAllLoaded = !ShouldFilterAssets(Cast<UMaterialFunction>(Asset), SurfaceUnlitInputs, SurfaceUnlitOutputs);
 						}
-
+						else if(Pair.Get<EInterchangeMaterialXShaders>() == EInterchangeMaterialXShaders::UsdPreviewSurface)
+						{
+							bAllLoaded = !ShouldFilterAssets(Cast<UMaterialFunction>(Asset), UsdPreviewSurfaceInputs, UsdPreviewSurfaceOutputs);
+						}
 					}
 #endif // WITH_EDITOR
 				}
@@ -262,6 +266,38 @@ TSet<FName> FMaterialXPipelineSettings::SurfaceUnlitOutputs
 	UE::Interchange::Materials::Common::Parameters::EmissiveColor,
 	UE::Interchange::Materials::Common::Parameters::Opacity,
 	TEXT("OpacityMask")
+};
+
+TSet<FName> FMaterialXPipelineSettings::UsdPreviewSurfaceInputs
+{
+	UE::Interchange::Materials::UsdPreviewSurface::Parameters::DiffuseColor,
+	UE::Interchange::Materials::UsdPreviewSurface::Parameters::EmissiveColor,
+	UE::Interchange::Materials::UsdPreviewSurface::Parameters::SpecularColor,
+	UE::Interchange::Materials::UsdPreviewSurface::Parameters::Metallic,
+	UE::Interchange::Materials::UsdPreviewSurface::Parameters::Roughness,
+	UE::Interchange::Materials::UsdPreviewSurface::Parameters::Clearcoat,
+	UE::Interchange::Materials::UsdPreviewSurface::Parameters::ClearcoatRoughness,
+	UE::Interchange::Materials::UsdPreviewSurface::Parameters::Opacity,
+	UE::Interchange::Materials::UsdPreviewSurface::Parameters::OpacityThreshold,
+	UE::Interchange::Materials::UsdPreviewSurface::Parameters::IOR,
+	UE::Interchange::Materials::UsdPreviewSurface::Parameters::Normal,
+	UE::Interchange::Materials::UsdPreviewSurface::Parameters::Displacement,
+	UE::Interchange::Materials::UsdPreviewSurface::Parameters::Occlusion
+};
+
+TSet<FName> FMaterialXPipelineSettings::UsdPreviewSurfaceOutputs
+{
+	UE::Interchange::Materials::PBR::Parameters::BaseColor,
+	UE::Interchange::Materials::PBR::Parameters::Metallic,
+	UE::Interchange::Materials::PBR::Parameters::Specular,
+	UE::Interchange::Materials::PBR::Parameters::Roughness,
+	UE::Interchange::Materials::PBR::Parameters::EmissiveColor,
+	UE::Interchange::Materials::PBR::Parameters::Opacity,
+	UE::Interchange::Materials::PBR::Parameters::Normal,
+	UE::Interchange::Materials::Common::Parameters::Refraction,
+	UE::Interchange::Materials::Common::Parameters::Occlusion,
+	UE::Interchange::Materials::ClearCoat::Parameters::ClearCoat,
+	UE::Interchange::Materials::ClearCoat::Parameters::ClearCoatRoughness,
 };
 
 bool FMaterialXPipelineSettings::ShouldFilterAssets(UMaterialFunction* Asset, const TSet<FName>& Inputs, const TSet<FName>& Outputs)

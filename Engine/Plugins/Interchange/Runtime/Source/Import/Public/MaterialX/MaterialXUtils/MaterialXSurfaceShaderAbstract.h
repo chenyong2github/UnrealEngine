@@ -45,7 +45,7 @@ protected:
 	/**
 	 * Add a float attribute to a shader node only if its value taken from the input is not equal to its default value. Return false if the attribute does not exist or if we cannot add it
 	 *
-	 * @param Input - The MaterialX input to retrieve and add the value from, must be of type float/color/vector
+	 * @param Input - The MaterialX input to retrieve and add the value from, must be of type float
 	 * @param InputChannelName - The name of the shader node's input to add the attribute
 	 * @param ShaderNode - The shader node to which we want to add the attribute
 	 * @param DefaultValue - the default value to test the input against
@@ -57,7 +57,7 @@ protected:
 	/**
 	 * Add a FLinearColor attribute to a shader node only if its value taken from the input is not equal to its default value. Return false if the attribute does not exist or if we cannot add it
 	 *
-	 * @param Input - The MaterialX input to retrieve and add the value from, must be of type float/color/vector
+	 * @param Input - The MaterialX input to retrieve and add the value from, must be of type color
 	 * @param InputChannelName - The name of the shader node's input to add the attribute
 	 * @param ShaderNode - The shader node to which we want to add the attribute
 	 * @param DefaultValue - the default value to test the input against
@@ -65,6 +65,18 @@ protected:
 	 * @return true if the attribute was successfully added
 	 */
 	bool AddLinearColorAttribute(MaterialX::InputPtr Input, const FString& InputChannelName, UInterchangeShaderNode* ShaderNode, const FLinearColor& DefaultValue) const;
+
+	/**
+	 * Add a FLinearColor attribute to a shader node only if its value taken from the input is not equal to its default value. Return false if the attribute does not exist or if we cannot add it
+	 *
+	 * @param Input - The MaterialX input to retrieve and add the value from, must be of type vector
+	 * @param InputChannelName - The name of the shader node's input to add the attribute
+	 * @param ShaderNode - The shader node to which we want to add the attribute
+	 * @param DefaultValue - the default value to test the input against
+	 *
+	 * @return true if the attribute was successfully added
+	 */
+	bool AddVectorAttribute(MaterialX::InputPtr Input, const FString& InputChannelName, UInterchangeShaderNode* ShaderNode, const FVector4f& DefaultValue) const;
 
 	/**
 	 * Connect an output either from a node name or a node graph from a MaterialX input to the ShaderNode
@@ -90,7 +102,7 @@ protected:
 			bIsConnected = ConnectNodeNameOutputToInput(Input, ShaderNode, InputShaderName);
 			if(!bIsConnected)
 			{
-				// only handle float and linear color here, for other types, the child should handle them as it is most likely not an input but a parameter to set in Interchange
+				// only handle float, linear color and vector here, for other types, the child should handle them as it is most likely not an input but a parameter to set in Interchange
 				if constexpr(std::is_same_v<decltype(DefaultValue), float>)
 				{
 					bIsConnected = AddFloatAttribute(Input, InputShaderName, ShaderNode, DefaultValue);
@@ -98,6 +110,10 @@ protected:
 				else if constexpr(std::is_same_v<decltype(DefaultValue), FLinearColor>)
 				{
 					bIsConnected = AddLinearColorAttribute(Input, InputShaderName, ShaderNode, DefaultValue);
+				}
+				else if constexpr(std::is_same_v<decltype(DefaultValue), FVector4f> || std::is_same_v<decltype(DefaultValue), FVector3f> || std::is_same_v<decltype(DefaultValue), FVector2f>)
+				{					
+					bIsConnected = AddVectorAttribute(Input, InputShaderName, ShaderNode, DefaultValue);
 				}
 			}
 		}

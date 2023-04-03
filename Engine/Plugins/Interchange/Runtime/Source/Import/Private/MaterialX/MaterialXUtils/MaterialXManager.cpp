@@ -7,6 +7,7 @@
 #include "InterchangeShaderGraphNode.h"
 #include "MaterialX/MaterialXUtils/MaterialXSurfaceShaderAbstract.h"
 #include "MaterialX/MaterialXUtils/MaterialXStandardSurfaceShader.h"
+#include "MaterialX/MaterialXUtils/MaterialXUsdPreviewSurface.h"
 #include "MaterialX/MaterialXUtils/MaterialXSurfaceUnlitShader.h"
 #include "MaterialX/MaterialXUtils/MaterialXPointLightShader.h"
 #include "MaterialX/MaterialXUtils/MaterialXDirectionalLightShader.h"
@@ -199,6 +200,7 @@ FMaterialXManager::FMaterialXManager()
 	, MaterialXContainerDelegates{
 		{mx::Category::SurfaceUnlit, FMaterialXManager::FOnGetMaterialXInstance::CreateStatic(&FMaterialXSurfaceUnlitShader::MakeInstance)},
 		{mx::Category::StandardSurface, FMaterialXManager::FOnGetMaterialXInstance::CreateStatic(&FMaterialXStandardSurfaceShader::MakeInstance)},
+		{mx::Category::UsdPreviewSurface, FMaterialXManager::FOnGetMaterialXInstance::CreateStatic(&FMaterialXUsdPreviewSurface::MakeInstance)},
 		{mx::Category::PointLight, FMaterialXManager::FOnGetMaterialXInstance::CreateStatic(&FMaterialXPointLightShader::MakeInstance)},
 		{mx::Category::DirectionalLight, FMaterialXManager::FOnGetMaterialXInstance::CreateStatic(&FMaterialXDirectionalLightShader::MakeInstance)},
 		{mx::Category::SpotLight, FMaterialXManager::FOnGetMaterialXInstance::CreateStatic(&FMaterialXSpotLightShader::MakeInstance)},
