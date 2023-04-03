@@ -835,6 +835,9 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		/** Request a deferred save of the layout. */
 		void RequestSavePersistentLayout();
 
+		/** Clears the request for a deferred save of the layout */
+		void ClearPendingLayoutSave();
+
 		/**
 		 * Register a new tab spawner with the tab manager.  The spawner will be called when anyone calls
 		 * InvokeTab().
@@ -911,9 +914,7 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		 */
 		TSharedPtr<SDockTab> FindExistingLiveTab(const FTabId& TabId) const;
 
-		virtual ~FTabManager()
-		{
-		}
+		virtual ~FTabManager();
 
 		/** Sets whether or not this tab manager supports a custom menu bar for the active major tab that will be shown on top of the major tab area in the window this tab manager resides in. */
 		void SetAllowWindowMenuBar(bool bInAllowWindowMenuBar);

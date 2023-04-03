@@ -951,11 +951,7 @@ TSharedRef<FTabManager::FLayout> FTabManager::PersistLayout() const
 
 void FTabManager::SavePersistentLayout()
 {
-	if (PendingLayoutSaveHandle.IsValid())
-	{
-		FTSTicker::GetCoreTicker().RemoveTicker(PendingLayoutSaveHandle);
-		PendingLayoutSaveHandle.Reset();
-	}
+	ClearPendingLayoutSave();
 
 	const TSharedRef<FLayout> LayoutState = this->PersistLayout();
 	OnPersistLayout_Handler.ExecuteIfBound(LayoutState);
@@ -965,20 +961,28 @@ void FTabManager::RequestSavePersistentLayout()
 {
 	// if we already have a request pending, remove it and schedule a new one
 	// this is to avoid hitches when eg. resizing a docked tab
+	ClearPendingLayoutSave();
+
+	auto OnTick = [ThisWeak = AsWeak()](float FrameTime)
+	{
+		if (TSharedPtr<FTabManager> This = ThisWeak.Pin())
+		{
+			This->PendingLayoutSaveHandle.Reset();
+			This->SavePersistentLayout();
+		}
+		return false;
+	};
+
+	PendingLayoutSaveHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(OnTick), 5.0f);
+}
+
+void FTabManager::ClearPendingLayoutSave()
+{
 	if (PendingLayoutSaveHandle.IsValid())
 	{
 		FTSTicker::GetCoreTicker().RemoveTicker(PendingLayoutSaveHandle);
 		PendingLayoutSaveHandle.Reset();
 	}
-
-	auto OnTick = [this](float FrameTime)
-	{
-		this->PendingLayoutSaveHandle.Reset();
-		this->SavePersistentLayout();
-		return false;
-	};
-
-	PendingLayoutSaveHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(OnTick), 5.0f);
 }
 
 FTabSpawnerEntry& FTabManager::RegisterTabSpawner(const FName TabId, const FOnSpawnTab& OnSpawnTab, const FCanSpawnTab& CanSpawnTab)
@@ -2070,6 +2074,11 @@ TSharedPtr<SDockTab> FTabManager::FindExistingLiveTab( const FTabId& TabId ) con
 	}
 
 	return TSharedPtr<SDockTab>();
+}
+
+FTabManager::~FTabManager()
+{
+	ClearPendingLayoutSave();
 }
 
 TSharedPtr<SDockTab> FTabManager::FindLastTabInWindow(TSharedPtr<SWindow> Window) const
