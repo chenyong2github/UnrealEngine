@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
 THIRD_PARTY_INCLUDES_START
 #include "onnx/defs/schema.h"
 #include "onnx/defs/shape_inference.h"
