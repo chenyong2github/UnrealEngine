@@ -414,7 +414,6 @@ class ConvolutionHelperBase
 {
 public:
     enum FilterDims { K };
-    enum InputDims { N, C, H, W };
 
 public:
     // Info_t is used to obtain attributes which will be used for calculating the output shape later. 
