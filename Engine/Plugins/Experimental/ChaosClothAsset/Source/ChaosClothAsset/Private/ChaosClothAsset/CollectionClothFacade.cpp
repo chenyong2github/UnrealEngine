@@ -79,7 +79,7 @@ namespace UE::Chaos::ClothAsset
 		return FCollectionClothLodFacade(GetClothCollection(), LodIndex);
 	}
 
-	void FCollectionClothFacade::SetNumLod(int32 InNumLods)
+	void FCollectionClothFacade::SetNumLods(int32 InNumLods)
 	{
 		check(IsValid());
 

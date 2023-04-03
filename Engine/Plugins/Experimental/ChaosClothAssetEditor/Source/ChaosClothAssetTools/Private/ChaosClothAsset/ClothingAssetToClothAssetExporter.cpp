@@ -36,17 +36,21 @@ void UClothingAssetToChaosClothAssetExporter::Export(const UClothingAssetBase* C
 	check(ClothAsset);
 	FCollectionClothFacade Cloth(ClothAsset->GetClothCollection());
 
+	const int32 NumLods = ClothingAssetCommon->LodData.Num();
+	Cloth.SetNumLods(NumLods);
+
 	// Create the LODs
-	for (const FClothLODDataCommon& ClothLODData : ClothingAssetCommon->LodData)
+	for (int32 LodIndex = 0; LodIndex < NumLods; ++LodIndex)
 	{
+		const FClothLODDataCommon& ClothLODData = ClothingAssetCommon->LodData[LodIndex];
 		const FClothPhysicalMeshData& PhysicalMeshData = ClothLODData.PhysicalMeshData;
 
 		// Unwrap the physical mesh data into the pattern and rest meshes
-		FCollectionClothLodFacade ClothLod = Cloth.AddGetLod();
+		FCollectionClothLodFacade ClothLod = Cloth.GetLod(LodIndex);
 		ClothLod.Initialize(PhysicalMeshData.Vertices, PhysicalMeshData.Indices);
 	}
 
-	if (Cloth.GetNumLods())
+	if (NumLods)
 	{
 		// Set the render mesh to duplicate the sim mesh
 		ClothAsset->CopySimMeshToRenderMesh();

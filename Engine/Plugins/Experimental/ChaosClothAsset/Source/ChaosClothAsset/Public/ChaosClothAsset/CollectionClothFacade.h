@@ -80,7 +80,7 @@ namespace UE::Chaos::ClothAsset
 		FCollectionClothLodFacade AddGetLod() { return GetLod(AddLod()); }
 
 		/** Set a new number of LODs for this cloth. */
-		void SetNumLod(int32 NumLods);
+		void SetNumLods(int32 NumLods);
 
 		/** Add a new weight map to this cloth. Access is then done per pattern. */
 		void AddWeightMap(const FName& Name);
