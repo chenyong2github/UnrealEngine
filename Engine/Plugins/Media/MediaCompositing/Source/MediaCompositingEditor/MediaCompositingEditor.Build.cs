@@ -22,6 +22,7 @@ namespace UnrealBuildTool.Rules
 					"MediaUtils",
 					"MovieScene",
 					"MovieSceneTracks",
+					"RenderCore",
 					"RHI",
 					"Sequencer",
 					"SequenceRecorder",

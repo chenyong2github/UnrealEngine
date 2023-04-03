@@ -4,14 +4,17 @@
 
 #include "Math/RangeSet.h"
 #include "Misc/Timespan.h"
+#include "RHIFwd.h"
 #include "Sections/ThumbnailSection.h"
 #include "Templates/SharedPointer.h"
 #include "TrackEditorThumbnail/TrackEditorThumbnail.h"
 #include "UObject/GCObject.h"
 
+class FSlateTextureRenderTarget2DResource;
 class FTrackEditorThumbnailPool;
 class ISequencer;
 class UMediaPlayer;
+class UMediaSource;
 class UMediaTexture;
 class UMovieSceneMediaSection;
 
@@ -104,11 +107,21 @@ protected:
 	void DrawMediaInfo(FSequencerSectionPainter& InPainter, UMediaPlayer* MediaPlayer, FVector2D SectionSize) const;
 
 	/**
+	 * Helper function to get the media source.
+	 */
+	UMediaSource* GetMediaSource() const;
+
+	/**
 	 * Get the media player that is used by the evaluation template.
 	 *
 	 * @return The media player, or nullptr if not found.
 	 */
 	UMediaPlayer* GetTemplateMediaPlayer() const;
+
+	/**
+	 * Helper function to copy a texture.
+	 */
+	void CopyTexture(FSlateTextureRenderTarget2DResource* RenderTarget, FTextureReferenceRHIRef SourceTexture);
 
 private:
 
