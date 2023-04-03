@@ -1148,9 +1148,9 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 			TSet<UE::FSdfPath> MainPrimPaths = InfoCache->GetMainPrims(InPrimPath);
 			for (const UE::FSdfPath& MainPrimPath : MainPrimPaths)
 			{
-				// Note: We don't need to "unwind" DependentPrim to a collapse root here: The entries for dependent
-				// prims on the TranslationDependency maps are always prims that were translated into assets before,
-				// so we know they must be "unwound" paths already
+				// Note: We don't need to "unwind" MainPrimPath to a collapse root here: The entries for main prims
+				// on the Main/Aux maps are always prims that were translated into assets before, so we know they
+				// must be "unwound" paths already
 
 				if (IsPathAlreadyProcessed(RefreshedComponents, MainPrimPath))
 				{
@@ -1168,7 +1168,7 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 					*MainPrimPath.GetString()
 				);
 
-				// We could share this context, add all tasks for all Dependents and then call CompleteTasks once, but
+				// We could share this context, add all tasks for all consumers and then call CompleteTasks once, but
 				// that could cause trouble in case we had a triangle of dependencies (A depends on B an C,
 				// and B depends on C) as that would prevent dependencies from being parsed before dependents
 				TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext(
@@ -1179,7 +1179,7 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 				UpdatePrim(MainPrimPath, bInResync, *TranslationContext);
 				TranslationContext->CompleteTasks();
 
-				// Now update the dependents of *this* prim
+				// Now update the consumers of *this* prim
 				UpdateComponents(MainPrimPath, bInResync);
 			}
 		};
@@ -1233,7 +1233,7 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 				);
 
 				// For UE-120185: If we recreated a material for a prim path we also need to update all components that were using it.
-				// This could be fleshed out further if other asset types require this refresh of "dependent components" but materials
+				// This could be fleshed out further if other asset types require this refresh of "consumer components" but materials
 				// seem to be the only ones that do at the moment.
 				// Note that even after UE-157644 this is still useful: Material prims are not marked as a dependency
 				// of Mesh prims, otherwise we'd have to regenerate the StaticMesh itself when material info changed.
