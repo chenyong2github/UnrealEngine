@@ -61,7 +61,7 @@ namespace PCGGraphUtils
 		}
 
 		const uint8* SourceValueAddress = InSourceInstance.GetValue().GetMemory() + InSourcePropertyDesc->CachedProperty->GetOffset_ForInternal();
-		uint8* TargetValueAddress = InTargetInstance.GetMutableValue().GetMutableMemory() + InTargetPropertyDesc->CachedProperty->GetOffset_ForInternal();
+		uint8* TargetValueAddress = InTargetInstance.GetMutableValue().GetMemory() + InTargetPropertyDesc->CachedProperty->GetOffset_ForInternal();
 
 		InSourcePropertyDesc->CachedProperty->CopyCompleteValue(TargetValueAddress, SourceValueAddress);
 	}
