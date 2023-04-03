@@ -1341,6 +1341,9 @@ void UWaterBodyComponent::UpdateWaterBody(bool bWithExclusionVolumes)
 	{
 		OnUpdateBody(bWithExclusionVolumes);
 	}
+
+	// Update our cached bounds now that our shape may have changed:
+	UpdateBounds();
 }
 
 void UWaterBodyComponent::UpdateAll(const FOnWaterBodyChangedParams& InParams)
