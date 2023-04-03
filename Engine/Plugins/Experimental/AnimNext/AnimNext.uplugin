@@ -12,7 +12,8 @@
 	"SupportURL" : "",
 	"EnabledByDefault" : false,
 	"CanContainContent" : false,
-	"IsBetaVersion" : true,
+	"IsBetaVersion": true,
+	"IsExperimentalVersion": true,
 	"Installed" : false,
 	"Plugins":
 	[
@@ -43,9 +44,13 @@
 			"LoadingPhase" : "Default"
 		},
 		{
-			"Name" : "AnimNextGraphUncookedOnly",
-			"Type" : "UncookedOnly",
-			"LoadingPhase" : "Default"
+			"Name": "AnimNextGraphUncookedOnly",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "AnimNextTestSuite",
+			"Type": "UncookedOnly"
 		}
 	]
 }

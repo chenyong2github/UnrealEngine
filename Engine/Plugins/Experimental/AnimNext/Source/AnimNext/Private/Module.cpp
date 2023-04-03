@@ -5,6 +5,8 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/CoreDelegates.h"
 #include "DataRegistry.h"
+#include "DecoratorBase/DecoratorRegistry.h"
+#include "DecoratorBase/NodeTemplateRegistry.h"
 
 namespace UE::AnimNext
 {
@@ -17,11 +19,15 @@ public:
 		FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([]()
 		{
 			FDataRegistry::Init();
+			FDecoratorRegistry::Init();
+			FNodeTemplateRegistry::Init();
 		});
 
 		FCoreDelegates::OnEnginePreExit.AddLambda([]()
 		{
 			FDataRegistry::Destroy();
+			FDecoratorRegistry::Destroy();
+			FNodeTemplateRegistry::Destroy();
 		});
 		
 	}
