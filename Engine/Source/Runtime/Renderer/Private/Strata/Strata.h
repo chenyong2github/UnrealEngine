@@ -21,11 +21,15 @@ struct FMinimalSceneTextures;
 struct FScreenPassTexture;
 struct FTextureRenderTargetBinding;
 
-BEGIN_SHADER_PARAMETER_STRUCT(FStrataBasePassUniformParameters, )
+BEGIN_SHADER_PARAMETER_STRUCT(FStrataCommonParameters, )
 	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
 	SHADER_PARAMETER(uint32, bRoughDiffuse)
 	SHADER_PARAMETER(uint32, PeelLayersAboveDepth)
 	SHADER_PARAMETER(uint32, bRoughnessTracking)
+END_SHADER_PARAMETER_STRUCT()
+
+BEGIN_SHADER_PARAMETER_STRUCT(FStrataBasePassUniformParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FStrataCommonParameters, Common)
 	SHADER_PARAMETER(int32, SliceStoringDebugStrataTreeDataWithoutMRT)
 	SHADER_PARAMETER(int32, FirstSliceStoringStrataSSSDataWithoutMRT)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray<uint>, MaterialTextureArrayUAVWithoutRTs)
@@ -33,20 +37,14 @@ BEGIN_SHADER_PARAMETER_STRUCT(FStrataBasePassUniformParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FStrataForwardPassUniformParameters, )
-	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
-	SHADER_PARAMETER(uint32, bRoughDiffuse)
-	SHADER_PARAMETER(uint32, PeelLayersAboveDepth)
-	SHADER_PARAMETER(uint32, bRoughnessTracking)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FStrataCommonParameters, Common)
 	SHADER_PARAMETER(int32, FirstSliceStoringStrataSSSData)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray<uint>, MaterialTextureArray)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, TopLayerTexture)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FStrataMobileForwardPassUniformParameters, )
-	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
-	SHADER_PARAMETER(uint32, bRoughDiffuse)
-	SHADER_PARAMETER(uint32, PeelLayersAboveDepth)
-	SHADER_PARAMETER(uint32, bRoughnessTracking)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FStrataCommonParameters, Common)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FStrataTileParameter, )
@@ -57,10 +55,7 @@ END_SHADER_PARAMETER_STRUCT()
 // This paramater struct is declared with RENDERER_API even though it is not public. This is
 // to workaround other modules doing 'private include' of the Renderer module
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, RENDERER_API)
-	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
-	SHADER_PARAMETER(uint32, bRoughDiffuse)
-	SHADER_PARAMETER(uint32, PeelLayersAboveDepth)
-	SHADER_PARAMETER(uint32, bRoughnessTracking)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FStrataCommonParameters, Common)
 	SHADER_PARAMETER(int32,  SliceStoringDebugStrataTreeData)
 	SHADER_PARAMETER(int32,  FirstSliceStoringStrataSSSData)
 	SHADER_PARAMETER(uint32, TileSize)
