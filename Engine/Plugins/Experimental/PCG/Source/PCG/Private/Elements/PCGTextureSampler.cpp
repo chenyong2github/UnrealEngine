@@ -14,6 +14,16 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGTextureSampler)
 
+#define LOCTEXT_NAMESPACE "PCGTextureSamplerElement"
+
+TArray<FPCGPinProperties> UPCGTextureSamplerSettings::OutputPinProperties() const
+{
+	TArray<FPCGPinProperties> Properties;
+	Properties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Texture);
+
+	return Properties;
+}
+
 FPCGElementPtr UPCGTextureSamplerSettings::CreateElement() const
 {
 	return MakeShared<FPCGTextureSamplerElement>();
@@ -26,9 +36,21 @@ bool FPCGTextureSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	const UPCGTextureSamplerSettings* Settings = Context->GetInputSettings<UPCGTextureSamplerSettings>();
 	check(Settings);
 
+	UTexture2D* Texture = Settings->Texture.LoadSynchronous();
+	if (!Texture)
+	{
+		PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("CouldNotResolveTexture", "Texture at path '{0}' could not be loaded"), FText::FromString(Settings->Texture.ToString())));
+		return true;
+	}
+
+	if (!UPCGTextureData::IsSupported(Texture))
+	{
+		PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("UnsupportedTextureFormat", "Texture '{0}' has unsupported texture format, currently supported formats are B8G8R8A8, PF_R8G8B8A8 and PF_G8"), FText::FromName(Texture->GetFName())));
+		return true;
+	}
+
 	const FTransform& Transform = Settings->Transform;
 	const bool bUseAbsoluteTransform = Settings->bUseAbsoluteTransform;
-	TObjectPtr<UTexture2D> Texture = Settings->Texture;
 	const EPCGTextureDensityFunction DensityFunction = Settings->DensityFunction;
 	const EPCGTextureColorChannel ColorChannel = Settings->ColorChannel;
 	const float TexelSize = Settings->TexelSize;
@@ -73,6 +95,11 @@ bool FPCGTextureSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	TextureData->bUseTileBounds = bUseTileBounds;
 	TextureData->TileBounds = FBox2D(TileBoundsMin, TileBoundsMax);
 
+	if (!TextureData->IsValid())
+	{
+		PCGE_LOG(Error, GraphAndLog, LOCTEXT("UnsupportedTextureFormat", "Texture data failed to initialize, check log for more information"));
+	}
+
 	return true;
 }
 
@@ -97,3 +124,5 @@ void FPCGTextureSamplerElement::GetDependenciesCrc(const FPCGDataCollection& InI
 
 	OutCrc = Crc;
 }
+
+#undef LOCTEXT_NAMESPACE

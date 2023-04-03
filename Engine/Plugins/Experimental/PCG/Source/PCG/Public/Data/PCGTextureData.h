@@ -104,15 +104,18 @@ public:
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Texture; }
 	// ~End UPCGData interface
 
+	UFUNCTION(BlueprintCallable, Category = Texture)
+	void Initialize(UTexture2D* InTexture, const FTransform& InTransform);
+
+	/** Returns true if the format of InTexture is compatible and can be loaded. Will load texture if not already loaded. */
+	static bool IsSupported(UTexture2D* InTexture);
+
 	//~Begin UPCGSpatialData interface
 protected:
 	virtual UPCGSpatialData* CopyInternal() const override;
 	//~End UPCGSpatialData interface
 
 public:
-	UFUNCTION(BlueprintCallable, Category = Texture)
-	void Initialize(UTexture2D* InTexture, const FTransform& InTransform);
-
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Properties)
 	TWeakObjectPtr<UTexture2D> Texture = nullptr;
 };

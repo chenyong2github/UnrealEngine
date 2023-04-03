@@ -275,15 +275,13 @@ void UPCGTextureData::Initialize(UTexture2D* InTexture, const FTransform& InTran
 
 	if (InTexture)
 	{
-		FTexturePlatformData* PlatformData = Texture->GetPlatformData();
-		if (PlatformData && PlatformData->Mips.Num() > 0)
+		if (IsSupported(InTexture))
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(UPCGTextureData::Initialize::ReadData);
-
-			if (PlatformData->PixelFormat == PF_B8G8R8A8 ||
-				PlatformData->PixelFormat == PF_R8G8B8A8 ||
-				PlatformData->PixelFormat == PF_G8)
+			FTexturePlatformData* PlatformData = Texture->GetPlatformData();
+			if (PlatformData)
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(UPCGTextureData::Initialize::ReadData);
+
 				if (const uint8_t* BulkData = reinterpret_cast<const uint8_t*>(PlatformData->Mips[0].BulkData.LockReadOnly()))
 				{
 					Width = Texture->GetSizeX();
@@ -322,13 +320,13 @@ void UPCGTextureData::Initialize(UTexture2D* InTexture, const FTransform& InTran
 				{
 					UE_LOG(LogPCG, Error, TEXT("PCGTextureData unable to get bulk data from %s"), *Texture->GetFName().ToString());
 				}
-				
+
 				PlatformData->Mips[0].BulkData.Unlock();
 			}
-			else
-			{
-				UE_LOG(LogPCG, Error, TEXT("PCGTextureData does not support the format of %s"), *Texture->GetFName().ToString());
-			}
+		}
+		else
+		{
+			UE_LOG(LogPCG, Error, TEXT("PCGTextureData does not support the format of %s"), *Texture->GetFName().ToString());
 		}
 	}
 
@@ -336,6 +334,14 @@ void UPCGTextureData::Initialize(UTexture2D* InTexture, const FTransform& InTran
 	Bounds += FVector(-1.0f, -1.0f, 0.0f);
 	Bounds += FVector(1.0f, 1.0f, 0.0f);
 	Bounds = Bounds.TransformBy(Transform);
+}
+
+bool UPCGTextureData::IsSupported(UTexture2D* InTexture)
+{
+	const FTexturePlatformData* PlatformData = InTexture ? InTexture->GetPlatformData() : nullptr;
+
+	return PlatformData && PlatformData->Mips.Num() > 0 &&
+		(PlatformData->PixelFormat == PF_B8G8R8A8 || PlatformData->PixelFormat == PF_R8G8B8A8 || PlatformData->PixelFormat == PF_G8);
 }
 
 UPCGSpatialData* UPCGTextureData::CopyInternal() const

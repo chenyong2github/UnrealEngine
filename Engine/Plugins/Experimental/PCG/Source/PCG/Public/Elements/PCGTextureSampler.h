@@ -16,13 +16,13 @@ class PCG_API UPCGTextureSamplerSettings : public UPCGSettings
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Texture Sampler")); }
-	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Sampler; }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Get Texture Data")); }
+	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spatial; }
 #endif
 
 protected:
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override { return TArray<FPCGPinProperties>(); }
-	virtual TArray<FPCGPinProperties> OutputPinProperties() const override { return Super::DefaultPointOutputPinProperties(); }
+	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings interface
 
@@ -36,7 +36,7 @@ public:
 
 	// Texture specific parameters
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	TObjectPtr<UTexture2D> Texture = nullptr;
+	TSoftObjectPtr<UTexture2D> Texture = nullptr;
 
 	// Common members in BaseTextureData
 	UPROPERTY(BlueprintReadWrite, VisibleAnywhere, Category = SpatialData, meta = (PCG_Overridable))
