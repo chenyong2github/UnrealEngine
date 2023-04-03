@@ -182,7 +182,7 @@ void AMediaPlate::ApplyMaterial(UMaterialInterface* Material)
 
 				// Create instance.
 				UMaterialInstanceConstant* MaterialInstance =
-					NewObject<UMaterialInstanceConstant>(StaticMeshComponent, MaterialUniqueName);
+					NewObject<UMaterialInstanceConstant>(StaticMeshComponent, MaterialUniqueName, RF_Transactional);
 				MaterialInstance->SetParentEditorOnly(Material);
 				MaterialInstance->CopyMaterialUniformParametersEditorOnly(Material);
 				MaterialInstance->SetTextureParameterValueEditorOnly(
