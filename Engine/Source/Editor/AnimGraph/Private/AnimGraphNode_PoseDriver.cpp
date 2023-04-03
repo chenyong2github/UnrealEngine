@@ -443,16 +443,6 @@ EPoseDriverOutput& UAnimGraphNode_PoseDriver::GetPoseDriverOutput()
 	return Node.DriveOutput;
 }
 
-void UAnimGraphNode_PoseDriver::SetOnlyDriveSelectedBones(bool bOnlyDriveSelectedBones)
-{
-	Node.bOnlyDriveSelectedBones = bOnlyDriveSelectedBones;
-}
-
-bool UAnimGraphNode_PoseDriver::GetOnlyDriveSelectedBones()
-{
-	return Node.bOnlyDriveSelectedBones == 1;
-}
-
 void UAnimGraphNode_PoseDriver::AddNewTarget()
 {
 	FPoseDriverTarget& NewTarget = Node.PoseTargets[Node.PoseTargets.Add(FPoseDriverTarget())];

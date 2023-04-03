@@ -85,17 +85,6 @@ public:
 	UFUNCTION(BlueprintPure, Category=PoseDriver)
 	EPoseDriverOutput& GetPoseDriverOutput();
 	
-	/**  */
-	UFUNCTION(BlueprintCallable, Category=PoseDriver)
-	void SetOnlyDriveSelectedBones(bool bOnlyDriveSelectedBones);
-
-	/**  */
-	UFUNCTION(BlueprintPure, Category=PoseDriver)
-	bool GetOnlyDriveSelectedBones();
-
-
-	
-
 	/** Automatically modify TargetScale for each PoseTarget, based on distance to nearest neighbor */
 	void AutoSetTargetScales(float& OutMaxDistance);
 

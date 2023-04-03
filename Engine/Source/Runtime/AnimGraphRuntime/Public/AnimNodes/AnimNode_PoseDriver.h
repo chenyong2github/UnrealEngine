@@ -162,12 +162,8 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_PoseDriver : public FAnimNode_PoseHandler
 	UPROPERTY(EditAnywhere, Category = PoseDriver)
 	bool bEvalFromRefPose = false;
 
-	/** If bOnlyDriveSelectedBones is specified, only the OnlyDriveBones will be modified by this node. */
-	UPROPERTY(EditAnywhere, Category = PoseDriver, meta = (EditCondition = "DriveOutput == EPoseDriverOutput::DrivePoses"))
-	uint8 bOnlyDriveSelectedBones : 1;
-
 	/** List of bones that will modified by this node. If no list is provided, all bones bones with a track in the PoseAsset will be modified */
-	UPROPERTY(EditAnywhere, Category = PoseDriver, meta = (EditCondition = "bOnlyDriveSelectedBones && DriveOutput == EPoseDriverOutput::DrivePoses"))
+	UPROPERTY(EditAnywhere, Category = PoseDriver, meta = (EditCondition = "DriveOutput == EPoseDriverOutput::DrivePoses"))
 	TArray<FBoneReference> OnlyDriveBones;
 
 	/** Targets used to compare with current pose and drive morphs/poses */
@@ -191,8 +187,11 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_PoseDriver : public FAnimNode_PoseHandler
 
 	/** Input source bone TM, used for debug drawing */
 	TArray<FTransform> SourceBoneTMs;
+	
+	/** Checks if there are valid bones in OnlyDriveBones, since some entries can be None */
+	bool bHasOnlyDriveBones = false;
 
-	/** If bOnlyDriveSelectedBones, this array lists bones that we should filter out (ie have a track in the PoseAsset, but are not listed in OnlyDriveBones */
+	/** This array lists bones that we should filter out (ie have a track in the PoseAsset, but are not listed in OnlyDriveBones) */
 	TArray<FCompactPoseBoneIndex> BonesToFilter;
 
 #if WITH_EDITORONLY_DATA
