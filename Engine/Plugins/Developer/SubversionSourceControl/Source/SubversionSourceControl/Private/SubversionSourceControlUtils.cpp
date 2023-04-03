@@ -59,11 +59,21 @@ namespace SubversionSourceControlUtils
 
 static FString DetectSubversionPath()
 {
-	auto& Settings = FModuleManager::GetModulePtr<FSubversionSourceControlModule>("SubversionSourceControl")->AccessSettings();
+#if PLATFORM_WINDOWS
+	const TCHAR* SVNExecutableName = TEXT("svn.exe");
+#else
+	const TCHAR* SVNExecutableName = TEXT("svn");
+#endif
+
+	const FSubversionSourceControlSettings& Settings = FModuleManager::GetModulePtr<FSubversionSourceControlModule>("SubversionSourceControl")->AccessSettings();
 
 	FString SVNPath = Settings.GetExecutableOverride();
 	if (!SVNPath.IsEmpty())
 	{
+		// Only allow to use a svn executable and not any arbitrary executable to prevent malicious users from running cmd.exe or something similar.
+		FPaths::NormalizeFilename(SVNPath);
+		SVNPath = FPaths::Combine(FPaths::GetPath(SVNPath), SVNExecutableName);
+
 		if (FPaths::FileExists(SVNPath))
 		{
 			UE_LOG(LogSourceControl, Log, TEXT("Using user-supplied path %s for svn operations"), *FPaths::ConvertRelativePathToFull(SVNPath));
@@ -77,19 +87,19 @@ static FString DetectSubversionPath()
 	const bool bLaunchHidden = true;
 
 #if PLATFORM_WINDOWS
-	const TCHAR* Command[] = { TEXT("where"), TEXT("svn.exe") };
-	const FString DefaultPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/svn") / FPlatformProcess::GetBinariesSubdirectory() / TEXT("svn.exe");
+	const TCHAR* Command[] = { TEXT("where"), SVNExecutableName };
+	const FString DefaultPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/svn") / FPlatformProcess::GetBinariesSubdirectory() / SVNExecutableName;
 #elif PLATFORM_MAC
-	const TCHAR* Command[] = { TEXT("/usr/bin/which"), TEXT("svn") };
-	const FString DefaultPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/svn") / FPlatformProcess::GetBinariesSubdirectory() / TEXT("bin/svn");
-	const FString UsrLocalPath = TEXT("/usr/local/bin/svn");
+	const TCHAR* Command[] = { TEXT("/usr/bin/which"), SVNExecutableName };
+	const FString DefaultPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/svn") / FPlatformProcess::GetBinariesSubdirectory() / TEXT("bin") / SVNExecutableName;
+	const FString UsrLocalPath = FString(TEXT("/usr/local/bin")) / SVNExecutableName;
 #else
-	const TCHAR* Command[] = { TEXT("/usr/bin/which"), TEXT("svn") };
-	const FString DefaultPath = TEXT("/usr/bin/svn");
+	const TCHAR* Command[] = { TEXT("/usr/bin/which"), SVNExecutableName };
+	const FString DefaultPath = FString(TEXT("/usr/bin")) / SVNExecutableName;
 #endif
 
 	{
-		// Attmpt to detect a system wide version of the svn command line tools
+		// Attempt to detect a system wide version of the svn command line tools
 		void* ReadPipe = nullptr, *WritePipe = nullptr;
 		FPlatformProcess::CreatePipe(ReadPipe, WritePipe);
 
