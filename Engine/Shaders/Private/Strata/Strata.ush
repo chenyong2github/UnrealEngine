@@ -43,6 +43,13 @@
 #define STRATA_INLINE_SHADING 0
 #endif
 
+// Strata STRATA_SHADING_QUALITY define the lighting accuarcy/approximation
+// 1: accurante lighting
+// 2: approximation lighting
+#ifndef STRATA_SHADING_QUALITY
+#define STRATA_SHADING_QUALITY 1
+#endif
+
 #ifndef STRATA_DEFERRED_SHADING
 #define STRATA_DEFERRED_SHADING (STRATA_INLINE_SHADING == 0)
 #endif 
@@ -3107,7 +3114,7 @@ float3 sqrtFast3(float3 In) { return float3(sqrtFast(In.x), sqrtFast(In.y), sqrt
 
 half3 StrataLinearToSrgb(half3 In)
 {
-#if STRATA_USE_ACCURATE_SRGB
+#if STRATA_SHADING_QUALITY <= 1
 	return LinearToSrgb(In);
 #else
 	return sqrtFast3(In); // Simple gamma 2.0
@@ -3116,7 +3123,7 @@ half3 StrataLinearToSrgb(half3 In)
 
 half3 StrataSrgbToLinear(half3 In)
 {
-#if STRATA_USE_ACCURATE_SRGB
+#if STRATA_SHADING_QUALITY <= 1
 	return sRGBToLinear(In);
 #else
 	return In * In; // Simple gamma 2.0

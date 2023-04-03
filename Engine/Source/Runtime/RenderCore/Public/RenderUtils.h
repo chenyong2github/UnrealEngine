@@ -489,7 +489,6 @@ namespace Strata
 	RENDERCORE_API bool IsOpaqueRoughRefractionEnabled();
 	RENDERCORE_API bool IsAdvancedVisualizationEnabled();
 	RENDERCORE_API bool Is8bitTileCoordEnabled();
-	RENDERCORE_API bool IsAccurateSRGBEnabled();
 
 	RENDERCORE_API uint32 GetRayTracingMaterialPayloadSizeInBytes(bool bFullySimplifiedMaterial);
 

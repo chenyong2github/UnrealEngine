@@ -1588,12 +1588,6 @@ static TAutoConsoleVariable<int32> CVarSubstrateTileCoord8Bits(
 	TEXT("Format of tile coord. This variable is read-only."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarSubstrateAccurateSRGB(
-	TEXT("r.Substrate.AccurateSRGB"),
-	0,
-	TEXT("Enable accurate sRGB encoding for pixel data encoding/decoding during rendering passes (base pass, lighting, ...). Otherwise use a simple 'Gamma2' approximation."),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe);
-
 namespace Strata
 {
 	bool IsStrataEnabled()
@@ -1684,11 +1678,6 @@ namespace Strata
 	bool Is8bitTileCoordEnabled()
 	{
 		return CVarSubstrateTileCoord8Bits.GetValueOnAnyThread() > 0 ? 1 : 0;
-	}
-
-	bool IsAccurateSRGBEnabled()
-	{
-		return CVarSubstrateAccurateSRGB.GetValueOnAnyThread() > 0 ? 1 : 0;
 	}
 
 	uint32 GetShadingQuality()

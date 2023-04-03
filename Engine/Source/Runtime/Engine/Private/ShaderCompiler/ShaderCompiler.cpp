@@ -6535,10 +6535,9 @@ void GlobalBeginCompileShader(
 		{
 			const uint32 StrataShadingQuality = Strata::GetShadingQuality(Target.GetPlatform());
 			Input.Environment.SetDefine(TEXT("STRATA_SHADING_QUALITY"), StrataShadingQuality);
-			if (StrataShadingQuality > 1)
-			{
-				Input.Environment.SetDefine(TEXT("USE_ACHROMATIC_BXDF_ENERGY"), 1u);
-			}
+
+			const bool bLowQuality = StrataShadingQuality > 1;
+			Input.Environment.SetDefine(TEXT("USE_ACHROMATIC_BXDF_ENERGY"), bLowQuality ? 1u : 0u);
 
 			const uint32 StrataNormalQuality = Strata::GetNormalQuality();
 			Input.Environment.SetDefine(TEXT("STRATA_NORMAL_QUALITY"), StrataNormalQuality);
@@ -6552,9 +6551,6 @@ void GlobalBeginCompileShader(
 			const bool bStrataDBufferPass = Strata::IsDBufferPassEnabled(Target.GetPlatform());
 			Input.Environment.SetDefine(TEXT("STRATA_USE_DBUFFER_PASS"), bStrataDBufferPass ? 1 : 0);
 		}
-
-		const bool bStrataUseAccurateSRGB = bStrata && Strata::IsAccurateSRGBEnabled();
-		Input.Environment.SetDefine(TEXT("STRATA_USE_ACCURATE_SRGB"), bStrataUseAccurateSRGB ? 1 : 0);
 
 		const bool bStrataBackCompatibility = bStrata && Strata::IsBackCompatibilityEnabled();
 		Input.Environment.SetDefine(TEXT("PROJECT_STRATA_BACKCOMPATIBILITY"), bStrataBackCompatibility ? 1 : 0);
