@@ -25,7 +25,7 @@
 #define EPIC_TEST_BOOLEAN_(text, expression, expected) \
 	TestEqual(text, expression, expected);
 	  
-BEGIN_DEFINE_SPEC(FAutomationDriverSpec, "System.Automation.Driver", EAutomationTestFlags::ProductFilter | EAutomationTestFlags::ApplicationContextMask)
+BEGIN_DEFINE_SPEC(FAutomationDriverSpec, "TestFramework.Driver", EAutomationTestFlags::ProductFilter | EAutomationTestFlags::ApplicationContextMask)
 	TSharedPtr<SWindow> SuiteWindow;
 	TSharedPtr<SAutomationDriverSpecSuite> SuiteWidget;
 	TSharedPtr<IAutomationDriverSpecSuiteViewModel> SuiteViewModel;
