@@ -75,6 +75,8 @@ public:
 		const FDynamicMeshAABBTree3* Spatial,
 		const FMeshTangentsd* Tangents); 
 
+	UE_NONCOPYABLE(FSceneCapturePhotoSetSampler);
+
 	virtual bool SupportsCustomCorrespondence() const override;
 
 	// Warning: Expects that Sample.BaseSample.SurfacePoint and Sample.BaseNormal are set when the function is called

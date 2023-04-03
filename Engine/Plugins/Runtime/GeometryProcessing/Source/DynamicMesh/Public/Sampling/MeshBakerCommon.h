@@ -366,6 +366,8 @@ public:
 class FMeshBakerDynamicMeshSampler : public IMeshBakerDetailSampler
 {
 public:
+	UE_NONCOPYABLE(FMeshBakerDynamicMeshSampler)
+
 	FMeshBakerDynamicMeshSampler(const FDynamicMesh3* Mesh, const FDynamicMeshAABBTree3* Spatial, const FMeshTangentsd* Tangents = nullptr)
 		: DetailMesh(Mesh), DetailSpatial(Spatial), DetailTangents(Tangents)
 	{
