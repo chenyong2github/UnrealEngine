@@ -517,7 +517,7 @@ bool FElectraTextureSample::Convert(FTexture2DRHIRef& InDstTexture, const FConve
 	if (GetEncodingType() == UE::Color::EEncoding::ST2084)
 	{
 		// Normalize output (e.g. 80 or 100 nits == 1.0)
-		ColorSpaceMtx = ColorSpaceMtx.ApplyScale(kMediaSample_HDR_NitsNormalizationFactor);
+		ColorSpaceMtx = ColorSpaceMtx.ApplyScale(GetHDRNitsNormalizationFactor());
 	}
 
 	// Get shaders.
