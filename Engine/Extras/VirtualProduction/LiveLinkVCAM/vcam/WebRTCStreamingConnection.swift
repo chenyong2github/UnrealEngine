@@ -19,7 +19,7 @@ class WebRTCStreamingConnection : StreamingConnection {
     private var keyboardControls: KeyboardControls?
     private var webRTCView : WebRTCView?
     private var rtcVideoTrack : RTCVideoTrack?
-    private var subscribedStream : String = ""
+    
     private var signalingConnected = false
     private var hasRemoteSdp = false
     private var hasLocalSdp = false
@@ -28,6 +28,10 @@ class WebRTCStreamingConnection : StreamingConnection {
     private var _statsTimer : Timer?
     private var _lastBytesReceived : Int?
     private var _lastBytesReceivedTimestamp : CFTimeInterval?
+    
+    private var reconnectAttempt : Int = 0
+    private var maxReconnectAttempts : Int = 3
+    private var subscribedStreamer : String = ""
 
     override var name : String {
         get {
@@ -426,38 +430,35 @@ extension WebRTCStreamingConnection: SignalClientDelegate {
     }
     
     func signalClient(_ signalClient: SignalingClient, didReceiveStreamerList streamerList: Array<String>) {
-        if signalClient.isReconnecting
-        {
-            if streamerList.contains(subscribedStream)
-            {
-                // The stream we were originally subscribed to has come back, so reconnect to it
-                signalClient.isReconnecting = false;
-                signalClient.reconnectAttempt = 0;
-                signalClient.subscribe(subscribedStream)
-            }
-            else if(signalClient.reconnectAttempt < 3)
-            {
-                // The stream's still not back up, try reconnecting a few more times
-                signalClient.reconnect()
-            }
-            else
-            {
-                // We've tried a few times and still no stream, return to main menu
-                Log.info("Unable to reconnect to previously connected VCam")
-                self.delegate?.streamingConnection(self, exitWithErr: NSError(domain: "", code: 1, userInfo: [NSLocalizedDescriptionKey : "Unable to reconnect to VCam after 3 tries" ] ))
+        if signalClient.isReconnecting {
+            if streamerList.contains(self.subscribedStreamer) {
+                // If we're reconnecting and the previously subscribed stream has come back, resubscribe to it
+                signalClient.isReconnecting = false
+                self.reconnectAttempt = 0
+                signalClient.subscribe(self.subscribedStreamer)
+            } else if self.reconnectAttempt < self.maxReconnectAttempts {
+                // Our previous stream hasn't come back, wait 2 seconds and request an updated stream list
+                self.reconnectAttempt += 1
+                DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+                    signalClient.sendRequestStreamerList()
+                }
+            } else {
+                // We've exhausted our reconnect attempts, return to main menu
+                self.reconnectAttempt = 0
+                self.delegate?.streamingConnection(self, exitWithError: NSError(domain: "", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unable to reconnect to \(subscribedStreamer) after \(maxReconnectAttempts) attempts"]))
             }
             
-        }
-        else
-        {
-            // If we only have a single streamer, no need to show the selection dialogue
-            if streamerList.count == 1 {
-                self.subscribedStream = streamerList[0]
+        } else {
+            if streamerList.count == 0 {
+                self.delegate?.streamingConnection(self, exitWithError: NSError(domain: "", code: 1, userInfo: [NSLocalizedDescriptionKey: "No streamers connected"]))
+            } else if streamerList.count == 1 {
+                // If we only have a single streamer, no need to show the selection dialogue
+                self.subscribedStreamer = streamerList[0]
                 signalClient.subscribe(streamerList[0])
             } else if streamerList.count > 1 {
                 // Otherwise make sure we have more than 1 and display the picker
                 self.delegate?.streamingConnection(self, requestStreamerSelectionWithStreamers: streamerList) { (selectedStreamer) in
-                    self.subscribedStream = selectedStreamer
+                    self.subscribedStreamer = selectedStreamer
                     signalClient.subscribe(selectedStreamer)
                 }
             }

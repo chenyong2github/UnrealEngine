@@ -13,7 +13,7 @@ protocol StreamingConnectionDelegate : AnyObject {
     
     func streamingConnectionDidConnect(_ connection : StreamingConnection)
     func streamingConnection(_ connection : StreamingConnection, didDisconnectWithError err: Error?)
-    func streamingConnection(_ connection : StreamingConnection, exitWithErr err: Error?)
+    func streamingConnection(_ connection : StreamingConnection, exitWithError err: Error?)
     func streamingConnection(_ connection : StreamingConnection, requestsTextEditWithContents contents : String, handler : @escaping (Bool, String?) -> Void)
     func streamingConnection(_ connection: StreamingConnection, requestStreamerSelectionWithStreamers streamers: Array<String>, handler: @escaping (String) -> Void)
     func streamingConnection(_ connection: StreamingConnection, receivedGamepadResponse: UInt8)

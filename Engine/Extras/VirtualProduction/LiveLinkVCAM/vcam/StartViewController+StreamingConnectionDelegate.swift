@@ -45,8 +45,25 @@ extension StartViewController : StreamingConnectionDelegate {
             }
         }
     }
-    
-    func streamingConnection(_ connection: StreamingConnection, exitWithErr err: Error?) {
+    func streamingConnection(_ connection: StreamingConnection, exitWithError err: Error?) {
+
+        DispatchQueue.main.async {
+            connection.disconnect()
+            self.hideConnectingAlertView {
+                if let e = err {
+                    Log.info("StreamingConnection \(connection.name) disconnected with error : \(e.localizedDescription)")
+
+                    let errorAlert = UIAlertController(title: "Error", message: "Couldn't connect : \(e.localizedDescription)", preferredStyle: .alert)
+                    errorAlert.addAction(UIAlertAction(title: "OK", style: .default, handler: { _ in
+                        self.hideConnectingView() {}
+                    }))
+                    self.present(errorAlert, animated:true)
+                    
+                } else {
+                    Log.info("StreamingConnection \(connection.name) disconnected.")
+                }
+            }
+        }
     }
     
     func streamingConnection(_ connection: StreamingConnection, requestsTextEditWithContents contents: String, handler: @escaping (Bool, String?) -> Void) {

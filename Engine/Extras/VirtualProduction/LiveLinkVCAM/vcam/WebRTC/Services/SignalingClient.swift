@@ -25,8 +25,7 @@ final class SignalingClient {
     private let encoder = JSONEncoder()
     private let webSocket: WebSocketProvider
     private var shouldReconnect : Bool = true
-    var isReconnecting  : Bool = false
-    var reconnectAttempt : Int = 0
+    var isReconnecting : Bool = false
     weak var delegate: SignalClientDelegate?
     
     init(webSocket: WebSocketProvider) {
@@ -42,12 +41,6 @@ final class SignalingClient {
         self.shouldReconnect = false
         self.webSocket.close()
         self.webSocket.delegate = nil
-    }
-    
-    func reconnect() {
-        self.shouldReconnect = true
-        self.webSocket.delegate = self
-        self.webSocket.close()
     }
     
     func send(sdp rtcSdp: RTCSessionDescription) {
@@ -110,7 +103,6 @@ extension SignalingClient: WebSocketProviderDelegate {
             if self.shouldReconnect {
                 debugPrint("Trying to reconnect to signaling server...")
                 self.isReconnecting = true
-                self.reconnectAttempt += 1
                 self.webSocket.connect()
             }
         }
