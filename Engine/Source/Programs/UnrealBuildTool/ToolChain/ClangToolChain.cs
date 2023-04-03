@@ -69,12 +69,6 @@ namespace UnrealBuildTool
 		EnableThinLTO = 1 << 8,
 
 		/// <summary>
-		/// If should disable using objcopy to split the debug info into its own file or now
-		/// When we support larger the 4GB files with objcopy.exe this can be removed!
-		/// </summary>
-		DisableSplitDebugInfoWithObjCopy = 1 << 9,
-
-		/// <summary>
 		/// Enable tuning of debug info for LLDB
 		/// </summary>
 		TuneDebugInfoForLLDB = 1 << 10,

@@ -610,16 +610,6 @@ namespace UnrealBuildTool
 				Options |= ClangToolChainOptions.UseAutoRTFMCompiler;
 			}
 
-			// When building a monolithic editor we have to avoid using objcopy.exe as it cannot handle files
-			// larger then 4GB. This is only an issue with our binutils objcopy.exe.
-			// llvm-objcopy.exe does not have this issue and once we switch over to using that in clang 10.0.1 we can remove this!
-			if ((BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64) &&
-				(Target.LinkType == TargetLinkType.Monolithic) &&
-				(Target.Type == TargetType.Editor))
-			{
-				Options |= ClangToolChainOptions.DisableSplitDebugInfoWithObjCopy;
-			}
-
 			if (Target.LinuxPlatform.bTuneDebugInfoForLLDB)
 			{
 				Options |= ClangToolChainOptions.TuneDebugInfoForLLDB;
