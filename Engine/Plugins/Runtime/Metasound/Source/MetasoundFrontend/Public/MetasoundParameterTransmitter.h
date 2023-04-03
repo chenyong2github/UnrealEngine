@@ -88,8 +88,11 @@ namespace Metasound
 		FMetaSoundParameterTransmitter(FMetaSoundParameterTransmitter::FInitParams&& InInitParams);
 		virtual ~FMetaSoundParameterTransmitter() = default;
 
-		bool Reset() override;
+		virtual void OnDeleteActiveSound() override;
 
+		UE_DEPRECATED(5.2, "Use ResetParameters() or OnDeleteActiveSound() instead depending on use case.")
+		bool Reset() override;
+		
 		/** Sets parameters using array of AudioParameter structs
 		 *
 		 * @param InParameter - Parameter to set.

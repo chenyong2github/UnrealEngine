@@ -51,7 +51,15 @@ namespace Audio
 
 			virtual ~IParameterTransmitter() = default;
 
-			virtual bool Reset() = 0;
+			UE_DEPRECATED(5.2, "Use ResetParameters() or OnDeleteActiveSound() instead depending on use case.")
+			virtual bool Reset() { ResetParameters(); return true; }
+
+			// Reset parameters which stored on the transmitter.
+			virtual void ResetParameters() {}
+
+			// Called when the active sound is deleted due to the sound finishing,
+			// being stopped, or being virtualized. 
+			virtual void OnDeleteActiveSound() {}
 
 			// Return the cached parameter with the given name if it exists
 			// @return False if param not found, true if found.
@@ -74,7 +82,9 @@ namespace Audio
 		virtual ~FParameterTransmitterBase() = default;
 
 		virtual bool GetParameter(FName InName, FAudioParameter& OutParam) const override;
+		virtual void ResetParameters() override;
 		virtual const TArray<FAudioParameter>& GetParameters() const override;
+		UE_DEPRECATED(5.2, "Use ResetParameters() or OnDeleteActiveSound() instead depending on use case.")
 		virtual bool Reset() override;
 		virtual bool SetParameters(TArray<FAudioParameter>&& InParameters) override;
 

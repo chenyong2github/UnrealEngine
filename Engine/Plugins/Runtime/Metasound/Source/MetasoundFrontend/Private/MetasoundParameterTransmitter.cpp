@@ -248,10 +248,8 @@ namespace Metasound
 	{
 	}
 
-	bool FMetaSoundParameterTransmitter::Reset()
+	void FMetaSoundParameterTransmitter::OnDeleteActiveSound()
 	{
-		bool bSuccess = true;
-
 		for (const FSendInfo& SendInfo : SendInfos)
 		{
 			if (InputSends.Remove(SendInfo.ParameterName))
@@ -261,13 +259,17 @@ namespace Metasound
 				// multiple times. Multiple removals of data channels has caused
 				// race conditions between newly created transmitters and transmitters
 				// being cleaned up.
-				bSuccess &= FDataTransmissionCenter::Get().UnregisterDataChannel(SendInfo.Address);
+				FDataTransmissionCenter::Get().UnregisterDataChannel(SendInfo.Address);
 			}
 		}
 
-		bSuccess &= Audio::FParameterTransmitterBase::Reset();
-
-		return bSuccess;
+		Audio::FParameterTransmitterBase::OnDeleteActiveSound();
+	}
+	
+	bool FMetaSoundParameterTransmitter::Reset()
+	{
+		OnDeleteActiveSound();
+		return true;
 	}
 
 	bool FMetaSoundParameterTransmitter::SetParameters(TArray<FAudioParameter>&& InParameters)

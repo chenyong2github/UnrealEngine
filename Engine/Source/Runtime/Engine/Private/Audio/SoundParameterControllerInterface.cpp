@@ -28,7 +28,7 @@ void ISoundParameterControllerInterface::ResetParameters()
 			{
 				if (Audio::IParameterTransmitter* Transmitter = ActiveSound.GetTransmitter())
 				{
-					Transmitter->Reset();
+					Transmitter->ResetParameters();
 				}
 			}, GET_STATID(STAT_AudioResetParameters));
 		}

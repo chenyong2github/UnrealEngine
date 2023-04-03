@@ -28,15 +28,20 @@ namespace Audio
 		return false;
 	}
 
+	void FParameterTransmitterBase::ResetParameters() 
+	{
+		AudioParameters.Reset();
+	}
+	
+	bool FParameterTransmitterBase::Reset()
+	{
+		ResetParameters();
+		return true;
+	}
+
 	const TArray<FAudioParameter>& FParameterTransmitterBase::GetParameters() const
 	{
 		return AudioParameters;
-	}
-
-	bool FParameterTransmitterBase::Reset()
-	{
-		AudioParameters.Reset();
-		return true;
 	}
 
 	bool FParameterTransmitterBase::SetParameters(TArray<FAudioParameter>&& InParameters)
