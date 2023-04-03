@@ -479,7 +479,7 @@ static void AddUniformBuffer(FOLDVulkanCodeHeader& OLDHeader,
 	else
 	{
 		// If we're using real uniform buffers we have to have resources at least
-		check(!UBInfo.bOnlyHasResources);
+		checkf(!UBInfo.bOnlyHasResources, TEXT("UBName = %s, BindingIndex = %d"), *UBName, (int32)BindingIndex);
 	}
 
 	// Currently we don't support mismatched uniform buffer layouts/cbuffers with resources!

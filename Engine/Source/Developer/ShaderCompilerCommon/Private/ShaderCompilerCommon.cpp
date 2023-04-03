@@ -1264,9 +1264,9 @@ SHADERCOMPILERCOMMON_API void WriteShaderConductorCommandLine(const FShaderCompi
 	}
 }
 
-static int Mali_ExtractNumberInstructions(const FString &MaliOutput)
+static uint32 Mali_ExtractNumberInstructions(const FString &MaliOutput)
 {
-	int ReturnedNum = 0;
+	uint32 ReturnedNum = 0;
 
 	// Parse the instruction count
 	int32 InstructionStringLength = FPlatformString::Strlen(TEXT("Instructions Emitted:"));
@@ -1304,7 +1304,7 @@ static int Mali_ExtractNumberInstructions(const FString &MaliOutput)
 					bFoundNrStart = false;
 					const FString NumberString = MaliOutput.Mid(NumberIndex, StartIndex - NumberIndex);
 					const float fNrInstructions = FCString::Atof(*NumberString);
-					ReturnedNum += ceil(fNrInstructions);
+					ReturnedNum += (uint32)FMath::Max(0.0, ceil(fNrInstructions));
 				}
 
 				++StartIndex;
