@@ -13,6 +13,7 @@
 #include "Editor.h"
 #include "Settings/LevelEditorPlaySettings.h"
 #include "MoviePipelineQueue.h"
+#include "MoviePipelineBlueprintLibrary.h"
 #include "MoviePipelinePIEExecutorSettings.h"
 #include "MoviePipelineEditorBlueprintLibrary.h"
 #include "Misc/MessageDialog.h"
@@ -301,7 +302,12 @@ void UMoviePipelinePIEExecutor::OnTick()
 
 		RemainingInitializationFrames--;
 	}
-
+	
+	if (RemainingInitializationFrames <= 0)
+	{
+		Queue->GetJobs()[CurrentPipelineIndex]->SetStatusProgress(UMoviePipelineBlueprintLibrary::GetCompletionPercentage(Cast<UMoviePipeline>(ActiveMoviePipeline)));
+	}
+	
 	FText WindowTitle = GetWindowTitle();
 	TSharedPtr<SWindow> CustomWindow = WeakCustomWindow.Pin();
 	if (CustomWindow)
