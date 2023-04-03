@@ -294,12 +294,13 @@ UClass* UInterchangeSceneVariantSetsFactory::GetFactoryClass() const
 	return ULevelVariantSets::StaticClass();
 }
 
-UObject* UInterchangeSceneVariantSetsFactory::BeginImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
+UInterchangeFactoryBase::FImportAssetResult UInterchangeSceneVariantSetsFactory::BeginImportAsset_GameThread(const FImportAssetObjectParams& Arguments)
 {
+	FImportAssetResult ImportAssetResult;
 #if !WITH_EDITOR || !WITH_EDITORONLY_DATA
 
 	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import levelsequence asset in runtime, this is an editor only feature."));
-	return nullptr;
+	return ImportAssetResult;
 #else
 	if (Arguments.ReimportObject)
 	{
@@ -309,25 +310,25 @@ UObject* UInterchangeSceneVariantSetsFactory::BeginImportAssetObject_GameThread(
 		Message->AssetType = ULevelVariantSets::StaticClass();
 		Message->Text = LOCTEXT("CreateEmptyAssetUnsupportedReimport", "Re-import of ULevelVariantSets not supported yet.");
 
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	if (!Cast<IInterchangeVariantSetPayloadInterface>(Arguments.Translator))
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import LevelVariantSets, the translator do not implement the IInterchangeVariantSetPayloadInterface interface."));
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	ULevelVariantSets* LevelVariantSets = nullptr;
 	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	const UInterchangeSceneVariantSetsFactoryNode* FactoryNode = Cast<UInterchangeSceneVariantSetsFactoryNode>(Arguments.AssetNode);
 	if (FactoryNode == nullptr)
 	{
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	// create an asset if it doesn't exist
@@ -347,10 +348,11 @@ UObject* UInterchangeSceneVariantSetsFactory::BeginImportAssetObject_GameThread(
 	if (!LevelVariantSets)
 	{
 		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create LevelVariantSets asset %s"), *Arguments.AssetName);
-		return nullptr;
+		return ImportAssetResult;
 	}
 
-	return ImportObjectSourceData(Arguments);
+	ImportAssetResult.ImportedObject = ImportObjectSourceData(Arguments);
+	return ImportAssetResult;
 #endif //else !WITH_EDITOR || !WITH_EDITORONLY_DATA
 }
 

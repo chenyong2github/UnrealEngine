@@ -885,25 +885,28 @@ UClass* UInterchangeSkeletalMeshFactory::GetFactoryClass() const
 	return USkeletalMesh::StaticClass();
 }
 
-UObject* UInterchangeSkeletalMeshFactory::BeginImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
+UInterchangeFactoryBase::FImportAssetResult UInterchangeSkeletalMeshFactory::BeginImportAsset_GameThread(const FImportAssetObjectParams& Arguments)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeSkeletalMeshFactory::BeginImportAssetObject_GameThread")
+
+	FImportAssetResult ImportAssetResult;
+
 #if !WITH_EDITOR || !WITH_EDITORONLY_DATA
 
 	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import skeletalMesh asset in runtime, this is an editor only feature."));
-	return nullptr;
+	return ImportAssetResult;
 
 #else
 	USkeletalMesh* SkeletalMesh = nullptr;
 	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	const UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = Cast<UInterchangeSkeletalMeshFactoryNode>(Arguments.AssetNode);
 	if (SkeletalMeshFactoryNode == nullptr)
 	{
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	// create an asset if it doesn't exist
@@ -926,7 +929,7 @@ UObject* UInterchangeSkeletalMeshFactory::BeginImportAssetObject_GameThread(cons
 		{
 			UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create SkeletalMesh asset %s"), *Arguments.AssetName);
 		}
-		return nullptr;
+		return ImportAssetResult;
 	}
 	
 	SkeletalMesh->PreEditChange(nullptr);
@@ -940,36 +943,40 @@ UObject* UInterchangeSkeletalMeshFactory::BeginImportAssetObject_GameThread(cons
 		SkeletalMesh->LockPropertiesUntil(SkeletalMeshLockPropertiesEvent);
 	}
 
-	return SkeletalMesh;
+	ImportAssetResult.ImportedObject = SkeletalMesh;
+	return ImportAssetResult;
+
 #endif //else !WITH_EDITOR || !WITH_EDITORONLY_DATA
 }
 
-UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_Async(const FImportAssetObjectParams& Arguments)
+UInterchangeFactoryBase::FImportAssetResult UInterchangeSkeletalMeshFactory::ImportAsset_Async(const FImportAssetObjectParams& Arguments)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeSkeletalMeshFactory::CreateAsset")
+
+	FImportAssetResult ImportAssetResult;
 
 #if !WITH_EDITOR || !WITH_EDITORONLY_DATA
 
 	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import skeletalMesh asset in runtime, this is an editor only feature."));
-	return nullptr;
+	return ImportAssetResult;
 
 #else
 	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = Cast<UInterchangeSkeletalMeshFactoryNode>(Arguments.AssetNode);
 	if (SkeletalMeshFactoryNode == nullptr)
 	{
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	const IInterchangeMeshPayloadInterface* MeshTranslatorPayloadInterface = Cast<IInterchangeMeshPayloadInterface>(Arguments.Translator);
 	if (!MeshTranslatorPayloadInterface)
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import skeletalMesh, the translator do not implement the IInterchangeSkeletalMeshPayloadInterface."));
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	const UClass* SkeletalMeshClass = SkeletalMeshFactoryNode->GetObjectClass();
@@ -991,7 +998,7 @@ UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_Async(const FImportA
 		else
 		{
 			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create SkeletalMesh asset [%s] outside of the game thread"), *Arguments.AssetName);
-			return nullptr;
+			return ImportAssetResult;
 		}
 	}
 	else if(ExistingAsset->GetClass()->IsChildOf(SkeletalMeshClass))
@@ -1006,7 +1013,7 @@ UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_Async(const FImportA
 		{
 			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create SkeletalMesh asset %s"), *Arguments.AssetName);
 		}
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(SkeletalMeshObject);
@@ -1020,7 +1027,7 @@ UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_Async(const FImportA
 		{
 			UE_LOG(LogInterchangeImport, Error, TEXT("Could not find reimported skeletalMesh asset %s"), *Arguments.AssetName);
 		}
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	//Make sure we can modify the skeletalmesh properties
@@ -1467,32 +1474,34 @@ UObject* UInterchangeSkeletalMeshFactory::ImportAssetObject_Async(const FImportA
 	//Getting the file Hash will cache it into the source data
 	Arguments.SourceData->GetFileContentHash();
 
-	return SkeletalMeshObject;
+	ImportAssetResult.ImportedObject = SkeletalMeshObject;
+	return ImportAssetResult;
 
 #endif //else !WITH_EDITOR || !WITH_EDITORONLY_DATA
 }
 
-UObject* UInterchangeSkeletalMeshFactory::EndImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
+UInterchangeFactoryBase::FImportAssetResult UInterchangeSkeletalMeshFactory::EndImportAsset_GameThread(const FImportAssetObjectParams& Arguments)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE("UInterchangeSkeletalMeshFactory::EndImportAssetObject_GameThread")
 	
 	check(IsInGameThread());
+	FImportAssetResult ImportAssetResult;
 
 #if !WITH_EDITOR || !WITH_EDITORONLY_DATA
 
 	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import skeletalMesh asset in runtime, this is an editor only feature."));
-	return nullptr;
+	return ImportAssetResult;
 
 #else
 	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = Cast<UInterchangeSkeletalMeshFactoryNode>(Arguments.AssetNode);
 	if (SkeletalMeshFactoryNode == nullptr)
 	{
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	const UClass* SkeletalMeshClass = SkeletalMeshFactoryNode->GetObjectClass();
@@ -1510,7 +1519,7 @@ UObject* UInterchangeSkeletalMeshFactory::EndImportAssetObject_GameThread(const 
 		{
 			UE_LOG(LogInterchangeImport, Error, TEXT("Could not find reimported skeletalMesh asset %s"), *Arguments.AssetName);
 		}
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	//Make sure we can modify the skeletalmesh properties
@@ -1678,7 +1687,9 @@ UObject* UInterchangeSkeletalMeshFactory::EndImportAssetObject_GameThread(const 
 		UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset(SkeletalMesh, PreviousNode, CurrentNode, SkeletalMeshFactoryNode);
 	}
 
-	return SkeletalMesh;
+	ImportAssetResult.ImportedObject = SkeletalMesh;
+	return ImportAssetResult;
+
 #endif //WITH_EDITOR
 }
 

@@ -144,18 +144,19 @@ namespace UE::Interchange::Private::StaticMesh
 	}
 } //ns UE::Interchange::Private::StaticMesh
 
-UObject* UInterchangeStaticMeshFactory::BeginImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
+UInterchangeFactoryBase::FImportAssetResult UInterchangeStaticMeshFactory::BeginImportAsset_GameThread(const FImportAssetObjectParams& Arguments)
 {
+	FImportAssetResult ImportAssetResult;
 	UStaticMesh* StaticMesh = nullptr;
 	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	const UInterchangeStaticMeshFactoryNode* StaticMeshFactoryNode = Cast<UInterchangeStaticMeshFactoryNode>(Arguments.AssetNode);
 	if (StaticMeshFactoryNode == nullptr)
 	{
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	// create an asset if it doesn't exist
@@ -190,7 +191,7 @@ UObject* UInterchangeStaticMeshFactory::BeginImportAssetObject_GameThread(const 
 		{
 			UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create StaticMesh asset %s"), *Arguments.AssetName);
 		}
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	// create the BodySetup on the game thread
@@ -200,20 +201,22 @@ UObject* UInterchangeStaticMeshFactory::BeginImportAssetObject_GameThread(const 
 	StaticMesh->PreEditChange(nullptr);	
 #endif // WITH_EDITOR
 
-	return StaticMesh;
+	ImportAssetResult.ImportedObject = StaticMesh;
+	return ImportAssetResult;
 }
 
-UObject* UInterchangeStaticMeshFactory::ImportAssetObject_Async(const FImportAssetObjectParams& Arguments)
+UInterchangeFactoryBase::FImportAssetResult UInterchangeStaticMeshFactory::ImportAsset_Async(const FImportAssetObjectParams& Arguments)
 {
+	FImportAssetResult ImportAssetResult;
 	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	UInterchangeStaticMeshFactoryNode* StaticMeshFactoryNode = Cast<UInterchangeStaticMeshFactoryNode>(Arguments.AssetNode);
 	if (StaticMeshFactoryNode == nullptr)
 	{
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	const UClass* StaticMeshClass = StaticMeshFactoryNode->GetObjectClass();
@@ -237,7 +240,7 @@ UObject* UInterchangeStaticMeshFactory::ImportAssetObject_Async(const FImportAss
 		else
 		{
 			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create StaticMesh asset [%s] outside of the game thread"), *Arguments.AssetName);
-			return nullptr;
+			return ImportAssetResult;
 		}
 	}
 	else if(ExistingAsset->GetClass()->IsChildOf(StaticMeshClass))
@@ -252,14 +255,14 @@ UObject* UInterchangeStaticMeshFactory::ImportAssetObject_Async(const FImportAss
 		{
 			UE_LOG(LogInterchangeImport, Error, TEXT("Could not create StaticMesh asset %s"), *Arguments.AssetName);
 		}
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	UStaticMesh* StaticMesh = Cast<UStaticMesh>(StaticMeshObject);
 	if (!ensure(StaticMesh))
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Could not create StaticMesh asset %s"), *Arguments.AssetName);
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	ensure(!StaticMesh->AreRenderingResourcesInitialized());
@@ -489,20 +492,22 @@ UObject* UInterchangeStaticMeshFactory::ImportAssetObject_Async(const FImportAss
 	// Getting the file Hash will cache it into the source data
 	Arguments.SourceData->GetFileContentHash();
 
-	return StaticMeshObject;
+	ImportAssetResult.ImportedObject = StaticMeshObject;
+	return ImportAssetResult;
 }
 
-UObject* UInterchangeStaticMeshFactory::EndImportAssetObject_GameThread(const FImportAssetObjectParams& Arguments)
+UInterchangeFactoryBase::FImportAssetResult UInterchangeStaticMeshFactory::EndImportAsset_GameThread(const FImportAssetObjectParams& Arguments)
 {
+	FImportAssetResult ImportAssetResult;
 	if (!Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	UInterchangeStaticMeshFactoryNode* StaticMeshFactoryNode = Cast<UInterchangeStaticMeshFactoryNode>(Arguments.AssetNode);
 	if (StaticMeshFactoryNode == nullptr)
 	{
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	const UClass* StaticMeshClass = StaticMeshFactoryNode->GetObjectClass();
@@ -517,7 +522,7 @@ UObject* UInterchangeStaticMeshFactory::EndImportAssetObject_GameThread(const FI
 	if (!ensure(StaticMesh))
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Could not create StaticMesh asset %s"), *Arguments.AssetName);
-		return nullptr;
+		return ImportAssetResult;
 	}
 
 	for (int32 LodIndex = 0; LodIndex < ImportAssetObjectData.LodMeshDescriptions.Num(); ++LodIndex)
@@ -676,7 +681,9 @@ UObject* UInterchangeStaticMeshFactory::EndImportAssetObject_GameThread(const FI
 	{
 		UE::Interchange::Private::StaticMesh::ReorderMaterialSlotToBaseLod(StaticMesh);
 	}
-	return StaticMesh;
+
+	ImportAssetResult.ImportedObject = StaticMesh;
+	return ImportAssetResult;
 }
 
 void UInterchangeStaticMeshFactory::CommitMeshDescriptions(UStaticMesh& StaticMesh, TArray<FMeshDescription>&& LodMeshDescriptions)
