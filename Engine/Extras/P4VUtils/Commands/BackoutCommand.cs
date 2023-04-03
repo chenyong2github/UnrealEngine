@@ -20,6 +20,7 @@ namespace P4VUtils.Commands
 		public List<String> Errors = new List<String>();
 	}
 
+	[Command("backout", CommandCategory.Toolbox, 0)]
 	class BackoutCommand : Command
 	{
 		public override string Description => "P4 Admin sanctioned method of backing out a CL";

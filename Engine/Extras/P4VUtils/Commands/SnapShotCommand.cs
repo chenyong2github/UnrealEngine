@@ -18,6 +18,7 @@ using System.Threading.Tasks;
 
 namespace P4VUtils.Commands
 {
+	[Command("snapshot", CommandCategory.Toolbox, 1)]
 	class SnapshotCommand : Command
 	{
 		public override string Description => "Creates a shelved copy of the CL";

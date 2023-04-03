@@ -29,11 +29,12 @@ namespace P4VUtils.Commands
 		}
 	}
 
+	[Command("convertcldatatolocalwritable", CommandCategory.Toolbox, 6)]
 	class ConvertCLDataToLocalWritable : DataCommandBase
 	{
 		public override string Description => "Convert all data files in changelist to local writable";
 
-		public override CustomToolInfo CustomTool => new CustomToolInfo("Convert data to local writable", "%c");
+		public override CustomToolInfo CustomTool => new CustomToolInfo("Convert changelist to local writable", "%c");
 
 		public override async Task<int> Execute(string[] Args, IReadOnlyDictionary<string, string> ConfigValues, ILogger Logger)
 		{
@@ -57,11 +58,12 @@ namespace P4VUtils.Commands
 		}
 	}
 
+	[Command("convertdatatolocalwritable", CommandCategory.Toolbox, 7)]
 	class ConvertDataToLocalWritable : DataCommandBase
 	{
 		public override string Description => "Convert all selected data files to local writable";
 
-		public override CustomToolInfo CustomTool => new CustomToolInfo("Convert data to local writable", "%F");
+		public override CustomToolInfo CustomTool => new CustomToolInfo("Convert selected files to local writable", "%F");
 
 		public override async Task<int> Execute(string[] Args, IReadOnlyDictionary<string, string> ConfigValues, ILogger Logger)
 		{

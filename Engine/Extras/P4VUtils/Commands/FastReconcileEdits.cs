@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 
 namespace P4VUtils.Commands
 {
+	[Command("reconcilecode", CommandCategory.Toolbox, 2)]
 	class FastReconcileCodeEditsCommand : Command
 	{
 		
@@ -105,6 +106,7 @@ namespace P4VUtils.Commands
 		}
 	}
 
+	[Command("reconcileall", CommandCategory.Toolbox, 3)]
 	class FastReconcileAllEditsCommand : FastReconcileCodeEditsCommand
 	{
 		public override string[] GetExtensions()

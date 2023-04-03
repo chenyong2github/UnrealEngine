@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 
 namespace P4VUtils.Commands
 {
+	[Command("converttoedit", CommandCategory.Integrate, 1)]
 	class ConvertToEditCommand : Command
 	{
 		public override string Description => "Converts an integration to an edit";

@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 
 namespace P4VUtils.Commands
 {
+	[Command("compile", CommandCategory.Horde, 0)]
 	class CompileCommand : Command
 	{
 		public override string Description => "Compiles files in the selected changelist";

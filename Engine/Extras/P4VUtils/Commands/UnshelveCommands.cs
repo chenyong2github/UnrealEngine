@@ -125,6 +125,7 @@ namespace P4VUtils.Commands
 		}
 	}
 
+	[Command("unshelvetocurrentrevision", CommandCategory.Toolbox, 4)]
 	class UnshelveToCurrentRevision : UnshelveCommandBase
 	{
 		public override string Description => "Remembers revision all files you are about to unshelve and if the revision is older, will sync to saved revision";
@@ -149,6 +150,7 @@ namespace P4VUtils.Commands
 		}
 	}
 
+	[Command("unshelvemakedatawritable", CommandCategory.Toolbox, 5)]
 	class UnshelveMakeDataWritable : UnshelveCommandBase
 	{
 		public override string Description => "Unshelve changelist but for data will make a writable copy locally";

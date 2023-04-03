@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 
 namespace P4VUtils.Commands
 {
+	[Command("cherypick", CommandCategory.Integrate, 0)]
 	class CherryPickCommand : Command
 	{
 		public override string Description => "Cherry-picks a changelist into the current stream";

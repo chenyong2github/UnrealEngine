@@ -2,11 +2,8 @@
 
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Console;
-using P4VUtils.Commands;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -44,54 +41,8 @@ namespace P4VUtils
 
 	class Program
 	{
-		// UEHelpersInRoot - commands that help with common but simple operations
-		public static IReadOnlyDictionary<string, Command> RootHelperCommands { get; } = new Dictionary<string, Command>(StringComparer.OrdinalIgnoreCase)
-		{
-			["describe"] = new DescribeCommand(),
-			["copyclnum"] = new CopyCLCommand(),
-			["findlastedit"] = new FindLastEditCommand(),
-			["findlasteditbyline"] = new P4BlameCommand(),
-		};
-
-		// UESubmit - commands that help with submitting files/changelists
-		public static IReadOnlyDictionary<string, Command> SubmissionCommands { get; } = new Dictionary<string, Command>(StringComparer.OrdinalIgnoreCase)
-		{
-			["submitandvirtualize"] = new SubmitAndVirtualizeCommand(),
-		};
-
-		// UEHelpers - commands that help with common but simple operations
-		public static IReadOnlyDictionary<string, Command> ToolboxCommands { get; } = new Dictionary<string, Command>(StringComparer.OrdinalIgnoreCase)
-		{
-			["backout"] = new BackoutCommand(),
-			["snapshot"] = new SnapshotCommand(),
-			["reconcilecode"] = new FastReconcileCodeEditsCommand(),
-			["reconcileall"] = new FastReconcileAllEditsCommand(),
-			["unshelvetocurrentrevision"] = new UnshelveToCurrentRevision(),
-			["unshelvemakedatawritable"] = new UnshelveMakeDataWritable(),
-			["convertcldatatolocalwritable"] = new ConvertCLDataToLocalWritable(),
-			["convertdatatolocalwritable"] = new ConvertDataToLocalWritable(),
-			["describedirectory"] = new DescribeDirectoryCommand(),
-		};
-
-		// UEIntegrate Folder commands - complex commands to facilitate integrations/backout
-		public static IReadOnlyDictionary<string, Command> IntegrateCommands { get; } = new Dictionary<string, Command>(StringComparer.OrdinalIgnoreCase)
-		{
-			["cherrypick"] = new CherryPickCommand(),
-			["converttoedit"] = new ConvertToEditCommand(),
-			["edigrate"] = new EdigrateCommand(),
-		};
-
-		// UEHorde Folder - local build and horde preflights
-		public static IReadOnlyDictionary<string, Command> HordeCommands { get; } = new Dictionary<string, Command>(StringComparer.OrdinalIgnoreCase)
-		{
-			["compile"] = new CompileCommand(),
-			["preflight"] = new PreflightCommand(),
-			["preflightandsubmit"] = new PreflightAndSubmitCommand(),
-			["movewriteablepreflightandsubmit"] = new MoveWriteableFilesthenPreflightAndSubmitCommand(),
-			["openpreflight"] = new OpenPreflightCommand(),
-		};
-
-		public static IDictionary<string, Command> Commands = SubmissionCommands.Concat(RootHelperCommands).Concat(ToolboxCommands).Concat(IntegrateCommands).Concat(HordeCommands).ToDictionary(p => p.Key, p => p.Value, StringComparer.OrdinalIgnoreCase);
+		public static IDictionary<string, Command> Commands = new Dictionary<string, Command>();
+		public static IDictionary<CommandCategory, List<string>> CommandCategories = new Dictionary<CommandCategory, List<string>>();
 
 		static void PrintHelp(ILogger Logger)
 		{
@@ -114,7 +65,7 @@ namespace P4VUtils
 
 		static async Task<int> Main(string[] Args)
 		{
-			using ILoggerFactory Factory = LoggerFactory.Create(Builder => Builder.AddEpicDefault());//.AddSimpleConsole(Options => { Options.SingleLine = true; Options.IncludeScopes = false; }));
+			using ILoggerFactory Factory = LoggerFactory.Create(Builder => Builder.AddEpicDefault());
 			ILogger Logger = Factory.CreateLogger<Program>();
 			Log.SetInnerLogger(Logger);
 
@@ -129,8 +80,33 @@ namespace P4VUtils
 			}
 		}
 
+		static void RegisterCommands()
+		{
+			// Grab all the commands, sorting to preserve the previous order from the explicit tabs.
+			var Types = from assembly in Assembly.GetExecutingAssembly().GetTypes()
+						where assembly.IsDefined(typeof(CommandAttribute))
+						let attrib = assembly.GetCustomAttributes(typeof(CommandAttribute), true).Cast<CommandAttribute>().First()
+						orderby attrib.Order
+						select new { Type = assembly, Attribute = attrib };
+						
+			foreach (var Type in Types)
+			{
+				CommandAttribute attribute = Type.Attribute;
+				if (!CommandCategories.ContainsKey(attribute.Category))
+				{
+					CommandCategories[attribute.Category] = new List<string>();
+				}
+
+				Command? CreatedCommand = Activator.CreateInstance(Type.Type) as Command;
+				Commands.Add(attribute.CommandName, CreatedCommand!);
+				CommandCategories[attribute.Category].Add(attribute.CommandName);
+			}
+		}
+
 		static async Task<int> InnerMain(string[] Args, ILogger Logger)
 		{
+			RegisterCommands();
+
 			if (Args.Length == 0 || Args[0].Equals("-help", StringComparison.OrdinalIgnoreCase))
 			{
 				PrintHelp(Logger);
@@ -168,7 +144,7 @@ namespace P4VUtils
 				return await Command.Execute(Args, ConfigValues, Logger);
 			}
 			else
-		{
+			{
 				Logger.LogError("Unknown command: {Command}", Args[0]);
 				PrintHelp(Logger);
 				return 1;
@@ -273,7 +249,7 @@ namespace P4VUtils
 			return ToolsChecked == ToolsRemoved;
 		}
 
-		static void InstallCommandsListInFolder(string FolderName, bool AddFolderToContextMenu, IReadOnlyDictionary<string, Command> InputCommmands, XmlDocument Document, FileReference DotNetLocation, FileReference AssemblyLocation, ILogger Logger)
+		static void InstallCommandsListInFolder(string FolderName, bool AddFolderToContextMenu, CommandCategory Category, XmlDocument Document, FileReference DotNetLocation, FileReference AssemblyLocation, ILogger Logger)
 		{
 			// <CustomToolDefList>				// list of custom tools (top level)
 			//  < CustomToolDef >				// loose custom tool in top level
@@ -299,7 +275,10 @@ namespace P4VUtils
 
 				XmlElement FolderDefList = Document.CreateElement("CustomToolDefList");
 
-				foreach (KeyValuePair<string, Command> Pair in InputCommmands)
+				List<string> CommandList = CommandCategories[Category];
+				IEnumerable<KeyValuePair<string, Command>> CategoryCommands = Commands.Where(Pair => CommandList.Contains(Pair.Key));
+
+				foreach (KeyValuePair<string, Command> Pair in CategoryCommands)
 				{
 					CustomToolInfo CustomTool = Pair.Value.CustomTool;
 
@@ -448,11 +427,11 @@ namespace P4VUtils
 			// Insert new entries
 			if (bInstall)
 			{
-				InstallCommandsListInFolder("UE RootHelpers", false/*AddFolderToContextMenu*/, RootHelperCommands, Document, DotNetLocation, AssemblyLocation, Logger);
-				InstallCommandsListInFolder("UE Submit", true/*AddFolderToContextMenu*/, SubmissionCommands, Document, DotNetLocation, AssemblyLocation, Logger);
-				InstallCommandsListInFolder("UE Toolbox", true/*AddFolderToContextMenu*/, ToolboxCommands, Document, DotNetLocation, AssemblyLocation, Logger);
-				InstallCommandsListInFolder("UE Integrate", true/*AddFolderToContextMenu*/, IntegrateCommands, Document, DotNetLocation, AssemblyLocation, Logger);
-				InstallCommandsListInFolder("UE Horde", true/*AddFolderToContextMenu*/, HordeCommands, Document, DotNetLocation, AssemblyLocation, Logger);
+				InstallCommandsListInFolder("UE RootHelpers", false/*AddFolderToContextMenu*/, CommandCategory.Root, Document, DotNetLocation, AssemblyLocation, Logger);
+				InstallCommandsListInFolder("UE Submit", true/*AddFolderToContextMenu*/, CommandCategory.Submission, Document, DotNetLocation, AssemblyLocation, Logger);
+				InstallCommandsListInFolder("UE Toolbox", true/*AddFolderToContextMenu*/, CommandCategory.Toolbox, Document, DotNetLocation, AssemblyLocation, Logger);
+				InstallCommandsListInFolder("UE Integrate", true/*AddFolderToContextMenu*/, CommandCategory.Integrate, Document, DotNetLocation, AssemblyLocation, Logger);
+				InstallCommandsListInFolder("UE Horde", true/*AddFolderToContextMenu*/, CommandCategory.Horde, Document, DotNetLocation, AssemblyLocation, Logger);
 			}
 
 			// Save the new document

@@ -13,6 +13,7 @@ using System.Windows;
 
 namespace P4VUtils.Commands
 {
+	[Command("copyclnum", CommandCategory.Root, 1)]
 	class CopyCLCommand : Command
 	{
 		public override string Description => "copy CL # only from pending and submitted CLs";

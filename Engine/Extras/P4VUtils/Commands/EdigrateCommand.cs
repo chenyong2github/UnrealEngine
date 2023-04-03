@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace P4VUtils.Commands
 {
-
+	[Command("edigrate", CommandCategory.Integrate, 2)]
 	class EdigrateCommand : Command
 	{
 		public override string Description => "Cherry-picks a change to the current stream as an edit";

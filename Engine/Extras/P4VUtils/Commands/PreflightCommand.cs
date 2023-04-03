@@ -19,6 +19,7 @@ using System.Linq;
 
 namespace P4VUtils.Commands
 {
+	[Command("preflight", CommandCategory.Horde, 1)]
 	class PreflightCommand : Command
 	{
 
@@ -204,6 +205,7 @@ namespace P4VUtils.Commands
 		}
 	}
 
+	[Command("preflightandsubmit", CommandCategory.Horde, 2)]
 	class PreflightAndSubmitCommand : PreflightCommand
 	{
 		public override string Description => "Runs a preflight of the given changelist on Horde and submits it";
@@ -218,6 +220,7 @@ namespace P4VUtils.Commands
 		public override bool IsSubmit() { return true; }
 	}
 
+	[Command("movewriteablepreflightandsubmit", CommandCategory.Horde, 3)]
 	class MoveWriteableFilesthenPreflightAndSubmitCommand : PreflightAndSubmitCommand
 	{
 		public override string Description => "Moves the writeable files to a new CL, then runs a preflight of the current changelist on Horde and submits it";
@@ -230,6 +233,7 @@ namespace P4VUtils.Commands
 		}
 	}
 
+	[Command("openpreflight", CommandCategory.Horde, 4)]
 	class OpenPreflightCommand : Command
 	{
 		public override string Description => "If the changelist has been tagged with #preflight, open the preflight Horde page in the browser";

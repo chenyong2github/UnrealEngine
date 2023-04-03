@@ -11,6 +11,7 @@ using P4VUtils.Perforce;
 
 namespace P4VUtils.Commands
 {
+	[Command("findlastedit", CommandCategory.Root, 2)]
 	class FindLastEditCommand : Command
 	{
 		public override string Description => "Prints who last edited this file and in which stream";

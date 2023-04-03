@@ -15,6 +15,7 @@ using System.Diagnostics;
 
 namespace P4VUtils.Commands
 {
+	[Command("describe", CommandCategory.Root, 0)]
 	class DescribeCommand : Command
 	{
 		public override string Description => "Prints out a description of the given changelist";
@@ -47,6 +48,7 @@ namespace P4VUtils.Commands
 		}
 	}
 
+	[Command("describedirectory", CommandCategory.Toolbox, 8)]
 	class DescribeDirectoryCommand : Command
 	{
 		public override string Description => "Prints out a description of last 30 days of CL's in the given directory to txt and csv";

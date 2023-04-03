@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 
 namespace P4VUtils.Commands
 {
+	[Command("findlasteditbyline", CommandCategory.Root, 3)]
 	class P4BlameCommand : Command
 	{
 		public override string Description => "Prints out who last edited a specific line in a file";
