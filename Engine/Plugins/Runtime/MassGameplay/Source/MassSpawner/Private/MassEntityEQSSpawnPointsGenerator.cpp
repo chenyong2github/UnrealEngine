@@ -109,3 +109,17 @@ void UMassEntityEQSSpawnPointsGenerator::OnEQSQueryFinished(TSharedPtr<FEnvQuery
 
 	FinishedGeneratingSpawnPointsDelegate.Execute(Results);
 }
+
+#if WITH_EDITOR
+void UMassEntityEQSSpawnPointsGenerator::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	static const FName EQSRequestName = GET_MEMBER_NAME_CHECKED(UMassEntityEQSSpawnPointsGenerator, EQSRequest);
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == EQSRequestName)
+	{
+		EQSRequest.PostEditChangeProperty(*this, PropertyChangedEvent);
+	}
+}
+#endif
