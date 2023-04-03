@@ -22,10 +22,19 @@ struct FTypedElementQueryProcessorData
 	EMassProcessingPhase MapToMassProcessingPhase(ITypedElementDataStorageInterface::EQueryTickPhase Phase) const;
 	FString GetProcessorName() const;
 
+	static ITypedElementDataStorageInterface::FQueryResult Execute(
+		ITypedElementDataStorageInterface::DirectQueryCallbackRef& Callback,
+		ITypedElementDataStorageInterface::FQueryDescription& Description, 
+		FMassEntityQuery& NativeQuery, 
+		FMassEntityManager& EntityManager);
 	void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context);
 
 	FTypedElementDatabaseExtendedQuery* ParentQuery{ nullptr };
 	FMassEntityQuery Query;
+
+private:
+	static bool PrepareCachedDependenciesOnParentQuery(
+		ITypedElementDataStorageInterface::FQueryDescription& Description, FMassExecutionContext& Context);
 };
 
 /**

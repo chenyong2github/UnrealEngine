@@ -7,6 +7,7 @@
 #include "Delegates/Delegate.h"
 #include "Elements/Framework/TypedElementColumnUtils.h"
 #include "Math/NumericLimits.h"
+#include "Misc/EnumClassFlags.h"
 #include "Templates/Function.h"
 #include "UObject/Interface.h"
 #include "UObject/NameTypes.h"
@@ -167,7 +168,7 @@ public:
 		 */
 		PrepareSyncExternalToDataStorage,
 		/** 
-		 * The group for processors that need to sync data from external sources such as subsystems or the world into
+		 * The group for queries that need to sync data from external sources such as subsystems or the world into
 		 * the Data Storage. These typically run early in a phase.
 		 */
 		SyncExternalToDataStorage,
@@ -176,22 +177,25 @@ public:
 		 * data with a dependency on external updates being completed.
 		 */
 		FinalizeSyncExternalToDataStorage,
-
 		
 		/** Prepares for data from the Data Storage to be synced to external sources such as subsystem or the world. */
 		PrepareSyncDataStorageToExternal,
 		/**
-		 * The group for processors that need to sync data from the Data Storage to external sources such as subsystems
+		 * The group for quries that need to sync data from the Data Storage to external sources such as subsystems
 		 * or the world into. These typically run late in a phase.
 		 */
 		SyncDataStorageToExternal,
 		/** Finalizes the sync of data from the Data Storage to external sources such as subsystem or the world. */
 		FinalizeSyncDataStorageToExternal,
 
+		/** Prepares for widgets getting synced to/from widgets. */
+		PrepareSyncWidgets,
 		/**
-		 * Processors grouped under this name will sync data to/from widgets.
+		 * Queries grouped under this name will sync data to/from widgets.
 		 */
-		SyncWidgets
+		SyncWidgets,
+		/** Finalize for widgets getting synced to/from widgets. */
+		FinalizeSyncWidgets
 	};
 
 	enum class EQueryCallbackType : uint8
@@ -206,26 +210,36 @@ public:
 		ObserveRemove
 	};
 
-	enum class EQueryAccessType
+	enum class EQueryAccessType : bool
 	{ 
 		ReadOnly, 
 		ReadWrite 
 	};
 
-	/** 
-	 * Base class to be provided to query callbacks.
-	 * Note that at the time of writing only subclasses of Subsystem are supported as dependencies.
-	 */
-	struct FQueryContext
+	enum class EQueryDependencyFlags : uint8
 	{
-		virtual ~FQueryContext() = default;
-		
+		None = 0,
+		/** If set the dependency is accessed as read-only. If not set the dependency requires Read/Write access. */
+		ReadOnly = 1 << 0,
+		/** If set the dependecy can only be used from the game thread, otherwise it can be accessed from any thread. */
+		GameThreadBound = 1 << 1,
+		/** If set the dependency will be refetched every iteration, otherwise only if not fetched before. */
+		AlwaysRefresh = 1 << 2
+	};
+
+	/**
+	 * Base interface for any contexts provided to query callbacks.
+	 */
+	struct ICommonQueryContext
+	{
+		virtual ~ICommonQueryContext() = default;
+
 		/** Return the address of a immutable column matching the requested type or a nullptr if not found. */
 		virtual const void* GetColumn(const UScriptStruct* ColumnType) const = 0;
 		/** Return the address of a mutable column matching the requested type or a nullptr if not found. */
 		virtual void* GetMutableColumn(const UScriptStruct* ColumnType) = 0;
-		/** 
-		 * Get a list of columns or nullptrs if the columntype wasn't found. Mutable addresses are returned and it's up to 
+		/**
+		 * Get a list of columns or nullptrs if the columntype wasn't found. Mutable addresses are returned and it's up to
 		 * the caller to not change immutable addresses.
 		 */
 		virtual void GetColumns(TArrayView<char*> RetrievedAddresses, TConstArrayView<TWeakObjectPtr<const UScriptStruct>> ColumnTypes,
@@ -238,6 +252,30 @@ public:
 		virtual void GetColumnsUnguarded(int32 TypeCount, char** RetrievedAddresses, const TWeakObjectPtr<const UScriptStruct>* ColumnTypes,
 			const ITypedElementDataStorageInterface::EQueryAccessType* AccessTypes) = 0;
 
+		/** Returns the number rows in the batch. */
+		virtual uint32 GetRowCount() const = 0;
+		/**
+		 * Returns an immutable view that contains the row handles for all returned results. The returned size will be the same  as the
+		 * value returned by GetRowCount().
+		 */
+		virtual TConstArrayView<TypedElementRowHandle> GetRowHandles() const = 0;
+
+		// Utility functions
+
+		template<typename Column>
+		const Column* GetColumn() const;
+		template<typename Column>
+		Column* GetMutableColumn();
+	};
+	
+	/** 
+	 * Interface to be provided to query callbacks running with the Data Storage.
+	 * Note that at the time of writing only subclasses of Subsystem are supported as dependencies.
+	 */
+	struct IQueryContext : public ICommonQueryContext
+	{
+		virtual ~IQueryContext() = default;
+		
 		/** Returns an immutable instance of the requested dependency or a nullptr if not found. */
 		virtual const UObject* GetDependency(const UClass* DependencyClass) = 0;
 		/** Returns a mutable instance of the requested dependency or a nullptr if not found. */
@@ -249,13 +287,6 @@ public:
 		virtual void GetDependencies(TArrayView<UObject*> RetrievedAddresses, TConstArrayView<TWeakObjectPtr<const UClass>> DependencyTypes,
 			TConstArrayView<EQueryAccessType> AccessTypes) = 0;
 
-		/** Returns the number rows in the batch. */
-		virtual uint32 GetRowCount() const = 0;
-		/** 
-		 * Returns an immutable view that contains the row handles for all returned results. The returned size will be the same  as the
-		 * value returned by GetRowCount().
-		 */
-		virtual TConstArrayView<TypedElementRowHandle> GetRowHandles() const = 0;
 		/**
 		 * Removes the row with the provided row handle. The removal will not be immediately done but delayed until the end of the tick 
 		 * group.
@@ -300,10 +331,24 @@ public:
 		void RemoveColumns(TConstArrayView<TypedElementRowHandle> Rows);
 	};
 
-	using QueryCallback = TFunction<void(FQueryContext&)>;
+	/**
+	 * Interface to be provided to query callbacks that are directly called through RunQuery.
+	 */
+	struct IDirectQueryContext : public ICommonQueryContext
+	{
+		virtual ~IDirectQueryContext() = default;
+	};
+
+	struct FQueryDescription;
+	using QueryCallback = TFunction<void(const FQueryDescription&, IQueryContext&)>;
+	using DirectQueryCallbackRef = TFunctionRef<void(const FQueryDescription&, IDirectQueryContext&)>;
 
 	struct FQueryDescription final
 	{
+		static constexpr int32 NumInlineSelections = 8;
+		static constexpr int32 NumInlineConditions = 8;
+		static constexpr int32 NumInlineDependencies = 2;
+
 		enum class EActionType : uint8
 		{
 			None,	/** Do nothing. */
@@ -334,25 +379,7 @@ public:
 		{
 			FBinaryOperator Binary;
 			OperatorIndex Unary;
-			const UScriptStruct* Type;
-		};
-
-		struct FAccessControlledStruct
-		{
-			FAccessControlledStruct() = default;
-			inline FAccessControlledStruct(const UScriptStruct* Type, EQueryAccessType Access) : Type(Type), Access(Access) {}
-
-			const UScriptStruct* Type;
-			EQueryAccessType Access;
-		};
-
-		struct FAccessControlledClass
-		{
-			FAccessControlledClass() = default;
-			inline FAccessControlledClass(const UClass* Type, EQueryAccessType Access) : Type(Type), Access(Access) {}
-
-			const UClass* Type;
-			EQueryAccessType Access;
+			TWeakObjectPtr<const UScriptStruct> Type;
 		};
 
 		struct FCallbackData
@@ -369,16 +396,29 @@ public:
 		};
 		
 		FCallbackData Callback;
-		TArray<FAccessControlledStruct, TInlineAllocator<16>> Selection;
-		TArray<EOperatorType, TInlineAllocator<32>> ConditionTypes;
-		TArray<FOperator, TInlineAllocator<32>> ConditionOperators;
-		TArray<FAccessControlledClass, TInlineAllocator<4>> Dependencies;
+
+		// The list of arrays below are required to remain in the same order as they're added as the function binding expects certain entries
+		// to be in a specific location.
+
+		TArray<TWeakObjectPtr<const UScriptStruct>, TInlineAllocator<NumInlineSelections>> SelectionTypes;
+		TArray<EQueryAccessType, TInlineAllocator<NumInlineSelections>> SelectionAccessTypes;
+		
+		TArray<EOperatorType, TInlineAllocator<NumInlineConditions>> ConditionTypes;
+		TArray<FOperator, TInlineAllocator<NumInlineConditions>> ConditionOperators;
+		
+		TArray<TWeakObjectPtr<const UClass>, TInlineAllocator<NumInlineDependencies>> DependencyTypes;
+		TArray<EQueryDependencyFlags, TInlineAllocator<NumInlineDependencies>> DependencyFlags;
+		/** Cached instances of the dependencies. This will always match the count of the other Dependency*Types, but may contain null pointers. */
+		TArray<TWeakObjectPtr<UObject>, TInlineAllocator<NumInlineDependencies>> CachedDependencies;
+		
 		EActionType Action;
 		/** If true, this query only has simple operations and is guaranteed to be executed fully and at optimal performance. */
 		bool bSimpleQuery{ false };
 	};
 	virtual TypedElementQueryHandle RegisterQuery(FQueryDescription&& Query) = 0;
 	virtual void UnregisterQuery(TypedElementQueryHandle Query) = 0;
+	/** Returns the description of a previously registered query. If the query no longer exists an empty description will be returned. */
+	virtual const FQueryDescription& GetQueryDescription(TypedElementQueryHandle Query) const = 0;
 	/**
 	 * Tick groups for queries can be given any name and the Data Storage will figure out the order of execution based on found
 	 * dependencies. However keeping processors within the same query group can help promote better performance through parallelization.
@@ -399,13 +439,16 @@ public:
 			 */
 			Unsupported,
 			/** The provided query is no longer available. */
-			Unavailable
+			Unavailable,
+			/** One or more dependencies declared on the query could not be retrieved. */
+			MissingDependency
 		};
 		
 		uint32 Count{ 0 }; /** The number of rows were processed. */
 		ECompletion Completed{ ECompletion::Unavailable };
 	};
 	virtual FQueryResult RunQuery(TypedElementQueryHandle Query) = 0;
+	virtual FQueryResult RunQuery(TypedElementQueryHandle Query, DirectQueryCallbackRef Callback) = 0;
 	
 	/**
 	 * @section Misc
@@ -459,6 +502,9 @@ public:
 
 
 // Implementations
+
+ENUM_CLASS_FLAGS(ITypedElementDataStorageInterface::EQueryDependencyFlags);
+
 template<typename TagType>
 void ITypedElementDataStorageInterface::AddTag(TypedElementRowHandle Row)
 {
@@ -479,6 +525,18 @@ ColumnType* ITypedElementDataStorageInterface::AddOrGetColumn(TypedElementRowHan
 	return Result;
 }
 
+template<typename Column>
+const Column* ITypedElementDataStorageInterface::ICommonQueryContext::GetColumn() const
+{
+	return reinterpret_cast<const Column*>(GetColumn(Column::StaticStruct()));
+}
+
+template<typename Column>
+Column* ITypedElementDataStorageInterface::ICommonQueryContext::GetMutableColumn()
+{
+	return reinterpret_cast<Column*>(GetMutableColumn(Column::StaticStruct()));
+}
+
 template<typename ColumnType>
 ColumnType* ITypedElementDataStorageInterface::GetColumn(TypedElementRowHandle Row)
 {
@@ -493,25 +551,25 @@ SystemType* ITypedElementDataStorageInterface::GetExternalSystem()
 
 
 template<typename... Columns>
-void ITypedElementDataStorageInterface::FQueryContext::AddColumns(TypedElementRowHandle Row)
+void ITypedElementDataStorageInterface::IQueryContext::AddColumns(TypedElementRowHandle Row)
 {
 	AddColumns(Row, { Columns::StaticStruct()... });
 }
 
 template<typename... Columns>
-void ITypedElementDataStorageInterface::FQueryContext::AddColumns(TConstArrayView<TypedElementRowHandle> Rows)
+void ITypedElementDataStorageInterface::IQueryContext::AddColumns(TConstArrayView<TypedElementRowHandle> Rows)
 {
 	AddColumns(Rows, { Columns::StaticStruct()... });
 }
 
 template<typename... Columns>
-void ITypedElementDataStorageInterface::FQueryContext::RemoveColumns(TypedElementRowHandle Row)
+void ITypedElementDataStorageInterface::IQueryContext::RemoveColumns(TypedElementRowHandle Row)
 {
 	RemoveColumns(Row, { Columns::StaticStruct()... });
 }
 
 template<typename... Columns>
-void ITypedElementDataStorageInterface::FQueryContext::RemoveColumns(TConstArrayView<TypedElementRowHandle> Rows)
+void ITypedElementDataStorageInterface::IQueryContext::RemoveColumns(TConstArrayView<TypedElementRowHandle> Rows)
 {
 	RemoveColumns(Rows, { Columns::StaticStruct()... });
 }

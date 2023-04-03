@@ -39,7 +39,9 @@ namespace TypedElementQueryBuilder
 	FDependency& FDependency::ReadOnly(const UClass* Target)
 	{
 		checkf(Target, TEXT("The Dependency section in the Typed Elements query builder doesn't support nullptrs as Read-Only input."));
-		Query->Dependencies.Emplace(Target, ITypedElementDataStorageInterface::EQueryAccessType::ReadOnly);
+		Query->DependencyTypes.Emplace(Target);
+		Query->DependencyFlags.Emplace(ITypedElementDataStorageInterface::EQueryDependencyFlags::ReadOnly);
+		Query->CachedDependencies.AddDefaulted();
 		return *this;
 	}
 
@@ -55,7 +57,9 @@ namespace TypedElementQueryBuilder
 	FDependency& FDependency::ReadWrite(const UClass* Target)
 	{
 		checkf(Target, TEXT("The Dependency section in the Typed Elements query builder doesn't support nullptrs as Read/Write input."));
-		Query->Dependencies.Emplace(Target, ITypedElementDataStorageInterface::EQueryAccessType::ReadWrite);
+		Query->DependencyTypes.Emplace(Target);
+		Query->DependencyFlags.Emplace(ITypedElementDataStorageInterface::EQueryDependencyFlags::None);
+		Query->CachedDependencies.AddDefaulted();
 		return *this;
 	}
 
@@ -232,7 +236,8 @@ namespace TypedElementQueryBuilder
 	Select& Select::ReadOnly(const UScriptStruct* Target)
 	{
 		checkf(Target, TEXT("The Select section in the Typed Elements query builder doesn't support nullptrs as Read-Only input."));
-		Query.Selection.Emplace(Target, ITypedElementDataStorageInterface::EQueryAccessType::ReadOnly);
+		Query.SelectionTypes.Emplace(Target);
+		Query.SelectionAccessTypes.Emplace(ITypedElementDataStorageInterface::EQueryAccessType::ReadOnly);
 		return *this;
 	}
 
@@ -248,7 +253,8 @@ namespace TypedElementQueryBuilder
 	Select& Select::ReadWrite(const UScriptStruct* Target)
 	{
 		checkf(Target, TEXT("The Select section in the Typed Elements query builder doesn't support nullptrs as Read/Write input."));
-		Query.Selection.Emplace(Target, ITypedElementDataStorageInterface::EQueryAccessType::ReadWrite);
+		Query.SelectionTypes.Emplace(Target);
+		Query.SelectionAccessTypes.Emplace(ITypedElementDataStorageInterface::EQueryAccessType::ReadWrite);
 		return *this;
 	}
 

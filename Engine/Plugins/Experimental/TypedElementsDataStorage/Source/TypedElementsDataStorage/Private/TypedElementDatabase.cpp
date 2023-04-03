@@ -9,6 +9,7 @@
 #include "MassSimulationSubsystem.h"
 #include "MassSubsystemAccess.h"
 #include "Processors/TypedElementProcessorAdaptors.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Stats/Stats2.h"
 #include "TickTaskManagerInterface.h"
 
@@ -16,7 +17,9 @@ const FName UTypedElementDatabase::TickGroupName_PrepareSyncWorldToMass(TEXT("Pr
 const FName UTypedElementDatabase::TickGroupName_FinalizeSyncWorldToMass(TEXT("FinalizeSyncWorldToMass"));
 const FName UTypedElementDatabase::TickGroupName_PrepareSyncMassToExternal(TEXT("PrepareSyncMassToExternal"));
 const FName UTypedElementDatabase::TickGroupName_FinalizeSyncMassToExternal(TEXT("FinalizeSyncMassToExternal"));
+const FName UTypedElementDatabase::TickGroupName_PrepareSyncWidget(TEXT("PrepareSyncWidgets"));
 const FName UTypedElementDatabase::TickGroupName_SyncWidget(TEXT("SyncWidgets"));
+const FName UTypedElementDatabase::TickGroupName_FinalizeSyncWidget(TEXT("FinalizeSyncWidgets"));
 
 void UTypedElementDatabase::Initialize()
 {
@@ -308,28 +311,31 @@ TypedElementQueryHandle UTypedElementDatabase::RegisterQuery(FQueryDescription&&
 
 	QueryStore::Handle Result = Queries.Emplace();
 	FTypedElementDatabaseExtendedQuery& StoredQuery = Queries.GetMutable(Result);
-	StoredQuery.Action = Query.Action;
-	StoredQuery.bSimpleQuery = Query.bSimpleQuery;
-	StoredQuery.Callback = MoveTemp(Query.Callback);
 	
 	FMassEntityQuery& NativeQuery = SetupNativeQuery(Query, StoredQuery);
 
 	if (Query.Action == FQueryDescription::EActionType::Count)
 	{
-		checkf(Query.Selection.IsEmpty(), TEXT("Count queries for the Typed Elements Data Storage can't have entries for selection."));
+		checkf(Query.SelectionTypes.IsEmpty(), TEXT("Count queries for the Typed Elements Data Storage can't have entries for selection."));
+		checkf(Query.SelectionAccessTypes.IsEmpty(), TEXT("Count queries for the Typed Elements Data Storage can't have entries for selection."));
 	}
 	else
 	{
-		for (const FQueryDescription::FAccessControlledStruct& SelectEntry : Query.Selection)
+		const int32 SelectionCount = Query.SelectionTypes.Num();
+		checkf(SelectionCount == Query.SelectionAccessTypes.Num(),
+			TEXT("The number of query selection types (%i) doesn't match the number of selection access types (%i)."),
+			SelectionCount, Query.SelectionAccessTypes.Num());
+		for (int SelectionIndex = 0; SelectionIndex < SelectionCount; ++SelectionIndex)
 		{
-			checkf(SelectEntry.Type, TEXT("Provided query selection type can not be null."));
+			TWeakObjectPtr<const UScriptStruct>& Type = Query.SelectionTypes[SelectionIndex];
+			checkf(Type.IsValid(), TEXT("Provided query selection type can not be null."));
 			checkf(
-				SelectEntry.Type->IsChildOf(FTypedElementDataStorageColumn::StaticStruct()) ||
-				SelectEntry.Type->IsChildOf(FMassFragment::StaticStruct()) || 
-				SelectEntry.Type->IsChildOf(FMassTag::StaticStruct()),
+				Type->IsChildOf(FTypedElementDataStorageColumn::StaticStruct()) ||
+				Type->IsChildOf(FMassFragment::StaticStruct()) || 
+				Type->IsChildOf(FMassTag::StaticStruct()),
 				TEXT("Provided query selection type '%s' is not based on FTypedElementDataStorageColumn or another supported base type."), 
-				*SelectEntry.Type->GetStructPathName().ToString());
-			NativeQuery.AddRequirement(SelectEntry.Type, LocalToNativeAccess(SelectEntry.Access));
+				*Type->GetStructPathName().ToString());
+			NativeQuery.AddRequirement(Type.Get(), LocalToNativeAccess(Query.SelectionAccessTypes[SelectionIndex]));
 		}
 	}
 
@@ -363,24 +369,32 @@ TypedElementQueryHandle UTypedElementDatabase::RegisterQuery(FQueryDescription&&
 			}
 			else if (Operand->Type->IsChildOf(FMassFragment::StaticStruct()))
 			{
-				NativeQuery.AddRequirement(Operand->Type, EMassFragmentAccess::None, Presence);
+				NativeQuery.AddRequirement(Operand->Type.Get(), EMassFragmentAccess::None, Presence);
 			}
 
 			++Operand;
 		}
 	}
 
-	for (const FQueryDescription::FAccessControlledClass& DependencyEntry : Query.Dependencies)
+	const int32 DependencyCount = Query.DependencyTypes.Num();
+	checkf(DependencyCount == Query.DependencyFlags.Num() && DependencyCount == Query.CachedDependencies.Num(),
+		TEXT("The number of query depedencies (%i) doesn't match the number of dependency access types (%i) and/or cached dependencies count (%i)."),
+		DependencyCount, Query.DependencyFlags.Num(), Query.CachedDependencies.Num());
+	for (int32 DependencyIndex = 0; DependencyIndex < DependencyCount; ++DependencyIndex)
 	{
-		checkf(DependencyEntry.Type, TEXT("Provided query dependcy type can not be null."));
-		checkf(DependencyEntry.Type->IsChildOf<USubsystem>(),
-			TEXT("Provided query dependency type '%s' is not based on USubSystem."), 
-			*DependencyEntry.Type->GetStructPathName().ToString());
+		TWeakObjectPtr<const UClass>& Type = Query.DependencyTypes[DependencyIndex];
+		checkf(Type.IsValid(), TEXT("Provided query dependcy type can not be null."));
+		checkf(Type->IsChildOf<USubsystem>(), TEXT("Provided query dependency type '%s' is not based on USubSystem."), 
+			*Type->GetStructPathName().ToString());
 		
-		constexpr bool bGameThreadOnly = true;
+		EQueryDependencyFlags Flags = Query.DependencyFlags[DependencyIndex];
 		NativeQuery.AddSubsystemRequirement(
-			const_cast<UClass*>(DependencyEntry.Type), LocalToNativeAccess(DependencyEntry.Access), bGameThreadOnly);
+			const_cast<UClass*>(Type.Get()), 
+			EnumHasAllFlags(Flags, EQueryDependencyFlags::ReadOnly) ? EMassFragmentAccess::ReadOnly : EMassFragmentAccess::ReadWrite,
+			EnumHasAllFlags(Flags, EQueryDependencyFlags::GameThreadBound));
 	}
+
+	StoredQuery.Description = MoveTemp(Query);
 
 	if (StoredQuery.Processor)
 	{
@@ -404,7 +418,7 @@ TypedElementQueryHandle UTypedElementDatabase::RegisterQuery(FQueryDescription&&
 		else
 		{
 			checkf(false, TEXT("Query processor %s is of unsupported type %s."), 
-				*StoredQuery.Callback.Name.ToString(), *StoredQuery.Processor->GetSparseClassDataStruct()->GetName());
+				*Query.Callback.Name.ToString(), *StoredQuery.Processor->GetSparseClassDataStruct()->GetName());
 		}
 	}
 
@@ -435,7 +449,7 @@ void UTypedElementDatabase::UnregisterQuery(TypedElementQueryHandle Query)
 			else
 			{
 				checkf(false, TEXT("Query processor %s is of unsupported type %s."),
-					*QueryData.Callback.Name.ToString(), *QueryData.Processor->GetSparseClassDataStruct()->GetName());
+					*QueryData.Description.Callback.Name.ToString(), *QueryData.Processor->GetSparseClassDataStruct()->GetName());
 			}
 		}
 		else
@@ -445,6 +459,23 @@ void UTypedElementDatabase::UnregisterQuery(TypedElementQueryHandle Query)
 	}
 
 	Queries.Remove(Handle);
+}
+
+const ITypedElementDataStorageInterface::FQueryDescription& UTypedElementDatabase::GetQueryDescription(TypedElementQueryHandle Query) const
+{
+	QueryStore::Handle Handle;
+	Handle.Handle = Query;
+
+	if (Queries.IsAlive(Handle))
+	{
+		const FTypedElementDatabaseExtendedQuery& QueryData = Queries.Get(Handle);
+		return QueryData.Description;
+	}
+	else
+	{
+		static ITypedElementDataStorageInterface::FQueryDescription EmptyDescription;
+		return EmptyDescription;
+	}
 }
 
 FName UTypedElementDatabase::GetQueryTickGroupName(EQueryTickGroups Group) const
@@ -467,8 +498,12 @@ FName UTypedElementDatabase::GetQueryTickGroupName(EQueryTickGroups Group) const
 		case EQueryTickGroups::FinalizeSyncDataStorageToExternal:
 			return TickGroupName_FinalizeSyncMassToExternal;
 		
+		case EQueryTickGroups::PrepareSyncWidgets:
+			return TickGroupName_PrepareSyncWidget;
 		case EQueryTickGroups::SyncWidgets:
 			return TickGroupName_SyncWidget;
+		case EQueryTickGroups::FinalizeSyncWidgets:
+			return TickGroupName_FinalizeSyncWidget;
 
 		default:
 			checkf(false, TEXT("EQueryTickGroups value %i can't be translated to a group name by this Data Storage backend."), static_cast<int>(Group));
@@ -478,6 +513,8 @@ FName UTypedElementDatabase::GetQueryTickGroupName(EQueryTickGroups Group) const
 
 ITypedElementDataStorageInterface::FQueryResult UTypedElementDatabase::RunQuery(TypedElementQueryHandle Query)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(TEDS.RunQuery);
+	
 	FQueryResult Result;
 
 	QueryStore::Handle Handle;
@@ -486,17 +523,15 @@ ITypedElementDataStorageInterface::FQueryResult UTypedElementDatabase::RunQuery(
 	if (Queries.IsAlive(Handle))
 	{
 		FTypedElementDatabaseExtendedQuery& QueryData = Queries.Get(Handle);
-		if (QueryData.bSimpleQuery)
+		if (QueryData.Description.bSimpleQuery)
 		{
-			switch (QueryData.Action)
+			switch (QueryData.Description.Action)
 			{
 				case FQueryDescription::EActionType::None:
 					Result.Completed = FQueryResult::ECompletion::Fully;
 					break;
 				case FQueryDescription::EActionType::Select:
-					checkf(false, TEXT("Support for this option will be coming in a future update."));
-					Result.Completed = FQueryResult::ECompletion::Unsupported;
-					break;
+					// Fallthrough: There's nothing to callback to, so only return the total count.
 				case FQueryDescription::EActionType::Count:
 					checkf(ActiveEditorEntityManager, 
 						TEXT("Unable to run Typed Element Data Storage query before a MASS Entity Manager has been assigned."));
@@ -506,6 +541,58 @@ ITypedElementDataStorageInterface::FQueryResult UTypedElementDatabase::RunQuery(
 				default:
 					Result.Completed = FQueryResult::ECompletion::Unsupported;
 					break;
+			}
+		}
+		else
+		{
+			checkf(false, TEXT("Support for this option will be coming in a future update."));
+			Result.Completed = FQueryResult::ECompletion::Unsupported;
+		}
+	}
+	else
+	{
+		Result.Completed = FQueryResult::ECompletion::Unavailable;
+	}
+
+	return Result;
+}
+
+ITypedElementDataStorageInterface::FQueryResult UTypedElementDatabase::RunQuery(
+	TypedElementQueryHandle Query, ITypedElementDataStorageInterface::DirectQueryCallbackRef Callback)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(TEDS.RunQuery);
+
+	FQueryResult Result;
+
+	QueryStore::Handle Handle;
+	Handle.Handle = Query;
+
+	if (Queries.IsAlive(Handle))
+	{
+		FTypedElementDatabaseExtendedQuery& QueryData = Queries.Get(Handle);
+		if (QueryData.Description.bSimpleQuery)
+		{
+			switch (QueryData.Description.Action)
+			{
+			case FQueryDescription::EActionType::None:
+				Result.Completed = FQueryResult::ECompletion::Fully;
+				break;
+			case FQueryDescription::EActionType::Select:
+				checkf(ActiveEditorEntityManager,
+					TEXT("Unable to run Typed Element Data Storage query before a MASS Entity Manager has been assigned."));
+				Result = FTypedElementQueryProcessorData::Execute(
+					Callback, QueryData.Description, QueryData.NativeQuery, *ActiveEditorEntityManager);
+				break;
+			case FQueryDescription::EActionType::Count:
+				// Only the count is requested so no need to trigger the callback.
+				checkf(ActiveEditorEntityManager,
+					TEXT("Unable to run Typed Element Data Storage query before a MASS Entity Manager has been assigned."));
+				Result.Count = QueryData.NativeQuery.GetNumMatchingEntities(*ActiveEditorEntityManager);
+				Result.Completed = FQueryResult::ECompletion::Fully;
+				break;
+			default:
+				Result.Completed = FQueryResult::ECompletion::Unsupported;
+				break;
 			}
 		}
 		else

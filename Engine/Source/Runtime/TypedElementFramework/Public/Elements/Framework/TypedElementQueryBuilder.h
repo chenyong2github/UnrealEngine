@@ -46,7 +46,7 @@ class USubsystem;
  *	- void(<Context>&, TypedElementRowHandle, [const]Column&...) 
  *	- void(<Context>&, [const]Column*...) 
  *	- void(<Context>&, const TypedElementRowHandle*, [const]Column*...) 
- *	Where <Context> is ITypedElementDataStorageInterface::FQueryContext or FCachedQueryContext<...>	e.g.:
+ *	Where <Context> is ITypedElementDataStorageInterface::IQueryContext or FCachedQueryContext<...>	e.g.:
  *		void(
  *			FCachedQueryContext<Subsystem1, const Subsystem2>& Context, 
  *			TypedElementRowHandle Row, 
@@ -203,9 +203,11 @@ namespace TypedElementQueryBuilder
 
 	// Because this is a thin wrapper called from within a query callback, it's better to inline fully so all
 	// function pre/postambles can be optimized away.
-	struct FQueryContextForwarder : public ITypedElementDataStorageInterface::FQueryContext
+	struct FQueryContextForwarder : public ITypedElementDataStorageInterface::IQueryContext
 	{
-		inline explicit FQueryContextForwarder(ITypedElementDataStorageInterface::FQueryContext& InParentContext);
+		inline FQueryContextForwarder(
+			const ITypedElementDataStorageInterface::FQueryDescription& InDescription, 
+			ITypedElementDataStorageInterface::IQueryContext& InParentContext);
 		inline ~FQueryContextForwarder() = default;
 
 		inline const void* GetColumn(const UScriptStruct* ColumnType) const override;
@@ -230,13 +232,16 @@ namespace TypedElementQueryBuilder
 		inline void RemoveColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> ColumnTypes) override;
 		inline void RemoveColumns(TConstArrayView<TypedElementRowHandle> Rows, TConstArrayView<const UScriptStruct*> ColumnTypes) override;
 
-		ITypedElementDataStorageInterface::FQueryContext& ParentContext;
+		ITypedElementDataStorageInterface::IQueryContext& ParentContext;
+		const ITypedElementDataStorageInterface::FQueryDescription& Description;
 	};
 
 	template<typename... Dependencies>
 	struct FCachedQueryContext final : public FQueryContextForwarder
 	{
-		explicit FCachedQueryContext(ITypedElementDataStorageInterface::FQueryContext& InParentContext);
+		explicit FCachedQueryContext(
+			const ITypedElementDataStorageInterface::FQueryDescription& InDescription, 
+			ITypedElementDataStorageInterface::IQueryContext& InParentContext);
 		
 		static void Register(ITypedElementDataStorageInterface::FQueryDescription& Query);
 
@@ -244,8 +249,6 @@ namespace TypedElementQueryBuilder
 		Dependency& GetCachedMutableDependency();
 		template<typename Dependency>
 		const Dependency& GetCachedDependency() const;
-
-		UObject* DependencyAddresses[sizeof...(Dependencies)];
 	};
 
 	// Explicitly not following the naming convention in order to present this as a query that can be read as such.

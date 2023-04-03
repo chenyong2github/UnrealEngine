@@ -18,11 +18,9 @@ class UWorld;
 
 struct FTypedElementDatabaseExtendedQuery
 {
-	FMassEntityQuery NativeQuery;
-	ITypedElementDataStorageInterface::FQueryDescription::EActionType Action{ ITypedElementDataStorageInterface::FQueryDescription::EActionType::None };
-	ITypedElementDataStorageInterface::FQueryDescription::FCallbackData Callback;
+	FMassEntityQuery NativeQuery; // Used if there's no processor bound.
+	ITypedElementDataStorageInterface::FQueryDescription Description;
 	TStrongObjectPtr<UMassProcessor> Processor;
-	bool bSimpleQuery{ false };
 };
 
 UCLASS()
@@ -68,8 +66,10 @@ public:
 
 	TypedElementQueryHandle RegisterQuery(FQueryDescription&& Query) override;
 	void UnregisterQuery(TypedElementQueryHandle Query) override;
+	const FQueryDescription& GetQueryDescription(TypedElementQueryHandle Query) const override;
 	FName GetQueryTickGroupName(EQueryTickGroups Group) const override;
 	FQueryResult RunQuery(TypedElementQueryHandle Query) override;
+	FQueryResult RunQuery(TypedElementQueryHandle Query, DirectQueryCallbackRef Callback) override;
 
 	FTypedElementOnDataStorageUpdate& OnUpdate() override;
 	bool IsAvailable() const override;
@@ -84,7 +84,9 @@ private:
 	static const FName TickGroupName_FinalizeSyncWorldToMass;
 	static const FName TickGroupName_PrepareSyncMassToExternal;
 	static const FName TickGroupName_FinalizeSyncMassToExternal;
+	static const FName TickGroupName_PrepareSyncWidget;
 	static const FName TickGroupName_SyncWidget;
+	static const FName TickGroupName_FinalizeSyncWidget;
 	
 	TArray<FMassArchetypeHandle> Tables;
 	TMap<FName, TypedElementTableHandle> TableNameLookup;

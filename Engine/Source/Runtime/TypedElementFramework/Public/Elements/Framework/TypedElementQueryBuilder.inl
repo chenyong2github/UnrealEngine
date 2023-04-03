@@ -38,6 +38,24 @@ namespace TypedElementQueryBuilder
 				return ITypedElementDataStorageInterface::EQueryAccessType::ReadWrite;
 			}
 		}
+
+		template<typename Type>
+		constexpr ITypedElementDataStorageInterface::EQueryDependencyFlags GetDependencyFlags()
+		{
+			ITypedElementDataStorageInterface::EQueryDependencyFlags Result = ITypedElementDataStorageInterface::EQueryDependencyFlags::None;
+			// Until there's a way to pass in whether or not a dependency is tied to the main thread and whether
+			// it's safe to not update in between updates, default to using the game thread and always update.
+			EnumAddFlags(Result, ITypedElementDataStorageInterface::EQueryDependencyFlags::GameThreadBound);
+			EnumAddFlags(Result, ITypedElementDataStorageInterface::EQueryDependencyFlags::AlwaysRefresh);
+
+			using BaseType = typename std::remove_reference_t<Type>;
+			if constexpr (TIsConst<BaseType>::Value)
+			{
+				EnumAddFlags(Result, ITypedElementDataStorageInterface::EQueryDependencyFlags::ReadOnly);
+			}
+			
+			return Result;
+		}
 	} // namespace Internal
 
 	//
@@ -79,8 +97,11 @@ namespace TypedElementQueryBuilder
 	// FQueryContextForwarder
 	//
 
-	FQueryContextForwarder::FQueryContextForwarder(ITypedElementDataStorageInterface::FQueryContext& InParentContext)
+	FQueryContextForwarder::FQueryContextForwarder(
+		const ITypedElementDataStorageInterface::FQueryDescription& InDescription, 
+		ITypedElementDataStorageInterface::IQueryContext& InParentContext)
 		: ParentContext(InParentContext)
+		, Description(InDescription)
 	{}
 
 	const void* FQueryContextForwarder::GetColumn(const UScriptStruct* ColumnType) const
@@ -166,55 +187,49 @@ namespace TypedElementQueryBuilder
 	//
 	
 	template<typename... Dependencies>
-	FCachedQueryContext<Dependencies...>::FCachedQueryContext(ITypedElementDataStorageInterface::FQueryContext& InParentContext)
-		: FQueryContextForwarder(InParentContext)
-	{
-		static constexpr ITypedElementDataStorageInterface::EQueryAccessType DependencyAccessList[] = { Internal::GetAccessType<Dependencies>()... };
-		static TWeakObjectPtr<const UClass> DependencyTypes[] = { Dependencies::StaticClass()... };
-
-		ParentContext.GetDependencies(DependencyAddresses, DependencyTypes, DependencyAccessList);
-#if DO_CHECK
-		UObject** DependencyAddessIt = DependencyAddresses;
-		for (int32 Index = 0; Index < sizeof...(Dependencies); ++Index)
-		{
-			checkf(*DependencyAddessIt != nullptr, TEXT("The cached query context tried to retrieve a dependency '%s' that didn't exist."),
-				DependencyTypes[Index] != nullptr ? *(DependencyTypes[Index]->GetName()) : TEXT("<no type information>"));
-			++DependencyAddessIt;
-		}
-#endif // DO_CHECK
-	}
+	FCachedQueryContext<Dependencies...>::FCachedQueryContext(
+		const ITypedElementDataStorageInterface::FQueryDescription& InDescription, 
+		ITypedElementDataStorageInterface::IQueryContext& InParentContext)
+		: FQueryContextForwarder(InDescription, InParentContext)
+	{}
 
 	template<typename... Dependencies>
 	void FCachedQueryContext<Dependencies...>::Register(ITypedElementDataStorageInterface::FQueryDescription& Query)
 	{
-		( Query.Dependencies.Emplace(Dependencies::StaticClass(), Internal::GetAccessType<Dependencies>()), ... );
+		Query.DependencyTypes.Reserve(sizeof...(Dependencies));
+		Query.DependencyFlags.Reserve(sizeof...(Dependencies));
+		
+		( Query.DependencyTypes.Emplace(Dependencies::StaticClass()), ... );
+		( Query.DependencyFlags.Emplace(Internal::GetDependencyFlags<Dependencies>()), ... );
+		
+		Query.CachedDependencies.AddDefaulted(sizeof...(Dependencies));
 	}
 
 	template<typename... Dependencies>
 	template<typename Dependency>
 	Dependency& FCachedQueryContext<Dependencies...>::GetCachedMutableDependency()
 	{
-		// Don't allow a subsystem registered as const to be found.
+		// Don't allow a dependency registered as const to be found.
 		constexpr uint32 Index = Internal::GetVarArgIndex<std::remove_const_t<Dependency>, Dependencies...>();
 		static_assert(Index < sizeof...(Dependencies), "Requested dependency isn't part of the query context cache.");
-		return *static_cast<Dependency*>(DependencyAddresses[Index]);
+		return *static_cast<Dependency*>(Description.CachedDependencies[Index].Get());
 	}
 
 	template<typename... Dependencies>
 	template<typename Dependency>
 	const Dependency& FCachedQueryContext<Dependencies...>::GetCachedDependency() const
 	{
-		// Allow access to subsystems registered with and without const.
+		// Allow access to dependencies registered with and without const.
 		constexpr uint32 Index = Internal::GetVarArgIndex<Dependency, Dependencies...>();
 		if constexpr (Index < sizeof...(Dependencies))
 		{
-			return *static_cast<Dependency*>(DependencyAddresses[Index]);
+			return *static_cast<Dependency*>(Description.CachedDependencies[Index].Get());
 		}
 		else
 		{
 			constexpr uint32 ConstIndex = Internal::GetVarArgIndex<std::add_const_t<Dependency>, Dependencies...>();
 			static_assert(ConstIndex < sizeof...(Dependencies), "Requested dependency isn't part of the query context cache.");
-			return *static_cast<Dependency*>(DependencyAddresses[ConstIndex]);
+			return *static_cast<Dependency*>(Description.CachedDependencies[ConstIndex].Get());
 		}
 	}
 	
@@ -223,8 +238,9 @@ namespace TypedElementQueryBuilder
 	//
 	namespace Internal
 	{
-		using QueryContext = ITypedElementDataStorageInterface::FQueryContext;
+		using QueryContext = ITypedElementDataStorageInterface::IQueryContext;
 		using QueryAccess = ITypedElementDataStorageInterface::EQueryAccessType;
+		using QueryDescription = ITypedElementDataStorageInterface::FQueryDescription;
 
 		template <typename T>
 		struct HasStaticStructMethod
@@ -348,13 +364,11 @@ namespace TypedElementQueryBuilder
 			std::tuple<BaseColumnType<ColumnTypes>*...> Columns;
 			static constexpr bool bArePointerColumns = AreAllColumnsPointers<ColumnTypes...>();
 
-			explicit FFunctionColumnInfo(QueryContext& Context)
+			FFunctionColumnInfo(const QueryDescription& Description, QueryContext& Context)
 			{
-				static constexpr QueryAccess ColumnAccess[] = { GetAccessType<ColumnTypes>()... };
-				static TWeakObjectPtr<const UScriptStruct> ColumnDescriptions[] = { GetColumnType<ColumnTypes>()...};
-
 				char* ColumnAddresses[sizeof...(ColumnTypes)];
-				Context.GetColumnsUnguarded(sizeof...(ColumnTypes), ColumnAddresses, ColumnDescriptions, ColumnAccess);
+				Context.GetColumnsUnguarded(sizeof...(ColumnTypes), ColumnAddresses, 
+					Description.SelectionTypes.GetData(), Description.SelectionAccessTypes.GetData());
 				std::apply([ColumnAddresses](auto&&... Column)
 					{
 						int Index = 0;
@@ -366,7 +380,7 @@ namespace TypedElementQueryBuilder
 		template<>
 		struct FFunctionColumnInfo<>
 		{
-			explicit FFunctionColumnInfo(QueryContext&) {}
+			FFunctionColumnInfo(const QueryDescription&, QueryContext&) {}
 			static constexpr bool bArePointerColumns = false;
 		};
 
@@ -374,11 +388,29 @@ namespace TypedElementQueryBuilder
 		struct FContextInfo
 		{
 			using BaseContextType = std::remove_reference_t<ContextType>;
-			static constexpr bool bIsUndecoratedContext = std::is_same_v<BaseContextType, QueryContext>;
-			using ContextWrapperType = std::conditional_t<bIsUndecoratedContext, QueryContext&, BaseContextType>;
-			ContextWrapperType ContextWrapper;
+			BaseContextType ContextWrapper;
 
-			explicit FContextInfo(QueryContext& Context)
+			FContextInfo(const QueryDescription& Description, QueryContext& Context)
+				: ContextWrapper(Description, Context)
+			{}
+		};
+
+		template<>
+		struct FContextInfo<const QueryContext&>
+		{
+			const QueryContext& ContextWrapper;
+
+			FContextInfo(const QueryDescription& Description, QueryContext& Context)
+				: ContextWrapper(Context)
+			{}
+		};
+
+		template<>
+		struct FContextInfo<QueryContext&>
+		{
+			QueryContext& ContextWrapper;
+
+			FContextInfo(const QueryDescription& Description, QueryContext& Context)
 				: ContextWrapper(Context)
 			{}
 		};
@@ -389,9 +421,9 @@ namespace TypedElementQueryBuilder
 			using SuperColumn = FFunctionColumnInfo<Args...>;
 			using SuperContext = FContextInfo<ContextType>;
 
-			explicit FContextRowHandleColumnsFunction(QueryContext& Context)
-				: SuperColumn(Context)
-				, SuperContext(Context)
+			FContextRowHandleColumnsFunction(const QueryDescription& Description, QueryContext& Context)
+				: SuperColumn(Description, Context)
+				, SuperContext(Description, Context)
 			{}
 
 			template<typename CallerType>
@@ -442,9 +474,9 @@ namespace TypedElementQueryBuilder
 			using SuperColumn = FFunctionColumnInfo<Args...>;
 			using SuperContext = FContextInfo<ContextType>;
 
-			explicit FContextColumnsFunction(QueryContext& Context)
-				: SuperColumn(Context)
-				, SuperContext(Context)
+			FContextColumnsFunction(const QueryDescription& Description, QueryContext& Context)
+				: SuperColumn(Description, Context)
+				, SuperContext(Description, Context)
 			{}
 
 			template<typename CallerType>
@@ -490,8 +522,8 @@ namespace TypedElementQueryBuilder
 		{
 			using Super = FFunctionColumnInfo<Columns...>;
 
-			explicit FRowHandleColumnsFunction(QueryContext& Context)
-				: Super(Context)
+			FRowHandleColumnsFunction(const QueryDescription& Description, QueryContext& Context)
+				: Super(Description, Context)
 			{}
 
 			template<typename CallerType>
@@ -538,8 +570,8 @@ namespace TypedElementQueryBuilder
 		{
 			using Super = FFunctionColumnInfo<Args...>;
 			
-			explicit FColumnsFunction(QueryContext& Context)
-				: Super(Context)
+			FColumnsFunction(const QueryDescription& Description, QueryContext& Context)
+				: Super(Description, Context)
 			{}
 
 			template<typename CallerType>
@@ -627,8 +659,8 @@ namespace TypedElementQueryBuilder
 		{
 			using Super = typename FFunctionInfoHelper<Args...>::BaseClass;
 
-			explicit FFunctionInfo(QueryContext& Context)
-				: Super(Context)
+			FFunctionInfo(const QueryDescription& Description, QueryContext& Context)
+				: Super(Description, Context)
 			{}
 		};
 
@@ -636,9 +668,9 @@ namespace TypedElementQueryBuilder
 		void BindQueryFunction(ITypedElementDataStorageInterface::QueryCallback& Function, 
 			void (*Callback)(Args...))
 		{
-			Function = [Callback](QueryContext& Context)
+			Function = [Callback](const QueryDescription& Description, QueryContext& Context)
 			{
-				FFunctionInfo<Args...>(Context).Call(Context, Callback);
+				FFunctionInfo<Args...>(Description, Context).Call(Context, Callback);
 			};
 		}
 
@@ -646,9 +678,9 @@ namespace TypedElementQueryBuilder
 		void BindQueryFunction(ITypedElementDataStorageInterface::QueryCallback& Function, Class* Target, 
 			void (Class::*Callback)(Args...))
 		{
-			Function = [Target, Callback](QueryContext& Context)
+			Function = [Target, Callback](const QueryDescription& Description, QueryContext& Context)
 			{
-				FFunctionInfo<Args...>(Context).Call(Context, (Target->*Callback));
+				FFunctionInfo<Args...>(Description, Context).Call(Context, (Target->*Callback));
 			};
 		}
 
@@ -656,9 +688,9 @@ namespace TypedElementQueryBuilder
 		void BindQueryFunction(ITypedElementDataStorageInterface::QueryCallback& Function, Class* Target, 
 			void (Class::*Callback)(Args...) const)
 		{
-			Function = [Target, Callback](QueryContext& Context)
+			Function = [Target, Callback](const QueryDescription& Description, QueryContext& Context)
 			{
-				FFunctionInfo<Args...>(Context).Call(Context, (Target->*Callback));
+				FFunctionInfo<Args...>(Description, Context).Call(Context, (Target->*Callback));
 			};
 		}
 
@@ -666,9 +698,9 @@ namespace TypedElementQueryBuilder
 		void BindQueryFunction_Expand(ITypedElementDataStorageInterface::QueryCallback& Function, Functor&& CallbackObject, 
 			void (Class::*Callback)(Args...) const)
 		{
-			Function = [CallbackObject = std::forward<Functor>(CallbackObject)](QueryContext& Context)
+			Function = [CallbackObject = std::forward<Functor>(CallbackObject)](const QueryDescription& Description, QueryContext& Context)
 			{
-				FFunctionInfo<Args...>(Context).Call(Context, CallbackObject);
+				FFunctionInfo<Args...>(Description, Context).Call(Context, CallbackObject);
 			};
 		}
 
@@ -676,9 +708,9 @@ namespace TypedElementQueryBuilder
 		void BindQueryFunction_Expand(ITypedElementDataStorageInterface::QueryCallback& Function, Functor&& CallbackObject, 
 			void (Class::*Callback)(Args...))
 		{
-			Function = [CallbackObject = std::forward<Functor>(CallbackObject)](QueryContext& Context)
+			Function = [CallbackObject = std::forward<Functor>(CallbackObject)](const QueryDescription& Description, QueryContext& Context)
 			{
-				FFunctionInfo<Args...>(Context).Call(Context, CallbackObject);
+				FFunctionInfo<Args...>(Description, Context).Call(Context, CallbackObject);
 			};
 		}
 
@@ -701,7 +733,7 @@ namespace TypedElementQueryBuilder
 			}
 		}
 
-		template<typename ContextType> void RegisterDependencies(ITypedElementDataStorageInterface::FQueryDescription& Query)
+		template<typename ContextType> void RegisterDependencies(QueryDescription& Query)
 		{
 			using BaseType = typename TRemoveReference<ContextType>::Type;
 			if constexpr (TIsDerivedFrom<BaseType, FQueryContextForwarder>::Value)
@@ -713,7 +745,7 @@ namespace TypedElementQueryBuilder
 		template<typename... Args>
 		struct RegisterFunctionArgumentsHelper
 		{
-			void Register(ITypedElementDataStorageInterface::FQueryDescription&, Select& Target)
+			void Register(QueryDescription&, Select& Target)
 			{
 				(AddColumnToSelect<Args>(Target), ...);
 			}
@@ -722,13 +754,13 @@ namespace TypedElementQueryBuilder
 		template<>
 		struct RegisterFunctionArgumentsHelper<>
 		{
-			static void Register(ITypedElementDataStorageInterface::FQueryDescription&, Select&) {}
+			static void Register(QueryDescription&, Select&) {}
 		};
 
 		template<typename Arg0>
 		struct RegisterFunctionArgumentsHelper<Arg0>
 		{
-			static void Register(ITypedElementDataStorageInterface::FQueryDescription& Query, Select& Target)
+			static void Register(QueryDescription& Query, Select& Target)
 			{
 				if constexpr (IsValidContextType<Arg0>())
 				{
@@ -745,7 +777,7 @@ namespace TypedElementQueryBuilder
 		template<typename Arg0, typename Arg1, typename... Args>
 		struct RegisterFunctionArgumentsHelper<Arg0, Arg1, Args...>
 		{
-			static void Register(ITypedElementDataStorageInterface::FQueryDescription& Query, Select& Target)
+			static void Register(QueryDescription& Query, Select& Target)
 			{
 				if constexpr (IsValidContextType<Arg0>())
 				{
@@ -768,25 +800,25 @@ namespace TypedElementQueryBuilder
 		};
 
 		template<typename... Args>
-		void RegisterFunctionArguments(ITypedElementDataStorageInterface::FQueryDescription& Query, Select& Target, void (*)(Args...))
+		void RegisterFunctionArguments(QueryDescription& Query, Select& Target, void (*)(Args...))
 		{
 			RegisterFunctionArgumentsHelper<Args...>::Register(Query, Target);
 		}
 
 		template<typename Class, typename... Args>
-		void RegisterFunctionArguments(ITypedElementDataStorageInterface::FQueryDescription& Query, Select& Target, void (Class::*)(Args...))
+		void RegisterFunctionArguments(QueryDescription& Query, Select& Target, void (Class::*)(Args...))
 		{
 			RegisterFunctionArgumentsHelper<Args...>::Register(Query, Target);
 		}
 
 		template<typename Class, typename... Args>
-		void RegisterFunctionArguments(ITypedElementDataStorageInterface::FQueryDescription& Query, Select& Target, void (Class::*)(Args...) const)
+		void RegisterFunctionArguments(QueryDescription& Query, Select& Target, void (Class::*)(Args...) const)
 		{
 			RegisterFunctionArgumentsHelper<Args...>::Register(Query, Target);
 		}
 
 		template<typename Functor>
-		void RegisterFunctionArguments(ITypedElementDataStorageInterface::FQueryDescription& Query, Select& Target, Functor)
+		void RegisterFunctionArguments(QueryDescription& Query, Select& Target, Functor)
 		{
 			RegisterFunctionArguments(Query, Target, &Functor::operator());
 		}
@@ -879,7 +911,7 @@ namespace TypedElementQueryBuilder
 			}
 		};
 		
-		inline void PrepareForQueryBinding(ITypedElementDataStorageInterface::FQueryDescription& Query, const FProcessor& Processor)
+		inline void PrepareForQueryBinding(QueryDescription& Query, const FProcessor& Processor)
 		{
 			Query.Callback.Type = ITypedElementDataStorageInterface::EQueryCallbackType::Processor;
 			Query.Callback.Phase = Processor.Phase;
@@ -889,7 +921,7 @@ namespace TypedElementQueryBuilder
 			Query.Callback.bForceToGameThread = Processor.bForceToGameThread;
 		}
 
-		inline void PrepareForQueryBinding(ITypedElementDataStorageInterface::FQueryDescription& Query, const FObserver& Observer)
+		inline void PrepareForQueryBinding(QueryDescription& Query, const FObserver& Observer)
 		{
 			switch (Observer.Event)
 			{
@@ -905,7 +937,7 @@ namespace TypedElementQueryBuilder
 		}
 		
 		template<typename CallbackType, typename Function>
-		void PrepareForQueryBinding(Select& Target, ITypedElementDataStorageInterface::FQueryDescription& Query, FName Name, 
+		void PrepareForQueryBinding(Select& Target, QueryDescription& Query, FName Name,
 			const CallbackType& Type, Function Callback)
 		{
 			static_assert(TIsDerivedFrom<CallbackType, FQueryCallbackType>::Value, "The callback type provided isn't one of the available "
@@ -919,7 +951,7 @@ The following options are supported:
 - void(<Context>&, TypedElementRowHandle, [const]Column&...) 
 - void(<Context>&, [const]Column*...) 
 - void(<Context>&, const TypedElementRowHandle*, [const]Column*...) 
-Where <Context> is ITypedElementDataStorageInterface::FQueryContext or FCachedQueryContext<...>
+Where <Context> is ITypedElementDataStorageInterface::IQueryContext or FCachedQueryContext<...>
 e.g. void(FCachedQueryContext<Subsystem1, const Subsystem2>& Context, TypedElementRowHandle Row, ColumnType0& ColumnA, const ColumnType1& ColumnB) {...}
 )");
 			RegisterFunctionArguments(Query, Target, Callback);
