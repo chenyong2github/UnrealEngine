@@ -523,6 +523,11 @@ public:
 	int32 PackageVersionLicenseeUE;       // Licensee package version on which the replay was recorded
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FOverridableReplayVersionData(FOverridableReplayVersionData&&) = default;
+	FOverridableReplayVersionData(const FOverridableReplayVersionData&) = default;
+	FOverridableReplayVersionData& operator=(FOverridableReplayVersionData&&) = default;
+	FOverridableReplayVersionData& operator=(const FOverridableReplayVersionData&) = default;
+
 	// Init with Demo Header Version Data
 	FOverridableReplayVersionData(const FNetworkDemoHeader& DemoHeader)
 		: Version                     (DemoHeader.Version)
