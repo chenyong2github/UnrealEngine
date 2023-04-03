@@ -124,7 +124,7 @@ void FContextSwitchesProfilerManager::UnregisterMajorTabs()
 
 bool FContextSwitchesProfilerManager::Tick(float DeltaTime)
 {
-	// Check if session has Memory events (to spawn the tab), but not too often.
+	// Check if session has ContextSwitch events (to spawn the tab), but not too often.
 	if (!bIsAvailable && AvailabilityCheck.Tick())
 	{
 		bool bShouldBeAvailable = false;
