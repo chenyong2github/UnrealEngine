@@ -3846,7 +3846,7 @@ void UNiagaraGraph::RefreshParameterReferences() const
 					bool bAddReference = true;
 
 					// we exclude default pins from adding references as they shouldn't count. Originally they weren't marked as parameter pins so this wasn't necessary.
-					if(WriteEvent.Pin->GetOwningNode()->IsA<UNiagaraNodeParameterMapGet>() && WriteEvent.Pin->Direction == EGPD_Input)
+					if(WriteEvent.Pin->Direction == EGPD_Input && WriteEvent.Pin->GetOwningNode()->IsA<UNiagaraNodeParameterMapGet>())
 					{
 						bAddReference = false;
 					}
