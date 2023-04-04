@@ -54,6 +54,8 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define LOCTEXT_NAMESPACE "STraceStoreWindow"
+// For now we only support store settings on platforms that run Unreal Trace Server.
+#define STORE_SUPPORTS_SETTINGS PLATFORM_WINDOWS
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // STraceListRow
@@ -1580,6 +1582,7 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 		[
 			SNew(SHorizontalBox)
 
+#if STORE_SUPPORTS_SETTINGS
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.Padding(0.0f, 0.0f, 0.0f, 0.0f)
@@ -1595,6 +1598,7 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
+#endif
 
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -1606,6 +1610,8 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 				.ToolTip(SNew(SToolTip)
 				.Text_Raw(this, &STraceStoreWindow::GetConnectionStatusTooltip))
 			]
+
+#if STORE_SUPPORTS_SETTINGS
 
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -1625,6 +1631,7 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 				.IsReadOnly(true)
 				.BackgroundColor(FSlateColor(EStyleColor::Background))
 			]
+#endif
 
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -1663,6 +1670,7 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 			]
 		]
 
+#if STORE_SUPPORTS_SETTINGS
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.Padding(.0f, 8.0f)
@@ -1739,7 +1747,9 @@ TSharedRef<SWidget> STraceStoreWindow::ConstructTraceStoreDirectoryPanel()
 					]
 				]
 			]
-		];
+		]
+#endif
+		;
 
 	return Widget;
 }
