@@ -496,18 +496,31 @@ protected:
 
 	virtual void OnAsyncSaveComplete(const FString& SlotName, const int32 UserIndex, bool bSuccess);
 
+	/**
+	 * A virtual function that will be called whenever a player key mapping has been updated, before OnSettingsChanged is called.
+	 * This provides subclasses the opportunity to modify this key mapping before any settings screens are updated
+	 *
+	 * This does nothing by default, but some subclasses may want to modify the mapping. 
+	 * Perhaps to change to a specific hardware device ID or something like that
+	 *
+	 * @param ChangedMapping	The key mapping that has changed
+	 * @param InArgs			The arguments that were used to change this mapping.
+	 * @param bIsBeingUnmapped	True if this key mapping is being unmapped. False if the key mapping is just being changed
+	 */
+	virtual void OnKeyMappingUpdated(FPlayerKeyMapping* ChangedMapping, const FMapPlayerKeyArgs& InArgs, const bool bIsBeingUnmapped);
+
 public:
 	
 	ULocalPlayer* GetLocalPlayer() const;
 	
 	/** Fired when the user settings have changed, such as their key mappings. */
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEnhancedInputUserSettingsChanged, UEnhancedInputUserSettings*, Settings);
-	UPROPERTY(BlueprintAssignable, Category = "Enhanced Input|User Settings")
+	UPROPERTY(BlueprintAssignable, Transient, Category = "Enhanced Input|User Settings")
 	FEnhancedInputUserSettingsChanged OnSettingsChanged;
 	
 	/** Called after the settings have been applied from the ApplySettings call. */
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FEnhancedInputUserSettingsApplied);
-	UPROPERTY(BlueprintAssignable, Category = "Enhanced Input|User Settings")
+	UPROPERTY(BlueprintAssignable, Transient, Category = "Enhanced Input|User Settings")
 	FEnhancedInputUserSettingsApplied OnSettingsApplied;
 
 	// Remappable keys API
