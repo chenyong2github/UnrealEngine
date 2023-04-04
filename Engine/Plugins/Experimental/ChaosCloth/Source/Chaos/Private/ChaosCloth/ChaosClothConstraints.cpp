@@ -4,6 +4,7 @@
 #include "ChaosCloth/ChaosClothingPatternData.h"
 #include "Chaos/PBDSpringConstraints.h"
 #include "Chaos/XPBDSpringConstraints.h"
+#include "Chaos/XPBDStretchBiasElementConstraints.h"
 #include "Chaos/PBDBendingConstraints.h"
 #include "Chaos/XPBDBendingConstraints.h"
 #include "Chaos/XPBDAnisotropicBendingConstraints.h"
@@ -110,7 +111,7 @@ void FClothConstraints::AddRules(
 	CreateSelfCollisionConstraints(ConfigProperties, TriangleMesh);
 
 	// Edge constraints
-	CreateEdgeConstraints(ConfigProperties, WeightMaps, TriangleMesh);
+	CreateStretchConstraints(ConfigProperties, WeightMaps, TriangleMesh, PatternData);
 
 	// Bending constraints
 	CreateBendingConstraints(ConfigProperties, WeightMaps, TriangleMesh, PatternData);
@@ -187,12 +188,38 @@ void FClothConstraints::CreateSelfCollisionConstraints(const Softs::FCollectionP
 	}
 }
 
-void FClothConstraints::CreateEdgeConstraints(
+void FClothConstraints::CreateStretchConstraints(
 	const Softs::FCollectionPropertyConstFacade& ConfigProperties,
 	const TArray<TConstArrayView<FRealSingle>>& WeightMaps,
-	const FTriangleMesh& TriangleMesh)
+	const FTriangleMesh& TriangleMesh,
+	const FClothingPatternData* PatternData)
 {
-	if (Softs::FXPBDEdgeSpringConstraints::IsEnabled(ConfigProperties))
+	if (PatternData && PatternData->PatternPositions.Num() && Softs::FXPBDStretchBiasElementConstraints::IsEnabled(ConfigProperties))
+	{
+		// TODO: separate warp, weft, Bias multipliers
+		const TConstArrayView<FRealSingle>& EdgeStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::EdgeStiffness];
+		const TConstArrayView<FRealSingle> DampingMultipliers;  // TODO: Damping multiplier
+		const TConstArrayView<FRealSingle> WarpWeftScaleMultipliers; // TODO: separate multipliers for warp and weft scale
+
+		XStretchBiasConstraints = MakeShared<Softs::FXPBDStretchBiasElementConstraints>(
+			Evolution->Particles(),
+			ParticleOffset,
+			NumParticles,
+			TriangleMesh,
+			PatternData->WeldedFaceVertexPatternPositions,
+			EdgeStiffnessMultipliers,
+			EdgeStiffnessMultipliers,
+			EdgeStiffnessMultipliers,
+			DampingMultipliers,
+			WarpWeftScaleMultipliers,
+			WarpWeftScaleMultipliers,
+			ConfigProperties,
+			/*bTrimKinematicConstraints =*/ true);
+
+		++NumConstraintInits;  // Uses init to update the property tables
+		++NumConstraintRules;
+	}
+	else if (Softs::FXPBDEdgeSpringConstraints::IsEnabled(ConfigProperties))
 	{
 		const TConstArrayView<FRealSingle>& EdgeStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::EdgeStiffness];
 		const TConstArrayView<FRealSingle> DampingMultipliers;  // TODO: Damping multiplier
@@ -493,6 +520,21 @@ void FClothConstraints::CreateRules()
 	int32 ConstraintRuleIndex = 0;
 	int32 PostCollisionConstraintRuleIndex = 0;
 
+	if (XStretchBiasConstraints)
+	{
+		ConstraintInits[ConstraintInitIndex++] =
+			[this](Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
+		{
+			XStretchBiasConstraints->Init();
+			XStretchBiasConstraints->ApplyProperties(Dt, Evolution->GetIterations());
+		};
+
+		ConstraintRules[ConstraintRuleIndex++] =
+			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
+		{
+			XStretchBiasConstraints->Apply(Particles, Dt);
+		};
+	}
 	if (XEdgeConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =

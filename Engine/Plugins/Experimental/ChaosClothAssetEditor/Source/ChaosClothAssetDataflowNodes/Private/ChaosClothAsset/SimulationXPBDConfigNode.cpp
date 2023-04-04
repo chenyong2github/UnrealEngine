@@ -17,8 +17,14 @@ FChaosClothAssetSimulationXPBDConfigNode::FChaosClothAssetSimulationXPBDConfigNo
 	RegisterInputConnection(&Collection);
 
 	RegisterInputConnection(&bEnableXPBDStretchConstraints);
+	RegisterInputConnection(&bEnableStretchBias);
+	RegisterInputConnection(&bUse3dElementRestLengths);
 	RegisterInputConnection(&StretchStiffness);
+	RegisterInputConnection(&StretchStiffnessWeft);
+	RegisterInputConnection(&StretchStiffnessBias);
 	RegisterInputConnection(&StretchDampingRatio);
+	RegisterInputConnection(&WarpStretchScale);
+	RegisterInputConnection(&WeftStretchScale);
 
 	RegisterInputConnection(&bEnableXPBDBendConstraints);
 	RegisterInputConnection(&bEnableBendAnisotropy);
@@ -94,17 +100,55 @@ void FChaosClothAssetSimulationXPBDConfigNode::SetStretchProperties(Chaos::Softs
 {
 	if (bEnableXPBDStretchConstraints)
 	{
-		const int32 StretchStiffnessIndex = Properties.AddProperty(TEXT("XPBDEdgeSpringStiffness"));
-		Properties.SetWeightedValue(StretchStiffnessIndex, StretchStiffness.Low, StretchStiffness.High);
-		Properties.SetStringValue(StretchStiffnessIndex, TEXT("EdgeStiffness"));
+		if (bEnableStretchBias)
+		{
+			constexpr bool bEnable = true;
+			constexpr bool bNonAnimatable = false;
+			Properties.AddValue(TEXT("XPBDStretchBiasElementUse3dRestLengths"), bUse3dElementRestLengths, bEnable, bNonAnimatable);
 
-		const int32 StretchDampingRatioIndex = Properties.AddProperty(TEXT("XPBDEdgeSpringDamping"));
-		Properties.SetWeightedValue(StretchDampingRatioIndex, StretchDampingRatio.Low, StretchDampingRatio.High);
-		Properties.SetStringValue(StretchDampingRatioIndex, TEXT("EdgeDamping"));
+			const int32 StretchStiffnessWarpIndex = Properties.AddProperty(TEXT("XPBDStretchBiasElementStiffnessWarp"));
+			Properties.SetWeightedValue(StretchStiffnessWarpIndex, StretchStiffness.Low, StretchStiffness.High);
+			Properties.SetStringValue(StretchStiffnessWarpIndex, TEXT("StretchStiffnessWarp"));
+
+			const int32 StretchStiffnessWeftIndex = Properties.AddProperty(TEXT("XPBDStretchBiasElementStiffnessWeft"));
+			Properties.SetWeightedValue(StretchStiffnessWeftIndex, StretchStiffnessWeft.Low, StretchStiffnessWeft.High);
+			Properties.SetStringValue(StretchStiffnessWeftIndex, TEXT("StretchStiffnessWeft"));
+
+			const int32 BiasStiffnessIndex = Properties.AddProperty(TEXT("XPBDStretchBiasElementStiffnessBias"));
+			Properties.SetWeightedValue(BiasStiffnessIndex, StretchStiffnessBias.Low, StretchStiffnessBias.High);
+			Properties.SetStringValue(BiasStiffnessIndex, TEXT("StretchStiffnessBias"));
+
+			const int32 StretchDampingRatioIndex = Properties.AddProperty(TEXT("XPBDStretchBiasElementDamping"));
+			Properties.SetWeightedValue(StretchDampingRatioIndex, StretchDampingRatio.Low, StretchDampingRatio.High);
+			Properties.SetStringValue(StretchDampingRatioIndex, TEXT("StretchBiasDamping"));
+
+			const int32 WarpScaleIndex = Properties.AddProperty(TEXT("XPBDStretchBiasElementWarpScale"));
+			Properties.SetWeightedValue(WarpScaleIndex, WarpStretchScale.Low, WarpStretchScale.High);
+			Properties.SetStringValue(WarpScaleIndex, TEXT("WarpStretchScale"));
+
+			const int32 WeftScaleIndex = Properties.AddProperty(TEXT("XPBDStretchBiasElementWeftScale"));
+			Properties.SetWeightedValue(WeftScaleIndex, WeftStretchScale.Low, WeftStretchScale.High);
+			Properties.SetStringValue(WeftScaleIndex, TEXT("WeftStretchScale"));
+
+			Properties.SetEnabled(TEXT("XPBDEdgeSpringStiffness"), false);
+		}
+		else
+		{
+			const int32 StretchStiffnessIndex = Properties.AddProperty(TEXT("XPBDEdgeSpringStiffness"));
+			Properties.SetWeightedValue(StretchStiffnessIndex, StretchStiffness.Low, StretchStiffness.High);
+			Properties.SetStringValue(StretchStiffnessIndex, TEXT("EdgeStiffness"));
+
+			const int32 StretchDampingRatioIndex = Properties.AddProperty(TEXT("XPBDEdgeSpringDamping"));
+			Properties.SetWeightedValue(StretchDampingRatioIndex, StretchDampingRatio.Low, StretchDampingRatio.High);
+			Properties.SetStringValue(StretchDampingRatioIndex, TEXT("EdgeDamping"));
+
+			Properties.SetEnabled(TEXT("XPBDStretchBiasElementStiffnessWarp"), false);
+		}
 	}
 	else
 	{
 		Properties.SetEnabled(TEXT("XPBDEdgeSpringStiffness"), false);
+		Properties.SetEnabled(TEXT("XPBDStretchBiasElementStiffnessWarp"), false);
 	}
 }
 

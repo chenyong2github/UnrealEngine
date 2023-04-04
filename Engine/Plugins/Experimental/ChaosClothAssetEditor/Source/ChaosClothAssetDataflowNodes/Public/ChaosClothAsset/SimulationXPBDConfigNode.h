@@ -29,24 +29,36 @@ public:
 	/** Cloth Simulation Properties. */
 	UPROPERTY(EditAnywhere, Category = "Stretch")
 	bool bEnableXPBDStretchConstraints = true;
+	UPROPERTY(EditAnywhere, Category = "Stretch", meta = (EditCondition = "bEnableXPBDStretchConstraints"))
+	bool bEnableStretchBias = false;
+	UPROPERTY(EditAnywhere, Category = "Stretch", meta = (EditCondition = "bEnableXPBDStretchConstraints && bEnableStretchBias"))
+	bool bUse3dElementRestLengths = true;
 
-	UPROPERTY(EditAnywhere, Category = "Stretch", DisplayName = "Stretch Stiffness [kg/s^2]", meta = (UIMin = "0", UIMax = "10000", ClampMin = "0", ClampMax = "10000000", EditCondition = "bEnableXPBDStretchConstraints"))
+	UPROPERTY(EditAnywhere, Category = "Stretch", DisplayName = "Stretch Stiffness (Warp) [kg cm /s^2]", meta = (UIMin = "0", UIMax = "10000", ClampMin = "0", ClampMax = "10000000", EditCondition = "bEnableXPBDStretchConstraints"))
 	FChaosClothWeightedValue StretchStiffness = { 100.f, 100.f };
+	UPROPERTY(EditAnywhere, Category = "Stretch", DisplayName = "Stretch Stiffness (Weft) [kg cm /s^2]", meta = (UIMin = "0", UIMax = "10000", ClampMin = "0", ClampMax = "10000000", EditCondition = "bEnableXPBDStretchConstraints && bEnableStretchBias"))
+	FChaosClothWeightedValue StretchStiffnessWeft = { 100.f, 100.f };
+	UPROPERTY(EditAnywhere, Category = "Stretch", DisplayName = "Stretch Stiffness (Bias) [kg cm^2 /s^2]", meta = (UIMin = "0", UIMax = "10000", ClampMin = "0", ClampMax = "10000000", EditCondition = "bEnableXPBDStretchConstraints && bEnableStretchBias"))
+	FChaosClothWeightedValue StretchStiffnessBias = { 100.f, 100.f };
 	UPROPERTY(EditAnywhere, Category = "Stretch", DisplayName = "Stretch Damping Ratio", meta = (UIMin = "0", UIMax = "10", ClampMin = "0", ClampMax = "1000", EditCondition = "bEnableXPBDStretchConstraints"))
 	FChaosClothWeightedValue StretchDampingRatio = { 1.f, 1.f };
+	UPROPERTY(EditAnywhere, Category = "Stretch", DisplayName = "Warp Scale", meta = (UIMin = "0", UIMax = "10", ClampMin = "0", ClampMax = "10000000", EditCondition = "bEnableXPBDStretchConstraints && bEnableStretchBias"))
+	FChaosClothWeightedValue WarpStretchScale = { 1.f, 1.f };
+	UPROPERTY(EditAnywhere, Category = "Stretch", DisplayName = "Weft Scale", meta = (UIMin = "0", UIMax = "10", ClampMin = "0", ClampMax = "10000000", EditCondition = "bEnableXPBDStretchConstraints && bEnableStretchBias"))
+	FChaosClothWeightedValue WeftStretchScale = { 1.f, 1.f };
 
 	UPROPERTY(EditAnywhere, Category = "Bending")
 	bool bEnableXPBDBendConstraints = true;
-	UPROPERTY(EditAnywhere, Category = "Bending")
+	UPROPERTY(EditAnywhere, Category = "Bending", meta = (EditCondition = "bEnableXPBDBendConstraints"))
 	bool bEnableBendAnisotropy = false;
 
-	UPROPERTY(EditAnywhere, Category = "Bending", DisplayName = "Bending Stiffness (Warp) [kg cm/s^2 rad]", meta = (UIMin = "0", UIMax = "10000", ClampMin = "0", ClampMax = "10000000", EditCondition = "bEnableXPBDBendConstraints"))
+	UPROPERTY(EditAnywhere, Category = "Bending", DisplayName = "Bending Stiffness (Warp) [kg cm^2/s^2 rad^2]", meta = (UIMin = "0", UIMax = "10000", ClampMin = "0", ClampMax = "10000000", EditCondition = "bEnableXPBDBendConstraints"))
 	FChaosClothWeightedValue BendingStiffness = { 100.f, 100.f };
 
-	UPROPERTY(EditAnywhere, Category = "Bending", DisplayName = "Bending Stiffness (Weft) [kg cm/s^2 rad]", meta = (UIMin = "0", UIMax = "10000", ClampMin = "0", ClampMax = "10000000", EditCondition = "bEnableXPBDBendConstraints && bEnableBendAnisotropy"))
+	UPROPERTY(EditAnywhere, Category = "Bending", DisplayName = "Bending Stiffness (Weft) [kg cm^2/s^2 rad^2]", meta = (UIMin = "0", UIMax = "10000", ClampMin = "0", ClampMax = "10000000", EditCondition = "bEnableXPBDBendConstraints && bEnableBendAnisotropy"))
 	FChaosClothWeightedValue BendingStiffnessWeft = { 100.f, 100.f };
 
-	UPROPERTY(EditAnywhere, Category = "Bending", DisplayName = "Bending Stiffness (Bias) [kg cm/s^2 rad]", meta = (UIMin = "0", UIMax = "10000", ClampMin = "0", ClampMax = "10000000", EditCondition = "bEnableXPBDBendConstraints && bEnableBendAnisotropy"))
+	UPROPERTY(EditAnywhere, Category = "Bending", DisplayName = "Bending Stiffness (Bias) [kg cm^2/s^2 rad^2]", meta = (UIMin = "0", UIMax = "10000", ClampMin = "0", ClampMax = "10000000", EditCondition = "bEnableXPBDBendConstraints && bEnableBendAnisotropy"))
 	FChaosClothWeightedValue BendingStiffnessBias = { 100.f, 100.f };
 
 	UPROPERTY(EditAnywhere, Category = "Bending", DisplayName = "Bending Damping Ratio", meta = (UIMin = "0", UIMax = "10", ClampMin = "0", ClampMax = "1000", EditCondition = "bEnableXPBDBendConstraints"))

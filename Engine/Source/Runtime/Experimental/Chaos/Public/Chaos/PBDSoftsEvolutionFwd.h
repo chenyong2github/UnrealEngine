@@ -30,6 +30,7 @@ namespace Chaos
 		using FSolverReal = FRealSingle;
 		using FSolverVec2 = TVector<FSolverReal, 2>;
 		using FSolverVec3 = TVector<FSolverReal, 3>;
+		using FSolverMatrix22 = PMatrix<FSolverReal, 2, 2>;
 		using FSolverMatrix33 = PMatrix<FSolverReal, 3, 3>;
 		using FSolverMatrix44 = PMatrix<FSolverReal, 4, 4>;
 		using FSolverRigidParticles = TKinematicGeometryParticlesImp<FSolverReal, 3, EGeometryParticlesSimType::Other>;
@@ -46,6 +47,7 @@ namespace Chaos
 		// Softs solver constraint classes
 		class FPBDSpringConstraints;
 		class FPBDEdgeSpringConstraints;
+		class FXPBDStretchBiasElementConstraints;
 		class FPBDBendingSpringConstraints;
 		class FXPBDSpringConstraints;
 		class FXPBDEdgeSpringConstraints;

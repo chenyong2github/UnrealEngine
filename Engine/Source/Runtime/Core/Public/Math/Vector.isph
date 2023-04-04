@@ -391,6 +391,24 @@ inline void VectorStore(uniform FIntVector4 *uniform DstPtr, const varying FIntV
 }
 
 
+inline varying FVector2f VectorLoad(const uniform FVector2f *uniform SrcPtr)
+{
+	varying FVector2f Result;
+
+	if(((1<<TARGET_WIDTH)-1 ^ lanemask()) == 0)
+	{
+		aos_to_soa2_ispc((uniform float * uniform)SrcPtr, &Result.V[0], &Result.V[1]);
+	}
+	else
+	{
+		#pragma ignore warning(perf)
+		Result = SrcPtr[programIndex];
+	}
+
+	return Result;
+}
+
+
 inline varying FVector2 VectorLoad(const uniform FVector2 *uniform SrcPtr)
 {
 	varying FVector2 Result;
