@@ -151,6 +151,7 @@ bool AControlRigShapeActor::UpdateControlSettings(
 						{
 							StaticMeshComponent->SetStaticMesh(StaticMesh);
 							bShapeTransformChanged = true;
+							ShapeName = ControlSettings.ShapeName;
 						}
 					}
 					else
