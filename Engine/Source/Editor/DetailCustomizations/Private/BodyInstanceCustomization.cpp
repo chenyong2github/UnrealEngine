@@ -133,6 +133,12 @@ void FBodyInstanceCustomization::AddCollisionCategory(TSharedRef<class IProperty
 	check (CollisionProfileNameHandle.IsValid());
 	check (CollisionEnabledHandle.IsValid());
 	check (ObjectTypeHandle.IsValid());
+	check (CollisionResponsesHandle.IsValid());
+	
+	// Expensive to validate
+    // Presets update the DetailView on event, cannot be changed when custom from scripts so is safe
+    // to skip validation each from for.
+    CollisionResponsesHandle->SetIgnoreValidation(true);
 
 	// need to find profile name
 	FName ProfileName;
