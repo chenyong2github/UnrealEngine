@@ -514,8 +514,7 @@ void FReplicationSystemUtil::RemoveSubObjectGroupMembership(const APlayerControl
 	}
 	
 	// We assume the player controller is tied to a single connection.
-	UNetConnection* Conn = PC->GetNetConnection();
-	if (ensureAlways(Conn))
+	if (UNetConnection* Conn = PC->GetNetConnection())
 	{
 		if (UReplicationSystem* ReplicationSystem = Conn->GetDriver() ? Conn->GetDriver()->GetReplicationSystem() : nullptr)
 		{
