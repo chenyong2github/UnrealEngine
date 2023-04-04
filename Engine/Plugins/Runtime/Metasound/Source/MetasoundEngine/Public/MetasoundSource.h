@@ -169,8 +169,8 @@ public:
 	{
 		return this;
 	}
-
 	virtual void InitParameters(TArray<FAudioParameter>& ParametersToInit, FName InFeatureName) override;
+
 	virtual void InitResources() override;
 
 	virtual bool IsPlayable() const override;
@@ -209,6 +209,11 @@ protected:
 	virtual const FMetasoundFrontendDocument& GetDocument() const override
 	{
 		return RootMetasoundDocument;
+	}
+
+	virtual const UClass& GetBaseMetaSoundUClass() const final override
+	{
+		return *UMetaSoundSource::StaticClass();
 	}
 
 	/** Gets all the default parameters for this Asset.  */

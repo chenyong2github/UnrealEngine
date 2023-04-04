@@ -2,7 +2,9 @@
 #include "Interfaces/MetasoundOutputFormatInterfaces.h"
 
 #include "IAudioParameterInterfaceRegistry.h"
+#include "Metasound.h"
 #include "MetasoundAudioBuffer.h"
+#include "MetasoundSource.h"
 #include "MetasoundTrigger.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/Class.h"
@@ -14,7 +16,7 @@
 
 namespace Metasound::Engine
 {
-	namespace MetasoundOutputFormatInterfacesPrivate
+	namespace OutputFormatPrivate
 	{
 		Audio::FParameterInterface::FOutput GetFrontLeftOutput(const FName& InVertexName)
 		{
@@ -119,7 +121,16 @@ namespace Metasound::Engine
 				107
 			};
 		}
-	} // namespace MetasoundOutputFormatInterfacesPrivate
+
+		TArray<Audio::FParameterInterface::FClassOptions> GetUClassOptions(bool bIsSourceDefault = false)
+		{
+			return
+			{
+				{ UMetaSoundPatch::StaticClass()->GetClassPathName(), true /* bIsModifiable */, false /* bIsDefault */ },
+				{ UMetaSoundSource::StaticClass()->GetClassPathName(),  false /* bIsModifiable */, bIsSourceDefault }
+			};
+		};
+	} // namespace OutputFormatPrivate
 
 #define AUDIO_PARAMETER_INTERFACE_NAMESPACE "UE.OutputFormat.Mono"
 	namespace OutputFormatMonoInterface
@@ -147,6 +158,9 @@ namespace Metasound::Engine
 				FInterface()
 					: FParameterInterface(OutputFormatMonoInterface::GetVersion().Name, OutputFormatMonoInterface::GetVersion().Number.ToInterfaceVersion())
 				{
+					constexpr bool bIsSourceDefault = true;
+					UClassOptions = OutputFormatPrivate::GetUClassOptions(bIsSourceDefault);
+
 					Outputs =
 					{
 						{
@@ -194,6 +208,7 @@ namespace Metasound::Engine
 				FInterface()
 					: FParameterInterface(OutputFormatStereoInterface::GetVersion().Name, OutputFormatStereoInterface::GetVersion().Number.ToInterfaceVersion())
 				{
+					UClassOptions = OutputFormatPrivate::GetUClassOptions();
 					Outputs =
 					{
 						{
@@ -252,8 +267,9 @@ namespace Metasound::Engine
 				FInterface()
 					: FParameterInterface(OutputFormatQuadInterface::GetVersion().Name, OutputFormatQuadInterface::GetVersion().Number.ToInterfaceVersion())
 				{
-					using namespace MetasoundOutputFormatInterfacesPrivate;
+					using namespace OutputFormatPrivate;
 
+					UClassOptions = GetUClassOptions();
 					Outputs =
 					{
 						GetFrontLeftOutput(Outputs::FrontLeftOut),
@@ -300,7 +316,9 @@ namespace Metasound::Engine
 				FInterface()
 					: FParameterInterface(OutputFormatFiveDotOneInterface::GetVersion().Name, OutputFormatFiveDotOneInterface::GetVersion().Number.ToInterfaceVersion())
 				{
-					using namespace MetasoundOutputFormatInterfacesPrivate;
+					using namespace OutputFormatPrivate;
+
+					UClassOptions = GetUClassOptions();
 					Outputs =
 					{
 						GetFrontLeftOutput(Outputs::FrontLeftOut),
@@ -351,7 +369,9 @@ namespace Metasound::Engine
 				FInterface()
 					: FParameterInterface(OutputFormatSevenDotOneInterface::GetVersion().Name, OutputFormatSevenDotOneInterface::GetVersion().Number.ToInterfaceVersion())
 				{
-					using namespace MetasoundOutputFormatInterfacesPrivate;
+					using namespace OutputFormatPrivate;
+
+					UClassOptions = GetUClassOptions();
 					Outputs =
 					{
 						GetFrontLeftOutput(Outputs::FrontLeftOut),

@@ -2,30 +2,30 @@
 #pragma once
 
 #include "IAudioParameterInterfaceRegistry.h"
+#include "Interfaces/MetasoundFrontendInterfaceRegistry.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendTransform.h"
 
 
 namespace Metasound::Engine
 {
-	struct FInterfaceRegistryUClassOptions
+	// Entry for registered interface.
+	class FInterfaceRegistryEntry : public Frontend::IInterfaceRegistryEntry
 	{
-		FName ClassName;
-		bool bIsDefault = false;
-		bool bEditorCanAddOrRemove = false;
-	};
+	public:
+		FInterfaceRegistryEntry(FMetasoundFrontendInterface&& InInterface, FName InRouterName = IDataReference::RouterName);
+		FInterfaceRegistryEntry(const FMetasoundFrontendInterface& InInterface, FName InRouterName = IDataReference::RouterName);
+		FInterfaceRegistryEntry(const FMetasoundFrontendInterface& InInterface, TUniquePtr<Frontend::IDocumentTransform>&& InUpdateTransform, FName InRouterName = IDataReference::RouterName);
 
-	struct FInterfaceRegistryOptions
-	{
-		FName InputSystemName;
-		TArray<FInterfaceRegistryUClassOptions> UClassOptions;
-	};
+		virtual FName GetRouterName() const override;
+		virtual const FMetasoundFrontendInterface& GetInterface() const override;
+		virtual bool UpdateRootGraphInterface(Frontend::FDocumentHandle InDocument) const override;
 
-	FMetasoundFrontendInterface ConvertParameterToFrontendInterface(const Audio::FParameterInterface& InInterface);
+	private:
+		FMetasoundFrontendInterface Interface;
+		TUniquePtr<Frontend::IDocumentTransform> UpdateTransform;
+		FName RouterName;
+	};
 
 	void RegisterInterfaces();
-	void RegisterInterface(Audio::FParameterInterfacePtr Interface, TUniquePtr<Frontend::IDocumentTransform>&& InUpdateTransform, FInterfaceRegistryOptions&& InOptions);
-	void RegisterInterface(const FMetasoundFrontendInterface& InInterface, TUniquePtr<Frontend::IDocumentTransform>&& InUpdateTransform, FInterfaceRegistryOptions&& InOptions);
-	void RegisterInterfaceForSingleClass(const UClass& InClass, Audio::FParameterInterfacePtr Interface, TUniquePtr<Frontend::IDocumentTransform>&& InUpdateTransform, bool bInIsDefault = false, bool bInEditorCanAddOrRemove = false, FName InRouterName = IDataReference::RouterName);
-	void RegisterInterfaceForSingleClass(const UClass& InClass, const FMetasoundFrontendInterface& InInterface, TUniquePtr<Frontend::IDocumentTransform>&& InUpdateTransform, bool bInIsDefault = false, bool bInEditorCanAddOrRemove = false, FName InRouterName = IDataReference::RouterName);
 } // namespace Metasound::Engine

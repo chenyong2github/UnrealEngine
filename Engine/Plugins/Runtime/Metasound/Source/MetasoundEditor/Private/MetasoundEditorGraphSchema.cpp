@@ -1652,10 +1652,12 @@ void UMetasoundEditorGraphSchema::GetAssetsGraphHoverMessage(const TArray<FAsset
 
 	OutTooltipText = TEXT("Add MetaSound reference to Graph.");
 
-	IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
 	for (const FAssetData& Data : Assets)
 	{
-		if (!EditorModule.IsMetaSoundAssetClass(Data.GetClass()->GetClassPathName()))
+		UClass* AssetClass = Data.GetClass();
+		check(AssetClass);
+		const bool bIsRegisteredClass = IMetasoundUObjectRegistry::Get().IsRegisteredClass(*AssetClass);
+		if (!bIsRegisteredClass)
 		{
 			OutOkIcon = false;
 			OutTooltipText = TEXT("Asset(s) must all be MetaSounds.");

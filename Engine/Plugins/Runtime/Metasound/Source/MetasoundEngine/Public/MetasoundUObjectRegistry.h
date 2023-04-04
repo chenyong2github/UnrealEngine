@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 
 #include "Engine/Engine.h"
 #include "MetasoundAssetBase.h"
+#include "MetasoundDocumentInterface.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "UObject/Object.h"
 #include "Templates/Function.h"
@@ -42,6 +42,9 @@ namespace Metasound
 		/** Returns true if the UClass is a child of this UClass associated with this entry. */
 		virtual bool IsChildClass(const UClass* InClass) const = 0;
 
+		/** Returns whether entry's class is a serialized asset or a transient type */
+		virtual bool IsAssetType() const = 0;
+
 		/** Attempts to cast the UObject to an FMetasoundAssetBase */
 		virtual FMetasoundAssetBase* Cast(UObject* InObject) const = 0;
 
@@ -66,13 +69,14 @@ namespace Metasound
 
 	/** An entry into the Metasound-UObject registry.
 	 *
-	 * @Tparam UClassType A class which derives from UObject and FMetasoundAssetBase.
+	 * @Tparam UClassType A class which derives from UObject and IMetaSoundDocumentInterface.
+	 * @Tparam IsAssetType If true, type derives from FMetasoundAssetBase and is considered a serializable, playable asset.
 	 */
 	template<typename UClassType>
 	class TMetasoundUObjectRegistryEntry : public IMetasoundUObjectRegistryEntry
 	{
-		// Ensure that this is a subclass of FMetasoundAssetBase and UObject.
-		static_assert(std::is_base_of<FMetasoundAssetBase, UClassType>::value, "UClass must be derived from FMetasoundAssetBase");
+		// Ensure that this is a subclass of IMetaSoundDocumentInterface and UObject.
+		static_assert(std::is_base_of<IMetaSoundDocumentInterface, UClassType>::value, "UClass must be derived from IMetaSoundDocumentInterface");
 		static_assert(std::is_base_of<UObject, UClassType>::value, "UClass must be derived from UObject");
 
 	public:
@@ -84,7 +88,7 @@ namespace Metasound
 			return UClassType::StaticClass();
 		}
 
-		bool IsChildClass(const UObject* InObject) const override
+		virtual bool IsChildClass(const UObject* InObject) const override
 		{
 			if (nullptr != InObject)
 			{
@@ -93,7 +97,7 @@ namespace Metasound
 			return false;
 		}
 
-		bool IsChildClass(const UClass* InClass) const override
+		virtual bool IsChildClass(const UClass* InClass) const override
 		{
 			if (nullptr != InClass)
 			{
@@ -102,22 +106,43 @@ namespace Metasound
 			return false;
 		}
 
-		FMetasoundAssetBase* Cast(UObject* InObject) const override
+		virtual bool IsAssetType() const override
 		{
-			if (nullptr == InObject)
-			{
-				return nullptr;
-			}
-			return static_cast<FMetasoundAssetBase*>(CastChecked<UClassType>(InObject));
+			return std::is_base_of<FMetasoundAssetBase, UClassType>::value;
 		}
 
-		const FMetasoundAssetBase* Cast(const UObject* InObject) const override
+		virtual FMetasoundAssetBase* Cast(UObject * InObject) const override
 		{
-			if (nullptr == InObject)
+			if constexpr (!std::is_base_of<FMetasoundAssetBase, UClassType>::value)
 			{
 				return nullptr;
 			}
-			return static_cast<const FMetasoundAssetBase*>(CastChecked<const UClassType>(InObject));
+			else
+			{
+				if (InObject)
+				{
+					return static_cast<FMetasoundAssetBase*>(CastChecked<UClassType>(InObject));
+				}
+
+				return nullptr;
+			}
+		}
+
+		virtual const FMetasoundAssetBase* Cast(const UObject* InObject) const override
+		{
+			if constexpr (!std::is_base_of<FMetasoundAssetBase, UClassType>::value)
+			{
+				return nullptr;
+			}
+			else
+			{
+				if (InObject)
+				{
+					return static_cast<const FMetasoundAssetBase*>(CastChecked<const UClassType>(InObject));
+				}
+
+				return nullptr;
+			}
 		}
 	};
 
@@ -160,10 +185,13 @@ namespace Metasound
 			virtual UObject* NewObject(UClass* InClass, const FMetasoundFrontendDocument& InDocument, const FString& InPath) const { return nullptr; }
 
 			/** Iterate all registered UClasses that serve as MetaSound assets.*/
-			virtual void IterateRegisteredUClasses(TFunctionRef<void(UClass&)> InFunc) const = 0;
+			virtual void IterateRegisteredUClasses(TFunctionRef<void(UClass&)> InFunc, bool bAssetTypesOnly = true) const = 0;
 
 			/** Returns true if the InObject is of a class or child class which is registered. */
 			virtual bool IsRegisteredClass(UObject* InObject) const = 0;
+
+			/** Returns true if the InClass matches a class or child class which is registered. */
+			virtual bool IsRegisteredClass(const UClass& InClass) const = 0;
 
 			/** Returns casts the UObject to a FMetasoundAssetBase if the UObject is of a registered type.
 			 * If the UObject's UClass is not registered, then a nullptr is returned. 

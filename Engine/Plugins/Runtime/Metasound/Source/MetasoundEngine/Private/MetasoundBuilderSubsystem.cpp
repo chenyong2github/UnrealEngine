@@ -479,8 +479,12 @@ void UMetaSoundBuilderBase::CreateTransientDocument()
 	TObjectPtr<UMetaSoundBuilderDocument> NewBuilder = NewObject<UMetaSoundBuilderDocument>();
 	TScriptInterface<IMetaSoundDocumentInterface> MetaSoundSourceDocInterface = NewBuilder;
 	Builder = FMetaSoundFrontendDocumentBuilder(MetaSoundSourceDocInterface);
-	const UClass& BuilderClass = GetBuilderUClass();
-	Builder.InitDocument(BuilderClass.GetFName());
+	Builder.InitDocument();
+}
+
+const UClass& UMetaSoundBuilderBase::GetBaseMetaSoundUClass() const
+{
+	return Builder.GetDocumentInterface().GetBaseMetaSoundUClass();
 }
 
 void UMetaSoundBuilderBase::InitNodeLocations()
@@ -611,16 +615,6 @@ void UMetaSoundBuilderBase::GetNodeOutputData(const FMetaSoundBuilderNodeOutputH
 TScriptInterface<IMetaSoundDocumentInterface> UMetaSoundPatchBuilder::Build(UObject* Parent, const FMetaSoundBuilderOptions& InBuilderOptions) const
 {
 	return BuildInternal<UMetaSoundPatch>(Parent, InBuilderOptions);
-}
-
-UClass& UMetaSoundPatchBuilder::GetBuilderUClass() const
-{
-	return *UMetaSoundPatch::StaticClass();
-}
-
-UClass& UMetaSoundSourceBuilder::GetBuilderUClass() const
-{
-	return *UMetaSoundSource::StaticClass();
 }
 
 void UMetaSoundSourceBuilder::Audition(UObject* Parent, UAudioComponent* AudioComponent, FOnCreateAuditionGeneratorHandleDelegate CreateGenerator)

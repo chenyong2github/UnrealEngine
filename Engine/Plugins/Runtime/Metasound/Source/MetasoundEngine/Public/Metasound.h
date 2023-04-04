@@ -135,6 +135,11 @@ public:
 		return RootMetaSoundDocument;
 	}
 
+	virtual const UClass& GetBaseMetaSoundUClass() const final override
+	{
+		return *UMetaSoundPatch::StaticClass();
+	}
+
 #if WITH_EDITOR
 	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 	virtual void PostEditUndo() override;

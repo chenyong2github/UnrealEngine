@@ -42,7 +42,7 @@ namespace Audio
 	)
 		: NamePrivate(InName)
 		, VersionPrivate(InVersion)
-		, SupportedUClassNames({ InType.GetPathName() })
+		, UClassOptions({ { InType.GetClassPathName() } })
 	{
 	}
 
@@ -50,17 +50,6 @@ namespace Audio
 		: NamePrivate(InName)
 		, VersionPrivate(InVersion)
 	{
-	}
-
-	FParameterInterface::FParameterInterface(FName InName, const FVersion& InVersion, const TArray<UClass*>& InClasses)
-		: NamePrivate(InName)
-		, VersionPrivate(InVersion)
-	{
-		Algo::Transform(InClasses, SupportedUClassNames, [](const UClass* Class)
-		{
-			check(Class);
-			return Class->GetPathName();
-		});
 	}
 
 	FName FParameterInterface::GetName() const
@@ -76,6 +65,11 @@ namespace Audio
 	const UClass& FParameterInterface::GetType() const
 	{
 		return *UObject::StaticClass();
+	}
+
+	const TArray<FParameterInterface::FClassOptions>& FParameterInterface::GetUClassOptions() const
+	{
+		return UClassOptions;
 	}
 
 	const TArray<FParameterInterface::FInput>& FParameterInterface::GetInputs() const
@@ -96,9 +90,9 @@ namespace Audio
 	TArray<const UClass*> FParameterInterface::FindSupportedUClasses() const
 	{
 		TArray<const UClass*> SupportedUClasses;
-		for (const FString& Name : SupportedUClassNames)
+		for (const FClassOptions& Options : UClassOptions)
 		{
-			if (const UClass* Class = FindFirstObject<const UClass>(*Name, EFindFirstObjectOptions::ExactClass, ELogVerbosity::Warning, TEXT("FParameterInterface::FindSupportedUClasses")))
+			if (const UClass* Class = FindObject<const UClass>(Options.ClassPath))
 			{
 				SupportedUClasses.Add(Class);
 			}

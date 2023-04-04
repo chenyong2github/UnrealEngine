@@ -1566,8 +1566,8 @@ namespace Metasound
 				UClass* AssetClass = InMetaSound.GetClass();
 				check(AssetClass);
 
-				TArray<FMetasoundFrontendInterface> InitInterfaces = ISearchEngine::Get().FindUClassDefaultInterfaces(AssetClass->GetFName());
-				FModifyRootGraphInterfaces({ }, InitInterfaces).Transform(Doc);
+				TArray<FMetasoundFrontendVersion> InitVersions = ISearchEngine::Get().FindUClassDefaultInterfaceVersions(AssetClass->GetClassPathName());
+				FModifyRootGraphInterfaces({ }, InitVersions).Transform(Doc);
 			}
 
 			FGraphHandle GraphHandle = MetaSoundAsset->GetRootGraphHandle();

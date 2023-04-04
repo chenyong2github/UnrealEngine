@@ -124,6 +124,8 @@ namespace Metasound
 				FindClassesWithNameUnsortedQuery.Prime();
 				FindClassesWithNameSortedQuery.Prime();
 				FindClassWithHighestVersionQuery.Prime();
+				FindAllInterfacesIncludingAllVersionsQuery.Prime();
+				FindAllInterfacesQuery.Prime();
 			}
 		}
 
@@ -163,6 +165,21 @@ namespace Metasound
 
 			const FFrontendQueryKey Key{InName.GetFullName()};
 			return FindClassWithHighestVersionQuery.UpdateAndFindResult(Key, OutClass);
+		}
+
+		TArray<FMetasoundFrontendInterface> FSearchEngineEditorOnly::FindAllInterfaces(bool bInIncludeAllVersions)
+		{
+			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FSearchEngineEditorOnly::FindAllInterfaces);
+
+			const FFrontendQueryKey NullKey;
+			if (bInIncludeAllVersions)
+			{
+				return FindAllInterfacesIncludingAllVersionsQuery.UpdateAndFindResult(NullKey);
+			}
+			else
+			{
+				return FindAllInterfacesQuery.UpdateAndFindResult(NullKey);
+			}
 		}
 	}
 }

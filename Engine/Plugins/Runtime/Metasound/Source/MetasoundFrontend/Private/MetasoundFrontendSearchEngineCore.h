@@ -58,7 +58,28 @@ namespace Metasound
 				static bool IsValidTransactionOfType(FInterfaceRegistryTransaction::ETransactionType InType, const FFrontendQueryEntry* InEntry);
 			};
 
+			class FMapUClassToDefaultInterface : public IFrontendQueryMultiMapStep
+			{
+			public:
+				virtual TArray<FFrontendQueryKey> Map(const FFrontendQueryEntry& InEntry) const override;
+			};
+
+			class FReduceInterfaceRegistryTransactionsToDefault : public IFrontendQueryReduceStep
+			{
+			public:
+				virtual void Reduce(const FFrontendQueryKey& InKey, FFrontendQueryPartition& InOutEntries) const override;
+			private:
+				static FInterfaceRegistryTransaction::FTimeType GetTransactionTimestamp(const FFrontendQueryEntry& InEntry);
+				static bool IsValidTransactionOfType(FInterfaceRegistryTransaction::ETransactionType InType, const FFrontendQueryEntry* InEntry);
+			};
+
 			class FTransformInterfaceRegistryTransactionToInterface : public IFrontendQueryTransformStep
+			{
+			public:
+				virtual void Transform(FFrontendQueryEntry::FValue& InValue) const override;
+			};
+
+			class FTransformInterfaceToInterfaceVersion : public IFrontendQueryTransformStep
 			{
 			public:
 				virtual void Transform(FFrontendQueryEntry::FValue& InValue) const override;
@@ -280,6 +301,15 @@ namespace Metasound
 			static TArray<FMetasoundFrontendInterface> BuildResult(const FFrontendQueryPartition& InPartition);
 		};
 
+		// Policy for finding all default interface versions for a given UClass
+		struct FFindAllDefaultInterfaceVersionsForUClassQueryPolicy
+		{
+			using ResultType = TArray<FMetasoundFrontendVersion>;
+
+			static FFrontendQuery CreateQuery();
+			static TArray<FMetasoundFrontendVersion> BuildResult(const FFrontendQueryPartition& InPartition);
+		};
+
 		/** Supports essential search engine functionality needed for runtime. */
 		class FSearchEngineCore : public ISearchEngine
 		{
@@ -296,18 +326,15 @@ namespace Metasound
 			virtual bool FindClassWithHighestMinorVersion(const FMetasoundFrontendClassName& InName, int32 InMajorVersion, FMetasoundFrontendClass& OutClass) override;
 
 			virtual TArray<FMetasoundFrontendInterface> FindUClassDefaultInterfaces(FName InUClassName) override;
+			virtual TArray<FMetasoundFrontendVersion> FindUClassDefaultInterfaceVersions(const FTopLevelAssetPath& InUClassPath) override;
 			virtual TArray<FMetasoundFrontendVersion> FindAllRegisteredInterfacesWithName(FName InInterfaceName) override;
 			virtual bool FindInterfaceWithHighestVersion(FName InInterfaceName, FMetasoundFrontendInterface& OutInterface) override;
-			virtual TArray<FMetasoundFrontendInterface> FindAllInterfaces(bool bInIncludeAllVersions) override;
 
 		private:
-
 			TSearchEngineQuery<FFindClassWithHighestMinorVersionQueryPolicy> FindClassWithHighestMinorVersionQuery;
 			TSearchEngineQuery<FFindAllRegisteredInterfacesWithNameQueryPolicy> FindAllRegisteredInterfacesWithNameQuery;
+			TSearchEngineQuery<FFindAllDefaultInterfaceVersionsForUClassQueryPolicy> FindAllDefaultInterfaceVersionsForUClassQuery;
 			TSearchEngineQuery<FFindInterfaceWithHighestVersionQueryPolicy> FindInterfaceWithHighestVersionQuery;
-			TSearchEngineQuery<FFindAllInterfacesQueryPolicy> FindAllInterfacesQuery;
-			TSearchEngineQuery<FFindAllInterfacesIncludingAllVersionsQueryPolicy> FindAllInterfacesIncludingAllVersionsQuery;
 		};
 	}
 }
-

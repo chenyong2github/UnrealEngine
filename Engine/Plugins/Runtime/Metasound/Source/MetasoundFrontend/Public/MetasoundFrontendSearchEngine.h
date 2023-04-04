@@ -31,9 +31,11 @@ namespace Metasound::Frontend
 
 			virtual bool FindInterfaceWithHighestVersion(FName InInterfaceName, FMetasoundFrontendInterface& OutInterface) = 0;
 
+			UE_DEPRECATED(5.3, "Use ISearchEngine::FindUClassDefaultInterfaceVersions using TopLevelAssetPath instead.")
 			virtual TArray<FMetasoundFrontendInterface> FindUClassDefaultInterfaces(FName InUClassName) = 0;
 
-			virtual TArray<FMetasoundFrontendInterface> FindAllInterfaces(bool bInIncludeAllVersions = false) = 0;
+			/** Returns all interfaces that are to be added to a given document when it is initialized on an object with the given class**/
+			virtual TArray<FMetasoundFrontendVersion> FindUClassDefaultInterfaceVersions(const FTopLevelAssetPath& InUClassPath) = 0;
 
 #if WITH_EDITORONLY_DATA
 			/** Find all FMetasoundFrontendClasses.
@@ -48,7 +50,10 @@ namespace Metasound::Frontend
 
 			/** Find the highest version of a class with the given ClassName. Returns false if not found, true if found. */
 			virtual bool FindClassWithHighestVersion(const FMetasoundFrontendClassName& InName, FMetasoundFrontendClass& OutClass) = 0;
-#endif
+
+			/** Returns array with all registered interfaces. Optionally, include interface versions that are not the highest version. */
+			virtual TArray<FMetasoundFrontendInterface> FindAllInterfaces(bool bInIncludeAllVersions = false) = 0;
+#endif // WITH_EDITORONLY_DATA
 
 		protected:
 			ISearchEngine() = default;

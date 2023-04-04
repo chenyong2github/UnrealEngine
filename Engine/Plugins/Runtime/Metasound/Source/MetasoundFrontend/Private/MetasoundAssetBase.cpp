@@ -320,11 +320,10 @@ void FMetasoundAssetBase::AddDefaultInterfaces()
 
 	UClass* AssetClass = OwningAsset->GetClass();
 	check(AssetClass);
+	const FTopLevelAssetPath& ClassPath = AssetClass->GetClassPathName();
 
-	FDocumentHandle DocumentHandle = GetDocumentHandle();
-
-	TArray<FMetasoundFrontendInterface> InitInterfaces = ISearchEngine::Get().FindUClassDefaultInterfaces(AssetClass->GetFName());
-	FModifyRootGraphInterfaces({ }, InitInterfaces).Transform(DocumentHandle);
+	TArray<FMetasoundFrontendVersion> InitVersions = ISearchEngine::Get().FindUClassDefaultInterfaceVersions(ClassPath);
+	FModifyRootGraphInterfaces({ }, InitVersions).Transform(GetDocumentChecked());
 }
 
 void FMetasoundAssetBase::SetDocument(FMetasoundFrontendDocument&& InDocument)

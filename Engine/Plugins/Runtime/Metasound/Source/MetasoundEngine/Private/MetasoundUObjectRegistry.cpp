@@ -37,6 +37,21 @@ namespace Metasound
 				return (nullptr != GetEntryByUObject(InObject));
 			}
 
+			bool IsRegisteredClass(const UClass& InClass) const override
+			{
+				auto IsChildClassOfRegisteredClass = [&](const IMetasoundUObjectRegistryEntry* Entry)
+				{
+					if (Entry)
+					{
+						return Entry->IsChildClass(&InClass);
+					}
+
+					return false;
+				};
+
+				return FindEntryByPredicate(IsChildClassOfRegisteredClass) != nullptr;
+			}
+
 			FMetasoundAssetBase* GetObjectAsAssetBase(UObject* InObject) const override
 			{
 				if (const IMetasoundUObjectRegistryEntry* Entry = GetEntryByUObject(InObject))
@@ -55,22 +70,25 @@ namespace Metasound
 				return nullptr;
 			}
 
-			void IterateRegisteredUClasses(TFunctionRef<void(UClass&)> InFunc) const override
+			void IterateRegisteredUClasses(TFunctionRef<void(UClass&)> InFunc, bool bAssetTypesOnly) const override
 			{
 				for (const IMetasoundUObjectRegistryEntry* Entry : Entries)
 				{
 					if (Entry)
 					{
-						if (UClass* Class = Entry->GetUClass())
+						if (!bAssetTypesOnly || Entry->IsAssetType())
 						{
-							InFunc(*Class);
+							if (UClass* Class = Entry->GetUClass())
+							{
+								InFunc(*Class);
+							}
 						}
 					}
 				}
 			}
 
 		private:
-			const IMetasoundUObjectRegistryEntry* FindEntryByPredicate(TFunction<bool (const IMetasoundUObjectRegistryEntry*)> InPredicate) const
+			const IMetasoundUObjectRegistryEntry* FindEntryByPredicate(TFunctionRef<bool (const IMetasoundUObjectRegistryEntry*)> InPredicate) const
 			{
 				const IMetasoundUObjectRegistryEntry* const* Entry = Entries.FindByPredicate(InPredicate);
 
@@ -82,7 +100,7 @@ namespace Metasound
 				return *Entry;
 			}
 
-			TArray<const IMetasoundUObjectRegistryEntry*> FindEntriesByPredicate(TFunction<bool (const IMetasoundUObjectRegistryEntry*)> InPredicate) const
+			TArray<const IMetasoundUObjectRegistryEntry*> FindEntriesByPredicate(TFunctionRef<bool (const IMetasoundUObjectRegistryEntry*)> InPredicate) const
 			{
 				TArray<const IMetasoundUObjectRegistryEntry*> FoundEntries;
 

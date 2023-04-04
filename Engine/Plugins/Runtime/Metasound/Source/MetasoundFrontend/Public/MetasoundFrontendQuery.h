@@ -133,6 +133,14 @@ namespace Metasound
 			virtual FFrontendQueryKey Map(const FFrontendQueryEntry& InEntry) const = 0;
 	};
 
+	/** Interface for a query step which maps entries to multiple keys. */
+	class IFrontendQueryMultiMapStep : public IFrontendQueryStep
+	{
+	public:
+		virtual ~IFrontendQueryMultiMapStep() = default;
+		virtual TArray<FFrontendQueryKey> Map(const FFrontendQueryEntry& InEntry) const = 0;
+	};
+
 	/** Interface for a query step which reduces entries with the same key. */
 	class IFrontendQueryReduceStep : public IFrontendQueryStep
 	{
@@ -224,6 +232,7 @@ namespace Metasound
 		using FStreamFunction = TUniqueFunction<void (TArray<FFrontendQueryValue>&)>;
 		using FTransformFunction = TFunction<void (FFrontendQueryEntry::FValue&)>;
 		using FMapFunction = TFunction<FFrontendQueryKey (const FFrontendQueryEntry&)>;
+		using FMultiMapFunction = TFunction<TArray<FFrontendQueryKey>(const FFrontendQueryEntry&)>;
 		using FReduceFunction = TFunction<void (const FFrontendQueryKey& InKey, FFrontendQueryPartition& InOutEntries)>;
 		using FFilterFunction = TFunction<bool (const FFrontendQueryEntry&)>;
 		using FScoreFunction = TFunction<float (const FFrontendQueryEntry&)>;
@@ -234,6 +243,7 @@ namespace Metasound
 		FFrontendQueryStep(FStreamFunction&& InFunc);
 		FFrontendQueryStep(FTransformFunction&& InFunc);
 		FFrontendQueryStep(FMapFunction&& InFunc);
+		FFrontendQueryStep(FMultiMapFunction&& InFunc);
 		FFrontendQueryStep(FReduceFunction&& InFunc);
 		FFrontendQueryStep(FFilterFunction&& InFilt);
 		FFrontendQueryStep(FScoreFunction&& InScore);
@@ -244,6 +254,7 @@ namespace Metasound
 		FFrontendQueryStep(TUniquePtr<IFrontendQueryStreamStep>&& InStep);
 		FFrontendQueryStep(TUniquePtr<IFrontendQueryTransformStep>&& InStep);
 		FFrontendQueryStep(TUniquePtr<IFrontendQueryMapStep>&& InStep);
+		FFrontendQueryStep(TUniquePtr<IFrontendQueryMultiMapStep>&& InStep);
 		FFrontendQueryStep(TUniquePtr<IFrontendQueryReduceStep>&& InStep);
 		FFrontendQueryStep(TUniquePtr<IFrontendQueryFilterStep>&& InStep);
 		FFrontendQueryStep(TUniquePtr<IFrontendQueryScoreStep>&& InStep);

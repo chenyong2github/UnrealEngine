@@ -3,7 +3,9 @@
 
 #include "IAudioParameterInterfaceRegistry.h"
 #include "Interfaces/MetasoundOutputFormatInterfaces.h"
+#include "Metasound.h"
 #include "MetasoundAudioBuffer.h"
+#include "MetasoundSource.h"
 #include "MetasoundTrigger.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/Class.h"
@@ -12,6 +14,18 @@
 #define LOCTEXT_NAMESPACE "MetasoundEngine"
 namespace Metasound::Engine
 {
+	namespace InputFormatPrivate
+	{
+		TArray<Audio::FParameterInterface::FClassOptions> GetUClassOptions()
+		{
+			return
+			{
+				{ UMetaSoundPatch::StaticClass()->GetClassPathName(), true /* bIsModifiable */, false /* bIsDefault */ },
+				{ UMetaSoundSource::StaticClass()->GetClassPathName(), false /* bIsModifiable */ , false /* bIsDefault */ }
+			};
+		};
+	} // namespace InputFormatPrivate
+
 #define AUDIO_PARAMETER_INTERFACE_NAMESPACE "UE.InputFormat.Mono"
 	namespace InputFormatMonoInterface
 	{
@@ -33,6 +47,7 @@ namespace Metasound::Engine
 				FInterface()
 					: FParameterInterface(InputFormatMonoInterface::GetVersion().Name, InputFormatMonoInterface::GetVersion().Number.ToInterfaceVersion())
 				{
+					UClassOptions = InputFormatPrivate::GetUClassOptions();
 					Inputs =
 					{
 						{
@@ -133,6 +148,7 @@ namespace Metasound::Engine
 				FInterface()
 					: FParameterInterface(InputFormatStereoInterface::GetVersion().Name, InputFormatStereoInterface::GetVersion().Number.ToInterfaceVersion())
 				{
+					UClassOptions = InputFormatPrivate::GetUClassOptions();
 					Inputs =
 					{
 						{

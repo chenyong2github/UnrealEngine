@@ -25,6 +25,7 @@ class METASOUNDFRONTEND_API IMetaSoundDocumentInterface : public IInterface
 
 public:
 	virtual const FMetasoundFrontendDocument& GetDocument() const = 0;
+	virtual const UClass& GetBaseMetaSoundUClass() const = 0;
 
 private:
 	virtual FMetasoundFrontendDocument& GetDocument() = 0;

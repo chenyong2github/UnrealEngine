@@ -853,6 +853,7 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassInput : public FMetasoundFro
 	FMetasoundFrontendClassInput() = default;
 
 	FMetasoundFrontendClassInput(const FMetasoundFrontendClassVertex& InOther);
+	FMetasoundFrontendClassInput(const Audio::FParameterInterface::FInput& InInput);
 
 	// Default value for this input.
 	UPROPERTY(EditAnywhere, Category = Parameters)
@@ -881,17 +882,17 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassOutput : public FMetasoundFr
 	GENERATED_BODY()
 
 	FMetasoundFrontendClassOutput() = default;
-
-	FMetasoundFrontendClassOutput(const FMetasoundFrontendClassVertex& InOther)
-	:	FMetasoundFrontendClassVertex(InOther)
-	{
-	}
+	FMetasoundFrontendClassOutput(const FMetasoundFrontendClassVertex& InOther);
+	FMetasoundFrontendClassOutput(const Audio::FParameterInterface::FOutput& Output);
 };
 
 USTRUCT()
 struct METASOUNDFRONTEND_API FMetasoundFrontendClassEnvironmentVariable
 {
 	GENERATED_BODY()
+
+	FMetasoundFrontendClassEnvironmentVariable() = default;
+	FMetasoundFrontendClassEnvironmentVariable(const Audio::FParameterInterface::FEnvironmentVariable& InVariable);
 
 	// Name of environment variable.
 	UPROPERTY()
@@ -1146,14 +1147,47 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendInterfaceBinding
 };
 
 
+// Options used to restrict a corresponding UClass that interface may be applied to.
+// If unspecified, interface is assumed to be applicable to any arbitrary UClass.
+USTRUCT()
+struct METASOUNDFRONTEND_API FMetasoundFrontendInterfaceUClassOptions
+{
+	GENERATED_BODY()
+
+	FMetasoundFrontendInterfaceUClassOptions() = default;
+	FMetasoundFrontendInterfaceUClassOptions(const Audio::FParameterInterface::FClassOptions& InOptions);
+	FMetasoundFrontendInterfaceUClassOptions(const FTopLevelAssetPath& InClassPath, bool bInIsModifiable = true, bool bInIsDefault = false);
+
+	UPROPERTY()
+	FTopLevelAssetPath ClassPath;
+
+	UPROPERTY()
+	bool bIsModifiable = true;
+
+	UPROPERTY()
+	bool bIsDefault = false;
+};
+
+
+// Definition of an interface that an FMetasoundFrontendClass adheres to in part or full.
 USTRUCT()
 struct METASOUNDFRONTEND_API FMetasoundFrontendInterface : public FMetasoundFrontendClassInterface
 {
 	GENERATED_BODY()
 
+	FMetasoundFrontendInterface() = default;
+	FMetasoundFrontendInterface(Audio::FParameterInterfacePtr InInterface);
+
 	// Name and version number of the interface
 	UPROPERTY()
 	FMetasoundFrontendVersion Version;
+
+	// If specified, options used to restrict a corresponding UClass that interface may be
+	// applied to.  If unspecified, interface is assumed to be applicable to any arbitrary UClass.
+	UPROPERTY()
+	TArray<FMetasoundFrontendInterfaceUClassOptions> UClassOptions;
+
+	const FMetasoundFrontendInterfaceUClassOptions* FindClassOptions(const FTopLevelAssetPath& InClassPath) const;
 };
 
 

@@ -2,7 +2,6 @@
 #include "MetasoundDetailCustomization.h"
 
 #include "Containers/Set.h"
-#include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
@@ -529,8 +528,6 @@ namespace Metasound
 
 		void FMetasoundInterfacesDetailCustomization::UpdateInterfaceNames()
 		{
-			using namespace Frontend;
-
 			AddableInterfaceNames.Reset();
 			ImplementedInterfaceNames.Reset();
 
@@ -539,14 +536,20 @@ namespace Metasound
 			{
 				auto GetVersionName = [](const FMetasoundFrontendVersion& Version) { return Version.Name; };
 				const UClass* MetaSoundClass = MetaSoundObject->GetClass();
-				auto CanAddOrRemoveInterface = [ClassName = MetaSoundClass->GetFName()](const FMetasoundFrontendVersion& Version)
+				auto CanAddOrRemoveInterface = [ClassName = MetaSoundClass->GetClassPathName()](const FMetasoundFrontendVersion& Version)
 				{
-					using namespace Metasound::Frontend;
+					using namespace Frontend;
 
 					const FInterfaceRegistryKey Key = GetInterfaceRegistryKey(Version);
 					if (const IInterfaceRegistryEntry* Entry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(Key))
 					{
-						return Entry->EditorCanAddOrRemove(ClassName);
+						if (const FMetasoundFrontendInterfaceUClassOptions* Options = Entry->GetInterface().FindClassOptions(ClassName))
+						{
+							return Options->bIsModifiable;
+						}
+
+						// If no options are found for the given class, interface is modifiable by default.
+						return true;
 					}
 
 					return false;
@@ -555,7 +558,7 @@ namespace Metasound
 				const TSet<FMetasoundFrontendVersion>& ImplementedInterfaces = MetaSoundAsset->GetDocumentChecked().Interfaces;
 				Algo::TransformIf(ImplementedInterfaces, ImplementedInterfaceNames, CanAddOrRemoveInterface, GetVersionName);
 
-				TArray<FMetasoundFrontendInterface> Interfaces = ISearchEngine::Get().FindAllInterfaces();
+				TArray<FMetasoundFrontendInterface> Interfaces = Frontend::ISearchEngine::Get().FindAllInterfaces();
 				for (const FMetasoundFrontendInterface& Interface : Interfaces)
 				{
 					if (!ImplementedInterfaceNames.Contains(Interface.Version.Name))

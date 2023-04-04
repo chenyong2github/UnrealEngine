@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Interfaces/MetasoundDeprecatedInterfaces.h"
 
+#include "AudioParameter.h"
 #include "IAudioParameterInterfaceRegistry.h"
 #include "Interfaces/MetasoundFrontendInterfaceRegistry.h"
 #include "Interfaces/MetasoundInterface.h"
@@ -21,6 +22,20 @@ namespace Metasound::Engine
 {
 	namespace DeprecatedInterfacesPrivate
 	{
+		const TArray<FMetasoundFrontendInterfaceUClassOptions>& GetDeprecatedClassOptions()
+		{
+			auto GetOptions = []()
+			{
+				constexpr bool bIsModifiable = false;
+				TArray<FMetasoundFrontendInterfaceUClassOptions> Options;
+				Options.Add(FMetasoundFrontendInterfaceUClassOptions(UMetaSoundPatch::StaticClass()->GetClassPathName(), bIsModifiable));
+				Options.Add(FMetasoundFrontendInterfaceUClassOptions(UMetaSoundSource::StaticClass()->GetClassPathName(), bIsModifiable));
+				return Options;
+			};
+			static const TArray<FMetasoundFrontendInterfaceUClassOptions> Options = GetOptions();
+			return Options;
+		}
+
 		auto MatchMemberNamesIgnoreSpaces = [] (FName InNameA, FName InNameB)
 		{
 			FName ParamA;
@@ -71,6 +86,7 @@ namespace Metasound::Engine
 		{
 			FMetasoundFrontendInterface Interface;
 			Interface.Version = GetVersion();
+			Interface.UClassOptions = DeprecatedInterfacesPrivate::GetDeprecatedClassOptions();
 			return Interface;
 		}
 	}
@@ -93,7 +109,8 @@ namespace Metasound::Engine
 		{
 			FMetasoundFrontendInterface Interface;
 			Interface.Version = GetVersion();
-				
+			Interface.UClassOptions = DeprecatedInterfacesPrivate::GetDeprecatedClassOptions();
+
 			// Inputs
 			FMetasoundFrontendClassVertex OnPlayTrigger;
 			OnPlayTrigger.Name = DeprecatedInterfacesPrivate::GetOnPlayInputName();
@@ -160,7 +177,8 @@ namespace Metasound::Engine
 		{
 			FMetasoundFrontendInterface Interface;
 			Interface.Version = GetVersion();
-				
+			Interface.UClassOptions = DeprecatedInterfacesPrivate::GetDeprecatedClassOptions();
+
 			// Inputs
 			FMetasoundFrontendClassVertex OnPlayTrigger;
 			OnPlayTrigger.Name = DeprecatedInterfacesPrivate::GetOnPlayInputName();
@@ -242,6 +260,7 @@ namespace Metasound::Engine
 		{
 			FMetasoundFrontendInterface Interface;
 			Interface.Version = GetVersion();
+			Interface.UClassOptions = DeprecatedInterfacesPrivate::GetDeprecatedClassOptions();
 
 			// Inputs
 			FMetasoundFrontendClassVertex OnPlayTrigger;
@@ -405,7 +424,8 @@ namespace Metasound::Engine
 		{
 			FMetasoundFrontendInterface Interface;
 			Interface.Version = GetVersion();
-				
+			Interface.UClassOptions = DeprecatedInterfacesPrivate::GetDeprecatedClassOptions();
+
 			// Inputs
 			FMetasoundFrontendClassVertex OnPlayTrigger;
 			OnPlayTrigger.Name = DeprecatedInterfacesPrivate::GetOnPlayInputName();
@@ -542,6 +562,7 @@ namespace Metasound::Engine
 		{
 			FMetasoundFrontendInterface Interface;
 			Interface.Version = GetVersion();
+			Interface.UClassOptions = DeprecatedInterfacesPrivate::GetDeprecatedClassOptions();
 			return Interface;
 		}
 
@@ -579,6 +600,7 @@ namespace Metasound::Engine
 		{
 			FMetasoundFrontendInterface Interface;
 			Interface.Version = GetVersion();
+			Interface.UClassOptions = DeprecatedInterfacesPrivate::GetDeprecatedClassOptions();
 			return Interface;
 		}
 
@@ -608,24 +630,25 @@ namespace Metasound::Engine
 	{
 		using namespace Frontend;
 
-		const UClass& PatchClass = *UMetaSoundPatch::StaticClass();
-		const UClass& SourceClass = *UMetaSoundSource::StaticClass();
+		IInterfaceRegistry& Reg = IInterfaceRegistry::Get();
 
-		// Default Patch Interfaces (legacy)
-		RegisterInterfaceForSingleClass(PatchClass, MetasoundV1_0::GetInterface(), nullptr, true, false);
-
-		RegisterInterfaceForSingleClass(SourceClass, SourceInterfaceV1_0::CreateInterface(), nullptr);
+		Reg.RegisterInterface(MakeUnique<FInterfaceRegistryEntry>(MetasoundV1_0::GetInterface()));
+		Reg.RegisterInterface(MakeUnique<FInterfaceRegistryEntry>(SourceInterfaceV1_0::CreateInterface(*UMetaSoundSource::StaticClass())));
 
 		// Set default interface with unset version to use base UMetaSoundPatch class implementation (legacy requirement for 5.0 alpha).
-		RegisterInterfaceForSingleClass(PatchClass, FMetasoundFrontendInterface(), nullptr);
+		{
+			FMetasoundFrontendInterface DeprecatedInterface;
+			DeprecatedInterface.UClassOptions = DeprecatedInterfacesPrivate::GetDeprecatedClassOptions();
+			Reg.RegisterInterface(MakeUnique<FInterfaceRegistryEntry>(MoveTemp(DeprecatedInterface)));
+		}
 
-		RegisterInterfaceForSingleClass(SourceClass, MetasoundOutputFormatStereoV1_0::GetInterface(), nullptr);
-		RegisterInterfaceForSingleClass(SourceClass, MetasoundOutputFormatStereoV1_1::GetInterface(), MakeUnique<MetasoundOutputFormatStereoV1_1::FUpdateInterface>());
-		RegisterInterfaceForSingleClass(SourceClass, MetasoundOutputFormatStereoV1_2::GetInterface(), MakeUnique<MetasoundOutputFormatStereoV1_2::FUpdateInterface>());
+		Reg.RegisterInterface(MakeUnique<FInterfaceRegistryEntry>(MetasoundOutputFormatStereoV1_0::GetInterface()));
+		Reg.RegisterInterface(MakeUnique<FInterfaceRegistryEntry>(MetasoundOutputFormatStereoV1_1::GetInterface(), MakeUnique<MetasoundOutputFormatStereoV1_1::FUpdateInterface>()));
+		Reg.RegisterInterface(MakeUnique<FInterfaceRegistryEntry>(MetasoundOutputFormatStereoV1_2::GetInterface(), MakeUnique<MetasoundOutputFormatStereoV1_2::FUpdateInterface>()));
 
-		RegisterInterfaceForSingleClass(SourceClass, MetasoundOutputFormatMonoV1_0::GetInterface(), nullptr);
-		RegisterInterfaceForSingleClass(SourceClass, MetasoundOutputFormatMonoV1_1::GetInterface(), MakeUnique<MetasoundOutputFormatMonoV1_1::FUpdateInterface>());
-		RegisterInterfaceForSingleClass(SourceClass, MetasoundOutputFormatMonoV1_2::GetInterface(), MakeUnique<MetasoundOutputFormatMonoV1_2::FUpdateInterface>());
+		Reg.RegisterInterface(MakeUnique<FInterfaceRegistryEntry>(MetasoundOutputFormatMonoV1_0::GetInterface()));
+		Reg.RegisterInterface(MakeUnique<FInterfaceRegistryEntry>(MetasoundOutputFormatMonoV1_1::GetInterface(), MakeUnique<MetasoundOutputFormatMonoV1_1::FUpdateInterface>()));
+		Reg.RegisterInterface(MakeUnique<FInterfaceRegistryEntry>(MetasoundOutputFormatMonoV1_2::GetInterface(), MakeUnique<MetasoundOutputFormatMonoV1_2::FUpdateInterface>()));
 	}
 } // namespace Metasound::Engine
 #undef LOCTEXT_NAMESPACE // MetasoundEngineDeprecatedInterfaces

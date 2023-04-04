@@ -1,10 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundEngineModule.h"
 
+#include "Analysis/MetasoundFrontendAnalyzerRegistry.h"
+#include "Analysis/MetasoundFrontendVertexAnalyzerForwardValue.h"
+#include "Interfaces/MetasoundDeprecatedInterfaces.h"
+#include "Interfaces/MetasoundInterface.h"
+#include "Interfaces/MetasoundInterfaceBindingsPrivate.h"
 #include "Metasound.h"
 #include "MetasoundAudioBus.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
+#include "MetasoundFrontendDataTypeTraits.h"
+#include "MetasoundFrontendDocumentBuilder.h"
 #include "MetasoundOutputSubsystem.h"
 #include "MetasoundOutputWatcher.h"
 #include "MetasoundSource.h"
@@ -12,11 +19,6 @@
 #include "MetasoundUObjectRegistry.h"
 #include "MetasoundWave.h"
 #include "MetasoundWaveTable.h"
-#include "Analysis/MetasoundFrontendAnalyzerRegistry.h"
-#include "Analysis/MetasoundFrontendVertexAnalyzerForwardValue.h"
-#include "Interfaces/MetasoundDeprecatedInterfaces.h"
-#include "Interfaces/MetasoundInterface.h"
-#include "Interfaces/MetasoundInterfaceBindingsPrivate.h"
 #include "Modules/ModuleManager.h"
 #include "Sound/AudioSettings.h"
 
@@ -50,6 +52,7 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 		check(AudioSettings);
 		AudioSettings->RegisterParameterInterfaces();
 
+		IMetasoundUObjectRegistry::Get().RegisterUClass(MakeUnique<TMetasoundUObjectRegistryEntry<UMetaSoundBuilderDocument>>());
 		IMetasoundUObjectRegistry::Get().RegisterUClass(MakeUnique<TMetasoundUObjectRegistryEntry<UMetaSoundPatch>>());
 		IMetasoundUObjectRegistry::Get().RegisterUClass(MakeUnique<TMetasoundUObjectRegistryEntry<UMetaSoundSource>>());
 

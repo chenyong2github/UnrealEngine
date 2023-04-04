@@ -6,6 +6,7 @@
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendRegistryTransaction.h"
 #include "UObject/NoExportTypes.h"
+#include "UObject/TopLevelAssetPath.h"
 
 
 namespace Metasound::Frontend
@@ -21,10 +22,8 @@ namespace Metasound::Frontend
 
 		virtual ~FInterfaceRegistry() = default;
 
-		virtual void RegisterInterface(TUniquePtr<IInterfaceRegistryEntry>&& InEntry) override;
-
+		virtual bool RegisterInterface(TUniquePtr<IInterfaceRegistryEntry>&& InEntry) override;
 		virtual const IInterfaceRegistryEntry* FindInterfaceRegistryEntry(const FInterfaceRegistryKey& InKey) const override;
-
 		virtual bool FindInterface(const FInterfaceRegistryKey& InKey, FMetasoundFrontendInterface& OutInterface) const override;
 
 		TUniquePtr<FInterfaceTransactionStream> CreateTransactionStream();

@@ -119,6 +119,24 @@ namespace Metasound
 		};
 
 		// Wrapper for step defined by function
+		struct FMultiMapFunctionFrontendQueryStep : IFrontendQueryMultiMapStep
+		{
+			using FMultiMapFunction = FFrontendQueryStep::FMultiMapFunction;
+
+			FMultiMapFunctionFrontendQueryStep(FMultiMapFunction InFunc)
+				: Func(InFunc)
+			{
+			}
+
+			TArray<FFrontendQueryKey> Map(const FFrontendQueryEntry& InEntry) const override
+			{
+				return Func(InEntry);
+			}
+
+			FMultiMapFunction Func;
+		};
+
+		// Wrapper for step defined by function
 		struct FReduceFunctionFrontendQueryStep: IFrontendQueryReduceStep
 		{
 			using FReduceFunction = FFrontendQueryStep::FReduceFunction;
@@ -348,13 +366,17 @@ namespace Metasound
 			}
 		};
 
-		struct FMapStepExecuter : TStepExecuterBase<IFrontendQueryMapStep>
+		template <typename MapQueryStep>
+		struct TMapStepExecuterBase : public TStepExecuterBase<MapQueryStep>
 		{
-			using TStepExecuterBase<IFrontendQueryMapStep>::TStepExecuterBase;
+			using TStepExecuterBase<MapQueryStep>::TStepExecuterBase;
+			using TStepExecuterBase<MapQueryStep>::Step;
+
+			virtual void ExecuteStep(FFrontendQueryEntry&& Entry, FFrontendQuerySelection& OutResult) const = 0;
 
 			virtual void Execute(TSet<FFrontendQueryKey>& InOutUpdatedKeys, FFrontendQuerySelection& InOutResult) const override
 			{
-				METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSound::MapQueryStep::Execute);
+				METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSound::MapStepQuery::Execute);
 				if (Step.IsValid())
 				{
 					if (InOutUpdatedKeys.Num() > 0)
@@ -370,8 +392,7 @@ namespace Metasound
 								{
 									for (FFrontendQueryEntry& Entry : *Partition)
 									{
-										FFrontendQueryKey NewKey = Step->Map(Entry);
-										Result.FindOrAdd(NewKey).Add(Entry);
+										ExecuteStep(MoveTemp(Entry), Result);
 									}
 								}
 
@@ -388,8 +409,33 @@ namespace Metasound
 						}
 
 						// Append the new values to the final result.
-						Append(InOutUpdatedKeys, Result, InOutResult);
+						TStepExecuterBase<MapQueryStep>::Append(InOutUpdatedKeys, Result, InOutResult);
 					}
+				}
+			}
+		};
+
+		struct FMapStepExecuter : TMapStepExecuterBase<IFrontendQueryMapStep>
+		{
+			using TMapStepExecuterBase<IFrontendQueryMapStep>::TMapStepExecuterBase;
+
+			virtual void ExecuteStep(FFrontendQueryEntry&& Entry, FFrontendQuerySelection& OutResult) const override
+			{
+				FFrontendQueryKey NewKey = Step->Map(Entry);
+				OutResult.FindOrAdd(MoveTemp(NewKey)).Add(MoveTemp(Entry));
+			}
+		};
+
+		struct FMultiMapStepExecuter : TMapStepExecuterBase<IFrontendQueryMultiMapStep>
+		{
+			using TMapStepExecuterBase<IFrontendQueryMultiMapStep>::TMapStepExecuterBase;
+
+			virtual void ExecuteStep(FFrontendQueryEntry&& Entry, FFrontendQuerySelection& OutResult) const override
+			{
+				TArray<FFrontendQueryKey> NewKeys = Step->Map(Entry);
+				for (FFrontendQueryKey& NewKey : NewKeys)
+				{
+					OutResult.FindOrAdd(MoveTemp(NewKey)).Add(MoveTemp(Entry));
 				}
 			}
 		};
@@ -776,6 +822,11 @@ namespace Metasound
 	{
 	}
 
+	FFrontendQueryStep::FFrontendQueryStep(FMultiMapFunction&& InFunc)
+		: StepExecuter(MakeUnique<FrontendQueryPrivate::FMultiMapStepExecuter>(MakeUnique<FrontendQueryPrivate::FMultiMapFunctionFrontendQueryStep>(MoveTemp(InFunc))))
+	{
+	}
+
 	FFrontendQueryStep::FFrontendQueryStep(FReduceFunction&& InFunc)
 	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FReduceStepExecuter>(MakeUnique<FrontendQueryPrivate::FReduceFunctionFrontendQueryStep>(MoveTemp(InFunc))))
 	{
@@ -813,6 +864,11 @@ namespace Metasound
 
 	FFrontendQueryStep::FFrontendQueryStep(TUniquePtr<IFrontendQueryMapStep>&& InStep)
 	:	StepExecuter(MakeUnique<FrontendQueryPrivate::FMapStepExecuter>(MoveTemp(InStep)))
+	{
+	}
+
+	FFrontendQueryStep::FFrontendQueryStep(TUniquePtr<IFrontendQueryMultiMapStep>&& InStep)
+		: StepExecuter(MakeUnique<FrontendQueryPrivate::FMultiMapStepExecuter>(MoveTemp(InStep)))
 	{
 	}
 

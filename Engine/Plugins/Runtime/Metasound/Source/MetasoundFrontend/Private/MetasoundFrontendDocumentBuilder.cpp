@@ -518,7 +518,20 @@ bool FMetaSoundFrontendDocumentBuilder::AddInterface(FName InterfaceName)
 	{
 		if (GetDocument().Interfaces.Contains(Interface.Version))
 		{
+			UE_LOG(LogMetaSound, VeryVerbose, TEXT("MetaSound interface '%s' already found on document. MetaSoundBuilder skipping add request."), *InterfaceName.ToString());
 			return true;
+		}
+
+		const FInterfaceRegistryKey Key = GetInterfaceRegistryKey(Interface.Version);
+		if (const IInterfaceRegistryEntry* Entry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(Key))
+		{
+			const FTopLevelAssetPath ClassPath = DocumentInterface->GetBaseMetaSoundUClass().GetClassPathName();
+			const FMetasoundFrontendInterfaceUClassOptions* ClassOptions = Entry->GetInterface().FindClassOptions(ClassPath);
+			if (ClassOptions && !ClassOptions->bIsModifiable)
+			{
+				UE_LOG(LogMetaSound, Error, TEXT("DocumentBuilder failed to add MetaSound Interface '%s' to document: is not set to be modifiable for given UClass '%s'"), *InterfaceName.ToString(), *ClassPath.ToString());
+				return false;
+			}
 		}
 
 		const FModifyRootGraphInterfaces ModifyInterfaces({ }, { Interface.Version });
@@ -899,6 +912,13 @@ const FMetasoundFrontendDocument& FMetaSoundFrontendDocumentBuilder::GetDocument
 	return DocumentInterface->GetDocument();
 }
 
+const IMetaSoundDocumentInterface& FMetaSoundFrontendDocumentBuilder::GetDocumentInterface() const
+{
+	IMetaSoundDocumentInterface* Interface = DocumentInterface.GetInterface();
+	check(Interface);
+	return *Interface;
+}
+
 void FMetaSoundFrontendDocumentBuilder::InitGraphClassMetadata(FMetasoundFrontendClassMetadata& InOutMetadata, bool bResetVersion)
 {
 	InOutMetadata.SetClassName(FMetasoundFrontendClassName(FName(), *FGuid::NewGuid().ToString(), FName()));
@@ -911,30 +931,37 @@ void FMetaSoundFrontendDocumentBuilder::InitGraphClassMetadata(FMetasoundFronten
 	InOutMetadata.SetType(EMetasoundFrontendClassType::Graph);
 }
 
-void FMetaSoundFrontendDocumentBuilder::InitDocument(FName UClassName)
+void FMetaSoundFrontendDocumentBuilder::InitDocument()
 {
+	using namespace Metasound;
+	using namespace Metasound::Frontend;
+
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(FMetaSoundFrontendDocumentBuilder::InitDocument);
 
-	using namespace Metasound::Frontend;
+	IMetaSoundDocumentInterface* DocInterface = DocumentInterface.GetInterface();
+	check(DocInterface);
+	FMetasoundFrontendDocument& Document = DocInterface->GetDocument();
 
 	// 1. Set default class Metadata
 	{
 		constexpr bool bResetVersion = true;
-		FMetasoundFrontendClassMetadata& ClassMetadata = GetDocument().RootGraph.Metadata;
+		FMetasoundFrontendClassMetadata& ClassMetadata = Document.RootGraph.Metadata;
 		InitGraphClassMetadata(ClassMetadata, bResetVersion);
 	}
 
 	// 2. Set default doc version Metadata
 	{
-		FMetasoundFrontendDocumentMetadata& DocMetadata = GetDocument().Metadata;
+		FMetasoundFrontendDocumentMetadata& DocMetadata = Document.Metadata;
 		DocMetadata.Version.Number = FMetasoundFrontendDocument::GetMaxVersion();
 	}
 
 	// 3. Add default interfaces for given UClass
 	{
-		TArray<FMetasoundFrontendInterface> InitInterfaces = ISearchEngine::Get().FindUClassDefaultInterfaces(UClassName);
-		FModifyRootGraphInterfaces ModifyRootGraphInterfaces({ }, InitInterfaces);
-		ModifyRootGraphInterfaces.Transform(GetDocument());
+		const UClass& BaseMetaSoundClass = DocInterface->GetBaseMetaSoundUClass();
+		const FTopLevelAssetPath BaseMetaSoundClassPath = BaseMetaSoundClass.GetClassPathName();
+		TArray<FMetasoundFrontendVersion> InitVersions = ISearchEngine::Get().FindUClassDefaultInterfaceVersions(BaseMetaSoundClassPath);
+		FModifyRootGraphInterfaces ModifyRootGraphInterfaces({ }, InitVersions);
+		ModifyRootGraphInterfaces.Transform(Document);
 	}
 
 	// 5. Reload the whole cache as transforms above mutate cached collections. Can be safely removed once transforms above
@@ -1230,7 +1257,20 @@ bool FMetaSoundFrontendDocumentBuilder::RemoveInterface(FName InterfaceName)
 	{
 		if (!GetDocument().Interfaces.Contains(Interface.Version))
 		{
+			UE_LOG(LogMetaSound, VeryVerbose, TEXT("MetaSound interface '%s' not found on document. MetaSoundBuilder skipping remove request."), *InterfaceName.ToString());
 			return true;
+		}
+
+		const FInterfaceRegistryKey Key = GetInterfaceRegistryKey(Interface.Version);
+		if (const IInterfaceRegistryEntry* Entry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(Key))
+		{
+			const FTopLevelAssetPath ClassPath = DocumentInterface->GetBaseMetaSoundUClass().GetClassPathName();
+			const FMetasoundFrontendInterfaceUClassOptions* ClassOptions = Entry->GetInterface().FindClassOptions(ClassPath);
+			if (ClassOptions && !ClassOptions->bIsModifiable)
+			{
+				UE_LOG(LogMetaSound, Error, TEXT("DocumentBuilder failed to remove MetaSound Interface '%s' to document: is not set to be modifiable for given UClass '%s'"), *InterfaceName.ToString(), *ClassPath.ToString());
+				return false;
+			}
 		}
 
 		const FModifyRootGraphInterfaces ModifyInterfaces({ { Interface.Version }, { } });

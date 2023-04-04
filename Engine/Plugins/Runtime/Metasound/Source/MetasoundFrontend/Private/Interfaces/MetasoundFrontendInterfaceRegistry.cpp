@@ -15,7 +15,7 @@ namespace Metasound::Frontend
 	{
 	}
 
-	void FInterfaceRegistry::RegisterInterface(TUniquePtr<IInterfaceRegistryEntry>&& InEntry)
+	bool FInterfaceRegistry::RegisterInterface(TUniquePtr<IInterfaceRegistryEntry>&& InEntry)
 	{
 		METASOUND_LLM_SCOPE;
 
@@ -35,10 +35,12 @@ namespace Metasound::Frontend
 					
 				FInterfaceRegistryTransaction Transaction{FInterfaceRegistryTransaction::ETransactionType::InterfaceRegistration, Key, InEntry->GetInterface().Version, TransactionTime};
 				TransactionBuffer->AddTransaction(MoveTemp(Transaction));
-
 				Entries.Add(Key, MoveTemp(InEntry));
+				return true;
 			}
 		}
+
+		return false;
 	}
 
 	const IInterfaceRegistryEntry* FInterfaceRegistry::FindInterfaceRegistryEntry(const FInterfaceRegistryKey& InKey) const

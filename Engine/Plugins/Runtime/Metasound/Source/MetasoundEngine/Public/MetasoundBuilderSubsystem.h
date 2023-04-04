@@ -269,11 +269,11 @@ public:
 
 	virtual TScriptInterface<IMetaSoundDocumentInterface> Build(UObject* Parent, const FMetaSoundBuilderOptions& Options) const PURE_VIRTUAL(UMetaSoundBuilderBase::Build, return { }; );
 
-	// Returns the builder's supported UClass
-	virtual UClass& GetBuilderUClass() const PURE_VIRTUAL(UMetaSoundBuilderBase::GetBuilderUClass, return *UObject::StaticClass(); );
-
 	// Constructs a transient UMetaSoundBuilderDocument & attaches builder to it
 	void CreateTransientDocument();
+
+	// Returns the base MetaSound UClass the builder is operating on (ex. MetaSoundSource, MetaSoundPatch, etc.)
+	const UClass& GetBaseMetaSoundUClass() const;
 
 	// Initializes and ensures all nodes have a position (required prior to exporting to an asset if expected to be viewed in the editor).
 	void InitNodeLocations();
@@ -363,8 +363,6 @@ class METASOUNDENGINE_API UMetaSoundPatchBuilder : public UMetaSoundBuilderBase
 public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (WorldContext = "Parent"))
 	virtual UPARAM(DisplayName = "MetaSound") TScriptInterface<IMetaSoundDocumentInterface> Build(UObject* Parent, const FMetaSoundBuilderOptions& Options) const override;
-
-	virtual UClass& GetBuilderUClass() const override;
 };
 
 /** Builder in charge of building a MetaSound Source */
@@ -383,8 +381,6 @@ public:
 	// Sets the output audio format of the source
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
 	void SetFormat(EMetaSoundOutputAudioFormat OutputFormat, EMetaSoundBuilderResult& OutResult);
-
-	virtual UClass& GetBuilderUClass() const override;
 
 	const Metasound::Engine::FOutputAudioFormatInfoPair* FindOutputAudioFormatInfo() const;
 

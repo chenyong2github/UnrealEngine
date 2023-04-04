@@ -23,24 +23,14 @@ namespace Metasound::Frontend
 		// MetaSound Interface definition
 		virtual const FMetasoundFrontendInterface& GetInterface() const = 0;
 
-		// Whether or not to immediately apply the given interface
-		// when a MetaSound asset of the supported UClass is created.
-		virtual bool IsDefault(FName InUClassName) const = 0;
-
 		UE_DEPRECATED(5.3, "UClass name must now be provided to determine if interface is to be apply by default.")
 		virtual bool IsDefault() const { return false; }
 
-		// Whether or not the interface can be added or removed by the editor.
-		virtual bool EditorCanAddOrRemove(FName InUClassName) const = 0;
-
-		UE_DEPRECATED(5.3, "UClass name must now be provided to determine if editor can directly add or remove interface.")
+		UE_DEPRECATED(5.3, "Option (renamed 'IsModifiable') is now data driven and accessibly from the interface (via GetInterface) per UClass option. If no class options found, addition/removal is now considered to be implicitly true")
 		virtual bool EditorCanAddOrRemove() const { return false; }
 
 		// Name of routing system used to update interface inputs (ex. ParameterInterface or DataReference).
 		virtual FName GetRouterName() const = 0;
-
-		// Name of UClass supported by the given interface.
-		virtual bool UClassIsSupported(FName InUClassName) const = 0;
 
 		// How to update a given document if versioning is required to this interface from a deprecated version.
 		virtual bool UpdateRootGraphInterface(FDocumentHandle InDocument) const = 0;
@@ -82,7 +72,7 @@ namespace Metasound::Frontend
 		virtual ~IInterfaceRegistry() = default;
 
 		// Register an interface
-		virtual void RegisterInterface(TUniquePtr<IInterfaceRegistryEntry>&& InEntry) = 0;
+		virtual bool RegisterInterface(TUniquePtr<IInterfaceRegistryEntry>&& InEntry) = 0;
 
 		// Find an interface entry with the given key. Returns null if entry not found with given key.
 		virtual const IInterfaceRegistryEntry* FindInterfaceRegistryEntry(const FInterfaceRegistryKey& InKey) const = 0;

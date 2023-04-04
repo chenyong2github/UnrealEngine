@@ -63,6 +63,11 @@ public:
 		return Document;
 	}
 
+	virtual const UClass& GetBaseMetaSoundUClass() const final override
+	{
+		return *UMetaSoundBuilderDocument::StaticClass();
+	}
+
 private:
 	virtual FMetasoundFrontendDocument& GetDocument() override
 	{
@@ -139,9 +144,10 @@ public:
 	TArray<const FMetasoundFrontendVertex*> FindNodeOutputs(const FGuid& InNodeID, FName TypeName = FName()) const;
 
 	const FMetasoundFrontendDocument& GetDocument() const;
+	const IMetaSoundDocumentInterface& GetDocumentInterface() const;
 
 	static void InitGraphClassMetadata(FMetasoundFrontendClassMetadata& InOutMetadata, bool bResetVersion = false);
-	void InitDocument(FName UClassName);
+	void InitDocument();
 	void InitNodeLocations();
 
 	bool IsNodeInputConnected(const FGuid& InNodeID, const FGuid& InVertexID) const;
