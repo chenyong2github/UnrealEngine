@@ -275,8 +275,13 @@ public:
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PreEditUndo() override;
 	virtual void PostEditUndo() override;
-#endif
 	// ~End UObject interface
+
+	// Reconstruction script specific, to fix callbacks on reconstructed component
+	// and teardown callback on trashed component.
+	void FixCallbacks();
+	void TeardownCallbacks();
+#endif
 
 protected:
 #if WITH_EDITOR

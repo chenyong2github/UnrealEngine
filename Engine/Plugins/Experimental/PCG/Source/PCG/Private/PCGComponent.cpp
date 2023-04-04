@@ -2946,6 +2946,11 @@ void FPCGComponentInstanceData::ApplyToComponent(UActorComponent* Component, con
 				}
 			}
 
+#if WITH_EDITOR
+			// bDirtyGenerated is transient.
+			PCGComponent->bDirtyGenerated = SourceComponent->bDirtyGenerated; 
+#endif // WITH_EDITOR
+
 			// Non-critical but should be done: transient data, excluded & tracked actors cache, landscape tracking
 			// TODO Validate usefulness + move accordingly
 		}
@@ -2967,8 +2972,10 @@ void FPCGComponentInstanceData::ApplyToComponent(UActorComponent* Component, con
 			PCGComponent->SetManagedResources(DuplicatedResources);
 		}
 
-		// Re-set the graph to reconnect callbacks correctly
-		PCGComponent->GraphInstance->SetGraph(PCGComponent->GraphInstance->Graph);
+#if WITH_EDITOR
+		// Reconnect callbacks
+		PCGComponent->GraphInstance->FixCallbacks();
+#endif // WITH_EDITOR
 
 		bool bDoActorMapping = PCGComponent->bGenerated || PCGHelpers::IsRuntimeOrPIE();
 
@@ -2980,6 +2987,12 @@ void FPCGComponentInstanceData::ApplyToComponent(UActorComponent* Component, con
 		}
 
 #if WITH_EDITOR
+		// Disconnect callbacks on source.
+		if (SourceComponent && SourceComponent->GraphInstance)
+		{
+			SourceComponent->GraphInstance->TeardownCallbacks();
+		}
+
 		// Finally, start a delayed refresh task (if there is not one already), in editor only
 		// It is important to be delayed, because we cannot spawn Partition Actors within this scope,
 		// because we are in a construction script.

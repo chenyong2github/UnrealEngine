@@ -1076,6 +1076,27 @@ bool UPCGGraphInstance::CanEditChange(const FProperty* InProperty) const
 
 	return true;
 }
+
+void UPCGGraphInstance::TeardownCallbacks()
+{
+	if (Graph)
+	{
+		Graph->OnGraphChangedDelegate.RemoveAll(this);
+		Graph->OnGraphParametersChangedDelegate.RemoveAll(this);
+	}
+}
+
+void UPCGGraphInstance::FixCallbacks()
+{
+	// Start from a clean state.
+	TeardownCallbacks();
+
+	if (Graph)
+	{
+		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphChanged);
+		Graph->OnGraphParametersChangedDelegate.AddUObject(this, &UPCGGraphInstance::OnGraphParametersChanged);
+	}
+}
 #endif
 
 void UPCGGraphInstance::SetGraph(UPCGGraphInterface* InGraph)
@@ -1083,6 +1104,12 @@ void UPCGGraphInstance::SetGraph(UPCGGraphInterface* InGraph)
 	if (InGraph == this)
 	{
 		UE_LOG(LogPCG, Error, TEXT("Try to set the graph of a graph instance to itself, would cause infinite recursion."));
+		return;
+	}
+
+	if (InGraph == Graph)
+	{
+		// Nothing to do
 		return;
 	}
 
