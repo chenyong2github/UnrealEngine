@@ -736,6 +736,11 @@ void FStateTreeEditorNodeDetails::OnBindingChanged(const FStateTreePropertyPath&
 {
 	check(StructProperty);
 
+	if (!EditorData)
+	{
+		return;
+	}
+
 	TArray<UObject*> OuterObjects;
 	StructProperty->GetOuterObjects(OuterObjects);
 
@@ -747,21 +752,21 @@ void FStateTreeEditorNodeDetails::OnBindingChanged(const FStateTreePropertyPath&
 		return;
 	}
 
+	const FStateTreeBindingLookup BindingLookup(EditorData);
+
 	for (int32 i = 0; i < OuterObjects.Num(); i++)
 	{
-		FStateTreeEditorNode* Node = static_cast<FStateTreeEditorNode*>(RawNodeData[i]);
+		FStateTreeEditorNode* EditorNode = static_cast<FStateTreeEditorNode*>(RawNodeData[i]);
 		UObject* OuterObject = OuterObjects[i]; // Immediate outer, i.e StateTreeState
-		if (Node != nullptr && EditorData != nullptr && Node->Node.IsValid() && Node->Instance.IsValid())
+		if (EditorNode && OuterObject && EditorNode->ID == TargetPath.GetStructID())
 		{
-			if (Node->ID == TargetPath.GetStructID())
-			{
-				if (FStateTreeConditionBase* Condition = Node->Node.GetMutablePtr<FStateTreeConditionBase>())
-				{
-					const FStateTreeBindingLookup BindingLookup(EditorData);
+			FStateTreeNodeBase* Node = EditorNode->Node.GetMutablePtr<FStateTreeNodeBase>();
+			FStateTreeDataView InstanceView = EditorNode->GetInstance(); 
 
-					OuterObject->Modify();
-					Condition->OnBindingChanged(Node->ID, FStateTreeDataView(Node->Instance), SourcePath, TargetPath, BindingLookup);
-				}
+			if (Node && InstanceView.IsValid())
+			{
+				OuterObject->Modify();
+				Node->OnBindingChanged(EditorNode->ID, InstanceView, SourcePath, TargetPath, BindingLookup);
 			}
 		}
 	}

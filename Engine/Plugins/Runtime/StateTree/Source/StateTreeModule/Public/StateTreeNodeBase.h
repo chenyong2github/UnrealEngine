@@ -6,6 +6,9 @@
 #include "StateTreeNodeBase.generated.h"
 
 struct FStateTreeLinker;
+struct FStateTreeEditorPropertyPath;
+struct FStateTreePropertyPath;
+struct IStateTreeBindingLookup;
 
 /**
  * Base struct of StateTree Conditions, Evaluators, and Tasks.
@@ -39,6 +42,22 @@ struct STATETREEMODULE_API FStateTreeNodeBase
 	 */
 	virtual EDataValidationResult Compile(FStateTreeDataView InstanceDataView, TArray<FText>& ValidationMessages) { return EDataValidationResult::NotValidated; }
 	
+#if WITH_EDITOR
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.3, "Use version with FStateTreePropertyPath instead.")
+	virtual void OnBindingChanged(const FGuid& ID, FStateTreeDataView InstanceData, const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath, const IStateTreeBindingLookup& BindingLookup) final {}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	/**
+	 * Called when binding of any of the properties in the node changes.
+	 * @param ID ID of the item, can be used make property paths to this item.
+	 * @param InstanceData view to the instance data, can be struct or class.
+	 * @param SourcePath Source path of the new binding.
+	 * @param TargetPath Target path of the new binding (the property in the condition).
+	 * @param BindingLookup Reference to binding lookup which can be used to reason about property paths.
+	 */
+	virtual void OnBindingChanged(const FGuid& ID, FStateTreeDataView InstanceData, const FStateTreePropertyPath& SourcePath, const FStateTreePropertyPath& TargetPath, const IStateTreeBindingLookup& BindingLookup) {}
+#endif
+
 	/** Name of the node. */
 	UPROPERTY(EditDefaultsOnly, Category = "", meta=(EditCondition = "false", EditConditionHides))
 	FName Name;

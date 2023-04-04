@@ -5,10 +5,7 @@
 #include "StateTreeNodeBase.h"
 #include "StateTreeConditionBase.generated.h"
 
-struct FStateTreeEditorPropertyPath;
-struct FStateTreePropertyPath;
 struct FStateTreeExecutionContext;
-struct IStateTreeBindingLookup;
 
 enum class EStateTreeCompare : uint8
 {
@@ -23,22 +20,6 @@ USTRUCT(meta = (Hidden))
 struct STATETREEMODULE_API FStateTreeConditionBase : public FStateTreeNodeBase
 {
 	GENERATED_BODY()
-
-#if WITH_EDITOR
-PRAGMA_DISABLE_DEPRECATION_WARNINGS	
-	UE_DEPRECATED(5.3, "Use version with FStateTreePropertyPath instead.")
-	virtual void OnBindingChanged(const FGuid& ID, FStateTreeDataView InstanceData, const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath, const IStateTreeBindingLookup& BindingLookup) final {}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	/**
-	 * Called when binding of any of the properties in the condition changes.
-	 * @param ID ID of the item, can be used make property paths to this item.
-	 * @param InstanceData view to the instance data, can be struct or class. 
-	 * @param SourcePath Source path of the new binding.
-	 * @param TargetPath Target path of the new binding (the property in the condition).
-	 * @param BindingLookup Reference to binding lookup which can be used to reason about property paths.
-	 */
-	virtual void OnBindingChanged(const FGuid& ID, FStateTreeDataView InstanceData, const FStateTreePropertyPath& SourcePath, const FStateTreePropertyPath& TargetPath, const IStateTreeBindingLookup& BindingLookup) {}
-#endif
 	
 	/** @return True if the condition passes. */
 	virtual bool TestCondition(FStateTreeExecutionContext& Context) const { return false; }
