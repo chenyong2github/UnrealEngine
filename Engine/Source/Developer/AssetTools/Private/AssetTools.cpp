@@ -1999,7 +1999,22 @@ FString UAssetToolsImpl::GenerateAdvancedCopyDestinationPackageName(const FStrin
 	{
 		// Use the passed in default path
 		// Normal path
-		DestinationPackageName = DestinationFolder + "/" + FPackageName::GetShortName(SourcePackage);
+		// 
+		// NOTE: We cannot use a shortened path from SourcePackage because there may be assets that share names.
+		//       To prevent assets from copying over eachother we need a unique destination path.
+
+		// A little nicety: don't expose '/Game/' to users -- instead create a subfolder using the project's name
+		if (SourcePackage.StartsWith(TEXT("/Game/")))
+		{
+			FString ThrowawayRoot, SubPath, PkgName;
+			FPackageName::SplitLongPackageName(SourcePackage, ThrowawayRoot, SubPath, PkgName);
+
+			DestinationPackageName = DestinationFolder / FApp::GetProjectName() / SubPath / PkgName;
+		}
+		else // Other non-'/Game/' paths (ones from plugins, etc.)...
+		{
+			DestinationPackageName = DestinationFolder / SourcePackage;
+		}
 	}
 	else
 	{
