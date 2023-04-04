@@ -536,6 +536,105 @@ public:
 //
 // FLandscapeToolAddComponent
 //
+
+namespace
+{
+	void AddComponents(ULandscapeInfo* LandscapeInfo, ULandscapeSubsystem* LandscapeSubsystem, const TArray<FIntPoint>& ComponentCoordinates)
+	{
+		TArray<ULandscapeComponent*> NewComponents;
+		LandscapeInfo->Modify();
+		for (const auto& ComponentCoordinate : ComponentCoordinates)
+		{
+			ULandscapeComponent* LandscapeComponent = LandscapeInfo->XYtoComponentMap.FindRef(ComponentCoordinate);
+			if (LandscapeComponent)
+			{
+				continue;
+			}
+
+			// Add New component...
+			FIntPoint ComponentBase = ComponentCoordinate * LandscapeInfo->ComponentSizeQuads;
+
+			ALandscapeProxy* LandscapeProxy = LandscapeSubsystem->FindOrAddLandscapeProxy(LandscapeInfo, ComponentBase);
+			if (!LandscapeProxy)
+			{
+				continue;
+			}
+
+			LandscapeComponent = NewObject<ULandscapeComponent>(LandscapeProxy, NAME_None, RF_Transactional);
+			NewComponents.Add(LandscapeComponent);
+			LandscapeComponent->Init(
+				ComponentBase.X, ComponentBase.Y,
+				LandscapeProxy->ComponentSizeQuads,
+				LandscapeProxy->NumSubsections,
+				LandscapeProxy->SubsectionSizeQuads
+			);
+
+			TArray<FColor> HeightData;
+			const int32 ComponentVerts = (LandscapeComponent->SubsectionSizeQuads + 1) * LandscapeComponent->NumSubsections;
+			HeightData.Empty(FMath::Square(ComponentVerts));
+			HeightData.AddZeroed(FMath::Square(ComponentVerts));
+			LandscapeComponent->InitHeightmapData(HeightData, true);
+			LandscapeComponent->UpdateMaterialInstances();
+
+			LandscapeInfo->XYtoComponentMap.Add(ComponentCoordinate, LandscapeComponent);
+			LandscapeInfo->XYtoAddCollisionMap.Remove(ComponentCoordinate);
+		}
+
+		// Need to register to use general height/xyoffset data update
+		for (int32 Idx = 0; Idx < NewComponents.Num(); Idx++)
+		{
+			NewComponents[Idx]->RegisterComponent();
+		}
+
+		const bool bHasXYOffset = false;
+		ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
+
+		bool bHasLandscapeLayersContent = Landscape && Landscape->HasLayersContent();
+
+		if (bHasLandscapeLayersContent)
+		{
+			Landscape->RequestLayersInitialization();
+		}
+
+		for (ULandscapeComponent* NewComponent : NewComponents)
+		{
+			if (bHasLandscapeLayersContent)
+			{
+				TArray<ULandscapeComponent*> ComponentsUsingHeightmap;
+				ComponentsUsingHeightmap.Add(NewComponent);
+
+				for (const FLandscapeLayer& Layer : Landscape->LandscapeLayers)
+				{
+					// Since we do not share heightmap when adding new component, we will provided the required array, but they will only be used for 1 component
+					TMap<UTexture2D*, UTexture2D*> CreatedHeightmapTextures;
+					NewComponent->AddDefaultLayerData(Layer.Guid, ComponentsUsingHeightmap, CreatedHeightmapTextures);
+				}
+			}
+
+			// Update Collision
+			NewComponent->UpdateCachedBounds();
+			NewComponent->UpdateBounds();
+			NewComponent->MarkRenderStateDirty();
+
+			if (!bHasLandscapeLayersContent)
+			{
+				ULandscapeHeightfieldCollisionComponent* CollisionComp = NewComponent->GetCollisionComponent();
+				if (CollisionComp && !bHasXYOffset)
+				{
+					CollisionComp->MarkRenderStateDirty();
+					CollisionComp->RecreateCollision();
+				}
+			}
+		}
+
+		if (Landscape)
+		{
+			GEngine->BroadcastOnActorMoved(Landscape);
+		}
+
+	}
+}
+
 class FLandscapeToolStrokeAddComponent : public FLandscapeToolStrokeBase
 {
 	using Super = FLandscapeToolStrokeBase;

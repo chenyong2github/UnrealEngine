@@ -8,6 +8,8 @@
 #include "LandscapeEditorModule.h"
 #include "LandscapeEditorObject.h"
 #include "LandscapeUtils.h"
+#include "LandscapeTiledImage.h"
+#include "LandscapeEditorUtils.h"
 #include "SLandscapeEditor.h"
 
 #include "IDetailChildrenBuilder.h"
@@ -24,6 +26,7 @@
 #include "Widgets/SToolTip.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.ImportLayers"
 
@@ -228,41 +231,18 @@ FReply FLandscapeEditorStructCustomization_FLandscapeImportLayer::OnLayerFilenam
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	check(LandscapeEdMode != nullptr);
 
-	// Prompt the user for the Filenames
-	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
-	if (DesktopPlatform != nullptr)
-	{
-		bool bSuccess = false;
-		TArray<FString> Filenames;
-		ILandscapeEditorModule& LandscapeEditorModule = FModuleManager::GetModuleChecked<ILandscapeEditorModule>("LandscapeEditor");
-		if (IsImporting())
-		{
-			bSuccess = DesktopPlatform->OpenFileDialog(
-				FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
-				LOCTEXT("ImportLayer", "Import Layer").ToString(),
-				LandscapeEdMode->UISettings->LastImportPath,
-				TEXT(""),
-				LandscapeEditorModule.GetWeightmapImportDialogTypeString(),
-				EFileDialogFlags::None,
-				Filenames);
-		}
-		else
-		{
-			bSuccess = DesktopPlatform->SaveFileDialog(
-				FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
-				LOCTEXT("ExportLayer", "Export Layer").ToString(),
-				LandscapeEdMode->UISettings->LastImportPath,
-				TEXT(""),
-				LandscapeEditorModule.GetWeightmapExportDialogTypeString(),
-				EFileDialogFlags::None,
-				Filenames);
-		}
+	ILandscapeEditorModule& LandscapeEditorModule = FModuleManager::GetModuleChecked<ILandscapeEditorModule>("LandscapeEditor");
+	const bool bIsImporting = IsImporting();
+	const FString DialogTypeString = bIsImporting  ? LandscapeEditorModule.GetWeightmapImportDialogTypeString() : LandscapeEditorModule.GetWeightmapExportDialogTypeString();
+	const FString DialogTitle = bIsImporting ? LOCTEXT("ImportLayer", "Import Layer").ToString() : LOCTEXT("ExportLayer", "Export Layer").ToString();
 
-		if (bSuccess)
-		{
-			ensure(PropertyHandle_LayerFilename->SetValue(Filenames[0]) == FPropertyAccess::Success);
-			LandscapeEdMode->UISettings->LastImportPath = FPaths::GetPath(Filenames[0]);
-		}
+	TOptional<FString> OptionalExportImportPath = LandscapeEditorUtils::GetImportExportFilename(DialogTitle, LandscapeEdMode->UISettings->LastImportPath, DialogTypeString);
+	if (OptionalExportImportPath.IsSet())
+	{
+		const FString& Filename = OptionalExportImportPath.GetValue();
+
+		ensure(PropertyHandle_LayerFilename->SetValue(Filename) == FPropertyAccess::Success);
+		LandscapeEdMode->UISettings->LastImportPath = FPaths::GetPath(Filename);
 	}
 
 	return FReply::Handled();

@@ -9,6 +9,7 @@
 #include "LandscapeEditorUtils.h"
 #include "LandscapeEdMode.h"
 #include "LandscapeConfigHelper.h"
+#include "LandscapeSettings.h"
 
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"

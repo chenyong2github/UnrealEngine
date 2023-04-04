@@ -15,6 +15,16 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Notifications/SErrorText.h"
 #include "Widgets/SToolTip.h"
+
+#include "Misc/ScopedSlowTask.h"
+#include "Misc/MessageDialog.h"
+
+#include "LocationVolume.h"
+#include "SourceControlHelpers.h"
+#include "UObject/SavePackage.h"
+#include "WorldPartition/WorldPartition.h"
+#include "Internationalization/Regex.h"
+
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
@@ -24,6 +34,12 @@
 #include "LandscapeEditorObject.h"
 #include "LandscapeEditorModule.h"
 #include "LandscapeImportHelper.h"
+#include "LandscapeSubsystem.h"
+#include "LandscapeStreamingProxy.h"
+#include "LandscapeImageFileCache.h"
+#include "LandscapeTiledImage.h"
+#include "LandscapeRegionUtils.h"
+#include "LandscapeEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.ImportExport"
 
@@ -439,42 +455,18 @@ FReply FLandscapeEditorDetailCustomization_ImportExport::OnBrowseFilenameButtonC
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	check(LandscapeEdMode != nullptr);
+	ILandscapeEditorModule& LandscapeEditorModule = FModuleManager::GetModuleChecked<ILandscapeEditorModule>("LandscapeEditor");
+	const bool bIsImporting = IsImporting();
+	const FString DialogType = bIsImporting ? LandscapeEditorModule.GetHeightmapImportDialogTypeString() : LandscapeEditorModule.GetHeightmapExportDialogTypeString();
+	const FString DialogTitle = bIsImporting ? LOCTEXT("ImportHeightmap", "Import Heightmap").ToString() : LOCTEXT("ExportHeightmap", "Export Heightmap").ToString();
 
-	// Prompt the user for the Filenames
-	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
-	if (DesktopPlatform != nullptr)
+	TOptional<FString> OptionalFilename = LandscapeEditorUtils::GetImportExportFilename(DialogTitle, LandscapeEdMode->UISettings->LastImportPath, DialogType);
+	if (OptionalFilename.IsSet())
 	{
-		bool bSuccess = false;
-		TArray<FString> Filenames;
-		ILandscapeEditorModule& LandscapeEditorModule = FModuleManager::GetModuleChecked<ILandscapeEditorModule>("LandscapeEditor");
-		if (IsImporting())
-		{
-			bSuccess = DesktopPlatform->OpenFileDialog(
-				FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
-				LOCTEXT("ImportHeightmap", "Import Heightmap").ToString(),
-				LandscapeEdMode->UISettings->LastImportPath,
-				TEXT(""),
-				LandscapeEditorModule.GetHeightmapImportDialogTypeString(),
-				EFileDialogFlags::None,
-				Filenames);
-		}
-		else
-		{
-			bSuccess = DesktopPlatform->SaveFileDialog(
-				FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
-				LOCTEXT("ExportHeightmap", "Export Heightmap").ToString(),
-				LandscapeEdMode->UISettings->LastImportPath,
-				TEXT(""),
-				LandscapeEditorModule.GetHeightmapExportDialogTypeString(),
-				EFileDialogFlags::None,
-				Filenames);
-		}
+		const FString& Filename = OptionalFilename.GetValue();
 
-		if (bSuccess)
-		{
-			ensure(PropertyHandle_Filename->SetValue(Filenames[0]) == FPropertyAccess::Success);
-			LandscapeEdMode->UISettings->LastImportPath = FPaths::GetPath(Filenames[0]);
-		}
+		ensure(PropertyHandle_Filename->SetValue(Filename) == FPropertyAccess::Success);
+		LandscapeEdMode->UISettings->LastImportPath = FPaths::GetPath(Filename);
 	}
 
 	return FReply::Handled();
@@ -552,13 +544,13 @@ FReply FLandscapeEditorDetailCustomization_ImportExport::OnImportExportButtonCli
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	check(LandscapeEdMode);
+
+	UWorld* World = LandscapeEdMode->GetWorld();
+
 	if (ULandscapeInfo* LandscapeInfo = LandscapeEdMode->CurrentToolTarget.LandscapeInfo.Get())
 	{
 		FIntRect LandscapeExtent;
-		if (!LandscapeInfo->GetLandscapeExtent(LandscapeExtent))
-		{
-			return FReply::Handled();
-		}
+		LandscapeInfo->GetLandscapeExtent(LandscapeExtent);
 	
 		if (IsImporting())
 		{
@@ -585,20 +577,87 @@ FReply FLandscapeEditorDetailCustomization_ImportExport::OnImportExportButtonCli
 				ImportRegion = FIntRect(LocalGizmoPoint.X, LocalGizmoPoint.Y, LocalGizmoPoint.X + LandscapeEdMode->UISettings->ImportLandscape_Width, LocalGizmoPoint.Y + LandscapeEdMode->UISettings->ImportLandscape_Height);
 			}
 			
-			// Import Heightmap
-			if (LandscapeEdMode->UISettings->bHeightmapSelected)
-			{
-				check(LandscapeEdMode->UISettings->ImportLandscape_HeightmapImportResult != ELandscapeImportResult::Error);
-				LandscapeEdMode->ImportHeightData(LandscapeInfo, CurrentLayerGuid, LandscapeEdMode->UISettings->ImportLandscape_HeightmapFilename, ImportRegion, TransformType, ImportOffset, PaintRestriction, LandscapeEdMode->UISettings->bFlipYAxis);
-			}
+			check(LandscapeEdMode->UISettings->ImportLandscape_HeightmapImportResult != ELandscapeImportResult::Error);
+			const bool bIsWorldPartition = LandscapeEdMode->GetWorld()->GetSubsystem<ULandscapeSubsystem>()->IsGridBased();
 
-			for (const FLandscapeImportLayer& ImportLayer : LandscapeEdMode->UISettings->ImportLandscape_Layers)
+			if (bIsWorldPartition && LandscapeEdMode->UISettings->ImportExportMode != ELandscapeImportExportMode::LoadedOnly) // If in world partition import region by region
 			{
-				if (ImportLayer.bSelected)
+				TArray<ALocationVolume*> LandscapeRegions;
+				TArray<AActor*> Children;
+				LandscapeInfo->LandscapeActor->GetAttachedActors(Children);
+				for (AActor* Child : Children)
 				{
-					check(ImportLayer.ImportResult != ELandscapeImportResult::Error);
-					LandscapeEdMode->ImportWeightData(LandscapeInfo, CurrentLayerGuid, ImportLayer.LayerInfo, ImportLayer.SourceFilePath, ImportRegion, TransformType, ImportOffset, PaintRestriction, LandscapeEdMode->UISettings->bFlipYAxis);
+					if (Child->IsA<ALocationVolume>())
+					{
+						LandscapeRegions.Add(Cast<ALocationVolume>(Child));
+					}
 				}
+
+				int32 NumRegions = LandscapeRegions.Num();
+					
+				FScopedSlowTask Progress(NumRegions, LOCTEXT("ImportingLandscapeRegions", "Importing Landscape Regions..."));
+				Progress.MakeDialog(/*bShowCancelButton = */ true);
+
+				auto RegionImporter = [&Progress, LandscapeInfo, CurrentLayerGuid, LandscapeEdMode, ImportRegion, TransformType, ImportOffset, PaintRestriction](const FBox& RegionBounds, const TArray<ALandscapeProxy*>& Proxies)
+				{
+					// todo need a better way of working out the landscape bounds of the StreamingProxies in this region.
+					// What if some of the landscape is loaded?
+					FIntRect LandscapeLoadedExtent;
+					LandscapeInfo->GetLandscapeExtent(LandscapeLoadedExtent);
+					LandscapeLoadedExtent.Max.X += 1;
+					LandscapeLoadedExtent.Max.Y += 1;
+
+					Progress.EnterProgressFrame(1.0f, LOCTEXT("ImportingLandscapeRegions", "Importing Landscape Regions"));
+
+					if (LandscapeEdMode->UISettings->bHeightmapSelected)
+					{
+						LandscapeEdMode->ImportHeightData(LandscapeInfo, CurrentLayerGuid, LandscapeEdMode->UISettings->ImportLandscape_HeightmapFilename, LandscapeLoadedExtent, TransformType, ImportOffset, PaintRestriction, LandscapeEdMode->UISettings->bFlipYAxis);
+					}
+
+					for (const FLandscapeImportLayer& ImportLayer : LandscapeEdMode->UISettings->ImportLandscape_Layers)
+					{
+						if (ImportLayer.bSelected)
+						{
+							check(ImportLayer.ImportResult != ELandscapeImportResult::Error);
+							LandscapeEdMode->ImportWeightData(LandscapeInfo, CurrentLayerGuid, ImportLayer.LayerInfo, ImportLayer.SourceFilePath, LandscapeLoadedExtent, TransformType, ImportOffset, PaintRestriction, LandscapeEdMode->UISettings->bFlipYAxis);
+						}
+					}
+
+					return !Progress.ShouldCancel();
+				};
+					
+				LandscapeRegionUtils::ForEachRegion_LoadProcessUnload(LandscapeInfo, ImportRegion, World, RegionImporter);
+
+				FLandscapeImageFileCache& LandscapeImageFileCache = FModuleManager::GetModuleChecked<ILandscapeEditorModule>("LandscapeEditor").GetImageFileCache();
+				LandscapeImageFileCache.Clear();
+			}
+			else
+			{
+				FScopedSlowTask Progress(1 + LandscapeEdMode->UISettings->ImportLandscape_Layers.Num(), LOCTEXT("ImportingLandscape", "Importing Landscape"));
+				Progress.MakeDialog(/*bShowCancelButton = */ true);
+
+				if (LandscapeEdMode->UISettings->bHeightmapSelected)
+				{
+					Progress.EnterProgressFrame(1.0f, LOCTEXT("ImportingLandscapeHeight", "Importing Landscape Height"));
+					LandscapeEdMode->ImportHeightData(LandscapeInfo, CurrentLayerGuid, LandscapeEdMode->UISettings->ImportLandscape_HeightmapFilename, ImportRegion, TransformType, ImportOffset, PaintRestriction, LandscapeEdMode->UISettings->bFlipYAxis);
+				}
+
+				for (const FLandscapeImportLayer& ImportLayer : LandscapeEdMode->UISettings->ImportLandscape_Layers)
+				{
+					if (Progress.ShouldCancel())
+					{
+						continue;
+					}
+
+					if (ImportLayer.bSelected)
+					{
+						Progress.EnterProgressFrame(1.0f, LOCTEXT("ImportingLandscapeWeight", "Importing Landscape Weight"));
+						check(ImportLayer.ImportResult != ELandscapeImportResult::Error);
+						LandscapeEdMode->ImportWeightData(LandscapeInfo, CurrentLayerGuid, ImportLayer.LayerInfo, ImportLayer.SourceFilePath, ImportRegion, TransformType, ImportOffset, PaintRestriction, LandscapeEdMode->UISettings->bFlipYAxis);
+					}
+				}
+
+				LandscapeInfo->ForceLayersFullUpdate();
 			}
 		}
 		else
@@ -648,8 +707,39 @@ FReply FLandscapeEditorDetailCustomization_ImportExport::OnImportExportButtonCli
 			}
 			else
 			{
+				FScopedSlowTask Progress(0, LOCTEXT("ExportingLandscapeRegions", "Exporting Landscape Regions..."));
+				Progress.MakeDialog(/*bShowCancelButton = */ true);
+
+				auto Exporter = [&Progress, LandscapeInfo, Landscape, LandscapeEdMode, LandscapeExtent, PerformExport, World](const FBox& RegionBounds, const TArray<ALandscapeProxy*>& Proxies)
+				{
+					Progress.EnterProgressFrame(0.0f, LOCTEXT("ExportingLandscapeRegions", "Exporting Landscape Regions"));
+					for (ALandscapeProxy* LandscapeProxy : Proxies)
+					{
+						FIntRect ExportRegion;
+
+						if (LandscapeInfo->GetLandscapeExtent(LandscapeProxy, ExportRegion))
+						{
+							const int32 YCoord = LandscapeEdMode->UISettings->bFlipYAxis ? LandscapeExtent.Max.Y - ExportRegion.Max.Y : ExportRegion.Min.Y - LandscapeExtent.Min.Y;
+							FIntPoint FileOffset = FIntPoint((ExportRegion.Min.X - LandscapeExtent.Min.X) / Landscape->GridSize,
+								YCoord / Landscape->GridSize);
+
+							// Remove the shared line/column that this proxy has with its neighbors because it 
+							// will be included by the neighbor or lost if there is none (that could become an option to avoid that loss)
+							ExportRegion.Max.X -= 1;
+							ExportRegion.Max.Y -= 1;
+
+							PerformExport(LandscapeEdMode->UISettings, LandscapeInfo, ExportRegion, FileOffset, /*bInUseOffset = */true);
+						}
+					}
+					return !Progress.ShouldCancel();
+					
+				};
+
+				LandscapeRegionUtils::ForEachRegion_LoadProcessUnload(LandscapeInfo, LandscapeExtent, World, Exporter);
+			
+
 				// For multiple file export, export each landscape proxy individually :
-				LandscapeInfo->ForAllLandscapeProxies([LandscapeInfo, Landscape, LandscapeEdMode, LandscapeExtent, BuildExportFileName, PerformExport](ALandscapeProxy* LandscapeProxy)
+				LandscapeInfo->ForEachLandscapeProxy([LandscapeInfo, Landscape, LandscapeEdMode, LandscapeExtent, BuildExportFileName, PerformExport](ALandscapeProxy* LandscapeProxy)
 				{
 					FIntRect ExportRegion;
 					if (LandscapeInfo->GetLandscapeExtent(LandscapeProxy, ExportRegion))
@@ -665,6 +755,7 @@ FReply FLandscapeEditorDetailCustomization_ImportExport::OnImportExportButtonCli
 
 						PerformExport(LandscapeEdMode->UISettings, LandscapeInfo, ExportRegion, FileOffset, /*bInUseOffset = */true);
 					}
+					return true;
 				});
 			}
 
@@ -803,5 +894,7 @@ FText FLandscapeEditorDetailCustomization_ImportExport::GetImportLandscapeResolu
 	
 	return FText::GetEmpty();
 }
+
+
 
 #undef LOCTEXT_NAMESPACE

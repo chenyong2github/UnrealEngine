@@ -144,6 +144,9 @@ class ULandscapeInfo : public UObject
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<FLandscapeInfoLayerSettings> Layers;
+
+	UPROPERTY()
+	int32 RegionSizeInComponents;
 #endif // WITH_EDITORONLY_DATA
 
 public:
@@ -193,10 +196,10 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject Interface
 
-	FBox GetLoadedBounds() const;
+	LANDSCAPE_API FBox GetLoadedBounds() const;
 
 #if WITH_EDITOR
-	FBox GetCompleteBounds() const;
+	LANDSCAPE_API FBox GetCompleteBounds() const;
 #endif
 
 #if WITH_EDITOR
@@ -359,7 +362,18 @@ public:
 	 *     // Code
 	 * });
 	 */
+	UE_DEPRECATED(5.3, "This function has been deprecated, please use the ForEachLandscapeProxy property instead")
 	LANDSCAPE_API void ForAllLandscapeProxies(TFunctionRef<void(ALandscapeProxy*)> Fn) const;
+
+	/**
+	 * Runs the given function on the root landscape actor and all streaming proxies, with the posibility of early exit
+	 * Most easily used with a lambda as follows:
+	 * ForEachLandscapeProxy([](ALandscapeProxy* Proxy) -> bool
+	 * {
+	 *     return continueLoop ? true : false;
+	 * });
+	 */
+	LANDSCAPE_API void ForEachLandscapeProxy(TFunctionRef<bool(ALandscapeProxy*)> Fn) const;
 
 	/** Associates passed actor with this info object
  *  @param	Proxy		Landscape actor to register

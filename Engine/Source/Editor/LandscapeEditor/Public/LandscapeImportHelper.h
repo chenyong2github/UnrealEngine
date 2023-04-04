@@ -50,7 +50,8 @@ enum class ELandscapeImportTransformType : int8
 	None UMETA(DisplayName="Original", ToolTip="Will Import the data at the gizmo location in the original size"),
 	ExpandOffset UMETA(DisplayName="Expand", ToolTip="Will Import the data at the gizmo location and expand the data to fill the landscape") ,
 	ExpandCentered UMETA(Hidden), 
-	Resample UMETA(ToolTip="Will resample Import data to fit landscape")
+	Resample UMETA(ToolTip="Will resample Import data to fit landscape"),
+	Subregion UMETA(ToolTop="Import Sub-region of the Image to Landscape")
 };
 
 FORCEINLINE bool operator==(const FLandscapeImportResolution& Lhs, const FLandscapeImportResolution& Rhs)
