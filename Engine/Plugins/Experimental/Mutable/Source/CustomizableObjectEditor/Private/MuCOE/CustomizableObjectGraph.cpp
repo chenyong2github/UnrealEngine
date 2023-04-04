@@ -27,6 +27,17 @@ void UCustomizableObjectGraph::PostLoad()
 			CustomizableObjectNode->ConditionalPostLoad();
 		}
 	}
+	
+	// Remove any null links
+	//
+	// Links can become null if the node they're linked to can't be loaded
+	for (UEdGraphNode* Node : Nodes)
+	{
+		for (UEdGraphPin* Pin : Node->Pins)
+		{
+			Pin->LinkedTo.RemoveAll([](UEdGraphPin* Other) { return Other == nullptr; });
+		}
+	}
 
 	// Execute backwards compatible code for all nodes. It requires all nodes to be loaded.
 	for (UEdGraphNode* Node : Nodes)
