@@ -175,21 +175,6 @@ bool UsdUtils::IsAttributeMuted( const UE::FUsdAttribute& Attribute, const UE::F
 	return false;
 }
 
-void UsdUtils::NotifyIfOverriddenOpinion( const UE::FUsdAttribute& Attribute )
-{
-#if USE_USD_SDK
-	FScopedUsdAllocs Allocs;
-
-	pxr::UsdAttribute UsdAttribute{Attribute};
-	if ( !UsdAttribute )
-	{
-		return;
-	}
-
-	NotifyIfOverriddenOpinion(UsdAttribute);
-#endif // #if USE_USD_SDK
-}
-
 #if USE_USD_SDK
 void UsdUtils::NotifyIfOverriddenOpinion(const pxr::UsdProperty& Property)
 {

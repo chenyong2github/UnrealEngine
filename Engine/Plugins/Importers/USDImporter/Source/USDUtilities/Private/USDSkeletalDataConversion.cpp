@@ -3472,10 +3472,10 @@ bool UnrealToUsd::ConvertControlRigSection(
 		EndInclTickFrame = UpperBoundToUse.GetValue().GetValue() + ( UpperBoundToUse.GetValue().IsInclusive() ? 0 : -1 );
 	}
 
-	UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ BlendShapeWeightsAttr } );
-	UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ TranslationsAttr } );
-	UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ RotationsAttr } );
-	UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ ScalesAttr } );
+	UsdUtils::NotifyIfOverriddenOpinion(BlendShapeWeightsAttr);
+	UsdUtils::NotifyIfOverriddenOpinion(TranslationsAttr);
+	UsdUtils::NotifyIfOverriddenOpinion(RotationsAttr);
+	UsdUtils::NotifyIfOverriddenOpinion(ScalesAttr);
 
 	pxr::VtArray<pxr::TfToken> CurveNames;
 	pxr::VtArray<float> CurvesValuesForTime;
@@ -3609,7 +3609,7 @@ bool UnrealToUsd::ConvertControlRigSection(
 						if ( bRenamedAChannel )
 						{
 							ChannelsAttr.Set( BlendShapeChannels );
-							UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ ChannelsAttr } );
+							UsdUtils::NotifyIfOverriddenOpinion(ChannelsAttr);
 						}
 					}
 				}
@@ -3622,7 +3622,7 @@ bool UnrealToUsd::ConvertControlRigSection(
 		BlendShapesAttr.Set( CurveNames );
 		CurvesValuesForTime.resize( CurveNames.size() );
 
-		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ BlendShapesAttr } );
+		UsdUtils::NotifyIfOverriddenOpinion(BlendShapesAttr);
 	}
 
 	FFrameTime TickIncr = FFrameRate::TransformTime( 1, DisplayRate, TickResolution );

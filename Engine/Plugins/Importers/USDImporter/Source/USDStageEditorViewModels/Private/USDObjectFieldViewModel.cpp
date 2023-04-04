@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "USDPrimAttributesViewModel.h"
+#include "USDObjectFieldViewModel.h"
 
 #include "UnrealUSDWrapper.h"
 #include "USDAttributeUtils.h"
@@ -37,14 +37,14 @@
 
 #endif // #if USE_USD_SDK
 
-#define LOCTEXT_NAMESPACE "USDPrimAttributesViewModel"
+#define LOCTEXT_NAMESPACE "USDObjectFieldViewModel"
 
-FUsdPrimAttributeViewModel::FUsdPrimAttributeViewModel( FUsdPrimAttributesViewModel* InOwner )
+FUsdObjectFieldViewModel::FUsdObjectFieldViewModel( FUsdObjectFieldsViewModel* InOwner )
 	: Owner( InOwner )
 {
 }
 
-TArray< TSharedPtr< FString > > FUsdPrimAttributeViewModel::GetDropdownOptions() const
+TArray< TSharedPtr< FString > > FUsdObjectFieldViewModel::GetDropdownOptions() const
 {
 #if USE_USD_SDK
 	if ( Label == TEXT("kind") )
@@ -102,15 +102,15 @@ TArray< TSharedPtr< FString > > FUsdPrimAttributeViewModel::GetDropdownOptions()
 	return {};
 }
 
-void FUsdPrimAttributeViewModel::SetAttributeValue( const UsdUtils::FConvertedVtValue& InValue )
+void FUsdObjectFieldViewModel::SetAttributeValue( const UsdUtils::FConvertedVtValue& InValue )
 {
-	Owner->SetPrimAttribute( Label, InValue );
+	Owner->SetFieldValue( Label, InValue );
 }
 
 template<typename T>
-void FUsdPrimAttributesViewModel::CreatePrimAttribute(
-	EAttributeModelType Type,
-	const FString& AttributeName,
+void FUsdObjectFieldsViewModel::CreateField(
+	EObjectFieldType Type,
+	const FString& FieldName,
 	const T& Value,
 	UsdUtils::EUsdBasicDataTypes SourceType,
 	const FString& ValueRole,
@@ -121,33 +121,33 @@ void FUsdPrimAttributesViewModel::CreatePrimAttribute(
 	VtValue.Entries = { { UsdUtils::FConvertedVtValueComponent{ TInPlaceType<T>(), Value } } };
 	VtValue.SourceType = SourceType;
 
-	FUsdPrimAttributeViewModel Property( this );
+	FUsdObjectFieldViewModel Property( this );
 	Property.Type = Type;
-	Property.Label = AttributeName;
+	Property.Label = FieldName;
 	Property.Value = VtValue;
 	Property.ValueRole = ValueRole;
 	Property.bReadOnly = bReadOnly;
 
-	PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( Property ) ) );
+	Fields.Add( MakeSharedUnreal< FUsdObjectFieldViewModel >( MoveTemp( Property ) ) );
 }
 
-void FUsdPrimAttributesViewModel::CreatePrimAttribute(
-	EAttributeModelType Type,
-	const FString& AttributeName,
+void FUsdObjectFieldsViewModel::CreateField(
+	EObjectFieldType Type,
+	const FString& FieldName,
 	const UsdUtils::FConvertedVtValue& Value,
 	bool bReadOnly
 )
 {
-	FUsdPrimAttributeViewModel Property( this );
+	FUsdObjectFieldViewModel Property( this );
 	Property.Type = Type;
-	Property.Label = AttributeName;
+	Property.Label = FieldName;
 	Property.Value = Value;
 	Property.bReadOnly = bReadOnly;
 
-	PrimAttributes.Add( MakeSharedUnreal< FUsdPrimAttributeViewModel >( MoveTemp( Property ) ) );
+	Fields.Add( MakeSharedUnreal< FUsdObjectFieldViewModel >( MoveTemp( Property ) ) );
 }
 
-void FUsdPrimAttributesViewModel::SetPrimAttribute( const FString& AttributeName, const UsdUtils::FConvertedVtValue& InValue )
+void FUsdObjectFieldsViewModel::SetFieldValue( const FString& FieldName, const UsdUtils::FConvertedVtValue& InValue )
 {
 	bool bSuccess = false;
 
@@ -158,13 +158,13 @@ void FUsdPrimAttributesViewModel::SetPrimAttribute( const FString& AttributeName
 	}
 
 	// Transact here as setting this attribute may trigger USD events that affect assets/components
-	FScopedTransaction Transaction( FText::Format(
-		LOCTEXT( "SetPrimAttribute", "Set value for field '{0}' of prim '{1}'" ),
-		FText::FromString( AttributeName ),
-		FText::FromString( PrimPath )
+	FScopedTransaction Transaction(FText::Format(
+		LOCTEXT("SetFieldValue", "Set value for field '{0}' of prim '{1}'"),
+		FText::FromString(FieldName),
+		FText::FromString(ObjectPath)
 	));
 
-	const bool bIsStageAttribute = PrimPath == TEXT( "/" ) || PrimPath.IsEmpty();
+	const bool bIsStageAttribute = ObjectPath == TEXT("/") || ObjectPath.IsEmpty();
 	bool bIsPropertyPath = false;
 
 	UE::FVtValue VtValue;
@@ -177,29 +177,29 @@ void FUsdPrimAttributesViewModel::SetPrimAttribute( const FString& AttributeName
 			// To set stage metadata the edit target must be the root or session layer
 			pxr::UsdStageRefPtr Stage{ UsdStage };
 			pxr::UsdEditContext( Stage, Stage->GetRootLayer() );
-			bSuccess = UsdStage.SetMetadata( *AttributeName, VtValue );
+			bSuccess = UsdStage.SetMetadata( *FieldName, VtValue );
 		}
-		else if ( UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath( *PrimPath ) ) )
+		else if (UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath(UE::FSdfPath(*ObjectPath)))
 		{
 			FScopedUsdAllocs UsdAllocs;
 
 			pxr::UsdPrim PxrUsdPrim{UsdPrim};
-			pxr::TfToken AttributeNameToken = UnrealToUsd::ConvertToken(*AttributeName).Get();
+			pxr::TfToken FieldNameToken = UnrealToUsd::ConvertToken(*FieldName).Get();
 
 			// Single value, single component of FString
-			if ( AttributeName == TEXT( "kind" ) && InValue.Entries.Num() == 1 && InValue.Entries[ 0 ].Num() == 1 && InValue.Entries[ 0 ][ 0 ].IsType<FString>() )
+			if ( FieldName == TEXT( "kind" ) && InValue.Entries.Num() == 1 && InValue.Entries[ 0 ].Num() == 1 && InValue.Entries[ 0 ][ 0 ].IsType<FString>() )
 			{
 				bSuccess = IUsdPrim::SetKind(
 					UsdPrim,
 					UnrealToUsd::ConvertToken( *( InValue.Entries[ 0 ][ 0 ].Get<FString>() ) ).Get()
 				);
 			}
-			else if ( UE::FUsdAttribute Attribute = UsdPrim.GetAttribute( *AttributeName ) )
+			else if ( UE::FUsdAttribute Attribute = UsdPrim.GetAttribute( *FieldName ) )
 			{
 				bSuccess = Attribute.Set( VtValue );
 				UsdUtils::NotifyIfOverriddenOpinion( Attribute );
 			}
-			else if (pxr::UsdRelationship Relationship = PxrUsdPrim.GetRelationship(AttributeNameToken))
+			else if (pxr::UsdRelationship Relationship = PxrUsdPrim.GetRelationship(FieldNameToken))
 			{
 				if (InValue.Entries.Num() == 1 && InValue.Entries[0].Num() == 1 && InValue.Entries[0][0].IsType<FString>())
 				{
@@ -210,17 +210,17 @@ void FUsdPrimAttributesViewModel::SetPrimAttribute( const FString& AttributeName
 					UsdUtils::NotifyIfOverriddenOpinion(Relationship);
 				}
 			}
-			else if (PxrUsdPrim.HasMetadata(AttributeNameToken))
+			else if (PxrUsdPrim.HasMetadata(FieldNameToken))
 			{
-				bSuccess = PxrUsdPrim.SetMetadata(AttributeNameToken, VtValue.GetUsdValue());
+				bSuccess = PxrUsdPrim.SetMetadata(FieldNameToken, VtValue.GetUsdValue());
 			}
 		}
 		// Trying to set property metadata
-		else if (!PrimPath.IsEmpty())
+		else if (!ObjectPath.IsEmpty())
 		{
 			FScopedUsdAllocs Allocs;
 
-			pxr::SdfPath UsdPath = UnrealToUsd::ConvertPath(*PrimPath).Get();
+			pxr::SdfPath UsdPath = UnrealToUsd::ConvertPath(*ObjectPath).Get();
 			if (UsdPath.IsPropertyPath())
 			{
 				bIsPropertyPath = true;
@@ -233,10 +233,10 @@ void FUsdPrimAttributesViewModel::SetPrimAttribute( const FString& AttributeName
 				{
 					if (pxr::UsdProperty Property = Prim.GetProperty(PropertyName))
 					{
-						pxr::TfToken AttributeNameToken = UnrealToUsd::ConvertToken(*AttributeName).Get();
-						if (Property.HasMetadata(AttributeNameToken))
+						pxr::TfToken FieldNameToken = UnrealToUsd::ConvertToken(*FieldName).Get();
+						if (Property.HasMetadata(FieldNameToken))
 						{
-							bSuccess = Property.SetMetadata(AttributeNameToken, VtValue.GetUsdValue());
+							bSuccess = Property.SetMetadata(FieldNameToken, VtValue.GetUsdValue());
 						}
 					}
 				}
@@ -246,10 +246,10 @@ void FUsdPrimAttributesViewModel::SetPrimAttribute( const FString& AttributeName
 
 	if ( !bSuccess )
 	{
-		const FText ErrorMessage = FText::Format( LOCTEXT( "FailToSetAttributeMessage", "Failed to set '{0}' on {1} '{2}'" ),
-			FText::FromString( AttributeName ),
-			FText::FromString( bIsStageAttribute ? TEXT( "stage" ) : bIsPropertyPath ? TEXT("property") : TEXT("prim")),
-			FText::FromString( bIsStageAttribute ? UsdStage.GetRootLayer().GetRealPath() : PrimPath )
+		const FText ErrorMessage = FText::Format(LOCTEXT("FailToSetFieldMessage", "Failed to set '{0}' on {1} '{2}'"),
+			FText::FromString(FieldName),
+			FText::FromString(bIsStageAttribute ? TEXT("stage") : bIsPropertyPath ? TEXT("property") : TEXT("prim")),
+			FText::FromString(bIsStageAttribute ? UsdStage.GetRootLayer().GetRealPath() : ObjectPath)
 		);
 
 		FNotificationInfo ErrorToast( ErrorMessage );
@@ -263,20 +263,20 @@ void FUsdPrimAttributesViewModel::SetPrimAttribute( const FString& AttributeName
 #endif // #if USE_USD_SDK
 }
 
-void FUsdPrimAttributesViewModel::Refresh( const UE::FUsdStageWeak& InUsdStage, const TCHAR* InPrimPath, float TimeCode )
+void FUsdObjectFieldsViewModel::Refresh(const UE::FUsdStageWeak& InUsdStage, const TCHAR* InObjectPath, float TimeCode)
 {
 	FScopedUnrealAllocs UnrealAllocs;
 
 	UsdStage = InUsdStage;
-	PrimPath = InPrimPath;
+	ObjectPath = InObjectPath;
 
-	PrimAttributes.Reset();
+	Fields.Reset();
 
 #if USE_USD_SDK
-	TFunction<void(const FString& MetadataName, const pxr::VtValue& Value)> DisplayEntryAsString =
-		[this](const FString& MetadataName, const pxr::VtValue& Value)
+	TFunction<void(const FString&, const pxr::VtValue&)> DisplayFieldAsString =
+		[this](const FString& FieldName, const pxr::VtValue& Value)
 		{
-			const bool bAttrReadOnly = true;
+			const bool bReadOnly = true;
 			FString Stringified = UsdToUnreal::ConvertString(pxr::TfStringify(Value));
 
 			// STextBlock can get very slow calculating its desired size for very long string so chop it if needed
@@ -287,19 +287,19 @@ void FUsdPrimAttributesViewModel::Refresh( const UE::FUsdStageWeak& InUsdStage, 
 				Stringified.Append(TEXT("..."));
 			}
 
-			CreatePrimAttribute(
-				EAttributeModelType::Metadata,
-				MetadataName,
+			CreateField(
+				EObjectFieldType::Metadata,
+				FieldName,
 				Stringified,
 				UsdUtils::EUsdBasicDataTypes::String,
 				TEXT(""),
-				bAttrReadOnly
+				bReadOnly
 			);
 		};
 
 	// Lambda to add rows to the model based on USD object metadata. Extracted here because we can reuse it for
 	// properties and prims
-	TFunction<void(pxr::UsdObject)> AddMetadataEntries = [this, &DisplayEntryAsString](pxr::UsdObject Object)
+	TFunction<void(pxr::UsdObject)> AddMetadataFields = [this, &DisplayFieldAsString](pxr::UsdObject Object)
 	{
 		std::map<class pxr::TfToken, pxr::VtValue, pxr::TfDictionaryLessThan> MetadataMap = Object.GetAllMetadata();
 		for (std::map<class pxr::TfToken, pxr::VtValue, pxr::TfDictionaryLessThan>::iterator Iter = MetadataMap.begin();
@@ -316,23 +316,23 @@ void FUsdPrimAttributesViewModel::Refresh( const UE::FUsdStageWeak& InUsdStage, 
 			{
 				if (Value.IsArrayValued())
 				{
-					DisplayEntryAsString(MetadataName, Value);
+					DisplayFieldAsString(MetadataName, Value);
 				}
 				else
 				{
-					const bool bAttrReadOnly = false;
-					CreatePrimAttribute(
-						EAttributeModelType::Metadata,
+					const bool bReadOnly = false;
+					CreateField(
+						EObjectFieldType::Metadata,
 						MetadataName,
 						ConvertedValue,
-						bAttrReadOnly
+						bReadOnly
 					);
 				}
 			}
 			// If we don't know how to display this type, try stringifying it
 			else
 			{
-				DisplayEntryAsString(MetadataName, Value);
+				DisplayFieldAsString(MetadataName, Value);
 			}
 		}
 	};
@@ -340,13 +340,13 @@ void FUsdPrimAttributesViewModel::Refresh( const UE::FUsdStageWeak& InUsdStage, 
 	if ( UsdStage )
 	{
 		// Show info about the stage
-		if ( PrimPath.Equals( TEXT( "/" ) ) || PrimPath.IsEmpty() )
+		if ( ObjectPath.Equals( TEXT( "/" ) ) || ObjectPath.IsEmpty() )
 		{
 			const bool bReadOnly = true;
 			const FString Role = TEXT( "" );
-			CreatePrimAttribute(
-				EAttributeModelType::Metadata,
-				TEXT( "path" ),
+			CreateField(
+				EObjectFieldType::Metadata,
+				TEXT("path"),
 				UsdStage.GetRootLayer().GetRealPath(),
 				UsdUtils::EUsdBasicDataTypes::String,
 				Role,
@@ -361,7 +361,7 @@ void FUsdPrimAttributesViewModel::Refresh( const UE::FUsdStageWeak& InUsdStage, 
 				pxr::VtValue VtValue;
 				if ( pxr::UsdStageRefPtr( UsdStage )->GetMetadata( Token, &VtValue ) )
 				{
-					FString AttributeName = UsdToUnreal::ConvertToken( Token );
+					FString FieldName = UsdToUnreal::ConvertToken( Token );
 
 					UsdUtils::FConvertedVtValue ConvertedValue;
 					if ( !UsdToUnreal::ConvertValue( UE::FVtValue{ VtValue }, ConvertedValue ) )
@@ -370,9 +370,9 @@ void FUsdPrimAttributesViewModel::Refresh( const UE::FUsdStageWeak& InUsdStage, 
 					}
 
 					const bool bAttrReadOnly = ConvertedValue.bIsArrayValued;
-					CreatePrimAttribute(
-						EAttributeModelType::Metadata,
-						AttributeName,
+					CreateField(
+						EObjectFieldType::Metadata,
+						FieldName,
 						ConvertedValue,
 						bAttrReadOnly
 					);
@@ -381,29 +381,29 @@ void FUsdPrimAttributesViewModel::Refresh( const UE::FUsdStageWeak& InUsdStage, 
 
 		}
 		// Show info about a prim
-		else if ( UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UE::FSdfPath( InPrimPath ) ) )
+		else if (UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath(UE::FSdfPath{*ObjectPath}))
 		{
 			// For now we can't rename/reparent prims through this
-			const bool bReadOnly = true;
+			const bool bPrimReadOnly = true;
 			const FString Role = TEXT("");
-			CreatePrimAttribute(
-				EAttributeModelType::Metadata,
+			CreateField(
+				EObjectFieldType::Metadata,
 				TEXT("name"),
 				UsdPrim.GetName().ToString(),
 				UsdUtils::EUsdBasicDataTypes::String,
 				Role,
-				bReadOnly
+				bPrimReadOnly
 			);
-			CreatePrimAttribute(
-				EAttributeModelType::Metadata,
+			CreateField(
+				EObjectFieldType::Metadata,
 				TEXT("path"),
-				FString(InPrimPath),
+				ObjectPath,
 				UsdUtils::EUsdBasicDataTypes::String,
 				Role,
-				bReadOnly
+				bPrimReadOnly
 			);
-			CreatePrimAttribute(
-				EAttributeModelType::Metadata,
+			CreateField(
+				EObjectFieldType::Metadata,
 				TEXT("kind"),
 				UsdToUnreal::ConvertString(IUsdPrim::GetKind(UsdPrim).GetString()),
 				UsdUtils::EUsdBasicDataTypes::Token
@@ -434,8 +434,8 @@ void FUsdPrimAttributesViewModel::Refresh( const UE::FUsdStageWeak& InUsdStage, 
 						Stringified.Append( TEXT( "..." ) );
 					}
 
-					CreatePrimAttribute(
-						EAttributeModelType::Attribute,
+					CreateField(
+						EObjectFieldType::Attribute,
 						AttributeName,
 						Stringified,
 						UsdUtils::EUsdBasicDataTypes::String,
@@ -449,8 +449,8 @@ void FUsdPrimAttributesViewModel::Refresh( const UE::FUsdStageWeak& InUsdStage, 
 					if ( UsdToUnreal::ConvertValue( UE::FVtValue{ VtValue }, ConvertedValue ) )
 					{
 						const bool bAttrReadOnly = false;
-						CreatePrimAttribute(
-							EAttributeModelType::Attribute,
+						CreateField(
+							EObjectFieldType::Attribute,
 							AttributeName,
 							ConvertedValue,
 							bAttrReadOnly
@@ -474,8 +474,8 @@ void FUsdPrimAttributesViewModel::Refresh( const UE::FUsdStageWeak& InUsdStage, 
 							ConnectionPropertyValue.Entries = { Entry };
 
 							const bool bConnectionValueReadOnly = true;
-							CreatePrimAttribute(
-								EAttributeModelType::Attribute,
+							CreateField(
+								EObjectFieldType::Attribute,
 								ConnectionAttributeName,
 								ConnectionPropertyValue,
 								bConnectionValueReadOnly
@@ -495,14 +495,14 @@ void FUsdPrimAttributesViewModel::Refresh( const UE::FUsdStageWeak& InUsdStage, 
 					if (Targets.size() == 1)
 					{
 						FString UETarget = UsdToUnreal::ConvertPath(Targets[0]);
-						const bool bAttrReadOnly = false;
-						CreatePrimAttribute(
-							EAttributeModelType::Relationship,
+						const bool bReadOnly = false;
+						CreateField(
+							EObjectFieldType::Relationship,
 							RelationshipName,
 							UETarget,
 							UsdUtils::EUsdBasicDataTypes::String,
 							TEXT(""),
-							bAttrReadOnly
+							bReadOnly
 						);
 					}
 					else if (Targets.size() > 1)
@@ -522,27 +522,27 @@ void FUsdPrimAttributesViewModel::Refresh( const UE::FUsdStageWeak& InUsdStage, 
 							CombinedTargets.Append(TEXT("..."));
 						}
 
-						const bool bAttrReadOnly = true;
-						CreatePrimAttribute(
-							EAttributeModelType::Relationship,
+						const bool bReadOnly = true;
+						CreateField(
+							EObjectFieldType::Relationship,
 							RelationshipName,
 							CombinedTargets,
 							UsdUtils::EUsdBasicDataTypes::String,
 							TEXT(""),
-							bAttrReadOnly
+							bReadOnly
 						);
 					}
 				}
 			}
 
-			AddMetadataEntries(PxrUsdPrim);
+			AddMetadataFields(PxrUsdPrim);
 		}
 		// It's a property path?
-		else if (!PrimPath.IsEmpty())
+		else if (!ObjectPath.IsEmpty())
 		{
 			FScopedUsdAllocs Allocs;
 
-			pxr::SdfPath UsdPath = UnrealToUsd::ConvertPath(*PrimPath).Get();
+			pxr::SdfPath UsdPath = UnrealToUsd::ConvertPath(*ObjectPath).Get();
 			if (UsdPath.IsPropertyPath())
 			{
 				pxr::SdfPath PxrPrimPath = UsdPath.GetPrimPath();
@@ -553,7 +553,7 @@ void FUsdPrimAttributesViewModel::Refresh( const UE::FUsdStageWeak& InUsdStage, 
 				{
 					if (pxr::UsdProperty Property = Prim.GetProperty(PropertyName))
 					{
-						AddMetadataEntries(Property);
+						AddMetadataFields(Property);
 					}
 				}
 			}
@@ -564,14 +564,14 @@ void FUsdPrimAttributesViewModel::Refresh( const UE::FUsdStageWeak& InUsdStage, 
 #endif // #if USE_USD_SDK
 }
 
-void FUsdPrimAttributesViewModel::Sort()
+void FUsdObjectFieldsViewModel::Sort()
 {
 	// When sorting by type, we'll sort according to the types first, but still sort alphabetically within each type
-	if (CurrentSortColumn == PrimAttributeColumnIds::TypeColumn)
+	if (CurrentSortColumn == ObjectFieldColumnIds::TypeColumn)
 	{
 		if (CurrentSortMode == EColumnSortMode::Ascending)
 		{
-			PrimAttributes.Sort([](const TSharedPtr<FUsdPrimAttributeViewModel>& A, const TSharedPtr<FUsdPrimAttributeViewModel>& B)
+			Fields.Sort([](const TSharedPtr<FUsdObjectFieldViewModel>& A, const TSharedPtr<FUsdObjectFieldViewModel>& B)
 			{
 				if(A->Type == B->Type)
 				{
@@ -585,7 +585,7 @@ void FUsdPrimAttributesViewModel::Sort()
 		}
 		else
 		{
-			PrimAttributes.Sort([](const TSharedPtr<FUsdPrimAttributeViewModel>& A, const TSharedPtr<FUsdPrimAttributeViewModel>& B)
+			Fields.Sort([](const TSharedPtr<FUsdObjectFieldViewModel>& A, const TSharedPtr<FUsdObjectFieldViewModel>& B)
 			{
 				if(A->Type == B->Type)
 				{
@@ -599,18 +599,18 @@ void FUsdPrimAttributesViewModel::Sort()
 		}
 	}
 	// When sorting by name we'll sort alphabetically regardless of type
-	else if (CurrentSortColumn == PrimAttributeColumnIds::NameColumn)
+	else if (CurrentSortColumn == ObjectFieldColumnIds::NameColumn)
 	{
 		if (CurrentSortMode == EColumnSortMode::Ascending)
 		{
-			PrimAttributes.Sort([](const TSharedPtr<FUsdPrimAttributeViewModel>& A, const TSharedPtr<FUsdPrimAttributeViewModel>& B)
+			Fields.Sort([](const TSharedPtr<FUsdObjectFieldViewModel>& A, const TSharedPtr<FUsdObjectFieldViewModel>& B)
 			{
 				return A->Label < B->Label;
 			});
 		}
 		else
 		{
-			PrimAttributes.Sort([](const TSharedPtr<FUsdPrimAttributeViewModel>& A, const TSharedPtr<FUsdPrimAttributeViewModel>& B)
+			Fields.Sort([](const TSharedPtr<FUsdObjectFieldViewModel>& A, const TSharedPtr<FUsdObjectFieldViewModel>& B)
 			{
 				return A->Label > B->Label;
 			});
@@ -618,14 +618,14 @@ void FUsdPrimAttributesViewModel::Sort()
 	}
 }
 
-UE::FUsdStageWeak FUsdPrimAttributesViewModel::GetUsdStage() const
+UE::FUsdStageWeak FUsdObjectFieldsViewModel::GetUsdStage() const
 {
 	return UsdStage;
 }
 
-FString FUsdPrimAttributesViewModel::GetPrimPath() const
+FString FUsdObjectFieldsViewModel::GetObjectPath() const
 {
-	return PrimPath;
+	return ObjectPath;
 }
 
 #undef LOCTEXT_NAMESPACE

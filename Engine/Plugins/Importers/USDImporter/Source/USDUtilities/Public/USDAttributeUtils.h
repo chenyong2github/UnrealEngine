@@ -36,7 +36,6 @@ namespace UsdUtils
 	 * Use this after setting any attribute: This function does nothing in case the Stage's current edit target has
 	 * the strongest opinion for the attribute already
 	 */
-	USDUTILITIES_API void NotifyIfOverriddenOpinion( const UE::FUsdAttribute& Attribute );
 #if USE_USD_SDK
 	USDUTILITIES_API void NotifyIfOverriddenOpinion( const pxr::UsdProperty& Property );
 #endif // USE_USD_SDK

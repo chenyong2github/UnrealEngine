@@ -1408,31 +1408,31 @@ bool UnrealToUsd::ConvertCameraComponent( const UCineCameraComponent& CameraComp
 	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFocalLengthAttr() )
 	{
 		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent.CurrentFocalLength ), UsdTimeCode );
-		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
+		UsdUtils::NotifyIfOverriddenOpinion(Attr);
 	}
 
 	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFocusDistanceAttr() )
 	{
 		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent.FocusSettings.ManualFocusDistance ), UsdTimeCode );
-		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
+		UsdUtils::NotifyIfOverriddenOpinion(Attr);
 	}
 
 	if ( pxr::UsdAttribute Attr = GeomCamera.CreateFStopAttr() )
 	{
 		Attr.Set<float>( CameraComponent.CurrentAperture, UsdTimeCode );
-		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
+		UsdUtils::NotifyIfOverriddenOpinion(Attr);
 	}
 
 	if ( pxr::UsdAttribute Attr = GeomCamera.CreateHorizontalApertureAttr() )
 	{
 		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent.Filmback.SensorWidth ), UsdTimeCode );
-		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
+		UsdUtils::NotifyIfOverriddenOpinion(Attr);
 	}
 
 	if ( pxr::UsdAttribute Attr = GeomCamera.CreateVerticalApertureAttr() )
 	{
 		Attr.Set<float>( UnrealToUsd::ConvertDistance( StageInfo, CameraComponent.Filmback.SensorHeight ), UsdTimeCode );
-		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
+		UsdUtils::NotifyIfOverriddenOpinion(Attr);
 	}
 
 	return true;
@@ -1983,7 +1983,7 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 		}
 
 		VisibilityAttr.Set<pxr::TfToken>( Value );
-		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ VisibilityAttr } );
+		UsdUtils::NotifyIfOverriddenOpinion(VisibilityAttr);
 	}
 
 	return true;
@@ -2215,25 +2215,25 @@ bool UnrealToUsd::ConvertHierarchicalInstancedStaticMeshComponent( const UHierar
 	if ( UsdAttribute Attr = PointInstancer.CreateProtoIndicesAttr() )
 	{
 		Attr.Set( ProtoIndices, UsdTimeCode );
-		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
+		UsdUtils::NotifyIfOverriddenOpinion(Attr);
 	}
 
 	if ( UsdAttribute Attr = PointInstancer.CreatePositionsAttr() )
 	{
 		Attr.Set( Positions, UsdTimeCode );
-		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
+		UsdUtils::NotifyIfOverriddenOpinion(Attr);
 	}
 
 	if ( UsdAttribute Attr = PointInstancer.CreateOrientationsAttr() )
 	{
 		Attr.Set( Orientations, UsdTimeCode );
-		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
+		UsdUtils::NotifyIfOverriddenOpinion(Attr);
 	}
 
 	if ( UsdAttribute Attr = PointInstancer.CreateScalesAttr() )
 	{
 		Attr.Set( Scales, UsdTimeCode );
-		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
+		UsdUtils::NotifyIfOverriddenOpinion(Attr);
 	}
 
 	return true;
@@ -2264,8 +2264,8 @@ bool UnrealToUsd::ConvertXformable( const FTransform& RelativeTransform, pxr::Us
 	{
 		MatrixXform.Set( UsdTransform, UsdTimeCode );
 
-		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ MatrixXform.GetAttr() } );
-		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ XForm.GetXformOpOrderAttr() } );
+		UsdUtils::NotifyIfOverriddenOpinion(MatrixXform.GetAttr());
+		UsdUtils::NotifyIfOverriddenOpinion(XForm.GetXformOpOrderAttr());
 	}
 
 	return true;
@@ -2427,25 +2427,25 @@ bool UnrealToUsd::ConvertInstancedFoliageActor( const AInstancedFoliageActor& Ac
 	if ( UsdAttribute Attr = PointInstancer.CreateProtoIndicesAttr() )
 	{
 		Attr.Set( ProtoIndices, UsdTimeCode );
-		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
+		UsdUtils::NotifyIfOverriddenOpinion(Attr);
 	}
 
 	if ( UsdAttribute Attr = PointInstancer.CreatePositionsAttr() )
 	{
 		Attr.Set( Positions, UsdTimeCode );
-		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
+		UsdUtils::NotifyIfOverriddenOpinion(Attr);
 	}
 
 	if ( UsdAttribute Attr = PointInstancer.CreateOrientationsAttr() )
 	{
 		Attr.Set( Orientations, UsdTimeCode );
-		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
+		UsdUtils::NotifyIfOverriddenOpinion(Attr);
 	}
 
 	if ( UsdAttribute Attr = PointInstancer.CreateScalesAttr() )
 	{
 		Attr.Set( Scales, UsdTimeCode );
-		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
+		UsdUtils::NotifyIfOverriddenOpinion(Attr);
 	}
 
 	return true;
@@ -3321,7 +3321,7 @@ UnrealToUsd::FPropertyTrackWriter UnrealToUsd::CreatePropertyTrackWriter( const 
 		// "attribute creation" spec first. This because NotifyIfOverriddenOpinion will go through the attribute's
 		// spec stack and consider our attribute overriden if it finds a stronger opinion than the one on the edit
 		// target. Well if our own spec hasn't been created yet it will misfire when it runs into any other spec
-		UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
+		UsdUtils::NotifyIfOverriddenOpinion(Attr);
 	}
 
 	return Result;

@@ -25,7 +25,7 @@
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/UsdAttribute.h"
 #include "UsdWrappers/UsdStage.h"
-#include "Widgets/SUSDPrimPropertiesList.h"
+#include "Widgets/SUSDObjectFieldList.h"
 
 #include "ActorTreeItem.h"
 #include "Async/Async.h"
@@ -449,7 +449,7 @@ TArray<FString> SUsdStage::GetSelectedPropertyNames() const
 {
 	if( UsdPrimInfoWidget && UsdPrimInfoWidget->PropertiesList )
 	{
-		return UsdPrimInfoWidget->PropertiesList->GetSelectedPropertyNames();
+		return UsdPrimInfoWidget->PropertiesList->GetSelectedFieldNames();
 	}
 
 	return {};
@@ -459,7 +459,7 @@ void SUsdStage::SetSelectedPropertyNames( const TArray<FString>& NewSelection )
 {
 	if ( UsdPrimInfoWidget && UsdPrimInfoWidget->PropertiesList )
 	{
-		UsdPrimInfoWidget->PropertiesList->SetSelectedPropertyNames( NewSelection );
+		UsdPrimInfoWidget->PropertiesList->SetSelectedFieldNames(NewSelection);
 	}
 }
 
@@ -467,7 +467,7 @@ TArray<FString> SUsdStage::GetSelectedPropertyMetadataNames() const
 {
 	if (UsdPrimInfoWidget && UsdPrimInfoWidget->PropertyMetadataPanel)
 	{
-		return UsdPrimInfoWidget->PropertyMetadataPanel->GetSelectedPropertyNames();
+		return UsdPrimInfoWidget->PropertyMetadataPanel->GetSelectedFieldNames();
 	}
 
 	return {};
@@ -477,7 +477,7 @@ void SUsdStage::SetSelectedPropertyMetadataNames(const TArray<FString>& NewSelec
 {
 	if (UsdPrimInfoWidget && UsdPrimInfoWidget->PropertyMetadataPanel)
 	{
-		UsdPrimInfoWidget->PropertyMetadataPanel->SetSelectedPropertyNames(NewSelection);
+		UsdPrimInfoWidget->PropertyMetadataPanel->SetSelectedFieldNames(NewSelection);
 	}
 }
 

@@ -2018,7 +2018,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 		if ( pxr::UsdAttribute Attr = UsdPrim.CreateAttribute( UnrealIdentifiers::UnrealNaniteOverride, pxr::SdfValueTypeNames->Token ) )
 		{
 			Attr.Set( UnrealIdentifiers::UnrealNaniteOverrideEnable );
-			UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
+			UsdUtils::NotifyIfOverriddenOpinion(Attr);
 		}
 	}
 #endif // WITH_EDITOR

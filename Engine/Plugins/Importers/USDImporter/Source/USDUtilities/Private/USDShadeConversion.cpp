@@ -2674,7 +2674,7 @@ bool UsdUtils::MarkMaterialPrimWithWorldSpaceNormals( const UE::FUsdPrim& Materi
 	}
 
 	Attr.Set<bool>( true );
-	UsdUtils::NotifyIfOverriddenOpinion( UE::FUsdAttribute{ Attr } );
+	UsdUtils::NotifyIfOverriddenOpinion(Attr);
 	return true;
 }
 

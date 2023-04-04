@@ -7,7 +7,7 @@
 #include "USDStageModule.h"
 #include "USDTypesConversion.h"
 #include "Widgets/SUSDIntegrationsPanel.h"
-#include "Widgets/SUSDPrimPropertiesList.h"
+#include "Widgets/SUSDObjectFieldList.h"
 #include "Widgets/SUSDReferencesList.h"
 #include "Widgets/SUSDVariantSetsList.h"
 
@@ -43,25 +43,25 @@ void SUsdPrimInfo::Construct( const FArguments& InArgs )
 			SNew(SBox)
 			.Content()
 			[
-				SAssignNew(PropertiesList, SUsdPrimPropertiesList)
-				.NameColumnText(LOCTEXT("PropertyName", "Name"))
-				.OnSelectionChanged_Lambda([this](const TSharedPtr<FUsdPrimAttributeViewModel>& NewSelection, ESelectInfo::Type SelectionType)
+				SAssignNew(PropertiesList, SUsdObjectFieldList)
+				.NameColumnText(LOCTEXT("NameColumnText", "Name"))
+				.OnSelectionChanged_Lambda([this](const TSharedPtr<FUsdObjectFieldViewModel>& NewSelection, ESelectInfo::Type SelectionType)
 				{
 					// Display property metadata if we have exactly one selected
-					TArray<FString> SelectedProperties = PropertiesList->GetSelectedPropertyNames();
-					if (PropertiesList && SelectedProperties.Num() == 1 && NewSelection &&
-						(NewSelection->Type == EAttributeModelType::Attribute || NewSelection->Type == EAttributeModelType::Relationship)
+					TArray<FString> SelectedFields = PropertiesList->GetSelectedFieldNames();
+					if (PropertiesList && SelectedFields.Num() == 1 && NewSelection &&
+						(NewSelection->Type == EObjectFieldType::Attribute || NewSelection->Type == EObjectFieldType::Relationship)
 					)
 					{
-						PropertyMetadataPanel->SetPrimPath(
+						PropertyMetadataPanel->SetObjectPath(
 							PropertiesList->GetUsdStage(),
-							*(FString{PropertiesList->GetPrimPath()} + "." + SelectedProperties[0])
+							*(FString{PropertiesList->GetObjectPath()} + "." + SelectedFields[0])
 						);
 						PropertyMetadataPanel->SetVisibility(EVisibility::Visible);
 					}
 					else
 					{
-						PropertyMetadataPanel->SetPrimPath({}, TEXT(""));
+						PropertyMetadataPanel->SetObjectPath({}, TEXT(""));
 						PropertyMetadataPanel->SetVisibility(EVisibility::Collapsed);
 					}
 				})
@@ -74,10 +74,10 @@ void SUsdPrimInfo::Construct( const FArguments& InArgs )
 			SNew( SBox )
 			.Content()
 			[
-				SAssignNew(PropertyMetadataPanel, SUsdPrimPropertiesList)
+				SAssignNew(PropertyMetadataPanel, SUsdObjectFieldList)
 				.NameColumnText_Lambda([this]() -> FText
 				{
-					FString PropertyName = FPaths::GetExtension(PropertyMetadataPanel->GetPrimPath());
+					FString PropertyName = FPaths::GetExtension(PropertyMetadataPanel->GetObjectPath());
 					return FText::FromString(FString::Printf(TEXT("%s metadata"), *PropertyName));
 				})
 				.Visibility(EVisibility::Collapsed)
@@ -116,13 +116,13 @@ void SUsdPrimInfo::Construct( const FArguments& InArgs )
 	];
 }
 
-void SUsdPrimInfo::SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath )
+void SUsdPrimInfo::SetPrimPath(const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath)
 {
 	if ( PropertiesList )
 	{
-		PropertiesList->SetPrimPath( UsdStage, PrimPath );
+		PropertiesList->SetObjectPath(UsdStage, PrimPath);
 
-		PropertyMetadataPanel->SetPrimPath({}, TEXT(""));
+		PropertyMetadataPanel->SetObjectPath({}, TEXT(""));
 		PropertyMetadataPanel->ClearSelection();
 	}
 

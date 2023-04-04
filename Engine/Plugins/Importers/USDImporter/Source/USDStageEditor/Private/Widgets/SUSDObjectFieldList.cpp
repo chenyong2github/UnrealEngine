@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SUSDPrimPropertiesList.h"
+#include "SUSDObjectFieldList.h"
 
 #include "SUSDStageEditorStyle.h"
 #include "UnrealUSDWrapper.h"
@@ -21,9 +21,9 @@
 
 #if USE_USD_SDK
 
-#define LOCTEXT_NAMESPACE "SUsdPrimPropertiesList"
+#define LOCTEXT_NAMESPACE "SUsdObjectFieldList"
 
-namespace UsdPrimPropertiesListConstants
+namespace USDObjectFieldListConstants
 {
 	const FMargin LeftRowPadding( 6.0f, 2.5f, 2.0f, 2.5f );
 	const FMargin RightRowPadding( 3.0f, 2.5f, 2.0f, 2.5f );
@@ -35,11 +35,11 @@ namespace UsdPrimPropertiesListConstants
 	const TCHAR* NormalFont = TEXT("PropertyWindow.NormalFont");
 }
 
-class SUsdPrimPropertyRow;
+class SUsdObjectFieldRow;
 
-namespace UsdPrimPropertiesListImpl
+namespace USDObjectFieldListImpl
 {
-	enum class EPrimPropertyWidget : uint8
+	enum class EWidgetType : uint8
 	{
 		None,
 		Bool,
@@ -54,7 +54,7 @@ namespace UsdPrimPropertiesListImpl
 		Dropdown,
 	};
 
-	enum class EPrimPropertyLabelTypes
+	enum class EWidgetLabelTypes
 	{
 		NoLabel,
 		RGBA,
@@ -68,7 +68,7 @@ namespace UsdPrimPropertiesListImpl
 		TokenDropdownOptions.Remove( TokenName );
 	}
 
-	TArray< TSharedPtr< FString > >* GetTokenDropdownOptions( const FUsdPrimAttributeViewModel& ViewModel )
+	TArray< TSharedPtr< FString > >* GetTokenDropdownOptions( const FUsdObjectFieldViewModel& ViewModel )
 	{
 		if ( TArray< TSharedPtr< FString> >* FoundOptions = TokenDropdownOptions.Find( ViewModel.Label ) )
 		{
@@ -82,56 +82,56 @@ namespace UsdPrimPropertiesListImpl
 			return nullptr;
 		}
 
-		return &UsdPrimPropertiesListImpl::TokenDropdownOptions.Add( ViewModel.Label, Options );
+		return &USDObjectFieldListImpl::TokenDropdownOptions.Add( ViewModel.Label, Options );
 	}
 
-	EPrimPropertyLabelTypes GetLabelType( const UsdUtils::FConvertedVtValue& PropertyValue, const FString& ValueRole )
+	EWidgetLabelTypes GetLabelType( const UsdUtils::FConvertedVtValue& FieldValue, const FString& ValueRole )
 	{
-		if ( PropertyValue.Entries.Num() < 1 )
+		if ( FieldValue.Entries.Num() < 1 )
 		{
-			return EPrimPropertyLabelTypes::NoLabel;
+			return EWidgetLabelTypes::NoLabel;
 		}
 
-		int32 NumComponents = PropertyValue.Entries[0].Num();
-		EPrimPropertyLabelTypes LabelType = EPrimPropertyLabelTypes::NoLabel;
+		int32 NumComponents = FieldValue.Entries[0].Num();
+		EWidgetLabelTypes LabelType = EWidgetLabelTypes::NoLabel;
 		if ( ValueRole.StartsWith( TEXT( "color" ), ESearchCase::IgnoreCase ) )
 		{
-			LabelType = EPrimPropertyLabelTypes::RGBA;
+			LabelType = EWidgetLabelTypes::RGBA;
 		}
-		else if ( NumComponents > 1 && NumComponents <= 4 && PropertyValue.SourceType != UsdUtils::EUsdBasicDataTypes::Matrix2d )
+		else if ( NumComponents > 1 && NumComponents <= 4 && FieldValue.SourceType != UsdUtils::EUsdBasicDataTypes::Matrix2d )
 		{
-			LabelType = EPrimPropertyLabelTypes::XYZW;
+			LabelType = EWidgetLabelTypes::XYZW;
 		}
 
 		return LabelType;
 	}
 
-	EPrimPropertyWidget GetWidgetType( UsdUtils::EUsdBasicDataTypes SourceType )
+	EWidgetType GetWidgetType( UsdUtils::EUsdBasicDataTypes SourceType )
 	{
 		using namespace UsdUtils;
 
 		switch ( SourceType )
 		{
 		case EUsdBasicDataTypes::Bool:
-			return EPrimPropertyWidget::Bool;
+			return EWidgetType::Bool;
 			break;
 		case EUsdBasicDataTypes::Uchar:
-			return EPrimPropertyWidget::U8;
+			return EWidgetType::U8;
 			break;
 		case EUsdBasicDataTypes::Int:
 		case EUsdBasicDataTypes::Int2:
 		case EUsdBasicDataTypes::Int3:
 		case EUsdBasicDataTypes::Int4:
-			return EPrimPropertyWidget::I32;
+			return EWidgetType::I32;
 			break;
 		case EUsdBasicDataTypes::Uint:
-			return EPrimPropertyWidget::U32;
+			return EWidgetType::U32;
 			break;
 		case EUsdBasicDataTypes::Int64:
-			return EPrimPropertyWidget::I64;
+			return EWidgetType::I64;
 			break;
 		case EUsdBasicDataTypes::Uint64:
-			return EPrimPropertyWidget::U64;
+			return EWidgetType::U64;
 			break;
 		case EUsdBasicDataTypes::Half:
 		case EUsdBasicDataTypes::Half2:
@@ -143,7 +143,7 @@ namespace UsdPrimPropertiesListImpl
 		case EUsdBasicDataTypes::Float3:
 		case EUsdBasicDataTypes::Float4:
 		case EUsdBasicDataTypes::Quatf:
-			return EPrimPropertyWidget::F32;
+			return EWidgetType::F32;
 			break;
 		case EUsdBasicDataTypes::Double:
 		case EUsdBasicDataTypes::Double2:
@@ -154,24 +154,24 @@ namespace UsdPrimPropertiesListImpl
 		case EUsdBasicDataTypes::Matrix3d:
 		case EUsdBasicDataTypes::Matrix4d:
 		case EUsdBasicDataTypes::Quatd:
-			return EPrimPropertyWidget::F64;
+			return EWidgetType::F64;
 			break;
 		case EUsdBasicDataTypes::Token:
-			return EPrimPropertyWidget::Dropdown;
+			return EWidgetType::Dropdown;
 			break;
 		case EUsdBasicDataTypes::String:
 		case EUsdBasicDataTypes::Asset:
-			return EPrimPropertyWidget::Text;
+			return EWidgetType::Text;
 			break;
 		default:
 			break;
 		}
 
-		return EPrimPropertyWidget::None;
+		return EWidgetType::None;
 	}
 
 	/** Always returns `NumLabels` widgets, regardless of LabelTypes. Those may be the NullWidget though */
-	TArray<TSharedRef<SWidget>> GetNumericEntryBoxLabels( int32 NumLabels, EPrimPropertyLabelTypes LabelType )
+	TArray<TSharedRef<SWidget>> GetNumericEntryBoxLabels( int32 NumLabels, EWidgetLabelTypes LabelType )
 	{
 		const static TArray<const FLinearColor*> Colors = {
 			&SNumericEntryBox<int32>::RedLabelBackgroundColor,
@@ -182,7 +182,7 @@ namespace UsdPrimPropertiesListImpl
 
 		if ( NumLabels > 4 )
 		{
-			LabelType = EPrimPropertyLabelTypes::NoLabel;
+			LabelType = EWidgetLabelTypes::NoLabel;
 		}
 
 		TArray<TSharedRef<SWidget>> Labels;
@@ -190,19 +190,19 @@ namespace UsdPrimPropertiesListImpl
 
 		switch ( LabelType )
 		{
-		case EPrimPropertyLabelTypes::RGBA:
+		case EWidgetLabelTypes::RGBA:
 			for ( int32 Index = 0; Index < NumLabels; ++Index )
 			{
 				Labels.Add( SNumericEntryBox<int32>::BuildNarrowColorLabel( *Colors[ Index ] ) );
 			}
 			break;
-		case EPrimPropertyLabelTypes::XYZW:
+		case EWidgetLabelTypes::XYZW:
 			for ( int32 Index = 0; Index < NumLabels; ++Index )
 			{
 				Labels.Add( SNumericEntryBox<int32>::BuildNarrowColorLabel( *Colors[ Index ] ) );
 			}
 			break;
-		case EPrimPropertyLabelTypes::NoLabel:
+		case EWidgetLabelTypes::NoLabel:
 		default:
 			for ( int32 Index = 0; Index < NumLabels; ++Index )
 			{
@@ -215,19 +215,22 @@ namespace UsdPrimPropertiesListImpl
 	}
 }
 
-class SUsdPrimPropertyRow : public SMultiColumnTableRow< TSharedPtr< FUsdPrimAttributeViewModel > >
+class SUsdObjectFieldRow : public SMultiColumnTableRow<TSharedPtr<FUsdObjectFieldViewModel>>
 {
-	SLATE_BEGIN_ARGS( SUsdPrimPropertyRow ) {}
+	SLATE_BEGIN_ARGS( SUsdObjectFieldRow ) {}
 	SLATE_END_ARGS()
 
 public:
-	void Construct( const FArguments& InArgs, const TSharedPtr< FUsdPrimAttributeViewModel >& InUsdPrimProperty, const TSharedRef< STableViewBase >& OwnerTable );
+	void Construct(const FArguments& InArgs, const TSharedPtr<FUsdObjectFieldViewModel>& InUsdObjectField, const TSharedRef< STableViewBase >& OwnerTable);
 	virtual TSharedRef< SWidget > GenerateWidgetForColumn( const FName& ColumnName ) override;
 
-	void SetUsdPrimProperty( const TSharedPtr< FUsdPrimAttributeViewModel >& InUsdPrimProperty );
+	void SetUsdObjectField(const TSharedPtr< FUsdObjectFieldViewModel >& InUsdObjectField);
 
 protected:
-	FText GetLabel() const { return FText::FromString( UsdPrimAttribute->Label ); }
+	FText GetLabel() const
+	{
+		return FText::FromString(Field->Label);
+	}
 	FText GetType() const
 	{
 		const static FText TypeTexts[] = {
@@ -236,8 +239,8 @@ protected:
 			FText::FromString(TEXT("R"))
 		};
 
-		const int32 Index = static_cast<int32>(UsdPrimAttribute->Type);
-		return Index >= 0 && Index < static_cast<int32>(EAttributeModelType::MAX)
+		const int32 Index = static_cast<int32>(Field->Type);
+		return Index >= 0 && Index < static_cast<int32>(EObjectFieldType::MAX)
 			? TypeTexts[Index]
 			: FText::GetEmpty();
 	}
@@ -250,8 +253,8 @@ protected:
 			LOCTEXT("RelationshipTooltip", "Relationship")
 		};
 
-		const int32 Index = static_cast<int32>(UsdPrimAttribute->Type);
-		return Index >= 0 && Index < static_cast<int32>(EAttributeModelType::MAX)
+		const int32 Index = static_cast<int32>(Field->Type);
+		return Index >= 0 && Index < static_cast<int32>(EObjectFieldType::MAX)
 			? ToolTipTexts[Index]
 			: FText::GetEmpty();
 	}
@@ -260,11 +263,11 @@ protected:
 	template<typename T>
 	TOptional<T> GetValue( int32 ComponentIndex ) const
 	{
-		if ( UsdPrimAttribute->Value.Entries.Num() == 1 ) // Ignore arrays for now
+		if ( Field->Value.Entries.Num() == 1 ) // Ignore arrays for now
 		{
-			if ( UsdPrimAttribute->Value.Entries[0].IsValidIndex( ComponentIndex ) )
+			if ( Field->Value.Entries[0].IsValidIndex( ComponentIndex ) )
 			{
-				if ( T* Value = UsdPrimAttribute->Value.Entries[0][ ComponentIndex ].TryGet<T>() )
+				if ( T* Value = Field->Value.Entries[0][ ComponentIndex ].TryGet<T>() )
 				{
 					return *Value;
 				}
@@ -277,11 +280,11 @@ protected:
 	// Other overloads as checkbox/text widgets don't use optional values as input, and these should only ever have one component anyway
 	FText GetValueText() const
 	{
-		if ( UsdPrimAttribute->Value.Entries.Num() == 1 )
+		if ( Field->Value.Entries.Num() == 1 )
 		{
-			if ( UsdPrimAttribute->Value.Entries[ 0 ].Num() > 0 )
+			if ( Field->Value.Entries[ 0 ].Num() > 0 )
 			{
-				if ( FString* Value = UsdPrimAttribute->Value.Entries[ 0 ][ 0 ].TryGet<FString>() )
+				if ( FString* Value = Field->Value.Entries[ 0 ][ 0 ].TryGet<FString>() )
 				{
 					return FText::FromString( *Value );
 				}
@@ -293,11 +296,11 @@ protected:
 
 	ECheckBoxState GetValueBool() const
 	{
-		if ( UsdPrimAttribute->Value.Entries.Num() == 1 )
+		if ( Field->Value.Entries.Num() == 1 )
 		{
-			if ( UsdPrimAttribute->Value.Entries[ 0 ].Num() > 0 )
+			if ( Field->Value.Entries[ 0 ].Num() > 0 )
 			{
-				if ( bool* Value = UsdPrimAttribute->Value.Entries[ 0 ][ 0 ].TryGet<bool>() )
+				if ( bool* Value = Field->Value.Entries[ 0 ][ 0 ].TryGet<bool>() )
 				{
 					return *Value ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 				}
@@ -318,7 +321,7 @@ private:
 	template<typename T>
 	TSharedRef< SWidget > GenerateSpinboxWidgets(
 		const TArray<TAttribute<TOptional<T>>>& Attribute,
-		UsdPrimPropertiesListImpl::EPrimPropertyLabelTypes LabelType = UsdPrimPropertiesListImpl::EPrimPropertyLabelTypes::NoLabel
+		USDObjectFieldListImpl::EWidgetLabelTypes LabelType = USDObjectFieldListImpl::EWidgetLabelTypes::NoLabel
 	);
 
 private:
@@ -333,68 +336,68 @@ private:
 	void OnCheckBoxCheckStateChanged( ECheckBoxState NewState );
 
 private:
-	TSharedPtr< FUsdPrimAttributeViewModel > UsdPrimAttribute;
+	TSharedPtr<FUsdObjectFieldViewModel> Field;
 };
 
-void SUsdPrimPropertyRow::Construct( const FArguments& InArgs, const TSharedPtr< FUsdPrimAttributeViewModel >& InUsdPrimProperty, const TSharedRef< STableViewBase >& OwnerTable )
+void SUsdObjectFieldRow::Construct(const FArguments& InArgs, const TSharedPtr<FUsdObjectFieldViewModel>& InUsdObjectField, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	SetUsdPrimProperty( InUsdPrimProperty );
+	SetUsdObjectField(InUsdObjectField);
 
-	SMultiColumnTableRow< TSharedPtr< FUsdPrimAttributeViewModel > >::Construct( SMultiColumnTableRow< TSharedPtr< FUsdPrimAttributeViewModel > >::FArguments(), OwnerTable );
+	SMultiColumnTableRow<TSharedPtr<FUsdObjectFieldViewModel>>::Construct(SMultiColumnTableRow<TSharedPtr<FUsdObjectFieldViewModel>>::FArguments(), OwnerTable);
 }
 
-TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateWidgetForColumn( const FName& ColumnName )
+TSharedRef< SWidget > SUsdObjectFieldRow::GenerateWidgetForColumn( const FName& ColumnName )
 {
-	using namespace UsdPrimPropertiesListImpl;
+	using namespace USDObjectFieldListImpl;
 
 	TSharedRef< SWidget > ColumnWidget = SNullWidget::NullWidget;
 
-	if (ColumnName == PrimAttributeColumnIds::TypeColumn)
+	if (ColumnName == ObjectFieldColumnIds::TypeColumn)
 	{
 		ColumnWidget = GenerateTextWidget(
-			{this, &SUsdPrimPropertyRow::GetType},
-			{this, &SUsdPrimPropertyRow::GetTypeToolTip},
+			{this, &SUsdObjectFieldRow::GetType},
+			{this, &SUsdObjectFieldRow::GetTypeToolTip},
 			ETextJustify::Center
 		);
 	}
-	else if (ColumnName == PrimAttributeColumnIds::NameColumn)
+	else if (ColumnName == ObjectFieldColumnIds::NameColumn)
 	{
-		ColumnWidget = GenerateTextWidget({this, &SUsdPrimPropertyRow::GetLabel});
+		ColumnWidget = GenerateTextWidget({this, &SUsdObjectFieldRow::GetLabel});
 	}
 	else
 	{
-		EPrimPropertyWidget WidgetType = GetWidgetType( UsdPrimAttribute->Value.SourceType );
-		EPrimPropertyLabelTypes LabelType = GetLabelType( UsdPrimAttribute->Value, UsdPrimAttribute->ValueRole );
+		EWidgetType WidgetType = GetWidgetType( Field->Value.SourceType );
+		EWidgetLabelTypes LabelType = GetLabelType( Field->Value, Field->ValueRole );
 
 		switch ( WidgetType )
 		{
-		case EPrimPropertyWidget::Bool:
-			ColumnWidget = GenerateCheckboxWidget( { this, &SUsdPrimPropertyRow::GetValueBool } );
+		case EWidgetType::Bool:
+			ColumnWidget = GenerateCheckboxWidget( { this, &SUsdObjectFieldRow::GetValueBool } );
 			break;
-		case EPrimPropertyWidget::U8:
+		case EWidgetType::U8:
 			ColumnWidget = GenerateSpinboxWidgets( GetAttributeArray<uint8>(), LabelType );
 			break;
-		case EPrimPropertyWidget::I32:
+		case EWidgetType::I32:
 			ColumnWidget = GenerateSpinboxWidgets( GetAttributeArray<int32>(), LabelType );
 			break;
-		case EPrimPropertyWidget::U32:
+		case EWidgetType::U32:
 			ColumnWidget = GenerateSpinboxWidgets( GetAttributeArray<uint32>(), LabelType );
 			break;
-		case EPrimPropertyWidget::I64:
+		case EWidgetType::I64:
 			ColumnWidget = GenerateSpinboxWidgets( GetAttributeArray<int64>(), LabelType );
 			break;
-		case EPrimPropertyWidget::U64:
+		case EWidgetType::U64:
 			ColumnWidget = GenerateSpinboxWidgets( GetAttributeArray<uint64>(), LabelType );
 			break;
-		case EPrimPropertyWidget::F32:
+		case EWidgetType::F32:
 			ColumnWidget = GenerateSpinboxWidgets( GetAttributeArray<float>(), LabelType );
 			break;
-		case EPrimPropertyWidget::F64:
+		case EWidgetType::F64:
 			ColumnWidget = GenerateSpinboxWidgets( GetAttributeArray<double>(), LabelType );
 			break;
-		case EPrimPropertyWidget::Dropdown:
+		case EWidgetType::Dropdown:
 		{
-			TArray< TSharedPtr< FString > >* Options = GetTokenDropdownOptions( *UsdPrimAttribute );
+			TArray< TSharedPtr< FString > >* Options = GetTokenDropdownOptions( *Field );
 
 			// Show a dropdown if we know the available options for that token
 			if ( Options )
@@ -408,19 +411,19 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateWidgetForColumn( const FName&
 					.OptionsSource( Options )
 					.OnGenerateWidget_Lambda( [ & ]( TSharedPtr<FString> Option )
 					{
-						return SUsdPrimPropertyRow::GenerateTextWidget( FText::FromString( *Option ) );
+						return SUsdObjectFieldRow::GenerateTextWidget( FText::FromString( *Option ) );
 					})
-					.OnSelectionChanged( this, &SUsdPrimPropertyRow::OnComboBoxSelectionChanged )
+					.OnSelectionChanged( this, &SUsdObjectFieldRow::OnComboBoxSelectionChanged )
 					[
 						// Having an editable text box inside the combobox allows the user to pick through the most common ones but to
 						// also specify a custom kind/purpose/etc. if they want to
 						SNew( SEditableTextBox )
-						.Text( this, &SUsdPrimPropertyRow::GetValueText )
+						.Text( this, &SUsdObjectFieldRow::GetValueText )
 						.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
 						.Padding( FMargin( 3.0f ) )
 						// Fixed foreground color or else it will flip when our row is selected, and we already have a background
 						.ForegroundColor( FAppStyle::GetSlateColor( TEXT( "Colors.ForegroundHover" ) ) )
-						.OnTextCommitted( this, &SUsdPrimPropertyRow::OnTextBoxTextCommitted )
+						.OnTextCommitted( this, &SUsdObjectFieldRow::OnTextBoxTextCommitted )
 					]
 				];
 
@@ -429,12 +432,12 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateWidgetForColumn( const FName&
 
 			// If we don't have any options we intentionally fall down into the 'Text' case
 		}
-		case EPrimPropertyWidget::Text:
+		case EWidgetType::Text:
 		{
-			ColumnWidget = SUsdPrimPropertyRow::GenerateEditableTextWidget( { this, &SUsdPrimPropertyRow::GetValueText }, UsdPrimAttribute->bReadOnly );
+			ColumnWidget = SUsdObjectFieldRow::GenerateEditableTextWidget( { this, &SUsdObjectFieldRow::GetValueText }, Field->bReadOnly );
 			break;
 		}
-		case EPrimPropertyWidget::None:
+		case EWidgetType::None:
 		default:
 			ColumnWidget = SNullWidget::NullWidget;
 			break;
@@ -449,29 +452,29 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateWidgetForColumn( const FName&
 		];
 }
 
-void SUsdPrimPropertyRow::SetUsdPrimProperty( const TSharedPtr< FUsdPrimAttributeViewModel >& InUsdPrimProperty )
+void SUsdObjectFieldRow::SetUsdObjectField(const TSharedPtr<FUsdObjectFieldViewModel>& InUsdObjectField)
 {
-	UsdPrimAttribute = InUsdPrimProperty;
+	Field = InUsdObjectField;
 }
 
 template<typename T>
-TArray<TAttribute<TOptional<T>>> SUsdPrimPropertyRow::GetAttributeArray()
+TArray<TAttribute<TOptional<T>>> SUsdObjectFieldRow::GetAttributeArray()
 {
 	using AttrType = TAttribute<TOptional<T>>;
 
 	TArray<AttrType> Attributes;
-	if ( UsdPrimAttribute->Value.Entries.Num() == 1 )
+	if ( Field->Value.Entries.Num() == 1 )
 	{
-		for ( int32 ComponentIndex = 0; ComponentIndex < UsdPrimAttribute->Value.Entries[0].Num(); ++ComponentIndex )
+		for ( int32 ComponentIndex = 0; ComponentIndex < Field->Value.Entries[0].Num(); ++ComponentIndex )
 		{
-			Attributes.Add( AttrType::Create( AttrType::FGetter::CreateSP( this, &SUsdPrimPropertyRow::template GetValue<T>, ComponentIndex ) ) );
+			Attributes.Add( AttrType::Create( AttrType::FGetter::CreateSP( this, &SUsdObjectFieldRow::template GetValue<T>, ComponentIndex ) ) );
 		}
 	}
 
 	return Attributes;
 }
 
-TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateTextWidget(
+TSharedRef< SWidget > SUsdObjectFieldRow::GenerateTextWidget(
 	const TAttribute<FText>& Attribute,
 	const TAttribute<FText>& ToolTipAttribute,
 	ETextJustify::Type TextJustify
@@ -482,29 +485,29 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateTextWidget(
 		.Justification(TextJustify)
 		.ToolTipText(ToolTipAttribute)
 		.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
-		.Margin(UsdPrimPropertiesListConstants::RightRowPadding);
+		.Margin(USDObjectFieldListConstants::RightRowPadding);
 }
 
-TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateEditableTextWidget( const TAttribute<FText>& Attribute, bool bIsReadOnly )
+TSharedRef< SWidget > SUsdObjectFieldRow::GenerateEditableTextWidget( const TAttribute<FText>& Attribute, bool bIsReadOnly )
 {
 	return SNew( SBox )
 		.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
-		.MinDesiredWidth( UsdPrimPropertiesListConstants::DesiredTextEntryBoxWidth )
+		.MinDesiredWidth( USDObjectFieldListConstants::DesiredTextEntryBoxWidth )
 		.VAlign(VAlign_Center)
 		.HAlign(HAlign_Left)
 		[
 			SNew( SEditableTextBox )
-			.MinDesiredWidth( UsdPrimPropertiesListConstants::DesiredTextEntryBoxWidth )
+			.MinDesiredWidth( USDObjectFieldListConstants::DesiredTextEntryBoxWidth )
 			.Text( Attribute )
 			.IsReadOnly( bIsReadOnly )
 			.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
-			.OnTextCommitted( this, &SUsdPrimPropertyRow::OnTextBoxTextCommitted )
+			.OnTextCommitted( this, &SUsdObjectFieldRow::OnTextBoxTextCommitted )
 			// Fixed foreground color or else it will flip when our row is selected, and we already have a background
 			.ForegroundColor( FAppStyle::GetSlateColor( bIsReadOnly ? TEXT( "Colors.Foreground" ) : TEXT( "Colors.ForegroundHover" ) ) )
 		];
 }
 
-TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateCheckboxWidget( const TAttribute<ECheckBoxState>& Attribute )
+TSharedRef< SWidget > SUsdObjectFieldRow::GenerateCheckboxWidget( const TAttribute<ECheckBoxState>& Attribute )
 {
 	return SNew( SBox )
 		.HeightOverride( FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" ) )
@@ -513,22 +516,22 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateCheckboxWidget( const TAttrib
 		[
 			SNew( SCheckBox )
 			.IsChecked( Attribute )
-			.OnCheckStateChanged( this, &SUsdPrimPropertyRow::OnCheckBoxCheckStateChanged )
+			.OnCheckStateChanged( this, &SUsdObjectFieldRow::OnCheckBoxCheckStateChanged )
 		];
 }
 
 template<typename T>
-TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateSpinboxWidgets( const TArray<TAttribute<TOptional<T>>>& Attributes, UsdPrimPropertiesListImpl::EPrimPropertyLabelTypes LabelType )
+TSharedRef< SWidget > SUsdObjectFieldRow::GenerateSpinboxWidgets( const TArray<TAttribute<TOptional<T>>>& Attributes, USDObjectFieldListImpl::EWidgetLabelTypes LabelType )
 {
 	if ( Attributes.Num() == 0 )
 	{
 		return SNullWidget::NullWidget;
 	}
 
-	TArray<TSharedRef<SWidget>> Labels = UsdPrimPropertiesListImpl::GetNumericEntryBoxLabels( Attributes.Num(), LabelType );
+	TArray<TSharedRef<SWidget>> Labels = USDObjectFieldListImpl::GetNumericEntryBoxLabels( Attributes.Num(), LabelType );
 
 	// If we're some type of matrix attribute, we'll want to display multiple rows
-	const int32 NumRows = LabelType != UsdPrimPropertiesListImpl::EPrimPropertyLabelTypes::NoLabel
+	const int32 NumRows = LabelType != USDObjectFieldListImpl::EWidgetLabelTypes::NoLabel
 		? 1 // If we have labels we're definitely not a matrix type
 		: Attributes.Num() == 4
 			? 2
@@ -555,8 +558,8 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateSpinboxWidgets( const TArray<
 				.ShiftMouseMovePixelPerDelta( 1 )
 				.SupportDynamicSliderMaxValue( true )
 				.SupportDynamicSliderMinValue( true )
-				.OnValueChanged( this, &SUsdPrimPropertyRow::OnSpinboxValueChanged<T>, ComponentIndex )
-				.OnValueCommitted( this, &SUsdPrimPropertyRow::OnSpinboxValueCommitted<T>, ComponentIndex )
+				.OnValueChanged( this, &SUsdObjectFieldRow::OnSpinboxValueChanged<T>, ComponentIndex )
+				.OnValueCommitted( this, &SUsdObjectFieldRow::OnSpinboxValueCommitted<T>, ComponentIndex )
 				.Value( Attribute )
 				.MinValue( TOptional<T>() )
 				.MaxValue( TOptional<T>() )
@@ -572,11 +575,11 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateSpinboxWidgets( const TArray<
 				];
 
 			HorizBox->AddSlot()
-				.Padding( UsdPrimPropertiesListConstants::NumericEntryBoxItemPadding )
+				.Padding( USDObjectFieldListConstants::NumericEntryBoxItemPadding )
 				[
 					SNew( SBox )
-					.MinDesiredWidth( UsdPrimPropertiesListConstants::DesiredNumericEntryBoxWidth )
-					.MaxDesiredWidth( UsdPrimPropertiesListConstants::DesiredNumericEntryBoxWidth )
+					.MinDesiredWidth( USDObjectFieldListConstants::DesiredNumericEntryBoxWidth )
+					.MaxDesiredWidth( USDObjectFieldListConstants::DesiredNumericEntryBoxWidth )
 					[
 						EntryBox
 					]
@@ -595,7 +598,7 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateSpinboxWidgets( const TArray<
 	}
 
 	return SNew(SBox)
-		.MinDesiredWidth(UsdPrimPropertiesListConstants::DesiredNumericEntryBoxWidth)
+		.MinDesiredWidth(USDObjectFieldListConstants::DesiredNumericEntryBoxWidth)
 		.VAlign(VAlign_Center)
 		.HAlign(HAlign_Left)
 		[
@@ -604,15 +607,15 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateSpinboxWidgets( const TArray<
 }
 
 template<typename T>
-void SUsdPrimPropertyRow::OnSpinboxValueChanged( T NewValue, int32 ComponentIndex )
+void SUsdObjectFieldRow::OnSpinboxValueChanged( T NewValue, int32 ComponentIndex )
 {
-	UsdPrimAttribute->Value.Entries[ 0 ][ ComponentIndex ].Set<T>( NewValue );
+	Field->Value.Entries[ 0 ][ ComponentIndex ].Set<T>( NewValue );
 }
 
 template<typename T>
-void SUsdPrimPropertyRow::OnSpinboxValueCommitted( T InNewValue, ETextCommit::Type CommitType, int32 ComponentIndex )
+void SUsdObjectFieldRow::OnSpinboxValueCommitted( T InNewValue, ETextCommit::Type CommitType, int32 ComponentIndex )
 {
-	if ( CommitType == ETextCommit::OnCleared || UsdPrimAttribute->bReadOnly )
+	if ( CommitType == ETextCommit::OnCleared || Field->bReadOnly )
 	{
 		return;
 	}
@@ -620,19 +623,19 @@ void SUsdPrimPropertyRow::OnSpinboxValueCommitted( T InNewValue, ETextCommit::Ty
 	FScopedTransaction Transaction(
 		FText::Format(
 			LOCTEXT( "SetUsdAttributeTransaction", "Set attribute '{0}'" ),
-			FText::FromString( UsdPrimAttribute->Label )
+			FText::FromString( Field->Label )
 		)
 	);
 
-	UsdUtils::FConvertedVtValue NewValue = UsdPrimAttribute->Value;
+	UsdUtils::FConvertedVtValue NewValue = Field->Value;
 	NewValue.Entries[ 0 ][ ComponentIndex ].Set<T>( InNewValue );
 
-	UsdPrimAttribute->SetAttributeValue( NewValue );
+	Field->SetAttributeValue( NewValue );
 }
 
-void SUsdPrimPropertyRow::OnComboBoxSelectionChanged( TSharedPtr<FString> ChosenOption, ESelectInfo::Type SelectInfo )
+void SUsdObjectFieldRow::OnComboBoxSelectionChanged( TSharedPtr<FString> ChosenOption, ESelectInfo::Type SelectInfo )
 {
-	if ( UsdPrimAttribute->bReadOnly )
+	if ( Field->bReadOnly )
 	{
 		return;
 	}
@@ -640,19 +643,19 @@ void SUsdPrimPropertyRow::OnComboBoxSelectionChanged( TSharedPtr<FString> Chosen
 	FScopedTransaction Transaction(
 		FText::Format(
 			LOCTEXT( "SetUsdAttributeTransaction", "Set attribute '{0}'" ),
-			FText::FromString( UsdPrimAttribute->Label )
+			FText::FromString( Field->Label )
 		)
 	);
 
-	UsdUtils::FConvertedVtValue NewValue = UsdPrimAttribute->Value;
+	UsdUtils::FConvertedVtValue NewValue = Field->Value;
 	NewValue.Entries[ 0 ][ 0 ] = UsdUtils::FConvertedVtValueComponent( TInPlaceType<FString>(), *ChosenOption );
 
-	UsdPrimAttribute->SetAttributeValue( NewValue );
+	Field->SetAttributeValue( NewValue );
 }
 
-void SUsdPrimPropertyRow::OnTextBoxTextCommitted( const FText& NewText, ETextCommit::Type CommitType )
+void SUsdObjectFieldRow::OnTextBoxTextCommitted( const FText& NewText, ETextCommit::Type CommitType )
 {
-	if ( CommitType == ETextCommit::OnCleared || UsdPrimAttribute->bReadOnly )
+	if ( CommitType == ETextCommit::OnCleared || Field->bReadOnly )
 	{
 		return;
 	}
@@ -660,19 +663,19 @@ void SUsdPrimPropertyRow::OnTextBoxTextCommitted( const FText& NewText, ETextCom
 	FScopedTransaction Transaction(
 		FText::Format(
 			LOCTEXT( "SetUsdAttributeTransaction", "Set attribute '{0}'" ),
-			FText::FromString( UsdPrimAttribute->Label )
+			FText::FromString( Field->Label )
 		)
 	);
 
-	UsdUtils::FConvertedVtValue NewValue = UsdPrimAttribute->Value;
+	UsdUtils::FConvertedVtValue NewValue = Field->Value;
 	NewValue.Entries[ 0 ][ 0 ] = UsdUtils::FConvertedVtValueComponent( TInPlaceType<FString>(), NewText.ToString() );
 
-	UsdPrimAttribute->SetAttributeValue( NewValue );
+	Field->SetAttributeValue( NewValue );
 }
 
-void SUsdPrimPropertyRow::OnCheckBoxCheckStateChanged( ECheckBoxState NewState )
+void SUsdObjectFieldRow::OnCheckBoxCheckStateChanged( ECheckBoxState NewState )
 {
-	if ( NewState == ECheckBoxState::Undetermined || UsdPrimAttribute->bReadOnly )
+	if ( NewState == ECheckBoxState::Undetermined || Field->bReadOnly )
 	{
 		return;
 	}
@@ -680,62 +683,62 @@ void SUsdPrimPropertyRow::OnCheckBoxCheckStateChanged( ECheckBoxState NewState )
 	FScopedTransaction Transaction(
 		FText::Format(
 			LOCTEXT( "SetUsdAttributeTransaction", "Set attribute '{0}'" ),
-			FText::FromString( UsdPrimAttribute->Label )
+			FText::FromString( Field->Label )
 		)
 	);
 
-	UsdUtils::FConvertedVtValue NewValue = UsdPrimAttribute->Value;
+	UsdUtils::FConvertedVtValue NewValue = Field->Value;
 	NewValue.Entries[ 0 ][ 0 ] = UsdUtils::FConvertedVtValueComponent( TInPlaceType<bool>(), NewState == ECheckBoxState::Checked );
 
-	UsdPrimAttribute->SetAttributeValue( NewValue );
+	Field->SetAttributeValue( NewValue );
 }
 
-void SUsdPrimPropertiesList::Construct( const FArguments& InArgs )
+void SUsdObjectFieldList::Construct( const FArguments& InArgs )
 {
 	// Clear map as usd file may have additional Kinds now
-	UsdPrimPropertiesListImpl::ResetOptions(TEXT("Kind"));
+	USDObjectFieldListImpl::ResetOptions(TEXT("Kind"));
 
 	SAssignNew( HeaderRowWidget, SHeaderRow )
 
-	+SHeaderRow::Column(PrimAttributeColumnIds::TypeColumn)
+	+SHeaderRow::Column(ObjectFieldColumnIds::TypeColumn)
 	.DefaultLabel(FText::GetEmpty())
 	.FixedWidth(24.0f)
-	.SortMode(this, &SUsdPrimPropertiesList::GetColumnSortMode, PrimAttributeColumnIds::TypeColumn)
-	.OnSort(this, &SUsdPrimPropertiesList::Sort)
+	.SortMode(this, &SUsdObjectFieldList::GetColumnSortMode, ObjectFieldColumnIds::TypeColumn)
+	.OnSort(this, &SUsdObjectFieldList::Sort)
 
-	+SHeaderRow::Column(PrimAttributeColumnIds::NameColumn)
+	+SHeaderRow::Column(ObjectFieldColumnIds::NameColumn)
 	.DefaultLabel(InArgs._NameColumnText)
 	.FillWidth( 40.f )
-	.SortMode(this, &SUsdPrimPropertiesList::GetColumnSortMode, PrimAttributeColumnIds::NameColumn)
-	.OnSort(this, &SUsdPrimPropertiesList::Sort)
+	.SortMode(this, &SUsdObjectFieldList::GetColumnSortMode, ObjectFieldColumnIds::NameColumn)
+	.OnSort(this, &SUsdObjectFieldList::Sort)
 
-	+SHeaderRow::Column(PrimAttributeColumnIds::ValueColumn)
-	.DefaultLabel( LOCTEXT( "PropertyValue", "Value" ) )
+	+SHeaderRow::Column(ObjectFieldColumnIds::ValueColumn)
+	.DefaultLabel( LOCTEXT( "ValueColumnText", "Value" ) )
 	.FillWidth( 60.f );
 
 	SListView::Construct
 	(
 		SListView::FArguments()
-		.ListItemsSource( &ViewModel.PrimAttributes )
-		.OnGenerateRow( this, &SUsdPrimPropertiesList::OnGenerateRow )
+		.ListItemsSource( &ViewModel.Fields )
+		.OnGenerateRow( this, &SUsdObjectFieldList::OnGenerateRow )
 		.HeaderRow( HeaderRowWidget )
 	);
 
 	OnSelectionChanged = InArgs._OnSelectionChanged;
 }
 
-TSharedRef< ITableRow > SUsdPrimPropertiesList::OnGenerateRow( TSharedPtr< FUsdPrimAttributeViewModel > InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable )
+TSharedRef< ITableRow > SUsdObjectFieldList::OnGenerateRow( TSharedPtr< FUsdObjectFieldViewModel > InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable )
 {
-	return SNew( SUsdPrimPropertyRow, InDisplayNode, OwnerTable );
+	return SNew( SUsdObjectFieldRow, InDisplayNode, OwnerTable );
 }
 
-void SUsdPrimPropertiesList::GeneratePropertiesList( const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath )
+void SUsdObjectFieldList::GenerateFieldList(const UE::FUsdStageWeak& UsdStage, const TCHAR* InObjectPath)
 {
 	const float TimeCode = 0.f;
-	ViewModel.Refresh( UsdStage, InPrimPath, TimeCode );
+	ViewModel.Refresh(UsdStage, InObjectPath, TimeCode);
 }
 
-void SUsdPrimPropertiesList::Sort(
+void SUsdObjectFieldList::Sort(
 	const EColumnSortPriority::Type SortPriority,
 	const FName& ColumnId,
 	const EColumnSortMode::Type NewSortMode
@@ -748,7 +751,7 @@ void SUsdPrimPropertiesList::Sort(
 	RequestListRefresh();
 }
 
-EColumnSortMode::Type SUsdPrimPropertiesList::GetColumnSortMode(const FName ColumnId) const
+EColumnSortMode::Type SUsdObjectFieldList::GetColumnSortMode(const FName ColumnId) const
 {
 	if (ViewModel.CurrentSortColumn != ColumnId)
 	{
@@ -758,21 +761,21 @@ EColumnSortMode::Type SUsdPrimPropertiesList::GetColumnSortMode(const FName Colu
 	return ViewModel.CurrentSortMode;
 }
 
-void SUsdPrimPropertiesList::SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* InPrimPath )
+void SUsdObjectFieldList::SetObjectPath(const UE::FUsdStageWeak& UsdStage, const TCHAR* InObjectPath)
 {
-	GeneratePropertiesList( UsdStage, InPrimPath );
+	GenerateFieldList(UsdStage, InObjectPath);
 
 	RequestListRefresh();
 }
 
-TArray<FString> SUsdPrimPropertiesList::GetSelectedPropertyNames() const
+TArray<FString> SUsdObjectFieldList::GetSelectedFieldNames() const
 {
 	TArray<FString> SelectedProperties;
 
-	TArray< TSharedPtr< FUsdPrimAttributeViewModel > > SelectedViewModels = GetSelectedItems();
+	TArray< TSharedPtr< FUsdObjectFieldViewModel > > SelectedViewModels = GetSelectedItems();
 	SelectedProperties.Reserve( SelectedViewModels.Num() );
 
-	for ( const TSharedPtr< FUsdPrimAttributeViewModel >& SelectedItem : SelectedViewModels )
+	for ( const TSharedPtr< FUsdObjectFieldViewModel >& SelectedItem : SelectedViewModels )
 	{
 		if ( SelectedItem )
 		{
@@ -783,16 +786,16 @@ TArray<FString> SUsdPrimPropertiesList::GetSelectedPropertyNames() const
 	return SelectedProperties;
 }
 
-void SUsdPrimPropertiesList::SetSelectedPropertyNames( const TArray<FString>& NewSelection )
+void SUsdObjectFieldList::SetSelectedFieldNames( const TArray<FString>& NewSelection )
 {
 	TSet<FString> NewSelectionSet{ NewSelection };
 
 	Private_ClearSelection();
 
-	TArray< TSharedPtr< FUsdPrimAttributeViewModel > > NewItemSelection;
+	TArray< TSharedPtr< FUsdObjectFieldViewModel > > NewItemSelection;
 	NewItemSelection.Reserve( NewSelection.Num() );
 
-	for ( const TSharedPtr< FUsdPrimAttributeViewModel >& Item : ViewModel.PrimAttributes )
+	for ( const TSharedPtr< FUsdObjectFieldViewModel >& Item : ViewModel.Fields )
 	{
 		if ( Item && NewSelectionSet.Contains( Item->Label ) )
 		{
@@ -804,14 +807,14 @@ void SUsdPrimPropertiesList::SetSelectedPropertyNames( const TArray<FString>& Ne
 	SetItemSelection( NewItemSelection, bSelected );
 }
 
-UE::FUsdStageWeak SUsdPrimPropertiesList::GetUsdStage() const
+UE::FUsdStageWeak SUsdObjectFieldList::GetUsdStage() const
 {
 	return ViewModel.GetUsdStage();
 }
 
-FString SUsdPrimPropertiesList::GetPrimPath() const
+FString SUsdObjectFieldList::GetObjectPath() const
 {
-	return ViewModel.GetPrimPath();
+	return ViewModel.GetObjectPath();
 }
 
 #undef LOCTEXT_NAMESPACE

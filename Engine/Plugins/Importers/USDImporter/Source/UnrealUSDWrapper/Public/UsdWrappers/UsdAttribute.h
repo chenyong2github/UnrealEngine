@@ -13,6 +13,7 @@
 
 PXR_NAMESPACE_OPEN_SCOPE
 	class UsdAttribute;
+	class UsdProperty;
 PXR_NAMESPACE_CLOSE_SCOPE
 
 #endif // #if USE_USD_SDK
@@ -58,6 +59,12 @@ namespace UE
 
 		operator pxr::UsdAttribute&();
 		operator const pxr::UsdAttribute&() const;
+
+		// Also define the conversion operators directly to the base class as we can't "forward declare the class
+		// inheritance", but it is nice to be able to pass an UE::FUsdAttribute to a function that takes an
+		// pxr::UsdProperty directly
+		operator pxr::UsdProperty&();
+		operator const pxr::UsdProperty&() const;
 #endif // #if USE_USD_SDK
 
 	// Wrapped pxr::UsdObject functions, refer to the USD SDK documentation

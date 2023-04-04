@@ -142,6 +142,16 @@ namespace UE
 	{
 		return Impl->PxrUsdAttribute.Get();
 	}
+
+	FUsdAttribute::operator pxr::UsdProperty&()
+	{
+		return Impl->PxrUsdAttribute.Get();
+	}
+
+	FUsdAttribute::operator const pxr::UsdProperty&() const
+	{
+		return Impl->PxrUsdAttribute.Get();
+	}
 #endif // #if USE_USD_SDK
 
 	bool FUsdAttribute::GetMetadata( const TCHAR* Key, UE::FVtValue& Value ) const

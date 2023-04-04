@@ -16,12 +16,12 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs );
-	void SetPrimPath( const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath );
+	void SetPrimPath(const UE::FUsdStageWeak& UsdStage, const TCHAR* PrimPath);
 
 private:
 	friend class SUsdStage;
-	TSharedPtr< class SUsdPrimPropertiesList > PropertiesList;
-	TSharedPtr< class SUsdPrimPropertiesList > PropertyMetadataPanel;
+	TSharedPtr< class SUsdObjectFieldList > PropertiesList;
+	TSharedPtr< class SUsdObjectFieldList > PropertyMetadataPanel;
 	TSharedPtr< class SUsdIntegrationsPanel > IntegrationsPanel;
 	TSharedPtr< class SVariantsList > VariantsList;
 	TSharedPtr< class SUsdReferencesList > ReferencesList;
