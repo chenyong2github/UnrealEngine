@@ -43,35 +43,53 @@ void FGeometryCollectionMeshGroup::RemoveAllMeshes(FGeometryCollectionISMPool& I
 	Meshes.Empty();
 }
 
-FGeometryCollectionISM::FGeometryCollectionISM(AActor* OwmingActor, const FGeometryCollectionStaticMeshInstance& MeshInstance, bool bPreferHISM)
+FGeometryCollectionISM::FGeometryCollectionISM(AActor* OwmingActor, const FGeometryCollectionStaticMeshInstance& MeshInstance)
 {
 	check(MeshInstance.StaticMesh);
 	check(OwmingActor);
 
-	const FName ISMName = MakeUniqueObjectName(OwmingActor, bPreferHISM? UHierarchicalInstancedStaticMeshComponent::StaticClass(): UInstancedStaticMeshComponent::StaticClass(), MeshInstance.StaticMesh->GetFName());
-	UInstancedStaticMeshComponent* ISMC = bPreferHISM
-		? NewObject<UHierarchicalInstancedStaticMeshComponent>(OwmingActor, ISMName, RF_Transient | RF_DuplicateTransient)
-		: NewObject<UInstancedStaticMeshComponent>(OwmingActor, ISMName, RF_Transient | RF_DuplicateTransient)
-		;
-	if (ISMC)
+	UHierarchicalInstancedStaticMeshComponent* HISMC = nullptr;
+	UInstancedStaticMeshComponent* ISMC = nullptr;
+	
+	if (MeshInstance.Desc.bUseHISM)
 	{
-		ISMC->SetStaticMesh(MeshInstance.StaticMesh);
-		// material overrides
-		for (int32 MaterialIndex = 0; MaterialIndex < MeshInstance.MaterialsOverrides.Num(); MaterialIndex++)
-		{
-			ISMC->SetMaterial(MaterialIndex, MeshInstance.MaterialsOverrides[MaterialIndex]);
-		}
-		ISMC->NumCustomDataFloats = MeshInstance.NumCustomDataFloats;
-		ISMC->SetCullDistances(0, 0);
-		ISMC->SetCanEverAffectNavigation(false);
-		ISMC->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		ISMC->SetCastShadow(true);
-		ISMC->SetMobility(EComponentMobility::Stationary);
-		OwmingActor->AddInstanceComponent(ISMC);
-		ISMC->RegisterComponent();
-		
-		ISMComponent = ISMC;
+		const FName ISMName = MakeUniqueObjectName(OwmingActor, UHierarchicalInstancedStaticMeshComponent::StaticClass(), MeshInstance.StaticMesh->GetFName());
+		ISMC = HISMC = NewObject<UHierarchicalInstancedStaticMeshComponent>(OwmingActor, ISMName, RF_Transient | RF_DuplicateTransient);
 	}
+	else
+	{
+		const FName ISMName = MakeUniqueObjectName(OwmingActor, UInstancedStaticMeshComponent::StaticClass(), MeshInstance.StaticMesh->GetFName());
+		ISMC = NewObject<UInstancedStaticMeshComponent>(OwmingActor, ISMName, RF_Transient | RF_DuplicateTransient);
+	}
+
+	if (!ensure(ISMC != nullptr))
+	{
+		return;
+	}
+
+	ISMC->SetStaticMesh(MeshInstance.StaticMesh);
+	for (int32 MaterialIndex = 0; MaterialIndex < MeshInstance.MaterialsOverrides.Num(); MaterialIndex++)
+	{
+		ISMC->SetMaterial(MaterialIndex, MeshInstance.MaterialsOverrides[MaterialIndex]);
+	}
+
+	ISMC->NumCustomDataFloats = MeshInstance.Desc.NumCustomDataFloats;
+	ISMC->SetMobility(MeshInstance.Desc.bIsStaticMobility ? EComponentMobility::Static : EComponentMobility::Stationary);
+	ISMC->SetCullDistances(MeshInstance.Desc.StartCullDistance, MeshInstance.Desc.EndCullDistance);
+	ISMC->SetCastShadow(MeshInstance.Desc.bAffectShadow);
+	ISMC->bAffectDynamicIndirectLighting = MeshInstance.Desc.bAffectDynamicIndirectLighting;
+	ISMC->bAffectDistanceFieldLighting = MeshInstance.Desc.bAffectDistanceFieldLighting;
+	ISMC->SetCanEverAffectNavigation(false);
+	ISMC->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	
+	if (HISMC)
+	{
+		HISMC->SetLODDistanceScale(MeshInstance.Desc.LodScale);
+	}
+	
+	OwmingActor->AddInstanceComponent(ISMC);
+	ISMC->RegisterComponent();
+	ISMComponent = ISMC;
 }
 
 int32 FGeometryCollectionISM::AddInstanceGroup(int32 InstanceCount, TArrayView<const float> CustomDataFloats)
@@ -105,14 +123,14 @@ int32 FGeometryCollectionISM::AddInstanceGroup(int32 InstanceCount, TArrayView<c
 	return InstanceGroupIndex;
 }
 
-FGeometryCollectionMeshInfo FGeometryCollectionISMPool::AddISM(UGeometryCollectionISMPoolComponent* OwningComponent, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats, bool bPreferHISM)
+FGeometryCollectionMeshInfo FGeometryCollectionISMPool::AddISM(UGeometryCollectionISMPoolComponent* OwningComponent, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats)
 {
 	FGeometryCollectionMeshInfo Info;
 
 	FISMIndex* ISMIndex = MeshToISMIndex.Find(MeshInstance);
 	if (!ISMIndex)
 	{
-		Info.ISMIndex = ISMs.Emplace(OwningComponent->GetOwner(), MeshInstance, bPreferHISM);
+		Info.ISMIndex = ISMs.Emplace(OwningComponent->GetOwner(), MeshInstance);
 		MeshToISMIndex.Add(MeshInstance, Info.ISMIndex);
 		ISMComponentToISMIndex.Add(ISMs[Info.ISMIndex].ISMComponent, Info.ISMIndex);
 	}
@@ -246,11 +264,11 @@ void UGeometryCollectionISMPoolComponent::DestroyMeshGroup(FMeshGroupId MeshGrou
 	}
 }
 
-UGeometryCollectionISMPoolComponent::FMeshId UGeometryCollectionISMPoolComponent::AddMeshToGroup(FMeshGroupId MeshGroupId, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats, bool bPreferHISM)
+UGeometryCollectionISMPoolComponent::FMeshId UGeometryCollectionISMPoolComponent::AddMeshToGroup(FMeshGroupId MeshGroupId, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats)
 {
 	if (FGeometryCollectionMeshGroup* MeshGroup = MeshGroups.Find(MeshGroupId))
 	{
-		const FGeometryCollectionMeshInfo ISMInstanceInfo = Pool.AddISM(this, MeshInstance, InstanceCount, CustomDataFloats, bPreferHISM);
+		const FGeometryCollectionMeshInfo ISMInstanceInfo = Pool.AddISM(this, MeshInstance, InstanceCount, CustomDataFloats);
 		return MeshGroup->AddMesh(MeshInstance, InstanceCount, ISMInstanceInfo);
 	}
 	UE_LOG(LogChaos, Warning, TEXT("UGeometryCollectionISMPoolComponent : Trying to add a mesh to a mesh group (%d) that does not exists"), MeshGroupId);

@@ -1015,6 +1015,9 @@ public:
 
 	TArray<UStaticMeshComponent*> CreateProxyComponents() const;
 
+	/** Force all GC components to reregister their custom renderer objects. */
+	static void ReregisterAllCustomRenderers();
+
 public:
 	UPROPERTY(BlueprintAssignable, Category = "Collision")
 	FOnChaosPhysicsCollision OnChaosPhysicsCollision;
@@ -1256,7 +1259,9 @@ private:
 
 	/** return true if a a custom renderer has been set and the feature is enabled */
 	bool CanUseCustomRenderer() const;
-	/** update the custom renderer */
+
+	void RegisterCustomRenderer();
+	void UnregisterCustomRenderer();
 	void RefreshCustomRenderer();
 
 	/** return true if the root cluster is not longer active at runtime */

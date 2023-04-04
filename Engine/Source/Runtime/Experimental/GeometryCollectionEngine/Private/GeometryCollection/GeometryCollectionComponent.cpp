@@ -2406,11 +2406,7 @@ void UGeometryCollectionComponent::OnRegister()
 	if (Type && Type->ImplementsInterface(UGeometryCollectionExternalRenderInterface::StaticClass()))
 	{
 		CustomRenderer = (UGeometryCollectionExternalRenderInterface*)NewObject<UObject>(this, Type);
-
-		if (IGeometryCollectionExternalRenderInterface* RendererInterface = Cast<IGeometryCollectionExternalRenderInterface>(CustomRenderer))
-		{
-			RendererInterface->OnRegisterGeometryCollection(*this);
-		}
+		RegisterCustomRenderer();
 	}
 
 	Super::OnRegister();
@@ -2423,11 +2419,37 @@ void UGeometryCollectionComponent::OnUnregister()
 	// Remove any custom renderer.
 	if (CustomRenderer)
 	{
-		if (IGeometryCollectionExternalRenderInterface* RendererInterface = Cast<IGeometryCollectionExternalRenderInterface>(CustomRenderer))
-		{
-			RendererInterface->OnUnregisterGeometryCollection();
-		}
+		UnregisterCustomRenderer();
 		CustomRenderer = nullptr;
+	}
+}
+
+void UGeometryCollectionComponent::RegisterCustomRenderer()
+{
+	if (IGeometryCollectionExternalRenderInterface* RendererInterface = Cast<IGeometryCollectionExternalRenderInterface>(CustomRenderer))
+	{
+		RendererInterface->OnRegisterGeometryCollection(*this);
+	}
+}
+
+void UGeometryCollectionComponent::UnregisterCustomRenderer()
+{
+	if (IGeometryCollectionExternalRenderInterface* RendererInterface = Cast<IGeometryCollectionExternalRenderInterface>(CustomRenderer))
+	{
+		RendererInterface->OnUnregisterGeometryCollection();
+	}
+}
+
+void UGeometryCollectionComponent::ReregisterAllCustomRenderers()
+{
+	for (TObjectIterator<UGeometryCollectionComponent> It; It; ++It)
+	{
+		It->UnregisterCustomRenderer();
+	}
+	for (TObjectIterator<UGeometryCollectionComponent> It; It; ++It)
+	{
+		It->RegisterCustomRenderer();
+		It->RefreshCustomRenderer();
 	}
 }
 

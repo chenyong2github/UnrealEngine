@@ -2,19 +2,17 @@
 
 #pragma once
 
-#if 1
-
 #include "Components/SceneComponent.h"
 #include "Containers/Map.h"
-#include "Materials/MaterialInterface.h"
 #include "InstancedStaticMeshDelegates.h"
+#include "Materials/MaterialInterface.h"
+
 #include "GeometryCollectionISMPoolComponent.generated.h"
 
 class AActor;
 class UGeometryComponent;
 class UInstancedStaticMeshComponent;
 class UGeometryCollectionISMPoolComponent;
-
 
 struct FGeometryCollectionISMInstance
 {
@@ -54,32 +52,6 @@ public:
 		int32 Count() const { return InstanceIdToIndex.Num(); }
 		TArray<int32> InstanceIdToIndex;
 	};
-
-	//FInstanceGroupId AddGroup(int32 Count)
-	//{
-	//	int32 StartIndex = 0;
-	//	if (GroupRanges.Num())
-	//	{
-	//		const FInstanceGroupRange& LastGroupRange = GroupRanges.Last();
-	//		StartIndex = LastGroupRange.Start + LastGroupRange.Count;
-	//	}
-	//	return GroupRanges.Emplace(FInstanceGroupRange(StartIndex, Count));
-	//}
-
-	//void RemoveGroup(FInstanceGroupId GroupId)
-	//{
-	//	check(GroupRanges.IsValidIndex(BlockId));
-	//	const int32 StartOffset = GroupRanges[GroupId].Count;
-	//	FreeList.Add(GroupId);
-	//	// 
-	//	for (int32 Index = (GroupId + 1); Index < GroupRanges.Num(); Index++)
-	//	{
-	//		const FInstanceGroupRange& Curr = GroupRanges[Index];
-	//		FInstanceGroupRange& Prev = GroupRanges[Index - 1];
-	//		Prev.Start = Curr.Start - StartOffset;
-	//		Prev.Count = Curr.Count;
-	//	}
-	//}
 
 	FInstanceGroupId AddGroup(int32 Count)
 	{
@@ -132,6 +104,42 @@ private:
 	TMap<FInstanceGroupId, FInstanceGroupRange> GroupRanges;
 };
 
+/** */
+struct FISMComponentDescription
+{
+	bool bUseHISM = false;
+	bool bIsStaticMobility = false;
+	bool bAffectShadow = true;
+	bool bAffectDistanceFieldLighting = false;
+	bool bAffectDynamicIndirectLighting = false;
+	int32 NumCustomDataFloats = 0;
+	int32 StartCullDistance = 0;
+	int32 EndCullDistance = 0;
+	float LodScale = 1.f;
+
+	bool operator==(const FISMComponentDescription& Other) const
+	{
+		return bUseHISM == Other.bUseHISM &&
+			bIsStaticMobility == Other.bIsStaticMobility &&
+			bAffectShadow == Other.bAffectShadow &&
+			bAffectDistanceFieldLighting == Other.bAffectDistanceFieldLighting &&
+			bAffectDynamicIndirectLighting == Other.bAffectDistanceFieldLighting &&
+			NumCustomDataFloats == Other.NumCustomDataFloats &&
+			StartCullDistance == Other.StartCullDistance && 
+			EndCullDistance == Other.EndCullDistance &&
+			LodScale == Other.LodScale;
+	}
+};
+
+FORCEINLINE uint32 GetTypeHash(const FISMComponentDescription& Desc)
+{
+	const uint32 PackedBools = (Desc.bUseHISM ? 1 : 0) | (Desc.bIsStaticMobility ? 2 : 0) | (Desc.bAffectShadow ? 4 : 0) | (Desc.bAffectDistanceFieldLighting ? 8 : 0) | (Desc.bAffectDynamicIndirectLighting ? 16 : 0);
+	uint32 Hash = HashCombine(GetTypeHash(PackedBools), GetTypeHash(Desc.NumCustomDataFloats));
+	Hash = HashCombine(Hash, GetTypeHash(Desc.StartCullDistance));
+	Hash = HashCombine(Hash, GetTypeHash(Desc.EndCullDistance));
+	return HashCombine(Hash, GetTypeHash(Desc.LodScale));
+}
+
 /**
 * This represent a unique mesh with potentially overriden materials
 * if the array is empty , there's no overrides
@@ -140,11 +148,11 @@ struct FGeometryCollectionStaticMeshInstance
 {
 	UStaticMesh* StaticMesh = nullptr;
 	TArray<UMaterialInterface*> MaterialsOverrides;
-	int32 NumCustomDataFloats = 0;
+	FISMComponentDescription Desc;
 
 	bool operator==(const FGeometryCollectionStaticMeshInstance& Other) const 
 	{
-		if (StaticMesh == Other.StaticMesh && NumCustomDataFloats == Other.NumCustomDataFloats)
+		if (StaticMesh == Other.StaticMesh && Desc == Other.Desc)
 		{
 			if (MaterialsOverrides.Num() == Other.MaterialsOverrides.Num())
 			{
@@ -164,7 +172,6 @@ struct FGeometryCollectionStaticMeshInstance
 	}
 };
 
-
 FORCEINLINE uint32 GetTypeHash(const FGeometryCollectionStaticMeshInstance& MeshInstance)
 {
 	uint32 CombinedHash = GetTypeHash(MeshInstance.StaticMesh);
@@ -173,6 +180,7 @@ FORCEINLINE uint32 GetTypeHash(const FGeometryCollectionStaticMeshInstance& Mesh
 	{
 		CombinedHash = HashCombine(CombinedHash, GetTypeHash(Material));
 	}
+	CombinedHash = HashCombine(CombinedHash, GetTypeHash(MeshInstance.Desc));
 	return CombinedHash;
 }
 
@@ -202,7 +210,7 @@ struct FGeometryCollectionMeshGroup
 
 struct FGeometryCollectionISM
 {
-	FGeometryCollectionISM(AActor* OwmingActor, const FGeometryCollectionStaticMeshInstance& MeshInstance, bool bPreferHISM);
+	FGeometryCollectionISM(AActor* OwmingActor, const FGeometryCollectionStaticMeshInstance& MeshInstance);
 
 	int32 AddInstanceGroup(int32 InstanceCount, TArrayView<const float> CustomDataFloats);
 
@@ -215,7 +223,7 @@ struct FGeometryCollectionISMPool
 {
 	using FISMIndex = int32;
 
-	FGeometryCollectionMeshInfo AddISM(UGeometryCollectionISMPoolComponent* OwningComponent, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats, bool bPreferHISM);
+	FGeometryCollectionMeshInfo AddISM(UGeometryCollectionISMPoolComponent* OwningComponent, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats);
 	bool BatchUpdateInstancesTransforms(FGeometryCollectionMeshInfo& MeshInfo, int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport);
 	void RemoveISM(const FGeometryCollectionMeshInfo& MeshInfo);
 	
@@ -261,7 +269,7 @@ public:
 	void DestroyMeshGroup(FMeshGroupId MeshGroupId);
 
 	/** Add a static mesh for a nmesh group */
-	FMeshId AddMeshToGroup(FMeshGroupId MeshGroupId, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats, bool bPreferHISM = true);
+	FMeshId AddMeshToGroup(FMeshGroupId MeshGroupId, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats);
 
 	/** Add a static mesh for a nmesh group */
 	bool BatchUpdateInstancesTransforms(FMeshGroupId MeshGroupId, FMeshId MeshId, int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false);
@@ -286,4 +294,3 @@ private:
 	// Expose internals for debug draw support.
 	friend class UGeometryCollectionISMPoolDebugDrawComponent;
 };
-#endif
