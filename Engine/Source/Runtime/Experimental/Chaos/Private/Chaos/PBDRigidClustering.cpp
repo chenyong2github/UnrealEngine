@@ -1481,10 +1481,12 @@ namespace Chaos
 									{
 										if (Proxy->GetType() == EPhysicsProxyType::ClusterUnionProxy)
 										{
-											TArray<FRigidHandle>& ClusteredParentToChildren = MChildren[ClusteredChild];
-											if (FPBDRigidParticleHandle* ClusteredChildRigid = FindClosestParticle(ClusteredParentToChildren, ContactWorldLocation))
+											if (TArray<FRigidHandle>* ClusteredParentToChildren = MChildren.Find(ClusteredChild))
 											{
-												ClusteredChild = ClusteredChildRigid->CastToClustered();
+												if (FPBDRigidParticleHandle* ClusteredChildRigid = FindClosestParticle(*ClusteredParentToChildren, ContactWorldLocation))
+												{
+													ClusteredChild = ClusteredChildRigid->CastToClustered();
+												}
 											}
 										}
 									}
