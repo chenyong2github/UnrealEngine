@@ -1213,24 +1213,24 @@ void FNiagaraSystemToolkit::GetSaveableObjects(TArray<UObject*>& OutObjects) con
 
 void FNiagaraSystemToolkit::SaveAsset_Execute()
 {
+	SystemViewModel->NotifyPreSave();
 	if (SystemToolkitMode == ESystemToolkitMode::Emitter)
 	{
 		UE_LOG(LogNiagaraEditor, Log, TEXT("Saving and Compiling NiagaraEmitter %s"), *GetEditingObjects()[0]->GetName());
 		UpdateOriginalEmitter();
 	}
-	SystemViewModel->NotifyPreSave();
 	FAssetEditorToolkit::SaveAsset_Execute();
 	SystemViewModel->NotifyPostSave();
 }
 
 void FNiagaraSystemToolkit::SaveAssetAs_Execute()
 {
+	SystemViewModel->NotifyPreSave();
 	if (SystemToolkitMode == ESystemToolkitMode::Emitter)
 	{
 		UE_LOG(LogNiagaraEditor, Log, TEXT("Saving and Compiling NiagaraEmitter %s"), *GetEditingObjects()[0]->GetName());
 		UpdateOriginalEmitter();
 	}
-	SystemViewModel->NotifyPreSave();
 	FAssetEditorToolkit::SaveAssetAs_Execute();
 	SystemViewModel->NotifyPostSave();
 }
