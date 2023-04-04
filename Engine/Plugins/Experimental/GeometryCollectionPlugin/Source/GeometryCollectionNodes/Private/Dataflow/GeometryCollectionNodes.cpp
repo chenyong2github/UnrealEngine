@@ -35,6 +35,7 @@
 #include "GeometryCollection/Facades/CollectionAnchoringFacade.h"
 #include "GeometryCollection/Facades/CollectionRemoveOnBreakFacade.h"
 #include "GeometryCollection/Facades/CollectionTransformFacade.h"
+#include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
 #include "DynamicMesh/MeshTransforms.h"
 #include "DynamicMesh/DynamicMesh3.h"
 
@@ -60,6 +61,7 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetArrayElementDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetNumArrayElementsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetBoundingBoxesFromCollectionDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetRootIndexFromCollectionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetCentroidsFromCollectionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FTransformCollectionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBakeTransformsInCollectionDataflowNode);
@@ -393,6 +395,17 @@ void FGetBoundingBoxesFromCollectionDataflowNode::Evaluate(Dataflow::FContext& C
 		}
 
 		SetValue<TArray<FBox>>(Context, BoundingBoxesArr, &BoundingBoxes);
+	}
+}
+
+void FGetRootIndexFromCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA(&RootIndex))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+
+		Chaos::Facades::FCollectionHierarchyFacade HierarchyFacade(InCollection);
+		SetValue(Context, HierarchyFacade.GetRootIndex(), &RootIndex);
 	}
 }
 

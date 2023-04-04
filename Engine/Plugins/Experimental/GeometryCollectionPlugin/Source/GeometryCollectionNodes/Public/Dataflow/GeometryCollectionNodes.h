@@ -543,6 +543,37 @@ public:
 
 /**
  *
+ * Get the root node index
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FGetRootIndexFromCollectionDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FGetRootIndexFromCollectionDataflowNode, "GetRootIndexFromCollection", "GeometryCollection|Utilities", "")
+
+public:
+	UPROPERTY(meta = (DataflowInput))
+	FManagedArrayCollection Collection;
+
+	UPROPERTY(meta = (DataflowOutput))
+	int32 RootIndex;
+
+	FGetRootIndexFromCollectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterOutputConnection(&RootIndex);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+
+/**
+ *
  * Gets centroids of pieces from a Collection
  *
  */
