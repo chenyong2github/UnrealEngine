@@ -2,6 +2,7 @@
 
 #include "MuCOPE/CustomizableObjectPopulationClassDetails.h"
 
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "Curves/CurveLinearColor.h"
 #include "DetailLayoutBuilder.h"
 #include "Framework/Views/TableViewMetadata.h"
@@ -250,7 +251,7 @@ void SPopulationClassTagManager::BuildAllowlistWidget()
 			.ToolTipText(LOCTEXT("AddAllowlistTag", "Add Allow List Tag"))
 			[
 				SNew(SImage)
-				.Image(FAppStyle::GetBrush(TEXT("Plus")))
+				.Image(UE_MUTABLE_GET_BRUSH(TEXT("Plus")))
 			]
 		]
 	];
@@ -307,7 +308,7 @@ void SPopulationClassTagManager::BuildBlocklistWidget()
 			.ToolTipText(LOCTEXT("AddBlocklistTag", "Add Block List Tag"))
 			[
 				SNew(SImage)
-				.Image(FAppStyle::GetBrush(TEXT("Plus")))
+				.Image(UE_MUTABLE_GET_BRUSH(TEXT("Plus")))
 			]
 		]
 	];
@@ -435,7 +436,7 @@ void SPopulationClassTagList::Construct(const FArguments& InArgs)
 		.ToolTipText(LOCTEXT("RemoveTag", "Remove Tag"))
 		[
 			SNew(SImage)
-			.Image(FAppStyle::GetBrush(TEXT("Cross")))
+			.Image(UE_MUTABLE_GET_BRUSH(TEXT("Cross")))
 		]
 	];
 
@@ -607,7 +608,7 @@ void SPopulationClassCharacteristic::Construct(const FArguments& InArgs)
 				.ToolTipText(LOCTEXT("AddConstraint", "Add a New Constraint"))
 				[
 					SNew(SImage)
-					.Image(FAppStyle::GetBrush(TEXT("Plus")))
+					.Image(UE_MUTABLE_GET_BRUSH(TEXT("Plus")))
 				]
 			];
 		}
@@ -689,7 +690,7 @@ void SPopulationClassCharacteristic::Construct(const FArguments& InArgs)
 				.OnClicked(this, &SPopulationClassCharacteristic::OnRemoveCharacteristicButtonPressed)
 				[
 					SNew(SImage)
-					.Image(FAppStyle::GetBrush(TEXT("Cross")))
+					.Image(UE_MUTABLE_GET_BRUSH(TEXT("Cross")))
 				]
 			]
 
@@ -861,7 +862,7 @@ void SPopulationClassConstraint::Construct(const FArguments& InArgs)
 							.Visibility(multiConstraint ? EVisibility::Visible : EVisibility::Collapsed)
 							[
 								SNew(SImage)
-								.Image(FAppStyle::GetBrush(TEXT("Cross")))
+								.Image(UE_MUTABLE_GET_BRUSH(TEXT("Cross")))
 							]
 						]
 				]
@@ -1667,7 +1668,7 @@ void SRangeWidget::Construct(const FArguments& InArgs)
 					.OnClicked(this, &SRangeWidget::OnRemoveRangeButtonPressed)
 					[
 						SNew(SImage)
-						.Image(FAppStyle::GetBrush(TEXT("Cross")))
+						.Image(UE_MUTABLE_GET_BRUSH(TEXT("Cross")))
 					]
 				]
 			]

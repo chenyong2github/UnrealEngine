@@ -44,6 +44,7 @@
 #include "MuT/NodeMeshTable.h"
 #include "MuT/NodeMeshVariation.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "Engine/SkinnedAssetCommon.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 
@@ -71,9 +72,9 @@ TObjectPtr<const USkeletalMesh> GetMeshWithBoneRemovalApplied(TObjectPtr<USkelet
 	}
 
 	CacheEntry.bHasBonesToRemove = false;
-	for (int32 LODIndex = 0; LODIndex < Helper_GetLODNum(InSkeletalMesh); ++LODIndex)
+	for (int32 LODIndex = 0; LODIndex < InSkeletalMesh->GetLODNum(); ++LODIndex)
 	{
-		if (Helper_GetLODInfoBonesToRemove(InSkeletalMesh, LODIndex).Num() > 0)
+		if (InSkeletalMesh->GetLODInfo(LODIndex)->BonesToRemove.Num() > 0)
 		{
 			CacheEntry.bHasBonesToRemove = true;
 			break;
@@ -96,7 +97,7 @@ TObjectPtr<const USkeletalMesh> GetMeshWithBoneRemovalApplied(TObjectPtr<USkelet
 		CacheEntry.Mesh = (USkeletalMesh*)StaticDuplicateObject(InSkeletalMesh, GetTransientPackage(), InSkeletalMesh->GetFName(), EObjectFlags::RF_Transient);
 		check(CacheEntry.Mesh);
 
-		if (Helper_GetLODNum(InSkeletalMesh) < Helper_GetLODNum(CacheEntry.Mesh))
+		if (InSkeletalMesh->GetLODNum() < CacheEntry.Mesh->GetLODNum())
 		{
 			GenerationContext.Compiler->CompilerLog(LOCTEXT("ReferenceLODMismatch", "The reference mesh has less LODs than the generated mesh."),
 				CurrentNode,
@@ -116,9 +117,9 @@ TObjectPtr<const USkeletalMesh> GetMeshWithBoneRemovalApplied(TObjectPtr<USkelet
 	TSet<int32> RemovedBoneIndices;
 	{
 		TArray<FName> BoneNamesToRemove;
-		BoneNamesToRemove.Reset(Helper_GetLODInfoBonesToRemove(InSkeletalMesh, InLODIndex).Num());
+		BoneNamesToRemove.Reset(InSkeletalMesh->GetLODInfo(InLODIndex)->BonesToRemove.Num());
 		
-		for (const FBoneReference& BoneRef : Helper_GetLODInfoBonesToRemove(InSkeletalMesh, InLODIndex))
+		for (const FBoneReference& BoneRef : InSkeletalMesh->GetLODInfo(InLODIndex)->BonesToRemove)
 		{
 			BoneNamesToRemove.Add(BoneRef.BoneName);
 		}
@@ -598,7 +599,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, const TS
 		SkeletalMesh = GetMeshWithBoneRemovalApplied(InSkeletalMesh, LOD, GenerationContext, CurrentNode, RemovedBonesActiveParentIndices);
 	}
 
-	const FSkeletalMeshModel* ImportedModel = Helper_GetImportedModel(SkeletalMesh);
+	const FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
 
 	// Check in case the data has changed
 	if (!(ImportedModel
@@ -1799,7 +1800,7 @@ mu::MeshPtr ConvertStaticMeshToMutable(UStaticMesh* StaticMesh, int LOD, int Mat
 
 		// Position buffer
 		{
-			const FPositionVertexBuffer& VertexBuffer = Helper_GetStaticMeshPositionVertexBuffer(StaticMesh, LOD);
+			const FPositionVertexBuffer& VertexBuffer = StaticMesh->GetRenderData()->LODResources[LOD].VertexBuffers.PositionVertexBuffer;
 
 			const int ElementSize = 12;
 			const int ChannelCount = 1;
@@ -1818,7 +1819,7 @@ mu::MeshPtr ConvertStaticMeshToMutable(UStaticMesh* StaticMesh, int LOD, int Mat
 
 		// Tangent buffer
 		{
-			FStaticMeshVertexBuffer& VertexBuffer = Helper_GetStaticMeshVertexBuffer(StaticMesh, LOD);
+			FStaticMeshVertexBuffer& VertexBuffer = StaticMesh->GetRenderData()->LODResources[LOD].VertexBuffers.StaticMeshVertexBuffer;
 
 			MESH_BUFFER_SEMANTIC Semantics[2];
 			int SemanticIndices[2];
@@ -2043,13 +2044,13 @@ mu::MeshPtr BuildMorphedMutableMesh(const UEdGraphPin* BaseSourcePin, const FStr
 		// See if we need to select another LOD because of automatic LOD generation
 		if (GenerationContext.CurrentAutoLODStrategy == ECustomizableObjectAutomaticLODStrategy::AutomaticFromMesh)
 		{
-			if (SkeletalMesh && Helper_GetImportedModel(SkeletalMesh))
+			if (SkeletalMesh && SkeletalMesh->GetImportedModel())
 			{
 				// Add the CurrentLOD being generated to the first LOD used from this SkeletalMesh
 				int32 CurrentLOD = LODIndex + GenerationContext.CurrentLOD;
 
 				// If the mesh has additional LODs and they use the same material, use them.
-				FSkeletalMeshModel* ImportedModel = Helper_GetImportedModel(SkeletalMesh);
+				FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
 				if (ImportedModel->LODModels.Num() > CurrentLOD
 					&&
 					ImportedModel->LODModels[CurrentLOD].Sections.Num() > SectionIndex)
@@ -2090,7 +2091,7 @@ mu::MeshPtr BuildMorphedMutableMesh(const UEdGraphPin* BaseSourcePin, const FStr
 				int posOffset = MorphedSourceMesh->GetVertexBuffers().GetChannelOffset(posBuf, posChannel);
 				uint8* posBuffer = MorphedSourceMesh->GetVertexBuffers().GetBufferData(posBuf) + posOffset;
 
-				uint32 MaterialVertexStart = (uint32)Helper_GetImportedModel(SkeletalMesh)->LODModels[LODIndex].Sections[SectionIndex].GetVertexBufferIndex();
+				uint32 MaterialVertexStart = (uint32)SkeletalMesh->GetImportedModel()->LODModels[LODIndex].Sections[SectionIndex].GetVertexBufferIndex();
 				uint32 MeshVertexCount = (uint32)MorphedSourceMesh->GetVertexBuffers().GetElementCount();
 
 				const TArray<FMorphTargetLODModel>& MorphLODModels = MorphTarget->GetMorphLODModels();
@@ -2854,13 +2855,13 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 			// See if we need to select another LOD because of automatic LOD generation
 			if (GenerationContext.CurrentAutoLODStrategy == ECustomizableObjectAutomaticLODStrategy::AutomaticFromMesh)
 			{
-				if (TypedNodeSkel->SkeletalMesh && Helper_GetImportedModel(TypedNodeSkel->SkeletalMesh))
+				if (TypedNodeSkel->SkeletalMesh && TypedNodeSkel->SkeletalMesh->GetImportedModel())
 				{
 					// Add the CurrentLOD being generated to the first LOD used from this SkeletalMesh
 					int32 CurrentLOD = LOD + GenerationContext.CurrentLOD; 
 					
 					// If the mesh has additional LODs and they use the same material, use them.
-					FSkeletalMeshModel* ImportedModel = Helper_GetImportedModel(TypedNodeSkel->SkeletalMesh);
+					FSkeletalMeshModel* ImportedModel = TypedNodeSkel->SkeletalMesh->GetImportedModel();
 					if (ImportedModel->LODModels.Num() > CurrentLOD
 						&&
 						ImportedModel->LODModels[CurrentLOD].Sections.Num() > SectionIndex)
@@ -2948,7 +2949,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 
 				if (GenerationContext.Options.bSkinWeightProfilesEnabled)
 				{
-					FSkeletalMeshModel* ImportModel = Helper_GetImportedModel(TypedNodeSkel->SkeletalMesh);
+					FSkeletalMeshModel* ImportModel = TypedNodeSkel->SkeletalMesh->GetImportedModel();
 
 					const int32 SkinWeightProfilesCount = GenerationContext.SkinWeightProfilesInfo.Num();
 					for (int32 ProfileIndex = 0; ProfileIndex < SkinWeightProfilesCount; ++ProfileIndex)
@@ -2982,10 +2983,10 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 				}
 
 				MeshData.bHasVertexColors = TypedNodeSkel->SkeletalMesh->GetHasVertexColors();
-				FSkeletalMeshModel* importModel = Helper_GetImportedModel(TypedNodeSkel->SkeletalMesh);
+				FSkeletalMeshModel* importModel = TypedNodeSkel->SkeletalMesh->GetImportedModel();
 				MeshData.NumTexCoordChannels = importModel->LODModels[LOD].NumTexCoords;
 				MeshData.MaxBoneIndexTypeSizeBytes = importModel->LODModels[LOD].RequiredBones.Num() > 256 ? 2 : 1;
-				MeshData.MaxNumBonesPerVertex = Helper_GetMaxBoneInfluences(importModel->LODModels[LOD]);
+				MeshData.MaxNumBonesPerVertex = importModel->LODModels[LOD].GetMaxBoneInfluences();
 				
 				// When mesh data is combined we will get an upper and lower bound of the number of triangles.
 				MeshData.MaxNumTriangles = importModel->LODModels[LOD].Sections[SectionIndex].NumTriangles;
@@ -3180,7 +3181,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 
 					// Checking if it's a valid pin
 					if (MorphPin->Direction == EEdGraphPinDirection::EGPD_Output 
-						|| MorphPin->PinType.PinCategory != Helper_GetPinCategory(Schema->PC_Float) 
+						|| MorphPin->PinType.PinCategory != Schema->PC_Float 
 						|| !MorphPins[PinIndex]->LinkedTo.Num())
 					{
 						continue;
@@ -3584,9 +3585,9 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 
 			if (GenerationContext.CurrentAutoLODStrategy == ECustomizableObjectAutomaticLODStrategy::AutomaticFromMesh)
 			{
-				if (SkeletalMesh && Helper_GetImportedModel(SkeletalMesh))
+				if (SkeletalMesh && SkeletalMesh->GetImportedModel())
 				{
-					FSkeletalMeshModel* ImportedModel = Helper_GetImportedModel(SkeletalMesh);
+					FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
 
 					CurrentLOD += GenerationContext.CurrentLOD;
 
@@ -3631,11 +3632,11 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 			{
 				// TODO: this should be made for all the meshes of the Column to support meshes with different values
 				// Filling Mesh Data
-				FSkeletalMeshModel* importModel = Helper_GetImportedModel(SkeletalMesh);
+				FSkeletalMeshModel* importModel = SkeletalMesh->GetImportedModel();
 				MeshData.bHasVertexColors = SkeletalMesh->GetHasVertexColors();
 				MeshData.NumTexCoordChannels = importModel->LODModels[CurrentLOD].NumTexCoords;
 				MeshData.MaxBoneIndexTypeSizeBytes = importModel->LODModels[CurrentLOD].RequiredBones.Num() > 256 ? 2 : 1;
-				MeshData.MaxNumBonesPerVertex = Helper_GetMaxBoneInfluences(importModel->LODModels[CurrentLOD]);
+				MeshData.MaxNumBonesPerVertex = importModel->LODModels[CurrentLOD].GetMaxBoneInfluences();
 
 				// When mesh data is combined we will get an upper and lower bound of the number of triangles.
 				MeshData.MaxNumTriangles = importModel->LODModels[CurrentLOD].Sections[MaterialIndex].NumTriangles;

@@ -11,6 +11,7 @@
 #include "MuCOE/CustomizableObjectCompileRunnable.h"
 #include "MuCOE/CustomizableObjectEditorStyle.h"
 #include "MuCOE/SMutableCodeViewer.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "MuT/Streams.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/STextComboBox.h"
@@ -214,7 +215,7 @@ void SMutableGraphViewer::Construct(const FArguments& InArgs, const mu::NodePtr&
 			.Value(0.25f)
 			[
 				SNew(SBorder)
-				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 				.Padding(FMargin(4.0f, 4.0f))
 				[
 					SAssignNew(TreeView, STreeView<TSharedPtr<FMutableGraphTreeElement>>)
@@ -237,7 +238,7 @@ void SMutableGraphViewer::Construct(const FArguments& InArgs, const mu::NodePtr&
 			.Value(0.75f)
 			[
 				SNew(SBorder)
-				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 				.Padding(FMargin(4.0f, 4.0f))
 				//[
 				//	SubjectsTreeView->AsShared()

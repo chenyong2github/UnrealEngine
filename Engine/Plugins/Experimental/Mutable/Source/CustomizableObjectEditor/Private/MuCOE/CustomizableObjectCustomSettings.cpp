@@ -9,6 +9,7 @@
 #include "MuCOE/CustomizableObjectEditorViewportClient.h"
 #include "MuCOE/CustomizableObjectEditorViewportLights.h"
 #include "MuCOE/SCustomizableObjectEditorViewport.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Subsystems/ImportSubsystem.h"
 #include "Widgets/Colors/SColorBlock.h"
@@ -113,7 +114,7 @@ void SCustomizableObjectCustomSettings::Construct(const FArguments& InArgs, UCus
 				[
 					SAssignNew(LightComboButton, SComboButton)
 					.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
-					.ForegroundColor(FAppStyle::GetColor("PropertyEditor.AssetName.ColorAndOpacity"))
+					.ForegroundColor(UE_MUTABLE_GET_COLOR("PropertyEditor.AssetName.ColorAndOpacity"))
 					.OnGetMenuContent(this, &SCustomizableObjectCustomSettings::GetLightComboButtonContent)
 					.ContentPadding(2.0f)
 					.ButtonContent()
@@ -161,7 +162,7 @@ void SCustomizableObjectCustomSettings::Construct(const FArguments& InArgs, UCus
 			.Padding(0.f, 2.f)
 			[
 				SNew(SBorder)
-				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 				.Padding(6.f)
 				[
 					SNew(SVerticalBox)

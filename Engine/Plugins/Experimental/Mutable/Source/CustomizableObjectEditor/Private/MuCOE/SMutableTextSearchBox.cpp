@@ -2,6 +2,7 @@
 
 #include "MuCOE/SMutableTextSearchBox.h"
 
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Views/TableViewMetadata.h"
 #include "Layout/WidgetPath.h"
@@ -57,7 +58,7 @@ void SMutableTextSearchBox::Construct( const FArguments& InArgs )
 					.MenuContent
 						(
 							SNew(SBorder)
-							.BorderImage(FAppStyle::GetBrush("Menu.Background"))
+							.BorderImage(UE_MUTABLE_GET_BRUSH("Menu.Background"))
 							[
 								SNew(SBox)
 								.WidthOverride(175)	// to enforce some minimum width, ideally we define the minimum, not a fixed width

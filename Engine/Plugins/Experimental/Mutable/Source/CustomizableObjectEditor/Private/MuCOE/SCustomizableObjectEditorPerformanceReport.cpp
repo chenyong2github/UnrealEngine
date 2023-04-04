@@ -13,6 +13,7 @@
 #include "MuCO/CustomizableObjectInstance.h"
 #include "MuCOE/CustomizableObjectEditorStyle.h"
 #include "MuCOE/SCustomizableObjectEditorTextureAnalyzer.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SNumericEntryBox.h"
@@ -1447,7 +1448,7 @@ const FSlateBrush* SPerformanceReportWorstCaseRow::GetSelectedRowHighlightColor(
 {
 	const bool bIsSelected = PerformanceReport && ReportInstance == PerformanceReport->CurrentReportWorstCase;
 	const bool bIsUpToDate = bIsSelected && ReportInstance && ReportInstance->WorstCaseInstance == PerformanceReport->CurrentReportInstance;
-	return bIsUpToDate? FAppStyle::GetBrush("Brushes.Highlight") : FAppStyle::GetBrush("Brushes.AccentGray");
+	return bIsUpToDate? UE_MUTABLE_GET_BRUSH("Brushes.Highlight") : UE_MUTABLE_GET_BRUSH("Brushes.AccentGray");
 }
 
 TSharedRef<ITableRow> SPerformanceReportWorstCaseRow::GenerateStyledRow(UWorstCasePerformanceReportInstance* ReportedInstance, const TSharedRef<STableViewBase>& OwnerTable)

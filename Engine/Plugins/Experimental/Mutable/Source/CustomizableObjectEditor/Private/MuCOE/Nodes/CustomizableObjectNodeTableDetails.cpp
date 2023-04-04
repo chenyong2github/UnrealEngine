@@ -12,6 +12,7 @@
 #include "MuCOE/CustomizableObjectLayout.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTable.h"
 #include "MuCOE/SCustomizableObjectNodeLayoutBlocksEditor.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Input/SButton.h"
 
@@ -70,7 +71,7 @@ void FCustomizableObjectNodeTableDetails::CustomizeDetails(const TSharedPtr<IDet
 				+ SHorizontalBox::Slot()
 				[
 					SNew(SBorder)
-					.BorderImage(FAppStyle::GetBrush("NoBorder"))
+					.BorderImage(UE_MUTABLE_GET_BRUSH("NoBorder"))
 					.Padding(FMargin(0.0f, 0.0f, 10.0f, 0.0f))
 					[
 						SAssignNew(AnimMeshColumnComboBox, STextComboBox)
@@ -108,7 +109,7 @@ void FCustomizableObjectNodeTableDetails::CustomizeDetails(const TSharedPtr<IDet
 				+ SHorizontalBox::Slot()
 				[
 					SNew(SBorder)
-					.BorderImage(FAppStyle::GetBrush("NoBorder"))
+					.BorderImage(UE_MUTABLE_GET_BRUSH("NoBorder"))
 					.Padding(FMargin(0.0f, 0.0f, 10.0f, 0.0f))
 					[
 						SAssignNew(AnimComboBox, STextComboBox)
@@ -146,7 +147,7 @@ void FCustomizableObjectNodeTableDetails::CustomizeDetails(const TSharedPtr<IDet
 				+ SHorizontalBox::Slot()
 				[
 					SNew(SBorder)
-					.BorderImage(FAppStyle::GetBrush("NoBorder"))
+					.BorderImage(UE_MUTABLE_GET_BRUSH("NoBorder"))
 					.Padding(FMargin(0.0f, 0.0f, 10.0f, 0.0f))
 					[
 						SAssignNew(AnimSlotComboBox, STextComboBox)
@@ -184,7 +185,7 @@ void FCustomizableObjectNodeTableDetails::CustomizeDetails(const TSharedPtr<IDet
 				+ SHorizontalBox::Slot()
 				[
 					SNew(SBorder)
-					.BorderImage(FAppStyle::GetBrush("NoBorder"))
+					.BorderImage(UE_MUTABLE_GET_BRUSH("NoBorder"))
 					.Padding(FMargin(0.0f, 0.0f, 10.0f, 0.0f))
 					[
 						SAssignNew(AnimTagsComboBox, STextComboBox)
@@ -238,7 +239,7 @@ void FCustomizableObjectNodeTableDetails::CustomizeDetails(const TSharedPtr<IDet
 				+ SHorizontalBox::Slot()
 				[
 					SNew(SBorder)
-					.BorderImage(FAppStyle::GetBrush("NoBorder"))
+					.BorderImage(UE_MUTABLE_GET_BRUSH("NoBorder"))
 					.Padding(FMargin(0.0f, 0.0f, 10.0f, 0.0f))
 					[
 						SAssignNew(LayoutMeshColumnComboBox, STextComboBox)

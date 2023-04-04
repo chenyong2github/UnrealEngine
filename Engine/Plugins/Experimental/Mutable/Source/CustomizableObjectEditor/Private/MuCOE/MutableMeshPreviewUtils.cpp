@@ -10,6 +10,7 @@
 #include "MuCO/UnrealConversionUtils.h"
 #include "MuCO/UnrealPortabilityHelpers.h"
 #include "MuR/OpMeshFormat.h"
+#include "Engine/SkeletalMesh.h"
 #include "UObject/Package.h"
 
 class UMaterialInterface;
@@ -549,14 +550,14 @@ namespace MutableMeshPreviewUtils
 			OutSkeletalMesh->GetMaterials().SetNum(1);
 			OutSkeletalMesh->GetMaterials()[0] = UnrealMaterial;
 
-			Helper_GetLODInfoArray(OutSkeletalMesh)[0].LODMaterialMap.SetNumZeroed(1);
+			OutSkeletalMesh->GetLODInfoArray()[0].LODMaterialMap.SetNumZeroed(1);
 
 			// Add RenderSections for each surface in the mesh
 			if (InMutableMesh)
 			{
 				for (int32 SurfaceIndex = 0; SurfaceIndex < InMutableMesh->GetSurfaceCount(); ++SurfaceIndex)
 				{
-					new(Helper_GetLODRenderSections(OutSkeletalMesh, 0)) Helper_SkelMeshRenderSection();
+					new(OutSkeletalMesh->GetResourceForRendering()->LODRenderData[0].RenderSections) FSkelMeshRenderSection();
 				}
 			}
 		}
@@ -589,7 +590,7 @@ namespace MutableMeshPreviewUtils
 				InMutableMesh,
 				0); 
 			
-			FSkeletalMeshLODRenderData& LODModel = Helper_GetLODData(OutSkeletalMesh)[0];
+			FSkeletalMeshLODRenderData& LODModel = OutSkeletalMesh->GetResourceForRendering()->LODRenderData[0];
 
 			// Generate the active bones array based on the bones found on BoneMap
 			TArray<uint16> ActiveBones;
@@ -713,25 +714,28 @@ namespace MutableMeshPreviewUtils
 
 		// Prepare the mesh to be filled with rendering data (buffers)
 		{
-			Helper_GetLODData(GeneratedSkeletalMesh).Add(( Helper_GetLODData(GeneratedSkeletalMesh).Num()) ? &Helper_GetLODData(GeneratedSkeletalMesh)[0] : new Helper_LODDataType());
-			Helper_GetLODInfoArray(GeneratedSkeletalMesh).Add(FSkeletalMeshLODInfo());
+			GeneratedSkeletalMesh->GetResourceForRendering()->LODRenderData.Add(( GeneratedSkeletalMesh->GetResourceForRendering()->LODRenderData.Num()) ? &GeneratedSkeletalMesh->GetResourceForRendering()->LODRenderData[0] : new FSkeletalMeshLODRenderData());
+			GeneratedSkeletalMesh->GetLODInfoArray().Add(FSkeletalMeshLODInfo());
+
+			FSkeletalMeshLODInfo& LastLODInfo = GeneratedSkeletalMesh->GetLODInfoArray().Last();
 
 	#if WITH_EDITORONLY_DATA
-			Helper_GetLODInfoArray(GeneratedSkeletalMesh).Last().BuildSettings.bUseFullPrecisionUVs = true;
+			LastLODInfo.BuildSettings.bUseFullPrecisionUVs = true;
 	#endif
 
 			constexpr int32 LODIndex = 0;
-			if (Helper_GetLODInfoArray(InReferenceSkeletalMesh).IsValidIndex(LODIndex))
+			if (InReferenceSkeletalMesh->GetLODInfoArray().IsValidIndex(LODIndex))
 			{
-				Helper_GetLODInfoArray(GeneratedSkeletalMesh).Last().ScreenSize = Helper_GetLODInfoArray(InReferenceSkeletalMesh)[LODIndex].ScreenSize;
-				Helper_GetLODInfoArray(GeneratedSkeletalMesh).Last().LODHysteresis = Helper_GetLODInfoArray(InReferenceSkeletalMesh)[LODIndex].LODHysteresis;
-				Helper_GetLODInfoArray(GeneratedSkeletalMesh).Last().bSupportUniformlyDistributedSampling = Helper_GetLODInfoArray(InReferenceSkeletalMesh)[LODIndex].bSupportUniformlyDistributedSampling;
-				Helper_GetLODInfoArray(GeneratedSkeletalMesh).Last().bAllowCPUAccess = Helper_GetLODInfoArray(InReferenceSkeletalMesh)[LODIndex].bAllowCPUAccess;
+				const FSkeletalMeshLODInfo& RefLODIndex = InReferenceSkeletalMesh->GetLODInfoArray()[LODIndex];
+				LastLODInfo.ScreenSize = RefLODIndex.ScreenSize;
+				LastLODInfo.LODHysteresis = RefLODIndex.LODHysteresis;
+				LastLODInfo.bSupportUniformlyDistributedSampling = RefLODIndex.bSupportUniformlyDistributedSampling;
+				LastLODInfo.bAllowCPUAccess = RefLODIndex.bAllowCPUAccess;
 			}
 			else
 			{
-				Helper_GetLODInfoArray(GeneratedSkeletalMesh).Last().ScreenSize = 0.3f / (LODIndex + 1);
-				Helper_GetLODInfoArray(GeneratedSkeletalMesh).Last().LODHysteresis = 0.02f;
+				LastLODInfo.ScreenSize = 0.3f / (LODIndex + 1);
+				LastLODInfo.LODHysteresis = 0.02f;
 				UE_LOG(LogMutable, Warning, TEXT("Setting default values for LOD ScreenSize and LODHysteresis because the values cannot be found in the reference mesh"));
 			}
 		}

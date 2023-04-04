@@ -23,6 +23,7 @@
 #include "MuCO/UnrealBakeHelpers.h"
 #include "MuCO/UnrealMutableImageProvider.h"
 #include "MuCO/UnrealMutableModelDiskStreamer.h"
+#include "MuCO/UnrealPortabilityHelpers.h"
 #include "MuR/Model.h"
 #include "MuR/Settings.h"
 #include "TextureResource.h"
@@ -2888,7 +2889,7 @@ void UCustomizableObjectSystem::OnPreBeginPIE(const bool bIsSimulatingInEditor)
 	
 	// Find root customizable objects
 	FARFilter AssetRegistryFilter;
-	AssetRegistryFilter.ClassPaths.Add(FTopLevelAssetPath(TEXT("/Script/CustomizableObject"), TEXT("CustomizableObject")));
+	UE_MUTABLE_GET_CLASSPATHS(AssetRegistryFilter).Add(UE_MUTABLE_TOPLEVELASSETPATH(TEXT("/Script/CustomizableObject"), TEXT("CustomizableObject")));
 	AssetRegistryFilter.TagsAndValues.Add(FName("IsRoot"), FString::FromInt(1));
 
 	TArray<FAssetData> OutAssets;

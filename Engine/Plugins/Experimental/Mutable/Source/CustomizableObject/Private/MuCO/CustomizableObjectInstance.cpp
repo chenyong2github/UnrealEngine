@@ -22,18 +22,17 @@
 #include "MuCO/CustomizableSkeletalComponent.h"
 #include "MuCO/DefaultImageProvider.h"
 #include "MuCO/UnrealConversionUtils.h"
+#include "MuCO/UnrealPortabilityHelpers.h"
 #include "MuR/OpImagePixelFormat.h"
+#include "MuR/Model.h"
+#include "MuR/OpImagePixelFormat.h"
+#include "MuR/OpImageSwizzle.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Rendering/Texture2DResource.h"
 #include "RenderingThread.h"
 #include "SkeletalMergingLibrary.h"
 #include "UObject/UObjectIterator.h"
 #include "Widgets/Notifications/SNotificationList.h"
-// Required for engine branch preprocessor defines.
-#include "MuCO/UnrealPortabilityHelpers.h"
-#include "MuR/Model.h"
-#include "MuR/OpImagePixelFormat.h"
-#include "MuR/OpImageSwizzle.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableObjectInstance)
@@ -734,7 +733,7 @@ void UCustomizableInstancePrivateData::PostEditChangePropertyWithoutEditor(USkel
 
 	if (!InSkeletalMesh) return;
 
-	FSkeletalMeshRenderData* Resource = Helper_GetResourceForRendering(InSkeletalMesh);
+	FSkeletalMeshRenderData* Resource = InSkeletalMesh->GetResourceForRendering();
 	if (!Resource) return;
 
 	{
@@ -1033,9 +1032,7 @@ USkeleton* UCustomizableInstancePrivateData::MergeSkeletons(UCustomizableObjectI
 	Exchange(Params.SkeletonsToMerge, ReferencedSkeletons.SkeletonsToMerge);
 
 #if !UE_BUILD_SHIPPING
-#if !MUTABLE_CLEAN_ENGINE_BRANCH
-	Params.bCheckSkeletonsCompatibility = true;
-#endif
+	//Params.bCheckSkeletonsCompatibility = true;
 #endif
 
 	USkeleton* FinalSkeleton = USkeletalMergingLibrary::MergeSkeletons(Params);
@@ -2103,8 +2100,8 @@ bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCust
 				BuildOrCopyMorphTargetsData(OperationData, SkeletalMesh, OldSkeletalMesh, Public, ComponentIndex);
 				BuildOrCopyClothingData(OperationData, SkeletalMesh, OldSkeletalMesh, Public, ComponentIndex);
 
-				ensure(Helper_GetLODData(SkeletalMesh).Num() > 0);
-				ensure(Helper_GetLODInfoArray(SkeletalMesh).Num() > 0);
+				ensure(SkeletalMesh->GetResourceForRendering()->LODRenderData.Num() > 0);
+				ensure(SkeletalMesh->GetLODInfoArray().Num() > 0);
 			}
 		}
 	}
@@ -3301,7 +3298,7 @@ void UCustomizableInstancePrivateData::InitSkeletalMeshData(const TSharedPtr<FMu
 		FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
 		for (int32 LODIndex = 0; LODIndex <= OperationData->CurrentMaxLOD; ++LODIndex)
 		{
-			RenderData->LODRenderData.Add(new Helper_LODDataType());
+			RenderData->LODRenderData.Add(new FSkeletalMeshLODRenderData());
 
 			const FMutableRefLODData& LODData = RefSkeletalMeshData->LODData[LODIndex];
 
@@ -3714,7 +3711,7 @@ void UCustomizableInstancePrivateData::BuildOrCopyElementData(const TSharedPtr<F
 
 		for (int32 SurfaceIndex = 0; SurfaceIndex < Component.SurfaceCount; ++SurfaceIndex)
 		{
-			new(Helper_GetLODRenderSections(SkeletalMesh, LODIndex)) Helper_SkelMeshRenderSection();
+			new(SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex].RenderSections) FSkelMeshRenderSection();
 		}
 	}
 }
@@ -4865,7 +4862,7 @@ bool UCustomizableInstancePrivateData::BuildOrCopyRenderData(const TSharedPtr<FM
 			Component.Mesh,
 			LODIndex);
 
-		FSkeletalMeshLODRenderData& LODModel = Helper_GetLODData(SkeletalMesh)[LODIndex];
+		FSkeletalMeshLODRenderData& LODModel = SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex];
 
 		if (LODModel.DoesVertexBufferUse16BitBoneIndex() && !UCustomizableObjectSystem::GetInstance()->IsSupport16BitBoneIndexEnabled())
 		{
@@ -5472,9 +5469,9 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 		int32 LastValidLODIndex = OperationData->CurrentMaxLOD;
 		for (int32 LODIndex = OperationData->CurrentMaxLOD; LODIndex >= FirstLODAvailable; --LODIndex)
 		{
-			if (Helper_GetLODInfoArray(SkeletalMesh).Num() != 0)
+			if (SkeletalMesh->GetLODInfoArray().Num() != 0)
 			{
-				Helper_GetLODInfoArray(SkeletalMesh)[LODIndex].LODMaterialMap.Reset();
+				SkeletalMesh->GetLODInfoArray()[LODIndex].LODMaterialMap.Reset();
 			}
 
 			if (LODIndex >= OperationData->CurrentMinLOD && OperationData->InstanceUpdateData.Components[OperationData->InstanceUpdateData.LODs[LODIndex].FirstComponent + ComponentIndex].bGenerated)
@@ -5499,8 +5496,8 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 				if (LastValidLODIndex != LODIndex)
 				{
 					// Copy information from the LastValidLODIndex
-					Helper_GetLODInfoArray(SkeletalMesh)[LODIndex].LODMaterialMap = Helper_GetLODInfoArray(SkeletalMesh)[LastValidLODIndex].LODMaterialMap;
-					Helper_GetLODRenderSections(SkeletalMesh, LODIndex)[SurfaceIndex].MaterialIndex = Helper_GetLODRenderSections(SkeletalMesh, LastValidLODIndex)[SurfaceIndex].MaterialIndex;
+					SkeletalMesh->GetLODInfoArray()[LODIndex].LODMaterialMap = SkeletalMesh->GetLODInfoArray()[LastValidLODIndex].LODMaterialMap;
+					SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex].RenderSections[SurfaceIndex].MaterialIndex = SkeletalMesh->GetResourceForRendering()->LODRenderData[LastValidLODIndex].RenderSections[SurfaceIndex].MaterialIndex;
 					continue;
 				}
 
@@ -5811,8 +5808,8 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 				{
 					int32 MatIndex = (*FoundMaterialPlaceholder)->MatIndex;
 					check(MatIndex >= 0);
-					int32 LODMaterialIndex = Helper_GetLODInfoArray(SkeletalMesh)[LODIndex].LODMaterialMap.Add(MatIndex);
-					Helper_GetLODRenderSections(SkeletalMesh, LODIndex)[SurfaceIndex].MaterialIndex = LODMaterialIndex;
+					int32 LODMaterialIndex = SkeletalMesh->GetLODInfoArray()[LODIndex].LODMaterialMap.Add(MatIndex);
+					SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex].RenderSections[SurfaceIndex].MaterialIndex = LODMaterialIndex;
 				}
 				else
 				{
@@ -5847,8 +5844,8 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 							SkeletalMaterial.MaterialSlotName = CustomizableObject->ReferencedMaterialSlotNames[Surface.MaterialIndex];
 							SetMeshUVChannelDensity(SkeletalMaterial.UVChannelData, RefSkeletalMeshData->Settings.DefaultUVChannelDensity);
 
-							const int32 LODMaterialIndex = Helper_GetLODInfoArray(SkeletalMesh)[LODIndex].LODMaterialMap.Add(MatIndex);
-							Helper_GetLODRenderSections(SkeletalMesh, LODIndex)[SurfaceIndex].MaterialIndex = LODMaterialIndex;
+							const int32 LODMaterialIndex = SkeletalMesh->GetLODInfoArray()[LODIndex].LODMaterialMap.Add(MatIndex);
+							SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex].RenderSections[SurfaceIndex].MaterialIndex = LODMaterialIndex;
 						}
 
 						if (MaterialInstance)

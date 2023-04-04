@@ -10,6 +10,7 @@
 #include "MuCOE/CustomizableObjectEditorStyle.h"
 #include "MuCOE/SMutableCodeViewer.h"
 #include "MuCOE/SMutableGraphViewer.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Input/SNumericDropDown.h"
@@ -197,7 +198,7 @@ void SMutableObjectViewer::Construct(const FArguments& InArgs, UCustomizableObje
 		.VAlign(VAlign_Fill)
 		[
 			SNew(SBorder)
-			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 			.Padding(FMargin(4.0f, 4.0f))
 			[
 				SAssignNew(TreeView, STreeView<TSharedPtr<FMutableObjectTreeElement>>)

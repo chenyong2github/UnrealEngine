@@ -117,11 +117,11 @@ void UCustomizableObjectNodeSkeletalMesh::AllocateDefaultPins(UCustomizableObjec
 
 	if (SkeletalMesh)
 	{
-		int NumLODs = Helper_GetLODInfoArray(SkeletalMesh).Num();
+		int NumLODs = SkeletalMesh->GetLODInfoArray().Num();
 		TMap<FString, TArray<int32>> MaterialNameUseCount; // Stores how many times the material name has been used per LOD
 		TMap<FString, TArray<int32>> ImageNameUseCount; // Stores how many times the image name has been used per LOD
 
-		if (const FSkeletalMeshModel* ImportedModel = Helper_GetImportedModel(SkeletalMesh))
+		if (const FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel())
 		{
 			for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 			{
@@ -328,7 +328,7 @@ UTexture2D* UCustomizableObjectNodeSkeletalMesh::FindTextureForPin(const UEdGrap
 		return nullptr;
 	}
 
-	if (const FSkeletalMeshModel* ImportedModel = Helper_GetImportedModel(SkeletalMesh))
+	if (const FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel())
 	{
 		for (int LODIndex = 0; LODIndex < LODs.Num(); ++LODIndex)
 		{
@@ -523,13 +523,13 @@ bool UCustomizableObjectNodeSkeletalMesh::IsNodeOutDatedAndNeedsRefresh()
 
 	if (SkeletalMesh)
 	{
-		int32 numLods = Helper_GetLODNum(SkeletalMesh);
+		int32 numLods = SkeletalMesh->GetLODNum();
 		if (LODs.Num() != numLods)
 		{
 			Result = true;
 		}
 
-		if (const FSkeletalMeshModel* ImportedModel = Helper_GetImportedModel(SkeletalMesh))
+		if (const FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel())
 		{
 			for (int LODIndex = 0; !Result && LODIndex < LODs.Num(); ++LODIndex)
 			{
@@ -684,7 +684,7 @@ FSkeletalMaterial* UCustomizableObjectNodeSkeletalMesh::GetSkeletalMaterialFor(c
 	}
 	else
 	{
-		FSkeletalMeshModel* AuxImportedModel = Helper_GetImportedModel(SkeletalMesh);
+		FSkeletalMeshModel* AuxImportedModel = SkeletalMesh->GetImportedModel();
 
 		if (AuxImportedModel)
 		{

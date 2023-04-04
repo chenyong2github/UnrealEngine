@@ -4,6 +4,7 @@
 
 #include "MuCOE/GraphTraversal.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeMaterial.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/SToolTip.h"
 
@@ -25,9 +26,9 @@ void SCustomizableObjectNodeMaterialPinImage::Construct(const FArguments& InArgs
 	SetToolTip(TooltipWidget);
 
 	// Cache pin icons.
-	CachedPinMutableConnected = FAppStyle::GetBrush(TEXT("Graph.Pin.Connected"));
-	CachedPinMutableDisconnected = FAppStyle::GetBrush(TEXT("Graph.Pin.Disconnected"));
-	CachedPinPassthroughDisconnected = FAppStyle::GetBrush(TEXT("Graph.ExecPin.Disconnected"));
+	CachedPinMutableConnected = UE_MUTABLE_GET_BRUSH(TEXT("Graph.Pin.Connected"));
+	CachedPinMutableDisconnected = UE_MUTABLE_GET_BRUSH(TEXT("Graph.Pin.Disconnected"));
+	CachedPinPassthroughDisconnected = UE_MUTABLE_GET_BRUSH(TEXT("Graph.ExecPin.Disconnected"));
 }
 
 

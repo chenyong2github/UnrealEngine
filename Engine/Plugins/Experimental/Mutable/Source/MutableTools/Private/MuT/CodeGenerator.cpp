@@ -1425,9 +1425,9 @@ namespace mu
 
                             // Generate the image
                             IMAGE_STATE newState;
-                            newState.m_imageSize = FIntVector2(desc.m_size);
-							newState.m_imageRect.min = FIntVector2(rect.min);
-							newState.m_imageRect.size = FIntVector2(rect.size);
+                            newState.m_imageSize = UE::Math::TIntVector2<int32>(desc.m_size);
+							newState.m_imageRect.min = UE::Math::TIntVector2<int32>(rect.min);
+							newState.m_imageRect.size = UE::Math::TIntVector2<int32>(rect.size);
 							newState.m_layoutBlockId = pLayout->m_blocks[b].m_id;
                             newState.m_pLayout = pLayout;
                             m_imageState.Add( newState );
@@ -1530,7 +1530,7 @@ namespace mu
 
                                             // Generate the image block
                                             IMAGE_STATE newState;
-                                            newState.m_imageSize = FIntVector2(extendDesc.m_size);
+                                            newState.m_imageSize = UE::Math::TIntVector2<int32>(extendDesc.m_size);
                                             newState.m_imageRect = rect;
                                             newState.m_layoutBlockId = pExtendLayout->m_blocks[b].m_id;
                                             newState.m_pLayout = pExtendLayout;

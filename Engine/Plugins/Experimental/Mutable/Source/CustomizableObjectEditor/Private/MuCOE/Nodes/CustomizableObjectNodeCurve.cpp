@@ -49,14 +49,14 @@ void UCustomizableObjectNodeCurve::Serialize(FArchive& Ar)
 			if (UEdGraphPin* CurvePin = FindPin(FString::Printf(TEXT("Curve %d"), i)))
 			{
 				FString NewPinName = *(FString("Curve ") + Curves[i].CurveName.ToString());
-				Helper_SetPinName( CurvePin->PinName, NewPinName);
+				CurvePin->PinName = FName(NewPinName);
 				CurvePin->Modify(true);
 			}
 			else if (OutputPins.IsValidIndex(i) && OutputPins[i] && Helper_GetPinName(OutputPins[i]) != (FString("Curve ") + Curves[i].CurveName.ToString()))
 			{
 				CurvePin = OutputPins[i];
 				FString NewPinName = *(FString("Curve ") + Curves[i].CurveName.ToString());
-				Helper_SetPinName(CurvePin->PinName, NewPinName);
+				CurvePin->PinName = FName(NewPinName);
 				CurvePin->Modify(true);
 			}
 		}

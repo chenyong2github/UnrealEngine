@@ -22,6 +22,7 @@
 #include "MuCOE/SMutableScalarViewer.h"
 #include "MuCOE/SMutableSkeletonViewer.h"
 #include "MuCOE/SMutableStringViewer.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "MuR/SystemPrivate.h"
 #include "MuT/ErrorLogPrivate.h"
 #include "MuT/Streams.h"
@@ -659,7 +660,7 @@ void SMutableCodeViewer::Construct(const FArguments& InArgs, const TSharedPtr<mu
 				.FillHeight(1.0f)
 				[
 					SNew(SBorder)
-					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 					.Padding(FMargin(4.0f, 4.0f))
 					[
 						SNew(SHorizontalBox)
@@ -778,7 +779,7 @@ void SMutableCodeViewer::Construct(const FArguments& InArgs, const TSharedPtr<mu
 				.Value(0.72f)
 				[
 					SAssignNew(PreviewBorder, SBorder)
-					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 					.Padding(FMargin(4.0f, 4.0f))					
 				]
 			]

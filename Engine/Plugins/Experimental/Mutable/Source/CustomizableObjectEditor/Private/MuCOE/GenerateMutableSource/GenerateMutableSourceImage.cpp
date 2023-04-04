@@ -305,7 +305,7 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 					GenerationContext.Compiler->CompilerLog(LOCTEXT("ModulateWithoutMask", "Texture layer effect uses Modulate without a mask. It will replace everything below it!"), Node);
 				}
 				
-				if (OtherPin->PinType.PinCategory == Helper_GetPinCategory(Schema->PC_Image))
+				if (OtherPin->PinType.PinCategory == Schema->PC_Image)
 				{
 					mu::NodeImagePtr BlendNode = GenerateMutableSourceImage(OtherPin, GenerationContext, MaxTextureSize);
 
@@ -317,7 +317,7 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 					Result = LayerNode;
 				}
 
-				else if (OtherPin->PinType.PinCategory == Helper_GetPinCategory(Schema->PC_Color))
+				else if (OtherPin->PinType.PinCategory == Schema->PC_Color)
 				{
 					mu::NodeColourPtr ColorNode = GenerateMutableSourceColor(OtherPin, GenerationContext);
 
@@ -807,7 +807,7 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 	}
 	
 	// If the node is a plain colour node, generate an image out of it
-	else if (Pin->PinType.PinCategory == Helper_GetPinCategory(Schema->PC_Color))
+	else if (Pin->PinType.PinCategory == Schema->PC_Color)
 	{
 		mu::NodeColourPtr ColorNode = GenerateMutableSourceColor(Pin, GenerationContext);
 

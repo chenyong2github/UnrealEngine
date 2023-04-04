@@ -14,117 +14,44 @@
 #include "Editor.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/DataTable.h"
-#include <exception>
-#include <functional>
+#include "Engine/Texture.h"
+#include "Runtime/Launch/Resources/Version.h"
 
-class FPositionVertexBuffer;
-class FStaticMeshVertexBuffer;
 
 //---------------------------------------------------------------
 // Helpers to ease portability across unreal engine versions
 //---------------------------------------------------------------
 
+#if ENGINE_MAJOR_VERSION==5 && ENGINE_MINOR_VERSION>=1
 
-inline bool Helper_DoSectionsUse16BitBoneIndex( const FSkeletalMeshLODModel& m )
-{
-	for (int32 SectionIdx = 0; SectionIdx < m.Sections.Num(); ++SectionIdx)
-	{
-		if (m.Sections[SectionIdx].Use16BitBoneIndex())
-		{
-			return true;
-		}
-	}
+#define UE_MUTABLE_GET_BRUSH			FAppStyle::GetBrush
+#define UE_MUTABLE_GET_FLOAT			FAppStyle::GetFloat
+#define UE_MUTABLE_GET_MARGIN			FAppStyle::GetMargin
+#define UE_MUTABLE_GET_FONTSTYLE		FAppStyle::GetFontStyle
+#define UE_MUTABLE_GET_WIDGETSTYLE		FAppStyle::GetWidgetStyle
+#define UE_MUTABLE_GET_COLOR			FAppStyle::GetColor
+#define UE_MUTABLE_GET_SLATECOLOR		FAppStyle::GetSlateColor
 
-	return false;
-}
+#elif ENGINE_MAJOR_VERSION==5 && ENGINE_MINOR_VERSION==0
 
-inline int Helper_GetMaxBoneInfluences(const FSkeletalMeshLODModel& m)
-{
-	return m.GetMaxBoneInfluences();
-}
+#define UE_MUTABLE_GET_BRUSH			FAppStyle::Get().GetBrush
+#define UE_MUTABLE_GET_FLOAT			FAppStyle::Get().GetFloat
+#define UE_MUTABLE_GET_MARGIN			FAppStyle::Get().GetMargin
+#define UE_MUTABLE_GET_FONTSTYLE		FAppStyle::Get().GetFontStyle
+#define UE_MUTABLE_GET_WIDGETSTYLE		FAppStyle::Get().GetWidgetStyle
+#define UE_MUTABLE_GET_COLOR			FAppStyle::Get().GetColor
+#define UE_MUTABLE_GET_SLATECOLOR		FAppStyle::Get().GetSlateColor
 
+#endif
 
-inline FMaterialRenderProxy* Helper_GetMaterialProxy( const UMaterialInterface* Material )
-{
-	return Material->GetRenderProxy();
-}
-
-
-inline const TArray<FAssetData>& Helper_GetAssets(FAssetDragDropOp* DragDropOp)
-{
-	return DragDropOp->GetAssets();
-}
-
-inline FName Helper_GetPropertyName(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	return PropertyChangedEvent.GetPropertyName();
-}
-
-inline FName Helper_GetPinFName(const UEdGraphPin* Pin)
-{
-	return Pin ? Pin->PinName: FName();
-}
 
 inline FString Helper_GetPinName(const UEdGraphPin* Pin)
 {
 	return Pin ? Pin->PinName.ToString() : FString();
 }
 
-inline void Helper_SetPinName( FName& To, const FString& From )
-{
-	To = FName(*From);
-}
-
-inline const FName& Helper_GetPinCategory(const FName& Cat)
-{
-	return Cat;
-}
-
-inline void Helper_GetMeshIndices(TArray<uint32>& Indices, USkeletalMesh* SkeletalMesh, int LODIndex)
-{
-	Indices = Helper_GetImportedModel(SkeletalMesh)->LODModels[LODIndex].IndexBuffer;
-}
-
-
-inline void Helper_ForEachTextureParameterName(const UMaterial* Material, const std::function<void(const FString&)>& f)
-{
-	TArray<FMaterialParameterInfo> ImageNames;
-	TArray<FGuid> ImageIds;
-	Material->GetAllTextureParameterInfo(ImageNames, ImageIds);
-	for (int32 ImageIndex = 0; ImageIndex < ImageNames.Num(); ++ImageIndex)
-	{
-		FString ImageName = ImageNames[ImageIndex].Name.ToString();
-		f(ImageName);
-	}
-}
-
-
-inline FStaticMeshVertexBuffer& Helper_GetStaticMeshVertexBuffer(UStaticMesh* StaticMesh, int LODIndex)
-{
-	return StaticMesh->GetRenderData()->LODResources[LODIndex].VertexBuffers.StaticMeshVertexBuffer;
-}
-
-
-inline const FPositionVertexBuffer& Helper_GetStaticMeshPositionVertexBuffer(UStaticMesh* StaticMesh, int LODIndex)
-{
-	return StaticMesh->GetRenderData()->LODResources[LODIndex].VertexBuffers.PositionVertexBuffer;
-}
-
-inline const TMap<FName, uint8*>& Helper_GetRowMap(UDataTable* Table)
-{
-	return Table->GetRowMap();
-}
-
-inline UAssetEditorSubsystem* Helper_GetEditorSubsystem()
-{
-	return GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
-}
-
-
-
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Framework/Commands/InputChord.h"
 #include "MuCO/ICustomizableObjectModule.h"
-#include "Runtime/Launch/Resources/Version.h"
 #endif

@@ -8,6 +8,7 @@
 #include "Layout/WidgetPath.h"
 // Required for engine branch preprocessor defines.
 #include "MuCO/UnrealPortabilityHelpers.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "Rendering/SlateRenderer.h"
 #include "RenderingThread.h"
 #include "Styling/SlateTypes.h"
@@ -442,7 +443,7 @@ FReply SCustomizableObjectLayoutGrid::OnMouseButtonDown( const FGeometry& MyGeom
 							.Value(this, &SCustomizableObjectLayoutGrid::GetBlockPriortyValue)
 							.UndeterminedString(LOCTEXT("MultipleValues", "Multiples Values"))
 							.OnValueChanged(this, &SCustomizableObjectLayoutGrid::OnBlockPriorityChanged)
-							.EditableTextBoxStyle(&FAppStyle::GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox"))
+							.EditableTextBoxStyle(&UE_MUTABLE_GET_WIDGETSTYLE<FEditableTextBoxStyle>("NormalEditableTextBox"))
 						]
 					, FText::FromString("Block Priority"), true);
 
@@ -1178,11 +1179,7 @@ void FUVCanvasDrawer::DrawRenderThread(class FRHICommandListImmediate& RHICmdLis
 	{
 		RenderTarget->SetRenderTargetTexture(*(FTexture2DRHIRef*)InWindowBackBuffer);
 
-#if MUTABLE_CLEAN_ENGINE_BRANCH
 		FCanvas Canvas(RenderTarget, nullptr, FGameTime(), GMaxRHIFeatureLevel);
-#else
-		FCanvas Canvas(RenderTarget, nullptr, 0, 0, 0, GMaxRHIFeatureLevel);
-#endif
 		
 		Canvas.SetRenderTargetRect(RenderTarget->GetViewRect());
 		Canvas.SetRenderTargetScissorRect(RenderTarget->GetClippingRect());

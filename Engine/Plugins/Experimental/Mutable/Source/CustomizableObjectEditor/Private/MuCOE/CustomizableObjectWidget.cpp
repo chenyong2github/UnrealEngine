@@ -169,7 +169,7 @@ void FCustomizableObjectWidget::Render_Axis( const FSceneView* View, FPrimitiveD
 		const float CylinderRadius = 1.2f;
 		const FVector Offset( 0,0,HalfHeight );
 
-		const FMaterialRenderProxy* Proxy = Helper_GetMaterialProxy(InMaterial);
+		const FMaterialRenderProxy* Proxy = InMaterial->GetRenderProxy();
 
 		switch( InAxis )
 		{
@@ -216,7 +216,7 @@ void FCustomizableObjectWidget::Render_Axis( const FSceneView* View, FPrimitiveD
 void FCustomizableObjectWidget::Render_Cube( FPrimitiveDrawInterface* PDI, const FMatrix& InMatrix, const UMaterialInterface* InMaterial, float InScale )
 {
 	const FMatrix CubeToWorld = FScaleMatrix(FVector(InScale,InScale,InScale)) * InMatrix;
-	DrawBox( PDI, CubeToWorld, FVector(1,1,1), Helper_GetMaterialProxy(InMaterial), SDPG_Foreground );
+	DrawBox( PDI, CubeToWorld, FVector(1,1,1), InMaterial->GetRenderProxy(), SDPG_Foreground );
 }
 
 
@@ -241,7 +241,7 @@ void FCustomizableObjectWidget::Render_Quad( FPrimitiveDrawInterface* PDI, const
 	MeshBuilder.AddTriangle(2,1,3);
 
 	// Draw the arrow mesh.
-	MeshBuilder.Draw(PDI, CubeToWorld, Helper_GetMaterialProxy(InMaterial), SDPG_Foreground, 0.f);
+	MeshBuilder.Draw(PDI, CubeToWorld, InMaterial->GetRenderProxy(), SDPG_Foreground, 0.f);
 
 #undef CUBE_FACE
 }
@@ -376,7 +376,7 @@ void FCustomizableObjectWidget::Render_Translate( const FSceneView* View, FPrimi
 		const FVector CameraYAxis = View->ViewMatrices.GetViewMatrix().GetColumn(1);
 		const FVector CameraZAxis = View->ViewMatrices.GetViewMatrix().GetColumn(2);
 
-		DrawSphere( PDI, InLocation, FRotator::ZeroRotator, FVector( 4.0f * Scale ), 10, 5, Helper_GetMaterialProxy(XYZMaterial), SDPG_Foreground );
+		DrawSphere( PDI, InLocation, FRotator::ZeroRotator, FVector( 4.0f * Scale ), 10, 5, XYZMaterial->GetRenderProxy(), SDPG_Foreground );
 
 		PDI->SetHitProxy( NULL );
 	}
@@ -998,7 +998,7 @@ void FCustomizableObjectWidget::DrawThickArc (const FThickArcParams& InParams, c
 		MeshBuilder.AddTriangle(VertexIndex+1, InnerVertexStartIndex+VertexIndex+1, InnerVertexStartIndex+VertexIndex);
 	}
 
-	MeshBuilder.Draw(InParams.PDI, FMatrix::Identity, Helper_GetMaterialProxy(InParams.Material),SDPG_Foreground,0.f);
+	MeshBuilder.Draw(InParams.PDI, FMatrix::Identity, InParams.Material->GetRenderProxy(),SDPG_Foreground,0.f);
 }
 
 /**
@@ -1057,7 +1057,7 @@ void FCustomizableObjectWidget::DrawSnapMarker(FPrimitiveDrawInterface* PDI, con
 
 		MeshBuilder.AddTriangle(0, 1, 2);
 		MeshBuilder.AddTriangle(1, 3, 2);
-		MeshBuilder.Draw(PDI, FMatrix::Identity, Helper_GetMaterialProxy(TransparentPlaneMaterialXY),SDPG_Foreground,0.f);
+		MeshBuilder.Draw(PDI, FMatrix::Identity, TransparentPlaneMaterialXY->GetRenderProxy(),SDPG_Foreground,0.f);
 	}
 }
 
@@ -1114,7 +1114,7 @@ void FCustomizableObjectWidget::DrawStartStopMarker(FPrimitiveDrawInterface* PDI
 		}
 
 		MeshBuilder.AddTriangle(0, 1, 2);
-		MeshBuilder.Draw(PDI, FMatrix::Identity, Helper_GetMaterialProxy(TransparentPlaneMaterialXY),SDPG_Foreground,0.f);
+		MeshBuilder.Draw(PDI, FMatrix::Identity, TransparentPlaneMaterialXY->GetRenderProxy(),SDPG_Foreground,0.f);
 	}
 }
 

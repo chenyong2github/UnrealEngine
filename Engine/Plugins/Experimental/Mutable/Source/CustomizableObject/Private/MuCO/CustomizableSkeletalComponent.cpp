@@ -12,6 +12,7 @@
 #include "MuCO/CustomizableInstancePrivateData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "UObject/ObjectSaveContext.h"
+#include "MuCO/UnrealPortabilityHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableSkeletalComponent)
 
@@ -55,7 +56,7 @@ void UCustomizableSkeletalComponent::SetSkeletalMesh(USkeletalMesh* SkeletalMesh
 		}
 #endif
 
-		if(Parent->GetSkinnedAsset() == SkeletalMesh)
+		if(UE_MUTABLE_GETSKINNEDASSET(Parent) == SkeletalMesh)
 		{
 			Parent->RecreateRenderState_Concurrent();
 		}
@@ -113,7 +114,7 @@ USkeletalMesh* UCustomizableSkeletalComponent::GetAttachedSkeletalMesh() const
 
 	if (Parent)
 	{
-		return Parent->GetSkeletalMeshAsset();
+		return UE_MUTABLE_GETSKELETALMESHASSET(Parent);
 	}
 
 	return nullptr;

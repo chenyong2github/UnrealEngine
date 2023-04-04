@@ -22,6 +22,7 @@
 #include "MuCO/ICustomizableObjectModule.h"
 #include "MuCO/MutableProjectorTypeUtils.h"
 #include "MuCO/UnrealMutableModelDiskStreamer.h"
+#include "MuCO/UnrealPortabilityHelpers.h"
 #include "MuR/ModelPrivate.h"
 #include "MuR/ParametersPrivate.h"
 #include "PhysicsEngine/PhysicsAsset.h"
@@ -757,7 +758,7 @@ bool UCustomizableObject::ConditionalAutoCompile()
 	else
 	{
 		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-		const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(GetPathName()));
+		const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(UE_MUTABLE_OBJECTPATH(GetPathName()));
 		System->RecompileCustomizableObjectAsync(AssetData, this);
 	}
 

@@ -7,6 +7,7 @@
 #include "IContentBrowserSingleton.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "MuCOE/CustomizableObjectEditor.h"
 #include "MuCOE/CustomizableObjectEditorLevelProfile.h"
 #include "Widgets/Input/SButton.h"
@@ -28,7 +29,7 @@ void SLevelSelectWindow::Construct(const FArguments& InArgs)
 	DefaultSettings = InArgs._DefaultSettings.Get();
 
 	FAssetPickerConfig AssetPickerConfig;
-	AssetPickerConfig.Filter.ClassPaths.Add(FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("World")));
+	UE_MUTABLE_GET_CLASSPATHS(AssetPickerConfig.Filter).Add(UE_MUTABLE_TOPLEVELASSETPATH(TEXT("/Script/Engine"), TEXT("World")));
 	AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateRaw(this, &SLevelSelectWindow::OnLevelAssetSelected);
 	AssetPickerConfig.ThumbnailScale = 0.4f;
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
@@ -44,14 +45,14 @@ void SLevelSelectWindow::Construct(const FArguments& InArgs)
 			.Padding(2)
 			[
 				SNew(SBorder)
-				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 				[
 					SNew(SVerticalBox)
 					+ SVerticalBox::Slot()
 					.FillHeight(1)
 					[
 						SNew(SBorder)
-						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 						[
 							ContentBrowserModule.Get().CreateAssetPicker(AssetPickerConfig)
 						]
@@ -64,14 +65,14 @@ void SLevelSelectWindow::Construct(const FArguments& InArgs)
 			.Padding(5)
 			[
 				SNew(SUniformGridPanel)
-				.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
-				.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-				.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+				.SlotPadding(UE_MUTABLE_GET_MARGIN("StandardDialog.SlotPadding"))
+				.MinDesiredSlotWidth(UE_MUTABLE_GET_FLOAT("StandardDialog.MinDesiredSlotWidth"))
+				.MinDesiredSlotHeight(UE_MUTABLE_GET_FLOAT("StandardDialog.MinDesiredSlotHeight"))
 				+ SUniformGridPanel::Slot(0, 0)
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(UE_MUTABLE_GET_MARGIN("StandardDialog.ContentPadding"))
 					.Text(LOCTEXT("OK", "OK"))
 					.OnClicked(this, &SLevelSelectWindow::OnButtonClick, EAppReturnType::Ok)
 				]
@@ -79,7 +80,7 @@ void SLevelSelectWindow::Construct(const FArguments& InArgs)
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(UE_MUTABLE_GET_MARGIN("StandardDialog.ContentPadding"))
 					.Text(LOCTEXT("Cancel", "Cancel"))
 					.OnClicked(this, &SLevelSelectWindow::OnButtonClick, EAppReturnType::Cancel)
 				]
@@ -97,13 +98,13 @@ FReply SLevelSelectWindow::OnButtonClick(EAppReturnType::Type ButtonID)
 
 	if (UserResponse == EAppReturnType::Ok)
 	{
-		if (LevelAssetData.AssetClassPath != FTopLevelAssetPath(TEXT("/Script/Engine"), TEXT("World")))
+		if (UE_MUTABLE_ASSETCLASS(LevelAssetData) != UE_MUTABLE_TOPLEVELASSETPATH(TEXT("/Script/Engine"), TEXT("World")))
 		{
 			FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("PostProcessNameValueMissing", "Please select a Level asset"));
 			return FReply::Handled();
 		}
 
-		LevelAssetPath = LevelAssetData.GetObjectPathString();
+		LevelAssetPath = UE_MUTABLE_GETOBJECTPATH(LevelAssetData);
 
 		Result = LevelProfileManage::LoadProfileUObjectNames(LevelAssetPath, ArrayDirectionalLightName, ArrayPostProcessName, ArraySkyLightName);
 
@@ -214,19 +215,19 @@ void SUObjectSelecWindow::Construct(const FArguments& InArgs)
 			.Padding(2)
 			[
 				SNew(SBorder)
-				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 				[
 					SNew(SVerticalBox)
 					+ SVerticalBox::Slot()
 					.AutoHeight()
 					[
 						SNew(SBorder)
-						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 						[
 							SNew(SUniformGridPanel)
-							.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
-							.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-							.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+							.SlotPadding(UE_MUTABLE_GET_MARGIN("StandardDialog.SlotPadding"))
+							.MinDesiredSlotWidth(UE_MUTABLE_GET_FLOAT("StandardDialog.MinDesiredSlotWidth"))
+							.MinDesiredSlotHeight(UE_MUTABLE_GET_FLOAT("StandardDialog.MinDesiredSlotHeight"))
 							+ SUniformGridPanel::Slot(0, 0)
 							[
 								SNew(STextBlock)
@@ -245,12 +246,12 @@ void SUObjectSelecWindow::Construct(const FArguments& InArgs)
 					.AutoHeight()
 					[
 						SNew(SBorder)
-						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 						[
 							SNew(SUniformGridPanel)
-							.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
-							.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-							.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+							.SlotPadding(UE_MUTABLE_GET_MARGIN("StandardDialog.SlotPadding"))
+							.MinDesiredSlotWidth(UE_MUTABLE_GET_FLOAT("StandardDialog.MinDesiredSlotWidth"))
+							.MinDesiredSlotHeight(UE_MUTABLE_GET_FLOAT("StandardDialog.MinDesiredSlotHeight"))
 							+ SUniformGridPanel::Slot(0, 0)
 							[
 								SNew(STextBlock)
@@ -268,12 +269,12 @@ void SUObjectSelecWindow::Construct(const FArguments& InArgs)
 					.AutoHeight()
 					[
 						SNew(SBorder)
-						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 						[
 							SNew(SUniformGridPanel)
-							.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
-							.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-							.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+							.SlotPadding(UE_MUTABLE_GET_MARGIN("StandardDialog.SlotPadding"))
+							.MinDesiredSlotWidth(UE_MUTABLE_GET_FLOAT("StandardDialog.MinDesiredSlotWidth"))
+							.MinDesiredSlotHeight(UE_MUTABLE_GET_FLOAT("StandardDialog.MinDesiredSlotHeight"))
 							+ SUniformGridPanel::Slot(0, 0)
 							[
 								SNew(STextBlock)
@@ -291,12 +292,12 @@ void SUObjectSelecWindow::Construct(const FArguments& InArgs)
 					.AutoHeight()
 					[
 						SNew(SBorder)
-						.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 						[
 							SNew(SUniformGridPanel)
-							.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
-							.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-							.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+							.SlotPadding(UE_MUTABLE_GET_MARGIN("StandardDialog.SlotPadding"))
+							.MinDesiredSlotWidth(UE_MUTABLE_GET_FLOAT("StandardDialog.MinDesiredSlotWidth"))
+							.MinDesiredSlotHeight(UE_MUTABLE_GET_FLOAT("StandardDialog.MinDesiredSlotHeight"))
 							+ SUniformGridPanel::Slot(0, 0)
 							[
 								SNew(STextBlock)
@@ -318,14 +319,14 @@ void SUObjectSelecWindow::Construct(const FArguments& InArgs)
 			.Padding(5)
 			[
 				SNew(SUniformGridPanel)
-				.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
-				.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-				.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+				.SlotPadding(UE_MUTABLE_GET_MARGIN("StandardDialog.SlotPadding"))
+				.MinDesiredSlotWidth(UE_MUTABLE_GET_FLOAT("StandardDialog.MinDesiredSlotWidth"))
+				.MinDesiredSlotHeight(UE_MUTABLE_GET_FLOAT("StandardDialog.MinDesiredSlotHeight"))
 				+ SUniformGridPanel::Slot(0, 0)
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(UE_MUTABLE_GET_MARGIN("StandardDialog.ContentPadding"))
 					.Text(LOCTEXT("OK", "OK"))
 					.OnClicked(this, &SUObjectSelecWindow::OnButtonClick, EAppReturnType::Ok)
 				]
@@ -333,7 +334,7 @@ void SUObjectSelecWindow::Construct(const FArguments& InArgs)
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
+					.ContentPadding(UE_MUTABLE_GET_MARGIN("StandardDialog.ContentPadding"))
 					.Text(LOCTEXT("Cancel", "Cancel"))
 					.OnClicked(this, &SUObjectSelecWindow::OnButtonClick, EAppReturnType::Cancel)
 				]
@@ -439,9 +440,9 @@ void SCustomizableObjectEditorAdvancedPreviewSettings::Construct(const FArgument
 			.HAlign(HAlign_Fill)
 			[
 				SNew(SUniformGridPanel)
-				.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
-				.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-				.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+				.SlotPadding(UE_MUTABLE_GET_MARGIN("StandardDialog.SlotPadding"))
+				.MinDesiredSlotWidth(UE_MUTABLE_GET_FLOAT("StandardDialog.MinDesiredSlotWidth"))
+				.MinDesiredSlotHeight(UE_MUTABLE_GET_FLOAT("StandardDialog.MinDesiredSlotHeight"))
 				+ SUniformGridPanel::Slot(0, 0)
 				[
 					SNew(STextBlock)

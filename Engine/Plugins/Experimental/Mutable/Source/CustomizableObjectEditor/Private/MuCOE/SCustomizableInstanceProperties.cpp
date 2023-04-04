@@ -12,6 +12,7 @@
 #include "MuCOE/CustomizableInstanceDetails.h"
 #include "MuCOE/CustomizableObjectEditorUtilities.h"
 #include "MuCOE/SMutableTextSearchBox.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "Serialization/BufferArchive.h"
 #include "Slate/DeferredCleanupSlateBrush.h"
 #include "Widgets/Colors/SColorBlock.h"
@@ -837,7 +838,7 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 					[
 						SNew(SImage)
 						// todo: editor style not available in game
-						//.Image(FAppStyle::GetBrush(TEXT("LevelEditor.ViewOptions.Small")))
+						//.Image(UE_MUTABLE_GET_BRUSH(TEXT("LevelEditor.ViewOptions.Small")))
 					]
 				]
 			
@@ -853,7 +854,7 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 					[
 						SNew(SImage)
 						// todo: editor style not available in game
-						// .Image(FAppStyle::GetBrush(TEXT("LevelEditor.TranslateMode.Small")))
+						// .Image(UE_MUTABLE_GET_BRUSH(TEXT("LevelEditor.TranslateMode.Small")))
 					]
 				]
 			];
@@ -2308,7 +2309,7 @@ void SCreateProfileParameters::Construct(const FArguments& InArgs)
 		.Padding(2)
 		[
 			SNew(SBorder)
-			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 		[
 			SNew(SVerticalBox)
 	+ SVerticalBox::Slot()
@@ -2337,14 +2338,14 @@ void SCreateProfileParameters::Construct(const FArguments& InArgs)
 		.Padding(5)
 		[
 			SNew(SUniformGridPanel)
-			.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
-			.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-			.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+			.SlotPadding(UE_MUTABLE_GET_MARGIN("StandardDialog.SlotPadding"))
+			.MinDesiredSlotWidth(UE_MUTABLE_GET_FLOAT("StandardDialog.MinDesiredSlotWidth"))
+			.MinDesiredSlotHeight(UE_MUTABLE_GET_FLOAT("StandardDialog.MinDesiredSlotHeight"))
 		+ SUniformGridPanel::Slot(0, 0)
 		[
 			SNew(SButton)
 			.HAlign(HAlign_Center)
-			.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
+			.ContentPadding(UE_MUTABLE_GET_MARGIN("StandardDialog.ContentPadding"))
 			.Text(LOCTEXT("OK", "OK"))
 			.OnClicked(this, &SCreateProfileParameters::OnButtonClick, EAppReturnType::Ok)
 		]
@@ -2352,7 +2353,7 @@ void SCreateProfileParameters::Construct(const FArguments& InArgs)
 		[
 			SNew(SButton)
 			.HAlign(HAlign_Center)
-			.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
+			.ContentPadding(UE_MUTABLE_GET_MARGIN("StandardDialog.ContentPadding"))
 			.Text(LOCTEXT("Cancel", "Cancel"))
 			.OnClicked(this, &SCreateProfileParameters::OnButtonClick, EAppReturnType::Cancel)
 		]

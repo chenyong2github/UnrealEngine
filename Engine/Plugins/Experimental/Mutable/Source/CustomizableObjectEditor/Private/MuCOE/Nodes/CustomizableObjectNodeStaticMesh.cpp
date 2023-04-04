@@ -141,12 +141,16 @@ void UCustomizableObjectNodeStaticMesh::AllocateDefaultPins(UCustomizableObjectN
 				{
 					UMaterial* Material = MaterialInterface->GetMaterial();
 
-					Helper_ForEachTextureParameterName(Material, [&](const FString& ImageName)
-						{
-							Pin = CustomCreatePin(EGPD_Output, Schema->PC_Image, *ImageName);
-							Pin->bDefaultValueIsIgnored = true;
-							LODs[i].Materials[MaterialIndex].ImagePinsRef.Add(Pin);
-						});
+					TArray<FMaterialParameterInfo> ImageNames;
+					TArray<FGuid> ImageIds;
+					Material->GetAllTextureParameterInfo(ImageNames, ImageIds);
+					for (int32 ImageIndex = 0; ImageIndex < ImageNames.Num(); ++ImageIndex)
+					{
+						FString ImageName = ImageNames[ImageIndex].Name.ToString();
+						Pin = CustomCreatePin(EGPD_Output, Schema->PC_Image, *ImageName);
+						Pin->bDefaultValueIsIgnored = true;
+						LODs[i].Materials[MaterialIndex].ImagePinsRef.Add(Pin);
+					}
 				}
 			}
 		}
@@ -217,7 +221,7 @@ UTexture2D* UCustomizableObjectNodeStaticMesh::FindTextureForPin(const UEdGraphP
 					if (LODs[LODIndex].Materials[MaterialIndex].ImagePinsRef[ImageIndex].Get() == Pin)
 					{
 						UTexture* Texture=nullptr;
-						MaterialInterface->GetTextureParameterValue(Helper_GetPinFName(Pin), Texture);
+						MaterialInterface->GetTextureParameterValue( Pin?Pin->PinName:FName(), Texture);
 						return Cast<UTexture2D>(Texture);
 					}
 				}

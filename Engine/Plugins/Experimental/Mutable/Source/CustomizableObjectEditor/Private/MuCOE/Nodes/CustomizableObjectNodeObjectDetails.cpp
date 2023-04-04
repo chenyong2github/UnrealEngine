@@ -12,6 +12,7 @@
 #include "MuCOE/Nodes/CustomizableObjectNodeObjectGroup.h"
 #include "MuCOE/SCustomizableObjectNodeObjectRTMorphTargetOverride.h"
 #include "MuCOE/Widgets/CustomizableObjectLODReductionSettings.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SComboButton.h"
@@ -115,7 +116,7 @@ void FCustomizableObjectNodeObjectDetails::CustomizeDetails( IDetailLayoutBuilde
 					.CustomWidget()
 					[
 						SNew(SBorder)
-						.BorderImage(FAppStyle::GetBrush("NoBorder"))
+						.BorderImage(UE_MUTABLE_GET_BRUSH("NoBorder"))
 						.Padding(FMargin(0.0f, 0.0f, 10.0f, 0.0f))
 						[
 							SNew(STextComboBox)

@@ -8,6 +8,7 @@
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
 #include "MuCOE/CustomizableObjectEditorViewportMenuCommands.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "MuCOPE/SCustomizableObjectPopulationEditorViewport.h"
 #include "SEditorViewportViewMenu.h"
 #include "Widgets/Input/SMenuAnchor.h"
@@ -56,7 +57,7 @@ void SCustomizableObjectPopulationEditorViewportToolBar::Construct(const FArgume
 	FLinearColor ButtonColor2 = FLinearColor(0.2f, 0.2f, 0.2f, 0.75f);
 	FLinearColor TextColor1 = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	FLinearColor TextColor2 = FLinearColor(0.8f, 0.8f, 0.8f, 0.8f);
-	FSlateFontInfo Info = FAppStyle::GetFontStyle("BoldFont");
+	FSlateFontInfo Info = UE_MUTABLE_GET_FONTSTYLE("BoldFont");
 	Info.Size += 26;
 
 	ChildSlot
@@ -66,10 +67,10 @@ void SCustomizableObjectPopulationEditorViewportToolBar::Construct(const FArgume
 		.VAlign(VAlign_Top)
 		[
 			SNew(SBorder)
-			.BorderImage(FAppStyle::GetBrush("NoBorder"))
+			.BorderImage(UE_MUTABLE_GET_BRUSH("NoBorder"))
 		//// Color and opacity is changed based on whether or not the mouse cursor is hovering over the toolbar area
 		//.ColorAndOpacity(this, &SViewportToolBar::OnGetColorAndOpacity)
-		.ForegroundColor(FAppStyle::GetSlateColor(DefaultForegroundName))
+		.ForegroundColor(UE_MUTABLE_GET_SLATECOLOR(DefaultForegroundName))
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
@@ -196,7 +197,7 @@ TSharedRef<SWidget> SCustomizableObjectPopulationEditorViewportToolBar::Generate
 		.WidthOverride(100.0f)
 		[
 			SNew(SSpinBox<float>)
-			.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
+			.Font(UE_MUTABLE_GET_FONTSTYLE(TEXT("MenuItem.Font")))
 		.MinValue(FOVMin)
 		.MaxValue(FOVMax)
 		.Value(this, &SCustomizableObjectPopulationEditorViewportToolBar::OnGetFOVValue)

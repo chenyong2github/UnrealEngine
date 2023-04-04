@@ -778,7 +778,7 @@ TSharedRef<SWidget> SCustomizableObjectEditorViewportTabBody::BuildToolBar()
 		[
 			SNew(SBorder)
 			.Padding(0)
-		.BorderImage(FAppStyle::GetBrush("NoBorder"))
+		.BorderImage(UE_MUTABLE_GET_BRUSH("NoBorder"))
 		.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 		[
 			CommandToolbarBuilder.MakeWidget()
@@ -913,12 +913,12 @@ void SCustomizableObjectEditorViewportTabBody::GenerateUVMaterialOptions()
 
 	for (UDebugSkelMeshComponent* PreviewSkeletalMeshComponent : PreviewSkeletalMeshComponents)
 	{
-		if (PreviewSkeletalMeshComponent != nullptr && PreviewSkeletalMeshComponent->GetSkinnedAsset() != nullptr && PreviewSkeletalMeshComponent->GetSkinnedAsset()->GetResourceForRendering() != nullptr)
+		if (PreviewSkeletalMeshComponent != nullptr && UE_MUTABLE_GETSKINNEDASSET(PreviewSkeletalMeshComponent) != nullptr && UE_MUTABLE_GETSKINNEDASSET(PreviewSkeletalMeshComponent)->GetResourceForRendering() != nullptr)
 		{
 			TMap<FString, int32> MaterialLODs;
 
 			// Add Suffix "__X" for materials with duplicated names and Suffing " LOD_X" for multiple LODs.
-			const FSkeletalMeshRenderData* MeshRes = PreviewSkeletalMeshComponent->GetSkinnedAsset()->GetResourceForRendering();
+			const FSkeletalMeshRenderData* MeshRes = UE_MUTABLE_GETSKINNEDASSET(PreviewSkeletalMeshComponent)->GetResourceForRendering();
 			const TArray<UMaterialInterface*> Materials = PreviewSkeletalMeshComponent->GetMaterials();
 			for (UMaterialInterface* m : Materials)
 			{
@@ -1029,10 +1029,10 @@ void SCustomizableObjectEditorViewportTabBody::GenerateUVChannelOptions()
 
 	UDebugSkelMeshComponent* PreviewSkeletalMeshComponent = PreviewSkeletalMeshComponents[ComponentIndex];
 
-	if (PreviewSkeletalMeshComponent != nullptr && PreviewSkeletalMeshComponent->GetSkinnedAsset() != nullptr
-		&& PreviewSkeletalMeshComponent->GetSkinnedAsset()->GetResourceForRendering() != nullptr)
+	if (PreviewSkeletalMeshComponent != nullptr && UE_MUTABLE_GETSKINNEDASSET(PreviewSkeletalMeshComponent) != nullptr
+		&& UE_MUTABLE_GETSKINNEDASSET(PreviewSkeletalMeshComponent)->GetResourceForRendering() != nullptr)
 	{
-		const FSkeletalMeshRenderData* MeshRes = PreviewSkeletalMeshComponent->GetSkinnedAsset()->GetResourceForRendering();
+		const FSkeletalMeshRenderData* MeshRes = UE_MUTABLE_GETSKINNEDASSET(PreviewSkeletalMeshComponent)->GetResourceForRendering();
 		
 		int32 UVChannels = MeshRes->LODRenderData[LODIndex].GetNumTexCoords();
 		
@@ -1067,10 +1067,10 @@ FReply SCustomizableObjectEditorViewportTabBody::OnDrop(const FGeometry& MyGeome
 {
 	if (FAssetDragDropOp* DragDropOp = DragDropEvent.GetOperationAs<FAssetDragDropOp>().Get())
 	{
-		if (Helper_GetAssets(DragDropOp).Num())
+		if (DragDropOp->GetAssets().Num())
 		{
 			// This cast also includes UPoseAsset assets.
-			UAnimationAsset* AnimationAsset = Cast<UAnimationAsset>(Helper_GetAssets(DragDropOp)[0].GetAsset());
+			UAnimationAsset* AnimationAsset = Cast<UAnimationAsset>(DragDropOp->GetAssets()[0].GetAsset());
 			if (AnimationAsset)
 			{
 				LevelViewportClient->SetAnimation(AnimationAsset, EAnimationMode::AnimationSingleNode);
@@ -1090,9 +1090,9 @@ int32 SCustomizableObjectEditorViewportTabBody::GetLODModelCount() const
 
 	for (UDebugSkelMeshComponent* PreviewComponent : GetSkeletalMeshComponents())
 	{
-		if (PreviewComponent && PreviewComponent->GetSkinnedAsset())
+		if (PreviewComponent && UE_MUTABLE_GETSKINNEDASSET(PreviewComponent))
 		{
-			const TIndirectArray<FSkeletalMeshLODRenderData>& LODModels = Helper_GetLODData(PreviewComponent->GetSkinnedAsset());
+			const TIndirectArray<FSkeletalMeshLODRenderData>& LODModels = UE_MUTABLE_GETSKINNEDASSET(PreviewComponent)->GetResourceForRendering()->LODRenderData;
 			LODModelCount = FMath::Max(LODModelCount, LODModels.Num());
 		}
 	}

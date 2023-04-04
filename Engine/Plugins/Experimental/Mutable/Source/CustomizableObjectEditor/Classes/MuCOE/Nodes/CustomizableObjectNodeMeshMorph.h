@@ -3,6 +3,7 @@
 #pragma once
 
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeMeshReshapeCommon.h"
 
 #include "CustomizableObjectNodeMeshMorph.generated.h"
 

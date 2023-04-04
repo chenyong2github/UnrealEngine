@@ -12,6 +12,7 @@
 #include "MuCOE/Nodes/CustomizableObjectNodeSkeletalMesh.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTable.h"
 #include "MuCOE/SCustomizableObjectLayoutGrid.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
@@ -178,7 +179,7 @@ TSharedRef<SWidget> SCustomizableObjectNodeLayoutBlocksSelector::BuildLayoutTool
 		[
 			SNew(SBorder)
 			.Padding(0)
-			.BorderImage(FAppStyle::GetBrush("NoBorder"))
+			.BorderImage(UE_MUTABLE_GET_BRUSH("NoBorder"))
 			.IsEnabled( FSlateApplication::Get().GetNormalExecutionAttribute() )
 			[
 				LayoutToolbarBuilder.MakeWidget()

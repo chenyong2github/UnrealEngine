@@ -150,7 +150,7 @@ void FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 			// Parameter used for LOD differences
 			int32 CurrentLOD = LOD;
 
-			int NumLODs = Helper_GetLODInfoArray(SkeletalMesh).Num();
+			int NumLODs = SkeletalMesh->GetLODInfoArray().Num();
 
 			if (NumLODs <= CurrentLOD)
 			{
@@ -161,8 +161,8 @@ void FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
 			}
 
-			int32 NumMaterials = Helper_GetImportedModel(SkeletalMesh)->LODModels[CurrentLOD].Sections.Num();
-			int32 ReferenceNumMaterials = Helper_GetImportedModel(ReferenceSkeletalMesh)->LODModels[CurrentLOD].Sections.Num();
+			int32 NumMaterials = SkeletalMesh->GetImportedModel()->LODModels[CurrentLOD].Sections.Num();
+			int32 ReferenceNumMaterials = ReferenceSkeletalMesh->GetImportedModel()->LODModels[CurrentLOD].Sections.Num();
 
 			if (NumMaterials != ReferenceNumMaterials)
 			{

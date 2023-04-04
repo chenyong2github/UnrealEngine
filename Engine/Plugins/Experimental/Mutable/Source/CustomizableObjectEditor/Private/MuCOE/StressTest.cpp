@@ -8,6 +8,7 @@
 #include "MuCO/CustomizableSkeletalComponent.h"
 #include "MuCO/UnrealPortabilityHelpers.h"
 #include "MuCOE/StatePerformanceTesting.h"
+#include "Engine/SkeletalMesh.h"
 #include "UObject/Package.h"
 
 class FSkeletalMeshLODRenderData;
@@ -29,9 +30,9 @@ void ULiveInstance::AddInstanceInformation()
 		return;
 	}
 
-	FSkeletalMeshRenderData* RenderData = Helper_GetResourceForRendering(Instance->GetSkeletalMesh());
-	TIndirectArray<FSkeletalMeshLODRenderData>* ArrayLODRenderData = Helper_GetLODDataPtr(RenderData);
-	int32 MaxIndexLOD = Helper_GetLODDataPtr(RenderData)->Num();
+	FSkeletalMeshRenderData* RenderData = Instance->GetSkeletalMesh()->GetResourceForRendering();
+	TIndirectArray<FSkeletalMeshLODRenderData>* ArrayLODRenderData = &RenderData->LODRenderData;
+	int32 MaxIndexLOD = RenderData->LODRenderData.Num();
 
 	for (int32 i = 0; i < MaxIndexLOD; ++i)
 	{
@@ -43,17 +44,17 @@ void ULiveInstance::AddInstanceInformation()
 
 		for (int32 c = 0; c < Instance->SkeletalMeshes.Num(); ++c)
 		{
-			RenderData = Helper_GetResourceForRendering(Instance->GetSkeletalMesh(c));
-			ArrayLODRenderData = Helper_GetLODDataPtr(RenderData);
-			MaxIndexLOD = Helper_GetLODDataPtr(RenderData)->Num();
-			CurrentLODNumFaces = Helper_LODGetTotalFaces(&((*ArrayLODRenderData)[i]));
-			const TArray<struct FSkeletalMeshLODInfo>& LODInfoArray = Helper_GetLODInfoArray(Instance->GetSkeletalMesh(c));
+			RenderData = Instance->GetSkeletalMesh(c)->GetResourceForRendering();
+			ArrayLODRenderData = &RenderData->LODRenderData;
+			MaxIndexLOD = RenderData->LODRenderData.Num();
+			CurrentLODNumFaces = ((*ArrayLODRenderData)[i]).GetTotalFaces();
+			const TArray<struct FSkeletalMeshLODInfo>& LODInfoArray = Instance->GetSkeletalMesh(c)->GetLODInfoArray();
 			if (LODInfoArray.IsValidIndex(i))
 			{
 				const FSkeletalMeshLODInfo& LODInfo = LODInfoArray[i];
 
-				MapMeasuredData["Number of faces"].AddMeasureData(Helper_LODGetTotalFaces(&((*ArrayLODRenderData)[i])));
-				MapMeasuredData["Number of texture coordinates"].AddMeasureData(Helper_LODGetNumTexCoords(&((*ArrayLODRenderData)[i])));
+				MapMeasuredData["Number of faces"].AddMeasureData((*ArrayLODRenderData)[i].GetTotalFaces());
+				MapMeasuredData["Number of texture coordinates"].AddMeasureData((*ArrayLODRenderData)[i].GetNumTexCoords());
 				const TArray<FSkeletalMaterial>& Materials = Instance->GetSkeletalMesh(c)->GetMaterials();
 				MapMeasuredData["Number of materials"].AddMeasureData(LODInfo.LODMaterialMap.Num());
 

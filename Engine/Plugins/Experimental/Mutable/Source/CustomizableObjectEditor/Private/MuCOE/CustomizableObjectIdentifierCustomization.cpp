@@ -7,7 +7,7 @@
 #include "MuCOE/GraphTraversal.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
 #include "PropertyCustomizationHelpers.h"
-
+#include "MuCO/UnrealPortabilityHelpers.h"
 
 #define LOCTEXT_NAMESPACE "FCustomizableObjectIdentifierCustomization"
 
@@ -38,7 +38,7 @@ void FCustomizableObjectIdentifierCustomization::CustomizeHeader(TSharedRef<clas
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	TArray<FAssetData> OutAssetData;
-	AssetRegistryModule.Get().GetAssetsByClass(FTopLevelAssetPath(TEXT("/Script/CustomizableObject"), TEXT("CustomizableObject")), OutAssetData);
+	AssetRegistryModule.Get().GetAssetsByClass(UE_MUTABLE_TOPLEVELASSETPATH(TEXT("/Script/CustomizableObject"), TEXT("CustomizableObject")), OutAssetData);
 	SelectedCustomizableObject = nullptr;
 
 	FString StringGuid;

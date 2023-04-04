@@ -10,6 +10,7 @@
 #include "MuCOE/Nodes/CustomizableObjectNodeMaterial.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeMorphMaterial.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeSkeletalMesh.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Widgets/Input/STextComboBox.h"
 
@@ -74,7 +75,7 @@ void FCustomizableObjectNodeMorphMaterialDetails::CustomizeDetails( IDetailLayou
 			.CustomWidget()
 			[
 				SNew(SBorder)
-				.BorderImage(FAppStyle::GetBrush("NoBorder"))
+				.BorderImage(UE_MUTABLE_GET_BRUSH("NoBorder"))
 				.Padding(FMargin(0.0f, 0.0f, 10.0f, 0.0f))
 				[
 					SNew( SHorizontalBox )

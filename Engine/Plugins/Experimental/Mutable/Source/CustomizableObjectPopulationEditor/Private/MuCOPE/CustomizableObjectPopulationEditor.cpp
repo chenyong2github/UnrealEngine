@@ -26,6 +26,7 @@
 #include "MuCOPE/CustomizableObjectPopulationEditorActions.h"
 #include "MuCOPE/CustomizableObjectPopulationEditorModule.h"
 #include "MuCOPE/SCustomizableObjectPopulationEditorViewport.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "PropertyEditorModule.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
@@ -614,7 +615,7 @@ void FCustomizableObjectPopulationEditor::GeneratePopulationInstances()
 			{
 				//Search for asset with the same name
 				FString ObjectPath = FilePath + FString(".") + ObjectName;
-				AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPath));
+				AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(UE_MUTABLE_OBJECTPATH(ObjectPath));
 
 				// Popup window
 				if (AssetData.IsValid() && AssetData.GetClass() == UCustomizableObjectInstance::StaticClass() && RetType != EAppReturnType::YesAll)
@@ -734,7 +735,7 @@ void SSelectPopulationFolderDlg::Construct(const FArguments& InArgs)
 		.Padding(2)
 		[
 			SNew(SBorder)
-			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 			[
 				SNew(SVerticalBox)
 
@@ -778,15 +779,15 @@ void SSelectPopulationFolderDlg::Construct(const FArguments& InArgs)
 		.Padding(5)
 		[
 			SNew(SUniformGridPanel)
-			.SlotPadding(FAppStyle::GetMargin("StandardDialog.SlotPadding"))
-			.MinDesiredSlotWidth(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-			.MinDesiredSlotHeight(FAppStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
+			.SlotPadding(UE_MUTABLE_GET_MARGIN("StandardDialog.SlotPadding"))
+			.MinDesiredSlotWidth(UE_MUTABLE_GET_FLOAT("StandardDialog.MinDesiredSlotWidth"))
+			.MinDesiredSlotHeight(UE_MUTABLE_GET_FLOAT("StandardDialog.MinDesiredSlotHeight"))
 			
 			+ SUniformGridPanel::Slot(0, 0)
 			[
 				SNew(SButton)
 				.HAlign(HAlign_Center)
-				.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
+				.ContentPadding(UE_MUTABLE_GET_MARGIN("StandardDialog.ContentPadding"))
 				.Text(LOCTEXT("OK", "OK"))
 				.OnClicked(this, &SSelectPopulationFolderDlg::OnButtonClick, EAppReturnType::Ok)
 			]
@@ -795,7 +796,7 @@ void SSelectPopulationFolderDlg::Construct(const FArguments& InArgs)
 			[
 				SNew(SButton)
 				.HAlign(HAlign_Center)
-				.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
+				.ContentPadding(UE_MUTABLE_GET_MARGIN("StandardDialog.ContentPadding"))
 				.Text(LOCTEXT("Cancel", "Cancel"))
 				.OnClicked(this, &SSelectPopulationFolderDlg::OnButtonClick, EAppReturnType::Cancel)
 			]

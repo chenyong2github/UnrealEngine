@@ -240,12 +240,12 @@ void UCustomizableObjectNodeTable::GenerateMeshPins(UObject* Mesh, FString Name)
 {
 	if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Mesh))
 	{
-		int NumLODs = Helper_GetLODInfoArray(SkeletalMesh).Num();
+		int NumLODs = SkeletalMesh->GetLODInfoArray().Num();
 		const UEdGraphSchema_CustomizableObject* Schema = GetDefault<UEdGraphSchema_CustomizableObject>();
 
 		for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 		{
-			int32 NumMaterials = Helper_GetImportedModel(SkeletalMesh)->LODModels[LODIndex].Sections.Num();
+			int32 NumMaterials = SkeletalMesh->GetImportedModel()->LODModels[LODIndex].Sections.Num();
 
 			for (int32 MatIndex = 0; MatIndex < NumMaterials; ++MatIndex)
 			{
@@ -261,7 +261,7 @@ void UCustomizableObjectNodeTable::GenerateMeshPins(UObject* Mesh, FString Name)
 				MeshPin->PinFriendlyName = FText::FromString(TableMeshPinName);
 				MeshPin->SafeSetHidden(false);
 
-				FSkeletalMeshModel* importModel = Helper_GetImportedModel(SkeletalMesh);
+				FSkeletalMeshModel* importModel = SkeletalMesh->GetImportedModel();
 				if (importModel && importModel->LODModels.Num() > LODIndex)
 				{
 					const uint32 NumberOfUVLayouts = importModel->LODModels[LODIndex].NumTexCoords;
@@ -392,11 +392,11 @@ bool UCustomizableObjectNodeTable::IsNodeOutDatedAndNeedsRefresh()
 				{
 					if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Object))
 					{
-						int NumLODs = Helper_GetLODInfoArray(SkeletalMesh).Num();
+						int NumLODs = SkeletalMesh->GetLODInfoArray().Num();
 
 						for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 						{
-							int32 NumMaterials = Helper_GetImportedModel(SkeletalMesh)->LODModels[LODIndex].Sections.Num();
+							int32 NumMaterials = SkeletalMesh->GetImportedModel()->LODModels[LODIndex].Sections.Num();
 
 							for (int32 MatIndex = 0; MatIndex < NumMaterials; ++MatIndex)
 							{

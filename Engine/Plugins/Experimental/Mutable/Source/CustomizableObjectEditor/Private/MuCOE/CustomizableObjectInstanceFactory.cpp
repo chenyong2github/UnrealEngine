@@ -11,7 +11,7 @@
 #include "MuCO/CustomizableSkeletalComponent.h"
 #include "MuCO/CustomizableSkeletalMeshActor.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
-
+#include "MuCO/UnrealPortabilityHelpers.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectInstanceFactory"
 
@@ -123,7 +123,7 @@ void UCustomizableObjectInstanceFactory::PostSpawnActor(UObject* Asset, AActor* 
 			if (USkeletalMeshComponent* SkeletalMeshComp = NewCSMActor->GetSkeletalMeshComponentAt(ComponentIndex))
 			{
 				SkeletalMeshComp->UnregisterComponent();
-				SkeletalMeshComp->SetSkinnedAsset(SkeletalMesh);
+				UE_MUTABLE_SETSKINNEDASSET(SkeletalMeshComp,SkeletalMesh);
 
 				if (ComponentIndex == 0 && NewCSMActor->GetWorld()->IsGameWorld())
 				{

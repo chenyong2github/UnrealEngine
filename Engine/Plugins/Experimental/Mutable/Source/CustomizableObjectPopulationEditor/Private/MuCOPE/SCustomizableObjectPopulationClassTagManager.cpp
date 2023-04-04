@@ -2,6 +2,7 @@
 
 #include "MuCOPE/SCustomizableObjectPopulationClassTagManager.h"
 
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "MuCO/CustomizableObject.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -101,7 +102,7 @@ void SCustomizableObjectPopulationClassTagsManager::BuildTagSelector()
 			.ToolTipText(LOCTEXT("AddTagSelector", "Add a Tag to the Customizable Object"))
 			[
 				SNew(SImage)
-				.Image(FAppStyle::GetBrush(TEXT("Plus")))
+				.Image(UE_MUTABLE_GET_BRUSH(TEXT("Plus")))
 			]
 		]
 	];
@@ -150,7 +151,7 @@ void SCustomizableObjectPopulationClassTagsManager::BuildTagSelector()
 				.ToolTipText(LOCTEXT("RemoveTag", "Remove Tag"))
 				[
 					SNew(SImage)
-					.Image(FAppStyle::GetBrush(TEXT("Cross")))
+					.Image(UE_MUTABLE_GET_BRUSH(TEXT("Cross")))
 				]
 			]
 		];
@@ -223,7 +224,7 @@ void SCustomizableObjectPopulationClassTagsManager::BuildTagManager()
 			.ToolTipText(LOCTEXT("AddTag", "Add a Tag to the Root Object"))
 			[
 				SNew(SImage)
-				.Image(FAppStyle::GetBrush(TEXT("Plus")))
+				.Image(UE_MUTABLE_GET_BRUSH(TEXT("Plus")))
 			]
 		]
 	];
@@ -261,7 +262,7 @@ void SCustomizableObjectPopulationClassTagsManager::BuildTagManager()
 				.ToolTipText(LOCTEXT("RemoveTag", "Remove Tag"))
 				[
 					SNew(SImage)
-					.Image(FAppStyle::GetBrush(TEXT("Cross")))
+					.Image(UE_MUTABLE_GET_BRUSH(TEXT("Cross")))
 				]
 			]
 		];

@@ -4,6 +4,7 @@
 
 #include "MuCOE/PinViewer/SPinViewerDetailRowIndent.h"
 #include "MuCOE/Widgets/SMutableExpandableTableRow.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "Widgets/Text/STextBlock.h"
 
 class SWidget;
@@ -60,7 +61,7 @@ TSharedPtr<SWidget> SPinViewerPinDetails::AddRow(const FText& Text, TSharedRef<S
 				.SizeRule(SSplitter::ESizeRule::FractionOfParent)
 				[
 					 SNew(SBorder)
-					 .BorderImage(FAppStyle::GetBrush("NoBorder"))
+					 .BorderImage(UE_MUTABLE_GET_BRUSH("NoBorder"))
 					 .VAlign(VAlign_Center)
 					 .Padding(FMargin(16, 0, 0, 0))
 					 [
@@ -71,7 +72,7 @@ TSharedPtr<SWidget> SPinViewerPinDetails::AddRow(const FText& Text, TSharedRef<S
 				+SSplitter::Slot()
 				[
 					SNew(SBorder)
-					.BorderImage(FAppStyle::GetBrush("NoBorder"))
+					.BorderImage(UE_MUTABLE_GET_BRUSH("NoBorder"))
 					.Padding(FMargin(4, 2, 0, 2))
 					[
 						Widget

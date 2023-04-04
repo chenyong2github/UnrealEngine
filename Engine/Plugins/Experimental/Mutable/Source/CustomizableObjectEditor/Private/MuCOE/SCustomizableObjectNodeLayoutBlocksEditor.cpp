@@ -7,6 +7,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "MuCOE/CustomizableObjectEditorStyle.h"
 #include "MuCOE/SCustomizableObjectLayoutGrid.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/SToolTip.h"
@@ -101,7 +102,7 @@ void SCustomizableObjectNodeLayoutBlocksEditor::SetCurrentLayout(UCustomizableOb
 		.Padding(3.0f,5.0f,0.0f,5.0f)
 		[
 			SNew(SImage)
-			.Image(FAppStyle::GetBrush(TEXT("Icons.Info")))
+			.Image(UE_MUTABLE_GET_BRUSH(TEXT("Icons.Info")))
 			.ToolTip(GenerateInfoToolTip())
 		]
 
@@ -225,7 +226,7 @@ TSharedRef<SWidget> SCustomizableObjectNodeLayoutBlocksEditor::BuildLayoutToolBa
 		[
 			SNew(SBorder)
 			.Padding(2.0f)
-			.BorderImage(FAppStyle::GetBrush("NoBorder"))
+			.BorderImage(UE_MUTABLE_GET_BRUSH("NoBorder"))
 			.IsEnabled( FSlateApplication::Get().GetNormalExecutionAttribute() )
 			[
 				LayoutToolbarBuilder.MakeWidget()

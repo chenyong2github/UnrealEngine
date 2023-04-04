@@ -13,7 +13,7 @@ void UCustomizableObjectNodeProjectorParameter::PostEditChangeProperty(FProperty
 {
 	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 
-	const FName PropertyName = Helper_GetPropertyName(PropertyChangedEvent);
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 
 	if (PropertyName == "ProjectionType")
 	{

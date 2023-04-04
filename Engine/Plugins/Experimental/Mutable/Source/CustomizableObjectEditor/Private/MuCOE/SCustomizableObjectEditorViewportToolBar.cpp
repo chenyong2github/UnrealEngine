@@ -15,6 +15,7 @@
 #include "MuCOE/CustomizableObjectEditorViewportMenuCommands.h"
 #include "MuCOE/ICustomizableObjectInstanceEditor.h"
 #include "MuCOE/SCustomizableObjectEditorViewport.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "Preferences/PersonaOptions.h"
 #include "SEditorViewportViewMenu.h"
 #include "SViewportToolBarComboMenu.h"
@@ -50,7 +51,7 @@ struct FSlateBrush;
 //
 //		TSharedPtr<SWidget> ExtraWidget =
 //			SNew(SBorder)
-//			.BorderImage(FAppStyle::GetBrush("FilledBorder"))
+//			.BorderImage(UE_MUTABLE_GET_BRUSH("FilledBorder"))
 //			[
 //				SNew(SHorizontalBox)
 //				+ SHorizontalBox::Slot()
@@ -165,7 +166,7 @@ struct FSlateBrush;
 //
 //		TSharedPtr<SWidget> ExtraWidget = SNew(STextBlock)
 //			.Text(AnimViewportPtr.Pin().ToSharedRef(), &SCustomizableObjectEditorViewport::GetWindStrengthLabel)
-//			.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")));
+//			.Font(UE_MUTABLE_GET_FONTSTYLE(TEXT("MenuItem.Font")));
 //
 //		this->ChildSlot
 //			[
@@ -228,7 +229,7 @@ struct FSlateBrush;
 //
 //		TSharedPtr<SWidget> ExtraWidget = SNew(STextBlock)
 //			.Text(AnimViewportPtr.Pin().ToSharedRef(), &SCustomizableObjectEditorViewport::GetGravityScaleLabel)
-//			.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")));
+//			.Font(UE_MUTABLE_GET_FONTSTYLE(TEXT("MenuItem.Font")));
 //
 //		this->ChildSlot
 //			[
@@ -387,7 +388,7 @@ void SCustomizableObjectEditorViewportToolBar::Construct(const FArguments& InArg
 	//		SNew(SEditorViewportToolbarMenu)
 	//		.ParentToolBar(SharedThis(this))
 	//	.Label(this, &SCustomizableObjectEditorViewportToolBar::GetPlaybackMenuLabel)
-	//	.LabelIcon(FAppStyle::GetBrush("AnimViewportMenu.PlayBackSpeed"))
+	//	.LabelIcon(UE_MUTABLE_GET_BRUSH("AnimViewportMenu.PlayBackSpeed"))
 	//	.OnGetMenuContent(this, &SCustomizableObjectEditorViewportToolBar::GeneratePlaybackMenu)
 	//	]
 
@@ -408,7 +409,7 @@ void SCustomizableObjectEditorViewportToolBar::Construct(const FArguments& InArg
 	FLinearColor ButtonColor2 = FLinearColor(0.2f, 0.2f, 0.2f, 0.75f);
 	FLinearColor TextColor1 = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	FLinearColor TextColor2 = FLinearColor(0.8f, 0.8f, 0.8f, 0.8f);
-	FSlateFontInfo Info = FAppStyle::GetFontStyle("BoldFont");
+	FSlateFontInfo Info = UE_MUTABLE_GET_FONTSTYLE("BoldFont");
 	Info.Size += 26;
 
 	ChildSlot
@@ -418,8 +419,8 @@ void SCustomizableObjectEditorViewportToolBar::Construct(const FArguments& InArg
 			.VAlign(VAlign_Top)
 			[
 				SNew(SBorder)
-				.BorderImage(FAppStyle::GetBrush("NoBorder"))
-				.ForegroundColor(FAppStyle::GetSlateColor(DefaultForegroundName))
+				.BorderImage(UE_MUTABLE_GET_BRUSH("NoBorder"))
+				.ForegroundColor(UE_MUTABLE_GET_SLATECOLOR(DefaultForegroundName))
 				[
 					SNew(SVerticalBox)
 					+ SVerticalBox::Slot()
@@ -659,7 +660,7 @@ TSharedRef<SWidget> SCustomizableObjectEditorViewportToolBar::GenerateViewMenu()
 //			const float FOVMax = 170.f;
 //
 //			TSharedPtr<SWidget> FOVWidget = SNew(SSpinBox<float>)
-//				.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
+//				.Font(UE_MUTABLE_GET_FONTSTYLE(TEXT("MenuItem.Font")))
 //				.MinValue(FOVMin)
 //				.MaxValue(FOVMax)
 //				.Value(this, &SCustomizableObjectEditorViewportToolBar::OnGetFOVValue)
@@ -758,7 +759,7 @@ TSharedRef<SWidget> SCustomizableObjectEditorViewportToolBar::GenerateViewMenu()
 //	MenuBuilder.BeginSection("AnimViewportFloorOffset", LOCTEXT("Viewport_FloorOffsetLabel", "Floor Height Offset"));
 //	{
 //		TSharedPtr<SWidget> FloorOffsetWidget = SNew(SNumericEntryBox<float>)
-//			.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
+//			.Font(UE_MUTABLE_GET_FONTSTYLE(TEXT("MenuItem.Font")))
 //			.Value(this, &SCustomizableObjectEditorViewportToolBar::OnGetFloorOffset)
 //			.OnValueChanged(this, &SCustomizableObjectEditorViewportToolBar::OnFloorOffsetChanged)
 //			.ToolTipText(LOCTEXT("FloorOffsetToolTip", "Height offset for the floor mesh (stored per-mesh)"));
@@ -1077,7 +1078,7 @@ TSharedRef<SWidget> SCustomizableObjectEditorViewportToolBar::GenerateViewportOp
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("OptionsMenu_CameraOptions_CameraSpeed_Text", "Camera Speed"))
-					.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
+					.Font(UE_MUTABLE_GET_FONTSTYLE(TEXT("MenuItem.Font")))
 				]
 
 				+SVerticalBox::Slot().AutoHeight()
@@ -1267,7 +1268,7 @@ const FSlateBrush* SCustomizableObjectEditorViewportToolBar::GetCameraMenuLabelI
 		}
 	}
 
-	return FAppStyle::GetBrush(Icon);
+	return UE_MUTABLE_GET_BRUSH(Icon);
 }
 
 float SCustomizableObjectEditorViewportToolBar::OnGetFOVValue() const
@@ -1437,7 +1438,7 @@ TSharedRef<SWidget> SCustomizableObjectEditorViewportToolBar::GenerateFOVMenu() 
 			.WidthOverride( 100.0f )
 			[
 				SNew(SSpinBox<float>)
-				.Font( FAppStyle::GetFontStyle( TEXT( "MenuItem.Font" ) ) )
+				.Font( UE_MUTABLE_GET_FONTSTYLE( TEXT( "MenuItem.Font" ) ) )
 				.MinValue(FOVMin)
 				.MaxValue(FOVMax)
 				.Value( this, &SCustomizableObjectEditorViewportToolBar::OnGetFOVValue )

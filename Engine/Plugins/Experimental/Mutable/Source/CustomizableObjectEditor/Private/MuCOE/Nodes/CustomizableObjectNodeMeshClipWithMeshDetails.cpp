@@ -6,6 +6,7 @@
 #include "IDetailsView.h"
 #include "MuCOE/CustomizableObjectEditorUtilities.h"
 #include "MuCOE/GraphTraversal.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeMaterial.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeMeshClipWithMesh.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeStaticMesh.h"
@@ -365,7 +366,7 @@ void FCustomizableObjectNodeMeshClipWithMeshDetails::CreateTagView()
 			.ToolTipText(LOCTEXT("AddNewTag", "Add New Tag"))
 			[
 				SNew(SImage)
-				.Image(FAppStyle::GetBrush(TEXT("Plus")))	
+				.Image(UE_MUTABLE_GET_BRUSH(TEXT("Plus")))	
 			]
 		]
 	];
@@ -426,7 +427,7 @@ void STagView::Construct(const FArguments& InArgs)
 			.ToolTipText(LOCTEXT("DeleteTag", "Delete Tag"))
 			[
 				SNew(SImage)
-				.Image(FAppStyle::GetBrush(TEXT("Cross")))
+				.Image(UE_MUTABLE_GET_BRUSH(TEXT("Cross")))
 			]
 		]
 	];

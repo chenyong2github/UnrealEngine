@@ -5,6 +5,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Interfaces/IPluginManager.h"
 #include "MuCO/CustomizableObject.h"
+#include "MuCO/UnrealPortabilityHelpers.h"
 #include "MuCOE/ICustomizableObjectPopulationModule.h"
 #include "MuCOP/CustomizableObjectPopulation.h"
 #include "MuCOP/CustomizableObjectPopulationGenerator.h"
@@ -68,7 +69,7 @@ void FCustomizableObjectPopulationModule::RecompilePopulations(UCustomizableObje
 	{
 		// Creating a filter to search only population classes
 		FARFilter COFilter;
-		COFilter.ClassPaths.Add(UCustomizableObjectPopulation::StaticClass()->GetClassPathName());
+		UE_MUTABLE_GET_CLASSPATHS(COFilter).Add(UE_MUTABLE_GET_CLASS_PATHNAME(UCustomizableObjectPopulation::StaticClass()));
 
 		for (const FName AssetName : COAssetNames)
 		{

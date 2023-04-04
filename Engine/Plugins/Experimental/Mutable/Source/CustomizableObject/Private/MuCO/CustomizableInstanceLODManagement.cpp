@@ -12,6 +12,7 @@
 #include "MuCO/CustomizableObjectInstance.h"
 #include "MuCO/CustomizableObjectSystem.h"
 #include "MuCO/CustomizableSkeletalComponent.h"
+#include "MuCO/UnrealPortabilityHelpers.h"
 #include "UObject/UObjectIterator.h"
 #include "Components/SkeletalMeshComponent.h"
 
@@ -324,7 +325,10 @@ void UCustomizableInstanceLODManagement::UpdateInstanceDistsAndLODs()
 					COI->SetIsBeingUsedByComponentInPlay(true);
 
 					// If it's the local player set max priority
-					const APawn* Pawn = Cast<APawn>(Parent->GetAttachParentActor());
+					const USceneComponent* const AttachParentParentComponent = Parent->GetAttachParent();
+					AActor* ParentParentActor = AttachParentParentComponent ? AttachParentParentComponent->GetOwner() : nullptr;
+
+					const APawn* Pawn = Cast<APawn>(ParentParentActor);
 					if (Pawn && Pawn->IsLocallyControlled())
 					{
 						COI->SetMinSquareDistToPlayer(-1.f);
@@ -339,7 +343,7 @@ void UCustomizableInstanceLODManagement::UpdateInstanceDistsAndLODs()
 					LODTracker.MinLOD = FMath::Min(LODTracker.MinLOD, Parent->bOverrideMinLod ? Parent->MinLodModel : 0);
 
 					// If the parent component have a SkeletalMesh use the RequestedLODLevel of the component as reference to know which LODs mutable should generate.
-					if (Parent->GetSkeletalMeshAsset() && LODTracker.RequestedLODsPerComponent.IsValidIndex(CustomizableSkeletalComponent->ComponentIndex))
+					if (UE_MUTABLE_GETSKELETALMESHASSET(Parent) && LODTracker.RequestedLODsPerComponent.IsValidIndex(CustomizableSkeletalComponent->ComponentIndex))
 					{
 						LODTracker.RequestedLODsPerComponent[CustomizableSkeletalComponent->ComponentIndex] |= 1 << Parent->GetPredictedLODLevel();
 					}

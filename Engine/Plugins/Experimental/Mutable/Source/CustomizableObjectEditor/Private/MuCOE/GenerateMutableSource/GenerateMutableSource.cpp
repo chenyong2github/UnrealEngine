@@ -399,7 +399,7 @@ UTexture2D* FindReferenceImage(const UEdGraphPin* Pin, FMutableGraphGenerationCo
 		{
 			if (const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedNodeLayer->LayerPin(LayerIndex)))
 			{
-				if (ConnectedPin->PinType.PinCategory == Helper_GetPinCategory(Schema->PC_Image))
+				if (ConnectedPin->PinType.PinCategory == Schema->PC_Image)
 				{
 					Result = FindReferenceImage(ConnectedPin, GenerationContext);
 				}
@@ -535,7 +535,7 @@ UTexture2D* FindReferenceImage(const UEdGraphPin* Pin, FMutableGraphGenerationCo
 
 	else if (const UCustomizableObjectNodeTable* TypedNodeTable = Cast<UCustomizableObjectNodeTable>(Node))
 	{
-		if (Pin->PinType.PinCategory == Helper_GetPinCategory(Schema->PC_MaterialAsset))
+		if (Pin->PinType.PinCategory == Schema->PC_MaterialAsset)
 		{
 			Result = TypedNodeTable->FindReferenceTextureParameter(Pin, GenerationContext.CurrentMaterialTableParameter);
 		}
@@ -1266,7 +1266,7 @@ void PopulateReferenceSkeletalMeshesData(FMutableGraphGenerationContext& Generat
 				LODData.LODInfo.bAllowCPUAccess = LODInfo.bAllowCPUAccess;
 
 				// Copy Render data settings from the reference skeletal mesh
-				const FSkeletalMeshLODRenderData& ReferenceLODModel = Helper_GetLODData(RefSkeletalMesh)[LODIndex];
+				const FSkeletalMeshLODRenderData& ReferenceLODModel = RefSkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex];
 				LODData.RenderData.bIsLODOptional = ReferenceLODModel.bIsLODOptional;
 				LODData.RenderData.bStreamedDataInlined = ReferenceLODModel.bStreamedDataInlined;
 			}

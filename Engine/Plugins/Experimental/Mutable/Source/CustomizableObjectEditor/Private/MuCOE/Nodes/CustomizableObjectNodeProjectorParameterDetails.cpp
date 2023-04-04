@@ -11,6 +11,7 @@
 #include "MuCOE/ICustomizableObjectEditor.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeProjectorConstant.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeProjectorParameter.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/STextComboBox.h"
@@ -145,7 +146,7 @@ void FCustomizableObjectNodeProjectorParameterDetails::CustomizeDetails( IDetail
 			.CustomWidget()
 			[
 				SNew(SBorder)
-				.BorderImage(FAppStyle::GetBrush("NoBorder"))
+				.BorderImage(UE_MUTABLE_GET_BRUSH("NoBorder"))
 				.Padding(FMargin(0.0f, 0.0f, 10.0f, 0.0f))
 				.HAlign(EHorizontalAlignment::HAlign_Fill)
 				[

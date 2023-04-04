@@ -120,8 +120,8 @@ bool UCustomizableObjectNodeTextureLayer::CanConnect(const UEdGraphPin* InOwnedI
 	{
 		if (LayerPin(LayerIndex) == InOwnedInputPin )
 		{
-			return (InOutputPin->PinType.PinCategory==Helper_GetPinCategory(Schema->PC_Image))
-				|| (InOutputPin->PinType.PinCategory==Helper_GetPinCategory(Schema->PC_Color));
+			return (InOutputPin->PinType.PinCategory==Schema->PC_Image)
+				|| (InOutputPin->PinType.PinCategory==Schema->PC_Color);
 		}
 	}
 

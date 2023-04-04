@@ -3,109 +3,42 @@
 #pragma once
 
 
-#include "Engine/SkeletalMesh.h"
-#include "Engine/SkinnedAsset.h"
+#include "Runtime/Launch/Resources/Version.h"
+
+/** Helpers to ease portability across unreal engine versions */
+
+#if ENGINE_MAJOR_VERSION==5 && ENGINE_MINOR_VERSION>=1
+
 #include "Engine/SkinnedAssetCommon.h"
-#include "Misc/Paths.h"
+#include "Rendering/SkinWeightVertexBuffer.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
-struct FBoneReference;
+#define UE_MUTABLE_GET_CLASS_PATHNAME(X)		X->GetClassPathName()
+#define UE_MUTABLE_GET_CLASSPATHS(X)			X.ClassPaths
+#define UE_MUTABLE_OBJECTPATH(X)				FSoftObjectPath(X)
+#define UE_MUTABLE_TOPLEVELASSETPATH(X,Y)		FTopLevelAssetPath(X, Y)
+#define UE_MUTABLE_ASSETCLASS(X)				X.AssetClassPath
+#define UE_MUTABLE_GETOBJECTPATH(X)				X.GetObjectPathString()
 
-// Main engine branch should have 1 here. 
-// Projects with API modifications may set it 0.
-#define MUTABLE_CLEAN_ENGINE_BRANCH		1
+#define UE_MUTABLE_GETSKINNEDASSET(X)			X->GetSkinnedAsset()
+#define UE_MUTABLE_SETSKINNEDASSET(X,Y)			X->SetSkinnedAsset(Y)
+#define UE_MUTABLE_GETSKELETALMESHASSET(X)		X->GetSkeletalMeshAsset()
 
-//-------------------------------------------------------------------------------------------------
-// Helpers to ease portability across unreal engine versions
-//-------------------------------------------------------------------------------------------------
+#elif ENGINE_MAJOR_VERSION==5 && ENGINE_MINOR_VERSION==0
 
-typedef FSkeletalMeshLODRenderData Helper_LODDataType;
-typedef FSkelMeshRenderSection Helper_SkelMeshRenderSection;
+#define USkinnedAsset USkeletalMesh
 
-inline FSkeletalMeshRenderData* Helper_GetResourceForRendering(const USkeletalMesh* Mesh)
-{
-	return Mesh->GetResourceForRendering();
-}
+#define UE_MUTABLE_GET_CLASS_PATHNAME(X)		X->GetFName()
+#define UE_MUTABLE_GET_CLASSPATHS(X)			X.ClassNames
+#define UE_MUTABLE_OBJECTPATH(X)				*X
+#define UE_MUTABLE_TOPLEVELASSETPATH(X,Y)		(Y)
+#define UE_MUTABLE_ASSETCLASS(X)				X.AssetClass
+#define UE_MUTABLE_GETOBJECTPATH(X)				X.ObjectPath.ToString()
 
-inline TIndirectArray<FSkeletalMeshLODRenderData>* Helper_GetLODDataPtr(FSkeletalMeshRenderData* Resource)
-{
-	return &(Resource->LODRenderData);
-}
+#define UE_MUTABLE_GETSKINNEDASSET(X)			X->SkeletalMesh
+#define UE_MUTABLE_SETSKINNEDASSET(X,Y)			X->SetSkeletalMesh(Y)
+#define UE_MUTABLE_GETSKELETALMESHASSET(X)		X->SkeletalMesh
 
-inline TIndirectArray<FSkeletalMeshLODRenderData>& Helper_GetLODData(FSkeletalMeshRenderData* Resource)
-{
-	return Resource->LODRenderData;
-}
-
-inline const TIndirectArray<FSkeletalMeshLODRenderData>& Helper_GetLODData(const FSkeletalMeshRenderData* Resource)
-{
-	return Resource->LODRenderData;
-}
-
-inline TIndirectArray<FSkeletalMeshLODRenderData>& Helper_GetLODData(const USkinnedAsset* Mesh)
-{
-	return Mesh->GetResourceForRendering()->LODRenderData;
-}
-
-inline TArray<FSkelMeshRenderSection>& Helper_GetLODRenderSections(const USkinnedAsset* Mesh, int LODIndex)
-{
-	return  Mesh->GetResourceForRendering()->LODRenderData[LODIndex].RenderSections;
-}
-
-#if WITH_EDITORONLY_DATA
-inline FSkeletalMeshModel* Helper_GetImportedModel(const USkinnedAsset* Mesh)
-{
-	return Mesh->GetImportedModel();
-}
 #endif
 
-inline int32 Helper_LODGetTotalFaces(const FSkeletalMeshLODRenderData* Resource)
-{
-	return Resource->GetTotalFaces();
-}
 
-inline uint32 Helper_LODGetNumTexCoords(const FSkeletalMeshLODRenderData* Resource)
-{
-	return Resource->GetNumTexCoords();
-}
-
-inline const TArray<FSkelMeshRenderSection>* Helper_LODGetSections(const FSkeletalMeshLODRenderData* Resource)
-{
-	return &(Resource->RenderSections);
-}
-
-inline TArray<struct FSkeletalMeshLODInfo>& Helper_GetLODInfoArray(USkinnedAsset* Mesh)
-{
-	return Mesh->GetLODInfoArray();
-}
-
-inline const TArray<struct FSkeletalMeshLODInfo>& Helper_GetLODInfoArray(const USkinnedAsset* Mesh)
-{
-	return Mesh->GetLODInfoArray();
-}
-
-inline int Helper_GetLODNum(const USkinnedAsset* Mesh)
-{
-	return Mesh->GetLODNum();
-}
-
-inline const TArray<FBoneReference>& Helper_GetLODInfoBonesToRemove(const USkinnedAsset* Mesh, int LODIndex)
-{
-	return Mesh->GetLODInfo(LODIndex)->BonesToRemove;
-}
-
-inline TArray<FBoneReference>& Helper_GetLODInfoBonesToRemove(USkinnedAsset* Mesh, int LODIndex)
-{
-	return Mesh->GetLODInfo(LODIndex)->BonesToRemove;
-}
-
-inline FString Helper_GetSavedDir()
-{
-	return FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir());
-}
-
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Rendering/SkeletalMeshModel.h"
-#include "Runtime/Launch/Resources/Version.h"
-#endif

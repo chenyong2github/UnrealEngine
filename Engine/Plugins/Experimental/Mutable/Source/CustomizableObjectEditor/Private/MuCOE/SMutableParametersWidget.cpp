@@ -3,6 +3,7 @@
 #include "MuCOE/SMutableParametersWidget.h"
 
 #include "MuCOE/SMutableTextSearchBox.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "MuR/ModelPrivate.h"
 #include "MuR/ParametersPrivate.h"
 #include "Templates/SharedPointer.h"
@@ -334,7 +335,7 @@ void SMutableParametersWidget::GenerateAndAttachParameterSlate(const int32 Param
 				[
 					SNew(STextBlock)
 					.Text(FText::FromString(TEXT("Location")))
-					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(UE_MUTABLE_GET_FONTSTYLE(TEXT("PropertyWindow.NormalFont")))
 				]
 
 				+SGridPanel::Slot(1, 0)
@@ -359,7 +360,7 @@ void SMutableParametersWidget::GenerateAndAttachParameterSlate(const int32 Param
 				[
 					SNew(STextBlock)
 					.Text(FText::FromString(TEXT("Scale")))
-					.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
+					.Font(UE_MUTABLE_GET_FONTSTYLE("PropertyWindow.NormalFont"))
 				]
 
 				+ SGridPanel::Slot(1, 1)

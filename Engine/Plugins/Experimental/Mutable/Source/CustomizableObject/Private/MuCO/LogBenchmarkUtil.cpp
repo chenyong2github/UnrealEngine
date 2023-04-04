@@ -19,7 +19,7 @@ void LogBenchmarkUtil::shutdownAndSaveResults()
 {
 	if (bLoggingActive)
 	{
-		FString SaveDirectory = Helper_GetSavedDir() + "/Logs";
+		FString SaveDirectory = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir()) + "/Logs";
 		FString FileName = FString("BenchmarkResult.txt");
 		FString AbsoluteFilePath = SaveDirectory + "/" + FileName;
 		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();

@@ -702,8 +702,8 @@ void FCustomizableObjectInstanceEditor::OnChangeMesh()
 	UCustomizableObjectInstance* SelectedMesh = GEditor->GetSelectedObjects()->GetTop<UCustomizableObjectInstance>();
 	if(SelectedMesh && SelectedMesh != CustomizableObjectInstance)
 	{
-		Helper_GetEditorSubsystem()->NotifyEditorClosed(this);
-		Helper_GetEditorSubsystem()->NotifyAssetOpened(SelectedMesh, this);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyEditorClosed(this);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyAssetOpened(SelectedMesh, this);
 
 		SetEditorMesh(SelectedMesh);
 //		LevelOfDetailSettings->MeshChanged();

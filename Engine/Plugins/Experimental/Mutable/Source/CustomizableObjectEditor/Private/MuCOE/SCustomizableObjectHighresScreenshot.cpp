@@ -6,6 +6,7 @@
 #include "Framework/Docking/TabManager.h"
 #include "MuCOE/CustomizableObjectEditorViewportClient.h"
 #include "MuCOE/CustomizableObjectPreviewScene.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Input/SSlider.h"
@@ -35,7 +36,7 @@ void SCustomizableObjectHighresScreenshot::Construct( const FArguments& InArgs )
 			+SVerticalBox::Slot()
 			[
 				SNew(SBorder)
-				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 				[
 					SNew(SVerticalBox)
 					+SVerticalBox::Slot()
@@ -156,13 +157,13 @@ void SCustomizableObjectHighresScreenshot::Construct( const FArguments& InArgs )
 				.AutoHeight()
 				[
 					SNew(SImage)
-					.Image(FAppStyle::GetBrush("HighresScreenshot.WarningStrip"))
+					.Image(UE_MUTABLE_GET_BRUSH("HighresScreenshot.WarningStrip"))
 				]
 				+SVerticalBox::Slot()
 				.AutoHeight()
 				[
 					SNew( SBorder )
-					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 					[
 						SNew( STextBlock )
 						.Text( NSLOCTEXT("CustomizableObjectEditor", "CaptureWarningText", "Due to the high system requirements of a high resolution screenshot, very large multipliers might cause the graphics driver to become unresponsive and possibly crash. In these circumstances, please try using a lower multiplier") )
@@ -173,14 +174,14 @@ void SCustomizableObjectHighresScreenshot::Construct( const FArguments& InArgs )
 				.AutoHeight()
 				[
 					SNew(SImage)
-					.Image(FAppStyle::GetBrush("HighresScreenshot.WarningStrip"))
+					.Image(UE_MUTABLE_GET_BRUSH("HighresScreenshot.WarningStrip"))
 				]
 			]
 			+SVerticalBox::Slot()
 			.AutoHeight()
 			[
 				SNew(SBorder)
-				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 				[
 					SNew(SHorizontalBox)
 					+SHorizontalBox::Slot()
@@ -194,7 +195,7 @@ void SCustomizableObjectHighresScreenshot::Construct( const FArguments& InArgs )
 						.OnClicked( this, &SCustomizableObjectHighresScreenshot::OnCaptureClicked )
 						[
 							SNew(SImage)
-							.Image(FAppStyle::GetBrush("HighresScreenshot.Capture"))
+							.Image(UE_MUTABLE_GET_BRUSH("HighresScreenshot.Capture"))
 						]
 					]
 				]

@@ -1551,9 +1551,9 @@ namespace mu
 
             // We take whatever size will be produced
             FImageDesc desc = CalculateImageDesc( *node.m_pImage->GetBasePrivate() );
-            newState.m_imageSize = FIntVector2(desc.m_size);
-            newState.m_imageRect.min = FIntVector2(0,0);
-            newState.m_imageRect.size = FIntVector2(desc.m_size);
+            newState.m_imageSize = UE::Math::TIntVector2<int32>(desc.m_size);
+            newState.m_imageRect.min = UE::Math::TIntVector2<int32>(0,0);
+            newState.m_imageRect.size = UE::Math::TIntVector2<int32>(desc.m_size);
             newState.m_layoutBlockId = -1;
             m_imageState.Add( newState );
 

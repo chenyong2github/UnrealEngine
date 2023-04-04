@@ -5,6 +5,7 @@
 #include "MuCO/CustomizableObject.h"
 #include "MuCOP/CustomizableObjectPopulationClass.h"
 #include "MuCOPE/CustomizableObjectPopulationClassDetails.h"
+#include "MuCOE/UnrealEditorPortabilityHelpers.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Input/STextComboBox.h"
@@ -92,14 +93,14 @@ void SCustomizableObjectPopulationClassTagsTool::GenerateChildSlot()
 					.InitiallyCollapsed(false)
 					.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
 					.BorderImage_Lambda([this]() { return GetExpandableAreaBorderImage(*TagsManagerExpandableArea); })
-					.BodyBorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BodyBorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 					.BodyBorderBackgroundColor(FLinearColor::White)
 					.HeaderContent()
 					[
 						SNew(STextBlock)
 						.Margin(FMargin(0.0f,5.0f))
 						.Text(LOCTEXT("ClassTagManagementText", "Population Tag Management for the current Customizable Object"))
-						.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+						.Font(UE_MUTABLE_GET_FONTSTYLE("DetailsView.CategoryFontStyle"))
 						.ShadowOffset(FVector2D(1.0f, 1.0f))
 					]
 					.BodyContent()
@@ -150,14 +151,14 @@ void SCustomizableObjectPopulationClassTagsTool::GenerateChildSlot()
 					.InitiallyCollapsed(false)
 					.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 1.0f))
 					.BorderImage_Lambda([this]() { return GetExpandableAreaBorderImage(*ParameterOptionsManagerExpandableArea); })
-					.BodyBorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+					.BodyBorderImage(UE_MUTABLE_GET_BRUSH("ToolPanel.GroupBorder"))
 					.BodyBorderBackgroundColor(FLinearColor::White)
 					.HeaderContent()
 					[
 						SNew(STextBlock)
 						.Margin(FMargin(0.0f, 5.0f))
 						.Text(LOCTEXT("ParameterOptionsManagerText", "Parameter Option Population Tags"))
-						.Font(FAppStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+						.Font(UE_MUTABLE_GET_FONTSTYLE("DetailsView.CategoryFontStyle"))
 						.ShadowOffset(FVector2D(1.0f, 1.0f))
 					]
 					.BodyContent()
@@ -274,7 +275,7 @@ void SCustomizableObjectPopulationClassTagsTool::GenerateTagsViewer()
 					.ButtonColorAndOpacity(FSlateColor(FLinearColor(1.0f,0.2f,0.2f)))
 					[
 						SNew(SImage)
-						.Image(FAppStyle::GetBrush(TEXT("Cross")))
+						.Image(UE_MUTABLE_GET_BRUSH(TEXT("Cross")))
 					]
 				]
 			];
@@ -304,7 +305,7 @@ void SCustomizableObjectPopulationClassTagsTool::GenerateTagsViewer()
 						.OnClicked(this, &SCustomizableObjectPopulationClassTagsTool::OnRemoveTagButtonPressed,i)
 						[
 							SNew(SImage)
-							.Image(FAppStyle::GetBrush(TEXT("Cross")))
+							.Image(UE_MUTABLE_GET_BRUSH(TEXT("Cross")))
 						]
 					]
 				];
@@ -661,9 +662,9 @@ const FSlateBrush* SCustomizableObjectPopulationClassTagsTool::GetExpandableArea
 {
 	if (Area.IsTitleHovered())
 	{
-		return Area.IsExpanded() ? FAppStyle::GetBrush("DetailsView.CategoryTop_Hovered") : FAppStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
+		return Area.IsExpanded() ? UE_MUTABLE_GET_BRUSH("DetailsView.CategoryTop_Hovered") : UE_MUTABLE_GET_BRUSH("DetailsView.CollapsedCategory_Hovered");
 	}
-	return Area.IsExpanded() ? FAppStyle::GetBrush("DetailsView.CategoryTop") : FAppStyle::GetBrush("DetailsView.CollapsedCategory");
+	return Area.IsExpanded() ? UE_MUTABLE_GET_BRUSH("DetailsView.CategoryTop") : UE_MUTABLE_GET_BRUSH("DetailsView.CollapsedCategory");
 }
 
 
@@ -749,7 +750,7 @@ void SSingleTagWidget::Construct(const FArguments& InArgs)
 				.OnClicked(this, &SSingleTagWidget::OnRemoveTagButtonPressed)
 				[
 					SNew(SImage)
-					.Image(FAppStyle::GetBrush(TEXT("Cross")))
+					.Image(UE_MUTABLE_GET_BRUSH(TEXT("Cross")))
 				]
 			]
 		]
