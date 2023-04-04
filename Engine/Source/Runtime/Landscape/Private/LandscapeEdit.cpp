@@ -1128,8 +1128,6 @@ void ULandscapeComponent::ClearDirtyCollisionHeightData()
 
 void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const HeightmapTextureMipData, const FColor* const SimpleCollisionHeightmapTextureData, int32 ComponentX1/*=0*/, int32 ComponentY1/*=0*/, int32 ComponentX2/*=MAX_int32*/, int32 ComponentY2/*=MAX_int32*/, bool bUpdateBounds/*=false*/, const FColor* XYOffsetTextureMipData/*=nullptr*/, bool bInUpdateHeightfieldRegion/*=true*/)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeComponent::UpdateCollisionHeightData);
-	
 	ALandscapeProxy* Proxy = GetLandscapeProxy();
 	FIntPoint ComponentKey = GetSectionBase() / ComponentSizeQuads;
 	ULandscapeHeightfieldCollisionComponent* CollisionComp = GetCollisionComponent();
@@ -1919,8 +1917,6 @@ void ULandscapeComponent::UpdateCollisionPhysicalMaterialData(TArray<UPhysicalMa
 
 void ULandscapeComponent::GenerateHeightmapMips(TArray<FColor*>& HeightmapTextureMipData, int32 ComponentX1/*=0*/, int32 ComponentY1/*=0*/, int32 ComponentX2/*=MAX_int32*/, int32 ComponentY2/*=MAX_int32*/, FLandscapeTextureDataInfo* TextureDataInfo/*=nullptr*/)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeComponent::GenerateHeightmapMips);
-	
 	bool EndX = false;
 	bool EndY = false;
 
@@ -2530,44 +2526,36 @@ FIntRect ULandscapeComponent::GetComponentExtent() const
 bool ULandscapeInfo::SupportsLandscapeEditing() const
 {
 	bool bSupportsEditing = true;
-	ForEachLandscapeProxy([&bSupportsEditing](ALandscapeProxy* Proxy)
+	ForAllLandscapeProxies([&bSupportsEditing](ALandscapeProxy* Proxy)
 	{
 		if(Proxy->GetOutermost()->bIsCookedForEditor)
 		{
 			bSupportsEditing = false;
-			return false;
 		}
-		return true;
-
 	});
 	return bSupportsEditing;
 }
 
 bool ULandscapeInfo::AreAllComponentsRegistered() const
 {
-	bool bAllRegistered = true;
-	ForEachLandscapeProxy([&bAllRegistered, this](ALandscapeProxy* LandscapeProxy) {
+	const TArray<ALandscapeProxy*>& LandscapeProxies = ALandscapeProxy::GetLandscapeProxies();
+	for(ALandscapeProxy* LandscapeProxy : LandscapeProxies)
+	{
 		if (!IsValid(LandscapeProxy))
 		{
-			return true;
+			continue;
 		}
 
 		if (LandscapeProxy->GetLandscapeGuid() == LandscapeGuid)
-		{	
+		{
 			for (ULandscapeComponent* LandscapeComponent : LandscapeProxy->LandscapeComponents)
 			{
 				if (LandscapeComponent && !LandscapeComponent->IsRegistered())
 				{
-					bAllRegistered = false;
+					return false;
 				}
 			}
 		}
-		return true;
-	});
-
-	if (!bAllRegistered)
-	{
-		return false;
 	}
 		
 	for (TScriptInterface<ILandscapeSplineInterface> SplineOwner : SplineActors)
@@ -2758,8 +2746,6 @@ ENGINE_API extern bool GDisableAutomaticTextureMaterialUpdateDependencies;
 LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, int32 InMinY, int32 InMaxX, int32 InMaxY, int32 InNumSubsections, int32 InSubsectionSizeQuads, const TMap<FGuid, TArray<uint16>>& InImportHeightData, 
 										   const TCHAR* const InHeightmapFileName, const TMap<FGuid, TArray<FLandscapeImportLayerInfo>>& InImportMaterialLayerInfos, ELandscapeImportAlphamapType InImportMaterialLayerType, const TArray<FLandscapeLayer>* InImportLayers)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::Import);
-	
 	check(InGuid.IsValid());
 	check(InImportHeightData.Num() == InImportMaterialLayerInfos.Num());
 
@@ -3337,8 +3323,6 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 	SlowTask.EnterProgressFrame(1.0f);
 
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::Import - Update Materials);
-		
 		// We disable automatic material update context, to manage it manually
 		GDisableAutomaticTextureMaterialUpdateDependencies = true;
 	
@@ -4051,7 +4035,7 @@ LANDSCAPE_API bool ULandscapeInfo::GetLandscapeXYComponentBounds(FIntRect& OutXY
 
 LANDSCAPE_API void ULandscapeInfo::ForAllLandscapeComponents(TFunctionRef<void(ULandscapeComponent*)> Fn) const
 {
-	ForEachLandscapeProxy([&](ALandscapeProxy* Proxy)
+	ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
 	{
 		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 		{
@@ -4060,7 +4044,6 @@ LANDSCAPE_API void ULandscapeInfo::ForAllLandscapeComponents(TFunctionRef<void(U
 				Fn(Component);
 			}
 		}
-		return true;
 	});
 }
 
@@ -4262,7 +4245,7 @@ void ULandscapeInfo::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, const FNa
 		}
 	}
 
-	ForEachLandscapeProxy([LayerInfo](ALandscapeProxy* Proxy)
+	ForAllLandscapeProxies([LayerInfo](ALandscapeProxy* Proxy)
 	{
 		Proxy->Modify();
 		int32 Index = Proxy->EditorLayerSettings.IndexOfByKey(LayerInfo);
@@ -4270,7 +4253,6 @@ void ULandscapeInfo::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, const FNa
 		{
 			Proxy->EditorLayerSettings.RemoveAt(Index);
 		}
-		return true;
 	});
 
 	//UpdateLayerInfoMap();
@@ -4297,7 +4279,7 @@ void ULandscapeInfo::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo, ULan
 			}
 		}
 
-		ForEachLandscapeProxy([FromLayerInfo, ToLayerInfo](ALandscapeProxy* Proxy)
+		ForAllLandscapeProxies([FromLayerInfo, ToLayerInfo](ALandscapeProxy* Proxy)
 		{
 			Proxy->Modify();
 			FLandscapeEditorLayerSettings* ToEditorLayerSettings = Proxy->EditorLayerSettings.FindByKey(ToLayerInfo);
@@ -4324,7 +4306,6 @@ void ULandscapeInfo::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo, ULan
 					Proxy->EditorLayerSettings.Add(FLandscapeEditorLayerSettings(ToLayerInfo));
 				}
 			}
-			return true;
 		});
 
 		//UpdateLayerInfoMap();
@@ -4336,7 +4317,7 @@ void ULandscapeInfo::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo, ULan
 void ULandscapeInfo::GetUsedPaintLayers(const FGuid& InLayerGuid, TArray<ULandscapeLayerInfoObject*>& OutUsedLayerInfos) const
 {
 	OutUsedLayerInfos.Empty();
-	ForEachLandscapeProxy([&](ALandscapeProxy* Proxy)
+	ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
 	{
 		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 		{
@@ -4345,8 +4326,6 @@ void ULandscapeInfo::GetUsedPaintLayers(const FGuid& InLayerGuid, TArray<ULandsc
 				Component->GetUsedPaintLayers(InLayerGuid, OutUsedLayerInfos);
 			}
 		}
-
-		return true;
 	});
 }
 
@@ -4799,19 +4778,17 @@ void ALandscapeProxy::RecreateCollisionComponents()
 
 void ULandscapeInfo::RecreateCollisionComponents()
 {
-	ForEachLandscapeProxy([](ALandscapeProxy* Proxy)
+	ForAllLandscapeProxies([](ALandscapeProxy* Proxy)
 	{
 		Proxy->RecreateCollisionComponents();
-		return true;
 	});
 }
 
 void ULandscapeInfo::RemoveXYOffsets()
 {
-	ForEachLandscapeProxy([](ALandscapeProxy* Proxy)
+	ForAllLandscapeProxies([](ALandscapeProxy* Proxy)
 	{
 		Proxy->RemoveXYOffsets();
-		return true;
 	});
 }
 
@@ -4837,10 +4814,9 @@ void ULandscapeInfo::ClearDirtyData()
 
 void ULandscapeInfo::UpdateAllComponentMaterialInstances(bool bInInvalidateCombinationMaterials)
 {
-	ForEachLandscapeProxy([=](ALandscapeProxy* Proxy)
+	ForAllLandscapeProxies([=](ALandscapeProxy* Proxy)
 	{
 		Proxy->UpdateAllComponentMaterialInstances(bInInvalidateCombinationMaterials);
-		return true;
 	});
 }
 
@@ -4914,8 +4890,6 @@ ALandscapeProxy* ULandscapeInfo::MoveComponentsToLevel(const TArray<ULandscapeCo
 
 ALandscapeProxy* ULandscapeInfo::MoveComponentsToProxy(const TArray<ULandscapeComponent*>& InComponents, ALandscapeProxy* LandscapeProxy, bool bSetPositionAndOffset, ULevel* TargetLevel)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeInfo::MoveComponentsToProxy);
-	
 	ALandscape* Landscape = LandscapeActor.Get();
 	check(Landscape != nullptr);
 	
@@ -5116,8 +5090,6 @@ ALandscapeProxy* ULandscapeInfo::MoveComponentsToProxy(const TArray<ULandscapeCo
 
 void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, ALandscapeProxy* TargetProxy, FMaterialUpdateContext* InOutUpdateContext, TArray<FComponentRecreateRenderStateContext>* InOutRecreateRenderStateContext, bool InReregisterComponent)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(ALandscape::SplitHeightmap);
-	
 	ULandscapeInfo* Info = Comp->GetLandscapeInfo();
 
 	// Make sure the heightmap UVs are powers of two.

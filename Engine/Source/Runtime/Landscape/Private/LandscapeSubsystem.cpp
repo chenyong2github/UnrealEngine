@@ -493,8 +493,6 @@ bool ULandscapeSubsystem::IsGridBased() const
 
 void ULandscapeSubsystem::ChangeGridSize(ULandscapeInfo* LandscapeInfo, uint32 GridSizeInComponents)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeSubsystem::ChangeGridSize);
-	
 	if (!IsGridBased())
 	{
 		return;

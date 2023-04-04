@@ -10,7 +10,6 @@ public class LandscapeEditor : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"Json",
 				"ApplicationCore",
 				"Slate",
 				"SlateCore",
@@ -29,9 +28,6 @@ public class LandscapeEditor : ModuleRules
                 "Foliage",
 				"ToolMenus",
 				"ToolWidgets",
-				"SourceControl",
-				"DirectoryWatcher",
-				"DeveloperSettings"
 			}
 			);
 

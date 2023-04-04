@@ -21,16 +21,9 @@
 #include "LandscapeEditorModule.h"
 #include "LandscapeEditorObject.h"
 #include "Landscape.h"
-#include "LandscapeStreamingProxy.h"
-#include "LandscapeTiledImage.h"
-#include "LandscapeRegionUtils.h"
-#include "LandscapeEditorPrivate.h"
-#include "LandscapeEditorUtils.h"
-
 #include "LandscapeConfigHelper.h"
 #include "LandscapeImportHelper.h"
 #include "LandscapeSettings.h"
-#include "FileHelpers.h"
 
 #include "DetailLayoutBuilder.h"
 #include "IDetailChildrenBuilder.h"
@@ -43,6 +36,7 @@
 #include "Widgets/Input/SVectorInputBox.h"
 #include "Widgets/Input/SRotatorInputBox.h"
 #include "ScopedTransaction.h"
+#include "DesktopPlatformModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
 #include "TutorialMetaData.h"
@@ -53,21 +47,8 @@
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "LandscapeSubsystem.h"
-#include "LocationVolume.h"
 #include "SPrimaryButton.h"
 #include "Widgets/Input/SSegmentedControl.h"
-
-#include "UObject/SavePackage.h"
-#include "Builders/CubeBuilder.h"
-#include "ActorFactories/ActorFactory.h"
-
-#include "SourceControlHelpers.h"
-#include "WorldPartition/WorldPartition.h"
-
-#include "Misc/ScopedSlowTask.h"
-
-#include "Math/Box.h"
-#include "LandscapeEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeEditor.NewLandscape"
 
@@ -141,20 +122,16 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 	PropertyHandle_FlipYAxis->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([this]() { OnImportHeightmapFilenameChanged(); }));
 
 	TSharedRef<IPropertyHandle> PropertyHandle_GridSize = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, WorldPartitionGridSize));
-	TSharedRef<IPropertyHandle> PropertyHandle_RegionSize = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, WorldPartitionRegionSize));
 	
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	if (LandscapeEdMode->GetWorld()->GetSubsystem<ULandscapeSubsystem>()->IsGridBased())
 	{
 		NewLandscapeCategory.AddProperty(PropertyHandle_GridSize);
-		NewLandscapeCategory.AddProperty(PropertyHandle_RegionSize);
 	}
 	else
 	{
 		DetailBuilder.HideProperty(PropertyHandle_GridSize);
-		DetailBuilder.HideProperty(PropertyHandle_RegionSize);
 	}
-	
 	TSharedRef<IPropertyHandle> PropertyHandle_HeightmapFilename = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, ImportLandscape_HeightmapFilename));
 	TSharedRef<IPropertyHandle> PropertyHandle_HeightmapImportResult = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, ImportLandscape_HeightmapImportResult));
 	TSharedRef<IPropertyHandle> PropertyHandle_HeightmapErrorMessage = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, ImportLandscape_HeightmapErrorMessage));
@@ -415,9 +392,9 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 			SNew(SNumericEntryBox<int32>)
 			.Font(DetailBuilder.GetDetailFont())
 			.MinValue(1)
-			.MaxValue_Lambda(LandscapeEditorUtils::GetMaxSizeInComponents)
+			.MaxValue(32)
 			.MinSliderValue(1)
-			.MaxSliderValue_Lambda(LandscapeEditorUtils::GetMaxSizeInComponents)
+			.MaxSliderValue(32)
 			.AllowSpin(true)
 			.UndeterminedString(NSLOCTEXT("PropertyEditor", "MultipleValues", "Multiple Values"))
 			.Value_Static(&FLandscapeEditorDetailCustomization_Base::OnGetValue<int32>, PropertyHandle_ComponentCount_X)
@@ -439,9 +416,9 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 			SNew(SNumericEntryBox<int32>)
 			.Font(DetailBuilder.GetDetailFont())
 			.MinValue(1)
-			.MaxValue_Lambda(LandscapeEditorUtils::GetMaxSizeInComponents)
+			.MaxValue(32)
 			.MinSliderValue(1)
-			.MaxSliderValue_Lambda(LandscapeEditorUtils::GetMaxSizeInComponents)
+			.MaxSliderValue(32)
 			.AllowSpin(true)
 			.UndeterminedString(NSLOCTEXT("PropertyEditor", "MultipleValues", "Multiple Values"))
 			.Value_Static(&FLandscapeEditorDetailCustomization_Base::OnGetValue<int32>, PropertyHandle_ComponentCount_Y)
@@ -898,360 +875,133 @@ FText FLandscapeEditorDetailCustomization_NewLandscape::GetNewLandscapeErrorText
 	return FText::GetEmpty();
 }
 
-void FLandscapeEditorDetailCustomization_NewLandscape::AddComponents(ULandscapeInfo* InLandscapeInfo, ULandscapeSubsystem* InLandscapeSubsystem, const TArray<FIntPoint>& InComponentCoordinates, TArray<ALandscapeProxy*>& OutCreatedStreamingProxies)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(AddComponents);
-	TArray<ULandscapeComponent*> NewComponents;
-	InLandscapeInfo->Modify();
-	for (const FIntPoint& ComponentCoordinate : InComponentCoordinates)
-	{
-		ULandscapeComponent* LandscapeComponent = InLandscapeInfo->XYtoComponentMap.FindRef(ComponentCoordinate);
-		if (LandscapeComponent)
-		{
-			continue;
-		}
-
-		// Add New component...
-		FIntPoint ComponentBase = ComponentCoordinate * InLandscapeInfo->ComponentSizeQuads;
-
-		ALandscapeProxy* LandscapeProxy = InLandscapeSubsystem->FindOrAddLandscapeProxy(InLandscapeInfo, ComponentBase);
-		if (!LandscapeProxy)
-		{
-			continue;
-		}
-
-		OutCreatedStreamingProxies.Add(LandscapeProxy);
-
-		LandscapeComponent = NewObject<ULandscapeComponent>(LandscapeProxy, NAME_None, RF_Transactional);
-		NewComponents.Add(LandscapeComponent);
-		LandscapeComponent->Init(
-			ComponentBase.X, ComponentBase.Y,
-			LandscapeProxy->ComponentSizeQuads,
-			LandscapeProxy->NumSubsections,
-			LandscapeProxy->SubsectionSizeQuads
-		);
-
-		TArray<FColor> HeightData;
-		const int32 ComponentVerts = (LandscapeComponent->SubsectionSizeQuads + 1) * LandscapeComponent->NumSubsections;
-		const FColor PackedMidpoint = LandscapeDataAccess::PackHeight(LandscapeDataAccess::GetTexHeight(0.0f));
-		HeightData.Init(PackedMidpoint, FMath::Square(ComponentVerts));
-
-		LandscapeComponent->InitHeightmapData(HeightData, true);
-		LandscapeComponent->UpdateMaterialInstances();
-
-		InLandscapeInfo->XYtoComponentMap.Add(ComponentCoordinate, LandscapeComponent);
-		InLandscapeInfo->XYtoAddCollisionMap.Remove(ComponentCoordinate);
-	}
-
-	// Need to register to use general height/xyoffset data update
-	for (int32 Idx = 0; Idx < NewComponents.Num(); Idx++)
-	{
-		NewComponents[Idx]->RegisterComponent();
-	}
-
-	const bool bHasXYOffset = false;
-	ALandscape* Landscape = InLandscapeInfo->LandscapeActor.Get();
-
-	bool bHasLandscapeLayersContent = Landscape && Landscape->HasLayersContent();
-
-	for (ULandscapeComponent* NewComponent : NewComponents)
-	{
-		if (bHasLandscapeLayersContent)
-		{
-			TArray<ULandscapeComponent*> ComponentsUsingHeightmap;
-			ComponentsUsingHeightmap.Add(NewComponent);
-
-			for (const FLandscapeLayer& Layer : Landscape->LandscapeLayers)
-			{
-				// Since we do not share heightmap when adding new component, we will provided the required array, but they will only be used for 1 component
-				TMap<UTexture2D*, UTexture2D*> CreatedHeightmapTextures;
-				NewComponent->AddDefaultLayerData(Layer.Guid, ComponentsUsingHeightmap, CreatedHeightmapTextures);
-			}
-		}
-
-		// Update Collision
-		NewComponent->UpdateCachedBounds();
-		NewComponent->UpdateBounds();
-		NewComponent->MarkRenderStateDirty();
-
-		if (!bHasLandscapeLayersContent)
-		{
-			ULandscapeHeightfieldCollisionComponent* CollisionComp = NewComponent->GetCollisionComponent();
-			if (CollisionComp && !bHasXYOffset)
-			{
-				CollisionComp->MarkRenderStateDirty();
-				CollisionComp->RecreateCollision();
-			}
-		}
-	}
-
-
-	if (Landscape)
-	{
-		GEngine->BroadcastOnActorMoved(Landscape);
-	}
-}
-
 FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked);
-
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	const bool bIsNewLandscape = LandscapeEdMode->NewLandscapePreviewMode == ENewLandscapePreviewMode::NewLandscape;
-	
-	UWorld* World = LandscapeEdMode->GetWorld();
-	const bool bIsTempPackage = FPackageName::IsTempPackage(World->GetPackage()->GetName());
-	
-	const bool bCreateLandscape = LandscapeEdMode != nullptr && 
-		World != nullptr &&
-		World->GetCurrentLevel()->bIsVisible;
-	
-	if (!bCreateLandscape)
+	if (LandscapeEdMode != nullptr && 
+		LandscapeEdMode->GetWorld() != nullptr && 
+		LandscapeEdMode->GetWorld()->GetCurrentLevel()->bIsVisible)
 	{
-		return FReply::Handled();
-	}
-	
-	ULandscapeEditorObject* UISettings = LandscapeEdMode->UISettings;
-	
-	const bool bIsWorldPartition = World->GetSubsystem<ULandscapeSubsystem>()->IsGridBased();
-	const bool bLandscapeLargerThanRegion = static_cast<int32>(UISettings->WorldPartitionRegionSize) < UISettings->NewLandscape_ComponentCount.X || static_cast<int32>(UISettings->WorldPartitionRegionSize) < UISettings->NewLandscape_ComponentCount.Y;
-	const bool bNeedsLandscapeRegions =  bIsWorldPartition && bLandscapeLargerThanRegion;
+		ULandscapeEditorObject* UISettings = LandscapeEdMode->UISettings;
+		const int32 ComponentCountX = UISettings->NewLandscape_ComponentCount.X;
+		const int32 ComponentCountY = UISettings->NewLandscape_ComponentCount.Y;
+		const int32 QuadsPerComponent = UISettings->NewLandscape_SectionsPerComponent * UISettings->NewLandscape_QuadsPerSection;
+		const int32 SizeX = ComponentCountX * QuadsPerComponent + 1;
+		const int32 SizeY = ComponentCountY * QuadsPerComponent + 1;
 
-	// If we need to ensure the map is saved before proceeding to create a landscape with regions 
-	if (bIsTempPackage && bNeedsLandscapeRegions)
-	{
-		FString NewMapPackageName;
-		if (!FEditorFileUtils::SaveCurrentLevel())
+		TArray<FLandscapeImportLayerInfo> MaterialImportLayers;
+		ELandscapeImportResult LayerImportResult = LandscapeEdMode->NewLandscapePreviewMode == ENewLandscapePreviewMode::NewLandscape ? UISettings->CreateNewLayersInfo(MaterialImportLayers) : UISettings->CreateImportLayersInfo(MaterialImportLayers);
+
+		if (LayerImportResult == ELandscapeImportResult::Error)
 		{
-			UE_LOG(LogLandscapeTools, Error, TEXT("Unable to save current level"));
 			return FReply::Handled();
 		}
-	}
 
-	const int32 QuadsPerSection = UISettings->NewLandscape_QuadsPerSection;
-	
-	const FIntPoint TotalLandscapeComponentSize { UISettings->NewLandscape_ComponentCount.X, UISettings->NewLandscape_ComponentCount.Y };
+		TMap<FGuid, TArray<uint16>> HeightDataPerLayers;
+		TMap<FGuid, TArray<FLandscapeImportLayerInfo>> MaterialLayerDataPerLayers;
 
-	const int32 ComponentCountX = bNeedsLandscapeRegions ? UISettings->WorldPartitionRegionSize : TotalLandscapeComponentSize.X;
-	const int32 ComponentCountY = bNeedsLandscapeRegions ? UISettings->WorldPartitionRegionSize : TotalLandscapeComponentSize.Y;
-	const int32 QuadsPerComponent = UISettings->NewLandscape_SectionsPerComponent * QuadsPerSection;
-	const int32 SizeX = ComponentCountX * QuadsPerComponent + 1;
-	const int32 SizeY = ComponentCountY * QuadsPerComponent + 1;
-
-	TArray<FLandscapeImportLayerInfo> MaterialImportLayers;
-	ELandscapeImportResult LayerImportResult = bIsNewLandscape  ? UISettings->CreateNewLayersInfo(MaterialImportLayers) : UISettings->CreateImportLayersInfo(MaterialImportLayers);
-
-	if (LayerImportResult == ELandscapeImportResult::Error)
-	{
-		UE_LOG(LogLandscapeTools, Error, TEXT("Unable to import weight maps"));
-		return FReply::Handled();
-	}
-
-	TMap<FGuid, TArray<uint16>> HeightDataPerLayers;
-	TMap<FGuid, TArray<FLandscapeImportLayerInfo>> MaterialLayerDataPerLayers;
-
-	TArray<uint16> OutHeightData;
-	
-	if (bIsNewLandscape || bNeedsLandscapeRegions)
-	{
-		UISettings->InitializeDefaultHeightData(OutHeightData);
-	}
-	else
-	{
-		UISettings->ExpandImportData(OutHeightData, MaterialImportLayers);
-	}
-
-	HeightDataPerLayers.Add(FGuid(), OutHeightData);
-	// ComputeHeightData will also modify/expand material layers data, which is why we create MaterialLayerDataPerLayers after calling ComputeHeightData
-	MaterialLayerDataPerLayers.Add(FGuid(), MoveTemp(MaterialImportLayers));
-
-	FScopedTransaction Transaction(bIsNewLandscape ? LOCTEXT("Undo_CreateLandscape", "Creating New Landscape") : LOCTEXT("Undo_CreateAndImportLandscape", "Creating and Importing New Landscape"));
-
-	const FVector Offset = FTransform(UISettings->NewLandscape_Rotation, FVector::ZeroVector, UISettings->NewLandscape_Scale).TransformVector(FVector(-UISettings->NewLandscape_ComponentCount.X * QuadsPerComponent / 2, -UISettings->NewLandscape_ComponentCount.Y * QuadsPerComponent / 2, 0));
-	
-	ALandscape* Landscape = LandscapeEdMode->GetWorld()->SpawnActor<ALandscape>(UISettings->NewLandscape_Location + Offset, UISettings->NewLandscape_Rotation);
-	Landscape->bCanHaveLayersContent = UISettings->bCanHaveLayersContent;
-	Landscape->LandscapeMaterial = UISettings->NewLandscape_Material.Get();
-	Landscape->SetActorRelativeScale3D(UISettings->NewLandscape_Scale);
-
-	// automatically calculate a lighting LOD that won't crash lightmass (hopefully)
-	// < 2048x2048 -> LOD0
-	// >=2048x2048 -> LOD1
-	// >= 4096x4096 -> LOD2
-	// >= 8192x8192 -> LOD3
-	Landscape->StaticLightingLOD = FMath::DivideAndRoundUp(FMath::CeilLogTwo((SizeX * SizeY) / (2048 * 2048) + 1), (uint32)2);
-
-	FString ReimportHeightmapFilePath;
-	if (LandscapeEdMode->NewLandscapePreviewMode == ENewLandscapePreviewMode::ImportLandscape)
-	{
-		ReimportHeightmapFilePath = UISettings->ImportLandscape_HeightmapFilename;
-	}
-
-	Landscape->Import(FGuid::NewGuid(), 0, 0, SizeX - 1, SizeY - 1, UISettings->NewLandscape_SectionsPerComponent, QuadsPerSection, HeightDataPerLayers, *ReimportHeightmapFilePath, MaterialLayerDataPerLayers, UISettings->ImportLandscape_AlphamapType);
-
-	ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
-	check(LandscapeInfo);
-
-	FActorLabelUtilities::SetActorLabelUnique(Landscape, ALandscape::StaticClass()->GetName());
-
-	LandscapeInfo->UpdateLayerInfoMap(Landscape);
-
-	// Import doesn't fill in the LayerInfo for layers with no data, do that now
-	const TArray<FLandscapeImportLayer>& ImportLandscapeLayersList = UISettings->ImportLandscape_Layers;
-	const ULandscapeSettings* Settings = GetDefault<ULandscapeSettings>();
-	TSoftObjectPtr<ULandscapeLayerInfoObject> DefaultLayerInfoObject = Settings->GetDefaultLayerInfoObject().LoadSynchronous();
-
-	for (int32 i = 0; i < ImportLandscapeLayersList.Num(); i++)
-	{
-		ULandscapeLayerInfoObject* LayerInfo = ImportLandscapeLayersList[i].LayerInfo;
-		FName LayerName = ImportLandscapeLayersList[i].LayerName;
-
-		// If DefaultLayerInfoObject is set and LayerInfo does not exist, we will try to create the new LayerInfo by cloning DefaultLayerInfoObject. Except for VisibilityLayer which doesn't require an asset.
-		if (DefaultLayerInfoObject.IsValid() && (LayerInfo == nullptr) && (LayerName != ALandscapeProxy::VisibilityLayer->LayerName))
+		TArray<uint16> OutHeightData;
+		if (LandscapeEdMode->NewLandscapePreviewMode == ENewLandscapePreviewMode::NewLandscape)
 		{
-			LayerInfo = Landscape->CreateLayerInfo(*LayerName.ToString(), DefaultLayerInfoObject.Get());
-
-			if (LayerInfo != nullptr)
-			{
-				LayerInfo->LayerUsageDebugColor = LayerInfo->GenerateLayerUsageDebugColor();
-				LayerInfo->MarkPackageDirty();
-			}
+			UISettings->InitializeDefaultHeightData(OutHeightData);
+		}
+		else
+		{
+			UISettings->ExpandImportData(OutHeightData, MaterialImportLayers);
 		}
 
-		if (LayerInfo != nullptr)
+		HeightDataPerLayers.Add(FGuid(), OutHeightData);
+		// ComputeHeightData will also modify/expand material layers data, which is why we create MaterialLayerDataPerLayers after calling ComputeHeightData
+		MaterialLayerDataPerLayers.Add(FGuid(), MoveTemp(MaterialImportLayers));
+
+		FScopedTransaction Transaction(LOCTEXT("Undo", "Creating New Landscape"));
+
+		const FVector Offset = FTransform(UISettings->NewLandscape_Rotation, FVector::ZeroVector, UISettings->NewLandscape_Scale).TransformVector(FVector(-ComponentCountX * QuadsPerComponent / 2, -ComponentCountY * QuadsPerComponent / 2, 0));
+		
+		ALandscape* Landscape = LandscapeEdMode->GetWorld()->SpawnActor<ALandscape>(UISettings->NewLandscape_Location + Offset, UISettings->NewLandscape_Rotation);
+		Landscape->bCanHaveLayersContent = UISettings->bCanHaveLayersContent;
+		Landscape->LandscapeMaterial = UISettings->NewLandscape_Material.Get();
+		Landscape->SetActorRelativeScale3D(UISettings->NewLandscape_Scale);
+
+		// automatically calculate a lighting LOD that won't crash lightmass (hopefully)
+		// < 2048x2048 -> LOD0
+		// >=2048x2048 -> LOD1
+		// >= 4096x4096 -> LOD2
+		// >= 8192x8192 -> LOD3
+		Landscape->StaticLightingLOD = FMath::DivideAndRoundUp(FMath::CeilLogTwo((SizeX * SizeY) / (2048 * 2048) + 1), (uint32)2);
+
+		FString ReimportHeightmapFilePath;
+		if (LandscapeEdMode->NewLandscapePreviewMode == ENewLandscapePreviewMode::ImportLandscape)
 		{
-			if (LandscapeEdMode->NewLandscapePreviewMode == ENewLandscapePreviewMode::ImportLandscape)
-			{
-				Landscape->EditorLayerSettings.Add(FLandscapeEditorLayerSettings(LayerInfo, ImportLandscapeLayersList[i].SourceFilePath));
-			}
-			else
-			{
-				Landscape->EditorLayerSettings.Add(FLandscapeEditorLayerSettings(LayerInfo));
-			}
-
-			int32 LayerInfoIndex = LandscapeInfo->GetLayerInfoIndex(ImportLandscapeLayersList[i].LayerName);
-			if (ensure(LayerInfoIndex != INDEX_NONE))
-			{
-				FLandscapeInfoLayerSettings& LayerSettings = LandscapeInfo->Layers[LayerInfoIndex];
-				LayerSettings.LayerInfoObj = LayerInfo;
-			}
-		}
-	}
-
-	LandscapeEdMode->UpdateLandscapeList();
-	LandscapeEdMode->SetLandscapeInfo(LandscapeInfo);
-	LandscapeEdMode->CurrentToolTarget.TargetType = ELandscapeToolTargetType::Heightmap;
-	LandscapeEdMode->SetCurrentTargetLayer(NAME_None, nullptr);
-	LandscapeEdMode->SetCurrentTool("Select"); // change tool so switching back to the manage mode doesn't give "New Landscape" again
-	LandscapeEdMode->SetCurrentTool("Sculpt"); // change to sculpting mode and tool
-	LandscapeEdMode->SetCurrentLayer(0);
-
-	World->GetSubsystem<ULandscapeSubsystem>()->ChangeGridSize(LandscapeInfo, UISettings->WorldPartitionGridSize);
-
-	if (LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid())
-	{
-		ALandscapeProxy* LandscapeProxy = LandscapeEdMode->CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
-		LandscapeProxy->OnMaterialChangedDelegate().AddRaw(LandscapeEdMode, &FEdModeLandscape::OnLandscapeMaterialChangedDelegate);
-	}
-
-	UWorldPartition* WorldPartition = World->GetWorldPartition();
-	ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>();
-	ALandscapeProxy* LandscapeProxy = LandscapeEdMode->CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
-	
-	if (bNeedsLandscapeRegions)
-	{
-		ULevel* Level = LandscapeProxy->GetLevel();
-		UPackage* LevelPackage = Level->GetPackage();
-
-		TArray<FIntPoint> NewComponents;
-		NewComponents.Empty(TotalLandscapeComponentSize.X * TotalLandscapeComponentSize.Y);
-		for (int32 Y = 0; Y < TotalLandscapeComponentSize.Y; Y++)
-		{
-			for (int32 X = 0; X < TotalLandscapeComponentSize.X; X++)
-			{
-				NewComponents.Add(FIntPoint(X, Y));
-			}
+			ReimportHeightmapFilePath = UISettings->ImportLandscape_HeightmapFilename;
 		}
 
-		int32 NumRegions = FMath::DivideAndRoundUp(TotalLandscapeComponentSize.X, static_cast<int32>(UISettings->WorldPartitionRegionSize)) * FMath::DivideAndRoundUp(TotalLandscapeComponentSize.Y, static_cast<int32>(UISettings->WorldPartitionRegionSize));
+		Landscape->Import(FGuid::NewGuid(), 0, 0, SizeX - 1, SizeY - 1, UISettings->NewLandscape_SectionsPerComponent, UISettings->NewLandscape_QuadsPerSection, HeightDataPerLayers, *ReimportHeightmapFilePath, MaterialLayerDataPerLayers, UISettings->ImportLandscape_AlphamapType);
 
+		ULandscapeInfo* LandscapeInfo = Landscape->GetLandscapeInfo();
+		check(LandscapeInfo);
 
-		FScopedSlowTask Progress(NumRegions, LOCTEXT("CreateLandscapeRegions", "Creating Landscape Editor Regions..."));
-		Progress.MakeDialog();
+		FActorLabelUtilities::SetActorLabelUnique(Landscape, ALandscape::StaticClass()->GetName());
 
-		TArray<ALocationVolume*> RegionVolumes;
-		FBox LandscapeBounds;
-		auto AddComponentsToRegion = [&Progress, NumRegions, bIsNewLandscape, LandscapeEdMode, WorldPartition, World, LandscapeProxy, &UISettings, QuadsPerSection, LandscapeInfo, LandscapeSubsystem, &RegionVolumes, &LandscapeBounds,&MaterialLayerDataPerLayers](const FIntPoint& RegionCoordinate, const TArray<FIntPoint>& NewComponents)
+		LandscapeInfo->UpdateLayerInfoMap(Landscape);
+
+		// Import doesn't fill in the LayerInfo for layers with no data, do that now
+		const TArray<FLandscapeImportLayer>& ImportLandscapeLayersList = UISettings->ImportLandscape_Layers;
+		const ULandscapeSettings* Settings = GetDefault<ULandscapeSettings>();
+		TSoftObjectPtr<ULandscapeLayerInfoObject> DefaultLayerInfoObject = Settings->GetDefaultLayerInfoObject().LoadSynchronous();
+
+		for (int32 i = 0; i < ImportLandscapeLayersList.Num(); i++)
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(AddComponentsToRegion);
-						
-			// Create a LocationVolume around the region 
-			int32 RegionSizeXTexels = QuadsPerSection * UISettings->WorldPartitionRegionSize;
-			int32 RegionSizeYTexels = QuadsPerSection * UISettings->WorldPartitionRegionSize;
+			ULandscapeLayerInfoObject* LayerInfo = ImportLandscapeLayersList[i].LayerInfo;
+			FName LayerName = ImportLandscapeLayersList[i].LayerName;
 
-			double RegionSizeX = QuadsPerSection * LandscapeProxy->GetActorScale3D().X * UISettings->WorldPartitionRegionSize;
-			double RegionSizeY = QuadsPerSection * LandscapeProxy->GetActorScale3D().Y * UISettings->WorldPartitionRegionSize;
-			ALocationVolume* RegionVolume = LandscapeRegionUtils::CreateLandscapeRegionVolume(World, LandscapeProxy, RegionCoordinate, RegionSizeX);
-			RegionVolumes.Add(RegionVolume);
-			
-			TArray<ALandscapeProxy*> CreatedStreamingProxies;
-			AddComponents(LandscapeInfo, LandscapeSubsystem, NewComponents, CreatedStreamingProxies);
-			
-			FIntRect ImportRegion (RegionSizeXTexels * RegionCoordinate.X, RegionSizeYTexels* RegionCoordinate.Y, RegionSizeXTexels * (RegionCoordinate.X +1) + 1  , RegionSizeYTexels * (RegionCoordinate.Y +1) +1 );
-			FIntPoint ImportOffset(0, 0);
-
-			if (!bIsNewLandscape && !UISettings->ImportLandscape_HeightmapFilename.IsEmpty())
+			// If DefaultLayerInfoObject is set and LayerInfo does not exist, we will try to create the new LayerInfo by cloning DefaultLayerInfoObject. Except for VisibilityLayer which doesn't require an asset.
+			if (DefaultLayerInfoObject.IsValid() && (LayerInfo == nullptr) && (LayerName != ALandscapeProxy::VisibilityLayer->LayerName))
 			{
-				LandscapeEdMode->ImportHeightData(LandscapeInfo, LandscapeEdMode->GetCurrentLayerGuid(), UISettings->ImportLandscape_HeightmapFilename, ImportRegion, ELandscapeImportTransformType::Subregion, ImportOffset, ELandscapeLayerPaintingRestriction::None, LandscapeEdMode->UISettings->bFlipYAxis);
+				LayerInfo = Landscape->CreateLayerInfo(*LayerName.ToString(), DefaultLayerInfoObject.Get());
 
-				TArray<FLandscapeImportLayerInfo>& Weights = *MaterialLayerDataPerLayers.Find(FGuid());
-
-				for (const TPair<FGuid, TArray<FLandscapeImportLayerInfo>>& Layer : MaterialLayerDataPerLayers)
+				if (LayerInfo != nullptr)
 				{
-					for (const FLandscapeImportLayerInfo& WeightMap : Layer.Value)
-					{						
-						LandscapeEdMode->ImportWeightData(LandscapeInfo, LandscapeEdMode->GetCurrentLayerGuid(), WeightMap.LayerInfo, WeightMap.SourceFilePath, ImportRegion, ELandscapeImportTransformType::Subregion, ImportOffset, ELandscapeLayerPaintingRestriction::None, LandscapeEdMode->UISettings->bFlipYAxis);
-					}
+					LayerInfo->LayerUsageDebugColor = LayerInfo->GenerateLayerUsageDebugColor();
+					LayerInfo->MarkPackageDirty();
 				}
 			}
 
-			// ensures all the final height textures have been updated.
-			LandscapeInfo->ForceLayersFullUpdate();
-			LandscapeEditorUtils::SaveLandscapeProxies(MakeArrayView(CreatedStreamingProxies), WorldPartition);
-			LandscapeBounds += LandscapeInfo->GetCompleteBounds();
+			if (LayerInfo != nullptr)
+			{
+				if (LandscapeEdMode->NewLandscapePreviewMode == ENewLandscapePreviewMode::ImportLandscape)
+				{
+					Landscape->EditorLayerSettings.Add(FLandscapeEditorLayerSettings(LayerInfo, ImportLandscapeLayersList[i].SourceFilePath));
+				}
+				else
+				{
+					Landscape->EditorLayerSettings.Add(FLandscapeEditorLayerSettings(LayerInfo));
+				}
 
-			Progress.EnterProgressFrame(1.0f , FText::Format(LOCTEXT("LandscapeCreateRegion", "Creating Landscape Editor Regions ({0}, {1})"), RegionCoordinate.X, RegionCoordinate.Y));
-			return true;
-		};
-
-		LandscapeEditorUtils::SaveObjects(TArrayView<ALandscape*>(TArray<ALandscape*> { LandscapeInfo->LandscapeActor.Get() }));
-
-		LandscapeRegionUtils::ForEachComponentByRegion(UISettings->WorldPartitionRegionSize, NewComponents, AddComponentsToRegion);
-
-		// update the zcomponent of the volumes 
-		const float ZScale =  LandscapeBounds.Max.Z - LandscapeBounds.Min.Z;
-		for (ALocationVolume* RegionVolume : RegionVolumes)
-		{
-			const FVector Scale = RegionVolume->GetActorScale();
-			const FVector NewScale{ Scale.X, Scale.Y, 1000000.0f}; //ZScale * 10.0 
-			RegionVolume->SetActorScale3D(NewScale);
+				int32 LayerInfoIndex = LandscapeInfo->GetLayerInfoIndex(ImportLandscapeLayersList[i].LayerName);
+				if (ensure(LayerInfoIndex != INDEX_NONE))
+				{
+					FLandscapeInfoLayerSettings& LayerSettings = LandscapeInfo->Layers[LayerInfoIndex];
+					LayerSettings.LayerInfoObj = LayerInfo;
+				}
+			}
 		}
 
-		LandscapeEditorUtils::SaveObjects(MakeArrayView(RegionVolumes));
+		LandscapeEdMode->UpdateLandscapeList();
+		LandscapeEdMode->SetLandscapeInfo(LandscapeInfo);
+		LandscapeEdMode->CurrentToolTarget.TargetType = ELandscapeToolTargetType::Heightmap;
+		LandscapeEdMode->SetCurrentTargetLayer(NAME_None, nullptr);
+		LandscapeEdMode->SetCurrentTool("Select"); // change tool so switching back to the manage mode doesn't give "New Landscape" again
+		LandscapeEdMode->SetCurrentTool("Sculpt"); // change to sculpting mode and tool
+		LandscapeEdMode->SetCurrentLayer(0);
 
-		TArray<ALandscapeProxy*> AllProxies;
-		
-		// save the initial region & unload it
-		LandscapeInfo->ForEachLandscapeProxy([&WorldPartition, &AllProxies](ALandscapeProxy* Proxy) {
-			if (Proxy->IsA<ALandscapeStreamingProxy>())
-			{		
-				AllProxies.Add(Proxy);
-				
-			}
-			return true;
-		});
+		LandscapeEdMode->GetWorld()->GetSubsystem<ULandscapeSubsystem>()->ChangeGridSize(LandscapeInfo, UISettings->WorldPartitionGridSize);
 
-		LandscapeEditorUtils::SaveLandscapeProxies(MakeArrayView(AllProxies), WorldPartition);
+		if (LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid())
+		{
+			ALandscapeProxy* LandscapeProxy = LandscapeEdMode->CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
+			LandscapeProxy->OnMaterialChangedDelegate().AddRaw(LandscapeEdMode, &FEdModeLandscape::OnLandscapeMaterialChangedDelegate);
+		}
 	}
 
 	return FReply::Handled();
@@ -1309,7 +1059,8 @@ bool FLandscapeEditorDetailCustomization_NewLandscape::GetImportButtonIsEnabled(
 	if (LandscapeEdMode != nullptr)
 	{
 		if (LandscapeEdMode->UISettings->ImportLandscape_HeightmapImportResult == ELandscapeImportResult::Error ||
-			LandscapeEdMode->UISettings->ImportLandscape_HeightmapFilename.IsEmpty()) 
+			LandscapeEdMode->UISettings->ImportLandscape_HeightmapFilename.IsEmpty() ||
+			LandscapeEdMode->UISettings->GetImportLandscapeData().IsEmpty())
 		{
 			return false;
 		}
@@ -1396,15 +1147,28 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnImportHeightmapFilena
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	check(LandscapeEdMode != nullptr);
 
-	ILandscapeEditorModule& LandscapeEditorModule = FModuleManager::GetModuleChecked<ILandscapeEditorModule>("LandscapeEditor");
-	const FString FileTypes = LandscapeEditorModule.GetHeightmapImportDialogTypeString();
-
-	TOptional<FString> OptionalFilename = LandscapeEditorUtils::GetImportExportFilename(NSLOCTEXT("UnrealEd", "Import", "Import").ToString(), LandscapeEdMode->UISettings->LastImportPath, FileTypes);
-	if (OptionalFilename.IsSet())
+	// Prompt the user for the Filenames
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	if (DesktopPlatform != nullptr)
 	{
-		const FString& Filename = OptionalFilename.GetValue();
-		ensure(PropertyHandle_HeightmapFilename->SetValue(Filename) == FPropertyAccess::Success);
-		LandscapeEdMode->UISettings->LastImportPath = FPaths::GetPath(Filename);
+		ILandscapeEditorModule& LandscapeEditorModule = FModuleManager::GetModuleChecked<ILandscapeEditorModule>("LandscapeEditor");
+		const TCHAR* FileTypes = LandscapeEditorModule.GetHeightmapImportDialogTypeString();
+
+		TArray<FString> OpenFilenames;
+		bool bOpened = DesktopPlatform->OpenFileDialog(
+			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
+			NSLOCTEXT("UnrealEd", "Import", "Import").ToString(),
+			LandscapeEdMode->UISettings->LastImportPath,
+			TEXT(""),
+			FileTypes,
+			EFileDialogFlags::None,
+			OpenFilenames);
+
+		if (bOpened)
+		{
+			ensure(PropertyHandle_HeightmapFilename->SetValue(OpenFilenames[0]) == FPropertyAccess::Success);
+			LandscapeEdMode->UISettings->LastImportPath = FPaths::GetPath(OpenFilenames[0]);
+		}
 	}
 
 	return FReply::Handled();

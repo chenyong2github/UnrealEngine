@@ -32,6 +32,7 @@ struct LANDSCAPE_API FLandscapeConfig
 		, SubsectionSizeQuads(InSubsectionSizeQuads)
 		, GridSizeInComponents(InGridSizeInComponents)
 	{
+
 	}
 
 	FLandscapeConfig(ULandscapeInfo* InLandscapeInfo);
@@ -127,32 +128,6 @@ public:
 			for (int32 X = -OffsetX + SrcWidth; X < DestWidth; ++X)
 			{
 				OutData[Y * DestWidth + X] = PadRight;
-			}
-		}
-	}
-
-	template<typename T>
-	static void CopySubregion(const TArrayView<T>& InData, TArray<T>& OutData, const FIntRect& InSrcRegion, uint32 InSrcDataPitch)
-	{
-		check(InData.Size() >= InSrcRegion.Area());
-
-		const int32 SrcWidth = InSrcRegion.Width();
-		const int32 SrcHeight = InSrcRegion.Height();
-		
-		OutData.Empty(SrcWidth * SrcHeight);
-		OutData.AddUninitialized(SrcWidth * SrcHeight);
-
-		for (int32 Y = 0; Y < SrcHeight; ++Y)
-		{
-			for (int32 X = 0; X < SrcWidth; ++X)
-			{
-				const int32 SrcX = X + InSrcRegion.Min.X;
-				const int32 SrcY = Y + InSrcRegion.Min.Y;
-
-				const int32 SrcIndex = SrcX + SrcY * InSrcDataPitch;
-				const int32 DstIndex = X + Y * InSrcRegion.Width();
-
-				OutData[DstIndex] = InData[SrcIndex];
 			}
 		}
 	}

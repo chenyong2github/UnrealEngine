@@ -15,7 +15,6 @@ using ILandscapeHeightmapFileFormat = ILandscapeFileFormat<uint16>;
 using ILandscapeWeightmapFileFormat = ILandscapeFileFormat<uint8>;
 
 class FUICommandList;
-class FLandscapeImageFileCache;
 
 /**
  * LandscapeEditor module interface
@@ -52,8 +51,4 @@ public:
 	}
 
 	virtual TSharedPtr<FUICommandList> GetLandscapeLevelViewportCommandList() const = 0;
-
-	virtual FLandscapeImageFileCache& GetImageFileCache() const = 0;
-
-
 };

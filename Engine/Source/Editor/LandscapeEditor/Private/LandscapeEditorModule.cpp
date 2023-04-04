@@ -20,7 +20,6 @@
 #include "LandscapeFileFormatRaw.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "LandscapeEditorServices.h"
-#include "LandscapeImageFileCache.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "PropertyEditorModule.h"
@@ -162,8 +161,6 @@ public:
 		ILandscapeModule& LandscapeModule = FModuleManager::GetModuleChecked<ILandscapeModule>("Landscape");
 		LandscapeEditorServices.Reset(new FLandscapeEditorServices);
 		LandscapeModule.SetLandscapeEditorServices(LandscapeEditorServices.Get());
-
-		LandscapeImageFileCache.Reset(new FLandscapeImageFileCache());
 	}
 
 	/**
@@ -201,7 +198,6 @@ public:
 			LandscapeModule.SetLandscapeEditorServices(nullptr);
 		}
 		LandscapeEditorServices.Reset();
-		LandscapeImageFileCache.Reset();
 	}
 
 	static void ConstructLandscapeViewportMenu(FMenuBuilder& MenuBuilder)
@@ -375,8 +371,6 @@ public:
 
 	virtual TSharedPtr<FUICommandList> GetLandscapeLevelViewportCommandList() const override;
 
-	FLandscapeImageFileCache& GetImageFileCache() const override;
-
 protected:
 	TSharedPtr<FExtender> ViewportMenuExtender;
 	TSharedPtr<FUICommandList> GlobalUICommandList;
@@ -387,7 +381,6 @@ protected:
 	mutable FString HeightmapExportDialogTypeString;
 	mutable FString WeightmapExportDialogTypeString;
 	TUniquePtr<ILandscapeEditorServices> LandscapeEditorServices;
-	TUniquePtr<FLandscapeImageFileCache> LandscapeImageFileCache;
 };
 
 IMPLEMENT_MODULE(FLandscapeEditorModule, LandscapeEditor);
@@ -555,12 +548,5 @@ TSharedPtr<FUICommandList> FLandscapeEditorModule::GetLandscapeLevelViewportComm
 {
 	return GlobalUICommandList;
 }
-
-FLandscapeImageFileCache& FLandscapeEditorModule::GetImageFileCache() const
-{
-	check(LandscapeImageFileCache != nullptr);
-	return *LandscapeImageFileCache;
-}
-
 
 #undef LOCTEXT_NAMESPACE

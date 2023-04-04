@@ -13,80 +13,37 @@
 #include "Misc/FileHelper.h"
 #include "Templates/UnrealTemplate.h"
 
-#include "Serialization/JsonReader.h"
-#include "Serialization/JsonWriter.h"
-#include "Serialization/JsonSerializer.h"
-
 #define LOCTEXT_NAMESPACE "LandscapeEditor.NewLandscape"
 
-namespace
+TArray<FLandscapeFileResolution> CalculatePossibleRawResolutions(int64 FileSize)
 {
-	void WriteMetaData(const TCHAR* InMapFilename, FLandscapeFileResolution InDataResolution, int32 InBitsPerPixel)
-	{
-		FString RawMetadataFilename = FPaths::SetExtension(InMapFilename, ".json");
-		FString JsonStr;
-		
-		TSharedRef<TJsonWriter<TCHAR>> JsonWriter = TJsonWriterFactory<TCHAR>::Create(&JsonStr);
-		TSharedRef<FJsonObject> JsonObject = MakeShareable(new FJsonObject);;
-		JsonObject->SetField("width", MakeShared<FJsonValueNumber>(InDataResolution.Width));
-		JsonObject->SetField("height", MakeShared<FJsonValueNumber>(InDataResolution.Height));
-		JsonObject->SetField("bpp", MakeShared<FJsonValueNumber>(InBitsPerPixel));
+	TArray<FLandscapeFileResolution> PossibleResolutions;
 
-		if (FJsonSerializer::Serialize<TCHAR>(JsonObject, JsonWriter))
+	// Find all possible heightmap sizes, between 8 and 8192 width/height
+	const int32 MinWidth = FMath::Max(8, (int32)FMath::DivideAndRoundUp(FileSize, (int64)8192));
+	const int32 MaxWidth = FMath::TruncToInt(FMath::Sqrt(static_cast<double>(FileSize)));
+	for (int32 Width = MinWidth; Width <= MaxWidth; Width++)
+	{
+		if (FileSize % Width == 0)
 		{
-			FFileHelper::SaveStringToFile(JsonStr, *RawMetadataFilename);
+			FLandscapeFileResolution ImportResolution;
+			ImportResolution.Width = Width;
+			ImportResolution.Height = FileSize / Width;
+			PossibleResolutions.Add(ImportResolution);
 		}
 	}
-}
 
-bool GetRawResolution(const TCHAR* InFilename, FLandscapeFileResolution& OutResolution, int32& OutBitsPerPixel)
-{
-	FString Extension = FPaths::GetExtension(InFilename);
-	FString RawMetadataFilename = FPaths::SetExtension(InFilename, ".json");
-	
-	if (FPaths::FileExists(RawMetadataFilename))
+	for (int32 i = PossibleResolutions.Num() - 1; i >= 0; --i)
 	{
-		FString JsonStr;
-		FFileHelper::LoadFileToString(JsonStr, *RawMetadataFilename);
-		TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(JsonStr);
-		TSharedPtr<FJsonObject> JsonObject;
-		if (FJsonSerializer::Deserialize(JsonReader, JsonObject))
+		FLandscapeFileResolution ImportResolution = PossibleResolutions[i];
+		if (ImportResolution.Width != ImportResolution.Height)
 		{
-			OutResolution.Width = JsonObject->GetIntegerField("width");
-			OutResolution.Height = JsonObject->GetIntegerField("height");
-
-			OutBitsPerPixel = JsonObject->GetIntegerField("bpp");
-			
-			return true;
+			Swap(ImportResolution.Width, ImportResolution.Height);
+			PossibleResolutions.Add(ImportResolution);
 		}
-		
-		return false;
 	}
 
-	const bool bIs16Bit = Extension == FString("r16");
-	const bool bIs8Bit = Extension == FString("r8");
-
-	if (!(bIs16Bit || bIs8Bit))
-	{
-		return false;
-	}
-
-	const int32 BytesPerPixel = bIs16Bit ? 2 : 1;
-	int64 FileSize = IFileManager::Get().FileSize(InFilename);
-	
-	const int32 NumPixels = FileSize / BytesPerPixel;
-	int32 Dimension = FMath::TruncToInt(FMath::Sqrt(static_cast<double>(NumPixels)));
-	if (Dimension * Dimension == NumPixels)
-	{
-		OutResolution.Width = Dimension;
-		OutResolution.Height = Dimension;
-
-		OutBitsPerPixel = BytesPerPixel * 8;
-
-		return true;
-	}
-
-	return false;
+	return PossibleResolutions;
 }
 
 FLandscapeHeightmapFileFormat_Raw::FLandscapeHeightmapFileFormat_Raw()
@@ -115,22 +72,9 @@ FLandscapeFileInfo FLandscapeHeightmapFileFormat_Raw::Validate(const TCHAR* Heig
 	}
 	else
 	{
-		FLandscapeFileResolution Resolution;
-		int32 BitsPerPixel;
-		if (GetRawResolution(HeightmapFilename, Resolution, BitsPerPixel))
-		{
-			if (BitsPerPixel != 16)
-			{
-				Result.ResultCode = ELandscapeImportResult::Error;
-				Result.ErrorMessage = LOCTEXT("Import_WeightmapFileBitsPerPixel", "Height file has an invalid number of bits per pixel");
-			}
-			else
-			{
-				Result.PossibleResolutions = { Resolution };
-			}
-			
-		}
-		else
+		Result.PossibleResolutions = CalculatePossibleRawResolutions(ImportFileSize / 2);
+
+		if (Result.PossibleResolutions.Num() == 0)
 		{
 			Result.ResultCode = ELandscapeImportResult::Error;
 			Result.ErrorMessage = LOCTEXT("Import_HeightmapFileInvalidSize", "The heightmap file has an invalid size (possibly not 16-bit?)");
@@ -172,15 +116,7 @@ void FLandscapeHeightmapFileFormat_Raw::Export(const TCHAR* HeightmapFilename, F
 	TempData.AddUninitialized(DataResolution.Width * DataResolution.Height * 2);
 	FMemory::Memcpy(TempData.GetData(), Data.GetData(), DataResolution.Width * DataResolution.Height * 2);
 
-	if (FFileHelper::SaveArrayToFile(TempData, HeightmapFilename))
-	{
-		FString Extension = FPaths::GetExtension(HeightmapFilename);
-
-		if (Extension == "raw")
-		{
-			WriteMetaData(HeightmapFilename, DataResolution, 16);
-		}
-	}
+	FFileHelper::SaveArrayToFile(TempData, HeightmapFilename);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -206,22 +142,9 @@ FLandscapeFileInfo FLandscapeWeightmapFileFormat_Raw::Validate(const TCHAR* Weig
 	}
 	else
 	{
-		FLandscapeFileResolution Resolution;
-		int32 BitsPerPixel;
-		if (GetRawResolution(WeightmapFilename, Resolution, BitsPerPixel))
-		{
-			if (BitsPerPixel != 8)
-			{
-				Result.ResultCode = ELandscapeImportResult::Error;
-				Result.ErrorMessage = LOCTEXT("Import_WeightmapFileBitsPerPixel", "Weightmap file has an invalid number of bits per pixel");
-				
-			}
-			else
-			{
-				Result.PossibleResolutions = { Resolution };
-			}
-		}
-		else
+		Result.PossibleResolutions = CalculatePossibleRawResolutions(ImportFileSize);
+
+		if (Result.PossibleResolutions.Num() == 0)
 		{
 			Result.ResultCode = ELandscapeImportResult::Error;
 			Result.ErrorMessage = LOCTEXT("Import_WeightmapFileInvalidSize", "The layer file has an invalid size");
@@ -256,15 +179,7 @@ FLandscapeImportData<uint8> FLandscapeWeightmapFileFormat_Raw::Import(const TCHA
 
 void FLandscapeWeightmapFileFormat_Raw::Export(const TCHAR* WeightmapFilename, FName LayerName, TArrayView<const uint8> Data, FLandscapeFileResolution DataResolution, FVector Scale) const
 {
-	if (FFileHelper::SaveArrayToFile(Data, WeightmapFilename))
-	{
-		FString Extension = FPaths::GetExtension(WeightmapFilename);
-
-		if (Extension == "raw")
-		{
-			WriteMetaData(WeightmapFilename, DataResolution, 8);
-		}
-	}
+	FFileHelper::SaveArrayToFile(Data, WeightmapFilename);
 }
 
 #undef LOCTEXT_NAMESPACE

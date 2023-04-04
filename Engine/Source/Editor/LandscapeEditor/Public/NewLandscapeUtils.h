@@ -18,5 +18,5 @@ public:
 	static void ChooseBestComponentSizeForImport( ULandscapeEditorObject* UISettings );
 	static void ImportLandscapeData( ULandscapeEditorObject* UISettings, TArray< FLandscapeFileResolution >& ImportResolutions );
 	static TOptional< TArray< FLandscapeImportLayerInfo > > CreateImportLayersInfo( ULandscapeEditorObject* UISettings, ENewLandscapePreviewMode NewLandscapePreviewMode );
-	static TArray<uint16> ComputeHeightData( ULandscapeEditorObject* UISettings, TArray< FLandscapeImportLayerInfo >& ImportLayers, ENewLandscapePreviewMode NewLandscapePreviewMode );	
+	static TArray<uint16> ComputeHeightData( ULandscapeEditorObject* UISettings, TArray< FLandscapeImportLayerInfo >& ImportLayers, ENewLandscapePreviewMode NewLandscapePreviewMode );
 };
