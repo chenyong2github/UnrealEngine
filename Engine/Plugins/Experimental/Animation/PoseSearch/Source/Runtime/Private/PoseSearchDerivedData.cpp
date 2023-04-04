@@ -290,47 +290,7 @@ static void InitSearchIndexAssets(FPoseSearchIndexBase& SearchIndex, const UPose
 			const bool bAddUnmirrored = DatabaseAsset->GetMirrorOption() == EPoseSearchMirrorOption::UnmirroredOnly || DatabaseAsset->GetMirrorOption() == EPoseSearchMirrorOption::UnmirroredAndMirrored;
 			const bool bAddMirrored = DatabaseAsset->GetMirrorOption() == EPoseSearchMirrorOption::MirroredOnly || DatabaseAsset->GetMirrorOption() == EPoseSearchMirrorOption::UnmirroredAndMirrored;
 
-			if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseSequence>())
-			{
-				ValidRanges.Reset();
-				FindValidSequenceIntervals(DatabaseSequence->Sequence, DatabaseSequence->SamplingRange, DatabaseSequence->IsLooping(), Database->ExcludeFromDatabaseParameters, ValidRanges);
-				for (const FFloatRange& Range : ValidRanges)
-				{
-					for (int32 PermutationIdx = 0; PermutationIdx < Database->Schema->NumberOfPermutations; ++PermutationIdx)
-					{
-						if (bAddUnmirrored)
-						{
-							SearchIndex.Assets.Emplace(AnimationAssetIndex, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue()), PermutationIdx);
-						}
-
-						if (bAddMirrored)
-						{
-							SearchIndex.Assets.Emplace(AnimationAssetIndex, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue()), PermutationIdx);
-						}
-					}
-				}
-			}
-			else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimComposite>())
-			{
-				ValidRanges.Reset();
-				FindValidSequenceIntervals(DatabaseAnimComposite->AnimComposite, DatabaseAnimComposite->SamplingRange, DatabaseAnimComposite->IsLooping(), Database->ExcludeFromDatabaseParameters, ValidRanges);
-				for (const FFloatRange& Range : ValidRanges)
-				{
-					for (int32 PermutationIdx = 0; PermutationIdx < Database->Schema->NumberOfPermutations; ++PermutationIdx)
-					{
-						if (bAddUnmirrored)
-						{
-							SearchIndex.Assets.Emplace(AnimationAssetIndex, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue()), PermutationIdx);
-						}
-
-						if (bAddMirrored)
-						{
-							SearchIndex.Assets.Emplace(AnimationAssetIndex, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue()), PermutationIdx);
-						}
-					}
-				}
-			}
-			else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseBlendSpace>())
+			if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseBlendSpace>())
 			{
 				int32 HorizontalBlendNum, VerticalBlendNum;
 				DatabaseBlendSpace->GetBlendSpaceParameterSampleRanges(HorizontalBlendNum, VerticalBlendNum);
@@ -363,10 +323,12 @@ static void InitSearchIndexAssets(FPoseSearchIndexBase& SearchIndex, const UPose
 					}
 				}
 			}
-			else if (const FPoseSearchDatabaseAnimMontage* DatabaseAnimMontage = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimMontage>())
+			// support for FPoseSearchDatabaseSequence, FPoseSearchDatabaseAnimComposite, FPoseSearchDatabaseAnimMontage
+			else if (const UAnimSequenceBase* SequenceBase = Cast<UAnimSequenceBase>(DatabaseAsset->GetAnimationAsset()))
 			{
 				ValidRanges.Reset();
-				FindValidSequenceIntervals(DatabaseAnimMontage->AnimMontage, DatabaseAnimMontage->SamplingRange, DatabaseAnimMontage->IsLooping(), Database->ExcludeFromDatabaseParameters, ValidRanges);
+
+				FindValidSequenceIntervals(SequenceBase, DatabaseAsset->GetSamplingRange(), DatabaseAsset->IsLooping(), Database->ExcludeFromDatabaseParameters, ValidRanges);
 				for (const FFloatRange& Range : ValidRanges)
 				{
 					for (int32 PermutationIdx = 0; PermutationIdx < Database->Schema->NumberOfPermutations; ++PermutationIdx)

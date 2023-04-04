@@ -206,32 +206,17 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 						Row->AssetName = DatabaseAsset->GetName();
 						Row->AssetPath = DatabaseAsset->GetAnimationAsset() ? DatabaseAsset->GetAnimationAsset()->GetPathName() : "";
 						Row->bLooping = DatabaseAsset->IsLooping();
-						Row->BlendParameters = FVector::Zero();
+						Row->BlendParameters = SearchIndexAsset->BlendParameters;
 						Row->AnimFrame = 0;
 						Row->AnimPercentage = 0.0f;
 
-						if (const FPoseSearchDatabaseSequence* DatabaseSequence = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseSequence>())
+						if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAssetBase = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimationAssetBase>())
 						{
-							Row->AnimFrame = DatabaseSequence->Sequence->GetFrameAtTime(Time);
-							Row->AnimPercentage = Time / DatabaseSequence->Sequence->GetPlayLength();
-						}
-						else if (const FPoseSearchDatabaseAnimComposite* DatabaseAnimComposite = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimComposite>())
-						{
-							Row->AnimFrame = DatabaseAnimComposite->AnimComposite->GetFrameAtTime(Time);
-							Row->AnimPercentage = Time / DatabaseAnimComposite->AnimComposite->GetPlayLength();
-						}
-						else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseBlendSpace>())
-						{
-							Row->BlendParameters = SearchIndexAsset->BlendParameters;
-						}
-						else if (const FPoseSearchDatabaseAnimMontage* DatabaseAnimMontage = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimMontage>())
-						{
-							Row->AnimFrame = DatabaseAnimMontage->AnimMontage->GetFrameAtTime(Time);
-							Row->AnimPercentage = Time / DatabaseAnimMontage->AnimMontage->GetPlayLength();
-						}
-						else
-						{
-							checkNoEntry();
+							if (const UAnimSequenceBase* SequenceBase = Cast<UAnimSequenceBase>(DatabaseAnimationAssetBase->GetAnimationAsset()))
+							{
+								Row->AnimFrame = SequenceBase->GetFrameAtTime(Time);
+								Row->AnimPercentage = Time / SequenceBase->GetPlayLength();
+							}
 						}
 					}
 				}

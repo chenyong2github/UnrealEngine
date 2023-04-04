@@ -75,6 +75,8 @@ struct POSESEARCH_API FPoseSearchDatabaseAnimationAssetBase
 	virtual void SetIsEnabled(bool bInIsEnabled) {}
 	virtual bool IsRootMotionEnabled() const { return false; }
 	virtual EPoseSearchMirrorOption GetMirrorOption() const { return EPoseSearchMirrorOption::Invalid; }
+	// [0, 0] represents the entire frame range of the original animation.
+	virtual FFloatInterval GetSamplingRange() const { return FFloatInterval(0.f, 0.f); }
 };
 
 /** A sequence entry in a UPoseSearchDatabase. */
@@ -110,6 +112,7 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence : public FPoseSearchDatabaseAn
 	void SetIsEnabled(bool bInIsEnabled) override { bEnabled = bInIsEnabled; }
 	bool IsRootMotionEnabled() const override;
 	EPoseSearchMirrorOption GetMirrorOption() const override { return MirrorOption; }
+	FFloatInterval GetSamplingRange() const override { return SamplingRange; }
 };
 
 /** An blend space entry in a UPoseSearchDatabase. */
@@ -189,6 +192,7 @@ struct POSESEARCH_API FPoseSearchDatabaseAnimComposite : public FPoseSearchDatab
 	void SetIsEnabled(bool bInIsEnabled) override { bEnabled = bInIsEnabled; }
 	bool IsRootMotionEnabled() const override;
 	EPoseSearchMirrorOption GetMirrorOption() const override { return MirrorOption; }
+	FFloatInterval GetSamplingRange() const override { return SamplingRange; }
 };
 
 /** An anim montage entry in a UPoseSearchDatabase. */
@@ -224,6 +228,7 @@ struct POSESEARCH_API FPoseSearchDatabaseAnimMontage : public FPoseSearchDatabas
 	void SetIsEnabled(bool bInIsEnabled) override { bEnabled = bInIsEnabled; }
 	bool IsRootMotionEnabled() const override;
 	EPoseSearchMirrorOption GetMirrorOption() const override { return MirrorOption; }
+	FFloatInterval GetSamplingRange() const override { return SamplingRange; }
 };
 
 /** A data asset for indexing a collection of animation sequences. */
