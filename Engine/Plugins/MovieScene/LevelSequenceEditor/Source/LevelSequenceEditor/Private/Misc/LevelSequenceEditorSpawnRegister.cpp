@@ -4,6 +4,7 @@
 #include "Modules/ModuleManager.h"
 #include "ISequencer.h"
 #include "LevelEditor.h"
+#include "Layers/LayersSubsystem.h"
 #include "EntitySystem/MovieSceneSpawnablesSystem.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "MovieScene.h"
@@ -71,6 +72,11 @@ UObject* FLevelSequenceEditorSpawnRegister::SpawnObject(FMovieSceneSpawnable& Sp
 
 		// Add an entry to the tracked objects map to keep track of this object (so that it can be saved when modified)
 		TrackedObjects.Add(NewActor, FTrackedObjectState(TemplateID, Spawnable.GetGuid()));
+
+		if (ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>())
+		{
+			Layers->InitializeNewActorLayers(NewActor);
+		}
 
 		// Select the actor if we think it should be selected
 		if (SelectedSpawnedObjects.Contains(FMovieSceneSpawnRegisterKey(TemplateID, Spawnable.GetGuid())))
