@@ -355,8 +355,9 @@ void SPacketView::UpdateState()
 								uint32 FilterMatchAggregatedEventSizeInBits = 0U;
 								uint32 FilterMatchMaxEventSizeBits = 0U;
 
+								// Filter all events in packet, including split data
 								const uint32 StartPos = 0;
-								const uint32 EndPos = Packet.ContentSizeInBits;
+								const uint32 EndPos = ~0U;
 								NetProfilerProvider->EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex - 1, StartPos, EndPos, [this, &bFilterMatch, &Filter, NetProfilerProvider, &FilterMatchAggregatedEventSizeInBits,&FilterMatchMaxEventSizeBits,  &FilterMatchEventTypeIndex](const TraceServices::FNetProfilerContentEvent& Event)
 								{
 									bool bEventMatchesFilter = true;

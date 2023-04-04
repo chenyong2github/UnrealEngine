@@ -1044,10 +1044,9 @@ void SPacketContentView::UpdateState(float FontScale)
 			{
 				const FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
 
-				//const int64 StartPos = static_cast<int64>(FMath::FloorToDouble(ViewportX.GetValueAtOffset(0.0f)));
-				//const int64 EndPos = static_cast<int64>(FMath::CeilToDouble(ViewportX.GetValueAtOffset(ViewportX.GetSize())));
-				const uint32 StartPos = 0;
-				const uint32 EndPos = static_cast<uint32>(PacketBitSize);
+				// Count all events in packet, including split data
+				const uint32 StartPos = 0U;
+				const uint32 EndPos = ~0U;
 				NetProfilerProvider->EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex, StartPos, EndPos, [this, &Builder, &FilteredDrawStateBuilder, NetProfilerProvider](const TraceServices::FNetProfilerContentEvent& Event)
 				{
 					const TCHAR* Name = nullptr;
