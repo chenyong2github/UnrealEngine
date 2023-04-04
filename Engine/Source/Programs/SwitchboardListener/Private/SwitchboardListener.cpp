@@ -3,6 +3,7 @@
 #include "SwitchboardListener.h"
 
 #include "CpuUtilizationMonitor.h"
+#include "SBLHelperClient.h"
 #include "SwitchboardListenerApp.h"
 #include "SwitchboardMessageFuture.h"
 #include "SwitchboardPacket.h"
@@ -107,6 +108,7 @@ struct FRunningProcess
 
 	std::atomic<bool> bPendingKill = false;
 	bool bUpdateClientsWithStdout = false;
+	bool bLockGpuClock = false;
 
 	bool CreatePipes()
 	{
@@ -217,6 +219,7 @@ FSwitchboardListener::FSwitchboardListener(const FSwitchboardCommandLineOptions&
 	: Options(InOptions)
 	, SocketListener(nullptr)
 	, CpuMonitor(MakeShared<FCpuUtilizationMonitor>())
+	, SBLHelper(MakeShared<FSBLHelperClient>())
 	, bIsNvAPIInitialized(false)
 	, CachedMosaicToposLock(MakeShared<FRWLock>())
 	, CachedMosaicTopos(MakeShared<TArray<FMosaicTopo>>())
@@ -378,6 +381,7 @@ bool FSwitchboardListener::Tick()
 	HandleRunningProcesses(RunningProcesses, true);
 	HandleRunningProcesses(FlipModeMonitors, false);
 	SendMessageFutures();
+	SBLHelper->Tick();
 
 	if (IsEngineExitRequested())
 	{
@@ -646,6 +650,7 @@ bool FSwitchboardListener::Task_StartProcess(const FSwitchboardStartTask& InRunT
 	NewProcess->Name = InRunTask.Name;
 	NewProcess->Caller = InRunTask.Caller;
 	NewProcess->bUpdateClientsWithStdout = InRunTask.bUpdateClientsWithStdout;
+	NewProcess->bLockGpuClock = InRunTask.bLockGpuClock;
 	NewProcess->UUID = InRunTask.TaskID; // Process ID is the same as the message ID.
 	NewProcess->PID = 0; // default value
 
@@ -698,6 +703,55 @@ bool FSwitchboardListener::Task_StartProcess(const FSwitchboardStartTask& InRunT
 		);
 
 		return false;
+	}
+
+	// Lock Gpu Clocks for the lifetime of this PID, if requested
+	if (InRunTask.bLockGpuClock && SBLHelper.IsValid())
+	{
+		// Try to connect to the SBLHelper server if we haven't already
+		if (!SBLHelper->IsConnected())
+		{
+			FSBLHelperClient::FConnectionParams ConnectionParams;
+
+			uint16 Port = 8010; // Default tcp port
+
+			// Apply command line port number override, if present
+			{
+				static uint16 CmdLinePortOverride = 0;
+				static bool bCmdLinePortOverrideParsed = false;
+				static bool bCmdLinePortOverrideValid = false;
+
+				if (!bCmdLinePortOverrideParsed)
+				{
+					bCmdLinePortOverrideParsed = true;
+
+					bCmdLinePortOverrideValid = FParse::Value(FCommandLine::Get(), TEXT("sblhport="), CmdLinePortOverride);
+				}
+
+				if (bCmdLinePortOverrideValid)
+				{
+					Port = CmdLinePortOverride;
+				}
+			}
+
+			const FString HostName = FString::Printf(TEXT("localhost:%d"), Port);
+			FIPv4Endpoint::FromHostAndPort(*HostName, ConnectionParams.Endpoint);
+
+			SBLHelper->Connect(ConnectionParams);
+		}
+
+		if (SBLHelper->IsConnected())
+		{
+			const bool bSentMessage = SBLHelper->LockGpuClock(NewProcess->PID);
+
+			if (!bSentMessage)
+			{
+				UE_LOG(LogSwitchboard, Error, TEXT("Failed to send message to SBLHelper server to request gpu clock locking"));
+			}
+
+			// We disconnect right away because launches happen only far and in between.
+			SBLHelper->Disconnect();
+		}
 	}
 
 	UE_LOG(LogSwitchboard, Display, TEXT("Started process %d: %s %s"), NewProcess->PID, *InRunTask.Command, *InRunTask.Arguments);
@@ -1605,6 +1659,7 @@ FRunningProcess* FSwitchboardListener::FindOrStartFlipModeMonitorForUUID(const F
 	// The monitor auto-closes when monitored program closes.
 	MonitorProcess->UUID = Process->UUID;
 	MonitorProcess->bUpdateClientsWithStdout = false;
+	MonitorProcess->bLockGpuClock = false;
 	MonitorProcess->Recipient = InvalidEndpoint;
 	MonitorProcess->Name = TEXT("flipmode_monitor");
 

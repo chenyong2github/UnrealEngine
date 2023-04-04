@@ -29,6 +29,7 @@ struct FSwitchboardFreeListenerBinaryTask;
 
 class FInternetAddr;
 class FSocket;
+class FSBLHelperClient;
 class FTcpListener;
 
 
@@ -163,6 +164,9 @@ private:
 	TArray<TSharedPtr<FRunningProcess>> FlipModeMonitors;
 	TArray<FSwitchboardMessageFuture> MessagesFutures;
 	TSharedPtr<FCpuUtilizationMonitor> CpuMonitor;
+
+	/** Client interface to the Switchboard Listener Helper external process */
+	TSharedPtr<FSBLHelperClient> SBLHelper;
 
 	bool bIsNvAPIInitialized;
 

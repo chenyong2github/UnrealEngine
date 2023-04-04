@@ -176,6 +176,11 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 			UpdateClientsWithStdoutField->TryGetBool(Task->bUpdateClientsWithStdout);
 		}
 
+		if (TSharedPtr<FJsonValue> LockGpuClock = JsonData->TryGetField(TEXT("bLockGpuClock")))
+		{
+			LockGpuClock->TryGetBool(Task->bLockGpuClock);
+		}
+
 		if (TSharedPtr<FJsonValue> PriorityModifierField = JsonData->TryGetField(TEXT("priority_modifier")))
 		{
 			PriorityModifierField->TryGetNumber(Task->PriorityModifier);

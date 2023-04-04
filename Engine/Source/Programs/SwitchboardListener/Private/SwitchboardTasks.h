@@ -108,6 +108,7 @@ struct FSwitchboardStartTask : public FSwitchboardTask
 	FString Caller;
 	FString WorkingDir;
 	bool bUpdateClientsWithStdout = false;
+	bool bLockGpuClock = false;
 	int32 PriorityModifier = 0;
 
 	//~ Begin FSwitchboardTask interface

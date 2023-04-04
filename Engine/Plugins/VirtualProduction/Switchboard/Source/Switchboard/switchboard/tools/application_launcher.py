@@ -16,6 +16,7 @@ class ApplicationLauncher(object):
         self.lock = threading.Lock()
         self.process: Optional[subprocess.Popen] = None
         self.name = name
+        self.requires_elevation = False
 
     def exe_path(self):
         ''' Returns the expected executable path. Extension not included '''
@@ -48,11 +49,11 @@ class ApplicationLauncher(object):
 
             LOGGER.debug(f"Launching '{cmdline}' ...")
 
+            shell = True if self.requires_elevation else False
             creationflags = 0
             if hasattr(subprocess, 'CREATE_NEW_CONSOLE'):
                 creationflags = subprocess.CREATE_NEW_CONSOLE
-
-            subprocess.Popen(cmdline, creationflags=creationflags)
+            subprocess.Popen(cmdline, shell=shell, creationflags=creationflags)
 
         return True
 

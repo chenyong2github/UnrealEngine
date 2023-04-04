@@ -1961,6 +1961,7 @@ class Config(object):
             data = {}
 
         self.init_switchboard_settings()
+        self.init_sblhelper_settings()
         self.init_project_settings(data)
         self.init_unreal_insights(data)
         self.init_muserver(data)
@@ -2041,6 +2042,7 @@ class Config(object):
 
         self.file_path = get_absolute_config_path(file_path)
         self.init_switchboard_settings()
+        self.init_sblhelper_settings()
         self.init_project_settings(
             { 
                 "project_name": self.file_path.stem, 
@@ -2066,13 +2068,26 @@ class Config(object):
     def init_switchboard_settings(self, data={}):
         self.switchboard_settings = {
             "listener_exe": StringSetting(
-                "listener_exe",
-                "Listener Executable Name",
-                 data.get('listener_exe', 'SwitchboardListener')
+                attr_name = "listener_exe",
+                nice_name = "Listener Executable Name",
+                value = data.get('listener_exe', 'SwitchboardListener')
             )
         }
         
         self.LISTENER_EXE = self.switchboard_settings["listener_exe"]
+
+    def init_sblhelper_settings(self, data={}):
+        self.sblhelper_settings = {
+            "sblhelper_exe": StringSetting(
+                attr_name = "sblhelper_exe",
+                nice_name = "Gpu Clocker Executable Name",
+                value = data.get('sblhelper_exe', 'SwitchboardListenerHelper'),
+                tool_tip = "Name of the executable that SwitchboardListener can communicate with to lock Gpu clocks.",
+                show_ui = True if sys.platform in ('win32','linux') else False, # # Gpu Clocker is available in select platforms
+            )
+        }
+        
+        self.SBLHELPER_EXE = self.sblhelper_settings["sblhelper_exe"]
 
     def init_project_settings(self, data={}):
         self.basic_project_settings = {
@@ -2439,6 +2454,7 @@ class Config(object):
         data["content_plugin_filters"] = (
             self.CONTENT_PLUGIN_FILTERS.get_value())
         data["listener_exe"] = self.LISTENER_EXE.get_value()
+        data["sblhelper_exe"] = self.SBLHELPER_EXE.get_value()
 
         self.save_unreal_insights(data)
 
@@ -2671,6 +2687,10 @@ class Config(object):
     def listener_path(self):
         return self.engine_exe_path(
             self.ENGINE_DIR.get_value(), self.LISTENER_EXE.get_value())
+
+    def sblhelper_path(self):
+        return self.engine_exe_path(
+            self.ENGINE_DIR.get_value(), self.SBLHELPER_EXE.get_value())
 
     # todo-dara: find a way to do this directly in the LiveLinkFace plugin code
     def unreal_device_addresses(self):

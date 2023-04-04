@@ -14,6 +14,7 @@ def create_start_process_message(
     *,
 	update_clients_with_stdout: bool = False,
     priority_modifier: int = 0,
+    lock_gpu_clock: bool = False,
 ):
     cmd_id = uuid.uuid4()
     start_cmd = {
@@ -26,6 +27,7 @@ def create_start_process_message(
         'working_dir': working_dir,
         'bUpdateClientsWithStdout': update_clients_with_stdout,
         'priority_modifier': priority_modifier,
+        'bLockGpuClock' : lock_gpu_clock,
     }
 
     message = json.dumps(start_cmd).encode() + b'\x00'

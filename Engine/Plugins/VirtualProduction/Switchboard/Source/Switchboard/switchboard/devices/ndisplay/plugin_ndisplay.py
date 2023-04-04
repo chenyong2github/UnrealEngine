@@ -3,6 +3,7 @@
 import concurrent.futures
 import json
 import os
+import sys
 from pathlib import Path
 import socket
 import struct
@@ -489,6 +490,16 @@ class DevicenDisplay(DeviceUnreal):
             nice_name='Media Profile',
             value='',
             tool_tip=('Adds the selected Media Profile to the command line')
+        ),
+        'lock_gpu_clock': BoolSetting(
+            attr_name="lock_gpu_clock",
+            nice_name="Lock GPU Clock",
+            value=False,
+            tool_tip=(
+                "Hint to lock the GPU clock to its allowed maximum. Requires SwitchboardListenerHelper \n"
+                "to be running on the client machine, otherwise this option will be ignored."
+            ),
+            show_ui = True if sys.platform in ('win32','linux') else False, # Gpu Clocker is available in select platforms
         ),
     }
 

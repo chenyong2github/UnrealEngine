@@ -8,6 +8,7 @@ import os
 import threading
 import time
 import re
+import sys
 from typing import Callable, List, Optional, Set, Union
 
 from pathlib import Path
@@ -37,6 +38,7 @@ from switchboard.settings_dialog import SettingsDialog
 from switchboard.switchboard_logging import ConsoleStream, LOGGER
 from switchboard.tools.insights_launcher import InsightsLauncher
 from switchboard.tools.listener_launcher import ListenerLauncher
+from switchboard.tools.sblhelper_launcher import SBLHelperLauncher
 from switchboard.devices.unreal.plugin_unreal import DeviceUnreal
 from switchboard.devices.unreal.redeploy_dialog import RedeployListenerDialog
 from switchboard.util import collect_logs
@@ -210,6 +212,7 @@ class ProcessMonitor(QtCore.QObject):
         while not self._exiting:
             self._poll_multiuser_status()
             self._dialog.update_locallistener_menuitem()
+            self._dialog.update_localsblhelper_menuitem()
             self._dialog.update_insights_menuitem()
 
             time.sleep(1.0)
@@ -309,8 +312,11 @@ class SwitchboardDialog(QtCore.QObject):
         # Convenience UnrealInsights launcher
         self.init_insights_launcher()
 
-        # Convenience local Switchboard lister launcher
+        # Convenience local Switchboard Listener launcher
         self.init_listener_launcher()
+
+        # Convenience local Switchboard Listener Helper launcher
+        self.init_sblhelper_launcher()
 
         # Convenience Open Logs Folder menu item
         self.register_open_logs_menuitem()
@@ -577,6 +583,13 @@ class SwitchboardDialog(QtCore.QObject):
         '''
         self.locallistener_launcher_menuitem.setEnabled(not self.listener_launcher.is_running())
 
+    def update_localsblhelper_menuitem(self):
+        ''' 
+        Enables/disables the local listener helper launch menu item depending on whether 
+        it is already running or not.
+        '''
+        self.localsblhelper_launcher_menuitem.setEnabled(not self.sblhelper_launcher.is_running())
+
     def update_insights_menuitem(self):
         ''' 
         Enables/disables the UnrealInsights launch menu item depending on whether 
@@ -614,7 +627,7 @@ class SwitchboardDialog(QtCore.QObject):
         self.insights_launcher_menuitem = action
 
     def init_listener_launcher(self):
-        ''' Initializes switcboard listener launcher '''
+        ''' Initializes switchboard listener launcher '''
         self.listener_launcher = ListenerLauncher()
 
         def launch_listener():
@@ -627,6 +640,25 @@ class SwitchboardDialog(QtCore.QObject):
         action.triggered.connect(launch_listener)
 
         self.locallistener_launcher_menuitem = action
+
+    def init_sblhelper_launcher(self):
+        ''' Initializes switchboard listener helper launcher '''
+        self.sblhelper_launcher = SBLHelperLauncher()
+
+        def launch_sblhelper():
+            try:
+                self.sblhelper_launcher.launch()
+            except Exception as e:
+                LOGGER.error(e)
+
+        # Gpu Clocker is available in select platforms
+        if sys.platform in ('win32','linux'):
+            action = self.register_tools_menu_action("&Gpu Clocker")
+            action.triggered.connect(launch_sblhelper)
+        else:
+            action = QWidgetAction(None) # dummy action
+
+        self.localsblhelper_launcher_menuitem = action
 
     def register_open_logs_menuitem(self):
         ''' Registers convenience "Open Logs Folder" menu item '''

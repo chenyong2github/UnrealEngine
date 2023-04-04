@@ -11,6 +11,8 @@ public class SwitchboardListenerTarget : TargetRules
 		LinkType = TargetLinkType.Monolithic;
 		LaunchModuleName = "SwitchboardListener";
 
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
+
 		// This app compiles against Core/CoreUObject, but not the Engine or Editor, so compile out Engine and Editor references from Core/CoreUObject
 		bCompileAgainstCoreUObject = true;
 		bCompileAgainstEngine = false;

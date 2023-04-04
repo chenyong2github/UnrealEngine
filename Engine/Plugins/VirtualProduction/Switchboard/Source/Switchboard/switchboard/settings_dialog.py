@@ -208,6 +208,7 @@ class SettingsDialog(QtCore.QObject):
         settings.ADDRESS.create_ui(form_layout=layout)
         settings.TRANSPORT_PATH.create_ui(form_layout=layout)
         config.LISTENER_EXE.create_ui(form_layout=layout)
+        config.SBLHELPER_EXE.create_ui(form_layout=layout)
 
         return self.ui.switchboard_settings_group
         

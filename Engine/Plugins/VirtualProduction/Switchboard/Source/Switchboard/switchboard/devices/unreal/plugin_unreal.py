@@ -667,6 +667,16 @@ class DeviceUnreal(Device):
             value='',
             tool_tip=('Adds the selected Media Profile to the command line')
         ),
+        'lock_gpu_clock': BoolSetting(
+            attr_name="lock_gpu_clock",
+            nice_name="Lock GPU Clock",
+            value=False,
+            tool_tip=(
+                "Hint to lock the GPU clock to its allowed maximum. Requires SwitchboardListenerHelper \n"
+                "to be running on the client machine, otherwise this option will be ignored."
+            ),
+            show_ui = True if sys.platform in ('win32','linux') else False, # Gpu Clocker is available in select platforms
+        ),
         'use_sync_filters': BoolSetting(
             attr_name='use_sync_filters',
             nice_name='Use Sync Filters',
@@ -2087,13 +2097,17 @@ class DeviceUnreal(Device):
 
         self.last_launch_command.update_value(f'{engine_path} {args}')
 
+        lock_gpu_clock_csetting = self.__class__.csettings.get('lock_gpu_clock', None)
+        lock_gpu_clock = lock_gpu_clock_csetting.get_value() if lock_gpu_clock_csetting else False
+        
         puuid, msg = message_protocol.create_start_process_message(
             prog_path=engine_path,
             prog_args=args,
             prog_name=program_name,
             caller=self.name,
             update_clients_with_stdout=False,
-            priority_modifier=priority_modifier
+            priority_modifier=priority_modifier,
+            lock_gpu_clock=lock_gpu_clock,
         )
 
         self.program_start_queue.add(
