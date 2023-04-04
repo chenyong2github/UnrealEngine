@@ -153,7 +153,20 @@ FString FDataLayerInstanceDesc::GetShortName() const
 
 bool FDataLayerInstanceDesc::SupportsActorFilters() const
 {
-	return bIsPrivate ? bPrivateDataLayerSupportsActorFilter : GetAsset()->SupportsActorFilters();
+	if (bIsPrivate)
+	{
+		return bPrivateDataLayerSupportsActorFilter;
+	}
+
+	if (IsUsingAsset())
+	{
+		if (UDataLayerAsset* DataLayerAsset = GetAsset())
+		{
+			return DataLayerAsset->SupportsActorFilters();
+		}
+	}
+	
+	return false;
 }
 
 FDataLayerInstanceDesc::FDataLayerInstanceDesc()
