@@ -85,7 +85,7 @@ UWorld* FActorTestSpawner::CreateWorld()
 	WorldContext.SetCurrentWorld(Result);
 
 	Result->InitializeActorsForPlay(FURL());
-	Result->CreatePhysicsScene();
+	check(Result->GetPhysicsScene() != nullptr);
 
 	return Result;
 }
