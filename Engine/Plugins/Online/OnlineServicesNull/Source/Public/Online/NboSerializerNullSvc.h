@@ -49,7 +49,7 @@ inline void SerializeToBuffer(FNboSerializeToBuffer& Ar, const TMap<FSchemaAttri
 	for (const TPair<FSchemaAttributeId, FSchemaVariant>& Pair : Map)
 	{
 		Ar << Pair.Key;
-		Ar << Pair.Value.GetString();
+		NboSerializerCommonSvc::SerializeToBuffer(Ar, Pair.Value);
 	}
 }
 
@@ -96,9 +96,9 @@ inline void SerializeFromBuffer(FNboSerializeFromBuffer& Ar, TMap<FSchemaAttribu
 	for (int i = 0; i < Size; i++)
 	{
 		FSchemaAttributeId LobbyAttributeId;
-		FString LobbyData;
+		FSchemaVariant LobbyData;
 		Ar >> LobbyAttributeId;
-		Ar >> LobbyData;
+		NboSerializerCommonSvc::SerializeFromBuffer(Ar, LobbyData);
 		Map.Emplace(MoveTemp(LobbyAttributeId), MoveTemp(LobbyData));
 	}
 }
