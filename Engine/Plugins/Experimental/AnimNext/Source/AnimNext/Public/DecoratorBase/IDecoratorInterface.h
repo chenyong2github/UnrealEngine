@@ -14,7 +14,7 @@
 
 namespace UE::AnimNext
 {
-	struct ExecutionContext;	// Derived types will have functions that accept the execution context
+	struct FExecutionContext;	// Derived types will have functions that accept the execution context
 
 	/**
 	 * IDecoratorInterface
