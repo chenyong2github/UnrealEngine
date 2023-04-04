@@ -177,7 +177,7 @@ FText SDMXChannel::GetValueText() const
 
 FSlateColor SDMXChannel::GetBackgroundColor() const
 {
-	const float CurrentPercent = static_cast<float>(Value) / DMX_MAX_CHANNEL_VALUE;
+	const float CurrentPercent = static_cast<float>(Value) / static_cast<float>(DMX_MAX_CHANNEL_VALUE);
 
 	// totally transparent when 0
 	if (CurrentPercent <= 0.0f)

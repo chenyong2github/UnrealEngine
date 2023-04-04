@@ -58,7 +58,7 @@ struct FTopLevenshteinResult
 	ItemType Item;
 	float Score = INDEX_NONE;
 
-	bool IsSet() const { return Score != INDEX_NONE; }
+	bool IsSet() const { return Score != static_cast<float>(INDEX_NONE); }
 
 	void CompareAndUpdate(FStringView SearchValue, const ItemType& NewItem, FStringView NewItemValue)
 	{
