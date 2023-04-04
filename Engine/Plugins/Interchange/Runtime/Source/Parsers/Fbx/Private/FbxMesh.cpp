@@ -540,6 +540,30 @@ bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TAr
 
 		TMap<int32, FPolygonGroupID> PolygonGroupMapping;
 
+		//Ensure the polygon groups are create in the same order has the imported materials order
+		for (int32 FbxMeshMaterialIndex = 0; FbxMeshMaterialIndex < MaterialNames.Num(); ++FbxMeshMaterialIndex)
+		{
+			FName MaterialName = MaterialNames[FbxMeshMaterialIndex];
+			if (!PolygonGroupMapping.Contains(FbxMeshMaterialIndex))
+			{
+				FPolygonGroupID ExistingPolygonGroup = INDEX_NONE;
+				for (const FPolygonGroupID PolygonGroupID : MeshDescription->PolygonGroups().GetElementIDs())
+				{
+					if (PolygonGroupImportedMaterialSlotNames[PolygonGroupID] == MaterialName)
+					{
+						ExistingPolygonGroup = PolygonGroupID;
+						break;
+					}
+				}
+				if (ExistingPolygonGroup == INDEX_NONE)
+				{
+					ExistingPolygonGroup = MeshDescription->CreatePolygonGroup();
+					PolygonGroupImportedMaterialSlotNames[ExistingPolygonGroup] = MaterialName;
+				}
+				PolygonGroupMapping.Add(FbxMeshMaterialIndex, ExistingPolygonGroup);
+			}
+		}
+
 		// When importing multiple mesh pieces to the same static mesh.  Ensure each mesh piece has the same number of Uv's
 		int32 ExistingUVCount = VertexInstanceUVs.GetNumChannels();
 
@@ -1127,6 +1151,25 @@ bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TAr
 			}
 		}
 	}
+
+	TArray<FPolygonGroupID> EmptyPolygonGroups;
+	for (const FPolygonGroupID PolygonGroupID : MeshDescription->PolygonGroups().GetElementIDs())
+	{
+		if (MeshDescription->GetNumPolygonGroupTriangles(PolygonGroupID) == 0)
+		{
+			EmptyPolygonGroups.Add(PolygonGroupID);
+		}
+	}
+	if (EmptyPolygonGroups.Num() > 0)
+	{
+		for (const FPolygonGroupID PolygonGroupID : EmptyPolygonGroups)
+		{
+			MeshDescription->DeletePolygonGroup(PolygonGroupID);
+		}
+		FElementIDRemappings OutRemappings;
+		MeshDescription->Compact(OutRemappings);
+	}
+	
 	// needed?
 	FBXUVs.Cleanup();
 
