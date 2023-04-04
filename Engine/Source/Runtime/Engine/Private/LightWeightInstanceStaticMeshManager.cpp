@@ -117,12 +117,12 @@ void ALightWeightInstanceStaticMeshManager::RemoveInstanceFromRendering(int32 Da
 #if WITH_EDITOR
 			if (GEditor)
 			{
-				GEditor->GetTimerManager()->SetTimerForNextTick([this]() { PostRemoveInstanceFromRendering(); });
+				GEditor->GetTimerManager()->SetTimerForNextTick(this, &ALightWeightInstanceStaticMeshManager::PostRemoveInstanceFromRendering);
 			}
 			else
 #endif // WITH_EDITOR
 			{
-				GetWorld()->GetTimerManager().SetTimerForNextTick([this]() { PostRemoveInstanceFromRendering(); });
+				GetWorld()->GetTimerManager().SetTimerForNextTick(this, &ALightWeightInstanceStaticMeshManager::PostRemoveInstanceFromRendering);
 			}
 		}
 
