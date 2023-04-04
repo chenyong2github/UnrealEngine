@@ -202,7 +202,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #else
 		int32 Result = vswprintf( Dest, DestSize, Fmt, ArgPtr);
 #endif
-		va_end( ArgPtr );
 		return Result;
 	}
 #else // PLATFORM_USE_SYSTEM_VSWPRINTF
@@ -319,7 +318,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	static CORE_API int32 GetVarArgs( ANSICHAR* Dest, SIZE_T DestSize, const ANSICHAR*& Fmt, va_list ArgPtr )
 	{
 		int32 Result = vsnprintf(Dest, DestSize, Fmt, ArgPtr);
-		va_end( ArgPtr );
 		return (Result != -1 && Result < (int32)DestSize) ? Result : -1;
 	}
 

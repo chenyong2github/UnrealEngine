@@ -156,7 +156,6 @@ struct FMicrosoftPlatformString :
 	static FORCEINLINE int32 GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, const WIDECHAR*& Fmt, va_list ArgPtr )
 	{
 		int32 Result = vswprintf(Dest, DestSize, Fmt, ArgPtr);
-		va_end( ArgPtr );
 		return Result;
 	}
 #endif
@@ -259,7 +258,6 @@ struct FMicrosoftPlatformString :
 	static FORCEINLINE int32 GetVarArgs( ANSICHAR* Dest, SIZE_T DestSize, const ANSICHAR*& Fmt, va_list ArgPtr )
 	{
 		int32 Result = vsnprintf( Dest, DestSize, Fmt, ArgPtr );
-		va_end( ArgPtr );
 		return (Result != -1 && Result < (int32)DestSize) ? Result : -1;
 	}
 
