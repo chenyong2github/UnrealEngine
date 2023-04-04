@@ -4,7 +4,7 @@ using System.IO;
 
 namespace UnrealBuildTool.Rules
 {
-	[SupportedPlatforms("Win64")]
+	[SupportedPlatforms("Win64", "Mac")]
 	public class DatasmithRhino7 : DatasmithRhinoBase
 	{
 		public DatasmithRhino7(ReadOnlyTargetRules Target)
