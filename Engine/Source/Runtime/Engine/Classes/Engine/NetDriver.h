@@ -604,6 +604,25 @@ public:
 	}
 };
 
+/** Used to configure the replication system default values */
+USTRUCT()
+struct FNetDriverReplicationSystemConfig
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Override the max object count. If 0 use the default system value. */
+	UPROPERTY()
+	uint32 MaxReplicatedObjectCount = 0;
+	
+	/** Override the max compressed object count. If 0 use the default system value. */
+	UPROPERTY()
+	uint32 MaxDeltaCompressedObjectCount = 0;
+	
+	/** Override the max group count. If 0 use the default system value. */
+	UPROPERTY()
+	uint32 MaxNetObjectGroupCount = 0;
+};
+
 //
 // Priority sortable list.
 //
@@ -750,6 +769,10 @@ public:
 	/** Used to specify the class to use for ReplicationBridge */
 	UPROPERTY(Config)
 	FString ReplicationBridgeClassName;
+	
+	/** Can be used to configure settings for the ReplicationSystem */
+	UPROPERTY(Config)
+	FNetDriverReplicationSystemConfig ReplicationSystemConfig;
 
 	/** @todo document */
 	UPROPERTY(Config)

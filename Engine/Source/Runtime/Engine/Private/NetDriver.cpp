@@ -289,6 +289,25 @@ namespace UE::Net::Private
 
 	static bool bIgnoreStaticActorDestruction = false;
 
+
+	void ApplyReplicationSystemConfig(const FNetDriverReplicationSystemConfig& ReplicationSystemConfig, UReplicationSystem::FReplicationSystemParams& OutParams)
+	{
+		if (ReplicationSystemConfig.MaxReplicatedObjectCount != 0)
+		{
+			OutParams.MaxReplicatedObjectCount = ReplicationSystemConfig.MaxReplicatedObjectCount;
+		}
+
+		if (ReplicationSystemConfig.MaxDeltaCompressedObjectCount != 0)
+		{
+			OutParams.MaxDeltaCompressedObjectCount = ReplicationSystemConfig.MaxDeltaCompressedObjectCount;
+		}
+
+		if (ReplicationSystemConfig.MaxNetObjectGroupCount != 0)
+		{
+			OutParams.MaxNetObjectGroupCount = ReplicationSystemConfig.MaxNetObjectGroupCount;
+		}
+	}
+
 } //namespace UE::Net::Private
 
 namespace UE::Net
@@ -1474,6 +1493,8 @@ bool UNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, const FU
 				Params.ReplicationBridge = ReplicationBridge;
 				Params.bIsServer = !bInitAsClient;
 				Params.bAllowObjectReplication = !bInitAsClient;
+
+				UE::Net::Private::ApplyReplicationSystemConfig(ReplicationSystemConfig, Params);
 
 				SetReplicationSystem(UE::Net::FReplicationSystemFactory::CreateReplicationSystem(Params));
 			}
