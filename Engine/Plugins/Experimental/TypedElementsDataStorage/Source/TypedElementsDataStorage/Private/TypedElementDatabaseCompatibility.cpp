@@ -58,6 +58,19 @@ void UTypedElementDatabaseCompatibility::RemoveCompatibleObject(AActor* Actor)
 	}
 }
 
+TypedElementRowHandle UTypedElementDatabaseCompatibility::FindRowWithCompatibleObject(AActor* Actor) const
+{
+	if (Storage && ActorSubsystem && Storage->IsAvailable())
+	{
+		FMassEntityHandle Entity = ActorSubsystem->GetEntityHandleFromActor(Actor);
+		return Entity.IsValid() ? Entity.AsNumber() : TypedElementInvalidRowHandle;
+	}
+	else
+	{
+		return TypedElementInvalidRowHandle;
+	}
+}
+
 void UTypedElementDatabaseCompatibility::Prepare()
 {
 	UMassActorEditorSubsystem* MassActorEditorSubsystem = Storage->GetExternalSystem<UMassActorEditorSubsystem>();

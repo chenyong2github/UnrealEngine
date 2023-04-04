@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Elements/Interfaces/TypedElementDataStorageInterface.h"
 #include "UObject/Interface.h"
 #include "UObject/ObjectMacros.h"
 
@@ -26,4 +27,5 @@ class TYPEDELEMENTFRAMEWORK_API ITypedElementDataStorageCompatibilityInterface
 public:
 	virtual void AddCompatibleObject(AActor* Actor) = 0;
 	virtual void RemoveCompatibleObject(AActor* Actor) = 0;
+	virtual TypedElementRowHandle FindRowWithCompatibleObject(AActor* Actor) const = 0;
 };

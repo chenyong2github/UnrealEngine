@@ -28,6 +28,7 @@ public:
 
 	void AddCompatibleObject(AActor* Actor) override;
 	void RemoveCompatibleObject(AActor* Actor) override;
+	TypedElementRowHandle FindRowWithCompatibleObject(AActor* Actor) const;
 
 private:
 	void Prepare();
