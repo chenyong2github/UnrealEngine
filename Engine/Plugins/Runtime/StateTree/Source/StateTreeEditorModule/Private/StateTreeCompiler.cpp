@@ -311,7 +311,8 @@ bool FStateTreeCompiler::CreateConditions(UStateTreeState& State, TConstArrayVie
 		// First indent must be 0 to make the parentheses calculation match.
 		const int32 CurrIndent = bIsFirst ? 0 : FMath::Clamp((int32)CondNode.ConditionIndent, 0, UE::StateTree::MaxConditionIndent);
 		// Next indent, or terminate at zero.
-		const int32 NextIndent = Conditions.IsValidIndex(Index + 1) ? FMath::Clamp((int32)Conditions[Index].ConditionIndent, 0, UE::StateTree::MaxConditionIndent) : 0;
+		const int32 NextIndent = Conditions.IsValidIndex(Index + 1) ? FMath::Clamp((int32)Conditions[Index + 1].ConditionIndent, 0, UE::StateTree::MaxConditionIndent) : 0;
+		
 		const int32 DeltaIndent = NextIndent - CurrIndent;
 
 		if (!CreateCondition(State, CondNode, Operand, (int8)DeltaIndent))
