@@ -4,6 +4,7 @@
 
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "Templates/Function.h"
 
 namespace UE { class FPackageTrailer; }
 namespace UE::Virtualization { struct FPullRequest; }
@@ -11,6 +12,21 @@ struct FIoHash;
 
 namespace UE::Virtualization // Utility functions
 {
+
+/*
+ * Utility to pull payloads in batches from many threads at once which can be much faster than pulling from a single thread
+ * in a single batch. The provided callback will be invoked each time that a request is completed.
+ * Every 30 seconds an update will be printed to the log showing how many payloads have been processed so that the user does
+ * not think that the process has stalled.
+ * 
+ * @param PayloadIds		The payloads that should be pulled
+ * @param BatchSize			The max number of payload ids that should be in each batch
+ * @param ProgressString	An optional string to be printed as part of the status shown every 30 seconds, can be nullptr.
+ * @param Callback			Called on every request once it has been processed.
+ * 
+ * @ return True if all requests succeeded, false if there were failures.
+ */
+bool PullPayloadsThreaded(TConstArrayView<FIoHash> PayloadIds, int32 BatchSize, const TCHAR* ProgressString, TUniqueFunction<void(const UE::Virtualization::FPullRequest& Response)>&& Callback);
 
 /** Used to customize package discovery behavior */
 enum EFindPackageFlags
@@ -77,7 +93,7 @@ class FWorkQueue
 public:
 	using FJob = TArrayView<const FIoHash>;
 
-	FWorkQueue(const TArray<FIoHash>& InWork, int32 JobSize);
+	FWorkQueue(TConstArrayView<FIoHash> InWork, int32 JobSize);
 	FWorkQueue(TArray<FIoHash>&& InWork, int32 JobSize);
 	~FWorkQueue() = default;
 

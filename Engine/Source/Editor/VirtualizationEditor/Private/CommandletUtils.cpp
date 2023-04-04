@@ -9,11 +9,90 @@
 #include "IO/IoHash.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
+#include "Tasks/Task.h"	
 #include "UObject/PackageTrailer.h"
 #include "Virtualization/VirtualizationSystem.h"
 
 namespace UE::Virtualization
 {
+
+bool PullPayloadsThreaded(TConstArrayView<FIoHash> PayloadIds, int32 BatchSize, const TCHAR* ProgressString, TUniqueFunction<void(const FPullRequest& Response)>&& Callback)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(PullPayloadsThreaded);
+	
+	IVirtualizationSystem& System = IVirtualizationSystem::Get();
+
+	std::atomic<int32> NumCompletedPayloads = 0;
+
+	const int32 NumPayloads = PayloadIds.Num();
+
+	// This seems to be the sweet spot when it comes to our internal infrastructure, so use that as the default.
+	const int32 MaxConcurrentTasks = 16;
+
+	// We always want to leave at least one foreground worker free to avoid saturation. If we issue too many
+	// concurrent task then we can potentially cause the DDC/Zen to be unable to run clean up tasks for long 
+	// periods of times which can cause quite high memory spikes.
+	const int32 ConcurrentTasks = FMath::Min(MaxConcurrentTasks, FTaskGraphInterface::Get().GetNumWorkerThreads() - 1);
+
+	UE_LOG(LogVirtualization, Display, TEXT("Will run up to %d pull batches concurrently"), ConcurrentTasks);
+
+	FWorkQueue WorkQueue(PayloadIds, BatchSize);
+
+	UE::Tasks::FTaskEvent Event(UE_SOURCE_LOCATION);
+
+	std::atomic<int32> NumTasks = 0;
+	double LogTimer = FPlatformTime::Seconds();
+
+	bool bHasErrors = false;
+
+	while (NumTasks != 0 || !WorkQueue.IsEmpty())
+	{
+		int32 NumTaskAllowed = ConcurrentTasks - NumTasks;
+		while (NumTaskAllowed > 0 && !WorkQueue.IsEmpty())
+		{
+			NumTasks++;
+
+			UE::Tasks::Launch(UE_SOURCE_LOCATION,
+				[Job = WorkQueue.GetJob(), &System, &NumCompletedPayloads, &NumTasks, &Event, &bHasErrors , &Callback]()
+				{
+					TArray<FPullRequest> Requests = ToRequestArray(Job);
+
+					if (!System.PullData(Requests))
+					{
+						bHasErrors = true;
+					}
+					
+					for (const FPullRequest& Request : Requests)
+					{
+						Callback(Request);
+					}
+					
+					NumCompletedPayloads += Requests.Num();
+					--NumTasks;
+
+					Event.Trigger();
+				});
+
+			--NumTaskAllowed;
+		}
+
+		Event.Wait(FTimespan::FromSeconds(30.0));
+
+		if (FPlatformTime::Seconds() - LogTimer >= 30.0)
+		{
+			const int32 CurrentCompletedPayloads = NumCompletedPayloads;
+			const float Progress = ((float)CurrentCompletedPayloads / (float)NumPayloads) * 100.0f;
+
+			UE_LOG(LogVirtualization, Display, TEXT("Cached %d/%d (%.1f%%)"), 
+				ProgressString != nullptr? ProgressString : TEXT("Processed"),
+				CurrentCompletedPayloads, NumPayloads, Progress);
+
+			LogTimer = FPlatformTime::Seconds();
+		}
+	}
+
+	return !bHasErrors;
+}
 
 TArray<FString> FindPackages(EFindPackageFlags Flags)
 {
@@ -169,7 +248,7 @@ TArray<FPullRequest> ToRequestArray(TConstArrayView<FIoHash> IdentifierArray)
 	return Requests;
 }
 
-FWorkQueue::FWorkQueue(const TArray<FIoHash>& InWork, int32 JobSize)
+FWorkQueue::FWorkQueue(const TConstArrayView<FIoHash> InWork, int32 JobSize)
 	: Work(InWork)
 {
 	CreateJobs(JobSize);
