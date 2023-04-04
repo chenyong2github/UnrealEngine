@@ -10,7 +10,6 @@
 #include "AnimNode_MotionMatching.generated.h"
 
 class UPoseSearchDatabase;
-class UPoseSearchSearchableAsset;
 
 USTRUCT(BlueprintInternalUseOnly)
 struct POSESEARCH_API FAnimNode_MotionMatching : public FAnimNode_AssetPlayerBase
@@ -20,11 +19,6 @@ struct POSESEARCH_API FAnimNode_MotionMatching : public FAnimNode_AssetPlayerBas
 private:
 	UPROPERTY()
 	FPoseLink Source;
-
-	// @todo: Delete this after updating content.
-	// Collection of animations for motion matching.
-	UPROPERTY(EditAnywhere, Category=Settings, meta=(PinHiddenByDefault))
-	TObjectPtr<const UPoseSearchSearchableAsset> Searchable = nullptr;
 
 	// The database to search. This can be overridden by Anim Node Functions such as "On Become Relevant" and "On Update" via SetDatabaseToSearch/SetDatabasesToSearch.
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinShownByDefault))

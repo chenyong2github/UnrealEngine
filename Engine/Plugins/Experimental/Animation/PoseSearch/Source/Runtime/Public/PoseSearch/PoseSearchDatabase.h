@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "Engine/DataAsset.h"
 #include "PoseSearch/PoseSearchAssetSampler.h"
 #include "PoseSearch/PoseSearchIndex.h"
-#include "PoseSearch/PoseSearchSearchableAsset.h"
+#include "PoseSearch/PoseSearchResult.h"
 #include "PoseSearchDatabase.generated.h"
 
 struct FInstancedStruct;
@@ -13,6 +14,11 @@ class UAnimComposite;
 class UAnimMontage;
 class UBlendSpace;
 class UPoseSearchNormalizationSet;
+
+namespace UE::PoseSearch
+{
+	struct FSearchContext;
+} // namespace UE::PoseSearch
 
 UENUM()
 enum class EPoseSearchMode : int32
@@ -233,7 +239,7 @@ struct POSESEARCH_API FPoseSearchDatabaseAnimMontage : public FPoseSearchDatabas
 
 /** A data asset for indexing a collection of animation sequences. */
 UCLASS(BlueprintType, Category = "Animation|Pose Search", Experimental, meta = (DisplayName = "Motion Database"))
-class POSESEARCH_API UPoseSearchDatabase : public UPoseSearchSearchableAsset
+class POSESEARCH_API UPoseSearchDatabase : public UDataAsset
 {
 	GENERATED_BODY()
 public:
@@ -323,9 +329,7 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	// End UObject
 	
-	// Begin UPoseSearchSearchableAsset
-	virtual UE::PoseSearch::FSearchResult Search(UE::PoseSearch::FSearchContext& SearchContext) const override;
-	// End UPoseSearchSearchableAsset
+	UE::PoseSearch::FSearchResult Search(UE::PoseSearch::FSearchContext& SearchContext) const;
 
 #if WITH_EDITOR
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;

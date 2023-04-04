@@ -21,7 +21,6 @@ namespace UE::PoseSearch
 
 struct FAnimationUpdateContext;
 struct FTrajectorySampleRange;
-class UPoseSearchSearchableAsset;
 
 USTRUCT(BlueprintType, Category = "Animation|Pose Search")
 struct POSESEARCH_API FMotionMatchingSettings
@@ -116,7 +115,7 @@ class POSESEARCH_API UPoseSearchLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 	static void TraceMotionMatchingState(
-		const UPoseSearchSearchableAsset* Searchable,
+		const UPoseSearchDatabase* Database,
 		UE::PoseSearch::FSearchContext& SearchContext,
 		const UE::PoseSearch::FSearchResult& CurrentResult,
 		const UE::PoseSearch::FSearchResult& LastResult,

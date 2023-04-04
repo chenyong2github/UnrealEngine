@@ -46,16 +46,6 @@ const UPoseSearchDatabase* FDebuggerViewModel::GetCurrentDatabase() const
 	return ActiveMotionMatchingState ? ActiveMotionMatchingState->GetCurrentDatabase() : nullptr;
 }
 
-const UPoseSearchSearchableAsset* FDebuggerViewModel::GetSearchableAsset() const
-{
-	if (ActiveMotionMatchingState)
-	{
-		return FTraceMotionMatchingState::GetObjectFromId<UPoseSearchSearchableAsset>(ActiveMotionMatchingState->SearchableAssetId);
-	}
-
-	return nullptr;
-}
-
 void FDebuggerViewModel::ShowSelectedSkeleton(const UPoseSearchDatabase* Database, int32 DbPoseIdx, float Time)
 {
 	UPoseSearchMeshComponent* Component = Skeletons[SelectedPose].Component.Get();

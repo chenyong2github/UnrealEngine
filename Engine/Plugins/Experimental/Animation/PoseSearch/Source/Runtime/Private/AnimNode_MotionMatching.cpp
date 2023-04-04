@@ -109,16 +109,6 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		DatabasesToSearch.Reset(1);
 		DatabasesToSearch.Add(Database);
 	}
-	// @todo: Delete this after removing Searchable.
-	else if (Searchable)
-	{
-		if (!bOverrideDatabaseInput && Searchable->IsA(UPoseSearchDatabase::StaticClass()))
-		{
-			DatabasesToSearch.Reset(1);
-			DatabasesToSearch.Add(Cast<UPoseSearchDatabase>(Searchable));
-		}
-		UE_LOG(LogPoseSearch, Warning, TEXT("FAnimNode_MotionMatching: The Searchable variable will be removed soon."));
-	}
 
 	// Execute core motion matching algorithm
 	UPoseSearchLibrary::UpdateMotionMatchingState(

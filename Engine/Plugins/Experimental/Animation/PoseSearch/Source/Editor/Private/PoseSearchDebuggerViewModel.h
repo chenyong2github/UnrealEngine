@@ -11,7 +11,6 @@
 struct FInstancedStruct;
 class IRewindDebugger;
 class UPoseSearchDatabase;
-class UPoseSearchSearchableAsset;
 
 namespace UE::PoseSearch
 {
@@ -42,7 +41,6 @@ public:
 	// Used for view callbacks
     const FTraceMotionMatchingStateMessage* GetMotionMatchingState() const;
 	const UPoseSearchDatabase* GetCurrentDatabase() const;
-	const UPoseSearchSearchableAsset* GetSearchableAsset() const;
 	const TArray<int32>* GetNodeIds() const;
 	int32 GetNodesNum() const;
 	const FTransform* GetRootTransform() const;

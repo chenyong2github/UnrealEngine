@@ -138,7 +138,7 @@ void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchCon
 }
 
 void UPoseSearchLibrary::TraceMotionMatchingState(
-	const UPoseSearchSearchableAsset* Searchable,
+	const UPoseSearchDatabase* Database,
 	UE::PoseSearch::FSearchContext& SearchContext,
 	const UE::PoseSearch::FSearchResult& CurrentResult,
 	const UE::PoseSearch::FSearchResult& LastResult,
@@ -241,7 +241,7 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 		TraceState.AnimAngularVelocity = FMath::RadiansToDegrees(RootMotionTransformDelta.GetRotation().GetAngle()) / DeltaTime;
 	}
 
-	TraceState.SearchableAssetId = FTraceMotionMatchingState::GetIdFromObject(Searchable);
+	TraceState.SearchableAssetId = FTraceMotionMatchingState::GetIdFromObject(Database);
 	TraceState.ElapsedPoseSearchTime = ElapsedPoseSearchTime;
 	TraceState.AssetPlayerTime = CurrentResult.AssetTime;
 	TraceState.DeltaTime = DeltaTime;
