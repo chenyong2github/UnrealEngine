@@ -133,7 +133,7 @@ void UControlRigSkeletalMeshComponent::RebuildDebugDrawSkeleton()
 				NewMeshBoneInfo.Name = BoneElement->GetName();
 				NewMeshBoneInfo.ParentIndex = ParentIndex; 
 				// give ref pose here
-				RefSkelModifier.Add(NewMeshBoneInfo, Hierarchy->GetInitialGlobalTransform(Index));
+				RefSkelModifier.Add(NewMeshBoneInfo, Hierarchy->GetInitialGlobalTransform(Index), true);
 
 				AddedBoneMap.FindOrAdd(BoneElement->GetName(), DebugDrawBones.Num());
 				DebugDrawBones.Add(DebugDrawBones.Num());
