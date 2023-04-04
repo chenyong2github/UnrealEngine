@@ -204,6 +204,7 @@ UGarbageCollectionSettings::UGarbageCollectionSettings()
 	VerifyGCObjectNames = true;
 	VerifyUObjectsAreNotFGCObjects = true;
 	PendingKillEnabled = false;
+	DumpObjectCountsToLogWhenMaxObjectLimitExceeded = false;
 }
 
 void UGarbageCollectionSettings::PostInitProperties()

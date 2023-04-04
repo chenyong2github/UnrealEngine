@@ -222,6 +222,22 @@ private:
 	}
 };
 
+namespace UE::UObjectArrayPrivate
+{
+	COREUOBJECT_API void FailMaxUObjectCountExceeded(const int32 MaxUObjects, const int32 NewUObjectCount);
+
+	FORCEINLINE void CheckUObjectLimitReached(const int32 NumUObjects, const int32 MaxUObjects, const int32 NewUObjectCount)
+	{
+#if DO_CHECK
+		if ((NumUObjects + NewUObjectCount) > MaxUObjects)
+		{
+			FailMaxUObjectCountExceeded(MaxUObjects, NewUObjectCount);
+		}
+#endif // DO_CHECK
+	}
+};
+
+
 /**
 * Fixed size UObject array.
 */
@@ -262,7 +278,7 @@ public:
 	int32 AddSingle() TSAN_SAFE
 	{
 		int32 Result = NumElements;
-		checkf(NumElements + 1 <= MaxElements, TEXT("Maximum number of UObjects (%d) exceeded, make sure you update MaxObjectsInGame/MaxObjectsInEditor/MaxObjectsInProgram in project settings."), MaxElements);
+		UE::UObjectArrayPrivate::CheckUObjectLimitReached(NumElements, MaxElements, 1);
 		check(Result == NumElements);
 		++NumElements;
 		FPlatformMisc::MemoryBarrier();
@@ -273,7 +289,7 @@ public:
 	int32 AddRange(int32 Count) TSAN_SAFE
 	{
 		int32 Result = NumElements + Count - 1;
-		checkf(NumElements + Count <= MaxElements, TEXT("Maximum number of UObjects (%d) exceeded, make sure you update MaxObjectsInGame/MaxObjectsInEditor/MaxObjectsInProgram in project settings."), MaxElements);
+		UE::UObjectArrayPrivate::CheckUObjectLimitReached(NumElements, MaxElements, Count);
 		check(Result == (NumElements + Count - 1));
 		NumElements += Count;
 		FPlatformMisc::MemoryBarrier();
@@ -546,7 +562,7 @@ public:
 	int32 AddRange(int32 NumToAdd) TSAN_SAFE
 	{
 		int32 Result = NumElements;
-		checkf(Result + NumToAdd <= MaxElements, TEXT("Maximum number of UObjects (%d) exceeded, make sure you update MaxObjectsInGame/MaxObjectsInEditor/MaxObjectsInProgram in project settings."), MaxElements);
+		UE::UObjectArrayPrivate::CheckUObjectLimitReached(Result, MaxElements, NumToAdd);
 		ExpandChunksToIndex(Result + NumToAdd - 1);
 		NumElements += NumToAdd;
 		return Result;
@@ -1130,10 +1146,17 @@ public:
 		return ObjObjects;
 	}
     
+	const TUObjectArray& GetObjectItemArrayUnsafe() const
+	{
+		return ObjObjects;
+	}
+
     int64 GetAllocatedSize() const
     {
         return ObjObjects.GetAllocatedSize();
     }
+
+	void DumpUObjectCountsToLog() const;
 };
 
 /** UObject cluster. Groups UObjects into a single unit for GC. */

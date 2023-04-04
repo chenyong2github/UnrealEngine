@@ -224,10 +224,16 @@ protected:
 		ConsoleVariable = "gc.VerifyUObjectsAreNotFGCObjects", DisplayName = "Verify UObjects Are Not FGCObjects",
 		ToolTip = "If true, the engine will throw a warning when it detects a UObject-derived class which also derives from FGCObject or any of its members is derived from FGCObject."))
 	uint32 VerifyUObjectsAreNotFGCObjects : 1;
+
 	UPROPERTY(EditAnywhere, config, Category = Optimization, meta = (
 		ConsoleVariable = "gc.PendingKillEnabled", DisplayName = "Pending Kill Enabled",
 		ToolTip = "If true, objects marked as PendingKill will be automatically nulled and destroyed by Garbage Collector."))
 	uint32 PendingKillEnabled : 1;
+
+	UPROPERTY(EditAnywhere, config, Category = Optimization, meta = (
+		ConsoleVariable = "gc.DumpObjectCountsToLogWhenMaxObjectLimitExceeded", DisplayName = "Log UObject counts when UObject limit has been exceeded",
+		ToolTip = "If true, the engine will dump UObject counts when maximum number of UObjects limit has been exceeded."))
+	uint32 DumpObjectCountsToLogWhenMaxObjectLimitExceeded : 1;
 
 	UPROPERTY(EditAnywhere, config, Category = Optimization, meta = (
 		ConsoleVariable = "gc.MinGCClusterSize", DisplayName = "Minimum GC Cluster size",

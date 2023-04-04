@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "UObject/UObjectArray.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/ScopeLock.h"
 #include "UObject/UObjectAllocator.h"
 #include "UObject/Class.h"
@@ -437,4 +438,98 @@ void FUObjectArray::ShutdownUObjectArray()
 		}
 		UE_CLOG(UObjectCreateListeners.Num(), LogUObjectArray, Fatal, TEXT("All UObject delete listeners should be unregistered when shutting down the UObject array"));
 	}
+}
+
+void FUObjectArray::DumpUObjectCountsToLog() const
+{
+	UE_LOG(LogUObjectArray, Display, TEXT("Dumping allocated UObject counts to log:"));
+	struct FClassEntry
+	{
+		UClass* Class = nullptr;
+		int32 NumInstances = 0;
+	};
+	int32 NumClasses = 0;
+	int32 NumUObjects = 0;
+	for (int32 ObjectIndex = 0; ObjectIndex < GetObjectArrayNum(); ++ObjectIndex)
+	{
+		const FUObjectItem& ObjectItem = GetObjectItemArrayUnsafe()[ObjectIndex];
+		UObject* Object = (UObject*)ObjectItem.Object;
+		if (Cast<UClass>(Object))
+		{
+			NumClasses++;
+		}
+	}
+
+	TMap<UClass*, FClassEntry> ClassCountMap;
+	ClassCountMap.Reserve(NumClasses);
+
+	for (int32 ObjectIndex = 0; ObjectIndex < GetObjectArrayNum(); ++ObjectIndex)
+	{
+		const FUObjectItem& ObjectItem = GetObjectItemArrayUnsafe()[ObjectIndex];
+		if (ObjectItem.Object)
+		{
+			UObject* Object = (UObject*)ObjectItem.Object;
+			UClass* ObjectClass = Object->GetClass();
+			FClassEntry& ClassEntry = ClassCountMap.FindOrAdd(ObjectClass);
+			ClassEntry.Class = ObjectClass;
+			ClassEntry.NumInstances++;
+			NumUObjects++;
+		}
+	}
+
+	TArray<FClassEntry> ClassArray;
+	ClassCountMap.GenerateValueArray(ClassArray);
+
+	ClassArray.Sort([](const FClassEntry& A, const FClassEntry& B) { return A.NumInstances > B.NumInstances; });
+
+	const int32 MinInstanceNum = 10; // Don't print classes with fewer than the specified number of instances
+	const double MaxPrintedInstancePercent = 0.95; // Finish printing when the specified percent of instances has already been printed
+	int32 NumClassesSkipped = 0;
+	int32 NumInstancesSkipped = 0;
+	int32 NumInstancesPrinted = 0;
+	double PercentOfInstancesPrinted = 0.0;
+
+	for (const FClassEntry& ClassEntry : ClassArray)
+	{		
+		if (ClassEntry.NumInstances > MinInstanceNum && PercentOfInstancesPrinted <= MaxPrintedInstancePercent)
+		{
+			UE_LOG(LogUObjectArray, Display, TEXT("%8d instances of %s"), ClassEntry.NumInstances, *ClassEntry.Class->GetPathName());
+			NumInstancesPrinted += ClassEntry.NumInstances;
+			PercentOfInstancesPrinted = (double)NumInstancesPrinted / NumUObjects;
+		}
+		else
+		{
+			NumClassesSkipped++;
+			NumInstancesSkipped += ClassEntry.NumInstances;
+		}
+	}
+	if (NumInstancesSkipped > 0)
+	{
+		if (PercentOfInstancesPrinted > MaxPrintedInstancePercent)
+		{
+			UE_LOG(LogUObjectArray, Display, TEXT("%8d instances in the remaining %.3f%% of instances of %d classes"), NumInstancesSkipped, (1.0f - PercentOfInstancesPrinted) * 100.0f, NumClassesSkipped);
+		}
+		else
+		{
+			UE_LOG(LogUObjectArray, Display, TEXT("%8d instances of %d classes with less than %d instances per class"), NumInstancesSkipped, NumClassesSkipped, MinInstanceNum);
+		}
+	}
+	UE_LOG(LogUObjectArray, Display, TEXT("%d total UObjects (%d classes)"), NumUObjects, NumClasses);
+}
+
+static int32 GVarDumpObjectCountsToLogWhenMaxObjectLimitExceeded = 0;
+static FAutoConsoleVariableRef CDumpObjectCountsToLogWhenMaxObjectLimitExceeded(
+	TEXT("gc.DumpObjectCountsToLogWhenMaxObjectLimitExceeded"),
+	GVarDumpObjectCountsToLogWhenMaxObjectLimitExceeded,
+	TEXT("If not 0 dumps UObject counts to log when maximum object count limit has been reached."),
+	ECVF_Default
+);
+
+void UE::UObjectArrayPrivate::FailMaxUObjectCountExceeded(const int32 MaxUObjects, const int32 NewUObjectCount)
+{
+	if (GVarDumpObjectCountsToLogWhenMaxObjectLimitExceeded)
+	{
+		GUObjectArray.DumpUObjectCountsToLog();
+	}
+	UE_LOG(LogUObjectArray, Fatal, TEXT("Maximum number of UObjects (%d) exceeded when trying to add %d object(s), make sure you update MaxObjectsInGame/MaxObjectsInEditor/MaxObjectsInProgram in project settings."), MaxUObjects, NewUObjectCount);
 }
