@@ -95,20 +95,23 @@ public:
 	template <typename T>
 	T* AddMessage() const
 	{
-		ensure(Results != nullptr);
-		ensure(SourceData != nullptr);
-		T* Item = Results->Add<T>();
-		Item->SourceAssetName = SourceData->GetFilename();
-		return Item;
+		if (ensure(Results) && ensure(SourceData))
+		{
+			T* Item = Results->Add<T>();
+			Item->SourceAssetName = SourceData->GetFilename();
+			return Item;
+		}
+		return nullptr;
 	}
 
 
 	void AddMessage(UInterchangeResult* Item) const
 	{
-		ensure(Results != nullptr);
-		ensure(SourceData != nullptr);
-		Results->Add(Item);
-		Item->SourceAssetName = SourceData->GetFilename();
+		if (ensure(Results) && ensure(SourceData))
+		{
+			Results->Add(Item);
+			Item->SourceAssetName = SourceData->GetFilename();
+		}
 	}
 	
 

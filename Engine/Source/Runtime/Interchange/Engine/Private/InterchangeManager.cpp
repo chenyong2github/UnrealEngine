@@ -1410,7 +1410,7 @@ bool UInterchangeManager::ExportScene(const UObject* World, bool bIsAutomated)
 UInterchangeSourceData* UInterchangeManager::CreateSourceData(const FString& InFileName)
 {
 	UInterchangeSourceData* SourceDataAsset = NewObject<UInterchangeSourceData>(GetTransientPackage(), NAME_None);
-	if(!InFileName.IsEmpty())
+	if(!InFileName.IsEmpty() && SourceDataAsset)
 	{
 		SourceDataAsset->SetFilename(InFileName);
 	}
