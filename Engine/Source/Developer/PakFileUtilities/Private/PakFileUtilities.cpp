@@ -126,7 +126,8 @@ bool SignPakFile(const FString& InPakFilename, const FRSAKeyHandle InSigningKey)
 	TUniquePtr<FArchive> SignatureFile(IFileManager::Get().CreateFileWriter(*SignatureFilename));
 	Signatures.Serialize(*SignatureFile.Get());
 
-	return true;
+	const bool bSuccess = !PakFile->IsError() && !SignatureFile->IsError();
+	return bSuccess;
 }
 
 bool SignIOStoreContainer(FArchive& ContainerAr)
