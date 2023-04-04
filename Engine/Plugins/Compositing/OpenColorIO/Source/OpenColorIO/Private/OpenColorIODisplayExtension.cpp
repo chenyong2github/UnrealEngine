@@ -55,12 +55,13 @@ void FOpenColorIODisplayExtension::SetupView(FSceneViewFamily& InViewFamily, FSc
 	//If something fails, cache invalid resources to invalidate them
 	FOpenColorIOTransformResource* ShaderResource = nullptr;
 	TSortedMap<int32, FTextureResource*> TransformTextureResources;
+	const FOpenColorIOColorConversionSettings& ConversionSettings = DisplayConfiguration.ColorConfiguration;
 
-	if (DisplayConfiguration.ColorConfiguration.ConfigurationSource != nullptr)
+	if (ConversionSettings.ConfigurationSource != nullptr)
 	{
-		const bool bFoundTransform = DisplayConfiguration.ColorConfiguration.ConfigurationSource->GetRenderResources(
+		const bool bFoundTransform = ConversionSettings.ConfigurationSource->GetRenderResources(
 			InViewFamily.GetFeatureLevel()
-			, DisplayConfiguration.ColorConfiguration
+			, ConversionSettings
 			, ShaderResource
 			, TransformTextureResources);
 
@@ -89,11 +90,12 @@ void FOpenColorIODisplayExtension::SetupView(FSceneViewFamily& InViewFamily, FSc
 	}
 
 	ENQUEUE_RENDER_COMMAND(ProcessColorSpaceTransform)(
-		[this, ShaderResource, TextureResources = MoveTemp(TransformTextureResources)](FRHICommandListImmediate& RHICmdList)
+		[this, ShaderResource, TextureResources = MoveTemp(TransformTextureResources), TransformName = ConversionSettings.ToString()](FRHICommandListImmediate& RHICmdList)
 		{
 			//Caches render thread resource to be used when applying configuration in PostRenderViewFamily_RenderThread
 			CachedResourcesRenderThread.ShaderResource = ShaderResource;
 			CachedResourcesRenderThread.TextureResources = TextureResources;
+			CachedResourcesRenderThread.TransformName = TransformName;
 		}
 	);
 }

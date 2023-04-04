@@ -94,11 +94,12 @@ void FDisplayClusterViewport_OpenColorIO::UpdateOpenColorIORenderPassResources()
 	}
 
 	ENQUEUE_RENDER_COMMAND(ProcessColorSpaceTransform)(
-		[This = SharedThis(this), ShaderResource, TextureResources = MoveTemp(TransformTextureResources)](FRHICommandListImmediate& RHICmdList)
+		[This = SharedThis(this), ShaderResource, TextureResources = MoveTemp(TransformTextureResources), TransformName = ConversionSettings.ToString()](FRHICommandListImmediate& RHICmdList)
 		{
 			//Caches render thread resource to be used when applying configuration in PostRenderViewFamily_RenderThread
 			This->CachedResourcesRenderThread.ShaderResource = ShaderResource;
 			This->CachedResourcesRenderThread.TextureResources = TextureResources;
+			This->CachedResourcesRenderThread.TransformName = TransformName;
 		}
 	);
 }

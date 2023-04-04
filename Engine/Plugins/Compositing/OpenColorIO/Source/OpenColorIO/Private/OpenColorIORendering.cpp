@@ -82,8 +82,9 @@ void FOpenColorIORendering::AddPass_RenderThread(
 		}
 		Parameters->Gamma = InGamma;
 		Parameters->RenderTargets[0] = Output.GetRenderTargetBinding();
-
-		AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("OpenColorIOPass"), ViewInfo, OutputViewport, InputViewport, VertexShader, OCIOPixelShader, Parameters);
+		
+		FRDGEventName PassName = RDG_EVENT_NAME("OpenColorIOPass %dx%d (%s)", Output.ViewRect.Width(), Output.ViewRect.Height(), InPassResource.TransformName.IsEmpty() ? TEXT("Unspecified Transform") : *InPassResource.TransformName);
+		AddDrawScreenPass(GraphBuilder, MoveTemp(PassName), ViewInfo, OutputViewport, InputViewport, VertexShader, OCIOPixelShader, Parameters);
 	}
 	else
 	{
@@ -95,7 +96,8 @@ void FOpenColorIORendering::AddPass_RenderThread(
 		Parameters->MiniFontTexture = OpenColorIOGetMiniFontTexture();
 		Parameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 
-		AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("OpenColorIOInvalidPass"), ViewInfo, OutputViewport, InputViewport, VertexShader, OCIOInvalidPixelShader, Parameters);
+		FRDGEventName PassName = RDG_EVENT_NAME("OpenColorIOInvalidPass %dx%d", Output.ViewRect.Width(), Output.ViewRect.Height());
+		AddDrawScreenPass(GraphBuilder, MoveTemp(PassName), ViewInfo, OutputViewport, InputViewport, VertexShader, OCIOInvalidPixelShader, Parameters);
 	}
 }
 
@@ -148,7 +150,7 @@ bool FOpenColorIORendering::ApplyColorTransform(UWorld* InWorld, const FOpenColo
 	}
 	
 	ENQUEUE_RENDER_COMMAND(ProcessColorSpaceTransform)(
-		[FeatureLevel, InputResource, OutputResource, ShaderResource, TextureResources = MoveTemp(TransformTextureResources)](FRHICommandListImmediate& RHICmdList)
+		[FeatureLevel, InputResource, OutputResource, ShaderResource, TextureResources = MoveTemp(TransformTextureResources), TransformName = InSettings.ToString()](FRHICommandListImmediate& RHICmdList)
 		{
 			FRDGBuilder GraphBuilder(RHICmdList);
 
@@ -163,7 +165,7 @@ bool FOpenColorIORendering::ApplyColorTransform(UWorld* InWorld, const FOpenColo
 				FeatureLevel,
 				FScreenPassTexture(InputTexture),
 				Output,
-				FOpenColorIORenderPassResources{ ShaderResource, TextureResources},
+				FOpenColorIORenderPassResources{ShaderResource, TextureResources, TransformName},
 				1.0f); // Set Gamma to 1., since we do not have any display parameters or requirement for Gamma.
 
 			GraphBuilder.Execute();

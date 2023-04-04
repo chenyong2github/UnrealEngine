@@ -17,10 +17,17 @@ class UTexture;
 class UTextureRenderTarget2D;
 class UWorld;
 
+/** Resources needed by the FOpenColorIORendering pass function. */
 struct OPENCOLORIO_API FOpenColorIORenderPassResources
 {
+	/** Color transform pass (generated) shader. */
 	FOpenColorIOTransformResource* ShaderResource = nullptr;
+	
+	/** Collection of LUT textures needed by the shader. */
 	TSortedMap<int32, FTextureResource*> TextureResources = {};
+
+	/** Color transform string description. */
+	FString TransformName = FString();
 };
 
 /** Entry point to trigger OpenColorIO conversion rendering */
