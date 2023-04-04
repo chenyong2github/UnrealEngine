@@ -763,10 +763,6 @@ bool FGCStackSizeHelper::ConvertPathToProperties(UClass* ObjectClass, const FNam
 	FProperty implementation.
 -----------------------------------------------------------------------------*/
 
-#if UE_GAME
-	static_assert(sizeof(FProperty) <= 104, "FProperty was optimized to reduce its size so most of the classes that inherent from it will fall withing 112 bytes bin of MallocBinned3");
-#endif
-
 IMPLEMENT_FIELD(FProperty)
 
 //

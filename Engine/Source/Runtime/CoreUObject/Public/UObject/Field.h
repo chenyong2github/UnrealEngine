@@ -266,19 +266,20 @@ class COREUOBJECT_API FFieldVariant
 		UObject* Object;
 	} Container;
 
-	static constexpr uintptr_t UObjectMask = 0x1;
+	bool bIsUObject;
 
 public:
 
 	FFieldVariant()
+		: bIsUObject(false)
 	{
 		Container.Field = nullptr;
 	}
 
 	FFieldVariant(const FField* InField)
+		: bIsUObject(false)
 	{
 		Container.Field = const_cast<FField*>(InField);
-		check(!IsUObject());
 	}
 
 	template <
@@ -286,9 +287,9 @@ public:
 		decltype(ImplicitConv<const UObject*>(std::declval<T>()))* = nullptr
 	>
 	FFieldVariant(T&& InObject)
+		: bIsUObject(true)
 	{
 		Container.Object = const_cast<UObject*>(ImplicitConv<const UObject*>(InObject));
-		Container.Object = (UObject*)((uintptr_t)Container.Object | UObjectMask);
 	}
 
 	FFieldVariant(TYPE_OF_NULLPTR)
@@ -298,11 +299,11 @@ public:
 
 	inline bool IsUObject() const
 	{
-		return (uintptr_t)Container.Object & UObjectMask;
+		return bIsUObject;
 	}
 	inline bool IsValid() const
 	{
-		return !!ToUObjectUnsafe();
+		return !!Container.Object;
 	}
 	bool IsValidLowLevel() const;
 	inline operator bool() const
@@ -326,7 +327,7 @@ public:
 		{
 			if constexpr (std::is_base_of_v<UObject, T>)
 			{
-				return static_cast<T*>(ToUObjectUnsafe());
+				return static_cast<T*>(Container.Object);
 			}
 			else
 			{
@@ -338,9 +339,9 @@ public:
 
 	UObject* ToUObject() const
 	{
-		if (IsUObject())
+		if (bIsUObject)
 		{
-			return ToUObjectUnsafe();
+			return Container.Object;
 		}
 		else
 		{
@@ -349,7 +350,7 @@ public:
 	}
 	FField* ToField() const
 	{
-		if (!IsUObject())
+		if (!bIsUObject)
 		{
 			return Container.Field;
 		}
@@ -366,7 +367,7 @@ public:
 	/** FOR INTERNAL USE ONLY: Function that returns the owner as UObject without checking if it's actually a UObject */
 	FORCEINLINE UObject* ToUObjectUnsafe() const
 	{
-		return (UObject*)((uintptr_t)Container.Object & ~UObjectMask);
+		return Container.Object;
 	}
 
 	void* GetRawPointer() const
@@ -401,6 +402,8 @@ public:
 	{
 		return GetTypeHash(InFieldVariant.GetRawPointer());
 	}
+
+	COREUOBJECT_API friend FArchive& operator << (FArchive& Ar, FFieldVariant& InOutField);
 };
 
 /**
