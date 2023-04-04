@@ -61,6 +61,9 @@ namespace GeometryCollection::Facades
 		void ConvertSelectionToRigidNodes(const int32 Index, TArray<int32>& InSelection) const;
 		void ConvertSelectionToRigidNodes(TArray<int32>& InSelection) const;
 
+		/** Replace any Embedded or Rigid transforms in InOutSelection with their parent cluster. If there is just a rigid root node selected, optionally keep it if bLeaveRigidRoot is true. */
+		void ConvertSelectionToClusterNodes(TArray<int32>& InOutSelection, bool bLeaveRigidRoots = true) const;
+
 		/**  */
 		bool CanSelectRootBones() const { return ParentAttribute.IsValid(); }
 		TArray<int32> SelectRootBones() const;

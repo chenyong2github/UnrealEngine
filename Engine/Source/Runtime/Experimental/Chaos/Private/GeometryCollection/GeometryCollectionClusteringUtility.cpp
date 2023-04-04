@@ -339,7 +339,10 @@ void FGeometryCollectionClusteringUtility::CollapseHierarchyOneLevel(FGeometryCo
 
 	TArray<int32> Roots;
 	GetRootBones(GeometryCollection, Roots);
-	RecursivelyUpdateChildBoneNames(Roots[0], Children, BoneNames);
+	if (!Roots.IsEmpty())
+	{
+		RecursivelyUpdateChildBoneNames(Roots[0], Children, BoneNames);
+	}
 
 	ValidateResults(GeometryCollection);
 }

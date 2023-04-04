@@ -188,6 +188,48 @@ namespace GeometryCollection::Facades
 		InOutSelection = RigidSelection;
 	}
 
+	void FCollectionTransformSelectionFacade::ConvertSelectionToClusterNodes(TArray<int32>& InOutSelection, bool bLeaveRigidRoots) const
+	{
+		const TManagedArray<int32>& Parents = ParentAttribute.Get();
+		const TManagedArray<int32>& SimulationType = SimulationTypeAttribute.Get();
+
+		Sanitize(InOutSelection);
+
+		TSet<int32> ClusterNodes;
+		for (int32 Index : InOutSelection)
+		{
+			int32 SimType = SimulationType[Index];
+			if (SimType == FGeometryCollection::ESimulationTypes::FST_Clustered)
+			{
+				ClusterNodes.Add(Index);
+			}
+			else // if Index is not a cluster, select the cluster containing Index
+			{
+				int32 Parent = Parents[Index];
+				int32 CouldBeRoot = Index;
+				if (SimType == FGeometryCollection::ESimulationTypes::FST_None && Parent != -1)
+				{
+					CouldBeRoot = Parent;
+					Parent = Parents[Parent];
+				}
+				// Special case handling for the rigid root case; only discard from selection if !bLeaveRigidRoots
+				if (Parent == -1 && SimulationType[CouldBeRoot] == FGeometryCollection::ESimulationTypes::FST_Rigid)
+				{
+					if (bLeaveRigidRoots)
+					{
+						ClusterNodes.Add(Index);
+					}
+					continue;
+				}
+				else if (Parent != FGeometryCollection::Invalid && SimulationType[Parent] == FGeometryCollection::ESimulationTypes::FST_Clustered)
+				{
+					ClusterNodes.Add(Parent);
+				}
+			}
+		}
+		InOutSelection = ClusterNodes.Array();
+	}
+
 	TArray<int32> FCollectionTransformSelectionFacade::SelectRootBones() const
 	{
 		TArray<int32> OutSelection;
