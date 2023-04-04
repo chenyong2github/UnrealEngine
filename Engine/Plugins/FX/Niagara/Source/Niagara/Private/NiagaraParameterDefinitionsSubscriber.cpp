@@ -186,7 +186,7 @@ void INiagaraParameterDefinitionsSubscriber::SynchronizeWithParameterDefinitions
 			UNiagaraParameterDefinitionsBase* ParameterDefinitions = Cast<UNiagaraParameterDefinitionsBase>(ParameterDefinitionsAssetDatum.GetAsset());
 			if (ParameterDefinitions == nullptr)
 			{
-				ensureMsgf(false, TEXT("Failed to load parameter definition from asset registry!"));
+				UE_LOG(LogNiagara, Warning, TEXT("Failed to load parameter definition %s from asset registry!"), *ParameterDefinitionsAssetDatum.GetSoftObjectPath().ToString());
 				continue;
 			}
 			AllDefinitions.Add(ParameterDefinitions);
