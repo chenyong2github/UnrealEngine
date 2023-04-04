@@ -454,7 +454,7 @@ void FUObjectArray::DumpUObjectCountsToLog() const
 	{
 		const FUObjectItem& ObjectItem = GetObjectItemArrayUnsafe()[ObjectIndex];
 		UObject* Object = (UObject*)ObjectItem.Object;
-		if (Cast<UClass>(Object))
+		if (Object && Object->IsA(UClass::StaticClass()))
 		{
 			NumClasses++;
 		}
