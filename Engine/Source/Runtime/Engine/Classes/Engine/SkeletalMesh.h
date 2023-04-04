@@ -68,6 +68,7 @@ struct FSkinWeightProfileInfo;
 class FSkinWeightVertexBuffer;
 enum class ESkeletalMeshGeoImportVersions : uint8;
 enum class ESkeletalMeshSkinningImportVersions : uint8;
+struct FMeshDescription;
 
 /*-----------------------------------------------------------------------------
 	Async Skeletal Mesh Compilation
@@ -537,6 +538,23 @@ public:
 
 	// End USkeletalMeshEditorData public skeletalmesh API
 	//////////////////////////////////////////////////////////////////////////
+
+	/* Structure that defines parameters passed into the commit mesh description function */
+	struct FCommitMeshDescriptionParams
+	{
+		FCommitMeshDescriptionParams()
+			: bModify(true)
+		{}
+
+		bool bModify;
+	};
+
+	/* Fills OutMeshDescription from the associated InLODIndex. */
+	void GetMeshDescription(const int32 InLODIndex, FMeshDescription& OutMeshDescription) const;
+
+	/* Sets InMeshDescription to the associated InLODIndex. */
+	void CommitMeshDescription(const int32 InLODIndex, const FMeshDescription& InMeshDescription,
+		const FCommitMeshDescriptionParams& InParams = FCommitMeshDescriptionParams());
 
 	/** Get the number of imported vertices. This returns 0 if GetImportedModel() returns a nullptr.
 	  * This is the number of vertices as they appear in the source asset, for example 8 for a cube. */

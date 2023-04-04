@@ -16,6 +16,12 @@
 #include "AssetRegistry/AssetData.h"
 #include "Rendering/SkeletalMeshModel.h"
 
+
+namespace FSkeletonModifierLocals
+{
+	static constexpr int32 LODIndex = 0;
+}
+
 FTransform FMirrorOptions::MirrorTransform(const FTransform& InTransform) const
 {
 	FTransform Transform = InTransform;
@@ -144,8 +150,17 @@ bool FSkeletonModifier::Init(USkeletalMesh* InSkeletalMesh)
 		return false;
 	}
 
+	// verify user is not trying to modify one of the core engine assets
+	if (InSkeletalMesh->GetPathName().StartsWith(TEXT("/Engine/")))
+	{
+		UE_LOG(LogAnimation, Error, TEXT("Skeleton Modifier: Cannot modify built-in engine asset."));
+		return false;
+	}
+	
 	// check assets using this skeleton ?
 	{
+		// TODO avoid certain changes when the skeleton is referenced by other assets (i.e. changing the skeletal mesh's
+		// reference skeleton poses is fine, re-parenting/removing bones, etc. is not)
 		static const TArray<FTopLevelAssetPath> AssetPaths({
 		   UAnimSequence::StaticClass()->GetClassPathName(),
 		   UAnimMontage::StaticClass()->GetClassPathName(),
@@ -172,34 +187,17 @@ bool FSkeletonModifier::Init(USkeletalMesh* InSkeletalMesh)
 		}
 	}
 
-	// verify mesh has an imported model
-	const FSkeletalMeshModel* SkeletalMeshModel = InSkeletalMesh->GetImportedModel();
-	if (!SkeletalMeshModel)
-	{
-		UE_LOG(LogAnimation, Error, TEXT("Skeleton Modifier: Supplied skeletal mesh does not have an imported model."));
-		return false;
-	}
-	
-	// verify that we have a LOD 0 mesh
-	if (SkeletalMeshModel->LODModels.IsEmpty())
-	{
-		UE_LOG(LogAnimation, Error, TEXT("Skeleton Modifier: Supplied skeletal mesh does not have a LOD 0 mesh."));
-		return false;
-	}
-	
-	// verify user is not trying to modify one of the core engine assets
-	if (InSkeletalMesh->GetPathName().StartsWith(TEXT("/Engine/")))
-	{
-		UE_LOG(LogAnimation, Error, TEXT("Skeleton Modifier: Cannot modify built-in engine asset."));
-		return false;
-	}
-	
 	// store pointer to mesh and instantiate a mesh description for commiting changes
 	SkeletalMesh = InSkeletalMesh;
-	
+
+	// store mesh description to edit
 	MeshDescription = MakeUnique<FMeshDescription>();
-	const FSkeletalMeshLODModel& LOD0Mesh = SkeletalMeshModel->LODModels[0];
-	LOD0Mesh.GetMeshDescription(*MeshDescription, SkeletalMesh);
+	SkeletalMesh->GetMeshDescription(FSkeletonModifierLocals::LODIndex, *MeshDescription);
+	if (MeshDescription->IsEmpty())
+	{
+		UE_LOG(LogAnimation, Error, TEXT("Skeleton Modifier: mesh description is emtpy."));
+		return false;
+	}
 
 	// store reference skeleton to edit
 	ReferenceSkeleton = MakeUnique<FReferenceSkeleton>();
@@ -268,18 +266,6 @@ bool FSkeletonModifier::CommitSkeletonToSkeletalMesh()
 		}
 	}
 	
-	// update skeletal mesh
-	SkeletalMesh->SetRefSkeleton(*ReferenceSkeleton);
-	SkeletalMesh->GetRefBasesInvMatrix().Reset();
-	SkeletalMesh->CalculateInvRefMatrices(); 
-	
-	// update skeleton
-	USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
-	if (Skeleton->RecreateBoneTree(SkeletalMesh))
-	{
-		Skeleton->MarkPackageDirty();	
-	}
-
 	// update mesh description
 	{
 		FSkeletalMeshAttributes MeshAttributes(*MeshDescription);
@@ -349,17 +335,28 @@ bool FSkeletonModifier::CommitSkeletonToSkeletalMesh()
 		}
 	}
 
-	// update skeletal mesh LOD (cf. USkeletalMeshToolTarget::CommitMeshDescription)
+	// update skeletal mesh
+	FlushRenderingCommands();
+	
+	SkeletalMesh->SetFlags(RF_Transactional);
+	SkeletalMesh->Modify();
+
+	// update the ref skeleton
+	SkeletalMesh->SetRefSkeleton(*ReferenceSkeleton);
+	SkeletalMesh->GetRefBasesInvMatrix().Reset();
+	SkeletalMesh->CalculateInvRefMatrices();
+	
+	// update skeletal mesh LOD (cf. USkeletalMesh::CommitMeshDescription)
+	SkeletalMesh->CommitMeshDescription(FSkeletonModifierLocals::LODIndex, *MeshDescription);
+
+	SkeletalMesh->PostEditChange();
+
+	// update skeleton
+	USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
+	Skeleton->Modify();
+	if (Skeleton->RecreateBoneTree(SkeletalMesh))
 	{
-		FlushRenderingCommands();
-		SkeletalMesh->SetFlags(RF_Transactional);
-		SkeletalMesh->Modify();
-		// generate mesh import data from the mesh description (now with modified weights)
-		FSkeletalMeshImportData SkeletalMeshImportData = FSkeletalMeshImportData::CreateFromMeshDescription(*MeshDescription);
-		SkeletalMesh->SaveLODImportedData(0, SkeletalMeshImportData);
-		SkeletalMesh->SetLODImportedDataVersions(0, ESkeletalMeshGeoImportVersions::LatestVersion, ESkeletalMeshSkinningImportVersions::LatestVersion);
-		SkeletalMesh->SetUseLegacyMeshDerivedDataKey(false);
-		SkeletalMesh->PostEditChange();
+		Skeleton->MarkPackageDirty();	
 	}
 
 	return true;

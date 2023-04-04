@@ -108,19 +108,9 @@ namespace Internal
 		class const_iterator
 		{
 		public:
-			const_iterator() = default;
-
 			const_iterator& operator++()
 			{
-				if (Index != INDEX_NONE && Weights)
-				{
-					++Index;
-					if (Index == Weights->Num())
-					{
-						Weights = nullptr;
-						Index = INDEX_NONE;
-					}
-				}
+				++Index;
 				return *this;
 			}
 
@@ -137,18 +127,22 @@ namespace Internal
 		protected:
 			friend class TVertexBoneWeightsBase<AdaptorType, StorageType>;
 
-			explicit const_iterator(const TVertexBoneWeightsBase<AdaptorType, StorageType> *InWeights) :
+			const_iterator() = delete;
+			
+			explicit const_iterator(const TVertexBoneWeightsBase<AdaptorType, StorageType> *InWeights, int32 InIndex) :
 	            Weights(InWeights),
-	            Index(0)
+	            Index(InIndex)
 			{
+				check(InWeights);
+				check(InIndex > INDEX_NONE && InIndex <= InWeights->Num());
 			}
 
 			const TVertexBoneWeightsBase<AdaptorType, StorageType> *Weights = nullptr;
 			int32 Index = INDEX_NONE;
 		};
 
-		const_iterator begin() const { return const_iterator(this); }		
-		const_iterator end() const { return const_iterator(); }
+		const_iterator begin() const { return const_iterator(this, 0); }		
+		const_iterator end() const { return const_iterator(this, this->Num()); }
 
 	private:
 		TArrayAttribute<StorageType> Container;

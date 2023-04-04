@@ -1680,7 +1680,7 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 	}
 
 	// make sure we're counting properly
-	if (!Ar.IsLoading() && !Ar.IsSaving())
+	if ((!Ar.IsLoading() && !Ar.IsSaving()) || Ar.IsTransacting())
 	{
 		Ar << GetRefBasesInvMatrix();
 	}
@@ -2398,6 +2398,46 @@ void USkeletalMesh::EmptyAllImportData()
 	{
 		EmptyLODImportData(LODIndex);
 	}
+}
+
+void USkeletalMesh::GetMeshDescription(const int32 InLODIndex, FMeshDescription& OutMeshDescription) const
+{
+	// Check first if we have bulk data available and non-empty.
+	if (IsLODImportedDataBuildAvailable(InLODIndex) && !IsLODImportedDataEmpty(InLODIndex))
+	{
+		FSkeletalMeshImportData SkeletalMeshImportData;
+		LoadLODImportedData(InLODIndex, SkeletalMeshImportData);
+		SkeletalMeshImportData.GetMeshDescription(OutMeshDescription);
+	}
+	else
+	{
+		// Fall back on the LOD model directly if no bulk data exists. When we commit
+		// the mesh description, we override using the bulk data. This can happen for older
+		// skeletal meshes, from UE 4.24 and earlier.
+		const FSkeletalMeshModel* SkeletalMeshModel = GetImportedModel();
+		if (SkeletalMeshModel && SkeletalMeshModel->LODModels.IsValidIndex(InLODIndex))
+		{
+			SkeletalMeshModel->LODModels[InLODIndex].GetMeshDescription(OutMeshDescription, this);
+		}			
+	}
+}
+
+void USkeletalMesh::CommitMeshDescription(
+	const int32 InLODIndex, const FMeshDescription& InMeshDescription, const FCommitMeshDescriptionParams& InParams)
+{	
+	FSkeletalMeshImportData SkeletalMeshImportData = FSkeletalMeshImportData::CreateFromMeshDescription(InMeshDescription);
+
+	if (InParams.bModify)
+	{
+		SetFlags(RF_Transactional);
+		Modify();
+		GetMeshEditorData().Modify();
+	}
+
+	SaveLODImportedData(InLODIndex, SkeletalMeshImportData);
+	// Make sure the mesh builder knows it's the latest variety, so that the render data gets properly rebuilt.
+	SetLODImportedDataVersions(InLODIndex, ESkeletalMeshGeoImportVersions::LatestVersion, ESkeletalMeshSkinningImportVersions::LatestVersion);
+	SetUseLegacyMeshDerivedDataKey(false);
 }
 
 void USkeletalMesh::CreateUserSectionsDataForLegacyAssets()

@@ -149,28 +149,10 @@ FMeshDescription USkeletalMeshReadOnlyToolTarget::GetEmptyMeshDescription()
 	return EmptyMeshDescription;
 }
 
-void USkeletalMeshReadOnlyToolTarget::GetMeshDescription(const USkeletalMesh* SkeletalMeshIn, FMeshDescription& MeshDescription)
+void USkeletalMeshReadOnlyToolTarget::GetMeshDescription(const USkeletalMesh* SkeletalMeshIn, FMeshDescription& MeshDescriptionOut)
 {
 	using namespace USkeletalMeshToolTargetLocals;
-
-	// Check first if we have bulk data available and non-empty.
-	if (SkeletalMeshIn->IsLODImportedDataBuildAvailable(LODIndex) && !SkeletalMeshIn->IsLODImportedDataEmpty(LODIndex))
-	{
-		FSkeletalMeshImportData SkeletalMeshImportData;
-		SkeletalMeshIn->LoadLODImportedData(LODIndex, SkeletalMeshImportData);
-		SkeletalMeshImportData.GetMeshDescription(MeshDescription);
-	}
-	else
-	{
-		// Fall back on the LOD model directly if no bulk data exists. When we commit
-		// the mesh description, we override using the bulk data. This can happen for older
-		// skeletal meshes, from UE 4.24 and earlier.
-		const FSkeletalMeshModel* SkeletalMeshModel = SkeletalMeshIn->GetImportedModel();
-		if (SkeletalMeshModel && SkeletalMeshModel->LODModels.IsValidIndex(LODIndex))
-		{
-			SkeletalMeshModel->LODModels[LODIndex].GetMeshDescription(MeshDescription, SkeletalMeshIn);
-		}			
-	}
+	SkeletalMeshIn->GetMeshDescription(LODIndex, MeshDescriptionOut);
 }
 
 FDynamicMesh3 USkeletalMeshReadOnlyToolTarget::GetDynamicMesh()
@@ -218,25 +200,11 @@ void USkeletalMeshToolTarget::CommitMeshDescription(USkeletalMesh* SkeletalMeshI
 	// flush any pending rendering commands, which might touch a component while we are rebuilding it's mesh
 	FlushRenderingCommands();
 
-	// make sure transactional flag is on for this asset
-	SkeletalMeshIn->SetFlags(RF_Transactional);
-
-	verify(SkeletalMeshIn->Modify());
-
 	FCommitterParams CommitterParams;
-
 	CommitterParams.MeshDescriptionOut = MeshDescription;
-
 	Committer(CommitterParams);
-
-	FSkeletalMeshImportData SkeletalMeshImportData = 
-		FSkeletalMeshImportData::CreateFromMeshDescription(*CommitterParams.MeshDescriptionOut);
-	SkeletalMeshIn->SaveLODImportedData(LODIndex, SkeletalMeshImportData);
-
-	// Make sure the mesh builder knows it's the latest variety, so that the render data gets
-	// properly rebuilt.
-	SkeletalMeshIn->SetLODImportedDataVersions(LODIndex, ESkeletalMeshGeoImportVersions::LatestVersion, ESkeletalMeshSkinningImportVersions::LatestVersion);
-	SkeletalMeshIn->SetUseLegacyMeshDerivedDataKey(false);
+	
+	SkeletalMeshIn->CommitMeshDescription(LODIndex, *CommitterParams.MeshDescriptionOut);
 
 	SkeletalMeshIn->PostEditChange();
 }
