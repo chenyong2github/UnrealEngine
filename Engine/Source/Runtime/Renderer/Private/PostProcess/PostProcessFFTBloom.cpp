@@ -168,6 +168,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntPoint, KernelSpatialTextureSize)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, KernelSpatialTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, KernelSpatialSampler)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, DownsampleKernelSpatialOutput)
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -620,6 +621,7 @@ void InitDomainAndGetKernel(
 				FBloomDownsampleKernelCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBloomDownsampleKernelCS::FParameters>();
 				PassParameters->KernelSpatialTextureSize = ClampedKernelTexture->Desc.Extent;
 				PassParameters->KernelSpatialTexture = ClampedKernelTexture;
+				PassParameters->KernelSpatialSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 				PassParameters->DownsampleKernelSpatialOutput = GraphBuilder.CreateUAV(NewClampedKernelTexture);
 
 				TShaderMapRef<FBloomDownsampleKernelCS> ComputeShader(View.ShaderMap);

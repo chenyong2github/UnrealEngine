@@ -12,6 +12,7 @@
 
 uint2 KernelSpatialTextureSize;
 Texture2D KernelSpatialTexture;
+SamplerState KernelSpatialSampler;
 
 RWTexture2D<float4> DownsampleKernelSpatialOutput;
 
@@ -30,10 +31,10 @@ void MainCS(
 	float2 Offset = 0.7 / float2(KernelSpatialTextureSize);
 
 	float4 KernelColor = 0.0;
-	KernelColor += 0.25 * KernelSpatialTexture.SampleLevel(GlobalBilinearClampedSampler, TextureUV + float2(+1, +1) * Offset, 0);
-	KernelColor += 0.25 * KernelSpatialTexture.SampleLevel(GlobalBilinearClampedSampler, TextureUV + float2(+1, -1) * Offset, 0);
-	KernelColor += 0.25 * KernelSpatialTexture.SampleLevel(GlobalBilinearClampedSampler, TextureUV + float2(-1, -1) * Offset, 0);
-	KernelColor += 0.25 * KernelSpatialTexture.SampleLevel(GlobalBilinearClampedSampler, TextureUV + float2(-1, +1) * Offset, 0);
+	KernelColor += 0.25 * KernelSpatialTexture.SampleLevel(KernelSpatialSampler, TextureUV + float2(+1, +1) * Offset, 0);
+	KernelColor += 0.25 * KernelSpatialTexture.SampleLevel(KernelSpatialSampler, TextureUV + float2(+1, -1) * Offset, 0);
+	KernelColor += 0.25 * KernelSpatialTexture.SampleLevel(KernelSpatialSampler, TextureUV + float2(-1, -1) * Offset, 0);
+	KernelColor += 0.25 * KernelSpatialTexture.SampleLevel(KernelSpatialSampler, TextureUV + float2(-1, +1) * Offset, 0);
 
 	DownsampleKernelSpatialOutput[OutputPixelCoord] = KernelColor;
 }
