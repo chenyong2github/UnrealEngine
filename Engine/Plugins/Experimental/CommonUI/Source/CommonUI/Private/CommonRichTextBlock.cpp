@@ -5,6 +5,7 @@
 #include "Widgets/Text/SRichTextBlock.h"
 #include "Rendering/SlateRenderer.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Text/STextScroller.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
 
@@ -584,7 +585,7 @@ TSharedRef<SWidget> UCommonRichTextBlock::RebuildWidget()
 
 	MyTextScroller =
 		SNew(STextScroller)
-		.ScrollStyle(TextScrollStyle)
+		.ScrollOptions(TextScrollStyle->ToScrollOptions())
 		[
 			Super::RebuildWidget()
 		];

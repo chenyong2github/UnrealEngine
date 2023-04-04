@@ -8,6 +8,9 @@
 #include "CommonTextBlock.generated.h"
 
 struct FTextBlockStyle;
+struct FTextScrollerOptions;
+
+class STextScroller;
 
 /* 
  * ---- All properties must be EditDefaultsOnly, BlueprintReadOnly !!! -----
@@ -89,6 +92,8 @@ class COMMONUI_API UCommonTextScrollStyle : public UObject
 	GENERATED_BODY()
 
 public:
+	FTextScrollerOptions ToScrollOptions() const;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
 	float Speed;
 
@@ -103,62 +108,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Properties")
 	float FadeOutDelay;
-};
-
-class STextScroller : public SCompoundWidget
-{
-public:
-	SLATE_BEGIN_ARGS(STextScroller) {}
-		/** Slot for this designers content (optional) */
-		SLATE_DEFAULT_SLOT(FArguments, Content)
-
-		SLATE_ARGUMENT(const UCommonTextScrollStyle*, ScrollStyle)
-	SLATE_END_ARGS()
-
-public:
-	STextScroller()
-		: ActiveState(EActiveState::EStart)
-		, TimeElapsed(0.f)
-		, ScrollOffset(0.f)
-		, FontAlpha(1.f)
-	{
-	}
-
-	void Construct(const FArguments& InArgs);
-
-	virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override;
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
-
-	void ResetScrollState();
-	void StartScrolling();
-	void SuspendScrolling();
-
-	bool IsScrollingEnabled() const { return ActiveState != EActiveState::ESuspend; }
-
-private:
-	void UpdateTickability(const FGeometry& AllottedGeometry);
-	EActiveTimerReturnType OnScrollTextTick(double CurrentTime, float DeltaTime);
-
-private:
-	enum class EActiveState : uint8
-	{
-		EFadeIn = 0,
-		EStart,
-		EStartWait,
-		EScrolling,
-		EStop,
-		EStopWait,
-		EFadeOut,
-		ESuspend,
-	} ActiveState;
-
-	float TimeElapsed;
-	float ScrollOffset;
-	float FontAlpha;
-
-	TSharedPtr<FActiveTimerHandle> ActiveTimerHandle;
-
-	TWeakObjectPtr<const UCommonTextScrollStyle> ScrollStyle;
 };
 
 /**
