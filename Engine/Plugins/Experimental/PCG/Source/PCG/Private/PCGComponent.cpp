@@ -1248,6 +1248,91 @@ void UPCGComponent::PreEditChange(FProperty* PropertyAboutToChange)
 	Super::PreEditChange(PropertyAboutToChange);
 }
 
+/**
+* Temporary workaround, while we are waiting for UE-182059
+* On the UI side of StructUtils, property widgets are referencing a temporary structure, not the one that is owned by the Graph/GraphInstance.
+* After the value is modified and the callback is propagated, the temporary structure is modified, but the one owned by the Graph is not.
+* If we keep it like this, PostEditChangeChainProperty will call for a reconstruction of the component if it is on a Blueprint
+* and we will go through the process of copying and transfering data between the 2 components (old and new).
+* Because of that, we copy the old structure, not modified. And when the structure is actually modified, the callback is called on the old component,
+* already marked trash, and we lose the change.
+* The workaround is to detect when a value from our parameters is changed, and just discard the call to the super method, avoiding a reconstruction script.
+* Note that it should be OK to do so in the current situation, because there is another callback fired just after the copy of the temp 
+* structure to the real one, and on this callback we are calling the super method and go through construction script.
+* We do this workaround for pre and post edit, since we can run into trouble if a pre edit was processed, but post was not.
+*/
+bool UPCGComponent::IsChangingGraphInstanceParameterValue(FEditPropertyChain& InEditPropertyChain) const
+{
+	if (!GraphInstance)
+	{
+		return false;
+	}
+
+	FEditPropertyChain::TDoubleLinkedListNode* PropertyNode = InEditPropertyChain.GetActiveNode();
+
+	if (!PropertyNode)
+	{
+		return false;
+	}
+
+	constexpr int32 PropertyPathSize = 4;
+	static const FName PropertyPath[PropertyPathSize] = {
+		GET_MEMBER_NAME_CHECKED(UPCGComponent, GraphInstance),
+		GET_MEMBER_NAME_CHECKED(UPCGGraphInstance, ParametersOverrides),
+		GET_MEMBER_NAME_CHECKED(FPCGOverrideInstancedPropertyBag, Parameters),
+		FName(TEXT("Value"))
+	};
+
+	int32 Index = 0;
+
+	while (Index < PropertyPathSize && PropertyNode)
+	{
+		FProperty* Property = PropertyNode->GetValue();
+		if (Property && Property->GetFName() == PropertyPath[Index])
+		{
+			PropertyNode = PropertyNode->GetNextNode();
+			++Index;
+		}
+		else
+		{
+			PropertyNode = nullptr;
+		}
+	}
+
+	if (Index == PropertyPathSize && PropertyNode)
+	{
+		FProperty* Property = PropertyNode->GetValue();
+		if (Property && Property->GetOwnerStruct() == GraphInstance->ParametersOverrides.Parameters.GetPropertyBagStruct())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void UPCGComponent::PreEditChange(FEditPropertyChain& PropertyAboutToChange)
+{
+	if (IsChangingGraphInstanceParameterValue(PropertyAboutToChange))
+	{
+		// Skip pre edit, cf IsChangingGraphInstanceParameterValue comment
+		return;
+	}
+
+	UObject::PreEditChange(PropertyAboutToChange);
+}
+
+void UPCGComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	if (IsChangingGraphInstanceParameterValue(PropertyChangedEvent.PropertyChain))
+	{
+		// Skip post edit, cf IsChangingGraphInstanceParameterValue comment
+		return;
+	}
+
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+}
+
 void UPCGComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
