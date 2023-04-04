@@ -179,11 +179,13 @@ void FOpenXRLayer::CreateOpenXREquirectLayer(bool bIsStereo, bool bNoAlpha, FTra
 	Equirect.space = Space;
 	Equirect.subImage.imageArrayIndex = 0;
 	Equirect.pose = ToXrPose(Desc.Transform * PositionTransform, WorldToMeters);
-	// The radius is momentarily fixed to 0 as the editor does not support its insertion yet.
-	// An equirect layer with a radius of 0 is an infinite sphere.
-	Equirect.radius = 0.0f; 
 
 	const FEquirectLayer& EquirectProps = Desc.GetShape<FEquirectLayer>();
+
+	// An equirect layer with a radius of 0 is an infinite sphere.
+	// As of UE 5.3, equirect layers are supported only by the Oculus OpenXR runtime and 
+	// only with a radius of 0. Other radius values will be ignored.
+	Equirect.radius = FMath::Abs(EquirectProps.Radius / WorldToMeters);
 
 	FXrCompositionLayerUnion LayerUnion;
 	LayerUnion.Equirect = Equirect;

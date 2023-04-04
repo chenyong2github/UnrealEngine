@@ -147,6 +147,10 @@ public:
 	/** Right eye's texture coordinate bias after mapping to 2D. */
 	FVector2D RightBias;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, export, Category = "StereoLayer | Equirect Layer Properties")
+	/** Sphere radius. As of UE 5.3, equirect layers are supported only by the Oculus OpenXR runtime and only with a radius of 0 (infinite sphere).*/
+	float Radius;
+
 public:
 
 	FEquirectProps()
@@ -156,15 +160,17 @@ public:
 		, RightScale(FVector2D(1.0f, 1.0f))
 		, LeftBias(FVector2D(0.0f, 0.0f))
 		, RightBias(FVector2D(0.0f, 0.0f))
+		, Radius(0.0f)
 	{}
 
-	FEquirectProps(FBox2D InLeftUVRect, FBox2D InRightUVRect, FVector2D InLeftScale, FVector2D InRightScale, FVector2D InLeftBias, FVector2D InRightBias)
+	FEquirectProps(FBox2D InLeftUVRect, FBox2D InRightUVRect, FVector2D InLeftScale, FVector2D InRightScale, FVector2D InLeftBias, FVector2D InRightBias, float Radius)
 		: LeftUVRect(InLeftUVRect)
 		, RightUVRect(InRightUVRect)
 		, LeftScale(InLeftScale)
 		, RightScale(InRightScale)
 		, LeftBias(InLeftBias)
 		, RightBias(InRightBias)
+		, Radius(Radius)
 	{ }
 
 	/**
@@ -198,6 +204,7 @@ public:
 		, RightScale(FVector2D(1.0f, 1.0f))
 		, LeftBias(FVector2D(0.0f, 0.0f))
 		, RightBias(FVector2D(0.0f, 0.0f))
+		, Radius(0.0)
 	{}
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equirect Properties")
@@ -224,17 +231,25 @@ public:
 	/** Right eye's texture coordinate bias after mapping to 2D. */
 	FVector2D RightBias;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equirect Properties")
+	/** Sphere radius. As of UE 5.3, equirect layers are supported only by the Oculus OpenXR runtime and only with a radius of 0 (infinite sphere).*/
+	float Radius;
+
 	/**
 	 * Set Equirect layer properties: UVRect, Scale, and Bias
 	 * @param	LeftScale: Scale for left eye
 	 * @param	LeftBias: Bias for left eye
 	 * @param	RightScale: Scale for right eye
 	 * @param	RightBias: Bias for right eye
+	 * @param	Radius: Sphere radius
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Components|Stereo Layer")
 	void SetEquirectProps(FEquirectProps InScaleBiases);
 
 	virtual void ApplyShape(IStereoLayers::FLayerDesc& LayerDesc) override;
+#if WITH_EDITOR
+	virtual void DrawShapeVisualization(const class FSceneView* View, class FPrimitiveDrawInterface* PDI) override;
+#endif
 };
 
 /** 
@@ -305,14 +320,15 @@ public:
 	FBox2D GetUVRect() const { return UVRect; }
 
 	/**
-	 * Set Equirect layer properties: UVRect, Scale, and Bias
+	 * Set Equirect layer properties: UVRect, Scale, Bias and Radius.
 	 * @param	LeftScale: Scale for left eye
 	 * @param	LeftBias: Bias for left eye
 	 * @param	RightScale: Scale for right eye
 	 * @param	RightBias: Bias for right eye
+	 * @param	Radius: sphere radius
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Components|Stereo Layer", meta = (DeprecatedFunction, DeprecationMessage = "Use UStereoLayerShapeEquirect::SetEquirectProps() instead."))
-	void SetEquirectProps(FEquirectProps InScaleBiases);
+	void SetEquirectProps(FEquirectProps InEquirectProps);
 
 	/** 
 	 * Change the layer's render priority, higher priorities render on top of lower priorities

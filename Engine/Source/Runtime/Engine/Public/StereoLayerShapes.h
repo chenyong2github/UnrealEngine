@@ -60,13 +60,14 @@ class ENGINE_API FEquirectLayer : public IStereoLayerShape
 public:
 
 	FEquirectLayer() {}
-	FEquirectLayer(FBox2D InLeftUVRect, FBox2D InRightUVRect, FVector2D InLeftScale, FVector2D InRightScale, FVector2D InLeftBias, FVector2D InRightBias) :
+	FEquirectLayer(FBox2D InLeftUVRect, FBox2D InRightUVRect, FVector2D InLeftScale, FVector2D InRightScale, FVector2D InLeftBias, FVector2D InRightBias, float InRadius) :
 		LeftUVRect(InLeftUVRect),
 		RightUVRect(InRightUVRect),
 		LeftScale(InLeftScale),
 		RightScale(InRightScale),
 		LeftBias(InLeftBias),
-		RightBias(InRightBias)
+		RightBias(InRightBias),
+		Radius(InRadius)
 	{}
 
 	/** Left source texture UVRect, specifying portion of input texture corresponding to left eye. */
@@ -86,4 +87,7 @@ public:
 
 	/** Right eye's texture coordinate bias after mapping to 2D. */
 	FVector2D RightBias;
+
+	/** Sphere radius. As of UE 5.3, equirect layers are supported only by the Oculus OpenXR runtime and only with a radius of 0 (infinite sphere).*/
+	float Radius;
 };
