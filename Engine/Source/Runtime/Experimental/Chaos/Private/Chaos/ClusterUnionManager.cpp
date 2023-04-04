@@ -493,7 +493,10 @@ namespace Chaos
 			return *OutIndex;
 		}
 
-		FClusterUnionIndex NewIndex = CreateNewClusterUnion(DefaultClusterCreationParameters());
+		FClusterUnionCreationParameters OtherParams;
+		OtherParams.ExplicitIndex = InIndex;
+
+		FClusterUnionIndex NewIndex = CreateNewClusterUnion(DefaultClusterCreationParameters(), OtherParams);
 		ExplicitIndexMap.Add(InIndex, NewIndex);
 		return NewIndex;
 	}
