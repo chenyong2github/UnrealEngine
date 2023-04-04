@@ -278,7 +278,7 @@ void ALevelSequenceActor::InitializePlayer()
 	if (LevelSequenceAsset && GetWorld()->IsGameWorld())
 	{
 		// Level sequence is already loaded. Initialize the player if it's not already initialized with this sequence
-		if (LevelSequenceAsset != SequencePlayer->GetSequence())
+		if (LevelSequenceAsset != SequencePlayer->GetSequence() || SequencePlayer->GetEvaluationTemplate().GetRunner() == nullptr)
 		{
 			SequencePlayer->Initialize(LevelSequenceAsset, GetLevel(), CameraSettings);
 		}
