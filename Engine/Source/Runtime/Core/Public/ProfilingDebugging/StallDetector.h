@@ -293,7 +293,6 @@ namespace UE
 		static double Seconds();
 
 		/**
-		/**
 		* Initialize Stall Detector API resources
 		**/
 		static void Startup();
