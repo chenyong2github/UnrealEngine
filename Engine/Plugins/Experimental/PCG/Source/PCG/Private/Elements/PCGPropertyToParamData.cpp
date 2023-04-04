@@ -40,7 +40,6 @@ void UPCGPropertyToParamDataSettings::PostLoad()
 	{
 		ActorSelector.ActorSelection = ActorSelection_DEPRECATED;
 		ActorSelector.ActorSelectionTag = ActorSelectionTag_DEPRECATED;
-		ActorSelector.ActorSelectionName = ActorSelectionName_DEPRECATED;
 		ActorSelector.ActorSelectionClass = ActorSelectionClass_DEPRECATED;
 		ActorSelector.ActorFilter = ActorFilter_DEPRECATED;
 		ActorSelector.bIncludeChildren = bIncludeChildren_DEPRECATED;

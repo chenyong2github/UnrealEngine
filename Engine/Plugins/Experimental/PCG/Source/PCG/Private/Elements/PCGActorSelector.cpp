@@ -3,6 +3,7 @@
 #include "Elements/PCGActorSelector.h"
 
 #include "PCGComponent.h"
+#include "PCGModule.h"
 #include "Grid/PCGPartitionActor.h"
 #include "Helpers/PCGActorHelpers.h"
 
@@ -49,18 +50,6 @@ namespace PCGActorSelector
 				return true;
 			};
 
-		case EPCGActorSelection::ByName:
-			return[ActorSelectionName = InSettings.ActorSelectionName, &InFoundActors, bMultiSelect, &BoundsCheck](AActor* Actor) -> bool
-			{
-				if (Actor->GetFName().IsEqual(ActorSelectionName, ENameCase::IgnoreCase, /*bCompareNumber=*/ false) && BoundsCheck(Actor))
-				{
-					InFoundActors.Add(Actor);
-					return bMultiSelect;
-				}
-
-				return true;
-			};
-
 		case EPCGActorSelection::ByClass:
 			return[ActorSelectionClass = InSettings.ActorSelectionClass, &InFoundActors, bMultiSelect, &BoundsCheck](AActor* Actor) -> bool
 			{
@@ -72,6 +61,10 @@ namespace PCGActorSelector
 
 				return true;
 			};
+
+		case EPCGActorSelection::ByName:
+			UE_LOG(LogPCG, Error, TEXT("PCGActorSelector::GetFilteringFunction: Unsupported value for EPCGActorSelection - selection by name is no longer supported."));
+			break;
 
 		default:
 			break;
@@ -97,7 +90,6 @@ namespace PCGActorSelector
 		// Early out if we have not the information necessary.
 		if (FilterRequired(Settings) &&
 			((Settings.ActorSelection == EPCGActorSelection::ByTag && Settings.ActorSelectionTag == NAME_None) ||
-			(Settings.ActorSelection == EPCGActorSelection::ByName && Settings.ActorSelectionName == NAME_None) ||
 			(Settings.ActorSelection == EPCGActorSelection::ByClass && !Settings.ActorSelectionClass)))
 		{
 			return FoundActors;

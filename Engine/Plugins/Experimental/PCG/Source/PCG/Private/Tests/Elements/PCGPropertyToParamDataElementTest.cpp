@@ -210,7 +210,6 @@ bool FPCGPropertyToParamDataActorFindTest::RunTest(const FString& Parameters)
 	UPCGPropertyToParamDataSettings* Settings = NewObject<UPCGPropertyToParamDataSettings>();
 	Settings->ActorSelector.ActorSelectionClass = APCGUnitTestDummyActor::StaticClass();
 	Settings->ActorSelector.ActorSelectionTag = Tag;
-	Settings->ActorSelector.ActorSelectionName = APCGUnitTestDummyActor::StaticClass()->GetFName();
 	Settings->ComponentClass = UPCGUnitTestDummyComponent::StaticClass();
 
 	// Self by class
@@ -234,17 +233,6 @@ bool FPCGPropertyToParamDataActorFindTest::RunTest(const FString& Parameters)
 		Cast<APCGUnitTestDummyActor>(TestData.TestActor)->IntProperty = 42;
 
 		bSuccess &= VerifyAttributeValueValid(this, TestData, GET_MEMBER_NAME_CHECKED(APCGUnitTestDummyActor, IntProperty), 42ll, "PropertyToParamDataActorFindTest_Self_Tag");
-	}
-
-	// Self by name
-	{
-		Settings->ActorSelector.ActorSelection = EPCGActorSelection::ByName;
-		Settings->ActorSelector.ActorFilter = EPCGActorFilter::Self;
-
-		PCGTestsCommon::FTestData TestData(Seed, Settings, APCGUnitTestDummyActor::StaticClass());
-		Cast<APCGUnitTestDummyActor>(TestData.TestActor)->IntProperty = 42;
-
-		bSuccess &= VerifyAttributeValueValid(this, TestData, GET_MEMBER_NAME_CHECKED(APCGUnitTestDummyActor, IntProperty), 42ll, "PropertyToParamDataActorFindTest_Self_Name");
 	}
 
 	// TODO: Need a good way to spawn actors with parenting relation between them
@@ -327,17 +315,6 @@ bool FPCGPropertyToParamDataActorFindTest::RunTest(const FString& Parameters)
 		Cast<APCGUnitTestDummyActor>(TestData.TestActor)->IntProperty = 42;
 
 		bSuccess &= VerifyAttributeValueValid(this, TestData, GET_MEMBER_NAME_CHECKED(APCGUnitTestDummyActor, IntProperty), 42ll, "PropertyToParamDataActorFindTest_World_Tag");
-	}
-
-	// World by name
-	{
-		Settings->ActorSelector.ActorSelection = EPCGActorSelection::ByName;
-		Settings->ActorSelector.ActorFilter = EPCGActorFilter::AllWorldActors;
-
-		PCGTestsCommon::FTestData TestData(Seed, Settings, APCGUnitTestDummyActor::StaticClass());
-		Cast<APCGUnitTestDummyActor>(TestData.TestActor)->IntProperty = 42;
-
-		bSuccess &= VerifyAttributeValueValid(this, TestData, GET_MEMBER_NAME_CHECKED(APCGUnitTestDummyActor, IntProperty), 42ll, "PropertyToParamDataActorFindTest_World_Name");
 	}
 
 	return bSuccess;
