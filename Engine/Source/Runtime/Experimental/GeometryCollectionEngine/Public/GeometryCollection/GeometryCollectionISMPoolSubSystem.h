@@ -24,7 +24,7 @@ public:
 	virtual void Deinitialize() override;
 	// USubsystem END
 
-	AGeometryCollectionISMPoolActor* FindISMPoolActor(const USceneComponent& Requester);
+	AGeometryCollectionISMPoolActor* FindISMPoolActor();
 
 protected:
 

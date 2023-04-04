@@ -30,7 +30,7 @@ void UGeometryCollectionISMPoolSubSystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-AGeometryCollectionISMPoolActor* UGeometryCollectionISMPoolSubSystem::FindISMPoolActor(const USceneComponent& Requester)
+AGeometryCollectionISMPoolActor* UGeometryCollectionISMPoolSubSystem::FindISMPoolActor()
 {
 	// on demand creation of the actor 
 	// very simple logic for now, we can extend that in the future to return a specific actor based on the criteria
@@ -43,5 +43,3 @@ AGeometryCollectionISMPoolActor* UGeometryCollectionISMPoolSubSystem::FindISMPoo
 	}
 	return ISMPoolActor;
 }
-
-

@@ -7,6 +7,7 @@
 #include "GeometryCollectionISMPoolRenderer.generated.h"
 
 class AGeometryCollectionISMPoolActor;
+class UGeometryCollectionISMPoolComponent;
 
 /** Implementation of a geometry collection custom renderer that pushes AutoInstanceMeshes to an ISMPool. */
 UCLASS()
@@ -23,10 +24,6 @@ public:
 	virtual void UpdateTransforms(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, TArrayView<const FMatrix> InMatrices) override;
 	//~ End IGeometryCollectionExternalRenderInterface Interface.
 
-	/** Instanced Static Mesh Pool actor that is used to render our meshes. */
-	UPROPERTY(Transient)
-	TObjectPtr<AGeometryCollectionISMPoolActor> ISMPoolActor = nullptr;
-
 	/** Description for a group of meshes that are added/updated together. */
 	struct FISMPoolGroup
 	{
@@ -35,11 +32,16 @@ public:
 	};
 
 protected:
+	/** Instanced Static Mesh Pool actor that is used to render our meshes. */
+	UPROPERTY(Transient)
+	TObjectPtr<AGeometryCollectionISMPoolActor> ISMPoolActor;
+
 	/** ISM pool groups per rendering element type. */
 	FISMPoolGroup MergedMeshGroup;
 	FISMPoolGroup InstancesGroup;
 
 private:
+	UGeometryCollectionISMPoolComponent* GetOrCreateISMPoolComponent();
 	void InitMergedMeshFromGeometryCollection(UGeometryCollection const& InGeometryCollection);
 	void InitInstancesFromGeometryCollection(UGeometryCollection const& InGeometryCollection);
 	void UpdateMergedMeshTransforms(FTransform const& InBaseTransform);

@@ -15,10 +15,6 @@
 
 void UGeometryCollectionISMPoolRenderer::OnRegisterGeometryCollection(UGeometryCollectionComponent const& InComponent)
 {
-	if (UGeometryCollectionISMPoolSubSystem* ISMPoolSubSystem = UWorld::GetSubsystem<UGeometryCollectionISMPoolSubSystem>(GetWorld()))
-	{
-		ISMPoolActor = ISMPoolSubSystem->FindISMPoolActor(InComponent);
-	}
 }
 
 void UGeometryCollectionISMPoolRenderer::OnUnregisterGeometryCollection()
@@ -60,6 +56,18 @@ void UGeometryCollectionISMPoolRenderer::UpdateTransforms(UGeometryCollection co
 	UpdateInstanceTransforms(InGeometryCollection, InBaseTransform, InMatrices);
 }
 
+UGeometryCollectionISMPoolComponent* UGeometryCollectionISMPoolRenderer::GetOrCreateISMPoolComponent()
+{
+	if (ISMPoolActor == nullptr)
+	{
+		if (UGeometryCollectionISMPoolSubSystem* ISMPoolSubSystem = UWorld::GetSubsystem<UGeometryCollectionISMPoolSubSystem>(GetWorld()))
+		{
+			ISMPoolActor = ISMPoolSubSystem->FindISMPoolActor();
+		}
+	}
+	return ISMPoolActor != nullptr ? ISMPoolActor->GetISMPoolComp() : nullptr;
+}
+
 void UGeometryCollectionISMPoolRenderer::InitMergedMeshFromGeometryCollection(UGeometryCollection const& InGeometryCollection)
 {
 	if (InGeometryCollection.RootProxyData.ProxyMeshes.Num() == 0)
@@ -67,7 +75,7 @@ void UGeometryCollectionISMPoolRenderer::InitMergedMeshFromGeometryCollection(UG
 		return;
 	}
 
-	UGeometryCollectionISMPoolComponent* ISMPoolComponent = ISMPoolActor != nullptr ? ISMPoolActor->GetISMPoolComp() : nullptr;
+	UGeometryCollectionISMPoolComponent* ISMPoolComponent = GetOrCreateISMPoolComponent();
 	MergedMeshGroup.GroupIndex = ISMPoolComponent != nullptr ? ISMPoolComponent->CreateMeshGroup() : INDEX_NONE;
 
 	if (MergedMeshGroup.GroupIndex == INDEX_NONE)
@@ -99,7 +107,7 @@ void UGeometryCollectionISMPoolRenderer::InitInstancesFromGeometryCollection(UGe
 		return;
 	}
 
-	UGeometryCollectionISMPoolComponent* ISMPoolComponent = ISMPoolActor != nullptr ? ISMPoolActor->GetISMPoolComp() : nullptr;
+	UGeometryCollectionISMPoolComponent* ISMPoolComponent = GetOrCreateISMPoolComponent();
 	InstancesGroup.GroupIndex = ISMPoolComponent != nullptr ? ISMPoolComponent->CreateMeshGroup() : INDEX_NONE;
 
 	if (InstancesGroup.GroupIndex == INDEX_NONE)
@@ -144,7 +152,7 @@ void UGeometryCollectionISMPoolRenderer::UpdateMergedMeshTransforms(FTransform c
 		return;
 	}
 
-	UGeometryCollectionISMPoolComponent* ISMPoolComponent = ISMPoolActor != nullptr ? ISMPoolActor->GetISMPoolComp() : nullptr;
+	UGeometryCollectionISMPoolComponent* ISMPoolComponent = GetOrCreateISMPoolComponent();
 	if (ISMPoolComponent == nullptr)
 	{
 		return;
@@ -166,7 +174,7 @@ void UGeometryCollectionISMPoolRenderer::UpdateInstanceTransforms(UGeometryColle
 		return;
 	}
 
-	UGeometryCollectionISMPoolComponent* ISMPoolComponent = ISMPoolActor != nullptr ? ISMPoolActor->GetISMPoolComp() : nullptr;
+	UGeometryCollectionISMPoolComponent* ISMPoolComponent = GetOrCreateISMPoolComponent();
 	if (ISMPoolComponent == nullptr)
 	{
 		return;
@@ -200,7 +208,7 @@ void UGeometryCollectionISMPoolRenderer::UpdateInstanceTransforms(UGeometryColle
 
 void UGeometryCollectionISMPoolRenderer::ReleaseGroup(FISMPoolGroup& InOutGroup)
 {
-	UGeometryCollectionISMPoolComponent* ISMPoolComponent = ISMPoolActor != nullptr ? ISMPoolActor->GetISMPoolComp() : nullptr;
+	UGeometryCollectionISMPoolComponent* ISMPoolComponent = GetOrCreateISMPoolComponent();
 	if (ISMPoolComponent != nullptr)
 	{
 		ISMPoolComponent->DestroyMeshGroup(InOutGroup.GroupIndex);
