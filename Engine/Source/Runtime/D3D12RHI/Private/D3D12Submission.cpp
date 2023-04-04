@@ -255,6 +255,8 @@ void FD3D12DynamicRHI::SubmitCommands(TConstArrayView<FD3D12FinalizedCommands*> 
 					MergedPayload->SyncPointsToSignal.Append(Payload->SyncPointsToSignal);
 					MergedPayload->AllocatorsToRelease.Append(Payload->AllocatorsToRelease);
 					MergedPayload->QueryRanges.Append(Payload->QueryRanges);
+					MergedPayload->BreadcrumbStacks.Append(Payload->BreadcrumbStacks);
+					Payload->BreadcrumbStacks.Empty();
 
 					// Need to clear out allocator array, so Payload destructor doesn't delete them
 					Payload->AllocatorsToRelease.Empty();
@@ -1102,6 +1104,52 @@ FD3D12PayloadBase::~FD3D12PayloadBase()
 	for (FD3D12CommandAllocator* Allocator : AllocatorsToRelease)
 	{
 		Queue.Device->ReleaseCommandAllocator(Allocator);
+	}
+}
+
+void FBreadcrumbStack::Initialize(TUniquePtr<FD3D12DiagnosticBuffer>& DiagnosticBuffer)
+{
+	{
+		FScopeLock Lock(&DiagnosticBuffer->CriticalSection);
+
+		if (DiagnosticBuffer->FreeContextIds.Num() == 0)
+		{
+			ContextId = 0;
+			return;
+		}
+
+		ContextId = DiagnosticBuffer->FreeContextIds.Pop();
+	}
+
+	check(ContextId > 0);
+	{
+		const uint32 ContextSize = DiagnosticBuffer->BreadCrumbsContextSize;
+		const uint32 Offset = DiagnosticBuffer->BreadCrumbsContextSize * (ContextId - 1);
+
+		MaxMarkers = ContextSize / sizeof(uint32);
+		WriteAddress = DiagnosticBuffer->GpuAddress + Offset;
+		CPUAddress = (uint8*)(DiagnosticBuffer->CpuAddress) + Offset;
+
+		FMemory::Memzero(CPUAddress, DiagnosticBuffer->BreadCrumbsContextSize);
+	}
+}
+
+FBreadcrumbStack::FBreadcrumbStack()
+{
+	Scopes.Reserve(2048);
+	ScopeStack.Reserve(128);
+}
+
+FBreadcrumbStack::~FBreadcrumbStack()
+{
+	TUniquePtr<FD3D12DiagnosticBuffer>& DiagnosticBuffer = Queue->DiagnosticBuffer;
+	if (ContextId > 0)
+	{
+		{
+			FScopeLock Lock(&DiagnosticBuffer->CriticalSection);
+			DiagnosticBuffer->FreeContextIds.Push(ContextId);
+		}
+		ContextId = 0;
 	}
 }
 

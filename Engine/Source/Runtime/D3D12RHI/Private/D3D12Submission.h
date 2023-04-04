@@ -152,6 +152,33 @@ struct FD3D12QueryLocation
 	operator bool() const { return Heap != nullptr; }
 };
 
+struct FBreadcrumbStack
+{
+	struct FScope
+	{
+		uint32 NameCRC;
+		uint32 MarkerIndex;
+		uint32 Child;
+		uint32 Sibling;
+	};
+
+	FD3D12Queue* Queue;
+	uint32 NextIdx{ 0 };
+	int32 ContextId;
+	uint32 MaxMarkers{ 0 };
+	D3D12_GPU_VIRTUAL_ADDRESS WriteAddress;
+	void* CPUAddress;
+
+	TArray<FScope> Scopes;
+	TArray<uint32> ScopeStack;
+	bool bTopIsOpen{ false };
+
+	FBreadcrumbStack();
+	~FBreadcrumbStack();
+
+	void Initialize(TUniquePtr<struct FD3D12DiagnosticBuffer>& DiagnosticBuffer);
+};
+
 struct FD3D12QueryRange
 {
 	TRefCountPtr<FD3D12QueryHeap> Heap;
@@ -215,6 +242,9 @@ struct FD3D12PayloadBase
 	TArray<FD3D12QueryLocation> TimestampQueries;
 	TArray<FD3D12QueryLocation> OcclusionQueries;
 	TArray<FD3D12QueryRange> QueryRanges;
+
+	// GPU crash breadcrumbs stack
+	TArray<TSharedPtr<FBreadcrumbStack>> BreadcrumbStacks;
 
 	virtual ~FD3D12PayloadBase();
 

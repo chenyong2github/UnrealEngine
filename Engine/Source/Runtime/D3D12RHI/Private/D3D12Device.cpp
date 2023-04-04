@@ -67,15 +67,13 @@ void FD3D12Queue::SetupAfterDeviceCreation()
 		HRESULT hr = Device->GetDevice()->QueryInterface(IID_PPV_ARGS(D3D12Device3.GetInitReference()));
 		if (SUCCEEDED(hr))
 		{
-			// find out how many entries we can much push in a single event (limit to MAX_GPU_BREADCRUMB_DEPTH)
-			int32 GPUCrashDataDepth = Device->GetGPUProfiler().GPUCrashDataDepth;
-			int32 MaxEventCount = GPUCrashDataDepth > 0 ? FMath::Min(GPUCrashDataDepth, MAX_GPU_BREADCRUMB_DEPTH) : MAX_GPU_BREADCRUMB_DEPTH;
-
 			const uint32 ShaderDiagnosticBufferSize = sizeof(FD3D12DiagnosticBufferData);
 
 			// Allocate persistent CPU readable memory which will still be valid after a device lost and wrap this data in a placed resource
 			// so the GPU command list can write to it
-			const uint32 EventBufferSize = MaxEventCount * sizeof(uint32);
+			int32 MaxBreadcrumbsContexts = MAX_GPU_BREADCRUMB_CONTEXTS;
+			int32 MaxBreadcrumbsSize = MAX_GPU_BREADCRUMB_SIZE;
+			const uint32 EventBufferSize = MaxBreadcrumbsSize * MaxBreadcrumbsContexts * sizeof(uint32);
 			const uint32 TotalBufferSize = EventBufferSize + ShaderDiagnosticBufferSize;
 
 			// Create the platform-specific diagnostic buffer
@@ -89,6 +87,13 @@ void FD3D12Queue::SetupAfterDeviceCreation()
 				// Diagnostic buffer is split between breadcrumb events and diagnostic messages.
 				DiagnosticBuffer->BreadCrumbsOffset = 0;
 				DiagnosticBuffer->BreadCrumbsSize = EventBufferSize;
+
+				DiagnosticBuffer->BreadCrumbsContextSize = EventBufferSize / MaxBreadcrumbsContexts;
+
+				for (uint16 Idx = 0; Idx < MaxBreadcrumbsContexts; ++Idx)
+				{
+					DiagnosticBuffer->FreeContextIds.Add(MaxBreadcrumbsContexts - Idx);
+				}
 
 				DiagnosticBuffer->DiagnosticsOffset = DiagnosticBuffer->BreadCrumbsOffset + DiagnosticBuffer->BreadCrumbsSize;
 				DiagnosticBuffer->DiagnosticsSize = ShaderDiagnosticBufferSize;

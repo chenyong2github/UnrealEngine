@@ -228,6 +228,9 @@ private:
 	// A sync point signaled when all payloads in this context have completed.
 	FD3D12SyncPointRef ContextSyncPoint;
 
+	// Stack containing GPU breadcrumbs for crash debugging
+	TSharedPtr<FBreadcrumbStack> BreadcrumbStack;
+
 	// Returns the current command list (or creates a new one if the command list was not open).
 	FD3D12CommandList& GetCommandList()
 	{
@@ -246,6 +249,11 @@ public:
 	}
 
 protected:
+	void WriteGPUEventStackToBreadCrumbData(const TCHAR* Name, int32 CRC);
+	void WriteGPUEventToBreadCrumbData(FBreadcrumbStack* Breadcrumbs, uint32 MarkerIndex, bool bBeginEvent);
+	void InitPayloadBreadcrumbs();
+	void PopGPUEventStackFromBreadCrumbData();
+
 	enum class EPhase
 	{
 		Wait,
@@ -699,8 +707,6 @@ protected:
 	{  
 		return InGPUIndex == GetGPUIndex() ? this : nullptr; 
 	}
-	
-	void WriteGPUEventStackToBreadCrumbData(bool bBeginEvent);
 
 private:
 

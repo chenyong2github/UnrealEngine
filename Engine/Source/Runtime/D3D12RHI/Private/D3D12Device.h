@@ -49,6 +49,10 @@ struct FD3D12DiagnosticBuffer
 		, GpuAddress(GpuAddress)
 	{}
 
+	TArray<uint16> FreeContextIds;
+	FCriticalSection CriticalSection;
+	uint32 BreadCrumbsContextSize = 0;
+
 	uint32 BreadCrumbsOffset = 0;
 	uint32 BreadCrumbsSize = 0;
 
