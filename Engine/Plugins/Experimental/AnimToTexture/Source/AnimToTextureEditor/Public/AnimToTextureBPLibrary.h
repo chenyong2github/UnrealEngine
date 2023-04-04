@@ -12,11 +12,10 @@
 class UStaticMesh;
 class USkeletalMesh;
 
-/*
-* TODO: 
-*	- Right now it is saving data per-vertex instead of per-point.
-*     This will require more pixels if the mesh has lots of material slots or uv-shells.
-*     FStaticMeshOperations::FindOverlappingCorners(FOverlappingCorners& OutOverlappingCorners, const FMeshDescription& MeshDescription, float ComparisonThreshold)
+/**
+* Converts a series of animation frames into a Vertex Animation Texture (VAT)
+* 
+* The texture can store Vertex positions and normals or Bone positions and rotations.
 */
 UCLASS()
 class UAnimToTextureBPLibrary : public UBlueprintFunctionLibrary
@@ -29,7 +28,7 @@ class UAnimToTextureBPLibrary : public UBlueprintFunctionLibrary
 	* Bakes Animation Data into Textures.
 	*/
 	UFUNCTION(BlueprintCallable, meta = (Category = "AnimToTexture"))
-	static void AnimationToTexture(UAnimToTextureDataAsset* DataAsset, const FTransform RootTransform, bool& bSuccess);
+	static UPARAM(DisplayName="bSuccess") bool AnimationToTexture(UAnimToTextureDataAsset* DataAsset);
 
 	/** 
 	* Utility for converting SkeletalMesh into a StaticMesh
@@ -41,7 +40,7 @@ class UAnimToTextureBPLibrary : public UBlueprintFunctionLibrary
 	* Utility for setting a StaticMesh LightMapIndex.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "AnimToTexture")
-	static bool SetLightMapIndex(UStaticMesh* StaticMesh, const int32 LODIndex, const int32 LightmapIndex=1, bool bGenerateLightmapUVs=true);
+	static UPARAM(DisplayName = "bSuccess") bool SetLightMapIndex(UStaticMesh* StaticMesh, const int32 LODIndex, const int32 LightmapIndex=1, bool bGenerateLightmapUVs=true);
 
 	/**
 	* Updates a material's parameters to match those of an AnimToTexture DataAsset
@@ -66,7 +65,7 @@ private:
 		TArray<FVector3f>& OutVertexDeltas, TArray<FVector3f>& OutVertexNormals);
 
 	// Gets RefPose Bone Position and Rotations.
-	static int32 GetRefBonePositionsAndRotations(const USkeletalMeshComponent* SkeletalMeshComponent, 
+	static int32 GetRefBonePositionsAndRotations(const USkeletalMesh* SkeletalMesh, 
 		TArray<FVector3f>& OutBoneRefPositions, TArray<FVector4>& OutBoneRefRotations);
 
 	// Gets Bone Position and Rotations for Current Pose.	

@@ -214,6 +214,13 @@ public:
 
 	// ------------------------------------------------------
 	// Animation
+	
+	/**
+	* Adds transformation to baked textures. 
+	* This can be used for adding an offset to the animation.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	FTransform RootTransform;
 
 	/** 
 	* Bone used for Rigid Binding. The bone needs to be part of the RawBones. 
