@@ -378,11 +378,6 @@ void UCommonButtonBase::PostLoad()
 		Style = Settings.GetTemplateButtonStyle();
 	}
 	bStyleNoLongerNeedsConversion = true;
-
-	if (!HoldData && ICommonInputModule::GetSettings().GetDefaultHoldData())
-	{
-		HoldData = ICommonInputModule::GetSettings().GetDefaultHoldData();
-	}
 #endif
 }
 
