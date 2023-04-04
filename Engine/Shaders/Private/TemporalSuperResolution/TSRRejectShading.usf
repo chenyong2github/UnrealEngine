@@ -113,7 +113,7 @@ Texture2D<tsr_half4> ReprojectedHistoryMoireTexture;
 Texture2D<tsr_half> ParallaxRejectionMaskTexture;
 Texture2D<tsr_ushort> IsMovingMaskTexture;
 
-RWTexture2D<tsr_halfC> HistoryGuideOutput;
+RWTexture2D<tsr_half4> HistoryGuideOutput;
 RWTexture2D<tsr_half4> HistoryMoireOutput;
 RWTexture2D<tsr_half2> HistoryRejectionOutput;
 RWTexture2D<tsr_half> InputSceneColorLdrLumaOutput;
@@ -573,7 +573,12 @@ void MainCS(
 			}
 			#endif
 
-			HistoryGuideOutput[OutputPixelPos] = FinalGuideColor;
+			#if CONFIG_SCENE_COLOR_ALPHA
+				HistoryGuideOutput[OutputPixelPos] = FinalGuideColor;
+			#else
+				HistoryGuideOutput[OutputPixelPos] = tsr_half4(FinalGuideColor.xyz, tsr_half(1.0));
+			#endif
+
 			#if CONFIG_MOIRE_DETECTION
 				HistoryMoireOutput[OutputPixelPos] = FinalMoire.GetElement(SimdIndex);
 			#endif

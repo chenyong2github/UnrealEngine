@@ -65,7 +65,7 @@ FScreenTransform ScreenPosToPrevHistoryGuideBufferUV;
 float3 HistoryGuideQuantizationError;
 
 
-RWTexture2D<tsr_halfC> ReprojectedHistoryGuideOutput;
+RWTexture2D<tsr_half4> ReprojectedHistoryGuideOutput;
 RWTexture2D<tsr_half4> ReprojectedHistoryMoireOutput;
 
 RWTexture2D<float2> HoleFilledVelocityOutput;
@@ -657,7 +657,12 @@ void MainCS(
 		
 		tsr_short2 OutputPixelPos = InvalidateOutputPixelPos(InputPixelPos, InputInfo_ViewportMax);
 
-		ReprojectedHistoryGuideOutput[OutputPixelPos] = ReprojectedHistoryGuideColor;
+		#if CONFIG_SCENE_COLOR_ALPHA
+			ReprojectedHistoryGuideOutput[OutputPixelPos] = ReprojectedHistoryGuideColor;
+		#else
+			ReprojectedHistoryGuideOutput[OutputPixelPos] = tsr_half4(ReprojectedHistoryGuideColor.xyz, tsr_half(1.0));
+		#endif
+
 		#if CONFIG_MOIRE_REPROJECTION
 			ReprojectedHistoryMoireOutput[OutputPixelPos] = ReprojectedHistoryMoireColor;
 		#endif
