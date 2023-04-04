@@ -27,7 +27,7 @@ namespace UE::RivermaxCore::Private
 		size_t PayloadSize = 0;
 		size_t HeaderSize = 0;
 		uint16 PayloadExpectedSize = 1500;
-		uint16 HeaderExpectedSize = 20; //for 2110
+		uint16 HeaderExpectedSize = 32;
 
 		rmax_in_memblock DataMemory;
 		rmax_in_memblock HeaderMemory;
@@ -60,6 +60,45 @@ namespace UE::RivermaxCore::Private
 		const void* DeviceWritePointerTwo = nullptr;
 		uint32 SizeToWriteOne = 0;
 		uint32 SizeToWriteTwo = 0;
+	};
+
+	/** Incoming frame description tracker. Used to detect variable SRD length across a frame for now but should be used to help auto detect incoming frame */
+	struct FFrameDescriptionTrackingData
+	{
+	public:
+
+		/** Resets data related to current frame being tracked */
+		void ResetSingleFrameTracking();
+
+		/** Look at new RTP and extract info to estimate frame description */
+		void EvaluateNewRTP(const FRTPHeader& NewHeader);
+
+		/** Whether a valid resolution was detected during the last frame */
+		bool HasDetectedValidResolution() const;
+
+	private:
+		
+		/** Updates current resolution detection using new RTP header. */
+		void UpdateResolutionDetection(const FRTPHeader& NewHeader);
+		
+		/** Updates payload sizes encountered throughout a frame */
+		void UpdatePayloadSizeTracking(const FRTPHeader& NewHeader);
+
+	public:
+		/** Used to track different payload sizes received. GPUDirect can't work if different payload sizes are received across the frame except the last one */
+		TMap<uint32, uint32> PayloadSizeReceived;
+
+		/** Payload size used across a frame. -1 if multi SRD except last one are received. */
+		int16 CommonPayloadSize = -1;
+
+		/** Last resolution detected */
+		FIntPoint DetectedResolution = FIntPoint::ZeroValue;
+
+		/** Sampling type we are expecting as setup by the user. We could also auto detect it but some sampling types would collide so left manual for now. */
+		ESamplingType ExpectedSamplingType = ESamplingType::RGB_10bit;
+
+		/** Used to log sampling type warning once until a good frame type is received */
+		bool bHasLoggedSamplingWarning = false;
 	};
 
 	class FRivermaxInputStream : public IRivermaxInputStream, public FRunnable
@@ -131,6 +170,9 @@ namespace UE::RivermaxCore::Private
 		/** Gets the mapped gpu buffer for the incoming RHI buffer. Caching will occur if a new buffer is given */
 		void* GetMappedBuffer(const FBufferRHIRef& InBuffer);
 
+		/** Updates frame information tracking using RTP header */
+		void UpdateFrameTracking(const FRTPHeader& NewRTPHeader);
+
 	private:
 
 		/** Options used for this stream, such has resolution, frame rate etc... */
@@ -181,6 +223,9 @@ namespace UE::RivermaxCore::Private
 		/** Whether gpudirect is used for this stream. Even though listener requests it, doesn't mean it will/can be used */
 		bool bIsUsingGPUDirect = false;
 
+		/** Whether this stream has dynamic header data split enabled. Need to disable it on shutdown */
+		bool bIsDynamicHeaderEnabled = false;
+
 		/** GPU device index to use when mapping to cuda. Will be needed for mgpu support */
 		int32 GPUDeviceIndex = 0;
 
@@ -206,9 +251,6 @@ namespace UE::RivermaxCore::Private
 		/** Payload size used to initialize rivermax stream and know differences between received SRD and config */
 		uint32 ExpectedPayloadSize = 1500;
 
-		/** Used to track SRD length received and detect a change across a frame, which doesn't work with gpudirect */
-		TOptional<uint16> LastSRDLength = 0;
-
 		/** 
 		 * States used to track reception of a frame
 		 */
@@ -226,6 +268,12 @@ namespace UE::RivermaxCore::Private
 
 		/** Starts stream waiting for a marker to align ourselves with a full frame */
 		EReceptionState State = EReceptionState::WaitingForMarker;
+
+		/** Track incoming frame description to infer resolution, pixel type. */
+		FFrameDescriptionTrackingData FrameDescriptionTracking;
+
+		/** Resolution being used by this stream. Can either be auto detected or enforced by owner */
+		FIntPoint StreamResolution = FIntPoint::ZeroValue;
 	};
 }
 

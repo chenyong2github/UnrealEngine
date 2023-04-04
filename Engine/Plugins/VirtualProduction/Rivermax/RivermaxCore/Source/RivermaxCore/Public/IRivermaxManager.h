@@ -64,6 +64,12 @@ namespace UE::RivermaxCore
 
 		/** Whether gpudirect is enabled for output streams. */
 		virtual bool IsGPUDirectOutputSupported() const = 0;
+
+		/** Enables dynamic header support for a particular Rivermax device. */
+		virtual bool EnableDynamicHeaderSupport(const FString& Interface) = 0;
+
+		/** If it's the last user of that interface, we disable dynamic header */
+		virtual void DisableDynamicHeaderSupport(const FString& Interface) = 0;
 	};
 }
 

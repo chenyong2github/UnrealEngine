@@ -17,9 +17,6 @@ namespace UE::RivermaxCore
 
 	struct RIVERMAXCORE_API FRivermaxInputStreamOptions
 	{
-		/** Desired stream resolution */
-		FIntPoint Resolution = { 1920, 1080 };
-
 		/** Stream FrameRate */
 		FFrameRate FrameRate = { 24,1 };
 
@@ -37,9 +34,12 @@ namespace UE::RivermaxCore
 
 		/** Sample count to buffer. */
 		int32 NumberOfBuffers = 2;
+		
+		/** If true, don't use auto detected video format */
+		bool bEnforceVideoFormat = false;
 
-		/** Resolution aligning with pgroup of sampling type */
-		FIntPoint AlignedResolution = FIntPoint::ZeroValue;
+		/** Enforced resolution aligning with pgroup of sampling type */
+		FIntPoint EnforcedResolution = FIntPoint::ZeroValue;
 
 		/** Whether to leverage GPUDirect (Cuda) capability to transfer memory to NIC if available */
 		bool bUseGPUDirect = true;

@@ -84,8 +84,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Output", meta = (EditCondition = "AlignmentMode == ERivermaxMediaAlignmentMode::FrameCreation"))
 	bool bDoFrameCounterTimestamping = true;
 
+	/** If false, use the default source buffer size. If true, a specific resolution will be used. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Media", meta = (InlineEditConditionToggle))
+	bool bOverrideResolution = false;
+
 	/** Resolution of this output stream */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings", meta = (EditCondition = "bOverrideResolution"))
 	FIntPoint Resolution = {1920, 1080};
 	
 	/** Frame rate of this output stream */

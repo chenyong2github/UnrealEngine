@@ -44,6 +44,10 @@ protected:
 	{
 		return true;
 	}
+	virtual bool SupportsAutoRestart() const
+	{
+		return true;
+	}
 
 	/** For custom conversion, methods that need to be overriden */
 	virtual FIntPoint GetCustomOutputSize(const FIntPoint& InSize) const override;

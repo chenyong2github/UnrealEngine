@@ -14,7 +14,7 @@ namespace UE::RivermaxCore
 namespace UE::RivermaxCore::Private::Utils
 {	
 	/** Various constants used for stream initialization */
-	static constexpr uint32 RTPHeaderSize = 20;
+
 	static constexpr uint32 FullHDHeight = 1080;
 	static constexpr uint32 FullHDWidth = 1920;
 

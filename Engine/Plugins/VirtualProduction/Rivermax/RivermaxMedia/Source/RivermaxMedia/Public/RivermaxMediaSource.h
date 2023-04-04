@@ -59,8 +59,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player", meta = (EditCondition = "PlayerMode == ERivermaxPlayerMode::Framelock"))
 	bool bUseZeroLatency  = true;
 
+	/** If false, use the default source buffer size. If true, a specific resolution will be used. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Media", meta = (InlineEditConditionToggle))
+	bool bOverrideResolution = false;
+
 	/** Incoming stream video resolution */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Options")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Options", meta = (EditCondition = "bOverrideResolution"))
 	FIntPoint Resolution = {1920, 1080};
 	
 	/** Incoming stream video frame rate */

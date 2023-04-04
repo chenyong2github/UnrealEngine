@@ -71,6 +71,7 @@ DECLARE_GPU_STAT(MediaCapture_Readback);
 DECLARE_GPU_STAT(MediaCapture_ProcessCapture);
 DECLARE_GPU_STAT(MediaCapture_SyncPointPass);
 
+
 /* namespace MediaCaptureDetails definition
 *****************************************************************************/
 
@@ -482,18 +483,16 @@ namespace UE::MediaCaptureData
 				return false;
 			}
 
+			bool bFoundSizeMismatch = false;
+			FIntPoint RequestSize = FIntPoint::ZeroValue;
 			if (Args.MediaCapture->DesiredCaptureOptions.Crop == EMediaCaptureCroppingType::None)
 			{
 				if (Args.SourceViewRect.Area() != 0)
 				{
 					if (Args.DesiredSize.X != Args.SourceViewRect.Width() || Args.DesiredSize.Y != Args.SourceViewRect.Height())
 					{
-						UE_LOG(LogMediaIOCore, Error, TEXT("The capture will stop for '%s'. The Source size doesn't match with the user requested size. Requested: %d,%d  Source: %d,%d")
-							, *Args.MediaCapture->MediaOutputName
-							, Args.SourceViewRect.Width(), Args.SourceViewRect.Height()
-							, Args.GetSizeX(), Args.GetSizeY());
-
-						return false;
+						RequestSize = { Args.SourceViewRect.Width(), Args.SourceViewRect.Height() };
+						bFoundSizeMismatch = true;
 					}
 					else
 					{
@@ -504,12 +503,8 @@ namespace UE::MediaCaptureData
 				}
 				else if (Args.SourceViewRect.Area() == 0 && (Args.DesiredSize.X != Args.GetSizeX() || Args.DesiredSize.Y != Args.GetSizeY()))
 				{
-					UE_LOG(LogMediaIOCore, Error, TEXT("The capture will stop for '%s'. The Source size doesn't match with the user requested size. Requested: %d,%d  Source: %d,%d")
-						, *Args.MediaCapture->MediaOutputName
-						, Args.DesiredSize.X, Args.DesiredSize.Y
-						, Args.GetSizeX(), Args.GetSizeY());
-
-					return false;
+					RequestSize = { Args.DesiredSize };
+					bFoundSizeMismatch = true;
 				}
 			}
 			else
@@ -522,9 +517,31 @@ namespace UE::MediaCaptureData
 
 				if ((Args.DesiredSize.X + StartCapturePoint.X) > Args.GetSizeX() || (Args.DesiredSize.Y + StartCapturePoint.Y) > Args.GetSizeY())
 				{
+					RequestSize = { Args.DesiredSize };
+					bFoundSizeMismatch = true;
+				}
+			}
+
+			if (bFoundSizeMismatch)
+			{
+				if (Args.MediaCapture->SupportsAutoRestart() 
+					&& Args.MediaCapture->bUseRequestedTargetSize 
+					&& Args.MediaCapture->DesiredCaptureOptions.bAutoRestartOnSourceSizeChange)
+				{
+					Args.MediaCapture->bIsAutoRestartRequired = true;
+
+					UE_LOG(LogMediaIOCore, Log, TEXT("The capture will auto restart for '%s'. The Source size doesn't match with the user requested size. Requested: %d,%d  Source: %d,%d")
+						, *Args.MediaCapture->MediaOutputName
+						, RequestSize.X, RequestSize.Y
+						, Args.GetSizeX(), Args.GetSizeY());
+					
+					return false;
+				}
+				else
+				{
 					UE_LOG(LogMediaIOCore, Error, TEXT("The capture will stop for '%s'. The Source size doesn't match with the user requested size. Requested: %d,%d  Source: %d,%d")
 						, *Args.MediaCapture->MediaOutputName
-						, Args.DesiredSize.X, Args.DesiredSize.Y
+						, RequestSize.X, RequestSize.Y
 						, Args.GetSizeX(), Args.GetSizeY());
 
 					return false;
@@ -1053,6 +1070,7 @@ UMediaCapture::UMediaCapture()
 	, bShouldCaptureRHIResource(false)
 	, WaitingForRenderCommandExecutionCounter(0)
 	, PendingFrameCount(0)
+	, bIsAutoRestartRequired(false)
 {
 }
 
@@ -1527,6 +1545,11 @@ void UMediaCapture::CaptureImmediate_RenderThread(const UE::MediaCaptureData::FC
 	
 	check(IsInRenderingThread());
 
+	if (bIsAutoRestartRequired)
+	{
+		return;
+	}
+
 	// This could happen if the capture immediate is called before our resources were initialized. We can't really flush as we are in a command.
 	if (!bOutputResourcesInitialized)
 	{
@@ -1549,6 +1572,9 @@ void UMediaCapture::CaptureImmediate_RenderThread(const UE::MediaCaptureData::FC
 		UE_LOG(LogMediaIOCore, Error, TEXT("[%s] - Trying to capture a RHI resource with another capture type."), *MediaOutputName);
 		SetState(EMediaCaptureState::Error);
 	}
+
+	// Keep resource size up to date with incoming resource to capture
+ 	StaticCastSharedPtr<UE::MediaCapture::Private::FRHIResourceCaptureSource>(CaptureSource)->ResourceDescription.ResourceSize = Args.GetSizeXY();
 
 	if (GetState() != EMediaCaptureState::Capturing && GetState() != EMediaCaptureState::StopRequested)
 	{
@@ -1707,6 +1733,58 @@ void UMediaCapture::SetState(EMediaCaptureState InNewState)
 			});
 		}
 	}
+}
+
+void UMediaCapture::RestartCapture()
+{
+	check(IsInGameThread());
+
+	UE_LOG(LogMediaIOCore, Log, TEXT("Media Capture restarting for new size %dx%d"), CaptureSource->GetSize().X, CaptureSource->GetSize().Y);
+
+	if (FrameManager)
+	{
+		FrameManager->ForEachFrame([](const TSharedPtr<UE::MediaCaptureData::FFrame> InFrame)
+		{
+			StaticCastSharedPtr<UE::MediaCaptureData::FCaptureFrame>(InFrame)->bMediaCaptureActive = false;
+		});
+	}
+
+	constexpr bool bAllowPendingFrameToBeProcess = false;
+	if (GetState() != EMediaCaptureState::Stopped)
+	{
+		SetState(EMediaCaptureState::Preparing);
+
+		WaitForPendingTasks();
+
+		StopCaptureImpl(bAllowPendingFrameToBeProcess);
+
+		DesiredSize = CaptureSource->GetSize();
+		CacheOutputOptions();
+
+		bool bInitialized = InitializeCapture();
+		if (bInitialized)
+		{
+			bInitialized = CaptureSource->PostInitialize();
+		}
+
+		// This could have been updated by the initialization done by the implementation
+		bShouldCaptureRHIResource = ShouldCaptureRHIResource();
+
+		if (bInitialized)
+		{
+			bOutputResourcesInitialized = false;
+			InitializeOutputResources(MediaOutput->NumberOfTextureBuffers);
+			bInitialized = GetState() != EMediaCaptureState::Stopped;
+		}
+
+		if (!bInitialized)
+		{
+			SetState(EMediaCaptureState::Stopped);
+			MediaCaptureDetails::ShowSlateNotification();
+		}
+	}
+
+	bIsAutoRestartRequired = false;
 }
 
 void UMediaCapture::BroadcastStateChanged()
@@ -2147,6 +2225,11 @@ void UMediaCapture::OnEndFrame_GameThread()
 		FlushRenderingCommands();
 	}
 
+	if (bIsAutoRestartRequired)
+	{
+		return;
+	}
+
 	if (!MediaOutput)
 	{
 		return;
@@ -2234,7 +2317,22 @@ bool UMediaCapture::ProcessCapture_RenderThread(const TSharedPtr<UE::MediaCaptur
 		
 		if (bHasCaptureSuceeded == false)
 		{
-			Args.MediaCapture->SetState(EMediaCaptureState::Error);
+			if (Args.MediaCapture->bIsAutoRestartRequired)
+			{
+				TWeakObjectPtr<UMediaCapture> Self = this;
+				AsyncTask(ENamedThreads::GameThread, [Self]
+				{
+					UMediaCapture* MediaCapture = Self.Get();
+					if (UObjectInitialized() && MediaCapture)
+					{
+						MediaCapture->RestartCapture();
+					}
+				});
+			}
+			else
+			{
+				Args.MediaCapture->SetState(EMediaCaptureState::Error);
+			}
 		}
 
 		return bHasCaptureSuceeded;

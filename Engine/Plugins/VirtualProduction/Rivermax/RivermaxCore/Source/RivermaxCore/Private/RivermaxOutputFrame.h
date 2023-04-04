@@ -52,6 +52,7 @@ namespace UE::RivermaxCore::Private
 		uint32 LineNumber = 0;
 		uint16 SRDOffset = 0;
 		uint32 ChunkNumber = 0;
+		uint32 BytesSent = 0;
 
 		/** Timestamp of this frame  */
 		double TimestampTicks = 0.0;

@@ -9,6 +9,7 @@
 #include "RivermaxHeader.h"
 #include "RivermaxOutputFrame.h"
 #include "RivermaxTypes.h"
+#include "RTPHeader.h"
 
 
 class FEvent;
@@ -18,12 +19,6 @@ namespace UE::RivermaxCore::Private
 {
 	using UE::RivermaxCore::FRivermaxOutputStreamOptions;
 	using UE::RivermaxCore::FRivermaxOutputVideoFrameInfo;
-	
-	// Todo make a proper RTP header struct
-	struct FOutputRTPHeader
-	{
-		uint8 RawHeader[20];
-	};
 
 	struct FRivermaxOutputStreamMemory
 	{
@@ -36,7 +31,7 @@ namespace UE::RivermaxCore::Private
 		uint32 LinesInChunk = 4;
 
 		uint32 PacketsInLine = 0;
-		uint32 ChunkSizeInStrides = 0;
+		uint32 PacketsPerChunk = 0;
 
 		uint32 FramesFieldPerMemoryBlock = 0;
 		uint32 PacketsPerFrame = 0;
@@ -44,12 +39,11 @@ namespace UE::RivermaxCore::Private
 		uint32 ChunksPerFrameField = 0;
 		uint32 ChunksPerMemoryBlock = 0;
 		uint32 MemoryBlockCount = 0; 
-		uint32 StridesPerMemoryBlock = 0;
 
 		TArray<rmax_mem_block> MemoryBlocks;
 		TArray<uint16_t> PayloadSizes; //Array describing stride payload size
 		TArray<uint16_t> HeaderSizes; //Array describing header payload size
-		TArray<FOutputRTPHeader> RTPHeaders;
+		TArray<TArray<FRawRTPHeader>> RTPHeaders;
 
 		rmax_buffer_attr BufferAttributes;
 	};
@@ -142,7 +136,7 @@ namespace UE::RivermaxCore::Private
 		TSharedPtr<FRivermaxOutputFrame> GetNextAvailableFrame(uint32 InFrameIdentifier);
 
 		/** Fills RTP and SRD header using current state */
-		void BuildRTPHeader(FOutputRTPHeader& OutHeader) const;
+		void BuildRTPHeader(FRawRTPHeader& OutHeader) const;
 
 		/** Destroys rivermax stream. Will wait until it's ready to be destroyed */
 		void DestroyStream();

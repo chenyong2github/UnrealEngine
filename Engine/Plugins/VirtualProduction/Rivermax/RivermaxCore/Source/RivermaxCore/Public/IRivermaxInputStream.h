@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RivermaxFormats.h"
 
 class FRHIBuffer;
 
@@ -27,9 +28,6 @@ namespace UE::RivermaxCore
 		/** Width of the received frame */
 		uint32 Width = 0;
 
-		/** Size in bytes of a row */
-		uint32 Stride = 0;
-
 		/** Total size of the video frame */
 		uint32 VideoBufferSize = 0;
 
@@ -38,6 +36,21 @@ namespace UE::RivermaxCore
 
 		/** Frame number derived from timestamp and frame rate */
 		uint32 FrameNumber = 0;
+
+		/** Pixel format of the frame */
+		ESamplingType PixelFormat = ESamplingType::RGB_10bit;
+	};
+
+	struct RIVERMAXCORE_API FRivermaxInputVideoFormatChangedInfo
+	{
+		/** Detected height in pixel of the video stream */
+		uint32 Height = 0;
+
+		/** Detected width in pixel of the video stream */
+		uint32 Width = 0;
+
+		/** Detected sampling type of the video stream */
+		ESamplingType PixelFormat = ESamplingType::RGB_10bit;
 	};
 
 	struct RIVERMAXCORE_API FRivermaxInputVideoFrameRequest
@@ -71,6 +84,9 @@ namespace UE::RivermaxCore
 
 		/** Called when stream has encountered an error and has to stop */
 		virtual void OnStreamError() = 0;
+
+		/**  Called when stream has detected a change in the video format */
+		virtual void OnVideoFormatChanged(const FRivermaxInputVideoFormatChangedInfo& NewFormatInfo) = 0;
 	};
 
 	class RIVERMAXCORE_API IRivermaxInputStream

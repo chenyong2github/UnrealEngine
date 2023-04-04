@@ -94,8 +94,10 @@ namespace UE::RivermaxMediaUtils::Private
 
 		// Compute horizontal byte count (stride) of resolution
 		const uint32 PixelAlignment = Info.PixelGroupCoverage;
-		Description.PixelGroupCount = PixelAlignment > 0 ? InResolution.X / PixelAlignment : 0;
-		Description.BytesPerRow = Description.PixelGroupCount * Info.PixelGroupSize;
+		const uint32 PixelCount = InResolution.X * InResolution.Y;
+		ensureMsgf(PixelCount % PixelAlignment == 0, TEXT("Unaligned resolution (%dx%d) provided for pixel format %s"), InResolution.X, InResolution.Y, *UEnum::GetValueAsString(InPixelFormat));
+		const uint32 PixelGroupCount = PixelCount / PixelAlignment;
+		const uint32 FrameByteCount = PixelGroupCount * Info.PixelGroupSize;
 
 		switch (SamplingType)
 		{
@@ -137,9 +139,8 @@ namespace UE::RivermaxMediaUtils::Private
 		}
 
 		// Shader encoding might not align with pixel group size so we need to have enough elements to represent the last pixel group
-		Description.ElementsPerRow = Description.BytesPerRow / Description.BytesPerElement;
-		Description.ElementsPerRow += Description.BytesPerRow % Description.BytesPerElement != 0 ? 1 : 0;
-		Description.NumberOfElements = Description.ElementsPerRow * InResolution.Y;
+		Description.NumberOfElements = FrameByteCount / Description.BytesPerElement;
+		Description.NumberOfElements += FrameByteCount % Description.BytesPerElement != 0 ? 1 : 0;
 		
 		return Description;
 	}
@@ -165,4 +166,81 @@ namespace UE::RivermaxMediaUtils::Private
 		}
 		}
 	}
+
+	ERivermaxMediaSourcePixelFormat RivermaxPixelFormatToMediaSourcePixelFormat(UE::RivermaxCore::ESamplingType InSamplingType)
+	{
+		using namespace UE::RivermaxCore;
+
+		switch (InSamplingType)
+		{
+		case ESamplingType::YUV422_8bit:
+		{
+			return ERivermaxMediaSourcePixelFormat::YUV422_8bit;
+		}
+		case ESamplingType::YUV422_10bit:
+		{
+			return ERivermaxMediaSourcePixelFormat::YUV422_10bit;
+		}
+		case ESamplingType::RGB_8bit:
+		{
+			return ERivermaxMediaSourcePixelFormat::RGB_8bit;
+		}
+		case ESamplingType::RGB_10bit:
+		{
+			return ERivermaxMediaSourcePixelFormat::RGB_10bit;
+		}
+		case ESamplingType::RGB_12bit:
+		{
+			return ERivermaxMediaSourcePixelFormat::RGB_12bit;
+		}
+		case ESamplingType::RGB_16bitFloat:
+		{
+			return ERivermaxMediaSourcePixelFormat::RGB_16bit_Float;
+		}
+		default:
+		{
+			checkNoEntry();
+			return ERivermaxMediaSourcePixelFormat::RGB_10bit;
+		}
+		}
+	}
+
+	ERivermaxMediaOutputPixelFormat RivermaxPixelFormatToMediaOutputPixelFormat(UE::RivermaxCore::ESamplingType InSamplingType)
+	{
+		using namespace UE::RivermaxCore;
+
+		switch (InSamplingType)
+		{
+		case ESamplingType::YUV422_8bit:
+		{
+			return ERivermaxMediaOutputPixelFormat::PF_8BIT_YUV422;
+		}
+		case ESamplingType::YUV422_10bit:
+		{
+			return ERivermaxMediaOutputPixelFormat::PF_10BIT_YUV422;
+		}
+		case ESamplingType::RGB_8bit:
+		{
+			return ERivermaxMediaOutputPixelFormat::PF_8BIT_RGB;
+		}
+		case ESamplingType::RGB_10bit:
+		{
+			return ERivermaxMediaOutputPixelFormat::PF_10BIT_RGB;
+		}
+		case ESamplingType::RGB_12bit:
+		{
+			return ERivermaxMediaOutputPixelFormat::PF_12BIT_RGB;
+		}
+		case ESamplingType::RGB_16bitFloat:
+		{
+			return ERivermaxMediaOutputPixelFormat::PF_FLOAT16_RGB;
+		}
+		default:
+		{
+			checkNoEntry();
+			return ERivermaxMediaOutputPixelFormat::PF_10BIT_RGB;
+		}
+		}
+	}
+
 }

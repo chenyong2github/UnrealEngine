@@ -72,6 +72,7 @@ namespace  UE::RivermaxMedia
 		virtual void OnVideoFrameReceived(const FRivermaxInputVideoFrameDescriptor& FrameInfo, const FRivermaxInputVideoFrameReception& ReceivedVideoFrame) override;
 		virtual void OnVideoFrameReceptionError(const FRivermaxInputVideoFrameDescriptor& FrameInfo) override;
 		virtual void OnStreamError() override;
+		virtual void OnVideoFormatChanged(const FRivermaxInputVideoFormatChangedInfo& NewFormatInfo) override;
 		//~ End IRivermaxInputStreamListener interface
 
 	protected:
@@ -94,7 +95,7 @@ namespace  UE::RivermaxMedia
 		bool ConfigureStream(const IMediaOptions* Options);
 
 		/** Allocates the sample pool used to receive incoming data */
-		void AllocateBuffers();
+		void AllocateBuffers(const FIntPoint& InResolution);
 
 		/** Wrapper struct holding information about frame expected to be rendered */
 		struct FFrameExpectation
@@ -127,6 +128,13 @@ namespace  UE::RivermaxMedia
 
 		/** Looks at last frame rendered and tries to clean skipped frames container */
 		void TryClearSkippedInterval(uint32 LastFrameRendered);
+
+		/** Whether player is ready to play */
+		bool IsReadyToPlay() const;
+
+		/** Waits for tasks in flight and flushes render commands before cleaning our ressources */
+		void WaitForPendingTasks();
+
 
 	private:
 
@@ -201,8 +209,8 @@ namespace  UE::RivermaxMedia
 			/** Whether a frame has been requested yet. Used to detect start of the stream and valid frame number expectations */
 			bool bWasFrameRequested = false;
 			
-			/** Whether a call to render was made. Used to detect start of rendering and discard incoming frames that will never be used */
-			bool bHasRendered = false;
+			/** Last frame number sent to render. Used to release received frames that will never be picked up early on */
+			TOptional<uint32> LastFrameRendered;
 
 			/** Last frame expectations used */
 			FFrameExpectation LastFrameExpectation;
@@ -238,6 +246,15 @@ namespace  UE::RivermaxMedia
 
 		/** Time to sleep when waiting for an operation to complete */
 		static constexpr double SleepTimeSeconds = 50.0 * 1E-6;
+
+		/** Critical section used when accessing stream resolution and detect pending changes */
+		mutable FCriticalSection StreamResolutionCriticalSection;
+
+		/** Resolution detected by our stream. */
+		FIntPoint StreamResolution = FIntPoint::ZeroValue;
+		
+		/** Whether the player follows resolution detected by our stream, adjusting texture size as required */
+		bool bFollowsStreamResolution = true;
 	};
 }
 

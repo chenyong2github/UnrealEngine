@@ -30,6 +30,7 @@ namespace UE::RivermaxCore::Private
 		PacketCounter = 0;
 		LineNumber = 0;
 		SRDOffset = 0;
+		BytesSent = 0;
 	}
 
 	void FRivermaxOutputFrame::Reset()

@@ -148,6 +148,7 @@ bool FDisplayClusterMediaCaptureBase::StartMediaCapture()
 	
 	FMediaCaptureOptions MediaCaptureOptions;
 	MediaCaptureOptions.NumberOfFramesToCapture = -1;
+	MediaCaptureOptions.bAutoRestartOnSourceSizeChange = true;
 	MediaCaptureOptions.bSkipFrameWhenRunningExpensiveTasks = false;
 	MediaCaptureOptions.OverrunAction = EMediaCaptureOverrunAction::Flush;
 

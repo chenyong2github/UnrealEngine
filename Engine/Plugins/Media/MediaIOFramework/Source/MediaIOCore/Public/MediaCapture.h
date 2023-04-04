@@ -144,6 +144,10 @@ struct MEDIAIOCORE_API FMediaCaptureOptions
 
 public:
 
+	/** If source texture's size change, auto restart capture to follow source resolution if implementation supports it. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MediaCapture")
+	bool bAutoRestartOnSourceSizeChange = false;
+
 	/** Action to do when game thread overruns render thread and all frames are in flights being captured / readback. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MediaCapture")
 	EMediaCaptureOverrunAction OverrunAction = EMediaCaptureOverrunAction::Flush;
@@ -398,6 +402,12 @@ protected:
 		return false;
 	}
 
+	/** Whether the capture implementation supports restarting on input format change. */
+	virtual bool SupportsAutoRestart() const
+	{
+		return false;
+	}
+
 	friend class UE::MediaCaptureData::FCaptureFrame;
 	friend class UE::MediaCaptureData::FMediaCaptureHelper;
 	struct FCaptureBaseData
@@ -529,7 +539,7 @@ protected:
 	EMediaCaptureConversionOperation GetConversionOperation() const { return ConversionOperation; }
 	FString GetCaptureSourceType() const;
 	void SetState(EMediaCaptureState InNewState);
-
+	void RestartCapture();
 
 private:
 	void InitializeOutputResources(int32 InNumberOfBuffers);
@@ -626,6 +636,7 @@ private:
 	std::atomic<int32> WaitingForRenderCommandExecutionCounter;
 	TArray<TFuture<void>> PendingCommands;
 	std::atomic<int32> PendingFrameCount;
+	std::atomic<bool> bIsAutoRestartRequired;
 
 	struct FQueuedCaptureData
 	{

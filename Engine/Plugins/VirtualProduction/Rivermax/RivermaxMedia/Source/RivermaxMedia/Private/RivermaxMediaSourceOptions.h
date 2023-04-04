@@ -15,4 +15,5 @@ namespace RivermaxMediaOption
 	static const FName UseGPUDirect("UseGPUDirect");
 	static const FName PlayerMode("PlayerMode");
 	static const FName ZeroLatency("ZeroLatency");
+	static const FName OverrideResolution("OverrideResolution");
 }

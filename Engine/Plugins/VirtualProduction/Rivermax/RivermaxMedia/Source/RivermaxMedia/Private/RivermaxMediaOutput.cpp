@@ -21,7 +21,12 @@ bool URivermaxMediaOutput::Validate(FString& OutFailureReason) const
 
 FIntPoint URivermaxMediaOutput::GetRequestedSize() const
 {
-	return Resolution;
+	if (bOverrideResolution)
+	{
+		return Resolution;
+	}
+
+	return UMediaOutput::RequestCaptureSourceSize;
 }
 
 EPixelFormat URivermaxMediaOutput::GetRequestedPixelFormat() const

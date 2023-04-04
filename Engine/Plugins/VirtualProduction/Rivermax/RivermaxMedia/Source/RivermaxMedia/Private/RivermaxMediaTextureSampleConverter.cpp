@@ -84,8 +84,8 @@ bool FRivermaxMediaTextureSampleConverter::Convert(FTexture2DRHIRef& InDestinati
 		}
 
 		
-		const FIntPoint ProcessedOutputDimension = { (int32)SourceBufferDesc.ElementsPerRow, InDestinationTexture->GetDesc().Extent.Y };
-		const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(ProcessedOutputDimension, FComputeShaderUtils::kGolden2DGroupSize);
+		const FIntPoint ProcessedOutputDimension = { (int32)SourceBufferDesc.NumberOfElements, 1 };
+		const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(SourceBufferDesc.NumberOfElements, 64);
 		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
 		//Configure shader and add conversion pass based on desired pixel format
@@ -101,8 +101,7 @@ bool FRivermaxMediaTextureSampleConverter::Convert(FTexture2DRHIRef& InDestinati
 			const FMatrix YUVToRGBMatrix = SamplePtr->GetYUVToRGBMatrix();
 			const FVector YUVOffset(MediaShaders::YUVOffset8bits);
 			TShaderMapRef<FYUV8Bit422ToRGBACS> ComputeShader(GlobalShaderMap, PermutationVector);
-			FYUV8Bit422ToRGBACS::FParameters* Parameters = ComputeShader->AllocateAndSetParameters(GraphBuilder, InputBuffer, OutputResource, YUVToRGBMatrix, YUVOffset, SourceBufferDesc.ElementsPerRow, ProcessedOutputDimension.Y);
-
+			FYUV8Bit422ToRGBACS::FParameters* Parameters = ComputeShader->AllocateAndSetParameters(GraphBuilder, InputBuffer, OutputResource, YUVToRGBMatrix, YUVOffset, ProcessedOutputDimension.X, ProcessedOutputDimension.Y);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder
@@ -122,7 +121,7 @@ bool FRivermaxMediaTextureSampleConverter::Convert(FTexture2DRHIRef& InDestinati
 			const FMatrix YUVToRGBMatrix = SamplePtr->GetYUVToRGBMatrix();
 			const FVector YUVOffset(MediaShaders::YUVOffset10bits);
 			TShaderMapRef<FYUV10Bit422ToRGBACS> ComputeShader(GlobalShaderMap, PermutationVector);
-			FYUV10Bit422ToRGBACS::FParameters* Parameters = ComputeShader->AllocateAndSetParameters(GraphBuilder, InputBuffer, OutputResource, YUVToRGBMatrix, YUVOffset, SourceBufferDesc.ElementsPerRow, ProcessedOutputDimension.Y);
+			FYUV10Bit422ToRGBACS::FParameters* Parameters = ComputeShader->AllocateAndSetParameters(GraphBuilder, InputBuffer, OutputResource, YUVToRGBMatrix, YUVOffset, ProcessedOutputDimension.X, ProcessedOutputDimension.Y);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder
@@ -140,8 +139,7 @@ bool FRivermaxMediaTextureSampleConverter::Convert(FTexture2DRHIRef& InDestinati
 			PermutationVector.Set<FRGB8BitToRGBA8CS::FSRGBToLinear>(SamplePtr->NeedsSRGBToLinearConversion());
 
 			TShaderMapRef<FRGB8BitToRGBA8CS> ComputeShader(GlobalShaderMap, PermutationVector);
-			FRGB8BitToRGBA8CS::FParameters* Parameters = ComputeShader->AllocateAndSetParameters(GraphBuilder, InputBuffer, OutputResource, SourceBufferDesc.ElementsPerRow, ProcessedOutputDimension.Y);
-
+			FRGB8BitToRGBA8CS::FParameters* Parameters = ComputeShader->AllocateAndSetParameters(GraphBuilder, InputBuffer, OutputResource, ProcessedOutputDimension.X, ProcessedOutputDimension.Y);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder
@@ -159,7 +157,7 @@ bool FRivermaxMediaTextureSampleConverter::Convert(FTexture2DRHIRef& InDestinati
 			PermutationVector.Set<FRGB10BitToRGBA10CS::FSRGBToLinear>(SamplePtr->NeedsSRGBToLinearConversion());
 
 			TShaderMapRef<FRGB10BitToRGBA10CS> ComputeShader(GlobalShaderMap, PermutationVector);
-			FRGB10BitToRGBA10CS::FParameters* Parameters = ComputeShader->AllocateAndSetParameters(GraphBuilder, InputBuffer, OutputResource, SourceBufferDesc.ElementsPerRow, ProcessedOutputDimension.Y);
+			FRGB10BitToRGBA10CS::FParameters* Parameters = ComputeShader->AllocateAndSetParameters(GraphBuilder, InputBuffer, OutputResource, ProcessedOutputDimension.X, ProcessedOutputDimension.Y);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder
@@ -177,7 +175,7 @@ bool FRivermaxMediaTextureSampleConverter::Convert(FTexture2DRHIRef& InDestinati
 			PermutationVector.Set<FRGB12BitToRGBA12CS::FSRGBToLinear>(SamplePtr->NeedsSRGBToLinearConversion());
 
 			TShaderMapRef<FRGB12BitToRGBA12CS> ComputeShader(GlobalShaderMap, PermutationVector);
-			FRGB12BitToRGBA12CS::FParameters* Parameters = ComputeShader->AllocateAndSetParameters(GraphBuilder, InputBuffer, OutputResource, SourceBufferDesc.ElementsPerRow, ProcessedOutputDimension.Y);
+			FRGB12BitToRGBA12CS::FParameters* Parameters = ComputeShader->AllocateAndSetParameters(GraphBuilder, InputBuffer, OutputResource, ProcessedOutputDimension.X, ProcessedOutputDimension.Y);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder
@@ -195,7 +193,7 @@ bool FRivermaxMediaTextureSampleConverter::Convert(FTexture2DRHIRef& InDestinati
 			PermutationVector.Set<FRGB16fBitToRGBA16fCS::FSRGBToLinear>(SamplePtr->NeedsSRGBToLinearConversion());
 
 			TShaderMapRef<FRGB16fBitToRGBA16fCS> ComputeShader(GlobalShaderMap, PermutationVector);
-			FRGB16fBitToRGBA16fCS::FParameters* Parameters = ComputeShader->AllocateAndSetParameters(GraphBuilder, InputBuffer, OutputResource, SourceBufferDesc.ElementsPerRow, ProcessedOutputDimension.Y);
+			FRGB16fBitToRGBA16fCS::FParameters* Parameters = ComputeShader->AllocateAndSetParameters(GraphBuilder, InputBuffer, OutputResource, ProcessedOutputDimension.X, ProcessedOutputDimension.Y);
 
 			FComputeShaderUtils::AddPass(
 				GraphBuilder

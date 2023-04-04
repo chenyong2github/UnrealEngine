@@ -448,10 +448,99 @@ namespace UE::RivermaxCore::Private
 	{
 		return bIsGPUDirectSupported && CVarRivermaxEnableGPUDirectOutputCapability.GetValueOnAnyThread();
 	}
+
+	bool FRivermaxManager::EnableDynamicHeaderSupport(const FString& Interface)
+	{
+		if(uint32* Users = DynamicHeaderUsers.Find(Interface))
+		{
+			(*Users)++;
+			return true;
+		}
+
+		sockaddr_in RivermaxDevice;
+		FMemory::Memset(&RivermaxDevice, 0, sizeof(RivermaxDevice));
+		if (inet_pton(AF_INET, StringCast<ANSICHAR>(*Interface).Get(), &RivermaxDevice.sin_addr) != 1)
+		{
+			UE_LOG(LogRivermax, Warning, TEXT("Failed to use inet_pton for interface '%s'"), *Interface);
+			return false;
+		}
+
+		uint64_t CapabilityMask = RMAX_DEV_CAP_RTP_DYNAMIC_HDS;
+		rmax_device_caps_t Capabilities;
+		Capabilities.supported_caps = 0;
+
+		rmax_status_t Status = rmax_device_get_caps(RivermaxDevice.sin_addr, CapabilityMask, &Capabilities);
+		if (Status != RMAX_OK) 
+		{
+			UE_LOG(LogRivermax, Warning, TEXT("Failed to query capabilities for device IP '%s'"), *Interface);
+			return false;
+		}
+
+		const bool bIsDynamicHeaderSplitSupported = (Capabilities.supported_caps & RMAX_DEV_CAP_RTP_DYNAMIC_HDS) != 0;
+		if (!bIsDynamicHeaderSplitSupported) 
+		{
+			UE_LOG(LogRivermax, Warning, TEXT("RTP dynamic header data split is not supported for device IP '%s'"), *Interface)
+			return false;
+		}
+
+		rmax_device_config_t DeviceConfig;
+		FMemory::Memset(&DeviceConfig, 0, sizeof(DeviceConfig));
+		DeviceConfig.config_flags = RMAX_DEV_CONFIG_RTP_SMPTE_2110_20_DYNAMIC_HDS_CONFIG;
+		DeviceConfig.ip_address = RivermaxDevice.sin_addr;
+
+		Status = rmax_set_device_config(&DeviceConfig);
+		if (Status != RMAX_OK)
+		{
+			UE_LOG(LogRivermax, Warning, TEXT("Could not enable dynamic header split for device IP '%s'. Error: %d"), *Interface, Status);
+			return false;
+		}
+
+		UE_LOG(LogRivermax, Log, TEXT("Dynamic header split for device IP '%s' has been enabled."), *Interface);
+		DynamicHeaderUsers.FindOrAdd(Interface, 1);
+		return true;
+	}
+
+	void FRivermaxManager::DisableDynamicHeaderSupport(const FString& Interface)
+	{
+		if (uint32* Users = DynamicHeaderUsers.Find(Interface))
+		{
+			(*Users)--;
+			if((*Users) > 0)
+			{
+				return;
+			}
+
+			bool bCanUnsetDevice = true;
+			sockaddr_in DeviceToUse;
+			FMemory::Memset(&DeviceToUse, 0, sizeof(DeviceToUse));
+			if (inet_pton(AF_INET, StringCast<ANSICHAR>(*Interface).Get(), &DeviceToUse.sin_addr) != 1)
+			{
+				UE_LOG(LogRivermax, Warning, TEXT("Failed to use inet_pton for interface '%s'"), *Interface);
+				bCanUnsetDevice = false;
+			}
+
+			if (bCanUnsetDevice)
+			{
+				rmax_device_config_t DeviceConfig;
+				FMemory::Memset(&DeviceConfig, 0, sizeof(DeviceConfig));
+				DeviceConfig.config_flags = RMAX_DEV_CONFIG_RTP_SMPTE_2110_20_DYNAMIC_HDS_CONFIG;
+				DeviceConfig.ip_address = DeviceToUse.sin_addr;
+
+				const rmax_status_t Status = rmax_unset_device_config(&DeviceConfig);
+				if (Status != RMAX_OK)
+				{
+					UE_LOG(LogRivermax, Warning, TEXT("Could not disable dynamic header split for device IP '%s'. Error: %d"), *Interface, Status);
+				}
+				else
+				{
+					UE_LOG(LogRivermax, Log, TEXT("Dynamic header split for device IP '%s' has been disabled."), *Interface);
+				}
+			}
+
+			DynamicHeaderUsers.Remove(Interface);
+		}
+	}
+
 }
-
-
-
-
 
 

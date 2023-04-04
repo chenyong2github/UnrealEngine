@@ -24,6 +24,11 @@ bool URivermaxMediaSource::GetMediaOption(const FName& Key, bool DefaultValue) c
 	{
 		return bUseZeroLatency;
 	}
+	if (Key == RivermaxMediaOption::OverrideResolution)
+	{
+		return bOverrideResolution;
+	}
+
 	return Super::GetMediaOption(Key, DefaultValue);
 }
 

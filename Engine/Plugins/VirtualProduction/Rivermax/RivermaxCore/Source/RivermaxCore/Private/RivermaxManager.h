@@ -24,9 +24,11 @@ namespace UE::RivermaxCore::Private
 		virtual TConstArrayView<FRivermaxDeviceInfo> GetDevices() const override;
 		virtual bool GetMatchingDevice(const FString& InSourceIP, FString& OutDeviceIP) const override;
 		virtual bool IsValidIP(const FString& InSourceIP) const override;
-		virtual bool IsGPUDirectSupported() const;
-		virtual bool IsGPUDirectInputSupported() const;
-		virtual bool IsGPUDirectOutputSupported() const;
+		virtual bool IsGPUDirectSupported() const override;
+		virtual bool IsGPUDirectInputSupported() const override;
+		virtual bool IsGPUDirectOutputSupported() const override;
+		virtual bool EnableDynamicHeaderSupport(const FString& Interface) override;
+		virtual void DisableDynamicHeaderSupport(const FString& Interface) override;
 		//~ End IRivermaxManager interface
 
 	private:
@@ -45,7 +47,6 @@ namespace UE::RivermaxCore::Private
 
 		/** Verify if all prerequesites to go through Rivermax initialization have been met */
 		bool VerifyPrerequesites();
-
 	private:
 
 		/** True when manager has been initialized */
@@ -71,6 +72,9 @@ namespace UE::RivermaxCore::Private
 
 		/** Delegate triggered when initialization has completed */
 		FOnPostRivermaxManagerInit PostInitDelegate;
+
+		/** Streams using dynamic header size per users. When last one is removing itself, it will be disabled */
+		TMap<FString, uint32> DynamicHeaderUsers;
 	};
 }
 

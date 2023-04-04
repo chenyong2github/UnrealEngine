@@ -87,6 +87,8 @@ namespace UE::RivermaxMedia
 			DesiredPixelFormat = (ERivermaxMediaSourcePixelFormat)Options->GetMediaOption(RivermaxMediaOption::PixelFormat, (int64)ERivermaxMediaSourcePixelFormat::RGB_8bit);
 			const bool bUseZeroLatency = Options->GetMediaOption(RivermaxMediaOption::ZeroLatency, true);
 			FrameLatency = bUseZeroLatency ? 0 : 1;
+			const bool bOverrideResolution = Options->GetMediaOption(RivermaxMediaOption::OverrideResolution, false);
+			bFollowsStreamResolution = !bOverrideResolution;
 		}
 
 		bUseVideo = true;
@@ -97,6 +99,15 @@ namespace UE::RivermaxMedia
 			InputStream = Module->CreateInputStream();
 		}
 
+		// If we are not following the stream resolution, make it the video track format and then reset to go through a format change once
+		if (!bFollowsStreamResolution)
+		{
+			StreamResolution = StreamOptions.EnforcedResolution;
+		}
+		VideoTrackFormat.Dim = FIntPoint::ZeroValue;
+
+		FrameTracking.bWasFrameRequested = false;
+		FrameTracking.LastFrameRendered.Reset();
 		CurrentState = EMediaState::Preparing;
 		RivermaxThreadNewState = EMediaState::Preparing;
 		
@@ -111,9 +122,6 @@ namespace UE::RivermaxMedia
 
 		// Setup our different supported channels based on source settings
 		SetupSampleChannels();
-
-		// Allocate different buffers, samples we will be using
-		AllocateBuffers();
 
 		EventSink.ReceiveMediaEvent(EMediaEvent::MediaConnecting);
 
@@ -137,26 +145,12 @@ namespace UE::RivermaxMedia
 	{
 		RivermaxThreadNewState = EMediaState::Closed;
 
-		// Flush any rendering activity to be sure we can move on with clearing resources. 
-		FlushRenderingCommands();
+		WaitForPendingTasks();
 
 		if (InputStream)
 		{
 			InputStream->Uninitialize(); // this may block, until the completion of a callback from IRivermaxChannelCallbackInterface
 			InputStream.Reset();
-		}
-
-		// Wait for all pending tasks to complete. They should all complete at some point but add a timeout as a last resort. 
-		constexpr double TimeoutSeconds = 2.0;
-		const double StartTimeSeconds = FPlatformTime::Seconds();
-		while (TasksInFlight > 0)
-		{
-			FPlatformProcess::SleepNoStats(SleepTimeSeconds);
-
-			if ((FPlatformTime::Seconds() - StartTimeSeconds) > TimeoutSeconds)
-			{
-				break;
-			}
 		}
 
 		for(const TSharedPtr<FRivermaxSampleWrapper>& Sample : SamplePool)
@@ -201,7 +195,7 @@ namespace UE::RivermaxMedia
 		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxMediaPlayer::OnVideoFrameRequested)
 
 		// If video is not playing, no need to provide samples when requested
-		if (RivermaxThreadNewState != EMediaState::Playing)
+		if (!IsReadyToPlay())
 		{
 			return false;
 		}
@@ -279,7 +273,8 @@ namespace UE::RivermaxMedia
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxMediaPlayer::OnVideoFrameReceived)
 
-		if (RivermaxThreadNewState != EMediaState::Playing)
+
+		if (!IsReadyToPlay())
 		{
 			return;
 		}
@@ -336,6 +331,42 @@ namespace UE::RivermaxMedia
 		{
 			return;
 		}
+		
+		// Cache current stream detection, it could change while we are applying it
+		FIntPoint CachedStreamResolution;
+		{
+			FScopeLock Lock(&StreamResolutionCriticalSection);
+			CachedStreamResolution = StreamResolution;
+		}
+
+		if (VideoTrackFormat.Dim != CachedStreamResolution)
+		{
+			UE_LOG(LogRivermaxMedia, Log, TEXT("Player needs to apply newly detected stream resolution : %dx%d"), CachedStreamResolution.X, CachedStreamResolution.Y);
+			
+			// Reset some frame tracking info while changing resolution
+			FrameTracking.bWasFrameRequested = false;
+			FrameTracking.LastFrameRendered.Reset();
+
+			{
+				WaitForPendingTasks();
+
+				// Cleanup allocated ressources for the current resolution
+				for (const TSharedPtr<FRivermaxSampleWrapper>& Sample : SamplePool)
+				{
+					Sample->Sample.Reset();
+					Sample->SampleConversionFence.SafeRelease();
+				}
+				SamplePool.Empty();
+
+				RivermaxThreadCurrentTextureSample.Reset();
+				SkippedFrames.Empty();
+
+				AllocateBuffers(CachedStreamResolution);
+				
+				VideoTrackFormat.Dim = CachedStreamResolution;
+			}
+
+		}
 
 		TickTimeManagement();
 	}
@@ -345,6 +376,8 @@ namespace UE::RivermaxMedia
 	 *****************************************************************************/
 	void FRivermaxMediaPlayer::ProcessFrame()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(RivermaxPlayerProcessFrame);
+
 		// Don't start making frame available until one is being received
 		if (FrameTracking.bWasFrameRequested == false)
 		{
@@ -355,8 +388,8 @@ namespace UE::RivermaxMedia
 		FSampleConfigurationArgs Args;
 		Args.bInIsSRGBInput = bIsSRGBInput;
 		Args.FrameRate = VideoFrameRate;
-		Args.Width = StreamOptions.Resolution.X;
-		Args.Height = StreamOptions.Resolution.Y;
+		Args.Width = VideoTrackFormat.Dim.X;
+		Args.Height = VideoTrackFormat.Dim.Y;
 		Args.Player = StaticCastSharedPtr<FRivermaxMediaPlayer>(AsShared().ToSharedPtr());
 		Args.SampleFormat = DesiredPixelFormat;
 		Args.Time = FTimespan(GFrameCounter);
@@ -426,21 +459,18 @@ namespace UE::RivermaxMedia
 		StreamOptions.StreamAddress = Options->GetMediaOption(RivermaxMediaOption::StreamAddress, FString());
 		StreamOptions.Port = Options->GetMediaOption(RivermaxMediaOption::Port, (int64)0);
 		StreamOptions.bUseGPUDirect = Options->GetMediaOption(RivermaxMediaOption::UseGPUDirect, false);
-		StreamOptions.Resolution = VideoTrackFormat.Dim;
 		StreamOptions.FrameRate = VideoFrameRate;
-
-		// We need to adjust horizontal resolution if it's not aligned to pgroup pixel coverage
-		// RTP header has to describe a full pgroup even if it's outside of effective resolution.
 		StreamOptions.PixelFormat = UE::RivermaxMediaUtils::Private::MediaSourcePixelFormatToRivermaxSamplingType(DesiredPixelFormat);
 		const FVideoFormatInfo FormatInfo = FStandardVideoFormat::GetVideoFormatInfo(StreamOptions.PixelFormat);
 		const uint32 PixelAlignment = FormatInfo.PixelGroupCoverage;
-		const uint32 AlignedHorizontalResolution = (StreamOptions.Resolution.X % PixelAlignment) ? StreamOptions.Resolution.X + (PixelAlignment - (StreamOptions.Resolution.X % PixelAlignment)) : StreamOptions.Resolution.X;
-		StreamOptions.AlignedResolution = FIntPoint(AlignedHorizontalResolution, StreamOptions.Resolution.Y);
+		const uint32 AlignedHorizontalResolution = (VideoTrackFormat.Dim.X % PixelAlignment) ? VideoTrackFormat.Dim.X + (PixelAlignment - (VideoTrackFormat.Dim.X % PixelAlignment)) : VideoTrackFormat.Dim.X;
+		StreamOptions.EnforcedResolution = FIntPoint(AlignedHorizontalResolution, VideoTrackFormat.Dim.Y);
+		StreamOptions.bEnforceVideoFormat = !bFollowsStreamResolution;
 
 		return true;
 	}
 
-	void FRivermaxMediaPlayer::AllocateBuffers()
+	void FRivermaxMediaPlayer::AllocateBuffers(const FIntPoint& InResolution)
 	{
 		using namespace UE::RivermaxCore;
 		using namespace UE::RivermaxMediaUtils::Private;
@@ -448,7 +478,7 @@ namespace UE::RivermaxMedia
 		// Take care of the common buffers first
 		{
 			// Create the common texture we are going to use
-			const FSourceBufferDesc BufferDescription = GetBufferDescription(StreamOptions.AlignedResolution, DesiredPixelFormat);
+			const FSourceBufferDesc BufferDescription = GetBufferDescription(InResolution, DesiredPixelFormat);
 			FRDGBufferDesc RDGBufferDesc = FRDGBufferDesc::CreateStructuredDesc(BufferDescription.BytesPerElement, BufferDescription.NumberOfElements);
 
 			// Required to share resource across different graphics API (DX, Cuda)
@@ -465,12 +495,14 @@ namespace UE::RivermaxMedia
 				});
 		}
 
+		SamplePool.Empty();
+
 		// Allocate our pool of samples where incoming ones will be written and chosen from
 		for (int32 Index = 0; Index < MaxNumVideoFrameBuffer; Index++)
 		{
 			TSharedPtr<FRivermaxSampleWrapper> NewWrapper = MakeShared<FRivermaxSampleWrapper>();
 			NewWrapper->Sample = MakeShared<FRivermaxMediaTextureSample>();
-			NewWrapper->Sample->InitializeGPUBuffer(StreamOptions.AlignedResolution, DesiredPixelFormat);
+			NewWrapper->Sample->InitializeGPUBuffer(InResolution, DesiredPixelFormat);
 			NewWrapper->SampleConversionFence = RHICreateGPUFence(*FString::Printf(TEXT("RmaxConversionDoneFence_%02d"), Index));
 			NewWrapper->ReceptionState = ESampleReceptionState::Available;
 			SamplePool.Add(MoveTemp(NewWrapper));
@@ -517,7 +549,7 @@ namespace UE::RivermaxMedia
 		}
 
 		// If it's the first time we are rendering, make previous frame number as available since we will never get to them
-		if (FrameTracking.bHasRendered == false)
+		if (FrameTracking.LastFrameRendered.IsSet() && NextFrameExpectations.FrameNumber > (FrameTracking.LastFrameRendered.GetValue() + 1))
 		{
 			for (const TSharedPtr<FRivermaxSampleWrapper>& Frame : SamplePool)
 			{
@@ -526,13 +558,13 @@ namespace UE::RivermaxMedia
 					if (Frame->FrameNumber < NextFrameExpectations.FrameNumber)
 					{
 						Frame->ReceptionState = ESampleReceptionState::Available;
-						UE_LOG(LogRivermaxMedia, Verbose, TEXT("Making frame %u as available since it will never be processed."), GFrameCounterRenderThread, Frame->FrameNumber);
+						UE_LOG(LogRivermaxMedia, Verbose, TEXT("Making frame %u as available since it will never be processed. Last render = %u, next render = %u"), Frame->FrameNumber, FrameTracking.LastFrameRendered.GetValue(), NextFrameExpectations.FrameNumber);
 					}
 				}
 			}
-
-			FrameTracking.bHasRendered = true;
 		}
+		
+		FrameTracking.LastFrameRendered = NextFrameExpectations.FrameNumber;
 
 		// Verify if the frame we will use for rendering is still being rendered for the previous one.
 		if (SamplePool[NextFrameExpectations.FrameIndex]->bIsPendingRendering)
@@ -753,7 +785,7 @@ namespace UE::RivermaxMedia
 					FPlatformProcess::SleepNoStats(SleepTimeSeconds);
 					if ((FPlatformTime::Seconds() - StartTimeSeconds) > TimeoutSeconds)
 					{
-						UE_LOG(LogRivermaxMedia, Error, TEXT("Timed out waiting for frame %u to be available to receive into."), ExpectedFrame->FrameNumber);
+						UE_LOG(LogRivermaxMedia, Error, TEXT("Timed out waiting for frame %u to be rendered to receive frame %u into."), ExpectedFrame->FrameNumber, FrameInfo.FrameNumber);
 						break;
 					}
 				}
@@ -822,7 +854,7 @@ namespace UE::RivermaxMedia
 				while (true)
 				{
 					{
-						if (RivermaxThreadNewState != EMediaState::Playing)
+						if (!IsReadyToPlay())
 						{
 							break;
 						}
@@ -966,6 +998,50 @@ namespace UE::RivermaxMedia
 		}
 	}
 
+	void FRivermaxMediaPlayer::OnVideoFormatChanged(const FRivermaxInputVideoFormatChangedInfo& NewFormatInfo)
+	{
+		const ERivermaxMediaSourcePixelFormat NewFormat = UE::RivermaxMediaUtils::Private::RivermaxPixelFormatToMediaSourcePixelFormat(NewFormatInfo.PixelFormat);
+		const FIntPoint NewResolution = { (int32)NewFormatInfo.Width, (int32)NewFormatInfo.Height };
+		bool bNeedReinitializing = (NewFormatInfo.PixelFormat != StreamOptions.PixelFormat);
+		bNeedReinitializing |= (NewFormatInfo.Width != VideoTrackFormat.Dim.X || NewFormatInfo.Height != VideoTrackFormat.Dim.Y);
+		
+		UE_LOG(LogRivermaxMedia, Log, TEXT("New video format detected: %dx%d with pixel format '%s'"), NewResolution.X, NewResolution.Y, *UEnum::GetValueAsString(NewFormat));
+		
+		if (bNeedReinitializing && bFollowsStreamResolution)
+		{
+			FScopeLock Lock(&StreamResolutionCriticalSection);
+			StreamResolution = NewResolution;
+		}
+	}
+
+	bool FRivermaxMediaPlayer::IsReadyToPlay() const
+	{
+		if (RivermaxThreadNewState == EMediaState::Playing)
+		{
+			FScopeLock Lock(&StreamResolutionCriticalSection);
+			return StreamResolution == VideoTrackFormat.Dim;
+		}
+
+		return false;
+	}
+
+	void FRivermaxMediaPlayer::WaitForPendingTasks()
+	{
+		// Flush any rendering activity to be sure we can move on with clearing resources. 
+		FlushRenderingCommands();
+
+		// Wait for all pending tasks to complete. They should all complete at some point but add a timeout as a last resort. 
+		constexpr double TimeoutSeconds = 2.0;
+		const double StartTimeSeconds = FPlatformTime::Seconds();
+		while (TasksInFlight > 0)
+		{
+			FPlatformProcess::SleepNoStats(SleepTimeSeconds);
+			if ((FPlatformTime::Seconds() - StartTimeSeconds) > TimeoutSeconds)
+			{
+				break;
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

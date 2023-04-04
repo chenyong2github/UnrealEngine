@@ -10,6 +10,7 @@
 #include "Misc/ByteSwap.h"
 #include "RivermaxLog.h"
 #include "RivermaxUtils.h"
+#include "RTPHeader.h"
 
 #if PLATFORM_WINDOWS
 #include <WS2tcpip.h>
@@ -29,107 +30,6 @@ namespace UE::RivermaxCore::Private
 		TEXT("Expected payload size used to initialize rivermax stream."),
 		ECVF_Default);
 
-
-#if PLATFORM_SUPPORTS_PRAGMA_PACK
-#pragma pack(push, 1)
-#endif
-	struct FRawRTPHeader
-	{
-		uint32 ContributingSourceCount : 4;
-		uint32 ExtensionBit : 1;
-		uint32 PaddingBit : 1;
-		uint32 Version : 2;
-		uint32 PayloadType : 7;
-		uint32 MarkerBit : 1;
-		uint32 SequenceNumber : 16;
-		uint32 Timestamp : 32;
-		uint32 SynchronizationSource : 32;
-		uint32 ExtendedSequenceNumber : 16;
-		//SRD 1
-		uint32 SRDLength1 : 16;
-		uint32 SRDRowNumberHigh1 : 7;
-		uint32 FieldIdentification1 : 1;
-		uint32 SRDRowNumberLow1 : 8;
-		uint32 SRDOffsetHigh1 : 7;
-		uint32 ContinuationBit1 : 1;
-		uint32 SRDOffsetLow1 : 8;
-		//SRD 2
-		uint32 SRDLength2 : 16;
-		uint32 SRDRowNumberHigh2 : 7;
-		uint32 FieldIdentification2 : 1;
-		uint32 SRDRowNumberLow2 : 8;
-		uint32 SRDOffsetHigh2 : 7;
-		uint32 ContinuationBit2 : 1;
-		uint32 SRDOffsetLow2 : 8;
-
-		uint16 GetSrd1RowNumber() const { return ((SRDRowNumberHigh1 << 8) | SRDRowNumberLow1); }
-		uint16 GetSrd1Offset() const { return ((SRDOffsetHigh1 << 8) | SRDOffsetLow1); }
-
-		uint16 GetSrd2RowNumber() const { return ((SRDRowNumberHigh2 << 8) | SRDRowNumberLow2); }
-		uint16 GetSrd2Offset() const { return ((SRDOffsetHigh2 << 8) | SRDOffsetLow2); }
-	};
-#if PLATFORM_SUPPORTS_PRAGMA_PACK
-#pragma pack(pop)
-#endif
-
-	struct FSRDHeader
-	{
-		/** Length of payload. Is a multiple of pgroup (see pixel formats) */
-		uint16 Length = 0;
-
-		/** False if progressive or first field of interlace. True if second field of interlace */
-		bool bIsFieldOne = false;
-
-		/** Video line number, starts at 0 */
-		uint16 RowNumber = 0;
-
-		/** Whether another SRD is following this one */
-		bool bHasContinuation = false;
-		
-		/** Location of the first pixel in payload, in pixel */
-		uint16 DataOffset = 0;
-	};
-	
-	struct FRTPHeader
-	{
-		/** Sequence number including extension if present */
-		uint32 SequencerNumber = 0;
-
-		/** Timestamp of frame in the specified clock resolution. Video is typically 90kHz */
-		uint32 Timestamp = 0;
-
-		/** Identification of this stream */
-		uint32 SyncSouceId = 0;
-
-		/** Whether extensions (SRD headers) are present */
-		bool bHasExtension = false;
-
-		/** True if RTP packet is last of video stream */
-		bool bIsMarkerBit = false;
-
-		/** Only supports 2 SRD for now. Adjust if needed */
-		FSRDHeader SRD1;
-		FSRDHeader SRD2;
-	};
-
-	uint8* GetRTPHeaderPointer(uint8* InHeader)
-	{
-		check(InHeader);
-
-		static constexpr uint32 ETH_TYPE_802_1Q = 0x8100;          /* 802.1Q VLAN Extended Header  */
-		static constexpr uint32 RTP_HEADER_SIZE = 12;
-		uint16* ETHProto = (uint16_t*)(InHeader + RTP_HEADER_SIZE);
-		if (ETH_TYPE_802_1Q == ByteSwap(*ETHProto))
-		{
-			InHeader += 46; // 802 + 802.1Q + IP + UDP
-		}
-		else
-		{
-			InHeader += 42; // 802 + IP + UDP
-		}
-		return InHeader;
-	}
-
 	/** 
 	 * Converts a timestamp in MediaClock period units to a frame number for a given frame rate 
 	 * 2110-20 streams uses a standard media clock rate of 90kHz
@@ -140,6 +40,72 @@ namespace UE::RivermaxCore::Private
 		const double MediaFrameTime = Timestamp / MediaClockSampleRate;
 		const uint32 FrameNumber = FMath::Floor(MediaFrameTime * FrameRate.AsDecimal());
 		return FrameNumber;
+	}
+
+	void FFrameDescriptionTrackingData::ResetSingleFrameTracking()
+	{
+		PayloadSizeReceived.Empty();
+	}
+
+	void FFrameDescriptionTrackingData::EvaluateNewRTP(const FRTPHeader& NewHeader)
+	{
+		UpdateResolutionDetection(NewHeader);
+		UpdatePayloadSizeTracking(NewHeader);
+
+		if (NewHeader.bIsMarkerBit)
+		{
+			ResetSingleFrameTracking();
+		}
+	}
+
+	void FFrameDescriptionTrackingData::UpdateResolutionDetection(const FRTPHeader& NewHeader)
+	{
+		if (NewHeader.bIsMarkerBit)
+		{
+			const FVideoFormatInfo ExpectedFormatInfo = FStandardVideoFormat::GetVideoFormatInfo(ExpectedSamplingType);
+			const uint16 LastPayloadSize = NewHeader.GetLastPayloadSize();
+			if (LastPayloadSize % ExpectedFormatInfo.PixelGroupSize == 0)
+			{
+				DetectedResolution.X = NewHeader.GetLastRowOffset() + (LastPayloadSize / ExpectedFormatInfo.PixelGroupSize * ExpectedFormatInfo.PixelGroupCoverage);
+				DetectedResolution.Y = NewHeader.GetLastRowNumber() + 1;
+				
+				// Renable logging when a valid incoming frame was detected
+				bHasLoggedSamplingWarning = false;
+			}
+			else if(!bHasLoggedSamplingWarning)
+			{
+				bHasLoggedSamplingWarning = true;
+				UE_LOG(LogRivermax, Warning, TEXT("Detected incoming signal with unexpected sampling type."));
+			}
+		}
+	}
+
+	void FFrameDescriptionTrackingData::UpdatePayloadSizeTracking(const FRTPHeader& NewHeader)
+	{
+		if (NewHeader.SRD1.Length > 0)
+		{
+			uint32 PayloadSize = NewHeader.SRD1.Length;
+			if (NewHeader.SRD1.bHasContinuation)
+			{
+				PayloadSize += NewHeader.SRD2.Length;
+			}
+
+			if (PayloadSizeReceived.IsEmpty())
+			{
+				CommonPayloadSize = PayloadSize;
+			}
+			else if (!NewHeader.bIsMarkerBit && PayloadSize != CommonPayloadSize)
+			{
+				CommonPayloadSize = -1;
+			}
+
+			PayloadSizeReceived.FindOrAdd(PayloadSize) += 1;
+		}
+	}
+
+	bool FFrameDescriptionTrackingData::HasDetectedValidResolution() const
+	{
+		return DetectedResolution.X > 0 && DetectedResolution.Y > 0;
 	}
 
 	FRivermaxInputStream::FRivermaxInputStream()
@@ -165,6 +131,15 @@ namespace UE::RivermaxCore::Private
 		Listener = &InListener;
 		FormatInfo = FStandardVideoFormat::GetVideoFormatInfo(Options.PixelFormat);
 		ExpectedPayloadSize = CVarExpectedPayloadSize.GetValueOnGameThread();
+		bIsDynamicHeaderEnabled = RivermaxModule.GetRivermaxManager()->EnableDynamicHeaderSupport(Options.InterfaceAddress);
+
+		if (Options.bEnforceVideoFormat)
+		{
+			StreamResolution = Options.EnforcedResolution;
+		}
+		
+		// For now, we don't try to detect pixel format so use what the user selected
+		FrameDescriptionTracking.ExpectedSamplingType = Options.PixelFormat;
 
 		InitTaskFuture = Async(EAsyncExecution::TaskGraph, [this]()
 		{
@@ -192,6 +167,8 @@ namespace UE::RivermaxCore::Private
 				//Configure Flow and destination IP (multicast)
 				memset(&FlowAttribute, 0, sizeof(FlowAttribute));
 				FlowAttribute.local_addr.sin_family = AF_INET;
+				FlowAttribute.remote_addr.sin_family = AF_INET;
+
 				FlowAttribute.flow_id = FlowId;
 				if (inet_pton(AF_INET, StringCast<ANSICHAR>(*Options.StreamAddress).Get(), &FlowAttribute.local_addr.sin_addr) != 1)
 				{
@@ -199,9 +176,15 @@ namespace UE::RivermaxCore::Private
 				}
 				else
 				{
+					RivermaxInterface.sin_port = Options.Port;
 					FlowAttribute.local_addr.sin_port = ByteSwap((uint16)Options.Port);
 
-					const rmax_in_buffer_attr_flags_t BufferAttributeFlags = RMAX_IN_BUFFER_ATTER_FLAG_NONE; //todo whether ordering is based on sequence or extended sequence
+					rmax_in_buffer_attr_flags_t BufferAttributeFlags = RMAX_IN_BUFFER_ATTER_FLAG_NONE;
+					if (bIsDynamicHeaderEnabled)
+					{
+						BufferAttributeFlags = RMAX_IN_BUFFER_ATTR_BUFFER_RTP_SMPTE_2110_20_DYNAMIC_HDS;
+					}
+					;
 					uint32 BufferElement = 1 << 18;//todo number of packets to allocate memory for
 					rmax_in_buffer_attr BufferAttributes;
 					FMemory::Memset(&BufferAttributes, 0, sizeof(BufferAttributes));
@@ -236,9 +219,10 @@ namespace UE::RivermaxCore::Private
 								RivermaxThread = FRunnableThread::Create(this, TEXT("Rivermax InputStream Thread"), 128 * 1024, TPri_AboveNormal, FPlatformAffinity::GetPoolThreadMask());
 								bWasSuccessful = true;
 
-								UE_LOG(LogRivermax, Display, TEXT("Input started receiving %dx%d%s")
-									, Options.AlignedResolution.X
-									, Options.AlignedResolution.Y
+								UE_LOG(LogRivermax, Display, TEXT("Input stream started listening to stream %s:%d on interface %s%s")
+									, *Options.StreamAddress
+									, Options.Port
+									, *Options.InterfaceAddress
 									, bIsUsingGPUDirect ? TEXT(" using GPUDirect") : TEXT(""));
 							}
 							else
@@ -284,6 +268,15 @@ namespace UE::RivermaxCore::Private
 			delete RivermaxThread;
 			RivermaxThread = nullptr;
 			UE_LOG(LogRivermax, Log, TEXT("Rivermax Input stream has shutdown"));
+		}
+
+		if (bIsDynamicHeaderEnabled)
+		{
+			if (IRivermaxCoreModule* RivermaxModule = FModuleManager::GetModulePtr<IRivermaxCoreModule>(TEXT("RivermaxCore")))
+			{
+				RivermaxModule->GetRivermaxManager()->DisableDynamicHeaderSupport(Options.InterfaceAddress);
+			}
+			bIsDynamicHeaderEnabled = false;
 		}
 
 		DeallocateBuffers();
@@ -352,45 +345,6 @@ namespace UE::RivermaxCore::Private
 
 	}
 
-	bool FRivermaxInputStream::TranslateRTPHeader(const FRawRTPHeader& RawRTPHeader, FRTPHeader& OutRTPHeader)
-	{
-		OutRTPHeader.Timestamp = 0;
-		
-		if (RawRTPHeader.Version != 2)
-		{
-			return false;
-		}
-
-		// Pretty sure some data needs to be swapped but can't validate that until we have other hardware generating data
-		OutRTPHeader.SequencerNumber = (ByteSwap((uint16)RawRTPHeader.ExtendedSequenceNumber) << 16) | ByteSwap((uint16)RawRTPHeader.SequenceNumber);
-		OutRTPHeader.Timestamp = ByteSwap(RawRTPHeader.Timestamp);
-		OutRTPHeader.bIsMarkerBit = RawRTPHeader.MarkerBit;
-
-		OutRTPHeader.SyncSouceId = RawRTPHeader.SynchronizationSource;
-
-		OutRTPHeader.SRD1.Length = ByteSwap((uint16)RawRTPHeader.SRDLength1);
-		OutRTPHeader.SRD1.DataOffset = RawRTPHeader.GetSrd1Offset();
-		OutRTPHeader.SRD1.RowNumber = RawRTPHeader.GetSrd1RowNumber();
-		OutRTPHeader.SRD1.bIsFieldOne = RawRTPHeader.FieldIdentification1;
-		OutRTPHeader.SRD1.bHasContinuation = RawRTPHeader.ContinuationBit1;
-
-		if (OutRTPHeader.SRD1.bHasContinuation)
-		{
-			OutRTPHeader.SRD2.Length = ByteSwap((uint16)RawRTPHeader.SRDLength2);
-			OutRTPHeader.SRD2.DataOffset = RawRTPHeader.GetSrd2Offset();
-			OutRTPHeader.SRD2.RowNumber = RawRTPHeader.GetSrd2RowNumber();
-			OutRTPHeader.SRD2.bIsFieldOne = RawRTPHeader.FieldIdentification2;
-			OutRTPHeader.SRD2.bHasContinuation = RawRTPHeader.ContinuationBit2;
-
-			if (OutRTPHeader.SRD2.bHasContinuation == true)
-			{
-				UE_LOG(LogRivermax, Verbose, TEXT("Received SRD with more than 2 SRD which isn't supported."));
-			}
-		}
-
-		return true;
-	}
-
 	void FRivermaxInputStream::ParseChunks(const rmax_in_completion& Completion)
 	{
 		for (uint64 StrideIndex = 0; StrideIndex < Completion.chunk_size; ++StrideIndex)
@@ -413,13 +367,11 @@ namespace UE::RivermaxCore::Private
 
 			if (Completion.packet_info_arr[StrideIndex].data_size && RawHeaderPtr && DataPtr)
 			{
-				FRTPHeader RTPHeader;
-
 				// Get RTPHeader address from the raw net header
 				const FRawRTPHeader& RawRTPHeaderPtr = reinterpret_cast<const FRawRTPHeader&>(*GetRTPHeaderPointer(RawHeaderPtr));
-				const bool bIsValid = TranslateRTPHeader(RawRTPHeaderPtr, RTPHeader);
-				if (bIsValid)
+				if (RawRTPHeaderPtr.Version == 2)
 				{
+					FRTPHeader RTPHeader(RawRTPHeaderPtr);
 					// Add trace for the first packet of a frame to help visualize reception of a full frame in time
 					if (bIsFirstPacketReceived == false)
 					{
@@ -429,6 +381,8 @@ namespace UE::RivermaxCore::Private
 					}
 
 					StreamStats.BytesReceived += Completion.packet_info_arr[StrideIndex].data_size + Completion.packet_info_arr[StrideIndex].hdr_size;
+					
+					UpdateFrameTracking(RTPHeader);
 
 					switch (State)
 					{
@@ -472,9 +426,13 @@ namespace UE::RivermaxCore::Private
 		FRivermaxInputVideoFrameDescriptor Descriptor;
 		Descriptor.Timestamp = RTPHeader.Timestamp;
 		Descriptor.FrameNumber = TimestampToFrameNumber(RTPHeader.Timestamp, Options.FrameRate);
+		Descriptor.Width = StreamResolution.X;
+		Descriptor.Height = StreamResolution.Y;
+		Descriptor.PixelFormat = Options.PixelFormat;
+		const uint32 PixelCount = StreamResolution.X * StreamResolution.Y;
+		const uint32 FrameSize = PixelCount / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
+		Descriptor.VideoBufferSize = FrameSize;
 		FRivermaxInputVideoFrameRequest Request;
-		const int32 Stride = Options.AlignedResolution.X / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
-		Descriptor.VideoBufferSize = Options.Resolution.Y * Stride;
 		Listener->OnVideoFrameRequested(Descriptor, Request);
 
 		// Reset current frame to know when we have a valid one
@@ -513,9 +471,6 @@ namespace UE::RivermaxCore::Private
 		StreamData.DeviceWritePointerTwo = nullptr;
 		StreamData.SizeToWriteTwo = 0;
 		bIsFirstPacketReceived = false;
-
-		// New frame starting, reset tracked SRD
-		LastSRDLength.Reset();
 
 		return true;
 	}
@@ -833,15 +788,25 @@ namespace UE::RivermaxCore::Private
 			}
 		}
 
+		if (RTPHeader.SRD1.Length <= 0)
+		{
+			return;
+		}
+
 		uint32 DataOffset = 0;
-		StreamData.ReceivedSize += RTPHeader.SRD1.Length;
+		uint32 PayloadSize = RTPHeader.SRD1.Length;
+		if (RTPHeader.SRD1.bHasContinuation)
+		{
+			PayloadSize += RTPHeader.SRD2.Length;
+		}
+
 		if (bIsUsingGPUDirect)
 		{
 			// Initial case (start address)
 			if (StreamData.DeviceWritePointerOne == nullptr)
 			{
 				StreamData.DeviceWritePointerOne = DataPtr;
-				StreamData.SizeToWriteOne = RTPHeader.SRD1.Length;
+				StreamData.SizeToWriteOne = PayloadSize;
 			}
 			else
 			{
@@ -855,11 +820,11 @@ namespace UE::RivermaxCore::Private
 				// Case where we track memory in first buffer
 				if (StreamData.DeviceWritePointerTwo == nullptr)
 				{
-					StreamData.SizeToWriteOne += RTPHeader.SRD1.Length;
+					StreamData.SizeToWriteOne += PayloadSize;
 				}
 				else // Tracking memory in second buffer
 				{
-					StreamData.SizeToWriteTwo += RTPHeader.SRD1.Length;
+					StreamData.SizeToWriteTwo += PayloadSize;
 				}
 			}
 		}
@@ -874,18 +839,21 @@ namespace UE::RivermaxCore::Private
 				DataOffset += RTPHeader.SRD1.Length;
 				FMemory::Memcpy(&WriteBuffer[StreamData.WritingOffset], &DataPtr[DataOffset], RTPHeader.SRD2.Length);
 				StreamData.WritingOffset += RTPHeader.SRD2.Length;
-				StreamData.ReceivedSize += RTPHeader.SRD2.Length;
 			}
 		}
+
+		StreamData.ReceivedSize += PayloadSize;
 	}
 
 	void FRivermaxInputStream::ProcessLastSRD(const FRTPHeader& RTPHeader, const uint8* DataPtr)
 	{
 		FRivermaxInputVideoFrameDescriptor Descriptor;
-		Descriptor.Width = Options.Resolution.X;
-		Descriptor.Height = Options.Resolution.Y;
-		Descriptor.Stride = Options.AlignedResolution.X / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
+		Descriptor.Width = StreamResolution.X;
+		Descriptor.Height = StreamResolution.Y;
+		Descriptor.PixelFormat = Options.PixelFormat;
 		Descriptor.Timestamp = RTPHeader.Timestamp;
+		const uint32 PixelCount = StreamResolution.X * StreamResolution.Y;
+		Descriptor.VideoBufferSize = PixelCount / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
 		Descriptor.FrameNumber = TimestampToFrameNumber(RTPHeader.Timestamp, Options.FrameRate);
 
 		if (StreamData.ReceivedSize == StreamData.ExpectedSize)
@@ -897,13 +865,13 @@ namespace UE::RivermaxCore::Private
 
 			if (bIsUsingGPUDirect)
 			{
-				if (LastSRDLength.IsSet() && LastSRDLength.GetValue() != RTPHeader.SRD1.Length)
+				// For gpudirect, we need all payload sizes to be equal with the exception of the last one.
+				if (FrameDescriptionTracking.CommonPayloadSize <= 0)
 				{
-					UE_LOG(LogRivermax, Warning, TEXT("Unsupported variable SRD length detected while GPUDirect for input stream is used. Disable and reopen the stream. (Last: %d, New: %d)"), LastSRDLength.GetValue(), RTPHeader.SRD1.Length);
+					UE_LOG(LogRivermax, Warning, TEXT("Unsupported variable SRD length detected while GPUDirect for input stream is used. Disable and reopen the stream."));
 					Listener->OnStreamError();
 					bIsShuttingDown = true;
 				}
-				LastSRDLength = RTPHeader.SRD1.Length;
 
 				//Frame received entirely, time to copy it from rivermax gpu scratchpad to our own gpu memory
 				FCUDAModule& CudaModule = FModuleManager::GetModuleChecked<FCUDAModule>("CUDA");
@@ -912,8 +880,8 @@ namespace UE::RivermaxCore::Private
 				const CUdeviceptr DestinationGPUMemory = reinterpret_cast<CUdeviceptr>(StreamData.CurrentFrame);
 				const CUdeviceptr SourceGPUMemoryOne = reinterpret_cast<CUdeviceptr>(StreamData.DeviceWritePointerOne);
 
-				const uint32 NumSRDPartOne = RTPHeader.SRD1.Length > 0 ? StreamData.SizeToWriteOne / RTPHeader.SRD1.Length : 0;
-				const uint32 NumSRDPartTwo = RTPHeader.SRD1.Length > 0 ? StreamData.SizeToWriteTwo / RTPHeader.SRD1.Length : 0;
+				const uint32 NumSRDPartOne = StreamData.SizeToWriteOne / FrameDescriptionTracking.CommonPayloadSize;
+				const uint32 NumSRDPartTwo = StreamData.SizeToWriteTwo / FrameDescriptionTracking.CommonPayloadSize;
 
 				// Use cuda's 2d memcopy to do a source and destination stride difference memcopy
 				// We initialize rivermax stream with a payload size blindly since we don't know what the sender will use
@@ -927,10 +895,13 @@ namespace UE::RivermaxCore::Private
 				StrideDescription.dstMemoryType = CUmemorytype::CU_MEMORYTYPE_DEVICE;
 				StrideDescription.srcMemoryType = CUmemorytype::CU_MEMORYTYPE_DEVICE;
 				StrideDescription.srcPitch = ExpectedPayloadSize; //Source pitch is the expected payload used at init
-				StrideDescription.dstPitch = RTPHeader.SRD1.Length; //Destination pitch is the fixed SRD size we received
-				StrideDescription.WidthInBytes = RTPHeader.SRD1.Length; //Width in bytes is the amount to copy, the SRD size
+				StrideDescription.dstPitch = FrameDescriptionTracking.CommonPayloadSize; //Destination pitch is the fixed SRD size we received
+				StrideDescription.WidthInBytes = FrameDescriptionTracking.CommonPayloadSize; //Width in bytes is the amount to copy, the SRD size
 				StrideDescription.Height = NumSRDPartOne;
 				Result = CudaModule.DriverAPI()->cuMemcpy2DAsync(&StrideDescription, reinterpret_cast<CUstream>(GPUStream));
+
+				// Keep track where we are at in the source buffer
+				CUdeviceptr SourcePtr = SourceGPUMemoryOne + (ExpectedPayloadSize * NumSRDPartOne);
 
 				if (StreamData.DeviceWritePointerTwo != nullptr && StreamData.SizeToWriteTwo > 0)
 				{
@@ -938,6 +909,21 @@ namespace UE::RivermaxCore::Private
 					StrideDescription.dstDevice = reinterpret_cast<CUdeviceptr>(StreamData.CurrentFrame) + StreamData.SizeToWriteOne;
 					StrideDescription.Height = NumSRDPartTwo;
 					Result = CudaModule.DriverAPI()->cuMemcpy2DAsync(&StrideDescription, reinterpret_cast<CUstream>(GPUStream));
+
+					// Update source pointer since we used the second pointer tracker
+					SourcePtr = StrideDescription.srcDevice + (ExpectedPayloadSize * NumSRDPartTwo);
+				}
+
+				// Verify if we copied whole frame using the stride 2d copy or we're missing the last SRD of fractional size
+				const uint32 TotalMemoryCopied = (FrameDescriptionTracking.CommonPayloadSize * (NumSRDPartOne + NumSRDPartTwo));
+				if (TotalMemoryCopied < StreamData.ExpectedSize)
+				{
+					const uint32 SizeLeftToCopy = StreamData.ExpectedSize - TotalMemoryCopied;
+					if (ensure(SizeLeftToCopy == RTPHeader.SRD1.Length))
+					{
+						CUdeviceptr DestinationPtr = DestinationGPUMemory + TotalMemoryCopied;
+						Result = CudaModule.DriverAPI()->cuMemcpyDtoDAsync(DestinationPtr, SourcePtr, SizeLeftToCopy, reinterpret_cast<CUstream>(GPUStream));
+					}
 				}
 
 				if (Result != CUDA_SUCCESS)
@@ -990,6 +976,8 @@ namespace UE::RivermaxCore::Private
 				}
 			}
 
+			// Finished processing incoming frame, reset tracking data associated with it
+			FrameDescriptionTracking.ResetSingleFrameTracking();
 
 			// No need to provide the new frame and prepare the next one if we are shutting down
 			if (bIsShuttingDown == false)
@@ -1020,10 +1008,13 @@ namespace UE::RivermaxCore::Private
 	void FRivermaxInputStream::FrameReceptionState(const FRTPHeader& RTPHeader, const uint8* DataPtr)
 	{
 		FRivermaxInputVideoFrameDescriptor Descriptor;
-		Descriptor.Width = Options.Resolution.X;
-		Descriptor.Height = Options.Resolution.Y;
-		Descriptor.Stride = Options.AlignedResolution.X / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
+		Descriptor.Width = StreamResolution.X;
+		Descriptor.Height = StreamResolution.Y;
+		Descriptor.PixelFormat = Options.PixelFormat;
 		Descriptor.Timestamp = RTPHeader.Timestamp;
+		const uint32 PixelCount = StreamResolution.X * StreamResolution.Y;
+		const uint32 FrameSize = PixelCount / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
+		Descriptor.VideoBufferSize = FrameSize;
 		Descriptor.FrameNumber = TimestampToFrameNumber(RTPHeader.Timestamp, Options.FrameRate);
 
 		const uint64 LastSequenceNumberIncremented = StreamData.LastSequenceNumber + 1;
@@ -1095,5 +1086,29 @@ namespace UE::RivermaxCore::Private
 		WaitForMarkerState(RTPHeader);
 	}
 
+	void FRivermaxInputStream::UpdateFrameTracking(const FRTPHeader& NewRTPHeader)
+	{
+		FrameDescriptionTracking.EvaluateNewRTP(NewRTPHeader);
+		
+		if (!Options.bEnforceVideoFormat)
+		{
+			if (FrameDescriptionTracking.DetectedResolution.X > 0 && FrameDescriptionTracking.DetectedResolution.Y > 0)
+			{
+				if (FrameDescriptionTracking.DetectedResolution != StreamResolution)
+				{
+					StreamResolution = FrameDescriptionTracking.DetectedResolution;
+
+					FRivermaxInputVideoFormatChangedInfo FormatChangeInfo;
+					FormatChangeInfo.Width = StreamResolution.X;
+					FormatChangeInfo.Height = StreamResolution.Y;
+					FormatChangeInfo.PixelFormat = FrameDescriptionTracking.ExpectedSamplingType;
+					Listener->OnVideoFormatChanged(FormatChangeInfo);
+				}
+			}
+		}
+	}
+
 }
+
+	
 

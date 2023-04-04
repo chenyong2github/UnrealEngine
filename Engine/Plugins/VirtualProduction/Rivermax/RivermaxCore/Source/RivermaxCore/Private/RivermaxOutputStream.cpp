@@ -35,6 +35,22 @@ namespace UE::RivermaxCore::Private
 		TEXT("Interval at which to show stats in seconds"),
 		ECVF_Default);
 
+	static TAutoConsoleVariable<int32> CVarRivermaxOutputEnableMultiSRD(
+		TEXT("Rivermax.Output.EnableMultiSRD"), 1,
+		TEXT("When enabled, payload size will be constant across the frame except the last one.\n" 
+		     "If disabled, a payload size that fits the line will be used causing some resolution to not be supported."),
+		ECVF_Default);
+
+	static TAutoConsoleVariable<int32> CVarRivermaxOutputLinesPerChunk(
+		TEXT("Rivermax.Output.LinesPerChunk"), 4,
+		TEXT("Defines the number of lines to pack in a chunk. Higher number will increase latency"),
+		ECVF_Default);
+
+	static TAutoConsoleVariable<int32> CVarRivermaxOutputMaximizePacketSize(
+		TEXT("Rivermax.Output.MaximizePacketSize"), 1,
+		TEXT("Enables bigger packet sizes to maximize utilisation of potential UDP packet. If not enabled, packet size will be aligned with HD/4k sizes"),
+		ECVF_Default);
+
 	bool FindPayloadSize(const FRivermaxOutputStreamOptions& InOptions, uint32 InBytesPerLine, const FVideoFormatInfo& FormatInfo, uint16& OutPayloadSize)
 	{
 		using namespace UE::RivermaxCore::Private::Utils;
@@ -79,21 +95,190 @@ namespace UE::RivermaxCore::Private
 		return false;
 	}
 
-	uint32 FindChunksPerLine(const FRivermaxOutputStreamOptions& InOptions)
+	uint32 FindLinesPerChunk(const FRivermaxOutputStreamOptions& InOptions)
 	{
-		uint32 ChunksPerLine = 1; //Will need to revisit the impact of that
-		static constexpr uint32 MaxChunksPerLine = 10;
-		while (ChunksPerLine <= MaxChunksPerLine)
-		{
-			if (InOptions.Resolution.Y % ChunksPerLine == 0)
-			{
-				return ChunksPerLine;
-			}
+		// More lines per chunks mean we will do more work prior to start sending a chunk. So, added 'latency' in terms of packet / parts of frame.
+		// Less lines per chunk mean that sender thread might starve.
+		// SDK sample uses 4 lines for UHD and 8 for HD. 
+		return CVarRivermaxOutputLinesPerChunk.GetValueOnAnyThread();
+	}
 
-			++ChunksPerLine;
+	uint16 GetPayloadSize(ESamplingType SamplingType)
+	{
+		const FVideoFormatInfo FormatInfo = FStandardVideoFormat::GetVideoFormatInfo(SamplingType);
+		uint16 PayloadSize;
+		switch (SamplingType)
+		{
+
+		case ESamplingType::YUV444_10bit:
+		{
+			// Passthrough
+		}
+		case ESamplingType::RGB_10bit:
+		{
+			PayloadSize = 1200;
+			break;
+		}
+		case ESamplingType::YUV444_8bit:
+		{
+			// Passthrough
+		}
+		case ESamplingType::RGB_8bit:
+		{
+			PayloadSize = 1152;
+			break;
+		}
+		case ESamplingType::YUV444_12bit:
+		{
+			// Passthrough
+		}
+		case ESamplingType::RGB_12bit:
+		{
+			PayloadSize = 1152;
+			break;
+		}
+		case ESamplingType::YUV444_16bit:
+		{
+			// Passthrough
+		}
+		case ESamplingType::YUV444_16bitFloat:
+		{
+			// Passthrough
+		}
+		case ESamplingType::RGB_16bit:
+		{
+			// Passthrough
+		}
+		case ESamplingType::RGB_16bitFloat:
+		{
+			PayloadSize = 1152;
+			break;
+		}
+		case ESamplingType::YUV422_8bit:
+		{
+			PayloadSize = 1280;
+			break;
+		}
+		case ESamplingType::YUV422_10bit:
+		{
+			PayloadSize = 1200;
+			break;
+		}
+		case ESamplingType::YUV422_12bit:
+		{
+			PayloadSize = 1152;
+			break;
+		}
+		case ESamplingType::YUV422_16bit:
+		{
+			// Passthrough
+		}
+		case ESamplingType::YUV422_16bitFloat:
+		{
+			PayloadSize = 1280;
+			break;
+		}
+		default:
+		{
+			checkNoEntry();
+			PayloadSize = 1200;
+			break;
+		}
 		}
 
-		return 0;
+		ensure(PayloadSize % FormatInfo.PixelGroupSize == 0);
+		return PayloadSize;
+	}
+
+	/** 
+	 * Returns a payload closer to the max value we can have for standard UDP size 
+	 * RTPHeader can be bigger depending on configuration so we'll cap payload at 1400.
+	 */
+	uint16 GetMaximizedPayloadSize(ESamplingType SamplingType)
+	{
+		const FVideoFormatInfo FormatInfo = FStandardVideoFormat::GetVideoFormatInfo(SamplingType);
+		uint16 PayloadSize;
+		switch (SamplingType)
+		{
+		
+		case ESamplingType::YUV444_10bit:
+		{
+			// Passthrough
+		}
+		case ESamplingType::RGB_10bit:
+		{
+			PayloadSize = 1395;
+			break;
+		}
+		case ESamplingType::YUV444_8bit:
+		{
+			// Passthrough
+		}
+		case ESamplingType::RGB_8bit:
+		{
+			PayloadSize = 1398;	
+			break;
+		}
+		case ESamplingType::YUV444_12bit:
+		{
+			// Passthrough
+		}
+		case ESamplingType::RGB_12bit:
+		{
+			PayloadSize = 1395;
+			break;
+		}
+		case ESamplingType::YUV444_16bit:
+		{
+			// Passthrough
+		}
+		case ESamplingType::YUV444_16bitFloat:
+		{
+			// Passthrough
+		}
+		case ESamplingType::RGB_16bit:
+		{
+			// Passthrough
+		}
+		case ESamplingType::RGB_16bitFloat:
+		{
+			PayloadSize = 1398;
+			break;
+		}
+		case ESamplingType::YUV422_8bit:
+		{
+			PayloadSize = 1400;
+			break;
+		}
+		case ESamplingType::YUV422_10bit:
+		{
+			PayloadSize = 1400;
+			break;
+		}
+		case ESamplingType::YUV422_12bit:
+		{
+			PayloadSize = 1398;
+			break;
+		}
+		case ESamplingType::YUV422_16bit:
+		{
+			// Passthrough
+		}
+		case ESamplingType::YUV422_16bitFloat:
+		{
+			PayloadSize = 1400;
+			break;
+		}
+		default:
+		{
+			checkNoEntry();
+			PayloadSize = 1200;
+			break;
+		}
+		}
+
+		ensure(PayloadSize % FormatInfo.PixelGroupSize == 0);
+		return PayloadSize;
 	}
 
 
@@ -161,8 +346,8 @@ namespace UE::RivermaxCore::Private
 
 				rmax_buffer_attr BufferAttributes;
 				FMemory::Memset(&BufferAttributes, 0, sizeof(BufferAttributes));
-				BufferAttributes.chunk_size_in_strides = StreamMemory.ChunkSizeInStrides;
-				BufferAttributes.data_stride_size = StreamMemory.PayloadSize; //Stride between chunks. 
+				BufferAttributes.chunk_size_in_strides = StreamMemory.PacketsPerChunk;
+				BufferAttributes.data_stride_size = StreamMemory.PayloadSize; 
 				BufferAttributes.app_hdr_stride_size = StreamMemory.HeaderStrideSize;
 				BufferAttributes.mem_block_array = StreamMemory.MemoryBlocks.GetData();
 				BufferAttributes.mem_block_array_len = StreamMemory.MemoryBlocks.Num();
@@ -183,12 +368,11 @@ namespace UE::RivermaxCore::Private
 						StreamData.FrameFieldTimeIntervalNs = 1E9 / Options.FrameRate.AsDecimal();
 						InitializeStreamTimingSettings();
 
-						UE_LOG(LogRivermax, Display, TEXT("Output started to send %dx%d using %d payloads of size %d%s")
-						, Options.AlignedResolution.X
-						, Options.AlignedResolution.Y
-						, StreamMemory.PacketsInLine
-						, StreamMemory.PayloadSize
-						, bUseGPUDirect ? TEXT(" using GPUDirect") : TEXT(""));
+						UE_LOG(LogRivermax, Display, TEXT("Output stream started sending on stream %s:%d on interface %s%s")
+							, *Options.StreamAddress
+							, Options.Port
+							, *Options.InterfaceAddress
+							, bUseGPUDirect ? TEXT(" using GPUDirect") : TEXT(""));
 
 						bIsActive = true;
 						RivermaxThread.Reset(FRunnableThread::Create(this, TEXT("Rmax OutputStream Thread"), 128 * 1024, TPri_AboveNormal, FPlatformAffinity::GetPoolThreadMask()));
@@ -236,7 +420,7 @@ namespace UE::RivermaxCore::Private
 		if (TSharedPtr<FRivermaxOutputFrame> AvailableFrame = GetNextAvailableFrame(NewFrame.FrameIdentifier))
 		{
 			const int32 Stride = GetStride();
-			FMemory::Memcpy(AvailableFrame->VideoBuffer, NewFrame.VideoBuffer, NewFrame.Height * Stride);
+			FMemory::Memcpy(AvailableFrame->VideoBuffer, NewFrame.VideoBuffer, Options.AlignedResolution.Y * Stride);
 
 			AvailableFrame->bIsVideoBufferReady = true;
 
@@ -316,7 +500,7 @@ namespace UE::RivermaxCore::Private
 				//Update frame progress
 				if (bIsActive)
 				{
-					Stats.TotalStrides += StreamMemory.ChunkSizeInStrides;
+					Stats.TotalStrides += StreamMemory.PacketsPerChunk;
 					++CurrentFrame->ChunkNumber;
 				}
 
@@ -324,7 +508,6 @@ namespace UE::RivermaxCore::Private
 			
 
 			Stats.MemoryBlockSentCounter++;
-			Stats.TotalStrides += StreamMemory.ChunkSizeInStrides;
 			StreamData.bHasFrameFirstChunkBeenFetched = false;
 		}
 	}
@@ -358,50 +541,105 @@ namespace UE::RivermaxCore::Private
 		//We need to use the fullframe allocated size to compute the payload size.
 
 		const int32 BytesPerLine = GetStride();
-		const uint32 EffectiveBytesPerLine = BytesPerLine;
 
-		const bool bFoundPayload = FindPayloadSize(Options, BytesPerLine, FormatInfo, StreamMemory.PayloadSize);
-		if (bFoundPayload == false)
+		// Find out payload we want to use. Either we go the 'potential' multi SRD route or we keep the old way of finding a common payload
+		// with more restrictions on resolution supported. Kept in place to be able to fallback in case there are issues with the multiSRD one.
+		if (CVarRivermaxOutputEnableMultiSRD.GetValueOnAnyThread() >= 1)
 		{
-			UE_LOG(LogRivermax, Warning, TEXT("Could not find payload size for desired resolution %dx%d for desired pixel format"), Options.AlignedResolution.X, Options.AlignedResolution.Y);
-			return false;
-		}
-
-		StreamMemory.PixelGroupPerPacket = StreamMemory.PayloadSize / FormatInfo.PixelGroupSize;
-		StreamMemory.PixelsPerPacket = StreamMemory.PixelGroupPerPacket * FormatInfo.PixelGroupCoverage;
-		StreamMemory.PacketsInLine = FMath::CeilToInt32((float)Options.AlignedResolution.X / StreamMemory.PixelsPerPacket);
-
-		StreamMemory.LinesInChunk = FindChunksPerLine(Options);
-
-		StreamMemory.ChunkSizeInStrides = StreamMemory.LinesInChunk * StreamMemory.PacketsInLine;
-
-		StreamMemory.FramesFieldPerMemoryBlock = 1;
-		StreamMemory.PacketsPerFrame =  StreamMemory.PacketsInLine * Options.Resolution.Y;
-		StreamMemory.PacketsPerMemoryBlock = StreamMemory.PacketsPerFrame * StreamMemory.FramesFieldPerMemoryBlock;
-		StreamMemory.ChunksPerFrameField = StreamMemory.PacketsPerFrame / StreamMemory.ChunkSizeInStrides;
-		StreamMemory.ChunksPerMemoryBlock = StreamMemory.FramesFieldPerMemoryBlock * StreamMemory.ChunksPerFrameField;
-		StreamMemory.MemoryBlockCount = Options.NumberOfBuffers;
-		StreamMemory.StridesPerMemoryBlock = StreamMemory.ChunkSizeInStrides * StreamMemory.ChunksPerMemoryBlock;
-
-		// Setup arrays with the right sizes so we can give pointers to rivermax
-		StreamMemory.RTPHeaders.SetNumZeroed(StreamMemory.PacketsPerMemoryBlock);
-		StreamMemory.PayloadSizes.SetNumUninitialized(StreamMemory.PacketsPerMemoryBlock);
-		StreamMemory.HeaderSizes.SetNumUninitialized(StreamMemory.PacketsPerMemoryBlock);
-		StreamMemory.HeaderStrideSize = RTPHeaderSize;
-		for (int32 PayloadSizeIndex = 0; PayloadSizeIndex < StreamMemory.PayloadSizes.Num(); ++PayloadSizeIndex)
-		{
-			//Go through each chunk to have effective payload size to be sent (last one of each line could be smaller)
-			if ((PayloadSizeIndex + 1) % StreamMemory.PacketsInLine == 0)
+			if (CVarRivermaxOutputMaximizePacketSize.GetValueOnAnyThread() >= 1)
 			{
-				const uint32 LeftOver = EffectiveBytesPerLine - ((StreamMemory.PacketsInLine - 1) * StreamMemory.PayloadSize);
-				StreamMemory.PayloadSizes[PayloadSizeIndex] = LeftOver;
-				check(LeftOver % FormatInfo.PixelGroupSize == 0);
+				StreamMemory.PayloadSize = GetMaximizedPayloadSize(FormatInfo.Sampling);
 			}
 			else
 			{
-				StreamMemory.PayloadSizes[PayloadSizeIndex] = StreamMemory.PayloadSize;
+				StreamMemory.PayloadSize = GetPayloadSize(FormatInfo.Sampling);
 			}
-			StreamMemory.HeaderSizes[PayloadSizeIndex] = StreamMemory.HeaderStrideSize;
+		}
+		else
+		{
+			const bool bFoundPayload = FindPayloadSize(Options, BytesPerLine, FormatInfo, StreamMemory.PayloadSize);
+			if (bFoundPayload == false)
+			{
+				UE_LOG(LogRivermax, Warning, TEXT("Could not find payload size for desired resolution %dx%d for desired pixel format"), Options.AlignedResolution.X, Options.AlignedResolution.Y);
+				return false;
+			}
+		}
+
+		// With payload size in hand, figure out how many packets we will need, how many chunks (group of packets) and configure descriptor arrays
+
+		const uint32 PixelCount = Options.AlignedResolution.X * Options.AlignedResolution.Y;
+		const uint64 FrameSize = PixelCount / FormatInfo.PixelGroupCoverage * FormatInfo.PixelGroupSize;
+
+		StreamMemory.PixelGroupPerPacket = StreamMemory.PayloadSize / FormatInfo.PixelGroupSize;
+		StreamMemory.PixelsPerPacket = StreamMemory.PixelGroupPerPacket * FormatInfo.PixelGroupCoverage;
+
+		// We might need a smaller packet to complete the end of frame so ceil to the next value
+		StreamMemory.PacketsPerFrame = FMath::CeilToInt32((float)PixelCount / StreamMemory.PixelsPerPacket);
+
+		// Depending on resolution and payload size, last packet of a line might not be fully utilized but we need the remaining bytes so ceil to next value
+		StreamMemory.PacketsInLine = FMath::CeilToInt32((float)StreamMemory.PacketsPerFrame / Options.AlignedResolution.Y);
+
+		StreamMemory.LinesInChunk = FindLinesPerChunk(Options);
+		StreamMemory.PacketsPerChunk = StreamMemory.LinesInChunk * StreamMemory.PacketsInLine;
+		StreamMemory.FramesFieldPerMemoryBlock = 1;
+
+		// Chunk count won't necessarily align with the number of packets required. We need an integer amount of chunks to initialize our stream
+		// and calculate how many packets that represents. Rivermax will expect the payload/header array to be that size. It just means that
+		// we will mark the extra packets as 0 size.
+		StreamMemory.ChunksPerFrameField = FMath::CeilToInt32((float)StreamMemory.PacketsPerFrame / StreamMemory.PacketsPerChunk);
+		StreamMemory.PacketsPerMemoryBlock = StreamMemory.ChunksPerFrameField * StreamMemory.PacketsPerChunk * StreamMemory.FramesFieldPerMemoryBlock;
+		StreamMemory.ChunksPerMemoryBlock = StreamMemory.FramesFieldPerMemoryBlock * StreamMemory.ChunksPerFrameField;
+		StreamMemory.MemoryBlockCount = Options.NumberOfBuffers;
+
+		// Setup arrays with the right sizes so we can give pointers to rivermax
+		StreamMemory.RTPHeaders.SetNumZeroed(StreamMemory.MemoryBlockCount);
+		StreamMemory.PayloadSizes.SetNumUninitialized(StreamMemory.PacketsPerMemoryBlock);
+		StreamMemory.HeaderSizes.SetNumUninitialized(StreamMemory.PacketsPerMemoryBlock);
+		StreamMemory.HeaderStrideSize = sizeof(FRawRTPHeader);
+
+		uint64 TotalSize = 0;
+		uint64 LineSize = 0;
+		for (int32 PayloadSizeIndex = 0; PayloadSizeIndex < StreamMemory.PayloadSizes.Num(); ++PayloadSizeIndex)
+		{
+			uint32 HeaderSize = FRawRTPHeader::OneSRDSize;
+			uint32 ThisPayloadSize = StreamMemory.PayloadSize;
+			if (TotalSize < FrameSize)
+			{
+				if ((LineSize + StreamMemory.PayloadSize) == BytesPerLine)
+				{
+					LineSize = 0;
+				}
+				else if ((LineSize + StreamMemory.PayloadSize) > BytesPerLine)
+				{
+					HeaderSize = FRawRTPHeader::TwoSRDSize;
+					LineSize = StreamMemory.PayloadSize - (BytesPerLine - LineSize);
+					if (LineSize > BytesPerLine)
+					{
+						UE_LOG(LogRivermax, Warning, TEXT("Unsupported small resolution, %dx%d, needing more than 2 SRD to express"), Options.AlignedResolution.X, Options.AlignedResolution.Y);
+						return false;
+					}
+				}
+				else
+				{
+					// Keep track of line size offset to know when to use TwoSRDs
+					LineSize += StreamMemory.PayloadSize;
+				}
+
+				if ((TotalSize + StreamMemory.PayloadSize) > FrameSize)
+				{
+					HeaderSize = FRawRTPHeader::OneSRDSize;
+				}
+			}
+			else
+			{
+				// Extra header/payload required for the chunk alignment are set to 0. Nothing has to be sent out the wire.
+				HeaderSize = 0;
+				ThisPayloadSize = 0;
+			}
+			
+			StreamMemory.HeaderSizes[PayloadSizeIndex] = HeaderSize;
+			StreamMemory.PayloadSizes[PayloadSizeIndex] = ThisPayloadSize;
+			TotalSize += ThisPayloadSize;
 		}
 		StreamMemory.MemoryBlocks.SetNumZeroed(StreamMemory.MemoryBlockCount);
 		for (uint32 BlockIndex = 0; BlockIndex < StreamMemory.MemoryBlockCount; ++BlockIndex)
@@ -411,7 +649,9 @@ namespace UE::RivermaxCore::Private
 			Block.app_hdr_size_arr = StreamMemory.HeaderSizes.GetData();
 			Block.data_size_arr = StreamMemory.PayloadSizes.GetData();
 			Block.data_ptr = AvailableFrames[BlockIndex]->VideoBuffer;
-			Block.app_hdr_ptr = &StreamMemory.RTPHeaders[BlockIndex];
+			
+			StreamMemory.RTPHeaders[BlockIndex].SetNumZeroed(StreamMemory.PacketsPerFrame);
+			Block.app_hdr_ptr = &StreamMemory.RTPHeaders[BlockIndex][0];
 		}
 
 		return true;
@@ -489,25 +729,16 @@ namespace UE::RivermaxCore::Private
 		return NextFrame;
 	}
 
-	void FRivermaxOutputStream::BuildRTPHeader(FOutputRTPHeader& OutHeader) const
+	void FRivermaxOutputStream::BuildRTPHeader(FRawRTPHeader& OutHeader) const
 	{
 		using namespace UE::RivermaxCore::Private::Utils;
 
-		// build RTP header - 12 bytes
-		/*
-		0                   1                   2                   3
-		0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-		| V |P|X|  CC   |M|     PT      |            SEQ                |
-		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-		|                           timestamp                           |
-		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-		|                           ssrc                                |
-		+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
-		OutHeader.RawHeader[0] = 0x80;  // 10000000 - version2, no padding, no extension
-		OutHeader.RawHeader[1] = 96; //todo payload type from sdp file
-		OutHeader.RawHeader[2] = (StreamData.SequenceNumber >> 8) & 0xFF;  // sequence number
-		OutHeader.RawHeader[3] = (StreamData.SequenceNumber) & 0xFF;  // sequence number
+		OutHeader = {};
+		OutHeader.Version = 2;
+		OutHeader.PaddingBit = 0;
+		OutHeader.ExtensionBit = 0;
+		OutHeader.PayloadType = 96; //Payload type should probably be infered from SDP
+		OutHeader.SequenceNumber = ByteSwap((uint16)(StreamData.SequenceNumber & 0xFFFF));
 
 		// For now, in order to be able to use a framelocked input, we pipe frame number in the timestamp for a UE-UE interaction
 		// Follow up work to investigate adding this in RTP header
@@ -516,57 +747,65 @@ namespace UE::RivermaxCore::Private
 		{
 			InputTime = UE::RivermaxCore::GetAlignmentPointFromFrameNumber(CurrentFrame->FrameIdentifier, Options.FrameRate);
 		}
-		uint32 MediaTimestamp = GetTimestampFromTime(InputTime, MediaClockSampleRate);
-		
-		*(uint32*)&OutHeader.RawHeader[4] = ByteSwap(MediaTimestamp);
+
+		const uint32 MediaTimestamp = GetTimestampFromTime(InputTime, MediaClockSampleRate);
+		OutHeader.Timestamp = ByteSwap(MediaTimestamp);
 
 		//2110 specific header
-		*(uint32*)&OutHeader.RawHeader[8] = 0x0eb51dbd;  // simulated ssrc
+		OutHeader.SynchronizationSource = ByteSwap((uint32)0x0eb51dbd);  // Should Unreal has its own synch source ID
 
 		if (StreamType == ERivermaxStreamType::VIDEO_2110_20_STREAM)
 		{
-			//SRD means Sample Row Data
-			
-			// build SRD header - 8-14 bytes
-		   /* 0                   1                   2                   3
-			0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-			+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-			|    Extended Sequence Number   |           SRD Length          |
-			+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-			|F|     SRD Row Number          |C|         SRD Offset          |
-			+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ */
-			OutHeader.RawHeader[12] = (StreamData.SequenceNumber >> 24) & 0xff;  // high 16 bit of seq Extended Sequence Number
-			OutHeader.RawHeader[13] = (StreamData.SequenceNumber >> 16) & 0xff;  // high 16 bit of seq Extended Sequence Number
+			if (CurrentFrame->PacketCounter + 1 == StreamMemory.PacketsPerFrame)
+			{
+				OutHeader.MarkerBit = 1; // last packet in frame (Marker)
+			}
 
-			const uint16 CurrentPayloadSize = StreamMemory.PayloadSizes[StreamData.SequenceNumber % StreamMemory.PacketsPerFrame];
-			*(uint16*)&OutHeader.RawHeader[14] = ByteSwap(CurrentPayloadSize);  // SRD Length
-		
-			uint16 number_of_rows = Options.Resolution.Y; //todo divide by 2 if interlaced
-			uint16 srd_row_number = (CurrentFrame->LineNumber % number_of_rows);
-			*(uint16*)&OutHeader.RawHeader[16] = ByteSwap(srd_row_number);
-			OutHeader.RawHeader[16] |= (0 << 7); //todo when fields are sent for interlace
+			OutHeader.ExtendedSequenceNumber = ByteSwap((uint16)((StreamData.SequenceNumber >> 16) & 0xFFFF));
 
-			// we never have continuation
+			// Verify if payload size exceeds line 
+			const uint32 CurrentPayloadSize = StreamMemory.PayloadSizes[CurrentFrame->PacketCounter];
 
-			// Write out current offset in pixels
-			*(uint16*)&OutHeader.RawHeader[18] = ByteSwap(CurrentFrame->SRDOffset);  // SRD Offset
+			const uint32 LineSizeOffset = ((CurrentFrame->SRDOffset / FormatInfo.PixelGroupCoverage) * FormatInfo.PixelGroupSize);
+			const uint32 LineSize = ((Options.AlignedResolution.X / FormatInfo.PixelGroupCoverage) * FormatInfo.PixelGroupSize);
 
-			// Update SRD offset in pixel for next round
-			uint16 PixelsPerPacket = (uint16)((StreamMemory.PayloadSize * FormatInfo.PixelGroupCoverage) / FormatInfo.PixelGroupSize);
-			CurrentFrame->SRDOffset = (CurrentFrame->SRDOffset + PixelsPerPacket) % (PixelsPerPacket * StreamMemory.PacketsInLine);
-		}
+			const uint16 SRD1Length = FMath::Min(LineSize - LineSizeOffset, CurrentPayloadSize);
+			const uint16 SRD1PixelCount = SRD1Length / FormatInfo.PixelGroupSize * FormatInfo.PixelGroupCoverage;
+			uint16 SRD2Length = SRD1Length < CurrentPayloadSize ? CurrentPayloadSize - SRD1Length : 0;
+			if (SRD2Length && CurrentFrame->LineNumber == ((uint32)Options.AlignedResolution.Y-1))
+			{
+				SRD2Length = 0;
+			}
 
-		if (++CurrentFrame->PacketCounter == StreamMemory.PacketsPerFrame)
-		{
-			OutHeader.RawHeader[1] |= 0x80; // last packet in frame (Marker)
+			OutHeader.SRD1Length = ByteSwap(SRD1Length);	
+			OutHeader.SetSrd1RowNumber(CurrentFrame->LineNumber); //todo divide by 2 if interlaced
+			OutHeader.FieldIdentification1 = 0; //todo when fields are sent for interlace
+			OutHeader.SetSrd1Offset(CurrentFrame->SRDOffset); 
 
-			// ST2210-20: the timestamp SHOULD be the same for each packet of the frame/field.
-			const double ticks = (MediaClockSampleRate / (Options.FrameRate.AsDecimal()));
-			//if (set.video_type != VIDEO_TYPE::PROGRESSIVE) {
-			//	send_data.m_second_field = !send_data.m_second_field;
-			//	ticks /= 2;
-			//}
-			//CurrentFrame->TimestampTicks += ticks;
+			CurrentFrame->SRDOffset += SRD1PixelCount;
+			if (CurrentFrame->SRDOffset >= Options.AlignedResolution.X)
+			{
+				CurrentFrame->SRDOffset = 0;
+				++CurrentFrame->LineNumber;
+			}
+
+			if (SRD2Length > 0)
+			{
+				OutHeader.SRD2Length = ByteSwap(SRD2Length);
+
+				OutHeader.ContinuationBit1 = 1;
+				OutHeader.FieldIdentification2 = 0;
+				OutHeader.SetSrd2RowNumber(CurrentFrame->LineNumber);
+				OutHeader.SetSrd2Offset(CurrentFrame->SRDOffset);
+
+				const uint16 SRD2PixelCount = SRD2Length / FormatInfo.PixelGroupSize * FormatInfo.PixelGroupCoverage;
+				CurrentFrame->SRDOffset += SRD2PixelCount;
+				if (CurrentFrame->SRDOffset >= Options.AlignedResolution.X)
+				{
+					CurrentFrame->SRDOffset = 0;
+					++CurrentFrame->LineNumber;
+				}
+			}
 		}
 	}
 
@@ -695,18 +934,15 @@ namespace UE::RivermaxCore::Private
 
 	void FRivermaxOutputStream::SetupRTPHeaders()
 	{
-		uint8* HeaderRawPtr = reinterpret_cast<uint8*>(CurrentFrame->HeaderPtr);
+		FRawRTPHeader* HeaderRawPtr = reinterpret_cast<FRawRTPHeader*>(CurrentFrame->HeaderPtr);
 		check(HeaderRawPtr);
-		for (uint32 StrideIndex = 0; StrideIndex < StreamMemory.ChunkSizeInStrides && CurrentFrame->PacketCounter < StreamMemory.PacketsPerFrame; ++StrideIndex)
+		for (uint32 StrideIndex = 0; StrideIndex < StreamMemory.PacketsPerChunk && CurrentFrame->PacketCounter < StreamMemory.PacketsPerFrame; ++StrideIndex)
 		{
-			uint8* NextHeaderRawPtr = HeaderRawPtr + (StrideIndex * StreamMemory.HeaderStrideSize);
-			BuildRTPHeader(*reinterpret_cast<FOutputRTPHeader*>(NextHeaderRawPtr));
-			//todo only for video
-			if (!((StrideIndex + 1) % StreamMemory.PacketsInLine))
-			{
-				CurrentFrame->LineNumber = (CurrentFrame->LineNumber + 1) % Options.Resolution.Y; //preparing line number for next iteration
-			}
+			BuildRTPHeader(*HeaderRawPtr);
 			++StreamData.SequenceNumber;
+			CurrentFrame->BytesSent += StreamMemory.PayloadSizes[CurrentFrame->PacketCounter];
+			++CurrentFrame->PacketCounter;
+			++HeaderRawPtr;
 		}
 	}
 
@@ -909,7 +1145,7 @@ namespace UE::RivermaxCore::Private
 			if (bIsProgressive)
 			{
 				RActive = (1080.0 / 1125.0);
-				if (Options.Resolution.Y >= FullHDHeight)
+				if (Options.AlignedResolution.Y >= FullHDHeight)
 				{
 					// As defined by SMPTE 2110-21 6.3.2
 					TRODefaultMultiplier = (43.0 / 1125.0);
@@ -921,13 +1157,13 @@ namespace UE::RivermaxCore::Private
 			}
 			else
 			{
-				if (Options.Resolution.Y >= FullHDHeight)
+				if (Options.AlignedResolution.Y >= FullHDHeight)
 				{
 					// As defined by SMPTE 2110-21 6.3.3
 					RActive = (1080.0 / 1125.0);
 					TRODefaultMultiplier = (22.0 / 1125.0);
 				}
-				else if (Options.Resolution.Y >= 576)
+				else if (Options.AlignedResolution.Y >= 576)
 				{
 					RActive = (576.0 / 625.0);
 					TRODefaultMultiplier = (26.0 / 625.0);
