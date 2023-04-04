@@ -21,4 +21,8 @@
 	    <RuntimeRequirements OS="Win64" Platform="NAVMAN|NAVSIM" SeriesMin="Nw20" SeriesMax="Nw20" />
         <ComponentEntry AppName="Datasmith Exporter for Autodesk® Navisworks® 2023" AppType="ManagedPlugin" ModuleName="./DatasmithNavisworksPlugin2023.dll" />
     </Components>
+    <Components Description="2024">
+	    <RuntimeRequirements OS="Win64" Platform="NAVMAN|NAVSIM" SeriesMin="Nw21" SeriesMax="Nw21" />
+        <ComponentEntry AppName="Datasmith Exporter for Autodesk® Navisworks® 2024" AppType="ManagedPlugin" ModuleName="./DatasmithNavisworksPlugin2024.dll" />
+    </Components>
 </ApplicationPackage>

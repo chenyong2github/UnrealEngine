@@ -8,6 +8,8 @@
     <ProjectGuid>{D16F2120-CCE4-4FCC-92C8-86124AB1FA25}</ProjectGuid>
     <TargetFrameworkProfile />
   </PropertyGroup>
+  <Import Project="..\Navisworks2024.props" Condition="'$(Configuration)|$(Platform)'=='Debug2024|AnyCPU'" />
+  <Import Project="..\Navisworks2024.props" Condition="'$(Configuration)|$(Platform)'=='Release2024|AnyCPU'" />
   <Import Project="..\Navisworks2023.props" Condition="'$(Configuration)|$(Platform)'=='Debug2023|AnyCPU'" />
   <Import Project="..\Navisworks2023.props" Condition="'$(Configuration)|$(Platform)'=='Release2023|AnyCPU'" />
   <Import Project="..\Navisworks2022.props" Condition="'$(Configuration)|$(Platform)'=='Debug2022|AnyCPU'" />
@@ -27,6 +29,30 @@
     <AssemblyName>DatasmithNavisworksPlugin$(Navisworks_Version)</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug2024|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug2024\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <StartAction>Program</StartAction>
+    <StartProgram>$(ProgramW6432)\Autodesk\Navisworks Manage $(Navisworks_Version)\Roamer.exe</StartProgram>
+    <EnableUnmanagedDebugging>true</EnableUnmanagedDebugging>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release2024|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release2024\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <StartAction>Program</StartAction>
+    <StartProgram>$(ProgramW6432)\Autodesk\Navisworks Manage $(Navisworks_Version)\Roamer.exe</StartProgram>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug2023|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
