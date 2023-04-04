@@ -24,6 +24,9 @@
 #include "InputAction.h"
 #include "Sound/SoundBase.h"
 #include "Styling/UMGCoreStyle.h"
+#include "CommonUITypes.h"
+#include "CommonUIPrivate.h"
+#include "Input/CommonUIActionRouterBase.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonButtonBase)
 
@@ -345,9 +348,13 @@ UCommonButtonBase::UCommonButtonBase(const FObjectInitializer& ObjectInitializer
 	, bTriggerClickedAfterSelection(false)
 	, bDisplayInputActionWhenNotInteractable(true)
 	, bShouldUseFallbackDefaultInputAction(true)
+	, bRequiresHold(false)
 	, bSelected(false)
 	, bButtonEnabled(true)
 	, bInteractionEnabled(true)
+	, HoldTime(0.f)
+	, HoldRollbackTime(0.f)
+	, CurrentHoldTime(0.f)
 {
 	SetIsFocusable(true);
 }
@@ -368,7 +375,15 @@ void UCommonButtonBase::PostLoad()
 	{
 		UCommonUIEditorSettings& Settings = ICommonUIModule::GetEditorSettings();
 		Settings.ConditionalPostLoad();
-		Style = Settings.GetTemplateButtonStyle();
+		
+		if (!Style && !bStyleNoLongerNeedsConversion)
+		{
+			Style = Settings.GetTemplateButtonStyle();
+		}
+		if (!HoldData)
+		{
+			HoldData = Settings.GetDefaultHoldData();
+		}
 	}
 
 	bStyleNoLongerNeedsConversion = true;
@@ -390,6 +405,10 @@ void UCommonButtonBase::OnCreationFromPalette()
 	if (!Style)
 	{
 		Style = ICommonUIModule::GetEditorSettings().GetTemplateButtonStyle();
+	}
+	if (!HoldData)
+	{
+		HoldData = ICommonUIModule::GetEditorSettings().GetDefaultHoldData();
 	}
 	Super::OnCreationFromPalette();
 }
@@ -443,6 +462,11 @@ UCommonButtonInternalBase* UCommonButtonBase::ConstructInternalButton()
 
 void UCommonButtonBase::NativeConstruct()
 {
+	if (bRequiresHold && !HoldData)
+	{
+		HoldData = ICommonUIModule::GetEditorSettings().GetDefaultHoldData();
+	}
+	
 	BindTriggeringInputActionToClick();
 	BindInputMethodChangedDelegate();
 	UpdateInputActionWidget();
@@ -456,6 +480,17 @@ void UCommonButtonBase::NativeDestruct()
 
 	UnbindTriggeringInputActionToClick();
 	UnbindInputMethodChangedDelegate();
+
+	if (HoldTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(HoldTickerHandle);
+		HoldTickerHandle = nullptr;
+	}
+	if (HoldProgressRollbackTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(HoldProgressRollbackTickerHandle);
+		HoldProgressRollbackTickerHandle = nullptr;
+	}
 }
 
 void UCommonButtonBase::SetIsEnabled(bool bInIsEnabled)
@@ -496,6 +531,7 @@ void UCommonButtonBase::BindInputMethodChangedDelegate()
 	if (CommonInputSubsystem)
 	{
 		CommonInputSubsystem->OnInputMethodChangedNative.AddUObject(this, &UCommonButtonBase::OnInputMethodChanged);
+		UpdateHoldData(CommonInputSubsystem->GetDefaultInputType());
 	}
 }
 
@@ -511,7 +547,43 @@ void UCommonButtonBase::UnbindInputMethodChangedDelegate()
 void UCommonButtonBase::OnInputMethodChanged(ECommonInputType CurrentInputType)
 {
 	UpdateInputActionWidget();
+	UpdateHoldData(CurrentInputType);
+	HoldReset();
+	NativeOnActionProgress(0.f);
 	BP_OnInputMethodChanged(CurrentInputType);
+
+	if (TriggeringBindingHandle.IsValid())
+	{
+		TriggeringBindingHandle.ResetHold();
+	}
+}
+
+void UCommonButtonBase::UpdateHoldData(ECommonInputType CurrentInputType)
+{
+	if (HoldData && bRequiresHold)
+	{
+		UCommonUIHoldData* CommonUIHoldBehaviorValues = HoldData.GetDefaultObject();
+		if (CommonUIHoldBehaviorValues)
+		{
+			switch (CurrentInputType)
+			{
+			case ECommonInputType::MouseAndKeyboard:
+				HoldTime = CommonUIHoldBehaviorValues->KeyboardAndMouse.HoldTime;
+				HoldRollbackTime = CommonUIHoldBehaviorValues->KeyboardAndMouse.HoldRollbackTime;
+				break;
+			case ECommonInputType::Gamepad:
+				HoldTime = CommonUIHoldBehaviorValues->Gamepad.HoldTime;
+				HoldRollbackTime = CommonUIHoldBehaviorValues->Gamepad.HoldRollbackTime;
+				break;
+			case ECommonInputType::Touch:
+				HoldTime = CommonUIHoldBehaviorValues->Touch.HoldTime;
+				HoldRollbackTime = CommonUIHoldBehaviorValues->Touch.HoldRollbackTime;
+				break;
+			default:
+				break;
+			}
+		}
+	}
 }
 
 void UCommonButtonBase::BindTriggeringInputActionToClick()
@@ -538,7 +610,9 @@ void UCommonButtonBase::BindTriggeringInputActionToClick()
 	{
 		FBindUIActionArgs BindArgs(TriggeringInputAction, false, FSimpleDelegate::CreateUObject(this, &UCommonButtonBase::HandleTriggeringActionCommited));
 		BindArgs.OnHoldActionProgressed.BindUObject(this, &UCommonButtonBase::NativeOnActionProgress);
+		BindArgs.OnHoldActionPressed.BindUObject(this, &UCommonButtonBase::HoldReset);
 		BindArgs.bIsPersistent = bIsPersistentBinding;
+		BindArgs.bForceHold = GetConvertInputActionToHold();
 
 		BindArgs.InputMode = InputModeOverride;
 		
@@ -564,6 +638,8 @@ void UCommonButtonBase::UnbindTriggeringInputActionToClick()
 	{
 		TriggeringBindingHandle.Unregister();
 	}
+	
+	CurrentHoldTime = 0.f;
 }
 
 void UCommonButtonBase::HandleTriggeringActionCommited(bool& bPassthrough)
@@ -714,6 +790,11 @@ void UCommonButtonBase::SetIsInteractableWhenSelected(bool bInInteractableWhenSe
 	}
 }
 
+bool UCommonButtonBase::GetConvertInputActionToHold()
+{
+	return bRequiresHold;
+}
+
 void UCommonButtonBase::NativeOnActionProgress(float HeldPercent)
 {
 	if (InputActionWidget)
@@ -721,6 +802,65 @@ void UCommonButtonBase::NativeOnActionProgress(float HeldPercent)
 		InputActionWidget->OnActionProgress(HeldPercent);
 	}
 	OnActionProgress(HeldPercent);
+}
+
+bool UCommonButtonBase::NativeOnHoldProgress(float DeltaTime)
+{
+	if (HoldTime > UE_SMALL_NUMBER)
+	{
+		CurrentHoldTime += FMath::Clamp(DeltaTime, 0.f, HoldTime);
+		const float HeldPercent = FMath::Clamp(CurrentHoldTime / HoldTime, 0.f, 1.f);
+		NativeOnActionProgress(HeldPercent);
+		if (HeldPercent >= 1.f)
+		{
+			HandleTriggeringActionCommited();
+			HoldReset();
+			return false;
+		}
+		
+		return true;
+	}
+	HoldReset();
+	
+	return false;
+}
+
+bool UCommonButtonBase::NativeOnHoldProgressRollback(float DeltaTime)
+{
+	if (HoldTime > UE_SMALL_NUMBER && HoldRollbackTime > UE_SMALL_NUMBER)
+	{
+		const float HoldRollbackMultiplier = HoldTime / HoldRollbackTime;
+		CurrentHoldTime = FMath::Clamp(CurrentHoldTime - (DeltaTime * HoldRollbackMultiplier), 0.f, HoldRollbackTime);
+		const float HoldRollbackPercent = FMath::Clamp(CurrentHoldTime / HoldTime, 0.f, 1.f);
+		NativeOnActionProgress(HoldRollbackPercent);
+		if (HoldRollbackPercent <= 0.f)
+		{
+			FTSTicker::GetCoreTicker().RemoveTicker(HoldProgressRollbackTickerHandle);
+			HoldProgressRollbackTickerHandle = nullptr;
+		
+			return false;
+		}
+		
+		return true;
+	}
+	HoldReset();
+	
+	return false;
+}
+
+void UCommonButtonBase::HoldReset()
+{
+	if (HoldTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(HoldTickerHandle);
+		HoldTickerHandle = nullptr;
+	}
+	if (HoldProgressRollbackTickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(HoldProgressRollbackTickerHandle);
+		HoldProgressRollbackTickerHandle = nullptr;
+	}
+	CurrentHoldTime = 0.0f;
 }
 
 void UCommonButtonBase::NativeOnActionComplete()
@@ -1161,6 +1301,13 @@ void UCommonButtonBase::HandleButtonClicked()
 	// Guard against this case.
 	if (IsInteractionEnabled())
 	{
+		// @TODO: Current click rejection method relies on click hold time, this can be refined. See NativeOnHoldProgress.
+		// Also gamepad can indirectly trigger this method, so don't guard against pressed
+    	if (bRequiresHold && CurrentHoldTime < HoldTime && IsHovered())
+    	{
+    		return;
+    	}
+    		
 		if (bTriggerClickedAfterSelection)
 		{
 			SetIsSelected(!bSelected, false);
@@ -1173,6 +1320,7 @@ void UCommonButtonBase::HandleButtonClicked()
 		}
 
 		ExecuteTriggeredInput();
+		HoldReset();
 	}
 }
 
@@ -1210,6 +1358,21 @@ void UCommonButtonBase::HandleButtonPressed()
 		// Simulate hover events when using touch input
 		NativeOnHovered();
 	}
+
+	if (bRequiresHold && HoldTime > 0.f)
+	{
+		// Note: Fires once per frame FTSTicker::AddTicker has a delay param if desired
+		HoldTickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UCommonButtonBase::NativeOnHoldProgress));
+		if (HoldProgressRollbackTickerHandle.IsValid())
+		{
+			FTSTicker::GetCoreTicker().RemoveTicker(HoldProgressRollbackTickerHandle);
+			HoldProgressRollbackTickerHandle = nullptr;
+		}
+	}
+	if (TriggeringBindingHandle.IsValid())
+	{
+		TriggeringBindingHandle.ResetHold();
+	}
 }
 
 void UCommonButtonBase::HandleButtonReleased()
@@ -1222,6 +1385,23 @@ void UCommonButtonBase::HandleButtonReleased()
 	{
 		// Simulate hover events when using touch input
 		NativeOnUnhovered();
+	}
+
+	if (bRequiresHold && HoldTime > 0.f)
+	{
+		if (HoldRollbackTime <= UE_SMALL_NUMBER)
+		{
+			HoldReset();
+			NativeOnHoldProgress(0.f);
+		}
+		else
+		{
+			// Begin hold progress rollback
+			HoldProgressRollbackTickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UCommonButtonBase::NativeOnHoldProgressRollback));
+            		
+			FTSTicker::GetCoreTicker().RemoveTicker(HoldTickerHandle);
+			HoldTickerHandle = nullptr;
+		}
 	}
 }
 

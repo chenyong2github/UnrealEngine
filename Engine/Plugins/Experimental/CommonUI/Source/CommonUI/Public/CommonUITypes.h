@@ -64,8 +64,16 @@ public:
 	bool bActionRequiresHold;
 
 	/** The hold time in seconds */
-	UPROPERTY(EditAnywhere, Category = "CommonInput", meta = (EditCondition = "bActionRequiresHold"))
+	UPROPERTY(EditAnywhere, Category = "CommonInput", meta = (EditCondition = "bActionRequiresHold", ClampMin = "0.0", UIMin = "0.0"))
 	float HoldTime;
+
+	/**
+	*	Time (in seconds) for hold progress to go from 1.0 (completed) to 0.0.
+	*	If the hold interaction was interrupted, then hold progress starts to roll back decreasing its value.
+	*	Set to 0.0 to disable the rollback functionality.
+	*/
+	UPROPERTY(EditAnywhere, Category = "CommonInput", meta = (EditCondition = "bActionRequiresHold", ClampMin = "0", UIMin = "0", ClampMax = "10.0", UIMax = "10"))
+	float HoldRollbackTime;
 	
 	/** Override the brush specified by the Key Display Data  */
 	UPROPERTY(EditAnywhere, Category = "CommonInput")
@@ -76,7 +84,7 @@ public:
 		return Key == Other.Key &&
 			OverrrideState == Other.OverrrideState &&
 			bActionRequiresHold == Other.bActionRequiresHold &&
-			HoldTime == Other.HoldTime &&
+			HoldTime == Other.HoldTime &&HoldRollbackTime == Other.HoldRollbackTime &&
 			OverrideBrush == Other.OverrideBrush;
 	}
 
