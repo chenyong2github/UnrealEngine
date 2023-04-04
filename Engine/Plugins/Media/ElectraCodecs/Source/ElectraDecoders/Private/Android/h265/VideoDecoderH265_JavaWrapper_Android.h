@@ -4,6 +4,12 @@
 
 #include "CoreMinimal.h"
 
+#include "HAL/Platform.h"
+
+#if (defined(USE_ANDROID_JNI_WITHOUT_GAMEACTIVITY) && USE_ANDROID_JNI_WITHOUT_GAMEACTIVITY != 0) || USE_ANDROID_JNI
+#include "Android/AndroidPlatform.h"
+#include "Android/AndroidJava.h"
+
 #include "Utils/MPEG/ElectraUtilsMPEGVideo.h"
 
 class IElectraH265VideoDecoderAndroidJava
@@ -255,3 +261,4 @@ public:
 	virtual int32 ReleaseOutputBuffer(int32 BufferIndex, int32 ValidCount, bool bRender, int64 releaseAt) = 0;
 };
 
+#endif

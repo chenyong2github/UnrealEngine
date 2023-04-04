@@ -4,6 +4,12 @@
 
 #include "CoreMinimal.h"
 
+#include "HAL/Platform.h"
+
+#if (defined(USE_ANDROID_JNI_WITHOUT_GAMEACTIVITY) && USE_ANDROID_JNI_WITHOUT_GAMEACTIVITY != 0) || USE_ANDROID_JNI
+#include "Android/AndroidPlatform.h"
+#include "Android/AndroidJava.h"
+
 #include "Utils/MPEG/ElectraUtilsMPEGAudio.h"
 
 
@@ -169,3 +175,5 @@ public:
 	virtual int32 GetOutputBufferAndRelease(void*& OutBufferDataPtr, int32 OutBufferDataSize, const FOutputBufferInfo& InOutBufferInfo) = 0;
 
 };
+
+#endif
