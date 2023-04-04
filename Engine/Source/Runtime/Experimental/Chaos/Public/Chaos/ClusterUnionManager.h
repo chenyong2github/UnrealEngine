@@ -93,7 +93,7 @@ namespace Chaos
 		// Access the cluster union externally.
 		FClusterUnion* FindClusterUnionFromExplicitIndex(FClusterUnionExplicitIndex Index);
 		FClusterUnion* FindClusterUnion(FClusterUnionIndex Index);
-
+		FClusterUnion* FindClusterUnionFromParticle(FPBDRigidParticleHandle* Particle);
 		FClusterUnionIndex FindClusterUnionIndexFromParticle(FPBDRigidParticleHandle* Particle);
 
 		// An extension to FindClusterUnionIndexFromParticle to check whether or not the given particle is the cluster union particle itself.

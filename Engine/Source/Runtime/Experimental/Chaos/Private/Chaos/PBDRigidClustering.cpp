@@ -53,8 +53,8 @@ namespace Chaos
 	float GraphPropagationBasedCollisionFactor = 1;
 	FAutoConsoleVariableRef CVarGraphPropagationBasedCollisionFactor(TEXT("p.GraphPropagationBasedCollisionFactor"), GraphPropagationBasedCollisionFactor, TEXT("when p.GraphPropagationBasedCollisionImpulseProcessing is on, the percentage [0-1] of remaining damage that is distributed to the connected pieces"));
 
-	bool bRestoreBreakingMomentum = 1;
-	FAutoConsoleVariableRef CVarRestoreBreakingMomentum(TEXT("p.RestoreBreakingMomentum"), bRestoreBreakingMomentum, TEXT("When a rigid cluster is broken, objects that its in contact with will receive an impulse to restore their momentum prior to the break."));
+	float RestoreBreakingMomentumPercent = .5;
+	FAutoConsoleVariableRef CVarRestoreBreakingMomentumPercent(TEXT("p.RestoreBreakingMomentumPercent"), RestoreBreakingMomentumPercent, TEXT("When a rigid cluster is broken, objects that its in contact with will receive an impulse to restore this percent of their momentum prior to the break."));
 
 	static FGeometryCollectionPhysicsProxy* GetConcreteProxy(FPBDRigidClusteredParticleHandle* ClusteredParticle)
 	{
@@ -498,10 +498,8 @@ namespace Chaos
 			const FMatrix33 OtherInvI = Utilities::ComputeWorldSpaceInertia(Generic->QCom(), Generic->ConditionedInvI());
 			const FVec3 AngularImpulseVelocity = OtherInvI * AngularImpulse;
 
-			// Temporary: Always restore only 50% of the impulse
-			const float RestorationPercent = .5f;
-
 			// Update linear and angular impulses for the body, to be integrated next solve
+			const float RestorationPercent = RestoreBreakingMomentumPercent;
 			Rigid.V() += ImpulseVelocity * RestorationPercent;
 			Rigid.W() += AngularImpulseVelocity * RestorationPercent;
 		}
@@ -810,6 +808,10 @@ namespace Chaos
 		// since it'll be modifying the children array.
 		TArray<FPBDRigidParticleHandle*> DeferredRemoveFromClusterUnion;
 
+		// Grab cluster union parent if there is one
+		FPBDRigidParticleHandle* ParentRigid = ClusteredParticle->ClusterIds().Id;
+		FPBDRigidClusteredParticleHandle* Parent = ParentRigid ? ParentRigid->CastToClustered() : nullptr;
+
 		for (int32 ChildIdx = Children.Num() - 1; ChildIdx >= 0; --ChildIdx)
 		{
 			FPBDRigidClusteredParticleHandle* Child = Children[ChildIdx]->CastToClustered();
@@ -854,13 +856,6 @@ namespace Chaos
 				
 				ActivatedChildren.Add(Child);
 				SendBreakingEvent(Child, bParentCrumbled);
-
-				// Restore some of the momentum of whatever collided with the parent
-				if (bRestoreBreakingMomentum)
-				{
-					TrackBreakingCollision(Child);
-					TrackBreakingCollision(ClusteredParticle);
-				}
 			}
 			if (bUseDamagePropagation)
 			{
@@ -872,6 +867,19 @@ namespace Chaos
 		if (!DeferredRemoveFromClusterUnion.IsEmpty())
 		{
 			ClusterUnionManager.HandleRemoveOperationWithClusterLookup(DeferredRemoveFromClusterUnion, true);
+		}
+
+		// Restore some of the momentum of whatever collided with the parent
+		if (bFoundFirstRelease && RestoreBreakingMomentumPercent > 0.f)
+		{
+			if (Parent)
+			{
+				TrackBreakingCollision(Parent);
+			}
+			else
+			{
+				TrackBreakingCollision(ClusteredParticle);
+			}
 		}
 
 		// if necessary propagate strain through the graph
@@ -1116,19 +1124,52 @@ namespace Chaos
 		TArray<FPBDRigidClusteredParticleHandle*> ClusteredParticlesToProcess;
 		for (auto& Particle : MEvolution.GetNonDisabledClusteredView())
 		{
-			ClusteredParticlesToProcess.Add(Particle.Handle()->CastToClustered());
+			if (FPBDRigidClusteredParticleHandle* Clustered = Particle.Handle()->CastToClustered())
+			{
+				if (Clustered->ClusterIds().NumChildren > 0)
+				{
+					if (FClusterUnion* ClusterUnion = ClusterUnionManager.FindClusterUnionFromParticle(Clustered))
+					{
+						if (ClusterUnion->InternalCluster == Clustered)
+						{
+							// Clustered is itself a cluster union, so loop over its children and add those
+							// to process for breaking.
+							for (FPBDRigidParticleHandle* ChildParticle : ClusterUnion->ChildParticles)
+							{
+								if (ChildParticle)
+								{
+									if (FPBDRigidClusteredParticleHandle* ClusteredChild = ChildParticle->CastToClustered())
+									{
+										if (ClusteredChild->ClusterIds().NumChildren > 0)
+										{
+											ClusteredParticlesToProcess.Add(ClusteredChild);
+										}
+									}
+								}
+							}
+						}
+						else
+						{
+							// Clustered is inside a clustered union, but not a clustered union itself
+							ClusteredParticlesToProcess.Add(Clustered);
+						}
+					}
+					else
+					{
+						// Clustered is not a clustered union, and not _in_ a clustered union
+						ClusteredParticlesToProcess.Add(Clustered);
+					}
+				}
+			}
 		}
 
 		for (FPBDRigidClusteredParticleHandle* ClusteredParticle : ClusteredParticlesToProcess)
 		{
-			if (ClusteredParticle->ClusterIds().NumChildren)
-			{
-				ReleaseClusterParticles(ClusteredParticle);
-			}
+			ReleaseClusterParticles(ClusteredParticle);
 		}
 
 		// Restore some of the momentum of objects that were touching rigid clusters that broke
-		if (bRestoreBreakingMomentum)
+		if (RestoreBreakingMomentumPercent > 0.f)
 		{
 			RestoreBreakingMomentum();
 		}
@@ -1434,6 +1475,20 @@ namespace Chaos
 							{
 								if (TPBDRigidClusteredParticleHandle<FReal, 3>*ClusteredChild = Child->CastToClustered())
 								{
+									// If we got a child of a Clustered Union then this might just be the root particle of a geometry collection,
+									// in which case it might not make sense to strain it (?)
+									if (const IPhysicsProxyBase* Proxy = Cluster->PhysicsProxy())
+									{
+										if (Proxy->GetType() == EPhysicsProxyType::ClusterUnionProxy)
+										{
+											TArray<FRigidHandle>& ClusteredParentToChildren = MChildren[ClusteredChild];
+											if (FPBDRigidParticleHandle* ClusteredChildRigid = FindClosestParticle(ClusteredParentToChildren, ContactWorldLocation))
+											{
+												ClusteredChild = ClusteredChildRigid->CastToClustered();
+											}
+										}
+									}
+
 									ClusteredChild->CollisionImpulses() += AccumulatedImpulse;
 									UpdateTopLevelParticle(ClusteredChild);
 								}
