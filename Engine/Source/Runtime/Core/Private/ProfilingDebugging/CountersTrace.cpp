@@ -37,7 +37,7 @@ const TCHAR* FCountersTrace::AllocAndCopyCounterName(const TCHAR* InCounterName)
 
 void FCountersTrace::FreeCounterName(const TCHAR* InCounterName)
 {
-	delete InCounterName;
+	delete[] InCounterName;
 }
 
 uint16 FCountersTrace::OutputInitCounter(const TCHAR* CounterName, ETraceCounterType CounterType, ETraceCounterDisplayHint CounterDisplayHint)

@@ -36,6 +36,7 @@ enum ETraceCounterNameType
 {
 	TraceCounterNameType_Static = 0, // TCounter is allowed to keep a pointer to InCounterName string
 	TraceCounterNameType_Dynamic = 0x10, // TCounter needs to copy the InCounterName string
+	TraceCounterNameType_AllocNameCopy = 0x20, // TCounter has allocated a copy of the InCounterName string
 };
 
 #if COUNTERSTRACE_ENABLED
@@ -79,13 +80,13 @@ struct FCountersTrace
 			{
 				// Store counter name for late init. Needs a copy as InCounterName pointer might not be valid later.
 				CounterName = AllocAndCopyCounterName(InCounterName);
-				CounterDisplayHint = ETraceCounterDisplayHint(uint8(CounterDisplayHint) | uint8(TraceCounterNameType_Dynamic));
+				CounterDisplayHint = ETraceCounterDisplayHint(uint8(CounterDisplayHint) | uint8(TraceCounterNameType_AllocNameCopy));
 			}
 		}
 
 		~TCounter()
 		{
-			if (uint8(CounterDisplayHint) & uint8(TraceCounterNameType_Dynamic))
+			if (uint8(CounterDisplayHint) & uint8(TraceCounterNameType_AllocNameCopy))
 			{
 				FreeCounterName(CounterName);
 			}
