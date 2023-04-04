@@ -8,6 +8,8 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using OpenTracing;
+using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace EpicGames.Core.Tests
 {
@@ -63,6 +65,49 @@ namespace EpicGames.Core.Tests
 				Assert.IsNotNull(SpansList[0].GetProperty("FinishTime").GetDateTime());
 				Assert.AreEqual("myService", SpansList[1].GetProperty("Service").GetString());
 				Assert.AreEqual("myResource", SpansList[1].GetProperty("Resource").GetString());
+			}
+		}
+
+		[TestMethod]
+		public void SpansWithParallelFor()
+		{
+			JsonTracer Tracer = new JsonTracer();
+
+			using (IScope ParentScope1 = Tracer.BuildSpan("Parent").StartActive()) 
+			{
+				Parallel.For(0, 100, Index =>
+				{
+					using (IScope ChildScope = Tracer.BuildSpan("Child").StartActive()) { }
+				});
+			}
+		}
+
+		private static async Task<bool> AsyncSpanTest(JsonTracer Tracer)
+		{
+			for (int Index = 0; Index < 100; Index++)
+			{
+				using (IScope AsyncChildScope = Tracer.BuildSpan("AsyncChild").StartActive())
+				{
+					await Task.Run(() => 
+					{
+						using (IScope TaskChildScope = Tracer.BuildSpan("TaskChild").StartActive())
+						{
+							return true;
+						}
+					});
+				}
+			}
+			return true;
+		}
+
+		[TestMethod]
+		public void SpansWithAsync()
+		{
+			JsonTracer Tracer = new JsonTracer();
+
+			using (IScope ParentScope1 = Tracer.BuildSpan("Parent").StartActive())
+			{
+				 AsyncSpanTest(Tracer).Wait();
 			}
 		}
 	}
