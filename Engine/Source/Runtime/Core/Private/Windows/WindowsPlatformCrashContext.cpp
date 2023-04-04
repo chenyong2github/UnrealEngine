@@ -206,10 +206,32 @@ void FWindowsPlatformCrashContext::CopyPlatformSpecificFiles(const TCHAR* Output
 {
 	FGenericCrashContext::CopyPlatformSpecificFiles(OutputDirectory, Context);
 
-	// Save minidump
-	LPEXCEPTION_POINTERS ExceptionInfo = (LPEXCEPTION_POINTERS)Context;
-	const FString MinidumpFileName = FPaths::Combine(OutputDirectory, FGenericCrashContext::UEMinidumpName);
-	WriteMinidump(ProcessHandle.Get(), CrashedThreadId, *this, *MinidumpFileName, ExceptionInfo);
+	bool bRecordCrashDump = true;
+	switch (Type)
+	{
+		case ECrashContextType::Stall:
+			GConfig->GetBool(TEXT("CrashReportClient"), TEXT("Stall.RecordDump"), bRecordCrashDump, GEngineIni);
+			break;
+		case ECrashContextType::Ensure:
+			GConfig->GetBool(TEXT("CrashReportClient"), TEXT("Ensure.RecordDump"), bRecordCrashDump, GEngineIni);
+			break;
+		case ECrashContextType::AbnormalShutdown:
+		case ECrashContextType::Assert:
+		case ECrashContextType::Crash:
+		case ECrashContextType::GPUCrash:
+		case ECrashContextType::Hang:
+		case ECrashContextType::OutOfMemory:
+		default:
+			break;
+	}
+
+	if (bRecordCrashDump)
+	{
+		// Save minidump
+		LPEXCEPTION_POINTERS ExceptionInfo = (LPEXCEPTION_POINTERS)Context;
+		const FString MinidumpFileName = FPaths::Combine(OutputDirectory, FGenericCrashContext::UEMinidumpName);
+		WriteMinidump(ProcessHandle.Get(), CrashedThreadId, *this, *MinidumpFileName, ExceptionInfo);
+	}
 
 	// If present, include the crash video
 	const FString CrashVideoPath = FPaths::ProjectLogDir() / TEXT("CrashVideo.avi");
