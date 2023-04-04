@@ -236,27 +236,27 @@ bool UPCGNode::RemoveEdgeTo(FName FromPinLabel, UPCGNode* To, FName ToPinLabel)
 	}
 }
 
-FName UPCGNode::GetNodeTitle() const
+FText UPCGNode::GetNodeTitle() const
 {
 	if (NodeTitle != NAME_None)
 	{
-		return NodeTitle;
+		return FText::FromName(NodeTitle);
 	}
 	else if (UPCGSettings* Settings = GetSettings())
 	{
 		if (Settings->AdditionalTaskName() != NAME_None)
 		{
-			return Settings->AdditionalTaskName();
+			return FText::FromName(Settings->AdditionalTaskName());
 		}
 #if WITH_EDITOR
 		else
 		{
-			return Settings->GetDefaultNodeName();
+			return Settings->GetDefaultNodeTitle();
 		}
 #endif
 	}
 
-	return TEXT("Unnamed node");
+	return NSLOCTEXT("PCGNode", "NodeTitle", "Unnamed node");
 }
 
 #if WITH_EDITOR

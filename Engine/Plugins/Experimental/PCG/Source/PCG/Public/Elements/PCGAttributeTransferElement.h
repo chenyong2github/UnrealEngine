@@ -12,6 +12,7 @@ class UPCGSpatialData;
 namespace PCGAttributeTransferConstants
 {
 	const FName NodeName = TEXT("TransferAttribute");
+	const FText NodeTitle = NSLOCTEXT("PCGAttributeTransferElement", "NodeTitle", "Transfer Attribute");
 	const FName SourceLabel = TEXT("Source");
 	const FName TargetLabel = TEXT("Target");
 }
@@ -36,6 +37,7 @@ public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override;
+	virtual FText GetDefaultNodeTitle() const override;
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
 #endif
 	virtual FName AdditionalTaskName() const override;

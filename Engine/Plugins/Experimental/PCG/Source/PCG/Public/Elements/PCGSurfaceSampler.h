@@ -28,7 +28,8 @@ public:
 
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Surface Sampler")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("SurfaceSampler")); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGSurfaceSamplerSettings", "NodeTitle", "Surface Sampler"); }
 	virtual FText GetNodeTooltipText() const override;
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Sampler; }
 	virtual bool IsPinUsedByNodeExecution(const UPCGPin* InPin) const override;

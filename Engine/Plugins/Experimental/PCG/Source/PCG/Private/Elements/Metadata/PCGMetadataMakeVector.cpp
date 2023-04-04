@@ -184,7 +184,12 @@ uint16 UPCGMetadataMakeVectorSettings::GetOutputType(uint16 InputTypeId) const
 #if WITH_EDITOR
 FName UPCGMetadataMakeVectorSettings::GetDefaultNodeName() const
 {
-	return TEXT("Make Vector Attribute");
+	return TEXT("MakeVectorAttribute");
+}
+
+FText UPCGMetadataMakeVectorSettings::GetDefaultNodeTitle() const
+{
+	return NSLOCTEXT("PCGMetadataMakeVectorSettings", "NodeTitle", "Make Vector Attribute");
 }
 #endif // WITH_EDITOR
 

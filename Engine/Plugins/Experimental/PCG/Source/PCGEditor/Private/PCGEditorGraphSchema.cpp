@@ -221,7 +221,7 @@ void UPCGEditorGraphSchema::GetNativeElementActions(FGraphActionMenuBuilder& Act
 		{
 			if (PCGSettings->bExposeToLibrary)
 			{
-				const FText MenuDesc = FText::FromName(PCGSettings->GetDefaultNodeName());
+				const FText MenuDesc = PCGSettings->GetDefaultNodeTitle();
 				const FText Category = StaticEnum<EPCGSettingsType>()->GetDisplayNameTextByValue(static_cast<__underlying_type(EPCGSettingsType)>(PCGSettings->GetType()));
 				const FText Description = PCGSettings->GetNodeTooltipText();
 

@@ -186,6 +186,11 @@ FName UPCGAttributeSelectSettings::GetDefaultNodeName() const
 {
 	return TEXT("AttributeSelect");
 }
+
+FText UPCGAttributeSelectSettings::GetDefaultNodeTitle() const
+{
+	return LOCTEXT("NodeTitle", "Attribute Select");
+}
 #endif
 
 FName UPCGAttributeSelectSettings::AdditionalTaskName() const

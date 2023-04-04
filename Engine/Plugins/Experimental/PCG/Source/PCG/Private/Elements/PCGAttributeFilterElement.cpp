@@ -15,6 +15,7 @@
 namespace PCGAttributeFilterConstants
 {
 	const FName NodeName = TEXT("FilterAttribute");
+	const FText NodeTitle = LOCTEXT("NodeTitle", "Filter Attribute");
 }
 
 void UPCGAttributeFilterSettings::PostLoad()
@@ -46,6 +47,11 @@ void UPCGAttributeFilterSettings::PostLoad()
 FName UPCGAttributeFilterSettings::GetDefaultNodeName() const
 {
 	return PCGAttributeFilterConstants::NodeName;
+}
+
+FText UPCGAttributeFilterSettings::GetDefaultNodeTitle() const
+{
+	return PCGAttributeFilterConstants::NodeTitle;
 }
 #endif
 

@@ -16,6 +16,11 @@ FName UPCGAttributeTransferSettings::GetDefaultNodeName() const
 {
 	return PCGAttributeTransferConstants::NodeName;
 }
+
+FText UPCGAttributeTransferSettings::GetDefaultNodeTitle() const
+{
+	return PCGAttributeTransferConstants::NodeTitle;
+}
 #endif
 
 FName UPCGAttributeTransferSettings::AdditionalTaskName() const

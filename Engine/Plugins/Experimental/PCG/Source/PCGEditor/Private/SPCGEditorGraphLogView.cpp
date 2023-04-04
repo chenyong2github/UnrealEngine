@@ -307,7 +307,7 @@ FReply SPCGEditorGraphLogView::Refresh()
 		const UPCGNode* PCGNode = PCGEditorNode ? PCGEditorNode->GetPCGNode() : nullptr;
 		if (PCGNode)
 		{
-			CreateAndAddItem(PCGEditorNode, PCGNode, PCGNode->GetNodeTitle());
+			CreateAndAddItem(PCGEditorNode, PCGNode, *PCGNode->GetNodeTitle().ToString());
 		}
 	}
 

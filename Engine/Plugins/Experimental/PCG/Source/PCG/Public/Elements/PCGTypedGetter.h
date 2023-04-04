@@ -17,7 +17,8 @@ public:
 
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Get Landscape Data")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("GetLandscapeData")); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGGetLandscapeSettings", "NodeTitle", "Get Landscape Data"); }
 	virtual FText GetNodeTooltipText() const override;
 #endif
 
@@ -42,7 +43,8 @@ public:
 
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Get Spline Data")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("GetSplineData")); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGGetSplineSettings", "NodeTitle", "Get Spline Data"); }
 	virtual FText GetNodeTooltipText() const override;
 #endif
 
@@ -92,7 +94,8 @@ public:
 
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Get Primitive Data")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("GetPrimitiveData")); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGGetPrimitiveSettings", "NodeTitle", "Get Primitive Data"); }
 	virtual FText GetNodeTooltipText() const override;
 #endif
 

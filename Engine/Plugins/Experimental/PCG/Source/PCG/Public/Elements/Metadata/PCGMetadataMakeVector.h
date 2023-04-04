@@ -49,6 +49,7 @@ public:
 #if WITH_EDITOR
 	//~Begin UPCGSettings interface
 	virtual FName GetDefaultNodeName() const override;
+	virtual FText GetDefaultNodeTitle() const override;
 	//~End UPCGSettings interface
 #endif
 

@@ -6,7 +6,7 @@
 
 FText UPCGEditorGraphNodeReroute::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	return FText::FromName(TEXT("Reroute"));
+	return NSLOCTEXT("PCGEditorGraphNodeReroute", "NodeTitle", "Reroute");
 }
 
 bool UPCGEditorGraphNodeReroute::ShouldOverridePinNames() const

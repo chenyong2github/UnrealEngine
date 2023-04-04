@@ -93,7 +93,12 @@ FName UPCGMetadataBreakTransformSettings::GetOutputAttributeName(FName BaseName,
 #if WITH_EDITOR
 FName UPCGMetadataBreakTransformSettings::GetDefaultNodeName() const
 {
-	return TEXT("Break Transform Attribute");
+	return TEXT("BreakTransformAttribute");
+}
+
+FText UPCGMetadataBreakTransformSettings::GetDefaultNodeTitle() const
+{
+	return NSLOCTEXT("PCGMetadataBreakTransformSettings", "NodeTitle", "Break Transform Attribute");
 }
 #endif // WITH_EDITOR
 

@@ -146,7 +146,12 @@ FName UPCGMetadataBreakVectorSettings::GetOutputAttributeName(FName BaseName, ui
 #if WITH_EDITOR
 FName UPCGMetadataBreakVectorSettings::GetDefaultNodeName() const
 {
-	return TEXT("Break Vector Attribute");
+	return TEXT("BreakVectorAttribute");
+}
+
+FText UPCGMetadataBreakVectorSettings::GetDefaultNodeTitle() const
+{
+	return NSLOCTEXT("PCGMetadataBreakVectorSettings", "NodeTitle", "Break Vector Attribute");
 }
 #endif // WITH_EDITOR
 

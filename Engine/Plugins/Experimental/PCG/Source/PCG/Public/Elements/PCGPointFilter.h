@@ -73,6 +73,7 @@ public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("PointFilter")); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGPointFilterSettings", "NodeTitle", "Point Filter"); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Filter; }
 #endif
 

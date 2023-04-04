@@ -14,8 +14,10 @@
 
 namespace PCGCreateAttributeConstants
 {
-	const FName NodeNameAddAttribute = TEXT("Add Attribute");
-	const FName NodeNameCreateAttribute = TEXT("Create Attribute");
+	const FName NodeNameAddAttribute = TEXT("AddAttribute");
+	const FText NodeTitleAddAttribute = LOCTEXT("NodeTitleAddAttribute", "Add Attribute");
+	const FName NodeNameCreateAttribute = TEXT("CreateAttribute");
+	const FText NodeTitleCreateAttribute = LOCTEXT("NodeTitleCreateAttribute", "Create Attribute");
 	const FName AttributesLabel = TEXT("Attributes");
 }
 
@@ -56,6 +58,11 @@ FName UPCGCreateAttributeSettings::AdditionalTaskName() const
 FName UPCGCreateAttributeSettings::GetDefaultNodeName() const
 {
 	return PCGCreateAttributeConstants::NodeNameAddAttribute;
+}
+
+FText UPCGCreateAttributeSettings::GetDefaultNodeTitle() const
+{
+	return PCGCreateAttributeConstants::NodeTitleAddAttribute;
 }
 #endif // WITH_EDITOR
 
@@ -130,6 +137,11 @@ UPCGCreateAttributeSetSettings::UPCGCreateAttributeSetSettings()
 FName UPCGCreateAttributeSetSettings::GetDefaultNodeName() const
 {
 	return PCGCreateAttributeConstants::NodeNameCreateAttribute;
+}
+
+FText UPCGCreateAttributeSetSettings::GetDefaultNodeTitle() const
+{
+	return PCGCreateAttributeConstants::NodeTitleCreateAttribute;
 }
 #endif // WITH_EDITOR
 

@@ -171,7 +171,12 @@ FName UPCGMetadataTransformSettings::AdditionalTaskName() const
 #if WITH_EDITOR
 FName UPCGMetadataTransformSettings::GetDefaultNodeName() const
 {
-	return TEXT("Attribute Transform Op");
+	return TEXT("AttributeTransformOp");
+}
+
+FText UPCGMetadataTransformSettings::GetDefaultNodeTitle() const
+{
+	return NSLOCTEXT("PCGMetadataTransformSettings", "NodeTitle", "Attribute Transform Op");
 }
 #endif // WITH_EDITOR
 

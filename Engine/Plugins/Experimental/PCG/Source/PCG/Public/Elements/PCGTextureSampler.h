@@ -16,7 +16,8 @@ class PCG_API UPCGTextureSamplerSettings : public UPCGSettings
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Get Texture Data")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("GetTextureData")); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGTextureSamplerSettings", "NodeTitle", "Get Texture Data"); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spatial; }
 #endif
 

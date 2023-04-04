@@ -28,6 +28,7 @@ public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override;
+	virtual FText GetDefaultNodeTitle() const override;
 #endif
 
 	FPCGAttributePropertySelector GetInputSource(uint32 Index) const override;

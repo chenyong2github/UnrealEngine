@@ -9,7 +9,7 @@
 
 FText UPCGEditorGraphNodeInput::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {	
-	return FText::FromName(TEXT("Input"));
+	return LOCTEXT("NodeTitle", "Input");
 }
 
 void UPCGEditorGraphNodeInput::AllocateDefaultPins()

@@ -30,7 +30,8 @@ class UPCGNormalToDensitySettings : public UPCGSettings
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Normal To Density")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("NormalToDensity")); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGNormalToDensitySettings", "NodeTitle", "Normal To Density"); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spatial; }
 #endif
 

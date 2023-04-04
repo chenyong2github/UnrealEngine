@@ -247,7 +247,12 @@ FName UPCGMetadataMathsSettings::AdditionalTaskName() const
 #if WITH_EDITOR
 FName UPCGMetadataMathsSettings::GetDefaultNodeName() const
 {
-	return TEXT("Attribute Maths Op");
+	return TEXT("AttributeMathsOp");
+}
+
+FText UPCGMetadataMathsSettings::GetDefaultNodeTitle() const
+{
+	return NSLOCTEXT("PCGMetadataMathsSettings", "NodeTitle", "Attribute Maths Op");
 }
 #endif // WITH_EDITOR
 

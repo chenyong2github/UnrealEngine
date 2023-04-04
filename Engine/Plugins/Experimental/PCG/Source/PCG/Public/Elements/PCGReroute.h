@@ -26,6 +26,7 @@ protected:
 	
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName("Reroute"); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGRerouteSettings", "NodeTitle", "Reroute"); }
 #endif
 };
 

@@ -17,7 +17,8 @@ public:
 
 	// ~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Linear Density Remap")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("LinearDensityRemap")); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGLinearDensityRemapSettings", "NodeTitle", "Linear Density Remap"); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Density; }
 #endif
 

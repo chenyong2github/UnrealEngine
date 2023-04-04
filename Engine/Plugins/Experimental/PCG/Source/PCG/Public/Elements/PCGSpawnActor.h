@@ -90,7 +90,8 @@ public:
 	virtual UPCGNode* CreateNode() const override;
 
 #if WITH_EDITOR	
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Spawn Actor")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("SpawnActor")); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGSpawnActorSettings", "NodeTitle", "Spawn Actor"); }
 	virtual EPCGSettingsType GetType() const override;
 #endif
 

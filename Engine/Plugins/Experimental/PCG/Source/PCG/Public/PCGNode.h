@@ -61,7 +61,7 @@ public:
 	bool RemoveEdgeTo(FName FromPinLable, UPCGNode* To, FName ToPinLabel);
 
 	/** Returns the node title, based either on the current node label, or defaulted to its settings */
-	FName GetNodeTitle() const;
+	FText GetNodeTitle() const;
 
 #if WITH_EDITOR
 	/** Tooltip that describes node functionality and other information. */

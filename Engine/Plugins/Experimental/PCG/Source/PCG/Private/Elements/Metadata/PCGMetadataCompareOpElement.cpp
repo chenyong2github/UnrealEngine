@@ -131,7 +131,12 @@ FName UPCGMetadataCompareSettings::AdditionalTaskName() const
 #if WITH_EDITOR
 FName UPCGMetadataCompareSettings::GetDefaultNodeName() const
 {
-	return TEXT("Attribute Compare Op");
+	return TEXT("AttributeCompareOp");
+}
+
+FText UPCGMetadataCompareSettings::GetDefaultNodeTitle() const
+{
+	return NSLOCTEXT("PCGMetadataCompareSettings", "NodeTitle", "Attribute Compare Op");
 }
 #endif // WITH_EDITOR
 

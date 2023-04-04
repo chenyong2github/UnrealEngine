@@ -81,6 +81,11 @@ FName UPCGAttributeReduceSettings::GetDefaultNodeName() const
 {
 	return TEXT("AttributeReduce");
 }
+
+FText UPCGAttributeReduceSettings::GetDefaultNodeTitle() const
+{
+	return LOCTEXT("NodeTitle", "Attribute Reduce");
+}
 #endif
 
 void UPCGAttributeReduceSettings::PostLoad()

@@ -105,7 +105,12 @@ FName UPCGMetadataBooleanSettings::AdditionalTaskName() const
 #if WITH_EDITOR
 FName UPCGMetadataBooleanSettings::GetDefaultNodeName() const
 {
-	return TEXT("Attribute Boolean Op");
+	return TEXT("AttributeBooleanOp");
+}
+
+FText UPCGMetadataBooleanSettings::GetDefaultNodeTitle() const
+{
+	return NSLOCTEXT("PCGMetadataBooleanSettings", "NodeTitle", "Attribute Boolean Op");
 }
 #endif // WITH_EDITOR
 

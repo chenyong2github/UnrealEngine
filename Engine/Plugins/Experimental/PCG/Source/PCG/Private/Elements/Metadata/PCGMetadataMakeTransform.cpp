@@ -109,7 +109,12 @@ uint16 UPCGMetadataMakeTransformSettings::GetOutputType(uint16 InputTypeId) cons
 #if WITH_EDITOR
 FName UPCGMetadataMakeTransformSettings::GetDefaultNodeName() const
 {
-	return TEXT("Make Transform Attribute");
+	return TEXT("MakeTransformAttribute");
+}
+
+FText UPCGMetadataMakeTransformSettings::GetDefaultNodeTitle() const
+{
+	return NSLOCTEXT("PCGMetadataMakeTransformSettings", "NodeTitle", "Make Transform Attribute");
 }
 #endif // WITH_EDITOR
 

@@ -117,7 +117,12 @@ FName UPCGMetadataTrigSettings::AdditionalTaskName() const
 #if WITH_EDITOR
 FName UPCGMetadataTrigSettings::GetDefaultNodeName() const
 {
-	return TEXT("Attribute Trig Op");
+	return TEXT("AttributeTrigOp");
+}
+
+FText UPCGMetadataTrigSettings::GetDefaultNodeTitle() const
+{
+	return NSLOCTEXT("PCGMetadataTrigSettings", "NodeTitle", "Attribute Trig Op");
 }
 #endif // WITH_EDITOR
 

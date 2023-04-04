@@ -11,13 +11,19 @@
 
 namespace PCGFilterByTagConstants
 {
-	const FName NodeName = FName(TEXT("Filter By Tag"));
+	const FName NodeName = FName(TEXT("FilterByTag"));
+	const FText NodeTitle = LOCTEXT("NodeTitle", "Filter By Tag");
 }
 
 #if WITH_EDITOR
 FName UPCGFilterByTagSettings::GetDefaultNodeName() const
 {
 	return PCGFilterByTagConstants::NodeName;
+}
+
+FText UPCGFilterByTagSettings::GetDefaultNodeTitle() const
+{
+	return PCGFilterByTagConstants::NodeTitle;
 }
 
 FText UPCGFilterByTagSettings::GetNodeTooltipText() const

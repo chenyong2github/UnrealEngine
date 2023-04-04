@@ -16,7 +16,8 @@ class PCG_API UPCGDensityFilterSettings : public UPCGSettings
 public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Density Filter")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("DensityFilter")); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGDensityFilterSettings", "NodeTitle", "Density Filter"); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Filter; }
 #endif
 

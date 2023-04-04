@@ -203,7 +203,12 @@ FName UPCGMetadataRotatorSettings::AdditionalTaskName() const
 #if WITH_EDITOR
 FName UPCGMetadataRotatorSettings::GetDefaultNodeName() const
 {
-	return TEXT("Attribute Rotator Op");
+	return TEXT("AttributeRotatorOp");
+}
+
+FText UPCGMetadataRotatorSettings::GetDefaultNodeTitle() const
+{
+	return NSLOCTEXT("PCGMetadataRotatorSettings", "NodeTitle", "Attribute Rotator Op");
 }
 #endif // WITH_EDITOR
 

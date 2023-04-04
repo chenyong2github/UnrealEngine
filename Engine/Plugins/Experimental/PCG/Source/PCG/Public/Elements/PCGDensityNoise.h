@@ -29,7 +29,8 @@ public:
 
 	// ~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Density Noise")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("DensityNoise")); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGDensityNodeSettings", "NodeTitle", "Density Noise"); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Density; }
 #endif
 

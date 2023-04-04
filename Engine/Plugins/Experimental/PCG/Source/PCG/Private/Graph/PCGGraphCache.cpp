@@ -170,7 +170,7 @@ void FPCGGraphCache::CleanFromCache(const IPCGElement* InElement, const UPCGSett
 
 	if (IsDebuggingEnabled())
 	{
-		UE_LOG(LogPCG, Warning, TEXT("[] \t\tCACHE: PURGED [%s]"), InSettings ? *InSettings->GetDefaultNodeName().ToString() : TEXT("AnonymousElement"));
+		UE_LOG(LogPCG, Warning, TEXT("[] \t\tCACHE: PURGED [%s]"), InSettings ? *InSettings->GetDefaultNodeTitle().ToString() : TEXT("AnonymousElement"));
 	}
 
 	{

@@ -17,7 +17,8 @@ public:
 
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Point Sampler")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("PointSampler")); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGPointSamplerSettings", "NodeTitle", "Point Sampler"); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Sampler; }
 #endif
 

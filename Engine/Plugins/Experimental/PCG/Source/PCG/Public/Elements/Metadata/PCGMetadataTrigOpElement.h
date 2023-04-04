@@ -33,6 +33,7 @@ public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override;
+	virtual FText GetDefaultNodeTitle() const override;
 #endif
 	virtual FName AdditionalTaskName() const override;
 	//~End UPCGSettings interface

@@ -100,7 +100,12 @@ FName UPCGMetadataBitwiseSettings::AdditionalTaskName() const
 #if WITH_EDITOR
 FName UPCGMetadataBitwiseSettings::GetDefaultNodeName() const
 {
-	return TEXT("Attribute Bitwise Op");
+	return TEXT("AttributeBitwiseOp");
+}
+
+FText UPCGMetadataBitwiseSettings::GetDefaultNodeTitle() const
+{
+	return NSLOCTEXT("PCGMetadataBitwiseSettings", "NodeTitle", "Attribute Bitwise Op");
 }
 #endif // WITH_EDITOR
 

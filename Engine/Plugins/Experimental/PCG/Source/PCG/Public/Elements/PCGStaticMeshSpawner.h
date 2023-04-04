@@ -47,6 +47,7 @@ public:
 #if WITH_EDITOR
 	// ~Begin UPCGSettings interface
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("StaticMeshSpawner")); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGStaticMeshSpawnerSettings", "NodeTitle", "Static Mesh Spawner"); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spawner; }
 #endif
 

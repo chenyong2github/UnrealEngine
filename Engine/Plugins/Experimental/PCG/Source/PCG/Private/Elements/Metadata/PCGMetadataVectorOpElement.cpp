@@ -333,7 +333,12 @@ FName UPCGMetadataVectorSettings::AdditionalTaskName() const
 #if WITH_EDITOR
 FName UPCGMetadataVectorSettings::GetDefaultNodeName() const
 {
-	return TEXT("Attribute Vector Op");
+	return TEXT("AttributeVectorOp");
+}
+
+FText UPCGMetadataVectorSettings::GetDefaultNodeTitle() const
+{
+	return NSLOCTEXT("PCGMetadataVectorSettings", "NodeTitle", "Attribute Vector Op");
 }
 #endif // WITH_EDITOR
 

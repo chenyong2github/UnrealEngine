@@ -19,6 +19,11 @@ FName UPCGAttributeGetFromPointIndexSettings::GetDefaultNodeName() const
 {
 	return TEXT("GetAttributeFromPointIndex");
 }
+
+FText UPCGAttributeGetFromPointIndexSettings::GetDefaultNodeTitle() const
+{
+	return LOCTEXT("NodeTitle", "Get Attribute From Point Index");
+}
 #endif
 
 void UPCGAttributeGetFromPointIndexSettings::PostLoad()
