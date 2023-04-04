@@ -2881,6 +2881,11 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 				FPlatformMemory::Memcpy(&SharedView->PrevViewInfo.HZB, &NullRef, sizeof(SharedView->PrevViewInfo.HZB));
 
 				SharedView->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>(); //TODO: remove?
+				// Overrides must be send to the view uniform buffer that is accessed by Substrate when BSDFs are sanitized for instance.
+				SharedView->CachedViewUniformShaderParameters->DiffuseOverrideParameter = Views[0].CachedViewUniformShaderParameters->DiffuseOverrideParameter;
+				SharedView->CachedViewUniformShaderParameters->RoughnessOverrideParameter = Views[0].CachedViewUniformShaderParameters->RoughnessOverrideParameter;
+				SharedView->CachedViewUniformShaderParameters->SpecularOverrideParameter = Views[0].CachedViewUniformShaderParameters->SpecularOverrideParameter;
+				SharedView->CachedViewUniformShaderParameters->NormalOverrideParameter = Views[0].CachedViewUniformShaderParameters->NormalOverrideParameter;
 				SharedView->CreateViewUniformBuffers(*SharedView->CachedViewUniformShaderParameters);
 			}
 
