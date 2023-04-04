@@ -27,16 +27,60 @@
 
 #if STALL_DETECTOR
 
+/**
+ * Counts, but does not report, a stall.
+ **/
+#define SCOPE_STALL_COUNTER(InName, InBudgetSeconds)                                                                                                                                           \
+	static_assert(UE_ARRAY_COUNT(PREPROCESSOR_TO_STRING(InName)) <= UE::StallDetectorScopeMaxNameLength, "Scope name must be less than UE::StallDetectorScopeMaxNameLength characters long "); \
+	static UE::FStallDetectorStats PREPROCESSOR_JOIN(StallDetectorStats, __LINE__)(TEXT(#InName), InBudgetSeconds, UE::EStallDetectorReportingMode::Disabled);                                 \
+	UE::FStallDetector PREPROCESSOR_JOIN(ScopeStallDetector, __LINE__)(PREPROCESSOR_JOIN(StallDetectorStats, __LINE__));
+
+/**
+ * Counts and sends a report of the first occurence of a stall.
+ **/
+#define SCOPE_STALL_REPORTER(InName, InBudgetSeconds)                                                                                                                                          \
+	static_assert(UE_ARRAY_COUNT(PREPROCESSOR_TO_STRING(InName)) <= UE::StallDetectorScopeMaxNameLength, "Scope name must be less than UE::StallDetectorScopeMaxNameLength characters long "); \
+	static UE::FStallDetectorStats PREPROCESSOR_JOIN(StallDetectorStats, __LINE__)(TEXT(#InName), InBudgetSeconds, UE::EStallDetectorReportingMode::First);                                    \
+	UE::FStallDetector PREPROCESSOR_JOIN(ScopeStallDetector, __LINE__)(PREPROCESSOR_JOIN(StallDetectorStats, __LINE__));
+
+/**
+ * Counts and reports every occurence of a stall.
+ * Use with extreme caution as you could overload the report backend!
+ * This mainly exists to help test and exercise the stall detector system.
+ **/
+#define SCOPE_STALL_REPORTER_ALWAYS(InName, InBudgetSeconds)                                                                                                                                   \
+	static_assert(UE_ARRAY_COUNT(PREPROCESSOR_TO_STRING(InName)) <= UE::StallDetectorScopeMaxNameLength, "Scope name must be less than UE::StallDetectorScopeMaxNameLength characters long "); \
+	static UE::FStallDetectorStats PREPROCESSOR_JOIN(StallDetectorStats, __LINE__)(TEXT(#InName), InBudgetSeconds, UE::EStallDetectorReportingMode::Always);                                   \
+	UE::FStallDetector PREPROCESSOR_JOIN(ScopeStallDetector, __LINE__)(PREPROCESSOR_JOIN(StallDetectorStats, __LINE__));
+
+/**
+ * Pauses stall detectors on the current thread so that time in the current thread spent in this scope will not be counted as a stall.
+ **/
+#define SCOPE_STALL_DETECTOR_PAUSE() \
+	UE::FStallDetectorPause PREPROCESSOR_JOIN(ScopeStallDetectorPause, __LINE__);
+
+#else // STALL_DETECTOR
+
+#define SCOPE_STALL_COUNTER(InName, InBudgetSeconds)
+#define SCOPE_STALL_REPORTER(InName, InBudgetSeconds)
+#define SCOPE_STALL_REPORTER_ALWAYS(InName, InBudgetSeconds)
+#define SCOPE_STALL_DETECTOR_PAUSE()
+
+#endif // STALL_DETECTOR
+
+#if STALL_DETECTOR
+
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogStall, Log, All);
 
 /**
-* This code is meant to instrument code to send reports for slow pathways that create unresponsive conditions
-**/
-
+ * This code is meant to instrument code to send reports for slow pathways that create unresponsive conditions
+ **/
 namespace UE
 {
 	class FStallDetector;
 
+	// Stall detected event is fired on a worker thread when it is detected that a stall scope has been active for too long.
+	// Fired from a worker thread.
 	struct FStallDetectedParams
 	{
 		/** Name of Stall Detector instance*/
@@ -45,21 +89,35 @@ namespace UE
 		uint32 ThreadId;
 		/** UniqueID of the stalled instance */
 		uint64 UniqueID;
+		/** Backtrace of stall */
+		TArray<uint64> Backtrace;
 	};
-	DECLARE_EVENT_OneParam(FStallDetector, FOnStallDetected, const FStallDetectedParams&);
-	
+	DECLARE_TS_MULTICAST_DELEGATE_OneParam(FOnStallDetected, const FStallDetectedParams&);
+
+	// Stall completed event is fired synchronously on the stalling thread after it recovers from the stall.
+	// It may be fired without a matching StallDetected event in the case that the background detector's resolution
+	// is too low or that thread is blocked for some reason.
 	struct FStallCompletedParams
 	{
 		/** TID of stalled thread */
 		uint32 ThreadId;
 		/** Name of Stall Detector instance*/
 		FStringView StatName;
-		/** Amount of time StallDetector instance stalled  */
+		/** Budget for this scope. */
+		double BudgetSeconds;
+		/** Amount of time StallDetector instance stalled beyond the budget. */
 		double OverbudgetSeconds;
 		/** UniqueID of the stalled instance */
 		uint64 UniqueID;
+		/** 
+		 * True if the background thread detected a stall in this scope.
+		 * Since the compelted delegate is fired from the thread containing the scope, 
+		 * OnStallDetected and OnStallCompleted are fired on different threads and may be executed in any order.
+		 * If bWasTriggered is true, then OnStallDetected has fired or will fire for this UniqueID.
+		 **/
+		bool bWasTriggered;
 	};
-	DECLARE_EVENT_OneParam(FStallDetector, FOnStallCompleted, const FStallCompletedParams&);
+	DECLARE_TS_MULTICAST_DELEGATE_OneParam(FOnStallCompleted, const FStallCompletedParams&);
 
 	/**
 	* The reporting behavior of the detector
@@ -71,11 +129,18 @@ namespace UE
 		Always
 	};
 
+	static constexpr SIZE_T StallDetectorStatNameBufferSize = 256;
+	static constexpr int32 StallDetectorMaxBacktraceEntries = 32;
+
+	class FStallDetectorRunnable;
+
 	/**
-	* Information to track per-callsite (vs. lifetime of a single interval)
-	**/
+	 * This structure is allocated as a function-local static to persist stats across stall checks.
+	 */
 	class CORE_API FStallDetectorStats
 	{
+		friend class FStallDetectorRunnable;
+
 	public:
 		/**
 		* Construct a stats object for use with a stall detector
@@ -92,36 +157,13 @@ namespace UE
 		*/
 		void OnStallCompleted(double InOverageSeconds);
 
-		/**
-		* Retrieve the critical section (lock) for accessing the instances list
-		*/
-		static FCriticalSection& GetInstancesSection()
-		{
-			return InstancesSection;
-		}
-
-		/**
-		* The container of all constructed instances of this class
-		*/
-		static const TSet<FStallDetectorStats*>& GetInstances()
-		{
-			return Instances;
-		}
-
-		/**
-		* 
-		*/
 		struct TabulatedResult
 		{
-			const UE::FStallDetectorStats* Stats;
-			uint64 TriggerCount;
-			double OverageSeconds;
-			
-			TabulatedResult()
-				: Stats(nullptr)
-				, TriggerCount(0)
-				, OverageSeconds(0.0)
-			{}
+			const TCHAR* Name = TEXT("");
+			double BudgetSeconds = 0.0;
+			int64 TriggerCount = 0;
+			double OverageSeconds = 0.0;
+			double OverageRatio = 0.0;
 		};
 		static void TabulateStats(TArray<TabulatedResult>& TabulatedResults);
 
@@ -146,25 +188,20 @@ namespace UE
 	private:
 		// The number of times this callsite has been triggered
 		FCountersTrace::TCounter<int64, TraceCounterType_Int> TriggerCount;
-		TCHAR TriggerCountCounterName[256];
+		TCHAR TriggerCountCounterName[StallDetectorStatNameBufferSize];
 
 		// The cumulative overage time for this callsite
 		FCountersTrace::TCounter<double, TraceCounterType_Float> OverageSeconds;
-		TCHAR OverageSecondsCounterName[256];
+		TCHAR OverageSecondsCounterName[StallDetectorStatNameBufferSize];
 
 		// Guards access to the stats from multiple threads, for coherency
 		mutable FCriticalSection StatsSection;
-
-		// Guards access to the instances container from multiple threads
-		static FCriticalSection InstancesSection;
-
-		// The pointers to every constructed instance of this class
-		static TSet<FStallDetectorStats*> Instances;
 	};
 
 	/**
-	* FStallTimer tracks remaining time from some budget, and access is protected from multiple threads
-	**/
+	 * FStallTimer tracks remaining time from some budget, and access is protected from multiple threads.
+	 * Owned by FStallDetector
+	 **/
 	class CORE_API FStallTimer
 	{
 	public:
@@ -212,6 +249,8 @@ namespace UE
 	**/
 	class CORE_API FStallDetector
 	{
+		friend class FStallDetectorRunnable;
+
 	public:
 		/**
 		* Construct the stall detector linking it to it's stats object and take a timestamp
@@ -222,13 +261,6 @@ namespace UE
 		* Destruct the stall detector and perform a check if appropriate (the default behavior)
 		*/
 		~FStallDetector();
-
-		/**
-		* Check the detector to see if we are over budget, called from both construction and background thread
-		* @param bFinalCheck			Is this check the one performed at completion of the scope or measurement period?
-		* @param InCheckSeconds			The timestamp at which to compare the start time to
-		**/
-		void Check(bool bFinalCheck, double InCheckSeconds);
 
 		/**
 		* Perform a Check and then reset the timer to the current time
@@ -261,21 +293,6 @@ namespace UE
 		static double Seconds();
 
 		/**
-		* Retrieve the critical section (lock) for accessing the instances list
-		*/
-		static FCriticalSection& GetInstancesSection()
-		{
-			return InstancesSection;
-		}
-
-		/**
-		* The container of all constructed instances of this class
-		*/
-		static const TSet<FStallDetector*>& GetInstances()
-		{
-			return Instances;
-		}
-
 		/**
 		* Initialize Stall Detector API resources
 		**/
@@ -312,7 +329,7 @@ namespace UE
 		// The time provided, the deadline
 		FStallDetectorStats& Stats;
 
-		// The parent detector, if any
+		// A stall detector on the same thread with a longer lifetime if any
 		FStallDetector* Parent;
 
 		// Thread it was constructed on, and to stack trace when budgeted time is elapsed
@@ -324,26 +341,24 @@ namespace UE
 		// Persistent usage mode
 		bool bPersistent;
 
+		// Track whether a stall was detected from the background thread.
+		// This is protected by the same mutex which protects the registered stall detector instances.
+		// Only set from background thread, can be reset from another thread with CheckAndReset
+		bool bTriggered;
+
 		// The timer data for this detector
 		FStallTimer Timer;
-
-		// Track the triggered state, atomic to mitigate foreground and background thread checking
-		std::atomic<bool> Triggered;
 
 		// Unique ID given to a StallDetector
 		uint64 UniqueID;
 
-		// The pinch point for tracking counts and emitting a report for a triggered hitch detector
-		void OnStallDetected(uint32 InThreadId, const double InElapsedSeconds);
-
-		// Called when the thread that triggered the detector is no longer stalling
-		void OnStallCompleted(uint32 InThreadId, const double DeltaSeconds, const double OverageSeconds);
-
-		// Guards access to the instances container from multiple threads
-		static FCriticalSection InstancesSection;
-
-		// The pointers to every constructed instance of this class
-		static TSet<FStallDetector*> Instances;
+		/**
+		 * Check the detector to see if we are over budget, called from both construction and background thread
+		 * @param bFinalCheck			Is this check the one performed at completion of the scope or measurement period?
+		 * @param InCheckSeconds		The timestamp at which to compare the start time to
+		 * @return The amount the scope's budget has been exceeded by or 0.0
+		 **/
+		double Check(bool bFinalCheck, double InCheckSeconds);
 	};
 
 	/**
@@ -358,42 +373,11 @@ namespace UE
 	private:
 		bool bPaused;
 	};
-}
 
-/**
-* Counts, but does not report, a stall.
-**/
-#define SCOPE_STALL_COUNTER(InName, InBudgetSeconds) \
-static UE::FStallDetectorStats PREPROCESSOR_JOIN(StallDetectorStats, __LINE__) (TEXT(#InName), InBudgetSeconds, UE::EStallDetectorReportingMode::Disabled); \
-UE::FStallDetector PREPROCESSOR_JOIN(ScopeStallDetector, __LINE__)(PREPROCESSOR_JOIN(StallDetectorStats, __LINE__));
-
-/**
-* Counts and sends a report of the first occurence of a stall.
-**/
-#define SCOPE_STALL_REPORTER(InName, InBudgetSeconds) \
-static UE::FStallDetectorStats PREPROCESSOR_JOIN(StallDetectorStats, __LINE__) (TEXT(#InName), InBudgetSeconds, UE::EStallDetectorReportingMode::First); \
-UE::FStallDetector PREPROCESSOR_JOIN(ScopeStallDetector, __LINE__)(PREPROCESSOR_JOIN(StallDetectorStats, __LINE__));
-
-/**
-* Counts and reports every occurence of a stall.
-* Use with extreme caution as you could overload the report backend!
-* This mainly exists to help test and exercise the stall detector system.
-**/
-#define SCOPE_STALL_REPORTER_ALWAYS(InName, InBudgetSeconds) \
-static UE::FStallDetectorStats PREPROCESSOR_JOIN(StallDetectorStats, __LINE__) (TEXT(#InName), InBudgetSeconds, UE::EStallDetectorReportingMode::Always); \
-UE::FStallDetector PREPROCESSOR_JOIN(ScopeStallDetector, __LINE__)(PREPROCESSOR_JOIN(StallDetectorStats, __LINE__));
-
-/**
-* Counts, but does not report, a stall.
-**/
-#define SCOPE_STALL_DETECTOR_PAUSE() \
-UE::FStallDetectorPause PREPROCESSOR_JOIN(ScopeStallDetectorPause, __LINE__);
-
-#else // STALL_DETECTOR
-
-#define SCOPE_STALL_COUNTER(InName, InBudgetSeconds)
-#define SCOPE_STALL_REPORTER(InName, InBudgetSeconds)
-#define SCOPE_STALL_REPORTER_ALWAYS(InName, InBudgetSeconds)
-#define SCOPE_STALL_DETECTOR_PAUSE()
-
+	static constexpr TCHAR StallDetectorCounterPrefix[] = TEXT("StallDetector/");
+	static constexpr TCHAR StallDetectorTriggerCountSuffix[] = TEXT(" TriggerCount");
+	static constexpr TCHAR StallDetectorOverageTimeSuffix[] = TEXT(" OverageSeconds");
+	static constexpr SIZE_T StallDetectorScopeMaxNameLength = StallDetectorStatNameBufferSize - 1 - UE_ARRAY_COUNT(StallDetectorCounterPrefix)
+															+ FMath::Max(UE_ARRAY_COUNT(StallDetectorTriggerCountSuffix), UE_ARRAY_COUNT(StallDetectorOverageTimeSuffix));
+} // namespace UE
 #endif // STALL_DETECTOR

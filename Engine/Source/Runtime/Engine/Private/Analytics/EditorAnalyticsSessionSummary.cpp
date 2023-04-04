@@ -113,8 +113,8 @@ bool FEditorAnalyticsSessionSummary::UpdateSessionProgressInternal(bool bCrashin
 	if (!StallResults.IsEmpty())
 	{
 		UE::FStallDetectorStats::TabulatedResult TopResult(StallResults[0]);
-		EditorAnalyticsProperties::TopStallName.Set(GetStore(), TopResult.Stats->Name, /*Capacity*/128);
-		EditorAnalyticsProperties::TopStallBudgetSeconds.Set(GetStore(), TopResult.Stats->BudgetSeconds);
+		EditorAnalyticsProperties::TopStallName.Set(GetStore(), TopResult.Name, /*Capacity*/ 128);
+		EditorAnalyticsProperties::TopStallBudgetSeconds.Set(GetStore(), TopResult.BudgetSeconds);
 		EditorAnalyticsProperties::TopStallOverageSeconds.Set(GetStore(), TopResult.OverageSeconds);
 		EditorAnalyticsProperties::TopStallTriggerCount.Set(GetStore(), TopResult.TriggerCount);
 	}

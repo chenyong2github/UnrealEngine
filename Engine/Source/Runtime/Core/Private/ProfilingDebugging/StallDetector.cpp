@@ -6,17 +6,19 @@
 #include "HAL/ExceptionHandling.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformStackWalk.h"
-#include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
+#include "HAL/PlatformTime.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
+#include "Tasks/Task.h"
+#include "Templates/Greater.h"
 
 // counters for sending information into trace system
 TRACE_DECLARE_INT_COUNTER(StallCount, TEXT("StallDetector/Count"));
 TRACE_DECLARE_FLOAT_COUNTER(StallTimeSeconds, TEXT("StallDetector/TimeSeconds"));
 
 // force normal behavior in the face of debug configuration and debugger attached
-#define STALL_DETECTOR_DEBUG 0
+#define STALL_DETECTOR_DEBUG 1
 
 // use the heart beat clock to account for process suspend
 #define STALL_DETECTOR_HEART_BEAT_CLOCK 1
@@ -40,12 +42,28 @@ static const double InvalidSeconds = -1.0;
 UE::FOnStallDetected UE::FStallDetector::StallDetected;
 UE::FOnStallCompleted UE::FStallDetector::StallCompleted;
 
+// Scopes currently being tracked across all threads
+static FCriticalSection StallScopesSection;
+static TSet<UE::FStallDetector*> StallScopes;
+
 /**
 * Stall Detector Thread
 **/
 
 namespace UE
 {
+	struct FDetectedStall
+	{
+		EStallDetectorReportingMode ReportingMode;
+		TArray<uint64> Backtrace;
+		uint32 ThreadId;
+		const TCHAR* Name;
+		double BudgetSeconds;
+		double OverageSeconds;
+		uint64 UniqueId;
+		bool bReported;
+	};
+
 	class FStallDetectorRunnable : public FRunnable
 	{
 	public:
@@ -113,11 +131,88 @@ uint32 UE::FStallDetectorRunnable::Run()
 		// Check the detectors
 		if (Seconds != InvalidSeconds)
 		{
-			FScopeLock ScopeLock(&FStallDetector::GetInstancesSection());
-			for (FStallDetector* Detector : FStallDetector::GetInstances())
+			bool bDisableReporting = UE_BUILD_DEBUG;
+#if !STALL_DETECTOR_DEBUG
+			bDisableReporting = bDisableReporting || FPlatformMisc::IsDebuggerPresent(); // Do not generate a report if we detect the debugger mucking with things
+#endif
+
+			TArray<FDetectedStall> DetectedStalls;
+			FScopeLock ScopeLock(&StallScopesSection);
+			for (FStallDetector* Detector : StallScopes)
 			{
-				Detector->Check(false, Seconds);
+				if (Detector->bTriggered)
+				{
+					continue;
+				}
+
+				double OverageSeconds = Detector->Check(false, Seconds);
+				if (OverageSeconds > 0.0)
+				{
+					TArray<uint64> Backtrace;
+					Backtrace.AddUninitialized(StallDetectorMaxBacktraceEntries);
+					int32 NumStackEntries = FPlatformStackWalk::CaptureThreadStackBackTrace(Detector->ThreadId, Backtrace.GetData(), Backtrace.Num());
+					Backtrace.SetNum(NumStackEntries);
+
+					// Store enough info to fire the event when we are no longer holding the lock
+					DetectedStalls.Emplace(FDetectedStall{
+						bDisableReporting ? EStallDetectorReportingMode::Disabled : Detector->Stats.ReportingMode,
+						MoveTemp(Backtrace),
+						Detector->ThreadId,
+						Detector->Stats.Name,
+						Detector->Stats.BudgetSeconds,
+						OverageSeconds,
+						Detector->UniqueID,
+						Detector->Stats.bReported });
+
+					// Triggered can be reset, reported cannot
+					Detector->bTriggered = true;
+					Detector->Stats.bReported = true;
+				}
 			}
+
+			// Do stall reporting in a task to keep heartbeat ticking for FStallDetector::Seconds resolution
+			UE::Tasks::Launch(UE_SOURCE_LOCATION, [DetectedStalls = MoveTemp(DetectedStalls)]() {
+				// Determine reporting requirements for each detected stall
+				for (const FDetectedStall& Stall : DetectedStalls)
+				{
+					bool bSendReport = false;
+					switch (Stall.ReportingMode)
+					{
+						case EStallDetectorReportingMode::First:
+							bSendReport = !Stall.bReported;
+							break;
+
+						case EStallDetectorReportingMode::Always:
+							bSendReport = true;
+							break;
+
+						default:
+							break;
+					}
+
+					if (bSendReport)
+					{
+						FStallDetectorStats::TotalReportedCount.Increment();
+						const int NumStackFramesToIgnore = 0;
+						UE_LOG(LogStall, Log, TEXT("Stall detector '%s' exceeded budget of %fs, reporting..."), Stall.Name, Stall.BudgetSeconds);
+						double ReportSeconds = FPlatformTime::Seconds();
+						ReportStall(Stall.Name, Stall.ThreadId);
+						ReportSeconds = FPlatformTime::Seconds() - ReportSeconds;
+						UE_LOG(LogStall, Log, TEXT("Stall detector '%s' report submitted, and took %fs"), Stall.Name, ReportSeconds);
+					}
+					else if (Stall.ReportingMode != EStallDetectorReportingMode::Disabled)
+					{
+						UE_LOG(LogStall, Log, TEXT("Stall detector '%s' exceeded budget of %fs"), Stall.Name, Stall.BudgetSeconds);
+					}
+				}
+
+				// Fire external notifications
+				//
+				for (const FDetectedStall& Stall : DetectedStalls)
+				{
+					FStallDetector::StallDetected.Broadcast(FStallDetectedParams{ Stall.Name, Stall.ThreadId, Stall.UniqueId });
+				}
+			});
 		}
 
 		// Sleep an interval, the resolution at which we want to detect an overage
@@ -131,8 +226,8 @@ uint32 UE::FStallDetectorRunnable::Run()
 * Stall Detector Stats
 **/
 
-FCriticalSection UE::FStallDetectorStats::InstancesSection;
-TSet<UE::FStallDetectorStats*> UE::FStallDetectorStats::Instances;
+static FCriticalSection StallDetectorStatsCritical;
+static TSet<UE::FStallDetectorStats*> StallDetectorStats;
 FCountersTrace::TCounter<std::atomic<int64>, TraceCounterType_Int> UE::FStallDetectorStats::TotalTriggeredCount (TEXT("StallDetector/TotalTriggeredCount"), TraceCounterDisplayHint_None);
 FCountersTrace::TCounter<std::atomic<int64>, TraceCounterType_Int> UE::FStallDetectorStats::TotalReportedCount (TEXT("StallDetector/TotalReportedCount"), TraceCounterDisplayHint_None);
 
@@ -157,15 +252,15 @@ UE::FStallDetectorStats::FStallDetectorStats(const TCHAR* InName, const double I
 		), TraceCounterDisplayHint_None)
 {
 	// Add at the end of construction
-	FScopeLock ScopeLock(&InstancesSection);
-	Instances.Add(this);
+	FScopeLock ScopeLock(&StallDetectorStatsCritical);
+	StallDetectorStats.Add(this);
 }
 
 UE::FStallDetectorStats::~FStallDetectorStats()
 {
 	// Remove at the beginning of destruction
-	FScopeLock ScopeLock(&InstancesSection);
-	Instances.Remove(this);
+	FScopeLock ScopeLock(&StallDetectorStatsCritical);
+	StallDetectorStats.Remove(this);
 }
 
 void UE::FStallDetectorStats::OnStallCompleted(double InOverageSeconds)
@@ -180,54 +275,28 @@ void UE::FStallDetectorStats::TabulateStats(TArray<TabulatedResult>& TabulatedRe
 {
 	TabulatedResults.Empty();
 
-	struct SortableStallStats
+	TArray<TabulatedResult> StatsArray;
 	{
-		explicit SortableStallStats(const UE::FStallDetectorStats* InStats)
-			: StallStats(InStats)
-			, OverageRatio(0.0)
+		FScopeLock ScopeLock(&StallDetectorStatsCritical);
+		for (const UE::FStallDetectorStats* StallStats : StallDetectorStats)
 		{
-			FScopeLock Lock(&InStats->StatsSection);
-			if (InStats->TriggerCount.Get() && InStats->BudgetSeconds > 0.0)
+			if (StallStats->TriggerCount.Get() && StallStats->ReportingMode != UE::EStallDetectorReportingMode::Disabled)
 			{
-				OverageRatio = (InStats->OverageSeconds.Get() / (double)InStats->TriggerCount.Get()) / InStats->BudgetSeconds;
+				// we sync access around these for coherency reasons, can be polled from another thread (detector or scope)
+				FScopeLock Lock(&StallStats->StatsSection);
+				StatsArray.Emplace(TabulatedResult{ StallStats->Name, StallStats->BudgetSeconds, StallStats->TriggerCount.Get(), StallStats->OverageSeconds.Get(), 0.0 });
+				StatsArray.Last().OverageRatio = (StallStats->OverageSeconds.Get() / (double)StallStats->TriggerCount.Get()) / StallStats->BudgetSeconds;
 			}
-		}
-
-		bool operator<(const SortableStallStats& InRhs) const
-		{
-			// NOTE THIS IS REVERSED TO PUT THE MOST OVERAGE AT THE FRONT
-			return OverageRatio > InRhs.OverageRatio;
-		}
-
-		const UE::FStallDetectorStats* StallStats;
-		double OverageRatio;
-	};
-
-	TArray<SortableStallStats> StatsArray;
-	FScopeLock InstancesLock(&UE::FStallDetectorStats::GetInstancesSection());
-	for (const UE::FStallDetectorStats* StallStats : UE::FStallDetectorStats::GetInstances())
-	{
-		if (StallStats->TriggerCount.Get() && StallStats->ReportingMode != UE::EStallDetectorReportingMode::Disabled)
-		{
-			StatsArray.Emplace(StallStats);
 		}
 	}
 
 	if (!StatsArray.IsEmpty())
 	{
-		StatsArray.Sort();
-
-		for (const SortableStallStats& Stat : StatsArray)
-		{
-			TabulatedResults.Emplace(TabulatedResult());
-			TabulatedResult& Result(TabulatedResults.Last());
-			Result.Stats = Stat.StallStats;
-
-			// we sync access around these for coherency reasons, can be polled from another thread (detector or scope)
-			FScopeLock Lock(&Result.Stats->StatsSection);
-			Result.TriggerCount = Result.Stats->TriggerCount.Get();
-			Result.OverageSeconds = Result.Stats->OverageSeconds.Get();
-		}
+		Algo::SortBy(
+			StatsArray,
+			[](const TabulatedResult& Result) { return Result.OverageRatio; },
+			TGreater<double>{});
+		TabulatedResults = MoveTemp(StatsArray);
 	}
 }
 
@@ -310,10 +379,6 @@ void UE::FStallTimer::Resume(const double InSeconds)
 * Stall Detector
 **/
 
-// statics
-FCriticalSection UE::FStallDetector::InstancesSection;
-TSet<UE::FStallDetector*> UE::FStallDetector::Instances;
-
 // globals
 class ThreadLocalSlotAcquire
 {
@@ -346,11 +411,11 @@ UE::FStallDetector::FStallDetector(FStallDetectorStats& InStats)
 	: Stats(InStats)
 	, Parent(nullptr)
 	, ThreadId(0)
-	, bStarted (false)
+	, bStarted(false)
 	, bPersistent(false)
-	, Triggered(false)
+	, bTriggered(false)
 	, UniqueID(UIDGenerator.IncrementExchange())
-	
+
 {
 	// Capture this thread's current stall detector to our parent member
 	Parent = static_cast<FStallDetector*>(FPlatformTLS::GetTlsValue(ThreadLocalSlot.GetSlot()));
@@ -373,16 +438,16 @@ UE::FStallDetector::FStallDetector(FStallDetectorStats& InStats)
 	}
 
 	// Add at the end of construction
-	FScopeLock ScopeLock(&InstancesSection);
-	Instances.Add(this);
+	FScopeLock ScopeLock(&StallScopesSection);
+	StallScopes.Add(this);
 }
 
 UE::FStallDetector::~FStallDetector()
 {
 	// Remove at the beginning of destruction
 	{
-		FScopeLock ScopeLock(&InstancesSection);
-		Instances.Remove(this);
+		FScopeLock ScopeLock(&StallScopesSection);
+		StallScopes.Remove(this);
 	}
 
 	// This will be invalid if the stall detector thread isn't running
@@ -391,14 +456,28 @@ UE::FStallDetector::~FStallDetector()
 	// If we have a timestamp, and captured a timestamp at contruction time, and we are not a persistent detector, do the final check
 	if (Seconds != InvalidSeconds && bStarted && !bPersistent)
 	{
-		Check(true, Seconds);
+		double OverageSeconds = Check(true, Seconds);
+
+		if (OverageSeconds > 0.0)
+		{
+#if STALL_DETECTOR_DEBUG
+			FString OverageString = FString::Printf(TEXT("[FStallDetector] [%s] Overage of %f\n"), Stats.Name, OverageSeconds);
+			FPlatformMisc::LocalPrint(OverageString.GetCharArray().GetData());
+#endif
+			if (Stats.ReportingMode != EStallDetectorReportingMode::Disabled)
+			{
+				UE_LOG(LogStall, Log, TEXT("Stall detector '%s' complete in %fs (%fs overbudget)"), Stats.Name, Stats.BudgetSeconds + OverageSeconds, OverageSeconds);
+			}
+			Stats.OnStallCompleted(OverageSeconds);
+			StallCompleted.Broadcast(FStallCompletedParams{ ThreadId, Stats.Name, Stats.BudgetSeconds, OverageSeconds, UniqueID, bTriggered });
+		}
 	}
 
 	// We are destructed, so set current thread's detector to our parent
 	FPlatformTLS::SetTlsValue(ThreadLocalSlot.GetSlot(), Parent);
 }
 
-void UE::FStallDetector::Check(bool bFinalCheck, double InCheckSeconds)
+double UE::FStallDetector::Check(bool bFinalCheck, double InCheckSeconds)
 {
 	// all callers need to sort out checking the clock
 	check(InCheckSeconds != InvalidSeconds);
@@ -411,37 +490,11 @@ void UE::FStallDetector::Check(bool bFinalCheck, double InCheckSeconds)
 	double DeltaSeconds;
 	double OverageSeconds;
 	Timer.Check(InCheckSeconds, DeltaSeconds, OverageSeconds);
-
-	if (Triggered)
+	if (OverageSeconds > 0.0)
 	{
-		// bFinalCheck ensures that only the destructor or CheckAndReset run the final OnStallCompleted
-		if (bFinalCheck)
-		{
-#if STALL_DETECTOR_DEBUG
-			FString OverageString = FString::Printf(TEXT("[FStallDetector] [%s] Overage of %f\n"), Stats.Name, OverageSeconds);
-			FPlatformMisc::LocalPrint(OverageString.GetCharArray().GetData());
-#endif
-
-			OnStallCompleted(ThreadId, DeltaSeconds, OverageSeconds);
-		}
+		Stats.TotalTriggeredCount.Increment();
 	}
-	else
-	{
-		if (OverageSeconds > 0.0)
-		{
-			// can be called from multiple threads, but we only want the first caller to call OnStallDetected
-			bool PreviousTriggered = false;
-			if (Triggered.compare_exchange_strong(PreviousTriggered, true, std::memory_order_acquire, std::memory_order_relaxed))
-			{
-#if STALL_DETECTOR_DEBUG
-				FString OverageString = FString::Printf(TEXT("[FStallDetector] [%s] Triggered at %f\n"), Stats.Name, InCheckSeconds);
-				FPlatformMisc::LocalPrint(OverageString.GetCharArray().GetData());
-#endif
-				
-				OnStallDetected(ThreadId, DeltaSeconds);
-			}
-		}
-	}
+	return OverageSeconds;
 }
 
 void UE::FStallDetector::CheckAndReset()
@@ -452,6 +505,10 @@ void UE::FStallDetector::CheckAndReset()
 		return;
 	}
 
+	// Lock to prevent races over bTriggered flag
+	FScopeLock ScopeLock(&StallScopesSection);
+
+	bool bExceeded = false;
 	// If this is the first call to CheckAndReset, flag that we are now in persistent mode (vs. scope mode)
 	if (!bPersistent)
 	{
@@ -460,11 +517,24 @@ void UE::FStallDetector::CheckAndReset()
 	else
 	{
 		// only perform the check on the second call
-		Check(true, CheckSeconds);
+		double OverageSeconds = Check(true, CheckSeconds);
+		if (OverageSeconds > 0.0)
+		{
+#if STALL_DETECTOR_DEBUG
+			FString OverageString = FString::Printf(TEXT("[FStallDetector] [%s] Persistent stall detector overage of %f\n"), Stats.Name, OverageSeconds);
+			FPlatformMisc::LocalPrint(OverageString.GetCharArray().GetData());
+#endif
+			if (Stats.ReportingMode != EStallDetectorReportingMode::Disabled)
+			{
+				UE_LOG(LogStall, Log, TEXT("Stall detector '%s' complete in %fs (%fs overbudget)"), Stats.Name, Stats.BudgetSeconds + OverageSeconds, OverageSeconds);
+			}
+			Stats.OnStallCompleted(OverageSeconds);
+			StallCompleted.Broadcast(FStallCompletedParams{ ThreadId, Stats.Name, Stats.BudgetSeconds, OverageSeconds, UniqueID, bTriggered });
+		}
 	}
 
 	Timer.Reset(CheckSeconds, Stats.BudgetSeconds);
-	Triggered = false;
+	bTriggered = false;
 	UniqueID = UIDGenerator.IncrementExchange();
 }
 
@@ -482,101 +552,6 @@ void UE::FStallDetector::Resume(const double InSeconds)
 	check(InSeconds != InvalidSeconds);
 
 	Timer.Resume(InSeconds);
-}
-
-void UE::FStallDetector::OnStallDetected(uint32 InThreadId, const double InElapsedSeconds)
-{
-	Stats.TotalTriggeredCount.Increment();
-
-	//
-	// Determine if we want to undermine the specified reporting mode
-	//
-
-	EStallDetectorReportingMode ReportingMode = Stats.ReportingMode;
-
-	bool bDisableReporting = false;
-
-#if UE_BUILD_DEBUG
-	bDisableReporting |= true; // Do not generate a report in debug configurations due to performance characteristics
-#endif
-
-#if !STALL_DETECTOR_DEBUG
-	bDisableReporting |= FPlatformMisc::IsDebuggerPresent(); // Do not generate a report if we detect the debugger mucking with things
-#endif
-
-	if (bDisableReporting)
-	{
-#if !STALL_DETECTOR_DEBUG
-		ReportingMode = EStallDetectorReportingMode::Disabled;
-#endif
-	}
-
-	//
-	// Resolve reporting mode to whether we should send a report for this call
-	//
-
-	bool bSendReport = false;
-	switch (ReportingMode)
-	{
-	case EStallDetectorReportingMode::First:
-		bSendReport = !Stats.bReported;
-		break;
-
-	case EStallDetectorReportingMode::Always:
-		bSendReport = true;
-		break;
-
-	default:
-		break;
-	}
-
-	//
-	// Send the report
-	//
-
-	if (bSendReport)
-	{
-		Stats.bReported = true;
-		Stats.TotalReportedCount.Increment();
-		const int NumStackFramesToIgnore = FPlatformTLS::GetCurrentThreadId() == InThreadId ? 2 : 0;
-		UE_LOG(LogStall, Log, TEXT("Stall detector '%s' exceeded budget of %fs, reporting..."), Stats.Name, Stats.BudgetSeconds);
-		double ReportSeconds = FStallDetector::Seconds();
-		ReportStall(Stats.Name, InThreadId);
-		ReportSeconds = FStallDetector::Seconds() - ReportSeconds;
-		UE_LOG(LogStall, Log, TEXT("Stall detector '%s' report submitted, and took %fs"), Stats.Name, ReportSeconds);
-	}
-	else
-	{
-		if (ReportingMode != EStallDetectorReportingMode::Disabled)
-		{
-			UE_LOG(LogStall, Log, TEXT("Stall detector '%s' exceeded budget of %fs"), Stats.Name, Stats.BudgetSeconds);
-		}
-	}
-	
-	StallDetected.Broadcast({
-		Stats.Name,
-		ThreadId,
-		UniqueID
-	});
-}
-
-void UE::FStallDetector::OnStallCompleted(uint32 InThreadId, double DeltaSeconds, double OverageSeconds)
-{
-	// this callback allows for tracking the total overrun, once the stalling period is finally done
-	Stats.OnStallCompleted(OverageSeconds);
-			
-	const FStallCompletedParams Params {
-		ThreadId,
-		Stats.Name,
-		OverageSeconds,
-		UniqueID
-	};
-	StallCompleted.Broadcast(Params);
-
-	if (Stats.ReportingMode != EStallDetectorReportingMode::Disabled)
-	{
-		UE_LOG(LogStall, Log, TEXT("Stall detector '%s' complete in %fs (%fs overbudget)"), Stats.Name, DeltaSeconds, OverageSeconds);
-	}
 }
 
 double UE::FStallDetector::Seconds()
