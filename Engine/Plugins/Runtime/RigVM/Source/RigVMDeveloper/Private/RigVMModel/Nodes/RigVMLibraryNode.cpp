@@ -196,7 +196,7 @@ TMap<FRigVMGraphFunctionIdentifier, uint32> URigVMLibraryNode::GetDependencies()
     			Hash = Data->CompilationData.Hash;
     		}
     		Dependencies.Add(RefNode->GetReferencedFunctionHeader().LibraryPointer, Hash);
-    		for (const TPair<FRigVMGraphFunctionIdentifier, uint32>& Pair : RefNode->GetReferencedFunctionHeader().Dependencies)
+    		for (const TPair<FRigVMGraphFunctionIdentifier, uint32>& Pair : RefNode->GetReferencedFunctionData()->Header.Dependencies)
     		{
     			Dependencies.Add(Pair);
     		}

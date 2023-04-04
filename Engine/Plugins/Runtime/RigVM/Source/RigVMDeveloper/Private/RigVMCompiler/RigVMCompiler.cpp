@@ -366,7 +366,7 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 						// Clear compilation data if compiled with outdated dependency data
 						if (FunctionData->CompilationData.IsValid())
 						{
-							for (const TPair<FRigVMGraphFunctionIdentifier, uint32>& Pair : ReferenceNode->GetReferencedFunctionHeader().Dependencies)
+							for (const TPair<FRigVMGraphFunctionIdentifier, uint32>& Pair : FunctionData->Header.Dependencies)
 							{
 								if (IRigVMGraphFunctionHost* HostObj = Cast<IRigVMGraphFunctionHost>(Pair.Key.HostObject.ResolveObject()))
 								{

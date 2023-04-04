@@ -74,6 +74,8 @@ public:
 	// Looks for all function references (in RigVMClientHost metadata) and initializes the URigVMBuildData
 	void InitializeIfNeeded();
 
+	static void RegisterReferencesFromAsset(const FAssetData& AssetData);
+
 	// Returns the list of references for a given function definition
 	const FRigVMFunctionReferenceArray* FindFunctionReferences(const FRigVMGraphFunctionIdentifier& InFunction) const;
 
