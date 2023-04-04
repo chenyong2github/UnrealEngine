@@ -191,7 +191,7 @@ TSharedPtr<Metasound::FMetasoundGenerator> UMetasoundGeneratorHandle::GetGenerat
 	return PinGenerator();
 }
 
-FDelegateHandle UMetasoundGeneratorHandle::AddGraphSetCallback(const FOnSetGraph& Delegate)
+FDelegateHandle UMetasoundGeneratorHandle::AddGraphSetCallback(const UMetasoundGeneratorHandle::FOnSetGraph& Delegate)
 {
 	
 	FDelegateHandle Handle = OnGeneratorsGraphChanged.Add(Delegate);
