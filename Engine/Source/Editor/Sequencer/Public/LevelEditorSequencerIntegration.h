@@ -16,13 +16,14 @@ class FMenuBuilder;
 class FSequencer;
 class FObjectPostSaveContext;
 class FObjectPreSaveContext;
+class SLevelViewport;
 class FUICommandList;
 class IAssetViewport;
 class ISequencer;
 class ULevel;
 class UToolMenu;
 struct FPropertyAndParent;
-
+struct FPilotedSpawnable;
 
 struct FLevelEditorSequencerIntegrationOptions
 {
@@ -193,6 +194,9 @@ private:
 	void RestoreToSavedState(UWorld* World);
 	void ResetToAnimatedState(UWorld* World);
 
+	void BackupSpawnablePilotData();
+	void RestoreSpawnablePilotData();
+
 	struct FSequencerAndOptions
 	{
 		TWeakPtr<FSequencer> Sequencer;
@@ -211,11 +215,14 @@ private:
 	void UpdateDetails(bool bForceRefresh = false);
 
 	FLevelEditorSequencerIntegration();
+	~FLevelEditorSequencerIntegration();
 
 private:
 	FAcquiredResources AcquiredResources;
 
 	TSharedPtr<class FDetailKeyframeHandlerWrapper> KeyFrameHandler;
+
+	TArray<FPilotedSpawnable> PilotedSpawnables;
 
 	bool bDeferUpdates;
 
