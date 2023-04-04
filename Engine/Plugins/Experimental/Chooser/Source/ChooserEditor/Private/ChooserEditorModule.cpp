@@ -11,6 +11,7 @@
 #include "ChooserTableEditorCommands.h"
 #include "ChooserPropertyAccess.h"
 #include "PropertyEditorModule.h"
+#include "RandomizeColumnEditor.h"
 
 #define LOCTEXT_NAMESPACE "ChooserEditorModule"
 
@@ -25,6 +26,7 @@ void FModule::StartupModule()
 	RegisterBoolWidgets();
 	RegisterEnumWidgets();
 	RegisterObjectWidgets();
+	RegisterRandomizeWidgets();
 	
 	FChooserTableEditorCommands::Register();
 

@@ -47,6 +47,10 @@ public:
 	virtual const UScriptStruct* GetInputType() const { return nullptr; };
 	virtual void SetInputType(const UScriptStruct* Type) { };
 	virtual FChooserParameterBase* GetInputValue() { return nullptr; };
+
+	// random columns must go last, and get a special icon
+	// using a virtual fucntion to identify them (rather than hard coding a specific type) to potentially support multiple varieties of randomization column.
+	virtual bool IsRandomizeColumn() const { return false; }
 #endif
 };
 
