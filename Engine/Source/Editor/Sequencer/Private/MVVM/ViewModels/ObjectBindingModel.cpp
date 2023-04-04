@@ -362,8 +362,6 @@ void FObjectBindingModel::Rename(const FText& NewName)
 		{
 			MovieScene->SetObjectDisplayName(ObjectBindingID, NewName);
 		}
-
-		SetIdentifier(FName(*NewName.ToString()));
 	}
 }
 

@@ -4,6 +4,8 @@
 #include "MVVM/ViewModels/SequencerOutlinerViewModel.h"
 #include "MVVM/ViewModels/SequencerTrackAreaViewModel.h"
 #include "MVVM/CurveEditorExtension.h"
+#include "MVVM/Extensions/IOutlinerExtension.h"
+#include "MVVM/SharedViewModelData.h"
 #include "ISequencerModule.h"
 #include "Sequencer.h"
 #include "MovieSceneSequenceID.h"
@@ -13,6 +15,24 @@ namespace UE
 namespace Sequencer
 {
 
+TMap<TWeakPtr<FViewModel>, FString> GetNodePaths(FViewModelPtr RootModel)
+{
+	TMap<TWeakPtr<FViewModel>, FString> NodePaths;
+	constexpr bool bIncludeThis = true;
+	for (FParentFirstChildIterator ChildIt(RootModel, bIncludeThis); ChildIt; ++ChildIt)
+	{
+		FViewModelPtr CurrentViewModel = *ChildIt;
+		if (const IOutlinerExtension* TreeItem = CurrentViewModel->CastThis<IOutlinerExtension>())
+		{
+			const FString NodePath = IOutlinerExtension::GetPathName(CurrentViewModel);
+
+			NodePaths.Add(FWeakViewModelPtr(CurrentViewModel), NodePath);
+		}
+	}
+
+	return NodePaths;
+}
+	
 FSequencerEditorViewModel::FSequencerEditorViewModel(TSharedRef<ISequencer> InSequencer, const FSequencerHostCapabilities& InHostCapabilities)
 	: WeakSequencer(InSequencer)
 	, bSupportsCurveEditor(InHostCapabilities.bSupportsCurveEditor)
@@ -54,6 +74,15 @@ void FSequencerEditorViewModel::InitializeEditorImpl()
 	PinnedTrackArea = CreateTrackAreaImpl();
 	PinnedTrackArea->GetOnHotspotChangedDelegate().AddSP(SharedThis(this), &FSequencerEditorViewModel::OnTrackAreaHotspotChanged);
 	GetEditorPanels().AddChild(PinnedTrackArea);
+
+	if (FViewModelPtr RootModel = GetRootModel())
+	{
+		TSharedPtr<FSharedViewModelData> RootSharedData = RootModel->GetSharedData();
+		RootSharedData->SubscribeToHierarchyChanged(RootModel)
+			.AddSP(this, &FSequencerEditorViewModel::HandleDataHierarchyChanged);
+
+		NodePaths = GetNodePaths(RootModel);
+	}
 }
 
 TSharedPtr<FTrackAreaViewModel> FSequencerEditorViewModel::GetPinnedTrackArea() const
@@ -82,6 +111,30 @@ bool FSequencerEditorViewModel::IsReadOnly() const
 {
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 	return !Sequencer || Sequencer->IsReadOnly();
+}
+
+void FSequencerEditorViewModel::HandleDataHierarchyChanged()
+{
+	if (FViewModelPtr RootModel = GetRootModel())
+	{
+		TMap<TWeakPtr<FViewModel>, FString> NewNodePaths = GetNodePaths(RootModel);
+
+		TSharedPtr<FSequencer> Sequencer = GetSequencerImpl();
+		if (Sequencer)
+		{
+			for (TMap<TWeakPtr<FViewModel>, FString>::TConstIterator It = NewNodePaths.CreateConstIterator(); It; ++It)
+			{
+				if (NodePaths.Contains(It.Key()))
+				{
+					FString OldPath = NodePaths[It.Key()];
+					FString NewPath = It.Value();
+					Sequencer->OnNodePathChanged(OldPath, NewPath);
+				}
+			}
+		}
+
+		NodePaths = NewNodePaths;
+	}
 }
 
 TSharedPtr<ITrackAreaHotspot> FSequencerEditorViewModel::GetHotspot() const

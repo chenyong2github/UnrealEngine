@@ -45,6 +45,8 @@ public:
 	/** Gets the current hotspots across any of our track areas */
 	TSharedPtr<ITrackAreaHotspot> GetHotspot() const;
 
+	void HandleDataHierarchyChanged();
+
 protected:
 
 	virtual void PreInitializeEditorImpl() override;
@@ -64,6 +66,9 @@ protected:
 
 	/** The current hotspot, from any of our track areas */
 	TSharedPtr<ITrackAreaHotspot> CurrentHotspot;
+
+	// Cached node paths to be used to compare when the hierarchy changes
+	TMap<TWeakPtr<FViewModel>, FString> NodePaths;
 };
 
 } // namespace Sequencer

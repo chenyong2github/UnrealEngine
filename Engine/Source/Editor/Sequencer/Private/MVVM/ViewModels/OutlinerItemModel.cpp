@@ -150,6 +150,16 @@ FName FOutlinerItemModelMixin::GetIdentifier() const
 void FOutlinerItemModelMixin::SetIdentifier(FName InNewIdentifier)
 {
 	TreeItemIdentifier = InNewIdentifier;
+
+	const FViewModel* ViewModel = AsViewModel();
+	if (ViewModel && ViewModel->IsConstructed())
+	{
+		TSharedPtr<FSequencerEditorViewModel> EditorViewModel = GetEditor();
+		if (EditorViewModel)
+		{
+			EditorViewModel->HandleDataHierarchyChanged();
+		}
+	}
 }
 
 bool FOutlinerItemModelMixin::IsExpanded() const
