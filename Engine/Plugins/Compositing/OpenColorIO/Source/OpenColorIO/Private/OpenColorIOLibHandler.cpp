@@ -22,7 +22,7 @@ bool FOpenColorIOLibHandler::Initialize()
 	check(LibHandle == nullptr);
 
 	const FString PluginDir = IPluginManager::Get().FindPlugin(TEXT("OpenColorIO"))->GetBaseDir();
-	const FString OCIOBinPath = FPaths::Combine(PluginDir, TEXT(PREPROCESSOR_TO_STRING(OCIO_PLATFORM_PATH)));
+	const FString OCIOBinPath = FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries/ThirdParty/OpenColorIO"), FPlatformProcess::GetBinariesSubdirectory());
 	const FString DLLPath = FPaths::Combine(OCIOBinPath, TEXT(PREPROCESSOR_TO_STRING(OCIO_DLL_NAME)));
 
 	FPlatformProcess::PushDllDirectory(*OCIOBinPath);
