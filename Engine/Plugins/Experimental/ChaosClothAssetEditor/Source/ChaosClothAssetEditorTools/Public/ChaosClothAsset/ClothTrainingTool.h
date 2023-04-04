@@ -54,6 +54,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Simulation Settings", meta = (Min = 0))
 	int32 NumSteps = 200;
+
+	UPROPERTY(EditAnywhere, Category = "Simulation Settings", meta = (Min = 1, EditCondition = "!bDebug"))
+	int32 NumThreads = 1;
 };
 
 UENUM()
@@ -116,7 +119,8 @@ public:
 
 private:
 	class FClothSimulationDataGenerationProxy;
-	class FGenerateClothOp;
+	struct FSimResource;
+	class FLaunchSimsOp;
 
 	friend class UClothTrainingToolActionProperties;
 
@@ -129,13 +133,21 @@ private:
 	EClothTrainingToolActions PendingAction = EClothTrainingToolActions::NoAction;
 
 	UPROPERTY()
-	TObjectPtr<UChaosClothComponent> ClothComponent;
+	TObjectPtr<const UChaosClothComponent> ClothComponent;
 
-	TUniquePtr<FClothSimulationDataGenerationProxy> DataGenerationProxy;
+	TUniquePtr<FCriticalSection> SimMutex;
+	TArray<FSimResource> SimResources;
 
 	void RequestAction(EClothTrainingToolActions ActionType);
-
 	void RunTraining();
+	bool IsClothComponentValid() const;
+	UChaosCacheCollection* GetCacheCollection() const;
+	bool SaveCacheCollection(UChaosCacheCollection* CacheCollection) const;
+	void PrepareAnimationSequence();
+	void RestoreAnimationSequence();
+	bool AllocateSimResources_GameThread(int32 Num);
+	void FreeSimResources_GameThread();
+
 };
 
 
