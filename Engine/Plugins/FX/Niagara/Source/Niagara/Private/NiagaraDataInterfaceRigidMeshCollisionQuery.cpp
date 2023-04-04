@@ -978,9 +978,9 @@ UNiagaraDataInterfaceRigidMeshCollisionQuery::UNiagaraDataInterfaceRigidMeshColl
 
 #if WITH_NIAGARA_DEBUGGER
 
-void UNiagaraDataInterfaceRigidMeshCollisionQuery::DrawDebugHud(UCanvas* Canvas, FNiagaraSystemInstance* SystemInstance, FString& VariableDataString, bool bVerbose) const
+void UNiagaraDataInterfaceRigidMeshCollisionQuery::DrawDebugHud(FNDIDrawDebugHudContext& DebugHudContext) const
 {
-	FNDIRigidMeshCollisionData* InstanceData_GT = SystemInstance->FindTypedDataInterfaceInstanceData<FNDIRigidMeshCollisionData>(this);
+	const FNDIRigidMeshCollisionData* InstanceData_GT = DebugHudContext.GetSystemInstance()->FindTypedDataInterfaceInstanceData<FNDIRigidMeshCollisionData>(this);
 	if (InstanceData_GT == nullptr || !InstanceData_GT->AssetArrays.IsValid())
 	{
 		return;
@@ -992,7 +992,7 @@ void UNiagaraDataInterfaceRigidMeshCollisionQuery::DrawDebugHud(UCanvas* Canvas,
 	const uint32 SphereCount = ElementOffsets.CapsuleOffset - ElementOffsets.SphereOffset;
 	const uint32 CapsuleCount = ElementOffsets.NumElements - ElementOffsets.CapsuleOffset;
 
-	VariableDataString = FString::Printf(TEXT("Boxes(%d) Spheres(%d) Capsules(%d)"), BoxCount, SphereCount, CapsuleCount);
+	DebugHudContext.GetOutputString().Appendf(TEXT("Boxes(%d) Spheres(%d) Capsules(%d)"), BoxCount, SphereCount, CapsuleCount);
 
 	auto GetCurrentTransform = [&](int32 ElementIndex)
 	{
@@ -1013,8 +1013,10 @@ void UNiagaraDataInterfaceRigidMeshCollisionQuery::DrawDebugHud(UCanvas* Canvas,
 		return ElementMatrix.GetTransposed();
 	};
 
-	if (bVerbose)
+	if (DebugHudContext.IsVerbose())
 	{
+		UCanvas* Canvas = DebugHudContext.GetCanvas();
+
 		// the DrawDebugCanvas* functions don't reasoanbly handle the near clip plane (both in terms of clipping and in terms of
 		// objects being behind the camera); so we introduce this culling behavior to work around it
 		auto ShouldClip = [&](UCanvas* Canvas, const FMatrix& Transform, const FBoxSphereBounds& Bounds)
@@ -1063,7 +1065,7 @@ void UNiagaraDataInterfaceRigidMeshCollisionQuery::DrawDebugHud(UCanvas* Canvas,
 			const UFont* Font = GEngine->GetMediumFont();
 			Canvas->SetDrawColor(FColor::White);
 
-			auto DrawDebugActor = [&](TWeakObjectPtr<AActor>& InWeakActor, const TCHAR* ActorSourceString)
+			auto DrawDebugActor = [&](const TWeakObjectPtr<AActor>& InWeakActor, const TCHAR* ActorSourceString)
 			{
 				if (AActor* Actor = InWeakActor.Get())
 				{
@@ -1091,12 +1093,12 @@ void UNiagaraDataInterfaceRigidMeshCollisionQuery::DrawDebugHud(UCanvas* Canvas,
 				}
 			};
 
-			for (TWeakObjectPtr<AActor>& ExplicitActor : InstanceData_GT->ExplicitActors)
+			for (const TWeakObjectPtr<AActor>& ExplicitActor : InstanceData_GT->ExplicitActors)
 			{
 				DrawDebugActor(ExplicitActor, TEXT("Explicit"));
 			}
 
-			for (TWeakObjectPtr<AActor>& FoundActor : InstanceData_GT->FoundActors)
+			for (const TWeakObjectPtr<AActor>& FoundActor : InstanceData_GT->FoundActors)
 			{
 				DrawDebugActor(FoundActor, TEXT("Found"));
 			}

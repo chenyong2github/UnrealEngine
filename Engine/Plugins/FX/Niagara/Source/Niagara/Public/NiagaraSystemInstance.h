@@ -279,7 +279,7 @@ public:
 	FNiagaraSystemInstanceID GetId() const { return ID; }
 
 	/** Returns the instance data for a particular interface for this System. */
-	FORCEINLINE void* FindDataInterfaceInstanceData(UNiagaraDataInterface* Interface) 
+	FORCEINLINE void* FindDataInterfaceInstanceData(const UNiagaraDataInterface* Interface)
 	{
 		if (auto* InstDataOffsetPair = DataInterfaceInstanceDataOffsets.FindByPredicate([&](auto& Pair){ return Pair.Key.Get() == Interface;}))
 		{
@@ -297,6 +297,10 @@ public:
 		}
 		return nullptr;
 	}
+
+	FORCEINLINE const void* FindDataInterfaceInstanceData(const UNiagaraDataInterface* Interface) const { return const_cast<FNiagaraSystemInstance*>(this)->FindDataInterfaceInstanceData(Interface); }
+	template<typename TDataType>
+	FORCEINLINE const TDataType* FindTypedDataInterfaceInstanceData(const UNiagaraDataInterface* Interface) const { return const_cast<FNiagaraSystemInstance*>(this)->FindTypedDataInterfaceInstanceData<TDataType>(Interface); }
 
 	FORCEINLINE const FNiagaraPerInstanceDIFuncInfo& GetPerInstanceDIFunction(ENiagaraSystemSimulationScript ScriptType, int32 FuncIndex)const { return PerInstanceDIFunctions[(int32)ScriptType][FuncIndex]; }
 

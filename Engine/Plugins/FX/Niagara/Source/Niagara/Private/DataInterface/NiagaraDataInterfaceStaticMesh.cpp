@@ -3167,9 +3167,9 @@ bool UNiagaraDataInterfaceStaticMesh::CopyToInternal(UNiagaraDataInterface* Dest
 }
 
 #if WITH_NIAGARA_DEBUGGER
-void UNiagaraDataInterfaceStaticMesh::DrawDebugHud(UCanvas* Canvas, FNiagaraSystemInstance* SystemInstance, FString& VariableDataString, bool bVerbose) const
+void UNiagaraDataInterfaceStaticMesh::DrawDebugHud(FNDIDrawDebugHudContext& DebugHudContext) const
 {
-	NDIStaticMeshLocal::FInstanceData_GameThread* InstanceData_GT = SystemInstance->FindTypedDataInterfaceInstanceData<NDIStaticMeshLocal::FInstanceData_GameThread>(this);
+	const NDIStaticMeshLocal::FInstanceData_GameThread* InstanceData_GT = DebugHudContext.GetSystemInstance()->FindTypedDataInterfaceInstanceData<NDIStaticMeshLocal::FInstanceData_GameThread>(this);
 	if (InstanceData_GT == nullptr)
 	{
 		return;
@@ -3177,7 +3177,7 @@ void UNiagaraDataInterfaceStaticMesh::DrawDebugHud(UCanvas* Canvas, FNiagaraSyst
 
 	USceneComponent* SceneComponent = InstanceData_GT->SceneComponentWeakPtr.Get();
 	UStaticMesh* SkeletalMesh = InstanceData_GT->StaticMeshWeakPtr.Get();
-	VariableDataString = FString::Printf(TEXT("StaticMesh(%s) StaticMeshComp(%s)"), *GetNameSafe(SkeletalMesh), *GetNameSafe(SceneComponent));
+	DebugHudContext.GetOutputString().Appendf(TEXT("StaticMesh(%s) StaticMeshComp(%s)"), *GetNameSafe(SkeletalMesh), *GetNameSafe(SceneComponent));
 }
 #endif
 

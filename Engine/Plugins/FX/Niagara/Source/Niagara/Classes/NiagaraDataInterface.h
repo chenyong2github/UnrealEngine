@@ -249,6 +249,34 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
+#if WITH_NIAGARA_DEBUGGER
+struct NIAGARA_API FNDIDrawDebugHudContext
+{
+	FNDIDrawDebugHudContext(bool bInVerbose, UWorld* InWorld, UCanvas* InCanvas, FNiagaraSystemInstance* InSystemInstance)
+		: bVerbose(bInVerbose)
+		, World(InWorld)
+		, Canvas(InCanvas)
+		, SystemInstance(InSystemInstance)
+	{
+	}
+
+	bool IsVerbose() const { return bVerbose; }
+	UWorld* GetWorld() const { return World; }
+	UCanvas* GetCanvas() const { return Canvas; }
+	const FNiagaraSystemInstance* GetSystemInstance() const { return SystemInstance; }
+	FString& GetOutputString() { return OutputString; }
+
+protected:
+	bool					bVerbose;
+	UWorld*					World;
+	UCanvas*				Canvas;
+	FNiagaraSystemInstance*	SystemInstance;
+	FString					OutputString;
+};
+#endif //WITH_NIAGARA_DEBUGGER
+
+//////////////////////////////////////////////////////////////////////////
+
 struct NIAGARA_API FNDIGpuComputeContext
 {
 	FNDIGpuComputeContext(FRDGBuilder& InGraphBuilder, const FNiagaraGpuComputeDispatchInterface& InComputeDispatchInterface)
@@ -647,7 +675,16 @@ public:
 	should be kept light to avoid polluting the display.
 	You can also use the Canvas to draw additional information based on verbosity
 	*/
-	virtual void DrawDebugHud(UCanvas* Canvas, FNiagaraSystemInstance* SystemInstance, FString& VariableDataString, bool bVerbose) const {};
+	virtual void DrawDebugHud(FNDIDrawDebugHudContext& DebugHudContext) const
+	{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		DrawDebugHud(DebugHudContext.GetCanvas(), const_cast<FNiagaraSystemInstance*>(DebugHudContext.GetSystemInstance()), DebugHudContext.GetOutputString(), DebugHudContext.IsVerbose());
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	// Deprecated method will be removed in a future version
+	UE_DEPRECATED(5.3, "Please update to the context based DrawDebugHud as this will be removed in a future version.")
+	virtual void DrawDebugHud(UCanvas* Canvas, FNiagaraSystemInstance* SystemInstance, FString& VariableDataString, bool bVerbose) const {}
 #endif
 
 #if WITH_EDITOR	

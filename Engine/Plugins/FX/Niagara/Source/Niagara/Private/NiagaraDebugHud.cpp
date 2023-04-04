@@ -2902,19 +2902,19 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 								if (ParameterStoreVariable.Variable.IsDataInterface())
 								{
 									UNiagaraDataInterface* DataInterface = ParameterStore->GetDataInterface(ParameterStoreVariable.Variable);
-									FString DataInterfaceString;
+									FNDIDrawDebugHudContext DebugHudContext(Settings.DataInterfaceVerbosity == ENiagaraDebugHudVerbosity::Verbose, World, Canvas, SystemInstance);
 									if ( DataInterface != nullptr && Settings.DataInterfaceVerbosity != ENiagaraDebugHudVerbosity::None )
 									{
-										DataInterface->DrawDebugHud(Canvas, SystemInstance, DataInterfaceString, Settings.DataInterfaceVerbosity == ENiagaraDebugHudVerbosity::Verbose);
+										DataInterface->DrawDebugHud(DebugHudContext);
 									}
 
-									if ( DataInterfaceString.IsEmpty() )
+									if (DebugHudContext.GetOutputString().IsEmpty())
 									{
 										StringBuilder.Appendf(TEXT("%s(%s %s)"), *ParameterStoreVariable.Variable.GetName().ToString(), *GetNameSafe(ParameterStoreVariable.Variable.GetType().GetClass()) , *GetNameSafe(DataInterface));
 									}
 									else
 									{
-										StringBuilder.Appendf(TEXT("%s(%s)"), *ParameterStoreVariable.Variable.GetName().ToString(), *DataInterfaceString);
+										StringBuilder.Appendf(TEXT("%s(%s)"), *ParameterStoreVariable.Variable.GetName().ToString(), *DebugHudContext.GetOutputString());
 									}
 								}
 								else if (ParameterStoreVariable.Variable.IsUObject())

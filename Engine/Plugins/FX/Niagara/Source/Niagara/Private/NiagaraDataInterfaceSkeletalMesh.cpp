@@ -2465,9 +2465,9 @@ bool UNiagaraDataInterfaceSkeletalMesh::PerInstanceTick(void* PerInstanceData, F
 }
 
 #if WITH_NIAGARA_DEBUGGER
-void UNiagaraDataInterfaceSkeletalMesh::DrawDebugHud(UCanvas* Canvas, FNiagaraSystemInstance* SystemInstance, FString& VariableDataString, bool bVerbose) const
+void UNiagaraDataInterfaceSkeletalMesh::DrawDebugHud(FNDIDrawDebugHudContext& DebugHudContext) const
 {
-	FNDISkeletalMesh_InstanceData* InstanceData_GT = SystemInstance->FindTypedDataInterfaceInstanceData<FNDISkeletalMesh_InstanceData>(this);
+	const FNDISkeletalMesh_InstanceData* InstanceData_GT = DebugHudContext.GetSystemInstance()->FindTypedDataInterfaceInstanceData<FNDISkeletalMesh_InstanceData>(this);
 	if (InstanceData_GT == nullptr)
 	{
 		return;
@@ -2475,9 +2475,9 @@ void UNiagaraDataInterfaceSkeletalMesh::DrawDebugHud(UCanvas* Canvas, FNiagaraSy
 
 	USceneComponent* SceneComponent = InstanceData_GT->SceneComponent.Get();
 	USkeletalMesh* SkeletalMesh = InstanceData_GT->SkeletalMesh.Get();
-	VariableDataString = FString::Printf(TEXT("Skeleton(%s) SkelComp(%s)"), *GetNameSafe(SkeletalMesh), *GetNameSafe(SceneComponent));
+	DebugHudContext.GetOutputString().Appendf(TEXT("Skeleton(%s) SkelComp(%s)"), *GetNameSafe(SkeletalMesh), *GetNameSafe(SceneComponent));
 
-	if ( bVerbose && SceneComponent && SkeletalMesh )
+	if ( DebugHudContext.IsVerbose() && SceneComponent && SkeletalMesh)
 	{
 		FSkeletalMeshAccessorHelper MeshAccessor;
 		MeshAccessor.Init<TNDISkelMesh_FilterModeNone, TNDISkelMesh_AreaWeightingOff>(InstanceData_GT);
@@ -2486,6 +2486,7 @@ void UNiagaraDataInterfaceSkeletalMesh::DrawDebugHud(UCanvas* Canvas, FNiagaraSy
 			const TArray<FTransform3f>& BoneTransforms = MeshAccessor.SkinningData->CurrComponentTransforms();
 			const FMatrix& InstanceTransform = InstanceData_GT->Transform;
 
+			UCanvas* Canvas = DebugHudContext.GetCanvas();
 			for (const FTransform3f& BoneTransform : BoneTransforms)
 			{
 				const FVector BoneLocation = InstanceTransform.TransformPosition(FVector(BoneTransform.GetLocation()));
@@ -3540,7 +3541,7 @@ void UNiagaraDataInterfaceSkeletalMesh::VMGetPreSkinnedLocalBounds(FVectorVMExte
 //////////////////////////////////////////////////////////////////////////
 
 template<>
-void FSkeletalMeshAccessorHelper::Init<TNDISkelMesh_FilterModeSingle, TNDISkelMesh_AreaWeightingOff>(FNDISkeletalMesh_InstanceData* InstData)
+void FSkeletalMeshAccessorHelper::Init<TNDISkelMesh_FilterModeSingle, TNDISkelMesh_AreaWeightingOff>(const FNDISkeletalMesh_InstanceData* InstData)
 {
 	Comp = Cast<USkeletalMeshComponent>(InstData->SceneComponent.Get());
 	Mesh = InstData->SkeletalMesh.Get();
@@ -3569,7 +3570,7 @@ void FSkeletalMeshAccessorHelper::Init<TNDISkelMesh_FilterModeSingle, TNDISkelMe
 }
 
 template<>
-void FSkeletalMeshAccessorHelper::Init<TNDISkelMesh_FilterModeSingle, TNDISkelMesh_AreaWeightingOn>(FNDISkeletalMesh_InstanceData* InstData)
+void FSkeletalMeshAccessorHelper::Init<TNDISkelMesh_FilterModeSingle, TNDISkelMesh_AreaWeightingOn>(const FNDISkeletalMesh_InstanceData* InstData)
 {
 	Comp = Cast<USkeletalMeshComponent>(InstData->SceneComponent.Get());
 	Mesh = InstData->SkeletalMesh.Get();

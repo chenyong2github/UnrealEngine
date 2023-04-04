@@ -1015,9 +1015,9 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 	}
 #endif
 #if WITH_NIAGARA_DEBUGGER
-	virtual void DrawDebugHud(UCanvas* Canvas, FNiagaraSystemInstance* SystemInstance, FString& VariableDataString, bool bVerbose) const override
+	virtual void DrawDebugHud(FNDIDrawDebugHudContext& DebugHudContext) const override
 	{
-		FNDIArrayInstanceData_GameThread<TArrayType>* InstanceData = PerInstanceData_GameThread.FindRef(SystemInstance->GetId());
+		FNDIArrayInstanceData_GameThread<TArrayType>* InstanceData = PerInstanceData_GameThread.FindRef(DebugHudContext.GetSystemInstance()->GetId());
 		if (InstanceData == nullptr )
 		{
 			return;
@@ -1039,7 +1039,7 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 			CpuValuesString.Append(TEXT(", ..."));
 		}
 
-		VariableDataString = FString::Printf(
+		DebugHudContext.GetOutputString().Appendf(
 			TEXT("Type(%s) CpuLength(%d) CpuValues(%s)"),
 			*FNDIArrayImplHelper<TArrayType>::GetTypeDefinition().GetName(),
 			ArrayData.GetArray().Num(),

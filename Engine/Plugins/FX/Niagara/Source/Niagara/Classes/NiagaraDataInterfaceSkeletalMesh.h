@@ -655,7 +655,7 @@ struct FNDISkeletalMesh_InstanceData
 
 	FORCEINLINE int32 GetLODIndex()const { return CachedLODIdx; }
 
-	FORCEINLINE_DEBUGGABLE const FSkinWeightVertexBuffer* GetSkinWeights()
+	FORCEINLINE_DEBUGGABLE const FSkinWeightVertexBuffer* GetSkinWeights() const
 	{
 		USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(SceneComponent.Get());
 		if (SkelComp != nullptr && SkelComp->GetSkeletalMeshAsset() != nullptr)
@@ -776,7 +776,7 @@ public:
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target)const override { return true; }
 #if WITH_NIAGARA_DEBUGGER
-	virtual void DrawDebugHud(UCanvas* Canvas, FNiagaraSystemInstance* SystemInstance, FString& VariableDataString, bool bVerbose) const override;
+	virtual void DrawDebugHud(FNDIDrawDebugHudContext& DebugHudContext) const override;
 #endif
 #if WITH_EDITOR
 	virtual void GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,

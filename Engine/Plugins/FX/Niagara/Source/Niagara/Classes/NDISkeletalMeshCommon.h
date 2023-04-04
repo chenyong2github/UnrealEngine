@@ -39,7 +39,7 @@ struct FSkeletalMeshAccessorHelper
 	FSkeletalMeshAccessorHelper operator=(FSkeletalMeshAccessorHelper&&) = delete;
 
 	template<typename FilterMode, typename AreaWeightingMode>
-	FORCEINLINE void Init(FNDISkeletalMesh_InstanceData* InstData)
+	FORCEINLINE void Init(const FNDISkeletalMesh_InstanceData* InstData)
 	{
 		Comp = Cast<USkeletalMeshComponent>(InstData->SceneComponent.Get());
 		Mesh = InstData->SkeletalMesh.Get();
@@ -78,10 +78,10 @@ struct FSkeletalMeshAccessorHelper
 };
 
 template<>
-void FSkeletalMeshAccessorHelper::Init<TNDISkelMesh_FilterModeSingle, TNDISkelMesh_AreaWeightingOff>(FNDISkeletalMesh_InstanceData* InstData);
+void FSkeletalMeshAccessorHelper::Init<TNDISkelMesh_FilterModeSingle, TNDISkelMesh_AreaWeightingOff>(const FNDISkeletalMesh_InstanceData* InstData);
 
 template<>
-void FSkeletalMeshAccessorHelper::Init<TNDISkelMesh_FilterModeSingle, TNDISkelMesh_AreaWeightingOn>(FNDISkeletalMesh_InstanceData* InstData);
+void FSkeletalMeshAccessorHelper::Init<TNDISkelMesh_FilterModeSingle, TNDISkelMesh_AreaWeightingOn>(const FNDISkeletalMesh_InstanceData* InstData);
 
 //////////////////////////////////////////////////////////////////////////
 
