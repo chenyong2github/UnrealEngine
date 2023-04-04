@@ -5,9 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 using PerfReportTool;
-using System.IO;
-using System.Data.Common;
-using System.Runtime.InteropServices;
 
 namespace PerfSummaries
 {
@@ -280,6 +277,21 @@ namespace PerfSummaries
 				maxStringLengthCollated = maxStringLength;
 			}
 
+			noWrap = element.GetSafeAttibute<string>("noWrap") == "true";
+
+			if (IsDate())
+			{
+				dateFormat = element.GetSafeAttibute<string>("dateFormat");
+				string timeZoneId = element.GetSafeAttibute<string>("dateTimeZoneId");
+				dateTimeZone = TimeZoneInfo.Utc;
+				if (timeZoneId != null)
+				{
+					// Matches time zones in HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Time Zones.
+					// Will raise an exception if Id is invalid.
+					dateTimeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+				}
+			}
+
 			includeValueWithBucketName = element.GetSafeAttibute<bool>("includeValueWithBucketName", true);
 			string bucketNamesString = element.GetSafeAttibute<string>("valueBucketNames");
 			if (bucketNamesString != null)
@@ -302,8 +314,11 @@ namespace PerfSummaries
 			colourThresholdList = ColourThresholdList.ReadColourThresholdListXML(element.Element("colourThresholds"));
 		}
 
+		public bool IsDate() => numericFormat == "date";
+
 		public AutoColorizeMode autoColorizeMode = AutoColorizeMode.HighIsBad;
 		public string name;
+		public bool noWrap = false;
 		public string numericFormat;
 		public int maxStringLength;
 		public int maxStringLengthCollated;
@@ -315,6 +330,9 @@ namespace PerfSummaries
 		public List<float> bucketThresholds = new List<float>();
 		// Colour thresholds override for this column.
 		public ColourThresholdList colourThresholdList = null;
+		// Date properties
+		public string dateFormat = null;
+		public TimeZoneInfo dateTimeZone = null;
 	};
 
 	class SummaryTableColumn
@@ -368,6 +386,13 @@ namespace PerfSummaries
 			newColumn.colourModifiers = colourModifiers.ToDictionary(entry => entry.Key, entry => entry.Value); // Deep copy
 			newColumn.hasDiffRows = hasDiffRows;
 			return newColumn;
+		}
+
+		// Returns true if we should displaya min/max/avg sub columns (if enabled).
+		public bool DisplayAggregates()
+		{
+			// Date columns are numeric since they're a timestamp, but we don't want to display them as avg/min/max.
+			return isNumeric && (formatInfo == null || !formatInfo.IsDate());
 		}
 
 		private double FilterInvalidValue(double value)
@@ -784,6 +809,13 @@ namespace PerfSummaries
 
 				if (forceNumericFormat != null)
 				{
+					if (forceNumericFormat == "date")
+					{
+						DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds((long)val);
+						TimeSpan timeZoneOffset = formatInfo.dateTimeZone.GetUtcOffset(dateTimeOffset);
+						dateTimeOffset = dateTimeOffset.Add(timeZoneOffset);
+						return dateTimeOffset.ToString(formatInfo.dateFormat);
+					}
 					return prefix + val.ToString(forceNumericFormat);
 				}
 				else if (roundNumericValues)
@@ -931,7 +963,7 @@ namespace PerfSummaries
 			foreach (SummaryTableColumn column in columns)
 			{
 				// Add avg/min/max columns for this column if it's numeric and we didn't already add it above 
-				if (column.isNumeric && !collateByColumns.Contains(column))
+				if (column.DisplayAggregates() && !collateByColumns.Contains(column))
 				{
 					srcToDestBaseColumnIndex.Add(newColumns.Count);
 					newColumns.Add(new SummaryTableColumn("Avg " + column.name, true, null, false, column.elementType, column.formatInfo, column.tooltip, column.columnColourModifier));
@@ -994,7 +1026,7 @@ namespace PerfSummaries
 				for (int j = 0; j < columns.Count; j++)
 				{
 					SummaryTableColumn column = columns[j];
-					if (column.isNumeric)
+					if (column.DisplayAggregates())
 					{
 						double value = column.GetValue(i);
 						if (value != double.MaxValue)
@@ -1040,7 +1072,7 @@ namespace PerfSummaries
 						if (destColumnBaseIndex != -1 && RowCounts[j] > 0)
 						{
 							newColumns[destColumnBaseIndex].SetValue(destRowIndex, RowTotals[j] / RowWeights[j]);
-							if (addMinMaxColumns)
+							if (addMinMaxColumns && newColumns[destColumnBaseIndex].DisplayAggregates())
 							{
 								newColumns[destColumnBaseIndex + 1].SetValue(destRowIndex, RowMinValues[j]);
 								newColumns[destColumnBaseIndex + 2].SetValue(destRowIndex, RowMaxValues[j]);
@@ -1639,7 +1671,16 @@ namespace PerfSummaries
 						string toolTip = column.GetToolTipValue(rowIndex);
 						if (toolTip == "")
 						{
-							toolTip = column.GetDisplayName();
+							if (column.isNumeric && column.formatInfo != null && column.formatInfo.IsDate())
+							{
+								// For dates use a standard UTC timestamp for the tooltip
+								DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds((long)column.GetValue(rowIndex));
+								toolTip = dateTimeOffset.ToString("yyyy-MM-dd HH:mm:ss (UTC)");
+							}
+							else
+							{
+								toolTip = column.GetDisplayName();
+							}
 						}
 						attributes.Add("title='" + toolTip + "'");
 					}
@@ -1649,10 +1690,18 @@ namespace PerfSummaries
 					{
 						attributes.Add("bgcolor=" + bgColour);
 					}
+
+					Dictionary<string, string> styleAttributes = new Dictionary<string, string>();
 					string textColour = column.GetTextColor(rowIndex);
 					if (textColour != null)
 					{
-						attributes.Add("style='color:" + textColour + "'");
+						styleAttributes.Add("color",  textColour);
+					}
+
+					if (column.formatInfo != null && column.formatInfo.noWrap)
+					{
+						// Disable whitespace wrapping so the column is sized to the width of the longest cell item.
+						styleAttributes.Add("white-space", "nowrap");
 					}
 
 					bool bold = false;
@@ -1694,7 +1743,7 @@ namespace PerfSummaries
 					{
 						stringValue = "'" + stringValue;
 					}
-					currentRow.AddCell( (bold ? "<b>" : "") + stringValue + (bold ? "</b>" : ""), attributes );
+					currentRow.AddCell( (bold ? "<b>" : "") + stringValue + (bold ? "</b>" : ""), attributes, styleAttributes);
 					columnIndex++;
 				}
 			}
@@ -1894,8 +1943,11 @@ namespace PerfSummaries
 				cells.Add(new Cell(contents, attributes));
 			}
 
-			public void AddCell(string contents, List<string> attributes)
+			public void AddCell(string contents, List<string> attributes, Dictionary<string, string> styleAttributes)
 			{
+				List<string> styleLines = styleAttributes.Select(pair => $"{pair.Key}:{pair.Value}").ToList();
+				attributes.Add($"style='{String.Join(";", styleLines)}'");
+
 				cells.Add(new Cell(contents, String.Join(" ",attributes)));
 			}
 
