@@ -579,6 +579,7 @@ FServiceSettings::ReadFromConfig()
 			ReadUInt16FromConfig(AutoLaunchConfigSection, TEXT("DesiredPort"), AutoLaunchSettings.DesiredPort, GEngineIni);
 			GConfig->GetBool(AutoLaunchConfigSection, TEXT("ShowConsole"), AutoLaunchSettings.bShowConsole, GEngineIni);
 			GConfig->GetBool(AutoLaunchConfigSection, TEXT("LimitProcessLifetime"), AutoLaunchSettings.bLimitProcessLifetime, GEngineIni);
+			GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), AutoLaunchSettings.bSendUnattendedBugReports, GEditorSettingsIni);
 		}
 	}
 	else
@@ -610,6 +611,7 @@ FServiceSettings::ReadFromCompactBinary(FCbFieldView Field)
 				AutoLaunchSettings.DesiredPort = AutoLaunchSettingsObject["DesiredPort"].AsInt16();
 				AutoLaunchSettings.bShowConsole = AutoLaunchSettingsObject["ShowConsole"].AsBool();
 				AutoLaunchSettings.bLimitProcessLifetime = AutoLaunchSettingsObject["LimitProcessLifetime"].AsBool();
+				AutoLaunchSettings.bSendUnattendedBugReports = AutoLaunchSettingsObject["SendUnattendedBugReports"].AsBool();
 			}
 		}
 	}
@@ -665,6 +667,7 @@ FServiceSettings::WriteToCompactBinary(FCbWriter& Writer) const
 		Writer << "DesiredPort" << AutoLaunchSettings.DesiredPort;
 		Writer << "ShowConsole" << AutoLaunchSettings.bShowConsole;
 		Writer << "LimitProcessLifetime" << AutoLaunchSettings.bLimitProcessLifetime;
+		Writer << "SendUnattendedBugReports" << AutoLaunchSettings.bSendUnattendedBugReports;
 		Writer.EndObject();
 	}
 	else
@@ -1121,6 +1124,11 @@ DetermineCmdLineWithoutTransientComponents(const FServiceAutoLaunchSettings& InS
 			Parms.Appendf(TEXT(" --config \"%s\""),
 				*FPaths::ConvertRelativePathToFull(CfgCommandLineOverrideValue));
 		}
+	}
+
+	if (!InSettings.bSendUnattendedBugReports)
+	{
+		Parms.Append(TEXT(" --no-sentry"));
 	}
 
 	return Parms;

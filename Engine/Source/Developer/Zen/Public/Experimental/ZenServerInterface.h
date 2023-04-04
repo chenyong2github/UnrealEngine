@@ -42,6 +42,7 @@ struct FServiceAutoLaunchSettings
 	uint16 DesiredPort = 1337;
 	bool bShowConsole = false;
 	bool bLimitProcessLifetime = false;
+	bool bSendUnattendedBugReports = false;
 };
 
 struct FServiceSettings
