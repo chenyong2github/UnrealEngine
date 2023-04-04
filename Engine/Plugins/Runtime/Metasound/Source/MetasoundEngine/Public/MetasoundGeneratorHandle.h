@@ -14,8 +14,16 @@ namespace Metasound
 	class FMetasoundGenerator;
 }
 
-DECLARE_TS_MULTICAST_DELEGATE(FOnGeneratorHandleAttached);
-DECLARE_TS_MULTICAST_DELEGATE(FOnGeneratorHandleDetached);
+// UMetasoundGeneratorHandle shields its "clients" from "cross thread" issues
+// related to callbacks coming in the audio control or rendering threads that 
+// game thread clients (e.g. blueprints) want to know about. That is why these 
+// next delegate definitions do not need to be the "TS" variants. Assignments 
+// to members of this type, and the broadcasts there to will all happen on the
+// game thread. EVEN IF the instigator of those callbacks is on the audio
+// render thread. 
+DECLARE_MULTICAST_DELEGATE(FOnGeneratorHandleAttached);
+DECLARE_MULTICAST_DELEGATE(FOnGeneratorHandleDetached);
+DECLARE_DELEGATE(FOnSetGraph);
 
 UCLASS(BlueprintType,Category="MetaSound")
 class METASOUNDENGINE_API UMetasoundGeneratorHandle : public UObject
@@ -26,6 +34,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="MetaSound")
 	static UMetasoundGeneratorHandle* CreateMetaSoundGeneratorHandle(UAudioComponent* OnComponent);
+
+	void BeginDestroy() override;
 
 	/**
 	 * Makes a copy of the supplied parameter pack and passes it to the MetaSoundGenerator
@@ -38,11 +48,13 @@ public:
 
 	TSharedPtr<Metasound::FMetasoundGenerator> GetGenerator();
 
-	/**
-	 * NOTE: These delegates are called on the audio render thread. Careful!
-	 */
 	FOnGeneratorHandleAttached OnGeneratorHandleAttached;
 	FOnGeneratorHandleDetached OnGeneratorHandleDetached;
+	// Note: We don't allow direct assignment to the OnGeneratorsGraphChanged delegate
+	// because we need to know that someone actually wants this message so we can
+	// start actively listening for the corresponding audio render thread callback...
+	FDelegateHandle AddGraphSetCallback(const FOnSetGraph& Delegate);
+	bool RemoveGraphSetCallback(const FDelegateHandle& Handle);
 
 private:
 
@@ -61,6 +73,7 @@ private:
 	 * Functions for adding and removing our MetaSoundGenerator lifecycle delegates
 	 */
 	void AttachGeneratorDelegates();
+	void AttachGraphChangedDelegate();
 	void DetachGeneratorDelegates();
 
 	/**
@@ -68,6 +81,7 @@ private:
 	 */
 	void OnSourceCreatedAGenerator(uint64 InAudioComponentId, TSharedPtr<Metasound::FMetasoundGenerator> InGenerator);
 	void OnSourceDestroyedAGenerator(uint64 InAudioComponentId, TSharedPtr<Metasound::FMetasoundGenerator> InGenerator);
+
 
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioComponent> AudioComponent;
@@ -77,6 +91,15 @@ private:
 	TWeakPtr<Metasound::FMetasoundGenerator> CachedGeneratorPtr;
 	FSharedMetasoundParameterStoragePtr CachedParameterPack;
 
+	// Note: We don't allow direct assignment to the OnGeneratorsGraphChanged delegate
+	// because we need to know that someone actually wants this message so we can
+	// start actively listening for the corresponding audio render thread callback. 
+	// So these next members are private and a "client" that wants to be notified of
+	// the graph change have to call public functions declared above to add themselves.
+	DECLARE_MULTICAST_DELEGATE(FOnSetGraphMulticast);
+	FOnSetGraphMulticast OnGeneratorsGraphChanged;
+
 	FDelegateHandle GeneratorCreatedDelegateHandle;
 	FDelegateHandle GeneratorDestroyedDelegateHandle;
+	FDelegateHandle GeneratorGraphChangedDelegateHandle;
 };

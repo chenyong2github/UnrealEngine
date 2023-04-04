@@ -65,24 +65,71 @@ void UMetasoundGeneratorHandle::CacheMetasoundSource()
 
 void UMetasoundGeneratorHandle::AttachGeneratorDelegates()
 {
-	GeneratorCreatedDelegateHandle = CachedMetasoundSource->OnGeneratorInstanceCreated.AddWeakLambda(this,
-		[this](uint64 InAudioComponentId, TSharedPtr<Metasound::FMetasoundGenerator> InGenerator)
+	// These delegates can be called on a separate thread, so we need to take steps
+	// to assure this UObject hasn't been garbage collected before trying to dereference. 
+	// That is why we capture a TWeakObjectPtr and try to dereference that later!
+	GeneratorCreatedDelegateHandle = CachedMetasoundSource->OnGeneratorInstanceCreated.AddLambda(
+		[WeakGeneratorHandlePtr = TWeakObjectPtr<UMetasoundGeneratorHandle>(this),
+		StatId = this->GetStatID(true)]
+		(uint64 InAudioComponentId, TSharedPtr<Metasound::FMetasoundGenerator> InGenerator)
 		{
-			OnSourceCreatedAGenerator(InAudioComponentId, InGenerator);
+			// We are in the audio render (or control) thread here, so create a "dispatch task" to be
+			// executed later on the game thread...
+			FFunctionGraphTask::CreateAndDispatchWhenReady(
+				[WeakGeneratorHandlePtr, InAudioComponentId, InGenerator]()
+				{
+					check(IsInGameThread());
+					// Now, since we are in the game thread, try to dereference the pointer to
+					// to the UMetasoundGeneratorHandle. This should only succeed if the UObject
+					// hasn't been garbage collected.
+					if (UMetasoundGeneratorHandle* TheHandle = WeakGeneratorHandlePtr.Get())
+					{
+						TheHandle->OnSourceCreatedAGenerator(InAudioComponentId, InGenerator);
+					}
+				}, 
+				StatId, nullptr, ENamedThreads::GameThread);
 		});
 	GeneratorDestroyedDelegateHandle = CachedMetasoundSource->OnGeneratorInstanceDestroyed.AddWeakLambda(this,
 		[this](uint64 InAudioComponentId, TSharedPtr<Metasound::FMetasoundGenerator> InGenerator)
 		{
-			OnSourceDestroyedAGenerator(InAudioComponentId, InGenerator);
+				// We are in the audio render thread here, so create a "dispatch task" to be
+				// executed later on the game thread...
+				FFunctionGraphTask::CreateAndDispatchWhenReady(
+					[WeakGeneratorHandlePtr]()
+					{
+						check(IsInGameThread());
+						// Now, since we are in the game thread, try to dereference the pointer to
+						// to the UMetasoundGeneratorHandle. This should only succeed if the UObject
+						// hasn't been garbage collected.
+						if (UMetasoundGeneratorHandle* TheHandle = WeakGeneratorHandlePtr.Get())
+						{
+							TheHandle->OnGeneratorsGraphChanged.Broadcast();
+						}
+					},
+					StatId, nullptr, ENamedThreads::GameThread);
 		});
+}
 }
 
 void UMetasoundGeneratorHandle::DetachGeneratorDelegates()
 {
+	// First detach any callbacks that tell us when a generator is created or destroyed
+	// for the UMetasoundSource of interest...
+	if (CachedMetasoundSource)
+	{
 	CachedMetasoundSource->OnGeneratorInstanceCreated.Remove(GeneratorCreatedDelegateHandle);
 	GeneratorCreatedDelegateHandle.Reset();
 	CachedMetasoundSource->OnGeneratorInstanceDestroyed.Remove(GeneratorDestroyedDelegateHandle);
 	GeneratorDestroyedDelegateHandle.Reset();
+}
+	// Now detach any callback we may have registered to get callbacks when the generator's
+	// graph has been changed...
+	TSharedPtr<Metasound::FMetasoundGenerator> PinnedGenerator = CachedGeneratorPtr.Pin();
+	if (PinnedGenerator)
+	{
+		PinnedGenerator->OnSetGraph.Remove(GeneratorGraphChangedDelegateHandle);
+		GeneratorGraphChangedDelegateHandle.Reset();
+	}
 }
 
 TSharedPtr<Metasound::FMetasoundGenerator> UMetasoundGeneratorHandle::PinGenerator()
@@ -144,8 +191,29 @@ TSharedPtr<Metasound::FMetasoundGenerator> UMetasoundGeneratorHandle::GetGenerat
 	return PinGenerator();
 }
 
+FDelegateHandle UMetasoundGeneratorHandle::AddGraphSetCallback(const FOnSetGraph& Delegate)
+{
+	
+	FDelegateHandle Handle = OnGeneratorsGraphChanged.Add(Delegate);
+	CacheMetasoundSource();
+	AttachGraphChangedDelegate();
+	return Handle;
+}
+
+bool UMetasoundGeneratorHandle::RemoveGraphSetCallback(const FDelegateHandle& Handle)
+{
+	return OnGeneratorsGraphChanged.Remove(Handle);
+}
+
+void UMetasoundGeneratorHandle::BeginDestroy()
+{
+	Super::BeginDestroy();
+	DetachGeneratorDelegates();
+}
+
 void UMetasoundGeneratorHandle::OnSourceCreatedAGenerator(uint64 InAudioComponentId, TSharedPtr<Metasound::FMetasoundGenerator> InGenerator)
 {
+	check(IsInGameThread());
 	if (InAudioComponentId == AudioComponentId)
 	{
 		CachedGeneratorPtr = InGenerator;
@@ -156,12 +224,16 @@ void UMetasoundGeneratorHandle::OnSourceCreatedAGenerator(uint64 InAudioComponen
 				InGenerator->QueueParameterPack(CachedParameterPack);
 			}
 			OnGeneratorHandleAttached.Broadcast();
+			// If anyone has told us they are interested in being notified when a generator's 
+			// graph has changed go ahead and set that up now...
+			AttachGraphChangedDelegate();
 		}
 	}
 }
 
 void UMetasoundGeneratorHandle::OnSourceDestroyedAGenerator(uint64 InAudioComponentId, TSharedPtr<Metasound::FMetasoundGenerator> InGenerator)
 {
+	check(IsInGameThread());
 	if (InAudioComponentId == AudioComponentId)
 	{
 		if (CachedGeneratorPtr.IsValid())
@@ -171,4 +243,5 @@ void UMetasoundGeneratorHandle::OnSourceDestroyedAGenerator(uint64 InAudioCompon
 		CachedGeneratorPtr = nullptr;
 	}
 }
+
 
