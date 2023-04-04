@@ -9,6 +9,7 @@
 #include "Math/Color.h"
 #include "Windows/WindowsWindow.h"
 #include "Windows/WindowsHWrapper.h"
+#include "HAL/IConsoleManager.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/FileHelper.h"
 
@@ -16,6 +17,13 @@
 	#include <Ole2.h>
 	#include <oleidl.h>
 #include "Windows/HideWindowsPlatformTypes.h"
+
+static bool bUseInvisibleCursorForNoneCursorType = false;
+FAutoConsoleVariableRef CVarUseInvisibleCursorForNoneCursorType(
+	TEXT("WindowsCursor.UseInvisibleCursorForNoneCursorType"),
+	bUseInvisibleCursorForNoneCursorType,
+	TEXT("If enabled, sets the platform HCursor to a transparent cursor instead of null when the mouse cursor type to None."),
+	ECVF_Default);
 
 FWindowsCursor::FWindowsCursor()
 {
@@ -29,11 +37,11 @@ FWindowsCursor::FWindowsCursor()
 		switch( CurCursorIndex )
 		{
 		case EMouseCursor::None:
-			if (FPlatformMisc::IsRemoteSession())
+			if (FPlatformMisc::IsRemoteSession() || bUseInvisibleCursorForNoneCursorType)
 			{
 				// during remote sessions we rely on constantly resetting the mouse cursor position for infinite mouse deltas while dragging (WM_INPUT doesnt work over rdp)
 				// this hack here is to avoid having a hidden cursor which prevents SetCursorPos from working.  This is just a completely transparent cursor yet "visible" cursor to work around that
-				CursorHandle = LoadCursorFromFile((LPCTSTR) * (FString(FPlatformProcess::BaseDir()) / FString::Printf(TEXT("%sEditor/Slate/Cursor/invisible.cur"), *FPaths::EngineContentDir())));
+				CursorHandle = LoadCursorFromFile((LPCTSTR) * (FString(FPlatformProcess::BaseDir()) / FString::Printf(TEXT("%s/Slate/Cursor/invisible.cur"), *FPaths::EngineContentDir())));
 			}
 			break;
 		case EMouseCursor::Custom:
