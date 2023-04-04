@@ -6,9 +6,11 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Async/ParallelFor.h"
 #include "Containers/Set.h"
+#include "IO/IoHash.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "UObject/PackageTrailer.h"
+#include "Virtualization/VirtualizationSystem.h"
 
 namespace UE::Virtualization
 {
@@ -151,10 +153,64 @@ void FindVirtualizedPayloadsAndTrailers(const TArray<FString>& PackagePaths, TMa
 		OutPayloads.Append(Context.Payloads);
 	}
 
+	OutPayloads.CompactStable();
+}
+
+TArray<FPullRequest> ToRequestArray(TConstArrayView<FIoHash> IdentifierArray)
+{
+	TArray<FPullRequest> Requests;
+	Requests.Reserve(IdentifierArray.Num());
+
+	for (const FIoHash& Id : IdentifierArray)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(CompactStable);
-		OutPayloads.CompactStable();
+		Requests.Emplace(FPullRequest(Id));
 	}
+
+	return Requests;
+}
+
+FWorkQueue::FWorkQueue(const TArray<FIoHash>& InWork, int32 JobSize)
+	: Work(InWork)
+{
+	CreateJobs(JobSize);
+}
+
+FWorkQueue::FWorkQueue(TArray<FIoHash>&& InWork, int32 JobSize)
+	: Work(InWork)
+{
+	CreateJobs(JobSize);
+}
+
+void FWorkQueue::CreateJobs(int32 JobSize)
+{
+	const int32 NumJobs = FMath::DivideAndRoundUp<int32>(Work.Num(), JobSize);
+	Jobs.Reserve(NumJobs);
+
+	for (int32 JobIndex = 0; JobIndex < NumJobs; ++JobIndex)
+	{
+		const int32 JobStart = JobIndex * JobSize;
+		const int32 JobEnd = FMath::Min((JobIndex + 1) * JobSize, Work.Num());
+
+		FJob Job = MakeArrayView(&Work[JobStart], JobEnd - JobStart);
+		Jobs.Add(Job);
+	}
+}
+
+FWorkQueue::FJob FWorkQueue::GetJob()
+{
+	if (!Jobs.IsEmpty())
+	{
+		return Jobs.Pop(false);
+	}
+	else
+	{
+		return FJob();
+	}
+}
+
+bool FWorkQueue::IsEmpty() const
+{
+	return Jobs.IsEmpty();
 }
 
 } //namespace UE::Virtualization

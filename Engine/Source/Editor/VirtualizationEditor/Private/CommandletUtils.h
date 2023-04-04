@@ -4,11 +4,12 @@
 
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
-#include "IO/IoHash.h"
 
 namespace UE { class FPackageTrailer; }
+namespace UE::Virtualization { struct FPullRequest; }
+struct FIoHash;
 
-namespace UE::Virtualization
+namespace UE::Virtualization // Utility functions
 {
 
 /** Used to customize package discovery behavior */
@@ -54,5 +55,49 @@ TArray<FIoHash> FindVirtualizedPayloads(const TArray<FString>& PackageNames);
  * @param OutPayloads	A unique set of all the virtualized payloads referenced by the packages
  */
 void FindVirtualizedPayloadsAndTrailers(const TArray<FString>& PackagePaths, TMap<FString, UE::FPackageTrailer>& OutPackages, TSet<FIoHash>& OutPayloads);
+
+/** Utility to turn an array of FIoHash into an array of FPullRequest */
+TArray<FPullRequest> ToRequestArray(TConstArrayView<FIoHash> IdentifierArray);
+
+} //namespace UE::Virtualization
+
+
+namespace UE::Virtualization // Utility classes
+{
+
+/** 
+ * Takes a list of FIoHashs and breaks them into smaller jobs based on the JobSize.
+ * These jobs (in the form of an TArrayView) can then be requested one at a time
+ * until there are no more jobs left.
+ * The intended use is to make it easier to divide up the FIoHash list into smaller
+ * units to be pushed to the taskgraph system.
+ */
+class FWorkQueue
+{
+public:
+	using FJob = TArrayView<const FIoHash>;
+
+	FWorkQueue(const TArray<FIoHash>& InWork, int32 JobSize);
+	FWorkQueue(TArray<FIoHash>&& InWork, int32 JobSize);
+	~FWorkQueue() = default;
+
+	/** 
+	 * Returns a FJob containing FIoHashes to be processed. 
+	 * If there is no more work to be done then empty jobs will be returned 
+	 * 
+	 * NOTE: That FJob is only valid for the lifespan of the FWorkQueue
+	 */
+	FJob GetJob();
+
+	/** Returns true if there is no more work to done */
+	bool IsEmpty() const;
+
+private:
+
+	void CreateJobs(int32 JobSize);
+
+	TArray<FIoHash> Work;
+	TArray<FJob> Jobs;
+};
 
 } //namespace UE::Virtualization

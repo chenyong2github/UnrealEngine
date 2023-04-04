@@ -8,76 +8,6 @@
 #include "UObject/PackageTrailer.h"
 #include "Virtualization/VirtualizationSystem.h"
 
-namespace 
-{
-
-class FWorkQueue
-{
-public:
-	using FJob = TArrayView<const FIoHash>;
-
-	FWorkQueue(TArray<FIoHash>&& InWork, int32 JobSize)
-		: Work(InWork)
-	{
-		const int32 NumJobs = FMath::DivideAndRoundUp<int32>(Work.Num(), JobSize);
-		Jobs.Reserve(NumJobs);
-
-		for (int32 JobIndex = 0; JobIndex < NumJobs; ++JobIndex)
-		{
-			const int32 JobStart = JobIndex * JobSize;
-			const int32 JobEnd = FMath::Min((JobIndex + 1) * JobSize, Work.Num());
-
-			FJob Job = MakeArrayView(&Work[JobStart], JobEnd - JobStart);
-			Jobs.Add(Job);
-		}
-	}
-
-	FJob GetJob()
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FWorkQueue::GetJob);
-
-		if (!Jobs.IsEmpty())
-		{
-			return Jobs.Pop(false);
-		}
-		else
-		{
-			return FJob();
-		}
-	}
-
-	bool IsEmpty() const
-	{
-		return Jobs.IsEmpty();
-	}
-
-	int32 Num() const
-	{
-		return Jobs.Num();
-	}
-
-private:
-	TArray<FIoHash> Work;
-	TArray<FJob> Jobs;
-};
-
-/** Utility to turn an array of FIoHash into an array of FPullRequest */
-TArray<UE::Virtualization::FPullRequest> ToRequestArray(TConstArrayView<FIoHash> IdentifierArray)
-{
-	TArray<UE::Virtualization::FPullRequest> Requests;
-	Requests.Reserve(IdentifierArray.Num());
-
-	for (const FIoHash& Id : IdentifierArray)
-	{
-		Requests.Emplace(Id);
-	}
-
-	return Requests;
-}
-
-} // namespace
-
-
 UPrecachePayloadsCommandlet::UPrecachePayloadsCommandlet(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -121,7 +51,7 @@ int32 UPrecachePayloadsCommandlet::Main(const FString& Params)
 
 		UE_LOG(LogVirtualization, Display, TEXT("Will run up to %d precache tasks concurrently"), ConcurrentTasks);
 
-		FWorkQueue WorkQueue(MoveTemp(PayloadIds), BatchSize);
+		UE::Virtualization::FWorkQueue WorkQueue(MoveTemp(PayloadIds), BatchSize);
 
 		UE::Tasks::FTaskEvent Event(UE_SOURCE_LOCATION);
 
@@ -138,7 +68,7 @@ int32 UPrecachePayloadsCommandlet::Main(const FString& Params)
 				UE::Tasks::Launch(UE_SOURCE_LOCATION,
 					[Job = WorkQueue.GetJob(), &System, &NumCompletedPayloads, &NumTasks, &Event]()
 					{
-						TArray<UE::Virtualization::FPullRequest> Requests = ToRequestArray(Job);
+						TArray<UE::Virtualization::FPullRequest> Requests = UE::Virtualization::ToRequestArray(Job);
 
 						if (!System.PullData(Requests))
 						{
