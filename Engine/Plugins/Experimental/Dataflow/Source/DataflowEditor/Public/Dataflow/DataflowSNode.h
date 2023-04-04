@@ -4,6 +4,7 @@
 
 #include "EdGraphUtilities.h"
 #include "SGraphNode.h"
+#include "UObject/GCObject.h"
 
 #include "DataflowSNode.generated.h"
 
@@ -14,7 +15,7 @@ class SCheckBox;
 // SDataflowEdNode
 //
 
-class DATAFLOWEDITOR_API SDataflowEdNode : public SGraphNode
+class DATAFLOWEDITOR_API SDataflowEdNode : public SGraphNode , public FGCObject
 {
 	typedef SGraphNode Super;
 
@@ -33,6 +34,16 @@ public:
 	// SGraphNode interface
 	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
 	TArray<FOverlayWidgetInfo> GetOverlayWidgets(bool bSelected, const FVector2D& WidgetSize) const;
+
+
+
+	//~ Begin FGCObject interface
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SDataflowEdNode");
+	}
+	//~ End FGCObject interface
 
 private:
 	UDataflowEdNode* DataflowGraphNode = nullptr;	

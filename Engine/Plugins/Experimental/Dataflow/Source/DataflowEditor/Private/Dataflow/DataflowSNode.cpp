@@ -4,6 +4,7 @@
 
 #include "Dataflow/DataflowEdNode.h"
 #include "Dataflow/DataflowEditorStyle.h"
+#include "Dataflow/DataflowEngineUtil.h"
 #include "Dataflow/DataflowGraphEditor.h"
 #include "Dataflow/DataflowNodeFactory.h"
 #include "Dataflow/DataflowObject.h"
@@ -151,6 +152,16 @@ FReply SDataflowEdNode::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, 
 	return Super::OnMouseButtonDoubleClick(InMyGeometry, InMouseEvent);
 }
 
+void SDataflowEdNode::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	if (DataflowGraphNode)
+	{
+		if (TSharedPtr<FDataflowNode> DataflowNode = DataflowGraphNode->GetDataflowNode())
+		{
+			Collector.AddPropertyReferences(DataflowNode->TypedScriptStruct(), DataflowNode.Get());
+		}
+	}
+}
 
 
 //
@@ -232,6 +243,9 @@ UEdGraphNode* FAssetSchemaAction_Dataflow_CreateNode_DataflowEdNode::PerformActi
 //	FEdGraphSchemaAction::AddReferencedObjects(Collector);
 //	Collector.AddReferencedObject(NodeTemplate);
 //}
+
+
+
 
 #undef LOCTEXT_NAMESPACE
 
