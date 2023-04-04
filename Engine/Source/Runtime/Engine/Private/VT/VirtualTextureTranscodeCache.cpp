@@ -379,6 +379,13 @@ FVTTranscodeTileHandle FVirtualTextureTranscodeCache::SubmitTask(
 	TaskEntry.FrameSubmitted = GFrameNumberRenderThread;
 	FMemory::Memzero(TaskEntry.StageTileHandle);
 
+	check(!TaskEntry.GraphEvent || TaskEntry.GraphEvent->IsComplete());
+	
+	if (TaskEntry.GraphEvent)
+	{
+		TaskEntry.GraphEvent.SafeRelease();
+	}
+
 	const FGraphEventArray* Prerequisites = InPrerequisites;
 	if (Prerequisites)
 	{
