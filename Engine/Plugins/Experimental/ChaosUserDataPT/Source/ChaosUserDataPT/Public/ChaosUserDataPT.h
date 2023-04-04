@@ -96,7 +96,7 @@ namespace Chaos
 		{
 			SCOPE_CYCLE_COUNTER(STAT_UserDataPT_SetData_GT);
 
-			if (const FPhysicsSolverBase* SolverBase = this->GetSolver())
+			if (this->GetSolver() != nullptr)
 			{
 				if (TInput* Input = this->GetProducerInputData_External())
 				{
