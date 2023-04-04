@@ -736,8 +736,9 @@ protected:
 	bool GetConstParameterValue(FMaterialUniformExpression* Expression, FLinearColor& OutConstValue);
 
 	// Properly casts a const type to another const type
-	FLinearColor CoerceConstantType(FLinearColor SourceValue, EMaterialValueType SourceType, EMaterialValueType DestinationType);
-	FLinearColor CastConstantType(FLinearColor SourceValue, EMaterialValueType SourceType, EMaterialValueType DestinationType, EMaterialCastFlags Flags);
+	// Returns false if the case fails
+	bool CoerceConstantType(FLinearColor SourceValue, EMaterialValueType SourceType, EMaterialValueType DestinationType, FLinearColor& OutResult);
+	bool CastConstantType(FLinearColor SourceValue, EMaterialValueType SourceType, EMaterialValueType DestinationType, EMaterialCastFlags Flags, FLinearColor& OutResult);
 
 	// Returns a constant of the specified typ
 	int32 ConstResultValue(EMaterialValueType Type, FLinearColor ConstantValue);
