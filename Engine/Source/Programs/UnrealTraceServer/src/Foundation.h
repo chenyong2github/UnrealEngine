@@ -56,9 +56,9 @@ template<typename Type>
 template<typename Lambda>
 inline bool TArray<Type>::FindOrAdd(const Type& Item, Lambda&& Compare)
 {
-	for (auto it = begin(); it != end();)
+	for (auto It = begin(); It != end(); ++It)
 	{
-		if (Compare(*it) == 0)
+		if (Compare(*It, Item) == 0)
 		{
 			return false;
 		}
