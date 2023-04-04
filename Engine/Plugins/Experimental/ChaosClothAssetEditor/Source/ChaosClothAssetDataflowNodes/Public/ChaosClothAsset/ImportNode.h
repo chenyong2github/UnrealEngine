@@ -26,7 +26,7 @@ public:
 
 	/** The LOD to import into the collection. Only one LOD can be imported at a time. */
 	UPROPERTY(EditAnywhere, Category = "ClothAsset", Meta = (DisplayName = "Import LOD"))
-	int32 ImportLod;
+	int32 ImportLod = 0;
 
 	FChaosClothAssetImportNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 
