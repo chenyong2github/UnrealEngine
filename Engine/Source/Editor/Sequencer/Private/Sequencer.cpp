@@ -3271,6 +3271,11 @@ void FSequencer::EvaluateInternal(FMovieSceneEvaluationRange InRange, bool bHasJ
 		}
 	}
 
+	if (IMovieScenePlaybackClient* PlaybackClient = GetPlaybackClient())
+	{
+		PlaybackClient->WarpEvaluationRange(InRange);
+	}
+
 	FMovieSceneContext Context = FMovieSceneContext(InRange, PlaybackState).SetIsSilent(SilentModeCount != 0);
 	Context.SetHasJumped(bHasJumped);
 

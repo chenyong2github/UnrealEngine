@@ -8,6 +8,7 @@
 #include "MovieSceneSequenceID.h"
 #include "IMovieScenePlaybackClient.generated.h"
 
+struct FMovieSceneEvaluationRange;
 
 /** Movie scene binding overrides interface */
 UINTERFACE()
@@ -53,4 +54,10 @@ public:
 	{
 		return false;
 	}
+
+	/*
+	 * Warp the time range right before we evaluate
+	 * This gives clients an opportunity to apply time-warping effects without manipulating the actual user-facing playback position
+	 */
+	virtual void WarpEvaluationRange(FMovieSceneEvaluationRange& InOutRange) const {}
 };

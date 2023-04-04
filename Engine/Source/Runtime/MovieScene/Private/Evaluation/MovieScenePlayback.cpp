@@ -55,6 +55,13 @@ FMovieSceneEvaluationRange::FMovieSceneEvaluationRange(FFrameTime InCurrentTime,
 {
 }
 
+void FMovieSceneEvaluationRange::ResetRange(const TRange<FFrameTime>& NewRange)
+{
+	ensureMsgf(TimeOverride == TNumericLimits<int32>::Lowest(),
+		TEXT("Should reset time ranges on a range with a fixed time override. This should never happen because such ranges are internal to the movie scene compiler."));
+	EvaluationRange = NewRange;
+}
+
 TRange<FFrameNumber> FMovieSceneEvaluationRange::GetTraversedFrameNumberRange() const
 {
 	TRange<FFrameNumber> FrameNumberRange;

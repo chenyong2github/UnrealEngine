@@ -159,6 +159,11 @@ struct MOVIESCENE_API FMovieSceneEvaluationRange
 		return CurrentFrameRate;
 	}
 
+	/**
+	 * Reset this range to a new range while retaining the current framerate and direction
+	 */
+	void ResetRange(const TRange<FFrameTime>& NewRange);
+
 protected:
 
 	/** The range to evaluate */

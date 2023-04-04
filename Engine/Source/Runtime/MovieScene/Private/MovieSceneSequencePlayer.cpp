@@ -1210,6 +1210,11 @@ void UMovieSceneSequencePlayer::UpdateMovieSceneInstance(FMovieSceneEvaluationRa
 	UE_LOG(LogMovieScene, VeryVerbose, TEXT("Evaluating sequence %s at frame %d, subframe %f (%f fps)."), *SequenceName, CurrentTime.Time.FrameNumber.Value, CurrentTime.Time.GetSubFrame(), CurrentTime.Rate.AsDecimal());
 #endif
 
+	if (PlaybackClient)
+	{
+		PlaybackClient->WarpEvaluationRange(InRange);
+	}
+
 	// Once we have updated we must no longer skip updates
 	bSkipNextUpdate = false;
 
