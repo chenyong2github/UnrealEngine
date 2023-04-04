@@ -224,6 +224,8 @@ namespace UE::LevelSnapshots::Private::Internal
 		AActor* PreallocatedActor = Preallocated.GetValue();
 		{
 			const FRestoreObjectScope FinishRestore = PreActorRestore_SnapshotWorld(PreallocatedActor, ActorData.CustomActorSerializationData, WorldData, Cache, ProcessObjectDependency, InLocalisationSnapshotPackage);
+			// CDO must be serialized into the actor 
+			SerializeClassDefaultsIntoActor(PreallocatedActor, WorldData, ActorData.ClassIndex, Cache);
 			FLoadSnapshotObjectArchive::ApplyToSnapshotWorldObject(ActorData.SerializedActorData, WorldData, Cache, PreallocatedActor, ProcessObjectDependency, InLocalisationSnapshotPackage);
 #if WITH_EDITOR
 			UE_LOG(LogLevelSnapshots, Verbose, TEXT("ActorLabel is \"%s\" for \"%s\" (editor object path \"%s\")"), *PreallocatedActor->GetActorLabel(), *PreallocatedActor->GetPathName(), *OriginalActorPath.ToString());
@@ -338,25 +340,24 @@ TOptional<TNonNullPtr<AActor>> UE::LevelSnapshots::Private::GetPreallocated(cons
 			return {};
 		}
 		
-		const TOptional<TNonNullPtr<AActor>> Template = GetActorClassDefault(WorldData, ActorData->ClassIndex, Cache);
-		if (!Template)
+		const FSoftClassPath ClassPath = GetClass(*ActorData, WorldData);
+		UClass* ActorClass = ClassPath.TryLoadClass<AActor>();
+		if (!ActorClass)
 		{
 			UE_LOG(LogLevelSnapshots, Warning, TEXT("Failed to allocate %s due to missing class."), *OriginalActorPath.ToString());
 			return {};
 		}
 
-		UClass* TargetClass = Template->GetClass();
 		FActorSpawnParameters SpawnParams;
-		SpawnParams.Template = Template.GetValue();
 		SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
 		SpawnParams.OverrideLevel = Internal::DetermineMostSuitableLevel(OriginalActorPath, WorldData);
 		const FName ActorName = *ExtractLastSubobjectName(OriginalActorPath);
 		// Must still generate a unique name because the asset registry might have messed with our data during a rename and added a duplicate actor name...
 		SpawnParams.Name = FindObjectFast<UObject>(SpawnParams.OverrideLevel, ActorName)
-			? MakeUniqueObjectName(SpawnParams.OverrideLevel, TargetClass, ActorName)
+			? MakeUniqueObjectName(SpawnParams.OverrideLevel, ActorClass, ActorName)
 			: ActorName;
 		SpawnParams.bNoFail = true;
-		ActorCache.CachedSnapshotActor = SnapshotWorld->SpawnActor<AActor>(TargetClass, SpawnParams);
+		ActorCache.CachedSnapshotActor = SnapshotWorld->SpawnActor<AActor>(ActorClass, SpawnParams);
 
 		const bool bSpawnWasSuccess = ActorCache.CachedSnapshotActor.IsValid();
 		UE_CLOG(!bSpawnWasSuccess, LogLevelSnapshots, Error, TEXT("Failed to allocate %s due to missing class."), *OriginalActorPath.ToString());

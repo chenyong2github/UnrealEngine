@@ -19,42 +19,6 @@
 
 namespace UE::LevelSnapshots::Private
 {
-	TOptional<TNonNullPtr<AActor>> GetActorClassDefault(FWorldSnapshotData& WorldData, FClassDataIndex ClassIndex, FSnapshotDataCache& Cache)
-	{
-		check(WorldData.ClassData.IsValidIndex(ClassIndex));
-		
-		FClassSnapshotData& ClassData = WorldData.ClassData[ClassIndex];
-		UClass* Class = ClassData.ClassPath.TryLoadClass<AActor>();
-		if (!Class)
-		{
-			UE_LOG(LogLevelSnapshots, Error, TEXT("Unknown class %s. The snapshot is mostly likely referencing a class that was deleted."), *ClassData.ClassPath.ToString());
-			return {};
-		}
-		
-		if (ClassData.SnapshotFlags == ESnapshotClassFlags::SerializationSkippedArchetypeData
-			|| ClassData.SerializedData.Num() == 0)
-		{
-			return { CastChecked<AActor>(Class->GetDefaultObject()) };
-		}
-
-		TObjectPtr<UObject>& CachedCDO = Cache.ArchetypeObjects[ClassIndex];
-		if (IsValid(CachedCDO))
-		{
-			return { CastChecked<AActor>(CachedCDO) };
-		}
-		
-		UObject* CDO = NewObject<UObject>(
-			WorldData.SnapshotWorld->GetPackage(),
-			Class,
-			MakeUniqueObjectName(WorldData.SnapshotWorld->GetPackage(), Class)
-			// TODO: Set RF_Archetype
-			);
-		FApplyClassDefaulDataArchive::SerializeClassDefaultObject(ClassData, WorldData, CDO);
-
-		CachedCDO = CDO;
-		return { CastChecked<AActor>(CDO) };
-	}
-
 	TOptional<TNonNullPtr<UObject>> GetSubobjectArchetype(FWorldSnapshotData& WorldData, FClassDataIndex ClassIndex, FSnapshotDataCache& Cache, const FSubobjectArchetypeFallbackInfo& FallbackInfo)
 	{
 		if (Cache.ArchetypeObjects[ClassIndex])
@@ -78,7 +42,6 @@ namespace UE::LevelSnapshots::Private
 			GetTransientPackage(),
 			Class,
 			*FString("SnapshotArchetype_").Append(*MakeUniqueObjectName(GetTransientPackage(), Class).ToString())
-			// TODO: Set RF_Archetype
 			);
 		FApplyClassDefaulDataArchive::SerializeClassDefaultObject(*ArchetypeData.GetValue(), WorldData, Archetype);
 		Cache.ArchetypeObjects[ClassIndex] = Archetype;
@@ -131,11 +94,26 @@ namespace UE::LevelSnapshots::Private
 		return {};
 	}
 
+	void SerializeClassDefaultsIntoActor(AActor* Actor, FWorldSnapshotData& WorldData, FClassDataIndex ClassIndex, FSnapshotDataCache& Cache)
+	{
+		if (WorldData.ClassData.IsValidIndex(ClassIndex))
+		{
+			SerializeClassDefaultsInto(Actor, WorldData.ClassData[ClassIndex], WorldData);
+		}
+		else
+		{
+			UE_LOG(LogLevelSnapshots, Warning,
+				TEXT("No CDO saved for class '%s'. If you changed some class default values for this class, then the affected objects will have the latest values instead of the class defaults at the time the snapshot was taken. Should be nothing major to worry about."),
+				*Actor->GetClass()->GetName()
+				);
+		}
+	}
+
 	void SerializeClassDefaultsIntoSubobject(UObject* Object, FWorldSnapshotData& WorldData, FClassDataIndex ClassIndex, FSnapshotDataCache& Cache, const FSubobjectArchetypeFallbackInfo& FallbackInfo)
 	{
 		if (const TOptional<TNonNullPtr<FClassSnapshotData>> ArchetypeData = GetObjectArchetypeData(WorldData, ClassIndex, Cache, FallbackInfo))
 		{
-			SerializeClassDefaultsIntoSubobject(Object, *ArchetypeData, WorldData);
+			SerializeClassDefaultsInto(Object, *ArchetypeData, WorldData);
 		}
 		else
 		{
@@ -146,7 +124,7 @@ namespace UE::LevelSnapshots::Private
 		}
 	}
 
-	void SerializeClassDefaultsIntoSubobject(UObject* Object, FClassSnapshotData& DataToSerialize, FWorldSnapshotData& WorldData)
+	void SerializeClassDefaultsInto(UObject* Object, FClassSnapshotData& DataToSerialize, FWorldSnapshotData& WorldData)
 	{
 		const bool bHasData = DataToSerialize.SerializedData.Num() > 0 && (DataToSerialize.SnapshotFlags & ESnapshotClassFlags::SerializationSkippedArchetypeData) == ESnapshotClassFlags::NoFlags;
 		if (bHasData && !FLevelSnapshotsModule::GetInternalModuleInstance().ShouldSkipClassDefaultSerialization(Object->GetClass()))
@@ -155,7 +133,7 @@ namespace UE::LevelSnapshots::Private
 		}
 	}
 	
-	void SerializeSelectedClassDefaultsInto(UObject* Object, FWorldSnapshotData& WorldData, FClassDataIndex ClassIndex, FSnapshotDataCache& Cache, const FSubobjectArchetypeFallbackInfo& FallbackInfo, const FPropertySelection& PropertiesToRestore)
+	void SerializeSelectedClassDefaultsIntoSubobject(UObject* Object, FWorldSnapshotData& WorldData, FClassDataIndex ClassIndex, FSnapshotDataCache& Cache, const FSubobjectArchetypeFallbackInfo& FallbackInfo, const FPropertySelection& PropertiesToRestore)
 	{
 		if (const TOptional<TNonNullPtr<FClassSnapshotData>> ArchetypeData = GetObjectArchetypeData(WorldData, ClassIndex, Cache, FallbackInfo))
 		{

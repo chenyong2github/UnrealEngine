@@ -22,6 +22,12 @@ struct FWorldSnapshotData;
 
 namespace UE::LevelSnapshots::Private
 {
+	/**
+	 * Gives info to retrieve class defaults for a subobject when it was not saved.
+	 * 
+	 * Remember: Blueprints create new archetype objects for each component so the lookup depends on the context.
+	 * These are basically just the args for UObject::GetArchetypeFromRequiredInfo.
+	 */
 	struct FSubobjectArchetypeFallbackInfo
 	{
 		UObject* SubobjectOuter;
@@ -29,22 +35,26 @@ namespace UE::LevelSnapshots::Private
 		EObjectFlags SubobjectFlags;
 	};
 	
-	/** Gets the actor CDO that was saved when the snapshot was taken. */
-	TOptional<TNonNullPtr<AActor>> GetActorClassDefault(FWorldSnapshotData& WorldData, FClassDataIndex ClassIndex, FSnapshotDataCache& Cache);
 	/** Gets the archetype to use for constructing a subobject.*/
 	TOptional<TNonNullPtr<UObject>> GetSubobjectArchetype(FWorldSnapshotData& WorldData, FClassDataIndex ClassIndex, FSnapshotDataCache& Cache, const FSubobjectArchetypeFallbackInfo& FallbackInfo);
 	
 	/** Gets an archetype that was saved when the snapshot was taken. Each subobject in actors can have their own archetypes. */
 	TOptional<TNonNullPtr<FClassSnapshotData>> GetObjectArchetypeData(FWorldSnapshotData& WorldData, FClassDataIndex ClassIndex, FSnapshotDataCache& Cache, const FSubobjectArchetypeFallbackInfo& FallbackInfo);
-	
+
+	/** Retrieves and serializes class default data into the given actor, if any was saved in the snapshot. */
+	void SerializeClassDefaultsIntoActor(AActor* Actor, FWorldSnapshotData& WorldData, FClassDataIndex ClassIndex, FSnapshotDataCache& Cache);
+	/** Retrieves and serializes class default data into the given actor, if any was saved in the snapshot. */
 	void SerializeClassDefaultsIntoSubobject(UObject* Object, FWorldSnapshotData& WorldData, FClassDataIndex ClassIndex, FSnapshotDataCache& Cache, const FSubobjectArchetypeFallbackInfo& FallbackInfo);
-	void SerializeClassDefaultsIntoSubobject(UObject* Object, FClassSnapshotData& DataToSerialize, FWorldSnapshotData& WorldData);
+	/** Helper that serializes already retrieved class default data into an object. Checks whether this feature is enabled for this class. */
+	void SerializeClassDefaultsInto(UObject* Object, FClassSnapshotData& DataToSerialize, FWorldSnapshotData& WorldData);
 
-	void SerializeSelectedClassDefaultsInto(UObject* Object, FWorldSnapshotData& WorldData, FClassDataIndex ClassIndex, FSnapshotDataCache& Cache, const FSubobjectArchetypeFallbackInfo& FallbackInfo, const FPropertySelection& PropertiesToRestore);
+	/** Serializes the class default data into the given subobject but only those allowed by PropertiesToRestore. */
+	void SerializeSelectedClassDefaultsIntoSubobject(UObject* Object, FWorldSnapshotData& WorldData, FClassDataIndex ClassIndex, FSnapshotDataCache& Cache, const FSubobjectArchetypeFallbackInfo& FallbackInfo, const FPropertySelection& PropertiesToRestore);
 
+	/** Helper for getting an actor's class. */
 	FSoftClassPath GetClass(const FActorSnapshotData& Data, const FWorldSnapshotData& WorldData);
+	/** Helper for getting an actor's subobject's class. */
 	FSoftClassPath GetClass(const FSubobjectSnapshotData& Data, const FWorldSnapshotData& WorldData);
-	
 	
 	/** Adds a class default entry in the world data */
 	FClassDataIndex AddClassArchetype(FWorldSnapshotData& WorldData, UObject* SavedObject);

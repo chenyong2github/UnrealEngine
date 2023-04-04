@@ -388,8 +388,9 @@ namespace UE::LevelSnapshots::Private::Internal
 					continue;	
 				}
 
-				const TOptional<TNonNullPtr<AActor>> ActorCDO = GetActorClassDefault(WorldData, ActorSnapshot->ClassIndex, Cache);
-				if (!ActorCDO)
+				const FSoftClassPath ClassPath = GetClass(*ActorSnapshot, WorldData);
+				UClass* ActorClass = ClassPath.TryLoadClass<AActor>();
+				if (!ActorClass)
 				{
 					UE_LOG(LogLevelSnapshots, Warning, TEXT("Skipping recreation of %s due to missing class"), *OriginalRemovedActorPath.ToString());
 					continue;
@@ -418,7 +419,6 @@ namespace UE::LevelSnapshots::Private::Internal
 					ULevel* OverrideLevel = OwningLevelWorld->PersistentLevel;
 
 					const FName ActorFName = *ActorName;
-					UClass* ActorClass = ActorCDO->GetClass();
 					FActorSpawnParameters SpawnParameters;
 					// Cannot be overriden but we want to inform the subscribers
 					SpawnParameters.bNoFail = true;
@@ -427,7 +427,6 @@ namespace UE::LevelSnapshots::Private::Internal
 					SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
 					SpawnParameters.bDeferConstruction = true;
 					// Overriable properties
-					SpawnParameters.Template = ActorCDO.GetValue();
 					SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 					SpawnParameters.ObjectFlags = ActorSnapshot->SerializedActorData.GetObjectFlags()
 						// Was wrongly saved for some very old snapshots - if this causes trouble at some point ... consider just deprecating the old snapshots
