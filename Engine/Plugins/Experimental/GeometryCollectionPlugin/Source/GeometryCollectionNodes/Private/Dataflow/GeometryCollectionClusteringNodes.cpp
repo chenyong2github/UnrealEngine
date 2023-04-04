@@ -136,6 +136,7 @@ void FClusterUnclusterDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 			SelectionFacade.RemoveRootNodes(Selection);
 			if (Selection.IsEmpty())
 			{
+				SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
 				return;
 			}
 			FGeometryCollectionClusteringUtility::CollapseHierarchyOneLevel(GeomCollection.Get(), Selection);
