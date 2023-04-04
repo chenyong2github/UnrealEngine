@@ -16,21 +16,24 @@ class FModule : public IModuleInterface
 public:
 	virtual void StartupModule() override
 	{
-		FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([]()
-		{
-			FDataRegistry::Init();
-			FDecoratorRegistry::Init();
-			FNodeTemplateRegistry::Init();
-		});
+		FDataRegistry::Init();
+		FDecoratorRegistry::Init();
+		FNodeTemplateRegistry::Init();
 
-		FCoreDelegates::OnEnginePreExit.AddLambda([]()
+		EnginePreExitHandle = FCoreDelegates::OnEnginePreExit.AddLambda([]()
 		{
 			FDataRegistry::Destroy();
 			FDecoratorRegistry::Destroy();
 			FNodeTemplateRegistry::Destroy();
 		});
-		
 	}
+
+	virtual void ShutdownModule() override
+	{
+		FCoreDelegates::OnEnginePreExit.Remove(EnginePreExitHandle);
+	}
+
+	FDelegateHandle EnginePreExitHandle;
 };
 
 }
