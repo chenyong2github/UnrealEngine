@@ -4346,7 +4346,7 @@ void BuildSimulationData(Chaos::FErrorReporter& ErrorReporter, FGeometryCollecti
 void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPBDRigidsSolver* RigidSolver, const bool bUpdateViews)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_Object);
-	ensure(RigidSolver);
+	check(RigidSolver);
 	// We are updating the Collection from the InitializeBodiesPT, so we need the PT collection
 	FGeometryDynamicCollection& Collection = PhysicsThreadCollection;
 	Chaos::FPBDPositionConstraints PositionTarget;
@@ -4543,51 +4543,49 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPBDRi
 void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::FPBDRigidsSolver* RigidSolver)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ForceUpdateField_Object);
-	if (ensure(RigidSolver))
+	check(RigidSolver);
+	const int32 NumCommands = Commands.Num();
+	if (NumCommands && !RigidSolver->IsShuttingDown())
 	{
-		const int32 NumCommands = Commands.Num();
-		if (NumCommands && !RigidSolver->IsShuttingDown())
+		TArray<int32> CommandsToRemove;
+		CommandsToRemove.Reserve(NumCommands);
+
+		EFieldResolutionType PrevResolutionType = EFieldResolutionType::Field_Resolution_Max;
+		EFieldFilterType PrevFilterType = EFieldFilterType::Field_Filter_Max;
+		EFieldObjectType PrevObjectType = EFieldObjectType::Field_Object_Max;
+		EFieldPositionType PrevPositionType = EFieldPositionType::Field_Position_Max;
+
+		for (int32 CommandIndex = 0; CommandIndex < NumCommands; CommandIndex++)
 		{
-			TArray<int32> CommandsToRemove;
-			CommandsToRemove.Reserve(NumCommands);
-
-			EFieldResolutionType PrevResolutionType = EFieldResolutionType::Field_Resolution_Max;
-			EFieldFilterType PrevFilterType = EFieldFilterType::Field_Filter_Max;
-			EFieldObjectType PrevObjectType = EFieldObjectType::Field_Object_Max;
-			EFieldPositionType PrevPositionType = EFieldPositionType::Field_Position_Max;
-
-			for (int32 CommandIndex = 0; CommandIndex < NumCommands; CommandIndex++)
+			const FFieldSystemCommand& FieldCommand = Commands[CommandIndex];
+			if (IsForceFieldValid(FieldCommand))
 			{
-				const FFieldSystemCommand& FieldCommand = Commands[CommandIndex];
-				if (IsForceFieldValid(FieldCommand))
+				if (Chaos::BuildFieldSamplePoints(this, RigidSolver, FieldCommand, ExecutionDatas, PrevResolutionType, PrevFilterType, PrevObjectType, PrevPositionType))
 				{
-					if (Chaos::BuildFieldSamplePoints(this, RigidSolver, FieldCommand, ExecutionDatas, PrevResolutionType, PrevFilterType, PrevObjectType, PrevPositionType))
+					const Chaos::FReal TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
+
+					FFieldContext FieldContext(
+						ExecutionDatas,
+						FieldCommand.MetaData,
+						TimeSeconds);
+
+					TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles = ExecutionDatas.ParticleHandles[(uint8)EFieldCommandHandlesType::InsideHandles];
+
+					if (FieldCommand.RootNode->Type() == FFieldNode<FVector>::StaticType())
 					{
-						const Chaos::FReal TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
+						TArray<FVector>& FinalResults = ExecutionDatas.VectorResults[(uint8)EFieldCommandResultType::FinalResult];
+						ResetResultsArray < FVector >(ExecutionDatas.SamplePositions.Num(), FinalResults, FVector::ZeroVector);
 
-						FFieldContext FieldContext(
-							ExecutionDatas,
-							FieldCommand.MetaData,
-							TimeSeconds);
-
-						TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles = ExecutionDatas.ParticleHandles[(uint8)EFieldCommandHandlesType::InsideHandles];
-
-						if (FieldCommand.RootNode->Type() == FFieldNode<FVector>::StaticType())
-						{
-							TArray<FVector>& FinalResults = ExecutionDatas.VectorResults[(uint8)EFieldCommandResultType::FinalResult];
-							ResetResultsArray < FVector >(ExecutionDatas.SamplePositions.Num(), FinalResults, FVector::ZeroVector);
-
-							Chaos::FieldVectorForceUpdate(RigidSolver, FieldCommand, ParticleHandles,
-								FieldContext, FinalResults);
-						}
+						Chaos::FieldVectorForceUpdate(RigidSolver, FieldCommand, ParticleHandles,
+							FieldContext, FinalResults);
 					}
-					CommandsToRemove.Add(CommandIndex);
 				}
+				CommandsToRemove.Add(CommandIndex);
 			}
-			for (int32 Index = CommandsToRemove.Num() - 1; Index >= 0; --Index)
-			{
-				Commands.RemoveAt(CommandsToRemove[Index]);
-			}
+		}
+		for (int32 Index = CommandsToRemove.Num() - 1; Index >= 0; --Index)
+		{
+			Commands.RemoveAt(CommandsToRemove[Index]);
 		}
 	}
 }
