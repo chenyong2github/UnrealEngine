@@ -595,14 +595,14 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteShadingPassParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FNaniteUniformParameters, Nanite)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FOpaqueBasePassUniformParameters, BasePass)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardPassUniformParameters, CardPass)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget0UAV)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget1UAV)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget2UAV)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget3UAV)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget4UAV)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget5UAV)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget6UAV)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget7UAV)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget0)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget1)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget2)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget3)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget4)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget5)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget6)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget7)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteEmitGBufferParameters, )
@@ -1016,35 +1016,35 @@ FNaniteShadingPassParameters CreateNaniteShadingPassParams(
 			{
 				if (TargetIndex == 0)
 				{
-					Result.OutTarget0UAV = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
+					Result.OutTarget0 = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
 				}
 				else if (TargetIndex == 1)
 				{
-					Result.OutTarget1UAV = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
+					Result.OutTarget1 = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
 				}
 				else if (TargetIndex == 2)
 				{
-					Result.OutTarget2UAV = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
+					Result.OutTarget2 = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
 				}
 				else if (TargetIndex == 3)
 				{
-					Result.OutTarget3UAV = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
+					Result.OutTarget3 = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
 				}
 				else if (TargetIndex == 4)
 				{
-					Result.OutTarget4UAV = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
+					Result.OutTarget4 = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
 				}
 				else if (TargetIndex == 5)
 				{
-					Result.OutTarget5UAV = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
+					Result.OutTarget5 = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
 				}
 				else if (TargetIndex == 6)
 				{
-					Result.OutTarget6UAV = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
+					Result.OutTarget6 = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
 				}
 				else if (TargetIndex == 7)
 				{
-					Result.OutTarget7UAV = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
+					Result.OutTarget7 = GraphBuilder.CreateUAV(TargetTexture, OutTargetFlags);
 				}
 			}
 		}
@@ -1169,19 +1169,14 @@ void DispatchBasePass(
 			return OutputTargetRHI;
 		};
 
-		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget0UAV));
-		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget1UAV));
-		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget2UAV));
-		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget3UAV));
-		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget4UAV));
-		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget5UAV));
-		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget6UAV));
-		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget7UAV));
-
-		if (bSkipBarriers)
-		{
-			RHICmdList.BeginUAVOverlap(OutputTargets);
-		}
+		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget0));
+		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget1));
+		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget2));
+		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget3));
+		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget4));
+		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget5));
+		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget6));
+		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget7));
 
 		// .X = Active Shading Bin
 		// .Y = VRS Tile Size
@@ -1236,11 +1231,6 @@ void DispatchBasePass(
 			{
 				RecordShadingCommand(RHICmdList, PassData, IndirectArgsBuffer, IndirectArgStride, ViewRect, OutputTargets, *ShadingCommand);
 			}
-		}
-
-		if (bSkipBarriers)
-		{
-			RHICmdList.EndUAVOverlap(OutputTargets);
 		}
 	};
 

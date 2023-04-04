@@ -334,14 +334,14 @@ public:
 		ViewRectParam.Bind(Initializer.ParameterMap, TEXT("ViewRect"));
 		PassDataParam.Bind(Initializer.ParameterMap, TEXT("PassData"));
 
-		Target0.Bind(Initializer.ParameterMap, TEXT("OutTarget0UAV"), SPF_Optional);
-		Target1.Bind(Initializer.ParameterMap, TEXT("OutTarget1UAV"), SPF_Optional);
-		Target2.Bind(Initializer.ParameterMap, TEXT("OutTarget2UAV"), SPF_Optional);
-		Target3.Bind(Initializer.ParameterMap, TEXT("OutTarget3UAV"), SPF_Optional);
-		Target4.Bind(Initializer.ParameterMap, TEXT("OutTarget4UAV"), SPF_Optional);
-		Target5.Bind(Initializer.ParameterMap, TEXT("OutTarget5UAV"), SPF_Optional);
-		Target6.Bind(Initializer.ParameterMap, TEXT("OutTarget6UAV"), SPF_Optional);
-		Target7.Bind(Initializer.ParameterMap, TEXT("OutTarget7UAV"), SPF_Optional);
+		Target0.Bind(Initializer.ParameterMap, TEXT("OutTarget0"), SPF_Optional);
+		Target1.Bind(Initializer.ParameterMap, TEXT("OutTarget1"), SPF_Optional);
+		Target2.Bind(Initializer.ParameterMap, TEXT("OutTarget2"), SPF_Optional);
+		Target3.Bind(Initializer.ParameterMap, TEXT("OutTarget3"), SPF_Optional);
+		Target4.Bind(Initializer.ParameterMap, TEXT("OutTarget4"), SPF_Optional);
+		Target5.Bind(Initializer.ParameterMap, TEXT("OutTarget5"), SPF_Optional);
+		Target6.Bind(Initializer.ParameterMap, TEXT("OutTarget6"), SPF_Optional);
+		Target7.Bind(Initializer.ParameterMap, TEXT("OutTarget7"), SPF_Optional);
 
 		// These parameters should only be used nested in the base pass uniform buffer
 		check(!Initializer.ParameterMap.ContainsParameterAllocation(FFogUniformParameters::FTypeInfo::GetStructMetadata()->GetShaderVariableName()));

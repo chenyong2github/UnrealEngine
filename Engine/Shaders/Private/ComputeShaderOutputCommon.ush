@@ -31,22 +31,22 @@ uint4 PassData;
 
 #if PIXELSHADEROUTPUT_MRT0
 	#if DUAL_SOURCE_COLOR_BLENDING_ENABLED && MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING
-		RWTexture2D<float4> OutTarget0UAV; // DUAL_SOURCE_BLENDING_SLOT(0)
+		RWTexture2D<float4> OutTarget0; // DUAL_SOURCE_BLENDING_SLOT(0)
 	#else
-		RWTexture2D<float4> OutTarget0UAV;
+		RWTexture2D<float4> OutTarget0;
 	#endif
 #endif
 
 #if PIXELSHADEROUTPUT_MRT1
 	#if DUAL_SOURCE_COLOR_BLENDING_ENABLED && MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING
-		RWTexture2D<float4> OutTarget1UAV; // DUAL_SOURCE_BLENDING_SLOT(1)
+		RWTexture2D<float4> OutTarget1; // DUAL_SOURCE_BLENDING_SLOT(1)
 	#else
-		RWTexture2D<float4> OutTarget1UAV;
+		RWTexture2D<float4> OutTarget1;
 	#endif
 #endif
 
 #if PIXELSHADEROUTPUT_MRT2
-	RWTexture2D<float4> OutTarget2UAV;
+	RWTexture2D<float4> OutTarget2;
 #endif
 
 #if STRATA_OPAQUE_DEFERRED
@@ -70,23 +70,23 @@ uint4 PassData;
 #else // STRATA_OPAQUE_DEFERRED
 
 	#if PIXELSHADEROUTPUT_MRT3
-		RWTexture2D<float4> OutTarget3UAV;
+		RWTexture2D<float4> OutTarget3;
 	#endif
 
 	#if PIXELSHADEROUTPUT_MRT4
-		RWTexture2D<float4> OutTarget4UAV;
+		RWTexture2D<float4> OutTarget4;
 	#endif
 
 	#if PIXELSHADEROUTPUT_MRT5
-		RWTexture2D<float4> OutTarget5UAV;
+		RWTexture2D<float4> OutTarget5;
 	#endif
 
 	#if PIXELSHADEROUTPUT_MRT6
-		RWTexture2D<float4> OutTarget6UAV;
+		RWTexture2D<float4> OutTarget6;
 	#endif
 
 	#if PIXELSHADEROUTPUT_MRT7
-		RWTexture2D<float4> OutTarget7UAV;
+		RWTexture2D<float4> OutTarget7;
 	#endif
 
 #endif // STRATA_OPAQUE_DEFERRED
@@ -103,7 +103,7 @@ FPixelShaderOut ShadePixel(const uint2 PixelPos, uint QuadIndex)
 #endif
 
 	const float2 HalfPixelOffset = float2(0.5f, 0.5f);
-    const float4 SvPosition = float4(float2(PixelPos) + HalfPixelOffset, 0.0f, 1.0f);
+	const float4 SvPosition = float4(float2(PixelPos) + HalfPixelOffset, 0.0f, 1.0f);
 
 #if IS_NANITE_PASS && (PIXELSHADEROUTPUT_INTERPOLANTS || PIXELSHADEROUTPUT_BASEPASS)
 	FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
@@ -135,60 +135,7 @@ FPixelShaderOut ShadePixel(const uint2 PixelPos, uint QuadIndex)
 	return PixelShaderOut;
 }
 
-FPixelShaderOut WaveReadLaneAt(FPixelShaderOut ShadedPixel, uint SrcIndex)
-{
-	FPixelShaderOut Result = (FPixelShaderOut)0;
-
-#if PIXELSHADEROUTPUT_MRT0
-	Result.MRT[0] = WaveReadLaneAt(ShadedPixel.MRT[0], SrcIndex);
-#endif
-
-#if PIXELSHADEROUTPUT_MRT1
-	Result.MRT[1] = WaveReadLaneAt(ShadedPixel.MRT[1], SrcIndex);
-#endif
-
-#if PIXELSHADEROUTPUT_MRT2
-	Result.MRT[2] = WaveReadLaneAt(ShadedPixel.MRT[2], SrcIndex);
-#endif
-
-#if STRATA_OPAQUE_DEFERRED
-
-	Result.StrataOutput[0]		= WaveReadLaneAt(ShadedPixel.StrataOutput[0],		SrcIndex);
-	Result.StrataOutput[1]		= WaveReadLaneAt(ShadedPixel.StrataOutput[1],		SrcIndex);
-	Result.StrataOutput[2]		= WaveReadLaneAt(ShadedPixel.StrataOutput[2],		SrcIndex);
-	Result.StrataTopLayerData	= WaveReadLaneAt(ShadedPixel.StrataTopLayerData,	SrcIndex);
-
-#else // STRATA_OPAQUE_DEFERRED
-
-#if PIXELSHADEROUTPUT_MRT3
-	Result.MRT[3] = WaveReadLaneAt(ShadedPixel.MRT[3], SrcIndex);
-#endif
-
-#if PIXELSHADEROUTPUT_MRT4
-	Result.MRT[4] = WaveReadLaneAt(ShadedPixel.MRT[4], SrcIndex);
-#endif
-
-#if PIXELSHADEROUTPUT_MRT5
-	Result.MRT[5] = WaveReadLaneAt(ShadedPixel.MRT[5], SrcIndex);
-#endif
-
-#if PIXELSHADEROUTPUT_MRT6
-	Result.MRT[6] = WaveReadLaneAt(ShadedPixel.MRT[6], SrcIndex);
-#endif
-
-#if PIXELSHADEROUTPUT_MRT7
-	Result.MRT[7] = WaveReadLaneAt(ShadedPixel.MRT[7], SrcIndex);
-#endif
-
-#endif // STRATA_OPAQUE_DEFERRED
-
-	Result.Coverage	= WaveReadLaneAt(ShadedPixel.Coverage, SrcIndex);
-	Result.Depth	= WaveReadLaneAt(ShadedPixel.Depth, SrcIndex);
-
-	return Result;
-}
-
-void ExportPixel(const float2 PixelPos, FPixelShaderOut ShadedPixel)
+void ExportPixel(const uint2 PixelPos, FPixelShaderOut ShadedPixel)
 {
 #if PIXELSHADEROUTPUT_COVERAGE || PIXELSHADEROUTPUT_A2C
 	// TODO: OutCoverage = PixelShaderOut.Coverage;
@@ -199,19 +146,19 @@ void ExportPixel(const float2 PixelPos, FPixelShaderOut ShadedPixel)
 #endif 
 
 #if PIXELSHADEROUTPUT_MRT0
-	OutTarget0UAV[PixelPos] = ShadedPixel.MRT[0];
+	OutTarget0[PixelPos] = ShadedPixel.MRT[0];
 #endif
 
 #if PIXELSHADEROUTPUT_MRT1
-	OutTarget1UAV[PixelPos] = ShadedPixel.MRT[1];
+	OutTarget1[PixelPos] = ShadedPixel.MRT[1];
 #endif
 
 #if PIXELSHADEROUTPUT_MRT2
-	OutTarget2UAV[PixelPos] = ShadedPixel.MRT[2];
+	OutTarget2[PixelPos] = ShadedPixel.MRT[2];
 #endif
 
 #if PIXELSHADEROUTPUT_MRT3
-	OutTarget3UAV[PixelPos] = ShadedPixel.MRT[3];
+	OutTarget3[PixelPos] = ShadedPixel.MRT[3];
 #endif
 
 #if STRATA_OPAQUE_DEFERRED
@@ -247,19 +194,19 @@ void ExportPixel(const float2 PixelPos, FPixelShaderOut ShadedPixel)
 #else // STRATA_OPAQUE_DEFERRED
 
 #if PIXELSHADEROUTPUT_MRT4
-	OutTarget4UAV[PixelPos] = ShadedPixel.MRT[4];
+	OutTarget4[PixelPos] = ShadedPixel.MRT[4];
 #endif
 
 #if PIXELSHADEROUTPUT_MRT5
-	OutTarget5UAV[PixelPos] = ShadedPixel.MRT[5];
+	OutTarget5[PixelPos] = ShadedPixel.MRT[5];
 #endif
 
 #if PIXELSHADEROUTPUT_MRT6
-	OutTarget6UAV[PixelPos] = ShadedPixel.MRT[6];
+	OutTarget6[PixelPos] = ShadedPixel.MRT[6];
 #endif
 
 #if PIXELSHADEROUTPUT_MRT7
-	OutTarget7UAV[PixelPos] = ShadedPixel.MRT[7];
+	OutTarget7[PixelPos] = ShadedPixel.MRT[7];
 #endif
 
 #endif // STRATA_OPAQUE_DEFERRED
@@ -408,4 +355,3 @@ void MainCS(uint ThreadIndex : SV_GroupIndex, uint GroupID : SV_GroupID, uint3 G
 	// Shade and export quad
 	ProcessPixel(bActiveLane, ShadingBin, PixelPos, QuadIndex, DispatchThreadID.x, PixelCopy, HelperLaneCount);
 }
-
