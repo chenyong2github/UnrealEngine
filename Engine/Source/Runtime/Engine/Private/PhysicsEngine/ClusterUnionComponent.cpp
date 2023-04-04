@@ -19,6 +19,10 @@ UClusterUnionComponent::UClusterUnionComponent(const FObjectInitializer& ObjectI
 {
 	PhysicsProxy = nullptr;
 	SetIsReplicatedByDefault(true);
+
+#if WITH_EDITORONLY_DATA
+	bVisualizeComponent = true;
+#endif
 }
 
 FPhysScene_Chaos* UClusterUnionComponent::GetChaosScene() const
