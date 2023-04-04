@@ -71,6 +71,7 @@ namespace Chaos
 	{
 		void FPBDCollisionSolver::SolveVelocityAverage(const FSolverReal Dt)
 		{
+			// @todo(chaos): A better solution would be to add an extra manifold point into array and use it for the position solver as well.
 			FSolverReal InvM0, InvM1;
 			FSolverMatrix33 InvI0, InvI1;
 			GetDynamicMassProperties(InvM0, InvI0, InvM1, InvI1);
@@ -118,19 +119,23 @@ namespace Chaos
 				// so I don't think it matters...we could do better though if it is a problem
 				AverageManifoldPoint.NetPushOutNormal = NetPushOutNormal;
 
+				const FSolverVec3 R0xN = FSolverVec3::CrossProduct(RelativeContactPosition0, WorldContactNormal);
+				AverageManifoldPoint.ContactRxNormal0 = R0xN;
+
+				const FSolverVec3 R1xN = FSolverVec3::CrossProduct(RelativeContactPosition1, WorldContactNormal);
+				AverageManifoldPoint.ContactRxNormal1 = R1xN;
+
 				// Calculate the contact mass (and derived properties) for this point
 				FSolverVec3 WorldContactNormalAngular0 = FSolverVec3(0);
 				FSolverVec3 WorldContactNormalAngular1 = FSolverVec3(0);
 				FSolverReal ContactMassInvNormal = FSolverReal(0);
 				if (IsDynamic(0))
 				{
-					const FSolverVec3 R0xN = FSolverVec3::CrossProduct(RelativeContactPosition0, WorldContactNormal);
 					WorldContactNormalAngular0 = InvI0 * R0xN;
 					ContactMassInvNormal += FSolverVec3::DotProduct(R0xN, WorldContactNormalAngular0) + InvM0;
 				}
 				if (IsDynamic(1))
 				{
-					const FSolverVec3 R1xN = FSolverVec3::CrossProduct(RelativeContactPosition1, WorldContactNormal);
 					WorldContactNormalAngular1 = InvI1 * R1xN;
 					ContactMassInvNormal += FSolverVec3::DotProduct(R1xN, WorldContactNormalAngular1) + InvM1;
 				}
@@ -144,6 +149,10 @@ namespace Chaos
 				AverageManifoldPoint.ContactDeltaNormal = FSolverReal(0);
 				AverageManifoldPoint.ContactDeltaTangentU = FSolverReal(0);
 				AverageManifoldPoint.ContactDeltaTangentV = FSolverReal(0);
+				AverageManifoldPoint.ContactRxTangentU0 = FVec3(0);
+				AverageManifoldPoint.ContactRxTangentV0 = FVec3(0);
+				AverageManifoldPoint.ContactRxTangentU1 = FVec3(0);
+				AverageManifoldPoint.ContactRxTangentV1 = FVec3(0);
 				AverageManifoldPoint.ContactTangentUAngular0 = FSolverVec3(0);
 				AverageManifoldPoint.ContactTangentVAngular0 = FSolverVec3(0);
 				AverageManifoldPoint.ContactTangentUAngular1 = FSolverVec3(0);
@@ -178,71 +187,6 @@ namespace Chaos
 					}
 				}
 			}
-		}
-
-		//////////////////////////////////////////////////////////////////////////////////////////////////
-		//////////////////////////////////////////////////////////////////////////////////////////////////
-		//////////////////////////////////////////////////////////////////////////////////////////////////
-		//////////////////////////////////////////////////////////////////////////////////////////////////
-
-		void CachePrefetchSolver(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const int32 ConstraintIndex)
-		{
-			//if (ConstraintIndex < CollisionSolvers.Num())
-			//{
-			//	if (ConstraintIndex < CollisionSolvers.Num() - 1)
-			//	{
-			//		FPlatformMisc::PrefetchBlock(&CollisionSolvers[ConstraintIndex + 1], sizeof(Private::FPBDCollisionSolver));
-			//	}
-
-			//	const int32 NumManifoldPoints = CollisionSolvers[ConstraintIndex].NumManifoldPoints();
-			//	if (NumManifoldPoints > 0)
-			//	{
-			//		FPlatformMisc::PrefetchBlock(&CollisionSolvers[ConstraintIndex].GetManifoldPoint(0), NumManifoldPoints * sizeof(Private::FPBDCollisionSolverManifoldPoint));
-			//	}
-			//}
-		}
-
-		void FPBDCollisionSolverHelper::SolvePositionNoFriction(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const FSolverReal MaxPushOut)
-		{
-			SCOPE_CYCLE_COUNTER(STAT_SolvePositionNoFriction);
-
-			for (int32 SolverIndex = 0; SolverIndex < CollisionSolvers.Num(); ++SolverIndex)
-			{
-				CachePrefetchSolver(CollisionSolvers, SolverIndex + 1);
-
-				CollisionSolvers[SolverIndex].SolvePositionNoFriction(Dt, MaxPushOut);
-			}
-		}
-
-		void FPBDCollisionSolverHelper::SolvePositionWithFriction(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const FSolverReal MaxPushOut)
-		{
-			for (int32 SolverIndex = 0; SolverIndex < CollisionSolvers.Num(); ++SolverIndex)
-			{
-				CachePrefetchSolver(CollisionSolvers, SolverIndex + 1);
-
-				CollisionSolvers[SolverIndex].SolvePositionWithFriction(Dt, MaxPushOut);
-			}
-		}
-
-		void FPBDCollisionSolverHelper::SolveVelocity(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const bool bApplyDynamicFriction)
-		{
-			for (int32 SolverIndex = 0; SolverIndex < CollisionSolvers.Num(); ++SolverIndex)
-			{
-				CachePrefetchSolver(CollisionSolvers, SolverIndex + 1);
-
-				CollisionSolvers[SolverIndex].SolveVelocity(Dt, bApplyDynamicFriction);
-			}
-		}
-
-		void FPBDCollisionSolverHelper::CheckISPC()
-		{
-//#if INTEL_ISPC
-//			check(sizeof(ispc::FPBDCollisionSolver) == sizeof(Private::FPBDCollisionSolver));
-//			check(sizeof(ispc::FPBDCollisionSolverManifoldPoint) == sizeof(Private::FPBDCollisionSolverManifoldPoint));
-//			check(sizeof(ispc::FWorldContactPoint) == sizeof(FWorldContactPoint));
-//			check(sizeof(ispc::FConstraintSolverBody) == sizeof(FConstraintSolverBody));
-//			check(sizeof(ispc::FSolverBody) == sizeof(FSolverBody));
-//#endif
 		}
 
 	}	// namespace Private

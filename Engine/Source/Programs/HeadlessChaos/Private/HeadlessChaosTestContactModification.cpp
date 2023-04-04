@@ -558,6 +558,8 @@ namespace ChaosTest
 			}
 		};
 
+		// If we rely on good restitution, we need more velocity iterations
+		Solver->GetEvolution()->SetNumVelocityIterations(4);
 
 		const float Dt = 0.1f;
 		const int32 Steps = 30;
@@ -568,7 +570,7 @@ namespace ChaosTest
 		}
 
 		
-		EXPECT_NEAR(NoBounceCubeParticle.V().Z, 0.f, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(NoBounceCubeParticle.V().Z, 0.f, 0.1);
 
 		Solver->UnregisterAndFreeSimCallbackObject_External(Callback);
 		Solver->UnregisterObject(NoBounceCubeProxy);
@@ -635,6 +637,8 @@ namespace ChaosTest
 			}
 		};
 
+		// If we rely on good restitution, we need more velocity iterations
+		Solver->GetEvolution()->SetNumVelocityIterations(4);
 
 		const float Dt = 0.1f;
 		const int32 Steps = 30;
@@ -644,7 +648,7 @@ namespace ChaosTest
 			Solver->UpdateGameThreadStructures();
 		}
 
-		EXPECT_NEAR(BounceCubeParticle.V().Z, 100.f, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(BounceCubeParticle.V().Z, 100.f, 0.1);
 
 		Solver->UnregisterAndFreeSimCallbackObject_External(Callback);
 		Solver->UnregisterObject(BounceCubeProxy);

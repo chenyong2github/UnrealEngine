@@ -479,7 +479,8 @@ namespace ChaosTest {
 			INVARIANT_XR_END(DynamicCube);
 		}
 
-		Collisions.ApplyPushOut(Dt, 1);
+		// If we need accurate restitution we need more velocity iterations
+		Collisions.ApplyPushOut(Dt, 4);
 
 		Collisions.ScatterOutput(Dt);
 

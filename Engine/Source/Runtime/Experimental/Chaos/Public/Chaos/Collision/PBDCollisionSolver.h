@@ -32,36 +32,37 @@ namespace Chaos
 		class FPBDCollisionSolverManifoldPoint
 		{
 		public:
-			// World-space contact point relative to each particle's center of mass
-			FVec3f RelativeContactPoints[2];
+			// @todo(chaos): the contact point is only needed for SolveVelocityAverage - try to remove it
+			FSolverVec3 RelativeContactPoints[2];		// R (World-space) Contact point relative to each particle's center of mass
 
-			// World-space contact normal and tangents
-			FVec3f ContactNormal;
-			FVec3f ContactTangentU;
-			FVec3f ContactTangentV;
+			FSolverVec3 ContactNormal;					// N (World Space)
+			FSolverVec3 ContactTangentU;				// U (World Space)
+			FSolverVec3 ContactTangentV;				// V (World Space)
 
-			// Errors to correct along each of the contact axes
-			FRealSingle ContactDeltaNormal;
-			FRealSingle ContactDeltaTangentU;
-			FRealSingle ContactDeltaTangentV;
+			FSolverReal ContactDeltaNormal;				// Initial separation along N
+			FSolverReal ContactDeltaTangentU;			// Initial separation along U
+			FSolverReal ContactDeltaTangentV;			// Initial separation along V
 
-			// Target velocity along the normal direction
-			FRealSingle ContactTargetVelocityNormal;
+			FSolverReal ContactTargetVelocityNormal;	// Normal velocity target
 
-			// I^-1.(R x A) for each body where A is each axis (Normal, TangentU, TangentV)
-			FSolverVec3 ContactNormalAngular0;
-			FSolverVec3 ContactTangentUAngular0;
-			FSolverVec3 ContactTangentVAngular0;
-			FSolverVec3 ContactNormalAngular1;
-			FSolverVec3 ContactTangentUAngular1;
-			FSolverVec3 ContactTangentVAngular1;
+			FSolverVec3 ContactRxNormal0;				// R0xN
+			FSolverVec3 ContactRxNormal1;				// R1xN
+			FSolverVec3 ContactRxTangentU0;				// R0xU
+			FSolverVec3 ContactRxTangentV0;				// R0xV
+			FSolverVec3 ContactRxTangentU1;				// R1xU
+			FSolverVec3 ContactRxTangentV1;				// R1xV
 
-			// Contact mass (for non-friction)
-			FSolverReal ContactMassNormal;
-			FSolverReal ContactMassTangentU;
-			FSolverReal ContactMassTangentV;
+			FSolverVec3 ContactNormalAngular0;			// InvI0.R0xN
+			FSolverVec3 ContactTangentUAngular0;		// InvI0.R0xU
+			FSolverVec3 ContactTangentVAngular0;		// InvI0.R0xV
+			FSolverVec3 ContactNormalAngular1;			// InvI1.R1xN
+			FSolverVec3 ContactTangentUAngular1;		// InvI1.R1xU
+			FSolverVec3 ContactTangentVAngular1;		// InvI1.R1xV
 
-			// Solver outputs
+			FSolverReal ContactMassNormal;				// 1/[NxR0.InvI0.R0xN + NxR1.InvI0.R1xN + InvM0 + InvM1]
+			FSolverReal ContactMassTangentU;			// 1/[UxR0.InvI0.R0xU + UxR1.InvI0.R1xU + InvM0 + InvM1]
+			FSolverReal ContactMassTangentV;			// 1/[VxR0.InvI0.R0xV + VxR1.InvI0.R1xV + InvM0 + InvM1]
+
 			FSolverReal NetPushOutNormal;
 			FSolverReal NetPushOutTangentU;
 			FSolverReal NetPushOutTangentV;
@@ -695,9 +696,9 @@ namespace Chaos
 
 				if (IsDynamic(0))
 				{
-					const FSolverVec3 R0xN = FSolverVec3::CrossProduct(ManifoldPoint.RelativeContactPoints[0], ManifoldPoint.ContactNormal);
-					const FSolverVec3 R0xU = FSolverVec3::CrossProduct(ManifoldPoint.RelativeContactPoints[0], ManifoldPoint.ContactTangentU);
-					const FSolverVec3 R0xV = FSolverVec3::CrossProduct(ManifoldPoint.RelativeContactPoints[0], ManifoldPoint.ContactTangentV);
+					const FSolverVec3& R0xN = ManifoldPoint.ContactRxNormal0;
+					const FSolverVec3& R0xU = ManifoldPoint.ContactRxTangentU0;
+					const FSolverVec3& R0xV = ManifoldPoint.ContactRxTangentV0;
 
 					ManifoldPoint.ContactNormalAngular0 = InvI0 * R0xN;
 					ManifoldPoint.ContactTangentUAngular0 = InvI0 * R0xU;
@@ -709,9 +710,9 @@ namespace Chaos
 				}
 				if (IsDynamic(1))
 				{
-					const FSolverVec3 R1xN = FSolverVec3::CrossProduct(ManifoldPoint.RelativeContactPoints[1], ManifoldPoint.ContactNormal);
-					const FSolverVec3 R1xU = FSolverVec3::CrossProduct(ManifoldPoint.RelativeContactPoints[1], ManifoldPoint.ContactTangentU);
-					const FSolverVec3 R1xV = FSolverVec3::CrossProduct(ManifoldPoint.RelativeContactPoints[1], ManifoldPoint.ContactTangentV);
+					const FSolverVec3& R1xN = ManifoldPoint.ContactRxNormal1;
+					const FSolverVec3& R1xU = ManifoldPoint.ContactRxTangentU1;
+					const FSolverVec3& R1xV = ManifoldPoint.ContactRxTangentV1;
 
 					ManifoldPoint.ContactNormalAngular1 = InvI1 * R1xN;
 					ManifoldPoint.ContactTangentUAngular1 = InvI1 * R1xU;
@@ -747,13 +748,13 @@ namespace Chaos
 				FSolverReal ContactMassInvNormal = FSolverReal(0);
 				if (IsDynamic(0))
 				{
-					const FSolverVec3 R0xN = FSolverVec3::CrossProduct(ManifoldPoint.RelativeContactPoints[0], ManifoldPoint.ContactNormal);
+					const FSolverVec3& R0xN = ManifoldPoint.ContactRxNormal0;
 					ManifoldPoint.ContactNormalAngular0 = InvI0 * R0xN;
 					ContactMassInvNormal += FSolverVec3::DotProduct(R0xN, ManifoldPoint.ContactNormalAngular0) + InvM0;
 				}
 				if (IsDynamic(1))
 				{
-					const FSolverVec3 R1xN = FSolverVec3::CrossProduct(ManifoldPoint.RelativeContactPoints[1], ManifoldPoint.ContactNormal);
+					const FSolverVec3& R1xN = ManifoldPoint.ContactRxNormal1;
 					ManifoldPoint.ContactNormalAngular1 = InvI1 * R1xN;
 					ContactMassInvNormal += FSolverVec3::DotProduct(R1xN, ManifoldPoint.ContactNormalAngular1) + InvM1;
 				}
@@ -770,17 +771,32 @@ namespace Chaos
 			const FConstraintSolverBody& Body1 = SolverBody1();
 
 			// Linear version: calculate the contact delta assuming linear motion after applying a positional impulse at the contact point. There will be an error that depends on the size of the rotation.
-			const FSolverVec3 ContactDelta0 = Body0.DP() + FSolverVec3::CrossProduct(Body0.DQ(), ManifoldPoint.RelativeContactPoints[0]);
-			const FSolverVec3 ContactDelta1 = Body1.DP() + FSolverVec3::CrossProduct(Body1.DQ(), ManifoldPoint.RelativeContactPoints[1]);
-			const FSolverVec3 ContactDelta = ContactDelta0 - ContactDelta1;
-			OutContactDeltaNormal = ManifoldPoint.ContactDeltaNormal + FSolverVec3::DotProduct(ContactDelta, ManifoldPoint.ContactNormal);
-
-			// NOTE: OutContactDeltaNormal is negative for penetration
-			// NOTE: MaxPushOut == 0 disables the pushout limits
-			if ((MaxPushOut > 0) && (OutContactDeltaNormal < -MaxPushOut))
+			FSolverReal ContactDelta = ManifoldPoint.ContactDeltaNormal;
+			if (IsDynamic(0) && IsDynamic(1))
 			{
-				OutContactDeltaNormal = -MaxPushOut;
+				ContactDelta += FSolverVec3::DotProduct(Body0.DP() - Body1.DP(), ManifoldPoint.ContactNormal);
+				ContactDelta += FSolverVec3::DotProduct(Body0.DQ(), ManifoldPoint.ContactRxNormal0);
+				ContactDelta -= FSolverVec3::DotProduct(Body1.DQ(), ManifoldPoint.ContactRxNormal1);
 			}
+			else if (IsDynamic(0))
+			{
+				ContactDelta += FSolverVec3::DotProduct(Body0.DQ(), ManifoldPoint.ContactRxNormal0);
+				ContactDelta += FSolverVec3::DotProduct(Body0.DP(), ManifoldPoint.ContactNormal);
+			}
+			else if (IsDynamic(1))
+			{
+				ContactDelta -= FSolverVec3::DotProduct(Body1.DQ(), ManifoldPoint.ContactRxNormal1);
+				ContactDelta -= FSolverVec3::DotProduct(Body1.DP(), ManifoldPoint.ContactNormal);
+			}
+
+			// NOTE: ContactDelta is negative for penetration
+			// NOTE: MaxPushOut == 0 disables the pushout limits
+			if ((MaxPushOut > 0) && (ContactDelta < -MaxPushOut))
+			{
+				ContactDelta = -MaxPushOut;
+			}
+
+			OutContactDeltaNormal = ContactDelta;
 		}
 
 		FORCEINLINE_DEBUGGABLE void FPBDCollisionSolver::CalculateContactPositionErrorTangential(
@@ -792,11 +808,37 @@ namespace Chaos
 			const FConstraintSolverBody& Body1 = SolverBody1();
 
 			// Linear version: calculate the contact delta assuming linear motion after applying a positional impulse at the contact point. There will be an error that depends on the size of the rotation.
-			const FSolverVec3 ContactDelta0 = Body0.DP() + FSolverVec3::CrossProduct(Body0.DQ(), ManifoldPoint.RelativeContactPoints[0]);
-			const FSolverVec3 ContactDelta1 = Body1.DP() + FSolverVec3::CrossProduct(Body1.DQ(), ManifoldPoint.RelativeContactPoints[1]);
-			const FSolverVec3 ContactDelta = ContactDelta0 - ContactDelta1;
-			OutContactDeltaTangentU = ManifoldPoint.ContactDeltaTangentU + FSolverVec3::DotProduct(ContactDelta, ManifoldPoint.ContactTangentU);
-			OutContactDeltaTangentV = ManifoldPoint.ContactDeltaTangentV + FSolverVec3::DotProduct(ContactDelta, ManifoldPoint.ContactTangentV);
+			FSolverReal ContactDeltaU = ManifoldPoint.ContactDeltaTangentU;
+			FSolverReal ContactDeltaV = ManifoldPoint.ContactDeltaTangentV;
+			if (IsDynamic(0) && IsDynamic(1))
+			{
+				ContactDeltaU += FSolverVec3::DotProduct(Body0.DP() - Body1.DP(), ManifoldPoint.ContactTangentU);
+				ContactDeltaU += FSolverVec3::DotProduct(Body0.DQ(), ManifoldPoint.ContactRxTangentU0);
+				ContactDeltaU -= FSolverVec3::DotProduct(Body1.DQ(), ManifoldPoint.ContactRxTangentU1);
+				
+				ContactDeltaV += FSolverVec3::DotProduct(Body0.DP() - Body1.DP(), ManifoldPoint.ContactTangentV);
+				ContactDeltaV += FSolverVec3::DotProduct(Body0.DQ(), ManifoldPoint.ContactRxTangentV0);
+				ContactDeltaV -= FSolverVec3::DotProduct(Body1.DQ(), ManifoldPoint.ContactRxTangentV1);
+			}
+			else if (IsDynamic(0))
+			{
+				ContactDeltaU += FSolverVec3::DotProduct(Body0.DP(), ManifoldPoint.ContactTangentU);
+				ContactDeltaU += FSolverVec3::DotProduct(Body0.DQ(), ManifoldPoint.ContactRxTangentU0);
+
+				ContactDeltaV += FSolverVec3::DotProduct(Body0.DP(), ManifoldPoint.ContactTangentV);
+				ContactDeltaV += FSolverVec3::DotProduct(Body0.DQ(), ManifoldPoint.ContactRxTangentV0);
+			}
+			else if (IsDynamic(1))
+			{
+				ContactDeltaU -= FSolverVec3::DotProduct(Body1.DP(), ManifoldPoint.ContactTangentU);
+				ContactDeltaU -= FSolverVec3::DotProduct(Body1.DQ(), ManifoldPoint.ContactRxTangentU1);
+
+				ContactDeltaV -= FSolverVec3::DotProduct(Body1.DP(), ManifoldPoint.ContactTangentV);
+				ContactDeltaV -= FSolverVec3::DotProduct(Body1.DQ(), ManifoldPoint.ContactRxTangentV1);
+			}
+
+			OutContactDeltaTangentU = ContactDeltaU;
+			OutContactDeltaTangentV = ContactDeltaV;
 		}
 
 		FORCEINLINE_DEBUGGABLE void FPBDCollisionSolver::CalculateContactVelocityError(
@@ -804,22 +846,32 @@ namespace Chaos
 			const FSolverReal DynamicFriction,
 			const FSolverReal Dt,
 			FSolverReal& OutContactVelocityDeltaNormal,
-			FSolverReal& OutContactVelocityDeltaTangent0,
-			FSolverReal& OutContactVelocityDeltaTangent1) const
+			FSolverReal& OutContactVelocityDeltaTangentU,
+			FSolverReal& OutContactVelocityDeltaTangentV) const
 		{
 			const FConstraintSolverBody& Body0 = SolverBody0();
 			const FConstraintSolverBody& Body1 = SolverBody1();
 
-			const FSolverVec3 ContactVelocity0 = Body0.V() + FSolverVec3::CrossProduct(Body0.W(), ManifoldPoint.RelativeContactPoints[0]);
-			const FSolverVec3 ContactVelocity1 = Body1.V() + FSolverVec3::CrossProduct(Body1.W(), ManifoldPoint.RelativeContactPoints[1]);
-			const FSolverVec3 ContactVelocity = ContactVelocity0 - ContactVelocity1;
-			const FSolverReal ContactVelocityNormal = FSolverVec3::DotProduct(ContactVelocity, ManifoldPoint.ContactNormal);
-			const FSolverReal ContactVelocityTangent0 = FSolverVec3::DotProduct(ContactVelocity, ManifoldPoint.ContactTangentU);
-			const FSolverReal ContactVelocityTangent1 = FSolverVec3::DotProduct(ContactVelocity, ManifoldPoint.ContactTangentV);
+			FSolverReal ContactVelN = -ManifoldPoint.ContactTargetVelocityNormal;
+			FSolverReal ContactVelU = FSolverReal(0);
+			FSolverReal ContactVelV = FSolverReal(0);
 
-			OutContactVelocityDeltaNormal = (ContactVelocityNormal - ManifoldPoint.ContactTargetVelocityNormal);
-			OutContactVelocityDeltaTangent0 = ContactVelocityTangent0;
-			OutContactVelocityDeltaTangent1 = ContactVelocityTangent1;
+			// @todo(chaos): check for static or stationary kinematics?
+			ContactVelN += FSolverVec3::DotProduct(Body0.V() - Body1.V(), ManifoldPoint.ContactNormal);
+			ContactVelN += FSolverVec3::DotProduct(Body0.W(), ManifoldPoint.ContactRxNormal0);
+			ContactVelN -= FSolverVec3::DotProduct(Body1.W(), ManifoldPoint.ContactRxNormal1);
+
+			ContactVelU += FSolverVec3::DotProduct(Body0.V() - Body1.V(), ManifoldPoint.ContactTangentU);
+			ContactVelU += FSolverVec3::DotProduct(Body0.W(), ManifoldPoint.ContactRxTangentU0);
+			ContactVelU -= FSolverVec3::DotProduct(Body1.W(), ManifoldPoint.ContactRxTangentU1);
+
+			ContactVelV += FSolverVec3::DotProduct(Body0.V() - Body1.V(), ManifoldPoint.ContactTangentV);
+			ContactVelV += FSolverVec3::DotProduct(Body0.W(), ManifoldPoint.ContactRxTangentV0);
+			ContactVelV -= FSolverVec3::DotProduct(Body1.W(), ManifoldPoint.ContactRxTangentV1);
+
+			OutContactVelocityDeltaNormal = ContactVelN;
+			OutContactVelocityDeltaTangentU = ContactVelU;
+			OutContactVelocityDeltaTangentV = ContactVelV;
 		}
 
 		FORCEINLINE_DEBUGGABLE void FPBDCollisionSolver::CalculateContactVelocityErrorNormal(
@@ -829,13 +881,12 @@ namespace Chaos
 			const FConstraintSolverBody& Body0 = SolverBody0();
 			const FConstraintSolverBody& Body1 = SolverBody1();
 
-			const FSolverVec3 ContactVelocity0 = Body0.V() + FSolverVec3::CrossProduct(Body0.W(), ManifoldPoint.RelativeContactPoints[0]);
-			const FSolverVec3 ContactVelocity1 = Body1.V() + FSolverVec3::CrossProduct(Body1.W(), ManifoldPoint.RelativeContactPoints[1]);
-			const FSolverVec3 ContactVelocity = ContactVelocity0 - ContactVelocity1;
-			const FSolverReal ContactVelocityNormal = FSolverVec3::DotProduct(ContactVelocity, ManifoldPoint.ContactNormal);
+			FSolverReal ContactVelN = -ManifoldPoint.ContactTargetVelocityNormal;
+			ContactVelN += FSolverVec3::DotProduct(Body0.V() - Body1.V(), ManifoldPoint.ContactNormal);
+			ContactVelN += FSolverVec3::DotProduct(Body0.W(), ManifoldPoint.ContactRxNormal0);
+			ContactVelN -= FSolverVec3::DotProduct(Body1.W(), ManifoldPoint.ContactRxNormal1);
 
-			// Add up the errors in the velocity (current velocity - desired velocity)
-			OutContactVelocityDeltaNormal = (ContactVelocityNormal - ManifoldPoint.ContactTargetVelocityNormal);
+			OutContactVelocityDeltaNormal = ContactVelN;
 		}
 
 		FORCEINLINE_DEBUGGABLE bool FPBDCollisionSolver::ShouldSolveVelocity(
@@ -862,6 +913,7 @@ namespace Chaos
 
 			ManifoldPoint.RelativeContactPoints[0] = InRelativeContactPosition0;
 			ManifoldPoint.RelativeContactPoints[1] = InRelativeContactPosition1;
+
 			ManifoldPoint.ContactNormal = InWorldContactNormal;
 			ManifoldPoint.ContactTangentU = InWorldContactTangentU;
 			ManifoldPoint.ContactTangentV = InWorldContactTangentV;
@@ -869,6 +921,13 @@ namespace Chaos
 			ManifoldPoint.ContactDeltaTangentU = InWorldContactDeltaTangentU;
 			ManifoldPoint.ContactDeltaTangentV = InWorldContactDeltaTangentV;
 			ManifoldPoint.ContactTargetVelocityNormal = InWorldContactVelocityTargetNormal;
+
+			ManifoldPoint.ContactRxNormal0 = FSolverVec3::CrossProduct(InRelativeContactPosition0, InWorldContactNormal);
+			ManifoldPoint.ContactRxTangentU0 = FSolverVec3::CrossProduct(InRelativeContactPosition0, InWorldContactTangentU);
+			ManifoldPoint.ContactRxTangentV0 = FSolverVec3::CrossProduct(InRelativeContactPosition0, InWorldContactTangentV);
+			ManifoldPoint.ContactRxNormal1 = FSolverVec3::CrossProduct(InRelativeContactPosition1, InWorldContactNormal);
+			ManifoldPoint.ContactRxTangentU1 = FSolverVec3::CrossProduct(InRelativeContactPosition1, InWorldContactTangentU);
+			ManifoldPoint.ContactRxTangentV1 = FSolverVec3::CrossProduct(InRelativeContactPosition1, InWorldContactTangentV);
 
 			ManifoldPoint.NetPushOutNormal = FSolverReal(0);
 			ManifoldPoint.NetPushOutTangentU = FSolverReal(0);
@@ -1038,24 +1097,6 @@ namespace Chaos
 				}
 			}
 		}
-
-		//////////////////////////////////////////////////////////////////////////////////////////////////
-		//////////////////////////////////////////////////////////////////////////////////////////////////
-		//////////////////////////////////////////////////////////////////////////////////////////////////
-		//////////////////////////////////////////////////////////////////////////////////////////////////
-
-		/**
-		 * A helper for solving arrays of constraints
-		 */
-		class FPBDCollisionSolverHelper
-		{
-		public:
-			static void SolvePositionNoFriction(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const FSolverReal MaxPushOut);
-			static void SolvePositionWithFriction(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const FSolverReal MaxPushOut);
-			static void SolveVelocity(const TArrayView<FPBDCollisionSolver>& CollisionSolvers, const FSolverReal Dt, const bool bApplyDynamicFriction);
-
-			static void CheckISPC();
-		};
 
 	}	// namespace Private
 }	// namespace Chaos

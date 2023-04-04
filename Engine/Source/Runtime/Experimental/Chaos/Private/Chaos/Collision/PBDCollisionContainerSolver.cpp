@@ -293,9 +293,6 @@ namespace Chaos
 		, bCollisionConstraintPerIterationCollisionDetection()
 		, bPerIterationCollisionDetection(false)
 	{
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST && INTEL_ISPC
-		Private::FPBDCollisionSolverHelper::CheckISPC();
-#endif
 	}
 
 	FPBDCollisionContainerSolver::~FPBDCollisionContainerSolver()
@@ -532,17 +529,17 @@ namespace Chaos
 		ApplyShockPropagation(ShockPropagation);
 	}
 
-	bool FPBDCollisionContainerSolver::SolvePositionImpl(const FReal InDt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
+	void FPBDCollisionContainerSolver::SolvePositionImpl(const FReal InDt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Apply);
 		if (!CVars::bChaos_PBDCollisionSolver_Position_SolveEnabled)
 		{
-			return false;
+			return;
 		}
 
 		if (EndIndex <= BeginIndex)
 		{
-			return false;
+			return;
 		}
 
 		UpdatePositionShockPropagation(InDt, It, NumIts, BeginIndex, EndIndex, SolverSettings);
@@ -565,27 +562,31 @@ namespace Chaos
 		// Apply the position correction
 		if (bApplyStaticFriction)
 		{
-			Private::FPBDCollisionSolverHelper::SolvePositionWithFriction(MakeArrayView(&GetSolver(BeginIndex), EndIndex - BeginIndex), Dt, MaxPushOut);
+			for (int32 SolverIndex = 0; SolverIndex < NumSolvers(); ++SolverIndex)
+			{
+				CollisionSolvers[SolverIndex].SolvePositionWithFriction(Dt, MaxPushOut);
+			}
 		}
 		else
 		{
-			Private::FPBDCollisionSolverHelper::SolvePositionNoFriction(MakeArrayView(&GetSolver(BeginIndex), EndIndex - BeginIndex), Dt, MaxPushOut);
+			for (int32 SolverIndex = 0; SolverIndex < NumSolvers(); ++SolverIndex)
+			{
+				CollisionSolvers[SolverIndex].SolvePositionNoFriction(Dt, MaxPushOut);
+			}
 		}
-
-		return true;
 	}
 
-	bool FPBDCollisionContainerSolver::SolveVelocityImpl(const FReal InDt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
+	void FPBDCollisionContainerSolver::SolveVelocityImpl(const FReal InDt, const int32 It, const int32 NumIts, const int32 BeginIndex, const int32 EndIndex, const FPBDCollisionSolverSettings& SolverSettings)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_ApplyPushOut);
 		if (!CVars::bChaos_PBDCollisionSolver_Velocity_SolveEnabled)
 		{
-			return false;
+			return;
 		}
 
 		if (EndIndex <= BeginIndex)
 		{
-			return false;
+			return;
 		}
 
 		UpdateVelocityShockPropagation(InDt, It, NumIts, BeginIndex, EndIndex, SolverSettings);
@@ -593,9 +594,10 @@ namespace Chaos
 		const FSolverReal Dt = FSolverReal(InDt);
 		const bool bApplyDynamicFriction = (It >= NumIts - SolverSettings.NumVelocityFrictionIterations);
 
-		Private::FPBDCollisionSolverHelper::SolveVelocity(MakeArrayView(&GetSolver(BeginIndex), EndIndex - BeginIndex), Dt, bApplyDynamicFriction);
-
-		return true;
+		for (int32 SolverIndex = 0; SolverIndex < NumSolvers(); ++SolverIndex)
+		{
+			CollisionSolvers[SolverIndex].SolveVelocity(Dt, bApplyDynamicFriction);
+		}
 	}
 
 	void FPBDCollisionContainerSolver::UpdateCollisions(const FReal InDt, const int32 BeginIndex, const int32 EndIndex)
