@@ -539,11 +539,8 @@ static void DDC1_StoreClassicTextureInDerivedData(
 	for (int32 MipIndex = 0; MipIndex < MipCount; ++MipIndex)
 	{
 		const FCompressedImage2D& CompressedImage = CompressedMips[MipIndex];
-		FTexture2DMipMap* NewMip = new FTexture2DMipMap();
+		FTexture2DMipMap* NewMip = new FTexture2DMipMap(CompressedImage.SizeX, CompressedImage.SizeY, CompressedImage.SizeZ);
 		DerivedData->Mips.Add(NewMip);
-		NewMip->SizeX = CompressedImage.SizeX;
-		NewMip->SizeY = CompressedImage.SizeY;
-		NewMip->SizeZ = CompressedImage.SizeZ;
 		NewMip->FileRegionType = FFileRegion::SelectType(EPixelFormat(CompressedImage.PixelFormat));
 		check(NewMip->SizeZ == 1 || bVolume || bTextureArray); // Only volume & arrays can have SizeZ != 1
 
@@ -2113,14 +2110,11 @@ static bool UnpackPlatformDataFromBuild(FTexturePlatformData& OutPlatformData, U
 	uint64 CurrentMipTailOffset = 0;
 	for (int32 MipIndex = 0; MipIndex < EncodedTextureDescription.NumMips; MipIndex++)
 	{
-		FTexture2DMipMap* NewMip = new FTexture2DMipMap();
+		const FIntVector3 MipDims = EncodedTextureDescription.GetMipDimensions(MipIndex);
+		FTexture2DMipMap* NewMip = new FTexture2DMipMap(MipDims.X, MipDims.Y, MipDims.Z);
 		OutPlatformData.Mips.Add(NewMip);
 
 		NewMip->FileRegionType = FileRegion;
-		FIntVector3 MipDims = EncodedTextureDescription.GetMipDimensions(MipIndex);
-		NewMip->SizeX = MipDims.X;
-		NewMip->SizeY = MipDims.Y;
-		NewMip->SizeZ = MipDims.Z;
 		if (EncodedTextureDescription.bTextureArray)
 		{
 			// FTexture2DMipMap expects SizeZ to be the array count, potentially with cubemap slices.

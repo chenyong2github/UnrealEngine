@@ -233,7 +233,7 @@ FORCEINLINE bool AnimToTexture_Private::WriteToTexture(
 	FTexture2DMipMap* Mip;
 	if (PlatformData->Mips.IsEmpty())
 	{
-		Mip = new FTexture2DMipMap();
+		Mip = new FTexture2DMipMap(0, 0);
 		PlatformData->Mips.Add(Mip);
 	}
 	else

@@ -542,10 +542,8 @@ static UTexture2D* CreateCardTexture(FIntPoint Resolution)
 		const uint32 MipResolutionY = Resolution.Y >> MipIt;
 		const uint32 SizeInBytes = sizeof(float) * MipResolutionX * MipResolutionY;
 
-		FTexture2DMipMap* MipMap = new FTexture2DMipMap();
+		FTexture2DMipMap* MipMap = new FTexture2DMipMap(MipResolutionX, MipResolutionY);
 		Out->GetPlatformData()->Mips.Add(MipMap);
-		MipMap->SizeX = MipResolutionX;
-		MipMap->SizeY = MipResolutionY;
 		MipMap->BulkData.Lock(LOCK_READ_WRITE);
 		float* MipMemory = (float*)MipMap->BulkData.Realloc(SizeInBytes);
 		for (uint32 Y = 0; Y < MipResolutionY; Y++)

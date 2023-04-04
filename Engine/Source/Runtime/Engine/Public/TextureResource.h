@@ -43,21 +43,24 @@ struct IPooledRenderTarget;
  */
 struct FTexture2DMipMap
 {
-	/** Width of the mip-map. */
-	int32 SizeX = 0;
-	/** Height of the mip-map. */
-	int32 SizeY = 0;
-	/** Depth of the mip-map. */
-	int32 SizeZ = 0;
-
 	/** Reference to the data for the mip if it can be streamed. */
 	UE::FDerivedData DerivedData;
-
 	/** Stores the data for the mip when it is loaded. */
 	FByteBulkData BulkData;
 
+	/** Width of the mip-map. */
+	uint16 SizeX;
+	/** Height of the mip-map. */
+	uint16 SizeY;
+	/** Depth of the mip-map. */
+	uint16 SizeZ;
+
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FTexture2DMipMap() = default;
+	FTexture2DMipMap(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ = 0)
+		: SizeX(InSizeX), SizeY(InSizeY), SizeZ(InSizeZ)
+	{
+		check(InSizeX <= 0xFFFF && InSizeY <= 0xFFFF && InSizeZ <= 0xFFFF);
+	}
 	FTexture2DMipMap(FTexture2DMipMap&&) = default;
 	FTexture2DMipMap(const FTexture2DMipMap&) = default;
 	FTexture2DMipMap& operator=(FTexture2DMipMap&&) = default;

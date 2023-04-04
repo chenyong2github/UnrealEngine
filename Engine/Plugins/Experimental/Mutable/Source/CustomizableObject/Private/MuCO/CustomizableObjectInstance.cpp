@@ -3061,11 +3061,6 @@ FTexturePlatformData* UCustomizableInstancePrivateData::MutableCreateImagePlatfo
 	{
 		int32 MipLevelMutable = MipLevelUE - MipsToSkip;		
 
-		PlatformData->Mips.Add(new FTexture2DMipMap());
-		FTexture2DMipMap* Mip = &PlatformData->Mips.Last(); //new(Texture->PlatformData->Mips) FTexture2DMipMap();
-		Mip->SizeX = SizeX;
-		Mip->SizeY = SizeY;
-
 		// Unlike Mutable, UE expects MIPs sizes to be at least the size of the compression block.
 		// For example, a 8x8 PF_DXT1 texture will have the following MIPs:
 		// Mutable    Unreal Engine
@@ -3075,9 +3070,10 @@ FTexturePlatformData* UCustomizableInstancePrivateData::MutableCreateImagePlatfo
 		// 1x1        4x4
 		//
 		// Notice that even though Mutable reports MIP smaller than the block size, the actual data contains at least a block.
-		Mip->SizeX = FMath::Max(Mip->SizeX, GPixelFormats[PlatformFormat].BlockSizeX);
-		Mip->SizeY = FMath::Max(Mip->SizeY, GPixelFormats[PlatformFormat].BlockSizeY);
+		FTexture2DMipMap* Mip = new FTexture2DMipMap( FMath::Max(SizeX, GPixelFormats[PlatformFormat].BlockSizeX)
+													, FMath::Max(SizeY, GPixelFormats[PlatformFormat].BlockSizeY));
 
+		PlatformData->Mips.Add(Mip);
 		if(MipLevelUE >= MipsToSkip || OnlyLOD>=0)
 		{
 			check(MipLevelMutable >= 0);

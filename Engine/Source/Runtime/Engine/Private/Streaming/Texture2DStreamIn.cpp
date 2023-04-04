@@ -128,8 +128,8 @@ void FTexture2DStreamIn::DoAsyncCreateWithNewMips(const FContext& Context)
 		const FTexture2DMipMap& RequestedMipMap = *Context.MipsView[PendingFirstLODIdx];
 
 		// old textures have sizes padded up to multiple of 4; that's wrong, should be real size unpadded
-		check( RequestedMipMap.SizeX == FMath::Max(1, Context.MipsView[0]->SizeX >> PendingFirstLODIdx) );
-		check( RequestedMipMap.SizeY == FMath::Max(1, Context.MipsView[0]->SizeY >> PendingFirstLODIdx) );
+		check( RequestedMipMap.SizeX == FMath::Max(1, (int32)Context.MipsView[0]->SizeX >> PendingFirstLODIdx) );
+		check( RequestedMipMap.SizeY == FMath::Max(1, (int32)Context.MipsView[0]->SizeY >> PendingFirstLODIdx) );
 
 		check( PendingFirstLODIdx+ResourceState.NumRequestedLODs <= MipData.Num() );
 

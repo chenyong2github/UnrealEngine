@@ -2241,11 +2241,11 @@ int64 FTexturePlatformData::GetPayloadSize(int32 MipBias) const
 	{
 		for (int32 MipIndex = MipBias; MipIndex < Mips.Num(); MipIndex++)
 		{
-			int32 BlockSizeX = FMath::DivideAndRoundUp(Mips[MipIndex].SizeX, GPixelFormats[PixelFormat].BlockSizeX);
-			int32 BlockSizeY = FMath::DivideAndRoundUp(Mips[MipIndex].SizeY, GPixelFormats[PixelFormat].BlockSizeY);
+			int32 BlockSizeX = FMath::DivideAndRoundUp((int32)Mips[MipIndex].SizeX, GPixelFormats[PixelFormat].BlockSizeX);
+			int32 BlockSizeY = FMath::DivideAndRoundUp((int32)Mips[MipIndex].SizeY, GPixelFormats[PixelFormat].BlockSizeY);
 			// for TextureCube and TextureCubeArray all the mipmaps contain the same number of slices, which is encoded in the PackedData member
 			// at the same time we can not just use SizeZ of a TextureCube mipmap, because for compatibility reasons it is always set to 1 and not 6 (which is the actual number of slices)
-			int32 BlockSizeZ = FMath::DivideAndRoundUp(FMath::Max(IsCubemap() ? GetNumSlices() : Mips[MipIndex].SizeZ, 1), GPixelFormats[PixelFormat].BlockSizeZ);
+			int32 BlockSizeZ = FMath::DivideAndRoundUp(FMath::Max(IsCubemap() ? GetNumSlices() : (int32)Mips[MipIndex].SizeZ, 1), GPixelFormats[PixelFormat].BlockSizeZ);
 			PayloadSize += (int64)GPixelFormats[PixelFormat].BlockBytes * BlockSizeX * BlockSizeY * BlockSizeZ;
 		}
 	}
@@ -2637,7 +2637,7 @@ static void SerializePlatformData(
 				PlatformData->Mips.Empty(NumMips);
 				for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
 				{
-					PlatformData->Mips.Add(new FTexture2DMipMap());
+					PlatformData->Mips.Add(new FTexture2DMipMap(0, 0));
 					PlatformData->Mips.Last().BulkData.RemoveBulkData();
 				}
 			}
@@ -2802,7 +2802,7 @@ static void SerializePlatformData(
 		PlatformData->Mips.Empty(NumMips);
 		for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
 		{
-			PlatformData->Mips.Add(new FTexture2DMipMap());
+			PlatformData->Mips.Add(new FTexture2DMipMap(0, 0));
 		}
 	}
 
