@@ -460,7 +460,7 @@ void UMaterialGraph::LinkGraphNodesFromMaterial()
 				{
 					InputPin->MakeLinkTo(GraphNode->GetOutputPin(GetValidOutputIndex(&ExpressionInput)));
 				}
-				else if (UMaterialExpressionReroute* CompositeReroute = CastChecked<UMaterialExpressionReroute>(ExpressionInput.Expression))
+				else if (UMaterialExpressionReroute* CompositeReroute = Cast<UMaterialExpressionReroute>(ExpressionInput.Expression))
 				{
 					// This is an unseen composite reroute expression, find the actual expression output to connect to.
 					UMaterialExpressionComposite* OwningComposite = CastChecked<UMaterialExpressionComposite>(CompositeReroute->SubgraphExpression);
