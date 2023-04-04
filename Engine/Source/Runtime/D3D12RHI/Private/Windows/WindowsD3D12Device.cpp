@@ -37,6 +37,7 @@
 #include "HardwareInfo.h"
 #include "IHeadMountedDisplayModule.h"
 #include "GenericPlatform/GenericPlatformDriver.h"			// FGPUDriverInfo
+#include "RHIValidation.h"
 #include "RHIUtilities.h"
 
 #include "ShaderCompiler.h"
@@ -1069,6 +1070,12 @@ FDynamicRHI* FD3D12DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 	UE_LOG(LogD3D12RHI, Display, TEXT("Creating D3D12 RHI with Max Feature Level %s"), *FeatureLevelString);
 
 	GD3D12RHI = new FD3D12DynamicRHI(ChosenAdapters, bPixEventEnabled);
+#if ENABLE_RHI_VALIDATION
+	if (FParse::Param(FCommandLine::Get(), TEXT("RHIValidation")))
+	{
+		return new FValidationRHI(GD3D12RHI);
+	}
+#endif
 	return GD3D12RHI;
 }
 

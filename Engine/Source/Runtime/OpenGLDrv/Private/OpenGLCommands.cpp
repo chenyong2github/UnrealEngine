@@ -3107,11 +3107,8 @@ void FOpenGLDynamicRHI::RHIPostExternalCommandsReset()
 	}
 }
 
-#if WITH_FIXED_RHI_CLASS
+#if PLATFORM_USES_FIXED_RHI_CLASS
+#define INTERNAL_DECORATOR(Method) ((FOpenGLDynamicRHI&)CmdList.GetContext()).FOpenGLDynamicRHI::Method
+#include "RHICommandListCommandExecutes.inl"
+#endif
 
-	#define INTERNAL_DECORATOR(Method)         ((FOpenGLDynamicRHI&)CmdList.GetContext()       ).FOpenGLDynamicRHI::Method
-	#define INTERNAL_DECORATOR_COMPUTE(Method) ((FOpenGLDynamicRHI&)CmdList.GetComputeContext()).FOpenGLDynamicRHI::Method
-
-	#include "RHICommandListCommandExecutes.inl"
-
-#endif // WITH_FIXED_RHI_CLASS

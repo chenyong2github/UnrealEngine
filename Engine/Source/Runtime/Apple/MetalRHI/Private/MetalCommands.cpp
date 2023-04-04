@@ -602,11 +602,7 @@ void FMetalRHICommandContext::RHIDiscardRenderTargets(bool Depth, bool Stencil, 
 	Context->GetCurrentState().DiscardRenderTargets(Depth, Stencil, ColorBitMask);
 }
 
-#if WITH_FIXED_RHI_CLASS
-
-	#define INTERNAL_DECORATOR(Method)         ((FMetalRHICommandContext&)CmdList.GetContext()       ).FMetalRHICommandContext::Method
-	#define INTERNAL_DECORATOR_COMPUTE(Method) ((FMetalRHICommandContext&)CmdList.GetComputeContext()).FMetalRHICommandContext::Method
-
-	#include "RHICommandListCommandExecutes.inl"
-
-#endif // WITH_FIXED_RHI_CLASS
+#if PLATFORM_USES_FIXED_RHI_CLASS
+#define INTERNAL_DECORATOR(Method) ((FMetalRHICommandContext&)CmdList.GetContext()).FMetalRHICommandContext::Method
+#include "RHICommandListCommandExecutes.inl"
+#endif

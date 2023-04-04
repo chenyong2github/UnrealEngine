@@ -23,6 +23,7 @@
 #include "IHeadMountedDisplayModule.h"
 #include "GenericPlatform/GenericPlatformDriver.h"			// FGPUDriverInfo
 #include "GenericPlatform/GenericPlatformCrashContext.h"
+#include "RHIValidation.h"
 #include "RHIUtilities.h"
 #include "HAL/ExceptionHandling.h"
 #include "HDRHelper.h"
@@ -1206,6 +1207,13 @@ FDynamicRHI* FD3D11DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 
 	GD3D11RHI = new FD3D11DynamicRHI(DXGIFactory1, ChosenAdapter.MaxSupportedFeatureLevel,ChosenAdapter);
 	FDynamicRHI* FinalRHI = GD3D11RHI;
+
+#if ENABLE_RHI_VALIDATION
+	if (FParse::Param(FCommandLine::Get(), TEXT("RHIValidation")))
+	{
+		FinalRHI = new FValidationRHI(FinalRHI);
+	}
+#endif
 
 	FGenericCrashContext::SetEngineData(TEXT("RHI.IntegratedGPU"), ChosenAdapter.bIsIntegrated ? TEXT("true") : TEXT("false"));
 

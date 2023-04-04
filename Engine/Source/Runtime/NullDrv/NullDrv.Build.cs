@@ -2,7 +2,6 @@
 
 using UnrealBuildTool;
 
-[RHIModule]
 public class NullDrv : ModuleRules
 {
 	public NullDrv(ReadOnlyTargetRules Target) : base(Target)

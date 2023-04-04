@@ -1372,18 +1372,6 @@ namespace UnrealBuildTool
 			}
 		}
 
-		/// <summary>
-		/// Used to indicate a given UE module implements an RHI
-		/// </summary>
-		[AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
-		protected sealed class RHIModuleAttribute : Attribute
-		{}
-
-		/// <summary>
-		/// True if this UE module implements an RHI.
-		/// </summary>
-		public bool IsRHIModule => Attribute.IsDefined(GetType(), typeof(RHIModuleAttribute));
-
 #nullable disable
 		/// <summary>
 		/// Constructor. For backwards compatibility while the parameterless constructor is being phased out, initialization which would happen here is done by 

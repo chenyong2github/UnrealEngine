@@ -1762,12 +1762,3 @@ void FD3D11DynamicRHI::RHIUnlockStagingBuffer(FRHIStagingBuffer* StagingBufferRH
 	FD3D11StagingBuffer* StagingBuffer = ResourceCast(StagingBufferRHI);
 	StagingBuffer->Unlock();
 }
-
-#if WITH_FIXED_RHI_CLASS
-
-	#define INTERNAL_DECORATOR(Method)         ((FD3D11DynamicRHI&)CmdList.GetContext()       ).FD3D11DynamicRHI::Method
-	#define INTERNAL_DECORATOR_COMPUTE(Method) ((FD3D11DynamicRHI&)CmdList.GetComputeContext()).FD3D11DynamicRHI::Method
-
-	#include "RHICommandListCommandExecutes.inl"
-
-#endif // WITH_FIXED_RHI_CLASS

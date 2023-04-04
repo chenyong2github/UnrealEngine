@@ -32,7 +32,7 @@ UE_TRACE_CHANNEL_DEFINE(RHICommandsChannel);
 bool FScopedUniformBufferStaticBindings::bRecursionGuard = false;
 #endif
 
-#if !WITH_FIXED_RHI_CLASS
+#if !PLATFORM_USES_FIXED_RHI_CLASS
 #include "RHICommandListCommandExecutes.inl"
 #endif
 

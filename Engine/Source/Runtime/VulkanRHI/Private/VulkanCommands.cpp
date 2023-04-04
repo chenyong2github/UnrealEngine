@@ -981,13 +981,3 @@ void FVulkanDynamicRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList
 		delete PlatformCmdList;
 	}
 }
-
-#if WITH_FIXED_RHI_CLASS
-
-	#define INTERNAL_DECORATOR(Method)         ((FVulkanCommandListContext&)CmdList.GetContext()       ).FVulkanCommandListContext::Method
-	#define INTERNAL_DECORATOR_COMPUTE(Method) ((FVulkanCommandListContext&)CmdList.GetComputeContext()).FVulkanCommandListContext::Method
-
-	#include "RHICommandListCommandExecutes.inl"
-
-#endif // WITH_FIXED_RHI_CLASS
-

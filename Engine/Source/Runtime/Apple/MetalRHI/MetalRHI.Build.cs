@@ -3,7 +3,6 @@
 using System.IO;
 using UnrealBuildTool;
 
-[RHIModule]
 public class MetalRHI : ModuleRules
 {	
 	public MetalRHI(ReadOnlyTargetRules Target) : base(Target)

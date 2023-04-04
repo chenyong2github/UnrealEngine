@@ -4850,26 +4850,6 @@ namespace UnrealBuildTool
 			// Set the global app name
 			GlobalCompileEnvironment.Definitions.Add(String.Format("UE_APP_NAME=\"{0}\"", AppName));
 
-			// Configure RHI related global definitions
-			var RHIModules = Modules.Values.Where(m => m.Rules.IsRHIModule).ToList();
-
-			bool bAllowRHIValidation =
-				Rules.Configuration == UnrealTargetConfiguration.Debug ||
-				Rules.Configuration == UnrealTargetConfiguration.DebugGame ||
-				Rules.Configuration == UnrealTargetConfiguration.Development;
-
-			if (bAllowRHIValidation)
-			{
-				GlobalCompileEnvironment.Definitions.Add($"WITH_FIXED_RHI_CLASS=0");
-				GlobalCompileEnvironment.Definitions.Add($"ENABLE_RHI_VALIDATION=1");
-			}
-			else
-			{
-				GlobalCompileEnvironment.Definitions.Add($"WITH_FIXED_RHI_CLASS={(RHIModules.Count == 1 ? 1 : 0)}");
-				GlobalCompileEnvironment.Definitions.Add($"ENABLE_RHI_VALIDATION=0");
-			}
-			GlobalCompileEnvironment.Definitions.Add($"WITH_NULL_RHI={(RHIModules.Any(m => m.Name == "NullDrv") ? 1 : 0)}");
-
 			// Add global definitions for project-specific binaries. HACK: Also defining for monolithic builds in binary releases. Might be better to set this via command line instead?
 			if (!bUseSharedBuildEnvironment || bCompileMonolithic)
 			{

@@ -2,6 +2,7 @@
 
 #include "D3D12RHIPrivate.h"
 #include "D3D12CommandList.h"
+#include "RHIValidation.h"
 
 static int32 GD3D12BatchResourceBarriers = 1;
 static FAutoConsoleVariableRef CVarD3D12BatchResourceBarriers(

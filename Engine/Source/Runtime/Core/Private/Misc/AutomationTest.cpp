@@ -662,9 +662,12 @@ void FAutomationTestFramework::GetValidTestNames( TArray<FAutomationTestInfo>& T
 
 	//Feature support - assume valid RHI until told otherwise
 	uint32 FeatureSupportFlags = EAutomationTestFlags::FeatureMask;
+	// @todo: Handle this correctly. GIsUsingNullRHI is defined at Engine-level, so it can't be used directly here in Core.
+	// For now, assume Null RHI is only used for commandlets, servers, and when the command line specifies to use it.
 	if (FPlatformProperties::SupportsWindowedMode())
 	{
-		if (!FApp::CanEverRender())
+		bool bUsingNullRHI = FParse::Param( FCommandLine::Get(), TEXT("nullrhi") ) || IsRunningCommandlet() || IsRunningDedicatedServer();
+		if (bUsingNullRHI)
 		{
 			FeatureSupportFlags &= (~EAutomationTestFlags::NonNullRHI);
 		}

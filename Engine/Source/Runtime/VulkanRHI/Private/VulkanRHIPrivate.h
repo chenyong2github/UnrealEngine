@@ -11,6 +11,7 @@
 #include "Misc/ScopeLock.h"
 #include "RHI.h"
 #include "RenderUtils.h"
+#include "RHIValidation.h"
 
 // let the platform set up the headers and some defines
 #include "VulkanPlatform.h"

@@ -179,7 +179,7 @@
 	#define CHECK_PUREVIRTUALS 0
 #endif
 
-/** Whether to force the use of the null RHI (without requiring -nullrhi on the command line). */
+/** Whether to use the null RHI. */
 #ifndef USE_NULL_RHI
 	#define USE_NULL_RHI 0
 #endif
@@ -423,6 +423,10 @@
 // All other configurations always create backups.
 #ifndef PRESERVE_LOG_BACKUPS_IN_SHIPPING
 	#define PRESERVE_LOG_BACKUPS_IN_SHIPPING 1
+#endif
+
+#ifndef ENABLE_RHI_VALIDATION
+	#define ENABLE_RHI_VALIDATION (UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT)
 #endif
 
 // Controls whether FPlatformMisc::GetDeviceId() is available to be called.

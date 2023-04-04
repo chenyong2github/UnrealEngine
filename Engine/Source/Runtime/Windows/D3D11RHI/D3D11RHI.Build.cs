@@ -4,7 +4,6 @@ using System.IO;
 using UnrealBuildTool;
 
 [SupportedPlatformGroups("Windows")]
-[RHIModule]
 public class D3D11RHI : ModuleRules
 {
 	protected virtual bool bIncludeExtensions { get => true; }
