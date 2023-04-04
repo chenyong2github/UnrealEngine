@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "FieldNotification/FieldId.h"
+#include "FieldNotificationId.h"
 #include "Templates/SubclassOf.h"
 
 namespace UE::MVVM { struct FFieldContext; }

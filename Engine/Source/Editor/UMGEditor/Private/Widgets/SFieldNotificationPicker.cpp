@@ -2,8 +2,8 @@
 
 #include "Widgets/SFieldNotificationPicker.h"
 
-#include "FieldNotification/IClassDescriptor.h"
-#include "FieldNotification/IFieldValueChanged.h"
+#include "IFieldNotificationClassDescriptor.h"
+#include "INotifyFieldValueChanged.h"
 #include "Layout/Children.h"
 #include "UObject/Class.h"
 #include "UObject/NameTypes.h"

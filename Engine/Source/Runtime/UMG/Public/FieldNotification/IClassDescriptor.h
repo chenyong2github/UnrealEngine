@@ -1,44 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "FieldNotification/FieldId.h"
+// HEADER_UNIT_SKIP - Deprecated
 
-namespace UE::FieldNotification
+#include "IFieldNotificationClassDescriptor.h"
+
+UE_DEPRECATED(5.3, "Including FieldNotification/IClassDescriptor.h is deprecated. The file location changed. Please include IFieldNotificationClassDescriptor.h instead and add the module FieldNotification to your .build.cs")
+inline void IClassDescriptorHeaderDeprecatedWarning()
 {
-	
-	struct IClassDescriptor
-	{
-		enum
-		{
-			Max_IndexOf_ = 0,
-		};
+}
 
-		/** Find the FieldId by name. Returns an invalid FFIeldId if not found. */
-		FFieldId GetField(const UClass* Class, FName InFieldName) const
-		{
-			FFieldId FoundId;
-			ForEachField(Class, [&FoundId, InFieldName](const FFieldId Other)
-			{
-				if (Other.GetName() == InFieldName)
-				{
-					FoundId = Other;
-					return false;
-				}
-				return true;
-			});
-			return FoundId;
-		}
-
-		/** Execute the callback for every FieldId in the ClassDescriptor. */
-		virtual void ForEachField(const UClass* Class, TFunctionRef<bool(FFieldId FielId)> Callback) const
-		{
-
-		}
-
-		/** */
-		virtual ~IClassDescriptor() = default;
-	};
-
-} // namespace
+inline void TriggerIClassDescriptorHeaderDeprecatedWarning()
+{
+	IClassDescriptorHeaderDeprecatedWarning();
+}

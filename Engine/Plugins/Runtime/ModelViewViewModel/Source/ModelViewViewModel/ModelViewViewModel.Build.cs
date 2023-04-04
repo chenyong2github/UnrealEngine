@@ -14,6 +14,7 @@ public class ModelViewViewModel : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
+				"FieldNotification",
 			});
 
 		PrivateDependencyModuleNames.AddRange(

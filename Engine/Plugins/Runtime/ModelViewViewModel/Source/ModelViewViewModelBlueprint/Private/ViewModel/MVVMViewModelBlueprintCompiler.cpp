@@ -8,7 +8,7 @@
 #include "MVVMViewModelBase.h"
 
 #include "FieldNotification/CustomizationHelper.h"
-#include "FieldNotification/FieldNotificationHelpers.h"
+#include "FieldNotificationHelpers.h"
 #include "K2Node_FunctionEntry.h"
 #include "Kismet2/KismetReinstanceUtilities.h"
 #include "MVVMFunctionGraphHelper.h"

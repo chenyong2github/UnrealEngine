@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "View/MVVMView.h"
-#include "FieldNotification/FieldMulticastDelegate.h"
+#include "FieldNotificationDelegate.h"
 #include "View/MVVMViewClass.h"
 #include "Misc/MemStack.h"
 #include "View/MVVMBindingSubsystem.h"

@@ -12,7 +12,7 @@
 #include "MovieScene.h"
 
 #include "FieldNotification/CustomizationHelper.h"
-#include "FieldNotification/FieldNotificationHelpers.h"
+#include "FieldNotificationHelpers.h"
 #include "Kismet2/Kismet2NameValidators.h"
 #include "Kismet2/KismetReinstanceUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"

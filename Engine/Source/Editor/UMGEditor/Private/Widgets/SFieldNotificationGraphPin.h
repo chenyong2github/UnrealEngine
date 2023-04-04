@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Delegates/Delegate.h"
-#include "FieldNotification/FieldId.h"
+#include "FieldNotificationId.h"
 #include "SGraphPin.h"
 #include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"

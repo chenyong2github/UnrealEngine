@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "FieldNotification/FieldId.h" // IWYU pragma: keep
+#include "FieldNotificationId.h" // IWYU pragma: keep
 #include "MVVMCompiledBindingLibrary.generated.h"
 
 namespace UE::FieldNotification { struct FFieldId; }

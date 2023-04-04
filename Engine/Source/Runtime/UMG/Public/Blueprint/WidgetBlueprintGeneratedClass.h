@@ -6,7 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Binding/DynamicPropertyPath.h"
 #include "Engine/BlueprintGeneratedClass.h"
-#include "FieldNotification/FieldId.h"
+#include "FieldNotificationId.h"
 
 #include "WidgetBlueprintGeneratedClass.generated.h"
 

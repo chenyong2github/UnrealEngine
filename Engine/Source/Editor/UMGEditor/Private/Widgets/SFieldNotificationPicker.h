@@ -7,7 +7,7 @@
 #include "Containers/Set.h"
 #include "Containers/SparseArray.h"
 #include "Delegates/Delegate.h"
-#include "FieldNotification/FieldId.h"
+#include "FieldNotificationId.h"
 #include "HAL/PlatformCrt.h"
 #include "Internationalization/Text.h"
 #include "Misc/Attribute.h"

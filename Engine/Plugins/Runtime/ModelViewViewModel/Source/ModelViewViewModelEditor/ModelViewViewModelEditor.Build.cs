@@ -15,6 +15,7 @@ public class ModelViewViewModelEditor : ModuleRules
 				"Core",
 				"CoreUObject",
 				"EditorSubsystem",
+				"FieldNotification",
 				"ModelViewViewModel",
 				"ModelViewViewModelBlueprint",
 				"PropertyPath",

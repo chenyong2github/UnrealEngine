@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/Visual.h"
 #include "Extensions/UserWidgetExtension.h"
-#include "FieldNotification/FieldMulticastDelegate.h"
+#include "FieldNotificationDelegate.h"
 
 #include "WidgetFieldNotificationExtension.generated.h"
 

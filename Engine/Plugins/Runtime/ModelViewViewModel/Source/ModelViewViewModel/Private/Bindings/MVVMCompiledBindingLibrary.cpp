@@ -3,12 +3,12 @@
 #include "Bindings/MVVMCompiledBindingLibrary.h"
 
 #include "Bindings/MVVMBindingHelper.h"
-#include "FieldNotification/IClassDescriptor.h"
-#include "UObject/PropertyAccessUtil.h"
-#include "FieldNotification/IFieldValueChanged.h"
+#include "IFieldNotificationClassDescriptor.h"
+#include "INotifyFieldValueChanged.h"
 #include "Templates/ValueOrError.h"
 #include "Types/MVVMFieldContext.h"
 #include "Types/MVVMFunctionContext.h"
+#include "UObject/PropertyAccessUtil.h"
 #include "UObject/UnrealType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMCompiledBindingLibrary)

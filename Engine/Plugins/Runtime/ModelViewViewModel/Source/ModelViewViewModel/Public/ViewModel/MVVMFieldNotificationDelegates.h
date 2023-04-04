@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "FieldNotification/FieldMulticastDelegate.h"
+#include "FieldNotificationDelegate.h"
 
 class FDelegateHandle;
 namespace UE::FieldNotification { struct FFieldId; }

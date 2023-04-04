@@ -3,7 +3,7 @@
 #pragma once
 
 #include "UObject/Object.h"
-#include "FieldNotification/IFieldValueChanged.h"
+#include "INotifyFieldValueChanged.h"
 
 #include "MVVMViewModelContextResolver.generated.h"
 

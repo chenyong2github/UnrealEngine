@@ -1,19 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Class.h"
+// HEADER_UNIT_SKIP - Deprecated
 
-namespace UE::FieldNotification::Helpers
+#include "FieldNotificationHelpers.h"
+
+UE_DEPRECATED(5.3, "Including FieldNotification/FieldNotificationHelpers.h is deprecated. The file location changed. Please include FieldNotificationHelpers.h instead and add the module FieldNotification to your .build.cs")
+inline void FieldNotificationHelpersHeaderDeprecatedWarning()
 {
-	UE_NODISCARD FORCEINLINE bool IsValidAsField(const UFunction* InFunction)
-	{
-		return InFunction != nullptr
-			&& !InFunction->HasAnyFunctionFlags(FUNC_Net | FUNC_Event)
-			&& InFunction->HasAllFunctionFlags(FUNC_BlueprintCallable | FUNC_Const)
-			&& InFunction->NumParms == 1
-			&& InFunction->GetReturnProperty() != nullptr;
-	}
+}
 
-} //namespace
+inline void TriggerFieldNotificationHelpersHeaderDeprecatedWarning()
+{
+	FieldNotificationHelpersHeaderDeprecatedWarning();
+}

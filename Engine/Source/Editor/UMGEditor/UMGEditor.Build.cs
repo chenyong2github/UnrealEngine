@@ -14,11 +14,12 @@ public class UMGEditor : ModuleRules
 				"UMG",
 			});
 
-        PublicDependencyModuleNames.AddRange(
-            new string[]
-            {
-                "Sequencer",
-            });
+		PublicDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"FieldNotification",
+				"Sequencer",
+			});
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {

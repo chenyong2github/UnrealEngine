@@ -3,8 +3,8 @@
 #pragma once
 
 
-#include "FieldNotification/IClassDescriptor.h"
-#include "FieldNotification/FieldNotificationDeclaration.h" // IWYU pragma: keep
+#include "FieldNotificationDeclaration.h" // IWYU pragma: keep
+#include "IFieldNotificationClassDescriptor.h"
 #include "ViewModel/MVVMFieldNotificationDelegates.h"
 
 #include "MVVMViewModelBase.generated.h"

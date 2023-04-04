@@ -15,6 +15,7 @@ public class ModelViewViewModelBlueprint : ModuleRules
 				"CoreUObject",
 				"DeveloperSettings",
 				"Engine",
+				"FieldNotification",
 				"ModelViewViewModel",
 			});
 

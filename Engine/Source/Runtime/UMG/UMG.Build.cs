@@ -11,8 +11,8 @@ public class UMG : ModuleRules
 				"Core",
 				"CoreUObject",
 				"DeveloperSettings",
-                "Engine",
-                "InputCore",
+				"Engine",
+				"InputCore",
 				"Slate",
 				"SlateCore",
 				"RenderCore",
@@ -21,32 +21,33 @@ public class UMG : ModuleRules
 			}
 		);
 
-        PublicDependencyModuleNames.AddRange(
-            new string[] {
+		PublicDependencyModuleNames.AddRange(
+			new string[] {
+				"FieldNotification",
 				"HTTP",
 				"MovieScene",
-                "MovieSceneTracks",
-                "PropertyPath",
+				"MovieSceneTracks",
+				"PropertyPath",
 				"TimeManagement"
 			}
-        );
+		);
 
-        PrivateIncludePathModuleNames.AddRange(
-            new string[] {
+		PrivateIncludePathModuleNames.AddRange(
+			new string[] {
 				"SlateRHIRenderer",
 				"ImageWrapper",
-                "TargetPlatform",
+				"TargetPlatform",
 			}
-        );
+		);
 
 		if (Target.Type != TargetType.Server)
 		{
-            DynamicallyLoadedModuleNames.AddRange(
-                new string[] {
-				    "ImageWrapper",
-				    "SlateRHIRenderer",
-			    }
-            );
+			DynamicallyLoadedModuleNames.AddRange(
+				new string[] {
+					"ImageWrapper",
+					"SlateRHIRenderer",
+				}
+			);
 		}
 	}
 }

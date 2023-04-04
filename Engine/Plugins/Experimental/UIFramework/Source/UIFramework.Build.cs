@@ -13,6 +13,7 @@ public class UIFramework : ModuleRules
 				"CoreUObject",
 				"DeveloperSettings",
 				"Engine",
+				"FieldNotification",
 				"ModelViewViewModel",
 				"SlateCore",
 				"Slate",

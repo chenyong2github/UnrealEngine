@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "EdGraphUtilities.h"
 #include "EdGraphSchema_K2.h"
-#include "FieldNotification/FieldId.h"
+#include "FieldNotificationId.h"
 #include "SGraphPin.h"
 #include "UObject/Class.h"
 #include "Widgets/SFieldNotificationGraphPin.h"

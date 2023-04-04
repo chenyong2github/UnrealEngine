@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "FieldNotification/FieldNotificationDeclaration.h"
-#include "FieldNotification/IFieldValueChanged.h"
+#include "FieldNotificationDeclaration.h"
+#include "INotifyFieldValueChanged.h"
 #include "Misc/Attribute.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/ScriptMacros.h"
