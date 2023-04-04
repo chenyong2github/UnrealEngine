@@ -244,8 +244,6 @@ private:
 	int32		Offset_Internal;
 
 public:
-	FName		RepNotifyFunc;
-
 	/** In memory only: Linked list of properties from most-derived to base **/
 	FProperty*	PropertyLinkNext;
 	/** In memory only: Linked list of object reference properties from most-derived to base **/
@@ -254,6 +252,8 @@ public:
 	FProperty*	DestructorLinkNext;
 	/** In memory only: Linked list of properties requiring post constructor initialization.**/
 	FProperty*	PostConstructLinkNext;
+
+	FName		RepNotifyFunc;
 
 public:
 	// Constructors.
@@ -3672,8 +3672,8 @@ class COREUOBJECT_API FArrayProperty : public FArrayProperty_Super
 	DECLARE_FIELD(FArrayProperty, FArrayProperty_Super, CASTCLASS_FArrayProperty)
 
 	// Variables.
-	FProperty* Inner;
 	EArrayPropertyFlags ArrayFlags;
+	FProperty* Inner;
 
 public:
 	/** Type of the CPP property **/
