@@ -98,7 +98,7 @@ struct FClusterUnionParticleCandidateData
 	TObjectPtr<UPrimitiveComponent> Component;
 
 	UPROPERTY()
-	int32 BoneId;
+	int32 BoneId = INDEX_NONE;
 };
 
 /**
