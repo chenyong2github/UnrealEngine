@@ -163,7 +163,7 @@ namespace DatasmithSolidworks
 
 			bHasConfigurations = (Configs != null) && (Configs.Count != 0);
 
-			ExportToDatasmithScene(ConfigurationExporter);
+			ExportToDatasmithScene(ConfigurationExporter, new FVariantName(ConfigManager.ActiveConfiguration));
 
 			ExportLights();
 			ExportConfigurations(Configs);
@@ -193,7 +193,7 @@ namespace DatasmithSolidworks
 			FConfigurationExporter ConfigurationExporter = new FConfigurationExporter(Meshes, new []{ ActiveConfigurationName }, ActiveConfigurationName, bInExportDisplayStates: false, bInExportExplodedViews: false);
 			List<FConfigurationData> Configs = ConfigurationExporter.ExportConfigurations(this);
 			bHasConfigurations = (Configs != null) && (Configs.Count != 0);
-			ExportToDatasmithScene(ConfigurationExporter);
+			ExportToDatasmithScene(ConfigurationExporter, new FVariantName(ConfigManager.ActiveConfiguration));
 
 
 			ExportLights();
@@ -206,7 +206,7 @@ namespace DatasmithSolidworks
 		}
 
 		// todo: make abstract
-		public virtual void ExportToDatasmithScene(FConfigurationExporter ConfigurationExporter)
+		public virtual void ExportToDatasmithScene(FConfigurationExporter ConfigurationExporter, FVariantName ActiveVariantName)
 		{
 			throw new NotImplementedException();
 		}

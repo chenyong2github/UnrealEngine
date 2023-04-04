@@ -47,7 +47,7 @@ namespace DatasmithSolidworks
 		// Component state for a single configuration
 		public class FComponentConfig
 		{
-			public readonly string ConfigName;
+			public readonly FVariantName ConfigName;
 			public readonly bool bIsMainActive;  // if this Configuration is the active config
 
 			public bool bVisible = true;
@@ -62,7 +62,7 @@ namespace DatasmithSolidworks
 
 			public List<Body2> Bodies = null;
 
-			public FComponentConfig(string InConfigName, bool bInIsMainActive)
+			public FComponentConfig(FVariantName InConfigName, bool bInIsMainActive)
 			{
 				ConfigName = InConfigName;
 				bIsMainActive = bInIsMainActive;
@@ -101,7 +101,7 @@ namespace DatasmithSolidworks
 			public string PartPath => ComponentInfo.PartPath;
 
 			// Common configuration data
-			public FComponentConfig CommonConfig = new FComponentConfig(null, true);
+			public FComponentConfig CommonConfig = new FComponentConfig(new FVariantName(), true);
 
 			// Per-configuration data
 			public List<FComponentConfig> Configurations = null;
@@ -156,9 +156,11 @@ namespace DatasmithSolidworks
 				Component = InComponent;
 			}
 
-			public FComponentConfig AddConfiguration(string InConfigurationName, bool bIsDisplayState, bool bIsActiveConfiguration)
+			public FComponentConfig AddConfiguration(FVariantName InConfigurationName, bool bIsDisplayState, bool bIsActiveConfiguration)
 			{
 				List<FComponentConfig> TargetList = null;
+
+				Debug.Assert(InConfigurationName.IsValid());
 
 				if (bIsDisplayState)
 				{
@@ -182,7 +184,7 @@ namespace DatasmithSolidworks
 				return Result;
 			}
 
-			public FComponentConfig GetConfiguration(string InConfigurationName, bool bIsDisplayState)
+			public FComponentConfig GetConfiguration(FVariantName InConfigurationName, bool bIsDisplayState)
 			{
 				List<FComponentConfig> TargetList = null;
 
@@ -223,7 +225,7 @@ namespace DatasmithSolidworks
 			}
 		};
 
-		static public void Merge(FComponentTreeNode OutCombined, FComponentTreeNode InTree, string InConfigurationName,
+		static public void Merge(FComponentTreeNode OutCombined, FComponentTreeNode InTree, FVariantName InConfigurationName,
 			bool bIsActiveConfiguration)
 		{
 			foreach (FComponentTreeNode Child in InTree.EnumChildren())
@@ -434,7 +436,7 @@ namespace DatasmithSolidworks
 			}
 		}
 
-		static public void FillConfigurationData(FConfigurationExporter ConfigurationExporter, FComponentTreeNode InNode, string InConfigurationName, FConfigurationData OutData, bool bIsDisplayState)
+		static public void FillConfigurationData(FConfigurationExporter ConfigurationExporter, FComponentTreeNode InNode, FVariantName InConfigurationName, FConfigurationData OutData, bool bIsDisplayState)
 		{
 			FComponentConfig NodeConfig = InNode.GetConfiguration(InConfigurationName, bIsDisplayState);
 

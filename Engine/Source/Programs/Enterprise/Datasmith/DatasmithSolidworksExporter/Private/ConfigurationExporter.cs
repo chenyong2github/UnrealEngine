@@ -162,17 +162,6 @@ namespace DatasmithSolidworks
 			return Configuration;
 		}
 
-		// Add variant which inherits geometry from one of the 'real' Solidworks configurations
-		// This could be (linked)display state or exploded view
-		public FConfiguration AddSubConfiguration(FConfiguration MeshesConfiguration, string ConfigurationName)
-		{
-			Debug.Assert(!Configurations.ContainsKey(ConfigurationName));
-
-			FConfiguration Configuration = new FConfiguration(this, ConfigurationName, MainConfigurationName==ConfigurationName, InParentConfiguration: MeshesConfiguration);
-			Configurations.Add(ConfigurationName, Configuration);
-			return Configuration;
-		}
-
 		public bool DoesComponentHaveVisibleButDifferentMeshesInConfigs(FComponentName ComponentName, string ConfigNameA, string ConfigNameB)
 		{
 			bool bHasMeshA = GetMeshesConfiguration(ConfigNameA).GetMeshForComponent(ComponentName, out FMesh MeshA);
@@ -351,7 +340,7 @@ namespace DatasmithSolidworks
 
 			string OriginalConfigurationName = ConfigManager.ActiveConfiguration.Name;
 
-			Dictionary<string, List<string>> ExportedConfigurationNames = new Dictionary<string, List<string>>();
+			Dictionary<string, List<FVariantName>> ExportedVariantNames = new Dictionary<string, List<FVariantName>>();
 
 			// Enumerate configurations starting with Active - to avoid redundant config switching(which takes time) and,
 			// additionally, to export meshes in Active configuration without configuration name suffixes
@@ -377,7 +366,12 @@ namespace DatasmithSolidworks
 
 				List<string> ExplodedViews = InitExplodedViews(InDoc, CfgName);
 
-				string ConfigName = CfgName;
+				// Variant name to base on for linked display states and exploded views
+				FVariantName BaseCfgVariantName = new FVariantName(swConfiguration, CfgName);  
+
+				// Name identifying Datasmith Variant to be exported
+				// variants sets consists of SW Configurations, derived configurations, display states, exploded views
+				FVariantName VariantName = BaseCfgVariantName;
 
 				string[] DisplayStates = null;
 				int DisplayStateCount = 0;
@@ -386,15 +380,16 @@ namespace DatasmithSolidworks
 				{
 					DisplayStateCount = swConfiguration.GetDisplayStatesCount();
 
+					// When display states are linked to configuration modify variant name to include current display state name
 					if (ConfigManager.LinkDisplayStatesToConfigurations && DisplayStateCount > 1)
 					{
 						DisplayStates = swConfiguration.GetDisplayStates();
-						ConfigName = $"{CfgName}_{DisplayStates[0]}";
+						VariantName = VariantName.LinkedDisplayStateVariant(DisplayStates[0]);
 					}
 				}
 
 				FConfigurationTree.FComponentTreeNode ConfigNode = new FConfigurationTree.FComponentTreeNode();
-				ConfigNode.ComponentInfo.ComponentName = FComponentName.FromCustomString(ConfigName);
+				ConfigNode.ComponentInfo.ComponentName = VariantName.GetRootComponentName();
 
 				ConfigNode.Children = new List<FConfigurationTree.FComponentTreeNode>();
 
@@ -406,11 +401,11 @@ namespace DatasmithSolidworks
 				LogDebug($"Components:");
 				CollectComponentsRecursive(InDoc, swConfiguration.GetRootComponent3(true), ConfigNode, MeshesConfiguration);
 
-				ExportedConfigurationNames.Add(CfgName, new List<string>(){ConfigName});
+				ExportedVariantNames.Add(CfgName, new List<FVariantName>(){VariantName});
 
 				LogDebug($"Materials:");
 				Dictionary<FComponentName, FObjectMaterials> MaterialsMap = GetComponentMaterials(InDoc, DisplayStates?[0], swConfiguration);
-				SetComponentTreeMaterials(ConfigNode, MaterialsMap, null, false);
+				SetComponentTreeMaterials(ConfigNode, MaterialsMap, new FVariantName(), false);
 
 				if (DisplayStates != null)
 				{
@@ -419,13 +414,14 @@ namespace DatasmithSolidworks
 					for (int Index = 1; Index < DisplayStateCount; ++Index)
 					{
 						string DisplayState = DisplayStates[Index];
-						string DisplayStateTreeName = $"{CfgName}_DisplayState_{FDatasmithExporter.SanitizeName(DisplayState)}";
-						LogDebug($"Linked DisplayState '{DisplayState}' Materials for variant '{DisplayStateTreeName}'");
 
-						Meshes.AddSubConfiguration(MeshesConfiguration, ConfigurationName: DisplayStateTreeName);
-						ExportedConfigurationNames[CfgName].Add(DisplayStateTreeName);
+						FVariantName DisplayStateVariantName = BaseCfgVariantName.LinkedDisplayStateVariant(DisplayState);
+
+						LogDebug($"Linked DisplayState '{DisplayState}' Materials for variant '{DisplayStateVariantName}'");
+
+						ExportedVariantNames[CfgName].Add(DisplayStateVariantName);
 						MaterialsMap = GetComponentMaterials(InDoc, DisplayState, swConfiguration);
-						SetComponentTreeMaterials(ConfigNode, MaterialsMap, DisplayStateTreeName, false);
+						SetComponentTreeMaterials(ConfigNode, MaterialsMap, DisplayStateVariantName, false);
 					}
 				}
 
@@ -458,9 +454,8 @@ namespace DatasmithSolidworks
 							}
 						}
 
-						string ExplodedViewVariantName = $"{CfgName}_Exploded_{FDatasmithExporter.SanitizeName(ExplodedViewName)}";
-						Meshes.AddSubConfiguration(MeshesConfiguration, ConfigurationName: ExplodedViewVariantName);
-						ExportedConfigurationNames[CfgName].Add(ExplodedViewVariantName);
+						FVariantName ExplodedViewVariantName = BaseCfgVariantName.ExplodedViewVariant(ExplodedViewName);
+						ExportedVariantNames[CfgName].Add(ExplodedViewVariantName);
 
 						// Add variant to each node with transform initialized from exploded state
 						foreach (FComponentTreeNode Child in ConfigNode.Children)
@@ -492,7 +487,7 @@ namespace DatasmithSolidworks
 
 				if (ModifiedComponentsMaterials != null)
 				{
-					foreach (var MatKVP in ModifiedComponentsMaterials)
+					foreach (KeyValuePair<FComponentName, FObjectMaterials> MatKVP in ModifiedComponentsMaterials)
 					{
 						InDoc.AddComponentMaterials(MatKVP.Key, MatKVP.Value);
 					}
@@ -504,7 +499,7 @@ namespace DatasmithSolidworks
 				InDoc.ProcessConfigurationMeshes(ExtractedMeshes, MeshesConfiguration);
 
 				// Combine separate scene trees into the single one with configuration-specific data
-				FConfigurationTree.Merge(CombinedTree, ConfigNode, CfgName, bIsActiveConfiguration);
+				FConfigurationTree.Merge(CombinedTree, ConfigNode, VariantName, bIsActiveConfiguration);
 
 				bIsActiveConfiguration = false;  // Next enumerated configurations will be switched to(they weren't active on export start)
 			}
@@ -541,8 +536,8 @@ namespace DatasmithSolidworks
 				}
 			}
 
-			List<string> DisplayStateConfigurations = new List<string>();
-
+			List<FVariantName> DisplayStateConfigurations = new List<FVariantName>();
+			
 			if (bExportDisplayStates && !ConfigManager.LinkDisplayStatesToConfigurations)
 			{
 				// Export display states as separate configurations
@@ -555,8 +550,8 @@ namespace DatasmithSolidworks
 					{
 						OriginalConfiguration.ApplyDisplayState(DisplayState);
 					}
-
-					string DisplayStateConfigName = $"DisplayState_{FDatasmithExporter.SanitizeName(DisplayState)}";
+					
+					FVariantName DisplayStateConfigName = FVariantName.DisplayStateVariant(DisplayState);
 					DisplayStateConfigurations.Add(DisplayStateConfigName);
 					LogDebug(
 						$"DisplayState '{DisplayState}' Materials for variant '{DisplayStateConfigName}'");
@@ -583,25 +578,25 @@ namespace DatasmithSolidworks
 			List<FConfigurationData> FlatConfigurationData = new List<FConfigurationData>();
 
 			// Order exported variants by original configurations order
-			IEnumerable<string> ExportedConfigurationNamesOrdered = ExportedConfigurationNames.OrderBy(V => ConfigurationOrder[V.Key]).SelectMany(V => V.Value);
+			IEnumerable<FVariantName> ExportedConfigurationNamesOrdered = ExportedVariantNames.OrderBy(V => ConfigurationOrder[V.Key]).SelectMany(V => V.Value);
 
 			// Add roots for configurations
-			foreach (string CfgName in ExportedConfigurationNamesOrdered)
+			foreach (FVariantName ConfigName in ExportedConfigurationNamesOrdered)
 			{
 				FConfigurationData CfgData = new FConfigurationData();
-				CfgData.Name = CfgName;
+				CfgData.Name = ConfigName.ToString();
 				CfgData.bIsDisplayStateConfiguration = false;
-				FConfigurationTree.FillConfigurationData(this, CombinedTree, CfgName, CfgData, false);
+				FConfigurationTree.FillConfigurationData(this, CombinedTree, ConfigName, CfgData, false);
 
 				if (!CfgData.IsEmpty())
 				{
 					FlatConfigurationData.Add(CfgData);
 				}
 			}
-			foreach (string DisplayStateConfigName in DisplayStateConfigurations)
+			foreach (FVariantName DisplayStateConfigName in DisplayStateConfigurations)
 			{
 				FConfigurationData CfgData = new FConfigurationData();
-				CfgData.Name = DisplayStateConfigName;
+				CfgData.Name = DisplayStateConfigName.ToString();
 				CfgData.bIsDisplayStateConfiguration = true;
 				FConfigurationTree.FillConfigurationData(this, CombinedTree, DisplayStateConfigName, CfgData, true);
 
@@ -771,13 +766,13 @@ namespace DatasmithSolidworks
 			return MaterialsMap;
 		}
 
-		private static void SetComponentTreeMaterials(FConfigurationTree.FComponentTreeNode InComponentTree, Dictionary<FComponentName, FObjectMaterials> InComponentMaterialsMap, string InConfigurationName, bool bIsDisplayState)
+		private static void SetComponentTreeMaterials(FConfigurationTree.FComponentTreeNode InComponentTree, Dictionary<FComponentName, FObjectMaterials> InComponentMaterialsMap, FVariantName InConfigurationName, bool bIsDisplayState)
 		{
 			LogDebug($"SetComponentTreeMaterials: '{InComponentTree.ComponentName}'");
 
 			FConfigurationTree.FComponentConfig TargetConfig = null;
 
-			if (InConfigurationName != null)
+			if (InConfigurationName.IsValid())
 			{
 				TargetConfig = InComponentTree.GetConfiguration(InConfigurationName, bIsDisplayState);
 				if (TargetConfig == null)
@@ -888,32 +883,32 @@ namespace DatasmithSolidworks
 			}
 		}
 
-		public bool DoesComponentHaveVisibleButDifferentMeshesInConfigs(FComponentName ComponentName, string ConfigNameA, string ConfigNameB)
+		public bool DoesComponentHaveVisibleButDifferentMeshesInConfigs(FComponentName ComponentName, FVariantName ConfigNameA, FVariantName ConfigNameB)
 		{
-			return Meshes.DoesComponentHaveVisibleButDifferentMeshesInConfigs(ComponentName, ConfigNameA, ConfigNameB);
+			return Meshes.DoesComponentHaveVisibleButDifferentMeshesInConfigs(ComponentName, ConfigNameA.CfgName, ConfigNameB.CfgName);
 		}
 
 		// name/label for variant mesh actor 
-		public FActorName GetMeshActorName(string ConfigName, FComponentName ComponentName)
+		public FActorName GetMeshActorName(FVariantName ConfigName, FComponentName ComponentName)
 		{
-			return FActorName.FromString($"{ComponentName}_{ConfigName}");
+			return FActorName.FromString($"{ComponentName}_{ConfigName.CfgName}");
 		}
 
-		public FMeshName GetMeshName(string ConfigName, FComponentName ComponentName)
+		public FMeshName GetMeshName(FVariantName ConfigName, FComponentName ComponentName)
 		{
-			return Meshes.GetMeshName(ConfigName, ComponentName);
+			return Meshes.GetMeshName(ConfigName.CfgName, ComponentName);
 		}
 
 		// Get mesh for component which has only single mesh configuration
 		public FMeshName GetMeshName(FComponentName ComponentName)
 		{
 			string ConfigName = Meshes.GetConfigurationNameForComponentMesh(ComponentName);
-			return GetMeshName(ConfigName, ComponentName);
+			return Meshes.GetMeshName(ConfigName, ComponentName);
 		}
 
 		// Register actor which needs mesh of a component in specific config
 		// this is needed for mesh actors for variants
-		public void AddActorForMesh(FActorName ActorName, string ConfigName, FComponentName ComponentName)
+		public void AddActorForMesh(FActorName ActorName, FVariantName ConfigName, FComponentName ComponentName)
 		{
 			LogDebug($"AddActorForMesh(ActorName='{ActorName}', ConfigName='{ConfigName}', ComponentName='{ComponentName}')");
 			AddActorForMesh(ActorName, ComponentName, GetMeshName(ConfigName, ComponentName));

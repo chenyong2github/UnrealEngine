@@ -10,7 +10,7 @@ using DatasmithSolidworks.Names;
 using static DatasmithSolidworks.FDatasmithExporter;
 using System.Diagnostics;
 using System.Linq;
-using static DatasmithSolidworks.FAssemblyDocumentTracker;
+
 
 namespace DatasmithSolidworks
 {
@@ -231,7 +231,7 @@ namespace DatasmithSolidworks
 			return Meshes ?? (Meshes = new FMeshes(ActiveConfigName));
 		}
 
-		public override void ExportToDatasmithScene(FConfigurationExporter ConfigurationExporter)
+		public override void ExportToDatasmithScene(FConfigurationExporter ConfigurationExporter, FVariantName ActiveVariantName)
 		{
 			FMeshes Meshes = ConfigurationExporter.Meshes;
 
@@ -258,7 +258,7 @@ namespace DatasmithSolidworks
 
 					// todo: not make extra copy - use existing(i.e. instead of bHasConfigurations) 
 					FActorName ActorName =
-						ConfigurationExporter.GetMeshActorName(ConfigurationName, RootComponentName);
+						ConfigurationExporter.GetMeshActorName(FVariantName.PartVariant(ConfigurationName), RootComponentName);
 
 					FMeshName MeshNameForConfiguration = new FMeshName(RootComponentName, ConfigurationName);
 

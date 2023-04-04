@@ -166,7 +166,7 @@ namespace DatasmithSolidworks
 		}
 
 		// Export to datasmith scene extracted configurations data
-		public override void ExportToDatasmithScene(FConfigurationExporter ConfigurationExporter)
+		public override void ExportToDatasmithScene(FConfigurationExporter ConfigurationExporter, FVariantName ActiveVariantName)
 		{
 			SetExportStatus("Actors");
 
@@ -176,7 +176,7 @@ namespace DatasmithSolidworks
 
 			// Configurations combined tree should have single child(root component of each config is the same)
 			Debug.Assert(ConfigurationExporter.CombinedTree.Children.Count == 1);
-			ExportComponentRecursive(CurrentConfig.Name, ConfigurationExporter,
+			ExportComponentRecursive(ActiveVariantName, ConfigurationExporter,
 				ConfigurationExporter.CombinedTree.Children[0], null);
 			SyncState.DirtyComponents.Clear();
 
@@ -327,7 +327,7 @@ namespace DatasmithSolidworks
 			return FConvertedTransform.Identity();
 		}
 
-		private void ExportComponentRecursive(string ActiveConfigName,
+		private void ExportComponentRecursive(FVariantName ActiveConfigName,
 			FConfigurationExporter ConfigurationExporter,
 			FConfigurationTree.FComponentTreeNode InNode, FConfigurationTree.FComponentTreeNode InParent)
 		{

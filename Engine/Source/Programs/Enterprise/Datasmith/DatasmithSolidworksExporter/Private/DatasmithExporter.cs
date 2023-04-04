@@ -125,6 +125,80 @@ namespace DatasmithSolidworks
 			public override int GetHashCode() => Value.GetHashCode();
 		}
 
+		public struct FVariantName : IEquatable<FVariantName>
+		{
+			private readonly string Value;
+
+			// Solidworks configuration name this variant is based on
+			public readonly string CfgName; 
+
+			private FVariantName(string InCfgName, string InValue)
+			{
+				CfgName =  InCfgName;
+				Value = InValue;
+			}
+
+			public FVariantName(IConfiguration Configuration, string InCfgName)
+			{
+				Debug.Assert(Configuration.Name == InCfgName);
+
+				CfgName = InCfgName;
+
+				Value = Configuration.IsDerived() 
+					? $"{Configuration.GetParent().Name}_{CfgName}" 
+					: Configuration.Name;
+			}
+
+			public FVariantName(IConfiguration Configuration): this(Configuration, Configuration.Name)
+			{
+			}
+
+			public static FVariantName PartVariant(string CfgName)
+			{
+				return new FVariantName(CfgName, CfgName);
+			}
+
+			public FVariantName LinkedDisplayStateVariant(string DisplayStateName)
+			{
+				return new FVariantName(CfgName, $"{Value}_{FDatasmithExporter.SanitizeName(DisplayStateName)}");
+			}
+
+			public static FVariantName DisplayStateVariant(string DisplayStateName)
+			{
+				return new FVariantName((string)null, $"DisplayState_{FDatasmithExporter.SanitizeName(DisplayStateName)}");
+			}
+
+			public FVariantName ExplodedViewVariant(string ExplodedViewName)
+			{
+				return new FVariantName(CfgName, $"{Value}_{FDatasmithExporter.SanitizeName(ExplodedViewName)}");
+			}
+
+			public static FVariantName Invalid() => new FVariantName((string)null, null);
+
+			public FComponentName GetRootComponentName()
+			{
+				return FComponentName.FromCustomString(Value);
+			}
+
+			// Following is common between 'Names' but unfortunately C# has no way to generalize this for structs
+			public bool IsValid()
+			{
+				return !string.IsNullOrEmpty(Value);
+			}
+
+			public string GetString() => Value;
+
+			public override string ToString() => Value;
+
+			public override bool Equals(object Obj) => Obj is FVariantName Other && this == Other;
+			public bool Equals(FVariantName Other) => Value == Other.Value;
+			public static bool operator ==(FVariantName A, FVariantName B) => A.Equals(B);
+			public static bool operator !=(FVariantName A, FVariantName B) => !(A == B);
+
+			public override int GetHashCode() => Value.GetHashCode();
+
+		}
+
 	}
 }
 
