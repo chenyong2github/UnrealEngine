@@ -55,7 +55,7 @@ public:
 	virtual void Execute(const FTargetingRequestHandle& TargetingHandle) const override;
 
 	/** Debug draws the outlines of the set shape type. */
-	void DebugDrawBoundingVolume(const FTargetingRequestHandle& TargetingHandle, const FColor& Color) const;
+	void DebugDrawBoundingVolume(const FTargetingRequestHandle& TargetingHandle, const FColor& Color, const FOverlapDatum* OverlapDatum = nullptr) const;
 
 	void SetShapeType(ETargetingAOEShape InShapeType);
 	void SetHalfExtent(FVector InHalfExtent);
@@ -84,6 +84,10 @@ protected:
 	UFUNCTION(BlueprintNativeEvent, Category = "Target AOE Selection")
 	FVector GetSourceOffset(const FTargetingRequestHandle& TargetingHandle) const;
 
+	/** Native event to get the source rotation for the AOE  */
+	UFUNCTION(BlueprintNativeEvent, Category = "Target AOE Selection")
+	FQuat GetSourceRotation(const FTargetingRequestHandle& TargetingHandle) const;
+	
 private:
 	/** Helper method to build the Collision Shape */
 	FCollisionShape GetCollisionShape() const;
