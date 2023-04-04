@@ -223,6 +223,7 @@ void SActorDetails::Construct(const FArguments& InArgs, UTypedElementSelectionSe
 	checkf(SelectionSet, TEXT("SActorDetails must be constructed with a valid selection set!"));
 
 	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &SActorDetails::OnObjectsReplaced);
+	FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &SActorDetails::OnObjectPropertyChanged);
 
 	FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 	LevelEditor.OnComponentsEdited().AddRaw(this, &SActorDetails::OnComponentsEditedInWorld);
@@ -405,6 +406,7 @@ SActorDetails::~SActorDetails()
 	}
 
 	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
+	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
 
 	RemoveBPComponentCompileEventDelegate();
 
@@ -1049,6 +1051,31 @@ void SActorDetails::OnObjectsReplaced(const TMap<UObject*, UObject*>& InReplacem
 		// Enable the selection guard to prevent OnTreeSelectionChanged() from altering the editor's component selection
 		TGuardValue<bool> SelectionGuard(bSelectionGuard, true);
 		SubobjectEditor->UpdateTree();
+	}
+}
+
+void SActorDetails::OnObjectPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent)
+{
+	// Listen for archetype changes to properties that are editable on the instance
+	if (!ObjectBeingModified
+		|| !ObjectBeingModified->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject)
+		|| !PropertyChangedEvent.Property
+		|| !PropertyChangedEvent.Property->HasAnyPropertyFlags(CPF_Edit)
+		|| PropertyChangedEvent.Property->HasAnyPropertyFlags(CPF_DisableEditOnInstance))
+	{
+		return;
+	}
+
+	// If the object that changes matches the archetype of an instance that's selected to the property view,
+	// invalidate the cached state so that things like the "reset to default" icon is synced to the archetype.
+	for (const TWeakObjectPtr<>& SelectedObject : DetailsView->GetSelectedObjects())
+	{
+		if (SelectedObject.IsValid()
+			&& SelectedObject->GetArchetype() == ObjectBeingModified)
+		{
+			DetailsView->InvalidateCachedState();
+			break;
+		}
 	}
 }
 

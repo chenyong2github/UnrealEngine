@@ -24,6 +24,7 @@ class UTypedElementSelectionSet;
 class SSubobjectEditor;
 class ISCSEditorUICustomization;
 class FSubobjectEditorTreeNode;
+struct FPropertyChangedEvent;
 
 namespace UE::LevelEditor::Private
 {
@@ -105,6 +106,7 @@ private:
 	void RemoveBPComponentCompileEventDelegate();
 	void OnBlueprintComponentCompiled(UBlueprint* ComponentBlueprint);
 	void OnObjectsReplaced(const TMap<UObject*, UObject*>& InReplacementObjects);
+	void OnObjectPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent);
 
 private:
 	TSharedPtr<SSplitter> DetailsSplitter;
