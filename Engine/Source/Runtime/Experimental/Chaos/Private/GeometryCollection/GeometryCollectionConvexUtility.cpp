@@ -1450,16 +1450,20 @@ FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollect
 }
 
 
+void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromChildrenHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, const TArrayView<const int32> TransformSubset)
+{
+	GenerateClusterConvexHullsFromLeafOrChildrenHullsInternal(Collection, ConvexCount, ErrorToleranceInCm, true, true/*bUseDirectChildren*/, TransformSubset);
+}
 void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, const TArrayView<const int32> TransformSubset)
 {
-	GenerateClusterConvexHullsFromLeafHullsInternal(Collection, ConvexCount, ErrorToleranceInCm, true, TransformSubset);
+	GenerateClusterConvexHullsFromLeafOrChildrenHullsInternal(Collection, ConvexCount, ErrorToleranceInCm, true, false/*bUseDirectChildren*/, TransformSubset);
 }
 void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm)
 {
-	GenerateClusterConvexHullsFromLeafHullsInternal(Collection, ConvexCount, ErrorToleranceInCm, false, TArrayView<const int32>());
+	GenerateClusterConvexHullsFromLeafOrChildrenHullsInternal(Collection, ConvexCount, ErrorToleranceInCm, false, false/*bUseDirectChildren*/, TArrayView<const int32>());
 }
 
-void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHullsInternal(FGeometryCollection& Collection,	int32 ConvexCount, double ErrorToleranceInCm, bool bOnlySubset, const TArrayView<const int32> TransformSubset)
+void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafOrChildrenHullsInternal(FGeometryCollection& Collection,	int32 ConvexCount, double ErrorToleranceInCm, bool bOnlySubset, bool bUseDirectChildren, const TArrayView<const int32> TransformSubset)
 {
 	static FName ConvexGroupName("Convex");
 	static FName ConvexHullAttributeName("ConvexHull");
@@ -1515,7 +1519,15 @@ void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHullsIn
 			// compute using the leaf nodes 
 			// we cannot use the direct cluster children because they do not have proximity data that is stored at the geo level )
 			TArray<int32> SourceTransformIndices;
-			FGeometryCollectionClusteringUtility::GetLeafBones(&Collection, TransformIndex, true, SourceTransformIndices);
+			if (bUseDirectChildren)
+			{
+				SourceTransformIndices = HierarchyFacade.GetChildrenAsArray(TransformIndex);
+			}
+			else
+			{
+				FGeometryCollectionClusteringUtility::GetLeafBones(&Collection, TransformIndex, true, SourceTransformIndices);
+			}
+			
 
 			UE::Geometry::FDynamicMesh3 CombinedGeometry;
 			if (SourceTransformIndices.Num() > 0)

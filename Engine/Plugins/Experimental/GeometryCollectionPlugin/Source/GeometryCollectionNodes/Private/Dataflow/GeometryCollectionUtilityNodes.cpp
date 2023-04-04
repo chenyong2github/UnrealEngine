@@ -18,6 +18,7 @@ namespace Dataflow
 
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCreateNonOverlappingConvexHullsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGenerateClusterConvexHullsFromLeafHullsDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGenerateClusterConvexHullsFromChildrenHullsDataflowNode);
 	}
 }
 
@@ -94,6 +95,52 @@ void FGenerateClusterConvexHullsFromLeafHullsDataflowNode::Evaluate(Dataflow::FC
 					*GeomCollection,
 					InConvexCount,
 					InErrorToleranceInCm
+				);
+			}
+
+			SetValue<FManagedArrayCollection>(Context, static_cast<const FManagedArrayCollection>(*GeomCollection), &Collection);
+		}
+	}
+}
+
+FGenerateClusterConvexHullsFromChildrenHullsDataflowNode::FGenerateClusterConvexHullsFromChildrenHullsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid)
+	: FDataflowNode(InParam, InGuid)
+{
+	RegisterInputConnection(&Collection);
+	RegisterInputConnection(&ConvexCount);
+	RegisterInputConnection(&ErrorTolerance);
+	RegisterInputConnection(&OptionalSelectionFilter);
+
+	RegisterOutputConnection(&Collection);
+}
+
+void FGenerateClusterConvexHullsFromChildrenHullsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+
+		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
+		{
+			const int32 InConvexCount = GetValue(Context, &ConvexCount);
+			const double InErrorToleranceInCm = GetValue(Context, &ErrorTolerance);
+			if (IsConnected(&OptionalSelectionFilter))
+			{
+				const FDataflowTransformSelection& InOptionalSelectionFilter = GetValue<FDataflowTransformSelection>(Context, &OptionalSelectionFilter);
+				FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromChildrenHulls(
+					*GeomCollection,
+					InConvexCount,
+					InErrorToleranceInCm,
+					InOptionalSelectionFilter.AsArray()
+				);
+			}
+			else
+			{
+				FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromChildrenHulls(
+					*GeomCollection,
+					InConvexCount,
+					InErrorToleranceInCm,
+					TArrayView<const int32>()
 				);
 			}
 
