@@ -47,6 +47,40 @@
 
 #define LOCTEXT_NAMESPACE "MovieSceneDirectorBlueprintEndpointCustomization"
 
+namespace UE::Sequencer
+{
+
+TFunction<bool(const FBlueprintActionFilter& Filter, FBlueprintActionInfo& BlueprintAction)> MakeRejectAnyIncompatibleReturnValuesFilter(FProperty* ReturnProperty)
+{
+	if (!ReturnProperty)
+	{
+		return [](const FBlueprintActionFilter& Filter, FBlueprintActionInfo& BlueprintAction) { return false; };
+	}
+
+	FStructProperty* ReturnStructProperty = CastField<FStructProperty>(ReturnProperty);
+	FObjectPropertyBase* ReturnObjectProperty = CastField<FObjectPropertyBase>(ReturnProperty);
+	auto RejectAnyIncompatibleReturnValues = [=](const FBlueprintActionFilter& Filter, FBlueprintActionInfo& BlueprintAction)
+	{
+		const UFunction* Function = BlueprintAction.GetAssociatedFunction();
+		const FProperty* FunctionReturnProperty = Function->GetReturnProperty();
+		if (ReturnProperty->SameType(FunctionReturnProperty))
+		{
+			if (ReturnStructProperty && ReturnStructProperty->Struct == CastField<FStructProperty>(FunctionReturnProperty)->Struct)
+			{
+				return false;
+			}
+			else if (ReturnObjectProperty && ReturnObjectProperty->PropertyClass == CastField<FObjectPropertyBase>(FunctionReturnProperty)->PropertyClass)
+			{
+				return false;
+			}
+		}
+		return true;
+	};
+	return RejectAnyIncompatibleReturnValues;
+};
+
+} // namespace UE::Sequencer
+
 void FMovieSceneDirectorBlueprintEndpointCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 }
@@ -796,6 +830,11 @@ void FMovieSceneDirectorBlueprintEndpointCustomization::CollectQuickBindActions(
 	auto RejectAnyNonFunctions = [](const FBlueprintActionFilter& Filter, FBlueprintActionInfo& BlueprintAction)
 	{
 		const UFunction* Function = BlueprintAction.GetAssociatedFunction();
+		return Function == nullptr;
+	};
+	auto RejectAnyNonPureFunctions = [](const FBlueprintActionFilter& Filter, FBlueprintActionInfo& BlueprintAction)
+	{
+		const UFunction* Function = BlueprintAction.GetAssociatedFunction();
 		return Function == nullptr || Function->HasAnyFunctionFlags(FUNC_BlueprintPure);
 	};
 	auto RejectAnyUnboundActions = [](const FBlueprintActionFilter& Filter, FBlueprintActionInfo& BlueprintAction)
@@ -803,14 +842,8 @@ void FMovieSceneDirectorBlueprintEndpointCustomization::CollectQuickBindActions(
 		return BlueprintAction.GetBindings().Num() <= 0;
 	};
 
-	FObjectProperty* ReturnProperty = EndpointDefinition.EndpointSignature ?
-		CastField<FObjectProperty>(EndpointDefinition.EndpointSignature->GetReturnProperty()) : nullptr;
-	auto RejectAnyIncompatibleReturnValues = [ReturnProperty](const FBlueprintActionFilter& Filter, FBlueprintActionInfo& BlueprintAction)
-	{
-		const UFunction* Function = BlueprintAction.GetAssociatedFunction();
-		const FObjectProperty* FunctionReturnProperty = CastField<FObjectProperty>(Function->GetReturnProperty());
-		return !FunctionReturnProperty || FunctionReturnProperty->PropertyClass != ReturnProperty->PropertyClass;
-	};
+	FProperty* ReturnProperty = EndpointDefinition.EndpointSignature ? EndpointDefinition.EndpointSignature->GetReturnProperty() : nullptr;
+	auto RejectAnyIncompatibleReturnValues = UE::Sequencer::MakeRejectAnyIncompatibleReturnValuesFilter(ReturnProperty);
 
 	FBlueprintActionMenuBuilder ContextMenuBuilder;
 
@@ -836,7 +869,7 @@ void FMovieSceneDirectorBlueprintEndpointCustomization::CollectQuickBindActions(
 		// but also prevents displaying functions on BP components. Comment out for now.
 		//CallOnMemberFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(RejectAnyUnboundActions));
 		
-		CallOnMemberFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(RejectAnyNonFunctions));
+		CallOnMemberFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(RejectAnyNonPureFunctions));
 
 		if (ReturnProperty)
 		{
@@ -1041,14 +1074,8 @@ void FMovieSceneDirectorBlueprintEndpointCustomization::CollectAllRebindActions(
 		return OuterClass->ClassGeneratedBy != Blueprint;
 	};
 
-	FObjectProperty* ReturnProperty = EndpointDefinition.EndpointSignature ?
-		CastField<FObjectProperty>(EndpointDefinition.EndpointSignature->GetReturnProperty()) : nullptr;
-	auto RejectAnyIncompatibleReturnValues = [ReturnProperty](const FBlueprintActionFilter& Filter, FBlueprintActionInfo& BlueprintAction)
-	{
-		const UFunction* Function = BlueprintAction.GetAssociatedFunction();
-		const FObjectProperty* FunctionReturnProperty = CastField<FObjectProperty>(Function->GetReturnProperty());
-		return !FunctionReturnProperty || FunctionReturnProperty->PropertyClass != ReturnProperty->PropertyClass;
-	};
+	FProperty* ReturnProperty = EndpointDefinition.EndpointSignature ? EndpointDefinition.EndpointSignature->GetReturnProperty() : nullptr;
+	auto RejectAnyIncompatibleReturnValues = UE::Sequencer::MakeRejectAnyIncompatibleReturnValuesFilter(ReturnProperty);
 
 	FBlueprintActionMenuBuilder ContextMenuBuilder;
 

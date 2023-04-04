@@ -234,11 +234,10 @@ void FMovieSceneDynamicBindingCustomization::CollectResolverLibraryBindActions(U
 	auto RejectAnyIncompatibleReturnValues = [](const FBlueprintActionFilter& Filter, FBlueprintActionInfo& BlueprintAction)
 	{
 		const UFunction* Function = BlueprintAction.GetAssociatedFunction();
-		const FObjectProperty* FunctionReturnProperty = CastField<FObjectProperty>(Function->GetReturnProperty());
+		const FStructProperty* FunctionReturnProperty = CastField<FStructProperty>(Function->GetReturnProperty());
 		return 
-			!FunctionReturnProperty || 
-			!FunctionReturnProperty->PropertyClass || 
-			!FunctionReturnProperty->PropertyClass->IsChildOf<UObject>();
+			FunctionReturnProperty == nullptr || 
+			FunctionReturnProperty->Struct != FMovieSceneDynamicBindingResolveResult::StaticStruct();
 	};
 
 	MenuFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateLambda(RejectAnyIncompatibleReturnValues));

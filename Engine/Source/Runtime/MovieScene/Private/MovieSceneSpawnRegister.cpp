@@ -43,8 +43,19 @@ UObject* FMovieSceneSpawnRegister::SpawnObject(const FGuid& BindingId, UMovieSce
 		return nullptr;
 	}
 
+	UObject* SpawnedActor = nullptr;
+	ESpawnOwnership SpawnOwnership = Spawnable->GetSpawnOwnership();
+
 	// See if there is some dynamic binding logic to invoke, otherwise spawn the actor
-	UObject* SpawnedActor = FMovieSceneDynamicBindingInvoker::ResolveDynamicBinding(Player, Sequence, TemplateID, BindingId, Spawnable->DynamicBinding);
+	FMovieSceneDynamicBindingResolveResult ResolveResult = FMovieSceneDynamicBindingInvoker::ResolveDynamicBinding(Player, Sequence, TemplateID, BindingId, Spawnable->DynamicBinding);
+	if (ResolveResult.Object)
+	{
+		SpawnedActor = ResolveResult.Object;
+		if (ResolveResult.bIsPossessedObject)
+		{
+			SpawnOwnership = ESpawnOwnership::External;
+		}
+	}
 	if (!SpawnedActor)
 	{
 		SpawnedActor = SpawnObject(*Spawnable, TemplateID, Player);
@@ -55,7 +66,7 @@ UObject* FMovieSceneSpawnRegister::SpawnObject(const FGuid& BindingId, UMovieSce
 		FMovieSceneSpawnableAnnotation::Add(SpawnedActor, BindingId, TemplateID, Sequence);
 
 		FMovieSceneSpawnRegisterKey Key(TemplateID, BindingId);
-		Register.Add(Key, FSpawnedObject(BindingId, *SpawnedActor, Spawnable->GetSpawnOwnership()));
+		Register.Add(Key, FSpawnedObject(BindingId, *SpawnedActor, SpawnOwnership));
 
 		Player.State.Invalidate(BindingId, TemplateID);
 	}

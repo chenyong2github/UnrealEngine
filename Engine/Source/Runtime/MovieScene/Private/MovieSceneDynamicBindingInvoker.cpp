@@ -7,35 +7,21 @@
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "IMovieScenePlayer.h"
 #include "MovieSceneDynamicBinding.h"
+#include "UObject/UnrealType.h"
 
-bool FMovieSceneDynamicBindingInvoker::ResolveDynamicBinding(IMovieScenePlayer& Player, UMovieSceneSequence* Sequence, const FMovieSceneSequenceID& SequenceID, const FGuid& InGuid, const FMovieSceneDynamicBinding& DynamicBinding, TArray<UObject*, TInlineAllocator<1>>& OutObjects)
-{
-	UObject* Object = ResolveDynamicBinding(Player, Sequence, SequenceID, InGuid, DynamicBinding);
-	if (Object != nullptr)
-	{
-		OutObjects.Add(Object);
-
-		// We have successfully called the dynamic binding function, don't use the default behavior.
-		return false;
-	}
-
-	// No valid object found, fallback to default behavior.
-	return true;
-}
-
-UObject* FMovieSceneDynamicBindingInvoker::ResolveDynamicBinding(IMovieScenePlayer& Player, UMovieSceneSequence* Sequence, const FMovieSceneSequenceID& SequenceID, const FGuid& InGuid, const FMovieSceneDynamicBinding& DynamicBinding)
+FMovieSceneDynamicBindingResolveResult FMovieSceneDynamicBindingInvoker::ResolveDynamicBinding(IMovieScenePlayer& Player, UMovieSceneSequence* Sequence, const FMovieSceneSequenceID& SequenceID, const FGuid& InGuid, const FMovieSceneDynamicBinding& DynamicBinding)
 {
 	if (!ensure(Sequence))
 	{
 		// Sequence is somehow null... fallback to default behavior.
-		return nullptr;
+		return FMovieSceneDynamicBindingResolveResult();
 	}
 
 	UFunction* DynamicBindingFunc = DynamicBinding.Function.Get();
 	if (!DynamicBindingFunc)
 	{
 		// No dynamic binding, fallback to default behavior.
-		return nullptr;
+		return FMovieSceneDynamicBindingResolveResult();
 	}
 
 	UObject* DirectorInstance = Player.GetEvaluationTemplate().GetOrCreateDirectorInstance(SequenceID, Player);
@@ -47,7 +33,7 @@ UObject* FMovieSceneDynamicBindingInvoker::ResolveDynamicBinding(IMovieScenePlay
 				*Sequence->GetName(), *DynamicBindingFunc->GetName());
 #endif
 		// Fallback to default behavior.
-		return nullptr;
+		return FMovieSceneDynamicBindingResolveResult();
 	}
 
 #if WITH_EDITOR
@@ -62,7 +48,7 @@ UObject* FMovieSceneDynamicBindingInvoker::ResolveDynamicBinding(IMovieScenePlay
 				TEXT("%s: Refusing to resolve dynamic binding '%s' in editor world because function '%s' has 'Call in Editor' set to false."),
 				*Sequence->GetName(), *LexToString(InGuid), *DynamicBindingFunc->GetName());
 		// Fallback to default behavior.
-		return nullptr;
+		return FMovieSceneDynamicBindingResolveResult();
 	}
 #endif // WITH_EDITOR
 
@@ -74,12 +60,12 @@ UObject* FMovieSceneDynamicBindingInvoker::ResolveDynamicBinding(IMovieScenePlay
 	ResolveParams.ObjectBindingID = InGuid;
 	ResolveParams.Sequence = Sequence;
 	ResolveParams.RootSequence = Player.GetEvaluationTemplate().GetRootSequence();
-	UObject* Object = InvokeDynamicBinding(DirectorInstance, DynamicBinding, ResolveParams);
+	FMovieSceneDynamicBindingResolveResult Result = InvokeDynamicBinding(DirectorInstance, DynamicBinding, ResolveParams);
 
-	return Object;
+	return Result;
 }
 
-UObject* FMovieSceneDynamicBindingInvoker::InvokeDynamicBinding(UObject* DirectorInstance, const FMovieSceneDynamicBinding& DynamicBinding, const FMovieSceneDynamicBindingResolveParams& ResolveParams)
+FMovieSceneDynamicBindingResolveResult FMovieSceneDynamicBindingInvoker::InvokeDynamicBinding(UObject* DirectorInstance, const FMovieSceneDynamicBinding& DynamicBinding, const FMovieSceneDynamicBindingResolveParams& ResolveParams)
 {
 	// Parse all function parameters.
 	UFunction* DynamicBindingFunc = DynamicBinding.Function.Get();
@@ -90,7 +76,7 @@ UObject* FMovieSceneDynamicBindingInvoker::InvokeDynamicBinding(UObject* Directo
 	// Initialize parameters.
 	FMemory::Memzero(Parameters, DynamicBindingFunc->ParmsSize);
 
-	FObjectPropertyBase* ReturnProp = nullptr;
+	FStructProperty* ReturnProp = nullptr;
 	for (TFieldIterator<FProperty> It(DynamicBindingFunc); It; ++It)
 	{
 		FProperty* LocalProp = *It;
@@ -102,8 +88,9 @@ UObject* FMovieSceneDynamicBindingInvoker::InvokeDynamicBinding(UObject* Directo
 
 		if (LocalProp->HasAnyPropertyFlags(CPF_ReturnParm))
 		{
-			ensure(ReturnProp == nullptr);
-			ReturnProp = CastFieldChecked<FObjectPropertyBase>(LocalProp);
+			ensureMsgf(ReturnProp == nullptr,
+					TEXT("Found more than one return parameter in dynamic binding resolver function!"));
+			ReturnProp = CastFieldChecked<FStructProperty>(LocalProp);
 		}
 	}
 	
@@ -117,10 +104,11 @@ UObject* FMovieSceneDynamicBindingInvoker::InvokeDynamicBinding(UObject* Directo
 	DirectorInstance->ProcessEvent(DynamicBindingFunc, Parameters);
 
 	// Grab the result value.
-	UObject* ResultObject = nullptr;
-	if (ensure(ReturnProp))
+	FMovieSceneDynamicBindingResolveResult Result;
+	if (ensureMsgf(ReturnProp != nullptr && ReturnProp->Struct == FMovieSceneDynamicBindingResolveResult::StaticStruct(),
+			TEXT("The dynamic binding resolver function has no return value of type FMovieSceneDynamicBindingResolveResult")))
 	{
-		ResultObject = ReturnProp->GetObjectPropertyValue_InContainer(Parameters);
+		ReturnProp->GetValue_InContainer(Parameters, static_cast<void*>(&Result));
 	}
 
 	// Destroy parameters.
@@ -129,6 +117,6 @@ UObject* FMovieSceneDynamicBindingInvoker::InvokeDynamicBinding(UObject* Directo
 		It->DestroyValue_InContainer(Parameters);
 	}
 
-	return ResultObject;
+	return Result;
 }
 

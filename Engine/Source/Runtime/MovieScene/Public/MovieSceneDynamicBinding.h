@@ -71,20 +71,42 @@ struct MOVIESCENE_API FMovieSceneDynamicBindingResolveParams
 	GENERATED_BODY()
 
 	/** The sequence that contains the object binding being resolved */
-	UPROPERTY(EditAnywhere, Category="General")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="General")
 	TObjectPtr<UMovieSceneSequence> Sequence;
 
 	/** The ID of the object binding being resolved */
-	UPROPERTY(EditAnywhere, Category="General")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="General")
 	FGuid ObjectBindingID;
 
 	/** The root sequence */
-	UPROPERTY(EditAnywhere, Category="General")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="General")
 	TObjectPtr<UMovieSceneSequence> RootSequence;
 };
 
+USTRUCT(BlueprintType)
+struct MOVIESCENE_API FMovieSceneDynamicBindingResolveResult
+{
+	GENERATED_BODY()
+
+	/** The resolved object */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="General")
+	TObjectPtr<UObject> Object = nullptr;
+
+	/**
+	 * Whether the resolved object is external to the sequence
+	 *
+	 * This property is ignored for possessables, who are always treated as external.
+	 * When resolving a spawnable, setting this to true will not destroy the object
+	 * when the spawnable track ends, or the sequence finishes.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="General")
+	bool bIsPossessedObject = true;
+};
+
 /**
- * Dummy structure for showing an FMovieSceneDynamicBinding inside a details view.
+ * Dummy structure for showing an FMovieSceneDynamicBinding inside a details view,
+ * and having a function signature that we can get a valid UFunction from to prepare
+ * blueprint function graphs.
  */
 USTRUCT()
 struct MOVIESCENE_API FMovieSceneDynamicBindingContainer
@@ -107,6 +129,6 @@ public:
 
 	/** Resolve the bound object to the player's pawn */
 	UFUNCTION(BlueprintPure, Category="Sequencer|Dynamic Binding", meta=(WorldContext="WorldContextObject"))
-	static UObject* ResolveToPlayerPawn(UObject* WorldContextObject, int32 PlayerControllerIndex = 0);
+	static FMovieSceneDynamicBindingResolveResult ResolveToPlayerPawn(UObject* WorldContextObject, int32 PlayerControllerIndex = 0);
 };
 

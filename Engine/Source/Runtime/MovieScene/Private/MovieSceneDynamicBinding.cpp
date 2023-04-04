@@ -5,6 +5,7 @@
 #include "EngineUtils.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "MovieScene.h"
 #include "MovieSceneBinding.h"
@@ -14,7 +15,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneDynamicBinding)
 
-UObject* UBuiltInDynamicBindingResolverLibrary::ResolveToPlayerPawn(UObject* WorldContextObject, int32 PlayerControllerIndex)
+FMovieSceneDynamicBindingResolveResult UBuiltInDynamicBindingResolverLibrary::ResolveToPlayerPawn(UObject* WorldContextObject, int32 PlayerControllerIndex)
 {
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
@@ -29,11 +30,14 @@ UObject* UBuiltInDynamicBindingResolverLibrary::ResolveToPlayerPawn(UObject* Wor
 			if (APlayerController* PlayerController = It->Get())
 			{
 				APawn* Pawn = PlayerController->GetPawn();
-				return (UObject*)Pawn;
+				FMovieSceneDynamicBindingResolveResult Result;
+				Result.Object = Pawn;
+				Result.bIsPossessedObject = true;
+				return Result;
 			}
 		}
 	}
 
-	return nullptr;
+	return FMovieSceneDynamicBindingResolveResult();
 }
 

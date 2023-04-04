@@ -67,6 +67,6 @@ class UMovieSceneDynamicBindingEndpointUtil : public UObject
 	GENERATED_BODY()
 
 	UFUNCTION()
-	UObject* SampleResolveBinding() { return nullptr; }
+	FMovieSceneDynamicBindingResolveResult SampleResolveBinding() { return FMovieSceneDynamicBindingResolveResult(); }
 };
 
