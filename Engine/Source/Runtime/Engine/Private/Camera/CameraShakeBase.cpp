@@ -6,6 +6,8 @@
 #include "Engine/Engine.h"
 #include "IXRTrackingSystem.h"
 #include "Math/RotationMatrix.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CoreMiscDefines.h"
 #include "Stats/Stats.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CameraShakeBase)
@@ -23,6 +25,7 @@ UCameraShakeBase::UCameraShakeBase(const FObjectInitializer& ObjectInitializer)
 	, bSingleInstance(false)
 	, ShakeScale(1.f)
 	, PlaySpace(ECameraShakePlaySpace::CameraLocal)
+	, bIsActive(false)
 {
 	RootShakePattern = static_cast<UCameraShakePattern*>(ObjectInitializer.CreateDefaultSubobject(
 			this, 
@@ -41,85 +44,134 @@ FCameraShakeDuration UCameraShakeBase::GetCameraShakeDuration() const
 	return TempInfo.Duration;
 }
 
-void FCameraShakeState::Initialize(const FCameraShakeInfo& InShakeInfo)
+FCameraShakeState::FCameraShakeState()
+	: ElapsedTime(0.f)
+	, CurrentBlendInTime(0.f)
+	, CurrentBlendOutTime(0.f)
+	, bIsBlendingIn(false)
+	, bIsBlendingOut(false)
+	, bIsPlaying(false)
+	, bHasBlendIn(false)
+	, bHasBlendOut(false)
 {
-	ShakeInfo = InShakeInfo;
+}
+
+void FCameraShakeState::Start(const FCameraShakeInfo& InShakeInfo)
+{
+	const FCameraShakeState PrevState(*this);
 
 	// Cache a few things about the shake.
+	ShakeInfo = InShakeInfo;
 	bHasBlendIn = ShakeInfo.BlendIn > 0.f;
 	bHasBlendOut = ShakeInfo.BlendOut > 0.f;
 
 	// Initialize our running state.
-	const bool bIsRestarting = bIsActive;
-	if (!bIsRestarting)
-	{
-		// Set the active state.
-		ElapsedTime = 0.f;
-		bIsActive = true;
-	}
-	else
+	InitializePlaying();
+
+	if (PrevState.bIsPlaying)
 	{
 		// Single instance shake is being restarted... let's see if we need to
-		// reverse a blend out into a blend in.
-		if (ShakeInfo.Duration.IsFixed() && bHasBlendIn && bHasBlendOut)
+		// reverse a blend-out into a blend-in.
+		if (bHasBlendIn && PrevState.bHasBlendOut && PrevState.bIsBlendingOut)
 		{
-			const float BlendOutStartTime = ShakeInfo.Duration.Get() - ShakeInfo.BlendOut;
-			if (ElapsedTime > BlendOutStartTime)
-			{
-				// We had started blending out... let's start at an equivalent weight into the blend in.
-				const float BlendOutCurrentTime = ElapsedTime - BlendOutStartTime;
-				ElapsedTime = ShakeInfo.BlendIn * (1.f - BlendOutCurrentTime / ShakeInfo.BlendOut);
-				// Because this means we are shortening the shake (by the amount that we start into the
-				// blend in, instead of starting from zero), we need to lengthen the shake to make it
-				// last the same duration as it's supposed to.
-				ShakeInfo.Duration = FCameraShakeDuration(ShakeInfo.Duration.Get() + ElapsedTime);
-			}
-			else
-			{
-				// We had not started blending out, so we were at 100%. Let's go back to the beginning
-				// but skip the blend in time.
-				ElapsedTime = 0.f;
-				bHasBlendIn = false;
-				ShakeInfo.BlendIn = 0.f;
-			}
+			// We had started blending out... let's start at an equivalent weight into the blend in.
+			CurrentBlendInTime = ShakeInfo.BlendIn * (1.f - PrevState.CurrentBlendOutTime / PrevState.ShakeInfo.BlendOut);
 		}
-		else
+		else if (bHasBlendIn && !PrevState.bHasBlendOut)
 		{
-			// We either don't have blending, or our shake pattern is doing custom stuff.
-			ElapsedTime = 0.f;
+			// We have no blend out, so we were still at 100%. But we don't want to suddenly drop 
+			// to 0% at the beginning of the blend in, so we skip the blend-in.
+			bIsBlendingIn = false;
 		}
 	}
 }
 
+void FCameraShakeState::Start(const UCameraShakePattern* InShakePattern)
+{
+	check(InShakePattern);
+	FCameraShakeInfo Info;
+	InShakePattern->GetShakePatternInfo(Info);
+	Start(Info);
+}
+
+void FCameraShakeState::InitializePlaying()
+{
+	ElapsedTime = 0.f;
+	CurrentBlendInTime = 0.f;
+	CurrentBlendOutTime = 0.f;
+	bIsBlendingIn = bHasBlendIn;
+	bIsBlendingOut = false;
+	bIsPlaying = true;
+}
+
 float FCameraShakeState::Update(float DeltaTime)
 {
-	// If we have a fixed duration for our shake, we can do all the time-keeping stuff ourselves.
+	// If we have duration information for our shake, we can do all the time-keeping stuff ourselves.
 	// This includes figuring out if the shake is finished, and what kind of blend in/out weight
 	// we should apply.
 	float BlendingWeight = 1.f;
+
+	// Advance shake and blending times.
+	ElapsedTime += DeltaTime;
+	if (bIsBlendingIn)
+	{
+		CurrentBlendInTime += DeltaTime;
+	}
+	if (bIsBlendingOut)
+	{
+		CurrentBlendOutTime += DeltaTime;
+	}
+
+	// Advance progress into the shake.
 	if (HasDuration())
 	{
-		// Advance progress into the shake.
 		const float ShakeDuration = ShakeInfo.Duration.Get();
-		ElapsedTime = ElapsedTime + DeltaTime;
 		if (ElapsedTime < 0.f || ElapsedTime >= ShakeDuration)
 		{
-			// The shake has ended, or hasn't started yet.
-			bIsActive = false;
+			// The shake has ended, or hasn't started yet (which can happen if we update backwards)
+			bIsPlaying = false;
 			return 0.f;
 		}
 
-		// Blending in?
-		if (bHasBlendIn && ElapsedTime < ShakeInfo.BlendIn)
-		{
-			BlendingWeight *= (ElapsedTime / ShakeInfo.BlendIn);
-		}
-
-		// Blending out?
 		const float DurationRemaining = (ShakeDuration - ElapsedTime);
-		if (bHasBlendOut && DurationRemaining < ShakeInfo.BlendOut)
+		if (bHasBlendOut && !bIsBlendingOut && DurationRemaining < ShakeInfo.BlendOut)
 		{
-			BlendingWeight *= (DurationRemaining / ShakeInfo.BlendOut);
+			// We started blending out.
+			bIsBlendingOut = true;
+			CurrentBlendOutTime = (ShakeInfo.BlendOut - DurationRemaining);
+		}
+	}
+
+	// Compute blend-in and blend-out weight.
+	if (bHasBlendIn && bIsBlendingIn)
+	{
+		if (CurrentBlendInTime < ShakeInfo.BlendIn)
+		{
+			BlendingWeight *= (CurrentBlendInTime / ShakeInfo.BlendIn);
+		}
+		else
+		{
+			// Finished blending in!
+			bIsBlendingIn = false;
+			CurrentBlendInTime = ShakeInfo.BlendIn;
+		}
+	}
+	if (bHasBlendOut && bIsBlendingOut)
+	{
+		if (CurrentBlendOutTime < ShakeInfo.BlendOut)
+		{
+			BlendingWeight *= (1.f - CurrentBlendOutTime / ShakeInfo.BlendOut);
+		}
+		else
+		{
+			// Finished blending out!
+			bIsBlendingOut = false;
+			CurrentBlendOutTime = ShakeInfo.BlendOut;
+			// We also end the shake itself. In most cases we would have hit the similar case
+			// above already, but if we have an infinite shake we have no duration to reach the end
+			// of so we only finish here.
+			bIsPlaying = false;
+			return 0.f;
 		}
 	}
 	return BlendingWeight;
@@ -127,53 +179,47 @@ float FCameraShakeState::Update(float DeltaTime)
 
 float FCameraShakeState::Scrub(float AbsoluteTime)
 {
-	float BlendingWeight = 1.f;
-	if (HasDuration())
-	{
-		// Reset the state to active, at the beginning, and update from there.
-		bIsActive = true;
-		ElapsedTime = 0.f;
-		return Update(AbsoluteTime);
-	}
-	return BlendingWeight;
+	// Reset the state to active, at the beginning, and update from there.
+	InitializePlaying();
+	return Update(AbsoluteTime);
 }
 
-bool FCameraShakeState::Stop(bool bImmediately)
+void FCameraShakeState::Stop(bool bImmediately)
 {
-	if (HasDuration())
+	// For stopping immediately, we don't do anything besides render the shake inactive.
+	if (bImmediately || !bHasBlendOut)
 	{
-		// If we have duration information, we can set our time-keeping accordingly to stop the shake.
-		// For stopping immediately, we just go to the end right away.
-		// For stopping with a "graceful" blend-out:
-		// - If we are already blending out, let's keep doing that and not change anything.
-		// - If we are not, move to the start of the blend out.
-		const float ShakeDuration = ShakeInfo.Duration.Get();
-		if (bImmediately || !bHasBlendOut)
-		{
-			ElapsedTime = ShakeDuration;
-		}
-		else
-		{
-			const float BlendOutStartTime = ShakeDuration - ShakeInfo.BlendOut;
-			if (ElapsedTime < BlendOutStartTime)
-			{
-				ElapsedTime = BlendOutStartTime;
-			}
-		}
-		return true;
+		bIsPlaying = false;
 	}
-	return false;
+	// For stopping with a "graceful" blend-out:
+	// - If we are already blending out, let's keep doing that and not change anything.
+	// - If we are not, let's start blending out.
+	else if (bHasBlendOut && !bIsBlendingOut)
+	{
+		bIsBlendingOut = true;
+		CurrentBlendOutTime = 0.f;
+	}
 }
 
 FCameraShakeUpdateParams FCameraShakeScrubParams::ToUpdateParams() const
 {
-	FCameraShakeUpdateParams UpdateParams;
+	FCameraShakeUpdateParams UpdateParams(POV);
 	UpdateParams.DeltaTime = AbsoluteTime;
 	UpdateParams.ShakeScale = ShakeScale;
 	UpdateParams.DynamicScale = DynamicScale;
-	UpdateParams.BlendingWeight = BlendingWeight;
-	UpdateParams.POV = POV;
 	return UpdateParams;
+}
+
+void FCameraShakeUpdateResult::ApplyScale(float InScale)
+{
+	if (ensureMsgf(!EnumHasAnyFlags(Flags, ECameraShakeUpdateResultFlags::ApplyAsAbsolute),
+			TEXT("Can't scale absolute shake result")))
+	{
+		Location *= InScale;
+		Rotation *= InScale;
+		FOV *= InScale;
+		PostProcessBlendWeight *= InScale;
+	}
 }
 
 void UCameraShakeBase::GetCameraShakeBlendTimes(float& OutBlendIn, float& OutBlendOut) const
@@ -186,7 +232,7 @@ void UCameraShakeBase::GetCameraShakeBlendTimes(float& OutBlendIn, float& OutBle
 
 void UCameraShakeBase::SetRootShakePattern(UCameraShakePattern* InPattern)
 {
-	if (ensureMsgf(!State.IsActive(), TEXT("Can't change the root shake pattern while the shake is running!")))
+	if (ensureMsgf(!bIsActive, TEXT("Can't change the root shake pattern while the shake is running!")))
 	{
 		RootShakePattern = InPattern;
 	}
@@ -206,7 +252,7 @@ void UCameraShakeBase::StartShake(APlayerCameraManager* Camera, float Scale, ECa
 
 	// Check that we were correctly stopped before we are asked to play again.
 	// Note that single-instance shakes can be restarted while they're running.
-	checkf(!State.IsActive() || bSingleInstance, TEXT("Starting to play a shake that was already playing."));
+	checkf(!bIsActive || bSingleInstance, TEXT("Starting to play a shake that was already playing."));
 
 	// Remember the various settings for this run.
 	// Note that the camera manager can be null, for example in unit tests.
@@ -216,11 +262,8 @@ void UCameraShakeBase::StartShake(APlayerCameraManager* Camera, float Scale, ECa
 	UserPlaySpaceMatrix = (InPlaySpace == ECameraShakePlaySpace::UserDefined) ? 
 		FRotationMatrix(UserPlaySpaceRot) : FRotationMatrix::Identity;
 
-	// Acquire info about the shake we're running, and initialize our transient state.
-	const bool bIsRestarting = State.IsActive();
-	FCameraShakeInfo ActiveInfo;
-	GetShakeInfo(ActiveInfo);
-	State.Initialize(ActiveInfo);
+	const bool bIsRestarting = bIsActive;
+	bIsActive = true;
 
 	// Let the root pattern initialize itself.
 	if (RootShakePattern)
@@ -236,121 +279,92 @@ void UCameraShakeBase::UpdateAndApplyCameraShake(float DeltaTime, float Alpha, F
 	SCOPE_CYCLE_COUNTER(STAT_UpdateShake);
 	SCOPE_CYCLE_UOBJECT(This, this);
 
-	checkf(State.IsActive(), TEXT("Updating a camera shake that wasn't started with a call to StartShake!"));
-
-	// Update our state, and early out if we have gone over the duration of the shake.
-	float BlendingWeight = State.Update(DeltaTime);
-	if (!State.IsActive())
-	{
-		return;
-	}
-
-	// Make the sub-class do the actual work.
-	FCameraShakeUpdateParams Params(InOutPOV);
-	Params.DeltaTime = DeltaTime;
-	Params.ShakeScale = ShakeScale;
-	Params.DynamicScale = Alpha;
-	Params.BlendingWeight = BlendingWeight;
-	
-	// Result object is initialized with zero values since the default flags make us handle it
-	// as an additive offset.
-	FCameraShakeUpdateResult Result;
+	checkf(bIsActive, TEXT("Updating a camera shake that wasn't started with a call to StartShake!"));
 
 	if (RootShakePattern)
 	{
-		RootShakePattern->UpdateShakePattern(Params, Result);
-	}
+		// Make the sub-class do the actual work.
+		FCameraShakeUpdateParams Params(InOutPOV);
+		Params.DeltaTime = DeltaTime;
+		Params.ShakeScale = ShakeScale;
+		Params.DynamicScale = Alpha;
 
-	// Apply the result to the given view info.
-	FCameraShakeApplyResultParams ApplyParams;
-	ApplyParams.Scale = Params.GetTotalScale();
-	ApplyParams.PlaySpace = PlaySpace;
-	ApplyParams.UserPlaySpaceMatrix = UserPlaySpaceMatrix;
-	ApplyParams.CameraManager = CameraManager;
-	ApplyResult(ApplyParams, Result, InOutPOV);
+		// Result object is initialized with zero values since the default flags make us handle it
+		// as an additive offset.
+		FCameraShakeUpdateResult Result;
+
+		RootShakePattern->UpdateShakePattern(Params, Result);
+
+		if (!RootShakePattern->IsFinished())
+		{
+			// Apply the result to the given view info.
+			FCameraShakeApplyResultParams ApplyParams;
+			ApplyParams.Scale = Params.GetTotalScale();
+			ApplyParams.PlaySpace = PlaySpace;
+			ApplyParams.UserPlaySpaceMatrix = UserPlaySpaceMatrix;
+			ApplyParams.CameraManager = CameraManager;
+			ApplyResult(ApplyParams, Result, InOutPOV);
+		}
+	}
 }
 
 void UCameraShakeBase::ScrubAndApplyCameraShake(float AbsoluteTime, float Alpha, FMinimalViewInfo& InOutPOV)
 {
 	// This code is similar to the above UpdateAndApplyCameraShake method, but calls the scrub method
 	// on the state manager and root pattern instead of the update method.
-	
+
 	SCOPE_CYCLE_COUNTER(STAT_UpdateShake);
 	SCOPE_CYCLE_UOBJECT(This, this);
 
-	checkf(State.IsActive(), TEXT("Updating a camera shake that wasn't started with a call to StartShake!"));
-
-	float BlendingWeight = State.Scrub(AbsoluteTime);
-	if (!State.IsActive())
-	{
-		return;
-	}
-
-	// Make the sub-class do the actual work.
-	FCameraShakeScrubParams Params(InOutPOV);
-	Params.AbsoluteTime = AbsoluteTime;
-	Params.ShakeScale = ShakeScale;
-	Params.DynamicScale = Alpha;
-	Params.BlendingWeight = BlendingWeight;
-
-	// Result object is initialized with zero values since the default flags make us handle it
-	// as an additive offset.
-	FCameraShakeUpdateResult Result;
+	checkf(bIsActive, TEXT("Updating a camera shake that wasn't started with a call to StartShake!"));
 
 	if (RootShakePattern)
 	{
-		RootShakePattern->ScrubShakePattern(Params, Result);
-	}
+		// Make the sub-class do the actual work.
+		FCameraShakeScrubParams Params(InOutPOV);
+		Params.AbsoluteTime = AbsoluteTime;
+		Params.ShakeScale = ShakeScale;
+		Params.DynamicScale = Alpha;
 
-	// Apply the result to the given view info.
-	FCameraShakeApplyResultParams ApplyParams;
-	ApplyParams.Scale = Params.GetTotalScale();
-	ApplyParams.PlaySpace = PlaySpace;
-	ApplyParams.UserPlaySpaceMatrix = UserPlaySpaceMatrix;
-	ApplyParams.CameraManager = CameraManager;
-	ApplyResult(ApplyParams, Result, InOutPOV);
+		// Result object is initialized with zero values since the default flags make us handle it
+		// as an additive offset.
+		FCameraShakeUpdateResult Result;
+
+		RootShakePattern->ScrubShakePattern(Params, Result);
+
+		if (!RootShakePattern->IsFinished())
+		{
+			// Apply the result to the given view info.
+			FCameraShakeApplyResultParams ApplyParams;
+			ApplyParams.Scale = Params.GetTotalScale();
+			ApplyParams.PlaySpace = PlaySpace;
+			ApplyParams.UserPlaySpaceMatrix = UserPlaySpaceMatrix;
+			ApplyParams.CameraManager = CameraManager;
+			ApplyResult(ApplyParams, Result, InOutPOV);
+		}
+	}
 }
 
 bool UCameraShakeBase::IsFinished() const
 {
-	if (State.IsActive())
+	if (RootShakePattern)
 	{
-		switch (State.GetShakeInfo().Duration.GetDurationType())
-		{
-			case ECameraShakeDurationType::Fixed:
-				// If we have duration information, we can simply figure out ourselves if
-				// we are finished.
-				return State.GetElapsedTime() >= State.GetDuration();
-
-			case ECameraShakeDurationType::Infinite:
-				return false;
-
-			case ECameraShakeDurationType::Custom:
-				if (RootShakePattern)
-				{
-					// Ask the root pattern whether it's finished.
-					return RootShakePattern->IsFinished();
-				}
-				else
-				{
-					// We have no root pattern, we don't have anything to do.
-					return true;
-				}
-		}
+		// Ask the root pattern whether it's finished.
+		return RootShakePattern->IsFinished();
 	}
-	// We're not active, so we're finished.
-	return true;
+	else
+	{
+		// We have no root pattern, we don't have anything to do.
+		return true;
+	}
 }
 
 void UCameraShakeBase::StopShake(bool bImmediately)
 {
-	if (!ensureMsgf(State.IsActive(), TEXT("Stopping a shake that wasn't active")))
+	if (!ensureMsgf(bIsActive, TEXT("Stopping a shake that wasn't active")))
 	{
 		return;
 	}
-
-	// Make our transient state as stopping or stopped.
-	State.Stop(bImmediately);
 
 	// Let the root pattern do any custom logic.
 	if (RootShakePattern)
@@ -368,7 +382,7 @@ void UCameraShakeBase::TeardownShake()
 		RootShakePattern->TeardownShakePattern();
 	}
 
-	State = FCameraShakeState();
+	bIsActive = false;
 }
 
 void UCameraShakeBase::ApplyResult(const FCameraShakeApplyResultParams& ApplyParams, const FCameraShakeUpdateResult& InResult, FMinimalViewInfo& InOutPOV)
@@ -414,17 +428,14 @@ void UCameraShakeBase::ApplyResult(const FCameraShakeApplyResultParams& ApplyPar
 	}
 }
 
-void UCameraShakeBase::ApplyScale(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult) const
+void UCameraShakeBase::ApplyScale(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult)
 {
-	return ApplyScale(Params.GetTotalScale(), InOutResult);
+	InOutResult.ApplyScale(Params.GetTotalScale());
 }
 
 void UCameraShakeBase::ApplyScale(float Scale, FCameraShakeUpdateResult& InOutResult)
 {
-	InOutResult.Location *= Scale;
-	InOutResult.Rotation *= Scale;
-	InOutResult.FOV *= Scale;
-	InOutResult.PostProcessBlendWeight *= Scale;
+	InOutResult.ApplyScale(Scale);
 }
 
 void UCameraShakeBase::ApplyLimits(const FMinimalViewInfo& InPOV, FCameraShakeUpdateResult& InOutResult)
@@ -510,5 +521,4 @@ void UCameraShakePattern::TeardownShakePattern()
 {
 	TeardownShakePatternImpl();
 }
-
 

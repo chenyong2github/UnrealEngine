@@ -5,6 +5,7 @@
 #include "CameraAnimationSequencePlayer.h"
 #include "EntitySystem/MovieSceneEntityManager.h"
 #include "MovieScene.h"
+#include "MovieSceneFwd.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SequenceCameraShake)
 
@@ -69,6 +70,9 @@ void USequenceCameraShakePattern::StartShakePatternImpl(const FCameraShakeStartP
 	// Initialize it and start playing.
 	Player->Initialize(Sequence);
 	Player->Play(bRandomSegment, bRandomSegment);
+
+	// Initialize our state.
+	State.Start(this);
 }
 
 void USequenceCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
@@ -78,6 +82,9 @@ void USequenceCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpdat
 
 	const FFrameTime NewPosition = CurrentPosition + Params.DeltaTime * PlayRate * DisplayRate;
 	UpdateCamera(NewPosition, Params.POV, OutResult);
+
+	const float BlendWeight = State.Update(Params.DeltaTime);
+	OutResult.ApplyScale(BlendWeight);
 }
 
 void USequenceCameraShakePattern::ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult)
@@ -87,8 +94,16 @@ void USequenceCameraShakePattern::ScrubShakePatternImpl(const FCameraShakeScrubP
 		const FFrameRate InputRate = Player->GetInputRate();
 		const FFrameTime NewPosition = Params.AbsoluteTime * PlayRate * InputRate;
 		UpdateCamera(NewPosition, Params.POV, OutResult);
+		
+		const float BlendWeight = State.Scrub(Params.AbsoluteTime);
+		OutResult.ApplyScale(BlendWeight);
 	}
 	Player->EndScrubbing();
+}
+
+bool USequenceCameraShakePattern::IsFinishedImpl() const
+{
+	return (Player == nullptr || Player->GetPlaybackStatus() == EMovieScenePlayerStatus::Stopped);
 }
 
 void USequenceCameraShakePattern::StopShakePatternImpl(const FCameraShakeStopParams& Params)
@@ -115,6 +130,9 @@ void USequenceCameraShakePattern::StopShakePatternImpl(const FCameraShakeStopPar
 				Player->Jump(BlendOutStartFrame);
 			}
 		}
+
+		// Stop tracking time.
+		State.Stop(Params.bImmediately);
 	}
 }
 
@@ -125,6 +143,9 @@ void USequenceCameraShakePattern::TeardownShakePatternImpl()
 	// Stop if we had reached the end of the animation and the sequence needs finishing.
 	// If the shake had been stopped explicitly, this basically won't do anything.
 	Player->Stop();
+
+	// Reset our time tracking.
+	State = FCameraShakeState();
 }
 
 void USequenceCameraShakePattern::UpdateCamera(FFrameTime NewPosition, const FMinimalViewInfo& InPOV, FCameraShakeUpdateResult& OutResult)

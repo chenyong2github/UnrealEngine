@@ -9,6 +9,7 @@
 #include "UObject/ScriptMacros.h"
 #include "Camera/CameraTypes.h"
 #include "Engine/Scene.h"
+
 #include "CameraShakeBase.generated.h"
 
 class APlayerCameraManager;
@@ -51,18 +52,15 @@ struct ENGINE_API FCameraShakeUpdateParams
 	/** The dynamic scale being passed down from the camera manger for the next update */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	float DynamicScale = 1.f;
-	/** The auto-computed blend in/out scale, when blending is handled by externally (see UCameraShakeBase::GetShakeInfo) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
-	float BlendingWeight = 1.f;
 
 	/** The current view that this camera shake should modify */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	FMinimalViewInfo POV;
 
-	/** The total scale to apply to the camera shake during the current update. Equals ShakeScale * DynamicScale * BlendingWeight */
+	/** The total scale to apply to the camera shake during the current update. Equals ShakeScale * DynamicScale */
 	float GetTotalScale() const
 	{
-		return FMath::Max(ShakeScale * DynamicScale * BlendingWeight, 0.f);
+		return FMath::Max(ShakeScale * DynamicScale, 0.f);
 	}
 };
 
@@ -94,18 +92,15 @@ struct ENGINE_API FCameraShakeScrubParams
 	/** The dynamic scale being passed down from the camera manger for the next update */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	float DynamicScale = 1.f;
-	/** The auto-computed blend in/out scale, when blending is handled by externally (see UCameraShakeBase::GetShakeInfo) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
-	float BlendingWeight = 1.f;
 
 	/** The current view that this camera shake should modify */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=CameraShake)
 	FMinimalViewInfo POV;
 
-	/** The total scale to apply to the camera shake during the current update. Equals ShakeScale * DynamicScale * BlendingWeight */
+	/** The total scale to apply to the camera shake during the current update. Equals ShakeScale * DynamicScale */
 	float GetTotalScale() const
 	{
-		return FMath::Max(ShakeScale * DynamicScale * BlendingWeight, 0.f);
+		return FMath::Max(ShakeScale * DynamicScale, 0.f);
 	}
 };
 
@@ -157,6 +152,9 @@ struct ENGINE_API FCameraShakeUpdateResult
 
 	/** Flags for how the base class should handle the result */
 	ECameraShakeUpdateResultFlags Flags;
+
+	/** Apply the given scale to the result (only if it is "relative") */
+	void ApplyScale(float InScale);
 };
 
 /**
@@ -269,17 +267,20 @@ struct ENGINE_API FCameraShakeApplyResultParams
  */
 struct ENGINE_API FCameraShakeState
 {
-	FCameraShakeState()
-		: ElapsedTime(0.f)
-		, bIsActive(false)
-		, bHasBlendIn(false)
-		, bHasBlendOut(false)
-	{}
+	/**
+	 * Create a new camera shake state
+	 */
+	FCameraShakeState();
 
 	/**
-	 * Initialize the state with a shake's info.
+	 * Initialize the state with a shake's info and start playing.
 	 */
-	void Initialize(const FCameraShakeInfo& InShakeInfo);
+	void Start(const FCameraShakeInfo& InShakeInfo);
+	
+	/**
+	 * Initialize the state with a shake's info and start playing.
+	 */
+	void Start(const UCameraShakePattern* InShakePattern);
 
 	/**
 	 * Updates the state with a delta time.
@@ -312,20 +313,30 @@ struct ENGINE_API FCameraShakeState
 	/**
 	 * Marks the shake has having been stopped.
 	 *
-	 * If the state isn't managed (i.e. it doesn't have any fixed duration information), this doesn't
-	 * do anything and returns false.
-	 *
-	 * If the state is managed, this puts the current elapsed time at the end of the shake's duration
-	 * (if we need to stop immediately), or at the start of the shake's blend-out, if any (if we don't
-	 * stop immediately).
+	 * This renders the shake inactive (if we need to stop immediately), or starts the shake's blend-out,
+	 * if any (if we don't stop immediately). If no duration or blending information is available (i.e. if
+	 * the shake duration is "Custom"), stopping non-immediately does nothing: the sub-class is expected
+	 * to handle it.
 	 */
-	bool Stop(bool bImmediately);
+	void Stop(bool bImmediately);
 
-	/** Returns whether the shake is active */
-	bool IsActive() const { return bIsActive; }
+	/** Returns whether the shake is playing */
+	bool IsPlaying() const { return bIsPlaying; }
+
+	/** Returns whether the shake is blending in */
+	bool IsBlendingIn() const { return bIsBlendingIn; }
+
+	/** Returns whether the shake is blending out */
+	bool IsBlendingOut() const { return bIsBlendingOut; }
 
 	/** Returns the elapsed time of the shake's current run */
 	float GetElapsedTime() const { return ElapsedTime; }
+
+	/** Returns the current time into the blend in (only valid if IsBlendingIn() returns true) */
+	float GetCurrentBlendInTime() const { return CurrentBlendInTime; }
+
+	/** Returns the current time into the blend in (only valid if IsBlendingOut() returns true) */
+	float GetCurrentBlendOutTime() const { return CurrentBlendOutTime; }
 
 	/** Returns the current shake info */
 	const FCameraShakeInfo& GetShakeInfo() const { return ShakeInfo; }
@@ -339,13 +350,35 @@ struct ENGINE_API FCameraShakeState
 	/** Helper method to get GetShakeInfo().Duration.IsInifnite() */
 	bool IsInfinite() const { return ShakeInfo.Duration.IsInfinite(); }
 
+public:
+
+	UE_DEPRECATED(5.3, "Please use Start")
+	void Initialize(const FCameraShakeInfo& InShakeInfo) { Start(InShakeInfo); }
+
+	UE_DEPRECATED(5.3, "Please use IsPlaying")
+	bool IsActive() const { return bIsPlaying; }
+
 private:
 
+	void InitializePlaying();
+
+private:
+
+	// Information about the shake/shake pattern we're managing
 	FCameraShakeInfo ShakeInfo;
 
+	// Running state
 	float ElapsedTime;
-	bool bIsActive : 1;
 
+	float CurrentBlendInTime;
+	float CurrentBlendOutTime;
+
+	bool bIsBlendingIn : 1;
+	bool bIsBlendingOut : 1;
+
+	bool bIsPlaying : 1;
+
+	// Cached values for blending information
 	bool bHasBlendIn : 1;
 	bool bHasBlendOut : 1;
 };
@@ -427,6 +460,9 @@ public:
 	/** Uses the given result parameters to apply the given result to the given input view info */
 	static void ApplyResult(const FCameraShakeApplyResultParams& ApplyParams, const FCameraShakeUpdateResult& InResult, FMinimalViewInfo& InOutPOV);
 
+	/** Applies all the appropriate auto-scaling to the current shake offset (only if the result is "relative") */
+	static void ApplyScale(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult);
+
 	/** Applies the given scale to the current shake offset (only if the result is "relative") */
 	static void ApplyScale(float Scale, FCameraShakeUpdateResult& InOutResult);
 
@@ -441,6 +477,7 @@ public:
 	static void ApplyPlaySpace(ECameraShakePlaySpace PlaySpace, FMatrix UserPlaySpaceMatrix, const FMinimalViewInfo& InPOV, FCameraShakeUpdateResult& InOutResult);
 
 public:
+
 	/** 
 	 *  If true to only allow a single instance of this shake class to play at any given time.
 	 *  Subsequent attempts to play this shake will simply restart the timer.
@@ -479,14 +516,7 @@ public:
 	 *
 	 * A camera shake is active between the calls to StartShake and TeardownShake.
 	 */
-	bool IsActive() const { return State.IsActive(); }
-
-	/**
-	 * Returns the elapsed time of the current state.
-	 *
-	 * A camera shake is active between the calls to StartShake and TeardownShake.
-	 */
-	float GetElapsedTime() const { return State.IsActive() ? State.GetElapsedTime() : 0.0f; }
+	bool IsActive() const { return bIsActive; }
 
 	/** Starts this camera shake with the given parameters */
 	void StartShake(APlayerCameraManager* Camera, float Scale, ECameraShakePlaySpace InPlaySpace, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
@@ -506,6 +536,9 @@ public:
 	/** Tears down this camera shake before destruction or recycling */
 	void TeardownShake();
 
+	UE_DEPRECATED(5.3, "Elapsed time doesn't exist anymore, get the information from the root shake pattern")
+	float GetElapsedTime() const { return 0.f; }
+
 public:
 
 	/** Gets the current camera manager. Will be null if the shake isn't active. */
@@ -519,9 +552,6 @@ public:
 	void SetUserPlaySpaceMatrix(const FMatrix& InMatrix) { UserPlaySpaceMatrix = InMatrix; }
 
 protected:
-
-	/** Applies all the appropriate auto-scaling to the current shake offset (only if the result is "relative") */
-	void ApplyScale(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& InOutResult) const;
 
 	/**
 	 * Modifies the current shake offset to be oriented in the current shake's play space (only if the result is "relative")
@@ -546,8 +576,8 @@ private:
 	/** Matrix defining a custom play space, used when PlaySpace is UserDefined. Only valid when the shake is active. */
 	FMatrix UserPlaySpaceMatrix;
 
-	/** Root shake pattern state. Only valid when the shake is active. */
-	FCameraShakeState State;
+	/** Whether this shake is active, which is true between StartShake and TeardownShake */
+	bool bIsActive;
 };
 
 /**

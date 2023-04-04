@@ -305,4 +305,76 @@ bool FCompositeCameraShakeRunTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCameraShakeImmediatelyStopInfiniteTest,
+	"System.Engine.Cameras.ImmediatelyStopInfiniteCameraShake",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FCameraShakeImmediatelyStopInfiniteTest::RunTest(const FString& Parameters)
+{
+	FMinimalViewInfo ViewInfo;
+	ViewInfo.Location = FVector::ZeroVector;
+	ViewInfo.Rotation = FRotator::ZeroRotator;
+	auto TestShake = UTestCameraShake::CreateWithPattern<UConstantCameraShakePattern>();
+	TestShake.Pattern->Duration = -1.f; // Negative means infinite duration
+	TestShake.Pattern->LocationOffset = { 10, 0, 0 };
+
+	TestShake.Shake->StartShake(nullptr, 1.f, ECameraShakePlaySpace::CameraLocal);
+	UTEST_FALSE("Infinite shake is running", TestShake.Shake->IsFinished());
+	UTEST_TRUE("Infinite shake is active", TestShake.Shake->IsActive());
+
+	ViewInfo.Location = FVector::ZeroVector;
+	TestShake.Shake->UpdateAndApplyCameraShake(99.f, 1.f, ViewInfo);
+	UTEST_FALSE("Infinite shake is still running", TestShake.Shake->IsFinished());
+	UTEST_TRUE("Infinite shake is still active", TestShake.Shake->IsActive());
+	UTEST_EQUAL("Location offset", ViewInfo.Location, FVector(10, 0, 0));
+	
+	ViewInfo.Location = FVector::ZeroVector;
+	TestShake.Shake->UpdateAndApplyCameraShake(99.f, 1.f, ViewInfo);
+	UTEST_FALSE("Infinite shake is still running", TestShake.Shake->IsFinished());
+	UTEST_TRUE("Infinite shake is still active", TestShake.Shake->IsActive());
+	UTEST_EQUAL("Location offset", ViewInfo.Location, FVector(10, 0, 0));
+
+	TestShake.Shake->StopShake(true);
+	UTEST_TRUE("Infinite shake is finished", TestShake.Shake->IsFinished());
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCameraShakeBlendOutInfiniteTest,
+	"System.Engine.Cameras.BlendOutInfiniteCameraShake",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FCameraShakeBlendOutInfiniteTest::RunTest(const FString& Parameters)
+{
+	FMinimalViewInfo ViewInfo;
+	ViewInfo.Location = FVector::ZeroVector;
+	ViewInfo.Rotation = FRotator::ZeroRotator;
+	auto TestShake = UTestCameraShake::CreateWithPattern<UConstantCameraShakePattern>();
+	TestShake.Pattern->Duration = -1.f; // Negative means infinite duration
+	TestShake.Pattern->LocationOffset = { 10, 0, 0 };
+	TestShake.Pattern->BlendOutTime = 1.f; // One second blend out
+
+	TestShake.Shake->StartShake(nullptr, 1.f, ECameraShakePlaySpace::CameraLocal);
+	UTEST_FALSE("Infinite shake is running", TestShake.Shake->IsFinished());
+	UTEST_TRUE("Infinite shake is active", TestShake.Shake->IsActive());
+
+	ViewInfo.Location = FVector::ZeroVector;
+	TestShake.Shake->UpdateAndApplyCameraShake(99.f, 1.f, ViewInfo);
+	UTEST_FALSE("Infinite shake is still running", TestShake.Shake->IsFinished());
+	UTEST_TRUE("Infinite shake is still active", TestShake.Shake->IsActive());
+	UTEST_EQUAL("Location offset", ViewInfo.Location, FVector(10, 0, 0));
+	
+	ViewInfo.Location = FVector::ZeroVector;
+	TestShake.Shake->StopShake(false);
+	TestShake.Shake->UpdateAndApplyCameraShake(0.5f, 1.f, ViewInfo);
+	UTEST_FALSE("Infinite shake is still running", TestShake.Shake->IsFinished());
+	UTEST_TRUE("Infinite shake is still active", TestShake.Shake->IsActive());
+	UTEST_EQUAL("Location offset", ViewInfo.Location, FVector(5, 0, 0));
+
+	ViewInfo.Location = FVector::ZeroVector;
+	TestShake.Shake->UpdateAndApplyCameraShake(0.5f, 1.f, ViewInfo);
+	UTEST_TRUE("Infinite shake is finished", TestShake.Shake->IsFinished());
+	UTEST_EQUAL("Location offset", ViewInfo.Location, FVector(0, 0, 0));
+
+	return true;
+}
+
 #undef LOCTEXT_NAMESPACE

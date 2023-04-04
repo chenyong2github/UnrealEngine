@@ -276,10 +276,7 @@ protected:
 
 	/** Sequence shake pattern for when using a sequence instead of a camera anim */
 	UPROPERTY(Instanced)
-		TObjectPtr<class USequenceCameraShakePattern> SequenceShakePattern;
-
-	/** State tracking for the sequence shake pattern */
-	FCameraShakeState SequenceShakeState;
+	TObjectPtr<class USequenceCameraShakePattern> SequenceShakePattern;
 
 private:
 

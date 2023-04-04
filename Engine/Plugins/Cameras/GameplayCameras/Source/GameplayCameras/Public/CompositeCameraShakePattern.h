@@ -41,13 +41,5 @@ private:
 	virtual bool IsFinishedImpl() const override;
 	virtual void StopShakePatternImpl(const FCameraShakeStopParams& Params) override;
 	virtual void TeardownShakePatternImpl() override;
-
-private:
-
-	bool IsChildPatternFinished(const FCameraShakeState& ChildState, const UCameraShakePattern* ChildPattern) const;
-
-private:
-
-	/** Play state of the children patterns */
-	TArray<FCameraShakeState> ChildStates;
 };
+

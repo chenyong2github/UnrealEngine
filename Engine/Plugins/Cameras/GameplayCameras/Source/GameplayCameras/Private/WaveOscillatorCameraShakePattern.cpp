@@ -33,6 +33,8 @@ UWaveOscillatorCameraShakePattern::UWaveOscillatorCameraShakePattern(const FObje
 
 void UWaveOscillatorCameraShakePattern::StartShakePatternImpl(const FCameraShakeStartParams& Params)
 {
+	Super::StartShakePatternImpl(Params);
+
 	if (!Params.bIsRestarting)
 	{
 		X.Initialize(InitialLocationOffset.X);
@@ -56,6 +58,9 @@ void UWaveOscillatorCameraShakePattern::StartShakePatternImpl(const FCameraShake
 void UWaveOscillatorCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
 {
 	UpdateOscillators(Params.DeltaTime, OutResult);
+
+	const float BlendWeight = State.Update(Params.DeltaTime);
+	OutResult.ApplyScale(BlendWeight);
 }
 
 void UWaveOscillatorCameraShakePattern::ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult)
@@ -66,6 +71,9 @@ void UWaveOscillatorCameraShakePattern::ScrubShakePatternImpl(const FCameraShake
 	CurrentFOVOffset = InitialFOVOffset;
 	
 	UpdateOscillators(Params.AbsoluteTime, OutResult);
+
+	const float BlendWeight = State.Scrub(Params.AbsoluteTime);
+	OutResult.ApplyScale(BlendWeight);
 }
 
 void UWaveOscillatorCameraShakePattern::UpdateOscillators(float DeltaTime, FCameraShakeUpdateResult& OutResult)

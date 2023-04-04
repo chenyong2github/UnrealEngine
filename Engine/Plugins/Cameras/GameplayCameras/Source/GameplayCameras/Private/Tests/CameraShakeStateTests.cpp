@@ -16,7 +16,7 @@ bool FCameraShakeStateUpdate::RunTest(const FString& Parameters)
 	Info.BlendOut = 0.2f;
 
 	FCameraShakeState State;
-	State.Initialize(Info);
+	State.Start(Info);
 	UTEST_EQUAL("Update 1", State.Update(0.1f), 0.5f);
 	UTEST_EQUAL("Update 2", State.Update(0.1f), 1.f);
 	UTEST_EQUAL("Update 3", State.Update(0.6f), 1.f);
@@ -36,9 +36,9 @@ bool FCameraShakeStateRestart::RunTest(const FString& Parameters)
 		Info.Duration = 1.f;
 
 		FCameraShakeState State;
-		State.Initialize(Info);
+		State.Start(Info);
 		State.Update(0.5f);
-		State.Initialize(Info);
+		State.Start(Info);
 		UTEST_EQUAL("ElapsedTime", State.GetElapsedTime(), 0.f);
 	}
 
@@ -50,14 +50,16 @@ bool FCameraShakeStateRestart::RunTest(const FString& Parameters)
 		Info.BlendOut = 0.3f;
 
 		FCameraShakeState State;
-		State.Initialize(Info);
+		State.Start(Info);
 		UTEST_EQUAL("Update", State.Update(0.85f), 0.5f);
 		// We were half-way into the blend-out, so we should be half-way
 		// into the blend-in as we restart. And the duration would be extended
 		// by that lead-in time so that the shake still lasts 1 second overall.
-		State.Initialize(Info);
-		UTEST_EQUAL("ElapsedTime", State.GetElapsedTime(), 0.1f);
-		UTEST_EQUAL("Duration", State.GetDuration(), 1.1f);
+		State.Start(Info);
+		UTEST_TRUE("BlendingIn", State.IsBlendingIn());
+		UTEST_EQUAL("BlendingInTime", State.GetCurrentBlendInTime(), 0.1f);
+		UTEST_EQUAL("ElapsedTime", State.GetElapsedTime(), 0.f);
+		UTEST_EQUAL("Duration", State.GetDuration(), 1.f);
 	}
 
 	return true;
@@ -74,25 +76,25 @@ bool FCameraShakeStateScrub::RunTest(const FString& Parameters)
 	Info.BlendOut = 0.2f;
 
 	FCameraShakeState State;
-	State.Initialize(Info);
+	State.Start(Info);
 
 	UTEST_EQUAL("Scrub 1", State.Scrub(0.1f), 0.5f);
-	UTEST_TRUE("Scrub 1", State.IsActive());
+	UTEST_TRUE("Scrub 1", State.IsPlaying());
 
 	UTEST_EQUAL("Scrub 2", State.Scrub(0.4f), 1.f);
-	UTEST_TRUE("Scrub 2", State.IsActive());
+	UTEST_TRUE("Scrub 2", State.IsPlaying());
 
 	UTEST_EQUAL("Scrub 3", State.Scrub(-1.f), 0.f);
-	UTEST_FALSE("Scrub 3", State.IsActive());
+	UTEST_FALSE("Scrub 3", State.IsPlaying());
 
 	UTEST_EQUAL("Scrub 4", State.Scrub(0.2f), 1.0f);
-	UTEST_TRUE("Scrub 4", State.IsActive());
+	UTEST_TRUE("Scrub 4", State.IsPlaying());
 
 	UTEST_EQUAL("Scrub 5", State.Scrub(2.0f), 0.0f);
-	UTEST_FALSE("Scrub 5", State.IsActive());
+	UTEST_FALSE("Scrub 5", State.IsPlaying());
 
 	UTEST_EQUAL("Scrub 6", State.Scrub(0.9f), 0.5f);
-	UTEST_TRUE("Scrub 6", State.IsActive());
+	UTEST_TRUE("Scrub 6", State.IsPlaying());
 
 	return true;
 }

@@ -66,6 +66,7 @@ private:
 	virtual void StartShakePatternImpl(const FCameraShakeStartParams& Params) override;
 	virtual void UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult) override;
 	virtual void ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult) override;
+	virtual bool IsFinishedImpl() const override;
 	virtual void StopShakePatternImpl(const FCameraShakeStopParams& Params) override;
 	virtual void TeardownShakePatternImpl() override;
 
@@ -80,6 +81,9 @@ private:
 	/** Standin for the camera actor and components */
 	UPROPERTY(Instanced, Transient)
 	TObjectPtr<UCameraAnimationSequenceCameraStandIn> CameraStandIn;
+
+	/** State tracking */
+	FCameraShakeState State;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

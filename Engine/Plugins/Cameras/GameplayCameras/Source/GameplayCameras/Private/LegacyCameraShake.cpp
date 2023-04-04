@@ -79,8 +79,6 @@ ULegacyCameraShake::ULegacyCameraShake(const FObjectInitializer& ObjectInitializ
 
 void ULegacyCameraShake::DoStopShake(bool bImmediately)
 {
-	APlayerCameraManager* CameraOwner = GetCameraManager();
-
 	if (bImmediately)
 	{
 		// stop oscillation
@@ -168,7 +166,6 @@ void ULegacyCameraShake::DoStartShake(const FCameraShakeStartParams& Params)
 	}
 
 	// init cameraanim shakes
-	APlayerCameraManager* CameraOwner = GetCameraManager();
 	if (AnimSequence != nullptr)
 	{
 		if (SequenceShakePattern == nullptr)
@@ -184,11 +181,6 @@ void ULegacyCameraShake::DoStartShake(const FCameraShakeStartParams& Params)
 		SequenceShakePattern->BlendOutTime = AnimBlendOutTime;
 		SequenceShakePattern->RandomSegmentDuration = RandomAnimSegmentDuration;
 		SequenceShakePattern->bRandomSegment = bRandomAnimSegment;
-		
-		// Initialize our state tracker for the sequence shake pattern.
-		FCameraShakeInfo SequenceShakeInfo;
-		SequenceShakePattern->GetShakePatternInfo(SequenceShakeInfo);
-		SequenceShakeState.Initialize(SequenceShakeInfo);
 
 		// Start the sequence shake pattern.
 		SequenceShakePattern->StartShakePattern(Params);
@@ -202,7 +194,6 @@ void ULegacyCameraShake::DoStartShake(const FCameraShakeStartParams& Params)
 void ULegacyCameraShake::DoUpdateShake(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
 {
 	const float DeltaTime = Params.DeltaTime;
-	const float BaseShakeScale = Params.GetTotalScale();
 
 	// update oscillation times... only decrease the time remaining if we're not infinite
 	if (OscillatorTimeRemaining > 0.f)
@@ -306,35 +297,24 @@ void ULegacyCameraShake::DoUpdateShake(const FCameraShakeUpdateParams& Params, F
 	}
 
 	// Update the sequence animation if there's one.
-	if (SequenceShakePattern != nullptr)
+	if (SequenceShakePattern != nullptr && !SequenceShakePattern->IsFinished())
 	{
-		const float ChildBlendWeight = SequenceShakeState.Update(Params.DeltaTime);
-		if (SequenceShakeState.IsActive())
-		{
-			FCameraShakeUpdateParams ChildParams(Params);
-			ChildParams.BlendingWeight = Params.BlendingWeight * ChildBlendWeight;
+		FCameraShakeUpdateResult ChildResult;
+		SequenceShakePattern->UpdateShakePattern(Params, ChildResult);
 
-			FCameraShakeUpdateResult ChildResult;
-
-			SequenceShakePattern->UpdateShakePattern(ChildParams, ChildResult);
-
-			// The sequence shake pattern returns a local, additive, unscaled result. So we should be able to
-			// just combine the two results directly.
-			check(ChildResult.Flags == ECameraShakeUpdateResultFlags::Default);
-			ApplyScale(ChildParams.BlendingWeight, ChildResult);
-			OutResult.Location += ChildResult.Location;
-			OutResult.Rotation += ChildResult.Rotation;
-			OutResult.FOV += ChildResult.FOV;
-			// We don't have anything else animating post-process settings so we can stomp them.
-			OutResult.PostProcessSettings = ChildResult.PostProcessSettings;
-			OutResult.PostProcessBlendWeight = ChildResult.PostProcessBlendWeight;
-		}
+		// The sequence shake pattern returns a local, additive result. So we should be able to
+		// just combine the two results directly.
+		OutResult.Location += ChildResult.Location;
+		OutResult.Rotation += ChildResult.Rotation;
+		OutResult.FOV += ChildResult.FOV;
+		// We don't have anything else animating post-process settings so we can stomp them.
+		OutResult.PostProcessSettings = ChildResult.PostProcessSettings;
+		OutResult.PostProcessBlendWeight = ChildResult.PostProcessBlendWeight;
 	}
 
-	// Apply the playspace and the scaling so we have an absolute result we can pass to the legacy blueprint API.
+	// Apply the scaling, limits, and playspace so we have an absolute result we can pass to the legacy blueprint API.
 	check(OutResult.Flags == ECameraShakeUpdateResultFlags::Default);
-	const float CurShakeScale = Params.ShakeScale * Params.DynamicScale;
-	ApplyScale(CurShakeScale, OutResult);
+	ApplyScale(Params.GetTotalScale(), OutResult);
 	ApplyLimits(Params.POV, OutResult);
 	ApplyPlaySpace(Params, OutResult);
 	check(EnumHasAnyFlags(OutResult.Flags, ECameraShakeUpdateResultFlags::ApplyAsAbsolute));
@@ -352,7 +332,6 @@ void ULegacyCameraShake::DoUpdateShake(const FCameraShakeUpdateParams& Params, F
 		OutResult.Rotation = InOutPOV.Rotation;
 		OutResult.FOV = InOutPOV.FOV;
 	}
-
 
 	UE_LOG(LogLegacyCameraShake, Verbose, TEXT("ULegacyCameraShake::DoUpdateShake %s Finished: %i Duration: %f Remaining: %f"), *GetNameSafe(this), bOscillationFinished, OscillationDuration, OscillatorTimeRemaining);
 }
@@ -401,8 +380,7 @@ void ULegacyCameraShake::DoScrubShake(const FCameraShakeScrubParams& Params, FCa
 bool ULegacyCameraShake::DoGetIsFinished() const
 {
 	return ((OscillatorTimeRemaining <= 0.f) &&									// oscillator is finished
-		((SequenceShakePattern == nullptr) ||									// other anim is finished
-			SequenceShakeState.GetElapsedTime() >= SequenceShakeState.GetDuration()) &&
+		((SequenceShakePattern == nullptr) || SequenceShakePattern->IsFinished()) && // other anim is finished
 		ReceiveIsFinished()														// BP thinks it's finished
 		);
 }

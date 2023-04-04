@@ -31,8 +31,18 @@ public:
 	UPROPERTY(EditAnywhere, Category=Timing)
 	float BlendOutTime = 0.2f;
 
-private:
+protected:
 
 	// UCameraShakePattern interface
 	virtual void GetShakePatternInfoImpl(FCameraShakeInfo& OutInfo) const override;
+	virtual void StartShakePatternImpl(const FCameraShakeStartParams& Params) override;
+	virtual bool IsFinishedImpl() const override;
+	virtual void StopShakePatternImpl(const FCameraShakeStopParams& Params) override;
+	virtual void TeardownShakePatternImpl()  override;
+
+protected:
+
+	/** The ongoing state for this shake */
+	FCameraShakeState State;
 };
+

@@ -13,6 +13,9 @@ void UConstantCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpdat
 {
 	OutResult.Location = LocationOffset;
 	OutResult.Rotation = RotationOffset;
+
+	const float BlendWeight = State.Update(Params.DeltaTime);
+	OutResult.ApplyScale(BlendWeight);
 }
 
 

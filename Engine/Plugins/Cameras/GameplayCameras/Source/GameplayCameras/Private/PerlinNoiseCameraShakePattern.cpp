@@ -25,6 +25,8 @@ UPerlinNoiseCameraShakePattern::UPerlinNoiseCameraShakePattern(const FObjectInit
 
 void UPerlinNoiseCameraShakePattern::StartShakePatternImpl(const FCameraShakeStartParams& Params)
 {
+	Super::StartShakePatternImpl(Params);
+
 	if (!Params.bIsRestarting)
 	{
 		// All offsets are random. This is because the core perlin noise implementation
@@ -43,6 +45,9 @@ void UPerlinNoiseCameraShakePattern::StartShakePatternImpl(const FCameraShakeSta
 void UPerlinNoiseCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpdateParams& Params, FCameraShakeUpdateResult& OutResult)
 {
 	UpdatePerlinNoise(Params.DeltaTime, OutResult);
+
+	const float BlendWeight = State.Update(Params.DeltaTime);
+	OutResult.ApplyScale(BlendWeight);
 }
 
 void UPerlinNoiseCameraShakePattern::ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult)
@@ -53,6 +58,9 @@ void UPerlinNoiseCameraShakePattern::ScrubShakePatternImpl(const FCameraShakeScr
 	CurrentFOVOffset = InitialFOVOffset;
 
 	UpdatePerlinNoise(Params.AbsoluteTime, OutResult);
+
+	const float BlendWeight = State.Scrub(Params.AbsoluteTime);
+	OutResult.ApplyScale(BlendWeight);
 }
 
 void UPerlinNoiseCameraShakePattern::UpdatePerlinNoise(float DeltaTime, FCameraShakeUpdateResult& OutResult)
