@@ -479,7 +479,7 @@ public class UEDownloadWorker extends UEWorker implements DownloadProgressListen
 	private boolean bForceStopped = false;
 	private DownloadQueueDescription QueueDescription = null;
 	private volatile boolean bHasEnqueueHappened = false;
-	static FetchManager mFetchManager;
+	static volatile FetchManager mFetchManager;
 	private PendingIntent CancelIntent = null;
 	private DownloadNotificationDescription NotificationDescription = null;
 }
