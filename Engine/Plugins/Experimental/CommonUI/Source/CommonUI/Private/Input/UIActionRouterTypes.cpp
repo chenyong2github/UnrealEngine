@@ -184,9 +184,9 @@ FUIActionBinding::FUIActionBinding(const UWidget& InBoundWidget, const FBindUIAc
 		const FCommonInputTypeInfo& LegacyMapping_Gamepad = LegacyActionData->GetInputTypeInfo(ECommonInputType::Gamepad, ActionRouter->GetInputSubsystem().GetCurrentGamepadName());
 		FUIActionKeyMapping KeyMapping_Gamepad(LegacyMapping_Gamepad.GetKey(), LegacyMapping_Gamepad.bActionRequiresHold ? LegacyMapping_Gamepad.HoldTime : 0.f, LegacyMapping_Gamepad.bActionRequiresHold ? LegacyMapping_Gamepad.HoldRollbackTime : 0.f);
 		
-		if (BindArgs.bForceHold && ICommonUIModule::GetEditorSettings().GetDefaultHoldData().GetDefaultObject())
+		if (BindArgs.bForceHold && ICommonInputModule::GetSettings().GetDefaultHoldData())
         {
-        	UCommonUIHoldData* CommonUIHoldBehaviorValues = ICommonUIModule::GetEditorSettings().GetDefaultHoldData().GetDefaultObject();
+        	UCommonUIHoldData* CommonUIHoldBehaviorValues = ICommonInputModule::GetSettings().GetDefaultHoldData().GetDefaultObject();
         			
         	KeyMapping_KBM.HoldTime = KeyMapping_KBM.HoldTime > 0.f ? KeyMapping_KBM.HoldTime : CommonUIHoldBehaviorValues->KeyboardAndMouse.HoldTime;
         	KeyMapping_Touch.HoldTime = KeyMapping_Touch.HoldTime > 0.f ? KeyMapping_Touch.HoldTime : CommonUIHoldBehaviorValues->Touch.HoldTime;

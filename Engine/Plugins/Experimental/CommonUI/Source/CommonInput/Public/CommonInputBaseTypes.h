@@ -19,6 +19,7 @@
 #include "CommonInputBaseTypes.generated.h"
 
 
+class UCommonUIHoldData;
 class UTexture2D;
 class UMaterial;
 class UCommonInputSettings; 
@@ -103,6 +104,13 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Properties", meta = (RowType = "/Script/CommonUI.CommonInputActionDataBase"))
 	FDataTableRowHandle DefaultBackAction;
+
+	/**
+    * Newly created CommonButton widgets will use these hold values by default if bRequiresHold is true.
+    * Inherits from UCommonUIHoldData.
+    */
+    UPROPERTY(EditDefaultsOnly, Category = "Properties")
+    TSoftClassPtr<UCommonUIHoldData> DefaultHoldData;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Properties", meta = (EditCondition = "CommonInput.CommonInputSettings.IsEnhancedInputSupportEnabled", EditConditionHides))
 	TObjectPtr<UInputAction> EnhancedInputClickAction;

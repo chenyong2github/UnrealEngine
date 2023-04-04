@@ -135,6 +135,21 @@ FDataTableRowHandle UCommonInputSettings::GetDefaultBackAction() const
 	return FDataTableRowHandle();
 }
 
+TSubclassOf<UCommonUIHoldData> UCommonInputSettings::GetDefaultHoldData() const
+{
+	ensure(bInputDataLoaded);
+
+		if (InputDataClass)
+		{
+			if (const UCommonUIInputData* InputDataPtr = InputDataClass.GetDefaultObject())
+			{
+				TSubclassOf<UCommonUIHoldData> DefaultHoldDataLoaded = InputDataPtr->DefaultHoldData.LoadSynchronous();
+				return DefaultHoldDataLoaded;
+			}
+		}
+		return nullptr;
+}
+
 UInputAction* UCommonInputSettings::GetEnhancedInputClickAction() const
 {
 	ensureMsgf(bInputDataLoaded, TEXT("Warning, CommonUI input data not loaded."));

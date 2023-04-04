@@ -375,18 +375,14 @@ void UCommonButtonBase::PostLoad()
 	{
 		UCommonUIEditorSettings& Settings = ICommonUIModule::GetEditorSettings();
 		Settings.ConditionalPostLoad();
-		
-		if (!Style && !bStyleNoLongerNeedsConversion)
-		{
-			Style = Settings.GetTemplateButtonStyle();
-		}
-		if (!HoldData)
-		{
-			HoldData = Settings.GetDefaultHoldData();
-		}
+		Style = Settings.GetTemplateButtonStyle();
 	}
-
 	bStyleNoLongerNeedsConversion = true;
+
+	if (!HoldData && ICommonInputModule::GetSettings().GetDefaultHoldData())
+	{
+		HoldData = ICommonInputModule::GetSettings().GetDefaultHoldData();
+	}
 #endif
 }
 
@@ -406,9 +402,9 @@ void UCommonButtonBase::OnCreationFromPalette()
 	{
 		Style = ICommonUIModule::GetEditorSettings().GetTemplateButtonStyle();
 	}
-	if (!HoldData)
+	if (!HoldData && ICommonInputModule::GetSettings().GetDefaultHoldData())
 	{
-		HoldData = ICommonUIModule::GetEditorSettings().GetDefaultHoldData();
+		HoldData = ICommonInputModule::GetSettings().GetDefaultHoldData();
 	}
 	Super::OnCreationFromPalette();
 }
@@ -462,9 +458,9 @@ UCommonButtonInternalBase* UCommonButtonBase::ConstructInternalButton()
 
 void UCommonButtonBase::NativeConstruct()
 {
-	if (bRequiresHold && !HoldData)
+	if (!HoldData && ICommonInputModule::GetSettings().GetDefaultHoldData())
 	{
-		HoldData = ICommonUIModule::GetEditorSettings().GetDefaultHoldData();
+		HoldData = ICommonInputModule::GetSettings().GetDefaultHoldData();
 	}
 	
 	BindTriggeringInputActionToClick();

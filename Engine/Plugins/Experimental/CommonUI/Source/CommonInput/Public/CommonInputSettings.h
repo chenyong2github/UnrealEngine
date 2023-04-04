@@ -39,6 +39,9 @@ public:
 
 	FDataTableRowHandle GetDefaultClickAction() const;
 	FDataTableRowHandle GetDefaultBackAction() const;
+	
+	/** Default Hold Data */
+	TSubclassOf<UCommonUIHoldData> GetDefaultHoldData() const;
 
 	UInputAction* GetEnhancedInputClickAction() const;
 	UInputAction* GetEnhancedInputBackAction() const;
