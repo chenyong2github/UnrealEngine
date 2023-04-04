@@ -45,6 +45,20 @@ namespace UE::LevelSnapshots
 			/** FActorSnapshotHash::Serialize was not implemented correctly (typo with TStructOpsTypeTraits using WithSerialize instead of WithSerializer). */
 			FixActorHashSerialize = 8,
 
+			/**
+			 * Change 21419024 of 16/08/2022 (which introduced CustomSubobjectSoftObjectPathRefactor above) causes
+			 * UE::LevelSnapshots::Foliage::Private::FInstancedFoliageActorData to save foliage data in a bad format.
+			 *
+			 * Any foliage data from 16/08/2022 to 30/03/2023 is unusable.
+			 * That means that 5.0 is not affected, 5.1 is broken, and 5.2 is fixed.
+			 *
+			 * The issue is that FInstancedFoliageActorData::Save, called by FFoliageSupport::OnTakeSnapshot, called
+			 * AInstancedFoliageActor::ForEachFoliageInfo and saved the foliage types sequentially. The issue is that
+			 * we differentiate between instanced subobject and asset foliage types; they were saved interleaved without
+			 * tagging the data, which makes it impossible to read (e.g. subject1 > asset1 > asset2 > subject 2, etc.).
+			 */
+			FoliageTypesUnreadable = 9,
+
 			// -----<new versions can be added above this line>-------------------------------------------------
 			VersionPlusOne,
 			LatestVersion = VersionPlusOne - 1

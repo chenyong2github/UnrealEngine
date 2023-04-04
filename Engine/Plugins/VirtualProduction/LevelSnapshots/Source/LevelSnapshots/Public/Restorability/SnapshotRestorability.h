@@ -4,18 +4,15 @@
 
 #include "CoreMinimal.h"
 
-
 class ULevelSnapshot;
 class AActor;
 class FProperty;
 class UActorComponent;
 
-namespace UE
+namespace UE::LevelSnapshots
 {
-	namespace LevelSnapshots
-	{
-		struct FCanRecreateActorParams;
-	}
+	struct FCanModifyMatchedActorParams;
+	struct FCanRecreateActorParams;
 }
 
 namespace UE::LevelSnapshots::Restorability
@@ -39,11 +36,13 @@ namespace UE::LevelSnapshots::Restorability
 	LEVELSNAPSHOTS_API bool IsPropertyExplicitlyUnsupportedForCapture(const FProperty* Property);
 	/* Is this property always captured by the snapshot system? */
 	LEVELSNAPSHOTS_API bool IsPropertyExplicitlySupportedForCapture(const FProperty* Property);
-
-	/** The actor actors was removed from the snapshot. Should we show it in the list of removed actors? */
-	LEVELSNAPSHOTS_API bool ShouldConsiderRemovedActorForRecreation(const FCanRecreateActorParams& Params);
+	
+	/** The actor exists in the world and the snapshot. Should we show it in the list of modified actors? */
+	LEVELSNAPSHOTS_API bool ShouldConsiderMatchedActorForRestoration(const FCanModifyMatchedActorParams& Params, FText* ExclusionReason = nullptr);
+	/** The actor was removed from the snapshot. Should we show it in the list of removed actors? */
+	LEVELSNAPSHOTS_API bool ShouldConsiderRemovedActorForRecreation(const FCanRecreateActorParams& Params, FText* ExclusionReason = nullptr);
 	/* The actor did not exist in the snapshot. Should we show it in the list of added actors? */
-	LEVELSNAPSHOTS_API bool ShouldConsiderNewActorForRemoval(const AActor* Actor);
+	LEVELSNAPSHOTS_API bool ShouldConsiderNewActorForRemoval(const AActor* Actor, FText* ExclusionReason = nullptr);
 	
 	/* Is this property captured by the snapshot system? */
 	LEVELSNAPSHOTS_API bool IsRestorableProperty(const FProperty* LeafProperty);

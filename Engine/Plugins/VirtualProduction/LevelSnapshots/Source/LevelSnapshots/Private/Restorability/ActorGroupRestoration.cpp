@@ -224,7 +224,7 @@ namespace UE::LevelSnapshots::Private::ActorGroupRestoration
 			}
 		}
 
-		virtual EFilterResult CanRecreateActor(const FCanRecreateActorParams& Params) override
+		virtual FFilterResultData CanRecreateMissingActor(const FCanRecreateActorParams& Params) override
 		{
 			if (Params.Class == AGroupActor::StaticClass())
 			{

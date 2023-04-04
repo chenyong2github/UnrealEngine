@@ -1,12 +1,13 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "FoliageSupport/FoliageInfoData.h"
+#include "FoliageSupport/Data/FoliageInfoData.h"
 
-#include "InstancedFoliageActor.h"
 #include "LevelSnapshotsLog.h"
 #include "SnapshotCustomVersion.h"
+
+#include "InstancedFoliageActor.h"
+#include "Serialization/Archive.h"
 #include "Serialization/MemoryReader.h"
-#include "Serialization/MemoryWriter.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 
 namespace UE::LevelSnapshots::Foliage::Private
@@ -41,13 +42,16 @@ FArchive& UE::LevelSnapshots::Foliage::Private::FFoliageInfoData::SerializeInter
 	}
 	else
 	{
+		check(Ar.CustomVer(FSnapshotCustomVersion::GUID) >= FSnapshotCustomVersion::FoliageTypesUnreadable);
 		Ar << FoliageInfoArchiveSize;
+		Ar << ArchiveTellBeforeSerialization;
 	}
 	return Ar;
 }
 
-void UE::LevelSnapshots::Foliage::Private::FFoliageInfoData::Save(FArchive& Archive, FFoliageInfo& DataToReadFrom)
+void UE::LevelSnapshots::Foliage::Private::FFoliageInfoData::FillDataMembersAndWriteFoliageInfoIntoArchive(FArchive& Archive, FFoliageInfo& DataToReadFrom)
 {
+	ArchiveTellBeforeSerialization = Archive.Tell();
 	ImplType = DataToReadFrom.Type;
 	
 	const bool bIsComponentValid = DataToReadFrom.GetComponent() != nullptr; 
@@ -66,6 +70,7 @@ void UE::LevelSnapshots::Foliage::Private::FFoliageInfoData::ApplyTo(FArchive& A
 	
 	if (Archive.CustomVer(FSnapshotCustomVersion::GUID) >= FSnapshotCustomVersion::CustomSubobjectSoftObjectPathRefactor)
 	{
+		Archive.Seek(ArchiveTellBeforeSerialization);
 		Archive << DataToWriteInto;
 	}
 	else

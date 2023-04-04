@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "FoliageSupport/FoliageInfoData.h"
+#include "FoliageSupport/Data/FoliageInfoData.h"
+#include "Containers/Array.h"
 #include "Templates/SubclassOf.h"
+#include "UObject/NameTypes.h"
 
+class FArchive;
 class UFoliageType;
 
 namespace UE::LevelSnapshots::Foliage::Private
@@ -27,7 +29,7 @@ namespace UE::LevelSnapshots::Foliage::Private
 	
 	public:
 
-		void Save(FArchive& Archive, UFoliageType* FoliageSubobject, FFoliageInfo& FoliageInfo);
+		void FillDataMembersAndSerializeFoliageTypeAndInfoIntoArchive(FArchive& Archive, UFoliageType* FoliageSubobject, FFoliageInfo& FoliageInfo);
 	
 		UFoliageType* FindOrRecreateSubobject(AInstancedFoliageActor* Outer) const;
 		bool ApplyToFoliageType(FArchive& Archive, UFoliageType* FoliageSubobject) const;

@@ -1,14 +1,14 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "FoliageSupport/FoliageRestorationInfo.h"
+#include "FoliageSupport/Apply/FoliageRestorationInfo.h"
 
-#include "FoliageSupport/FoliageInfoData.h"
+#include "FoliageSupport/Data/FoliageInfoData.h"
+#include "LevelSnapshotsLog.h"
 #include "Selection/AddedAndRemovedComponentInfo.h"
 #include "Selection/RestorableObjectSelection.h"
 #include "Selection/PropertySelectionMap.h"
 
 #include "InstancedFoliageActor.h"
-#include "LevelSnapshotsLog.h"
 
 UE::LevelSnapshots::Foliage::Private::FFoliageRestorationInfo UE::LevelSnapshots::Foliage::Private::FFoliageRestorationInfo::From(AInstancedFoliageActor* Object, const FPropertySelectionMap& SelectionMap, bool bWasRecreated)
 {

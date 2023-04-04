@@ -214,16 +214,21 @@ bool UE::LevelSnapshots::Restorability::IsPropertyDesirableForCapture(const FPro
 bool UE::LevelSnapshots::Restorability::IsPropertyExplicitlyUnsupportedForCapture(const FProperty* Property)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(IsPropertyExplicitlyUnsupportedForCapture);
-	return UE::LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().IsPropertyExplicitlyUnsupported(Property);
+	return LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().IsPropertyExplicitlyUnsupported(Property);
 }
 
 bool UE::LevelSnapshots::Restorability::IsPropertyExplicitlySupportedForCapture(const FProperty* Property)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(IsPropertyExplicitlySupportedForCapture);
-	return UE::LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().IsPropertyExplicitlySupported(Property);
+	return LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().IsPropertyExplicitlySupported(Property);
 }
 
-bool UE::LevelSnapshots::Restorability::ShouldConsiderRemovedActorForRecreation(const FCanRecreateActorParams& Params)
+bool UE::LevelSnapshots::Restorability::ShouldConsiderMatchedActorForRestoration(const FCanModifyMatchedActorParams& Params, FText* ExclusionReason)
+{
+	return LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().CanModifyMatchedActor(Params, ExclusionReason);
+}
+
+bool UE::LevelSnapshots::Restorability::ShouldConsiderRemovedActorForRecreation(const FCanRecreateActorParams& Params, FText* ExclusionReason)
 {
 	// Two reasons RF_Transactional is required:
 	// 1. It will not show up in Multiuser otherwise
@@ -234,14 +239,14 @@ bool UE::LevelSnapshots::Restorability::ShouldConsiderRemovedActorForRecreation(
 		|| Params.WorldData.SnapshotVersionInfo.GetSnapshotCustomVersion() >= FSnapshotCustomVersion::ClassArchetypeRefactor;
 	
 	return (bTransacts || !bWereFlagsSaved)
-		&& LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().CanRecreateActor(Params);
+		&& LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().CanRecreateActor(Params, ExclusionReason);
 }
 
-bool UE::LevelSnapshots::Restorability::ShouldConsiderNewActorForRemoval(const AActor* Actor)
+bool UE::LevelSnapshots::Restorability::ShouldConsiderNewActorForRemoval(const AActor* Actor, FText* ExclusionReason)
 {
 	return Private::Internal::DoesActorHaveSupportedClassForRemoving(Actor)
 		&& IsActorDesirableForCapture(Actor)
-		&& LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().CanDeleteActor(Actor);
+		&& LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().CanDeleteActor(Actor, ExclusionReason);
 }
 
 bool UE::LevelSnapshots::Restorability::IsRestorableProperty(const FProperty* LeafProperty)

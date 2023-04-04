@@ -64,8 +64,9 @@ namespace UE::LevelSnapshots::Private
 
 		TSharedPtr<ICustomObjectSnapshotSerializer> GetCustomSerializerForClass(UClass* Class) const;
 
-		bool CanRecreateActor(const FCanRecreateActorParams& Params) const;
-		bool CanDeleteActor(const AActor* EditorActor) const;
+		bool CanModifyMatchedActor(const FCanModifyMatchedActorParams& Params, FText* ExclusionReason = nullptr) const;
+		bool CanRecreateActor(const FCanRecreateActorParams& Params, FText* ExclusionReason = nullptr) const;
+		bool CanDeleteActor(const AActor* EditorActor, FText* ExclusionReason = nullptr) const;
 
 		virtual void AddCanTakeSnapshotDelegate(FName DelegateName, FCanTakeSnapshot Delegate) override;
 		virtual void RemoveCanTakeSnapshotDelegate(FName DelegateName) override;

@@ -1,12 +1,14 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "FoliageSupport/SubobjectFoliageInfoData.h"
+#include "FoliageSupport/Data/SubobjectFoliageInfoData.h"
 
+#include "FoliageInfoData.h"
 #include "LevelSnapshotsLog.h"
+#include "SnapshotCustomVersion.h"
 
 #include "FoliageType_InstancedStaticMesh.h"
 #include "InstancedFoliageActor.h"
-#include "SnapshotCustomVersion.h"
+#include "Serialization/Archive.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 
@@ -26,9 +28,9 @@ FArchive& UE::LevelSnapshots::Foliage::Private::FSubobjectFoliageInfoData::Seria
 	return Ar;
 }
 
-void UE::LevelSnapshots::Foliage::Private::FSubobjectFoliageInfoData::Save(FArchive& Archive, UFoliageType* FoliageSubobject, FFoliageInfo& FoliageInfo)
+void UE::LevelSnapshots::Foliage::Private::FSubobjectFoliageInfoData::FillDataMembersAndSerializeFoliageTypeAndInfoIntoArchive(FArchive& Archive, UFoliageType* FoliageSubobject, FFoliageInfo& FoliageInfo)
 {
-	FFoliageInfoData::Save(Archive, FoliageInfo);
+	FFoliageInfoData::FillDataMembersAndWriteFoliageInfoIntoArchive(Archive, FoliageInfo);
 
 	Class = FoliageSubobject->GetClass();
 	SubobjectName = FoliageSubobject->GetFName();
@@ -53,6 +55,7 @@ bool UE::LevelSnapshots::Foliage::Private::FSubobjectFoliageInfoData::ApplyToFol
 {
 	if (Archive.CustomVer(FSnapshotCustomVersion::GUID) >= FSnapshotCustomVersion::CustomSubobjectSoftObjectPathRefactor)
 	{
+		Archive.Seek(GetArchiveTellBeforeSerialization() + GetFoliageInfoArchiveSize());
 		FoliageSubobject->Serialize(Archive);
 	}
 	else
@@ -66,8 +69,8 @@ bool UE::LevelSnapshots::Foliage::Private::FSubobjectFoliageInfoData::ApplyToFol
 	if (UFoliageType_InstancedStaticMesh* MeshFoliageType = Cast<UFoliageType_InstancedStaticMesh>(FoliageSubobject)
 		; ensureMsgf(MeshFoliageType, TEXT("Only static mesh foliage is supported right now")))
 	{
-		// There used to be a bug where the asset registry was not aware 
-		UE_LOG(LogLevelSnapshots, Error, TEXT("Reference to foliage mesh was corrupted."));
+		// There used to be a bug where the asset registry was not aware
+		UE_CLOG(!MeshFoliageType->Mesh, LogLevelSnapshots, Error, TEXT("Reference to foliage mesh was corrupted."));
 		return MeshFoliageType->Mesh != nullptr;
 	}
 

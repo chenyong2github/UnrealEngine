@@ -229,10 +229,15 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorConsumer HandleMatchedActor,
 					continue;
 				}
 			
+				FText ExclusionReason;
 				UE::LevelSnapshots::Private::Internal::ConditionalBreakOnActor(DebugActorName, ActorInLevel);
-				if (!SerializedData.HasMatchingSavedActor(ActorInLevel) && UE::LevelSnapshots::Restorability::ShouldConsiderNewActorForRemoval(ActorInLevel))
+				if (!SerializedData.HasMatchingSavedActor(ActorInLevel) && UE::LevelSnapshots::Restorability::ShouldConsiderNewActorForRemoval(ActorInLevel, &ExclusionReason))
 				{
 					HandleAddedActor.Execute(ActorInLevel);
+				}
+				else
+				{
+					UE_CLOG(!ExclusionReason.IsEmpty(), LogLevelSnapshots, Warning, TEXT("Actor %s was not considered for removal. Reason: %s"), *ActorInLevel->GetPathName(), *ExclusionReason.ToString());
 				}
 			}
 		}
@@ -265,17 +270,20 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorConsumer HandleMatchedActor,
 				return;
 			}
 			
-			UObject* ResolvedActor = OriginalActorPath.ResolveObject();
+			AActor* ResolvedActor = Cast<AActor>(OriginalActorPath.ResolveObject());
 			// OriginalActorPath may still resolve to a live actor if it was just removed. We need to check the ULevel::Actors to see whether it was removed.
 			const bool bWasRemovedFromWorld = ResolvedActor == nullptr || !AllActors.Contains(Cast<AActor>(ResolvedActor));
 			if (bWasRemovedFromWorld)
 			{
+				FText ExclusionReason;
 				auto GetDeserializedActorFunc = [this, &OriginalActorPath](){ return GetDeserializedActor(OriginalActorPath); };
 				const UE::LevelSnapshots::FCanRecreateActorParams Params{ World, ActorClass, OriginalActorPath, SavedData.SerializedActorData.GetObjectFlags(), SerializedData, GetDeserializedActorFunc };
-				if (UE::LevelSnapshots::Restorability::ShouldConsiderRemovedActorForRecreation(Params))
+				if (UE::LevelSnapshots::Restorability::ShouldConsiderRemovedActorForRecreation(Params, &ExclusionReason))
 				{
 					HandleRemovedActor.Execute(OriginalActorPath);
 				}
+				
+				UE_CLOG(!ExclusionReason.IsEmpty(), LogLevelSnapshots, Warning, TEXT("Actor %s was not considered for recreation. Reason: %s"), *OriginalActorPath.ToString(), *ExclusionReason.ToString());
 				return;
 			}
 			if (Settings->SkippedClasses.SkippedClasses.Contains(ActorClass))
@@ -283,13 +291,14 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorConsumer HandleMatchedActor,
 				return;
 			}
 			
+			FText ExclusionReason;
 			// Possible scenario: Right-click actor > Replace Selected Actors with; deletes the original and replaces it with new actor.
 			if (ResolvedActor->GetClass() != ActorClass)
 			{
 				HandleRemovedActor.Execute(OriginalActorPath);
 				HandleAddedActor.Execute(Cast<AActor>(ResolvedActor));
 			}
-			else
+			else if (UE::LevelSnapshots::Restorability::ShouldConsiderMatchedActorForRestoration({ *ResolvedActor, SerializedData }, &ExclusionReason))
 			{
 				const FScopedLogItem Log = SortedItems.AddScopedLogItem(OriginalActorPath.ToString());
 				UE::LevelSnapshots::Private::Internal::ConditionalBreakOnActor(DebugActorName, OriginalActorPath);
@@ -298,6 +307,8 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorConsumer HandleMatchedActor,
 				UE_LOG(LogLevelSnapshots, VeryVerbose, TEXT("Matched actor %s"), *OriginalActorPath.ToString());
 				HandleMatchedActor.Execute(Cast<AActor>(ResolvedActor));
 			}
+			
+			UE_CLOG(!ExclusionReason.IsEmpty(), LogLevelSnapshots, Warning, TEXT("Actor %s was skipped for modification. Reason: %s"), *OriginalActorPath.ToString(), *ExclusionReason.ToString());
 		});
 	}
 }

@@ -17,9 +17,31 @@
 #include "ISettingsModule.h"
 #endif
 
-namespace UE::LevelSnapshots::Private::Internal
+namespace UE::LevelSnapshots::Private
 {
-	
+	/** @param TPredicate signature IActorSnapshotFilter::FFilterResultData(IActorSnapshotFilter&) */
+	template<typename TPredicate>
+	static bool CanRestoreActor(const TArray<TSharedRef<IActorSnapshotFilter>>& GlobalFilters, FText* ExclusionReason, TPredicate Predicate)
+	{
+		for (const TSharedRef<IActorSnapshotFilter>& Filter : GlobalFilters)
+		{
+			const IActorSnapshotFilter::FFilterResultData Result = Predicate(Filter.Get());
+			switch (Result.InclusionResult)
+			{
+			case IActorSnapshotFilter::EFilterResult::Allow: return true;
+			case IActorSnapshotFilter::EFilterResult::DoNotCare: continue;
+			case IActorSnapshotFilter::EFilterResult::Disallow: 
+				if (ExclusionReason && !Result.ExclusionReason.IsEmpty())
+				{
+					*ExclusionReason = Result.ExclusionReason;
+				}
+				return false;
+			default:
+				checkNoEntry();
+			}
+		};
+		return true;
+	}
 }
 
 UE::LevelSnapshots::Private::FLevelSnapshotsModule& UE::LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance()
@@ -27,7 +49,7 @@ UE::LevelSnapshots::Private::FLevelSnapshotsModule& UE::LevelSnapshots::Private:
 	static UE::LevelSnapshots::Private::FLevelSnapshotsModule& ModuleInstance = *[]() -> UE::LevelSnapshots::Private::FLevelSnapshotsModule*
 	{
 		UE_CLOG(!FModuleManager::Get().IsModuleLoaded("LevelSnapshots"), LogLevelSnapshots, Fatal, TEXT("You called GetInternalModuleInstance before the module was initialised."));
-		return &FModuleManager::GetModuleChecked<UE::LevelSnapshots::Private::FLevelSnapshotsModule>("LevelSnapshots");
+		return &FModuleManager::GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
 	}();
 	return ModuleInstance;
 }
@@ -327,40 +349,31 @@ TSharedPtr<UE::LevelSnapshots::ICustomObjectSnapshotSerializer> UE::LevelSnapsho
 	return nullptr;
 }
 
-bool UE::LevelSnapshots::Private::FLevelSnapshotsModule::CanRecreateActor(const FCanRecreateActorParams& Params) const
+bool UE::LevelSnapshots::Private::FLevelSnapshotsModule::CanModifyMatchedActor(const FCanModifyMatchedActorParams& Params, FText* ExclusionReason) const
 {
-	for (const TSharedRef<IActorSnapshotFilter>& Filter : GlobalFilters)
-	{
-		const IActorSnapshotFilter::EFilterResult Result = Filter->CanRecreateActor(Params);
-		switch (Result)
-		{
-		case IActorSnapshotFilter::EFilterResult::Allow: return true;
-		case IActorSnapshotFilter::EFilterResult::DoNotCare: continue;
-		case IActorSnapshotFilter::EFilterResult::Disallow: return false;
-		default:
-			checkNoEntry();
-		}
-	};
-
-	return true;
+	return CanRestoreActor(
+		GlobalFilters,
+		ExclusionReason,
+		[&Params](IActorSnapshotFilter& Filter){ return Filter.CanModifyMatchedActor(Params); }
+		);
 }
 
-bool UE::LevelSnapshots::Private::FLevelSnapshotsModule::CanDeleteActor(const AActor* EditorActor) const
+bool UE::LevelSnapshots::Private::FLevelSnapshotsModule::CanRecreateActor(const FCanRecreateActorParams& Params, FText* ExclusionReason) const
 {
-	for (const TSharedRef<IActorSnapshotFilter>& Filter : GlobalFilters)
-	{
-		const IActorSnapshotFilter::EFilterResult Result = Filter->CanDeleteActor(EditorActor);
-		switch (Result)
-		{
-		case IActorSnapshotFilter::EFilterResult::Allow: return true;
-		case IActorSnapshotFilter::EFilterResult::DoNotCare: continue;
-		case IActorSnapshotFilter::EFilterResult::Disallow: return false;
-		default:
-			checkNoEntry();
-		}
-	};
+	return CanRestoreActor(
+		GlobalFilters,
+		ExclusionReason,
+		[&Params](IActorSnapshotFilter& Filter){ return Filter.CanRecreateMissingActor(Params); }
+		);
+}
 
-	return true;
+bool UE::LevelSnapshots::Private::FLevelSnapshotsModule::CanDeleteActor(const AActor* EditorActor, FText* ExclusionReason) const
+{
+	return CanRestoreActor(
+		GlobalFilters,
+		ExclusionReason,
+		[EditorActor](IActorSnapshotFilter& Filter){ return Filter.CanDeleteNewActor(EditorActor); }
+		);
 }
 
 void UE::LevelSnapshots::Private::FLevelSnapshotsModule::AddCanTakeSnapshotDelegate(FName DelegateName, FCanTakeSnapshot Delegate)

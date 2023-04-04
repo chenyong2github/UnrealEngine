@@ -2,14 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "ILevelSnapshotsModule.h"
-#include "FoliageSupport/InstancedFoliageActorData.h"
 #include "Interfaces/ISnapshotRestorabilityOverrider.h"
 #include "Interfaces/IRestorationListener.h"
 #include "Interfaces/ICustomObjectSnapshotSerializer.h"
+#include "UObject/WeakObjectPtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class AInstancedFoliageActor;
+class UObject;
 
 namespace UE::LevelSnapshots::Foliage::Private
 {
@@ -17,10 +18,14 @@ namespace UE::LevelSnapshots::Foliage::Private
 		:
 		public ISnapshotRestorabilityOverrider,
 		public ICustomObjectSnapshotSerializer,
-		public IRestorationListener
+		public IRestorationListener,
+		public IActorSnapshotFilter // For not allowing SkipSubobjectReferencesWhenSerializingArchetypesRefactor < version < FoliageTypesUnreadable
 	{
 		/** Just used to verify snapshots is in a valid state */
 		TWeakObjectPtr<AInstancedFoliageActor> CurrentFoliageActor;
+
+		/** Tracks modified foliage actors since they must be refreshed AFTER the snapshot has serialized all properties (in PostApplySnapshot). */
+		TArray<TWeakObjectPtr<AInstancedFoliageActor>> ActorsNeedingRefresh;
 		
 	public:
 
@@ -41,6 +46,7 @@ namespace UE::LevelSnapshots::Foliage::Private
 		//~ End ICustomObjectSnapshotSerializer Interface
 		
 		//~ Begin IRestorationListener Interface
+		virtual void PostApplySnapshot(const FApplySnapshotParams& Params) override;
 		virtual void PostApplySnapshotToActor(const FApplySnapshotToActorParams& Params) override;
 		virtual void PreApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params) override;
 		virtual void PostApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params) override;
@@ -49,6 +55,11 @@ namespace UE::LevelSnapshots::Foliage::Private
 		virtual void PreRemoveActor(const FPreRemoveActorParams& Params) override;
 		virtual void PreRemoveComponent(UActorComponent* ComponentToRemove) override;
 		//~ End IRestorationListener Interface
+
+		//~ Begin IActorSnapshotFilter Interface
+		virtual FFilterResultData CanModifyMatchedActor(const FCanModifyMatchedActorParams& Params) override;
+		virtual FFilterResultData CanRecreateMissingActor(const FCanRecreateActorParams& Params) override;
+		//~ End IActorSnapshotFilter Interface
 	};
 }
 
