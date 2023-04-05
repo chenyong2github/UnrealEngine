@@ -44,18 +44,22 @@ TSharedRef<SWidget> FRigHierarchyTabSummoner::CreateTabBody(const FWorkflowTabSp
 TSharedRef<SDockTab> FRigHierarchyTabSummoner::SpawnTab(const FWorkflowTabSpawnInfo& Info) const
 {
 	TSharedRef<SDockTab>  DockTab = FWorkflowTabFactory::SpawnTab(Info);
-	DockTab->SetCanCloseTab(SDockTab::FCanCloseTab::CreateLambda([DockTab]()
+	TWeakPtr<SDockTab> WeakDockTab = DockTab;
+	DockTab->SetCanCloseTab(SDockTab::FCanCloseTab::CreateLambda([WeakDockTab]()
     {
 		int32 HierarchyTabCount = 0;
-		if(SWidget* Content = &DockTab->GetContent().Get())
+		if (TSharedPtr<SDockTab> SharedDocTab = WeakDockTab.Pin())
 		{
-			SRigHierarchy* RigHierarchy = (SRigHierarchy*)Content;
-			if(FControlRigEditor* ControlRigEditorForTab = RigHierarchy->GetControlRigEditor())
+			if(SWidget* Content = &SharedDocTab->GetContent().Get())
 			{
-				HierarchyTabCount = ControlRigEditorForTab->GetRigHierarchyTabCount();
+				SRigHierarchy* RigHierarchy = (SRigHierarchy*)Content;
+				if(FControlRigEditor* ControlRigEditorForTab = RigHierarchy->GetControlRigEditor())
+				{
+					HierarchyTabCount = ControlRigEditorForTab->GetRigHierarchyTabCount();
+				}
 			}
 		}
-        return HierarchyTabCount > 1;
+		return HierarchyTabCount > 1;
     }));
 	DockTab->SetOnTabClosed( SDockTab::FOnTabClosedCallback::CreateLambda([](TSharedRef<SDockTab> DockTab)
 	{
