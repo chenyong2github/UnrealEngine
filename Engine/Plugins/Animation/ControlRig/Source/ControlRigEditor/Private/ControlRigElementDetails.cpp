@@ -3091,8 +3091,8 @@ void FRigControlElementDetails::CustomizeControl(IDetailLayoutBuilder& DetailBui
 
 void FRigControlElementDetails::CustomizeAnimationChannels(IDetailLayoutBuilder& DetailBuilder)
 {
-	// only show this for non-animation channels
-	if(!IsAnyControlNotOfAnimationType(ERigControlAnimationType::AnimationChannel))
+	// only show this for animation channels
+	if(IsAnyControlNotOfAnimationType(ERigControlAnimationType::AnimationChannel))
 	{
 		return;
 	}
