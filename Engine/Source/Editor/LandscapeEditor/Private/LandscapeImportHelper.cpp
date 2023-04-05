@@ -7,6 +7,7 @@
 #include "Modules/ModuleManager.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
+#include "LandscapeEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeImportHelper"
 
@@ -299,7 +300,7 @@ void TransformImportDataInternal(const TArray<T>& InData, TArray<T>& OutData, co
 		const FIntRect DestRegion(0, 0, RequiredResolution.Width - 1, RequiredResolution.Height - 1);
 		FLandscapeConfigHelper::ResampleData<T>(InData, OutData, SrcRegion, DestRegion);
 	}
-	else if(TransformType != ELandscapeImportTransformType::None)
+	else if(TransformType == ELandscapeImportTransformType::ExpandCentered || TransformType == ELandscapeImportTransformType::ExpandOffset)
 	{
 		int32 OffsetX = 0;
 		int32 OffsetY = 0;
@@ -360,11 +361,12 @@ void FLandscapeImportHelper::ChooseBestComponentSizeForImport(int32 Width, int32
 	bool bValidQuadsPerSectionParam = false;
 	check(Width > 0 && Height > 0);
 		
+	const int32 MaxComponents = LandscapeEditorUtils::GetMaxSizeInComponents();
 	bool bFoundMatch = false;
 	// Try to find a section size and number of sections that exactly matches the dimensions of the heightfield
 	for (int32 SectionSizesIdx = UE_ARRAY_COUNT(FLandscapeConfig::SubsectionSizeQuadsValues) - 1; SectionSizesIdx >= 0; SectionSizesIdx--)
 	{
-		for (int32 NumSectionsIdx = UE_ARRAY_COUNT(FLandscapeConfig::NumSectionValues) - 1; NumSectionsIdx >= 0; NumSectionsIdx--)
+		for (int32 NumSectionsIdx = 0; NumSectionsIdx < UE_ARRAY_COUNT(FLandscapeConfig::NumSectionValues); NumSectionsIdx++)
 		{
 			int32 ss = FLandscapeConfig::SubsectionSizeQuadsValues[SectionSizesIdx];
 			int32 ns = FLandscapeConfig::NumSectionValues[NumSectionsIdx];
@@ -373,8 +375,8 @@ void FLandscapeImportHelper::ChooseBestComponentSizeForImport(int32 Width, int32
 			bValidSubsectionSizeParam |= (InOutSectionsPerComponent == ns);
 			bValidQuadsPerSectionParam |= (InOutQuadsPerSection == ss);
 
-			if (((Width - 1) % (ss * ns)) == 0 && ((Width - 1) / (ss * ns)) <= 32 &&
-				((Height - 1) % (ss * ns)) == 0 && ((Height - 1) / (ss * ns)) <= 32)
+			if (((Width - 1) % (ss * ns)) == 0 && ((Width - 1) / (ss * ns)) <= MaxComponents &&
+				((Height - 1) % (ss * ns)) == 0 && ((Height - 1) / (ss * ns)) <= MaxComponents)
 			{
 				bFoundMatch = true;
 				InOutQuadsPerSection = ss;

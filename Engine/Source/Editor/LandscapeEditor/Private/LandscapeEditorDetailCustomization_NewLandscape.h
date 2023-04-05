@@ -13,6 +13,7 @@
 #include "IPropertyTypeCustomization.h"
 #include "PropertyHandle.h"
 #include "LandscapeEditorDetailCustomization_Base.h"
+#include "LandscapeSubsystem.h"
 
 class IDetailLayoutBuilder;
 
@@ -93,5 +94,9 @@ public:
 	bool ShouldShowResetMaterialToDefault(TSharedPtr<IPropertyHandle> InPropertyHandle);
 
 protected:
+
 	bool bUsingSlider;
+
+private:
+	static void AddComponents(ULandscapeInfo* InLandscapeInfo, ULandscapeSubsystem* InLandscapeSubsystem, const TArray<FIntPoint>& InComponentCoordinates, TArray<ALandscapeProxy*>& OutCreatedStreamingProxies);
 };

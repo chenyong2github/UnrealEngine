@@ -20,6 +20,7 @@
 #include "LandscapeStreamingProxy.h"
 #include "LandscapeSubsystem.h"
 #include "LandscapeSettings.h"
+#include "LandscapeTiledImage.h"
 
 #include "EditorSupportDelegates.h"
 #include "ScopedTransaction.h"
@@ -3161,102 +3162,77 @@ void FEdModeLandscape::ReimportData(const FLandscapeTargetListInfo& TargetInfo)
 template<class T>
 void ImportDataInternal(ULandscapeInfo* LandscapeInfo, const FString& Filename, FName LayerName, bool bSingleFile, bool bFlipYAxis, const FIntRect& ImportRegionVerts, ELandscapeImportTransformType TransformType, FIntPoint Offset, TFunctionRef<void(int32, int32, int32, int32, const TArray<T>&)> SetDataFunc)
 {
-	if (LandscapeInfo)
+	if (!LandscapeInfo)
 	{
-		const FLandscapeImportResolution LandscapeResolution = { (uint32)(ImportRegionVerts.Width()), (uint32)(ImportRegionVerts.Height()) };
-		FLandscapeImportDescriptor OutImportDescriptor;
-		FText OutMessage;
+		return;
+	}
 
-		ELandscapeImportResult ImportResult = FLandscapeImportHelper::GetImportDescriptor<T>(Filename, bSingleFile, bFlipYAxis, LayerName, OutImportDescriptor, OutMessage);
-		if (ImportResult == ELandscapeImportResult::Error)
+	FLandscapeTiledImage TiledImage;
+	TiledImage.Load(*Filename);
+	FIntPoint ImportResolution = TiledImage.GetResolution();
+
+	bool bResolutionMismatch = false;
+
+	if ((ImportResolution.X != ImportRegionVerts.Width() || ImportResolution.Y != ImportRegionVerts.Height()) && TransformType != ELandscapeImportTransformType::Subregion)
+	{
+		bResolutionMismatch = true;
+
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("ImportSizeX"), ImportResolution.X);
+		Args.Add(TEXT("ImportSizeY"), ImportResolution.Y);
+		Args.Add(TEXT("LandscapeSizeX"), ImportRegionVerts.Width());
+		Args.Add(TEXT("LandscapeSizeY"), ImportRegionVerts.Height());
+
+		auto Result = FMessageDialog::Open(EAppMsgType::OkCancel,
+			FText::Format(NSLOCTEXT("LandscapeEditor.Import", "Import_SizeMismatch", "The import size ({ImportSizeX}\u00D7{ImportSizeY}) does not match the current Landscape extent ({LandscapeSizeX}\u00D7{LandscapeSizeY}), if you continue it will be padded/clipped to fit"), Args));
+
+		if (Result != EAppReturnType::Ok)
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, OutMessage);
 			return;
 		}
+	}
 
-		check(OutImportDescriptor.ImportResolutions.Num() > 0);
+	TArray<T> ImportData;
+	if (TransformType == ELandscapeImportTransformType::Subregion)
+	{
+		TiledImage.ReadRegion<T>(ImportRegionVerts, ImportData, bFlipYAxis);
+	}
+	else if (bResolutionMismatch)
+	{
+		TiledImage.Read<T>(ImportData, bFlipYAxis);
+	}
+	else
+	{
+		const FIntRect RegionToLoad(0, 0, ImportRegionVerts.Width(), ImportRegionVerts.Height());
+		TiledImage.ReadRegion<T>(RegionToLoad, ImportData, bFlipYAxis);
+	}
 
-		int32 DescriptorIndex = 0;
-		// If there is more than one possible res it needs to match perfectly (this constraint could probably removed)
-		if (OutImportDescriptor.ImportResolutions.Num() > 1)
+	// Expand if necessary...
+	{
+		TArray<T> FinalData;
+		if (bResolutionMismatch)
 		{
-			DescriptorIndex = OutImportDescriptor.FindDescriptorIndex(LandscapeResolution.Width, LandscapeResolution.Height);
-			// if the file is a raw format with multiple possibly resolutions, only attempt import if one matches the current landscape
-			if (DescriptorIndex == INDEX_NONE)
-			{
-				FFormatNamedArguments Args;
-				Args.Add(TEXT("LandscapeSizeX"), LandscapeResolution.Width);
-				Args.Add(TEXT("LandscapeSizeY"), LandscapeResolution.Height);
-
-				FMessageDialog::Open(EAppMsgType::Ok,
-					FText::Format(NSLOCTEXT("LandscapeEditor.Import", "Import_SizeMismatchRaw", "The file resolution does not match the current Landscape extent ({LandscapeSizeX}\u00D7{LandscapeSizeY}), and its exact resolution could not be determined"), Args));
-
-				return;
-			}
+			FLandscapeImportHelper::TransformImportData<T>(ImportData, FinalData, FLandscapeImportResolution(ImportResolution.X, ImportResolution.Y), FLandscapeImportResolution(ImportRegionVerts.Width(), ImportRegionVerts.Height()), TransformType, Offset);
 		}
-				
-		// display warning message if there is one and allow user to cancel
-		if (ImportResult == ELandscapeImportResult::Warning)
+		else if (TransformType == ELandscapeImportTransformType::Subregion)
 		{
-			auto Result = FMessageDialog::Open(EAppMsgType::OkCancel, OutMessage);
-
-			if (Result != EAppReturnType::Ok)
-			{
-				return;
-			}
+			FinalData = MoveTemp(ImportData);
 		}
-
-		const FLandscapeImportResolution ImportResolution = OutImportDescriptor.ImportResolutions[DescriptorIndex];
-		bool bResolutionMismatch = false;
-		// if the file is a format with resolution information, warn the user if the resolution doesn't match the current landscape
-		// unlike for raw this is only a warning as we can pad/clip the data if we know what resolution it is
-		if (ImportResolution != LandscapeResolution)
+		else
 		{
-			bResolutionMismatch = true;
-
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("ImportSizeX"), ImportResolution.Width);
-			Args.Add(TEXT("ImportSizeY"), ImportResolution.Height);
-			Args.Add(TEXT("LandscapeSizeX"), LandscapeResolution.Width);
-			Args.Add(TEXT("LandscapeSizeY"), LandscapeResolution.Height);
-
-			auto Result = FMessageDialog::Open(EAppMsgType::OkCancel,
-				FText::Format(NSLOCTEXT("LandscapeEditor.Import", "Import_SizeMismatch", "The import size ({ImportSizeX}\u00D7{ImportSizeY}) does not match the current Landscape extent ({LandscapeSizeX}\u00D7{LandscapeSizeY}), if you continue it will be padded/clipped to fit"), Args));
-
-			if (Result != EAppReturnType::Ok)
-			{
-				return;
-			}
+			FinalData = MoveTemp(ImportData);
 		}
 
-		TArray<T> ImportData;
-		ImportResult = FLandscapeImportHelper::GetImportData<T>(OutImportDescriptor, DescriptorIndex, LayerName, ImportData, OutMessage);
-		if (ImportResult == ELandscapeImportResult::Error)
-		{
-			FMessageDialog::Open(EAppMsgType::Ok, OutMessage);
-			return;
-		}
-
-		// Expand if necessary...
-		{
-			TArray<T> FinalData;
-			if (bResolutionMismatch)
-			{
-				FLandscapeImportHelper::TransformImportData<T>(ImportData, FinalData, ImportResolution, LandscapeResolution, TransformType, Offset);
-			}
-			else
-			{
-				FinalData = MoveTemp(ImportData);
-			}
-									
-			// Set Data is in Quads (so remove 1)
-			SetDataFunc(ImportRegionVerts.Min.X, ImportRegionVerts.Min.Y, ImportRegionVerts.Max.X-1, ImportRegionVerts.Max.Y-1, FinalData);
-		}
-	}			
+		// Set Data is in Quads (so remove 1)
+		SetDataFunc(ImportRegionVerts.Min.X, ImportRegionVerts.Min.Y, ImportRegionVerts.Max.X - 1, ImportRegionVerts.Max.Y - 1, FinalData);
+	}
+	
 }
 
 void FEdModeLandscape::ImportHeightData(ULandscapeInfo* LandscapeInfo, const FGuid& LayerGuid, const FString& Filename, const FIntRect& ImportRegionVerts, ELandscapeImportTransformType TransformType, FIntPoint Offset, const ELandscapeLayerPaintingRestriction& PaintRestriction, bool bFlipYAxis)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEdModeLandscape::ImportHeightData);
+
 	ImportDataInternal<uint16>(LandscapeInfo, Filename, NAME_None, UseSingleFileImport(), bFlipYAxis, ImportRegionVerts, TransformType, Offset, [LandscapeInfo, LayerGuid, PaintRestriction](int32 MinX, int32 MinY, int32 MaxX, int32 MaxY, const TArray<uint16>& Data)
 	{
 		ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
@@ -4303,13 +4279,8 @@ bool FEdModeLandscape::NeedToFillEmptyMaterialLayers() const
 
 	bool bCanFill = true;
 
-	CurrentToolTarget.LandscapeInfo->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
+	CurrentToolTarget.LandscapeInfo->ForEachLandscapeProxy([&](ALandscapeProxy* Proxy)
 	{
-		if (!bCanFill)
-		{
-			return;
-		}
-
 		ALandscape* Landscape = Proxy->GetLandscapeActor();
 
 		if (Landscape != nullptr)
@@ -4327,13 +4298,14 @@ bool FEdModeLandscape::NeedToFillEmptyMaterialLayers() const
 							if (Alloc.LayerInfo != nullptr)
 							{
 								bCanFill = false;
-								return;
+								return false;
 							}
 						}
 					}
 				}
 			}
 		}
+		return true;
 	});	
 
 	return bCanFill;

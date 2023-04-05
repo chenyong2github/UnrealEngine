@@ -270,6 +270,18 @@ struct FLandscapePatternBrushWorldSpaceSettings
 	{}
 };
 
+UENUM()
+enum class ELandscapeImportExportMode
+{
+	// Import and export only loaded landscape proxies
+	LoadedOnly, 
+	// Import and export the whole world loading & unloading regions as required.
+	All,		
+	// Import and export regions selected in the WP editor loading & unloading as required.
+	// Selected, // TODO: don.boogert   
+};
+
+
 UCLASS(MinimalAPI)
 class ULandscapeEditorObject : public UObject
 {
@@ -573,6 +585,9 @@ class ULandscapeEditorObject : public UObject
 	UPROPERTY(Category = "Import / Export", EditAnywhere, NonTransactional, meta = (DisplayName = "Export Single File", ShowForTools = "ImportExport", ToolTip = "(World Partition only) When true, exports the landscape as a single file, if false exports each grid tile individually."))
 	bool bExportSingleFile = false;
 
+	UPROPERTY(Category = "Import / Export", EditAnywhere, NonTransactional, meta = (DisplayName = "Mode", ShowForTools = "ImportExport", ToolTip = "Import Loaded or All Landscape Regions"))
+	ELandscapeImportExportMode ImportExportMode = ELandscapeImportExportMode::LoadedOnly;
+
 	UPROPERTY(NonTransactional)
 	FLandscapeImportDescriptor HeightmapImportDescriptor;
 	
@@ -590,6 +605,9 @@ public:
 
 	UPROPERTY(Category = "New Landscape", EditAnywhere, NonTransactional, meta = (DisplayName= "World Partition Grid Size", ToolTip="Number of components per landscape streaming proxies per axis", ShowForTools="NewLandscape", ClampMin=1, ClampMax=16, UIMin=1, UIMax=16))
 	uint32 WorldPartitionGridSize = 2;
+
+	UPROPERTY(Category = "New Landscape", EditAnywhere, NonTransactional, meta = (DisplayName= "World Partition Region Size", ToolTip="Number of components per Landscape World Partition Region per axis.", ShowForTools="NewLandscape", ClampMin=4, ClampMax=64, UIMin=4, UIMax=64))
+	uint32 WorldPartitionRegionSize = 16;
 
 	// Whether the imported alpha maps are to be interpreted as "layered" or "additive" (UE uses additive internally)
 	UPROPERTY(Category="New Landscape", EditAnywhere, NonTransactional, meta=(DisplayName="Layer Alphamap Type", ShowForTools="NewLandscape,ImportExport"))
@@ -733,8 +751,8 @@ public:
 
 	int32 ClampLandscapeSize(int32 InComponentsCount) const
 	{
-		// Max size is either whole components below 8192 verts, or 32 components
-		return FMath::Clamp(InComponentsCount, 1, FMath::Min(32, FMath::FloorToInt(8191.0f / (float)(NewLandscape_SectionsPerComponent * NewLandscape_QuadsPerSection))));
+		// Max size is either whole components below 8192 verts, or 256 components
+		return FMath::Clamp(InComponentsCount, 1, FMath::Min(256, FMath::FloorToInt(8191.0f / (float)(NewLandscape_SectionsPerComponent * NewLandscape_QuadsPerSection))));
 	}
 	
 	int32 CalcComponentsCount(int32 InResolution) const
@@ -743,7 +761,7 @@ public:
 	}
 
 	void NewLandscape_ClampSize()
-	{
+	{	
 		NewLandscape_ComponentCount.X = ClampLandscapeSize(NewLandscape_ComponentCount.X);
 		NewLandscape_ComponentCount.Y = ClampLandscapeSize(NewLandscape_ComponentCount.Y);
 	}

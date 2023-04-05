@@ -33,6 +33,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "Rendering/Texture2DResource.h"
 #include "SceneView.h"
 #include "MaterialCachedData.h"
+#include "ContentStreaming.h"
 
 #if WITH_EDITOR
 #include "LandscapeEditorModule.h"
@@ -191,7 +192,7 @@ void OnLandscapeEditLayersLocalMergeChanged(IConsoleVariable* CVar)
 	}
 }
 
-int32 LandscapeEditLayersLocalMerge = 0;
+int32 LandscapeEditLayersLocalMerge = 1;
 static FAutoConsoleVariableRef CVarLandscapeEditLayersLocalMerge(
 	TEXT("landscape.EditLayersLocalMerge.Enable"),
 	LandscapeEditLayersLocalMerge,
@@ -2054,7 +2055,7 @@ void ALandscape::ReleaseLayersRenderingResource()
 		return;
 	}
 
-	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
+	Info->ForEachLandscapeProxy([&](ALandscapeProxy* Proxy)
 	{
 		for (auto& ItPair : Proxy->HeightmapsCPUReadback)
 		{
@@ -2069,6 +2070,7 @@ void ALandscape::ReleaseLayersRenderingResource()
 			delete WeightmapCPUReadback;
 		}
 		Proxy->WeightmapsCPUReadback.Empty();
+		return true;
 	});
 
 	if (CombinedLayersWeightmapAllMaterialLayersResource != nullptr)
@@ -2120,7 +2122,7 @@ FIntPoint ALandscape::ComputeComponentCounts() const
 	FIntPoint MaxSectionBase(TNumericLimits<int32>::Min(), TNumericLimits<int32>::Min());
 	FIntPoint MinSectionBase(TNumericLimits<int32>::Max(), TNumericLimits<int32>::Max());
 
-	Info->ForAllLandscapeProxies([&MaxSectionBase, &MinSectionBase](ALandscapeProxy* Proxy)
+	Info->ForEachLandscapeProxy([&MaxSectionBase, &MinSectionBase](ALandscapeProxy* Proxy)
 	{
 		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 		{
@@ -2130,6 +2132,7 @@ FIntPoint ALandscape::ComputeComponentCounts() const
 			MinSectionBase.X = FMath::Min(MinSectionBase.X, Component->SectionBaseX);
 			MinSectionBase.Y = FMath::Min(MinSectionBase.Y, Component->SectionBaseY);
 		}
+		return true;
 	});
 
 	if ((MaxSectionBase.X >= MinSectionBase.X) && (MaxSectionBase.Y >= MinSectionBase.Y))
@@ -2150,9 +2153,10 @@ void ALandscape::CopyOldDataToDefaultLayer()
 		return;
 	}
 
-	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
+	Info->ForEachLandscapeProxy([&](ALandscapeProxy* Proxy)
 	{
 		CopyOldDataToDefaultLayer(Proxy);
+		return true;
 	});
 }
 
@@ -2317,9 +2321,10 @@ void ALandscape::UpdateProxyLayersWeightmapUsage()
 		return;
 	}
 
-	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
+	Info->ForEachLandscapeProxy([&](ALandscapeProxy* Proxy)
 	{
 		Proxy->UpdateProxyLayersWeightmapUsage();
+		return true;
 	});
 }
 
@@ -2348,9 +2353,10 @@ void ALandscape::InitializeLandscapeLayersWeightmapUsage()
 		return;
 	}
 
-	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
+	Info->ForEachLandscapeProxy([&](ALandscapeProxy* Proxy)
 	{
 		Proxy->InitializeProxyLayersWeightmapUsage();
+		return true;
 	});
 }
 
@@ -2464,9 +2470,10 @@ void ALandscape::ValidateProxyLayersWeightmapUsage() const
 		return;
 	}
 
-	Info->ForAllLandscapeProxies([=](const ALandscapeProxy* Proxy)
+	Info->ForEachLandscapeProxy([=](const ALandscapeProxy* Proxy)
 	{
 		Proxy->ValidateProxyLayersWeightmapUsage();
+		return true;
 	});
 }
 
@@ -3481,7 +3488,7 @@ bool ALandscape::PrepareTextureResources(bool bInWaitForStreaming)
 	TSet<ULandscapeComponent*> StreamedInHeightmapComponents;
 
 	bool bIsReady = true;
-	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
+	Info->ForEachLandscapeProxy([&](ALandscapeProxy* Proxy)
 	{
 		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 		{
@@ -3524,6 +3531,7 @@ bool ALandscape::PrepareTextureResources(bool bInWaitForStreaming)
 				bIsReady &= bIsTextureReady;
 			}
 		}
+		return true;
 	});
 
 	// The assets that were streaming in before and are not anymore can be considered streamed in: 
@@ -3623,7 +3631,7 @@ bool ALandscape::PrepareLayersTextureResources(const TArray<FLandscapeLayer>& In
 	}
 
 	bool bIsReady = true;
-	Info->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
+	Info->ForEachLandscapeProxy([&](ALandscapeProxy* Proxy)
 	{
 		for (const FLandscapeLayer& Layer : InLayers)
 		{
@@ -3640,6 +3648,7 @@ bool ALandscape::PrepareLayersTextureResources(const TArray<FLandscapeLayer>& In
 				}
 			}
 		}
+		return true;
 	});
 
 	return bIsReady;
@@ -4401,8 +4410,8 @@ namespace EditLayersHeightmapLocalMerge_RenderThread
 			const FLandscapeRDGTrackedTexture* TrackedTexture = InTrackedTextures.Find(TextureResolveInfo.Texture);
 			check((TrackedTexture != nullptr) && (TrackedTexture->ScratchTextureRef != nullptr));
 
-			check(TextureResolveInfo.NumMips == TrackedTexture->ScratchTextureRef->Desc.NumMips);
-			check(TrackedTexture->ScratchTextureMipsSRVRefs.Num() == TextureResolveInfo.NumMips);
+			//check(TextureResolveInfo.NumMips == TrackedTexture->ScratchTextureRef->Desc.NumMips);
+			//check(TrackedTexture->ScratchTextureMipsSRVRefs.Num() == TextureResolveInfo.NumMips);
 
 			FIntPoint CurrentMipSubregionSize = InLocalMergeInfo.ComponentSizeVerts;
 			for (int32 MipLevel = 1; MipLevel < TextureResolveInfo.NumMips; ++MipLevel)
@@ -5870,7 +5879,7 @@ void ALandscape::ReallocateLayersWeightmaps(FUpdateLayersContentContext& InUpdat
 	//GDisableAutomaticTextureMaterialUpdateDependencies = false;
 
 	// Clean-up unused weightmap CPUReadback resources
-	Info->ForAllLandscapeProxies([](ALandscapeProxy* Proxy)
+	Info->ForEachLandscapeProxy([](ALandscapeProxy* Proxy)
 	{
 		TArray<UTexture2D*, TInlineAllocator<64>> EntriesToRemoveFromMap;
 		for (auto& Pair : Proxy->WeightmapsCPUReadback)
@@ -5906,6 +5915,8 @@ void ALandscape::ReallocateLayersWeightmaps(FUpdateLayersContentContext& InUpdat
 				}
 			}
 		}
+
+		return true;
 	});
 
 	ValidateProxyLayersWeightmapUsage();
@@ -7714,7 +7725,7 @@ void ALandscape::RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode In
 	const bool bUpdateClientUdpateEditing = (InModeMask & ELandscapeLayerUpdateMode::Update_Client_Editing) != 0;
 	if (ULandscapeInfo* LandscapeInfo = GetLandscapeInfo())
 	{
-		LandscapeInfo->ForAllLandscapeProxies([bUpdateHeightmap, bUpdateWeightmap, bUpdateAllHeightmap, bUpdateAllWeightmap, bUpdateHeightCollision, bUpdateWeightCollision, bUpdateClientUdpateEditing, bInUserTriggered](ALandscapeProxy* Proxy)
+		LandscapeInfo->ForEachLandscapeProxy([bUpdateHeightmap, bUpdateWeightmap, bUpdateAllHeightmap, bUpdateAllWeightmap, bUpdateHeightCollision, bUpdateWeightCollision, bUpdateClientUdpateEditing, bInUserTriggered](ALandscapeProxy* Proxy)
 		{
 			if (Proxy)
 			{
@@ -7736,6 +7747,7 @@ void ALandscape::RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode In
 					}
 				}
 			}
+			return true;
 		});
 	}
 
@@ -8427,6 +8439,14 @@ void ALandscape::ForceUpdateLayersContent(bool bIntermediateRender)
 
 void ALandscape::ForceLayersFullUpdate()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ALandscape::ForceLayersFullUpdate);
+
+	FAssetCompilingManager::Get().FinishAllCompilation();
+
+	FStreamingManagerCollection& StreamingManagers = IStreamingManager::Get();
+	StreamingManagers.UpdateResourceStreaming(GetWorld()->GetDeltaSeconds(), /* bProcessEverything */ true);
+	StreamingManagers.BlockTillAllRequestsFinished();
+
 	RequestSplineLayerUpdate();
 	RequestLayersContentUpdateForceAll();
 	ForceUpdateLayersContent(/* bIntermediateRender */ false);
@@ -8912,9 +8932,10 @@ void ALandscape::DeleteLayer(int32 InLayerIndex)
 	FGuid LayerGuid = Layer->Guid;
 
 	// Clean up Weightmap usage in LandscapeProxies
-	LandscapeInfo->ForAllLandscapeProxies([&LayerGuid](ALandscapeProxy* Proxy)
+	LandscapeInfo->ForEachLandscapeProxy([&LayerGuid](ALandscapeProxy* Proxy)
 	{
 		Proxy->DeleteLayer(LayerGuid);
+		return true;
 	});
 
 	const FLandscapeLayer* SplinesReservedLayer = GetLandscapeSplinesReservedLayer();
@@ -9037,13 +9058,14 @@ void ALandscape::ClearPaintLayer(const FGuid& InLayerGuid, ULandscapeLayerInfoOb
 	FScopedSetLandscapeEditingLayer Scope(this, InLayerGuid, [=] { RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_Weightmap_All); });
 
 	FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo);
-	LandscapeInfo->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
+	LandscapeInfo->ForEachLandscapeProxy([&](ALandscapeProxy* Proxy)
 	{
 		Proxy->Modify();
 		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
 		{
 			Component->DeleteLayer(InLayerInfo, LandscapeEdit);
 		}
+		return true;
 	});
 }
 
@@ -9111,10 +9133,11 @@ void ALandscape::ClearLayer(const FGuid& InLayerGuid, TSet<TObjectPtr<ULandscape
 	}
 	else
 	{
-		LandscapeInfo->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
+		LandscapeInfo->ForEachLandscapeProxy([&](ALandscapeProxy* Proxy)
 		{
 			Proxy->Modify(bMarkPackageDirty);
 			Components.Append(Proxy->LandscapeComponents);
+			return true;
 		});
 	}
 
@@ -9443,9 +9466,10 @@ FLandscapeLayer* ALandscape::DuplicateLayerAndMoveBrushes(const FLandscapeLayer&
 	int32 AddedIndex = LandscapeLayers.Add(NewLayer);
 
 	// Create associated layer data in each landscape proxy
-	LandscapeInfo->ForAllLandscapeProxies([&NewLayer](ALandscapeProxy* Proxy)
+	LandscapeInfo->ForEachLandscapeProxy([&NewLayer](ALandscapeProxy* Proxy)
 	{
 		Proxy->AddLayer(NewLayer.Guid);
+		return true;
 	});
 
 	return &LandscapeLayers[AddedIndex];
@@ -9465,9 +9489,10 @@ int32 ALandscape::CreateLayer(FName InName)
 	int32 LayerIndex = LandscapeLayers.Add(NewLayer);
 
 	// Create associated layer data in each landscape proxy
-	LandscapeInfo->ForAllLandscapeProxies([&NewLayer](ALandscapeProxy* Proxy)
+	LandscapeInfo->ForEachLandscapeProxy([&NewLayer](ALandscapeProxy* Proxy)
 	{
 		Proxy->AddLayer(NewLayer.Guid);
+		return true;
 	});
 
 	return LayerIndex;

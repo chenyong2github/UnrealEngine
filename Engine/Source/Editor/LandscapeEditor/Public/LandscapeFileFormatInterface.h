@@ -60,7 +60,7 @@ struct FLandscapeFileInfo
 {
 	// Whether the the file is usable or has errors/warnings
 	ELandscapeImportResult ResultCode = ELandscapeImportResult::Success;
-
+	
 	// Message to show as the warning/error result
 	FText ErrorMessage;
 

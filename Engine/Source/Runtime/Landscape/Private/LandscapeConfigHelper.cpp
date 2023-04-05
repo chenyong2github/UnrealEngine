@@ -354,14 +354,15 @@ void FLandscapeConfigHelper::MoveSplinesToLandscape(ULandscapeInfo* InLandscapeI
 		InLandscape->CreateSplineComponent();
 	}
 
-	InLandscapeInfo->ForAllLandscapeProxies([InLandscapeInfo, InLandscape](ALandscapeProxy* LandscapeProxy)
+	InLandscapeInfo->ForEachLandscapeProxy([InLandscapeInfo, InLandscape](ALandscapeProxy* LandscapeProxy)
 	{
 		if (InLandscape == LandscapeProxy || !LandscapeProxy->GetSplinesComponent())
 		{
-			return;
+			return true;
 		}
 
 		InLandscapeInfo->MoveSplinesToProxy(LandscapeProxy->GetSplinesComponent(), InLandscape);
+		return true;
 	});
 }
 

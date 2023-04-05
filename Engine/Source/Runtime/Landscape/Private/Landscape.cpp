@@ -3082,7 +3082,7 @@ FLandscapeEditorLayerSettings& ULandscapeInfo::GetLayerEditorSettings(ULandscape
 
 void ULandscapeInfo::CreateLayerEditorSettingsFor(ULandscapeLayerInfoObject* LayerInfo)
 {
-	ForAllLandscapeProxies([LayerInfo](ALandscapeProxy* Proxy)
+	ForEachLandscapeProxy([LayerInfo](ALandscapeProxy* Proxy)
 	{
 		FLandscapeEditorLayerSettings* EditorLayerSettings = Proxy->EditorLayerSettings.FindByKey(LayerInfo);
 		if (!EditorLayerSettings)
@@ -3090,6 +3090,7 @@ void ULandscapeInfo::CreateLayerEditorSettingsFor(ULandscapeLayerInfoObject* Lay
 			Proxy->Modify();
 			Proxy->EditorLayerSettings.Add(FLandscapeEditorLayerSettings(LayerInfo));
 		}
+		return true;
 	});
 }
 
@@ -3305,13 +3306,14 @@ bool ULandscapeInfo::UpdateLayerInfoMapInternal(ALandscapeProxy* Proxy, bool bIn
 
 			if (!bInvalidate)
 			{
-				ForAllLandscapeProxies([this](ALandscapeProxy* EachProxy)
+				ForEachLandscapeProxy([this](ALandscapeProxy* EachProxy)
 				{
 					if (!EachProxy->IsPendingKillPending())
 					{
 						checkSlow(EachProxy->GetLandscapeInfo() == this);
 						UpdateLayerInfoMapInternal(EachProxy, false);
 					}
+					return true;
 				});
 			}
 		}
@@ -3998,13 +4000,16 @@ void ULandscapeInfo::ModifyObject(UObject* InObject, bool bAlwaysMarkDirty)
 
 ALandscapeProxy* ULandscapeInfo::GetLandscapeProxyForLevel(ULevel* Level) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeInfo::GetLandscapeProxyForLevel);
 	ALandscapeProxy* LandscapeProxy = nullptr;
-	ForAllLandscapeProxies([&LandscapeProxy, Level](ALandscapeProxy* Proxy)
+	ForEachLandscapeProxy([&LandscapeProxy, Level](ALandscapeProxy* Proxy) -> bool 
 	{
 		if (Proxy->GetLevel() == Level)
 		{
 			LandscapeProxy = Proxy;
+			return false;
 		}
+		return true;
 	});
 	return LandscapeProxy;
 }
@@ -4013,8 +4018,10 @@ ALandscapeProxy* ULandscapeInfo::GetLandscapeProxyForLevel(ULevel* Level) const
 
 ALandscapeProxy* ULandscapeInfo::GetCurrentLevelLandscapeProxy(bool bRegistered) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeInfo::GetCurrentLevelLandscapeProxy);
+
 	ALandscapeProxy* LandscapeProxy = nullptr;
-	ForAllLandscapeProxies([&LandscapeProxy, bRegistered](ALandscapeProxy* Proxy)
+	ForEachLandscapeProxy([&LandscapeProxy, bRegistered](ALandscapeProxy* Proxy) -> bool
 	{
 		if (!bRegistered || Proxy->GetRootComponent()->IsRegistered())
 		{
@@ -4023,8 +4030,10 @@ ALandscapeProxy* ULandscapeInfo::GetCurrentLevelLandscapeProxy(bool bRegistered)
 				ProxyWorld->GetCurrentLevel() == Proxy->GetOuter())
 			{
 				LandscapeProxy = Proxy;
+				return false;
 			}
 		}
+		return true;
 	});
 	return LandscapeProxy;
 }
@@ -4146,12 +4155,13 @@ void ULandscapeInfo::FixupProxiesTransform(bool bDirty)
 
 void ULandscapeInfo::UpdateComponentLayerAllowList()
 {
-	ForAllLandscapeProxies([](ALandscapeProxy* Proxy)
+	ForEachLandscapeProxy([](ALandscapeProxy* Proxy)
 	{
 		for (ULandscapeComponent* Comp : Proxy->LandscapeComponents)
 		{
 			Comp->UpdateLayerAllowListFromPaintedLayers();
 		}
+		return true;
 	});
 }
 
@@ -4272,6 +4282,28 @@ void ULandscapeInfo::ForAllLandscapeProxies(TFunctionRef<void(ALandscapeProxy*)>
 		if (ALandscapeProxy* LandscapeProxy = StreamingProxyPtr.Get())
 		{
 			Fn(LandscapeProxy);
+		}
+	}
+}
+
+void ULandscapeInfo::ForEachLandscapeProxy(TFunctionRef<bool(ALandscapeProxy*)> Fn) const
+{
+	if (ALandscape* Landscape = LandscapeActor.Get())
+	{
+		if (!Fn(Landscape))
+		{
+			return;
+		}
+	}
+
+	for (TWeakObjectPtr<ALandscapeStreamingProxy> StreamingProxyPtr : StreamingProxies)
+	{
+		if (ALandscapeProxy* LandscapeProxy = StreamingProxyPtr.Get())
+		{
+			if (!Fn(LandscapeProxy))
+			{
+				return;
+			}
 		}
 	}
 }

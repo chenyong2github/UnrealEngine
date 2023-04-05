@@ -1803,6 +1803,8 @@ bool ULandscapeHeightfieldCollisionComponent::RecreateCollision()
 #if WITH_EDITORONLY_DATA
 void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances);
+
 	SnapFoliageInstances(FBox(FVector(-WORLD_MAX), FVector(WORLD_MAX)));
 }
 
@@ -2241,6 +2243,8 @@ void ULandscapeHeightfieldCollisionComponent::PreSave(FObjectPreSaveContext Obje
 #if WITH_EDITOR
 void ULandscapeInfo::UpdateAllAddCollisions()
 {
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeInfo::UpdateAllAddCollisions);
 	XYtoAddCollisionMap.Reset();
 
 	// Don't recreate add collisions if the landscape is not registered. This can happen during Undo.
