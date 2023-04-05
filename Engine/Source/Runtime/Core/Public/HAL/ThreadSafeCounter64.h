@@ -34,7 +34,7 @@ public:
 	*
 	* @param Other The other thread safe counter to copy
 	*/
-	FThreadSafeCounter64(const FThreadSafeCounter& Other)
+	FThreadSafeCounter64(const FThreadSafeCounter64& Other)
 	{
 		Counter = Other.GetValue();
 	}
