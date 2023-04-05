@@ -17,6 +17,7 @@ class FActiveTimerHandle;
 class ITableRow;
 class SEditableTextBox;
 class SNotificationList;
+class SScrollBox;
 class SSearchBox;
 class STableViewBase;
 class SVerticalBox;
@@ -295,6 +296,7 @@ private:
 	bool CanEditTraceFile() const;
 	void RenameTraceFile();
 	void DeleteTraceFile();
+	bool HasAnyLiveTrace() const;
 
 	//////////////////////////////////////////////////
 	// "Starting Analysis" Splash Screen
@@ -385,6 +387,7 @@ private:
 	FReply StoreSettingsArea_Toggle() const;
 	const FSlateBrush* StoreSettingsToggle_Icon() const;
 	FReply AddWatchDir_Clicked();
+	FString GetStoreDirectory() const;
 
 	TArray<TSharedPtr<FTraceDirectoryModel>> StoreDirectoryModel;
 	TArray<TSharedPtr<FTraceDirectoryModel>> WatchDirectoriesModel;
@@ -515,7 +518,7 @@ private:
 	TSharedPtr<SEditableTextBox> StoreDirTextBox;
 	TSharedPtr<SEditableTextBox> StoreHostTextBox;
 	TSharedPtr<STableViewBase> StoreDirListView;
-	TSharedPtr<SVerticalBox> StoreSettingsArea;
+	TSharedPtr<SScrollBox> StoreSettingsArea;
 	TSharedPtr<STableViewBase> WatchDirsListView;
 	TSharedPtr<SListView<TSharedPtr<FTraceViewModel>>> TraceListView;
 	TSharedPtr<FTraceViewModel> SelectedTrace;

@@ -114,8 +114,7 @@ public:
 	TSharedRef<TraceServices::IAnalysisService> GetAnalysisService() const { return AnalysisService; }
 	TSharedRef<TraceServices::IModuleService> GetModuleService() const { return ModuleService; }
 
-	void SetStoreDir(const FString& InStoreDir) { StoreDir = InStoreDir; }
-	const FString& GetStoreDir() const { return StoreDir; }
+	FString GetStoreDir();
 
 	bool ConnectToStore(const TCHAR* Host, uint32 Port=0);
 
@@ -418,9 +417,6 @@ private:
 
 	TSharedRef<TraceServices::IAnalysisService> AnalysisService;
 	TSharedRef<TraceServices::IModuleService> ModuleService;
-
-	/** The location of the trace files managed by the trace store. */
-	FString StoreDir;
 
 	/** The client used to connect to the trace store. It is not thread safe! */
 	TUniquePtr<UE::Trace::FStoreClient> StoreClient;

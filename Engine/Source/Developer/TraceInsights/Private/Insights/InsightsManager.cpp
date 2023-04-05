@@ -439,6 +439,16 @@ void FInsightsManager::OnSessionInfoTabClosed(TSharedRef<SDockTab> TabBeingClose
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FString FInsightsManager::GetStoreDir() 
+{
+	using namespace UE::Trace;
+	FScopeLock _(&StoreClientCriticalSection);
+	const FStoreClient::FStatus* Status = StoreClient->GetStatus();
+	return Status ? FString(Status->GetStoreDir()) : FString();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 bool FInsightsManager::ConnectToStore(const TCHAR* Host, uint32 Port)
 {
 	using namespace UE::Trace;
@@ -451,13 +461,6 @@ bool FInsightsManager::ConnectToStore(const TCHAR* Host, uint32 Port)
 	
 	LastStoreHost = Host;
 	LastStorePort = Port;
-
-	const FStoreClient::FStatus* Status = StoreClient->GetStatus();
-	FString RemoteStoreDir(Status->GetStoreDir());
-	if (RemoteStoreDir.Len() > 0)
-	{
-		SetStoreDir(RemoteStoreDir);
-	}
 
 	return true;
 }
