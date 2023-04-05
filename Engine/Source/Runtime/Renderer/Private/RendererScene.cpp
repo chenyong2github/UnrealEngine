@@ -1208,9 +1208,7 @@ uint64 FVirtualShadowMapArrayFrameData::GetGPUSizeBytes(bool bLogSizes) const
 		GetBufferGPUSizeBytes(PageTable, bLogSizes) +
 		GetBufferGPUSizeBytes(PageFlags, bLogSizes) +
 		GetBufferGPUSizeBytes(ProjectionData, bLogSizes) +
-		GetBufferGPUSizeBytes(PageRectBounds, bLogSizes) +
-		GetBufferGPUSizeBytes(PhysicalPageMetaData, bLogSizes) +
-		GetRenderTargetGPUSizeBytes(HZBPhysical, bLogSizes);
+		GetBufferGPUSizeBytes(PageRectBounds, bLogSizes);
 };
 
 uint64 FVirtualShadowMapArrayCacheManager::GetGPUSizeBytes(bool bLogSizes) const
@@ -1218,6 +1216,7 @@ uint64 FVirtualShadowMapArrayCacheManager::GetGPUSizeBytes(bool bLogSizes) const
 	uint64 TotalSize = PrevBuffers.GetGPUSizeBytes(bLogSizes);
 	TotalSize += GetRenderTargetGPUSizeBytes(PhysicalPagePool, bLogSizes);
 	TotalSize += GetRenderTargetGPUSizeBytes(HZBPhysicalPagePool, bLogSizes);
+	TotalSize += GetBufferGPUSizeBytes(PhysicalPageMetaData, bLogSizes);
 	TotalSize += GetBufferGPUSizeBytes(AccumulatedStatsBuffer, bLogSizes);
 	TotalSize += GetBufferReadbackGPUSizeBytes(GPUBufferReadback, bLogSizes);
 	return TotalSize;
@@ -5471,6 +5470,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 		for (FVirtualShadowMapArrayCacheManager* CacheManager : VirtualShadowCacheManagers)
 		{
 			FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector InvalidatingPrimitiveCollector(CacheManager);
+			InvalidatingPrimitiveCollector.AddDynamicAndGPUPrimitives();
 
 			// All removed primitives must invalidate their footprints in the VSM before leaving
 			for (FPrimitiveSceneInfo* PrimitiveSceneInfo : RemovedLocalPrimitiveSceneInfos)
@@ -5488,7 +5488,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 				InvalidatingPrimitiveCollector.UpdatedTransform(Transform.Key->GetPrimitiveSceneInfo());
 			}
 
-			CacheManager->ProcessRemovedOrUpdatedPrimitives(GraphBuilder, GPUScene, InvalidatingPrimitiveCollector);
+			InvalidatingPrimitiveCollector.Finalize();
+
+			CacheManager->ProcessInvalidations(GraphBuilder, InvalidatingPrimitiveCollector);
 		}
 	}
 

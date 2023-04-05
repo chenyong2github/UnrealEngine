@@ -3824,9 +3824,10 @@ void CullRasterize(
 		if (CullingContext.PrevHZB)
 		{
 			check( VirtualShadowMapArray->CacheManager );
-			HZBPageTableRDG = GraphBuilder.RegisterExternalBuffer( VirtualShadowMapArray->CacheManager->PrevBuffers.PageTable, TEXT( "Shadow.Virtual.HZBPageTable" ) );
-			HZBPageRectBoundsRDG = GraphBuilder.RegisterExternalBuffer( VirtualShadowMapArray->CacheManager->PrevBuffers.PageRectBounds, TEXT("Shadow.Virtual.HZBPageRectBounds"));
-			HZBPageFlagsRDG = GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->CacheManager->PrevBuffers.PageFlags, TEXT( "Shadow.Virtual.HZBPageFlags" ) );
+			const FVirtualShadowMapArrayFrameData& PrevBuffers = VirtualShadowMapArray->CacheManager->GetPrevBuffers();
+			HZBPageTableRDG = GraphBuilder.RegisterExternalBuffer( PrevBuffers.PageTable, TEXT( "Shadow.Virtual.HZBPageTable" ) );
+			HZBPageRectBoundsRDG = GraphBuilder.RegisterExternalBuffer( PrevBuffers.PageRectBounds, TEXT("Shadow.Virtual.HZBPageRectBounds"));
+			HZBPageFlagsRDG = GraphBuilder.RegisterExternalBuffer( PrevBuffers.PageFlags, TEXT( "Shadow.Virtual.HZBPageFlags" ) );
 		}
 		VirtualTargetParameters.HZBPageTable = GraphBuilder.CreateSRV( HZBPageTableRDG );
 		VirtualTargetParameters.HZBPageRectBounds = GraphBuilder.CreateSRV( HZBPageRectBoundsRDG );
@@ -4106,7 +4107,7 @@ void CullRasterize(
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "BuildPreviousOccluderHZB(VSM)");
 			VirtualShadowMapArray->UpdateHZB(GraphBuilder);
-			CullingParameters.HZBTexture = VirtualShadowMapArray->HZBPhysical;
+			CullingParameters.HZBTexture = VirtualShadowMapArray->HZBPhysicalRDG;
 			CullingParameters.HZBSize = CullingParameters.HZBTexture->Desc.Extent;
 		}
 		else

@@ -17,7 +17,7 @@
 
 #include "../InstanceCulling/InstanceCullingLoadBalancer.ush"
 
-RWStructuredBuffer<FPhysicalPageMetaData> PrevPhysicalPageMetaDataOut;
+RWStructuredBuffer<FPhysicalPageMetaData> PhysicalPageMetaDataOut;
 
 uint InstanceSceneDataSOAStride;
 uint GPUSceneNumAllocatedInstances;
@@ -132,9 +132,6 @@ void VirtualSmInvalidateInstancePagesCS(
 					}
 				}
 
-				bool bInvalidateStaticPage = bForceInvalidateStaticPage || ShouldCacheInstanceAsStatic(InstanceSceneData, ProjectionData.bUnCached);
-				uint InvalidationFlags = (bInvalidateStaticPage ? VSM_STATIC_UNCACHED_FLAG : VSM_DYNAMIC_UNCACHED_FLAG) << VSM_PHYSICAL_PAGE_INVALIDATION_FLAGS_SHIFT;
-
 				// Go back to clip space
 				float4x4 UVToClip;
 				UVToClip[0] = float4(2, 0, 0, 0);
@@ -157,10 +154,12 @@ void VirtualSmInvalidateInstancePagesCS(
 				if (Cull.bIsVisible)
 				{
 					bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceSceneData, ProjectionData.bUnCached);
+					bool bInvalidateStaticPage = bForceInvalidateStaticPage || bShouldCacheAsStatic;
+					uint InvalidationFlags = (bInvalidateStaticPage ? VSM_STATIC_UNCACHED_FLAG : VSM_DYNAMIC_UNCACHED_FLAG) << VSM_PHYSICAL_PAGE_INVALIDATION_FLAGS_SHIFT;
 
 					// 2. figure out overlap and all that
 					// case #1 mip-map VSM - loop all mip levels, case #2 clipmap, just one 'mip level'
-					int NumMipLevels = (ProjectionData.ClipmapLevelCount <= 0) ? VSM_MAX_MIP_LEVELS : 1;
+					int NumMipLevels = (ProjectionData.ClipmapLevelCountRemaining <= 0) ? VSM_MAX_MIP_LEVELS : 1;
 					{
 						for (int MipLevel = 0; MipLevel < NumMipLevels; ++MipLevel)
 						{
@@ -207,7 +206,7 @@ void VirtualSmInvalidateInstancePagesCS(
 											// TODO: Wave version
 											uint2 PhysicalAddress = ShadowGetPhysicalPage(PageFlagOffset).PhysicalAddress;
 											uint PhysicalPageIndex = VSMPhysicalPageAddressToIndex(PhysicalAddress);
-											InterlockedOr(PrevPhysicalPageMetaDataOut[PhysicalPageIndex].Flags, InvalidationFlags);
+											InterlockedOr(PhysicalPageMetaDataOut[PhysicalPageIndex].Flags, InvalidationFlags);
 #if ENABLE_DEBUG_MODE
 											++PageInvalidationCount;
 #endif

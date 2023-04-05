@@ -18,6 +18,7 @@ uint BorderWidth;
 uint VisualizeModeId;	// VIRTUAL_SHADOW_MAP_VISUALIZE_*
 int VirtualShadowMapId;
 
+StructuredBuffer<FPhysicalPageMetaData> PhysicalPageMetaData;
 RWTexture2D<float4> OutVisualize;
 
 static const float3 BackGroundColor = float3(0.1f, 0.1f, 0.1f);
@@ -31,7 +32,7 @@ float3 DebugVisualizeClipmap(float2 PixelUV, FVirtualShadowMapProjectionShaderDa
 
 #if 1
 	// First figure out a scale factor to zoom in on non-empty pages.
-	for (int Index = ProjectionData0.ClipmapLevelCount - 1; Index >= 0; --Index)
+	for (int Index = ProjectionData0.ClipmapLevelCountRemaining - 1; Index >= 0; --Index)
 	{
 		int LevelSmId = ProjectionData0.VirtualShadowMapId + Index;
 		uint4 AllocatedBounds = VirtualShadowMap.PageRectBounds[LevelSmId * VSM_MAX_MIP_LEVELS];
@@ -93,8 +94,11 @@ float3 DebugVisualizeClipmap(float2 PixelUV, FVirtualShadowMapProjectionShaderDa
 
 		if (pPage.bThisLODValid)
 		{
+			FPhysicalPageMetaData MetaData = PhysicalPageMetaData[VSMPhysicalPageAddressToIndex(pPage.PhysicalAddress)];
+
 			PageOverlayCount += 1;
 			ResultColor = lerp(IntToColor(vPage.x + (vPage.y << 10U)), IntToColor(Level.ClipmapLevel), 0.75f);
+
 		}
 	}
 

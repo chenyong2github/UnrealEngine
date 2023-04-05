@@ -125,7 +125,7 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 	// Clamp negative absolute resolution biases as they would exceed the maximum resolution/ranges allocated
 	ResolutionLodBias = FMath::Max(0.0f, ResolutionLodBias);
 
-	FirstLevel = CVarVirtualShadowMapClipmapFirstLevel.GetValueOnRenderThread();
+	FirstLevel = GetFirstLevel();
 	int32 LastLevel = CVarVirtualShadowMapClipmapLastLevel.GetValueOnRenderThread();
 	LastLevel = FMath::Max(FirstLevel, LastLevel);
 	int32 LevelCount = LastLevel - FirstLevel + 1;
@@ -309,9 +309,8 @@ FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionSha
 	Data.PreViewTranslationLWCOffset = PreViewTranslation.GetOffset();
 	Data.LightType = ELightComponentType::LightType_Directional;
 	Data.NegativeClipmapWorldOriginLWCOffset = NegativeClipmapWorldOriginOffset;
-	Data.ClipmapIndex = ClipmapIndex;
 	Data.ClipmapLevel = FirstLevel + ClipmapIndex;
-	Data.ClipmapLevelCount = LevelData.Num();
+	Data.ClipmapLevelCountRemaining = LevelData.Num() - ClipmapIndex;
 	Data.ResolutionLodBias = ResolutionLodBias;
 	Data.ClipmapCornerRelativeOffset = Level.RelativeCornerOffset;
 	Data.LightSourceRadius = GetLightSceneInfo().Proxy->GetSourceRadius();
@@ -324,11 +323,16 @@ FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionSha
 	return Data;
 }
 
+int32 FVirtualShadowMapClipmap::GetFirstLevel()
+{
+	return CVarVirtualShadowMapClipmapFirstLevel.GetValueOnRenderThread();
+}
+
 uint32 FVirtualShadowMapClipmap::GetCoarsePageClipmapIndexMask()
 {
 	uint32 BitMask = 0;
 
-	const int FirstLevel = CVarVirtualShadowMapClipmapFirstLevel.GetValueOnRenderThread();
+	const int FirstLevel = GetFirstLevel();
 	const int LastLevel  = FMath::Max(FirstLevel, CVarVirtualShadowMapClipmapLastLevel.GetValueOnRenderThread());	
 	int FirstCoarseIndex = CVarVirtualShadowMapClipmapFirstCoarseLevel.GetValueOnRenderThread() - FirstLevel;
 	int LastCoarseIndex  = CVarVirtualShadowMapClipmapLastCoarseLevel.GetValueOnRenderThread() - FirstLevel;	
@@ -365,17 +369,18 @@ void FVirtualShadowMapClipmap::OnPrimitiveRendered(const FPrimitiveSceneInfo* Pr
 	if (PerLightCacheEntry.IsValid())
 	{
 		FPersistentPrimitiveIndex PersistentPrimitiveId = PrimitiveSceneInfo->GetPersistentIndex();
+		const int32 RenderedPrimitivesMaxNum = PerLightCacheEntry->RenderedPrimitives.Num();
 		check(PersistentPrimitiveId.IsValid());
-		check(PersistentPrimitiveId.Index < PerLightCacheEntry->RenderedPrimitives.Num());
+		check(PersistentPrimitiveId.Index < RenderedPrimitivesMaxNum);
 
 		// Check previous-frame state to detect transition from hidden->visible
 		if (!PerLightCacheEntry->RenderedPrimitives[PersistentPrimitiveId.Index])
 		{
-			LazyInitAndSetBitArray(RevealedPrimitivesMask, PersistentPrimitiveId.Index, true, PerLightCacheEntry->RenderedPrimitives.Num());
+			LazyInitAndSetBitArray(RevealedPrimitivesMask, PersistentPrimitiveId.Index, true, RenderedPrimitivesMaxNum);
 		}
 
 		// update current frame-state.
-		LazyInitAndSetBitArray(RenderedPrimitives, PersistentPrimitiveId.Index, true, PerLightCacheEntry->RenderedPrimitives.Num());
+		LazyInitAndSetBitArray(RenderedPrimitives, PersistentPrimitiveId.Index, true, RenderedPrimitivesMaxNum);
 
 		// update cached state (this is checked & cleared whenever a primitive is invalidating the VSM).
 		PerLightCacheEntry->OnPrimitiveRendered(PrimitiveSceneInfo);

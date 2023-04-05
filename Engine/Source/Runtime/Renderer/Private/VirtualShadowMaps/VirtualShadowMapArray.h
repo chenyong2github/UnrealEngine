@@ -108,15 +108,13 @@ struct FVirtualShadowMapProjectionShaderData
 	float ResolutionLodBias = 0.0f;
 
 	FIntPoint ClipmapCornerRelativeOffset = FIntPoint(0, 0);
-	int32 ClipmapIndex = 0;					// 0 .. ClipmapLevelCount-1
 	int32 ClipmapLevel = 0;					// "Absolute" level, can be negative
+	int32 ClipmapLevelCountRemaining = 0;	// Remaining levels, relative to this one
 
-	int32 ClipmapLevelCount = 0;
 	uint32 Flags = 0U;
 	float LightRadius;
-
 	// Seems the FMatrix forces 16-byte alignment
-	float Padding[1];
+	float Padding[2];
 };
 static_assert((sizeof(FVirtualShadowMapProjectionShaderData) % 16) == 0, "FVirtualShadowMapProjectionShaderData size should be a multiple of 16-bytes for alignment.");
 
@@ -340,10 +338,13 @@ public:
 
 	FVirtualShadowMapUniformParameters UniformParameters;
 
-	// Physical page pool shadow data
-	// NOTE: The underlying texture is owned by FVirtualShadowMapCacheManager.
+	// Physical page pool shadow data and associated HZB and metadata
+	// NOTE: The underlying textures are owned by FVirtualShadowMapCacheManager.
 	// We just import and maintain a copy of the RDG reference for this frame here.
 	FRDGTextureRef PhysicalPagePoolRDG = nullptr;
+	TRefCountPtr<IPooledRenderTarget> HZBPhysical = nullptr;
+	FRDGTextureRef HZBPhysicalRDG = nullptr;
+	FRDGBufferRef PhysicalPageMetaDataRDG = nullptr;
 
 	// Buffer that serves as the page table for all virtual shadow maps
 	FRDGBufferRef PageTableRDG = nullptr;
@@ -352,9 +353,12 @@ public:
 	// Flag values defined in PageAccessCommon.ush
 	FRDGBufferRef PageFlagsRDG = nullptr;
 
+	// List(s) of physical pages used during allocation/updates
+	// These can be saved frame to frame to allow keeping an LRU-sorted order for cached pages
+	FRDGBufferRef PhysicalPageListsRDG = nullptr;
+
 	// Allocation info for each page.
 	FRDGBufferRef CachedPageInfosRDG = nullptr;
-	FRDGBufferRef PhysicalPageMetaDataRDG = nullptr;
 
 	// uint4 buffer with one rect for each mip level in all SMs, calculated to bound committed pages
 	// Used to clip the rect size of clusters during culling.
@@ -367,13 +371,12 @@ public:
 
 	FRDGBufferRef StaticInvalidatingPrimitivesRDG = nullptr;
 
-	FRDGTextureRef HZBPhysical = nullptr;
-
 	// See Engine\Shaders\Private\VirtualShadowMaps\VirtualShadowMapStats.ush for definitions of the different stat indexes
-	static constexpr uint32 NumStats = 16;
+	static constexpr uint32 NumStats = 32;
 	static constexpr uint32 MaxPageAreaDiagnosticSlots = 32;
 
 	FRDGBufferRef StatsBufferRDG = nullptr;
+	FRDGBufferUAVRef StatsBufferUAV = nullptr;
 	FRDGBufferRef StatsNaniteBufferRDG = nullptr;
 
 	// Debug visualization
@@ -381,6 +384,8 @@ public:
 	TArray<FVirtualShadowMapVisualizeLightSearch> VisualizeLight;
 
 private:
+	void AppendPhysicalPageList(FRDGBuilder& GraphBuilder, bool bEmptyToAvailable);
+
 	uint32 AddRenderViews(const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap, float LODScaleFactor, bool bSetHzbParams, bool bUpdateHZBMetaData, const FVector &CullingViewOrigin, TArray<Nanite::FPackedView, SceneRenderingAllocator>& OutVirtualShadowViews);
 
 	TRDGUniformBufferRef<FVirtualShadowMapUniformParameters> GetUncachedUniformBuffer(FRDGBuilder& GraphBuilder) const;

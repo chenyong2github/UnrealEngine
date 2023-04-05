@@ -223,7 +223,7 @@ FVirtualShadowMapSample SampleVirtualShadowMapClipmap(int VirtualShadowMapId, fl
 	}
 #else // DEBUG_VSM_CLIPMAP_LEVEL_SEARCH
 	FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
-	const int MaxOffset = BaseProjectionData.ClipmapLevelCount - BaseProjectionData.ClipmapIndex;
+	const int MaxOffset = BaseProjectionData.ClipmapLevelCountRemaining;
 	for (int Offset = 0; Offset < MaxOffset; ++Offset)
 	{
 		FVirtualShadowMapClipmapRelativeTransform Transform = CalcClipmapRelativeTransform(VirtualShadowMapId, Offset);		
@@ -365,7 +365,7 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMapInner(int VirtualShadowMapId
 		int ClipmapIndex = max(0, ClipmapLevel - FirstClipmapLevel);
 
 		// Check if sample is within the clipmap range (from camera)
-		if (ClipmapIndex < BaseProjectionData.ClipmapLevelCount)
+		if (ClipmapIndex < BaseProjectionData.ClipmapLevelCountRemaining)
 		{
 			int ClipmapLevelVirtualShadowMapId = VirtualShadowMapId + ClipmapIndex;
 			FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(ClipmapLevelVirtualShadowMapId);
@@ -375,7 +375,6 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMapInner(int VirtualShadowMapId
 			float4 ShadowUVz = mul(float4(ShadowTranslatedWorldPosition, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix);
 			
 			FVirtualShadowMapSample SmSample;
-			//SmSample = SampleVirtualShadowMapLevel(ClipmapLevelVirtualShadowMapId, ShadowUVz.xy, 0);
 			SmSample = SampleVirtualShadowMapClipmap(ClipmapLevelVirtualShadowMapId, ShadowUVz.xy);
 			
 			if (SmSample.bValid)

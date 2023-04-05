@@ -10,7 +10,6 @@
 StructuredBuffer<uint>	InStatsBuffer;
 // Rectangles bounding (allocated) pages for each mip level
 StructuredBuffer<uint4> PageRectBounds;
-StructuredBuffer<uint4> AllocatedPageRectBounds;
 
 // From cvar, used to determine which stats are shown
 // 1 = all
@@ -111,12 +110,21 @@ void LogVirtualSmStatsCS()
 		Newline(Context);
 
 		Context.Pos.x = ItemX;
-		Print(Context, TEXT("Allocated [texels]"), FontWhite);
+		Print(Context, TEXT("Requested"), FontWhite);
 		Context.Pos.x = ValueX;
-		PrintLeftAlign(Context, InStatsBuffer[VSM_STAT_ALLOCATED_PAGES]);
-		Print(Context, TEXT("["), FontWhite);
-		PrintUnits(Context, InStatsBuffer[VSM_STAT_ALLOCATED_PAGES] * VSM_PAGE_SIZE * VSM_PAGE_SIZE);
-		Print(Context, TEXT("]"), FontWhite);
+		PrintLeftAlign(Context, InStatsBuffer[VSM_STAT_REQUESTED_THIS_FRAME_PAGES]);
+		Newline(Context);
+
+		Context.Pos.x = ItemX;
+		Print(Context, TEXT("Empty"), FontWhite);
+		Context.Pos.x = ValueX;
+		PrintLeftAlign(Context, InStatsBuffer[VSM_STAT_EMPTY_PAGES]);
+		Newline(Context);
+
+		Context.Pos.x = ItemX;
+		Print(Context, TEXT("Allocated New"), FontWhite);
+		Context.Pos.x = ValueX;
+		PrintLeftAlign(Context, InStatsBuffer[VSM_STAT_ALLOCATED_NEW]);
 		Newline(Context);
 
 		Context.Pos.x = ItemX;
@@ -142,7 +150,7 @@ void LogVirtualSmStatsCS()
 			Context.Pos.x = ItemX;
 			Print(Context, TEXT("Invalidated"), FontWhite);
 			Context.Pos.x = ValueX;
-			PrintLeftAlign(Context, InStatsBuffer[VSM_STAT_STATIC_INVALIDATED_BY_DYNAMIC_PAGES]);
+			PrintLeftAlign(Context, InStatsBuffer[VSM_STAT_STATIC_INVALIDATED_PAGES]);
 			Newline(Context);
 
 			Context.Pos.x = HeadlineX;
@@ -154,7 +162,7 @@ void LogVirtualSmStatsCS()
 			Context.Pos.x = ItemX;
 			Print(Context, TEXT("Invalidated"), FontWhite);
 			Context.Pos.x = ValueX;
-			PrintLeftAlign(Context, InStatsBuffer[VSM_STAT_DYNAMIC_INVALIDATED_BY_DYNAMIC_PAGES]);
+			PrintLeftAlign(Context, InStatsBuffer[VSM_STAT_DYNAMIC_INVALIDATED_PAGES]);
 			Newline(Context);
 
 			Context.Pos.x = ItemX;
@@ -174,7 +182,7 @@ void LogVirtualSmStatsCS()
 			Context.Pos.x = ItemX;
 			Print(Context, TEXT("Invalidated"), FontWhite);
 			Context.Pos.x = ValueX;
-			PrintLeftAlign(Context, InStatsBuffer[VSM_STAT_STATIC_INVALIDATED_BY_DYNAMIC_PAGES]);
+			PrintLeftAlign(Context, InStatsBuffer[VSM_STAT_STATIC_INVALIDATED_PAGES]);
 			Newline(Context);
 		}
 	}
@@ -273,35 +281,4 @@ void PrintClipmapStats()
 	Print(Context, TEXT("Total Area "));
 	Print(Context, TotalArea);//ShaderPrintLeftAlign(ScreenPos, Rect.x);
 	Newline(Context);
-
-	Context.Pos.x = ItemX;
-	Print(Context, TEXT("Alcd Rects "));
-	Newline(Context);
-	for (uint SmId = ShadowMapIdRangeStart; SmId < ShadowMapIdRangeEnd; ++SmId)
-	{
-		uint4 Rect = AllocatedPageRectBounds[SmId * VSM_MAX_MIP_LEVELS];
-		Context.Pos.x = ItemX;
-		Print(Context, Rect.x);//ShaderPrintLeftAlign(ScreenPos, Rect.x);
-		PrintSymbol(Context, _SPC_);
-		Print(Context, Rect.y);//ShaderPrintLeftAlign(ScreenPos, Rect.y);
-		PrintSymbol(Context, _SPC_);
-		Print(Context, Rect.z);//ShaderPrintLeftAlign(ScreenPos, Rect.z);
-		PrintSymbol(Context, _SPC_);
-		Print(Context, Rect.w);//ShaderPrintLeftAlign(ScreenPos, Rect.w);
-		if (Rect.x <= Rect.z && Rect.y <= Rect.w)
-		{
-			PrintSymbol(Context, _SPC_);
-			Print(Context, Rect.z - Rect.x + 1);//ShaderPrintLeftAlign(ScreenPos, Rect.z);
-			PrintSymbol(Context, _SPC_);
-			Print(Context, Rect.w - Rect.y + 1);//ShaderPrintLeftAlign(ScreenPos, Rect.w);
-
-			uint Area = (Rect.z - Rect.x + 1) * (Rect.w - Rect.y + 1);
-			PrintSymbol(Context, _SPC_);
-			Print(Context, Area);//ShaderPrintLeftAlign(ScreenPos, Rect.w);
-
-			TotalArea += Area;
-		}
-		Newline(Context);
-	}
-
 }

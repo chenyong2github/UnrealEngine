@@ -21,7 +21,7 @@ void FInstanceCullingLoadBalancerBase::FGPUData::GetShaderParameters(FRDGBuilder
 	ShaderParameters.NumItems = NumItems;
 }
 
-FInstanceCullingLoadBalancerBase::FGPUData FInstanceCullingLoadBalancerBase::Upload(FRDGBuilder& GraphBuilder, TConstArrayView<FPackedBatch> Batches, TConstArrayView<FPackedItem> Items, ERDGInitialDataFlags RDGInitialDataFlags)
+FInstanceCullingLoadBalancerBase::FGPUData FInstanceCullingLoadBalancerBase::Upload(FRDGBuilder& GraphBuilder, TConstArrayView<FPackedBatch> Batches, TConstArrayView<FPackedItem> Items, ERDGInitialDataFlags RDGInitialDataFlags) const
 {
 	FGPUData Result;
 	// TODO: Several of these load balancers are being created on the stack and the memory is going out of scope before RDG execution. Always making a copy for now.

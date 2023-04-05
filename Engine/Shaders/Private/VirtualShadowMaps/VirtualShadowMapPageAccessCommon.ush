@@ -25,6 +25,7 @@
 // The light was marked to not be cached (even though caching is enabled)
 #define VSM_PHYSICAL_FLAG_VIEW_UNCACHED		(1U << 4) 
 #define VSM_PHYSICAL_FLAG_DIRTY				(1U << 5) 
+#define VSM_PHYSICAL_FLAG_USED_THIS_FRAME	(1U << 6) 
 
 
 // bit-offset for storing another set of page flags used to track invalidation in the physical page metadata flags.
@@ -48,9 +49,11 @@ struct FPhysicalPageMetaData
 {
 	uint Flags;	// VSM_*_FLAG, not all relevant to physical pages + VSM_PHYSICAL_FLAG_*
 	uint Age;
-	// Link back to the virtual shadow map & page table slot that references this physical page, useful to track data on a virtual address space frequency & vice versa
-	uint VirtualPageOffset;
+	// Link back to the virtual shadow map & page table slot that references this physical page
+	// Useful to track data on a virtual address space frequency & vice versa
 	uint VirtualShadowMapId;
+	uint MipLevel;
+	uint2 PageAddress;
 };
 
 uint CalcLog2LevelDimsPages(uint Level)
@@ -93,6 +96,7 @@ uint CalcLevelOffsets(uint Level)
 
 	return 0x55555555u & Mask;
 }
+
 
 struct FVirtualSMLevelOffset
 {
@@ -174,6 +178,11 @@ uint CalcPageOffset(uint VirtualShadowMapId, uint Level, uint2 PageAddress)
 	}
 	// Store all full-detail VSMs after the block of low-detail ones (single-page entries) - CalcPageTableLevelOffset does the offset.
 	return CalcFullPageTableLevelOffset(VirtualShadowMapId, Level) + CalcPageOffsetInFullLevel(Level, PageAddress);
+}
+
+bool IsVirtualShadowMapPageAddressValid(int2 PageAddress, uint Level)
+{
+	return (all(PageAddress >= 0) && all(PageAddress < CalcLevelDimsPages(Level)));
 }
 
 // Linearlize a physical page address to a linear offset

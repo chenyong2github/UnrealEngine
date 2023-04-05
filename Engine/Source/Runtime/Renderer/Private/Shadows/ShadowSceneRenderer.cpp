@@ -163,7 +163,7 @@ void FShadowSceneRenderer::PostInitDynamicShadowsSetup()
 			FProjectedShadowInfo* ProjectedShadowInfo = DirectionalLightShadowFrameSetup.ProjectedShadowInfo;
 			if (!bUnboundedClipmap && ProjectedShadowInfo->bShouldRenderVSM)
 			{
-				const bool bIsCached = VirtualShadowMapArray.CacheManager->IsCacheDataAvailable() && GForceInvalidateDirectionalVSM == 0;
+				const bool bIsCached = VirtualShadowMapArray.CacheManager->IsCacheEnabled() && GForceInvalidateDirectionalVSM == 0;
 
 				// We can only do this culling if the light is both uncached & it is using the accurate bounds (i.e., r.Shadow.Virtual.Clipmap.UseConservativeCulling is turned off).
 				if (!bIsCached && !ProjectedShadowInfo->CascadeSettings.ShadowBoundsAccurate.Planes.IsEmpty())

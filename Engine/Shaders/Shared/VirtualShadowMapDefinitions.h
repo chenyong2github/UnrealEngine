@@ -48,9 +48,17 @@ struct FVSMCullingBatchInfo
 	uint PrimitiveRevealedNum;
 };
 
+struct FNextVirtualShadowMapData
+{
+	int NextVirtualShadowMapId;
+	int2 PageAddressOffset;
+	int _Padding;
+};
+
 #ifdef __cplusplus
 } // namespace UE::HLSL
 
 using FVSMVisibleInstanceCmd = UE::HLSL::FVSMVisibleInstanceCmd;
 using FVSMCullingBatchInfo = UE::HLSL::FVSMCullingBatchInfo;
+using FNextVirtualShadowMapData = UE::HLSL::FNextVirtualShadowMapData;
 #endif

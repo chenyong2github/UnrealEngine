@@ -34,6 +34,14 @@ public:
 
 	void SetHZBViewParams(Nanite::FPackedViewParams& OutParams);
 
+	// Note: Valid for all lights, but will return 0 for local lights currently as it is only used for clipmap panning right now
+	FInt32Point GetPreviousToCurrentPageOffset() const
+	{
+		// See clipmap construction
+		FInt32Point CurrentToPreviousOffset(Clipmap.CurrentClipmapCornerOffset - Clipmap.PrevClipmapCornerOffset);
+		return CurrentToPreviousOffset * (FVirtualShadowMap::Level0DimPagesXY >> 2U);
+	}
+
 	// Previous frame data
 	FInt64Point PrevPageSpaceLocation = FInt64Point(0, 0);
 	int32 PrevVirtualShadowMapId = INDEX_NONE;
@@ -160,15 +168,20 @@ struct FVirtualShadowMapArrayFrameData
 {
 	TRefCountPtr<FRDGPooledBuffer>				PageTable;
 	TRefCountPtr<FRDGPooledBuffer>				PageFlags;
-
-	TRefCountPtr<FRDGPooledBuffer>				ProjectionData;
 	TRefCountPtr<FRDGPooledBuffer>				PageRectBounds;
-
-	TRefCountPtr<FRDGPooledBuffer>				PhysicalPageMetaData;
-
-	TRefCountPtr<IPooledRenderTarget>			HZBPhysical;
+	TRefCountPtr<FRDGPooledBuffer>				ProjectionData;
+	TRefCountPtr<FRDGPooledBuffer>				PhysicalPageLists;
 
 	uint64 GetGPUSizeBytes(bool bLogSizes) const;
+};
+
+struct FPhysicalPageMetaData
+{	
+	uint32 Flags;
+	uint32 Age;
+	uint32 VirtualShadowMapId;
+	uint32 MipLevel;
+	FUintPoint PageAddress;
 };
 
 class FVirtualShadowMapArrayCacheManager
@@ -182,13 +195,19 @@ public:
 
 	// Called by VirtualShadowMapArray to potentially resize the physical pool
 	// If the requested size is not already the size, all cache data is dropped and the pool is resized.
-	TRefCountPtr<IPooledRenderTarget> SetPhysicalPoolSize(FRDGBuilder& GraphBuilder, FIntPoint RequestedSize, int RequestedArraySize);
+	void SetPhysicalPoolSize(FRDGBuilder& GraphBuilder, FIntPoint RequestedSize, int RequestedArraySize, uint32 MaxPhysicalPages);
 	void FreePhysicalPool();
+	TRefCountPtr<IPooledRenderTarget> GetPhysicalPagePool() const { return PhysicalPagePool; }
+	TRefCountPtr<FRDGPooledBuffer> GetPhysicalPageMetaData() const { return PhysicalPageMetaData; }
 
 	// Called by VirtualShadowMapArray to potentially resize the HZB physical pool
 	TRefCountPtr<IPooledRenderTarget> SetHZBPhysicalPoolSize(FRDGBuilder& GraphBuilder, FIntPoint RequestedSize, const EPixelFormat Format);
 	void FreeHZBPhysicalPool();
 
+	// Set the cache as valid (called after allocation/analysis/metadata update)
+	// NOTE: Could be called after rendering instead, but the distinction is not currently meaningful
+	void MarkCacheDataValid();
+	
 	// Invalidate the cache for all shadows, causing any pages to be rerendered
 	void Invalidate();
 
@@ -208,6 +227,7 @@ public:
 
 	bool IsCacheEnabled();
 	bool IsCacheDataAvailable();
+	bool IsHZBDataAvailable();
 
 	bool IsAccumulatingStats();
 
@@ -220,6 +240,8 @@ public:
 	{
 	public:
 		FInvalidatingPrimitiveCollector(FVirtualShadowMapArrayCacheManager* InVirtualShadowMapArrayCacheManager);
+
+		void AddDynamicAndGPUPrimitives();
 
 		/**
 		 * All of these functions filters redundant primitive adds, and thus expects valid IDs (so can't be called for primitives that have not yet been added)
@@ -244,18 +266,14 @@ public:
 			AddInvalidation(PrimitiveSceneInfo, false);
 		}
 
-		bool IsEmpty() const { return LoadBalancer.IsEmpty(); }
+		void Finalize();
 
 		const TBitArray<SceneRenderingAllocator>& GetRemovedPrimitives() const
 		{
 			return RemovedPrimitives;
 		}
 
-		FInstanceGPULoadBalancer LoadBalancer;
-		int32 TotalInstanceCount = 0;
-#if VSM_LOG_INVALIDATIONS
-		FString RangesStr;
-#endif
+		FInstanceGPULoadBalancer Instances;
 
 	private:
 		void AddInvalidation(FPrimitiveSceneInfo* PrimitiveSceneInfo, bool bRemovedPrimitive);
@@ -264,16 +282,10 @@ public:
 		FGPUScene& GPUScene;
 		FVirtualShadowMapArrayCacheManager& Manager;
 
-		TBitArray<SceneRenderingAllocator> AlreadyAddedPrimitives;
 		TBitArray<SceneRenderingAllocator> RemovedPrimitives;
 	};
 
-	/**
-	 * This must to be executed before the instances are actually removed / updated, otherwise the wrong position will be used. 
-	 * In particular, it must be processed before the Scene primitive IDs are updated/compacted as part of the removal.
-	 * Invalidate pages that are touched by (the instances of) the removed primitives. 
-	 */
-	void ProcessRemovedOrUpdatedPrimitives(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, FInvalidatingPrimitiveCollector& InvalidatingPrimitiveCollector);
+	void ProcessInvalidations(FRDGBuilder& GraphBuilder, const FInvalidatingPrimitiveCollector& InvalidatingPrimitiveCollector);
 
 	/**
 	 * Allow the cache manager to track scene changes, in particular track resizing of primitive tracking data.
@@ -285,10 +297,8 @@ public:
 	 */
 	void OnLightRemoved(int32 LightId);
 
+	const FVirtualShadowMapUniformParameters& GetPreviousUniformParameters() const { return PrevUniformParameters; }
 	TRDGUniformBufferRef<FVirtualShadowMapUniformParameters> GetPreviousUniformBuffer(FRDGBuilder& GraphBuilder) const;
-
-	FVirtualShadowMapArrayFrameData PrevBuffers;
-	FVirtualShadowMapUniformParameters PrevUniformParameters;
 
 #if WITH_MGPU
 	void UpdateGPUMask(FRHIGPUMask GPUMask);
@@ -296,16 +306,16 @@ public:
 
 	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 
-	GPUMessage::FSocket StatusFeedbackSocket;
-#if !UE_BUILD_SHIPPING
-	// Socket for optional stats that are only sent back if enabled
-	GPUMessage::FSocket StatsFeedbackSocket;
-#endif 
+	const FVirtualShadowMapArrayFrameData& GetPrevBuffers() const { return PrevBuffers; }
 
-	FVirtualShadowMapFeedback StaticGPUInvalidationsFeedback;
+	uint32 GetStatusFeedbackMessageId() const { return StatusFeedbackSocket.GetMessageId().GetIndex(); }
+
+#if !UE_BUILD_SHIPPING
+	uint32 GetStatsFeedbackMessageId() const { return StatsFeedbackSocket.GetMessageId().IsValid() ? StatsFeedbackSocket.GetMessageId().GetIndex() : INDEX_NONE; }
+#endif
 
 private:
-	void ProcessInvalidations(FRDGBuilder& GraphBuilder, FInstanceGPULoadBalancer& Instances, int32 TotalInstanceCount, const FGPUScene& GPUScene);
+	void ProcessInvalidations(FRDGBuilder& GraphBuilder, const FInstanceGPULoadBalancer& Instances) const;
 
 	void ExtractStats(FRDGBuilder& GraphBuilder, FVirtualShadowMapArray &VirtualShadowMapArray);
 
@@ -325,16 +335,25 @@ private:
 
 	// Remove old info used to track logging.
 	void TrimLoggingInfo();
+
+	FVirtualShadowMapArrayFrameData PrevBuffers;
+	FVirtualShadowMapUniformParameters PrevUniformParameters;
+
 	// The actual physical texture data is stored here rather than in VirtualShadowMapArray (which is recreated each frame)
 	// This allows us to (optionally) persist cached pages between frames. Regardless of whether caching is enabled,
 	// we store the physical pool here.
 	TRefCountPtr<IPooledRenderTarget> PhysicalPagePool;
 	TRefCountPtr<IPooledRenderTarget> HZBPhysicalPagePool;
 	ETextureCreateFlags PhysicalPagePoolCreateFlags = TexCreate_None;
+	TRefCountPtr<FRDGPooledBuffer> PhysicalPageMetaData;
 
 	// Index the Cache entries by the light ID
 	TMap< uint64, TSharedPtr<FVirtualShadowMapPerLightCacheEntry> > CacheEntries;
 	TMap< uint64, TSharedPtr<FVirtualShadowMapPerLightCacheEntry> > PrevCacheEntries;
+
+	// Marked after successfully allocating new physical pages
+	// Cleared if any global invalidation happens, in which case the next VSM update will not consider cached pages
+	bool bCacheDataValid = false;
 
 	// Tracks primitives (by persistent primitive index) that have been removed recently
 	// This allows us to ignore feedback from previous frames in the case of persistent primitive indices being
@@ -349,10 +368,18 @@ private:
 	TRefCountPtr<FRDGPooledBuffer> AccumulatedStatsBuffer;
 	bool bAccumulatingStats = false;
 	FRHIGPUBufferReadback* GPUBufferReadback = nullptr;
+
+	FVirtualShadowMapFeedback StaticGPUInvalidationsFeedback;
+	GPUMessage::FSocket StatusFeedbackSocket;
+
+	// Debug stuff
 #if !UE_BUILD_SHIPPING
 	FDelegateHandle ScreenMessageDelegate;
 	float LastOverflowTime = -1.0f;
 	bool bLoggedPageOverflow = false;
+	
+	// Socket for optional stats that are only sent back if enabled
+	GPUMessage::FSocket StatsFeedbackSocket;
 
 	// Stores the last time (wall-clock seconds since app-start) that an non-nanite page area message was logged,
 	TArray<float> LastLoggedPageOverlapAppTime;
@@ -364,9 +391,11 @@ private:
 		float LastTimeSeen;
 	};
 	TMap<uint32, FLargePageAreaItem> LargePageAreaItems;
-#endif
+#endif // UE_BUILD_SHIPPING
+
 #if WITH_MGPU
 	FRHIGPUMask LastGPUMask;
 #endif
+
 	FScene* Scene;
 };

@@ -75,8 +75,9 @@ public:
 
 	const FViewInfo* GetDependentView() const { return DependentView; }
 
+	static int32 GetFirstLevel();
 	// Returns a mask with one bit per level of which coarse pages to mark (based on cvars)
-	// Bits relative to FirstLevel (i.e. in terms of ClipmapIndex, not ClipmapLevel)
+	// Bits relative to FirstLevel (i.e. in terms of ClipmapIndex, not ClipmapLevel)	
 	static uint32 GetCoarsePageClipmapIndexMask();
 
 	/**

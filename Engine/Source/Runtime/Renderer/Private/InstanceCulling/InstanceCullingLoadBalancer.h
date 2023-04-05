@@ -99,7 +99,7 @@ public:
 		void GetShaderParameters(FRDGBuilder& GraphBuilder, FShaderParameters& ShaderParameters);
 	};
 
-	FGPUData Upload(FRDGBuilder& GraphBuilder, TConstArrayView<FPackedBatch> Batches, TConstArrayView<FPackedItem> Items, ERDGInitialDataFlags RDGInitialDataFlags);
+	FGPUData Upload(FRDGBuilder& GraphBuilder, TConstArrayView<FPackedBatch> Batches, TConstArrayView<FPackedItem> Items, ERDGInitialDataFlags RDGInitialDataFlags) const;
 
 	FIntVector GetWrappedCsGroupCount(TConstArrayView<FPackedBatch> Batches) const;
 };
@@ -167,6 +167,13 @@ public:
 	{
 		FinalizeBatches();
 
+		return FInstanceCullingLoadBalancerBase::Upload(GraphBuilder, Batches, Items, RDGInitialDataFlags);
+	}
+
+	/* Const variant that assumes the batches have already been finalized */
+	FGPUData UploadFinalized(FRDGBuilder& GraphBuilder, ERDGInitialDataFlags RDGInitialDataFlags = DefaultRDGInitialDataFlags) const
+	{
+		check(CurrentBatchNumItems == 0);
 		return FInstanceCullingLoadBalancerBase::Upload(GraphBuilder, Batches, Items, RDGInitialDataFlags);
 	}
 
