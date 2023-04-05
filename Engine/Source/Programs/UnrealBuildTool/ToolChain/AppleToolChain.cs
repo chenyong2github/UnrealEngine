@@ -531,7 +531,7 @@ namespace UnrealBuildTool
 			// run xcodebuild on the generated project to make the .app
 			bool bForDistribution = false;
 			Logger.LogInformation($"Finalizing .app via Xcode... [generation took {(DateTime.Now - Start).TotalMilliseconds / 1000.0}s]");
-			IOSExports.FinalizeAppWithModernXcode(GeneratedProjectFile!, Target.Platform, Target.TargetName, Target.Configuration.ToString(), bForDistribution, Logger);
+			IOSExports.FinalizeAppWithModernXcode(GeneratedProjectFile!, Target.Platform, Target.TargetName, Target.Configuration.ToString(), "", bForDistribution, Logger);
 		}
 
 

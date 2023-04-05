@@ -1071,74 +1071,74 @@ namespace UnrealBuildTool
 							DebugProjectFiles.AddRange(NewProjectFiles);
 						}
 					}
-
-					foreach (ProjectFile CurModProject in ModProjects)
-					{
-						RootFolder.AddSubFolder("Mods").ChildProjects.Add(CurModProject);
-					}
-
-					DirectoryReference TemplatesDirectory = DirectoryReference.Combine(Unreal.RootDirectory, "Templates");
-					DirectoryReference SamplesDirectory = DirectoryReference.Combine(Unreal.RootDirectory, "Samples");
-
-					foreach (ProjectFile CurGameProject in GameProjects)
-					{
-						// Templates go under a different solution folder than games
-						FileReference UnrealProjectFile = CurGameProject.ProjectTargets.First().UnrealProjectFilePath!;
-						if (UnrealProjectFile.IsUnderDirectory(TemplatesDirectory))
-						{
-							DirectoryReference TemplateGameDirectory = CurGameProject.BaseDir;
-							RootFolder.AddSubFolder("Templates").ChildProjects.Add(CurGameProject);
-						}
-						else if (UnrealProjectFile.IsUnderDirectory(SamplesDirectory))
-						{
-							DirectoryReference SampleGameDirectory = CurGameProject.BaseDir;
-							RootFolder.AddSubFolder("Samples").AddSubFolder(UnrealProjectFile.GetFileNameWithoutExtension()).ChildProjects.Add(CurGameProject);
-						}
-						else
-						{
-							RootFolder.AddSubFolder("Games").AddSubFolder(UnrealProjectFile.GetFileNameWithoutExtension()).ChildProjects.Add(CurGameProject);
-						}
-
-						List<Tuple<ProjectFile, string>>? NewProjectFiles = CurGameProject.WriteDebugProjectFiles(SupportedPlatforms, SupportedConfigurations, PlatformProjectGenerators, Logger);
-
-						if (NewProjectFiles != null)
-						{
-							DebugProjectFiles.AddRange(NewProjectFiles);
-						}
-
-					}
-
-					//Related Debug Project Files - Tuple has the related Debug Project, SolutionFolder
-					foreach (Tuple<ProjectFile, string> DebugProjectFile in DebugProjectFiles)
-					{
-						AddExistingProjectFile(DebugProjectFile.Item1, bForceDevelopmentConfiguration: false);
-
-						//add it to the Android Debug Projects folder in the solution
-						RootFolder.AddSubFolder(DebugProjectFile.Item2).ChildProjects.Add(DebugProjectFile.Item1);
-					}
-
-					foreach (KeyValuePair<FileReference, ProjectFile> CurProgramProject in ProgramProjects)
-					{
-						FileReference UnrealProjectFile = CurProgramProject.Value.ProjectTargets.First().UnrealProjectFilePath!;
-						Project? Target = CurProgramProject.Value.ProjectTargets.FirstOrDefault(t => !String.IsNullOrEmpty(t.TargetRules!.SolutionDirectory));
-						if (!bIncludeEnginePrograms && UnrealProjectFile.IsUnderDirectory(Unreal.EngineDirectory))
-						{
-							continue;
-						}
-
-						if (Target != null)
-						{
-							RootFolder.AddSubFolder(Target.TargetRules!.SolutionDirectory).ChildProjects.Add(CurProgramProject.Value);
-						}
-						else
-						{
-							RootFolder.AddSubFolder("Programs").ChildProjects.Add(CurProgramProject.Value);
-						}
-					}
-
-					// Add all of the config files for generated program targets
-					AddEngineProgramConfigFiles(ProgramProjects);
 				}
+
+				foreach (ProjectFile CurModProject in ModProjects)
+				{
+					RootFolder.AddSubFolder("Mods").ChildProjects.Add(CurModProject);
+				}
+
+				DirectoryReference TemplatesDirectory = DirectoryReference.Combine(Unreal.RootDirectory, "Templates");
+				DirectoryReference SamplesDirectory = DirectoryReference.Combine(Unreal.RootDirectory, "Samples");
+
+				foreach (ProjectFile CurGameProject in GameProjects)
+				{
+					// Templates go under a different solution folder than games
+					FileReference UnrealProjectFile = CurGameProject.ProjectTargets.First().UnrealProjectFilePath!;
+					if (UnrealProjectFile.IsUnderDirectory(TemplatesDirectory))
+					{
+						DirectoryReference TemplateGameDirectory = CurGameProject.BaseDir;
+						RootFolder.AddSubFolder("Templates").ChildProjects.Add(CurGameProject);
+					}
+					else if (UnrealProjectFile.IsUnderDirectory(SamplesDirectory))
+					{
+						DirectoryReference SampleGameDirectory = CurGameProject.BaseDir;
+						RootFolder.AddSubFolder("Samples").AddSubFolder(UnrealProjectFile.GetFileNameWithoutExtension()).ChildProjects.Add(CurGameProject);
+					}
+					else
+					{
+						RootFolder.AddSubFolder("Games").AddSubFolder(UnrealProjectFile.GetFileNameWithoutExtension()).ChildProjects.Add(CurGameProject);
+					}
+
+					List<Tuple<ProjectFile, string>>? NewProjectFiles = CurGameProject.WriteDebugProjectFiles(SupportedPlatforms, SupportedConfigurations, PlatformProjectGenerators, Logger);
+
+					if (NewProjectFiles != null)
+					{
+						DebugProjectFiles.AddRange(NewProjectFiles);
+					}
+
+				}
+
+				//Related Debug Project Files - Tuple has the related Debug Project, SolutionFolder
+				foreach (Tuple<ProjectFile, string> DebugProjectFile in DebugProjectFiles)
+				{
+					AddExistingProjectFile(DebugProjectFile.Item1, bForceDevelopmentConfiguration: false);
+
+					//add it to the Android Debug Projects folder in the solution
+					RootFolder.AddSubFolder(DebugProjectFile.Item2).ChildProjects.Add(DebugProjectFile.Item1);
+				}
+
+				foreach (KeyValuePair<FileReference, ProjectFile> CurProgramProject in ProgramProjects)
+				{
+					FileReference UnrealProjectFile = CurProgramProject.Value.ProjectTargets.First().UnrealProjectFilePath!;
+					Project? Target = CurProgramProject.Value.ProjectTargets.FirstOrDefault(t => !String.IsNullOrEmpty(t.TargetRules!.SolutionDirectory));
+					if (!bIncludeEnginePrograms && UnrealProjectFile.IsUnderDirectory(Unreal.EngineDirectory))
+					{
+						continue;
+					}
+
+					if (Target != null)
+					{
+						RootFolder.AddSubFolder(Target.TargetRules!.SolutionDirectory).ChildProjects.Add(CurProgramProject.Value);
+					}
+					else
+					{
+						RootFolder.AddSubFolder("Programs").ChildProjects.Add(CurProgramProject.Value);
+					}
+				}
+
+				// Add all of the config files for generated program targets
+				AddEngineProgramConfigFiles(ProgramProjects);
 			}
 
 			// Setup "stub" projects for all modules

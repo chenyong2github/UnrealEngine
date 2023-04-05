@@ -1613,7 +1613,7 @@ namespace UnrealBuildTool
 				}
 
 				// run xcodebuild on the generated project to make the .app
-				IOSExports.FinalizeAppWithModernXcode(GeneratedProjectFile!, Target.Platform, SchemeName, ConfigName, Target.bForDistribution, Logger);
+				IOSExports.FinalizeAppWithModernXcode(GeneratedProjectFile!, Target.Platform, SchemeName, ConfigName, "", Target.bForDistribution, Logger);
 
 				return;
 			}

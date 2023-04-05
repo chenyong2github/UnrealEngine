@@ -1132,7 +1132,7 @@ public class IOSPlatform : ApplePlatform
 				throw new AutomationException("iOS couldn't find the appropriate Xcode Project for " + RawProjectPath);
 			}
 
-			int ReturnCode = IOSExports.FinalizeAppWithXcode(GeneratedProject, TargetPlatformType, SchemeName ?? GameName, SchemeConfiguration ?? TargetConfig.ToString(), Provision, Certificate, Team, bAutomaticSigning, Distribution, bUseModernXcode, Logger);
+			int ReturnCode = IOSExports.FinalizeAppWithXcode(GeneratedProject, TargetPlatformType, SchemeName ?? GameName, SchemeConfiguration ?? TargetConfig.ToString(), Provision, Certificate, Team, "", bAutomaticSigning, Distribution, bUseModernXcode, Logger);
 			if (ReturnCode != 0)
 			{
 				throw new AutomationException(ExitCode.Error_FailedToCodeSign, "CodeSign Failed");
@@ -2273,6 +2273,8 @@ public class IOSPlatform : ApplePlatform
 					// generate the OnDemandResources.plist
 					GenerateOnDemandResourcesPlist (ChunkData, SC.StageDirectory.FullName);
 				}*/
+
+		base.PostStagingFileCopy(Params, SC);
 	}
 
 	public override bool RequiresPackageToDeploy

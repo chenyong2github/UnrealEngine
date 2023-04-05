@@ -17,6 +17,8 @@ public abstract class ApplePlatform : Platform
 	{
 	}
 
+	#region SDK
+
 	public override bool GetSDKInstallCommand(out string Command, out string Params, ref bool bRequiresPrivilegeElevation, ref bool bCreateWindow, ITurnkeyContext TurnkeyContext)
 	{
 		Command = "";
@@ -62,5 +64,35 @@ public abstract class ApplePlatform : Platform
 		}
 
 		return ExitCode == 0;
+	}
+
+	#endregion
+
+
+	public override void PostStagingFileCopy(ProjectParams Params, DeploymentContext SC)
+	{
+		ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, Params.RawProjectPath.Directory!, SC.StageTargetPlatform.PlatformType);
+		bool bUseModernXcode;
+		Ini.TryGetValue("XcodeConfiguration", "bUseModernXcode", out bUseModernXcode);
+
+		if (bUseModernXcode)
+		{
+			// modern does all the distribution via .xcarchive
+			bool bForDistribution = false;
+
+			foreach (TargetReceipt Target in SC.StageTargets.Select(x => x.Receipt))
+			{
+				Console.WriteLine($"GENERATING STUB PROJECT");
+				DirectoryReference GeneratedProjectFile;
+				IOSExports.GenerateRunOnlyXcodeProject(SC.RawProjectPath, Target.Platform, Target.TargetName, bForDistribution, Logger, out GeneratedProjectFile);
+
+
+				Console.WriteLine("FINALIZEING APP with {0}, target {1}", GeneratedProjectFile, Target.TargetName);
+				string ExtraOptions = $"SYMROOT=\"{SC.StageDirectory.ParentDirectory}\" EFFECTIVE_PLATFORM_NAME={SC.StageDirectory.GetDirectoryName()}";
+				// run xcodebuild on the generated project to make the .app
+				IOSExports.FinalizeAppWithModernXcode(GeneratedProjectFile!, Target.Platform, Target.TargetName, Target.Configuration.ToString(), ExtraOptions, bForDistribution, Logger);
+				Console.WriteLine("DOME FINALIZEING APP with {0}, target {1}", GeneratedProjectFile, Target.TargetName);
+			}
+		}
 	}
 }

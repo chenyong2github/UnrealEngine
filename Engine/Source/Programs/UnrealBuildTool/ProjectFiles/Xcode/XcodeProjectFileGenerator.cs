@@ -264,6 +264,12 @@ namespace UnrealBuildTool
 
 							foreach (XcodeProjectXcconfig.XcodeProjectFile XcodeProject in SupportedProjects)
 							{
+								// if we are only generating a single target project, skip any others now
+								if (!string.IsNullOrEmpty(SingleTargetName) && !XcodeProject.ProjectTargets.Any(x => x.TargetRules?.Name == SingleTargetName))
+								{
+									continue;
+								}
+
 								// we have to re-check for each project - if it's a legacy project, even if we wanted it split, it won't be, so always point to 
 								// the shared legacy project
 								FileReference PathToProject = XcodeProject.ProjectFilePath;
@@ -411,7 +417,7 @@ namespace UnrealBuildTool
 					bIncludeEnginePrograms = false;
 					bIncludeTemplateFiles = false;
 				}
-				//bIncludeEngineSource = false;
+				bIncludeEngineSource = false;
 				bIncludeConfigFiles = false;
 				bIncludeDocumentation = false;
 				bIncludeShaderSource = false;

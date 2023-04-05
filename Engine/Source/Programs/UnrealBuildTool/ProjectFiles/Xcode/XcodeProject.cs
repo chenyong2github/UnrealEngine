@@ -1211,19 +1211,26 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			List<string> CopyScript = new();
 
-			if (Project.Platform == UnrealTargetPlatform.IOS || Project.Platform == UnrealTargetPlatform.TVOS)
+			// UBT no longer copies the executable into the .app directory in PostBuild, so we do it here
+			// EXECUTABLE_NAME is Foo, EXECUTABLE_PATH is Foo.app/Foo
+			// NOTE: We read from hardcoded location where UBT writes to, but we write to CONFIGURATION_BUILD_DIR because
+			// when Archiving, the .app is somewhere else
+			string SourceEnvVar = (Project.Platform == UnrealTargetPlatform.Mac) ? "EXECUTABLE_PATH" : "EXECUTABLE_NAME";
+			string EngineOrProject = Project.UnrealData.UProjectFileLocation == null ? "Engine" : Project.UnrealData.ProductName;
+
+			CopyScript.AddRange(new string[]
 			{
-				// UBT no longer copies the executable into the .app directory in PostBuild, so we do it here
-				// EXECUTABLE_NAME is Foo, EXECUTABLE_PATH is Foo.app/Foo
-				// NOTE: We read from hardcoded location where UBT writes to, but we write to CONFIGURATION_BUILD_DIR because
-				// when Archiving, the .app is somewhere else
-				CopyScript.AddRange(new string[]
-				{
-					"# Copy the IOS/TVOS executable into .app",
-					$"cp \\\"${{UE_BINARIES_DIR}}/${{EXECUTABLE_NAME}}\\\" \\\"${{CONFIGURATION_BUILD_DIR}}/${{EXECUTABLE_PATH}}\\\"",
-					"",
-				});
-			}
+				"# Copy the executable into .app if needed (-ef checks if two files/paths are equivalent)",
+				$"SRC_EXE=\\\"${{UE_BINARIES_DIR}}/${{{SourceEnvVar}}}\\\"",
+				$"DEST_EXE=\\\"${{CONFIGURATION_BUILD_DIR}}/${{EXECUTABLE_PATH}}\\\"",
+				"echo ${SRC_EXE} /// ${DEST_EXE}",
+				"if [[ ! ${SRC_EXE} -ef ${DEST_EXE} ]]; then",
+				"  echo Copying executable...",
+				"  mkdir -p `dirname ${DEST_EXE}`",
+				"  cp ${SRC_EXE} ${DEST_EXE}",
+				"fi",
+				""
+			});
 
 			// rsync the Staged build into the .app, unless the UE_SKIP_STAGEDDATA_SYNC var is set to 1
 			string TargetPlatformName = Platform.ToString()!;
@@ -1250,8 +1257,18 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 					"if [[ ! -e ${STAGED_DIR} ]]; then exit 0; fi",
 					"",
 					"echo \\\"Syncing ${STAGED_DIR} to ${CONFIGURATION_BUILD_DIR}/${CONTENTS_FOLDER_PATH}\\\"",
-					$"rsync -av --exclude=Info.plist --exclude=/Manifest_* --exclude=*.app \\\"${{STAGED_DIR}}/\\\" \\\"${{CONFIGURATION_BUILD_DIR}}/${{CONTENTS_FOLDER_PATH}}{SyncSubdir}\\\"",
+					$"rsync -a --exclude=Info.plist --exclude=/Manifest_* --exclude=*.app \\\"${{STAGED_DIR}}/\\\" \\\"${{CONFIGURATION_BUILD_DIR}}/${{CONTENTS_FOLDER_PATH}}{SyncSubdir}\\\"",
 				});
+
+				// copy any dylibs from the staged stub .app into the real one
+				if (Platform == UnrealTargetPlatform.Mac)
+				{
+					CopyScript.AddRange(new string[]
+					{
+						$"echo \\\"Syncing ${{STAGED_DIR}}/{EngineOrProject}/Binaries/Mac/${{CONTENTS_FOLDER_PATH}}/ to ${{CONFIGURATION_BUILD_DIR}}/${{CONTENTS_FOLDER_PATH}}/\\\"",
+						$"rsync -av --include='*/' --include='*.dylib' --exclude='*' \\\"${{STAGED_DIR}}/{EngineOrProject}/Binaries/Mac/${{CONTENTS_FOLDER_PATH}}/MacOS/\\\" \\\"${{CONFIGURATION_BUILD_DIR}}/${{CONTENTS_FOLDER_PATH}}/MacOS\\\"",
+					});
+				}
 			}
 
 			// run this script every time, but xcode will show a warning if there isn't _some_ output
@@ -1263,15 +1280,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			// always generate a dsym file when we archive, and by having Xcode do it, it will be put into the archive properly
 			// (note bInstallOnly which will make this onle run when archiving)
 			List<string> DsymScript = new();
-			if (Platform == UnrealTargetPlatform.Mac)
-			{
-				DsymScript.AddRange(new string[]
-				{
-					"# Copy the Mac executable from where it write to into the archiving working directory",
-					$"cp \\\"${{UE_PROJECT_DIR}}/Binaries/{Platform}/${{EXECUTABLE_PATH}}\\\" \\\"${{CONFIGURATION_BUILD_DIR}}/${{EXECUTABLE_PATH}}\\\"",
-					"",
-				});
-			}
 
 			DsymScript.AddRange(new string[]
 			{
@@ -1775,7 +1783,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			}
 
 			// create one run target for each platform if our platform is null (ie XcodeProjectGenerator.PerPlatformMode is RunTargetPerPlatform)
-			List<UnrealTargetPlatform> TargetPlatforms = Platform == null ? XcodeProjectFileGenerator.XcodePlatforms : new() { Platform.Value };
+			List<UnrealTargetPlatform>					 TargetPlatforms = Platform == null ? XcodeProjectFileGenerator.XcodePlatforms : new() { Platform.Value };
 			foreach (UnrealTargetPlatform TargetPlatform in TargetPlatforms)
 			{
 				XcodeRunTarget RunTarget = new XcodeRunTarget(this, UnrealData.ProductName, UnrealData.AllConfigs[0].ProjectTarget!.TargetRules!.Type, TargetPlatform, BuildTarget, ProjectFile, Logger);

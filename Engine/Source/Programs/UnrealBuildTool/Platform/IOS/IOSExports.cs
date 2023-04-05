@@ -254,15 +254,18 @@ namespace UnrealBuildTool
 				$"-platforms={Platform}",
 				"-DeployOnly",
 				"-NoIntellisense",
-				"-NoCPP",
 				"-NoDotNet",
 				"-IgnoreJunk",
 				bForDistribution ? "-distribution" : "-development",
 				"-IncludeTempTargets",
 				"-projectfileformat=XCode",
 				"-automated",
-				$"-singletarget={TargetName}"
 			};
+
+			if (!string.IsNullOrEmpty(TargetName))
+			{
+				Options.Add($"-singletarget={TargetName}");
+			}
 
 			if (UProjectFile == null || UProjectFile.IsUnderDirectory(Unreal.EngineDirectory))
 			{
@@ -287,11 +290,12 @@ namespace UnrealBuildTool
 		/// <param name="Platform">THe platform to make the .app for</param>
 		/// <param name="SchemeName">The name of the scheme (basically the target on the .xcworkspace)</param>
 		/// <param name="Configuration">Which configuration to make (Debug, etc)</param>
+		/// <param name="ExtraOptions">Extra options to pass to xcodebuild</param>
 		/// <param name="bForDistribution">True if this is making a bild for uploading to app store</param>
 		/// <param name="Logger">Logging object</param>
-		public static void FinalizeAppWithModernXcode(DirectoryReference XcodeProject, UnrealTargetPlatform Platform, string SchemeName, string Configuration, bool bForDistribution, ILogger Logger)
+		public static void FinalizeAppWithModernXcode(DirectoryReference XcodeProject, UnrealTargetPlatform Platform, string SchemeName, string Configuration, string ExtraOptions, bool bForDistribution, ILogger Logger)
 		{
-			FinalizeAppWithXcode(XcodeProject, Platform, SchemeName, Configuration, null, null, null, false, bForDistribution, bUseModernXcode: true, Logger);
+			FinalizeAppWithXcode(XcodeProject, Platform, SchemeName, Configuration, null, null, null, ExtraOptions, false, bForDistribution, bUseModernXcode: true, Logger);
 		}
 
 		/// <summary>
@@ -304,13 +308,14 @@ namespace UnrealBuildTool
 		/// <param name="Provision">An optional provision to codesign with (ignored in modern mod)</param>
 		/// <param name="Certificate">An optional certificate to codesign with (ignored in modern mode)</param>
 		/// <param name="Team">Optional Team to use when codesigning (ignored in modern mode)</param>
+		/// <param name="ExtraOptions">Extra options to pass to xcodebuild</param>
 		/// <param name="bAutomaticSigning">True if using automatic codesigning (where provision and certificate are not used) (ignored in modern mode)</param>
 		/// <param name="bForDistribution">True if this is making a bild for uploading to app store</param>
 		/// <param name="bUseModernXcode">True if the project was made with modern xcode mode</param>
 		/// <param name="Logger">Logging object</param>
 		/// <returns></returns>
 		public static int FinalizeAppWithXcode(DirectoryReference XcodeProject, UnrealTargetPlatform Platform, string SchemeName, string Configuration,
-			string? Provision, string? Certificate, string? Team, bool bAutomaticSigning, bool bForDistribution, bool bUseModernXcode, ILogger Logger)
+			string? Provision, string? Certificate, string? Team, string ExtraOptions, bool bAutomaticSigning, bool bForDistribution, bool bUseModernXcode, ILogger Logger)
 		{
 			List<string> Arguments = new()
 			{
@@ -321,6 +326,7 @@ namespace UnrealBuildTool
 				$"-scheme \"{SchemeName}\"",
 				$"-configuration \"{Configuration}\"",
 				$"-destination generic/platform=" + (Platform == UnrealTargetPlatform.TVOS ? "tvOS" : Platform == UnrealTargetPlatform.Mac ? "macOS" : "iOS"),
+				ExtraOptions,
 				//$"-sdk {SDKName}",
 			};
 
