@@ -1676,18 +1676,26 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestObjectPollFra
 	UE_NET_ASSERT_EQ(ClientObject->IntA, ServerObject->IntA);
 	UE_NET_ASSERT_EQ(ClientObjectPolledEveryOtherFrame->IntA, ServerObjectPolledEveryOtherFrame->IntA);
 
-	// Trigger replication
-	ServerObject->IntA = 1;
-	ServerObjectPolledEveryOtherFrame->IntA = 1;
+	// After two value updates it's expected that the polling occurs exactly one time for the object with poll frame period 1 (meaning every other frame).
+	bool SlowPollObjectHasBeenEqual = false;
+	bool SlowPollObjectHasBeenInequal = false;
+
+	// Update values
+	ServerObject->IntA += 1;
+	ServerObjectPolledEveryOtherFrame->IntA += 1;
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
 	Server->SendAndDeliverTo(Client, true);
 	Server->PostSendUpdate();
 
-	// Verify that only the server object has been updated
 	UE_NET_ASSERT_EQ(ClientObject->IntA, ServerObject->IntA);
-	UE_NET_ASSERT_NE(ClientObjectPolledEveryOtherFrame->IntA, ServerObjectPolledEveryOtherFrame->IntA);
+	SlowPollObjectHasBeenEqual |= (ClientObjectPolledEveryOtherFrame->IntA == ServerObjectPolledEveryOtherFrame->IntA);
+	SlowPollObjectHasBeenInequal |= (ClientObjectPolledEveryOtherFrame->IntA != ServerObjectPolledEveryOtherFrame->IntA);
+
+	// Update values
+	ServerObject->IntA += 1;
+	ServerObjectPolledEveryOtherFrame->IntA += 1;
 
 	// Send and deliver packet
 	Server->PreSendUpdate();
@@ -1696,7 +1704,11 @@ UE_NET_TEST_FIXTURE(FReplicationSystemServerClientTestFixture, TestObjectPollFra
 
 	// Verify that both objects now are in sync
 	UE_NET_ASSERT_EQ(ClientObject->IntA, ServerObject->IntA);
-	UE_NET_ASSERT_EQ(ClientObjectPolledEveryOtherFrame->IntA, ServerObjectPolledEveryOtherFrame->IntA);
+	SlowPollObjectHasBeenEqual |= (ClientObjectPolledEveryOtherFrame->IntA == ServerObjectPolledEveryOtherFrame->IntA);
+	SlowPollObjectHasBeenInequal |= (ClientObjectPolledEveryOtherFrame->IntA != ServerObjectPolledEveryOtherFrame->IntA);
+
+	UE_NET_ASSERT_TRUE(SlowPollObjectHasBeenEqual);
+	UE_NET_ASSERT_TRUE(SlowPollObjectHasBeenInequal);
 }
 
 }

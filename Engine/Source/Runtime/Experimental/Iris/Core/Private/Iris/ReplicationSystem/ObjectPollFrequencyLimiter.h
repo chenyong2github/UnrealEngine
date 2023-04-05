@@ -49,9 +49,9 @@ inline void FObjectPollFrequencyLimiter::SetPollFramePeriod(FInternalNetRefIndex
 	MaxInternalHandle = FPlatformMath::Max(MaxInternalHandle, InternalIndex);
 
 	FramesBetweenUpdates[InternalIndex] = PollFramePeriod;
-	// Spread the polling of objects with the same frequency so that if you add lots of objects the same frame they won't be polled at the same time.
-	const uint32 FrameOffset = FrameIndexOffsets[PollFramePeriod]++;
-	FrameCounters[InternalIndex] = FrameOffset % (uint32(PollFramePeriod) + 1U);
+	// Spread the polling of objects with the same frequency so that if you add lots of objects the same frame they won't be polled at the same time. The update loop decrements counters so we need to be careful with how we offset things.
+	const uint8 FrameOffset = --FrameIndexOffsets[PollFramePeriod];
+	FrameCounters[InternalIndex] = static_cast<uint8>(uint32(~(FrameIndex + FrameOffset)) % uint32(PollFramePeriod + 1U));
 }
 
 inline void FObjectPollFrequencyLimiter::SetPollWithObject(FInternalNetRefIndex ObjectToPollWithInternalIndex, FInternalNetRefIndex InternalIndex)
