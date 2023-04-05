@@ -1284,8 +1284,8 @@ void UInterchangeMaterialFactory::SetupReimportedMaterialInstance(UMaterialInsta
 
 	for (const FString& InputName : Inputs)
 	{
-		const FName ParameterName = *InputName;
-		const FName AttributKey = UInterchangeShaderPortsAPI::MakeInputValueKey(InputName);
+		const FString ParameterName = *InputName;
+		const FString AttributKey = UInterchangeShaderPortsAPI::MakeInputValueKey(InputName);
 
 		FGuid Uid;
 		switch (UInterchangeShaderPortsAPI::GetInputType(&FactoryNode, InputName))
