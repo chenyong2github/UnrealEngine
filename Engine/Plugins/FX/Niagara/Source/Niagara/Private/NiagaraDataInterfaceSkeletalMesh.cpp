@@ -2236,12 +2236,6 @@ void UNiagaraDataInterfaceSkeletalMesh::PostLoad()
 {
 	Super::PostLoad();
 
-#if WITH_EDITOR
-	if(USkeletalMesh* LocalPreviewMesh = PreviewMesh.Get())
-	{
-		LocalPreviewMesh->ConditionalPostLoad();
-	}
-#endif
 #if WITH_EDITORONLY_DATA
 	if (Source_DEPRECATED != nullptr)
 	{
