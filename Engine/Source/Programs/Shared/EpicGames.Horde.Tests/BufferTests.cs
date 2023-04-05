@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Compute;
 using EpicGames.Horde.Compute.Buffers;
+using EpicGames.Horde.Compute.Sockets;
 using EpicGames.Horde.Compute.Transports;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestPlatform.CrossPlatEngine;

@@ -4,7 +4,7 @@ using System;
 using EpicGames.Horde.Compute.Buffers;
 using Microsoft.Extensions.Logging;
 
-namespace EpicGames.Horde.Compute
+namespace EpicGames.Horde.Compute.Sockets
 {
 	/// <summary>
 	/// Manages a set of readers and writers to buffers across a transport layer
