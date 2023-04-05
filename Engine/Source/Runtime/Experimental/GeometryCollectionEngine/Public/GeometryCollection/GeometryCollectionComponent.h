@@ -629,6 +629,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
 	int32 GetRootIndex() const;
 
+	/** Get the root item initial transform */
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	FTransform GetRootInitialTransform() const;
+
+	/** Get the root item initial transform */
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	FTransform GetRootCurrentTransform() const;
+
 	/**
 	* Get mass and extent of a specific piece
 	* @param ItemIndex item index ( from HitResult) of the cluster to get level from

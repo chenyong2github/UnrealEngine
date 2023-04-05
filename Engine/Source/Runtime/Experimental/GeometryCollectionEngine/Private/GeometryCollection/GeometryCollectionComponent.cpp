@@ -4749,6 +4749,30 @@ int32 UGeometryCollectionComponent::GetRootIndex() const
 	return INDEX_NONE;
 }
 
+
+
+FTransform UGeometryCollectionComponent::GetRootInitialTransform() const
+{
+	FTransform RootInitialTransform{ FTransform::Identity };
+	const int32 RootIndex = RestCollection->GetRootIndex();
+	if (RestTransforms.IsValidIndex(RootIndex))
+	{
+		RootInitialTransform = RestTransforms[RootIndex] * GetComponentTransform();
+	}
+	return RootInitialTransform;
+}
+
+FTransform UGeometryCollectionComponent::GetRootCurrentTransform() const
+{
+	FTransform RootInitialTransform{ FTransform::Identity };
+	const int32 RootIndex = RestCollection->GetRootIndex();
+	if (GlobalMatrices.IsValidIndex(RootIndex))
+	{
+		RootInitialTransform = FTransform(GlobalMatrices[RootIndex]) * GetComponentTransform();
+	}
+	return RootInitialTransform;
+}
+
 void UGeometryCollectionComponent::GetMassAndExtents(int32 ItemIndex, float& OutMass, FBox& OutExtents)
 {
 	using FGeometryCollectionPtr = const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe>;
