@@ -8,6 +8,7 @@ public class PLUGIN_NAMELibrary : ModuleRules
 	public PLUGIN_NAMELibrary(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
+		PublicSystemIncludePaths.Add("$(ModuleDir)/Public");
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
@@ -19,13 +20,13 @@ public class PLUGIN_NAMELibrary : ModuleRules
 
 			// Ensure that the DLL is staged along with the executable
 			RuntimeDependencies.Add("$(PluginDir)/Binaries/ThirdParty/PLUGIN_NAMELibrary/Win64/ExampleLibrary.dll");
-        }
-        else if (Target.Platform == UnrealTargetPlatform.Mac)
-        {
-            PublicDelayLoadDLLs.Add(Path.Combine(ModuleDirectory, "Mac", "Release", "libExampleLibrary.dylib"));
-            RuntimeDependencies.Add("$(PluginDir)/Source/ThirdParty/PLUGIN_NAMELibrary/Mac/Release/libExampleLibrary.dylib");
-        }
-        else if (Target.Platform == UnrealTargetPlatform.Linux)
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			PublicDelayLoadDLLs.Add(Path.Combine(ModuleDirectory, "Mac", "Release", "libExampleLibrary.dylib"));
+			RuntimeDependencies.Add("$(PluginDir)/Source/ThirdParty/PLUGIN_NAMELibrary/Mac/Release/libExampleLibrary.dylib");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Linux)
 		{
 			string ExampleSoPath = Path.Combine("$(PluginDir)", "Binaries", "ThirdParty", "PLUGIN_NAMELibrary", "Linux", "x86_64-unknown-linux-gnu", "libExampleLibrary.so");
 			PublicAdditionalLibraries.Add(ExampleSoPath);

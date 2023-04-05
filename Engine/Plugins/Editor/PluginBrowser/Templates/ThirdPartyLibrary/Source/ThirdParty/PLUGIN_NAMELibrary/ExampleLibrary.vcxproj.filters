@@ -4,6 +4,6 @@
     <ClCompile Include="ExampleLibrary.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ExampleLibrary.h" />
+    <ClInclude Include="Public\PLUGIN_NAMELibrary\ExampleLibrary.h" />
   </ItemGroup>
 </Project>
