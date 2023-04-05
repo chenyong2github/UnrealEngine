@@ -226,7 +226,7 @@ struct FBoxCull
 			const bool bSkipPrevCullFrustum = true;
 			const bool bPrevIsOrtho = IsOrthoProjection( NaniteView.PrevViewToClip );
 
-			FFrustumCullData PrevFrustumCull = BoxCullFrustum( LocalBoxCenter, LocalBoxExtent, PrevLocalToTranslatedWorld, NaniteView.PrevTranslatedWorldToClip, NaniteView.ViewToClip, bPrevIsOrtho, bNearClip, bSkipPrevCullFrustum );
+			FFrustumCullData PrevFrustumCull = BoxCullFrustum( LocalBoxCenter, LocalBoxExtent, PrevLocalToTranslatedWorld, NaniteView.PrevTranslatedWorldToClip, NaniteView.PrevViewToClip, bPrevIsOrtho, bNearClip, bSkipPrevCullFrustum );
 
 			BRANCH
 			if (PrevFrustumCull.bIsVisible && !PrevFrustumCull.bCrossesNearPlane)

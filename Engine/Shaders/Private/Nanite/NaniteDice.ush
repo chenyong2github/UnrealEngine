@@ -7,30 +7,100 @@
 
 #if NANITE_TESSELLATION
 
-struct FDiceBase
+struct FDiceTask
 {
 	FRaster			Raster;
 	FMaterialShader	Shader;
 	uint			PixelValue;
 	uint2			VisualizeValues;
 
+	FNaniteTransformedVert	Vert;
+	FTessellatedPatch		TessellatedPatch;
+	
+	uint4	Encoded;
+	uint	PatchData;
+
 	// Vertex cache
 	//uint	FirstVert;
 	//uint&	NumCached;
 
-	template< typename FTransformBarycentrics >
-	void	RasterizeDicedTriangle( uint PatchIndex, uint TriIndex, uint TessellationPattern, FTransformBarycentrics TransformBarycentrics );
+	void Init( float3 TessFactors, uint3 VertIndexes, uint TriIndex )
+	{
+	#if PATCHES
+		TessellatedPatch.Init( TessFactors, Encoded.yzw );
+	#else
+		TessellatedPatch.Init( TessFactors, VertIndexes );
+	#endif
+	
+		PatchData  = VertIndexes.x << 0;
+		PatchData |= VertIndexes.y << 8;
+		PatchData |= VertIndexes.z << 16;
+		PatchData |= TriIndex << 24;
+	}
+
+	FDiceTask CreateChild( uint ParentLaneIndex )
+	{
+		// "this" is broken: https://github.com/microsoft/DirectXShaderCompiler/issues/4914
+		FDiceTask ChildTask;// = this;
+		ChildTask.Raster			= Raster;
+		ChildTask.Shader			= Shader;
+		ChildTask.PixelValue		= PixelValue;
+		ChildTask.VisualizeValues	= VisualizeValues;
+
+		ChildTask.TessellatedPatch	= WaveReadLaneAt( TessellatedPatch, ParentLaneIndex );
+		ChildTask.Encoded			= WaveReadLaneAt( Encoded, ParentLaneIndex );
+		ChildTask.PatchData			= WaveReadLaneAt( PatchData, ParentLaneIndex );
+		//ChildTask.FirstVert		= WaveReadLaneAt( FirstVert, ParentLaneIndex );
+
+	#if PATCHES
+		for( uint k = 0; k < 3; k++ )
+			ChildTask.Shader.TransformedTri.Verts[k] = WaveReadLaneAt( Shader.TransformedTri.Verts[k], ParentLaneIndex );
+	#else
+		uint3 PatchVertIndexes;
+		PatchVertIndexes.x = ( ChildTask.PatchData >>  0 ) & 0xff;
+		PatchVertIndexes.y = ( ChildTask.PatchData >>  8 ) & 0xff;
+		PatchVertIndexes.z = ( ChildTask.PatchData >> 16 ) & 0xff;
+
+		FNaniteTransformedTri TransformedTri = MakeTransformedNaniteTriangle( Vert, PatchVertIndexes );
+		ChildTask.Shader.TransformedTri = TransformedTri;	// TODO mutable. This is weird
+	#endif
+
+		return ChildTask;
+	}
+
+	float3 TransformBarycentrics( float3 Barycentrics )
+	{
+	#if PATCHES
+		FSplitPatch Patch;
+		Patch.Decode( Encoded );
+
+		return
+			Patch.Barycentrics[0] * Barycentrics.x +
+			Patch.Barycentrics[1] * Barycentrics.y +
+			Patch.Barycentrics[2] * Barycentrics.z;
+	#else
+		return Barycentrics;
+	#endif
+	}
+
+	void RunChild( uint LocalItemIndex );
 };
 
 //groupshared float3			VertexCache[ THREADGROUP_SIZE ];
 //#define VertCache(x)		VertexCache[ QueueOffset + ( (x) & ( LaneCount - 1 ) ) ]
 
-template< typename FTransformBarycentrics >
-void FDiceBase::RasterizeDicedTriangle( uint PatchIndex, uint TriIndex, uint TessellationPattern, FTransformBarycentrics TransformBarycentrics )
+void FDiceTask::RunChild( uint LocalItemIndex )
 {
-	FTessellatedPatch TessellatedPatch = GetTessellatedPatch( TessellationPattern );
-	
-	uint3 VertIndexes = TessellatedPatch.GetIndexes( TriIndex );
+#if PATCHES
+	FSplitPatch Patch;
+	Patch.Decode( Encoded );
+
+	uint PatchIndex = Patch.TriIndex;
+#else
+	uint PatchIndex = PatchData >> 24;
+#endif
+
+	uint3 VertIndexes = TessellatedPatch.GetIndexes( LocalItemIndex );
 
 	// TODO
 	bool bReverseWindingOrder = false;
@@ -68,6 +138,10 @@ void FDiceBase::RasterizeDicedTriangle( uint PatchIndex, uint TriIndex, uint Tes
 		Barycentrics.UVW_dx	= 0;
 		Barycentrics.UVW_dy	= 0;
 
+	#if PATCHES
+		Barycentrics.UVW	= Patch.TransformBarycentrics( Barycentrics.UVW );
+	#endif
+
 		VertCache( FirstVert + MaxVertIndex ) = CalculateSubpixelCoordinates( Raster, Shader.EvaluateDomain( Barycentrics ) );
 	}
 			
@@ -89,14 +163,14 @@ void FDiceBase::RasterizeDicedTriangle( uint PatchIndex, uint TriIndex, uint Tes
 	{
 		FBarycentrics Barycentrics;
 		Barycentrics.UVW	= TessellatedPatch.GetVert( VertIndexes[i] );
-		Barycentrics.UVW_dx	= 0;
-		Barycentrics.UVW_dy	= 0;
-		Barycentrics.UVW	= TransformBarycentrics( Barycentrics.UVW );
+		Barycentrics.UVW_dx	= 0;	// float3( -1, 1, 0 ) / TessFactors.x;
+		Barycentrics.UVW_dy	= 0;	// float3( 0, -1, 1 ) / TessFactors.y;
 
-		//Barycentrics.UVW_dx	= float3( -1, 1, 0 ) / TessFactors.x;
-		//Barycentrics.UVW_dy	= float3( 0, -1, 1 ) / TessFactors.y;
-		//Barycentrics.UVW_dx	= TransformBarycentrics( Barycentrics.UVW_dx );
-		//Barycentrics.UVW_dy	= TransformBarycentrics( Barycentrics.UVW_dy );
+	#if PATCHES
+		Barycentrics.UVW	= Patch.TransformBarycentrics( Barycentrics.UVW );
+		//Barycentrics.UVW_dx	= Patch.TransformBarycentrics( Barycentrics.UVW_dx );
+		//Barycentrics.UVW_dy	= Patch.TransformBarycentrics( Barycentrics.UVW_dy );
+	#endif
 
 		Verts[i] = CalculateSubpixelCoordinates( Raster, Shader.EvaluateDomain( Barycentrics ) );
 	}
@@ -133,7 +207,7 @@ void FDiceBase::RasterizeDicedTriangle( uint PatchIndex, uint TriIndex, uint Tes
 		{
 			TNaniteWritePixel< FMaterialShader > NaniteWritePixel = { Raster, Shader, PixelValue | PatchIndex, VisualizeValues };
 		#if VISUALIZE
-			NaniteWritePixel.VisualizeValues.x = TriIndex;
+			NaniteWritePixel.VisualizeValues.x = LocalItemIndex;
 		#endif
 			//Shader.TransformedTri = TransformedTri;	// FIXME this should be the diced tri not the patch
 				
@@ -142,153 +216,38 @@ void FDiceBase::RasterizeDicedTriangle( uint PatchIndex, uint TriIndex, uint Tes
 	}
 }
 
-
-struct FClusterDiceTask
-{
-	FDiceBase				Base;
-	FNaniteTransformedVert	Vert;
-
-	uint	PatchData;
-	uint	TessellationPattern;
-
-	// Vertex cache
-	//uint	FirstVert;
-	//uint	NumCached;
-
-	void				Create( float3 TessFactors, uint3 VertIndexes, uint TriIndex, inout uint NumVerts, inout uint NumTris );
-	FClusterDiceTask	CreateChild( uint ParentIndex );
-	void				RunChild( uint LocalItemIndex );
-};
-
-void FClusterDiceTask::Create( float3 TessFactors, uint3 VertIndexes, uint TriIndex, inout uint NumVerts, inout uint NumTris )
-{
-	TessellationPattern = GetTessellationTablePattern( TessFactors, VertIndexes, NumVerts, NumTris );
-	
-	PatchData  = VertIndexes.x << 0;
-	PatchData |= VertIndexes.y << 8;
-	PatchData |= VertIndexes.z << 16;
-	PatchData |= TriIndex << 24;
-}
-
-FClusterDiceTask FClusterDiceTask::CreateChild( uint ParentIndex )
-{
-	// "this" is broken: https://github.com/microsoft/DirectXShaderCompiler/issues/4914
-	FClusterDiceTask ChildTask;// = this;
-	ChildTask.Base = Base;
-	ChildTask.PatchData				= WaveReadLaneAt( PatchData, ParentIndex );
-	ChildTask.TessellationPattern	= WaveReadLaneAt( TessellationPattern, ParentIndex );
-	//ChildTask.FirstVert				= WaveReadLaneAt( FirstVert, ParentIndex );
-
-	uint3 PatchVertIndexes;
-	PatchVertIndexes.x = ( ChildTask.PatchData >>  0 ) & 0xff;
-	PatchVertIndexes.y = ( ChildTask.PatchData >>  8 ) & 0xff;
-	PatchVertIndexes.z = ( ChildTask.PatchData >> 16 ) & 0xff;
-
-	FNaniteTransformedTri TransformedTri = MakeTransformedNaniteTriangle( Vert, PatchVertIndexes );
-	ChildTask.Base.Shader.TransformedTri = TransformedTri;	// TODO mutable. This is weird
-
-	return ChildTask;
-}
-
-void FClusterDiceTask::RunChild( uint LocalItemIndex )
-{
-	struct
-	{
-		float3 operator()( float3 Barycentrics )
-		{
-			return Barycentrics;
-		}
-	} TransformBarycentrics;
-
-	Base.RasterizeDicedTriangle( PatchData >> 24, LocalItemIndex, TessellationPattern, TransformBarycentrics );
-}
-
-
-struct FPatchDiceTask
-{
-	FDiceBase	Base;
-	uint4		Encoded;
-	uint		TessellationPattern;
-
-	void			Create( float3 TessFactors, inout uint NumVerts, inout uint NumTris );
-	FPatchDiceTask	CreateChild( uint ParentIndex );
-	void			RunChild( uint LocalItemIndex );
-};
-
-void FPatchDiceTask::Create( float3 TessFactors, inout uint NumVerts, inout uint NumTris )
-{
-	TessellationPattern = GetTessellationTablePattern( TessFactors, Encoded.yzw, NumVerts, NumTris );
-}
-
-FPatchDiceTask FPatchDiceTask::CreateChild( uint ParentIndex )
-{
-	// "this" is broken: https://github.com/microsoft/DirectXShaderCompiler/issues/4914
-	FPatchDiceTask ChildTask;// = this;
-	ChildTask.Base = Base;
-	ChildTask.Encoded				= WaveReadLaneAt( Encoded, ParentIndex );
-	ChildTask.TessellationPattern	= WaveReadLaneAt( TessellationPattern, ParentIndex );
-
-	for( uint k = 0; k < 3; k++ )
-		ChildTask.Base.Shader.TransformedTri.Verts[k] = WaveReadLaneAt( Base.Shader.TransformedTri.Verts[k], ParentIndex );
-
-	return ChildTask;
-}
-
-void FPatchDiceTask::RunChild( uint LocalItemIndex )
-{
-	FSplitPatch Patch;
-	Patch.Decode( Encoded );
-
-	struct
-	{
-		FSplitPatch Patch;
-
-		float3 operator()( float3 Barycentrics )
-		{
-			return
-				Patch.Barycentrics[0] * Barycentrics.x +
-				Patch.Barycentrics[1] * Barycentrics.y +
-				Patch.Barycentrics[2] * Barycentrics.z;
-		}
-	} TransformBarycentrics;
-	TransformBarycentrics.Patch = Patch;
-
-	Base.RasterizeDicedTriangle( Patch.TriIndex, LocalItemIndex, TessellationPattern, TransformBarycentrics );
-}
-
-
 struct FClusterSplitTask
 {
-	uint4	Encoded;
-	uint	TessellationPattern;
+	FTessellatedPatch	TessellatedPatch;
 
-	void				Init( uint VisibleClusterIndex, uint TriIndex );
+	uint4	Encoded;
+
+	void				Init( float3 TessFactors, uint VisibleClusterIndex, uint TriIndex );
 
 	FClusterSplitTask	CreateChild( uint ParentLaneIndex );
 	void				RunChild( uint LocalItemIndex );
 };
 
-void FClusterSplitTask::Init( uint VisibleClusterIndex, uint TriIndex )
+void FClusterSplitTask::Init( float3 TessFactors, uint VisibleClusterIndex, uint TriIndex )
 {
 	Encoded.x = ( VisibleClusterIndex << 7 ) | TriIndex;
 	Encoded.y = BarycentricMax;
 	Encoded.z = BarycentricMax << 16;
 	Encoded.w = 0;
+
+	TessellatedPatch.Init( TessFactors, Encoded.yzw );
 }
 
 FClusterSplitTask FClusterSplitTask::CreateChild( uint ParentLaneIndex )
 {
-	FClusterSplitTask ChildTask;//= this;
-	ChildTask.Encoded				= WaveReadLaneAt( Encoded, ParentLaneIndex );
-	ChildTask.TessellationPattern	= WaveReadLaneAt( TessellationPattern, ParentLaneIndex );
-
+	FClusterSplitTask ChildTask;
+	ChildTask.TessellatedPatch	= WaveReadLaneAt( TessellatedPatch, ParentLaneIndex );
+	ChildTask.Encoded			= WaveReadLaneAt( Encoded, ParentLaneIndex );
 	return ChildTask;
 }
 
 void FClusterSplitTask::RunChild( uint LocalItemIndex )
 {
-	FTessellatedPatch TessellatedPatch = GetTessellatedPatch( TessellationPattern );
-
 #if 0
 	Encoded.yzw = TessellatedPatch.GetTriangleEncoded( LocalItemIndex );
 #else

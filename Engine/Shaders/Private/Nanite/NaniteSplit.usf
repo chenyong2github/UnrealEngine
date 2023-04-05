@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#define CULLING_PASS CULLING_PASS_OCCLUSION_MAIN
-
 #include "../Common.ush"
 #include "../SceneData.ush"
 #include "NaniteAttributeDecode.ush"
@@ -19,15 +17,18 @@
 
 struct FSplitTask
 {
+	FTessellatedPatch	TessellatedPatch;
+	
 	uint4		Encoded;
-	uint		TessellationPattern;
-	bool		bRoot;
 
 	void		Init( uint VisibleClusterIndex, uint TriIndex );
 
-	bool		Load( FGlobalWorkQueue WorkQueue, uint Offset );
-	void		Store( FGlobalWorkQueue WorkQueue, uint Offset );
-	void		Clear( FGlobalWorkQueue WorkQueue, uint Offset );
+				template< typename QueueType >
+	bool		Load( QueueType WorkQueue, uint Offset );
+				template< typename QueueType >
+	void		Store( QueueType WorkQueue, uint Offset );
+				template< typename QueueType >
+	void		Clear( QueueType WorkQueue, uint Offset );
 	
 	uint		Run();
 
@@ -43,7 +44,8 @@ void FSplitTask::Init( uint VisibleClusterIndex, uint TriIndex )
 	Encoded.w = 0;
 }
 
-bool FSplitTask::Load( FGlobalWorkQueue WorkQueue, uint Offset )
+template< typename QueueType >
+bool FSplitTask::Load( QueueType WorkQueue, uint Offset )
 {
 	checkSlow( Offset < WorkQueue.Size );
 	Encoded = WorkQueue.DataBuffer.Load4( Offset * 16 );
@@ -55,7 +57,8 @@ bool FSplitTask::Load( FGlobalWorkQueue WorkQueue, uint Offset )
 		Encoded.w != ~0u;
 }
 
-void FSplitTask::Store( FGlobalWorkQueue WorkQueue, uint Offset )
+template< typename QueueType >
+void FSplitTask::Store( QueueType WorkQueue, uint Offset )
 {
 	checkSlow(
 		Encoded.x != ~0u &&
@@ -66,7 +69,8 @@ void FSplitTask::Store( FGlobalWorkQueue WorkQueue, uint Offset )
 	WorkQueue.DataBuffer.Store4( Offset * 16, Encoded );
 }
 
-void FSplitTask::Clear( FGlobalWorkQueue WorkQueue, uint Offset )
+template< typename QueueType >
+void FSplitTask::Clear( QueueType WorkQueue, uint Offset )
 {
 	// TODO this could be at if( bIsBoundary ) at end of DistributeWork loop if latency is important.
 	WorkQueue.ReleaseTask();
@@ -182,16 +186,15 @@ uint FSplitTask::Run()
 
 	float3 TessFactors = GetTessFactors( NaniteView, PointView );
 
-	uint NumVerts = 0;
-	uint NumTris = 0;
-	
 	if( Cull.bWasOccluded )
 	{
-		/*uint WriteOffset = OccludedPatches.Add();
+	#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
+		uint WriteOffset = OccludedPatches.Add();
 		if( WriteOffset < OccludedPatches.Size )
 		{
 			Store( OccludedPatches, WriteOffset );
-		}*/
+		}
+	#endif
 	}
 	else if( all( TessFactors <= TessellationTable_Size ) )
 	{
@@ -222,26 +225,23 @@ uint FSplitTask::Run()
 	}
 	else
 	{
-		TessellationPattern = GetTessellationTablePattern( GetSplitFactors( TessFactors ), Encoded.yzw, NumVerts, NumTris );
+		TessellatedPatch.Init( GetSplitFactors( TessFactors ), Encoded.yzw );
+		return TessellatedPatch.GetNumTris();
 	}
 
-	return NumTris;
+	return 0;
 }
 
 FSplitTask FSplitTask::CreateChild( uint ParentLaneIndex )
 {
-	FSplitTask ChildTask;//= this;
-	ChildTask.Encoded				= WaveReadLaneAt( Encoded, ParentLaneIndex );
-	ChildTask.TessellationPattern	= WaveReadLaneAt( TessellationPattern, ParentLaneIndex );
-	ChildTask.bRoot = bRoot;
-
+	FSplitTask ChildTask;
+	ChildTask.TessellatedPatch	= WaveReadLaneAt( TessellatedPatch, ParentLaneIndex );
+	ChildTask.Encoded			= WaveReadLaneAt( Encoded, ParentLaneIndex );
 	return ChildTask;
 }
 
 void FSplitTask::RunChild( uint LocalItemIndex )
 {
-	FTessellatedPatch TessellatedPatch = GetTessellatedPatch( TessellationPattern );
-
 	FSplitPatch Patch;
 	Patch.Decode( Encoded );
 		

@@ -541,38 +541,41 @@ void ClusterRasterize( uint VisibleIndex, uint GroupThreadIndex )
 		bool bCanDice = all( TessFactors <= TessellationTable_Size );
 	
 		{
-			FClusterDiceTask DiceTask;
-			DiceTask.Base.Raster			= Raster;
-			DiceTask.Base.Shader			= MaterialShader;
-			DiceTask.Base.PixelValue		= ( VisibleIndex + 1 ) << 7;
-			DiceTask.Base.VisualizeValues	= GetVisualizeValues();
-			DiceTask.Vert					= Vert;
-
+			FDiceTask DiceTask;
+			DiceTask.Raster				= Raster;
+			DiceTask.Shader				= MaterialShader;
+			DiceTask.PixelValue			= ( VisibleIndex + 1 ) << 7;
+			DiceTask.VisualizeValues	= GetVisualizeValues();
+			DiceTask.Vert				= Vert;
+	
 			uint NumVerts = 0;
 			uint NumTris = 0;
 			if( bTriangleActive && bCanDice )
 			{
-				DiceTask.Create( TessFactors, VertLaneIndexes, TriIndex, NumVerts, NumTris );
+				DiceTask.Init( TessFactors, VertLaneIndexes, TriIndex );
+				NumVerts = DiceTask.TessellatedPatch.GetNumVerts();
+				NumTris  = DiceTask.TessellatedPatch.GetNumTris();
 			}
-
+	
 			//DiceTask.FirstVert = WavePrefixSum( NumVerts );
 			//DiceTask.NumCached = 0;
-
+	
 			DistributeWork( DiceTask, GroupThreadIndex, NumTris );
 		}
-
+	
 		if(1)
 		{
 			FClusterSplitTask SplitTask;
-			SplitTask.Init( VisibleIndex, TriIndex );
-
+	
 			uint NumVerts = 0;
 			uint NumTris = 0;
 			if( bTriangleActive && !bCanDice )
 			{
-				SplitTask.TessellationPattern = GetTessellationTablePattern( GetSplitFactors( TessFactors ), SplitTask.Encoded.yzw, NumVerts, NumTris );
+				SplitTask.Init( GetSplitFactors( TessFactors ), VisibleIndex, TriIndex );
+				NumVerts = SplitTask.TessellatedPatch.GetNumVerts();
+				NumTris  = SplitTask.TessellatedPatch.GetNumTris();
 			}
-
+	
 			DistributeWork( SplitTask, GroupThreadIndex, NumTris );
 		}
 	#else
@@ -706,12 +709,23 @@ void ClusterRasterize( uint VisibleIndex, uint GroupThreadIndex )
 #endif // NANITE_VERT_REUSE_BATCH
 }
 
+uint MaskedBitCount2( uint2 Bits, uint Index )
+{
+	uint Mask = 1u << ( Index & 31 );
+	Mask -= 1;
+
+	uint A = Index < 32 ? Bits.x : Bits.y;
+	uint B = Index < 32 ? 0 : countbits( Bits.x );
+
+	return countbits( A & Mask ) + B;
+}
+
 void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex ) 
 {
 #if TESS
 	const uint NumVisiblePatches = RasterizerBinHeaders[ ActiveRasterizerBin ].x;
 	
-	bool bPending = VisibleIndex < NumVisiblePatches;
+	bool bPatchPending = VisibleIndex < NumVisiblePatches;
 	
 	const bool bHasRasterBin = (RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u;
 	BRANCH
@@ -723,19 +737,21 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 
 
 	uint4 PatchEncoded = 0;
-	if( bPending )
+	if( bPatchPending )
 		PatchEncoded = VisiblePatches.Load4( VisibleIndex * 16 );
 
 	FSplitPatch Patch;
 	Patch.Decode( PatchEncoded );
 
 #if 1
-	while( WaveActiveAnyTrue( bPending ) )
+	while( WaveActiveAnyTrue( bPatchPending ) )
 	{
-		uint2 ExecMask = WaveBallot( bPending );
+		uint2 ExecMask = WaveBallot( bPatchPending );
 		//uint FirstLane = ExecMask.x ? firstbitlow( ExecMask.x ) : firstbitlow( ExecMask.y ) + 32;
 		uint FirstLane = firstbitlow( ExecMask.x );
 		uint VisibleClusterIndex = WaveReadLaneAt( Patch.VisibleClusterIndex, FirstLane );
+
+		bool bPatchValid = bPatchPending && VisibleClusterIndex == Patch.VisibleClusterIndex;
 #else
 	{
 		uint VisibleClusterIndex = Patch.VisibleClusterIndex;
@@ -781,6 +797,105 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 		}
 	#endif
 
+#if 0
+		// TODO If this code is ever used, combine with DeduplicateVertIndexes
+		uint3 VertIndexes = 0;
+		uint BaseVertIndex = 0;
+		if( bPatchValid )
+		{
+			VertIndexes = DecodeTriangleIndices( Cluster, Patch.TriIndex );
+		
+			// VertIndexes.x is always smallest
+			BaseVertIndex = WaveActiveMin( VertIndexes.x );
+			VertIndexes -= BaseVertIndex;
+
+			bPatchValid = all( VertIndexes.yz < 64 );
+		}
+		BaseVertIndex = WaveReadLaneAt( BaseVertIndex, firstbitlow( WaveBallot( bPatchValid ).x ) );
+
+		uint2 UsedVertMask = 0;
+		if( bPatchValid )
+		{
+			UNROLL
+			for( uint i = 0; i < 3; i++ )
+			{
+				bool bDstLow = VertIndexes[i] < 32;
+				uint DstMask = 1u << ( VertIndexes[i] & 31 );
+
+				if( bDstLow )
+					UsedVertMask.x |= DstMask;
+				else
+					UsedVertMask.y |= DstMask;
+			}
+		}
+	
+		UsedVertMask.x = WaveActiveBitOr( UsedVertMask.x );
+		UsedVertMask.y = WaveActiveBitOr( UsedVertMask.y );
+
+#if 1
+		uint LaneIndex = GroupThreadIndex;
+
+		bool2 bIsUsed = ( UsedVertMask & (1u << LaneIndex) ) != 0u;
+		uint2 UsedPrefixSum =
+		{
+			MaskedBitCount( uint2( UsedVertMask.x, 0 ) ),
+			MaskedBitCount( uint2( UsedVertMask.y, 0 ) ) + countbits( UsedVertMask.x )
+		};
+
+		if( bIsUsed.x )
+			WorkBoundary[ UsedPrefixSum.x ] = LaneIndex;
+		if( bIsUsed.y && UsedPrefixSum.y < 32 )
+			WorkBoundary[ UsedPrefixSum.y ] = LaneIndex + 32;
+
+		uint MyVertIndex = WorkBoundary[ LaneIndex ] + BaseVertIndex;
+
+		uint3 VertLaneIndexes;
+		VertLaneIndexes.x = MaskedBitCount2( UsedVertMask, VertIndexes.x );
+		VertLaneIndexes.y = MaskedBitCount2( UsedVertMask, VertIndexes.y );
+		VertLaneIndexes.z = MaskedBitCount2( UsedVertMask, VertIndexes.z );
+		//VertLaneIndexes.x = WaveReadLaneAt( VertIndexes.x < 32 ? UsedPrefixSum.x : UsedPrefixSum.y, VertIndexes.x & 31 );
+		//VertLaneIndexes.y = WaveReadLaneAt( VertIndexes.y < 32 ? UsedPrefixSum.x : UsedPrefixSum.y, VertIndexes.y & 31 );
+		//VertLaneIndexes.z = WaveReadLaneAt( VertIndexes.z < 32 ? UsedPrefixSum.x : UsedPrefixSum.y, VertIndexes.z & 31 );
+#else
+		uint MyVertIndex = FindNthSetBit( UsedVertMask, GroupThreadIndex ) + BaseVertIndex;
+
+		uint3 VertLaneIndexes;
+		VertLaneIndexes.x = MaskedBitCount( UsedVertMask, VertIndexes.x );
+		VertLaneIndexes.y = MaskedBitCount( UsedVertMask, VertIndexes.y );
+		VertLaneIndexes.z = MaskedBitCount( UsedVertMask, VertIndexes.z );
+#endif
+		bPatchValid &= all( VertLaneIndexes < 32 );
+
+		uint NumUniqueVerts = countbits( UsedVertMask.x ) + countbits( UsedVertMask.y );
+
+		FNaniteTransformedVert Vert;
+		float3 PointView;
+
+		if( GroupThreadIndex < NumUniqueVerts )
+		{
+			float3 PointLocal = DecodePosition( MyVertIndex, Cluster );
+			FNaniteRawAttributeData RawAttributeData = GetRawAttributeData( Cluster, MyVertIndex, NANITE_NUM_TEXCOORDS_TO_DECODE );
+			Vert = TransformNaniteVertex( InstanceData, MaterialShader.VertTransforms, PointLocal, RawAttributeData, MyVertIndex, false );
+
+			PointView = mul( float4( Vert.PointWorld, 1 ), NaniteView.TranslatedWorldToView ).xyz;
+		}
+
+		float3 TriPointView[3];
+		TriPointView[0] = WaveReadLaneAt( PointView, VertLaneIndexes[0] );
+		TriPointView[1] = WaveReadLaneAt( PointView, VertLaneIndexes[1] );
+		TriPointView[2] = WaveReadLaneAt( PointView, VertLaneIndexes[2] );
+
+		float3 PatchPointView[3];
+		for( int i = 0; i < 3; i++ )
+		{
+			PatchPointView[i] =
+				TriPointView[0] * Patch.Barycentrics[i].x +
+				TriPointView[1] * Patch.Barycentrics[i].y +
+				TriPointView[2] * Patch.Barycentrics[i].z;
+		}
+
+		float3 TessFactors = GetTessFactors( NaniteView, PatchPointView );
+#else
 		// TODO don't load triangle data if not from this VisibleCluster
 		uint3 VertIndexes = DecodeTriangleIndices( Cluster, Patch.TriIndex );
 		float3 PointLocal[3] = 
@@ -808,22 +923,27 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 		}
 
 		float3 TessFactors = GetTessFactors( NaniteView, PointView );
+#endif
 
-		FPatchDiceTask DiceTask;
-		DiceTask.Base.Raster			= Raster;
-		DiceTask.Base.Shader			= MaterialShader;
-		DiceTask.Base.PixelValue		= ( VisibleClusterIndex + 1 ) << 7;
-		DiceTask.Base.VisualizeValues	= GetVisualizeValues();
+		FDiceTask DiceTask;
+		DiceTask.Raster				= Raster;
+		DiceTask.Shader				= MaterialShader;
+		DiceTask.PixelValue			= ( VisibleClusterIndex + 1 ) << 7;
+		DiceTask.VisualizeValues	= GetVisualizeValues();
+		//DiceTask.Vert				= Vert;
 
-		DiceTask.Encoded				= PatchEncoded;
+		DiceTask.Encoded			= PatchEncoded;
 
 		uint NumVerts = 0;
 		uint NumTris = 0;
 #if 1
-		if( Patch.VisibleClusterIndex == VisibleClusterIndex )
+		if( bPatchValid )
 		{
-			DiceTask.Create( TessFactors, NumVerts, NumTris );
-			bPending = false;
+			DiceTask.Init( TessFactors, 0, 0 );
+			//DiceTask.Init( TessFactors, VertLaneIndexes, TriIndex );
+			NumVerts = DiceTask.TessellatedPatch.GetNumVerts();
+			NumTris  = DiceTask.TessellatedPatch.GetNumTris();
+			bPatchPending = false;
 		}
 
 		//DiceTask.FirstVert = WavePrefixSum( NumVerts );

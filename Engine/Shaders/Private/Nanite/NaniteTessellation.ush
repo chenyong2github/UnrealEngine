@@ -121,60 +121,60 @@ float3 GetSplitFactors( float3 TessFactors )
 #endif
 }
 
-uint GetTessellationTablePattern( float3 TessFactors, inout uint3 VertIndexes, inout uint NumVerts, inout uint NumTris )
-{
-	TessFactors = ceil( TessFactors );
-	TessFactors = clamp( TessFactors, 1, TessellationTable_Size );
-
-	float MaxTessFactor = max3( TessFactors.x, TessFactors.y, TessFactors.z );
-
-	uint Swizzle = 0b011010;
-
-	// TessFactors in descending order to reduce size of table.
-	// Rotate patch so TessFactors.x == MaxTessFactor
-	if( TessFactors.y == MaxTessFactor )
-	{
-		VertIndexes = VertIndexes.yzx;
-		TessFactors = TessFactors.yzx;
-		Swizzle = 0b110100;
-	}
-	else if( TessFactors.z == MaxTessFactor )
-	{
-		VertIndexes = VertIndexes.zxy;
-		TessFactors = TessFactors.zxy;
-		Swizzle = 0b101001;
-	}
-
-	// Sorting can flip winding which we need to undo later.
-	bool bFlipWinding = false;
-	if( TessFactors.y < TessFactors.z )
-	{
-		VertIndexes.xy = VertIndexes.yx;
-		TessFactors.yz = TessFactors.zy;
-		bFlipWinding = true;
-		Swizzle ^= 0b000111;
-	}
-
-	uint Pattern = uint(
-		TessFactors.x +
-		TessFactors.y * TessellationTable_Size +
-		TessFactors.z * TessellationTable_Size * TessellationTable_Size -
-		(1 + TessellationTable_Size + TessellationTable_Size * TessellationTable_Size) );
-
-	uint4 Offsets = TessellationTable_Offsets.Load4( 4*2 * Pattern );
-	NumVerts = Offsets[2] - Offsets[0];
-	NumTris  = Offsets[3] - Offsets[1];
-
-	Pattern |= bFlipWinding ? 0x1000 : 0;
-	//Pattern |= Swizzle << 25;
-
-	return Pattern;
-}
-
 struct FTessellatedPatch
 {
-	uint2	TableOffsets;
+	uint4	TableOffsets;
 	uint	Pattern;
+	uint	Swizzle;
+
+	void Init( float3 TessFactors, inout uint3 VertIndexes )
+	{
+		TessFactors = ceil( TessFactors );
+		TessFactors = clamp( TessFactors, 1, TessellationTable_Size );
+
+		float MaxTessFactor = max3( TessFactors.x, TessFactors.y, TessFactors.z );
+
+		Swizzle = 0b011010;
+
+		// TessFactors in descending order to reduce size of table.
+		// Rotate patch so TessFactors.x == MaxTessFactor
+		if( TessFactors.y == MaxTessFactor )
+		{
+			VertIndexes = VertIndexes.yzx;
+			TessFactors = TessFactors.yzx;
+			Swizzle = 0b110100;
+		}
+		else if( TessFactors.z == MaxTessFactor )
+		{
+			VertIndexes = VertIndexes.zxy;
+			TessFactors = TessFactors.zxy;
+			Swizzle = 0b101001;
+		}
+
+		// Sorting can flip winding which we need to undo later.
+		bool bFlipWinding = false;
+		if( TessFactors.y < TessFactors.z )
+		{
+			VertIndexes.xy = VertIndexes.yx;
+			TessFactors.yz = TessFactors.zy;
+			bFlipWinding = true;
+			Swizzle ^= 0b000111;
+		}
+
+		Pattern = uint(
+			TessFactors.x +
+			TessFactors.y * TessellationTable_Size +
+			TessFactors.z * TessellationTable_Size * TessellationTable_Size -
+			(1 + TessellationTable_Size + TessellationTable_Size * TessellationTable_Size) );
+
+		TableOffsets = TessellationTable_Offsets.Load4( 4*2 * Pattern );
+
+		Pattern |= bFlipWinding ? 0x1000 : 0;
+		//Pattern |= Swizzle << 25;
+	}
+
+	uint GetNumVerts()	{ return TableOffsets[2] - TableOffsets[0]; }
+	uint GetNumTris()	{ return TableOffsets[3] - TableOffsets[1]; }
 
 	float3 GetVert( uint VertIndex )
 	{
@@ -250,13 +250,15 @@ struct FTessellatedPatch
 	}
 };
 
-FTessellatedPatch GetTessellatedPatch( uint Pattern )
+FTessellatedPatch WaveReadLaneAt( FTessellatedPatch In, uint SrcIndex )
 {
-	FTessellatedPatch Patch;
-	Patch.TableOffsets = TessellationTable_Offsets.Load2( 4*2 * ( Pattern & 0xfff ) );
-	Patch.Pattern = Pattern;
-	return Patch;
+	FTessellatedPatch Out;
+	Out.TableOffsets= WaveReadLaneAt( In.TableOffsets,	SrcIndex );
+	Out.Pattern		= WaveReadLaneAt( In.Pattern,		SrcIndex );
+	Out.Swizzle		= WaveReadLaneAt( In.Swizzle,		SrcIndex );
+	return Out;
 }
+
 
 struct FSplitPatch
 {
@@ -272,6 +274,14 @@ struct FSplitPatch
 		for( int i = 0; i < 3; i++ )
 			Barycentrics[i] = DecodeBarycentrics( Encoded[ i + 1 ] );
 	}
+
+	float3 TransformBarycentrics( float3 Local )
+	{
+		return
+			Barycentrics[0] * Local.x +
+			Barycentrics[1] * Local.y +
+			Barycentrics[2] * Local.z;
+	}
 };
 
 
@@ -283,7 +293,12 @@ RWCoherentStructuredBuffer( FWorkQueueState )	SplitWorkQueue_StateBuffer;
 uint											SplitWorkQueue_Size;
 
 static const FGlobalWorkQueue SplitWorkQueue = { SplitWorkQueue_DataBuffer, SplitWorkQueue_StateBuffer, 0, SplitWorkQueue_Size };
-FOutputQueue OccludedPatches;
+
+RWByteAddressBuffer						OccludedPatches_DataBuffer;
+RWStructuredBuffer< FWorkQueueState >	OccludedPatches_StateBuffer;
+uint									OccludedPatches_Size;
+
+static const FOutputQueue OccludedPatches = { OccludedPatches_DataBuffer, OccludedPatches_StateBuffer, 0, OccludedPatches_Size };
 
 ByteAddressBuffer	VisiblePatches;
 Buffer< uint >		VisiblePatchesArgs;
