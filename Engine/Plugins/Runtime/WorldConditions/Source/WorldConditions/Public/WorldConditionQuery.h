@@ -177,6 +177,7 @@ struct WORLDCONDITIONS_API FWorldConditionQueryDefinition
 
 	bool Serialize(FArchive& Ar);
 	bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText, FArchive* InSerializingArchive = nullptr);
+	bool ExportTextItem(FString& ValueStr, FWorldConditionQueryDefinition const& DefaultValue, class UObject* Parent, int32 PortFlags, class UObject* ExportRootScope) const;
 	void AddStructReferencedObjects(FReferenceCollector& Collector) const;
 
 
@@ -189,6 +190,11 @@ struct WORLDCONDITIONS_API FWorldConditionQueryDefinition
 	{
 		EditableConditions.Add(NewCondition);
 	}
+#endif
+
+#if WITH_EDITOR
+	/** @returs description of the query expression. */
+	FText GetDescription() const;
 #endif
 
 	const TSharedPtr<FWorldConditionQuerySharedDefinition> GetSharedDefinitionPtr() const { return SharedDefinition; }
@@ -219,6 +225,7 @@ struct TStructOpsTypeTraits<FWorldConditionQueryDefinition> : public TStructOpsT
 		WithAddStructReferencedObjects = true,
 		WithSerializer = true,
 		WithImportTextItem = true,
+		WithExportTextItem = true,
 	};
 };
 

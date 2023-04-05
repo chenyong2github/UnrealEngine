@@ -112,9 +112,13 @@ struct FWorldConditionTest : public FWorldConditionBase
 	
 	virtual void Deactivate(const FWorldConditionContext& Context) const override
 	{
-		
 	}
 
+	virtual FText GetDescription() const override
+	{
+		return FText::Format(FText::FromString(TEXT("Value == {0}")), FText::AsNumber(TestValue));
+	}
+	
 protected:
 
 	FWorldConditionContextDataRef ValueRef;

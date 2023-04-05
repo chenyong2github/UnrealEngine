@@ -302,6 +302,45 @@ struct FWorldConditionTest_Serialization : FAITestBase
 };
 IMPLEMENT_AI_INSTANT_TEST(FWorldConditionTest_Serialization, "System.WorldConditions.Serialization");
 
+struct FWorldConditionTest_Description : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		TArray<FWorldConditionEditable> Conditions = {
+			FWorldConditionEditable(/*Depth*/0, EWorldConditionOperator::Copy, FConstStructView::Make(FWorldConditionTest(0))),	//	if	(A
+			FWorldConditionEditable(/*Depth*/1, EWorldConditionOperator::Or,   FConstStructView::Make(FWorldConditionTest(1))),	//	.	|| B)
+			FWorldConditionEditable(/*Depth*/0, EWorldConditionOperator::And,  FConstStructView::Make(FWorldConditionTest(1))),	//	&&	(	(C
+			FWorldConditionEditable(/*Depth*/2, EWorldConditionOperator::And,  FConstStructView::Make(FWorldConditionTest(1))),	//	.	.	&& D)
+			FWorldConditionEditable(/*Depth*/1, EWorldConditionOperator::Or,   FConstStructView::Make(FWorldConditionTest(0))),	//	.	|| E)
+		};
+		
+		FWorldConditionQueryDefinition Definition;
+		const bool bInitialized = Definition.Initialize(&GetWorld(), UWorldConditionTestSchema::StaticClass(), Conditions);
+		AITEST_TRUE("Query definition should get initialized", bInitialized);
+
+		auto GetDescriptionString = [](const FWorldConditionEditable& EditableCondition)
+		{
+			const FWorldConditionTest& Condition = EditableCondition.Condition.Get<const FWorldConditionTest>();
+			return Condition.GetDescription().ToString();
+		};
+		
+		const FString Expected =
+			TEXT("IF ([") + GetDescriptionString(Conditions[0])
+			+ TEXT("] OR [") + GetDescriptionString(Conditions[1])
+			+ TEXT("]) AND (([") + GetDescriptionString(Conditions[2])
+			+ TEXT("] AND [") + GetDescriptionString(Conditions[3])
+			+ TEXT("]) OR [") + GetDescriptionString(Conditions[4])
+			+ TEXT("])");
+
+		const FText Desc = Definition.GetDescription();
+
+		AITEST_EQUAL("Query text shold match expected result.", Desc.ToString(), Expected);
+		
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FWorldConditionTest_Description, "System.WorldConditions.Description");
+
 UE_ENABLE_OPTIMIZATION_SHIP
 
 #undef LOCTEXT_NAMESPACE

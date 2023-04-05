@@ -4,8 +4,11 @@
 #include "WorldConditionContext.h"
 #include "UObject/UObjectThreadContext.h"
 #include "Serialization/CustomVersion.h"
+#include "Misc/StringBuilder.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldConditionQuery)
+
+#define LOCTEXT_NAMESPACE "WorldCondition"
 
 struct FWorldConditionCustomVersion
 {
@@ -392,6 +395,84 @@ bool FWorldConditionQueryDefinition::Initialize(const UObject* Outer, const TSub
 }
 #endif
 
+#if WITH_EDITOR
+FText FWorldConditionQueryDefinition::GetDescription() const
+{
+	if (!SharedDefinition.IsValid())
+	{
+		return LOCTEXT("Empty", "Empty");
+	}
+
+	const FInstancedStructContainer& Conditions = SharedDefinition->GetConditions();
+	if (Conditions.Num() == 0)
+	{
+		return LOCTEXT("Empty", "Empty");
+	}
+
+	TStringBuilder<256> Builder;
+	
+	const FWorldConditionBase* PrevCondition = nullptr;
+	for (int32 Index = 0; Index < Conditions.Num(); Index++)
+	{
+		const FWorldConditionBase& Condition = Conditions[Index].Get<const FWorldConditionBase>();
+		const int32 CurrDepth = PrevCondition ? PrevCondition->GetNextExpressionDepth() : 0;
+		const int32 NextDepth = Condition.GetNextExpressionDepth();
+		const int32 DeltaDepth = NextDepth - CurrDepth;
+		const int32 OpenParens = FMath::Max(0, DeltaDepth);
+		const int32 CloseParens = FMath::Max(0, -DeltaDepth);
+
+		// Operator
+		FText Operator;
+		if (Index == 0)
+		{
+			Operator = LOCTEXT("IfOperator", "IF");
+		}
+		else if (Condition.GetOperator() == EWorldConditionOperator::And)
+		{
+			Operator = LOCTEXT("AndOperator", "AND");
+		}
+		else if (Condition.GetOperator() == EWorldConditionOperator::Or)
+		{
+			Operator = LOCTEXT("OrOperator", "OR");
+		}
+		else
+		{
+			ensureMsgf(TEXT("Unhandled operator %s\n"), *UEnum::GetValueAsString(Condition.GetOperator()));
+			break;
+		}
+		Builder.Append(Operator.ToString());
+		Builder.AppendChar(' ');
+
+		// Open parens
+		for (int32 Paren = 0; Paren < OpenParens; Paren++)
+		{
+			Builder.AppendChar('(');
+		}
+
+		// Item desc
+		FText ConditionDesc = Condition.GetDescription();
+		Builder.AppendChar('[');
+		Builder.Append(ConditionDesc.ToString());
+		Builder.AppendChar(']');
+
+		// Close parens
+		for (int32 Paren = 0; Paren < CloseParens; Paren++)
+		{
+			Builder.AppendChar(')');
+		}
+
+		if ((Index + 1) < Conditions.Num())
+		{
+			Builder.AppendChar(' ');
+		}
+
+		PrevCondition = &Condition;
+	}
+
+	return FText::FromString(Builder.ToString());
+}
+#endif
+
 bool FWorldConditionQueryDefinition::Initialize(const UObject* Outer)
 {
 	bool bResult = true;
@@ -540,6 +621,20 @@ bool FWorldConditionQueryDefinition::ImportTextItem(const TCHAR*& Buffer, int32 
 	return false;
 }
 
+bool FWorldConditionQueryDefinition::ExportTextItem(FString& ValueStr, FWorldConditionQueryDefinition const& DefaultValue, class UObject* Parent, int32 PortFlags, class UObject* ExportRootScope) const
+{
+#if WITH_EDITOR
+	if (PortFlags & PPF_PropertyWindow)
+	{
+		const FText Desc = GetDescription();
+		ValueStr = Desc.ToString();
+		return true;
+	}
+#endif
+	
+	return false;
+}
+
 void FWorldConditionQueryDefinition::AddStructReferencedObjects(FReferenceCollector& Collector) const
 {
 	if (SharedDefinition.IsValid())
@@ -593,3 +688,5 @@ bool FWorldConditionQuery::IsActive() const
 {
 	return QueryState.IsInitialized();
 }
+
+#undef LOCTEXT_NAMESPACE
