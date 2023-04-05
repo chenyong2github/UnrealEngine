@@ -4,6 +4,7 @@
 #include "Internationalization/Text.h"
 #include "MetasoundBuildError.h"
 #include "MetasoundBuilderInterface.h"
+#include "MetasoundExecutableOperator.h"
 #include "MetasoundFrontendDataTypeTraits.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundNodeRegistrationMacro.h"
@@ -46,7 +47,7 @@ namespace Metasound
 
 	namespace OutputNodePrivate
 	{
-		class METASOUNDFRONTEND_API FOutputOperator : public IOperator
+		class METASOUNDFRONTEND_API FOutputOperator : public FNoOpOperator
 		{
 			public:
 				FOutputOperator(const FVertexName& InVertexName, const FAnyDataReference& InDataReference);
@@ -55,8 +56,6 @@ namespace Metasound
 				virtual FDataReferenceCollection GetInputs() const override;
 				virtual FDataReferenceCollection GetOutputs() const override;
 				virtual void Bind(FVertexInterfaceData& InVertexData) const;
-				virtual FExecuteFunction GetExecuteFunction() override;
-				virtual FResetFunction GetResetFunction() override;
 
 			private:
 				FVertexName VertexName;

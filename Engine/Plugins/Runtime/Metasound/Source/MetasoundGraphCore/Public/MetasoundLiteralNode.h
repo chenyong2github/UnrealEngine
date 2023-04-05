@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Internationalization/Text.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundExecutableOperator.h"
+#include "MetasoundInputNode.h"
 #include "MetasoundNode.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
@@ -22,7 +22,7 @@ namespace Metasound
 	}
 
 	template<typename DataType>
-	class TLiteralOperator : public IOperator
+	class UE_DEPRECATED(5.3, "The TLiteralOperator will be removed.") TLiteralOperator : public FNoOpOperator
 	{
 		static_assert(!TExecutableDataType<DataType>::bIsExecutable, "TLiteralOperator is only suitable for non-executable data types");
 
@@ -40,30 +40,6 @@ namespace Metasound
 			InVertexData.GetOutputs().BindValueVertex(METASOUND_GET_PARAM_NAME(OutputValue), Value);
 		}
 
-		virtual FDataReferenceCollection GetInputs() const override
-		{
-			FDataReferenceCollection Inputs;
-			return Inputs;
-		}
-
-		virtual FDataReferenceCollection GetOutputs() const override
-		{
-			using namespace LiteralNodeNames;
-			FDataReferenceCollection Outputs;
-			Outputs.AddDataReference(METASOUND_GET_PARAM_NAME(OutputValue), FAnyDataReference{Value});
-			return Outputs;
-		}
-
-		virtual FExecuteFunction GetExecuteFunction() override
-		{
-			return nullptr;
-		}
-
-		virtual FResetFunction GetResetFunction() override
-		{
-			return nullptr;
-		}
-
 	private:
 		TDataValueReference<DataType> Value;
 	};
@@ -74,7 +50,7 @@ namespace Metasound
 	 * Note: this is supporting for FTrigger literals which are deprecated.
 	 */
 	template<typename DataType>
-	class TExecutableLiteralOperator : public TExecutableOperator<TExecutableLiteralOperator<DataType>>
+	class UE_DEPRECATED(5.3, "The TExecutableLiteralOperator will be removed.") TExecutableLiteralOperator : public TExecutableOperator<TExecutableLiteralOperator<DataType>>
 	{
 		static_assert(TExecutableDataType<DataType>::bIsExecutable, "TExecutableLiteralOperator is only suitable for executable data types");
 
@@ -145,6 +121,18 @@ namespace Metasound
 		virtual TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) override;
 
 	private:
+
+		class FLiteralOperator : public TInputOperator<DataType>
+		{
+		public:
+			using TInputOperator<DataType>::TInputOperator;
+			virtual void Bind(FVertexInterfaceData& InVertexData) const override
+			{
+				// Do not bind inputs as there are no inputs exposed from the literal node. 
+				TInputOperator<DataType>::BindOutputs(InVertexData.GetOutputs());
+			}
+		};
+
 		FLiteral InitParam;
 	};
 
@@ -155,6 +143,7 @@ namespace Metasound
 		// Executable data types handle Triggers which need to be advanced every
 		// block.
 		static constexpr bool bIsExecutableDataType = TExecutableDataType<DataType>::bIsExecutable;
+		static constexpr bool bIsPostExecutableDataType = TPostExecutableDataType<DataType>::bIsPostExecutable;
 
 	public:
 
@@ -167,7 +156,7 @@ namespace Metasound
 				, METASOUND_GET_PARAM_DISPLAYNAME(OutputValue) // display name
 			};
 
-			if constexpr (bIsExecutableDataType)
+			if constexpr (bIsExecutableDataType || bIsPostExecutableDataType)
 			{
 				return FVertexInterface(
 					FInputVertexInterface(),
@@ -244,22 +233,8 @@ namespace Metasound
 	template<typename DataType>
 	TUniquePtr<IOperator> TLiteralOperatorLiteralFactory<DataType>::CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults)
 	{
-		using FLiteralNodeType = TLiteralNode<DataType>;
-
-		static constexpr bool bIsExecutableDataType = TExecutableDataType<DataType>::bIsExecutable;
-
-		if constexpr (bIsExecutableDataType)
-		{
-			// Create write reference by calling compatible constructor with literal.
-			TDataWriteReference<DataType> DataRef = TDataWriteReferenceLiteralFactory<DataType>::CreateExplicitArgs(InParams.OperatorSettings, InitParam);
-			return MakeUnique<TExecutableLiteralOperator<DataType>>(InParams.OperatorSettings, InitParam);
-		}
-		else
-		{
-			// Create value reference by calling compatible constructor with literal.
-			TDataValueReference DataRef = TDataValueReferenceLiteralFactory<DataType>::CreateExplicitArgs(InParams.OperatorSettings, InitParam);
-			return MakeUnique<TLiteralOperator<DataType>>(DataRef);
-		}
+		using namespace LiteralNodeNames;
+		return MakeUnique<FLiteralOperator>(METASOUND_GET_PARAM_NAME(OutputValue), InParams.OperatorSettings, InitParam);
 	}
 
 } // namespace Metasound

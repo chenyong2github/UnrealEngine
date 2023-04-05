@@ -184,7 +184,6 @@ namespace Metasound
 					InputParams.InstanceID = InParams.InstanceID;
 					InputParams.NodeName = InParams.NodeName;
 					InputParams.VertexName = InParams.VertexName;
-					InputParams.bEnableTransmission = false;
 
 					return DataTypeEntry->CreateInputNode(MoveTemp(InputParams));
 				}
@@ -225,7 +224,6 @@ namespace Metasound
 					InputParams.InstanceID = InParams.InstanceID;
 					InputParams.NodeName = InParams.NodeName;
 					InputParams.VertexName = InParams.VertexName;
-					InputParams.bEnableTransmission = false;
 
 					return DataTypeEntry->CreateConstructorInputNode(MoveTemp(InputParams));
 				}
@@ -525,6 +523,7 @@ namespace Metasound
 				virtual TSharedPtr<IDataChannel, ESPMode::ThreadSafe> CreateDataChannel(const FName& InDataType, const FOperatorSettings& InOperatorSettings) const override;
 
 				virtual const IParameterAssignmentFunction& GetRawAssignmentFunction(const FName& InDataType) const override;
+				virtual FLiteralAssignmentFunction GetLiteralAssignmentFunction(const FName& InDataType) const override;
 
 				virtual bool GetFrontendInputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
 				virtual bool GetFrontendConstructorInputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
@@ -928,6 +927,15 @@ namespace Metasound
 				return NoOp;
 			}
 
+			FLiteralAssignmentFunction FDataTypeRegistry::GetLiteralAssignmentFunction(const FName& InDataType) const
+			{
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
+				{
+					return Entry->GetLiteralAssignmentFunction();
+				}
+				return nullptr;
+			}
+
 			bool FDataTypeRegistry::GetFrontendInputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const
 			{
 				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
@@ -1131,6 +1139,46 @@ namespace Metasound
 		{
 			static MetasoundFrontendDataTypeRegistryPrivate::FDataTypeRegistry Registry;
 			return Registry;
+		}
+
+		void CreateAndBindDefaults(const FOperatorSettings& InOperatorSettings, FInputVertexInterfaceData& OutVertexData)
+		{
+			using namespace MetasoundVertexDataPrivate;
+
+			auto VertexAccessTypeToDataReferenceAccessType = [](EVertexAccessType InVertexAccessType) -> EDataReferenceAccessType
+			{
+				switch(InVertexAccessType)
+				{
+					case EVertexAccessType::Value:
+						return EDataReferenceAccessType::Value;
+
+					case EVertexAccessType::Reference:
+					default:
+						return EDataReferenceAccessType::Write;
+				}
+			};
+
+			IDataTypeRegistry& DataTypeRegistry = IDataTypeRegistry::Get();
+
+			for (const TBinding<FInputDataVertex>& Binding : OutVertexData)
+			{
+				// Attempt to create default data reference from the literal stored
+				// on the input vertex.
+				const FInputDataVertex& InputVertex = Binding.GetVertex();
+				EDataReferenceAccessType AccessType = VertexAccessTypeToDataReferenceAccessType(InputVertex.AccessType);
+				TOptional<FAnyDataReference> DataRef = DataTypeRegistry.CreateDataReference(InputVertex.DataTypeName, AccessType, InputVertex.GetDefaultLiteral(), InOperatorSettings);
+
+				if (DataRef.IsSet())
+				{
+					// Set as vertex data reference.
+					OutVertexData.BindVertex(InputVertex.VertexName, *DataRef);
+				}
+				else
+				{
+					// All inputs should have creatable defaults.
+					UE_LOG(LogMetaSound, Warning, TEXT("Failed to create default data reference for vertex %s of data type %s"), *InputVertex.VertexName.ToString(), *InputVertex.DataTypeName.ToString());
+				}
+			}
 		}
 	}
 }

@@ -195,22 +195,23 @@ namespace Metasound
 	{
 		using namespace Audio;
 		using namespace Frontend;
+		using namespace MetasoundGeneratorPrivate;
 
 		METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("AsyncMetaSoundBuilder::DoWork %s"), *InitParams.MetaSoundName));
 
 		FBuildResults BuildResults;
 
 		// Create an instance of the new graph
-		TUniquePtr<IOperator> GraphOperator = BuildGraphOperator(MoveTemp(InitParams.DefaultParameters), BuildResults);
+		FGraphOperatorAndInputs GraphOperatorAndInputs = BuildGraphOperator(MoveTemp(InitParams.DefaultParameters), BuildResults);
 		LogBuildErrors(BuildResults);
 
-		if (GraphOperator.IsValid())
+		if (GraphOperatorAndInputs.Operator.IsValid())
 		{
 			// Create graph analyzer
 			TUniquePtr<FGraphAnalyzer> GraphAnalyzer = BuildGraphAnalyzer(MoveTemp(BuildResults.InternalDataReferences));
 	
 			// Collect data for generator
-			FMetasoundGeneratorData GeneratorData = BuildGeneratorData(InitParams, MoveTemp(GraphOperator), MoveTemp(GraphAnalyzer));
+			FMetasoundGeneratorData GeneratorData = BuildGeneratorData(InitParams, MoveTemp(GraphOperatorAndInputs), MoveTemp(GraphAnalyzer));
 
 			Generator->SetPendingGraph(MoveTemp(GeneratorData), bTriggerGenerator);
 		}
@@ -225,18 +226,22 @@ namespace Metasound
 		InitParams.Release();
 	}
 
-	FMetasoundGeneratorData FAsyncMetaSoundBuilder::BuildGeneratorData(const FMetasoundGeneratorInitParams& InInitParams, TUniquePtr<IOperator> InGraphOperator, TUniquePtr<Frontend::FGraphAnalyzer> InAnalyzer) const
+	MetasoundGeneratorPrivate::FMetasoundGeneratorData FAsyncMetaSoundBuilder::BuildGeneratorData(const FMetasoundGeneratorInitParams& InInitParams, FAsyncMetaSoundBuilder::FGraphOperatorAndInputs&& InGraphOperatorAndInputs, TUniquePtr<Frontend::FGraphAnalyzer> InAnalyzer) const
 	{
 		using namespace Audio;
 		using namespace Frontend;
+		using namespace MetasoundGeneratorPrivate;
 
 		METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("AsyncMetaSoundBuilder::BuildGeneratorData"));
 
-		checkf(InGraphOperator.IsValid(), TEXT("Graph operator must be a valid object"));
+		checkf(InGraphOperatorAndInputs.Operator.IsValid(), TEXT("Graph operator must be a valid object"));
 
 		// Gather relevant input and output references
 		FVertexInterfaceData VertexData(InInitParams.Graph->GetVertexInterface());
-		InGraphOperator->Bind(VertexData);
+		InGraphOperatorAndInputs.Operator->Bind(VertexData);
+
+		// Replace input data with writable inputs
+		VertexData.GetInputs() = InGraphOperatorAndInputs.Inputs;
 
 		// Get inputs
 		FTriggerWriteRef PlayTrigger = VertexData.GetInputs().GetOrConstructDataWriteReference<FTrigger>(SourceInterface::Inputs::OnPlay, InInitParams.OperatorSettings, false);
@@ -255,18 +260,31 @@ namespace Metasound
 
 		// Create the parameter setter map so parameter packs can be cracked
 		// open and distributed as appropriate...
-		TMap<FName, FParameterSetter> ParameterSetters;
+		const IDataTypeRegistry& DataTypeRegistry = IDataTypeRegistry::Get();
+		FParameterSetterSortedMap ParameterSetters;
+		TMap<FName, FParameterPackSetter> ParameterPackSetters;
 		FInputVertexInterfaceData& GraphInputs = VertexData.GetInputs();
-		for (auto InputIterator = GraphInputs.begin(); InputIterator != GraphInputs.end(); ++InputIterator)
+		for (const MetasoundVertexDataPrivate::TBinding<FInputDataVertex>& Binding : GraphInputs)
 		{
-			const FInputDataVertex& InputVertex = (*InputIterator).GetVertex();
-			const Frontend::IParameterAssignmentFunction& Setter = IDataTypeRegistry::Get().GetRawAssignmentFunction(InputVertex.DataTypeName);
-			if (Setter)
+			// Only assign inputs that are writable. 
+			if (EDataReferenceAccessType::Write == Binding.GetAccessType())
 			{
-				FParameterSetter ParameterSetter(InputVertex.DataTypeName,
-					(*InputIterator).GetDataReference()->GetRaw(),
-					Setter);
-				ParameterSetters.Add(InputVertex.VertexName, ParameterSetter);
+				if (const FAnyDataReference* DataRef = Binding.GetDataReference())
+				{
+					const FInputDataVertex& InputVertex = Binding.GetVertex();
+					const Frontend::IParameterAssignmentFunction& PackSetter = DataTypeRegistry.GetRawAssignmentFunction(InputVertex.DataTypeName);
+					if (PackSetter)
+					{
+						FParameterPackSetter ParameterPackSetter(InputVertex.DataTypeName, DataRef->GetRaw(), PackSetter);
+						ParameterPackSetters.Add(InputVertex.VertexName, ParameterPackSetter);
+					}
+
+					Frontend::FLiteralAssignmentFunction LiteralSetter = DataTypeRegistry.GetLiteralAssignmentFunction(InputVertex.DataTypeName);
+					if (LiteralSetter)
+					{
+						ParameterSetters.Add(InputVertex.VertexName, FParameterSetter{LiteralSetter, *DataRef});
+					}
+				}
 			}
 		}
 
@@ -274,9 +292,10 @@ namespace Metasound
 		return FMetasoundGeneratorData 
 		{
 			InInitParams.OperatorSettings,
-			MoveTemp(InGraphOperator),
+			MoveTemp(InGraphOperatorAndInputs.Operator),
 			MoveTemp(VertexData),
 			MoveTemp(ParameterSetters),
+			MoveTemp(ParameterPackSetters),
 			MoveTemp(InAnalyzer),
 			MoveTemp(OutputBuffers),
 			MoveTemp(PlayTrigger),
@@ -284,15 +303,29 @@ namespace Metasound
 		};
 	}
 
-	TUniquePtr<IOperator> FAsyncMetaSoundBuilder::BuildGraphOperator(TArray<FAudioParameter>&& InParameters, FBuildResults& OutBuildResults) const
+	FAsyncMetaSoundBuilder::FGraphOperatorAndInputs FAsyncMetaSoundBuilder::BuildGraphOperator(TArray<FAudioParameter>&& InParameters, FBuildResults& OutBuildResults) const
 	{
 		METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("AsyncMetaSoundBuilder::BuildGraphOperator"));
 		using namespace Frontend;
 
-		// Set input data based on the input parameters and the input interface
+		// Choose which type of data reference access to create depending upon the access of the vertex.
+		auto VertexAccessTypeToDataReferenceAccessType = [](EVertexAccessType InVertexAccessType) -> EDataReferenceAccessType
+		{
+			switch(InVertexAccessType)
+			{
+				case EVertexAccessType::Value:
+					return EDataReferenceAccessType::Value;
+
+				case EVertexAccessType::Reference:
+				default:
+					return EDataReferenceAccessType::Write;
+			}
+		};
+
 		const FInputVertexInterface& InputInterface = InitParams.Graph->GetVertexInterface().GetInputInterface();
 		FInputVertexInterfaceData InputData(InputInterface);
 
+		// Set input data based on the input parameters and the input interface
 		IDataTypeRegistry& DataRegistry = IDataTypeRegistry::Get();
 		for (FAudioParameter& Parameter : InParameters)
 		{
@@ -300,7 +333,8 @@ namespace Metasound
 			if (const FInputDataVertex* InputVertex = InputInterface.Find(ParamName))
 			{
 				FLiteral Literal = Frontend::ConvertParameterToLiteral(MoveTemp(Parameter));
-				TOptional<FAnyDataReference> DataReference = DataRegistry.CreateDataReference(InputVertex->DataTypeName, EDataReferenceAccessType::Value, Literal, InitParams.OperatorSettings);
+
+				TOptional<FAnyDataReference> DataReference = DataRegistry.CreateDataReference(InputVertex->DataTypeName, VertexAccessTypeToDataReferenceAccessType(InputVertex->AccessType), Literal, InitParams.OperatorSettings);
 
 				if (DataReference)
 				{
@@ -315,7 +349,23 @@ namespace Metasound
 			{
 				UE_LOG(LogMetaSound, Warning, TEXT("Failed to set initial input parameter %s on graph in MetaSoundSource [%s]"), *ParamName.ToString(), *InitParams.MetaSoundName);
 			}
+		}
 
+		// Set any remaining inputs to their default values.
+		for (const MetasoundVertexDataPrivate::TBinding<FInputDataVertex>& Binding : InputData)
+		{
+			// Only create data reference if something does not already exist. 
+			if (!Binding.IsBound())
+			{
+				const FInputDataVertex& InputVertex = Binding.GetVertex();
+				EDataReferenceAccessType AccessType = VertexAccessTypeToDataReferenceAccessType(InputVertex.AccessType);
+				TOptional<FAnyDataReference> DataReference = DataRegistry.CreateDataReference(InputVertex.DataTypeName, VertexAccessTypeToDataReferenceAccessType(InputVertex.AccessType), InputVertex.GetDefaultLiteral(), InitParams.OperatorSettings);
+
+				if (DataReference)
+				{
+					InputData.BindVertex(InputVertex.VertexName, *DataReference);
+				}
+			}
 		}
 
 		// Reset as elements in array have been moved.
@@ -323,7 +373,11 @@ namespace Metasound
 
 		// Create an instance of the new graph
 		FBuildGraphOperatorParams BuildParams { *InitParams.Graph, InitParams.OperatorSettings, InputData, InitParams.Environment };
-		return FOperatorBuilder(InitParams.BuilderSettings).BuildGraphOperator(BuildParams, OutBuildResults);
+		FGraphOperatorAndInputs OpAndInputs;
+		OpAndInputs.Operator = FOperatorBuilder(InitParams.BuilderSettings).BuildGraphOperator(BuildParams, OutBuildResults);
+		OpAndInputs.Inputs = InputData;
+
+		return OpAndInputs;
 	}
 
 	TUniquePtr<Frontend::FGraphAnalyzer> FAsyncMetaSoundBuilder::BuildGraphAnalyzer(TMap<FGuid, FDataReferenceCollection>&& InInternalDataReferences) const
@@ -383,6 +437,7 @@ namespace Metasound
 		, bPendingGraphTrigger(true)
 		, bIsNewGraphPending(false)
 		, bIsWaitingForFirstGraph(true)
+		, ParameterQueue(MoveTemp(InParams.DataChannel))
 #if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
 		, RenderTimer(MakeUnique<MetasoundGeneratorPrivate::FRenderTimer>(InParams.OperatorSettings, 1. /* AnalysisPeriod */))
 #endif // if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
@@ -393,7 +448,9 @@ namespace Metasound
 		NumSamplesPerExecute = NumChannels * NumFramesPerExecute;
 
 		// Create the routing for parameter packs
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		ParameterPackSendAddress = UMetasoundParameterPack::CreateSendAddressFromEnvironment(InParams.Environment);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		ParameterPackReceiver = FDataTransmissionCenter::Get().RegisterNewReceiver<FMetasoundParameterStorageWrapper>(ParameterPackSendAddress, FReceiverInitParams{ InParams.OperatorSettings });
 
 		BuilderTask = MakeUnique<FBuilderTask>(this, MoveTemp(InParams), true /* bTriggerGenerator */);
@@ -426,8 +483,10 @@ namespace Metasound
 		FDataTransmissionCenter::Get().UnregisterDataChannelIfUnconnected(ParameterPackSendAddress);
 	}
 
-	void FMetasoundGenerator::SetPendingGraph(FMetasoundGeneratorData&& InData, bool bTriggerGraph)
+	void FMetasoundGenerator::SetPendingGraph(MetasoundGeneratorPrivate::FMetasoundGeneratorData&& InData, bool bTriggerGraph)
 	{
+		using namespace MetasoundGeneratorPrivate;
+
 		FScopeLock SetPendingGraphLock(&PendingGraphMutex);
 		{
 			PendingGraphData = MakeUnique<FMetasoundGeneratorData>(MoveTemp(InData));
@@ -459,7 +518,7 @@ namespace Metasound
 		return false;
 	}
 
-	void FMetasoundGenerator::SetGraph(TUniquePtr<FMetasoundGeneratorData>&& InData, bool bTriggerGraph)
+	void FMetasoundGenerator::SetGraph(TUniquePtr<MetasoundGeneratorPrivate::FMetasoundGeneratorData>&& InData, bool bTriggerGraph)
 	{
 		if (!InData.IsValid())
 		{
@@ -519,6 +578,7 @@ namespace Metasound
 		GraphAnalyzer = MoveTemp(InData->GraphAnalyzer);
 
 		ParameterSetters = MoveTemp(InData->ParameterSetters);
+		ParameterPackSetters = MoveTemp(InData->ParameterPackSetters);
 
 		if (bTriggerGraph)
 		{
@@ -634,7 +694,7 @@ namespace Metasound
 
 		while (NumSamplesRemaining > 0)
 		{
-			UnpackAndTransmitUpdatedParameters();
+			ApplyPendingUpdatesToInputs();
 
 			{
 #if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
@@ -684,6 +744,8 @@ namespace Metasound
 
 				FMemory::Memcpy(OverflowBuffer.GetData(), &InterleavedAudioBuffer.GetData()[ThisLoopNumSamplesWritten], OverflowCount * sizeof(float));
 			}
+
+			RootExecuter.PostExecute();
 		}
 
 		return NumSamplesWritten;
@@ -763,25 +825,39 @@ namespace Metasound
 		// TODO: memcpy for single channel. 
 	}
 
-	void FMetasoundGenerator::UnpackAndTransmitUpdatedParameters()
+	void FMetasoundGenerator::ApplyPendingUpdatesToInputs()
 	{
 		using namespace Frontend;
+		using namespace MetasoundGeneratorPrivate;
 
-		TUniqueFunction<void(FMetasoundParameterPackStorage*)> ProcessPack = [&](FMetasoundParameterPackStorage* Pack)
+		auto ProcessPack = [&](FMetasoundParameterPackStorage* Pack)
 			{
 				for (auto Walker = Pack->begin(); Walker != Pack->end(); ++Walker)
 				{
-					if (const FParameterSetter* ParameterSetter = ParameterSetters.Find(Walker->Name))
+					if (const FParameterPackSetter* ParameterPackSetter = ParameterPackSetters.Find(Walker->Name))
 					{
-						if (ParameterSetter->DataType == Walker->TypeName)
+						if (ParameterPackSetter->DataType == Walker->TypeName)
 						{
-							ParameterSetter->SetParameterWithPayload(Walker->GetPayload());
+							ParameterPackSetter->SetParameterWithPayload(Walker->GetPayload());
 						}
 					}
 				}
 			};
 
-		// First handle packs that have come from the IAudioParameterInterface system...
+		// Handle parameters from the FMetasoundParameterTransmitter
+		if (ParameterQueue.IsValid())
+		{
+			TOptional<FMetaSoundParameterTransmitter::FParameter> Parameter;
+			while ((Parameter = ParameterQueue->Dequeue()))
+			{
+				if (FParameterSetter* Setter = ParameterSetters.Find(Parameter->Name))
+				{
+					Setter->Assign(OperatorSettings, Parameter->Value, Setter->DataReference);
+				}
+			}
+		}
+
+		// Handle parameter packs that have come from the IAudioParameterInterface system...
 		if (ParameterPackReceiver.IsValid())
 		{
 			FMetasoundParameterStorageWrapper Pack;
@@ -792,7 +868,7 @@ namespace Metasound
 			}
 		}
 
-		// Now handle packs that came from QueueParameterPack...
+		// Handle parameter packs that came from QueueParameterPack...
 		TSharedPtr<FMetasoundParameterPackStorage> QueuedParameterPack;
 		while (ParameterPackQueue.Dequeue(QueuedParameterPack))
 		{

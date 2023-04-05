@@ -59,6 +59,38 @@ namespace Metasound
 
 			return RegOptions;
 		}
+
+		class FParameterRouter
+		{
+		public:
+
+			using FAudioDeviceIDAndInstanceID = TTuple<Audio::DeviceID, uint64>;
+
+			TSharedPtr<TSpscQueue<FMetaSoundParameterTransmitter::FParameter>> FindOrCreateDataChannel(Audio::DeviceID InDeviceID, uint64 InstanceID)
+			{
+				FScopeLock Lock(&DataChannelMapCS);
+
+				FAudioDeviceIDAndInstanceID Key = {InDeviceID, InstanceID};
+
+				if (TWeakPtr<TSpscQueue<FMetaSoundParameterTransmitter::FParameter>>* WeakChannel = DataChannels.Find(Key))
+				{
+					TSharedPtr<TSpscQueue<FMetaSoundParameterTransmitter::FParameter>> Channel = WeakChannel->Pin();
+					if (Channel.IsValid())
+					{
+						return Channel;
+					}
+				}
+
+				TSharedPtr<TSpscQueue<FMetaSoundParameterTransmitter::FParameter>> NewChannel = MakeShared<TSpscQueue<FMetaSoundParameterTransmitter::FParameter>>();
+				DataChannels.Add(Key, NewChannel);
+				return NewChannel;
+			}
+
+		private:
+
+			FCriticalSection DataChannelMapCS;
+			TSortedMap<FAudioDeviceIDAndInstanceID, TWeakPtr<TSpscQueue<FMetaSoundParameterTransmitter::FParameter>>> DataChannels;
+		};
 	} // namespace SourcePrivate
 } // namespace Metasound
 
@@ -501,6 +533,7 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 	using namespace Metasound::Engine;
+	using namespace Metasound::SourcePrivate;
 
 	METASOUND_LLM_SCOPE;
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetaSoundSource::CreateSoundGenerator);
@@ -508,6 +541,8 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	SampleRate = InParams.SampleRate;
 	FOperatorSettings InSettings = GetOperatorSettings(static_cast<FSampleRate>(SampleRate));
 	FMetasoundEnvironment Environment = CreateEnvironment(InParams);
+	FParameterRouter& Router = GetParameterRouter();
+	TSharedPtr<TSpscQueue<FMetaSoundParameterTransmitter::FParameter>> DataChannel = Router.FindOrCreateDataChannel(InParams.AudioDeviceID, InParams.InstanceID);
 
 	TSharedPtr<const IGraph, ESPMode::ThreadSafe> MetasoundGraph = GetRuntimeData().Graph;
 	if (!MetasoundGraph.IsValid())
@@ -520,6 +555,7 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	// Graph analyzer currently only enabled for preview sounds (but can theoretically be supported for all sounds)
 	BuilderSettings.bPopulateInternalDataReferences = InParams.bIsPreviewSound;
 
+	constexpr bool bBuildSynchronous = false;
 	FMetasoundGeneratorInitParams InitParams =
 	{
 		InSettings,
@@ -528,7 +564,9 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 		Environment,
 		GetName(),
 		GetOutputAudioChannelOrder(),
-		MoveTemp(InDefaultParameters)
+		MoveTemp(InDefaultParameters),
+		bBuildSynchronous,
+		DataChannel
 	};
 
 	TSharedPtr<FMetasoundGenerator> Generator = MakeShared<FMetasoundGenerator>(MoveTemp(InitParams));
@@ -811,15 +849,20 @@ bool UMetaSoundSource::IsOneShot() const
 
 TSharedPtr<Audio::IParameterTransmitter> UMetaSoundSource::CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const
 {
+	using namespace Metasound;
+	using namespace Metasound::SourcePrivate;
+
 	METASOUND_LLM_SCOPE;
 
-	Metasound::FMetaSoundParameterTransmitter::FInitParams InitParams(GetOperatorSettings(InParams.SampleRate), InParams.InstanceID, MoveTemp(InParams.DefaultParams));
-	InitParams.DebugMetaSoundName = GetFName();
+	const FRuntimeData& RuntimeData = GetRuntimeData();
 
-	for (const FSendInfoAndVertexName& InfoAndName : FMetasoundAssetBase::GetSendInfos(InParams.InstanceID))
-	{
-		InitParams.Infos.Add(InfoAndName.SendInfo);
-	}
+	TArray<FName> ValidParameters;
+	Algo::Transform(RuntimeData.TransmittableInputs, ValidParameters, [](const FMetasoundFrontendClassInput& InputVertex) { return InputVertex.Name; });
+	FParameterRouter& Router = GetParameterRouter();
+	TSharedPtr<TSpscQueue<FMetaSoundParameterTransmitter::FParameter>> DataChannel = Router.FindOrCreateDataChannel(InParams.AudioDeviceID, InParams.InstanceID);
+
+	Metasound::FMetaSoundParameterTransmitter::FInitParams InitParams(GetOperatorSettings(InParams.SampleRate), InParams.InstanceID, MoveTemp(InParams.DefaultParams), MoveTemp(ValidParameters), DataChannel);
+	InitParams.DebugMetaSoundName = GetFName();
 
 	return MakeShared<Metasound::FMetaSoundParameterTransmitter>(MoveTemp(InitParams));
 }
@@ -924,4 +967,14 @@ TWeakPtr<Metasound::FMetasoundGenerator> UMetaSoundSource::GetGeneratorForAudioC
 	}
 	return *Result;
 }
+
+Metasound::SourcePrivate::FParameterRouter& UMetaSoundSource::GetParameterRouter()
+{
+	using namespace Metasound::SourcePrivate;
+
+	static FParameterRouter Router;
+	return Router;
+}
+
+
 #undef LOCTEXT_NAMESPACE // MetaSound

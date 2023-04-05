@@ -100,88 +100,6 @@ namespace Metasound
 	/** FInputDataVertex */
 	class FInputDataVertex : public FDataVertex
 	{
-		// FLiteralFactory supports creation of an FLiteral for a vertex given a
-		// copyable literal value type.
-		//
-		// An FLiteral cannot be assigned or copy-constructed because it can contain
-		// a TUniquePtr<> which does not support the assignment operator and copy constructor.
-		//
-		// For factory can create a literal given a copyable type. The factory can
-		// also be copied.
-		struct FLiteralFactory
-		{
-			struct ILiteralFactoryImpl
-			{
-				virtual ~ILiteralFactoryImpl() = default;
-				virtual FLiteral CreateLiteral() const = 0;
-				virtual TUniquePtr<ILiteralFactoryImpl> Clone() const = 0;
-			};
-
-			// Create a literal with a copyable type.
-			template<typename LiteralValueType>
-			struct TLiteralFactoryImpl : ILiteralFactoryImpl
-			{
-				static_assert(std::is_copy_constructible<LiteralValueType>::value && std::is_copy_assignable<LiteralValueType>::value, "Literals can only be assigned for copyable types");
-
-				TLiteralFactoryImpl(const LiteralValueType& InValue)
-				: LiteralValue(InValue)
-				{
-				}
-				
-				FLiteral CreateLiteral() const override
-				{
-					return FLiteral(LiteralValue);
-				}
-
-				TUniquePtr<ILiteralFactoryImpl> Clone() const override
-				{
-					return MakeUnique<TLiteralFactoryImpl<LiteralValueType>>(*this);
-				}
-			private:
-				LiteralValueType LiteralValue;
-			};
-
-			FLiteralFactory()
-			: FactoryImpl(nullptr)
-			{
-			}
-
-			template<typename ValueType>
-			FLiteralFactory(const ValueType& InValue)
-			: FactoryImpl(MakeUnique<TLiteralFactoryImpl<ValueType>>(InValue))
-			{
-			}
-
-			FLiteralFactory(const FLiteralFactory& InOther)
-			{
-				*this = InOther;
-			}
-
-			FLiteralFactory& operator=(const FLiteralFactory& InOther)
-			{
-				FactoryImpl.Reset();
-				if (InOther.FactoryImpl.IsValid())
-				{
-					FactoryImpl = InOther.FactoryImpl->Clone();
-				}
-				return *this;
-			}
-
-			FLiteral CreateLiteral() const
-			{
-				if (FactoryImpl.IsValid())
-				{
-					return FactoryImpl->CreateLiteral();
-				}
-
-				return FLiteral::CreateInvalid();
-			}
-
-		private:
-
-			TUniquePtr<ILiteralFactoryImpl> FactoryImpl;
-		};
-
 	public:
 
 		FInputDataVertex() = default;
@@ -189,16 +107,7 @@ namespace Metasound
 		/** Construct an FInputDataVertex. */
 		FInputDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata, EVertexAccessType InAccessType=EVertexAccessType::Reference)
 			: FDataVertex(InVertexName, InDataTypeName, InMetadata, InAccessType)
-			, LiteralFactory(FLiteral::FNone{})
-		{
-		}
-
-		/** Construct an FInputDataVertex with a default literal. */
-		template<typename LiteralValueType>
-		UE_DEPRECATED(5.1, "Use constructor with EVertexAccessType argument.")
-		FInputDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata, const LiteralValueType& InLiteralValue)
-			: FDataVertex(InVertexName, InDataTypeName, InMetadata, EVertexAccessType::Reference)
-			, LiteralFactory(InLiteralValue)
+			, Literal(FLiteral::FNone{})
 		{
 		}
 
@@ -206,14 +115,20 @@ namespace Metasound
 		template<typename LiteralValueType>
 		FInputDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata, EVertexAccessType InAccessType, const LiteralValueType& InLiteralValue)
 			: FDataVertex(InVertexName, InDataTypeName, InMetadata, InAccessType)
-			, LiteralFactory(InLiteralValue)
+			, Literal(InLiteralValue)
+		{
+		}
+
+		FInputDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata, EVertexAccessType InAccessType, const FLiteral& InLiteral)
+			: FDataVertex(InVertexName, InDataTypeName, InMetadata, InAccessType)
+			, Literal(InLiteral)
 		{
 		}
 
 		/** Returns the default literal associated with this input. */
 		FLiteral GetDefaultLiteral() const 
 		{
-			return LiteralFactory.CreateLiteral();
+			return Literal;
 		}
 
 		friend bool METASOUNDGRAPHCORE_API operator==(const FInputDataVertex& InLHS, const FInputDataVertex& InRHS);
@@ -222,7 +137,7 @@ namespace Metasound
 
 	private:
 
-		FLiteralFactory LiteralFactory;
+		FLiteral Literal;
 	};
 
 	/** Create a FInputDataVertex with a templated MetaSound data type. */

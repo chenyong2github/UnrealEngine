@@ -413,6 +413,7 @@ public:
 	
 	// A couple of utilities for use by MetasoundAssetBase and MetasoundGenerator to set
 	// up the routing for parameter packs
+	UE_DEPRECATED(5.3, "FSendAddress are no longer used to communicate with MetaSound instances.")
 	static Metasound::FSendAddress CreateSendAddressFromEnvironment(const Metasound::FMetasoundEnvironment& InEnvironment);
 	static FMetasoundFrontendClassInput GetClassInput();
 

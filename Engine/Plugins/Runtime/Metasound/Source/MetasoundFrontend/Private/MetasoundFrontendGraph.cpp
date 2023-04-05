@@ -220,8 +220,7 @@ namespace Metasound
 						InNode.Name,
 						InNode.GetID(),
 						InputVertex.Name,
-						MoveTemp(Literal),
-						bEnableTransmission
+						MoveTemp(Literal)
 					};
 
 					ensureAlwaysMsgf(InOwningGraphClassInput.AccessType != EMetasoundFrontendVertexAccessType::Unset, TEXT("Graph Class Input cannot be set to access type of 'Unset'"));

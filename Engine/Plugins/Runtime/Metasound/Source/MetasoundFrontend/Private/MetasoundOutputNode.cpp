@@ -36,16 +36,6 @@ namespace Metasound
 			InVertexData.GetOutputs().BindVertex(VertexName, DataReference);
 		}
 
-		IOperator::FExecuteFunction FOutputOperator::GetExecuteFunction()
-		{
-			return nullptr;
-		}
-
-		IOperator::FResetFunction FOutputOperator::GetResetFunction()
-		{
-			return nullptr;
-		}
-
 		FOutputNode::FOutputOperatorFactory::FOutputOperatorFactory(const FVertexName& InVertexName, const FName& InDataTypeName, EVertexAccessType InVertexAccessType)
 		: VertexName(InVertexName)
 		, DataTypeName(InDataTypeName)

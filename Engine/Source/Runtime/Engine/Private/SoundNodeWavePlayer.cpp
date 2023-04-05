@@ -148,6 +148,7 @@ void USoundNodeWavePlayer::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT 
 			Params.DefaultParams = ActiveSound.GetTransmitter()->GetParameters();
 			Params.InstanceID = ActiveSound.GetAudioComponentID();
 			Params.SampleRate = AudioDevice->GetSampleRate();
+			Params.AudioDeviceID = AudioDevice->DeviceID;
 
 			if (FSoundCueParameterTransmitter* SoundCueTransmitter = static_cast<FSoundCueParameterTransmitter*>(ActiveSound.GetTransmitter()))
 			{

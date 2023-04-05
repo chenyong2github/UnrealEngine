@@ -598,12 +598,6 @@ bool FMetasoundAssetBase::AddingReferenceCausesLoop(const FSoftObjectPath& InRef
 	return bCausesLoop;
 }
 
-Metasound::FSendAddress FMetasoundAssetBase::CreateSendAddress(uint64 InInstanceID, const Metasound::FVertexName& InVertexName, const FName& InDataTypeName) const
-
-{
-	return Metasound::FSendAddress(InVertexName, InDataTypeName, InInstanceID);
-}
-
 void FMetasoundAssetBase::ConvertFromPreset()
 {
 	using namespace Metasound::Frontend;
@@ -637,7 +631,9 @@ TArray<FMetasoundAssetBase::FSendInfoAndVertexName> FMetasoundAssetBase::GetSend
 	{
 		FSendInfoAndVertexName Info;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Info.SendInfo.Address = FMetaSoundParameterTransmitter::CreateSendAddressFromInstanceID(InInstanceID, Vertex.Name, Vertex.TypeName);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Info.SendInfo.ParameterName = Vertex.Name;
 		Info.SendInfo.TypeName = Vertex.TypeName;
 		Info.VertexName = Vertex.Name;
@@ -647,23 +643,6 @@ TArray<FMetasoundAssetBase::FSendInfoAndVertexName> FMetasoundAssetBase::GetSend
 	}
 
 	return SendInfos;
-}
-
-Metasound::Frontend::FNodeHandle FMetasoundAssetBase::AddInputPinForSendAddress(const Metasound::FMetaSoundParameterTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const
-{
-	FMetasoundFrontendClassInput Description;
-	FGuid VertexID = FGuid::NewGuid();
-
-	Description.Name = InSendInfo.Address.GetChannelName();
-	Description.TypeName = Metasound::GetMetasoundDataTypeName<Metasound::FSendAddress>();
-	Description.VertexID = VertexID;
-	Description.DefaultLiteral.Set(InSendInfo.Address.GetChannelName().ToString());
-
-#if WITH_EDITOR
-	Description.Metadata.SetDescription(FText::GetEmpty());
-#endif // WITH_EDITOR
-
-	return InGraph->AddInputVertex(Description);
 }
 
 #if WITH_EDITOR

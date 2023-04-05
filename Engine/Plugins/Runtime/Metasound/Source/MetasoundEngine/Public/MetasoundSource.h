@@ -24,8 +24,16 @@ namespace Metasound
 {
 	struct FMetaSoundEngineAssetHelper;
 	class FMetasoundGenerator;
-
+	namespace SourcePrivate
+	{
+		class FParameterRouter;
+	}
 } // namespace Metasound
+
+namespace Audio
+{
+	using DeviceID = uint32;
+}
 
 DECLARE_TS_MULTICAST_DELEGATE_TwoParams(FOnGeneratorInstanceCreated, uint64, TSharedPtr<Metasound::FMetasoundGenerator>);
 DECLARE_TS_MULTICAST_DELEGATE_TwoParams(FOnGeneratorInstanceDestroyed, uint64, TSharedPtr<Metasound::FMetasoundGenerator>);
@@ -230,6 +238,8 @@ private:
 	}
 
 	bool IsParameterValid(const FAudioParameter& InParameter, const TMap<FName, FMetasoundFrontendVertex>& InInputNameVertexMap) const;
+
+	static Metasound::SourcePrivate::FParameterRouter& GetParameterRouter();
 
 	Metasound::FOperatorSettings GetOperatorSettings(Metasound::FSampleRate InSampleRate) const;
 	Metasound::FMetasoundEnvironment CreateEnvironment() const;

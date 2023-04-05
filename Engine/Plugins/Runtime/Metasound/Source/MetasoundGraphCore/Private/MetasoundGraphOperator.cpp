@@ -22,6 +22,12 @@ namespace Metasound
 				bIsOperatorInAnyStack = true;
 			}
 
+			if (FPostExecuteFunction PostExecuteFunc = InOperator->GetPostExecuteFunction())
+			{
+				PostExecuteStack.Emplace(*InOperator, PostExecuteFunc);
+				bIsOperatorInAnyStack = true;
+			}
+
 			if (FResetFunction ResetFunc = InOperator->GetResetFunction())
 			{
 				ResetStack.Emplace(*InOperator, ResetFunc);
@@ -65,6 +71,19 @@ namespace Metasound
 		InVertexData.Bind(VertexData);
 	}
 
+	IOperator::FPostExecuteFunction FGraphOperator::GetPostExecuteFunction()
+	{
+		return &StaticPostExecute;
+	}
+
+	void FGraphOperator::StaticPostExecute(IOperator* InOperator)
+	{
+		FGraphOperator* GraphOperator = static_cast<FGraphOperator*>(InOperator);
+		check(GraphOperator);
+
+		GraphOperator->PostExecute();
+	}
+
 	void FGraphOperator::Execute()
 	{
 		FExecuteEntry* StackPtr = ExecuteStack.GetData();
@@ -72,6 +91,16 @@ namespace Metasound
 		for (int32 i = 0; i < Num; i++)
 		{
 			StackPtr[i].Execute();
+		}
+	}
+
+	void FGraphOperator::PostExecute()
+	{
+		FPostExecuteEntry* StackPtr = PostExecuteStack.GetData();
+		const int32 Num = PostExecuteStack.Num();
+		for (int32 i = 0; i < Num; i++)
+		{
+			StackPtr[i].PostExecute();
 		}
 	}
 
@@ -91,11 +120,23 @@ namespace Metasound
 	{
 		check(Function);
 	}
+
 	void FGraphOperator::FExecuteEntry::Execute()
 	{
 		Function(Operator);
 	}
 
+	FGraphOperator::FPostExecuteEntry::FPostExecuteEntry(IOperator& InOperator, FPostExecuteFunction InFunc)
+	: Operator(&InOperator)
+	, Function(InFunc)
+	{
+		check(Function);
+	}
+
+	void FGraphOperator::FPostExecuteEntry::PostExecute()
+	{
+		Function(Operator);
+	}
 
 	FGraphOperator::FResetEntry::FResetEntry(IOperator& InOperator, FResetFunction InFunc)
 	: Operator(&InOperator)
@@ -103,9 +144,12 @@ namespace Metasound
 	{
 		check(Function);
 	}
+
 	void FGraphOperator::FResetEntry::Reset(const FGraphOperator::FResetParams& InParams)
 	{
 		Function(Operator, InParams);
 	}
+
+			static void StaticPostExecute(IOperator* Operator);
 
 }

@@ -14,6 +14,8 @@ class UObject;
 
 namespace Audio
 {
+	using DeviceID = uint32;
+
 	/** Data passed to CreateParameterTransmitter. */
 	struct AUDIOEXTENSIONS_API FParameterTransmitterInitParams
 	{
@@ -24,6 +26,10 @@ namespace Audio
 		float SampleRate = 0.0f;
 
 		TArray<FAudioParameter> DefaultParams;
+
+		// Audio device ID
+		DeviceID AudioDeviceID = INDEX_NONE;
+
 	};
 
 	// Reference collector functionality for legacy parameter system

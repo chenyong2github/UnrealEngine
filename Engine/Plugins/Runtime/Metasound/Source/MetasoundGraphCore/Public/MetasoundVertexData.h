@@ -77,7 +77,7 @@ namespace Metasound
 			{
 				if (Data.IsSet())
 				{
-					Data->GetAccessType();
+					return Data->GetAccessType();
 				}
 				return EDataReferenceAccessType::None;
 			}
@@ -633,7 +633,7 @@ namespace Metasound
 
 
 	/** A vertex interface with optionally bound data. */
-	class FVertexInterfaceData
+	class METASOUNDGRAPHCORE_API FVertexInterfaceData
 	{
 	public:
 

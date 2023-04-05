@@ -42,13 +42,18 @@ namespace Metasound
 			// Bind the graph's interface data references to FVertexInterfaceData.
 			virtual void Bind(FVertexInterfaceData& InOutVertexData) const override;
 
+			virtual IOperator::FPostExecuteFunction GetPostExecuteFunction() override;
+
 			void Execute();
+			void PostExecute();
 			void Reset(const FResetParams& InParams);
 
 		private:
 			// Delete copy operator because underlying types cannot be copied. 
 			FGraphOperator& operator=(const FGraphOperator&) = delete;
 			FGraphOperator(const FGraphOperator&) = delete;
+
+			static void StaticPostExecute(IOperator* Operator);
 
 			struct FExecuteEntry
 			{
@@ -57,6 +62,15 @@ namespace Metasound
 
 				IOperator* Operator;
 				FExecuteFunction Function;	
+			};
+
+			struct FPostExecuteEntry
+			{
+				FPostExecuteEntry(IOperator& InOperator, FPostExecuteFunction InFunc);
+				void PostExecute();
+
+				IOperator* Operator;
+				FPostExecuteFunction Function;	
 			};
 
 			struct FResetEntry
@@ -69,6 +83,7 @@ namespace Metasound
 			};
 
 			TArray<FExecuteEntry> ExecuteStack;
+			TArray<FPostExecuteEntry> PostExecuteStack;
 			TArray<FResetEntry> ResetStack;
 			TArray<TUniquePtr<IOperator>> ActiveOperators;
 			FVertexInterfaceData VertexData;

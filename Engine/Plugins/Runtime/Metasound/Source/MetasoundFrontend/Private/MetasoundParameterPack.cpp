@@ -23,7 +23,9 @@ TSharedPtr<Audio::IProxyData> UMetasoundParameterPack::CreateProxyData(const Aud
 
 Metasound::FSendAddress UMetasoundParameterPack::CreateSendAddressFromEnvironment(const Metasound::FMetasoundEnvironment& InEnvironment)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return Metasound::FMetaSoundParameterTransmitter::CreateSendAddressFromEnvironment(InEnvironment, MetasoundParameterPack::RoutingName, Metasound::GetMetasoundDataTypeName<FMetasoundParameterStorageWrapper>());
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 FMetasoundFrontendClassInput UMetasoundParameterPack::GetClassInput()

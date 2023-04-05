@@ -39,6 +39,8 @@ namespace Metasound
 		FGuid InstanceID;
 		FVertexName VertexName;
 		FLiteral InitParam = FLiteral::CreateInvalid();
+
+		UE_DEPRECATED(5.3, "Transmission is no longer enabled on input nodes. In order set values on a MetaSound input, access them through the bound FInputVertexInterfaceData.")
 		bool bEnableTransmission = false;
 	};
 

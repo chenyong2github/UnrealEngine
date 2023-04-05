@@ -649,6 +649,26 @@ namespace Metasound
 			return nullptr;
 		}
 
+		/** Return a non-const pointer to the data.
+		 * 
+		 * If the vertex is bound with this will return a valid pointer. 
+		 * Otherwise it will return a nullptr.  This method will assert
+		 * if the reference is bound, but not writable or if the data type
+		 * does match.  
+		 */
+		template<typename DataType>
+		DataType* GetWritableValue()
+		{
+			if (DataRefPtr.IsValid())
+			{
+				check(IsDataReferenceOfType<DataType>(*DataRefPtr));
+				checkf(EDataReferenceAccessType::Write == AccessType, TEXT("Writable values can only be obtained with data references which have writable access"));
+
+				return static_cast<TDataWriteReference<DataType>*>(DataRefPtr.Get())->Get();
+			}
+			return nullptr;
+		}
+
 		/** Get access to a TDataValueReference. 
 		 *
 		 * This method will return a valid TDataValueReference of the templated data

@@ -90,5 +90,21 @@ namespace Metasound
 		 * executed.
 		 */
 		virtual FExecuteFunction GetExecuteFunction() = 0;
+
+		/** Pointer to post execute function for an operator.
+		 *
+		 * @param IOperator* - The operator associated with the function pointer.
+		 */
+		using FPostExecuteFunction = void(*)(IOperator*);
+
+		/** Return the FPostExecute function to call during graph post execution.
+		 *
+		 * The IOperator* argument to the FPostExecutionFunction will be the same IOperator instance
+		 * which returned the execution function.
+		 *
+		 * nullptr return values are valid and signal an IOperator which does not need to be
+		 * post executed.
+		 */
+		virtual FPostExecuteFunction GetPostExecuteFunction() = 0;
 	};
 }

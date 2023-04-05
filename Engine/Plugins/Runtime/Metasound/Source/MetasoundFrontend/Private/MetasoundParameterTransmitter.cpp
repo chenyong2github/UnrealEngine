@@ -19,6 +19,7 @@ namespace Metasound
 		TEXT("0: Disabled (default), !0: Enabled"),
 		ECVF_Default);
 
+
 	namespace Frontend
 	{
 		FLiteral ConvertParameterToLiteral(FAudioParameter&& InValue)
@@ -231,7 +232,9 @@ namespace Metasound
 			InstanceID = InEnvironment.GetValue<uint64>(SourceInterface::Environment::TransmitterID);
 		}
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return CreateSendAddressFromInstanceID(InstanceID, InVertexName, InTypeName);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	FSendAddress FMetaSoundParameterTransmitter::CreateSendAddressFromInstanceID(uint64 InInstanceID, const FVertexName& InVertexName, const FName& InTypeName)
@@ -241,27 +244,21 @@ namespace Metasound
 
 	FMetaSoundParameterTransmitter::FMetaSoundParameterTransmitter(FMetaSoundParameterTransmitter::FInitParams&& InInitParams)
 		: Audio::FParameterTransmitterBase(MoveTemp(InInitParams.DefaultParams))
-		, OperatorSettings(MoveTemp(InInitParams.OperatorSettings))
 		, InstanceID(InInitParams.InstanceID)
 		, DebugMetaSoundName(InInitParams.DebugMetaSoundName)
-		, SendInfos(MoveTemp(InInitParams.Infos))
+		, AvailableParameterNames(MoveTemp(InInitParams.ValidParameterNames))
+		, DataChannel(MoveTemp(InInitParams.DataChannel))
 	{
 	}
 
 	void FMetaSoundParameterTransmitter::OnDeleteActiveSound()
 	{
-		for (const FSendInfo& SendInfo : SendInfos)
-		{
-			if (InputSends.Remove(SendInfo.ParameterName))
-			{
-				// Only unregister the data channel if we had a sender using that 
-				// data channel. This protects against removing the data channel 
-				// multiple times. Multiple removals of data channels has caused
-				// race conditions between newly created transmitters and transmitters
-				// being cleaned up.
-				FDataTransmissionCenter::Get().UnregisterDataChannel(SendInfo.Address);
-			}
-		}
+		// Only reset the data channel if we have a valid data channel.
+		// This protects against removing the data channel 
+		// multiple times. Multiple removals of data channels has caused
+		// race conditions between newly created transmitters and transmitters
+		// being cleaned up.
+		DataChannel.Reset();
 
 		Audio::FParameterTransmitterBase::OnDeleteActiveSound();
 	}
@@ -301,18 +298,14 @@ namespace Metasound
 
 	bool FMetaSoundParameterTransmitter::SetParameterWithLiteral(FName InParameterName, const FLiteral& InLiteral)
 	{
-		if (ISender* Sender = FindSender(InParameterName))
+		if (AvailableParameterNames.Contains(InParameterName))
 		{
-			return Sender->PushLiteral(InLiteral);
-		}
-
-		// If no sender exists for parameter name, attempt to add one.
-		if (const FSendInfo* SendInfo = FindSendInfo(InParameterName))
-		{
-			if (ISender* Sender = AddSender(*SendInfo))
+			if (DataChannel.IsValid())
 			{
-				return Sender->PushLiteral(InLiteral);
+				DataChannel->Enqueue(FParameter{InParameterName, InLiteral});
 			}
+
+			return true;
 		}
 
 		// Enable / disable via CVAR to avoid log spam.
@@ -322,36 +315,5 @@ namespace Metasound
 		}
 
 		return false;
-	}
-
-	const FMetaSoundParameterTransmitter::FSendInfo* FMetaSoundParameterTransmitter::FindSendInfo(const FName& InParameterName) const
-	{
-		return SendInfos.FindByPredicate([&](const FSendInfo& Info) { return Info.ParameterName == InParameterName; });
-	}
-
-	ISender* FMetaSoundParameterTransmitter::FindSender(const FName& InParameterName)
-	{
-		if (TUniquePtr<ISender>* SenderPtrPtr = InputSends.Find(InParameterName))
-		{
-			return SenderPtrPtr->Get();
-		}
-		return nullptr;
-	}
-
-	ISender* FMetaSoundParameterTransmitter::AddSender(const FSendInfo& InInfo)
-	{
-		// TODO: likely want to remove this and opt for different protocols having different behaviors.
-		const float DelayTimeInSeconds = 0.1f; // This not used for non-audio routing.
-		const FSenderInitParams InitParams = { OperatorSettings, DelayTimeInSeconds };
-
-		TUniquePtr<ISender> Sender = FDataTransmissionCenter::Get().RegisterNewSender(InInfo.Address, InitParams);
-		if (ensureMsgf(Sender.IsValid(), TEXT("Failed to create sender [Address:%s]"), *InInfo.Address.ToString()))
-		{
-			ISender* Ptr = Sender.Get();
-			InputSends.Add(InInfo.ParameterName, MoveTemp(Sender));
-			return Ptr;
-		}
-
-		return nullptr;
 	}
 }

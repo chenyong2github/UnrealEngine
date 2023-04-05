@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Templates/Casts.h"
 
 #include "IAudioProxyInitializer.h"
 #include "MetasoundArrayNodesRegistration.h"
@@ -27,6 +26,8 @@
 #include "MetasoundVariableNodes.h"
 #include "MetasoundParameterPackFixedArray.h"
 
+#include "Templates/Casts.h"
+
 #include <type_traits>
 
 namespace Metasound
@@ -41,6 +42,26 @@ namespace Metasound
 				static constexpr bool bIsParsableWithSharedProxyPtr = TIsParsable<DataType, TSharedPtr<Audio::IProxyData>>::Value;
 			public:
 				static constexpr bool bOnlySupportsDeprecatedProxyPtr = bIsParsableWithDeprecatedPtr && !bIsParsableWithSharedProxyPtr;
+		};
+
+		// ExecutableDataTypes are deprecated in 5.3 in favor of TPostExecutableDataTypes.
+		// This class triggers a deprecation warning when a TExecutableDataType
+		// is registered. 
+		template<typename DataType>
+		struct TExecutableDataTypeDeprecation
+		{
+			TExecutableDataTypeDeprecation()
+			{
+				if constexpr (TExecutableDataType<DataType>::bIsExecutable)
+				{
+					TriggerDeprecationMessage();
+				}
+			}
+
+			void TriggerDeprecationMessage() 
+			{
+				UE_LOG(LogMetaSound, Warning, TEXT("TExecutableDataType<> is deprecated in favor of TPostExecutableDataType<>. Please update your code for data type (%s) as TExecutableDataType<> will be removed in future releases"), *GetMetasoundDataTypeString<DataType>())
+			}
 		};
 
 		// Returns the Array version of a literal type if it exists.
@@ -310,6 +331,11 @@ namespace Metasound
 				// data type constructor. 
 				UE_LOG(LogMetaSound, Warning, TEXT("MetaSound data type \"%s\" supports construction from deprecated TUniquePtr<Audio::IProxyData>. Please update the constructor to accept a \"const TSharedPtr<Audio::IProxyData>& \""), TDataReferenceTypeInfo<TDataType>::TypeName);
 			}
+			
+			// TExecutableDataTypes are deprecated as of 5.3. This call triggers
+			// a deprecation warning in case the TExecutableDataType<> template
+			// was specialized.
+			MetasoundDataTypeRegistrationPrivate::TExecutableDataTypeDeprecation<TDataType>();
 
 			bAlreadyRegisteredThisDataType = true;
 
@@ -386,6 +412,11 @@ namespace Metasound
 					return RawAssignmentFunction;
 				}
 
+				virtual Frontend::FLiteralAssignmentFunction GetLiteralAssignmentFunction() const override
+				{
+					return LiteralAssignmentFunction;
+				}
+
 			protected:
 				Frontend::FDataTypeRegistryInfo Info;
 				FMetasoundFrontendClass InputClass;
@@ -399,14 +430,12 @@ namespace Metasound
 				FMetasoundFrontendClass VariableDeferredAccessorClass;
 				TSharedPtr<Frontend::IEnumDataTypeInterface> EnumInterface;
 				Frontend::IParameterAssignmentFunction RawAssignmentFunction;
+				Frontend::FLiteralAssignmentFunction LiteralAssignmentFunction = nullptr;
 			};
 
 			class FDataTypeRegistryEntry : public FDataTypeRegistryEntryBase
 			{
-			public:
-
-				FDataTypeRegistryEntry()
-					: FDataTypeRegistryEntryBase(CreateDataTypeInfo<TDataType, PreferredArgType, UClassToUse>(), GetEnumDataTypeInterface<TDataType>())
+				void InitRawAssignmentFunction()
 				{
 					if constexpr (HasRawParameterAssignmentOp<TDataType>().value)
 					{
@@ -438,7 +467,24 @@ namespace Metasound
 								};
 						}
 					}
+				}
 
+				void InitLiteralAssignmentFunction()
+				{
+					if constexpr (std::is_copy_assignable_v<TDataType> && bIsParsable)
+					{
+						if constexpr (!TIsArrayType<TDataType>::Value)
+						{
+							this->LiteralAssignmentFunction = [](const FOperatorSettings& InOperatorSettings, const FLiteral& InLiteral, FAnyDataReference& OutDataRef)
+							{
+								*OutDataRef.GetWritableValue<TDataType>() = TDataTypeLiteralFactory<TDataType>::CreateExplicitArgs(InOperatorSettings, InLiteral);
+							};
+						}
+					}
+				}
+
+				void InitFrontendNodeClasses()
+				{
 					// Create class info using prototype node
 					// TODO: register nodes with static class info instead of prototype instance.
 
@@ -475,6 +521,17 @@ namespace Metasound
 					}
 				}
 
+
+			public:
+
+				FDataTypeRegistryEntry()
+					: FDataTypeRegistryEntryBase(CreateDataTypeInfo<TDataType, PreferredArgType, UClassToUse>(), GetEnumDataTypeInterface<TDataType>())
+				{
+					InitRawAssignmentFunction();
+					InitLiteralAssignmentFunction();
+					InitFrontendNodeClasses();
+				}
+
 				virtual TUniquePtr<INode> CreateInputNode(FInputNodeConstructorParams&& InParams) const override
 				{
 					if constexpr (bIsParsable)
@@ -491,7 +548,6 @@ namespace Metasound
 				{
 					if constexpr (bIsParsable && bIsConstructorType)
 					{
-						checkf(!InParams.bEnableTransmission, TEXT("Cannot enable transmission on a constructor input."));
 						return MakeUnique<TInputNode<TDataType, EVertexAccessType::Value>>(MoveTemp(InParams));
 					}
 					else

@@ -98,7 +98,7 @@ namespace Metasound
 	class METASOUNDSTANDARDNODES_API TOutputNode<FStereoAudioFormat> : public FNode
 	{
 		// FOutputOperator primarly used to report inputs and outputs. Has no execute function.
-		class FOutputOperator : public IOperator
+		class FOutputOperator : public FNoOpOperator
 		{
 		public:
 			FOutputOperator(const FVertexName& InOutputName, TDataReadReference<FAudioBuffer> InLeft, TDataReadReference<FAudioBuffer> InRight, TDataReadReference<FStereoAudioFormat> InStereo)
@@ -130,16 +130,6 @@ namespace Metasound
 				Outputs.AddDataReadReference(OutputName, Stereo);
 
 				return Outputs;
-			}
-
-			virtual FExecuteFunction GetExecuteFunction() override
-			{
-				return nullptr;
-			}
-
-			virtual FResetFunction GetResetFunction() override
-			{
-				return nullptr;
 			}
 
 		private:
@@ -247,7 +237,7 @@ namespace Metasound
 	class METASOUNDSTANDARDNODES_API TInputNode<FStereoAudioFormat> : public FNode
 	{
 		// Noop operator. Used to return inputs / outputs for debugging.
-		class FInputOperator : public IOperator
+		class FInputOperator : public FNoOpOperator
 		{
 		public:
 
@@ -280,16 +270,6 @@ namespace Metasound
 				Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(RightChannelVertex), Right);
 
 				return Outputs;
-			}
-
-			virtual FExecuteFunction GetExecuteFunction() override
-			{
-				return nullptr;
-			}
-
-			virtual FResetFunction GetResetFunction() override
-			{
-				return nullptr;
 			}
 
 		private:
@@ -396,7 +376,7 @@ namespace Metasound
 	template<>
 	class METASOUNDSTANDARDNODES_API TOutputNode<FMonoAudioFormat> : public FNode
 	{
-		class FOutputOperator : public IOperator
+		class FOutputOperator : public FNoOpOperator
 		{
 		public:
 			FOutputOperator(const FVertexName& InOutputName, TDataReadReference<FAudioBuffer> InCenter, TDataReadReference<FMonoAudioFormat> InMono)
@@ -533,7 +513,7 @@ namespace Metasound
 	template<>
 	class METASOUNDSTANDARDNODES_API TInputNode<FMonoAudioFormat> : public FNode
 	{
-		class FInputOperator : public IOperator
+		class FInputOperator : public FNoOpOperator
 		{
 		public:
 

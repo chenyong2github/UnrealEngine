@@ -54,6 +54,7 @@ namespace Metasound
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 
+		virtual IOperator::FPostExecuteFunction GetPostExecuteFunction() override { return nullptr; }
 
 	protected:
 		FInt32ReadRef Seed;

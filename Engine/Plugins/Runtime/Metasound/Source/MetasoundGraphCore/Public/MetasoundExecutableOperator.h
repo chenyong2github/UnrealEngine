@@ -97,6 +97,17 @@ namespace Metasound
 		}
 	};
 
+	template<class DataType>
+	struct TPostExecutableDataType
+	{
+		static constexpr bool bIsPostExecutable = false;
+
+		/*
+		 * static void PostExecute(DataType& InOutData) { ... }
+		 */
+	};
+
+
 	/** Convenience class for supporting the IOperator interface's GetExecuteFunction virtual member function.
 	 *
 	 * Derived classes should inherit from this template class as well as implement a void Execute() member
@@ -112,7 +123,6 @@ namespace Metasound
 	 * 	  }
 	 * 	};
 	 */
-
 	template<class DerivedOperatorType>
 	class TExecutableOperator : public IOperator
 	{
@@ -130,6 +140,11 @@ namespace Metasound
 			return &TExecutableOperator<DerivedOperatorType>::ExecuteFunction;
 		}
 
+		virtual FPostExecuteFunction GetPostExecuteFunction() override
+		{
+			return nullptr;
+		}
+
 	private:
 
 		static void ExecuteFunction(IOperator* InOperator)
@@ -142,27 +157,36 @@ namespace Metasound
 		}
 	};
 
+	/** FNoOpOperator is for IOperators which do not perform any execution.
+	 * Their only behavior is to perform operations on constructor or through
+	 * the Bind(...) methods.
+	 */
 	class FNoOpOperator : public IOperator
 	{
 		public:
 			virtual ~FNoOpOperator() {}
 
-			FExecuteFunction GetExecuteFunction() override
+			virtual FExecuteFunction GetExecuteFunction() override
 			{
 				return nullptr;
 			}
 
-			FResetFunction GetResetFunction() override
+			virtual FResetFunction GetResetFunction() override
 			{
 				return nullptr;
 			}
 
-			FDataReferenceCollection GetInputs() const override
+			virtual FPostExecuteFunction GetPostExecuteFunction() override
+			{
+				return nullptr;
+			}
+
+			virtual FDataReferenceCollection GetInputs() const override
 			{
 				return FDataReferenceCollection{};
 			}
 
-			FDataReferenceCollection GetOutputs() const override
+			virtual FDataReferenceCollection GetOutputs() const override
 			{
 				return FDataReferenceCollection{};
 			}
@@ -176,17 +200,12 @@ namespace Metasound
 	{
 		public:
 			using FOperatorPtr = TUniquePtr<IOperator>;
-			using FExecuteFunction = IOperator::FExecuteFunction;
 
 			FExecuter()
-			:	ExecuteFunction(&FExecuter::NoOpExecute)
-			,	ResetFunction(&FExecuter::NoOpReset)
 			{
 			}
 
 			FExecuter(FOperatorPtr InOperator)
-			:	ExecuteFunction(&FExecuter::NoOpExecute)
-			,	ResetFunction(&FExecuter::NoOpReset)
 			{
 				SetOperator(MoveTemp(InOperator));
 			}
@@ -194,52 +213,46 @@ namespace Metasound
 			void SetOperator(FOperatorPtr InOperator)
 			{
 				Operator = MoveTemp(InOperator);
+
 				ExecuteFunction = nullptr;
+				PostExecuteFunction = nullptr;
 				ResetFunction = nullptr;
 
 				if (Operator.IsValid())
 				{
-					if (FExecuteFunction Func = Operator->GetExecuteFunction())
-					{
-						ExecuteFunction = Func;
-					}
-
-					if (FResetFunction Func = Operator->GetResetFunction())
-					{
-						ResetFunction = Func;
-					}
-				}
-
-				if (!ExecuteFunction)
-				{
-					ExecuteFunction = &FExecuter::NoOpExecute;
-				}
-
-				if (!ResetFunction)
-				{
-					ResetFunction = &FExecuter::NoOpReset;
+					ExecuteFunction = Operator->GetExecuteFunction();
+					PostExecuteFunction = Operator->GetPostExecuteFunction();
+					ResetFunction = Operator->GetResetFunction();
 				}
 			}
 
 			void Execute()
 			{
-				// ExecuteFunction is always non-null. If the contained operator
-				// does not provide a valid execution function, then a No-Op function
-				// is utilized. 
-				ExecuteFunction(Operator.Get());
+				if (ExecuteFunction)
+				{
+					ExecuteFunction(Operator.Get());
+				}
+			}
+
+			void PostExecute()
+			{
+				if (PostExecuteFunction)
+				{
+					PostExecuteFunction(Operator.Get());
+				}
 			}
 
 			void Reset(const IOperator::FResetParams& InParams)
 			{
-				// ResetFunction is always non-null. If the contained operator
-				// does not provide a valid initialization function, then a No-Op function
-				// is utilized. 
-				ResetFunction(Operator.Get(), InParams);
+				if (ResetFunction)
+				{
+					ResetFunction(Operator.Get(), InParams);
+				}
 			}
 
 			bool IsNoOp()
 			{
-				return (ExecuteFunction == &FExecuter::NoOpExecute) && (ResetFunction == &FExecuter::NoOpReset);
+				return (nullptr == ExecuteFunction) && (nullptr == ResetFunction) && (nullptr == PostExecuteFunction);
 			}
 
 			bool IsValid() const
@@ -271,12 +284,17 @@ namespace Metasound
 				return EmptyCollection;
 			}
 
-			virtual FExecuteFunction GetExecuteFunction() override
+			virtual IOperator::FExecuteFunction GetExecuteFunction() override
 			{
 				return ExecuteFunction;
 			}
 
-			virtual FResetFunction GetResetFunction() override
+			virtual IOperator::FPostExecuteFunction GetPostExecuteFunction() override
+			{
+				return PostExecuteFunction;
+			}
+
+			virtual IOperator::FResetFunction GetResetFunction() override
 			{
 				return ResetFunction;
 			}
@@ -284,15 +302,8 @@ namespace Metasound
 		private:
 			FOperatorPtr Operator;
 
-			FExecuteFunction ExecuteFunction;
-			FResetFunction ResetFunction;
-
-			static void NoOpExecute(IOperator*)
-			{
-			}
-
-			static void NoOpReset(IOperator*, const IOperator::FResetParams&)
-			{
-			}
+			IOperator::FExecuteFunction ExecuteFunction = nullptr;
+			IOperator::FPostExecuteFunction PostExecuteFunction = nullptr;
+			IOperator::FResetFunction ResetFunction = nullptr;
 	};
 }

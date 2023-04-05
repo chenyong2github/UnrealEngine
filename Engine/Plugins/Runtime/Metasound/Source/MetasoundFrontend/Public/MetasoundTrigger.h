@@ -189,24 +189,13 @@ namespace Metasound
 	};
 
 	template<>
-	struct TExecutableDataType<FTrigger>
+	struct TPostExecutableDataType<FTrigger>
 	{
-		static constexpr bool bIsExecutable = true;
+		static constexpr bool bIsPostExecutable = true;
 
-		static void Execute(FTrigger& InData, FTrigger& OutData)
+		static void PostExecute(FTrigger& InOutData)
 		{
-			OutData = InData;
-			InData.AdvanceBlock();
-		}
-
-		static void ExecuteInline(FTrigger& OutData, bool bInUpdated)
-		{
-			// Only advance (i.e. flush old triggers) if not updated.  If
-			// updated, leave trigger alone as it has new information.
-			if (!bInUpdated)
-			{
-				OutData.AdvanceBlock();
-			}
+			InOutData.AdvanceBlock();
 		}
 	};
 

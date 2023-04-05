@@ -27,6 +27,48 @@ namespace Metasound
 #if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
 		struct FRenderTimer;
 #endif // if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
+
+		struct FParameterSetter
+		{
+			Frontend::FLiteralAssignmentFunction Assign;
+			FAnyDataReference DataReference;
+		};
+
+		// In order to use FName as a key to a TSortedMap you have to explicitly 
+		// choose which comparison implementation you want to use.  Declaring the
+		// type here helps minimize the confusion over why there are so many 
+		// template arguments. 
+		using FParameterSetterSortedMap  = TSortedMap<FName, FParameterSetter, FDefaultAllocator, FNameFastLess>;
+
+		// A struct that provides a method of pushing "raw" data from a parameter pack into a specific metasound input node.
+		struct FParameterPackSetter
+		{
+			FName DataType;
+			void* Destination;
+			const Frontend::IParameterAssignmentFunction& Setter;
+			FParameterPackSetter(FName InDataType, void* InDestination, const Frontend::IParameterAssignmentFunction& InSetter)
+				: DataType(InDataType)
+				, Destination(InDestination)
+				, Setter(InSetter)
+			{}
+			void SetParameterWithPayload(const void* ParameterPayload) const
+			{
+				Setter(ParameterPayload, Destination);
+			}
+		};
+
+		struct FMetasoundGeneratorData
+		{
+			FOperatorSettings OperatorSettings;
+			TUniquePtr<IOperator> GraphOperator;
+			FVertexInterfaceData VertexInterfaceData;
+			FParameterSetterSortedMap ParameterSetters;
+			TMap<FName, FParameterPackSetter> ParameterPackSetters;
+			TUniquePtr<Frontend::FGraphAnalyzer> GraphAnalyzer;
+			TArray<TDataReadReference<FAudioBuffer>> OutputBuffers;
+			FTriggerWriteRef TriggerOnPlayRef;
+			FTriggerReadRef TriggerOnFinishRef;
+		};
 	}
 
 	// Struct needed for building the metasound graph
@@ -40,37 +82,9 @@ namespace Metasound
 		TArray<FVertexName> AudioOutputNames;
 		TArray<FAudioParameter> DefaultParameters;
 		bool bBuildSynchronous = false;
+		TSharedPtr<TSpscQueue<FMetaSoundParameterTransmitter::FParameter>> DataChannel;
 
 		void Release();
-	};
-
-	// A struct that provides a method of pushing "raw" data from a parameter pack into a specific metasound input node.
-	struct FParameterSetter
-	{
-		FName DataType;
-		void* Destination;
-		const Frontend::IParameterAssignmentFunction& Setter;
-		FParameterSetter(FName InDataType, void* InDestination, const Frontend::IParameterAssignmentFunction& InSetter)
-			: DataType(InDataType)
-			, Destination(InDestination)
-			, Setter(InSetter)
-		{}
-		void SetParameterWithPayload(const void* ParameterPayload) const
-		{
-			Setter(ParameterPayload, Destination);
-		}
-	};
-
-	struct FMetasoundGeneratorData
-	{
-		FOperatorSettings OperatorSettings;
-		TUniquePtr<IOperator> GraphOperator;
-		FVertexInterfaceData VertexInterfaceData;
-		TMap<FName, FParameterSetter> ParameterSetters;
-		TUniquePtr<Frontend::FGraphAnalyzer> GraphAnalyzer;
-		TArray<TDataReadReference<FAudioBuffer>> OutputBuffers;
-		FTriggerWriteRef TriggerOnPlayRef;
-		FTriggerReadRef TriggerOnFinishRef;
 	};
 
 	class FMetasoundGenerator;
@@ -90,8 +104,13 @@ namespace Metasound
 		}
 
 	private:
-		FMetasoundGeneratorData BuildGeneratorData(const FMetasoundGeneratorInitParams& InInitParams, TUniquePtr<IOperator> InOperator, TUniquePtr<Frontend::FGraphAnalyzer> InAnalyzer) const;
-		TUniquePtr<IOperator> BuildGraphOperator(TArray<FAudioParameter>&& InParameters, FBuildResults& OutBuildResults) const;
+		struct FGraphOperatorAndInputs
+		{
+			TUniquePtr<IOperator> Operator;
+			FInputVertexInterfaceData Inputs;
+		};
+		MetasoundGeneratorPrivate::FMetasoundGeneratorData BuildGeneratorData(const FMetasoundGeneratorInitParams& InInitParams, FGraphOperatorAndInputs&& InOperatorAndInputs, TUniquePtr<Frontend::FGraphAnalyzer> InAnalyzer) const;
+		FGraphOperatorAndInputs BuildGraphOperator(TArray<FAudioParameter>&& InParameters, FBuildResults& OutBuildResults) const;
 		TUniquePtr<Frontend::FGraphAnalyzer> BuildGraphAnalyzer(TMap<FGuid, FDataReferenceCollection>&& InInternalDataReferences) const;
 		void LogBuildErrors(const FBuildResults& InBuildResults) const;
 		TArray<FAudioBufferReadRef> FindOutputAudioBuffers(const FVertexInterfaceData& InVertexData) const;
@@ -225,6 +244,13 @@ namespace Metasound
 
 #endif // if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
 		
+
+		// Called when a new graph has been "compiled" and set up as this generator's graph.
+		FOnSetGraph OnSetGraph;
+
+	private:
+		friend class FAsyncMetaSoundBuilder;
+
 		/** Update the current graph operator with a new graph operator. The number of channels
 		 * of InGraphOutputAudioRef must match the existing number of channels reported by
 		 * GetNumChannels() in order for this function to successfully replace the graph operator.
@@ -232,18 +258,13 @@ namespace Metasound
 		 * @param InData - Metasound data of built graph.
 		 * @param bTriggerGraph - If true, "OnPlay" will be triggered on the new graph.
 		 */
-		void SetPendingGraph(FMetasoundGeneratorData&& InData, bool bTriggerGraph);
+		void SetPendingGraph(MetasoundGeneratorPrivate::FMetasoundGeneratorData&& InData, bool bTriggerGraph);
 		void SetPendingGraphBuildFailed();
-
-		// Called when a new graph has been "compiled" and set up as this generator's graph.
-		FOnSetGraph OnSetGraph;
-
-	private:
 
 		bool UpdateGraphIfPending();
 
 		// Internal set graph after checking compatibility.
-		void SetGraph(TUniquePtr<FMetasoundGeneratorData>&& InData, bool bTriggerGraph);
+		void SetGraph(TUniquePtr<MetasoundGeneratorPrivate::FMetasoundGeneratorData>&& InData, bool bTriggerGraph);
 
 		// Fill OutAudio with data in InBuffer, up to maximum number of samples.
 		// Returns the number of samples used.
@@ -252,7 +273,7 @@ namespace Metasound
 		// Metasound creates deinterleaved audio while sound generator requires interleaved audio.
 		void InterleaveGeneratedAudio();
 		
-		void UnpackAndTransmitUpdatedParameters();
+		void ApplyPendingUpdatesToInputs();
 
 		FExecuter RootExecuter;
 		FVertexInterfaceData VertexInterfaceData;
@@ -282,12 +303,15 @@ namespace Metasound
 		TUniquePtr<FBuilderTask> BuilderTask;
 
 		FCriticalSection PendingGraphMutex;
-		TUniquePtr<FMetasoundGeneratorData> PendingGraphData;
+		TUniquePtr<MetasoundGeneratorPrivate::FMetasoundGeneratorData> PendingGraphData;
 		bool bPendingGraphTrigger;
 		bool bIsNewGraphPending;
 		bool bIsWaitingForFirstGraph;
 
 		TUniquePtr<Frontend::FGraphAnalyzer> GraphAnalyzer;
+
+		TSharedPtr<TSpscQueue<FMetaSoundParameterTransmitter::FParameter>> ParameterQueue;
+		MetasoundGeneratorPrivate::FParameterSetterSortedMap ParameterSetters;
 
 		// These next items are needed to provide a destination for the FAudioDevice, etc. to
 		// send parameter packs to. Every playing metasound will have a parameter destination
@@ -297,7 +321,7 @@ namespace Metasound
 		
 		// This map provides setters for all of the input nodes in the metasound graph. 
 		// It is used when processing named parameters in a parameter pack.
-		TMap<FName, FParameterSetter> ParameterSetters;
+		TMap<FName, MetasoundGeneratorPrivate::FParameterPackSetter> ParameterPackSetters;
 
 		// While parameter packs may arrive via the IAudioParameterInterface system,
 		// a faster method of sending parameters is via the QueueParameterPack function 

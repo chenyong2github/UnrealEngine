@@ -31,10 +31,20 @@ namespace Metasound
 		{
 		}
 
-		void FNonExecutableInputOperatorBase::Bind(FVertexInterfaceData& InVertexData) const
+		void FNonExecutableInputOperatorBase::Bind(FVertexInterfaceData& InOutVertexData) const
 		{
-			InVertexData.GetInputs().BindVertex(VertexName, DataRef);
-			InVertexData.GetOutputs().BindVertex(VertexName, DataRef);
+			BindInputs(InOutVertexData.GetInputs());
+			BindOutputs(InOutVertexData.GetOutputs());
+		}
+
+		void FNonExecutableInputOperatorBase::BindInputs(FInputVertexInterfaceData& InOutVertexData) const
+		{
+			InOutVertexData.BindVertex(VertexName, DataRef);
+		}
+
+		void FNonExecutableInputOperatorBase::BindOutputs(FOutputVertexInterfaceData& InOutVertexData) const
+		{
+			InOutVertexData.BindVertex(VertexName, DataRef);
 		}
 
 		IOperator::FExecuteFunction FNonExecutableInputOperatorBase::GetExecuteFunction()
@@ -42,7 +52,12 @@ namespace Metasound
 			return nullptr;
 		}
 
-		IOperator::FResetFunction FNonExecutableInputPassThroughOperator::GetResetFunction() 
+		IOperator::FPostExecuteFunction FNonExecutableInputOperatorBase::GetPostExecuteFunction()
+		{
+			return nullptr;
+		}
+
+		IOperator::FResetFunction FNonExecutableInputOperatorBase::GetResetFunction() 
 		{
 			return nullptr;
 		}
