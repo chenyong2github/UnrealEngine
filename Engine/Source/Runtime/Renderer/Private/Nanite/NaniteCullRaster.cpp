@@ -216,13 +216,6 @@ static TAutoConsoleVariable<int32> CVarLargePageRectThreshold(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarNaniteDisocclusionHack(
-	TEXT("r.Nanite.DisocclusionHack"),
-	0,
-	TEXT("HACK that lowers LOD level of disoccluded instances to mitigate performance spikes"),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarNanitePersistentThreadsCulling(
 	TEXT("r.Nanite.PersistentThreadsCulling"),
 	1,
@@ -357,7 +350,6 @@ BEGIN_SHADER_PARAMETER_STRUCT( FCullingParameters, )
 	SHADER_PARAMETER( uint32,		DebugFlags )
 	SHADER_PARAMETER( uint32,		NumViews )
 	SHADER_PARAMETER( uint32,		NumPrimaryViews )
-	SHADER_PARAMETER( float,		DisocclusionLodScaleFactor )
 
 	SHADER_PARAMETER( FVector2f,	HZBSize )
 
@@ -3792,13 +3784,9 @@ void CullRasterize(
 
 	FCullingParameters CullingParameters;
 	{
-		// Never use the disocclusion hack with virtual shadows as it interacts very poorly with caching that first frame
-		const bool bDisocclusionHack = CVarNaniteDisocclusionHack.GetValueOnRenderThread() && !VirtualShadowMapArray;
-
 		CullingParameters.InViews						= GraphBuilder.CreateSRV(CullingContext.ViewsBuffer);
 		CullingParameters.NumViews						= ViewArray.NumViews;
 		CullingParameters.NumPrimaryViews				= ViewArray.NumPrimaryViews;
-		CullingParameters.DisocclusionLodScaleFactor	= bDisocclusionHack ? 0.01f : 1.0f;	// TODO: Get rid of this hack
 		CullingParameters.HZBTexture					= RegisterExternalTextureWithFallback(GraphBuilder, CullingContext.PrevHZB, GSystemTextures.BlackDummy);
 		CullingParameters.HZBSize						= CullingContext.PrevHZB ? CullingContext.PrevHZB->GetDesc().Extent : FVector2f(0.0f);
 		CullingParameters.HZBSampler					= TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();

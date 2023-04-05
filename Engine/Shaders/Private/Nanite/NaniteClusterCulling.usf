@@ -78,7 +78,6 @@ RWBuffer<uint>							VisibleClustersArgsSWHW;
 RWStructuredBuffer<FNaniteStats>		OutStatsBuffer;
 #endif
 
-float									DisocclusionLodScaleFactor;	// TODO: HACK: Force LOD down first frame an instance is visible to mitigate disocclusion spikes.
 uint									LargePageRectThreshold;
 uint									StreamingRequestsBufferVersion;
 
@@ -203,10 +202,6 @@ struct FNaniteTraversalClusterCullCallback
 		CandidateNode = UnpackCandidateNode(NodeData, bIsPostPass);
 
 		NaniteView = GetNaniteView(CandidateNode.ViewId);
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-		if (CandidateNode.Flags & NANITE_CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE)
-			NaniteView.LODScale *= DisocclusionLodScaleFactor;
-#endif
 
 		InstanceData = GetInstanceSceneData(CandidateNode.InstanceId, false);
 	}
@@ -396,11 +391,6 @@ struct FNaniteTraversalClusterCullCallback
 		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster.InstanceId, false);
 		FNaniteView NaniteView = GetNaniteView(VisibleCluster.ViewId);
 		FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-		if (VisibleCluster.Flags & NANITE_CULLING_FLAG_FROM_DISOCCLUDED_INSTANCE)
-			NaniteView.LODScale *= DisocclusionLodScaleFactor;
-#endif
 
 		FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
