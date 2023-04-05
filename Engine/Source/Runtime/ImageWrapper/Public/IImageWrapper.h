@@ -84,15 +84,18 @@ enum class ERGBFormat : int8
  * JPEG interprets Quality as 1-100
  * JPEG default quality is 85 , Uncompressed means 100
  * 
- * Negative qualities set PNG zlib level
+ * for PNG:
+ * Negative qualities in [-1,-9] set PNG zlib level
  * PNG interprets "Uncompressed" as zlib level 0 (none)
+ * otherwise default zlib level 3 is used.
  * 
- * EXR respects the "Uncompressed" flag
+ * EXR respects the "Uncompressed" flag to turn off compression; otherwise ZIP_COMPRESSION is used.
  */
-enum class EImageCompressionQuality : uint8
+enum class EImageCompressionQuality : int8
 {
 	Default = 0,
 	Uncompressed = 1,
+	Max = 100,
 };
 
 

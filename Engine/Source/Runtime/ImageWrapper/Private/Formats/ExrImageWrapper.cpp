@@ -190,6 +190,8 @@ static int32 GetChannelNames(ERGBFormat InRGBFormat, const char* const*& OutChan
 
 bool FExrImageWrapper::CanSetRawFormat(const ERGBFormat InFormat, const int32 InBitDepth) const
 {
+	// only set float formats
+	//	integer formats should be converted before reaching ImageWrapper
 	return (InFormat == ERGBFormat::RGBAF || InFormat == ERGBFormat::GrayF) && (InBitDepth == 16 || InBitDepth == 32);
 }
 
