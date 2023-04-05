@@ -7,7 +7,6 @@
 
 #include "ChaosFlesh/Cmd/ChaosFleshCommands.h"
 #include "ChaosFlesh/Asset/AssetTypeActions_FleshAsset.h"
-#include "ChaosFlesh/Asset/AssetTypeActions_ChaosDeformableSolverAsset.h"
 #include "ChaosFlesh/Asset/FleshAssetThumbnailRenderer.h"
 
 #define LOCTEXT_NAMESPACE "FleshEditor"
@@ -22,8 +21,6 @@ void IChaosFleshEditorPlugin::StartupModule()
 	IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
 	FleshAssetActions = new FAssetTypeActions_FleshAsset();
 	AssetTools.RegisterAssetTypeActions(MakeShareable(FleshAssetActions));
-	ChaosDeformableSolverAssetActions = new FAssetTypeActions_ChaosDeformableSolver();
-	AssetTools.RegisterAssetTypeActions(MakeShareable(ChaosDeformableSolverAssetActions));
 
 
 	if (GIsEditor && !IsRunningCommandlet())
@@ -60,7 +57,6 @@ void IChaosFleshEditorPlugin::ShutdownModule()
 
 		IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
 		AssetTools.UnregisterAssetTypeActions(FleshAssetActions->AsShared());
-		AssetTools.UnregisterAssetTypeActions(ChaosDeformableSolverAssetActions->AsShared());
 	}
 }
 
