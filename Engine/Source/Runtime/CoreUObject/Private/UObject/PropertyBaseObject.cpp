@@ -687,7 +687,7 @@ void FObjectPropertyBase::CheckValidObject(void* ValueAddress, TObjectPtr<UObjec
 					TEXT("Serialized %s for a property of %s. Reference will be reverted back to %s.\n    Property = %s\n    Item = %s"),
 					*ObjectClass->GetFullName(),
 					*PropertyClass->GetFullName(),
-					OldValue ? *OldValue->GetFullName() : TEXT("None"), ,
+					OldValue ? *OldValue->GetFullName() : TEXT("None"),
 					*GetFullName(),
 					*Object.GetFullName()
 				);
