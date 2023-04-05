@@ -12,6 +12,7 @@
 #include "Texture/InterchangeTexturePayloadInterface.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+#include "Gltf/InterchangeGLTFMaterialInstance.h"
 
 #include "InterchangeGltfTranslator.generated.h"
 
@@ -32,6 +33,8 @@ class UInterchangeGltfTranslator : public UInterchangeTranslatorBase
 	GENERATED_BODY()
 
 public:
+	UInterchangeGltfTranslator();
+
 	/** Begin UInterchangeTranslatorBase API*/
 	virtual EInterchangeTranslatorType GetTranslatorType() const override;
 	virtual EInterchangeTranslatorAssetType GetSupportedAssetTypes() const override;
@@ -58,6 +61,9 @@ public:
 	/* IInterchangeVariantSetPayloadInterface Begin */
 	virtual TFuture<TOptional<UE::Interchange::FVariantSetPayloadData>> GetVariantSetPayloadData(const FString& PayloadKey) const override;
 	/* IInterchangeVariantSetPayloadInterface End */
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GLTF", DisplayName = "Material Settings")
+	FGLTFMaterialInstanceSettings MaterialInstanceSettings;
 
 protected:
 	using FNodeUidMap = TMap<const GLTF::FNode*, FString>;
@@ -86,7 +92,7 @@ protected:
 	bool GetVariantSetPayloadData(UE::Interchange::FVariantSetPayloadData& PayloadData) const;
 
 private:
-	void SetTextureSRGB(UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FTextureMap& TextureMap) const;
+	void SetTextureSRGB(UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FTextureMap& TextureMap, bool bSRGB) const;
 	void SetTextureFlipGreenChannel(UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FTextureMap& TextureMap) const;
 
 	GLTF::FAsset GltfAsset;

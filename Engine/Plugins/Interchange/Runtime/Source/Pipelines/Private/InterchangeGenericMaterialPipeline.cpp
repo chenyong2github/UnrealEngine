@@ -19,6 +19,7 @@
 #include "Materials/Material.h"
 #include "Misc/PackageName.h"
 #include "Nodes/InterchangeBaseNode.h"
+#include "InterchangeMaterialInstanceNode.h"
 
 #include "Materials/MaterialExpressionAdd.h"
 #include "Materials/MaterialExpressionComponentMask.h"
@@ -573,13 +574,11 @@ void UInterchangeGenericMaterialPipeline::ExecutePipeline(UInterchangeBaseNodeCo
 		SourceNode->GetCustomImportUnusedMaterial(bImportUnusedMaterial);
 	}
 
-#if !WITH_EDITOR
 	// Can't import materials at runtime, fallback to instances
-	if (MaterialImport == EInterchangeMaterialImportOption::ImportAsMaterials)
+	if (FApp::IsGame() && MaterialImport == EInterchangeMaterialImportOption::ImportAsMaterials)
 	{
 		MaterialImport = EInterchangeMaterialImportOption::ImportAsMaterialInstances;
 	}
-#endif // !WITH_EDITOR
 
 	if (MaterialImport == EInterchangeMaterialImportOption::ImportAsMaterials)
 	{
@@ -610,6 +609,111 @@ void UInterchangeGenericMaterialPipeline::ExecutePipeline(UInterchangeBaseNodeCo
 			if (UInterchangeMaterialInstanceFactoryNode* MaterialInstanceFactoryNode = CreateMaterialInstanceFactoryNode(ShaderGraphNode))
 			{
 				MaterialInstanceFactoryNode->SetEnabled(bImportUnusedMaterial);
+			}
+		}
+	}
+
+	TArray<UInterchangeMaterialInstanceNode*> MaterialInstanceNodes;
+	BaseNodeContainer->IterateNodesOfType<UInterchangeMaterialInstanceNode>([&MaterialInstanceNodes](const FString& NodeUid, UInterchangeMaterialInstanceNode* MaterialNode)
+		{
+			MaterialInstanceNodes.Add(MaterialNode);
+		});
+
+	for (UInterchangeMaterialInstanceNode* MaterialNode : MaterialInstanceNodes)
+	{
+		FString ParentPath;
+
+		if (!MaterialNode->GetCustomParent(ParentPath) || ParentPath.IsEmpty())
+		{
+			continue;
+		}
+
+
+		UInterchangeMaterialInstanceFactoryNode* MaterialFactoryNode = nullptr;
+		FString DisplayLabel = MaterialNode->GetDisplayLabel();
+		const FString NodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(MaterialNode->GetUniqueID());
+		if (BaseNodeContainer->IsNodeUidValid(NodeUid))
+		{
+			//The node already exist, just return it
+			MaterialFactoryNode = Cast<UInterchangeMaterialInstanceFactoryNode>(BaseNodeContainer->GetFactoryNode(NodeUid));
+			if (!MaterialFactoryNode)
+			{
+				continue;
+			}
+		}
+		else
+		{
+			MaterialFactoryNode = NewObject<UInterchangeMaterialInstanceFactoryNode>(BaseNodeContainer);
+			if (!ensure(MaterialFactoryNode))
+			{
+				MaterialFactoryNode = nullptr;
+			}
+			//Creating a Material
+			MaterialFactoryNode->InitializeNode(NodeUid, DisplayLabel, EInterchangeNodeContainerType::FactoryData);
+
+			BaseNodeContainer->AddNode(MaterialFactoryNode);
+			MaterialFactoryNodes.Add(MaterialFactoryNode);
+			MaterialFactoryNode->AddTargetNodeUid(MaterialNode->GetUniqueID());
+			MaterialNode->AddTargetNodeUid(MaterialFactoryNode->GetUniqueID());
+		}
+
+
+		// Set MaterialFactoryNode's display label to MaterialNode's uniqueID
+		// to reconcile mesh's slot names and material assets
+		MaterialFactoryNode->SetDisplayLabel(MaterialNode->GetAssetName());
+		MaterialFactoryNode->SetCustomParent(ParentPath);
+
+		const UClass* MaterialClass = FApp::IsGame() ? UMaterialInstanceDynamic::StaticClass() : UMaterialInstanceConstant::StaticClass();
+		MaterialFactoryNode->SetCustomInstanceClassName(MaterialClass->GetPathName());
+
+		TArray<FString> Inputs;
+		UInterchangeShaderPortsAPI::GatherInputs(MaterialNode, Inputs);
+
+		for (const FString& InputName : Inputs)
+		{
+			FName InputValueKey = UInterchangeShaderPortsAPI::MakeInputValueKey(InputName);
+
+			switch (UInterchangeShaderPortsAPI::GetInputType(MaterialNode, InputName))
+			{
+			case UE::Interchange::EAttributeTypes::Bool:
+			{
+				bool AttributeValue = false;
+				MaterialNode->GetBooleanAttribute(InputValueKey, AttributeValue);
+				MaterialFactoryNode->AddBooleanAttribute(InputValueKey, AttributeValue);
+			}
+			break;
+			case UE::Interchange::EAttributeTypes::Int32:
+			{
+				int32 AttributeValue = 0;
+				MaterialNode->GetInt32Attribute(InputValueKey, AttributeValue);
+				MaterialFactoryNode->AddInt32Attribute(InputValueKey, AttributeValue);
+			}
+			break;
+			case UE::Interchange::EAttributeTypes::Float:
+			{
+				float AttributeValue = 0.f;
+				MaterialNode->GetFloatAttribute(InputValueKey, AttributeValue);
+				MaterialFactoryNode->AddFloatAttribute(InputValueKey, AttributeValue);
+			}
+			break;
+			case UE::Interchange::EAttributeTypes::LinearColor:
+			{
+				FLinearColor AttributeValue = FLinearColor::White;
+				MaterialNode->GetLinearColorAttribute(InputValueKey, AttributeValue);
+				MaterialFactoryNode->AddLinearColorAttribute(InputValueKey, AttributeValue);
+			}
+			break;
+			case UE::Interchange::EAttributeTypes::String:
+			{
+				FString TextureUid;
+				MaterialNode->GetStringAttribute(InputValueKey, TextureUid);
+
+				FString FactoryTextureUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(TextureUid);
+
+				MaterialFactoryNode->AddStringAttribute(InputValueKey, FactoryTextureUid);
+				MaterialFactoryNode->AddFactoryDependencyUid(FactoryTextureUid);
+			}
+			break;
 			}
 		}
 	}

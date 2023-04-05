@@ -52,6 +52,13 @@ static FAutoConsoleVariableRef CCvarInterchangeEnableGLTFImport(
 	TEXT("Whether glTF support is enabled."),
 	ECVF_Default);
 
+static int GInterchangeGLTFUseMaterialInstancing = 0;
+static FAutoConsoleVariableRef CCvarInterchangeGLTFUseMaterialInstancing(
+	TEXT("Interchange.FeatureFlags.Import.GLTF.UseMaterialInstancing"),
+	GInterchangeGLTFUseMaterialInstancing,
+	TEXT("Whether glTF uses Material Instances."),
+	ECVF_Default);
+
 static const TArray<FString> ImporterSupportedExtensions = {
 	/* Lights */
 	GLTF::ToString(GLTF::EExtension::KHR_LightsPunctual),
@@ -513,15 +520,6 @@ void UInterchangeGltfTranslator::HandleGltfMaterial( UInterchangeBaseNodeContain
 	using namespace UE::Interchange::Materials;
 
 	ShaderGraphNode.SetCustomTwoSided( GltfMaterial.bIsDoubleSided );
-
-	//Based on the gltf specification the basecolor and emissive textures have SRGB colors:
-	SetTextureSRGB(NodeContainer, GltfMaterial.BaseColor);
-	SetTextureSRGB(NodeContainer, GltfMaterial.Emissive);
-	//According to GLTF documentation the normal maps are right handed (following OpenGL convention),
-	//however UE expects left handed normal maps, this can be resolved by flipping the green channel of the normal textures:
-	//(based on https://github.com/KhronosGroup/glTF-Sample-Models/tree/master/2.0/NormalTangentTest#problem-flipped-y-axis-or-flipped-green-channel)
-	SetTextureFlipGreenChannel(NodeContainer, GltfMaterial.Normal);
-	SetTextureFlipGreenChannel(NodeContainer, GltfMaterial.ClearCoat.NormalMap);
 
 	if (GltfMaterial.bIsUnlitShadingModel)
 	{
@@ -990,7 +988,7 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 		SendAnalytics(TranslationResult::INPUT_FILE_NOTFOUND);
 		return false;
 	}
-
+	
 	GLTF::FFileReader GltfFileReader;
 
 	const bool bLoadImageData = false;
@@ -1120,11 +1118,74 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 		int32 MaterialIndex = 0;
 		for ( const GLTF::FMaterial& GltfMaterial : GltfAsset.Materials )
 		{
-			UInterchangeShaderGraphNode* ShaderGraphNode = UInterchangeShaderGraphNode::Create(&NodeContainer, GltfMaterial.UniqueId);
-			ShaderGraphNode->SetDisplayLabel(GltfMaterial.Name);
+			//Based on the gltf specification the basecolor and emissive textures have SRGB colors:
+			SetTextureSRGB(NodeContainer, GltfMaterial.BaseColor, true);
+			SetTextureSRGB(NodeContainer, GltfMaterial.Emissive, true);
+			//Textures that are expected to use Scalar outputs we want to set them as SRGB false explicitly, based on UInterchangeGenericMaterialPipeline::HandleTextureNode
+			SetTextureSRGB(NodeContainer, GltfMaterial.MetallicRoughness.Map, false);
+			SetTextureSRGB(NodeContainer, GltfMaterial.Occlusion, false);
+			SetTextureSRGB(NodeContainer, GltfMaterial.ClearCoat.ClearCoatMap, false);
+			SetTextureSRGB(NodeContainer, GltfMaterial.ClearCoat.RoughnessMap, false);
+			SetTextureSRGB(NodeContainer, GltfMaterial.Transmission.TransmissionMap, false);
 
-			bool bUseVertexColor = MaterialsUsedOnMeshesWithVertexColor.Contains(ShaderGraphNode->GetUniqueID());
-			HandleGltfMaterial( NodeContainer, GltfMaterial, *ShaderGraphNode, bUseVertexColor );
+			//According to GLTF documentation the normal maps are right handed (following OpenGL convention),
+			//however UE expects left handed normal maps, this can be resolved by flipping the green channel of the normal textures:
+			//(based on https://github.com/KhronosGroup/glTF-Sample-Models/tree/master/2.0/NormalTangentTest#problem-flipped-y-axis-or-flipped-green-channel)
+			SetTextureFlipGreenChannel(NodeContainer, GltfMaterial.Normal);
+			SetTextureFlipGreenChannel(NodeContainer, GltfMaterial.ClearCoat.NormalMap);
+
+			const FString ShaderGraphNodeUid = UInterchangeShaderGraphNode::MakeNodeUid(GltfMaterial.UniqueId);
+			bool bUseVertexColor = MaterialsUsedOnMeshesWithVertexColor.Contains(ShaderGraphNodeUid);
+
+			if (FApp::IsGame() || GInterchangeGLTFUseMaterialInstancing == 1)
+			{
+				//Only create MaterialInstances
+				if (!MaterialInstanceSettings.ProcessGltfMaterial(NodeContainer, GltfMaterial, GltfAsset.Textures))
+				{
+					UE_LOG(LogInterchangeImport, Warning, TEXT("GLTF MaterialInstance Creation failed to find appropriate ParentMaterial. Material.UniqueID: %s"), *GltfMaterial.UniqueId);
+				}
+			}
+			else if (GInterchangeGLTFUseMaterialInstancing == 2)
+			{
+				//Create ShaderGraphNodes and convert to MaterialInstances
+				//Use the correct UIDs on MaterialInstances so that they get applied onto meshes
+				UInterchangeShaderGraphNode* ShaderGraphNode = UInterchangeShaderGraphNode::Create(&NodeContainer, TEXT("Gltf_MI_AttributeIdentifier_") + GltfMaterial.UniqueId);
+				ShaderGraphNode->SetDisplayLabel(TEXT("Gltf_MI_AttributeIdentifier_") + GltfMaterial.Name);
+
+				HandleGltfMaterial(NodeContainer, GltfMaterial, *ShaderGraphNode, bUseVertexColor);
+
+				if (!MaterialInstanceSettings.AddGltfMaterialValuesToShaderGraphNode(GltfMaterial, GltfAsset.Textures, ShaderGraphNode))
+				{
+					UE_LOG(LogInterchangeImport, Warning, TEXT("GLTF MaterialInstance Creation failed to find appropriate ParentMaterial. Material.UniqueID: %s"), *GltfMaterial.UniqueId);
+				}
+				else
+				{
+					FGLTFMaterialInstanceSettings::CreateMaterialInstanceFromShaderGraphNode(NodeContainer, ShaderGraphNode);
+				}
+			}
+			else if (GInterchangeGLTFUseMaterialInstancing == 3)
+			{
+				//Store Gltf Material Attribute values in ShaderGraphNode but do not create MaterialInstances
+				//Test in preparation for Gltf Pipeline:
+				UInterchangeShaderGraphNode* ShaderGraphNode = UInterchangeShaderGraphNode::Create(&NodeContainer, GltfMaterial.UniqueId);
+				ShaderGraphNode->SetDisplayLabel(GltfMaterial.Name);
+
+				HandleGltfMaterial(NodeContainer, GltfMaterial, *ShaderGraphNode, bUseVertexColor);
+
+				if (!MaterialInstanceSettings.AddGltfMaterialValuesToShaderGraphNode(GltfMaterial, GltfAsset.Textures, ShaderGraphNode))
+				{
+					UE_LOG(LogInterchangeImport, Warning, TEXT("GLTF MaterialInstance Creation failed to find appropriate ParentMaterial. Material.UniqueID: %s"), *GltfMaterial.UniqueId);
+				}
+			}
+			else
+			{
+				//Only create ShaderGraphNodes:
+				UInterchangeShaderGraphNode* ShaderGraphNode = UInterchangeShaderGraphNode::Create(&NodeContainer, GltfMaterial.UniqueId);
+				ShaderGraphNode->SetDisplayLabel(GltfMaterial.Name);
+
+				HandleGltfMaterial(NodeContainer, GltfMaterial, *ShaderGraphNode, bUseVertexColor);
+			}
+			
 			++MaterialIndex;
 		}
 	}
@@ -1704,14 +1765,14 @@ void UInterchangeGltfTranslator::HandleGltfAnimation(UInterchangeBaseNodeContain
 	NodeContainer.AddNode(TrackSetNode);
 }
 
-void UInterchangeGltfTranslator::SetTextureSRGB(UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FTextureMap& TextureMap) const
+void UInterchangeGltfTranslator::SetTextureSRGB(UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FTextureMap& TextureMap, bool bSRGB) const
 {
 	if (GltfAsset.Textures.IsValidIndex(TextureMap.TextureIndex))
 	{
 		const FString TextureUid = UInterchangeTextureNode::MakeNodeUid(GltfAsset.Textures[TextureMap.TextureIndex].UniqueId);
 		if (UInterchangeTextureNode* TextureNode = const_cast<UInterchangeTextureNode*>(Cast<UInterchangeTextureNode>(NodeContainer.GetNode(TextureUid))))
 		{
-			TextureNode->SetCustomSRGB(true);
+			TextureNode->SetCustomSRGB(bSRGB);
 		}
 	}
 }
@@ -2171,6 +2232,21 @@ UInterchangeMeshNode* UInterchangeGltfTranslator::HandleGltfMesh(UInterchangeBas
 	}
 
 	return MeshNode;
+}
+
+UInterchangeGltfTranslator::UInterchangeGltfTranslator()
+{
+	if (!HasAllFlags(RF_ClassDefaultObject))
+	{
+		if (FApp::IsGame() || GInterchangeGLTFUseMaterialInstancing)
+		{
+			TArray<FString> MaterialInstanceIssues = MaterialInstanceSettings.ValidateMaterialInstancesAndParameters();
+			for (const FString& MaterialInstanceIssue : MaterialInstanceIssues)
+			{
+				UE_LOG(LogInterchangeImport, Warning, TEXT("%s"), *MaterialInstanceIssue);
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
