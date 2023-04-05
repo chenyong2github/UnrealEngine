@@ -3,6 +3,7 @@
 #include "MuR/NullExtensionDataStreamer.h"
 
 #include "MuR/ExtensionData.h"
+#include "Templates/SharedPointer.h"
 
 namespace mu
 {

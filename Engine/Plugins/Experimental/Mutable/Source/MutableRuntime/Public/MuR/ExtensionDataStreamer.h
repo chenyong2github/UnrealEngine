@@ -7,6 +7,7 @@
 #include "MuR/RefCounted.h"
 #include "MuR/Serialisation.h"
 #include "MuR/Types.h"
+#include "Templates/SharedPointerFwd.h"
 
 namespace mu
 {
