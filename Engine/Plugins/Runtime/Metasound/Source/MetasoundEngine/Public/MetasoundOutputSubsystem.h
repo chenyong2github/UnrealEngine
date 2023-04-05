@@ -2,28 +2,12 @@
 
 #pragma once
 
-#include "MetasoundOutput.h"
-#include "MetasoundOutputWatcher.h"
-#include "Containers/Queue.h"
-#include "Containers/Map.h"
+#include "MetasoundGeneratorHandle.h"
 #include "Subsystems/WorldSubsystem.h"
 
 #include "MetasoundOutputSubsystem.generated.h"
 
-namespace Metasound
-{
-	namespace Frontend
-	{
-		class FAnalyzerAddress;
-	}
-
-	class FMetasoundGenerator;
-}
-
 class UAudioComponent;
-class UMetaSoundSource;
-
-DECLARE_DYNAMIC_DELEGATE_OneParam(FOnMetasoundOutputValueChanged, const FMetaSoundOutput&, Output);
 
 /**
  * Provides access to a playing Metasound generator's outputs
@@ -60,39 +44,7 @@ public:
 	virtual TStatId GetStatId() const override;
 	/** End UTickableWorldSubsystem */
 
-	/**
-	 * Map a type name to a passthrough analyzer name to use as a default for UMetasoundOutputSubsystem::WatchOutput()
-	 *
-	 * @param TypeName - The type name returned from GetMetasoundDataTypeName()
-	 * @param AnalyzerName - The name of the analyzer to use
-	 */
-	static void RegisterPassthroughAnalyzerForType(FName TypeName, FName AnalyzerName);
-
 private:
-	static TMap<FName, FName> PassthroughAnalyzers;
-
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnOutputValueChangedMulticast, const FMetaSoundOutput&, Output);
-	
-	struct FGeneratorInfo
-	{
-		TWeakObjectPtr<UAudioComponent> AudioComponent;
-		TWeakObjectPtr<UMetaSoundSource> Source;
-		TWeakPtr<Metasound::FMetasoundGenerator, ESPMode::ThreadSafe> Generator;
-		FDelegateHandle OnCreatedHandle;
-		FDelegateHandle OnDestroyedHandle;
-		TQueue<Metasound::Frontend::FAnalyzerAddress> AnalyzersToCreate;
-		TMap<FName, TMap<FName, FOnOutputValueChangedMulticast>> OutputChangedDelegates;
-		TArray<Metasound::Private::FMetasoundOutputWatcher> OutputWatchers;
-		void HandleOutputChanged(FName OutputName, const FMetaSoundOutput& Output);
-		bool IsValid() const;
-	};
-
-	FGeneratorInfo* FindOrAddGeneratorInfo(UAudioComponent* AudioComponent);
-	void OnGeneratorCreated(uint64 InAudioComponentId, TSharedPtr<Metasound::FMetasoundGenerator> Generator);
-	void OnGeneratorDestroyed(uint64 InAudioComponentId, TSharedPtr<Metasound::FMetasoundGenerator> Generator);
-	void CreateAnalyzerAndWatcher(
-		const TSharedPtr<Metasound::FMetasoundGenerator>& Generator,
-		Metasound::Frontend::FAnalyzerAddress&& AnalyzerAddress);
-
-	TArray<FGeneratorInfo> TrackedGenerators;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMetasoundGeneratorHandle>> TrackedGenerators;
 };

@@ -73,16 +73,16 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 		METASOUND_PRIVATE_REGISTER_GENERATOR_OUTPUT_WATCHER_TYPE_OPERATIONS(FString, "")
 
 		// Register passthrough output analyzers
-		UMetaSoundOutputSubsystem::RegisterPassthroughAnalyzerForType(
+		UMetasoundGeneratorHandle::RegisterPassthroughAnalyzerForType(
 			GetMetasoundDataTypeName<float>(),
 			Frontend::FVertexAnalyzerForwardFloat::GetAnalyzerName());
-		UMetaSoundOutputSubsystem::RegisterPassthroughAnalyzerForType(
+		UMetasoundGeneratorHandle::RegisterPassthroughAnalyzerForType(
 			GetMetasoundDataTypeName<int32>(),
 			Frontend::FVertexAnalyzerForwardInt::GetAnalyzerName());
-		UMetaSoundOutputSubsystem::RegisterPassthroughAnalyzerForType(
+		UMetasoundGeneratorHandle::RegisterPassthroughAnalyzerForType(
 			GetMetasoundDataTypeName<bool>(),
 			Frontend::FVertexAnalyzerForwardBool::GetAnalyzerName());
-		UMetaSoundOutputSubsystem::RegisterPassthroughAnalyzerForType(
+		UMetasoundGeneratorHandle::RegisterPassthroughAnalyzerForType(
 			GetMetasoundDataTypeName<FString>(),
 			Frontend::FVertexAnalyzerForwardString::GetAnalyzerName());
 

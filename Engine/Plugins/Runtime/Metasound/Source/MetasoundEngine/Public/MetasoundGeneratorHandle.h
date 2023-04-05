@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "Templates/SharedPointer.h"
+
+#include "MetasoundOutputWatcher.h"
 #include "MetasoundParameterPack.h"
+#include "Containers/SpscQueue.h"
+#include "Templates/SharedPointer.h"
 
 #include "MetasoundGeneratorHandle.generated.h"
 
@@ -14,6 +17,8 @@ namespace Metasound
 	class FMetasoundGenerator;
 }
 
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnMetasoundOutputValueChanged, FName, OutputName, const FMetaSoundOutput&, Output);
+
 UCLASS(BlueprintType,Category="MetaSound")
 class METASOUNDENGINE_API UMetasoundGeneratorHandle : public UObject
 {
@@ -24,7 +29,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category="MetaSound")
 	static UMetasoundGeneratorHandle* CreateMetaSoundGeneratorHandle(UAudioComponent* OnComponent);
 
-	void BeginDestroy() override;
+	virtual void BeginDestroy() override;
+
+	bool IsValid() const;
+
+	/**
+	 * Get the id for the UAudioComponent associated with this handle.
+	 * NOTE: Be sure to check IsValid() before expecting a valid return from this method.
+	 *
+	 * @returns The audio component's id, or INDEX_NONE if the component is no longer valid.
+	 */
+	uint64 GetAudioComponentId() const;
 
 	// UMetasoundGeneratorHandle shields its "clients" from "cross thread" issues
 	// related to callbacks coming in the audio control or rendering threads that 
@@ -56,8 +71,36 @@ public:
 	FDelegateHandle AddGraphSetCallback(const UMetasoundGeneratorHandle::FOnSetGraph& Delegate);
 	bool RemoveGraphSetCallback(const FDelegateHandle& Handle);
 
-private:
+	/**
+	 * Watch an output value.
+	 *
+	 * @param OutputName - The user-specified name of the output in the Metasound
+	 * @param OnOutputValueChanged - The event to fire when the output's value changes
+	 * @param AnalyzerName - (optional) The name of the analyzer to use on the output, defaults to a passthrough
+	 * @param AnalyzerOutputName - (optional) The name of the output on the analyzer to watch, defaults to the passthrough output
+	 * @returns true if the watch setup succeeded, false otherwise
+	 */
+	UFUNCTION(BlueprintCallable, Category="MetaSoundOutput", meta=(AdvancedDisplay = "2"))
+	bool WatchOutput(
+		FName OutputName,
+		const FOnMetasoundOutputValueChanged& OnOutputValueChanged,
+		FName AnalyzerName = NAME_None,
+		FName AnalyzerOutputName = NAME_None);
 
+	/**
+	 * Map a type name to a passthrough analyzer name to use as a default for UMetasoundOutputSubsystem::WatchOutput()
+	 *
+	 * @param TypeName - The type name returned from GetMetasoundDataTypeName()
+	 * @param AnalyzerName - The name of the analyzer to use
+	 */
+	static void RegisterPassthroughAnalyzerForType(FName TypeName, FName AnalyzerName);
+
+	/**
+	 * Update any watched outputs
+	 */
+	void UpdateWatchers();
+	
+private:
 	void SetAudioComponent(UAudioComponent* InAudioComponent);
 	void CacheMetasoundSource();
 	void ClearCachedData();
@@ -81,13 +124,9 @@ private:
 	 */
 	void OnSourceCreatedAGenerator(uint64 InAudioComponentId, TSharedPtr<Metasound::FMetasoundGenerator> InGenerator);
 	void OnSourceDestroyedAGenerator(uint64 InAudioComponentId, TSharedPtr<Metasound::FMetasoundGenerator> InGenerator);
-
-
-	UPROPERTY(Transient)
-	TObjectPtr<UAudioComponent> AudioComponent;
-	uint64 AudioComponentId;
-	UPROPERTY(Transient)
-	TObjectPtr<UMetaSoundSource> CachedMetasoundSource;
+	
+	TWeakObjectPtr<UAudioComponent> AudioComponent;
+	TWeakObjectPtr<UMetaSoundSource> CachedMetasoundSource;
 	TWeakPtr<Metasound::FMetasoundGenerator> CachedGeneratorPtr;
 	FSharedMetasoundParameterStoragePtr CachedParameterPack;
 
@@ -102,4 +141,14 @@ private:
 	FDelegateHandle GeneratorCreatedDelegateHandle;
 	FDelegateHandle GeneratorDestroyedDelegateHandle;
 	FDelegateHandle GeneratorGraphChangedDelegateHandle;
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnOutputValueChangedMulticast, FName, Name, const FMetaSoundOutput&, Output);
+	static TMap<FName, FName> PassthroughAnalyzers;
+	// This is a map of output names on the generator to a map of output names on an analyzer
+	// to delegates listening to that analyzer output. We do this because analyzers can have more
+	// than one output.
+	TMap<FName, TMap<FName, FOnOutputValueChangedMulticast>> OutputListenerMap;
+	TSpscQueue<Metasound::Frontend::FAnalyzerAddress> OutputAnalyzersToAdd;
+	void CreateAnalyzerAndWatcher(const TSharedPtr<Metasound::FMetasoundGenerator> Generator, Metasound::Frontend::FAnalyzerAddress&& AnalyzerAddress);
+	TArray<Metasound::Private::FMetasoundOutputWatcher> OutputWatchers;
 };

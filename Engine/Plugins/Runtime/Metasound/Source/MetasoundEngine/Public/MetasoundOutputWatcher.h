@@ -25,9 +25,6 @@ namespace Metasound::Private
 		 */
 		void Update(TFunctionRef<void(FName, const FMetaSoundOutput&)> OnOutputChanged);
 
-		using FOutputInitFn = TFunction<void(FMetaSoundOutput&)>;
-		using FOutputUpdateFn = TFunction<bool(FMetasoundOutputWatcher&, FMetaSoundOutput&)>;
-
 		/**
 		 * Stores the typed operations for a specific supported type
 		 */
