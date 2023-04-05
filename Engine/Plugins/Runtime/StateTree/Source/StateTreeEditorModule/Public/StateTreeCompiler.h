@@ -58,6 +58,8 @@ private:
 							const FStateTreeBindableStructDesc& TargetStruct, FStateTreePropertyPath TargetPath) const;
 	bool CompileAndValidateNode(const UStateTreeState* SourceState, const FStateTreeBindableStructDesc& NodeDesc, FStructView NodeView, const FStateTreeDataView InstanceData);
 
+	void InstantiateStructSubobjects(FStructView Struct);
+	
 	FStateTreeDataView GetBindingSourceValue(const int32 SourceIndex);
 	
 	FStateTreeCompilerLog& Log;
