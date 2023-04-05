@@ -361,39 +361,13 @@ UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::
 		// Transfer WorldPartition's transform to LevelStreaming
 		LevelStreaming->LevelTransform = WorldPartition->GetInstanceTransform();
 
-		// When Partition outer level is an instance, make sure to also generate unique cell level instance name
-		ULevel* PartitionLevel = WorldPartition->GetTypedOuter<ULevel>();
-		if (PartitionLevel->IsInstancedLevel())
-		{
-			// Try and extract the instance suffix that was applied to the instanced level itself
-			FString InstancedLevelSuffix;
-			{
-				UPackage* PartitionLevelPackage = PartitionLevel->GetPackage();
-
-				FNameBuilder SourcePackageName(PartitionLevelPackage->GetLoadedPath().GetPackageFName());
-				FNameBuilder InstancedPackageName(PartitionLevelPackage->GetFName());
-				
-				FStringView SourcePackageNameView = SourcePackageName.ToView();
-				FStringView InstancedPackageNameView = InstancedPackageName.ToView();
-
-				if (InstancedPackageNameView.StartsWith(SourcePackageNameView))
-				{
-					InstancedLevelSuffix = InstancedPackageNameView.Mid(SourcePackageNameView.Len());
-				}
-				else
-				{
-					InstancedLevelSuffix =  TEXT("_");
-					InstancedLevelSuffix += FPackageName::GetShortName(PartitionLevelPackage);
-				}
-			}
-			check(!InstancedLevelSuffix.IsEmpty());
-
-			FNameBuilder InstancedLevelPackageName;
-			LevelStreaming->PackageNameToLoad.AppendString(InstancedLevelPackageName);
-			InstancedLevelPackageName += InstancedLevelSuffix;
-
-			LevelStreaming->SetWorldAssetByPackageName(FName(InstancedLevelPackageName));
-		}
+		// LevelStreaming WorldAsset is a TSoftObjectPtr<UWorld>. If the WorldPartition's world is instanced then the TSoftObjectPtr<UWorld> will be remapped by FLinkerInstancingContext SoftObject remapping
+		// example if MainWorld is instanced it will have a package suffix like: _LevelInstance1
+		// MainWorld: /Game/SomePath/MainWorld_LevelInstance1
+		// 
+		// and the LevelStreaming's WorldAsset TSoftObjectPtr<UWorld> should be remapped as: 
+		// /Game/SomePath/MainWorld/_Generated_/1AEHCD0PRR98XVM12PU4N1D8X_LevelInstance_1
+		check(!WorldPartition->GetTypedOuter<ULevel>()->IsInstancedLevel() || (LevelStreaming->PackageNameToLoad != LevelStreaming->GetWorldAssetPackageName()));
 	}
 #endif
 
