@@ -124,6 +124,8 @@ struct CHAOSVEHICLES_API FVehicleInputsDatas : public FVehicleHistoryDatas
 {
 	GENERATED_USTRUCT_BODY()
 
+	FVehicleInputsDatas();
+
 	/** List of incoming control inputs coming from the local client */
 	UPROPERTY()
 	FVehicleInputs VehicleInputs;
@@ -146,6 +148,8 @@ USTRUCT()
 struct CHAOSVEHICLES_API FVehicleStatesDatas : public FVehicleHistoryDatas
 {
 	GENERATED_USTRUCT_BODY()
+
+	FVehicleStatesDatas();
 
 	/** Vehicle state last velocity */
 	UPROPERTY()

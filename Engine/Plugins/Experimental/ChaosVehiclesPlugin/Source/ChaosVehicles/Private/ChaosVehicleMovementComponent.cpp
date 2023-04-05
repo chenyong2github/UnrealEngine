@@ -74,6 +74,19 @@ FAutoConsoleVariableRef CVarChaosVehiclesControlInputWakeTolerance(TEXT("p.Vehic
 
 using namespace Chaos;
 
+FVehicleInputsDatas::FVehicleInputsDatas()
+	: TransmissionChangeTime(0.0f)
+	, TransmissionCurrentGear(0)
+	, TransmissionTargetGear(0)
+{
+}
+
+FVehicleStatesDatas::FVehicleStatesDatas()
+	: StateLastVelocity()
+	, EngineOmega()
+{
+}
+
 void FVehicleState::CaptureState(const FBodyInstance* TargetInstance, float GravityZ, float DeltaTime)
 {
 	if (TargetInstance)
