@@ -11,7 +11,6 @@ void UTypedElementSlateWidgetReferenceColumnUpdateFactory::RegisterQueries(IType
 	RegisterDeleteColumnOnWidgetDeleteQuery(DataStorage);
 }
 
-#pragma optimize("", off)
 void UTypedElementSlateWidgetReferenceColumnUpdateFactory::RegisterDeleteRowOnWidgetDeleteQuery(ITypedElementDataStorageInterface& DataStorage) const
 {
 	using namespace TypedElementQueryBuilder;
@@ -34,7 +33,6 @@ void UTypedElementSlateWidgetReferenceColumnUpdateFactory::RegisterDeleteRowOnWi
 		.Compile()
 	);
 }
-#pragma optimize("", on)
 
 void UTypedElementSlateWidgetReferenceColumnUpdateFactory::RegisterDeleteColumnOnWidgetDeleteQuery(ITypedElementDataStorageInterface& DataStorage) const
 {
