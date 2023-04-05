@@ -5,6 +5,7 @@
 #include "Algo/Find.h"
 #include "MuCO/CustomizableObject.h"
 #include "UObject/NameTypes.h"
+#include "UObject/Package.h"
 
 REGISTER_COOKPACKAGE_SPLITTER(FCustomizableObjectCookPackageSplitter, UCustomizableObject);
 

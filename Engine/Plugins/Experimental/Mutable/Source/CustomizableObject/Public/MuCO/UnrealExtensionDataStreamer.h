@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Async/Future.h"
 #include "Engine/StreamableManager.h"
 #include "MuR/ExtensionData.h"
 #include "MuR/ExtensionDataStreamer.h"
