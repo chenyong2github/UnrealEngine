@@ -120,12 +120,6 @@ void UVolumetricCloudComponent::PostEditChangeProperty(FPropertyChangedEvent& Pr
 
 #endif // WITH_EDITOR
 
-void UVolumetricCloudComponent::PostInterpChange(FProperty* PropertyThatChanged)
-{
-	// This is called when property is modified by InterpPropertyTracks
-	Super::PostInterpChange(PropertyThatChanged);
-}
-
 void UVolumetricCloudComponent::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);

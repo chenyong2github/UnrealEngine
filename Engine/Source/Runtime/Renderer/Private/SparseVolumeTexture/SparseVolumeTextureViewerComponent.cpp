@@ -64,12 +64,6 @@ void USparseVolumeTextureViewerComponent::PostEditChangeProperty(FPropertyChange
 
 #endif // WITH_EDITOR
 
-void USparseVolumeTextureViewerComponent::PostInterpChange(FProperty* PropertyThatChanged)
-{
-	// This is called when property is modified by InterpPropertyTracks
-	Super::PostInterpChange(PropertyThatChanged);
-}
-
 void USparseVolumeTextureViewerComponent::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);

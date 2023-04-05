@@ -494,32 +494,6 @@ void USkyLightComponent::UpdateOcclusionRenderingStateFast()
 
 }
 
-/** 
-* This is called when property is modified by InterpPropertyTracks
-*
-* @param PropertyThatChanged	Property that changed
-*/
-void USkyLightComponent::PostInterpChange(FProperty* PropertyThatChanged)
-{
-	static FName LightColorName(TEXT("LightColor"));
-	static FName IntensityName(TEXT("Intensity"));
-	static FName IndirectLightingIntensityName(TEXT("IndirectLightingIntensity"));
-	static FName VolumetricScatteringIntensityName(TEXT("VolumetricScatteringIntensity"));
-
-	FName PropertyName = PropertyThatChanged->GetFName();
-	if (PropertyName == LightColorName
-		|| PropertyName == IntensityName
-		|| PropertyName == IndirectLightingIntensityName
-		|| PropertyName == VolumetricScatteringIntensityName)
-	{
-		UpdateLimitedRenderingStateFast();
-	}
-	else
-	{
-		Super::PostInterpChange(PropertyThatChanged);
-	}
-}
-
 void USkyLightComponent::DestroyRenderState_Concurrent()
 {
 	Super::DestroyRenderState_Concurrent();

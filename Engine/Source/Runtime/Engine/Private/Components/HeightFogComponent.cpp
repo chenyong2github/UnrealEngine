@@ -131,13 +131,6 @@ void UExponentialHeightFogComponent::PostEditChangeProperty(FPropertyChangedEven
 }
 #endif // WITH_EDITOR
 
-void UExponentialHeightFogComponent::PostInterpChange(FProperty* PropertyThatChanged)
-{
-	Super::PostInterpChange(PropertyThatChanged);
-
-	MarkRenderStateDirty();
-}
-
 void UExponentialHeightFogComponent::SetFogDensity(float Value)
 {
 	if(FogDensity != Value)

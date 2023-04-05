@@ -274,12 +274,6 @@ void USkyAtmosphereComponent::PostEditChangeProperty(FPropertyChangedEvent& Prop
 
 #endif // WITH_EDITOR
 
-void USkyAtmosphereComponent::PostInterpChange(FProperty* PropertyThatChanged)
-{
-	Super::PostInterpChange(PropertyThatChanged);
-	MarkRenderStateDirty();
-}
-
 void USkyAtmosphereComponent::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);

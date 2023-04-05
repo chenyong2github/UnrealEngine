@@ -931,7 +931,6 @@ public:
 	//~ End ActorComponent Interface
 
 	//~ Begin UObject Interface
-	virtual void PostInterpChange(FProperty* PropertyThatChanged) override;
 	virtual void BeginDestroy() override;
 	virtual bool IsPostLoadThreadSafe() const override;
 	virtual void PreNetReceive() override;

@@ -480,13 +480,6 @@ public:
 	FLinearColor GetColorTemperature() const;
 
 	/** 
-	 * Called when property is modified by InterpPropertyTracks
-	 *
-	 * @param PropertyThatChanged	Property that changed
-	 */
-	virtual void PostInterpChange(FProperty* PropertyThatChanged) override;
-
-	/** 
 	 * Iterates over ALL stationary light components in the target world and assigns their preview shadowmap channel, and updates light icons accordingly.
 	 * Also handles assignment after a lighting build, so that the same algorithm is used for previewing and static lighting.
 	 */

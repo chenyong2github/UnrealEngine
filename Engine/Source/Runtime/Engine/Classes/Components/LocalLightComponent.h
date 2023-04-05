@@ -83,13 +83,6 @@ public:
 #endif // WITH_EDITOR
 	//~ End UObject Interface
 
-	/** 
-	 * This is called when property is modified by InterpPropertyTracks
-	 *
-	 * @param PropertyThatChanged	Property that changed
-	 */
-	virtual void PostInterpChange(FProperty* PropertyThatChanged) override;
-
 private:
 
 	/** Pushes the value of radius to the rendering thread. */

@@ -409,11 +409,7 @@ public:
 	/** After a critical error, perform any mission-critical cleanup, such as restoring the video mode orreleasing hardware resources. */
 	virtual void ShutdownAfterError() {}
 
-	/** 
-	 * This is called when property is modified by InterpPropertyTracks
-	 *
-	 * @param PropertyThatChanged	Property that changed
-	 */
+	UE_DEPRECATED(5.3, "Matinee has been removed in 5.0, nothing is calling PostInterpChange anymore")
 	virtual void PostInterpChange(FProperty* PropertyThatChanged) {}
 
 #if WITH_EDITOR

@@ -1408,42 +1408,6 @@ void ULightComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* InMate
 	}
 }
 
-/** 
-* This is called when property is modified by InterpPropertyTracks
-*
-* @param PropertyThatChanged	Property that changed
-*/
-void ULightComponent::PostInterpChange(FProperty* PropertyThatChanged)
-{
-	static FName LightColorName(TEXT("LightColor"));
-	static FName IntensityName(TEXT("Intensity"));
-	static FName BrightnessName(TEXT("Brightness"));
-	static FName IndirectLightingIntensityName(TEXT("IndirectLightingIntensity"));
-	static FName VolumetricScatteringIntensityName(TEXT("VolumetricScatteringIntensity"));
-	static FName TemperatureName(TEXT("Temperature"));
-
-	FName PropertyName = PropertyThatChanged->GetFName();
-	if (PropertyName == LightColorName
-		|| PropertyName == IntensityName
-		|| PropertyName == BrightnessName
-		|| PropertyName == IndirectLightingIntensityName
-		|| PropertyName == TemperatureName
-		|| PropertyName == VolumetricScatteringIntensityName)
-	{
-		// Old brightness tracks will animate the deprecated value
-		if (PropertyName == BrightnessName)
-		{
-			Intensity = Brightness_DEPRECATED;
-		}
-
-		UpdateColorAndBrightness();
-	}
-	else
-	{
-		Super::PostInterpChange(PropertyThatChanged);
-	}
-}
-
 /** Stores a light and a channel it has been assigned to. */
 struct FLightAndChannel
 {

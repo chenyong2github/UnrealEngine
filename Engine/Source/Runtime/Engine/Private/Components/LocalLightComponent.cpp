@@ -129,29 +129,6 @@ void ULocalLightComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 }
 #endif // WITH_EDITOR
 
-void ULocalLightComponent::PostInterpChange(FProperty* PropertyThatChanged)
-{
-	static FName RadiusName(TEXT("Radius"));
-	static FName AttenuationRadiusName(TEXT("AttenuationRadius"));
-	FName PropertyName = PropertyThatChanged->GetFName();
-
-	if (PropertyName == RadiusName
-		|| PropertyName == AttenuationRadiusName)
-	{
-		// Old radius tracks will animate the deprecated value
-		if (PropertyName == RadiusName)
-		{
-			AttenuationRadius = Radius_DEPRECATED;
-		}
-
-		PushRadiusToRenderThread();
-	}
-	else
-	{
-		Super::PostInterpChange(PropertyThatChanged);
-	}
-}
-
 void ULocalLightComponent::PushRadiusToRenderThread()
 {
 	if (CastShadows)

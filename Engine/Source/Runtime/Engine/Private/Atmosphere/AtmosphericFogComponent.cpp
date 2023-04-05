@@ -27,13 +27,6 @@ bool UAtmosphericFogComponent::IsPostLoadThreadSafe() const
 	return true;
 }
 
-void UAtmosphericFogComponent::PostInterpChange(FProperty* PropertyThatChanged)
-{
-	Super::PostInterpChange(PropertyThatChanged);
-
-	MarkRenderStateDirty();
-}
-
 UAtmosphericFogComponent::~UAtmosphericFogComponent()
 {
 }

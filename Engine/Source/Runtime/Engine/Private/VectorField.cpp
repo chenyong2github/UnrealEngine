@@ -904,19 +904,6 @@ void UVectorFieldComponent::SetIntensity(float NewIntensity)
 }
 
 
-void UVectorFieldComponent::PostInterpChange(FProperty* PropertyThatChanged)
-{
-	static const FName IntensityPropertyName(TEXT("Intensity"));
-
-	if (FXSystem && PropertyThatChanged
-		&& PropertyThatChanged->GetFName() == IntensityPropertyName)
-	{
-		FXSystem->UpdateVectorField(this);
-	}
-
-	Super::PostInterpChange(PropertyThatChanged);
-}
-
 #if WITH_EDITOR
 void UVectorFieldComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {

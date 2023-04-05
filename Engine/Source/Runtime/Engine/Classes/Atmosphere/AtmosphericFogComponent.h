@@ -82,8 +82,6 @@ public:
 	
 	//~ Begin UObject Interface. 
 	virtual bool IsPostLoadThreadSafe() const override;
-
-	virtual void PostInterpChange(FProperty* PropertyThatChanged) override;
 	virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject Interface;
 

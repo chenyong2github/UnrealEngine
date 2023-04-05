@@ -2526,16 +2526,6 @@ void USceneComponent::UpdateChildTransforms(EUpdateTransformFlags UpdateTransfor
 	}
 }
 
-void USceneComponent::PostInterpChange(FProperty* PropertyThatChanged)
-{
-	Super::PostInterpChange(PropertyThatChanged);
-
-	if (PropertyThatChanged->GetFName() == GetRelativeScale3DPropertyName())
-	{
-		UpdateComponentToWorld();
-	}
-}
-
 TArray<FName> USceneComponent::GetAllSocketNames() const
 {
 	TArray<FComponentSocketDescription> SocketList;

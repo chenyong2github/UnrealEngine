@@ -333,18 +333,3 @@ void UPointLightComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 }
 #endif // WITH_EDITOR
 
-void UPointLightComponent::PostInterpChange(FProperty* PropertyThatChanged)
-{
-	static FName LightFalloffExponentName(TEXT("LightFalloffExponent"));
-	FName PropertyName = PropertyThatChanged->GetFName();
-
-	if (PropertyName == LightFalloffExponentName)
-	{
-		MarkRenderStateDirty();
-	}
-	else
-	{
-		Super::PostInterpChange(PropertyThatChanged);
-	}
-}
-
