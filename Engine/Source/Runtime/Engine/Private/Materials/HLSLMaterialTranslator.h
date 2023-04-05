@@ -757,8 +757,6 @@ protected:
 
 	FString StrataGetCastParameterCode(int32 Index, EMaterialValueType DestType);
 
-	bool ValidateMaterialExpressionPermission(const UMaterialExpression* Expression);
-
 	// FMaterialCompiler interface.
 
 	/** 
