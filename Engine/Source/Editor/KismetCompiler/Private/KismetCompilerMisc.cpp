@@ -2383,7 +2383,6 @@ FKismetFunctionContext::FKismetFunctionContext(FCompilerResultsLog& InMessageLog
 	, bIsSimpleStubGraphWithNoParams(false)
 	, NetFlags(0)
 	, SourceEventFromStubGraph(nullptr)
-	, bGeneratingCpp(false)		// @todo: BP2CPP_remove
 	, bUseFlowStack(true)
 {
 	NetNameMap = new FNetNameMapping();

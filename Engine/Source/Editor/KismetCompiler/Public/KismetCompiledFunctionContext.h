@@ -100,11 +100,6 @@ public:
 	struct FNetNameMapping* NetNameMap;
 	bool bAllocatedNetNameMap;
 
-	// @todo: BP2CPP_remove
-	//Skip some optimization. C++ code will be generated in this pass. 
-	UE_DEPRECATED(5.0, "This member is no longer in use and will be removed.")
-	bool bGeneratingCpp;
-
 	//Does this function use requires FlowStack ?
 	bool bUseFlowStack;
 public:
