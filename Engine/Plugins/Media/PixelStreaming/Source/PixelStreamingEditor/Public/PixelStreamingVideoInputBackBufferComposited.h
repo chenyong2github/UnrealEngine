@@ -24,6 +24,24 @@ public:
 	FOnFrameSizeChanged OnFrameSizeChanged;
 
 private:
+	// Our struct to keep window information. Use of this struct prevents window information being updated during composition
+	struct Window {
+		Window(FVector2D InPositionInScreen, FVector2D InSizeInScreen, float InOpacity, EWindowType InType, SWindow* InOwningWindow)
+			: PositionInScreen(InPositionInScreen)
+			, SizeInScreen(InSizeInScreen)
+			, Opacity(InOpacity)
+			, Type(InType)
+			, OwningWindow(InOwningWindow)
+		{}
+
+		FVector2D PositionInScreen;
+		FVector2D SizeInScreen;
+		float Opacity;
+		EWindowType Type;
+		SWindow* OwningWindow;
+	};
+
+private:
 	FPixelStreamingVideoInputBackBufferComposited();
 	void CompositeWindows();
 
@@ -31,11 +49,15 @@ private:
 
 	FDelegateHandle DelegateHandle;
 
-	TArray<TSharedRef<SWindow>> TopLevelWindows;
+	TArray<struct Window> TopLevelWindows;
+
 	TMap<SWindow*, FTextureRHIRef> TopLevelWindowTextures;
+
 	TMap<FString, FTextureRHIRef> StagingTextures;
 
+
 	FCriticalSection TopLevelWindowsCriticalSection;
+
 	TSharedPtr<FIntRect> SharedFrameRect;
 
 private:
