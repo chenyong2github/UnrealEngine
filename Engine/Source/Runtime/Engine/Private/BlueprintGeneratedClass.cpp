@@ -255,7 +255,13 @@ void UBlueprintGeneratedClass::GetAssetRegistryTags(TArray<FAssetRegistryTag>& O
 #if WITH_EDITOR
 	if (AActor* BlueprintCDO = Cast<AActor>(ClassDefaultObject))
 	{
-		FWorldPartitionActorDescUtils::AppendAssetDataTagsFromActor(BlueprintCDO, OutTags);
+		if (UPackage* BlueprintCDOPackage = BlueprintCDO->GetPackage())
+		{
+			if (!FPackageName::IsTempPackage(BlueprintCDOPackage->GetName()) && !BlueprintCDOPackage->HasAnyPackageFlags(PKG_PlayInEditor))
+			{
+				FWorldPartitionActorDescUtils::AppendAssetDataTagsFromActor(BlueprintCDO, OutTags);
+			}
+		}
 	}
 #endif
 }
