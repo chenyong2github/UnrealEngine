@@ -626,54 +626,6 @@ bool FObjectPropertyBase::AllowObjectTypeReinterpretationTo(const FObjectPropert
 	return false;
 }
 
-UObject* FObjectPropertyBase::ConstructDefaultObjectValueIfNecessary(UObject* ExistingValue) const
-{
-	UObject* NewDefaultObjectValue = nullptr;
-
-	FUObjectSerializeContext* SerializeContext = FUObjectThreadContext::Get().GetSerializeContext();
-	UObject* Outer = SerializeContext ? SerializeContext->SerializedObject : nullptr;
-	if (!Outer)
-	{
-		Outer = GetTransientPackage();
-	}
-
-	if (ExistingValue)
-	{
-		UClass* ExistingValueClass = ExistingValue->GetClass();
-		// Sanity check to make sure the existing value class matches the property class
-		if (ExistingValueClass && (ExistingValueClass->IsChildOf(PropertyClass) || ExistingValueClass->GetAuthoritativeClass()->IsChildOf(PropertyClass)))
-		{
-			if (ExistingValue->IsTemplate())
-			{
-				// Existing value is a template so we can construct a new value with it as the archetype
-				// We probably got here because an object value failed to load (missing import class) and the property is left with a template of default subobject
-				NewDefaultObjectValue = NewObject<UObject>(Outer, ExistingValue->GetClass(), ExistingValue->GetFName(), RF_NoFlags, ExistingValue);
-			}
-			else
-			{
-				// Existing value is not a template so we can use it directly
-				// Similar to the above condition but the property was not referencing an instanced value in which case it's ok to leave the CDO default here
-				NewDefaultObjectValue = ExistingValue;
-			}
-		}
-	}
-
-	if (!NewDefaultObjectValue && !PropertyClass->HasAnyClassFlags(CLASS_Abstract))
-	{
-		// Existing value did not exist or it could not be used as a template
-		// Existing value may be null in case we were serializing an array of UObjects that failed to load (missing import class). Since the array is first pre-allocated with null values
-		// it will not have any existing objects to instantiate
-		NewDefaultObjectValue = NewObject<UObject>(Outer, PropertyClass);
-	}
-
-	// Final sanity check. We still may end up with a null object if the property class is abstract and the previous object value was missing or was not compatible
-	UE_CLOG(!NewDefaultObjectValue, LogProperty, Fatal, TEXT("Failed to create default object value for property %s. Previous value: %s"), 
-		*GetFullName(), 
-		ExistingValue ? *ExistingValue->GetFullName() : TEXT("None"));
-
-	return NewDefaultObjectValue;
-}
-
 void FObjectPropertyBase::CheckValidObject(void* ValueAddress, TObjectPtr<UObject> OldValue) const
 {
 	const TObjectPtr<UObject> Object = GetObjectPtrPropertyValue(ValueAddress);
@@ -730,18 +682,16 @@ void FObjectPropertyBase::CheckValidObject(void* ValueAddress, TObjectPtr<UObjec
 			}
 			else
 			{
-				UObject* DefaultValue = ConstructDefaultObjectValueIfNecessary(OldValue);
-
+				checkf(OldValue, TEXT("CheckValidObject(\"%s\") trying to assign null object value to non-nullable property \"%s\""), *Object.GetFullName(), *GetFullName());
 				UE_LOG(LogProperty, Warning,
-					TEXT("Serialized %s for a non-nullable property of %s. Reference will be defaulted to %s.\n    Property = %s\n    Item = %s"),
+					TEXT("Serialized %s for a property of %s. Reference will be reverted back to %s.\n    Property = %s\n    Item = %s"),
 					*ObjectClass->GetFullName(),
 					*PropertyClass->GetFullName(),
-					DefaultValue ? *DefaultValue->GetFullName() : TEXT("None"),
+					*DefaultValue->GetFullName(),
 					*GetFullName(),
 					*Object.GetFullName()
 				);
-
-				SetObjectPropertyValue(ValueAddress, DefaultValue);
+				SetObjectPropertyValue(ValueAddress, OldValue);
 			}
 		}
 	}

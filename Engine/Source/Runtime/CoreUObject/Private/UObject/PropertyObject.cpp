@@ -120,23 +120,6 @@ void FObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value
 		check(CurrentValuePtr.IsResolved());
 		UObject* CurrentValue = UE::CoreUObject::Private::ReadObjectHandlePointerNoCheck(CurrentValuePtr.GetHandle());
 
-		// Make sure non-nullable properties don't end up with null values
-		if (!ObjectValue && HasAnyPropertyFlags(CPF_NonNullable) &&
-			!UnderlyingArchive.IsSerializingDefaults() && // null values when Serializing CDOs are allowed, they will be fixed up later
-			!UnderlyingArchive.IsSaving()) // Constructing new objects when saving may confuse package saving code (new import/export created after import/export collection pass)
-		{
-			UObject* DefaultValue = ConstructDefaultObjectValueIfNecessary(CurrentValue);
-
-			UE_LOG(LogProperty, Warning,
-				TEXT("Failed to serialize value for non-nullable property %s. Reference will be defaulted to %s."),
-				*GetFullName(),
-				*DefaultValue->GetFullName()
-			);
-
-			SetObjectPropertyValue(Value, DefaultValue);
-			ObjectValue = DefaultValue;
-		}
-
 		if (ObjectValue != CurrentValue)
 		{
 			SetObjectPropertyValue(Value, ObjectValue);
