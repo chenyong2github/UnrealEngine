@@ -5868,7 +5868,7 @@ UFunction* UClass::FindFunctionByName(FName InName, EIncludeSuperFlag::Type Incl
 
 	UFunction* Result = nullptr;
 
-	AutoRTFM::Open([&Result, this, &InName, IncludeSuper]
+	UE_AUTORTFM_OPEN_BEGIN
 	{
 		{
 			FReadScopeLock ScopeLock(FuncMapLock);
@@ -5911,7 +5911,8 @@ UFunction* UClass::FindFunctionByName(FName InName, EIncludeSuperFlag::Type Incl
 				}
 			}
 		}
-	});
+	}
+	UE_AUTORTFM_OPEN_END
 
 	return Result;
 }

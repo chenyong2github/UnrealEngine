@@ -1167,13 +1167,14 @@ public:
 	FNameEntryId Find(const FNameValue<Sensitivity>& Value) const
 	{
 		FNameEntryId Result;
-		AutoRTFM::Open([&Result, this, &Value]
+		UE_AUTORTFM_OPEN_BEGIN
 		{
 			FRWScopeLock _(Lock, FRWScopeLockType::SLT_ReadOnly);
 
 			FNameSlot& Slot = Probe(Value);
 			Result = Slot.GetId();
-		});
+		}
+		UE_AUTORTFM_OPEN_END
 		return Result;
 	}
 

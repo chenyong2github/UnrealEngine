@@ -15,7 +15,7 @@ uint64 FDelegateHandle::GenerateNewID()
 	// Just increment a counter to generate an ID.
 	uint64 Result;
 	
-	AutoRTFM::Open([&Result]()
+	UE_AUTORTFM_OPEN_BEGIN
 	{
 		Result = ++UE::Delegates::Private::GNextID;
 
@@ -25,7 +25,8 @@ uint64 FDelegateHandle::GenerateNewID()
 			// Increment it again - it might not be zero, so don't just assign it to 1.
 			Result = ++UE::Delegates::Private::GNextID;
 		}
-	});
+	}
+	UE_AUTORTFM_OPEN_END
 
 	return Result;
 }

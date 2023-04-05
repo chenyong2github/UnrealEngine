@@ -3854,10 +3854,11 @@ void FObjectInitializer::PostConstructInit()
 	{
 		// autortfm todo: if this transaction aborts and we are in a transaction's open nest,
 		// we need to have a way of propagating out that abort
-		AutoRTFM::Transact([this] 
+		UE_AUTORTFM_TRANSACT_BEGIN
 		{
 			PropertyInitCallback();
-		});
+		}
+		UE_AUTORTFM_TRANSACT_END
 	}
 	// After the call to `PropertyInitCallback` to allow the callback to modify the instancing graph
 	if (bNeedInstancing || bNeedSubobjectInstancing)
