@@ -136,6 +136,52 @@ FRigUnit_TransformFromControlRigSpline_Execute()
 		UE_LOG(LogControlRig, Error, TEXT("Invalid input spline implementation."));
 		return;
 	}
+	
+	FVector UpVectorNormalized = UpVector;
+	UpVectorNormalized.Normalize();
+
+	const float ClampedU = FMath::Clamp<float>(U, 0.f, 1.f);
+	const float ClampedRoll = FMath::Clamp<float>(Roll, -180.f, 180.f);
+
+	FVector Tangent = Spline.TangentAtParam(ClampedU);
+
+	// Check if Tangent can be normalized. If not, keep the same tangent as before.
+	if (!Tangent.Normalize())
+	{
+		Tangent = Transform.ToMatrixNoScale().GetUnitAxis(EAxis::X);
+	}
+	FVector Binormal = FVector::CrossProduct(Tangent, UpVectorNormalized);
+	Binormal = Binormal.RotateAngleAxis(ClampedRoll * ClampedU, Tangent);
+	
+	FMatrix RotationMatrix = FRotationMatrix::MakeFromXZ(Tangent, Binormal);
+
+	Transform.SetFromMatrix(RotationMatrix);
+	Transform.SetTranslation(Spline.PositionAtParam(U));
+}
+
+FRigVMStructUpgradeInfo FRigUnit_TransformFromControlRigSpline::GetUpgradeInfo() const
+{
+	FRigUnit_TransformFromControlRigSpline2 NewNode;
+	NewNode.Spline = Spline; 
+	NewNode.U = U; 
+	NewNode.SecondaryAxis = UpVector; 
+	NewNode.Transform = Transform; 
+
+	return FRigVMStructUpgradeInfo(*this, NewNode);
+}
+
+FRigUnit_TransformFromControlRigSpline2_Execute()
+{
+	if (!Spline.SplineData.IsValid())
+	{
+		return;
+	}
+
+	if (Spline.SplineData->Spline == nullptr)
+	{
+		UE_LOG(LogControlRig, Error, TEXT("Invalid input spline implementation."));
+		return;
+	}
 
 	const float ClampedU = FMath::Clamp<float>(U, 0.f, 1.f);
 	Transform = Spline.TransformAtParam(ClampedU);

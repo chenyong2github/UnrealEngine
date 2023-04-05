@@ -179,12 +179,51 @@ struct CONTROLRIGSPLINE_API FRigUnit_PositionFromControlRigSpline : public FRigU
 /*
  * Retrieves the transform from a given Spline and U value based on the given Up Vector and Roll
  */
-USTRUCT(meta = (DisplayName = "Transform From Spline", Category = "Splines", NodeColor="0.737911 0.099899 0.099899"))
+USTRUCT(meta = (DisplayName = "Transform From Spline", Category = "Splines", NodeColor="0.737911 0.099899 0.099899", Deprecated="5.3"))
 struct CONTROLRIGSPLINE_API FRigUnit_TransformFromControlRigSpline : public FRigUnit_ControlRigSplineBase
 {
 	GENERATED_BODY()
 
 	FRigUnit_TransformFromControlRigSpline()
+	{
+		UpVector = FVector::UpVector;
+		Roll = 0.f;
+		U = 0.f;
+		Transform = FTransform::Identity;
+	}
+
+	/** Execute logic for this rig unit */
+	RIGVM_METHOD()
+	virtual void Execute() override;
+
+	UPROPERTY(meta = (Input))
+	FControlRigSpline Spline;
+
+	UPROPERTY(meta = (Input))
+	FVector UpVector;
+
+	UPROPERTY(meta = (Input))
+	float Roll;
+
+	UPROPERTY(meta = (Input))
+	float U;
+
+	UPROPERTY(meta = (Output))
+	FTransform Transform;
+
+	RIGVM_METHOD()
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
+};
+
+/*
+ * Retrieves the transform from a given Spline and U value based on the given Up Vector and Roll
+ */
+USTRUCT(meta = (DisplayName = "Transform From Spline", Category = "Splines", NodeColor="0.737911 0.099899 0.099899"))
+struct CONTROLRIGSPLINE_API FRigUnit_TransformFromControlRigSpline2 : public FRigUnit_ControlRigSplineBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_TransformFromControlRigSpline2()
 	{
 		U = 0.f;
 		Transform = FTransform::Identity;
