@@ -21,6 +21,11 @@
 #include "PixelStreamingInputEnums.h"
 #include "IPixelStreamingInputModule.h"
 #include "IPixelStreamingInputHandler.h"
+#include "PixelStreamingDelegates.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
+
+#define LOCTEXT_NAMESPACE "PixelStreamingEditorModule"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingEditor, Log, All);
 DEFINE_LOG_CATEGORY(LogPixelStreamingEditor);
@@ -97,6 +102,18 @@ void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Mod
 			StartStreaming(UE::EditorPixelStreaming::EStreamTypes::Editor);
 		}
 	});
+
+	if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
+	{
+		Delegates->OnFallbackToSoftwareEncoderingNative.AddLambda([]() {
+			// Creates a new notification info, we pass in our text as the parameter.
+			FNotificationInfo Info(LOCTEXT("PixelStreamingEditorModule_Notification", "Pixel Streaming: All hardware encoders in use, falling back to VP8 software encoding."));
+			// Set a default expire duration
+			Info.ExpireDuration = 5.0f;
+			// And call Add Notification
+			FSlateNotificationManager::Get().AddNotification(Info);
+		});
+	}
 }
 
 void FPixelStreamingEditorModule::StartStreaming(UE::EditorPixelStreaming::EStreamTypes InStreamType)
@@ -345,4 +362,5 @@ void FPixelStreamingEditorModule::MaybeResizeEditor(TSharedPtr<SWindow> RootWind
 	}
 }
 
+#undef LOCTEXT_NAMESPACE
 IMPLEMENT_MODULE(FPixelStreamingEditorModule, PixelStreamingEditor)

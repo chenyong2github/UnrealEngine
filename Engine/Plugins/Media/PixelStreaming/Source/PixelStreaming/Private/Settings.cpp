@@ -103,6 +103,12 @@ namespace UE::PixelStreaming::Settings
 		TEXT("H264"),
 		TEXT("PixelStreaming encoder codec. Supported values are `H264`, 'H265', `VP8`, `VP9`"),
 		ECVF_Default);
+
+	TAutoConsoleVariable<int32> CVarPixelStreamingEncoderMaxSessions(
+		TEXT("PixelStreaming.Encoder.MaxSessions"),
+		-1,
+		TEXT("Maximum number of concurrent hardware encoder sessions for Pixel Streaming."),
+		ECVF_Default);
 	// End Encoder CVars
 
 	// Begin WebRTC CVars
@@ -622,6 +628,7 @@ namespace UE::PixelStreaming::Settings
 		CommandLineParseValue(TEXT("PixelStreamingEncoderRateControl="), CVarPixelStreamingEncoderRateControl);
 		CommandLineParseValue(TEXT("PixelStreamingEncoderMultipass="), CVarPixelStreamingEncoderMultipass);
 		CommandLineParseValue(TEXT("PixelStreamingEncoderCodec="), CVarPixelStreamingEncoderCodec);
+		CommandLineParseValue(TEXT("PixelStreamingEncoderMaxSessions="), CVarPixelStreamingEncoderMaxSessions);
 		CommandLineParseValue(TEXT("PixelStreamingH264Profile="), CVarPixelStreamingH264Profile);
 		CommandLineParseValue(TEXT("PixelStreamingH265Profile="), CVarPixelStreamingH265Profile);
 		CommandLineParseValue(TEXT("PixelStreamingEncoderPreset="), CVarPixelStreamingEncoderPreset);

@@ -32,6 +32,7 @@ namespace UE::PixelStreaming::Settings
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderIntraRefreshPeriodFrames;
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderIntraRefreshCountFrames;
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingEncoderCodec;
+	extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderMaxSessions;
 	// End Encoder CVars
 
 	// Begin WebRTC CVars

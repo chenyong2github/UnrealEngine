@@ -70,8 +70,8 @@ namespace UE::PixelStreaming
 		}
 
 	private:
-		static webrtc::SdpVideoFormat CreateH264Format(webrtc::H264Profile Profile, webrtc::H264Level Level);
 		void FreeUnusedEncoders();
+		bool CheckEncoderSessionAvailable() const;
 
 		TMap<uint32, TSharedPtr<FVideoEncoderHardware>> HardwareEncoders;
 
@@ -84,5 +84,9 @@ namespace UE::PixelStreaming
 
 		// Init encoder guard
 		FCriticalSection InitEncoderGuard;
+
+		// A map of GPU device names and their respective Max # of Concurrent Sessions as defined here: https://developer.nvidia.com/video-encode-and-decode-gpu-support-matrix-new
+		// If a device is not in this map, it has an unrestriced number of sessions
+		static TMap<FString, uint8> MaxConcurrentNvEncSessionsMap;
 	};
 } // namespace UE::PixelStreaming

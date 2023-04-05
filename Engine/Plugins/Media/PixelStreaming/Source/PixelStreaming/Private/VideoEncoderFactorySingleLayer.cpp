@@ -8,11 +8,16 @@
 #include "PixelStreamingPrivate.h"
 #include "Utils.h"
 #include "Stats.h"
+#include "PixelStreamingDelegates.h"
+#include "GenericPlatform/GenericPlatformMath.h"
+#include "NvmlEncoder.h"
 
 namespace UE::PixelStreaming
 {
+
 	// the list of each individual codec we have encoder support for (order of this array is preference order after selected codec)
-	const TArray<EPixelStreamingCodec> SupportedEncoderCodecList{ EPixelStreamingCodec::VP8, EPixelStreamingCodec::VP9, EPixelStreamingCodec::H264, EPixelStreamingCodec::H265 };
+	const TArray<EPixelStreamingCodec>
+		SupportedEncoderCodecList{ EPixelStreamingCodec::VP8, EPixelStreamingCodec::VP9, EPixelStreamingCodec::H264, EPixelStreamingCodec::H265 };
 
 	// mapping of codec to a list of video formats
 	// done this way so we can order the list of formats based on selected codec in GetSupportedFormats
@@ -48,10 +53,50 @@ namespace UE::PixelStreaming
 		// instance of this factory.
 		static std::vector<webrtc::SdpVideoFormat> SupportedFormats;
 
+		EPixelStreamingCodec SelectedCodec = UE::PixelStreaming::Settings::GetSelectedCodec();
+		if ((SelectedCodec == EPixelStreamingCodec::H264 || SelectedCodec == EPixelStreamingCodec::H265) && IsRHIDeviceNVIDIA())
+		{
+			// NOTE (william.belcher): This check will return false if all the encoding sessions are in use, even if the user intends
+			// to stream share.
+			int32 NumEncoderSessions = NvmlEncoder::GetEncoderSessionCount(0); // TODO we should probably actually figure out the GPU index rather than assume 0
+			int32 MaxCVarAllowedSessions = Settings::CVarPixelStreamingEncoderMaxSessions.GetValueOnAnyThread();
+			bool bCanCreateHardwareEncoder = true;
+
+			if(MaxCVarAllowedSessions != -1 && NumEncoderSessions != -1) {
+				// If our CVar is set and we receive a valid session count
+				bCanCreateHardwareEncoder &= NumEncoderSessions < MaxCVarAllowedSessions;
+			} 
+			else if(MaxCVarAllowedSessions == -1)
+			{
+				// If we receive a valid session count and our cvar isn't set
+				bCanCreateHardwareEncoder &= NvmlEncoder::IsEncoderSessionAvailable(0); // TODO we should probably actually figure out the GPU index rather than assume 0
+			}
+
+			if (!bCanCreateHardwareEncoder)
+			{
+				// No more hardware encoder sessions available. Fallback to VP8
+				// NOTE: CVars can only be set from game thread
+				DoOnGameThread([]() {
+					Settings::SetCodec(EPixelStreamingCodec::VP8);
+					if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
+					{
+						Delegates->OnFallbackToSoftwareEncodering.Broadcast();
+						Delegates->OnFallbackToSoftwareEncoderingNative.Broadcast();
+					}
+				});
+				// Also update our local SelectedCodec to reflect what the state will be
+				SelectedCodec = EPixelStreamingCodec::VP8;
+				UE_LOG(LogPixelStreaming, Warning, TEXT("No more HW encoders available. Falling back to software encoding"));
+				CodecMap.Remove(EPixelStreamingCodec::H264);
+				CodecMap.Remove(EPixelStreamingCodec::H265);
+			}
+		}
+
 		// If we are not negotiating codecs simply return just the one codec that is selected in UE
 		if (!Settings::CVarPixelStreamingWebRTCNegotiateCodecs.GetValueOnAnyThread())
 		{
-			const EPixelStreamingCodec SelectedCodec = UE::PixelStreaming::Settings::GetSelectedCodec();
+			SupportedFormats.clear();
+
 			if (CodecMap.Contains(SelectedCodec))
 			{
 				for (auto& Format : CodecMap[SelectedCodec])
@@ -67,8 +112,6 @@ namespace UE::PixelStreaming
 		}
 
 		static EPixelStreamingCodec LastSelectedCodec = EPixelStreamingCodec::Invalid;
-
-		const EPixelStreamingCodec SelectedCodec = UE::PixelStreaming::Settings::GetSelectedCodec();
 		if (LastSelectedCodec != SelectedCodec)
 		{
 			// build a new format list
@@ -193,4 +236,5 @@ namespace UE::PixelStreaming
 	{
 		bForceNextKeyframe = false;
 	}
+
 } // namespace UE::PixelStreaming
