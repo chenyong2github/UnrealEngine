@@ -22,6 +22,10 @@ class DETAILCUSTOMIZATIONS_API FKeyStructCustomization
 	: public IPropertyTypeCustomization
 {
 public:
+	FKeyStructCustomization();
+
+	UE_NONCOPYABLE(FKeyStructCustomization)
+
 	// IPropertyTypeCustomization interface
 
 	virtual void CustomizeHeader(TSharedRef<class IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;

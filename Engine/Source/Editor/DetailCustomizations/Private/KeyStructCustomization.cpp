@@ -23,6 +23,8 @@ class SWidget;
 
 #define LOCTEXT_NAMESPACE "FKeyStructCustomization"
 
+FKeyStructCustomization::FKeyStructCustomization() = default;
+
 /* FKeyStructCustomization static interface
  *****************************************************************************/
 
