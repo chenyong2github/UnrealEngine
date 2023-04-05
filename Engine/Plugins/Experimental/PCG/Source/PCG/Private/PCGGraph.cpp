@@ -285,8 +285,15 @@ void UPCGGraph::BeginDestroy()
 		OnNodeRemoved(Node);
 	}
 
-	OutputNode->OnNodeChangedDelegate.RemoveAll(this);
-	InputNode->OnNodeChangedDelegate.RemoveAll(this);
+	if (OutputNode)
+	{
+		OutputNode->OnNodeChangedDelegate.RemoveAll(this);
+	}
+
+	if (InputNode)
+	{
+		InputNode->OnNodeChangedDelegate.RemoveAll(this);
+	}
 
 	// Notify the compiler to remove this graph from its cache
 	if (GEditor)
