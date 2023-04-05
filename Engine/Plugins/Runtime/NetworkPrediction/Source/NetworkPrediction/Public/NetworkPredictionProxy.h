@@ -5,6 +5,7 @@
 #include "NetworkPredictionID.h"
 #include "NetworkPredictionStateView.h"
 #include "NetworkPredictionConfig.h"
+#include "Engine/EngineBaseTypes.h"
 #include "Engine/EngineTypes.h"
 #include "NetworkPredictionProxy.generated.h"
 
@@ -36,9 +37,22 @@ struct FNetworkPredictionProxy
 {
 	GENERATED_BODY();
 
+	template<typename ModelDef>
+	struct FInitParams
+	{
+		UNetworkPredictionWorldManager* WorldManager;
+		ENetMode Mode;
+		const FReplicationProxySet& RepProxies;
+		typename ModelDef::Simulation* Simulation = nullptr;
+		typename ModelDef::Driver* Driver = nullptr;
+	};
+
 	// The init function that you need to call. This is defined in NetworkPredictionProxyInit.h (which should only be included by your .cpp file)
 	template<typename ModelDef>
 	void Init(UWorld* World, const FReplicationProxySet& RepProxies, typename ModelDef::Simulation* Simulation=nullptr, typename ModelDef::Driver* Driver=nullptr);
+
+	template<typename ModelDef>
+	void Init(const FInitParams<ModelDef>& Params);
 
 	// When network role changes, initializes role storage and logic controller
 	void InitForNetworkRole(ENetRole Role, bool bHasNetConnection)

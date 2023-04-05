@@ -11,15 +11,15 @@ struct FNetworkPredictionSettings;
 // The init function binds to the templated methods on UNetworkPredictionMAnager. This will "bring in" all the templated systems on NP, so this file should only be 
 // included in your .cpp file that is calling Init.
 template<typename ModelDef>
-void FNetworkPredictionProxy::Init(UWorld* World, const FReplicationProxySet& RepProxies, typename ModelDef::Simulation* Simulation, typename ModelDef::Driver* Driver)
+void FNetworkPredictionProxy::Init(const FInitParams<ModelDef>& Params)
 {
 	using StateTypes = typename ModelDef::StateTypes;
 	using InputType = typename StateTypes::InputType;
 	using SyncType = typename StateTypes::SyncType;
 	using AuxType = typename StateTypes::AuxType;
 
-	// Aquire an ID but don't register yet		
-	WorldManager = World->GetSubsystem<UNetworkPredictionWorldManager>();
+	// Aquire an ID but don't register yet
+	WorldManager = Params.WorldManager;
 	npCheckSlow(WorldManager);
 
 	if (ID.IsValid() == false)
@@ -33,11 +33,12 @@ void FNetworkPredictionProxy::Init(UWorld* World, const FReplicationProxySet& Re
 		}
 
 		// Assign ID. Client will assign a temporary ID that later gets remapped via a call to ConfigFunc --> RemapClientSimulationID
-		ID = WorldManager->CreateSimulationID(World->GetNetMode() == NM_Client);
+		ID = WorldManager->CreateSimulationID(Params.Mode == NM_Client);
 	}
 
-	WorldManager->RegisterInstance<ModelDef>(ID, TNetworkPredictionModelInfo<ModelDef>(Simulation, Driver, &View));
+	WorldManager->RegisterInstance<ModelDef>(ID, TNetworkPredictionModelInfo<ModelDef>(Params.Simulation, Params.Driver, &View));
 
+	const FReplicationProxySet& RepProxies = Params.RepProxies;
 	ConfigFunc = [RepProxies](FNetworkPredictionProxy* const This, FNetworkPredictionID NewID, EConfigAction Action)
 	{
 		if (This->WorldManager == nullptr)
@@ -80,4 +81,11 @@ void FNetworkPredictionProxy::Init(UWorld* World, const FReplicationProxySet& Re
 			This->WorldManager->ConfigureInstance<ModelDef>(This->ID, This->CachedArchetype, This->CachedConfig, RepProxies, This->CachedNetRole, This->bCachedHasNetConnection);
 		}
 	};
+}
+
+template<typename ModelDef>
+void FNetworkPredictionProxy::Init(UWorld* World, const FReplicationProxySet& RepProxies, typename ModelDef::Simulation* Simulation, typename ModelDef::Driver* Driver)
+{
+	FNetworkPredictionProxy::FInitParams<ModelDef> Params = {World->GetSubsystem<UNetworkPredictionWorldManager>(), World->GetNetMode(), RepProxies, Simulation, Driver};
+	Init<ModelDef>(Params);
 }

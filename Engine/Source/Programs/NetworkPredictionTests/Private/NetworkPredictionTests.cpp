@@ -1,13 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "Logging/LogScopedVerbosityOverride.h"
 #include "Modules/ModuleManager.h"
+#include "NetworkPredictionTests.h"
 #include "SlateGlobals.h"
 #include "Styling/SlateWidgetStyleContainerBase.h"
 #include "TestCommon/Initialization.h"
 
 #include <catch2/catch_test_macros.hpp>
+
+DEFINE_LOG_CATEGORY(LogNetworkPredictionTests);
 
 GROUP_BEFORE_GLOBAL(Catch::DefaultGroup)
 {

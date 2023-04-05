@@ -81,11 +81,7 @@ void UNetworkPredictionWorldManager::OnWorldPreTick(UWorld* InWorld, ELevelTick 
 
 	UE_NP_TRACE_WORLD_FRAME_START(InWorld->GetGameInstance(), InDeltaSeconds);
 
-	// Update fixed tick rate, this can be changed via editor settings
-	FixedTickState.FixedStepRealTimeMS = (1.f /  GEngine->FixedFrameRate) * 1000.f;
-	FixedTickState.FixedStepMS = (int32)FixedTickState.FixedStepRealTimeMS;
-
-	ActiveInstance = this;
+	OnWorldPreTick_Internal(InDeltaSeconds, GEngine->FixedFrameRate);
 
 	// Instantiate replicated manager on server
 	if (!ReplicatedManager && InWorld->GetNetMode() != NM_Client)
@@ -93,6 +89,15 @@ void UNetworkPredictionWorldManager::OnWorldPreTick(UWorld* InWorld, ELevelTick 
 		UClass* ReplicatedManagerClass = GetDefault<UNetworkPredictionSettingsObject>()->Settings.ReplicatedManagerClassOverride.Get();
 		ReplicatedManager = ReplicatedManagerClass ? InWorld->SpawnActor<ANetworkPredictionReplicatedManager>(ReplicatedManagerClass) : InWorld->SpawnActor<ANetworkPredictionReplicatedManager>();
 	}
+}
+
+void UNetworkPredictionWorldManager::OnWorldPreTick_Internal(float InDeltaSeconds, float InFixedFrameRate)
+{
+	// Update fixed tick rate, this can be changed via editor settings
+	FixedTickState.FixedStepRealTimeMS = (1.f /  InFixedFrameRate) * 1000.f;
+	FixedTickState.FixedStepMS = (int32)FixedTickState.FixedStepRealTimeMS;
+
+	ActiveInstance = this;
 }
 
 void UNetworkPredictionWorldManager::ReconcileSimulationsPostNetworkUpdate()
@@ -105,6 +110,11 @@ void UNetworkPredictionWorldManager::ReconcileSimulationsPostNetworkUpdate()
 		return;
 	}
 
+	ReconcileSimulationsPostNetworkUpdate_Internal();
+}
+
+void UNetworkPredictionWorldManager::ReconcileSimulationsPostNetworkUpdate_Internal()
+{
 	ActiveInstance = this;
 	bLockServices = true;
 
@@ -244,7 +254,7 @@ void UNetworkPredictionWorldManager::ReconcileSimulationsPostNetworkUpdate()
 		else if (RollbackFrame > FixedTickState.PendingFrame)
 		{
 			// Most likely we haven't had a confirmed frame yet so our local frame -> server mapping hasn't been set yet
-			UE_LOG(LogNetworkPrediction, Warning, TEXT("RollbackFrame %d AHEAD of PendingFrame %d... Offset: %d"), RollbackFrame, FixedTickState.PendingFrame, FixedTickState.Offset);
+			UE_LOG(LogNetworkPrediction, Log, TEXT("RollbackFrame %d AHEAD of PendingFrame %d... Offset: %d"), RollbackFrame, FixedTickState.PendingFrame, FixedTickState.Offset);
 		}
 	}
 
@@ -268,6 +278,11 @@ void UNetworkPredictionWorldManager::BeginNewSimulationFrame(UWorld* InWorld, EL
 		return;
 	}
 
+	BeginNewSimulationFrame_Internal(DeltaTimeSeconds);
+}
+
+void UNetworkPredictionWorldManager::BeginNewSimulationFrame_Internal(float DeltaTimeSeconds)
+{
 	ActiveInstance = this;
 	bLockServices = true;
 
@@ -572,8 +587,8 @@ void UNetworkPredictionWorldManager::AdvancePhysicsResimFrame(int32& PhysicsFram
 
 bool UNetworkPredictionWorldManager::CanPhysicsFixTick() const
 {
-	npCheckSlow(GEngine);
-	return (GEngine->bUseFixedFrameRate) || Settings.bForceEngineFixTickForcePhysics;
+	// GEngine may be null in some contexts, like unit tests.
+	return (GEngine && GEngine->bUseFixedFrameRate) || Settings.bForceEngineFixTickForcePhysics;
 }
 
 void UNetworkPredictionWorldManager::SetUsingPhysics()

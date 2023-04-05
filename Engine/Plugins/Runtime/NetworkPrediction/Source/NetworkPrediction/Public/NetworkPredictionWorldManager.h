@@ -11,6 +11,11 @@
 class FChaosSolversModule;
 class ANetworkPredictionReplicatedManager;
 
+namespace UE::Net::Private
+{
+	struct FNetPredictionTestWorld;
+}
+
 UCLASS()
 class NETWORKPREDICTION_API UNetworkPredictionWorldManager : public UWorldSubsystem
 {
@@ -118,6 +123,12 @@ private:
 	void OnWorldPreTick(UWorld* InWorld, ELevelTick InLevelTick, float InDeltaSeconds);
 	void ReconcileSimulationsPostNetworkUpdate();
 	void BeginNewSimulationFrame(UWorld* InWorld, ELevelTick InLevelTick, float InDeltaSeconds);
+
+	// For ease of unit testing
+	friend struct UE::Net::Private::FNetPredictionTestWorld;
+	void OnWorldPreTick_Internal(float InDeltaSeconds, float InFixedFrameRate);
+	void ReconcileSimulationsPostNetworkUpdate_Internal();
+	void BeginNewSimulationFrame_Internal(float InDeltaSeconds);
 
 	FDelegateHandle PreTickDispatchHandle;
 	FDelegateHandle PostTickDispatchHandle;

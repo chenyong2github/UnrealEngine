@@ -352,7 +352,7 @@ void FNetworkPredictionTrace::TraceSystemFault(const TCHAR* Fmt, ...)
 
 		check(Result >= 0 );
 
-	UE_LOG(LogNetworkPrediction, Warning, TEXT("SystemFault: %s"), Buffer);
+	UE_LOG(LogNetworkPrediction, Log, TEXT("SystemFault: %s"), Buffer);
 	);
 
 	UE_TRACE_LOG(NetworkPrediction, SystemFault, NetworkPredictionChannel)
