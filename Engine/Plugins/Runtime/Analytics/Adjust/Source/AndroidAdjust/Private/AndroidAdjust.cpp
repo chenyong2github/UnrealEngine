@@ -2,7 +2,7 @@
 
 #include "AndroidAdjust.h"
 #include "Modules/ModuleManager.h"
-#include "AndroidAdjustPrivatePCH.h"
+#include "AndroidAdjustProvider.h"
 #include "Android/AndroidJNI.h"
 #include "Android/AndroidApplication.h"
 #include "Misc/Paths.h"

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IOSAdjust.h"
-#include "IOSAdjustPrivatePCH.h"
+#include "IOSAdjustProvider.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
 
