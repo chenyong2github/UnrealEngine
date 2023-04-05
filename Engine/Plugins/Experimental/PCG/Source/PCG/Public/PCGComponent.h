@@ -54,9 +54,8 @@ enum class EPCGComponentDirtyFlag : uint8
 	Actor = 1 << 0,
 	Landscape = 1 << 1,
 	Input = 1 << 2,
-	Exclusions = 1 << 3,
-	Data = 1 << 4,
-	All = Actor | Landscape | Input | Exclusions | Data
+	Data = 1 << 3,
+	All = Actor | Landscape | Input | Data
 };
 ENUM_CLASS_FLAGS(EPCGComponentDirtyFlag);
 
@@ -101,7 +100,6 @@ public:
 	UPCGData* GetLandscapePCGData();
 	UPCGData* GetLandscapeHeightPCGData();
 	UPCGData* GetOriginalActorPCGData();
-	TArray<UPCGData*> GetPCGExclusionData();
 
 	bool CanPartition() const;
 
@@ -165,14 +163,6 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	int Seed = 42;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	TSet<FName> ExcludedTags;
-
-#if WITH_EDITORONLY_DATA
-	UPROPERTY()
-	TArray<FName> ExclusionTags_DEPRECATED;
-#endif
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
 	bool bActivated = true;
@@ -293,7 +283,6 @@ private:
 	UPCGData* CreateActorPCGData();
 	UPCGData* CreateActorPCGData(AActor* Actor, bool bParseActor = true);
 	UPCGData* CreateLandscapePCGData(bool bHeightOnly);
-	void UpdatePCGExclusionData();
 	bool IsLandscapeCachedDataDirty(const UPCGData* Data) const;
 
 	bool ShouldGenerate(bool bForce, EPCGComponentGenerationTrigger RequestedGenerationTrigger) const;
@@ -319,14 +308,14 @@ private:
 	void GetManagedResources(TArray<TObjectPtr<UPCGManagedResource>>& Resources) const;
 	void SetManagedResources(const TArray<TObjectPtr<UPCGManagedResource>>& Resources);
 
-	bool GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjectPtr<AActor>>& OutActors, bool bCullAgainstLocalBounds);
 	bool GetActorsFromTags(const TMap<FName, bool>& InTagsAndCulling, TSet<TWeakObjectPtr<AActor>>& OutActors);
 
 	void RefreshAfterGraphChanged(UPCGGraphInterface* InGraph, bool bIsStructural, bool bDirtyInputs);
 	void OnGraphChanged(UPCGGraphInterface* InGraph, EPCGChangeType ChangeType);
 
 #if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	// Stub for the other PreEditChange prototype to prevent compile issues from name hiding
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override { Super::PreEditChange(PropertyAboutToChange); }
 	virtual void PreEditChange(FEditPropertyChain& PropertyAboutToChange) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -348,10 +337,7 @@ private:
 	void OnActorDeleted(AActor* InActor);
 	void OnActorMoved(AActor* InActor);
 	void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent);
-	bool ActorHasExcludedTag(AActor* InActor) const;
 	bool ActorIsTracked(AActor* InActor) const;
-
-	bool UpdateExcludedActor(AActor* InActor);
 
 	void OnActorChanged(AActor* InActor, UObject* InSourceObject, bool bActorTagChange);
 
@@ -382,13 +368,6 @@ private:
 
 	UPROPERTY(Transient, NonPIEDuplicateTransient)
 	TObjectPtr<UPCGData> CachedLandscapeHeightData = nullptr;
-
-	UPROPERTY(Transient, NonPIEDuplicateTransient)
-	TMap<TObjectPtr<AActor>, TObjectPtr<UPCGData>> CachedExclusionData;
-
-	// Cached excluded actors list is serialized because we can't get it at postload time
-	UPROPERTY()
-	TSet<TWeakObjectPtr<AActor>> CachedExcludedActors; 
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

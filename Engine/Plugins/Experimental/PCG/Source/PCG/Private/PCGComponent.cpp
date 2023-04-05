@@ -198,7 +198,6 @@ void UPCGComponent::SetPropertiesFromOriginal(const UPCGComponent* Original)
 
 #if WITH_EDITOR
 	const bool bHasDirtyInput = InputType != NewInputType;
-	const bool bHasDirtyExclusions = !(ExcludedTags.Num() == Original->ExcludedTags.Num() && ExcludedTags.Includes(Original->ExcludedTags));
 
 	TSet<FName> TrackedTags;
 	TSet<FName> OriginalTrackedTags;
@@ -206,7 +205,7 @@ void UPCGComponent::SetPropertiesFromOriginal(const UPCGComponent* Original)
 	Original->CachedTrackedTagsToSettings.GetKeys(OriginalTrackedTags);
 	const bool bHasDirtyTracking = !(TrackedTags.Num() == OriginalTrackedTags.Num() && TrackedTags.Includes(OriginalTrackedTags));
 
-	const bool bIsDirty = bHasDirtyInput || bHasDirtyExclusions || bHasDirtyTracking || bGraphInstanceIsDifferent;
+	const bool bIsDirty = bHasDirtyInput || bHasDirtyTracking || bGraphInstanceIsDifferent;
 #endif // WITH_EDITOR
 
 	InputType = NewInputType;
@@ -225,10 +224,9 @@ void UPCGComponent::SetPropertiesFromOriginal(const UPCGComponent* Original)
 	}
 
 #if WITH_EDITOR
-	if (bHasDirtyExclusions || bHasDirtyTracking)
+	if (bHasDirtyTracking)
 	{
 		TeardownTrackingCallbacks();
-		ExcludedTags = Original->ExcludedTags;
 		SetupTrackingCallbacks();
 		RefreshTrackingData();
 	}
@@ -237,10 +235,8 @@ void UPCGComponent::SetPropertiesFromOriginal(const UPCGComponent* Original)
 	if (bIsDirty)
 	{
 		Modify();
-		DirtyGenerated((bHasDirtyInput ? EPCGComponentDirtyFlag::Input : EPCGComponentDirtyFlag::None) | (bHasDirtyExclusions ? EPCGComponentDirtyFlag::Exclusions : EPCGComponentDirtyFlag::None));
+		DirtyGenerated(bHasDirtyInput ? EPCGComponentDirtyFlag::Input : EPCGComponentDirtyFlag::None);
 	}
-#else
-	ExcludedTags = Original->ExcludedTags;
 #endif
 }
 
@@ -321,45 +317,6 @@ FPCGTaskId UPCGComponent::CreateGenerateTask(bool bForce, const TArray<FPCGTaskI
 	}
 
 	return GetSubsystem()->ScheduleGraph(this, *AllDependencies);
-}
-
-bool UPCGComponent::GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjectPtr<AActor>>& OutActors, bool bCullAgainstLocalBounds)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::GetActorsFromTags::Excluded);
-	UWorld* World = GetWorld();
-
-	if (!World)
-	{
-		return false;
-	}
-
-	FBox LocalBounds = bCullAgainstLocalBounds ? GetGridBounds() : FBox(EForceInit::ForceInit);
-
-	TArray<AActor*> PerTagActors;
-
-	OutActors.Reset();
-
-	bool bHasValidTag = false;
-	for (const FName& Tag : InTags)
-	{
-		if (Tag != NAME_None)
-		{
-			bHasValidTag = true;
-			UGameplayStatics::GetAllActorsWithTag(World, Tag, PerTagActors);
-
-			for (AActor* Actor : PerTagActors)
-			{
-				if (!bCullAgainstLocalBounds || LocalBounds.Intersect(GetGridBounds(Actor)))
-				{
-					OutActors.Emplace(Actor);
-				}
-			}
-
-			PerTagActors.Reset();
-		}
-	}
-
-	return bHasValidTag;
 }
 
 bool UPCGComponent::GetActorsFromTags(const TMap<FName, bool>& InTagsAndCulling, TSet<TWeakObjectPtr<AActor>>& OutActors)
@@ -1010,12 +967,6 @@ void UPCGComponent::PostLoad()
 	// Force dirty to be false on load. We should never refresh on load.
 	bDirtyGenerated = false;
 
-	if (!ExclusionTags_DEPRECATED.IsEmpty() && ExcludedTags.IsEmpty())
-	{
-		ExcludedTags.Append(ExclusionTags_DEPRECATED);
-		ExclusionTags_DEPRECATED.Reset();
-	}
-
 	// If we have both default value (bIsComponentPartitioned = false and bIsPartitioned = true)
 	// we will follow the value of bIsPartitioned.
 	// bIsPartitioned will be set to false to new objects
@@ -1233,21 +1184,6 @@ void UPCGComponent::RefreshAfterGraphChanged(UPCGGraphInterface* InGraph, bool b
 }
 
 #if WITH_EDITOR
-void UPCGComponent::PreEditChange(FProperty* PropertyAboutToChange)
-{
-	if (PropertyAboutToChange)
-	{
-		const FName PropName = PropertyAboutToChange->GetFName();
-
-		if (PropName == GET_MEMBER_NAME_CHECKED(UPCGComponent, ExcludedTags))
-		{
-			TeardownTrackingCallbacks();
-		}
-	}
-
-	Super::PreEditChange(PropertyAboutToChange);
-}
-
 /**
 * Temporary workaround, while we are waiting for UE-182059
 * On the UI side of StructUtils, property widgets are referencing a temporary structure, not the one that is owned by the Graph/GraphInstance.
@@ -1383,20 +1319,6 @@ void UPCGComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		Refresh();
 	}
 	// General properties that don't affect behavior
-	else if (PropName == GET_MEMBER_NAME_CHECKED(UPCGComponent, ExcludedTags))
-	{
-		SetupTrackingCallbacks();
-		RefreshTrackingData();
-
-		const bool bHadExclusionData = !CachedExclusionData.IsEmpty();
-		const bool bHasExcludedActors = !CachedExcludedActors.IsEmpty();
-
-		if(bHadExclusionData || bHasExcludedActors)
-		{
-			DirtyGenerated(EPCGComponentDirtyFlag::Exclusions);
-			Refresh();
-		}
-	}
 	else
 	{
 		Refresh();
@@ -1497,7 +1419,7 @@ void UPCGComponent::SetupTrackingCallbacks()
 		}
 	}
 
-	if(!ExcludedTags.IsEmpty() || !CachedTrackedTagsToSettings.IsEmpty())
+	if(!CachedTrackedTagsToSettings.IsEmpty())
 	{
 		GEngine->OnLevelActorAdded().AddUObject(this, &UPCGComponent::OnActorAdded);
 		GEngine->OnLevelActorDeleted().AddUObject(this, &UPCGComponent::OnActorDeleted);
@@ -1514,7 +1436,6 @@ void UPCGComponent::RefreshTrackingData()
 		return;
 	}
 
-	GetActorsFromTags(ExcludedTags, CachedExcludedActors, /*bCullAgainstLocalBounds=*/true);
 	GetActorsFromTags(CachedTrackedTagsToCulling, CachedTrackedActors);
 	PopulateTrackedActorToTagsMap(/*bForce=*/true);
 }
@@ -1523,53 +1444,6 @@ void UPCGComponent::TeardownTrackingCallbacks()
 {
 	GEngine->OnLevelActorAdded().RemoveAll(this);
 	GEngine->OnLevelActorDeleted().RemoveAll(this);
-}
-
-bool UPCGComponent::ActorHasExcludedTag(AActor* InActor) const
-{
-	if (!InActor)
-	{
-		return false;
-	}
-
-	bool bHasExcludedTag = false;
-
-	for (const FName& Tag : InActor->Tags)
-	{
-		if (ExcludedTags.Contains(Tag))
-		{
-			bHasExcludedTag = true;
-			break;
-		}
-	}
-
-	return bHasExcludedTag;
-}
-
-bool UPCGComponent::UpdateExcludedActor(AActor* InActor)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::UpdateExcludedActor);
-	// Dirty data in all cases - the tag or positional changes will be picked up in the test later
-	if (CachedExcludedActors.Contains(InActor))
-	{
-		if (TObjectPtr<UPCGData>* ExclusionData = CachedExclusionData.Find(InActor))
-		{
-			*ExclusionData = nullptr;
-		}
-
-		CachedPCGData = nullptr;
-		return true;
-	}
-	// Dirty only if the impact actor is inside the bounds
-	else if (ActorHasExcludedTag(InActor) && GetGridBounds().Intersect(GetGridBounds(InActor)))
-	{
-		CachedPCGData = nullptr;
-		return true;
-	}
-	else
-	{
-		return false;
-	}
 }
 
 bool UPCGComponent::ActorIsTracked(AActor* InActor) const
@@ -1600,12 +1474,10 @@ void UPCGComponent::OnActorAdded(AActor* InActor)
 		return;
 	}
 
-	const bool bIsExcluded = UpdateExcludedActor(InActor);
 	const bool bIsTracked = AddTrackedActor(InActor);
-
-	if (bIsExcluded || bIsTracked)
+	if (bIsTracked)
 	{
-		DirtyGenerated(bIsExcluded ? EPCGComponentDirtyFlag::Exclusions : EPCGComponentDirtyFlag::None, /*bDispatchToLocalComponents=*/ false);
+		DirtyGenerated(EPCGComponentDirtyFlag::None, /*bDispatchToLocalComponents=*/ false);
 		Refresh();
 	}
 }
@@ -1618,12 +1490,10 @@ void UPCGComponent::OnActorDeleted(AActor* InActor)
 		return;
 	}
 
-	const bool bWasExcluded = UpdateExcludedActor(InActor);
 	const bool bWasTracked = RemoveTrackedActor(InActor);
-
-	if (bWasExcluded || bWasTracked)
+	if (bWasTracked)
 	{
-		DirtyGenerated(bWasExcluded ? EPCGComponentDirtyFlag::Exclusions : EPCGComponentDirtyFlag::None, /*bDispatchToLocalComponents=*/ false);
+		DirtyGenerated(EPCGComponentDirtyFlag::None, /*bDispatchToLocalComponents=*/ false);
 		Refresh();
 	}
 }
@@ -1651,23 +1521,9 @@ void UPCGComponent::OnActorMoved(AActor* InActor)
 	}
 	else
 	{
-		bool bDirtyAndRefresh = false;
-		bool bDirtyExclusions = false;
-
-		if (UpdateExcludedActor(InActor))
-		{
-			bDirtyAndRefresh = true;
-			bDirtyExclusions = true;
-		}
-
 		if (DirtyTrackedActor(InActor))
 		{
-			bDirtyAndRefresh = true;
-		}
-
-		if (bDirtyAndRefresh)
-		{
-			DirtyGenerated(bDirtyExclusions ? EPCGComponentDirtyFlag::Exclusions : EPCGComponentDirtyFlag::None, /*bDispatchToLocalComponents=*/false);
+			DirtyGenerated(EPCGComponentDirtyFlag::None, /*bDispatchToLocalComponents=*/false);
 			Refresh();
 		}
 	}
@@ -1835,19 +1691,7 @@ void UPCGComponent::OnActorChanged(AActor* Actor, UObject* InObject, bool bActor
 	}
 	else if(Actor && !Actor->bIsEditorPreviewActor)
 	{
-		bool bDirtyAndRefresh = false;
-
-		if (UpdateExcludedActor(Actor))
-		{
-			bDirtyAndRefresh = true;
-		}
-
 		if ((bActorTagChange && Actor == InObject && UpdateTrackedActor(Actor)) || DirtyTrackedActor(Actor))
-		{
-			bDirtyAndRefresh = true;
-		}
-
-		if (bDirtyAndRefresh)
 		{
 			DirtyGenerated(EPCGComponentDirtyFlag::None, /*bDispatchToLocalComponents=*/ false);
 			Refresh();
@@ -1893,12 +1737,6 @@ void UPCGComponent::DirtyGenerated(EPCGComponentDirtyFlag DirtyFlag, const bool 
 	if (!!(DirtyFlag & EPCGComponentDirtyFlag::Input))
 	{
 		CachedInputData = nullptr;
-		CachedPCGData = nullptr;
-	}
-
-	if (!!(DirtyFlag & EPCGComponentDirtyFlag::Exclusions))
-	{
-		CachedExclusionData.Reset();
 		CachedPCGData = nullptr;
 	}
 
@@ -2114,72 +1952,6 @@ UPCGData* UPCGComponent::GetOriginalActorPCGData()
 	}
 
 	return nullptr;
-}
-
-TArray<UPCGData*> UPCGComponent::GetPCGExclusionData()
-{
-	// TODO: replace with a boolean, unify.
-	UpdatePCGExclusionData();
-
-	TArray<typename decltype(CachedExclusionData)::ValueType> ExclusionData;
-	CachedExclusionData.GenerateValueArray(ExclusionData);
-	return ToRawPtrTArrayUnsafe(ExclusionData);
-}
-
-void UPCGComponent::UpdatePCGExclusionData()
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::UpdatePCGExclusionData);
-	const UPCGData* InputData = GetInputPCGData();
-	const UPCGSpatialData* InputSpatialData = Cast<const UPCGSpatialData>(InputData);
-
-	// Update the list of cached excluded actors here, since we might not have picked up everything on map load (due to WP)
-	GetActorsFromTags(ExcludedTags, CachedExcludedActors, /*bCullAgainstLocalBounds=*/true);
-
-	// Build exclusion data based on the CachedExcludedActors
-	decltype(CachedExclusionData) ExclusionData;
-
-	for(TWeakObjectPtr<AActor> ExcludedActorWeakPtr : CachedExcludedActors)
-	{
-		if(!ExcludedActorWeakPtr.IsValid())
-		{
-			continue;
-		}
-
-		AActor* ExcludedActor = ExcludedActorWeakPtr.Get();
-
-		TObjectPtr<UPCGData>* PreviousExclusionData = CachedExclusionData.Find(ExcludedActor);
-
-		if (PreviousExclusionData && *PreviousExclusionData)
-		{
-			ExclusionData.Add(ExcludedActor, *PreviousExclusionData);
-		}
-		else
-		{
-			// Create the new exclusion data
-			UPCGData* ActorData = CreateActorPCGData(ExcludedActor);
-			UPCGSpatialData* ActorSpatialData = Cast<UPCGSpatialData>(ActorData);
-
-			if (InputSpatialData && ActorSpatialData)
-			{
-				// Change the target actor to this - otherwise we could push changes on another actor
-				ActorSpatialData->TargetActor = GetOwner();
-
-				// Create intersection or projection depending on the dimension
-				// TODO: there's an ambiguity here when it's the same dimension.
-				// For volumes, we'd expect an intersection, for surfaces we'd expect a projection
-				if (ActorSpatialData->GetDimension() > InputSpatialData->GetDimension())
-				{
-					ExclusionData.Add(ExcludedActor, ActorSpatialData->IntersectWith(InputSpatialData));
-				}
-				else
-				{
-					ExclusionData.Add(ExcludedActor, ActorSpatialData->ProjectOn(InputSpatialData));
-				}
-			}
-		}
-	}
-
-	CachedExclusionData = ExclusionData;
 }
 
 UPCGData* UPCGComponent::CreateActorPCGData()
@@ -2428,34 +2200,7 @@ FPCGDataCollection UPCGComponent::CreateActorPCGDataCollection(AActor* Actor, co
 UPCGData* UPCGComponent::CreatePCGData()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::CreatePCGData);
-	UPCGData* InputData = GetInputPCGData();
-	UPCGSpatialData* SpatialInput = Cast<UPCGSpatialData>(InputData);
-	
-	// Early out: incompatible data
-	if (!SpatialInput)
-	{
-		return InputData;
-	}
-
-	UPCGDifferenceData* Difference = nullptr;
-	TArray<UPCGData*> ExclusionData = GetPCGExclusionData();
-
-	for (UPCGData* Exclusion : ExclusionData)
-	{
-		if (UPCGSpatialData* SpatialExclusion = Cast<UPCGSpatialData>(Exclusion))
-		{
-			if (!Difference)
-			{
-				Difference = SpatialInput->Subtract(SpatialExclusion);
-			}
-			else
-			{
-				Difference->AddDifference(SpatialExclusion);
-			}
-		}
-	}
-
-	return Difference ? Difference : InputData;
+	return GetInputPCGData();
 }
 
 UPCGData* UPCGComponent::CreateLandscapePCGData(bool bHeightOnly)
@@ -2951,7 +2696,7 @@ void FPCGComponentInstanceData::ApplyToComponent(UActorComponent* Component, con
 			PCGComponent->bDirtyGenerated = SourceComponent->bDirtyGenerated; 
 #endif // WITH_EDITOR
 
-			// Non-critical but should be done: transient data, excluded & tracked actors cache, landscape tracking
+			// Non-critical but should be done: transient data, tracked actors cache, landscape tracking
 			// TODO Validate usefulness + move accordingly
 		}
 		

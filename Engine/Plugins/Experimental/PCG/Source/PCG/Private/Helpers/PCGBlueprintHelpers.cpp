@@ -61,11 +61,6 @@ UPCGData* UPCGBlueprintHelpers::GetInputData(FPCGContext& Context)
 	return Context.SourceComponent.IsValid() ? Context.SourceComponent->GetInputPCGData() : nullptr;
 }
 
-TArray<UPCGData*> UPCGBlueprintHelpers::GetExclusionData(FPCGContext& Context)
-{
-	return Context.SourceComponent.IsValid() ? Context.SourceComponent->GetPCGExclusionData() : TArray<UPCGData*>();
-}
-
 UPCGComponent* UPCGBlueprintHelpers::GetComponent(FPCGContext& Context)
 {
 	return Context.SourceComponent.Get();

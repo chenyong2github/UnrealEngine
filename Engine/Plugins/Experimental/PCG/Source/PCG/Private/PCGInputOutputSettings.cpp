@@ -20,7 +20,7 @@ UPCGGraphInputOutputSettings::UPCGGraphInputOutputSettings(const FObjectInitiali
 	: Super(ObjectInitializer)
 {
 	StaticInLabels.Emplace(PCGPinConstants::DefaultInputLabel, LOCTEXT("InputOutputInPinTooltip",
-		"Provides the result of the Input pin, but with 'Excluded Tags' actors removed (configured on the PCG Component)."
+		"Provides the same result as the Input pin."
 	));
 	StaticAdvancedInLabels.Emplace(PCGInputOutputConstants::DefaultInputLabel, LOCTEXT("InputOutputInputPinTooltip",
 		"Takes the output of the Actor pin and if the 'Input Type' setting on the PCG Component is set to Landscape, combines it with the result of the Landscape pin. "
@@ -41,9 +41,6 @@ UPCGGraphInputOutputSettings::UPCGGraphInputOutputSettings(const FObjectInitiali
 	));
 	StaticAdvancedInLabels.Emplace(PCGInputOutputConstants::DefaultLandscapeHeightLabel, LOCTEXT("InputOutputLandscapeHeightPinTooltip",
 		"Similar to Landscape pin, but only provides height data and not other layers."
-	));
-	StaticAdvancedInLabels.Emplace(PCGInputOutputConstants::DefaultExcludedActorsLabel, LOCTEXT("InputOutputExcludedPinTooltip",
-		"Returns union of data read from actors have any tag specified in the 'Excluded Tags' setting on the PCG Component."
 	));
 	
 	StaticOutLabels.Emplace(PCGPinConstants::DefaultOutputLabel);

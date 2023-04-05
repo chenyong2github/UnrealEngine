@@ -1353,17 +1353,6 @@ bool FPCGFetchInputElement::ExecuteInternal(FPCGContext* Context) const
 		}
 	}
 
-	if (Context->Node->IsOutputPinConnected(PCGInputOutputConstants::DefaultExcludedActorsLabel))
-	{
-		TArray<UPCGData*> ExclusionsPCGData = Component->GetPCGExclusionData();
-		for (UPCGData* ExclusionPCGData : ExclusionsPCGData)
-		{
-			FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
-			TaggedData.Data = ExclusionPCGData;
-			TaggedData.Pin = PCGInputOutputConstants::DefaultExcludedActorsLabel;
-		}
-	}
-
 	return true;
 }
 
