@@ -249,6 +249,7 @@ void YUVv216ConvertPS(
 	// Assemble YUV data from input
 	InRaw = (YUVv216ConvertUB.IsARGBFmt != 0u) ? InRaw.zyxw : InRaw;								// PF_ARGB8 vs. PF_ABGR16 ordering
 	float4 CbY0CrY1 = (YUVv216ConvertUB.IsCbY0CrY1 != 0u) ? InRaw : InRaw.yxwz;						// CbY0CrY1 vs. Y0CbY1Cr ordering
+	CbY0CrY1 = (YUVv216ConvertUB.SwapChroma != 0u) ? CbY0CrY1.zyxw : CbY0CrY1;						// Cb/Cr swap
 	float3 YUV = (uint(InUV.x * YUVv216ConvertUB.OutputDimX) & 1u) ? CbY0CrY1.wxz : CbY0CrY1.yxz;	// Decode to YCbCr for odd/even pixels
 
 	// YUV -> RGB (using a plain 4x4 matrix - not the common 3x3 & offset setup)

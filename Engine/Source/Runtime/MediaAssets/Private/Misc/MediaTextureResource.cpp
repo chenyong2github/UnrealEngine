@@ -1030,15 +1030,6 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				}
 				break;
 
-				case EMediaTextureSampleFormat::CharUYVY:
-				{
-					TShaderMapRef<FUYVYConvertPS> ConvertShader(ShaderMap);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
-					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
-				}
-				break;
-
 				case EMediaTextureSampleFormat::CharYVYU:
 				{
 					TShaderMapRef<FYVYUConvertPS> ConvertShader(ShaderMap);
@@ -1051,6 +1042,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				case EMediaTextureSampleFormat::CharYUY2:		// Y0CbY1Cr
 				case EMediaTextureSampleFormat::Char2VUY:		// CbY0CrY1
 				case EMediaTextureSampleFormat::YUVv216:		// CbY0CrY1
+				case EMediaTextureSampleFormat::CharUYVY:		// CrY0CbY1
 				{
 					// Get the complete matrix to convert sample data to RGB
 					auto YUVMtx = Sample->GetSampleToRGBMatrix();
@@ -1064,7 +1056,11 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 					TShaderMapRef<FYUVv216ConvertPS> ConvertShader(ShaderMap);
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
-					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, YUVMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084, ColorSpaceMtx, Sample->GetFormat() != EMediaTextureSampleFormat::CharYUY2, InputTexture->GetFormat() == PF_A8R8G8B8);
+					SetShaderParametersLegacyPS(CommandList, ConvertShader, InputTexture, OutputDim, YUVMtx, Sample->GetEncodingType() == UE::Color::EEncoding::sRGB, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084, ColorSpaceMtx,
+												Sample->GetFormat() != EMediaTextureSampleFormat::CharYUY2,		// Y or Cb first
+												InputTexture->GetFormat() == PF_A8R8G8B8,						// ARGB vs. ABGR
+												Sample->GetFormat() == EMediaTextureSampleFormat::CharUYVY		// Cb / Cr swap
+												);
 				}
 				break;
 
