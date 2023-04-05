@@ -2197,7 +2197,7 @@ bool ULevelStreaming::IsValidStreamingLevel() const
 		} 
 		
 		// Handle unloaded instanced package
-		if (WorldPackageName != PackageNameToLoad)
+		if (PackageNameToLoad != NAME_None && WorldPackageName != PackageNameToLoad)
 		{
 			WorldPackageName = PackageNameToLoad;
 		}
