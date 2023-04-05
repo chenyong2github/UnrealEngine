@@ -26,6 +26,7 @@ struct POSESEARCH_API IPoseHistory
 	virtual float GetSampleTimeInterval() const = 0;
 	virtual bool GetComponentSpaceTransformAtTime(float Time, FBoneIndexType BoneIndexType, FTransform& OutBoneTransform, bool bExtrapolate = true) const = 0;
 	virtual void GetRootTransformAtTime(float Time, FTransform& OutRootTransform, bool bExtrapolate = true) const = 0;
+	virtual bool IsEmpty() const = 0;
 };
 
 struct FPoseHistoryEntry
@@ -53,6 +54,7 @@ struct FPoseHistory : public IPoseHistory
 	virtual float GetSampleTimeInterval() const override;
 	virtual bool GetComponentSpaceTransformAtTime(float Time, FBoneIndexType BoneIndexType, FTransform& OutBoneTransform, bool bExtrapolate = true) const override;
 	virtual void GetRootTransformAtTime(float Time, FTransform& OutRootTransform, bool bExtrapolate = true) const override;
+	virtual bool IsEmpty() const override;
 	// End of IPoseHistory interface
 
 #if ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
@@ -75,6 +77,7 @@ struct FExtendedPoseHistory : public IPoseHistory
 	virtual float GetSampleTimeInterval() const override;
 	virtual bool GetComponentSpaceTransformAtTime(float Time, FBoneIndexType BoneIndexType, FTransform& OutBoneTransform, bool bExtrapolate = true) const override;
 	virtual void GetRootTransformAtTime(float Time, FTransform& OutRootTransform, bool bExtrapolate = true) const override;
+	virtual bool IsEmpty() const override;
 	// End of IPoseHistory interface
 
 	void ResetFuturePoses();

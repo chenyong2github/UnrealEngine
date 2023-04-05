@@ -201,6 +201,11 @@ void FPoseHistory::GetRootTransformAtTime(float Time, FTransform& OutRootTransfo
 	}
 }
 
+bool FPoseHistory::IsEmpty() const
+{
+	return Entries.IsEmpty();
+}
+
 void FPoseHistory::Update(float SecondsElapsed, FCSPose<FCompactPose>& ComponentSpacePose, const FTransform& ComponentTransform)
 {
 	// Age our elapsed times
@@ -397,6 +402,12 @@ void FExtendedPoseHistory::GetRootTransformAtTime(float Time, FTransform& OutRoo
 	}
 
 	PoseHistory->GetRootTransformAtTime(Time, OutRootTransform, bExtrapolate);
+}
+
+bool FExtendedPoseHistory::IsEmpty() const
+{
+	check(PoseHistory);
+	return PoseHistory->IsEmpty() && FutureEntries.IsEmpty();
 }
 
 void FExtendedPoseHistory::ResetFuturePoses()

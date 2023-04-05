@@ -386,13 +386,17 @@ FTransform FSearchContext::GetComponentSpaceTransform(float SampleTime, const UP
 		FTransform BoneComponentSpaceTransform;
 		if (!History->GetComponentSpaceTransformAtTime(SampleTime, BoneIndexType, BoneComponentSpaceTransform))
 		{
-			FName BoneName;
 			if (const USkeleton* Skeleton = Schema->Skeleton)
 			{
-				BoneName = Skeleton->GetReferenceSkeleton().GetBoneName(BoneIndexType);
+				if (!History->IsEmpty())
+				{
+					UE_LOG(LogPoseSearch, Warning, TEXT("FSearchContext::GetComponentSpaceTransform - Couldn't find BoneIndexType %d (%s) requested by %s"), BoneIndexType, *Skeleton->GetReferenceSkeleton().GetBoneName(BoneIndexType).ToString(), *Schema->GetName());
+				}
 			}
-
-			UE_LOG(LogPoseSearch, Warning, TEXT("FSearchContext::GetComponentSpaceTransform - Couldn't find BoneIndexType %d (%s) requested by %s"), BoneIndexType, *BoneName.ToString(), *Schema->GetName());
+			else
+			{
+				UE_LOG(LogPoseSearch, Warning, TEXT("FSearchContext::GetComponentSpaceTransform - Schema '%s' Skeleton is not properly set"), *Schema->GetName());
+			}
 		}
 
 		CachedTransforms.Add(SampleTime, BoneIndexType, BoneComponentSpaceTransform);
