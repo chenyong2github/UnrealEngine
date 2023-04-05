@@ -1156,14 +1156,6 @@ void FAnimInstanceProxy::UpdateAnimation()
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	FMemMark Mark(FMemStack::Get());
-
-#if WITH_EDITORONLY_DATA
-	UpdatedNodesThisFrame.Reset();
-	NodeInputAttributesThisFrame.Reset();
-	NodeOutputAttributesThisFrame.Reset();
-	NodeSyncsThisFrame.Reset();
-#endif
-
 	FAnimationUpdateSharedContext SharedContext;
 	FAnimationUpdateContext Context(this, CurrentDeltaSeconds, &SharedContext);
 
@@ -1184,6 +1176,13 @@ void FAnimInstanceProxy::UpdateAnimation_WithRoot(const FAnimationUpdateContext&
 
 	ANIM_MT_SCOPE_CYCLE_COUNTER(ProxyUpdateAnimation, !IsInGameThread());
 	FScopeCycleCounterUObject AnimScope(GetAnimInstanceObject());
+	
+#if WITH_EDITORONLY_DATA
+	UpdatedNodesThisFrame.Reset();
+	NodeInputAttributesThisFrame.Reset();
+	NodeOutputAttributesThisFrame.Reset();
+	NodeSyncsThisFrame.Reset();
+#endif
 
 	if(InRootNode == RootNode)
 	{
