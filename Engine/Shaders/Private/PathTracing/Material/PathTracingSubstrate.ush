@@ -8,6 +8,7 @@
 
 #include "PathTracingMaterialCommon.ush"
 #include "PathTracingGlossy.ush"
+#include "PathTracingFresnel.ush"
 #include "../../BRDF.ush"
 
 #define STRATA_FRESNEL_F82  0
@@ -40,11 +41,8 @@ struct FSubstrateSingleSlabData
 	float3 LobeCdf;
 	float4 LobePdf;
 
-
-	// NOTE: Must set Basis field before calling this
-	void PrepareBSDF(float3 V_World, FPathTracingPayload Payload)
+	void PrepareBSDF(float3 V_World, FPathTracingPayload Payload, bool bUseSSSColor = false)
 	{
-
 		Basis = GetGGXBasis(Payload.RoughnessData.x, Payload.Anisotropy, Payload.WorldNormal, Payload.WorldTangent, Alpha0);
 		Alpha1 = GetGGXAlpha(Payload.RoughnessData.y, Payload.Anisotropy);
 
@@ -79,7 +77,7 @@ struct FSubstrateSingleSlabData
 		// Now prepare a cdf/pdf for lobe selection
 		float3 MaxLobeWeight = Payload.GetMaxLobeWeight();
 		LobeCdf = LobeSelectionCdf(
-			MaxLobeWeight * DiffuseWeight * Payload.DiffuseColor,
+			MaxLobeWeight * DiffuseWeight * (bUseSSSColor ? Payload.SubsurfaceColor : Payload.DiffuseColor),
 			MaxLobeWeight * Spec0Albedo,
 			MaxLobeWeight * Spec1Albedo,
 			MaxLobeWeight * FuzzAlbedo);
@@ -242,6 +240,256 @@ FMaterialEval Substrate_EvalMaterial(
 #endif
 		Result.AddLobeWithMIS(DiffuseSpecularScale.y * (1.0 - Payload.RoughnessData.z) * F * GGXResult0.x * Data.Spec0.W, GGXResult0.y, Data.LobePdf.y);
 		Result.AddLobeWithMIS(DiffuseSpecularScale.y * (      Payload.RoughnessData.z) * F * GGXResult1.x * Data.Spec1.W, GGXResult1.y, Data.LobePdf.z);
+	}
+	{
+		// Cloth Lobe
+		const float DCloth = D_Charlie(Data.FuzzRoughness, NoH);
+		const float3 FCloth = F_Schlick(Payload.FuzzColor, VoH);
+		const float3 ClothWeight = NoL > 0 && NoV > 0 ? (NoL * Payload.FuzzAmount * DCloth * Vis_Ashikhmin(NoV, NoL)) * FCloth * Data.Fuzz.W * (2 * PI) : 0.0;
+		Result.AddLobeWithMIS(DiffuseSpecularScale.y * ClothWeight * ShadowTerminator, 1 / (2.0 * PI), Data.LobePdf.w);
+	}
+
+	Result.Weight *= SubstrateLobeWeight(Payload, NoL);
+
+	return Result;
+}
+
+struct FSubstrateClearCoatData
+{
+	float3x3 Basis;
+	float3 V;
+
+	float  DiffuseWeight;
+	float3 F0;
+	float3 F90;
+	float2 BaseAlpha;
+	float2 CoatAlpha;
+	float FuzzRoughness;
+
+	float FuzzAttenuation;
+	float CoatAttenuation;
+	FBxDFEnergyTermsRGB BaseSpec;
+	FBxDFEnergyTermsA CoatSpec;
+	FBxDFEnergyTermsA Fuzz;
+
+	float3 LobeCdf;
+	float4 LobePdf;
+
+	void PrepareBSDF(float3 V_World, FPathTracingPayload Payload, bool bUseSSSColor = false)
+	{
+		Basis = GetGGXBasis(Payload.RoughnessData.x, Payload.Anisotropy, Payload.WorldNormal, Payload.WorldTangent, BaseAlpha);
+		CoatAlpha = GetGGXAlpha(Payload.RoughnessData.y, Payload.Anisotropy);
+
+		V = mul(Basis, V_World);
+
+		F0 = Payload.SpecularColor;
+		F90 = Payload.SpecularEdgeColor;
+		{
+			// make sure F0=0.0 fades off the specular lobe completely
+			const float SpecularMicroOcclusion = F0RGBToMicroOcclusion(F0);
+			F0 *= SpecularMicroOcclusion;
+			F90 *= SpecularMicroOcclusion;
+		}
+
+		FuzzRoughness = MakeRoughnessSafe(Payload.FuzzRoughness, STRATA_MIN_FUZZ_ROUGHNESS);
+
+		const float NoV = saturate(V.z);
+		// STRATA_TODO: Add support for F82 model?
+		BaseSpec = ComputeGGXSpecEnergyTermsRGB(Payload.RoughnessData.x, NoV, F0, F90);
+		CoatSpec = ComputeGGXSpecEnergyTermsA(Payload.RoughnessData.y, NoV, CLEAR_COAT_F0);
+		Fuzz = ComputeClothEnergyTermsA(FuzzRoughness, NoV);
+
+		FuzzAttenuation = 1.0 - Payload.FuzzAmount * Fuzz.E;
+		CoatAttenuation = 1.0 - Payload.RoughnessData.z * CoatSpec.E;
+		DiffuseWeight = FuzzAttenuation * CoatAttenuation * (1.0 - Luminance(BaseSpec.E));
+
+		const float3 BaseSpecAlbedo = FuzzAttenuation * CoatAttenuation * BaseSpec.E;
+		const float  CoatSpecAlbedo = FuzzAttenuation * Payload.RoughnessData.z * CoatSpec.E;
+		const float  FuzzAlbedo = Payload.FuzzAmount * Fuzz.E;
+
+		// Now prepare a cdf/pdf for lobe selection
+		float3 MaxLobeWeight = Payload.GetMaxLobeWeight();
+		LobeCdf = LobeSelectionCdf(
+			MaxLobeWeight * DiffuseWeight * (bUseSSSColor ? Payload.SubsurfaceColor : Payload.DiffuseColor),
+			MaxLobeWeight * BaseSpecAlbedo,
+			MaxLobeWeight * CoatSpecAlbedo,
+			MaxLobeWeight * FuzzAlbedo);
+		LobePdf = LobeSelectionPdf(LobeCdf);
+	}
+};
+
+
+
+FMaterialSample SubstrateClearCoat_SampleMaterial(
+	float3 V_World,
+	FPathTracingPayload Payload,
+	float3 RandSample
+)
+{
+	FSubstrateClearCoatData Data = (FSubstrateClearCoatData)0;
+	Data.PrepareBSDF(V_World, Payload);
+
+	float3 L = 0, H = 0, V = Data.V;
+	float OutRoughness = 1;
+
+	const bool bSampledDiffuse = RandSample.x < Data.LobeCdf.x;
+	const bool bSampledSpecular = RandSample.x < Data.LobeCdf.z;
+	if (bSampledDiffuse)
+	{
+		RandSample.x = RescaleRandomNumber(RandSample.x, 0.0, Data.LobeCdf.x);
+		// diffuse lobe
+		L = CosineSampleHemisphere(RandSample.xy).xyz;
+		H = normalize(L + V);
+	}
+	else if (bSampledSpecular)
+	{
+		// specular lobes
+		const bool bUseBaseSpec = RandSample.x < Data.LobeCdf.y;
+		if (bUseBaseSpec)
+		{
+			RandSample.x = RescaleRandomNumber(RandSample.x, Data.LobeCdf.x, Data.LobeCdf.y);
+			OutRoughness = Payload.RoughnessData.x;
+		}
+		else
+		{
+			RandSample.x = RescaleRandomNumber(RandSample.x, Data.LobeCdf.y, Data.LobeCdf.z);
+			OutRoughness = Payload.RoughnessData.y;
+		}
+
+		// #dxr_todo: Evaluate UniformSampleDiskConcentric
+		H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), bUseBaseSpec ? Data.BaseAlpha : Data.CoatAlpha, V).xyz;
+		L = reflect(-V, H);
+		if (L.z <= 0)
+		{
+			// invalid output direction, exit early
+			return NullMaterialSample();
+		}
+	}
+	else
+	{
+		// cloth lobe
+		RandSample.x = RescaleRandomNumber(RandSample.x, Data.LobeCdf.z, 1.0);
+		L = UniformSampleHemisphere(RandSample.xy).xyz;
+		H = normalize(L + V);
+	}
+
+	// transform to world space
+	const float3 L_World = normalize(mul(L, Data.Basis));
+	const float3 N_World = Payload.WorldNormal;
+	const float NoV = saturate(V.z);
+	const float NoL = saturate(L.z);
+	const float VoH = saturate(dot(V, H));
+	const float NoH = saturate(H.z);
+
+	FMaterialSample Result = CreateMaterialSample(L_World, 0.0, 0.0, 1.0, OutRoughness, PATHTRACER_SCATTER_DIFFUSE);
+
+	const float Metallic = F0RGBToMetallic(Payload.SpecularColor);
+	const float3 BaseColor = lerp(Payload.DiffuseColor, Payload.SpecularColor, Metallic);
+	const float3 Transmission = lerp(1.0, SimpleClearCoatTransmittance(NoL, NoV, Metallic, BaseColor), Payload.RoughnessData.z);
+
+	const float DiffPdf = NoL / PI;
+	const float2 BaseGGXResult = GGXEvalReflection(L, V, H, Data.BaseAlpha);
+	const float2 CoatGGXResult = GGXEvalReflection(L, V, H, Data.CoatAlpha);
+	const float BaseSpecPdf = BaseGGXResult.y;
+	const float CoatSpecPdf = CoatGGXResult.y;
+	const float ClothPdf = 1 / (2 * PI);
+
+	const float ShadowTerminator = ShadowTerminatorTerm(L_World, N_World, Payload.WorldSmoothNormal);
+	if (bSampledDiffuse)
+	{
+		const float3 Diffuse = Transmission * Data.DiffuseWeight * GetPathTracingDiffuseModel(Payload.DiffuseColor, Payload.RoughnessData.x, NoV, NoL, VoH, NoH);
+
+		Result.AddLobeWithMIS(Diffuse * ShadowTerminator, NoL / PI, Data.LobePdf.x);
+
+		Result.Pdf += Data.LobePdf.y * BaseSpecPdf;
+		Result.Pdf += Data.LobePdf.z * CoatSpecPdf;
+		Result.Pdf += Data.LobePdf.w * ClothPdf;
+	}
+	else if (bSampledSpecular)
+	{
+#if STRATA_FRESNEL_F82
+		// STRATA_TODO: Need to tune the logic for specular micro-occlusion ...
+		const float3 F = Data.FuzzAttenuation * F_AdobeF82(Data.F0, Data.F90, VoH);
+#else
+		const float3 FBase = Data.FuzzAttenuation * F_Schlick(Data.F0, Data.F90, VoH);
+#endif
+		const float FCoat = Payload.RoughnessData.z * ClearCoatFresnel(VoH);
+
+		Result.AddLobeWithMIS(Data.CoatAttenuation * FBase * BaseGGXResult.x * Data.BaseSpec.W * Transmission, BaseSpecPdf, Data.LobePdf.y);
+		Result.AddLobeWithMIS(Data.FuzzAttenuation * FCoat * CoatGGXResult.x * Data.CoatSpec.W               , CoatSpecPdf, Data.LobePdf.z);
+		Result.Pdf += Data.LobePdf.x * DiffPdf;
+		Result.Pdf += Data.LobePdf.w * ClothPdf;
+
+		Result.ScatterType = PATHTRACER_SCATTER_SPECULAR;
+	}
+	else
+	{
+		// Cloth Lobe
+		const float DCloth = D_Charlie(Data.FuzzRoughness, NoH);
+		const float3 FCloth = F_Schlick(Payload.FuzzColor, VoH);
+		const float3 ClothWeight = NoL > 0 && NoV > 0 ? (NoL * Payload.FuzzAmount * DCloth * Vis_Ashikhmin(NoV, NoL)) * FCloth * Data.Fuzz.W * (2 * PI) : 0.0;
+		Result.AddLobeWithMIS(ClothWeight * ShadowTerminator, 1 / (2.0 * PI), Data.LobePdf.w);
+		Result.ScatterType = PATHTRACER_SCATTER_SPECULAR;
+
+		Result.Pdf += Data.LobePdf.x * DiffPdf;
+		Result.Pdf += Data.LobePdf.y * BaseSpecPdf;
+		Result.Pdf += Data.LobePdf.z * CoatSpecPdf;
+	}
+
+	Result.Weight *= SubstrateLobeWeight(Payload, NoL);
+
+	return Result;
+}
+
+
+FMaterialEval SubstrateClearCoat_EvalMaterial(
+	float3 V_World,
+	float3 L_World,
+	FPathTracingPayload Payload,
+	float2 DiffuseSpecularScale
+)
+{
+	FSubstrateClearCoatData Data = (FSubstrateClearCoatData)0;
+	Data.PrepareBSDF(V_World, Payload);
+
+	const float3 N_World = Payload.WorldNormal;
+
+	// move vectors into right shading frame
+	const float3 V = Data.V;
+	const float3 L = mul(Data.Basis, L_World);
+	const float3 H = normalize(V + L);
+	const float NoV = saturate(V.z);
+	const float NoL = saturate(L.z);
+	const float VoH = saturate(dot(V, H));
+	const float NoH = saturate(H.z);
+
+	FMaterialEval Result = NullMaterialEval();
+
+	const float Metallic = F0RGBToMetallic(Payload.SpecularColor);
+	const float3 BaseColor = lerp(Payload.DiffuseColor, Payload.SpecularColor, Metallic);
+	const float3 Transmission = lerp(1.0, SimpleClearCoatTransmittance(NoL, NoV, Metallic, BaseColor), Payload.RoughnessData.z);
+
+	const float ShadowTerminator = ShadowTerminatorTerm(L_World, N_World, Payload.WorldSmoothNormal);
+	{
+		const float3 Diffuse = Transmission * Data.DiffuseWeight * GetPathTracingDiffuseModel(Payload.DiffuseColor, Payload.RoughnessData.x, NoV, NoL, VoH, NoH);
+		Result.AddLobeWithMIS(DiffuseSpecularScale.x * Diffuse * ShadowTerminator, NoL / PI, Data.LobePdf.x);
+	}
+	{
+		const float2 BaseGGXResult = GGXEvalReflection(L, V, H, Data.BaseAlpha);
+		const float2 CoatGGXResult = GGXEvalReflection(L, V, H, Data.CoatAlpha);
+		const float BaseSpecPdf = BaseGGXResult.y;
+		const float CoatSpecPdf = CoatGGXResult.y;
+
+#if STRATA_FRESNEL_F82
+		// STRATA_TODO: Need to tune the logic for specular micro-occlusion ...
+		const float3 F = Data.FuzzAttenuation * F_AdobeF82(Data.F0, Data.F90, VoH);
+#else
+		const float3 FBase = Data.FuzzAttenuation * F_Schlick(Data.F0, Data.F90, VoH);
+#endif
+		const float FCoat = Payload.RoughnessData.z * ClearCoatFresnel(VoH);
+
+		Result.AddLobeWithMIS(Data.CoatAttenuation * FBase * BaseGGXResult.x * Data.BaseSpec.W * Transmission, BaseSpecPdf, Data.LobePdf.y);
+		Result.AddLobeWithMIS(Data.FuzzAttenuation * FCoat * CoatGGXResult.x * Data.CoatSpec.W               , CoatSpecPdf, Data.LobePdf.z);
 	}
 	{
 		// Cloth Lobe

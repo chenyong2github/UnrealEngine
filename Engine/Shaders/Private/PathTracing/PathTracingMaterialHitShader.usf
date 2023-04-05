@@ -468,16 +468,25 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 							}
 
 							float Roughness0 = MakeRoughnessSafe(SLAB_ROUGHNESS(BSDF), PackedPayload.GetPathRoughness());
+							// STRATA_TODO: Support Fresnel82?
+							float3 Spec0E = ComputeGGXSpecEnergyTermsRGB(Roughness0, NoV, F0, F90).E;
+							float3 Spec1E = Spec0E;
 							float Roughness1 = Roughness0;
 							float SpecBlend = 0.0;
+							bool bUseClearCoat = false;
 							if (BSDF_GETHASHAZINESS(BSDF))
 							{
 								const FHaziness Haziness = UnpackHaziness(SLAB_HAZINESS(BSDF));
-								// STRATA_TODO: Ideally clearcoat in the path tracer would be handled via actual layering rather than this backwards compatibility trick
-								if (!Haziness.bSimpleClearCoat)
+								SpecBlend = Haziness.Weight;
+								Roughness1 = MakeRoughnessSafe(Haziness.Roughness, PackedPayload.GetPathRoughness());
+								if (Haziness.bSimpleClearCoat)
 								{
-									SpecBlend = Haziness.Weight;
-									Roughness1 = MakeRoughnessSafe(Haziness.Roughness, PackedPayload.GetPathRoughness());
+									Spec1E = ComputeGGXSpecEnergyTermsRGB(Roughness1, NoV, CLEAR_COAT_F0).E;
+									bUseClearCoat = true;
+								}
+								else
+								{
+									Spec1E = ComputeGGXSpecEnergyTermsRGB(Roughness1, NoV, F0, F90).E;
 								}
 							}
 							float FuzzAmount = 0.0;
@@ -490,17 +499,28 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 								FuzzRoughness = SLAB_FUZZ_ROUGHNESS(BSDF);
 								FuzzRoughness = MakeRoughnessSafe(FuzzRoughness, STRATA_MIN_FUZZ_ROUGHNESS);
 							}
-
-							// STRATA_TODO: Support Fresnel82?
-							const FBxDFEnergyTermsRGB Spec0 = ComputeGGXSpecEnergyTermsRGB(Roughness0, NoV, F0, F90);
-							const FBxDFEnergyTermsRGB Spec1 = ComputeGGXSpecEnergyTermsRGB(Roughness1, NoV, F0, F90);
-							const FBxDFEnergyTermsA   Fuzz  = ComputeClothEnergyTermsA(FuzzRoughness, NoV);
-							const float3 SpecE = lerp(Spec0.E, Spec1.E, SpecBlend);
-							const float FuzzAttenuation = 1.0 - FuzzAmount * Fuzz.E;
-							const float DiffuseWeight = FuzzAttenuation * (1.0 - Luminance(SpecE));
-							const float3 Spec0Albedo  = FuzzAttenuation * (1.0 - SpecBlend) * Spec0.E;
-							const float3 Spec1Albedo  = FuzzAttenuation * (      SpecBlend) * Spec1.E;
-							const float  FuzzAlbedo   = FuzzAmount * Fuzz.E;
+							
+							const float FuzzE = ComputeClothEnergyTermsA(FuzzRoughness, NoV).E;
+							const float FuzzAttenuation = 1.0 - FuzzAmount * FuzzE;
+							float DiffuseWeight = FuzzAttenuation;
+							float3 Spec0Albedo = FuzzAttenuation * Spec0E;
+							float3 Spec1Albedo = FuzzAttenuation * Spec1E;
+							if (bUseClearCoat)
+							{
+								// clearcoat slab
+								float CoatAttenuation = 1.0 - SpecBlend * Spec1E.x;
+								DiffuseWeight *= CoatAttenuation * (1.0 - Luminance(Spec0E));
+								Spec0Albedo *= CoatAttenuation;
+								Spec1Albedo *= SpecBlend;
+							}
+							else
+							{
+								// dual-specular slab
+								DiffuseWeight *= 1.0 - Luminance(lerp(Spec0E, Spec1E, SpecBlend));
+								Spec0Albedo *= 1.0 - SpecBlend;
+								Spec1Albedo *=       SpecBlend;
+							}
+							const float  FuzzAlbedo = FuzzAmount * FuzzE;
 							const float3 SlabAlbedo = MaxLobeWeight * (DiffuseWeight * DiffuseColor + Spec0Albedo + Spec1Albedo + FuzzAlbedo);
 							Pdf = LobeColorToWeight(SlabAlbedo);
 						}
@@ -556,6 +576,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 			{
 				case STRATA_BSDF_TYPE_SLAB:
 				{
+					Payload.ShadingModelID    = SHADINGMODELID_STRATA;
 					Payload.DiffuseColor      = SLAB_DIFFUSEALBEDO(BSDF);
 					Payload.SpecularColor     = SLAB_F0(BSDF);
 					Payload.SpecularEdgeColor = SLAB_F90(BSDF);
@@ -565,12 +586,12 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 					if (BSDF_GETHASHAZINESS(BSDF))
 					{
 						const FHaziness Haziness = UnpackHaziness(SLAB_HAZINESS(BSDF));
-						// STRATA_TODO: detect this and use the old SHADINGMODELID_CLEARCOAT?
-						if (!Haziness.bSimpleClearCoat)
+						if (Haziness.bSimpleClearCoat)
 						{
-							Payload.RoughnessData.y = MakeRoughnessSafe(Haziness.Roughness, PackedPayload.GetPathRoughness());
-							Payload.RoughnessData.z = Haziness.Weight;
+							Payload.ShadingModelID = SHADINGMODELID_CLEAR_COAT;
 						}
+						Payload.RoughnessData.y = MakeRoughnessSafe(Haziness.Roughness, PackedPayload.GetPathRoughness());
+						Payload.RoughnessData.z = Haziness.Weight;
 					}
 					Payload.Anisotropy = BSDF_GETHASANISOTROPY(BSDF) ? SLAB_ANISOTROPY(BSDF) : 0.0;
 					if (BSDF_GETHASFUZZ(BSDF))
@@ -588,7 +609,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 					if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION)
 					{
 						Payload.MeanFreePath = SLAB_SSSMFP(BSDF);
-						Payload.PhaseG       = SLAB_SSSPHASEANISOTROPY(BSDF); // STRATA_TODO: evaluate if we always want this or not ...
+						Payload.PhaseG       = SLAB_SSSPHASEANISOTROPY(BSDF);
 					}
 					else if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE)
 					{
@@ -607,7 +628,6 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 					Payload.TransmittanceN      = BSDF.TransmittanceAboveAlongN;
 					Payload.CoverageAboveAlongN = BSDF.CoverageAboveAlongN;
 					Payload.Ior                 = 0.0; // STRATA_TODO: figure out when to use refraction ...
-					Payload.ShadingModelID      = SHADINGMODELID_STRATA;
 					break;
 				}
 				case STRATA_BSDF_TYPE_HAIR:

@@ -117,3 +117,12 @@ bool SampleRefraction(float3 RayDirection, float3 Normal, float Eta, float F0, f
 	OutDirection = RayDirection + (2 * CosI) * Normal;
 	return false;
 }
+
+
+#define CLEAR_COAT_F0	0.04 // From hard-coded value in ShadingModels.ush
+
+float ClearCoatFresnel(float VoH)
+{
+	// from hardcoded logic in ClearCoatBxDF
+	return CLEAR_COAT_F0 + (1.0 - CLEAR_COAT_F0) * Pow5(1 - VoH);
+}
