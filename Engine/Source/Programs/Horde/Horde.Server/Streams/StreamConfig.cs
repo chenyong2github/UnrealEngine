@@ -972,15 +972,12 @@ namespace Horde.Server.Streams
 		public DateTime? GetNextTriggerTimeUtc(DateTime lastTimeUtc, TimeZoneInfo timeZone)
 		{
 			DateTime? nextTriggerTimeUtc = null;
-			if (Enabled)
+			foreach (SchedulePatternConfig pattern in Patterns)
 			{
-				foreach (SchedulePatternConfig pattern in Patterns)
+				DateTime patternTriggerTime = pattern.GetNextTriggerTimeUtc(lastTimeUtc, timeZone);
+				if (nextTriggerTimeUtc == null || patternTriggerTime < nextTriggerTimeUtc)
 				{
-					DateTime patternTriggerTime = pattern.GetNextTriggerTimeUtc(lastTimeUtc, timeZone);
-					if (nextTriggerTimeUtc == null || patternTriggerTime < nextTriggerTimeUtc)
-					{
-						nextTriggerTimeUtc = patternTriggerTime;
-					}
+					nextTriggerTimeUtc = patternTriggerTime;
 				}
 			}
 			return nextTriggerTimeUtc;

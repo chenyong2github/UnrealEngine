@@ -246,7 +246,7 @@ namespace Horde.Server.Jobs.Schedules
 			}
 
 			ITemplateSchedule? schedule = templateRef.Schedule;
-			if (schedule == null)
+			if (schedule == null || !schedule.Config.Enabled)
 			{
 				return false;
 			}
