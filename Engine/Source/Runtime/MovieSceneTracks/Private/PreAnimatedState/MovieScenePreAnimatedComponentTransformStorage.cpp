@@ -70,13 +70,14 @@ FPreAnimatedComponentTransformStorage::FPreAnimatedComponentTransformStorage()
 	: TPreAnimatedPropertyStorage<FComponentTransformPreAnimatedTraits>(FBuiltInComponentTypes::Get()->PropertyRegistry.GetDefinition(FMovieSceneTracksComponentTypes::Get()->ComponentTransform.CompositeID))
 {}
 
-void FPreAnimatedComponentTransformStorage::CachePreAnimatedTransforms(const FCachePreAnimatedValueParams& Params, TArrayView<UObject* const> BoundObjects)
+void FPreAnimatedComponentTransformStorage::CachePreAnimatedTransforms(const FCachePreAnimatedValueParams& Params, TArrayView<UObject* const> BoundObjects, TOptional<TFunctionRef<bool(int32)>> Predicate)
 {
 	static FMovieScenePropertyBinding PropertyBinding("Transform", TEXT("Transform"));
 
-	for (UObject* BoundObject : BoundObjects)
+	for (int32 Index = 0; Index < BoundObjects.Num(); ++Index)
 	{
-		if (!BoundObject)
+		UObject* BoundObject = BoundObjects[Index];
+		if (!BoundObject || (Predicate && !(*Predicate)(Index)))
 		{
 			continue;
 		}

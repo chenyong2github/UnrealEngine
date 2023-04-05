@@ -267,11 +267,24 @@ void UMovieSceneComponentAttachmentSystem::SavePreAnimatedState(const FPreAnimat
 	.ReadEntityIDs()
 	.Read(BuiltInComponents->RootInstanceHandle)
 	.Read(BuiltInComponents->BoundObject)
+	.Read(TrackComponents->AttachComponent)
 	.FilterAll(FilterMask)
 	.Iterate_PerAllocation(&Linker->EntityManager,
-		[EntityMetaData, ComponentTransformStorage, ComponentAttachmentStorage](FEntityAllocationIteratorItem Item, TRead<FMovieSceneEntityID> EntityIDs, TRead<FRootInstanceHandle> InstanceHandles, TRead<UObject*> BoundObjects)
+		[EntityMetaData, ComponentTransformStorage, ComponentAttachmentStorage](FEntityAllocationIteratorItem Item, TRead<FMovieSceneEntityID> EntityIDs, TRead<FRootInstanceHandle> InstanceHandles, TRead<UObject*> BoundObjects, TRead<FAttachmentComponent> AttachComponents)
 		{
 			TArrayView<UObject* const> BoundObjectArray = BoundObjects.AsArray(Item.GetAllocation()->Num());
+
+			auto ShouldCacheTransform = [AttachComponents](int32 Index)
+			{
+				FAttachmentComponent Component = AttachComponents[Index];
+				// Only cache persistent preanimated transforms if we're not using a keep relative attachment
+				return Component.AttachParams.AttachmentLocationRule != EAttachmentRule::KeepRelative
+					|| Component.AttachParams.AttachmentRotationRule != EAttachmentRule::KeepRelative
+					|| Component.AttachParams.AttachmentScaleRule    != EAttachmentRule::KeepRelative
+					|| Component.DetachParams.DetachmentLocationRule != EDetachmentRule::KeepRelative
+					|| Component.DetachParams.DetachmentRotationRule != EDetachmentRule::KeepRelative
+					|| Component.DetachParams.DetachmentScaleRule    != EDetachmentRule::KeepRelative;
+			};
 
 			// Order is important here - always cache the transforms first so that they are restored last
 
@@ -280,7 +293,7 @@ void UMovieSceneComponentAttachmentSystem::SavePreAnimatedState(const FPreAnimat
 			// state regardless of the detach rules used during normal playback.
 			FCachePreAnimatedValueParams ForcePersistParams;
 			ForcePersistParams.bForcePersist = true;
-			ComponentTransformStorage->CachePreAnimatedTransforms(ForcePersistParams, BoundObjectArray);
+			ComponentTransformStorage->CachePreAnimatedTransforms(ForcePersistParams, BoundObjectArray, TFunctionRef<bool(int32)>(ShouldCacheTransform));
 
 			FPreAnimatedTrackerParams AttachmentParams(Item);
 			AttachmentParams.bWantsRestoreState = false;
