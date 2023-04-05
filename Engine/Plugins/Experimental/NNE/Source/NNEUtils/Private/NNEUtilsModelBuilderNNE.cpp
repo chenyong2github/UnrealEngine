@@ -260,15 +260,15 @@ private:
 			if (Data)
 			{
 				Desc.Type = ENNEFormatTensorType::Initializer;
-				Desc.DataOffset = Format.TensorData.AddUninitialized(DataSize);
-				Desc.DataSize = DataSize;
 
-				FMemory::Memcpy(Format.TensorData.GetData() + Desc.DataOffset, Data, DataSize);
-			}
-			else
-			{
-				Desc.DataOffset = 0;
-				Desc.DataSize = 0;
+				// Handle empty data initializers, i.e. when DataSize is 0
+				if (DataSize)
+				{
+					Desc.DataOffset = Format.TensorData.AddUninitialized(DataSize);
+					Desc.DataSize = DataSize;
+
+					FMemory::Memcpy(Format.TensorData.GetData() + Desc.DataOffset, Data, DataSize);
+				}
 			}
 
 			Format.Tensors.Add(Desc);
