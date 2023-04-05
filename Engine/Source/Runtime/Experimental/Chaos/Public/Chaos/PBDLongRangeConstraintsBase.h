@@ -15,6 +15,8 @@ namespace Chaos::Softs
 class CHAOS_API FPBDLongRangeConstraintsBase
 {
 public:
+	UE_NONCOPYABLE(FPBDLongRangeConstraintsBase);
+
 	static constexpr FSolverReal MinTetherScale = (FSolverReal)0.01;
 	static constexpr FSolverReal MaxTetherScale = (FSolverReal)10.;
 
