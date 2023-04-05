@@ -25,9 +25,11 @@ struct FRenderTransform
 	FVector3f Origin;
 
 public:
-	FORCEINLINE FRenderTransform()
-	{
-	}
+	FRenderTransform() = default;
+	FRenderTransform(FRenderTransform&&) = default;
+	FRenderTransform(const FRenderTransform&) = default;
+	FRenderTransform& operator=(FRenderTransform&&) = default;
+	FRenderTransform& operator=(const FRenderTransform&) = default;
 
 	FORCEINLINE FRenderTransform(const FVector3f& InXAxis, const FVector3f& InYAxis, const FVector3f& InZAxis, const FVector3f& InOrigin)
 	{
