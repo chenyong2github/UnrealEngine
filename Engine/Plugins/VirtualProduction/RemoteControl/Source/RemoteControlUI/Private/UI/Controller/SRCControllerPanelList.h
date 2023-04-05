@@ -3,6 +3,7 @@
 #pragma once
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Misc/NotifyHook.h"
+#include "RCMultiController.h"
 #include "UI/BaseLogicUI/SRCLogicPanelListBase.h"
 #include "UI/RemoteControlPanelStyle.h"
 #include "Widgets/Layout/SBorder.h"
@@ -138,6 +139,9 @@ public:
 	/** Whether the user's cursor is directly hovered over the List View*/
 	bool IsListViewHovered();
 
+	/** Enable/disable MultiController Mode */
+	void SetMultiControllerMode(bool bIsUniqueModeOn);
+
 	/** Flag that facilitates usage of two mutually exclusive drag-drop zones within a single panel 
 	* 
 	* The first drag-drop zone is empty panel space for "Bind To New Controller"
@@ -175,6 +179,15 @@ private:
 	*/
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 
+	/** Called when a MultiController Value Type changes. */
+	void OnControllerValueTypeChanged(URCVirtualPropertyBase* InController, EPropertyBagPropertyType InValueType);
+
+	/**
+	 * Called when a Controller Value changes.
+	 * Currently used to update handled controllers, in case of MultiControllers.
+	 */
+	void OnControllerValueChanged(URCVirtualPropertyBase* InController);
+
 	/** Creates a new Controller for the given Remote Control Property and also binds to it */
 	void CreateAutoBindForProperty(TSharedPtr<const FRemoteControlProperty> RemoteControlProperty);
 
@@ -191,7 +204,7 @@ private:
 	TArray<TSharedPtr<FRCControllerModel>> ControllerItems;
 
 	/** List View widget for representing our Controllers List*/
-	TSharedPtr<SListView<TSharedPtr<FRCControllerModel>>>  ListView;
+	TSharedPtr<SListView<TSharedPtr<FRCControllerModel>>> ListView;
 	
 	/** Refreshes the list from the latest state of the model*/
 	virtual void Reset() override;
@@ -202,7 +215,21 @@ private:
 	/** Removes the given Controller UI model item from the list of UI models*/
 	virtual int32 RemoveModel(const TSharedPtr<FRCLogicModeBase> InModel) override;
 
+	/** Set the visibility of the List header the Value Type Column used for MultiControllers */
+	void ShowValueTypeHeaderColumn(bool bInShowColumn);
+
+	/** Set the visibility of the List header the Field Id Column */
+	void ShowFieldIdHeaderColumn(bool bInShowColumn);
+
 	/** Panel Style reference. */
 	const FRCPanelStyle* RCPanelStyle;
+
+	/** Keeps track of current MultiControllers */
+	FRCMultiControllersState MultiControllers;
+	
+	bool bIsInMultiControllerMode = false;
+
+	/** Storing the header so we can add/remove columns */
+	TSharedPtr<SHeaderRow> ControllersHeaderRow;
 };
 

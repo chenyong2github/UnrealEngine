@@ -302,6 +302,10 @@ public:
 	UPROPERTY()
 	FGuid Id;
 
+	/** Property Field Id */
+	UPROPERTY()
+	FName FieldId;
+
 	/** Pointer to Remote Control Preset */
 	UPROPERTY()
 	TWeakObjectPtr<URemoteControlPreset> PresetWeakPtr;

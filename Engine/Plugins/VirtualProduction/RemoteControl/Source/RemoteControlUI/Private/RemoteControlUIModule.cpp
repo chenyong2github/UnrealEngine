@@ -364,6 +364,8 @@ TSharedRef<SRemoteControlPanel> FRemoteControlUIModule::CreateRemoteControlPanel
 		}
 	}
 
+	OnRemoteControlPresetOpened().Broadcast(Preset);
+	
 	return PanelRef;
 }
 

@@ -98,6 +98,21 @@ public:
 	virtual URCVirtualPropertyBase* GetVirtualPropertyByDisplayName(const FName InDisplayName) const;
 
 	/**
+	 * Returns the first found virtual property matching the specified Field Id
+	 */
+	virtual URCVirtualPropertyBase* GetVirtualPropertyByFieldId(const FName InFieldId) const;
+	
+	/**
+	 * Returns the first virtual property matching the specified Field Id and ValueType
+	 */
+	virtual URCVirtualPropertyBase* GetVirtualPropertyByFieldId(const FName InFieldId, const EPropertyBagPropertyType InType) const;
+
+	/**
+	 * Returns all virtual properties with the specified Field Id
+	 */
+	virtual TArray<URCVirtualPropertyBase*> GetVirtualPropertiesByFieldId(const FName InFieldId) const;
+
+	/**
 	 * Returns number of virtual properties.
 	 */ 
 	int32 GetNumVirtualProperties() const;

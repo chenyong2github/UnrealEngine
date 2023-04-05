@@ -141,6 +141,10 @@ public:
 		return FModuleManager::LoadModuleChecked<IRemoteControlUIModule>(ModuleName);
 	}
 	
+	/** Delegate called when a Remote Control Preset panel is created/opened for the specified Remote Control Preset */
+    DECLARE_MULTICAST_DELEGATE_OneParam(FOnRemoteControlPresetOpened, URemoteControlPreset* /*RemoteControlPreset*/);
+    virtual FOnRemoteControlPresetOpened& OnRemoteControlPresetOpened() = 0;
+	
 	/** 
 	 * Get the toolbar extension generators.
 	 * Usage: Bind a handler that adds a widget to the out array parameter.

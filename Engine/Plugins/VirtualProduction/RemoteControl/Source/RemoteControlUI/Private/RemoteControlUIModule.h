@@ -47,6 +47,7 @@ public:
 
 	//~ Begin IRemoteControlUIModule interface
 	virtual FOnGenerateExtensions& GetExtensionGenerators() override { return ExtensionsGenerator; }
+	virtual FOnRemoteControlPresetOpened& OnRemoteControlPresetOpened() override { return RemoteControlPresetOpenedDelegate; }
 	virtual FDelegateHandle AddPropertyFilter(FOnDisplayExposeIcon OnDisplayExposeIcon) override;
 	virtual void RemovePropertyFilter(const FDelegateHandle& FilterDelegateHandle) override;
 	virtual void RegisterMetadataCustomization(FName MetadataKey, FOnCustomizeMetadataEntry OnCustomizeCallback) override;
@@ -206,6 +207,9 @@ private:
 
 	/** Delegate called to gather extensions added externally to the panel. */
 	FOnGenerateExtensions ExtensionsGenerator;
+
+	/** Delegate called when a Remote Control Preset panel is created for the specified Remote Control Preset */
+	FOnRemoteControlPresetOpened RemoteControlPresetOpenedDelegate;
 
 	/** Filters added by other plugins queried to determine if a property should display an expose icon. */
 	TMap<FDelegateHandle, FOnDisplayExposeIcon> ExternalFilterDelegates;

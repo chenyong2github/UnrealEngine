@@ -192,6 +192,49 @@ URCVirtualPropertyBase* URCVirtualPropertyContainerBase::GetVirtualPropertyByDis
 	return nullptr;
 }
 
+URCVirtualPropertyBase* URCVirtualPropertyContainerBase::GetVirtualPropertyByFieldId(const FName InFieldId) const
+{
+	for (URCVirtualPropertyBase* VirtualProperty : VirtualProperties)
+	{
+		if (VirtualProperty->FieldId == InFieldId)
+		{
+			return VirtualProperty;
+		}
+	}
+
+	return nullptr;
+}
+
+URCVirtualPropertyBase* URCVirtualPropertyContainerBase::GetVirtualPropertyByFieldId(const FName InFieldId, const EPropertyBagPropertyType InType) const
+{
+	const TArray<URCVirtualPropertyBase*>& VirtualPropertiesByFieldId = GetVirtualPropertiesByFieldId(InFieldId);
+
+	for (URCVirtualPropertyBase* VirtualProperty : VirtualPropertiesByFieldId)
+	{
+		if (VirtualProperty->GetValueType() == InType)
+		{
+			return VirtualProperty;
+		}
+	}
+
+	return nullptr;
+}
+
+TArray<URCVirtualPropertyBase*> URCVirtualPropertyContainerBase::GetVirtualPropertiesByFieldId(const FName InFieldId) const
+{
+	TArray<URCVirtualPropertyBase*> VirtualPropertiesByFieldId;
+	
+	for (URCVirtualPropertyBase* VirtualProperty : VirtualProperties)
+	{
+		if (VirtualProperty->FieldId == InFieldId)
+		{
+			VirtualPropertiesByFieldId.Add(VirtualProperty);
+		}
+	}
+
+	return VirtualPropertiesByFieldId;
+}
+
 int32 URCVirtualPropertyContainerBase::GetNumVirtualProperties() const
 {
 	const int32 NumPropertiesInBag = Bag.GetNumPropertiesInBag();

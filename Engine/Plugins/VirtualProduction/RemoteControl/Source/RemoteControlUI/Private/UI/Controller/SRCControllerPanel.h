@@ -5,11 +5,12 @@
 #include "PropertyBag.h"
 #include "UI/BaseLogicUI/SRCLogicPanelBase.h"
 
-enum class EPropertyBagPropertyType : uint8;
 class FRCControllerModel;
-struct FRCPanelStyle;
 class SRCControllerPanel;
 class URCController;
+struct FRCPanelStyle;
+enum class ECheckBoxState : uint8;
+enum class EPropertyBagPropertyType : uint8;
 
 /*
 * ~ SRCControllerPanel ~
@@ -67,8 +68,16 @@ private:
 	/** Builds a menu containing the list of all possible Controllers*/
 	TSharedRef<SWidget> GetControllerMenuContentWidget() const;
 
+	TSharedRef<SWidget> GetMultiControllerSwitchWidget();
+
 	/** Handles click event for Add Controller button*/
 	void OnAddControllerClicked(const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject = nullptr) const;
+
+	/** Handles checkbox changes event for the MultiController mode selection widget */
+	void OnToggleMultiControllersMode(ECheckBoxState CheckBoxState);
+
+	/** Whether to show the MultiController switch or not */
+	EVisibility GetMultiControllerSwitchVisibility() const;
 
 	/** Handles click event for Empty button; clears all controllers from the panel*/
 	FReply OnClickEmptyButton();
@@ -83,4 +92,7 @@ private:
 
 	/** Panel Style reference. */
 	const FRCPanelStyle* RCPanelStyle;
+
+	/** Is the Panel showing a list with MultiControllers handling (and hiding) controllers with duplicate Field Ids?*/
+	bool bIsMultiControllerMode = false;
 };

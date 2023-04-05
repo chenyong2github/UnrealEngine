@@ -645,6 +645,51 @@ URCVirtualPropertyBase* URemoteControlPreset::GetControllerByDisplayName(const F
 	return ControllerContainer->GetVirtualPropertyByDisplayName(InDisplayName);
 }
 
+URCVirtualPropertyBase* URemoteControlPreset::GetControllerByFieldId(const FName InFieldId) const
+{
+	if (!ensure(ControllerContainer))
+	{
+		return nullptr;
+	}
+
+	return ControllerContainer->GetVirtualPropertyByFieldId(InFieldId);
+}
+
+URCVirtualPropertyBase* URemoteControlPreset::GetControllerByFieldId(const FName InFieldId,	const EPropertyBagPropertyType InType) const
+{
+	if (!ensure(ControllerContainer))
+	{
+		return nullptr;
+	}
+
+	return ControllerContainer->GetVirtualPropertyByFieldId(InFieldId, InType);
+}
+
+TArray<URCVirtualPropertyBase*> URemoteControlPreset::GetControllersByFieldId(const FName InFieldId) const
+{
+	if (!ensure(ControllerContainer))
+	{
+		return {};
+	}
+
+	return ControllerContainer->GetVirtualPropertiesByFieldId(InFieldId);
+}
+
+TArray<EPropertyBagPropertyType> URemoteControlPreset::GetControllersTypesByFieldId(const FName InFieldId) const
+{	
+	TArray<EPropertyBagPropertyType> ValueTypes;
+	
+	for (const URCVirtualPropertyBase* Controller : GetControllersByFieldId(InFieldId))
+	{
+		if (Controller)
+		{
+			ValueTypes.Add(Controller->GetValueType());
+		}
+	}
+
+	return ValueTypes;
+}
+
 URCVirtualPropertyInContainer* URemoteControlPreset::AddController(TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject /*= nullptr*/, const FName InPropertyName /*= NAME_None*/)
 {
 	if (!ensure(ControllerContainer))

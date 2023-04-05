@@ -3,9 +3,11 @@
 #include "RCControllerModel.h"
 
 #include "IDetailTreeNode.h"
-#include "RemoteControlPreset.h"
 #include "RCVirtualProperty.h"
+#include "RemoteControlPreset.h"
+#include "TypeTranslator/RCTypeTranslator.h"
 #include "UI/SRemoteControlPanel.h"
+#include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "FRCControllerModel"
@@ -15,14 +17,25 @@ FRCControllerModel::FRCControllerModel(URCVirtualPropertyBase* InVirtualProperty
 	, VirtualPropertyWeakPtr(InVirtualProperty)
 	, DetailTreeNodeWeakPtr(InTreeNode)
 {
-	if(ensure(InVirtualProperty))
+	if (ensure(InVirtualProperty))
 	{
-		if(InVirtualProperty->DisplayName.IsNone())
+		if (InVirtualProperty->DisplayName.IsNone())
+		{
 			InVirtualProperty->DisplayName = InVirtualProperty->PropertyName;
-
+		}
+		
 		SAssignNew(ControllerNameTextBox, SInlineEditableTextBlock)
 			.Text(FText::FromName(InVirtualProperty->DisplayName))
 			.OnTextCommitted_Raw(this, &FRCControllerModel::OnControllerNameCommitted);
+
+		SAssignNew(ControllerFieldIdTextBox, SInlineEditableTextBlock)
+			.Text(FText::FromName(InVirtualProperty->FieldId))
+			.OnTextCommitted_Raw(this, &FRCControllerModel::OnControllerFieldIdCommitted);
+
+		if (const TSharedPtr<IPropertyHandle>& PropertyHandle = InTreeNode->CreatePropertyHandle())
+		{
+			PropertyHandle->SetOnPropertyValueChangedWithData(TDelegate<void(const FPropertyChangedEvent&)>::CreateRaw(this, &FRCControllerModel::OnPropertyValueChanged));
+		}
 	}
 
 	Id = FGuid::NewGuid();
@@ -62,6 +75,46 @@ TSharedRef<SWidget> FRCControllerModel::GetNameWidget() const
 		];
 }
 
+TSharedRef<SWidget> FRCControllerModel::GetFieldIdWidget() const
+{
+	return SNew(SBox).Padding(10.f, 2.f)
+		[
+			ControllerFieldIdTextBox.ToSharedRef()
+		];
+}
+
+TSharedRef<SWidget> FRCControllerModel::GetTypeSelectionWidget()
+{
+	if (const URCVirtualPropertyBase* Controller = GetVirtualProperty())
+	{
+		const FName& FieldId = Controller->FieldId;
+		const TArray<URCVirtualPropertyBase*>& Controllers = GetPreset()->GetControllersByFieldId(FieldId);
+		
+		if (Controllers.Num() > 1 && bIsMultiController)
+		{
+			const EPropertyBagPropertyType OptimalValueType = FRCTypeTranslator::GetOptimalValueType(GetPreset()->GetControllersTypesByFieldId(FieldId));
+			CurrentControlValueType = OptimalValueType;
+
+			return SNew(SBox).Padding(10.f, 2.f)
+			[
+				SNew(STextComboBox)
+				.OptionsSource(&ControlledTypesAsStrings)
+				.OnSelectionChanged(this, &FRCControllerModel::OnTextControlValueTypeChanged)
+				.InitiallySelectedItem(ControlledTypesAsStrings[CurrentControlValueTypeIndex])
+			];
+		}
+	}
+
+	return SNullWidget::NullWidget;
+}
+
+void FRCControllerModel::SetMultiController(bool bInIsMultiController)
+{
+	bIsMultiController = bInIsMultiController;
+	
+	InitControlledTypes();
+}
+
 URCVirtualPropertyBase* FRCControllerModel::GetVirtualProperty() const
 {
 	return VirtualPropertyWeakPtr.Get();
@@ -91,9 +144,9 @@ void FRCControllerModel::OnControllerNameCommitted(const FText& InNewControllerN
 {
 	if (URemoteControlPreset* Preset = GetPreset())
 	{
-		if(URCVirtualPropertyBase* Controller = GetVirtualProperty())
+		if (URCVirtualPropertyBase* Controller = GetVirtualProperty())
 		{
-			FName OldName = Controller->DisplayName;
+			const FName& OldName = Controller->DisplayName;
 			Controller->DisplayName = *InNewControllerName.ToString();
 			ControllerNameTextBox->SetText(InNewControllerName);
 			Preset->OnControllerRenamed().Broadcast(Preset, OldName, *InNewControllerName.ToString());
@@ -101,8 +154,88 @@ void FRCControllerModel::OnControllerNameCommitted(const FText& InNewControllerN
 	}
 }
 
-void FRCControllerModel::EnterRenameMode()
+void FRCControllerModel::OnControllerFieldIdCommitted(const FText& InNewControllerFieldId, ETextCommit::Type InCommitInfo)
 {
+	if (URemoteControlPreset* Preset = GetPreset())
+	{
+		if (URCVirtualPropertyBase* Controller = GetVirtualProperty())
+		{
+			// todo: think about how to setup this Field Id change feature
+			// We might need some delegate firing when a Field Id update occurs e.g
+			// OnControllerFieldIdChangedFromPanel(FName OldFieldId, FName NewFieldId)
+		}
+	}
+}
+
+void FRCControllerModel::OnTextControlValueTypeChanged(TSharedPtr<FString, ESPMode::ThreadSafe> InControlValueTypeString, ESelectInfo::Type Arg)
+{
+	if (ControlledTypesAsStrings.Contains(InControlValueTypeString))
+	{
+		CurrentControlValueTypeIndex = ControlledTypesAsStrings.IndexOfByKey(InControlValueTypeString);
+	}
+	else
+	{
+		CurrentControlValueTypeIndex = 0;
+	}
+
+	const FString& Value = *InControlValueTypeString.Get();
+	CurrentControlValueType = static_cast<EPropertyBagPropertyType>(StaticEnum<EPropertyBagPropertyType>()->GetValueByNameString(Value));
+	
+	if (OnValueTypeChanged.IsBound())
+	{
+		if (URCVirtualPropertyBase* Controller = GetVirtualProperty())
+		{
+			if (OnValueTypeChanged.IsBound())
+			{
+				OnValueTypeChanged.Broadcast(Controller, CurrentControlValueType);
+			}
+		}
+	}
+}
+
+void FRCControllerModel::OnPropertyValueChanged(const FPropertyChangedEvent& InPropertyChangedEvent)
+{	
+	if (URCVirtualPropertyBase* ControllerProperty = GetVirtualProperty())
+	{
+		if (OnValueChanged.IsBound())
+		{
+			OnValueChanged.Broadcast(ControllerProperty);
+		}
+	}
+}
+
+void FRCControllerModel::InitControlledTypes()
+{
+	ControlledTypesAsStrings.Empty();
+	
+	if (const URCVirtualPropertyBase* Controller = GetVirtualProperty())
+	{
+		const TArray<EPropertyBagPropertyType>& ValueTypes = GetPreset()->GetControllersTypesByFieldId(Controller->FieldId);
+
+		int32 Count = 0;
+		TArray<FString> Types;
+		for (const EPropertyBagPropertyType ValueType : ValueTypes)
+		{
+			const FText& TypeName = UEnum::GetDisplayValueAsText(ValueType);
+			Types.AddUnique(TypeName.ToString());
+
+			if (Controller->GetValueType() == ValueType)
+			{
+				CurrentControlValueTypeIndex = Count;
+			}
+
+			Count++;
+		}
+
+		for (const FString& TypeName : Types)
+		{
+			ControlledTypesAsStrings.Add(MakeShared<FString>(TypeName));
+		}
+	}
+}
+
+void FRCControllerModel::EnterRenameMode()
+{	
 	ControllerNameTextBox->EnterEditingMode();
 }
 

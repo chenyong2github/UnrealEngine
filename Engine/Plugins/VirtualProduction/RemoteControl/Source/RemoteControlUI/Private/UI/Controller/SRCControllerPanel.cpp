@@ -95,6 +95,7 @@ void SRCControllerPanel::Construct(const FArguments& InArgs, const TSharedRef<SR
 
 	ControllerDockPanel->AddHeaderToolbarItem(EToolbar::Left, AddNewControllerButton);
 	ControllerDockPanel->AddFooterToolbarItem(EToolbar::Right, DeleteSelectedControllerButton);
+	ControllerDockPanel->AddHeaderToolbarItem(EToolbar::Right, GetMultiControllerSwitchWidget());
 
 	ChildSlot
 		.Padding(RCPanelStyle->PanelPadding)
@@ -263,6 +264,47 @@ FReply SRCControllerPanel::RequestDeleteAllItems()
 	return FReply::Handled();
 }
 
+void SRCControllerPanel::OnToggleMultiControllersMode(ECheckBoxState CheckBoxState)
+{
+	switch (CheckBoxState)
+	{
+		case ECheckBoxState::Unchecked:
+			bIsMultiControllerMode = false;
+			break;
+
+		case ECheckBoxState::Checked:
+			bIsMultiControllerMode = true;
+			break;
+
+		case ECheckBoxState::Undetermined:
+			bIsMultiControllerMode = false;
+			break;
+	}
+
+	if (ControllerPanelList.IsValid())
+	{
+		ControllerPanelList->SetMultiControllerMode(bIsMultiControllerMode);
+	}
+}
+
+EVisibility SRCControllerPanel::GetMultiControllerSwitchVisibility() const
+{
+	if (const URemoteControlPreset* const Preset = GetPreset())
+	{
+		const int32 NoFieldIdControllersNum = Preset->GetControllersByFieldId(NAME_None).Num();
+
+		// if no controller has a Field Id, let's hide the MultiController Switch
+		if (NoFieldIdControllersNum == Preset->GetNumControllers())
+		{
+			return EVisibility::Collapsed;
+			//todo: this could be smarter, e.g. showing the switch only if there are controllers with the same Field Id
+		}
+	}
+
+	return EVisibility::Visible;
+}
+
+
 TSharedRef<SWidget> SRCControllerPanel::GetControllerMenuContentWidget() const
 {
 	constexpr  bool bShouldCloseWindowAfterMenuSelection = true;
@@ -334,6 +376,28 @@ TSharedRef<SWidget> SRCControllerPanel::GetControllerMenuContentWidget() const
 	}
 
 	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> SRCControllerPanel::GetMultiControllerSwitchWidget()
+{
+	const FText& SwitchTooltipText = LOCTEXT("MultiControllerModeSwitchTooltip", "Enable/Disable MultiController Mode.\nWhen enabled, the Controllers list will only show one Controller per Field Id.");
+
+	return
+		SNew(SCheckBox)
+		.Visibility(this, &SRCControllerPanel::GetMultiControllerSwitchVisibility)
+		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Toggle MultiController Mode")))
+		.ToolTipText(SwitchTooltipText)
+		.HAlign(HAlign_Center)
+		.Style(&RCPanelStyle->ToggleButtonStyle)
+		.ForegroundColor(FSlateColor::UseForeground())
+		.IsChecked_Lambda([this]() { return bIsMultiControllerMode ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+		.OnCheckStateChanged(this, &SRCControllerPanel::OnToggleMultiControllersMode)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("MultiControllersModeSwitchLabel", "Multi"))
+			.Justification(ETextJustify::Center)
+			.TextStyle(&RCPanelStyle->PanelTextStyle)
+		];
 }
 
 void SRCControllerPanel::OnAddControllerClicked(const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject) const

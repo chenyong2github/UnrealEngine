@@ -759,6 +759,7 @@ bool URCVirtualPropertySelfContainer::DuplicatePropertyWithCopy(URCVirtualProper
 void URCVirtualPropertySelfContainer::Reset()
 {
 	PropertyName = NAME_None;
+	FieldId = NAME_None;
 	Id = FGuid();
 	Bag.Reset();
 }
