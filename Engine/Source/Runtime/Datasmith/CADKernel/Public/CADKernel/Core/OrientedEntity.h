@@ -19,13 +19,11 @@ public:
 	{
 	}
 
-	TOrientedEntity(const TOrientedEntity<KeyType>& OrientiredEntity)
-		: Entity(OrientiredEntity.Entity)
-		, Direction(OrientiredEntity.Direction)
-	{
-	}
-
 	TOrientedEntity() = default;
+	TOrientedEntity(TOrientedEntity&&) = default;
+	TOrientedEntity(const TOrientedEntity&) = default;
+	TOrientedEntity& operator=(TOrientedEntity&&) = default;
+	TOrientedEntity& operator=(const TOrientedEntity&) = default;
 };
 }
 
