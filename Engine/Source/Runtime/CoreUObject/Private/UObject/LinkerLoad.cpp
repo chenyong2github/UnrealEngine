@@ -1225,7 +1225,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 		{
 			// force preload into memory if file has an SHA entry
 			// Serialize data from memory instead of from disk.
-			uint32	BufferSize = Loader->TotalSize();
+			const int64	BufferSize = Loader->TotalSize();
 			void* Buffer = FMemory::Malloc(BufferSize);
 			Loader->Serialize(Buffer, BufferSize);
 			DestroyLoader();
