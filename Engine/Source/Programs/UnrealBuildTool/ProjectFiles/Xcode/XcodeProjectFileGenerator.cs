@@ -50,6 +50,11 @@ namespace UnrealBuildTool
 		string AppName = "";
 
 		/// <summary>
+		/// Store the single game project (when using -game -project=...) to a place that XcodeProjectLegacy can easily retrieve it
+		/// </summary>
+		public static FileReference? SingleGameProject = null;
+		
+		/// <summary>
 		/// If set, only write out one target/project 
 		/// </summary>
 		string? SingleTargetName = null;
@@ -58,6 +63,8 @@ namespace UnrealBuildTool
 		public XcodeProjectFileGenerator(FileReference? InOnlyGameProject, CommandLineArguments CommandLine)
 			: base(InOnlyGameProject)
 		{
+			SingleGameProject = InOnlyGameProject;
+			
 			if (CommandLine.HasOption("-distribution"))
 			{
 				bForDistribution = true;
