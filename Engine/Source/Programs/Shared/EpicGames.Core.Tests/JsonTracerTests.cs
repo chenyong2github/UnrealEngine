@@ -79,13 +79,20 @@ namespace EpicGames.Core.Tests
 				{
 					Parallel.For(0, 100, Index =>
 					{
-						using (IScope ChildScope = Tracer.BuildSpan("Child").StartActive()) { }
+						using (IScope ChildScope = Tracer.BuildSpan("Child").StartActive())
+						{
+							Assert.AreEqual(Tracer.ActiveSpan, ChildScope.Span);
+							Assert.AreEqual(((JsonTracerSpan)ChildScope.Span).ParentId, ((JsonTracerSpan)ParentScope.Span).Context.SpanId);
+						}
+						Assert.AreEqual(Tracer.ActiveSpan, ParentScope.Span);
 					});
+					Assert.AreEqual(Tracer.ActiveSpan, ParentScope.Span);
 				}
+				Assert.AreEqual(Tracer.ActiveSpan, null);
 			}
 		}
 
-		private static async Task<bool> AsyncSpanTest(JsonTracer Tracer)
+		private static async Task<bool> AsyncSpanTest(JsonTracer Tracer, IScope ParentScope)
 		{
 			for (int Index = 0; Index < 100; Index++)
 			{
@@ -95,10 +102,15 @@ namespace EpicGames.Core.Tests
 					{
 						using (IScope TaskChildScope = Tracer.BuildSpan("TaskChild").StartActive())
 						{
+							Assert.AreEqual(Tracer.ActiveSpan, TaskChildScope.Span);
+							Assert.AreEqual(((JsonTracerSpan)TaskChildScope.Span).ParentId, ((JsonTracerSpan)AsyncChildScope.Span).Context.SpanId);
 							return true;
 						}
 					});
+					Assert.AreEqual(Tracer.ActiveSpan, AsyncChildScope.Span);
+					Assert.AreEqual(((JsonTracerSpan)AsyncChildScope.Span).ParentId, ((JsonTracerSpan)ParentScope.Span).Context.SpanId);
 				}
+				Assert.AreEqual(Tracer.ActiveSpan, ParentScope.Span);
 			}
 			return true;
 		}
@@ -110,8 +122,12 @@ namespace EpicGames.Core.Tests
 			{
 				using (IScope ParentScope = Tracer.BuildSpan("Parent").StartActive())
 				{
-					AsyncSpanTest(Tracer).Wait();
+					Assert.AreEqual(Tracer.ActiveSpan, ParentScope.Span);
+					AsyncSpanTest(Tracer, ParentScope).Wait();
+					Assert.AreEqual(Tracer.ActiveSpan, ParentScope.Span);
 				}
+
+				Assert.AreEqual(Tracer.ActiveSpan, null);
 			}
 		}
 	}
