@@ -308,11 +308,11 @@ public:
 	 *
 	 * @return	 Pointer to the plugin's information, or nullptr.
 	 */
-	virtual PROJECTS_API TSharedPtr<IPlugin> FindPlugin(const FStringView Name) = 0;
-	virtual PROJECTS_API TSharedPtr<IPlugin> FindPlugin(const ANSICHAR* Name) = 0;
+	virtual TSharedPtr<IPlugin> FindPlugin(const FStringView Name) = 0;
+	virtual TSharedPtr<IPlugin> FindPlugin(const ANSICHAR* Name) = 0;
 
-	virtual PROJECTS_API TSharedPtr<IPlugin> FindPluginFromPath(const FString& PluginPath) = 0;
-	virtual PROJECTS_API TSharedPtr<IPlugin> FindPluginFromDescriptor(const FPluginReferenceDescriptor& PluginDesc) = 0;
+	virtual TSharedPtr<IPlugin> FindPluginFromPath(const FString& PluginPath) = 0;
+	virtual TSharedPtr<IPlugin> FindPluginFromDescriptor(const FPluginReferenceDescriptor& PluginDesc) = 0;
 
 	/** 
 	 * Finds all plugin descriptors underneath a given directory (recursively)
@@ -358,12 +358,12 @@ public:
 	/**
 	 * Returns the set of built-in plugin names
 	 */
-	PROJECTS_API virtual const TSet<FString>& GetBuiltInPluginNames() const = 0;
+	virtual const TSet<FString>& GetBuiltInPluginNames() const = 0;
 
 	/**
 	 * Returns the plugin that owns the specified module, if any
 	 */
-	PROJECTS_API virtual TSharedPtr<IPlugin> GetModuleOwnerPlugin(FName ModuleName) const = 0;
+	virtual TSharedPtr<IPlugin> GetModuleOwnerPlugin(FName ModuleName) const = 0;
 #endif //WITH_EDITOR
 
 	/**

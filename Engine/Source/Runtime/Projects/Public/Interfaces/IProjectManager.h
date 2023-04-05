@@ -243,7 +243,7 @@ public:
 	 *
 	 * @return	True if the project is an Enterprise project
 	 */
-	PROJECTS_API virtual bool IsEnterpriseProject() = 0;
+	virtual bool IsEnterpriseProject() = 0;
 
 	/**
 	 * Sets the enterprise flag value on the current project
@@ -261,8 +261,8 @@ public:
 	virtual bool IsSuppressingProjectFileWrite() const = 0;
 
 	/** Suppress project file writes. */
-	PROJECTS_API virtual void AddSuppressProjectFileWrite(const FName InName) = 0;
+	virtual void AddSuppressProjectFileWrite(const FName InName) = 0;
 
 	/** Removes suppression of project file writes. */
-	PROJECTS_API virtual void RemoveSuppressProjectFileWrite(const FName InName) = 0;
+	virtual void RemoveSuppressProjectFileWrite(const FName InName) = 0;
 };
