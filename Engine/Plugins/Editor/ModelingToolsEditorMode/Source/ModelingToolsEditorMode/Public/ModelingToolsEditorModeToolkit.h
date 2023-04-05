@@ -27,7 +27,7 @@ class UPresetSettingsProperties : public UObject
 	GENERATED_BODY()
 public:
 
-	UPROPERTY(EditAnywhere, Category = "Presets", meta=(MetaClass = "InteractiveToolsPresetCollectionAsset"))
+	UPROPERTY(EditAnywhere, Category = "Presets", meta=(MetaClass = "/Script/PresetAsset.InteractiveToolsPresetCollectionAsset"))
 	TArray< FSoftObjectPath > ActivePresetCollectionsPaths;
 };
 
