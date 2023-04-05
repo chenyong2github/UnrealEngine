@@ -246,13 +246,12 @@ struct CONTROLRIG_API FRigComputedTransform
 
 	FRigComputedTransform()
 	: Transform(FTransform::Identity)
-	, bDirty(false)
 	{}
 
-	void Save(FArchive& Ar);
-	void Load(FArchive& Ar);
+	void Save(FArchive& Ar, bool& bDirty);
+	void Load(FArchive& Ar, bool& bDirty);
 
-	void Set(const FTransform& InTransform)
+	void Set(const FTransform& InTransform, bool& bDirty)
 	{
 #if WITH_EDITOR
 		ensure(InTransform.GetRotation().IsNormalized());
@@ -273,13 +272,11 @@ struct CONTROLRIG_API FRigComputedTransform
 
 	bool operator == (const FRigComputedTransform& Other) const
 	{
-		return bDirty == Other.bDirty && Equals(Transform, Other.Transform);
+		return Equals(Transform, Other.Transform);
     }
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Pose")
 	FTransform Transform;
-
-	bool bDirty;
 };
 
 USTRUCT(BlueprintType)
@@ -292,13 +289,15 @@ struct CONTROLRIG_API FRigLocalAndGlobalTransform
     , Global()
 	{}
 
-	void Save(FArchive& Ar);
-	void Load(FArchive& Ar);
-
-	bool operator == (const FRigLocalAndGlobalTransform& Other) const
+	enum EDirty
 	{
-		return Local == Other.Local && Global == Other.Global;
-	}
+		ELocal = 0,
+		EGlobal,
+		EDirtyMax
+	};
+
+	void Save(FArchive& Ar, bool bDirty[EDirtyMax]);
+	void Load(FArchive& Ar, bool bDirty[EDirtyMax]);
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Pose")
 	FRigComputedTransform Local;
@@ -365,6 +364,42 @@ struct CONTROLRIG_API FRigCurrentAndInitialTransform
 		return Initial.Global;
 	}
 
+	bool& GetDirtyFlag(const ERigTransformType::Type InTransformType)
+	{
+		switch (InTransformType)
+		{
+			case ERigTransformType::CurrentLocal:
+				return bDirtyCurrent[FRigLocalAndGlobalTransform::ELocal];
+
+			case ERigTransformType::CurrentGlobal:
+				return bDirtyCurrent[FRigLocalAndGlobalTransform::EGlobal];
+
+			case ERigTransformType::InitialLocal:
+				return bDirtyInitial[FRigLocalAndGlobalTransform::ELocal];
+			
+			default:
+				return bDirtyInitial[FRigLocalAndGlobalTransform::EGlobal];
+		}
+	}
+
+	const bool& GetDirtyFlag(const ERigTransformType::Type InTransformType) const
+	{
+		switch (InTransformType)
+		{
+		case ERigTransformType::CurrentLocal:
+			return bDirtyCurrent[FRigLocalAndGlobalTransform::ELocal];
+
+		case ERigTransformType::CurrentGlobal:
+			return bDirtyCurrent[FRigLocalAndGlobalTransform::EGlobal];
+
+		case ERigTransformType::InitialLocal:
+			return bDirtyInitial[FRigLocalAndGlobalTransform::ELocal];
+
+		default:
+			return bDirtyInitial[FRigLocalAndGlobalTransform::EGlobal];
+		}
+	}
+
 	const FTransform& Get(const ERigTransformType::Type InTransformType) const
 	{
 		return operator[](InTransformType).Transform;
@@ -372,18 +407,18 @@ struct CONTROLRIG_API FRigCurrentAndInitialTransform
 
 	void Set(const ERigTransformType::Type InTransformType, const FTransform& InTransform)
 	{
-		operator[](InTransformType).Set(InTransform);
+		operator[](InTransformType).Set(InTransform, GetDirtyFlag(InTransformType));
 	}
 
 	bool IsDirty(const ERigTransformType::Type InTransformType) const
 	{
-		return operator[](InTransformType).bDirty;
+		return GetDirtyFlag(InTransformType);
 	}
 
 	void MarkDirty(const ERigTransformType::Type InTransformType)
 	{
-		ensure(!(operator[](ERigTransformType::SwapLocalAndGlobal(InTransformType)).bDirty));
-		operator[](InTransformType).bDirty = true;
+		ensure(!(GetDirtyFlag(ERigTransformType::SwapLocalAndGlobal(InTransformType))));
+		GetDirtyFlag(InTransformType) = true;
 	}
 
 	void Save(FArchive& Ar);
@@ -391,7 +426,10 @@ struct CONTROLRIG_API FRigCurrentAndInitialTransform
 
 	bool operator == (const FRigCurrentAndInitialTransform& Other) const
 	{
-		return Current == Other.Current && Initial == Other.Initial;
+		return bDirtyCurrent[FRigLocalAndGlobalTransform::ELocal]  == Other.bDirtyCurrent[FRigLocalAndGlobalTransform::ELocal]  && Current.Local  == Other.Current.Local
+			&& bDirtyCurrent[FRigLocalAndGlobalTransform::EGlobal] == Other.bDirtyCurrent[FRigLocalAndGlobalTransform::EGlobal] && Current.Global == Other.Current.Global
+			&& bDirtyInitial[FRigLocalAndGlobalTransform::ELocal]  == Other.bDirtyInitial[FRigLocalAndGlobalTransform::ELocal]  && Initial.Local  == Other.Initial.Local
+			&& bDirtyInitial[FRigLocalAndGlobalTransform::EGlobal] == Other.bDirtyInitial[FRigLocalAndGlobalTransform::EGlobal] && Initial.Global == Other.Initial.Global;
 	}
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Pose")
@@ -399,6 +437,9 @@ struct CONTROLRIG_API FRigCurrentAndInitialTransform
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Pose")
 	FRigLocalAndGlobalTransform Initial;
+
+	bool bDirtyCurrent[FRigLocalAndGlobalTransform::EDirtyMax] = { false, false };
+	bool bDirtyInitial[FRigLocalAndGlobalTransform::EDirtyMax] = { false, false };
 };
 
 USTRUCT(BlueprintType)
@@ -513,11 +554,11 @@ public:
 	, NameString()
     , Index(INDEX_NONE)
 	, SubIndex(INDEX_NONE)
-	, bSelected(false)
 	, CreatedAtInstructionIndex(INDEX_NONE)
+	, OwnedInstances(0)
 	, TopologyVersion(0)
 	, MetadataVersion(0)
-	, OwnedInstances(0)
+	, bSelected(false)
 	{}
 
 	FRigBaseElement(const FRigBaseElement& InOther);
@@ -544,12 +585,6 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = RigElement, meta = (AllowPrivateAccess = "true"))
 	int32 SubIndex;
-
-	UPROPERTY(BlueprintReadOnly, Transient, Category = RigElement, meta = (AllowPrivateAccess = "true"))
-	bool bSelected;
-
-	UPROPERTY(BlueprintReadOnly, Transient, Category = RigElement, meta = (AllowPrivateAccess = "true"))
-	int32 CreatedAtInstructionIndex;
 
 	TArray<FRigBaseMetadata*> Metadata;
 	TMap<FName,int32> MetadataNameToIndex;
@@ -674,15 +709,22 @@ protected:
 	void NotifyMetadataChanged(const FName& InName);
 	void NotifyMetadataTagChanged(const FName& InTag, bool bAdded);
 
-	mutable uint16 TopologyVersion;
-	mutable uint16 MetadataVersion;
 	mutable FRigBaseElementChildrenArray CachedChildren;
+
+	FRigElementMetadataChangedDelegate MetadataChangedDelegate;
+	FRigElementMetadataTagChangedDelegate MetadataTagChangedDelegate;
+
+	UPROPERTY(BlueprintReadOnly, Transient, Category = RigElement, meta = (AllowPrivateAccess = "true"))
+	int32 CreatedAtInstructionIndex;
 
 	// used for constructing / destructing the memory. typically == 1
 	int32 OwnedInstances;
 
-	FRigElementMetadataChangedDelegate MetadataChangedDelegate;
-	FRigElementMetadataTagChangedDelegate MetadataTagChangedDelegate;
+	mutable uint16 TopologyVersion;
+	mutable uint16 MetadataVersion;
+
+	UPROPERTY(BlueprintReadOnly, Transient, Category = RigElement, meta = (AllowPrivateAccess = "true"))
+	bool bSelected;
 
 	friend class URigHierarchy;
 	friend class URigHierarchyController;
@@ -873,18 +915,18 @@ public:
 USTRUCT()
 struct CONTROLRIG_API FRigElementParentConstraint
 {
-public:
 	GENERATED_BODY()
 
 	FRigTransformElement* ParentElement;
 	FRigElementWeight Weight;
 	FRigElementWeight InitialWeight;
 	mutable FRigComputedTransform Cache;
+	mutable bool bCacheIsDirty;
 		
 	FRigElementParentConstraint()
 		: ParentElement(nullptr)
 	{
-		Cache.bDirty = true;
+		bCacheIsDirty = true;
 	}
 
 	const FRigElementWeight& GetWeight(bool bInitial = false) const
@@ -902,7 +944,7 @@ public:
 		{
 			InitialWeight = InOther.InitialWeight;
 		}
-		Cache.bDirty = true;
+		bCacheIsDirty = true;
 	}
 };
 

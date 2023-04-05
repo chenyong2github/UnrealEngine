@@ -290,32 +290,32 @@ void FRigBaseElement::NotifyMetadataTagChanged(const FName& InTag, bool bAdded)
 // FRigComputedTransform
 ////////////////////////////////////////////////////////////////////////////////
 
-void FRigComputedTransform::Save(FArchive& Ar)
+void FRigComputedTransform::Save(FArchive& Ar, bool& bDirty)
 {
 	Ar << Transform;
 	Ar << bDirty;
 }
 
-void FRigComputedTransform::Load(FArchive& Ar)
+void FRigComputedTransform::Load(FArchive& Ar, bool& bDirty)
 {
 	// load and save are identical
-	Save(Ar);
+	Save(Ar, bDirty);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // FRigLocalAndGlobalTransform
 ////////////////////////////////////////////////////////////////////////////////
 
-void FRigLocalAndGlobalTransform::Save(FArchive& Ar)
+void FRigLocalAndGlobalTransform::Save(FArchive& Ar, bool bDirty[EDirtyMax])
 {
-	Local.Save(Ar);
-	Global.Save(Ar);
+	Local.Save(Ar, bDirty[ELocal]);
+	Global.Save(Ar, bDirty[EGlobal]);
 }
 
-void FRigLocalAndGlobalTransform::Load(FArchive& Ar)
+void FRigLocalAndGlobalTransform::Load(FArchive& Ar, bool bDirty[EDirtyMax])
 {
-	Local.Load(Ar);
-	Global.Load(Ar);
+	Local.Load(Ar, bDirty[ELocal]);
+	Global.Load(Ar, bDirty[EGlobal]);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -324,14 +324,14 @@ void FRigLocalAndGlobalTransform::Load(FArchive& Ar)
 
 void FRigCurrentAndInitialTransform::Save(FArchive& Ar)
 {
-	Current.Save(Ar);
-	Initial.Save(Ar);
+	Current.Save(Ar, bDirtyCurrent);
+	Initial.Save(Ar, bDirtyInitial);
 }
 
 void FRigCurrentAndInitialTransform::Load(FArchive& Ar)
 {
-	Current.Load(Ar);
-	Initial.Load(Ar);
+	Current.Load(Ar, bDirtyCurrent);
+	Initial.Load(Ar, bDirtyInitial);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -616,7 +616,7 @@ void FRigMultiParentElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESeria
 			ensure(ParentKey.IsValid());
 
 			ParentConstraints[ParentIndex].ParentElement = Hierarchy->FindChecked<FRigTransformElement>(ParentKey);
-			ParentConstraints[ParentIndex].Cache.bDirty = true;
+			ParentConstraints[ParentIndex].bCacheIsDirty = true;
 
 			if (Ar.CustomVer(FControlRigObjectVersion::GUID) >= FControlRigObjectVersion::RigHierarchyMultiParentConstraints)
 			{
@@ -684,6 +684,7 @@ void FRigMultiParentElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, b
 ////////////////////////////////////////////////////////////////////////////////
 // FRigBoneElement
 ////////////////////////////////////////////////////////////////////////////////
+static_assert(sizeof(FRigBoneElement) <= 736, "FRigBoneElement was optimized to fit into 736 bytes bin of MallocBinned3");
 
 void FRigBoneElement::Save(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase)
 {
