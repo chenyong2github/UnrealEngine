@@ -47,7 +47,7 @@ bool FRivermaxMediaTextureSampleConverter::Convert(FTexture2DRHIRef& InDestinati
 	}
 
 	// If no input data was provided, no need to render
-	if (!Setup.GPUBuffer.IsValid() && Setup.SystemBuffer == nullptr)
+	if (Setup.GetGPUBufferFunc == nullptr && Setup.GetSystemBufferFunc == nullptr)
 	{
 		ensureMsgf(false, TEXT("Rivermax player late update succeeded but didn't provide any source data."));
 		return false;
@@ -69,14 +69,25 @@ bool FRivermaxMediaTextureSampleConverter::Convert(FTexture2DRHIRef& InDestinati
 		FRDGTextureRef OutputResource = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(InDestinationTexture, TEXT("RivermaxMediaTextureOutputResource")));
 
 		// If we have a valid GPUBuffer, i.e GPUDirect is involved, use that one. Otherwise, take the system buffer and upload it in a new structured buffer.
-		if (Setup.GPUBuffer.IsValid())
+		if (Setup.GetGPUBufferFunc)
 		{
-			InputBuffer = GraphBuilder.RegisterExternalBuffer(Setup.GPUBuffer, TEXT("RMaxGPUBuffer"));
+			InputBuffer = GraphBuilder.RegisterExternalBuffer(Setup.GetGPUBufferFunc(), TEXT("RMaxGPUBuffer"));
 		}
-		else if(Setup.SystemBuffer)
+		else if (Setup.GetSystemBufferFunc)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(RivermaxSampleConverter::CreateStructuredBuffer);
-			InputBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("RivermaxInputBuffer"), SourceBufferDesc.BytesPerElement, SourceBufferDesc.NumberOfElements, Setup.SystemBuffer, SourceBufferDesc.BytesPerElement * SourceBufferDesc.NumberOfElements, ERDGInitialDataFlags::NoCopy);
+			FRDGBufferNumElementsCallback NumElementCallback = [NumElements = SourceBufferDesc.NumberOfElements]()
+			{
+				return NumElements;
+			};
+
+			FRDGBufferInitialDataCallback GetDataCallback = Setup.GetSystemBufferFunc;
+			FRDGBufferInitialDataSizeCallback TotalSizeCallback = [TotalSize = SourceBufferDesc.BytesPerElement * SourceBufferDesc.NumberOfElements]()
+			{
+				return TotalSize;
+			};
+
+			InputBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("RivermaxInputBuffer"), SourceBufferDesc.BytesPerElement, MoveTemp(NumElementCallback), MoveTemp(GetDataCallback), MoveTemp(TotalSizeCallback));
 		}
 		else
 		{

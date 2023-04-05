@@ -595,17 +595,24 @@ namespace UE::RivermaxMedia
 			const TSharedPtr<FRivermaxMediaTextureSample>& NextSample = SamplePool[NextFrameExpectations.FrameIndex]->Sample;
 			if (bDoesStreamSupportsGPUDirect)
 			{
-				OutConverterSetup.GPUBuffer = NextSample->GetGPUBuffer();
+				// For gpudirect path, we return the expected buffer directly
+				// PreConvertFunc will take care of waiting on RHI thread for the buffer to be usable
+				OutConverterSetup.GetGPUBufferFunc = [Sample = NextSample](){ return Sample->GetGPUBuffer(); };
+				OutConverterSetup.PreConvertFunc = [NextFrameExpectations, this](const FRDGBuilder& GraphBuilder)
+				{
+					PreSampleUsage(NextFrameExpectations);
+				};
 			}
 			else
 			{
-				OutConverterSetup.SystemBuffer = NextSample->GetBuffer();
+				// For system memory path, we wait for the sample to be received before returning it.
+				// This will stall the render thread in its current state
+				OutConverterSetup.GetSystemBufferFunc = [NextFrameExpectations, Sample = NextSample, this]()
+				{
+					WaitForSample(NextFrameExpectations);
+					return Sample->GetBuffer();
+				};
 			}
-			
-			OutConverterSetup.PreConvertFunc = [NextFrameExpectations, this](FRDGBuilder& GraphBuilder)
-			{
-				PreSampleUsage(GraphBuilder, NextFrameExpectations);
-			};
 
 			// Setup post sample usage pass
 			OutConverterSetup.PostConvertFunc = [NextFrameExpectations, this] (FRDGBuilder& GraphBuilder)
@@ -838,62 +845,15 @@ namespace UE::RivermaxMedia
 		return IMediaPlayer::GetPlayerFeatureFlag(flag);
 	}
 
-	void FRivermaxMediaPlayer::PreSampleUsage(FRDGBuilder& GraphBuilder, const FFrameExpectation& FrameExpectation)
+	void FRivermaxMediaPlayer::PreSampleUsage(const FFrameExpectation& FrameExpectation)
 	{
 		// Before the sample is used during conversion, we want to make sure the expected frame is available to be used
-
-		GraphBuilder.AddPass(RDG_EVENT_NAME("RivermaxPreSampleUsage"),
-			ERDGPassFlags::NeverCull,
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+		RHICmdList.EnqueueLambda(
 			[FrameExpectation, this](FRHICommandList& RHICmdList)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(RivermaxWaitForSamples);
-
-				const double StartTimeSeconds = FPlatformTime::Seconds();
-				constexpr double TimeoutSeconds = 0.5;
-
-				while (true)
-				{
-					{
-						if (!IsReadyToPlay())
-						{
-							break;
-						}
-
-						if (FrameExpectation.FrameIndex == INDEX_NONE)
-						{
-							break;
-						}
-
-						if (IsFrameSkipped(FrameExpectation.FrameNumber))
-						{
-							UE_LOG(LogRivermaxMedia, Verbose, TEXT("Stopped waiting for frame %u as it was marked as skipped."), FrameExpectation.FrameNumber);
-							break;
-						}
-
-						// Our goal here is to wait until the expected frame is available to be used (received) unless there is a timeout
-						const TSharedPtr<FRivermaxSampleWrapper>& Frame = SamplePool[FrameExpectation.FrameIndex];
-						if (Frame->ReceptionState == ESampleReceptionState::Received)
-						{
-							if (Frame->FrameNumber >= FrameExpectation.FrameNumber)
-							{
-								if (Frame->FrameNumber > FrameExpectation.FrameNumber)
-								{
-									UE_LOG(LogRivermaxMedia, Warning, TEXT("More recent frame, %u, than expected, %u, found while waiting."), Frame->FrameNumber, FrameExpectation.FrameNumber);
-								}
-								break;
-							}
-						}
-					}
-
-					{
-						FPlatformProcess::SleepNoStats(SleepTimeSeconds);
-						if ((FPlatformTime::Seconds() - StartTimeSeconds) > TimeoutSeconds)
-						{
-							UE_LOG(LogRivermaxMedia, Error, TEXT("Timed out waiting for frame %u."), FrameExpectation.FrameNumber);
-							break;
-						}
-					}
-				}
+				WaitForSample(FrameExpectation);
 			});
 	}
 
@@ -1042,6 +1002,59 @@ namespace UE::RivermaxMedia
 			}
 		}
 	}
+
+	void FRivermaxMediaPlayer::WaitForSample(const FFrameExpectation& FrameExpectation)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(RivermaxWaitForSample);
+
+		const double StartTimeSeconds = FPlatformTime::Seconds();
+		constexpr double TimeoutSeconds = 0.5;
+
+		while (true)
+		{
+			{
+				if (!IsReadyToPlay())
+				{
+					break;
+				}
+
+				if (FrameExpectation.FrameIndex == INDEX_NONE)
+				{
+					break;
+				}
+
+				if (IsFrameSkipped(FrameExpectation.FrameNumber))
+				{
+					UE_LOG(LogRivermaxMedia, Verbose, TEXT("Stopped waiting for frame %u as it was marked as skipped."), FrameExpectation.FrameNumber);
+					break;
+				}
+
+				// Our goal here is to wait until the expected frame is available to be used (received) unless there is a timeout
+				const TSharedPtr<FRivermaxSampleWrapper>& Frame = SamplePool[FrameExpectation.FrameIndex];
+				if (Frame->ReceptionState == ESampleReceptionState::Received)
+				{
+					if (Frame->FrameNumber >= FrameExpectation.FrameNumber)
+					{
+						if (Frame->FrameNumber > FrameExpectation.FrameNumber)
+						{
+							UE_LOG(LogRivermaxMedia, Warning, TEXT("More recent frame, %u, than expected, %u, found while waiting."), Frame->FrameNumber, FrameExpectation.FrameNumber);
+						}
+						break;
+					}
+				}
+			}
+
+			{
+				FPlatformProcess::SleepNoStats(SleepTimeSeconds);
+				if ((FPlatformTime::Seconds() - StartTimeSeconds) > TimeoutSeconds)
+				{
+					UE_LOG(LogRivermaxMedia, Error, TEXT("Timed out waiting for frame %u."), FrameExpectation.FrameNumber);
+					break;
+				}
+			}
+		}
+	}
+
 }
 
 #undef LOCTEXT_NAMESPACE

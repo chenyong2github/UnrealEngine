@@ -108,7 +108,10 @@ namespace  UE::RivermaxMedia
 		};
 
 		/** Called before sample will be converted / rendered. Used to wait for the expected frame we want to render */
-		void PreSampleUsage(FRDGBuilder& GraphBuilder, const FFrameExpectation& FrameExpectation);
+		void PreSampleUsage(const FFrameExpectation& FrameExpectation);
+		
+		/** Function waiting for the expected frame to be received. */
+		void WaitForSample(const FFrameExpectation& FrameExpectation);
 		
 		/** Called after sample was converted / rendered. Used write a fence to detect when sample is reusable */
 		void PostSampleUsage(FRDGBuilder& GraphBuilder, const FFrameExpectation& FrameExpectation);
