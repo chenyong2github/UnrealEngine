@@ -2,29 +2,12 @@
 
 #include "../Common.ush"
 #include "../ShaderPrint.ush"
+#include "../StrataTile.ush"
 
 #define TILE_CLASSIFICATION_SIMPLE_DIFFUSE 0
 #define TILE_CLASSIFICATION_SUPPORT_IMPORTANCE_SAMPLE_BRDF 1
 #define TILE_CLASSIFICATION_SUPPORT_ALL 2
 #define TILE_CLASSIFICATION_NUM 3
-
-struct FStrataBSDFTile
-{
-	uint2 TileCoord; // If Index == 0, points to the first 'overflow' tiles. If Index != 0, points towards the 'parent'/primary space tile
-	uint  Index;
-	uint  Count;
-};
-FStrataBSDFTile UnpackBSDFTile(uint In)
-{
-	FStrataBSDFTile Out;
-	Out.TileCoord.x = In & 0x3FF;
-	Out.TileCoord.y = (In >> 10u) & 0x3FF;
-	Out.Index = (In >> 20u) & 0x7;
-	Out.Count = (In >> 23u) & 0x7;
-	return Out;
-}
-
-
 
 uint2 TranslateTileCoordIntoPrimarySpace(uint2 TileNCoord, bool bOverflow, inout uint TileIndex)
 {
