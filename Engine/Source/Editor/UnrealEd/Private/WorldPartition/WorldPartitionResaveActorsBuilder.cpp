@@ -456,15 +456,15 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 				{
 					TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = Actor->CreateActorDesc();
 
-					if (!ActorDesc->IsResaveNeeded() && ActorDesc->Equals(NewActorDesc.Get()))
+					if (!ActorDesc->IsResaveNeeded() && !ActorDesc->ShouldResave(NewActorDesc.Get()))
 					{
 						return true;
 					}
 
 					if (bDiffDirtyActorDescs)
 					{
-						DirtyActorDescsOld.Add(ActorDesc->ToString());
-						DirtyActorDescsNew.Add(NewActorDesc->ToString());
+						DirtyActorDescsOld.Add(ActorDesc->ToString(FWorldPartitionActorDesc::EToStringMode::Full));
+						DirtyActorDescsNew.Add(NewActorDesc->ToString(FWorldPartitionActorDesc::EToStringMode::Full));
 					}
 
 					UE_LOG(LogWorldPartitionResaveActorsBuilder, Log, TEXT("Package %s needs to be resaved."), *Package->GetName());
@@ -480,7 +480,7 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 		}, ForEachActorWithLoadingParams);
 	}
 
-	if (bDiffDirtyActorDescs)
+	if (bDiffDirtyActorDescs && DirtyActorDescsOld.Num())
 	{
 		auto WriteTempFile = [](const TArray<FString>& Lines, FString& TempFileName)
 		{

@@ -260,6 +260,41 @@ bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) con
 		Properties == Other->Properties;
 }
 
+bool FWorldPartitionActorDesc::ShouldResave(const FWorldPartitionActorDesc* Other) const
+{
+	check(Guid == Other->Guid);
+	check(ActorPackage == Other->ActorPackage);
+	check(ActorPath == Other->ActorPath);
+
+	// Tolerate up to 5% for bounds change
+	const float BoundsChangeTolerance = 0.05f;
+	const FBox ThisBounds = GetRuntimeBounds();
+	const FBox OtherBounds = Other->GetRuntimeBounds();
+	const FVector BoundsMinChangeRatio = ThisBounds.Min / OtherBounds.Min;
+	const FVector BoundsMaxChangeRatio = ThisBounds.Max / OtherBounds.Max;
+	if (!BoundsMinChangeRatio.Equals(FVector::OneVector, BoundsChangeTolerance) || !BoundsMaxChangeRatio.Equals(FVector::OneVector, BoundsChangeTolerance))
+	{
+		return true;
+	}
+
+	if (RuntimeGrid != Other->RuntimeGrid ||
+		bIsSpatiallyLoaded != Other->bIsSpatiallyLoaded ||
+		bActorIsEditorOnly != Other->bActorIsEditorOnly ||
+		bActorIsRuntimeOnly != Other->bActorIsRuntimeOnly ||
+		HLODLayer != Other->HLODLayer ||
+		ParentActor != Other->ParentActor ||
+		ContentBundleGuid != Other->ContentBundleGuid ||
+		!CompareUnsortedArrays(DataLayers, Other->DataLayers) ||
+		!CompareUnsortedArrays(References, Other->References))
+	{
+		return true;
+	}
+
+	// If the actor descriptor says the actor is HLOD relebant but in reality it's not, this will incur a loading time penalty during HLOD generation
+	// but will not affect the final result, as the value from the loaded actor will be used instead, so don't consider this as affecting streaming generation.
+	return (bActorIsHLODRelevant == Other->bActorIsHLODRelevant) || (bActorIsHLODRelevant && !Other->bActorIsHLODRelevant);
+}
+
 void FWorldPartitionActorDesc::SerializeTo(TArray<uint8>& OutData)
 {
 	// Serialize to archive and gather custom versions

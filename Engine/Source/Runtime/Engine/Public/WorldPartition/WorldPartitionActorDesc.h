@@ -250,6 +250,12 @@ public:
 
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const;
 
+	/**
+	 * Returns true if resaving this actor will have an impact on streaming generation. Before class descriptors, properties changed on a Blueprint 
+	 * that would affect streaming generation weren't taken into account until the actors affected by the change were resaved.
+	 */
+	virtual bool ShouldResave(const FWorldPartitionActorDesc* Other) const;
+
 	void SerializeTo(TArray<uint8>& OutData);
 
 	void TransformInstance(const FString& From, const FString& To);
