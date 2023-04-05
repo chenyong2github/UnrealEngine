@@ -18,7 +18,7 @@
 
 namespace WorldPartitionTests
 {
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWorldPartitionStreamingGenerationTest, TEST_NAME_ROOT ".StreamingGeneration", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWorldPartitionStreamingGenerationTest, TEST_NAME_ROOT ".StreamingGeneration", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 	bool FWorldPartitionStreamingGenerationTest::RunTest(const FString& Parameters)
 	{

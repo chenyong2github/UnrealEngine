@@ -14,7 +14,7 @@
 
 namespace WorldPartitionTests
 {
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWorldPartitionPathConversionTest, TEST_NAME_ROOT ".PathConversion", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWorldPartitionPathConversionTest, TEST_NAME_ROOT ".PathConversion", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 	bool FWorldPartitionPathConversionTest::RunTest(const FString& Parameters)
 	{
