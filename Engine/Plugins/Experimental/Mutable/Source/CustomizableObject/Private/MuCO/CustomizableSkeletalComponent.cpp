@@ -136,14 +136,6 @@ void UCustomizableSkeletalComponent::BeginDestroy()
 }
 
 
-void UCustomizableSkeletalComponent::PreSave(FObjectPreSaveContext ObjectSaveContext)
-{
-	SetSkeletalMesh(nullptr); // To prevent "Graph is linked to private object(s) in an external package" errors when saving in editor after having PIE and generated customized skeletal meshes while in PIE
-
-	Super::PreSave(ObjectSaveContext);
-}
-
-
 #if WITH_EDITOR
 
 void UCustomizableSkeletalComponent::UpdateDistFromComponentToLevelEditorCamera(const FVector& CameraPosition)

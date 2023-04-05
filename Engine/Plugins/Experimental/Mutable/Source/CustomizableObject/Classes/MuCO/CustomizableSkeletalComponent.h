@@ -61,9 +61,6 @@ public:
 	// USceneComponent interface
 	virtual void BeginDestroy() override;
 
-	// UObject interface
-	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
-
 #if WITH_EDITOR
 	// Used to generate instances outside the CustomizableObject editor and PIE
 	void UpdateDistFromComponentToLevelEditorCamera(const FVector& CameraPosition);
