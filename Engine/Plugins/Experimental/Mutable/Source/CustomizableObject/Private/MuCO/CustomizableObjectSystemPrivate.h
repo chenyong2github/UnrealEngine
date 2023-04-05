@@ -4,6 +4,7 @@
 
 #include "Containers/Queue.h"
 #include "MuCO/CustomizableObject.h"
+#include "MuCO/CustomizableObjectExtension.h"
 #include "Containers/Ticker.h"
 
 #include "MuCO/CustomizableObjectInstanceDescriptor.h"
@@ -418,6 +419,13 @@ struct FInstanceUpdateData
 
 	TArray<FSkeletonData> Skeletons;
 
+	struct FNamedExtensionData
+	{
+		mu::ExtensionDataPtrConst Data;
+		FName Name;
+	};
+	TArray<FNamedExtensionData> ExtendedInputPins;
+
 	/** */
 	void Clear()
 	{
@@ -428,6 +436,7 @@ struct FInstanceUpdateData
 		Scalars.Empty();
 		Vectors.Empty();
 		Skeletons.Empty();
+		ExtendedInputPins.Empty();
 	}
 };
 
@@ -541,6 +550,9 @@ public:
 	// This object is responsible for streaming data to the MutableSystem.
 	// Non-owned reference
 	class FUnrealMutableModelBulkStreamer* Streamer = nullptr;
+
+	// Non-owned reference
+	class FUnrealExtensionDataStreamer* ExtensionDataStreamer = nullptr;
 
 	// This object is responsible for providing custom images to mutable models (for image parameters)
 	// This object is called from the mutable thread, and it should only access data already safely submitted from

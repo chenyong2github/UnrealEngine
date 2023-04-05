@@ -6,6 +6,7 @@
 #include "MuT/NodeLODPrivate.h"
 #include "MuT/CompilerPrivate.h"
 
+#include "MuT/NodeExtensionData.h"
 #include "MuT/NodeObjectNew.h"
 #include "MuT/NodeLayout.h"
 
@@ -31,6 +32,26 @@ namespace mu
 
 		TArray<NodeObjectPtr> m_children;
 
+		struct NamedExtensionDataNode
+		{
+			NodeExtensionDataPtr Node;
+			string Name;
+
+			void Serialise(OutputArchive& arch) const
+			{
+				arch << Node;
+				arch << Name;
+			}
+
+			void Unserialise(InputArchive& arch)
+			{
+				arch >> Node;
+				arch >> Name;
+			}
+		};
+
+		TArray<NamedExtensionDataNode> m_extensionDataNodes;
+
 
 		//! List of states
         TArray<FObjectState> m_states;
@@ -39,7 +60,7 @@ namespace mu
 		//!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 2;
+            uint32_t ver = 3;
 			arch << ver;
 
 			arch << m_name;
@@ -47,6 +68,7 @@ namespace mu
 			arch << m_lods;
 			arch << m_children;
 			arch << m_states;
+			arch << m_extensionDataNodes;
 		}
 
 		//!
@@ -54,13 +76,18 @@ namespace mu
 		{
             uint32_t ver;
 			arch >> ver;
-            check( ver==2 );
+            check(ver >= 2);
 
 			arch >> m_name;
             arch >> m_uid;
 			arch >> m_lods;
 			arch >> m_children;
 			arch >> m_states;
+
+			if (ver >= 3)
+			{
+				arch >> m_extensionDataNodes;
+			}
 		}
 
         //! Return true if the given component is set in any lod of this object.

@@ -7,6 +7,7 @@
 #include "Containers/ContainerAllocationPolicies.h"
 #include "HAL/PlatformCrt.h"
 #include "HAL/PlatformMath.h"
+#include "MuR/ExtensionDataStreamer.h"
 #include "MuR/Image.h"
 #include "MuR/Layout.h"
 #include "MuR/MutableMemory.h"
@@ -191,6 +192,31 @@ namespace  mu
 
 		private:
 			int32 RomIndex = -1;
+		};
+
+		class FLoadExtensionDataTask : public CodeRunner::FIssuedTask
+		{
+		public:
+			FLoadExtensionDataTask(const FScheduledOp& InOp, const ExtensionDataPtrConst& InExtensionData, int32 InModelConstantIndex)
+				: FIssuedTask(InOp)
+				, Data(InExtensionData)
+				, ModelConstantIndex(InModelConstantIndex)
+			{
+				check(Data.get());
+				check(Data->Origin == ExtensionData::EOrigin::ConstantStreamed);
+			}
+
+			// FIssuedTask interface
+			bool Prepare(CodeRunner*, const TSharedPtr<const Model>&, bool& bOutFailed) override;
+			void Complete(CodeRunner*) override;
+			bool IsComplete(CodeRunner*) override;
+
+		private:
+			ExtensionDataPtrConst Data;
+			// The index of this constant in FProgram::m_constantExtensionData
+			int32 ModelConstantIndex;
+
+			TSharedPtr<const FExtensionDataLoadHandle> LoadHandle;
 		};
 
 		class FLoadImageRomsTask : public CodeRunner::FIssuedTask

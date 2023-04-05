@@ -707,6 +707,53 @@ namespace mu
             break;
         }
 
+		case OP_TYPE::IN_ADDEXTENSIONDATA:
+		{
+			OP::InstanceAddExtensionDataArgs Args = pModel->GetPrivate()->m_program.GetOpArgs<OP::InstanceAddExtensionDataArgs>(item.At);
+			switch (item.Stage)
+			{
+				case 0:
+				{
+					// Must pass in an Instance op and ExtensionData op
+					check(Args.Instance);
+					check(Args.ExtensionData);
+
+					TArray<FScheduledOp> Dependencies;
+					Dependencies.Emplace(Args.Instance, item);
+					Dependencies.Emplace(Args.ExtensionData, item);
+
+					AddOp(FScheduledOp(item.At, item, 1), Dependencies);
+
+					break;
+				}
+
+				case 1:
+				{
+					// Assemble result
+					InstancePtrConst InstanceOpResult = GetMemory().GetInstance(FCacheAddress(Args.Instance, item));
+
+					InstancePtr Result = CloneOrTakeOver<Instance>(InstanceOpResult.get());
+
+					if (ExtensionDataPtrConst ExtensionData = GetMemory().GetExtensionData(FCacheAddress(Args.ExtensionData, item)))
+					{
+						const OP::ADDRESS NameAddress = Args.ExtensionDataName;
+						check(NameAddress < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num());
+						const char* NameString = pModel->GetPrivate()->m_program.m_constantStrings[NameAddress].c_str();
+
+						Result->GetPrivate()->AddExtensionData(ExtensionData, NameString);
+					}
+
+					GetMemory().SetInstance(item, Result);
+					break;
+				}
+
+				default:
+					check(false);
+			}
+			
+			break;
+		}
+
         default:
                 check(false);
         }
@@ -882,6 +929,22 @@ namespace mu
 			//UE_LOG(LogMutableCore, Log, TEXT("Set image constant %d."), item.At);
 			break;
         }
+
+		case OP_TYPE::ED_CONSTANT:
+		{
+			OP::ResourceConstantArgs Args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>(item.At);
+
+            const FProgram& Program = pModel->GetPrivate()->m_program;
+
+			// Assume the ROM has been loaded previously
+			ExtensionDataPtrConst SourceConst;
+			Program.GetExtensionDataConstant(Args.value, SourceConst);
+
+			check(SourceConst);
+
+            GetMemory().SetExtensionData(item, SourceConst);
+            break;
+		}
 
         default:
             if (type!=OP_TYPE::NONE)
@@ -5353,7 +5416,8 @@ namespace mu
             break;
 
         case OP_TYPE::ME_CONSTANT:
-        case OP_TYPE::IM_CONSTANT:
+		case OP_TYPE::IM_CONSTANT:
+		case OP_TYPE::ED_CONSTANT:
             RunCode_ConstantResource(item, pModel);
             break;
 

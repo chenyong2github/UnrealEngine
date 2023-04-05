@@ -16,6 +16,7 @@
 
 namespace mu
 {
+	class ExtensionDataStreamer;
 
 	//! Reference-counted colour to be stored in the cache
 	class Colour : public RefCounted
@@ -730,6 +731,27 @@ namespace mu
 			return pResult;
 		}
 
+		Ptr<const ExtensionData> GetExtensionData(FCacheAddress at)
+		{
+			if (!at.At)
+			{
+				return nullptr;
+			}
+			
+			const TPair<int, Ptr<const RefCounted>>* d = m_resources.get_ptr(at);
+			if (!d)
+			{
+				return nullptr;
+			}
+
+			Ptr<const ExtensionData> pResult;
+			if (at.At)
+			{
+				pResult = (const ExtensionData*)d->Value.get();
+			}
+			return pResult;
+		}
+
 		void SetBool(FCacheAddress at, bool v)
 		{
 			check(at.At < m_resources.size_code());
@@ -784,6 +806,12 @@ namespace mu
 		{
 			check(at.At < m_resources.size_code());
 			m_resources[at] = TPair<int, Ptr<const RefCounted>>(2, v);
+		}
+
+		void SetExtensionData(FCacheAddress at, Ptr<const ExtensionData> v)
+		{
+			check(at.At < m_resources.size_code());
+			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, v);
 		}
 
 		void SetImage(FCacheAddress at, Ptr<const Image> v)
@@ -954,7 +982,7 @@ namespace mu
     {
     public:
 
-        Private( SettingsPtr pSettings );
+        Private(SettingsPtr pSettings, ExtensionDataStreamer* DataStreamer);
         virtual ~Private();
 
         //-----------------------------------------------------------------------------------------
@@ -976,6 +1004,8 @@ namespace mu
     	MUTABLERUNTIME_API Ptr<const Projector> BuildProjector(const TSharedPtr<const Model>&, const Parameters* pParams, OP::ADDRESS at) ;
 		void SetStreamingCache(uint64 bytes) ;
 		void ClearStreamingCache() ;
+
+		ExtensionDataStreamer* GetExtensionDataStreamer() const { return m_ExtensionDataStreamer; }
 
         //!
         SettingsPtrConst m_pSettings;
@@ -1070,6 +1100,9 @@ namespace mu
 		//! @}
 
 	private:
+
+		/** Owned by this system. */
+		ExtensionDataStreamer* m_ExtensionDataStreamer = nullptr;
 
 		/** This flag is turned on when a streaming error or similar happens. Results are not usable.
 		* This should only happen in-editor.

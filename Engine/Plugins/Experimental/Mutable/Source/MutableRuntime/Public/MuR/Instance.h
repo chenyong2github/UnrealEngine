@@ -3,6 +3,7 @@
 #pragma once
 
 #include "HAL/PlatformMath.h"
+#include "MuR/ExtensionData.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 #include "MuR/Types.h"
@@ -202,6 +203,14 @@ namespace mu
         //! \param sca Index of the string, from 0 to GetStringCount(lod,comp)-1
         const char* GetStringName( int lod, int comp, int surf, int str ) const;
 
+		//! Get the number of ExtensionData values in a component
+		int32 GetExtensionDataCount() const;
+
+		//! Get an ExtensionData value from a component
+		//! \param Index Index of the ExtensionData to fetch
+		//! \param OutExtensionData Receives the ExtensionData
+		//! \param OutName Receives the name associated with the ExtensionData. Guaranteed to be a valid string of non-zero length.
+		void GetExtensionData(int32 Index, ExtensionDataPtrConst& OutExtensionData, const char*& OutName) const;
 
         //-----------------------------------------------------------------------------------------
 		// Interface pattern

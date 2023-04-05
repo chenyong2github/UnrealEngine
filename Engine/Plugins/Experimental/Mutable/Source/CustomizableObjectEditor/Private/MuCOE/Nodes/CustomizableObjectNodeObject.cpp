@@ -4,6 +4,8 @@
 
 #include "Containers/Queue.h"
 #include "Logging/MessageLog.h"
+#include "MuCO/ICustomizableObjectModule.h"
+#include "MuCO/CustomizableObjectExtension.h"
 #include "MuCOE/CustomizableObjectEditorLogger.h"
 #include "MuCOE/CustomizableObjectGraph.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
@@ -16,6 +18,9 @@ class UCustomizableObjectNodeRemapPins;
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 
+const FName UCustomizableObjectNodeObject::ChildrenPinName(TEXT("Children"));
+const FName UCustomizableObjectNodeObject::OutputPinName(TEXT("Object"));
+const TCHAR* UCustomizableObjectNodeObject::LODPinNamePrefix = TEXT("LOD ");
 
 UCustomizableObjectNodeObject::UCustomizableObjectNodeObject()
 	: Super()
@@ -77,7 +82,7 @@ void UCustomizableObjectNodeObject::PostEditChangeProperty(FPropertyChangedEvent
 	}
 
 	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
-	if ( PropertyThatChanged && PropertyThatChanged->GetName() == TEXT("NumLODs"))
+	if (PropertyThatChanged && PropertyThatChanged->GetName() == TEXT("NumLODs"))
 	{
 		NumLODs = FMath::Clamp(NumLODs, 1, 64);
 
@@ -107,18 +112,32 @@ void UCustomizableObjectNodeObject::AllocateDefaultPins(UCustomizableObjectNodeR
 {
 	const UEdGraphSchema_CustomizableObject* Schema = GetDefault<UEdGraphSchema_CustomizableObject>();
 
+	// NOTE: Ensure all built-in pins are handled in UCustomizableObjectNodeObject::IsBuiltInPin
+
 	for (int32 i = 0; i < NumLODs; ++i)
 	{
-		FString LODName = FString::Printf( TEXT("LOD %d "), i );
+		FString LODName = FString::Printf(TEXT("%s%d "), LODPinNamePrefix, i);
 
 		UEdGraphPin* Pin = CustomCreatePin(EGPD_Input, Schema->PC_Material, FName(*LODName), true);
 		Pin->bDefaultValueIsIgnored = true;
 	}
 
-	UEdGraphPin* ChildrenPin = CustomCreatePin(EGPD_Input, Schema->PC_Object, FName("Children"), true );
+	UEdGraphPin* ChildrenPin = CustomCreatePin(EGPD_Input, Schema->PC_Object, ChildrenPinName, true );
 	ChildrenPin->bDefaultValueIsIgnored = true;
 
-	UEdGraphPin* OutputPin = CustomCreatePin(EGPD_Output, Schema->PC_Object, FName("Object"));
+	for (const FRegisteredObjectNodeInputPin& Pin : ICustomizableObjectModule::Get().GetAdditionalObjectNodePins())
+	{
+		// Use the global pin name here to prevent extensions using the same pin names from
+		// interfering with each other.
+		//
+		// This also prevents extension pins from clashing with the built-in pins from this node,
+		// such as "Object".
+		UEdGraphPin* GraphPin = CustomCreatePin(EGPD_Input, Pin.InputPin.PinType, Pin.GlobalPinName, Pin.InputPin.bIsArray);
+
+		GraphPin->PinFriendlyName = Pin.InputPin.DisplayName;
+	}
+
+	UEdGraphPin* OutputPin = CustomCreatePin(EGPD_Output, Schema->PC_Object, OutputPinName);
 
 	if (bIsBase)
 	{
@@ -253,6 +272,9 @@ void UCustomizableObjectNodeObject::PostBackwardsCompatibleFixup()
 		.Node(*this)
 		.Log();
 	}
+
+	// Reconstruct in case any extension pins have changed
+	ReconstructNode();
 }
 
 void UCustomizableObjectNodeObject::PostPasteNode()
@@ -304,5 +326,11 @@ bool UCustomizableObjectNodeObject::IsSingleOutputNode() const
 	return true;
 }
 
+bool UCustomizableObjectNodeObject::IsBuiltInPin(FName PinName)
+{
+	return PinName == ChildrenPinName
+		|| PinName == OutputPinName
+		|| PinName.ToString().StartsWith(LODPinNamePrefix);
+}
 
 #undef LOCTEXT_NAMESPACE

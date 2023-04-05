@@ -77,6 +77,7 @@ namespace mu
 			Range = 19,
 			String = 20,
 			Bool = 21,
+			ExtensionData = 22,
 
 			None
 		};

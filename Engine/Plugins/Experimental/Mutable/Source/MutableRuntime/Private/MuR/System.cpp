@@ -21,6 +21,7 @@
 #include "MuR/MutableMath.h"
 #include "MuR/MutableString.h"
 #include "MuR/MutableTrace.h"
+#include "MuR/NullExtensionDataStreamer.h"
 #include "MuR/Operations.h"
 #include "MuR/Parameters.h"
 #include "MuR/ParametersPrivate.h"
@@ -42,7 +43,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
-    System::System( const SettingsPtr& pInSettings )
+    System::System(const SettingsPtr& pInSettings, ExtensionDataStreamer* DataStreamer)
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
@@ -54,7 +55,7 @@ namespace mu
         }
 
         // Choose the implementation
-        m_pD = new System::Private( pSettings );
+        m_pD = new System::Private( pSettings, DataStreamer );
     }
 
 
@@ -79,7 +80,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    System::Private::Private( SettingsPtr pSettings )
+    System::Private::Private(SettingsPtr pSettings, ExtensionDataStreamer* DataStreamer)
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
@@ -89,6 +90,12 @@ namespace mu
         m_maxMemory = 0;
 	
 		m_modelCache.m_romBudget = pSettings->GetPrivate()->m_streamingCacheBytes;
+
+		if (!DataStreamer)
+		{
+			DataStreamer = new NullExtensionDataStreamer();
+		}
+		m_ExtensionDataStreamer = DataStreamer;
 	}
 
 
@@ -100,6 +107,9 @@ namespace mu
 
         delete m_pStreamInterface;
         m_pStreamInterface = nullptr;
+
+		delete m_ExtensionDataStreamer;
+		m_ExtensionDataStreamer = nullptr;
 
         delete m_pImageParameterGenerator;
         m_pImageParameterGenerator = nullptr;

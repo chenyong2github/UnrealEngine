@@ -473,6 +473,23 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
+	int32 Instance::GetExtensionDataCount() const
+	{
+		return m_pD->m_extensionData.Num();
+	}
+
+
+    //---------------------------------------------------------------------------------------------
+	void Instance::GetExtensionData(int32 Index, ExtensionDataPtrConst& OutExtensionData, const char*& OutName) const
+	{
+		check(m_pD->m_extensionData.IsValidIndex(Index));
+
+		OutExtensionData = m_pD->m_extensionData[Index].Data;
+		OutName = m_pD->m_extensionData[Index].Name.c_str();
+	}
+
+
+    //---------------------------------------------------------------------------------------------
 	int Instance::Private::AddLOD()
 	{
 		int result = m_lods.Num();
@@ -693,5 +710,19 @@ namespace mu
 
         return result;
     }
+
+
+    //---------------------------------------------------------------------------------------------
+	void Instance::Private::AddExtensionData(ExtensionDataPtrConst Data, const char* Name)
+	{
+		check(Data);
+		check(Name);
+
+		NamedExtensionData& Entry = m_extensionData.AddDefaulted_GetRef();
+		Entry.Data = Data;
+		Entry.Name = Name;
+
+		check(Entry.Name.length() > 0);
+	}
 }
 

@@ -1091,6 +1091,13 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 		Object->GroupNodeMap = GenerationContext.GroupNodeMap;
 		Object->ParameterUIDataMap = GenerationContext.ParameterUIDataMap;
 		Object->StateUIDataMap = GenerationContext.StateUIDataMap;
+		Object->AlwaysLoadedExtensionData = MoveTemp(GenerationContext.AlwaysLoadedExtensionData);
+
+		Object->StreamedExtensionData.Empty(GenerationContext.StreamedExtensionData.Num());
+		for (UCustomizableObjectExtensionDataContainer* Container : GenerationContext.StreamedExtensionData)
+		{
+			Object->StreamedExtensionData.Emplace(Container);
+		}
 
 #if WITH_EDITORONLY_DATA
 		Object->CustomizableObjectPathMap = GenerationContext.CustomizableObjectPathMap;

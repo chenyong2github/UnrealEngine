@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Algo/Find.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
@@ -12,6 +13,7 @@
 #include "Misc/AssertionMacros.h"
 #include "MuR/CodeRunner.h"
 #include "MuR/System.h"
+#include "MuR/ExtensionDataStreamer.h"
 #include "MuR/Image.h"
 #include "MuR/ImagePrivate.h"
 #include "MuR/Layout.h"
@@ -1967,6 +1969,86 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
+	bool CodeRunner::FLoadExtensionDataTask::Prepare(CodeRunner* Runner, const TSharedPtr<const Model>& InModel, bool& bOutFailed)
+	{
+		MUTABLE_CPUPROFILER_SCOPE(FLoadExtensionDataTask_Prepare);
+
+		FProgram& Program = Runner->m_pModel->GetPrivate()->m_program;
+		check(Program.m_constantExtensionData.IsValidIndex(ModelConstantIndex));
+
+		const FExtensionDataConstant& Constant = Program.m_constantExtensionData[ModelConstantIndex];
+		check(Constant.Data == Data);
+
+		if (Constant.LoadState == FExtensionDataConstant::ELoadState::FailedToLoad)
+		{
+			// This already failed before, so don't waste time trying again.
+			//
+			// This behavior could be made an option in future if needed.
+			bOutFailed = true;
+			return false;
+		}
+
+		TArray<ExtensionDataPtrConst> UnloadedConstants;
+		LoadHandle = Runner->m_pSystem->GetExtensionDataStreamer()->StartLoad(Data, UnloadedConstants);
+		check(LoadHandle.IsValid());
+
+		// Update the load state of any constants that were unloaded
+		for (const ExtensionDataPtrConst& Unloaded : UnloadedConstants)
+		{
+			check(Unloaded->Origin == ExtensionData::EOrigin::ConstantStreamed);
+
+			FExtensionDataConstant* FoundConstant = Algo::FindBy(Program.m_constantExtensionData, Unloaded, &FExtensionDataConstant::Data);
+			check(FoundConstant);
+
+			FoundConstant->LoadState = FExtensionDataConstant::ELoadState::Unloaded;
+		}
+
+		// No worker thread work
+		return false;
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	void CodeRunner::FLoadExtensionDataTask::Complete(CodeRunner* Runner)
+	{
+		MUTABLE_CPUPROFILER_SCOPE(FLoadExtensionDataTask_Complete);
+
+		// Complete should only be called if the load is finished
+		check(LoadHandle->LoadState != FExtensionDataLoadHandle::ELoadState::Pending);
+
+		FProgram& Program = Runner->m_pModel->GetPrivate()->m_program;
+		check(Program.m_constantExtensionData.IsValidIndex(ModelConstantIndex));
+
+		FExtensionDataConstant& Constant = Program.m_constantExtensionData[ModelConstantIndex];
+		check(Constant.Data == Data);
+
+		// Update the load state in the Program
+		if (LoadHandle->LoadState == FExtensionDataLoadHandle::ELoadState::Loaded)
+		{
+			Constant.LoadState = FExtensionDataConstant::ELoadState::CurrentlyLoaded;
+		}
+		else
+		{
+			check(LoadHandle->LoadState == FExtensionDataLoadHandle::ELoadState::FailedToLoad);
+			Constant.LoadState = FExtensionDataConstant::ELoadState::FailedToLoad;
+		}
+
+		// Process the constant op normally, now that the data is loaded.
+		Runner->RunCode(Op, Runner->m_pParams, Runner->m_pModel.Get(), Runner->m_lodMask);
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	bool CodeRunner::FLoadExtensionDataTask::IsComplete(CodeRunner* Runner)
+	{
+		check(LoadHandle.IsValid());
+		return LoadHandle->LoadState != FExtensionDataLoadHandle::ELoadState::Pending;
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	//---------------------------------------------------------------------------------------------
+	//---------------------------------------------------------------------------------------------
 	bool CodeRunner::FLoadImageRomsTask::Prepare(CodeRunner* runner, const TSharedPtr<const Model>& InModel, bool& bOutFailed )
 	{
 		MUTABLE_CPUPROFILER_SCOPE(FLoadImageRomsTask_Prepare);
@@ -2208,6 +2290,26 @@ namespace mu
 			else
 			{
 				// If already available, the rest of the constant code will run right away.
+			}
+			break;
+		}
+		
+		case OP_TYPE::ED_CONSTANT:
+		{
+			OP::ResourceConstantArgs Args = program.GetOpArgs<OP::ResourceConstantArgs>(item.At);
+
+			const FExtensionDataConstant::ELoadState LoadState = program.m_constantExtensionData[Args.value].LoadState;
+
+			check(LoadState != FExtensionDataConstant::ELoadState::Invalid);
+			
+			if (LoadState == FExtensionDataConstant::ELoadState::AlwaysLoaded
+				|| LoadState == FExtensionDataConstant::ELoadState::CurrentlyLoaded)
+			{
+				// Already loaded. The rest of the constant code will run right away.
+			}
+			else
+			{
+				Issued = MakeShared<FLoadExtensionDataTask>(item, program.m_constantExtensionData[Args.value].Data, Args.value);
 			}
 			break;
 		}

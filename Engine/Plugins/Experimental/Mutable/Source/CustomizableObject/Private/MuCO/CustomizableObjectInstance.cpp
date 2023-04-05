@@ -2,6 +2,7 @@
 
 #include "MuCO/CustomizableObjectInstance.h"
 
+#include "Algo/Find.h"
 #include "Algo/MaxElement.h"
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
@@ -17,10 +18,12 @@
 #include "Modules/ModuleManager.h"
 #include "MuCO/CustomizableInstanceLODManagement.h"
 #include "MuCO/CustomizableInstancePrivateData.h"
+#include "MuCO/CustomizableObjectExtension.h"
 #include "MuCO/CustomizableObjectMipDataProvider.h"
 #include "MuCO/CustomizableObjectPrivate.h"
 #include "MuCO/CustomizableSkeletalComponent.h"
 #include "MuCO/DefaultImageProvider.h"
+#include "MuCO/ICustomizableObjectModule.h"
 #include "MuCO/UnrealConversionUtils.h"
 #include "MuCO/UnrealPortabilityHelpers.h"
 #include "MuR/OpImagePixelFormat.h"
@@ -2062,6 +2065,95 @@ bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCust
 		{
 			bSuccess = false;
 			break;
+		}
+
+		// Collate the extension data on the instance into groups based on the extension that
+		// produced it, so that we only need to call OnSkeletalMeshCreated once for each extension.
+		{
+			TMap<const UCustomizableObjectExtension*, TArray<FInputPinDataContainer>> ExtensionToExtensionData;
+
+			const TArrayView<const FRegisteredObjectNodeInputPin> ExtensionPins = ICustomizableObjectModule::Get().GetAdditionalObjectNodePins();
+
+			for (FInstanceUpdateData::FNamedExtensionData& ExtensionOutput : OperationData->InstanceUpdateData.ExtendedInputPins)
+			{
+				const FRegisteredObjectNodeInputPin* FoundPin =
+					Algo::FindBy(ExtensionPins, ExtensionOutput.Name, &FRegisteredObjectNodeInputPin::GlobalPinName);
+
+				if (!FoundPin)
+				{
+					// Failed to find the corresponding pin for this output
+					// 
+					// This may indicate that a plugin has been removed or renamed since the CO was compiled
+					UE_LOG(LogMutable, Error, TEXT("Failed to find Object node input pin with name %s"), *ExtensionOutput.Name.ToString());
+					continue;
+				}
+
+				const UCustomizableObjectExtension* Extension = FoundPin->Extension.Get();
+				if (!Extension)
+				{
+					// Extension is not loaded or not found
+					UE_LOG(LogMutable, Error, TEXT("Extension for Object node input pin %s is no longer valid"), *ExtensionOutput.Name.ToString());
+					continue;
+				}
+
+				if (ExtensionOutput.Data->Origin == mu::ExtensionData::EOrigin::Invalid)
+				{
+					// Null data was produced
+					//
+					// This can happen if a node produces an ExtensionData but doesn't initialize it
+					UE_LOG(LogMutable, Error, TEXT("Invalid data sent to Object node input pin %s"), *ExtensionOutput.Name.ToString());
+					continue;
+				}
+
+				TArray<FInputPinDataContainer>& ContainerArray = ExtensionToExtensionData.FindOrAdd(Extension);
+
+				const FCustomizableObjectExtensionData* ReferencedExtensionData = nullptr;
+				switch (ExtensionOutput.Data->Origin)
+				{
+					case mu::ExtensionData::EOrigin::ConstantAlwaysLoaded:
+					{
+						check(CustomizableObject->AlwaysLoadedExtensionData.IsValidIndex(ExtensionOutput.Data->Index));
+						ReferencedExtensionData = &CustomizableObject->AlwaysLoadedExtensionData[ExtensionOutput.Data->Index];
+					}
+					break;
+
+					case mu::ExtensionData::EOrigin::ConstantStreamed:
+					{
+						check(CustomizableObject->StreamedExtensionData.IsValidIndex(ExtensionOutput.Data->Index));
+						
+						const FCustomizableObjectStreamedExtensionData& StreamedData =
+							CustomizableObject->StreamedExtensionData[ExtensionOutput.Data->Index];
+
+						if (!StreamedData.IsLoaded())
+						{
+							// The data should have been loaded as part of executing the CO program.
+							//
+							// This could indicate a bug in the streaming logic.
+							UE_LOG(LogMutable, Error, TEXT("Customizable Object produced a streamed extension data that is not loaded: %s"),
+								*StreamedData.GetPath().ToString());
+
+							continue;
+						}
+
+						ReferencedExtensionData = &StreamedData.GetLoadedData();
+					}
+					break;
+
+					default:
+						unimplemented();
+				}
+
+				check(ReferencedExtensionData);
+		
+				ContainerArray.Emplace(FoundPin->InputPin, ReferencedExtensionData->Data);
+			}
+
+			// Now that we have an array of extension data for each extension, go through the extensions and
+			// give each one its data.
+			for (const TPair<const UCustomizableObjectExtension*, TArray<FInputPinDataContainer>>& Pair : ExtensionToExtensionData)
+			{
+				Pair.Key->OnSkeletalMeshCreated(Pair.Value, ComponentIndex, SkeletalMesh);
+			}
 		}
 
 		bHasSkeletalMesh = true;

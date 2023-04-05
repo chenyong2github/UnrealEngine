@@ -43,6 +43,7 @@ public class CustomizableObject : ModuleRules
             "GameplayTags",
 			"MutableRuntime",
 			"AnimGraphRuntime",
+			"StructUtils"
 		});
 
         PrivateIncludePathModuleNames.AddRange(

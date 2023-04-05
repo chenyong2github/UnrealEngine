@@ -53,6 +53,7 @@ namespace mu
 	class ModelStreamer;
 	class Parameters;
     class Mesh;
+	class ExtensionDataStreamer;
 
     class System;
     using SystemPtr=Ptr<System>;
@@ -111,7 +112,8 @@ namespace mu
 		//! Constructor of a system object to build data.
         //! \param Settings Optional class with the settings to use in this system. The default
         //! value configures a production-ready system.
-        System( const Ptr<Settings>& Settings = nullptr );
+		//! \param DataStreamer Optional interface to allow the Model to stream in ExtensionData from disk
+        System( const Ptr<Settings>& Settings = nullptr, ExtensionDataStreamer* DataStreamer = nullptr );
 
         //! Set a new provider for model data. The provider will become owned by this instance and
         //! destroyed when necessary.

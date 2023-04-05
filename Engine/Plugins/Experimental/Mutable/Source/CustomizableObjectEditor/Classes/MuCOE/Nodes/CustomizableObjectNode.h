@@ -101,6 +101,14 @@ public:
 	/** Virtual implementation of RemovePin. Allows to do work before removing a pin.
 	 * Use this function instead of RemovePin. RemovePin does not removes possible attached PinData. */
 	virtual bool CustomRemovePin(UEdGraphPin& Pin);
+
+	/**
+	 * Subclasses should override this to return true and set OutCategory if this node should be
+	 * auto-added to the right-click context menu in the graph editor.
+	 * 
+	 * Some nodes are added manually in the graph editor code and don't need to do this.
+	 */
+	virtual bool ShouldAddToContextMenu(FText& OutCategory) const { return false; }
 	
 	void GetInputPins(TArray<class UEdGraphPin*>& OutInputPins) const;
 	void GetOutputPins(TArray<class UEdGraphPin*>& OutOutputPins) const;

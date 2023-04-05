@@ -24,6 +24,7 @@
 #include "MuT/NodeColourSampleImage.h"
 #include "MuT/NodeComponentEdit.h"
 #include "MuT/NodeComponentNew.h"
+#include "MuT/NodeExtensionData.h"
 #include "MuT/NodeImageProject.h"
 #include "MuT/NodeLOD.h"
 #include "MuT/NodeLayout.h"
@@ -306,6 +307,15 @@ namespace mu
         //! Variables added for every node
         map< Ptr<const Node>, Ptr<ASTOpParameter> > m_nodeVariables;
 
+		struct FConditionalExtensionDataOp
+		{
+			Ptr<ASTOp> Condition;
+			Ptr<ASTOp> ExtensionDataOp;
+			string ExtensionDataName;
+		};
+
+		TArray<FConditionalExtensionDataOp> m_conditionalExtensionDataOps;
+
 		//-----------------------------------------------------------------------------------------
 
 		// Get the modifiers that have to be applied to elements with a specific tag.
@@ -545,6 +555,18 @@ namespace mu
 
 		//!
 		Ptr<const Layout> AddLayout(Ptr<const Layout> SourceLayout);
+
+		struct FExtensionDataGenerationResult
+		{
+			Ptr<ASTOp> Op;
+		};
+
+		typedef const NodeExtensionData* FGeneratedExtensionDataCacheKey;
+		typedef TMap<FGeneratedExtensionDataCacheKey, FExtensionDataGenerationResult> GeneratedExtensionDataMap;
+		GeneratedExtensionDataMap m_generatedExtensionData;
+
+		void GenerateExtensionData(FExtensionDataGenerationResult& OutResult, const NodeExtensionDataPtrConst& InUntypedNode);
+		void GenerateExtensionData_Constant(FExtensionDataGenerationResult& OutResult, const class NodeExtensionDataConstant* Constant);
 
         //-----------------------------------------------------------------------------------------
         // Projectors

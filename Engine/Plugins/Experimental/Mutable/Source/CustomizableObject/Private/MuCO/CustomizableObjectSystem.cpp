@@ -21,6 +21,7 @@
 #include "MuCO/LogBenchmarkUtil.h"
 #include "MuCO/LogInformationUtil.h"
 #include "MuCO/UnrealBakeHelpers.h"
+#include "MuCO/UnrealExtensionDataStreamer.h"
 #include "MuCO/UnrealMutableImageProvider.h"
 #include "MuCO/UnrealMutableModelDiskStreamer.h"
 #include "MuCO/UnrealPortabilityHelpers.h"
@@ -330,7 +331,8 @@ void UCustomizableObjectSystem::InitSystem()
 	check(pSettings);
 	pSettings->SetProfile(false);
 	pSettings->SetStreamingCache(Private->LastStreamingMemorySize);
-	Private->MutableSystem = new mu::System(pSettings);
+	Private->ExtensionDataStreamer = new FUnrealExtensionDataStreamer(Private.ToSharedRef());
+	Private->MutableSystem = new mu::System(pSettings, Private->ExtensionDataStreamer);
 	check(Private->MutableSystem);
 
 	Private->Streamer = new FUnrealMutableModelBulkStreamer();
@@ -1433,6 +1435,22 @@ namespace impl
 				}
 			}
 		}
+
+		// Copy ExtensionData Object node input from the Instance to the InstanceUpdateData
+		for (int32 ExtensionDataIndex = 0; ExtensionDataIndex < Instance->GetExtensionDataCount(); ExtensionDataIndex++)
+		{
+			mu::ExtensionDataPtrConst ExtensionData;
+			const char* NameAnsi = nullptr;
+			Instance->GetExtensionData(ExtensionDataIndex, ExtensionData, NameAnsi);
+
+			check(ExtensionData);
+			check(NameAnsi);
+
+			FInstanceUpdateData::FNamedExtensionData& NewEntry = OperationData->InstanceUpdateData.ExtendedInputPins.AddDefaulted_GetRef();
+			NewEntry.Data = ExtensionData;
+			NewEntry.Name = NameAnsi;
+			check(NewEntry.Name != NAME_None);
+		}
 	}
 
 
@@ -2040,6 +2058,15 @@ namespace impl
 		FCustomizableObjectSystemPrivate* SystemPrivateData = System->GetPrivate();
 		check(SystemPrivateData != nullptr);
 
+		// TODO: If this is the first code that runs after the CO program has finished AND if it's
+		// guaranteed that the next CO program hasn't started yet, we need to call ClearActiveObject
+		// and CancelPendingLoads on SystemPrivateData->ExtensionDataStreamer.
+		//
+		// ExtensionDataStreamer->AreAnyLoadsPending should return false if the program succeeded.
+		//
+		// If the program aborted, AreAnyLoadsPending may return true, as the program doesn't cancel
+		// its own loads on exit (maybe it should?)
+
 		FMutableResourceCache& Cache = SystemPrivateData->GetObjectCache(CustomizableObject);
 
 		System->ProtectedCachedTextures.Reset(Cache.Images.Num());
@@ -2262,6 +2289,9 @@ namespace impl
 		// Prepare streaming for the current customizable object
 		check(SystemPrivateData->Streamer != nullptr);
 		SystemPrivateData->Streamer->PrepareStreamingForObject(CustomizableObject);
+
+		check(SystemPrivateData->ExtensionDataStreamer != nullptr);
+		SystemPrivateData->ExtensionDataStreamer->SetActiveObject(CustomizableObject);
 
 		CandidateInstance->CommitMinMaxLOD();
 

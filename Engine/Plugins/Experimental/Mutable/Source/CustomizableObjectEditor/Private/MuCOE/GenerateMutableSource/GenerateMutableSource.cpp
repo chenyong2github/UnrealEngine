@@ -6,12 +6,15 @@
 #include "Engine/SkeletalMeshSocket.h"
 #include "Engine/TextureLODSettings.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "MuCO/CustomizableObjectExtension.h"
+#include "MuCO/ICustomizableObjectModule.h"
 #include "MuCOE/CustomizableObjectCompiler.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/GenerateMutableSource/GenerateMutableSourceGroupProjector.h"
 #include "MuCOE/GenerateMutableSource/GenerateMutableSourceModifier.h"
 #include "MuCOE/GenerateMutableSource/GenerateMutableSourceSurface.h"
 #include "MuCOE/GraphTraversal.h"
+#include "MuCOE/ICustomizableObjectExtensionNode.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeEditMaterialBase.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeExtendMaterial.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeMaterial.h"
@@ -115,6 +118,7 @@ void CheckNumOutputs(const UEdGraphPin& Pin, const FMutableGraphGenerationContex
 
 FMutableGraphGenerationContext::FMutableGraphGenerationContext(UCustomizableObject* InObject, FCustomizableObjectCompiler* InCompiler, const FCompilationOptions& InOptions)
 	: Object(InObject), Compiler(InCompiler), Options(InOptions)
+	, ExtensionDataCompilerInterface(*this)
 {
 	// Default flags for mesh generation nodes.
 	MeshGenerationFlags.Push(EMutableMeshConversionFlags::None);
@@ -864,6 +868,41 @@ mu::NodeObjectPtr GenerateMutableSource(const UEdGraphPin * Pin, FMutableGraphGe
 				const int32 ModifierCount = LODNode->GetModifierCount();
 				LODNode->SetModifierCount(ModifierCount + 1);
 				LODNode->SetModifier(ModifierCount, ModifierNode.get());
+			}
+		}
+
+		// Generate inputs to Object node pins added by extensions
+		for (const FRegisteredObjectNodeInputPin& ExtensionInputPin : ICustomizableObjectModule::Get().GetAdditionalObjectNodePins())
+		{
+			const UEdGraphPin* GraphPin = TypedNodeObj->FindPin(ExtensionInputPin.GlobalPinName, EGPD_Input);
+			if (!GraphPin)
+			{
+				continue;
+			}
+
+			TArray<UEdGraphPin*> ConnectedPins = FollowInputPinArray(*GraphPin);
+
+			// If the pin isn't supposed to take more than one connection, ignore all but the first
+			// incoming connection.
+			if (!ExtensionInputPin.InputPin.bIsArray && ConnectedPins.Num() > 1)
+			{
+				FString Msg = FString::Printf(TEXT("Extension input %s has multiple incoming connections but is only expecting one connection."),
+					*ExtensionInputPin.InputPin.DisplayName.ToString());
+
+				GenerationContext.Compiler->CompilerLog(FText::FromString(Msg), Node, EMessageSeverity::Warning);
+			}
+
+			for (const UEdGraphPin* ConnectedPin : ConnectedPins)
+			{
+				const UEdGraphNode* ConnectedNode = ConnectedPin->GetOwningNode();
+				
+				if (const ICustomizableObjectExtensionNode* ExtensionNode = Cast<ICustomizableObjectExtensionNode>(ConnectedNode))
+				{
+					if (mu::NodeExtensionDataPtr GeneratedNode = ExtensionNode->GenerateMutableNode(GenerationContext.ExtensionDataCompilerInterface))
+					{
+						ObjectNode->AddExtensionDataNode(GeneratedNode, TCHAR_TO_ANSI(*ExtensionInputPin.GlobalPinName.ToString()));
+					}
+				}
 			}
 		}
 

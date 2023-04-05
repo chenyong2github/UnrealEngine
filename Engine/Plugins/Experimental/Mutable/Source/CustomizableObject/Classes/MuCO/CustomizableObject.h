@@ -4,6 +4,8 @@
 
 #include "RHIDefinitions.h"
 #include "MuCO/CustomizableObjectClothingTypes.h"
+#include "MuCO/CustomizableObjectExtensionData.h"
+#include "MuCO/CustomizableObjectStreamedExtensionData.h"
 #include "MuCO/CustomizableObjectIdentifier.h"
 #include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
 #include "MuCO/CustomizableObjectUIData.h"
@@ -1184,6 +1186,14 @@ public:
 	UPROPERTY()
 	TArray<FMutableSkinWeightProfileInfo> SkinWeightProfilesInfo;
 
+	// mu::ExtensionData::Index is an index into this array when mu::ExtensionData::Origin is ConstantAlwaysLoaded
+	UPROPERTY()
+	TArray<FCustomizableObjectExtensionData> AlwaysLoadedExtensionData;
+
+	// mu::ExtensionData::Index is an index into this array when mu::ExtensionData::Origin is ConstantStreamed
+	UPROPERTY()
+	TArray<FCustomizableObjectStreamedExtensionData> StreamedExtensionData;
+
 #if WITH_EDITORONLY_DATA
 
 	// Hide this property because it is not used yet.
@@ -1425,7 +1435,7 @@ private:
 	// This is a manual version number for the binary blobs in this asset.
 	// Increasing it invalidates all the previously compiled models.
 	// Warning: If while merging code both versions have changed, take the highest+1.
-	static const int32 CurrentSupportedVersion = 379;
+	static const int32 CurrentSupportedVersion = 380;
 
 public:
 

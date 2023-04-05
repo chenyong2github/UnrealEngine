@@ -7,6 +7,8 @@
 
 #include "MuR/SerialisationPrivate.h"
 #include "MuR/Operations.h"
+#include "MuR/ExtensionData.h"
+#include "MuR/ExtensionDataStreamer.h"
 #include "MuR/ImagePrivate.h"
 #include "MuR/MeshPrivate.h"
 #include "MuR/ParametersPrivate.h"
@@ -65,6 +67,50 @@ namespace mu
 		EImageFormat ImageFormat = EImageFormat::IF_NONE;
 	};
 	MUTABLE_DEFINE_POD_SERIALISABLE(FImageLODRange);
+
+	struct FExtensionDataConstant
+	{
+		// This should always be valid, but if the state is Unloaded it won't be usable.
+		//
+		// Avoid storing references to this Data in Memory while the state is Unloaded.
+		ExtensionDataPtrConst Data;
+
+		enum class ELoadState : uint8
+		{
+			Invalid,
+			Unloaded,
+			FailedToLoad,
+			CurrentlyLoaded,
+			AlwaysLoaded
+		};
+
+		// This should be initialized to a valid load state when Data is set
+		ELoadState LoadState = ELoadState::Invalid;
+
+		inline void Serialise(OutputArchive& arch) const
+		{
+			arch << Data;
+		}
+		
+		inline void Unserialise(InputArchive& arch)
+		{
+			arch >> Data;
+
+			check(Data.get());
+			check(Data->Origin == ExtensionData::EOrigin::ConstantAlwaysLoaded
+				|| Data->Origin == ExtensionData::EOrigin::ConstantStreamed);
+
+			if (Data->Origin == ExtensionData::EOrigin::ConstantAlwaysLoaded)
+			{
+				LoadState = ELoadState::AlwaysLoaded;
+			}
+			else
+			{
+				// Streamed constants are assumed to be unloaded to start with
+				LoadState = ELoadState::Unloaded;
+			}
+		}
+	};
 
     //!
     struct FProgram
@@ -188,6 +234,9 @@ namespace mu
         //! Constant mesh data: the first is the index in m_roms for each mesh or -1 if it is always loaded.
 		TArray<TPair<int32, Ptr<const Mesh>>> m_constantMeshes;
 
+		//! Constant ExtensionData
+		TArray<FExtensionDataConstant> m_constantExtensionData;
+
         //! Constant string data
 		TArray<string> m_constantStrings;
 
@@ -236,6 +285,7 @@ namespace mu
 			arch << m_constantImageLODIndices;
 			arch << m_constantImages;
 			arch << m_constantMeshes;
+			arch << m_constantExtensionData;
 			arch << m_constantStrings;
             arch << m_constantLayouts;
             arch << m_constantProjectors;
@@ -260,6 +310,7 @@ namespace mu
 			arch >> m_constantImageLODIndices;
 			arch >> m_constantImages;
 			arch >> m_constantMeshes;
+			arch >> m_constantExtensionData;
 			arch >> m_constantStrings;
             arch >> m_constantLayouts;
             arch >> m_constantProjectors;
@@ -422,6 +473,29 @@ namespace mu
 			return m_constantMeshes.Add(TPair<int32, Ptr<const Mesh>>( -1, pMesh.get() ));
 		}
 
+		OP::ADDRESS AddConstant(Ptr<const ExtensionData> Data)
+		{
+			// Ensure unique
+			for (int32 Index = 0; Index < m_constantExtensionData.Num(); Index++)
+			{
+				const ExtensionData* Candidate = m_constantExtensionData[Index].Data.get();
+				if (*Candidate == *Data)
+				{
+					return Index;
+				}
+			}
+
+			FExtensionDataConstant& NewConstant = m_constantExtensionData.AddDefaulted_GetRef();
+			NewConstant.Data = Data;
+
+			// The data is assumed to be loaded during compilation
+			NewConstant.LoadState =
+				Data->Origin == ExtensionData::EOrigin::ConstantAlwaysLoaded
+				? FExtensionDataConstant::ELoadState::AlwaysLoaded
+				: FExtensionDataConstant::ELoadState::CurrentlyLoaded;
+
+			return m_constantExtensionData.Num() - 1;
+		}
 
 		OP::ADDRESS AddConstant( Ptr<const Layout> pLayout )
         {
@@ -630,6 +704,15 @@ namespace mu
 			res = m_constantMeshes[ConstantIndex].Value;
 		}
 
+		void GetExtensionDataConstant(int32 ConstantIndex, ExtensionDataPtrConst& Result) const
+		{
+			const FExtensionDataConstant& Constant = m_constantExtensionData[ConstantIndex];
+
+			check(Constant.LoadState != FExtensionDataConstant::ELoadState::Unloaded);
+			check(Constant.Data.get());
+
+			Result = Constant.Data;
+		}
 
         inline OP_TYPE GetOpType( OP::ADDRESS at ) const
         {

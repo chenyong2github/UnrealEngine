@@ -3,9 +3,10 @@
 #pragma once
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
+#include "MuR/System.h"
 #include "MuT/Node.h"
 #include "MuT/NodeObject.h"
-#include "MuR/System.h"
+#include "MuT/NodeExtensionData.h"
 
 
 namespace mu
@@ -99,6 +100,9 @@ namespace mu
 			bool bOnlyFirstLOD,
 			uint8 FirstLOD,
 			uint8 NumExtraLODsToBuildAfterFirstLOD);
+
+		//! Connect a node that produces ExtensionData to be added to the final Instance, and provide a name to associate with the data
+		void AddExtensionDataNode(NodeExtensionDataPtr Node, const char* Name);
 
 		//-----------------------------------------------------------------------------------------
 		// Interface pattern

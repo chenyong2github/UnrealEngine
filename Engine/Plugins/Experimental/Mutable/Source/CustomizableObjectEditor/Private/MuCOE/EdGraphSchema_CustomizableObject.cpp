@@ -8,6 +8,8 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "GraphEditorActions.h"
 #include "Materials/MaterialInterface.h"
+#include "MuCO/CustomizableObjectExtension.h"
+#include "MuCO/ICustomizableObjectModule.h"
 #include "MuCOE/CustomizableObjectEditorNodeContextCommands.h"
 #include "MuCOE/ICustomizableObjectEditor.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeAnimationPose.h"
@@ -483,22 +485,50 @@ void UEdGraphSchema_CustomizableObject::GetGraphContextActions(FGraphContextMenu
 
 	{
 		// External Pin Nodes
-		const FName* PinTypes[] = { &PC_Material, &PC_Mesh, &PC_Image, &PC_Projector, &PC_GroupProjector, &PC_Color, &PC_Float, &PC_Bool, &PC_Enum, &PC_Stack };
-		
-		for (const FName* PinCategory : PinTypes)
+		TArray<FName> PinTypes({ PC_Material, PC_Mesh, PC_Image, PC_Projector, PC_GroupProjector, PC_Color, PC_Float, PC_Bool, PC_Enum, PC_Stack });
+
+		// Add pin types from extensions
+		for (const FRegisteredCustomizableObjectPinType& PinType : ICustomizableObjectModule::Get().GetExtendedPinTypes())
+		{
+			PinTypes.AddUnique(PinType.PinType.Name);
+		}
+
+		for (const FName& PinCategory : PinTypes)
 		{
 			UCustomizableObjectNodeExternalPin* CustomizableObjectNodeExternalPin = ContextMenuBuilder.CreateTemplateNode<UCustomizableObjectNodeExternalPin>();
-			CustomizableObjectNodeExternalPin->PinType = *PinCategory;
+			CustomizableObjectNodeExternalPin->PinType = PinCategory;
 			
 			AddNewNodeActionFiltered(CustomizableObjectNodeExternalPin, ContextMenuBuilder, TEXT("Import Pin"), GeneralGrouping, Filter);
 		}
 
-		for (const FName* PinCategory : PinTypes)
+		for (const FName& PinCategory : PinTypes)
 		{
 			UCustomizableObjectNodeExposePin* CustomizableObjectNodeExposePin = ContextMenuBuilder.CreateTemplateNode<UCustomizableObjectNodeExposePin>();
-			CustomizableObjectNodeExposePin->PinType = *PinCategory;
+			CustomizableObjectNodeExposePin->PinType = PinCategory;
 			
 			AddNewNodeActionFiltered(CustomizableObjectNodeExposePin, ContextMenuBuilder, TEXT("Export Pin"), GeneralGrouping, Filter);
+		}
+	}
+
+	// Search for all subclasses of UCustomizableObjectNode
+	//
+	// Iterate over the Class Default Objects instead of their corresponding UClasses, as this allows
+	// us to filter the TObjectIterator to UCustomizableObjectNode instead of UClass, which should
+	// produce far fewer results to iterate through.
+	for (TObjectIterator<UCustomizableObjectNode> It(RF_NoFlags); It; ++It)
+	{
+		const UCustomizableObjectNode* Node = *It;
+		if (!Node->HasAllFlags(RF_ClassDefaultObject))
+		{
+			// Only interested in CDOs
+			continue;
+		}
+
+		FText Category;
+		if (Node->ShouldAddToContextMenu(Category))
+		{
+			UCustomizableObjectNode* TemplateNode = ContextMenuBuilder.CreateTemplateNode<UCustomizableObjectNode>(Node->GetClass());
+			AddNewNodeActionFiltered(TemplateNode, ContextMenuBuilder, Category.ToString(), GeneralGrouping, Filter);
 		}
 	}
 	
@@ -643,6 +673,14 @@ FLinearColor UEdGraphSchema_CustomizableObject::GetPinTypeColor(const FName& Typ
 	else if (TypeString == PC_MaterialAsset)
 	{
 		return FLinearColor(1.000000f, 1.000000f, 1.000000f, 1.000000f);
+	}
+
+	for (const FRegisteredCustomizableObjectPinType& PinType : ICustomizableObjectModule::Get().GetExtendedPinTypes())
+	{
+		if (PinType.PinType.Name == TypeString)
+		{
+			return PinType.PinType.Color;
+		}
 	}
 
 	return FLinearColor(0.750000f, 0.600000f, 0.400000f, 1.000000f);
@@ -1048,8 +1086,17 @@ FText UEdGraphSchema_CustomizableObject::GetPinCategoryName(const FName& PinCate
 	}
 	else
 	{
-		check(false); // Unknown pin category. Add the unknown category to the "switch".
-		return FText();
+		for (const FRegisteredCustomizableObjectPinType& PinType : ICustomizableObjectModule::Get().GetExtendedPinTypes())
+		{
+			if (PinType.PinType.Name == PinCategory)
+			{
+				return PinType.PinType.DisplayName;
+			}
+		}
+
+		// Need to fail gracefully here in case a plugin that was active when this graph was
+		// created is no longer loaded.
+		return LOCTEXT("Unknown_Pin_Category", "Unknown");
 	}
 }
 

@@ -40,6 +40,7 @@ namespace mu
         LA_CONSTANT,
         PR_CONSTANT,
         ST_CONSTANT,
+		ED_CONSTANT,
 
         //! User parameter
         BO_PARAMETER,
@@ -339,6 +340,9 @@ namespace mu
 
         //! Add all LODs to an instance. This operation can only appear once in a model.
         IN_ADDLOD,
+
+		//! Add extension data to an instance
+		IN_ADDEXTENSIONDATA,
 
         //-----------------------------------------------------------------------------------------
         // Layout operations
@@ -1015,6 +1019,19 @@ namespace mu
             ADDRESS lod[ MUTABLE_OP_MAX_ADD_COUNT ];
         };
 
+		struct InstanceAddExtensionDataArgs
+		{
+			// This is a reference to an op that produces the Instance that the ExtensionData will
+			// be added to.
+			ADDRESS Instance;
+			// An op that produces the ExtensionData to add to the Instance
+			ADDRESS ExtensionData;
+			// The name to associate with the ExtensionData
+			//
+			// This is an index into the string table
+			ADDRESS ExtensionDataName;
+		};
+
         //-------------------------------------------------------------------------------------
         struct LayoutPackArgs
         {
@@ -1176,6 +1193,7 @@ namespace mu
 		DT_INSTANCE,
 		DT_PROJECTOR,
 		DT_STRING,
+		DT_EXTENSION_DATA,
 
 		// Supporting data types : Never returned as an actual data type for any operation.
 		DT_MATRIX,

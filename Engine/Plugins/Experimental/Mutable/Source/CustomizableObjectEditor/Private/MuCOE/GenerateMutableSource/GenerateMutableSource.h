@@ -4,6 +4,8 @@
 
 #include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
+#include "MuCO/CustomizableObject.h"
+#include "MuCOE/ExtensionDataCompilerInterface.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeMaterialBase.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeObject.h"
 #include "MuR/MutableMemory.h"
@@ -752,6 +754,11 @@ struct FMutableGraphGenerationContext
 	};
 
 	TMap<TObjectPtr<class USkeletalMesh>, FMeshWithBoneRemovalApplied> MeshesWithBoneRemovalApplied;
+
+	/** Extension Data constants are collected here */
+	FExtensionDataCompilerInterface ExtensionDataCompilerInterface;
+	TArray<FCustomizableObjectExtensionData> AlwaysLoadedExtensionData;
+	TArray<UCustomizableObjectExtensionDataContainer*> StreamedExtensionData;
 };
 
 /** Pin Data scope wrapper. Pops the pin data on scope exit. */

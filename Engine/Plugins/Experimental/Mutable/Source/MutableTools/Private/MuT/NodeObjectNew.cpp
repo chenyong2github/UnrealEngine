@@ -332,6 +332,13 @@ namespace mu
 		Data.NumExtraLODsToBuildAfterFirstLOD = NumExtraLODsToBuildAfterFirstLOD;
     }
 
+    //---------------------------------------------------------------------------------------------
+	void NodeObjectNew::AddExtensionDataNode(NodeExtensionDataPtr Node, const char* Name)
+	{
+		NodeObjectNew::Private::NamedExtensionDataNode& Entry = m_pD->m_extensionDataNodes.AddDefaulted_GetRef();
+		Entry.Node = Node;
+		Entry.Name = Name;
+	}
 }
 
 

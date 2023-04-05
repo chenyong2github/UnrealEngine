@@ -14,6 +14,7 @@
 #include "MuR/ParametersPrivate.h"
 #include "MuR/Platform.h"
 #include "MuT/ASTOpAddLOD.h"
+#include "MuT/ASTOpAddExtensionData.h"
 #include "MuT/ASTOpConditional.h"
 #include "MuT/ASTOpConstantBool.h"
 #include "MuT/ASTOpConstantResource.h"
@@ -1954,6 +1955,62 @@ namespace mu
             }
         }
         Ptr<ASTOp> rootOp = lodsOp;
+
+		// Add an ASTOpAddExtensionData for each connected ExtensionData node
+		for (const NodeObjectNew::Private::NamedExtensionDataNode& NamedNode : node.m_extensionDataNodes)
+		{
+			if (!NamedNode.Node.get())
+			{
+				// No node connected
+				continue;
+			}
+
+			// Name must be valid
+			check(NamedNode.Name.length() > 0);
+
+			FExtensionDataGenerationResult Result;
+			GenerateExtensionData(Result, NamedNode.Node);
+
+			if (!Result.Op.get())
+			{
+				// Failed to generate anything for this node
+				continue;
+			}
+
+			FConditionalExtensionDataOp& SavedOp = m_conditionalExtensionDataOps.AddDefaulted_GetRef();
+			if (m_currentObject.Num() > 0)
+			{
+				SavedOp.Condition = m_currentObject.Last().m_condition;
+			}
+			SavedOp.ExtensionDataOp = Result.Op;
+			SavedOp.ExtensionDataName = NamedNode.Name;
+		}
+
+		if (m_currentObject.Num() == 0)
+		{
+			for (const FConditionalExtensionDataOp& SavedOp : m_conditionalExtensionDataOps)
+			{
+				Ptr<ASTOpAddExtensionData> ExtensionPinOp = new ASTOpAddExtensionData();
+				ExtensionPinOp->Instance = ASTChild(ExtensionPinOp, rootOp);
+				ExtensionPinOp->ExtensionData = ASTChild(ExtensionPinOp, SavedOp.ExtensionDataOp);
+				ExtensionPinOp->ExtensionDataName = SavedOp.ExtensionDataName;
+
+				if (SavedOp.Condition.get())
+				{
+					Ptr<ASTOpConditional> ConditionOp = new ASTOpConditional();
+					ConditionOp->type = OP_TYPE::IN_CONDITIONAL;
+					ConditionOp->no = rootOp;
+					ConditionOp->yes = ExtensionPinOp;
+					ConditionOp->condition = ASTChild(ConditionOp, SavedOp.Condition);
+					
+					rootOp = ConditionOp;
+				}
+				else
+				{
+					rootOp = ExtensionPinOp;
+				}
+			}
+		}
 
         m_currentParents.Pop();
 

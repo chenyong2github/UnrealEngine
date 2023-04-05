@@ -119,6 +119,11 @@ namespace mu
 		TArray<INSTANCE_COMPONENT, TInlineAllocator<4>> m_components;
     };
 
+	struct NamedExtensionData
+	{
+		ExtensionDataPtrConst Data;
+		string Name;
+	};
 
 	class Instance::Private : public Base
 	{
@@ -129,6 +134,9 @@ namespace mu
 
 		//!
 		TArray<INSTANCE_LOD,TInlineAllocator<4>> m_lods;
+
+		// Every entry must have a valid ExtensionData and name
+		TArray<NamedExtensionData> m_extensionData;
 
         Private()
         {
@@ -153,5 +161,8 @@ namespace mu
         int AddVector( int lod, int comp, int surf, const FVector4f&, const char* strName );
         int AddScalar( int lod, int comp, int surf, float, const char* strName );
         int AddString( int lod, int comp, int surf, const char* strValue, const char* strName );
+		
+		// Data and Name must be non-null
+		void AddExtensionData(ExtensionDataPtrConst Data, const char* Name);
     };
 }

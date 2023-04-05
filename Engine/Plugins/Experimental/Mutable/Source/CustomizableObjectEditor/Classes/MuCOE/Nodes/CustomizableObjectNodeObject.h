@@ -202,7 +202,6 @@ public:
 
 	// UObject interface.
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	void BackwardsCompatibleFixup() override;
 
 	// EdGraphNode interface
 	FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
@@ -213,6 +212,7 @@ public:
 	void PostDuplicate(bool bDuplicateForPIE) override;
 
 	// UCustomizableObjectNode interface
+	virtual void BackwardsCompatibleFixup() override;
 	virtual void PostBackwardsCompatibleFixup() override;
 	void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
 
@@ -225,7 +225,7 @@ public:
 
 	UEdGraphPin* LODPin(int32 LODIndex) const
 	{
-		FString LODName = FString::Printf(TEXT("LOD %d "), LODIndex);
+		FString LODName = FString::Printf(TEXT("%s%d "), LODPinNamePrefix, LODIndex);
 		return FindPin(LODName);
 	}
 
@@ -235,7 +235,7 @@ public:
 
 		for (UEdGraphPin* Pin : GetAllNonOrphanPins())
 		{
-			if (Pin->GetName().StartsWith(TEXT("LOD ")))
+			if (Pin->GetName().StartsWith(LODPinNamePrefix))
 			{
 				Count++;
 			}
@@ -246,12 +246,12 @@ public:
 
 	UEdGraphPin* ChildrenPin() const
 	{
-		return FindPin(TEXT("Children"));
+		return FindPin(ChildrenPinName);
 	}
 
 	UEdGraphPin* OutputPin() const
 	{
-		return FindPin(TEXT("Object"));
+		return FindPin(OutputPinName);
 	}
 
 	/** Return the LOD which a LOD pin references to. Retrun -1 if a pin does not belong to any LOD. */
@@ -276,5 +276,12 @@ public:
 	// Node Details Support
 	int32 CurrentComponent = 0;
 	int32 CurrentLOD = 0;
+
+private:
+	static const FName ChildrenPinName;
+	static const FName OutputPinName;
+	static const TCHAR* LODPinNamePrefix;
+
+	static bool IsBuiltInPin(FName PinName);
 };
 
