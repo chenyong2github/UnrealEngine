@@ -40,7 +40,6 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "RenderingThread.h"
 #include "StaticMeshAttributes.h"
-#include "StaticMeshOperations.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GenerateStaticMeshLODProcess)
 
@@ -1704,13 +1703,6 @@ void UGenerateStaticMeshLODProcess::UpdateSourceStaticMeshAsset(bool bSetNewHDSo
 	if (bSetNewHDSourceAsset && bUsingHiResSource == false)
 	{
 		SourceStaticMesh->ModifyHiResMeshDescription();
-
-		if (FMeshDescription* BaseLodMeshDescription = SourceStaticMesh->GetMeshDescription(0))
-		{
-			FString MaterialNameConflictMsg = TEXT("[Asset ") + SourceStaticMesh->GetPathName() + TEXT("] Nanite hi - res UpdateSourceStaticMeshAsset have some material name that differ from the LOD 0 material name.Your nanite hi - res should use the same material names the LOD 0 use to ensure we can remap the section in the same order.");
-			FString MaterialCountConflictMsg = TEXT("[Asset ") + SourceStaticMesh->GetPathName() + TEXT("] Nanite hi-res UpdateSourceStaticMeshAsset use more material then LOD 0. Your nanite hi-res should have less or equal number of material. Any extra material will be remap to the first material use by LOD 0.");
-			FStaticMeshOperations::ReorderMeshDescriptionPolygonGroups(*BaseLodMeshDescription, *SourceMeshDescription, MaterialNameConflictMsg, MaterialCountConflictMsg);
-		}
 
 		FMeshDescription* NewSourceMD = SourceStaticMesh->CreateHiResMeshDescription();
 		*NewSourceMD = *SourceMeshDescription;		// todo: can MoveTemp here, we don't need this memory anymore??

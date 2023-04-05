@@ -13,7 +13,6 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "StaticMeshAttributes.h"
 #include "UObject/Package.h"
-#include "StaticMeshOperations.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StaticMeshToolTarget)
 
@@ -297,16 +296,6 @@ void UStaticMeshToolTarget::CommitMeshDescription(UStaticMesh* StaticMeshIn, con
 	else
 	{
 		StaticMeshIn->ModifyMeshDescription((int32)EditingLODIn);
-	}
-
-	if (EditingLODIn == EMeshLODIdentifier::HiResSource || EditingLODIn == EMeshLODIdentifier::LOD0)
-	{
-		const FMeshDescription* BaseLODMeshDescription = (EditingLODIn == EMeshLODIdentifier::LOD0) ? UpdateMeshDescription : StaticMeshIn->GetMeshDescription(0);
-		FMeshDescription* HiResMeshDescription = (EditingLODIn == EMeshLODIdentifier::HiResSource) ? UpdateMeshDescription : StaticMeshIn->GetHiResMeshDescription();
-
-		FString MaterialNameConflictMsg = TEXT("[Asset ") + StaticMeshIn->GetPathName() + TEXT("] Nanite hi - res StaticMeshToolTarget have some material name that differ from the LOD 0 material name.Your nanite hi - res should use the same material names the LOD 0 use to ensure we can remap the section in the same order.");
-		FString MaterialCountConflictMsg = TEXT("[Asset ") + StaticMeshIn->GetPathName() + TEXT("] Nanite hi-res StaticMeshToolTarget use more material then LOD 0. Your nanite hi-res should have less or equal number of material. Any extra material will be remap to the first material use by LOD 0.");
-		FStaticMeshOperations::ReorderMeshDescriptionPolygonGroups(*BaseLODMeshDescription, *HiResMeshDescription, MaterialNameConflictMsg, MaterialCountConflictMsg);
 	}
 
 	FCommitterParams CommitterParams;
