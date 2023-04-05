@@ -69,6 +69,9 @@ public:
 
 	
 	/** Build commands */
+	static constexpr int32 MaxExternalBuildTypes = 10;
+	TArray<TSharedPtr< FUICommandInfo >> ExternalBuildTypeCommands;
+
 	TSharedPtr< FUICommandInfo > Build;
 	TSharedPtr< FUICommandInfo > BuildAndSubmitToSourceControl;
 	TSharedPtr< FUICommandInfo > BuildLightingOnly;
@@ -765,6 +768,8 @@ public:
 	static void BuildTextureStreamingOnly_Execute();
 	static void BuildVirtualTextureOnly_Execute();
 	static void BuildAllLandscape_Execute();
+	static bool BuildExternalType_CanExecute( int32 Index );
+	static void BuildExternalType_Execute( int32 Index );
 	static void SetLightingQuality( ELightingBuildQuality NewQuality );
 	static bool IsLightingQualityChecked( ELightingBuildQuality TestQuality );
 	static float GetLightingDensityIdeal();

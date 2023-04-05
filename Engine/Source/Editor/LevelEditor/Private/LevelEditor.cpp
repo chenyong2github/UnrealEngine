@@ -1514,6 +1514,14 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 	ActionList.MapAction(Commands.BuildAllLandscape,
 		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::BuildAllLandscape_Execute));
 
+	for (int32 Index = 0; Index < FLevelEditorCommands::MaxExternalBuildTypes; ++Index)
+	{
+		ActionList.MapAction(
+			Commands.ExternalBuildTypeCommands[Index],
+			FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::BuildExternalType_Execute, Index),
+			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::BuildExternalType_CanExecute, Index));
+	}
+
 	ActionList.MapAction( 
 		Commands.LightingQuality_Production, 
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::SetLightingQuality, (ELightingBuildQuality)Quality_Production ),

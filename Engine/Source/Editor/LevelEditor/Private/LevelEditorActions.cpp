@@ -894,6 +894,30 @@ void FLevelEditorActionCallbacks::BuildAllLandscape_Execute()
 	FEditorBuildUtils::EditorBuild(GetWorld(), FBuildOptions::BuildAllLandscape);
 }
 
+bool FLevelEditorActionCallbacks::BuildExternalType_CanExecute(const int32 Index)
+{
+	TArray<FName> BuildTypeNames;
+	FEditorBuildUtils::GetBuildTypes(BuildTypeNames);
+
+	if (BuildTypeNames.IsValidIndex(Index))
+	{
+		return FEditorBuildUtils::EditorCanBuild(GetWorld(), BuildTypeNames[Index]);
+	}
+
+	return false;
+}
+
+void FLevelEditorActionCallbacks::BuildExternalType_Execute(const int32 Index)
+{
+	TArray<FName> BuildTypeNames;
+	FEditorBuildUtils::GetBuildTypes(BuildTypeNames);
+
+	if (BuildTypeNames.IsValidIndex(Index))
+	{
+		FEditorBuildUtils::EditorBuild(GetWorld(), BuildTypeNames[Index]);
+	}
+}
+
 bool FLevelEditorActionCallbacks::IsLightingQualityChecked( ELightingBuildQuality TestQuality )
 {
 	int32 CurrentQualityLevel;
@@ -3464,6 +3488,7 @@ namespace
 {
 	const FName OpenRecentFileBundle = "OpenRecentFile";
 	const FName OpenFavoriteFileBundle = "OpenFavoriteFile";
+	const FName ExternalBuildTypesBundle = "ExternalBuilds";
 }
 
 FLevelEditorCommands::FLevelEditorCommands()
@@ -3477,6 +3502,7 @@ FLevelEditorCommands::FLevelEditorCommands()
 {
 	AddBundle(OpenRecentFileBundle, NSLOCTEXT("LevelEditorCommands", "OpenRecentFileBundle", "Open Recent File"));
 	AddBundle(OpenFavoriteFileBundle, NSLOCTEXT("LevelEditorCommands", "OpenFavoriteFileBundle", "Open Favorite File"));
+	AddBundle(ExternalBuildTypesBundle, NSLOCTEXT("LevelEditorCommands", "ExternalBuildTypesBundle", "Build External Type"));
 }
 
 /** UI_COMMAND takes long for the compile to optimize */
@@ -3527,6 +3553,22 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND( ImportScene, "Import Into Level...", "Imports a scene from a FBX or OBJ format into the current level", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND( ExportAll, "Export All...", "Exports the entire level to a file on disk (multiple formats are supported.)", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( ExportSelected, "Export Selected...", "Exports currently-selected objects to a file on disk (multiple formats are supported.)", EUserInterfaceActionType::Button, FInputChord() );
+
+	// External Build commands (inspired from RecentFiles/FavoriteFiles)
+	for (int32 Index = 0; Index < FLevelEditorCommands::MaxExternalBuildTypes; ++Index)
+	{
+		// NOTE: The actual label and tool-tip will be overridden at runtime when the command is bound to a menu item, however
+		// we still need to set one here so that the key bindings UI can function properly
+		ExternalBuildTypeCommands.Add(
+			FUICommandInfoDecl(
+				this->AsShared(),
+				FName(*FString::Printf(TEXT("ExternalBuildType %i"), Index)),
+				FText::Format(NSLOCTEXT("LevelEditorCommands", "ExternalBuildType", "Build Type {0}"), FText::AsNumber(Index)),
+				/*Description*/NSLOCTEXT("LevelEditorCommands", "ExternalBuildToolTip", "Builds an external type"),
+				ExternalBuildTypesBundle)
+			.UserInterfaceType(EUserInterfaceActionType::Button)
+			.DefaultChord(FInputChord()));
+	}
 
 	UI_COMMAND( Build, "Build All Levels", "Builds all levels (precomputes lighting data and visibility data, generates navigation networks and updates brush models.)\nThis action is not available while Play in Editor is active, static lighting is disabled in the project settings, or when previewing less than Shader Model 5", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( BuildAndSubmitToSourceControl, "Build and Submit...", "Displays a window that allows you to build all levels and submit them to revision control", EUserInterfaceActionType::Button, FInputChord() );

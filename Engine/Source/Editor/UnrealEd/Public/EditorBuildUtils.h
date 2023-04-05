@@ -46,12 +46,20 @@ struct FBuildOptions
 /**
  * Result of a custom editor build.
  */
-enum class EEditorBuildResult
+enum class EEditorBuildResult : uint8
 {
 	Success,		// The build step completed successfully
 	Skipped,		// The build step was skipped for some reason (e.g. cancelled)
 	InProgress,		// The build step is running asynchronously
 };
+
+/**
+ * Delegate to validate if a custom editor build can be executed.
+ * @param UWorld* The world to run the build on.
+ * @param FName The Id of the build being run (either the registered build Id, or one of the BuildAll types).
+ * @return Whether the build step could run or not.
+ */
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FCanDoEditorBuildDelegate, const UWorld*, FName);
 
 /**
  * Delegate for performing a custom editor build.
@@ -120,6 +128,14 @@ public:
 	 * @return	true if the build/submission process executed successfully; false if it did not
 	 */
 	static UNREALED_API bool EditorAutomatedBuildAndSubmit( const FEditorAutomatedBuildSettings& BuildSettings, FText& OutErrorMessages );
+
+	/**
+	 * Validate if the editor build matching the specified id can be executed.
+	 * @param	InWorld				WorldContext
+	 * @param	Id					Action Id specifying what kind of build is requested
+	 * @return	true if the build can be executed for the provided world
+	 */
+	static UNREALED_API bool EditorCanBuild( UWorld* InWorld, FName Id );
 
 	/**
 	 * Perform an editor build with behavior dependent upon the specified id
@@ -201,14 +217,71 @@ public:
 	 * @param Id The identifier to use for this build type.
 	 * @param DoBuild The delegate to execute to run this build.
 	 * @param BuildAllExtensionPoint If a valid name, run this build *before* running the build with this id when performing a Build All.
+	 * @param MenuEntryLabel If non empty, will be used as label for the command in the menu. Otherwise `Build {FText::FromName(Id)}` will be used.
+	 * @param MenuSectionLabel If non empty, will be used a label for a new submenu for this build type. Otherwise the entry will be created under `External Types`.
 	 */
-	static UNREALED_API void RegisterCustomBuildType(FName Id, const FDoEditorBuildDelegate& DoBuild, FName BuildAllExtensionPoint);
+	static UNREALED_API void RegisterCustomBuildType(
+		const FName Id,
+		const FDoEditorBuildDelegate& DoBuild,
+		const FName BuildAllExtensionPoint,
+		const FText& MenuEntryLabel = FText::GetEmpty(),
+		const FText& MenuSectionLabel = FText::GetEmpty());
+	
+	/**
+	 * Register a custom build type.
+	 * @param Id The identifier to use for this build type.
+	 * @param CanDoBuild The delegate to validate if a given build could be executed.
+	 * @param DoBuild The delegate to execute to run this build.
+	 * @param BuildAllExtensionPoint If a valid name, run this build *before* running the build with this id when performing a Build All.
+	 * @param MenuEntryLabel If non empty, will be used as label for the command in the menu. Otherwise `Build {FText::FromName(Id)}` will be used.
+	 * @param MenuSectionLabel If non empty, will be used a label for a new submenu for this build type. Otherwise the entry will be created under `External Types`.
+	 */
+	static UNREALED_API void RegisterCustomBuildType(
+		const FName Id,
+		const FCanDoEditorBuildDelegate& CanDoBuild,
+		const FDoEditorBuildDelegate& DoBuild,
+		const FName BuildAllExtensionPoint,
+		const FText& MenuEntryLabel = FText::GetEmpty(),
+		const FText& MenuSectionLabel = FText::GetEmpty()
+		);
 
 	/**
 	 * Unregister a custom build type.
 	 * @param Id The identifier of the build type to unregister.
 	 */
 	static UNREALED_API void UnregisterCustomBuildType(FName Id);
+
+	/**
+	 * Fills `RegisteredBuildTypes` with the names of all build types registered by 'RegisterCustomBuildType'.
+	 * @param RegisteredBuildTypes Names of all registered build types.
+	 */
+	static UNREALED_API void GetBuildTypes(TArray<FName>& RegisteredBuildTypes);
+
+	/**
+	 * Fills provided arrays with localized menu entry and section labels.
+	 * @param RegisteredBuildTypesEntryLabels Labels for each registered build types. Can be empty.
+	 * @param RegisteredBuildTypesSectionLabels Labels for each registered build types section where the entry should reside. Can be empty.
+	 */
+	static UNREALED_API void GetBuildTypesLocalizedLabels(TArray<FText>& RegisteredBuildTypesEntryLabels, TArray<FText>& RegisteredBuildTypesSectionLabels);
+	
+	/**
+	 * Runs another instance of the current executable with the provided command line arguments.
+	 * On success the current level will be unloaded. Using `MapToLoad` allows to reload that specific level to reflect the changes.
+	 * @param MapToLoad Map to load after successfully run the process
+	 * @param ProgressText Message used by the progress dialog
+	 * @param CancelledText Message shown to the user after cancelling the task 
+	 * @param FailureText Message shown to the user if the process returned an error code
+	 * @param CommandLineArguments Arguments passed to the other instance commandline
+	 * 
+	 * @return True if process completed without returning any error code.  
+	 */
+	static UNREALED_API bool RunWorldPartitionBuilder(
+		const FString& MapToLoad,
+		const FText& ProgressText,
+		const FText& CancelledText,
+		const FText& FailureText,
+		const FString& CommandLineArguments
+		);
 private:
 
 	/**
@@ -259,7 +332,7 @@ private:
 	 * Trigger navigation builder to (re)generate NavMesh 
 	 *
 	 * @param	InOutWorld		WorldContext
-	 * @param	BuildSettings	Build settings that will be used for the editor build
+	 * @param	Id	Build options requested
 	 */
 	static void TriggerNavigationBuilder(UWorld*& InOutWorld, FName Id);
 
@@ -269,17 +342,15 @@ private:
 	 * Trigger HLOD builder to (re)generate HLOD actors
 	 *
 	 * @param	InWorld			WorldContext
-	 * @param	BuildSettings	Build settings that will be used for the editor build
 	 */
-	static void TriggerHierarchicalLODBuilder(UWorld* InWorld, FName Id);
+	static void TriggerHierarchicalLODBuilder(UWorld* InWorld);
 
 	/** 
 	 * Trigger minimap builder to (re)generate minimap
 	 *
 	 * @param	InWorld			WorldContext
-	 * @param	BuildSettings	Build settings that will be used for the editor build
 	 */
-	static void TriggerMinimapBuilder(UWorld* InWorld, FName Id);
+	static void TriggerMinimapBuilder(UWorld* InWorld);
 
 	/**
 	 * Trigger LandscapeSplineMeshes builder to (re)generate landscape spline meshes actors
@@ -305,13 +376,33 @@ private:
 	 */
 	struct FCustomBuildType
 	{
+		FCanDoEditorBuildDelegate CanDoBuild;
 		FDoEditorBuildDelegate DoBuild;
 		FName BuildAllExtensionPoint;
+		const FText MenuEntryLabel;
+		const FText MenuSectionLabel;
 
-		FCustomBuildType(const FDoEditorBuildDelegate& InDoBuild, FName InBuildAllExtensionPoint)
+		FCustomBuildType(
+			const FDoEditorBuildDelegate& InDoBuild,
+			const FName InBuildAllExtensionPoint,
+			const FText& InMenuEntryLabel,
+			const FText& InMenuSectionLabel)
 			: DoBuild(InDoBuild)
 			, BuildAllExtensionPoint(InBuildAllExtensionPoint)
+			, MenuEntryLabel(InMenuEntryLabel)
+			, MenuSectionLabel(InMenuSectionLabel)
 		{}
+
+		FCustomBuildType(
+			const FCanDoEditorBuildDelegate& InCanDoBuild,
+			const FDoEditorBuildDelegate& InDoBuild,
+			const FName InBuildAllExtensionPoint,
+			const FText& InMenuEntryLabel,
+			const FText& InMenuSectionLabel)
+			: FCustomBuildType(InDoBuild, InBuildAllExtensionPoint, InMenuEntryLabel, InMenuSectionLabel)
+		{
+			CanDoBuild = InCanDoBuild;
+		}
 	};
 
 	/** Map of custom build types registered with us. */

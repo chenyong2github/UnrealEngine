@@ -24,6 +24,7 @@
 #include "ITranslationEditor.h"
 #include "ILocalizationDashboardModule.h"
 #include "AssetSelection.h"
+#include "EditorBuildUtils.h"
 #include "EditorViewportCommands.h"
 
 #define LOCTEXT_NAMESPACE "LevelEditorMenu"
@@ -607,6 +608,75 @@ void FLevelEditorMenu::RegisterBuildMenu()
 	{
 		FToolMenuSection& Section = Menu->AddSection("LevelEditorNavigation", LOCTEXT("NavigationHeading", "Navigation"));
 		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildPathsOnly);
+	}
+
+	// Add section for external build types
+	{
+		Menu->AddDynamicSection(NAME_None, FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		{
+			TArray<FName> BuildTypeNames;
+			FEditorBuildUtils::GetBuildTypes(BuildTypeNames);
+			const int32 NumTypes = BuildTypeNames.Num();
+			const int32 AllowedTypes = FMath::Min(NumTypes, FLevelEditorCommands::Get().ExternalBuildTypeCommands.Num());
+			
+			if (AllowedTypes > 0)
+			{
+				TArray<FText> BuildTypeLocalizedNames;
+				TArray<FText> BuildTypeLocalizedSubmenuNames;
+				FEditorBuildUtils::GetBuildTypesLocalizedLabels(BuildTypeLocalizedNames, BuildTypeLocalizedSubmenuNames);
+				check(BuildTypeNames.Num() == BuildTypeLocalizedNames.Num());
+				check(BuildTypeNames.Num() == BuildTypeLocalizedSubmenuNames.Num());
+
+				static FName ExternalBuildTypeSectionName("LevelEditorExternalBuildTypes");
+				FToolMenuSection* BuildTypeSection = nullptr;
+				FToolMenuSection* ExternalBuildTypeSection = nullptr;
+				
+				for (int32 Index = 0; Index < AllowedTypes; ++Index)
+				{
+					const FText& LocalizedSectionName = BuildTypeLocalizedSubmenuNames[Index];
+					// Create dedicated section if provided
+					if (!LocalizedSectionName.IsEmpty())
+					{
+						const FName SectionName(LocalizedSectionName.ToString()); 
+						BuildTypeSection = InMenu->FindSection(SectionName);
+						if (BuildTypeSection == nullptr)
+						{
+							BuildTypeSection = &InMenu->AddSection(SectionName, LocalizedSectionName);	
+						}
+					}
+					// Otherwise create generic section for all external types if not already created
+					else if (ExternalBuildTypeSection == nullptr)
+					{
+						ExternalBuildTypeSection = InMenu->FindSection(ExternalBuildTypeSectionName);
+						if (ExternalBuildTypeSection == nullptr)
+						{
+							ExternalBuildTypeSection = &InMenu->AddSection(ExternalBuildTypeSectionName, LOCTEXT("ExternalBuildTypesHeading", "External Types")); 
+						}
+						BuildTypeSection = ExternalBuildTypeSection;
+					}
+					// Reused existing generic section
+					else
+					{
+						BuildTypeSection = ExternalBuildTypeSection;
+					}
+					
+					const TSharedPtr<FUICommandInfo>& CommandInfo = FLevelEditorCommands::Get().ExternalBuildTypeCommands[Index];
+
+					// Create tooltip from localized entry label if provided, use generic version otherwise
+					const FText ToolTip = BuildTypeLocalizedNames[Index].IsEmpty()
+						? FText::Format(LOCTEXT("ExternalBuildTypeToolTip", "Builds external type: {0}"), FText::FromName(BuildTypeNames[Index]))
+						: BuildTypeLocalizedNames[Index];
+
+					// Create label from localized entry label if provided, use generic version otherwise
+					const FText Label = BuildTypeLocalizedNames[Index].IsEmpty()
+						? FText::Format(LOCTEXT("ExternalBuildTypeLabel", "Build {0}"), FText::FromName(BuildTypeNames[Index]))
+						: BuildTypeLocalizedNames[Index];
+
+					check(BuildTypeSection != nullptr);
+					BuildTypeSection->AddMenuEntry(CommandInfo, Label, ToolTip).Name = NAME_None;
+				}
+			}
+		}));
 	}
 
 	{
