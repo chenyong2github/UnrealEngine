@@ -681,7 +681,7 @@ void UCommonSessionSubsystem::FinishSessionCreation(bool bWasSuccessful)
 #if COMMONUSER_OSSV1
 void UCommonSessionSubsystem::OnUpdateSessionComplete(FName SessionName, bool bWasSuccessful)
 {
-	UE_LOG(LogCommonSession, Log, TEXT("OnUpdateSessionComplete(SessionName: %s, bWasSuccessful: %d"), *SessionName.ToString(), bWasSuccessful ? TEXT("true") : TEXT("false"));
+	UE_LOG(LogCommonSession, Log, TEXT("OnUpdateSessionComplete(SessionName: %s, bWasSuccessful: %s"), *SessionName.ToString(), bWasSuccessful ? TEXT("true") : TEXT("false"));
 }
 
 void UCommonSessionSubsystem::OnEndSessionComplete(FName SessionName, bool bWasSuccessful)
