@@ -287,10 +287,11 @@ namespace Gauntlet
 
 		internal class ConfigInfo
 		{
-			public UnrealTargetRole 				RoleType;
+			public UnrealTargetRole 			RoleType;
 			public UnrealTargetPlatform? 		Platform;
 			public UnrealTargetConfiguration 	Configuration;
 			public bool							SharedBuild;
+			public string						Flavor;
 
 			public ConfigInfo()
 			{
@@ -340,7 +341,7 @@ namespace Gauntlet
 			{
 				ProjectNameRegEx += string.Format("|{0}", ModuleAndRole.Key);
 			}
-			string RegExMatch = string.Format(@"^(?:.+[_-])?(({0}(Game|Client|Server|CookedEditor)){1})(?:-(.+?)-(Debug|Test|Shipping))?(?:[_-].+)?$", ShortName, ProjectNameRegEx);
+			string RegExMatch = string.Format(@"^(?:.+[_-])?(({0}(Game|Client|Server|CookedEditor)){1})(?:-(.+?)-(Debug|Test|Shipping))?(?:[_-](.+))?$", ShortName, ProjectNameRegEx);
 
 			// Format should be something like
 			// FortniteClient
@@ -354,6 +355,7 @@ namespace Gauntlet
 				string ModuleType = NameMatch.Groups[3].ToString().ToLower();
 				string PlatformName = NameMatch.Groups[4].ToString();
 				string ConfigType = NameMatch.Groups[5].ToString();
+				string BuildFlavor= NameMatch.Groups[6].ToString().ToLower();
 				if (CustomModuleToRoles.ContainsKey(ModuleName))
 				{
 					Config.RoleType = CustomModuleToRoles[ModuleName];
@@ -385,6 +387,7 @@ namespace Gauntlet
 				{
 					Config.Configuration = UnrealTargetConfiguration.Development;   // Development has no string
 				}
+				Config.Flavor = BuildFlavor;
 
 				UnrealTargetPlatform Platform;
 				if (PlatformName.Length > 0 && UnrealTargetPlatform.TryParse(PlatformName, out Platform))
@@ -404,6 +407,10 @@ namespace Gauntlet
 		static public UnrealTargetRole GetRoleFromExecutableName(string InProjectName, string InName)
 		{
 			return GetUnrealConfigFromFileName(InProjectName, InName).RoleType;
+		}
+		static public string GetBuildFlavorFromExecutableName(string InProjectName, string InName)
+		{
+			return GetUnrealConfigFromFileName(InProjectName, InName).Flavor;
 		}
 	}
 

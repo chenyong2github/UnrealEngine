@@ -391,8 +391,9 @@ namespace Gauntlet
 		/// <param name="InPlatform"></param>
 		/// <param name="InConfiguration"></param>
 		/// <param name="InFlags"></param>
+		/// <param name="InFlavor">Optional special flavor of the build, e.g. asan/ubsan/clang/etc..., which can be added on top of a standard configuration.</param>
 		/// <returns></returns>
-		IEnumerable<IBuild> GetMatchingBuilds(UnrealTargetRole InRole, UnrealTargetPlatform? InPlatform, UnrealTargetConfiguration InConfiguration, BuildFlags InFlags)
+		IEnumerable<IBuild> GetMatchingBuilds(UnrealTargetRole InRole, UnrealTargetPlatform? InPlatform, UnrealTargetConfiguration InConfiguration, BuildFlags InFlags, string InFlavor="")
 		{
 			// can't get a build with no platform or if we have none
 			if (InPlatform == null)
@@ -411,7 +412,8 @@ namespace Gauntlet
 			{
 				if (B.CanSupportRole(InRole)
 					&& B.Configuration == InConfiguration
-					&& (B.Flags & InFlags) == InFlags)
+					&& (B.Flags & InFlags) == InFlags
+					&& (B.Flavor == InFlavor))
 				{
 					return true;
 				}
@@ -429,7 +431,8 @@ namespace Gauntlet
 				if ((InFlags & BuildFlags.CanReplaceExecutable) == BuildFlags.CanReplaceExecutable)
 				{
 					if (B.CanSupportRole(InRole)
-						&& (B.Flags & InFlags) == InFlags)
+						&& (B.Flags & InFlags) == InFlags
+						&& (B.Flavor == InFlavor))
 					{
 						Log.Warning("Build did not have configuration {0} for {1}, but selecting due to presence of -dev flag",
 							InConfiguration, InPlatform);
@@ -467,7 +470,7 @@ namespace Gauntlet
 			// Query our build list
 			if (Role.Platform != null)
 			{
-				var MatchingBuilds = GetMatchingBuilds(Role.RoleType, Role.Platform.Value, Role.Configuration, Role.RequiredBuildFlags);
+				var MatchingBuilds = GetMatchingBuilds(Role.RoleType, Role.Platform.Value, Role.Configuration, Role.RequiredBuildFlags, Role.RequiredFlavor);
 
 				if (MatchingBuilds.Count() > 0)
 				{
@@ -508,7 +511,7 @@ namespace Gauntlet
             Config.FilesToCopy = new List<UnrealFileToCopy>();
 
 			// new system of retrieving and encapsulating the info needed to install/launch. Android & Mac
-			Config.Build = GetMatchingBuilds(Role.RoleType, Role.Platform, Role.Configuration, Role.RequiredBuildFlags).FirstOrDefault();
+			Config.Build = GetMatchingBuilds(Role.RoleType, Role.Platform, Role.Configuration, Role.RequiredBuildFlags, Role.RequiredFlavor).FirstOrDefault();
 
 			if (Config.Build == null && Role.IsNullRole() == false)
 			{
@@ -719,7 +722,7 @@ namespace Gauntlet
 						Flags |= BuildFlags.NotBulk;
 					}
 
-					var Build = GetMatchingBuilds(TargetRole, TargetPlatform, TargetConfiguration, Flags).FirstOrDefault();
+					var Build = GetMatchingBuilds(TargetRole, TargetPlatform, TargetConfiguration, Flags, "").FirstOrDefault();
 
 					if (Build != null)
 					{

@@ -31,6 +31,8 @@ namespace Gauntlet
 	{
 		public BuildFlags Flags { get; protected set; }
 
+		public string Flavor { get { return ""; } }
+
 		public UnrealTargetConfiguration Configuration { get; protected set; }
 
 		public UnrealTargetPlatform Platform { get { return UnrealTargetPlatform.HoloLens; } }

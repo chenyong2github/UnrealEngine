@@ -113,6 +113,11 @@ namespace Gauntlet
 		public BuildFlags RequiredBuildFlags;
 
 		/// <summary>
+		/// Flavor of the build
+		/// </summary>
+		public string RequiredFlavor;
+
+		/// <summary>
 		/// Should be represented by a null device?
 		/// </summary>
 		public ERoleModifier RoleModifier;
@@ -203,12 +208,10 @@ namespace Gauntlet
 				{
 					RequiredBuildFlags |= BuildFlags.Loose;
 				}
-
-				if (Globals.Params.ParseParam("asan"))
-				{
-					RequiredBuildFlags |= BuildFlags.ASan;
-				}
 			}
+
+			string RoleName = RoleType.ToString().ToLower();
+			RequiredFlavor = Globals.Params.ParseValue(RoleName + "flavor", "");
 
 			InstallOnly = false;
 			DeferredLaunch = false;
@@ -224,7 +227,7 @@ namespace Gauntlet
         /// <returns></returns>
         public override string ToString()
 		{
-			return string.Format("{0} {1} {2}", Platform, Configuration, RoleType);
+			return string.Format("{0} {1} {2} {3}", Platform, Configuration, RoleType, RequiredFlavor);
 		}
 	}
 

@@ -21,7 +21,6 @@ namespace Gauntlet
         Bulk = (1 << 4),						// build is full-content, now startup download
 		NotBulk = (1 << 5),						// build is not bulk
 		ContentOnlyProject = (1 << 6),          // build is a content-only project, e.g. exe is UnrealGame.exe
-		ASan = (1 << 7)							// build is an ASan one
 	}
 
 	/// <summary>
@@ -39,6 +38,11 @@ namespace Gauntlet
 		/// Platform that this build is for
 		/// </summary>
 		UnrealTargetPlatform Platform { get; }
+
+		/// <summary>
+		/// Special property of the build (vanilla, asan, uban, etc)
+		/// </summary>
+		string Flavor { get; }
 
 		/// <summary>
 		/// Configuration of this build

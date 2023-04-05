@@ -24,6 +24,8 @@ namespace Gauntlet
 
 		public BuildFlags Flags { get; protected set; }
 
+		public string Flavor { get { return ""; } }
+
 		public UnrealTargetPlatform Platform { get { return UnrealTargetPlatform.Android; } }
 
 		public bool Is32Bit { get; protected set; }
