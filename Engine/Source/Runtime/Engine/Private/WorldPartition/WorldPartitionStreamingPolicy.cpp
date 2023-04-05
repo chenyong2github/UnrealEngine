@@ -209,7 +209,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 #define WORLDPARTITION_LOG_UPDATESTREAMINGSTATE(Verbosity)\
 UE_SUPPRESS(LogWorldPartition, Verbosity, \
 { \
-	if (ToActivateCells.Num() > 0 || ToLoadCells.Num() > 0 || ToUnloadCells.Num() > 0) \
+	if ((bIsStreamingInEnabled && (ToActivateCells.Num() > 0 || ToLoadCells.Num() > 0)) || ToUnloadCells.Num() > 0) \
 	{ \
 		UE_LOG(LogWorldPartition, Verbosity, TEXT("UWorldPartitionStreamingPolicy: CellsToActivate(%d), CellsToLoad(%d), CellsToUnload(%d)"), ToActivateCells.Num(), ToLoadCells.Num(), ToUnloadCells.Num()); \
 		FTransform LocalToWorld = WorldPartition->GetInstanceTransform(); \
