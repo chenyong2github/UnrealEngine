@@ -18,6 +18,7 @@ NNE_THIRD_PARTY_INCLUDES_END
 
 void FNNERuntimeORTModule::StartupModule()
 {
+#if PLATFORM_WINDOWS
 	const FString PluginDir = IPluginManager::Get().FindPlugin("NNE")->GetBaseDir();
 	const FString OrtBinPath = FPaths::Combine(PluginDir, TEXT(PREPROCESSOR_TO_STRING(ONNXRUNTIME_PLATFORM_PATH)));
 	const FString OrtLibPath = FPaths::Combine(OrtBinPath, TEXT(PREPROCESSOR_TO_STRING(ONNXRUNTIME_DLL_NAME)));
@@ -44,7 +45,6 @@ void FNNERuntimeORTModule::StartupModule()
 
 	Ort::InitApi();
 	
-#if PLATFORM_WINDOWS
 	// NNE runtime ORT Dml startup
 	NNERuntimeORTDml = NewObject<UNNERuntimeORTDmlImpl>();
 	if (NNERuntimeORTDml.IsValid())
@@ -70,11 +70,14 @@ void FNNERuntimeORTModule::ShutdownModule()
 		NNERuntimeORTDml->RemoveFromRoot();
 		NNERuntimeORTDml = TWeakObjectPtr<UNNERuntimeORTDmlImpl>(nullptr);
 	}
-#endif
 
 	// Free the dll handle
-	FPlatformProcess::FreeDllHandle(OrtLibHandle);
-	OrtLibHandle = nullptr;
+	if (OrtLibHandle)
+	{
+		FPlatformProcess::FreeDllHandle(OrtLibHandle);
+		OrtLibHandle = nullptr;
+	}
+#endif
 }
 
 IMPLEMENT_MODULE(FNNERuntimeORTModule, NNERuntimeORT);
