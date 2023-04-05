@@ -21,6 +21,7 @@
 #include "RHICommandList.h"
 #include "RHIImmutableSamplerState.h"
 #include "RHIStrings.h"
+#include "RHITextureReference.h"
 #include "Serialization/MemoryImage.h"
 
 IMPLEMENT_TYPE_LAYOUT(FRayTracingGeometryInitializer);
@@ -537,9 +538,10 @@ void FDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIB
 	UE_LOG(LogRHI, Fatal, TEXT("RHIUpdateShaderResourceView isn't implemented for the current RHI"));
 }
 
-void FDynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* NewTexture)
+void FDynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* InReferencedTexture)
 {
-	TextureRef->SetReferencedTexture(NewTexture);
+	FRHITexture* ReferencedTexture = InReferencedTexture ? InReferencedTexture : FRHITextureReference::GetDefaultTexture();
+	TextureRef->SetReferencedTexture(ReferencedTexture);
 }
 
 uint64 FDynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format)
@@ -556,6 +558,23 @@ FTextureRHIRef FDynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, 
 		CompletionEvent->Wait();
 	}
 	return Result;
+}
+
+FTextureReferenceRHIRef FDynamicRHI::RHICreateTextureReference(FRHITexture* InReferencedTexture)
+{
+	FRHITexture* ReferencedTexture = InReferencedTexture ? InReferencedTexture : FRHITextureReference::GetDefaultTexture();
+
+	FShaderResourceViewRHIRef ShaderResourceView;
+
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+	// If the referenced texture is configured for bindless, make sure we also create an SRV to use for bindless.
+	if (ReferencedTexture && ReferencedTexture->GetDefaultBindlessHandle().IsValid())
+	{
+		ShaderResourceView = ::RHICreateShaderResourceView(ReferencedTexture, 0u);
+	}
+#endif
+
+	return new FRHITextureReference(ReferencedTexture, ShaderResourceView);
 }
 
 uint64 FDynamicRHI::RHIComputePrecachePSOHash(const FGraphicsPipelineStateInitializer& Initializer)

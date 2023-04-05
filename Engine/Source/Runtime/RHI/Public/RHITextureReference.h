@@ -7,7 +7,9 @@
 class FRHITextureReference final : public FRHITexture
 {
 public:
-	RHI_API explicit FRHITextureReference();
+	UE_DEPRECATED(5.3, "FRHITextureReference now requires a texture reference on construction")
+	RHI_API FRHITextureReference();
+	RHI_API FRHITextureReference(FRHITexture* InReferencedTexture, FRHIShaderResourceView* InBindlessView = nullptr);
 	RHI_API ~FRHITextureReference();
 
 	RHI_API virtual class FRHITextureReference* GetTextureReference() override;
@@ -25,29 +27,25 @@ public:
 	RHI_API virtual RHIValidation::FResource* GetTrackerResource() final override;
 #endif
 
-	inline FRHITexture * GetReferencedTexture() const
-	{
-		return ReferencedTexture.GetReference();
-	}
+	inline FRHITexture* GetReferencedTexture() const { return ReferencedTexture.GetReference(); }
+	inline FRHIShaderResourceView* GetBindlessView() const { return BindlessView.GetReference(); }
 
-	RHI_API void UpdateBindlessShaderResourceView();
+	static inline FRHITexture* GetDefaultTexture() { return DefaultTexture; }
 
 private:
 	friend class FRHICommandListImmediate;
 	friend class FDynamicRHI;
 
-	// Called only from FRHICommandListImmediate::UpdateTextureReference()
+	// Called only from FDynamicRHI::RHIUpdateTextureReference
 	void SetReferencedTexture(FRHITexture* InTexture)
 	{
-		ReferencedTexture = InTexture
-			? InTexture
-			: DefaultTexture.GetReference();
+		ReferencedTexture = InTexture;
 	}
 
 	TRefCountPtr<FRHITexture> ReferencedTexture;
 
 	// SRV to create a reusable slot for bindless handles for this texture reference
-	FShaderResourceViewRHIRef BindlessShaderResourceViewRHI;
+	FShaderResourceViewRHIRef BindlessView;
 
 	// This pointer is set by the InitRHI() function on the FBlackTextureWithSRV global resource,
 	// to allow FRHITextureReference to use the global black texture when the reference is nullptr.

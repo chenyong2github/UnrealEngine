@@ -305,6 +305,8 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 		bool& bGlobalUniformBufferUsed, bool& bDiagnosticBufferUsed, uint32& NumSamplers, uint32& NumSRVs, uint32& NumCBs, uint32& NumUAVs,
 		FShaderCompilerOutput& Output, TArray<FString>& UniformBufferNames, TBitArray<>& UsedUniformBufferSlots, TArray<FShaderCodeVendorExtension>& VendorExtensions)
 {
+	const bool bBindlessEnabled = (Input.Environment.CompilerFlags.Contains(CFLAG_BindlessResources) || Input.Environment.CompilerFlags.Contains(CFLAG_BindlessSamplers));
+
 	// Add parameters for shader resources (constant buffers, textures, samplers, etc. */
 	for (uint32 ResourceIndex = 0; ResourceIndex < ShaderDesc.BoundResources; ResourceIndex++)
 	{
@@ -425,6 +427,28 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 				HandleReflectedUniformBuffer(UniformBufferName, CBIndex, Output);
 				
 				UsedUniformBufferSlots[CBIndex] = true;
+
+				if (bBindlessEnabled)
+				{
+					for (uint32 ConstantIndex = 0; ConstantIndex < CBDesc.Variables; ConstantIndex++)
+					{
+						ID3D1xShaderReflectionVariable* Variable = ConstantBuffer->GetVariableByIndex(ConstantIndex);
+
+						D3D1x_SHADER_VARIABLE_DESC VariableDesc;
+						Variable->GetDesc(&VariableDesc);
+
+						if (VariableDesc.uFlags & D3D_SVF_USED)
+						{
+							HandleReflectedUniformBufferConstantBufferMember(
+								CBIndex,
+								FString(VariableDesc.Name),
+								VariableDesc.StartOffset,
+								VariableDesc.Size,
+								Output
+							);
+						}
+					}
+				}
 			}
 
 			if (UniformBufferNames.Num() <= (int32)CBIndex)

@@ -80,12 +80,6 @@ inline void ValidateBoundUniformBuffer(FD3D12UniformBuffer * InUniformBuffer, FR
 #endif
 }
 
-inline FD3D12ShaderResourceView* GetShaderResourceViewFromTexture(FRHIResource* InResource, uint32 GpuIndex)
-{
-	FD3D12Texture* Texture = FD3D12CommandContext::RetrieveTexture(static_cast<FRHITexture*>(InResource), GpuIndex);
-	return Texture ? Texture->GetShaderResourceView() : nullptr;
-}
-
 static void BindUniformBuffer(FD3D12CommandContext& Context, FRHIShader* Shader, EShaderFrequency ShaderFrequency, uint32 BufferIndex, FD3D12UniformBuffer* InBuffer)
 {
 	ValidateBoundUniformBuffer(InBuffer, Shader, BufferIndex);
@@ -967,39 +961,105 @@ void FD3D12CommandContext::RHISetShaderUniformBuffer(FRHIComputeShader* ComputeS
 struct FD3D12ResourceBinder
 {
 	FD3D12CommandContext& Context;
+	FD3D12ConstantBuffer& ConstantBuffer;
 	const uint32 GpuIndex;
 	const EShaderFrequency Frequency;
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+	const bool bBindlessResources;
+	const bool bBindlessSamplers;
+#endif
 
-	FD3D12ResourceBinder(FD3D12CommandContext& InContext, EShaderFrequency InFrequency)
+	FD3D12ResourceBinder(FD3D12CommandContext& InContext, EShaderFrequency InFrequency, const FD3D12ShaderData* ShaderData)
 		: Context(InContext)
+		, ConstantBuffer(InContext.StageConstantBuffers[InFrequency])
 		, GpuIndex(InContext.GetGPUIndex())
 		, Frequency(InFrequency)
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+		, bBindlessResources(EnumHasAnyFlags(ShaderData->ResourceCounts.UsageFlags, EShaderResourceUsageFlags::BindlessResources))
+		, bBindlessSamplers(EnumHasAnyFlags(ShaderData->ResourceCounts.UsageFlags, EShaderResourceUsageFlags::BindlessSamplers))
+#endif
 	{
 	}
 
-	void SetUAV(FRHIUnorderedAccessView* UAV, uint8 Index, bool bClearResources = false)
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+	void SetBindlessHandle(const FRHIDescriptorHandle& Handle, uint32 Offset)
 	{
-		FD3D12UnorderedAccessView* D3D12UAV = FD3D12CommandContext::RetrieveObject<FD3D12UnorderedAccessView>(UAV, GpuIndex);
+		if (Handle.IsValid())
+		{
+			const uint32 BindlessIndex = Handle.GetIndex();
+			ConstantBuffer.UpdateConstant(reinterpret_cast<const uint8*>(&BindlessIndex), Offset, 4);
+		}
+	}
+#endif
+
+	void SetUAV(FRHIUnorderedAccessView* InUnorderedAccessView, uint32 Index, bool bClearResources = false)
+	{
+		FD3D12UnorderedAccessView* D3D12UnorderedAccessView = FD3D12CommandContext::RetrieveObject<FD3D12UnorderedAccessView>(InUnorderedAccessView, GpuIndex);
 		if (bClearResources)
 		{
-			Context.ClearShaderResources(D3D12UAV);
+			Context.ClearShaderResources(D3D12UnorderedAccessView);
 		}
-		Context.StateCache.SetUAV(Frequency, Index, D3D12UAV);
+
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+		if (bBindlessResources)
+		{
+			Context.StateCache.QueueBindlessUAV(Frequency, D3D12UnorderedAccessView);
+		}
+		else
+#endif
+		{
+			Context.StateCache.SetUAV(Frequency, Index, D3D12UnorderedAccessView);
+		}
 	}
 
-	void SetSRV(FRHIShaderResourceView* SRV, uint8 Index)
+	void SetSRV(FRHIShaderResourceView* InShaderResourceView, uint32 Index)
 	{
-		Context.StateCache.SetShaderResourceView(Frequency, FD3D12CommandContext::RetrieveObject<FD3D12ShaderResourceView>(SRV, GpuIndex), Index);
+		FD3D12ShaderResourceView* D3D12ShaderResourceView = FD3D12CommandContext::RetrieveObject<FD3D12ShaderResourceView>(InShaderResourceView, GpuIndex);
+
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+		if (bBindlessResources)
+		{
+			Context.StateCache.QueueBindlessSRV(Frequency, D3D12ShaderResourceView);
+		}
+		else
+#endif
+		{
+			Context.StateCache.SetShaderResourceView(Frequency, D3D12ShaderResourceView, Index);
+		}
 	}
 
-	void SetTexture(FRHITexture* TextureRHI, uint8 Index)
+	void SetTexture(FRHITexture* InTexture, uint32 Index)
 	{
-		Context.StateCache.SetShaderResourceView(Frequency, GetShaderResourceViewFromTexture(TextureRHI, GpuIndex), Index);
+		FD3D12Texture* D3D12Texture = FD3D12CommandContext::RetrieveTexture(InTexture, GpuIndex);
+		check(D3D12Texture);
+		FD3D12ShaderResourceView* D3D12ShaderResourceView = D3D12Texture->GetShaderResourceView();
+
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+		if (bBindlessResources)
+		{
+			Context.StateCache.QueueBindlessSRV(Frequency, D3D12ShaderResourceView);
+		}
+		else
+#endif
+		{
+			Context.StateCache.SetShaderResourceView(Frequency, D3D12ShaderResourceView, Index);
+		}
 	}
 
-	void SetSampler(FRHISamplerState* Sampler, uint8 Index)
+	void SetSampler(FRHISamplerState* Sampler, uint32 Index)
 	{
-		Context.StateCache.SetSamplerState(Frequency, FD3D12CommandContext::RetrieveObject<FD3D12SamplerState>(Sampler, GpuIndex), Index);
+		FD3D12SamplerState* D3D12SamplerState = FD3D12CommandContext::RetrieveObject<FD3D12SamplerState>(Sampler, GpuIndex);
+
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+		if (bBindlessSamplers)
+		{
+			// Nothing to do, only needs constants set
+		}
+		else
+#endif
+		{
+			Context.StateCache.SetSamplerState(Frequency, D3D12SamplerState, Index);
+		}
 	}
 };
 
@@ -1022,6 +1082,8 @@ static void SetShaderParametersOnContext(
 		ConstantBuffer.UpdateConstant(&InParametersData[Parameter.ByteOffset], Parameter.BaseIndex, Parameter.ByteSize);
 	}
 
+	FD3D12ResourceBinder Binder(Context, ShaderFrequency, GetShaderData(Shader));
+
 #if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 	for (const FRHIShaderParameterResource& Parameter : InBindlessParameters)
 	{
@@ -1032,42 +1094,27 @@ static void SetShaderParametersOnContext(
 			switch (Parameter.Type)
 			{
 			case FRHIShaderParameterResource::EType::Texture:
-			{
 				Handle = static_cast<FRHITexture*>(Resource)->GetDefaultBindlessHandle();
-				StateCache.QueueBindlessSRV(ShaderFrequency, GetShaderResourceViewFromTexture(Resource, GpuIndex));
-			}
-			break;
+				Binder.SetTexture(static_cast<FRHITexture*>(Resource), Parameter.Index);
+				break;
 			case FRHIShaderParameterResource::EType::ResourceView:
-			{
 				Handle = static_cast<FRHIShaderResourceView*>(Resource)->GetBindlessHandle();
-				StateCache.QueueBindlessSRV(ShaderFrequency, FD3D12CommandContext::RetrieveObject<FD3D12ShaderResourceView>(Parameter.Resource, GpuIndex));
-			}
-			break;
+				Binder.SetSRV(static_cast<FRHIShaderResourceView*>(Resource), Parameter.Index);
+				break;
 			case FRHIShaderParameterResource::EType::UnorderedAccessView:
-			{
 				Handle = static_cast<FRHIUnorderedAccessView*>(Resource)->GetBindlessHandle();
-				FD3D12UnorderedAccessView* UAV = FD3D12CommandContext::RetrieveObject<FD3D12UnorderedAccessView>(Parameter.Resource, GpuIndex);
-				Context.ClearShaderResources(UAV);
-				StateCache.QueueBindlessUAV(ShaderFrequency, UAV);
-			}
-			break;
+				Binder.SetUAV(static_cast<FRHIUnorderedAccessView*>(Resource), Parameter.Index, true);
+				break;
 			case FRHIShaderParameterResource::EType::Sampler:
-			{
 				Handle = static_cast<FRHISamplerState*>(Resource)->GetBindlessHandle();
-			}
-			break;
+				Binder.SetSampler(static_cast<FRHISamplerState*>(Resource), Parameter.Index);
+				break;
 			}
 
-			if (Handle.IsValid())
-			{
-				const uint32 BindlessIndex = Handle.GetIndex();
-				ConstantBuffer.UpdateConstant(reinterpret_cast<const uint8*>(&BindlessIndex), Parameter.Index, 4);
-			}
+			Binder.SetBindlessHandle(Handle, Parameter.Index);
 		}
 	}
 #endif
-
-	FD3D12ResourceBinder Binder(Context, ShaderFrequency);
 
 	for (const FRHIShaderParameterResource& Parameter : InResourceParameters)
 	{
@@ -1453,7 +1500,7 @@ void FD3D12CommandContext::SetResourcesFromTables(const ShaderType* Shader)
 
 	static constexpr EShaderFrequency Frequency = static_cast<EShaderFrequency>(ShaderType::StaticFrequency);
 
-	FD3D12ResourceBinder Binder(*this, Frequency);
+	FD3D12ResourceBinder Binder(*this, Frequency, Shader);
 	UE::RHICore::SetResourcesFromTables(
 		  Binder
 		, *Shader
