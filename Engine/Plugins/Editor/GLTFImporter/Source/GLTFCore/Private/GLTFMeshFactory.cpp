@@ -5,6 +5,7 @@
 
 #include "GLTFMesh.h"
 #include "StaticMeshAttributes.h"
+#include "Util/ColorConstants.h"
 
 namespace GLTF
 {
@@ -560,7 +561,10 @@ namespace GLTF
 
 				if (Colors.Num() > 0)
 				{
-					VertexInstanceColors[VertexInstanceID] = Colors[IndiceIndex];
+					FVector4f Color = Colors[IndiceIndex];
+					// Because the engine will auto convert our vertex colors to sRGB, we need to counter the conversion here to ensure the end result is still linear space
+					UE::Geometry::LinearColors::SRGBToLinear(Color);
+					VertexInstanceColors[VertexInstanceID] = Color;
 				}
 			}
 
