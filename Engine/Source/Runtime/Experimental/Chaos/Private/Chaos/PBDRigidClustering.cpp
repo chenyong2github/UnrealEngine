@@ -827,6 +827,22 @@ namespace Chaos
 			{
 				if (!bFoundFirstRelease)
 				{
+					// Restore some of the momentum of whatever collided with the parent
+					// NOTE: This has to come before HandleRemoveOperationWithClusterLookup, because
+					// in FClusterUnionManager::UpdateAllClusterUnionProperties, the particle is
+					// invalidated with MEvolution.InvalidateParticle, which clears its contacts
+					if (RestoreBreakingMomentumPercent > 0.f)
+					{
+						if (Parent)
+						{
+							TrackBreakingCollision(Parent);
+						}
+						else
+						{
+							TrackBreakingCollision(ClusteredParticle);
+						}
+					}
+
 					ClusterUnionManager.HandleRemoveOperationWithClusterLookup({ ClusteredParticle }, true);
 					bFoundFirstRelease = true;
 				}
@@ -867,19 +883,6 @@ namespace Chaos
 		if (!DeferredRemoveFromClusterUnion.IsEmpty())
 		{
 			ClusterUnionManager.HandleRemoveOperationWithClusterLookup(DeferredRemoveFromClusterUnion, true);
-		}
-
-		// Restore some of the momentum of whatever collided with the parent
-		if (bFoundFirstRelease && RestoreBreakingMomentumPercent > 0.f)
-		{
-			if (Parent)
-			{
-				TrackBreakingCollision(Parent);
-			}
-			else
-			{
-				TrackBreakingCollision(ClusteredParticle);
-			}
 		}
 
 		// if necessary propagate strain through the graph
