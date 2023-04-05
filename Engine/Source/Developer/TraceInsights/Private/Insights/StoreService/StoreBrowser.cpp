@@ -215,7 +215,17 @@ void FStoreBrowser::UpdateTraces()
 
 							const FUtf8StringView Utf8NameView = TraceInfo->GetName();
 							Trace.Name = FString(Utf8NameView);
-							Trace.Uri = FString(TraceInfo->GetUri());
+							FUtf8StringView Uri = TraceInfo->GetUri();
+							if (Uri.Len() > 0)
+							{
+								Trace.Uri = FString(Uri);
+							}
+							else
+							{
+								// Fallback for older versions of UTS which didn't write uri
+								Trace.Uri = FPaths::SetExtension(FPaths::Combine(StoreDirectory, Trace.Name), TEXT(".utrace"));
+								FPaths::MakePlatformFilename(Trace.Uri);
+							}
 
 							Trace.Timestamp = FStoreBrowserTraceInfo::ConvertTimestamp(TraceInfo->GetTimestamp());
 							Trace.Size = TraceInfo->GetSize();

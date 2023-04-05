@@ -2275,14 +2275,8 @@ void STraceStoreWindow::UpdateTrace(FTraceViewModel& InOutTrace, const Insights:
 	InOutTrace.TraceIndex = InSourceTrace.TraceIndex;
 
 	InOutTrace.Name = FText::FromString(InSourceTrace.Name);
-	FString Uri = InSourceTrace.Uri;
-	if (Uri.IsEmpty())
-	{
-		// For backward compatibility to older UTS.
-		Uri = FInsightsManager::Get()->GetStoreDir() + TEXT("/") + InSourceTrace.Name + TEXT(".utrace");
-	}
-	InOutTrace.Uri = FText::FromString(Uri);
-	InOutTrace.DirectoryColor = GetColorByPath(Uri);
+	InOutTrace.Uri = FText::FromString(InSourceTrace.Uri);
+	InOutTrace.DirectoryColor = GetColorByPath(InSourceTrace.Uri);
 
 	InOutTrace.Timestamp = InSourceTrace.Timestamp;
 	InOutTrace.Size = InSourceTrace.Size;
