@@ -2,8 +2,11 @@
 
 #include "WorldPartitionSmartObjectCollectionBuilder.h"
 
+#include "EditorBuildUtils.h"
 #include "FileHelpers.h"
 #include "HAL/PlatformFile.h"
+#include "ISourceControlModule.h"
+#include "Misc/App.h"
 #include "SmartObjectComponent.h"
 #include "PackageSourceControlHelper.h"
 #include "SmartObjectSubsystem.h"
@@ -13,6 +16,8 @@
 #include "WorldPartition/WorldPartitionHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionSmartObjectCollectionBuilder)
+
+#define LOCTEXT_NAMESPACE "SmartObjects"
 
 UWorldPartitionSmartObjectCollectionBuilder::UWorldPartitionSmartObjectCollectionBuilder(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -218,3 +223,35 @@ bool UWorldPartitionSmartObjectCollectionBuilder::PostRun(UWorld* World, FPackag
 	return (bErrorsEncountered == false);
 }
 
+bool UWorldPartitionSmartObjectCollectionBuilder::CanBuildCollections(const UWorld* InWorld, FName BuildOption)
+{
+	return InWorld != nullptr && InWorld->IsPartitionedWorld();
+}
+
+EEditorBuildResult UWorldPartitionSmartObjectCollectionBuilder::BuildCollections(UWorld* InWorld, FName BuildOption)
+{
+	check(InWorld)
+	
+	const FString& PackageToReloadOnSuccess = GetNameSafe(InWorld->GetPackage());
+
+	// Try to provide complete Path, if we can't try with project name
+	const FString ProjectPath = FPaths::IsProjectFilePathSet() ? FPaths::GetProjectFilePath() : FApp::GetProjectName();
+
+	const ISourceControlProvider& SCCProvider = ISourceControlModule::Get().GetProvider();
+
+	const FString Arguments = FString::Printf(TEXT("\"%s\" -run=WorldPartitionBuilderCommandlet %s %s -SCCProvider=%s"),
+			*ProjectPath,
+			*PackageToReloadOnSuccess,
+			TEXT(" -AllowCommandletRendering -Builder=WorldPartitionSmartObjectCollectionBuilder -log=WPSmartObjectCollectionBuilderLog.txt -logcmds=\"LogSmartObject VeryVerbose\""),
+			*SCCProvider.GetName().ToString());
+		
+	const bool bSuccess = FEditorBuildUtils::RunWorldPartitionBuilder(PackageToReloadOnSuccess,
+		LOCTEXT("WorldPartitionBuildSmartObjectCollectionProgress", "Building smart object collections..."),
+		LOCTEXT("WorldPartitionBuildSmartObjectCollectionCancelled", "Building smart object collections cancelled!"),
+		LOCTEXT("WorldPartitionBuildSmartObjectCollectionFailed", "Errors occured during the build process, please refer to the logs ('WPSmartObjectCollectionBuilderLog.txt')."),
+		Arguments);
+	
+	return bSuccess ? EEditorBuildResult::Success : EEditorBuildResult::Skipped;
+}
+
+#undef LOCTEXT_NAMESPACE

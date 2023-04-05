@@ -2,6 +2,7 @@
 
 #include "SmartObjectsEditorModule.h"
 
+#include "EditorBuildUtils.h"
 #include "PropertyEditorModule.h"
 #include "SmartObjectComponent.h"
 #include "SmartObjectComponentVisualizer.h"
@@ -11,8 +12,14 @@
 #include "Customizations/SmartObjectSlotDefinitionDetails.h"
 #include "Customizations/SmartObjectSlotReferenceDetails.h"
 #include "Customizations/SmartObjectDefinitionDetails.h"
+#include "WorldPartitionSmartObjectCollectionBuilder.h"
 
 #define LOCTEXT_NAMESPACE "SmartObjects"
+
+namespace UE::SmartObject
+{
+	FName EditorBuildType(TEXT("SmartObjectCollections"));
+}
 
 class FSmartObjectsEditorModule : public ISmartObjectsEditorModule
 {
@@ -40,10 +47,22 @@ void FSmartObjectsEditorModule::StartupModule()
 
 	// Register component visualizer for SmartObjectComponent
 	RegisterComponentVisualizer(USmartObjectComponent::StaticClass()->GetFName(), MakeShareable(new FSmartObjectComponentVisualizer));
+
+	// Register Editor build type	
+	FEditorBuildUtils::RegisterCustomBuildType(
+		UE::SmartObject::EditorBuildType,
+		FCanDoEditorBuildDelegate::CreateStatic(&UWorldPartitionSmartObjectCollectionBuilder::CanBuildCollections),
+		FDoEditorBuildDelegate::CreateStatic(&UWorldPartitionSmartObjectCollectionBuilder::BuildCollections),
+		/*BuildAllExtensionPoint*/NAME_None,
+		/*MenuEntryLabel*/LOCTEXT("BuildCollections", "Build Smart Object Collections"),
+		/*MenuSectionLabel*/LOCTEXT("Gameplay", "Gameplay"));
 }
 
 void FSmartObjectsEditorModule::ShutdownModule()
 {
+	// Unregister Editor build type
+	FEditorBuildUtils::UnregisterCustomBuildType(UE::SmartObject::EditorBuildType);
+
 	// Unregister the details customization
 	if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
 	{
