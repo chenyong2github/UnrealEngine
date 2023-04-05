@@ -399,7 +399,7 @@ namespace EpicGames.Core
 		}
 	}
 
-	public class JsonTracer : ITracer
+	public class JsonTracer : ITracer, IDisposable
 	{
 		private class LocalEventListener : EventListener
 		{
@@ -460,6 +460,11 @@ namespace EpicGames.Core
 			ScopeManager = new AsyncLocalScopeManager();
 			_telemetryDir = telemetryDir;
 			_eventListener.EventWritten += EventListenerEventWritten;
+		}
+
+		public void Dispose()
+		{
+			_eventListener.Dispose();
 		}
 
 		private static int GetEventIntPayload(EventWrittenEventArgs e, string payloadName, ref int? payloadIndex)

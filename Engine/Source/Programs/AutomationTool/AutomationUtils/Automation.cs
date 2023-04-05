@@ -178,6 +178,7 @@ namespace AutomationTool
 					if (Tracer != null)
 					{
 						Tracer.Flush();
+						Tracer.Dispose();
 					}
 				}
 			}
