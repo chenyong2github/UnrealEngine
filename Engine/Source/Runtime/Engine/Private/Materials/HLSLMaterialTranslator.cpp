@@ -3262,6 +3262,17 @@ int32 FHLSLMaterialTranslator::ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel
 	return 0;
 }
 
+int32 FHLSLMaterialTranslator::ErrorUnlessPlatformSupports(const bool (*SupportFunction)(const FStaticShaderPlatform Platform), const TCHAR* ConditionString)
+{
+	if (!SupportFunction(Platform))
+	{
+		FString ShaderPlatformName = FDataDrivenShaderPlatformInfo::GetName(Platform).ToString();
+		return Errorf(TEXT("Node not supported in shader platform %s. The node requires %s support."), *ShaderPlatformName, ConditionString);
+	}
+
+	return 0;
+}
+
 int32 FHLSLMaterialTranslator::NonVertexShaderExpressionError()
 {
 	return Errorf(TEXT("Invalid node used in pixel/hull/domain shader input!"));
@@ -10528,7 +10539,7 @@ int32 FHLSLMaterialTranslator::GetHairColorFromMelanin(int32 Melanin, int32 Redn
 
 int32 FHLSLMaterialTranslator::DistanceToNearestSurface(int32 PositionArg)
 {
-	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
+	if (ErrorUnlessPlatformSupports(FDataDrivenShaderPlatformInfo::GetSupportsDistanceFields, TEXT("DistanceField")) == INDEX_NONE)
 	{
 		return INDEX_NONE;
 	}
@@ -10545,7 +10556,7 @@ int32 FHLSLMaterialTranslator::DistanceToNearestSurface(int32 PositionArg)
 
 int32 FHLSLMaterialTranslator::DistanceFieldGradient(int32 PositionArg)
 {
-	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
+	if (ErrorUnlessPlatformSupports(FDataDrivenShaderPlatformInfo::GetSupportsDistanceFields, TEXT("DistanceField")) == INDEX_NONE)
 	{
 		return INDEX_NONE;
 	}
@@ -10562,7 +10573,7 @@ int32 FHLSLMaterialTranslator::DistanceFieldGradient(int32 PositionArg)
 
 int32 FHLSLMaterialTranslator::DistanceFieldApproxAO(int32 PositionArg, int32 NormalArg, int32 BaseDistanceArg, int32 RadiusArg, uint32 NumSteps, float StepScale)
 {
-	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
+	if (ErrorUnlessPlatformSupports(FDataDrivenShaderPlatformInfo::GetSupportsDistanceFields, TEXT("DistanceField")) == INDEX_NONE)
 	{
 		return INDEX_NONE;
 	}

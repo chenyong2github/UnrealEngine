@@ -614,6 +614,7 @@ protected:
 	int32 NonPixelShaderExpressionError();
 
 	int32 ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::Type RequiredFeatureLevel);
+	int32 ErrorUnlessPlatformSupports(const bool (*SupportFunction)(const FStaticShaderPlatform Platform), const TCHAR* ConditionString);
 
 	int32 NonVertexShaderExpressionError();
 	int32 NonVertexOrPixelShaderExpressionError();

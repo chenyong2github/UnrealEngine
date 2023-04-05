@@ -28,6 +28,7 @@
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"
 #include "VisualizeTexture.h"
+#include "DataDrivenShaderPlatformInfo.h"
 
 /** Number of cone traced directions. */
 static const int32 NumConeSampleDirections = 9;
@@ -66,6 +67,11 @@ FVector2f JitterOffsets[4] =
 
 extern float GAOConeHalfAngle;
 extern bool DistanceFieldAOUseHistory(const FViewInfo& View);
+
+bool ShouldCompileDFScreenGridLightingShaders(EShaderPlatform ShaderPlatform)
+{
+	return ShouldCompileDistanceFieldShaders(ShaderPlatform) && !IsMobilePlatform(ShaderPlatform);
+}
 
 FVector2f GetJitterOffset(const FViewInfo& View)
 {
@@ -157,7 +163,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
+		return ShouldCompileDFScreenGridLightingShaders(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -200,7 +206,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
+		return ShouldCompileDFScreenGridLightingShaders(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -238,7 +244,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
+		return ShouldCompileDFScreenGridLightingShaders(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

@@ -66,7 +66,7 @@ bool ShouldAllPrimitivesHaveDistanceField(EShaderPlatform ShaderPlatform)
 
 bool ShouldCompileDistanceFieldShaders(EShaderPlatform ShaderPlatform)
 {
-	return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldAO(ShaderPlatform) && IsUsingDistanceFields(ShaderPlatform);
+	return DoesPlatformSupportDistanceFieldAO(ShaderPlatform) && IsUsingDistanceFields(ShaderPlatform);
 }
 
 
@@ -955,6 +955,10 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	GlobalDistanceFieldCoverageAtlasTexture = BlackVolume;
 	GlobalDistanceFieldPageTableTexture = BlackVolume;
 	GlobalDistanceFieldMipTexture = BlackVolume;
+
+	GlobalDistanceFieldPageAtlasTextureSampler = TStaticSamplerState<SF_Trilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
+	GlobalDistanceFieldCoverageAtlasTextureSampler = TStaticSamplerState<SF_Trilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
+	GlobalDistanceFieldMipTextureSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	SharedPointWrappedSampler = TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 	SharedPointClampedSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

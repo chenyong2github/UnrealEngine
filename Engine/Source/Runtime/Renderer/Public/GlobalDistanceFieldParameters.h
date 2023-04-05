@@ -66,6 +66,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FGlobalDistanceFieldParameters2, )
 	SHADER_PARAMETER(float, NotCoveredMinStepScale)
 	SHADER_PARAMETER(float, DitheredTransparencyStepThreshold)
 	SHADER_PARAMETER(float, DitheredTransparencyTraceThreshold)
+	SHADER_PARAMETER_SAMPLER(SamplerState, GlobalDistanceFieldCoverageAtlasTextureSampler)
+	SHADER_PARAMETER_SAMPLER(SamplerState, GlobalDistanceFieldPageAtlasTextureSampler)
+	SHADER_PARAMETER_SAMPLER(SamplerState, GlobalDistanceFieldMipTextureSampler)
 END_SHADER_PARAMETER_STRUCT()
 
 FGlobalDistanceFieldParameters2 SetupGlobalDistanceFieldParameters(const FGlobalDistanceFieldParameterData& ParameterData);

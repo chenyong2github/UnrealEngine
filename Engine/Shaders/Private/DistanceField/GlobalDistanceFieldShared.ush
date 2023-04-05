@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
-
 #if IS_MATERIAL_SHADER
 	#define DISTANCE_FIELD_IN_VIEW_UB 1
 #endif
@@ -69,6 +67,22 @@
 	float NotCoveredMinStepScale;
 	float DitheredTransparencyStepThreshold;
 	float DitheredTransparencyTraceThreshold;
+#endif
+
+#if SUPPORTS_INDEPENDENT_SAMPLERS
+	#define GlobalDistanceFieldCoverageAtlasTextureSampler GlobalTrilinearWrappedSampler
+	#define GlobalDistanceFieldPageAtlasTextureSampler GlobalTrilinearWrappedSampler
+	#define GlobalDistanceFieldMipTextureSampler GlobalTrilinearClampedSampler
+#else
+	#if DISTANCE_FIELD_IN_VIEW_UB
+		#define GlobalDistanceFieldCoverageAtlasTextureSampler View.GlobalDistanceFieldCoverageAtlasTextureSampler
+		#define GlobalDistanceFieldPageAtlasTextureSampler View.GlobalDistanceFieldPageAtlasTextureSampler
+		#define GlobalDistanceFieldMipTextureSampler View.GlobalDistanceFieldMipTextureSampler
+	#else
+		SamplerState GlobalDistanceFieldCoverageAtlasTextureSampler;
+		SamplerState GlobalDistanceFieldPageAtlasTextureSampler;
+		SamplerState GlobalDistanceFieldMipTextureSampler;
+	#endif
 #endif
 
 // Must match GlobalDistanceField.cpp
@@ -218,7 +232,7 @@ float GetDistanceToNearestSurfaceGlobal(float3 TranslatedWorldPosition)
 			{
 				float3 PageUV = ComputeGlobalDistanceFieldPageUV(ClipmapVolumeUV, Page);
 
-				float DistanceFieldValue = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, PageUV, 0).x;
+				float DistanceFieldValue = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalDistanceFieldPageAtlasTextureSampler, PageUV, 0).x;
 
 				if (DistanceFieldValue < 1.0f)
 				{
@@ -247,7 +261,7 @@ float SampleGlobalDistanceField(float3 TranslatedWorldPosition, float MaxDistanc
 		{
 			float3 PageUV = ComputeGlobalDistanceFieldPageUV(ClipmapVolumeUV, Page);
 
-			float DistanceFieldValue = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, PageUV, 0).x;
+			float DistanceFieldValue = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalDistanceFieldPageAtlasTextureSampler, PageUV, 0).x;
 
 			if (DistanceFieldValue < 1.0f)
 			{
@@ -271,7 +285,7 @@ float GlobalDistanceFieldSampleClipmap(float3 ClipmapVolumeUV, uint ClipmapIndex
 	if (Page.bValid)
 	{
 		float3 PageUV = ComputeGlobalDistanceFieldPageUV(ClipmapVolumeUV, Page);
-		DistanceFieldValue = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, PageUV, 0).x;
+		DistanceFieldValue = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalDistanceFieldPageAtlasTextureSampler, PageUV, 0).x;
 	}
 
 	return DistanceFieldValue;
@@ -320,7 +334,7 @@ float3 GetDistanceFieldGradientGlobal(float3 TranslatedWorldPosition)
 			{
 				float3 PageUV = ComputeGlobalDistanceFieldPageUV(ClipmapVolumeUV, Page);
 
-				float DistanceFieldValue = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, PageUV, 0).x;
+				float DistanceFieldValue = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalDistanceFieldPageAtlasTextureSampler, PageUV, 0).x;
 
 				// Find a page which where narrow band isn't clipped
 				if (DistanceFieldValue < 0.9f)
@@ -418,4 +432,3 @@ float3 GetDistanceFieldGradientGlobal(FLWCVector3 WorldPosition)
 	return GetDistanceFieldGradientGlobal(TranslatedWorldPosition);
 }
 
-#endif // FEATURE_LEVEL >= FEATURE_LEVEL_SM5
