@@ -1120,14 +1120,6 @@ static TAutoConsoleVariable<int32> CVarD3DForceDXC(
 	TEXT(" 1: Force new compiler for all shaders"),
 	ECVF_ReadOnly);
 
-static TAutoConsoleVariable<int32> CVarD3DForceShaderConductorDXCRewrite(
-	TEXT("r.D3D.ForceShaderConductorDXCRewrite"),
-	0,
-	TEXT("Forces rewriting using ShaderConductor when DXC is enabled.\n")
-	TEXT(" 0: Do not rewrite (default)\n")
-	TEXT(" 1: Force ShaderConductor rewrite"),
-	ECVF_ReadOnly);
-
 static TAutoConsoleVariable<int32> CVarOpenGLForceDXC(
 	TEXT("r.OpenGL.ForceDXC"),
 	1,
@@ -6243,10 +6235,6 @@ void GlobalBeginCompileShader(
 			Input.Environment.CompilerFlags.Add(CFLAG_AllowTypedUAVLoads);
 		}
 
-		if (CVarD3DForceShaderConductorDXCRewrite.GetValueOnAnyThread() != 0)
-		{
-			Input.Environment.CompilerFlags.Add(CFLAG_D3D12ForceShaderConductorRewrite);
-		}
 		{
 			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D.CheckedForTypedUAVs"));
 			if (CVar && CVar->GetInt() == 0)

@@ -614,93 +614,6 @@ static bool DXCRewriteWrapper(
 #endif
 }
 
-static const TCHAR* GRewrittenBaseFilename = TEXT("Output.dxc.hlsl");
-static bool RewriteUsingSC(FString& PreprocessedShaderSource, const FShaderCompilerInput& Input, bool bIsRayTracingShader,
-	bool bDumpDebugInfo, ELanguage Language, FShaderCompilerOutput& Output)
-{
-	bool bResult = true;
-	if (bIsRayTracingShader)
-	{
-		bResult = false;
-	}
-	else
-	{
-		// Set up compile options for ShaderConductor (shader model, optimization settings etc.)
-		ShaderConductor::Compiler::Options Options;
-		Options.removeUnusedGlobals = false;
-		Options.packMatricesInRowMajor = false;
-		Options.enableDebugInfo = false;
-		Options.enable16bitTypes = false;
-		Options.disableOptimizations = false;
-		Options.shaderModel = ToDXCShaderModel(Language);
-
-		// Convert input source code from TCHAR to ANSI
-		std::string CStrSourceData(TCHAR_TO_ANSI(*PreprocessedShaderSource));
-		std::string CStrFileName(TCHAR_TO_ANSI(*Input.VirtualSourceFilePath));
-		std::string CStrEntryPointName(TCHAR_TO_ANSI(*Input.EntryPointName));
-
-		const ShaderConductor::MacroDefine BuiltinDefines[] =
-		{
-//			{ "COMPILER_HLSL", "1" },
-			{ "TextureExternal", "Texture2D" },
-		};
-
-		// Set up source description for ShaderConductor
-		ShaderConductor::Compiler::SourceDesc SourceDesc;
-		FMemory::Memzero(SourceDesc);
-		SourceDesc.source = CStrSourceData.c_str();
-		SourceDesc.fileName = CStrFileName.c_str();
-		SourceDesc.entryPoint = CStrEntryPointName.c_str();
-		SourceDesc.numDefines = sizeof(BuiltinDefines) / sizeof(BuiltinDefines[0]);
-		SourceDesc.defines = BuiltinDefines;
-		SourceDesc.stage = ToDXCShaderStage(Input.Target.GetFrequency());
-
-		ShaderConductor::Compiler::TargetDesc TargetDesc;
-		FMemory::Memzero(TargetDesc);
-		TargetDesc.language = ShaderConductor::ShadingLanguage::Dxil;
-
-		// Rewrite HLSL source to remove unused global variables (DXC retains them when compiling)
-		Options.removeUnusedGlobals = true;
-		bool bException = false;
-		ShaderConductor::Compiler::ResultDesc RewriteResultDesc;
-		DXCRewriteWrapper(SourceDesc, Options, RewriteResultDesc, bException);
-		Options.removeUnusedGlobals = false;
-		if (RewriteResultDesc.hasError || bException)
-		{
-			if (bException)
-			{
-				Output.Errors.Add(TEXT("ShaderConductor exception during rewrite"));
-			}
-			// Append compile error to output reports
-			if (RewriteResultDesc.errorWarningMsg.Size() > 0)
-			{
-				FUTF8ToTCHAR UTF8Converter(reinterpret_cast<const ANSICHAR*>(RewriteResultDesc.errorWarningMsg.Data()), RewriteResultDesc.errorWarningMsg.Size());
-				const FString ErrorString(RewriteResultDesc.errorWarningMsg.Size(), UTF8Converter.Get());
-				Output.Errors.Add(*ErrorString);
-				RewriteResultDesc.errorWarningMsg.Reset();
-				bResult = false;
-			}
-		}
-		else
-		{
-			// Copy rewritten HLSL code into new source data string
-			CStrSourceData.clear();
-			CStrSourceData.resize(RewriteResultDesc.target.Size());
-			FCStringAnsi::Strncpy(&CStrSourceData[0], static_cast<const char*>(RewriteResultDesc.target.Data()), RewriteResultDesc.target.Size());
-			PreprocessedShaderSource = CStrSourceData.c_str();
-
-			if (bDumpDebugInfo)
-			{
-				UE::ShaderCompilerCommon::FDebugShaderDataOptions DebugDataOptions;
-				DebugDataOptions.OverrideBaseFilename = GRewrittenBaseFilename;
-				UE::ShaderCompilerCommon::DumpDebugShaderData(Input, PreprocessedShaderSource, DebugDataOptions);
-			}
-		}
-	}
-
-	return bResult;
-}
-
 // Generate the dumped usf file; call the D3D compiler, gather reflection information and generate the output data
 bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 	const uint32 CompileFlags,
@@ -756,14 +669,6 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 	bool bDumpDebugInfo = Input.DumpDebugInfoEnabled(); 
 
 	FString Filename = Input.GetSourceFilename();
-
-	if (Input.Environment.CompilerFlags.Contains(CFLAG_D3D12ForceShaderConductorRewrite))
-	{
-		if (RewriteUsingSC(PreprocessedShaderSource, Input, bIsRayTracingShader, bDumpDebugInfo, Language, Output))
-		{
-			Filename = GRewrittenBaseFilename;
-		}
-	}
 
 	FString DisasmFilename;
 	if (bDumpDebugInfo)
