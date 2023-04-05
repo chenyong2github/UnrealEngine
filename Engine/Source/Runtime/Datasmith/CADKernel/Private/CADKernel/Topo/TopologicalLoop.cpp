@@ -3,7 +3,6 @@
 #include "CADKernel/Topo/TopologicalLoop.h"
 
 #include "Algo/AllOf.h"
-#include "CADKernel/Core/KernelParameters.h"
 #include "CADKernel/Geo/Curves/RestrictionCurve.h"
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Math/SlopeUtils.h"

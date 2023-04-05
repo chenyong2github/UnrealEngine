@@ -2,7 +2,6 @@
 
 #include "CADKernel/Topo/TopologicalFace.h"
 
-#include "CADKernel/Core/KernelParameters.h"
 #include "CADKernel/Core/System.h"
 #include "CADKernel/Geo/Curves/RestrictionCurve.h"
 #include "CADKernel/Geo/Curves/SegmentCurve.h"

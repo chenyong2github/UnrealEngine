@@ -2,7 +2,6 @@
 
 #include "CADKernel/Geo/Surfaces/PlaneSurface.h"
 
-#include "CADKernel/Core/KernelParameters.h"
 #include "CADKernel/Core/System.h"
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Geo/Sampling/SurfacicSampling.h"

@@ -2,7 +2,6 @@
 
 #include "CADKernel/Topo/TopologicalEdge.h"
 
-#include "CADKernel/Core/KernelParameters.h"
 #include "CADKernel/Geo/Curves/NURBSCurve.h"
 #include "CADKernel/Geo/Curves/SegmentCurve.h"
 #include "CADKernel/Geo/GeoEnum.h"

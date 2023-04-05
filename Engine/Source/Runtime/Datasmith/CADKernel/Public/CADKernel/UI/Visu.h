@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#ifdef CADKERNEL_DEV
 #include "CADKernel/Core/Parameter.h"
 #include "CADKernel/Core/Parameters.h"
+#endif
+
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Math/Point.h"
 
@@ -43,6 +46,8 @@ extern const TCHAR* VisuPropertyNames[];
 
 class FMesh;
 
+#ifdef CADKERNEL_DEV
+
 class CADKERNEL_API FVisuParameters : public FParameters
 {
 public:
@@ -78,11 +83,14 @@ public:
 		, NormalLength(TEXT("NormalLength"), 10., *this)
 	{}
 };
+#endif
 
 class CADKERNEL_API FVisu
 {
 protected:
+#ifdef CADKERNEL_DEV
 	FVisuParameters Parameters;
+#endif
 
 	/**
 	 * Number of graphic session opened
@@ -118,10 +126,12 @@ public:
 		return EVisuProperty::Last;
 	}
 
+#ifdef CADKERNEL_DEV
 	FVisuParameters* GetParameters()
 	{
 		return &Parameters;
 	}
+#endif
 
 	virtual void NewDB(const TCHAR* InName)
 	{}

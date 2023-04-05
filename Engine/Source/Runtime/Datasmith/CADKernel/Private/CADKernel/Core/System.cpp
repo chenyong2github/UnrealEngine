@@ -3,7 +3,6 @@
 
 #include "CADKernel/Core/Database.h"
 #include "CADKernel/Core/Entity.h"
-#include "CADKernel/Core/KernelParameters.h"
 #include "CADKernel/UI/Visu.h"
 #include "CADKernel/Utils/Util.h"
 
@@ -23,12 +22,13 @@ namespace UE::CADKernel
 TUniquePtr<FSystem> FSystem::Instance = nullptr;
 
 FSystem::FSystem()
-	: Parameters(MakeShared<FKernelParameters>())
-	, DefaultVisu()
+	: DefaultVisu()
 	, Viewer(&DefaultVisu)
 	, Console(&DefaultConsole)
 	, ProgressManager(&DefaultProgressManager)
-
+#ifdef CADKERNEL_DEV
+	, Parameters(MakeShared<FKernelParameters>())
+#endif
 {
 	LogLevel = Log;
 	VerboseLevel = Log;

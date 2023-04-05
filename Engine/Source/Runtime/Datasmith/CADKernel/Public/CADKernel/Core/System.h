@@ -22,8 +22,6 @@ protected:
 
 	FString ProductName = FString(TEXT("CADKernel"));
 
-	TSharedRef<FKernelParameters> Parameters;
-
 	FVisu DefaultVisu;
 	FVisu* Viewer;
 
@@ -40,6 +38,7 @@ protected:
 	TSharedPtr<FArchive> SpyFile;
 
 #if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
+	TSharedRef<FKernelParameters> Parameters;
 	TSharedPtr<FArchive> ReportFile;
 	TSharedPtr<FArchive> ReportHeaderFile;
 #endif
@@ -91,11 +90,6 @@ public:
 		ProgressManager = InProgressManager;
 	}
 
-	TSharedRef<FKernelParameters> GetParameters()
-	{
-		return Parameters;
-	}
-
 	EVerboseLevel GetVerboseLevel() const
 	{
 		return VerboseLevel;
@@ -125,8 +119,12 @@ public:
 		return SpyFile;
 	}
 
-
 #if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
+	TSharedRef<FKernelParameters> GetParameters()
+	{
+		return Parameters;
+	}
+
 	void DefineReportFile(const FString& InLogFilePath);
 	TSharedPtr<FArchive> GetReportFile() const
 	{

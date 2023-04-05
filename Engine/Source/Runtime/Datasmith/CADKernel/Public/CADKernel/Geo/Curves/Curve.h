@@ -4,7 +4,6 @@
 #include "CADKernel/Core/CADKernelArchive.h"
 #include "CADKernel/Core/Entity.h"
 #include "CADKernel/Core/EntityGeom.h"
-#include "CADKernel/Core/Parameters.h"
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Geo/GeoPoint.h"

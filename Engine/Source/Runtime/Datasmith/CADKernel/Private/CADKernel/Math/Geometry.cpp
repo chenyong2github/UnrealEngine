@@ -2,7 +2,6 @@
 
 #include "CADKernel/Math/Geometry.h"
 
-#include "CADKernel/Core/KernelParameters.h" 
 #include "CADKernel/Core/System.h"
 #include "CADKernel/Math/Geometry.h"
 #include "CADKernel/Math/Point.h"

@@ -2,7 +2,6 @@
 
 #include "CADKernel/Geo/Curves/CompositeCurve.h"
 
-#include "CADKernel/Core/KernelParameters.h"
 #include "CADKernel/Core/System.h"
 #include "CADKernel/Math/Boundary.h"
 #include "CADKernel/Geo/GeoPoint.h"

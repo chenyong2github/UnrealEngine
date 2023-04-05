@@ -7,7 +7,6 @@
 #include "CADKernel/Mesh/Criteria/SagCriterion.h"
 #include "CADKernel/Mesh/Criteria/SizeCriterion.h"
 
-#include "CADKernel/Core/KernelParameters.h"
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Topo/TopologicalEdge.h"
 
