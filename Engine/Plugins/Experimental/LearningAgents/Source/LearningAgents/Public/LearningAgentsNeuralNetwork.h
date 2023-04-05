@@ -1,0 +1,54 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Engine/DataAsset.h"
+
+#include "LearningAgentsNeuralNetwork.generated.h"
+
+namespace UE::Learning
+{
+	struct FNeuralNetwork;
+	enum class EActivationFunction : uint8;
+}
+
+//------------------------------------------------------------------
+
+UENUM(BlueprintType, Category = "LearningAgents")
+enum class ELearningAgentsActivationFunction : uint8
+{
+	/** ReLU Activation - Fast to train and evaluate but occasionally causes gradient collapse and untrainable networks. */
+	ReLU	UMETA(DisplayName = "ReLU"),
+
+	/** ELU Activation - Generally performs better than ReLU and is not prone to gradient collapse but slower to evaluate. */
+	ELU		UMETA(DisplayName = "ELU"),
+
+	/** TanH Activation - Smooth activation function that is slower to train and evaluate but sometimes more stable for certain tasks. */
+	TanH	UMETA(DisplayName = "TanH"),
+};
+
+//------------------------------------------------------------------
+
+namespace UE::Learning::Agents
+{
+	LEARNINGAGENTS_API ELearningAgentsActivationFunction GetLearningAgentsActivationFunction(const EActivationFunction ActivationFunction);
+	LEARNINGAGENTS_API EActivationFunction GetActivationFunction(const ELearningAgentsActivationFunction ActivationFunction);
+}
+
+//------------------------------------------------------------------
+
+UCLASS(BlueprintType)
+class LEARNINGAGENTS_API ULearningAgentsNeuralNetwork : public UDataAsset
+{
+	GENERATED_BODY()
+
+public:
+	// These constructors/destructors are needed to make forward declarations happy
+	ULearningAgentsNeuralNetwork();
+	ULearningAgentsNeuralNetwork(FVTableHelper& Helper);
+	virtual ~ULearningAgentsNeuralNetwork();
+
+	virtual void Serialize(FArchive& Ar) override;
+
+	TSharedPtr<UE::Learning::FNeuralNetwork> NeuralNetwork;
+};

@@ -31,6 +31,14 @@ namespace UE::Learning
 			FRWLock* NetworkLock = nullptr,
 			const ELogSetting LogSettings = Trainer::DefaultLogSettings);
 
+		LEARNINGTRAINING_API ETrainerResponse RecvCritic(
+			FSocket& Socket,
+			FNeuralNetwork& OutNetwork,
+			TLearningArrayView<1, uint8> OutNetworkBuffer,
+			const float Timeout = Trainer::DefaultTimeout,
+			FRWLock* NetworkLock = nullptr,
+			const ELogSetting LogSettings = Trainer::DefaultLogSettings);
+
 		LEARNINGTRAINING_API ETrainerResponse SendWithTimeout(
 			FSocket& Socket, 
 			const uint8* Bytes, 
@@ -51,6 +59,14 @@ namespace UE::Learning
 			const float Timeout = Trainer::DefaultTimeout);
 
 		LEARNINGTRAINING_API ETrainerResponse SendPolicy(
+			FSocket& Socket,
+			TLearningArrayView<1, uint8> NetworkBuffer,
+			const FNeuralNetwork& Network,
+			const float Timeout = Trainer::DefaultTimeout,
+			FRWLock* NetworkLock = nullptr,
+			const ELogSetting LogSettings = Trainer::DefaultLogSettings);
+
+		LEARNINGTRAINING_API ETrainerResponse SendCritic(
 			FSocket& Socket,
 			TLearningArrayView<1, uint8> NetworkBuffer,
 			const FNeuralNetwork& Network,

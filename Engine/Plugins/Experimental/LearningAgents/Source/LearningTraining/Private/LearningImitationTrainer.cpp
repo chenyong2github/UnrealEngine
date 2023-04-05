@@ -94,6 +94,7 @@ int32 ULearningSocketImitationTrainerServerCommandlet::Main(const FString& Comma
 		IntermediatePath,
 		IpAddress,
 		Port,
+		UE::Learning::ESubprocessFlags::None,
 		LogSettings);
 
 	while (ServerProcess.IsRunning())
@@ -112,24 +113,27 @@ namespace UE::Learning
 		const FString& SitePackagesPath,
 		const FString& PythonContentPath,
 		const FString& IntermediatePath,
-		const FNeuralNetwork& Network,
-		const float ActionNoiseMin,
-		const float ActionNoiseMax,
 		const int32 MaxSampleNum,
-		const FImitationTrainerSettings& Settings,
+		const int32 ObservationDimNum,
+		const int32 ActionDimNum,
+		const FImitationTrainerTrainingSettings& TrainingSettings,
+		const FImitationTrainerNetworkSettings& NetworkSettings,
+		const EImitationTrainerFlags TrainerFlags,
+		const ESubprocessFlags TrainingProcessFlags,
 		const ELogSetting LogSettings)
 	{
-		UE_LEARNING_CHECK(Network.GetOutputNum() % 2 == 0);
-
-		const int32 ObservationVectorDimensionNum = Network.GetInputNum();
-		const int32 ActionVectorDimensionNum = Network.GetOutputNum() / 2;
+		const int32 TotalPolicyByteNum = FNeuralNetwork::GetSerializationByteNum(
+			ObservationDimNum,
+			2 * ActionDimNum,
+			NetworkSettings.PolicyHiddenLayerSize,
+			NetworkSettings.PolicyLayerNum);
 
 		// Allocate Shared Memory
 
-		Policy = SharedMemory::Allocate<1, uint8>({ Network.GetTotalByteNum() });
+		Policy = SharedMemory::Allocate<1, uint8>({ TotalPolicyByteNum });
 		Controls = SharedMemory::Allocate<1, volatile int32>({ SharedMemoryTraining::GetControlNum() });
-		Observations = SharedMemory::Allocate<2, float>({ MaxSampleNum, ObservationVectorDimensionNum });
-		Actions = SharedMemory::Allocate<2, float>({ MaxSampleNum, ActionVectorDimensionNum });
+		Observations = SharedMemory::Allocate<2, float>({ MaxSampleNum, ObservationDimNum });
+		Actions = SharedMemory::Allocate<2, float>({ MaxSampleNum, ActionDimNum });
 
 		// We need to zero the control memory before we start
 		// the training sub-process since it may contain uninitialized 
@@ -158,26 +162,28 @@ namespace UE::Learning
 		ConfigObject->SetStringField(TEXT("ObservationsGuid"), *Observations.Guid.ToString(EGuidFormats::DigitsWithHyphensInBraces));
 		ConfigObject->SetStringField(TEXT("ActionsGuid"), *Actions.Guid.ToString(EGuidFormats::DigitsWithHyphensInBraces));
 
-		ConfigObject->SetNumberField(TEXT("ObservationVectorDimensionNum"), ObservationVectorDimensionNum);
-		ConfigObject->SetNumberField(TEXT("ActionVectorDimensionNum"), ActionVectorDimensionNum);
-		ConfigObject->SetNumberField(TEXT("NetworkTotalByteNum"), Network.GetTotalByteNum());
+		ConfigObject->SetNumberField(TEXT("ObservationVectorDimensionNum"), ObservationDimNum);
+		ConfigObject->SetNumberField(TEXT("ActionVectorDimensionNum"), ActionDimNum);
 		ConfigObject->SetNumberField(TEXT("MaxSampleNum"), MaxSampleNum);
-		ConfigObject->SetNumberField(TEXT("HiddenUnitNum"), Network.GetHiddenNum());
-		ConfigObject->SetNumberField(TEXT("LayerNum"), Network.GetLayerNum());
-		ConfigObject->SetStringField(TEXT("ActivationFunction"), ActivationFunctionString(Network.ActivationFunction));
 
-		ConfigObject->SetNumberField(TEXT("ActionNoiseMin"), ActionNoiseMin);
-		ConfigObject->SetNumberField(TEXT("ActionNoiseMax"), ActionNoiseMax);
+		ConfigObject->SetNumberField(TEXT("PolicyNetworkByteNum"), TotalPolicyByteNum);
+		ConfigObject->SetNumberField(TEXT("PolicyHiddenUnitNum"), NetworkSettings.PolicyHiddenLayerSize);
+		ConfigObject->SetNumberField(TEXT("PolicyLayerNum"), NetworkSettings.PolicyLayerNum);
+		ConfigObject->SetStringField(TEXT("PolicyActivationFunction"), GetActivationFunctionString(NetworkSettings.PolicyActivationFunction));
+		ConfigObject->SetNumberField(TEXT("PolicyActionNoiseMin"), NetworkSettings.PolicyActionNoiseMin);
+		ConfigObject->SetNumberField(TEXT("PolicyActionNoiseMax"), NetworkSettings.PolicyActionNoiseMax);
 
-		ConfigObject->SetNumberField(TEXT("IterationNum"), Settings.IterationNum);
-		ConfigObject->SetNumberField(TEXT("LearningRateActor"), Settings.LearningRateActor);
-		ConfigObject->SetNumberField(TEXT("LearningRateDecay"), Settings.LearningRateDecay);
-		ConfigObject->SetNumberField(TEXT("WeightDecay"), Settings.WeightDecay);
-		ConfigObject->SetNumberField(TEXT("BatchSize"), Settings.BatchSize);
-		ConfigObject->SetNumberField(TEXT("Seed"), Settings.Seed);
-		ConfigObject->SetBoolField(TEXT("ReinitializeNetwork"), Settings.bReinitializeNetwork);
-		ConfigObject->SetStringField(TEXT("Device"), Trainer::GetDeviceString(Settings.Device));
-		ConfigObject->SetBoolField(TEXT("UseTensorBoard"), Settings.bUseTensorboard);
+		ConfigObject->SetNumberField(TEXT("IterationNum"), TrainingSettings.IterationNum);
+		ConfigObject->SetNumberField(TEXT("LearningRateActor"), TrainingSettings.LearningRateActor);
+		ConfigObject->SetNumberField(TEXT("LearningRateDecay"), TrainingSettings.LearningRateDecay);
+		ConfigObject->SetNumberField(TEXT("WeightDecay"), TrainingSettings.WeightDecay);
+		ConfigObject->SetNumberField(TEXT("BatchSize"), TrainingSettings.BatchSize);
+		ConfigObject->SetNumberField(TEXT("Seed"), TrainingSettings.Seed);
+		ConfigObject->SetStringField(TEXT("Device"), Trainer::GetDeviceString(TrainingSettings.Device));
+		ConfigObject->SetBoolField(TEXT("UseTensorBoard"), TrainingSettings.bUseTensorboard);
+
+		ConfigObject->SetBoolField(TEXT("UseInitialPolicyNetwork"), (bool)(TrainerFlags & EImitationTrainerFlags::UseInitialPolicyNetwork));
+
 		ConfigObject->SetBoolField(TEXT("LoggingEnabled"), LogSettings == ELogSetting::Silent ? false : true);
 
 		FString JsonString;
@@ -190,10 +196,19 @@ namespace UE::Learning
 
 		const FString CommandLineArguments = FString::Printf(TEXT("\"%s\" SharedMemory \"%s\""), *(PythonContentPath / TEXT("train_imitation.py")), *ConfigPath);
 
-		TrainingProcess = MakeShared<FMonitoredProcess>(PythonExecutiblePath, CommandLineArguments, true, true);
-		TrainingProcess->OnCanceled().BindRaw(this, &FSharedMemoryImitationTrainer::HandleTrainingProcessCanceled);
-		TrainingProcess->OnCompleted().BindRaw(this, &FSharedMemoryImitationTrainer::HandleTrainingProcessCompleted);
-		TrainingProcess->OnOutput().BindStatic(&FSharedMemoryImitationTrainer::HandleTrainingProcessOutput);
+		TrainingProcess = MakeShared<FMonitoredProcess>(
+			PythonExecutiblePath, 
+			CommandLineArguments,
+			!(TrainingProcessFlags & ESubprocessFlags::ShowWindow),
+			!(TrainingProcessFlags & ESubprocessFlags::NoRedirectOutput));
+
+		if (!(TrainingProcessFlags & ESubprocessFlags::NoRedirectOutput))
+		{
+			TrainingProcess->OnCanceled().BindRaw(this, &FSharedMemoryImitationTrainer::HandleTrainingProcessCanceled);
+			TrainingProcess->OnCompleted().BindRaw(this, &FSharedMemoryImitationTrainer::HandleTrainingProcessCompleted);
+			TrainingProcess->OnOutput().BindStatic(&FSharedMemoryImitationTrainer::HandleTrainingProcessOutput);
+		}
+
 		TrainingProcess->Launch();
 	}
 
@@ -333,15 +348,25 @@ namespace UE::Learning
 		const FString& IntermediatePath,
 		const TCHAR* IpAddress,
 		const uint32 Port,
+		const ESubprocessFlags TrainingProcessFlags,
 		const ELogSetting LogSettings)
 	{
 		const FString CommandLineArguments = FString::Printf(TEXT("\"%s\" Socket \"%s:%i\" \"%s\" \"%s\" %i"),
 			*(PythonContentPath / TEXT("train_imitation.py")), IpAddress, Port, *SitePackagesPath, *IntermediatePath, LogSettings == ELogSetting::Normal ? 1 : 0);
 
-		TrainingProcess = MakeShared<FMonitoredProcess>(PythonExecutiblePath, CommandLineArguments, true, true);
-		TrainingProcess->OnCanceled().BindRaw(this, &FSocketImitationTrainerServerProcess::HandleTrainingProcessCanceled);
-		TrainingProcess->OnCompleted().BindRaw(this, &FSocketImitationTrainerServerProcess::HandleTrainingProcessCompleted);
-		TrainingProcess->OnOutput().BindStatic(&FSocketImitationTrainerServerProcess::HandleTrainingProcessOutput);
+		TrainingProcess = MakeShared<FMonitoredProcess>(
+			PythonExecutiblePath, 
+			CommandLineArguments,
+			!(TrainingProcessFlags & ESubprocessFlags::ShowWindow),
+			!(TrainingProcessFlags & ESubprocessFlags::NoRedirectOutput));
+
+		if (!(TrainingProcessFlags & ESubprocessFlags::NoRedirectOutput))
+		{
+			TrainingProcess->OnCanceled().BindRaw(this, &FSocketImitationTrainerServerProcess::HandleTrainingProcessCanceled);
+			TrainingProcess->OnCompleted().BindRaw(this, &FSocketImitationTrainerServerProcess::HandleTrainingProcessCompleted);
+			TrainingProcess->OnOutput().BindStatic(&FSocketImitationTrainerServerProcess::HandleTrainingProcessOutput);
+		}
+
 		TrainingProcess->Launch();
 	}
 
@@ -412,19 +437,21 @@ namespace UE::Learning
 	FSocketImitationTrainer::FSocketImitationTrainer(
 		ETrainerResponse& OutResponse,
 		const FString& TaskName,
-		const FNeuralNetwork& Network,
-		const float ActionNoiseMin,
-		const float ActionNoiseMax,
 		const int32 MaxSampleNum,
+		const int32 ObservationDimNum,
+		const int32 ActionDimNum,
 		const TCHAR* IpAddress,
 		const uint32 Port,
 		const float Timeout,
-		const FImitationTrainerSettings& Settings)
+		const FImitationTrainerTrainingSettings& TrainingSettings,
+		const FImitationTrainerNetworkSettings& NetworkSettings,
+		const EImitationTrainerFlags TrainerFlags)
 	{
-		UE_LEARNING_CHECK(Network.GetOutputNum() % 2 == 0);
-
-		const int32 ObservationVectorDimensionNum = Network.GetInputNum();
-		const int32 ActionVectorDimensionNum = Network.GetOutputNum() / 2;
+		const int32 TotalPolicyByteNum = FNeuralNetwork::GetSerializationByteNum(
+			ObservationDimNum,
+			2 * ActionDimNum,
+			NetworkSettings.PolicyHiddenLayerSize,
+			NetworkSettings.PolicyLayerNum);
 
 		// Write Config
 
@@ -438,26 +465,27 @@ namespace UE::Learning
 		ConfigObject->SetStringField(TEXT("TrainerType"), TrainerType);
 		ConfigObject->SetStringField(TEXT("TimeStamp"), *TimeStamp);
 
-		ConfigObject->SetNumberField(TEXT("ObservationVectorDimensionNum"), ObservationVectorDimensionNum);
-		ConfigObject->SetNumberField(TEXT("ActionVectorDimensionNum"), ActionVectorDimensionNum);
-		ConfigObject->SetNumberField(TEXT("NetworkTotalByteNum"), Network.GetTotalByteNum());
+		ConfigObject->SetNumberField(TEXT("ObservationVectorDimensionNum"), ObservationDimNum);
+		ConfigObject->SetNumberField(TEXT("ActionVectorDimensionNum"), ActionDimNum);
 		ConfigObject->SetNumberField(TEXT("MaxSampleNum"), MaxSampleNum);
-		ConfigObject->SetNumberField(TEXT("HiddenUnitNum"), Network.GetHiddenNum());
-		ConfigObject->SetNumberField(TEXT("LayerNum"), Network.GetLayerNum());
-		ConfigObject->SetStringField(TEXT("ActivationFunction"), ActivationFunctionString(Network.ActivationFunction));
 
-		ConfigObject->SetNumberField(TEXT("ActionNoiseMin"), ActionNoiseMin);
-		ConfigObject->SetNumberField(TEXT("ActionNoiseMax"), ActionNoiseMax);
+		ConfigObject->SetNumberField(TEXT("PolicyNetworkByteNum"), TotalPolicyByteNum);
+		ConfigObject->SetNumberField(TEXT("PolicyHiddenUnitNum"), NetworkSettings.PolicyHiddenLayerSize);
+		ConfigObject->SetNumberField(TEXT("PolicyLayerNum"), NetworkSettings.PolicyLayerNum);
+		ConfigObject->SetStringField(TEXT("PolicyActivationFunction"), GetActivationFunctionString(NetworkSettings.PolicyActivationFunction));
+		ConfigObject->SetNumberField(TEXT("PolicyActionNoiseMin"), NetworkSettings.PolicyActionNoiseMin);
+		ConfigObject->SetNumberField(TEXT("PolicyActionNoiseMax"), NetworkSettings.PolicyActionNoiseMax);
 
-		ConfigObject->SetNumberField(TEXT("IterationNum"), Settings.IterationNum);
-		ConfigObject->SetNumberField(TEXT("LearningRateActor"), Settings.LearningRateActor);
-		ConfigObject->SetNumberField(TEXT("LearningRateDecay"), Settings.LearningRateDecay);
-		ConfigObject->SetNumberField(TEXT("WeightDecay"), Settings.WeightDecay);
-		ConfigObject->SetNumberField(TEXT("BatchSize"), Settings.BatchSize);
-		ConfigObject->SetNumberField(TEXT("Seed"), Settings.Seed);
-		ConfigObject->SetBoolField(TEXT("ReinitializeNetwork"), Settings.bReinitializeNetwork);
-		ConfigObject->SetStringField(TEXT("Device"), Trainer::GetDeviceString(Settings.Device));
-		ConfigObject->SetBoolField(TEXT("UseTensorBoard"), Settings.bUseTensorboard);
+		ConfigObject->SetNumberField(TEXT("IterationNum"), TrainingSettings.IterationNum);
+		ConfigObject->SetNumberField(TEXT("LearningRateActor"), TrainingSettings.LearningRateActor);
+		ConfigObject->SetNumberField(TEXT("LearningRateDecay"), TrainingSettings.LearningRateDecay);
+		ConfigObject->SetNumberField(TEXT("WeightDecay"), TrainingSettings.WeightDecay);
+		ConfigObject->SetNumberField(TEXT("BatchSize"), TrainingSettings.BatchSize);
+		ConfigObject->SetNumberField(TEXT("Seed"), TrainingSettings.Seed);
+		ConfigObject->SetStringField(TEXT("Device"), Trainer::GetDeviceString(TrainingSettings.Device));
+		ConfigObject->SetBoolField(TEXT("UseTensorBoard"), TrainingSettings.bUseTensorboard);
+
+		ConfigObject->SetBoolField(TEXT("UseInitialPolicyNetwork"), (bool)(TrainerFlags & EImitationTrainerFlags::UseInitialPolicyNetwork));
 
 		FString JsonString;
 		TSharedRef<TJsonWriter<>> JsonWriter = TJsonWriterFactory<>::Create(&JsonString, 0);
@@ -465,7 +493,7 @@ namespace UE::Learning
 
 		// Allocate buffer to receive network data in
 
-		NetworkBuffer.SetNumUninitialized({ Network.GetTotalByteNum() });
+		NetworkBuffer.SetNumUninitialized({ TotalPolicyByteNum });
 
 		// Create Socket
 
@@ -567,7 +595,7 @@ namespace UE::Learning
 			FNeuralNetwork& Network,
 			const TLearningArrayView<2, const float> ObservationVectors,
 			const TLearningArrayView<2, const float> ActionVectors,
-			const bool bReinitializeNetwork,
+			const EImitationTrainerFlags TrainerFlags, 
 			TAtomic<bool>* bRequestTrainingStopSignal,
 			FRWLock* NetworkLock,
 			TAtomic<bool>* bNetworkUpdatedSignal,
@@ -575,29 +603,7 @@ namespace UE::Learning
 		{
 			ETrainerResponse Response = ETrainerResponse::Success;
 
-			if (bReinitializeNetwork)
-			{
-				// Receive initial Policy
-
-				if (LogSettings != ELogSetting::Silent)
-				{
-					UE_LOG(LogLearning, Display, TEXT("Receiving initial Policy..."));
-				}
-
-				Response = Trainer.RecvPolicy(Network, 20.0f, NetworkLock);
-
-				if (Response != ETrainerResponse::Success)
-				{
-					if (LogSettings != ELogSetting::Silent)
-					{
-						UE_LOG(LogLearning, Error, TEXT("Error receiving initial policy from trainer: %s. Check log for errors."), Trainer::ResponseString(Response));
-					}
-
-					Trainer.Terminate();
-					return Response;
-				}
-			}
-			else
+			if ((bool)(TrainerFlags & EImitationTrainerFlags::UseInitialPolicyNetwork))
 			{
 				// Send initial Policy
 
@@ -612,7 +618,29 @@ namespace UE::Learning
 				{
 					if (LogSettings != ELogSetting::Silent)
 					{
-						UE_LOG(LogLearning, Error, TEXT("Error sending initial policy from trainer: %s. Check log for errors."), Trainer::ResponseString(Response));
+						UE_LOG(LogLearning, Error, TEXT("Error sending initial policy from trainer: %s. Check log for errors."), Trainer::GetResponseString(Response));
+					}
+
+					Trainer.Terminate();
+					return Response;
+				}
+			}
+			else
+			{
+				// Receive initial Policy
+
+				if (LogSettings != ELogSetting::Silent)
+				{
+					UE_LOG(LogLearning, Display, TEXT("Receiving initial Policy..."));
+				}
+
+				Response = Trainer.RecvPolicy(Network, 20.0f, NetworkLock);
+
+				if (Response != ETrainerResponse::Success)
+				{
+					if (LogSettings != ELogSetting::Silent)
+					{
+						UE_LOG(LogLearning, Error, TEXT("Error receiving initial policy from trainer: %s. Check log for errors."), Trainer::GetResponseString(Response));
 					}
 
 					Trainer.Terminate();
@@ -628,7 +656,7 @@ namespace UE::Learning
 			{
 				if (LogSettings != ELogSetting::Silent)
 				{
-					UE_LOG(LogLearning, Error, TEXT("Error sending experience to trainer: %s. Check log for errors."), Trainer::ResponseString(Response));
+					UE_LOG(LogLearning, Error, TEXT("Error sending experience to trainer: %s. Check log for errors."), Trainer::GetResponseString(Response));
 				}
 
 				Trainer.Terminate();
@@ -654,7 +682,7 @@ namespace UE::Learning
 					{
 						if (LogSettings != ELogSetting::Silent)
 						{
-							UE_LOG(LogLearning, Error, TEXT("Error sending stop signal to trainer: %s. Check log for errors."), Trainer::ResponseString(Response));
+							UE_LOG(LogLearning, Error, TEXT("Error sending stop signal to trainer: %s. Check log for errors."), Trainer::GetResponseString(Response));
 						}
 
 						Trainer.Terminate();
@@ -671,7 +699,7 @@ namespace UE::Learning
 					{
 						if (LogSettings != ELogSetting::Silent)
 						{
-							UE_LOG(LogLearning, Error, TEXT("Error sending continue signal to trainer: %s. Check log for errors."), Trainer::ResponseString(Response));
+							UE_LOG(LogLearning, Error, TEXT("Error sending continue signal to trainer: %s. Check log for errors."), Trainer::GetResponseString(Response));
 						}
 
 						Trainer.Terminate();
@@ -693,7 +721,7 @@ namespace UE::Learning
 				{
 					if (LogSettings != ELogSetting::Silent)
 					{
-						UE_LOG(LogLearning, Error, TEXT("Error receiving policy from trainer: %s. Check log for errors."), Trainer::ResponseString(Response));
+						UE_LOG(LogLearning, Error, TEXT("Error receiving policy from trainer: %s. Check log for errors."), Trainer::GetResponseString(Response));
 					}
 					break;
 				}
@@ -712,7 +740,7 @@ namespace UE::Learning
 			{
 				if (LogSettings != ELogSetting::Silent)
 				{
-					UE_LOG(LogLearning, Error, TEXT("Error waiting for trainer to exit: %s. Check log for errors."), Trainer::ResponseString(Response));
+					UE_LOG(LogLearning, Error, TEXT("Error waiting for trainer to exit: %s. Check log for errors."), Trainer::GetResponseString(Response));
 				}
 			}
 

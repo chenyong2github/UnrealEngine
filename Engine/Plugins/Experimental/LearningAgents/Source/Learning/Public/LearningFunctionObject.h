@@ -92,7 +92,7 @@ namespace UE::Learning
 	};
 
 	/**
-	* Samples a scalar value from a uniform distribution
+	* Samples scalar values from a uniform distribution
 	*/
 	struct LEARNING_API FRandomUniformFunction : public FFunctionObject
 	{
@@ -100,6 +100,7 @@ namespace UE::Learning
 			const FName& InIdentifier,
 			const TSharedRef<FArrayMap>& InInstanceData,
 			const int32 InMaxInstanceNum,
+			const int32 InValueNum,
 			const uint32 InSeed,
 			const float InMin = 0.0f,
 			const float InMax = 1.0f);
@@ -109,7 +110,7 @@ namespace UE::Learning
 		TArrayMapHandle<1, uint32> SeedHandle;
 		TArrayMapHandle<1, float> MinHandle;
 		TArrayMapHandle<1, float> MaxHandle;
-		TArrayMapHandle<1, float> ValueHandle;
+		TArrayMapHandle<2, float> ValueHandle;
 	};
 
 	/**
@@ -121,18 +122,24 @@ namespace UE::Learning
 			const FName& InIdentifier,
 			const TSharedRef<FArrayMap>& InInstanceData,
 			const int32 InMaxInstanceNum,
+			const int32 InValueNum,
 			const uint32 InSeed,
 			const float InMean = 0.0f,
 			const float InStd = 1.0f,
-			const float InClip = 10.0f);
+			const float InClip = 10.0f,
+			const FVector InAxis0 = FVector::ForwardVector,
+			const FVector InAxis1 = FVector::RightVector);
 
 		virtual void Evaluate(const FIndexSet Instances) override final;
+
+		FVector Axis0 = FVector::ForwardVector;
+		FVector Axis1 = FVector::RightVector;
 
 		TArrayMapHandle<1, uint32> SeedHandle;
 		TArrayMapHandle<1, float> MeanHandle;
 		TArrayMapHandle<1, float> StdHandle;
 		TArrayMapHandle<1, float> ClipHandle;
-		TArrayMapHandle<1, FVector> ValueHandle;
+		TArrayMapHandle<2, FVector> ValueHandle;
 	};
 
 	/**
@@ -143,13 +150,19 @@ namespace UE::Learning
 		FRandomPlanarDirectionFunction(
 			const FName& InIdentifier,
 			const TSharedRef<FArrayMap>& InInstanceData,
+			const int32 InMaxInstanceNum,
+			const int32 InDirectionNum,
 			const uint32 InSeed,
-			const int32 InMaxInstanceNum);
+			const FVector InAxis0 = FVector::ForwardVector,
+			const FVector InAxis1 = FVector::RightVector);
 
 		virtual void Evaluate(const FIndexSet Instances) override final;
 
+		FVector Axis0 = FVector::ForwardVector;
+		FVector Axis1 = FVector::RightVector;
+
 		TArrayMapHandle<1, uint32> SeedHandle;
-		TArrayMapHandle<1, FVector> DirectionHandle;
+		TArrayMapHandle<2, FVector> DirectionHandle;
 	};
 
 	/**
@@ -161,15 +174,21 @@ namespace UE::Learning
 			const FName& InIdentifier,
 			const TSharedRef<FArrayMap>& InInstanceData,
 			const int32 InMaxInstanceNum,
+			const int32 InDirectionVelocityNum,
 			const uint32 InSeed,
-			const float InVelocityScale = 1.0f);
+			const float InVelocityScale = 1.0f,
+			const FVector InAxis0 = FVector::ForwardVector,
+			const FVector InAxis1 = FVector::RightVector);
 
 		virtual void Evaluate(const FIndexSet Instances) override final;
 
+		FVector Axis0 = FVector::ForwardVector;
+		FVector Axis1 = FVector::RightVector;
+
 		TArrayMapHandle<1, uint32> SeedHandle;
 		TArrayMapHandle<1, float> VelocityScaleHandle;
-		TArrayMapHandle<1, FVector> DirectionHandle;
-		TArrayMapHandle<1, FVector> VelocityHandle;
+		TArrayMapHandle<2, FVector> DirectionHandle;
+		TArrayMapHandle<2, FVector> VelocityHandle;
 	};
 
 }

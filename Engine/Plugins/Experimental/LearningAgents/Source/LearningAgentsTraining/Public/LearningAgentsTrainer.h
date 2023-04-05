@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "Engine/EngineTypes.h"
-#include "LearningAgentsTypeComponent.h"
+#include "Components/ActorComponent.h"
+#include "LearningAgentsCritic.h" // Included for FLearningAgentsCriticSettings()
+
 #include "Templates/SharedPointer.h"
-#include "UObject/Object.h"
 #include "UObject/ObjectPtr.h"
-#include "UObject/NameTypes.h"
+#include "Engine/EngineTypes.h"
 
 #include "LearningAgentsTrainer.generated.h"
 
@@ -16,8 +16,6 @@ namespace UE::Learning
 	struct FAnyCompletion;
 	struct FArrayMap;
 	struct FEpisodeBuffer;
-	struct FNeuralNetwork;
-	struct FNeuralNetworkPolicyFunction;
 	struct FReplayBuffer;
 	struct FResetInstanceBuffer;
 	struct FRewardObject;
@@ -26,19 +24,25 @@ namespace UE::Learning
 	struct FCompletionObject;
 }
 
+class ULearningAgentsType;
 class ULearningAgentsCompletion;
 class ULearningAgentsReward;
-class ULearningAgentsType;
+class ULearningAgentsPolicy;
+class ULearningAgentsCritic;
+
+//------------------------------------------------------------------
 
 UENUM(BlueprintType, Category = "LearningAgents")
 enum class ELearningAgentsCompletion : uint8
 {
-	/** Episode ended early but was still in progress. Value function will be used to estimate final return. */
+	/** Episode ended early but was still in progress. Critic will be used to estimate final return. */
 	Truncation	UMETA(DisplayName = "Truncation"),
 
 	/** Episode ended early and zero reward was expected for all future steps. */
 	Termination	UMETA(DisplayName = "Termination"),
 };
+
+//------------------------------------------------------------------
 
 USTRUCT(BlueprintType, Category = "LearningAgents")
 struct FLearningAgentsTrainerSettings
@@ -62,7 +66,13 @@ public:
 	/** Maximum number of steps to record before running a training iteration */
 	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "1", UIMin = "1"))
 	int32 MaximumRecordedStepsPerIteration = 10000;
+
+	/** How long to wait for the training subprocess before timing out */
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	float TrainerCommunicationTimeout = 20.0f;
 };
+
+//------------------------------------------------------------------
 
 USTRUCT(BlueprintType, Category="LearningAgents")
 struct FLearningAgentsTrainerGameSettings
@@ -87,12 +97,16 @@ public:
 	bool bUseUnlitViewportRendering = false;
 };
 
+//------------------------------------------------------------------
+
 UENUM(BlueprintType, Category = "LearningAgents")
 enum class ELearningAgentsTrainerDevice : uint8
 {
 	CPU,
 	GPU,
 };
+
+//------------------------------------------------------------------
 
 USTRUCT(BlueprintType, Category = "LearningAgents")
 struct FLearningAgentsTrainerTrainingSettings
@@ -103,9 +117,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0", UIMin = "0"))
 	int32 NumberOfIterations = 1000000;
-
-	UPROPERTY(EditAnywhere, Category = "LearningAgents")
-	bool bReinitializeNetwork = true;
 
 	UPROPERTY(EditAnywhere, Category = "LearningAgents")
 	bool bUseTensorboard = false;
@@ -127,17 +138,16 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "LearningAgents")
 	ELearningAgentsTrainerDevice Device = ELearningAgentsTrainerDevice::GPU;
-
-	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", UIMin = "0.0"))
-	float TrainerCommunicationTimeout = 20.0f;
 };
 
+//------------------------------------------------------------------
 
 UCLASS(Abstract, BlueprintType, Blueprintable)
-class LEARNINGAGENTSTRAINING_API ULearningAgentsTrainer : public ULearningAgentsTypeComponent
+class LEARNINGAGENTSTRAINING_API ULearningAgentsTrainer : public UActorComponent
 {
 	GENERATED_BODY()
 
+// ----- Setup -----
 public:
 
 	// These constructors/destructors are needed to make forward declarations happy
@@ -145,31 +155,42 @@ public:
 	ULearningAgentsTrainer(FVTableHelper& Helper);
 	virtual ~ULearningAgentsTrainer();
 
-	virtual void OnAgentAdded_Implementation(int32 AgentId, UObject* Agent) override;
-
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-// ----- Setup -----
-public:
-
-	/**
-	* Initializes this object and runs the setup functions for observations and actions.
-	* If the AgentType has not yet been setup, this call will fail, so consider using the
-	* OnAgentTypeSetupComplete event to ensure the timing is correct.
-	* 
-	* @param AgentTypeOverride This agent type will override any parent agent type we found. Must be provided if this trainer component is not attached to a parent agent type component.
-	* @param Settings The settings used to setup this trainer
-	* @see OnAgentTypeSetupComplete
-	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void SetupTrainer(
-		ULearningAgentsType* AgentTypeOverride,
+		ULearningAgentsType* InAgentType,
+		ULearningAgentsPolicy* InPolicy,
+		ULearningAgentsCritic* InCritic = nullptr,
 		const FLearningAgentsTrainerSettings& Settings = FLearningAgentsTrainerSettings());
 
 	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	const bool IsSetupPerformed() const;
+	bool IsTrainerSetupPerformed() const;
 
-//** ----- Rewards ----- */
+// ----- Agent Management -----
+public:
+
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void AddAgent(int32 AgentId);
+
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void RemoveAgent(int32 AgentId);
+
+	UFUNCTION(BlueprintPure, Category = "LearningAgents")
+	bool HasAgent(int32 AgentId) const;
+
+	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (DeterminesOutputType = "AgentClass"))
+	ULearningAgentsType* GetAgentType(TSubclassOf<ULearningAgentsType> AgentClass);
+
+public:
+
+	const UObject* GetAgent(int32 AgentId) const;
+	UObject* GetAgent(int32 AgentId);
+
+	const ULearningAgentsType* GetAgentType() const;
+	ULearningAgentsType* GetAgentType();
+
+// ----- Rewards -----
 public:
 	
 	/**
@@ -185,7 +206,7 @@ public:
 
 	void AddReward(TObjectPtr<ULearningAgentsReward> Object, const TSharedRef<UE::Learning::FRewardObject>& Reward);
 
-//** ----- Completions ----- */
+// ----- Completions ----- 
 public:
 
 	/**
@@ -201,7 +222,7 @@ public:
 
 	void AddCompletion(TObjectPtr<ULearningAgentsCompletion> Object, const TSharedRef<UE::Learning::FCompletionObject>& Completion);
 
-//** ----- Resets ----- */
+// ----- Resets ----- 
 public:
 
 	/**
@@ -214,19 +235,22 @@ public:
 	UFUNCTION(BlueprintNativeEvent, Category = "LearningAgents")
 	void ResetInstance(const TArray<int32>& AgentIds);
 
-//** ----- Training Process ----- */
+// ----- Training Process -----
 public:
 
 	UFUNCTION(BlueprintPure, Category = "LearningAgents")
 	const bool IsTraining() const;
 
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void StartTraining(
+	void BeginTraining(
 		const FLearningAgentsTrainerTrainingSettings& TrainingSettings = FLearningAgentsTrainerTrainingSettings(),
-		const FLearningAgentsTrainerGameSettings& GameSettings = FLearningAgentsTrainerGameSettings());
+		const FLearningAgentsTrainerGameSettings& GameSettings = FLearningAgentsTrainerGameSettings(),
+		const FLearningAgentsCriticSettings& CriticSettings = FLearningAgentsCriticSettings(),
+		const bool bReinitializePolicyNetwork = true,
+		const bool bReinitializeCriticNetwork = true);
 
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void StopTraining();
+	void EndTraining();
 
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void EvaluateRewards();
@@ -243,11 +267,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void ResetAllInstances();
 
-//** ----- Private ----- */
+// ----- Private Data ----- 
 private:
 
 	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
-	bool bSetupPerformed = false;
+	TObjectPtr<ULearningAgentsType> AgentType;
+
+	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	TArray<int32> SelectedAgentIds;
+
+	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	TObjectPtr<ULearningAgentsPolicy> Policy;
+
+	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	TObjectPtr<ULearningAgentsCritic> Critic;
+
+	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	bool bTrainerSetupPerformed = false;
 
 	/** True if training is currently in-progress. Otherwise, false. */
 	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
@@ -260,9 +296,9 @@ private:
 	TArray<TObjectPtr<ULearningAgentsCompletion>> CompletionObjects;
 
 	TArray<TSharedRef<UE::Learning::FRewardObject>, TInlineAllocator<16>> RewardFeatures;
-	TSharedPtr<UE::Learning::FSumReward> Rewards;
-
 	TArray<TSharedRef<UE::Learning::FCompletionObject>, TInlineAllocator<16>> CompletionFeatures;
+
+	TSharedPtr<UE::Learning::FSumReward> Rewards;
 	TSharedPtr<UE::Learning::FAnyCompletion> Completions;
 
 	TUniquePtr<UE::Learning::FEpisodeBuffer> EpisodeBuffer;
@@ -270,16 +306,15 @@ private:
 	TUniquePtr<UE::Learning::FResetInstanceBuffer> ResetBuffer;
 	TUniquePtr<UE::Learning::FSharedMemoryPPOTrainer> Trainer;
 
-	/** One-time Error Logging State */
-	bool bPreviouslyLogged = false;
-
 	ELearningAgentsCompletion MaxStepsCompletion = ELearningAgentsCompletion::Truncation;
 
 	float TrainerTimeout = 10.0f;
 
 	void DoneTraining();
 
-//** ----- Private Recording of GameSettings ----- */
+	UE::Learning::FIndexSet SelectedAgentsSet;
+
+// ----- Private Recording of GameSettings ----- 
 private:
 
 	bool bFixedTimestepUsed = false;

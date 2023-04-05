@@ -2,32 +2,65 @@
 
 #pragma once
 
-#include "Engine/EngineTypes.h"
-#include "LearningAgentsTypeComponent.h"
-#include "Templates/SharedPointer.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectPtr.h"
-#include "UObject/NameTypes.h"
-#include "Tasks/Task.h"
+#include "LearningAgentsTrainer.h" // Included for ELearningAgentsTrainerDevice
 #include "LearningArray.h"
+
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectPtr.h"
+#include "Tasks/Task.h"
 
 #include "LearningAgentsImitationTrainer.generated.h"
 
 namespace UE::Learning
 {
-	struct FArrayMap;
-	struct FNeuralNetwork;
-	struct FNeuralNetworkPolicyFunction;
 	struct FSharedMemoryImitationTrainer;
 }
 
 class ULearningAgentsType;
+class ULearningAgentsPolicy;
 
-UCLASS(Abstract, BlueprintType, Blueprintable)
-class LEARNINGAGENTSTRAINING_API ULearningAgentsImitationTrainer : public ULearningAgentsTypeComponent
+//------------------------------------------------------------------
+
+USTRUCT(BlueprintType, Category = "LearningAgents")
+struct FLearningAgentsImitationTrainerTrainingSettings
 {
 	GENERATED_BODY()
 
+public:
+
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0", UIMin = "0"))
+	int32 NumberOfIterations = 1000000;
+
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	float LearningRate = 0.0001f;
+
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	float LearningRateDecay = 0.99f;
+
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	float WeightDecay = 0.001f;
+
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "1", UIMin = "1"))
+	uint32 BatchSize = 128;
+
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0", UIMin = "0"))
+	int32 RandomSeed = 1234;
+
+	UPROPERTY(EditAnywhere, Category = "LearningAgents")
+	ELearningAgentsTrainerDevice Device = ELearningAgentsTrainerDevice::CPU;
+
+	UPROPERTY(EditAnywhere, Category = "LearningAgents")
+	bool bUseTensorboard = false;
+};
+
+//------------------------------------------------------------------
+
+UCLASS(BlueprintType, Blueprintable)
+class LEARNINGAGENTSTRAINING_API ULearningAgentsImitationTrainer : public UActorComponent
+{
+	GENERATED_BODY()
+
+// ----- Setup -----
 public:
 
 	// These constructors/destructors are needed to make forward declarations happy
@@ -37,22 +70,27 @@ public:
 
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-public:
-
-	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	const bool IsTraining() const;
-
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void BeginTraining(TArray<UObject*> Records);
+	void BeginTraining(
+		ULearningAgentsPolicy* InPolicy,
+		const TArray<ULearningAgentsRecord*>& Records,
+		const FLearningAgentsImitationTrainerTrainingSettings& TrainingSettings = FLearningAgentsImitationTrainerTrainingSettings(),
+		const bool bReinitializePolicyNetwork = true);
 
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void EndTraining();
 
 	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	const bool IsTrainingComplete() const;
+	bool IsTraining() const;
 
-//** ----- Private ----- */
+	UFUNCTION(BlueprintPure, Category = "LearningAgents")
+	bool IsTrainingComplete() const;
+
+// ----- Private Data -----
 private:
+
+	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	TObjectPtr<ULearningAgentsPolicy> Policy;
 
 	/** True if training is currently in-progress. Otherwise, false. */
 	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
@@ -69,6 +107,4 @@ private:
 	FRWLock NetworkLock;
 
 	TAtomic<bool> bRequestImitationTrainingStop = false;
-
-	float TrainerTimeout = 10.0f;
 };

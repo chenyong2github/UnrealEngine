@@ -85,7 +85,7 @@ namespace UE::Learning
 	//------------------------------------------------------------------
 
 	/**
-	* Completion due to the difference between two scalar positions exceeding a given threshold
+	* Completion due to the difference between any two scalar positions exceeding a given threshold
 	*/
 	struct LEARNING_API FScalarPositionDifferenceCompletion : public FCompletionObject
 	{
@@ -93,18 +93,19 @@ namespace UE::Learning
 			const FName& InIdentifier,
 			const TSharedRef<FArrayMap>& InInstanceData,
 			const int32 InMaxInstanceNum,
+			const int32 InPositionNum,
 			const float InThreshold = Completion::DefaultThresholdPosition,
 			const ECompletionMode InCompletionMode = ECompletionMode::Terminated);
 
 		virtual void Evaluate(const FIndexSet Instances) override final;
 
-		TArrayMapHandle<1, float> Position0Handle;
-		TArrayMapHandle<1, float> Position1Handle;
+		TArrayMapHandle<2, float> Position0Handle;
+		TArrayMapHandle<2, float> Position1Handle;
 		TArrayMapHandle<1, float> ThresholdHandle;
 	};
 
 	/**
-	* Completion due to the difference between two planar positions exceeding a given threshold
+	* Completion due to the difference between any two planar positions exceeding a given threshold
 	*/
 	struct LEARNING_API FPlanarPositionDifferenceCompletion : public FCompletionObject
 	{
@@ -112,6 +113,7 @@ namespace UE::Learning
 			const FName& InIdentifier,
 			const TSharedRef<FArrayMap>& InInstanceData,
 			const int32 InMaxInstanceNum,
+			const int32 InPositionNum,
 			const float InThreshold = Completion::DefaultThresholdPosition,
 			const ECompletionMode InCompletionMode = ECompletionMode::Terminated,
 			const FVector InAxis0 = FVector::ForwardVector,
@@ -122,15 +124,15 @@ namespace UE::Learning
 		FVector Axis0 = FVector::ForwardVector;
 		FVector Axis1 = FVector::RightVector;
 
-		TArrayMapHandle<1, FVector> Position0Handle;
-		TArrayMapHandle<1, FVector> Position1Handle;
+		TArrayMapHandle<2, FVector> Position0Handle;
+		TArrayMapHandle<2, FVector> Position1Handle;
 		TArrayMapHandle<1, float> ThresholdHandle;
 	};
 
 	//------------------------------------------------------------------
 
 	/**
-	* Completion due to the difference between two scalar velocities exceeding a given threshold
+	* Completion due to the difference between any two scalar velocities exceeding a given threshold
 	*/
 	struct LEARNING_API FScalarVelocityDifferenceCompletion : public FCompletionObject
 	{
@@ -138,20 +140,21 @@ namespace UE::Learning
 			const FName& InIdentifier,
 			const TSharedRef<FArrayMap>& InInstanceData,
 			const int32 InMaxInstanceNum,
+			const int32 InVelocityNum,
 			const float InThreshold = Completion::DefaultThresholdVelocity,
 			const ECompletionMode InCompletionMode = ECompletionMode::Terminated);
 
 		virtual void Evaluate(const FIndexSet Instances) override final;
 
-		TArrayMapHandle<1, float> Velocity0Handle;
-		TArrayMapHandle<1, float> Velocity1Handle;
+		TArrayMapHandle<2, float> Velocity0Handle;
+		TArrayMapHandle<2, float> Velocity1Handle;
 		TArrayMapHandle<1, float> ThresholdHandle;
 	};
 
 	//------------------------------------------------------------------
 
 	/**
-	* Completion due to the difference between two scalar rotations exceeding a given threshold
+	* Completion due to the difference between any two scalar rotations exceeding a given threshold
 	*/
 	struct LEARNING_API FScalarRotationDifferenceCompletion : public FCompletionObject
 	{
@@ -159,13 +162,14 @@ namespace UE::Learning
 			const FName& InIdentifier,
 			const TSharedRef<FArrayMap>& InInstanceData,
 			const int32 InMaxInstanceNum,
+			const int32 InRotationNum,
 			const float InThreshold = Completion::DefaultThresholdAngle,
 			const ECompletionMode InCompletionMode = ECompletionMode::Terminated);
 
 		virtual void Evaluate(const FIndexSet Instances) override final;
 
-		TArrayMapHandle<1, float> Rotation0Handle;
-		TArrayMapHandle<1, float> Rotation1Handle;
+		TArrayMapHandle<2, float> Rotation0Handle;
+		TArrayMapHandle<2, float> Rotation1Handle;
 		TArrayMapHandle<1, float> ThresholdHandle;
 	};
 
@@ -180,13 +184,14 @@ namespace UE::Learning
 			const FName& InIdentifier,
 			const TSharedRef<FArrayMap>& InInstanceData,
 			const int32 InMaxInstanceNum,
+			const int32 InAngularVelocityNum,
 			const float InThreshold = Completion::DefaultThresholdAngularVelocity,
 			const ECompletionMode InCompletionMode = ECompletionMode::Terminated);
 
 		virtual void Evaluate(const FIndexSet Instances) override final;
 
-		TArrayMapHandle<1, float> AngularVelocity0Handle;
-		TArrayMapHandle<1, float> AngularVelocity1Handle;
+		TArrayMapHandle<2, float> AngularVelocity0Handle;
+		TArrayMapHandle<2, float> AngularVelocity1Handle;
 		TArrayMapHandle<1, float> ThresholdHandle;
 	};
 

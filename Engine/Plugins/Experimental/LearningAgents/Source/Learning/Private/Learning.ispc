@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#ifndef MIN_flt
-#define MIN_flt			(1.175494351e-38F)
-#endif
-
 #ifndef MAX_flt
 #define MAX_flt			(3.402823466e+38F)
 #endif
@@ -225,6 +221,8 @@ inline float LearningSigmoid(const float X)
 
 export void LearningLayerActionNoise(
 	uniform float Output[],
+	uniform float OutputMean[],
+	uniform float OutputStd[],
 	const uniform float Input[],
 	const uniform uint32 Seed[],
 	const uniform float ActionNoiseScale[],
@@ -236,15 +234,14 @@ export void LearningLayerActionNoise(
 {
 	foreach (BatchIdx = 0 ... BatchNum, OutputIdx = 0 ... OutputNum)
 	{
-		const float ActionMean = Input[BatchIdx * InputNum + OutputIdx];
-		const float LogActionStd = Input[BatchIdx * InputNum + OutputNum + OutputIdx];
-		const float ActionStd = ActionNoiseScale[BatchIdx] * 
-			exp(LearningSigmoid(LogActionStd) * (LogActionNoiseMax - LogActionNoiseMin) + LogActionNoiseMin);
+		OutputMean[BatchIdx * OutputNum + OutputIdx] = Input[BatchIdx * InputNum + OutputIdx];
+		OutputStd[BatchIdx * OutputNum + OutputIdx] = ActionNoiseScale[BatchIdx] *
+			exp(LearningSigmoid(Input[BatchIdx * InputNum + OutputNum + OutputIdx]) * (LogActionNoiseMax - LogActionNoiseMin) + LogActionNoiseMin);
 
 		Output[BatchIdx * OutputNum + OutputIdx] = LearningRandomGaussian(
 			Seed[BatchIdx] ^ 0xab744615 ^ LearningRandomInt(OutputIdx ^ 0xf8a88a27),
-			ActionMean,
-			ActionStd);
+			OutputMean[BatchIdx * OutputNum + OutputIdx],
+			OutputStd[BatchIdx * OutputNum + OutputIdx]);
 	}
 }
 
@@ -678,8 +675,8 @@ export void LearningKMeansUpdateBounds(
 {
 	foreach(ClusterIdx = 0 ... ClusterNum, DimIdx = 0 ... DimNum)
 	{
-		OutMins[ClusterIdx * DimNum + DimIdx] = MAX_flt;
-		OutMaxs[ClusterIdx * DimNum + DimIdx] = MIN_flt;
+		OutMins[ClusterIdx * DimNum + DimIdx] = +MAX_flt;
+		OutMaxs[ClusterIdx * DimNum + DimIdx] = -MAX_flt;
 	}
 
 	for (uniform int SampleIdx = 0; SampleIdx < SampleNum; SampleIdx++)

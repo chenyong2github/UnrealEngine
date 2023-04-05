@@ -12,31 +12,45 @@
 #include "LearningNeuralNetwork.h"
 #include "LearningImitationTrainer.h"
 #include "LearningAgentsDataStorage.h"
-#include "LearningPolicyObject.h"
+#include "LearningAgentsPolicy.h"
+#include "LearningNeuralNetworkObject.h"
 #include "Misc/Paths.h"
 
-ULearningAgentsImitationTrainer::ULearningAgentsImitationTrainer() : ULearningAgentsTypeComponent() {}
+ULearningAgentsImitationTrainer::ULearningAgentsImitationTrainer() : UActorComponent() {}
 ULearningAgentsImitationTrainer::ULearningAgentsImitationTrainer(FVTableHelper& Helper) : ULearningAgentsImitationTrainer() {}
 ULearningAgentsImitationTrainer::~ULearningAgentsImitationTrainer() {}
 
 void ULearningAgentsImitationTrainer::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (bIsTraining)
+	if (IsTraining())
 	{
 		EndTraining();
 	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
-const bool ULearningAgentsImitationTrainer::IsTraining() const
+void ULearningAgentsImitationTrainer::BeginTraining(
+	ULearningAgentsPolicy* InPolicy, 
+	const TArray<ULearningAgentsRecord*>& Records, 
+	const FLearningAgentsImitationTrainerTrainingSettings& TrainingSettings,
+	const bool bReinitializePolicyNetwork)
 {
-	return bIsTraining;
-}
-
-void ULearningAgentsImitationTrainer::BeginTraining(TArray<UObject*> Records)
-{
-	if (bIsTraining)
+	if (IsTraining())
 	{
-		UE_LOG(LogLearning, Warning, TEXT("Already Training!"));
+		UE_LOG(LogLearning, Error, TEXT("Already Training!"));
+		return;
+	}
+
+	if (!InPolicy)
+	{
+		UE_LOG(LogLearning, Error, TEXT("BeginTraining called with nullptr for Policy."));
+		return;
+	}
+
+	if (!InPolicy->IsPolicySetupPerformed())
+	{
+		UE_LOG(LogLearning, Error, TEXT("Policy Setup not Performed"));
 		return;
 	}
 
@@ -46,13 +60,81 @@ void ULearningAgentsImitationTrainer::BeginTraining(TArray<UObject*> Records)
 		return;
 	}
 
+	Policy = InPolicy;
+
+	// Get Number of Steps
+
+	int32 StepNum = 0;
+	for (const ULearningAgentsRecord* Record : Records)
+	{
+		if (!Record)
+		{
+			UE_LOG(LogLearning, Warning, TEXT("BeginTraining: Null record object."));
+			continue;
+		}
+
+		// Assuming everyone has been trimmed already
+		for (const TLearningArray<2, float>& Chunk : Record->GetObservations())
+		{
+			StepNum += Chunk.Num<0>();
+		}
+	}
+
+	// Parse into Flat Arrays
+
+	const int32 PolicyInputNum = Policy->GetPolicyNetwork().GetInputNum();
+	const int32 PolicyOutputNum = Policy->GetPolicyNetwork().GetOutputNum();
+
+	RecordedObservations.SetNumUninitialized({ StepNum, PolicyInputNum });
+	RecordedActions.SetNumUninitialized({ StepNum, PolicyOutputNum / 2 });
+
+	int32 DataIndex = 0;
+	for (const ULearningAgentsRecord* Record : Records)
+	{
+		if (!Record) { continue; }
+
+		TConstArrayView<TLearningArray<2, float>> RecordObsChunks = Record->GetObservations();
+		TConstArrayView<TLearningArray<2, float>> RecordActionChunks = Record->GetActions();
+
+		for (int32 Idx = 0; Idx < RecordObsChunks.Num(); Idx++)
+		{
+			if (RecordObsChunks[Idx].Num<1>() == PolicyInputNum &&
+				RecordActionChunks[Idx].Num<1>() == PolicyOutputNum / 2)
+			{
+				int32 ChunkLength = RecordObsChunks[Idx].Num<0>();
+				UE::Learning::Array::Copy(RecordedObservations.Slice(DataIndex, ChunkLength), RecordObsChunks[Idx]);
+				UE::Learning::Array::Copy(RecordedActions.Slice(DataIndex, ChunkLength), RecordActionChunks[Idx]);
+				DataIndex += ChunkLength;
+			}
+			else
+			{
+				UE_LOG(LogLearning, Warning, TEXT("Record input or output size does not match policy."));
+			}
+		}
+	}
+
+	// Return if no valid records found
+
+	if (DataIndex == 0)
+	{
+		UE_LOG(LogLearning, Warning, TEXT("BeginTraining: input contains no valid training data."));
+		RecordedObservations.Empty();
+		RecordedActions.Empty();
+		return;
+	}
+
+	// Resize to final size
+
+	RecordedObservations.SetNumUninitialized({ DataIndex, PolicyInputNum });
+	RecordedActions.SetNumUninitialized({ DataIndex, PolicyOutputNum / 2 });
+
+	// Begin Training Properly
+
 	UE_LOG(LogLearning, Display, TEXT("Imitation Training Started"));
 
 	bIsTraining = true;
 	bIsTrainingComplete = false;
 	bRequestImitationTrainingStop = false;
-
-	// Start Python Training Process (this must be done on main thread)
 
 #if WITH_EDITOR
 	const FString PythonExecutablePath = UE::Learning::Trainer::DefaultEditorPythonExecutablePath();
@@ -69,93 +151,50 @@ void ULearningAgentsImitationTrainer::BeginTraining(TArray<UObject*> Records)
 	const FString IntermediatePath = EnginePath / TEXT("Plugins/Experimental/LearningAgents/Intermediate");
 #endif
 
-	UE::Learning::FImitationTrainerSettings Settings;
-	Settings.bReinitializeNetwork = true;
-	Settings.Device = UE::Learning::ETrainerDevice::CPU;
-	Settings.bUseTensorboard = false;
+	UE::Learning::FImitationTrainerTrainingSettings ImitationTrainingSettings;
+	ImitationTrainingSettings.IterationNum = TrainingSettings.NumberOfIterations;
+	ImitationTrainingSettings.LearningRateActor = TrainingSettings.LearningRate;
+	ImitationTrainingSettings.LearningRateDecay = TrainingSettings.LearningRateDecay;
+	ImitationTrainingSettings.WeightDecay = TrainingSettings.WeightDecay;
+	ImitationTrainingSettings.BatchSize = TrainingSettings.BatchSize;
+	ImitationTrainingSettings.Seed = TrainingSettings.RandomSeed;
+	ImitationTrainingSettings.Device = TrainingSettings.Device == ELearningAgentsTrainerDevice::CPU ? UE::Learning::ETrainerDevice::CPU : UE::Learning::ETrainerDevice::GPU;
+	ImitationTrainingSettings.bUseTensorboard = TrainingSettings.bUseTensorboard;
 
-	// Get length
-	int32 StepNum = 0;
-	for (UObject* Object : Records)
-	{
-		ULearningAgentsRecord* Record = Cast<ULearningAgentsRecord>(Object);
-		if (!Record)
-		{
-			UE_LOG(LogLearning, Warning, TEXT("BeginTraining: input contains object (%s) that can't be cast to ULearningAgentsRecord."), *(Object ? Object->GetName() : FString(TEXT("nullptr"))));
-			continue;
-		}
-
-		TConstArrayView<TLearningArray<2, float>> RecordObsChunks = Record->GetObservations();
-
-		// Assuming everyone has been trimmed already
-		for (TLearningArray<2, float> Chunk : RecordObsChunks)
-		{
-			StepNum += Chunk.Num<0>();
-		}
-	}
-
-	if (StepNum == 0)
-	{
-		UE_LOG(LogLearning, Warning, TEXT("BeginTraining: input contains no valid training data. Returning early."));
-		return;
-	}
-
-	RecordedObservations.SetNumUninitialized({ StepNum, AgentType->GetObservationFeature().DimNum() });
-	RecordedActions.SetNumUninitialized({ StepNum, AgentType->GetActionFeature().DimNum() });
-
-	int32 DataIndex = 0;
-	for (UObject* Object : Records)
-	{
-		ULearningAgentsRecord* Record = Cast<ULearningAgentsRecord>(Object);
-		if (!Record)
-		{
-			UE_LOG(LogLearning, Warning, TEXT("BeginTraining: input contains object (%s) that can't be cast to ULearningAgentsRecord."), *(Object ? Object->GetName() : FString(TEXT("nullptr"))));
-			continue;
-		}
-
-		TConstArrayView<TLearningArray<2, float>> RecordObsChunks = Record->GetObservations();
-		TConstArrayView<TLearningArray<2, float>> RecordActionChunks = Record->GetActions();
-
-		// Assuming everyone has been trimmed already
-		for (int32 i = 0; i < RecordObsChunks.Num(); i++)
-		{
-			int32 ChunkLength = RecordObsChunks[i].Num<0>();
-			UE::Learning::Array::Copy(RecordedObservations.Slice(DataIndex, ChunkLength), RecordObsChunks[i]);
-			UE::Learning::Array::Copy(RecordedActions.Slice(DataIndex, ChunkLength), RecordActionChunks[i]);
-			DataIndex += ChunkLength;
-		}
-	}
+	const UE::Learning::EImitationTrainerFlags TrainerFlags = 
+		bReinitializePolicyNetwork ? 
+		UE::Learning::EImitationTrainerFlags::None : 
+		UE::Learning::EImitationTrainerFlags::UseInitialPolicyNetwork;
 
 	ImitationTrainer = MakeUnique<UE::Learning::FSharedMemoryImitationTrainer>(
-		TEXT("ImitationLearner"),
+		GetName(),
 		PythonExecutablePath,
 		SitePackagesPath,
 		PythonContentPath,
 		IntermediatePath,
-		AgentType->GetNeuralNetwork(),
-		AgentType->GetPolicy().Settings.ActionNoiseMin,
-		AgentType->GetPolicy().Settings.ActionNoiseMax,
 		RecordedObservations.Num<0>(),
-		Settings);
+		RecordedObservations.Num<1>(),
+		RecordedActions.Num<1>(),
+		ImitationTrainingSettings);
 
-	ImitationTrainingTask = UE::Tasks::Launch(UE_SOURCE_LOCATION, [&]()
-		{
-			UE::Learning::ImitationTrainer::Train(
-				*ImitationTrainer,
-				AgentType->GetNeuralNetwork(),
-				RecordedObservations,
-				RecordedActions,
-				true,
-				&bRequestImitationTrainingStop,
-				&NetworkLock);
+	ImitationTrainingTask = UE::Tasks::Launch(UE_SOURCE_LOCATION, [this, TrainerFlags]()
+	{
+		UE::Learning::ImitationTrainer::Train(
+			*ImitationTrainer,
+			Policy->GetPolicyNetwork(),
+			RecordedObservations,
+			RecordedActions,
+			TrainerFlags,
+			&bRequestImitationTrainingStop,
+			&NetworkLock);
 
 			bIsTrainingComplete = true;
-		});
+	});
 }
 
 void ULearningAgentsImitationTrainer::EndTraining()
 {
-	if (bIsTraining)
+	if (IsTraining())
 	{
 		UE_LOG(LogLearning, Display, TEXT("Imitation Training Ended"));
 
@@ -170,7 +209,12 @@ void ULearningAgentsImitationTrainer::EndTraining()
 	}
 }
 
-const bool ULearningAgentsImitationTrainer::IsTrainingComplete() const
+bool ULearningAgentsImitationTrainer::IsTraining() const
+{
+	return bIsTraining;
+}
+
+bool ULearningAgentsImitationTrainer::IsTrainingComplete() const
 {
 	return bIsTrainingComplete;
 }

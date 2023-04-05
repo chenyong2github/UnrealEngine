@@ -37,6 +37,21 @@ namespace UE::Learning
 		Timeout = 4,
 	};
 
+	/**
+	* Subprocess flags
+	*/
+	enum class ESubprocessFlags : uint8
+	{
+		None = 0,
+
+		// If to show the sub-process console window
+		ShowWindow = 1 << 0,
+
+		// If to avoid redirecting the sub-process output to the output log
+		NoRedirectOutput = 1 << 1,
+	};
+	ENUM_CLASS_FLAGS(ESubprocessFlags)
+
 	namespace Trainer
 	{
 		/**
@@ -67,7 +82,7 @@ namespace UE::Learning
 		/**
 		* Converts a ETrainerResponse into a string for use in logging and error messages.
 		*/
-		LEARNINGTRAINING_API const TCHAR* ResponseString(const ETrainerResponse Response);
+		LEARNINGTRAINING_API const TCHAR* GetResponseString(const ETrainerResponse Response);
 
 		/**
 		* Compute the discount factor that corresponds to a particular HalfLife and DeltaTime.

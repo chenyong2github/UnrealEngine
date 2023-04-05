@@ -377,24 +377,45 @@ namespace UE::Learning
 		* Concretely, this function will make asking for a View of the 
 		* Dst array return a view of the Src array instead.
 		*/
-		void Link(const FArrayMapKey Src, const FArrayMapKey Dst);
+		void LinkKeys(const FArrayMapKey Src, const FArrayMapKey Dst);
 
 		/**
 		* Link one array to another such that they share the same data.
 		* Concretely, this function will make asking for a View of the
 		* Dst array return a view of the Src array instead.
 		*/
-		void Link(const FArrayMapHandle Src, const FArrayMapHandle Dst);
+		void LinkHandles(const FArrayMapHandle Src, const FArrayMapHandle Dst);
+
+
+		/**
+		* Link one array to another as if they were flattened. This can be 
+		* useful when the array dimensions don't exactly match such as with
+		* one dimension of a single element.
+		*/
+		void LinkHandlesFlat(const FArrayMapHandle Src, const FArrayMapHandle Dst);
 
 		/**
 		* Link one array to another such that they share the same data.
 		* Concretely, this function will make asking for a View of the
-		* Dst array return a view of the Src array instead.
+		* Dst array return a view of the Src array instead. This version
+		* provides a type-safe interface for linking so should be used
+		* by default.
 		*/
 		template<uint8 DimNum, typename ElementType>
 		void Link(const TArrayMapHandle<DimNum, ElementType> Src, const TArrayMapHandle<DimNum, ElementType> Dst)
 		{
-			Link((FArrayMapHandle)Src, (FArrayMapHandle)Dst);
+			LinkHandles(Src, Dst);
+		}
+
+		/**
+		* Link one array to another as if they were flattened. This can be
+		* useful when the array dimensions don't exactly match such as with
+		* one dimension of a single element.
+		*/
+		template<uint8 SrcDimNum, uint8 DstDimNum, typename ElementType>
+		void LinkFlat(const TArrayMapHandle<SrcDimNum, ElementType> Src, const TArrayMapHandle<DstDimNum, ElementType> Dst)
+		{
+			LinkHandlesFlat(Src, Dst);
 		}
 
 		/**

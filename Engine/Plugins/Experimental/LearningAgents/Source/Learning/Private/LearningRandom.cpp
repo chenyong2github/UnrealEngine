@@ -214,6 +214,41 @@ namespace UE::Learning::Random
 #endif
 	}
 
+	void PlanarClippedGaussianArray(
+		TLearningArrayView<1, FVector> Output,
+		const uint32 State,
+		const float Mean,
+		const float Std,
+		const float Clip,
+		const FVector Axis0,
+		const FVector Axis1)
+	{
+		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(Learning::Random::PlanarClippedGaussianArray);
+
+		const int32 ElementNum = Output.Num();
+
+		for (int32 ElementIdx = 0; ElementIdx < ElementNum; ElementIdx++)
+		{
+			Output[ElementIdx] = PlanarClippedGaussian(State ^ 0x5eeac916 ^ Int(ElementIdx ^ 0x8527618d), Mean, Std, Clip, Axis0, Axis1);
+		}
+	}
+
+	void PlanarDirectionArray(
+		TLearningArrayView<1, FVector> Output,
+		const uint32 State,
+		const FVector Axis0,
+		const FVector Axis1)
+	{
+		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(Learning::Random::PlanarDirectionArray);
+
+		const int32 ElementNum = Output.Num();
+
+		for (int32 ElementIdx = 0; ElementIdx < ElementNum; ElementIdx++)
+		{
+			Output[ElementIdx] = PlanarDirection(State ^ 0xd80bd375 ^ Int(ElementIdx ^ 0x50d8c207), Axis0, Axis1);
+		}
+	}
+
 	////////////
 
 	uint32 SampleInt(uint32& State)
@@ -368,6 +403,29 @@ namespace UE::Learning::Random
 				InOutStates[ElementIdx] = Int(InOutStates[ElementIdx] ^ 0x3616dcc8 ^ Int(ElementIdx ^ 0x6a837ffd));
 			}
 		}
+	}
+
+	void SamplePlanarClippedGaussianArray(
+		TLearningArrayView<1, FVector> Output,
+		uint32& State,
+		const float Mean,
+		const float Std,
+		const float Clip,
+		const FVector Axis0,
+		const FVector Axis1)
+	{
+		State = Int(State ^ 0xb538a8b5);
+		PlanarClippedGaussianArray(Output, State ^ 0x73a55e65, Mean, Std, Clip, Axis0, Axis1);
+	}
+
+	void SamplePlanarDirectionArray(
+		TLearningArrayView<1, FVector> Output,
+		uint32& State,
+		const FVector Axis0,
+		const FVector Axis1)
+	{
+		State = Int(State ^ 0x3219c5db);
+		PlanarDirectionArray(Output, State ^ 0x6bfd3e6a, Axis0, Axis1);
 	}
 
 }

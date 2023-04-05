@@ -18,7 +18,7 @@ namespace UE::Learning::Trainer
 		}
 	}
 
-	const TCHAR* ResponseString(const ETrainerResponse Response)
+	const TCHAR* GetResponseString(const ETrainerResponse Response)
 	{
 		switch (Response)
 		{

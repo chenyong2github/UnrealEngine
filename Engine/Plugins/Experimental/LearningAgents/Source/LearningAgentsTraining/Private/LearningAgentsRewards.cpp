@@ -23,7 +23,7 @@
 	UE_LEARNING_AGENTS_VLOG_STRING(Owner, Category, Verbosity, Location + FVector(0.0f, 0.0f, 20.0f), Color, Format, ##__VA_ARGS__)
 
 #define UE_LEARNING_AGENTS_VLOG_PLANE(Owner, Category, Verbosity, Location, Rotation, Axis0, Axis1, Color, Format, ...) \
-	UE_VLOG_OBOX(Owner, Category, Verbosity, FBox(25.0f * FVector(-1, -1, 0), 25.0f * FVector(1, 1, 0)), FTransform(Rotation, Location, FVector::OneVector).ToMatrixNoScale(), Color, Format, ##__VA_ARGS__)
+	UE_VLOG_OBOX(Owner, Category, Verbosity, FBox(-25.0f * (Axis0 + Axis1), 25.0f * (Axis0 + Axis1)), FTransform(Rotation, Location, FVector::OneVector).ToMatrixNoScale(), Color, Format, ##__VA_ARGS__)
 
 namespace UE::Learning::Agents::Private
 {
@@ -40,8 +40,8 @@ namespace UE::Learning::Agents::Private
 
 		Reward->RewardObject = MakeShared<RewardFObject>(
 			Reward->GetFName(),
-			AgentTrainer->GetAgentType().GetInstanceData().ToSharedRef(),
-			AgentTrainer->GetAgentType().GetMaxInstanceNum(),
+			AgentTrainer->GetAgentType()->GetInstanceData().ToSharedRef(),
+			AgentTrainer->GetAgentType()->GetMaxInstanceNum(),
 			Forward<InArgTypes>(Args)...);
 
 		AgentTrainer->AddReward(Reward, Reward->RewardObject.ToSharedRef());
@@ -315,8 +315,8 @@ void UPlanarPositionDifferencePenalty::VisualLog(const UE::Learning::FIndexSet I
 				UE_LEARNING_AGENTS_VLOG_PLANE(this, LogLearning, Display,
 					Position0,
 					FQuat::Identity,
-					FeatureObject->Axis0,
-					FeatureObject->Axis1,
+					RewardObject->Axis0,
+					RewardObject->Axis1,
 					VisualLogColor.ToFColor(true),
 					TEXT(""));
 
@@ -331,8 +331,8 @@ void UPlanarPositionDifferencePenalty::VisualLog(const UE::Learning::FIndexSet I
 				UE_LEARNING_AGENTS_VLOG_PLANE(this, LogLearning, Display,
 					Position1,
 					FQuat::Identity,
-					FeatureObject->Axis0,
-					FeatureObject->Axis1,
+					RewardObject->Axis0,
+					RewardObject->Axis1,
 					VisualLogColor.ToFColor(true),
 					TEXT(""));
 

@@ -8,13 +8,15 @@
 #include "LearningAgentsRewards.h"
 #include "LearningAgentsCompletions.h"
 #include "LearningAgentsObservations.h"
+#include "LearningAgentsPolicy.h"
+#include "LearningAgentsCritic.h"
 #include "LearningArray.h"
 #include "LearningArrayMap.h"
 #include "LearningExperience.h"
 #include "LearningFeatureObject.h"
 #include "LearningLog.h"
 #include "LearningNeuralNetwork.h"
-#include "LearningPolicyObject.h"
+#include "LearningNeuralNetworkObject.h"
 #include "LearningPPOTrainer.h"
 #include "LearningRewardObject.h"
 #include "LearningCompletion.h"
@@ -26,45 +28,65 @@
 #include "Engine/GameViewportClient.h"
 #include "EngineDefines.h"
 
-ULearningAgentsTrainer::ULearningAgentsTrainer() : ULearningAgentsTypeComponent() {}
+ULearningAgentsTrainer::ULearningAgentsTrainer() : UActorComponent() {}
 ULearningAgentsTrainer::ULearningAgentsTrainer(FVTableHelper& Helper) : ULearningAgentsTrainer() {}
 ULearningAgentsTrainer::~ULearningAgentsTrainer() {}
 
-void ULearningAgentsTrainer::OnAgentAdded_Implementation(int32 AgentId, UObject* Agent)
+void ULearningAgentsTrainer::SetupTrainer(
+	ULearningAgentsType* InAgentType,
+	ULearningAgentsPolicy* InPolicy,
+	ULearningAgentsCritic* InCritic,
+	const FLearningAgentsTrainerSettings& Settings)
 {
-	Super::OnAgentAdded_Implementation(AgentId, Agent);
-
-	if (bSetupPerformed)
+	if (IsTrainerSetupPerformed())
 	{
-		// Reset the instance and the buffer in case we have stale data from another agent that was using this id previously
-		ResetInstance({AgentId});
-		EpisodeBuffer->Reset(AgentId);
-	}
-}
-
-void ULearningAgentsTrainer::SetupTrainer(ULearningAgentsType* AgentTypeOverride, const FLearningAgentsTrainerSettings& Settings)
-{
-	if (AgentTypeOverride)
-	{
-		AgentType = AgentTypeOverride;
-	}
-	else if (!AgentType)
-	{
-		UE_LOG(LogLearning, Error, TEXT("LearningAgentsTrainer setup called but AgentType is nullptr."));
+		UE_LOG(LogLearning, Error, TEXT("Setup already performed!"));
 		return;
 	}
 
-	if (!AgentType->IsSetupPerformed())
+	// Setup Agent Type, Policy, and Critic
+
+	if (!InAgentType)
 	{
-		UE_LOG(LogLearning, Error, TEXT("ULearningAgentsTrainer: AgentType not setup. "
-			"Consider using ULearningAgentsTrainer::OnAgentTypeSetupComplete when calling SetupTrainer."));
+		UE_LOG(LogLearning, Error, TEXT("SetupTrainer called with nullptr for AgentType."));
 		return;
 	}
 
-	// Reset Setup Flag
-	bSetupPerformed = false;
+	if (!InAgentType->IsSetupPerformed())
+	{
+		UE_LOG(LogLearning, Error, TEXT("AgentType Setup not performed."));
+		return;
+	}
+
+	AgentType = InAgentType;
+
+	if (!InPolicy)
+	{
+		UE_LOG(LogLearning, Error, TEXT("SetupTrainer called with nullptr for Policy."));
+		return;
+	}
+
+	if (!InPolicy->IsPolicySetupPerformed())
+	{
+		UE_LOG(LogLearning, Error, TEXT("Policy Setup not Performed"));
+		return;
+	}
+
+	Policy = InPolicy;
+
+	if (InCritic)
+	{
+		if (!InCritic->IsCriticSetupPerformed())
+		{
+			UE_LOG(LogLearning, Error, TEXT("Critic Setup not Performed"));
+			return;
+		}
+
+		Critic = InCritic;
+	}
 
 	// Setup Rewards
+
 	RewardObjects.Empty();
 	RewardFeatures.Empty();
 	SetupRewards(this);
@@ -74,6 +96,7 @@ void ULearningAgentsTrainer::SetupTrainer(ULearningAgentsType* AgentTypeOverride
 		AgentType->GetMaxInstanceNum());
 
 	// Setup Completions
+
 	CompletionObjects.Empty();
 	CompletionFeatures.Empty();
 	SetupCompletions(this);
@@ -83,6 +106,7 @@ void ULearningAgentsTrainer::SetupTrainer(ULearningAgentsType* AgentTypeOverride
 		AgentType->GetMaxInstanceNum());
 
 	// Create Episode Buffer
+
 	EpisodeBuffer = MakeUnique<UE::Learning::FEpisodeBuffer>();
 	EpisodeBuffer->Resize(
 		AgentType->GetMaxInstanceNum(),
@@ -93,6 +117,7 @@ void ULearningAgentsTrainer::SetupTrainer(ULearningAgentsType* AgentTypeOverride
 	MaxStepsCompletion = Settings.MaxStepsCompletion;
 
 	// Create Replay Buffer
+
 	ReplayBuffer = MakeUnique<UE::Learning::FReplayBuffer>();
 	ReplayBuffer->Resize(
 		AgentType->GetObservationFeature().DimNum(),
@@ -101,23 +126,120 @@ void ULearningAgentsTrainer::SetupTrainer(ULearningAgentsType* AgentTypeOverride
 		Settings.MaximumRecordedStepsPerIteration);
 
 	// Create Reset Buffer
+
 	ResetBuffer = MakeUnique<UE::Learning::FResetInstanceBuffer>();
 	ResetBuffer->Resize(AgentType->GetMaxInstanceNum());
 
+	// Record Timeout Setting
+
+	TrainerTimeout = Settings.TrainerCommunicationTimeout;
+
 	// Done!
-	bSetupPerformed = true;
+
+	bTrainerSetupPerformed = true;
 }
 
-const bool ULearningAgentsTrainer::IsSetupPerformed() const
+bool ULearningAgentsTrainer::IsTrainerSetupPerformed() const
 {
-	return bSetupPerformed;
+	return bTrainerSetupPerformed;
+}
+
+void ULearningAgentsTrainer::AddAgent(int32 AgentId)
+{
+	if (!IsTrainerSetupPerformed())
+	{
+		UE_LOG(LogLearning, Error, TEXT("Trainer setup must be run before agents can be added!"));
+		return;
+	}
+
+	if (!AgentType->GetOccupiedAgentSet().Contains(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("Unable to add: AgentId %d not found on AgentType. Make sure to add agents to the agent type before adding."), AgentId);
+		return;
+	}
+
+	if (SelectedAgentIds.Contains(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("AgentId %i is already included in agents set"), AgentId);
+		return;
+	}
+
+	SelectedAgentIds.Add(AgentId);
+	SelectedAgentsSet = SelectedAgentIds;
+	SelectedAgentsSet.TryMakeSlice();
+
+	if (IsTraining())
+	{
+		// Reset the instance and the buffer in case we have stale 
+		// data from another agent that was using this id previously
+		ResetInstance({ AgentId });
+		EpisodeBuffer->Reset(AgentId);
+	}
+}
+
+void ULearningAgentsTrainer::RemoveAgent(int32 AgentId)
+{
+	if (!IsTrainerSetupPerformed())
+	{
+		UE_LOG(LogLearning, Error, TEXT("Trainer setup must be run before agents can be removed!"));
+		return;
+	}
+
+	if (SelectedAgentIds.RemoveSingleSwap(AgentId, false) == 0)
+	{
+		UE_LOG(LogLearning, Error, TEXT("Unable to remove: AgentId %d not found in the added agents set."), AgentId);
+		return;
+	}
+
+	SelectedAgentsSet = SelectedAgentIds;
+	SelectedAgentsSet.TryMakeSlice();
+}
+
+bool ULearningAgentsTrainer::HasAgent(int32 AgentId) const
+{
+	return SelectedAgentsSet.Contains(AgentId);
+}
+
+ULearningAgentsType* ULearningAgentsTrainer::GetAgentType(TSubclassOf<ULearningAgentsType> AgentClass)
+{
+	if (!IsTrainerSetupPerformed())
+	{
+		UE_LOG(LogLearning, Error, TEXT("Trainer setup must be run before getting the agent type!"));
+		return nullptr;
+	}
+
+	return AgentType;
+}
+
+const UObject* ULearningAgentsTrainer::GetAgent(int32 AgentId) const
+{
+	UE_LEARNING_CHECK(AgentType);
+	return AgentType->GetAgent(AgentId);
+}
+
+UObject* ULearningAgentsTrainer::GetAgent(int32 AgentId)
+{
+	UE_LEARNING_CHECK(AgentType);
+	return AgentType->GetAgent(AgentId);
+}
+
+const ULearningAgentsType* ULearningAgentsTrainer::GetAgentType() const
+{
+	UE_LEARNING_CHECK(AgentType);
+	return AgentType;
+}
+
+ULearningAgentsType* ULearningAgentsTrainer::GetAgentType()
+{
+	UE_LEARNING_CHECK(AgentType);
+	return AgentType;
 }
 
 void ULearningAgentsTrainer::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (bIsTraining)
 	{
-		StopTraining();
+		EndTraining();
 	}
 
 	Super::EndPlay(EndPlayReason);
@@ -135,7 +257,7 @@ void ULearningAgentsTrainer::SetRewards_Implementation(const TArray<int32>& Agen
 
 void ULearningAgentsTrainer::AddReward(TObjectPtr<ULearningAgentsReward> Object, const TSharedRef<UE::Learning::FRewardObject>& Reward)
 {
-	check(!bSetupPerformed);
+	UE_LEARNING_CHECK(!IsTrainerSetupPerformed());
 	RewardObjects.Add(Object);
 	RewardFeatures.Add(Reward);
 }
@@ -152,7 +274,7 @@ void ULearningAgentsTrainer::SetCompletions_Implementation(const TArray<int32>& 
 
 void ULearningAgentsTrainer::AddCompletion(TObjectPtr<ULearningAgentsCompletion> Object, const TSharedRef<UE::Learning::FCompletionObject>& Completion)
 {
-	check(!bSetupPerformed);
+	UE_LEARNING_CHECK(!IsTrainerSetupPerformed());
 	CompletionObjects.Add(Object);
 	CompletionFeatures.Add(Completion);
 }
@@ -162,11 +284,14 @@ const bool ULearningAgentsTrainer::IsTraining() const
 	return bIsTraining;
 }
 
-void ULearningAgentsTrainer::StartTraining(
+void ULearningAgentsTrainer::BeginTraining(
 	const FLearningAgentsTrainerTrainingSettings& TrainingSettings, 
-	const FLearningAgentsTrainerGameSettings& Settings)
+	const FLearningAgentsTrainerGameSettings& TrainerGameSettings,
+	const FLearningAgentsCriticSettings& CriticSettings,
+	const bool bReinitializePolicyNetwork,
+	const bool bReinitializeCriticNetwork)
 {
-	if (!bSetupPerformed)
+	if (!IsTrainerSetupPerformed())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Setup must be run before training can start."));
 		return;
@@ -196,32 +321,31 @@ void ULearningAgentsTrainer::StartTraining(
 	}
 	// Apply Training GameState Settings
 
-	FApp::SetUseFixedTimeStep(Settings.bUseFixedTimeStep);
+	FApp::SetUseFixedTimeStep(TrainerGameSettings.bUseFixedTimeStep);
 
-	if (Settings.FixedTimeStepFrequency > UE_SMALL_NUMBER)
+	if (TrainerGameSettings.FixedTimeStepFrequency > UE_SMALL_NUMBER)
 	{
-		FApp::SetFixedDeltaTime(1.0f / Settings.FixedTimeStepFrequency);
-		if (Settings.bSetMaxPhysicsStepToFixedTimeStep && PhysicsSettings)
+		FApp::SetFixedDeltaTime(1.0f / TrainerGameSettings.FixedTimeStepFrequency);
+		if (TrainerGameSettings.bSetMaxPhysicsStepToFixedTimeStep && PhysicsSettings)
 		{
-			PhysicsSettings->MaxPhysicsDeltaTime = 1.0f / Settings.FixedTimeStepFrequency;
+			PhysicsSettings->MaxPhysicsDeltaTime = 1.0f / TrainerGameSettings.FixedTimeStepFrequency;
 		}
 	}
 	else
 	{
-		UE_LOG(LogLearning, Warning, TEXT("Provided invalid FixedTimeStepFrequency: %0.5f"), Settings.FixedTimeStepFrequency);
+		UE_LOG(LogLearning, Warning, TEXT("Provided invalid FixedTimeStepFrequency: %0.5f"), TrainerGameSettings.FixedTimeStepFrequency);
 	}
 
-	if (Settings.bDisableVSync && GameSettings)
+	if (TrainerGameSettings.bDisableVSync && GameSettings)
 	{
 		GameSettings->SetVSyncEnabled(false);
 		GameSettings->ApplySettings(false);
 	}
 
-	if (Settings.bUseUnlitViewportRendering && ViewportClient)
+	if (TrainerGameSettings.bUseUnlitViewportRendering && ViewportClient)
 	{
 		ViewportClient->ViewModeIndex = EViewModeIndex::VMI_Unlit;
 	}
-
 
 	// Start Trainer
 
@@ -243,7 +367,6 @@ void ULearningAgentsTrainer::StartTraining(
 	// run training when these things actually exist somewhere on your machine, which will usually be the case on 
 	// a normal development machine.
 
-	// todo bmulcahy all these paths should be configurable by the dev
 	UE_LEARNING_CHECKF(PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_LINUX, TEXT("Python only supported on Windows, Mac, and Linux."));
 	const FString PythonExe = PLATFORM_WINDOWS ? TEXT("python.exe") : TEXT("bin/python");
 	const FString EnginePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*(FPaths::RootDir() / TEXT("../../../../../../Engine")));
@@ -253,54 +376,106 @@ void ULearningAgentsTrainer::StartTraining(
 	const FString IntermediatePath = EnginePath / TEXT("Plugins/Experimental/LearningAgents/Intermediate");
 #endif
 
-	UE::Learning::FPPOTrainerSettings PPOSettings;
-	PPOSettings.IterationNum = TrainingSettings.NumberOfIterations;
-	PPOSettings.bReinitializeNetwork = TrainingSettings.bReinitializeNetwork;
-	PPOSettings.bUseTensorboard = TrainingSettings.bUseTensorboard;
-	PPOSettings.InitialActionScale = TrainingSettings.InitialActionScale;
-	PPOSettings.DiscountFactor = TrainingSettings.DiscountFactor;
-	PPOSettings.Seed = TrainingSettings.RandomSeed;
-	PPOSettings.TrimEpisodeStartStepNum = TrainingSettings.NumberOfStepsToTrimAtStartOfEpisode;
-	PPOSettings.TrimEpisodeEndStepNum = TrainingSettings.NumberOfStepsToTrimAtEndOfEpisode;
-	PPOSettings.Device = TrainingSettings.Device == ELearningAgentsTrainerDevice::CPU ? UE::Learning::ETrainerDevice::CPU : UE::Learning::ETrainerDevice::GPU;
+	UE::Learning::FPPOTrainerTrainingSettings PPOTrainingSettings;
+	PPOTrainingSettings.IterationNum = TrainingSettings.NumberOfIterations;
+	PPOTrainingSettings.bUseTensorboard = TrainingSettings.bUseTensorboard;
+	PPOTrainingSettings.InitialActionScale = TrainingSettings.InitialActionScale;
+	PPOTrainingSettings.DiscountFactor = TrainingSettings.DiscountFactor;
+	PPOTrainingSettings.Seed = TrainingSettings.RandomSeed;
+	PPOTrainingSettings.TrimEpisodeStartStepNum = TrainingSettings.NumberOfStepsToTrimAtStartOfEpisode;
+	PPOTrainingSettings.TrimEpisodeEndStepNum = TrainingSettings.NumberOfStepsToTrimAtEndOfEpisode;
+	PPOTrainingSettings.Device = TrainingSettings.Device == ELearningAgentsTrainerDevice::CPU ? UE::Learning::ETrainerDevice::CPU : UE::Learning::ETrainerDevice::GPU;
 
-	UE::Learning::FNeuralNetwork& NeuralNetwork = AgentType->GetNeuralNetwork();
-	const UE::Learning::FNeuralNetworkPolicyFunction& Policy = AgentType->GetPolicy();
+	UE::Learning::FPPOTrainerNetworkSettings PPONetworkSettings;
+	PPONetworkSettings.PolicyActionNoiseMin = Policy->GetPolicyObject().Settings.ActionNoiseMin;
+	PPONetworkSettings.PolicyActionNoiseMax = Policy->GetPolicyObject().Settings.ActionNoiseMax;
+	PPONetworkSettings.PolicyActivationFunction = Policy->GetPolicyNetwork().ActivationFunction;
+	PPONetworkSettings.PolicyHiddenLayerSize = Policy->GetPolicyNetwork().GetHiddenNum();
+	PPONetworkSettings.PolicyLayerNum = Policy->GetPolicyNetwork().GetLayerNum();
 
-	// Start Python Training Process (this must be done on main thread)
+	if (Critic)
+	{
+		if (CriticSettings.HiddenLayerSize != Critic->GetCriticNetwork().GetHiddenNum() ||
+			CriticSettings.LayerNum != Critic->GetCriticNetwork().GetLayerNum() ||
+			UE::Learning::Agents::GetActivationFunction(CriticSettings.ActivationFunction) != Critic->GetCriticNetwork().ActivationFunction)
+		{
+			UE_LOG(LogLearning, Warning, TEXT("StartTraining got different Critic Network Settings to those provided to SetupCritic."));
+		}
+
+		PPONetworkSettings.CriticHiddenLayerSize = Critic->GetCriticNetwork().GetHiddenNum();
+		PPONetworkSettings.CriticLayerNum = Critic->GetCriticNetwork().GetLayerNum();
+		PPONetworkSettings.CriticActivationFunction = Critic->GetCriticNetwork().ActivationFunction;
+	}
+	else
+	{
+		PPONetworkSettings.CriticHiddenLayerSize = CriticSettings.HiddenLayerSize;
+		PPONetworkSettings.CriticLayerNum = CriticSettings.LayerNum;
+		PPONetworkSettings.CriticActivationFunction = UE::Learning::Agents::GetActivationFunction(CriticSettings.ActivationFunction);
+	}
+
+	// We assume that if the critic has been setup on the agent type, then
+	// the user wants the critic network to be synced during training.
+	UE::Learning::EPPOTrainerFlags TrainerFlags = 
+		Critic ?
+		UE::Learning::EPPOTrainerFlags::SynchronizeCriticNetwork :
+		UE::Learning::EPPOTrainerFlags::None;
+
+	if (!bReinitializePolicyNetwork) { TrainerFlags |= UE::Learning::EPPOTrainerFlags::UseInitialPolicyNetwork; }
+	if (!bReinitializeCriticNetwork && Critic) { TrainerFlags |= UE::Learning::EPPOTrainerFlags::UseInitialCriticNetwork; }
+
+	// Start Python Training Process (this must be done on game thread)
 	Trainer = MakeUnique<UE::Learning::FSharedMemoryPPOTrainer>(
-		TEXT("Training"),
+		GetName(),
 		PythonExecutablePath,
 		SitePackagesPath,
 		PythonContentPath,
 		IntermediatePath,
-		NeuralNetwork,
-		Policy.Settings.ActionNoiseMin,
-		Policy.Settings.ActionNoiseMax,
 		*ReplayBuffer,
-		PPOSettings);
+		PPOTrainingSettings,
+		PPONetworkSettings,
+		TrainerFlags);
 
-	TrainerTimeout = TrainingSettings.TrainerCommunicationTimeout;
+	UE_LOG(LogLearning, Display, TEXT("Receiving initial policy..."));
 
-	UE::Learning::ETrainerResponse Response;
+	UE::Learning::ETrainerResponse Response = UE::Learning::ETrainerResponse::Success;
 
-	if (TrainingSettings.bReinitializeNetwork)
+	if ((bool)(TrainerFlags & UE::Learning::EPPOTrainerFlags::UseInitialPolicyNetwork))
 	{
-		UE_LOG(LogLearning, Display, TEXT("Receiving initial policy..."));
-		Response = Trainer->RecvPolicy(NeuralNetwork, TrainerTimeout);
+		Response = Trainer->SendPolicy(Policy->GetPolicyNetwork(), TrainerTimeout);
 	}
 	else
 	{
-		UE_LOG(LogLearning, Display, TEXT("Sending initial policy..."));
-		Response = Trainer->SendPolicy(NeuralNetwork, TrainerTimeout);
+		Response = Trainer->RecvPolicy(Policy->GetPolicyNetwork(), TrainerTimeout);
 	}
 
 	if (Response != UE::Learning::ETrainerResponse::Success)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Error sending or receiving policy from trainer. Check log for errors."));
+		UE_LOG(LogLearning, Error, TEXT("Error sending or receiving policy from trainer: %s. Check log for errors."), UE::Learning::Trainer::GetResponseString(Response));
 		Trainer->Terminate();
-		UE_DEBUG_BREAK();
 		return;
+	}
+
+	if (Critic)
+	{
+		if ((bool)(TrainerFlags & UE::Learning::EPPOTrainerFlags::UseInitialCriticNetwork))
+		{
+			Response = Trainer->SendCritic(Critic->GetCriticNetwork(), TrainerTimeout);
+		}
+		else if ((bool)(TrainerFlags & UE::Learning::EPPOTrainerFlags::SynchronizeCriticNetwork))
+		{
+			Response = Trainer->RecvCritic(Critic->GetCriticNetwork(), TrainerTimeout);
+		}
+		else
+		{
+			Response = UE::Learning::ETrainerResponse::Success;
+		}
+
+		if (Response != UE::Learning::ETrainerResponse::Success)
+		{
+			UE_LOG(LogLearning, Error, TEXT("Error sending or receiving critic from trainer: %s. Check log for errors."), UE::Learning::Trainer::GetResponseString(Response));
+			Trainer->Terminate();
+			return;
+		}
 	}
 
 	// Reset Agents, Episode Buffer, and Replay Buffer
@@ -315,7 +490,7 @@ void ULearningAgentsTrainer::StartTraining(
 
 void ULearningAgentsTrainer::DoneTraining()
 {
-	if (bIsTraining)
+	if (IsTraining())
 	{
 		// Wait for Trainer to finish
 		Trainer->Wait(1.0f);
@@ -350,9 +525,9 @@ void ULearningAgentsTrainer::DoneTraining()
 	}
 }
 
-void ULearningAgentsTrainer::StopTraining()
+void ULearningAgentsTrainer::EndTraining()
 {
-	if (bIsTraining)
+	if (IsTraining())
 	{
 		UE_LOG(LogLearning, Display, TEXT("Stopping training..."));
 		Trainer->SendStop();
@@ -364,7 +539,7 @@ void ULearningAgentsTrainer::EvaluateRewards()
 {
 	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsTrainer::EvaluateRewards);
 
-	if (!bSetupPerformed)
+	if (!IsTrainerSetupPerformed())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Setup must be run before rewards can be evaluated."));
 		return;
@@ -389,7 +564,7 @@ void ULearningAgentsTrainer::EvaluateCompletions()
 {
 	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsTrainer::EvaluateCompletions);
 
-	if (!bSetupPerformed)
+	if (!IsTrainerSetupPerformed())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Setup must be run before completions can be evaluated."));
 		return;
@@ -412,21 +587,15 @@ void ULearningAgentsTrainer::EvaluateCompletions()
 
 void ULearningAgentsTrainer::IterateTraining()
 {
-	if (!bSetupPerformed)
+	if (!IsTrainerSetupPerformed())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Setup must be run before training can be performed."));
 		return;
 	}
 
-	if (!bIsTraining)
+	if (!IsTraining())
 	{
-		if (!bPreviouslyLogged)
-		{
-			UE_LOG(LogLearning, Error, TEXT("Attempted to iterate training but the trainer is not running. Ensure StartTraining() is called before IterateTraining() and no errors occurred."));
-			UE_DEBUG_BREAK();
-			bPreviouslyLogged = true;
-		}
-
+		UE_LOG(LogLearning, Error, TEXT("Attempted to iterate training but the trainer is not running. Ensure StartTraining() is called before IterateTraining() and no errors occurred."));
 		return;
 	}
 
@@ -493,8 +662,7 @@ void ULearningAgentsTrainer::IterateTraining()
 			if (Response != UE::Learning::ETrainerResponse::Success)
 			{
 				UE_LOG(LogLearning, Error, TEXT("Error waiting to push experience to trainer. Check log for errors."));
-				StopTraining();
-				UE_DEBUG_BREAK();
+				EndTraining();
 				return;
 			}
 
@@ -504,7 +672,7 @@ void ULearningAgentsTrainer::IterateTraining()
 
 			// Get Updated Policy
 
-			Response = Trainer->RecvPolicy(AgentType->GetNeuralNetwork(), TrainerTimeout);
+			Response = Trainer->RecvPolicy(Policy->GetPolicyNetwork(), TrainerTimeout);
 
 			if (Response == UE::Learning::ETrainerResponse::Completed)
 			{
@@ -515,9 +683,22 @@ void ULearningAgentsTrainer::IterateTraining()
 			else if (Response != UE::Learning::ETrainerResponse::Success)
 			{
 				UE_LOG(LogLearning, Error, TEXT("Error waiting for policy from trainer. Check log for errors."));
-				StopTraining();
-				UE_DEBUG_BREAK();
+				EndTraining();
 				return;
+			}
+
+			// Get Updated Critic
+
+			if (Critic)
+			{
+				Response = Trainer->RecvCritic(Critic->GetCriticNetwork(), TrainerTimeout);
+
+				if (Response != UE::Learning::ETrainerResponse::Success)
+				{
+					UE_LOG(LogLearning, Error, TEXT("Error waiting for critic from trainer. Check log for errors."));
+					EndTraining();
+					return;
+				}
 			}
 
 			// Mark all instances for reset since we have a new policy
@@ -535,7 +716,7 @@ void ULearningAgentsTrainer::ResetAllInstances()
 {
 	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsTrainer::ResetAllInstances);
 
-	if (!bSetupPerformed)
+	if (!IsTrainerSetupPerformed())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Setup must be run before agents can be reset."));
 		return;

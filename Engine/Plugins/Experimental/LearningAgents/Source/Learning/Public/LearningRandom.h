@@ -104,6 +104,14 @@ namespace UE::Learning::Random
 		const FVector Axis0 = FVector::ForwardVector,
 		const FVector Axis1 = FVector::RightVector);
 
+	LEARNING_API void PlanarDirectionVelocity(
+		FVector& OutDirection,
+		FVector& OutVelocity,
+		const uint32 State,
+		const float VelocityScale = 100.0f,
+		const FVector Axis0 = FVector::ForwardVector,
+		const FVector Axis1 = FVector::RightVector);
+
 	LEARNING_API FQuat Rotation(const uint32 Input);
 
 	LEARNING_API void IntArray(
@@ -125,6 +133,21 @@ namespace UE::Learning::Random
 		const uint32 State,
 		const float Mean = 0.0f,
 		const float Std = 1.0f);
+
+	LEARNING_API void PlanarClippedGaussianArray(
+		TLearningArrayView<1, FVector> Output,
+		const uint32 State,
+		const float Mean = 0.0f,
+		const float Std = 1.0f,
+		const float Clip = 10.0f,
+		const FVector Axis0 = FVector::ForwardVector,
+		const FVector Axis1 = FVector::RightVector);
+
+	LEARNING_API void PlanarDirectionArray(
+		TLearningArrayView<1, FVector> Output,
+		const uint32 State,
+		const FVector Axis0 = FVector::ForwardVector,
+		const FVector Axis1 = FVector::RightVector);
 
 	/////////////////////////////////////////////////////////
 	//
@@ -207,4 +230,19 @@ namespace UE::Learning::Random
 	LEARNING_API void ResampleStateArray(
 		TLearningArrayView<1, uint32> InOutStates,
 		const FIndexSet Indices);
+
+	LEARNING_API void SamplePlanarClippedGaussianArray(
+		TLearningArrayView<1, FVector> Output,
+		uint32& State,
+		const float Mean = 0.0f,
+		const float Std = 1.0f,
+		const float Clip = 10.0f,
+		const FVector Axis0 = FVector::ForwardVector,
+		const FVector Axis1 = FVector::RightVector);
+
+	LEARNING_API void SamplePlanarDirectionArray(
+		TLearningArrayView<1, FVector> Output,
+		uint32& State,
+		const FVector Axis0 = FVector::ForwardVector,
+		const FVector Axis1 = FVector::RightVector);
 }

@@ -97,6 +97,7 @@ int32 ULearningSocketPPOTrainerServerCommandlet::Main(const FString& Commandline
 		IntermediatePath,
 		IpAddress,
 		Port,
+		UE::Learning::ESubprocessFlags::None,
 		LogSettings);
 
 	while (ServerProcess.IsRunning())
@@ -111,23 +112,35 @@ namespace UE::Learning
 {
 	FSharedMemoryPPOTrainer::FSharedMemoryPPOTrainer(
 		const FString& TaskName,
-		const FString& PythonExecutiblePath,
+		const FString& PythonExecutablePath,
 		const FString& SitePackagesPath,
 		const FString& PythonContentPath,
 		const FString& IntermediatePath,
-		const FNeuralNetwork& Network,
-		const float ActionNoiseMin,
-		const float ActionNoiseMax,
 		const FReplayBuffer& ReplayBuffer,
-		const FPPOTrainerSettings& Settings,
+		const FPPOTrainerTrainingSettings& TrainingSettings,
+		const FPPOTrainerNetworkSettings& NetworkSettings,
+		const EPPOTrainerFlags TrainerFlags,
 		const ELogSetting LogSettings,
-		const bool bHideTrainingWindow,
-		const bool bRedirectTrainingOutput)
+		const ESubprocessFlags TrainingProcessFlags,
+		const uint16 ProcessNum,
+		const ESubprocessFlags MultiProcessFlags)
 	{
-		UE_LEARNING_CHECK(Network.GetOutputNum() % 2 == 0);
+		const int32 ObservationVectorDimensionNum = ReplayBuffer.GetObservations().Num<1>();
+		const int32 ActionVectorDimensionNum = ReplayBuffer.GetActions().Num<1>();
 
-		const int32 ObservationVectorDimensionNum = Network.GetInputNum();
-		const int32 ActionVectorDimensionNum = Network.GetOutputNum() / 2;
+		const int32 TotalPolicyByteNum = FNeuralNetwork::GetSerializationByteNum(
+			ObservationVectorDimensionNum,
+			2 * ActionVectorDimensionNum,
+			NetworkSettings.PolicyHiddenLayerSize,
+			NetworkSettings.PolicyLayerNum);
+
+		const int32 TotalCriticByteNum = FNeuralNetwork::GetSerializationByteNum(
+				ObservationVectorDimensionNum,
+				1,
+				NetworkSettings.CriticHiddenLayerSize,
+				NetworkSettings.CriticLayerNum);
+
+		const bool bRequiresCritic = (bool)(TrainerFlags & EPPOTrainerFlags::SynchronizeCriticNetwork) || (bool)(TrainerFlags & EPPOTrainerFlags::UseInitialCriticNetwork);
 
 		if (!ensure(Policy.Region == nullptr))
 		{
@@ -144,15 +157,16 @@ namespace UE::Learning
 		{
 			// Allocate Shared Memory
 
-			Policy = SharedMemory::Allocate<1, uint8>({ Network.GetTotalByteNum() });
-			Controls = SharedMemory::Allocate<2, volatile int32>({ Settings.ProcessNum, SharedMemoryTraining::GetControlNum() });
-			EpisodeStarts = SharedMemory::Allocate<2, int32>({ Settings.ProcessNum, ReplayBuffer.GetMaxEpisodeNum() });
-			EpisodeLengths = SharedMemory::Allocate<2, int32>({ Settings.ProcessNum, ReplayBuffer.GetMaxEpisodeNum() });
-			EpisodeCompletionModes = SharedMemory::Allocate<2, ECompletionMode>({ Settings.ProcessNum, ReplayBuffer.GetMaxEpisodeNum() });
-			EpisodeFinalObservations = SharedMemory::Allocate<3, float>({ Settings.ProcessNum, ReplayBuffer.GetMaxEpisodeNum(), ObservationVectorDimensionNum });
-			Observations = SharedMemory::Allocate<3, float>({ Settings.ProcessNum, ReplayBuffer.GetMaxStepNum(), ObservationVectorDimensionNum });
-			Actions = SharedMemory::Allocate<3, float>({ Settings.ProcessNum, ReplayBuffer.GetMaxStepNum(), ActionVectorDimensionNum });
-			Rewards = SharedMemory::Allocate<2, float>({ Settings.ProcessNum, ReplayBuffer.GetMaxStepNum() });
+			Policy = SharedMemory::Allocate<1, uint8>({ TotalPolicyByteNum });
+			if (bRequiresCritic) { Critic = SharedMemory::Allocate<1, uint8>({ TotalCriticByteNum }); }
+			Controls = SharedMemory::Allocate<2, volatile int32>({ ProcessNum, SharedMemoryTraining::GetControlNum() });
+			EpisodeStarts = SharedMemory::Allocate<2, int32>({ ProcessNum, ReplayBuffer.GetMaxEpisodeNum() });
+			EpisodeLengths = SharedMemory::Allocate<2, int32>({ ProcessNum, ReplayBuffer.GetMaxEpisodeNum() });
+			EpisodeCompletionModes = SharedMemory::Allocate<2, ECompletionMode>({ ProcessNum, ReplayBuffer.GetMaxEpisodeNum() });
+			EpisodeFinalObservations = SharedMemory::Allocate<3, float>({ ProcessNum, ReplayBuffer.GetMaxEpisodeNum(), ObservationVectorDimensionNum });
+			Observations = SharedMemory::Allocate<3, float>({ ProcessNum, ReplayBuffer.GetMaxStepNum(), ObservationVectorDimensionNum });
+			Actions = SharedMemory::Allocate<3, float>({ ProcessNum, ReplayBuffer.GetMaxStepNum(), ActionVectorDimensionNum });
+			Rewards = SharedMemory::Allocate<2, float>({ ProcessNum, ReplayBuffer.GetMaxStepNum() });
 
 			// We need to zero the control memory before we start
 			// the training sub-process since it may contain uninitialized 
@@ -162,7 +176,7 @@ namespace UE::Learning
 
 			// Create Experience Gathering Sub-processes
 
-			for (uint16 SubprocessIdx = 1; SubprocessIdx < Settings.ProcessNum; SubprocessIdx++)
+			for (uint16 SubprocessIdx = 1; SubprocessIdx < ProcessNum; SubprocessIdx++)
 			{
 				ensureMsgf(!WITH_EDITOR || IsRunningCommandlet(), TEXT("Multi-processing generally does not work in-editor as it requires a standalone executable."));
 
@@ -170,6 +184,7 @@ namespace UE::Learning
 
 				SubprocessCommandLine += FString::Printf(TEXT(" -LearningProcessIdx %i"), SubprocessIdx);
 				SubprocessCommandLine += FString(TEXT(" -LearningPolicyGuid ")) + Policy.Guid.ToString();
+				if (bRequiresCritic) { SubprocessCommandLine += FString(TEXT(" -LearningCriticGuid ")) + Critic.Guid.ToString(); }
 				SubprocessCommandLine += FString(TEXT(" -LearningControlsGuid ")) + Controls.Guid.ToString();
 				SubprocessCommandLine += FString(TEXT(" -LearningEpisodeStartsGuid ")) + EpisodeStarts.Guid.ToString();
 				SubprocessCommandLine += FString(TEXT(" -LearningEpisodeLengthsGuid ")) + EpisodeLengths.Guid.ToString();
@@ -182,10 +197,10 @@ namespace UE::Learning
 				const TSharedPtr<FMonitoredProcess> Subprocess = MakeShared<FMonitoredProcess>(
 					FPlatformProcess::ExecutablePath(), 
 					SubprocessCommandLine, 
-					Settings.bMultiProcessHideTrainingWindow, 
-					Settings.bMultiProcessRedirectTrainingOutput);
+					!(MultiProcessFlags & ESubprocessFlags::ShowWindow),
+					!(MultiProcessFlags & ESubprocessFlags::NoRedirectOutput));
 
-				if (Settings.bMultiProcessRedirectTrainingOutput)
+				if (!(MultiProcessFlags & ESubprocessFlags::NoRedirectOutput))
 				{
 					Subprocess->OnCanceled().BindRaw(this, &FSharedMemoryPPOTrainer::HandleSubprocessCanceled);
 					Subprocess->OnCompleted().BindRaw(this, &FSharedMemoryPPOTrainer::HandleSubprocessCompleted);
@@ -216,6 +231,7 @@ namespace UE::Learning
 			ConfigObject->SetStringField(TEXT("IntermediatePath"), *IntermediatePath);
 
 			ConfigObject->SetStringField(TEXT("PolicyGuid"), *Policy.Guid.ToString(EGuidFormats::DigitsWithHyphensInBraces));
+			if (bRequiresCritic) { ConfigObject->SetStringField(TEXT("CriticGuid"), *Critic.Guid.ToString(EGuidFormats::DigitsWithHyphensInBraces)); }
 			ConfigObject->SetStringField(TEXT("ControlsGuid"), *Controls.Guid.ToString(EGuidFormats::DigitsWithHyphensInBraces));
 			ConfigObject->SetStringField(TEXT("EpisodeStartsGuid"), *EpisodeStarts.Guid.ToString(EGuidFormats::DigitsWithHyphensInBraces));
 			ConfigObject->SetStringField(TEXT("EpisodeLengthsGuid"), *EpisodeLengths.Guid.ToString(EGuidFormats::DigitsWithHyphensInBraces));
@@ -227,37 +243,47 @@ namespace UE::Learning
 
 			ConfigObject->SetNumberField(TEXT("ObservationVectorDimensionNum"), ObservationVectorDimensionNum);
 			ConfigObject->SetNumberField(TEXT("ActionVectorDimensionNum"), ActionVectorDimensionNum);
-			ConfigObject->SetNumberField(TEXT("NetworkTotalByteNum"), Network.GetTotalByteNum());
 			ConfigObject->SetNumberField(TEXT("MaxEpisodeNum"), ReplayBuffer.GetMaxEpisodeNum());
 			ConfigObject->SetNumberField(TEXT("MaxStepNum"), ReplayBuffer.GetMaxStepNum());
-			ConfigObject->SetNumberField(TEXT("HiddenUnitNum"), Network.GetHiddenNum());
-			ConfigObject->SetNumberField(TEXT("LayerNum"), Network.GetLayerNum());
-			ConfigObject->SetStringField(TEXT("ActivationFunction"), ActivationFunctionString(Network.ActivationFunction));
 
-			ConfigObject->SetNumberField(TEXT("ActionNoiseMin"), ActionNoiseMin);
-			ConfigObject->SetNumberField(TEXT("ActionNoiseMax"), ActionNoiseMax);
+			ConfigObject->SetNumberField(TEXT("PolicyNetworkByteNum"), TotalPolicyByteNum);
+			ConfigObject->SetNumberField(TEXT("PolicyHiddenUnitNum"), NetworkSettings.PolicyHiddenLayerSize);
+			ConfigObject->SetNumberField(TEXT("PolicyLayerNum"), NetworkSettings.PolicyLayerNum);
+			ConfigObject->SetStringField(TEXT("PolicyActivationFunction"), GetActivationFunctionString(NetworkSettings.PolicyActivationFunction));
+			ConfigObject->SetNumberField(TEXT("PolicyActionNoiseMin"), NetworkSettings.PolicyActionNoiseMin);
+			ConfigObject->SetNumberField(TEXT("PolicyActionNoiseMax"), NetworkSettings.PolicyActionNoiseMax);
 
-			ConfigObject->SetNumberField(TEXT("ProcessNum"), Settings.ProcessNum);
-			ConfigObject->SetNumberField(TEXT("IterationNum"), Settings.IterationNum);
-			ConfigObject->SetNumberField(TEXT("LearningRateActor"), Settings.LearningRateActor);
-			ConfigObject->SetNumberField(TEXT("LearningRateCritic"), Settings.LearningRateCritic);
-			ConfigObject->SetNumberField(TEXT("LearningRateDecay"), Settings.LearningRateDecay);
-			ConfigObject->SetNumberField(TEXT("WeightDecay"), Settings.WeightDecay);
-			ConfigObject->SetNumberField(TEXT("InitialActionScale"), Settings.InitialActionScale);
-			ConfigObject->SetNumberField(TEXT("BatchSize"), Settings.BatchSize);
-			ConfigObject->SetNumberField(TEXT("EpsilonClip"), Settings.EpsilonClip);
-			ConfigObject->SetNumberField(TEXT("ActionRegularizationWeight"), Settings.ActionRegularizationWeight);
-			ConfigObject->SetNumberField(TEXT("EntropyWeight"), Settings.EntropyWeight);
-			ConfigObject->SetNumberField(TEXT("GaeLambda"), Settings.GaeLambda);
-			ConfigObject->SetBoolField(TEXT("ClipAdvantages"), Settings.bClipAdvantages);
-			ConfigObject->SetBoolField(TEXT("AdvantageNormalization"), Settings.bAdvantageNormalization);
-			ConfigObject->SetNumberField(TEXT("TrimEpisodeStartStepNum"), Settings.TrimEpisodeStartStepNum);
-			ConfigObject->SetNumberField(TEXT("TrimEpisodeEndStepNum"), Settings.TrimEpisodeEndStepNum);
-			ConfigObject->SetNumberField(TEXT("Seed"), Settings.Seed);
-			ConfigObject->SetNumberField(TEXT("DiscountFactor"), Settings.DiscountFactor);
-			ConfigObject->SetBoolField(TEXT("ReinitializeNetwork"), Settings.bReinitializeNetwork);
-			ConfigObject->SetStringField(TEXT("Device"), Trainer::GetDeviceString(Settings.Device));
-			ConfigObject->SetBoolField(TEXT("UseTensorBoard"), Settings.bUseTensorboard);
+			ConfigObject->SetNumberField(TEXT("CriticNetworkByteNum"), TotalCriticByteNum);
+			ConfigObject->SetNumberField(TEXT("CriticHiddenUnitNum"), NetworkSettings.CriticHiddenLayerSize);
+			ConfigObject->SetNumberField(TEXT("CriticLayerNum"), NetworkSettings.CriticLayerNum);
+			ConfigObject->SetStringField(TEXT("CriticActivationFunction"), GetActivationFunctionString(NetworkSettings.CriticActivationFunction));
+
+			ConfigObject->SetNumberField(TEXT("ProcessNum"), ProcessNum);
+
+			ConfigObject->SetNumberField(TEXT("IterationNum"), TrainingSettings.IterationNum);
+			ConfigObject->SetNumberField(TEXT("LearningRatePolicy"), TrainingSettings.LearningRatePolicy);
+			ConfigObject->SetNumberField(TEXT("LearningRateCritic"), TrainingSettings.LearningRateCritic);
+			ConfigObject->SetNumberField(TEXT("LearningRateDecay"), TrainingSettings.LearningRateDecay);
+			ConfigObject->SetNumberField(TEXT("WeightDecay"), TrainingSettings.WeightDecay);
+			ConfigObject->SetNumberField(TEXT("InitialActionScale"), TrainingSettings.InitialActionScale);
+			ConfigObject->SetNumberField(TEXT("BatchSize"), TrainingSettings.BatchSize);
+			ConfigObject->SetNumberField(TEXT("EpsilonClip"), TrainingSettings.EpsilonClip);
+			ConfigObject->SetNumberField(TEXT("ActionRegularizationWeight"), TrainingSettings.ActionRegularizationWeight);
+			ConfigObject->SetNumberField(TEXT("EntropyWeight"), TrainingSettings.EntropyWeight);
+			ConfigObject->SetNumberField(TEXT("GaeLambda"), TrainingSettings.GaeLambda);
+			ConfigObject->SetBoolField(TEXT("ClipAdvantages"), TrainingSettings.bClipAdvantages);
+			ConfigObject->SetBoolField(TEXT("AdvantageNormalization"), TrainingSettings.bAdvantageNormalization);
+			ConfigObject->SetNumberField(TEXT("TrimEpisodeStartStepNum"), TrainingSettings.TrimEpisodeStartStepNum);
+			ConfigObject->SetNumberField(TEXT("TrimEpisodeEndStepNum"), TrainingSettings.TrimEpisodeEndStepNum);
+			ConfigObject->SetNumberField(TEXT("Seed"), TrainingSettings.Seed);
+			ConfigObject->SetNumberField(TEXT("DiscountFactor"), TrainingSettings.DiscountFactor);
+			ConfigObject->SetStringField(TEXT("Device"), Trainer::GetDeviceString(TrainingSettings.Device));
+			ConfigObject->SetBoolField(TEXT("UseTensorBoard"), TrainingSettings.bUseTensorboard);
+
+			ConfigObject->SetBoolField(TEXT("UseInitialPolicyNetwork"), (bool)(TrainerFlags& EPPOTrainerFlags::UseInitialPolicyNetwork));
+			ConfigObject->SetBoolField(TEXT("UseInitialCriticNetwork"), (bool)(TrainerFlags& EPPOTrainerFlags::UseInitialCriticNetwork));
+			ConfigObject->SetBoolField(TEXT("SynchronizeCriticNetwork"), (bool)(TrainerFlags& EPPOTrainerFlags::SynchronizeCriticNetwork));
+
 			ConfigObject->SetBoolField(TEXT("LoggingEnabled"), LogSettings == ELogSetting::Silent ? false : true);
 
 			FString JsonString;
@@ -270,9 +296,13 @@ namespace UE::Learning
 
 			const FString CommandLineArguments = FString::Printf(TEXT("\"%s\" SharedMemory \"%s\""), *(PythonContentPath / TEXT("train_ppo.py")), *ConfigPath);
 
-			TrainingProcess = MakeShared<FMonitoredProcess>(PythonExecutiblePath, CommandLineArguments, bHideTrainingWindow, bRedirectTrainingOutput);
+			TrainingProcess = MakeShared<FMonitoredProcess>(
+				PythonExecutablePath, 
+				CommandLineArguments, 
+				!(TrainingProcessFlags & ESubprocessFlags::ShowWindow),
+				!(TrainingProcessFlags & ESubprocessFlags::NoRedirectOutput));
 
-			if (bRedirectTrainingOutput)
+			if (!(TrainingProcessFlags & ESubprocessFlags::NoRedirectOutput))
 			{
 				TrainingProcess->OnCanceled().BindRaw(this, &FSharedMemoryPPOTrainer::HandleTrainingProcessCanceled);
 				TrainingProcess->OnCompleted().BindRaw(this, &FSharedMemoryPPOTrainer::HandleTrainingProcessCompleted);
@@ -286,6 +316,7 @@ namespace UE::Learning
 			// Parse Guids from command line args
 
 			FGuid PolicyGuid; ensure(FParse::Value(FCommandLine::Get(), TEXT("LearningPolicyGuid"), PolicyGuid));
+			FGuid CriticGuid; if (bRequiresCritic) { ensure(FParse::Value(FCommandLine::Get(), TEXT("LearningCriticGuid"), CriticGuid)); }
 			FGuid ControlsGuid; ensure(FParse::Value(FCommandLine::Get(), TEXT("LearningControlsGuid"), ControlsGuid));
 			FGuid EpisodeStartsGuid; ensure(FParse::Value(FCommandLine::Get(), TEXT("LearningEpisodeStartsGuid"), EpisodeStartsGuid));
 			FGuid EpisodeLengthsGuid; ensure(FParse::Value(FCommandLine::Get(), TEXT("LearningEpisodeLengthsGuid"), EpisodeLengthsGuid));
@@ -297,15 +328,16 @@ namespace UE::Learning
 
 			// Map shared memory
 
-			Policy = SharedMemory::Map<1, uint8>(PolicyGuid, { Network.GetTotalByteNum() });
-			Controls = SharedMemory::Map<2, volatile int32>(ControlsGuid, { Settings.ProcessNum, SharedMemoryTraining::GetControlNum() });
-			EpisodeStarts = SharedMemory::Map<2, int32>(EpisodeStartsGuid, { Settings.ProcessNum, ReplayBuffer.GetMaxEpisodeNum() });
-			EpisodeLengths = SharedMemory::Map<2, int32>(EpisodeLengthsGuid, { Settings.ProcessNum, ReplayBuffer.GetMaxEpisodeNum() });
-			EpisodeCompletionModes = SharedMemory::Map<2, ECompletionMode>(EpisodeCompletionModesGuid, { Settings.ProcessNum, ReplayBuffer.GetMaxEpisodeNum() });
-			EpisodeFinalObservations = SharedMemory::Map<3, float>(EpisodeFinalObservationsGuid, { Settings.ProcessNum, ReplayBuffer.GetMaxEpisodeNum(), ObservationVectorDimensionNum });
-			Observations = SharedMemory::Map<3, float>(ObservationsGuid, { Settings.ProcessNum, ReplayBuffer.GetMaxStepNum(), ObservationVectorDimensionNum });
-			Actions = SharedMemory::Map<3, float>(ActionsGuid, { Settings.ProcessNum, ReplayBuffer.GetMaxStepNum(), ActionVectorDimensionNum });
-			Rewards = SharedMemory::Map<2, float>(RewardsGuid, { Settings.ProcessNum, ReplayBuffer.GetMaxStepNum() });
+			Policy = SharedMemory::Map<1, uint8>(PolicyGuid, { TotalPolicyByteNum });
+			if (bRequiresCritic) { Critic = SharedMemory::Map<1, uint8>(CriticGuid, { TotalCriticByteNum }); }
+			Controls = SharedMemory::Map<2, volatile int32>(ControlsGuid, { ProcessNum, SharedMemoryTraining::GetControlNum() });
+			EpisodeStarts = SharedMemory::Map<2, int32>(EpisodeStartsGuid, { ProcessNum, ReplayBuffer.GetMaxEpisodeNum() });
+			EpisodeLengths = SharedMemory::Map<2, int32>(EpisodeLengthsGuid, { ProcessNum, ReplayBuffer.GetMaxEpisodeNum() });
+			EpisodeCompletionModes = SharedMemory::Map<2, ECompletionMode>(EpisodeCompletionModesGuid, { ProcessNum, ReplayBuffer.GetMaxEpisodeNum() });
+			EpisodeFinalObservations = SharedMemory::Map<3, float>(EpisodeFinalObservationsGuid, { ProcessNum, ReplayBuffer.GetMaxEpisodeNum(), ObservationVectorDimensionNum });
+			Observations = SharedMemory::Map<3, float>(ObservationsGuid, { ProcessNum, ReplayBuffer.GetMaxStepNum(), ObservationVectorDimensionNum });
+			Actions = SharedMemory::Map<3, float>(ActionsGuid, { ProcessNum, ReplayBuffer.GetMaxStepNum(), ActionVectorDimensionNum });
+			Rewards = SharedMemory::Map<2, float>(RewardsGuid, { ProcessNum, ReplayBuffer.GetMaxStepNum() });
 		}
 	}
 
@@ -368,6 +400,24 @@ namespace UE::Learning
 			LogSettings);
 	}
 
+	ETrainerResponse FSharedMemoryPPOTrainer::RecvCritic(
+		FNeuralNetwork& OutNetwork,
+		const float Timeout,
+		FRWLock* NetworkLock,
+		const ELogSetting LogSettings)
+	{
+		UE_LEARNING_CHECKF(Critic.View.GetData(), 
+			TEXT("Buffer for critic was not allocated. Were the correct EPPOTrainerFlags provided to construct the FSharedMemoryPPOTrainer?"));
+
+		return SharedMemoryTraining::RecvCritic(
+			Controls.View[ProcessIdx],
+			OutNetwork,
+			Critic.View,
+			Timeout,
+			NetworkLock,
+			LogSettings);
+	}
+
 	ETrainerResponse FSharedMemoryPPOTrainer::SendPolicy(
 		const FNeuralNetwork& Network,
 		const float Timeout,
@@ -377,6 +427,24 @@ namespace UE::Learning
 		return SharedMemoryTraining::SendPolicy(
 			Controls.View[ProcessIdx],
 			Policy.View,
+			Network,
+			Timeout,
+			NetworkLock,
+			LogSettings);
+	}
+
+	ETrainerResponse FSharedMemoryPPOTrainer::SendCritic(
+		const FNeuralNetwork& Network,
+		const float Timeout,
+		FRWLock* NetworkLock,
+		const ELogSetting LogSettings)
+	{
+		UE_LEARNING_CHECKF(Critic.View.GetData(),
+			TEXT("Buffer for critic was not allocated. Were the correct EPPOTrainerFlags provided to construct the FSharedMemoryPPOTrainer?"));
+
+		return SharedMemoryTraining::SendCritic(
+			Controls.View[ProcessIdx],
+			Critic.View,
 			Network,
 			Timeout,
 			NetworkLock,
@@ -472,15 +540,25 @@ namespace UE::Learning
 		const FString& IntermediatePath,
 		const TCHAR* IpAddress,
 		const uint32 Port,
+		const ESubprocessFlags TrainingProcessFlags,
 		const ELogSetting LogSettings)
 	{
 		const FString CommandLineArguments = FString::Printf(TEXT("\"%s\" Socket \"%s:%i\" \"%s\" \"%s\" %i"), 
 			*(PythonContentPath / TEXT("train_ppo.py")), IpAddress, Port, *SitePackagesPath, *IntermediatePath, LogSettings == ELogSetting::Normal ? 1 : 0);
 
-		TrainingProcess = MakeShared<FMonitoredProcess>(PythonExecutiblePath, CommandLineArguments, true, true);
-		TrainingProcess->OnCanceled().BindRaw(this, &FSocketPPOTrainerServerProcess::HandleTrainingProcessCanceled);
-		TrainingProcess->OnCompleted().BindRaw(this, &FSocketPPOTrainerServerProcess::HandleTrainingProcessCompleted);
-		TrainingProcess->OnOutput().BindStatic(&FSocketPPOTrainerServerProcess::HandleTrainingProcessOutput);
+		TrainingProcess = MakeShared<FMonitoredProcess>(
+			PythonExecutiblePath, 
+			CommandLineArguments,
+			!(TrainingProcessFlags & ESubprocessFlags::ShowWindow),
+			!(TrainingProcessFlags & ESubprocessFlags::NoRedirectOutput));
+
+		if (!(TrainingProcessFlags & ESubprocessFlags::NoRedirectOutput))
+		{
+			TrainingProcess->OnCanceled().BindRaw(this, &FSocketPPOTrainerServerProcess::HandleTrainingProcessCanceled);
+			TrainingProcess->OnCompleted().BindRaw(this, &FSocketPPOTrainerServerProcess::HandleTrainingProcessCompleted);
+			TrainingProcess->OnOutput().BindStatic(&FSocketPPOTrainerServerProcess::HandleTrainingProcessOutput);
+		}
+
 		TrainingProcess->Launch();
 	}
 
@@ -551,64 +629,77 @@ namespace UE::Learning
 	FSocketPPOTrainer::FSocketPPOTrainer(
 		ETrainerResponse& OutResponse,
 		const FString& TaskName,
-		const FNeuralNetwork& Network,
-		const float ActionNoiseMin,
-		const float ActionNoiseMax,
 		const FReplayBuffer& ReplayBuffer,
 		const TCHAR* IpAddress,
 		const uint32 Port,
 		const float Timeout,
-		const FPPOTrainerSettings& Settings)
+		const FPPOTrainerTrainingSettings& TrainingSettings,
+		const FPPOTrainerNetworkSettings& NetworkSettings,
+		const EPPOTrainerFlags TrainerFlags)
 	{
-		UE_LEARNING_CHECK(Network.GetOutputNum() % 2 == 0);
+		const int32 ObservationVectorDimensionNum = ReplayBuffer.GetObservations().Num<1>();
+		const int32 ActionVectorDimensionNum = ReplayBuffer.GetActions().Num<1>();
 
-		const int32 ObservationVectorDimensionNum = Network.GetInputNum();
-		const int32 ActionVectorDimensionNum = Network.GetOutputNum() / 2;
+		const int32 TotalPolicyByteNum = FNeuralNetwork::GetSerializationByteNum(
+			ObservationVectorDimensionNum,
+			2 * ActionVectorDimensionNum,
+			NetworkSettings.PolicyHiddenLayerSize,
+			NetworkSettings.PolicyLayerNum);
+
+		const int32 TotalCriticByteNum = FNeuralNetwork::GetSerializationByteNum(
+			ObservationVectorDimensionNum,
+			1,
+			NetworkSettings.CriticHiddenLayerSize,
+			NetworkSettings.CriticLayerNum);
 
 		// Write Config
 
-		const FString TimeStamp = FDateTime::Now().ToFormattedString(TEXT("%Y-%m-%d_%H-%M-%S"));
-		const FString TrainerMethod = TEXT("PPO");
-		const FString TrainerType = TEXT("Network");
-
 		TSharedRef<FJsonObject> ConfigObject = MakeShared<FJsonObject>();
 		ConfigObject->SetStringField(TEXT("TaskName"), *TaskName);
-		ConfigObject->SetStringField(TEXT("TrainerMethod"), TrainerMethod);
-		ConfigObject->SetStringField(TEXT("TrainerType"), TrainerType);
-		ConfigObject->SetStringField(TEXT("TimeStamp"), *TimeStamp);
+		ConfigObject->SetStringField(TEXT("TrainerMethod"), TEXT("PPO"));
+		ConfigObject->SetStringField(TEXT("TrainerType"), TEXT("Network"));
+		ConfigObject->SetStringField(TEXT("TimeStamp"), *FDateTime::Now().ToFormattedString(TEXT("%Y-%m-%d_%H-%M-%S")));
 
 		ConfigObject->SetNumberField(TEXT("ObservationVectorDimensionNum"), ObservationVectorDimensionNum);
 		ConfigObject->SetNumberField(TEXT("ActionVectorDimensionNum"), ActionVectorDimensionNum);
-		ConfigObject->SetNumberField(TEXT("NetworkTotalByteNum"), Network.GetTotalByteNum());
 		ConfigObject->SetNumberField(TEXT("MaxEpisodeNum"), ReplayBuffer.GetMaxEpisodeNum());
 		ConfigObject->SetNumberField(TEXT("MaxStepNum"), ReplayBuffer.GetMaxStepNum());
-		ConfigObject->SetNumberField(TEXT("HiddenUnitNum"), Network.GetHiddenNum());
-		ConfigObject->SetNumberField(TEXT("LayerNum"), Network.GetLayerNum());
-		ConfigObject->SetStringField(TEXT("ActivationFunction"), ActivationFunctionString(Network.ActivationFunction));
 
-		ConfigObject->SetNumberField(TEXT("ActionNoiseMin"), ActionNoiseMin);
-		ConfigObject->SetNumberField(TEXT("ActionNoiseMax"), ActionNoiseMax);
+		ConfigObject->SetNumberField(TEXT("PolicyNetworkByteNum"), TotalPolicyByteNum);
+		ConfigObject->SetNumberField(TEXT("PolicyHiddenUnitNum"), NetworkSettings.PolicyHiddenLayerSize);
+		ConfigObject->SetNumberField(TEXT("PolicyLayerNum"), NetworkSettings.PolicyLayerNum);
+		ConfigObject->SetStringField(TEXT("PolicyActivationFunction"), GetActivationFunctionString(NetworkSettings.PolicyActivationFunction));
+		ConfigObject->SetNumberField(TEXT("PolicyActionNoiseMin"), NetworkSettings.PolicyActionNoiseMin);
+		ConfigObject->SetNumberField(TEXT("PolicyActionNoiseMax"), NetworkSettings.PolicyActionNoiseMax);
 
-		ConfigObject->SetNumberField(TEXT("IterationNum"), Settings.IterationNum);
-		ConfigObject->SetNumberField(TEXT("LearningRateActor"), Settings.LearningRateActor);
-		ConfigObject->SetNumberField(TEXT("LearningRateCritic"), Settings.LearningRateCritic);
-		ConfigObject->SetNumberField(TEXT("LearningRateDecay"), Settings.LearningRateDecay);
-		ConfigObject->SetNumberField(TEXT("WeightDecay"), Settings.WeightDecay);
-		ConfigObject->SetNumberField(TEXT("InitialActionScale"), Settings.InitialActionScale);
-		ConfigObject->SetNumberField(TEXT("BatchSize"), Settings.BatchSize);
-		ConfigObject->SetNumberField(TEXT("EpsilonClip"), Settings.EpsilonClip);
-		ConfigObject->SetNumberField(TEXT("ActionRegularizationWeight"), Settings.ActionRegularizationWeight);
-		ConfigObject->SetNumberField(TEXT("EntropyWeight"), Settings.EntropyWeight);
-		ConfigObject->SetNumberField(TEXT("GaeLambda"), Settings.GaeLambda);
-		ConfigObject->SetBoolField(TEXT("ClipAdvantages"), Settings.bClipAdvantages);
-		ConfigObject->SetBoolField(TEXT("AdvantageNormalization"), Settings.bAdvantageNormalization);
-		ConfigObject->SetNumberField(TEXT("TrimEpisodeStartStepNum"), Settings.TrimEpisodeStartStepNum);
-		ConfigObject->SetNumberField(TEXT("TrimEpisodeEndStepNum"), Settings.TrimEpisodeEndStepNum);
-		ConfigObject->SetNumberField(TEXT("Seed"), Settings.Seed);
-		ConfigObject->SetNumberField(TEXT("DiscountFactor"), Settings.DiscountFactor);
-		ConfigObject->SetBoolField(TEXT("ReinitializeNetwork"), Settings.bReinitializeNetwork);
-		ConfigObject->SetStringField(TEXT("Device"), Trainer::GetDeviceString(Settings.Device));
-		ConfigObject->SetBoolField(TEXT("UseTensorBoard"), Settings.bUseTensorboard);
+		ConfigObject->SetNumberField(TEXT("CriticNetworkByteNum"), TotalCriticByteNum);
+		ConfigObject->SetNumberField(TEXT("CriticHiddenUnitNum"), NetworkSettings.CriticHiddenLayerSize);
+		ConfigObject->SetNumberField(TEXT("CriticLayerNum"), NetworkSettings.CriticLayerNum);
+		ConfigObject->SetStringField(TEXT("CriticActivationFunction"), GetActivationFunctionString(NetworkSettings.CriticActivationFunction));
+
+		ConfigObject->SetNumberField(TEXT("IterationNum"), TrainingSettings.IterationNum);
+		ConfigObject->SetNumberField(TEXT("LearningRatePolicy"), TrainingSettings.LearningRatePolicy);
+		ConfigObject->SetNumberField(TEXT("LearningRateCritic"), TrainingSettings.LearningRateCritic);
+		ConfigObject->SetNumberField(TEXT("LearningRateDecay"), TrainingSettings.LearningRateDecay);
+		ConfigObject->SetNumberField(TEXT("WeightDecay"), TrainingSettings.WeightDecay);
+		ConfigObject->SetNumberField(TEXT("InitialActionScale"), TrainingSettings.InitialActionScale);
+		ConfigObject->SetNumberField(TEXT("BatchSize"), TrainingSettings.BatchSize);
+		ConfigObject->SetNumberField(TEXT("EpsilonClip"), TrainingSettings.EpsilonClip);
+		ConfigObject->SetNumberField(TEXT("ActionRegularizationWeight"), TrainingSettings.ActionRegularizationWeight);
+		ConfigObject->SetNumberField(TEXT("EntropyWeight"), TrainingSettings.EntropyWeight);
+		ConfigObject->SetNumberField(TEXT("GaeLambda"), TrainingSettings.GaeLambda);
+		ConfigObject->SetBoolField(TEXT("ClipAdvantages"), TrainingSettings.bClipAdvantages);
+		ConfigObject->SetBoolField(TEXT("AdvantageNormalization"), TrainingSettings.bAdvantageNormalization);
+		ConfigObject->SetNumberField(TEXT("TrimEpisodeStartStepNum"), TrainingSettings.TrimEpisodeStartStepNum);
+		ConfigObject->SetNumberField(TEXT("TrimEpisodeEndStepNum"), TrainingSettings.TrimEpisodeEndStepNum);
+		ConfigObject->SetNumberField(TEXT("Seed"), TrainingSettings.Seed);
+		ConfigObject->SetNumberField(TEXT("DiscountFactor"), TrainingSettings.DiscountFactor);
+		ConfigObject->SetStringField(TEXT("Device"), Trainer::GetDeviceString(TrainingSettings.Device));
+		ConfigObject->SetBoolField(TEXT("UseTensorBoard"), TrainingSettings.bUseTensorboard);
+
+		ConfigObject->SetBoolField(TEXT("UseInitialPolicyNetwork"), (bool)(TrainerFlags & EPPOTrainerFlags::UseInitialPolicyNetwork));
+		ConfigObject->SetBoolField(TEXT("UseInitialCriticNetwork"), (bool)(TrainerFlags & EPPOTrainerFlags::UseInitialCriticNetwork));
+		ConfigObject->SetBoolField(TEXT("SynchronizeCriticNetwork"), (bool)(TrainerFlags & EPPOTrainerFlags::SynchronizeCriticNetwork));
 
 		FString JsonString;
 		TSharedRef<TJsonWriter<>> JsonWriter = TJsonWriterFactory<>::Create(&JsonString, 0);
@@ -616,7 +707,12 @@ namespace UE::Learning
 
 		// Allocate buffer to receive network data in
 
-		NetworkBuffer.SetNumUninitialized({ Network.GetTotalByteNum() });
+		PolicyNetworkBuffer.SetNumUninitialized({ TotalPolicyByteNum });
+
+		if ((bool)(TrainerFlags & EPPOTrainerFlags::SynchronizeCriticNetwork) || (bool)(TrainerFlags & EPPOTrainerFlags::UseInitialCriticNetwork))
+		{
+			CriticNetworkBuffer.SetNumUninitialized({ TotalCriticByteNum });
+		}
 
 		// Create Socket
 
@@ -684,7 +780,19 @@ namespace UE::Learning
 		FRWLock* NetworkLock,
 		const ELogSetting LogSettings)
 	{
-		return SocketTraining::RecvPolicy(*Socket, OutNetwork, NetworkBuffer, Timeout, NetworkLock, LogSettings);
+		return SocketTraining::RecvPolicy(*Socket, OutNetwork, PolicyNetworkBuffer, Timeout, NetworkLock, LogSettings);
+	}
+
+	ETrainerResponse FSocketPPOTrainer::RecvCritic(
+		FNeuralNetwork& OutNetwork,
+		const float Timeout,
+		FRWLock* NetworkLock,
+		const ELogSetting LogSettings)
+	{
+		UE_LEARNING_CHECKF(CriticNetworkBuffer.GetData(),
+			TEXT("Buffer for critic was not allocated. Were the correct EPPOTrainerFlags provided to construct the FSocketPPOTrainer?"));
+
+		return SocketTraining::RecvCritic(*Socket, OutNetwork, CriticNetworkBuffer, Timeout, NetworkLock, LogSettings);
 	}
 
 	ETrainerResponse FSocketPPOTrainer::SendPolicy(
@@ -693,7 +801,19 @@ namespace UE::Learning
 		FRWLock* NetworkLock,
 		const ELogSetting LogSettings)
 	{
-		return SocketTraining::SendPolicy(*Socket, NetworkBuffer, Network, Timeout, NetworkLock, LogSettings);
+		return SocketTraining::SendPolicy(*Socket, PolicyNetworkBuffer, Network, Timeout, NetworkLock, LogSettings);
+	}
+
+	ETrainerResponse FSocketPPOTrainer::SendCritic(
+		const FNeuralNetwork& Network,
+		const float Timeout,
+		FRWLock* NetworkLock,
+		const ELogSetting LogSettings)
+	{
+		UE_LEARNING_CHECKF(CriticNetworkBuffer.GetData(),
+			TEXT("Buffer for critic was not allocated. Were the correct EPPOTrainerFlags provided to construct the FSocketPPOTrainer?"));
+
+		return SocketTraining::SendCritic(*Socket, CriticNetworkBuffer, Network, Timeout, NetworkLock, LogSettings);
 	}
 
 	ETrainerResponse FSocketPPOTrainer::SendExperience(
@@ -711,7 +831,8 @@ namespace UE::Learning
 			FReplayBuffer& ReplayBuffer,
 			FEpisodeBuffer& EpisodeBuffer,
 			FResetInstanceBuffer& ResetBuffer,
-			FNeuralNetwork& Network,
+			FNeuralNetwork& PolicyNetwork,
+			FNeuralNetwork* CriticNetwork,
 			TLearningArrayView<2, float> ObservationVectorBuffer,
 			TLearningArrayView<2, float> ActionVectorBuffer,
 			TLearningArrayView<1, float> RewardBuffer,
@@ -725,44 +846,19 @@ namespace UE::Learning
 			const TFunctionRef<void(const FIndexSet Instances)> RewardFunction,
 			const TFunctionRef<void(const FIndexSet Instances)> CompletionFunction,
 			const FIndexSet Instances,
-			const bool bReinitializeNetwork,
+			const EPPOTrainerFlags TrainerFlags,
 			TAtomic<bool>* bRequestTrainingStopSignal,
-			FRWLock* NetworkLock,
-			TAtomic<bool>* bNetworkUpdatedSignal,
+			FRWLock* PolicyNetworkLock,
+			FRWLock* CriticNetworkLock,
+			TAtomic<bool>* bPolicyNetworkUpdatedSignal,
+			TAtomic<bool>* bCriticNetworkUpdatedSignal,
 			const ELogSetting LogSettings)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Learning::PPOTrainer::Train);
 
 			ETrainerResponse Response = ETrainerResponse::Success;
 
-			if (bReinitializeNetwork)
-			{
-				// Receive initial Policy
-
-				if (LogSettings != ELogSetting::Silent)
-				{
-					UE_LOG(LogLearning, Display, TEXT("Receiving initial Policy..."));
-				}
-
-				Response = Trainer.RecvPolicy(Network, 20.0f, NetworkLock);
-
-				if (Response != ETrainerResponse::Success)
-				{
-					if (LogSettings != ELogSetting::Silent)
-					{
-						UE_LOG(LogLearning, Error, TEXT("Error receiving initial policy from trainer: %s. Check log for errors."), Trainer::ResponseString(Response));
-					}
-
-					Trainer.Terminate();
-					return Response;
-				}
-
-				if (bNetworkUpdatedSignal)
-				{
-					*bNetworkUpdatedSignal = true;
-				}
-			}
-			else
+			if ((bool)(TrainerFlags & EPPOTrainerFlags::UseInitialPolicyNetwork))
 			{
 				// Send initial Policy
 
@@ -771,17 +867,98 @@ namespace UE::Learning
 					UE_LOG(LogLearning, Display, TEXT("Sending initial Policy..."));
 				}
 
-				Response = Trainer.SendPolicy(Network, 20.0f, NetworkLock);
+				Response = Trainer.SendPolicy(PolicyNetwork, 20.0f, PolicyNetworkLock);
 
 				if (Response != ETrainerResponse::Success)
 				{
 					if (LogSettings != ELogSetting::Silent)
 					{
-						UE_LOG(LogLearning, Error, TEXT("Error sending initial policy to trainer: %s. Check log for errors."), Trainer::ResponseString(Response));
+						UE_LOG(LogLearning, Error, TEXT("Error sending initial policy to trainer: %s. Check log for errors."), Trainer::GetResponseString(Response));
 					}
 
 					Trainer.Terminate();
 					return Response;
+				}
+			}
+			else
+			{
+				// Receive initial Policy
+
+				if (LogSettings != ELogSetting::Silent)
+				{
+					UE_LOG(LogLearning, Display, TEXT("Receiving initial Policy..."));
+				}
+
+				Response = Trainer.RecvPolicy(PolicyNetwork, 20.0f, PolicyNetworkLock);
+
+				if (Response != ETrainerResponse::Success)
+				{
+					if (LogSettings != ELogSetting::Silent)
+					{
+						UE_LOG(LogLearning, Error, TEXT("Error receiving initial policy from trainer: %s. Check log for errors."), Trainer::GetResponseString(Response));
+					}
+
+					Trainer.Terminate();
+					return Response;
+				}
+
+				if (bPolicyNetworkUpdatedSignal)
+				{
+					*bPolicyNetworkUpdatedSignal = true;
+				}
+			}
+
+			if ((bool)(TrainerFlags & EPPOTrainerFlags::UseInitialCriticNetwork))
+			{
+				UE_LEARNING_CHECKF(CriticNetwork, TEXT("Valid Critic Network must be provided if you want to send it"));
+
+				// Send initial Critic
+
+				if (LogSettings != ELogSetting::Silent)
+				{
+					UE_LOG(LogLearning, Display, TEXT("Sending initial Critic..."));
+				}
+
+				Response = Trainer.SendCritic(*CriticNetwork, 20.0f, CriticNetworkLock);
+
+				if (Response != ETrainerResponse::Success)
+				{
+					if (LogSettings != ELogSetting::Silent)
+					{
+						UE_LOG(LogLearning, Error, TEXT("Error sending initial critic to trainer: %s. Check log for errors."), Trainer::GetResponseString(Response));
+					}
+
+					Trainer.Terminate();
+					return Response;
+				}
+			}
+			else if ((bool)(TrainerFlags & EPPOTrainerFlags::SynchronizeCriticNetwork))
+			{
+				UE_LEARNING_CHECKF(CriticNetwork, TEXT("Valid Critic Network must be provided if you want to sync it"));
+
+				// Receive initial Critic
+
+				if (LogSettings != ELogSetting::Silent)
+				{
+					UE_LOG(LogLearning, Display, TEXT("Receiving initial Critic..."));
+				}
+
+				Response = Trainer.RecvCritic(*CriticNetwork, 20.0f, CriticNetworkLock);
+
+				if (Response != ETrainerResponse::Success)
+				{
+					if (LogSettings != ELogSetting::Silent)
+					{
+						UE_LOG(LogLearning, Error, TEXT("Error receiving initial critic from trainer: %s. Check log for errors."), Trainer::GetResponseString(Response));
+					}
+
+					Trainer.Terminate();
+					return Response;
+				}
+
+				if (bCriticNetworkUpdatedSignal)
+				{
+					*bCriticNetworkUpdatedSignal = true;
 				}
 			}
 
@@ -804,7 +981,7 @@ namespace UE::Learning
 					{
 						if (LogSettings != ELogSetting::Silent)
 						{
-							UE_LOG(LogLearning, Error, TEXT("Error sending stop signal to trainer: %s. Check log for errors."), Trainer::ResponseString(Response));
+							UE_LOG(LogLearning, Error, TEXT("Error sending stop signal to trainer: %s. Check log for errors."), Trainer::GetResponseString(Response));
 						}
 
 						Trainer.Terminate();
@@ -839,7 +1016,7 @@ namespace UE::Learning
 					{
 						if (LogSettings != ELogSetting::Silent)
 						{
-							UE_LOG(LogLearning, Error, TEXT("Error sending experience to trainer: %s. Check log for errors."), Trainer::ResponseString(Response));
+							UE_LOG(LogLearning, Error, TEXT("Error sending experience to trainer: %s. Check log for errors."), Trainer::GetResponseString(Response));
 						}
 
 						Trainer.Terminate();
@@ -847,7 +1024,7 @@ namespace UE::Learning
 					}
 				}
 
-				Response = Trainer.RecvPolicy(Network, 10.0f, NetworkLock);
+				Response = Trainer.RecvPolicy(PolicyNetwork, 10.0f, PolicyNetworkLock);
 
 				if (Response == ETrainerResponse::Completed)
 				{
@@ -861,14 +1038,35 @@ namespace UE::Learning
 				{
 					if (LogSettings != ELogSetting::Silent)
 					{
-						UE_LOG(LogLearning, Error, TEXT("Error receiving policy from trainer: %s. Check log for errors."), Trainer::ResponseString(Response));
+						UE_LOG(LogLearning, Error, TEXT("Error receiving policy from trainer: %s. Check log for errors."), Trainer::GetResponseString(Response));
 					}
 					break;
 				}
 
-				if (bNetworkUpdatedSignal)
+				if (bPolicyNetworkUpdatedSignal)
 				{
-					*bNetworkUpdatedSignal = true;
+					*bPolicyNetworkUpdatedSignal = true;
+				}
+
+				if ((bool)(TrainerFlags & EPPOTrainerFlags::SynchronizeCriticNetwork))
+				{
+					UE_LEARNING_CHECKF(CriticNetwork, TEXT("Valid Critic Network must be provided if you want to sync it"));
+
+					Response = Trainer.RecvCritic(*CriticNetwork, 10.0f, CriticNetworkLock);
+
+					if (Response != ETrainerResponse::Success)
+					{
+						if (LogSettings != ELogSetting::Silent)
+						{
+							UE_LOG(LogLearning, Error, TEXT("Error receiving critic from trainer: %s. Check log for errors."), Trainer::GetResponseString(Response));
+						}
+						break;
+					}
+
+					if (bCriticNetworkUpdatedSignal)
+					{
+						*bCriticNetworkUpdatedSignal = true;
+					}
 				}
 			}
 
@@ -880,7 +1078,7 @@ namespace UE::Learning
 			{
 				if (LogSettings != ELogSetting::Silent)
 				{
-					UE_LOG(LogLearning, Error, TEXT("Error waiting for trainer to exit: %s. Check log for errors."), Trainer::ResponseString(Response));
+					UE_LOG(LogLearning, Error, TEXT("Error waiting for trainer to exit: %s. Check log for errors."), Trainer::GetResponseString(Response));
 				}
 			}
 

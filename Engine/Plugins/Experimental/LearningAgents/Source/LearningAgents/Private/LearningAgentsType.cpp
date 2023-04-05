@@ -8,18 +8,9 @@
 #include "LearningArrayMap.h"
 #include "LearningFeatureObject.h"
 #include "LearningLog.h"
-#include "LearningNeuralNetwork.h"
-#include "LearningPolicyObject.h"
-#include "Misc/FileHelper.h"
-#include "Misc/Paths.h"
 #include "EngineDefines.h"
 
-ULearningAgentsType::ULearningAgentsType()
-{
-	PrimaryComponentTick.bCanEverTick = true;
-	PrimaryComponentTick.bStartWithTickEnabled = false;
-}
-
+ULearningAgentsType::ULearningAgentsType() : UActorComponent() {}
 ULearningAgentsType::ULearningAgentsType(FVTableHelper& Helper) : ULearningAgentsType() {}
 ULearningAgentsType::~ULearningAgentsType() {}
 
@@ -44,12 +35,13 @@ void ULearningAgentsType::PostInitProperties()
 	UpdateAgentSets();
 }
 
-void ULearningAgentsType::SetupAgentType(
-	const FLearningAgentsTypeSettings& Settings,
-	const FLearningAgentsNetworkSettings& NetworkSettings)
+void ULearningAgentsType::SetupAgentType()
 {
-	// Reset Setup Flag
-	bSetupPerformed = false;
+	if (IsSetupPerformed())
+	{
+		UE_LOG(LogLearning, Error, TEXT("Setup already performed!"));
+		return;
+	}
 
 	// Allocate Instance Data
 	InstanceData = MakeShared<UE::Learning::FArrayMap>();
@@ -71,47 +63,6 @@ void ULearningAgentsType::SetupAgentType(
 		TLearningArrayView<1, const TSharedRef<UE::Learning::FFeatureObject>>(ActionFeatures),
 		InstanceData.ToSharedRef(),
 		MaxInstanceNum);
-
-	// Create Neural Network
-	NeuralNetwork = MakeShared<UE::Learning::FNeuralNetwork>();
-	NeuralNetwork->Resize(
-		Observations->DimNum(), 
-		2 * Actions->DimNum(), 
-		NetworkSettings.HiddenLayerSize, 
-		NetworkSettings.LayerNum);
-
-	switch (NetworkSettings.ActivationFunction)
-	{
-		case ELearningAgentsActivationFunction::ReLU:
-			NeuralNetwork->ActivationFunction = UE::Learning::EActivationFunction::ReLU;
-			break;
-		case ELearningAgentsActivationFunction::ELU:
-			NeuralNetwork->ActivationFunction = UE::Learning::EActivationFunction::ELU;
-			break;
-		case ELearningAgentsActivationFunction::TanH:
-			NeuralNetwork->ActivationFunction = UE::Learning::EActivationFunction::TanH;
-			break;
-		default:
-			UE_LOG(LogLearning, Error, TEXT("NetworkSetting's activation function was not found. Defaulting to ELU."));
-			NeuralNetwork->ActivationFunction = UE::Learning::EActivationFunction::ELU;
-			break;
-	}
-
-	// Create Policy
-	UE::Learning::FNeuralNetworkPolicyFunctionSettings PolicySettings;
-	PolicySettings.ActionNoiseMin = Settings.ActionNoiseMin;
-	PolicySettings.ActionNoiseMax = Settings.ActionNoiseMax;
-
-	Policy = MakeUnique<UE::Learning::FNeuralNetworkPolicyFunction>(
-		TEXT("Policy"), 
-		InstanceData.ToSharedRef(), 
-		MaxInstanceNum, 
-		NeuralNetwork.ToSharedRef(), 
-		Settings.ActionNoiseSeed,
-		PolicySettings);
-
-	InstanceData->Link(Observations->FeatureHandle, Policy->InputHandle);
-	InstanceData->Link(Policy->OutputHandle, Actions->FeatureHandle);
 
 	// Done!
 	bSetupPerformed = true;
@@ -142,14 +93,14 @@ UE::Learning::FFeatureObject& ULearningAgentsType::GetActionFeature() const
 	return *Actions;
 }
 
-UE::Learning::FNeuralNetwork& ULearningAgentsType::GetNeuralNetwork() const
+TConstArrayView<ULearningAgentsObservation*> ULearningAgentsType::GetObservationObjects() const
 {
-	return *NeuralNetwork;
+	return ObservationObjects;
 }
 
-const UE::Learning::FNeuralNetworkPolicyFunction& ULearningAgentsType::GetPolicy() const
+TConstArrayView<ULearningAgentsAction*> ULearningAgentsType::GetActionObjects() const
 {
-	return *Policy;
+	return ActionObjects;
 }
 
 const TConstArrayView<TObjectPtr<UObject>> ULearningAgentsType::GetAgents() const
@@ -189,8 +140,6 @@ int32 ULearningAgentsType::AddAgent(UObject* Agent)
 
 	UpdateAgentSets();
 
-	OnAgentAdded.Broadcast(NewAgentId, Agent);
-
 	return NewAgentId;
 }
 
@@ -217,8 +166,6 @@ void ULearningAgentsType::RemoveAgentById(int32 AgentId)
 	Agents[AgentId] = nullptr;
 
 	UpdateAgentSets();
-
-	OnAgentRemoved.Broadcast(AgentId, RemovedAgent);
 }
 
 void ULearningAgentsType::RemoveAgent(UObject* Agent)
@@ -241,6 +188,16 @@ void ULearningAgentsType::RemoveAgent(UObject* Agent)
 	RemoveAgentById(AgentId);
 }
 
+bool ULearningAgentsType::HasAgent(UObject* Agent) const
+{
+	return Agents.Find(Agent) ? true : false;
+}
+
+bool ULearningAgentsType::HasAgentById(int32 AgentId) const
+{
+	return OccupiedAgentSet.Contains(AgentId);
+}
+
 UObject* ULearningAgentsType::GetAgent(int32 AgentId, TSubclassOf<UObject> AgentClass)
 {
 	if (AgentId < 0 || AgentId >= Agents.Num())
@@ -254,12 +211,11 @@ UObject* ULearningAgentsType::GetAgent(int32 AgentId, TSubclassOf<UObject> Agent
 
 const UObject* ULearningAgentsType::GetAgent(int32 AgentId) const
 {
-	if (AgentId < 0 || AgentId >= Agents.Num())
-	{
-		UE_LOG(LogLearning, Warning, TEXT("AgentId %d outside valid range [0, %d]"), AgentId, Agents.Num() - 1);
-		return nullptr;
-	}
+	return Agents[AgentId];
+}
 
+UObject* ULearningAgentsType::GetAgent(int32 AgentId)
+{
 	return Agents[AgentId];
 }
 
@@ -275,7 +231,7 @@ void ULearningAgentsType::SetObservations_Implementation(const TArray<int32>& Ag
 
 void ULearningAgentsType::AddObservation(TObjectPtr<ULearningAgentsObservation> Object, const TSharedRef<UE::Learning::FFeatureObject>& Feature)
 {
-	check(!bSetupPerformed);
+	UE_LEARNING_CHECK(!IsSetupPerformed());
 	ObservationObjects.Add(Object);
 	ObservationFeatures.Add(Feature);
 }
@@ -292,37 +248,16 @@ void ULearningAgentsType::GetActions_Implementation(const TArray<int32>& AgentId
 
 void ULearningAgentsType::AddAction(TObjectPtr<ULearningAgentsAction> Object, const TSharedRef<UE::Learning::FFeatureObject>& Feature)
 {
-	check(!bSetupPerformed);
+	UE_LEARNING_CHECK(!IsSetupPerformed());
 	ActionObjects.Add(Object);
 	ActionFeatures.Add(Feature);
-}
-
-void ULearningAgentsType::LoadNetwork(const FDirectoryPath& Directory, const FString Filename)
-{
-	if (!bSetupPerformed)
-	{
-		UE_LOG(LogLearning, Error, TEXT("Setup must be run before network can be loaded."));
-		return;
-	}
-
-	TArray64<uint8> NetworkData;
-	FString FilePath = Directory.Path + FGenericPlatformMisc::GetDefaultPathSeparator() + Filename;
-	if (FFileHelper::LoadFileToArray(NetworkData, *FilePath))
-	{
-		NeuralNetwork->DeserializeFromBytes(NetworkData);
-		bNetworkLoaded = true;
-	}
-	else
-	{
-		UE_LOG(LogLearning, Warning, TEXT("Failed to load network. File not found: %s..."), *FilePath);
-	}
 }
 
 void ULearningAgentsType::EncodeObservations()
 {
 	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsType::EncodeObservations);
 
-	if (!bSetupPerformed)
+	if (!IsSetupPerformed())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Setup must be run before observations can be encoded."));
 		return;
@@ -343,25 +278,11 @@ void ULearningAgentsType::EncodeObservations()
 #endif
 }
 
-
-void ULearningAgentsType::EvaluatePolicy()
-{
-	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsType::EvaluatePolicy);
-
-	if (!bSetupPerformed)
-	{
-		UE_LOG(LogLearning, Error, TEXT("Setup must be run before the policy can be evaluated."));
-		return;
-	}
-
-	Policy->Evaluate(OccupiedAgentSet);
-}
-
 void ULearningAgentsType::DecodeActions()
 {
 	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsType::DecodeActions);
 
-	if (!bSetupPerformed)
+	if (!IsSetupPerformed())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Setup must be run before actions can be decoded."));
 		return;
@@ -380,11 +301,6 @@ void ULearningAgentsType::DecodeActions()
 		}
 	}
 #endif
-}
-
-void ULearningAgentsType::BroadcastSetupComplete()
-{
-	OnSetupComplete.Broadcast();
 }
 
 void ULearningAgentsType::UpdateAgentSets()

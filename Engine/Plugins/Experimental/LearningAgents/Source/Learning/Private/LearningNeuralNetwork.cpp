@@ -4,7 +4,7 @@
 
 namespace UE::Learning
 {
-	const TCHAR* ActivationFunctionString(const EActivationFunction ActivationFunction)
+	const TCHAR* GetActivationFunctionString(const EActivationFunction ActivationFunction)
 	{
 		switch (ActivationFunction)
 		{
@@ -63,29 +63,16 @@ namespace UE::Learning
 
 	int32 FNeuralNetwork::GetHiddenNum() const
 	{
-		return Weights[0].Num(1);
-	}
-
-	int32 FNeuralNetwork::GetTotalByteNum() const
-	{
-		const int32 LayerNum = Weights.Num();
-
-		int32 Total = 0;
-
-		for (int32 LayerIdx = 0; LayerIdx < LayerNum; LayerIdx++)
-		{
-			Total += Weights[LayerIdx].Num() * sizeof(float);
-			Total += Biases[LayerIdx].Num() * sizeof(float);
-		}
-
-		return Total;
+		return Weights[0].Num<1>();
 	}
 
 	void FNeuralNetwork::DeserializeFromBytes(const TLearningArrayView<1, const uint8> RawBytes)
 	{
 		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(Learning::FNeuralNetwork::DeserializeFromBytes);
 
-		UE_LEARNING_CHECK(RawBytes.Num() == GetTotalByteNum());
+		const int32 TotalByteNum = GetSerializationByteNum(GetInputNum(), GetOutputNum(), GetHiddenNum(), GetLayerNum());
+
+		UE_LEARNING_CHECK(RawBytes.Num() == TotalByteNum);
 
 		const int32 LayerNum = Weights.Num();
 
@@ -104,14 +91,16 @@ namespace UE::Learning
 			Offset += BiasByteNum;
 		}
 
-		UE_LEARNING_CHECK(Offset == GetTotalByteNum());
+		UE_LEARNING_CHECK(Offset == TotalByteNum);
 	}
 
 	void FNeuralNetwork::SerializeToBytes(TLearningArrayView<1, uint8> OutRawBytes) const
 	{
 		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(Learning::FNeuralNetwork::SerializeToBytes);
 
-		UE_LEARNING_CHECK(OutRawBytes.Num() == GetTotalByteNum());
+		const int32 TotalByteNum = GetSerializationByteNum(GetInputNum(), GetOutputNum(), GetHiddenNum(), GetLayerNum());
+
+		UE_LEARNING_CHECK(OutRawBytes.Num() == TotalByteNum);
 
 		const int32 LayerNum = Weights.Num();
 
@@ -128,6 +117,30 @@ namespace UE::Learning
 			Offset += BiasByteNum;
 		}
 
-		UE_LEARNING_CHECK(Offset == GetTotalByteNum());
+		UE_LEARNING_CHECK(Offset == TotalByteNum);
 	}
+
+	int32 FNeuralNetwork::GetSerializationByteNum(
+		const int32 InputNum,
+		const int32 OutputNum,
+		const int32 HiddenNum,
+		const int32 LayerNum)
+	{
+		int32 Total = 0;
+
+		Total += InputNum * HiddenNum * sizeof(float);
+		Total += HiddenNum * sizeof(float);
+
+		for (int32 LayerIdx = 0; LayerIdx < LayerNum - 2; LayerIdx++)
+		{
+			Total += HiddenNum * HiddenNum * sizeof(float);
+			Total += HiddenNum * sizeof(float);
+		}
+
+		Total += HiddenNum * OutputNum * sizeof(float);
+		Total += OutputNum * sizeof(float);
+
+		return Total;
+	}
+
 }

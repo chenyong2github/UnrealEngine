@@ -280,8 +280,8 @@ namespace UE::Learning::KMeans
 			ClusterNum,
 			DimNum);
 #else
-		Array::Set(OutMins, MAX_flt);
-		Array::Set(OutMaxs, MIN_flt);
+		Array::Set(OutMins, +MAX_flt);
+		Array::Set(OutMaxs, -MAX_flt);
 
 		for (int32 SampleIdx = 0; SampleIdx < SampleNum; SampleIdx++)
 		{

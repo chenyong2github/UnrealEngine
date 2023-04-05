@@ -96,6 +96,7 @@ namespace UE::Learning
 		const FName& InIdentifier,
 		const TSharedRef<FArrayMap>& InInstanceData,
 		const int32 InMaxInstanceNum,
+		const int32 InValueNum,
 		const uint32 InSeed,
 		const float InMin,
 		const float InMax)
@@ -104,7 +105,7 @@ namespace UE::Learning
 		SeedHandle = InstanceData->Add<1, uint32>({ InIdentifier, TEXT("Seed") }, { InMaxInstanceNum });
 		MinHandle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Min") }, { InMaxInstanceNum }, InMin);
 		MaxHandle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Max") }, { InMaxInstanceNum }, InMax);
-		ValueHandle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Value") }, { InMaxInstanceNum }, 0.0f);
+		ValueHandle = InstanceData->Add<2, float>({ InIdentifier, TEXT("Value") }, { InMaxInstanceNum, InValueNum }, 0.0f);
 
 		Random::IntArray(InstanceData->View(SeedHandle), InSeed);
 	}
@@ -116,11 +117,12 @@ namespace UE::Learning
 		const TLearningArrayView<1, const float> Min = InstanceData->ConstView(MinHandle);
 		const TLearningArrayView<1, const float> Max = InstanceData->ConstView(MaxHandle);
 		TLearningArrayView<1, uint32> Seed = InstanceData->View(SeedHandle);
-		TLearningArrayView<1, float> Values = InstanceData->View(ValueHandle);
+		TLearningArrayView<2, float> Values = InstanceData->View(ValueHandle);
 
 		for (const int32 InstanceIdx : Instances)
 		{
-			Values[InstanceIdx] = Random::SampleUniform(
+			Random::SampleUniformArray(
+				Values[InstanceIdx],
 				Seed[InstanceIdx],
 				Min[InstanceIdx],
 				Max[InstanceIdx]);
@@ -131,17 +133,22 @@ namespace UE::Learning
 		const FName& InIdentifier,
 		const TSharedRef<FArrayMap>& InInstanceData,
 		const int32 InMaxInstanceNum,
+		const int32 InValueNum,
 		const uint32 InSeed,
 		const float InMean,
 		const float InStd,
-		const float InClip)
+		const float InClip,
+		const FVector InAxis0,
+		const FVector InAxis1)
 		: FFunctionObject(InInstanceData)
+		, Axis0(InAxis0)
+		, Axis1(InAxis1)
 	{
 		SeedHandle = InstanceData->Add<1, uint32>({ InIdentifier, TEXT("Seed") }, { InMaxInstanceNum });
 		MeanHandle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Mean") }, { InMaxInstanceNum }, InMean);
 		StdHandle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Std") }, { InMaxInstanceNum }, InStd);
 		ClipHandle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Clip") }, { InMaxInstanceNum }, InClip);
-		ValueHandle = InstanceData->Add<1, FVector>({ InIdentifier, TEXT("Value") }, { InMaxInstanceNum }, FVector::ZeroVector);
+		ValueHandle = InstanceData->Add<2, FVector>({ InIdentifier, TEXT("Value") }, { InMaxInstanceNum, InValueNum }, FVector::ZeroVector);
 
 		Random::IntArray(InstanceData->View(SeedHandle), InSeed);
 	}
@@ -154,27 +161,35 @@ namespace UE::Learning
 		const TLearningArrayView<1, const float> Std = InstanceData->ConstView(StdHandle);
 		const TLearningArrayView<1, const float> Clip = InstanceData->ConstView(ClipHandle);
 		TLearningArrayView<1, uint32> Seed = InstanceData->View(SeedHandle);
-		TLearningArrayView<1, FVector> Values = InstanceData->View(ValueHandle);
+		TLearningArrayView<2, FVector> Values = InstanceData->View(ValueHandle);
 
 		for (const int32 InstanceIdx : Instances)
 		{
-			Values[InstanceIdx] = Random::SamplePlanarClippedGaussian(
+			Random::SamplePlanarClippedGaussianArray(
+				Values[InstanceIdx],
 				Seed[InstanceIdx],
 				Mean[InstanceIdx],
 				Std[InstanceIdx],
-				Clip[InstanceIdx]);
+				Clip[InstanceIdx],
+				Axis0,
+				Axis1);
 		}
 	}
 
 	FRandomPlanarDirectionFunction::FRandomPlanarDirectionFunction(
 		const FName& InIdentifier,
 		const TSharedRef<FArrayMap>& InInstanceData,
+		const int32 InMaxInstanceNum,
+		const int32 InDirectionNum,
 		const uint32 InSeed,
-		const int32 InMaxInstanceNum)
+		const FVector InAxis0,
+		const FVector InAxis1)
 		: FFunctionObject(InInstanceData)
+		, Axis0(InAxis0)
+		, Axis1(InAxis1)
 	{
 		SeedHandle = InstanceData->Add<1, uint32>({ InIdentifier, TEXT("Seed") }, { InMaxInstanceNum });
-		DirectionHandle = InstanceData->Add<1, FVector>({ InIdentifier, TEXT("Direction") }, { InMaxInstanceNum }, FVector::ForwardVector);
+		DirectionHandle = InstanceData->Add<2, FVector>({ InIdentifier, TEXT("Direction") }, { InMaxInstanceNum, InDirectionNum }, FVector::ForwardVector);
 
 		Random::IntArray(InstanceData->View(SeedHandle), InSeed);
 	}
@@ -184,11 +199,15 @@ namespace UE::Learning
 		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(Learning::FRandomPlanarDirectionFunction::Evaluate);
 
 		TLearningArrayView<1, uint32> Seed = InstanceData->View(SeedHandle);
-		TLearningArrayView<1, FVector> Direction = InstanceData->View(DirectionHandle);
+		TLearningArrayView<2, FVector> Direction = InstanceData->View(DirectionHandle);
 
 		for (const int32 InstanceIdx : Instances)
 		{
-			Direction[InstanceIdx] = Random::SamplePlanarDirection(Seed[InstanceIdx]);
+			Random::SamplePlanarDirectionArray(
+				Direction[InstanceIdx], 
+				Seed[InstanceIdx],
+				Axis0,
+				Axis1);
 		}
 	}
 
@@ -196,14 +215,19 @@ namespace UE::Learning
 		const FName& InIdentifier,
 		const TSharedRef<FArrayMap>& InInstanceData,
 		const int32 InMaxInstanceNum,
+		const int32 InDirectionVelocityNum,
 		const uint32 InSeed,
-		const float InVelocityScale)
+		const float InVelocityScale,
+		const FVector InAxis0,
+		const FVector InAxis1)
 		: FFunctionObject(InInstanceData)
+		, Axis0(InAxis0)
+		, Axis1(InAxis1)
 	{
 		SeedHandle = InstanceData->Add<1, uint32>({ InIdentifier, TEXT("Seed") }, { InMaxInstanceNum });
 		VelocityScaleHandle = InstanceData->Add<1, float>({ InIdentifier, TEXT("VelocityScale") }, { InMaxInstanceNum }, InVelocityScale);
-		DirectionHandle = InstanceData->Add<1, FVector>({ InIdentifier, TEXT("Direction") }, { InMaxInstanceNum }, FVector::ForwardVector);
-		VelocityHandle = InstanceData->Add<1, FVector>({ InIdentifier, TEXT("Velocity") }, { InMaxInstanceNum }, FVector::ZeroVector);
+		DirectionHandle = InstanceData->Add<2, FVector>({ InIdentifier, TEXT("Direction") }, { InMaxInstanceNum, InDirectionVelocityNum }, FVector::ForwardVector);
+		VelocityHandle = InstanceData->Add<2, FVector>({ InIdentifier, TEXT("Velocity") }, { InMaxInstanceNum, InDirectionVelocityNum }, FVector::ZeroVector);
 
 		Random::IntArray(InstanceData->View(SeedHandle), InSeed);
 	}
@@ -214,14 +238,23 @@ namespace UE::Learning
 
 		const TLearningArrayView<1, const float> VelocityScale = InstanceData->ConstView(VelocityScaleHandle);
 		TLearningArrayView<1, uint32> Seed = InstanceData->View(SeedHandle);
-		TLearningArrayView<1, FVector> Direction = InstanceData->View(DirectionHandle);
-		TLearningArrayView<1, FVector> Velocity = InstanceData->View(VelocityHandle);
+		TLearningArrayView<2, FVector> Direction = InstanceData->View(DirectionHandle);
+		TLearningArrayView<2, FVector> Velocity = InstanceData->View(VelocityHandle);
+
+		const int32 VelocityNum = Velocity.Num<1>();
 
 		for (const int32 InstanceIdx : Instances)
 		{
-			const FVector RandomDirection = Random::SamplePlanarDirection(Seed[InstanceIdx]);
-			Direction[InstanceIdx] = RandomDirection;
-			Velocity[InstanceIdx] = VelocityScale[InstanceIdx] * RandomDirection;
+			Random::SamplePlanarDirectionArray(
+				Direction[InstanceIdx],
+				Seed[InstanceIdx],
+				Axis0,
+				Axis1);
+
+			for (int32 VelocityIdx = 0; VelocityIdx < VelocityNum; VelocityIdx++)
+			{
+				Velocity[InstanceIdx][VelocityIdx] = VelocityScale[InstanceIdx] * Direction[InstanceIdx][VelocityIdx];
+			}
 		}
 	}
 

@@ -22,6 +22,14 @@ namespace UE::Learning
 			FRWLock* NetworkLock = nullptr,
 			const ELogSetting LogSettings = Trainer::DefaultLogSettings);
 
+		LEARNINGTRAINING_API ETrainerResponse RecvCritic(
+			TLearningArrayView<1, volatile int32> Controls,
+			FNeuralNetwork& OutNetwork,
+			const TLearningArrayView<1, const uint8> Critic,
+			const float Timeout = Trainer::DefaultTimeout,
+			FRWLock* NetworkLock = nullptr,
+			const ELogSetting LogSettings = Trainer::DefaultLogSettings);
+
 		LEARNINGTRAINING_API ETrainerResponse SendStop(
 			TLearningArrayView<1, volatile int32> Controls);
 
@@ -31,6 +39,14 @@ namespace UE::Learning
 		LEARNINGTRAINING_API ETrainerResponse SendPolicy(
 			TLearningArrayView<1, volatile int32> Controls,
 			TLearningArrayView<1, uint8> Policy,
+			const FNeuralNetwork& Network,
+			const float Timeout = Trainer::DefaultTimeout,
+			FRWLock* NetworkLock = nullptr,
+			const ELogSetting LogSettings = Trainer::DefaultLogSettings);
+
+		LEARNINGTRAINING_API ETrainerResponse SendCritic(
+			TLearningArrayView<1, volatile int32> Controls,
+			TLearningArrayView<1, uint8> Critic,
 			const FNeuralNetwork& Network,
 			const float Timeout = Trainer::DefaultTimeout,
 			FRWLock* NetworkLock = nullptr,

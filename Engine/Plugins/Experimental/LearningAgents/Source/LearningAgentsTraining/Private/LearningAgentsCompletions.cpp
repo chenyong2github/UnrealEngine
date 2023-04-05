@@ -24,7 +24,8 @@
 	UE_LEARNING_AGENTS_VLOG_STRING(Owner, Category, Verbosity, Location + FVector(0.0f, 0.0f, 20.0f), Color, Format, ##__VA_ARGS__)
 
 #define UE_LEARNING_AGENTS_VLOG_PLANE(Owner, Category, Verbosity, Location, Rotation, Axis0, Axis1, Color, Format, ...) \
-	UE_VLOG_OBOX(Owner, Category, Verbosity, FBox(25.0f * FVector(-1, -1, 0), 25.0f * FVector(1, 1, 0)), FTransform(Rotation, Location, FVector::OneVector).ToMatrixNoScale(), Color, Format, ##__VA_ARGS__)
+	UE_VLOG_OBOX(Owner, Category, Verbosity, FBox(-25.0f * (Axis0 + Axis1), 25.0f * (Axis0 + Axis1)), FTransform(Rotation, Location, FVector::OneVector).ToMatrixNoScale(), Color, Format, ##__VA_ARGS__)
+
 
 namespace UE::Learning::Agents::Private
 {
@@ -40,8 +41,8 @@ namespace UE::Learning::Agents::Private
 
 		Completion->CompletionObject = MakeShared<CompletionFObject>(
 			Completion->GetFName(),
-			AgentTrainer->GetAgentType().GetInstanceData().ToSharedRef(),
-			AgentTrainer->GetAgentType().GetMaxInstanceNum(),
+			AgentTrainer->GetAgentType()->GetInstanceData().ToSharedRef(),
+			AgentTrainer->GetAgentType()->GetMaxInstanceNum(),
 			Forward<InArgTypes>(Args)...);
 
 		AgentTrainer->AddCompletion(Completion, Completion->CompletionObject.ToSharedRef());
@@ -115,6 +116,7 @@ UPlanarPositionDifferenceCompletion* UPlanarPositionDifferenceCompletion::AddPla
 	return UE::Learning::Agents::Private::AddCompletion<UPlanarPositionDifferenceCompletion, UE::Learning::FPlanarPositionDifferenceCompletion>(
 		AgentTrainer,
 		Name,
+		1,
 		Threshold,
 		InCompletionMode == ELearningAgentsCompletion::Termination ?
 		UE::Learning::ECompletionMode::Terminated :
@@ -125,8 +127,8 @@ UPlanarPositionDifferenceCompletion* UPlanarPositionDifferenceCompletion::AddPla
 
 void UPlanarPositionDifferenceCompletion::SetPlanarPositionDifferenceCompletion(int32 AgentId, FVector Position0, FVector Position1)
 {
-	TLearningArrayView<1, FVector> Position0View = CompletionObject->InstanceData->View(CompletionObject->Position0Handle);
-	TLearningArrayView<1, FVector> Position1View = CompletionObject->InstanceData->View(CompletionObject->Position1Handle);
+	TLearningArrayView<2, FVector> Position0View = CompletionObject->InstanceData->View(CompletionObject->Position0Handle);
+	TLearningArrayView<2, FVector> Position1View = CompletionObject->InstanceData->View(CompletionObject->Position1Handle);
 
 	if (AgentId == INDEX_NONE)
 	{
@@ -140,8 +142,8 @@ void UPlanarPositionDifferenceCompletion::SetPlanarPositionDifferenceCompletion(
 		return;
 	}
 
-	Position0View[AgentId] = Position0;
-	Position1View[AgentId] = Position1;
+	Position0View[AgentId][0] = Position0;
+	Position1View[AgentId][0] = Position1;
 }
 
 #if ENABLE_VISUAL_LOG
@@ -149,8 +151,8 @@ void UPlanarPositionDifferenceCompletion::VisualLog(const UE::Learning::FIndexSe
 {
 	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(UPlanarPositionDifferenceCompletion::VisualLog);
 
-	const TLearningArrayView<1, const FVector> Position0View = CompletionObject->InstanceData->ConstView(CompletionObject->Position0Handle);
-	const TLearningArrayView<1, const FVector> Position1View = CompletionObject->InstanceData->ConstView(CompletionObject->Position1Handle);
+	const TLearningArrayView<2, const FVector> Position0View = CompletionObject->InstanceData->ConstView(CompletionObject->Position0Handle);
+	const TLearningArrayView<2, const FVector> Position1View = CompletionObject->InstanceData->ConstView(CompletionObject->Position1Handle);
 	const TLearningArrayView<1, const float> ThresholdView = CompletionObject->InstanceData->ConstView(CompletionObject->ThresholdHandle);
 	const TLearningArrayView<1, const UE::Learning::ECompletionMode> CompletionView = CompletionObject->InstanceData->ConstView(CompletionObject->CompletionHandle);
 
@@ -160,8 +162,8 @@ void UPlanarPositionDifferenceCompletion::VisualLog(const UE::Learning::FIndexSe
 		{
 			if (const AActor* Actor = Cast<AActor>(AgentTrainer->GetAgent(Instance)))
 			{
-				const FVector Position0 = Position0View[Instance];
-				const FVector Position1 = Position1View[Instance];
+				const FVector Position0 = Position0View[Instance][0];
+				const FVector Position1 = Position1View[Instance][0];
 
 				const FVector PlanarPosition0 = FVector(CompletionObject->Axis0.Dot(Position0), CompletionObject->Axis1.Dot(Position0), 0.0f);
 				const FVector PlanarPosition1 = FVector(CompletionObject->Axis0.Dot(Position1), CompletionObject->Axis1.Dot(Position1), 0.0f);
@@ -177,8 +179,8 @@ void UPlanarPositionDifferenceCompletion::VisualLog(const UE::Learning::FIndexSe
 				UE_LEARNING_AGENTS_VLOG_PLANE(this, LogLearning, Display,
 					Position0,
 					FQuat::Identity,
-					FeatureObject->Axis0,
-					FeatureObject->Axis1,
+					CompletionObject->Axis0,
+					CompletionObject->Axis1,
 					VisualLogColor.ToFColor(true),
 					TEXT(""));
 
@@ -193,8 +195,8 @@ void UPlanarPositionDifferenceCompletion::VisualLog(const UE::Learning::FIndexSe
 				UE_LEARNING_AGENTS_VLOG_PLANE(this, LogLearning, Display,
 					Position1,
 					FQuat::Identity,
-					FeatureObject->Axis0,
-					FeatureObject->Axis1,
+					CompletionObject->Axis0,
+					CompletionObject->Axis1,
 					VisualLogColor.ToFColor(true),
 					TEXT(""));
 

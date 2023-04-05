@@ -82,7 +82,7 @@ namespace UE::Learning
 		return Handles.Contains(Key);
 	}
 
-	void FArrayMap::Link(const FArrayMapKey Src, const FArrayMapKey Dst)
+	void FArrayMap::LinkKeys(const FArrayMapKey Src, const FArrayMapKey Dst)
 	{
 		const FArrayMapHandle* SrcVariable = Handles.Find(Src);
 		const FArrayMapHandle* DstVariable = Handles.Find(Dst);
@@ -147,7 +147,7 @@ namespace UE::Learning
 		Flags[DstIndex] = FlagLinked;
 	}
 
-	void FArrayMap::Link(const FArrayMapHandle Src, const FArrayMapHandle Dst)
+	void FArrayMap::LinkHandles(const FArrayMapHandle Src, const FArrayMapHandle Dst)
 	{
 		const int16 SrcIndex = Src.Index;
 		const int16 DstIndex = Dst.Index;
@@ -170,6 +170,61 @@ namespace UE::Learning
 				TEXT("Array Shapes don't match on dimension %i of %i (%i vs %i)"),
 				DimIdx + 1, DimNum, Arrays[SrcIndex].Shape[DimIdx], Arrays[DstIndex].Shape[DimIdx]);
 		}
+
+		// Free the Destination array data
+		if (Flags[DstIndex] & FlagConstructed)
+		{
+			Destructors[DstIndex](
+				Arrays[DstIndex].Data,
+				DimNums[DstIndex],
+				Arrays[DstIndex].Shape);
+		}
+
+		if (Flags[DstIndex] & FlagAllocated)
+		{
+			FMemory::Free(Arrays[DstIndex].Data);
+		}
+
+		// Re-direct existing Links
+		for (int16 ArrayIdx = 0; ArrayIdx < Arrays.Num(); ArrayIdx++)
+		{
+			if (Flags[ArrayIdx] == FlagLinked && Arrays[ArrayIdx].Data == Arrays[DstIndex].Data)
+			{
+				Arrays[ArrayIdx].Data = Arrays[SrcIndex].Data;
+			}
+		}
+
+		// Insert the new Link
+		Arrays[DstIndex].Data = Arrays[SrcIndex].Data;
+		Flags[DstIndex] = FlagLinked;
+	}
+
+	void FArrayMap::LinkHandlesFlat(const FArrayMapHandle Src, const FArrayMapHandle Dst)
+	{
+		const int16 SrcIndex = Src.Index;
+		const int16 DstIndex = Dst.Index;
+
+		UE_LEARNING_CHECKF(!(Flags[DstIndex] & FlagLinked), TEXT("Destination array is already linked!"));
+
+		UE_LEARNING_CHECKF(TypeIds[SrcIndex] == TypeIds[DstIndex],
+			TEXT("Source array is of type %s, while destination array is of type %s"),
+			TypeNames[SrcIndex], TypeNames[DstIndex]);
+
+		int32 SrcTotalSize = Arrays[SrcIndex].Shape[0];
+		for (uint8 SrcDimIdx = 1; SrcDimIdx < DimNums[SrcIndex]; SrcDimIdx++)
+		{
+			SrcTotalSize *= Arrays[SrcIndex].Shape[SrcDimIdx];
+		}
+
+		int32 DstTotalSize = Arrays[DstIndex].Shape[0];
+		for (uint8 DstDimIdx = 1; DstDimIdx < DimNums[DstIndex]; DstDimIdx++)
+		{
+			DstTotalSize *= Arrays[DstIndex].Shape[DstDimIdx];
+		}
+
+		UE_LEARNING_CHECKF(SrcTotalSize == DstTotalSize,
+			TEXT("Array total sizes don't match (%i vs %i)"),
+			SrcTotalSize, DstTotalSize);
 
 		// Free the Destination array data
 		if (Flags[DstIndex] & FlagConstructed)

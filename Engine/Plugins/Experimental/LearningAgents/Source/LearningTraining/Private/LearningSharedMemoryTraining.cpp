@@ -17,11 +17,12 @@ namespace UE::Learning::SharedMemoryTraining
 		ExperienceStepNum = 1,
 		ExperienceSignal = 2,
 		PolicySignal = 3,
-		CompleteSignal = 4,
-		StopSignal = 5,
-		ContinueSignal = 6,
+		CriticSignal = 4,
+		CompleteSignal = 5,
+		StopSignal = 6,
+		ContinueSignal = 7,
 
-		ControlNum = 7,
+		ControlNum = 8,
 	};
 
 	uint8 GetControlNum()
@@ -89,6 +90,46 @@ namespace UE::Learning::SharedMemoryTraining
 		return ETrainerResponse::Success;
 	}
 
+	ETrainerResponse RecvCritic(
+		TLearningArrayView<1, volatile int32> Controls,
+		FNeuralNetwork& OutNetwork,
+		const TLearningArrayView<1, const uint8> Critic,
+		const float Timeout,
+		FRWLock* NetworkLock,
+		const ELogSetting LogSettings)
+	{
+		const float SleepTime = 0.001f;
+		float WaitTime = 0.0f;
+
+		// Wait until the Critic is done being written by the sub-process
+		while (!Controls[(uint8)EControls::CriticSignal])
+		{
+			FPlatformProcess::Sleep(SleepTime);
+			WaitTime += SleepTime;
+
+			if (WaitTime > Timeout)
+			{
+				return ETrainerResponse::Timeout;
+			}
+		}
+
+		if (LogSettings != ELogSetting::Silent)
+		{
+			UE_LOG(LogLearning, Display, TEXT("Pulling Critic..."));
+		}
+
+		// Read the policy
+		{
+			FScopeNullableWriteLock ScopeLock(NetworkLock);
+			OutNetwork.DeserializeFromBytes(Critic);
+		}
+
+		// Confirm we have read the critic
+		Controls[(uint8)EControls::CriticSignal] = false;
+
+		return ETrainerResponse::Success;
+	}
+
 	ETrainerResponse SendPolicy(
 		TLearningArrayView<1, volatile int32> Controls,
 		TLearningArrayView<1, uint8> Policy,
@@ -125,6 +166,46 @@ namespace UE::Learning::SharedMemoryTraining
 
 		// Confirm we have written the policy
 		Controls[(uint8)EControls::PolicySignal] = false;
+
+		return ETrainerResponse::Success;
+	}
+
+	ETrainerResponse SendCritic(
+		TLearningArrayView<1, volatile int32> Controls,
+		TLearningArrayView<1, uint8> Critic,
+		const FNeuralNetwork& Network,
+		const float Timeout,
+		FRWLock* NetworkLock,
+		const ELogSetting LogSettings)
+	{
+		const float SleepTime = 0.001f;
+		float WaitTime = 0.0f;
+
+		// Wait until the Critic is requested by the sub-process
+		while (!Controls[(uint8)EControls::CriticSignal])
+		{
+			FPlatformProcess::Sleep(SleepTime);
+			WaitTime += SleepTime;
+
+			if (WaitTime > Timeout)
+			{
+				return ETrainerResponse::Timeout;
+			}
+		}
+
+		if (LogSettings != ELogSetting::Silent)
+		{
+			UE_LOG(LogLearning, Display, TEXT("Pushing Critic..."));
+		}
+
+		// Write the critic
+		{
+			FScopeNullableReadLock ScopeLock(NetworkLock);
+			Network.SerializeToBytes(Critic);
+		}
+
+		// Confirm we have written the critic
+		Controls[(uint8)EControls::CriticSignal] = false;
 
 		return ETrainerResponse::Success;
 	}

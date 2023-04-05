@@ -21,7 +21,7 @@ namespace UE::Learning
 		TanH = 2,
 	};
 
-	LEARNING_API const TCHAR* ActivationFunctionString(const EActivationFunction ActivationFunction);
+	LEARNING_API const TCHAR* GetActivationFunctionString(const EActivationFunction ActivationFunction);
 
 	/**
 	* Simple feed-forward network data.
@@ -30,6 +30,12 @@ namespace UE::Learning
 	{
 		void DeserializeFromBytes(const TLearningArrayView<1, const uint8> RawBytes);
 		void SerializeToBytes(TLearningArrayView<1, uint8> OutRawBytes) const;
+
+		static int32 GetSerializationByteNum(
+			const int32 InputNum,
+			const int32 OutputNum,
+			const int32 HiddenNum,
+			const int32 LayerNum);
 
 		void Resize(
 			const int32 InputNum,
@@ -41,7 +47,6 @@ namespace UE::Learning
 		int32 GetOutputNum() const;
 		int32 GetLayerNum() const;
 		int32 GetHiddenNum() const;
-		int32 GetTotalByteNum() const;
 
 		EActivationFunction ActivationFunction = EActivationFunction::ELU;
 		TArray<TLearningArray<2, float>, TInlineAllocator<16>> Weights;

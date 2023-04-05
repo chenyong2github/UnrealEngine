@@ -6,6 +6,7 @@
 #include "LearningLog.h"
 #include "LearningTrainer.h"
 #include "LearningSharedMemory.h"
+#include "LearningNeuralNetwork.h" // Included for EActivationFunction::ELU
 
 #include "Commandlets/Commandlet.h"
 #include "Templates/SharedPointer.h"
@@ -18,7 +19,9 @@ class FMonitoredProcess;
 UCLASS()
 class LEARNINGTRAINING_API ULearningSocketImitationTrainerServerCommandlet : public UCommandlet
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
+
+	ULearningSocketImitationTrainerServerCommandlet(const FObjectInitializer& ObjectInitializer);
 
 	/** Runs the commandlet */
 	virtual int32 Main(const FString& Params) override;
@@ -26,9 +29,29 @@ class LEARNINGTRAINING_API ULearningSocketImitationTrainerServerCommandlet : pub
 
 namespace UE::Learning
 {
-	struct FNeuralNetwork;
+	/**
+	* Settings for the network used for training. These settings must match the Neural Network
+	* objects passed to ImitationTrainer::Train.
+	*/
+	struct FImitationTrainerNetworkSettings
+	{
+		/** Minimum action noise used by the policy */
+		float PolicyActionNoiseMin = 0.25f;
 
-	struct FImitationTrainerSettings
+		/** Maximum action noise used by the policy */
+		float PolicyActionNoiseMax = 0.25f;
+
+		/** Total layers for policy network including input, hidden, and output layers */
+		int32 PolicyLayerNum = 3;
+
+		/** Number of neurons in each hidden layer of the policy network */
+		int32 PolicyHiddenLayerSize = 128;
+
+		/** Activation function to use on hidden layers of the policy network */
+		EActivationFunction PolicyActivationFunction = EActivationFunction::ELU;
+	};
+
+	struct FImitationTrainerTrainingSettings
 	{
 		// Number of iterations to train the network for. Controls the overall training time.
 		// Training for about 100000 iterations should give you well trained network, but
@@ -52,11 +75,6 @@ namespace UE::Learning
 		// Random seed to use for training
 		uint32 Seed = 1234;
 
-		// If true, will reinitialize the network to random weights at the start of training. Set this
-		// to false if you are starting from a network which has already been trained. Make sure 
-		// to use the same settings here for ImitationTrainer::Train.
-		bool bReinitializeNetwork = true;
-
 		// Which device to use for training
 		ETrainerDevice Device = ETrainerDevice::GPU;
 
@@ -65,9 +83,22 @@ namespace UE::Learning
 		// Even when enabled, TensorBoard will only work if it is installed in your Unreal Editor
 		// bundled version of Python, which is not the case by default. TensorBoard can be installed 
 		// for this version of Python by going to your Unreal Editor Python Binaries directory 
-		// (e.g. "\Engine\Binaries\ThirdParty\Python3\Win64") and running `.\python -m pip install tensorboard`. 
+		// (e.g. "\Engine\Binaries\ThirdParty\Python3\Win64") and running `python -m pip install tensorboard`. 
 		bool bUseTensorboard = false;
 	};
+
+	/**
+	* ImitationTrainer flags controlling some aspects of the process of communication with the trainer
+	*/
+	enum class EImitationTrainerFlags : uint8
+	{
+		None = 0,
+
+		// If to send over the initial provided policy network rather than reinitialize it from random weights at 
+		// the start of training. Use this if you want to start from a network which has already been trained.
+		UseInitialPolicyNetwork = 1 << 0,
+	};
+	ENUM_CLASS_FLAGS(EImitationTrainerFlags)
 
 	/**
 	* Interface for an object which can train a policy from experience using imitation learning.
@@ -164,11 +195,12 @@ namespace UE::Learning
 		* @param SitePackagesPath		Path to the site-packages shipped with the PythonFoundationPackages plugin
 		* @param PythonContentPath		Path to the Python Content folder provided by the Learning plugin
 		* @param IntermediatePath		Path to the intermediate folder to write temporary files, logs, and snapshots to
-		* @param Network				Neural Network object
-		* @param ActionNoiseMin			Minimum amount of action noise being used during episode generation
-		* @param ActionNoiseMax			Maximum amount of action noise being used during episode generation
 		* @param MaxSampleNum			Maximum number of samples in the training data
-		* @param Settings				Trainer settings
+		* @param ObservationDimNum		Number of dimensions in the observation vector
+		* @param ActionDimNum			Number of dimensions in the action vector
+		* @param TrainingSettings		Trainer Training settings
+		* @param NetworkSettings		Trainer Network settings
+		* @param TrainingProcessFlags	Training subprocess flags
 		* @param LogSettings			Logging settings to use
 		*/
 		FSharedMemoryImitationTrainer(
@@ -177,11 +209,13 @@ namespace UE::Learning
 			const FString& SitePackagesPath,
 			const FString& PythonContentPath,
 			const FString& IntermediatePath,
-			const FNeuralNetwork& Network,
-			const float ActionNoiseMin,
-			const float ActionNoiseMax,
 			const int32 MaxSampleNum,
-			const FImitationTrainerSettings& Settings = FImitationTrainerSettings(),
+			const int32 ObservationDimNum,
+			const int32 ActionDimNum,
+			const FImitationTrainerTrainingSettings& TrainingSettings = FImitationTrainerTrainingSettings(),
+			const FImitationTrainerNetworkSettings& NetworkSettings = FImitationTrainerNetworkSettings(),
+			const EImitationTrainerFlags TrainerFlags = EImitationTrainerFlags::None,
+			const ESubprocessFlags TrainingProcessFlags = ESubprocessFlags::None,
 			const ELogSetting LogSettings = ELogSetting::Normal);
 
 		~FSharedMemoryImitationTrainer();
@@ -250,6 +284,7 @@ namespace UE::Learning
 		* @param IntermediatePath			Path to the intermediate folder to write temporary files, logs, and snapshots to
 		* @param IpAddress					Ip address to bind the listening socket to. For a local server you will want to use 127.0.0.1
 		* @param Port						Port to use for the listening socket.
+		* @param TrainingProcessFlags		Training server subprocess flags
 		* @param LogSettings				Logging settings to use
 		*/
 		FSocketImitationTrainerServerProcess(
@@ -259,6 +294,7 @@ namespace UE::Learning
 			const FString& IntermediatePath,
 			const TCHAR* IpAddress = Trainer::DefaultIp,
 			const uint32 Port = Trainer::DefaultPort,
+			const ESubprocessFlags TrainingProcessFlags = ESubprocessFlags::None,
 			const ELogSetting LogSettings = ELogSetting::Normal);
 
 		~FSocketImitationTrainerServerProcess();
@@ -297,27 +333,28 @@ namespace UE::Learning
 		*
 		* @param OutResponse				Response to the initial connection
 		* @param TaskName					Name of the training task - used to help identify the logs, snapshots, and other files generated by training
-		* @param Network					Neural Network object
-		* @param ActionNoiseMin				Minimum amount of action noise being used during episode generation
-		* @param ActionNoiseMax				Maximum amount of action noise being used during episode generation
-		* @param MaxSampleNum				Maximum number of samples in the training data
+		* @param MaxSampleNum			Maximum number of samples in the training data
+		* @param ObservationDimNum		Number of dimensions in the observation vector
+		* @param ActionDimNum			Number of dimensions in the action vector
 		* @param IpAddress					Server Ip address
 		* @param Port						Server Port
 		* @param Timeout					Timeout to wait in seconds for connection and initial data transfer
-		* @param Settings					Training settings
-		* @param LogSettings				Logging settings to use
+		* @param TrainingSettings			Trainer Training settings
+		* @param NetworkSettings			Trainer Network settings
+		* @param TrainerFlags				Flags for the trainer
 		*/
 		FSocketImitationTrainer(
 			ETrainerResponse& OutResponse,
 			const FString& TaskName,
-			const FNeuralNetwork& Network,
-			const float ActionNoiseMin,
-			const float ActionNoiseMax,
 			const int32 MaxSampleNum,
+			const int32 ObservationDimNum,
+			const int32 ActionDimNum,
 			const TCHAR* IpAddress = Trainer::DefaultIp,
 			const uint32 Port = Trainer::DefaultPort,
 			const float Timeout = Trainer::DefaultTimeout,
-			const FImitationTrainerSettings& Settings = FImitationTrainerSettings());
+			const FImitationTrainerTrainingSettings& TrainingSettings = FImitationTrainerTrainingSettings(),
+			const FImitationTrainerNetworkSettings& NetworkSettings = FImitationTrainerNetworkSettings(),
+			const EImitationTrainerFlags TrainerFlags = EImitationTrainerFlags::None);
 
 		~FSocketImitationTrainer();
 
@@ -362,7 +399,7 @@ namespace UE::Learning
 		* @param Network							Policy network
 		* @param ObservationVectors					Observation Data
 		* @param ActionVectors						Action Data
-		* @param bReinitializeNetwork				Was the network reinitialized to random weights or used as-is
+		* @param TrainerFlags						Flags for the trainer, should match what was used to initialize the Trainer object.
 		* @param bRequestTrainingStopSignal			Optional signal that can be raised to indicate training should be stopped
 		* @param NetworkLock						Optional Lock to use when updating the policy network
 		* @param bNetworkUpdatedSignal				Optional signal that will be raised when the policy network is updated
@@ -374,7 +411,7 @@ namespace UE::Learning
 			FNeuralNetwork& Network,
 			const TLearningArrayView<2, const float> ObservationVectors,
 			const TLearningArrayView<2, const float> ActionVectors,
-			const bool bReinitializeNetwork = true,
+			const EImitationTrainerFlags TrainerFlags = EImitationTrainerFlags::None,
 			TAtomic<bool>* bRequestTrainingStopSignal = nullptr,
 			FRWLock* NetworkLock = nullptr,
 			TAtomic<bool>* bNetworkUpdatedSignal = nullptr,

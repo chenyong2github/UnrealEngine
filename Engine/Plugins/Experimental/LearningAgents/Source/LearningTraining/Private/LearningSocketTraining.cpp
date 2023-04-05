@@ -18,9 +18,11 @@ namespace UE::Learning::SocketTraining
 		SendExperience = 2,
 		RecvPolicy = 3,
 		SendPolicy = 4,
-		RecvComplete = 5,
-		SendStop = 6,
-		SendContinue = 7,
+		RecvCritic = 5,
+		SendCritic = 6,
+		RecvComplete = 7,
+		SendStop = 8,
+		SendContinue = 9,
 	};
 
 	ETrainerResponse WaitForConnection(FSocket& Socket, const float Timeout)
@@ -98,9 +100,8 @@ namespace UE::Learning::SocketTraining
 			UE_LOG(LogLearning, Display, TEXT("Pulling Policy..."));
 		}
 
-		ETrainerResponse Response = ETrainerResponse::Success;
 		uint8 Signal = (uint8)ESignal::Invalid;
-		Response = RecvWithTimeout(Socket, &Signal, 1, Timeout);
+		ETrainerResponse Response = RecvWithTimeout(Socket, &Signal, 1, Timeout);
 		if (Response != ETrainerResponse::Success) { return Response; }
 
 		if (Signal == (uint8)ESignal::RecvComplete)
@@ -109,6 +110,39 @@ namespace UE::Learning::SocketTraining
 		}
 
 		if (Signal != (uint8)ESignal::RecvPolicy)
+		{
+			return ETrainerResponse::Unexpected;
+		}
+
+		Response = RecvWithTimeout(Socket, OutNetworkBuffer.GetData(), OutNetworkBuffer.Num(), Timeout);
+		if (Response != ETrainerResponse::Success) { return Response; }
+
+		{
+			FScopeNullableWriteLock ScopeLock(NetworkLock);
+			OutNetwork.DeserializeFromBytes(OutNetworkBuffer);
+		}
+
+		return ETrainerResponse::Success;
+	}
+
+	ETrainerResponse RecvCritic(
+		FSocket& Socket,
+		FNeuralNetwork& OutNetwork,
+		TLearningArrayView<1, uint8> OutNetworkBuffer,
+		const float Timeout,
+		FRWLock* NetworkLock,
+		const ELogSetting LogSettings)
+	{
+		if (LogSettings != ELogSetting::Silent)
+		{
+			UE_LOG(LogLearning, Display, TEXT("Pulling Critic..."));
+		}
+
+		uint8 Signal = (uint8)ESignal::Invalid;
+		ETrainerResponse Response = RecvWithTimeout(Socket, &Signal, 1, Timeout);
+		if (Response != ETrainerResponse::Success) { return Response; }
+
+		if (Signal != (uint8)ESignal::RecvCritic)
 		{
 			return ETrainerResponse::Unexpected;
 		}
@@ -205,6 +239,34 @@ namespace UE::Learning::SocketTraining
 		}
 
 		const uint8 Signal = (uint8)ESignal::SendPolicy;
+		ETrainerResponse Response = SendWithTimeout(Socket, &Signal, 1, Timeout);
+		if (Response != ETrainerResponse::Success) { return Response; }
+
+		Response = SendWithTimeout(Socket, NetworkBuffer.GetData(), NetworkBuffer.Num(), Timeout);
+		if (Response != ETrainerResponse::Success) { return Response; }
+
+		return ETrainerResponse::Success;
+	}
+
+	ETrainerResponse SendCritic(
+		FSocket& Socket,
+		TLearningArrayView<1, uint8> NetworkBuffer,
+		const FNeuralNetwork& Network,
+		const float Timeout,
+		FRWLock* NetworkLock,
+		const ELogSetting LogSettings)
+	{
+		if (LogSettings != ELogSetting::Silent)
+		{
+			UE_LOG(LogLearning, Display, TEXT("Pushing Critic..."));
+		}
+
+		{
+			FScopeNullableReadLock ScopeLock(NetworkLock);
+			Network.SerializeToBytes(NetworkBuffer);
+		}
+
+		const uint8 Signal = (uint8)ESignal::SendCritic;
 		ETrainerResponse Response = SendWithTimeout(Socket, &Signal, 1, Timeout);
 		if (Response != ETrainerResponse::Success) { return Response; }
 

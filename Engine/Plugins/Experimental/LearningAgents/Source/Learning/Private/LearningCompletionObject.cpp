@@ -88,12 +88,13 @@ namespace UE::Learning
 		const FName& InIdentifier,
 		const TSharedRef<FArrayMap>& InInstanceData,
 		const int32 InMaxInstanceNum,
+		const int32 InPositionNum,
 		const float InThreshold,
 		const ECompletionMode InCompletionMode)
 		: FCompletionObject(InIdentifier, InInstanceData, InMaxInstanceNum, InCompletionMode)
 	{
-		Position0Handle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Position0") }, { InMaxInstanceNum }, 0.0f);
-		Position1Handle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Position1") }, { InMaxInstanceNum }, 0.0f);
+		Position0Handle = InstanceData->Add<2, float>({ InIdentifier, TEXT("Position0") }, { InMaxInstanceNum, InPositionNum }, 0.0f);
+		Position1Handle = InstanceData->Add<2, float>({ InIdentifier, TEXT("Position1") }, { InMaxInstanceNum, InPositionNum }, 0.0f);
 		ThresholdHandle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Threshold") }, { InMaxInstanceNum }, InThreshold);
 	}
 
@@ -101,20 +102,24 @@ namespace UE::Learning
 	{
 		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(FScalarPositionDifferenceCompletion::Evaluate);
 
-		const TLearningArrayView<1, const float> Position0 = InstanceData->ConstView(Position0Handle);
-		const TLearningArrayView<1, const float> Position1 = InstanceData->ConstView(Position1Handle);
+		const TLearningArrayView<2, const float> Position0 = InstanceData->ConstView(Position0Handle);
+		const TLearningArrayView<2, const float> Position1 = InstanceData->ConstView(Position1Handle);
 		const TLearningArrayView<1, const float> Threshold = InstanceData->ConstView(ThresholdHandle);
 		TLearningArrayView<1, ECompletionMode> Completion = InstanceData->View(CompletionHandle);
 
+		const int32 PositionNum = Position0.Num<1>();
+
 		for (const int32 InstanceIdx : Instances)
 		{
-			if (FMath::Abs(Position0[InstanceIdx] - Position1[InstanceIdx]) > Threshold[InstanceIdx])
+			Completion[InstanceIdx] = ECompletionMode::Running;
+
+			for (int32 PositionIdx = 0; PositionIdx < PositionNum; PositionIdx++)
 			{
-				Completion[InstanceIdx] = CompletionMode;
-			}
-			else
-			{
-				Completion[InstanceIdx] = ECompletionMode::Running;
+				if (FMath::Abs(Position0[InstanceIdx][PositionIdx] - Position1[InstanceIdx][PositionIdx]) > Threshold[InstanceIdx])
+				{
+					Completion[InstanceIdx] = CompletionMode;
+					break;
+				}
 			}
 		}
 	}
@@ -123,6 +128,7 @@ namespace UE::Learning
 		const FName& InIdentifier,
 		const TSharedRef<FArrayMap>& InInstanceData,
 		const int32 InMaxInstanceNum,
+		const int32 InPositionNum,
 		const float InThreshold,
 		const ECompletionMode InCompletionMode,
 		const FVector InAxis0,
@@ -131,8 +137,8 @@ namespace UE::Learning
 		, Axis0(InAxis0)
 		, Axis1(InAxis1)
 	{
-		Position0Handle = InstanceData->Add<1, FVector>({ InIdentifier, TEXT("Position0") }, { InMaxInstanceNum }, FVector::ZeroVector);
-		Position1Handle = InstanceData->Add<1, FVector>({ InIdentifier, TEXT("Position1") }, { InMaxInstanceNum }, FVector::ZeroVector);
+		Position0Handle = InstanceData->Add<2, FVector>({ InIdentifier, TEXT("Position0") }, { InMaxInstanceNum, InPositionNum }, FVector::ZeroVector);
+		Position1Handle = InstanceData->Add<2, FVector>({ InIdentifier, TEXT("Position1") }, { InMaxInstanceNum, InPositionNum }, FVector::ZeroVector);
 		ThresholdHandle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Threshold") }, { InMaxInstanceNum }, InThreshold);
 	}
 
@@ -140,23 +146,27 @@ namespace UE::Learning
 	{
 		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(FPlanarPositionDifferenceCompletion::Evaluate);
 
-		const TLearningArrayView<1, const FVector> Position0 = InstanceData->ConstView(Position0Handle);
-		const TLearningArrayView<1, const FVector> Position1 = InstanceData->ConstView(Position1Handle);
+		const TLearningArrayView<2, const FVector> Position0 = InstanceData->ConstView(Position0Handle);
+		const TLearningArrayView<2, const FVector> Position1 = InstanceData->ConstView(Position1Handle);
 		const TLearningArrayView<1, const float> Threshold = InstanceData->ConstView(ThresholdHandle);
 		TLearningArrayView<1, ECompletionMode> Completion = InstanceData->View(CompletionHandle);
 
+		const int32 PositionNum = Position0.Num<1>();
+
 		for (const int32 InstanceIdx : Instances)
 		{
-			const FVector ProjectedPosition0 = FVector(Axis0.Dot(Position0[InstanceIdx]), Axis1.Dot(Position0[InstanceIdx]), 0.0f);
-			const FVector ProjectedPosition1 = FVector(Axis0.Dot(Position1[InstanceIdx]), Axis1.Dot(Position1[InstanceIdx]), 0.0f);
+			Completion[InstanceIdx] = ECompletionMode::Running;
 
-			if (FVector::Distance(ProjectedPosition0, ProjectedPosition1) > Threshold[InstanceIdx])
+			for (int32 PositionIdx = 0; PositionIdx < PositionNum; PositionIdx++)
 			{
-				Completion[InstanceIdx] = CompletionMode;
-			}
-			else
-			{
-				Completion[InstanceIdx] = ECompletionMode::Running;
+				const FVector ProjectedPosition0 = FVector(Axis0.Dot(Position0[InstanceIdx][PositionIdx]), Axis1.Dot(Position0[InstanceIdx][PositionIdx]), 0.0f);
+				const FVector ProjectedPosition1 = FVector(Axis0.Dot(Position1[InstanceIdx][PositionIdx]), Axis1.Dot(Position1[InstanceIdx][PositionIdx]), 0.0f);
+
+				if (FVector::Distance(ProjectedPosition0, ProjectedPosition1) > Threshold[InstanceIdx])
+				{
+					Completion[InstanceIdx] = CompletionMode;
+					break;
+				}
 			}
 		}
 	}
@@ -167,12 +177,13 @@ namespace UE::Learning
 		const FName& InIdentifier,
 		const TSharedRef<FArrayMap>& InInstanceData,
 		const int32 InMaxInstanceNum,
+		const int32 InVelocityNum,
 		const float InThreshold,
 		const ECompletionMode InCompletionMode)
 		: FCompletionObject(InIdentifier, InInstanceData, InMaxInstanceNum, InCompletionMode)
 	{
-		Velocity0Handle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Velocity0") }, { InMaxInstanceNum }, 0.0f);
-		Velocity1Handle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Velocity1") }, { InMaxInstanceNum }, 0.0f);
+		Velocity0Handle = InstanceData->Add<2, float>({ InIdentifier, TEXT("Velocity0") }, { InMaxInstanceNum, InVelocityNum }, 0.0f);
+		Velocity1Handle = InstanceData->Add<2, float>({ InIdentifier, TEXT("Velocity1") }, { InMaxInstanceNum, InVelocityNum }, 0.0f);
 		ThresholdHandle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Threshold") }, { InMaxInstanceNum }, InThreshold);
 	}
 
@@ -180,20 +191,24 @@ namespace UE::Learning
 	{
 		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(FScalarVelocityDifferenceCompletion::Evaluate);
 
-		const TLearningArrayView<1, const float> Velocity0 = InstanceData->ConstView(Velocity0Handle);
-		const TLearningArrayView<1, const float> Velocity1 = InstanceData->ConstView(Velocity1Handle);
+		const TLearningArrayView<2, const float> Velocity0 = InstanceData->ConstView(Velocity0Handle);
+		const TLearningArrayView<2, const float> Velocity1 = InstanceData->ConstView(Velocity1Handle);
 		const TLearningArrayView<1, const float> Threshold = InstanceData->ConstView(ThresholdHandle);
 		TLearningArrayView<1, ECompletionMode> Completion = InstanceData->View(CompletionHandle);
 
+		const int32 VelocityNum = Velocity0.Num<1>();
+
 		for (const int32 InstanceIdx : Instances)
 		{
-			if (FMath::Abs(Velocity0[InstanceIdx] - Velocity1[InstanceIdx]) > Threshold[InstanceIdx])
+			Completion[InstanceIdx] = ECompletionMode::Running;
+
+			for (int32 VelocityIdx = 0; VelocityIdx < VelocityNum; VelocityIdx++)
 			{
-				Completion[InstanceIdx] = CompletionMode;
-			}
-			else
-			{
-				Completion[InstanceIdx] = ECompletionMode::Running;
+				if (FMath::Abs(Velocity0[InstanceIdx][VelocityIdx] - Velocity1[InstanceIdx][VelocityIdx]) > Threshold[InstanceIdx])
+				{
+					Completion[InstanceIdx] = CompletionMode;
+					break;
+				}
 			}
 		}
 	}
@@ -204,12 +219,13 @@ namespace UE::Learning
 		const FName& InIdentifier,
 		const TSharedRef<FArrayMap>& InInstanceData,
 		const int32 InMaxInstanceNum,
+		const int32 InRotationNum,
 		const float InThreshold,
 		const ECompletionMode InCompletionMode)
 		: FCompletionObject(InIdentifier, InInstanceData, InMaxInstanceNum, InCompletionMode)
 	{
-		Rotation0Handle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Rotation0") }, { InMaxInstanceNum }, 0.0f);
-		Rotation1Handle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Rotation1") }, { InMaxInstanceNum }, 0.0f);
+		Rotation0Handle = InstanceData->Add<2, float>({ InIdentifier, TEXT("Rotation0") }, { InMaxInstanceNum, InRotationNum }, 0.0f);
+		Rotation1Handle = InstanceData->Add<2, float>({ InIdentifier, TEXT("Rotation1") }, { InMaxInstanceNum, InRotationNum }, 0.0f);
 		ThresholdHandle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Threshold") }, { InMaxInstanceNum }, InThreshold);
 	}
 
@@ -217,20 +233,24 @@ namespace UE::Learning
 	{
 		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(FScalarRotationDifferenceCompletion::Evaluate);
 
-		const TLearningArrayView<1, const float> Rotation0 = InstanceData->ConstView(Rotation0Handle);
-		const TLearningArrayView<1, const float> Rotation1 = InstanceData->ConstView(Rotation1Handle);
+		const TLearningArrayView<2, const float> Rotation0 = InstanceData->ConstView(Rotation0Handle);
+		const TLearningArrayView<2, const float> Rotation1 = InstanceData->ConstView(Rotation1Handle);
 		const TLearningArrayView<1, const float> Threshold = InstanceData->ConstView(ThresholdHandle);
 		TLearningArrayView<1, ECompletionMode> Completion = InstanceData->View(CompletionHandle);
 
+		const int32 RotationNum = Rotation0.Num<1>();
+
 		for (const int32 InstanceIdx : Instances)
 		{
-			if (FMath::Abs(FMath::FindDeltaAngleRadians(Rotation1[InstanceIdx], Rotation0[InstanceIdx])) > Threshold[InstanceIdx])
+			Completion[InstanceIdx] = ECompletionMode::Running;
+
+			for (int32 RotationIdx = 0; RotationIdx < RotationNum; RotationIdx++)
 			{
-				Completion[InstanceIdx] = CompletionMode;
-			}
-			else
-			{
-				Completion[InstanceIdx] = ECompletionMode::Running;
+				if (FMath::Abs(FMath::FindDeltaAngleRadians(Rotation1[InstanceIdx][RotationIdx], Rotation0[InstanceIdx][RotationIdx])) > Threshold[InstanceIdx])
+				{
+					Completion[InstanceIdx] = CompletionMode;
+					break;
+				}
 			}
 		}
 	}
@@ -241,12 +261,13 @@ namespace UE::Learning
 		const FName& InIdentifier,
 		const TSharedRef<FArrayMap>& InInstanceData,
 		const int32 InMaxInstanceNum,
+		const int32 InAngularVelocityNum,
 		const float InThreshold,
 		const ECompletionMode InCompletionMode)
 		: FCompletionObject(InIdentifier, InInstanceData, InMaxInstanceNum, InCompletionMode)
 	{
-		AngularVelocity0Handle = InstanceData->Add<1, float>({ InIdentifier, TEXT("AngularVelocity0") }, { InMaxInstanceNum }, 0.0f);
-		AngularVelocity1Handle = InstanceData->Add<1, float>({ InIdentifier, TEXT("AngularVelocity1") }, { InMaxInstanceNum }, 0.0f);
+		AngularVelocity0Handle = InstanceData->Add<2, float>({ InIdentifier, TEXT("AngularVelocity0") }, { InMaxInstanceNum, InAngularVelocityNum }, 0.0f);
+		AngularVelocity1Handle = InstanceData->Add<2, float>({ InIdentifier, TEXT("AngularVelocity1") }, { InMaxInstanceNum, InAngularVelocityNum }, 0.0f);
 		ThresholdHandle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Threshold") }, { InMaxInstanceNum }, InThreshold);
 	}
 
@@ -254,20 +275,24 @@ namespace UE::Learning
 	{
 		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(FScalarAngularVelocityDifferenceCompletion::Evaluate);
 
-		const TLearningArrayView<1, const float> AngularVelocity0 = InstanceData->ConstView(AngularVelocity0Handle);
-		const TLearningArrayView<1, const float> AngularVelocity1 = InstanceData->ConstView(AngularVelocity1Handle);
+		const TLearningArrayView<2, const float> AngularVelocity0 = InstanceData->ConstView(AngularVelocity0Handle);
+		const TLearningArrayView<2, const float> AngularVelocity1 = InstanceData->ConstView(AngularVelocity1Handle);
 		const TLearningArrayView<1, const float> Threshold = InstanceData->ConstView(ThresholdHandle);
 		TLearningArrayView<1, ECompletionMode> Completion = InstanceData->View(CompletionHandle);
 
+		const int32 AngularVelocityNum = AngularVelocity0.Num<1>();
+
 		for (const int32 InstanceIdx : Instances)
 		{
-			if (FMath::Abs(AngularVelocity0[InstanceIdx] - AngularVelocity1[InstanceIdx]) > Threshold[InstanceIdx])
+			Completion[InstanceIdx] = ECompletionMode::Running;
+
+			for (int32 AngularVelocityIdx = 0; AngularVelocityIdx < AngularVelocityNum; AngularVelocityIdx++)
 			{
-				Completion[InstanceIdx] = CompletionMode;
-			}
-			else
-			{
-				Completion[InstanceIdx] = ECompletionMode::Running;
+				if (FMath::Abs(AngularVelocity0[InstanceIdx][AngularVelocityIdx] - AngularVelocity1[InstanceIdx][AngularVelocityIdx]) > Threshold[InstanceIdx])
+				{
+					Completion[InstanceIdx] = CompletionMode;
+					break;
+				}
 			}
 		}
 	}

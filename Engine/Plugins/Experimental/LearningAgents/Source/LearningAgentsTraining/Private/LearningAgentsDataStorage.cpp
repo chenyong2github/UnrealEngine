@@ -78,6 +78,12 @@ ULearningAgentsRecord* ULearningAgentsDataStorage::CreateRecord(FName RecordName
 		return nullptr;
 	}
 
+	if (!AgentType->IsSetupPerformed())
+	{
+		UE_LOG(LogLearning, Warning, TEXT("CreateRecord: AgentType Setup must be performed before record can be created."));
+		return nullptr;
+	}
+
 	ULearningAgentsRecord* NewRecord = NewObject<ULearningAgentsRecord>(this, RecordName);
 	NewRecord->MetaData.AgentType = AgentType;
 	NewRecord->MetaData.CreatedOn = FDateTime::Now();
@@ -125,6 +131,12 @@ ULearningAgentsRecord* ULearningAgentsDataStorage::LoadRecord(ULearningAgentsTyp
 	if (!AgentType)
 	{
 		UE_LOG(LogLearning, Warning, TEXT("LoadRecord: AgentType is nullptr. You must pass a valid agent type. Skipping loading."));
+		return nullptr;
+	}
+
+	if (!AgentType->IsSetupPerformed())
+	{
+		UE_LOG(LogLearning, Warning, TEXT("LoadRecord: AgentType Setup must be performed before record can be created."));
 		return nullptr;
 	}
 
