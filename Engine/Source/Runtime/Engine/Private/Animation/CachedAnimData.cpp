@@ -66,6 +66,11 @@ bool FCachedAnimStateData::IsActiveState(class UAnimInstance& InAnimInstance) co
 	return IsValid(InAnimInstance) ? (InAnimInstance.GetCurrentStateName(MachineIndex) == StateName) : false;
 }
 
+bool FCachedAnimStateData::WasAnimNotifyStateActive(UAnimInstance& InAnimInstance, TSubclassOf<UAnimNotifyState> AnimNotifyStateType) const
+{
+	return IsValid(InAnimInstance) ? (InAnimInstance.WasAnimNotifyStateActiveInSourceState(MachineIndex, StateIndex, AnimNotifyStateType)) : false;
+}
+
 bool FCachedAnimStateArray::IsValid(UAnimInstance& InAnimInstance) const
 {
 	// Make sure the setup validates our assumptions.

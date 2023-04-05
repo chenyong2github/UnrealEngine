@@ -52,6 +52,8 @@ struct ENGINE_API FCachedAnimStateData
 	/** Is State active? */
 	bool IsActiveState(class UAnimInstance& InAnimInstance) const;
 
+	bool WasAnimNotifyStateActive(UAnimInstance& InAnimInstance, TSubclassOf<UAnimNotifyState> AnimNotifyStateType) const;
+		
 private:
 	mutable int32 MachineIndex;
 	mutable int32 StateIndex;
