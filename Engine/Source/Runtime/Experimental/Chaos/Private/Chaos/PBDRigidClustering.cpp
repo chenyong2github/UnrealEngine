@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "Chaos/PBDRigidClustering.h"
 
 #include "Chaos/ErrorReporter.h"
@@ -843,7 +844,7 @@ namespace Chaos
 						}
 					}
 
-					ClusterUnionManager.HandleRemoveOperationWithClusterLookup({ ClusteredParticle }, true);
+					ClusterUnionManager.HandleRemoveOperationWithClusterLookup({ ClusteredParticle }, EClusterUnionOperationTiming::Defer);
 					bFoundFirstRelease = true;
 				}
 
@@ -882,7 +883,7 @@ namespace Chaos
 
 		if (!DeferredRemoveFromClusterUnion.IsEmpty())
 		{
-			ClusterUnionManager.HandleRemoveOperationWithClusterLookup(DeferredRemoveFromClusterUnion, true);
+			ClusterUnionManager.HandleRemoveOperationWithClusterLookup(DeferredRemoveFromClusterUnion, EClusterUnionOperationTiming::Defer);
 		}
 
 		// if necessary propagate strain through the graph
@@ -1170,6 +1171,10 @@ namespace Chaos
 		{
 			ReleaseClusterParticles(ClusteredParticle);
 		}
+
+		// This way if we break apart a large cluster union here (i.e. many of its children want to be released from ReleaseClusterParticles due to strain)
+		// we'll only update the cluster properties once here (connection graph, geometry, etc.).
+		ClusterUnionManager.HandleDeferredClusterUnionUpdateProperties();
 
 		// Restore some of the momentum of objects that were touching rigid clusters that broke
 		if (RestoreBreakingMomentumPercent > 0.f)
@@ -1640,7 +1645,7 @@ namespace Chaos
 		}
 
 		// Pre-emptively remove the particle from cluster unions it might be in.
-		ClusterUnionManager.HandleRemoveOperationWithClusterLookup({ ClusteredParticle }, true);
+		ClusterUnionManager.HandleRemoveOperationWithClusterLookup({ ClusteredParticle }, EClusterUnionOperationTiming::Immediate);
 
 		// max strain will allow to unconditionally release the children when strain is evaluated
 		constexpr FRealSingle MaxStrain = TNumericLimits<FRealSingle>::Max();

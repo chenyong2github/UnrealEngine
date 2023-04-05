@@ -174,7 +174,7 @@ namespace Chaos
 				FReadPhysicsObjectInterface_Internal Interface = FPhysicsObjectInternalInterface::GetRead();
 				if (FPBDRigidsEvolutionGBF* Evolution = GetEvolution(this))
 				{
-					Evolution->GetRigidClustering().GetClusterUnionManager().HandleRemoveOperation(ClusterUnionIndex, Interface.GetAllRigidParticles(Objects.Array()), true);
+					Evolution->GetRigidClustering().GetClusterUnionManager().HandleRemoveOperation(ClusterUnionIndex, Interface.GetAllRigidParticles(Objects.Array()), EClusterUnionOperationTiming::Immediate);
 				}
 			}
 		);

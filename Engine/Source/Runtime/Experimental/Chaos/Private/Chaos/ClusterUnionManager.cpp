@@ -70,7 +70,7 @@ namespace Chaos
 			// Note that we need to make a copy of the array here since the children list will be modified by the HandleRemoveOperation.
 			// However, the function does not expect that the input array will change.
 			TArray<FPBDRigidParticleHandle*> ChildrenCopy = ClusterUnion->ChildParticles;
-			HandleRemoveOperation(Index, ChildrenCopy, false);
+			HandleRemoveOperation(Index, ChildrenCopy, EClusterUnionOperationTiming::Never);
 			ClusterUnion->ChildParticles.Empty();
 			MClustering.DestroyClusterParticle(ClusterUnion->InternalCluster);
 
@@ -182,7 +182,7 @@ namespace Chaos
 					HandleAddOperation(OpMap.Key, Op.Value, Op.Key == EClusterUnionOperation::AddReleased);
 					break;
 				case EClusterUnionOperation::Remove:
-					HandleRemoveOperation(OpMap.Key, Op.Value, true);
+					HandleRemoveOperation(OpMap.Key, Op.Value, EClusterUnionOperationTiming::Immediate);
 					break;
 				}
 			}
@@ -223,8 +223,8 @@ namespace Chaos
 		}
 
 		// If we're adding particles to a cluster we need to first make sure they're not part of any other cluster.
-		// Book-keeping might get a bit odd if we try to add a particle to a new clutser and then only later remove the particle from its old cluster.
-		HandleRemoveOperationWithClusterLookup(Particles, true);
+		// Book-keeping might get a bit odd if we try to add a particle to a new cluster and then only later remove the particle from its old cluster.
+		HandleRemoveOperationWithClusterLookup(Particles, EClusterUnionOperationTiming::Immediate);
 
 		TGuardValue_Bitfield_Cleanup<TFunction<void()>> Cleanup(
 			[this, OldGenerateClusterBreaking=MClustering.GetDoGenerateBreakingData()]() {
@@ -345,8 +345,28 @@ namespace Chaos
 		MEvolution.GetParticles().MarkTransientDirtyParticle(Cluster->InternalCluster);
 	}
 
+	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::HandleDeferredClusterUnionUpdateProperties"), STAT_HandleDeferredClusterUnionUpdateProperties, STATGROUP_Chaos);
+	void FClusterUnionManager::HandleDeferredClusterUnionUpdateProperties()
+	{
+		SCOPE_CYCLE_COUNTER(STAT_HandleDeferredClusterUnionUpdateProperties);
+		if (DeferredClusterUnionsForUpdateProperties.IsEmpty())
+		{
+			return;
+		}
+
+		for (FClusterUnionIndex Index : DeferredClusterUnionsForUpdateProperties)
+		{
+			if (FClusterUnion* Union = FindClusterUnion(Index))
+			{
+				UpdateAllClusterUnionProperties(*Union, false);
+			}
+		}
+
+		DeferredClusterUnionsForUpdateProperties.Reset();
+	}
+
 	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::HandleRemoveOperation"), STAT_HandleRemoveOperation, STATGROUP_Chaos);
-	void FClusterUnionManager::HandleRemoveOperation(FClusterUnionIndex ClusterIndex, const TArray<FPBDRigidParticleHandle*>& Particles, bool bUpdateClusterProperties)
+	void FClusterUnionManager::HandleRemoveOperation(FClusterUnionIndex ClusterIndex, const TArray<FPBDRigidParticleHandle*>& Particles, EClusterUnionOperationTiming UpdateClusterPropertiesTiming)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_HandleRemoveOperation);
 		FClusterUnion* Cluster = ClusterUnions.Find(ClusterIndex);
@@ -390,9 +410,14 @@ namespace Chaos
 
 		MClustering.RemoveParticlesFromCluster(Cluster->InternalCluster, Particles);
 
-		if (bUpdateClusterProperties)
+		switch (UpdateClusterPropertiesTiming)
 		{
+		case EClusterUnionOperationTiming::Immediate:
 			UpdateAllClusterUnionProperties(*Cluster, false);
+			break;
+		case EClusterUnionOperationTiming::Defer:
+			DeferredClusterUnionsForUpdateProperties.Add(ClusterIndex);
+			break;
 		}
 
 		// Removing a particle should have no bearing on the proxy of the cluster.
@@ -413,7 +438,7 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::HandleRemoveOperationWithClusterLookup"), STAT_HandleRemoveOperationWithClusterLookup, STATGROUP_Chaos);
-	void FClusterUnionManager::HandleRemoveOperationWithClusterLookup(const TArray<FPBDRigidParticleHandle*>& InParticles, bool bUpdateClusterProperties)
+	void FClusterUnionManager::HandleRemoveOperationWithClusterLookup(const TArray<FPBDRigidParticleHandle*>& InParticles, EClusterUnionOperationTiming UpdateClusterPropertiesTiming)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_HandleRemoveOperationWithClusterLookup);
 		TMap<FClusterUnionIndex, TSet<FPBDRigidParticleHandle*>> ParticlesPerCluster;
@@ -427,7 +452,7 @@ namespace Chaos
 
 		for (const TPair<FClusterUnionIndex, TSet<FPBDRigidParticleHandle*>>& Kvp : ParticlesPerCluster)
 		{
-			HandleRemoveOperation(Kvp.Key, Kvp.Value.Array(), bUpdateClusterProperties);
+			HandleRemoveOperation(Kvp.Key, Kvp.Value.Array(), UpdateClusterPropertiesTiming);
 		}
 	}
 

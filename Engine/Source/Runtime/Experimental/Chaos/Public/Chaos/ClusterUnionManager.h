@@ -24,6 +24,13 @@ namespace Chaos
 		Remove
 	};
 
+	enum class EClusterUnionOperationTiming
+	{
+		Never,
+		Defer,
+		Immediate
+	};
+
 	struct CHAOS_API FClusterUnionCreationParameters
 	{
 		FClusterUnionExplicitIndex ExplicitIndex = INDEX_NONE;
@@ -82,13 +89,16 @@ namespace Chaos
 		void HandleAddOperation(FClusterUnionIndex ClusterIndex, const TArray<FPBDRigidParticleHandle*>& Particles, bool bReleaseClustersFirst);
 
 		// Removes the specified particles from the specified cluster.
-		void HandleRemoveOperation(FClusterUnionIndex ClusterIndex, const TArray<FPBDRigidParticleHandle*>& Particles, bool bUpdateClusterProperties);
+		void HandleRemoveOperation(FClusterUnionIndex ClusterIndex, const TArray<FPBDRigidParticleHandle*>& Particles, EClusterUnionOperationTiming UpdateClusterPropertiesTiming);
 
 		// Helper function to remove particles given only the particle handle. This will consult the lookup table to find which cluster the particle is in before doing a normal remove operation.
-		void HandleRemoveOperationWithClusterLookup(const TArray<FPBDRigidParticleHandle*>& InParticles, bool bUpdateClusterProperties);
+		void HandleRemoveOperationWithClusterLookup(const TArray<FPBDRigidParticleHandle*>& InParticles, EClusterUnionOperationTiming UpdateClusterPropertiesTiming);
 
 		// Will be called at the beginning of every time step to ensure that all the expected cluster unions have been modified.
 		void FlushPendingOperations();
+
+		// Update cluster union properties here if they were deferred. This can be called manually but will otherwise also be handled in FlushPendingOperations.
+		void HandleDeferredClusterUnionUpdateProperties();
 
 		// Access the cluster union externally.
 		FClusterUnion* FindClusterUnionFromExplicitIndex(FClusterUnionExplicitIndex Index);
@@ -129,6 +139,9 @@ namespace Chaos
 		// All of our actively managed cluster unions. We need to keep track of these
 		// so a user could use the index to request modifications to a specific cluster union.
 		TMap<FClusterUnionIndex, FClusterUnion> ClusterUnions;
+
+		// The set of cluster unions that we want to defer updating their cluster union properties for.
+		TSet<FClusterUnionIndex> DeferredClusterUnionsForUpdateProperties;
 		
 		//
 		// There are two ways we can pick a new union index:
