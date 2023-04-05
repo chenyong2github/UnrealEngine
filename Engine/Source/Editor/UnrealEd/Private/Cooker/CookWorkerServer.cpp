@@ -523,7 +523,7 @@ void FCookWorkerServer::LaunchProcess()
 void FCookWorkerServer::TickWaitForConnect()
 {
 	constexpr float TestProcessExistencePeriod = 1.f;
-	constexpr float WaitForConnectTimeout = 60.f * 10;
+	constexpr float WaitForConnectTimeout = 60.f * 20;
 
 	check(!Socket); // When the Socket is assigned we leave the WaitForConnect state, and we set it to null before entering
 
