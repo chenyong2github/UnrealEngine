@@ -59,19 +59,24 @@ namespace EpicGames.Perforce
 		public string? CaseHandling { get; set; }
 
 		/// <summary>
-		/// How to compare paths on this server
+		/// Whether the server is case sensitive
 		/// </summary>
-		public StringComparer PathComparer => String.Equals(CaseHandling, "insensitive", StringComparison.OrdinalIgnoreCase) ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+		public bool IsCaseSensitive => !String.Equals(CaseHandling, "insensitive", StringComparison.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// How to compare paths on this server
 		/// </summary>
-		public StringComparison PathComparison => String.Equals(CaseHandling, "insensitive", StringComparison.OrdinalIgnoreCase) ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+		public StringComparer PathComparer => IsCaseSensitive ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
 
 		/// <summary>
 		/// How to compare paths on this server
 		/// </summary>
-		public Utf8StringComparer Utf8PathComparer => String.Equals(CaseHandling, "insensitive", StringComparison.OrdinalIgnoreCase) ? Utf8StringComparer.OrdinalIgnoreCase : Utf8StringComparer.Ordinal;
+		public StringComparison PathComparison => IsCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+
+		/// <summary>
+		/// How to compare paths on this server
+		/// </summary>
+		public Utf8StringComparer Utf8PathComparer => IsCaseSensitive ? Utf8StringComparer.Ordinal : Utf8StringComparer.OrdinalIgnoreCase;
 
 		/// <summary>
 		/// List of services provided by this server

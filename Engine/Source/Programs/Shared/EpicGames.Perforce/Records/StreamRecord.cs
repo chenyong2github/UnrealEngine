@@ -77,6 +77,12 @@ namespace EpicGames.Perforce
 		public List<string> View { get; } = new List<string>();
 
 		/// <summary>
+		/// Specific changelists to import
+		/// </summary>
+		[PerforceTag("ChangeView", Optional = true)]
+		public List<string> ChangeView { get; } = new List<string>();
+
+		/// <summary>
 		/// Private constructor for serialization
 		/// </summary>
 		private StreamRecord()

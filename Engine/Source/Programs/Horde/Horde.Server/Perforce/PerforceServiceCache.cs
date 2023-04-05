@@ -62,12 +62,15 @@ namespace Horde.Server.Perforce
 		{
 			public StreamConfig StreamConfig { get; set; }
 			public PerforceViewMap View { get; }
+			public PerforceChangeView ChangeView { get; }
+
 			public List<CommitTagInfo> CommitTags { get; set; } = new List<CommitTagInfo>();
 
-			public StreamInfo(StreamConfig streamConfig, PerforceViewMap view)
+			public StreamInfo(StreamConfig streamConfig, PerforceViewMap view, PerforceChangeView changeView)
 			{
 				StreamConfig = streamConfig;
 				View = view;
+				ChangeView = changeView;
 
 				foreach (CommitTagConfig commitTagConfig in streamConfig.GetAllCommitTags())
 				{
@@ -361,12 +364,15 @@ namespace Horde.Server.Perforce
 		{
 			using (IPooledPerforceConnection perforce = await ConnectAsync(clusterName, null, cancellationToken))
 			{
+				InfoRecord serverInfo = await perforce.GetInfoAsync(cancellationToken);
+
 				List<StreamInfo> streamInfoList = new List<StreamInfo>();
 				foreach (StreamConfig stream in streams)
 				{
 					StreamRecord record = await perforce.GetStreamAsync(stream.Name, true, cancellationToken);
 					PerforceViewMap view = PerforceViewMap.Parse(record.View);
-					streamInfoList.Add(new StreamInfo(stream, view));
+					PerforceChangeView changeView = PerforceChangeView.Parse(record.ChangeView, !serverInfo.IsCaseSensitive);
+					streamInfoList.Add(new StreamInfo(stream, view, changeView));
 				}
 				return streamInfoList;
 			}
@@ -443,7 +449,10 @@ namespace Horde.Server.Perforce
 							string relativePath;
 							if (streamInfo.View.TryMapFile(describeFile.DepotFile, info.PathComparison, out relativePath))
 							{
-								files.Add(relativePath);
+								if (streamInfo.ChangeView.IsVisible(describeFile.DepotFile, describeRecord.Number))
+								{
+									files.Add(relativePath);
+								}
 							}
 						}
 
