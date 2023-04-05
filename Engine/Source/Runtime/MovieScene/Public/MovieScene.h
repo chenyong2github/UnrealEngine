@@ -291,6 +291,7 @@ class MOVIESCENE_API UMovieSceneNodeGroupCollection : public UObject
 public:
 	/** Called after this object has been deserialized */
 	virtual void PostLoad() override;
+	virtual void PostEditUndo() override;
 
 	void AddNodeGroup(UMovieSceneNodeGroup* NodeGroup);
 	void RemoveNodeGroup(UMovieSceneNodeGroup* NodeGroup);
@@ -306,6 +307,9 @@ public:
 	FOnNodeGroupCollectionChanged& OnNodeGroupCollectionChanged() { return OnNodeGroupCollectionChangedEvent; }
 
 private:
+
+	void Refresh();
+
 	UPROPERTY()
 	TArray<TObjectPtr<UMovieSceneNodeGroup>> NodeGroups;
 

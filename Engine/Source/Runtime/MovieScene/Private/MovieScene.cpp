@@ -79,6 +79,7 @@ UMovieScene::UMovieScene(const FObjectInitializer& ObjectInitializer)
 	FixedFrameInterval_DEPRECATED = 0.0f;
 
 	NodeGroupCollection = CreateEditorOnlyDefaultSubobject<UMovieSceneNodeGroupCollection>("NodeGroupCollection");
+	NodeGroupCollection->SetFlags(RF_Transactional);
 
 	InTime_DEPRECATED    =  FLT_MAX;
 	OutTime_DEPRECATED   = -FLT_MAX;
@@ -768,20 +769,32 @@ void UMovieSceneNodeGroup::SetEnableFilter(bool bInEnableFilter)
 	}
 }
 
-void UMovieSceneNodeGroupCollection::PostLoad()
+void UMovieSceneNodeGroupCollection::Refresh()
 {
 	bAnyActiveFilter = false;
 	for (UMovieSceneNodeGroup* NodeGroup : NodeGroups)
 	{
 		NodeGroup->OnNodeGroupChanged().AddUObject(this, &UMovieSceneNodeGroupCollection::OnNodeGroupChanged);
-		
+
 		if (NodeGroup->GetEnableFilter())
 		{
 			bAnyActiveFilter = true;
 		}
 	}
-	
+}
+
+void UMovieSceneNodeGroupCollection::PostLoad()
+{
+	Refresh();
+
 	Super::PostLoad();
+}
+
+void UMovieSceneNodeGroupCollection::PostEditUndo()
+{
+	Refresh();
+
+	Super::PostEditUndo();
 }
 
 void UMovieSceneNodeGroupCollection::AddNodeGroup(UMovieSceneNodeGroup* NodeGroup)
