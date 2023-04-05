@@ -65,8 +65,8 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
 	FLinearColor SubgraphNodeColor;
 
-	/** Color used for param data operations */
-	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
+	/** Color used for Attribute Set operations */
+	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel, DisplayName = "Attribute Set Node Color"))
 	FLinearColor ParamDataNodeColor;
 
 	/** Color used for debug operations */
@@ -117,8 +117,8 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
 	FLinearColor PrimitiveDataPinColor;
 
-	/** Color used for param data pins */
-	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
+	/** Color used for data pins of type Attribute Set */
+	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel, DisplayName = "Attribute Set Pin Color"))
 	FLinearColor ParamDataPinColor;
 
 	/** Color used for other/unknown data types */

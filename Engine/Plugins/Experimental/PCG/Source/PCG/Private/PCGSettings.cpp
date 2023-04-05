@@ -269,8 +269,9 @@ void UPCGSettings::FillOverridableParamsPins(TArray<FPCGPinProperties>& OutPins)
 		if (*PinType != EPCGDataType::Param)
 		{
 			const FString ParamsName = PCGPinConstants::DefaultParamsLabel.ToString();
-			UE_LOG(LogPCG, Error, TEXT("[%s-%s] While adding %s pin, we found another %s pin with not the same allowed type (Param). "
-				"Please rename this pin if you want to take advantage of automatic override. Until then it will probably break your graph."), *GraphName, *NodeName, *ParamsName, *ParamsName);
+			UE_LOG(LogPCG, Error, TEXT("[%s-%s] While adding pin '%s', another pin '%s' was found with invalid type (type must be Attribute Set). "
+				"Rename or remove this pin to allow an override pin to be added automatically."),
+				*GraphName, *NodeName, *ParamsName, *ParamsName);
 		}
 	}
 	else
@@ -279,7 +280,7 @@ void UPCGSettings::FillOverridableParamsPins(TArray<FPCGPinProperties>& OutPins)
 		ParamPin.bAdvancedPin = true;
 
 #if WITH_EDITOR
-		ParamPin.Tooltip = LOCTEXT("GlobalParamPinTooltip", "Can bundle multiple param data to override multiple parameters at the same time. Names need to match perfectly.");
+		ParamPin.Tooltip = LOCTEXT("GlobalParamPinTooltip", "Atribute Set containing multiple parameters to override. Names must match perfectly.");
 #endif // WITH_EDITOR
 	}
 
@@ -289,9 +290,10 @@ void UPCGSettings::FillOverridableParamsPins(TArray<FPCGPinProperties>& OutPins)
 	{
 		if (InputPinsLabelsAndTypes.Contains(OverridableParam.Label))
 		{
-			//const FString ParamsName = OverridableParam.Label.ToString();
-			//UE_LOG(LogPCG, Warning, TEXT("[%s-%s] While automatically adding overriable param pins, we found a %s pin. "
-			//	"Please rename this pin if you want to take advantage of automatic override. Until then, we will not add a %s pin."), *GraphName, *NodeName, *ParamsName, *ParamsName);
+			const FString ParamsName = OverridableParam.Label.ToString();
+			UE_LOG(LogPCG, Warning, TEXT("[%s-%s] While automatically adding override pins, an existing pin was found with conflicting name '%s'. "
+				"Rename or remove this pin to allow the automatic override pin to be added. Automatic override pin '%s' skipped."),
+				*GraphName, *NodeName, *ParamsName, *ParamsName);
 			continue;
 		}
 
@@ -309,7 +311,7 @@ void UPCGSettings::FillOverridableParamsPins(TArray<FPCGPinProperties>& OutPins)
 			Tooltip = *TooltipPtr + TEXT("\n");
 		}
 
-		ParamPin.Tooltip = FText::Format(LOCTEXT("OverridableParamPinTooltip", "{0}Param type is \"{1}\" and its exact name is \"{2}\""),
+		ParamPin.Tooltip = FText::Format(LOCTEXT("OverridableParamPinTooltip", "{0}Attribute type is \"{1}\" and its exact name is \"{2}\""),
 			FText::FromString(Tooltip),
 			FText::FromString(Property->GetCPPType()),
 			FText::FromName(Property->GetFName()));

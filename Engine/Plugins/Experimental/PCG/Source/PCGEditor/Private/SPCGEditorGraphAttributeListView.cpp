@@ -758,7 +758,8 @@ void SPCGEditorGraphAttributeListView::RefreshDataComboBox()
 	for(int32 TaggedDataIndex = 0; TaggedDataIndex < InspectionData->TaggedData.Num(); ++TaggedDataIndex)
 	{
 		const FPCGTaggedData& TaggedData = InspectionData->TaggedData[TaggedDataIndex];
-		FString ItemName = FString::Format(TEXT("[{0}] {1} - {2}"), { FText::AsNumber(TaggedDataIndex).ToString(), TaggedData.Pin.ToString(), (TaggedData.Data ? TaggedData.Data->GetClass()->GetFName().ToString(): TEXT("No Data")) });
+		FString ItemName = FString::Format(TEXT("[{0}] {1} - {2}"),
+			{ FText::AsNumber(TaggedDataIndex).ToString(), TaggedData.Pin.ToString(), (TaggedData.Data ? TaggedData.Data->GetClass()->GetDisplayNameText().ToString(): TEXT("No Data")) });
 
 		if (!TaggedData.Tags.IsEmpty())
 		{

@@ -48,7 +48,7 @@ enum class EPCGDataType : uint32
 	/** Combinations of concrete data and/or boolean operations. */
 	Spatial = Composite | Concrete,
 
-	Param = 1 << 27,
+	Param = 1 << 27 UMETA(DisplayName = "Attribute Set"),
 	Settings = 1 << 28 UMETA(Hidden),
 	Other = 1 << 29,
 	Any = (1 << 30) - 1

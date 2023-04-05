@@ -10,7 +10,7 @@
 /**
 * Class to hold execution parameters that will be consumed in nodes of the graph
 */
-UCLASS(BlueprintType, ClassGroup = (Procedural))
+UCLASS(BlueprintType, ClassGroup = (Procedural), DisplayName = "Attribute Set")
 class PCG_API UPCGParamData : public UPCGData
 {
 	GENERATED_BODY()

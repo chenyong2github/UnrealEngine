@@ -194,7 +194,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			if (!AttributeAccessor->Get<T>(OutValue, FirstEntry, EPCGAttributeAccessorFlags::AllowBroadcast | EPCGAttributeAccessorFlags::AllowConstructible))
 			{
-				UE_LOG(LogPCG, Warning, TEXT("[PCGSettingsHelpers::GetOverrideValue] %s param can't be converted from %s attribute, incompatible types."), *Param->Label.ToString(), *AttributeName.ToString());
+				UE_LOG(LogPCG, Warning, TEXT("[PCGSettingsHelpers::GetOverrideValue] '%s' parameter cannot be converted from '%s' attribute, incompatible types."), *Param->Label.ToString(), *AttributeName.ToString());
 				return false;
 			}
 
