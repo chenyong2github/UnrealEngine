@@ -386,12 +386,6 @@ public:
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FInstanceProcessingGPULoadBalancer::SetShaderDefines(OutEnvironment);
 
-		// Force use of DXC for mobile platforms as there are some remaining platforms that still use HLSLCC due to perf. regressions with DXC
-		if (IsMobilePlatform(Parameters.Platform))
-		{
-			OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
-		}
-
 		OutEnvironment.SetDefine(TEXT("INDIRECT_ARGS_NUM_WORDS"), FInstanceCullingContext::IndirectArgsNumWords);
 		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);

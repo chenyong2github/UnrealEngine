@@ -11,7 +11,7 @@
 #endif
 
 // Disable the declaration of any templated types so we can use this shader without HLSL 2021. This is necessary because
-// cross-compilation creates bugs with ENABLE_INSTANCE_COMPACTION
+// cross-compilation creates bugs with ENABLE_INSTANCE_COMPACTION.
 #define ALLOW_TEMPLATES 0
 
 #include "../Common.ush"
