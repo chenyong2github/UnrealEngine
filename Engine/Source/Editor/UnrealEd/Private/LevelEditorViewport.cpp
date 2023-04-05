@@ -107,6 +107,7 @@
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "Rendering/StaticLightingSystemInterface.h"
 #include "TextureResource.h"
+#include "Subsystems/PlacementSubsystem.h"
 
 DEFINE_LOG_CATEGORY(LogEditorViewport);
 
@@ -1442,8 +1443,10 @@ FDropQuery FLevelEditorViewportClient::CanDropObjectsAtCoordinates(int32 MouseX,
 	UObject* AssetObj = AssetData.GetAsset();
 	UClass* ClassObj = Cast<UClass>(AssetObj);
 
+	UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>();
 	// Check if the asset has an actor factory
-	bool bHasActorFactory = FActorFactoryAssetProxy::GetFactoryForAsset(AssetData) != nullptr;
+	bool bHasActorFactory = PlacementSubsystem && PlacementSubsystem->FindAssetFactoryFromAssetData(AssetData) != nullptr;
+	bHasActorFactory = bHasActorFactory || FActorFactoryAssetProxy::GetFactoryForAsset(AssetData) != nullptr;
 
 	if (ClassObj)
 	{

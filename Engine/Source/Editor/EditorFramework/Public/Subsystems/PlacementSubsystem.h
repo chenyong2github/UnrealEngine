@@ -126,7 +126,11 @@ public:
 	FSimpleMulticastDelegate& OnPlacementFactoriesRegistered();
 
 	TScriptInterface<IAssetFactoryInterface> GetAssetFactoryFromFactoryClass(TSubclassOf<UClass> InFactoryInterfaceClass) const;
+	
+	void RegisterAssetFactory(TScriptInterface<IAssetFactoryInterface> AssetFactory);
 
+	void UnregisterAssetFactory(TScriptInterface<IAssetFactoryInterface> AssetFactory);
+	
 private:
 	void RegisterPlacementFactories();
 	void UnregisterPlacementFactories();

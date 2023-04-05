@@ -137,6 +137,16 @@ TScriptInterface<IAssetFactoryInterface> UPlacementSubsystem::GetAssetFactoryFro
 	return nullptr;
 }
 
+void UPlacementSubsystem::RegisterAssetFactory(TScriptInterface<IAssetFactoryInterface> AssetFactory)
+{
+	AssetFactories.Add(AssetFactory);
+}
+
+void UPlacementSubsystem::UnregisterAssetFactory(TScriptInterface<IAssetFactoryInterface> AssetFactory)
+{
+	AssetFactories.Remove(AssetFactory);
+}
+
 void UPlacementSubsystem::UnregisterPlacementFactories()
 {
 	AssetFactories.Empty();
