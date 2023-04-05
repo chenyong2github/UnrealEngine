@@ -49,9 +49,11 @@ void UK2Node_EvaluateChooser::UnregisterChooserCallback()
 	}
 }
 
-UK2Node_EvaluateChooser::~UK2Node_EvaluateChooser()
+void UK2Node_EvaluateChooser::BeginDestroy()
 {
 	UnregisterChooserCallback();
+	
+	Super::BeginDestroy();
 }
 
 void UK2Node_EvaluateChooser::PostEditUndo()

@@ -25,9 +25,9 @@ UCLASS(MinimalAPI)
 class UK2Node_EvaluateChooser : public UK2Node
 {
 	GENERATED_UCLASS_BODY()
-	~UK2Node_EvaluateChooser();
 	
 	//~ Begin UObject Interface
+	virtual void BeginDestroy() override;
 	virtual void PostEditUndo() override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostLoad() override;
