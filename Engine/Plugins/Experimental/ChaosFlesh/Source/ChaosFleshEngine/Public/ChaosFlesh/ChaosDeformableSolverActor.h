@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/BillboardComponent.h"
 #include "GameFramework/Actor.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPtr.h"
@@ -23,5 +24,14 @@ public:
 
 	UPROPERTY(Category = "Chaos Deformable", VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UDeformableSolverComponent> SolverComponent = nullptr;
+
+	/*
+	* Display icon in the editor
+	*/
+	UPROPERTY()
+	TObjectPtr<UBillboardComponent> SpriteComponent;
+
+private:
+	void CreateBillboardIcon(const FObjectInitializer& ObjectInitializer);
 
 };
