@@ -39,15 +39,15 @@ namespace UE::DatasmithInterchange
 	protected:
 		const UInterchangeBaseNode* ConstBaseNode;
 
-		static const FName DatasmithTextureDataKey;
-		static const FName FileKey;
-		static const FName TextureModeKey;
-		static const FName TextureFilterKey;
-		static const FName TextureAddressXKey;
-		static const FName TextureAddressYKey;
-		static const FName AllowResizeKey;
-		static const FName RGBCurveKey;
-		static const FName SRGBKey;
+		static const FString DatasmithTextureDataKey;
+		static const FString FileKey;
+		static const FString TextureModeKey;
+		static const FString TextureFilterKey;
+		static const FString TextureAddressXKey;
+		static const FString TextureAddressYKey;
+		static const FString AllowResizeKey;
+		static const FString RGBCurveKey;
+		static const FString SRGBKey;
 	};
 
 	struct FInterchangeDatasmithTextureData : public FInterchangeDatasmithTextureDataConst

@@ -924,8 +924,8 @@ bool UInterchangeGenericMaterialPipeline::HandlePhongModel(const UInterchangeSha
 
 					const float ShininessScale = 100.f; // Divide shininess by 100 to bring it into a 0-1 range for roughness.
 					const FName ShininessScaleParameterName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionDivide, ConstB);
-					DivideShininessNode->AddFloatAttribute(ShininessScaleParameterName, ShininessScale);
-					DivideShininessNode->AddApplyAndFillDelegates<float>(ShininessScaleParameterName, UMaterialExpressionDivide::StaticClass(),  GET_MEMBER_NAME_CHECKED(UMaterialExpressionDivide, ConstB));
+					DivideShininessNode->AddFloatAttribute(ShininessScaleParameterName.ToString(), ShininessScale);
+					DivideShininessNode->AddApplyAndFillDelegates<float>(ShininessScaleParameterName.ToString(), UMaterialExpressionDivide::StaticClass(), GET_MEMBER_NAME_CHECKED(UMaterialExpressionDivide, ConstB));
 
 					// Connect Shininess to Divide
 					UInterchangeShaderPortsAPI::ConnectOuputToInputByName(DivideShininessNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionDivide, A).ToString(),
@@ -1421,8 +1421,8 @@ void UInterchangeGenericMaterialPipeline::HandleCommonParameters(const UIntercha
 
 				const float AirIOR = 1.f;
 				const FName ConstAMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionLinearInterpolate, ConstA);
-				IORLerp->AddFloatAttribute(ConstAMemberName, AirIOR);
-				IORLerp->AddApplyAndFillDelegates<float>(ConstAMemberName, UMaterialExpressionLinearInterpolate::StaticClass(), ConstAMemberName);
+				IORLerp->AddFloatAttribute(ConstAMemberName.ToString(), AirIOR);
+				IORLerp->AddApplyAndFillDelegates<float>(ConstAMemberName.ToString(), UMaterialExpressionLinearInterpolate::StaticClass(), ConstAMemberName);
 
 				UInterchangeShaderPortsAPI::ConnectOuputToInputByName(IORLerp, GET_MEMBER_NAME_CHECKED(UMaterialExpressionLinearInterpolate, B).ToString(),
 					ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
@@ -1783,8 +1783,8 @@ void UInterchangeGenericMaterialPipeline::HandleTextureCoordinateNode(const UInt
 		if (ShaderNode->GetInt32Attribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Nodes::TextureCoordinate::Inputs::Index.ToString()), CoordIndex))
 		{
 			const FName CoordinateIndexMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureCoordinate, CoordinateIndex);
-			TexCoordFactoryNode->AddInt32Attribute(CoordinateIndexMemberName, CoordIndex);
-			TexCoordFactoryNode->AddApplyAndFillDelegates<int32>(CoordinateIndexMemberName, UMaterialExpressionTextureCoordinate::StaticClass(), CoordinateIndexMemberName);
+			TexCoordFactoryNode->AddInt32Attribute(CoordinateIndexMemberName.ToString(), CoordIndex);
+			TexCoordFactoryNode->AddApplyAndFillDelegates<int32>(CoordinateIndexMemberName.ToString(), UMaterialExpressionTextureCoordinate::StaticClass(), CoordinateIndexMemberName);
 		}
 	}
 
@@ -1795,8 +1795,8 @@ void UInterchangeGenericMaterialPipeline::HandleTextureCoordinateNode(const UInt
 		if (UTilingValue.IsType<float>())
 		{
 			const FName UTilingMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureCoordinate, UTiling);
-			TexCoordFactoryNode->AddFloatAttribute(UTilingMemberName, UTilingValue.Get<float>());
-			TexCoordFactoryNode->AddApplyAndFillDelegates<float>(UTilingMemberName, UMaterialExpressionTextureCoordinate::StaticClass(), UTilingMemberName);
+			TexCoordFactoryNode->AddFloatAttribute(UTilingMemberName.ToString(), UTilingValue.Get<float>());
+			TexCoordFactoryNode->AddApplyAndFillDelegates<float>(UTilingMemberName.ToString(), UMaterialExpressionTextureCoordinate::StaticClass(), UTilingMemberName);
 		}
 	}
 
@@ -1807,8 +1807,8 @@ void UInterchangeGenericMaterialPipeline::HandleTextureCoordinateNode(const UInt
 		if (VTilingValue.IsType<float>())
 		{
 			const FName VTilingMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureCoordinate, VTiling);
-			TexCoordFactoryNode->AddFloatAttribute(VTilingMemberName, VTilingValue.Get<float>());
-			TexCoordFactoryNode->AddApplyAndFillDelegates<float>(VTilingMemberName, UMaterialExpressionTextureCoordinate::StaticClass(), VTilingMemberName);
+			TexCoordFactoryNode->AddFloatAttribute(VTilingMemberName.ToString(), VTilingValue.Get<float>());
+			TexCoordFactoryNode->AddApplyAndFillDelegates<float>(VTilingMemberName.ToString(), UMaterialExpressionTextureCoordinate::StaticClass(), VTilingMemberName);
 		}
 	}
 
@@ -1929,13 +1929,13 @@ void UInterchangeGenericMaterialPipeline::HandleMaskNode(const UInterchangeShade
 	MaskFactoryNode->SetCustomExpressionClassName(UMaterialExpressionComponentMask::StaticClass()->GetName());
 
 	bool bRChannel = false;
-	ShaderNode->GetBooleanAttribute(Mask::Attributes::R, bRChannel);
+	ShaderNode->GetBooleanAttribute(Mask::Attributes::R.ToString(), bRChannel);
 	bool bGChannel = false;
-	ShaderNode->GetBooleanAttribute(Mask::Attributes::G, bGChannel);
+	ShaderNode->GetBooleanAttribute(Mask::Attributes::G.ToString(), bGChannel);
 	bool bBChannel = false;
-	ShaderNode->GetBooleanAttribute(Mask::Attributes::B, bBChannel);
+	ShaderNode->GetBooleanAttribute(Mask::Attributes::B.ToString(), bBChannel);
 	bool bAChannel = false;
-	ShaderNode->GetBooleanAttribute(Mask::Attributes::A, bAChannel);
+	ShaderNode->GetBooleanAttribute(Mask::Attributes::A.ToString(), bAChannel);
 	bool bIsAnyMaskChannelSet = bRChannel || bGChannel || bBChannel || bAChannel;
 
 	if(bIsAnyMaskChannelSet)
@@ -1943,29 +1943,29 @@ void UInterchangeGenericMaterialPipeline::HandleMaskNode(const UInterchangeShade
 		// R
 		{
 			const FName RMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionComponentMask, R);
-			MaskFactoryNode->AddBooleanAttribute(RMemberName, bRChannel);
-			MaskFactoryNode->AddApplyAndFillDelegates<bool>(RMemberName, UMaterialExpressionComponentMask::StaticClass(), RMemberName);
+			MaskFactoryNode->AddBooleanAttribute(RMemberName.ToString(), bRChannel);
+			MaskFactoryNode->AddApplyAndFillDelegates<bool>(RMemberName.ToString(), UMaterialExpressionComponentMask::StaticClass(), RMemberName);
 		}
 
 		// G
 		{
 			const FName GMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionComponentMask, G);
-			MaskFactoryNode->AddBooleanAttribute(GMemberName, bGChannel);
-			MaskFactoryNode->AddApplyAndFillDelegates<bool>(GMemberName, UMaterialExpressionComponentMask::StaticClass(), GMemberName);
+			MaskFactoryNode->AddBooleanAttribute(GMemberName.ToString(), bGChannel);
+			MaskFactoryNode->AddApplyAndFillDelegates<bool>(GMemberName.ToString(), UMaterialExpressionComponentMask::StaticClass(), GMemberName);
 		}
 
 		// B
 		{
 			const FName BMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionComponentMask, B);
-			MaskFactoryNode->AddBooleanAttribute(BMemberName, bBChannel);
-			MaskFactoryNode->AddApplyAndFillDelegates<bool>(BMemberName, UMaterialExpressionComponentMask::StaticClass(), BMemberName);
+			MaskFactoryNode->AddBooleanAttribute(BMemberName.ToString(), bBChannel);
+			MaskFactoryNode->AddApplyAndFillDelegates<bool>(BMemberName.ToString(), UMaterialExpressionComponentMask::StaticClass(), BMemberName);
 		}
 
 		// A
 		{
 			const FName AMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionComponentMask, A);
-			MaskFactoryNode->AddBooleanAttribute(AMemberName, bAChannel);
-			MaskFactoryNode->AddApplyAndFillDelegates<bool>(AMemberName, UMaterialExpressionComponentMask::StaticClass(), AMemberName);
+			MaskFactoryNode->AddBooleanAttribute(AMemberName.ToString(), bAChannel);
+			MaskFactoryNode->AddApplyAndFillDelegates<bool>(AMemberName.ToString(), UMaterialExpressionComponentMask::StaticClass(), AMemberName);
 		}
 	}
 
@@ -2414,8 +2414,8 @@ UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::
 	if (ShaderNode->GetFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputName), InputValue))
 	{
 		const FName DefaultValueMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionScalarParameter, DefaultValue);
-		MaterialExpressionFactoryNode->AddFloatAttribute(DefaultValueMemberName, InputValue);
-		MaterialExpressionFactoryNode->AddApplyAndFillDelegates<float>(DefaultValueMemberName, UMaterialExpressionScalarParameter::StaticClass(), DefaultValueMemberName);
+		MaterialExpressionFactoryNode->AddFloatAttribute(DefaultValueMemberName.ToString(), InputValue);
+		MaterialExpressionFactoryNode->AddApplyAndFillDelegates<float>(DefaultValueMemberName.ToString(), UMaterialExpressionScalarParameter::StaticClass(), DefaultValueMemberName);
 	}
 
 	return MaterialExpressionFactoryNode;
@@ -2429,8 +2429,8 @@ UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::
 	if (ShaderNode->GetLinearColorAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputName), InputValue))
 	{
 		const FName DefaultValueMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionVectorParameter, DefaultValue);
-		MaterialExpressionFactoryNode->AddLinearColorAttribute(DefaultValueMemberName, InputValue);
-		MaterialExpressionFactoryNode->AddApplyAndFillDelegates<FLinearColor>(DefaultValueMemberName, UMaterialExpressionVectorParameter::StaticClass(), DefaultValueMemberName);
+		MaterialExpressionFactoryNode->AddLinearColorAttribute(DefaultValueMemberName.ToString(), InputValue);
+		MaterialExpressionFactoryNode->AddApplyAndFillDelegates<FLinearColor>(DefaultValueMemberName.ToString(), UMaterialExpressionVectorParameter::StaticClass(), DefaultValueMemberName);
 	}
 
 	return MaterialExpressionFactoryNode;
@@ -2444,8 +2444,8 @@ UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::
 		UInterchangeMaterialExpressionFactoryNode* VectorParameterFactoryNode = CreateExpressionNode(InputName, ParentUid, UMaterialExpressionVectorParameter::StaticClass());
 
 		const FName DefaultValueMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionVectorParameter, DefaultValue);
-		VectorParameterFactoryNode->AddLinearColorAttribute(DefaultValueMemberName, FLinearColor(InputValue.X, InputValue.Y, 0.f));
-		VectorParameterFactoryNode->AddApplyAndFillDelegates<FLinearColor>(DefaultValueMemberName, UMaterialExpressionVectorParameter::StaticClass(), DefaultValueMemberName);
+		VectorParameterFactoryNode->AddLinearColorAttribute(DefaultValueMemberName.ToString(), FLinearColor(InputValue.X, InputValue.Y, 0.f));
+		VectorParameterFactoryNode->AddApplyAndFillDelegates<FLinearColor>(DefaultValueMemberName.ToString(), UMaterialExpressionVectorParameter::StaticClass(), DefaultValueMemberName);
 
 		// Defaults to R&G
 		UInterchangeMaterialExpressionFactoryNode* ComponentMaskFactoryNode = CreateExpressionNode(InputName + TEXT("_Mask"), ParentUid, UMaterialExpressionComponentMask::StaticClass());
@@ -2917,8 +2917,8 @@ bool UInterchangeGenericMaterialPipeline::HandleBxDFInput(const UInterchangeShad
 	// Make sure the bUseMaterialAttributes property of the material is set to true
 	static const FName UseMaterialAttributesMemberName = GET_MEMBER_NAME_CHECKED(UMaterial, bUseMaterialAttributes);
 
-	MaterialFactoryNode->AddBooleanAttribute(UseMaterialAttributesMemberName, true);
-	MaterialFactoryNode->AddApplyAndFillDelegates<FString>(UseMaterialAttributesMemberName, UMaterialExpressionMaterialFunctionCall::StaticClass(), UseMaterialAttributesMemberName);
+	MaterialFactoryNode->AddBooleanAttribute(UseMaterialAttributesMemberName.ToString(), true);
+	MaterialFactoryNode->AddApplyAndFillDelegates<FString>(UseMaterialAttributesMemberName.ToString(), UMaterialExpressionMaterialFunctionCall::StaticClass(), UseMaterialAttributesMemberName);
 
 	return true;
 }

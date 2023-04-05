@@ -72,7 +72,7 @@ namespace UE::DatasmithInterchange::NodeUtils
 
 namespace UE::DatasmithInterchange::MeshUtils
 {
-	const FName MeshMaterialAttrName(TEXT("Datasmith:Mesh:MaterialOverride"));
+	const FString MeshMaterialAttrName(TEXT("Datasmith:Mesh:MaterialOverride"));
 }
 
 namespace UE::DatasmithInterchange::VariantSetUtils

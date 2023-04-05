@@ -150,7 +150,7 @@ void UInterchangeDatasmithMaterialPipeline::PreImportMaterialNode(UInterchangeBa
 
 	for (const FString& InputName : Inputs)
 	{
-		FName InputValueKey = UInterchangeShaderPortsAPI::MakeInputValueKey(InputName);
+		FString InputValueKey = UInterchangeShaderPortsAPI::MakeInputValueKey(InputName);
 
 		switch (UInterchangeShaderPortsAPI::GetInputType(MaterialNode, InputName))
 		{
@@ -245,7 +245,7 @@ void UInterchangeDatasmithMaterialPipeline::PostImportMaterialInstanceFactoryNod
 
 	for (const FString& InputName : Inputs)
 	{
-		FName InputValueKey = UInterchangeShaderPortsAPI::MakeInputValueKey(InputName);
+		FString InputValueKey = UInterchangeShaderPortsAPI::MakeInputValueKey(InputName);
 
 		if (UInterchangeShaderPortsAPI::GetInputType(FactoryNode, InputName) == UE::Interchange::EAttributeTypes::String)
 		{

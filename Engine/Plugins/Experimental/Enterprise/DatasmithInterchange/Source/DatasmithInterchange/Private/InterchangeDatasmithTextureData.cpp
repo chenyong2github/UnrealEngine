@@ -11,15 +11,15 @@
 
 namespace UE::DatasmithInterchange
 {
-	const FName FInterchangeDatasmithTextureDataConst::DatasmithTextureDataKey = FName(TEXT("DatasmithTextureData"));
-	const FName FInterchangeDatasmithTextureDataConst::FileKey = FName(TEXT("File"));
-	const FName FInterchangeDatasmithTextureDataConst::TextureModeKey = FName(TEXT("TextureMode"));
-	const FName FInterchangeDatasmithTextureDataConst::TextureFilterKey = FName(TEXT("TextureFilter"));
-	const FName FInterchangeDatasmithTextureDataConst::TextureAddressXKey = FName(TEXT("TextureAddressX"));
-	const FName FInterchangeDatasmithTextureDataConst::TextureAddressYKey = FName(TEXT("TextureAddressY"));
-	const FName FInterchangeDatasmithTextureDataConst::AllowResizeKey = FName(TEXT("AllowResize"));
-	const FName FInterchangeDatasmithTextureDataConst::RGBCurveKey = FName(TEXT("RGBCurve"));
-	const FName FInterchangeDatasmithTextureDataConst::SRGBKey = FName(TEXT("SRGB"));
+	const FString FInterchangeDatasmithTextureDataConst::DatasmithTextureDataKey = TEXT("DatasmithTextureData");
+	const FString FInterchangeDatasmithTextureDataConst::FileKey = TEXT("File");
+	const FString FInterchangeDatasmithTextureDataConst::TextureModeKey = TEXT("TextureMode");
+	const FString FInterchangeDatasmithTextureDataConst::TextureFilterKey = TEXT("TextureFilter");
+	const FString FInterchangeDatasmithTextureDataConst::TextureAddressXKey = TEXT("TextureAddressX");
+	const FString FInterchangeDatasmithTextureDataConst::TextureAddressYKey = TEXT("TextureAddressY");
+	const FString FInterchangeDatasmithTextureDataConst::AllowResizeKey = TEXT("AllowResize");
+	const FString FInterchangeDatasmithTextureDataConst::RGBCurveKey = TEXT("RGBCurve");
+	const FString FInterchangeDatasmithTextureDataConst::SRGBKey = TEXT("SRGB");
 
 	FInterchangeDatasmithTextureDataConst::FInterchangeDatasmithTextureDataConst(const UInterchangeBaseNode* InNode)
 		: ConstBaseNode(InNode)

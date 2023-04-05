@@ -148,7 +148,7 @@ namespace UE::DatasmithInterchange::NodeUtils
 
 namespace UE::DatasmithInterchange::MeshUtils
 {
-	extern const FName MeshMaterialAttrName;
+	extern const FString MeshMaterialAttrName;
 }
 
 namespace UE::DatasmithInterchange::AnimUtils

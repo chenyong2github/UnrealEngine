@@ -23,13 +23,13 @@ public:
 	 * Makes an attribute key to represent a node being connected to an input (ie: Inputs:InputName:Connect).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	static FName MakeInputConnectionKey(const FString& InputName);
+	static FString MakeInputConnectionKey(const FString& InputName);
  
 	/**
 	 * Makes an attribute key to represent a value being given to an input (ie: Inputs:InputName:Value).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	static FName MakeInputValueKey(const FString& InputName);
+	static FString MakeInputValueKey(const FString& InputName);
  
 	/**
 	 * From an attribute key associated with an input (ie: Inputs:InputName:Value), retrieves the input name from it.

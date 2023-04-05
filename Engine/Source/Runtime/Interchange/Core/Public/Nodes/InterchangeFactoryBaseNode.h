@@ -214,7 +214,7 @@ public:
 	 * @param PropertyName		The name of the property of the ObjectClass that we will read and write to.
 	 */
 	template<typename AttributeType>
-	inline void AddApplyAndFillDelegates(const FName& NodeAttributeKey, UClass* ObjectClass, const FName PropertyName);
+	inline void AddApplyAndFillDelegates(const FString& NodeAttributeKey, UClass* ObjectClass, const FName PropertyName);
 
 	/**
 	 * Writes an attribute value to a UObject.
@@ -224,7 +224,7 @@ public:
 	 * @result					True if we succeeded.
 	 */
 	template<typename AttributeType>
-	inline bool ApplyAttributeToObject(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName) const;
+	inline bool ApplyAttributeToObject(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName) const;
 
 	/**
 	 * Reads an attribute value from a UObject.
@@ -234,7 +234,7 @@ public:
 	 * @result					True if we succeeded.
 	 */
 	template<typename AttributeType>
-	inline bool FillAttributeFromObject(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName);
+	inline bool FillAttributeFromObject(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName);
 
 	/**
 	 * Each Attribute that was set and have a delegate set for the specified UObject->UClass will
@@ -265,7 +265,7 @@ private:
 };
 
 template<typename AttributeType>
-inline void UInterchangeFactoryBaseNode::AddApplyAndFillDelegates(const FName& NodeAttributeKey, UClass* ObjectClass, const FName PropertyName)
+inline void UInterchangeFactoryBaseNode::AddApplyAndFillDelegates(const FString& NodeAttributeKey, UClass* ObjectClass, const FName PropertyName)
 {
 	TArray<UE::Interchange::FApplyAttributeToAsset>& ApplyDelegates = ApplyCustomAttributeDelegates.FindOrAdd(ObjectClass);
 	ApplyDelegates.Add(
@@ -287,7 +287,7 @@ inline void UInterchangeFactoryBaseNode::AddApplyAndFillDelegates(const FName& N
 }
 
 template<typename AttributeType>
-inline bool UInterchangeFactoryBaseNode::ApplyAttributeToObject(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName) const
+inline bool UInterchangeFactoryBaseNode::ApplyAttributeToObject(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName) const
 {
 	if (!Object)
 	{
@@ -323,7 +323,7 @@ inline bool UInterchangeFactoryBaseNode::ApplyAttributeToObject(const FName& Nod
  * If the target property is a FObjectPropertyBase, treat the string as an object path.
  */
 template<>
-inline bool UInterchangeFactoryBaseNode::ApplyAttributeToObject<FString>(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName) const
+inline bool UInterchangeFactoryBaseNode::ApplyAttributeToObject<FString>(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName) const
 {
 	if (!Object)
 	{
@@ -366,7 +366,7 @@ inline bool UInterchangeFactoryBaseNode::ApplyAttributeToObject<FString>(const F
  * If the target property is a FBoolProperty, treat the propertyg as a bitfield.
  */
 template<>
-inline bool UInterchangeFactoryBaseNode::ApplyAttributeToObject<bool>(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName) const
+inline bool UInterchangeFactoryBaseNode::ApplyAttributeToObject<bool>(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName) const
 {
 	if (!Object)
 	{
@@ -406,7 +406,7 @@ inline bool UInterchangeFactoryBaseNode::ApplyAttributeToObject<bool>(const FNam
 }
 
 template<typename AttributeType>
-inline bool UInterchangeFactoryBaseNode::FillAttributeFromObject(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName)
+inline bool UInterchangeFactoryBaseNode::FillAttributeFromObject(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName)
 {
 	TVariant<UObject*, uint8*> Container;
 	Container.Set<UObject*>(Object);
@@ -442,7 +442,7 @@ inline bool UInterchangeFactoryBaseNode::FillAttributeFromObject(const FName& No
  * If the target property is a FObjectPropertyBase, treat the string as an object path.
  */
 template<>
-inline bool UInterchangeFactoryBaseNode::FillAttributeFromObject<FString>(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName)
+inline bool UInterchangeFactoryBaseNode::FillAttributeFromObject<FString>(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName)
 {
 	TVariant<UObject*, uint8*> Container;
 	Container.Set<UObject*>(Object);
@@ -477,7 +477,7 @@ inline bool UInterchangeFactoryBaseNode::FillAttributeFromObject<FString>(const 
  * If the target property is a FBoolProperty, treat the property as a bitfield.
  */
 template<>
-inline bool UInterchangeFactoryBaseNode::FillAttributeFromObject<bool>(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName)
+inline bool UInterchangeFactoryBaseNode::FillAttributeFromObject<bool>(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName)
 {
 	TVariant<UObject*, uint8*> Container;
 	Container.Set<UObject*>(Object);

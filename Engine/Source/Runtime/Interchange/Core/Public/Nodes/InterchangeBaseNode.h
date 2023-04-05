@@ -276,106 +276,106 @@ public:
 	 * Remove any attribute from this node. Return false if we cannot remove it. If the attribute do not exist it will return true.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool RemoveAttribute(const FName& NodeAttributeKey);
+	bool RemoveAttribute(const FString& NodeAttributeKey);
 
 	/**
 	 * Add a boolean attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddBooleanAttribute(const FName& NodeAttributeKey, const bool& Value);
+	bool AddBooleanAttribute(const FString& NodeAttributeKey, const bool& Value);
 	
 	/**
 	 * Get a boolean attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetBooleanAttribute(const FName& NodeAttributeKey, bool& OutValue) const;
+	bool GetBooleanAttribute(const FString& NodeAttributeKey, bool& OutValue) const;
 
 	/**
 	 * Add a int32 attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddInt32Attribute(const FName& NodeAttributeKey, const int32& Value);
+	bool AddInt32Attribute(const FString& NodeAttributeKey, const int32& Value);
 	
 	/**
 	 * Get a int32 attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetInt32Attribute(const FName& NodeAttributeKey, int32& OutValue) const;
+	bool GetInt32Attribute(const FString& NodeAttributeKey, int32& OutValue) const;
 
 	/**
 	 * Add a float attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddFloatAttribute(const FName& NodeAttributeKey, const float& Value);
+	bool AddFloatAttribute(const FString& NodeAttributeKey, const float& Value);
 	
 	/**
 	 * Get a float attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetFloatAttribute(const FName& NodeAttributeKey, float& OutValue) const;
+	bool GetFloatAttribute(const FString& NodeAttributeKey, float& OutValue) const;
 
 	/**
 	 * Add a double attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddDoubleAttribute(const FName& NodeAttributeKey, const double& Value);
+	bool AddDoubleAttribute(const FString& NodeAttributeKey, const double& Value);
 	
 	/**
 	 * Get a double attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetDoubleAttribute(const FName& NodeAttributeKey, double& OutValue) const;
+	bool GetDoubleAttribute(const FString& NodeAttributeKey, double& OutValue) const;
 
 	/**
 	 * Add a string attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddStringAttribute(const FName& NodeAttributeKey, const FString& Value);
+	bool AddStringAttribute(const FString& NodeAttributeKey, const FString& Value);
 	
 	/**
 	 * Get a string attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetStringAttribute(const FName& NodeAttributeKey, FString& OutValue) const;
+	bool GetStringAttribute(const FString& NodeAttributeKey, FString& OutValue) const;
 
 	/**
 	 * Add a guid attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddGuidAttribute(const FName& NodeAttributeKey, const FGuid& Value);
+	bool AddGuidAttribute(const FString& NodeAttributeKey, const FGuid& Value);
 
 	/**
 	 * Get a guid attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetGuidAttribute(const FName& NodeAttributeKey, FGuid& OutValue) const;
+	bool GetGuidAttribute(const FString& NodeAttributeKey, FGuid& OutValue) const;
 
 	/**
 	 * Add a FLinearColor attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddLinearColorAttribute(const FName& NodeAttributeKey, const FLinearColor& Value);
+	bool AddLinearColorAttribute(const FString& NodeAttributeKey, const FLinearColor& Value);
 	
 	/**
 	 * Get a FLinearColor attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetLinearColorAttribute(const FName& NodeAttributeKey, FLinearColor& OutValue) const;
+	bool GetLinearColorAttribute(const FString& NodeAttributeKey, FLinearColor& OutValue) const;
 
 	/**
 	 * Add a Vector2 attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddVector2Attribute(const FName& NodeAttributeKey, const FVector2f& Value);
+	bool AddVector2Attribute(const FString& NodeAttributeKey, const FVector2f& Value);
 
 	/**
 	 * Get a Vector2 attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetVector2Attribute(const FName& NodeAttributeKey, FVector2f& OutValue) const;
+	bool GetVector2Attribute(const FString& NodeAttributeKey, FVector2f& OutValue) const;
 
 	template<typename AttributeType>
-	AttributeType GetAttributeChecked(const FName& NodeAttributeKey) const
+	AttributeType GetAttributeChecked(const FString& NodeAttributeKey) const
 	{
 		AttributeType Value = AttributeType();
 		check(HasAttribute(UE::Interchange::FAttributeKey(NodeAttributeKey)));
@@ -386,12 +386,12 @@ public:
 	}
 
 	template<typename AttributeType>
-	bool GetAttribute(const FName& NodeAttributeKey, AttributeType& OutValue) const
+	bool GetAttribute(const FString& NodeAttributeKey, AttributeType& OutValue) const
 	{
 		INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(AttributeType);
 	}
 	template<typename AttributeType>
-	bool SetAttribute(const FName& NodeAttributeKey, const AttributeType& Value)
+	bool SetAttribute(const FString& NodeAttributeKey, const AttributeType& Value)
 	{
 		INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(AttributeType);
 	}

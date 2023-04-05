@@ -183,88 +183,88 @@ void UInterchangeBaseNode::GetAttributeKeys(TArray<UE::Interchange::FAttributeKe
 	Attributes->GetAttributeKeys(AttributeKeys);
 }
 
-bool UInterchangeBaseNode::RemoveAttribute(const FName& NodeAttributeKey)
+bool UInterchangeBaseNode::RemoveAttribute(const FString& NodeAttributeKey)
 {
 	Attributes->UnregisterAttribute(UE::Interchange::FAttributeKey(NodeAttributeKey));
 	return !HasAttribute(UE::Interchange::FAttributeKey(NodeAttributeKey));
 }
 
-bool UInterchangeBaseNode::AddBooleanAttribute(const FName& NodeAttributeKey, const bool& Value)
+bool UInterchangeBaseNode::AddBooleanAttribute(const FString& NodeAttributeKey, const bool& Value)
 {
 	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(bool);
 }
 
-bool UInterchangeBaseNode::GetBooleanAttribute(const FName& NodeAttributeKey, bool& OutValue) const
+bool UInterchangeBaseNode::GetBooleanAttribute(const FString& NodeAttributeKey, bool& OutValue) const
 {
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(bool);
 }
 
-bool UInterchangeBaseNode::AddInt32Attribute(const FName& NodeAttributeKey, const int32& Value)
+bool UInterchangeBaseNode::AddInt32Attribute(const FString& NodeAttributeKey, const int32& Value)
 {
 	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(int32);
 }
 
-bool UInterchangeBaseNode::GetInt32Attribute(const FName& NodeAttributeKey, int32& OutValue) const
+bool UInterchangeBaseNode::GetInt32Attribute(const FString& NodeAttributeKey, int32& OutValue) const
 {
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(int32);
 }
 
-bool UInterchangeBaseNode::AddFloatAttribute(const FName& NodeAttributeKey, const float& Value)
+bool UInterchangeBaseNode::AddFloatAttribute(const FString& NodeAttributeKey, const float& Value)
 {
 	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(float);
 }
 
-bool UInterchangeBaseNode::GetFloatAttribute(const FName& NodeAttributeKey, float& OutValue) const
+bool UInterchangeBaseNode::GetFloatAttribute(const FString& NodeAttributeKey, float& OutValue) const
 {
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(float);
 }
 
-bool UInterchangeBaseNode::AddDoubleAttribute(const FName& NodeAttributeKey, const double& Value)
+bool UInterchangeBaseNode::AddDoubleAttribute(const FString& NodeAttributeKey, const double& Value)
 {
 	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(double);
 }
 
-bool UInterchangeBaseNode::GetDoubleAttribute(const FName& NodeAttributeKey, double& OutValue) const
+bool UInterchangeBaseNode::GetDoubleAttribute(const FString& NodeAttributeKey, double& OutValue) const
 {
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(double);
 }
 
-bool UInterchangeBaseNode::AddStringAttribute(const FName& NodeAttributeKey, const FString& Value)
+bool UInterchangeBaseNode::AddStringAttribute(const FString& NodeAttributeKey, const FString& Value)
 {
 	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(FString);
 }
 
-bool UInterchangeBaseNode::GetStringAttribute(const FName& NodeAttributeKey, FString& OutValue) const
+bool UInterchangeBaseNode::GetStringAttribute(const FString& NodeAttributeKey, FString& OutValue) const
 {
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(FString);
 }
 
-bool UInterchangeBaseNode::AddGuidAttribute(const FName& NodeAttributeKey, const FGuid& Value)
+bool UInterchangeBaseNode::AddGuidAttribute(const FString& NodeAttributeKey, const FGuid& Value)
 {
 	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(FGuid);
 }
 
-bool UInterchangeBaseNode::GetGuidAttribute(const FName& NodeAttributeKey, FGuid& OutValue) const
+bool UInterchangeBaseNode::GetGuidAttribute(const FString& NodeAttributeKey, FGuid& OutValue) const
 {
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(FGuid);
 }
 
-bool UInterchangeBaseNode::AddLinearColorAttribute(const FName& NodeAttributeKey, const FLinearColor& Value)
+bool UInterchangeBaseNode::AddLinearColorAttribute(const FString& NodeAttributeKey, const FLinearColor& Value)
 {
 	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(FLinearColor);
 }
 
-bool UInterchangeBaseNode::GetLinearColorAttribute(const FName& NodeAttributeKey, FLinearColor& OutValue) const
+bool UInterchangeBaseNode::GetLinearColorAttribute(const FString& NodeAttributeKey, FLinearColor& OutValue) const
 {
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(FLinearColor);
 }
 
-bool UInterchangeBaseNode::AddVector2Attribute(const FName& NodeAttributeKey, const FVector2f& Value)
+bool UInterchangeBaseNode::AddVector2Attribute(const FString& NodeAttributeKey, const FVector2f& Value)
 {
 	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(FVector2f);
 }
 
-bool UInterchangeBaseNode::GetVector2Attribute(const FName& NodeAttributeKey, FVector2f& OutValue) const
+bool UInterchangeBaseNode::GetVector2Attribute(const FString& NodeAttributeKey, FVector2f& OutValue) const
 {
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(FVector2f);
 }

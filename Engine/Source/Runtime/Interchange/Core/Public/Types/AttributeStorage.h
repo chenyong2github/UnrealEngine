@@ -74,7 +74,7 @@ namespace UE
 
 		struct FAttributeKey
 		{
-			FName Key;
+			FString Key;
 
 			FAttributeKey() = default;
 		
@@ -85,42 +85,42 @@ namespace UE
 
 			explicit FAttributeKey(const FName& Other)
 			{
-				Key = Other;
+				Key = Other.ToString();
 			}
 
 			explicit FAttributeKey(const FString& Other)
 			{
-				Key = FName(*Other);
+				Key = Other;
 			}
 
-			explicit FAttributeKey(FName&& Other)
+			explicit FAttributeKey(FString&& Other)
 			{
 				Key = MoveTemp(Other);
 			}
 
 			explicit FAttributeKey(const FText& Other)
 			{
-				Key = FName(*Other.ToString());
+				Key = Other.ToString();
 			}
 
 			explicit FAttributeKey(const TCHAR* Other)
 			{
-				Key = FName(Other);
+				Key = Other;
 			}
 
 			FORCEINLINE FAttributeKey& operator=(const FName& Other)
 			{
-				Key = Other;
+				Key = Other.ToString();
 				return *this;
 			}
 
 			FORCEINLINE FAttributeKey& operator=(const FString& Other)
 			{
-				Key = FName(*Other);
+				Key = Other;
 				return *this;
 			}
 
-			FORCEINLINE FAttributeKey& operator=(FName&& Other)
+			FORCEINLINE FAttributeKey& operator=(FString&& Other)
 			{
 				Key = MoveTemp(Other);
 				return *this;
@@ -128,29 +128,29 @@ namespace UE
 
 			FORCEINLINE FAttributeKey& operator=(const FText& Other)
 			{
-				Key = *(Other.ToString());
+				Key = Other.ToString();
 				return *this;
 			}
 
 			FORCEINLINE FAttributeKey& operator=(const TCHAR* Other)
 			{
-				Key = FName(Other);
+				Key = Other;
 				return *this;
 			}
 		
 			FORCEINLINE bool operator==(const FAttributeKey& Other) const
 			{
-				return Key == Other.Key;
+				return Key.Equals(Other.Key);
 			}
 
 			FORCEINLINE bool operator!=(const FAttributeKey& Other) const
 			{
-				return Key != Other.Key;
+				return !Key.Equals(Other.Key);
 			}
 
 			FORCEINLINE bool operator<(const FAttributeKey& Other) const
 			{
-				return Key.LexicalLess(Other.Key);
+				return Key.Compare(Other.Key) < 0;
 			}
 
 			FORCEINLINE bool operator<=(const FAttributeKey& Other) const
@@ -160,40 +160,28 @@ namespace UE
 
 			FORCEINLINE bool operator>(const FAttributeKey& Other) const
 			{
-				return Other.Key.LexicalLess(Key);
+				return Key.Compare(Other.Key) > 0;
 			}
 
 			FORCEINLINE bool operator>=(const FAttributeKey& Other) const
 			{
-				return Other.Key.LexicalLess(Key) || Key == Other.Key;
+				return Key.Compare(Other.Key) >= 0;
 			}
 
 			friend FArchive& operator<<(FArchive& Ar, FAttributeKey& AttributeKey)
 			{
-				FString SerializeString;
-				//When serializing FName with FString we always must do if(IsLoading()) else to avoid changing the data
-				//When a reference serialization is execute (reference do not have IsLoading or IsSaving set)
-				if (Ar.IsLoading())
-				{
-					Ar << SerializeString;
-					AttributeKey.Key = FName(*SerializeString);
-				}
-				else
-				{
-					SerializeString = AttributeKey.Key.ToString();
-					Ar << SerializeString;
-				}
+				Ar << AttributeKey.Key;
 				return Ar;
 			}
 
 			FORCEINLINE FString ToString() const
 			{
-				return Key.ToString();
+				return Key;
 			}
 
 			FORCEINLINE FName ToName() const
 			{
-				return Key;
+				return FName(*Key);
 			}
 		};
 

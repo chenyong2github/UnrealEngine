@@ -115,10 +115,10 @@ public:
 	}
 
 private:
-	static const FName ShadingModelAttrName;
-	static const FName BlendModeAttrName;
-	static const FName OpacityMaskClipValueAttrName;
-	static const FName TranslucencyLightingModeAttrName;
+	static const FString ShadingModelAttrName;
+	static const FString BlendModeAttrName;
+	static const FString OpacityMaskClipValueAttrName;
+	static const FString TranslucencyLightingModeAttrName;
 	static const FString MaterialFunctionsDependenciesKey;
 
 	UE::Interchange::TArrayAttributeHelper<FString> MaterialFunctionsDependencies;
@@ -126,11 +126,12 @@ private:
 
 namespace UE::DatasmithInterchange::MaterialUtils
 {
-	extern const FName DefaultOutputIndexAttrName;
+	extern const FString DefaultOutputIndexAttrName;
+	extern const FString MaterialFunctionPathAttrName;
 
-	extern const FName MaterialTypeAttrName;
-	extern const FName MaterialQualityAttrName;
-	extern const FName MaterialParentAttrName;
+	extern const FString MaterialTypeAttrName;
+	extern const FString MaterialQualityAttrName;
+	extern const FString MaterialParentAttrName;
 
 	void ProcessMaterialElements(TArray<TSharedPtr<IDatasmithBaseMaterialElement>>& InOutMaterialElements);
 	UInterchangeBaseNode* AddMaterialNode(const TSharedPtr<IDatasmithBaseMaterialElement>& MaterialElement, UInterchangeBaseNodeContainer& NodeContainer);

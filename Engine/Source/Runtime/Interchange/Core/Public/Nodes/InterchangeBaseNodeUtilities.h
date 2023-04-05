@@ -273,13 +273,13 @@ private:
 	FAttributeKey KeyCount;
 	FAttributeKey GetKeyCount() const
 	{
-		ensure(!KeyCount.Key.IsNone()); return KeyCount;
+		ensure(!KeyCount.Key.IsEmpty()); return KeyCount;
 	}
 
 	FAttributeKey GetIndexKey(int32 Index) const
 	{
 		FString DepIndexKeyString = GetKeyCount().ToString() + IndexKey() + FString::FromInt(Index);
-		return FAttributeKey(*DepIndexKeyString);
+		return FAttributeKey(DepIndexKeyString);
 	}
 };
 
