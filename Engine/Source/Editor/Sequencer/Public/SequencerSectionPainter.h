@@ -40,6 +40,8 @@ struct FKeyAreaElement
 class SEQUENCER_API FSequencerSectionPainter
 {
 public:
+	UE_NONCOPYABLE(FSequencerSectionPainter)
+
 	/** Constructor */
 	FSequencerSectionPainter(FSlateWindowElementList& OutDrawElements, const FGeometry& InSectionGeometry, TSharedPtr<UE::Sequencer::FSectionModel> Section);
 
