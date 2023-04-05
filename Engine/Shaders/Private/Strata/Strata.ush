@@ -2454,7 +2454,7 @@ FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, float AMixF
 #endif
 
 #if USE_DEVELOPMENT_SHADERS
-	Result.PreviewColor = lerp(A.PreviewColor, B.PreviewColor, 0.5);
+	Result.PreviewColor = A.PreviewColor + B.PreviewColor;
 #endif
 
 #undef ResultBSDF
@@ -2595,6 +2595,10 @@ FStrataData StrataWeightParameterBlending(FStrataData A, float Weight)
 	// Apply the weight to coverage
 #if STRATA_INLINE_SHADING
 	StrataData.InlinedBSDF.Coverage *= SafeWeight;
+#endif
+
+#if USE_DEVELOPMENT_SHADERS
+	StrataData.PreviewColor *= SafeWeight;
 #endif
 
 	return StrataData;
