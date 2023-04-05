@@ -13,10 +13,11 @@
  * Column that stores a label.
  */
 USTRUCT()
-struct FTypedElementLabelColumn : public FTypedElementDataStorageColumn
+struct FTypedElementLabelColumn final : public FTypedElementDataStorageColumn
 {
 	GENERATED_BODY()
 
+	UPROPERTY()
 	FString Label;
 };
 
@@ -25,9 +26,10 @@ struct FTypedElementLabelColumn : public FTypedElementDataStorageColumn
  * kept separate in order to iterate quickly over all hash values.
  */
 USTRUCT()
-struct FTypedElementLabelHashColumn : public FTypedElementDataStorageColumn
+struct FTypedElementLabelHashColumn final : public FTypedElementDataStorageColumn
 {
 	GENERATED_BODY()
 
+	UPROPERTY()
 	uint64 LabelHash;
 };

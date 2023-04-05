@@ -14,7 +14,15 @@
  * will automatically be removed at the end of a tick.
  */
 USTRUCT()
-struct FTypedElementSyncBackToWorldTag : public FTypedElementDataStorageTag
+struct FTypedElementSyncBackToWorldTag final : public FTypedElementDataStorageTag
 {
 	GENERATED_BODY()
+};
+
+USTRUCT()
+struct FTypedElementRowReferenceColumn final : public FTypedElementDataStorageColumn
+{
+	GENERATED_BODY()
+
+	TypedElementRowHandle Row;
 };

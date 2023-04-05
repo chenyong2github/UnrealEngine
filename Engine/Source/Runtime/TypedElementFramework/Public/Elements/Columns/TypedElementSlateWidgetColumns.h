@@ -17,7 +17,7 @@ class SWidget;
  * be deleted.
  */
 USTRUCT()
-struct FTypedElementSlateWidgetReferenceColumn : public FTypedElementDataStorageColumn
+struct FTypedElementSlateWidgetReferenceColumn final : public FTypedElementDataStorageColumn
 {
 	GENERATED_BODY()
 
@@ -30,7 +30,7 @@ struct FTypedElementSlateWidgetReferenceColumn : public FTypedElementDataStorage
  * the column will be removed.
  */
 USTRUCT()
-struct FTypedElementSlateWidgetReferenceDeletesRowTag : public FTypedElementDataStorageTag
+struct FTypedElementSlateWidgetReferenceDeletesRowTag final : public FTypedElementDataStorageTag
 {
 	GENERATED_BODY()
 };
