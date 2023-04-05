@@ -43,6 +43,11 @@ void UBTDecorator_BlueprintBase::InitializeProperties()
 
 		bIsObservingBB = BlueprintNodeHelpers::HasAnyBlackboardSelectors(this, StopAtClass);
 	}
+	else
+	{
+		// Make sure if the users started to observe a BB key after we instantiated this node, that this value get propagated correctly
+		bIsObservingBB = GetClass()->GetDefaultObject<UBTDecorator_BlueprintBase>()->bIsObservingBB;
+	}
 }
 
 void UBTDecorator_BlueprintBase::PostInitProperties()

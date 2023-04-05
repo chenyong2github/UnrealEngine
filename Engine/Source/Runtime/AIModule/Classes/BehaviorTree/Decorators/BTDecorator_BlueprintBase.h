@@ -109,7 +109,6 @@ protected:
 	uint32 bCheckConditionOnlyBlackBoardChanges : 1;
 
 	/** gets set to true if decorator declared BB keys it can potentially observe */
-	UPROPERTY()
 	uint32 bIsObservingBB : 1;
 	
 	/** set if ReceiveTick is implemented by blueprint */
