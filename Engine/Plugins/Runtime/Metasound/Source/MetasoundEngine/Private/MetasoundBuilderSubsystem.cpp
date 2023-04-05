@@ -724,6 +724,19 @@ void UMetaSoundSourceBuilder::SetFormat(EMetaSoundOutputAudioFormat OutputFormat
 	OutResult = bSuccess ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
 }
 
+void UMetaSoundSourceBuilder::AddSourceInterfaces(EMetaSoundBuilderResult& OutResult)
+{
+	using namespace Metasound::Engine;
+	using namespace Metasound::Frontend;
+
+	const UClass& BaseMetaSoundClass = *UMetaSoundSource::StaticClass();
+	const FTopLevelAssetPath BaseMetaSoundClassPath = BaseMetaSoundClass.GetClassPathName();
+	TArray<FMetasoundFrontendVersion> InitVersions = ISearchEngine::Get().FindUClassDefaultInterfaceVersions(BaseMetaSoundClassPath);
+
+	const bool bSuccess = Builder.ModifyInterfaces({ }, InitVersions);
+	OutResult = bSuccess ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
+}
+
 UMetaSoundPatchBuilder* UMetaSoundBuilderSubsystem::CreatePatchBuilder(FName BuilderName, EMetaSoundBuilderResult& OutResult)
 {
 	return &Metasound::Engine::BuilderSubsystemPrivate::CreateTransientBuilder<UMetaSoundPatchBuilder>();
@@ -749,6 +762,15 @@ UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::CreateSourceBuilder(
 
 	UMetaSoundSourceBuilder& NewBuilder = CreateTransientBuilder<UMetaSoundSourceBuilder>();
 
+	// Temp workaround - the builder currently doesn't have any interfaces added automatically, so we add them here
+	NewBuilder.AddSourceInterfaces(OutResult);
+
+	if (OutResult == EMetaSoundBuilderResult::Failed)
+	{
+		UE_LOG(LogMetaSound, Error, TEXT("Builder '%s' Creation Error: Failed to add source document interfaces."), *BuilderName.ToString());
+		return nullptr;
+	}
+
 	bool bFormatSet = OutputFormat == EMetaSoundOutputAudioFormat::Mono;
 	if (!bFormatSet)
 	{
@@ -756,7 +778,7 @@ UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::CreateSourceBuilder(
 		NewBuilder.SetFormat(OutputFormat, Result);
 		bFormatSet = Result == EMetaSoundBuilderResult::Succeeded;
 	}
-
+	
 	if (bFormatSet)
 	{
 		const Metasound::Engine::FOutputAudioFormatInfoPair* FormatInfo = NewBuilder.FindOutputAudioFormatInfo();
