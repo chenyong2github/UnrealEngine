@@ -40,17 +40,6 @@ private:
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault))
 	bool bForceInterrupt = false;
 
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category=Debug, meta = (PinShownByDefault))
-	bool bDebugDraw = false;
-
-	UPROPERTY(EditAnywhere, Category=Debug, meta = (PinShownByDefault))
-	bool bDebugDrawQuery = true;
-
-	UPROPERTY(EditAnywhere, Category=Debug, meta = (PinShownByDefault))
-	bool bDebugDrawMatch = true;
-#endif
-
 public:
 
 	// FAnimNode_Base interface
