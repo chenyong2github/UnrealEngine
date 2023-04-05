@@ -399,7 +399,7 @@ namespace EpicGames.Core
 		}
 	}
 
-	public class JsonTracer : ITracer, IDisposable
+	public sealed class JsonTracer : ITracer, IDisposable
 	{
 		private class LocalEventListener : EventListener
 		{
