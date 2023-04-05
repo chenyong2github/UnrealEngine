@@ -364,8 +364,7 @@ uint32 FStore::FMount::Refresh()
 
 void FStore::SetupMounts()
 {
-	FPath StoreDir = Settings->StoreDir / "001";
-	AddMount(StoreDir);
+	AddMount(Settings->StoreDir);
 
 	for (const FPath& Path : Settings->AdditionalWatchDirs)
 	{

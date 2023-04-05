@@ -264,7 +264,8 @@ void FStoreSettings::ReadFromSettings(const FPath& Path)
 	SettingsFile = FilePath.string();
 
 	// Set default store directory. Will be overwritten by settings
-	StoreDir = fs::absolute(Path / fs::path("Store"));
+	// Use the legacy '001' folder here to avoid changing existing stores.
+	StoreDir = fs::absolute(Path / fs::path("Store/001"));
 	
 	TS_SETTINGS_LOGF("Reading settings from '%s'\n", SettingsFile.string().c_str())
 
