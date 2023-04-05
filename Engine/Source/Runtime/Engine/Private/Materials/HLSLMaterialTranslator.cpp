@@ -836,8 +836,31 @@ bool FHLSLMaterialTranslator::Translate()
 		// Process the strata tree representing the material topology.
 		//
 		const bool bStrataEnabled = Strata::IsStrataEnabled();
-		FStrataMaterialInput* FrontMaterialInput = Material->GetMaterialInterface() ? &Material->GetMaterialInterface()->GetMaterial()->GetEditorOnlyData()->FrontMaterial : nullptr;
-		UMaterialExpression* FrontMaterialExpr = FrontMaterialInput ? FrontMaterialInput->GetTracedInput().Expression : nullptr;
+		UMaterialExpression* FrontMaterialExpr = nullptr;
+		int32 FrontMaterialOutputIndex = INDEX_NONE;
+
+		UMaterialExpression* ExpressionToPreview = Material->GetMaterialGraphNodePreviewExpression();
+		if (ExpressionToPreview)
+		{
+			// If this is a compilation used for a preview of a node from am aterial graph, then we need ot use that node as the root of the Strata tree.
+			// Then the resulting StrataData will be converted to a color using StrataCompilePreview translator function when compiling the emissive color channel the node has been short circuited into.
+			const uint32 ExpressionPreviewOutputIndex = 0;
+			if (ExpressionToPreview && ExpressionToPreview->IsResultStrataMaterial(ExpressionPreviewOutputIndex))
+			{
+				FrontMaterialExpr = ExpressionToPreview;
+				FrontMaterialOutputIndex = ExpressionPreviewOutputIndex;
+			}
+			else
+			{
+				FrontMaterialExpr = nullptr;	// This is not a strata input that is connected there so we cannot create a Strata tree.
+			}
+		}
+		else
+		{
+			FStrataMaterialInput* FrontMaterialInput = Material->GetMaterialInterface() ? &Material->GetMaterialInterface()->GetMaterial()->GetEditorOnlyData()->FrontMaterial : nullptr;
+			FrontMaterialExpr = FrontMaterialInput ? FrontMaterialInput->GetTracedInput().Expression : nullptr;
+			FrontMaterialOutputIndex = FrontMaterialInput ? FrontMaterialInput->OutputIndex : INDEX_NONE;
+		}
 		if (bStrataEnabled && FrontMaterialExpr)
 		{
 			// Temp code chunk scope (e.g.needed for the creation of static booleans from static switch parameter node, see UMaterialExpressionStaticSwitch::GetEffectiveInput).
@@ -857,7 +880,7 @@ bool FHLSLMaterialTranslator::Translate()
 			
 				FExpressionInput* SurfaceThickness = Material->IsThinSurface() && Material->GetMaterialInterface() ? &Material->GetMaterialInterface()->GetMaterial()->GetEditorOnlyData()->SurfaceThickness : nullptr;
 				StrataThicknessStackPush(nullptr, SurfaceThickness);
-				FrontMaterialExpr->StrataGenerateMaterialTopologyTree(this, nullptr, FrontMaterialInput->OutputIndex); 
+				FrontMaterialExpr->StrataGenerateMaterialTopologyTree(this, nullptr, FrontMaterialOutputIndex);
 				StrataThicknessStackPop();
 
 				check(StrataCtx.StrataThicknessStack.Num() == 0);

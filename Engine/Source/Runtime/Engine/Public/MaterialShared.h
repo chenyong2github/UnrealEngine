@@ -2342,6 +2342,13 @@ protected:
 
 #if WITH_EDITOR
 	void SetCompilingShaderMap(FMaterialShaderMap* InMaterialShaderMap);
+
+	/**
+	 * The returned value is not const because the expression is used to build the Strata tree and this requires to execute multiple such as link function caller, compile expression, etc.
+	 * See HLSLTranslator.cpp for the single use case.
+	 * @return Nullptr if this is not a material used to generate a preview of a node of a material graph.
+	 */
+	virtual UMaterialExpression* GetMaterialGraphNodePreviewExpression() const { return nullptr; }
 #endif
 
 private:

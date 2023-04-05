@@ -2033,6 +2033,7 @@ void UMaterialExpression::UpdateParameterGuid(bool bForceGeneration, bool bAllow
 
 void UMaterialExpression::ConnectToPreviewMaterial(UMaterial* InMaterial, int32 OutputIndex)
 {
+	// This is used when a node is right clicked and "Start previewing node" is used.
 	if (InMaterial && OutputIndex >= 0 && OutputIndex < Outputs.Num())
 	{
 		if (Strata::IsStrataEnabled())
@@ -16892,6 +16893,15 @@ int32 UMaterialExpressionFunctionInput::Compile(class FMaterialCompiler* Compile
 
 int32 UMaterialExpressionFunctionInput::CompilePreview(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
+	if (InputType == FunctionInput_Substrate)
+	{
+		// Compile the StrataData output.
+		int32 StrataDataCodeChunk = Compile(Compiler, OutputIndex);
+		// Convert the StrataData to a preview color.
+		int32 PreviewCodeChunk = Compiler->StrataCompilePreview(StrataDataCodeChunk);
+		return PreviewCodeChunk;
+	}
+
 	// Compile the preview value, outputting a float type
 	return Compiler->ValidCast(CompilePreviewValue(Compiler), MCT_Float3);
 }
@@ -17148,6 +17158,23 @@ int32 UMaterialExpressionFunctionOutput::Compile(class FMaterialCompiler* Compil
 		return Compiler->Errorf(TEXT("Missing function output '%s'"), *OutputName.ToString());
 	}
 	return A.Compile(Compiler);
+}
+
+int32 UMaterialExpressionFunctionOutput::CompilePreview(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	FExpressionInput ATraced = A.GetTracedInput();
+	UMaterialExpression* AExpression = ATraced.Expression;
+	if (AExpression && AExpression->IsResultStrataMaterial(ATraced.OutputIndex))
+	{
+		// Compile the StrataData output.
+		int32 StrataDataCodeChunk = Compile(Compiler, ATraced.OutputIndex);
+		// Convert the StrataData to a preview color.
+		int32 PreviewCodeChunk = Compiler->StrataCompilePreview(StrataDataCodeChunk);
+		return PreviewCodeChunk;
+	}
+
+	// Compile the preview value, outputting a float type
+	return Compile(Compiler, OutputIndex);
 }
 #endif // WITH_EDITOR
 

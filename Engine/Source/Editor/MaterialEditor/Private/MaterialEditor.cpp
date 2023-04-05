@@ -311,11 +311,10 @@ int32 FMatExpressionPreview::CompilePropertyAndSetMaterialProperty(EMaterialProp
 	}
 	else if (Property == MP_FrontMaterial)
 	{
-		// Try to fetch the material interface to compile the front material.
-		UMaterial* ExprMat = Expression.IsValid() ? Expression->Material : nullptr;
-		FMaterialRenderProxy* MatProxy = ExprMat ? ExprMat->GetRenderProxy() : nullptr;
-		UMaterialInterface* MatInterface = MatProxy ? MatProxy->GetMaterialInterface() : nullptr;
-		return MatInterface ? MatInterface->CompileProperty(Compiler, MP_FrontMaterial) : Compiler->StrataCreateAndRegisterNullMaterial();
+		// No need to compile the front material: when previewing a node, the FrontMaterial is plugged into the emissive color.
+		// Then CompilePreview is called, and this is where we convert the strata material to a single color for preview.
+		// That single color is then scheduled to be output thanks to setting the compiler as SME_MaterialPreview. 
+		return Compiler->StrataCreateAndRegisterNullMaterial();
 	}
 	else
 	{
