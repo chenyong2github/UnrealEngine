@@ -8,13 +8,13 @@ public class InterchangeEngine : ModuleRules
 	{
 		bTreatAsEngineModule = true;
 		PublicDependencyModuleNames.AddRange(
-				new string[] {
-					"Core",
-					"CoreUObject",
-					"Engine",
-					"InterchangeCore"
-				}
-			);
+			new string[] {
+				"Core",
+				"CoreUObject",
+				"Engine",
+				"InterchangeCore"
+			}
+		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
@@ -22,10 +22,19 @@ public class InterchangeEngine : ModuleRules
 				"SlateCore",
 				"Slate",
 				"DeveloperSettings",
-				"SkeletalMeshUtilitiesCommon",
 				"Json",
 				"JsonUtilities",
 			}
 		);
+
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"SkeletalMeshUtilitiesCommon",
+				}
+			);
+		}
 	}
 }

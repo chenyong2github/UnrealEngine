@@ -284,7 +284,7 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct FImportAssetParameters
+struct INTERCHANGEENGINE_API FImportAssetParameters
 {
 	GENERATED_USTRUCT_BODY()
 

@@ -17,7 +17,10 @@
 #include "UObject/Class.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
+
+#if WITH_EDITOR
 #include "LODUtilities.h"
+#endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeMeshUtilities)
 
