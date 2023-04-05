@@ -1143,7 +1143,7 @@ FBreadcrumbStack::FBreadcrumbStack()
 FBreadcrumbStack::~FBreadcrumbStack()
 {
 	TUniquePtr<FD3D12DiagnosticBuffer>& DiagnosticBuffer = Queue->DiagnosticBuffer;
-	if (ContextId > 0)
+	if (ContextId > 0 && DiagnosticBuffer.IsValid())
 	{
 		{
 			FScopeLock Lock(&DiagnosticBuffer->CriticalSection);

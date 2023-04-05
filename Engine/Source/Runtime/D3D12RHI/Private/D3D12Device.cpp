@@ -104,6 +104,10 @@ void FD3D12Queue::SetupAfterDeviceCreation()
 
 FD3D12Queue::~FD3D12Queue()
 {
+	// The diagnostic buffer would be implicitly destroyed before the context pool, which can lead to a situation where there
+	// are still some FBreadcrumbStack objects owned by a context, and their destructor tries to use the diagnostic buffer
+	// after it's been freed. Explicitly freeing the buffer now and setting it to null works around this problem.
+	DiagnosticBuffer = nullptr;
 	check(PendingSubmission.IsEmpty());
 	check(PendingInterrupt.IsEmpty());
 }

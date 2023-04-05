@@ -162,7 +162,7 @@ struct FBreadcrumbStack
 		uint32 Sibling;
 	};
 
-	FD3D12Queue* Queue;
+	FD3D12Queue* Queue = nullptr;
 	uint32 NextIdx{ 0 };
 	int32 ContextId;
 	uint32 MaxMarkers{ 0 };
