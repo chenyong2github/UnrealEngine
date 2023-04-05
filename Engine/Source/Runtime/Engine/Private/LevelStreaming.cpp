@@ -2194,10 +2194,21 @@ bool ULevelStreaming::IsValidStreamingLevel() const
 				 */
 				return FPackageName::DoesPackageExist(Linker->GetPackagePath());
 			}
+		} 
+		
+		// Handle unloaded instanced package
+		if (WorldPackageName != PackageNameToLoad)
+		{
+			WorldPackageName = PackageNameToLoad;
 		}
 
 		FPackagePath WorldPackagePath;
-		return FPackagePath::TryFromPackageName(WorldPackageName, /* Out*/ WorldPackagePath) && FPackageName::DoesPackageExist(WorldPackagePath);
+		if (!FPackagePath::TryFromPackageName(WorldPackageName, /* Out*/ WorldPackagePath))
+		{
+			return false;
+		}
+				
+		return FPackageName::DoesPackageExist(WorldPackagePath);
 	}
 	return true;
 }
