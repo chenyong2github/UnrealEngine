@@ -66,6 +66,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigEditMode)
 
+TAutoConsoleVariable<bool> CVarClickSelectThroughGizmo(TEXT("ControlRig.Sequencer.ClickSelectThroughGizmo"), false, TEXT("When false you can't click through a gizmo and change selection if you will select the gizmo when in Animation Mode, default to false."));
+
 void UControlRigEditModeDelegateHelper::OnPoseInitialized()
 {
 	if (EditMode)
@@ -1250,11 +1252,15 @@ bool FControlRigEditMode::GetCustomInputCoordinateSystem(FMatrix& OutMatrix, voi
 
 bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy *HitProxy, const FViewportClick &Click)
 {
-	const EAxisList::Type CurrentAxis = InViewportClient->GetCurrentWidgetAxis();
-	//if we are hitting a widget, besides arcball then bail saying we are handling it
-	if (CurrentAxis != EAxisList::None)
+	const bool bClickSelectThroughGizmo = CVarClickSelectThroughGizmo.GetValueOnGameThread();
+	if (bClickSelectThroughGizmo == false)
 	{
-		return true;
+		const EAxisList::Type CurrentAxis = InViewportClient->GetCurrentWidgetAxis();
+		//if we are hitting a widget, besides arcball then bail saying we are handling it
+		if (CurrentAxis != EAxisList::None)
+		{
+			return true;
+		}
 	}
 
 	InteractionType = GetInteractionType(InViewportClient);
