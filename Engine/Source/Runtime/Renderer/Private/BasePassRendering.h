@@ -343,6 +343,8 @@ public:
 		Target6.Bind(Initializer.ParameterMap, TEXT("OutTarget6"), SPF_Optional);
 		Target7.Bind(Initializer.ParameterMap, TEXT("OutTarget7"), SPF_Optional);
 
+		Targets.Bind(Initializer.ParameterMap, TEXT("OutTargets"), SPF_Optional);
+
 		// These parameters should only be used nested in the base pass uniform buffer
 		check(!Initializer.ParameterMap.ContainsParameterAllocation(FFogUniformParameters::FTypeInfo::GetStructMetadata()->GetShaderVariableName()));
 		check(!Initializer.ParameterMap.ContainsParameterAllocation(FReflectionUniformParameters::FTypeInfo::GetStructMetadata()->GetShaderVariableName()));
@@ -371,7 +373,8 @@ public:
 		FRHIUnorderedAccessView* Target4UAV,
 		FRHIUnorderedAccessView* Target5UAV,
 		FRHIUnorderedAccessView* Target6UAV,
-		FRHIUnorderedAccessView* Target7UAV
+		FRHIUnorderedAccessView* Target7UAV,
+		FRHIUnorderedAccessView* Targets
 	);
 
 private:
@@ -386,6 +389,7 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter,		Target5);
 	LAYOUT_FIELD(FShaderResourceParameter,		Target6);
 	LAYOUT_FIELD(FShaderResourceParameter,		Target7);
+	LAYOUT_FIELD(FShaderResourceParameter,		Targets);
 };
 
 /**

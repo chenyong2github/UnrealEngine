@@ -24,7 +24,7 @@ uint4 PassData;
 	#if STRATA_BASE_PASS_MRT_OUTPUT_COUNT != 3
 		#error Strata STRATA_BASE_PASS_MRT_OUTPUT_COUNT has been updated but not the uint MRTs
 	#endif
-	#if PIXELSHADEROUTPUT_MRT3
+	#if PIXELSHADEROUTPUT_MRT4
 		#error Strata cannot map to such a case
 	#endif
 #endif
@@ -50,21 +50,16 @@ uint4 PassData;
 #endif
 
 #if STRATA_OPAQUE_DEFERRED
-	#if PIXELSHADEROUTPUT_MRT2
-		RWTexture2D<uint> StrataOutput3UAV;
-		RWTexture2D<uint> StrataOutput4UAV;
-		RWTexture2D<uint> StrataOutput5UAV;
-		RWTexture2D<uint> StrataOutput6UAV;
+	RWTexture2DArray<uint> OutTargets;
+
+	#if PIXELSHADEROUTPUT_MRT3
+		RWTexture2D<STRATA_TOP_LAYER_TYPE> OutTarget4;
+	#elif PIXELSHADEROUTPUT_MRT2
+		RWTexture2D<STRATA_TOP_LAYER_TYPE> OutTarget3;
 	#elif PIXELSHADEROUTPUT_MRT1
-		RWTexture2D<uint> StrataOutput2UAV;
-		RWTexture2D<uint> StrataOutput3UAV;
-		RWTexture2D<uint> StrataOutput4UAV;
-		RWTexture2D<uint> StrataOutput5UAV;
+		RWTexture2D<STRATA_TOP_LAYER_TYPE> OutTarget2;
 	#else
-		RWTexture2D<uint> StrataOutput1UAV;
-		RWTexture2D<uint> StrataOutput2UAV;
-		RWTexture2D<uint> StrataOutput3UAV;
-		RWTexture2D<uint> StrataOutput4UAV;
+		RWTexture2D<STRATA_TOP_LAYER_TYPE> OutTarget1;
 	#endif
 
 #else // STRATA_OPAQUE_DEFERRED
@@ -167,28 +162,28 @@ void ExportPixel(const uint2 PixelPos, FPixelShaderOut ShadedPixel)
 	// MRT0 is pixel color
 	// MRT1 is velocity if enabled or precomputed shadow if velocity if disabled and precomputed shadow enabled
 	// MRT2 is precomputed shadow if both velocity and prec shadow are enabled.
-	// After, Strata output are appended (3 uint output)
+	// After, Substrate top layer data appended. Remaining Substrate outputs are in the 2d array UAV
 
 #if PIXELSHADEROUTPUT_MRT3
-	StrataOutput4UAV[PixelPos] = ShadedPixel.StrataOutput[0];
-	StrataOutput5UAV[PixelPos] = ShadedPixel.StrataOutput[1];
-	StrataOutput6UAV[PixelPos] = ShadedPixel.StrataOutput[2];
-	StrataOutput7UAV[PixelPos] = ShadedPixel.StrataTopLayerData;
+	OutTargets[uint3(PixelPos, 0)]	= ShadedPixel.StrataOutput[0];
+	OutTargets[uint3(PixelPos, 1)]	= ShadedPixel.StrataOutput[1];
+	OutTargets[uint3(PixelPos, 2)]	= ShadedPixel.StrataOutput[2];
+	OutTarget4[PixelPos]			= ShadedPixel.StrataTopLayerData;
 #elif PIXELSHADEROUTPUT_MRT2
-	StrataOutput3UAV[PixelPos] = ShadedPixel.StrataOutput[0];
-	StrataOutput4UAV[PixelPos] = ShadedPixel.StrataOutput[1];
-	StrataOutput5UAV[PixelPos] = ShadedPixel.StrataOutput[2];
-	StrataOutput6UAV[PixelPos] = ShadedPixel.StrataTopLayerData;
+	OutTargets[uint3(PixelPos, 0)]	= ShadedPixel.StrataOutput[0];
+	OutTargets[uint3(PixelPos, 1)]	= ShadedPixel.StrataOutput[1];
+	OutTargets[uint3(PixelPos, 2)]	= ShadedPixel.StrataOutput[2];
+	OutTarget3[PixelPos]			= ShadedPixel.StrataTopLayerData;
 #elif PIXELSHADEROUTPUT_MRT1
-	StrataOutput2UAV[PixelPos] = ShadedPixel.StrataOutput[0];
-	StrataOutput3UAV[PixelPos] = ShadedPixel.StrataOutput[1];
-	StrataOutput4UAV[PixelPos] = ShadedPixel.StrataOutput[2];
-	StrataOutput5UAV[PixelPos] = ShadedPixel.StrataTopLayerData;
+	OutTargets[uint3(PixelPos, 0)]	= ShadedPixel.StrataOutput[0];
+	OutTargets[uint3(PixelPos, 1)]	= ShadedPixel.StrataOutput[1];
+	OutTargets[uint3(PixelPos, 2)]	= ShadedPixel.StrataOutput[2];
+	OutTarget2[PixelPos]			= ShadedPixel.StrataTopLayerData;
 #else
-	StrataOutput1UAV[PixelPos] = ShadedPixel.StrataOutput[0];
-	StrataOutput2UAV[PixelPos] = ShadedPixel.StrataOutput[1];
-	StrataOutput3UAV[PixelPos] = ShadedPixel.StrataOutput[2];
-	StrataOutput4UAV[PixelPos] = ShadedPixel.StrataTopLayerData;
+	OutTargets[uint3(PixelPos, 0)]	= ShadedPixel.StrataOutput[0];
+	OutTargets[uint3(PixelPos, 1)]	= ShadedPixel.StrataOutput[1];
+	OutTargets[uint3(PixelPos, 2)]	= ShadedPixel.StrataOutput[2];
+	OutTarget1[PixelPos]			= ShadedPixel.StrataTopLayerData;
 #endif
 
 #else // STRATA_OPAQUE_DEFERRED

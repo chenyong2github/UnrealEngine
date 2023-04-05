@@ -110,7 +110,8 @@ void TBasePassComputeShaderPolicyParamType<LightMapPolicyType>::SetPassParameter
 	FRHIUnorderedAccessView* Target4UAV,
 	FRHIUnorderedAccessView* Target5UAV,
 	FRHIUnorderedAccessView* Target6UAV,
-	FRHIUnorderedAccessView* Target7UAV
+	FRHIUnorderedAccessView* Target7UAV,
+	FRHIUnorderedAccessView* TargetsUAV
 )
 {
 	SetShaderValue(BatchedParameters, ViewRectParam, ViewRect);
@@ -124,4 +125,5 @@ void TBasePassComputeShaderPolicyParamType<LightMapPolicyType>::SetPassParameter
 	SetUAVParameter(BatchedParameters, Target5, Target5UAV);
 	SetUAVParameter(BatchedParameters, Target6, Target6UAV);
 	SetUAVParameter(BatchedParameters, Target7, Target7UAV);
+	SetUAVParameter(BatchedParameters, Targets, TargetsUAV);
 }

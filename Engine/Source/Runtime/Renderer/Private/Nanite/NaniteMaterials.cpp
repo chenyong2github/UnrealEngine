@@ -595,14 +595,15 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteShadingPassParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FNaniteUniformParameters, Nanite)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FOpaqueBasePassUniformParameters, BasePass)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardPassUniformParameters, CardPass)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget0)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget1)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget2)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget3)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget4)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget5)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget6)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutTarget7)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTarget0)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTarget1)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTarget2)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTarget3)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTarget4)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTarget5)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTarget6)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTarget7)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray, OutTargets)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteEmitGBufferParameters, )
@@ -791,6 +792,7 @@ void RecordShadingCommand(
 	const uint32 IndirectArgStride,
 	const FUint32Vector4& ViewRect,
 	const TArray<FRHIUnorderedAccessView*, TInlineAllocator<8>>& OutputTargets,
+	FRHIUnorderedAccessView* OutputTargetsArray,
 	const FNaniteShadingCommand& ShadingCommand
 )
 {
@@ -821,7 +823,8 @@ void RecordShadingCommand(
 			OutputTargets[4],
 			OutputTargets[5],
 			OutputTargets[6],
-			OutputTargets[7]
+			OutputTargets[7],
+			OutputTargetsArray
 		);
 	}
 
@@ -836,6 +839,7 @@ class FRecordShadingCommandsAnyThreadTask : public FRenderTask
 	FRHIBuffer* IndirectArgs = nullptr;
 	const TConstArrayView<TPimplPtr<FNaniteShadingCommand>> ShadingCommands;
 	TArray<FRHIUnorderedAccessView*, TInlineAllocator<8>> OutputTargets;
+	FRHIUnorderedAccessView* OutputTargetsArray = nullptr;
 	FUint32Vector4 ViewRect;
 	FUint32Vector4 PassData;
 	uint32 IndirectArgsStride;
@@ -850,6 +854,7 @@ public:
 		uint32 InIndirectArgsStride,
 		const TConstArrayView<TPimplPtr<FNaniteShadingCommand>> InShadingCommands,
 		const TConstArrayView<FRHIUnorderedAccessView*> InOutputTargets,
+		FRHIUnorderedAccessView* InOutputTargetsArray,
 		const FUint32Vector4& InViewRect,
 		const FUint32Vector4& InPassData,
 		int32 InTaskIndex,
@@ -859,6 +864,7 @@ public:
 		, IndirectArgs(InIndirectArgs)
 		, ShadingCommands(InShadingCommands)
 		, OutputTargets(InOutputTargets)
+		, OutputTargetsArray(InOutputTargetsArray)
 		, ViewRect(InViewRect)
 		, PassData(InPassData)
 		, IndirectArgsStride(InIndirectArgsStride)
@@ -893,6 +899,7 @@ public:
 				IndirectArgsStride,
 				ViewRect,
 				OutputTargets,
+				OutputTargetsArray,
 				*ShadingCommands[StartIndex + CommandIndex]
 			);
 		}
@@ -1009,7 +1016,13 @@ FNaniteShadingPassParameters CreateNaniteShadingPassParams(
 		// No possibility of read/write hazard due to fully resolved vbuffer/materials
 		const ERDGUnorderedAccessViewFlags OutTargetFlags = GNaniteBarrierTest != 0 ? ERDGUnorderedAccessViewFlags::SkipBarrier : ERDGUnorderedAccessViewFlags::None;
 
-		// TODO: Use RWTexture2DArray<float4>
+		FRDGTextureUAVRef MaterialTextureArrayUAV = nullptr;
+		if (Strata::IsStrataEnabled() && SceneRenderer.Scene)
+		{
+			MaterialTextureArrayUAV = GraphBuilder.CreateUAV(SceneRenderer.Scene->StrataSceneData.MaterialTextureArray, OutTargetFlags);
+			//MaterialTextureArrayUAV = SceneRenderer.Scene->StrataSceneData.MaterialTextureArrayUAVWithoutRTs;
+		}
+
 		for (uint32 TargetIndex = 0; TargetIndex < MaxSimultaneousRenderTargets; ++TargetIndex)
 		{
 			if (FRDGTexture* TargetTexture = BasePassRenderTargets.Output[TargetIndex].GetTexture())
@@ -1048,6 +1061,8 @@ FNaniteShadingPassParameters CreateNaniteShadingPassParams(
 				}
 			}
 		}
+
+		Result.OutTargets = MaterialTextureArrayUAV;
 	}
 
 	return Result;
@@ -1116,6 +1131,25 @@ void DispatchBasePass(
 	const FNaniteVisibilityResults& VisibilityResults = RasterResults.VisibilityResults;
 	const bool bWPOInSecondPass = !IsUsingBasePassVelocity(View.GetShaderPlatform());
 
+	TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets> BasePassTextures;
+	uint32 BasePassTextureCount = SceneTextures.GetGBufferRenderTargets(BasePassTextures, GBL_Default);
+
+	// We don't want to have Substrate MRTs appended to the list, except for the top layer data
+	if (Strata::IsStrataEnabled() && SceneRenderer.Scene)
+	{
+		// Add another MRT for Strata top layer information. We want to follow the usual clear process which can leverage fast clear.
+		{
+			BasePassTextures[BasePassTextureCount] = FTextureRenderTargetBinding(SceneRenderer.Scene->StrataSceneData.TopLayerTexture);
+			BasePassTextureCount++;
+		};
+	}
+
+	TArrayView<FTextureRenderTargetBinding> BasePassTexturesView = MakeArrayView(BasePassTextures.GetData(), BasePassTextureCount);
+
+	// Render targets bindings should remain constant at this point.
+	FRenderTargetBindingSlots BasePassBindings = GetRenderTargetBindings(ERenderTargetLoadAction::ELoad, BasePassTexturesView);
+	BasePassBindings.DepthStencil = BasePassRenderTargets.DepthStencil;
+
 	FNaniteShadingPassParameters* ShadingPassParameters = GraphBuilder.AllocParameters<FNaniteShadingPassParameters>();
 	*ShadingPassParameters = CreateNaniteShadingPassParams(
 		GraphBuilder,
@@ -1138,7 +1172,7 @@ void DispatchBasePass(
 		MultiViewIndices,
 		MultiViewRectScaleOffsets,
 		ViewsBuffer,
-		BasePassRenderTargets,
+		BasePassBindings,
 		Binning
 	);
 
@@ -1177,6 +1211,8 @@ void DispatchBasePass(
 		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget5));
 		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget6));
 		OutputTargets.Add(GetOutputTargetRHI(ShadingPassParameters->OutTarget7));
+
+		FRHIUnorderedAccessView* OutputTargetsArray = GetOutputTargetRHI(ShadingPassParameters->OutTargets);
 
 		// .X = Active Shading Bin
 		// .Y = VRS Tile Size
@@ -1218,7 +1254,7 @@ void DispatchBasePass(
 				FRHICommandList* CmdList = ParallelCommandListSet->NewParallelCommandList();
 
 				FGraphEventRef AnyThreadCompletionEvent = TGraphTask<FRecordShadingCommandsAnyThreadTask>::CreateTask(&EmptyPrereqs, RenderThread).
-					ConstructAndDispatchWhenReady(*CmdList, IndirectArgsBuffer, IndirectArgStride, ShadingCommands, OutputTargets, ViewRect, PassData, TaskIndex, NumTasks);
+					ConstructAndDispatchWhenReady(*CmdList, IndirectArgsBuffer, IndirectArgStride, ShadingCommands, OutputTargets, OutputTargetsArray, ViewRect, PassData, TaskIndex, NumTasks);
 
 				ParallelCommandListSet->AddParallelCommandList(CmdList, AnyThreadCompletionEvent, NumCommands);
 			}
@@ -1229,7 +1265,7 @@ void DispatchBasePass(
 
 			for (const TPimplPtr<FNaniteShadingCommand>& ShadingCommand : ShadingCommands)
 			{
-				RecordShadingCommand(RHICmdList, PassData, IndirectArgsBuffer, IndirectArgStride, ViewRect, OutputTargets, *ShadingCommand);
+				RecordShadingCommand(RHICmdList, PassData, IndirectArgsBuffer, IndirectArgStride, ViewRect, OutputTargets, OutputTargetsArray, *ShadingCommand);
 			}
 		}
 	};
