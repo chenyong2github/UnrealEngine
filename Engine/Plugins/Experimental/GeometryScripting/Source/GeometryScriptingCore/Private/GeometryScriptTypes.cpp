@@ -3,6 +3,7 @@
 #include "GeometryScript/GeometryScriptTypes.h"
 #include "GeometryBase.h"
 
+#include "Curve/GeneralPolygon2.h"
 
 
 FGeometryScriptDebugMessage UE::Geometry::MakeScriptError(EGeometryScriptErrorType ErrorTypeIn, const FText& MessageIn)
@@ -58,4 +59,14 @@ void UE::Geometry::AppendWarning(TArray<FGeometryScriptDebugMessage>* DebugMessa
 	{
 		DebugMessages->Add(Result);
 	}
+}
+
+
+void FGeometryScriptGeneralPolygonList::Reset()
+{
+	if (!Polygons.IsValid())
+	{
+		Polygons = MakeShared<TArray<UE::Geometry::FGeneralPolygon2d>>();
+	}
+	Polygons->Reset();
 }

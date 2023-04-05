@@ -528,6 +528,22 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 
+	/**
+	* Generates a Delaunay Triangulation of the provided Polygon List, and appends it to the Target Mesh.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Primitives")
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
+	AppendPolygonListTriangulation(
+		UDynamicMesh* TargetMesh,
+		FGeometryScriptPrimitiveOptions PrimitiveOptions,
+		FTransform Transform,
+		FGeometryScriptGeneralPolygonList PolygonList,
+		UGeometryScriptDebug* Debug = nullptr);
+
+
+
+
+
 
 	//---------------------------------------------
 	// Backwards-Compatibility implementations

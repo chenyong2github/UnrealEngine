@@ -10,6 +10,8 @@ PREDECLARE_GEOMETRY(class FDynamicMesh3);
 PREDECLARE_GEOMETRY(template<typename MeshType> class TMeshAABBTree3);
 PREDECLARE_GEOMETRY(template<typename MeshType> class TFastWindingTree);
 PREDECLARE_GEOMETRY(typedef TMeshAABBTree3<FDynamicMesh3> FDynamicMeshAABBTree3);
+PREDECLARE_GEOMETRY(template<typename RealType> class TGeneralPolygon2);
+PREDECLARE_GEOMETRY(typedef TGeneralPolygon2<double> FGeneralPolygon2d);
 
 
 UENUM(BlueprintType)
@@ -475,6 +477,64 @@ public:
 
 template<>
 struct TStructOpsTypeTraits<FGeometryScriptPolyPath> : public TStructOpsTypeTraitsBase2<FGeometryScriptPolyPath>
+{
+	enum
+	{
+		WithIdenticalViaEquality = true,
+	};
+};
+
+// A simple 2D Polygon with no holes
+USTRUCT(BlueprintType, meta = (DisplayName = "Simple Polygon"))
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptSimplePolygon
+{
+	GENERATED_BODY()
+public:
+	TSharedPtr<TArray<FVector2D>> Vertices;
+
+	void Reset()
+	{
+		if (Vertices.IsValid() == false)
+		{
+			Vertices = MakeShared<TArray<FVector2D>>();
+		}
+		Vertices->Reset();
+	}
+
+	// Required by TStructOpsTypeTraits interface
+	bool operator==(const FGeometryScriptSimplePolygon& Other) const
+	{
+		return Vertices.Get() == Other.Vertices.Get();
+	}
+	bool operator!=(const FGeometryScriptSimplePolygon& Other) const
+	{
+		return Vertices.Get() != Other.Vertices.Get();
+	}
+};
+
+// A list of general polygons, which may have holes.
+USTRUCT(BlueprintType, meta = (DisplayName = "PolygonList"))
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptGeneralPolygonList
+{
+	GENERATED_BODY()
+public:
+	TSharedPtr<TArray<UE::Geometry::FGeneralPolygon2d>> Polygons;
+
+	void Reset();
+
+	// Required by TStructOpsTypeTraits interface
+	bool operator==(const FGeometryScriptGeneralPolygonList& Other) const
+	{
+		return Polygons.Get() == Other.Polygons.Get();
+	}
+	bool operator!=(const FGeometryScriptGeneralPolygonList& Other) const
+	{
+		return !(*this == Other);
+	}
+};
+
+template<>
+struct TStructOpsTypeTraits<FGeometryScriptGeneralPolygonList> : public TStructOpsTypeTraitsBase2<FGeometryScriptGeneralPolygonList>
 {
 	enum
 	{
