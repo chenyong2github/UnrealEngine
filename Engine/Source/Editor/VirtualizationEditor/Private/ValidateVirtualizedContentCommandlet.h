@@ -7,6 +7,12 @@
 
 #include "ValidateVirtualizedContentCommandlet.generated.h"
 
+namespace UE { class FPackageTrailer; }
+namespace UE { class FIoHashToPackagesLookup; }
+
+class FIoHashToPackagesLookup;
+struct FIoHash;
+
 /**
  * Iterates over all of the packages in a project and identifies which packages contain
  * references to virtualized payloads. The commandlet will then check that all virtualized
@@ -22,6 +28,7 @@ UCLASS()
 class UValidateVirtualizedContentCommandlet
 	: public UCommandlet
 {
+private:
 	GENERATED_UCLASS_BODY()
 
 	//~ Begin UCommandlet Interface
@@ -29,4 +36,8 @@ class UValidateVirtualizedContentCommandlet
 	//~ End UCommandlet Interface
 
 	static int32 StaticMain(const FString& Params);
+
+	int32 ValidatePayloadsExists(const TMap<FString, UE::FPackageTrailer>& Packages, const TSet<FIoHash>& Payloads);
+
+	int32 ValidatePayloadContent(const TMap<FString, UE::FPackageTrailer>& Packages, const TSet<FIoHash>& Payloads, const UE::FIoHashToPackagesLookup& PkgLookupTable);
 };
