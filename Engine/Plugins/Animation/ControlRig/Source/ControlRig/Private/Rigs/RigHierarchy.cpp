@@ -774,6 +774,7 @@ void URigHierarchy::ResetPoseToInitial(ERigElementType InTypeFilter)
 		{
 			ControlElement->Offset.Current = ControlElement->Offset.Initial;
 			ControlElement->Shape.Current = ControlElement->Shape.Initial;
+			ControlElement->PreferredEulerAngles.Current = ControlElement->PreferredEulerAngles.Initial;
 		}
 
 		if(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(Elements[ElementIndex]))

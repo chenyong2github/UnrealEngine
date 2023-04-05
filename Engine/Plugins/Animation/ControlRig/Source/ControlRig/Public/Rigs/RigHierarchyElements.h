@@ -1326,6 +1326,7 @@ protected:
 
 	friend struct FRigBaseElement;
 	friend class URigHierarchy;
+	friend class URigHierarchyController;
 };
 
 USTRUCT(BlueprintType)

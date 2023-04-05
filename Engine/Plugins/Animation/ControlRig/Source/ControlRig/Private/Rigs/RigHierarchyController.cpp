@@ -359,6 +359,7 @@ FRigElementKey URigHierarchyController::AddControl(
 		NewElement->Shape.MarkDirty(ERigTransformType::InitialGlobal);
 		NewElement->Offset.Current = NewElement->Offset.Initial;
 		NewElement->Pose.Current = NewElement->Pose.Initial;
+		NewElement->PreferredEulerAngles.Current = NewElement->PreferredEulerAngles.Initial;
 		NewElement->Shape.Current = NewElement->Shape.Initial;
 	}
 
