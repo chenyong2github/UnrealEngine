@@ -312,7 +312,7 @@ bool FLocalFileNetworkReplayStreamer::ReadReplayInfo(FArchive& Archive, FLocalFi
 
 			FString FriendlyName;
 			{
-				TGuardValue<int64> MaxSerialize(Archive.ArMaxSerializeSize, LocalFileReplay::CVarMaxFriendlySerializeBytes.GetValueOnAnyThread());
+				TGuardValue<int64> MaxSerialize(Archive.ArMaxSerializeSize, UE::Net::LocalFileReplay::CVarMaxFriendlySerializeBytes.GetValueOnAnyThread());
 				Archive << FriendlyName;
 			}
 
