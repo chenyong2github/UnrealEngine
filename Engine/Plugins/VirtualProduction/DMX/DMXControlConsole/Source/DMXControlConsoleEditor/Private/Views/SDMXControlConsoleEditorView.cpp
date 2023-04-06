@@ -4,8 +4,10 @@
 
 #include "DMXControlConsole.h"
 #include "DMXControlConsoleData.h"
+#include "DMXControlConsoleEditorFilterUtils.h"
 #include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleEditorSelection.h"
+#include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
 #include "DMXEditorStyle.h"
@@ -26,6 +28,7 @@
 #include "PropertyEditorModule.h"
 #include "ScopedTransaction.h"
 #include "TimerManager.h"
+#include "Algo/AnyOf.h"
 #include "Application/ThrottleManager.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UICommandList.h"
@@ -236,6 +239,7 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 		];
 	
 	ForceUpdateDetailsViews();
+	RestoreGlobalFilter();
 
 	FSlateApplication::Get().SetKeyboardFocus(AsShared());
 }
@@ -394,17 +398,90 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 
 	ToolbarBuilder.BeginSection("Search");
 	{
-			TSharedRef<SSearchBox> GlobalSearchBox = 
-				SNew(SSearchBox)
-				.MinDesiredWidth(400.f)
-				.OnTextChanged(this, &SDMXControlConsoleEditorView::OnSearchTextChanged)
-				.ToolTipText(LOCTEXT("SearchBarTooltip", "Searches for Fader Name, Attributes, Fixture ID, Universe or Patch. Examples:\n\n* FaderName\n* Dimmer\n* Pan, Tilt\n* 1\n* 1.\n* 1.1\n* Universe 1\n* Uni 1-3\n* Uni 1, 3\n* Uni 1, 4-5'."));
+		SAssignNew(GlobalFilterSearchBox, SSearchBox)
+			.DelayChangeNotificationsWhileTyping(true)
+			.DelayChangeNotificationsWhileTypingSeconds(.5f)
+			.MinDesiredWidth(400.f)
+			.OnTextChanged(this, &SDMXControlConsoleEditorView::OnSearchTextChanged)
+			.ToolTipText(LOCTEXT("SearchBarTooltip", "Searches for Fader Name, Attributes, Fixture ID, Universe or Patch. Examples:\n\n* FaderName\n* Dimmer\n* Pan, Tilt\n* 1\n* 1.\n* 1.1\n* Universe 1\n* Uni 1-3\n* Uni 1, 3\n* Uni 1, 4-5'."));
 
-		ToolbarBuilder.AddWidget(GlobalSearchBox);
+		ToolbarBuilder.AddWidget(GlobalFilterSearchBox.ToSharedRef());
 	}
 	ToolbarBuilder.EndSection();
 
 	return ToolbarBuilder.MakeWidget();
+}
+
+void SDMXControlConsoleEditorView::RestoreGlobalFilter()
+{
+	if (const UDMXControlConsoleData* ControlConsoleData = GetControlConsoleData())
+	{
+		const FString& FilterString = ControlConsoleData->GetFilterString();
+		const FText FilterText = FText::FromString(FilterString);
+		GlobalFilterSearchBox->SetText(FilterText);
+	}
+}
+
+void SDMXControlConsoleEditorView::ApplyGlobalFilter(const FString InSearchString)
+{
+	using namespace UE::DMX::ControlConsoleEditor::FilterUtils::Private;
+
+	const UDMXControlConsoleData* ControlConsoleData = GetControlConsoleData();
+	if (!ControlConsoleData)
+	{
+		return;
+	}
+
+	const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = ControlConsoleData->GetAllFaderGroups();
+	for (UDMXControlConsoleFaderGroup* FaderGroup : AllFaderGroups)
+	{
+		if (!FaderGroup)
+		{
+			continue;
+		}
+
+		bool bMatchFilter = DoesFaderGroupMatchFilter(InSearchString, FaderGroup);
+		// If the group name matches, show the whole group
+		if (bMatchFilter)
+		{
+			FaderGroup->SetIsVisibleInEditor(true);
+			FaderGroup->ShowAllElementsInEditor();
+			continue;
+		}
+
+		bool bHasVisibleChildren = false;
+		const TArray<UDMXControlConsoleFaderBase*> AllFaders = FaderGroup->GetAllFaders();
+		for (UDMXControlConsoleFaderBase* Fader : AllFaders)
+		{
+			if (!Fader)
+			{
+				continue;
+			}
+
+			bMatchFilter = DoesFaderMatchFilter(InSearchString, Fader);
+			Fader->SetIsVisibleInEditor(bMatchFilter);
+			if (bMatchFilter)
+			{
+				bHasVisibleChildren = true;
+			}
+			else
+			{
+				// If not visible, remove form selection
+				const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+				SelectionHandler->RemoveFromSelection(Fader);
+			}
+		}
+
+		// Set to not visible if there are no visible children
+		FaderGroup->SetIsVisibleInEditor(bHasVisibleChildren);
+
+		// If not visible, remove form selection
+		if (!FaderGroup->GetIsVisibleInEditor())
+		{
+			const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+			SelectionHandler->RemoveFromSelection(FaderGroup);
+		}
+	}
 }
 
 void SDMXControlConsoleEditorView::RequestUpdateDetailsViews()
@@ -483,7 +560,10 @@ void SDMXControlConsoleEditorView::AddFaderGroupRow(UDMXControlConsoleFaderGroup
 		return;
 	}
 
-	const TSharedRef<SDMXControlConsoleEditorFaderGroupRowView> FaderGroupRowWidget = SNew(SDMXControlConsoleEditorFaderGroupRowView, FaderGroupRow);
+	const TSharedRef<SDMXControlConsoleEditorFaderGroupRowView> FaderGroupRowWidget = 
+		SNew(SDMXControlConsoleEditorFaderGroupRowView, FaderGroupRow)
+		.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorView::GetFaderGroupRowViewVisibility, FaderGroupRow));
+	
 	const int32 RowIndex = FaderGroupRow->GetRowIndex();
 	if (ensureMsgf(RowIndex == 0 || FaderGroupRowViews.IsValidIndex(RowIndex - 1), TEXT("Unexpected, invalid row index when trying to add control console row.")))
 	{
@@ -568,12 +648,15 @@ bool SDMXControlConsoleEditorView::IsFaderGroupRowContained(UDMXControlConsoleFa
 
 void SDMXControlConsoleEditorView::OnSearchTextChanged(const FText& SearchText)
 {
-	for (TWeakPtr<SDMXControlConsoleEditorFaderGroupRowView> WeakFaderGroupRowView : FaderGroupRowViews)
+	if (UDMXControlConsoleData* ControlConsoleData = GetControlConsoleData())
 	{
-		if (const TSharedPtr<SDMXControlConsoleEditorFaderGroupRowView>& FaderGroupRowView = WeakFaderGroupRowView.Pin())
-		{
-			FaderGroupRowView->ApplyGlobalFilter(SearchText.ToString());
-		}
+		// Update last saved filter string
+		const FString& SearchString = SearchText.ToString();
+
+		ControlConsoleData->Modify();
+		ControlConsoleData->SetFilterString(SearchText.ToString());
+
+		ApplyGlobalFilter(SearchString);
 	}
 }
 
@@ -608,6 +691,7 @@ void SDMXControlConsoleEditorView::OnConsoleLoaded()
 	RequestUpdateDetailsViews();
 	OnFaderGroupRowAdded();
 	OnFaderGroupRowRemoved();
+	RestoreGlobalFilter();
 
 	FSlateApplication::Get().SetKeyboardFocus(AsShared());
 }
@@ -668,15 +752,43 @@ bool SDMXControlConsoleEditorView::IsWidgetInTab(TSharedPtr<SDockTab> InDockTab,
 	return false;
 }
 
-EVisibility SDMXControlConsoleEditorView::GetAddButtonVisibility() const
+EVisibility SDMXControlConsoleEditorView::GetFaderGroupRowViewVisibility(UDMXControlConsoleFaderGroupRow* FaderGroupRow) const
 {
-	UDMXControlConsoleData* ControlConsoleData = GetControlConsoleData();
-	if (!ControlConsoleData)
+	if (!FaderGroupRow)
 	{
 		return EVisibility::Collapsed;
 	}
 
-	return ControlConsoleData->GetFaderGroupRows().IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed;
+	const auto IsAnyFaderGroupVisibleLambda = [](const UDMXControlConsoleFaderGroup* FaderGroup)
+	{
+		if (!FaderGroup)
+		{
+			return false;
+		}
+
+		return FaderGroup->GetIsVisibleInEditor();
+	};
+
+	const TArray<UDMXControlConsoleFaderGroup*> FaderGroups = FaderGroupRow->GetFaderGroups();
+	const bool bIsVisible = Algo::AnyOf(FaderGroups, IsAnyFaderGroupVisibleLambda);
+	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility SDMXControlConsoleEditorView::GetAddButtonVisibility() const
+{
+	bool bIsVisible = false;
+
+	// Visible if there are no fader group rows and there's no global filter
+	if (UDMXControlConsoleData* ControlConsoleData = GetControlConsoleData())
+	{
+		bIsVisible = ControlConsoleData->GetFaderGroupRows().IsEmpty();
+		if (GlobalFilterSearchBox.IsValid())
+		{
+			bIsVisible &= GlobalFilterSearchBox->GetText().IsEmpty();
+		}
+	}
+
+	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 #undef LOCTEXT_NAMESPACE

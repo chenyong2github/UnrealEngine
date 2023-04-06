@@ -35,9 +35,6 @@ public:
 	/** Gets a reference to this widget's ExpandArrow button */
 	TSharedPtr<SDMXControlConsoleEditorExpandArrowButton>& GetExpandArrowButton() { return ExpandArrowButton; }
 
-	/** Filters children by given search string  */
-	void ApplyGlobalFilter(const FString& InSearchString);
-
 protected:
 	//~ Begin SWidget interface
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
@@ -68,6 +65,9 @@ private:
 
 	/** Gets label background color */
 	FSlateColor GetLabelBorderColor() const;
+
+	/** Gets visibility for each Fader widget in this view */
+	EVisibility GetFaderWidgetVisibility(const UDMXControlConsoleFaderBase* Fader) const;
 
 	/** Gets visibility of CellAttributeFadersHorizontalBox widget */
 	EVisibility GetCellAttributeFadersHorizontalBoxVisibility() const;

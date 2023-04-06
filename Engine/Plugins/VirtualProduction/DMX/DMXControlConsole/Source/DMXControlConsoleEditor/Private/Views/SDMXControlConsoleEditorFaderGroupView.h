@@ -39,9 +39,6 @@ public:
 	/** Gets Fader Group's name */
 	FString GetFaderGroupName() const;
 
-	/** Filters children by given search string  */
-	void ApplyGlobalFilter(const FString& InSearchString);
-
 protected:
 	//~ Begin SWidget interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -50,9 +47,6 @@ protected:
 private:
 	/** Generates Faders widget */
 	TSharedRef<SWidget> GenerateFadersWidget();
-
-	/** Shows all elements in this fader group view */
-	void ShowAllElements();
 
 	/** Should be called when an Element was added to the Fader Group this view displays */
 	void OnElementAdded();
@@ -77,6 +71,9 @@ private:
 
 	/** Gets fader group view border color */
 	FSlateColor GetFaderGroupViewBorderColor() const;
+
+	/** Gets visibility for each Element widget in this view */
+	EVisibility GetElementWidgetVisibility(const TScriptInterface<IDMXControlConsoleFaderGroupElement> Element) const;
 
 	/** Gets Faders widget's visibility */
 	EVisibility GetFadersWidgetVisibility() const;

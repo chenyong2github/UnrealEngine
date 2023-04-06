@@ -99,26 +99,6 @@ void SDMXControlConsoleEditorMatrixCell::Construct(const FArguments& InArgs, con
 		];
 }
 
-void SDMXControlConsoleEditorMatrixCell::ApplyGlobalFilter(const FString& InSearchString)
-{
-	bool bHasVisibleChildren = false;
-
-	for (TWeakPtr<SDMXControlConsoleEditorFader> WeakCellAttributeFaderWidget : CellAttributeFaderWidgets)
-	{
-		if (const TSharedPtr<SDMXControlConsoleEditorFader> CellAttributeFaderWidget = WeakCellAttributeFaderWidget.Pin())
-		{
-			CellAttributeFaderWidget->ApplyGlobalFilter(InSearchString);
-			if (CellAttributeFaderWidget->GetVisibility() == EVisibility::Visible)
-			{
-				bHasVisibleChildren = true;
-			}
-		}
-	}
-
-	const EVisibility NewVisibility = bHasVisibleChildren ? EVisibility::Visible : EVisibility::Collapsed;
-	SetVisibility(NewVisibility);
-}
-
 FReply SDMXControlConsoleEditorMatrixCell::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
@@ -198,7 +178,8 @@ void SDMXControlConsoleEditorMatrixCell::AddCellAttributeFader(UDMXControlConsol
 
 	TSharedRef<SDMXControlConsoleEditorFader> CellAttributeFaderWidget =
 		SNew(SDMXControlConsoleEditorFader, CellAttributeFader)
-		.Padding(FMargin(2.f, 0.f));
+		.Padding(FMargin(2.f, 0.f))
+		.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorMatrixCell::GetFaderWidgetVisibility, CellAttributeFader));
 
 	CellAttributeFaderWidgets.Insert(CellAttributeFaderWidget, Index);
 
@@ -299,6 +280,12 @@ FSlateColor SDMXControlConsoleEditorMatrixCell::GetLabelBorderColor() const
 	}
 	
 	return FSlateColor(FLinearColor::White);
+}
+
+EVisibility SDMXControlConsoleEditorMatrixCell::GetFaderWidgetVisibility(const UDMXControlConsoleFaderBase* Fader) const
+{
+	const bool bIsVisible = Fader && Fader->GetIsVisibleInEditor();
+	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SDMXControlConsoleEditorMatrixCell::GetCellAttributeFadersHorizontalBoxVisibility() const

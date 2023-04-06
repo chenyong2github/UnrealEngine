@@ -91,85 +91,6 @@ FString SDMXControlConsoleEditorFaderGroupView::GetFaderGroupName() const
 	return FaderGroup->GetFaderGroupName();
 }
 
-void SDMXControlConsoleEditorFaderGroupView::ApplyGlobalFilter(const FString& InSearchString)
-{
-	if (!FaderGroup.IsValid())
-	{
-		return;
-	}
-
-	// If the group name matches, show the whole group
-	if (FaderGroup.IsValid() && FaderGroup->GetFaderGroupName().Contains(InSearchString))
-	{
-		SetVisibility(EVisibility::Visible);
-		ShowAllElements();
-
-		return;
-	}
-
-	bool bHasVisibleChildren = false;
-	FChildren* Children = ElementsHorizontalBox->GetChildren();
-	if (!Children)
-	{
-		return;
-	}
-
-	int32 NumChildren = Children->Num();
-	for (int32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
-	{
-		const TSharedRef<SWidget> Child = Children->GetChildAt(ChildIndex);
-		if (Child->GetType() == "SDMXControlConsoleEditorMatrixCell")
-		{
-			StaticCastSharedRef<SDMXControlConsoleEditorMatrixCell>(Child)->ApplyGlobalFilter(InSearchString);
-		}
-		else if (Child->GetType() == "SDMXControlConsoleEditorFader")
-		{
-			StaticCastSharedRef<SDMXControlConsoleEditorFader>(Child)->ApplyGlobalFilter(InSearchString);
-		}
-
-		if (Child->GetVisibility() == EVisibility::Visible)
-		{
-			bHasVisibleChildren = true;
-		}
-	}
-
-	const EVisibility NewVisibility = bHasVisibleChildren ? EVisibility::Visible : EVisibility::Collapsed;
-	SetVisibility(NewVisibility);
-
-	// If not visible, remove from selection
-	if (NewVisibility == EVisibility::Collapsed)
-	{
-		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-		if (SelectionHandler->IsSelected(FaderGroup.Get()))
-		{
-			SelectionHandler->RemoveFromSelection(FaderGroup.Get());
-		}
-	}
-}
-
-void SDMXControlConsoleEditorFaderGroupView::ShowAllElements()
-{
-	FChildren* Children = ElementsHorizontalBox->GetChildren();
-	if (!Children)
-	{
-		return;
-	}
-
-	int32 NumChildren = Children->Num();
-	for (int32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
-	{
-		const TSharedRef<SWidget> Child = Children->GetChildAt(ChildIndex);
-		if (Child->GetType() == "SDMXControlConsoleEditorMatrixCell")
-		{			
-			StaticCastSharedRef<SDMXControlConsoleEditorMatrixCell>(Child)->ApplyGlobalFilter(TEXT(""));
-		}
-		else if (Child->GetType() == "SDMXControlConsoleEditorFader")
-		{
-			StaticCastSharedRef<SDMXControlConsoleEditorFader>(Child)->SetVisibility(EVisibility::Visible);
-		}
-	}
-}
-
 void SDMXControlConsoleEditorFaderGroupView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	if (!ensureMsgf(FaderGroup.IsValid(), TEXT("Invalid fader group, cannot update fader group view state correctly.")))
@@ -308,18 +229,19 @@ void SDMXControlConsoleEditorFaderGroupView::AddElement(const TScriptInterface<I
 		return;
 	}
 
-
 	TSharedPtr<SWidget> ElementWidget = nullptr;
 	UDMXControlConsoleFixturePatchMatrixCell* MatrixCell = Cast<UDMXControlConsoleFixturePatchMatrixCell>(Element.GetObject());
 	if (MatrixCell)
 	{
-		SAssignNew(ElementWidget, SDMXControlConsoleEditorMatrixCell, MatrixCell);
+		SAssignNew(ElementWidget, SDMXControlConsoleEditorMatrixCell, MatrixCell)
+			.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupView::GetElementWidgetVisibility, MatrixCell));
 	}
 	else
 	{
 		UDMXControlConsoleFaderBase* Fader = Cast<UDMXControlConsoleFaderBase>(Element.GetObject());
 		SAssignNew(ElementWidget, SDMXControlConsoleEditorFader, Fader)
-			.Padding(FMargin(4.f, 0.f));
+			.Padding(FMargin(4.f, 0.f))
+			.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupView::GetElementWidgetVisibility, Fader));
 	}
 
 	ElementWidgets.Add(ElementWidget);
@@ -420,6 +342,16 @@ FSlateColor SDMXControlConsoleEditorFaderGroupView::GetFaderGroupViewBorderColor
 	return FaderGroup->GetEditorColor();
 }
 
+EVisibility SDMXControlConsoleEditorFaderGroupView::GetElementWidgetVisibility(const TScriptInterface<IDMXControlConsoleFaderGroupElement> Element) const
+{
+	if (!Element.GetInterface())
+	{
+		return EVisibility::Collapsed;
+	}
+
+	return Element.GetInterface()->GetIsVisibleInEditor() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
 EVisibility SDMXControlConsoleEditorFaderGroupView::GetFadersWidgetVisibility() const
 {
 	if (!FaderGroupWidget.IsValid())
@@ -439,7 +371,13 @@ EVisibility SDMXControlConsoleEditorFaderGroupView::GetAddFaderButtonVisibility(
 		return EVisibility::Collapsed;
 	}
 
-	return FaderGroup->GetFixturePatch() ? EVisibility::Collapsed : EVisibility::Visible;
+	bool bIsVisible = !FaderGroup->GetFixturePatch();
+	if (const UDMXControlConsoleData* ControlConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData())
+	{
+		bIsVisible &= ControlConsoleData->GetFilterString().IsEmpty();
+	}
+
+	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -160,7 +160,7 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::GenerateFaderGroupFromFixt
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
 	SelectionHandler->ClearFadersSelection(FaderGroup);
 
-	const FScopedTransaction FaderGroupTransaction(LOCTEXT("FaderGroupTransaction", "Generate Fader Group from Fixture Patch"));
+	const FScopedTransaction GenerateFaderGroupFromFixturePatchTransaction(LOCTEXT("GenerateFaderGroupFromFixturePatchTransaction", "Generate Fader Group from Fixture Patch"));
 	FaderGroup->PreEditChange(UDMXControlConsoleFaderGroup::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderGroup::GetSoftFixturePatchPtrPropertyName()));
 
 	FaderGroup->GenerateFromFixturePatch(FixturePatch);
@@ -220,9 +220,12 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatch
 		Index = SelectedFaderGroup->GetIndex() + 1;
 	}
 	
+	const FScopedTransaction GenerateFromFixturePatchOnLastRowTransaction(LOCTEXT("GenerateFromFixturePatchOnLastRowTransaction", "Generate Fader Group from Fixture Patch"));
+	FaderGroupRow->PreEditChange(nullptr);
 	UDMXControlConsoleFaderGroup* FaderGroup = FaderGroupRow->AddFaderGroup(Index);
-	UDMXEntityFixturePatch* FixturePatch = FixturePatchRow->GetFixturePatchRef().GetFixturePatch();
+	FaderGroupRow->PostEditChange();
 
+	UDMXEntityFixturePatch* FixturePatch = FixturePatchRow->GetFixturePatchRef().GetFixturePatch();
 	GenerateFaderGroupFromFixturePatch(FaderGroup, FixturePatch);
 }
 
@@ -254,13 +257,12 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatch
 		NewRowIndex = SelectedFaderGroupRowIndex + 1;
 	}
 
+	const FScopedTransaction GenerateFromFixturePatchOnNewRowTransaction(LOCTEXT("GenerateFromFixturePatchOnNewRowTransaction", "Generate Fader Group from Fixture Patch"));
+	EditorConsoleData->PreEditChange(nullptr);
 	UDMXControlConsoleFaderGroupRow* NewRow = EditorConsoleData->AddFaderGroupRow(NewRowIndex);
-	if (NewRow->GetFaderGroups().IsEmpty())
-	{
-		return;
-	}
+	EditorConsoleData->PostEditChange();
 
-	UDMXControlConsoleFaderGroup* FaderGroup = NewRow->GetFaderGroups()[0];
+	UDMXControlConsoleFaderGroup* FaderGroup = !NewRow->GetFaderGroups().IsEmpty() ? NewRow->GetFaderGroups()[0] : nullptr;
 	UDMXEntityFixturePatch* FixturePatch = FixturePatchRow->GetFixturePatchRef().GetFixturePatch();
 
 	GenerateFaderGroupFromFixturePatch(FaderGroup, FixturePatch);

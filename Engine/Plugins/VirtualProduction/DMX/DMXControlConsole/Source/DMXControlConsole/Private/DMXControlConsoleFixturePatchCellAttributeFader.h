@@ -22,6 +22,9 @@ class DMXCONTROLCONSOLE_API UDMXControlConsoleFixturePatchCellAttributeFader
 	GENERATED_BODY()
 
 public:
+	/** Constructor */
+	UDMXControlConsoleFixturePatchCellAttributeFader();
+
 	//~ Begin DMXControlConsoleFaderBase interface
 	virtual EDMXFixtureSignalFormat GetDataType() const { return DataType; }
 	//~ End DMXControlConsoleFaderBase interface
@@ -32,11 +35,11 @@ public:
 	virtual int32 GetUniverseID() const override { return UniverseID; }
 	virtual int32 GetStartingAddress() const override { return StartingAddress; }
 	virtual int32 GetEndingAddress() const override { return EndingAddress; }
+#if WITH_EDITOR
+	virtual void SetIsVisibleInEditor(bool bVisible) override;
+#endif // WITH_EDITOR
 	virtual void Destroy() override;
 	//~ End IDMXControlConsoleFaderGroupElementInterface
-
-	/** Constructor */
-	UDMXControlConsoleFixturePatchCellAttributeFader();
 
 	/** Sets Matrix Cell Fader's properties values using the given Fixture Cell Attribute */
 	void SetPropertiesFromFixtureCellAttribute(const FDMXFixtureCellAttribute& FixtureCellAttribute, const int32 InUniverseID, const int32 StartingChannel);

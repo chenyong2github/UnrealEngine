@@ -54,6 +54,12 @@ public:
 #if WITH_EDITOR
 	/** Sets if the console can send DMX in Editor */
 	void SetSendDMXInEditorEnabled(bool bSendDMXInEditorEnabled) { bSendDMXInEditor = bSendDMXInEditorEnabled; }
+
+	/** Gets the saved string used by this Control Console for filtering */
+	const FString& GetFilterString() const { return FilterString; }
+
+	/** Sets the current string used by this Control Console for filtering */
+	void SetFilterString(const FString& InFilterString);
 #endif // WITH_EDITOR 
 
 	/** Updates DMX Output Ports */
@@ -93,8 +99,12 @@ private:
 	/** True when this object is ticking */
 	bool bSendDMX = false;
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 	/** True if the Control Console ticks in Editor */
 	bool bSendDMXInEditor = true;
-#endif // WITH_EDITOR
+
+	/** Last string from Editor filtering */
+	UPROPERTY()
+	FString FilterString;
+#endif // WITH_EDITORONLY_DATA
 };

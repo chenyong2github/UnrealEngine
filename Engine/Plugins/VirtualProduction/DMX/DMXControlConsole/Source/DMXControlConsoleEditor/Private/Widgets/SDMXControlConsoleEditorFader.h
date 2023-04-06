@@ -33,9 +33,6 @@ public:
 	/** Sets the value of the fader by a percentage value */
 	void SetValueByPercentage(float InNewPercentage);
 
-	/** Filters children by given search string  */
-	void ApplyGlobalFilter(const FString& InSearchString);
-
 protected:
 	//~ Begin SWidget interface
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;

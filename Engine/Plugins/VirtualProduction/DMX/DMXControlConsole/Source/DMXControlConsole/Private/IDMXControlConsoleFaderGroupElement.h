@@ -44,6 +44,20 @@ public:
 	/** Returns the last Channel of this Element */
 	virtual int32 GetEndingAddress() const = 0;
 
+#if WITH_EDITOR
+	/** Returns in Editor visibility state of the element */
+	virtual bool GetIsVisibleInEditor() const { return bIsVisibleInEditor; }
+
+	/** Sets in Editor visibility state of the element */
+	virtual void SetIsVisibleInEditor(bool bVisible) { bIsVisibleInEditor = bVisible; }
+#endif // WITH_EDITOR
+
 	/** Destroys the Element */
 	virtual void Destroy() = 0;
+
+protected:
+#if WITH_EDITOR
+	/** In Editor visibility state of the Element */
+	bool bIsVisibleInEditor = true;
+#endif // WITH_EDITOR
 };

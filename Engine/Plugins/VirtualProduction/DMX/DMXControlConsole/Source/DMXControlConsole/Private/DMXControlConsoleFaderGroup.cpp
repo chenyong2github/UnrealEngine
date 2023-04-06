@@ -165,7 +165,9 @@ void UDMXControlConsoleFaderGroup::GenerateFromFixturePatch(UDMXEntityFixturePat
 
 	Algo::Sort(Elements, SortElementsByEndingAddressLambda);
 
+#if WITH_EDITOR
 	bForceRefresh = true;
+#endif
 }
 
 bool UDMXControlConsoleFaderGroup::HasFixturePatch() const
@@ -324,10 +326,39 @@ void UDMXControlConsoleFaderGroup::Destroy()
 #endif // WITH_EDITOR
 }
 
+#if WITH_EDITOR
 void UDMXControlConsoleFaderGroup::ForceRefresh()
 {
 	bForceRefresh = false;
 }
+#endif // WITH_EDITOR
+
+#if WITH_EDITOR
+void UDMXControlConsoleFaderGroup::SetIsExpanded(const bool bExpanded)
+{
+	bIsExpanded = bExpanded;
+}
+#endif // WITH_EDITOR
+
+#if WITH_EDITOR
+void UDMXControlConsoleFaderGroup::ShowAllElementsInEditor()
+{
+	for (const TScriptInterface<IDMXControlConsoleFaderGroupElement>& Element : Elements)
+	{
+		if (!Element.GetInterface())
+		{
+			continue;
+		}
+
+		Element.GetInterface()->SetIsVisibleInEditor(true);
+
+		if (UDMXControlConsoleFixturePatchMatrixCell* MatrixCell = Cast<UDMXControlConsoleFixturePatchMatrixCell>(Element.GetObject()))
+		{
+			MatrixCell->ShowAllFadersInEditor();
+		}
+	}
+}
+#endif
 
 void UDMXControlConsoleFaderGroup::PostInitProperties()
 {
@@ -429,7 +460,9 @@ void UDMXControlConsoleFaderGroup::UpdateFaderGroupFromFixturePatch(UDMXEntityFi
 
 	Algo::Sort(Elements, SortElementsByEndingAddressLambda);
 
+#if WITH_EDITOR
 	bForceRefresh = true;
+#endif
 }
 
 void UDMXControlConsoleFaderGroup::UpdateFixturePatchFunctionFaders(UDMXEntityFixturePatch* InFixturePatch)
@@ -636,12 +669,7 @@ void UDMXControlConsoleFaderGroup::SubscribeToFixturePatchDelegates()
 
 void UDMXControlConsoleFaderGroup::GetNextAvailableUniverseAndAddress(int32& OutUniverse, int32& OutAddress) const
 {
-	if (Elements.IsEmpty())
-	{
-		OutUniverse = 1;
-		OutAddress = 1;
-	}
-	else
+	if (!Elements.IsEmpty())
 	{
 		const UDMXControlConsoleRawFader* LastFader = Cast<UDMXControlConsoleRawFader>(Elements.Last().GetObject());
 		if (LastFader)

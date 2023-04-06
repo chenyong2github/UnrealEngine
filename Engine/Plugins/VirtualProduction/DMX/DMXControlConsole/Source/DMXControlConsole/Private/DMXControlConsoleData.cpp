@@ -140,6 +140,13 @@ void UDMXControlConsoleData::StopSendingDMX()
 	bSendDMX = false;
 }
 
+#if WITH_EDITOR
+void UDMXControlConsoleData::SetFilterString(const FString& InFilterString)
+{
+	FilterString = InFilterString;
+}
+#endif // WITH_EDITOR 
+
 void UDMXControlConsoleData::UpdateOutputPorts(const TArray<FDMXOutputPortSharedRef> InOutputPorts)
 {
 	if (InOutputPorts.IsEmpty())

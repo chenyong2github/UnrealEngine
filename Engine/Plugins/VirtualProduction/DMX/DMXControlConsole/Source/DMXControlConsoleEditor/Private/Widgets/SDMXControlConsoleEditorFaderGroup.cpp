@@ -2,6 +2,7 @@
 
 #include "SDMXControlConsoleEditorFaderGroup.h"
 
+#include "DMXControlConsoleData.h"
 #include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderGroup.h"
@@ -66,6 +67,7 @@ void SDMXControlConsoleEditorFaderGroup::Construct(const FArguments& InArgs, con
 					.FillWidth(.2f)
 					[
 						SAssignNew(ExpandArrowButton, SDMXControlConsoleEditorExpandArrowButton)
+						.OnExpandClicked(this, &SDMXControlConsoleEditorFaderGroup::OnExpandArrowClicked)
 					]
 				]
 
@@ -95,6 +97,7 @@ void SDMXControlConsoleEditorFaderGroup::Construct(const FArguments& InArgs, con
 						[
 							SNew(SDMXControlConsoleEditorAddButton)
 							.OnClicked(OnAddFaderGroup)
+							.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroup::GetAddButtonVisibility))
 						]
 					]
 				]
@@ -120,6 +123,8 @@ void SDMXControlConsoleEditorFaderGroup::Construct(const FArguments& InArgs, con
 
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
 	SelectionHandler->GetOnSelectionChanged().AddSP(this, &SDMXControlConsoleEditorFaderGroup::OnSelectionChanged);
+
+	RestoreExpansionState();
 }
 
 FReply SDMXControlConsoleEditorFaderGroup::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
@@ -286,6 +291,44 @@ void SDMXControlConsoleEditorFaderGroup::OnFaderGroupNameCommitted(const FText& 
 	FaderGroupNameTextBox->SetText(FText::FromString(FaderGroup->GetFaderGroupName()));
 }
 
+void SDMXControlConsoleEditorFaderGroup::RestoreExpansionState()
+{
+	// Get expansion state from model
+	if (UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup())
+	{
+		if (ExpandArrowButton.IsValid())
+		{
+			ExpandArrowButton->SetExpandArrow(FaderGroup->GetIsExpanded());
+		}
+	}
+}
+
+void SDMXControlConsoleEditorFaderGroup::OnExpandArrowClicked(bool bExpand)
+{
+	if (UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup())
+	{
+		FaderGroup->Modify();
+		FaderGroup->SetIsExpanded(bExpand);
+	}
+}
+
+EVisibility SDMXControlConsoleEditorFaderGroup::GetAddButtonVisibility() const
+{
+	if (!FaderGroupView.IsValid())
+	{
+		return EVisibility::Collapsed;
+	}
+
+	// Visible if there's no global filter
+	bool bIsVisible = true;
+	if (const UDMXControlConsoleData* ControlConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData())
+	{
+		bIsVisible = ControlConsoleData->GetFilterString().IsEmpty();
+	}
+
+	return bIsVisible ? EVisibility::Visible : EVisibility::Hidden;
+}
+
 EVisibility SDMXControlConsoleEditorFaderGroup::GetAddRowButtonVisibility() const
 {
 	if (!FaderGroupView.IsValid())
@@ -293,8 +336,15 @@ EVisibility SDMXControlConsoleEditorFaderGroup::GetAddRowButtonVisibility() cons
 		return EVisibility::Collapsed;
 	}
 
+	// Visible if this is the firs fader group of the row there's no global filter
 	const int32 Index = FaderGroupView.Pin()->GetIndex();
-	return Index == 0 ? EVisibility::Visible : EVisibility::Hidden;
+	bool bIsVisible = Index == 0;
+	if (const UDMXControlConsoleData* ControlConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData())
+	{
+		bIsVisible &= ControlConsoleData->GetFilterString().IsEmpty();
+	}
+
+	return bIsVisible ? EVisibility::Visible : EVisibility::Hidden;
 }
 
 FSlateColor SDMXControlConsoleEditorFaderGroup::GetFaderGroupBorderColor() const

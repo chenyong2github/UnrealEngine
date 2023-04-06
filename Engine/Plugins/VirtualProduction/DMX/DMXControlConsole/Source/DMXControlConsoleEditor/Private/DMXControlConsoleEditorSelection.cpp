@@ -139,11 +139,17 @@ void FDMXControlConsoleEditorSelection::Multiselect(UObject* FaderOrFaderGroupOb
 
 		if (UDMXControlConsoleFaderGroup* FaderGroupToSelect = Cast<UDMXControlConsoleFaderGroup>(FadersAndFaderGroups[IndexToSelect]))
 		{
-			SelectedFaderGroups.AddUnique(FaderGroupToSelect);
+			if (FaderGroupToSelect && FaderGroupToSelect->GetIsVisibleInEditor())
+			{
+				SelectedFaderGroups.AddUnique(FaderGroupToSelect);
+			}
 		}
 		else if (UDMXControlConsoleFaderBase* FaderToSelect = Cast<UDMXControlConsoleFaderBase>(FadersAndFaderGroups[IndexToSelect]))
 		{
-			SelectedFaders.AddUnique(FaderToSelect);
+			if (FaderToSelect && FaderToSelect->GetIsVisibleInEditor())
+			{
+				SelectedFaders.AddUnique(FaderToSelect);
+			}
 		}
 	}
 	if (!SelectedFaders.IsEmpty())

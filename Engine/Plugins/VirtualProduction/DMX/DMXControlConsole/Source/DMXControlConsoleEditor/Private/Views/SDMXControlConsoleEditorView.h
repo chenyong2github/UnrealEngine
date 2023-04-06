@@ -15,6 +15,7 @@ class UDMXControlConsoleData;
 class FUICommandList;
 class IDetailsView;
 class SDockTab;
+class SSearchBox;
 class SVerticalBox;
 
 
@@ -34,7 +35,7 @@ public:
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs);
 
-	/** Gets DMX Control Console */
+	/** Gets current DMX Control Console Data */
 	UDMXControlConsoleData* GetControlConsoleData() const;
 
 protected:
@@ -46,11 +47,18 @@ protected:
 	//~ End of SWidget interface
 
 private:
+
 	/** Registers commands for this view */
 	void RegisterCommands();
 
 	/** Generates the toolbar for this view */
 	TSharedRef<SWidget> GenerateToolbar();
+
+	/** Restores global search filter text from Constrol Console Data */
+	void RestoreGlobalFilter();
+
+	/** Filters children by given search string  */
+	void ApplyGlobalFilter(const FString InSearchString);
 
 	/** Requests to update the Details Views on the next tick */
 	void RequestUpdateDetailsViews();
@@ -94,6 +102,9 @@ private:
 	/** Searches this widget's parents to see if it's a child of InDockTab */
 	bool IsWidgetInTab(TSharedPtr<SDockTab> InDockTab, TSharedPtr<SWidget> InWidget) const;
 
+	/** Gets visibility for each FaderGroupRowView widget */
+	EVisibility GetFaderGroupRowViewVisibility(UDMXControlConsoleFaderGroupRow* FaderGroupRow) const;
+
 	/** Gets add button visibility */
 	EVisibility GetAddButtonVisibility() const;
 
@@ -102,6 +113,9 @@ private:
 
 	/** Reference to FixturePatchRows widgets container */
 	TSharedPtr<SDMXControlConsoleEditorFixturePatchVerticalBox> FixturePatchVerticalBox;
+
+	/** Reference to Control Console searchbox used for global filtering */
+	TSharedPtr<SSearchBox> GlobalFilterSearchBox;
 
 	/** Shows DMX Control Console Data's details */
 	TSharedPtr<IDetailsView> ControlConsoleDataDetailsView;

@@ -32,9 +32,6 @@ public:
 	/** Gets the index of this row according to the referenced DMX Control Console */
 	int32 GetRowIndex() const { return FaderGroupRow->GetRowIndex(); }
 
-	/** Filters children by given search string  */
-	void ApplyGlobalFilter(const FString& InSearchString);
-
 protected:
 	//~ Begin SWidget interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -52,6 +49,9 @@ private:
 
 	/** Checks if FaderGroups array contains a reference to the given Fader Group */
 	bool ContainsFaderGroup(UDMXControlConsoleFaderGroup* FaderGroup);
+
+	/** Gets visibility for each FaderGroupView widget in this row */
+	EVisibility GetFaderGroupViewVisibility(UDMXControlConsoleFaderGroup* FaderGroup) const;
 
 	/** Weak Reference to this Fader Group Row */
 	TWeakObjectPtr<UDMXControlConsoleFaderGroupRow> FaderGroupRow;

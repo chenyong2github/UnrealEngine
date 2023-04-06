@@ -64,6 +64,15 @@ private:
 	/** Called when the fader name changes */
 	void OnFaderGroupNameCommitted(const FText& NewName, ETextCommit::Type InCommit);
 
+	/** Restores this widget to the last saved expansion state from the model */
+	void RestoreExpansionState();
+
+	/** Called when the Expand Arrow button is clicked */
+	void OnExpandArrowClicked(bool bExpand);
+
+	/** Manages horizontal Add Button widget's visibility */
+	EVisibility GetAddButtonVisibility() const;
+
 	/** Manages vertical Add Button widget's visibility */
 	EVisibility GetAddRowButtonVisibility() const;
 

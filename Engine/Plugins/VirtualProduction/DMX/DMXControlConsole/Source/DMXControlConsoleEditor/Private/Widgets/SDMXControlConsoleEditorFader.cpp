@@ -8,7 +8,6 @@
 #include "DMXControlConsoleFixturePatchFunctionFader.h"
 #include "DMXControlConsoleFixturePatchCellAttributeFader.h"
 #include "DMXControlConsoleRawFader.h"
-#include "DMXEditorUtils.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Style/DMXControlConsoleEditorStyle.h"
 #include "Widgets/SDMXControlConsoleEditorSpinBoxVertical.h"
@@ -172,101 +171,6 @@ void SDMXControlConsoleEditorFader::SetValueByPercentage(float InNewPercentage)
 
 	const float Range = Fader->GetMaxValue() - Fader->GetMinValue();
 	FaderSpinBox->SetValue(static_cast<uint32>(Range * InNewPercentage / 100.f) + Fader->GetMinValue());
-}
-
-void SDMXControlConsoleEditorFader::ApplyGlobalFilter(const FString& InSearchString)
-{	
-	if (!Fader.IsValid())
-	{
-		return;
-	}
-
-	if (InSearchString.IsEmpty())
-	{
-		SetVisibility(EVisibility::Visible);
-		return;
-	}
-
-	// Filter and return in order of precendence
-
-	// Attribute Name
-	const TArray<FString> AttributeNames = FDMXEditorUtils::ParseAttributeNames(InSearchString);
-	if (!AttributeNames.IsEmpty())
-	{
-		FString AttributeNameOfFader;
-		if (UDMXControlConsoleFixturePatchFunctionFader* FixturePatchFunctionFader = Cast<UDMXControlConsoleFixturePatchFunctionFader>(Fader.Get()))
-		{
-			AttributeNameOfFader = FixturePatchFunctionFader->GetAttributeName().Name.ToString();
-		}
-		else if (UDMXControlConsoleFixturePatchCellAttributeFader* FixturePatchCellAttribute = Cast<UDMXControlConsoleFixturePatchCellAttributeFader>(Fader.Get()))
-		{
-			AttributeNameOfFader = FixturePatchCellAttribute->GetAttributeName().Name.ToString();
-		}
-		else if (UDMXControlConsoleRawFader* RawFader = Cast<UDMXControlConsoleRawFader>(Fader.Get()))
-		{
-			AttributeNameOfFader = RawFader->GetFaderName();
-		}
-
-		if (!AttributeNameOfFader.IsEmpty())
-		{
-			for (const FString& AttributeName : AttributeNames)
-			{				
-				if (AttributeNameOfFader.Contains(AttributeName))
-				{
-					SetVisibility(EVisibility::Visible);
-					return;
-				}
-			}
-		}
-	}
-
-	// Universe
-	const TArray<int32> Universes = FDMXEditorUtils::ParseUniverses(InSearchString);
-	if (!Universes.IsEmpty() && Universes.Contains(Fader->GetUniverseID()))
-	{
-		SetVisibility(EVisibility::Visible);
-		return;
-	}
-
-	// Address
-	int32 Address;
-	if (FDMXEditorUtils::ParseAddress(InSearchString, Address))
-	{
-		if (!Universes.IsEmpty() && Universes.Contains(Fader->GetUniverseID()) && Address == Fader->GetStartingAddress())
-		{
-			SetVisibility(EVisibility::Visible);
-			return;
-		}
-	}
-
-	// Fixture ID
-	bool bFoundFixtureIDs = false;
-	const TArray<int32> FixtureIDs = FDMXEditorUtils::ParseFixtureIDs(InSearchString);
-	for (int32 FixtureID : FixtureIDs)
-	{
-		const UDMXEntityFixturePatch* FixturePatch = Fader->GetOwnerFaderGroupChecked().GetFixturePatch();
-		int32 FixtureIDOfPatch;
-		if (FixturePatch &&
-			FixturePatch->FindFixtureID(FixtureIDOfPatch) &&
-			FixtureIDOfPatch == FixtureID)
-		{
-			SetVisibility(EVisibility::Visible);
-			bFoundFixtureIDs = true;
-		}
-	}
-	if (bFoundFixtureIDs)
-	{
-		return;
-	}
-
-	SetVisibility(EVisibility::Collapsed);
-
-	// If not visible, remove from selection
-	if (IsSelected())
-	{
-		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-		SelectionHandler->RemoveFromSelection(Fader.Get());
-	}
 }
 
 FReply SDMXControlConsoleEditorFader::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)

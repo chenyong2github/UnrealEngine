@@ -26,25 +26,6 @@ void SDMXControlConsoleEditorFaderGroupRowView::Construct(const FArguments& InAr
 		];
 }
 
-void SDMXControlConsoleEditorFaderGroupRowView::ApplyGlobalFilter(const FString& InSearchString)
-{
-	bool bHasVisibleChildren = false;
-	for (TWeakPtr<SDMXControlConsoleEditorFaderGroupView>& WeakFaderGroupView : FaderGroupViews)
-	{
-		if (const TSharedPtr<SDMXControlConsoleEditorFaderGroupView> FaderGroupView = WeakFaderGroupView.Pin())
-		{
-			FaderGroupView->ApplyGlobalFilter(InSearchString);
-			if (FaderGroupView->GetVisibility() == EVisibility::Visible)
-			{
-				bHasVisibleChildren = true;
-			}
-		}
-	}
-
-	const EVisibility NewVisibility = bHasVisibleChildren ? EVisibility::Visible : EVisibility::Collapsed;
-	SetVisibility(NewVisibility);
-}
-
 void SDMXControlConsoleEditorFaderGroupRowView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	if (!ensureMsgf(FaderGroupRow.IsValid(), TEXT("Invalid fader group row, cannot update fader group row view state correctly.")))
@@ -102,7 +83,9 @@ void SDMXControlConsoleEditorFaderGroupRowView::AddFaderGroup(UDMXControlConsole
 
 	const int32 Index = FaderGroup->GetIndex();
 
-	TSharedRef<SDMXControlConsoleEditorFaderGroupView> FaderGroupWidget = SNew(SDMXControlConsoleEditorFaderGroupView, FaderGroup);
+	const TSharedRef<SDMXControlConsoleEditorFaderGroupView> FaderGroupWidget = 
+		SNew(SDMXControlConsoleEditorFaderGroupView, FaderGroup)
+		.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupRowView::GetFaderGroupViewVisibility, FaderGroup));
 
 	FaderGroupViews.Insert(FaderGroupWidget, Index);
 
@@ -162,6 +145,16 @@ bool SDMXControlConsoleEditorFaderGroupRowView::ContainsFaderGroup(UDMXControlCo
 	};
 
 	return FaderGroupViews.ContainsByPredicate(IsFaderGroupInUseLambda);
+}
+
+EVisibility SDMXControlConsoleEditorFaderGroupRowView::GetFaderGroupViewVisibility(UDMXControlConsoleFaderGroup* FaderGroup) const
+{
+	if (!FaderGroup)
+	{
+		return EVisibility::Collapsed;
+	}
+
+	return FaderGroup->GetIsVisibleInEditor() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 #undef LOCTEXT_NAMESPACE

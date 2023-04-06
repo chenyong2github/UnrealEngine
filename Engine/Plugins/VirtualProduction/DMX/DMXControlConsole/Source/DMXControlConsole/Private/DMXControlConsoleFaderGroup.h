@@ -89,15 +89,30 @@ public:
 	/** Destroys this Fader Group */
 	void Destroy();
 
+#if WITH_EDITOR
 	/** Resets bForceRefresh condition */
 	void ForceRefresh();
 
 	/** True if this Fader Group needs to be refreshed */
 	bool HasForceRefresh() const { return bForceRefresh; }
 
-#if WITH_EDITOR
 	/** Gets Fader Group color for Editor representation */
 	const FLinearColor& GetEditorColor() const { return EditorColor; }
+
+	/** Gets the expansion state of the Fader Group */
+	bool GetIsExpanded() const { return bIsExpanded; }
+
+	/** Sets the expansion state of the Fader Group */
+	void SetIsExpanded(const bool bExpanded);
+
+	/** Gets in Editor visibility state of the Fader Group */
+	bool GetIsVisibleInEditor() const { return bIsVisibleInEditor; }
+
+	/** Sets in Editor visibility state of the Fader Group */
+	void SetIsVisibleInEditor(bool bVisible) { bIsVisibleInEditor = bVisible; }
+
+	/** Sets in Editor visibility state of all elements to true */
+	void ShowAllElementsInEditor();
 #endif // WITH_EDITOR
 
 	// Property Name getters
@@ -160,8 +175,15 @@ private:
 	/** Color for Fader Group representation on the Editor */
 	UPROPERTY(EditAnywhere, Category = "DMX Fader Group")
 	FLinearColor EditorColor = FLinearColor::White;
-#endif
+
+	/** Fader Group expansion state saved from the Editor */
+	UPROPERTY()
+	bool bIsExpanded = false;
+
+	/** In Editor visibility state of the Fader Group */
+	bool bIsVisibleInEditor = true;
 
 	/** Shows wheter this Fader Group needs to be refreshed or not */
 	bool bForceRefresh = false;
+#endif
 };

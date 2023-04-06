@@ -69,6 +69,13 @@ int32 UDMXControlConsoleFixturePatchMatrixCell::GetEndingAddress() const
 	return 1;
 }
 
+#if WITH_EDITOR
+void UDMXControlConsoleFixturePatchMatrixCell::SetIsVisibleInEditor(bool bVisibleInEditor)
+{
+	bIsVisibleInEditor = HasVisibleInEditorCellAttributeFaders();
+}
+#endif // WITH_EDITOR
+
 void UDMXControlConsoleFixturePatchMatrixCell::Destroy() 
 {
 	UDMXControlConsoleFaderGroup* Outer = Cast<UDMXControlConsoleFaderGroup>(GetOuter());
@@ -163,6 +170,36 @@ void UDMXControlConsoleFixturePatchMatrixCell::SetPropertiesFromCell(const FDMXC
 
 	Algo::Sort(CellAttributeFaders, SortFadersByStartingAddressLambda);
 }
+
+#if WITH_EDITOR
+bool UDMXControlConsoleFixturePatchMatrixCell::HasVisibleInEditorCellAttributeFaders() const
+{
+	for (const UDMXControlConsoleFaderBase* CellAttributeFader : CellAttributeFaders)
+	{
+		if (CellAttributeFader && CellAttributeFader->GetIsVisibleInEditor())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+#endif // WITH_EDITOR
+
+#if WITH_EDITOR
+void UDMXControlConsoleFixturePatchMatrixCell::ShowAllFadersInEditor()
+{
+	for (UDMXControlConsoleFaderBase* CellAttributeFader : CellAttributeFaders)
+	{
+		if (!CellAttributeFader)
+		{
+			continue;
+		}
+
+		CellAttributeFader->SetIsVisibleInEditor(true);
+	}
+}
+#endif // WITH_EDITOR
 
 void UDMXControlConsoleFixturePatchMatrixCell::PostLoad()
 {
