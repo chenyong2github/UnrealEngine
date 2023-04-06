@@ -167,6 +167,9 @@ namespace Chaos
 
 		// Forcefully recreate the shared geometry on a cluster. Potentially expensive so ideally should be used rarely.
 		TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> ForceRecreateClusterUnionSharedGeometry(const FClusterUnion& Union);
+
+		// Handles updating the cluster union after it has particles removed from it. Could be called from either immediate or deferred removal.
+		void PostRemovalClusterUnionUpdate(FClusterUnion& Union);
 	};
 
 }
