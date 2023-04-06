@@ -56,14 +56,15 @@ public:
 	 */
 	bool HasOriginalChangedPropertiesSinceSnapshotWasTaken(AActor* SnapshotActor, AActor* WorldActor);
 
-	/** Gets the display label of the path of the actor */
+	/** Gets the display label of the path of the actor. This is useful for the LS UI to display actor names, especially of removed actors. */
 	FString GetActorLabel(const FSoftObjectPath& OriginalActorPath) const;
 	
 	/** Given an actor path in the world, gets the equivalent actor from the snapshot. */
 	TOptional<TNonNullPtr<AActor>> GetDeserializedActor(const FSoftObjectPath& OriginalActorPath);
 	
-	
+	/** Gets the number of actors saved by this snapshot. */
 	int32 GetNumSavedActors() const;
+	
 	/**
 	 * Compares this snapshot to the world and calls the appropriate callbacks:
 	 * @param World to check in

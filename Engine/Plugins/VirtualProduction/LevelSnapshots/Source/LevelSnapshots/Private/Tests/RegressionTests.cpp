@@ -8,6 +8,7 @@
 #include "Types/ActorWithReferencesInCDO.h"
 
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "Misc/AutomationTest.h"
 
 // Bug fixes should generally be tested. Put tests for bug fixes here.
@@ -205,6 +206,48 @@ namespace UE::LevelSnapshots::Private::Tests
 			.RunTest([&]()
 			{
 				TestTrue(TEXT("RootComponent"), Actor->GetRootComponent() != nullptr && Actor->GetRootComponent()->GetFName().IsEqual("InstancedComponent"));
+			});
+
+		return true;
+	}
+
+	/**
+	 * Verify that the actor label property is restored
+	 */
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRestoreActorLabel, "VirtualProduction.LevelSnapshots.Snapshot.Regression.ActorLabelRestores", (EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter));
+	bool FRestoreActorLabel::RunTest(const FString& Parameters)
+	{
+		AActor* KeepActor = nullptr;
+		AActor* RemovedActor = nullptr;
+		const FString KeepActorLabel = TEXT("KeepActor");
+		const FString RemovedActorLabel = TEXT("RemovedActor");
+	
+		FSnapshotTestRunner()
+			.ModifyWorld([&](UWorld* World)
+			{
+				KeepActor = World->SpawnActor<AActor>();
+				RemovedActor = World->SpawnActor<AActor>();;
+
+				KeepActor->SetActorLabel(KeepActorLabel);
+				RemovedActor->SetActorLabel(RemovedActorLabel);
+			})
+			.TakeSnapshot()
+			.ModifyWorld([&](UWorld* World)
+			{
+				KeepActor->SetActorLabel(TEXT("NewName"));
+				RemovedActor->Destroy();
+			})
+			.ApplySnapshot()
+			.ModifyWorld([&](UWorld* World)
+			{
+				TestEqual(TEXT("Modified actor label is restored"), KeepActor->GetActorLabel(), KeepActorLabel);
+
+				bool bRemovedActorHasCorrectLabel = false;
+				for (TActorIterator<AActor> ActorIt(World); ActorIt && !bRemovedActorHasCorrectLabel; ++ActorIt)
+				{
+					bRemovedActorHasCorrectLabel = ActorIt->GetActorLabel() == RemovedActorLabel;
+				}
+				TestTrue(TEXT("Removed actor label is restored"), bRemovedActorHasCorrectLabel);
 			});
 
 		return true;

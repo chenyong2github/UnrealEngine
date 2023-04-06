@@ -3,6 +3,7 @@
 #include "EngineTypesRestorationFence.h"
 
 #include "ActorGroupRestoration.h"
+#include "ActorLabelRestoration.h"
 #include "AttachParentShowsTransformProperties.h"
 #include "LevelInstanceRestoration.h"
 #include "Restorability/CollisionRestoration.h"
@@ -128,5 +129,6 @@ namespace UE::LevelSnapshots::Private::EngineTypesRestorationFence
 		AttachParentShowsTransformPropertiesFix::Register(Module);
 		LevelInstanceRestoration::Register(Module);
 		MaterialInstanceSupport::Register(Module);
+		ActorLabelRestoration::Register(Module);
 	}
 }

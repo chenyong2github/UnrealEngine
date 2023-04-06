@@ -23,7 +23,15 @@ ASnapshotTestActor* ASnapshotTestActor::Spawn(UWorld* World, FName Name)
 	Params.bNoFail = true;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	Params.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
-	return World->SpawnActor<ASnapshotTestActor>(Params);
+	ASnapshotTestActor* Result = World->SpawnActor<ASnapshotTestActor>(Params);
+
+	// Editor code sets an actor's label after adding it to the world. Note that GetActorLabel sets a label (see default param bCreateIfNone = true)
+	// Without this call, the actor would not have any label. When the unit test diffs properties, GetActorLabel will have been called, giving the actor a label.
+	// The transient snapshot actor would not have a label. This would generate an unexpected diff which a unit test is not even testing for
+	// Summary: Just give all actors a label so they do not generate false diffs.
+	Result->SetActorLabel(Name.ToString());
+	
+	return Result;
 }
 
 ASnapshotTestActor::ASnapshotTestActor()
