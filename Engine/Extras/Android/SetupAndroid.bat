@@ -83,7 +83,7 @@ IF /I "%ERRORLEVEL%" NEQ "0" (
 	echo Added %PLATFORMTOOLS% to path
 )
 
-set SDKMANAGER=%STUDIO_SDK_PATH%\cmdline-tools\latest\bin\sdkmanager.bat
+set SDKMANAGER=%STUDIO_SDK_PATH%\cmdline-tools\8.0\bin\sdkmanager.bat
 IF EXIST "%SDKMANAGER%" (
 	echo Using sdkmanager: %SDKMANAGER%
 ) ELSE (

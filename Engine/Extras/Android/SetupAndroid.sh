@@ -89,7 +89,7 @@ if [ "$retVal" == "" ]; then
 	echo Added $PLATFORMTOOLS to path
 fi
 
-SDKMANAGERPATH="$STUDIO_SDK_PATH/cmdline-tools/latest/bin"
+SDKMANAGERPATH="$STUDIO_SDK_PATH/cmdline-tools/8.0/bin"
 if [ ! -d "$SDKMANAGERPATH" ]; then
 	SDKMANAGERPATH="$STUDIO_SDK_PATH/tools/bin"
 	if [ ! -d "$SDKMANAGERPATH" ]; then

@@ -97,7 +97,7 @@ export JAVA_HOME="$STUDIO_PATH/Contents/jre/jdk/Contents/Home"
 NDKINSTALLPATH="$STUDIO_SDK_PATH/ndk/${NDK_VERSION}"
 PLATFORMTOOLS="$STUDIO_SDK_PATH/platform-tools:$STUDIO_SDK_PATH/build-tools/${BUILDTOOLS_VERSION}:$STUDIO_SDK_PATH/tools/bin"
 adbPath=$(type -P "adb")
-SDKMANAGERPATH="$STUDIO_SDK_PATH/cmdline-tools/latest/bin"
+SDKMANAGERPATH="$STUDIO_SDK_PATH/cmdline-tools/8.0/bin"
 if [ ! -d "$SDKMANAGERPATH" ]; then
 	SDKMANAGERPATH="$STUDIO_SDK_PATH/tools/bin"
 	if [ ! -d "$SDKMANAGERPATH" ]; then
