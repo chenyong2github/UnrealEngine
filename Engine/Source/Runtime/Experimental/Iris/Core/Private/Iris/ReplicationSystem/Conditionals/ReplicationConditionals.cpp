@@ -771,15 +771,8 @@ void FReplicationConditionals::ClearConnectionInfosForObject(const FNetBitArray&
 {
 	IRIS_PROFILER_SCOPE(FReplicationConditionals_ClearConnectionInfosForObject);
 
-	// 0 is not a valid connection ID so we adjust it to one-based in the loop.
-	for (uint32 ConnIt = 0, ConnEndIt = MaxConnectionId; ConnIt != ConnEndIt; ++ConnIt)
+	for (uint32 ConnectionId : ValidConnections)
 	{
-		const uint32 ConnectionId = ConnIt + 1U;
-		if (!ValidConnections.GetBit(ConnectionId))
-		{
-			continue;
-		}
-
 		FPerConnectionInfo& ConnectionInfo = ConnectionInfos[ConnectionId];
 		ConnectionInfo.ObjectConditionals[ObjectIndex] = FConditionalsMask{};
 	}

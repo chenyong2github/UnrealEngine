@@ -258,15 +258,8 @@ void FDeltaCompressionBaselineManager::UpdateDirtyStateMasks(const FChangeMaskCa
 		ChangeMaskStorageType*const ConnectionChangeMaskStoragePtr = ObjectInfo->ChangeMasksForConnections;
 		ChangeMaskStorageType const*const UpdatedChanges = DirtyChangeMaskStoragePtr + Entry.StorageOffset;
 		const SIZE_T ChangeMaskStridePerConnection = ObjectInfo->ChangeMaskStride;
-		// 0 is not a valid connection ID so we adjust it to one-based in the loop.
-		for (uint32 ConnIt = 0, ConnEndIt = MaxConnectionId; ConnIt != ConnEndIt; ++ConnIt)
+		for (uint32 ConnectionId : ValidConnections)
 		{
-			const uint32 ConnectionId = ConnIt + 1U;
-			if (!ValidConnections.GetBit(ConnectionId))
-			{
-				continue;
-			}
-
 			const SIZE_T ChangeMaskOffset = ChangeMaskStridePerConnection*ConnectionId;
 			ChangeMaskStorageType* ConnectionChangeMask = ConnectionChangeMaskStoragePtr + ChangeMaskOffset;
 			for (uint32 WordIt = 0, WordEndIt = ChangeMaskStridePerConnection; WordIt != WordEndIt; ++WordIt)
@@ -640,15 +633,8 @@ void FDeltaCompressionBaselineManager::InvalidateBaselinesDueToModifiedCondition
 		FPerObjectInfo* ObjectInfo = GetPerObjectInfo(ObjectInfoIndex);
 		if (InvalidationInfo.ConnId == BaselineInvalidationTracker->InvalidateBaselineForAllConnections)
 		{
-			// 0 is not a valid connection ID so we adjust it to one-based in the loop.
-			for (uint32 ConnIt = 0, ConnEndIt = MaxConnectionId; ConnIt != ConnEndIt; ++ConnIt)
+			for (uint32 ConnectionId : ValidConnections)
 			{
-				const uint32 ConnectionId = ConnIt + 1U;
-				if (!ValidConnections.GetBit(ConnectionId))
-				{
-					continue;
-				}
-
 				FObjectBaselineInfo& BaselineInfo = ObjectInfo->BaselinesForConnections[ConnectionId];
 				for (const uint32 BaselineIndex : {0, 1})
 				{

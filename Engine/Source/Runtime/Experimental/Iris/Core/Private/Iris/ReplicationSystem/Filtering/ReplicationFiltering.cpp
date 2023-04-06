@@ -808,13 +808,9 @@ void FReplicationFiltering::UpdateObjectsInScope()
 	}
 
 	// Update the scope for all valid connections.
-	for (FPerConnectionInfo& ConnectionInfo : ConnectionInfos)
+	for (uint32 ConnectionId : ValidConnections)
 	{
-		const SIZE_T Index = &ConnectionInfo - ConnectionInfos.GetData();
-		if (!ValidConnections.GetBit(Index))
-		{
-			continue;
-		}
+		FPerConnectionInfo& ConnectionInfo = ConnectionInfos[ConnectionId];
 
 		// Or in brand new objects and mask off deleted objects by anding with now existing objects.
 		uint32* FilteredObjectsStorage = ConnectionInfo.ConnectionFilteredObjects.GetData();
