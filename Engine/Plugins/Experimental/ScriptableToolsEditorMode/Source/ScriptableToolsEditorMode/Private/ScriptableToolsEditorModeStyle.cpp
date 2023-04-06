@@ -72,6 +72,55 @@ void FScriptableToolsEditorModeStyle::Initialize()
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 };
 
+
+bool FScriptableToolsEditorModeStyle::TryRegisterCustomIcon(FName StyleIdentifier, FString FileNameWithPath, FString ExternalRelativePath)
+{
+	if ( ! ensure(StyleSet.IsValid()) )
+	{
+		return false;
+	}
+
+	const FVector2D Icon20x20(20.0f, 20.0f);
+
+	if (ExternalRelativePath.IsEmpty())
+	{
+		ExternalRelativePath = FileNameWithPath;
+	}
+
+	if (FPaths::FileExists(FileNameWithPath) == false)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Custom ScriptableTool Icon file not found at path %s (on-disk path is %s)"), *ExternalRelativePath, *FileNameWithPath);
+		return false;
+	}
+
+	FString Extension = FPaths::GetExtension(FileNameWithPath);
+	if ( !(Extension.Equals("svg", ESearchCase::IgnoreCase) || Extension.Equals("png", ESearchCase::IgnoreCase)) )
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Custom ScriptableTool Icon at path %s has unsupported type, must be svg or png"), *ExternalRelativePath);
+		return false;
+	}
+
+	// need to re-register style to be able to modify it
+	FSlateStyleRegistry::UnRegisterSlateStyle(*StyleSet.Get());
+
+	if (Extension.Equals("svg", ESearchCase::IgnoreCase))
+	{
+		StyleSet->Set(StyleIdentifier,
+			new FSlateVectorImageBrush(FileNameWithPath, Icon20x20));
+	}
+	else if (Extension.Equals("png", ESearchCase::IgnoreCase))
+	{
+		StyleSet->Set(StyleIdentifier,
+			new FSlateImageBrush(FileNameWithPath, Icon20x20) );
+	}
+
+	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
+
+	return true;
+}
+
+
+
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 #undef IMAGE_PLUGIN_BRUSH

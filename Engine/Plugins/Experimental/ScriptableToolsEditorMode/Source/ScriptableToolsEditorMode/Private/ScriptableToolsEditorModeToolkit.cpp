@@ -9,6 +9,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IDetailsView.h"
 #include "Toolkits/AssetEditorModeUILayer.h"
+#include "Interfaces/IPluginManager.h"
 
 #include "InteractiveToolManager.h"
 
@@ -391,9 +392,51 @@ void FScriptableToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, cla
 		FName InExtensionHook = NAME_None;
 		TAttribute<FText> Label = ToolCDO->ToolName.IsEmpty() ? LOCTEXT("EmptyToolName", "Tool") : ToolCDO->ToolName;
 		TAttribute<FText> Tooltip = ToolCDO->ToolTooltip.IsEmpty() ? FText() : ToolCDO->ToolTooltip;
-		// hardcoded icon name for now
+		
+		// default icon comes with the mode
 		TAttribute<FSlateIcon> Icon = FSlateIcon(FScriptableToolsEditorModeStyle::Get()->GetStyleSetName(), "ScriptableToolsEditorModeToolCommands.DefaultToolIcon");
-			
+
+		// if a custom icon is defined, try to find it, this can fail in many ways, in that case
+		// the default icon is kept
+		if (ToolCDO->CustomIconPath.IsEmpty() == false)
+		{
+			FName ToolIconToken( FString("ScriptableToolsEditorModeToolCommands.") + ToolIdentifier );
+
+			// Custom Tool Icons are assumed to reside in the same Content folder as the Plugin/Project that
+			// the Tool Class is defined in, and that the CustomIconPath is a relative path inside that Content folder.
+			// use the class Package path to determine if this it is in a Plugin or directly in the Project, so that
+			// we can get the right ContentDir below.
+			// (Note that a relative ../../../ style path can always be used to redirect to any other file...)
+			FString FullPathName = ToolCDO->GetClass()->GetPathName();
+			FString PathPart, FilenamePart, ExtensionPart;
+			FPaths::Split(FullPathName, PathPart, FilenamePart, ExtensionPart);
+
+			FString FullIconPath = ToolCDO->CustomIconPath;
+			if (PathPart.StartsWith("/Game"))
+			{
+				FullIconPath = FPaths::ProjectContentDir() / ToolCDO->CustomIconPath;
+			}
+			else
+			{
+				TArray<FString> PathParts;
+				PathPart.ParseIntoArray(PathParts, TEXT("/"));
+				if (PathParts.Num() > 0)
+				{
+					FString PluginContentDir = IPluginManager::Get().FindPlugin(PathParts[0])->GetContentDir();
+					FullIconPath = PluginContentDir / ToolCDO->CustomIconPath;
+				}
+				else  // something is wrong, fall back to project content dir
+				{
+					FullIconPath = FPaths::ProjectContentDir() / ToolCDO->CustomIconPath;
+				}
+			}
+
+			if (FScriptableToolsEditorModeStyle::TryRegisterCustomIcon(ToolIconToken, FullIconPath, ToolCDO->CustomIconPath))
+			{
+				Icon = FSlateIcon(FScriptableToolsEditorModeStyle::Get()->GetStyleSetName(), ToolIconToken);
+			}
+		}
+		
 		ToolbarBuilder.AddToolBarButton(*NewAction, InExtensionHook, Label, Tooltip, Icon);
 
 	});

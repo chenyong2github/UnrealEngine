@@ -288,6 +288,19 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Scriptable Tool Settings", meta=(DisplayName="Tooltip"))
 	FText ToolTooltip;
 
+	/**
+	 * Relative Path to a custom Icon Image for this Tool. The Image file format must be png or svg. 
+	 *
+	 * The Image file must reside in the same Content folder hierarchy as contains the Tool Class (ie Blueprint asset), 
+	 * i.e. either the Project Content folder or a Plugin Content folder.
+	 * 
+	 * So for example if the Tool BP is in a plugin named MyCustomTools, the icon must be in 
+	 *      MyProject/Plugins/MyCustomTools/Content/<SubFolders>/MyToolIcon.png,
+	 * and the relative path to use here would be <SubFolders>/MyToolIcon.png
+	 */ 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Scriptable Tool Settings", meta = (DisplayName = "Custom Icon Path"))
+	FString CustomIconPath;
+
 	/** A generic flag to indicate whether this Tool should be shown in the UE Editor. This may be interpreted in different ways */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Scriptable Tool Settings", meta=(DisplayName="Visible in Editor"))
 	bool bShowToolInEditor = true;
