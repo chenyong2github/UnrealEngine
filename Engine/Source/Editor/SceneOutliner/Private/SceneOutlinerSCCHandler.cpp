@@ -387,7 +387,7 @@ void FSceneOutlinerSCCHandler::ExecuteSCCCheckOut()
 
 	if ( PackagesToCheckOut.Num() > 0 )
 	{
-		FEditorFileUtils::CheckoutPackages(PackagesToCheckOut);
+		FEditorFileUtils::CheckoutPackages(PackagesToCheckOut, nullptr, /*bErrorIfAlreadyCheckedOut=*/false);
 	}
 }
 
