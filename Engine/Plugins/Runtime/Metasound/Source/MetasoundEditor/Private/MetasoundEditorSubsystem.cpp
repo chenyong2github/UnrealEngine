@@ -23,7 +23,7 @@ TScriptInterface<IMetaSoundDocumentInterface> UMetaSoundEditorSubsystem::BuildTo
 		constexpr UFactory* Factory = nullptr;
 
 		// Not about to follow this lack of const correctness down a multidecade in the works rabbit hole.
-		UClass& BuilderUClass = const_cast<UClass&>(InBuilder->GetBaseMetaSoundUClass());
+		UClass& BuilderUClass = const_cast<UClass&>(InBuilder->GetBuilderUClass());
 		if (UObject* NewMetaSound = IAssetTools::Get().CreateAsset(AssetName, PackagePath, &BuilderUClass, Factory))
 		{
 			InBuilder->InitNodeLocations();

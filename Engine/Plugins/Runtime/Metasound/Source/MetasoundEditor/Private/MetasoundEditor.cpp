@@ -1769,8 +1769,11 @@ namespace Metasound
 				FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
 				check(MetasoundAsset);
 
+				const UClass* MetaSoundClass = Metasound->GetClass();
+				check(MetaSoundClass);
+
 				TScriptInterface<IMetaSoundDocumentInterface> DocInterface = MetasoundAsset->GetOwningAsset();
-				FMetaSoundFrontendDocumentBuilder Builder(DocInterface);
+				FMetaSoundFrontendDocumentBuilder Builder(MetaSoundClass->GetClassPathName(), DocInterface);
 				Builder.ConvertFromPreset();
 
 				// Hack until toolbar is polished up & corner text properly dynamically updates

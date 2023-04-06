@@ -90,9 +90,12 @@ struct METASOUNDFRONTEND_API FMetaSoundFrontendDocumentBuilder
 	GENERATED_BODY()
 
 public:
+	// Exists only to make UObject reflection happy.  Should never be
+	// used directly as builder class should be specified on construction.
 	FMetaSoundFrontendDocumentBuilder();
-	FMetaSoundFrontendDocumentBuilder(FMetaSoundFrontendDocumentBuilder&& InBuilder);
-	FMetaSoundFrontendDocumentBuilder(TScriptInterface<IMetaSoundDocumentInterface> InDocumentInterface);
+	FMetaSoundFrontendDocumentBuilder(const FTopLevelAssetPath& InBuilderClassPath);
+	FMetaSoundFrontendDocumentBuilder(const FTopLevelAssetPath& InBuilderClassPath, FMetaSoundFrontendDocumentBuilder&& InBuilder);
+	FMetaSoundFrontendDocumentBuilder(const FTopLevelAssetPath& InBuilderClassPath, TScriptInterface<IMetaSoundDocumentInterface> InDocumentInterface);
 
 	// Copying actively used builders is highly discouraged (as only one builder should be acting on a document at any given time
 	// to avoid internal cache state to become out-of-date) but must contractually be implemented in this case as a USTRUCT (builders
@@ -180,6 +183,7 @@ private:
 	TScriptInterface<IMetaSoundDocumentInterface> DocumentInterface;
 
 	TUniquePtr<Metasound::Frontend::IDocumentCache> DocumentCache;
+	FTopLevelAssetPath BuilderClassPath;
 
 	FMetasoundFrontendDocument& GetDocument();
 

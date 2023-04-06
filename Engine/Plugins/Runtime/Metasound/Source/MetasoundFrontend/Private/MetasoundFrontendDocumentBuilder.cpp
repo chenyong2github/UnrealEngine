@@ -97,11 +97,18 @@ namespace Metasound::Frontend
 } // namespace Metasound::Frontend
 
 FMetaSoundFrontendDocumentBuilder::FMetaSoundFrontendDocumentBuilder()
+	: BuilderClassPath(UMetaSoundDocumentInterface::StaticClass()->GetClassPathName())
 {
 }
 
-FMetaSoundFrontendDocumentBuilder::FMetaSoundFrontendDocumentBuilder(TScriptInterface<IMetaSoundDocumentInterface> InDocumentInterface)
+FMetaSoundFrontendDocumentBuilder::FMetaSoundFrontendDocumentBuilder(const FTopLevelAssetPath& InBuilderClassPath)
+	: BuilderClassPath(InBuilderClassPath)
+{
+}
+
+FMetaSoundFrontendDocumentBuilder::FMetaSoundFrontendDocumentBuilder(const FTopLevelAssetPath& InBuilderClassPath, TScriptInterface<IMetaSoundDocumentInterface> InDocumentInterface)
 	: DocumentInterface(InDocumentInterface)
+	, BuilderClassPath(InBuilderClassPath)
 {
 	ReloadCache();
 }
@@ -113,11 +120,13 @@ FMetaSoundFrontendDocumentBuilder::FMetaSoundFrontendDocumentBuilder(const FMeta
 	{
 		ReloadCache();
 	}	
+	BuilderClassPath = InBuilder.BuilderClassPath;
 }
 
-FMetaSoundFrontendDocumentBuilder::FMetaSoundFrontendDocumentBuilder(FMetaSoundFrontendDocumentBuilder&& InBuilder)
+FMetaSoundFrontendDocumentBuilder::FMetaSoundFrontendDocumentBuilder(const FTopLevelAssetPath& InBuilderClassPath, FMetaSoundFrontendDocumentBuilder&& InBuilder)
 	: DocumentInterface(MoveTemp(InBuilder.DocumentInterface))
 	, DocumentCache(MoveTemp(InBuilder.DocumentCache))
+	, BuilderClassPath(MoveTemp(BuilderClassPath))
 {
 }
 
@@ -126,6 +135,7 @@ FMetaSoundFrontendDocumentBuilder& FMetaSoundFrontendDocumentBuilder::operator=(
 	using namespace Metasound::Frontend;
 	DocumentInterface = MoveTemp(InRHS.DocumentInterface);
 	DocumentCache = MoveTemp(InRHS.DocumentCache);
+	BuilderClassPath = MoveTemp(InRHS.BuilderClassPath);
 	return *this;
 }
 
@@ -137,7 +147,8 @@ FMetaSoundFrontendDocumentBuilder& FMetaSoundFrontendDocumentBuilder::operator=(
 	if (DocumentInterface)
 	{
 		ReloadCache();
-	}	
+	}
+	BuilderClassPath = InRHS.BuilderClassPath;
 	return *this;
 }
 
@@ -525,11 +536,10 @@ bool FMetaSoundFrontendDocumentBuilder::AddInterface(FName InterfaceName)
 		const FInterfaceRegistryKey Key = GetInterfaceRegistryKey(Interface.Version);
 		if (const IInterfaceRegistryEntry* Entry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(Key))
 		{
-			const FTopLevelAssetPath ClassPath = DocumentInterface->GetBaseMetaSoundUClass().GetClassPathName();
-			const FMetasoundFrontendInterfaceUClassOptions* ClassOptions = Entry->GetInterface().FindClassOptions(ClassPath);
+			const FMetasoundFrontendInterfaceUClassOptions* ClassOptions = Entry->GetInterface().FindClassOptions(BuilderClassPath);
 			if (ClassOptions && !ClassOptions->bIsModifiable)
 			{
-				UE_LOG(LogMetaSound, Error, TEXT("DocumentBuilder failed to add MetaSound Interface '%s' to document: is not set to be modifiable for given UClass '%s'"), *InterfaceName.ToString(), *ClassPath.ToString());
+				UE_LOG(LogMetaSound, Error, TEXT("DocumentBuilder failed to add MetaSound Interface '%s' to document: is not set to be modifiable for given UClass '%s'"), *InterfaceName.ToString(), *BuilderClassPath.ToString());
 				return false;
 			}
 		}
@@ -957,9 +967,7 @@ void FMetaSoundFrontendDocumentBuilder::InitDocument()
 
 	// 3. Add default interfaces for given UClass
 	{
-		const UClass& BaseMetaSoundClass = DocInterface->GetBaseMetaSoundUClass();
-		const FTopLevelAssetPath BaseMetaSoundClassPath = BaseMetaSoundClass.GetClassPathName();
-		TArray<FMetasoundFrontendVersion> InitVersions = ISearchEngine::Get().FindUClassDefaultInterfaceVersions(BaseMetaSoundClassPath);
+		TArray<FMetasoundFrontendVersion> InitVersions = ISearchEngine::Get().FindUClassDefaultInterfaceVersions(BuilderClassPath);
 		FModifyRootGraphInterfaces ModifyRootGraphInterfaces({ }, InitVersions);
 		ModifyRootGraphInterfaces.Transform(Document);
 	}
@@ -1264,11 +1272,10 @@ bool FMetaSoundFrontendDocumentBuilder::RemoveInterface(FName InterfaceName)
 		const FInterfaceRegistryKey Key = GetInterfaceRegistryKey(Interface.Version);
 		if (const IInterfaceRegistryEntry* Entry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(Key))
 		{
-			const FTopLevelAssetPath ClassPath = DocumentInterface->GetBaseMetaSoundUClass().GetClassPathName();
-			const FMetasoundFrontendInterfaceUClassOptions* ClassOptions = Entry->GetInterface().FindClassOptions(ClassPath);
+			const FMetasoundFrontendInterfaceUClassOptions* ClassOptions = Entry->GetInterface().FindClassOptions(BuilderClassPath);
 			if (ClassOptions && !ClassOptions->bIsModifiable)
 			{
-				UE_LOG(LogMetaSound, Error, TEXT("DocumentBuilder failed to remove MetaSound Interface '%s' to document: is not set to be modifiable for given UClass '%s'"), *InterfaceName.ToString(), *ClassPath.ToString());
+				UE_LOG(LogMetaSound, Error, TEXT("DocumentBuilder failed to remove MetaSound Interface '%s' to document: is not set to be modifiable for given UClass '%s'"), *InterfaceName.ToString(), *BuilderClassPath.ToString());
 				return false;
 			}
 		}

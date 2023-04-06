@@ -141,10 +141,6 @@ void UMetaSoundSource::PostEditChangeOutputFormat()
 {
 	using namespace Metasound::Frontend;
 
-	// Add and/or remove output format interfaces from the root document.
-	TScriptInterface<IMetaSoundDocumentInterface> DocInterface = this;
-	FMetaSoundFrontendDocumentBuilder Builder(DocInterface);
-
 	const UMetaSoundBuilderSubsystem* BuilderSubsystem = GEngine->GetEngineSubsystem<UMetaSoundBuilderSubsystem>();
 	check(BuilderSubsystem);
 	UMetaSoundSourceBuilder* SourceBuilder = BuilderSubsystem->AttachSourceBuilderToAsset(this);
