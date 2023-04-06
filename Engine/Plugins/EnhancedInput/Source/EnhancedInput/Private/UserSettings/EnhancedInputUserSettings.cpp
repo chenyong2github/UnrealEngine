@@ -777,10 +777,8 @@ void UEnhancedInputUserSettings::Serialize(FArchive& Ar)
 			if (const UClass* FoundClass = FindObject<UClass>(nullptr, *Header.ClassPath))
 			{
 				UEnhancedPlayerMappableKeyProfile* NewProfile = NewObject<UEnhancedPlayerMappableKeyProfile>(/* outer */ this, /* class */ FoundClass);
+				SavedKeyProfiles.Add(Header.ProfileIdentifier, NewProfile);
 
-				// Add the new profile to the settings object. This will replace the old profile if one existed
-				SavedKeyProfiles.Add(Header.ProfileIdentifier, NewProfile);				
-				
 				// Add any player saved keys to this profile!
 				for (UE::EnhancedInput::FKeyMappingSaveData& SavedKeyData : Header.DirtyMappings)
 				{
@@ -793,18 +791,6 @@ void UEnhancedInputUserSettings::Serialize(FArchive& Ar)
 					PlayerMapping.HardwareDeviceId = SavedKeyData.HardwareDeviceId;
 					
 					MappingRow.Mappings.Add(PlayerMapping);
-				}
-
-				// We need to populate this key profile with all the known key mappings so that it's up to date 
-				for (TObjectPtr<UInputMappingContext> IMC : RegisteredMappingContexts)
-				{
-					RegisterKeyMappingsToProfile(*NewProfile, IMC);
-				}
-
-				// Ensure that the owning local player is up to date
-				if (const ULocalPlayer* LP = GetLocalPlayer())
-				{
-					NewProfile->OwningUserId = LP->GetPlatformUserId();
 				}
 			}
 		}
@@ -1096,12 +1082,6 @@ UEnhancedPlayerMappableKeyProfile* UEnhancedInputUserSettings::CreateNewKeyProfi
 		OutProfile->OwningUserId = InArgs.UserId;
 		
 		SavedKeyProfiles.Add(InArgs.ProfileIdentifier, OutProfile);
-		
-		// We need to populate this key profile with all the known key mappings so that it's up to date 
-		for (TObjectPtr<UInputMappingContext> IMC : RegisteredMappingContexts)
-		{
-			RegisterKeyMappingsToProfile(*OutProfile, IMC);
-		}
 	}
 	
 	// set as current
@@ -1145,31 +1125,19 @@ bool UEnhancedInputUserSettings::RegisterInputMappingContext(UInputMappingContex
 		return false;
 	}
 
-	// There is no need to re-register an IMC if it is has already been registered.
+	// There is no need to re-register an IMC
 	if (RegisteredMappingContexts.Contains(IMC))
 	{
+		UE_LOG(LogEnhancedInput, VeryVerbose, TEXT("Mapping Context '%s' is already registered with the User Settings."), *IMC->GetFName().ToString());
 		return false;
 	}
 	
-	// Keep track of all the registered IMC's
-	RegisteredMappingContexts.Add(IMC);
+	const FSetElementId Res = RegisteredMappingContexts.Add(IMC);
 
-	bool bResult = true;
-
-	// Register the mappings of this IMC to every saved key profile
-	for (TPair<FGameplayTag, TObjectPtr<UEnhancedPlayerMappableKeyProfile>> Pair : SavedKeyProfiles)
+	UEnhancedPlayerMappableKeyProfile* CurrentProfile = GetCurrentKeyProfile();
+	if (!CurrentProfile)
 	{
-		bResult &= RegisterKeyMappingsToProfile(*Pair.Value, IMC);
-	}
-	
-	return bResult;
-}
-
-bool UEnhancedInputUserSettings::RegisterKeyMappingsToProfile(UEnhancedPlayerMappableKeyProfile& Profile, UInputMappingContext* IMC)
-{
-	if (!IMC)
-	{
-		UE_LOG(LogEnhancedInput, Error, TEXT("Attempting to register a null mapping context with the user settings!"));
+		UE_LOG(LogEnhancedInput, Error, TEXT("There is not an active key profile!"));
 		ensure(false);
 		return false;
 	}
@@ -1196,7 +1164,7 @@ bool UEnhancedInputUserSettings::RegisterKeyMappingsToProfile(UEnhancedPlayerMap
 		int32& NumDefinedMappings = OriginalMappingsDesiredSlot.FindOrAdd(ActionName);
 
 		// Find or create a mapping row 
-		FKeyMappingRow& MappingRow = Profile.PlayerMappedKeys.FindOrAdd(ActionName);
+		FKeyMappingRow& MappingRow = CurrentProfile->PlayerMappedKeys.FindOrAdd(ActionName);
 		
 		// By default, the slot will be determined by how many mappings this action has already.
 		// So if this is the first default mapping, then this will be EPlayerMappableKeySlot::First,
@@ -1240,11 +1208,14 @@ bool UEnhancedInputUserSettings::RegisterKeyMappingsToProfile(UEnhancedPlayerMap
 			MappingRow.Mappings.Add({ KeyMapping, IMCDefinedSlot });	
 		}
 	}
-	
-	OnMappingContextRegistered.Broadcast(IMC);	
+
+	if (Res.IsValidId())
+	{
+		OnMappingContextRegistered.Broadcast(IMC);	
+	}
 
 	UE_LOG(LogEnhancedInput, Verbose, TEXT("Registered IMC with UEnhancedInputUserSettings: %s"), *IMC->GetFName().ToString());
-	return true;
+	return Res.IsValidId();
 }
 
 bool UEnhancedInputUserSettings::UnregisterInputMappingContext(const UInputMappingContext* IMC)
