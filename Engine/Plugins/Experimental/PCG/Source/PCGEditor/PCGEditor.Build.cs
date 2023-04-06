@@ -13,14 +13,9 @@ namespace UnrealBuildTool.Rules
 			"Core",
 			"Projects",
 			"Engine",
-			"CoreUObject"
-        });
-
-		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
-		{
-			PublicDependencyModuleNames.Add("PlacementMode");
-		}
-
+			"CoreUObject",
+			"PlacementMode"
+		});
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
