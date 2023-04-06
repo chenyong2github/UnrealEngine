@@ -737,6 +737,18 @@ static EDDSError ReadPayload(FDDSFile* InDDS, const uint8* InReadCursor, const u
 }
 
 
+int64 GetDDSHeaderMaximalSize()
+{
+	return sizeof(FDDSHeaderWithMagic) + sizeof(FDDSHeaderDX10);
+}
+
+int64 GetDDSHeaderMinimalSize()
+{
+	return sizeof(FDDSHeaderWithMagic);
+}
+
+
+
 /* static */ FDDSFile* FDDSFile::CreateFromDDSInMemory(const uint8* InDDS, int64 InDDSSize, EDDSError *OutError, bool bHeaderOnly)
 {
 	// If no OutError passed in, redirect it to dummy storage on stack.

@@ -337,4 +337,9 @@ namespace UE { namespace DDS
 	IMAGECORE_API EDXGIFormat DXGIFormatFromRawFormat(ERawImageFormat::Type RawFormat,EGammaSpace GammaSpace);
 
 	IMAGECORE_API ERawImageFormat::Type DXGIFormatGetClosestRawFormat(EDXGIFormat fmt, bool * pIsExactMatch = nullptr);
+	
+	// note these sizes include the 4-byte magic word, unlike the older DDSLoader functions
+	IMAGECORE_API int64 GetDDSHeaderMaximalSize();
+	IMAGECORE_API int64 GetDDSHeaderMinimalSize();
+
 } }

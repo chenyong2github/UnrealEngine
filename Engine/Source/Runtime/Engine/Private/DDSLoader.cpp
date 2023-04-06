@@ -5,6 +5,10 @@
 #include "Engine/Texture2D.h"
 #include "RenderUtils.h"
 
+// deprecated and unused -> delete me !
+// disable warnings about myself :
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 FDDSLoadHelper::FDDSLoadHelper(const uint8* Buffer, uint64 Length) 
 	: DDSHeader(0), DDS10Header(0)
 {
@@ -258,3 +262,4 @@ int64 FDDSLoadHelper::GetDDSHeaderMinimalSize()
 	return sizeof(FDDSFileHeader);
 }
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

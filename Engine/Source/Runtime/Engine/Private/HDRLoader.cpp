@@ -4,6 +4,8 @@
 #include "HDRLoader.h"
 #include "DDSLoader.h"
 
+// deprecated and unused -> delete me !
+
 DEFINE_LOG_CATEGORY_STATIC(LogHDRLoader, Log, All);
 
 FHDRLoadHelper::FHDRLoadHelper(const uint8* Buffer, uint32 BufferLength)

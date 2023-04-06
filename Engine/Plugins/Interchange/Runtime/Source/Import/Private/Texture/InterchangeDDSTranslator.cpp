@@ -3,7 +3,6 @@
 #include "Texture/InterchangeDDSTranslator.h"
 
 #include "DDSFile.h"
-#include "DDSLoader.h"
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
 #include "HAL/FileManager.h"
@@ -39,14 +38,13 @@ namespace UE::Interchange::Private::InterchangeDDSTranslator
 
 		if (FileReaderArchive)
 		{
-			const int64 SizeOfDDSMarker = 4;
 			const int64 SizeOfFile = FileReaderArchive->TotalSize();
-			const int64 MinimalHeaderSize = FDDSLoadHelper::GetDDSHeaderMinimalSize() + SizeOfDDSMarker;
+			const int64 MinimalHeaderSize = UE::DDS::GetDDSHeaderMinimalSize();
 
 			// If the file is not bigger than the smallest header possible then clearly the file is not valid as a dds file.
 			if (SizeOfFile > MinimalHeaderSize)
 			{
-				const int64 MaximalHeaderSize = FDDSLoadHelper::GetDDSHeaderMaximalSize() + SizeOfDDSMarker;
+				const int64 MaximalHeaderSize = UE::DDS::GetDDSHeaderMaximalSize();
 				const int64 BytesToRead = FMath::Min(SizeOfFile, MaximalHeaderSize);
 
 				OutHeader.Reset(BytesToRead);
