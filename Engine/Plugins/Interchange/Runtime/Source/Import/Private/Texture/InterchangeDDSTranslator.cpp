@@ -71,6 +71,7 @@ namespace UE::Interchange::Private::InterchangeDDSTranslator
 		if (bHeaderOnly)
 		{
 			LoadDDSHeaderFromFile(DDSSourceData, Filename);
+			// no error checking?
 		}
 		else if (!FFileHelper::LoadFileToArray(DDSSourceData, *Filename))
 		{
@@ -87,22 +88,25 @@ namespace UE::Interchange::Private::InterchangeDDSTranslator
 			check(Error != UE::DDS::EDDSError::OK);
 			if (Error != UE::DDS::EDDSError::NotADds && Error != UE::DDS::EDDSError::IoError)
 			{
-				UE_LOG(LogInterchangeImport, Warning, TEXT("Failed to load DDS (Error=%d)"), (int)Error);
+				UE_LOG(LogInterchangeImport, Warning, TEXT("Failed to load DDS (Error=%d) [%s]"), (int)Error, *Filename);
 			}
 			return {};
 		}
 
-		// We require a complete mip chain or a single mip.
-		if (DDS->MipCount > 1)
-		{
-			if (DDS->MipCount != FImageCoreUtils::GetMipCountFromDimensions(DDS->Width, DDS->Height, DDS->Depth, DDS->IsValidTextureVolume()))
-			{
-				UE_LOG(LogInterchangeImport, Warning, TEXT("Imported DDS files must either be a single base mip, or a full mip chain, not a partial mip chain (found %d expected %d)"), DDS->MipCount, FImageCoreUtils::GetMipCountFromDimensions(DDS->Width, DDS->Height, DDS->Depth, DDS->IsValidTextureVolume()));
-			}
-		}
-
 		if (!bHeaderOnly)
 		{
+			// this function is called 4 times with bHeaderOnly=true, then once with bHeaderOnly=false
+			// do noisy warnings only in the last call so they aren't repeated
+
+			// We require a complete mip chain or a single mip.
+			if (DDS->MipCount > 1)
+			{
+				if (DDS->MipCount != FImageCoreUtils::GetMipCountFromDimensions(DDS->Width, DDS->Height, DDS->Depth, DDS->IsValidTextureVolume()))
+				{
+					UE_LOG(LogInterchangeImport, Warning, TEXT("Imported DDS files must either be a single base mip, or a full mip chain, not a partial mip chain (found %d expected %d) [%s]"), DDS->MipCount, FImageCoreUtils::GetMipCountFromDimensions(DDS->Width, DDS->Height, DDS->Depth, DDS->IsValidTextureVolume()), *Filename);
+				}
+			}
+
 			// change X8 formats to A8 :	
 			DDS->ConvertRGBXtoRGBA();
 			// change RGBA8 to BGRA8 before DXGIFormatGetClosestRawFormat :
