@@ -55,6 +55,7 @@
 #include "IMeshReductionInterfaces.h"
 #include "StaticMeshCompiler.h"
 #include "ObjectCacheContext.h"
+#include "Misc/DataValidation.h"
 #include "Engine/Texture2D.h"
 
 #include "DerivedDataCache.h"
@@ -4045,6 +4046,32 @@ void UStaticMesh::PostEditUndo()
 	// The super will cause a Build() via PostEditChangeProperty().
 	Super::PostEditUndo();
 }
+
+
+#if WITH_EDITOR
+EDataValidationResult UStaticMesh::IsDataValid(class FDataValidationContext& Context)
+{
+	EDataValidationResult ValidationResult = Super::IsDataValid(Context);
+
+	// a cooked static mesh asset is probably not going to have valid SourceModels (?)
+	if (GetPackage()->HasAnyPackageFlags(PKG_Cooked) == false)
+	{
+		if (GetSourceModels().Num() == 0)
+		{
+			Context.AddError(LOCTEXT("StaticMeshValidation_NoSourceModel", "This Static Mesh Asset has no Source Models. This asset is not repairable, the Asset is corrupted and must be deleted."));
+			ValidationResult = EDataValidationResult::Invalid;
+		}
+		else if (GetSourceModels()[0].IsSourceModelInitialized() == false)
+		{
+			Context.AddError(LOCTEXT("StaticMeshValidation_UninitializedLOD0", "This Static Mesh Asset has no LOD0 Source Model mesh. This asset is not repairable, the Asset is corrupted and must be deleted."));
+			ValidationResult = EDataValidationResult::Invalid;
+		}
+	}
+
+	return ValidationResult;
+}
+#endif
+
 
 void UStaticMesh::SetLODGroup(FName NewGroup, bool bRebuildImmediately, bool bAllowModify)
 {

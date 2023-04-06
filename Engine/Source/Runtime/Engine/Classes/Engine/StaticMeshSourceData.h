@@ -91,6 +91,12 @@ public:
 	ENGINE_API UStaticMesh* GetStaticMeshOwner() const;
 
 	/**
+	 * Verify that this SourceModel has been fully initialized. It may still not contain valid data ( use IsMeshDescriptionValid() for that )
+	 * Currently this checks if StaticMeshDescriptionBulkData is allocated, which the other functions below all require via checks.
+	 */
+	ENGINE_API bool IsSourceModelInitialized() const;
+
+	/**
 	 * Create a new MeshDescription object
 	 */
 	ENGINE_API FMeshDescription* CreateMeshDescription();

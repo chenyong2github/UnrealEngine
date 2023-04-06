@@ -192,6 +192,23 @@ UStaticMesh* FStaticMeshSourceModel::GetStaticMeshOwner() const
 	return Cast<UStaticMesh>(StaticMeshDescriptionBulkData->GetOuter());
 }
 
+bool FStaticMeshSourceModel::IsSourceModelInitialized() const
+{
+	FScopeLock StaticMeshDescriptionBulkDataLock(&StaticMeshDescriptionBulkDataCS);
+
+	if (StaticMeshDescriptionBulkData == nullptr)
+	{
+		return false;
+	}
+	if (StaticMeshDescriptionBulkData->IsBulkDataValid() == false)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+
 bool FStaticMeshSourceModel::LoadMeshDescription(FMeshDescription& OutMeshDescription) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshSourceModel::LoadMeshDescription);
