@@ -417,7 +417,6 @@ public:
 
 	virtual FRHIDescriptorHandle GetDefaultBindlessHandle() const override final
 	{
-		checkSlow(DefaultBindlessHandle.IsValid());
 		return DefaultBindlessHandle;
 	}
 
