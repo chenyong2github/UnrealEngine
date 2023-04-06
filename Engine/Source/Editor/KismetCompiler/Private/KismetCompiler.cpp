@@ -5006,7 +5006,7 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 				if (FunctionContext.IsValid())
 				{
 					UFunction* Function = FunctionContext.Function; 
-					FArchiveScriptReferenceCollector ObjRefCollector(Function->ScriptAndPropertyObjectReferences);
+					FArchiveScriptReferenceCollector ObjRefCollector(Function->ScriptAndPropertyObjectReferences, Function);
 					for (int32 iCode = 0; iCode < Function->Script.Num();)
 					{
 						Function->SerializeExpr(iCode, ObjRefCollector);

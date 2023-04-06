@@ -50,8 +50,9 @@ public:
 	*
 	* @param	InObjectArray			Array to add object references to
 	*/
-	FArchiveScriptReferenceCollector(TArray<UObject*>& InObjectArray)
+	explicit FArchiveScriptReferenceCollector(TArray<UObject*>& InObjectArray, UObject* InExcludeOwner = nullptr)
 		: ObjectArray(InObjectArray)
+		, ExcludeOwner(InExcludeOwner)
 	{
 		ArIsObjectReferenceCollector = true;
 		this->SetIsPersistent(false);
@@ -67,7 +68,7 @@ protected:
 	virtual FArchive& operator<<(UObject*& Object) override
 	{
 		// Avoid duplicate entries.
-		if (Object != nullptr && !ObjectArray.Contains(Object))
+		if (Object != nullptr && Object != ExcludeOwner && !ObjectArray.Contains(Object))
 		{
 			check(Object->IsValidLowLevel());
 			ObjectArray.Add(Object);
@@ -97,7 +98,7 @@ protected:
 		if (Field != nullptr)
 		{
 			// It's faster to collect references via AddReferencedObjects than serialization
-			FPropertyReferenceCollector Collector(Field->GetOwnerUObject(), ObjectArray);
+			FPropertyReferenceCollector Collector(ExcludeOwner, ObjectArray);
 			Field->AddReferencedObjects(Collector);
 		}
 		return *this;
@@ -105,4 +106,6 @@ protected:
 
 	/** Stored reference to array of objects we add object references to */
 	TArray<UObject*>&		ObjectArray;
+	/** Script or property owner object that should be excluded from ObjectArray list */
+	UObject*				ExcludeOwner;
 };

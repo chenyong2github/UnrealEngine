@@ -709,7 +709,8 @@ void UStruct::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 
 void UStruct::CollectBytecodeReferencedObjects(TArray<UObject*>& OutReferencedObjects)
 {
-	FArchiveScriptReferenceCollector ObjRefCollector(OutReferencedObjects);
+	// Collect references from byte code but exclude ourselves from the refs lists
+	FArchiveScriptReferenceCollector ObjRefCollector(OutReferencedObjects, this);
 
 	int32 BytecodeIndex = 0;
 	while (BytecodeIndex < Script.Num())
