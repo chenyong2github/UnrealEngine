@@ -239,6 +239,18 @@ extern "C" {
         BOOL                                        EmulatedTyped64bitAtomics;
     };
 
+    // List of Intel D3D12 Features
+    enum INTC_D3D12_FEATURES {
+        INTC_D3D12_FEATURE_D3D12_OPTIONS1
+    };
+
+    struct INTC_D3D12_FEATURE_DATA_D3D12_OPTIONS1
+    {
+        BOOL                                        XMXEnabled;
+        BOOL                                        DLBoostEnabled;
+        BOOL                                        EmulatedTyped64bitAtomics;
+    };
+
 #endif //INTC_IGDEXT_D3D12
 
     //////////////////////////////////////////////////////////////////////////
@@ -643,8 +655,8 @@ extern "C" {
         const INTC_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC_INSTANCE_COMPARISON_DATA* pComparisonDataDesc );
 
     HRESULT INTC_D3D12_SetFeatureSupport(
-        INTCExtensionContext*                       pExtensionContext,
-        INTC_D3D12_FEATURE*                         pFeature );
+        INTCExtensionContext*                                                       pExtensionContext,
+        INTC_D3D12_FEATURE*                                                         pFeature );
         
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// @brief Gets the size and alignment of memory required for a collection of resources on this adapter.
@@ -655,10 +667,24 @@ extern "C" {
     /// @param numResourceDescs The number of resource descriptors in the pResourceDescs array.
     /// @param pResourceDescs A pointer to a overridden D3D12_RESOURCE_DESC structure that describes the resource.
     D3D12_RESOURCE_ALLOCATION_INFO INTC_D3D12_GetResourceAllocationInfo(
-        INTCExtensionContext*                                                       pExtensionContext,
-        UINT                                                                        visibleMask,
-        UINT                                                                        numResourceDescs,
-        const INTC_D3D12_RESOURCE_DESC_0001*                                        pResourceDescs);
+        INTCExtensionContext*                       pExtensionContext,
+        UINT                                        visibleMask,
+        UINT                                        numResourceDescs,
+        const INTC_D3D12_RESOURCE_DESC_0001*        pResourceDescs );
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// @brief Gets information about the features that are supported by the current graphics driver.
+    /// @param pExtensionContext A pointer to the extension context associated with the current Device.
+    /// @param Feature A constant from the D3D12_FEATURES enumeration describing the feature(s) that you want to query for support.
+    /// @param pFeatureSupportData A pointer to a data structure that corresponds to the value of the Feature parameter. 
+    ///        To determine the corresponding data structure for each constant, see INTC_D3D12_FEATURES.
+    /// @param FeatureSupportDataSize The size of the structure pointed to by the pFeatureSupportData parameter.
+    /// @returns HRESULT Returns S_OK if it was successful.
+    HRESULT INTC_D3D12_CheckFeatureSupport(
+        INTCExtensionContext*                       pExtensionContext,
+        INTC_D3D12_FEATURES                         Feature,
+        void*                                       pFeatureSupportData,
+        UINT                                        FeatureSupportDataSize );
 
 #endif //INTC_IGDEXT_D3D12
 

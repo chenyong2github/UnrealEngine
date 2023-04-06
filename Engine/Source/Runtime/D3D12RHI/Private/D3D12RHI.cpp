@@ -289,6 +289,14 @@ void FD3D12DynamicRHI::Shutdown()
 	}
 #endif
 
+#if INTEL_EXTENSIONS
+	if (IntelExtensionContext)
+	{
+		DestroyIntelExtensionsContext(IntelExtensionContext);
+		IntelExtensionContext = nullptr;
+	}
+#endif
+
 	// Ask all initialized FRenderResources to release their RHI resources.
 	FRenderResource::ReleaseRHIForAllResources();
 

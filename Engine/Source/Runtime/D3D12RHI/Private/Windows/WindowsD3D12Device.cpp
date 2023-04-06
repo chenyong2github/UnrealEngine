@@ -23,16 +23,18 @@
 #endif
 
 #if INTEL_EXTENSIONS
+	bool GDX12INTCAtomicUInt64Emulation = false;
+#endif
+
+#include "Windows/HideWindowsPlatformTypes.h"
+
+#if INTEL_EXTENSIONS
 	#define INTC_IGDEXT_D3D12 1
 
 	THIRD_PARTY_INCLUDES_START
 	#include "igdext.h"
 	THIRD_PARTY_INCLUDES_END
-
-	bool GDX12INTCAtomicUInt64Emulation = false;
 #endif
-
-#include "Windows/HideWindowsPlatformTypes.h"
 
 #include "HardwareInfo.h"
 #include "IHeadMountedDisplayModule.h"
@@ -257,7 +259,7 @@ static D3D_SHADER_MODEL FindHighestShaderModel(ID3D12Device* Device)
 }
 
 #if INTEL_EXTENSIONS
-static void DestroyIntelExtensionsContext(INTCExtensionContext* IntelExtensionContext)
+void DestroyIntelExtensionsContext(INTCExtensionContext* IntelExtensionContext)
 {
 	if (IntelExtensionContext)
 	{
@@ -274,9 +276,9 @@ static void DestroyIntelExtensionsContext(INTCExtensionContext* IntelExtensionCo
 	}
 }
 
-static INTCExtensionContext* CreateIntelExtensionsContext(ID3D12Device* Device, INTCExtensionInfo& INTCExtensionInfo)
+INTCExtensionContext* CreateIntelExtensionsContext(ID3D12Device* Device, INTCExtensionInfo& INTCExtensionInfo)
 {
-	const INTCExtensionVersion AtomicsRequiredVersion = { 4, 7, 0 };
+	const INTCExtensionVersion AtomicsRequiredVersion = { 4, 8, 0 };
 
 	if (FAILED(INTC_LoadExtensionsLibrary(false)))
 	{
@@ -347,19 +349,20 @@ static INTCExtensionContext* CreateIntelExtensionsContext(ID3D12Device* Device, 
 	return IntelExtensionContext;
 }
 
-static bool EnableIntelAtomic64Support(INTCExtensionContext* IntelExtensionContext, INTCExtensionInfo& INTCExtensionInfo)
+bool EnableIntelAtomic64Support(INTCExtensionContext* IntelExtensionContext, INTCExtensionInfo& INTCExtensionInfo)
 {
 	if (IntelExtensionContext)
 	{
-#if D3D12_CORE_ENABLED
-		// only enabled Atomic64 emulation for selected platforms, explicitly enable emulation for the adapter, will affect all future device creations
-		if (INTCExtensionInfo.IntelDeviceInfo.GTGeneration == 1270 /*IGFX_DG2*/)
+		INTC_D3D12_FEATURE_DATA_D3D12_OPTIONS1 INTCFeatureSupportData;;
+		const HRESULT hrCheck = INTC_D3D12_CheckFeatureSupport(IntelExtensionContext, INTC_D3D12_FEATURE_D3D12_OPTIONS1, &INTCFeatureSupportData, sizeof(INTCFeatureSupportData));
+
+		if (SUCCEEDED(hrCheck) && INTCFeatureSupportData.EmulatedTyped64bitAtomics)
 		{
 			INTC_D3D12_FEATURE INTCFeature;
 			INTCFeature.EmulatedTyped64bitAtomics = true;
 
-			const HRESULT hr = INTC_D3D12_SetFeatureSupport(IntelExtensionContext, &INTCFeature);
-			if (SUCCEEDED(hr))
+			const HRESULT hrSet = INTC_D3D12_SetFeatureSupport(IntelExtensionContext, &INTCFeature);
+			if (SUCCEEDED(hrSet))
 			{
 				GDX12INTCAtomicUInt64Emulation = true;
 				UE_LOG(LogD3D12RHI, Log, TEXT("Intel Extensions 64-bit Typed Atomics emulation enabled."));
@@ -369,7 +372,10 @@ static bool EnableIntelAtomic64Support(INTCExtensionContext* IntelExtensionConte
 				UE_LOG(LogD3D12RHI, Log, TEXT("Failed to enable Intel Extensions 64-bit Typed Atomics emulation."));
 			}
 		}
-#endif
+		else
+		{
+			UE_LOG(LogD3D12RHI, Log, TEXT("Failed to check for Intel Extensions 64-bit Typed Atomics emulation."));
+		}
 	}
 
 	return GDX12INTCAtomicUInt64Emulation;
@@ -389,8 +395,16 @@ static bool CheckDeviceForEmulatedAtomic64Support(IDXGIAdapter* Adapter, ID3D12D
 		INTCExtensionInfo INTCExtensionInfo{};
 		if (INTCExtensionContext* IntelExtensionContext = CreateIntelExtensionsContext(Device, INTCExtensionInfo))
 		{
-			bEmulatedAtomic64Support = EnableIntelAtomic64Support(IntelExtensionContext, INTCExtensionInfo);
-
+			INTC_D3D12_FEATURE_DATA_D3D12_OPTIONS1 INTCFeatureSupportData;;
+			const HRESULT hr = INTC_D3D12_CheckFeatureSupport(IntelExtensionContext, INTC_D3D12_FEATURE_D3D12_OPTIONS1, &INTCFeatureSupportData, sizeof(INTCFeatureSupportData));
+			if (SUCCEEDED(hr))
+			{
+				bEmulatedAtomic64Support = INTCFeatureSupportData.EmulatedTyped64bitAtomics;
+			}
+			else
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("Failed to check for Intel Extensions 64-bit Typed Atomics emulation."));
+			}
 			DestroyIntelExtensionsContext(IntelExtensionContext);
 		}
 	}
@@ -461,7 +475,7 @@ inline bool GetSupportsAtomic64(IDXGIAdapter* Adapter, ID3D12Device* Device)
 	D3D12_FEATURE_DATA_D3D12_OPTIONS9 D3D12Caps9{};
 	Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS9, &D3D12Caps9, sizeof(D3D12Caps9));
 
-	return (CheckDeviceForEmulatedAtomic64Support(Adapter, Device) || D3D12Caps9.AtomicInt64OnTypedResourceSupported);
+	return (D3D12Caps9.AtomicInt64OnTypedResourceSupported || CheckDeviceForEmulatedAtomic64Support(Adapter, Device));
 }
 
 /**
@@ -1516,12 +1530,13 @@ void FD3D12DynamicRHI::Init()
 #if INTEL_EXTENSIONS
 	if (IsRHIDeviceIntel() && bAllowVendorDevice)
 	{
-		INTCExtensionInfo INTCExtensionInfo{};
-		IntelExtensionContext = CreateIntelExtensionsContext(GetAdapter().GetD3DDevice(), INTCExtensionInfo);
-
-		if (IntelExtensionContext)
+		// Create a new context to support extension methods INTC_*
+		if (GDX12INTCAtomicUInt64Emulation)
 		{
-			bHasVendorSupportForAtomic64 = (INTCExtensionInfo.RequestedExtensionVersion.HWFeatureLevel > 0);
+			bHasVendorSupportForAtomic64 = GDX12INTCAtomicUInt64Emulation;
+
+			INTCExtensionInfo INTCExtensionInfo{};
+			IntelExtensionContext = CreateIntelExtensionsContext(GetAdapter().GetD3DDevice(), INTCExtensionInfo);
 		}
 
 		if (GRHISupportsMeshShadersTier0 || GRHISupportsMeshShadersTier1)

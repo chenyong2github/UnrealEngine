@@ -22,6 +22,14 @@ D3D12Adapter.cpp:D3D12 Adapter implementation.
 #endif
 #include "Windows/HideWindowsPlatformTypes.h"
 
+#if INTEL_EXTENSIONS
+	#define INTC_IGDEXT_D3D12 1
+
+	THIRD_PARTY_INCLUDES_START
+	#include "igdext.h"
+	THIRD_PARTY_INCLUDES_END
+#endif
+
 #if ENABLE_RESIDENCY_MANAGEMENT
 bool GEnableResidencyManagement = true;
 static TAutoConsoleVariable<int32> CVarResidencyManagement(
@@ -548,6 +556,29 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			}
 			bDeviceCreated = true;
 		}
+	}
+#endif
+
+#if INTEL_EXTENSIONS
+	if (IsRHIDeviceIntel() && bAllowVendorDevice)
+	{
+		ID3D12Device* Device = nullptr;
+		// Create the device for communication with the extension
+		VERIFYD3D12RESULT(D3D12CreateDevice(
+			GetAdapter(),
+			D3D_FEATURE_LEVEL_11_0,
+			IID_PPV_ARGS(&Device)
+		));
+
+		INTCExtensionInfo INTCExtensionInfo{};
+		if (INTCExtensionContext* IntelExtensionContext = CreateIntelExtensionsContext(Device, INTCExtensionInfo))
+		{
+			EnableIntelAtomic64Support(IntelExtensionContext, INTCExtensionInfo);
+			// Destroy the context to release all reference to ID3D12Device
+			DestroyIntelExtensionsContext(IntelExtensionContext);
+		}
+
+		Device->Release();
 	}
 #endif
 

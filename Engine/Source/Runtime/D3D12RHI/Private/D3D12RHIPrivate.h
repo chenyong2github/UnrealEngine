@@ -104,6 +104,13 @@ inline const TCHAR* GetD3DCommandQueueTypeName(ED3D12QueueType QueueType)
 
 #if INTEL_EXTENSIONS
 	extern bool GDX12INTCAtomicUInt64Emulation;
+
+	struct INTCExtensionContext;
+	struct INTCExtensionInfo;
+
+	void DestroyIntelExtensionsContext(INTCExtensionContext* IntelExtensionContext);
+	INTCExtensionContext* CreateIntelExtensionsContext(ID3D12Device* Device, INTCExtensionInfo& INTCExtensionInfo);
+	bool EnableIntelAtomic64Support(INTCExtensionContext* IntelExtensionContext, INTCExtensionInfo& INTCExtensionInfo);
 #endif //INTEL_EXTENSIONS
 
 #include "D3D12Residency.h"
