@@ -88,6 +88,8 @@ namespace Chaos
 				if (Cookie.LastUsedEpoch != CurrentEpoch)
 				{
 					Cookie.LastUsedEpoch = CurrentEpoch;
+					Cookie.ConstraintIndex = INDEX_NONE;
+					Cookie.CCDConstraintIndex = INDEX_NONE;
 
 					NewActiveConstraints.Push(Constraint);
 
@@ -467,20 +469,7 @@ namespace Chaos
 			 * @brief Destroy all collision and caches involving the particle
 			 * Called when a particle is destroyed or disabled (not sleeping).
 			*/
-			void RemoveParticle(FGeometryParticleHandle* Particle)
-			{
-				// We will be removing collisions, and don't want to have to prune the queues
-				check(!bInCollisionDetectionPhase);
-
-				// Loop over all particle pairs involving this particle.
-				// Tell each Particle Pair MidPhase that one of its particles is gone. 
-				// It will get pruned at the next collision detection phase.
-				Particle->ParticleCollisions().VisitMidPhases([Particle](FParticlePairMidPhase& MidPhase)
-					{
-						MidPhase.DetachParticle(Particle);
-						return ECollisionVisitorResult::Continue;
-					});
-			}
+			void RemoveParticle(FGeometryParticleHandle* Particle);
 
 			/**
 			 * @brief Iterate over all collisions (read-only), including sleeping ones
@@ -592,6 +581,8 @@ namespace Chaos
 
 				Cookie.LastUsedEpoch = CurrentEpoch;
 			}
+
+			void RemoveActiveConstraint(FPBDCollisionConstraint& Constraint);
 
 			// The container that owns the allocator (only needed because new constraints need to know)
 			FPBDCollisionConstraints* CollisionContainer;

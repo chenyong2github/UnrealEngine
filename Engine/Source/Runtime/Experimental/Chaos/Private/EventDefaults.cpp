@@ -122,15 +122,20 @@ namespace Chaos
 					{
 						for (int32 Index = StartRangeIndex; Index < EndRangeIndex; ++Index)
 						{
-							const Chaos::FPBDCollisionConstraintHandle* ContactHandle = CollisionHandles[Index];
 							ValidArray[Index] = false;
+
+							const Chaos::FPBDCollisionConstraintHandle* ContactHandle = CollisionHandles[Index];
+							if (ContactHandle == nullptr)
+							{
+								continue;
+							}
+
 							if (NumValidCollisions >= CollisionRule.NumConstraints())
 							{
 								break;
 							}
 
 							const FPBDCollisionConstraint& Constraint = ContactHandle->GetContact();
-
 							if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
 							{
 	

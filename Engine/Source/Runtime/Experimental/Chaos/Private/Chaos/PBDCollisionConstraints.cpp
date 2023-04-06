@@ -529,7 +529,7 @@ namespace Chaos
 		// for a contact which no longer is occurring due to resolution of another constraint.
 		for (FPBDCollisionConstraint* Contact : GetConstraints())
 		{
-			if (Contact->IsProbe())
+			if ((Contact != nullptr) && Contact->IsProbe())
 			{
 				const FGeometryParticleHandle* Particle0 = Contact->GetParticle0();
 				const FGeometryParticleHandle* Particle1 = Contact->GetParticle1();
@@ -573,6 +573,7 @@ namespace Chaos
 	{
 		if (GetConstraints().Num() > 0)
 		{
+			// NOTE: at this point, we will not have any nullptrs in the constraint handles
 			TArrayView<FPBDCollisionConstraint* const> ConstraintHandles = GetConstraintHandles();
 			FCollisionContactModifier Modifier(ConstraintHandles, Dt);
 

@@ -1935,6 +1935,11 @@ CSV_CUSTOM_STAT(PhysicsCounters, Name, Value, ECsvCustomStatOp::Set);
 		int32 NumUpdatedManifoldPoints = 0;
 		for (const FPBDCollisionConstraintHandle* Collision : GetEvolution()->GetCollisionConstraints().GetConstraints())
 		{
+			if (Collision == nullptr)
+			{
+				continue;
+			}
+
 			const FPBDCollisionConstraint& Contact = Collision->GetContact();
 			if (Contact.IsEnabled())
 			{

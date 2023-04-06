@@ -109,7 +109,7 @@ public:
 		const int32 ContainerId = ConstraintContainer.GetContainerId();
 		for (FConstraintHandle* ConstraintHandle : ConstraintContainer.GetConstraintHandles())
 		{
-			if (ConstraintHandle->IsEnabled())
+			if ((ConstraintHandle != nullptr) && ConstraintHandle->IsEnabled())
 			{
 				AddConstraint(ContainerId, ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
 			}

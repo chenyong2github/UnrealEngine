@@ -533,8 +533,11 @@ namespace Chaos
 #endif
 
 			// We need to refresh the epoch so that the constraint state will be used as the previous
-			// state if the pair is still colliding in the next tick
+			// state if the pair is still colliding in the next tick. However, we are not in the active 
+			// collisions array so reset the indices.
 			Constraint->GetContainerCookie().LastUsedEpoch = CurrentEpoch;
+			Constraint->GetContainerCookie().ConstraintIndex = INDEX_NONE;
+			Constraint->GetContainerCookie().CCDConstraintIndex = INDEX_NONE;
 			LastUsedEpoch = CurrentEpoch;
 
 			// We have skipped collision detection for this particle because it was asleep, so we need to update the transforms...
@@ -771,6 +774,8 @@ namespace Chaos
 			if (Constraint->GetContainerCookie().LastUsedEpoch >= SleepEpoch)
 			{
 				Constraint->GetContainerCookie().LastUsedEpoch = CurrentEpoch;
+				Constraint->GetContainerCookie().ConstraintIndex = INDEX_NONE;
+				Constraint->GetContainerCookie().CCDConstraintIndex = INDEX_NONE;
 			}
 		}
 	}
@@ -1205,6 +1210,8 @@ namespace Chaos
 			if (Constraint->GetContainerCookie().LastUsedEpoch >= SleepEpoch)
 			{
 				Constraint->GetContainerCookie().LastUsedEpoch = CurrentEpoch;
+				Constraint->GetContainerCookie().ConstraintIndex = INDEX_NONE;
+				Constraint->GetContainerCookie().CCDConstraintIndex = INDEX_NONE;
 			}
 		}
 	}

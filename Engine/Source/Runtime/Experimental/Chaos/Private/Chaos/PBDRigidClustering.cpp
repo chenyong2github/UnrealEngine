@@ -1405,6 +1405,11 @@ namespace Chaos
 
 		for (const Chaos::FPBDCollisionConstraintHandle* ContactHandle : CollisionRule.GetConstConstraintHandles())
 		{
+			if (ContactHandle == nullptr)
+			{
+				continue;
+			}
+
 			TVector<const FGeometryParticleHandle*, 2> ConstrainedParticles = ContactHandle->GetConstrainedParticles();
 			
 			// make sure we only compute things if one of the two particle is clustered

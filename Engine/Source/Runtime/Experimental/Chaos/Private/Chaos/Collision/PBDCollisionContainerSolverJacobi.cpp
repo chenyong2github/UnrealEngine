@@ -297,6 +297,7 @@ namespace Chaos
 
 			for (FPBDCollisionConstraintHandle* ConstraintHandle : ConstraintContainer.GetConstraintHandles())
 			{
+				check(ConstraintHandle != nullptr);
 				FPBDCollisionConstraint& Constraint = ConstraintHandle->GetContact();
 
 				AddConstraint(Constraint);

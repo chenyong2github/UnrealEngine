@@ -101,5 +101,55 @@ namespace Chaos
 			}
 		}
 
+		void FCollisionConstraintAllocator::RemoveActiveConstraint(FPBDCollisionConstraint& Constraint)
+		{
+			FPBDCollisionConstraintContainerCookie& Cookie = Constraint.GetContainerCookie();
+
+			// ConstraintIndex is only valid for one frame, so make sure we
+			// were actually activated during the most recent tick
+			if (Cookie.LastUsedEpoch != CurrentEpoch)
+			{
+				return;
+			}
+
+			// Remove from the active list
+			if (Cookie.ConstraintIndex != INDEX_NONE)
+			{
+				check(ActiveConstraints[Cookie.ConstraintIndex] == &Constraint);
+				ActiveConstraints[Cookie.ConstraintIndex] = nullptr;
+				Cookie.ConstraintIndex = INDEX_NONE;
+			}
+
+			// Remove from the active CCD list
+			if (Cookie.CCDConstraintIndex != INDEX_NONE)
+			{
+				check(ActiveCCDConstraints[Cookie.CCDConstraintIndex] == &Constraint);
+				ActiveCCDConstraints[Cookie.CCDConstraintIndex] = nullptr;
+				Cookie.CCDConstraintIndex = INDEX_NONE;
+			}
+		}
+
+		void FCollisionConstraintAllocator::RemoveParticle(FGeometryParticleHandle* Particle)
+		{
+			// Removal not supported during the (parallel) collision detection phase
+			check(!bInCollisionDetectionPhase);
+
+			// Loop over all particle pairs involving this particle and tell each MidPhase 
+			// that one of its particles is gone. It will get pruned at the next collision detection phase.
+			// Also remove its collisions from the Active lists.
+			Particle->ParticleCollisions().VisitMidPhases([this, Particle](FParticlePairMidPhase& MidPhase)
+				{
+					MidPhase.VisitCollisions([this](FPBDCollisionConstraint& Constraint)
+						{
+							RemoveActiveConstraint(Constraint);
+							return ECollisionVisitorResult::Continue;
+						});
+
+					MidPhase.DetachParticle(Particle);
+
+					return ECollisionVisitorResult::Continue;
+				});
+		}
+
 	}	// namespace Private
 }	// namespace Chaos

@@ -700,9 +700,12 @@ void FPBDRigidsEvolutionGBF::TestModeResetCollisions()
 {
 	for (FPBDCollisionConstraintHandle* Collision : CollisionConstraints.GetConstraintHandles())
 	{
-		Collision->GetContact().ResetManifold();
-		Collision->GetContact().ResetModifications();
-		Collision->GetContact().GetGJKWarmStartData().Reset();
+		if (Collision != nullptr)
+		{
+			Collision->GetContact().ResetManifold();
+			Collision->GetContact().ResetModifications();
+			Collision->GetContact().GetGJKWarmStartData().Reset();
+		}
 	}
 }
 
@@ -710,7 +713,10 @@ void FPBDRigidsEvolutionGBF::ResetCollisions()
 {
 	for (FPBDCollisionConstraintHandle* Collision : CollisionConstraints.GetConstraintHandles())
 	{
-		Collision->GetContact().GetGJKWarmStartData().Reset();
+		if (Collision != nullptr)
+		{
+			Collision->GetContact().GetGJKWarmStartData().Reset();
+		}
 	}
 }
 
