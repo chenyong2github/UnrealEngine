@@ -16162,7 +16162,22 @@ int32 UMaterialExpressionMaterialFunctionCall::Compile(class FMaterialCompiler* 
 
 void UMaterialExpressionMaterialFunctionCall::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(MaterialFunction ? MaterialFunction->GetName() : TEXT("Unspecified Function"));
+	if (MaterialFunction)
+	{
+		FString UserExposedCaption = MaterialFunction->GetUserExposedCaption();
+		if (!UserExposedCaption.IsEmpty())
+		{
+			OutCaptions.Add(UserExposedCaption);
+		}
+		else
+		{
+			OutCaptions.Add(MaterialFunction->GetName());
+		}
+	}
+	else
+	{
+		OutCaptions.Add(TEXT("Unspecified Function"));
+	}
 }
 
 const TArray<FExpressionInput*> UMaterialExpressionMaterialFunctionCall::GetInputs()

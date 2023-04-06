@@ -51,6 +51,10 @@ class UMaterialFunction : public UMaterialFunctionInterface
 	UPROPERTY(EditAnywhere, Category=MaterialFunction, AssetRegistrySearchable)
 	FString Description;
 
+	/** Name of the function to be displayed on the node within the material editor instead of the asset name. */
+	UPROPERTY(EditAnywhere, Category=MaterialFunction, AssetRegistrySearchable)
+	FString UserExposedCaption;
+
 	/** Whether to list this function in the material function library, which is a window in the material editor that lists categorized functions. */
 	UPROPERTY(EditAnywhere, Category=MaterialFunction, AssetRegistrySearchable)
 	uint8 bExposeToLibrary:1;
@@ -155,6 +159,9 @@ public:
 
 	/** Returns an array of the functions that this function is dependent on, directly or indirectly. */
 	ENGINE_API virtual void GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const override;
+
+	/** Returns If returns an empty string, use the default class name for the material function. Otherwise, the string will be the name shown when the function is exposed to users in the material graph as a node, or from the contextual menu when searching for nodes. */
+	virtual FString GetUserExposedCaption() const override { return UserExposedCaption; }
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR

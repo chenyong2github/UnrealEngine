@@ -1019,13 +1019,23 @@ void UMaterialGraphSchema::GetMaterialFunctionActions(FGraphActionMenuBuilder& A
 					}
 				}
 
-				// Extract the object name from the path
 				FString FunctionName = FunctionPathName;
-				int32 PeriodIndex = FunctionPathName.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
 
-				if (PeriodIndex != INDEX_NONE)
+				const FString UserExposedCaption = AssetData.GetTagValueRef<FString>("UserExposedCaption");
+				if (!UserExposedCaption.IsEmpty())
 				{
-					FunctionName = FunctionPathName.Right(FunctionPathName.Len() - PeriodIndex - 1);
+					// If the UI user exposed name name is not empty, use it directly
+					FunctionName = UserExposedCaption;
+				}
+				else
+				{
+					// Extract the object name from the path
+					int32 PeriodIndex = FunctionPathName.Find(TEXT("."), ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+
+					if (PeriodIndex != INDEX_NONE)
+					{
+						FunctionName = FunctionPathName.Right(FunctionPathName.Len() - PeriodIndex - 1);
+					}
 				}
 
 				// For each category the function should belong to...

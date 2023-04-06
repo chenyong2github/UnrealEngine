@@ -147,6 +147,9 @@ public:
 	/** Returns an array of the functions that this function is dependent on, directly or indirectly. */
 	ENGINE_API virtual void GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const
 		PURE_VIRTUAL(UMaterialFunctionInterface::GetDependentFunctions,);
+
+	/** Returns If returns an empty string, use the default class name for the material function. Otherwise, the string will be the name shown when the function is exposed to users in the material graph as a node, or from the contextual menu when searching for nodes. */
+	virtual FString GetUserExposedCaption() const { return TEXT(""); }
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
