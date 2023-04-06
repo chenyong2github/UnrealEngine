@@ -113,9 +113,9 @@ FArchive& operator << (FArchive& Ar, FFieldClass*& InOutFieldClass)
 
 FFieldVariant FFieldVariant::GetOwnerVariant() const
 {
-	if (bIsUObject)
+	if (IsUObject())
 	{
-		return Container.Object->GetOuter();
+		return ToUObjectUnsafe()->GetOuter();
 	}
 	else
 	{
@@ -125,19 +125,19 @@ FFieldVariant FFieldVariant::GetOwnerVariant() const
 
 bool FFieldVariant::IsA(const UClass* InClass) const
 {
-	return bIsUObject && Container.Object && Container.Object->IsA(InClass);
+	return IsUObject() && ToUObjectUnsafe() && ToUObjectUnsafe()->IsA(InClass);
 }
 bool FFieldVariant::IsA(const FFieldClass* InClass) const
 {
-	return !bIsUObject && Container.Field && Container.Field->IsA(InClass);
+	return !IsUObject() && Container.Field && Container.Field->IsA(InClass);
 }
 
 UClass* FFieldVariant::GetOwnerClass() const
 {
 	check(Container.Object);
-	if (bIsUObject)
+	if (IsUObject())
 	{
-		return CastChecked<UField>(Container.Object)->GetOwnerClass();
+		return CastChecked<UField>(ToUObjectUnsafe())->GetOwnerClass();
 	}
 	else
 	{
@@ -147,9 +147,9 @@ UClass* FFieldVariant::GetOwnerClass() const
 
 FString FFieldVariant::GetFullName() const
 {
-	if (bIsUObject)
+	if (IsUObject())
 	{
-		return Container.Object->GetFullName();
+		return ToUObjectUnsafe()->GetFullName();
 	}
 	else
 	{
@@ -159,9 +159,9 @@ FString FFieldVariant::GetFullName() const
 
 FString FFieldVariant::GetPathName() const
 {
-	if (bIsUObject)
+	if (IsUObject())
 	{
-		return Container.Object->GetPathName();
+		return ToUObjectUnsafe()->GetPathName();
 	}
 	else
 	{
@@ -171,9 +171,9 @@ FString FFieldVariant::GetPathName() const
 
 FString FFieldVariant::GetName() const
 {
-	if (bIsUObject)
+	if (IsUObject())
 	{
-		return Container.Object->GetName();
+		return ToUObjectUnsafe()->GetName();
 	}
 	else
 	{
@@ -183,9 +183,9 @@ FString FFieldVariant::GetName() const
 
 FName FFieldVariant::GetFName() const
 {
-	if (bIsUObject)
+	if (IsUObject())
 	{
-		return Container.Object->GetFName();
+		return ToUObjectUnsafe()->GetFName();
 	}
 	else
 	{
@@ -196,9 +196,9 @@ FName FFieldVariant::GetFName() const
 FString FFieldVariant::GetClassName() const
 {
 	check(Container.Object);
-	if (bIsUObject)
+	if (IsUObject())
 	{
-		return Container.Object->GetClass()->GetName();
+		return ToUObjectUnsafe()->GetClass()->GetName();
 	}
 	else
 	{
@@ -209,9 +209,9 @@ FString FFieldVariant::GetClassName() const
 bool FFieldVariant::IsNative() const
 {
 	check(Container.Object);
-	if (bIsUObject)
+	if (IsUObject())
 	{
-		return Container.Object->IsNative();
+		return ToUObjectUnsafe()->IsNative();
 	}
 	else
 	{
@@ -222,9 +222,9 @@ bool FFieldVariant::IsNative() const
 UPackage* FFieldVariant::GetOutermost() const
 {
 	check(Container.Object);
-	if (bIsUObject)
+	if (IsUObject())
 	{
-		return Container.Object->GetOutermost();
+		return ToUObjectUnsafe()->GetOutermost();
 	}
 	else
 	{
@@ -235,9 +235,9 @@ UPackage* FFieldVariant::GetOutermost() const
 bool FFieldVariant::IsValidLowLevel() const
 {
 	check(Container.Object);
-	if (bIsUObject)
+	if (IsUObject())
 	{
-		return Container.Object->IsValidLowLevel();
+		return ToUObjectUnsafe()->IsValidLowLevel();
 	}
 	else
 	{
@@ -249,9 +249,9 @@ bool FFieldVariant::IsValidLowLevel() const
 bool FFieldVariant::HasMetaData(const FName& Key) const
 {
 	check(Container.Object);
-	if (bIsUObject)
+	if (IsUObject())
 	{
-		return CastChecked<UField>(Container.Object)->HasMetaData(Key);
+		return CastChecked<UField>(ToUObjectUnsafe())->HasMetaData(Key);
 	}
 	else
 	{
@@ -259,25 +259,6 @@ bool FFieldVariant::HasMetaData(const FName& Key) const
 	}
 }
 #endif // WITH_EDITORONLY_DATA
-
-FArchive& operator << (FArchive& Ar, FFieldVariant& InOutField)
-{
-	Ar << InOutField.bIsUObject;
-	if (InOutField.bIsUObject)
-	{
-		Ar << InOutField.Container.Object;
-	}
-	else
-	{
-		TFieldPath<FField> FieldRef(InOutField.Container.Field);
-		Ar << FieldRef;
-		if (Ar.IsLoading())
-		{
-			InOutField.Container.Field = FieldRef.Get();
-		}
-	}
-	return Ar;
-}
 
 /*-----------------------------------------------------------------------------
 FField implementation.
