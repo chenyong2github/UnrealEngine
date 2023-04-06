@@ -4,36 +4,25 @@
 
 #include "SlateSharedPCH.h"
 
-// From Core:
-#include "Async/Future.h"
-#include "Async/ParallelFor.h"
-#include "Containers/DynamicRHIResourceArray.h"
-#include "Containers/ResourceArray.h"
-#include "Features/IModularFeatures.h"
+// From ApplicationCore:
+#include "GenericPlatform/GenericApplication.h"
+#include "GenericPlatform/GenericApplicationMessageHandler.h"
+#include "GenericPlatform/GenericWindow.h"
+#include "GenericPlatform/GenericWindowDefinition.h"
 #include "GenericPlatform/ICursor.h"
 #include "GenericPlatform/IInputInterface.h"
-#include "HAL/PlatformAffinity.h"
-#include "HAL/RunnableThread.h"
-#include "HAL/ThreadSafeBool.h"
-#include "Internationalization/GatherableTextData.h"
-#include "Internationalization/InternationalizationMetadata.h"
-#include "Math/SHMath.h"
-#include "Misc/AutomationTest.h"
-#include "Misc/BufferedOutputDevice.h"
-#include "Misc/CompilationResult.h"
-#include "Misc/NetworkGuid.h"
-#include "Misc/ScopedEvent.h"
-#include "Misc/SingleThreadRunnable.h"
-#include "ProfilingDebugging/Histogram.h"
-#include "ProfilingDebugging/ProfilingHelpers.h"
-#include "Serialization/ArchiveProxy.h"
-#include "Serialization/BitReader.h"
-#include "Serialization/BitWriter.h"
-#include "Stats/StatsMisc.h"
-#include "Templates/ScopedCallback.h"
-#include "Templates/ValueOrError.h"
-#include "UObject/DebugSerializationFlags.h"
-#include "UObject/PropertyPortFlags.h"
+
+// From AssetRegistry:
+#include "AssetRegistry/AssetData.h"
+
+// From AudioExtensions:
+#include "IAudioExtensionPlugin.h"
+
+// From CoreOnline:
+#include "Online/CoreOnline.h"
+
+// From DeveloperSettings:
+#include "Engine/DeveloperSettings.h"
 
 // From Json:
 #include "Dom/JsonObject.h"
@@ -44,33 +33,13 @@
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonSerializerMacros.h"
 
-// From CoreUObject:
-#include "Online/CoreOnline.h"
-#include "Serialization/BulkData.h"
-#include "Templates/Casts.h"
-#include "Templates/SubclassOf.h"
-#include "UObject/CoreNet.h"
-#include "UObject/Linker.h"
-#include "UObject/LinkerLoad.h"
-#include "UObject/ObjectRedirector.h"
-#include "UObject/ObjectResource.h"
-#include "UObject/PackageFileSummary.h"
-#include "UObject/PersistentObjectPtr.h"
-#include "UObject/ScriptMacros.h"
-#include "UObject/Stack.h"
-#include "UObject/StructOnScope.h"
-#include "UObject/TextProperty.h"
-#include "UObject/UObjectAnnotation.h"
-#include "UObject/UObjectHash.h"
-#include "UObject/UObjectIterator.h"
-#include "UObject/UObjectThreadContext.h"
-
 // From RHI:
 #include "RHIDefinitions.h"
 #include "RHI.h"
 #include "RHIStaticStates.h"
 
 // From RenderCore:
+#include "GlobalShader.h"
 #include "RenderCommandFence.h"
 #include "RenderResource.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
@@ -85,12 +54,14 @@
 #include "Shader.h"
 #include "VertexFactory.h"
 #include "ShaderParameterUtils.h"
-
-// From AssetRegistry:
-#include "AssetRegistry/AssetData.h"
+#include "StaticBoundShaderState.h"
 
 // From PacketHandler:
 #include "PacketHandler.h"
+
+// From PhysicsCore:
+#include "PhysicalMaterials/PhysicalMaterial.h"
+#include "PhysicsSettingsEnums.h"
 
 // From Engine:
 #include "AI/Navigation/NavAgentInterface.h"
@@ -123,6 +94,7 @@
 #include "BlendableManager.h"
 #include "BlueprintUtilities.h"
 #include "BoneContainer.h"
+#include "BoneIndices.h"
 #include "BonePose.h"
 #include "Camera/CameraShakeBase.h"
 #include "Camera/CameraTypes.h"
@@ -147,9 +119,11 @@
 #include "Curves/KeyHandle.h"
 #include "Curves/RichCurve.h"
 #include "CustomBoneIndexArray.h"
+#include "DataTableUtils.h"
 #include "DebugViewModeHelpers.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphNodeUtils.h"
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "Engine/BlendableInterface.h"
@@ -159,8 +133,10 @@
 #include "Engine/Brush.h"
 #include "Engine/Channel.h"
 #include "Engine/ChildConnection.h"
+#include "Engine/CurveTable.h"
+#include "Engine/DataAsset.h"
+#include "Engine/DataTable.h"
 #include "Engine/DebugDisplayProperty.h"
-#include "Engine/DeveloperSettings.h"
 #include "Engine/Engine.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/EngineTypes.h"
@@ -169,6 +145,7 @@
 #include "Engine/GameViewportDelegates.h"
 #include "Engine/LatentActionManager.h"
 #include "Engine/Level.h"
+#include "Engine/LevelStreaming.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/MaterialMerging.h"
 #include "Engine/MemberReference.h"
@@ -207,13 +184,12 @@
 #include "GameFramework/PlayerMuteList.h"
 #include "GameFramework/Volume.h"
 #include "GameFramework/WorldSettings.h"
-#include "GlobalShader.h"
 #include "GPUSkinPublicDefs.h"
 #include "HitProxies.h"
-#include "IAudioExtensionPlugin.h"
 #include "Interfaces/Interface_AssetUserData.h"
 #include "Interfaces/Interface_CollisionDataProvider.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "LatentActions.h"
 #include "LocalVertexFactory.h"
 #include "MaterialExpressionIO.h"
 #include "Materials/Material.h"
@@ -235,6 +211,7 @@
 #include "PhysicsEngine/BodyInstance.h"
 #include "PhysxUserData.h"
 #include "PixelFormat.h"
+#include "PreviewScene.h"
 #include "PrimitiveSceneProxy.h"
 #include "PrimitiveUniformShaderParameters.h"
 #include "PrimitiveViewRelevance.h"
@@ -253,11 +230,13 @@
 #include "Sound/SoundConcurrency.h"
 #include "Sound/SoundGroups.h"
 #include "Sound/SoundWave.h"
-#include "StaticBoundShaderState.h"
 #include "StaticParameterSet.h"
 #include "TextureResource.h"
 #include "Tickable.h"
 #include "TimerManager.h"
 #include "UnrealClient.h"
 #include "UnrealEngine.h"
+#include "Vehicles/TireType.h"
+#include "VisualLogger/VisualLogger.h"
+#include "VisualLogger/VisualLoggerTypes.h"
 #include "WorldCollision.h"
