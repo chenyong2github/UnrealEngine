@@ -941,6 +941,8 @@ FTransformData F3DTransformTrackEditor::RecomposeTransform(const FTransformData&
 		return InTransformData;
 	}
 
+	USceneComponent* SceneComponent = MovieSceneHelpers::SceneComponentFromRuntimeObject(AnimatedObject);
+
 	TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &EntityLinker->EntityManager);
 
 	// We want the transform value contributed to by the given transform section.
@@ -954,6 +956,8 @@ FTransformData F3DTransformTrackEditor::RecomposeTransform(const FTransformData&
 	TArray<FMovieSceneEntityID> ImportedEntityIDs;
 	EvaluationTemplate.FindEntitiesFromOwner(Section, GetSequencer()->GetFocusedTemplateID(), ImportedEntityIDs);
 
+	FTransform CurrentTransform = SceneComponent->GetRelativeTransform();
+
 	if (ImportedEntityIDs.Num())
 	{
 		UMovieScenePropertyInstantiatorSystem* System = EntityLinker->FindSystem<UMovieScenePropertyInstantiatorSystem>();
@@ -961,7 +965,6 @@ FTransformData F3DTransformTrackEditor::RecomposeTransform(const FTransformData&
 		{
 			FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 			FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
-			USceneComponent* SceneComponent = MovieSceneHelpers::SceneComponentFromRuntimeObject(AnimatedObject);
 
 			TArray<FMovieSceneEntityID> EntityIDs;
 			{
@@ -1014,23 +1017,22 @@ FTransformData F3DTransformTrackEditor::RecomposeTransform(const FTransformData&
 				}
 			}
 
-			FTransform CurrentTransform(
+			CurrentTransform = FTransform(
 				FRotator(CurrentTransformChannels[4], CurrentTransformChannels[5], CurrentTransformChannels[3]), // pitch yaw roll
 				FVector(CurrentTransformChannels[0], CurrentTransformChannels[1], CurrentTransformChannels[2]),
-				FVector(CurrentTransformChannels[6], CurrentTransformChannels[7], CurrentTransformChannels[8]));
-
-			// Account for the transform origin only if this is not parented because the transform origin is already being applied to the parent.
-			if (!SceneComponent->GetAttachParent())
-			{
-				CurrentTransform *= GetTransformOrigin().Inverse();
-			}
-
-			UpdateTransformBasedOnConstraint(CurrentTransform,SceneComponent);
-			return FTransformData(CurrentTransform.GetLocation(), CurrentTransform.GetRotation().Rotator(), CurrentTransform.GetScale3D());
+				FVector(CurrentTransformChannels[6], CurrentTransformChannels[7], CurrentTransformChannels[8]));			
 		}
 	}
 
-	return InTransformData;
+	// Account for the transform origin only if this is not parented because the transform origin is already being applied to the parent.
+	if (!SceneComponent->GetAttachParent())
+	{
+		CurrentTransform *= GetTransformOrigin().Inverse();
+	}
+
+	UpdateTransformBasedOnConstraint(CurrentTransform, SceneComponent);
+	
+	return FTransformData(CurrentTransform.GetLocation(), CurrentTransform.GetRotation().Rotator(), CurrentTransform.GetScale3D());
 }
 
 void F3DTransformTrackEditor::ProcessKeyOperation(FFrameNumber InKeyTime, const UE::Sequencer::FKeyOperation& Operation, ISequencer& InSequencer)

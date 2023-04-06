@@ -24,6 +24,7 @@
 #include "Sections/MovieSceneSubSection.h"
 #include "ToolMenu.h"
 #include "Tracks/MovieSceneCinematicShotTrack.h"
+#include "Tracks/IMovieSceneTransformOrigin.h"
 #include "MovieSceneToolsProjectSettings.h"
 #include "MovieSceneToolHelpers.h"
 #include "ScopedTransaction.h"
@@ -336,6 +337,25 @@ void FLevelSequenceEditorToolkit::ExtendSequencerToolbar(FName InToolMenuName)
 	}
 }
 
+FTransform GetTransformOrigin(TSharedPtr<ISequencer> Sequencer)
+{
+	FTransform TransformOrigin;
+
+	const IMovieScenePlaybackClient* Client = Sequencer->GetPlaybackClient();
+	const UObject* InstanceData = Client ? Client->GetInstanceData() : nullptr;
+	const IMovieSceneTransformOrigin* RawInterface = Cast<const IMovieSceneTransformOrigin>(InstanceData);
+
+	const bool bHasInterface = RawInterface || (InstanceData && InstanceData->GetClass()->ImplementsInterface(UMovieSceneTransformOrigin::StaticClass()));
+	if (bHasInterface)
+	{
+		// Retrieve the current origin
+		TransformOrigin = RawInterface ? RawInterface->GetTransformOrigin() : IMovieSceneTransformOrigin::Execute_BP_GetTransformOrigin(InstanceData);
+	}
+
+	return TransformOrigin;
+}
+
+
 void FLevelSequenceEditorToolkit::AddDefaultTracksForActor(AActor& Actor, const FGuid Binding)
 {
 	// get focused movie scene
@@ -389,18 +409,21 @@ void FLevelSequenceEditorToolkit::AddDefaultTracksForActor(AActor& Actor, const 
 		{
 			auto TransformSection = Cast<UMovieScene3DTransformSection>(NewSection);
 
-			FVector Location = Actor.GetActorLocation();
-			FRotator Rotation = Actor.GetActorRotation();
-			FVector Scale = Actor.GetActorScale();
+			FTransform Transform = Actor.GetTransform();
 
 			if (USceneComponent* SceneComponent = Cast<USceneComponent>(InComponent))
 			{
-				FTransform ActorRelativeTransform = SceneComponent->GetRelativeTransform();
+				Transform = SceneComponent->GetRelativeTransform();
 
-				Location = ActorRelativeTransform.GetTranslation();
-				Rotation = ActorRelativeTransform.GetRotation().Rotator();
-				Scale = ActorRelativeTransform.GetScale3D();
+				if (!SceneComponent->GetAttachParent())
+				{
+					Transform *= GetTransformOrigin(GetSequencer()).Inverse();
+				}
 			}
+
+			FVector Location = Transform.GetTranslation();
+			FRotator Rotation = Transform.GetRotation().Rotator();
+			FVector Scale = Transform.GetScale3D();
 
 			TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 			DoubleChannels[0]->SetDefault(Location.X);
