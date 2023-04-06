@@ -344,6 +344,7 @@ bool FSubTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, FSequence
 
 	TSharedPtr<FAssetDragDropOp> DragDropOp = StaticCastSharedPtr<FAssetDragDropOp>( Operation );
 
+	TOptional<FFrameNumber> LongestLengthInFrames;
 	for (const FAssetData& AssetData : DragDropOp->GetAssets())
 	{
 		if (!MovieSceneToolHelpers::IsValidAsset(FocusedSequence, AssetData))
@@ -352,7 +353,7 @@ bool FSubTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, FSequence
 		}
 
 		UMovieSceneSequence* Sequence = Cast<UMovieSceneSequence>(AssetData.GetAsset());
-		if (CanAddSubSequence(*Sequence))
+		if (Sequence && CanAddSubSequence(*Sequence))
 		{
 			FFrameRate TickResolution = SequencerPtr->GetFocusedTickResolution();
 
@@ -361,9 +362,16 @@ bool FSubTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEvent, FSequence
 				Sequence->GetMovieScene()->GetTickResolution());
 
 			FFrameNumber LengthInFrames = InnerDuration.ConvertTo(TickResolution).FrameNumber;
-			DragDropParams.FrameRange = TRange<FFrameNumber>(DragDropParams.FrameNumber, DragDropParams.FrameNumber + LengthInFrames);
-			return true;
+			
+			// Keep track of the longest sub-sequence asset we're trying to drop onto it for preview display purposes.
+			LongestLengthInFrames = FMath::Max(LongestLengthInFrames.Get(FFrameNumber(0)), LengthInFrames);
 		}
+	}
+
+	if (LongestLengthInFrames.IsSet())
+	{
+		DragDropParams.FrameRange = TRange<FFrameNumber>(DragDropParams.FrameNumber, DragDropParams.FrameNumber + LongestLengthInFrames.GetValue());
+		return true;
 	}
 
 	return false;
