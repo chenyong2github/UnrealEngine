@@ -26,7 +26,7 @@ class FRDGBuilder;
 class FRHICommandListImmediate;
 class FWildcardString;
 
-#define SUPPORTS_VISUALIZE_TEXTURE (WITH_ENGINE && (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) || WITH_EDITOR))
+#define SUPPORTS_VISUALIZE_TEXTURE (WITH_ENGINE && (!UE_BUILD_SHIPPING || WITH_EDITOR))
 
 class RENDERCORE_API FVisualizeTexture : public FRenderResource
 {
