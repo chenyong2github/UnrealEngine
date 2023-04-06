@@ -6,7 +6,6 @@
 #include "Data/PCGSpatialData.h"
 #include "PCGGraph.h"
 #include "PCGContext.h"
-#include "PCGHelpers.h"
 #include "PCGParamData.h"
 #include "PCGPin.h"
 #include "Data/PCGPointData.h"
@@ -16,6 +15,7 @@
 #include "Data/PCGVolumeData.h"
 #include "Graph/PCGGraphCache.h"
 #include "Graph/PCGGraphExecutor.h"
+#include "Helpers/PCGHelpers.h"
 
 #include "Components/SplineComponent.h"
 #include "Components/StaticMeshComponent.h"

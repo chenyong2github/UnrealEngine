@@ -4,7 +4,6 @@
 
 #include "PCGContext.h"
 #include "PCGCustomVersion.h"
-#include "PCGHelpers.h"
 #include "Data/PCGIntersectionData.h"
 #include "Data/PCGLandscapeSplineData.h"
 #include "Data/PCGPointData.h"
@@ -12,6 +11,7 @@
 #include "Data/PCGSplineData.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGBlueprintHelpers.h"
+#include "Helpers/PCGHelpers.h"
 
 #include "Async/ParallelFor.h"
 #include "Components/SplineComponent.h"

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PCGHelpers.h"
+#include "Helpers/PCGHelpers.h"
 
 #include "PCGComponent.h"
 #include "PCGModule.h"

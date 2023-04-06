@@ -2,11 +2,12 @@
 
 #include "Data/PCGTextureData.h"
 
-#include "Engine/Texture2D.h"
-#include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGAsync.h"
+#include "Helpers/PCGHelpers.h"
+
 #include "TextureResource.h"
+#include "Engine/Texture2D.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGTextureData)
 

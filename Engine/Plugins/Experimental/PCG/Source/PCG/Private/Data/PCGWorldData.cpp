@@ -3,7 +3,6 @@
 #include "Data/PCGWorldData.h"
 
 #include "PCGComponent.h"
-#include "PCGHelpers.h"
 #include "PCGSubsystem.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSurfaceData.h"
@@ -12,6 +11,7 @@
 #include "Elements/PCGVolumeSampler.h"
 #include "Grid/PCGLandscapeCache.h"
 #include "Helpers/PCGBlueprintHelpers.h"
+#include "Helpers/PCGHelpers.h"
 
 #include "LandscapeProxy.h"
 #include "Components/BrushComponent.h"

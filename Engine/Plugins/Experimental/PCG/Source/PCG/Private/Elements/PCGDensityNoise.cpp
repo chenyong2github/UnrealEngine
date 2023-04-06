@@ -4,7 +4,7 @@
 
 #include "PCGContext.h"
 #include "PCGCustomVersion.h"
-#include "PCGHelpers.h"
+#include "Helpers/PCGHelpers.h"
 
 #include "Math/RandomStream.h"
 #include "PCGPoint.h"

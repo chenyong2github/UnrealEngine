@@ -3,11 +3,11 @@
 #include "PCGPartitionActor.h"
 #include "Engine/World.h"
 #include "PCGComponent.h"
-#include "PCGHelpers.h"
 #include "PCGModule.h"
 #include "PCGSubsystem.h"
 #include "PCGWorldActor.h"
 #include "Helpers/PCGActorHelpers.h"
+#include "Helpers/PCGHelpers.h"
 
 #include "Components/BoxComponent.h"
 

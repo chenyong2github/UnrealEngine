@@ -5,10 +5,10 @@
 #include "PCGComponent.h"
 #include "PCGContext.h"
 #include "PCGCustomVersion.h"
-#include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGAsync.h"
+#include "Helpers/PCGHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGVolumeSampler)
 

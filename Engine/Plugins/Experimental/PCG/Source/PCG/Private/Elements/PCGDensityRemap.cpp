@@ -4,10 +4,10 @@
 
 #include "PCGContext.h"
 #include "PCGCustomVersion.h"
-#include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGAsync.h"
+#include "Helpers/PCGHelpers.h"
 
 #include "Math/RandomStream.h"
 

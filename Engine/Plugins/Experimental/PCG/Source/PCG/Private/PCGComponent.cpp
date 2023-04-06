@@ -5,7 +5,6 @@
 #include "PCGContext.h"
 #include "PCGEngineSettings.h"
 #include "PCGGraph.h"
-#include "PCGHelpers.h"
 #include "PCGInputOutputSettings.h"
 #include "PCGManagedResource.h"
 #include "PCGParamData.h"
@@ -24,6 +23,7 @@
 #include "Data/PCGVolumeData.h"
 #include "Grid/PCGPartitionActor.h"
 #include "Helpers/PCGActorHelpers.h"
+#include "Helpers/PCGHelpers.h"
 #include "Utils/PCGGeneratedResourcesLogging.h"
 
 #include "LandscapeComponent.h"

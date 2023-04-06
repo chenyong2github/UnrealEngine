@@ -4,8 +4,8 @@
 
 #include "PCGComponent.h"
 #include "PCGEdge.h"
-#include "PCGHelpers.h"
 #include "PCGPin.h"
+#include "Helpers/PCGHelpers.h"
 
 #include "UObject/EnumProperty.h"
 

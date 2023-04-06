@@ -4,11 +4,11 @@
 
 #include "PCGComponent.h"
 #include "PCGContext.h"
-#include "PCGHelpers.h"
 #include "PCGPin.h"
 #include "Data/PCGSpatialData.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGActorHelpers.h"
+#include "Helpers/PCGHelpers.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"

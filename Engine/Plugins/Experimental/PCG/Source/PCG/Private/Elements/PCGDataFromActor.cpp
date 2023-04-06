@@ -3,9 +3,9 @@
 #include "Elements/PCGDataFromActor.h"
 
 #include "PCGComponent.h"
-#include "PCGHelpers.h"
 #include "PCGSubsystem.h"
 #include "Data/PCGSpatialData.h"
+#include "Helpers/PCGHelpers.h"
 
 #include "GameFramework/Actor.h"
 #include "UObject/Package.h"

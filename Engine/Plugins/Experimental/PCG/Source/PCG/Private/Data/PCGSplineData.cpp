@@ -2,12 +2,12 @@
 
 #include "Data/PCGSplineData.h"
 
-#include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGPolyLineData.h"
 #include "Data/PCGProjectionData.h"
 #include "Data/PCGSpatialData.h"
 #include "Elements/PCGSplineSampler.h"
+#include "Helpers/PCGHelpers.h"
 
 #include "Components/SplineComponent.h"
 

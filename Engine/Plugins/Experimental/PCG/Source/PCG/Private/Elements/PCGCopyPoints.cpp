@@ -3,10 +3,10 @@
 #include "Elements/PCGCopyPoints.h"
 
 #include "PCGContext.h"
-#include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGAsync.h"
+#include "Helpers/PCGHelpers.h"
 
 #include "Async/ParallelFor.h"
 

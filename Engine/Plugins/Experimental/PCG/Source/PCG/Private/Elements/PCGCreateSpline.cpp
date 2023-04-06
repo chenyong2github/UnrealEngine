@@ -5,11 +5,11 @@
 #include "PCGCommon.h"
 #include "PCGComponent.h"
 #include "PCGContext.h"
-#include "PCGHelpers.h"
 #include "PCGManagedResource.h"
 #include "PCGPin.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSplineData.h"
+#include "Helpers/PCGHelpers.h"
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
 

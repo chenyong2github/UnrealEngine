@@ -8,6 +8,7 @@
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGAsync.h"
 #include "Helpers/PCGBlueprintHelpers.h"
+#include "Helpers/PCGHelpers.h"
 
 #include "UDynamicMesh.h"
 #include "Engine/AssetManager.h"
@@ -264,16 +265,10 @@ bool FPCGMeshSamplerElement::ExecuteInternal(FPCGContext* InContext) const
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(FPCGMeshSamplerElement::Execute::PoissonSampling);
 
-				// Taken from PCGHelpers, which is private.
-				auto ComputeSeed = [](int A, int B) -> int
-				{
-					return ((A * 196314165U) + 907633515U) ^ ((B * 73148459U) + 453816763U);
-				};
-
 				UE::Geometry::FMeshSurfacePointSampling PointSampling;
 				PointSampling.SampleRadius = Settings->SamplingOptions.SamplingRadius;
 				PointSampling.MaxSamples = Settings->SamplingOptions.MaxNumSamples;
-				PointSampling.RandomSeed = ComputeSeed(Seed, Settings->SamplingOptions.RandomSeed);
+				PointSampling.RandomSeed = PCGHelpers::ComputeSeed(Seed, Settings->SamplingOptions.RandomSeed);
 				PointSampling.SubSampleDensity = Settings->SamplingOptions.SubSampleDensity;
 
 				if (Settings->NonUniformSamplingOptions.MaxSamplingRadius > PointSampling.SampleRadius)

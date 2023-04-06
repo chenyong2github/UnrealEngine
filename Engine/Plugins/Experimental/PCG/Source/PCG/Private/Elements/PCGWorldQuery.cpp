@@ -4,7 +4,7 @@
 
 #include "PCGComponent.h"
 #include "PCGContext.h"
-#include "PCGHelpers.h"
+#include "Helpers/PCGHelpers.h"
 
 #include "GameFramework/Actor.h"
 

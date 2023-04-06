@@ -2,14 +2,13 @@
 
 #include "Tests/Determinism/PCGDeterminismTestsCommon.h"
 
-#include "Data/PCGSpatialData.h"
 #include "PCGComponent.h"
-#include "Metadata/PCGMetadataAccessor.h"
-#include "PCGHelpers.h"
-
-#include "Data/PCGPointData.h"
-#include "Elements/PCGCopyPoints.h"
 #include "PCGContext.h"
+#include "Data/PCGPointData.h"
+#include "Data/PCGSpatialData.h"
+#include "Elements/PCGCopyPoints.h"
+#include "Helpers/PCGHelpers.h"
+#include "Metadata/PCGMetadataAccessor.h"
 
 #if WITH_EDITOR
 

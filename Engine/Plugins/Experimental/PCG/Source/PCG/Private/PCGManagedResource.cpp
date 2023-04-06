@@ -3,8 +3,9 @@
 #include "PCGManagedResource.h"
 
 #include "PCGComponent.h"
-#include "PCGHelpers.h"
 #include "PCGModule.h"
+#include "Helpers/PCGHelpers.h"
+
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Utils/PCGGeneratedResourcesLogging.h"
 

@@ -5,10 +5,9 @@
 
 #include "PCGComponent.h"
 #include "PCGContext.h"
-#include "PCGHelpers.h"
-
 #include "Data/PCGPointData.h"
 #include "Elements/PCGTransformPoints.h"
+#include "Helpers/PCGHelpers.h"
 
 #if WITH_EDITOR
 

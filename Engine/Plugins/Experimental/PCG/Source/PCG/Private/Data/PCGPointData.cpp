@@ -2,7 +2,7 @@
 
 #include "Data/PCGPointData.h"
 
-#include "PCGHelpers.h"
+#include "Helpers/PCGHelpers.h"
 #include "Metadata/PCGMetadataAccessor.h"
 #include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
 #include "Metadata/Accessors/PCGAttributeAccessorKeys.h"

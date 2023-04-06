@@ -2,11 +2,11 @@
 
 #include "PCGContext.h"
 #include "PCGComponent.h"
-#include "PCGHelpers.h"
 #include "PCGParamData.h"
 #include "PCGPin.h"
 #include "PCGSubsystem.h"
 #include "Data/PCGSpatialData.h"
+#include "Helpers/PCGHelpers.h"
 #include "Metadata/PCGAttributePropertySelector.h"
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"

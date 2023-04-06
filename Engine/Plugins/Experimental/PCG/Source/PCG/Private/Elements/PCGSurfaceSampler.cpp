@@ -6,11 +6,11 @@
 #include "PCGCustomVersion.h"
 #include "PCGEdge.h"
 #include "PCGGraph.h"
-#include "PCGHelpers.h"
 #include "PCGPin.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 #include "Helpers/PCGAsync.h"
+#include "Helpers/PCGHelpers.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
 #include "Math/RandomStream.h"

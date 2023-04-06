@@ -5,8 +5,8 @@
 #include "PCGComponent.h"
 #include "PCGContext.h"
 #include "PCGCrc.h"
-#include "PCGHelpers.h"
 #include "Helpers/PCGBlueprintHelpers.h"
+#include "Helpers/PCGHelpers.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
 #include "Engine/Texture2D.h"

@@ -3,9 +3,9 @@
 #include "Data/PCGLandscapeSplineData.h"
 
 #include "Data/PCGPolyLineData.h"
-#include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Elements/PCGSplineSampler.h"
+#include "Helpers/PCGHelpers.h"
 
 #include "LandscapeSplineSegment.h"
 

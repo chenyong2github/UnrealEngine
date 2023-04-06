@@ -4,9 +4,9 @@
 #include "Engine/Blueprint.h"
 #include "Math/RandomStream.h"
 #include "PCGComponent.h"
-#include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGAsync.h"
+#include "Helpers/PCGHelpers.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
 #include "Engine/World.h"

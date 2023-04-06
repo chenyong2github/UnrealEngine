@@ -3,8 +3,8 @@
 #include "Data/PCGVolumeData.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
-#include "PCGHelpers.h"
 #include "Elements/PCGVolumeSampler.h"
+#include "Helpers/PCGHelpers.h"
 
 #include "GameFramework/Volume.h"
 
