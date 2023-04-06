@@ -631,20 +631,20 @@ void FVisualizeTexture::ReleaseDynamicRHI()
 	Captured = {};
 }
 
-void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, const FRDGTextureRef InputTexture, uint32 CaptureId)
+// static
+FRDGTextureRef FVisualizeTexture::AddVisualizeTexturePass(
+	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
+	const FRDGTextureRef InputTexture,
+	const FConfig& VisualizeConfig,
+	EInputValueMapping InputValueMapping,
+	uint32 CaptureId)
 {
-	if (!InputTexture)
-	{
-		return;
-	}
+	check(InputTexture);
+	check(!EnumHasAnyFlags(InputTexture->Desc.Flags, TexCreate_CPUReadback));
 
 	const FRDGTextureDesc& InputDesc = InputTexture->Desc;
 	const FIntPoint InputExtent = InputDesc.Extent;
-
-	if (EnumHasAnyFlags(InputDesc.Flags, TexCreate_CPUReadback))
-	{
-		return;
-	}
 
 	FIntPoint OutputExtent = InputExtent;
 
@@ -654,18 +654,7 @@ void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, cons
 
 	FRDGTextureRef OutputTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(OutputExtent, PF_B8G8R8A8, FClearValueBinding(FLinearColor(1, 1, 0, 1)), TexCreate_RenderTargetable | TexCreate_ShaderResource), TEXT("VisualizeTexture"));
 
-	EInputValueMapping InputValueMapping = EInputValueMapping::Color;
-
 	{
-		if (InputDesc.Format == PF_ShadowDepth)
-		{
-			InputValueMapping = EInputValueMapping::Shadow;
-		}
-		else if (EnumHasAnyFlags(InputDesc.Flags, TexCreate_DepthStencilTargetable))
-		{
-			InputValueMapping = EInputValueMapping::Depth;
-		}
-
 		const EVisualisePSType VisualizeType = GetVisualizePSType(InputDesc);
 
 		FVisualizeTexturePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeTexturePS::FParameters>();
@@ -685,16 +674,16 @@ void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, cons
 				float FracScale = 1.0f;
 
 				// w * almost_1 to avoid frac(1) => 0
-				PassParameters->VisualizeParam[0] = FVector4f(Config.RGBMul, Config.SingleChannelMul, Add, FracScale * 0.9999f);
-				PassParameters->VisualizeParam[1] = FVector4f(CVarAllowBlinking.GetValueOnRenderThread() ? BlinkState : 1.0f, (Config.ShaderOp == EShaderOp::Saturate) ? 1.0f : 0.0f, Config.ArrayIndex, Config.MipIndex);
-				PassParameters->VisualizeParam[2] = FVector4f((float)InputValueMapping, 0.0f, Config.SingleChannel);
+				PassParameters->VisualizeParam[0] = FVector4f(VisualizeConfig.RGBMul, VisualizeConfig.SingleChannelMul, Add, FracScale * 0.9999f);
+				PassParameters->VisualizeParam[1] = FVector4f(CVarAllowBlinking.GetValueOnRenderThread() ? BlinkState : 1.0f, (VisualizeConfig.ShaderOp == EShaderOp::Saturate) ? 1.0f : 0.0f, VisualizeConfig.ArrayIndex, VisualizeConfig.MipIndex);
+				PassParameters->VisualizeParam[2] = FVector4f((float)InputValueMapping, 0.0f, VisualizeConfig.SingleChannel);
 			}
 
 			FRDGTextureSRV* InputSRV = nullptr;
 			FRHISamplerState* PointSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			if (InputTexture->Desc.Dimension == ETextureDimension::Texture2DArray)
 			{
-				InputSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForSlice(InputTexture, FMath::Clamp(int32(Config.ArrayIndex), 0, int32(InputDesc.ArraySize) - 1)));
+				InputSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForSlice(InputTexture, FMath::Clamp(int32(VisualizeConfig.ArrayIndex), 0, int32(InputDesc.ArraySize) - 1)));
 			}
 			else
 			{
@@ -722,7 +711,6 @@ void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, cons
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::EClear);
 		}
 
-		auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
 		FVisualizeTexturePS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FVisualizeTexturePS::FVisualisePSTypeDim>(VisualizeType);
 
@@ -733,18 +721,18 @@ void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, cons
 		{
 			if (InputDesc.IsTexture3D())
 			{
-				ExtendedDrawEvent += FString::Printf(TEXT("x%d CapturedSlice=%d"), InputDesc.Depth, Config.ArrayIndex);
+				ExtendedDrawEvent += FString::Printf(TEXT("x%d CapturedSlice=%d"), InputDesc.Depth, VisualizeConfig.ArrayIndex);
 			}
 
 			if (InputDesc.IsTextureArray())
 			{
-				ExtendedDrawEvent += FString::Printf(TEXT(" ArraySize=%d CapturedSlice=%d"), InputDesc.ArraySize, Config.ArrayIndex);
+				ExtendedDrawEvent += FString::Printf(TEXT(" ArraySize=%d CapturedSlice=%d"), InputDesc.ArraySize, VisualizeConfig.ArrayIndex);
 			}
 
 			// Precise the mip level being captured in the mip level when there is a mip chain.
 			if (InputDesc.IsMipChain())
 			{
-				ExtendedDrawEvent += FString::Printf(TEXT(" Mips=%d CapturedMip=%d"), InputDesc.NumMips, Config.MipIndex);
+				ExtendedDrawEvent += FString::Printf(TEXT(" Mips=%d CapturedMip=%d"), InputDesc.NumMips, VisualizeConfig.MipIndex);
 			}
 		}
 
@@ -760,6 +748,43 @@ void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, cons
 			PassParameters,
 			FIntRect(0, 0, OutputExtent.X, OutputExtent.Y));
 	}
+
+	return OutputTexture;
+}
+
+void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, const FRDGTextureRef InputTexture, uint32 CaptureId)
+{
+	if (!InputTexture)
+	{
+		return;
+	}
+
+	const FRDGTextureDesc& InputDesc = InputTexture->Desc;
+	const FIntPoint InputExtent = InputDesc.Extent;
+
+	if (EnumHasAnyFlags(InputDesc.Flags, TexCreate_CPUReadback))
+	{
+		return;
+	}
+
+	EInputValueMapping InputValueMapping = EInputValueMapping::Color;
+	{
+		if (InputDesc.Format == PF_ShadowDepth)
+		{
+			InputValueMapping = EInputValueMapping::Shadow;
+		}
+		else if (EnumHasAnyFlags(InputDesc.Flags, TexCreate_DepthStencilTargetable))
+		{
+			InputValueMapping = EInputValueMapping::Depth;
+		}
+	}
+
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
+	FRDGTextureRef OutputTexture = AddVisualizeTexturePass(GraphBuilder, ShaderMap, InputTexture, Config, InputValueMapping, CaptureId);
+
+	FIntPoint OutputExtent = InputExtent;
+	OutputExtent.X = FMath::Max(OutputExtent.X, 1);
+	OutputExtent.Y = FMath::Max(OutputExtent.Y, 1);
 
 	{
 		Captured.Desc = Translate(InputDesc);
@@ -877,3 +902,54 @@ void FVisualizeTexture::Visualize(const FString& InName, TOptional<uint32> InVer
 }
 
 #endif // SUPPORTS_VISUALIZE_TEXTURE
+
+// static
+FRDGTextureRef FVisualizeTexture::AddVisualizeTexturePass(
+	FRDGBuilder& GraphBuilder,
+	class FGlobalShaderMap* ShaderMap,
+	const FRDGTextureRef InputTexture)
+#if SUPPORTS_VISUALIZE_TEXTURE
+{
+	check(InputTexture);
+	EInputValueMapping InputValueMapping = EInputValueMapping::Color;
+	{
+		if (InputTexture->Desc.Format == PF_ShadowDepth)
+		{
+			InputValueMapping = EInputValueMapping::Shadow;
+		}
+		else if (EnumHasAnyFlags(InputTexture->Desc.Flags, TexCreate_DepthStencilTargetable))
+		{
+			InputValueMapping = EInputValueMapping::Depth;
+		}
+	}
+
+	FConfig VisualizeConfig;
+
+	return AddVisualizeTexturePass(GraphBuilder, ShaderMap, InputTexture, VisualizeConfig, InputValueMapping, /* CaptureId = */ 0);
+}
+#else
+{
+	return InputTexture;
+}
+#endif
+
+// static
+FRDGTextureRef FVisualizeTexture::AddVisualizeTextureAlphaPass(
+	FRDGBuilder& GraphBuilder,
+	class FGlobalShaderMap* ShaderMap,
+	const FRDGTextureRef InputTexture)
+#if SUPPORTS_VISUALIZE_TEXTURE
+{
+	check(InputTexture);
+	FConfig VisualizeConfig;
+	VisualizeConfig.SingleChannel = 3;
+	VisualizeConfig.SingleChannelMul = 1.0f;
+	VisualizeConfig.RGBMul = 0.0f;
+
+	return AddVisualizeTexturePass(GraphBuilder, ShaderMap, InputTexture, VisualizeConfig, EInputValueMapping::Color, /* CaptureId = */ 0);
+}
+#else
+{
+	return InputTexture;
+}
+#endif

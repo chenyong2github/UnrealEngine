@@ -225,3 +225,21 @@ public:
 
 	static EMainTAAPassConfig GetMainTAAPassConfig(const FViewInfo& View);
 }; 
+
+/** Interface for the VisualizeTSR showflag. */
+struct FVisualizeTemporalUpscalerInputs
+{
+	// [Optional] Render to the specified output. If invalid, a new texture is created and returned.
+	FScreenPassRenderTarget OverrideOutput;
+
+	// Scene color.
+	FScreenPassTexture SceneColor;
+
+	// Temporal upscaler used and its inputs and outputs.
+	EMainTAAPassConfig TAAConfig = EMainTAAPassConfig::Disabled;
+	const ITemporalUpscaler* UpscalerUsed = nullptr;
+	ITemporalUpscaler::FPassInputs Inputs;
+	ITemporalUpscaler::FOutputs Outputs;
+};
+
+FScreenPassTexture AddVisualizeTemporalUpscalerPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeTemporalUpscalerInputs& Inputs);

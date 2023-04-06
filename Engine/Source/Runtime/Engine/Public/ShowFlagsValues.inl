@@ -122,6 +122,8 @@ SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeMotionBlur, SFG_Visualize, NSLOCTEXT("Unr
 SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeMotionVectors, SFG_Hidden, NSLOCTEXT("UnrealEd", "VisualizeMotionVectorsSF", "Motion Vectors"))
 /** Helper to ensure previous frame's temporal history reprojections using motion vectors are working correctly. */
 SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeReprojection, SFG_Visualize, NSLOCTEXT("UnrealEd", "VisualizeReprojectionSF", "Previous frame's reprojection"))
+/** Helper to diagnose why the temporal upscaler may run into issues. */
+SHOWFLAG_FIXED_IN_SHIPPING(0, VisualizeTemporalUpscaler, SFG_Visualize, NSLOCTEXT("UnrealEd", "VisualizeTemporalUpscalerSF", "Temporal Upscaler (TSR, TAAU or third party plugins)"))
 /** Whether to display the Reflection Environment feature, which has local reflections from Reflection Capture actors, for now SHOWFLAG_ALWAYS_ACCESSIBLE because it's exposed in SceneCapture */
 SHOWFLAG_ALWAYS_ACCESSIBLE(ReflectionEnvironment, SFG_LightingFeatures, NSLOCTEXT("UnrealEd", "ReflectionEnvironmentSF", "Reflection Environment"))
 /** Visualize pixels that are outside of their object's bounding box (content error). */

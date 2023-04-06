@@ -52,3 +52,28 @@ struct FVisualizeGBufferOverviewInputs
 };
 
 FScreenPassTexture AddVisualizeGBufferOverviewPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeGBufferOverviewInputs& Inputs);
+
+struct FVisualizeBufferTile
+{
+	// The input texture to visualize.
+	FScreenPassTexture Input;
+
+	// The label of the tile shown on the visualizer.
+	FString Label;
+
+	// Whether the tile is shown as selected.
+	bool bSelected = false;
+};
+
+struct FVisualizeBufferInputs
+{
+	FScreenPassRenderTarget OverrideOutput;
+
+	// The scene color input to propagate.
+	FScreenPassTexture SceneColor;
+
+	// The array of tiles to render onto the scene color texture.
+	TArrayView<const FVisualizeBufferTile> Tiles;
+};
+
+FScreenPassTexture AddVisualizeBufferPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeBufferInputs& Inputs);

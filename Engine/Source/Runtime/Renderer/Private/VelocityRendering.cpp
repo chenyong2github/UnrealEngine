@@ -197,7 +197,7 @@ bool FDeferredShadingSceneRenderer::ShouldRenderVelocities() const
 
 		bool bTemporalAA = IsTemporalAccumulationBasedMethod(View.AntiAliasingMethod) && !View.bCameraCut;
 		bool bMotionBlur = IsMotionBlurEnabled(View);
-		bool bVisualizeMotionblur = View.Family->EngineShowFlags.VisualizeMotionBlur;
+		bool bVisualizeMotionblur = View.Family->EngineShowFlags.VisualizeMotionBlur || View.Family->EngineShowFlags.VisualizeTemporalUpscaler;
 		bool bDistanceFieldAO = ShouldPrepareForDistanceFieldAO();
 
 		bool bSceneSSREnabled = ViewPipelineState.ReflectionsMethod == EReflectionsMethod::SSR && ScreenSpaceRayTracing::ShouldRenderScreenSpaceReflections(View);

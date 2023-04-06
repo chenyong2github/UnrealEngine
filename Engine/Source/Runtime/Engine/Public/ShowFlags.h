@@ -391,6 +391,7 @@ private:
 		SetVisualizeMotionBlur(false);
 		SetVisualizeMotionVectors(false);
 		SetVisualizeReprojection(false);
+		SetVisualizeTemporalUpscaler(false);
 		SetEditingLevelInstance(false);
 		SetSelectionOutline(false);
 		SetDebugAI(false);
