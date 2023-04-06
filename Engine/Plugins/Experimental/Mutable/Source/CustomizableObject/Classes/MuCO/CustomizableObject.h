@@ -1628,7 +1628,7 @@ public:
 	// Return a pointer to the BulkData subobject, only valid in packaged builds
 	const UCustomizableObjectBulk* GetStreamableBulkData() const { return BulkData; }
 
-	FCustomizableObjectPrivateData* GetPrivate() const { return PrivateData.Get(); }
+	FCustomizableObjectPrivateData* GetPrivate() const;
 
 	// This will always return true in a packaged game
 	UFUNCTION(BlueprintCallable, Category = CustomizableObject)

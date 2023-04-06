@@ -51,12 +51,40 @@ namespace ESkeletalMeshState
 };
 
 
+/** Result of all the checks just before beginning an update. */
+enum class EUpdateRequired : uint8
+{
+	NoUpdate, // No work required.
+	Update, // Normal update.
+	Discard // Discard instead of update.
+};
+
+
 /** Instance Update Result. */
+UENUM()
 enum class EUpdateResult : uint8
 {
-	Success,
-	Error
+	Success, // There only exist one Success case. Any other new cases have to be errors.
+	Error, // Generic error.
+	ErrorOptimized, // The update was skipped since its result would have been the same as the current customization.
+	ErrorReplaced, // The update was replaced by a newer update request.
+	ErrorDiscarded // The update was not finished since due to the LOD management discarding the data.
 };
+
+
+/** Instance Update Context.
+ * Used to avoid changing the delegate signature in the future.  */
+USTRUCT()
+struct FUpdateContext
+{	
+	GENERATED_BODY()
+
+	UPROPERTY()
+	EUpdateResult UpdateResult;
+};
+
+
+DECLARE_DYNAMIC_DELEGATE_OneParam(FInstanceUpdateDelegate, const FUpdateContext&, Result);
 
 
 /* When creating new delegates use the following conventions:
@@ -150,7 +178,6 @@ public:
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool CanEditChange( const FProperty* InProperty ) const override;
-	bool InstanceUpdated; // Flag for the editor, to know when the instance's skeletal mesh has been updated
 #endif //WITH_EDITOR
 
 	virtual void Serialize(FArchive& Ar) override;
@@ -233,10 +260,27 @@ public:
 	void SetSelectedParameterProfileDirty();
 	bool IsSelectedParameterProfileDirty() const;
 
-	//
+	/** Update Skeletal Mesh asynchronously. */
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
 	void UpdateSkeletalMeshAsync(bool bIgnoreCloseDist = false, bool bForceHighPriority = false);
+		
+	/** Update Skeletal Mesh asynchronously. Callback will be called once the update finishes, even if it fails. */
+	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
+	void UpdateSkeletalMeshAsyncResult(FInstanceUpdateDelegate Callback, bool bIgnoreCloseDist = false, bool bForceHighPriority = false);
 
+private:
+	/** Perform all the checks required to see if the update should begin. */
+	EUpdateRequired IsUpdateRequired(bool bIsCloseDistTick, bool bOnlyUpdateIfNotGenerated, bool bIgnoreCloseDist) const;
+	
+	/** Update Skeletal Mesh asynchronously. Immersive function. Not exposed to the API.
+	 * Once the update reaches this function, the update has been considered started and must complete all the update flow.
+	/* Starting at this function, all Update code paths must end up in FinishUpdateGlobal!
+	 *
+	 * @param bIsCloseDistTick true iff called from the tick.
+	 */
+	void DoUpdateSkeletalMesh(bool bIsCloseDistTick, bool bOnlyUpdateIfNotGenerated, bool bIgnoreCloseDist, bool bForceHighPriority, const EUpdateRequired* OptionalUpdateRequired, FInstanceUpdateDelegate* UpdateCallback);
+
+public:	
 	// Clones the instance creating a new identical transient instance.
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
 	UCustomizableObjectInstance* Clone();
@@ -594,8 +638,8 @@ public:
 
 	const TArray<uint16>& GetRequestedLODsPerComponent() const;
 
-	/** Instance updated. */
-	void Updated(EUpdateResult Result, const FDescriptorRuntimeHash& UpdatedHash);
+	/** Common end point of all updates. Even those which failed. */
+	void FinishUpdate(EUpdateResult UpdateResult, const FDescriptorRuntimeHash& UpdatedHash);
 	
 	/** Return the UCustomizableObjectInstance::Descriptor hash on the last update request. */
 	FDescriptorRuntimeHash GetDescriptorRuntimeHash() const;
@@ -608,10 +652,7 @@ public:
 	/** Flag to know if a property of this instance changed in the editor */
 	bool bEditorPropertyChanged = false;
 
-	UCustomizableInstancePrivateData* GetPrivate() const { 
-		check(nullptr != PrivateData); // Currently this is initialized in the constructor so we expect it always to exist.
-		return PrivateData; 
-	}
+	UCustomizableInstancePrivateData* GetPrivate() const;
 
 	bool ProjectorUpdatedInViewport = false;
 

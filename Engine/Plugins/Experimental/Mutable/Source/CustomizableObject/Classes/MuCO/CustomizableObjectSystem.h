@@ -5,6 +5,8 @@
 #include "HAL/IConsoleManager.h"
 #include "Engine/StreamableManager.h"
 #include "AssetRegistry/AssetData.h"
+#include "MuCO/CustomizableObjectInstance.h"
+#include "MuCO/CustomizableObjectInstanceDescriptor.h"
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
@@ -14,6 +16,7 @@
 
 class IConsoleVariable;
 class FCustomizableObjectCompilerBase;
+class UCustomizableInstanceLODManagementBase;
 class ITargetPlatform;
 class SNotificationItem;
 class UCustomizableObject;
@@ -181,7 +184,8 @@ public:
 };
 
 
-class UCustomizableInstanceLODManagementBase;
+/** End a Customizable Object Instance Update. All code paths of an update have to end here. */
+void FinishUpdateGlobal(UCustomizableObjectInstance* Instance, EUpdateResult UpdateResult, FInstanceUpdateDelegate* UpdateCallback, const FDescriptorRuntimeHash InUpdatedHash = FDescriptorRuntimeHash());
 
 
 UCLASS(Blueprintable, BlueprintType)

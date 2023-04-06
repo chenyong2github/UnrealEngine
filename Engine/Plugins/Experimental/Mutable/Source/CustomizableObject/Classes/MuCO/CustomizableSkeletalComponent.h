@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Components/SceneComponent.h"
+#include "MuCO/CustomizableObjectInstance.h"
 
 #include "CustomizableSkeletalComponent.generated.h"
 
@@ -12,7 +13,6 @@ class UCustomizableSkeletalComponent;
 class UObject;
 class USkeletalMesh;
 struct FFrame;
-class UCustomizableObjectInstance;
 enum class EUpdateResult : uint8;
 
 DECLARE_DELEGATE_TwoParams(FCustomizableSkeletalComponentPreUpdateDelegate, UCustomizableSkeletalComponent* Component, USkeletalMesh* NextMesh);
@@ -43,14 +43,20 @@ public:
 
 	FCustomizableSkeletalComponentPreUpdateDelegate PreUpdateDelegate;
 	FCustomizableSkeletalComponentUpdatedDelegate UpdatedDelegate;
-	
-	void Updated(EUpdateResult Result) const;
+
+	/** Common end point of all updates. Even those which failed. */
+	void Callbacks() const;
 	
 	USkeletalMesh* GetSkeletalMesh() const;
 	USkeletalMesh* GetAttachedSkeletalMesh() const;
 
+	/** Update Skeletal Mesh asynchronously. */
 	UFUNCTION(BlueprintCallable, Category = CustomizableObject)
 	void UpdateSkeletalMeshAsync(bool bNeverSkipUpdate = false);
+
+	/** Update Skeletal Mesh asynchronously. Callback will be called once the update finishes, even if it fails. */
+	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
+	void UpdateSkeletalMeshAsyncResult(FInstanceUpdateDelegate Callback, bool bIgnoreCloseDist = false, bool bForceHighPriority = false);
 
 	void SetSkeletalMesh(USkeletalMesh* SkeletalMesh, bool bReinitPose=true, bool bForceClothReset=true);
 	void SetPhysicsAsset(class UPhysicsAsset* PhysicsAsset);

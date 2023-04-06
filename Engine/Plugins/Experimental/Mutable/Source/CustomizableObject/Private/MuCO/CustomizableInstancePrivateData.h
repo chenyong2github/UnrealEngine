@@ -25,7 +25,7 @@ enum ECOInstanceFlags
 	// Update process
 	Updating						= 1 << 0,	//
 	CreatingSkeletalMesh			= 1 << 1,	//
-	Generated						= 1 << 2,	//
+	Generated						= 1 << 2,	// Generated or update in progress.
 	ReuseTextures					= 1 << 3, 	// 
 	ReplacePhysicsAssets			= 1 << 4,	// Merge active PhysicsAssets and replace the base physics asset
 
@@ -45,6 +45,8 @@ enum ECOInstanceFlags
 	// Generation
 	ForceGenerateAllLODs			= 1 << 12,	// If set, Requested LOD Levels will be ignored and all LODs in between the current min/max lod will be generated
 };
+
+ENUM_CLASS_FLAGS(ECOInstanceFlags);
 
 
 USTRUCT()
@@ -247,10 +249,6 @@ public:
 	// \TODO: CustomizableObject shouldn't be here
 	static void ProcessTextureCoverageQueries(const TSharedPtr<FMutableOperationData>& OperationData, UCustomizableObject* CustomizableObject, const FString& ImageKeyName, FTexturePlatformData *PlatformData, UMaterialInterface* Material);
 
-	// Prepare the data for the unreal reference skeleton
-	// it runs in the mutable thread
-	static void PrepareSkeletonData(const TSharedPtr<FMutableOperationData>& OperationData);
-
 	// Copy data generated in the mutable thread over to the instance and initializes additional data required during the update
 	void PrepareForUpdate(const TSharedPtr<FMutableOperationData>& OperationData);
 
@@ -259,8 +257,6 @@ public:
 	// The following method is basically copied from PostEditChangeProperty and/or SkeletalMesh.cpp to be able to replicate PostEditChangeProperty without the editor
 	void PostEditChangePropertyWithoutEditor(USkeletalMesh* SkeletalMesh);
 	
-	void DoUpdateSkeletalMesh(UCustomizableObjectInstance& Instance, bool bIsCloseDistTick=false, bool bOnlyUpdateIfNotGenerated=false, bool bIgnoreCloseDist=false, bool bForceHighPriority = false);
-
 	void DiscardResourcesAndSetReferenceSkeletalMesh(UCustomizableObjectInstance* Public);
 
 	const TArray<FAnimInstanceOverridePhysicsAsset>* GetGeneratedPhysicsAssetsForAnimInstance(TSubclassOf<UAnimInstance> AnimInstance) const;

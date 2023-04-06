@@ -125,6 +125,10 @@ void FMutableQueue::Enqueue(const FMutableQueueElem& TaskToEnqueue)
 		if ((QueueElem.Operation->Type == FMutableOperation::EOperationType::Update || QueueElem.Operation->Type == FMutableOperation::EOperationType::Discard) &&
 			QueueElem.Operation->CustomizableObjectInstance == TaskToEnqueue.Operation->CustomizableObjectInstance)
 		{
+			UCustomizableObjectInstance* Instance = QueueElem.Operation->CustomizableObjectInstance.Get();
+			FInstanceUpdateDelegate* Callback = &QueueElem.Operation->UpdateCallback;
+			FinishUpdateGlobal(Instance, EUpdateResult::ErrorReplaced, Callback);
+		
 			QueueElem.Operation = TaskToEnqueue.Operation;
 			QueueElem.PriorityType = FMath::Min(QueueElem.PriorityType, TaskToEnqueue.PriorityType);
 			QueueElem.Priority = FMath::Min(QueueElem.Priority, TaskToEnqueue.Priority);
@@ -745,92 +749,105 @@ FAutoConsoleVariableRef CVarMaxTextureSizeToGenerate(
 		"If a texture doesn't have small enough mips, mip 0 will be the last mip available."));
 
 
-/** Update the given Instance Skeletal Meshes and call its callbacks. */
-void UpdateSkeletalMesh(UCustomizableObjectInstance* CustomizableObjectInstance, const FDescriptorRuntimeHash& UpdatedDescriptorRuntimeHash)
+void FinishUpdateGlobal(UCustomizableObjectInstance* Instance, EUpdateResult UpdateResult, FInstanceUpdateDelegate* UpdateCallback, const FDescriptorRuntimeHash InUpdatedHash)
 {
-	// This used to be CustomizableObjectInstance::UpdateSkeletalMesh_PostBeginUpdate3
+	// Callbacks. Must be done at the end.
+	if (Instance)
 	{
-		MUTABLE_CPUPROFILER_SCOPE(UpdateSkeletalMesh_PostBeginUpdate3);
-		check(CustomizableObjectInstance != nullptr);
+		Instance->FinishUpdate(UpdateResult, InUpdatedHash);			
+	}
 
-#if !WITH_EDITOR
-		for (int32 ComponentIndex = 0; ComponentIndex < CustomizableObjectInstance->SkeletalMeshes.Num(); ++ComponentIndex)
+	if (UpdateResult == EUpdateResult::Success)
+	{
+		// Call Customizable Skeletal Components updated callbacks.
+		for (TObjectIterator<UCustomizableSkeletalComponent> It; It; ++It) // Since iterating objects is expensive, for now CustomizableSkeletalComponent does not have a FinishUpdate function.
 		{
-			if (CustomizableObjectInstance->SkeletalMeshes[ComponentIndex])
+			if (const UCustomizableSkeletalComponent* CustomizableSkeletalComponent = *It;
+				CustomizableSkeletalComponent &&
+				CustomizableSkeletalComponent->CustomizableObjectInstance == Instance)
 			{
-				CustomizableObjectInstance->SkeletalMeshes[ComponentIndex]->RebuildSocketMap();
+				CustomizableSkeletalComponent->Callbacks();
 			}
 		}
-#endif
+	}
 
-		UCustomizableInstancePrivateData* CustomizableObjectInstancePrivateData = CustomizableObjectInstance->GetPrivate();
-		check(CustomizableObjectInstancePrivateData != nullptr);
-		for (TObjectIterator<UCustomizableSkeletalComponent> It; It; ++It)
-		{
-			UCustomizableSkeletalComponent* CustomizableSkeletalComponent = *It;
-
-			if (CustomizableSkeletalComponent &&
-				(CustomizableSkeletalComponent->CustomizableObjectInstance == CustomizableObjectInstance) &&
-				CustomizableObjectInstance->SkeletalMeshes.IsValidIndex(CustomizableSkeletalComponent->ComponentIndex)
-			   )
-			{
-				MUTABLE_CPUPROFILER_SCOPE(UpdateSkeletalMesh_SetSkeletalMesh);
-
-				const bool bIsCreatingSkeletalMesh = CustomizableObjectInstancePrivateData->HasCOInstanceFlags(CreatingSkeletalMesh); //TODO MTBL-391: Review
-				CustomizableSkeletalComponent->SetSkeletalMesh(CustomizableObjectInstance->SkeletalMeshes[CustomizableSkeletalComponent->ComponentIndex], false, bIsCreatingSkeletalMesh);
-
-				if (CustomizableObjectInstancePrivateData->HasCOInstanceFlags(ReplacePhysicsAssets))
-				{
-					CustomizableSkeletalComponent->SetPhysicsAsset(
-						CustomizableObjectInstance->SkeletalMeshes[CustomizableSkeletalComponent->ComponentIndex] ? 
-						CustomizableObjectInstance->SkeletalMeshes[CustomizableSkeletalComponent->ComponentIndex]->GetPhysicsAsset() : nullptr);
-				}
-			}
-		}
-
-		CustomizableObjectInstancePrivateData->SetCOInstanceFlags(Generated);
-		CustomizableObjectInstancePrivateData->ClearCOInstanceFlags(CreatingSkeletalMesh);
-
-		CustomizableObjectInstance->bEditorPropertyChanged = false;
-
-		{
-			MUTABLE_CPUPROFILER_SCOPE(UpdateSkeletalMesh_UpdatedDelegate);
-
-			EUpdateResult State = CustomizableObjectInstance->SkeletalMeshStatus == ESkeletalMeshState::Correct ? EUpdateResult::Success : EUpdateResult::Error;
-			CustomizableObjectInstance->Updated(State, UpdatedDescriptorRuntimeHash);
-
-
-#if WITH_EDITOR
-			// \TODO: Review if we can avoid all this editor code here.
-			for (int32 MeshIndex = 0; MeshIndex < CustomizableObjectInstance->SkeletalMeshes.Num(); ++MeshIndex)
-			{
-				if (USkeletalMesh* SkeletalMesh = CustomizableObjectInstance->GetSkeletalMesh(MeshIndex))
-				{
-					FUnrealBakeHelpers::BakeHelper_RegenerateImportedModel(SkeletalMesh);
-				}
-			}
-#endif //WITH_EDITOR
-		}
-
-		check(UCustomizableObjectSystem::GetInstance() != nullptr);
-		FCustomizableObjectSystemPrivate* CustomizableObjectSystem = UCustomizableObjectSystem::GetInstance()->GetPrivate();
-		check(CustomizableObjectSystem != nullptr);
-		if (CustomizableObjectSystem->bReleaseTexturesImmediately)
-		{
-			FMutableResourceCache& Cache = CustomizableObjectSystem->GetObjectCache(CustomizableObjectInstance->GetCustomizableObject());
-
-			for (TPair<uint32, FGeneratedTexture>& Item : CustomizableObjectInstancePrivateData->TexturesToRelease)
-			{
-				UCustomizableInstancePrivateData::ReleaseMutableTexture(Item.Value.Id, Item.Value.Texture, Cache);
-			}
-
-			CustomizableObjectInstancePrivateData->TexturesToRelease.Empty();
-		}
+	if (UpdateCallback)
+	{
+		FUpdateContext Context;
+		Context.UpdateResult = UpdateResult;
+		
+		UpdateCallback->ExecuteIfBound(Context);
 	}
 }
 
 
-void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjectInstance& Instance, FMutableQueueElem::EQueuePriorityType Priority)
+/** Update the given Instance Skeletal Meshes and call its callbacks. */
+void UpdateSkeletalMesh(UCustomizableObjectInstance& CustomizableObjectInstance, const FDescriptorRuntimeHash& UpdatedDescriptorRuntimeHash, EUpdateResult UpdateResult, FInstanceUpdateDelegate* UpdateCallback)
+{
+	MUTABLE_CPUPROFILER_SCOPE(UpdateSkeletalMesh);
+
+	for (int32 ComponentIndex = 0; ComponentIndex < CustomizableObjectInstance.SkeletalMeshes.Num(); ++ComponentIndex)
+	{
+		if (TObjectPtr<USkeletalMesh> SkeletalMesh = CustomizableObjectInstance.SkeletalMeshes[ComponentIndex])
+		{
+#if WITH_EDITOR
+			FUnrealBakeHelpers::BakeHelper_RegenerateImportedModel(SkeletalMesh);
+#else
+			SkeletalMesh->RebuildSocketMap();
+#endif
+		}
+	}
+
+	UCustomizableInstancePrivateData* CustomizableObjectInstancePrivateData = CustomizableObjectInstance.GetPrivate();
+	check(CustomizableObjectInstancePrivateData != nullptr);
+	for (TObjectIterator<UCustomizableSkeletalComponent> It; It; ++It)
+	{
+		UCustomizableSkeletalComponent* CustomizableSkeletalComponent = *It;
+
+		if (CustomizableSkeletalComponent &&
+			(CustomizableSkeletalComponent->CustomizableObjectInstance == &CustomizableObjectInstance) &&
+			CustomizableObjectInstance.SkeletalMeshes.IsValidIndex(CustomizableSkeletalComponent->ComponentIndex)
+		   )
+		{
+			MUTABLE_CPUPROFILER_SCOPE(UpdateSkeletalMesh_SetSkeletalMesh);
+
+			const bool bIsCreatingSkeletalMesh = CustomizableObjectInstancePrivateData->HasCOInstanceFlags(CreatingSkeletalMesh); //TODO MTBL-391: Review
+			CustomizableSkeletalComponent->SetSkeletalMesh(CustomizableObjectInstance.SkeletalMeshes[CustomizableSkeletalComponent->ComponentIndex], false, bIsCreatingSkeletalMesh);
+
+			if (CustomizableObjectInstancePrivateData->HasCOInstanceFlags(ReplacePhysicsAssets))
+			{
+				CustomizableSkeletalComponent->SetPhysicsAsset(
+					CustomizableObjectInstance.SkeletalMeshes[CustomizableSkeletalComponent->ComponentIndex] ? 
+					CustomizableObjectInstance.SkeletalMeshes[CustomizableSkeletalComponent->ComponentIndex]->GetPhysicsAsset() : nullptr);
+			}
+		}
+	}
+
+	CustomizableObjectInstancePrivateData->SetCOInstanceFlags(Generated);
+	CustomizableObjectInstancePrivateData->ClearCOInstanceFlags(CreatingSkeletalMesh);
+
+	CustomizableObjectInstance.bEditorPropertyChanged = false;
+
+	check(UCustomizableObjectSystem::GetInstance() != nullptr);
+	FCustomizableObjectSystemPrivate* CustomizableObjectSystem = UCustomizableObjectSystem::GetInstance()->GetPrivate();
+	check(CustomizableObjectSystem != nullptr);
+	if (CustomizableObjectSystem->bReleaseTexturesImmediately)
+	{
+		FMutableResourceCache& Cache = CustomizableObjectSystem->GetObjectCache(CustomizableObjectInstance.GetCustomizableObject());
+
+		for (TPair<uint32, FGeneratedTexture>& Item : CustomizableObjectInstancePrivateData->TexturesToRelease)
+		{
+			UCustomizableInstancePrivateData::ReleaseMutableTexture(Item.Value.Id, Item.Value.Texture, Cache);
+		}
+
+		CustomizableObjectInstancePrivateData->TexturesToRelease.Empty();
+	}
+
+	FinishUpdateGlobal(&CustomizableObjectInstance, UpdateResult, UpdateCallback, UpdatedDescriptorRuntimeHash);
+}
+
+
+void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjectInstance& Instance, FMutableQueueElem::EQueuePriorityType Priority, FInstanceUpdateDelegate* UpdateCallback)
 {
 	MUTABLE_CPUPROFILER_SCOPE(FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh);
 
@@ -858,8 +875,6 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 		MipsToSkip = 255; // This means skip all possible mips until only UTexture::GetStaticMinTextureResidentMipCount() are left
 	}
 	
-	const TSharedPtr<FMutableOperation> Operation = MakeShared<FMutableOperation>(FMutableOperation::CreateInstanceUpdate(&Instance, bNeverStream, MipsToSkip));
-
 	const FDescriptorRuntimeHash UpdateDescriptorHash = Instance.GetUpdateDescriptorRuntimeHash();
 
 	if (const FMutableQueueElem* QueueElem = MutableOperationQueue.Get(&Instance))
@@ -869,6 +884,7 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 			QueuedOperation->Type == FMutableOperation::EOperationType::Update &&
 			UpdateDescriptorHash.IsSubset(QueuedOperation->InstanceDescriptorRuntimeHash))
 		{
+			FinishUpdateGlobal(&Instance, EUpdateResult::ErrorOptimized, UpdateCallback);			
 			return; // The the requested update is equal to the last enqueued update.
 		}
 	}
@@ -877,6 +893,7 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 		CurrentMutableOperation->Type == FMutableOperation::EOperationType::Update &&
 		UpdateDescriptorHash.IsSubset(CurrentMutableOperation->InstanceDescriptorRuntimeHash))
 	{
+		FinishUpdateGlobal(&Instance, EUpdateResult::ErrorOptimized, UpdateCallback);			
 		return; // The requested update is equal to the running update.
 	}
 	
@@ -887,11 +904,13 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 	if (UpdateDescriptorHash.IsSubset(Instance.GetDescriptorRuntimeHash()))
 	{
 		Instance.SkeletalMeshStatus = ESkeletalMeshState::Correct; // TODO GMT MTBL-1033 should not be here. Move to UCustomizableObjectInstance::Updated
-		UpdateSkeletalMesh(&Instance, Instance.GetDescriptorRuntimeHash());
+		UpdateSkeletalMesh(Instance, Instance.GetDescriptorRuntimeHash(), EUpdateResult::Success, UpdateCallback);
 	}
 	else
 	{
 		Instance.SkeletalMeshStatus = ESkeletalMeshState::AsyncUpdatePending;
+
+		const TSharedPtr<FMutableOperation> Operation = MakeShared<FMutableOperation>(FMutableOperation::CreateInstanceUpdate(&Instance, bNeverStream, MipsToSkip, UpdateCallback));
 		MutableOperationQueue.Enqueue(FMutableQueueElem::Create(Operation, Priority, Instance.GetPrivate()->MinSquareDistFromComponentToPlayer));
 	}
 }
@@ -953,7 +972,6 @@ void UCustomizableObjectSystem::ClearResourceCacheProtected()
 bool UCustomizableObjectSystem::LockObject(const class UCustomizableObject* InObject)
 {
 	check(InObject != nullptr);
-	check(InObject->GetPrivate() != nullptr);
 	check(!InObject->GetPrivate()->bLocked);
 	check(IsInGameThread() && !IsInParallelGameThread());
 
@@ -1015,7 +1033,6 @@ bool UCustomizableObjectSystem::LockObject(const class UCustomizableObject* InOb
 void UCustomizableObjectSystem::UnlockObject(const class UCustomizableObject* Obj)
 {
 	check(Obj != nullptr);
-	check(Obj->GetPrivate() != nullptr);
 	check(Obj->GetPrivate()->bLocked);
 	check(IsInGameThread() && !IsInParallelGameThread());
 	Obj->GetPrivate()->bLocked = false;
@@ -1807,6 +1824,7 @@ namespace impl
 		UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
 		if (!System || !System->IsValidLowLevel() || System->HasAnyFlags(RF_BeginDestroyed))
 		{
+			FinishUpdateGlobal(CustomizableObjectInstancePtr.Get(), EUpdateResult::Error, &OperationData->UpdateCallback);
 			return;
 		}
 
@@ -1816,6 +1834,7 @@ namespace impl
 		if (!CustomizableObjectInstance || !CustomizableObjectInstance->IsValidLowLevel() )
 		{
 			System->ClearCurrentMutableOperation();
+			FinishUpdateGlobal(CustomizableObjectInstance, EUpdateResult::Error, &OperationData->UpdateCallback);
 			return;
 		}
 
@@ -1824,7 +1843,7 @@ namespace impl
 
 		// Actual work
 		// TODO MTBL-391: Review This hotfix
-		UpdateSkeletalMesh(CustomizableObjectInstance, CustomizableObjectSystemPrivateData->CurrentMutableOperation->InstanceDescriptorRuntimeHash);
+		UpdateSkeletalMesh(*CustomizableObjectInstance, CustomizableObjectSystemPrivateData->CurrentMutableOperation->InstanceDescriptorRuntimeHash, OperationData->UpdateResult, &OperationData->UpdateCallback);
 
 		// TODO: T2927
 		if (LogBenchmarkUtil::isLoggingActive())
@@ -1856,6 +1875,7 @@ namespace impl
 		UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
 		if (!System || !System->IsValidLowLevel() || System->HasAnyFlags(RF_BeginDestroyed))
 		{
+			FinishUpdateGlobal(CustomizableObjectInstancePtr.Get(), EUpdateResult::Error, &OperationData->UpdateCallback);
 			return;
 		}
 
@@ -1863,20 +1883,12 @@ namespace impl
 
 		UCustomizableObjectInstance* CustomizableObjectInstance = CustomizableObjectInstancePtr.Get();
 
-		// TODO: Review checks.
-		bool bCancel = false;
-		if (!CustomizableObjectInstance || !CustomizableObjectInstance->IsValidLowLevel())
-		{
-			bCancel = true;
-		}
-
 		// Actual work
-
-
-		if (!bCancel)
+		// TODO: Review checks.
+		const bool bInstanceInvalid = !CustomizableObjectInstance || !CustomizableObjectInstance->IsValidLowLevel();
+		if (!bInstanceInvalid)
 		{
 			UCustomizableInstancePrivateData* CustomizableInstancePrivateData = CustomizableObjectInstance->GetPrivate();
-			check(CustomizableInstancePrivateData != nullptr);
 
 			// Process the pending texture coverage queries
 			{
@@ -1942,7 +1954,7 @@ namespace impl
 					}
 				}
 			} // END - Process texture coverage queries
-		} // if (!bCancel)
+		} // if (!bInstanceValid)
 
 		FCustomizableObjectSystemPrivate* CustomizableObjectSystemPrivateData = System->GetPrivate();
 		check(CustomizableObjectSystemPrivateData != nullptr);
@@ -1960,7 +1972,7 @@ namespace impl
 
 		// Next Task: Release Platform Data
 		//-------------------------------------------------------------
-		if (!bCancel)
+		if (!bInstanceInvalid)
 		{
 			TSharedPtr<FMutableReleasePlatformOperationData> ReleaseOperationData = MakeShared<FMutableReleasePlatformOperationData>();
 			check(ReleaseOperationData);
@@ -1993,6 +2005,10 @@ namespace impl
 					{}
 				});
 		}
+		else
+		{
+			FinishUpdateGlobal(CustomizableObjectInstance, EUpdateResult::Error, &OperationData->UpdateCallback);
+		}
 	}
 
 
@@ -2002,6 +2018,7 @@ namespace impl
 		MUTABLE_CPUPROFILER_SCOPE(Task_Game_ConvertResources)
 
 		check(IsInGameThread());
+		check(OperationData);
 
 		UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
 		if (!System)
@@ -2014,6 +2031,7 @@ namespace impl
 		if (!ObjectInstance)
 		{
 			System->ClearCurrentMutableOperation();
+			FinishUpdateGlobal(ObjectInstance, EUpdateResult::Error, &OperationData->UpdateCallback);
 			return;
 		}
 
@@ -2035,6 +2053,7 @@ namespace impl
 		if (!CustomizableObject)
 		{
 			System->ClearCurrentMutableOperation();
+			FinishUpdateGlobal(CustomizableObjectInstancePtr.Get(), EUpdateResult::Error, &OperationData->UpdateCallback);
 			return;
 		}
 
@@ -2099,7 +2118,6 @@ namespace impl
 #endif
 		{
 			// Task inputs
-			check(CustomizableObject->GetPrivate() != nullptr);
 			TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model = CustomizableObject->GetPrivate()->GetModel();
 			int32 State = ObjectInstance->GetState();
 
@@ -2205,21 +2223,21 @@ namespace impl
 		if (!Operation->CustomizableObjectInstance.IsValid() || !Operation->CustomizableObjectInstance->IsValidLowLevel()) // Only start if it hasn't been already destroyed (i.e. GC after finish PIE)
 		{
 			System->ClearCurrentMutableOperation();
+			FinishUpdateGlobal(nullptr, EUpdateResult::Error, &Operation->UpdateCallback);
 			return;
 		}
 
 		TObjectPtr<UCustomizableObjectInstance> CandidateInstance = Operation->CustomizableObjectInstance.Get();
 		
 		UCustomizableInstancePrivateData* CandidateInstancePrivateData = CandidateInstance->GetPrivate();
-		check(CandidateInstancePrivateData != nullptr);
-
 		if (!CandidateInstancePrivateData)
 		{
 			System->ClearCurrentMutableOperation();
+			FinishUpdateGlobal(nullptr, EUpdateResult::Error, &Operation->UpdateCallback);
 			return;
 		}
-
-		if (CandidateInstancePrivateData && CandidateInstancePrivateData->HasCOInstanceFlags(PendingLODsUpdate))
+		
+		if (CandidateInstancePrivateData->HasCOInstanceFlags(PendingLODsUpdate))
 		{
 			CandidateInstancePrivateData->ClearCOInstanceFlags(PendingLODsUpdate);
 			// TODO: Is anything needed for this now?
@@ -2236,7 +2254,6 @@ namespace impl
 		}
 		else
 		{
-			check(CustomizableObject->GetPrivate());
 			if (CustomizableObject->GetPrivate()->bLocked)
 			{
 				bCancel = true;
@@ -2258,7 +2275,7 @@ namespace impl
 		if (Operation->InstanceDescriptorRuntimeHash.IsSubset(CandidateInstance->GetDescriptorRuntimeHash()))
 		{
 			CandidateInstance->SkeletalMeshStatus = ESkeletalMeshState::Correct;
-			UpdateSkeletalMesh(CandidateInstance, CandidateInstance->GetDescriptorRuntimeHash());
+			UpdateSkeletalMesh(*CandidateInstance, CandidateInstance->GetDescriptorRuntimeHash(), EUpdateResult::Success, &Operation->UpdateCallback);
 			bCancel = true;
 		}
 
@@ -2273,6 +2290,8 @@ namespace impl
 			CandidateInstancePrivateData->ClearCOInstanceFlags(Updating);
 
 			System->ClearCurrentMutableOperation();
+
+			FinishUpdateGlobal(CandidateInstance, EUpdateResult::Error, &Operation->UpdateCallback);
 			return;
 		}
 
@@ -2350,6 +2369,8 @@ namespace impl
 		CurrentOperationData->MipsToSkip = Operation->MipsToSkip;
 		CurrentOperationData->MutableParameters = Parameters;
 		CurrentOperationData->State = CandidateInstance->GetState();
+		CurrentOperationData->UpdateResult = EUpdateResult::Success;
+		CurrentOperationData->UpdateCallback = Operation->UpdateCallback;
 		CustomizableObject->GetLowPriorityTextureNames(CurrentOperationData->LowPriorityTextures);
 
 		if (System->IsOnlyGenerateRequestedLODsEnabled() && System->CurrentInstanceLODManagement->IsOnlyGenerateRequestedLODLevelsEnabled() && !CandidateInstancePrivateData->HasCOInstanceFlags(ForceGenerateAllLODs))
@@ -2369,7 +2390,6 @@ namespace impl
 			TSharedPtr<FMutableOperation> CurrentMutableOperation = SystemPrivateData->CurrentMutableOperation;
 			check(CurrentMutableOperation);
 			bool bBuildParameterDecorations = CurrentMutableOperation->IsBuildParameterDecorations();
-			check(CustomizableObject->GetPrivate() != nullptr);
 			TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model = CustomizableObject->GetPrivate()->GetModel();
 			int32 State = CustomizableObjectInstancePtr->GetState();
 
@@ -2404,7 +2424,6 @@ namespace impl
 				});
 		}
 	}
-
 } // namespace impl
 
 
@@ -2570,7 +2589,6 @@ bool UCustomizableObjectSystem::Tick(float DeltaTime)
 			if (IsValidChecked(*CustomizableObjectInstance) && CustomizableObjectInstance->GetPrivate())
 			{
 				UCustomizableInstancePrivateData* ObjectInstancePrivateData = CustomizableObjectInstance->GetPrivate();
-				check(ObjectInstancePrivateData != nullptr);
 
 				if (ObjectInstancePrivateData->HasCOInstanceFlags(UsedByComponentInPlay))
 				{
@@ -2702,7 +2720,7 @@ UDefaultImageProvider& UCustomizableObjectSystem::GetOrCreateDefaultImageProvide
 }
 
 
-FMutableOperation FMutableOperation::CreateInstanceUpdate(UCustomizableObjectInstance* InCustomizableObjectInstance, bool bInNeverStream, int32 InMipsToSkip)
+FMutableOperation FMutableOperation::CreateInstanceUpdate(UCustomizableObjectInstance* InCustomizableObjectInstance, bool bInNeverStream, int32 InMipsToSkip, const FInstanceUpdateDelegate* UpdateCallback)
 {
 	check(InCustomizableObjectInstance != nullptr);
 	check(InCustomizableObjectInstance->GetPrivate() != nullptr);
@@ -2717,7 +2735,11 @@ FMutableOperation FMutableOperation::CreateInstanceUpdate(UCustomizableObjectIns
 	Op.bStarted = false;
 	Op.bBuildParameterDecorations = InCustomizableObjectInstance->GetBuildParameterDecorations();
 	Op.Parameters = InCustomizableObjectInstance->GetPrivate()->GetParameters(InCustomizableObjectInstance);
-
+	if (UpdateCallback)
+	{
+		Op.UpdateCallback = *UpdateCallback;		
+	}
+	
 	InCustomizableObjectInstance->GetCustomizableObject()->ApplyStateForcedValuesToParameters(InCustomizableObjectInstance->GetState(), Op.Parameters.get());
 
 	if (!Op.Parameters)
@@ -2752,35 +2774,6 @@ FMutableOperation FMutableOperation::CreateInstanceIDRelease(mu::Instance::ID ID
 	Op.IDToRelease = IDToRelease;
 
 	return Op;
-}
-
-
-void FMutableOperation::MutableIsDisabledCase()
-{
-	check(CustomizableObjectInstance != nullptr);
-	check(CustomizableObjectInstance->GetPrivate() != nullptr);
-	check(CustomizableObjectInstance->GetCustomizableObject() != nullptr);
-
-	for (TObjectIterator<UCustomizableSkeletalComponent> It; It; ++It)
-	{
-		UCustomizableSkeletalComponent* CustomizableSkeletalComponent = *It;
-
-		if (CustomizableSkeletalComponent && CustomizableSkeletalComponent->CustomizableObjectInstance == CustomizableObjectInstance.Get())
-		{
-			CustomizableSkeletalComponent->SetSkeletalMesh(CustomizableObjectInstance->GetCustomizableObject()->GetRefSkeletalMesh(CustomizableSkeletalComponent->ComponentIndex), false);
-		}
-	}
-
-	CustomizableObjectInstance->GetPrivate()->SetCOInstanceFlags(Generated);
-	CustomizableObjectInstance->GetPrivate()->ClearCOInstanceFlags(CreatingSkeletalMesh);
-
-	if (CustomizableObjectInstance->bEditorPropertyChanged)
-	{
-		CustomizableObjectInstance->bEditorPropertyChanged = false;
-	}
-
-	// We must invalidate the current DescriptorRuntimeHash, since we're discarding everything.
-	CustomizableObjectInstance->Updated(EUpdateResult::Success, FDescriptorRuntimeHash());
 }
 
 

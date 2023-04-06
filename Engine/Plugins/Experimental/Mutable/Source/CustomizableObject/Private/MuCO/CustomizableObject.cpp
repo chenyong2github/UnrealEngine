@@ -908,6 +908,14 @@ void UCustomizableObject::LoadEmbeddedData(FArchive& Ar)
 	}
 }
 
+
+FCustomizableObjectPrivateData* UCustomizableObject::GetPrivate() const
+{
+	check(PrivateData)
+	return PrivateData.Get();
+}
+
+
 bool UCustomizableObject::IsCompiled() const
 {
 	bool IsCompiled = PrivateData->GetModel() != nullptr;

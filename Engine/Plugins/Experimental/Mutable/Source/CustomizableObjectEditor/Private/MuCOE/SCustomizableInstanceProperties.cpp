@@ -1345,8 +1345,6 @@ void SCustomizableInstanceProperties::OnStateComboBoxSelectionChanged(TSharedPtr
 
 	// Non-continuous change: collect garbage.
 	GEngine->ForceGarbageCollection();
-
-	CustomInstance->InstanceUpdated = false;
 }
 
 

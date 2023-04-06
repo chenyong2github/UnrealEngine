@@ -42,7 +42,7 @@ class FMutableOperation
 public:
 
 
-	static FMutableOperation CreateInstanceUpdate(UCustomizableObjectInstance* COInstance, bool bInNeverStream, int32 MipsToSkip);
+	static FMutableOperation CreateInstanceUpdate(UCustomizableObjectInstance* COInstance, bool bInNeverStream, int32 MipsToSkip, const FInstanceUpdateDelegate* UpdateCallback);
 	static FMutableOperation CreateInstanceDiscard(UCustomizableObjectInstance* COInstance);
 	static FMutableOperation CreateInstanceIDRelease(mu::Instance::ID);
 
@@ -91,15 +91,12 @@ public:
 	/** Only used in the IDRelease operation type */
 	mu::Instance::ID IDToRelease;
 
-	//!
+	FInstanceUpdateDelegate UpdateCallback;
+	
 	bool IsBuildParameterDecorations() const
 	{
 		return bBuildParameterDecorations;
 	}
-
-	// \TODO: This should be intercepted earlier.
-	// In case Mutable Compilation has been disabled, do all the corresponding steps to assign the reference mesh of the customizable object
-	void MutableIsDisabledCase();
 
 	/** Read-only access to the mutable instance parameters for this operation. */
 	mu::ParametersPtrConst GetParameters() const
@@ -520,6 +517,9 @@ struct FMutableOperationData
 	mu::Ptr<const mu::Parameters> MutableParameters;
 	int32 State = 0;
 
+	EUpdateResult UpdateResult;
+	FInstanceUpdateDelegate UpdateCallback;
+
 #if WITH_EDITOR
 	/** Used for profiling in the editor. */
 	uint32 MutableRuntimeCycles = 0;
@@ -789,7 +789,7 @@ public:
 
 
 	// Init the async Skeletal Mesh creation/update
-	void InitUpdateSkeletalMesh(UCustomizableObjectInstance& Public, FMutableQueueElem::EQueuePriorityType Priority);
+	void InitUpdateSkeletalMesh(UCustomizableObjectInstance& Public, FMutableQueueElem::EQueuePriorityType Priority, FInstanceUpdateDelegate* UpdateCallback = nullptr);
 		
 	// Init an async and safe release of the UE and Mutable resources used by the instance without actually destroying the instance, for example if it's very far away
 	void InitDiscardResourcesSkeletalMesh(UCustomizableObjectInstance* InCustomizableObjectInstance);

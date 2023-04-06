@@ -24,12 +24,9 @@ UCustomizableSkeletalComponent::UCustomizableSkeletalComponent()
 }
 
 
-void UCustomizableSkeletalComponent::Updated(EUpdateResult Result) const
+void UCustomizableSkeletalComponent::Callbacks() const
 {
-	if (Result == EUpdateResult::Success)
-	{
-		UpdatedDelegate.ExecuteIfBound();
-	}	
+	UpdatedDelegate.ExecuteIfBound();
 }
 
 
@@ -126,6 +123,15 @@ void UCustomizableSkeletalComponent::UpdateSkeletalMeshAsync(bool bNeverSkipUpda
 	if (CustomizableObjectInstance)
 	{
 		CustomizableObjectInstance->UpdateSkeletalMeshAsync(false, false);
+	}
+}
+
+
+void UCustomizableSkeletalComponent::UpdateSkeletalMeshAsyncResult(FInstanceUpdateDelegate Callback, bool bIgnoreCloseDist, bool bForceHighPriority)
+{
+	if (CustomizableObjectInstance)
+	{
+		CustomizableObjectInstance->UpdateSkeletalMeshAsyncResult(Callback, false, false);
 	}
 }
 

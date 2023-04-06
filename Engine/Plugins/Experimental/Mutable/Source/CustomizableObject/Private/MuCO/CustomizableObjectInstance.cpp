@@ -749,144 +749,184 @@ void UCustomizableInstancePrivateData::PostEditChangePropertyWithoutEditor(USkel
 
 void UCustomizableObjectInstance::UpdateSkeletalMeshAsync(bool bIgnoreCloseDist, bool bForceHighPriority)
 {
-	PrivateData->DoUpdateSkeletalMesh(*this, false, false, bIgnoreCloseDist, bForceHighPriority);
+	DoUpdateSkeletalMesh( false, false, bIgnoreCloseDist, bForceHighPriority, nullptr, nullptr);
 }
 
 
-void UCustomizableInstancePrivateData::DoUpdateSkeletalMesh(UCustomizableObjectInstance& CustomizableInstance, bool bIsCloseDistTick, bool bOnlyUpdateIfNotGenerated, bool bIgnoreCloseDist, bool bForceHighPriority)
+void UCustomizableObjectInstance::UpdateSkeletalMeshAsyncResult(FInstanceUpdateDelegate Callback, bool bIgnoreCloseDist, bool bForceHighPriority)
 {
-	MUTABLE_CPUPROFILER_SCOPE(UCustomizableInstancePrivateData::DoUpdateSkeletalMesh);
-	check(IsInGameThread());
+	DoUpdateSkeletalMesh(false, false, bIgnoreCloseDist, bForceHighPriority, nullptr, &Callback);
+}
 
-	if (!CustomizableInstance.IsValidLowLevel())
+
+EUpdateRequired UCustomizableObjectInstance::IsUpdateRequired(bool bIsCloseDistTick, bool bOnlyUpdateIfNotGenerated, bool bIgnoreCloseDist) const
+{
+	UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
+	const UCustomizableInstancePrivateData* const Private = GetPrivate();
+	
+	UCustomizableObject* CustomizableObject = GetCustomizableObject();
+	if (!CustomizableObject || CustomizableObject->IsLocked())
 	{
-		return;
+		return EUpdateRequired::NoUpdate;
 	}
 	
-	UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
-	
-	UCustomizableObject* CustomizableObject = CustomizableInstance.GetCustomizableObject();
-
-	if (CustomizableObject && !CustomizableObject->IsCompiled())
-	{
 #if WITH_EDITOR
-		if(!CustomizableObject->ConditionalAutoCompile())
-		{
-			return;
-		}
+	if (!CustomizableObject->IsCompiled() && !CustomizableObject->ConditionalAutoCompile())
+	{
+		return EUpdateRequired::NoUpdate;
+	}
 #else
-		System->AddUncompiledCOWarning(CustomizableObject);
-		return;
+	if (!CustomizableObject->IsCompiled())
+	{
+		return EUpdateRequired::NoUpdate;		
+	}
 #endif
 
-	}
-
-	const bool bIsGenerated = HasCOInstanceFlags(Generated);
-
+	const bool bIsGenerated = Private->HasCOInstanceFlags(Generated);
 	const int32 NumGeneratedInstancesLimit = System->GetInstanceLODManagement()->GetNumGeneratedInstancesLimitFullLODs();
 	const int32 NumGeneratedInstancesLimitLOD1 = System->GetInstanceLODManagement()->GetNumGeneratedInstancesLimitLOD1();
 	const int32 NumGeneratedInstancesLimitLOD2 = System->GetInstanceLODManagement()->GetNumGeneratedInstancesLimitLOD2();
 
-	if (NumGeneratedInstancesLimit > 0 && System->GetPrivate()->GetCountAllocatedSkeletalMesh() > NumGeneratedInstancesLimit + NumGeneratedInstancesLimitLOD1 + NumGeneratedInstancesLimitLOD2)
+	if (!bIsGenerated && // Prevent generating more instances than the limit, but let updates to existing instances run normally
+		NumGeneratedInstancesLimit > 0 &&
+		System->GetPrivate()->GetCountAllocatedSkeletalMesh() > NumGeneratedInstancesLimit + NumGeneratedInstancesLimitLOD1 + NumGeneratedInstancesLimitLOD2)
 	{
-		if (!bIsGenerated) // Prevent generating more instances than the limit, but let updates to existing instances run normally
+		return EUpdateRequired::NoUpdate;
+	}
+
+	const bool bShouldUpdateLODs = Private->HasCOInstanceFlags(PendingLODsUpdate);
+
+	const bool bDiscardByDistance = Private->LastMinSquareDistFromComponentToPlayer > FMath::Square(System->GetInstanceLODManagement()->GetOnlyUpdateCloseCustomizableObjectsDist());
+	const bool bLODManagementDiscard = System->GetInstanceLODManagement()->IsOnlyUpdateCloseCustomizableObjectsEnabled() &&
+			bDiscardByDistance &&
+			!bIgnoreCloseDist;
+	
+	if (Private->HasCOInstanceFlags(DiscardedByNumInstancesLimit) ||
+		bLODManagementDiscard)
+	{
+		if (bIsGenerated && !Private->HasCOInstanceFlags(Updating))
 		{
-			return;
+			return EUpdateRequired::Discard;		
+		}
+		else
+		{
+			return EUpdateRequired::NoUpdate;
 		}
 	}
 
-	const bool bShouldUpdateLODs = HasCOInstanceFlags(PendingLODsUpdate);
-
-	if (
-		!HasCOInstanceFlags(DiscardedByNumInstancesLimit)
-		&&
-		CustomizableObject && !CustomizableObject->IsLocked()
-		&&
-		(
-			!System->GetInstanceLODManagement()->IsOnlyUpdateCloseCustomizableObjectsEnabled() 
-			|| LastMinSquareDistFromComponentToPlayer <= FMath::Square(System->GetInstanceLODManagement()->GetOnlyUpdateCloseCustomizableObjectsDist())
-			|| bIgnoreCloseDist 
-			|| bShouldUpdateLODs
-			)
-		)
+	if (bIsGenerated &&
+		!bShouldUpdateLODs &&
+		(bOnlyUpdateIfNotGenerated || bIsCloseDistTick))
 	{
-		if (bShouldUpdateLODs)
+		return EUpdateRequired::NoUpdate;
+	}
+
+	return EUpdateRequired::Update;
+}
+
+
+void UCustomizableObjectInstance::DoUpdateSkeletalMesh(bool bIsCloseDistTick, bool bOnlyUpdateIfNotGenerated, bool bIgnoreCloseDist, bool bForceHighPriority, const EUpdateRequired* OptionalUpdateRequired, FInstanceUpdateDelegate* UpdateCallback)
+{
+	MUTABLE_CPUPROFILER_SCOPE(UCustomizableInstancePrivateData::DoUpdateSkeletalMesh);
+	check(IsInGameThread());
+	check(!OptionalUpdateRequired || *OptionalUpdateRequired != EUpdateRequired::NoUpdate) // If no update is required this functions must not be called.
+
+	UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
+
+	const EUpdateRequired UpdateRequired = OptionalUpdateRequired ? *OptionalUpdateRequired : IsUpdateRequired(bIsCloseDistTick, bOnlyUpdateIfNotGenerated, bIgnoreCloseDist);
+	switch (UpdateRequired)
+	{
+	case EUpdateRequired::NoUpdate:
+	{	
+		FinishUpdateGlobal(this, EUpdateResult::ErrorDiscarded, UpdateCallback);
+		break;
+	}		
+	case EUpdateRequired::Update:
+	{
+		const bool bIsGenerated = GetPrivate()->HasCOInstanceFlags(Generated);
+		const bool bShouldUpdateLODs = GetPrivate()->HasCOInstanceFlags(PendingLODsUpdate);	
+		const bool bIsDowngradeLODUpdate = GetPrivate()->HasCOInstanceFlags(PendingLODsDowngrade);
+		const bool bIsPlayerOrNearIt = GetPrivate()->HasCOInstanceFlags(UsedByPlayerOrNearIt);
+
+		FMutableQueueElem::EQueuePriorityType Priority = FMutableQueueElem::EQueuePriorityType::Low;
+		if (bForceHighPriority)
 		{
-			UE_LOG(LogMutable, Verbose, TEXT("LOD change: %d, %d -> %d, %d"), CustomizableInstance.GetCurrentMinLOD(), CustomizableInstance.GetCurrentMaxLOD(), CustomizableInstance.GetMinLODToLoad(), CustomizableInstance.GetMinLODToLoad());
+			Priority = FMutableQueueElem::EQueuePriorityType::High;
+		}
+		else if (!bIsGenerated || !HasAnySkeletalMesh())
+		{
+			Priority = FMutableQueueElem::EQueuePriorityType::Med;
+		}
+		else if (bShouldUpdateLODs && bIsDowngradeLODUpdate)
+		{
+			Priority = FMutableQueueElem::EQueuePriorityType::Med_Low;
+		}
+		else if (bIsPlayerOrNearIt && bShouldUpdateLODs && !bIsDowngradeLODUpdate)
+		{
+			Priority = FMutableQueueElem::EQueuePriorityType::High;
+		}
+		else if (bShouldUpdateLODs && !bIsDowngradeLODUpdate)
+		{
+			Priority = FMutableQueueElem::EQueuePriorityType::Med;
+		}
+		else if (bIsPlayerOrNearIt)
+		{
+			Priority = FMutableQueueElem::EQueuePriorityType::High;
 		}
 
-		if ((!(bIsGenerated && bOnlyUpdateIfNotGenerated) && !(bIsCloseDistTick && bIsGenerated)) || bShouldUpdateLODs)
 		{
-			FMutableQueueElem::EQueuePriorityType Priority = FMutableQueueElem::EQueuePriorityType::Low;
+			const uint32 InstanceId = GetUniqueID();
+			const float Distance = FMath::Sqrt(GetPrivate()->LastMinSquareDistFromComponentToPlayer);
+			UE_LOG(LogMutable, Verbose, TEXT("Started UpdateSkeletalMesh Async. of Instance %d with priority %d at dist %f bIsPlayerOrNearIt=%d, frame=%d"), InstanceId, static_cast<int32>(Priority), Distance, bIsPlayerOrNearIt, GFrameNumber);				
+		}
 
-			const bool bIsDowngradeLODUpdate = HasCOInstanceFlags(PendingLODsDowngrade);
-			const bool bIsPlayerOrNearIt = HasCOInstanceFlags(UsedByPlayerOrNearIt);
-
-			if (bForceHighPriority)
-			{
-				Priority = FMutableQueueElem::EQueuePriorityType::High;
-			}
-			else if (!bIsGenerated || !CustomizableInstance.HasAnySkeletalMesh())
-			{
-				Priority = FMutableQueueElem::EQueuePriorityType::Med;
-			}
-			else if (bShouldUpdateLODs && bIsDowngradeLODUpdate)
-			{
-				Priority = FMutableQueueElem::EQueuePriorityType::Med_Low;
-			}
-			else if (bIsPlayerOrNearIt && bShouldUpdateLODs && !bIsDowngradeLODUpdate)
-			{
-				Priority = FMutableQueueElem::EQueuePriorityType::High;
-			}
-			else if (bShouldUpdateLODs && !bIsDowngradeLODUpdate)
-			{
-				Priority = FMutableQueueElem::EQueuePriorityType::Med;
-			}
-			else if (bIsPlayerOrNearIt)
-			{
-				Priority = FMutableQueueElem::EQueuePriorityType::High;
-			}
-
-			{
-				const uint32 InstanceId = CustomizableInstance.GetUniqueID();
-				const float Distance = FMath::Sqrt(CustomizableInstance.GetPrivate()->LastMinSquareDistFromComponentToPlayer);
-				UE_LOG(LogMutable, Verbose, TEXT("Started UpdateSkeletalMesh Async. of Instance %d with priority %d at dist %f bIsPlayerOrNearIt=%d, frame=%d"), InstanceId, static_cast<int32>(Priority), Distance, bIsPlayerOrNearIt, GFrameNumber);				
-			}
-
-			CustomizableInstance.UpdateDescriptorRuntimeHash = FDescriptorRuntimeHash(CustomizableInstance.Descriptor);
+		UpdateDescriptorRuntimeHash = FDescriptorRuntimeHash(Descriptor);
 
 #if WITH_EDITOR
-			if (!UCustomizableObjectSystem::GetInstance()->IsCompilationDisabled())
-			{
-				if (CustomizableInstance.SkeletalMeshStatus != ESkeletalMeshState::AsyncUpdatePending)
-				{
-					CustomizableInstance.PreUpdateSkeletalMeshStatus = CustomizableInstance.SkeletalMeshStatus;
-				}
-			}
-#endif
-
-			SetCOInstanceFlags(Generated); // Will be done in UpdateSkeletalMesh_PostBeginUpdate
-			
-			// Do not do work after calling InitUpdateSkeletalMesh. This function can optimize an update and fully complete it before even exiting its scope.
-			System->GetPrivate()->InitUpdateSkeletalMesh(CustomizableInstance, Priority);
-		}
-
-		ClearCOInstanceFlags(PendingLODsUpdate);
-	}
-	else
-	{
-		if (HasCOInstanceFlags(Generated) && !HasCOInstanceFlags(Updating))
+		if (!UCustomizableObjectSystem::GetInstance()->IsCompilationDisabled())
 		{
-			System->GetPrivate()->InitDiscardResourcesSkeletalMesh(&CustomizableInstance);
-			ClearCOInstanceFlags(PendingLODsUpdate);
+			if (SkeletalMeshStatus != ESkeletalMeshState::AsyncUpdatePending)
+			{
+				PreUpdateSkeletalMeshStatus = SkeletalMeshStatus;
+			}
 		}
+#endif
+		
+		if (bShouldUpdateLODs)
+		{
+			UE_LOG(LogMutable, Verbose, TEXT("LOD change: %d, %d -> %d, %d"), GetCurrentMinLOD(), GetCurrentMaxLOD(), GetMinLODToLoad(), GetMinLODToLoad());
+		}
+		
+		GetPrivate()->SetCOInstanceFlags(Generated); // Will be done in UpdateSkeletalMesh_PostBeginUpdate
+
+		// Do not do work after calling InitUpdateSkeletalMesh. This function can optimize an update and fully complete it before even exiting its scope.
+		System->GetPrivate()->InitUpdateSkeletalMesh(*this, Priority, UpdateCallback);
+		break;
+	}
+
+	case EUpdateRequired::Discard:
+	{
+		System->GetPrivate()->InitDiscardResourcesSkeletalMesh(this);
+		
+		FinishUpdateGlobal(this, EUpdateResult::ErrorDiscarded, UpdateCallback);
+		break;
+	}
+
+	default:
+		check(false); // Case not implemented.
 	}
 }
 
 
-void UCustomizableInstancePrivateData::TickUpdateCloseCustomizableObjects( UCustomizableObjectInstance& Public )
+void UCustomizableInstancePrivateData::TickUpdateCloseCustomizableObjects(UCustomizableObjectInstance& Public)
 {
-	DoUpdateSkeletalMesh(Public, true, true, false);
+	const EUpdateRequired UpdateRequired = Public.IsUpdateRequired(true, true, false);
+	if (UpdateRequired != EUpdateRequired::NoUpdate) // Since this is done in the tick, avoid starting an update that we know for sure that would not be performed. Once started it has some performance implications that we want to avoid.
+	{
+		Public.DoUpdateSkeletalMesh(true, true, false, false, &UpdateRequired, nullptr);
+	}
+
+	ClearCOInstanceFlags(PendingLODsUpdate | PendingLODsDowngrade);
 }
 
 
@@ -894,7 +934,7 @@ void UCustomizableInstancePrivateData::UpdateInstanceIfNotGenerated(UCustomizabl
 {
 	if (!HasCOInstanceFlags(Generated))
 	{
-		DoUpdateSkeletalMesh(Public, false, true);
+		Public.DoUpdateSkeletalMesh(false, true, false, false, nullptr, nullptr);
 	}
 }
 
@@ -2926,30 +2966,19 @@ void SetTexturePropertiesFromMutableImageProps(UTexture2D* Texture, const FMutab
 }
 
 
-void UCustomizableObjectInstance::Updated(EUpdateResult Result, const FDescriptorRuntimeHash& InUpdatedHash)
+void UCustomizableObjectInstance::FinishUpdate(EUpdateResult UpdateResult, const FDescriptorRuntimeHash& InUpdatedHash)
 {
-	if (Result == EUpdateResult::Success)
+	if (UpdateResult == EUpdateResult::Success)
 	{
 		DescriptorRuntimeHash = InUpdatedHash;
 	}
 
-	// Call Customizable Skeletal Components updated callbacks.
-	for (TObjectIterator<UCustomizableSkeletalComponent> It; It; ++It)
-	{
-		if (const UCustomizableSkeletalComponent* CustomizableSkeletalComponent = *It;
-			CustomizableSkeletalComponent &&
-			CustomizableSkeletalComponent->CustomizableObjectInstance == this)
-		{
-			CustomizableSkeletalComponent->Updated(Result);
-		}
-	}
-
-	if (Result == EUpdateResult::Success)
+	if (UpdateResult == EUpdateResult::Success)
 	{
 		// Call Instance updated (this) callbacks.
 		UpdatedDelegate.Broadcast(this);
 		UpdatedNativeDelegate.Broadcast(this);
-	}	
+	}
 }
 
 
@@ -2962,6 +2991,13 @@ FDescriptorRuntimeHash UCustomizableObjectInstance::GetDescriptorRuntimeHash() c
 FDescriptorRuntimeHash UCustomizableObjectInstance::GetUpdateDescriptorRuntimeHash() const
 {
 	return UpdateDescriptorRuntimeHash;
+}
+
+
+UCustomizableInstancePrivateData* UCustomizableObjectInstance::GetPrivate() const
+{ 
+	check(PrivateData); // Currently this is initialized in the constructor so we expect it always to exist.
+	return PrivateData; 
 }
 
 
