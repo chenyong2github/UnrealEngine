@@ -60,8 +60,6 @@ namespace PCGHelpers
 
 	FBox GetGridBounds(const AActor* Actor, const UPCGComponent* Component)
 	{
-		check(Actor);
-
 		FBox Bounds(EForceInit::ForceInit);
 
 		if (const APCGPartitionActor* PartitionActor = Cast<const APCGPartitionActor>(Actor))
@@ -83,9 +81,13 @@ namespace PCGHelpers
 		{
 			Bounds = GetLandscapeBounds(LandscapeActor);
 		}
-		else
+		else if (Actor)
 		{
 			Bounds = GetActorBounds(Actor);
+		}
+		else
+		{
+			UE_LOG(LogPCG, Error, TEXT("Actor is invalid in GetGridBounds"));
 		}
 
 		return Bounds;
