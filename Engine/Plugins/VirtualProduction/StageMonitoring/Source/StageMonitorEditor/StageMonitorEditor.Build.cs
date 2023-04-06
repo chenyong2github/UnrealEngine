@@ -24,6 +24,7 @@ public class StageMonitorEditor : ModuleRules
 				"Engine",
 				"GameplayTags",
  				"InputCore",
+				"Json",
 				"LevelEditor",
 				"Projects",
 				"Slate",
