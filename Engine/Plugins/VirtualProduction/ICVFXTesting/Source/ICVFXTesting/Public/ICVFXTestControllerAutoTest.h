@@ -18,7 +18,6 @@
 #include "LiveLinkPresetTypes.h"
 #include "Roles/LiveLinkTransformRole.h"
 
-
 #include "ICVFXTestControllerAutoTest.generated.h"
 
 class ULocalPlayer;
@@ -82,18 +81,7 @@ public:
 		return CurrentTestLocationIndex;
 	}
 
-	void GoToTestLocation(int32 Index)
-	{
-		TimeAtTestLocation = 0.0;
-
-		if (DisplayClusterActor)
-		{
-#if WITH_EDITOR
-			UE_LOG(LogICVFXTest, Display, TEXT("AutoTest TraverseTestLocations: Moving to test location: %s"), *TestLocations[Index]->GetActorLabel());
-#endif
-			DisplayClusterActor->SetActorTransform(TestLocations[Index]->GetActorTransform());
-		}
-	}
+	void GoToTestLocation(int32 Index);
 
 	void GoToNextTestLocation()
 	{
@@ -203,7 +191,6 @@ public:
 		}
 
 		SetTestLocations(TestLocations);
-		GoToTestLocation(0);
 	}
 
 protected:

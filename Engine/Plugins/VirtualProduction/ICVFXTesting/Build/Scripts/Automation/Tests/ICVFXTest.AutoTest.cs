@@ -199,7 +199,7 @@ namespace ICVFXTest
 			{
 				// Start as late as possible to reduce trace file size.s
 				ClientRole.CommandLineParams.Add("-traceautostart=0");
-				ClientRole.CommandLineParams.Add("-trace=cpu,counters,gpu");
+				ClientRole.CommandLineParams.Add("-trace=cpu,counters,gpu,bookmark");
 			}
 
 

@@ -2,7 +2,7 @@
 
 <graphGroups>
 	<baseSettings thickness="2" smooth="1" smoothKernelSize="60" compression="0.5"
-				  width="3000" height="800" stacked="0" maxHierarchyDepth="2" hideStatPrefix="" showEvents="App_* HitchDetector GC AutoPix/* Razor/* PSO/* Sandbox* SpecialEvent/* OT*" maxy="40" showAverages="1"/>
+				  width="3000" height="800" stacked="0" maxHierarchyDepth="2" hideStatPrefix="" showEvents="ICVFXTest/* App_* HitchDetector GC AutoPix/* Razor/* PSO/* Sandbox* SpecialEvent/* OT*" maxy="40" showAverages="1"/>
 
 	<graphGroup name="Core">
 		<baseSettings smoothKernelSize="60" smoothKernelPercent="-1"/>
@@ -203,7 +203,7 @@
 
 	<!-- a graph group is a convenient way to apply common settings to multiple graphs, avoiding duplication -->
 	<graphGroup name="LLMBase">
-	<baseSettings maxHierarchyDepth="3" stacked="0" hideStatPrefix="LLM/" requiresDetailedStats="0" thickness="10" compression="0.5" showEvents="GC Skydiving* Athena* Spectator/* Sidekick/* SpecialEvent/*"/>
+	<baseSettings maxHierarchyDepth="3" stacked="0" hideStatPrefix="LLM/" requiresDetailedStats="0" thickness="10" compression="0.5" showEvents="ICVFXTest/* GC Skydiving* Athena* Spectator/* Sidekick/* SpecialEvent/*"/>
 
 		<!-- ignoreStats should include all parent LLM tags -->
 		<graph title="Tracked Memory Breakdown" stacked="1" thickness="1" maxHierarchyDepth="1" ignoreStats="LLM/Total;LLM/Untracked" mainStat="LLM/TrackedTotal">
@@ -280,7 +280,7 @@
 	</graphGroup>
 
 	<graphGroup name="LLMPlatformBase">
-		<baseSettings maxHierarchyDepth="4" maxy="1024" stacked="0" hideStatPrefix="" requiresDetailedStats="0" thickness="10" compression="0.5" showEvents="GC Skydiving* Athena* Spectator/* Sidekick/* SpecialEvent/*" />
+		<baseSettings maxHierarchyDepth="4" maxy="1024" stacked="0" hideStatPrefix="" requiresDetailedStats="0" thickness="10" compression="0.5" showEvents="ICVFXTest/* GC Skydiving* Athena* Spectator/* Sidekick/* SpecialEvent/*" />
 
 		<graph title="Platform FMalloc Memory" maxy="2500">
 			<statString>LLMPlatform/FMalloc</statString>

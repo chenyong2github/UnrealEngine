@@ -21,6 +21,8 @@
 #include "Roles/LiveLinkTransformRole.h"
 #include "UObject/SoftObjectPtr.h"
 
+CSV_DEFINE_CATEGORY(ICVFXTest, true);
+
 namespace ICVFXTest
 {
 	static TAutoConsoleVariable<float> CVarSoakTime(
@@ -174,12 +176,12 @@ public:
 	{
 		Super::Start(PrevState);
 
-		//TRACE_BOOKMARK(TEXT(""));
-
 		if (!ICVFXTest::CVarTraceFileName.GetValueOnAnyThread().IsEmpty())
 		{
 			Controller->ConsoleCommand(*(FString(TEXT("trace.file ")) + ICVFXTest::CVarTraceFileName.GetValueOnAnyThread()));
 		}
+
+		Controller->GoToTestLocation(0);
 
 		UE_LOG(LogICVFXTest, Display, TEXT("AutoTest TraverseTestLocations %s: started for %f seconds..."), ANSI_TO_TCHAR(__func__), Controller->TimePerTestLocation)
 	}
@@ -390,6 +392,18 @@ FICVFXAutoTestState& UICVFXTestControllerAutoTest::SetTestState(const EICVFXAuto
 	// Start new test state
 	CurrentTestState.Start(PrevState);
 	return CurrentTestState;
+}
+
+void UICVFXTestControllerAutoTest::GoToTestLocation(int32 Index)
+{
+	FString TestLocationName = TestLocations[Index]->GetActorNameOrLabel();
+
+	CSV_EVENT(ICVFXTest, TEXT("TestLocation %s"), *TestLocationName);
+
+	TimeAtTestLocation = 0.0;
+
+	UE_LOG(LogICVFXTest, Display, TEXT("AutoTest TraverseTestLocations: Moving to test location: %s"), *TestLocations[Index]->GetActorNameOrLabel());
+	DisplayClusterActor->SetActorTransform(TestLocations[Index]->GetActorTransform());
 }
 
 void UICVFXTestControllerAutoTest::SetTestLocations(const TArray<AActor*> InTestLocations)
