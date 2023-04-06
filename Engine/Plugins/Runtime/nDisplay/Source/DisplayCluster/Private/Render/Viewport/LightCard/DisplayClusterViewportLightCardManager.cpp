@@ -18,7 +18,7 @@
 /** Console variable used to control the size of the UV light card map texture */
 static TAutoConsoleVariable<int32> CVarUVLightCardTextureSize(
 	TEXT("nDisplay.render.uvlightcards.UVTextureSize"),
-	512,
+	4096,
 	TEXT("The size of the texture UV light cards are rendered to.")
 );
 

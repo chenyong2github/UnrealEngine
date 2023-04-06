@@ -89,6 +89,9 @@ ADisplayClusterLightCardActor::ADisplayClusterLightCardActor(const FObjectInitia
 		LightCardComponent->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
 		LightCardComponent->Mobility = EComponentMobility::Movable;
 		LightCardComponent->SetStaticMesh(PlaneObj.Object);
+
+		// Overlap events are expensive and seem to not be needed at the moment, so we disable them.
+		LightCardComponent->SetGenerateOverlapEvents(false);
 	}
 
 #if WITH_EDITOR
@@ -157,6 +160,8 @@ void ADisplayClusterLightCardActor::OnConstruction(const FTransform& Transform)
 
 void ADisplayClusterLightCardActor::Tick(float DeltaSeconds)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(DCLightcard_Tick);
+
 	Super::Tick(DeltaSeconds);
 
 	if (!MainSpringArmComponent || !LightCardTransformerComponent || !LightCardComponent)
@@ -278,12 +283,12 @@ void ADisplayClusterLightCardActor::SetStaticMesh(UStaticMesh* InStaticMesh)
 
 void ADisplayClusterLightCardActor::UpdateLightCardMaterialInstance()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(DCLightcard_UpdateLightCardMaterialInstance);
+
 	if (UMaterialInstanceDynamic* LightCardMaterialInstance = Cast<UMaterialInstanceDynamic>(LightCardComponent->GetMaterial(0)))
 	{
 		// Showing proxy with low opacity to make it less distracting when it doesn't line up well with its projection in the Light Card Editor.
 		constexpr float ProxyOpacity = 0.25;
-
-		LightCardMaterialInstance->ClearParameterValues();
 
 		LightCardMaterialInstance->SetVectorParameterValue(TEXT("CardColor"), Color);
 		LightCardMaterialInstance->SetScalarParameterValue(TEXT("Temperature"), Temperature);
@@ -489,6 +494,8 @@ void ADisplayClusterLightCardActor::UpdateUVIndicator()
 
 void ADisplayClusterLightCardActor::UpdateLightCardPositionToRootActor()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(DCLightcard_UpdateLightCardPositionToRootActor);
+
 	if (!bLockToOwningRootActor || HasAnyFlags(RF_Transient) /* Proxies update from world instance positions instead */)
 	{
 		return;
