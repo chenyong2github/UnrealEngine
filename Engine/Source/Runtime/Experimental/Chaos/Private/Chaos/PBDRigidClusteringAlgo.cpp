@@ -335,7 +335,7 @@ namespace Chaos
 			{
 				FRigidTransform3 Frame = FRigidTransform3::Identity;
 
-				if (FPBDRigidClusteredParticleHandle* ClusterChild = Child->CastToClustered(); ClusterChild && Parameters.bUseExistingChildToParent)
+				if (FPBDRigidClusteredParticleHandle* ClusterChild = Child->CastToClustered(); ClusterChild && ClusterChild->IsChildToParentLocked())
 				{
 					Frame = ClusterChild->ChildToParent();
 				}

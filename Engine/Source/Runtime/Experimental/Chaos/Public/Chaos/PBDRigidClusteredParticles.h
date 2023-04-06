@@ -88,12 +88,17 @@ public:
 	bool GetUnbreakable() const { return Flags.bUnbreakable; }
 	void SetUnbreakable(bool bSet) { Flags.bUnbreakable = bSet; }
 
+	// Set to true if we want to soft lock the particle's ChildToParent transform. This prevents its from being updated in Chaos::UpdateGeometry.
+	bool GetChildToParentLocked() const { return Flags.bChildToParentLocked; }
+	void SetChildToParentLocked(bool bSet) { Flags.bChildToParentLocked = bSet; }
+
 private:
 	struct FFlags
 	{
 		FStorage bInternalCluster : 1;
 		FStorage bAnchored : 1;
 		FStorage bUnbreakable : 1;
+		FStorage bChildToParentLocked : 1;
 
 		// Add new properties above this line
 		// Change FStorage typedef if we exceed the max bits

@@ -103,7 +103,7 @@ namespace Chaos
 		{
 			FRigidTransform3 Frame = FRigidTransform3::Identity;
 			
-			if (FPBDRigidClusteredParticleHandle* ClusterChild = Child->CastToClustered(); ClusterChild && Union.Parameters.bUseExistingChildToParent)
+			if (FPBDRigidClusteredParticleHandle* ClusterChild = Child->CastToClustered(); ClusterChild && ClusterChild->IsChildToParentLocked())
 			{
 				Frame = ClusterChild->ChildToParent();
 			}
@@ -392,6 +392,13 @@ namespace Chaos
 			if (ParticleIndex != INDEX_NONE)
 			{
 				ParticleIndicesToRemove.Add(ParticleIndex);
+
+				// Remove the child to parent lock if it exists since it's no longer managed by the cluster union manager.
+				if (FPBDRigidClusteredParticleHandle* ClusterHandle = Handle->CastToClustered())
+				{
+					ClusterHandle->SetChildToParentLocked(false);
+				}
+
 				// Remove the parent proxy only if it's a cluster union proxy.
 				if (IPhysicsProxyBase* Proxy = Handle->PhysicsProxy(); Proxy && Proxy->GetParentProxy() && Proxy->GetParentProxy()->GetType() == EPhysicsProxyType::ClusterUnionProxy)
 				{
@@ -568,7 +575,7 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::UpdateClusterUnionParticlesChildToParent"), STAT_UpdateClusterUnionParticlesChildToParent, STATGROUP_Chaos);
-	void FClusterUnionManager::UpdateClusterUnionParticlesChildToParent(FClusterUnionIndex Index, const TArray<FPBDRigidParticleHandle*>& Particles, const TArray<FTransform>& ChildToParent)
+	void FClusterUnionManager::UpdateClusterUnionParticlesChildToParent(FClusterUnionIndex Index, const TArray<FPBDRigidParticleHandle*>& Particles, const TArray<FTransform>& ChildToParent, bool bLock)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateClusterUnionParticlesChildToParent);
 
@@ -588,6 +595,11 @@ namespace Chaos
 					if (FPBDRigidClusteredParticleHandle* ChildHandle = ClusterUnion->ChildParticles[ChildIndex]->CastToClustered())
 					{
 						ChildHandle->SetChildToParent(ChildToParent[ParticleIndex]);
+
+						if (bLock)
+						{
+							ChildHandle->SetChildToParentLocked(bLock);
+						}						
 					}
 				}
 			}

@@ -524,12 +524,12 @@ namespace Chaos
 		Solver->AddDirtyProxy(this);
 	}
 
-	void FClusterUnionPhysicsProxy::SetChildToParent_External(FPhysicsObjectHandle Child, const FTransform& RelativeTransform)
+	void FClusterUnionPhysicsProxy::SetChildToParent_External(FPhysicsObjectHandle Child, const FTransform& RelativeTransform, bool bLock)
 	{
-		BulkSetChildToParent_External({ Child }, { RelativeTransform });
+		BulkSetChildToParent_External({ Child }, { RelativeTransform }, bLock);
 	}
 
-	void FClusterUnionPhysicsProxy::BulkSetChildToParent_External(const TArray<FPhysicsObjectHandle>& Objects, const TArray<FTransform>& Transforms)
+	void FClusterUnionPhysicsProxy::BulkSetChildToParent_External(const TArray<FPhysicsObjectHandle>& Objects, const TArray<FTransform>& Transforms, bool bLock)
 	{
 		if (!Solver || !ensure(Particle_External) || !ensure(Objects.Num() == Transforms.Num()))
 		{
@@ -537,7 +537,7 @@ namespace Chaos
 		}
 
 		Solver->EnqueueCommandImmediate(
-			[this, Objects, Transforms]() mutable
+			[this, Objects, Transforms, bLock]() mutable
 			{
 				FReadPhysicsObjectInterface_Internal Interface = FPhysicsObjectInternalInterface::GetRead();
 				TArray<FPBDRigidParticleHandle*> Particles = Interface.GetAllRigidParticles(Objects);
@@ -545,7 +545,7 @@ namespace Chaos
 				{
 					FPBDRigidsEvolutionGBF& Evolution = *static_cast<FPBDRigidsSolver*>(Solver)->GetEvolution();
 					FClusterUnionManager& ClusterUnionManager = Evolution.GetRigidClustering().GetClusterUnionManager();
-					ClusterUnionManager.UpdateClusterUnionParticlesChildToParent(ClusterUnionIndex, Particles, Transforms);
+					ClusterUnionManager.UpdateClusterUnionParticlesChildToParent(ClusterUnionIndex, Particles, Transforms, bLock);
 				}
 			}
 		);

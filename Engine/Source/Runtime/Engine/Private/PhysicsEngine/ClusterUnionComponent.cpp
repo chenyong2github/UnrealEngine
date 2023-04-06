@@ -200,7 +200,6 @@ void UClusterUnionComponent::OnCreatePhysicsState()
 	// TODO: Expose these parameters via the component.
 	Chaos::FClusterCreationParameters Parameters{ 0.3f, 100, false, false };
 	Parameters.ConnectionMethod = Chaos::FClusterCreationParameters::EConnectionMethod::DelaunayTriangulation;
-	Parameters.bUseExistingChildToParent = !GetOwner()->HasAuthority();
 
 	FChaosUserData::Set<UPrimitiveComponent>(&PhysicsUserData, this);
 
@@ -579,7 +578,8 @@ void UClusterUnionComponent::ForceSetChildToParent(UPrimitiveComponent* InCompon
 		Objects.Add(Handle);
 	}
 
-	PhysicsProxy->BulkSetChildToParent_External(Objects, ChildToParent);
+	// If we're on the client we want to lock the child to parent transform for this particle as soon as we get a server authoritative value.
+	PhysicsProxy->BulkSetChildToParent_External(Objects, ChildToParent, !IsAuthority());
 }
 
 void UClusterUnionComponent::SetSimulatePhysics(bool bSimulate)

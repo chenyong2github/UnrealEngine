@@ -1323,6 +1323,9 @@ public:
 	bool Unbreakable() const { return PBDRigidClusteredParticles->RigidClusteredFlags(ParticleIdx).GetUnbreakable(); }
 	void SetUnbreakable(bool bValue) { PBDRigidClusteredParticles->RigidClusteredFlags(ParticleIdx).SetUnbreakable(bValue); }
 
+	bool IsChildToParentLocked() const { return PBDRigidClusteredParticles->RigidClusteredFlags(ParticleIdx).GetChildToParentLocked(); }
+	void SetChildToParentLocked(bool bValue) { PBDRigidClusteredParticles->RigidClusteredFlags(ParticleIdx).SetChildToParentLocked(bValue); }
+
 	const TPBDRigidClusteredParticleHandleImp<T, d, true>* Handle() const { return PBDRigidClusteredParticles->Handle(ParticleIdx); }
 	TPBDRigidClusteredParticleHandleImp<T, d, true>* Handle() { return PBDRigidClusteredParticles->Handle(ParticleIdx); }
 
