@@ -3,29 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-
-/** Accumulated error and info messages for a source control operation.  */
-struct FSourceControlResultInfo
-{
-	/** Append any messages from another FSourceControlResultInfo, ensuring to keep any already accumulated info. */
-	void Append(const FSourceControlResultInfo& InResultInfo)
-	{
-		InfoMessages.Append(InResultInfo.InfoMessages);
-		ErrorMessages.Append(InResultInfo.ErrorMessages);
-		Tags.Append(InResultInfo.Tags);
-	}
-
-	/** Info and/or warning message storage */
-	TArray<FText> InfoMessages;
-
-	/** Potential error message storage */
-	TArray<FText> ErrorMessages;
-
-	/** Additional arbitrary information attached to the command */
-	TArray<FString> Tags;
-};
-
+#include "SourceControlResultInfo.h"
 
 class ISourceControlOperation : public TSharedFromThis<ISourceControlOperation, ESPMode::ThreadSafe>
 {

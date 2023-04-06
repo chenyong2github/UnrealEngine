@@ -767,6 +767,16 @@ bool FPerforceSourceControlProvider::TryToDownloadFileFromBackgroundThread(const
 	// Sanity check to make sure we are not running a command that modifies the cached states from a background thread
 	check(Command.Worker->UpdateStates() == false);
 
+	if (!Command.bConnectionWasSuccessful && !Command.bCancelled)
+	{
+		Command.ResultInfo.OnConnectionFailed();
+		
+	}
+	else if (Command.bConnectionDropped)
+	{
+		Command.ResultInfo.OnConnectionDroped();
+	}
+
 	OutputCommandMessages(Command);
 
 	if (!Command.bCancelledWhileTryingToConnect)
