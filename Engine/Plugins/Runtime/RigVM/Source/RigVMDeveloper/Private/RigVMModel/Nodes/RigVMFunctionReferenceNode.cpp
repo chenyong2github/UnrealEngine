@@ -49,7 +49,7 @@ bool URigVMFunctionReferenceNode::RequiresVariableRemappingInternal(TArray<FRigV
 		
 	if(bHostedInDifferencePackage)
 	{
-		InnerVariables = ReferencedFunctionHeader.ExternalVariables;
+		InnerVariables = GetExternalVariables(false);
 		if(InnerVariables.Num() == 0)
 		{
 			return false;
@@ -92,7 +92,10 @@ TArray<FRigVMExternalVariable> URigVMFunctionReferenceNode::GetExternalVariables
 	
 	if(!bRemapped)
 	{
-		Variables = ReferencedFunctionHeader.ExternalVariables;
+		if (const FRigVMGraphFunctionData* FunctionData = GetReferencedFunctionData())
+		{
+			Variables = FunctionData->Header.ExternalVariables;
+		}
 	}
 	else
 	{

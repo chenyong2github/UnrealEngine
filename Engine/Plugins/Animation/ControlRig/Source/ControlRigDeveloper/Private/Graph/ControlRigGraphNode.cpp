@@ -1211,7 +1211,7 @@ void UControlRigGraphNode::AllocateDefaultPins()
 	{
 		if(FunctionReferenceNode->RequiresVariableRemapping())
 		{
-			TArray<FRigVMExternalVariable> CurrentExternalVariables = FunctionReferenceNode->GetReferencedFunctionHeader().ExternalVariables;
+			TArray<FRigVMExternalVariable> CurrentExternalVariables = FunctionReferenceNode->GetExternalVariables(false);
 			for(const FRigVMExternalVariable& CurrentExternalVariable : CurrentExternalVariables)
 			{
 				ExternalVariables.Add(MakeShared<FRigVMExternalVariable>(CurrentExternalVariable));

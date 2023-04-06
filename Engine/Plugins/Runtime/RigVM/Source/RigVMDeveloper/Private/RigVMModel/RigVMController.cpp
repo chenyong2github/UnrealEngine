@@ -11410,7 +11410,8 @@ bool URigVMController::SetRemappedVariable(URigVMFunctionReferenceNode* InFuncti
 
 	FRigVMExternalVariable InnerExternalVariable;
 	{
-		if (FRigVMExternalVariable* Variable = InFunctionRefNode->ReferencedFunctionHeader.ExternalVariables.FindByPredicate([InInnerVariableName](const FRigVMExternalVariable& Variable)
+		TArray<FRigVMExternalVariable> Variables = InFunctionRefNode->GetExternalVariables(false);
+		if (FRigVMExternalVariable* Variable = Variables.FindByPredicate([InInnerVariableName](const FRigVMExternalVariable& Variable)
 		{
 			return Variable.Name == InInnerVariableName;
 		}))
