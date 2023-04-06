@@ -1628,4 +1628,55 @@ UE_NET_TEST_FIXTURE(FNetBitArrayFixture, MakeNetBitArrayView)
 	}
 }
 
+UE_NET_TEST(FNetBitArrayConstRangeIterator, CanIterateOverEmptyBitArray)
+{
+	bool bIteratedOverEmptyArray = false;
+	FNetBitArrayView Empty;
+	for (const uint32 Index : Empty)
+	{
+		bIteratedOverEmptyArray = true;
+	}
+
+	UE_NET_ASSERT_FALSE(bIteratedOverEmptyArray);
+}
+
+UE_NET_TEST(FNetBitArrayConstRangeIterator, CanIterateOverArbitrailySizedBitArrayWithAllBitsSet)
+{
+	FNetBitArrayBase::StorageWordType WordBuffer[] = { ~0U, ~0U, ~0U, ~0U, ~0U, ~0U, ~0U, };
+
+	constexpr uint32 ArraySize = 126U;
+	FNetBitArrayView BitArray(WordBuffer, ArraySize, FNetBitArrayView::NoResetNoValidate);
+	uint32 It = 0;
+	for (const uint32 Index : BitArray)
+	{
+		// Make sure we're hitting the right indices.
+		UE_NET_ASSERT_EQ(Index, It);
+		++It;
+	}
+
+	UE_NET_ASSERT_EQ(It, ArraySize);
+}
+
+UE_NET_TEST(FNetBitArrayConstRangeIterator, CanIterateOverArbitrailySizedBitArrayWithArbitraryBitsSet)
+{
+	constexpr uint32 ArraySize = 128U;
+	FNetBitArray BitArray(ArraySize);
+
+	const uint32 IndicesToSet[] = { 65, 68 };
+	for (uint32 IndexToSet : IndicesToSet)
+	{
+		BitArray.SetBit(IndexToSet);
+	}
+
+	uint32 It = 0;
+	for (const uint32 Index : BitArray)
+	{
+		// Make sure we're hitting the right indices.
+		UE_NET_ASSERT_EQ(Index, IndicesToSet[It]);
+		++It;
+	}
+
+	UE_NET_ASSERT_EQ(It, (uint32)UE_ARRAY_COUNT(IndicesToSet));
+}
+
 }
