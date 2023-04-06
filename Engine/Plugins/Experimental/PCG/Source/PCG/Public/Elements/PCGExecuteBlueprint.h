@@ -37,51 +37,54 @@ public:
 	virtual void BeginDestroy() override;
 	// ~End UObject interface
 
-	UFUNCTION(BlueprintNativeEvent, Category = Execution)
+	UFUNCTION(BlueprintNativeEvent, Category = "PCG|Execution")
 	void ExecuteWithContext(UPARAM(ref)FPCGContext& InContext, const FPCGDataCollection& Input, FPCGDataCollection& Output);
 
-	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = Execution)
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "PCG|Execution")
 	void Execute(const FPCGDataCollection& Input, FPCGDataCollection& Output);
 
-	UFUNCTION(BlueprintImplementableEvent, Category = Execution)
+	UFUNCTION(BlueprintImplementableEvent, Category = "PCG|Flow Control")
 	bool PointLoopBody(const FPCGContext& InContext, const UPCGPointData* InData, const FPCGPoint& InPoint, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const;
 
-	UFUNCTION(BlueprintImplementableEvent, Category = Execution)
-	TArray<FPCGPoint> MultiPointLoopBody(const FPCGContext& InContext, const UPCGPointData* InData, const FPCGPoint& InPoint, UPCGMetadata* OutMetadata) const;
+	UFUNCTION(BlueprintImplementableEvent, Category = "PCG|Flow Control")
+	TArray<FPCGPoint> VariableLoopBody(const FPCGContext& InContext, const UPCGPointData* InData, const FPCGPoint& InPoint, UPCGMetadata* OutMetadata) const;
 
-	UFUNCTION(BlueprintImplementableEvent, Category = Execution)
-	bool PointPairLoopBody(const FPCGContext& InContext, const UPCGPointData* InA, const UPCGPointData* InB, const FPCGPoint& InPointA, const FPCGPoint& InPointB, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const;
+	UFUNCTION(BlueprintImplementableEvent, Category = "PCG|Flow Control")
+	bool NestedLoopBody(const FPCGContext& InContext, const UPCGPointData* InOuterData, const UPCGPointData* InInnerData, const FPCGPoint& InOuterPoint, const FPCGPoint& InInnerPoint, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const;
 
-	UFUNCTION(BlueprintImplementableEvent, Category = Execution)
+	UFUNCTION(BlueprintImplementableEvent, Category = "PCG|Flow Control")
 	bool IterationLoopBody(const FPCGContext& InContext, int64 Iteration, const UPCGSpatialData* InA, const UPCGSpatialData* InB, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const;
 
-	/** Calls the LoopBody function on all points */
-	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = Execution, meta = (HideSelfPin = "true"))
-	void LoopOnPoints(UPARAM(ref) FPCGContext& InContext, const UPCGPointData* InData, UPCGPointData*& OutData, UPCGPointData* OptionalOutData = nullptr) const;
+	/** Calls the PointLoopBody function on all points */
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "PCG|Flow Control", meta = (HideSelfPin = "true"))
+	void PointLoop(UPARAM(ref) FPCGContext& InContext, const UPCGPointData* InData, UPCGPointData*& OutData, UPCGPointData* OptionalOutData = nullptr) const;
 
-	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = Execution, meta = (HideSelfPin = "true"))
-	void MultiLoopOnPoints(UPARAM(ref) FPCGContext& InContext, const UPCGPointData* InData, UPCGPointData*& OutData, UPCGPointData* OptionalOutData = nullptr) const;
+	/** Calls the VariableLoopBody function on all points, each call can return a variable number of points */
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "PCG|Flow Control", meta = (HideSelfPin = "true"))
+	void VariableLoop(UPARAM(ref) FPCGContext& InContext, const UPCGPointData* InData, UPCGPointData*& OutData, UPCGPointData* OptionalOutData = nullptr) const;
 
-	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = Execution, meta = (HideSelfPin = "true"))
-	void LoopOnPointPairs(UPARAM(ref) FPCGContext& InContext, const UPCGPointData* InA, const UPCGPointData* InB, UPCGPointData*& OutData, UPCGPointData* OptionalOutData = nullptr) const;
-
-	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = Execution, meta = (HideSelfPin = "true"))
-	void LoopNTimes(UPARAM(ref) FPCGContext& InContext, int64 NumIterations, UPCGPointData*& OutData, const UPCGSpatialData* InA = nullptr, const UPCGSpatialData* InB = nullptr, UPCGPointData* OptionalOutData = nullptr) const;
+	/** Calls the NestedLoopBody function on all nested loop pairs (e.g. (o, i) for all o in Outer, i in Inner) */
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "PCG|FLow Control", meta = (HideSelfPin = "true"))
+	void NestedLoop(UPARAM(ref) FPCGContext& InContext, const UPCGPointData* InOuterData, const UPCGPointData* InInnerData, UPCGPointData*& OutData, UPCGPointData* OptionalOutData = nullptr) const;
+	
+	/** Calls the IterationLoopBody a fixed number of times, optional parameters are used to potentially initialized the Out Data, but otherwise are used to remove the need to have variables */
+	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "PCG|Flow Control", meta = (HideSelfPin = "true"))
+	void IterationLoop(UPARAM(ref) FPCGContext& InContext, int64 NumIterations, UPCGPointData*& OutData, const UPCGSpatialData* OptionalA = nullptr, const UPCGSpatialData* OptionalB = nullptr, UPCGPointData* OptionalOutData = nullptr) const;
 
 	/** Override for the default node name */
-	UFUNCTION(BlueprintNativeEvent, Category = Graph)
+	UFUNCTION(BlueprintNativeEvent, Category = "PCG|Node Customization")
 	FName NodeTitleOverride() const;
 
-	UFUNCTION(BlueprintNativeEvent, Category = Graph)
+	UFUNCTION(BlueprintNativeEvent, Category = "PCG|Node Customization")
 	FLinearColor NodeColorOverride() const;
 
-	UFUNCTION(BlueprintNativeEvent, Category = Graph)
+	UFUNCTION(BlueprintNativeEvent, Category = "PCG|Node Customization")
 	EPCGSettingsType NodeTypeOverride() const;
 
-	UFUNCTION(BlueprintCallable, Category = "Input & Output")
+	UFUNCTION(BlueprintCallable, Category = "PCG|Input & Output")
 	TSet<FName> InputLabels() const;
 
-	UFUNCTION(BlueprintCallable, Category = "Input & Output")
+	UFUNCTION(BlueprintCallable, Category = "PCG|Input & Output")
 	TSet<FName> OutputLabels() const;
 
 	/** Gets the seed from the associated settings & source component */
