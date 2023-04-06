@@ -17,7 +17,9 @@ struct RIGVM_API FRigVMDispatch_SwitchInt32 : public FRigVMDispatch_CoreBase
 public:
 
 	FRigVMDispatch_SwitchInt32()
-	{}
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
 
 	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const override;
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;

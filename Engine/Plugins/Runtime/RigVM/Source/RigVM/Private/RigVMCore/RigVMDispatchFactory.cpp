@@ -233,21 +233,27 @@ bool FRigVMDispatchFactory::CopyProperty(const FProperty* InTargetProperty, uint
 
 const FRigVMTemplate* FRigVMDispatchFactory::GetTemplate() const
 {
+	// make sure to rely on the instance of this factory that's stored under the registry
+	FRigVMRegistry& Registry = FRigVMRegistry::Get();
+	const FName FactoryName = GetFactoryName();
+	const FRigVMDispatchFactory* ThisFactory = Registry.FindDispatchFactory(FactoryName);
+	if(ThisFactory != this)
+	{
+		return ThisFactory->GetTemplate();
+	}
+
 	static bool bIsDispatchingTemplate = false;
 	if(bIsDispatchingTemplate)
 	{
-			return nullptr;
+		return nullptr;
 	}
 	TGuardValue<bool> ReEntryGuard(bIsDispatchingTemplate, true);
-	
+
 	if(CachedTemplate)
 	{
 		return CachedTemplate;
 	}
-	
-	FRigVMRegistry& Registry = FRigVMRegistry::Get();
 
-	const FName FactoryName = GetFactoryName();
 	const TArray<FRigVMTemplateArgument> Arguments = GetArguments();
 
 	// we don't allow execute types on arguments
@@ -288,3 +294,11 @@ const FRigVMTemplate* FRigVMDispatchFactory::GetTemplate() const
 	return CachedTemplate;
 }
 
+FName FRigVMDispatchFactory::GetTemplateNotation() const
+{
+	if(const FRigVMTemplate* Template = GetTemplate())
+	{
+		return Template->GetNotation();
+	}
+	return NAME_None;
+}

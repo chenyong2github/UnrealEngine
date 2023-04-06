@@ -15,6 +15,11 @@ struct RIGVM_API FRigVMDispatch_Print : public FRigVMDispatchFactory
 
 public:
 
+	FRigVMDispatch_Print()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const override;
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
 	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const override;

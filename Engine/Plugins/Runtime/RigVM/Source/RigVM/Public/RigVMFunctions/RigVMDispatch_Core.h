@@ -21,6 +21,11 @@ struct RIGVM_API FRigVMDispatch_CoreEquals : public FRigVMDispatch_CoreBase
 
 public:
 
+	FRigVMDispatch_CoreEquals()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const override;
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
 	virtual FRigVMTemplateTypeMap OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const override;
@@ -89,6 +94,11 @@ USTRUCT(meta=(DisplayName = "Not Equals", Keywords = "Different,!=,Xor"))
 struct RIGVM_API FRigVMDispatch_CoreNotEquals : public FRigVMDispatch_CoreEquals
 {
 	GENERATED_BODY()
+
+	FRigVMDispatch_CoreNotEquals()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
 
 	// we are inheriting everything from the equals dispatch,
 	// and due to the check of the factory within FRigVMDispatch_CoreEquals::Execute we can

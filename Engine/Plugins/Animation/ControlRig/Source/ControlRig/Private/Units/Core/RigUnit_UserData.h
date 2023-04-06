@@ -14,6 +14,10 @@ struct FRigDispatch_GetUserData : public FRigDispatchFactory
 	GENERATED_BODY()
 
 public:
+	FRigDispatch_GetUserData()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
 
 #if WITH_EDITOR
 	virtual FString GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const override;

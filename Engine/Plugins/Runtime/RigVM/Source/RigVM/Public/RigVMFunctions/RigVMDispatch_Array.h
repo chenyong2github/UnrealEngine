@@ -38,6 +38,8 @@ protected:
 	static const FName RatioName;
 	static const FName ResultName;
 	static const FName& CompletedName;
+
+	friend class URigVMController;
 };
 
 USTRUCT(meta=(Abstract))
@@ -55,6 +57,11 @@ struct RIGVM_API FRigVMDispatch_ArrayMake : public FRigVMDispatch_ArrayBase
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_ArrayMake()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
 	virtual FRigVMTemplateTypeMap OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const override;
 #if WITH_EDITOR
@@ -76,6 +83,11 @@ struct RIGVM_API FRigVMDispatch_ArrayReset : public FRigVMDispatch_ArrayBaseMuta
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_ArrayReset()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual ERigVMOpCode GetOpCode() const override { return ERigVMOpCode::ArrayReset; }
 	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const override;
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
@@ -96,6 +108,11 @@ struct RIGVM_API FRigVMDispatch_ArrayGetNum : public FRigVMDispatch_ArrayBase
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_ArrayGetNum()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual ERigVMOpCode GetOpCode() const override { return ERigVMOpCode::ArrayGetNum; }
 	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const override;
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
@@ -116,6 +133,11 @@ struct RIGVM_API FRigVMDispatch_ArraySetNum : public FRigVMDispatch_ArrayBaseMut
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_ArraySetNum()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual ERigVMOpCode GetOpCode() const override { return ERigVMOpCode::ArraySetNum; }
 	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const override;
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
@@ -136,6 +158,11 @@ struct RIGVM_API FRigVMDispatch_ArrayGetAtIndex : public FRigVMDispatch_ArrayBas
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_ArrayGetAtIndex()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual ERigVMOpCode GetOpCode() const override { return ERigVMOpCode::ArrayGetAtIndex; }
 	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const override;
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
@@ -156,6 +183,11 @@ struct RIGVM_API FRigVMDispatch_ArraySetAtIndex : public FRigVMDispatch_ArrayBas
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_ArraySetAtIndex()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual ERigVMOpCode GetOpCode() const override { return ERigVMOpCode::ArraySetAtIndex; }
 	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const override;
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
@@ -176,6 +208,11 @@ struct RIGVM_API FRigVMDispatch_ArrayAdd : public FRigVMDispatch_ArraySetAtIndex
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_ArrayAdd()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual ERigVMOpCode GetOpCode() const override { return ERigVMOpCode::ArrayAdd; }
 	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const override;
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
@@ -195,6 +232,11 @@ struct RIGVM_API FRigVMDispatch_ArrayInsert : public FRigVMDispatch_ArraySetAtIn
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_ArrayInsert()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual ERigVMOpCode GetOpCode() const override { return ERigVMOpCode::ArrayInsert; }
 #if WITH_EDITOR
    	virtual FText GetNodeTooltip(const FRigVMTemplateTypeMap& InTypes) const override;
@@ -212,6 +254,11 @@ struct RIGVM_API FRigVMDispatch_ArrayRemove : public FRigVMDispatch_ArrayBaseMut
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_ArrayRemove()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual ERigVMOpCode GetOpCode() const override { return ERigVMOpCode::ArrayRemove; }
 	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const override;
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
@@ -232,6 +279,11 @@ struct RIGVM_API FRigVMDispatch_ArrayReverse : public FRigVMDispatch_ArrayReset
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_ArrayReverse()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual ERigVMOpCode GetOpCode() const override { return ERigVMOpCode::ArrayReverse; }
 #if WITH_EDITOR
    	virtual FText GetNodeTooltip(const FRigVMTemplateTypeMap& InTypes) const override;
@@ -250,6 +302,11 @@ struct RIGVM_API FRigVMDispatch_ArrayFind : public FRigVMDispatch_ArrayBase
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_ArrayFind()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual ERigVMOpCode GetOpCode() const override { return ERigVMOpCode::ArrayFind; }
 	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const override;
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
@@ -270,6 +327,11 @@ struct RIGVM_API FRigVMDispatch_ArrayAppend : public FRigVMDispatch_ArrayBaseMut
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_ArrayAppend()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual ERigVMOpCode GetOpCode() const override { return ERigVMOpCode::ArrayAppend; }
 	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const override;
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
@@ -290,6 +352,11 @@ struct RIGVM_API FRigVMDispatch_ArrayClone : public FRigVMDispatch_ArrayBase
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_ArrayClone()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual ERigVMOpCode GetOpCode() const override { return ERigVMOpCode::ArrayClone; }
 	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const override;
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
@@ -310,6 +377,11 @@ struct RIGVM_API FRigVMDispatch_ArrayUnion : public FRigVMDispatch_ArrayAppend
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_ArrayUnion()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual ERigVMOpCode GetOpCode() const override { return ERigVMOpCode::ArrayUnion; }
 #if WITH_EDITOR
    	virtual FText GetNodeTooltip(const FRigVMTemplateTypeMap& InTypes) const override;
@@ -327,6 +399,11 @@ struct RIGVM_API FRigVMDispatch_ArrayDifference : public FRigVMDispatch_ArrayBas
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_ArrayDifference()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual ERigVMOpCode GetOpCode() const override { return ERigVMOpCode::ArrayDifference; }
 	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const override;
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
@@ -347,6 +424,11 @@ struct RIGVM_API FRigVMDispatch_ArrayIntersection : public FRigVMDispatch_ArrayD
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_ArrayIntersection()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual ERigVMOpCode GetOpCode() const override { return ERigVMOpCode::ArrayIntersection; }
 #if WITH_EDITOR
    	virtual FText GetNodeTooltip(const FRigVMTemplateTypeMap& InTypes) const override;
@@ -364,6 +446,11 @@ struct RIGVM_API FRigVMDispatch_ArrayIterator : public FRigVMDispatch_ArrayBaseM
 	GENERATED_BODY()
 
 public:
+	FRigVMDispatch_ArrayIterator()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual ERigVMOpCode GetOpCode() const override { return ERigVMOpCode::ArrayIterator; }
 	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const override;
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;

@@ -10,6 +10,11 @@ struct CONTROLRIG_API FRigDispatch_MetadataBase : public FRigDispatchFactory
 {
 	GENERATED_BODY()
 
+	FRigDispatch_MetadataBase()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 #if WITH_EDITOR
 	virtual FString GetNodeTitle(const FRigVMTemplateTypeMap& InTypes) const override;;
 #endif

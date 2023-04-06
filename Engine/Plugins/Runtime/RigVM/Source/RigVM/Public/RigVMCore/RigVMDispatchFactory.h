@@ -152,6 +152,9 @@ public:
 	// builds and returns the template
 	RIGVM_API const FRigVMTemplate* GetTemplate() const;
 
+	// returns the name of the factory template
+	RIGVM_API FName GetTemplateNotation() const;
+
 	// returns the name of the permutation for a given set of types
 	RIGVM_API FString GetPermutationName(const FRigVMTemplateTypeMap& InTypes) const;
 

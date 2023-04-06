@@ -16,6 +16,11 @@ struct RIGVM_API FRigVMDispatch_If : public FRigVMDispatch_CoreBase
 
 public:
 
+	FRigVMDispatch_If()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual FName GetArgumentNameForOperandIndex(int32 InOperandIndex, int32 InTotalOperands) const override;
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
 	virtual FRigVMTemplateTypeMap OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const override;

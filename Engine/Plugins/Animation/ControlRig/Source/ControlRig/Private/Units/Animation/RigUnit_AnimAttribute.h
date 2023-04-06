@@ -182,6 +182,11 @@ struct CONTROLRIG_API FRigDispatch_GetAnimAttribute: public FRigDispatch_AnimAtt
 {
 	GENERATED_BODY()
 
+	FRigDispatch_GetAnimAttribute()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
 	virtual FRigVMTemplateTypeMap OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const override;
 
@@ -255,6 +260,12 @@ USTRUCT(meta=(DisplayName="Set Animation Attribute"))
 struct CONTROLRIG_API FRigDispatch_SetAnimAttribute: public FRigDispatch_AnimAttributeBase
 {
 	GENERATED_BODY()
+
+	FRigDispatch_SetAnimAttribute()
+	{
+		FactoryScriptStruct = StaticStruct();
+	}
+
 	virtual bool IsSet() const override { return true; }
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
 	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const override;
