@@ -1937,6 +1937,8 @@ bool UGeometryCollectionComponent::ProcessRepData(const float DeltaTime, const f
 		}
 	}
 
+	RigidClustering.GetClusterUnionManager().HandleDeferredClusterUnionUpdateProperties();
+
 	// Keep track of whether we did some "work" on this frame so we can turn off the async tick after
 	// multiple frames of not doing anything.
 	bool bProcessed = false;

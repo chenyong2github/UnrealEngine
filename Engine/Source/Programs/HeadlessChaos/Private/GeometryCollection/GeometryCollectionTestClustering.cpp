@@ -1833,6 +1833,7 @@ namespace GeometryCollectionTest
 		}
 
 		UnitTest.Solver->GetEvolution()->GetRigidClustering().ReleaseClusterParticles({ Collection1Handles[0],Collection1Handles[1] });
+		ClusterUnionManager.HandleDeferredClusterUnionUpdateProperties();
 
 		EXPECT_EQ(SovlerParticleHandles.Size(), 7);
 		EXPECT_FALSE(ClusterUnion.ChildParticles.Contains(Collection1Handles[0]));
@@ -1948,6 +1949,7 @@ namespace GeometryCollectionTest
 		}
 
 		UnitTest.Solver->GetEvolution()->GetRigidClustering().ReleaseClusterParticles({ Collection1Handles[0],Collection1Handles[1] });
+		ClusterUnionManager.HandleDeferredClusterUnionUpdateProperties();
 
 		EXPECT_EQ(SovlerParticleHandles.Size(), 7);
 		EXPECT_FALSE(ClusterUnion.ChildParticles.Contains(Collection1Handles[0]));
