@@ -2,34 +2,11 @@
 
 #pragma once
 #include "EditorReimportHandler.h"
-#include "AssetTypeCategories.h"
 #include "AssetTypeActions_Base.h"
 #include "Factories/Factory.h"
 #include "LidarPointCloud.h"
 #include "LidarPointCloudFactory.generated.h"
 
-class FAssetTypeActions_LidarPointCloud : public FAssetTypeActions_Base
-{
-public:
-	FAssetTypeActions_LidarPointCloud() {}
-
-	// Begin IAssetTypeActions Interface
-	virtual FText GetName() const override;
-	virtual FColor GetTypeColor() const override { return FColor(0, 128, 128); }
-	virtual UClass* GetSupportedClass() const override { return ULidarPointCloud::StaticClass(); }
-	virtual void GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder) override;
-	virtual uint32 GetCategories() override { return EAssetTypeCategories::Misc; }
-	virtual bool IsImportedAsset() const override { return true; }
-	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>()) override;
-	virtual void GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const override;
-	// End IAssetTypeActions Interface
-
-private:
-	void ExecuteMerge(TArray<ULidarPointCloud*> PointClouds);
-	void ExecuteAlign(TArray<ULidarPointCloud*> PointClouds);
-	void ExecuteCollision(TArray<ULidarPointCloud*> PointClouds);
-	void ExecuteNormals(TArray<ULidarPointCloud*> PointClouds);
-};
 
 UCLASS()
 class ULidarPointCloudFactory : public UFactory, public FReimportHandler

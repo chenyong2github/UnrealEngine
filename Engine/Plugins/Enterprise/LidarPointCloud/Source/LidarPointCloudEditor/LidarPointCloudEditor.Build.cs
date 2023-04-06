@@ -11,7 +11,10 @@ namespace UnrealBuildTool.Rules
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
+                "AssetDefinition",
                 "CoreUObject",
+                "ContentBrowser",
+				"ToolMenus",
                 "Engine",
                 "Slate",
                 "SlateCore",

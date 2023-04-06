@@ -33,10 +33,6 @@ class FLidarPointCloudEditorModule : public ILidarPointCloudEditorModule
 		// Register slate style overrides
 		FLidarPointCloudStyle::Initialize();
 		
-		// Register asset type
-		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_LidarPointCloud));
-
 		// Register settings
 		if (ISettingsModule * SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 		{
@@ -68,13 +64,6 @@ class FLidarPointCloudEditorModule : public ILidarPointCloudEditorModule
 			}
 		}
 
-		// Unregister the asset type that we registered
-		if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
-		{
-			IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
-			AssetTools.UnregisterAssetTypeActions(MakeShareable(new FAssetTypeActions_LidarPointCloud));
-		}
-		
 		// Unregister slate style overrides
 		FLidarPointCloudStyle::Shutdown();
 	}

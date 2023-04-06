@@ -1,152 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LidarPointCloudFactory.h"
+
+#include "ContentBrowserMenuContexts.h"
 #include "LidarPointCloudShared.h"
 #include "LidarPointCloudSettings.h"
 #include "LidarPointCloudImportUI.h"
-#include "LidarPointCloudEditor.h"
 #include "IO/LidarPointCloudFileIO.h"
-#include "Styling/AppStyle.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Editor.h"
-#include "LidarPointCloudEditorHelper.h"
 
-#include "Misc/ScopedSlowTask.h"
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "PackageTools.h"
 
 #define LOCTEXT_NAMESPACE "LidarPointCloud"
 
-FText FAssetTypeActions_LidarPointCloud::GetName() const
-{
-	return NSLOCTEXT("AssetTypeActions", "FAssetTypeActions_LidarPointCloud", "LiDAR Point Cloud");
-}
 
-void FAssetTypeActions_LidarPointCloud::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
-{
-	TArray<ULidarPointCloud*> PointClouds;
-	for (UObject* Object : InObjects)
-	{
-		PointClouds.Add(CastChecked<ULidarPointCloud>(Object));
-	}
 
-	if (PointClouds.Num() > 1)
-	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("LidarPointCloud_Merge", "Merge Selected"),
-			LOCTEXT("LidarPointCloud_MergeTooltip", "Merges selected point cloud assets."),
-			FSlateIcon("LidarPointCloudStyle", "LidarPointCloudEditor.ToolkitMerge"),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &FAssetTypeActions_LidarPointCloud::ExecuteMerge, PointClouds),
-				FCanExecuteAction()
-			)
-		);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("LidarPointCloud_Align", "Align Selected"),
-			LOCTEXT("LidarPointCloud_AlignTooltip", "Aligns selected point cloud assets."),
-			FSlateIcon("LidarPointCloudStyle", "LidarPointCloudEditor.ToolkitAlign"),
-			FUIAction(
-				FExecuteAction::CreateSP(this, &FAssetTypeActions_LidarPointCloud::ExecuteAlign, PointClouds),
-				FCanExecuteAction()
-			)
-		);
-	}
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("LidarPointCloud_BuildCollision", "Build Collision"),
-		LOCTEXT("LidarPointCloud_BuildCollisionTooltip", "Builds collision for all selected point cloud assets."),
-		FSlateIcon("LidarPointCloudStyle", "LidarPointCloudEditor.ToolkitCollision"),
-		FUIAction(
-			FExecuteAction::CreateSP(this, &FAssetTypeActions_LidarPointCloud::ExecuteCollision, PointClouds),
-			FCanExecuteAction()
-		)
-	);
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("LidarPointCloud_CalculateNormals", "Calculate Normals"),
-		LOCTEXT("LidarPointCloud_CalculateNormalsTooltip", "Calculates normals for all selected point cloud assets."),
-		FSlateIcon("LidarPointCloudStyle", "LidarPointCloudEditor.ToolkitNormals"),
-		FUIAction(
-			FExecuteAction::CreateSP(this, &FAssetTypeActions_LidarPointCloud::ExecuteNormals, PointClouds),
-			FCanExecuteAction()
-		)
-	);
-}
-
-void FAssetTypeActions_LidarPointCloud::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor /*= TSharedPtr<IToolkitHost>()*/)
-{
-	const EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
-
-	for (UObject* Object : InObjects)
-	{
-		if (ULidarPointCloud* PointCloud = Cast<ULidarPointCloud>(Object))
-		{
-			TSharedRef<FLidarPointCloudEditor> NewPointCloudEditor(new FLidarPointCloudEditor());
-			NewPointCloudEditor->InitPointCloudEditor(Mode, EditWithinLevelEditor, PointCloud);
-		}
-	}
-}
-
-void FAssetTypeActions_LidarPointCloud::GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const
-{
-	for (auto& Asset : TypeAssets)
-	{
-		if (const ULidarPointCloud* PointCloud = CastChecked<ULidarPointCloud>(Asset))
-		{
-			OutSourceFilePaths.Add(PointCloud->GetSourcePath());
-		}
-	}
-}
-
-void FAssetTypeActions_LidarPointCloud::ExecuteMerge(TArray<ULidarPointCloud*> PointClouds)
-{
-	if (PointClouds.Num() < 2)
-	{
-		return;
-	}
-
-	FString PackageName = PointClouds[0]->GetOutermost()->GetName() + TEXT("_Merged");
-	UPackage* MergedCloudPackage = UPackageTools::FindOrCreatePackageForAssetType(FName(*PackageName), ULidarPointCloud::StaticClass());
-	if (IsValid(MergedCloudPackage))
-	{
-		MergedCloudPackage->SetPackageFlags(PKG_NewlyCreated);
-
-		ULidarPointCloud* PC = NewObject<ULidarPointCloud>(MergedCloudPackage, FName(*FPaths::GetBaseFilename(MergedCloudPackage->GetName())), EObjectFlags::RF_Public | EObjectFlags::RF_Standalone | EObjectFlags::RF_Transactional);
-
-		FLidarPointCloudEditorHelper::MergeLidar(PC, PointClouds);
-	}
-}
-
-void FAssetTypeActions_LidarPointCloud::ExecuteAlign(TArray<ULidarPointCloud*> PointClouds)
-{
-	FScopedSlowTask ProgressDialog(1, LOCTEXT("Align", "Aligning Point Clouds..."));
-	ProgressDialog.MakeDialog();
-	ProgressDialog.EnterProgressFrame(1.f);
-	ULidarPointCloud::AlignClouds(PointClouds);
-}
-
-void FAssetTypeActions_LidarPointCloud::ExecuteCollision(TArray<ULidarPointCloud*> PointClouds)
-{
-	for (ULidarPointCloud* PC : PointClouds)
-	{
-		PC->BuildCollision();
-	}
-}
-
-void FAssetTypeActions_LidarPointCloud::ExecuteNormals(TArray<ULidarPointCloud*> PointClouds)
-{
-	for (ULidarPointCloud* PC : PointClouds)
-	{
-		// Data needs to be persistently loaded to calculate normals
-		if (!PC->IsFullyLoaded())
-		{
-			PC->LoadAllNodes();
-		}
-
-		PC->CalculateNormals(nullptr, nullptr);
-	}
-}
 
 ULidarPointCloudFactory::ULidarPointCloudFactory()
 {
