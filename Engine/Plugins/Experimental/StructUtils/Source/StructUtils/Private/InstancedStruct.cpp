@@ -23,7 +23,17 @@ void GatherForLocalization(const FString& PathToParent, const UScriptStruct* Str
 
 	if (const UScriptStruct* StructTypePtr = ThisInstance->GetScriptStruct())
 	{
-		PropertyLocalizationDataGatherer.GatherLocalizationDataFromStructWithCallbacks(PathToParent + TEXT(".StructInstance"), StructTypePtr, ThisInstance->GetMemory(), DefaultInstance ? DefaultInstance->GetMemory() : nullptr, GatherTextFlags);
+		const uint8* DefaultInstanceMemory = nullptr;
+		if (DefaultInstance)
+		{
+			// Types must match
+			if (StructTypePtr == DefaultInstance->GetScriptStruct())
+			{
+				DefaultInstanceMemory = DefaultInstance->GetMemory();
+			}
+		}
+		
+		PropertyLocalizationDataGatherer.GatherLocalizationDataFromStructWithCallbacks(PathToParent + TEXT(".StructInstance"), StructTypePtr, ThisInstance->GetMemory(), DefaultInstanceMemory, GatherTextFlags);
 	}
 }
 
