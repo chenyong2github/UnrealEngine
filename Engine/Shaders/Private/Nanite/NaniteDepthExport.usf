@@ -149,7 +149,6 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 				const bool bHasDistanceField = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_DISTANCE_FIELD_REPRESENTATION) != 0;
 
 				SceneDepthValue = NaniteDepthValue;
-				SceneDepth[PixelPos.xy] = SceneDepthValue; // Write uncompressed depth value out
 
 				uint OutStencil;
 				if (bWriteCustomStencil)
@@ -223,6 +222,8 @@ void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 		// Only write out SceneDepth and expand SceneHTile if there are Nanite fragments that survive depth testing against the scene
 		if (WaveActiveAnyTrue(NanitePixelVisible))
 		{
+			SceneDepth[PixelPos.xy] = SceneDepthValue; // Write uncompressed depth value out
+
 			const float TileMinSceneDepth = WaveActiveMin(SceneDepthValue);
 			const float TileMaxSceneDepth = WaveActiveMax(SceneDepthValue);
 

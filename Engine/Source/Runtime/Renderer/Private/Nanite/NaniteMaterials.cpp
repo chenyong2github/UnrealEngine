@@ -140,7 +140,7 @@ static FAutoConsoleVariableRef CVarNaniteDecompressDepth(
 
 // TODO: This should be defaulted to 1, but there are currently outstanding bugs with combining HTILEs containing both
 // Nanite and non-Nanite depth and stencil
-int32 GNaniteCustomDepthExportMethod = 0;
+int32 GNaniteCustomDepthExportMethod = 1;
 static FAutoConsoleVariableRef CVarNaniteCustomDepthExportMethod(
 	TEXT("r.Nanite.CustomDepth.ExportMethod"),
 	GNaniteCustomDepthExportMethod,
@@ -2055,7 +2055,23 @@ void FinalizeCustomDepthStencil(
 )
 {
 	OutTextures.Depth = CustomDepthContext.DepthTarget;
-	OutTextures.Stencil = CustomDepthContext.StencilTarget ? GraphBuilder.CreateSRV(CustomDepthContext.StencilTarget) : CustomDepthContext.InputStencilSRV;
+	if (CustomDepthContext.StencilTarget)
+	{
+		if (CustomDepthContext.bComputeExport)
+		{
+			// we wrote straight to the depth/stencil buffer
+			OutTextures.Stencil = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(CustomDepthContext.StencilTarget, PF_X24_G8));
+		}
+		else
+		{
+			// separate stencil texture
+			OutTextures.Stencil = GraphBuilder.CreateSRV(CustomDepthContext.StencilTarget);
+		}
+	}
+	else
+	{
+		OutTextures.Stencil = CustomDepthContext.InputStencilSRV;
+	}
 	OutTextures.bSeparateStencilBuffer = !CustomDepthContext.bComputeExport;
 }
 

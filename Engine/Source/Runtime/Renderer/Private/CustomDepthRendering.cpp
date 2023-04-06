@@ -69,7 +69,7 @@ bool IsCustomDepthPassWritingStencil()
 	return GetCustomDepthMode() == ECustomDepthMode::EnabledWithStencil;
 }
 
-FCustomDepthTextures FCustomDepthTextures::Create(FRDGBuilder& GraphBuilder, FIntPoint CustomDepthExtent)
+FCustomDepthTextures FCustomDepthTextures::Create(FRDGBuilder& GraphBuilder, FIntPoint CustomDepthExtent, EShaderPlatform ShaderPlatform)
 {
 	const ECustomDepthMode CustomDepthMode = GetCustomDepthMode();
 
@@ -83,15 +83,15 @@ FCustomDepthTextures FCustomDepthTextures::Create(FRDGBuilder& GraphBuilder, FIn
 	FCustomDepthTextures CustomDepthTextures;
 
 	ETextureCreateFlags CreateFlags = GFastVRamConfig.CustomDepth | TexCreate_DepthStencilTargetable | TexCreate_ShaderResource;
-	if (!CVarCustomDepthEnableFastClear.GetValueOnRenderThread())
-	{
-		CreateFlags |= TexCreate_NoFastClear;
-	}
 
-	// For Nanite, check to create the depth texture as a UAV
-	if (UseComputeDepthExport() && Nanite::GetSupportsCustomDepthRendering())
+	// For Nanite, check to create the depth texture as a UAV and force HTILE.
+	if (UseNanite(ShaderPlatform) && UseComputeDepthExport() && Nanite::GetSupportsCustomDepthRendering())
 	{
 		CreateFlags |= TexCreate_UAV;
+	}
+	else if (!CVarCustomDepthEnableFastClear.GetValueOnRenderThread())
+	{
+		CreateFlags |= TexCreate_NoFastClear;
 	}
 
 	const FRDGTextureDesc CustomDepthDesc = FRDGTextureDesc::Create2D(CustomDepthExtent, PF_DepthStencil, FClearValueBinding::DepthFar, CreateFlags);

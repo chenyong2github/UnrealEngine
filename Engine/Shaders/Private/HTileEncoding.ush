@@ -198,7 +198,7 @@ uint2 ExtractTileHiStencil(uint HTileValue, bool HiStencil)
 	return uint2(HiStencil0, HiStencil1);
 }
 
-uint GetZPlaneCount(float ZMask)
+uint GetZPlaneCount(uint ZMask)
 {
 	uint PlaneCount = ZMask;
 
@@ -229,7 +229,7 @@ uint PackZLayout(uint ZMask)
 	const uint ZPlaneWordCount		= (PMaskOffset + PMaskSize) >> 2u;
 
 	uint ZLayout = ZPlaneCount;
-	ZLayout |= PMaskBitCount;
+	ZLayout |= PMaskBitCount << 5;
 	ZLayout |= select(DepthPackedSize <= 32, 1u, 0u) << 16;
 	ZLayout |= (PMaskOffset >> 2u) << 17u;
 	ZLayout |= ZPlaneWordCount << 24u;
@@ -322,7 +322,8 @@ float DecompressDepthValue_Internal(ZLayout Layout, uint ZOffset, uint ZMask, ui
 
 	DepthValue += ZCenter;
 
-	int Shift = firstbithigh(DepthValue) - 23;
+	uint DepthValueUnsigned = DepthValue;
+	int Shift = firstbithigh(DepthValueUnsigned) - 23;
 	Exponent += Shift;
 
 	const bool bHandleDenorms = true;
@@ -330,11 +331,11 @@ float DecompressDepthValue_Internal(ZLayout Layout, uint ZOffset, uint ZMask, ui
 
 	if (bHandleDenorms && Exponent < 1)
 	{
-		return select(bFlushDenorms, 0.0f, asfloat((DepthValue << (8 - Shift)) >> (9 - Exponent)));
+		return select(bFlushDenorms, 0.0f, asfloat((DepthValueUnsigned << (8 - Shift)) >> (9 - Exponent)));
 	}
 	else
 	{
-		return min(1.0f, asfloat(Exponent << 23 | (DepthValue << (9 - Shift)) >> 9));
+		return min(1.0f, asfloat(Exponent << 23 | (DepthValueUnsigned << (9 - Shift)) >> 9));
 	}
 }
 
