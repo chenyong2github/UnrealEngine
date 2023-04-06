@@ -46,6 +46,9 @@ struct MASSSPAWNER_API FMassEntityConfig
 	/** @return View to the array of features defined on this config */
 	TConstArrayView<UMassEntityTraitBase*> GetTraits() const { return Traits; }
 
+	/** Looks for a trait of the indicated type, accepting all child classes as well, unless bExactMatch == true */
+	const UMassEntityTraitBase* FindTrait(TSubclassOf<UMassEntityTraitBase> TraitClass, const bool bExactMatch = false) const;
+
 	/** Adds Trait to the collection of traits hosted by this FMassEntityConfig instance */
 	void AddTrait(UMassEntityTraitBase& Trait);
 
@@ -119,6 +122,12 @@ public:
 	void DestroyEntityTemplate(const UWorld& World) const
 	{
 		Config.DestroyEntityTemplate(World);
+	}
+
+	/** Looks for a trait of the indicated type, accepting all child classes as well, unless bExactMatch == true */
+	const UMassEntityTraitBase* FindTrait(TSubclassOf<UMassEntityTraitBase> TraitClass, const bool bExactMatch = false) const
+	{
+		return Config.FindTrait(TraitClass, bExactMatch);
 	}
 
 #if WITH_EDITOR
