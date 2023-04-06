@@ -946,25 +946,29 @@ namespace UnrealBuildTool
 			bool bCacheByBundle = !string.IsNullOrEmpty(Bundle);
 			if (bCacheByBundle)
 			{
-				ProjectSettings = CachedProjectSettingsByBundle.FirstOrDefault(x => x.ProjectFile == ProjectFile && x.BundleIdentifier == Bundle);
+				lock (CachedProjectSettingsByBundle)
+				{
+					ProjectSettings = CachedProjectSettingsByBundle.FirstOrDefault(x => x.ProjectFile == ProjectFile && x.BundleIdentifier == Bundle);
+					if (ProjectSettings == null)
+					{
+						ProjectSettings = CreateProjectSettings(ProjectFile, Bundle);
+						CachedProjectSettingsByBundle.Add(ProjectSettings);
+					}
+				}
 			}
 			else
 			{
-				ProjectSettings = CachedProjectSettings.FirstOrDefault(x => x.ProjectFile == ProjectFile);
+				lock (CachedProjectSettings)
+				{
+					ProjectSettings = CachedProjectSettings.FirstOrDefault(x => x.ProjectFile == ProjectFile);
+					if (ProjectSettings == null)
+					{
+						ProjectSettings = CreateProjectSettings(ProjectFile, Bundle);
+						CachedProjectSettings.Add(ProjectSettings);
+					}
+				}
 			}
 
-			if(ProjectSettings == null)
-			{
-				ProjectSettings = CreateProjectSettings(ProjectFile, Bundle);
-				if (bCacheByBundle)
-				{
-					CachedProjectSettingsByBundle.Add(ProjectSettings);
-				}
-				else
-				{
-					CachedProjectSettings.Add(ProjectSettings);
-				}
-			}
 			return ProjectSettings;
 		}
 
