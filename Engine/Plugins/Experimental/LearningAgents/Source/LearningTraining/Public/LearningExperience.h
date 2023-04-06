@@ -98,6 +98,7 @@ namespace UE::Learning
 		* @param InEpisodeFinalObservations		Array of final observations for each instance of shape (InstanceNum, ObservationVectorDimNum)
 		* @param EpisodeBuffer					Episode buffer to add experience from
 		* @param Instances						Instances to add
+		* @param bAddTruncatedEpisodeWhenFull	When enabled, this will add a truncated, partial episode to the buffer when full
 		*
 		* @returns								True when the replay buffer is full
 		*/
@@ -105,7 +106,8 @@ namespace UE::Learning
 			const TLearningArrayView<1, const ECompletionMode> InEpisodeCompletionModes,
 			const TLearningArrayView<2, const float> InEpisodeFinalObservations,
 			const FEpisodeBuffer& EpisodeBuffer,
-			const FIndexSet Instances);
+			const FIndexSet Instances,
+			const bool bAddTruncatedEpisodeWhenFull = true);
 
 		const int32 GetMaxEpisodeNum() const;
 		const int32 GetMaxStepNum() const;
