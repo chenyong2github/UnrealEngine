@@ -185,6 +185,7 @@ class ENGINE_API UAnimBlueprint : public UBlueprint, public IInterface_PreviewMe
 	virtual bool SupportsEventGraphs() const override;
 	virtual bool SupportsDelegates() const override;
 	virtual bool SupportsMacros() const override;
+	virtual bool SupportsInputEvents() const override;
 	virtual bool AllowFunctionOverride(const UFunction* const InFunction) const override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	

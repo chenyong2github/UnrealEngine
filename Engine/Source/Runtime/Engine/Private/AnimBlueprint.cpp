@@ -240,6 +240,21 @@ bool UAnimBlueprint::SupportsMacros() const
 	return GetDefault<UAnimBlueprintSettings>()->bAllowMacros;
 }
 
+bool UAnimBlueprint::SupportsInputEvents() const
+{
+	// Animation blueprints don't really support input events. You used to be able to place
+	// the input event nodes in the anim graphs and they would just not work, causing an ensure.
+	// To keep backwards compatibility we will allow users to enable them in case
+	// their project somehow relies on it in some custom node extension, but
+	// for new projects it should not be allowed. 
+	if (GetDefault<UAnimBlueprintSettings>()->bSupportInputEventsForBackwardsCompatibility)
+	{
+		return Super::SupportsInputEvents();
+	}
+	
+	return false;	
+}
+
 bool UAnimBlueprint::AllowFunctionOverride(const UFunction* const InFunction) const
 {
 	check(InFunction);

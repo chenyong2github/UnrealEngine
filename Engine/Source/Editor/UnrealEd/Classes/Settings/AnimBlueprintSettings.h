@@ -34,6 +34,18 @@ public:
 	/** Whether to allow restrict which base function overrides can created/displayed in animation blueprints */
 	UPROPERTY()
 	bool bRestrictBaseFunctionOverrides = false;
+	
+	/**
+	* Whether to allow input events to be created/displayed in animation blueprints.
+	* 
+	* You used to be able to place input event nodes in anim graphs and they would just not work, sometimes causing an ensure.
+	* 
+	* If needed, you can enable this legacy behavior by setting this property to true (allowing input events to be placed in a graph).
+	* 
+	* Default value is false.
+	*/
+	UPROPERTY(Config)
+	bool bSupportInputEventsForBackwardsCompatibility = false;
 
 	/** The set of allowed base functions if restricted */
 	UPROPERTY()
