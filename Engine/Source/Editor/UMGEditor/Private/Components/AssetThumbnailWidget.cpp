@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AssetThumbnailWidget.h"
+#include "Components/AssetThumbnailWidget.h"
 
 #include "AssetThumbnail.h"
 #include "AssetRegistry/IAssetRegistry.h"
