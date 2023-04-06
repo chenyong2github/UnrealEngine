@@ -117,43 +117,9 @@ FPackageStorePackage* FPackageStoreOptimizer::CreatePackageFromCookedHeader(cons
 	ProcessPreloadDependencies(CookedHeaderData, Package);
 	ProcessDataResources(CookedHeaderData, Package);
 
-	CreateExportBundles(Package);
+	CreateExportBundle(Package);
 
-	return Package;
-}
-
-FPackageStorePackage* FPackageStoreOptimizer::CreatePackageFromZenPackageHeader(const FName& Name, const FIoBuffer& Buffer, int32 ExportBundleCount, const TArrayView<const FPackageId>& ImportedPackageIds) const
-{
-	FPackageStorePackage* Package = new FPackageStorePackage();
-	Package->Id = FPackageId::FromName(Name);
-
-	// The package id should be generated from the original name
-	// Support for optional package is not implemented when loading from the package store yet however
-	FString NameStr = Name.ToString();
-	int32 Index = NameStr.Find(FPackagePath::GetOptionalSegmentExtensionModifier());
-	if (Index != INDEX_NONE)
-	{
-		unimplemented();
-	}
-
-	Package->Name = Name;
-	
-	FZenPackageHeaderData ZenHeaderData = LoadZenPackageHeader(Buffer, ExportBundleCount);
-	if (ZenHeaderData.VersioningInfo.IsSet())
-	{
-		Package->VersioningInfo.Emplace(ZenHeaderData.VersioningInfo.GetValue());
-	}
-	Package->PackageFlags = ZenHeaderData.Summary.PackageFlags;
-	Package->CookedHeaderSize = ZenHeaderData.Summary.CookedHeaderSize;
-	for (FDisplayNameEntryId DisplayId : ZenHeaderData.NameMap)
-	{
-		Package->NameMapBuilder.AddName(DisplayId);
-	}
-	Package->BulkDataEntries = MoveTemp(ZenHeaderData.BulkDataEntries);
-	ProcessImports(ZenHeaderData, Package);
-	ProcessExports(ZenHeaderData, Package);
-	ProcessPreloadDependencies(ZenHeaderData, Package);
-	CreateExportBundles(Package);
+	FinalizePackageHeader(Package);
 
 	return Package;
 }
@@ -265,105 +231,6 @@ FPackageStoreOptimizer::FCookedHeaderData FPackageStoreOptimizer::LoadCookedHead
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-FPackageStoreOptimizer::FZenPackageHeaderData FPackageStoreOptimizer::LoadZenPackageHeader(const FIoBuffer& HeaderBuffer, int32 ExportBundleCount) const
-{
-	FZenPackageHeaderData ZenPackageHeaderData;
-
-	const uint8* HeaderData = HeaderBuffer.Data();
-
-	FZenPackageSummary& Summary = ZenPackageHeaderData.Summary;
-	Summary = *reinterpret_cast<const FZenPackageSummary*>(HeaderData);
-	check(HeaderBuffer.DataSize() == Summary.HeaderSize);
-
-	TArrayView<const uint8> HeaderDataView(HeaderData + sizeof(FZenPackageSummary), Summary.HeaderSize - sizeof(FZenPackageSummary));
-	FMemoryReaderView HeaderDataReader(HeaderDataView);
-	
-	if (Summary.bHasVersioningInfo)
-	{
-		FZenPackageVersioningInfo& VersioningInfo = ZenPackageHeaderData.VersioningInfo.Emplace();
-		HeaderDataReader << VersioningInfo;
-	}
-
-	TArray<FDisplayNameEntryId>& NameMap = ZenPackageHeaderData.NameMap;
-	NameMap = LoadNameBatch(HeaderDataReader);
-
-	const FZenPackageVersioningInfo* VersioningInfo = ZenPackageHeaderData.VersioningInfo.GetPtrOrNull();
-	if (VersioningInfo == nullptr || VersioningInfo->PackageVersion >= EUnrealEngineObjectUE5Version::DATA_RESOURCES)
-	{
-		int64 BulkDataMapSize = 0;
-		HeaderDataReader << BulkDataMapSize;
-		const uint8* BulkDataMapData = HeaderData + sizeof(FZenPackageSummary) + HeaderDataReader.Tell();
-		ZenPackageHeaderData.BulkDataEntries = MakeArrayView(reinterpret_cast<const FBulkDataMapEntry*>(BulkDataMapData), BulkDataMapSize / sizeof(FBulkDataMapEntry));
-	}
-
-	TArrayView<const uint8> ImportedPackageNamesDataView(HeaderData + Summary.ImportedPackageNamesOffset, Summary.HeaderSize - Summary.ImportedPackageNamesOffset);
-	FMemoryReaderView ImportedPackageNamesDataReader(ImportedPackageNamesDataView);
-	FZenPackageImportedPackageNamesContainer ImportedPackageNamesContainer;
-	ImportedPackageNamesDataReader << ImportedPackageNamesContainer;
-	ZenPackageHeaderData.ImportedPackageNames = MoveTemp(ImportedPackageNamesContainer.Names);
-
-	ZenPackageHeaderData.ImportedPublicExportHashes =
-		MakeArrayView<const uint64>(
-			reinterpret_cast<const uint64*>(HeaderData + Summary.ImportedPublicExportHashesOffset),
-			(Summary.ImportMapOffset - Summary.ImportedPublicExportHashesOffset) / sizeof(uint64));
-
-	ZenPackageHeaderData.Imports =
-		MakeArrayView<const FPackageObjectIndex>(
-			reinterpret_cast<const FPackageObjectIndex*>(HeaderData + Summary.ImportMapOffset),
-			(Summary.ExportMapOffset - Summary.ImportMapOffset) / sizeof(FPackageObjectIndex));
-
-	ZenPackageHeaderData.Exports =
-		MakeArrayView<const FExportMapEntry>(
-			reinterpret_cast<const FExportMapEntry*>(HeaderData + Summary.ExportMapOffset),
-			(Summary.ExportBundleEntriesOffset - Summary.ExportMapOffset) / sizeof(FExportMapEntry));
-
-	ZenPackageHeaderData.ExportBundleHeaders =
-		MakeArrayView<const FExportBundleHeader>(
-			reinterpret_cast<const FExportBundleHeader*>(HeaderData + Summary.GraphDataOffset),
-			ExportBundleCount);
-
-	ZenPackageHeaderData.ExportBundleEntries =
-		MakeArrayView<const FExportBundleEntry>(
-			reinterpret_cast<const FExportBundleEntry*>(HeaderData + Summary.ExportBundleEntriesOffset),
-			(Summary.GraphDataOffset - Summary.ExportBundleEntriesOffset) / sizeof(FExportBundleEntry));
-
-	const uint64 ExportBundleHeadersSize = sizeof(FExportBundleHeader) * ExportBundleCount;
-	const uint64 ArcsDataOffset = Summary.GraphDataOffset + ExportBundleHeadersSize;
-	const uint64 ArcsDataSize = Summary.HeaderSize - ArcsDataOffset;
-
-	FMemoryReaderView ArcsAr(MakeArrayView<const uint8>(HeaderData + ArcsDataOffset, ArcsDataSize));
-
-	int32 InternalArcsCount = 0;
-	ArcsAr << InternalArcsCount;
-
-	for (int32 Idx = 0; Idx < InternalArcsCount; ++Idx)
-	{
-		FPackageStorePackage::FInternalArc& InternalArc = ZenPackageHeaderData.InternalArcs.AddDefaulted_GetRef();
-		ArcsAr << InternalArc.FromExportBundleIndex;
-		ArcsAr << InternalArc.ToExportBundleIndex;
-	}
-
-	for (FName ImportedPackageName : ZenPackageHeaderData.ImportedPackageNames)
-	{
-		int32 ExternalArcsCount = 0;
-		ArcsAr << ExternalArcsCount;
-
-		for (int32 Idx = 0; Idx < ExternalArcsCount; ++Idx)
-		{
-			FPackageStorePackage::FExternalArc ExternalArc;
-			ArcsAr << ExternalArc.FromImportIndex;
-			uint8 FromCommandType = 0;
-			ArcsAr << FromCommandType;
-			ExternalArc.FromCommandType = static_cast<FExportBundleEntry::EExportCommandType>(FromCommandType);
-			ArcsAr << ExternalArc.ToExportBundleIndex;
-
-			ZenPackageHeaderData.ExternalArcs.Add(ExternalArc);
-		}
-	}
-
-	return ZenPackageHeaderData;
-}
-
 void FPackageStoreOptimizer::ResolveImport(FPackageStorePackage::FUnresolvedImport* Imports, const FObjectImport* ObjectImports, int32 LocalImportIndex) const
 {
 	FPackageStorePackage::FUnresolvedImport* Import = Imports + LocalImportIndex;
@@ -467,17 +334,6 @@ void FPackageStoreOptimizer::ProcessImports(const FCookedHeaderData& CookedHeade
 	}
 }
 
-void FPackageStoreOptimizer::ProcessImports(const FZenPackageHeaderData& ZenHeaderData, FPackageStorePackage* Package) const
-{
-	Package->ImportedPackages.Reserve(ZenHeaderData.ImportedPackageNames.Num());
-	for (FName ImportedPackageName : ZenHeaderData.ImportedPackageNames)
-	{
-		Package->ImportedPackages.Emplace(ImportedPackageName);
-	}
-	Package->ImportedPublicExportHashes = ZenHeaderData.ImportedPublicExportHashes;
-	Package->Imports = ZenHeaderData.Imports;
-}
-
 void FPackageStoreOptimizer::ResolveExport(
 	FPackageStorePackage::FUnresolvedExport* Exports,
 	const FObjectExport* ObjectExports,
@@ -553,14 +409,13 @@ void FPackageStoreOptimizer::ProcessExports(const FCookedHeaderData& CookedHeade
 	for (int32 ExportIndex = 0; ExportIndex < ExportCount; ++ExportIndex)
 	{
 		const FObjectExport& ObjectExport = CookedHeaderData.ObjectExports[ExportIndex];
-		Package->ExportsSerialSize += ObjectExport.SerialSize;
 
 		FPackageStorePackage::FExport& Export = Package->Exports[ExportIndex];
 		FPackageStorePackage::FUnresolvedExport& UnresolvedExport = UnresolvedExports[ExportIndex];
 		Export.ObjectName = ObjectExport.ObjectName;
 		Export.ObjectFlags = ObjectExport.ObjectFlags;
-		Export.CookedSerialOffset = ObjectExport.SerialOffset;
-		Export.SerialOffset = ObjectExport.SerialOffset - CookedHeaderData.Summary.TotalHeaderSize;
+		check(ObjectExport.SerialOffset >= Package->CookedHeaderSize);
+		Export.SerialOffset = ObjectExport.SerialOffset - Package->CookedHeaderSize;
 		Export.SerialSize = ObjectExport.SerialSize;
 		Export.bNotForClient = ObjectExport.bNotForClient;
 		Export.bNotForServer = ObjectExport.bNotForServer;
@@ -596,371 +451,102 @@ void FPackageStoreOptimizer::ProcessExports(const FCookedHeaderData& CookedHeade
 	}
 }
 
-void FPackageStoreOptimizer::ProcessExports(const FZenPackageHeaderData& ZenHeaderData, FPackageStorePackage* Package) const
-{
-	const int32 ExportCount = ZenHeaderData.Exports.Num();
-	Package->Exports.SetNum(ExportCount);
-	Package->ExportGraphNodes.Reserve(ExportCount * 2);
-
-	const TArray<FDisplayNameEntryId>& NameMap = ZenHeaderData.NameMap;
-
-	Package->ImportedPublicExportHashes = ZenHeaderData.ImportedPublicExportHashes;
-	for (int32 ExportIndex = 0; ExportIndex < ExportCount; ++ExportIndex)
-	{
-		const FExportMapEntry& ExportEntry = ZenHeaderData.Exports[ExportIndex];
-		Package->ExportsSerialSize += ExportEntry.CookedSerialSize;
-
-		FPackageStorePackage::FExport& Export = Package->Exports[ExportIndex];
-		Export.ObjectName = ExportEntry.ObjectName.ResolveName(NameMap);
-		Export.PublicExportHash = ExportEntry.PublicExportHash;
-		Export.OuterIndex = ExportEntry.OuterIndex;
-		Export.ClassIndex = ExportEntry.ClassIndex;
-		Export.SuperIndex = ExportEntry.SuperIndex;
-		Export.TemplateIndex = ExportEntry.TemplateIndex;
-		Export.ObjectFlags = ExportEntry.ObjectFlags;
-		Export.CookedSerialOffset = ExportEntry.CookedSerialOffset;
-		Export.SerialSize = ExportEntry.CookedSerialSize;
-		Export.bNotForClient = ExportEntry.FilterFlags == EExportFilterFlags::NotForClient;
-		Export.bNotForServer = ExportEntry.FilterFlags == EExportFilterFlags::NotForServer;
-		Export.bIsPublic = (ExportEntry.ObjectFlags & RF_Public) > 0;
-
-		for (uint8 CommandType = 0; CommandType < FExportBundleEntry::ExportCommandType_Count; ++CommandType)
-		{
-			FPackageStorePackage::FExportGraphNode& Node = Package->ExportGraphNodes.AddDefaulted_GetRef();
-			Node.BundleEntry.CommandType = FExportBundleEntry::EExportCommandType(CommandType);
-			Node.BundleEntry.LocalExportIndex = ExportIndex;
-			Node.bIsPublic = Export.bIsPublic;
-			Export.Nodes[CommandType] = &Node;
-		}
-
-		Package->NameMapBuilder.MarkNameAsReferenced(Export.ObjectName);
-	}
-
-	uint64 ExportSerialOffset = 0;
-	for (const FExportBundleHeader& ExportBundleHeader : ZenHeaderData.ExportBundleHeaders)
-	{
-		int32 ExportEntryIndex = ExportBundleHeader.FirstEntryIndex;
-		for (uint32 Idx = 0; Idx < ExportBundleHeader.EntryCount; ++Idx)
-		{
-			const FExportBundleEntry& BundleEntry = ZenHeaderData.ExportBundleEntries[ExportEntryIndex++];
-			if (BundleEntry.CommandType == FExportBundleEntry::ExportCommandType_Serialize)
-			{
-				FPackageStorePackage::FExport& Export = Package->Exports[BundleEntry.LocalExportIndex];
-				Export.SerialOffset = ExportSerialOffset;
-				ExportSerialOffset += Export.SerialSize;
-			}
-		}
-	}
-	check(ExportSerialOffset == Package->ExportsSerialSize);
-}
-
-TArray<FPackageStorePackage*> FPackageStoreOptimizer::SortPackagesInLoadOrder(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap) const
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(SortPackagesInLoadOrder);
-	TArray<FPackageStorePackage*> Packages;
-	PackagesMap.GenerateValueArray(Packages);
-	Algo::Sort(Packages, [](const FPackageStorePackage* A, const FPackageStorePackage* B)
-	{
-		return A->Id < B->Id;
-	});
-
-	TMap<FPackageStorePackage*, TArray<FPackageStorePackage*>> SortedEdges;
-	for (FPackageStorePackage* Package : Packages)
-	{
-		for (const FPackageStorePackage::FImportedPackageRef& ImportedPackage : Package->ImportedPackages)
-		{
-			FPackageStorePackage* FindImportedPackage = PackagesMap.FindRef(ImportedPackage.Id);
-			if (FindImportedPackage)
-			{
-				TArray<FPackageStorePackage*>& SourceArray = SortedEdges.FindOrAdd(FindImportedPackage);
-				SourceArray.Add(Package);
-			}
-		}
-	}
-	for (auto& KV : SortedEdges)
-	{
-		TArray<FPackageStorePackage*>& SourceArray = KV.Value;
-		Algo::Sort(SourceArray, [](const FPackageStorePackage* A, const FPackageStorePackage* B)
-		{
-			return A->Id < B->Id;
-		});
-	}
-
-	TArray<FPackageStorePackage*> Result;
-	Result.Reserve(Packages.Num());
-	struct
-	{
-		void Visit(FPackageStorePackage* Package)
-		{
-			if (Package->bPermanentMark || Package->bTemporaryMark)
-			{
-				return;
-			}
-			Package->bTemporaryMark = true;
-			TArray<FPackageStorePackage*>* TargetNodes = Edges.Find(Package);
-			if (TargetNodes)
-			{
-				for (FPackageStorePackage* ToNode : *TargetNodes)
-				{
-					Visit(ToNode);
-				}
-			}
-			Package->bTemporaryMark = false;
-			Package->bPermanentMark = true;
-			Result.Add(Package);
-		}
-
-		TMap<FPackageStorePackage*, TArray<FPackageStorePackage*>>& Edges;
-		TArray<FPackageStorePackage*>& Result;
-	} Visitor{ SortedEdges, Result };
-
-	for (FPackageStorePackage* Package : Packages)
-	{
-		Visitor.Visit(Package);
-	}
-	check(Result.Num() == Packages.Num());
-	Algo::Reverse(Result);
-	Swap(Result, Packages);
-	return Packages;
-}
-
-TArray<FPackageStorePackage::FExportBundleGraphNode*> FPackageStoreOptimizer::SortExportBundleGraphNodesInLoadOrder(const TArray<FPackageStorePackage*>& Packages, FExportBundleGraphEdges& Edges) const
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(SortExportBundleGraphNodesInLoadOrder);
-	int32 NodeCount = 0;
-	for (FPackageStorePackage* Package : Packages)
-	{
-		NodeCount += Package->ExportGraphNodes.Num();
-	}
-	for (auto& KV : Edges)
-	{
-		FPackageStorePackage::FExportBundleGraphNode* ToNode = KV.Value;
-		++ToNode->IncomingEdgeCount;
-	}
-
-	auto NodeSorter = [](const FPackageStorePackage::FExportBundleGraphNode& A, const FPackageStorePackage::FExportBundleGraphNode& B)
-	{
-		return A.Index < B.Index;
-	};
-
-	for (FPackageStorePackage* Package : Packages)
-	{
-		for (FPackageStorePackage::FExportBundleGraphNode& Node : Package->ExportBundleGraphNodes)
-		{
-			if (Node.IncomingEdgeCount == 0)
-			{
-				Package->NodesWithNoIncomingEdges.HeapPush(&Node, NodeSorter);
-			}
-		}
-	}
-	TArray<FPackageStorePackage::FExportBundleGraphNode*> LoadOrder;
-	LoadOrder.Reserve(NodeCount);
-	while (LoadOrder.Num() < NodeCount)
-	{
-		bool bMadeProgress = false;
-		for (FPackageStorePackage* Package : Packages)
-		{
-			while (Package->NodesWithNoIncomingEdges.Num())
-			{
-				FPackageStorePackage::FExportBundleGraphNode* RemovedNode;
-				Package->NodesWithNoIncomingEdges.HeapPop(RemovedNode, NodeSorter, false);
-				LoadOrder.Add(RemovedNode);
-				bMadeProgress = true;
-				for (auto EdgeIt = Edges.CreateKeyIterator(RemovedNode); EdgeIt; ++EdgeIt)
-				{
-					FPackageStorePackage::FExportBundleGraphNode* ToNode = EdgeIt.Value();
-					check(ToNode->IncomingEdgeCount > 0);
-					if (--ToNode->IncomingEdgeCount == 0)
-					{
-						ToNode->Package->NodesWithNoIncomingEdges.HeapPush(ToNode, NodeSorter);
-					}
-					EdgeIt.RemoveCurrent();
-				}
-			}
-		}
-		check(bMadeProgress);
-	}
-	return LoadOrder;
-}
-
-void FPackageStoreOptimizer::OptimizeExportBundles(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(OptimizeExportBundles);
-	TArray<FPackageStorePackage*> Packages = SortPackagesInLoadOrder(PackagesMap);
-	for (FPackageStorePackage* Package : Packages)
-	{
-		Package->ExportBundleGraphNodes.Reserve(Package->GraphData.ExportBundles.Num());
-		for (FPackageStorePackage::FExportBundle& ExportBundle : Package->GraphData.ExportBundles)
-		{
-			FPackageStorePackage::FExportBundleGraphNode& Node = Package->ExportBundleGraphNodes.AddDefaulted_GetRef();
-			Node.Package = Package;
-			Node.Index = Package->ExportBundleGraphNodes.Num() - 1;
-			Node.ExportGraphNodes.Reserve(ExportBundle.Entries.Num());
-			for (FExportBundleEntry& ExportBundleEntry : ExportBundle.Entries)
-			{
-				FPackageStorePackage::FExport& Export = Package->Exports[ExportBundleEntry.LocalExportIndex];
-				Node.ExportGraphNodes.Add(Export.Nodes[ExportBundleEntry.CommandType]);
-			}
-		}
-		Package->GraphData.ExportBundles.Empty();
-	}
-
-	FExportBundleGraphEdges Edges;
-	TSet<FPackageStorePackage::FExportBundleGraphNode*> Dependencies;
-	for (FPackageStorePackage* Package : Packages)
-	{
-		for (FPackageStorePackage::FExportBundleGraphNode& ExportBundleGraphNode : Package->ExportBundleGraphNodes)
-		{
-			for (FPackageStorePackage::FExportGraphNode* ExportGraphNode : ExportBundleGraphNode.ExportGraphNodes)
-			{
-				check(ExportGraphNode->ExportBundleIndex >= 0);
-				for (FPackageStorePackage::FExportGraphNode* InternalDependency : ExportGraphNode->InternalDependencies)
-				{
-					check(InternalDependency->ExportBundleIndex >= 0);
-					FPackageStorePackage::FExportBundleGraphNode* FromNode = &Package->ExportBundleGraphNodes[InternalDependency->ExportBundleIndex];
-					Dependencies.Add(FromNode);
-				}
-				for (FPackageStorePackage::FExternalDependency& ExternalDependency : ExportGraphNode->ExternalDependencies)
-				{
-					FPackageObjectIndex FromImport = Package->Imports[ExternalDependency.ImportIndex];
-					check(FromImport.IsPackageImport());
-					FPackageImportReference FromPackageImportRef = FromImport.ToPackageImportRef();
-					FPackageId FromPackageId = Package->ImportedPackages[FromPackageImportRef.GetImportedPackageIndex()].Id;
-					uint64 FromPublicExportHash = Package->ImportedPublicExportHashes[FromPackageImportRef.GetImportedPublicExportHashIndex()];
-					FPackageStorePackage* FindFromPackage = PackagesMap.FindRef(FromPackageId);
-					if (FindFromPackage)
-					{
-						bool bFoundExport = false;
-						for (int32 ExportIndex = 0; ExportIndex < FindFromPackage->Exports.Num(); ++ExportIndex)
-						{
-							FPackageStorePackage::FExport& FromExport = FindFromPackage->Exports[ExportIndex];
-							if (FromExport.PublicExportHash == FromPublicExportHash)
-							{
-								FPackageStorePackage::FExportGraphNode* FromExportGraphNode = FromExport.Nodes[ExternalDependency.ExportBundleCommandType];
-								check(FromExportGraphNode->ExportBundleIndex >= 0);
-								FPackageStorePackage::FExportBundleGraphNode* FromNode = &FindFromPackage->ExportBundleGraphNodes[FromExportGraphNode->ExportBundleIndex];
-								Dependencies.Add(FromNode);
-								bFoundExport = true;
-								break;
-							}
-						}
-					}
-				}
-			}
-			for (FPackageStorePackage::FExportBundleGraphNode* FromNode : Dependencies)
-			{
-				Edges.Add(FromNode, &ExportBundleGraphNode);
-			}
-			Dependencies.Reset();
-		}
-	}
-
-	TArray<FPackageStorePackage::FExportBundleGraphNode*> LoadOrder = SortExportBundleGraphNodesInLoadOrder(Packages, Edges);
-
-	FPackageStorePackage* PreviousPackage = nullptr;
-	for (const FPackageStorePackage::FExportBundleGraphNode* Node : LoadOrder)
-	{
-		check(Node);
-		FPackageStorePackage* Package = Node->Package;
-		check(Package);
-		if (Package->CurrentBundle == nullptr || Package != PreviousPackage)
-		{
-			Package->CurrentBundle = &Package->GraphData.ExportBundles.AddDefaulted_GetRef();
-		}
-		for (FPackageStorePackage::FExportGraphNode* ExportGraphNode : Node->ExportGraphNodes)
-		{
-			Package->CurrentBundle->Entries.Add(ExportGraphNode->BundleEntry);
-			ExportGraphNode->ExportBundleIndex = Package->GraphData.ExportBundles.Num() - 1;
-		}
-		PreviousPackage = Package;
-	}
-}
-
 void FPackageStoreOptimizer::ProcessPreloadDependencies(const FCookedHeaderData& CookedHeaderData, FPackageStorePackage* Package) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessPreloadDependencies);
 
-	auto AddInternalDependency = [](FPackageStorePackage* Package, int32 FromExportIndex, FExportBundleEntry::EExportCommandType FromExportBundleCommandType, FPackageStorePackage::FExportGraphNode* ToNode)
+	auto AddNodeDependency = [](FPackageStorePackage* Package, int32 FromExportIndex, FExportBundleEntry::EExportCommandType FromExportBundleCommandType, FPackageStorePackage::FExportGraphNode* ToNode)
 	{
 		FPackageStorePackage::FExport& FromExport = Package->Exports[FromExportIndex];
 		FPackageStorePackage::FExportGraphNode* FromNode = FromExport.Nodes[FromExportBundleCommandType];
 		ToNode->InternalDependencies.Add(FromNode);
 	};
 
-	auto AddExternalDependency = [](FPackageStorePackage* Package, int32 FromImportIndex, FExportBundleEntry::EExportCommandType FromExportBundleCommandType, FPackageStorePackage::FExportGraphNode* ToNode)
-	{
-		FPackageObjectIndex FromImport = Package->Imports[FromImportIndex];
-		if (FromImport.IsScriptImport())
-		{
-			return;
-		}
-
-		FPackageStorePackage::FExternalDependency& ExternalDependency = ToNode->ExternalDependencies.AddDefaulted_GetRef();
-		ExternalDependency.ImportIndex = FromImportIndex;
-		ExternalDependency.ExportBundleCommandType = FromExportBundleCommandType;
-	};
+	TArray<FDependencyBundleHeader>& DependencyBundleHeaders = Package->GraphData.DependencyBundleHeaders;
+	TArray<FDependencyBundleEntry>& DependencyBundleEntries = Package->GraphData.DependencyBundleEntries;
 
 	for (int32 ExportIndex = 0; ExportIndex < Package->Exports.Num(); ++ExportIndex)
 	{
 		FPackageStorePackage::FExport& Export = Package->Exports[ExportIndex];
 		const FObjectExport& ObjectExport = CookedHeaderData.ObjectExports[ExportIndex];
 
-		AddInternalDependency(Package, ExportIndex, FExportBundleEntry::ExportCommandType_Create, Export.Nodes[FExportBundleEntry::ExportCommandType_Serialize]);
+		AddNodeDependency(Package, ExportIndex, FExportBundleEntry::ExportCommandType_Create, Export.Nodes[FExportBundleEntry::ExportCommandType_Serialize]);
 
+		FDependencyBundleHeader& DependencyBundleHeader = DependencyBundleHeaders.AddDefaulted_GetRef();
+		FMemory::Memzero(&DependencyBundleHeader, sizeof(FDependencyBundleHeader));
+		
 		if (ObjectExport.FirstExportDependency >= 0)
 		{
-			int32 RunningIndex = ObjectExport.FirstExportDependency;
-			for (int32 Index = ObjectExport.SerializationBeforeSerializationDependencies; Index > 0; Index--)
+			DependencyBundleHeader.FirstEntryIndex = DependencyBundleEntries.Num();
+			int32 StartIndex = ObjectExport.FirstExportDependency +
+				ObjectExport.SerializationBeforeSerializationDependencies +
+				ObjectExport.CreateBeforeSerializationDependencies +
+				ObjectExport.SerializationBeforeCreateDependencies;
+			for (int32 Index = StartIndex; Index < StartIndex + ObjectExport.CreateBeforeCreateDependencies; ++Index)
 			{
-				FPackageIndex Dep = CookedHeaderData.PreloadDependencies[RunningIndex++];
+				FPackageIndex Dep = CookedHeaderData.PreloadDependencies[Index];
 				if (Dep.IsExport())
 				{
-					AddInternalDependency(Package, Dep.ToExport(), FExportBundleEntry::ExportCommandType_Serialize, Export.Nodes[FExportBundleEntry::ExportCommandType_Serialize]);
+					AddNodeDependency(Package, Dep.ToExport(), FExportBundleEntry::ExportCommandType_Create, Export.Nodes[FExportBundleEntry::ExportCommandType_Create]);
 				}
-				else
+				if (Dep.IsExport() || !Package->Imports[Dep.ToImport()].IsScriptImport())
 				{
-					AddExternalDependency(Package, Dep.ToImport(), FExportBundleEntry::ExportCommandType_Serialize, Export.Nodes[FExportBundleEntry::ExportCommandType_Serialize]);
+					DependencyBundleEntries.AddDefaulted_GetRef().LocalImportOrExportIndex = Dep;
+					++DependencyBundleHeader.EntryCount[FExportBundleEntry::ExportCommandType_Create][FExportBundleEntry::ExportCommandType_Create];
 				}
 			}
 
-			for (int32 Index = ObjectExport.CreateBeforeSerializationDependencies; Index > 0; Index--)
+			StartIndex = ObjectExport.FirstExportDependency +
+				ObjectExport.SerializationBeforeSerializationDependencies +
+				ObjectExport.CreateBeforeSerializationDependencies;
+			for (int32 Index = StartIndex; Index < StartIndex + ObjectExport.SerializationBeforeCreateDependencies; ++Index)
 			{
-				FPackageIndex Dep = CookedHeaderData.PreloadDependencies[RunningIndex++];
+				FPackageIndex Dep = CookedHeaderData.PreloadDependencies[Index];
 				if (Dep.IsExport())
 				{
-					AddInternalDependency(Package, Dep.ToExport(), FExportBundleEntry::ExportCommandType_Create, Export.Nodes[FExportBundleEntry::ExportCommandType_Serialize]);
+					AddNodeDependency(Package, Dep.ToExport(), FExportBundleEntry::ExportCommandType_Serialize, Export.Nodes[FExportBundleEntry::ExportCommandType_Create]);
 				}
-				else
+				if (Dep.IsExport() || !Package->Imports[Dep.ToImport()].IsScriptImport())
 				{
-					AddExternalDependency(Package, Dep.ToImport(), FExportBundleEntry::ExportCommandType_Create, Export.Nodes[FExportBundleEntry::ExportCommandType_Serialize]);
+					DependencyBundleEntries.AddDefaulted_GetRef().LocalImportOrExportIndex = Dep;
+					++DependencyBundleHeader.EntryCount[FExportBundleEntry::ExportCommandType_Create][FExportBundleEntry::ExportCommandType_Serialize];
+				}
+			}
+			
+			StartIndex = ObjectExport.FirstExportDependency +
+				ObjectExport.SerializationBeforeSerializationDependencies;
+			for (int32 Index = StartIndex; Index < StartIndex + ObjectExport.CreateBeforeSerializationDependencies; ++Index)
+			{
+				FPackageIndex Dep = CookedHeaderData.PreloadDependencies[Index];
+				if (Dep.IsExport())
+				{
+					AddNodeDependency(Package, Dep.ToExport(), FExportBundleEntry::ExportCommandType_Create, Export.Nodes[FExportBundleEntry::ExportCommandType_Serialize]);
+				}
+				if (Dep.IsExport() || !Package->Imports[Dep.ToImport()].IsScriptImport())
+				{
+					DependencyBundleEntries.AddDefaulted_GetRef().LocalImportOrExportIndex = Dep;
+					++DependencyBundleHeader.EntryCount[FExportBundleEntry::ExportCommandType_Serialize][FExportBundleEntry::ExportCommandType_Create];
 				}
 			}
 
-			for (int32 Index = ObjectExport.SerializationBeforeCreateDependencies; Index > 0; Index--)
+			StartIndex = ObjectExport.FirstExportDependency;
+			for (int32 Index = StartIndex; Index < StartIndex + ObjectExport.SerializationBeforeSerializationDependencies; ++Index)
 			{
-				FPackageIndex Dep = CookedHeaderData.PreloadDependencies[RunningIndex++];
+				FPackageIndex Dep = CookedHeaderData.PreloadDependencies[Index];
 				if (Dep.IsExport())
 				{
-					AddInternalDependency(Package, Dep.ToExport(), FExportBundleEntry::ExportCommandType_Serialize, Export.Nodes[FExportBundleEntry::ExportCommandType_Create]);
+					AddNodeDependency(Package, Dep.ToExport(), FExportBundleEntry::ExportCommandType_Serialize, Export.Nodes[FExportBundleEntry::ExportCommandType_Serialize]);
 				}
-				else
+				if (Dep.IsExport() || !Package->Imports[Dep.ToImport()].IsScriptImport())
 				{
-					AddExternalDependency(Package, Dep.ToImport(), FExportBundleEntry::ExportCommandType_Serialize, Export.Nodes[FExportBundleEntry::ExportCommandType_Create]);
+					DependencyBundleEntries.AddDefaulted_GetRef().LocalImportOrExportIndex = Dep;
+					++DependencyBundleHeader.EntryCount[FExportBundleEntry::ExportCommandType_Serialize][FExportBundleEntry::ExportCommandType_Serialize];
 				}
 			}
-
-			for (int32 Index = ObjectExport.CreateBeforeCreateDependencies; Index > 0; Index--)
-			{
-				FPackageIndex Dep = CookedHeaderData.PreloadDependencies[RunningIndex++];
-				if (Dep.IsExport())
-				{
-					AddInternalDependency(Package, Dep.ToExport(), FExportBundleEntry::ExportCommandType_Create, Export.Nodes[FExportBundleEntry::ExportCommandType_Create]);
-				}
-				else
-				{
-					AddExternalDependency(Package, Dep.ToImport(), FExportBundleEntry::ExportCommandType_Create, Export.Nodes[FExportBundleEntry::ExportCommandType_Create]);
-				}
-			}
+		}
+		else
+		{
+			DependencyBundleHeader.FirstEntryIndex = -1;
 		}
 	}
 }
@@ -976,52 +562,6 @@ void FPackageStoreOptimizer::ProcessDataResources(const FCookedHeaderData& Cooke
 		Entry.DuplicateSerialOffset = DataResource.DuplicateSerialOffset;
 		Entry.SerialSize = DataResource.SerialSize;
 		Entry.Flags = DataResource.LegacyBulkDataFlags;
-	}
-}
-
-void FPackageStoreOptimizer::ProcessPreloadDependencies(const FZenPackageHeaderData& ZenHeaderData, FPackageStorePackage* Package) const
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessPreloadDependencies);
-
-	for (const FPackageStorePackage::FInternalArc& InternalArc : ZenHeaderData.InternalArcs)
-	{
-		const FExportBundleHeader& FromExportBundle = ZenHeaderData.ExportBundleHeaders[InternalArc.FromExportBundleIndex];
-		const FExportBundleHeader& ToExportBundle = ZenHeaderData.ExportBundleHeaders[InternalArc.ToExportBundleIndex];
-
-		uint32 FromBundleEntryIndex = FromExportBundle.FirstEntryIndex;
-		const uint32 LastFromBundleEntryIndex = FromBundleEntryIndex + FromExportBundle.EntryCount;
-		while (FromBundleEntryIndex < LastFromBundleEntryIndex)
-		{
-			const FExportBundleEntry& FromBundleEntry = ZenHeaderData.ExportBundleEntries[FromBundleEntryIndex++];
-			FPackageStorePackage::FExport& FromExport = Package->Exports[FromBundleEntry.LocalExportIndex];
-			FPackageStorePackage::FExportGraphNode* FromNode = FromExport.Nodes[FromBundleEntry.CommandType];
-
-			uint32 ToBundleEntryIndex = ToExportBundle.FirstEntryIndex;
-			const uint32 LastToBundleEntryIndex = ToBundleEntryIndex + ToExportBundle.EntryCount;
-			while (ToBundleEntryIndex < LastToBundleEntryIndex)
-			{
-				const FExportBundleEntry& ToBundleEntry = ZenHeaderData.ExportBundleEntries[ToBundleEntryIndex++];
-				FPackageStorePackage::FExport& ToExport = Package->Exports[ToBundleEntry.LocalExportIndex];
-				FPackageStorePackage::FExportGraphNode* ToNode = ToExport.Nodes[ToBundleEntry.CommandType];
-				ToNode->InternalDependencies.Add(FromNode);
-			}
-		}
-	}
-
-	for (const FPackageStorePackage::FExternalArc& ExternalArc : ZenHeaderData.ExternalArcs)
-	{
-		const FExportBundleHeader& ToExportBundle = ZenHeaderData.ExportBundleHeaders[ExternalArc.ToExportBundleIndex];
-		uint32 ToBundleEntryIndex = ToExportBundle.FirstEntryIndex;
-		const uint32 LastToBundleEntryIndex = ToBundleEntryIndex + ToExportBundle.EntryCount;
-		while (ToBundleEntryIndex < LastToBundleEntryIndex)
-		{
-			const FExportBundleEntry& ToBundleEntry = ZenHeaderData.ExportBundleEntries[ToBundleEntryIndex++];
-			FPackageStorePackage::FExport& ToExport = Package->Exports[ToBundleEntry.LocalExportIndex];
-			FPackageStorePackage::FExportGraphNode* ToNode = ToExport.Nodes[ToBundleEntry.CommandType];
-			FPackageStorePackage::FExternalDependency& ExternalDependency = ToNode->ExternalDependencies.AddDefaulted_GetRef();
-			ExternalDependency.ImportIndex = ExternalArc.FromImportIndex;
-			ExternalDependency.ExportBundleCommandType = ExternalArc.FromCommandType;
-		}
 	}
 }
 
@@ -1080,7 +620,7 @@ TArray<FPackageStorePackage::FExportGraphNode*> FPackageStoreOptimizer::SortExpo
 	return LoadOrder;
 }
 
-void FPackageStoreOptimizer::CreateExportBundles(FPackageStorePackage* Package) const
+void FPackageStoreOptimizer::CreateExportBundle(FPackageStorePackage* Package) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CreateExportBundles);
 	FExportGraphEdges Edges;
@@ -1092,80 +632,9 @@ void FPackageStoreOptimizer::CreateExportBundles(FPackageStorePackage* Package) 
 		}
 	}
 	TArray<FPackageStorePackage::FExportGraphNode*> LoadOrder = SortExportGraphNodesInLoadOrder(Package, Edges);
-	FPackageStorePackage::FExportBundle* CurrentBundle = nullptr;
 	for (FPackageStorePackage::FExportGraphNode* Node : LoadOrder)
 	{
-		if (!CurrentBundle)
-		{
-			Package->CurrentBundle = &Package->GraphData.ExportBundles.AddDefaulted_GetRef();
-		}
-		Package->CurrentBundle->Entries.Add(Node->BundleEntry);
-		Node->ExportBundleIndex = Package->GraphData.ExportBundles.Num() - 1;
-		if (Node->bIsPublic)
-		{
-			CurrentBundle = nullptr;
-		}
-	}
-}
-
-void FPackageStoreOptimizer::SerializeGraphData(const TArray<FPackageStorePackage::FImportedPackageRef>& ImportedPackages, FPackageStorePackage::FGraphData& GraphData, FBufferWriter& GraphArchive) const
-{
-	uint32 ExportBundleEntryIndex = 0;
-	for (const FPackageStorePackage::FExportBundle& ExportBundle : GraphData.ExportBundles)
-	{
-		const uint32 EntryCount = ExportBundle.Entries.Num();
-		FExportBundleHeader ExportBundleHeader{ ExportBundle.SerialOffset, ExportBundleEntryIndex, EntryCount };
-		GraphArchive << ExportBundleHeader;
-		ExportBundleEntryIndex += EntryCount;
-	}
-	Algo::Sort(GraphData.InternalArcs, [](const FPackageStorePackage::FInternalArc& A, const FPackageStorePackage::FInternalArc& B)
-	{
-		if (A.ToExportBundleIndex == B.ToExportBundleIndex)
-		{
-			return A.FromExportBundleIndex < B.FromExportBundleIndex;
-		}
-		return A.ToExportBundleIndex < B.ToExportBundleIndex;
-	});
-	int32 InternalArcsCount = GraphData.InternalArcs.Num();
-	GraphArchive << InternalArcsCount;
-	for (FPackageStorePackage::FInternalArc& InternalArc : GraphData.InternalArcs)
-	{
-		GraphArchive << InternalArc.FromExportBundleIndex;
-		GraphArchive << InternalArc.ToExportBundleIndex;
-	}
-
-	for (const FPackageStorePackage::FImportedPackageRef& ImportedPackage : ImportedPackages)
-	{
-		TArray<FPackageStorePackage::FExternalArc>* FindArcsFromImportedPackage = GraphData.ExternalArcs.Find(ImportedPackage.Id);
-		if (!FindArcsFromImportedPackage)
-		{
-			int32 ExternalArcCount = 0;
-			GraphArchive << ExternalArcCount;
-		}
-		else
-		{
-			Algo::Sort(*FindArcsFromImportedPackage, [](const FPackageStorePackage::FExternalArc& A, const FPackageStorePackage::FExternalArc& B)
-			{
-				if (A.ToExportBundleIndex == B.ToExportBundleIndex)
-				{
-					if (A.FromImportIndex == B.FromImportIndex)
-					{
-						return A.FromCommandType < B.FromCommandType;
-					}
-					return A.FromImportIndex < B.FromImportIndex;
-				}
-				return A.ToExportBundleIndex < B.ToExportBundleIndex;
-			});
-			int32 ExternalArcCount = FindArcsFromImportedPackage->Num();
-			GraphArchive << ExternalArcCount;
-			for (FPackageStorePackage::FExternalArc& Arc : *FindArcsFromImportedPackage)
-			{
-				GraphArchive << Arc.FromImportIndex;
-				uint8 FromCommandType = uint8(Arc.FromCommandType);
-				GraphArchive << FromCommandType;
-				GraphArchive << Arc.ToExportBundleIndex;
-			}
-		}
+		Package->GraphData.ExportBundleEntries.Add(Node->BundleEntry);
 	}
 }
 
@@ -1189,7 +658,7 @@ void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package
 	for (const FPackageStorePackage::FExport& Export : Package->Exports)
 	{
 		FExportMapEntry ExportMapEntry;
-		ExportMapEntry.CookedSerialOffset = Export.CookedSerialOffset;
+		ExportMapEntry.CookedSerialOffset = Export.SerialOffset;
 		ExportMapEntry.CookedSerialSize = Export.SerialSize;
 		Package->NameMapBuilder.MarkNameAsReferenced(Export.ObjectName);
 		ExportMapEntry.ObjectName = Package->NameMapBuilder.MapName(Export.ObjectName);
@@ -1214,18 +683,25 @@ void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package
 	uint64 ExportMapSize = ExportMapArchive.Tell();
 
 	FBufferWriter ExportBundleEntriesArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
-	for (const FPackageStorePackage::FExportBundle& ExportBundle : Package->GraphData.ExportBundles)
+	for (FExportBundleEntry BundleEntry : Package->GraphData.ExportBundleEntries)
 	{
-		for (FExportBundleEntry BundleEntry : ExportBundle.Entries)
-		{
-			ExportBundleEntriesArchive << BundleEntry;
-		}
+		ExportBundleEntriesArchive << BundleEntry;
 	}
 	uint64 ExportBundleEntriesSize = ExportBundleEntriesArchive.Tell();
 
-	FBufferWriter GraphArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
-	SerializeGraphData(Package->ImportedPackages, Package->GraphData, GraphArchive);
-	uint64 GraphDataSize = GraphArchive.Tell();
+	FBufferWriter DependencyBundleHeadersArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
+	for (FDependencyBundleHeader DependencyBundleHeader : Package->GraphData.DependencyBundleHeaders)
+	{
+		DependencyBundleHeadersArchive << DependencyBundleHeader;
+	}
+
+	FBufferWriter DependencyBundleEntriesArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
+	for (FDependencyBundleEntry DependencyBundleEntry : Package->GraphData.DependencyBundleEntries)
+	{
+		DependencyBundleEntriesArchive << DependencyBundleEntry;
+	}
+
+	uint64 GraphDataSize = DependencyBundleHeadersArchive.Tell() + DependencyBundleEntriesArchive.Tell();
 
 	Package->NameMapBuilder.MarkNameAsReferenced(Package->Name);
 	FMappedName MappedPackageName = Package->NameMapBuilder.MapName(Package->Name);
@@ -1259,7 +735,7 @@ void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package
 	}
 	uint64 BulkDataMapSize = BulkDataMapAr.Tell();
 
-	Package->HeaderSize =
+	uint64 HeaderSize =
 		sizeof(FZenPackageSummary)
 		+ VersioningInfoSize
 		+ NameMapSize
@@ -1271,15 +747,15 @@ void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package
 		+ ImportedPackagesSize
 		+ BulkDataMapSize + sizeof(int64);
 
-	Package->HeaderBuffer = FIoBuffer(Package->HeaderSize);
+	Package->HeaderBuffer = FIoBuffer(HeaderSize);
 	uint8* HeaderData = Package->HeaderBuffer.Data();
-	FMemory::Memzero(HeaderData, Package->HeaderSize);
+	FMemory::Memzero(HeaderData, HeaderSize);
 	FZenPackageSummary* PackageSummary = reinterpret_cast<FZenPackageSummary*>(HeaderData);
-	PackageSummary->HeaderSize = Package->HeaderSize;
+	PackageSummary->HeaderSize = HeaderSize;
 	PackageSummary->Name = MappedPackageName;
 	PackageSummary->PackageFlags = Package->PackageFlags;
 	PackageSummary->CookedHeaderSize = Package->CookedHeaderSize;
-	FBufferWriter HeaderArchive(HeaderData, Package->HeaderSize);
+	FBufferWriter HeaderArchive(HeaderData, HeaderSize);
 	HeaderArchive.Seek(sizeof(FZenPackageSummary));
 
 	if (Package->VersioningInfo.IsSet())
@@ -1305,116 +781,22 @@ void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package
 	HeaderArchive.Serialize(ExportMapArchive.GetWriterData(), ExportMapArchive.Tell());
 	PackageSummary->ExportBundleEntriesOffset = HeaderArchive.Tell();
 	HeaderArchive.Serialize(ExportBundleEntriesArchive.GetWriterData(), ExportBundleEntriesArchive.Tell());
-	PackageSummary->GraphDataOffset = HeaderArchive.Tell();
-	HeaderArchive.Serialize(GraphArchive.GetWriterData(), GraphArchive.Tell());
+	PackageSummary->DependencyBundleHeadersOffset = HeaderArchive.Tell();
+	HeaderArchive.Serialize(DependencyBundleHeadersArchive.GetWriterData(), DependencyBundleHeadersArchive.Tell());
+	PackageSummary->DependencyBundleEntriesOffset = HeaderArchive.Tell();
+	HeaderArchive.Serialize(DependencyBundleEntriesArchive.GetWriterData(), DependencyBundleEntriesArchive.Tell());
 	PackageSummary->ImportedPackageNamesOffset = HeaderArchive.Tell();
 	HeaderArchive.Serialize(ImportedPackagesArchive.GetWriterData(), ImportedPackagesArchive.Tell());
 	check(HeaderArchive.Tell() == PackageSummary->HeaderSize)
 }
 
-void FPackageStoreOptimizer::FinalizePackage(FPackageStorePackage* Package) const
-{
-	for (FPackageStorePackage::FExportGraphNode& Node : Package->ExportGraphNodes)
-	{
-		check(Node.ExportBundleIndex >= 0);
-		TSet<FPackageStorePackage::FInternalArc> InternalArcsSet;
-		for (FPackageStorePackage::FExportGraphNode* InternalDependency : Node.InternalDependencies)
-		{
-			FPackageStorePackage::FInternalArc Arc;
-			check(InternalDependency->ExportBundleIndex >= 0);
-			Arc.FromExportBundleIndex = InternalDependency->ExportBundleIndex;
-			Arc.ToExportBundleIndex = Node.ExportBundleIndex;
-			if (Arc.FromExportBundleIndex != Arc.ToExportBundleIndex)
-			{
-				bool bIsAlreadyInSet = false;
-				InternalArcsSet.Add(Arc, &bIsAlreadyInSet);
-				if (!bIsAlreadyInSet)
-				{
-					Package->GraphData.InternalArcs.Add(Arc);
-				}
-			}
-		}
-
-		for (FPackageStorePackage::FExternalDependency& ExternalDependency : Node.ExternalDependencies)
-		{
-			check(ExternalDependency.ImportIndex >= 0);
-			const FPackageObjectIndex& Import = Package->Imports[ExternalDependency.ImportIndex];
-			check(Import.IsPackageImport());
-			FPackageImportReference PackageImportRef = Import.ToPackageImportRef();
-			TArray<FPackageStorePackage::FExternalArc>& ArcsFromImportedPackage = Package->GraphData.ExternalArcs.FindOrAdd(Package->ImportedPackages[PackageImportRef.GetImportedPackageIndex()].Id);
-			FPackageStorePackage::FExternalArc Arc;
-			Arc.FromImportIndex = ExternalDependency.ImportIndex;
-			Arc.FromCommandType = ExternalDependency.ExportBundleCommandType;
-			Arc.ToExportBundleIndex = Node.ExportBundleIndex;
-			if (!ArcsFromImportedPackage.Contains(Arc))
-			{
-				ArcsFromImportedPackage.Add(Arc);
-			}
-		}
-	}
-	uint64 SerialOffset = 0;
-	for (FPackageStorePackage::FExportBundle& ExportBundle : Package->GraphData.ExportBundles)
-	{
-		ExportBundle.SerialOffset = SerialOffset;
-		for (const FExportBundleEntry& BundleEntry : ExportBundle.Entries)
-		{
-			if (BundleEntry.CommandType == FExportBundleEntry::ExportCommandType_Serialize)
-			{
-				const FPackageStorePackage::FExport& Export = Package->Exports[BundleEntry.LocalExportIndex];
-				SerialOffset += Export.SerialSize;
-			}
-		}
-	}
-
-	FinalizePackageHeader(Package);
-}
-
-FIoBuffer FPackageStoreOptimizer::CreatePackageBuffer(const FPackageStorePackage* Package, const FIoBuffer& CookedExportsDataBuffer, TArray<FFileRegion>* InOutFileRegions) const
+FIoBuffer FPackageStoreOptimizer::CreatePackageBuffer(const FPackageStorePackage* Package, const FIoBuffer& CookedExportsDataBuffer) const
 {
 	check(Package->HeaderBuffer.DataSize() > 0);
-	check(Package->HeaderBuffer.DataSize() == Package->HeaderSize);
-	const uint64 BundleBufferSize = Package->HeaderSize + Package->ExportsSerialSize;
+	const uint64 BundleBufferSize = Package->HeaderBuffer.DataSize() + CookedExportsDataBuffer.DataSize();
 	FIoBuffer BundleBuffer(BundleBufferSize);
-	FMemory::Memcpy(BundleBuffer.Data(), Package->HeaderBuffer.Data(), Package->HeaderSize);
-	uint64 BundleBufferOffset = Package->HeaderSize;
-
-	TArray<FFileRegion> OutputRegions;
-
-	for (const FPackageStorePackage::FExportBundle& ExportBundle : Package->GraphData.ExportBundles)
-	{
-		for (const FExportBundleEntry& BundleEntry : ExportBundle.Entries)
-		{
-			if (BundleEntry.CommandType == FExportBundleEntry::ExportCommandType_Serialize)
-			{
-				const FPackageStorePackage::FExport& Export = Package->Exports[BundleEntry.LocalExportIndex];
-				check(Export.SerialOffset + Export.SerialSize <= CookedExportsDataBuffer.DataSize());
-				FMemory::Memcpy(BundleBuffer.Data() + BundleBufferOffset, CookedExportsDataBuffer.Data() + Export.SerialOffset, Export.SerialSize);
-
-				if (InOutFileRegions)
-				{
-					// Find overlapping regions and adjust them to match the new offset of the export data
-					for (const FFileRegion& Region : *InOutFileRegions)
-					{
-						if (Export.SerialOffset <= Region.Offset && Region.Offset + Region.Length <= Export.SerialOffset + Export.SerialSize)
-						{
-							FFileRegion NewRegion = Region;
-							NewRegion.Offset -= Export.SerialOffset;
-							NewRegion.Offset += BundleBufferOffset;
-							OutputRegions.Add(NewRegion);
-						}
-					}
-				}
-				BundleBufferOffset += Export.SerialSize;
-			}
-		}
-	}
-	check(BundleBufferOffset == BundleBuffer.DataSize());
-
-	if (InOutFileRegions)
-	{
-		*InOutFileRegions = OutputRegions;
-	}
-
+	FMemory::Memcpy(BundleBuffer.Data(), Package->HeaderBuffer.Data(), Package->HeaderBuffer.DataSize());
+	FMemory::Memcpy(BundleBuffer.Data() + Package->HeaderBuffer.DataSize(), CookedExportsDataBuffer.Data(), CookedExportsDataBuffer.DataSize());
 	return BundleBuffer;
 }
 
@@ -1589,8 +971,6 @@ FPackageStoreEntryResource FPackageStoreOptimizer::CreatePackageStoreEntry(const
 	
 	Result.PackageName = Package->Name;
 	Result.PackageId = FPackageId::FromName(Package->Name);
-	Result.ExportInfo.ExportCount = Package->Exports.Num();
-	Result.ExportInfo.ExportBundleCount = Package->GraphData.ExportBundles.Num();
 	Result.ImportedPackageIds.Reserve(Package->ImportedPackages.Num());
 	for (const FPackageStorePackage::FImportedPackageRef& ImportedPackage : Package->ImportedPackages)
 	{
@@ -1599,8 +979,6 @@ FPackageStoreEntryResource FPackageStoreOptimizer::CreatePackageStoreEntry(const
 	
 	if (OptionalSegmentPackage)
 	{
-		Result.OptionalSegmentExportInfo.ExportCount = OptionalSegmentPackage->Exports.Num();
-		Result.OptionalSegmentExportInfo.ExportBundleCount = OptionalSegmentPackage->GraphData.ExportBundles.Num();
 		Result.OptionalSegmentImportedPackageIds.Reserve(OptionalSegmentPackage->ImportedPackages.Num());
 		for (const FPackageStorePackage::FImportedPackageRef& ImportedPackage : OptionalSegmentPackage->ImportedPackages)
 		{

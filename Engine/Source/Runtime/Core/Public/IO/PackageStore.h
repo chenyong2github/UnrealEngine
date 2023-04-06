@@ -20,21 +20,6 @@ class FCbWriter;
 class FStructuredArchiveSlot;
 
 /**
- * Package export information.
- */
-struct FPackageStoreExportInfo
-{
-	int32 ExportCount = 0;
-	int32 ExportBundleCount = 0;
-	
-	CORE_API friend FArchive& operator<<(FArchive& Ar, FPackageStoreExportInfo& ExportInfo);
-	
-	CORE_API friend FCbWriter& operator<<(FCbWriter& Writer, const FPackageStoreExportInfo& ExportInfo);
-	
-	CORE_API static FPackageStoreExportInfo FromCbObject(const FCbObject& Obj);
-};
-
-/**
  * Package store entry status.
  */
 enum class EPackageStoreEntryStatus
@@ -50,12 +35,11 @@ enum class EPackageStoreEntryStatus
  */ 
 struct FPackageStoreEntry
 {
-	FPackageStoreExportInfo ExportInfo;
 	TArrayView<const FPackageId> ImportedPackageIds;
 	TArrayView<const FSHAHash> ShaderMapHashes;
 #if WITH_EDITOR
-	FPackageStoreExportInfo OptionalSegmentExportInfo;
 	TArrayView<const FPackageId> OptionalSegmentImportedPackageIds;
+	bool bHasOptionalSegment = false;
 #endif
 };
 
@@ -84,14 +68,10 @@ struct FPackageStoreEntryResource
 	/** The package name. */
 	FName PackageName;
 	FPackageId PackageId;
-	/** The package export information. */
-	FPackageStoreExportInfo ExportInfo;
 	/** Imported package IDs. */
 	TArray<FPackageId> ImportedPackageIds;
 	/** Referenced shader map hashes. */
 	TArray<FSHAHash> ShaderMapHashes;
-	/** The editor data package export information. */
-	FPackageStoreExportInfo OptionalSegmentExportInfo;
 	/** Editor data imported package IDs. */
 	TArray<FPackageId> OptionalSegmentImportedPackageIds;
 

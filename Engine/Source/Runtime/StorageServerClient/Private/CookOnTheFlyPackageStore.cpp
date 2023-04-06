@@ -127,7 +127,6 @@ EPackageStoreEntryStatus FCookOnTheFlyPackageStoreBackend::CreatePackageStoreEnt
 	if (EntryInfo.Status == EPackageStoreEntryStatus::Ok)
 	{
 		const FPackageStoreEntryResource& Entry = PackageEntries[EntryInfo.EntryIndex];
-		OutPackageStoreEntry.ExportInfo = Entry.ExportInfo;
 		OutPackageStoreEntry.ImportedPackageIds = Entry.ImportedPackageIds;
 		return EPackageStoreEntryStatus::Ok;
 	}

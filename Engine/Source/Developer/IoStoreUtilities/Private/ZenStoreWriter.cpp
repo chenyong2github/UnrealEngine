@@ -228,19 +228,14 @@ void FZenStoreWriter::WritePackageData(const FPackageInfo& Info, FLargeMemoryWri
 	FIoBuffer CookedHeaderBuffer = FIoBuffer(PackageData.Data(), Info.HeaderSize, PackageData);
 	FIoBuffer CookedExportsBuffer = FIoBuffer(PackageData.Data() + Info.HeaderSize, PackageData.DataSize() - Info.HeaderSize, PackageData);
 	Entry.OptimizedPackage.Reset(PackageStoreOptimizer->CreatePackageFromCookedHeader(Info.PackageName, CookedHeaderBuffer));
-	PackageStoreOptimizer->FinalizePackage(Entry.OptimizedPackage.Get());
 	Entry.FileRegions = FileRegions;
 	for (FFileRegion& Region : Entry.FileRegions)
 	{
-		// Adjust regions so they are relative to the start of the exports buffer
+		// Adjust regions so they are relative to the start of the export bundle buffer
 		Region.Offset -= Info.HeaderSize;
+		Region.Offset += Entry.OptimizedPackage->GetHeaderSize();
 	}
-	FIoBuffer PackageBuffer = PackageStoreOptimizer->CreatePackageBuffer(Entry.OptimizedPackage.Get(), CookedExportsBuffer, &Entry.FileRegions);
-	for (FFileRegion& Region : Entry.FileRegions)
-	{
-		// Adjust regions once more so they are relative to the start of the exports data again
-		Region.Offset -= Entry.OptimizedPackage->GetHeaderSize();
-	}
+	FIoBuffer PackageBuffer = PackageStoreOptimizer->CreatePackageBuffer(Entry.OptimizedPackage.Get(), CookedExportsBuffer);
 
 	// Commit to Zen build store
 

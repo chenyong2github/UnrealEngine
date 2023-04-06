@@ -42,8 +42,6 @@ public:
  */
 struct FFilePackageStoreEntry
 {
-	int32 ExportCount;
-	int32 ExportBundleCount;
 	TFilePackageStoreEntryCArrayView<FPackageId> ImportedPackages;
 	TFilePackageStoreEntryCArrayView<FSHAHash> ShaderMapHashes;
 };
@@ -70,6 +68,7 @@ enum class EIoContainerHeaderVersion : uint32
 	Initial = 0,
 	LocalizedPackages = 1,
 	OptionalSegmentPackages = 2,
+	NoExportInfo = 3,
 
 	LatestPlusOne,
 	Latest = LatestPlusOne - 1

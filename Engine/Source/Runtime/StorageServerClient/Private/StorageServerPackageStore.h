@@ -38,7 +38,6 @@ public:
 private:
 	struct FStoreEntry
 	{
-		FPackageStoreExportInfo ExportInfo;
 		TArray<FPackageId> ImportedPackages;
 		TArray<FSHAHash> ShaderMapHashes;
 	};

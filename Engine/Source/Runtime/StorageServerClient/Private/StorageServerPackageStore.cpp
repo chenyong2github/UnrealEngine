@@ -12,7 +12,6 @@ FStorageServerPackageStoreBackend::FStorageServerPackageStoreBackend(FStorageSer
 	Connection.PackageStoreRequest([this](FPackageStoreEntryResource&& PackageStoreEntryResource)
 		{
 			FStoreEntry& LocalEntry = StoreEntriesMap.FindOrAdd(PackageStoreEntryResource.GetPackageId());
-			LocalEntry.ExportInfo = MoveTemp(PackageStoreEntryResource.ExportInfo);
 			LocalEntry.ImportedPackages = MoveTemp(PackageStoreEntryResource.ImportedPackageIds);
 			LocalEntry.ShaderMapHashes = MoveTemp(PackageStoreEntryResource.ShaderMapHashes);
 		});
@@ -23,7 +22,6 @@ EPackageStoreEntryStatus FStorageServerPackageStoreBackend::GetPackageStoreEntry
 	const FStoreEntry* FindEntry = StoreEntriesMap.Find(PackageId);
 	if (FindEntry)
 	{
-		OutPackageStoreEntry.ExportInfo = FindEntry->ExportInfo;
 		OutPackageStoreEntry.ImportedPackageIds = FindEntry->ImportedPackages;
 		OutPackageStoreEntry.ShaderMapHashes = FindEntry->ShaderMapHashes;
 		return EPackageStoreEntryStatus::Ok;

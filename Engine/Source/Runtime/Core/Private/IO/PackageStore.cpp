@@ -14,43 +14,13 @@
 #include "Serialization/CompactBinaryWriter.h"
 #include "Templates/Greater.h"
 
-FArchive& operator<<(FArchive& Ar, FPackageStoreExportInfo& ExportInfo)
-{
-	Ar << ExportInfo.ExportCount;
-	Ar << ExportInfo.ExportBundleCount;
-
-	return Ar;
-}
-
-FCbWriter& operator<<(FCbWriter& Writer, const FPackageStoreExportInfo& ExportInfo)
-{
-	Writer.BeginObject();
-	Writer << "exportcount" << ExportInfo.ExportCount;
-	Writer << "exportbundlecount" << ExportInfo.ExportBundleCount;
-	Writer.EndObject();
-	
-	return Writer;
-}
-
-FPackageStoreExportInfo FPackageStoreExportInfo::FromCbObject(const FCbObject& Obj)
-{
-	FPackageStoreExportInfo ExportInfo;
-	
-	ExportInfo.ExportCount			= Obj["exportcount"].AsInt32();
-	ExportInfo.ExportBundleCount	= Obj["exportbundlecount"].AsInt32();
-
-	return ExportInfo;
-}
-
 FArchive& operator<<(FArchive& Ar, FPackageStoreEntryResource& PackageStoreEntry)
 {
 	uint32 Flags = static_cast<uint32>(PackageStoreEntry.Flags);
 
 	Ar << Flags;
 	Ar << PackageStoreEntry.PackageName;
-	Ar << PackageStoreEntry.ExportInfo;
 	Ar << PackageStoreEntry.ImportedPackageIds;
-	Ar << PackageStoreEntry.OptionalSegmentExportInfo;
 	Ar << PackageStoreEntry.OptionalSegmentImportedPackageIds;
 
 	if (Ar.IsLoading())
@@ -68,7 +38,6 @@ FCbWriter& operator<<(FCbWriter& Writer, const FPackageStoreEntryResource& Packa
 
 	Writer << "flags" << static_cast<uint32>(PackageStoreEntry.Flags);
 	Writer << "packagename" << PackageStoreEntry.PackageName.ToString();
-	Writer << "exportinfo" << PackageStoreEntry.ExportInfo;
 
 	if (PackageStoreEntry.ImportedPackageIds.Num())
 	{
@@ -89,8 +58,6 @@ FCbWriter& operator<<(FCbWriter& Writer, const FPackageStoreEntryResource& Packa
 		}
 		Writer.EndArray();
 	}
-
-	Writer << "optionalsegmentexportinfo" << PackageStoreEntry.OptionalSegmentExportInfo;
 
 	if (PackageStoreEntry.OptionalSegmentImportedPackageIds.Num())
 	{
@@ -114,7 +81,6 @@ FPackageStoreEntryResource FPackageStoreEntryResource::FromCbObject(const FCbObj
 	Entry.Flags				= static_cast<EPackageStoreEntryFlags>(Obj["flags"].AsUInt32());
 	Entry.PackageName		= FName(Obj["packagename"].AsString());
 	Entry.PackageId			= FPackageId::FromName(Entry.PackageName);
-	Entry.ExportInfo		= FPackageStoreExportInfo::FromCbObject(Obj["exportinfo"].AsObject());
 	
 	if (Obj["importedpackageids"])
 	{
@@ -132,8 +98,6 @@ FPackageStoreEntryResource FPackageStoreEntryResource::FromCbObject(const FCbObj
 			ShaderMapHash.FromString(FUTF8ToTCHAR(ArrayField.AsString()));
 		}
 	}
-
-	Entry.OptionalSegmentExportInfo = FPackageStoreExportInfo::FromCbObject(Obj["optionalsegmentexportinfo"].AsObject());
 
 	if (Obj["optionalsegmentimportedpackageids"])
 	{

@@ -133,11 +133,23 @@ FArchive& operator<<(FArchive& Ar, FExportBundleEntry& ExportBundleEntry)
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FExportBundleHeader& ExportBundleHeader)
+FArchive& operator<<(FArchive& Ar, FDependencyBundleEntry& DependencyBundleEntry)
 {
-	Ar << ExportBundleHeader.SerialOffset;
-	Ar << ExportBundleHeader.FirstEntryIndex;
-	Ar << ExportBundleHeader.EntryCount;
+	Ar << DependencyBundleEntry.LocalImportOrExportIndex;
+
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FDependencyBundleHeader& DependencyBundleHeader)
+{
+	Ar << DependencyBundleHeader.FirstEntryIndex;
+	for (int32 I = 0; I < FExportBundleEntry::ExportCommandType_Count; ++I)
+	{
+		for (int32 J = 0; J < FExportBundleEntry::ExportCommandType_Count; ++J)
+		{
+			Ar << DependencyBundleHeader.EntryCount[I][J];
+		}
+	}
 
 	return Ar;
 }
@@ -1398,7 +1410,6 @@ struct FAsyncPackageHeaderData
 {
 	uint32 CookedHeaderSize = 0;
 	uint32 ExportCount = 0; // Need to keep this count around after ExportMap is cleared
-	uint32 ExportBundleCount = 0; // Need to keep this count around after ExportBundleHeaders is cleared
 	TOptional<FZenPackageVersioningInfo> VersioningInfo;
 	FNameMap NameMap;
 	FName PackageName;
@@ -1407,17 +1418,16 @@ struct FAsyncPackageHeaderData
 	TArrayView<const uint64> ImportedPublicExportHashes;
 	TArrayView<const FPackageObjectIndex> ImportMap;
 	TArrayView<const FExportMapEntry> ExportMap;
-	TArrayView<const uint8> ArcsData;
 	TArrayView<const FBulkDataMapEntry> BulkDataMap;
-	TArrayView<const FExportBundleHeader> ExportBundleHeaders;
 	TArrayView<const FExportBundleEntry> ExportBundleEntries;
+	TArrayView<const FDependencyBundleHeader> DependencyBundleHeaders;
+	TArrayView<const FDependencyBundleEntry> DependencyBundleEntries;
 
 	// Backed by allocation in FAsyncPackageData
 	TArrayView<FPackageId> ImportedPackageIds;
 	TArrayView<FAsyncPackage2*> ImportedAsyncPackagesView;
 	TArrayView<FExportObject> ExportsView;
-	TArrayView<FExportBundleHeader> ExportBundleHeadersCopyForPostLoad; // TODO: Can we use ConstructedObjects or Exports instead for postloading?
-	TArrayView<FExportBundleEntry> ExportBundleEntriesCopyForPostLoad;
+	TArrayView<FExportBundleEntry> ExportBundleEntriesCopyForPostLoad; // TODO: Can we use ConstructedObjects or Exports instead for posloading?
 
 	TArray<FName> ImportedPackageNames;
 
@@ -1427,10 +1437,10 @@ struct FAsyncPackageHeaderData
 		ImportedPublicExportHashes = TArrayView<const uint64>();
 		ImportMap = TArrayView<const FPackageObjectIndex>();
 		ExportMap = TArrayView<const FExportMapEntry>();
-		ArcsData = TArrayView<const uint8>();
 		BulkDataMap = TArrayView<const FBulkDataMapEntry>();
-		ExportBundleHeaders = TArrayView<const FExportBundleHeader>();
 		ExportBundleEntries = TArrayView<const FExportBundleEntry>();
+		DependencyBundleHeaders = TArrayView<const FDependencyBundleHeader>();
+		DependencyBundleEntries = TArrayView<const FDependencyBundleEntry>();
 	}
 };
 
@@ -1572,34 +1582,34 @@ public:
 class FExportArchive final : public FArchive
 {
 public:
-	FExportArchive(const uint8* AllExportDataPtr, const uint8* CurrentExportPtr, uint64 AllExportDataSize)
+	FExportArchive(const FIoBuffer& IoBuffer)
 		: IoDispatcher(FIoDispatcher::Get())
 	{
 #if (!DEVIRTUALIZE_FLinkerLoad_Serialize)
 		ActiveFPLB = &InlineFPLB;
 #endif
-		ActiveFPLB->OriginalFastPathLoadBuffer = AllExportDataPtr;
-		ActiveFPLB->StartFastPathLoadBuffer = CurrentExportPtr;
-		ActiveFPLB->EndFastPathLoadBuffer = AllExportDataPtr + AllExportDataSize;
+		ActiveFPLB->OriginalFastPathLoadBuffer = IoBuffer.Data();
+		ActiveFPLB->StartFastPathLoadBuffer = ActiveFPLB->OriginalFastPathLoadBuffer;
+		ActiveFPLB->EndFastPathLoadBuffer = IoBuffer.Data() + IoBuffer.DataSize();
 	}
 
 	~FExportArchive()
 	{
 	}
-	void ExportBufferBegin(UObject* Object, uint64 InExportCookedFileSerialOffset, uint64 InExportSerialSize)
+	void ExportBufferBegin(UObject* Object, uint64 InExportSerialOffset, uint64 InExportSerialSize)
 	{
 		CurrentExport = Object;
-		CookedSerialOffset = InExportCookedFileSerialOffset;
-		BufferSerialOffset = (ActiveFPLB->StartFastPathLoadBuffer - ActiveFPLB->OriginalFastPathLoadBuffer);
-		CookedSerialSize = InExportSerialSize;
+		ExportSerialOffset = HeaderData->PackageSummary->HeaderSize + InExportSerialOffset;
+		ExportSerialSize = InExportSerialSize;
+		ActiveFPLB->StartFastPathLoadBuffer = ActiveFPLB->OriginalFastPathLoadBuffer + ExportSerialOffset;
 	}
 
 	void ExportBufferEnd()
 	{
 		CurrentExport = nullptr;
-		CookedSerialOffset = 0;
-		BufferSerialOffset = 0;
-		CookedSerialSize = 0;
+		ExportSerialOffset = 0;
+		ExportSerialSize = 0;
+		ActiveFPLB->StartFastPathLoadBuffer = ActiveFPLB->OriginalFastPathLoadBuffer;
 	}
 
 	void CheckBufferPosition(const TCHAR* Text, uint64 Offset = 0)
@@ -1607,7 +1617,7 @@ public:
 #if DO_CHECK
 		const uint64 BufferPosition = (ActiveFPLB->StartFastPathLoadBuffer - ActiveFPLB->OriginalFastPathLoadBuffer) + Offset;
 		const bool bIsInsideExportBuffer =
-			(BufferSerialOffset <= BufferPosition) && (BufferPosition <= BufferSerialOffset + CookedSerialSize);
+			(ExportSerialOffset <= BufferPosition) && (BufferPosition <= ExportSerialOffset + ExportSerialSize);
 
 		UE_ASYNC_PACKAGE_CLOG(
 			!bIsInsideExportBuffer,
@@ -1615,7 +1625,7 @@ public:
 			TEXT("%s: Position %llu is outside of the current export buffer (%lld,%lld)."),
 			Text,
 			BufferPosition,
-			BufferSerialOffset, BufferSerialOffset + CookedSerialSize);
+			ExportSerialOffset, ExportSerialOffset + ExportSerialSize);
 #endif
 	}
 
@@ -1627,20 +1637,30 @@ public:
 
 	virtual int64 TotalSize() override
 	{
-		return HeaderData->CookedHeaderSize + (ActiveFPLB->EndFastPathLoadBuffer - ActiveFPLB->OriginalFastPathLoadBuffer);
+		if (bExportsCookedToSeparateArchive)
+		{
+			return ExportSerialSize;
+		}
+		else
+		{
+			int64 CookedFileSize = (ActiveFPLB->EndFastPathLoadBuffer - ActiveFPLB->OriginalFastPathLoadBuffer);
+			CookedFileSize -= HeaderData->PackageSummary->HeaderSize;
+			CookedFileSize += HeaderData->CookedHeaderSize;
+			return CookedFileSize;
+		}
 	}
 
 	virtual int64 Tell() override
 	{
 		if (bExportsCookedToSeparateArchive)
 		{
-			return (ActiveFPLB->StartFastPathLoadBuffer - ActiveFPLB->OriginalFastPathLoadBuffer) - BufferSerialOffset;
+			return (ActiveFPLB->StartFastPathLoadBuffer - ActiveFPLB->OriginalFastPathLoadBuffer) - ExportSerialOffset;
 		}
 		else
 		{
 			int64 CookedFilePosition = (ActiveFPLB->StartFastPathLoadBuffer - ActiveFPLB->OriginalFastPathLoadBuffer);
-			CookedFilePosition -= BufferSerialOffset;
-			CookedFilePosition += CookedSerialOffset;
+			CookedFilePosition -= HeaderData->PackageSummary->HeaderSize;
+			CookedFilePosition += HeaderData->CookedHeaderSize;
 			return CookedFilePosition;
 		}
 	}
@@ -1649,13 +1669,13 @@ public:
 	{
 		if (bExportsCookedToSeparateArchive)
 		{
-			ActiveFPLB->StartFastPathLoadBuffer = ActiveFPLB->OriginalFastPathLoadBuffer + BufferSerialOffset + Position;
+			ActiveFPLB->StartFastPathLoadBuffer = ActiveFPLB->OriginalFastPathLoadBuffer + ExportSerialOffset + Position;
 		}
 		else
 		{
 			uint64 BufferPosition = (uint64)Position;
-			BufferPosition -= CookedSerialOffset;
-			BufferPosition += BufferSerialOffset;
+			BufferPosition -= HeaderData->CookedHeaderSize;
+			BufferPosition += HeaderData->PackageSummary->HeaderSize;
 			ActiveFPLB->StartFastPathLoadBuffer = ActiveFPLB->OriginalFastPathLoadBuffer + BufferPosition;
 		}
 		CheckBufferPosition(TEXT("InvalidSeek"));
@@ -1831,7 +1851,7 @@ public:
 			if (int64 PayloadSize = Meta.GetSize(); PayloadSize > 0 && Meta.HasAnyFlags(BULKDATA_Unused) == false)
 			{
 				// Set the offset from the beginning of the I/O chunk in order to make inline bulk data reloadable
-				const int64 ExportBundleChunkOffset = (ActiveFPLB->StartFastPathLoadBuffer - ExportBundleChunkData);
+				const int64 ExportBundleChunkOffset = (ActiveFPLB->StartFastPathLoadBuffer - ActiveFPLB->OriginalFastPathLoadBuffer);
 				Meta.SetOffset(ExportBundleChunkOffset);
 				BulkData.BulkChunkId = CreateIoChunkId(PackageId.Value(), ChunkIndex, EIoChunkType::ExportBundleData);
 				Serialize(BulkData.ReallocateData(PayloadSize), PayloadSize);
@@ -1925,12 +1945,10 @@ private:
 	const FAsyncPackageHeaderData* HeaderData = nullptr;
 	const FLinkerInstancingContext* InstanceContext = nullptr;
 	UObject* CurrentExport = nullptr;
-	uint64 CookedSerialOffset = 0;
-	uint64 CookedSerialSize = 0;
-	uint64 BufferSerialOffset = 0;
+	uint64 ExportSerialOffset = 0;
+	uint64 ExportSerialSize = 0;
 	bool bIsOptionalSegment = false;
 	bool bExportsCookedToSeparateArchive = false;
-	const uint8* ExportBundleChunkData = nullptr;
 
 	void FixupSoftObjectPathForInstancedPackage(FSoftObjectPath& InOutSoftObjectPath)
 	{
@@ -2263,12 +2281,6 @@ enum EEventLoadNode2 : uint8
 	ExportBundle_NumPhases,
 };
 
-struct FAsyncPackageExportToBundleMapping
-{
-	uint64 ExportHash;
-	int32 BundleIndex[FExportBundleEntry::ExportCommandType_Count];
-};
-
 struct FAsyncPackageData
 {
 	uint8* MemoryBuffer0 = nullptr;
@@ -2277,21 +2289,16 @@ struct FAsyncPackageData
 	TArrayView<FAsyncPackage2*> ImportedAsyncPackages;
 	TArrayView<FEventLoadNode2> ExportBundleNodes;
 	TArrayView<const FSHAHash> ShaderMapHashes;
-	TArrayView<FAsyncPackageExportToBundleMapping> ExportToBundleMappings;
 	int32 TotalExportBundleCount = 0;
 };
 
 struct FAsyncPackageSerializationState
 {
 	FIoRequest IoRequest;
-	const uint8* AllExportDataPtr = nullptr;
-	const uint8* CurrentExportDataPtr = nullptr;
 
 	void ReleaseIoRequest()
 	{
 		IoRequest.Release();
-		AllExportDataPtr = nullptr;
-		CurrentExportDataPtr = nullptr;
 	}
 };
 
@@ -2806,7 +2813,7 @@ public:
 	static EEventLoadNodeExecutionResult Event_DeferredPostLoadExportBundle(FAsyncLoadingThreadState2& ThreadState, FAsyncPackage2* Package, int32 ExportBundleIndex);
 
 	void EventDrivenCreateExport(const FAsyncPackageHeaderData& Header, int32 LocalExportIndex);
-	bool EventDrivenSerializeExport(const FAsyncPackageHeaderData& Header, int32 LocalExportIndex, FExportArchive& Ar);
+	bool EventDrivenSerializeExport(const FAsyncPackageHeaderData& Header, int32 LocalExportIndex, FExportArchive* Ar);
 
 	UObject* EventDrivenIndexToObject(const FAsyncPackageHeaderData& Header, FPackageObjectIndex Index, bool bCheckSerialized);
 	template<class T>
@@ -2831,7 +2838,6 @@ private:
 	void InitializeExportArchive(FExportArchive& Ar, bool bIsOptionalSegment);
 	void CreatePackageNodes(const FAsyncLoadEventSpec* EventSpecs);
 	void CreateExportBundleNodes(const FAsyncLoadEventSpec* EventSpecs);
-	void SetupSerializedArcs(const FAsyncPackageHeaderData& Header, const TArrayView<FEventLoadNode2>& ExportBundleNodes, const TArrayView<FAsyncPackage2*>& ImportedAsyncPackages);
 	void SetupScriptDependencies();
 #if ALT2_ENABLE_PACKAGE_DEPENDENCY_DEBUGGING
 	bool HasDependencyToPackageDebug(FAsyncPackage2* Package);
@@ -2868,6 +2874,14 @@ private:
 	EEventLoadNodeExecutionResult ProcessLinkerLoadPackageImportsAndExports(FAsyncLoadingThreadState2& ThreadState);
 	EEventLoadNodeExecutionResult PostLoadLinkerLoadPackageExports(FAsyncLoadingThreadState2& ThreadState);
 #endif
+
+
+	void ProcessExportDependencies(const FAsyncPackageHeaderData& Header, int32 LocalExportIndex, FExportBundleEntry::EExportCommandType CommandType);
+	int32 GetPublicExportIndex(uint64 ExportHash, FAsyncPackageHeaderData*& OutHeader);
+	UObject* ConditionalCreateExport(const FAsyncPackageHeaderData& Header, int32 LocalExportIndex);
+	UObject* ConditionalSerializeExport(const FAsyncPackageHeaderData& Header, int32 LocalExportIndex);
+	UObject* ConditionalCreateImport(const FAsyncPackageHeaderData& Header, int32 LocalImportIndex);
+	UObject* ConditionalSerializeImport(const FAsyncPackageHeaderData& Header, int32 LocalImportIndex);
 
 	/**
 	 * Begin async loading process. Simulates parts of BeginLoad.
@@ -3444,7 +3458,7 @@ private:
 		const int32 ImportedPackagesCount = PackageStoreEntry.ImportedPackageIds.Num();
 		const uint64 ImportedPackageIdsMemSize = Align(sizeof(FPackageId) * ImportedPackagesCount, 8);
 #if WITH_EDITOR
-		const bool bHasOptionalSegment = PackageStoreEntry.OptionalSegmentExportInfo.ExportBundleCount > 0;
+		const bool bHasOptionalSegment = PackageStoreEntry.bHasOptionalSegment;
 		const int32 OptionalSegmentImportedPackagesCount = PackageStoreEntry.OptionalSegmentImportedPackageIds.Num();
 		const uint64 OptionalSegmentImportedPackageIdsMemSize = Align(sizeof(FPackageId) * OptionalSegmentImportedPackagesCount, 8);
 
@@ -3487,8 +3501,7 @@ private:
 		FMemory::Memcpy((void*)HeaderData.ImportedPackageIds.GetData(), PackageStoreEntry.ImportedPackageIds.GetData(), sizeof(FPackageId) * ImportedPackagesCount);
 		DataPtr += ImportedPackageIdsMemSize;
 
-		Data.TotalExportBundleCount = PackageStoreEntry.ExportInfo.ExportBundleCount;
-		HeaderData.ExportBundleCount = PackageStoreEntry.ExportInfo.ExportBundleCount;
+		Data.TotalExportBundleCount = 1;
 		HeaderData.ImportedAsyncPackagesView = Data.ImportedAsyncPackages;
 #if WITH_EDITOR
 		if (bHasOptionalSegment)
@@ -3499,8 +3512,7 @@ private:
 			FMemory::Memcpy((void*)OptionalSegmentHeaderData.ImportedPackageIds.GetData(), PackageStoreEntry.OptionalSegmentImportedPackageIds.GetData(), sizeof(FPackageId) * OptionalSegmentImportedPackagesCount);
 			DataPtr += OptionalSegmentImportedPackageIdsMemSize;
 
-			Data.TotalExportBundleCount += PackageStoreEntry.OptionalSegmentExportInfo.ExportBundleCount;
-			OptionalSegmentHeaderData.ExportBundleCount = PackageStoreEntry.OptionalSegmentExportInfo.ExportBundleCount;
+			++Data.TotalExportBundleCount;
 			HeaderData.ImportedAsyncPackagesView = Data.ImportedAsyncPackages.Left(ImportedPackagesCount);
 			OptionalSegmentHeaderData.ImportedAsyncPackagesView = Data.ImportedAsyncPackages.Right(OptionalSegmentImportedPackagesCount);
 		}
@@ -3527,34 +3539,27 @@ private:
 		FAsyncPackageData& Data = AsyncPackage->Data;
 		FAsyncPackageHeaderData& HeaderData = AsyncPackage->HeaderData;
 		int32 TotalExportCount = HeaderData.ExportMap.Num();
-		const uint64 ExportBundleHeadersCopyMemSize = Align(HeaderData.ExportBundleHeaders.Num() * sizeof(FExportBundleHeader), 8);
 		const uint64 ExportBundleEntriesCopyMemSize = Align(HeaderData.ExportBundleEntries.Num() * sizeof(FExportBundleEntry), 8);
 #if WITH_EDITOR
 		FAsyncPackageHeaderData* OptionalSegmentHeaderData = AsyncPackage->OptionalSegmentHeaderData.GetPtrOrNull();
-		uint64 OptionalSegmentExportBundleHeadersCopyMemSize = 0;
 		uint64 OptionalSegmentExportBundleEntriesCopyMemSize = 0;
 		if (OptionalSegmentHeaderData)
 		{
 			TotalExportCount += OptionalSegmentHeaderData->ExportMap.Num();
-			OptionalSegmentExportBundleHeadersCopyMemSize = Align(OptionalSegmentHeaderData->ExportBundleHeaders.Num() * sizeof(FExportBundleHeader), 8);
 			OptionalSegmentExportBundleEntriesCopyMemSize = Align(OptionalSegmentHeaderData->ExportBundleEntries.Num() * sizeof(FExportBundleEntry), 8);
 		}
 #endif
 		const int32 ExportBundleNodeCount = Data.TotalExportBundleCount * EEventLoadNode2::ExportBundle_NumPhases;
 		const uint64 ExportBundleNodesMemSize = Align(sizeof(FEventLoadNode2) * ExportBundleNodeCount, 8);
 		const uint64 ExportsMemSize = Align(sizeof(FExportObject) * TotalExportCount, 8);
-		const uint64 ExportToBundleMappingMemSize = Align(sizeof(FAsyncPackageExportToBundleMapping) * TotalExportCount, 8);
 
 		const uint64 MemoryBufferSize =
 			ExportBundleNodesMemSize +
 			ExportsMemSize +
 #if WITH_EDITOR
-			OptionalSegmentExportBundleHeadersCopyMemSize +
 			OptionalSegmentExportBundleEntriesCopyMemSize +
 #endif
-			ExportBundleHeadersCopyMemSize +
-			ExportBundleEntriesCopyMemSize +
-			ExportToBundleMappingMemSize;
+			ExportBundleEntriesCopyMemSize;
 
 #if PLATFORM_32BITS
 		if (MemoryBufferSize > MAX_Int32)
@@ -3571,11 +3576,6 @@ private:
 		DataPtr += ExportsMemSize;
 		Data.ExportBundleNodes = MakeArrayView(reinterpret_cast<FEventLoadNode2*>(DataPtr), ExportBundleNodeCount);
 		DataPtr += ExportBundleNodesMemSize;
-		Data.ExportToBundleMappings = MakeArrayView(reinterpret_cast<FAsyncPackageExportToBundleMapping*>(DataPtr), TotalExportCount);
-		DataPtr += ExportToBundleMappingMemSize;
-		HeaderData.ExportBundleHeadersCopyForPostLoad = MakeArrayView(reinterpret_cast<FExportBundleHeader*>(DataPtr), HeaderData.ExportBundleHeaders.Num());
-		FMemory::Memcpy(DataPtr, HeaderData.ExportBundleHeaders.GetData(), HeaderData.ExportBundleHeaders.Num() * sizeof(FExportBundleHeader));
-		DataPtr += ExportBundleHeadersCopyMemSize;
 		HeaderData.ExportBundleEntriesCopyForPostLoad = MakeArrayView(reinterpret_cast<FExportBundleEntry*>(DataPtr), HeaderData.ExportBundleEntries.Num());
 		FMemory::Memcpy(DataPtr, HeaderData.ExportBundleEntries.GetData(), HeaderData.ExportBundleEntries.Num() * sizeof(FExportBundleEntry));
 		DataPtr += ExportBundleEntriesCopyMemSize;
@@ -3585,9 +3585,6 @@ private:
 #if WITH_EDITOR
 		if (OptionalSegmentHeaderData)
 		{
-			OptionalSegmentHeaderData->ExportBundleHeadersCopyForPostLoad = MakeArrayView(reinterpret_cast<FExportBundleHeader*>(DataPtr), OptionalSegmentHeaderData->ExportBundleHeaders.Num());
-			FMemory::Memcpy(DataPtr, OptionalSegmentHeaderData->ExportBundleHeaders.GetData(), OptionalSegmentHeaderData->ExportBundleHeaders.Num() * sizeof(FExportBundleHeader));
-			DataPtr += OptionalSegmentExportBundleHeadersCopyMemSize;
 			OptionalSegmentHeaderData->ExportBundleEntriesCopyForPostLoad = MakeArrayView(reinterpret_cast<FExportBundleEntry*>(DataPtr), OptionalSegmentHeaderData->ExportBundleEntries.Num());
 			FMemory::Memcpy(DataPtr, OptionalSegmentHeaderData->ExportBundleEntries.GetData(), OptionalSegmentHeaderData->ExportBundleEntries.Num() * sizeof(FExportBundleEntry));
 			DataPtr += OptionalSegmentExportBundleEntriesCopyMemSize;
@@ -3604,39 +3601,6 @@ private:
 		for (FExportObject& Export : Data.Exports)
 		{
 			Export = FExportObject();
-		}
-
-		// Map publc export hashes to export bundles
-		if (!AsyncPackage->bLoadHasFailed
-#if ALT2_ENABLE_LINKERLOAD_SUPPORT
-			&& !AsyncPackage->LinkerLoadState.IsSet()
-#endif
-			)
-		{
-			for (int32 ExportBundleIndex = 0; ExportBundleIndex < AsyncPackage->Data.TotalExportBundleCount; ++ExportBundleIndex)
-			{
-				const FAsyncPackageHeaderData* TargetHeaderData = &AsyncPackage->HeaderData;
-				int32 LocalExportBundleIndex = ExportBundleIndex;
-				int32 ExportIndexOffset = 0;
-#if WITH_EDITOR
-				if (ExportBundleIndex >= AsyncPackage->HeaderData.ExportBundleHeaders.Num())
-				{
-					check(OptionalSegmentHeaderData);
-					TargetHeaderData = OptionalSegmentHeaderData;
-					LocalExportBundleIndex -= AsyncPackage->HeaderData.ExportBundleHeaders.Num();
-					ExportIndexOffset = AsyncPackage->HeaderData.ExportMap.Num();
-				}
-#endif
-				const FExportBundleHeader& ExportBundle = TargetHeaderData->ExportBundleHeaders[LocalExportBundleIndex];
-				for (int32 EntryIndex = ExportBundle.FirstEntryIndex, EntryEnd = ExportBundle.FirstEntryIndex + ExportBundle.EntryCount; EntryIndex < EntryEnd; ++EntryIndex)
-				{
-					const FExportBundleEntry& BundleEntry = TargetHeaderData->ExportBundleEntries[EntryIndex];
-					const FExportMapEntry& ExportMapEntry = TargetHeaderData->ExportMap[BundleEntry.LocalExportIndex];
-					FAsyncPackageExportToBundleMapping& ExportToBundleMapping = AsyncPackage->Data.ExportToBundleMappings[BundleEntry.LocalExportIndex + ExportIndexOffset];
-					ExportToBundleMapping.ExportHash = ExportMapEntry.PublicExportHash;
-					ExportToBundleMapping.BundleIndex[BundleEntry.CommandType] = ExportBundleIndex;
-				}
-			}
 		}
 
 		if (!AsyncPackage->bHasStartedImportingPackages)
@@ -3997,7 +3961,6 @@ bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState
 		{
 			// Initialize package with a fake package store entry
 			FPackageStoreEntry FakePackageEntry;
-			FakePackageEntry.ExportInfo.ExportBundleCount = 1;
 			InitializeAsyncPackageFromPackageStore(ThreadState, &IoBatch, PendingPackage, FakePackageEntry);
 			// Simulate StartLoading() getting back a failed IoRequest and let it go through all package states
 			PendingPackage->AsyncPackageLoadingState = EAsyncPackageLoadingState2::WaitingForIo;
@@ -4505,87 +4468,6 @@ void FAsyncLoadEventQueue2::UpdatePackagePriority(FAsyncPackage2* Package)
 FUObjectSerializeContext* FAsyncPackage2::GetSerializeContext()
 {
 	return FUObjectThreadContext::Get().GetSerializeContext();
-}
-
-void FAsyncPackage2::SetupSerializedArcs(const FAsyncPackageHeaderData& Header, const TArrayView<FEventLoadNode2>& ExportBundleNodes, const TArrayView<FAsyncPackage2*>& ImportedAsyncPackages)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(SetupExternalArcs);
-
-	FSimpleArchive ArcsArchive(Header.ArcsData.GetData(), Header.ArcsData.Num());
-	int32 InternalArcsCount;
-	ArcsArchive << InternalArcsCount;
-	for (int32 InternalArcIndex = 0; InternalArcIndex < InternalArcsCount; ++InternalArcIndex)
-	{
-		int32 FromExportBundleIndex;
-		ArcsArchive << FromExportBundleIndex;
-		int32 ToExportBundleIndex;
-		ArcsArchive << ToExportBundleIndex;
-		if (FromExportBundleIndex >= Data.TotalExportBundleCount || ToExportBundleIndex >= Data.TotalExportBundleCount)
-		{
-			UE_LOG(LogStreaming, Fatal, TEXT("Corrupt package data when serializing arcs"));
-			return;
-		}
-		uint32 FromNodeIndexBase = FromExportBundleIndex * EEventLoadNode2::ExportBundle_NumPhases;
-		uint32 ToNodeIndexBase = ToExportBundleIndex * EEventLoadNode2::ExportBundle_NumPhases;
-		for (int32 Phase = 0; Phase < EEventLoadNode2::ExportBundle_NumPhases; ++Phase)
-		{
-			uint32 ToNodeIndex = ToNodeIndexBase + Phase;
-			uint32 FromNodeIndex = FromNodeIndexBase + Phase;
-			ExportBundleNodes[ToNodeIndex].DependsOn(&ExportBundleNodes[FromNodeIndex]);
-		}
-	}
-	for (const FAsyncPackage2* ImportedPackage : ImportedAsyncPackages)
-	{
-		int32 ExternalArcCount;
-		ArcsArchive << ExternalArcCount;
-
-		int32 PreviousFromExportBundleIndex = -1;
-		int32 PreviousToExportBundleIndex = -1;
-
-		for (int32 ExternalArcIndex = 0; ExternalArcIndex < ExternalArcCount; ++ExternalArcIndex)
-		{
-			int32 FromImportIndex;
-			uint8 FromCommandType;
-			int32 ToExportBundleIndex;
-			ArcsArchive << FromImportIndex;
-			ArcsArchive << FromCommandType;
-			ArcsArchive << ToExportBundleIndex;
-			if (ImportedPackage)
-			{
-				if (FromImportIndex >= Header.ImportMap.Num() ||
-					FromCommandType >= FExportBundleEntry::ExportCommandType_Count ||
-					ToExportBundleIndex >= Data.TotalExportBundleCount)
-				{
-					UE_LOG(LogStreaming, Fatal, TEXT("Corrupt package data when serializing arcs"));
-					return;
-				}
-				FPackageObjectIndex GlobalImportIndex = Header.ImportMap[FromImportIndex];
-				FPackageImportReference PackageImportRef = GlobalImportIndex.ToPackageImportRef();
-				const uint64 ImportedPublicExportHash = Header.ImportedPublicExportHashes[PackageImportRef.GetImportedPublicExportHashIndex()];
-				for (const FAsyncPackageExportToBundleMapping& ExportToBundleMapping : ImportedPackage->Data.ExportToBundleMappings)
-				{
-					if (ExportToBundleMapping.ExportHash == ImportedPublicExportHash)
-					{
-						int32 FromExportBundleIndex = ExportToBundleMapping.BundleIndex[FromCommandType];
-						if (PreviousFromExportBundleIndex != FromExportBundleIndex || PreviousToExportBundleIndex != ToExportBundleIndex)
-						{
-							PreviousFromExportBundleIndex = FromExportBundleIndex;
-							PreviousToExportBundleIndex = ToExportBundleIndex;
-							uint32 FromNodeIndexBase = FromExportBundleIndex * EEventLoadNode2::ExportBundle_NumPhases;
-							uint32 ToNodeIndexBase = ToExportBundleIndex * EEventLoadNode2::ExportBundle_NumPhases;
-							for (int32 Phase = 0; Phase < EEventLoadNode2::ExportBundle_NumPhases; ++Phase)
-							{
-								uint32 ToNodeIndex = ToNodeIndexBase + Phase;
-								uint32 FromNodeIndex = FromNodeIndexBase + Phase;
-								ExportBundleNodes[ToNodeIndex].DependsOn(&ImportedPackage->Data.ExportBundleNodes[FromNodeIndex]);
-							}
-						}
-						break;
-					}
-				}
-			}
-		}
-	}
 }
 
 void FAsyncPackage2::SetupScriptDependencies()
@@ -5158,8 +5040,7 @@ static void ReadAsyncPackageHeader(FAsyncPackageSerializationState& Serializatio
 		(PackageSummary->ExportBundleEntriesOffset - PackageSummary->ExportMapOffset) / sizeof(FExportMapEntry));
 	HeaderData.ExportCount = HeaderData.ExportMap.Num();
 
-	const uint64 ExportBundleHeadersOffset = PackageSummary->GraphDataOffset;
-	const uint64 ExportBundleEntriesSize = ExportBundleHeadersOffset - PackageSummary->ExportBundleEntriesOffset;
+	const uint64 ExportBundleEntriesSize = PackageSummary->DependencyBundleHeadersOffset - PackageSummary->ExportBundleEntriesOffset;
 	const int32 ExportBundleEntriesCount = ExportBundleEntriesSize / sizeof(FExportBundleEntry);
 
 	if (ExportBundleEntriesCount != HeaderData.ExportCount * FExportBundleEntry::ExportCommandType_Count)
@@ -5168,17 +5049,15 @@ static void ReadAsyncPackageHeader(FAsyncPackageSerializationState& Serializatio
 		return;
 	}
 
-	HeaderData.ExportBundleHeaders = TArrayView<const FExportBundleHeader>(
-		reinterpret_cast<const FExportBundleHeader*>(PackageHeaderDataPtr + ExportBundleHeadersOffset),
-		HeaderData.ExportBundleCount);
 	HeaderData.ExportBundleEntries = TArrayView<const FExportBundleEntry>(
 		reinterpret_cast<const FExportBundleEntry*>(PackageHeaderDataPtr + PackageSummary->ExportBundleEntriesOffset),
 		ExportBundleEntriesCount);
-
-	const uint64 ExportBundleHeadersSize = sizeof(FExportBundleHeader) * HeaderData.ExportBundleHeaders.Num();
-	const uint64 ArcsDataOffset = ExportBundleHeadersOffset + ExportBundleHeadersSize;
-	const uint64 ArcsDataSize = PackageSummary->ImportedPackageNamesOffset - ArcsDataOffset;
-	HeaderData.ArcsData = TArrayView64<const uint8>(PackageHeaderDataPtr + ArcsDataOffset, ArcsDataSize);
+	HeaderData.DependencyBundleHeaders = TArrayView<const FDependencyBundleHeader>(
+		reinterpret_cast<const FDependencyBundleHeader*>(PackageHeaderDataPtr + PackageSummary->DependencyBundleHeadersOffset),
+		(PackageSummary->DependencyBundleEntriesOffset - PackageSummary->DependencyBundleHeadersOffset) / sizeof(FDependencyBundleHeader));
+	HeaderData.DependencyBundleEntries = TArrayView<const FDependencyBundleEntry>(
+		reinterpret_cast<const FDependencyBundleEntry*>(PackageHeaderDataPtr + PackageSummary->DependencyBundleEntriesOffset),
+		(PackageSummary->ImportedPackageNamesOffset - PackageSummary->DependencyBundleEntriesOffset) / sizeof(FDependencyBundleEntry));
 
 #if WITH_EDITOR
 	// Only read the imported package names in editor builds where we need to interact with uncooked packages
@@ -5188,8 +5067,6 @@ static void ReadAsyncPackageHeader(FAsyncPackageSerializationState& Serializatio
 	ImportedPackageNamesDataReader << Container;
 	HeaderData.ImportedPackageNames = MoveTemp(Container.Names);
 #endif
-
-	SerializationState.AllExportDataPtr = PackageHeaderDataPtr + PackageSummary->HeaderSize;
 }
 
 #if ALT2_ENABLE_LINKERLOAD_SUPPORT
@@ -5328,7 +5205,6 @@ EEventLoadNodeExecutionResult FAsyncPackage2::ProcessLinkerLoadPackageSummary(FA
 	}
 
 	FPackageStoreEntry PackageStoreEntry;
-	PackageStoreEntry.ExportInfo.ExportBundleCount = 1;
 	PackageStoreEntry.ImportedPackageIds = ImportedPackageIds;
 	AsyncLoadingThread.InitializeAsyncPackageFromPackageStore(ThreadState, nullptr, this, PackageStoreEntry);
 
@@ -5738,13 +5614,8 @@ void FAsyncPackage2::InitializeExportArchive(FExportArchive& Ar, bool bIsOptiona
 	{
 		Ar.HeaderData = OptionalSegmentHeaderData.GetPtrOrNull();
 		check(Ar.HeaderData);
-		Ar.ExportBundleChunkData = OptionalSegmentSerializationState->IoRequest.GetResultOrDie().Data();
 	}
-	else
 #endif
-	{
-		Ar.ExportBundleChunkData = SerializationState.IoRequest.GetResultOrDie().Data();
-	}
 	Ar.ImportStore = &ImportStore;
 	Ar.ExternalReadDependencies = &ExternalReadDependencies;
 	Ar.InstanceContext = InstanceContext.Get();
@@ -5774,41 +5645,33 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_ProcessExportBundle(FAsyncLo
 		bool bIsOptionalSegment = false;
 #if WITH_EDITOR
 		const FAsyncPackageHeaderData* HeaderData;
-		const FExportBundleHeader* ExportBundle;
 		FAsyncPackageSerializationState* SerializationState;
-		bIsOptionalSegment = InExportBundleIndex >= Package->HeaderData.ExportBundleHeaders.Num();
+		bIsOptionalSegment = InExportBundleIndex == 1;
 
 		if (bIsOptionalSegment)
 		{
 			HeaderData = Package->OptionalSegmentHeaderData.GetPtrOrNull();
 			check(HeaderData);
-			ExportBundle = &HeaderData->ExportBundleHeaders[InExportBundleIndex - Package->HeaderData.ExportBundleHeaders.Num()];
 			SerializationState = Package->OptionalSegmentSerializationState.GetPtrOrNull();
 			check(SerializationState);
 		}
 		else
 		{
+			check(InExportBundleIndex == 0);
 			HeaderData = &Package->HeaderData;
-			ExportBundle = &Package->HeaderData.ExportBundleHeaders[InExportBundleIndex];
 			SerializationState = &Package->SerializationState;
 		}
 #else
 		const FAsyncPackageHeaderData* HeaderData = &Package->HeaderData;
-		const FExportBundleHeader* ExportBundle = &Package->HeaderData.ExportBundleHeaders[InExportBundleIndex];
 		FAsyncPackageSerializationState* SerializationState = &Package->SerializationState;
 #endif
 		const FIoBuffer& IoBuffer = SerializationState->IoRequest.GetResultOrDie();
-		const uint64 AllExportDataSize = IoBuffer.DataSize() - (SerializationState->AllExportDataPtr - IoBuffer.Data());
-		if (Package->ExportBundleEntryIndex == 0)
-		{
-			SerializationState->CurrentExportDataPtr = SerializationState->AllExportDataPtr + ExportBundle->SerialOffset;
-		}
-		FExportArchive Ar(SerializationState->AllExportDataPtr, SerializationState->CurrentExportDataPtr, AllExportDataSize);
+		FExportArchive Ar(IoBuffer);
 		Package->InitializeExportArchive(Ar, bIsOptionalSegment);
 
-		while (Package->ExportBundleEntryIndex < int32(ExportBundle->EntryCount))
+		while (Package->ExportBundleEntryIndex < HeaderData->ExportBundleEntries.Num())
 		{
-			const FExportBundleEntry& BundleEntry = HeaderData->ExportBundleEntries[ExportBundle->FirstEntryIndex + Package->ExportBundleEntryIndex];
+			const FExportBundleEntry& BundleEntry = HeaderData->ExportBundleEntries[Package->ExportBundleEntryIndex];
 			if (ThreadState.IsTimeLimitExceeded(TEXT("Event_ProcessExportBundle")))
 			{
 				return EEventLoadNodeExecutionResult::Timeout;
@@ -5818,41 +5681,18 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_ProcessExportBundle(FAsyncLo
 
 			if (BundleEntry.CommandType == FExportBundleEntry::ExportCommandType_Create)
 			{
-				Package->EventDrivenCreateExport(*HeaderData, BundleEntry.LocalExportIndex);
+				if (!Export.Object)
+				{
+					Package->EventDrivenCreateExport(*HeaderData, BundleEntry.LocalExportIndex);
+				}
 			}
 			else
 			{
 				check(BundleEntry.CommandType == FExportBundleEntry::ExportCommandType_Serialize);
-
-				const uint64 CookedSerialSize = ExportMapEntry.CookedSerialSize;
-				UObject* Object = Export.Object;
-
-				check(SerializationState->CurrentExportDataPtr + CookedSerialSize <= IoBuffer.Data() + IoBuffer.DataSize());
-				check(Object || Export.bFiltered || Export.bExportLoadFailed);
-
-				Ar.ExportBufferBegin(Object, ExportMapEntry.CookedSerialOffset, ExportMapEntry.CookedSerialSize);
-
-				const int64 Pos = Ar.Tell();
-				UE_ASYNC_PACKAGE_CLOG(
-					CookedSerialSize > uint64(Ar.TotalSize() - Pos), Fatal, Package->Desc, TEXT("ObjectSerializationError"),
-					TEXT("%s: Serial size mismatch: Expected read size %d, Remaining archive size: %d"),
-					Object ? *Object->GetFullName() : TEXT("null"), CookedSerialSize, uint64(Ar.TotalSize() - Pos));
-
-				const bool bSerialized = Package->EventDrivenSerializeExport(*HeaderData, BundleEntry.LocalExportIndex, Ar);
-				if (!bSerialized)
+				if (Export.Object && Export.Object->HasAllFlags(RF_NeedLoad))
 				{
-					Ar.Skip(CookedSerialSize);
+					Package->EventDrivenSerializeExport(*HeaderData, BundleEntry.LocalExportIndex, &Ar);
 				}
-				UE_ASYNC_PACKAGE_CLOG(
-					CookedSerialSize != uint64(Ar.Tell() - Pos), Fatal, Package->Desc, TEXT("ObjectSerializationError"),
-					TEXT("%s: Serial size mismatch: Expected read size %d, Actual read size %d"),
-					Object ? *Object->GetFullName() : TEXT("null"), CookedSerialSize, uint64(Ar.Tell() - Pos));
-
-				Ar.ExportBufferEnd();
-
-				check((Object && !Object->HasAnyFlags(RF_NeedLoad)) || Export.bFiltered || Export.bExportLoadFailed);
-
-				SerializationState->CurrentExportDataPtr += CookedSerialSize;
 			}
 			++Package->ExportBundleEntryIndex;
 		}
@@ -5931,6 +5771,165 @@ UObject* FAsyncPackage2::EventDrivenIndexToObject(const FAsyncPackageHeaderData&
 	return Result;
 }
 
+void FAsyncPackage2::ProcessExportDependencies(const FAsyncPackageHeaderData& Header, int32 LocalExportIndex, FExportBundleEntry::EExportCommandType CommandType)
+{
+	static_assert(FExportBundleEntry::ExportCommandType_Count == 2, "Expected the only export command types fo be Create and Serialize");
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessExportDependencies);
+	const FDependencyBundleHeader& DependencyBundle = Header.DependencyBundleHeaders[LocalExportIndex];
+	if (DependencyBundle.FirstEntryIndex < 0)
+	{
+		return;
+	}
+	int32 RunningIndex = DependencyBundle.FirstEntryIndex;
+	if (CommandType == FExportBundleEntry::ExportCommandType_Serialize)
+	{
+		// Skip over the dependency entries for Create
+		for (int32 Index = 0; Index < FExportBundleEntry::ExportCommandType_Count; ++Index)
+		{
+			RunningIndex += DependencyBundle.EntryCount[FExportBundleEntry::ExportCommandType_Create][Index];
+		}
+	}
+	
+	for (int32 Index = DependencyBundle.EntryCount[CommandType][FExportBundleEntry::ExportCommandType_Create]; Index > 0; --Index)
+	{
+		const FDependencyBundleEntry& Dep = Header.DependencyBundleEntries[RunningIndex++];
+		if (Dep.LocalImportOrExportIndex.IsExport())
+		{
+			ConditionalCreateExport(Header, Dep.LocalImportOrExportIndex.ToExport());
+		}
+		else
+		{
+			ConditionalCreateImport(Header, Dep.LocalImportOrExportIndex.ToImport());
+		}
+	}
+
+	for (int32 Index = DependencyBundle.EntryCount[CommandType][FExportBundleEntry::ExportCommandType_Serialize]; Index > 0; Index--)
+	{
+		const FDependencyBundleEntry& Dep = Header.DependencyBundleEntries[RunningIndex++];
+		if (Dep.LocalImportOrExportIndex.IsExport())
+		{
+			ConditionalSerializeExport(Header, Dep.LocalImportOrExportIndex.ToExport());
+		}
+		else
+		{
+			ConditionalSerializeImport(Header, Dep.LocalImportOrExportIndex.ToImport());
+		}
+	}
+}
+
+int32 FAsyncPackage2::GetPublicExportIndex(uint64 ExportHash, FAsyncPackageHeaderData*& OutHeader)
+{
+	for (int32 ExportIndex = 0; ExportIndex < HeaderData.ExportMap.Num(); ++ExportIndex)
+	{
+		if (HeaderData.ExportMap[ExportIndex].PublicExportHash == ExportHash)
+		{
+			OutHeader = &HeaderData;
+			return ExportIndex;
+		}
+	}
+#if WITH_EDITOR
+	if (FAsyncPackageHeaderData* OptionalSegmentHeaderDataPtr = OptionalSegmentHeaderData.GetPtrOrNull())
+	{
+		for (int32 ExportIndex = 0; ExportIndex < OptionalSegmentHeaderDataPtr->ExportMap.Num(); ++ExportIndex)
+		{
+			if (OptionalSegmentHeaderDataPtr->ExportMap[ExportIndex].PublicExportHash == ExportHash)
+			{
+				OutHeader = OptionalSegmentHeaderDataPtr;
+				return HeaderData.ExportMap.Num() + ExportIndex;
+			}
+		}
+	}
+#endif
+	return -1;
+}
+UObject* FAsyncPackage2::ConditionalCreateExport(const FAsyncPackageHeaderData& Header, int32 LocalExportIndex)
+{
+	if (!Header.ExportsView[LocalExportIndex].Object)
+	{
+		FAsyncPackageScope2 Scope(this);
+		EventDrivenCreateExport(Header, LocalExportIndex);
+	}
+	return Header.ExportsView[LocalExportIndex].Object;
+}
+
+UObject* FAsyncPackage2::ConditionalSerializeExport(const FAsyncPackageHeaderData& Header, int32 LocalExportIndex)
+{
+	FExportObject& Export = Header.ExportsView[LocalExportIndex];
+	
+	if (!Export.Object && !(Export.bFiltered | Export.bExportLoadFailed))
+	{
+		ConditionalCreateExport(Header, LocalExportIndex);
+	}
+	
+	if (!Export.Object || (Export.bFiltered | Export.bExportLoadFailed))
+	{
+		return nullptr;
+	}
+
+	if (Export.Object->HasAllFlags(RF_NeedLoad))
+	{
+		FAsyncPackageScope2 Scope(this);
+		EventDrivenSerializeExport(Header, LocalExportIndex, nullptr);
+	}
+
+	return Export.Object;
+}
+
+UObject* FAsyncPackage2::ConditionalCreateImport(const FAsyncPackageHeaderData& Header, int32 LocalImportIndex)
+{
+	const FPackageObjectIndex& ObjectIndex = Header.ImportMap[LocalImportIndex];
+	check(ObjectIndex.IsPackageImport());
+	if (UObject* FromImportStore = ImportStore.FindOrGetImportObject(Header, ObjectIndex))
+	{
+		return FromImportStore;
+	}
+
+	FPackageImportReference PackageImportRef = ObjectIndex.ToPackageImportRef();
+	FAsyncPackage2* SourcePackage = Header.ImportedAsyncPackagesView[PackageImportRef.GetImportedPackageIndex()];
+	if (!SourcePackage)
+	{
+		return nullptr;
+	}
+	uint64 ExportHash = Header.ImportedPublicExportHashes[PackageImportRef.GetImportedPublicExportHashIndex()];
+	FAsyncPackageHeaderData* SourcePackageHeader = nullptr;
+	int32 ExportIndex = SourcePackage->GetPublicExportIndex(ExportHash, SourcePackageHeader);
+	if (ExportIndex < 0)
+	{
+		return nullptr;
+	}
+	return SourcePackage->ConditionalCreateExport(*SourcePackageHeader, ExportIndex);
+}
+
+UObject* FAsyncPackage2::ConditionalSerializeImport(const FAsyncPackageHeaderData& Header, int32 LocalImportIndex)
+{
+	const FPackageObjectIndex& ObjectIndex = Header.ImportMap[LocalImportIndex];
+	check(ObjectIndex.IsPackageImport());
+
+	if (UObject* FromImportStore = ImportStore.FindOrGetImportObject(Header, ObjectIndex))
+	{
+		if (!FromImportStore->HasAllFlags(RF_NeedLoad))
+		{
+			return FromImportStore;
+		}
+	}
+
+	FPackageImportReference PackageImportRef = ObjectIndex.ToPackageImportRef();
+	FAsyncPackage2* SourcePackage = Header.ImportedAsyncPackagesView[PackageImportRef.GetImportedPackageIndex()];
+	if (!SourcePackage)
+	{
+		return nullptr;
+	}
+	uint64 ExportHash = Header.ImportedPublicExportHashes[PackageImportRef.GetImportedPublicExportHashIndex()];
+	FAsyncPackageHeaderData* SourcePackageHeader = nullptr;
+	int32 ExportIndex = SourcePackage->GetPublicExportIndex(ExportHash, SourcePackageHeader);
+	if (ExportIndex < 0)
+	{
+		return nullptr;
+	}
+	return SourcePackage->ConditionalSerializeExport(*SourcePackageHeader, ExportIndex);
+}
+
 void FAsyncPackage2::EventDrivenCreateExport(const FAsyncPackageHeaderData& Header, int32 LocalExportIndex)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CreateExport);
@@ -5987,6 +5986,8 @@ void FAsyncPackage2::EventDrivenCreateExport(const FAsyncPackageHeaderData& Head
 		}
 		return;
 	}
+
+	ProcessExportDependencies(Header, LocalExportIndex, FExportBundleEntry::ExportCommandType_Create);
 
 	bool bIsCompleteyLoaded = false;
 	UClass* LoadClass = Export.ClassIndex.IsNull() ? UClass::StaticClass() : CastEventDrivenIndexToObject<UClass>(Header, Export.ClassIndex, true);
@@ -6161,7 +6162,7 @@ void FAsyncPackage2::EventDrivenCreateExport(const FAsyncPackageHeaderData& Head
 	Object->SetInternalFlags(FlagsToSet);
 }
 
-bool FAsyncPackage2::EventDrivenSerializeExport(const FAsyncPackageHeaderData& Header, int32 LocalExportIndex, FExportArchive& Ar)
+bool FAsyncPackage2::EventDrivenSerializeExport(const FAsyncPackageHeaderData& Header, int32 LocalExportIndex, FExportArchive* Ar)
 {
 	LLM_SCOPE(ELLMTag::UObject);
 	TRACE_CPUPROFILER_EVENT_SCOPE(SerializeExport);
@@ -6193,6 +6194,25 @@ bool FAsyncPackage2::EventDrivenSerializeExport(const FAsyncPackageHeaderData& H
 		return false;
 	}
 
+	TOptional<FExportArchive> LocalAr;
+	if (!Ar)
+	{
+#if WITH_EDITOR
+		if (&Header == OptionalSegmentHeaderData.GetPtrOrNull())
+		{
+			Ar = &LocalAr.Emplace(OptionalSegmentSerializationState->IoRequest.GetResultOrDie());
+			InitializeExportArchive(*Ar, true);
+		}
+		else
+#endif
+		{
+			Ar = &LocalAr.Emplace(SerializationState.IoRequest.GetResultOrDie());
+			InitializeExportArchive(*Ar, false);
+		}
+	}
+
+	ProcessExportDependencies(Header, LocalExportIndex, FExportBundleEntry::ExportCommandType_Serialize);
+
 	// If this is a struct, make sure that its parent struct is completely loaded
 	if (UStruct* Struct = dynamic_cast<UStruct*>(Object))
 	{
@@ -6222,20 +6242,32 @@ bool FAsyncPackage2::EventDrivenSerializeExport(const FAsyncPackageHeaderData& H
 	UObject* PrevSerializedObject = LoadContext->SerializedObject;
 	LoadContext->SerializedObject = Object;
 
-	Ar.TemplateForGetArchetypeFromLoader = ExportObject.TemplateObject;
+	Ar->ExportBufferBegin(Object, Export.CookedSerialOffset, Export.CookedSerialSize);
+
+	const int64 Pos = Ar->Tell();
+
+	check(!Ar->TemplateForGetArchetypeFromLoader);
+	Ar->TemplateForGetArchetypeFromLoader = ExportObject.TemplateObject;
 
 	if (Object->HasAnyFlags(RF_ClassDefaultObject))
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(SerializeDefaultObject);
-		Object->GetClass()->SerializeDefaultObject(Object, Ar);
+		Object->GetClass()->SerializeDefaultObject(Object, *Ar);
 	}
 	else
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(SerializeObject);
 		UE_SERIALIZE_ACCCESS_SCOPE(Object);
-		Object->Serialize(Ar);
+		Object->Serialize(*Ar);
 	}
-	Ar.TemplateForGetArchetypeFromLoader = nullptr;
+	Ar->TemplateForGetArchetypeFromLoader = nullptr;
+
+	UE_ASYNC_PACKAGE_CLOG(
+		Export.CookedSerialSize != uint64(Ar->Tell() - Pos), Fatal, Desc, TEXT("ObjectSerializationError"),
+		TEXT("%s: Serial size mismatch: Expected read size %d, Actual read size %d"),
+		Object ? *Object->GetFullName() : TEXT("null"), Export.CookedSerialSize, uint64(Ar->Tell() - Pos));
+
+	Ar->ExportBufferEnd();
 
 	Object->SetFlags(RF_LoadCompleted);
 	LoadContext->SerializedObject = PrevSerializedObject;
@@ -6493,22 +6525,6 @@ void FAsyncPackage2::ConditionalBeginProcessPackageExports(FAsyncLoadingThreadSt
 	WaitForAllDependenciesToReachState(ThreadState, &FAsyncPackage2::AllDependenciesSetupState, EAsyncPackageLoadingState2::DependenciesReady, AsyncLoadingThread.ConditionalBeginProcessExportsTick,
 		[&ThreadState](FAsyncPackage2* Package)
 		{
-			if (!Package->bLoadHasFailed
-#if ALT2_ENABLE_LINKERLOAD_SUPPORT
-			&& !Package->LinkerLoadState.IsSet()
-#endif
-				)
-			{
-				TArrayView<FEventLoadNode2> ExportBundleNodesView = Package->Data.ExportBundleNodes;
-				TArrayView<FAsyncPackage2*> ImportedAsyncPackagesView = Package->Data.ImportedAsyncPackages;
-				Package->SetupSerializedArcs(Package->HeaderData, ExportBundleNodesView.Left(Package->HeaderData.ExportBundleHeaders.Num() * EEventLoadNode2::ExportBundle_NumPhases), ImportedAsyncPackagesView.Left(Package->HeaderData.ImportedPackageIds.Num()));
-#if WITH_EDITOR
-				if (Package->OptionalSegmentHeaderData.IsSet())
-				{
-					Package->SetupSerializedArcs(*Package->OptionalSegmentHeaderData, ExportBundleNodesView.Right(Package->OptionalSegmentHeaderData->ExportBundleHeaders.Num() * EEventLoadNode2::ExportBundle_NumPhases), ImportedAsyncPackagesView.Right(Package->OptionalSegmentHeaderData->ImportedPackageIds.Num()));
-				}
-#endif
-			}
 			for (int32 ExportBundleIndex = 0; ExportBundleIndex < Package->Data.TotalExportBundleCount; ++ExportBundleIndex)
 			{
 				Package->GetExportBundleNode(EEventLoadNode2::ExportBundle_Process, ExportBundleIndex).ReleaseBarrier(&ThreadState);
@@ -6585,27 +6601,24 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_PostLoadExportBundle(FAsyncL
 
 #if WITH_EDITOR
 		const FAsyncPackageHeaderData* HeaderData;
-		const FExportBundleHeader* ExportBundle;
-		if (InExportBundleIndex >= Package->HeaderData.ExportBundleHeadersCopyForPostLoad.Num())
+		if (InExportBundleIndex == 1)
 		{
 			HeaderData = Package->OptionalSegmentHeaderData.GetPtrOrNull();
 			check(HeaderData);
-			ExportBundle = &HeaderData->ExportBundleHeadersCopyForPostLoad[InExportBundleIndex - Package->HeaderData.ExportBundleHeadersCopyForPostLoad.Num()];
 		}
 		else
 		{
+			check(InExportBundleIndex == 0);
 			HeaderData = &Package->HeaderData;
-			ExportBundle = &Package->HeaderData.ExportBundleHeadersCopyForPostLoad[InExportBundleIndex];
 		}
 #else
 		const FAsyncPackageHeaderData* HeaderData = &Package->HeaderData;
-		const FExportBundleHeader* ExportBundle = &Package->HeaderData.ExportBundleHeadersCopyForPostLoad[InExportBundleIndex];
 #endif
 
 		TRACE_LOADTIME_POSTLOAD_SCOPE;
-		while (Package->ExportBundleEntryIndex < int32(ExportBundle->EntryCount))
+		while (Package->ExportBundleEntryIndex < HeaderData->ExportBundleEntriesCopyForPostLoad.Num())
 		{
-			const FExportBundleEntry& BundleEntry = HeaderData->ExportBundleEntriesCopyForPostLoad[ExportBundle->FirstEntryIndex + Package->ExportBundleEntryIndex];
+			const FExportBundleEntry& BundleEntry = HeaderData->ExportBundleEntriesCopyForPostLoad[Package->ExportBundleEntryIndex];
 			if (ThreadState.IsTimeLimitExceeded(TEXT("Event_PostLoadExportBundle")))
 			{
 				LoadingState = EEventLoadNodeExecutionResult::Timeout;
@@ -6707,27 +6720,24 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_DeferredPostLoadExportBundle
 
 #if WITH_EDITOR
 		const FAsyncPackageHeaderData* HeaderData;
-		const FExportBundleHeader* ExportBundle;
-		if (InExportBundleIndex >= Package->HeaderData.ExportBundleHeadersCopyForPostLoad.Num())
+		if (InExportBundleIndex == 1)
 		{
 			HeaderData = Package->OptionalSegmentHeaderData.GetPtrOrNull();
 			check(HeaderData);
-			ExportBundle = &HeaderData->ExportBundleHeadersCopyForPostLoad[InExportBundleIndex - Package->HeaderData.ExportBundleHeadersCopyForPostLoad.Num()];
 		}
 		else
 		{
+			check(InExportBundleIndex == 0);
 			HeaderData = &Package->HeaderData;
-			ExportBundle = &Package->HeaderData.ExportBundleHeadersCopyForPostLoad[InExportBundleIndex];
 		}
 #else
 		const FAsyncPackageHeaderData* HeaderData = &Package->HeaderData;
-		const FExportBundleHeader* ExportBundle = &Package->HeaderData.ExportBundleHeadersCopyForPostLoad[InExportBundleIndex];
 #endif
 
 		TRACE_LOADTIME_POSTLOAD_SCOPE;
-		while (Package->ExportBundleEntryIndex < int32(ExportBundle->EntryCount))
+		while (Package->ExportBundleEntryIndex < HeaderData->ExportBundleEntriesCopyForPostLoad.Num())
 		{
-			const FExportBundleEntry& BundleEntry = HeaderData->ExportBundleEntriesCopyForPostLoad[ExportBundle->FirstEntryIndex + Package->ExportBundleEntryIndex];
+			const FExportBundleEntry& BundleEntry = HeaderData->ExportBundleEntriesCopyForPostLoad[Package->ExportBundleEntryIndex];
 			if (ThreadState.IsTimeLimitExceeded(TEXT("Event_DeferredPostLoadExportBundle")))
 			{
 				LoadingState = EEventLoadNodeExecutionResult::Timeout;
