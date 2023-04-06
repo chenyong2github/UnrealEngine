@@ -337,18 +337,32 @@ bool UMVVMView::SetSourceInternal(FName ViewModelName, TScriptInterface<INotifyF
 
 		bool bPreviousEveryTickBinding = bHasEveryTickBinding;
 		bHasEveryTickBinding = false;
-		if (NewValue.GetObject())
+		// Register back any binding that was previously enabled
+		if (NewValue.GetObject() && bInitialized)
 		{
-			// Register back any binding that was previously enabled
-			if (bInitialized)
+			// Enabled the default bindings
+			for (int32 Index = 0; Index < CompiledBindings.Num(); ++Index)
 			{
-				// Enabled the default bindings
-				for (int32 Index = 0; Index < CompiledBindings.Num(); ++Index)
+				const FMVVMViewClass_CompiledBinding& Binding = CompiledBindings[Index];
+				if (Binding.IsEnabledByDefault())
 				{
-					const FMVVMViewClass_CompiledBinding& Binding = CompiledBindings[Index];
-					if (Binding.IsEnabledByDefault() && Binding.GetSourceName() == ViewModelName)
+					// Binding on this viewmodel
+					if (Binding.GetSourceName() == ViewModelName)
 					{
 						EnableLibraryBinding(Binding, Index);
+						// Bindings that depends on this binding
+						if (Binding.IsEvaluateSourceCreatorBinding())
+						{
+							int32 ParentSourceIndex = ClassExtension->GetViewModelCreators().IndexOfByPredicate([ViewModelName](const FMVVMViewClass_SourceCreator& Item)
+								{
+									return Item.GetParentSourceName() == ViewModelName;
+								});
+							if (ParentSourceIndex != INDEX_NONE)
+							{
+								check(ParentSourceIndex != AllCreatedSourcesIndex)
+								EvaluateSourceCreator(ParentSourceIndex); // it will deactivate previous binding 
+							}
+						}
 					}
 				}
 			}

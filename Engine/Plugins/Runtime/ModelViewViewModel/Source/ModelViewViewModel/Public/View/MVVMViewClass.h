@@ -61,6 +61,11 @@ public:
 	{
 		return PropertyName;
 	}
+	
+	FName GetParentSourceName() const
+	{
+		return ParentSourceName;
+	}
 
 #if UE_WITH_MVVM_DEBUGGING
 	struct FToStringArgs
@@ -102,8 +107,13 @@ private:
 	UPROPERTY()
 	FMVVMVCompiledFieldPath FieldPath;
 
+	/** The source name and the property's name of the view (if the flag IsUserWidgetProperty is set). */
 	UPROPERTY()
 	FName PropertyName;
+
+	/** The name of the parent source if it's the dynamic source. */
+	UPROPERTY()
+	FName ParentSourceName;
 
 	enum class ESourceFlags : uint8
 	{

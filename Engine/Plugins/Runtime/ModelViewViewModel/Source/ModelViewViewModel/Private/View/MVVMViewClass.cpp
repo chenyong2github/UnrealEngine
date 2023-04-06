@@ -148,6 +148,12 @@ FString FMVVMViewClass_SourceCreator::ToString(const FMVVMCompiledBindingLibrary
 	StringBuilder << TEXT(", SourceName: ");
 	StringBuilder << GetSourceName();
 
+	if (!ParentSourceName.IsNone())
+	{
+		StringBuilder << TEXT(", ParentSourceName: ");
+		StringBuilder << GetParentSourceName();
+	}
+
 	if (Args.bAddFlags)
 	{
 		bool bHasFlag = false;

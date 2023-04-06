@@ -121,6 +121,7 @@ private:
 		ECompilerSourceCreatorType Type = ECompilerSourceCreatorType::ViewModel;
 		FString SetterFunctionName;
 		UEdGraph* SetterGraph = nullptr;
+		FName DynamicParentSourceName;
 	};
 	TArray<FCompilerSourceCreatorContext> CompilerSourceCreatorContexts;
 

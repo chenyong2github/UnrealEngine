@@ -1128,6 +1128,7 @@ bool FMVVMViewBlueprintCompiler::CompileSourceCreators(const FCompiledBindingLib
 
 			CanBeEvaluated = true;
 			CompiledSourceCreator.FieldPath = *CompiledFieldPath;
+			CompiledSourceCreator.ParentSourceName = SourceCreatorContext.DynamicParentSourceName;
 		}
 
 		CompiledSourceCreator.Flags = 0;
@@ -1572,6 +1573,7 @@ TValueOrError<FMVVMViewBlueprintCompiler::FBindingSourceContext, FText> FMVVMVie
 			return MakeError(LOCTEXT("DynamicSourceEntryNotSupport", "Long source entry is not supported. Add the viewmodel manually."));
 		}
 
+		//NB. The for loop order is important. The order is used in UMVVMView::SetViewModelInternal when enabling the bindings
 		int32 SourceCreatorContextIndex = INDEX_NONE;
 		for (int32 DynamicIndex = 1; DynamicIndex <= BindingInfo.ViewModelIndex; ++DynamicIndex)
 		{
@@ -1581,6 +1583,7 @@ TValueOrError<FMVVMViewBlueprintCompiler::FBindingSourceContext, FText> FMVVMVie
 			}
 
 			FName NewSourceName;
+			FName ParentSourceName;
 			FString NewSourcePropertyPath;
 			{
 				TStringBuilder<512> PropertyPathBuilder;
@@ -1594,6 +1597,11 @@ TValueOrError<FMVVMViewBlueprintCompiler::FBindingSourceContext, FText> FMVVMVie
 					}
 					PropertyPathBuilder << Result.PropertyPath[Index].GetName();
 					DynamicNameBuilder << Result.PropertyPath[Index].GetName();
+
+					if (Index == DynamicIndex - 1)
+					{
+						ParentSourceName = FName(DynamicNameBuilder.ToString());
+					}
 				}
 
 				NewSourceName = FName(DynamicNameBuilder.ToString());
@@ -1619,6 +1627,7 @@ TValueOrError<FMVVMViewBlueprintCompiler::FBindingSourceContext, FText> FMVVMVie
 
 					FCompilerSourceCreatorContext SourceCreatorContext;
 					SourceCreatorContext.Type = ECompilerSourceCreatorType::ViewModelDynamic;
+					SourceCreatorContext.DynamicParentSourceName = ParentSourceName;
 					SourceCreatorContext.ViewModelContext = FMVVMBlueprintViewModelContext(ViewModelClass, NewSourceName);
 					SourceCreatorContext.ViewModelContext.bCreateSetterFunction = false;
 					SourceCreatorContext.ViewModelContext.bOptional = false;
