@@ -2142,7 +2142,7 @@ void FRDGBuilder::DumpResourcePassOutputs(const FRDGPass* Pass)
 				FRDGTextureRef Texture = RenderTarget.GetTexture();
 				FRDGTextureSRVDesc TextureSubResource = FRDGTextureSRVDesc::CreateForMipLevel(Texture, RenderTarget.GetMipIndex());
 
-				if (Texture->Desc.IsTextureArray())
+				if (Texture->Desc.IsTextureArray() && RenderTarget.GetArraySlice() != -1)
 				{
 					TextureSubResource.FirstArraySlice = RenderTarget.GetArraySlice();
 					TextureSubResource.NumArraySlices = 1;
