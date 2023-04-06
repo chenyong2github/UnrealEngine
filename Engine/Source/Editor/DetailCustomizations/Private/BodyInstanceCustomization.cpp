@@ -7,6 +7,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Containers/EnumAsByte.h"
+#include "DeformableInterface.h"
 #include "DestructibleInterface.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
@@ -1260,6 +1261,16 @@ void FBodyInstanceCustomizationHelper::UpdateFilters()
 	bDisplayConstraints = true;
 	bDisplayEnablePhysics = true;
 	bDisplayAsyncScene = true;
+	bDisplayLinearDamping = true;
+	bDisplayAngularDamping = true;
+	bDisplayEnableGravity = true;
+	bDisplayInertiaConditioning = true;
+	bDisplayWalkableSlopeOverride = true;
+	bDisplayAutoWeld = true;
+	bDisplayStartAwake = true;
+	bDisplayCOMNudge = true;
+	bDisplayMassScale = true;
+	bDisplayMaxAngularVelocity = true;
 
 	for (int32 i = 0; i < ObjectsCustomized.Num(); ++i)
 	{
@@ -1269,6 +1280,23 @@ void FBodyInstanceCustomizationHelper::UpdateFilters()
 			{
 				bDisplayMass = false;
 				bDisplayConstraints = false;
+			}
+			else if (Cast<IDeformableInterface>(ObjectsCustomized[i].Get()))
+			{
+				bDisplayMass = false;
+				bDisplayConstraints = false;
+				bDisplayEnablePhysics = false;
+				bDisplayAsyncScene = false;
+				bDisplayLinearDamping = false;
+				bDisplayAngularDamping = false;
+				bDisplayEnableGravity = false;
+				bDisplayInertiaConditioning = false;
+				bDisplayWalkableSlopeOverride = false;
+				bDisplayAutoWeld = false;
+				bDisplayStartAwake = false;
+				bDisplayCOMNudge = false;
+				bDisplayMassScale = false;
+				bDisplayMaxAngularVelocity = false;
 			}
 			else
 			{
@@ -1308,9 +1336,25 @@ void FBodyInstanceCustomizationHelper::CustomizeDetails( IDetailLayoutBuilder& D
 
 		AddMassInKg(PhysicsCategory, BodyInstanceHandler);
 
-		PhysicsCategory.AddProperty(BodyInstanceHandler->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBodyInstance, LinearDamping)));
-		PhysicsCategory.AddProperty(BodyInstanceHandler->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBodyInstance, AngularDamping)));
-		PhysicsCategory.AddProperty(BodyInstanceHandler->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBodyInstance, bEnableGravity)));
+
+		auto EnablePhysicsProperty = [BodyInstanceHandler, &PhysicsCategory](FName PropertyName, bool bEnable)
+		{
+			TSharedRef<IPropertyHandle> Property = BodyInstanceHandler->GetChildHandle(PropertyName).ToSharedRef();
+			if (bEnable)
+			{
+				PhysicsCategory.AddProperty(Property);
+			}
+			else
+			{
+				Property->MarkHiddenByCustomization();
+			}
+			return Property;
+		};
+		EnablePhysicsProperty(GET_MEMBER_NAME_CHECKED(FBodyInstance, LinearDamping), bDisplayLinearDamping);
+		EnablePhysicsProperty(GET_MEMBER_NAME_CHECKED(FBodyInstance, AngularDamping), bDisplayAngularDamping);
+		EnablePhysicsProperty(GET_MEMBER_NAME_CHECKED(FBodyInstance, bEnableGravity), bDisplayEnableGravity);
+		EnablePhysicsProperty(GET_MEMBER_NAME_CHECKED(FBodyInstance, bInertiaConditioning), bDisplayInertiaConditioning);
+		EnablePhysicsProperty(GET_MEMBER_NAME_CHECKED(FBodyInstance, WalkableSlopeOverride), bDisplayWalkableSlopeOverride);
 
 		AddBodyConstraint(PhysicsCategory, BodyInstanceHandler);
 
@@ -1318,12 +1362,14 @@ void FBodyInstanceCustomizationHelper::CustomizeDetails( IDetailLayoutBuilder& D
 		PhysicsCategory.AddProperty(BodyInstanceHandler->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBodyInstance, bAutoWeld)))
 			.Visibility(TAttribute<EVisibility>(this, &FBodyInstanceCustomizationHelper::IsAutoWeldVisible));
 
-		PhysicsCategory.AddProperty(BodyInstanceHandler->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBodyInstance, bStartAwake)));
+		EnablePhysicsProperty(GET_MEMBER_NAME_CHECKED(FBodyInstance, bStartAwake), bDisplayStartAwake);
+		EnablePhysicsProperty(GET_MEMBER_NAME_CHECKED(FBodyInstance, COMNudge), bDisplayCOMNudge);
+		EnablePhysicsProperty(GET_MEMBER_NAME_CHECKED(FBodyInstance, MassScale), bDisplayMassScale);
 
-		PhysicsCategory.AddProperty(BodyInstanceHandler->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBodyInstance, COMNudge)));
-		PhysicsCategory.AddProperty(BodyInstanceHandler->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBodyInstance, MassScale)));
-
-		AddMaxAngularVelocity(PhysicsCategory, BodyInstanceHandler);
+		if (bDisplayMaxAngularVelocity)
+		{
+			AddMaxAngularVelocity(PhysicsCategory, BodyInstanceHandler);
+		}
 
 		// Hide legacy settings in Chaos
 		BodyInstanceHandler->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBodyInstance, DOFMode))->MarkHiddenByCustomization();

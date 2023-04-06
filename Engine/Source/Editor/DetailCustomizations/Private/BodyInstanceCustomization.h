@@ -189,6 +189,16 @@ private:
 	bool bDisplayConstraints;
 	bool bDisplayEnablePhysics;
 	bool bDisplayAsyncScene;
+	bool bDisplayLinearDamping;
+	bool bDisplayAngularDamping;
+	bool bDisplayEnableGravity;
+	bool bDisplayInertiaConditioning;
+	bool bDisplayWalkableSlopeOverride;
+	bool bDisplayAutoWeld;
+	bool bDisplayStartAwake;
+	bool bDisplayCOMNudge;
+	bool bDisplayMassScale;
+	bool bDisplayMaxAngularVelocity;
 
 	TSharedPtr<IPropertyHandle> MassInKgOverrideHandle;
 	TSharedPtr<IPropertyHandle> DOFModeProperty;
