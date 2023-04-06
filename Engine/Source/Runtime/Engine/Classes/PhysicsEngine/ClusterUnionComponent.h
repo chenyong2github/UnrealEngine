@@ -138,6 +138,9 @@ public:
 	void RemoveComponentFromCluster(UPrimitiveComponent* InComponent);
 
 	UFUNCTION(BlueprintCallable, Category = "Cluster Union")
+	TArray<UPrimitiveComponent*> GetPrimitiveComponents();
+
+	UFUNCTION(BlueprintCallable, Category = "Cluster Union")
 	void SetIsAnchored(bool bIsAnchored);
 
 	// The SyncVelocitiesFromPhysics will set replicated state using data from the physics thread. 

@@ -143,6 +143,17 @@ void UClusterUnionComponent::RemoveComponentFromCluster(UPrimitiveComponent* InC
 	PhysicsProxy->RemovePhysicsObjects_External(PhysicsObjectsToRemove);
 }
 
+TArray<UPrimitiveComponent*> UClusterUnionComponent::GetPrimitiveComponents()
+{
+	TArray<UPrimitiveComponent*> PrimitiveComponents;
+	for (auto Iter = ComponentToPhysicsObjects.CreateIterator(); Iter; ++Iter)
+	{
+		PrimitiveComponents.Add(Iter.Key().ResolveObjectPtr());
+	}
+
+	return PrimitiveComponents;
+}
+
 void UClusterUnionComponent::SetIsAnchored(bool bIsAnchored)
 {
 	if (!PhysicsProxy)
