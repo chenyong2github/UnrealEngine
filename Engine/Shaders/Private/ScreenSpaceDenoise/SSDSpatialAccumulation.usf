@@ -546,18 +546,6 @@
 	#error Unknown output mode.
 #endif
 
-
-//------------------------------------------------------- LATE SETUP
-
-#if COMPILER_SUPPORTS_WAVE_ONCE
-	#if CONFIG_UPSCALE
-		#define CONFIG_VGPR_FREE_SAMPLE_TRACK_ID 2
-	#else
-		#define CONFIG_VGPR_FREE_SAMPLE_TRACK_ID 1
-	#endif
-#endif
-
-
 //------------------------------------------------------- INCLUDES
 
 #include "SSDSignalFramework.ush"
@@ -1246,10 +1234,6 @@ void MainCS(
 	{
 		// No need to keep DispatchThreadId, can recompute the output pixel position based on information stored in VGPRs for spatial kernel.
 		#if CONFIG_SAMPLE_SET == SAMPLE_SET_STACKOWIAK_4_SETS
-			#if CONFIG_VGPR_FREE_SAMPLE_TRACK_ID
-				SampleTrackId = GetSampleTrackIdFromLaneIndex();
-			#endif
-
 			#if CONFIG_UPSCALE
 				SampleTrackId ^= 0x3;
 			#endif
