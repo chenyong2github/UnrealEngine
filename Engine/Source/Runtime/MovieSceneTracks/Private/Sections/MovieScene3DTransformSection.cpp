@@ -740,7 +740,12 @@ FMovieSceneTransformMask UMovieScene3DTransformSection::GetMaskByName(const FNam
 	{
 		return EMovieSceneTransformChannel::ScaleZ;
 	}
-
+	//Constraints aren't masked since they need to be deleted etc via their own API's
+	FString ConstraintString = NSLOCTEXT("MovieSceneTransformSection", "Constraint", "Constraint").ToString();
+	if (InName.ToString().Contains(ConstraintString))
+	{
+		return EMovieSceneTransformChannel::None;
+	}
 	return EMovieSceneTransformChannel::All;
 }
 
