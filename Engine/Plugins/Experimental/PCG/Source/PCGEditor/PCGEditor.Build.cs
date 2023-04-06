@@ -9,12 +9,18 @@ namespace UnrealBuildTool.Rules
 			PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
 			PublicDependencyModuleNames.AddRange(
-				new string[] {
-					"Core",
-					"Projects",
-					"Engine",
-					"CoreUObject",
-				});
+			new string[] {
+			"Core",
+			"Projects",
+			"Engine",
+			"CoreUObject"
+        });
+
+		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
+		{
+			PublicDependencyModuleNames.Add("PlacementMode");
+		}
+
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
@@ -54,5 +60,6 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 				});
 		}
+
 	}
 }
