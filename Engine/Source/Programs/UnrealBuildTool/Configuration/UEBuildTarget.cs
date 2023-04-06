@@ -2391,6 +2391,16 @@ namespace UnrealBuildTool
 			VNITask.Wait();
 #endif
 
+            foreach (var Module in Modules.Values.OfType<UEBuildModuleCPP>())
+            {
+                foreach (var (Subdirectory, Func) in Module.Rules.GenerateHeaderFuncs)
+                {
+                    DirectoryReference GenDirectory = DirectoryReference.Combine(Module.GeneratedCodeDirectory!, Subdirectory);
+                    DirectoryReference.CreateDirectory(GenDirectory);
+                    Func(Logger, GenDirectory);
+                }
+            }
+
 			// Compile the resource files common to all DLLs on Windows
 			if (!ShouldCompileMonolithic())
 			{
