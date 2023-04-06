@@ -24,16 +24,19 @@ public:
 
 	virtual UClass* GetFactoryClass() const override;
 
-	virtual UObject* ImportSceneObject_GameThread(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams) override;
-
 	virtual void SetupObject_GameThread(const FSetupObjectParams& Arguments) override;
 
 	// Interchange factory base interface end
 	//////////////////////////////////////////////////////////////////////////
 
-private:
+protected:
+	//////////////////////////////////////////////////////////////////////////
+	// Interchange actor factory interface begin
 
-	void SetupSkeletalMeshActor(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeFactoryBaseNode* ActorFactoryNode, ASkeletalMeshActor* SkeletalMeshActor);
+	virtual UObject* ProcessActor(class AActor& SpawnedActor, const UInterchangeActorFactoryNode& FactoryNode, const UInterchangeBaseNodeContainer& NodeContainer) override;
+
+	// Interchange actor factory interface end
+	//////////////////////////////////////////////////////////////////////////
 };
 
 

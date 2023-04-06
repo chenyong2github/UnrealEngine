@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 #include "Scene/InterchangeActorFactory.h"
 
+#include "InterchangeActorFactoryNode.h"
 #include "Nodes/InterchangeFactoryBaseNode.h"
 #include "Scene/InterchangeActorHelper.h"
 
@@ -16,17 +17,29 @@ UClass* UInterchangeActorFactory::GetFactoryClass() const
 
 UObject* UInterchangeActorFactory::ImportSceneObject_GameThread(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams)
 {
-	AActor* SpawnedActor = UE::Interchange::ActorHelper::SpawnFactoryActor(CreateSceneObjectsParams);
+	using namespace UE::Interchange;
 
-	if (!SpawnedActor)
+	UInterchangeActorFactoryNode* FactoryNode = Cast<UInterchangeActorFactoryNode>(CreateSceneObjectsParams.FactoryNode);
+	if (!ensure(FactoryNode) || !CreateSceneObjectsParams.NodeContainer)
 	{
 		return nullptr;
 	}
 
-	if (USceneComponent* RootComponent = SpawnedActor->GetRootComponent())
+	AActor* SpawnedActor = ActorHelper::SpawnFactoryActor(CreateSceneObjectsParams);
+
+	if (SpawnedActor)
 	{
-		CreateSceneObjectsParams.FactoryNode->ApplyAllCustomAttributeToObject(RootComponent);
+		if (UObject* ObjectToUpdate = ProcessActor(*SpawnedActor, *FactoryNode, *CreateSceneObjectsParams.NodeContainer))
+		{
+			ActorHelper::ApplyAllCustomAttributes(CreateSceneObjectsParams, *ObjectToUpdate);
+		}
 	}
 
 	return SpawnedActor;
 }
+
+UObject* UInterchangeActorFactory::ProcessActor(AActor& SpawnedActor, const UInterchangeActorFactoryNode& /*FactoryNode*/, const UInterchangeBaseNodeContainer& /*NodeContainer*/)
+{
+	return SpawnedActor.GetRootComponent();
+}
+

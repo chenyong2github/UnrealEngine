@@ -65,6 +65,19 @@ public:
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER_WITH_CUSTOM_DELEGATE_WITH_CUSTOM_CLASS(UInterchangeCineCameraFactoryNode, FocusMethod, ECameraFocusMethod, UCineCameraComponent);
 	}	
 
+	virtual void CopyWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object) override
+	{
+		Super::CopyWithObject(SourceNode, Object);
+
+		if (const UInterchangeCineCameraFactoryNode* ActorFactoryNode = Cast<UInterchangeCineCameraFactoryNode>(SourceNode))
+		{
+			COPY_NODE_DELEGATES_WITH_CUSTOM_DELEGATE(ActorFactoryNode, UInterchangeCineCameraFactoryNode, FocalLength, float, UCineCameraComponent::StaticClass())
+			COPY_NODE_DELEGATES_WITH_CUSTOM_DELEGATE(ActorFactoryNode, UInterchangeCineCameraFactoryNode, SensorWidth, float, UCineCameraComponent::StaticClass())
+			COPY_NODE_DELEGATES_WITH_CUSTOM_DELEGATE(ActorFactoryNode, UInterchangeCineCameraFactoryNode, SensorHeight, float, UCineCameraComponent::StaticClass())
+			COPY_NODE_DELEGATES_WITH_CUSTOM_DELEGATE(ActorFactoryNode, UInterchangeCineCameraFactoryNode, FocusMethod, ECameraFocusMethod, UCineCameraComponent::StaticClass())
+		}
+	}
+
 private:
 	const UE::Interchange::FAttributeKey Macro_CustomFocalLengthKey = UE::Interchange::FAttributeKey(TEXT("FocalLength"));
 	const UE::Interchange::FAttributeKey Macro_CustomSensorWidthKey = UE::Interchange::FAttributeKey(TEXT("SensorWidth"));

@@ -21,8 +21,15 @@ public:
 
 	virtual UClass* GetFactoryClass() const override;
 
-	virtual UObject* ImportSceneObject_GameThread(const FImportSceneObjectsParams& Arguments) override;
-
 	// Interchange factory base interface end
+	//////////////////////////////////////////////////////////////////////////
+
+protected:
+	//////////////////////////////////////////////////////////////////////////
+	// Interchange actor factory interface begin
+
+	virtual UObject* ProcessActor(class AActor& SpawnedActor, const UInterchangeActorFactoryNode& FactoryNode, const UInterchangeBaseNodeContainer& NodeContainer) override;
+
+	// Interchange actor factory interface end
 	//////////////////////////////////////////////////////////////////////////
 };

@@ -282,3 +282,19 @@ bool UInterchangeSkeletalMeshFactoryNode::SetNodeClassFromClassAttribute()
 	return bIsNodeClassInitialized;
 }
 
+void UInterchangeSkeletalMeshFactoryNode::CopyWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object)
+{
+	Super::CopyWithObject(SourceNode, Object);
+
+	if (const UInterchangeSkeletalMeshFactoryNode* MeshFactoryNode = Cast<UInterchangeSkeletalMeshFactoryNode>(SourceNode))
+	{
+		UClass* Class = GetObjectClass();
+
+		COPY_NODE_DELEGATES_WITH_CUSTOM_DELEGATE(MeshFactoryNode, UInterchangeSkeletalMeshFactoryNode, UseHighPrecisionSkinWeights, bool, Class)
+		COPY_NODE_DELEGATES_WITH_CUSTOM_DELEGATE(MeshFactoryNode, UInterchangeSkeletalMeshFactoryNode, ThresholdPosition, float, Class)
+		COPY_NODE_DELEGATES_WITH_CUSTOM_DELEGATE(MeshFactoryNode, UInterchangeSkeletalMeshFactoryNode, ThresholdTangentNormal, float, Class)
+		COPY_NODE_DELEGATES_WITH_CUSTOM_DELEGATE(MeshFactoryNode, UInterchangeSkeletalMeshFactoryNode, ThresholdUV, float, Class)
+		COPY_NODE_DELEGATES_WITH_CUSTOM_DELEGATE(MeshFactoryNode, UInterchangeSkeletalMeshFactoryNode, MorphThresholdPosition, float, Class)
+		COPY_NODE_DELEGATES_WITH_CUSTOM_DELEGATE(MeshFactoryNode, UInterchangeSkeletalMeshFactoryNode, BoneInfluenceLimit, int32, Class)
+	}
+}

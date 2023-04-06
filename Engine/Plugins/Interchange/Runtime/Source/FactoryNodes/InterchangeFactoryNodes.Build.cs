@@ -14,6 +14,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"InterchangeCore",
+					"InterchangeEngine",
 					"InterchangeNodes",
 					"TextureUtilitiesCommon",
 					"VariantManagerContent",

@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Types/AttributeStorage.h"
 #include "UObject/Class.h"
+#include "UObject/Package.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
@@ -194,4 +195,15 @@ void UInterchangeFactoryBaseNode::FillAllCustomAttributeFromObject(UObject* Obje
 			}
 		}
 	}
+}
+
+UInterchangeFactoryBaseNode* UInterchangeFactoryBaseNode::DuplicateWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object)
+{
+	UInterchangeFactoryBaseNode* CurrentNode = NewObject<UInterchangeFactoryBaseNode>(GetTransientPackage(), SourceNode->GetClass());
+
+	CurrentNode->CopyWithObject(SourceNode, Object);
+
+	CurrentNode->FillAllCustomAttributeFromObject(Object);
+
+	return CurrentNode;
 }

@@ -32,4 +32,10 @@ namespace UE::Interchange::ActorHelper
 	 * Applies material slot dependencies stored in ActorFactoryNode to MeshComponent.
 	 */
 	INTERCHANGEIMPORT_API void ApplySlotMaterialDependencies(const UInterchangeBaseNodeContainer& NodeContainer, const UInterchangeMeshActorFactoryNode& ActorFactoryNode, UMeshComponent& MeshComponent);
+
+	/**
+	 * Applies custom attributes from to ObjectToUpdate based on content of CreateSceneObjectsParams
+	 * Reimport policies will be applied if applicable
+	 */
+	INTERCHANGEIMPORT_API void ApplyAllCustomAttributes(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams, UObject& ObjectToUpdate);
 }

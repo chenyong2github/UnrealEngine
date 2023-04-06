@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "InterchangeFactoryBase.h"
+#include "Scene/InterchangeActorFactory.h"
 
 #include "InterchangeLightActorFactory.generated.h"
 
 UCLASS(BlueprintType)
-class INTERCHANGEIMPORT_API UInterchangeLightActorFactory : public UInterchangeFactoryBase
+class INTERCHANGEIMPORT_API UInterchangeLightActorFactory : public UInterchangeActorFactory
 {
 	GENERATED_BODY()
 
@@ -17,8 +17,16 @@ public:
 
 	virtual UClass* GetFactoryClass() const override;
 
-	virtual UObject* ImportSceneObject_GameThread(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams) override;
-
 	// Interchange factory base interface end
+	//////////////////////////////////////////////////////////////////////////
+
+protected:
+	//////////////////////////////////////////////////////////////////////////
+	// Interchange actor factory interface begin
+
+	virtual UObject* ProcessActor(class AActor& SpawnedActor, const UInterchangeActorFactoryNode& FactoryNode, const UInterchangeBaseNodeContainer& NodeContainer) override;
+
+
+	// Interchange actor factory interface end
 	//////////////////////////////////////////////////////////////////////////
 };

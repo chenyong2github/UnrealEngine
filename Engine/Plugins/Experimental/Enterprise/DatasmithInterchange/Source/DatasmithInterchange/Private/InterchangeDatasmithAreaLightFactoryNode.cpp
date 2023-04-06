@@ -213,3 +213,27 @@ bool UInterchangeDatasmithAreaLightFactoryNode::SetCustomSpotlightOuterAngle(con
 {
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeDatasmithAreaLightFactoryNode, SpotlightOuterAngle, float, ADatasmithAreaLightActor);
 }
+
+void UInterchangeDatasmithAreaLightFactoryNode::CopyWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object)
+{
+	Super::CopyWithObject(SourceNode, Object);
+
+	if (const UInterchangeDatasmithAreaLightFactoryNode* ActorFactoryNode = Cast<UInterchangeDatasmithAreaLightFactoryNode>(SourceNode))
+	{
+		COPY_NODE_DELEGATES(ActorFactoryNode, LightType, EDatasmithAreaLightActorType, ADatasmithAreaLightActor)
+		COPY_NODE_DELEGATES(ActorFactoryNode, LightShape, EDatasmithAreaLightActorShape, ADatasmithAreaLightActor)
+		COPY_NODE_DELEGATES(ActorFactoryNode, Dimensions, FVector2D, ADatasmithAreaLightActor)
+		COPY_NODE_DELEGATES(ActorFactoryNode, Intensity, float, ADatasmithAreaLightActor)
+		COPY_NODE_DELEGATES(ActorFactoryNode, IntensityUnits, ELightUnits, ADatasmithAreaLightActor)
+		COPY_NODE_DELEGATES(ActorFactoryNode, Color, FLinearColor, ADatasmithAreaLightActor)
+		COPY_NODE_DELEGATES(ActorFactoryNode, Temperature, float, ADatasmithAreaLightActor)
+		COPY_NODE_DELEGATES(ActorFactoryNode, bUseIESBrightness, bool, ADatasmithAreaLightActor)
+		COPY_NODE_DELEGATES(ActorFactoryNode, IESBrightnessScale, float, ADatasmithAreaLightActor)
+		COPY_NODE_DELEGATES(ActorFactoryNode, Rotation, FRotator, ADatasmithAreaLightActor)
+		COPY_NODE_DELEGATES(ActorFactoryNode, SourceRadius, float, ADatasmithAreaLightActor)
+		COPY_NODE_DELEGATES(ActorFactoryNode, SourceLength, float, ADatasmithAreaLightActor)
+		COPY_NODE_DELEGATES(ActorFactoryNode, AttenuationRadius, float, ADatasmithAreaLightActor)
+		COPY_NODE_DELEGATES(ActorFactoryNode, SpotlightInnerAngle, float, ADatasmithAreaLightActor)
+		COPY_NODE_DELEGATES(ActorFactoryNode, SpotlightOuterAngle, float, ADatasmithAreaLightActor)
+	}
+}

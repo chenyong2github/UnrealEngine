@@ -3,14 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InterchangeActorFactory.h"
+#include "Scene/InterchangeActorFactory.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
 #include "InterchangeCineCameraActorFactory.generated.h"
 
 UCLASS(BlueprintType)
-class INTERCHANGEIMPORT_API UInterchangeCineCameraActorFactory : public UInterchangeFactoryBase
+class INTERCHANGEIMPORT_API UInterchangeCineCameraActorFactory : public UInterchangeActorFactory
 {
 	GENERATED_BODY()
 public:
@@ -20,9 +20,16 @@ public:
 
 	virtual UClass* GetFactoryClass() const override;
 
-	virtual UObject* ImportSceneObject_GameThread(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams) override;
-
 	// Interchange factory base interface end
+	//////////////////////////////////////////////////////////////////////////
+
+	//////////////////////////////////////////////////////////////////////////
+	// Interchange actor factory interface begin
+
+	virtual UObject* ProcessActor(class AActor& SpawnedActor, const UInterchangeActorFactoryNode& FactoryNode, const UInterchangeBaseNodeContainer& NodeContainer) override;
+
+
+	// Interchange actor factory interface end
 	//////////////////////////////////////////////////////////////////////////
 };
 

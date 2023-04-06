@@ -196,6 +196,16 @@ public:
 
 		/** The node container associated with the current source index */
 		const UInterchangeBaseNodeContainer* NodeContainer = nullptr;
+	
+		/**
+		 * If not null, the factory must perform a reimport of the scene node
+		 */
+		UObject* ReimportObject = nullptr;
+	
+		/**
+		 * Factory base node associated with the reimported scene node
+		 */
+		const UInterchangeFactoryBaseNode* ReimportFactoryNode = nullptr;
 	};
 
 	/**

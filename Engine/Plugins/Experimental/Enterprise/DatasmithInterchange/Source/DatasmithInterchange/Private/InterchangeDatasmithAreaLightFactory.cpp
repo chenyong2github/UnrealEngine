@@ -29,45 +29,43 @@ UClass* UInterchangeDatasmithAreaLightFactory::GetFactoryClass() const
 	return LightShapeBlueprint->GeneratedClass;
 }
 
-UObject* UInterchangeDatasmithAreaLightFactory::ImportSceneObject_GameThread(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams)
+UObject* UInterchangeDatasmithAreaLightFactory::ProcessActor(AActor& SpawnedActor, const UInterchangeActorFactoryNode& FactoryNode, const UInterchangeBaseNodeContainer& NodeContainer)
 {
 	//using namespace UE::Interchange::ActorHelper;
 
-	UInterchangeDatasmithAreaLightFactoryNode* AreaLightFactoryNode = Cast<UInterchangeDatasmithAreaLightFactoryNode>(CreateSceneObjectsParams.FactoryNode);
+	const UInterchangeDatasmithAreaLightFactoryNode* AreaLightFactoryNode = Cast<UInterchangeDatasmithAreaLightFactoryNode>(&FactoryNode);
 	if (!AreaLightFactoryNode)
 	{
 		return nullptr;
 	}
 
-	ADatasmithAreaLightActor* SpawnedAreaLightActor = Cast<ADatasmithAreaLightActor>(UE::Interchange::ActorHelper::SpawnFactoryActor(CreateSceneObjectsParams));
-	if (!SpawnedAreaLightActor)
+	ADatasmithAreaLightActor* AreaLightActor = Cast<ADatasmithAreaLightActor>(&SpawnedActor);
+	if (!AreaLightActor)
 	{
 		return nullptr;
 	}
 
 	// Update AreaLight properties and rebuild the actor.
 	{
-		SpawnedAreaLightActor->UnregisterAllComponents(true);
+		AreaLightActor->UnregisterAllComponents(true);
 
 		// Find the IES Texture asset and apply it.
 		FString IESTextureUid;
 		if (AreaLightFactoryNode->GetCustomIESTexture(IESTextureUid))
 		{
-			const UInterchangeBaseNodeContainer* NodeContainer = CreateSceneObjectsParams.NodeContainer;
-
-			if (const UInterchangeBaseNode* IESTextureNode = NodeContainer->GetNode(IESTextureUid))
+			if (const UInterchangeBaseNode* IESTextureNode = NodeContainer.GetNode(IESTextureUid))
 			{
 				TArray<FString> TargetNodesUid;
 				IESTextureNode->GetTargetNodeUids(TargetNodesUid);
 				for (const FString& TargetNodeUid : TargetNodesUid)
 				{
-					if (UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(NodeContainer->GetFactoryNode(TargetNodeUid)))
+					if (UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(NodeContainer.GetFactoryNode(TargetNodeUid)))
 					{
 						FSoftObjectPath TextureReferenceObject;
 						TextureFactoryNode->GetCustomReferenceObject(TextureReferenceObject);
 						if (UTextureLightProfile* TextureLightProfile = Cast<UTextureLightProfile>(TextureReferenceObject.TryLoad()))
 						{
-							SpawnedAreaLightActor->IESTexture = TextureLightProfile;
+							AreaLightActor->IESTexture = TextureLightProfile;
 							break;
 						}
 					}
@@ -76,13 +74,13 @@ UObject* UInterchangeDatasmithAreaLightFactory::ImportSceneObject_GameThread(con
 		}
 
 		// Apply all simple attributes.
-		AreaLightFactoryNode->ApplyAllCustomAttributeToObject(SpawnedAreaLightActor);
+		AreaLightFactoryNode->ApplyAllCustomAttributeToObject(AreaLightActor);
 
-		SpawnedAreaLightActor->RegisterAllComponents();
+		AreaLightActor->RegisterAllComponents();
 #if WITH_EDITOR
-		SpawnedAreaLightActor->RerunConstructionScripts();
+		AreaLightActor->RerunConstructionScripts();
 #endif //WITH_EDITOR
 	}
 
-	return SpawnedAreaLightActor;
+	return AreaLightActor;
 };

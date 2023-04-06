@@ -5,6 +5,7 @@
 #include "Engine/Engine.h"
 #include "Engine/Level.h"
 #include "InterchangeActorFactoryNode.h"
+#include "InterchangeImportCommon.h"
 #include "InterchangeMaterialFactoryNode.h"
 #include "InterchangeMeshActorFactoryNode.h"
 #include "InterchangeMeshNode.h"
@@ -37,12 +38,6 @@ AActor* UE::Interchange::ActorHelper::GetSpawnedParentActor(const UInterchangeBa
 
 AActor* UE::Interchange::ActorHelper::SpawnFactoryActor(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams)
 {
-	FActorSpawnParameters SpawnParameters;
-	SpawnParameters.Name = FName(*CreateSceneObjectsParams.ObjectName);
-	SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
-	SpawnParameters.OverrideLevel = CreateSceneObjectsParams.Level;
-	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
 	const UInterchangeActorFactoryNode* FactoryNode = Cast<UInterchangeActorFactoryNode>(CreateSceneObjectsParams.FactoryNode);
 	const UInterchangeBaseNodeContainer* NodeContainer = CreateSceneObjectsParams.NodeContainer;
 
@@ -50,6 +45,12 @@ AActor* UE::Interchange::ActorHelper::SpawnFactoryActor(const UInterchangeFactor
 	{
 		return nullptr;
 	}
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Name = FName(*CreateSceneObjectsParams.ObjectName);
+	SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
+	SpawnParameters.OverrideLevel = CreateSceneObjectsParams.Level;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 	AActor* ParentActor = UE::Interchange::ActorHelper::GetSpawnedParentActor(NodeContainer, FactoryNode);
 	UWorld* const World = [&SpawnParameters, &ParentActor]()
@@ -83,11 +84,34 @@ AActor* UE::Interchange::ActorHelper::SpawnFactoryActor(const UInterchangeFactor
 		return nullptr;
 	}
 
-	FTransform Transform = FTransform::Identity;
-	FactoryNode->GetCustomGlobalTransform(Transform);
-
 	UClass* ActorClass = FactoryNode->GetObjectClass();
-	AActor* SpawnedActor = World->SpawnActor<AActor>(ActorClass, Transform, SpawnParameters);
+	AActor* SpawnedActor = Cast<AActor>(CreateSceneObjectsParams.ReimportObject);
+	if (SpawnedActor)
+	{
+		if (SpawnedActor->GetClass() == ActorClass)
+		{
+			// TODO: Check whether parenting is the same
+		}
+		else
+		{
+			SpawnedActor = nullptr;
+		}
+	}
+	// The related actor has been deleted. Check on reimport policy
+	else if (CreateSceneObjectsParams.ReimportFactoryNode)
+	{
+		// if reimport policy does not prioritize new content, do not recreate the actor
+		const EReimportStrategyFlags ReimportStrategyFlags = CreateSceneObjectsParams.FactoryNode->GetReimportStrategyFlags();
+		if (ReimportStrategyFlags != EReimportStrategyFlags::ApplyPipelineProperties)
+		{
+			return nullptr;
+		}
+	}
+
+	if (!SpawnedActor)
+	{
+		SpawnedActor = World->SpawnActor<AActor>(ActorClass, SpawnParameters);
+	}
 
 	if (SpawnedActor)
 	{
@@ -100,8 +124,6 @@ AActor* UE::Interchange::ActorHelper::SpawnFactoryActor(const UInterchangeFactor
 #if WITH_EDITORONLY_DATA
 			RootComponent->bVisualizeComponent = true;
 #endif
-			RootComponent->SetWorldTransform(Transform);
-
 			SpawnedActor->SetRootComponent(RootComponent);
 			SpawnedActor->AddInstanceComponent(RootComponent);
 		}
@@ -124,7 +146,7 @@ AActor* UE::Interchange::ActorHelper::SpawnFactoryActor(const UInterchangeFactor
 		}
 	}
 
-	if (ParentActor)
+	if (ParentActor || !SpawnedActor->IsAttachedTo(ParentActor))
 	{
 		SpawnedActor->AttachToActor(ParentActor, FAttachmentTransformRules::KeepWorldTransform);
 	}
@@ -188,3 +210,21 @@ void UE::Interchange::ActorHelper::ApplySlotMaterialDependencies(const UIntercha
 		}
 	}
 }
+
+void UE::Interchange::ActorHelper::ApplyAllCustomAttributes(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams, UObject& ObjectToUpdate)
+{
+	if (CreateSceneObjectsParams.ReimportObject)
+	{
+		if (ObjectToUpdate.GetOuter() == CreateSceneObjectsParams.ReimportObject)
+		{
+			UInterchangeFactoryBaseNode* CurrentNode = UInterchangeFactoryBaseNode::DuplicateWithObject(CreateSceneObjectsParams.FactoryNode, &ObjectToUpdate);
+
+			FFactoryCommon::ApplyReimportStrategyToAsset(&ObjectToUpdate, CreateSceneObjectsParams.ReimportFactoryNode, CurrentNode, CreateSceneObjectsParams.FactoryNode);
+		}
+	}
+	else
+	{
+		CreateSceneObjectsParams.FactoryNode->ApplyAllCustomAttributeToObject(&ObjectToUpdate);
+	}
+}
+#pragma optimize ("", on)

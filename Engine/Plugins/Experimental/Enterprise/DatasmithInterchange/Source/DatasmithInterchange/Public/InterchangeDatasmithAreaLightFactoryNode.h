@@ -127,6 +127,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Datasmith")
 	bool SetCustomSpotlightOuterAngle(const float& AttributeValue, bool bAddApplyDelegate = true);
 
+	virtual void CopyWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object) override;
+
 private:
 	static  UE::Interchange::FAttributeKey Macro_CustomLightTypeKey;
 	static  UE::Interchange::FAttributeKey Macro_CustomLightShapeKey;

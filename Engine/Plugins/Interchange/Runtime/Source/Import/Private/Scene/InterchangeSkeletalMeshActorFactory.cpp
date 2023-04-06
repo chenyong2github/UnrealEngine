@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 #include "Scene/InterchangeSkeletalMeshActorFactory.h"
 
-#include "InterchangeActorFactoryNode.h"
 #include "InterchangeMeshActorFactoryNode.h"
 #include "Scene/InterchangeActorHelper.h"
 #include "InterchangeSceneNode.h"
@@ -15,35 +14,28 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeSkeletalMeshActorFactory)
 
 
-UObject* UInterchangeSkeletalMeshActorFactory::ImportSceneObject_GameThread(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams)
+UObject* UInterchangeSkeletalMeshActorFactory::ProcessActor(AActor& SpawnedActor, const UInterchangeActorFactoryNode& /*FactoryNode*/, const UInterchangeBaseNodeContainer& /*NodeContainer*/)
 {
-	ASkeletalMeshActor* SpawnedActor = Cast<ASkeletalMeshActor>(UE::Interchange::ActorHelper::SpawnFactoryActor(CreateSceneObjectsParams));
+	ASkeletalMeshActor* SkeletalMeshActor = Cast<ASkeletalMeshActor>(&SpawnedActor);
 
-	if (!SpawnedActor)
+	if (!SkeletalMeshActor)
 	{
 		return nullptr;
 	}
 
-	UInterchangeFactoryBaseNode* FactoryNode = CreateSceneObjectsParams.FactoryNode;
-	SetupSkeletalMeshActor(CreateSceneObjectsParams.NodeContainer, FactoryNode, SpawnedActor);
-
-	if (USkeletalMeshComponent* SkeletalMeshComponent = SpawnedActor->GetSkeletalMeshComponent())
+	if (USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshActor->GetSkeletalMeshComponent())
 	{
-		FactoryNode->ApplyAllCustomAttributeToObject(SkeletalMeshComponent);
+		SkeletalMeshComponent->UnregisterComponent();
+
+		return SkeletalMeshComponent;
 	}
 
-	return SpawnedActor;
+	return nullptr;
 };
 
 UClass* UInterchangeSkeletalMeshActorFactory::GetFactoryClass() const
 {
 	return ASkeletalMeshActor::StaticClass();
-}
-
-void UInterchangeSkeletalMeshActorFactory::SetupSkeletalMeshActor(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeFactoryBaseNode* ActorFactoryNode, ASkeletalMeshActor* SkeletalMeshActor)
-{
-	USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshActor->GetSkeletalMeshComponent();
-	SkeletalMeshComponent->UnregisterComponent();
 }
 
 void UInterchangeSkeletalMeshActorFactory::SetupObject_GameThread(const FSetupObjectParams& Arguments)

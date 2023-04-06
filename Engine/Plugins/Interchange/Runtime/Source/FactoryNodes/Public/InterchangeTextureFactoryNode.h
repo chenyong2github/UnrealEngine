@@ -692,6 +692,52 @@ public:
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(PreferCompressedSourceData, bool)
 	}
 
+	virtual void CopyWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object) override
+	{
+		Super::CopyWithObject(SourceNode, Object);
+
+		if (const UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(SourceNode))
+		{
+#if WITH_EDITORONLY_DATA
+			COPY_NODE_DELEGATES(TextureFactoryNode, AdjustBrightness, float, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, AdjustBrightnessCurve, float, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, AdjustVibrance, float, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, AdjustSaturation, float, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, AdjustRGBCurve, float, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, AdjustHue, float, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, AdjustMinAlpha, float, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, AdjustMaxAlpha, float, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, bChromaKeyTexture, bool, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, ChromaKeyThreshold, float, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, ChromaKeyColor, FColor, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, CompressionNoAlpha, bool, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, DeferCompression, bool, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, LossyCompressionAmount, uint8, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, MaxTextureSize, int32, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, CompressionQuality, uint8, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, AlphaCoverageThresholds, FVector4, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, bDoScaleMipsForAlphaCoverage, bool, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, bFlipGreenChannel, bool, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, PowerOfTwoMode, uint8, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, PaddingColor, FColor, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, bUseLegacyGamma, bool, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, bPreserveBorder, bool, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, MipGenSettings, uint8, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, CompositeTextureMode, uint8, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, CompositePower, float, UTexture)
+#endif
+			COPY_NODE_DELEGATES(TextureFactoryNode, VirtualTextureStreaming, bool, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, CompressionSettings, uint8, UTexture)
+			COPY_NODE_DELEGATES_WITH_CUSTOM_DELEGATE(TextureFactoryNode, UInterchangeTextureFactoryNode, Downscale, float, UTexture::StaticClass())
+			COPY_NODE_DELEGATES(TextureFactoryNode, DownscaleOptions, uint8, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, Filter, uint8, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, LODBias, int32, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, LODGroup, uint8, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, MipLoadOptions, uint8, UTexture)
+			COPY_NODE_DELEGATES(TextureFactoryNode, SRGB, bool, UTexture)
+		}
+	}
+
 private:
 
 	const UE::Interchange::FAttributeKey ClassNameAttributeKey = UE::Interchange::FBaseNodeStaticData::ClassTypeAttributeKey();

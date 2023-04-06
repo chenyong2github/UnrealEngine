@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 #include "Scene/InterchangeStaticMeshActorFactory.h"
 
-#include "InterchangeActorFactoryNode.h"
 #include "InterchangeMeshActorFactoryNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Scene/InterchangeActorHelper.h"
@@ -17,50 +16,40 @@ UClass* UInterchangeStaticMeshActorFactory::GetFactoryClass() const
 	return AStaticMeshActor::StaticClass();
 }
 
-UObject* UInterchangeStaticMeshActorFactory::ImportSceneObject_GameThread(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams)
+UObject* UInterchangeStaticMeshActorFactory::ProcessActor(AActor& SpawnedActor, const UInterchangeActorFactoryNode& FactoryNode, const UInterchangeBaseNodeContainer& NodeContainer)
 {
-	AStaticMeshActor* SpawnedActor = Cast<AStaticMeshActor>(UE::Interchange::ActorHelper::SpawnFactoryActor(CreateSceneObjectsParams));
+	using namespace UE::Interchange;
 
-	if (!SpawnedActor)
-	{
-		return nullptr;
-	}
+	AStaticMeshActor* StaticMeshActor = Cast<AStaticMeshActor>(&SpawnedActor);
 
-	UInterchangeFactoryBaseNode* FactoryNode = CreateSceneObjectsParams.FactoryNode;
-	SetupStaticMeshActor(CreateSceneObjectsParams.NodeContainer, FactoryNode, SpawnedActor);
-
-	if (UStaticMeshComponent* StaticMeshComponent = SpawnedActor->GetStaticMeshComponent())
-	{
-		FactoryNode->ApplyAllCustomAttributeToObject(StaticMeshComponent);
-	}
-
-	return SpawnedActor;
-};
-
-void UInterchangeStaticMeshActorFactory::SetupStaticMeshActor(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeFactoryBaseNode* ActorFactoryNode, AStaticMeshActor* StaticMeshActor)
-{
 	if (!StaticMeshActor)
 	{
-		return;
+		return nullptr;
 	}
 
 	if (UStaticMeshComponent* StaticMeshComponent = StaticMeshActor->GetStaticMeshComponent())
 	{
 		StaticMeshComponent->UnregisterComponent();
 
-		if (const UInterchangeFactoryBaseNode* MeshNode = UE::Interchange::ActorHelper::FindAssetInstanceFactoryNode(NodeContainer, ActorFactoryNode))
+		if (const UInterchangeFactoryBaseNode* MeshNode = ActorHelper::FindAssetInstanceFactoryNode(&NodeContainer, &FactoryNode))
 		{
 			FSoftObjectPath ReferenceObject;
 			MeshNode->GetCustomReferenceObject(ReferenceObject);
 			if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(ReferenceObject.TryLoad()))
 			{
-				StaticMeshComponent->SetStaticMesh(StaticMesh);
-
-				if (const UInterchangeMeshActorFactoryNode* MeshActorFactoryNode = Cast<UInterchangeMeshActorFactoryNode>(ActorFactoryNode))
+				if (StaticMesh != StaticMeshComponent->GetStaticMesh())
 				{
-					UE::Interchange::ActorHelper::ApplySlotMaterialDependencies(*NodeContainer, *MeshActorFactoryNode, *StaticMeshComponent);
+					StaticMeshComponent->SetStaticMesh(StaticMesh);
 				}
 			}
 		}
+		else
+		{
+			// TODO: Warn that new mesh has not been applied
+		}
+
+		return StaticMeshComponent;
 	}
-}
+
+	return nullptr;
+};

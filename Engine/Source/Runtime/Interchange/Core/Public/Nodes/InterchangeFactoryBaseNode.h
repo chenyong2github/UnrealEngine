@@ -91,6 +91,39 @@ struct FFrame;
 	return false;
 
 
+/*
+ * This macro force the addition of the Fill and Apply delegates on 'this'
+ * if the designated attribute has been set on the source node
+ * Copying the arrays of delegates from the source node to 'this' is not sufficient
+ * because the delegates of the source node have a reference on the source node not 'this'.
+ * Consequently a call to those delegates would always use the source node.
+ */
+#define COPY_NODE_DELEGATES(SourceNode, AttributeName, AttributeType, AssetType)															\
+{																																			\
+	const UE::Interchange::FAttributeKey& AttributeKey = Macro_Custom##AttributeName##Key;													\
+	FString OperationName = GetTypeName() + TEXT(".Get" #AttributeName);																	\
+	AttributeType AttributeValue;																											\
+	if(InterchangePrivateNodeBase::GetCustomAttribute<AttributeType>(*SourceNode->Attributes, AttributeKey, OperationName, AttributeValue)) \
+	{																																		\
+		FName PropertyName = TEXT(""#AttributeName);																						\
+		AddApplyAndFillDelegates<AttributeType>(AttributeKey.Key, AssetType::StaticClass(), PropertyName);									\
+	}																																		\
+}
+
+#define COPY_NODE_DELEGATES_WITH_CUSTOM_DELEGATE(SourceNode, NodeClassName, AttributeName, AttributeType, AssetClass)							\
+{																																				\
+	const UE::Interchange::FAttributeKey& AttributeKey = Macro_Custom##AttributeName##Key;														\
+	FString OperationName = GetTypeName() + TEXT(".Get" #AttributeName);																		\
+	AttributeType AttributeValue;																												\
+	if(InterchangePrivateNodeBase::GetCustomAttribute<AttributeType>(*SourceNode->Attributes, AttributeKey, OperationName, AttributeValue))		\
+	{																																			\
+		TArray<UE::Interchange::FApplyAttributeToAsset>& Delegates = ApplyCustomAttributeDelegates.FindOrAdd(AssetClass);						\
+		Delegates.Add(UE::Interchange::FApplyAttributeToAsset::CreateUObject(this, &NodeClassName::ApplyCustom##AttributeName##ToAsset));		\
+		TArray<UE::Interchange::FFillAttributeToAsset>& FillDelegates = FillCustomAttributeDelegates.FindOrAdd(AssetClass);						\
+		FillDelegates.Add(UE::Interchange::FFillAttributeToAsset::CreateUObject(this, &NodeClassName::FillCustom##AttributeName##FromAsset));	\
+	}																																			\
+}
+
 namespace UE::Interchange
 {
 
@@ -237,6 +270,17 @@ public:
 	inline bool FillAttributeFromObject(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName);
 
 	/**
+	 * Copies all the attributes from SourceNode to this node.
+	 * @param SourceNode		The source factory node to copy from.
+	 * @param Object			The object to build delegates on custom attributes from, if applicable.
+	 */
+	virtual void CopyWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object)
+	{
+		// Just copy the attributes storage. Child classes will use Object in their override
+		UInterchangeBaseNode::CopyStorage(SourceNode, this);
+	}
+
+	/**
 	 * Each Attribute that was set and have a delegate set for the specified UObject->UClass will
 	 * get the delegate execute so it apply the attribute to the UObject property.
 	 * See the macros IMPLEMENT_NODE_ATTRIBUTE_SETTER at the top of the file to know how delegates are setup for property.
@@ -244,6 +288,14 @@ public:
 	void ApplyAllCustomAttributeToObject(UObject* Object) const;
 
 	void FillAllCustomAttributeFromObject(UObject* Object) const;
+
+	/**
+	 * Copies all the custom attributes from SourceNode to this node and
+	 * gets the appropriate values from Object.
+	 * @param SourceNode		The source factory node to copy from.
+	 * @param Object			The object to fill custom attributes' values from, if applicable.
+	 */
+	static UInterchangeFactoryBaseNode* DuplicateWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object);
 
 protected:
 	/**

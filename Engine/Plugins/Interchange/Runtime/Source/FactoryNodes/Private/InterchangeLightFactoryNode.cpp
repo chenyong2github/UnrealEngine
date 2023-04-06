@@ -45,6 +45,19 @@ bool UInterchangeBaseLightFactoryNode::SetCustomUseTemperature(bool AttributeVal
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeBaseLightFactoryNode, bUseTemperature, bool, ULightComponent)
 }
 
+void UInterchangeBaseLightFactoryNode::CopyWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object)
+{
+	Super::CopyWithObject(SourceNode, Object);
+
+	if (const UInterchangeBaseLightFactoryNode* LightFactoryNode = Cast<UInterchangeBaseLightFactoryNode>(SourceNode))
+	{
+		COPY_NODE_DELEGATES(LightFactoryNode, LightColor, FColor, ULightComponent)
+		COPY_NODE_DELEGATES(LightFactoryNode, Intensity, float, ULightComponent)
+		COPY_NODE_DELEGATES(LightFactoryNode, Temperature, float, ULightComponent)
+		COPY_NODE_DELEGATES(LightFactoryNode, bUseTemperature, bool, ULightComponent)
+	}
+}
+
 bool UInterchangeLightFactoryNode::GetCustomIntensityUnits(ELightUnits& AttributeValue) const
 {
 	IMPLEMENT_NODE_ATTRIBUTE_GETTER(IntensityUnits, ELightUnits)
@@ -75,6 +88,17 @@ bool UInterchangeLightFactoryNode::SetCustomIESTexture(const FString& AttributeV
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(IESTexture, FString)
 }
 
+void UInterchangeLightFactoryNode::CopyWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object)
+{
+	Super::CopyWithObject(SourceNode, Object);
+
+	if (const UInterchangeLightFactoryNode* LightFactoryNode = Cast<UInterchangeLightFactoryNode>(SourceNode))
+	{
+		COPY_NODE_DELEGATES(LightFactoryNode, IntensityUnits, ELightUnits, ULocalLightComponent)
+		COPY_NODE_DELEGATES(LightFactoryNode, AttenuationRadius, float, ULocalLightComponent)
+	}
+}
+
 bool UInterchangePointLightFactoryNode::GetCustomUseInverseSquaredFalloff(bool& AttributeValue) const
 {
 	IMPLEMENT_NODE_ATTRIBUTE_GETTER(bUseInverseSquaredFalloff, bool)
@@ -93,6 +117,17 @@ bool UInterchangePointLightFactoryNode::GetCustomLightFalloffExponent(float& Att
 bool UInterchangePointLightFactoryNode::SetCustomLightFalloffExponent(float AttributeValue, bool bAddApplyDelegate)
 {
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangePointLightFactoryNode, LightFalloffExponent, float, UPointLightComponent)
+}
+
+void UInterchangePointLightFactoryNode::CopyWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object)
+{
+	Super::CopyWithObject(SourceNode, Object);
+
+	if (const UInterchangePointLightFactoryNode* LightFactoryNode = Cast<UInterchangePointLightFactoryNode>(SourceNode))
+	{
+		COPY_NODE_DELEGATES(LightFactoryNode, bUseInverseSquaredFalloff, bool, UPointLightComponent)
+		COPY_NODE_DELEGATES(LightFactoryNode, LightFalloffExponent, float, UPointLightComponent)
+	}
 }
 
 bool UInterchangeSpotLightFactoryNode::GetCustomInnerConeAngle(float& AttributeValue) const
@@ -115,6 +150,17 @@ bool UInterchangeSpotLightFactoryNode::SetCustomOuterConeAngle(float AttributeVa
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeSpotLightFactoryNode, OuterConeAngle, float, USpotLightComponent)
 }
 
+void UInterchangeSpotLightFactoryNode::CopyWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object)
+{
+	Super::CopyWithObject(SourceNode, Object);
+
+	if (const UInterchangeSpotLightFactoryNode* LightFactoryNode = Cast<UInterchangeSpotLightFactoryNode>(SourceNode))
+	{
+		COPY_NODE_DELEGATES(LightFactoryNode, InnerConeAngle, float, USpotLightComponent)
+		COPY_NODE_DELEGATES(LightFactoryNode, OuterConeAngle, float, USpotLightComponent)
+	}
+}
+
 bool UInterchangeRectLightFactoryNode::GetCustomSourceWidth(float& AttributeValue) const
 {
 	IMPLEMENT_NODE_ATTRIBUTE_GETTER(SourceWidth, float)
@@ -133,4 +179,15 @@ bool UInterchangeRectLightFactoryNode::GetCustomSourceHeight(float& AttributeVal
 bool UInterchangeRectLightFactoryNode::SetCustomSourceHeight(float AttributeValue, bool bAddApplyDelegate)
 {
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeRectLightFactoryNode, SourceHeight, float, URectLightComponent)
+}
+
+void UInterchangeRectLightFactoryNode::CopyWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object)
+{
+	Super::CopyWithObject(SourceNode, Object);
+
+	if (const UInterchangeRectLightFactoryNode* LightFactoryNode = Cast<UInterchangeRectLightFactoryNode>(SourceNode))
+	{
+		COPY_NODE_DELEGATES(LightFactoryNode, SourceWidth, float, URectLightComponent)
+		COPY_NODE_DELEGATES(LightFactoryNode, SourceHeight, float, URectLightComponent)
+	}
 }

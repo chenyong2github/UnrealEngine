@@ -19,21 +19,11 @@ UClass* UInterchangeCineCameraActorFactory::GetFactoryClass() const
 	return ACineCameraActor::StaticClass();
 }
 
-UObject* UInterchangeCineCameraActorFactory::ImportSceneObject_GameThread(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams)
+UObject* UInterchangeCineCameraActorFactory::ProcessActor(AActor& SpawnedActor, const UInterchangeActorFactoryNode& /*FactoryNode*/, const UInterchangeBaseNodeContainer& /*NodeContainer*/)
 {
-	ACineCameraActor* SpawnedActor = Cast<ACineCameraActor>(UE::Interchange::ActorHelper::SpawnFactoryActor(CreateSceneObjectsParams));
+	ACineCameraActor* CineCameraActor = Cast<ACineCameraActor>(&SpawnedActor);
 
-	if (!SpawnedActor)
-	{
-		return nullptr;
-	}
-
-	if (UCineCameraComponent* CineCameraComponent = SpawnedActor->GetCineCameraComponent())
-	{
-		CreateSceneObjectsParams.FactoryNode->ApplyAllCustomAttributeToObject(CineCameraComponent);
-	}
-
-	return SpawnedActor;
+	return CineCameraActor ? CineCameraActor->GetCineCameraComponent() : nullptr;
 }
 
 

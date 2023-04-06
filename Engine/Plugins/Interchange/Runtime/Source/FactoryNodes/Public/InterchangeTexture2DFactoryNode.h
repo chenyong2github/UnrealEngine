@@ -183,6 +183,17 @@ public:
 		SourceBlocks.Initialize(Attributes.ToSharedRef(), UE::Interchange::FTexture2DFactoryNodeStaticData::GetBaseSourceBlocksKey().ToString());
 	}
 
+	virtual void CopyWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object) override
+	{
+		Super::CopyWithObject(SourceNode, Object);
+
+		if (const UInterchangeTexture2DFactoryNode* TextureFactoryNode = Cast<UInterchangeTexture2DFactoryNode>(SourceNode))
+		{
+			COPY_NODE_DELEGATES(TextureFactoryNode, AddressX, TEnumAsByte<TextureAddress>, UTexture2D)
+			COPY_NODE_DELEGATES(TextureFactoryNode, AddressY, TEnumAsByte<TextureAddress>, UTexture2D)
+		}
+	}
+
 private:
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(AddressX);
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(AddressY);

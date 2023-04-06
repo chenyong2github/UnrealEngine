@@ -102,8 +102,8 @@ namespace UE::Interchange
 		* Apply the current strategy to the PipelineAssetNode
 		*/
 		static void ApplyReimportStrategyToAsset(UObject* Asset
-											, UInterchangeFactoryBaseNode* PreviousAssetNode
-											, UInterchangeFactoryBaseNode* CurrentAssetNode
+											, const UInterchangeFactoryBaseNode* PreviousAssetNode
+											, const UInterchangeFactoryBaseNode* CurrentAssetNode
 											, UInterchangeFactoryBaseNode* PipelineAssetNode);
 	};
 } //ns UE::Interchange

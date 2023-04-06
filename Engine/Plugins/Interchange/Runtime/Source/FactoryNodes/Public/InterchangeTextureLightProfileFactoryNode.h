@@ -54,6 +54,18 @@ public:
 #endif
 	}
 
+	virtual void CopyWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object) override
+	{
+		Super::CopyWithObject(SourceNode, Object);
+
+#if WITH_EDITORONLY_DATA
+		if (const UInterchangeTextureLightProfileFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureLightProfileFactoryNode>(SourceNode))
+		{
+			COPY_NODE_DELEGATES(TextureFactoryNode, Brightness, float, UTextureLightProfile)
+			COPY_NODE_DELEGATES(TextureFactoryNode, TextureMultiplier, float, UTextureLightProfile)
+		}
+#endif
+	}
 
 private:
 	virtual UClass* GetObjectClass() const override

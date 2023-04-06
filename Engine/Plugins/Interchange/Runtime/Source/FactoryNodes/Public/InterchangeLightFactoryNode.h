@@ -38,6 +38,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | LightFactory")
 	bool SetCustomUseTemperature(bool AttributeValue, bool bAddApplyDelegate = true);
 
+	virtual void CopyWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object) override;
+
 private:
 
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(LightColor)
@@ -77,6 +79,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | LightFactory")
 	bool SetCustomIESTexture(const FString& AttributeValue);
 
+	virtual void CopyWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object) override;
+
 private:
 
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(IntensityUnits)
@@ -103,6 +107,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | RectLightFactory")
 	bool SetCustomSourceHeight(float AttributeValue, bool bAddApplyDelegate = true);
 
+	virtual void CopyWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object) override;
+
 private:
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(SourceWidth)
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(SourceHeight)
@@ -127,6 +133,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | PointLightFactory")
 	bool SetCustomLightFalloffExponent(float AttributeValue, bool bAddApplyDelegate = true);
 
+	virtual void CopyWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object) override;
+
 private:
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(bUseInverseSquaredFalloff)
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(LightFalloffExponent)
@@ -150,6 +158,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SpotLightFactory")
 	bool SetCustomOuterConeAngle(float AttributeValue, bool bAddApplyDelegate = true);
+
+	virtual void CopyWithObject(const UInterchangeFactoryBaseNode* SourceNode, UObject* Object) override;
 
 private:
 

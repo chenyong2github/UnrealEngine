@@ -272,8 +272,8 @@ namespace UE
 
 
 		void FFactoryCommon::ApplyReimportStrategyToAsset(UObject* Asset
-										  , UInterchangeFactoryBaseNode* PreviousAssetNode
-										  , UInterchangeFactoryBaseNode* CurrentAssetNode
+										  , const UInterchangeFactoryBaseNode* PreviousAssetNode
+										  , const UInterchangeFactoryBaseNode* CurrentAssetNode
 										  , UInterchangeFactoryBaseNode* PipelineAssetNode)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE("UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset")

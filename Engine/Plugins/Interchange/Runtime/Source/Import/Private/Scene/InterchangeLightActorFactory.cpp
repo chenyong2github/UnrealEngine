@@ -18,36 +18,34 @@ UClass* UInterchangeLightActorFactory::GetFactoryClass() const
 	return ALight::StaticClass();
 }
 
-UObject* UInterchangeLightActorFactory::ImportSceneObject_GameThread(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams)
+UObject* UInterchangeLightActorFactory::ProcessActor(AActor& SpawnedActor, const UInterchangeActorFactoryNode& FactoryNode, const UInterchangeBaseNodeContainer& NodeContainer)
 {
-	ALight * SpawnedActor = Cast<ALight>(UE::Interchange::ActorHelper::SpawnFactoryActor(CreateSceneObjectsParams));
-
-	if(!SpawnedActor)
+	if (ALight* LightActor = Cast<ALight>(&SpawnedActor))
 	{
-		return nullptr;
-	}
-
-	if(ULightComponent* LightComponent = SpawnedActor->GetLightComponent())
-	{
-		LightComponent->UnregisterComponent();
-		if(const UInterchangeLightFactoryNode* LightFactoryNode = Cast<UInterchangeLightFactoryNode>(CreateSceneObjectsParams.FactoryNode))
+		if (ULightComponent* LightComponent = LightActor->GetLightComponent())
 		{
-			if(FString IESTexture; LightFactoryNode->GetCustomIESTexture(IESTexture))
+			LightComponent->UnregisterComponent();
+
+			if (const UInterchangeLightFactoryNode* LightFactoryNode = Cast<UInterchangeLightFactoryNode>(&FactoryNode))
 			{
-				IESTexture = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(IESTexture);
-				if(const UInterchangeTextureLightProfileFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureLightProfileFactoryNode>(CreateSceneObjectsParams.NodeContainer->GetNode(IESTexture)))
+				if (FString IESTexture; LightFactoryNode->GetCustomIESTexture(IESTexture))
 				{
-					FSoftObjectPath ReferenceObject;
-					TextureFactoryNode->GetCustomReferenceObject(ReferenceObject);
-					if(UTextureLightProfile* Texture = Cast<UTextureLightProfile>(ReferenceObject.TryLoad()))
+					IESTexture = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(IESTexture);
+					if (const UInterchangeTextureLightProfileFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureLightProfileFactoryNode>(NodeContainer.GetNode(IESTexture)))
 					{
-						LightComponent->SetIESTexture(Texture);
+						FSoftObjectPath ReferenceObject;
+						TextureFactoryNode->GetCustomReferenceObject(ReferenceObject);
+						if (UTextureLightProfile* Texture = Cast<UTextureLightProfile>(ReferenceObject.TryLoad()))
+						{
+							LightComponent->SetIESTexture(Texture);
+						}
 					}
 				}
+
+				return LightComponent;
 			}
 		}
-		CreateSceneObjectsParams.FactoryNode->ApplyAllCustomAttributeToObject(LightComponent);
 	}
 
-	return SpawnedActor;
+	return nullptr;
 }

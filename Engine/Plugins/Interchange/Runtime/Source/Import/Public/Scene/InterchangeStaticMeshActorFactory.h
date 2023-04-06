@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InterchangeActorFactory.h"
+#include "Scene/InterchangeActorFactory.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
@@ -14,7 +14,7 @@ class AStaticMeshActor;
 class UInterchangeActorFactoryNode;
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGEIMPORT_API UInterchangeStaticMeshActorFactory : public UInterchangeFactoryBase
+class INTERCHANGEIMPORT_API UInterchangeStaticMeshActorFactory : public UInterchangeActorFactory
 {
 	GENERATED_BODY()
 public:
@@ -24,15 +24,17 @@ public:
 
 	virtual UClass* GetFactoryClass() const override;
 
-	virtual UObject* ImportSceneObject_GameThread(const UInterchangeFactoryBase::FImportSceneObjectsParams& CreateSceneObjectsParams) override;
-
-
 	// Interchange factory base interface end
 	//////////////////////////////////////////////////////////////////////////
 
-private:
+protected:
+	//////////////////////////////////////////////////////////////////////////
+	// Interchange actor factory interface begin
 
-	void SetupStaticMeshActor(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeFactoryBaseNode* ActorFactoryNode, AStaticMeshActor* StaticMeshActor);
+	virtual UObject* ProcessActor(class AActor& SpawnedActor, const UInterchangeActorFactoryNode& FactoryNode, const UInterchangeBaseNodeContainer& NodeContainer) override;
+
+	// Interchange actor factory interface end
+	//////////////////////////////////////////////////////////////////////////
 };
 
 
