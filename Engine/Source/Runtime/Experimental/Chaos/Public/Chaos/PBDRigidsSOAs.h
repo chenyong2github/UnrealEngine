@@ -1247,5 +1247,3 @@ template <typename T, int d>
 using TPBDRigidsSOAs UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FPBDRigidsSOAs instead") = FPBDRigidsSOAs;
 
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
