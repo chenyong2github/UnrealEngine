@@ -632,6 +632,17 @@ public:
 
 protected:
 
+	/**
+	 * This will register individual key mappings from the given Input Mapping context on the profile id.
+	 *
+	 * If the mappings exist on the profile already, then they will be updated based on the latest data from the IMC
+	 * otherwise, they will be added as new FPlayerKeyMapping.
+	 *
+	 * This will be called for each key profile when users initially call RegisterInputMappingContext, and on
+	 * load during Serialize to correctly populate a loaded profile with all the known registered IMC's mappings.
+	 */
+	virtual bool RegisterKeyMappingsToProfile(UEnhancedPlayerMappableKeyProfile& Profile, UInputMappingContext* IMC);
+
 	/** 
 	* Provides a space for subclasses to add additional debug info if desired.
 	* By default this will draw info about all player mapped keys.
