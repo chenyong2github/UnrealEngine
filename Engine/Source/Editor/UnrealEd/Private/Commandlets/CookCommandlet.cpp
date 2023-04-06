@@ -181,7 +181,7 @@ int32 UCookCommandlet::Main(const FString& CmdLineParams)
 	bCookSinglePackage = bCookSinglePackage || bKeepSinglePackageRefs;
 	bVerboseCookerWarnings = Switches.Contains(TEXT("verbosecookerwarnings"));
 	bPartialGC = Switches.Contains(TEXT("Partialgc"));
-	ShowErrorCount = !Switches.Contains(TEXT("DIFFONLY"));
+	ShowErrorCount = !Switches.Contains(TEXT("DIFFONLY")) && !Switches.Contains(TEXT("NoErrorSummary"));
 	ShowProgress = !Switches.Contains(TEXT("DIFFONLY"));
 	bIgnoreIniSettingsOutOfDate = Switches.Contains(TEXT("IgnoreIniSettingsOutOfDate"));
 	bFastCook = Switches.Contains(TEXT("FastCook"));
