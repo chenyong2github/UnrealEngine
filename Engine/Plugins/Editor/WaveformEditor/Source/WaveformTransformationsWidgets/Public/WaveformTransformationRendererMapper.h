@@ -6,7 +6,7 @@
 
 using FWaveformTransformRendererInstantiator = TFunction<TSharedPtr<IWaveformTransformationRenderer>()>;
 
-class WAVEFORMEDITORWIDGETS_API FWaveformTransformationRendererMapper
+class WAVEFORMTRANSFORMATIONSWIDGETS_API FWaveformTransformationRendererMapper
 {
 public:
 	/** Access the singleton instance for mapper */

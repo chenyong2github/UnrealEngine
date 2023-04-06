@@ -53,6 +53,7 @@ const TRange<float> FSparseSampledSequenceTransportCoordinator::GetDisplayRange(
 void FSparseSampledSequenceTransportCoordinator::MoveFocusPoint(const float InFocusPoint)
 {
 	FocusPoint = InFocusPoint;
+	OnFocusPointMoved.Broadcast(FocusPoint);
 }
 
 void FSparseSampledSequenceTransportCoordinator::UpdateZoomRatioAndDisplayRange(const float NewZoomRatio)
@@ -207,8 +208,8 @@ void FSparseSampledSequenceTransportCoordinator::UpdateDisplayRange(const float 
 {
 	check(MinValue < MaxValue);
 
-	DisplayRange.SetLowerBoundValue(MinValue);
-	DisplayRange.SetUpperBoundValue(MaxValue);
+	DisplayRange.SetLowerBoundValue(FMath::Clamp(MinValue, 0.f, MaxValue));
+	DisplayRange.SetUpperBoundValue(FMath::Clamp(MaxValue, MinValue, 1.f));
 
 	if (OnDisplayRangeUpdated.IsBound())
 	{

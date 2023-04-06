@@ -34,16 +34,12 @@ FReply SWaveformEditorInputRoutingOverlay::OnMouseMove(const FGeometry& MyGeomet
 
 FReply SWaveformEditorInputRoutingOverlay::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	FReply InteractionReply = AudioWidgetsUtils::RouteMouseInput(&SWidget::OnMouseWheel, MouseEvent, MakeArrayView(OverlaidWidgets.GetData(), OverlaidWidgets.Num()));
-
-	if (!InteractionReply.IsEventHandled())
+	if (OnMouseWheelDelegate.IsBound())
 	{
-		OnNewMouseDelta.ExecuteIfBound(MouseEvent.GetWheelDelta());
-		InteractionReply = FReply::Handled();
+		return OnMouseWheelDelegate.Execute(MyGeometry, MouseEvent);
 	}
 
-	return InteractionReply;
-
+	return AudioWidgetsUtils::RouteMouseInput(&SWidget::OnMouseWheel, MouseEvent, MakeArrayView(OverlaidWidgets.GetData(), OverlaidWidgets.Num()));
 }
 
 FCursorReply SWaveformEditorInputRoutingOverlay::OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const

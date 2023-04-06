@@ -4,6 +4,7 @@
 
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "TransformedWaveformViewFactory.h"
 #include "WaveformEditorCommands.h"
 #include "WaveformEditorInstantiator.h"
 #include "WaveformEditorLog.h"
@@ -14,6 +15,7 @@ DEFINE_LOG_CATEGORY(LogWaveformEditor);
 void FWaveformEditorModule::StartupModule()
 {
 	FWaveformEditorCommands::Register();
+	FTransformedWaveformViewFactory::Create();
 
 	WaveformEditorInstantiator = MakeShared<FWaveformEditorInstantiator>();
 	RegisterContentBrowserExtensions(WaveformEditorInstantiator.Get());

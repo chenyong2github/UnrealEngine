@@ -17,7 +17,7 @@ class UClass;
 struct FGeometry;
 struct FPointerEvent;
 
-struct WAVEFORMEDITORWIDGETS_API FWaveformTransformationRenderInfo
+struct FWaveformTransformationRenderInfo
 {
 	float SampleRate = 0.f;
 	int32 NumChannels = 0;
@@ -25,7 +25,7 @@ struct WAVEFORMEDITORWIDGETS_API FWaveformTransformationRenderInfo
 	uint32 NumAvilableSamples = 0;	//the number of samples available to the transformation
 };
 
-class WAVEFORMEDITORWIDGETS_API IWaveformTransformationRenderer
+class IWaveformTransformationRenderer
 {
 public:
 	virtual ~IWaveformTransformationRenderer() {};

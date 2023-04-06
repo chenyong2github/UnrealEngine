@@ -6,7 +6,7 @@
 #include "IWaveformTransformationRenderer.h"
 #include "PropertyHandle.h"
 
-class FWaveformTransformationRendererBase : public IWaveformTransformationRenderer
+class WAVEFORMTRANSFORMATIONSWIDGETS_API FWaveformTransformationRendererBase : public IWaveformTransformationRenderer
 {
 public:
 	FWaveformTransformationRendererBase() = default;

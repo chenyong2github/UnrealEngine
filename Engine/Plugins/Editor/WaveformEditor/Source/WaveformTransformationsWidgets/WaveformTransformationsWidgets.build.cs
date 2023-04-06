@@ -27,7 +27,6 @@ namespace UnrealBuildTool.Rules
 					"ToolMenus", 
 					"UnrealEd",
 					"WaveformTransformations",
-					"WaveformEditorWidgets",
 				}
 			);
 		}

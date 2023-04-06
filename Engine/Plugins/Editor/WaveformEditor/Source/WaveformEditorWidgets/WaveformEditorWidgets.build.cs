@@ -22,10 +22,11 @@ namespace UnrealBuildTool.Rules
 					"EditorStyle",
 					"Engine",
 					"InputCore",
-					"Slate",
 					"SignalProcessing",
+					"Slate",
 					"SlateCore", 
-					"ToolMenus"
+					"ToolMenus",
+					"WaveformTransformationsWidgets",
 				}
 			);
 		}

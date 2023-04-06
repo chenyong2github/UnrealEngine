@@ -7,8 +7,6 @@
 #include "Styling/SlateWidgetStyleAsset.h"
 #include "Widgets/SLeafWidget.h"
 
-DECLARE_DELEGATE_OneParam(FOnNewMouseDelta, const float /* new delta */)
-
 class FWaveformEditorGridData;
 class FSparseSampledSequenceTransportCoordinator;
 
@@ -31,7 +29,7 @@ public:
 	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
 
-	FOnNewMouseDelta OnNewMouseDelta;\
+	FPointerEventHandler OnMouseWheelDelegate;
 
 private:
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;

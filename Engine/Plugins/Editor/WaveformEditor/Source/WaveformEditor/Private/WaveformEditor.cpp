@@ -6,21 +6,22 @@
 #include "Components/AudioComponent.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "PropertyEditorModule.h"
-#include "SparseSampledSequenceTransportCoordinator.h"
 #include "Sound/SoundWave.h"
+#include "SparseSampledSequenceTransportCoordinator.h"
+#include "STransformedWaveformViewPanel.h"
 #include "Styling/AppStyle.h"
-#include "SWaveformPanel.h"
 #include "SWaveformTransformationsOverlay.h"
 #include "ToolMenus.h"
+#include "TransformedWaveformView.h"
+#include "TransformedWaveformViewFactory.h"
 #include "WaveformEditorCommands.h"
 #include "WaveformEditorDetailsCustomization.h"
 #include "WaveformEditorLog.h"
-#include "WaveformEditorRenderData.h"
+#include "WaveformEditorSequenceDataProvider.h"
 #include "WaveformEditorStyle.h"
 #include "WaveformEditorToolMenuContext.h"
 #include "WaveformEditorTransformationsSettings.h"
 #include "WaveformEditorWaveWriter.h"
-#include "WaveformTransformationsRenderManager.h"
 #include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "WaveformEditor"
@@ -42,11 +43,11 @@ bool FWaveformEditor::Init(const EToolkitMode::Type Mode, const TSharedPtr<ITool
 
 	bool bIsInitialized = true;
 	
-	bIsInitialized &= SetUpDetailsViews();
-	bIsInitialized &= SetUpWaveformPanel();
-	bIsInitialized &= SetupAudioComponent();
-	bIsInitialized &= SetUpTransportController();
-	bIsInitialized &= SetUpWaveWriter();
+	bIsInitialized &= CreateDetailsViews();
+	bIsInitialized &= CreateWaveformView();
+	bIsInitialized &= InitializeAudioComponent();
+	bIsInitialized &= CreateTransportController();
+	bIsInitialized &= CreateWaveWriter();
 	bIsInitialized &= BindDelegates();
 
 	bIsInitialized &= RegisterToolbar();
@@ -112,7 +113,7 @@ void FWaveformEditor::AddDefaultTransformations()
 	}
 }
 
-bool FWaveformEditor::SetupAudioComponent()
+bool FWaveformEditor::InitializeAudioComponent()
 {
 	if (!ensure(SoundWave))
 	{
@@ -146,7 +147,7 @@ bool FWaveformEditor::SetupAudioComponent()
 	return true;
 }
 
-bool FWaveformEditor::SetUpTransportController()
+bool FWaveformEditor::CreateTransportController()
 {
 	if (!ensure(AudioComponent))
 	{
@@ -158,7 +159,7 @@ bool FWaveformEditor::SetUpTransportController()
 	return TransportController != nullptr;
 }
 
-bool FWaveformEditor::SetUpZoom()
+bool FWaveformEditor::InitializeZoom()
 {
 	ZoomManager = MakeShared<FWaveformEditorZoomController>();
 	return ZoomManager != nullptr;
@@ -470,10 +471,10 @@ void FWaveformEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChan
 
 	if (bUpdateTransformationChain)
 	{
-		TransformationsRenderManager->GenerateLayersChain();
+		WaveformView.DataProvider->GenerateLayersChain();
 	}
 
-	TransformationsRenderManager->UpdateRenderElements();
+	WaveformView.DataProvider->UpdateRenderElements();
 	TransformationChainConfig = SoundWave->GetTransformationChainConfig();
 }
 
@@ -483,8 +484,8 @@ void FWaveformEditor::PostUndo(bool bSuccess)
 {
 	if (bSuccess)
 	{
-		TransformationsRenderManager->GenerateLayersChain();
-		TransformationsRenderManager->UpdateRenderElements();
+		WaveformView.DataProvider->GenerateLayersChain();
+		WaveformView.DataProvider->UpdateRenderElements();
 	}
 }
 
@@ -519,7 +520,7 @@ void FWaveformEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
 	MenuContext.AddObject(Context);
 }
 
-bool FWaveformEditor::SetUpDetailsViews()
+bool FWaveformEditor::CreateDetailsViews()
 {
 	if (!ensure(SoundWave)) 
 	{
@@ -544,9 +545,6 @@ bool FWaveformEditor::SetUpDetailsViews()
 	TransformationsDetails->RegisterInstancedCustomPropertyLayout(SoundWave->GetClass(), TransformationsDetailsCustomizationInstance);
 	TransformationsDetails->SetObject(SoundWave);
 
-	TransformationsPropertiesPropagator = PropertyModule.CreateDetailView(Args);
-	TransformationsPropertiesPropagator->SetObject(SoundWave);
-	
 	return true;
 }
 
@@ -557,7 +555,7 @@ TSharedRef<SDockTab> FWaveformEditor::SpawnTab_WaveformDisplay(const FSpawnTabAr
 	return SNew(SDockTab)
 		.Label(LOCTEXT("WaveformDisplayTitle", "Waveform Display"))
 		[
-			WaveformPanel.ToSharedRef()
+			WaveformView.ViewWidget.ToSharedRef()
 		];
 }
 
@@ -613,7 +611,8 @@ TSharedRef<SDockTab> FWaveformEditor::SpawnTab_Transformations(const FSpawnTabAr
 			TransformationsDetails.ToSharedRef()
 		];
 }
-bool FWaveformEditor::SetUpWaveformPanel()
+
+bool FWaveformEditor::CreateWaveformView()
 {
 	if (!ensure(SoundWave))
 	{
@@ -621,52 +620,26 @@ bool FWaveformEditor::SetUpWaveformPanel()
 		return false;
 	}
 
-	if (!SetUpZoom())
+	if (!InitializeZoom())
 	{
 		UE_LOG(LogWaveformEditor, Warning, TEXT("Failed to Init Zoom Manager while setting up waveform panel"));
 		return false;
 	}
 
-	WaveformRenderData = MakeShared<FWaveformEditorRenderData>();
-	
 	TransportCoordinator = MakeShared<FSparseSampledSequenceTransportCoordinator>();
-	WaveformRenderData->OnRenderDataUpdated.AddSP(this, &FWaveformEditor::HandleRenderDataUpdate);
+
+	WaveformView = FTransformedWaveformViewFactory::Get().GetTransformedView(SoundWave, TransportCoordinator.ToSharedRef(), this, ZoomManager);
+
+	WaveformView.DataProvider->OnRenderElementsUpdated.AddSP(this, &FWaveformEditor::HandleRenderDataUpdate);
 	
-	FOnTransformationsPropertiesRequired OnTransformationPropertiesRequired = FOnTransformationsPropertiesRequired::CreateLambda([this](FTransformationsToPropertiesArray& InObjToPropsMap)
-	{
-		TSharedPtr<FWaveformTransformationsDetailsProvider> TransformationsDetailsProvider = MakeShared<FWaveformTransformationsDetailsProvider>();
+	ZoomManager->OnZoomRatioChanged.AddSP(TransportCoordinator.ToSharedRef(), &FSparseSampledSequenceTransportCoordinator::SetZoomRatio);
 
-		FOnGetDetailCustomizationInstance ProviderInstance = FOnGetDetailCustomizationInstance::CreateLambda( [&]() 
-			{
-				return TransformationsDetailsProvider.ToSharedRef();
-			}
-		);
+	TransportCoordinator->OnDisplayRangeUpdated.AddSP(this, &FWaveformEditor::HandleDisplayRangeUpdate);
+	TransportCoordinator->OnFocusPointMoved.AddSP(WaveformView.ViewWidget.Get(), &STransformedWaveformViewPanel::SetPlayheadRatio);
 
-		TransformationsPropertiesPropagator->RegisterInstancedCustomPropertyLayout(SoundWave->GetClass(), ProviderInstance);
-		TransformationsPropertiesPropagator->ForceRefresh();
-
-		for (FTransformationToPropertiesPair& ObjToPropsPair : InObjToPropsMap)
-		{
-			TransformationsDetailsProvider->GetHandlesForUObjectProperties(ObjToPropsPair.Key, ObjToPropsPair.Value);
-		}
-
-		TransformationsDetailsProvider.Reset();
-	});
-
-	TransformationsRenderManager = MakeShared<FWaveformTransformationsRenderManager>(SoundWave, OnTransformationPropertiesRequired);
-	TransformationsRenderManager->OnRenderDataGenerated.AddSP(WaveformRenderData.Get(), &FWaveformEditorRenderData::UpdateRenderData);
-
-	TSharedPtr<SWaveformTransformationsOverlay> TransformationsOverlay = SNew(SWaveformTransformationsOverlay, TransformationsRenderManager->GetTransformLayers(), TransportCoordinator.ToSharedRef());
-
-	TransformationsRenderManager->OnLayersChainGenerated.AddSP(TransformationsOverlay.Get(), &SWaveformTransformationsOverlay::OnLayerChainGenerated);
-	TransformationsRenderManager->OnRenderElementsUpdated.AddSP(TransformationsOverlay.Get(), &SWaveformTransformationsOverlay::UpdateLayerConstraints);
-	TransportCoordinator->OnDisplayRangeUpdated.AddSP(TransformationsOverlay.Get(), &SWaveformTransformationsOverlay::OnNewWaveformDisplayRange);
-	TransformationsRenderManager->UpdateRenderElements();
-
-	WaveformPanel = SNew(SWaveformPanel, WaveformRenderData.ToSharedRef(), TransportCoordinator.ToSharedRef(), ZoomManager.ToSharedRef(), TransformationsOverlay);
-
-	return WaveformPanel != nullptr;
+	return WaveformView.ViewWidget != nullptr && WaveformView.DataProvider != nullptr;
 }
+
 void FWaveformEditor::HandlePlaybackPercentageChange(const UAudioComponent* InComponent, const USoundWave* InSoundWave, const float InPlaybackPercentage)
 {
 	const bool bIsStopped = AudioComponent->GetPlayState() == EAudioComponentPlayState::Stopped;
@@ -710,12 +683,16 @@ void FWaveformEditor::HandleAudioComponentPlayStateChanged(const UAudioComponent
 
 void FWaveformEditor::HandleRenderDataUpdate()
 {
-	check(WaveformRenderData != nullptr)
-
 	if (TransportCoordinator != nullptr)
 	{
-		TransportCoordinator->UpdatePlaybackRange(WaveformRenderData->GetTransformedWaveformBounds());
+		TransportCoordinator->UpdatePlaybackRange(WaveformView.DataProvider->GetTransformedWaveformBounds());
+		WaveformView.DataProvider->RequestSequenceView(TRange<double>::Inclusive(TransportCoordinator->GetDisplayRange().GetLowerBoundValue(), TransportCoordinator->GetDisplayRange().GetUpperBoundValue()));
 	}
+}
+
+void FWaveformEditor::HandleDisplayRangeUpdate(const TRange<float> NewRange)
+{
+	WaveformView.DataProvider->RequestSequenceView(TRange<double>::Inclusive(NewRange.GetLowerBoundValue(), NewRange.GetUpperBoundValue()));
 }
 
 void FWaveformEditor::HandlePlayheadScrub(const float InTargetPlayBackRatio, const bool bIsMoving)
@@ -767,7 +744,7 @@ bool FWaveformEditor::CanPressPlayButton() const
 	return TransportController->CanPlay() && (TransportController->IsPaused() || !TransportController->IsPlaying());
 }
 
-bool FWaveformEditor::SetUpWaveWriter()
+bool FWaveformEditor::CreateWaveWriter()
 {
 	if (!ensure(SoundWave))
 	{
