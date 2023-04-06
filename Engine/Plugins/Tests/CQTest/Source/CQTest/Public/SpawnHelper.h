@@ -33,13 +33,14 @@ struct CQTEST_API FSpawnHelper
 		return *Object;
 	}
 
+	UWorld& GetWorld();
+
 protected:
 	virtual UWorld* CreateWorld() = 0;
 
 	TArray<TWeakObjectPtr<AActor>> SpawnedActors{};
 	TArray<TWeakObjectPtr<UObject>> SpawnedObjects{};
 
-	UWorld& GetWorld();
 	UWorld* GameWorld{ nullptr };
 
 private:
