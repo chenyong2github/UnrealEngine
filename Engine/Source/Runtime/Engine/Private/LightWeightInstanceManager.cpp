@@ -51,7 +51,7 @@ AActor* ALightWeightInstanceManager::FetchActorFromHandle(const FActorInstanceHa
 	if (ensure(!Handle.Actor.IsValid()))
 	{
 		// check if we already have an actor for this handle
-		AActor* const* FoundActor = nullptr;
+		TObjectPtr<AActor>* FoundActor = nullptr;
 		if ((FoundActor = Actors.Find(Handle.GetInstanceIndex())) == nullptr)
 		{
 			// spawn a new actor
@@ -90,6 +90,7 @@ AActor* ALightWeightInstanceManager::ConvertInstanceToActor(const FActorInstance
 		SetSpawnParameters(SpawnParams);
 		NewActor = GetLevel()->GetWorld()->SpawnActor<AActor>(GetActorClassToSpawn(Handle), GetTransform(Handle), SpawnParams);
 		check(NewActor);
+		NewActor->OnDestroyed.AddUniqueDynamic(this, &ALightWeightInstanceManager::OnSpawnedActorDestroyed);
 
 		Handle.Actor = NewActor;
 		Actors.Add(Handle.GetInstanceIndex(), NewActor);
@@ -100,9 +101,17 @@ AActor* ALightWeightInstanceManager::ConvertInstanceToActor(const FActorInstance
 	return NewActor;
 }
 
+void ALightWeightInstanceManager::OnSpawnedActorDestroyed(AActor* DestroyedActor)
+{
+	check(DestroyedActor);
+	const int32 DestroyedActorInstanceIndex = FindIndexForActor(DestroyedActor);
+	check(DestroyedActorInstanceIndex != INDEX_NONE);
+	Actors.Remove(DestroyedActorInstanceIndex);
+}
+
 int32 ALightWeightInstanceManager::FindIndexForActor(const AActor* InActor) const
 {
-	for (const TPair<int32, AActor*>& ActorPair : Actors)
+	for (const TPair<int32, TObjectPtr<AActor>>& ActorPair : Actors)
 	{
 		if (ActorPair.Value == InActor)
 		{
@@ -226,9 +235,14 @@ bool ALightWeightInstanceManager::FindActorForHandle(const FActorInstanceHandle&
 		return true;
 	}
 
-	AActor* const* FoundActor = Actors.Find(Handle.GetInstanceIndex());
+	const TObjectPtr<AActor>* FoundActor = Actors.Find(Handle.GetInstanceIndex());
 	Handle.Actor = FoundActor ? *FoundActor : nullptr;
 	return Handle.Actor != nullptr;
+}
+
+AActor* ALightWeightInstanceManager::FindActorForInstanceIndex(const int32 InstanceIndex)
+{
+	return Actors.FindRef(InstanceIndex);
 }
 
 FVector ALightWeightInstanceManager::GetLocation(const FActorInstanceHandle& Handle) const
@@ -340,7 +354,7 @@ void ALightWeightInstanceManager::RemoveInstance(const int32 Index)
 		ValidIndices[Index] = false;
 
 		// destroy the associated actor if one existed
-		if (AActor** FoundActor = Actors.Find(Index))
+		if (TObjectPtr<AActor>* FoundActor = Actors.Find(Index))
 		{
 			AActor* ActorToDestroy = *FoundActor;
 			ActorToDestroy->Destroy();

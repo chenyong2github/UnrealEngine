@@ -132,6 +132,8 @@ public:
 		return Cast<I>(FetchActorFromHandle(Handle));
 	}
 
+	AActor* FindActorForInstanceIndex(const int32 InstanceIndex);
+
 protected:
 	// Creates an actor to replace the instance specified by Handle
 	AActor* ConvertInstanceToActor(const FActorInstanceHandle& Handle);
@@ -185,6 +187,10 @@ public:
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
+private:
+	UFUNCTION()
+	void OnSpawnedActorDestroyed(AActor* DestroyedActor);
+
 protected:
 
 	FString BaseInstanceName;
@@ -227,7 +233,8 @@ protected:
 	//
 
 	// keep track of which instances are currently represented by an actor
-	TMap<int32, AActor*> Actors;
+	UPROPERTY(Transient)
+	TMap<int32, TObjectPtr<AActor>> Actors;
 
 	// list of indices that we are no longer using
 	UPROPERTY(Replicated)

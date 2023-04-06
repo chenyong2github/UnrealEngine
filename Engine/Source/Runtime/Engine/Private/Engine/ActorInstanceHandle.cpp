@@ -41,10 +41,7 @@ FActorInstanceHandle::FActorInstanceHandle(ALightWeightInstanceManager* InManage
 	if (Manager.IsValid())
 	{
 		InstanceIndex = Manager->ConvertCollisionIndexToLightWeightIndex(InInstanceIndex);
-		if (AActor* const* FoundActor = Manager->Actors.Find(InstanceIndex))
-		{
-			Actor = *FoundActor;
-		}
+		Actor = Manager->FindActorForInstanceIndex(InstanceIndex);
 
 		UWorld* World = Manager->GetWorld();
 		if (ensure(World))
