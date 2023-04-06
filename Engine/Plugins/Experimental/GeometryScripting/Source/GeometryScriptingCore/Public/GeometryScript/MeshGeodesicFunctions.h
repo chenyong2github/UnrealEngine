@@ -62,5 +62,30 @@ public:
 		bool& bFoundErrors,
 		UGeometryScriptDebug* Debug = nullptr);
 
-	
+	/**
+	* Computes a PolyPath that represents a "straight" surface path starting at the prescribed point on the mesh, and continuing 
+	* in the indicated direction until reaching the requested path length or encountering a mesh boundary, whichever comes first.
+	* @param TargetMesh defines the surface where the path is computed.
+	* @param Direction is a three-dimensional vector that is projected onto the mesh surface to determine the path direction. 
+	* @param StartTriangleID the ID of mesh Triangle that contains the start point of the path.
+	* @param StartBaryCoords indicates the location of start point within the start triangle, in terms of barycentric coordinates.
+	* @param MaxPathLength sets the maximal length of the path, but the actual path may be shorter as it automatically terminates when encountering a mesh boundary edge. 
+	* @param SurfacePath holds on return a PolyPath that forms a "straight" path along the mesh surface from the start position.
+	* @param bFoundErrors, will be false on success.  
+	* Note, Barycentric coordinates are of the form (a,b,c) where each entry is positive and a + b + c = 1.  
+	*       If the provided coordinate is invalid, the value (1/3, 1/3, 1/3) will be used.
+	*       Also, if the direction vector is nearly zero, the up-vector will be used. 
+	*/
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshGeodesic", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	CreateSurfacePath(
+		UDynamicMesh* TargetMesh,
+		FVector Direction,
+		int32 StartTriangleID,
+		FVector StartBaryCoords,
+		float MaxPathLength,
+		FGeometryScriptPolyPath& SurfacePath,
+		bool& bFoundErrors,
+		UGeometryScriptDebug* Debug = nullptr);
+
 };

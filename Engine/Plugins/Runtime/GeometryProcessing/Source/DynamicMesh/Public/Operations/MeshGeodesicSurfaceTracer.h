@@ -199,7 +199,7 @@ public:
 * in terms of barycentric coordinates, triangle references and local path direction relative 
 * to a local frame (in the form of one of the edges of the triangle).
 */
-class FMeshGeodesicSurfaceTracer
+class DYNAMICMESH_API FMeshGeodesicSurfaceTracer
 {
 public:
 

@@ -5,6 +5,7 @@
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Operations/GeodesicPath.h"
+#include "Operations/MeshGeodesicSurfaceTracer.h"
 #include "Math/UnrealMathUtility.h"
 #include "Parameterization/MeshDijkstra.h"
 
@@ -313,6 +314,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshGeodesicFunctions::GetShortestSurfacePa
 
 		// convert minimized deformable path to a PolyPath
 		{
+			ShortestPath.bClosedLoop = false;
 			TArray<FVector>& GeodesicPath = *ShortestPath.Path;
 			GeodesicPath.Empty();
 
@@ -334,6 +336,101 @@ UDynamicMesh* UGeometryScriptLibrary_MeshGeodesicFunctions::GetShortestSurfacePa
 		bFoundErrors = false;
 		return TargetMesh;
 	}
+
+}
+
+UDynamicMesh* UGeometryScriptLibrary_MeshGeodesicFunctions::CreateSurfacePath( UDynamicMesh* TargetMesh,
+																			   FVector StartDirection,
+																			   int32 StartTriangleID,
+																			   FVector StartBaryCoords,
+																			   float PathLength,
+																			   FGeometryScriptPolyPath& SurfacePath,
+																			   bool& bFoundErrors,
+																			   UGeometryScriptDebug* Debug)
+{
+	typedef UE::Geometry::FMeshGeodesicSurfaceTracer  FSurfaceTracer;
+
+	bFoundErrors = true;
+
+	SurfacePath.Reset();
+
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("CreateSurfacePath_InvalidInput", "CreateSurfacePath: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	auto MakeValidBaryCentric = [](const FVector& Vec)->FVector
+	{
+		FVector ResultVec = Vec;
+		
+		// correct for error in BC calculation that might have returned a very small number in place of zero.
+		constexpr double BCTol = 1.e-2;
+		for (int i = 0; i < 3; ++i)
+		{
+			if (ResultVec[i] < 0 && ResultVec[i] >= -BCTol)
+			{
+				ResultVec[i] = 0.;
+			}
+		}
+
+
+
+		// any negative value indicates invalid BC
+		if (ResultVec.X < 0 || ResultVec.Y < 0 || ResultVec.Z < 0)
+		{
+			ResultVec = FVector(1./3., 1./3., 1./3.);
+		}
+
+		const double Sum = Vec.X + Vec.Y + Vec.Z;
+		constexpr double Tol = 0.05;
+		if (FMath::Abs(Sum - 1.0)  > Tol) // allow for a small amount of error before we declare invalid BC 
+		{
+			ResultVec = FVector(1./3., 1./3., 1./3.);
+		}
+		else
+		{
+			ResultVec *= (1./Sum);
+		}
+
+		return ResultVec;
+	};
+
+	
+	const FVector Direction = StartDirection.GetSafeNormal(1.e-5 /* Tolerance */, FVector::UpVector);
+
+	const FVector StartBC = MakeValidBaryCentric(StartBaryCoords);
+
+	
+	TargetMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+		{
+
+			// do the surface trace.
+			FSurfaceTracer SurfaceTracer(ReadMesh);
+			SurfaceTracer.TraceMeshFromBaryPoint(StartTriangleID, StartBC, Direction, PathLength);
+			const TArray<FSurfaceTracer::FTraceResult>& Trace = SurfaceTracer.GetTraceResults();
+			const int32 NumPoints = Trace.Num();
+			
+			// convert results to poly path
+			SurfacePath.bClosedLoop = false;
+			SurfacePath.Path->Reserve(NumPoints);
+			for (int32 i = 0; i < NumPoints; ++i)
+			{
+				const FSurfaceTracer::FTraceResult& TracePoint = Trace[i];
+
+				if (TracePoint.TriID == IndexConstants::InvalidID) break;
+				
+				if (ReadMesh.IsTriangle(TracePoint.TriID))
+				{
+					FVector Pos = ReadMesh.GetTriBaryPoint(TracePoint.TriID, TracePoint.Barycentric[0], TracePoint.Barycentric[1], TracePoint.Barycentric[2]);
+					SurfacePath.Path->Add(Pos);
+				}
+				
+			}
+		});
+
+	bFoundErrors = false;
+	return TargetMesh;
 
 }
 

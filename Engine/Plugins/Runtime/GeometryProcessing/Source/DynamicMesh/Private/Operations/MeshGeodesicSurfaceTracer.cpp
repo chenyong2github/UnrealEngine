@@ -772,6 +772,10 @@ double FMeshGeodesicSurfaceTracer::TraceMeshFromBaryPoint(const int32 TriID, con
 
 	// project the ray onto the X,Y plane ( i.e. the face of the triangle )
 	FVector2d ProjectedRay(FVector3d::DotProduct(XDir, RayDir3), FVector3d::DotProduct(YDir, RayDir3));
+	if (!ProjectedRay.Normalize())
+	{
+		ProjectedRay = FVector2d::UnitX();
+	}
 
 	// lower level code expects the 2d ray to be encoded relative to the "direction" of the first edge, edge(v0,v1)
 	const int32 EID = Mesh->GetTriEdge(TriID, 0);
