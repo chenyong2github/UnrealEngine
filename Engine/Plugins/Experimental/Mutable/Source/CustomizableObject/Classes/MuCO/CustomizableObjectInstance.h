@@ -274,7 +274,7 @@ private:
 	
 	/** Update Skeletal Mesh asynchronously. Immersive function. Not exposed to the API.
 	 * Once the update reaches this function, the update has been considered started and must complete all the update flow.
-	/* Starting at this function, all Update code paths must end up in FinishUpdateGlobal!
+	 * Starting at this function, all Update code paths must end up in FinishUpdateGlobal!
 	 *
 	 * @param bIsCloseDistTick true iff called from the tick.
 	 */
