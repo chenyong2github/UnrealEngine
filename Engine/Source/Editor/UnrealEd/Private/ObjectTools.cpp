@@ -2444,26 +2444,23 @@ namespace ObjectTools
 						SCCFilesToRevert.Add(FullPackageFilename);
 					}
 
-					if ( bIsAdded )
+					if (bIsAdded)
 					{
 						// The file was open for add and reverted, this leaves the file on disk so here we delete it
 						IFileManager::Get().Delete(*PackageFilename);
 					}
-					else if (!bIsCheckedOut && SourceControlProvider.UsesLocalReadOnlyState() && !IFileManager::Get().IsReadOnly(*PackageFilename))
+					else if (SourceControlState->CanDelete())
+					{
+						// Batch this file for deletion so that we only send one deletion request to the source control module.
+						SCCFilesToDelete.Add(FullPackageFilename);
+					}
+					else if (!bIsCheckedOut && !IFileManager::Get().IsReadOnly(*PackageFilename))
 					{
 						bDeletedFileLocallyWritable = true;
 					}
 					else
 					{
-						// Batch this file for deletion so that we only send one deletion request to the source control module.
-						if (SourceControlState->CanDelete())
-						{
-							SCCFilesToDelete.Add(FullPackageFilename);
-						}
-						else
-						{
-							UE_LOG(LogObjectTools, Warning, TEXT("SCC failed to open '%s' for deletion."), *PackageFilename);
-						}
+						UE_LOG(LogObjectTools, Warning, TEXT("SCC failed to open '%s' for deletion."), *PackageFilename);
 					}
 				}
 				else
