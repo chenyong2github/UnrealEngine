@@ -116,6 +116,13 @@ using TLearningArrayView = TMultiArrayView<
 	UE_LEARNING_ARRAY_CHECK_INDEX, 
 	UE_LEARNING_ARRAY_RESTRICT>;
 
+template<uint32 DimNum, typename ElementType>
+using TLearningConstArrayView = TConstMultiArrayView<
+	DimNum,
+	ElementType,
+	UE_LEARNING_ARRAY_CHECK_INDEX,
+	UE_LEARNING_ARRAY_RESTRICT>;
+
 template<uint32 DimNum, typename ElementType, typename Allocator = FDefaultAllocator>
 using TLearningArray = TMultiArray<
 	DimNum, 
@@ -123,6 +130,7 @@ using TLearningArray = TMultiArray<
 	Allocator, 
 	UE_LEARNING_ARRAY_CHECK_INDEX, 
 	UE_LEARNING_ARRAY_RESTRICT>;
+
 
 
 // Learning Array Functions

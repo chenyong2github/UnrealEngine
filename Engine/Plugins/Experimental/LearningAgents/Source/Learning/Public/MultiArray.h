@@ -522,33 +522,6 @@ public:
 	}
 
 	/**
-	 * Tests if dimension is valid, i.e. less than the number of dimensions.
-	 *
-	 * @param Dimension Dimension of the array.
-	 *
-	 * @returns True if dimension is valid. False otherwise.
-	 */
-	FORCEINLINE bool IsValidDimension(uint8 Dimension) const
-	{
-		return Dimension < DimNum;
-	}
-
-	/**
-	 * Tests if index is valid, i.e. greater than or equal to zero, and less than the number of elements in the dimension.
-	 *
-	 * @param Dimension Dimension of the array.
-	 * @param Index Index to test.
-	 *
-	 * @returns True if index is valid. False otherwise.
-	 */
-	FORCEINLINE bool IsValidIndex(uint8 Dimension, SizeType Index) const
-	{
-		DimensionCheck(Dimension);
-
-		return (Index >= 0) && (Index < ArrayShape[Dimension]);
-	}
-
-	/**
 	 * Returns true if the array is empty and contains no elements.
 	 *
 	 * @returns True if the array is empty.
@@ -1202,33 +1175,6 @@ public:
 			checkf(InNum >= 0, TEXT("Invalid count (%lld)"), (long long)InNum);
 			checkf(Index + InNum <= ArrayShape[Dimension], TEXT("Range (index: %lld, count: %lld) lies outside the view of %lld elements"), (long long)Index, (long long)InNum, (long long)ArrayShape[Dimension]);
 		}
-	}
-
-	/**
-	 * Tests if dimension is valid, i.e. less than the number of dimensions.
-	 *
-	 * @param Dimension Dimension of the array.
-	 *
-	 * @returns True if dimension is valid. False otherwise.
-	 */
-	FORCEINLINE bool IsValidDimension(uint8 Dimension) const
-	{
-		return Dimension < DimNum;
-	}
-
-	/**
-	 * Tests if index is valid, i.e. greater than or equal to zero, and less than the number of elements in the dimension.
-	 *
-	 * @param Dimension Dimension of the array.
-	 * @param Index Index to test.
-	 *
-	 * @returns True if index is valid. False otherwise.
-	 */
-	FORCEINLINE bool IsValidIndex(uint8 Dimension, SizeType Index) const
-	{
-		DimensionCheck(Dimension);
-
-		return (Index >= 0) && (Index < ArrayShape[Dimension]);
 	}
 
 	/**
