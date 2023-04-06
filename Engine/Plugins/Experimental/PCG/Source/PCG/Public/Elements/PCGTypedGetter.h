@@ -69,7 +69,8 @@ public:
 
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName(TEXT("Get Volume Data")); }
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("GetVolumeData")); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGGetVolumeSettings", "NodeTitle", "Get Volume Data"); }
 	virtual FText GetNodeTooltipText() const override;
 #endif
 
