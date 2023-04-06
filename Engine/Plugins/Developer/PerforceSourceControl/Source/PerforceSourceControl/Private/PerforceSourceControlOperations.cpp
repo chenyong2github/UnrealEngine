@@ -3364,11 +3364,8 @@ bool FPerforceGetFileWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPerforceGetChangelistDetailsWorker::FPerforceGetFileWorker);
 
-	FScopedPerforceConnection ScopedConnection(InCommand);
-
-	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
+	if (!InCommand.IsCanceled())
 	{
-		FPerforceConnection& Connection = ScopedConnection.GetConnection();
 		TSharedRef<FGetFile, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FGetFile>(InCommand.Operation);
 
 		TSharedRef<FPerforceSourceControlRevision, ESPMode::ThreadSafe> Revision = MakeShareable(new FPerforceSourceControlRevision(GetSCCProvider()));
