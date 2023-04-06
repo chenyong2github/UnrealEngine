@@ -20,7 +20,6 @@
 #include "Misc/MessageDialog.h"
 #include "Misc/ObjectThumbnail.h"
 #include "Misc/OutputDeviceError.h"
-#include "ProfilingDebugging/ResourceSize.h"
 #include "Serialization/CustomVersion.h"
 
 // From Json:

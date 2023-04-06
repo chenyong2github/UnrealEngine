@@ -4,6 +4,7 @@
 
 #include "CoreSharedPCH.h"
 
+// From Core:
 #include "HAL/PlatformAffinity.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/ThreadSafeBool.h"
