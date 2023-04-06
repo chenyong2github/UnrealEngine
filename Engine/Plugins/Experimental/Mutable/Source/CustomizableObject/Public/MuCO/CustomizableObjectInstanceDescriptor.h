@@ -3,18 +3,12 @@
 #pragma once
 
 #include "MuCO/MultilayerProjector.h"
+#include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
 
 #include "CustomizableObjectInstanceDescriptor.generated.h"
 
 class UTexture2D;
 enum class ECustomizableObjectProjectorType : uint8;
-struct FCustomizableObjectBoolParameterValue;
-struct FCustomizableObjectFloatParameterValue;
-struct FCustomizableObjectIntParameterValue;
-struct FCustomizableObjectProjector;
-struct FCustomizableObjectProjectorParameterValue;
-struct FCustomizableObjectTextureParameterValue;
-struct FCustomizableObjectVectorParameterValue;
 
 class FArchive;
 class UCustomizableInstancePrivateData;
