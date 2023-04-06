@@ -355,6 +355,13 @@ struct FMassCommandAddFragmentInstances : public FMassBatchedEntityCommand
 	}
 
 protected:
+	virtual void Reset() override
+	{
+		Fragments.Reset(); 
+		FragmentsAffected.Reset();
+		Super::Reset();
+	}
+
 	virtual SIZE_T GetAllocatedSize() const override
 	{
 		return Super::GetAllocatedSize() + Fragments.GetAllocatedSize() + FragmentsAffected.GetAllocatedSize();
