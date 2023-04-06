@@ -136,7 +136,7 @@ namespace Chaos
 		void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& InPairs) {}
 		void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex) {}
 		void BindParticleCallbackMapping(Chaos::TArrayCollectionArray<PhysicsProxyWrapper>& PhysicsProxyReverseMap, Chaos::TArrayCollectionArray<int32>& ParticleIDReverseMap) {}
-		EPhysicsProxyType ConcreteType() { return EPhysicsProxyType::ClusterUnionProxy; }
+		static EPhysicsProxyType ConcreteType() { return EPhysicsProxyType::ClusterUnionProxy; }
 		void SyncBeforeDestroy() {}
 		void OnRemoveFromScene() {}
 		bool IsDirty() { return false; }
