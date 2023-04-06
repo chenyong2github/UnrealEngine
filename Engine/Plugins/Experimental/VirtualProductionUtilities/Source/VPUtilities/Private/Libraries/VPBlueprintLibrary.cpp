@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VPBlueprintLibrary.h"
+#include "Libraries/VPBlueprintLibrary.h"
+
+#include "VPSettings.h"
+#include "VPUtilitiesModule.h"
 
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
-#include "VPSettings.h"
-#include "VPUtilitiesModule.h"
 #include "Components/SplineMeshComponent.h"
 
 #if WITH_EDITOR

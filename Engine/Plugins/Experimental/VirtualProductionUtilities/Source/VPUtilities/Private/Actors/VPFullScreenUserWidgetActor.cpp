@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VPFullScreenUserWidgetActor.h"
-#include "VPFullScreenUserWidget.h"
+#include "Actors/VPFullScreenUserWidgetActor.h"
 
+#include "Widgets/VPFullScreenUserWidget.h"
 
 #define LOCTEXT_NAMESPACE "VPFullScreenUserWidgetActor"
 

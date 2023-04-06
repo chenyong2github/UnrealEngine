@@ -13,7 +13,7 @@
 #include "Slate/SceneViewport.h"
 #include "Widgets/SVirtualWindow.h"
 #include "UObject/SoftObjectPath.h"
-#include "VPFullScreenUserWidget.h"
+#include "Widgets/VPFullScreenUserWidget.h"
 
 #if WITH_EDITOR
 #include "LevelEditor.h"

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VPRenderingBlueprintLibrary.h"
+#include "Libraries/VPRenderingBlueprintLibrary.h"
 
 #include "Engine/GameEngine.h"
 #include "SceneViewExtension.h"

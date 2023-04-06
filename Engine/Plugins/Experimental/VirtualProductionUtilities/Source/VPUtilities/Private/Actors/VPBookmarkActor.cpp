@@ -1,18 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Actors/VPBookmarkActor.h"
 
-#include "VPBookmarkActor.h"
+#include "Libraries/VPBlueprintLibrary.h"
+#include "VPBookmark.h"
+#include "VPBookmarkBlueprintLibrary.h"
+#include "VPBookmarkSettings.h"
+#include "VPUtilitiesModule.h"
+
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SplineMeshComponent.h"
 #include "Components/TextRenderComponent.h"
-#include "VPUtilitiesModule.h"
-#include "VPBookmarkBlueprintLibrary.h"
-#include "VPBlueprintLibrary.h"
-#include "VPBookmark.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "VPBookmarkSettings.h"
 
 AVPBookmarkActor::AVPBookmarkActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

@@ -4,8 +4,8 @@
 
 #include "CineCameraComponent.h"
 #include "EVCamTargetViewportID.h"
-#include "VPFullScreenUserWidget.h"
 #include "UI/WidgetSnapshots.h"
+#include "Widgets/VPFullScreenUserWidget.h"
 #include "VCamOutputProviderBase.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogVCamOutputProvider, Log, All);

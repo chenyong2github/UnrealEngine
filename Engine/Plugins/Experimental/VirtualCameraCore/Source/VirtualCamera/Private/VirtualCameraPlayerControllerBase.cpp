@@ -2,6 +2,7 @@
 
 #include "VirtualCameraPlayerControllerBase.h"
 
+#include "Actors/VPRootActor.h"
 #include "Components/InputComponent.h"
 #include "ConcertVirtualCamera.h"
 #include "CineCameraActor.h"
@@ -13,7 +14,6 @@
 #include "ILiveLinkClient.h"
 #include "IXRTrackingSystem.h"
 #include "RemoteSession.h"
-#include "Channels/RemoteSessionInputChannel.h"
 #include "Channels/RemoteSessionFrameBufferChannel.h"
 #include "Channels/RemoteSessionXRTrackingChannel.h"
 #include "Roles/LiveLinkAnimationRole.h"
@@ -22,7 +22,6 @@
 #include "Roles/LiveLinkTransformTypes.h"
 #include "VirtualCamera.h"
 #include "VPGameMode.h"
-#include "VPRootActor.h"
 
 #if WITH_EDITOR
 #include "Recorder/TakeRecorderBlueprintLibrary.h"

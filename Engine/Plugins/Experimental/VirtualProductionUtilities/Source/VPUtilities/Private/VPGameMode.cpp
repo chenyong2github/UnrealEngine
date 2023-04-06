@@ -2,12 +2,11 @@
 
 #include "VPGameMode.h"
 
+#include "Actors/VPRootActor.h"
+
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
-#include "GameFramework/Controller.h"
 #include "GameFramework/WorldSettings.h"
-#include "VPRootActor.h"
-
 
 AActor* AVPGameMode::ChoosePlayerStart_Implementation(AController* Player)
 {

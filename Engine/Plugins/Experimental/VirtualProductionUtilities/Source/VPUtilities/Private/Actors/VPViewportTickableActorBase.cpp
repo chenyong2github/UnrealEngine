@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VPViewportTickableActorBase.h"
+#include "Actors/VPViewportTickableActorBase.h"
 
 #include "Engine/World.h"
-
 
 AVPViewportTickableActorBase::AVPViewportTickableActorBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

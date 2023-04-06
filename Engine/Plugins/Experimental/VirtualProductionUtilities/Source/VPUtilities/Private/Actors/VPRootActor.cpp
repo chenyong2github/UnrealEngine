@@ -1,13 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VPRootActor.h"
+#include "Actors/VPRootActor.h"
 
 #include "CineCameraActor.h"
 #include "Components/ArrowComponent.h"
 #include "Components/BillboardComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Texture2D.h"
-#include "GameFramework/PlayerStart.h"
 #include "UObject/ConstructorHelpers.h"
 
 #if WITH_EDITOR

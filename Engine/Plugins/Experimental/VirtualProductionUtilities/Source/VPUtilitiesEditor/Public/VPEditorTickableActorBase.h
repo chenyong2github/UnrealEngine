@@ -2,20 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "VPViewportTickableActorBase.h"
-
+#include "Actors/VPViewportTickableActorBase.h"
 #include "VPEditorTickableActorBase.generated.h"
 
-/**
- * Actor that tick in the Editor viewport with the event EditorTick.
- */
+/** Actor that tick in the Editor viewport with the event EditorTick. */
 UCLASS(Abstract)
 class VPUTILITIESEDITOR_API AVPEditorTickableActorBase : public AVPViewportTickableActorBase
 {
 	GENERATED_BODY()
-
-public:
-
-	
 };

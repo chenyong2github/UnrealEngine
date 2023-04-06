@@ -8,25 +8,18 @@
 #include "Engine/Engine.h"
 #include "Engine/GameEngine.h"
 #include "Engine/GameInstance.h"
-#include "Engine/GameViewportClient.h"
-#include "Features/IModularFeatures.h"
 #include "Framework/Application/SlateApplication.h"
-#include "HAL/IConsoleManager.h"
 #include "ILiveLinkClient.h"
-#include "Channels/RemoteSessionImageChannel.h"
-#include "Channels/RemoteSessionInputChannel.h"
 #include "ImageProviders/RemoteSessionMediaOutput.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "RemoteSession.h"
 #include "Roles/LiveLinkTransformRole.h"
-#include "Roles/LiveLinkTransformTypes.h"
 #include "Slate/SceneViewport.h"
 #include "VirtualCamera.h"
 #include "VirtualCameraMovement.h"
 #include "VirtualCameraSubsystem.h"
-#include "VPFullScreenUserWidget.h"
-#include "Widgets/SVirtualWindow.h"
+#include "Widgets/VPFullScreenUserWidget.h"
 #include "VCamComponent.h"
 
 #if WITH_EDITOR
@@ -275,8 +268,8 @@ void AVirtualCameraActor::SetFocusVisualization_Implementation(bool bInShowFocus
 	{
 		if (CineCamera->FocusSettings.FocusMethod == ECameraFocusMethod::DoNotOverride)
 		{
-			UE_LOG(LogVirtualCamera, Warning, TEXT("Camera focus mode is currently set to none, cannot display focus plane!"))
-				return;
+			UE_LOG(LogVirtualCamera, Warning, TEXT("Camera focus mode is currently set to none, cannot display focus plane!"));
+			return;
 		}
 		CineCamera->FocusSettings.bDrawDebugFocusPlane = bInShowFocusVisualization;
 	}

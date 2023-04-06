@@ -1,11 +1,13 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VPCameraBlueprintLibrary.h"
+#include "Libraries/VPCameraBlueprintLibrary.h"
+
+#include "VPUtilitiesModule.h"
+
 #include "CameraRig_Rail.h"
 #include "Components/SplineComponent.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
-#include "VPUtilitiesModule.h"
 
 
 #if WITH_EDITOR

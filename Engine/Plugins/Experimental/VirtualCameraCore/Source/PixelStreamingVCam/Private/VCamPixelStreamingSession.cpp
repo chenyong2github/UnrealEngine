@@ -21,8 +21,8 @@
 #include "PixelStreamingServers.h"
 #include "Serialization/MemoryReader.h"
 #include "Slate/SceneViewport.h"
-#include "VPFullScreenUserWidget.h"
 #include "Widgets/SVirtualWindow.h"
+#include "Widgets/VPFullScreenUserWidget.h"
 #include "PixelStreamingInputEnums.h"
 
 int UVCamPixelStreamingSession::NextDefaultStreamerId = 1;

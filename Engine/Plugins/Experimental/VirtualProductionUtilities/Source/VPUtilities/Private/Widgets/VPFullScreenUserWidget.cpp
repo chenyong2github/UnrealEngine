@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VPFullScreenUserWidget.h"
+#include "Widgets/VPFullScreenUserWidget.h"
 
 #include "Components/PostProcessComponent.h"
 #include "Engine/Engine.h"
@@ -10,7 +10,6 @@
 #include "Engine/UserInterfaceSettings.h"
 #include "GameFramework/WorldSettings.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "RenderingThread.h"
 #include "RHI.h"
 #include "UObject/ConstructorHelpers.h"
 #include "UObject/Package.h"
