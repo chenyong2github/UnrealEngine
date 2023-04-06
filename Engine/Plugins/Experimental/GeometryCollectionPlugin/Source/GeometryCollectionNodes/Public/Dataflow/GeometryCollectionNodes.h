@@ -880,7 +880,50 @@ public:
 
 /**
  *
- * Collects grooup and attribute information from the Collection and outputs it into a formatted string
+ * Branch between two Managed Array Collections based on Boolean condition
+ *
+ */
+USTRUCT()
+struct FBranchCollectionDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FBranchCollectionDataflowNode, "BranchCollection", "Utilities|FlowControl", "")
+
+public:
+	/** Collection input for the 'true' case */
+	UPROPERTY(meta = (DataflowInput))
+	FManagedArrayCollection TrueCollection;
+
+	/** Collection input for the 'false' case */
+	UPROPERTY(meta = (DataflowInput))
+	FManagedArrayCollection FalseCollection;
+
+	/** Condition to select which Collection is chosen as ChosenCollection */
+	UPROPERTY(EditAnywhere, Category = "Branch");
+	bool bCondition = false;
+
+	/** Output Collection */
+	UPROPERTY(meta = (DataflowOutput))
+	FManagedArrayCollection ChosenCollection;
+
+	FBranchCollectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&TrueCollection);
+		RegisterInputConnection(&FalseCollection);
+		RegisterInputConnection(&bCondition);
+		RegisterOutputConnection(&ChosenCollection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
+
+/**
+ *
+ * Collects group and attribute information from the Collection and outputs it into a formatted string
  *
  */
 USTRUCT(meta = (DataflowGeometryCollection))

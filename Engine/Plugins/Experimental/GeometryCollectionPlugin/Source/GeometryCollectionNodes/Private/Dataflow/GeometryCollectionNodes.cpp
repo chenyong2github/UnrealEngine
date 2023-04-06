@@ -68,6 +68,7 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FTransformMeshDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCompareIntDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBranchDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBranchCollectionDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetSchemaDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FRemoveOnBreakDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetAnchorStateDataflowNode);
@@ -587,6 +588,34 @@ void FBranchDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowO
 		}
 
 		SetValue<TObjectPtr<UDynamicMesh>>(Context, NewObject<UDynamicMesh>(), &Mesh);
+	}
+}
+
+
+void FBranchCollectionDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA(&ChosenCollection))
+	{
+		bool InCondition = GetValue<bool>(Context, &bCondition);
+
+		if (InCondition)
+		{
+			if (IsConnected(&TrueCollection))
+			{
+				const FManagedArrayCollection& InTrueCollection = GetValue(Context, &TrueCollection);
+				SetValue(Context, InTrueCollection, &ChosenCollection);
+				return;
+			}
+		}
+		else
+		{
+			if (IsConnected(&FalseCollection))
+			{
+				const FManagedArrayCollection& InFalseCollection = GetValue(Context, &FalseCollection);
+				SetValue(Context, InFalseCollection, &ChosenCollection);
+				return;
+			}
+		}
 	}
 }
 
