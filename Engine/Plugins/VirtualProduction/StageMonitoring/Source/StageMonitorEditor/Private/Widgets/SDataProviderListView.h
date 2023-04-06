@@ -45,6 +45,7 @@ public:
 	FText GetGPUMem() const;
 	FText GetCPUMem() const;
 	FText GetAssetsLeftToCompile() const;
+	FText GetToolTipText() const;
 
 private:
 	/** Handles creation of each columns widget */
