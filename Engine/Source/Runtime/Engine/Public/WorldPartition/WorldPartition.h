@@ -192,7 +192,7 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionGenerateStreamingDelegate, TArray<FString>*);
 	FWorldPartitionGenerateStreamingDelegate OnPreGenerateStreaming;
 
-	void RemapSoftObjectPath(FSoftObjectPath& ObjectPath);
+	void RemapSoftObjectPath(FSoftObjectPath& ObjectPath) const;
 	bool IsValidPackageName(const FString& InPackageName);
 
 	// Begin Cooking

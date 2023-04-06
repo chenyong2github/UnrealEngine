@@ -29,7 +29,7 @@ public:
 #if WITH_EDITOR
 	virtual TSubclassOf<class UWorldPartitionRuntimeCell> GetRuntimeCellClass() const override;
 	virtual void PrepareActorToCellRemapping() override;
-	virtual void RemapSoftObjectPath(FSoftObjectPath& ObjectPath) override;
+	virtual void RemapSoftObjectPath(FSoftObjectPath& ObjectPath) const override;
 	static FString GetCellPackagePath(const FName& InCellName, const UWorld* InWorld);
 #endif
 
@@ -42,10 +42,8 @@ protected:
 	void ForEachActiveRuntimeCell(TFunctionRef<void(const UWorldPartitionRuntimeCell*)> Func) const;
 
 private:
-#if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TMap<FName, FName> ActorToCellRemapping;
-#endif
+	FTopLevelAssetPath SourceWorldAssetPath;
 
 	UPROPERTY()
 	TMap<FName, FName> SubObjectsToCellRemapping;

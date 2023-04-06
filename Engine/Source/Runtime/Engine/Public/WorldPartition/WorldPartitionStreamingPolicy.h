@@ -64,7 +64,7 @@ public:
 
 	// PIE/Game methods
 	virtual void PrepareActorToCellRemapping() {}
-	virtual void RemapSoftObjectPath(FSoftObjectPath& ObjectPath) {}
+	virtual void RemapSoftObjectPath(FSoftObjectPath& ObjectPath) const {}
 #endif
 
 #if !UE_BUILD_SHIPPING

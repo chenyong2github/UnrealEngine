@@ -3639,7 +3639,9 @@ bool UWorld::GetSoftObjectPathMapping(FString& OutSourceWorldPath, FString& OutR
 
 		return true;
 	}
-
+	
+	OutSourceWorldPath = OutRemappedWorldPath = GetPathName();
+		
 	return false;
 }
 

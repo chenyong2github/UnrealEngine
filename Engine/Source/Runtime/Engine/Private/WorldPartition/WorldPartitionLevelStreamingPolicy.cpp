@@ -19,11 +19,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionLevelStreamingPolicy)
 
-namespace WorldPartitionLevelStreamingPolicy
-{
-	static FName PersistentCellName(TEXT("PersistentCell"));
-}
-
 int32 UWorldPartitionLevelStreamingPolicy::GetCellLoadingCount() const
 {
 	int32 CellLoadingCount = 0;
@@ -102,48 +97,17 @@ TSubclassOf<UWorldPartitionRuntimeCell> UWorldPartitionLevelStreamingPolicy::Get
 
 void UWorldPartitionLevelStreamingPolicy::PrepareActorToCellRemapping()
 {
-	FString SourceWorldPath, RemappedWorldPath;
-	const bool bInstancedWorld = WorldPartition->GetTypedOuter<UWorld>()->GetSoftObjectPathMapping(SourceWorldPath, RemappedWorldPath);
-
+	FString SourceWorldPath, DummyUnusedPath;
+	WorldPartition->GetTypedOuter<UWorld>()->GetSoftObjectPathMapping(SourceWorldPath, DummyUnusedPath);
+	SourceWorldAssetPath = FTopLevelAssetPath(SourceWorldPath);
+	
 	// Build Actor-to-Cell remapping
-	WorldPartition->RuntimeHash->ForEachStreamingCells([this, bInstancedWorld, &SourceWorldPath, &RemappedWorldPath](const UWorldPartitionRuntimeCell* Cell)
+	WorldPartition->RuntimeHash->ForEachStreamingCells([this, &SourceWorldPath](const UWorldPartitionRuntimeCell* Cell)
 	{
 		const UWorldPartitionRuntimeLevelStreamingCell* StreamingCell = Cast<const UWorldPartitionRuntimeLevelStreamingCell>(Cell);
 		check(StreamingCell);
 		for (const FWorldPartitionRuntimeCellObjectMapping& CellObjectMap : StreamingCell->GetPackages())
 		{
-			FString RemappedActorPath;
-			FString CellActorPath = CellObjectMap.Path.ToString();
-			bool bActorPathNeedsRemapping = false;
-
-			if (bInstancedWorld && CellActorPath.StartsWith(RemappedWorldPath))
-			{
-				check(!IsRunningCookCommandlet());
-				// When calling PrepareActorToCellRemapping on an instanced world (PIE) we want to use the source world path to build the actor cell mapping
-				// 
-				// We will get actor paths in this format (UEDPIE prefix + level instance suffix):
-				// 
-				// '/Game/SomePath/UEDPIE_0_WorldName_LevelInstance1.WorldName:PersistentLevel.ActorA'
-				// 
-				// but we need to build an instancing/pie agnostic source mapping with the following key:
-				//
-				// '/Game/SomePath/WorldName.WorldName:PersistentLevel.ActorA'
-				check(CellObjectMap.ContainerID.IsMainContainer());
-				bActorPathNeedsRemapping = true;
-
-				FSoftObjectPath TmpSoftObjectPath(CellActorPath);
-				RemappedActorPath = FSoftObjectPath(FTopLevelAssetPath(SourceWorldPath), TmpSoftObjectPath.GetSubPathString()).ToString();
-			}
-			else if(!CellObjectMap.ContainerID.IsMainContainer())
-			{
-				// Add actor container id to actor path so that we can distinguish between actors of different Level Instances
-				//
-				// '/Game/SomePath/LevelInstance.LevelInstance:PersistentLevel.ActorA' will be remapped to
-				// 
-				// '/Game/SomePath/LevelInstance.LevelInstance:PersistentLevel.ActorA_{ContainerID}'
-				bActorPathNeedsRemapping = FWorldPartitionLevelHelper::RemapActorPath(CellObjectMap.ContainerID, CellActorPath, RemappedActorPath);
-			}
-
 			// The use cases for remapping are the following:
 			//
 			// - Spatially loaded or Datalayer Actors from the main World Partition map that get moved into a Streaming Cell. In thise case an actor path like:
@@ -151,20 +115,14 @@ void UWorldPartitionLevelStreamingPolicy::PrepareActorToCellRemapping()
 			// - Always loaded Actors from the main World:
 			//		- In PIE they get remapped to the top level Cell 'WorldName_MainGrid_L{MAX}_X0_Y0'
 			//		- In Cook they don't need remapping as the top level Cell is the PersistentLevel (Cell->NeedsActorToCellRemapping() returns false)
-			// - Embedded Level Instance actors always need remapping because they originate from a different map and will be moved to a main world cell
-			//		- '/Game/SomePath/LevelInstance.LevelInstance:PersistentLevel.ActorA_{ContainerID}' will be mapped to a cell name ex: 'WorldName_MainGrid_L0_X5_Y-4'
-			//		-  AlwaysLoaded Embedded actors in Cook differ from the main World actors as they need to be remapped to the PersistentLevel and this is why we have the 
-			//		   special cell name: WorldPartitionLevelStreamingPolicy::PersistentCellName
-			if (bActorPathNeedsRemapping || Cell->NeedsActorToCellRemapping())
+			if (Cell->NeedsActorToCellRemapping())
 			{
-				const FString& ActorPath = bActorPathNeedsRemapping ? RemappedActorPath : CellActorPath;
-				FName CellName = Cell->NeedsActorToCellRemapping() ? StreamingCell->GetFName() : WorldPartitionLevelStreamingPolicy::PersistentCellName;
-
-				ActorToCellRemapping.Add(FName(*ActorPath), CellName);
-
+				const FSoftObjectPath CellActorPath = FWorldPartitionLevelHelper::RemapActorPath(CellObjectMap.ContainerID, SourceWorldPath, FSoftObjectPath(CellObjectMap.Path.ToString()));
+				
+				const FString ActorPath = CellActorPath.ToString();
+				const FName CellName = StreamingCell->GetFName();
 				const int32 LastDotPos = ActorPath.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
 				check(LastDotPos != INDEX_NONE);
-
 				SubObjectsToCellRemapping.Add(FName(*ActorPath.Mid(LastDotPos + 1)), CellName);
 			}
 		}
@@ -172,128 +130,83 @@ void UWorldPartitionLevelStreamingPolicy::PrepareActorToCellRemapping()
 	});
 }
 
-void UWorldPartitionLevelStreamingPolicy::RemapSoftObjectPath(FSoftObjectPath& ObjectPath)
+void UWorldPartitionLevelStreamingPolicy::RemapSoftObjectPath(FSoftObjectPath& ObjectPath) const
 {
-	// Make sure to work on non-PIE path (can happen for modified actors in PIE)
-	int32 PIEInstanceID = INDEX_NONE;
-	FString SrcPath = UWorld::RemovePIEPrefix(ObjectPath.ToString(), &PIEInstanceID);
-	const FSoftObjectPath SrcObjectPath(SrcPath);
-
-	FName* CellName = ActorToCellRemapping.Find(FName(*SrcPath));
-	if (!CellName)
-	{
-		const FString& SubPathString = ObjectPath.GetSubPathString();
-		constexpr const TCHAR PersistenLevelName[] = TEXT("PersistentLevel.");
-		constexpr const int32 DotPos = UE_ARRAY_COUNT(PersistenLevelName);
-		if (SubPathString.StartsWith(PersistenLevelName))
-		{
-			const int32 SubObjectPos = SubPathString.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromStart, DotPos);
-			if (SubObjectPos != INDEX_NONE)
-			{
-				const FString ActorSubPathString = SubPathString.Left(SubObjectPos);
-				FSoftObjectPath ActorObjectPath(SrcObjectPath);
-				ActorObjectPath.SetSubPathString(ActorSubPathString);
-				CellName = ActorToCellRemapping.Find(FName(*ActorObjectPath.ToString()));
-			}
-		}
-	}
-
-	if (CellName)
-	{
-		if (!SrcObjectPath.GetSubPathString().IsEmpty())
-		{
-			UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
-			if (*CellName == WorldPartitionLevelStreamingPolicy::PersistentCellName)
-			{
-				check(IsRunningCookCommandlet());
-				ObjectPath = FSoftObjectPath(FTopLevelAssetPath(OuterWorld), SrcObjectPath.GetSubPathString());
-			}
-			else
-			{
-				const FString PackagePath = UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(*CellName, OuterWorld);
-				FString PrefixPath;
-
-				if (IsRunningCookCommandlet())
-				{
-					//@todo_ow: Temporary workaround. This information should be provided by the COTFS
-					const UPackage* Package = OuterWorld->GetPackage();
-					PrefixPath = FString::Printf(TEXT("%s/%s/_Generated_"), *FPackageName::GetLongPackagePath(Package->GetPathName()), *FPackageName::GetShortName(Package->GetName()));
-				}
-
-				// Use the WorldPartition world name here instead of using the world name from the path to support converting level instance paths to main world paths.
-				ObjectPath = FSoftObjectPath(FTopLevelAssetPath(FString::Printf(TEXT("%s%s.%s"), *PrefixPath, *PackagePath, *OuterWorld->GetName())), SrcObjectPath.GetSubPathString());
-				// Put back PIE prefix
-				if (OuterWorld->IsPlayInEditor() && (PIEInstanceID != INDEX_NONE))
-				{
-					ObjectPath.FixupForPIE(PIEInstanceID);
-				}
-			}
-		}
-	}
+	const FSoftObjectPath SrcPath(ObjectPath);
+	ConvertEditorPathToRuntimePath(SrcPath, ObjectPath);
 }
 #endif
 
 bool UWorldPartitionLevelStreamingPolicy::ConvertEditorPathToRuntimePath(const FSoftObjectPath& InPath, FSoftObjectPath& OutPath) const
 {
+	// Make sure to work on non-PIE path (can happen for modified actors in PIE)
 	const UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
 	const UPackage* OuterWorldPackage = OuterWorld->GetPackage();
 	FTopLevelAssetPath WorldAssetPath(OuterWorld);
-	int32 PIEInstanceID = INDEX_NONE;
+
 #if WITH_EDITOR
-	WorldAssetPath = UWorld::RemovePIEPrefix(WorldAssetPath.ToString(), &PIEInstanceID);
-	check(PIEInstanceID == INDEX_NONE || OuterWorldPackage->HasAnyPackageFlags(PKG_PlayInEditor));
-	check(PIEInstanceID == OuterWorldPackage->GetPIEInstanceID());
+	const int32 PIEInstanceID = OuterWorldPackage->GetPIEInstanceID();
+	check(PIEInstanceID == INDEX_NONE || OuterWorld->IsPlayInEditor());
+	int32 PathPIEInstanceID = INDEX_NONE;
+	WorldAssetPath = UWorld::RemovePIEPrefix(WorldAssetPath.ToString(), &PathPIEInstanceID);
+	check(PathPIEInstanceID == INDEX_NONE || OuterWorldPackage->HasAnyPackageFlags(PKG_PlayInEditor));
+	check(PathPIEInstanceID == PIEInstanceID);
+
+	FString SrcPath = UWorld::RemovePIEPrefix(InPath.ToString(), &PathPIEInstanceID);
+	check(PathPIEInstanceID == INDEX_NONE || PathPIEInstanceID == PIEInstanceID);
+	const FSoftObjectPath SrcObjectPath(SrcPath);
+#else
+	const FSoftObjectPath SrcObjectPath(InPath);
 #endif
 
-	if (InPath.GetAssetPath() == WorldAssetPath)
+	// Allow remapping of instanced source path or non-instanced source path
+	if (SrcObjectPath.GetAssetPath() != SourceWorldAssetPath && 
+		SrcObjectPath.GetAssetPath() != WorldAssetPath)
 	{
-		FString SubAssetName;
-		FString SubAssetContext;
-		if (InPath.GetSubPathString().Split(TEXT("."), &SubAssetContext, &SubAssetName))
+		return false;
+	}
+
+	// In the editor, the _LevelInstance_ID is appended to the persistent level, while at runtime it is appended to each cell package, so we need to remap it there if present.
+	FString LevelInstanceSuffix;
+	const FString WorldAssetPackageName = WorldAssetPath.GetPackageName().ToString();
+	const FString SourceWorldAssetPackageName = SourceWorldAssetPath.GetPackageName().ToString();
+	if (WorldAssetPackageName.StartsWith(SourceWorldAssetPackageName))
+	{
+		LevelInstanceSuffix = WorldAssetPackageName.Mid(SourceWorldAssetPackageName.Len());
+	}
+
+	FString SubAssetName;
+	FString SubAssetContext;
+	if (SrcObjectPath.GetSubPathString().Split(TEXT("."), &SubAssetContext, &SubAssetName))
+	{
+		if (SubAssetContext == TEXT("PersistentLevel"))
 		{
-			if (SubAssetContext == TEXT("PersistentLevel"))
+			FString SubObjectName;
+			FString SubObjectContext(SubAssetName);
+			SubAssetName.Split(TEXT("."), &SubObjectContext, &SubObjectName);
+
+			// Try to find the corresponding streaming cell, if it doesn't exists the actor must be in the persistent level.
+			const FName* CellName = SubObjectsToCellRemapping.Find(*SubObjectContext);
+			if (!CellName)
 			{
-				FString SubObjectName;
-				FString SubObjectContext(SubAssetName);
-				SubAssetName.Split(TEXT("."), &SubObjectContext, &SubObjectName);
-
-				FString LevelInstanceTag;
-				FString WorldAssetPackageName = *WorldAssetPath.GetPackageName().ToString();
-				FString WorldAssetName = WorldAssetPath.GetAssetName().ToString();
-
-#if WITH_EDITOR
-				// In the editor, the _LevelInstance_ID is appended to the persistent level, while at runtime it is appended to each cell package, so we need to remap it there if present.
-				const int32 LevelInstancePos = WorldAssetPackageName.Find(TEXT("_LevelInstance_"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-				if (LevelInstancePos != INDEX_NONE)
-				{
-					LevelInstanceTag = WorldAssetPackageName.RightChop(LevelInstancePos);
-					WorldAssetPackageName.LeftInline(LevelInstancePos);
-				}
-#endif
-
-				// Try to find the corresponding streaming cell, if it doesn't exists the actor must be in the persistent level.
-				const FName* CellName = SubObjectsToCellRemapping.Find(*SubObjectContext);
-				if (!CellName  || (*CellName == WorldPartitionLevelStreamingPolicy::PersistentCellName))
-				{
-					OutPath = FSoftObjectPath(WorldAssetPath, InPath.GetSubPathString());
-				}
-#if WITH_EDITOR
-				else if (OuterWorld->IsGameWorld())
-				{
-					const FString PackagePath = UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(*CellName, OuterWorld);
-					OutPath = FString::Printf(TEXT("%s.%s:%s"), *PackagePath, *OuterWorld->GetName(), *InPath.GetSubPathString());
-				}
-#endif
-				else
-				{
-					OutPath = FString::Printf(TEXT("%s/_Generated_/%s%s.%s:%s"), *WorldAssetPackageName, *(CellName->ToString()), *LevelInstanceTag, *WorldAssetPath.GetAssetName().ToString(), *InPath.GetSubPathString());
-				}
-
-#if WITH_EDITOR
-				OutPath.FixupForPIE(PIEInstanceID);
-#endif
-				return true;
+				OutPath = FSoftObjectPath(WorldAssetPath, InPath.GetSubPathString());
 			}
+#if WITH_EDITOR
+			else if (OuterWorld->IsGameWorld())
+			{
+				const FString PackagePath = UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(*CellName, OuterWorld);
+				OutPath = FString::Printf(TEXT("%s.%s:%s"), *PackagePath, *OuterWorld->GetName(), *InPath.GetSubPathString());
+			}
+#endif
+			else
+			{
+				OutPath = FString::Printf(TEXT("%s/_Generated_/%s%s.%s:%s"), *SourceWorldAssetPackageName, *(CellName->ToString()), *LevelInstanceSuffix, *WorldAssetPath.GetAssetName().ToString(), *InPath.GetSubPathString());
+			}
+
+#if WITH_EDITOR
+			OutPath.FixupForPIE(PIEInstanceID);
+#endif
+			return true;
 		}
 	}
 

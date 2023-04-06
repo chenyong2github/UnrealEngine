@@ -224,23 +224,23 @@ FString FWorldPartitionLevelHelper::GetContainerPackage(const FActorContainerID&
 	return PackageNameBuilder.ToString();
 }
 
-bool FWorldPartitionLevelHelper::RemapActorPath(const FActorContainerID& InContainerID, const FString& InActorPath, FString& OutActorPath)
+FSoftObjectPath FWorldPartitionLevelHelper::RemapActorPath(const FActorContainerID& InContainerID, const FString& InSourceWorldPath, const FSoftObjectPath& InActorPath)
 {
-	// This gets called by UWorldPartitionLevelStreamingPolicy::PrepareActorToCellRemapping while it is creating its mappings from PersistentLevel package to Cell package
-	// so that it can later remap SoftObjectPaths. So here we remap the SubPathString of the provided ActorPath to add a ContainerID suffix the same way we did in FWorldPartitionLevelHelper::LoadActors
-	//
-	// At this point we are remapping the SubPathString and adding a ContainerID suffix so
-	// '/Game/SomePath/WorldName.WorldName:PersistentLevel.ActorA' becomes
-	// '/Game/SomePath/WorldName.WorldName:PersistentLevel.ActorA_{ContainerID}'
-	if (!InContainerID.IsMainContainer())
+	// If Path is in an instanced package it will now be remapped to its source package
+	FSoftObjectPath OutActorPath(FTopLevelAssetPath(InSourceWorldPath), InActorPath.GetSubPathString());
+	
+	if(!InContainerID.IsMainContainer())
 	{
-		FSoftObjectPath SoftObjectPath(InActorPath);
-		FString RemappedSubPathString = FWorldPartitionLevelHelper::AddActorContainerIDToSubPathString(InContainerID, SoftObjectPath.GetSubPathString());
-		OutActorPath = FSoftObjectPath(SoftObjectPath.GetAssetPath(), RemappedSubPathString).ToString();
-		return true;
+		// This gets called by UWorldPartitionLevelStreamingPolicy::PrepareActorToCellRemapping and FWorldPartitionLevelHelper::LoadActors
+		// 
+		// At this point we are changing the top level asset and remapping the SubPathString to add a ContainerID suffix so
+		// '/Game/SomePath/LevelInstance.LevelInstance:PersistentLevel.ActorA' becomes
+		// '/Game/SomeOtherPath/SourceWorldName.SourceWorldName:PersistentLevel.ActorA_{ContainerID}'
+		FString RemappedSubPathString = FWorldPartitionLevelHelper::AddActorContainerIDToSubPathString(InContainerID, InActorPath.GetSubPathString());
+		OutActorPath.SetSubPathString(RemappedSubPathString);
 	}
-
-	return false;
+	
+	return OutActorPath;
 }
 
 bool FWorldPartitionLevelHelper::RemapLevelCellPathInContentBundle(ULevel* Level, const class FContentBundleEditor* ContentBundleEditor, const UWorldPartitionRuntimeCell* Cell)
@@ -321,7 +321,7 @@ ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorldP
 	return NewLevel;
 }
 
-bool FWorldPartitionLevelHelper::LoadActors(UWorld* InOwningWorld, ULevel* InDestLevel, TArrayView<FWorldPartitionRuntimeCellObjectMapping> InActorPackages, FWorldPartitionLevelHelper::FPackageReferencer& InPackageReferencer, TFunction<void(bool)> InCompletionCallback, bool bInLoadAsync, FLinkerInstancingContext InstancingContext)
+bool FWorldPartitionLevelHelper::LoadActors(UWorld* InOuterWorld, ULevel* InDestLevel, TArrayView<FWorldPartitionRuntimeCellObjectMapping> InActorPackages, FWorldPartitionLevelHelper::FPackageReferencer& InPackageReferencer, TFunction<void(bool)> InCompletionCallback, bool bInLoadAsync, FLinkerInstancingContext InstancingContext)
 {
 	UPackage* DestPackage = InDestLevel ? InDestLevel->GetPackage() : nullptr;
 	FString ShortLevelPackageName = DestPackage? FPackageName::GetShortName(DestPackage->GetFName()) : FString();
@@ -377,7 +377,7 @@ bool FWorldPartitionLevelHelper::LoadActors(UWorld* InOwningWorld, ULevel* InDes
 
 	for (FWorldPartitionRuntimeCellObjectMapping* PackageObjectMapping : ActorPackages)
 	{
-		FLoadPackageAsyncDelegate CompletionCallback = FLoadPackageAsyncDelegate::CreateLambda([LoadProgress, PackageObjectMapping, &InPackageReferencer, InOwningWorld, InDestLevel, InCompletionCallback](const FName& LoadedPackageName, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result)
+		FLoadPackageAsyncDelegate CompletionCallback = FLoadPackageAsyncDelegate::CreateLambda([LoadProgress, PackageObjectMapping, &InPackageReferencer, InOuterWorld, InDestLevel, InCompletionCallback](const FName& LoadedPackageName, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result)
 		{
 			const FName ActorName = *FPaths::GetExtension(PackageObjectMapping->Path.ToString());
 			check(LoadProgress->NumPendingLoadRequests);
@@ -399,7 +399,7 @@ bool FWorldPartitionLevelHelper::LoadActors(UWorld* InOwningWorld, ULevel* InDes
 
 			if (Actor)
 			{
-				const UWorld* ContainerWorld = PackageObjectMapping->ContainerID.IsMainContainer() ? InOwningWorld : Actor->GetTypedOuter<UWorld>();
+				const UWorld* ContainerWorld = PackageObjectMapping->ContainerID.IsMainContainer() ? InOuterWorld : Actor->GetTypedOuter<UWorld>();
 				
 				TOptional<FName> SrcActorFolderPath;
 
@@ -427,8 +427,12 @@ bool FWorldPartitionLevelHelper::LoadActors(UWorld* InOwningWorld, ULevel* InDes
 					// Add Cache handle on world so it gets unloaded properly
 					InPackageReferencer.AddReference(ContainerWorld->GetPackage());
 										
-					FString SourceWorldPath, RemappedWorldPath;
-					ContainerWorld->GetSoftObjectPathMapping(SourceWorldPath, RemappedWorldPath);
+					// We only care about the source paths here
+					FString SourceWorldPath, DummyUnusedPath;
+					// Verify that it is indeed an instanced world
+					verify(ContainerWorld->GetSoftObjectPathMapping(SourceWorldPath, DummyUnusedPath));
+					FString SourceOuterWorldPath;
+					InOuterWorld->GetSoftObjectPathMapping(SourceOuterWorldPath, DummyUnusedPath);
 
 					// Rename through UObject to avoid changing Actor's external packaging and folder properties
 					Actor->UObject::Rename(*FString::Printf(TEXT("%s_%s"), *Actor->GetName(), *PackageObjectMapping->ContainerID.ToShortString()), InDestLevel, REN_NonTransactional | REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors);
@@ -458,12 +462,12 @@ bool FWorldPartitionLevelHelper::LoadActors(UWorld* InOwningWorld, ULevel* InDes
 					// 
 					// At  this point we are remapping the SubPathString and adding a ContainerID suffix so
 					// '/Game/SomePath/WorldName.WorldName:PersistentLevel.ActorA' becomes
-					// '/Game/SomePath/WorldName.WorldName:PersistentLevel.ActorA_{ContainerID}'
+					// '/Game/SomeOtherPath/OuterWorldName.OuterWorldName:PersistentLevel.ActorA_{ContainerID}'
 					FSoftObjectPathFixupArchive FixupArchive([&](FSoftObjectPath& Value)
 					{
 						if (!Value.IsNull() && Value.GetAssetPathString().Equals(SourceWorldPath, ESearchCase::IgnoreCase))
 						{
-							Value.SetSubPathString(AddActorContainerIDToSubPathString(PackageObjectMapping->ContainerID, Value.GetSubPathString()));
+							Value = RemapActorPath(PackageObjectMapping->ContainerID, SourceOuterWorldPath, Value);
 						}
 					});
 					FixupArchive.Fixup(Actor);

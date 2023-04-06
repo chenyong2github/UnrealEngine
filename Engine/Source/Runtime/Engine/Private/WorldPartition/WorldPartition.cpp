@@ -1949,7 +1949,7 @@ void UWorldPartition::OnWorldRenamed(UWorld* RenamedWorld)
 	}
 }
 
-void UWorldPartition::RemapSoftObjectPath(FSoftObjectPath& ObjectPath)
+void UWorldPartition::RemapSoftObjectPath(FSoftObjectPath& ObjectPath) const
 {
 	if (StreamingPolicy)
 	{
