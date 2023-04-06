@@ -251,18 +251,7 @@ namespace Metasound
 	{
 	}
 
-	void FMetaSoundParameterTransmitter::OnDeleteActiveSound()
-	{
-		// Only reset the data channel if we have a valid data channel.
-		// This protects against removing the data channel 
-		// multiple times. Multiple removals of data channels has caused
-		// race conditions between newly created transmitters and transmitters
-		// being cleaned up.
-		DataChannel.Reset();
 
-		Audio::FParameterTransmitterBase::OnDeleteActiveSound();
-	}
-	
 	bool FMetaSoundParameterTransmitter::Reset()
 	{
 		OnDeleteActiveSound();
