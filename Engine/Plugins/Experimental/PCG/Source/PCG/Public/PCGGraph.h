@@ -40,8 +40,14 @@ public:
 	/** Add/Remove given property from overrides, and reset its value if it is removed. Returns true if the value was changed. */
 	bool UpdatePropertyOverride(const FProperty* InProperty, bool bMarkAsOverridden, const FInstancedPropertyBag* ParentUserParameters);
 
+	/** Reset overridden property to its parent value. */
+	void ResetPropertyToDefault(const FProperty* InProperty, const FInstancedPropertyBag* ParentUserParameters);
+
 	/** Return if the property is currently marked overridden. */
 	bool IsPropertyOverridden(const FProperty* InProperty) const;
+
+	/** Return if the property is currently marked overridden and has a different value than its default value. */
+	bool IsPropertyOverriddenAndNotDefault(const FProperty* InProperty, const FInstancedPropertyBag* ParentUserParameters) const;
 
 	/** Reset the struct. */
 	void Reset();
@@ -231,7 +237,7 @@ protected:
 #endif // WITH_EDITORONLY_DATA
 
 	// Parameters
-	UPROPERTY(EditAnywhere, Category = Instance)
+	UPROPERTY(EditAnywhere, Category = Instance, meta = (DisplayName = "Parameters"))
 	FInstancedPropertyBag UserParameters;
 
 public:
@@ -297,12 +303,14 @@ public:
 	void SetGraph(UPCGGraphInterface* InGraph);
 	void CopyParameterOverrides(UPCGGraphInterface* InGraph);
 	void UpdatePropertyOverride(const FProperty* InProperty, bool bMarkAsOverridden);
-	bool IsPropertyOverridden(const FProperty* InProperty) { return ParametersOverrides.IsPropertyOverridden(InProperty); }
+	void ResetPropertyToDefault(const FProperty* InProperty);
+	bool IsPropertyOverridden(const FProperty* InProperty) const { return ParametersOverrides.IsPropertyOverridden(InProperty); }
+	bool IsPropertyOverriddenAndNotDefault(const FProperty* InProperty) const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Instance)
 	TObjectPtr<UPCGGraphInterface> Graph;
 
-	UPROPERTY(EditAnywhere, Category = Instance)
+	UPROPERTY(EditAnywhere, Category = Instance, meta = (NoResetToDefault))
 	FPCGOverrideInstancedPropertyBag ParametersOverrides;
 
 	virtual const FInstancedPropertyBag* GetUserParametersStruct() const override { return &ParametersOverrides.Parameters; }

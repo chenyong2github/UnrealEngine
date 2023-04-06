@@ -8,6 +8,8 @@
 #include "Data/PCGUserParametersData.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
+#include "Algo/Find.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGSubgraph)
 
 namespace PCGSubgraphSettings
@@ -137,6 +139,9 @@ void UPCGBaseSubgraphSettings::OnSubgraphChanged(UPCGGraphInterface* InGraph, EP
 	if (InGraph == GetSubgraphInterface())
 	{
 		OnSettingsChangedDelegate.Broadcast(this, (ChangeType | EPCGChangeType::Settings));
+
+		// Also rebuild the overrides
+		InitializeCachedOverridableParams(/*bReset=*/true);
 	}
 }
 #endif // WITH_EDITOR
@@ -410,7 +415,30 @@ bool FPCGSubgraphElement::ExecuteInternal(FPCGContext* InContext) const
 	}
 	else
 	{
-		Context->OutputData = Context->InputData;
+		// Don't forward overrides
+		if (Settings->HasOverridableParams())
+		{
+			Context->OutputData.TaggedData.Reserve(Context->InputData.TaggedData.Num());
+			const TArray<FPCGPinProperties> InputPins = Settings->DefaultInputPinProperties();
+
+			for (const FPCGTaggedData& InputData : Context->InputData.TaggedData)
+			{
+				if (!InputData.Data)
+				{
+					continue;
+				}
+
+				// Discard params that don't have a pin on the subgraph input node
+				if (!InputData.Data->IsA<UPCGParamData>() || Algo::FindByPredicate(InputPins, [Pin = InputData.Pin](const FPCGPinProperties& PinProperty) { return PinProperty.Label == Pin;}))
+				{
+					Context->OutputData.TaggedData.Add(InputData);
+				}
+			}
+		}
+		else
+		{
+			Context->OutputData = Context->InputData;
+		}
 
 		// Also create a new data containing information about the original subgraph and the parameters override
 		// It is used mainly by the UseParameterGetElement to access the correct value.

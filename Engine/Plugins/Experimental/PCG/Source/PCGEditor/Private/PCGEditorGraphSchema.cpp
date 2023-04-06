@@ -240,7 +240,7 @@ void UPCGEditorGraphSchema::GetNativeElementActions(FGraphActionMenuBuilder& Act
 			{
 				if (const UPropertyBag* BagStruct = UserParameters->GetPropertyBagStruct())
 				{
-					const FText Category = LOCTEXT("UserParametersCategoryName", "User Parameters");
+					const FText Category = LOCTEXT("UserParametersCategoryName", "Graph Parameters");
 
 					for (const FPropertyBagPropertyDesc& PropertyDesc : BagStruct->GetPropertyDescs())
 					{

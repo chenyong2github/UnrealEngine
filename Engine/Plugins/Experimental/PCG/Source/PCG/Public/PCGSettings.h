@@ -179,6 +179,7 @@ public:
 	 *  By default, it will return the underlying class, to try to jump to its header in code
      */
 	virtual UObject* GetJumpTargetForDoubleClick() const;
+	virtual bool IsPropertyOverriddenByPin(const FProperty* InProperty) const;
 #endif
 
 	/** Derived classes can implement this to expose additional name information in the logs */

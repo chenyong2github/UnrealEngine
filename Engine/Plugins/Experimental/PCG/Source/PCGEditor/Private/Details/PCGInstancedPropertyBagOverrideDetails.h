@@ -5,9 +5,13 @@
 #include "IDetailCustomization.h"
 #include "IPropertyTypeCustomization.h"
 #include "InstancedStructDetails.h"
+#include "Input/Reply.h"
+#include "Layout/Visibility.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class UPCGGraphInstance;
+class UPCGSettings;
 
 class FPCGOverrideInstancedPropertyBagDetails : public IPropertyTypeCustomization
 {
@@ -31,6 +35,11 @@ public:
 	virtual void OnChildRowAdded(IDetailPropertyRow& ChildRow) override;
 
 private:
-	UPCGGraphInstance* Owner = nullptr;
+	FReply OnResetToDefaultValue(TSharedPtr<IPropertyHandle> InPropertyHandle) const;
+	EVisibility IsResetVisible(TSharedPtr<IPropertyHandle> InPropertyHandle) const;
+	bool IsPropertyOverriddenByPin(TSharedPtr<IPropertyHandle> InPropertyHandle) const;
+
+	TWeakObjectPtr<UPCGGraphInstance> Owner;
+	TWeakObjectPtr<UPCGSettings> SettingsOwner;
 	TSharedPtr<IPropertyHandle> PropertiesIDsOverriddenHandle;
 };

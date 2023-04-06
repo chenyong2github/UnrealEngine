@@ -38,8 +38,8 @@ protected:
 	virtual FPCGElementPtr CreateElement() const override;
 
 #if WITH_EDITOR
-	virtual FName GetDefaultNodeName() const override { return FName("GetUserParameter"); }
-	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGUserParameterGetSettings", "NodeTitle", "Get User Parameter"); }
+	virtual FName GetDefaultNodeName() const override { return FName("GetGraphParameter"); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGUserParameterGetSettings", "NodeTitle", "Get Graph Parameter"); }
 #endif
 	//~End UPCGSettings interface
 };

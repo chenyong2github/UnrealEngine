@@ -1254,6 +1254,28 @@ void UPCGGraphInstance::CopyParameterOverrides(UPCGGraphInterface* InGraph)
 	ParametersOverrides.Parameters.CopyMatchingValuesByID(*InGraph->GetUserParametersStruct());
 }
 
+void UPCGGraphInstance::ResetPropertyToDefault(const FProperty* InProperty)
+{
+	if (!IsPropertyOverridden(InProperty))
+	{
+		return;
+	}
+
+	Modify();
+
+	ParametersOverrides.ResetPropertyToDefault(InProperty, Graph->GetUserParametersStruct());
+
+#if WITH_EDITOR
+	NotifyGraphParametersChanged(EPCGGraphParameterEvent::ValueModifiedLocally, InProperty->GetFName());
+	OnGraphChangedDelegate.Broadcast(this, EPCGChangeType::Settings);
+#endif // WITH_EDITOR
+}
+
+bool UPCGGraphInstance::IsPropertyOverriddenAndNotDefault(const FProperty* InProperty) const
+{
+	return ParametersOverrides.IsPropertyOverriddenAndNotDefault(InProperty, Graph->GetUserParametersStruct());
+}
+
 bool FPCGOverrideInstancedPropertyBag::RefreshParameters(const FInstancedPropertyBag* ParentUserParameters, EPCGGraphParameterEvent InChangeType, FName InChangedPropertyName)
 {
 	check(ParentUserParameters);
@@ -1397,17 +1419,24 @@ bool FPCGOverrideInstancedPropertyBag::UpdatePropertyOverride(const FProperty* I
 	// Reset the value if it is not marked overridden anymore.
 	if (!bMarkAsOverridden)
 	{
-		check(ParentUserParameters);
-
-		const FPropertyBagPropertyDesc* OriginalPropertyDesc = ParentUserParameters->FindPropertyDescByName(InProperty->GetFName());
-		const FPropertyBagPropertyDesc* ThisPropertyDesc = Parameters.FindPropertyDescByName(InProperty->GetFName());
-
-		check(OriginalPropertyDesc && ThisPropertyDesc);
-		PCGGraphUtils::CopyPropertyValue(OriginalPropertyDesc, *ParentUserParameters, ThisPropertyDesc, Parameters);
+		ResetPropertyToDefault(InProperty, ParentUserParameters);
 		return true;
 	}
 
 	return false;
+}
+
+void FPCGOverrideInstancedPropertyBag::ResetPropertyToDefault(const FProperty* InProperty, const FInstancedPropertyBag* ParentUserParameters)
+{
+	check(ParentUserParameters);
+
+	const FPropertyBagPropertyDesc* OriginalPropertyDesc = ParentUserParameters->FindPropertyDescByName(InProperty->GetFName());
+	const FPropertyBagPropertyDesc* ThisPropertyDesc = Parameters.FindPropertyDescByName(InProperty->GetFName());
+
+	if (OriginalPropertyDesc && ThisPropertyDesc)
+	{
+		PCGGraphUtils::CopyPropertyValue(OriginalPropertyDesc, *ParentUserParameters, ThisPropertyDesc, Parameters);
+	}
 }
 
 bool FPCGOverrideInstancedPropertyBag::IsPropertyOverridden(const FProperty* InProperty) const
@@ -1419,6 +1448,23 @@ bool FPCGOverrideInstancedPropertyBag::IsPropertyOverridden(const FProperty* InP
 
 	const FPropertyBagPropertyDesc* PropertyDesc = Parameters.FindPropertyDescByName(InProperty->GetFName());
 	return PropertyDesc && PropertiesIDsOverridden.Contains(PropertyDesc->ID);
+}
+
+bool FPCGOverrideInstancedPropertyBag::IsPropertyOverriddenAndNotDefault(const FProperty* InProperty, const FInstancedPropertyBag* ParentUserParameters) const
+{
+	check(ParentUserParameters);
+
+	const FPropertyBagPropertyDesc* OriginalPropertyDesc = ParentUserParameters->FindPropertyDescByName(InProperty->GetFName());
+	const FPropertyBagPropertyDesc* ThisPropertyDesc = Parameters.FindPropertyDescByName(InProperty->GetFName());
+
+	if (OriginalPropertyDesc && ThisPropertyDesc && PropertiesIDsOverridden.Contains(ThisPropertyDesc->ID))
+	{
+		return !PCGGraphUtils::ArePropertiesIdentical(OriginalPropertyDesc, *ParentUserParameters, ThisPropertyDesc, Parameters);
+	}
+	else
+	{
+		return false;
+	}
 }
 
 void FPCGOverrideInstancedPropertyBag::Reset()

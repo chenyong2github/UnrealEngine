@@ -2,6 +2,7 @@
 
 #include "Details/PCGInstancedPropertyBagOverrideDetails.h"
 #include "PCGGraph.h"
+#include "PCGSettings.h"
 
 #include "DetailLayoutBuilder.h"
 #include "IDetailChildrenBuilder.h"
@@ -10,6 +11,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "PCGOverrideInstancedPropertyBagDetails"
@@ -86,13 +88,37 @@ FPCGOverrideInstancedPropertyBagDataDetails::FPCGOverrideInstancedPropertyBagDat
 		if (!OuterObjects.IsEmpty())
 		{
 			Owner = Cast<UPCGGraphInstance>(OuterObjects[0]);
+			if (Owner.IsValid())
+			{
+				SettingsOwner = Cast<UPCGSettings>(Owner->GetOuter());
+			}
 		}
 	}
 }
 
+EVisibility FPCGOverrideInstancedPropertyBagDataDetails::IsResetVisible(TSharedPtr<IPropertyHandle> InPropertyHandle) const
+{
+	return (Owner.IsValid() ? Owner->IsPropertyOverriddenAndNotDefault(InPropertyHandle->GetProperty()) : false) ? EVisibility::Visible : EVisibility::Hidden;
+}
+
+FReply FPCGOverrideInstancedPropertyBagDataDetails::OnResetToDefaultValue(TSharedPtr<IPropertyHandle> InPropertyHandle) const
+{
+	if (Owner.IsValid())
+	{
+		Owner->ResetPropertyToDefault(InPropertyHandle->GetProperty());
+	}
+
+	return FReply::Handled();
+}
+
+bool FPCGOverrideInstancedPropertyBagDataDetails::IsPropertyOverriddenByPin(TSharedPtr<IPropertyHandle> InPropertyHandle) const
+{
+	return InPropertyHandle.IsValid() && SettingsOwner.IsValid() && SettingsOwner->IsPropertyOverriddenByPin(InPropertyHandle->GetProperty());
+}
+
 void FPCGOverrideInstancedPropertyBagDataDetails::OnChildRowAdded(IDetailPropertyRow& ChildRow)
 {
-	if (!Owner || !PropertiesIDsOverriddenHandle.IsValid())
+	if (!Owner.IsValid() || !PropertiesIDsOverriddenHandle.IsValid())
 	{
 		return;
 	}
@@ -140,7 +166,7 @@ void FPCGOverrideInstancedPropertyBagDataDetails::OnChildRowAdded(IDetailPropert
 			SNew(SCheckBox)
 			.IsChecked_Lambda([this, ChildPropertyHandle]()
 			{
-				return Owner->IsPropertyOverridden(ChildPropertyHandle->GetProperty()) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+				return (Owner.IsValid() && Owner->IsPropertyOverridden(ChildPropertyHandle->GetProperty())) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 			})
 			.OnCheckStateChanged_Lambda([this, ValueWidget, ChildPropertyHandle](ECheckBoxState NewState)
 			{
@@ -148,10 +174,14 @@ void FPCGOverrideInstancedPropertyBagDataDetails::OnChildRowAdded(IDetailPropert
 
 				FScopedTransaction Transaction(FText::Format(LOCTEXT("OnCheckStateChanged", "Change Override for {0}"), FText::FromName(ChildPropertyHandle->GetProperty()->GetFName())));
 				const bool bIsOverridden = NewState == ECheckBoxState::Checked;
-				Owner->UpdatePropertyOverride(ChildPropertyHandle->GetProperty(), bIsOverridden);
+				if (Owner.IsValid())
+				{
+					Owner->UpdatePropertyOverride(ChildPropertyHandle->GetProperty(), bIsOverridden);
+				}
 
 				PropertiesIDsOverriddenHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 			})
+			.IsEnabled_Lambda([this, ChildPropertyHandle]() -> bool { return !IsPropertyOverriddenByPin(ChildPropertyHandle); })
 		]
 		// Name
 		+ SHorizontalBox::Slot()
@@ -163,9 +193,26 @@ void FPCGOverrideInstancedPropertyBagDataDetails::OnChildRowAdded(IDetailPropert
 	.ValueContent()
 	[
 		ValueWidget.ToSharedRef()
+	]
+	.ExtensionContent()
+	[
+		SNew(SButton)
+		.IsFocusable(false)
+		.ToolTipText(LOCTEXT("ResetButtonTooltip", "Reset property value to its default value, defined by the parent."))
+		.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+		.ContentPadding(0)
+		.Visibility_Lambda([this, ChildPropertyHandle]() { return IsResetVisible(ChildPropertyHandle); })
+		.OnClicked_Lambda([this, ChildPropertyHandle]() { return OnResetToDefaultValue(ChildPropertyHandle); })
+		.Content()
+		[
+			SNew(SImage)
+			.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+			.ColorAndOpacity(FSlateColor::UseForeground())
+		]
 	];
 
-	ValueWidget->SetEnabled(TAttribute<bool>::CreateLambda([this, ChildPropertyHandle]() -> bool { return Owner->IsPropertyOverridden(ChildPropertyHandle->GetProperty()); }));
+	ValueWidget->SetEnabled(TAttribute<bool>::CreateLambda([this, ChildPropertyHandle]() -> bool { return Owner.IsValid() && Owner->IsPropertyOverridden(ChildPropertyHandle->GetProperty()) && !IsPropertyOverriddenByPin(ChildPropertyHandle); }));
+	NameWidget->SetEnabled(TAttribute<bool>::CreateLambda([this, ChildPropertyHandle]() -> bool { return !IsPropertyOverriddenByPin(ChildPropertyHandle); }));
 }
 
 #undef LOCTEXT_NAMESPACE

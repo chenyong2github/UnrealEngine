@@ -444,6 +444,11 @@ bool UPCGSettings::CanEditChange(const FProperty* InProperty) const
 		return true;
 	}
 
+	return !IsPropertyOverriddenByPin(InProperty);
+}
+
+bool UPCGSettings::IsPropertyOverriddenByPin(const FProperty* InProperty) const
+{
 	if (const UPCGNode* Node = Cast<UPCGNode>(GetOuter()))
 	{
 		const FPCGSettingsOverridableParam* Param = OverridableParams().FindByPredicate([InProperty](const FPCGSettingsOverridableParam& ParamToCheck)
@@ -457,12 +462,12 @@ bool UPCGSettings::CanEditChange(const FProperty* InProperty) const
 		{
 			if (const UPCGPin* Pin = Node->GetInputPin(Param->Label))
 			{
-				return !Pin->IsConnected();
+				return Pin->IsConnected();
 			}
 		}
 	}
 
-	return true;
+	return false;
 }
 
 void UPCGSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<TObjectPtr<UPCGPin>>& InputPins, TArray<TObjectPtr<UPCGPin>>& OutputPins)
