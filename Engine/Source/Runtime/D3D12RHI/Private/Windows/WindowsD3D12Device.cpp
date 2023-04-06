@@ -951,7 +951,8 @@ void FD3D12DynamicRHIModule::FindAdapter()
 							FirstDiscreteAdapter = CurrentAdapter;
 						}
 
-						if (CurrentAdapter.Desc.DedicatedVideoMemory > BestMemoryAdapter.Desc.DedicatedVideoMemory)
+						if ((PreferredVendor == -1 || PreferredVendor == AdapterDesc.VendorId) &&
+						    CurrentAdapter.Desc.DedicatedVideoMemory > BestMemoryAdapter.Desc.DedicatedVideoMemory)
 						{
 							BestMemoryAdapter = CurrentAdapter;
 						}
