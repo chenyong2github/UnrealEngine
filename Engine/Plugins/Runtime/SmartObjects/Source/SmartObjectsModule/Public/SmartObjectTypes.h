@@ -97,7 +97,6 @@ public:
 
 /**
  * Handle to a registered smartobject.
- * Internal IDs are assigned in editor by the collection and then serialized for runtime.
  */
 USTRUCT(BlueprintType)
 struct SMARTOBJECTSMODULE_API FSmartObjectHandle
@@ -116,7 +115,7 @@ public:
 
 	friend FString LexToString(const FSmartObjectHandle Handle)
 	{
-		return LexToString(Handle.ID);
+		return FString::Printf(TEXT("0x%016llX:%c"), Handle.ID, (Handle.ID & DynamicIdsBitMask) != 0 ? 'D' : 'P');
 	}
 
 	bool operator==(const FSmartObjectHandle Other) const { return ID == Other.ID; }
@@ -124,18 +123,24 @@ public:
 
 	friend uint32 GetTypeHash(const FSmartObjectHandle Handle)
 	{
-		return Handle.ID;
+		return CityHash32(reinterpret_cast<const char*>(&Handle.ID), sizeof Handle.ID);
 	}
 
 private:
 	/** Valid Id must be created by the collection */
 	friend struct FSmartObjectHandleFactory;
 
-	explicit FSmartObjectHandle(const uint32 InID) : ID(InID) {}
+	explicit FSmartObjectHandle(const uint64 InID) : ID(InID) {}
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)
-	uint32 ID = INDEX_NONE;
+	uint64 ID = InvalidID;
 
+	/**
+	 * All Ids with this bit set were assigned for dynamic ('D') entries that rely on the component lifetime.
+	 * Otherwise their Ids are from persistent collections ('P').
+	 */
+	static constexpr uint64 DynamicIdsBitMask = 1ULL << 63;
+	static constexpr uint64 InvalidID = 0;
  public:
  	static const FSmartObjectHandle Invalid;
 };

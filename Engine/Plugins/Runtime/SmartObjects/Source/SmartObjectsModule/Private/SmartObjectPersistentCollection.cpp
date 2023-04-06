@@ -32,10 +32,27 @@ namespace UE::SmartObjects
 	};
 }
 
+//----------------------------------------------------------------------//
+// FSmartObjectHandleFactory
+//----------------------------------------------------------------------//
+// Struct used as a friend to FSmartObjectHandle. Only this struct is
+// allowed to create a handle from a uint64.
+//----------------------------------------------------------------------//
 struct FSmartObjectHandleFactory
 {
 	static FSmartObjectHandle CreateSOHandle(const UWorld& World, const USmartObjectComponent& Component)
 	{
+		// When a component can't be part of a collection it indicates that we'll never need
+		// to bind persistent data to this component at runtime. In this case we simply assign
+		// a new incremental Id used to bind it to its runtime entry during the component lifetime and
+		// to unregister from the subsystem when it gets removed (e.g. streaming out, destroyed, etc.).
+		if (Component.GetCanBePartOfCollection() == false)
+		{
+			static std::atomic<uint64> NextDynamicId = 0;
+			const uint64 Id = FSmartObjectHandle::DynamicIdsBitMask | ++NextDynamicId;
+			return FSmartObjectHandle(Id);
+		}
+
 		const FSoftObjectPath ObjectPath = &Component;
 		FString AssetPathString = ObjectPath.GetAssetPathString();
 
@@ -65,7 +82,9 @@ struct FSmartObjectHandleFactory
 #endif // WITH_EDITOR
 
 		// Compute hash manually from strings since GetTypeHash(FSoftObjectPath) relies on a FName which implements run-dependent hash computations.
-		return FSmartObjectHandle(HashCombine(GetTypeHash(AssetPathString), GetTypeHash(ObjectPath.GetSubPathString())));
+		const uint64 PathHash(HashCombine(GetTypeHash(AssetPathString), GetTypeHash(ObjectPath.GetSubPathString())));
+		const uint64 Id = (~FSmartObjectHandle::DynamicIdsBitMask & PathHash);
+		return FSmartObjectHandle(Id);
 	}
 };
 
