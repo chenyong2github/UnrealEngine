@@ -440,13 +440,6 @@ void UEditorInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient,
 		InvalidationMap[ViewportClient] = InvalidationTimestamp;
 	}
 
-	// This Tick() is called for every ViewportClient, however we only want to Tick the ToolManager and GizmoManager
-	// once, for the 'Active'/Focused Viewport, so early-out here
-	if (ViewportClient != EditorModeManager->GetFocusedViewportClient())
-	{
-		return;
-	}
-
 	if ( PendingToolShutdownType )
 	{
 		UInteractiveToolsContext::EndTool(EToolSide::Mouse, *PendingToolShutdownType);
@@ -459,6 +452,13 @@ void UEditorInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient,
 			SetEditorStateForTool();
 		}
 		PendingToolToStart.Reset();
+	}
+	
+	// This Tick() is called for every ViewportClient, however we only want to Tick the ToolManager and GizmoManager
+	// once, for the 'Active'/Focused Viewport, so early-out here
+	if (ViewportClient != EditorModeManager->GetFocusedViewportClient())
+	{
+		return;
 	}
 
 	// Cache current camera state from this Viewport in the ContextQueries, which we will use for things like snapping/etc that
