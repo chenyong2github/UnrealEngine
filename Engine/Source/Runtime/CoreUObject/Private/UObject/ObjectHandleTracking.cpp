@@ -20,73 +20,68 @@ namespace UE::CoreUObject
 
 			void OnHandleRead(TArrayView<const UObject* const> Objects)
 			{
-				UE_AUTORTFM_OPEN_BEGIN
+				UE_AUTORTFM_OPEN(
 				{
 					FReadScopeLock _(HandleLock);
 					for (auto&& Pair : ReadHandleCallbacks)
 					{
 						Pair.Value(Objects);
 					}
-				}
-				UE_AUTORTFM_OPEN_END
+				});
 			}
 
 			void OnClassReferenceResolved(const FObjectRef& ObjectRef, UPackage* Package, UClass* Class)
 			{
-				UE_AUTORTFM_OPEN_BEGIN
+				UE_AUTORTFM_OPEN(
 				{
 					FReadScopeLock _(HandleLock);
 					for (auto&& Pair : ClassResolvedCallbacks)
 					{
 						Pair.Value(ObjectRef, Package, Class);
 					}
-				}
-				UE_AUTORTFM_OPEN_END
+				});
 			}
 
 			void OnReferenceResolved(const FObjectRef& ObjectRef, UPackage* Package, UObject* Object)
 			{
-				UE_AUTORTFM_OPEN_BEGIN
+				UE_AUTORTFM_OPEN(
 				{
 					FReadScopeLock _(HandleLock);
 					for (auto&& Pair : HandleResolvedCallbacks)
 					{
 						Pair.Value(ObjectRef, Package, Object);
 					}
-				}
-				UE_AUTORTFM_OPEN_END
+				});
 			}
 
 			void OnReferenceLoaded(const FObjectRef& ObjectRef, UPackage* Package, UObject* Object)
 			{
-				UE_AUTORTFM_OPEN_BEGIN
+				UE_AUTORTFM_OPEN(
 				{
 					FReadScopeLock _(HandleLock);
 					for (auto&& Pair : HandleLoadedCallbacks)
 					{
 						Pair.Value(ObjectRef, Package, Object);
 					}
-				}
-				UE_AUTORTFM_OPEN_END
+				});
 			}
 
 			FObjectHandleTrackingCallbackId AddObjectHandleReadCallback(FObjectHandleReadFunc Func)
 			{
 				FObjectHandleTrackingCallbackId Result;
-				UE_AUTORTFM_OPEN_BEGIN
+				UE_AUTORTFM_OPEN(
 				{
 					FWriteScopeLock _(HandleLock);
 					NextHandleId++;
 					ReadHandleCallbacks.Add({ NextHandleId, Func });
 					Result = FObjectHandleTrackingCallbackId{ NextHandleId };
-				}
-				UE_AUTORTFM_OPEN_END
+				});
 				return Result;
 			}
 
 			void RemoveObjectHandleReadCallback(FObjectHandleTrackingCallbackId Handle)
 			{
-				UE_AUTORTFM_OPEN_BEGIN
+				UE_AUTORTFM_OPEN(
 				{
 					FWriteScopeLock _(HandleLock);
 					for (int32 i = ReadHandleCallbacks.Num() - 1; i >= 0; --i)
@@ -97,27 +92,25 @@ namespace UE::CoreUObject
 							ReadHandleCallbacks.RemoveAt(i);
 						}
 					}
-				}
-				UE_AUTORTFM_OPEN_END
+				});
 			}
 
 			FObjectHandleTrackingCallbackId AddObjectHandleClassResolvedCallback(FObjectHandleClassResolvedFunc Func)
 			{
 				FObjectHandleTrackingCallbackId Result;
-				UE_AUTORTFM_OPEN_BEGIN
+				UE_AUTORTFM_OPEN(
 				{
 					FWriteScopeLock _(HandleLock);
 					NextHandleId++;
 					ClassResolvedCallbacks.Add({ NextHandleId, Func });
 					Result = FObjectHandleTrackingCallbackId{ NextHandleId };
-				}
-				UE_AUTORTFM_OPEN_END
+				});
 				return Result;
 			}
 
 			void RemoveObjectHandleClassResolvedCallback(FObjectHandleTrackingCallbackId Handle)
 			{
-				UE_AUTORTFM_OPEN_BEGIN
+				UE_AUTORTFM_OPEN(
 				{
 					FWriteScopeLock _(HandleLock);
 					for (int32 i = ClassResolvedCallbacks.Num() - 1; i >= 0; --i)
@@ -128,27 +121,25 @@ namespace UE::CoreUObject
 							ClassResolvedCallbacks.RemoveAt(i);
 						}
 					}
-				}
-				UE_AUTORTFM_OPEN_END
+				});
 			}
 
 			FObjectHandleTrackingCallbackId AddObjectHandleReferenceResolvedCallback(FObjectHandleReferenceResolvedFunc Func)
 			{
 				FObjectHandleTrackingCallbackId Result;
-				UE_AUTORTFM_OPEN_BEGIN
+				UE_AUTORTFM_OPEN(
 				{
 					FWriteScopeLock _(HandleLock);
 					NextHandleId++;
 					HandleResolvedCallbacks.Add({ NextHandleId, Func });
 					Result = FObjectHandleTrackingCallbackId{ NextHandleId };
-				}
-				UE_AUTORTFM_OPEN_END
+				});
 				return Result;
 			}
 
 			void RemoveObjectHandleReferenceResolvedCallback(FObjectHandleTrackingCallbackId Handle)
 			{
-				UE_AUTORTFM_OPEN_BEGIN
+				UE_AUTORTFM_OPEN(
 				{
 					FWriteScopeLock _(HandleLock);
 					for (int32 i = HandleResolvedCallbacks.Num() - 1; i >= 0; --i)
@@ -159,27 +150,25 @@ namespace UE::CoreUObject
 							HandleResolvedCallbacks.RemoveAt(i);
 						}
 					}
-				}
-				UE_AUTORTFM_OPEN_END
+				});
 			}
 
 			FObjectHandleTrackingCallbackId AddObjectHandleReferenceLoadedCallback(FObjectHandleReferenceLoadedFunc Func)
 			{
 				FObjectHandleTrackingCallbackId Result;
-				UE_AUTORTFM_OPEN_BEGIN
+				UE_AUTORTFM_OPEN(
 				{
 					FWriteScopeLock _(HandleLock);
 					NextHandleId++;
 					HandleLoadedCallbacks.Add({ NextHandleId, Func });
 					Result = FObjectHandleTrackingCallbackId{ NextHandleId };
-				}
-				UE_AUTORTFM_OPEN_END
+				});
 				return Result;
 			}
 
 			void RemoveObjectHandleReferenceLoadedCallback(FObjectHandleTrackingCallbackId Handle)
 			{
-				UE_AUTORTFM_OPEN_BEGIN
+				UE_AUTORTFM_OPEN(
 				{
 					FWriteScopeLock _(HandleLock);
 					for (int32 i = HandleLoadedCallbacks.Num() - 1; i >= 0; --i)
@@ -190,8 +179,7 @@ namespace UE::CoreUObject
 							HandleLoadedCallbacks.RemoveAt(i);
 						}
 					}
-				}
-				UE_AUTORTFM_OPEN_END
+				});
 			}
 
 		private:

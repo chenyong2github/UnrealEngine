@@ -187,7 +187,7 @@ namespace SharedPointerInternals
 		{
 			if constexpr (Mode == ESPMode::ThreadSafe)
 			{
-				UE_AUTORTFM_OPENCOMMIT_BEGIN
+				UE_AUTORTFM_OPENCOMMIT(
 				{
 					// std::memory_order_acq_rel is used here so that, if we do end up executing the destructor, it's not possible
 					// for side effects from executing the destructor end up being visible before we've determined that the shared
@@ -204,8 +204,7 @@ namespace SharedPointerInternals
 						// reference count reaches zero, this object will be deleted.
 						ReleaseWeakReference();
 					}
-				}
-				UE_AUTORTFM_OPENCOMMIT_END
+				});
 			}
 			else
 			{

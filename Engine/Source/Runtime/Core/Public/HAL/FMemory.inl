@@ -24,7 +24,7 @@ FMEMORY_INLINE_FUNCTION_DECORATOR void* FMemory::Malloc(SIZE_T Count, uint32 Ali
 	// we don't end up keeping track of the writes to the allocator's internal data structures.
 	// This is because allocators are already transactional - malloc can be rolled back by
 	// calling free.
-	UE_AUTORTFM_OPEN_BEGIN
+	UE_AUTORTFM_OPEN(
 	{
 		if (!FMEMORY_INLINE_GMalloc)
 		{
@@ -38,8 +38,7 @@ FMEMORY_INLINE_FUNCTION_DECORATOR void* FMemory::Malloc(SIZE_T Count, uint32 Ali
 		}
 		// optional tracking of every allocation
 		LLM_IF_ENABLED(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Default, Ptr, Count, ELLMTag::Untagged, ELLMAllocType::FMalloc));
-	}
-	UE_AUTORTFM_OPEN_END
+	});
 
 	// AutoRTFM: This is a no-op for non-transactional code.
 	// For transactional code, this defers a call to Free if the transaction aborts,
@@ -120,7 +119,7 @@ FMEMORY_INLINE_FUNCTION_DECORATOR void FMemory::Free(void* Original)
 	// AutoRTFM: For transactional code, in order to support the transaction 
 	// aborting and needing to 'roll back' the Free, we defer the actual
 	// free until commit time.
-	UE_AUTORTFM_OPENCOMMIT_BEGIN
+	UE_AUTORTFM_OPENCOMMIT(
 	{
 		// optional tracking of every allocation
 		LLM_IF_ENABLED(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Default, Original, ELLMAllocType::FMalloc));
@@ -133,14 +132,13 @@ FMEMORY_INLINE_FUNCTION_DECORATOR void FMemory::Free(void* Original)
 		DoGamethreadHook(2);
 		FScopedMallocTimer Timer(2);
 		FMEMORY_INLINE_GMalloc->Free(Original);
-	}
-	UE_AUTORTFM_OPENCOMMIT_END
+	});
 }
 
 FMEMORY_INLINE_FUNCTION_DECORATOR SIZE_T FMemory::GetAllocSize(void* Original)
 {
 	SIZE_T Result;
-	UE_AUTORTFM_OPEN_BEGIN
+	UE_AUTORTFM_OPEN(
 	{
 		if (!FMEMORY_INLINE_GMalloc)
 		{
@@ -151,8 +149,7 @@ FMEMORY_INLINE_FUNCTION_DECORATOR SIZE_T FMemory::GetAllocSize(void* Original)
 			SIZE_T Size = 0;
 			Result = FMEMORY_INLINE_GMalloc->GetAllocationSize(Original, Size) ? Size : 0;
 		}
-	}
-	UE_AUTORTFM_OPEN_END
+	});
 
 	return Result;
 }
@@ -160,7 +157,7 @@ FMEMORY_INLINE_FUNCTION_DECORATOR SIZE_T FMemory::GetAllocSize(void* Original)
 FMEMORY_INLINE_FUNCTION_DECORATOR SIZE_T FMemory::QuantizeSize(SIZE_T Count, uint32 Alignment)
 {
 	SIZE_T Result;
-	UE_AUTORTFM_OPEN_BEGIN
+	UE_AUTORTFM_OPEN(
 	{
 		if (!FMEMORY_INLINE_GMalloc)
 		{
@@ -170,8 +167,7 @@ FMEMORY_INLINE_FUNCTION_DECORATOR SIZE_T FMemory::QuantizeSize(SIZE_T Count, uin
 		{
 			Result = FMEMORY_INLINE_GMalloc->QuantizeSize(Count, Alignment);
 		}
-	}
-	UE_AUTORTFM_OPEN_END
+	});
 
 	return Result;
 }

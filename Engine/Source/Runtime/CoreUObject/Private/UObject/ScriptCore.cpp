@@ -189,7 +189,7 @@ FBlueprintContext* FBlueprintContextGetThreadSingletonImpl()
 FBlueprintContext* FBlueprintContext::GetThreadSingleton()
 {
 	FBlueprintContext* Result;
-	UE_AUTORTFM_OPEN_BEGIN { Result = FBlueprintContextGetThreadSingletonImpl(); } UE_AUTORTFM_OPEN_END
+	UE_AUTORTFM_OPEN({ Result = FBlueprintContextGetThreadSingletonImpl(); });
 	return Result;
 }
 
