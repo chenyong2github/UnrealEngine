@@ -471,6 +471,7 @@ private:
 	/** Initialize and deinitialize calls match our  */
 	FObjectSubsystemCollection<UVCamSubsystem> SubsystemCollection;
 
+	void EnsureDelegatesRegistered();
 	void EnsureInitialized();
 	virtual void Initialize();
 	virtual void Deinitialize();

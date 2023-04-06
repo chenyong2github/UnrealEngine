@@ -42,68 +42,69 @@
 
 DEFINE_LOG_CATEGORY(LogVCamComponent);
 
-namespace VCamComponent
+UE_DISABLE_OPTIMIZATION
+namespace UE::VCamCore::Private
 {
-	static const FName LevelEditorName(TEXT("LevelEditor"));
+	static bool CanInitVCamInstance(UVCamComponent* Component)
+	{
+		/*
+		 * Other GWorld unrelated UWorld assets might get as part of complex editor operations.
+		 * The actors in such worlds are usually not consciously being worked on by the user.
+		 * If there is a VCam instance in such a world, it would register to Live Link and lock up the viewport every UVCamComponent::Update().
+		 * A user would not expect this to happen and cannot resolve it either except by restarting the editor.
+		 *
+		 * Examples how this could happen "legitimately":
+		 *  - If you delete the VCam after an auto save, the delete code will check for any referencers.
+		 *	It will find the auto save package and load a VCam component.
+		 *	This temporary instance should not register any delegates.
+		 *	- Load a Level Snapshot containing VCam (without there being a VCam in the level)
+		 *	- (User) code calls LoadPackage
+		 */
+		UWorld* OwnerWorld = Component->GetWorld();
+		const bool bIsInEditedWorld =
+			OwnerWorld // CDO's do not have an owner world
+			&& (!GWorld // Can be nullptr during initial load
+				|| GWorld == OwnerWorld
+				|| GWorld->ContainsLevel(OwnerWorld->PersistentLevel)
+				);
+		
+		/*
+		 * For temporary objects, the InputComponent should not be created and neither should we subscribe to global callbacks
+		 *	1. The Blueprint editor has two objects:
+		 *		1.1 The "real" one which saves the property data - this one is RF_ArchetypeObject
+		 *		1.2 The preview one (which I assume is displayed in the viewport) - this one is RF_Transient.
+		 *	2. When you drag-create an actor, level editor creates a RF_Transient template actor. After you release the mouse, a real one is created (not RF_Transient).
+		 */
+		return !Component->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject | RF_Transient)
+			&& !GIsCookerLoadingPackage
+			&& bIsInEditedWorld;
+	}
 }
 
 UVCamComponent::UVCamComponent()
 {
-	// For temporary objects, the InputComponent should not be created and neither should we subscribe to global callbacks
-	// 1. The Blueprint editor has two objects:
-	//	1.1 The "real" one which saves the property data - this one is RF_ArchetypeObject
-	//	1.2 The preview one (which I assume is displayed in the viewport) - this one is RF_Transient.
-	// 2. When you drag-create an actor, level editor creates a RF_Transient template actor. After you release the mouse, a real one is created (not RF_Transient).
-	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject | RF_Transient) && !GIsCookerLoadingPackage)
-	{
-		// Hook into the Live Link Client for our Tick
-		IModularFeatures& ModularFeatures = IModularFeatures::Get();
-
-		if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
-		{
-			ILiveLinkClient& LiveLinkClient = ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
-			LiveLinkClient.OnLiveLinkTicked().AddUObject(this, &UVCamComponent::Update);
-		}
-		else
-		{
-			UE_LOG(LogVCamComponent, Error, TEXT("LiveLink is not available. Some VCamCore features may not work as expected"));
-		}
-
-#if WITH_EDITOR
-		// Add the necessary event listeners so we can start/end properly
-		if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(VCamComponent::LevelEditorName))
-		{
-			LevelEditorModule->OnMapChanged().AddUObject(this, &UVCamComponent::OnMapChanged);
-		}
-
-		FEditorDelegates::BeginPIE.AddUObject(this, &UVCamComponent::OnBeginPIE);
-		FEditorDelegates::EndPIE.AddUObject(this, &UVCamComponent::OnEndPIE);
-
-		MultiUserStartup();
-		FCoreUObjectDelegates::OnObjectsReplaced.AddUObject(this, &UVCamComponent::HandleObjectReplaced);
-#endif
-
-		// Setup Input
-		UClass* InputComponentClass = UInputSettings::GetDefaultInputComponentClass();
-		constexpr bool bIsRequired = true;
-		constexpr bool bIsTransient = true;
-		InputComponent = Cast<UInputComponent>(CreateDefaultSubobject(TEXT("VCamInput0"), InputComponentClass, InputComponentClass, bIsRequired, bIsTransient));
-
-		// Apply the Default Input profile if possible
-		if (const UVCamInputSettings* VCamInputSettings = GetDefault<UVCamInputSettings>())
-		{
-			SetInputProfileFromName(VCamInputSettings->DefaultInputProfile);
-		}
-	}
+	UClass* InputComponentClass = UInputSettings::GetDefaultInputComponentClass();
+	constexpr bool bIsRequired = true;
+	constexpr bool bIsTransient = true;
+	InputComponent = Cast<UInputComponent>(CreateDefaultSubobject(TEXT("VCamInput0"), InputComponentClass, InputComponentClass, bIsRequired, bIsTransient));
+	
+	EnsureDelegatesRegistered();
 }
 
 void UVCamComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
 	Deinitialize();
 
+	IModularFeatures& ModularFeatures = IModularFeatures::Get();
+	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
+	{
+		ILiveLinkClient& LiveLinkClient = ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
+		LiveLinkClient.OnLiveLinkTicked().RemoveAll(this);
+	}
+
 #if WITH_EDITOR
 	// Remove all event listeners
-	if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(VCamComponent::LevelEditorName))
+	if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor")))
 	{
 		LevelEditorModule->OnMapChanged().RemoveAll(this);
 	}
@@ -258,6 +259,7 @@ void UVCamComponent::PostLoad()
 {
 	Super::PostLoad();
 
+	EnsureDelegatesRegistered();
 	// Ensure the input profile is applied when this component is loaded
 	ApplyInputProfile();
 }
@@ -364,6 +366,8 @@ void UVCamComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 		}
 	}
 
+	// Called e.g. after PostEditUndo. Must make sure that the delegates are registered.
+	EnsureDelegatesRegistered();
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
@@ -1116,6 +1120,59 @@ void UVCamComponent::ApplyInputProfile()
 	}
 }
 
+void UVCamComponent::EnsureDelegatesRegistered()
+{
+	if (UE::VCamCore::Private::CanInitVCamInstance(this))
+	{
+		// Hook into the Live Link Client for our Tick
+		IModularFeatures& ModularFeatures = IModularFeatures::Get();
+
+		if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
+		{
+			ILiveLinkClient& LiveLinkClient = ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
+			if (!LiveLinkClient.OnLiveLinkTicked().IsBoundToObject(this))
+			{
+				LiveLinkClient.OnLiveLinkTicked().AddUObject(this, &UVCamComponent::Update);
+			}
+		}
+		else
+		{
+			UE_LOG(LogVCamComponent, Error, TEXT("LiveLink is not available. Some VCamCore features may not work as expected"));
+		}
+
+#if WITH_EDITOR
+		// Add the necessary event listeners so we can start/end properly
+		if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor"))
+			; LevelEditorModule && LevelEditorModule->OnMapChanged().IsBoundToObject(this))
+		{
+			LevelEditorModule->OnMapChanged().AddUObject(this, &UVCamComponent::OnMapChanged);
+		}
+
+		// Both of them should either be valid or invalid
+		if (!FEditorDelegates::BeginPIE.IsBoundToObject(this))
+		{
+			FEditorDelegates::BeginPIE.AddUObject(this, &UVCamComponent::OnBeginPIE);
+		}
+		if (!FEditorDelegates::EndPIE.IsBoundToObject(this))
+		{
+			FEditorDelegates::EndPIE.AddUObject(this, &UVCamComponent::OnEndPIE);
+		}
+
+		MultiUserStartup();
+		if (!FCoreUObjectDelegates::OnObjectsReplaced.IsBoundToObject(this))
+		{
+			FCoreUObjectDelegates::OnObjectsReplaced.AddUObject(this, &UVCamComponent::HandleObjectReplaced);
+		}
+#endif
+
+		// Apply the Default Input profile if possible
+		if (const UVCamInputSettings* VCamInputSettings = GetDefault<UVCamInputSettings>())
+		{
+			SetInputProfileFromName(VCamInputSettings->DefaultInputProfile);
+		}
+	}
+}
+
 void UVCamComponent::EnsureInitialized()
 {
 	if (!SubsystemCollection.IsInitialized())
@@ -1541,8 +1598,15 @@ void UVCamComponent::MultiUserStartup()
 	{
 		IConcertClientRef ConcertClient = ConcertSyncClient->GetConcertClient();
 
-		OnSessionStartupHandle = ConcertClient->OnSessionStartup().AddUObject(this, &UVCamComponent::SessionStartup);
-		OnSessionShutdownHandle = ConcertClient->OnSessionShutdown().AddUObject(this, &UVCamComponent::SessionShutdown);
+		// Both of them should either be valid or invalid
+		if (!OnSessionStartupHandle.IsValid())
+		{
+			OnSessionStartupHandle = ConcertClient->OnSessionStartup().AddUObject(this, &UVCamComponent::SessionStartup);
+		}
+		if (!OnSessionShutdownHandle.IsValid())
+		{
+			OnSessionShutdownHandle = ConcertClient->OnSessionShutdown().AddUObject(this, &UVCamComponent::SessionShutdown);
+		}
 
 		TSharedPtr<IConcertClientSession> ConcertClientSession = ConcertClient->GetCurrentSession();
 		if (ConcertClientSession.IsValid())
@@ -1639,4 +1703,4 @@ bool UVCamComponent::IsCameraInVPRole() const
 	return true;
 #endif
 }
-
+UE_ENABLE_OPTIMIZATION
