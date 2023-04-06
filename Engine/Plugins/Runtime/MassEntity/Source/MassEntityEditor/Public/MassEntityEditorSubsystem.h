@@ -24,7 +24,8 @@ public:
 	UMassEntityEditorSubsystem();
 	~UMassEntityEditorSubsystem();
 
-	FMassEntityManager& GetMutableEntityManager() { return EntityManager.Get(); }
+	TSharedRef<FMassEntityManager> GetMutableEntityManager() { return EntityManager; }
+	TSharedRef<FMassProcessingPhaseManager> GetMutablePhaseManager() { return PhaseManager; }
 
 	FOnPreTick& GetOnPreTickDelegate() { return OnPreTickDelegate; }
 

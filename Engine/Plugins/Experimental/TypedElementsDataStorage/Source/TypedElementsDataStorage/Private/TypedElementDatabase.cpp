@@ -28,7 +28,7 @@ void UTypedElementDatabase::Initialize()
 	check(Mass);
 	Mass->GetOnPreTickDelegate().AddUObject(this, &UTypedElementDatabase::OnPreMassTick);
 
-	ActiveEditorEntityManager = Mass->GetMutableEntityManager().AsShared();
+	ActiveEditorEntityManager = Mass->GetMutableEntityManager();
 }
 
 void UTypedElementDatabase::Deinitialize()

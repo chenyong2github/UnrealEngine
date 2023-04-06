@@ -13,6 +13,6 @@ void UMassActorEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	UMassEntityEditorSubsystem* MassEditorEditorSubsystem = Collection.InitializeDependency<UMassEntityEditorSubsystem>();
 	check(MassEditorEditorSubsystem);
-	FMassEntityManager& MassEntityManager = MassEditorEditorSubsystem->GetMutableEntityManager();
-	ActorManager = MakeShareable(new FMassActorManager(MassEntityManager.AsShared()));
+	TSharedRef<FMassEntityManager> MassEntityManager = MassEditorEditorSubsystem->GetMutableEntityManager();
+	ActorManager = MakeShareable(new FMassActorManager(MassEntityManager));
 }
