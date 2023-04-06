@@ -778,7 +778,8 @@ static void ResizeImage(const FImageView & SrcImage, const FImageView & DestImag
 	const float DestToSrcScaleX = (float)SrcImage.SizeX / (float)DestImage.SizeX;
 	const float DestToSrcScaleY = (float)SrcImage.SizeY / (float)DestImage.SizeY;
 
-	// @todo Oodle : not a correct bilinear Resize?  missing 0.5 pixel center shift
+	// @todo OodleImageResize : not a correct bilinear Resize?  missing 0.5 pixel center shift
+	//		deprecate this and redirect to new resizer
 	for (int64 DestY = 0; DestY < DestImage.SizeY; ++DestY)
 	{
 		const float SrcY = (float)DestY * DestToSrcScaleY;

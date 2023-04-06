@@ -1131,14 +1131,17 @@ public:
 			Gamma == EGammaSpace::Linear &&			
 			!bDebugColor)
 		{
-			// for BC4/5 use 16-bit :
+			// for BC4/5 use 16-bit integer U16 pixels :
 			//	BC4/5 should always have linear gamma
-			// @todo we only need 1 or 2 channel 16-bit, not all 4; use our own converter
-			//	or just let our encoder take F32 input?
+
+			// @todo Oodle: always converting to 4_U16 for BC4/5 is wasteful of memory and often unnecessary
+			//  we only need 1 or 2 channel 16-bit for BC4/5, not all 4; use our own converter
+			//	or just let our encoder take F32 input? (and do no conversion here at all) (beware that may change output)
 
 			// input image format now can be BGRA8 (used to always be RGBA32F)
 			// but to maintain matching output with previous RGBA32F format, still do convert to RGBA16
 			// ideally should pass BGRA8 directly to Oodle, but that changes output bits
+			//	-> we could let 8-bit go through without coverting for NewFilters (and bump DDC key)
 			ImageFormat = ERawImageFormat::RGBA16;
 			OodlePF = OodleTex_PixelFormat_4_U16;
 		}

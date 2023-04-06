@@ -1452,6 +1452,8 @@ static void DownscaleImage(const FImage& SrcImage, FImage& DstImage, const FText
 
 	int32 FinalSizeX = 0, FinalSizeY =0;
 	float Downscale = GetDownscaleFinalSizeAndClampedDownscale(SrcImage.SizeX, SrcImage.SizeY, Settings, FinalSizeX, FinalSizeY);
+	
+	//@todo OodleImageResize : replace this whole function with better image resizer if NewFilters
 
 	// recompute Downscale factor because it may have changed due to block alignment
 	// note: if aspect ratio was not exactly preserved, this could differ in X and Y
@@ -1541,8 +1543,8 @@ static void DownscaleImage(const FImage& SrcImage, FImage& DstImage, const FText
 
 	FImageView2D SrcImageData(*ImageChain[0], 0);
 	FImageView2D DstImageData(*ImageChain[1], 0);
-					
-	// @todo Oodle : not sure this is a correct image resize without shift; does it get pixel center offsets right?
+				
+	// @todo OodleImageResize : not sure this is a correct image resize without shift; does it get pixel center offsets right?
 	for (int32 Y = 0; Y < FinalSizeY; ++Y)
 	{
 		float SourceY = Y * Downscale;

@@ -685,7 +685,7 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 			const uint32 SizeRaw = CompressedMip[0].RawData.Num() * CompressedMip[0].RawData.GetTypeSize();
 			GeneratedData.TilePayload[TileIndex] = MoveTemp(CompressedMip[0].RawData);
 
-			// @todo Oodle: if the SourceBlocks we used has no more tiles that need to read from it, free it now?
+			// if the SourceBlocks we used has no more tiles that need to read from it, free it now?
 			//	  what we'd like to do is do all the tiles within each Block/Layer at a time and free that source Block/Layer
 			//	  immediately when all its tiles are done before starting the next Block/Layer
 		}, 
@@ -885,7 +885,6 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 			
 			if ( LayerIndex != 0 )
 			{
-				// @todo Oodle : this looks fragile
 				//	some of the processing options are copied from BuildSettingsForLayer
 				//	but some are NOT
 				//	it seems semi-random
@@ -1217,8 +1216,8 @@ void FVirtualTextureDataBuilder::BuildMipTails()
 
 bool FVirtualTextureDataBuilder::DetectAlphaChannel(const FImage &Image)
 {
-	// @todo Oodle : VT DetectAlphaChannel slightly different than the same function in TextureCompressorModule
-	//	  factor them out and share
+	// note : VT DetectAlphaChannel slightly different than the same function in TextureCompressorModule
+	//	  could factor them out and share
 	//		technically could change output so may need a ddc key bump and verify
 
 	if (Image.Format == ERawImageFormat::BGRA8)
