@@ -4,6 +4,7 @@
 
 #include "Containers/Queue.h"
 #include "MuCO/CustomizableObject.h"
+#include "MuCO/CustomizableObjectInstance.h"
 #include "MuCO/CustomizableObjectExtension.h"
 #include "Containers/Ticker.h"
 
