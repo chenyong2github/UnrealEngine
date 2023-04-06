@@ -79,7 +79,6 @@ UMovieScene::UMovieScene(const FObjectInitializer& ObjectInitializer)
 	FixedFrameInterval_DEPRECATED = 0.0f;
 
 	NodeGroupCollection = CreateEditorOnlyDefaultSubobject<UMovieSceneNodeGroupCollection>("NodeGroupCollection");
-	NodeGroupCollection->SetFlags(RF_Transactional);
 
 	InTime_DEPRECATED    =  FLT_MAX;
 	OutTime_DEPRECATED   = -FLT_MAX;
