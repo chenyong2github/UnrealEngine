@@ -592,7 +592,7 @@ void UPCGEditorGraphNodeBase::GetPinHoverText(const UEdGraphPin& Pin, FString& H
 	{
 		if (bIsInputPin)
 		{
-			MultiDataSupport = MatchingPin->Properties.bAllowMultipleData ? FText(LOCTEXT("InputSupportsMultiData", "Supports multiple data in input collection(s). ")) : FText(LOCTEXT("InputSingleDataOnly", "Supports only single data in collection(s). "));
+			MultiDataSupport = MatchingPin->Properties.bAllowMultipleData ? FText(LOCTEXT("InputSupportsMultiData", "Supports multiple data in input(s). ")) : FText(LOCTEXT("InputSingleDataOnly", "Supports only single data in input(s). "));
 			MultiConnectionSupport = MatchingPin->Properties.bAllowMultipleConnections ? FText(LOCTEXT("SupportsMultiInput", "Supports multiple inputs.")) : FText(LOCTEXT("SingleInputOnly", "Supports only one input."));
 		}
 		else
