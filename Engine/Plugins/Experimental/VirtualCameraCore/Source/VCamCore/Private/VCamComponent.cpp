@@ -42,7 +42,6 @@
 
 DEFINE_LOG_CATEGORY(LogVCamComponent);
 
-UE_DISABLE_OPTIMIZATION
 namespace UE::VCamCore::Private
 {
 	static bool CanInitVCamInstance(UVCamComponent* Component)
@@ -1703,4 +1702,3 @@ bool UVCamComponent::IsCameraInVPRole() const
 	return true;
 #endif
 }
-UE_ENABLE_OPTIMIZATION
