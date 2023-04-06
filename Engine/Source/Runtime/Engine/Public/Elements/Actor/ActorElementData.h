@@ -22,7 +22,7 @@ template <>
 inline FString GetTypedElementDebugId<FActorElementData>(const FActorElementData& InElementData)
 {
 	UObject* Object = (UObject*)InElementData.Actor;
-	return Object
+	return IsValid(Object)
 		? Object->GetFullName()
 		: TEXT("null");
 }
