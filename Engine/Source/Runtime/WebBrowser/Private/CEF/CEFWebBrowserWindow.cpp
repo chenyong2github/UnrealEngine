@@ -1365,6 +1365,13 @@ bool FCEFWebBrowserWindow::OnUnhandledKeyEvent(const CefKeyEvent& CefEvent)
 			break;
 		}
 	}
+
+#if PLATFORM_MAC
+	// if this returns false, then CEF will bubble up the keyevent to eventually call NSMenu functions that are not safe on the
+	// game thread, so by returning true, we stop the key handling in it's tracks before CEF can pass it to NSMenu
+	return true;
+#endif
+	
 	return bWasHandled;
 }
 
