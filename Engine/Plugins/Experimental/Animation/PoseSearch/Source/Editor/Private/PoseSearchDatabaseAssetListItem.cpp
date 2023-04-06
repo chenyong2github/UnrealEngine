@@ -133,15 +133,8 @@ namespace UE::PoseSearch
 						{
 							float AnimationAssetTime = 0.f;
 							FVector AnimationAssetBlendParameters = FVector::ZeroVector;
-							TArray<const FPoseSearchIndexAsset*> SearchIndexAssets;
-							if (Database->GetPoseSearchIndexAssets(Node->SourceAssetIdx, SearchIndexAssets) && !SearchIndexAssets.IsEmpty())
-							{
-								const FPoseSearchIndexAsset* SearchIndexAsset = SearchIndexAssets[0];
-								check(SearchIndexAsset);
-								AnimationAssetTime = ViewModel->GetPlayTime() + SearchIndexAsset->SamplingInterval.Min;
-								AnimationAssetBlendParameters = SearchIndexAsset->BlendParameters;
-							}
-
+							ViewModel->GetAnimationTime(Node->SourceAssetIdx, AnimationAssetTime, AnimationAssetBlendParameters);
+							
 							const IAnimationEditor* AnimationEditor = static_cast<IAnimationEditor*>(Editor);
 							const UDebugSkelMeshComponent* PreviewComponent = AnimationEditor->GetPersonaToolkit()->GetPreviewMeshComponent();
 

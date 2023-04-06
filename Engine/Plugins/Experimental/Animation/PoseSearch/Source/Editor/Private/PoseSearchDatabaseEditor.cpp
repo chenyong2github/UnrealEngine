@@ -9,6 +9,7 @@
 #include "PoseSearchDatabaseEditorReflection.h"
 #include "PoseSearchEditor.h"
 #include "PoseSearch/PoseSearchDerivedData.h"
+#include "Framework/Application/SlateApplication.h"
 #include "GameFramework/WorldSettings.h"
 #include "AdvancedPreviewSceneModule.h"
 #include "InstancedStruct.h"
@@ -25,7 +26,6 @@
 namespace UE::PoseSearch
 {
 	const FName PoseSearchDatabaseEditorAppName = FName(TEXT("PoseSearchDatabaseEditorApp"));
-	constexpr double ViewRangeSlack = 0.25;
 
 	// Tab identifiers
 	struct FDatabaseEditorTabs
@@ -55,16 +55,13 @@ namespace UE::PoseSearch
 		return ViewModel.IsValid() ? ViewModel->GetPoseSearchDatabase() : nullptr;
 	}
 
-	void FDatabaseEditor::SetSelectedAsset(int32 SourceAssetIdx)
+	void FDatabaseEditor::SetSelectedPoseIdx(int32 PoseIdx)
 	{
 		if (ViewModel.IsValid())
 		{
-			const TWeakPtr<FDatabaseAssetTreeNode> Node = AssetTreeWidget->SetSelectedItem(SourceAssetIdx);
-			
-			if (Node.IsValid())
-			{
-				ViewModel->SetSelectedNode(Node.Pin());
-			}
+			const bool bClearSelection = !FSlateApplication::Get().GetModifierKeys().IsControlDown() || ViewModel->IsEditorSelection();
+			const int32 SourceAssetIdx = ViewModel->SetSelectedNode(PoseIdx, bClearSelection);
+			AssetTreeWidget->SetSelectedItem(SourceAssetIdx, bClearSelection);
 		}
 	}
 
@@ -142,15 +139,22 @@ namespace UE::PoseSearch
 				PreviewScene.ToSharedRef());
 			
 			PreviewWidget = SNew(SDatabasePreview, PreviewArgs)
-				.SliderScrubTime_Lambda([this]() { return ViewModel->GetPlayTime(); })
+				.SliderColor_Lambda([this]()
+					{
+						return ViewModel->IsEditorSelection() ? FLinearColor::Red.CopyWithNewOpacity(0.5f) : FLinearColor::Blue.CopyWithNewOpacity(0.5f);
+					})
+				.SliderScrubTime_Lambda([this]()
+					{
+						return ViewModel->GetPlayTime();
+					})
 				.SliderViewRange_Lambda([this]() 
-				{ 
-					return TRange<double>(-ViewRangeSlack, ViewModel->GetMaxPreviewPlayLength() + ViewRangeSlack);
-				})
+					{ 
+						return ViewModel->GetPreviewPlayRange();
+					})
 				.OnSliderScrubPositionChanged_Lambda([this](float NewScrubPosition, bool bScrubbing)
-				{
-					ViewModel->SetPlayTime(NewScrubPosition, !bScrubbing);
-				})
+					{
+						ViewModel->SetPlayTime(NewScrubPosition, !bScrubbing);
+					})
 				.OnBackwardEnd_Raw(this, &FDatabaseEditor::PreviewBackwardEnd)
 				.OnBackwardStep_Raw(this, &FDatabaseEditor::PreviewBackwardStep)
 				.OnBackward_Raw(this, &FDatabaseEditor::PreviewBackward)
@@ -590,7 +594,10 @@ namespace UE::PoseSearch
 			}
 		}
 
-		ViewModel->SetSelectedNodes(SelectedItems);
+		if (SelectionType != ESelectInfo::Direct)
+		{
+			ViewModel->SetSelectedNodes(SelectedItems);
+		}
 	}
 
 	FDatabaseEditor::FSelectionWidget& FDatabaseEditor::FindOrAddSelectionWidget(const UScriptStruct* ScriptStructType)

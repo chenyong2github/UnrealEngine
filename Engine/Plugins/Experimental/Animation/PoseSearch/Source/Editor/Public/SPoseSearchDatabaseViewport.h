@@ -72,6 +72,7 @@ namespace UE::PoseSearch
 		DECLARE_DELEGATE(FOnButtonClickedEvent)
 
 		SLATE_BEGIN_ARGS(SDatabasePreview) {}
+			SLATE_ATTRIBUTE(FLinearColor, SliderColor);
 			SLATE_ATTRIBUTE(double, SliderScrubTime);
 			SLATE_ATTRIBUTE(TRange<double>, SliderViewRange);
 			SLATE_EVENT(FOnScrubPositionChanged, OnSliderScrubPositionChanged);
@@ -87,7 +88,8 @@ namespace UE::PoseSearch
 		void Construct(const FArguments& InArgs, const FDatabasePreviewRequiredArgs& InRequiredArgs);
 
 	protected:
-		TAttribute<double> SliderScrubTimeAttribute;
+		TAttribute<FLinearColor> SliderColor;
+		TAttribute<double> SliderScrubTime;
 		TAttribute<TRange<double>> SliderViewRange = TRange<double>(0.0, 1.0);
 		FOnScrubPositionChanged OnSliderScrubPositionChanged;
 		FOnButtonClickedEvent OnBackwardEnd;

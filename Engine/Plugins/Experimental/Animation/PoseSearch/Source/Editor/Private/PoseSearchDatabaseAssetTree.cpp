@@ -730,19 +730,23 @@ namespace UE::PoseSearch
 		EditorViewModel.Pin()->BuildSearchIndex();
 	}
 
-	TWeakPtr<FDatabaseAssetTreeNode> SDatabaseAssetTree::SetSelectedItem(int32 SourceAssetIdx)
+	void SDatabaseAssetTree::SetSelectedItem(int32 SourceAssetIdx, bool bClearSelection)
 	{
-		for (TSharedPtr<FDatabaseAssetTreeNode> & Node : AllNodes)
+		if (bClearSelection)
 		{
-			if (Node->SourceAssetIdx == SourceAssetIdx)
-			{
-				TreeView->ClearSelection();
-				TreeView->SetItemSelection(Node, true);
-				return Node;
-			}
+			TreeView->ClearSelection();
 		}
 
-		return TWeakPtr<FDatabaseAssetTreeNode>();
+		if (SourceAssetIdx >= 0)
+		{
+			for (TSharedPtr<FDatabaseAssetTreeNode>& Node : AllNodes)
+			{
+				if (Node->SourceAssetIdx == SourceAssetIdx)
+				{
+					TreeView->SetItemSelection(Node, true);
+				}
+			}
+		}
 	}
 }
 

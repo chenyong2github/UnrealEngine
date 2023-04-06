@@ -141,7 +141,8 @@ namespace UE::PoseSearch
 
 	void SDatabasePreview::Construct(const FArguments& InArgs, const FDatabasePreviewRequiredArgs& InRequiredArgs)
 	{
-		SliderScrubTimeAttribute = InArgs._SliderScrubTime;
+		SliderColor = InArgs._SliderColor;
+		SliderScrubTime = InArgs._SliderScrubTime;
 		SliderViewRange = InArgs._SliderViewRange;
 		OnSliderScrubPositionChanged = InArgs._OnSliderScrubPositionChanged;
 
@@ -208,18 +209,29 @@ namespace UE::PoseSearch
 				[
 					SNew(SSimpleTimeSlider)
 					.ClampRangeHighlightSize(0.15f)
-					.ClampRangeHighlightColor(FLinearColor::Red.CopyWithNewOpacity(0.5f))
-					.ScrubPosition_Lambda([this]() { return SliderScrubTimeAttribute.Get(); })
-					.ViewRange_Lambda([this]() { return SliderViewRange.Get(); })
-					.ClampRange_Lambda([this]() { return SliderViewRange.Get(); })
-					.OnScrubPositionChanged_Lambda(
-						[this](double NewScrubTime, bool bIsScrubbing)
-					{
-						if (bIsScrubbing)
+					.ClampRangeHighlightColor_Lambda([this]()
 						{
-							OnSliderScrubPositionChanged.ExecuteIfBound(NewScrubTime, bIsScrubbing);
-						}
-					})
+							return SliderColor.Get();
+						})
+					.ScrubPosition_Lambda([this]()
+						{
+							return SliderScrubTime.Get();
+						})
+					.ViewRange_Lambda([this]()
+						{
+							return SliderViewRange.Get();
+						})
+					.ClampRange_Lambda([this]()
+						{
+							return SliderViewRange.Get();
+						})
+					.OnScrubPositionChanged_Lambda([this](double NewScrubTime, bool bIsScrubbing)
+						{
+							if (bIsScrubbing)
+							{
+								OnSliderScrubPositionChanged.ExecuteIfBound(NewScrubTime, bIsScrubbing);
+							}
+						})
 				]
 			]
 		];

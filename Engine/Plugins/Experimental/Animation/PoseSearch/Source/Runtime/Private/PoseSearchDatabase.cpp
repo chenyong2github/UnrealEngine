@@ -636,26 +636,6 @@ bool UPoseSearchDatabase::IsCachedCookedPlatformDataLoaded(const ITargetPlatform
 	check(IsInGameThread());
 	return FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(this, ERequestAsyncBuildFlag::ContinueRequest);
 }
-
-// returns all the FPoseSearchIndexAsset associated with the AnimationAssetIndex
-bool UPoseSearchDatabase::GetPoseSearchIndexAssets(int32 AnimationAssetIndex, TArray<const FPoseSearchIndexAsset*>& OutSearchIndexAssets) const
-{
-	using namespace UE::PoseSearch;
-	OutSearchIndexAssets.Reset();
-	if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(this, ERequestAsyncBuildFlag::ContinueRequest))
-	{
-		const FPoseSearchIndex& SearchIndex = GetSearchIndex();
-		for (const FPoseSearchIndexAsset& SearchIndexAsset : SearchIndex.Assets)
-		{
-			if (SearchIndexAsset.SourceAssetIdx == AnimationAssetIndex)
-			{
-				OutSearchIndexAssets.Add(&SearchIndexAsset);
-			}
-		}
-		return true;
-	}
-	return false;
-}
 #endif // WITH_EDITOR
 
 void UPoseSearchDatabase::PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext)

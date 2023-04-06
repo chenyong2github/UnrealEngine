@@ -45,6 +45,7 @@ namespace UE::PoseSearch
 		TWeakObjectPtr<AActor> Actor = nullptr;
 		int32 IndexAssetIndex = INDEX_NONE;
 		int32 CurrentPoseIndex = INDEX_NONE;
+		float PlayTimeOffset = 0.f;
 		FAnimationAssetSampler Sampler;
 
 		bool IsValid() const;
@@ -67,8 +68,6 @@ namespace UE::PoseSearch
 		void Initialize(UPoseSearchDatabase* InPoseSearchDatabase, const TSharedRef<FDatabasePreviewScene>& InPreviewScene);
 
 		void RemovePreviewActors();
-		void ResetPreviewActors();
-		void RespawnPreviewActors();
 		void BuildSearchIndex();
 
 		void PreviewBackwardEnd();
@@ -79,7 +78,7 @@ namespace UE::PoseSearch
 		void PreviewForwardStep();
 		void PreviewForwardEnd();
 
-		UPoseSearchDatabase* GetPoseSearchDatabase() const { return PoseSearchDatabase; }
+		UPoseSearchDatabase* GetPoseSearchDatabase() { return PoseSearchDatabase; }
 		void OnPreviewActorClassChanged();
 
 		void Tick(float DeltaSeconds);
@@ -105,19 +104,22 @@ namespace UE::PoseSearch
 		void SetIsEnabled(int32 AnimationAssetIndex, bool bEnabled);
 		bool IsEnabled(int32 AnimationAssetIndex) const;
 
-		void SetSelectedNode(const TSharedPtr<FDatabaseAssetTreeNode>& InSelectedNode);
+		int32 SetSelectedNode(int32 PoseIdx, bool bClearSelection);
 		void SetSelectedNodes(const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& InSelectedNodes);
 		void ProcessSelectedActor(AActor* Actor);
 		
 		const FPoseSearchIndexAsset* GetSelectedActorIndexAsset() const;
 
-		float GetMaxPreviewPlayLength() const;
-		float GetPlayTime() const;
+		TRange<double> GetPreviewPlayRange() const;
+
 		void SetPlayTime(float NewPlayTime, bool bInTickPlayTime);
+		float GetPlayTime() const;
+		bool IsEditorSelection() const { return bIsEditorSelection; }
+		bool GetAnimationTime(int32 SourceAssetIdx, float& CurrentPlayTime, FVector& BlendParameters) const;
 
 	private:
-		float PlayTime = 0.0f;
-		float DeltaTimeMultiplier = 1.0f;
+		float PlayTime = 0.f;
+		float DeltaTimeMultiplier = 1.f;
 
 		/** Scene asset being viewed and edited by this view model. */
 		TObjectPtr<UPoseSearchDatabase> PoseSearchDatabase;
@@ -129,7 +131,9 @@ namespace UE::PoseSearch
 		TArray<FDatabasePreviewActor> PreviewActors;
 		
 		/** From zero to the play length of the longest preview */
-		float MaxPreviewPlayLength = 0.0f;
+		float MaxPreviewPlayLength = 0.f;
+		float MinPreviewPlayLength = 0.f;
+		bool bIsEditorSelection = true;
 
 		/** What features to show in the viewport */
 		EFeaturesDrawMode PoseFeaturesDrawMode = EFeaturesDrawMode::All;
@@ -140,15 +144,11 @@ namespace UE::PoseSearch
 		/** Is animation debug draw enabled */
 		bool DisplayRootMotionSpeed = false;
 		
-		TArray<TSharedPtr<FDatabaseAssetTreeNode>> SelectedNodes;
-
 		int32 SelectedActorIndexAssetIndex = INDEX_NONE;
 
-		UWorld* GetWorld() const;
+		UWorld* GetWorld();
 
-		UObject* GetPlaybackContext() const;
-
-		FDatabasePreviewActor SpawnPreviewActor(int32 IndexAssetIndex, const FBoneContainer& BoneContainer);
+		FDatabasePreviewActor SpawnPreviewActor(int32 IndexAssetIndex, const FBoneContainer& BoneContainer, float PlayTimeOffset);
 
 		void UpdatePreviewActors(bool bInTickPlayTime = false);
 

@@ -39,7 +39,7 @@ namespace UE::PoseSearch
 		void RefreshTreeView(bool bIsInitialSetup = false, bool bRecoverSelection = false);
 		void FinalizeTreeChanges(bool bRecoverSelection = false);
 
-		TWeakPtr<FDatabaseAssetTreeNode> SetSelectedItem(int32 SourceAssetIdx);
+		void SetSelectedItem(int32 SourceAssetIdx, bool bClearSelection);
 		FDetailColumnSizeData& GetColumnSizeData() { return ColumnSizeData; }
 		
 	protected:

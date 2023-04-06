@@ -158,8 +158,7 @@ struct FDatabaseName : IColumn
 									FDatabaseEditor* DatabaseEditor = static_cast<FDatabaseEditor*>(Editor);
 									
 									// Open asset paused and at specific time as seen on the pose search debugger.
-									DatabaseEditor->SetSelectedAsset(RowData->DbAssetIdx);
-									DatabaseEditor->GetViewModel()->SetPlayTime(RowData->AssetTime, false);
+									DatabaseEditor->SetSelectedPoseIdx(RowData->PoseIdx);
 								}
 							}
 						}

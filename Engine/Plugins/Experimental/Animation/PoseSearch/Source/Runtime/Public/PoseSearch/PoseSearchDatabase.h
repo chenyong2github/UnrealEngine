@@ -335,9 +335,6 @@ public:
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
 	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
 
-	// returns all the FPoseSearchIndexAsset associated with the AnimationAssetIndex
-	bool GetPoseSearchIndexAssets(int32 AnimationAssetIndex, TArray<const FPoseSearchIndexAsset*>& OutSearchIndexAssets) const;
-
 private:
 	DECLARE_MULTICAST_DELEGATE(FOnDerivedDataRebuildMulticaster);
 	FOnDerivedDataRebuildMulticaster OnDerivedDataRebuild;
