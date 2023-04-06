@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 
+class SDisplayClusterOperatorRootActorPanel;
 class FTabManager;
 class FLayoutExtender;
 class FSpawnTabArgs;
@@ -24,6 +25,9 @@ public:
 	/** The tab ID that the details panel lives in */
 	static const FName DetailsTabId;
 
+	/** The tab ID that the root actor properties panel lives in */
+	static const FName RootActorPanelId;
+
 	/** The ID of the main tab stack that can be extended by external tabs */
 	static const FName PrimaryTabExtensionId;
 
@@ -39,7 +43,7 @@ public:
 	void Construct(const FArguments& InArgs, const TSharedRef<FTabManager>& InTabManager, const TSharedPtr<SWindow>& WindowOwner);
 
 	//~ SWidget interface
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	//~ End SWidget interface
 
 	/** Toggles the state of a drawer with the specified ID, closing the drawer if it is open, and opening the drawer if it is closed */
@@ -54,6 +58,9 @@ private:
 
 	/** Creates a tab with the details panel in it */
 	TSharedRef<SDockTab> SpawnDetailsTab(const FSpawnTabArgs& Args);
+
+	/** Creates a tab with the root actor properties panel in it */
+	TSharedRef<SDockTab> SpawnRootActorPanelTab(const FSpawnTabArgs& Args);
 
 	/** Raised when something wants to display a list of objects in the operator's details panel */
 	void DisplayObjectsInDetailsPanel(const TArray<UObject*>& Objects);
@@ -76,6 +83,9 @@ private:
 
 	/** A reference to the operator panel's details view */
 	TSharedPtr<class SKismetInspector> DetailsView;
+
+	/** A reference to the operator panel's root actor panel */
+	TSharedPtr<SDisplayClusterOperatorRootActorPanel> RootActorPanel;
 
 	/** A reference to the operator panel's status bar widget */
 	TSharedPtr<SDisplayClusterOperatorStatusBar> StatusBar;

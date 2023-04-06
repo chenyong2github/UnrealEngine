@@ -4,8 +4,10 @@
 
 #include "DisplayClusterOperatorModule.h"
 #include "DisplayClusterOperatorStatusBarExtender.h"
+#include "DisplayClusterOperatorStyle.h"
 #include "IDisplayClusterOperator.h"
 #include "IDisplayClusterOperatorViewModel.h"
+#include "SDisplayClusterOperatorRootActorPanel.h"
 #include "SDisplayClusterOperatorStatusBar.h"
 #include "SDisplayClusterOperatorToolbar.h"
 
@@ -17,7 +19,6 @@
 #include "ToolMenus.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "Framework/Docking/TabManager.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -25,6 +26,7 @@
 #define LOCTEXT_NAMESPACE "SDisplayClusterOperatorPanel"
 
 const FName SDisplayClusterOperatorPanel::DetailsTabId = TEXT("OperatorDetails");
+const FName SDisplayClusterOperatorPanel::RootActorPanelId = TEXT("RootActorPanel");
 const FName SDisplayClusterOperatorPanel::PrimaryTabExtensionId = TEXT("PrimaryOperatorTabStack");
 const FName SDisplayClusterOperatorPanel::AuxilliaryTabExtensionId = TEXT("AuxilliaryOperatorTabStack");
 
@@ -56,6 +58,11 @@ void SDisplayClusterOperatorPanel::Construct(const FArguments& InArgs, const TSh
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"))
 		.SetGroup(AppMenuGroup);
 
+	TabManager->RegisterTabSpawner(RootActorPanelId, FOnSpawnTab::CreateSP(this, &SDisplayClusterOperatorPanel::SpawnRootActorPanelTab))
+		.SetDisplayName(LOCTEXT("RootActorPanelTabTitle", "nDisplay Settings"))
+		.SetIcon(FSlateIcon(FDisplayClusterOperatorStyle::Get().GetStyleSetName(), "RootActorPanel.Icon"))
+		.SetGroup(AppMenuGroup);
+
 	// Load any operator apps
 	{
 		FDisplayClusterOperatorModule& OperatorModule = FModuleManager::GetModuleChecked<FDisplayClusterOperatorModule>(IDisplayClusterOperator::ModuleName);
@@ -71,7 +78,7 @@ void SDisplayClusterOperatorPanel::Construct(const FArguments& InArgs, const TSh
 		}
 	}
 	
-	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("nDisplayOperatorLayout_v1")
+	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("nDisplayOperatorLayout_v2")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -106,7 +113,9 @@ void SDisplayClusterOperatorPanel::Construct(const FArguments& InArgs, const TSh
 						(
 							FTabManager::NewStack()
 							->AddTab(DetailsTabId, ETabState::OpenedTab)
-							->SetHideTabWell(true)
+							->AddTab(RootActorPanelId, ETabState::OpenedTab)
+							->SetForegroundTab(DetailsTabId)
+							->SetHideTabWell(false)
 						)
 						
 					)
@@ -255,6 +264,17 @@ TSharedRef<SDockTab> SDisplayClusterOperatorPanel::SpawnDetailsTab(const FSpawnT
 		.TabRole(ETabRole::PanelTab)
 		[
 			DetailsView.ToSharedRef()
+		];
+}
+
+TSharedRef<SDockTab> SDisplayClusterOperatorPanel::SpawnRootActorPanelTab(const FSpawnTabArgs& Args)
+{
+	SAssignNew(RootActorPanel, SDisplayClusterOperatorRootActorPanel, TabManager, RootActorPanelId);
+
+	return SNew(SDockTab)
+		.TabRole(ETabRole::PanelTab)
+		[
+			RootActorPanel.ToSharedRef()
 		];
 }
 

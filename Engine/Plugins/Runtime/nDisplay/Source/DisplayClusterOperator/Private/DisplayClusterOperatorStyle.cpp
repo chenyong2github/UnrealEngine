@@ -37,6 +37,7 @@ void FDisplayClusterOperatorStyle::Initialize()
 	// Icons
 	{
 		Set("OperatorPanel.Icon", new IMAGE_BRUSH_SVG("Icons/Components/nDisplayCamera", Icon16x16));
+		Set("RootActorPanel.Icon", new IMAGE_BRUSH_SVG("Icons/RootActor/nDisplay", Icon16x16));
 	}
 	
 	// Colors
