@@ -125,7 +125,7 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 			.CanSelectGeneratedColumn(InInitOptions.bCanSelectGeneratedColumns)
 			.OnHiddenColumnsListChanged(this, &SSceneOutliner::HandleHiddenColumnsChanged);
 
-	SetupColumns(*HeaderRowWidget);
+	SetupColumns();
 
 	CacheHiddenColumns = TSet(HeaderRowWidget->GetHiddenColumnIds());
 
@@ -408,8 +408,119 @@ void SSceneOutliner::GetSortedColumnIDs(TArray<FName>& OutColumnIDs) const
 		});
 }
 
-void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
+void SSceneOutliner::AddColumn_Internal(const FName& ColumnId, const FSceneOutlinerColumnInfo& ColumnInfo, const TMap<FName, bool>& ColumnVisibilities, int32 InsertPosition)
 {
+	if(!HeaderRowWidget)
+	{
+		return;
+	}
+
+	SHeaderRow& HeaderRow = *HeaderRowWidget;
+
+	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
+	
+	// Avoid caching column visibilities while building the columns
+	bool const bPreviousShouldCacheColumnVisibility = bShouldCacheColumnVisibility;
+	bShouldCacheColumnVisibility = false;
+	
+	bool bIsVisible = true;
+
+	// If there is a config saved for this column, ignore the default visibility
+	if (const bool *ColumnVisibility = ColumnVisibilities.Find(ColumnId))
+	{
+		bIsVisible = *ColumnVisibility;
+	}
+	else if (ColumnInfo.Visibility == ESceneOutlinerColumnVisibility::Invisible)
+	{
+		bIsVisible = false;
+	}
+
+	TSharedPtr<ISceneOutlinerColumn> Column;
+
+	if (ColumnInfo.Factory.IsBound())
+	{
+		Column = ColumnInfo.Factory.Execute(*this);
+	}
+	else
+	{
+		Column = SceneOutlinerModule.FactoryColumn(ColumnId, *this);
+	}
+
+	if (ensure(Column.IsValid()))
+	{
+		Columns.Add(ColumnId, Column);
+
+		auto ColumnArgs = Column->ConstructHeaderRowColumn();
+
+		if (Column->SupportsSorting())
+		{
+			ColumnArgs
+				.SortMode(this, &SSceneOutliner::GetColumnSortMode, ColumnId)
+				.OnSort(this, &SSceneOutliner::OnColumnSortModeChanged);
+		}
+
+		if (ColumnInfo.ColumnLabel.IsSet())
+		{
+			ColumnArgs.DefaultLabel(ColumnInfo.ColumnLabel);
+		}
+		else
+		{
+			if (HeaderRow.GetVisibility() == EVisibility::Visible)
+			{
+				UE_LOG(LogSceneOutliner, Log, TEXT("Outliner Column %s does not have a localizable name, please specify one to FSceneOutlinerColumnInfo"), *ColumnId.ToString());
+			}
+				
+			ColumnArgs.DefaultLabel(FText::FromName(ColumnId));
+		}
+			
+		if (!ColumnInfo.bCanBeHidden)
+		{
+			ColumnArgs.ShouldGenerateWidget(true);
+		}
+
+		if (ColumnInfo.FillSize.IsSet())
+		{
+			ColumnArgs.FillWidth(ColumnInfo.FillSize.GetValue());
+		}
+
+		if (ColumnInfo.OnGetHeaderContextMenuContent.IsBound())
+		{
+			ColumnArgs.MenuContent()
+			[
+				ColumnInfo.OnGetHeaderContextMenuContent.Execute()
+			];
+		}
+
+		ColumnArgs.HeaderComboVisibility(ColumnInfo.HeaderComboVisibility);
+
+		if(InsertPosition == INDEX_NONE)
+		{
+			HeaderRow.AddColumn(ColumnArgs);
+		}
+		else
+		{
+			HeaderRow.InsertColumn(ColumnArgs, InsertPosition);
+		}
+		
+		HeaderRow.SetShowGeneratedColumn(ColumnId, bIsVisible);
+	}
+
+	bShouldCacheColumnVisibility = bPreviousShouldCacheColumnVisibility;
+}
+
+void SSceneOutliner::RemoveColumn_Internal(const FName& ColumnId)
+{
+	Columns.Remove(ColumnId);
+	HeaderRowWidget->RemoveColumn(ColumnId);
+}
+
+void SSceneOutliner::SetupColumns()
+{
+	if(!HeaderRowWidget)
+	{
+		return;
+	}
+	
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
 
 	if (SharedData->ColumnMap.Num() == 0)
@@ -427,7 +538,7 @@ void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
 	}
 
 	Columns.Empty(FilteredColumnMap.Num());
-	HeaderRow.ClearColumns();
+	HeaderRowWidget->ClearColumns();
 
 	TArray<FName> SortedIDs;
 	GetSortedColumnIDs(SortedIDs);
@@ -441,89 +552,13 @@ void SSceneOutliner::SetupColumns(SHeaderRow& HeaderRow)
 		ColumnVisibilities = OutlinerConfig->ColumnVisibilities;
 	}
 
-	// Avoid caching column visibilities while building the columns
-	bool const bPreviousShouldCacheColumnVisibility = bShouldCacheColumnVisibility;
-	bShouldCacheColumnVisibility = false;
-	
 	for (const FName& ID : SortedIDs)
 	{
-		bool bIsVisible = true;
-
-		// If there is a config saved for this column, ignore the default visibility
-		if (bool *ColumnVisibility = ColumnVisibilities.Find(ID))
-		{
-			bIsVisible = *ColumnVisibility;
-		}
-		else if (FilteredColumnMap[ID].Visibility == ESceneOutlinerColumnVisibility::Invisible)
-		{
-			bIsVisible = false;
-		}
-
-		TSharedPtr<ISceneOutlinerColumn> Column;
-
-		if (FilteredColumnMap[ID].Factory.IsBound())
-		{
-			Column = FilteredColumnMap[ID].Factory.Execute(*this);
-		}
-		else
-		{
-			Column = SceneOutlinerModule.FactoryColumn(ID, *this);
-		}
-
-		if (ensure(Column.IsValid()))
-		{
-			Columns.Add(ID, Column);
-
-			auto ColumnArgs = Column->ConstructHeaderRowColumn();
-
-			if (Column->SupportsSorting())
-			{
-				ColumnArgs
-					.SortMode(this, &SSceneOutliner::GetColumnSortMode, ID)
-					.OnSort(this, &SSceneOutliner::OnColumnSortModeChanged);
-			}
-
-			if (FilteredColumnMap[ID].ColumnLabel.IsSet())
-			{
-				ColumnArgs.DefaultLabel(FilteredColumnMap[ID].ColumnLabel);
-			}
-			else
-			{
-				if (HeaderRow.GetVisibility() == EVisibility::Visible)
-				{
-					UE_LOG(LogSceneOutliner, Log, TEXT("Outliner Column %s does not have a localizable name, please specify one to FSceneOutlinerColumnInfo"), *ID.ToString());
-				}
-				
-				ColumnArgs.DefaultLabel(FText::FromName(ID));
-			}
-			
-			if (!FilteredColumnMap[ID].bCanBeHidden)
-			{
-				ColumnArgs.ShouldGenerateWidget(true);
-			}
-
-			if (FilteredColumnMap[ID].FillSize.IsSet())
-			{
-				ColumnArgs.FillWidth(FilteredColumnMap[ID].FillSize.GetValue());
-			}
-
-			if (FilteredColumnMap[ID].OnGetHeaderContextMenuContent.IsBound())
-			{
-				ColumnArgs.MenuContent()
-				[
-					FilteredColumnMap[ID].OnGetHeaderContextMenuContent.Execute()
-				];
-			}
-
-			ColumnArgs.HeaderComboVisibility(FilteredColumnMap[ID].HeaderComboVisibility);
-
-			HeaderRow.AddColumn(ColumnArgs);
-			HeaderRow.SetShowGeneratedColumn(ID, bIsVisible);
-		}
+		AddColumn_Internal(ID, FilteredColumnMap[ID], ColumnVisibilities);
 	}
+	
 	Columns.Shrink();
 	bNeedsColumRefresh = false;
-	bShouldCacheColumnVisibility = bPreviousShouldCacheColumnVisibility;
 }
 
 void SSceneOutliner::RefreshColumns()
@@ -1158,21 +1193,33 @@ int32 SSceneOutliner::GetFilterCount() const
 	return Filters->Num();
 }
 
-void SSceneOutliner::AddColumn(FName ColumId, const FSceneOutlinerColumnInfo& ColumInfo)
+void SSceneOutliner::AddColumn(FName ColumnId, const FSceneOutlinerColumnInfo& ColumInfo)
 {
-	if (!SharedData->ColumnMap.Contains(ColumId))
+	if (!SharedData->ColumnMap.Contains(ColumnId))
 	{
-		SharedData->ColumnMap.Add(ColumId, ColumInfo);
-		RefreshColumns();
+		SharedData->ColumnMap.Add(ColumnId, ColumInfo);
+
+		// Get the new sorted list of columns to make sure this is added in the right position
+		TArray<FName> SortedColumnIDs;
+		GetSortedColumnIDs(SortedColumnIDs);
+
+		TMap<FName, bool> ColumnVisibilities;
+		const FSceneOutlinerConfig* OutlinerConfig = GetConstConfig();
+		if(OutlinerConfig)
+		{
+			ColumnVisibilities = OutlinerConfig->ColumnVisibilities;
+		}
+
+		AddColumn_Internal(ColumnId, ColumInfo, ColumnVisibilities, SortedColumnIDs.Find(ColumnId));
 	}
 }
 
-void SSceneOutliner::RemoveColumn(FName ColumId)
+void SSceneOutliner::RemoveColumn(FName ColumnId)
 {
-	if (SharedData->ColumnMap.Contains(ColumId))
+	if (SharedData->ColumnMap.Contains(ColumnId))
 	{
-		SharedData->ColumnMap.Remove(ColumId);
-		RefreshColumns();
+		SharedData->ColumnMap.Remove(ColumnId);
+		RemoveColumn_Internal(ColumnId);
 	}
 }
 
@@ -2227,7 +2274,7 @@ void SSceneOutliner::Tick(const FGeometry& AllottedGeometry, const double InCurr
 
 	if ( bNeedsColumRefresh )
 	{
-		SetupColumns(*HeaderRowWidget);
+		SetupColumns();
 	}
 
 	if( bNeedsRefresh )

@@ -336,13 +336,13 @@ public:
 	 * @param ColumnId The id of the column to add
 	 * @param ColumInfo The struct that contains the information on how to present and retrieve the column
 	 */
-	virtual void AddColumn(FName ColumId, const FSceneOutlinerColumnInfo& ColumInfo) override;
+	virtual void AddColumn(FName ColumnId, const FSceneOutlinerColumnInfo& ColumInfo) override;
 
 	/**
 	 * Remove a column of the scene outliner
 	 * @param ColumnId The name of the column to remove
 	 */
-	virtual void RemoveColumn(FName ColumId) override;
+	virtual void RemoveColumn(FName ColumnId) override;
 
 	void SetColumnVisibility(FName ColumnId, bool bIsVisible);
 
@@ -628,13 +628,16 @@ private:
 	TMap<FName, TSharedPtr<ISceneOutlinerColumn>> Columns;
 
 	/** Set up the columns required for this outliner */
-	void SetupColumns(SHeaderRow& HeaderRow);
+	void SetupColumns();
 
 	void HandleHiddenColumnsChanged();
 
-	/** Refresh the scene outliner for when a colum was added or removed */
+	/** Refresh the scene outliner columns */
 	void RefreshColumns();
 
+	void AddColumn_Internal(const FName& ColumnId, const FSceneOutlinerColumnInfo& ColumnInfo, const TMap<FName, bool>& ColumnVisibilities, int32 InsertPosition = INDEX_NONE);
+	void RemoveColumn_Internal(const FName& ColumnId);
+	
 	/** Populates OutSearchStrings with the strings associated with TreeItem that should be used in searching */
 	void PopulateSearchStrings( const ISceneOutlinerTreeItem& TreeItem, OUT TArray< FString >& OutSearchStrings ) const;
 
