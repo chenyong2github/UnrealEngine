@@ -251,6 +251,11 @@ struct MASSENTITY_API FMassArchetypeSharedFragmentValues
 		return SharedFragmentBitSet == InSharedFragmentBitSet;
 	}
 
+	FORCEINLINE bool HasAllRequiredFragmentTypes(const FMassSharedFragmentBitSet& InSharedFragmentBitSet) const
+	{
+		return SharedFragmentBitSet.HasAll(InSharedFragmentBitSet);
+	}
+
 	FORCEINLINE bool IsEquivalent(const FMassArchetypeSharedFragmentValues& OtherSharedFragmentValues) const
 	{
 		return GetTypeHash(*this) == GetTypeHash(OtherSharedFragmentValues);
@@ -503,6 +508,12 @@ namespace UE::Mass
 			OutBitSet += FMassFragmentBitSet::GetTypeBitSet<FType>();
 		}
 
+		void Reset()
+		{
+			Super::Reset();
+			FragmentInstances.Reset();
+		}
+
 		TArray<FType> FragmentInstances;
 	};
 
@@ -530,6 +541,11 @@ namespace UE::Mass
 		void GetheredAffectedFragments(FMassFragmentBitSet& OutBitSet) const
 		{
 			OutBitSet += FMassFragmentBitSet::GetTypeBitSet<FType>();
+		}
+
+		void Reset()
+		{
+			FragmentInstances.Reset();
 		}
 
 		TArray<FType> FragmentInstances;
