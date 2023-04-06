@@ -740,6 +740,7 @@ protected:
 	// Returns false if the case fails
 	bool CoerceConstantType(FLinearColor SourceValue, EMaterialValueType SourceType, EMaterialValueType DestinationType, FLinearColor& OutResult);
 	bool CastConstantType(FLinearColor SourceValue, EMaterialValueType SourceType, EMaterialValueType DestinationType, EMaterialCastFlags Flags, FLinearColor& OutResult);
+	int32 LWCCastIfNeccessary(EMaterialValueType ResultType, int32 ResultCode);
 
 	// Returns a constant of the specified typ
 	int32 ConstResultValue(EMaterialValueType Type, FLinearColor ConstantValue);
