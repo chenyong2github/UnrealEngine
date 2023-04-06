@@ -13,6 +13,7 @@
 
 #include "USDStageImportOptions.generated.h"
 
+class UInterchangeGenericMaterialPipeline;
 struct FAnalyticsEventAttribute;
 
 UENUM(BlueprintType)
@@ -100,6 +101,10 @@ public:
 	// Describes what to add to the root bone animation within generated AnimSequences, if anything
 	UPROPERTY( BlueprintReadWrite, config, EditAnywhere, Category = "USD options", meta = ( EditCondition = bImportSkeletalAnimations ) )
 	EUsdRootMotionHandling RootMotionHandling = EUsdRootMotionHandling::NoAdditionalRootMotion;
+
+	// Settings to use when parsing MaterialX materials via Interchange
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DataToImport", AdvancedDisplay, meta = (DisplayName = "MaterialX Options"))
+	TObjectPtr<UInterchangeGenericMaterialPipeline> MaterialXOptions;
 
 	/** Whether to use the specified StageOptions instead of the stage's own settings */
 	UPROPERTY( BlueprintReadWrite, config, EditAnywhere, Category = "USD options" )

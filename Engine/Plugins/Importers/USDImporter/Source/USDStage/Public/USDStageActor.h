@@ -14,9 +14,10 @@
 #include "USDStageActor.generated.h"
 
 class FUsdInfoCache;
-class UUsdAssetCache2;
+class UInterchangeGenericMaterialPipeline;
 class ULevelSequence;
 class UUsdAssetCache;
+class UUsdAssetCache2;
 class UUsdPrimTwin;
 class UUsdTransactor;
 struct FUsdSchemaTranslationContext;
@@ -90,6 +91,10 @@ public:
 	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = "USD", config )
 	EUsdRootMotionHandling RootMotionHandling = EUsdRootMotionHandling::NoAdditionalRootMotion;
 
+	// Settings to use when parsing MaterialX materials via Interchange
+	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = "USD", meta = (DisplayName = "MaterialX Options"))
+	TObjectPtr<UInterchangeGenericMaterialPipeline> MaterialXOptions;
+
 public:
 	DECLARE_EVENT_OneParam(AUsdStageActor, FOnActorLoaded, AUsdStageActor*);
 	USDSTAGE_API static FOnActorLoaded OnActorLoaded;
@@ -145,6 +150,9 @@ public:
 
 	UFUNCTION( BlueprintCallable, Category = "USD", meta = ( CallInEditor = "true" ) )
 	USDSTAGE_API void SetRootMotionHandling( EUsdRootMotionHandling NewHandlingStrategy );
+
+	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
+	USDSTAGE_API void SetMaterialXOptions(UInterchangeGenericMaterialPipeline* NewOptions);
 
 	UFUNCTION(BlueprintCallable, Category = "USD", meta = (CallInEditor = "true"))
 	USDSTAGE_API float GetTime() const;

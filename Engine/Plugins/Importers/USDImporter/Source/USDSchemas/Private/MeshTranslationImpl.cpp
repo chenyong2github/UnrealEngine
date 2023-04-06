@@ -16,6 +16,7 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "MaterialShared.h"
 #include "Misc/Paths.h"
 #include "UObject/Package.h"
 
@@ -29,6 +30,126 @@
 #include "pxr/usd/usdGeom/xformable.h"
 #include "pxr/usd/usdShade/material.h"
 #include "USDIncludesEnd.h"
+
+namespace UE::MeshTranslationImplInternal::Private
+{
+	UMaterialInterface* CreateTwoSidedVersionOfMaterial(UMaterialInterface* OneSidedMat)
+	{
+		if (!OneSidedMat)
+		{
+			return nullptr;
+		}
+
+		FString PrimPath;
+#if WITH_EDITOR
+		if (UUsdAssetImportData* ImportData = Cast<UUsdAssetImportData>(OneSidedMat->AssetImportData))
+		{
+			PrimPath = ImportData->PrimPath;
+		}
+#endif // WITH_EDITOR
+
+		UMaterialInterface* TwoSidedMat = nullptr;
+
+		UMaterialInstance* OneSidedMaterialInstance = Cast<UMaterialInstance>(OneSidedMat);
+
+		// Important to use Parent.Get() and not GetBaseMaterial() here because if our parent is the translucent we'll
+		// get the reference UsdPreviewSurface instead, as that is also *its* reference
+		UMaterialInterface* ReferenceMaterial = OneSidedMaterialInstance ? OneSidedMaterialInstance->Parent.Get() : nullptr;
+		UMaterialInterface* ReferenceMaterialTwoSided = nullptr;
+		if (ReferenceMaterial && ReferenceMaterial->GetPathName().StartsWith(TEXT("/USDImporter/Materials/UsdPreviewSurface")))
+		{
+			ReferenceMaterialTwoSided = MeshTranslationImpl::GetTwoSidedVersionOfReferencePreviewSurfaceMaterial(ReferenceMaterial);
+		}
+
+		const FName NewInstanceName = MakeUniqueObjectName(
+			GetTransientPackage(),
+			UMaterialInstance::StaticClass(),
+			*(OneSidedMat->GetName() + UnrealIdentifiers::TwoSidedMaterialSuffix)
+		);
+
+		UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(OneSidedMat);
+#if WITH_EDITOR
+		UMaterialInstanceConstant* MIC = Cast<UMaterialInstanceConstant>(OneSidedMat);
+
+		// One-sided material is an instance of one of our USD reference materials.
+		// Just create an instance of the TwoSided version of the same reference material and copy parameter values.
+		if (GIsEditor && MIC && ReferenceMaterialTwoSided)
+		{
+			UMaterialInstanceConstant* TwoSidedMIC = NewObject<UMaterialInstanceConstant>(
+				GetTransientPackage(),
+				NewInstanceName,
+				OneSidedMat->GetFlags()
+			);
+			if (TwoSidedMIC)
+			{
+				UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >(
+					TwoSidedMIC,
+					TEXT("USDAssetImportData")
+				);
+				ImportData->PrimPath = PrimPath;
+				TwoSidedMIC->AssetImportData = ImportData;
+			}
+
+			TwoSidedMIC->SetParentEditorOnly(ReferenceMaterialTwoSided);
+			TwoSidedMIC->CopyMaterialUniformParametersEditorOnly(OneSidedMat);
+
+			TwoSidedMat = TwoSidedMIC;
+		}
+
+		// One-sided material is some other material (e.g. MaterialX/MDL-generated material).
+		// Create a new material instance of it and set the override to two-sided.
+		else if (GIsEditor)
+		{
+			UMaterialInstanceConstant* TwoSidedMIC = NewObject<UMaterialInstanceConstant>(
+				GetTransientPackage(),
+				NewInstanceName,
+				OneSidedMat->GetFlags()
+			);
+			if (TwoSidedMIC)
+			{
+				UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >(
+					TwoSidedMIC,
+					TEXT("USDAssetImportData")
+				);
+				ImportData->PrimPath = PrimPath;
+				TwoSidedMIC->AssetImportData = ImportData;
+			}
+
+			TwoSidedMIC->SetParentEditorOnly(OneSidedMat);
+			TwoSidedMIC->BasePropertyOverrides.bOverride_TwoSided = true;
+			TwoSidedMIC->BasePropertyOverrides.TwoSided = true;
+
+			FMaterialUpdateContext UpdateContext(FMaterialUpdateContext::EOptions::Default, GMaxRHIShaderPlatform);
+			UpdateContext.AddMaterialInstance(TwoSidedMIC);
+
+			TwoSidedMat = TwoSidedMIC;
+		}
+
+		else
+#endif // WITH_EDITOR
+
+		// At runtime all we can do is create another instance of our two-sided reference materials, we cannot set
+		// another override
+		if (MID && ReferenceMaterialTwoSided)
+		{
+			UMaterialInstanceDynamic* TwoSidedMID = UMaterialInstanceDynamic::Create(
+				ReferenceMaterialTwoSided,
+				GetTransientPackage(),
+				NewInstanceName
+			);
+			if (!ensure(TwoSidedMID))
+			{
+				return nullptr;
+			}
+
+			TwoSidedMID->CopyParameterOverrides(MID);
+
+			TwoSidedMat = TwoSidedMID;
+		}
+
+		return TwoSidedMat;
+	}
+};
 
 TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslationImpl::ResolveMaterialAssignmentInfo(
 	const pxr::UsdPrim& UsdPrim,
@@ -95,10 +216,10 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 			}
 			case UsdUtils::EPrimAssignmentType::MaterialPrim:
 			{
-				UMaterialInstance* OneSidedMat = nullptr;
+				UMaterialInterface* OneSidedMat = nullptr;
 
-				TSet<UMaterialInstance*> ExistingMaterials = InfoCache.GetAssetsForPrim<UMaterialInstance>(UE::FSdfPath{*Slot.MaterialSource});
-				for (UMaterialInstance* ExistingMaterial : ExistingMaterials)
+				TSet<UMaterialInterface*> ExistingMaterials = InfoCache.GetAssetsForPrim<UMaterialInterface>(UE::FSdfPath{*Slot.MaterialSource});
+				for (UMaterialInterface* ExistingMaterial : ExistingMaterials)
 				{
 					const bool bExistingIsTwoSided = ExistingMaterial->IsTwoSided();
 
@@ -131,68 +252,10 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 
 						// Check if for some reason we already have a two-sided material ready due to a complex scenario
 						// related to the global cache
-						UMaterialInstance* TwoSidedMat = Cast<UMaterialInstance>(AssetCache.GetCachedAsset(MaterialHash));
+						UMaterialInterface* TwoSidedMat = Cast<UMaterialInterface>(AssetCache.GetCachedAsset(MaterialHash));
 						if (!TwoSidedMat)
 						{
-							// Important to not use GetBaseMaterial() here because if our parent is the translucent we'll
-							// get the reference UsdPreviewSurface instead, as that is also *its* reference
-							UMaterialInterface* ReferenceMaterial = OneSidedMat->Parent.Get();
-							UMaterialInterface* ReferenceMaterialTwoSided =
-								MeshTranslationImpl::GetTwoSidedVersionOfReferencePreviewSurfaceMaterial(ReferenceMaterial);
-							if (!ensure(ReferenceMaterialTwoSided && ReferenceMaterialTwoSided != ReferenceMaterial))
-							{
-								continue;
-							}
-
-							const FName NewInstanceName = MakeUniqueObjectName(
-								GetTransientPackage(),
-								UMaterialInstance::StaticClass(),
-								*(FPaths::GetBaseFilename(Slot.MaterialSource) + UnrealIdentifiers::TwoSidedMaterialSuffix)
-							);
-
-#if WITH_EDITOR
-							UMaterialInstanceConstant* MIC = Cast<UMaterialInstanceConstant>(OneSidedMat);
-							if (GIsEditor && MIC)
-							{
-								UMaterialInstanceConstant* TwoSidedMIC = NewObject<UMaterialInstanceConstant>(
-									GetTransientPackage(),
-									NewInstanceName,
-									Flags
-								);
-								if (TwoSidedMIC)
-								{
-									UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >(
-										TwoSidedMIC,
-										TEXT("USDAssetImportData")
-									);
-									ImportData->PrimPath = Slot.MaterialSource;
-									TwoSidedMIC->AssetImportData = ImportData;
-								}
-
-								TwoSidedMIC->SetParentEditorOnly(ReferenceMaterialTwoSided);
-								TwoSidedMIC->CopyMaterialUniformParametersEditorOnly(OneSidedMat);
-
-								TwoSidedMat = TwoSidedMIC;
-							}
-							else
-#endif // WITH_EDITOR
-							if (UMaterialInstanceDynamic* MID = Cast<UMaterialInstanceDynamic>(OneSidedMat))
-							{
-								UMaterialInstanceDynamic* TwoSidedMID = UMaterialInstanceDynamic::Create(
-									ReferenceMaterialTwoSided,
-									GetTransientPackage(),
-									NewInstanceName
-								);
-								if (!ensure(TwoSidedMID))
-								{
-									continue;
-								}
-
-								TwoSidedMID->CopyParameterOverrides(MID);
-
-								TwoSidedMat = TwoSidedMID;
-							}
-
+							TwoSidedMat = UE::MeshTranslationImplInternal::Private::CreateTwoSidedVersionOfMaterial(OneSidedMat);
 						}
 
 						if (TwoSidedMat)
@@ -200,13 +263,25 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 							TwoSidedMat->SetFlags(RF_Transient);
 							Material = TwoSidedMat;
 						}
+						else
+						{
+							UE_LOG(LogUsd, Warning, TEXT("Failed to generate a two-sided material from the material prim at path '%s'. Falling back to using the single-sided material '%s' instead."),
+								*Slot.MaterialSource,
+								*OneSidedMat->GetPathName()
+							);
+							Material = OneSidedMat;
+							MaterialHash = AssetCache.GetHashForAsset(OneSidedMat);
+						}
 					}
 				}
 
-				// Cache the material to "ping it" as active, but also register two sided materials for the
-				// first time
-				AssetCache.CacheAsset(MaterialHash, Material);
-				InfoCache.LinkAssetToPrim(UE::FSdfPath{*Slot.MaterialSource}, Material);
+				if (Material)
+				{
+					// Cache the material to "ping it" as active, but also register two sided materials for the
+					// first time
+					AssetCache.CacheAsset(MaterialHash, Material);
+					InfoCache.LinkAssetToPrim(UE::FSdfPath{*Slot.MaterialSource}, Material);
+				}
 
 				break;
 			}

@@ -25,6 +25,11 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"GeometryCache",
+					"InterchangeCore",
+					"InterchangeEngine",
+					"InterchangeFactoryNodes",
+					"InterchangeNodes",
+					"InterchangePipelines",
 					"LiveLinkAnimationCore",
 					"LiveLinkComponents",
 					"LiveLinkInterface",
@@ -65,6 +70,8 @@ namespace UnrealBuildTool.Rules
 						"UnrealEd",
 					}
 				);
+
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "MaterialX");
 			}
 		}
 	}

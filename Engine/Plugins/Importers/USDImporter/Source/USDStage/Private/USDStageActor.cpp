@@ -57,6 +57,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
+#include "InterchangeGenericMaterialPipeline.h"
 #include "LevelSequence.h"
 #include "LiveLinkComponentController.h"
 #include "Materials/Material.h"
@@ -118,6 +119,7 @@ struct FUsdStageActorImpl
 		TranslationContext->RenderContext = StageActor->RenderContext;
 		TranslationContext->MaterialPurpose = StageActor->MaterialPurpose;
 		TranslationContext->RootMotionHandling = StageActor->RootMotionHandling;
+		TranslationContext->MaterialXOptions = StageActor->MaterialXOptions;
 		TranslationContext->MaterialToPrimvarToUVIndex = &StageActor->MaterialToPrimvarToUVIndex;
 		TranslationContext->BlendShapesByPath = &StageActor->BlendShapesByPath;
 		TranslationContext->InfoCache = StageActor->InfoCache;
@@ -642,6 +644,8 @@ AUsdStageActor::AUsdStageActor()
 	SceneComponent->Mobility = EComponentMobility::Static;
 
 	RootComponent = SceneComponent;
+
+	MaterialXOptions = CreateDefaultSubobject<UInterchangeGenericMaterialPipeline>("MaterialXOptions");
 
 	// Note: We can't construct our RootUsdTwin as a default subobject here, it needs to be built on-demand.
 	// Even if we NewObject'd one it will work as a subobject in some contexts (maybe because the CDO will have a dedicated root twin?).
@@ -1777,6 +1781,15 @@ void AUsdStageActor::SetRootMotionHandling( EUsdRootMotionHandling NewHandlingSt
 	Modify(bMarkDirty);
 
 	RootMotionHandling = NewHandlingStrategy;
+	LoadUsdStage();
+}
+
+void AUsdStageActor::SetMaterialXOptions(UInterchangeGenericMaterialPipeline* NewOptions)
+{
+	const bool bMarkDirty = false;
+	Modify(bMarkDirty);
+
+	MaterialXOptions = NewOptions;
 	LoadUsdStage();
 }
 
@@ -2950,6 +2963,11 @@ void AUsdStageActor::OnObjectPropertyChanged(UObject* ObjectBeingModified, FProp
 		HandlePropertyChangedEvent(PropertyChangedEvent);
 		return;
 	}
+	else if (ObjectBeingModified == MaterialXOptions.Get())
+	{
+		SetMaterialXOptions(MaterialXOptions);
+		return;
+	}
 
 	// Don't modify the stage if we're in PIE
 	if (!HasAuthorityOverStage())
@@ -3176,6 +3194,10 @@ void AUsdStageActor::HandlePropertyChangedEvent(FPropertyChangedEvent& PropertyC
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AUsdStageActor, RootMotionHandling))
 	{
 		SetRootMotionHandling(RootMotionHandling);
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AUsdStageActor, MaterialXOptions))
+	{
+		SetMaterialXOptions(MaterialXOptions);
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AUsdStageActor, UsdAssetCache))
 	{

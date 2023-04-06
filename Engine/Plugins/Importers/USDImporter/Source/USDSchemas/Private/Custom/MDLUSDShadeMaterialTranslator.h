@@ -4,24 +4,26 @@
 
 #include "USDShadeMaterialTranslator.h"
 
+#include "Custom/MaterialXUSDShadeMaterialTranslator.h"
+
 #if USE_USD_SDK && WITH_EDITOR
 
 #include "USDIncludesStart.h"
 	#include "pxr/pxr.h"
 #include "USDIncludesEnd.h"
 
-class FMdlUsdShadeMaterialTranslator : public FUsdShadeMaterialTranslator
+class FMdlUsdShadeMaterialTranslator : public FMaterialXUsdShadeMaterialTranslator
 {
-	using Super = FUsdShadeMaterialTranslator;
+	using Super = FMaterialXUsdShadeMaterialTranslator;
 
 public:
 	static FName MdlRenderContext;
 
 public:
-	using FUsdShadeMaterialTranslator::FUsdShadeMaterialTranslator;
+	using FMaterialXUsdShadeMaterialTranslator::FMaterialXUsdShadeMaterialTranslator;
 
 	virtual void CreateAssets() override;
-	
+
 };
 
 #endif // #if USE_USD_SDK && WITH_EDITOR

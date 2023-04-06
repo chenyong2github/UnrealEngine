@@ -695,7 +695,7 @@ namespace UsdStageImporterImpl
 
 			// We have to rename the existing asset away, because some objects manage subobjects (like
 			// UMaterialInterface and its EditorOnlyData), and try to rename them whenever they're duplicated/renamed.
-			// That can lead to issues if the target names conflict with the names of ExistingAsset's subobjects			 
+			// That can lead to issues if the target names conflict with the names of ExistingAsset's subobjects
 			if (ExistingAsset)
 			{
 				FName UniqueName = MakeUniqueObjectName(
@@ -704,8 +704,8 @@ namespace UsdStageImporterImpl
 					ExistingAsset->GetFName()
 				);
 				ExistingAsset->Rename(
-					*UniqueName.ToString(), 
-					GetTransientPackage(), 
+					*UniqueName.ToString(),
+					GetTransientPackage(),
 					REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty
 				);
 			}
@@ -1715,6 +1715,7 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	TranslationContext->RenderContext = ImportContext.ImportOptions->RenderContextToImport;
 	TranslationContext->MaterialPurpose = ImportContext.ImportOptions->MaterialPurpose;
 	TranslationContext->RootMotionHandling = ImportContext.ImportOptions->RootMotionHandling;
+	TranslationContext->MaterialXOptions = ImportContext.ImportOptions->MaterialXOptions;
 	TranslationContext->ParentComponent = ImportContext.SceneActor ? ImportContext.SceneActor->GetRootComponent() : nullptr;
 	TranslationContext->KindsToCollapse = ( EUsdDefaultKind ) ImportContext.ImportOptions->KindsToCollapse;
 	TranslationContext->bMergeIdenticalMaterialSlots = ImportContext.ImportOptions->bMergeIdenticalMaterialSlots;
@@ -1832,6 +1833,7 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 	TranslationContext->RenderContext = ImportContext.ImportOptions->RenderContextToImport;
 	TranslationContext->MaterialPurpose = ImportContext.ImportOptions->MaterialPurpose;
 	TranslationContext->RootMotionHandling = ImportContext.ImportOptions->RootMotionHandling;
+	TranslationContext->MaterialXOptions = ImportContext.ImportOptions->MaterialXOptions;
 	TranslationContext->KindsToCollapse = ( EUsdDefaultKind ) ImportContext.ImportOptions->KindsToCollapse;
 	TranslationContext->bMergeIdenticalMaterialSlots = ImportContext.ImportOptions->bMergeIdenticalMaterialSlots;
 	TranslationContext->bAllowInterpretingLODs = ImportContext.ImportOptions->bInterpretLODs;

@@ -124,10 +124,33 @@ void FUsdStageViewModel::ReloadStage()
 		UsdUtils::StartMonitoringErrors();
 		{
 			FScopedUsdAllocs Allocs;
+
+			TSet<FString> NativeLayerExtensions{UnrealUSDWrapper::GetNativeFileFormats()};
+
+			std::set<pxr::SdfLayerHandle> LayersToRefresh;
+
 			const std::vector<pxr::SdfLayerHandle>& HandleVec = UsdStage->GetUsedLayers();
 
+			// We should only reload the native layers, because things like .mtlx files can show up in this list, if
+			// USD plugins allow interpreting them as "layers". We won't show these on our UI though, and not
+			// necessarily these are equipped to be modified/reloaded from USD (like how the .mtlx ones aren't).
+			for (const pxr::SdfLayerHandle& Handle : HandleVec)
+			{
+				std::string LayerPath;
+				std::map<std::string, std::string> Arguments;
+				if (pxr::SdfLayer::SplitIdentifier(Handle->GetIdentifier(), &LayerPath, &Arguments))
+				{
+					FString UELayerPath = UsdToUnreal::ConvertString(LayerPath);
+					FString UELayerExtension = FPaths::GetExtension(UELayerPath);
+					if (NativeLayerExtensions.Contains(UELayerExtension))
+					{
+						LayersToRefresh.insert(Handle);
+					}
+				}
+			}
+
 			const bool bForce = true;
-			pxr::SdfLayer::ReloadLayers( { HandleVec.begin(), HandleVec.end() }, bForce );
+			pxr::SdfLayer::ReloadLayers(LayersToRefresh, bForce);
 
 			// When reloading our UEState layer is closed but there is nothing on the root layer
 			// that would automatically pull the UEState session layer and cause it to be reloaded, so we need to try
@@ -293,6 +316,7 @@ void FUsdStageViewModel::ImportStage( const TCHAR* TargetContentFolder, UUsdStag
 		ImportContext.ImportOptions->ImportTimeCode = StageActor->GetTime();
 		ImportContext.ImportOptions->NaniteTriangleThreshold = StageActor->NaniteTriangleThreshold;
 		ImportContext.ImportOptions->RootMotionHandling = StageActor->RootMotionHandling;
+		ImportContext.ImportOptions->MaterialXOptions = StageActor->MaterialXOptions;
 		ImportContext.ImportOptions->KindsToCollapse = StageActor->KindsToCollapse;
 		ImportContext.ImportOptions->bMergeIdenticalMaterialSlots = StageActor->bMergeIdenticalMaterialSlots;
 

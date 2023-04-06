@@ -607,12 +607,6 @@ void UUsdAssetCache2::CacheAsset(const FString& Hash, UObject* Asset, const UObj
 		return;
 	}
 
-	UE_LOG(LogUsd, Verbose, TEXT("Caching asset '%s' with hash '%s' into the USD Asset Cache '%s'"),
-		*Asset->GetPathName(),
-		*Hash,
-		*GetPathName()
-	);
-
 	FCachedAssetInfo* FoundInfo = nullptr;
 	{
 		FReadScopeLock Lock(RWLock);
@@ -639,12 +633,18 @@ void UUsdAssetCache2::CacheAsset(const FString& Hash, UObject* Asset, const UObj
 	{
 		if (Asset == ExistingAsset)
 		{
+			UE_LOG(LogUsd, Verbose, TEXT("Recaching asset '%s' with hash '%s' into the USD Asset Cache '%s'"),
+				*Asset->GetPathName(),
+				*Hash,
+				*GetPathName()
+			);
+
 			// We're trying to cache an asset that's already in the cache with this same hash.
 			// Just record that we "touched" this asset and return
 			Modify();
 
 			FWriteScopeLock Lock(RWLock);
-			TouchAsset(Asset, ReferencerToUse);
+			TouchAssetInternal(Asset, ReferencerToUse);
 			return;
 		}
 		else
@@ -676,6 +676,12 @@ void UUsdAssetCache2::CacheAsset(const FString& Hash, UObject* Asset, const UObj
 			}
 		}
 	}
+
+	UE_LOG(LogUsd, Verbose, TEXT("Caching asset '%s' with hash '%s' into the USD Asset Cache '%s'"),
+		*Asset->GetPathName(),
+		*Hash,
+		*GetPathName()
+	);
 
 	Modify();
 
@@ -804,7 +810,7 @@ UObject* UUsdAssetCache2::GetCachedAsset(const FString& Hash)
 	if (FoundAsset)
 	{
 		FWriteScopeLock Lock{RWLock};
-		TouchAsset(FoundAsset, CurrentScopedReferencer);
+		TouchAssetInternal(FoundAsset, CurrentScopedReferencer);
 		return FoundAsset;
 	}
 
@@ -919,13 +925,33 @@ UObject* UUsdAssetCache2::GetCachedAsset(const FString& Hash)
 				UObject* LoadedAsset = LoadAssetFromBulkData(FoundCachedInfo);
 				ensure(LoadedAsset);
 
-				TouchAsset(LoadedAsset, CurrentScopedReferencer);
+				TouchAssetInternal(LoadedAsset, CurrentScopedReferencer);
 				FoundAsset = LoadedAsset;  // The very last asset we loaded is our main asset, as it's pushed last into AssetsToLoad
 			}
 		}
 	}
 
 	return FoundAsset;
+}
+
+bool UUsdAssetCache2::TouchAsset(const UObject* Asset, const UObject* Referencer)
+{
+	if (!Asset)
+	{
+		return false;
+	}
+
+	if (IsAssetOwnedByCache(Asset->GetPathName()))
+	{
+		Modify();
+
+		FWriteScopeLock Lock(RWLock);
+		TouchAssetInternal(Asset, Referencer);
+
+		return true;
+	}
+
+	return false;
 }
 
 bool UUsdAssetCache2::AddAssetReference(const UObject* Asset, const UObject* Referencer)
@@ -1508,14 +1534,14 @@ bool UUsdAssetCache2::AddAssetReferenceInternal(const UObject* Asset, const UObj
 	return false;
 }
 
-void UUsdAssetCache2::TouchAsset(UObject* Asset, const UObject* Referencer)
+void UUsdAssetCache2::TouchAssetInternal(const UObject* Asset, const UObject* Referencer)
 {
 	if (!Asset)
 	{
 		return;
 	}
 
-	ActiveAssets.Add(Asset);
+	ActiveAssets.Add(const_cast<UObject*>(Asset));
 	ensure(LRUCache.FindAndTouch(Asset));
 
 	if (Referencer)

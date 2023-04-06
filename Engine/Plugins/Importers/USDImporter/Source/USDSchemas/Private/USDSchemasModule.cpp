@@ -9,6 +9,7 @@
 #endif // #if WITH_EDITOR
 
 #include "Modules/ModuleManager.h"
+#include "Misc/Paths.h"
 
 #if USE_USD_SDK
 #include "USDGeomCameraTranslator.h"
@@ -20,13 +21,9 @@
 #include "USDMemory.h"
 #include "USDShadeMaterialTranslator.h"
 #include "USDSkelRootTranslator.h"
+#include "Custom/MaterialXUSDShadeMaterialTranslator.h"
 #include "Custom/MDLUSDShadeMaterialTranslator.h"
 #endif // #if USE_USD_SDK
-
-namespace UE::UsdSchemasModule::Private
-{
-	FName MaterialXRenderContext = TEXT("mtlx");
-}
 
 class FUsdSchemasModule : public IUsdSchemasModule
 {
@@ -46,6 +43,9 @@ public:
 		UsdLuxNonboundableLightBaseTranslatorHandle = GetTranslatorRegistry().Register< FUsdLuxLightTranslator >( TEXT("UsdLuxNonboundableLightBase") );
 
 #if WITH_EDITOR
+		GetRenderContextRegistry().Register(FMaterialXUsdShadeMaterialTranslator::MaterialXRenderContext);
+		MaterialXUsdShadeMaterialTranslatorHandle = GetTranslatorRegistry().Register<FMaterialXUsdShadeMaterialTranslator>(TEXT("UsdShadeMaterial"));
+
 		// Creating skeletal meshes technically works in Standalone mode, but by checking for this we artificially block it
 		// to not confuse users as to why it doesn't work at runtime. Not registering the actual translators lets the inner meshes get parsed as static meshes, at least.
 		if ( GIsEditor )
@@ -55,23 +55,22 @@ public:
 
 			if ( IMDLImporterModule* MDLImporterModule = FModuleManager::Get().LoadModulePtr< IMDLImporterModule >( TEXT("MDLImporter") ) )
 			{
+				GetRenderContextRegistry().Register(FMdlUsdShadeMaterialTranslator::MdlRenderContext);
 				MdlUsdShadeMaterialTranslatorHandle = GetTranslatorRegistry().Register< FMdlUsdShadeMaterialTranslator >( TEXT("UsdShadeMaterial") );
-				GetRenderContextRegistry().Register( FMdlUsdShadeMaterialTranslator::MdlRenderContext );
 			}
 		}
 #endif // WITH_EDITOR
 
-		GetRenderContextRegistry().Register( UE::UsdSchemasModule::Private::MaterialXRenderContext );
 #endif // #if USE_USD_SDK
 	}
 
 	virtual void ShutdownModule() override
 	{
 #if USE_USD_SDK
-		GetRenderContextRegistry().Unregister( UE::UsdSchemasModule::Private::MaterialXRenderContext );
 		GetTranslatorRegistry().Unregister( UsdGeomCameraTranslatorHandle );
 		GetTranslatorRegistry().Unregister( UsdGeomMeshTranslatorHandle );
 		GetTranslatorRegistry().Unregister( UsdGeomPointInstancerTranslatorHandle );
+
 #if WITH_EDITOR
 		if ( GIsEditor )
 		{
@@ -79,9 +78,13 @@ public:
 			GetTranslatorRegistry().Unregister( UsdGroomTranslatorHandle );
 
 			GetTranslatorRegistry().Unregister( MdlUsdShadeMaterialTranslatorHandle );
-			GetRenderContextRegistry().Unregister( FMdlUsdShadeMaterialTranslator::MdlRenderContext );
+			GetRenderContextRegistry().Unregister(FMdlUsdShadeMaterialTranslator::MdlRenderContext);
 		}
+
+		GetTranslatorRegistry().Unregister(MaterialXUsdShadeMaterialTranslatorHandle);
+		GetRenderContextRegistry().Unregister(FMaterialXUsdShadeMaterialTranslator::MaterialXRenderContext);
 #endif // WITH_EDITOR
+
 		GetTranslatorRegistry().Unregister( UsdGeomXformableTranslatorHandle );
 		GetTranslatorRegistry().Unregister( UsdShadeMaterialTranslatorHandle );
 		GetTranslatorRegistry().Unregister( UsdLuxBoundableLightBaseTranslatorHandle );
@@ -115,6 +118,7 @@ protected:
 
 	// Custom schemas
 	FRegisteredSchemaTranslatorHandle MdlUsdShadeMaterialTranslatorHandle;
+	FRegisteredSchemaTranslatorHandle MaterialXUsdShadeMaterialTranslatorHandle;
 };
 
 IMPLEMENT_MODULE_USD( FUsdSchemasModule, USDSchemas );

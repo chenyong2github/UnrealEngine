@@ -97,6 +97,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "Interchange",
+			"Enabled": true
+		},
+		{
 			"Name": "LevelSequenceEditor",
 			"Enabled": true
 		},

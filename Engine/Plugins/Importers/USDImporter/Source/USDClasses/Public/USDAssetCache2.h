@@ -71,6 +71,13 @@ public:
 	UObject* GetCachedAsset(const FString& Hash);
 
 	/**
+	 * Marks the provided asset as being used at this point, optionally adding a specific referencer.
+	 * This is useful because the asset cache will always prioritize retaining the most recently used assets
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Caching", meta = (CallInEditor = "true"))
+	bool TouchAsset(const UObject* Asset, const UObject* Referencer = nullptr);
+
+	/**
 	 * Adds a new UObject referencer to a particular asset, returning true if the operation succeeded.
 	 *
 	 * Assets will not be evicted or removed from the cache while the referencer is registered.
@@ -171,7 +178,7 @@ private:
 	bool TryUnloadAsset(FCachedAssetInfo& InOutInfo);
 	bool IsAssetOwnedByCacheInternal(const FString& AssetPath) const;
 	bool AddAssetReferenceInternal(const UObject* Asset, const UObject* Referencer);
-	void TouchAsset(UObject* Asset, const UObject* Referencer = nullptr);
+	void TouchAssetInternal(const UObject* Asset, const UObject* Referencer = nullptr);
 
 private:
 	friend struct FUsdScopedAssetCacheReferencer;
