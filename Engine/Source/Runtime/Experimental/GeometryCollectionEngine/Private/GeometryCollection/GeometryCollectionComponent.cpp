@@ -4341,16 +4341,16 @@ void UGeometryCollectionComponent::RefreshCustomRenderer()
 				const int32 RootIndex = GetRootIndex();
 				const bool bIsBroken = DynamicCollection ? !DynamicCollection->Active[RootIndex] : false;
 
-				RendererInterface->UpdateState(*RestCollection, bIsBroken);
+				RendererInterface->UpdateState(*RestCollection, ComponentTransform, bIsBroken);
 
 				if (bIsBroken)
 				{
-					RendererInterface->UpdateTransforms(*RestCollection, ComponentTransform, GlobalMatrices);
+					RendererInterface->UpdateTransforms(*RestCollection, GlobalMatrices);
 				}
 				else
 				{
 					const FTransform RootTransform = GlobalMatrices.IsValidIndex(RootIndex) ? FTransform(GlobalMatrices[RootIndex]) : FTransform::Identity;
-					RendererInterface->UpdateRootTransform(*RestCollection, ComponentTransform, RootTransform);
+					RendererInterface->UpdateRootTransform(*RestCollection, RootTransform);
 				}
 			}
 		}

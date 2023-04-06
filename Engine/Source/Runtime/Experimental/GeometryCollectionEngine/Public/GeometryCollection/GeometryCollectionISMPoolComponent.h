@@ -53,6 +53,11 @@ public:
 		TArray<int32> InstanceIdToIndex;
 	};
 
+	bool IsEmpty() const
+	{
+		return InstancesCount == 0;
+	}
+
 	FInstanceGroupId AddGroup(int32 Count)
 	{
 		const int32 StartIndex = InstancesCount;
@@ -108,6 +113,7 @@ private:
 struct FISMComponentDescription
 {
 	bool bUseHISM = false;
+	bool bReverseCulling = false;
 	bool bIsStaticMobility = false;
 	bool bAffectShadow = true;
 	bool bAffectDistanceFieldLighting = false;
@@ -120,6 +126,7 @@ struct FISMComponentDescription
 	bool operator==(const FISMComponentDescription& Other) const
 	{
 		return bUseHISM == Other.bUseHISM &&
+			bReverseCulling == Other.bReverseCulling &&
 			bIsStaticMobility == Other.bIsStaticMobility &&
 			bAffectShadow == Other.bAffectShadow &&
 			bAffectDistanceFieldLighting == Other.bAffectDistanceFieldLighting &&
@@ -133,7 +140,7 @@ struct FISMComponentDescription
 
 FORCEINLINE uint32 GetTypeHash(const FISMComponentDescription& Desc)
 {
-	const uint32 PackedBools = (Desc.bUseHISM ? 1 : 0) | (Desc.bIsStaticMobility ? 2 : 0) | (Desc.bAffectShadow ? 4 : 0) | (Desc.bAffectDistanceFieldLighting ? 8 : 0) | (Desc.bAffectDynamicIndirectLighting ? 16 : 0);
+	const uint32 PackedBools = (Desc.bUseHISM ? 1 : 0) | (Desc.bReverseCulling ? 2 : 0) | (Desc.bIsStaticMobility ? 4 : 0) | (Desc.bAffectShadow ? 8 : 0) | (Desc.bAffectDistanceFieldLighting ? 16 : 0) | (Desc.bAffectDynamicIndirectLighting ? 32 : 0);
 	uint32 Hash = HashCombine(GetTypeHash(PackedBools), GetTypeHash(Desc.NumCustomDataFloats));
 	Hash = HashCombine(Hash, GetTypeHash(Desc.StartCullDistance));
 	Hash = HashCombine(Hash, GetTypeHash(Desc.EndCullDistance));
@@ -210,11 +217,12 @@ struct FGeometryCollectionMeshGroup
 
 struct FGeometryCollectionISM
 {
-	FGeometryCollectionISM(AActor* OwmingActor, const FGeometryCollectionStaticMeshInstance& MeshInstance);
+	FGeometryCollectionISM(AActor* OwmingActor, const FGeometryCollectionStaticMeshInstance& InMeshInstance);
 
 	int32 AddInstanceGroup(int32 InstanceCount, TArrayView<const float> CustomDataFloats);
 
 	TObjectPtr<UInstancedStaticMeshComponent> ISMComponent;
+	FGeometryCollectionStaticMeshInstance MeshInstance;
 	FInstanceGroups InstanceGroups;
 };
 
@@ -235,8 +243,7 @@ struct FGeometryCollectionISMPool
 	TMap<FGeometryCollectionStaticMeshInstance, FISMIndex> MeshToISMIndex;
 	TMap<UInstancedStaticMeshComponent*, FISMIndex> ISMComponentToISMIndex;
 	TArray<FGeometryCollectionISM> ISMs;
-	
-	// Todo : since ISMs index cannot change, we'll need a free list 
+	TArray<int32> FreeList;
 };
 
 
@@ -274,9 +281,6 @@ public:
 	/** Add a static mesh for a nmesh group */
 	bool BatchUpdateInstancesTransforms(FMeshGroupId MeshGroupId, FMeshId MeshId, int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false);
 
-	/** Get the ISM component related to a mesh id. */
-	UInstancedStaticMeshComponent* GetISMForMeshId(FMeshGroupId MeshGroupId, FMeshId MeshId) const;
-	
 	/** Instance Index updated on the InstancedStaticMeshComponent which might need to be handled by the pool instance groups */
 	void OnISMInstanceIndexUpdated(UInstancedStaticMeshComponent* InComponent, TArrayView<const FInstancedStaticMeshDelegates::FInstanceIndexUpdateData> InIndexUpdates)
 	{

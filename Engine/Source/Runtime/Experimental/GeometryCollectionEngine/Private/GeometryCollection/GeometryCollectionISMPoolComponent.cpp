@@ -43,8 +43,10 @@ void FGeometryCollectionMeshGroup::RemoveAllMeshes(FGeometryCollectionISMPool& I
 	Meshes.Empty();
 }
 
-FGeometryCollectionISM::FGeometryCollectionISM(AActor* OwmingActor, const FGeometryCollectionStaticMeshInstance& MeshInstance)
+FGeometryCollectionISM::FGeometryCollectionISM(AActor* OwmingActor, const FGeometryCollectionStaticMeshInstance& InMeshInstance)
 {
+	MeshInstance = InMeshInstance;
+
 	check(MeshInstance.StaticMesh);
 	check(OwmingActor);
 
@@ -74,6 +76,7 @@ FGeometryCollectionISM::FGeometryCollectionISM(AActor* OwmingActor, const FGeome
 	}
 
 	ISMC->NumCustomDataFloats = MeshInstance.Desc.NumCustomDataFloats;
+	ISMC->SetReverseCulling(MeshInstance.Desc.bReverseCulling);
 	ISMC->SetMobility(MeshInstance.Desc.bIsStaticMobility ? EComponentMobility::Static : EComponentMobility::Stationary);
 	ISMC->SetCullDistances(MeshInstance.Desc.StartCullDistance, MeshInstance.Desc.EndCullDistance);
 	ISMC->SetCastShadow(MeshInstance.Desc.bAffectShadow);
@@ -130,7 +133,16 @@ FGeometryCollectionMeshInfo FGeometryCollectionISMPool::AddISM(UGeometryCollecti
 	FISMIndex* ISMIndex = MeshToISMIndex.Find(MeshInstance);
 	if (!ISMIndex)
 	{
-		Info.ISMIndex = ISMs.Emplace(OwningComponent->GetOwner(), MeshInstance);
+		if (FreeList.Num())
+		{
+			Info.ISMIndex = FreeList.Last();
+			FreeList.RemoveAt(FreeList.Num() - 1);
+			ISMs[Info.ISMIndex] = FGeometryCollectionISM(OwningComponent->GetOwner(), MeshInstance);
+		}
+		else
+		{
+			Info.ISMIndex = ISMs.Emplace(OwningComponent->GetOwner(), MeshInstance);
+		}
 		MeshToISMIndex.Add(MeshInstance, Info.ISMIndex);
 		ISMComponentToISMIndex.Add(ISMs[Info.ISMIndex].ISMComponent, Info.ISMIndex);
 	}
@@ -186,6 +198,21 @@ void FGeometryCollectionISMPool::RemoveISM(const FGeometryCollectionMeshInfo& Me
 		const FInstanceGroups::FInstanceGroupRange& InstanceGroup = ISM.InstanceGroups.GetGroup(MeshInfo.InstanceGroupIndex);
 		ISM.ISMComponent->RemoveInstances(InstanceGroup.InstanceIdToIndex);
 		ISM.InstanceGroups.RemoveGroup(MeshInfo.InstanceGroupIndex);
+	
+		if (ISM.InstanceGroups.IsEmpty() && ISM.ISMComponent->PerInstanceSMData.Num() == 0)
+		{
+			// Remove component and push this ISM slot to the free list.
+			// todo: profile if it is better to push component into a free pool and recycle it.
+			ISM.ISMComponent->GetOwner()->RemoveInstanceComponent(ISM.ISMComponent);
+			ISM.ISMComponent->UnregisterComponent();
+			ISM.ISMComponent->DestroyComponent();
+			
+			MeshToISMIndex.Remove(ISM.MeshInstance);
+			ISMComponentToISMIndex.Remove(ISM.ISMComponent);
+			FreeList.Add(MeshInfo.ISMIndex);
+
+			ISM.ISMComponent = nullptr;
+		}
 	}
 }
 
@@ -217,6 +244,7 @@ void FGeometryCollectionISMPool::Clear()
 {
 	MeshToISMIndex.Reset();
 	ISMComponentToISMIndex.Reset();
+	FreeList.Reset();
 	if (ISMs.Num() > 0)
 	{
 		if (AActor* OwningActor = ISMs[0].ISMComponent->GetOwner())
@@ -283,20 +311,4 @@ bool UGeometryCollectionISMPoolComponent::BatchUpdateInstancesTransforms(FMeshGr
 	}
 	UE_LOG(LogChaos, Warning, TEXT("UGeometryCollectionISMPoolComponent : Trying to update instance with mesh group (%d) that not exists"), MeshGroupId);
 	return false;
-}
-
-UInstancedStaticMeshComponent* UGeometryCollectionISMPoolComponent::GetISMForMeshId(FMeshGroupId MeshGroupId, FMeshId MeshId) const
-{
-	if (FGeometryCollectionMeshGroup const* MeshGroup = MeshGroups.Find(MeshGroupId))
-	{
-		if (MeshGroup->MeshInfos.IsValidIndex(MeshId))
-		{
-			int32 ISMIndex = MeshGroup->MeshInfos[MeshId].ISMIndex;
-			if (Pool.ISMs.IsValidIndex(ISMIndex))
-			{
-				return Pool.ISMs[ISMIndex].ISMComponent;
-			}
-		}
-	}
-	return nullptr;
 }

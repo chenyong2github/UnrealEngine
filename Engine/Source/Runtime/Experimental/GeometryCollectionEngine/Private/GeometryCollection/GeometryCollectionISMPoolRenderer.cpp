@@ -25,8 +25,10 @@ void UGeometryCollectionISMPoolRenderer::OnUnregisterGeometryCollection()
 	ISMPoolActor = nullptr;
 }
 
-void UGeometryCollectionISMPoolRenderer::UpdateState(UGeometryCollection const& InGeometryCollection, bool bIsBroken)
+void UGeometryCollectionISMPoolRenderer::UpdateState(UGeometryCollection const& InGeometryCollection, FTransform const& InComponentTransform, bool bIsBroken)
 {
+	ComponentTransform = InComponentTransform;
+
 	if (!bIsBroken && MergedMeshGroup.GroupIndex == INDEX_NONE)
 	{
 		// Remove broken primitives.
@@ -46,14 +48,14 @@ void UGeometryCollectionISMPoolRenderer::UpdateState(UGeometryCollection const& 
 	}
 }
 
-void UGeometryCollectionISMPoolRenderer::UpdateRootTransform(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, FTransform const& InRootTransform)
+void UGeometryCollectionISMPoolRenderer::UpdateRootTransform(UGeometryCollection const& InGeometryCollection, FTransform const& InRootTransform)
 {
-	UpdateMergedMeshTransforms(InRootTransform * InBaseTransform);
+	UpdateMergedMeshTransforms(InRootTransform * ComponentTransform);
 }
 
-void UGeometryCollectionISMPoolRenderer::UpdateTransforms(UGeometryCollection const& InGeometryCollection, FTransform const& InBaseTransform, TArrayView<const FMatrix> InMatrices)
+void UGeometryCollectionISMPoolRenderer::UpdateTransforms(UGeometryCollection const& InGeometryCollection, TArrayView<const FMatrix> InMatrices)
 {
-	UpdateInstanceTransforms(InGeometryCollection, InBaseTransform, InMatrices);
+	UpdateInstanceTransforms(InGeometryCollection, ComponentTransform, InMatrices);
 }
 
 UGeometryCollectionISMPoolComponent* UGeometryCollectionISMPoolRenderer::GetOrCreateISMPoolComponent()
