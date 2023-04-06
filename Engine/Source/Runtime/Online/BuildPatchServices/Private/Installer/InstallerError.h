@@ -18,6 +18,7 @@ namespace BuildPatchServices
 		static const TCHAR* InvalidInstallTags = TEXT("04");
 		static const TCHAR* ChunkReferenceTracking = TEXT("05");
 		static const TCHAR* MissingPrereqForPrereqOnlyInstall = TEXT("06");
+		static const TCHAR* InvalidDataInManifest = TEXT("07");
 	}
 
 	/**

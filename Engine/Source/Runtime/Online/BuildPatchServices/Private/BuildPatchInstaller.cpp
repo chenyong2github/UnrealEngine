@@ -731,6 +731,24 @@ namespace BuildPatchServices
 			BuildStats.FailureType = InstallerError->GetErrorType();
 		}
 
+		// Check for any filepath violations.
+		FString InstallDirectoryWithSlash = Configuration.InstallDirectory;
+		FPaths::NormalizeDirectoryName(InstallDirectoryWithSlash);
+		FPaths::CollapseRelativeDirectories(InstallDirectoryWithSlash);
+		InstallDirectoryWithSlash /= TEXT("/");
+		TSet<FString> ExpectedFiles;
+		ManifestSet->GetExpectedFiles(ExpectedFiles);
+		for (const FString& ExpectedFile : ExpectedFiles)
+		{
+			const FString InstallConstructionFile = FPaths::ConvertRelativePathToFull(Configuration.InstallDirectory, ExpectedFile);
+			if (!InstallConstructionFile.StartsWith(InstallDirectoryWithSlash))
+			{
+				UE_LOG(LogBuildPatchServices, Error, TEXT("Installer setup: Filepath in manifest escaped install directory. %s -> %s"), *ExpectedFile, *InstallConstructionFile);
+				InstallerError->SetError(EBuildPatchInstallError::InitializationError, InitializationErrorCodes::InvalidDataInManifest);
+				bInstallerInitSuccess = false;
+			}
+		}
+
 		bIsInited = true;
 		return bInstallerInitSuccess;
 	}
