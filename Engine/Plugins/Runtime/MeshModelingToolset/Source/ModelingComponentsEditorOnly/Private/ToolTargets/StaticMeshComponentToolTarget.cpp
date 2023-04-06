@@ -284,6 +284,7 @@ bool UStaticMeshComponentToolTargetFactory::CanBuildTarget(UObject* SourceObject
 	const UStaticMeshComponent* Component = GetValid(Cast<UStaticMeshComponent>(SourceObject));
 	return Component && !Component->IsUnreachable() && Component->IsValidLowLevel() && Component->GetStaticMesh()
 		&& !Component->GetStaticMesh()->GetOutermost()->bIsCookedForEditor
+		&& (Component->GetStaticMesh()->GetNumSourceModels() > 0)
 		&& Requirements.AreSatisfiedBy(UStaticMeshComponentToolTarget::StaticClass());
 }
 
