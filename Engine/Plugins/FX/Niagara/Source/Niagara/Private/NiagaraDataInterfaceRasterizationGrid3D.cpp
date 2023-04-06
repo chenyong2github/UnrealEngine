@@ -928,7 +928,7 @@ bool UNiagaraDataInterfaceRasterizationGrid3D::InitPerInstanceData(void* PerInst
 	InstanceData->NumTiles.Y = NumTilesY;
 	InstanceData->NumTiles.Z = NumTilesZ;
 
-	if (NumAttribChannelsFound == 0)
+	if (NumAttribChannelsFound == 0 && !Proxy->SourceDIName.IsNone())
 	{
 		UE_LOG(LogNiagara, Warning, TEXT("Zero attributes defined on %s"), *Proxy->SourceDIName.ToString());
 	}
