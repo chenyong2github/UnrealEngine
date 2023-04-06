@@ -145,7 +145,7 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 	Source.Update(Context);
 
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG
 	const bool bDebugDrawQuery = CVarAnimNodeMotionMatchingDrawQuery.GetValueOnAnyThread() > 0;
 	const bool bDebugDrawCurResult = CVarAnimNodeMotionMatchingDrawCurResult.GetValueOnAnyThread() > 0;
 	if (bDebugDrawQuery || bDebugDrawCurResult)
