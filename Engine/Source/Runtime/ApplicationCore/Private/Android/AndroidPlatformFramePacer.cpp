@@ -18,8 +18,8 @@ TAutoConsoleVariable<int32> FAndroidPlatformRHIFramePacer::CVarUseSwappyForFrame
 
 TAutoConsoleVariable<int32> FAndroidPlatformRHIFramePacer::CVarSupportNonVSyncMultipleFrameRates(
 	TEXT("a.SupportNonVSyncMultipleFrameRates"),
-	1,
-	TEXT("Set to True to support frame rates we cannot vsync at. Requires a.UseSwappyForFramePacing=1"));
+	0,
+	TEXT("Set to True to support frame rates we cannot vsync at. Requires a.UseSwappyForFramePacing=1 for OpenGL ES."));
 
 TAutoConsoleVariable<int32> FAndroidPlatformRHIFramePacer::CVarAllowFrameTimestamps(
 	TEXT("a.AllowFrameTimestamps"),

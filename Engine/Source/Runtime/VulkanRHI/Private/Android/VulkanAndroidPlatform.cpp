@@ -729,32 +729,15 @@ bool FAndroidVulkanFramePacer::SupportsFramePaceInternal(int32 QueryFramePace, i
 	// check if we want to use CPU frame pacing at less than a multiple of supported refresh rate
 	if (FAndroidPlatformRHIFramePacer::CVarSupportNonVSyncMultipleFrameRates.GetValueOnAnyThread() == 1)
 	{
-		int32 ClosestRefreshRate = 0;
-		
 		for (int32 Rate : RefreshRates)
 		{
 			if (Rate > QueryFramePace)
 			{
-				if (ClosestRefreshRate < QueryFramePace)
-				{
-					ClosestRefreshRate = Rate;
-				}
-
-				// prefer 30hz multiple
-				if ((Rate % 30) == 0)
-				{
-					ClosestRefreshRate = Rate;
-					break;
-				}
+				UE_LOG(LogRHI, Log, TEXT("Supports %d using refresh rate %d with CPU frame pacing"), QueryFramePace, Rate);
+				OutRefreshRate = Rate;
+				OutSyncInterval = 0;
+				return true;
 			}
-		}
-
-		if (ClosestRefreshRate > QueryFramePace)
-		{
-			OutRefreshRate = ClosestRefreshRate;
-			OutSyncInterval = 0;
-			UE_LOG(LogRHI, Log, TEXT("Supports %d using refresh rate %d with CPU frame pacing"), QueryFramePace, OutRefreshRate);
-			return true;
 		}
 	}
 
