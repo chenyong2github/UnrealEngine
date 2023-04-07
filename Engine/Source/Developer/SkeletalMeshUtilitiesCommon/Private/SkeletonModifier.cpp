@@ -17,7 +17,7 @@
 #include "Rendering/SkeletalMeshModel.h"
 
 
-namespace FSkeletonModifierLocals
+namespace USkeletonModifierLocals
 {
 	static constexpr int32 LODIndex = 0;
 }
@@ -115,7 +115,7 @@ FTransform FOrientOptions::OrientTransform(const FVector& InPrimaryTarget, const
 	return Transform;
 }
 
-void FSkeletonModifier::ExternalUpdate(const FReferenceSkeleton& InRefSkeleton, const TArray<int32>& InIndexTracker)
+void USkeletonModifier::ExternalUpdate(const FReferenceSkeleton& InRefSkeleton, const TArray<int32>& InIndexTracker)
 {
 	if (!ReferenceSkeleton)
 	{
@@ -127,7 +127,7 @@ void FSkeletonModifier::ExternalUpdate(const FReferenceSkeleton& InRefSkeleton, 
 	BoneIndexTracker = InIndexTracker;
 }
 
-bool FSkeletonModifier::Init(USkeletalMesh* InSkeletalMesh)
+bool USkeletonModifier::Init(USkeletalMesh* InSkeletalMesh)
 {
 	SkeletalMesh = nullptr;
 	MeshDescription.Reset();
@@ -192,7 +192,7 @@ bool FSkeletonModifier::Init(USkeletalMesh* InSkeletalMesh)
 
 	// store mesh description to edit
 	MeshDescription = MakeUnique<FMeshDescription>();
-	SkeletalMesh->GetMeshDescription(FSkeletonModifierLocals::LODIndex, *MeshDescription);
+	SkeletalMesh->GetMeshDescription(USkeletonModifierLocals::LODIndex, *MeshDescription);
 	if (MeshDescription->IsEmpty())
 	{
 		UE_LOG(LogAnimation, Error, TEXT("Skeleton Modifier: mesh description is emtpy."));
@@ -214,12 +214,12 @@ bool FSkeletonModifier::Init(USkeletalMesh* InSkeletalMesh)
 	}
 	return true;
 #else
-	ensureMsgf(false, TEXT("FSkeletonModifier is an editor only feature."));
+	ensureMsgf(false, TEXT("Skeleton Modifier is an editor only feature."));
 #endif
 	return false;
 }
 
-bool FSkeletonModifier::IsReferenceSkeletonValid(const bool bLog) const
+bool USkeletonModifier::IsReferenceSkeletonValid(const bool bLog) const
 {
 	if (!ReferenceSkeleton.IsValid())
 	{
@@ -232,7 +232,7 @@ bool FSkeletonModifier::IsReferenceSkeletonValid(const bool bLog) const
 	return true;
 }
 
-bool FSkeletonModifier::CommitSkeletonToSkeletalMesh()
+bool USkeletonModifier::CommitSkeletonToSkeletalMesh()
 {
 	if (!SkeletalMesh || !ReferenceSkeleton || !MeshDescription)
 	{
@@ -347,7 +347,7 @@ bool FSkeletonModifier::CommitSkeletonToSkeletalMesh()
 	SkeletalMesh->CalculateInvRefMatrices();
 	
 	// update skeletal mesh LOD (cf. USkeletalMesh::CommitMeshDescription)
-	SkeletalMesh->CommitMeshDescription(FSkeletonModifierLocals::LODIndex, *MeshDescription);
+	SkeletalMesh->CommitMeshDescription(USkeletonModifierLocals::LODIndex, *MeshDescription);
 
 	SkeletalMesh->PostEditChange();
 
@@ -361,12 +361,12 @@ bool FSkeletonModifier::CommitSkeletonToSkeletalMesh()
 
 	return true;
 #else
-	ensureMsgf(false, TEXT("FSkeletonModifier is an editor only feature."));
+	ensureMsgf(false, TEXT("Skeleton Modifier is an editor only feature."));
 #endif
 	return false;
 }
 
-bool FSkeletonModifier::AddBone(const FName InBoneName, const FName InParentName, const FTransform& InTransform)
+bool USkeletonModifier::AddBone(const FName InBoneName, const FName InParentName, const FTransform& InTransform)
 {
 	if (InBoneName == NAME_None)
 	{
@@ -377,7 +377,7 @@ bool FSkeletonModifier::AddBone(const FName InBoneName, const FName InParentName
 	return AddBones({InBoneName}, {InParentName}, {InTransform});
 }
 
-bool FSkeletonModifier::AddBones(
+bool USkeletonModifier::AddBones(
 	const TArray<FName>& InBoneNames, const TArray<FName>& InParentNames, const TArray<FTransform>& InTransforms)
 {
 	if (!IsReferenceSkeletonValid())
@@ -469,7 +469,7 @@ bool FSkeletonModifier::AddBones(
 	return true;
 }
 
-bool FSkeletonModifier::MirrorBone(const FName InBoneName, const FMirrorOptions& InOptions)
+bool USkeletonModifier::MirrorBone(const FName InBoneName, const FMirrorOptions& InOptions)
 {
 	if (InBoneName == NAME_None)
 	{
@@ -480,7 +480,7 @@ bool FSkeletonModifier::MirrorBone(const FName InBoneName, const FMirrorOptions&
 	return MirrorBones({InBoneName}, InOptions);
 }
 
-bool FSkeletonModifier::MirrorBones(const TArray<FName>& InBonesName, const FMirrorOptions& InOptions)
+bool USkeletonModifier::MirrorBones(const TArray<FName>& InBonesName, const FMirrorOptions& InOptions)
 {
 	if (!IsReferenceSkeletonValid())
 	{
@@ -526,7 +526,7 @@ bool FSkeletonModifier::MirrorBones(const TArray<FName>& InBonesName, const FMir
 	return true;
 }
 
-void FSkeletonModifier::GetBonesToMirror(
+void USkeletonModifier::GetBonesToMirror(
 	const TArray<FName>& InBonesName, const FMirrorOptions& InOptions, TArray<int32>& OutBonesToMirror) const
 {
 	OutBonesToMirror.Reset();
@@ -566,7 +566,7 @@ void FSkeletonModifier::GetBonesToMirror(
 	OutBonesToMirror = IndicesToMirror.Array();
 }
 
-void FSkeletonModifier::GetMirroredNames(
+void USkeletonModifier::GetMirroredNames(
 	const TArray<int32>& InBonesToMirror, const FMirrorOptions& InOptions, TArray<FName>& OutBonesName) const
 {
 	OutBonesName.Reset();
@@ -597,7 +597,7 @@ void FSkeletonModifier::GetMirroredNames(
 	});
 }
 
-void FSkeletonModifier::GetMirroredBones(
+void USkeletonModifier::GetMirroredBones(
 	const TArray<int32>& InBonesToMirror, const TArray<FName>& InMirroredNames, TArray<int32>& OutMirroredBones)
 {
 	OutMirroredBones.Reset();
@@ -673,7 +673,7 @@ void FSkeletonModifier::GetMirroredBones(
 	}
 }
 
-void FSkeletonModifier::GetMirroredTransforms(
+void USkeletonModifier::GetMirroredTransforms(
 	const TArray<int32>& InBonesToMirror, const TArray<int32>& InMirroredBones,
 	const FMirrorOptions& InOptions, TArray<FTransform>& OutMirroredTransforms) const
 {
@@ -750,7 +750,7 @@ void FSkeletonModifier::GetMirroredTransforms(
 // atm, we update the bone's local ref transform so children's global transforms are changed (we just need to cache the
 // global transforms then restore them back)
 // orienting the bone for example should change the children's global transform
-bool FSkeletonModifier::SetBoneTransform( const FName InBoneName, const FTransform& InNewTransform, const bool bMoveChildren)
+bool USkeletonModifier::SetBoneTransform( const FName InBoneName, const FTransform& InNewTransform, const bool bMoveChildren)
 {
 	if (InBoneName == NAME_None)
 	{
@@ -761,7 +761,7 @@ bool FSkeletonModifier::SetBoneTransform( const FName InBoneName, const FTransfo
 	return SetBonesTransforms({InBoneName}, {InNewTransform}, bMoveChildren);
 }
 
-bool FSkeletonModifier::SetBonesTransforms(
+bool USkeletonModifier::SetBonesTransforms(
 	const TArray<FName>& InBoneNames, const TArray<FTransform>& InNewTransforms, const bool bMoveChildren)
 {
 	if (!IsReferenceSkeletonValid())
@@ -860,7 +860,7 @@ bool FSkeletonModifier::SetBonesTransforms(
 	return true;
 }
 
-bool FSkeletonModifier::RemoveBone(const FName InBoneName, const bool bRemoveChildren)
+bool USkeletonModifier::RemoveBone(const FName InBoneName, const bool bRemoveChildren)
 {
 	if (InBoneName == NAME_None)
 	{
@@ -871,7 +871,7 @@ bool FSkeletonModifier::RemoveBone(const FName InBoneName, const bool bRemoveChi
 	return RemoveBones({InBoneName}, bRemoveChildren);
 }
 
-bool FSkeletonModifier::RemoveBones(const TArray<FName>& InBoneNames, const bool bRemoveChildren)
+bool USkeletonModifier::RemoveBones(const TArray<FName>& InBoneNames, const bool bRemoveChildren)
 {
 	if (!IsReferenceSkeletonValid())
 	{
@@ -911,7 +911,7 @@ bool FSkeletonModifier::RemoveBones(const TArray<FName>& InBoneNames, const bool
 	return true;		
 }
 
-bool FSkeletonModifier::RenameBone(const FName InOldBoneName, const FName InNewBoneName)
+bool USkeletonModifier::RenameBone(const FName InOldBoneName, const FName InNewBoneName)
 {
 	if (InOldBoneName == NAME_None || InOldBoneName == NAME_None || InNewBoneName == InOldBoneName)
 	{
@@ -922,7 +922,7 @@ bool FSkeletonModifier::RenameBone(const FName InOldBoneName, const FName InNewB
 	return RenameBones({InOldBoneName}, {InNewBoneName});
 }
 
-bool FSkeletonModifier::RenameBones(const TArray<FName>& InOldBoneNames, const TArray<FName>& InNewBoneNames)
+bool USkeletonModifier::RenameBones(const TArray<FName>& InOldBoneNames, const TArray<FName>& InNewBoneNames)
 {
 	if (!IsReferenceSkeletonValid())
 	{
@@ -956,7 +956,7 @@ bool FSkeletonModifier::RenameBones(const TArray<FName>& InOldBoneNames, const T
 	return true;
 }
 
-bool FSkeletonModifier::ParentBone(const FName InBoneName, const FName InParentName)
+bool USkeletonModifier::ParentBone(const FName InBoneName, const FName InParentName)
 {
 	if (InBoneName == NAME_None)
 	{
@@ -967,7 +967,7 @@ bool FSkeletonModifier::ParentBone(const FName InBoneName, const FName InParentN
 	return ParentBones({InBoneName}, {InParentName});
 }
 
-bool FSkeletonModifier::ParentBones(const TArray<FName>& InBoneNames, const TArray<FName>& InParentNames)
+bool USkeletonModifier::ParentBones(const TArray<FName>& InBoneNames, const TArray<FName>& InParentNames)
 {
 	if (!IsReferenceSkeletonValid())
 	{
@@ -1030,7 +1030,7 @@ bool FSkeletonModifier::ParentBones(const TArray<FName>& InBoneNames, const TArr
 	return true;
 }
 
-bool FSkeletonModifier::OrientBone(const FName InBoneName, const FOrientOptions& InOptions)
+bool USkeletonModifier::OrientBone(const FName InBoneName, const FOrientOptions& InOptions)
 {
 	if (InBoneName == NAME_None)
 	{
@@ -1041,7 +1041,7 @@ bool FSkeletonModifier::OrientBone(const FName InBoneName, const FOrientOptions&
 	return OrientBones({InBoneName}, InOptions);
 }
 
-bool FSkeletonModifier::OrientBones(const TArray<FName>& InBoneNames, const FOrientOptions& InOptions)
+bool USkeletonModifier::OrientBones(const TArray<FName>& InBoneNames, const FOrientOptions& InOptions)
 {
 	if (!IsReferenceSkeletonValid())
 	{
@@ -1127,7 +1127,7 @@ bool FSkeletonModifier::OrientBones(const TArray<FName>& InBoneNames, const FOri
 	return SetBonesTransforms(BonesToAlign, Transforms, bMoveChildren);
 }
 
-void FSkeletonModifier::GetBonesToOrient(
+void USkeletonModifier::GetBonesToOrient(
 	const TArray<FName>& InBonesName, const FOrientOptions& InOptions, TArray<int32>& OutBonesToOrient) const
 {
 	OutBonesToOrient.Reset();
@@ -1167,7 +1167,7 @@ void FSkeletonModifier::GetBonesToOrient(
 	OutBonesToOrient = IndicesToOrient.Array();
 }
 
-void FSkeletonModifier::UpdateBoneTracker(const TArray<FMeshBoneInfo>& InOtherInfos)
+void USkeletonModifier::UpdateBoneTracker(const TArray<FMeshBoneInfo>& InOtherInfos)
 {
 	for (int32 Index = 0; Index < BoneIndexTracker.Num(); ++Index)
 	{
@@ -1181,7 +1181,7 @@ void FSkeletonModifier::UpdateBoneTracker(const TArray<FMeshBoneInfo>& InOtherIn
 	}
 }
 
-FName FSkeletonModifier::GetUniqueName(const FName InBoneName) const
+FName USkeletonModifier::GetUniqueName(const FName InBoneName) const
 {
 	if (!ReferenceSkeleton)
 	{
@@ -1209,18 +1209,39 @@ FName FSkeletonModifier::GetUniqueName(const FName InBoneName) const
 	return OutName;
 }
 
-const FReferenceSkeleton& FSkeletonModifier::GetReferenceSkeleton() const
+const FReferenceSkeleton& USkeletonModifier::GetReferenceSkeleton() const
 {
 	static const FReferenceSkeleton Dummy;
 	return ReferenceSkeleton ? *ReferenceSkeleton.Get() : Dummy;
 }
 
-const TArray<int32>& FSkeletonModifier::GetBoneIndexTracker() const
+const TArray<int32>& USkeletonModifier::GetBoneIndexTracker() const
 {
 	return BoneIndexTracker;	
 }
 
-const FTransform& FSkeletonModifier::GetTransform(const int32 InBoneIndex, const bool bGlobal) const
+FTransform USkeletonModifier::GetBoneTransform(const FName InBoneName, const bool bGlobal) const
+{
+	if (!ReferenceSkeleton.IsValid())
+	{
+		return FTransform::Identity;
+	}
+	return GetTransform(ReferenceSkeleton->FindRawBoneIndex(InBoneName), bGlobal);
+}
+
+FName USkeletonModifier::GetParentName(const FName InBoneName) const
+{
+	const int32 BoneIndex = ReferenceSkeleton->FindBoneIndex(InBoneName);
+	if (BoneIndex == INDEX_NONE)
+	{
+		return NAME_None; 
+	}
+	const TArray<FMeshBoneInfo>& BoneInfos = ReferenceSkeleton->GetRawRefBoneInfo();
+	const int32 ParentIndex = BoneInfos[BoneIndex].ParentIndex;
+	return (ParentIndex > INDEX_NONE) ? BoneInfos[ParentIndex].Name : NAME_None;
+}
+
+const FTransform& USkeletonModifier::GetTransform(const int32 InBoneIndex, const bool bGlobal) const
 {
 	if (!ReferenceSkeleton.IsValid())
 	{

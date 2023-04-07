@@ -26,28 +26,28 @@ namespace SkeletonEditingTool
 	
 FRefSkeletonChange::FRefSkeletonChange(const USkeletonEditingTool* InTool)
 	: FToolCommandChange()
-	, PreChangeSkeleton(InTool->SkeletonModifier.GetReferenceSkeleton())
-	, PreBoneTracker(InTool->SkeletonModifier.GetBoneIndexTracker())
-	, PostChangeSkeleton(InTool->SkeletonModifier.GetReferenceSkeleton())
-	, PostBoneTracker(InTool->SkeletonModifier.GetBoneIndexTracker())
+	, PreChangeSkeleton(InTool->Modifier->GetReferenceSkeleton())
+	, PreBoneTracker(InTool->Modifier->GetBoneIndexTracker())
+	, PostChangeSkeleton(InTool->Modifier->GetReferenceSkeleton())
+	, PostBoneTracker(InTool->Modifier->GetBoneIndexTracker())
 {}
 
 void FRefSkeletonChange::StoreSkeleton(const USkeletonEditingTool* InTool)
 {
-	PostChangeSkeleton = InTool->SkeletonModifier.GetReferenceSkeleton();
-	PostBoneTracker = InTool->SkeletonModifier.GetBoneIndexTracker();
+	PostChangeSkeleton = InTool->Modifier->GetReferenceSkeleton();
+	PostBoneTracker = InTool->Modifier->GetBoneIndexTracker();
 }
 
 void FRefSkeletonChange::Apply(UObject* Object)
 { // redo
 	USkeletonEditingTool* Tool = CastChecked<USkeletonEditingTool>(Object);
-	Tool->SkeletonModifier.ExternalUpdate(PostChangeSkeleton, PostBoneTracker);
+	Tool->Modifier->ExternalUpdate(PostChangeSkeleton, PostBoneTracker);
 }
 
 void FRefSkeletonChange::Revert(UObject* Object)
 { // undo
 	USkeletonEditingTool* Tool = CastChecked<USkeletonEditingTool>(Object);
-	Tool->SkeletonModifier.ExternalUpdate(PreChangeSkeleton, PreBoneTracker);
+	Tool->Modifier->ExternalUpdate(PreChangeSkeleton, PreBoneTracker);
 }
 
 }
@@ -102,10 +102,11 @@ void USkeletonEditingTool::Setup()
 	}
 
 	// setup modifier
-	SkeletonModifier.Init(SkeletalMesh);
+	Modifier = NewObject<USkeletonModifier>(this);
+	Modifier->Init(SkeletalMesh);
 
 	// setup current bone
-	const FReferenceSkeleton& RefSkeleton = SkeletonModifier.GetReferenceSkeleton();
+	const FReferenceSkeleton& RefSkeleton = Modifier->GetReferenceSkeleton();
 	const int32 NumBones = RefSkeleton.GetNum();
 	const FName& RootBoneName = NumBones ? RefSkeleton.GetBoneName(0) : NAME_None;
 
@@ -167,7 +168,7 @@ void USkeletonEditingTool::Shutdown(EToolShutdownType ShutdownType)
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("SkeletonEditingTool", "Commit Skeleton Editing"));
-		SkeletonModifier.CommitSkeletonToSkeletalMesh();
+		Modifier->CommitSkeletonToSkeletalMesh();
 		GetToolManager()->EndUndoTransaction();
 
 		// to force to refresh the tree
@@ -270,8 +271,8 @@ void USkeletonEditingTool::CreateNewBone()
 
 	BeginChange();
 
-	const FName BoneName = SkeletonModifier.GetUniqueName(Properties->DefaultName);
-	const bool bBoneAdded = SkeletonModifier.AddBone(BoneName, CurrentBone, Properties->Transform);
+	const FName BoneName = Modifier->GetUniqueName(Properties->DefaultName);
+	const bool bBoneAdded = Modifier->AddBone(BoneName, CurrentBone, Properties->Transform);
 	if (bBoneAdded)
 	{
 		if (NeedsNotification())
@@ -294,7 +295,7 @@ void USkeletonEditingTool::MirrorBones()
 	TGuardValue OperationGuard(Operation, EEditingOperation::Mirror);
 	BeginChange();
 
-	const bool bBonesMirrored = SkeletonModifier.MirrorBones(GetSelectedBones(), MirroringProperties->Options);
+	const bool bBonesMirrored = Modifier->MirrorBones(GetSelectedBones(), MirroringProperties->Options);
 	if (bBonesMirrored)
 	{
 		EndChange();
@@ -311,7 +312,7 @@ void USkeletonEditingTool::RemoveBones()
 	TGuardValue OperationGuard(Operation, EEditingOperation::Remove);
 	BeginChange();
 
-	const bool bBonesRemoved = SkeletonModifier.RemoveBones(BonesToRemove, true);
+	const bool bBonesRemoved = Modifier->RemoveBones(BonesToRemove, true);
 	if (bBonesRemoved)
 	{
 		// if (NeedsNotification())
@@ -333,7 +334,7 @@ void USkeletonEditingTool::UnParentBones()
 	TGuardValue OperationGuard(Operation, EEditingOperation::Parent);
 	BeginChange();
 
-	const bool bBonesUnParented = SkeletonModifier.ParentBones(GetSelectedBones(), Dummy);
+	const bool bBonesUnParented = Modifier->ParentBones(GetSelectedBones(), Dummy);
 	if (bBonesUnParented)
 	{
 		GetToolManager()->DisplayMessage(LOCTEXT("Unparent", "Selected bones have been unparented."), EToolMessageLevel::UserNotification);
@@ -353,7 +354,7 @@ void USkeletonEditingTool::ParentBones(const FName& InParentName)
 	}
 
 	BeginChange();
-	const bool bBonesParented = SkeletonModifier.ParentBones(GetSelectedBones(), {InParentName});
+	const bool bBonesParented = Modifier->ParentBones(GetSelectedBones(), {InParentName});
 	if (bBonesParented)
 	{
 		EndChange();
@@ -367,7 +368,7 @@ void USkeletonEditingTool::ParentBones(const FName& InParentName)
 
 void USkeletonEditingTool::MoveBones()
 {
-	const FReferenceSkeleton& RefSkeleton = SkeletonModifier.GetReferenceSkeleton();
+	const FReferenceSkeleton& RefSkeleton = Modifier->GetReferenceSkeleton();
 
 	const TArray<FName> Bones = GetSelectedBones();
 	const bool bHasValidBone = Bones.ContainsByPredicate([&](const FName& InBoneName)
@@ -383,7 +384,7 @@ void USkeletonEditingTool::MoveBones()
 	TGuardValue OperationGuard(Operation, EEditingOperation::Transform);
 	BeginChange();
 
-	const bool bBonesMoved = SkeletonModifier.SetBoneTransform(Bones[0], Properties->Transform, Properties->bUpdateChildren);
+	const bool bBonesMoved = Modifier->SetBoneTransform(Bones[0], Properties->Transform, Properties->bUpdateChildren);
 	if (bBonesMoved)
 	{
 		// if (NeedsNotification())
@@ -405,7 +406,7 @@ void USkeletonEditingTool::RenameBones()
 		return;
 	}
 	
-	const FReferenceSkeleton& RefSkeleton = SkeletonModifier.GetReferenceSkeleton();
+	const FReferenceSkeleton& RefSkeleton = Modifier->GetReferenceSkeleton();
 	if (RefSkeleton.FindRawBoneIndex(CurrentBone) == INDEX_NONE)
 	{
 		return;
@@ -414,7 +415,7 @@ void USkeletonEditingTool::RenameBones()
 	TGuardValue OperationGuard(Operation, EEditingOperation::Rename);
 	BeginChange();
 
-	const bool bBoneRenamed = SkeletonModifier.RenameBone(CurrentBone, Properties->Name);
+	const bool bBoneRenamed = Modifier->RenameBone(CurrentBone, Properties->Name);
 	if (bBoneRenamed)
 	{
 		CurrentBone = Properties->Name;
@@ -441,7 +442,7 @@ void USkeletonEditingTool::OnClickDrag(const FInputDeviceRay& DragPos)
 	FVector HitPoint;
 	if (ProjectionProperties->GetProjectionPoint(DragPos, HitPoint))
 	{
-		const FTransform& ParentGlobal = SkeletonModifier.GetTransform(ParentIndex, true);
+		const FTransform& ParentGlobal = Modifier->GetTransform(ParentIndex, true);
 		Properties->Transform.SetLocation(ParentGlobal.InverseTransformPosition(HitPoint));
 
 		if (!ActiveChange)
@@ -450,7 +451,7 @@ void USkeletonEditingTool::OnClickDrag(const FInputDeviceRay& DragPos)
 			BeginChange();
 		}
 
-		const bool bBoneMoved = SkeletonModifier.SetBoneTransform(CurrentBone, Properties->Transform, Properties->bUpdateChildren);
+		const bool bBoneMoved = Modifier->SetBoneTransform(CurrentBone, Properties->Transform, Properties->bUpdateChildren);
 		if (!bBoneMoved)
 		{
 			CancelChange();
@@ -460,16 +461,16 @@ void USkeletonEditingTool::OnClickDrag(const FInputDeviceRay& DragPos)
 		const bool bOrient = Operation == EEditingOperation::Create && OrientingProperties->bAutoOrient;
 		if (bOrient && ParentIndex != INDEX_NONE)
 		{
-			const FReferenceSkeleton& RefSkeleton = SkeletonModifier.GetReferenceSkeleton();
+			const FReferenceSkeleton& RefSkeleton = Modifier->GetReferenceSkeleton();
 			const FName ParentName = RefSkeleton.GetRawRefBoneInfo()[ParentIndex].Name;
-			SkeletonModifier.OrientBone(ParentName, OrientingProperties->Options);
+			Modifier->OrientBone(ParentName, OrientingProperties->Options);
 		}
 	}
 }
 
 void USkeletonEditingTool::OrientBones()
 {
-	const FReferenceSkeleton& RefSkeleton = SkeletonModifier.GetReferenceSkeleton();
+	const FReferenceSkeleton& RefSkeleton = Modifier->GetReferenceSkeleton();
 
 	const TArray<FName> Bones = GetSelectedBones();
 	const bool bHasValidBone = Bones.ContainsByPredicate([&](const FName& InBoneName)
@@ -485,7 +486,7 @@ void USkeletonEditingTool::OrientBones()
 	TGuardValue OperationGuard(Operation, EEditingOperation::Transform);
 	BeginChange();
 	
-	const bool bBoneOriented = SkeletonModifier.OrientBones(Bones, OrientingProperties->Options);
+	const bool bBoneOriented = Modifier->OrientBones(Bones, OrientingProperties->Options);
 	if (bBoneOriented)
 	{
 		// if (NeedsNotification())
@@ -518,7 +519,7 @@ FInputRayHit USkeletonEditingTool::CanBeginClickDragSequence(const FInputDeviceR
 		{
 			if (TOptional<FName> OptBoneName = GetBoneName(HitProxy))
 			{
-				const FReferenceSkeleton& ReferenceSkeleton = SkeletonModifier.GetReferenceSkeleton();
+				const FReferenceSkeleton& ReferenceSkeleton = Modifier->GetReferenceSkeleton();
 				return ReferenceSkeleton.FindRawBoneIndex(*OptBoneName);
 			}
 		}
@@ -529,11 +530,11 @@ FInputRayHit USkeletonEditingTool::CanBeginClickDragSequence(const FInputDeviceR
 	const int32 BoneIndex = PickBone();
 
 	// update parent
-	const FReferenceSkeleton& ReferenceSkeleton = SkeletonModifier.GetReferenceSkeleton();
+	const FReferenceSkeleton& ReferenceSkeleton = Modifier->GetReferenceSkeleton();
 	ParentIndex = INDEX_NONE;
 
 	// update projection properties
-	const FVector GlobalPosition = SkeletonModifier.GetTransform(BoneIndex, true).GetTranslation();
+	const FVector GlobalPosition = Modifier->GetTransform(BoneIndex, true).GetTranslation();
 	ProjectionProperties->UpdatePlane(*ViewContext, GlobalPosition);
 
 	// if we picked a new bone
@@ -584,7 +585,7 @@ FInputRayHit USkeletonEditingTool::CanBeginClickDragSequence(const FInputDeviceR
 		{
 			// CurrentBone is gonna be the parent
 			ParentIndex = ReferenceSkeleton.FindRawBoneIndex(CurrentBone);
-			const FTransform& ParentGlobalTransform = SkeletonModifier.GetTransform(ParentIndex, true);
+			const FTransform& ParentGlobalTransform = Modifier->GetTransform(ParentIndex, true);
 
 			// Create the new bone under mouse
 			Properties->Transform.SetLocation(ParentGlobalTransform.InverseTransformPosition(HitPoint));
@@ -655,7 +656,7 @@ void USkeletonEditingTool::Render(IToolsContextRenderAPI* RenderAPI)
 	const IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
 	const FTransform ComponentTransform = TargetComponent->GetWorldTransform();
 	
-	const FReferenceSkeleton& RefSkeleton = SkeletonModifier.GetReferenceSkeleton();
+	const FReferenceSkeleton& RefSkeleton = Modifier->GetReferenceSkeleton();
 
 	const int32 NumBones = RefSkeleton.GetRawBoneNum();
 	TArray<TRefCountPtr<HHitProxy>> HitProxies; HitProxies.Reserve(NumBones);
@@ -665,7 +666,7 @@ void USkeletonEditingTool::Render(IToolsContextRenderAPI* RenderAPI)
 	
 	for (int32 Index = 0; Index < NumBones; ++Index)
 	{
-		const FTransform& BoneTransform = SkeletonModifier.GetTransform(Index, true);
+		const FTransform& BoneTransform = Modifier->GetTransform(Index, true);
 		WorldTransforms[Index] = BoneTransform;
 		RequiredBones[Index] = Index;
 		BoneColors[Index] = DefaultBoneColor;
@@ -704,12 +705,12 @@ FBox USkeletonEditingTool::GetWorldSpaceFocusBox()
 		FBox Box(EForceInit::ForceInit);
 		TSet<int32> AllChildren;
 
-		const FReferenceSkeleton& RefSkeleton = SkeletonModifier.GetReferenceSkeleton();
+		const FReferenceSkeleton& RefSkeleton = Modifier->GetReferenceSkeleton();
 		
 		for (const FName& BoneName: Selection)
 		{
 			const int32 BoneIndex = RefSkeleton.FindRawBoneIndex(BoneName);
-			Box += SkeletonModifier.GetTransform(BoneIndex, true).GetTranslation();
+			Box += Modifier->GetTransform(BoneIndex, true).GetTranslation();
 
 			// get direct children
 			TArray<int32> Children;
@@ -719,7 +720,7 @@ FBox USkeletonEditingTool::GetWorldSpaceFocusBox()
 
 		for (const int32 ChildIndex: AllChildren)
 		{
-			Box += SkeletonModifier.GetTransform(ChildIndex, true).GetTranslation();
+			Box += Modifier->GetTransform(ChildIndex, true).GetTranslation();
 		}
 		
 		return Box;

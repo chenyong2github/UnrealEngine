@@ -72,13 +72,15 @@ struct SKELETALMESHUTILITIESCOMMON_API FOrientOptions
  * FSkeletalMeshSkeletonModifier
  */
 
-class SKELETALMESHUTILITIESCOMMON_API FSkeletonModifier
+UCLASS(BlueprintType)
+class SKELETALMESHUTILITIESCOMMON_API USkeletonModifier : public UObject
 {
+	GENERATED_BODY()
+	
 public:
 
+	UFUNCTION(BlueprintCallable, Category = "Mesh")
 	bool Init(USkeletalMesh* InSkeletalMesh);
-	
-	void ExternalUpdate(const FReferenceSkeleton& InRefSkeleton, const TArray<int32>& InIndexTracker);
 
 	/** Creates a new bone in the skeleton hierarchy at desired transform
 	 *  @param InBoneName The new bone's name.
@@ -86,7 +88,9 @@ public:
 	 *  @param InTransform The default local transform in the parent space.
 	 *  @return \c true if the operation succeeded, false otherwise. 
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Skeleton")
 	bool AddBone(const FName InBoneName, const FName InParentName, const FTransform& InTransform);
+	UFUNCTION(BlueprintCallable, Category = "Skeleton")
 	bool AddBones(const TArray<FName>& InBonesName, const TArray<FName>& InParentsName, const TArray<FTransform>& InTransforms);
 
 	/** Mirror bones
@@ -94,7 +98,9 @@ public:
 	 *  @param InOptions The mirroring options
 	 *  @return \c true if the operation succeeded, false otherwise. 
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Skeleton")
 	bool MirrorBone(const FName InBoneName, const FMirrorOptions& InOptions = FMirrorOptions());
+	UFUNCTION(BlueprintCallable, Category = "Skeleton")
 	bool MirrorBones(const TArray<FName>& InBonesName, const FMirrorOptions& InOptions = FMirrorOptions());
 
 	/** Sets the bone the desired local transform
@@ -103,7 +109,9 @@ public:
 	 *  @param bMoveChildren Propagate new transform to children
 	 *  @return \c true if the operation succeeded, false otherwise. 
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Skeleton")
 	bool SetBoneTransform(const FName InBoneName, const FTransform& InNewTransform, const bool bMoveChildren);
+	UFUNCTION(BlueprintCallable, Category = "Skeleton")
 	bool SetBonesTransforms(const TArray<FName>& InBoneNames, const TArray<FTransform>& InNewTransforms, const bool bMoveChildren);
 
 	/** Remove a bone in the skeleton hierarchy
@@ -111,7 +119,9 @@ public:
 	 *  @param bRemoveChildren Remove children recursively.
 	 *  @return \c true if the operation succeeded, false otherwise. 
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Skeleton")
 	bool RemoveBone(const FName InBoneName, const bool bRemoveChildren);
+	UFUNCTION(BlueprintCallable, Category = "Skeleton")
 	bool RemoveBones(const TArray<FName>& InBoneNames, const bool bRemoveChildren);
 
 	/** Rename bones
@@ -119,7 +129,9 @@ public:
 	 *  @param InNewBoneName The new bone's name.
 	 *  @return \c true if the operation succeeded, false otherwise. 
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Skeleton")
 	bool RenameBone(const FName InOldBoneName, const FName InNewBoneName);
+	UFUNCTION(BlueprintCallable, Category = "Skeleton")
 	bool RenameBones(const TArray<FName>& InOldBoneNames, const TArray<FName>& InNewBoneNames);
 	
 	/** Parent bones
@@ -127,7 +139,9 @@ public:
 	 *  @param InParentName The new parent's name (Name_NONE to unparent).
 	 *  @return \c true if the operation succeeded, false otherwise. 
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Skeleton")
 	bool ParentBone(const FName InBoneName, const FName InParentName);
+	UFUNCTION(BlueprintCallable, Category = "Skeleton")
 	bool ParentBones(const TArray<FName>& InBoneNames, const TArray<FName>& InParentNames);
 
 	/** Align bones
@@ -135,19 +149,40 @@ public:
 	 *  @param InOptions The orienting options
 	 *  @return \c true if the operation succeeded, false otherwise. 
 	 */
+	 UFUNCTION(BlueprintCallable, Category = "Skeleton")
 	bool OrientBone(const FName InBoneName, const FOrientOptions& InOptions = FOrientOptions());
+	UFUNCTION(BlueprintCallable, Category = "Skeleton")
 	bool OrientBones(const TArray<FName>& InBoneNames, const FOrientOptions& InOptions = FOrientOptions());
+
+	/** Get Bone Transform
+	 *  @param InBoneName The current bone's name.
+	 *  @param bGlobal Whether it should return the parent space or global transform
+	 *  @return \c The current bone's transform 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Skeleton")
+	FTransform GetBoneTransform(const FName InBoneName, const bool bGlobal = false) const;
+
+	/** Get Parent Name
+	 *  @param InBoneName The current bone's name.
+	 *  @return \c The current bone's parent name 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Skeleton")
+	FName GetParentName(const FName InBoneName) const;
 	
 	/**
 	 * Actually applies the skeleton modifications to the skeletal mesh.
 	 * @return true if commit succeeded.
 	 */
+	UFUNCTION(BlueprintCallable, Category = "Mesh")
 	bool CommitSkeletonToSkeletalMesh();
 
+	void ExternalUpdate(const FReferenceSkeleton& InRefSkeleton, const TArray<int32>& InIndexTracker);
+	
 	FName GetUniqueName(const FName InBoneName) const;
 	
 	const FReferenceSkeleton& GetReferenceSkeleton() const;
 	const TArray<int32>& GetBoneIndexTracker() const;
+	
 	const FTransform& GetTransform(const int32 InBoneIndex, const bool bGlobal = false) const;
 	
 private:

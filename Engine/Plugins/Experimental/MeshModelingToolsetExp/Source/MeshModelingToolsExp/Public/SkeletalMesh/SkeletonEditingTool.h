@@ -129,7 +129,8 @@ public:
 	int32 ParentIndex = INDEX_NONE;
 	FName CurrentBone = NAME_None;
 
-	FSkeletonModifier SkeletonModifier;
+	UPROPERTY()
+	TObjectPtr<USkeletonModifier> Modifier;
 	
 protected:
 
