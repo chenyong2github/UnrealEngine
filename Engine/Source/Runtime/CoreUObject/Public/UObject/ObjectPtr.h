@@ -4,7 +4,6 @@
 
 #include "HAL/Platform.h"
 #include "Serialization/StructuredArchive.h"
-#include "UObject/Class.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectHandle.h"
 
@@ -44,6 +43,8 @@
 	#define UE_OBJECT_PTR_NONCONFORMANCE_SUPPORT 0
 #endif
 
+class UClass;
+	
 template <typename T>
 struct TObjectPtr;
 
@@ -193,17 +194,7 @@ public:
 	FORCEINLINE FObjectHandle GetHandle() const { return Handle; }
 	FORCEINLINE FObjectHandle& GetHandleRef() const { return Handle; }
 
-	FORCEINLINE bool IsA(const UClass* SomeBase) const
-	{
-		checkfSlow(SomeBase, TEXT("IsA(NULL) cannot yield meaningful results"));
-
-		if (const UClass* ThisClass = GetClass())
-		{
-			return ThisClass->IsChildOf(SomeBase);
-		}
-
-		return false;
-	}
+	COREUOBJECT_API bool IsA(const UClass* SomeBase) const;
 
 	template <typename T>
 	FORCEINLINE bool IsA() const
