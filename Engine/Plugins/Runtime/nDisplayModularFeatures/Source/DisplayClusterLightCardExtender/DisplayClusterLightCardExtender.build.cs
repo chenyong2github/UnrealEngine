@@ -16,7 +16,12 @@ public class DisplayClusterLightCardExtender : ModuleRules
 
 		if (Target.Type == TargetType.Editor)
 		{
-			PrivateDependencyModuleNames.Add("UnrealEd");
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"Sequencer",
+					"UnrealEd"
+				});
 		}
 	}
 }

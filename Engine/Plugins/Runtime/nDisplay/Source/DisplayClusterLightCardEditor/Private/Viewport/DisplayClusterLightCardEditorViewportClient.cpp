@@ -22,6 +22,8 @@
 #include "SceneManagement.h"
 #include "Settings/DisplayClusterLightCardEditorSettings.h"
 
+#include "IDisplayClusterLightCardExtenderModule.h"
+
 #include "AudioDevice.h"
 #include "CameraController.h"
 #include "Components/BillboardComponent.h"
@@ -138,6 +140,9 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 
 	const int32 CameraSpeed = 3;
 	SetCameraSpeedSetting(CameraSpeed);
+
+	IDisplayClusterLightCardExtenderModule& LightCardExtenderModule = IDisplayClusterLightCardExtenderModule::Get();
+	LightCardExtenderModule.GetOnSequencerTimeChanged().AddRaw(this, &FDisplayClusterLightCardEditorViewportClient::OnSequencerTimeChanged);
 }
 
 FDisplayClusterLightCardEditorViewportClient::~FDisplayClusterLightCardEditorViewportClient()
@@ -146,6 +151,9 @@ FDisplayClusterLightCardEditorViewportClient::~FDisplayClusterLightCardEditorVie
 
 	EndTransaction();
 	UnsubscribeFromRootActor();
+
+	IDisplayClusterLightCardExtenderModule& LightCardExtenderModule = IDisplayClusterLightCardExtenderModule::Get();
+	LightCardExtenderModule.GetOnSequencerTimeChanged().RemoveAll(this);
 }
 
 FLinearColor FDisplayClusterLightCardEditorViewportClient::GetBackgroundColor() const
@@ -1264,6 +1272,11 @@ void FDisplayClusterLightCardEditorViewportClient::UnsubscribeFromRootActor()
 		RootActorLevelInstance->UnsubscribeFromPostProcessRenderTarget(GenericThis);
 		RootActorLevelInstance->RemovePreviewEnableOverride(GenericThis);
 	}
+}
+
+void FDisplayClusterLightCardEditorViewportClient::OnSequencerTimeChanged(TWeakPtr<ISequencer> InSequencer)
+{
+	UpdateProxyTransforms();
 }
 
 void FDisplayClusterLightCardEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)
@@ -2418,10 +2431,33 @@ void FDisplayClusterLightCardEditorViewportClient::PropagateActorTransform(const
 		) -> void
 		{
 			// Only change if values are different.
-			const FProperty* Property = ProxyPropertyPair.Value;
+			FProperty* Property = ProxyPropertyPair.Value;
 			if (!Property->Identical_InContainer(ProxyPropertyPair.Key, LevelInstancePropertyPair.Key))
 			{
+				FEditPropertyChain PropertyChain;
+				PropertyChain.AddTail(Property);
+				PropertyChain.SetActivePropertyNode(Property);
+
+				const FName PositionalParamsPropertyName = LevelInstanceStageActor->GetPositionalPropertiesMemberName();
+				if (!PositionalParamsPropertyName.IsNone())
+				{
+					if (FProperty* MemberProperty = LevelInstance->GetClass()->FindPropertyByName(PositionalParamsPropertyName))
+					{
+						PropertyChain.AddHead(MemberProperty);
+						PropertyChain.SetActiveMemberPropertyNode(MemberProperty);
+					}
+				}
+
+				// Required for sequencer to update property key frames
+				FCoreUObjectDelegates::OnPreObjectPropertyChanged.Broadcast(LevelInstance, PropertyChain);
+				
 				Property->CopyCompleteValue_InContainer(LevelInstancePropertyPair.Key, ProxyPropertyPair.Key);
+
+				bHasCalledPostEditChangeProperty = true;
+				FPropertyChangedEvent PropertyChangedEvent(Property, EPropertyChangeType::ValueSet);
+				FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(LevelInstance, PropertyChangedEvent);
+				bHasCalledPostEditChangeProperty = false;
+				
 				InOutChangedProperties.Add(Property);
 			}
 		};
@@ -2434,9 +2470,35 @@ void FDisplayClusterLightCardEditorViewportClient::PropagateActorTransform(const
 		const FVector  RALevelLocation = RootActorLevelInstance.IsValid() ? RootActorLevelInstance->GetActorLocation() : FVector::ZeroVector;
 
 		const FTransform RALevelTransformNoScale(RALevelRotation, RALevelLocation, FVector::OneVector);
+		
+		FTransform NewTransform = ActorProxy.AsActorChecked()->GetTransform() * RALevelTransformNoScale;
 
-		LevelInstance->SetActorTransform(ActorProxy.AsActorChecked()->GetTransform() * RALevelTransformNoScale);
+		FProperty* TransformProperty = LevelInstance->GetRootComponent() ?
+				LevelInstance->GetRootComponent()->GetClass()->FindPropertyByName(USceneComponent::GetRelativeLocationPropertyName())
+				: nullptr;
 
+		const bool bTransformChanged = !NewTransform.Equals(LevelInstance->GetActorTransform(), 0.f);
+
+		if (TransformProperty && bTransformChanged)
+		{
+			FEditPropertyChain PropertyChain;
+			PropertyChain.AddTail(TransformProperty);
+			PropertyChain.SetActivePropertyNode(TransformProperty);
+			// Required for sequencer and CCWs.
+			FCoreUObjectDelegates::OnPreObjectPropertyChanged.Broadcast(LevelInstance, PropertyChain);
+		}
+		
+		LevelInstance->SetActorTransform(NewTransform);
+
+		if (TransformProperty && bTransformChanged)
+		{
+			// Required for sequencer and CCWs.
+			bHasCalledPostEditChangeProperty = true;
+			FPropertyChangedEvent PropertyChangedEvent(TransformProperty, EPropertyChangeType::ValueSet);
+			FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(LevelInstance, PropertyChangedEvent);
+			bHasCalledPostEditChangeProperty = false;
+		}
+		
 		TArray<const FProperty*> ChangedProperties;
 		ChangedProperties.Reserve(ProxyPropertyPairs.Num());
 

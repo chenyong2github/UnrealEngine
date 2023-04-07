@@ -26,6 +26,7 @@ class COLORCORRECTREGIONS_API AColorCorrectionWindow : public AColorCorrectRegio
 {
 	GENERATED_UCLASS_BODY()
 public:
+	virtual ~AColorCorrectionWindow() override;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UStaticMeshComponent>> MeshComponents;
@@ -39,6 +40,9 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditMove(bool bFinished) override;
 	virtual FName GetCustomIconName() const override;
+
+private:
+	void OnSequencerTimeChanged(TWeakPtr<class ISequencer> InSequencer);
 #endif
 
 private:
@@ -103,6 +107,7 @@ public:
 	virtual FDisplayClusterPositionalParams GetPositionalParams() const override;
 
 	virtual void GetPositionalProperties(FPositionalPropertyArray& OutPropertyPairs) const override;
+	virtual FName GetPositionalPropertiesMemberName() const override;
 	// ~End IDisplayClusterStageActor interface
 	
 protected:

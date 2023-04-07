@@ -162,6 +162,9 @@ public:
 	/** Requests that we exit light card drawing input mode (and go back to idle/normal) */
 	void ExitDrawingLightCardMode();
 
+	/** If the viewport client is responsible for the post edit change property call */
+	bool HasCalledPostEditChangeProperty() const { return bHasCalledPostEditChangeProperty; }
+
 private:
 	/** Initiates a transaction. */
 	void BeginTransaction(const FText& Description);
@@ -299,6 +302,9 @@ private:
 	
 	/** Unsubscribe post process and preview hooks from the root actor */
 	void UnsubscribeFromRootActor();
+
+	/** When the time in a sequencer has changed */
+	void OnSequencerTimeChanged(TWeakPtr<class ISequencer> InSequencer);
 	
 private:
 	TWeakPtr<FSceneViewport> SceneViewportPtr;
@@ -403,4 +409,7 @@ private:
 
 	/** A flag that disables drawing with the custom projection renderer and instead renders the viewport client with the editor's default renderer */
 	bool bDisableCustomRenderer = false;
+
+	/** True if the viewport client has triggered the post edit change property call */
+	bool bHasCalledPostEditChangeProperty = false;
 };

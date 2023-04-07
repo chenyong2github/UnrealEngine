@@ -11,6 +11,10 @@
 #include "Misc/EnumRange.h"
 #include "UObject/ConstructorHelpers.h"
 
+#if WITH_EDITOR
+#include "IDisplayClusterLightCardExtenderModule.h"
+#endif
+
 ENUM_RANGE_BY_COUNT(EColorCorrectWindowType, EColorCorrectWindowType::MAX)
 
 AColorCorrectionWindow::AColorCorrectionWindow(const FObjectInitializer& ObjectInitializer)
@@ -49,6 +53,25 @@ AColorCorrectionWindow::AColorCorrectionWindow(const FObjectInitializer& ObjectI
 
 #if WITH_METADATA
 	CreateIcon();
+#endif
+
+#if WITH_EDITOR
+	if (!IsTemplate())
+	{
+		IDisplayClusterLightCardExtenderModule& LightCardExtenderModule = IDisplayClusterLightCardExtenderModule::Get();
+		LightCardExtenderModule.GetOnSequencerTimeChanged().AddUObject(this, &AColorCorrectionWindow::OnSequencerTimeChanged);
+	}
+#endif
+}
+
+AColorCorrectionWindow::~AColorCorrectionWindow()
+{
+#if WITH_EDITOR
+	if (!IsTemplate())
+	{
+		IDisplayClusterLightCardExtenderModule& LightCardExtenderModule = IDisplayClusterLightCardExtenderModule::Get();
+		LightCardExtenderModule.GetOnSequencerTimeChanged().RemoveAll(this);
+	}
 #endif
 }
 
@@ -100,6 +123,11 @@ void AColorCorrectionWindow::PostEditMove(bool bFinished)
 FName AColorCorrectionWindow::GetCustomIconName() const
 {
 	return TEXT("CCW.OutlinerThumbnail");
+}
+
+void AColorCorrectionWindow::OnSequencerTimeChanged(TWeakPtr<ISequencer> InSequencer)
+{
+	UpdatePositionalParamsFromTransform();
 }
 
 #endif //WITH_EDITOR
@@ -306,6 +334,11 @@ void AColorCorrectionWindow::GetPositionalProperties(FPositionalPropertyArray& O
 	{
 		OutPropertyPairs.Emplace((void*)this, ParamsProperty);
 	}
+}
+
+FName AColorCorrectionWindow::GetPositionalPropertiesMemberName() const
+{
+	return GET_MEMBER_NAME_CHECKED(AColorCorrectionWindow, PositionalParams);
 }
 
 #undef NOTIFY_PARAM_SETTER

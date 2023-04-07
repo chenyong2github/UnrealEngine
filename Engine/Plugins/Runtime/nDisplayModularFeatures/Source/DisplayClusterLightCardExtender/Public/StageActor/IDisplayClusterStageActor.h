@@ -63,6 +63,9 @@ public:
 	/** Return property names defined for this stage actor for use in property notifies */
 	virtual const TSet<FName>& GetPositionalPropertyNames() const;
 
+	/** Return the property name for an owning struct containing the positional params properties, may be NAME_None if a struct isn't used */
+	virtual FName GetPositionalPropertiesMemberName() const;
+
 	/** Get an array of positional properties defined for this stage actor for use in property notifies. */
 	virtual void GetPositionalProperties(FPositionalPropertyArray& OutPropertyPairs) const = 0;
 

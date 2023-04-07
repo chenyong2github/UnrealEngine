@@ -45,6 +45,11 @@ const TSet<FName>& IDisplayClusterStageActor::GetPositionalPropertyNames() const
 	return DefaultPositionalPropertyNames;
 }
 
+FName IDisplayClusterStageActor::GetPositionalPropertiesMemberName() const
+{
+	return NAME_None;
+}
+
 FBox IDisplayClusterStageActor::GetBoxBounds(bool bLocalSpace) const
 {
 	if (const AActor* Actor = FStageActorHelper::GetActorConst(this))
@@ -69,7 +74,24 @@ void IDisplayClusterStageActor::UpdateStageActorTransform()
 	const FTransform Transform = PositionalParamsToActorTransform(GetPositionalParams(), GetOrigin());
 	if (AActor* Actor = FStageActorHelper::GetActor(this))
 	{
+#if WITH_EDITOR
+		const bool bTransformChanged = !Actor->GetActorTransform().Equals(Transform, 0.f);
+#endif
+		
 		Actor->SetActorTransform(Transform);
+
+#if WITH_EDITOR
+		if (bTransformChanged)
+		{
+			if (FProperty* TransformProperty = Actor->GetRootComponent() ?
+				Actor->GetRootComponent()->GetClass()->FindPropertyByName(USceneComponent::GetRelativeLocationPropertyName())
+				: nullptr)
+			{
+				FPropertyChangedEvent PropertyChangedEvent(TransformProperty, EPropertyChangeType::ValueSet);
+				FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(Actor, PropertyChangedEvent);
+			}
+		}
+#endif
 
 #if WITH_EDITOR
 		UpdateEditorGizmos();

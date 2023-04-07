@@ -1820,7 +1820,11 @@ void FDisplayClusterLightCardEditor::OnActorPropertyChanged(UObject* ObjectBeing
                                                             FPropertyChangedEvent& PropertyChangedEvent)
 {
 	EDisplayClusterLightCardEditorProxyType ProxyType;
-	if (IsOurObject(ObjectBeingModified, ProxyType))
+	// When a level instance actor property is changed we want to update our proxy version here. However,
+	// sometimes the viewport client is responsible for the property change call and in that case we want to avoid
+	// double processing an update.
+	if (IsOurObject(ObjectBeingModified, ProxyType) && (!ViewportView.IsValid() ||
+		!ViewportView->GetLightCardEditorViewportClient()->HasCalledPostEditChangeProperty()))
 	{
 		IDisplayClusterStageActor* StageActor = Cast<IDisplayClusterStageActor>(ObjectBeingModified);
 		
