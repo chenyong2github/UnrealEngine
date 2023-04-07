@@ -1413,7 +1413,7 @@ namespace Math
 
 		if (W >= 1e-6f * NormAB)
 		{
-			//Axis = FVector::CrossProduct(A, B);
+			//Result = FVector::CrossProduct(A, B);
 			Result = TQuat<T>(
 				A.Y * B.Z - A.Z * B.Y,
 				A.Z * B.X - A.X * B.Z,
@@ -1424,9 +1424,19 @@ namespace Math
 		{
 			// A and B point in opposite directions
 			W = 0.f;
-			Result = FMath::Abs(A.X) > FMath::Abs(A.Y)
-				? TQuat<T>(-A.Z, 0.f, A.X, W)
-				: TQuat<T>(0.f, -A.Z, A.Y, W);
+			const T X = FMath::Abs(A.X);
+			const T Y = FMath::Abs(A.Y);
+			const T Z = FMath::Abs(A.Z);
+
+			// Find most orthogonal basis 
+			const TVector<T> Basis = X < Y ? (X < Z ? TVector<T>::XAxisVector : TVector<T>::ZAxisVector) : (Y < Z ? TVector<T>::YAxisVector : TVector<T>::ZAxisVector);
+
+			//Result = FVector::CrossProduct(A, Basis);
+			Result = TQuat<T>(
+				A.Y * Basis.Z - A.Z * Basis.Y,
+				A.Z * Basis.X - A.X * Basis.Z,
+				A.X * Basis.Y - A.Y * Basis.X,
+				W);
 		}
 
 		Result.Normalize();

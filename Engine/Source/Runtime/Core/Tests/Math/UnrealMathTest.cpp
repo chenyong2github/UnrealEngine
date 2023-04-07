@@ -3571,7 +3571,9 @@ TEST_CASE_NAMED(FVectorRegisterAbstractionTest, "System::Core::Math::Vector Regi
 			FVector3f(45.0f, -60.0f, 120.0f),
 			FVector3f(-45.0f, 60.0f, -120.0f),
 			FVector3f(0.57735026918962576451f, 0.57735026918962576451f, 0.57735026918962576451f),
-			-FVector3f::ForwardVector,
+			FVector3f( 0.01f,  0.02f,  0.03f),
+			FVector3f(-0.01f,  0.02f, -0.03f),
+			FVector3f( 0.01f, -0.02f,  0.03f),
 		};
 
 		// ... and test within this tolerance.
@@ -3597,34 +3599,42 @@ TEST_CASE_NAMED(FVectorRegisterAbstractionTest, "System::Core::Math::Vector Regi
 			}
 		}
 
-
+		
 		// FindBetween
 		{
-			for (FVector3f const& A : TestVectors)
+			const FVector3f Signs[] = {
+				FVector3f(1.0f, 1.0f, 1.0f),
+				FVector3f(-1.0f, -1.0f, -1.0f),
+			};
+
+			for (FVector3f const& SignVector : Signs)
 			{
-				for (FVector3f const& B : TestVectors)
+				for (FVector3f const& A : TestVectors)
 				{
-					const FVector3f ANorm = A.GetSafeNormal();
-					const FVector3f BNorm = B.GetSafeNormal();
-
-					const FQuat4f Old = FindBetween_Old(ANorm, BNorm);
-					const FQuat4f NewNormal = FQuat4f::FindBetweenNormals(ANorm, BNorm);
-					const FQuat4f NewVector = FQuat4f::FindBetweenVectors(A, B);
-
-					const FVector3f RotAOld = Old.RotateVector(ANorm);
-					const FVector3f RotANewNormal = NewNormal.RotateVector(ANorm);
-					const FVector3f RotANewVector = NewVector.RotateVector(ANorm);
-
-					if (A.IsZero() || B.IsZero())
+					for (FVector3f const& B : TestVectors)
 					{
-						LogTest<float>(TEXT("FindBetween: Old == New (normal)"), TestQuatsEqual(Old, NewNormal, 1e-6f));
-						LogTest<float>(TEXT("FindBetween: Old == New (vector)"), TestQuatsEqual(Old, NewVector, 1e-6f));
-					}
-					else
-					{
-						LogTest<float>(TEXT("FindBetween: Old A->B"), TestFVector3Equal(RotAOld, BNorm, UE_KINDA_SMALL_NUMBER));
-						LogTest<float>(TEXT("FindBetween: New A->B (normal)"), TestFVector3Equal(RotANewNormal, BNorm, UE_KINDA_SMALL_NUMBER));
-						LogTest<float>(TEXT("FindBetween: New A->B (vector)"), TestFVector3Equal(RotANewVector, BNorm, UE_KINDA_SMALL_NUMBER));
+						const FVector3f ANorm = A.GetSafeNormal();
+						const FVector3f BNorm = (B * SignVector).GetSafeNormal();
+
+						const FQuat4f Old = FindBetween_Old(ANorm, BNorm);
+						const FQuat4f NewNormal = FQuat4f::FindBetweenNormals(ANorm, BNorm);
+						const FQuat4f NewVector = FQuat4f::FindBetweenVectors(A, B * SignVector);
+
+						const FVector3f RotAOld = Old.RotateVector(ANorm);
+						const FVector3f RotANewNormal = NewNormal.RotateVector(ANorm);
+						const FVector3f RotANewVector = NewVector.RotateVector(ANorm);
+
+						if (A.IsZero() || B.IsZero())
+						{
+							LogTest<float>(TEXT("FindBetween: Old == New (normal)"), TestQuatsEqual(Old, NewNormal, 1e-6f));
+							LogTest<float>(TEXT("FindBetween: Old == New (vector)"), TestQuatsEqual(Old, NewVector, 1e-6f));
+						}
+						else
+						{
+							LogTest<float>(TEXT("FindBetween: Old A->B"), TestFVector3Equal(RotAOld, BNorm, UE_KINDA_SMALL_NUMBER));
+							LogTest<float>(TEXT("FindBetween: New A->B (normal)"), TestFVector3Equal(RotANewNormal, BNorm, UE_KINDA_SMALL_NUMBER));
+							LogTest<float>(TEXT("FindBetween: New A->B (vector)"), TestFVector3Equal(RotANewVector, BNorm, UE_KINDA_SMALL_NUMBER));
+						}
 					}
 				}
 			}
