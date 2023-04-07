@@ -23,7 +23,7 @@ namespace AutoRTFM
 
 extern "C" bool autortfm_is_transactional()
 {
-    return FContext::Get()->GetStatus() == EContextStatus::OnTrack;
+    return FContext::Get()->IsTransactional();
 }
 
 extern "C" bool autortfm_is_closed()

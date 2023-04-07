@@ -52,13 +52,12 @@ bool FContext::IsTransactional()
         return false;
     }
 
-    if (Context->GetStatus() == EContextStatus::OnTrack)
+    if (Context->GetStatus() != EContextStatus::Idle)
     {
         return true;
     }
     else
     {
-        ASSERT(Context->GetStatus() == EContextStatus::Idle);
         return false;
     }
 }
