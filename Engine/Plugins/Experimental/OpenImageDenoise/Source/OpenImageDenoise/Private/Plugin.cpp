@@ -26,12 +26,131 @@ DEFINE_LOG_CATEGORY(LogOpenImageDenoise);
 
 IMPLEMENT_MODULE(FOpenImageDenoiseModule, OpenImageDenoise)
 
-enum class EDenoiseMode {
+enum class EDenoiseMode
+{
 	OFF = 0,
 	DEFAULT = 1,   // denoise using albedo/normal as provided
 	CLEAN_AUX = 2, // denoise albedo/normal first and pass cleanAux (haven't found a scene where this is clearly better, and it runs much slower)
 	NO_AOVS = 3,   // denoise beauty only
 };
+
+struct OIDNState
+{
+	// scratch CPU memory for running the OIDN filter
+	TArray<FLinearColor> RawPixels;
+	TArray<FLinearColor> RawAlbedo;
+	TArray<FLinearColor> RawNormal;
+
+	// re-useable filters
+	oidn::FilterRef AlbedoFilter;
+	oidn::FilterRef NormalFilter;
+	oidn::FilterRef PixelsFilter;
+	oidn::DeviceRef OIDNDevice;
+
+	EDenoiseMode CurrentMode = EDenoiseMode::OFF;
+	FIntPoint CurrentSize = FIntPoint(0, 0);
+
+	void UpdateFilter(FIntPoint Size, EDenoiseMode DenoiserMode)
+	{
+		int NewSize = Size.X * Size.Y;
+		if (RawPixels.Num() != NewSize)
+		{
+			RawPixels.SetNumUninitialized(NewSize);
+			RawAlbedo.SetNumUninitialized(NewSize);
+			RawNormal.SetNumUninitialized(NewSize);
+			// reset filters so we recreate them to point to the new memory allocation
+			AlbedoFilter = oidn::FilterRef();
+			NormalFilter = oidn::FilterRef();
+			PixelsFilter = oidn::FilterRef();
+		}
+		if (DenoiserMode == EDenoiseMode::OFF)
+		{
+			OIDNDevice = oidn::DeviceRef();
+			return;
+		}
+		if (!OIDNDevice)
+		{
+			OIDNDevice = oidn::newDevice();
+			OIDNDevice.commit();
+		}
+		if (!PixelsFilter || CurrentMode != DenoiserMode || CurrentSize != Size)
+		{
+			CurrentMode = DenoiserMode;
+			CurrentSize = Size;
+			if (CurrentMode == EDenoiseMode::CLEAN_AUX)
+			{
+				AlbedoFilter = OIDNDevice.newFilter("RT");
+				AlbedoFilter.setImage("albedo", RawAlbedo.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
+				AlbedoFilter.setImage("output", RawAlbedo.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
+				AlbedoFilter.commit();
+				NormalFilter = OIDNDevice.newFilter("RT");
+				NormalFilter.setImage("normal", RawNormal.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
+				NormalFilter.setImage("output", RawNormal.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
+				NormalFilter.commit();
+			}
+			else
+			{
+				AlbedoFilter = oidn::FilterRef();
+				NormalFilter = oidn::FilterRef();
+			}
+			PixelsFilter = OIDNDevice.newFilter("RT");
+			// TODO: find a way to denoise the alpha channel? OIDN does not support this yet
+			PixelsFilter.setImage("color" , RawPixels.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
+			PixelsFilter.setImage("output", RawPixels.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
+			if (CurrentMode == EDenoiseMode::DEFAULT || CurrentMode == EDenoiseMode::CLEAN_AUX)
+			{
+				// default behavior, use the albedo/normal buffers to improve quality
+				// TODO: switch these buffers to half precision? (requires OIDN 1.4.2+)
+				PixelsFilter.setImage("albedo", RawAlbedo.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
+				PixelsFilter.setImage("normal", RawNormal.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
+			}
+			if (CurrentMode == EDenoiseMode::CLEAN_AUX)
+			{
+				// +cleanAux
+				PixelsFilter.set("cleanAux", true);
+			}
+			PixelsFilter.set("hdr", true);
+			PixelsFilter.commit();
+		}
+	}
+	
+	void Reset()
+	{
+		UpdateFilter(FIntPoint(0, 0), EDenoiseMode::OFF);
+	}
+};
+
+static OIDNState DenoiserState;
+
+template <typename PixelType>
+static void CopyTextureFromGPUToCPU(FRHICommandListImmediate& RHICmdList, FRHITexture* SrcTexture, FIntPoint Size, TArray<PixelType>& DstArray)
+{
+	uint32_t SrcStride = 0;
+	const PixelType* SrcBuffer = static_cast<PixelType*>(RHICmdList.LockTexture2D(SrcTexture, 0, RLM_ReadOnly, SrcStride, false));
+	SrcStride /= sizeof(PixelType);
+	PixelType* DstBuffer = DstArray.GetData();
+	for (int Y = 0; Y < Size.Y; Y++, DstBuffer += Size.X, SrcBuffer += SrcStride)
+	{
+		FPlatformMemory::Memcpy(DstBuffer, SrcBuffer, Size.X * sizeof(PixelType));
+
+	}
+	RHICmdList.UnlockTexture2D(SrcTexture, 0, false);
+}
+
+template <typename PixelType>
+static void CopyTextureFromCPUToGPU(FRHICommandListImmediate& RHICmdList, const TArray<PixelType>& SrcArray, FIntPoint Size, FRHITexture* DstTexture)
+{
+	uint32_t DestStride;
+	FLinearColor* DstBuffer = static_cast<PixelType*>(RHICmdList.LockTexture2D(DstTexture, 0, RLM_WriteOnly, DestStride, false));
+	DestStride /= sizeof(PixelType);
+	const FLinearColor* SrcBuffer = SrcArray.GetData();
+	for (int Y = 0; Y < Size.Y; Y++, SrcBuffer += Size.X, DstBuffer += DestStride)
+	{
+		FPlatformMemory::Memcpy(DstBuffer, SrcBuffer, Size.X * sizeof(PixelType));
+	}
+	RHICmdList.UnlockTexture2D(DstTexture, 0, false);
+}
+
 
 static void Denoise(FRHICommandListImmediate& RHICmdList, FRHITexture* ColorTex, FRHITexture* AlbedoTex, FRHITexture* NormalTex, FRHITexture* OutputTex, FRHIGPUMask GPUMask)
 {
@@ -41,87 +160,39 @@ static void Denoise(FRHICommandListImmediate& RHICmdList, FRHITexture* ColorTex,
 	const EDenoiseMode DenoiseMode = DenoiseModeCVarValue >= 0 ? EDenoiseMode(DenoiseModeCVarValue) : EDenoiseMode::DEFAULT;
 
 #if WITH_EDITOR
+	// NOTE: the time will include the transfer from GPU to CPU which will include waiting for the GPU pipeline to complete
 	uint64 FilterExecuteTime = 0;
 	FilterExecuteTime -= FPlatformTime::Cycles64();
 #endif
 
 	FIntPoint Size = ColorTex->GetSizeXY();
 	FIntRect Rect = FIntRect(0, 0, Size.X, Size.Y);
-	TArray<FLinearColor> RawPixels;
-	TArray<FLinearColor> RawAlbedo;
-	TArray<FLinearColor> RawNormal;
-	FReadSurfaceDataFlags ReadDataFlags(ERangeCompressionMode::RCM_MinMax);
-	ReadDataFlags.SetLinearToGamma(false);
-	ReadDataFlags.SetGPUIndex(GPUMask.GetFirstIndex());
-	RHICmdList.ReadSurfaceData(ColorTex, Rect, RawPixels, ReadDataFlags);
+
+	DenoiserState.UpdateFilter(Size, DenoiseMode);
+	CopyTextureFromGPUToCPU(RHICmdList, ColorTex, Size, DenoiserState.RawPixels);
 	if (DenoiseMode == EDenoiseMode::DEFAULT || DenoiseMode == EDenoiseMode::CLEAN_AUX)
 	{
-		RHICmdList.ReadSurfaceData(AlbedoTex, Rect, RawAlbedo, ReadDataFlags);
-		RHICmdList.ReadSurfaceData(NormalTex, Rect, RawNormal, ReadDataFlags);
+		CopyTextureFromGPUToCPU(RHICmdList, AlbedoTex, Size, DenoiserState.RawAlbedo);
+		CopyTextureFromGPUToCPU(RHICmdList, NormalTex, Size, DenoiserState.RawNormal);
 	}
-
-	check(RawPixels.Num() == Size.X * Size.Y);
-
-	// create device only once?
-	oidn::DeviceRef OIDNDevice = oidn::newDevice();
-	OIDNDevice.commit();
+	check(DenoiserState.RawPixels.Num() == Size.X * Size.Y);
 
 	if (DenoiseMode == EDenoiseMode::CLEAN_AUX)
 	{
-		oidn::FilterRef OIDNFilter = OIDNDevice.newFilter("RT");
-		OIDNFilter.setImage("albedo", RawAlbedo.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
-		OIDNFilter.setImage("output", RawAlbedo.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
-		OIDNFilter.commit();
-		OIDNFilter.execute();
+		check(DenoiserState.AlbedoFilter);
+		check(DenoiserState.NormalFilter);
+		DenoiserState.AlbedoFilter.execute();
+		DenoiserState.NormalFilter.execute();
 	}
 
-	if (DenoiseMode == EDenoiseMode::CLEAN_AUX)
-	{
-		oidn::FilterRef OIDNFilter = OIDNDevice.newFilter("RT");
-		OIDNFilter.setImage("normal", RawNormal.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
-		OIDNFilter.setImage("output", RawNormal.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
-		OIDNFilter.commit();
-		OIDNFilter.execute();
-	}
-
-	oidn::FilterRef OIDNFilter = OIDNDevice.newFilter("RT");
-	OIDNFilter.setImage("color", RawPixels.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
-	if (DenoiseMode == EDenoiseMode::DEFAULT || DenoiseMode == EDenoiseMode::CLEAN_AUX)
-	{
-		// default behavior
-		OIDNFilter.setImage("albedo", RawAlbedo.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
-		OIDNFilter.setImage("normal", RawNormal.GetData(), oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), sizeof(FLinearColor) * Size.X);
-	}
-	if (DenoiseMode == EDenoiseMode::CLEAN_AUX)
-	{
-		// +cleanAux
-		OIDNFilter.set("cleanAux", true);
-	}
-
-	uint32_t DestStride;
-	FLinearColor* DestBuffer = (FLinearColor*)RHICmdList.LockTexture2D(OutputTex, 0, RLM_WriteOnly, DestStride, false);
-
-	OIDNFilter.setImage("output", DestBuffer, oidn::Format::Float3, Size.X, Size.Y, 0, sizeof(FLinearColor), DestStride);
-	OIDNFilter.set("hdr", true);
-	OIDNFilter.commit();
-
-	OIDNFilter.execute();
-
-	// copy alpha channel (TODO: find a way to denoise it as well?)
-	for (int Y = 0, OutIndex = 0, Index = 0; Y < Size.Y; Y++)
-	{
-		for (int X = 0; X < Size.X; X++, OutIndex++, Index++)
-		{
-			DestBuffer[OutIndex].A = RawPixels[Index].A;
-		}
-		OutIndex += DestStride / sizeof(FLinearColor) - Size.X;
-	}
-
-	RHICmdList.UnlockTexture2D(OutputTex, 0, false);
+	check(DenoiserState.PixelsFilter);
+	DenoiserState.PixelsFilter.execute();
+	// copy pixels back to GPU (including alpha channel which was hopefully untouched by OIDN)
+	CopyTextureFromCPUToGPU(RHICmdList, DenoiserState.RawPixels, Size, OutputTex);
 
 #if WITH_EDITOR
 	const char* errorMessage;
-	if (OIDNDevice.getError(errorMessage) != oidn::Error::None)
+	if (DenoiserState.OIDNDevice.getError(errorMessage) != oidn::Error::None)
 	{
 		UE_LOG(LogOpenImageDenoise, Warning, TEXT("Denoiser failed: %s"), *FString(errorMessage));
 		return;
@@ -147,5 +218,7 @@ void FOpenImageDenoiseModule::ShutdownModule()
 #if WITH_EDITOR
 	UE_LOG(LogOpenImageDenoise, Log, TEXT("OIDN shutting down"));
 #endif
+	// Release scratch memory and destroy the OIDN device and filters
+	DenoiserState.Reset();
 	GPathTracingDenoiserFunc = nullptr;
 }

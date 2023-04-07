@@ -1,6 +1,12 @@
 Version History
 ---------------
 
+### Changes in v1.4.1:
+
+-   Fixed crash when in-place denoising images with certain unusual resolutions
+-   Fixed compile error when building for Apple Silicon using some unofficial
+    builds of ISPC
+
 ### Changes in v1.4.0:
 
 -   Improved fine detail preservation
