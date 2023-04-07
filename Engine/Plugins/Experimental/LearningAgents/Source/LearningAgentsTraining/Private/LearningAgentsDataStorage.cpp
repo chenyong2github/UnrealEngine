@@ -16,7 +16,7 @@ ULearningAgentsRecord::ULearningAgentsRecord() {}
 ULearningAgentsRecord::ULearningAgentsRecord(FVTableHelper& Helper) {}
 ULearningAgentsRecord::~ULearningAgentsRecord() {}
 
-void ULearningAgentsRecord::Init(int32 ObsNum, int32 ActNum)
+void ULearningAgentsRecord::Init(const int32 ObsNum, const int32 ActNum)
 {
 	ObservationNum = ObsNum;
 	ActionNum = ActNum;
@@ -70,7 +70,7 @@ ULearningAgentsDataStorage::ULearningAgentsDataStorage() {}
 ULearningAgentsDataStorage::ULearningAgentsDataStorage(FVTableHelper& Helper) {}
 ULearningAgentsDataStorage::~ULearningAgentsDataStorage() {}
 
-ULearningAgentsRecord* ULearningAgentsDataStorage::CreateRecord(FName RecordName, ULearningAgentsType* AgentType)
+ULearningAgentsRecord* ULearningAgentsDataStorage::CreateRecord(const FName RecordName, ULearningAgentsType* AgentType)
 {
 	if (!AgentType)
 	{
@@ -142,7 +142,7 @@ ULearningAgentsRecord* ULearningAgentsDataStorage::LoadRecord(ULearningAgentsTyp
 
 	TArray<uint8> Bytes;
 
-	FString InputFilePath = Directory.Path + FGenericPlatformMisc::GetDefaultPathSeparator() + Filename;
+	const FString InputFilePath = Directory.Path + FGenericPlatformMisc::GetDefaultPathSeparator() + Filename;
 
 	if (!FPaths::FileExists(InputFilePath))
 	{

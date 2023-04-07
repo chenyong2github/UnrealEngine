@@ -12,8 +12,7 @@ namespace UE::Learning
 	enum class EActivationFunction : uint8;
 }
 
-//------------------------------------------------------------------
-
+/** Activation functions for neural networks. */
 UENUM(BlueprintType, Category = "LearningAgents")
 enum class ELearningAgentsActivationFunction : uint8
 {
@@ -27,16 +26,16 @@ enum class ELearningAgentsActivationFunction : uint8
 	TanH	UMETA(DisplayName = "TanH"),
 };
 
-//------------------------------------------------------------------
-
 namespace UE::Learning::Agents
 {
+	/** Get the learning agents activation function from the UE::Learning activation function. */
 	LEARNINGAGENTS_API ELearningAgentsActivationFunction GetLearningAgentsActivationFunction(const EActivationFunction ActivationFunction);
+
+	/** Get the UE::Learning activation function from the learning agents activation function. */
 	LEARNINGAGENTS_API EActivationFunction GetActivationFunction(const ELearningAgentsActivationFunction ActivationFunction);
 }
 
-//------------------------------------------------------------------
-
+/** A neural network data asset. */
 UCLASS(BlueprintType)
 class LEARNINGAGENTS_API ULearningAgentsNeuralNetwork : public UDataAsset
 {
@@ -48,6 +47,7 @@ public:
 	ULearningAgentsNeuralNetwork(FVTableHelper& Helper);
 	virtual ~ULearningAgentsNeuralNetwork();
 
+	/** Serialize this neural network to/from the given archive. */
 	virtual void Serialize(FArchive& Ar) override;
 
 	TSharedPtr<UE::Learning::FNeuralNetwork> NeuralNetwork;

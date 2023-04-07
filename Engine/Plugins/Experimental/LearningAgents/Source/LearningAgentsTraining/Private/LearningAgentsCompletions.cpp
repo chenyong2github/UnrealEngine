@@ -26,11 +26,10 @@
 #define UE_LEARNING_AGENTS_VLOG_PLANE(Owner, Category, Verbosity, Location, Rotation, Axis0, Axis1, Color, Format, ...) \
 	UE_VLOG_OBOX(Owner, Category, Verbosity, FBox(-25.0f * (Axis0 + Axis1), 25.0f * (Axis0 + Axis1)), FTransform(Rotation, Location, FVector::OneVector).ToMatrixNoScale(), Color, Format, ##__VA_ARGS__)
 
-
 namespace UE::Learning::Agents::Private
 {
 	template<typename CompletionUObject, typename CompletionFObject, typename... InArgTypes>
-	CompletionUObject* AddCompletion(ULearningAgentsTrainer* AgentTrainer, FName Name, InArgTypes&& ...Args)
+	CompletionUObject* AddCompletion(ULearningAgentsTrainer* AgentTrainer, const FName Name, InArgTypes&& ...Args)
 	{
 		if (!AgentTrainer)
 		{
@@ -53,7 +52,7 @@ namespace UE::Learning::Agents::Private
 
 //------------------------------------------------------------------
 
-UConditionalCompletion* UConditionalCompletion::AddConditionalCompletion(ULearningAgentsTrainer* AgentTrainer, FName Name, ELearningAgentsCompletion InCompletionMode)
+UConditionalCompletion* UConditionalCompletion::AddConditionalCompletion(ULearningAgentsTrainer* AgentTrainer, const FName Name, const ELearningAgentsCompletion InCompletionMode)
 {
 	return UE::Learning::Agents::Private::AddCompletion<UConditionalCompletion, UE::Learning::FConditionalCompletion>(
 		AgentTrainer,
@@ -63,9 +62,9 @@ UConditionalCompletion* UConditionalCompletion::AddConditionalCompletion(ULearni
 		UE::Learning::ECompletionMode::Truncated);
 }
 
-void UConditionalCompletion::SetConditionalCompletion(int32 AgentId, bool bIsComplete)
+void UConditionalCompletion::SetConditionalCompletion(const int32 AgentId, const bool bIsComplete)
 {
-	TLearningArrayView<1, bool> View = CompletionObject->InstanceData->View(CompletionObject->ConditionHandle);
+	const TLearningArrayView<1, bool> View = CompletionObject->InstanceData->View(CompletionObject->ConditionHandle);
 
 	if (AgentId == INDEX_NONE)
 	{
@@ -111,7 +110,13 @@ void UConditionalCompletion::VisualLog(const UE::Learning::FIndexSet Instances) 
 
 //------------------------------------------------------------------
 
-UPlanarPositionDifferenceCompletion* UPlanarPositionDifferenceCompletion::AddPlanarPositionDifferenceCompletion(ULearningAgentsTrainer* AgentTrainer, FName Name, float Threshold, ELearningAgentsCompletion InCompletionMode, FVector Axis0, FVector Axis1)
+UPlanarPositionDifferenceCompletion* UPlanarPositionDifferenceCompletion::AddPlanarPositionDifferenceCompletion(
+	ULearningAgentsTrainer* AgentTrainer,
+	const FName Name,
+	const float Threshold,
+	const ELearningAgentsCompletion InCompletionMode,
+	const FVector Axis0,
+	const FVector Axis1)
 {
 	return UE::Learning::Agents::Private::AddCompletion<UPlanarPositionDifferenceCompletion, UE::Learning::FPlanarPositionDifferenceCompletion>(
 		AgentTrainer,
@@ -125,10 +130,10 @@ UPlanarPositionDifferenceCompletion* UPlanarPositionDifferenceCompletion::AddPla
 		Axis1);
 }
 
-void UPlanarPositionDifferenceCompletion::SetPlanarPositionDifferenceCompletion(int32 AgentId, FVector Position0, FVector Position1)
+void UPlanarPositionDifferenceCompletion::SetPlanarPositionDifferenceCompletion(const int32 AgentId, const FVector Position0, const FVector Position1)
 {
-	TLearningArrayView<2, FVector> Position0View = CompletionObject->InstanceData->View(CompletionObject->Position0Handle);
-	TLearningArrayView<2, FVector> Position1View = CompletionObject->InstanceData->View(CompletionObject->Position1Handle);
+	const TLearningArrayView<2, FVector> Position0View = CompletionObject->InstanceData->View(CompletionObject->Position0Handle);
+	const TLearningArrayView<2, FVector> Position1View = CompletionObject->InstanceData->View(CompletionObject->Position1Handle);
 
 	if (AgentId == INDEX_NONE)
 	{

@@ -28,7 +28,7 @@
 namespace UE::Learning::Agents::Private
 {
 	template<typename RewardUObject, typename RewardFObject, typename... InArgTypes>
-	RewardUObject* AddReward(ULearningAgentsTrainer* AgentTrainer, FName Name, InArgTypes&& ...Args)
+	RewardUObject* AddReward(ULearningAgentsTrainer* AgentTrainer, const FName Name, InArgTypes&& ...Args)
 	{
 		if (!AgentTrainer)
 		{
@@ -52,14 +52,14 @@ namespace UE::Learning::Agents::Private
 
 //------------------------------------------------------------------
 
-UFloatReward* UFloatReward::AddFloatReward(ULearningAgentsTrainer* AgentTrainer, FName Name, float Weight)
+UFloatReward* UFloatReward::AddFloatReward(ULearningAgentsTrainer* AgentTrainer, const FName Name, const float Weight)
 {
 	return UE::Learning::Agents::Private::AddReward<UFloatReward, UE::Learning::FFloatReward>(AgentTrainer, Name, Weight);
 }
 
-void UFloatReward::SetFloatReward(int32 AgentId, float Reward)
+void UFloatReward::SetFloatReward(const int32 AgentId, const float Reward)
 {
-	TLearningArrayView<1, float> View = RewardObject->InstanceData->View(RewardObject->ValueHandle);
+	const TLearningArrayView<1, float> View = RewardObject->InstanceData->View(RewardObject->ValueHandle);
 
 	if (AgentId == INDEX_NONE)
 	{
@@ -107,14 +107,14 @@ void UFloatReward::VisualLog(const UE::Learning::FIndexSet Instances) const
 
 //------------------------------------------------------------------
 
-UScalarVelocityReward* UScalarVelocityReward::AddScalarVelocityReward(ULearningAgentsTrainer* AgentTrainer, FName Name, float Weight, float Scale)
+UScalarVelocityReward* UScalarVelocityReward::AddScalarVelocityReward(ULearningAgentsTrainer* AgentTrainer, const FName Name, const float Weight, const float Scale)
 {
 	return UE::Learning::Agents::Private::AddReward<UScalarVelocityReward, UE::Learning::FScalarVelocityReward>(AgentTrainer, Name, Weight, Scale);
 }
 
 void UScalarVelocityReward::SetScalarVelocityReward(int32 AgentId, float Velocity)
 {
-	TLearningArrayView<1, float> VelocityView = RewardObject->InstanceData->View(RewardObject->VelocityHandle);
+	const TLearningArrayView<1, float> VelocityView = RewardObject->InstanceData->View(RewardObject->VelocityHandle);
 
 	if (AgentId == INDEX_NONE)
 	{
@@ -162,15 +162,15 @@ void UScalarVelocityReward::VisualLog(const UE::Learning::FIndexSet Instances) c
 }
 #endif
 
-ULocalDirectionalVelocityReward* ULocalDirectionalVelocityReward::AddLocalDirectionalVelocityReward(ULearningAgentsTrainer* AgentTrainer, FName Name, float Weight, float Scale, FVector Axis)
+ULocalDirectionalVelocityReward* ULocalDirectionalVelocityReward::AddLocalDirectionalVelocityReward(ULearningAgentsTrainer* AgentTrainer, const FName Name, const float Weight, const float Scale, const FVector Axis)
 {
 	return UE::Learning::Agents::Private::AddReward<ULocalDirectionalVelocityReward, UE::Learning::FLocalDirectionalVelocityReward>(AgentTrainer, Name, Weight, Scale, Axis);
 }
 
-void ULocalDirectionalVelocityReward::SetLocalDirectionalVelocityReward(int32 AgentId, FVector Velocity, FRotator RelativeRotation)
+void ULocalDirectionalVelocityReward::SetLocalDirectionalVelocityReward(const int32 AgentId, const FVector Velocity, const FRotator RelativeRotation)
 {
-	TLearningArrayView<1, FVector> VelocityView = RewardObject->InstanceData->View(RewardObject->VelocityHandle);
-	TLearningArrayView<1, FQuat> RelativeRotationView = RewardObject->InstanceData->View(RewardObject->RelativeRotationHandle);
+	const TLearningArrayView<1, FVector> VelocityView = RewardObject->InstanceData->View(RewardObject->VelocityHandle);
+	const TLearningArrayView<1, FQuat> RelativeRotationView = RewardObject->InstanceData->View(RewardObject->RelativeRotationHandle);
 
 	if (AgentId == INDEX_NONE)
 	{
@@ -254,15 +254,22 @@ void ULocalDirectionalVelocityReward::VisualLog(const UE::Learning::FIndexSet In
 
 //------------------------------------------------------------------
 
-UPlanarPositionDifferencePenalty* UPlanarPositionDifferencePenalty::AddPlanarPositionDifferencePenalty(ULearningAgentsTrainer* AgentTrainer, FName Name, float Weight, float Scale, float Threshold, FVector Axis0, FVector Axis1)
+UPlanarPositionDifferencePenalty* UPlanarPositionDifferencePenalty::AddPlanarPositionDifferencePenalty(
+	ULearningAgentsTrainer* AgentTrainer,
+	const FName Name,
+	const float Weight,
+	const float Scale,
+	const float Threshold,
+	const FVector Axis0,
+	const FVector Axis1)
 {
 	return UE::Learning::Agents::Private::AddReward<UPlanarPositionDifferencePenalty, UE::Learning::FPlanarPositionDifferencePenalty>(AgentTrainer, Name, Weight, Scale, Threshold, Axis0, Axis1);
 }
 
-void UPlanarPositionDifferencePenalty::SetPlanarPositionDifferencePenalty(int32 AgentId, FVector Position0, FVector Position1)
+void UPlanarPositionDifferencePenalty::SetPlanarPositionDifferencePenalty(const int32 AgentId, const FVector Position0, const FVector Position1)
 {
-	TLearningArrayView<1, FVector> Position0View = RewardObject->InstanceData->View(RewardObject->Position0Handle);
-	TLearningArrayView<1, FVector> Position1View = RewardObject->InstanceData->View(RewardObject->Position1Handle);
+	const TLearningArrayView<1, FVector> Position0View = RewardObject->InstanceData->View(RewardObject->Position0Handle);
+	const TLearningArrayView<1, FVector> Position1View = RewardObject->InstanceData->View(RewardObject->Position1Handle);
 
 	if (AgentId == INDEX_NONE)
 	{
@@ -356,26 +363,31 @@ void UPlanarPositionDifferencePenalty::VisualLog(const UE::Learning::FIndexSet I
 
 //------------------------------------------------------------------
 
-UPositionArraySimilarityReward* UPositionArraySimilarityReward::AddPositionArraySimilarityReward(ULearningAgentsTrainer* AgentTrainer, FName Name, int32 PositionNum, float Weight, float Scale)
+UPositionArraySimilarityReward* UPositionArraySimilarityReward::AddPositionArraySimilarityReward(
+	ULearningAgentsTrainer* AgentTrainer,
+	const FName Name,
+	const int32 PositionNum,
+	const float Weight,
+	const float Scale)
 {
 	return UE::Learning::Agents::Private::AddReward<UPositionArraySimilarityReward, UE::Learning::FPositionArraySimilarityReward>(AgentTrainer, Name, PositionNum, Weight, Scale);
 }
 
 void UPositionArraySimilarityReward::SetPositionArraySimilarityReward(
-	int32 AgentId,
+	const int32 AgentId,
 	const TArray<FVector>& Positions0,
 	const TArray<FVector>& Positions1,
-	FVector RelativePosition0,
-	FVector RelativePosition1,
-	FRotator RelativeRotation0,
-	FRotator RelativeRotation1)
+	const FVector RelativePosition0,
+	const FVector RelativePosition1,
+	const FRotator RelativeRotation0,
+	const FRotator RelativeRotation1)
 {
-	TLearningArrayView<2, FVector> Positions0View = RewardObject->InstanceData->View(RewardObject->Positions0Handle);
-	TLearningArrayView<2, FVector> Positions1View = RewardObject->InstanceData->View(RewardObject->Positions1Handle);
-	TLearningArrayView<1, FVector> RelativePosition0View = RewardObject->InstanceData->View(RewardObject->RelativePosition0Handle);
-	TLearningArrayView<1, FVector> RelativePosition1View = RewardObject->InstanceData->View(RewardObject->RelativePosition1Handle);
-	TLearningArrayView<1, FQuat> RelativeRotation0View = RewardObject->InstanceData->View(RewardObject->RelativeRotation0Handle);
-	TLearningArrayView<1, FQuat> RelativeRotation1View = RewardObject->InstanceData->View(RewardObject->RelativeRotation1Handle);
+	const TLearningArrayView<2, FVector> Positions0View = RewardObject->InstanceData->View(RewardObject->Positions0Handle);
+	const TLearningArrayView<2, FVector> Positions1View = RewardObject->InstanceData->View(RewardObject->Positions1Handle);
+	const TLearningArrayView<1, FVector> RelativePosition0View = RewardObject->InstanceData->View(RewardObject->RelativePosition0Handle);
+	const TLearningArrayView<1, FVector> RelativePosition1View = RewardObject->InstanceData->View(RewardObject->RelativePosition1Handle);
+	const TLearningArrayView<1, FQuat> RelativeRotation0View = RewardObject->InstanceData->View(RewardObject->RelativeRotation0Handle);
+	const TLearningArrayView<1, FQuat> RelativeRotation1View = RewardObject->InstanceData->View(RewardObject->RelativeRotation1Handle);
 
 	if (AgentId == INDEX_NONE)
 	{

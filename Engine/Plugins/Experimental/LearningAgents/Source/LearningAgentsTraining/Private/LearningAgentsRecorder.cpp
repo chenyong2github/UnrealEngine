@@ -60,7 +60,7 @@ bool ULearningAgentsRecorder::IsRecorderSetupPerformed() const
 	return AgentType ? true : false;
 }
 
-void ULearningAgentsRecorder::AddAgent(int32 AgentId)
+void ULearningAgentsRecorder::AddAgent(const int32 AgentId)
 {
 	if (!IsRecorderSetupPerformed())
 	{
@@ -90,7 +90,7 @@ void ULearningAgentsRecorder::AddAgent(int32 AgentId)
 	}
 }
 
-void ULearningAgentsRecorder::RemoveAgent(int32 AgentId)
+void ULearningAgentsRecorder::RemoveAgent(const int32 AgentId)
 {
 	if (!IsRecorderSetupPerformed())
 	{
@@ -114,7 +114,7 @@ void ULearningAgentsRecorder::RemoveAgent(int32 AgentId)
 	}
 }
 
-bool ULearningAgentsRecorder::HasAgent(int32 AgentId) const
+bool ULearningAgentsRecorder::HasAgent(const int32 AgentId) const
 {
 	return SelectedAgentsSet.Contains(AgentId);
 }

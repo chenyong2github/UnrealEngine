@@ -27,7 +27,7 @@
 namespace UE::Learning::Agents::Private
 {
 	template<typename ObservationUObject, typename ObservationFObject, typename... InArgTypes>
-	ObservationUObject* AddObservation(ULearningAgentsType* AgentType, FName Name, InArgTypes&& ...Args)
+	ObservationUObject* AddObservation(ULearningAgentsType* AgentType, const FName Name, InArgTypes&& ...Args)
 	{
 		if (!AgentType)
 		{
@@ -51,14 +51,14 @@ namespace UE::Learning::Agents::Private
 
 //------------------------------------------------------------------
 
-UFloatObservation* UFloatObservation::AddFloatObservation(ULearningAgentsType* AgentType, FName Name, float Scale)
+UFloatObservation* UFloatObservation::AddFloatObservation(ULearningAgentsType* AgentType, const FName Name, const float Scale)
 {
 	return UE::Learning::Agents::Private::AddObservation<UFloatObservation, UE::Learning::FFloatFeature>(AgentType, Name, 1, Scale);
 }
 
-void UFloatObservation::SetFloatObservation(int32 AgentId, float Value)
+void UFloatObservation::SetFloatObservation(const int32 AgentId, const float Value)
 {
-	TLearningArrayView<2, float> View = FeatureObject->InstanceData->View(FeatureObject->ValueHandle);
+	const TLearningArrayView<2, float> View = FeatureObject->InstanceData->View(FeatureObject->ValueHandle);
 
 	if (AgentId == INDEX_NONE)
 	{
@@ -105,14 +105,14 @@ void UFloatObservation::VisualLog(const UE::Learning::FIndexSet Instances) const
 
 //------------------------------------------------------------------
 
-UVectorObservation* UVectorObservation::AddVectorObservation(ULearningAgentsType* AgentType, FName Name, float Scale)
+UVectorObservation* UVectorObservation::AddVectorObservation(ULearningAgentsType* AgentType, const FName Name, const float Scale)
 {
 	return UE::Learning::Agents::Private::AddObservation<UVectorObservation, UE::Learning::FFloatFeature>(AgentType, Name, 3, Scale);
 }
 
-void UVectorObservation::SetVectorObservation(int32 AgentId, FVector Vector)
+void UVectorObservation::SetVectorObservation(const int32 AgentId, const FVector Vector)
 {
-	TLearningArrayView<2, float> View = FeatureObject->InstanceData->View(FeatureObject->ValueHandle);
+	const TLearningArrayView<2, float> View = FeatureObject->InstanceData->View(FeatureObject->ValueHandle);
 
 	if (AgentId == INDEX_NONE)
 	{
@@ -174,15 +174,15 @@ void UVectorObservation::VisualLog(const UE::Learning::FIndexSet Instances) cons
 
 //------------------------------------------------------------------
 
-UAngleObservation* UAngleObservation::AddAngleObservation(ULearningAgentsType* AgentType, FName Name, float Scale)
+UAngleObservation* UAngleObservation::AddAngleObservation(ULearningAgentsType* AgentType, const FName Name, const float Scale)
 {
 	return UE::Learning::Agents::Private::AddObservation<UAngleObservation, UE::Learning::FAngleFeature>(AgentType, Name, 1, Scale);
 }
 
-void UAngleObservation::SetAngleObservation(int32 AgentId, float Angle, float RelativeAngle)
+void UAngleObservation::SetAngleObservation(const int32 AgentId, const float Angle, const float RelativeAngle)
 {
-	TLearningArrayView<2, float> AngleView = FeatureObject->InstanceData->View(FeatureObject->AngleHandle);
-	TLearningArrayView<1, float> RelativeAngleView = FeatureObject->InstanceData->View(FeatureObject->RelativeAngleHandle);
+	const TLearningArrayView<2, float> AngleView = FeatureObject->InstanceData->View(FeatureObject->AngleHandle);
+	const TLearningArrayView<1, float> RelativeAngleView = FeatureObject->InstanceData->View(FeatureObject->RelativeAngleHandle);
 
 	if (AgentId == INDEX_NONE)
 	{
@@ -267,15 +267,15 @@ void UAngleObservation::VisualLog(const UE::Learning::FIndexSet Instances) const
 
 //------------------------------------------------------------------
 
-UPlanarDirectionObservation* UPlanarDirectionObservation::AddPlanarDirectionObservation(ULearningAgentsType* AgentType, FName Name, float Scale, FVector Axis0, FVector Axis1)
+UPlanarDirectionObservation* UPlanarDirectionObservation::AddPlanarDirectionObservation(ULearningAgentsType* AgentType, const FName Name, const float Scale, const FVector Axis0, const FVector Axis1)
 {
 	return UE::Learning::Agents::Private::AddObservation<UPlanarDirectionObservation, UE::Learning::FPlanarDirectionFeature>(AgentType, Name, 1, Scale, Axis0, Axis1);
 }
 
-void UPlanarDirectionObservation::SetPlanarDirectionObservation(int32 AgentId, FVector Direction, FRotator RelativeRotation)
+void UPlanarDirectionObservation::SetPlanarDirectionObservation(const int32 AgentId, const FVector Direction, const FRotator RelativeRotation)
 {
-	TLearningArrayView<2, FVector> DirectionView = FeatureObject->InstanceData->View(FeatureObject->DirectionHandle);
-	TLearningArrayView<1, FQuat> RelativeRotationView = FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle);
+	const TLearningArrayView<2, FVector> DirectionView = FeatureObject->InstanceData->View(FeatureObject->DirectionHandle);
+	const TLearningArrayView<1, FQuat> RelativeRotationView = FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle);
 
 	if (AgentId == INDEX_NONE)
 	{
@@ -347,15 +347,15 @@ void UPlanarDirectionObservation::VisualLog(const UE::Learning::FIndexSet Instan
 }
 #endif
 
-UDirectionObservation* UDirectionObservation::AddDirectionObservation(ULearningAgentsType* AgentType, FName Name, float Scale)
+UDirectionObservation* UDirectionObservation::AddDirectionObservation(ULearningAgentsType* AgentType, const FName Name, const float Scale)
 {
 	return UE::Learning::Agents::Private::AddObservation<UDirectionObservation, UE::Learning::FDirectionFeature>(AgentType, Name, 1, Scale);
 }
 
-void UDirectionObservation::SetDirectionObservation(int32 AgentId, FVector Direction, FRotator RelativeRotation)
+void UDirectionObservation::SetDirectionObservation(const int32 AgentId, const FVector Direction, const FRotator RelativeRotation)
 {
-	TLearningArrayView<2, FVector> DirectionView = FeatureObject->InstanceData->View(FeatureObject->DirectionHandle);
-	TLearningArrayView<1, FQuat> RelativeRotationView = FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle);
+	const TLearningArrayView<2, FVector> DirectionView = FeatureObject->InstanceData->View(FeatureObject->DirectionHandle);
+	const TLearningArrayView<1, FQuat> RelativeRotationView = FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle);
 
 	if (AgentId == INDEX_NONE)
 	{
@@ -421,16 +421,16 @@ void UDirectionObservation::VisualLog(const UE::Learning::FIndexSet Instances) c
 
 //------------------------------------------------------------------
 
-UPlanarPositionObservation* UPlanarPositionObservation::AddPlanarPositionObservation(ULearningAgentsType* AgentType, FName Name, float Scale, FVector Axis0, FVector Axis1)
+UPlanarPositionObservation* UPlanarPositionObservation::AddPlanarPositionObservation(ULearningAgentsType* AgentType, const FName Name, const float Scale, const FVector Axis0, const FVector Axis1)
 {
 	return UE::Learning::Agents::Private::AddObservation<UPlanarPositionObservation, UE::Learning::FPlanarPositionFeature>(AgentType, Name, 1, Scale, Axis0, Axis1);
 }
 
-void UPlanarPositionObservation::SetPlanarPositionObservation(int32 AgentId, FVector Position, FVector RelativePosition, FRotator RelativeRotation)
+void UPlanarPositionObservation::SetPlanarPositionObservation(const int32 AgentId, const FVector Position, const FVector RelativePosition, const FRotator RelativeRotation)
 {
-	TLearningArrayView<2, FVector> PositionView = FeatureObject->InstanceData->View(FeatureObject->PositionHandle);
-	TLearningArrayView<1, FVector> RelativePositionView = FeatureObject->InstanceData->View(FeatureObject->RelativePositionHandle);
-	TLearningArrayView<1, FQuat> RelativeRotationView = FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle);
+	const TLearningArrayView<2, FVector> PositionView = FeatureObject->InstanceData->View(FeatureObject->PositionHandle);
+	const TLearningArrayView<1, FVector> RelativePositionView = FeatureObject->InstanceData->View(FeatureObject->RelativePositionHandle);
+	const TLearningArrayView<1, FQuat> RelativeRotationView = FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle);
 
 	if (AgentId == INDEX_NONE)
 	{
@@ -506,16 +506,16 @@ void UPlanarPositionObservation::VisualLog(const UE::Learning::FIndexSet Instanc
 }
 #endif
 
-UPositionObservation* UPositionObservation::AddPositionObservation(ULearningAgentsType* AgentType, FName Name, float Scale)
+UPositionObservation* UPositionObservation::AddPositionObservation(ULearningAgentsType* AgentType, const FName Name, const float Scale)
 {
 	return UE::Learning::Agents::Private::AddObservation<UPositionObservation, UE::Learning::FPositionFeature>(AgentType, Name, 1, Scale);
 }
 
-void UPositionObservation::SetPositionObservation(int32 AgentId, FVector Position, FVector RelativePosition, FRotator RelativeRotation)
+void UPositionObservation::SetPositionObservation(const int32 AgentId, const FVector Position, const FVector RelativePosition, const FRotator RelativeRotation)
 {
-	TLearningArrayView<2, FVector> PositionView = FeatureObject->InstanceData->View(FeatureObject->PositionHandle);
-	TLearningArrayView<1, FVector> RelativePositionView = FeatureObject->InstanceData->View(FeatureObject->RelativePositionHandle);
-	TLearningArrayView<1, FQuat> RelativeRotationView = FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle);
+	const TLearningArrayView<2, FVector> PositionView = FeatureObject->InstanceData->View(FeatureObject->PositionHandle);
+	const TLearningArrayView<1, FVector> RelativePositionView = FeatureObject->InstanceData->View(FeatureObject->RelativePositionHandle);
+	const TLearningArrayView<1, FQuat> RelativeRotationView = FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle);
 
 	if (AgentId == INDEX_NONE)
 	{
@@ -583,16 +583,16 @@ void UPositionObservation::VisualLog(const UE::Learning::FIndexSet Instances) co
 }
 #endif
 
-UPlanarPositionArrayObservation* UPlanarPositionArrayObservation::AddPlanarPositionArrayObservation(ULearningAgentsType* AgentType, FName Name, int32 PositionNum, float Scale, FVector Axis0, FVector Axis1)
+UPlanarPositionArrayObservation* UPlanarPositionArrayObservation::AddPlanarPositionArrayObservation(ULearningAgentsType* AgentType, const FName Name, const int32 PositionNum, const float Scale, const FVector Axis0, const FVector Axis1)
 {
 	return UE::Learning::Agents::Private::AddObservation<UPlanarPositionArrayObservation, UE::Learning::FPlanarPositionFeature>(AgentType, Name, PositionNum, Scale, Axis0, Axis1);
 }
 
-void UPlanarPositionArrayObservation::SetPlanarPositionArrayObservation(int32 AgentId, const TArray<FVector>& Positions, FVector RelativePosition, FRotator RelativeRotation)
+void UPlanarPositionArrayObservation::SetPlanarPositionArrayObservation(const int32 AgentId, const TArray<FVector>& Positions, const FVector RelativePosition, const FRotator RelativeRotation)
 {
-	TLearningArrayView<2, FVector> PositionView = FeatureObject->InstanceData->View(FeatureObject->PositionHandle);
-	TLearningArrayView<1, FVector> RelativePositionView = FeatureObject->InstanceData->View(FeatureObject->RelativePositionHandle);
-	TLearningArrayView<1, FQuat> RelativeRotationView = FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle);
+	const TLearningArrayView<2, FVector> PositionView = FeatureObject->InstanceData->View(FeatureObject->PositionHandle);
+	const TLearningArrayView<1, FVector> RelativePositionView = FeatureObject->InstanceData->View(FeatureObject->RelativePositionHandle);
+	const TLearningArrayView<1, FQuat> RelativeRotationView = FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle);
 
 	if (AgentId == INDEX_NONE)
 	{
@@ -696,16 +696,16 @@ void UPlanarPositionArrayObservation::VisualLog(const UE::Learning::FIndexSet In
 }
 #endif
 
-UPositionArrayObservation* UPositionArrayObservation::AddPositionArrayObservation(ULearningAgentsType* AgentType, FName Name, int32 PositionNum, float Scale)
+UPositionArrayObservation* UPositionArrayObservation::AddPositionArrayObservation(ULearningAgentsType* AgentType, const FName Name, const int32 PositionNum, const float Scale)
 {
 	return UE::Learning::Agents::Private::AddObservation<UPositionArrayObservation, UE::Learning::FPositionFeature>(AgentType, Name, PositionNum, Scale);
 }
 
-void UPositionArrayObservation::SetPositionArrayObservation(int32 AgentId, const TArray<FVector>& Positions, FVector RelativePosition, FRotator RelativeRotation)
+void UPositionArrayObservation::SetPositionArrayObservation(const int32 AgentId, const TArray<FVector>& Positions, const FVector RelativePosition, const FRotator RelativeRotation)
 {
-	TLearningArrayView<2, FVector> PositionView = FeatureObject->InstanceData->View(FeatureObject->PositionHandle);
-	TLearningArrayView<1, FVector> RelativePositionView = FeatureObject->InstanceData->View(FeatureObject->RelativePositionHandle);
-	TLearningArrayView<1, FQuat> RelativeRotationView = FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle);
+	const TLearningArrayView<2, FVector> PositionView = FeatureObject->InstanceData->View(FeatureObject->PositionHandle);
+	const TLearningArrayView<1, FVector> RelativePositionView = FeatureObject->InstanceData->View(FeatureObject->RelativePositionHandle);
+	const TLearningArrayView<1, FQuat> RelativeRotationView = FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle);
 	
 	if (AgentId == INDEX_NONE)
 	{
@@ -803,15 +803,15 @@ void UPositionArrayObservation::VisualLog(const UE::Learning::FIndexSet Instance
 
 //------------------------------------------------------------------
 
-UPlanarVelocityObservation* UPlanarVelocityObservation::AddPlanarVelocityObservation(ULearningAgentsType* AgentType, FName Name, float Scale, FVector Axis0, FVector Axis1)
+UPlanarVelocityObservation* UPlanarVelocityObservation::AddPlanarVelocityObservation(ULearningAgentsType* AgentType, const FName Name, const float Scale, const FVector Axis0, const FVector Axis1)
 {
 	return UE::Learning::Agents::Private::AddObservation<UPlanarVelocityObservation, UE::Learning::FPlanarVelocityFeature>(AgentType, Name, 1, Scale, Axis0, Axis1);
 }
 
-void UPlanarVelocityObservation::SetPlanarVelocityObservation(int32 AgentId, FVector Velocity, FRotator RelativeRotation)
+void UPlanarVelocityObservation::SetPlanarVelocityObservation(const int32 AgentId, const FVector Velocity, const FRotator RelativeRotation)
 {
-	TLearningArrayView<2, FVector> VelocityView = FeatureObject->InstanceData->View(FeatureObject->VelocityHandle);
-	TLearningArrayView<1, FQuat> RelativeRotationView = FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle);
+	const TLearningArrayView<2, FVector> VelocityView = FeatureObject->InstanceData->View(FeatureObject->VelocityHandle);
+	const TLearningArrayView<1, FQuat> RelativeRotationView = FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle);
 
 	if (AgentId == INDEX_NONE)
 	{
@@ -883,15 +883,15 @@ void UPlanarVelocityObservation::VisualLog(const UE::Learning::FIndexSet Instanc
 }
 #endif
 
-UVelocityObservation* UVelocityObservation::AddVelocityObservation(ULearningAgentsType* AgentType, FName Name, float Scale)
+UVelocityObservation* UVelocityObservation::AddVelocityObservation(ULearningAgentsType* AgentType, const FName Name, const float Scale)
 {
 	return UE::Learning::Agents::Private::AddObservation<UVelocityObservation, UE::Learning::FVelocityFeature>(AgentType, Name, 1, Scale);
 }
 
-void UVelocityObservation::SetVelocityObservation(int32 AgentId, FVector Velocity, FRotator RelativeRotation)
+void UVelocityObservation::SetVelocityObservation(const int32 AgentId, const FVector Velocity, const FRotator RelativeRotation)
 {
-	TLearningArrayView<2, FVector> VelocityView = FeatureObject->InstanceData->View(FeatureObject->VelocityHandle);
-	TLearningArrayView<1, FQuat> RelativeRotationView = FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle);
+	const TLearningArrayView<2, FVector> VelocityView = FeatureObject->InstanceData->View(FeatureObject->VelocityHandle);
+	const TLearningArrayView<1, FQuat> RelativeRotationView = FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle);
 
 	if (AgentId == INDEX_NONE)
 	{
@@ -960,4 +960,3 @@ void UVelocityObservation::VisualLog(const UE::Learning::FIndexSet Instances) co
 #undef UE_LEARNING_AGENTS_VLOG_STRING
 #undef UE_LEARNING_AGENTS_VLOG_TRANSFORM
 #undef UE_LEARNING_AGENTS_VLOG_PLANE
-

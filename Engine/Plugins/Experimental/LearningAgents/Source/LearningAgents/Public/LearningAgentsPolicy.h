@@ -20,8 +20,7 @@ namespace UE::Learning
 struct FDirectoryPath;
 class ULearningAgentsNeuralNetwork;
 
-//------------------------------------------------------------------
-
+/** The configurable settings for a ULearningAgentsPolicy. */
 USTRUCT(BlueprintType, Category = "LearningAgents")
 struct LEARNINGAGENTS_API FLearningAgentsPolicySettings
 {
@@ -54,8 +53,7 @@ public:
 	ELearningAgentsActivationFunction ActivationFunction = ELearningAgentsActivationFunction::ELU;
 };
 
-//------------------------------------------------------------------
-
+/** A policy that maps from observations to actions for the managed agents. */
 UCLASS(BlueprintType, Blueprintable)
 class LEARNINGAGENTS_API ULearningAgentsPolicy : public UActorComponent
 {
@@ -69,66 +67,113 @@ public:
 	ULearningAgentsPolicy(FVTableHelper& Helper);
 	virtual ~ULearningAgentsPolicy();
 
+	/** Initializes this object to be used with the given agent type and policy settings. */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void SetupPolicy(ULearningAgentsType* InAgentType, const FLearningAgentsPolicySettings& PolicySettings = FLearningAgentsPolicySettings());
 
+	/** Returns true if SetupPolicy has been run successfully; Otherwise, false. */
 	UFUNCTION(BlueprintPure, Category = "LearningAgents")
 	bool IsPolicySetupPerformed() const;
 
 // ----- Agent Management -----
 public:
 
+	/**
+	 * Adds an agent to this policy.
+	 * @param AgentId The id of the agent to be added.
+	 * @warning The agent id must exist for the agent type.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void AddAgent(int32 AgentId);
+	void AddAgent(const int32 AgentId);
 
+	/**
+	* Removes an agent from this policy.
+	* @param AgentId The id of the agent to be removed.
+	* @warning The agent id must exist for this policy already.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void RemoveAgent(int32 AgentId);
+	void RemoveAgent(const int32 AgentId);
 
+	/** Returns true if the given id has been previously added to this policy; Otherwise, false. */
 	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	bool HasAgent(int32 AgentId) const;
+	bool HasAgent(const int32 AgentId) const;
 
+	/**
+	* Gets the agent type this policy is associated with.
+	* @param AgentClass The class to cast the agent type to (in blueprint).
+	*/
 	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (DeterminesOutputType = "AgentClass"))
-	ULearningAgentsType* GetAgentType(TSubclassOf<ULearningAgentsType> AgentClass);
+	ULearningAgentsType* GetAgentType(const TSubclassOf<ULearningAgentsType> AgentClass);
 
 // ----- Load / Save -----
 public:
 
+	/**
+	* Load a snapshot's weights into this policy.
+	* @param Directory The directory the snapshot file is in.
+	* @param Filename The filename of the snapshot, including the file extension.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void LoadPolicyFromSnapshot(const FDirectoryPath& Directory, const FString Filename);
 
+	/**
+	* Save this policy's weights into a snapshot.
+	* @param Directory The directory to save the snapshot file in.
+	* @param Filename The filename of the snapshot, including the file extension.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void SavePolicyToSnapshot(const FDirectoryPath& Directory, const FString Filename) const;
 
+	/**
+	* Load a ULearningAgentsNeuralNetwork asset's weights into this policy.
+	* @param NeuralNetworkAsset The asset to load from.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void LoadPolicyFromAsset(const ULearningAgentsNeuralNetwork* NeuralNetworkAsset);
 
+	/**
+	* Save this policy's weights to a ULearningAgentsNeuralNetwork asset.
+	* @param NeuralNetworkAsset The asset to save to.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", Meta = (DevelopmentOnly))
 	void SavePolicyToAsset(ULearningAgentsNeuralNetwork* NeuralNetworkAsset) const;
 
 // ----- Evaluation -----
 public:
 
+	/**
+	* Calling this function will run the underlying neural network on the previously buffered observations to populate
+	* the output action buffer. This should be called after the associated agent type's EncodeObservations and
+	* before its DecodeActions.
+	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void EvaluatePolicy();
 
 // ----- Non-blueprint public interface -----
 public:
 
+	/** Get a reference to this policy's neural network. */
 	UE::Learning::FNeuralNetwork& GetPolicyNetwork();
+
+	/** Get a reference to this policy's policy function object. */
 	UE::Learning::FNeuralNetworkPolicyFunction& GetPolicyObject();
 
 // ----- Private Data -----
 private:
 
+	/** The agent type this policy is associated with. */
 	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsType> AgentType;
 
+	/** The agent ids this policy is managing. */
 	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
 	TArray<int32> SelectedAgentIds;
 
+	/** True if this policy's SetupPolicy has been run; Otherwise, false. */
 	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
 	bool bPolicySetupPerformed = false;
 
+	/** The underlying neural network. */
 	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsNeuralNetwork> Network;
 
@@ -144,6 +189,7 @@ private:
 	/** Color used to draw this action in the visual log */
 	FLinearColor VisualLogColor = FColor::Purple;
 
+	/** Describes this policy to the visual logger for debugging purposes. */
 	void VisualLog(const UE::Learning::FIndexSet Instances) const;
 #endif
 };

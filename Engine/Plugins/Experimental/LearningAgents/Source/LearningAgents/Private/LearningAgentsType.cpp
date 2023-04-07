@@ -68,12 +68,12 @@ void ULearningAgentsType::SetupAgentType()
 	bSetupPerformed = true;
 }
 
-const bool ULearningAgentsType::IsSetupPerformed() const
+bool ULearningAgentsType::IsSetupPerformed() const
 {
 	return bSetupPerformed;
 }
 
-const int32 ULearningAgentsType::GetMaxInstanceNum() const
+int32 ULearningAgentsType::GetMaxInstanceNum() const
 {
 	return MaxInstanceNum;
 }
@@ -103,17 +103,17 @@ TConstArrayView<ULearningAgentsAction*> ULearningAgentsType::GetActionObjects() 
 	return ActionObjects;
 }
 
-const TConstArrayView<TObjectPtr<UObject>> ULearningAgentsType::GetAgents() const
+TConstArrayView<TObjectPtr<UObject>> ULearningAgentsType::GetAgents() const
 {
 	return Agents;
 }
 
-const UE::Learning::FIndexSet ULearningAgentsType::GetOccupiedAgentSet() const
+UE::Learning::FIndexSet ULearningAgentsType::GetOccupiedAgentSet() const
 {
 	return OccupiedAgentSet;
 }
 
-const UE::Learning::FIndexSet ULearningAgentsType::GetVacantAgentSet() const
+UE::Learning::FIndexSet ULearningAgentsType::GetVacantAgentSet() const
 {
 	return VacantAgentSet;
 }
@@ -143,7 +143,7 @@ int32 ULearningAgentsType::AddAgent(UObject* Agent)
 	return NewAgentId;
 }
 
-void ULearningAgentsType::RemoveAgentById(int32 AgentId)
+void ULearningAgentsType::RemoveAgentById(const int32 AgentId)
 {
 	if (AgentId == INDEX_NONE)
 	{
@@ -151,15 +151,13 @@ void ULearningAgentsType::RemoveAgentById(int32 AgentId)
 		return;
 	}
 
-	int32 RemovedCount = OccupiedAgentIds.RemoveSingleSwap(AgentId, false);
+	const int32 RemovedCount = OccupiedAgentIds.RemoveSingleSwap(AgentId, false);
 
 	if (RemovedCount == 0)
 	{
 		UE_LOG(LogLearning, Warning, TEXT("Trying to remove an agent but its Id (%d) is not in the occupied agents."), AgentId);
 		return;
 	}
-
-	UObject* RemovedAgent = Agents[AgentId];
 
 	// Remove Agent
 	VacantAgentIds.Push(AgentId);
@@ -177,7 +175,7 @@ void ULearningAgentsType::RemoveAgent(UObject* Agent)
 	}
 
 	int32 AgentId = INDEX_NONE;
-	bool bIsFound = Agents.Find(Agent, AgentId);
+	const bool bIsFound = Agents.Find(Agent, AgentId);
 
 	if (!bIsFound)
 	{
@@ -193,12 +191,12 @@ bool ULearningAgentsType::HasAgent(UObject* Agent) const
 	return Agents.Find(Agent) ? true : false;
 }
 
-bool ULearningAgentsType::HasAgentById(int32 AgentId) const
+bool ULearningAgentsType::HasAgentById(const int32 AgentId) const
 {
 	return OccupiedAgentSet.Contains(AgentId);
 }
 
-UObject* ULearningAgentsType::GetAgent(int32 AgentId, TSubclassOf<UObject> AgentClass)
+UObject* ULearningAgentsType::GetAgent(const int32 AgentId, const TSubclassOf<UObject> AgentClass)
 {
 	if (AgentId < 0 || AgentId >= Agents.Num())
 	{
@@ -209,12 +207,12 @@ UObject* ULearningAgentsType::GetAgent(int32 AgentId, TSubclassOf<UObject> Agent
 	return Agents[AgentId];
 }
 
-const UObject* ULearningAgentsType::GetAgent(int32 AgentId) const
+const UObject* ULearningAgentsType::GetAgent(const int32 AgentId) const
 {
 	return Agents[AgentId];
 }
 
-UObject* ULearningAgentsType::GetAgent(int32 AgentId)
+UObject* ULearningAgentsType::GetAgent(const int32 AgentId)
 {
 	return Agents[AgentId];
 }

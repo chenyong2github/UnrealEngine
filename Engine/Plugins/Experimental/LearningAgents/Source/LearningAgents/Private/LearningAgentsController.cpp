@@ -46,7 +46,7 @@ bool ULearningAgentsController::IsControllerSetupPerformed() const
 	return AgentType ? true : false;
 }
 
-void ULearningAgentsController::AddAgent(int32 AgentId)
+void ULearningAgentsController::AddAgent(const int32 AgentId)
 {
 	if (!IsControllerSetupPerformed())
 	{
@@ -71,7 +71,7 @@ void ULearningAgentsController::AddAgent(int32 AgentId)
 	SelectedAgentsSet.TryMakeSlice();
 }
 
-void ULearningAgentsController::RemoveAgent(int32 AgentId)
+void ULearningAgentsController::RemoveAgent(const int32 AgentId)
 {
 	if (!IsControllerSetupPerformed())
 	{
@@ -89,7 +89,7 @@ void ULearningAgentsController::RemoveAgent(int32 AgentId)
 	SelectedAgentsSet.TryMakeSlice();
 }
 
-bool ULearningAgentsController::HasAgent(int32 AgentId) const
+bool ULearningAgentsController::HasAgent(const int32 AgentId) const
 {
 	return SelectedAgentsSet.Contains(AgentId);
 }

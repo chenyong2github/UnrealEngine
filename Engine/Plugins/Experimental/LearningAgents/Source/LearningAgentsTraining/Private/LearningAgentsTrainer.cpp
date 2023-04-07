@@ -144,7 +144,7 @@ bool ULearningAgentsTrainer::IsTrainerSetupPerformed() const
 	return bTrainerSetupPerformed;
 }
 
-void ULearningAgentsTrainer::AddAgent(int32 AgentId)
+void ULearningAgentsTrainer::AddAgent(const int32 AgentId)
 {
 	if (!IsTrainerSetupPerformed())
 	{
@@ -177,7 +177,7 @@ void ULearningAgentsTrainer::AddAgent(int32 AgentId)
 	}
 }
 
-void ULearningAgentsTrainer::RemoveAgent(int32 AgentId)
+void ULearningAgentsTrainer::RemoveAgent(const int32 AgentId)
 {
 	if (!IsTrainerSetupPerformed())
 	{
@@ -195,7 +195,7 @@ void ULearningAgentsTrainer::RemoveAgent(int32 AgentId)
 	SelectedAgentsSet.TryMakeSlice();
 }
 
-bool ULearningAgentsTrainer::HasAgent(int32 AgentId) const
+bool ULearningAgentsTrainer::HasAgent(const int32 AgentId) const
 {
 	return SelectedAgentsSet.Contains(AgentId);
 }
@@ -211,13 +211,13 @@ ULearningAgentsType* ULearningAgentsTrainer::GetAgentType(TSubclassOf<ULearningA
 	return AgentType;
 }
 
-const UObject* ULearningAgentsTrainer::GetAgent(int32 AgentId) const
+const UObject* ULearningAgentsTrainer::GetAgent(const int32 AgentId) const
 {
 	UE_LEARNING_CHECK(AgentType);
 	return AgentType->GetAgent(AgentId);
 }
 
-UObject* ULearningAgentsTrainer::GetAgent(int32 AgentId)
+UObject* ULearningAgentsTrainer::GetAgent(const int32 AgentId)
 {
 	UE_LEARNING_CHECK(AgentType);
 	return AgentType->GetAgent(AgentId);
@@ -645,7 +645,7 @@ void ULearningAgentsTrainer::IterateTraining()
 
 		// Push Experience to Replay Buffer
 
-		bool bReplayBufferFull = ReplayBuffer->AddEpisodes(
+		const bool bReplayBufferFull = ReplayBuffer->AddEpisodes(
 			Completions->CompletionBuffer(),
 			Observations.FeatureBuffer(),
 			*EpisodeBuffer,
@@ -655,9 +655,7 @@ void ULearningAgentsTrainer::IterateTraining()
 		{
 			// Send Experience
 
-			UE::Learning::ETrainerResponse Response = UE::Learning::ETrainerResponse::Success;
-
-			Response = Trainer->SendExperience(*ReplayBuffer, TrainerTimeout);
+			UE::Learning::ETrainerResponse Response = Trainer->SendExperience(*ReplayBuffer, TrainerTimeout);
 
 			if (Response != UE::Learning::ETrainerResponse::Success)
 			{

@@ -144,7 +144,7 @@ bool ULearningAgentsPolicy::IsPolicySetupPerformed() const
 	return bPolicySetupPerformed;
 }
 
-void ULearningAgentsPolicy::AddAgent(int32 AgentId)
+void ULearningAgentsPolicy::AddAgent(const int32 AgentId)
 {
 	if (!IsPolicySetupPerformed())
 	{
@@ -169,7 +169,7 @@ void ULearningAgentsPolicy::AddAgent(int32 AgentId)
 	SelectedAgentsSet.TryMakeSlice();
 }
 
-void ULearningAgentsPolicy::RemoveAgent(int32 AgentId)
+void ULearningAgentsPolicy::RemoveAgent(const int32 AgentId)
 {
 	if (!IsPolicySetupPerformed())
 	{
@@ -187,12 +187,12 @@ void ULearningAgentsPolicy::RemoveAgent(int32 AgentId)
 	SelectedAgentsSet.TryMakeSlice();
 }
 
-bool ULearningAgentsPolicy::HasAgent(int32 AgentId) const
+bool ULearningAgentsPolicy::HasAgent(const int32 AgentId) const
 {
 	return SelectedAgentsSet.Contains(AgentId);
 }
 
-ULearningAgentsType* ULearningAgentsPolicy::GetAgentType(TSubclassOf<ULearningAgentsType> AgentClass)
+ULearningAgentsType* ULearningAgentsPolicy::GetAgentType(const TSubclassOf<ULearningAgentsType> AgentClass)
 {
 	if (!IsPolicySetupPerformed())
 	{
@@ -222,7 +222,7 @@ void ULearningAgentsPolicy::LoadPolicyFromSnapshot(const FDirectoryPath& Directo
 	}
 
 	TArray64<uint8> NetworkData;
-	FString FilePath = Directory.Path + FGenericPlatformMisc::GetDefaultPathSeparator() + Filename;
+	const FString FilePath = Directory.Path + FGenericPlatformMisc::GetDefaultPathSeparator() + Filename;
 	if (FFileHelper::LoadFileToArray(NetworkData, *FilePath))
 	{
 		const int32 TotalByteNum = UE::Learning::FNeuralNetwork::GetSerializationByteNum(
@@ -262,7 +262,7 @@ void ULearningAgentsPolicy::SavePolicyToSnapshot(const FDirectoryPath& Directory
 
 	Network->NeuralNetwork->SerializeToBytes(NetworkData);
 
-	FString FilePath = Directory.Path + FGenericPlatformMisc::GetDefaultPathSeparator() + Filename;
+	const FString FilePath = Directory.Path + FGenericPlatformMisc::GetDefaultPathSeparator() + Filename;
 	if (!FFileHelper::SaveArrayToFile(NetworkData, *FilePath))
 	{
 		UE_LOG(LogLearning, Error, TEXT("Failed to save network to file: %s"), *FilePath);
