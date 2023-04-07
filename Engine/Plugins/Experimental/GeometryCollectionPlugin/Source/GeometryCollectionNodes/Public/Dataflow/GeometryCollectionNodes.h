@@ -557,7 +557,7 @@ public:
 	FManagedArrayCollection Collection;
 
 	UPROPERTY(meta = (DataflowOutput))
-	int32 RootIndex;
+	int32 RootIndex = INDEX_NONE;
 
 	FGetRootIndexFromCollectionDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
