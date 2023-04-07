@@ -190,20 +190,15 @@ FRDGTextureRef RegisterExternalTextureWithFallback(
 RENDERCORE_API FRDGTextureMSAA CreateTextureMSAA(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureDesc Desc,
-	const TCHAR* Name,
+	const TCHAR* NameMultisampled, const TCHAR* NameResolved,
 	ETextureCreateFlags ResolveFlagsToAdd)
 {
-	bool bForceSeparateTargetAndShaderResource = Desc.NumSamples > 1 && RHISupportsSeparateMSAAAndResolveTextures(GMaxRHIShaderPlatform);
-	
-	if (!bForceSeparateTargetAndShaderResource)
-	{
-		Desc.Flags |= TexCreate_ShaderResource;
-	}
+	const bool bForceSeparateTargetAndShaderResource = Desc.NumSamples > 1 && RHISupportsSeparateMSAAAndResolveTextures(GMaxRHIShaderPlatform);
 
-	FRDGTextureMSAA Texture(GraphBuilder.CreateTexture(Desc, Name));
-
-	if (bForceSeparateTargetAndShaderResource)
+	if (LIKELY(bForceSeparateTargetAndShaderResource))
 	{
+		FRDGTextureMSAA Texture(GraphBuilder.CreateTexture(Desc, NameMultisampled));
+
 		Desc.NumSamples = 1;
 		ETextureCreateFlags ResolveFlags = TexCreate_ShaderResource;
 		if (EnumHasAnyFlags(Desc.Flags, TexCreate_DepthStencilTargetable))
@@ -217,10 +212,13 @@ RENDERCORE_API FRDGTextureMSAA CreateTextureMSAA(
         ResolveFlags &= ~(TexCreate_Memoryless);
         
 		Desc.Flags = ResolveFlags | ResolveFlagsToAdd;
-		Texture.Resolve = GraphBuilder.CreateTexture(Desc, Name);
+		Texture.Resolve = GraphBuilder.CreateTexture(Desc, NameResolved);
+
+		return Texture;
 	}
 
-	return Texture;
+	Desc.Flags |= TexCreate_ShaderResource;
+	return FRDGTextureMSAA(GraphBuilder.CreateTexture(Desc, NameResolved));
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FCopyTextureParameters, )

@@ -320,8 +320,18 @@ struct FRDGTextureMSAA
 RENDERCORE_API FRDGTextureMSAA CreateTextureMSAA(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureDesc Desc,
-	const TCHAR* Name,
+	const TCHAR* NameMultisampled, const TCHAR* NameResolved,
 	ETextureCreateFlags ResolveFlagsToAdd = TexCreate_None);
+
+UE_DEPRECATED(5.3, "CreateTextureMSAA with one name is deprecated, prease provide separate name for the multisampled texture")
+inline FRDGTextureMSAA CreateTextureMSAA(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureDesc Desc,
+	const TCHAR* Name,
+	ETextureCreateFlags ResolveFlagsToAdd = TexCreate_None)
+{
+	return CreateTextureMSAA(GraphBuilder, Desc, Name, Name, ResolveFlagsToAdd);
+}
 
 /** All utils for compute shaders.
  */

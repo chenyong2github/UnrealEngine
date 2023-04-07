@@ -148,6 +148,16 @@ static const TCHAR* kTranslucencyColorTextureName[] = {
 };
 static_assert(UE_ARRAY_COUNT(kTranslucencyColorTextureName) == int32(ETranslucencyPass::TPT_MAX), "Fix me");
 
+static const TCHAR* kTranslucencyColorTextureMultisampledName[] = {
+	TEXT("Translucency.BeforeDistortion.ColorMS"),
+	TEXT("Translucency.BeforeDistortion.ModulateMS"),
+	TEXT("Translucency.AfterDOF.ColorMS"),
+	TEXT("Translucency.AfterDOF.ModulateMS"),
+	TEXT("Translucency.AfterMotionBlur.ColorMS"),
+	TEXT("Translucency.All.ColorMS"),
+};
+static_assert(UE_ARRAY_COUNT(kTranslucencyColorTextureMultisampledName) == UE_ARRAY_COUNT(kTranslucencyColorTextureName), "Fix me");
+
 static const TCHAR* TranslucencyPassToString(ETranslucencyPass::Type TranslucencyPass)
 {
 	return kTranslucencyPassName[TranslucencyPass];
@@ -756,6 +766,7 @@ FRDGTextureMSAA CreatePostDOFTranslucentTexture(
 	const FRDGTextureDesc Desc = GetPostDOFTranslucentTextureDesc(TranslucencyPass, SeparateTranslucencyDimensions, bIsModulate, ShaderPlatform);
 	return CreateTextureMSAA(
 		GraphBuilder, Desc,
+		kTranslucencyColorTextureMultisampledName[int32(TranslucencyPass)],
 		kTranslucencyColorTextureName[int32(TranslucencyPass)],
 		bIsModulate ? GFastVRamConfig.SeparateTranslucencyModulate : GFastVRamConfig.SeparateTranslucency);
 }
@@ -1530,6 +1541,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(
 
 		SharedDepthTexture = CreateTextureMSAA(
 			GraphBuilder, Desc,
+			TEXT("Translucency.DepthMS"),
 			TEXT("Translucency.Depth"),
 			GFastVRamConfig.SeparateTranslucencyModulate); // TODO: this should be SeparateTranslucency, but is what the code was doing
 
