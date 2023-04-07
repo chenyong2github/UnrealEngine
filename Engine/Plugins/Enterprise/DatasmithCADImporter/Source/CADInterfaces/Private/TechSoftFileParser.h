@@ -53,10 +53,10 @@ public:
 
 protected:
 
-	virtual A3DStatus AdaptBRepModel();
-	//{
-	//	return A3DStatus::A3D_SUCCESS;
-	//}
+	virtual A3DStatus AdaptBRepModel()
+	{
+		return A3DStatus::A3D_SUCCESS;
+	}
 
 	/**
 	 * If the tessellator is TechSoft, SewModel call TechSoftInterface::SewModel
