@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UObject/ObjectPtr.h"
-#include "UObject/Class.h"
 
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 
@@ -48,15 +47,3 @@ FString FObjectPtr::GetFullName(EObjectFullNameFlags Flags) const
 }
 
 #endif
-
-bool FObjectPtr::IsA(const UClass* SomeBase) const
-{
-	checkfSlow(SomeBase, TEXT("IsA(NULL) cannot yield meaningful results"));
-
-	if (const UClass* ThisClass = GetClass())
-	{
-		return ThisClass->IsChildOf(SomeBase);
-	}
-
-	return false;
-}
