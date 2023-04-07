@@ -115,14 +115,9 @@ public:
 		return ResourceState[(uint8)InState];
 	}
 
-	virtual const FTexture2DRHIRef& GetViewportResourceRHI() const
+	virtual FRHITexture2D* GetViewportResource2DRHI() const
 	{
-		return (const FTexture2DRHIRef&)TextureRHI;
-	}
-
-	virtual const FTexture2DRHIRef& GetViewportRenderTargetResourceRHI() const
-	{
-		return (const FTexture2DRHIRef&)TextureRHI;
+		return TextureRHI.IsValid() ? TextureRHI->GetTexture2D() : nullptr;
 	}
 
 	/** Returns the width of the texture in pixels. */

@@ -123,65 +123,37 @@ namespace DisplayClusterViewportProxyHelpers
 	*
 	* @return true, if all resources are valid
 	*/
-	static bool GetViewportRHIResourcesImpl_RenderThread(const TArray<FDisplayClusterViewportTextureResource*>& InResources, TArray<FRHITexture2D*>& OutResources)
+	static bool GetViewportRHIResourcesImpl_RenderThread(const TArrayView<FDisplayClusterViewportResource*>& InResources, TArray<FRHITexture2D*>& OutResources)
 	{
-		check(OutResources.Num() == 0);
+		OutResources.Reset();
 
-		if (InResources.Num() > 0)
+		for (FDisplayClusterViewportResource* ViewportResourceIt : InResources)
 		{
-			for (int32 ResourceIndex = 0; ResourceIndex < InResources.Num(); ResourceIndex++)
+			if (FRHITexture2D* RHITexture2D = ViewportResourceIt ? ViewportResourceIt->GetViewportResource2DRHI() : nullptr)
 			{
-				if (InResources[ResourceIndex] != nullptr)
-				{
-					OutResources.Add(InResources[ResourceIndex]->GetViewportResourceRHI());
-				}
-
+				// Collects only valid resources.
+				OutResources.Add(RHITexture2D);
 			}
-
-			if (OutResources.Num() == InResources.Num())
-			{
-				return true;
-			}
-
-			// Some resources lost
-			OutResources.Empty();
 		}
 
-		return false;
+		if (OutResources.Num() != InResources.Num())
+		{
+			// Some resources lost
+			OutResources.Reset();
+		}
+
+		// returns success if the number of output resources is equal to the input and is not empty
+		return !OutResources.IsEmpty();
 	}
 
-	/**
-	* Get viewport RHI resources
-	*
-	* @param InResources - Array with DC resources (for mono num=1, for stereo num=2)
-	* @param OutResources - Array with RHI resources
-	*
-	* @return true, if all resources are valid
-	*/
-	static bool GetViewportRHIResourcesImpl_RenderThread(const TArray<FTextureRenderTargetResource*>& InResources, TArray<FRHITexture2D*>& OutResources)
+	static bool GetViewportRHIResourcesImpl_RenderThread(const TArray<FDisplayClusterViewportTextureResource*>& InResources, TArray<FRHITexture2D*>& OutResources)
 	{
-		check(OutResources.Num() == 0);
+		return GetViewportRHIResourcesImpl_RenderThread(TArrayView<FDisplayClusterViewportResource*>((FDisplayClusterViewportResource**)(InResources.GetData()), InResources.Num()), OutResources);
+	}
 
-		if (InResources.Num() > 0)
-		{
-			for (int32 ResourceIndex = 0; ResourceIndex < InResources.Num(); ResourceIndex++)
-			{
-				if (InResources[ResourceIndex] != nullptr)
-				{
-					OutResources.Add(InResources[ResourceIndex]->GetTexture2DRHI());
-				}
-			}
-
-			if (OutResources.Num() == InResources.Num())
-			{
-				return true;
-			}
-
-			// Some resources lost
-			OutResources.Empty();
-		}
-
-		return false;
+	static bool GetViewportRHIResourcesImpl_RenderThread(const TArray<FDisplayClusterViewportRenderTargetResource*>& InResources, TArray<FRHITexture2D*>& OutResources)
+	{
+		return GetViewportRHIResourcesImpl_RenderThread(TArrayView<FDisplayClusterViewportResource*>((FDisplayClusterViewportResource**)(InResources.GetData()), InResources.Num()), OutResources);
 	}
 
 	// Reset reference to deleted resource
@@ -395,17 +367,7 @@ bool FDisplayClusterViewportProxy::ImplGetResources_RenderThread(const EDisplayC
 			// 3. Finally Use InternalRTT
 			if (!bResult)
 			{
-				for (int32 ContextIndex = 0; ContextIndex < Contexts.Num(); ContextIndex++)
-				{
-					if (RenderTargets.IsValidIndex(ContextIndex))
-					{
-						if (FDisplayClusterViewportRenderTargetResource* Input = RenderTargets[ContextIndex])
-						{
-							OutResources.Add(Input->GetViewportRenderTargetResourceRHI());
-							bResult = true;
-						}
-					}
-				}
+				bResult = GetViewportRHIResourcesImpl_RenderThread(RenderTargets, OutResources);
 			}
 		}
 
@@ -515,8 +477,8 @@ void FDisplayClusterViewportProxy::ImplViewportRemap_RenderThread(FRHICommandLis
 				FDisplayClusterViewportTextureResource* Src = AdditionalFrameTargetableResources[ContextIt];
 				FDisplayClusterViewportTextureResource* Dst = OutputFrameTargetableResources[ContextIt];
 
-				FRHITexture2D* Input = Src ? Src->GetViewportResourceRHI() : nullptr;
-				FRHITexture2D* Output = Dst ? Dst->GetViewportResourceRHI() : nullptr;
+				FRHITexture2D* Input = Src ? Src->GetViewportResource2DRHI() : nullptr;
+				FRHITexture2D* Output = Dst ? Dst->GetViewportResource2DRHI() : nullptr;
 
 				if (Input && Output)
 				{
@@ -1192,26 +1154,25 @@ void FDisplayClusterViewportProxy::OnPostRenderViewFamily_RenderThread(FRDGBuild
 		{
 			// Restore alpha channed
 			EFXAAQuality FXAAQuality = EFXAAQuality::Q0;
-			if (GetFXAAQuality(RenderSettings.CaptureMode, FXAAQuality))
+			if (GetFXAAQuality(RenderSettings.CaptureMode, FXAAQuality) && InputShaderResources.IsValidIndex(InContextNum))
 			{
-				// Apply FXAA for RGB only
-				// Note: Add AA for alpha channel
-
-				// Copy Alpha channels back from'InputShaderResource' to 'InternalRenderTargetResource'
-				CopyResource_RenderThread(GraphBuilder, EDisplayClusterTextureCopyMode::Alpha, InContextNum, EDisplayClusterViewportResourceType::InputShaderResource, EDisplayClusterViewportResourceType::InternalRenderTargetResource);
-
-				checkSlow(InSceneView.bIsViewInfo);
-				const FViewInfo& ViewInfo = static_cast<const FViewInfo&>(InSceneView);
-
-				// 1. Copy RGB channels from 'InternalRenderTargetResource' to 'InputShaderResource'
-				CopyResource_RenderThread(GraphBuilder, EDisplayClusterTextureCopyMode::RGB, InContextNum, EDisplayClusterViewportResourceType::InternalRenderTargetResource, EDisplayClusterViewportResourceType::InputShaderResource);
-
-				check(InputShaderResources.IsValidIndex(InContextNum));
-				if (FDisplayClusterViewportTextureResource* InputResource = InputShaderResources[InContextNum])
+				if (FRHITexture2D* InputTextureRHI = InputShaderResources[InContextNum] ? InputShaderResources[InContextNum]->GetViewportResource2DRHI() : nullptr)
 				{
+					// Apply FXAA for RGB only
+					// Note: Add AA for alpha channel
+
+					// Copy Alpha channels back from'InputShaderResource' to 'InternalRenderTargetResource'
+					CopyResource_RenderThread(GraphBuilder, EDisplayClusterTextureCopyMode::Alpha, InContextNum, EDisplayClusterViewportResourceType::InputShaderResource, EDisplayClusterViewportResourceType::InternalRenderTargetResource);
+
+					checkSlow(InSceneView.bIsViewInfo);
+					const FViewInfo& ViewInfo = static_cast<const FViewInfo&>(InSceneView);
+
+					// 1. Copy RGB channels from 'InternalRenderTargetResource' to 'InputShaderResource'
+					CopyResource_RenderThread(GraphBuilder, EDisplayClusterTextureCopyMode::RGB, InContextNum, EDisplayClusterViewportResourceType::InternalRenderTargetResource, EDisplayClusterViewportResourceType::InputShaderResource);
+
 					// 2. FXAA render pass to 'InputShaderResource'
 					// Input is 'InputShaderResource'
-					FRDGTextureRef InputTexture = RegisterExternalTexture(GraphBuilder, InputResource->GetTextureRHI(), TEXT("DCViewportProxyFXAAResource"));
+					FRDGTextureRef InputTexture = RegisterExternalTexture(GraphBuilder, InputTextureRHI, TEXT("DCViewportProxyFXAAResource"));
 					GraphBuilder.SetTextureAccessFinal(InputTexture, ERHIAccess::RTV);
 
 					FFXAAInputs PassInputs;

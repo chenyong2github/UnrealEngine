@@ -513,45 +513,76 @@ void FDisplayClusterViewportManagerProxy::DoCrossGPUTransfers_RenderThread(FRHIC
 	check(IsInRenderingThread());
 
 #if WITH_MGPU
+	if (GNumExplicitGPUsForRendering < 2)
+	{
+		// for mGPU we need at least 2 GPUs
+		return;
+	}
+
 	// Copy the view render results to all GPUs that are native to the viewport.
 	TArray<FTransferResourceParams> TransferResources;
 
 	for (const TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe>& ViewportProxyIt : ClusterNodeViewportProxies)
 	{
-		// Skip a frozen viewport that has already been transferred between GPUs
-		// The first time freezing should do the transfer (RenderTargets must be assigned on the first pass)
-		const bool bSkipThisViewport = ViewportProxyIt->RenderSettings.bFreezeRendering && ViewportProxyIt->RenderTargets.Num() == 0;
-		if (ViewportProxyIt->RenderSettings.bEnableCrossGPUTransfer && !bSkipThisViewport)
+		if (!ViewportProxyIt.IsValid())
 		{
-			for (const FDisplayClusterViewport_Context& ViewportContext : ViewportProxyIt->Contexts)
+			continue;
+		}
+
+		if (!ViewportProxyIt->RenderSettings.bEnableCrossGPUTransfer || ViewportProxyIt->RenderTargets.IsEmpty())
+		{
+			// Skip a frozen viewport that has already been transferred between GPUs
+			// The first time freezing should do the transfer (RenderTargets must be assigned on the first pass)
+			continue;
+		}
+
+		// Do cross GPU trasfers for all viewport contexts
+		for (const FDisplayClusterViewport_Context& ViewportContext : ViewportProxyIt->Contexts)
+		{
+			if (!ViewportContext.bOverrideCrossGPUTransfer)
 			{
-				const int32 SrcGPUIndex = ViewportContext.RenderThreadData.GPUIndex;
+				// Skip this context because it uses the default way
+				continue;
+			}
 
-				// Perform an MGPU transfer for a specific viewport context:
-				if (ViewportContext.bOverrideCrossGPUTransfer && SrcGPUIndex >= 0)
+			const int32 SrcGPUIndex = ViewportContext.RenderThreadData.GPUIndex;
+			if (SrcGPUIndex < 0)
+			{
+				// This viewport context does not use the custom GPU index for rendering
+				continue;
+			}
+
+			if (!ViewportProxyIt->RenderTargets.IsValidIndex(ViewportContext.ContextNum))
+			{
+				// RTT does not exist for this context
+				continue;
+			}
+
+			// Clamp the view rect by the rendertarget rect to prevent issues when resizing the viewport.
+			const FIntRect TransferRect = ViewportContext.RenderTargetRect;
+			if (TransferRect.Width() <= 0 || TransferRect.Height() <= 0)
+			{
+				// Broken rect, skip
+				continue;
+			}
+
+			// Perform an MGPU transfer for a specific viewport context:
+			if (FDisplayClusterViewportRenderTargetResource* RenderTarget = ViewportProxyIt->RenderTargets[ViewportContext.ContextNum])
+			{
+				if (FRHITexture2D* TextureRHI = RenderTarget->GetViewportResource2DRHI())
 				{
-					// Clamp the view rect by the rendertarget rect to prevent issues when resizing the viewport.
-					const FIntRect TransferRect = ViewportContext.RenderTargetRect;
-					if (TransferRect.Width() > 0 && TransferRect.Height() > 0)
-					{
-						// Use optimized cross GPU transfer for this context
-						FRenderTarget* RenderTarget = ViewportProxyIt->RenderTargets[ViewportContext.ContextNum];
-						const FRHIGPUMask RenderTargetGPUMask = (GNumExplicitGPUsForRendering > 1 && RenderTarget) ? RenderTarget->GetGPUMask(RHICmdList) : FRHIGPUMask::GPU0();
+					const FRHIGPUMask RenderTargetGPUMask = RenderTarget->GetGPUMask(RHICmdList);
 
-						if (FRHITexture2D* TextureRHI = ViewportProxyIt->RenderTargets[ViewportContext.ContextNum]->GetViewportRenderTargetResourceRHI())
+					for (uint32 DestGPUIndex : RenderTargetGPUMask)
+					{
+						if (DestGPUIndex != SrcGPUIndex)
 						{
-							for (uint32 DestGPUIndex : RenderTargetGPUMask)
-							{
-								if (DestGPUIndex != SrcGPUIndex)
-								{
-									TransferResources.Add(FTransferResourceParams(
-										TextureRHI, TransferRect,
-										SrcGPUIndex, DestGPUIndex,
-										RenderFrameSettings.CrossGPUTransfer.bPullData,
-										RenderFrameSettings.CrossGPUTransfer.bLockSteps
-									));
-								}
-							}
+							TransferResources.Add(FTransferResourceParams(
+								TextureRHI, TransferRect,
+								SrcGPUIndex, DestGPUIndex,
+								RenderFrameSettings.CrossGPUTransfer.bPullData,
+								RenderFrameSettings.CrossGPUTransfer.bLockSteps
+							));
 						}
 					}
 				}
@@ -574,36 +605,43 @@ bool FDisplayClusterViewportManagerProxy::GetFrameTargets_RenderThread(TArray<FR
 	// Get any defined frame targets from first visible viewport
 	for (const TSharedPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe>& ViewportProxyIt : ClusterNodeViewportProxies)
 	{
-		if (ViewportProxyIt.IsValid())
+		// Process only valid viewports with output frame resources
+		if (ViewportProxyIt.IsValid() && !ViewportProxyIt->OutputFrameTargetableResources.IsEmpty())
 		{
 			const TArray<FDisplayClusterViewportTextureResource*>& Frames = ViewportProxyIt->OutputFrameTargetableResources;
 			const TArray<FDisplayClusterViewportTextureResource*>& AdditionalFrames = ViewportProxyIt->AdditionalFrameTargetableResources;
 
-			if (Frames.Num() > 0)
+			for (int32 FrameIt = 0; FrameIt < Frames.Num(); FrameIt++)
 			{
-				OutFrameResources.Reserve(Frames.Num());
-				OutTargetOffsets.Reserve(Frames.Num());
-
-				bool bUseAdditionalFrameResources = (OutAdditionalFrameResources != nullptr) && (AdditionalFrames.Num() == Frames.Num());
-
-				if (bUseAdditionalFrameResources)
+				if (FRHITexture2D* FrameTexture = Frames[FrameIt] ? Frames[FrameIt]->GetViewportResource2DRHI() : nullptr)
 				{
-					OutAdditionalFrameResources->AddZeroed(AdditionalFrames.Num());
-				}
-
-				for (int32 FrameIt = 0; FrameIt < Frames.Num(); FrameIt++)
-				{
-					OutFrameResources.Add(Frames[FrameIt]->GetViewportResourceRHI());
+					OutFrameResources.Add(FrameTexture);
 					OutTargetOffsets.Add(Frames[FrameIt]->BackbufferFrameOffset);
 
-					if (bUseAdditionalFrameResources)
+					if (OutAdditionalFrameResources && AdditionalFrames.IsValidIndex(FrameIt))
 					{
-						(*OutAdditionalFrameResources)[FrameIt] = AdditionalFrames[FrameIt]->GetViewportResourceRHI();
+						if (FRHITexture2D* AdditionalFrameTexture = AdditionalFrames[FrameIt] ? AdditionalFrames[FrameIt]->GetViewportResource2DRHI() : nullptr)
+						{
+							OutAdditionalFrameResources->Add(AdditionalFrameTexture);
+						}
 					}
 				}
+			}
 
+			// if all resources are received in the same amount
+			const bool bValidAdditionalFrameResources = !OutAdditionalFrameResources || AdditionalFrames.IsEmpty() || (OutAdditionalFrameResources && OutAdditionalFrameResources->Num() == Frames.Num());
+			if (OutFrameResources.Num() == Frames.Num() && bValidAdditionalFrameResources)
+			{
 				return true;
 			}
+		}
+
+		// Resetting output values at the end of each cycle
+		OutFrameResources.Reset();
+		OutTargetOffsets.Reset();
+		if (OutAdditionalFrameResources)
+		{
+			OutAdditionalFrameResources->Reset();
 		}
 	}
 
