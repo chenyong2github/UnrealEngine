@@ -125,5 +125,6 @@ protected:
 	TArray<UDMXControlConsoleFaderBase*> ThisFaderAsArray;
 
 	/** If true, the fader doesn't send DMX */
+	UPROPERTY()
 	bool bIsMuted = false;
 };

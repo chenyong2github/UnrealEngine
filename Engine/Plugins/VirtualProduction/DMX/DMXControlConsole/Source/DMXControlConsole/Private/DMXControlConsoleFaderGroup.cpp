@@ -284,6 +284,11 @@ TMap<FIntPoint, TMap<FDMXAttributeName, float>> UDMXControlConsoleFaderGroup::Ge
 		const TArray<UDMXControlConsoleFaderBase*>& MatrixCellFaders = MatrixCell->GetFaders();
 		for (const UDMXControlConsoleFaderBase* Fader : MatrixCellFaders)
 		{
+			if (!Fader || Fader->IsMuted())
+			{
+				continue;
+			}
+
 			const UDMXControlConsoleFixturePatchCellAttributeFader* CellAttributeFader = CastChecked<UDMXControlConsoleFixturePatchCellAttributeFader>(Fader);
 			const FDMXAttributeName& AttributeName = CellAttributeFader->GetAttributeName();
 			const float ValueRange = CellAttributeFader->GetMaxValue() - CellAttributeFader->GetMinValue();
