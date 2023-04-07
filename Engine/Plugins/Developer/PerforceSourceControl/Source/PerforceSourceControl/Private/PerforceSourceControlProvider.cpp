@@ -161,6 +161,18 @@ FText FPerforceSourceControlProvider::GetStatusText() const
 	return FText::Format( LOCTEXT("PerforceStatusText", "{ErrorText}Enabled: {IsEnabled}\nConnected: {IsConnected}\n\nPort: {PortNumber}\nUser name: {UserName}\nClient name: {ClientSpecName}"), Args );
 }
 
+TMap<ISourceControlProvider::EStatus, FString> FPerforceSourceControlProvider::GetStatus() const
+{
+	const FPerforceSourceControlSettings& Settings = AccessSettings();
+	TMap<EStatus, FString> Result;
+	Result.Add(EStatus::Enabled, IsEnabled() ? TEXT("Yes") : TEXT("No") );
+	Result.Add(EStatus::Connected, (IsEnabled() && IsAvailable()) ? TEXT("Yes") : TEXT("No") );
+	Result.Add(EStatus::Port, Settings.GetPort());
+	Result.Add(EStatus::User, Settings.GetUserName());
+	Result.Add(EStatus::Client, Settings.GetWorkspace());
+	return Result;
+}
+
 bool FPerforceSourceControlProvider::IsEnabled() const
 {
 	return true;

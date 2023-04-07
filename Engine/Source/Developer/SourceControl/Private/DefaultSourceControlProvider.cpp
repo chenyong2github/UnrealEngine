@@ -24,6 +24,15 @@ FText FDefaultSourceControlProvider::GetStatusText() const
 	return LOCTEXT("SourceControlDisabled", "Revision control is disabled");
 }
 
+
+TMap<ISourceControlProvider::EStatus, FString> FDefaultSourceControlProvider::GetStatus() const
+{
+	TMap<EStatus, FString> Result;
+	Result.Add(EStatus::Enabled, IsEnabled() ? TEXT("Yes") : TEXT("No") );
+	Result.Add(EStatus::Connected, (IsEnabled() && IsAvailable()) ? TEXT("Yes") : TEXT("No") );
+	return Result;
+}
+
 bool FDefaultSourceControlProvider::IsAvailable() const
 {
 	return false;

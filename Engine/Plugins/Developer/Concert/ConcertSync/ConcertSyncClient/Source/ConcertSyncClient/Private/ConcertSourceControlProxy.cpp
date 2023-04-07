@@ -296,9 +296,18 @@ FText FConcertSourceControlProxy::GetStatusText() const
 {
 	if (ActualProvider)
 	{
-		ActualProvider->GetStatusText();
+		return ActualProvider->GetStatusText();
 	}
 	return FText();
+}
+
+TMap<ISourceControlProvider::EStatus, FString> FConcertSourceControlProxy::GetStatus() const
+{
+	if (ActualProvider)
+	{
+		return ActualProvider->GetStatus();
+	}
+	return {};
 }
 
 bool FConcertSourceControlProxy::IsEnabled() const

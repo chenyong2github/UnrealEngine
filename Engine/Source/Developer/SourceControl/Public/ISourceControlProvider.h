@@ -110,6 +110,27 @@ public:
 	/** Get the source control status as plain, human-readable text */
 	virtual FText GetStatusText() const = 0;
 
+	enum class EStatus
+	{
+		Enabled,
+		Connected,
+		Port,
+		User,
+		Client,
+		Repository,
+		Remote,
+		Branch,
+		Email,
+		ScmVersion,
+		PluginVersion,
+		Workspace,
+		WorkspacePath,
+		Changeset
+	};
+
+	/** Get the source control status as a series of key value pairs */
+	virtual TMap<EStatus, FString> GetStatus() const = 0;
+
 	/** Quick check if source control is enabled. Specifically, it returns true if a source control provider is set (regardless of whether the provider is available) and false if no provider is set. So all providers except the stub DefalutSourceProvider will return true. */
 	virtual bool IsEnabled() const = 0;
 

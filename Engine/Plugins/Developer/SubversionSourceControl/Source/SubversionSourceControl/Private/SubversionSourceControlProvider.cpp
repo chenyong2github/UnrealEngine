@@ -66,6 +66,16 @@ FText FSubversionSourceControlProvider::GetStatusText() const
 	return FText::Format( NSLOCTEXT("Status", "Provider: Subversion\nEnabledLabel", "Enabled: {IsEnabled}\nRepository: {RepositoryName}\nUser name: {UserName}"), Args );
 }
 
+TMap<ISourceControlProvider::EStatus, FString> FSubversionSourceControlProvider::GetStatus() const
+{
+	TMap<EStatus, FString> Result;
+	Result.Add(EStatus::Enabled, IsEnabled() ? TEXT("Yes") : TEXT("No") );
+	Result.Add(EStatus::Connected, (IsEnabled() && IsAvailable()) ? TEXT("Yes") : TEXT("No") );
+	Result.Add(EStatus::Repository, GetRepositoryName());
+	Result.Add(EStatus::User, GetUserName());
+	return Result;
+}
+
 bool FSubversionSourceControlProvider::IsEnabled() const
 {
 	return true;

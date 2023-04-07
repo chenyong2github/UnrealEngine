@@ -17,6 +17,7 @@ public:
 	virtual void Init(bool bForceConnection = true) override;
 	virtual void Close() override;
 	virtual FText GetStatusText() const override;
+	virtual TMap<EStatus, FString> GetStatus() const override;
 	virtual bool IsAvailable() const override;
 	virtual bool IsEnabled() const override;
 	virtual const FName& GetName(void) const override;

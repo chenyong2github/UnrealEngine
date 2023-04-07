@@ -25,9 +25,11 @@ private:
 
 class FSwarmCommentsAPI : public IReviewCommentAPI
 {
+	struct FAuthTicket;
 public:
 	// prefer TryConnect over calling constructor directly
 	FSwarmCommentsAPI(const FString& AuthTicket, const FString& SwarmURL);
+	FSwarmCommentsAPI(const FAuthTicket& AuthTicket, const FString& SwarmURL);
 	static TSharedPtr<FSwarmCommentsAPI> TryConnect();
 
 	virtual FString GetUsername() const override;
@@ -59,16 +61,17 @@ private:
 	static void PutMetadataInBody(FReviewComment& Comment);
 	static void TakeMetadataFromBody(FReviewComment& Comment);
 	
-	static FString RetrieveAuthorizationTicket();
-	static FString RetrieveSwarmURL();
+	static FAuthTicket RetrieveAuthorizationTicket();
+	static FString RetrieveSwarmURL(const FString& Username);
 
 	// used to authorize http requests to swarm
 	struct FAuthTicket
 	{
 		FAuthTicket() = default;
 		FAuthTicket(const FString& Username, const FString& Password);
-		FAuthTicket(const FString& TicketString);
+		FAuthTicket(FStringView TicketString);
 		operator FString() const;
+		bool IsValid() const;
 		FString Username;
 	private:
 		FString Password;

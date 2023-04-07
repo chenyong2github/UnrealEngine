@@ -3,6 +3,8 @@
 
 #include "HttpModule.h"
 #include "ISourceControlModule.h"
+#include "ISourceControlProvider.h"
+#include "SourceControlOperations.h"
 #include "Interfaces/IHttpResponse.h"
 #include "Misc/Base64.h"
 #include "Misc/FileHelper.h"
@@ -137,14 +139,19 @@ FSwarmCommentsAPI::FSwarmCommentsAPI(const FString& AuthTicket, const FString& S
 {
 }
 
+FSwarmCommentsAPI::FSwarmCommentsAPI(const FAuthTicket& AuthTicket, const FString& SwarmURL)
+	: AuthTicket(AuthTicket)
+	, SwarmURL(SwarmURL)
+{}
+
 TSharedPtr<FSwarmCommentsAPI> FSwarmCommentsAPI::TryConnect()
 {
-	const FString& AuthTicket = RetrieveAuthorizationTicket();
-	if (AuthTicket.IsEmpty())
+	FAuthTicket AuthTicket = RetrieveAuthorizationTicket();
+	if (!AuthTicket.IsValid())
 	{
 		return nullptr;
 	}
-	const FString& SwarmURL = RetrieveSwarmURL();
+	FString SwarmURL = RetrieveSwarmURL(AuthTicket.Username);
 	if (SwarmURL.IsEmpty())
 	{
 		return nullptr;
@@ -713,8 +720,16 @@ static FString GetP4TicketsPath()
 #endif
 }
 
-FString FSwarmCommentsAPI::RetrieveAuthorizationTicket()
+FSwarmCommentsAPI::FAuthTicket FSwarmCommentsAPI::RetrieveAuthorizationTicket()
 {
+	const ISourceControlProvider& SCCProvider = ISourceControlModule::Get().GetProvider();
+	TMap<ISourceControlProvider::EStatus, FString> SCCStatus = SCCProvider.GetStatus();
+	const FString* Username = SCCStatus.Find(ISourceControlProvider::EStatus::User);
+	if (!Username)
+	{
+		return {};
+	}
+	
 	TArray<FString> TicketStrings;
 	FFileHelper::LoadFileToStringArray(TicketStrings, *GetP4TicketsPath());
 	if (TicketStrings.IsEmpty())
@@ -722,23 +737,29 @@ FString FSwarmCommentsAPI::RetrieveAuthorizationTicket()
 		return {};
 	}
 
-	const FString& TicketString = TicketStrings[0];
-	
-	// find beginning of ticket
-	int32 ChopIndex = TicketString.Find(TEXT("p4d1="), ESearchCase::CaseSensitive, ESearchDir::FromStart);
-	if (ChopIndex == INDEX_NONE)
+	for (FStringView TicketString : TicketStrings)
 	{
-		return {};
+		// find beginning of ticket
+		int32 ChopIndex = TicketString.Find(TEXT("p4d1="));
+		if (ChopIndex == INDEX_NONE)
+		{
+			continue;
+		}
+		// skip 'p4d1='
+		ChopIndex += 5;
+		
+		const FStringView Ticket = TicketString.RightChop(ChopIndex);
+		if (Ticket.StartsWith(*Username + TEXT(":"), ESearchCase::IgnoreCase))
+		{
+			return {Ticket};
+		}
 	}
 	
-	// skip 'p4d1='
-	ChopIndex += 5;
-	
-	return TicketString.RightChop(ChopIndex);
+	return {};
 }
 
 
-FString FSwarmCommentsAPI::RetrieveSwarmURL()
+FString FSwarmCommentsAPI::RetrieveSwarmURL(const FString& Username)
 {
 	// Initialize P4Client
 	Error P4Error;
@@ -779,6 +800,7 @@ FString FSwarmCommentsAPI::RetrieveSwarmURL()
 	// Run property -l -n P4.Swarm.URL
 	const char* ArgV[] = { "-l", "-n", "P4.Swarm.URL" };
 	P4Client.SetArgv(3, const_cast<char* const*>(ArgV));
+	P4Client.SetUser(TCHAR_TO_ANSI(*Username));
 	P4Client.Run("property", &P4User);
 
 	// Cleanup P4Client
@@ -799,7 +821,7 @@ FSwarmCommentsAPI::FAuthTicket::FAuthTicket(const FString& InUsername, const FSt
 	: Username(InUsername), Password(InPassword)
 {}
 
-FSwarmCommentsAPI::FAuthTicket::FAuthTicket(const FString& TicketString)
+FSwarmCommentsAPI::FAuthTicket::FAuthTicket(FStringView TicketString)
 {
 	int32 ChopIndex;
 	if (TicketString.FindChar(':', ChopIndex))
@@ -812,6 +834,11 @@ FSwarmCommentsAPI::FAuthTicket::FAuthTicket(const FString& TicketString)
 FSwarmCommentsAPI::FAuthTicket::operator FString() const
 {
 	return TEXT("Basic ") + FBase64::Encode(Username + TEXT(":") + Password);
+}
+
+bool FSwarmCommentsAPI::FAuthTicket::IsValid() const
+{
+	return !Username.IsEmpty() && !Password.IsEmpty();
 }
 
 FSwarmUserdataComment::FSwarmUserdataComment(FString User, FReviewTopic Topic)

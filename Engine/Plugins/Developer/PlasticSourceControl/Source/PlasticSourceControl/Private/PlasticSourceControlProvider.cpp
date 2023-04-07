@@ -226,6 +226,25 @@ FText FPlasticSourceControlProvider::GetStatusText() const
 	return FText::Format(LOCTEXT("PlasticStatusText", "{ErrorText}Plastic SCM {PlasticScmVersion}  (plugin v{PluginVersion})\nWorkspace: {WorkspaceName}  ({WorkspacePath})\n{BranchName}\nChangeset: {ChangesetNumber}\nUser: '{UserName}'  {DisplayName}"), Args);
 }
 
+TMap<ISourceControlProvider::EStatus, FString> FPlasticSourceControlProvider::GetStatus() const
+{
+	TMap<EStatus, FString> Result;
+	Result.Add(EStatus::Enabled, IsEnabled() ? TEXT("Yes") : TEXT("No") );
+	Result.Add(EStatus::Connected, (IsEnabled() && IsAvailable()) ? TEXT("Yes") : TEXT("No") );
+	Result.Add(EStatus::User, UserName);
+	
+	Result.Add(EStatus::ScmVersion, PlasticScmVersion.String);
+	Result.Add(EStatus::PluginVersion, PluginVersion);
+	Result.Add(EStatus::WorkspacePath, PathToWorkspaceRoot);
+	Result.Add(EStatus::Workspace, WorkspaceName);
+	Result.Add(EStatus::Branch, BranchName);
+	if (-1 != ChangesetNumber)
+	{
+		Result.Add(EStatus::Changeset, FString::Printf(TEXT("%d"), ChangesetNumber));
+	}
+	return Result;
+}
+
 /** Quick check if source control is enabled. Specifically, it returns true if a source control provider is set (regardless of whether the provider is available) and false if no provider is set. So all providers except the stub DefaultSourceProvider will return true. */
 bool FPlasticSourceControlProvider::IsEnabled() const
 {
