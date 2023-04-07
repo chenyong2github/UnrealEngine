@@ -95,30 +95,6 @@ constexpr const TCHAR GameProjectUtils::IncludePathFormatString[];
 
 namespace
 {
-	// @todo: This is currently not called from anywhere as this approach does not work for binary builds.
-	/** Set the state of XR plugins in OutProject based on the flags in InProjectInfo. */
-	void SetXRPluginStates(const FProjectInformation& InProjectInfo, FProjectDescriptor& OutProject)
-	{
-		static const FString XRPlugins[] = {
-			TEXT("OculusVR")};
-
-		if (InProjectInfo.bEnableXR.IsSet() && 
-			InProjectInfo.bEnableXR.GetValue() == false)
-		{
-			for (const FString& Plugin : XRPlugins)
-			{
-				int32 Index = OutProject.FindPluginReferenceIndex(Plugin);
-				if (Index == INDEX_NONE)
-				{
-					Index = OutProject.Plugins.AddDefaulted();
-					OutProject.Plugins[Index].Name = Plugin;
-				}
-
-				OutProject.Plugins[Index].bEnabled = false;
-			}
-		}
-	}
-
 	/** Get the configuration values for enabling Lumen by default. */
 	void AddLumenConfigValues(const FProjectInformation& InProjectInfo, TArray<FTemplateConfigValue>& ConfigValues)
 	{
