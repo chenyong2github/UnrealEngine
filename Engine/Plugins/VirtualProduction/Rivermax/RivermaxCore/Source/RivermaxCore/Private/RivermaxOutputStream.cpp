@@ -1309,7 +1309,7 @@ namespace UE::RivermaxCore::Private
 		CudaModule.DriverAPI()->cuCtxPushCurrent(CudaModule.GetCudaContext());
 
 		// Todo: Add support for mgpu. For now, this will not work unless the memcpy does implicitely a cross gpu transfer.
-		constexpr int GPUIndex = 0;
+		const int GPUIndex = CudaModule.GetCudaDeviceIndex();
 		CUdevice CudaDevice;
 		CUresult Status = CudaModule.DriverAPI()->cuDeviceGet(&CudaDevice, GPUIndex);
 		if(Status != CUDA_SUCCESS)

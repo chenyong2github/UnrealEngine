@@ -530,7 +530,7 @@ namespace UE::RivermaxCore::Private
 		}
 
 		FCUDAModule& CudaModule = FModuleManager::GetModuleChecked<FCUDAModule>("CUDA");
-
+		GPUDeviceIndex = CudaModule.GetCudaDeviceIndex();
 		CudaModule.DriverAPI()->cuCtxPushCurrent(CudaModule.GetCudaContextForDevice(GPUDeviceIndex));
 
 		// Todo: Add support for mgpu. 

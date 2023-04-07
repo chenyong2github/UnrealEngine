@@ -281,7 +281,7 @@ namespace UE::RivermaxCore::Private
 			}
 
 			// todo: add support for mgpu compatibility verification
-			const int GPUIndex = 0;
+			const int GPUIndex = CudaModule->GetCudaDeviceIndex();
 			CUdevice CudaDevice;
 			Result = CudaModule->DriverAPI()->cuDeviceGet(&CudaDevice, GPUIndex);
 			if (Result != CUDA_SUCCESS)

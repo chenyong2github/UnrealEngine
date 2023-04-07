@@ -7,6 +7,7 @@
 #include "RivermaxMediaSource.h"
 #include "RivermaxMediaTextureSampleConverter.h"
 #include "RivermaxTypes.h"
+#include "Templates/Function.h"
 
 #include <atomic>
 
@@ -107,11 +108,55 @@ namespace  UE::RivermaxMedia
 			uint32 FrameIndex = 0;
 		};
 
-		/** Called before sample will be converted / rendered. Used to wait for the expected frame we want to render */
-		void PreSampleUsage(const FFrameExpectation& FrameExpectation);
+		enum class ESampleReceptionState : uint8
+		{
+			// Sample is ready to be requested by rivermax stream
+			Available,
+
+			// Sample has been requested and is being received
+			Receiving,
+
+			// Sample has been received and is ready to be rendered
+			Received,
+		};
+
+		/** Wrapper around a sample holding more information about its state */
+		struct FRivermaxSampleWrapper
+		{
+			/** State of this sample */
+			std::atomic<ESampleReceptionState> ReceptionState = ESampleReceptionState::Available;
+
+			/** True when queued for rendering. Will be false once fence has been written, after shader usage. */
+			std::atomic<bool> bIsPendingRendering = false;
+
+			/** True if sample can be rendered. For non-gpudirect, we need to copy sample from system memory to gpu to be ready */
+			std::atomic<bool> bIsReadyToRender = false;
+
+			/** Locked memory of gpu buffer when uploading */
+			void* LockedMemory = nullptr;
+
+			/** Actual sample buffer container used by media framework */
+			TSharedPtr<FRivermaxMediaTextureSample> Sample;
+
+			/** Write fence enqueued after sample conversion to know when it's ready to be reused */
+			FGPUFenceRHIRef SampleConversionFence;
+
+			/** Frame number of this sample */
+			uint32 FrameNumber = 0;
+
+			/** Timestamp of this sample */
+			uint32 Timestamp = 0;
+		};
+
+		/** Buffer upload setup that will block render thread while waiting for sample and uploading it */
+		void SampleUploadSetupRenderThreadMode(const FFrameExpectation& FrameExpectation, FSampleConverterOperationSetup& OutConverterSetup);
 		
+		/** Buffer upload setup that will wait on its own task to wait for sample and do the upload */
+		void SampleUploadSetupTaskThreadMode(const FFrameExpectation& FrameExpectation, FSampleConverterOperationSetup& OutConverterSetup);
+
 		/** Function waiting for the expected frame to be received. */
-		void WaitForSample(const FFrameExpectation& FrameExpectation);
+		using FWaitConditionFunc = TUniqueFunction<bool(const TSharedPtr<FRivermaxSampleWrapper>&)>;
+		void WaitForSample(const FFrameExpectation& FrameExpectation, FWaitConditionFunc WaitConditionFunction, bool bCanTimeout);
 		
 		/** Called after sample was converted / rendered. Used write a fence to detect when sample is reusable */
 		void PostSampleUsage(FRDGBuilder& GraphBuilder, const FFrameExpectation& FrameExpectation);
@@ -140,30 +185,6 @@ namespace  UE::RivermaxMedia
 
 
 	private:
-
-		enum class ESampleReceptionState : uint8
-		{
-			// Sample is ready to be requested by rivermax stream
-			Available,
-
-			// Sample has been requested and is being received
-			Receiving,
-
-			// Sample has been received and is ready to be rendered
-			Received,
-		};
-
-		/** Wrapper around a sample holding more information about its state */
-		struct FRivermaxSampleWrapper
-		{
-			std::atomic<ESampleReceptionState> ReceptionState = ESampleReceptionState::Available;
-			bool bIsPendingRendering = false;
-
-			TSharedPtr<FRivermaxMediaTextureSample> Sample;
-			FGPUFenceRHIRef SampleConversionFence;
-			uint32 FrameNumber = 0;
-			uint32 Timestamp = 0;
-		};
 
 		TSharedPtr<FRivermaxSampleWrapper> RivermaxThreadCurrentTextureSample;
 

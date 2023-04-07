@@ -360,6 +360,11 @@ CUcontext FCUDAModule::GetCudaContext()
 	return contextMap[rhiDeviceIndex];
 }
 
+uint32 FCUDAModule::GetCudaDeviceIndex() const
+{
+	return rhiDeviceIndex;
+}
+
 CUcontext FCUDAModule::GetCudaContextForDevice(int DeviceIndex)
 {
 	if (IsAvailable() == false)
