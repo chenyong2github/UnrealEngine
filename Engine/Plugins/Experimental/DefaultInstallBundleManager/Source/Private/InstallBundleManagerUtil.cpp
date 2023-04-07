@@ -6,8 +6,6 @@
 #include "InstallBundleManagerInterface.h"
 #include "Misc/ConfigCacheIni.h"
 
-#include "BuildPatchSettings.h"
-
 #include "InstallBundleSourceBulk.h"
 
 #include "IAnalyticsProviderET.h"
@@ -607,52 +605,7 @@ namespace InstallBundleManagerUtil
 
 namespace InstallBundleManagerAnalytics
 {
-	//////////////////////////////////////////////////////////////////////////
-	/// TODO Move these into the IBuildInstaller.h
-	//////////////////////////////////////////////////////////////////////////
-	FString GetBuildPatchInstallErrorString(EBuildPatchInstallError Value)
-	{
-		// Using an assignment to local allows for RVO
-#define CASE_ENUM_SET(State) case State: ReturnValue = TEXT(#State); break;
-		FString ReturnValue;
 
-		switch (Value)
-		{
-			CASE_ENUM_SET(EBuildPatchInstallError::NoError)
-			CASE_ENUM_SET(EBuildPatchInstallError::DownloadError)
-			CASE_ENUM_SET(EBuildPatchInstallError::FileConstructionFail)
-			CASE_ENUM_SET(EBuildPatchInstallError::MoveFileToInstall)
-			CASE_ENUM_SET(EBuildPatchInstallError::BuildVerifyFail)
-			CASE_ENUM_SET(EBuildPatchInstallError::ApplicationClosing)
-			CASE_ENUM_SET(EBuildPatchInstallError::ApplicationError)
-			CASE_ENUM_SET(EBuildPatchInstallError::UserCanceled)
-			CASE_ENUM_SET(EBuildPatchInstallError::PrerequisiteError)
-			CASE_ENUM_SET(EBuildPatchInstallError::InitializationError)
-			CASE_ENUM_SET(EBuildPatchInstallError::PathLengthExceeded)
-			CASE_ENUM_SET(EBuildPatchInstallError::OutOfDiskSpace)
-		}
-		return ReturnValue;
-#undef CASE_ENUM_SET
-	}
-
-	FString GetInstallRetryTypesString(const TArray<EBuildPatchInstallError>& Value)
-	{
-		FString ReturnValue;
-		bool bFirst = true;
-		for (EBuildPatchInstallError InstallRetryType : Value)
-		{
-			if (bFirst)
-			{
-				bFirst = false;
-			}
-			else
-			{
-				ReturnValue += TEXT(",");
-			}
-			ReturnValue += GetBuildPatchInstallErrorString(InstallRetryType);
-		}
-		return ReturnValue;
-	}
 
 
 	void FireEvent_InitBundleManagerComplete(IAnalyticsProviderET* AnalyticsProvider, 
@@ -682,28 +635,6 @@ namespace InstallBundleManagerAnalytics
 			TEXT("UsedSize"), Stats.UsedSize,
 			TEXT("ReservedSize"), Stats.ReservedSize,
 			TEXT("FreeSize"), Stats.FreeSize));
-	}
-
-	void FireEvent_InitBundleSourceBPSComplete(IAnalyticsProviderET* AnalyticsProvider,
-		const FString& InstallManifestFilename, 
-		const FString& InstallManifestVersion,
-		const bool bRetrievedManifestFromBuildInfoService, 
-		const bool bDownloadedManifest, 
-		const bool bDownloadedBackgroundDownloadIni, 
-		const FString InitResultString)
-	{
-		if (AnalyticsProvider == nullptr)
-		{
-			return;
-		}
-
-		AnalyticsProvider->RecordEvent(TEXT("InstallBundleManager.InitBundleSourceBPSComplete"), MakeAnalyticsEventAttributeArray(
-			TEXT("CurrentVersion"), InstallManifestVersion,
-			TEXT("CurrentManifest"), InstallManifestFilename,
-			TEXT("RetrievedManifestFromBuildInfoService"), bRetrievedManifestFromBuildInfoService,
-			TEXT("DownloadedManifest"), bDownloadedManifest,
-			TEXT("DownloadedBackgroundDownloadIni"), bDownloadedBackgroundDownloadIni,
-			TEXT("InitResultString"), InitResultString));
 	}
 
 	void FireEvent_InitBundleSourceBulkComplete(IAnalyticsProviderET* AnalyticsProvider, const FString InitResultString)
@@ -737,200 +668,6 @@ namespace InstallBundleManagerAnalytics
 
 		AnalyticsProvider->RecordEvent(TEXT("InstallBundleManager.InitBundleSourceIntelligentDeliveryComplete"), MakeAnalyticsEventAttributeArray(
 			TEXT("InitResultString"), InitResultString));
-	}
-
-	void FireEvent_BeginInstall(IAnalyticsProviderET* AnalyticsProvider, const FString& BundleName, bool bIsPatching, const FString& OldManifestVersion, const FString& InstallManifestVersion)
-	{
-		if (AnalyticsProvider == nullptr)
-		{
-			return;
-		}
-
-		AnalyticsProvider->RecordEvent(TEXT("InstallBundleManager.BeginInstall"), MakeAnalyticsEventAttributeArray(
-			TEXT("BundleName"), BundleName,
-			TEXT("OldManifestVersion"), OldManifestVersion,
-			TEXT("InstallManifestVersion"), InstallManifestVersion,
-			TEXT("IsOnCellular"), (FPlatformMisc::GetNetworkConnectionType() == ENetworkConnectionType::Cell),
-			TEXT("IsPatching"), bIsPatching));
-	}
-
-	void FireEvent_BeginInstall_BundleSourceBPS(IAnalyticsProviderET* AnalyticsProvider, const FString& BundleName, bool bIsPatching, const FString& OldManifestVersion, const FString& InstallManifestVersion)
-	{
-		if (AnalyticsProvider == nullptr)
-		{
-			return;
-		}
-
-		AnalyticsProvider->RecordEvent(TEXT("InstallBundleManager.BundleSourceBPS.BeginInstall"), MakeAnalyticsEventAttributeArray(
-			TEXT("BundleName"), BundleName,
-			TEXT("OldManifestVersion"), OldManifestVersion,
-			TEXT("InstallManifestVersion"), InstallManifestVersion,
-			TEXT("IsOnCellular"), (FPlatformMisc::GetNetworkConnectionType() == ENetworkConnectionType::Cell),
-			TEXT("IsPatching"), bIsPatching));
-	}
-
-	void FireEvent_EndInstall(IAnalyticsProviderET* AnalyticsProvider, const FString& BundleName, IBuildInstallerPtr ContentBuildInstaller, int32 BundleInstallRetryCount)
-	{
-		if (AnalyticsProvider == nullptr)
-		{
-			return;
-		}
-
-		if (ContentBuildInstaller.IsValid())
-		{
-			BuildPatchServices::FBuildInstallerConfiguration BuildConfig = ContentBuildInstaller->GetConfiguration();
-			FBuildInstallStats BuildStats = ContentBuildInstaller->GetBuildStatistics();
-			FString AppName = TEXT("Unknown");
-			FString CurrentManifestVersion = TEXT("NONE");
-			FString InstallManifestVersion = TEXT("NONE");
-			if (BuildConfig.InstallerActions.Num() > 0)
-			{
-				// Currently only one action is ever used for FN installers.
-				const BuildPatchServices::FInstallerAction& InstallerAction = BuildConfig.InstallerActions[0];
-				AppName = InstallerAction.GetInstallOrCurrentManifest()->GetAppName();
-				IBuildManifestPtr CurrentManifest = InstallerAction.TryGetCurrentManifest();
-				IBuildManifestPtr InstallManifest = InstallerAction.TryGetInstallManifest();
-				if (CurrentManifest.IsValid())
-				{
-					CurrentManifestVersion = CurrentManifest->GetVersionString();
-				}
-				if (InstallManifest.IsValid())
-				{
-					InstallManifestVersion = InstallManifest->GetVersionString();
-				}
-			}
-
-			// NB: Only add newer stats to the end of the list to avoid data confusion server-side
-			AnalyticsProvider->RecordEvent(TEXT("InstallBundleManager.EndInstall"), MakeAnalyticsEventAttributeArray(
-				TEXT("BundleName"), BundleName,
-				TEXT("AppName"), AppName,
-				TEXT("AppInstalledVersion"), CurrentManifestVersion,
-				TEXT("AppPatchVersion"), InstallManifestVersion,
-				TEXT("TotalDownloadedData"), BuildStats.TotalDownloadedData,
-				TEXT("AverageDownloadSpeed"), BuildStats.AverageDownloadSpeed,
-				TEXT("InitializeTime"), BuildStats.InitializeTime,
-				TEXT("ConstructTime"), BuildStats.ConstructTime,
-				TEXT("MoveFromStageTime"), BuildStats.MoveFromStageTime,
-				TEXT("FileAttributesTime"), BuildStats.FileAttributesTime,
-				TEXT("VerifyTime"), BuildStats.VerifyTime,
-				TEXT("CleanUpTime"), BuildStats.CleanUpTime,
-				TEXT("PrereqTime"), BuildStats.PrereqTime,
-				TEXT("ProcessPausedTime"), BuildStats.ProcessPausedTime,
-				TEXT("ProcessActiveTime"), BuildStats.ProcessActiveTime,
-				TEXT("ProcessExecuteTime"), BuildStats.ProcessExecuteTime,
-				TEXT("ProcessSuccess"), BuildStats.ProcessSuccess,
-				TEXT("FailureType"), GetBuildPatchInstallErrorString(BuildStats.FailureType),
-				TEXT("NumInstallRetries"), BuildStats.NumInstallRetries,
-				TEXT("InstallRetryTypes"), GetInstallRetryTypesString(BuildStats.RetryFailureTypes),
-				TEXT("InstallRetryCodes"), FString::Join(BuildStats.RetryErrorCodes, TEXT(",")),
-				TEXT("ErrorCode"), BuildStats.ErrorCode,
-				TEXT("FinalProgress"), BuildStats.FinalProgress,
-				TEXT("FinalDownloadSpeed"), BuildStats.FinalDownloadSpeed,
-				TEXT("BundleInstallRetryCount"), BundleInstallRetryCount));
-		}
-	}
-
-	void FireEvent_EndInstall_BundleSourceBPS(IAnalyticsProviderET* AnalyticsProvider, const FString& BundleName, IBuildInstallerPtr ContentBuildInstaller, int32 BundleInstallRetryCount)
-	{
-		if (AnalyticsProvider == nullptr)
-		{
-			return;
-		}
-
-		if (ContentBuildInstaller.IsValid())
-		{
-			BuildPatchServices::FBuildInstallerConfiguration BuildConfig = ContentBuildInstaller->GetConfiguration();
-			FBuildInstallStats BuildStats = ContentBuildInstaller->GetBuildStatistics();
-			FString AppName = TEXT("Unknown");
-			FString CurrentManifestVersion = TEXT("NONE");
-			FString InstallManifestVersion = TEXT("NONE");
-			if (BuildConfig.InstallerActions.Num() > 0)
-			{
-				// Currently only one action is ever used for FN installers.
-				const BuildPatchServices::FInstallerAction& InstallerAction = BuildConfig.InstallerActions[0];
-				AppName = InstallerAction.GetInstallOrCurrentManifest()->GetAppName();
-				IBuildManifestPtr CurrentManifest = InstallerAction.TryGetCurrentManifest();
-				IBuildManifestPtr InstallManifest = InstallerAction.TryGetInstallManifest();
-				if (CurrentManifest.IsValid())
-				{
-					CurrentManifestVersion = CurrentManifest->GetVersionString();
-				}
-				if (InstallManifest.IsValid())
-				{
-					InstallManifestVersion = InstallManifest->GetVersionString();
-				}
-			}
-
-			// NB: Only add newer stats to the end of the list to avoid data confusion server-side
-			AnalyticsProvider->RecordEvent(TEXT("InstallBundleManager.BundleSourceBPS.EndInstall"), MakeAnalyticsEventAttributeArray(
-				TEXT("BundleName"), BundleName,
-				TEXT("AppName"), AppName,
-				TEXT("AppInstalledVersion"), CurrentManifestVersion,
-				TEXT("AppPatchVersion"), InstallManifestVersion,
-				TEXT("TotalDownloadedData"), BuildStats.TotalDownloadedData,
-				TEXT("AverageDownloadSpeed"), BuildStats.AverageDownloadSpeed,
-				TEXT("InitializeTime"), BuildStats.InitializeTime,
-				TEXT("ConstructTime"), BuildStats.ConstructTime,
-				TEXT("MoveFromStageTime"), BuildStats.MoveFromStageTime,
-				TEXT("FileAttributesTime"), BuildStats.FileAttributesTime,
-				TEXT("VerifyTime"), BuildStats.VerifyTime,
-				TEXT("CleanUpTime"), BuildStats.CleanUpTime,
-				TEXT("PrereqTime"), BuildStats.PrereqTime,
-				TEXT("ProcessPausedTime"), BuildStats.ProcessPausedTime,
-				TEXT("ProcessActiveTime"), BuildStats.ProcessActiveTime,
-				TEXT("ProcessExecuteTime"), BuildStats.ProcessExecuteTime,
-				TEXT("ProcessSuccess"), BuildStats.ProcessSuccess,
-				TEXT("FailureType"), GetBuildPatchInstallErrorString(BuildStats.FailureType),
-				TEXT("NumInstallRetries"), BuildStats.NumInstallRetries,
-				TEXT("InstallRetryTypes"), GetInstallRetryTypesString(BuildStats.RetryFailureTypes),
-				TEXT("InstallRetryCodes"), FString::Join(BuildStats.RetryErrorCodes, TEXT(",")),
-				TEXT("ErrorCode"), BuildStats.ErrorCode,
-				TEXT("FinalProgress"), BuildStats.FinalProgress,
-				TEXT("FinalDownloadSpeed"), BuildStats.FinalDownloadSpeed,
-				TEXT("BundleInstallRetryCount"), BundleInstallRetryCount));
-		}
-	}
-
-	void FireEvent_BackgroundDownloadStats(IAnalyticsProviderET* AnalyticsProvider, 
-		const FString& BundleName, 
-		const FString& PreviousManifest, const FString& CurrentManifest, 
-		const FString& OldManifestVersion, const FString& InstallManifestVersion,
-		int32 NumFailedDownloads, int32 NumSuccessfulDownloads)
-	{
-		if (AnalyticsProvider == nullptr)
-		{
-			return;
-		}
-
-		AnalyticsProvider->RecordEvent(TEXT("InstallBundleManager.BackgroundDownloadStats"), MakeAnalyticsEventAttributeArray(
-			TEXT("BundleName"), BundleName,
-			TEXT("PreviousManfest"), PreviousManifest,
-			TEXT("CurrentManifest"), CurrentManifest,
-			TEXT("PreviousVersion"), OldManifestVersion,
-			TEXT("CurrentVersion"), InstallManifestVersion,
-			TEXT("NumFailedDownloads"), NumFailedDownloads,
-			TEXT("NumSucceessfulDownloads"), NumSuccessfulDownloads));
-	}
-
-	void FireEvent_BackgroundDownloadStats_BundleSourceBPS(IAnalyticsProviderET* AnalyticsProvider,
-		const FString& BundleName,
-		const FString& PreviousManifest, const FString& CurrentManifest,
-		const FString& OldManifestVersion, const FString& InstallManifestVersion,
-		int32 NumFailedDownloads, int32 NumSuccessfulDownloads)
-	{
-		if (AnalyticsProvider == nullptr)
-		{
-			return;
-		}
-
-		AnalyticsProvider->RecordEvent(TEXT("InstallBundleManager.BundleSourceBPS.BackgroundDownloadStats"), MakeAnalyticsEventAttributeArray(
-			TEXT("BundleName"), BundleName,
-			TEXT("PreviousManfest"), PreviousManifest,
-			TEXT("CurrentManifest"), CurrentManifest,
-			TEXT("PreviousVersion"), OldManifestVersion,
-			TEXT("CurrentVersion"), InstallManifestVersion,
-			TEXT("NumFailedDownloads"), NumFailedDownloads,
-			TEXT("NumSucceessfulDownloads"), NumSuccessfulDownloads));
 	}
 
 	void FireEvent_BundleLatestClientCheckComplete(IAnalyticsProviderET* AnalyticsProvider, 
@@ -975,70 +712,6 @@ namespace InstallBundleManagerAnalytics
 			TEXT("BundleName"), BundleName));
 	}
 
-	void FireEvent_BundleRequestStarted_BundleSourceBPS(IAnalyticsProviderET* AnalyticsProvider, 
-		const FString& BundleName, 
-		const FString& PreviousManifest, const FString& CurrentManifest, 
-		const FString& InstallManifestVersion)
-	{
-		if (AnalyticsProvider == nullptr)
-		{
-			return;
-		}
-
-		AnalyticsProvider->RecordEvent(TEXT("InstallBundleManager.BundleSourceBPS.BundleRequestStarted"), MakeAnalyticsEventAttributeArray(
-			TEXT("BundleName"), BundleName,
-			TEXT("PreviousManfest"), PreviousManifest,
-			TEXT("CurrentManifest"), CurrentManifest,
-			TEXT("CurrentVersion"), InstallManifestVersion));
-	}
-
-	void FireEvent_InstallHeartbeat(IAnalyticsProviderET* AnalyticsProvider, const TArray<FBundleHeartbeatStats>& BundleStats)
-	{
-		if (AnalyticsProvider == nullptr)
-		{
-			return;
-		}
-
-		bool bIsAnyBundleInError = false;
-
-		FString AllBundlesJSonString;
-		FInstallBundleManagerUtilJsonWriter JsonWriter(&AllBundlesJSonString);
-		
-		//Build version of bundle json payload and look if any bundles are in error while going through
-		JsonWriter.WriteArrayStart();
-		{
-			for (const FBundleHeartbeatStats& BundleStat : BundleStats)
-			{
-				JsonWriter.WriteObjectStart();
-				{
-					JsonWriter.WriteValue(TEXT("BundleName"), BundleStat.BundleName.ToString());
-					JsonWriter.WriteValue(TEXT("LastStatusText"), BundleStat.LastStatusText);
-
-					JsonWriter.WriteValue(TEXT("Finishing_Percent"), BundleStat.Finishing_Percent);
-					JsonWriter.WriteValue(TEXT("Install_Percent"), BundleStat.Install_Percent);
-
-					JsonWriter.WriteValue(TEXT("LastErrorResult"), LexToString(BundleStat.LastErrorResult));
-
-					JsonWriter.WriteValue(TEXT("bIsPausedFromCellular"), EnumHasAnyFlags(BundleStat.PauseFlags, EInstallBundlePauseFlags::OnCellularNetwork));
-					JsonWriter.WriteValue(TEXT("bIsPausedFromNoInternet"), EnumHasAnyFlags(BundleStat.PauseFlags, EInstallBundlePauseFlags::NoInternetConnection));
-					JsonWriter.WriteValue(TEXT("bIsPausedFromUser"), EnumHasAnyFlags(BundleStat.PauseFlags, EInstallBundlePauseFlags::UserPaused));
-
-					JsonWriter.WriteValue(TEXT("bIsComplete"), BundleStat.bIsComplete);
-				}
-				JsonWriter.WriteObjectEnd();
-
-
-				bIsAnyBundleInError = bIsAnyBundleInError && (BundleStat.LastErrorResult == EInstallBundleResult::OK);
-			}
-		}
-		JsonWriter.WriteArrayEnd();
-		JsonWriter.Close();
-		
-		AnalyticsProvider->RecordEvent(TEXT("InstallBundleManager.InstallHeartbeat"), MakeAnalyticsEventAttributeArray(
-			TEXT("IsAnyBundleInError"), bIsAnyBundleInError,
-			TEXT("BundleStatus"), AllBundlesJSonString));
-	}
-
 	void FireEvent_BundleRequestComplete(IAnalyticsProviderET* AnalyticsProvider, 
 		const FString& BundleName, 
 		bool bDidInstall, 
@@ -1066,36 +739,6 @@ namespace InstallBundleManagerAnalytics
 		AnalyticsProvider->RecordEvent(TEXT("InstallBundleManager.BundleRequestComplete"), MoveTemp(Attributes));
 	}
 
-	void FireEvent_BundleRequestComplete_BundleSourceBPS(IAnalyticsProviderET* AnalyticsProvider,
-		const FString& BundleName,
-		const FString& PreviousManifest, const FString& CurrentManifest,
-		const FString& OldManifestVersion, const FString& InstallManifestVersion,
-		const FString& OldVersionTimeStamp,
-		uint64 TotalDownloadedBytes,
-		uint64 EstimatedFullDownloadBytes,
-		bool bDidInstall,
-		const FString& Result,
-		const FString& BPTErrorCode)
-	{
-		if (AnalyticsProvider == nullptr)
-		{
-			return;
-		}
-
-		AnalyticsProvider->RecordEvent(TEXT("InstallBundleManager.BundleSourceBPS.BundleRequestComplete"), MakeAnalyticsEventAttributeArray(
-			TEXT("BundleName"), BundleName,
-			TEXT("PreviousManfest"), PreviousManifest,
-			TEXT("CurrentManifest"), CurrentManifest,
-			TEXT("PreviousVersion"), OldManifestVersion,
-			TEXT("CurrentVersion"), InstallManifestVersion,
-			TEXT("PreviousVersionTimeStamp"), OldVersionTimeStamp,
-			TEXT("TotalDownloadedBytes"), TotalDownloadedBytes,
-			TEXT("EstimatedFullDownloadBytes"), EstimatedFullDownloadBytes,
-			TEXT("DidInstall"), bDidInstall,
-			TEXT("Result"), Result,
-			TEXT("BPTErrorCode"), BPTErrorCode));
-	}
-
 	void FireEvent_BundleReleaseRequestStarted(IAnalyticsProviderET* AnalyticsProvider, const FString& BundleName, bool bRemoveFilesIfPossible)
 	{
 		if (AnalyticsProvider == nullptr)
@@ -1106,17 +749,6 @@ namespace InstallBundleManagerAnalytics
 		AnalyticsProvider->RecordEvent(TEXT("InstallBundleManager.BundleReleaseRequestStarted"), MakeAnalyticsEventAttributeArray(
 			TEXT("BundleName"), BundleName,
 			TEXT("RemoveFilesIfPossible"), bRemoveFilesIfPossible));
-	}
-
-	void FireEvent_BundleRemoveRequestStarted_BundleSourceBPS(IAnalyticsProviderET* AnalyticsProvider, const FString& BundleName)
-	{
-		if (AnalyticsProvider == nullptr)
-		{
-			return;
-		}
-
-		AnalyticsProvider->RecordEvent(TEXT("InstallBundleManager.BundleSourceBPS.BundleRemoveRequestStarted"), MakeAnalyticsEventAttributeArray(
-			TEXT("BundleName"), BundleName));
 	}
 
 	void FireEvent_BundleReleaseRequestComplete(IAnalyticsProviderET* AnalyticsProvider, 
@@ -1132,18 +764,6 @@ namespace InstallBundleManagerAnalytics
 		AnalyticsProvider->RecordEvent(TEXT("InstallBundleManager.BundleReleaseRequestComplete"), MakeAnalyticsEventAttributeArray(
 			TEXT("BundleName"), BundleName,
 			TEXT("RemoveFilesIfPossible"), bRemoveFilesIfPossible,
-			TEXT("Result"), Result));
-	}
-
-	void FireEvent_BundleRemoveRequestComplete_BundleSourceBPS(IAnalyticsProviderET* AnalyticsProvider, const FString& BundleName, const FString& Result)
-	{
-		if (AnalyticsProvider == nullptr)
-		{
-			return;
-		}
-
-		AnalyticsProvider->RecordEvent(TEXT("InstallBundleManager.BundleSourceBPS.BundleRemoveRequestComplete"), MakeAnalyticsEventAttributeArray(
-			TEXT("BundleName"), BundleName,
 			TEXT("Result"), Result));
 	}
 
@@ -1187,67 +807,6 @@ namespace InstallBundleManagerAnalytics
 			TEXT("BundleName"), BundleName,
 			TEXT("BundleSource"), BundleSource,
 			TEXT("PatchRequired"), bPatchRequired));
-	}
-
-	void FireEvent_EarlyStartupPatcherStall(IAnalyticsProviderET* AnalyticsProvider, const FString& BundleName, IBuildInstallerPtr ContentBuildInstaller)
-	{
-		if (AnalyticsProvider == nullptr)
-		{
-			return;
-		}
-
-		const float ProgressPercentReached = ContentBuildInstaller.IsValid() ? ContentBuildInstaller->GetUpdateProgress() : 0.f;
-
-		TArray<FAnalyticsEventAttribute> Attributes = MakeAnalyticsEventAttributeArray(
-			TEXT("BundleName"), BundleName,
-			TEXT("ProgressPercent"), ProgressPercentReached);
-
-		if (ContentBuildInstaller.IsValid())
-		{
-			BuildPatchServices::FBuildInstallerConfiguration BuildConfig = ContentBuildInstaller->GetConfiguration();
-			FBuildInstallStats BuildStats = ContentBuildInstaller->GetBuildStatistics();
-			FString AppName = TEXT("Unknown");
-			FString CurrentManifestVersion = TEXT("NONE");
-			FString InstallManifestVersion = TEXT("NONE");
-			if (BuildConfig.InstallerActions.Num() > 0)
-			{
-				// Currently only one action is ever used for FN installers.
-				const BuildPatchServices::FInstallerAction& InstallerAction = BuildConfig.InstallerActions[0];
-				AppName = InstallerAction.GetInstallOrCurrentManifest()->GetAppName();
-				IBuildManifestPtr CurrentManifest = InstallerAction.TryGetCurrentManifest();
-				IBuildManifestPtr InstallManifest = InstallerAction.TryGetInstallManifest();
-				if (CurrentManifest.IsValid())
-				{
-					CurrentManifestVersion = CurrentManifest->GetVersionString();
-				}
-				if (InstallManifest.IsValid())
-				{
-					InstallManifestVersion = InstallManifest->GetVersionString();
-				}
-			}
-
-			AppendAnalyticsEventAttributeArray(Attributes,
-				TEXT("AppName"), AppName,
-				TEXT("AppInstalledVersion"), CurrentManifestVersion,
-				TEXT("AppPatchVersion"), InstallManifestVersion,
-				TEXT("NumInstallRetries"), BuildStats.NumInstallRetries,
-				TEXT("InstallRetryTypes"), GetInstallRetryTypesString(BuildStats.RetryFailureTypes),
-				TEXT("InstallRetryCodes"), FString::Join(BuildStats.RetryErrorCodes, TEXT(",")));
-		}
-
-		AnalyticsProvider->RecordEvent(TEXT("InstallBundleManager.InstallerStall"), MoveTemp(Attributes));
-	}
-	
-	void FireEvent_BackgroundDownloadStall_BundleSourceBPS(IAnalyticsProviderET* AnalyticsProvider, const FString& BundleName, float ProgressPercentReached)
-	{
-		if (AnalyticsProvider == nullptr)
-		{
-			return;
-		}
-
-		AnalyticsProvider->RecordEvent(TEXT("InstallBundleManager.BundleSourceBPS.BackgroundDownloadStall"), MakeAnalyticsEventAttributeArray(
-			TEXT("BundleName"), BundleName,
-			TEXT("ProgressPercent"), ProgressPercentReached));
 	}
 
 	void FireEvent_PersistentPatchStats_StartPatching(IAnalyticsProviderET* AnalyticsProvider, const InstallBundleManagerUtil::FPersistentStatContainer::FPersistentStatsInformation& PersistentStatInformation)

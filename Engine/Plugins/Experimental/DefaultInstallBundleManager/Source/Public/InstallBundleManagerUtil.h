@@ -3,8 +3,6 @@
 #pragma once
 
 #include "InstallBundleTypes.h"
-#include "Interfaces/IBuildInstaller.h"
-
 #include "InstallBundleUtils.h"
 
 class FConfigFile;
@@ -238,26 +236,6 @@ namespace InstallBundleManagerAnalytics
 	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_BundleManagerCacheStats(IAnalyticsProviderET* AnalyticsProvider, const FInstallBundleCacheStats& Stats);
 
 	/**
-	 * @EventName InstallBundleManager.InitBundleSourceBPSComplete
-	 * @Trigger Bundle Manager finished async initialization
-	 * @Type Client
-	 * @EventParam InstallManifestFileName String filename of the manifest that is going to be installed by BPS.
-	 * @EventParam InstallManifestVersion String Full Version info of the install manifest that is going to be installed by BPS.
-	 * @EventParam bRetrievedManifestFromBuildInfoServices Bool true if we successfully request manifest info from buildinfo service
-	 * @EventParam bDownloadedManifest Bool True if we downloaded manifest from s3
-	 * @EventParam bDownloadedBackgrounddownloadini Bool True if we downloaded backgrounddownloads ini from s3
-	 * @EventParam InitResultString String Result code
-	 * @Comments
-	 */
-	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_InitBundleSourceBPSComplete(IAnalyticsProviderET* AnalyticsProvider,
-		const FString& InstallManifestFilename,
-		const FString& InstallManifestVersion,
-		const bool bRetrievedManifestFromBuildInfoService,
-		const bool bDownloadedManifest,
-		const bool bDownloadedBackgroundDownloadIni,
-		const FString InitResultString);
-
-	/**
 	* @EventName InstallBundleManager.InitBundleSourceBulkComplete
 	* @Trigger Bundle Manager finished async initialization
 	* @Type Client
@@ -286,157 +264,6 @@ namespace InstallBundleManagerAnalytics
 	*/
 	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_InitBundleSourceIntelligentDeliveryComplete(IAnalyticsProviderET* AnalyticsProvider,
 		const FString InitResultString);
-
-	/**
-	* @EventName InstallBundleManager.BeginInstall
-	* @Trigger Bundle Manager is launching BuildPatchServices to download/install/patch files.
-	* @Type Client
-	* @EventParam BundleName String Name of bundle being installed.
-	* @EventParam OldManifestVersion String Full Version info of the previously installed manifest passed into BPS.
-	* @EventParam InstallManifestVersion String Full Version info of the install manifest that is going to be installed by BPS.
-	* @EventParam IsOnCellular Bool True if we are using cellular data
-	* @EventParam IsPatching Bool True if patching from a previous manifest
-	* @Comments
-	*/
-	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_BeginInstall(IAnalyticsProviderET* AnalyticsProvider, const FString& BundleName, bool bIsPatching, const FString& OldManifestVersion, const FString& InstallManifestVersion);
-
-	/**
-	* @EventName InstallBundleManager.BundleSourceBPS.BeginInstall
-	* @Trigger Bundle Manager is launching BuildPatchServices to download/install/patch files.
-	* @Type Client
-	* @EventParam BundleName String Name of bundle being installed.
-	* @EventParam OldManifestVersion String Full Version info of the previously installed manifest passed into BPS.
-	* @EventParam InstallManifestVersion String Full Version info of the install manifest that is going to be installed by BPS.
-	* @EventParam IsOnCellular Bool True if we are using cellular data
-	* @EventParam IsPatching Bool True if patching from a previous manifest
-	* @Comments
-	*/
-	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_BeginInstall_BundleSourceBPS(IAnalyticsProviderET* AnalyticsProvider, const FString& BundleName, bool bIsPatching, const FString& OldManifestVersion, const FString& InstallManifestVersion);
-
-	/**
-	* @EventName InstallBundleManager.EndInstall
-	*
-	* @Trigger Fired upon completing an install.
-	*
-	* @Type Client
-	*
-	* @EventParam BundleName (string) String Name of bundle being installed.
-	* @EventParam AppName (string) App being installed.
-	* @EventParam AppInstalledVersion (string) Version of App already installed. "NONE" denotes that this was a fresh install.
-	* @EventParam AppPatchVersion (string) Version of App being installed.
-	* @EventParam TotalDownloadedData (int64) Total number of bytes downloaded for this installation.
-	* @EventParam AverageDownloadSpeed (double) Average bytes/sec download speed experienced during download.
-	* @EventParam InitializeTime (float) Seconds spent initializing the installation.
-	* @EventParam ConstructTime (float) Seconds spent building installation files, including acquiring data for them.
-	* @EventParam MoveFromStageTime (float) Seconds spent moving staged files to the install location.
-	* @EventParam FileAttributesTime (float) Seconds spent applying file attributes.
-	* @EventParam VerifyTime (float) Seconds spent verifying the installation.
-	* @EventParam CleanUpTime (float) Seconds spent cleaning up temporary storage.
-	* @EventParam PrereqTime (float) Seconds spent running a prerequisite installation.
-	* @EventParam ProcessPausedTime (float) Seconds spent in a paused state.
-	* @EventParam ProcessActiveTime (float) Seconds spent in an active state. This will be the sum of InitializeTime, ConstructTime, MoveFromStageTime, FileAttributesTime, VerifyTime, CleanUpTime, and PrereqTime.
-	* @EventParam ProcessExecuteTime (float) Total seconds spent running the installation. This will be the sum of ProcessPausedTime and ProcessActiveTime.
-	* @EventParam ProcessSuccess (bool) Whether or not the process was successful.
-	* @EventParam FailureType (string) The failure type that the installation concluded with. "EBuildPatchInstallError::NoError" if the installation is a success.
-	* @EventParam NumInstallRetries (uint32) Number of retries made to complete this installation. 0 is the normal value.
-	* @EventParam InstallRetryTypes (string) FailureType for each retry requirement.
-	* @EventParam InstallRetryCodes (string) Error code for each retry requirement.
-	* @EventParam ErrorCode (string) The error code that the installation concluded with. "OK" if the installation is a success.
-	* @EventParam FinalProgress (float) Final progress percentage.
-	* @EventParam FinalDownloadSpeed (double) The download speed registered at the end of the installation.
-	* @EventParam BundleInstallRetryCount (int) The number of times the bundle manager retried the install
-	*
-	* @Comments
-	*
-	*/
-	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_EndInstall(IAnalyticsProviderET* AnalyticsProvider, const FString& BundleName, IBuildInstallerPtr ContentBuildInstaller, int32 BundleInstallRetryCount);
-
-	/**
-	* @EventName InstallBundleManager.BundleSourceBPS.EndInstall
-	*
-	* @Trigger Fired upon completing an install.
-	*
-	* @Type Client
-	*
-	* @EventParam BundleName (string) String Name of bundle being installed.
-	* @EventParam AppName (string) App being installed.
-	* @EventParam AppInstalledVersion (string) Version of App already installed. "NONE" denotes that this was a fresh install.
-	* @EventParam AppPatchVersion (string) Version of App being installed.
-	* @EventParam TotalDownloadedData (int64) Total number of bytes downloaded for this installation.
-	* @EventParam AverageDownloadSpeed (double) Average bytes/sec download speed experienced during download.
-	* @EventParam InitializeTime (float) Seconds spent initializing the installation.
-	* @EventParam ConstructTime (float) Seconds spent building installation files, including acquiring data for them.
-	* @EventParam MoveFromStageTime (float) Seconds spent moving staged files to the install location.
-	* @EventParam FileAttributesTime (float) Seconds spent applying file attributes.
-	* @EventParam VerifyTime (float) Seconds spent verifying the installation.
-	* @EventParam CleanUpTime (float) Seconds spent cleaning up temporary storage.
-	* @EventParam PrereqTime (float) Seconds spent running a prerequisite installation.
-	* @EventParam ProcessPausedTime (float) Seconds spent in a paused state.
-	* @EventParam ProcessActiveTime (float) Seconds spent in an active state. This will be the sum of InitializeTime, ConstructTime, MoveFromStageTime, FileAttributesTime, VerifyTime, CleanUpTime, and PrereqTime.
-	* @EventParam ProcessExecuteTime (float) Total seconds spent running the installation. This will be the sum of ProcessPausedTime and ProcessActiveTime.
-	* @EventParam ProcessSuccess (bool) Whether or not the process was successful.
-	* @EventParam FailureType (string) The failure type that the installation concluded with. "EBuildPatchInstallError::NoError" if the installation is a success.
-	* @EventParam NumInstallRetries (uint32) Number of retries made to complete this installation. 0 is the normal value.
-	* @EventParam InstallRetryTypes (string) FailureType for each retry requirement.
-	* @EventParam InstallRetryCodes (string) Error code for each retry requirement.
-	* @EventParam ErrorCode (string) The error code that the installation concluded with. "OK" if the installation is a success.
-	* @EventParam FinalProgress (float) Final progress percentage.
-	* @EventParam FinalDownloadSpeed (double) The download speed registered at the end of the installation.
-	* @EventParam BundleInstallRetryCount (int) The number of times the bundle manager retried the install
-	*
-	* @Comments
-	*
-	*/
-	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_EndInstall_BundleSourceBPS(IAnalyticsProviderET* AnalyticsProvider, const FString& BundleName, IBuildInstallerPtr ContentBuildInstaller, int32 BundleInstallRetryCount);
-
-	/**
-	 * @EventName InstallBundleManager.BackgroundDownloadStats
-	 *
-	 * @Trigger Fired after BackgroundDownload completes
-	 *
-	 * @Type Client
-	 *
-	 * @EventParam BundleName (string) String Name of bundle being installed.
-	 * @EventParam PreviousManfest (string) Manifest version information for currently installed version
-	 * @EventParam CurrentManifest (string) Manifest version information for version we are going to patch to
-	 * @EventParam OldManifestVersion (string) Content version information for currently installed version
-	 * @EventParam InstallManifestVersion (string) Content version information for version we are going to patch to
-	 * @EventParam NumFailedDownloads (int) Number of times we had downloads completely fail and be out of retries.
-	 * @EventParam NumSuccessfulDownloads (int) Number of times we had downloads succeed.
-	 *
-	 * @Comments
-	 *
-	 */
-	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_BackgroundDownloadStats(IAnalyticsProviderET* AnalyticsProvider,
-		const FString& BundleName,
-		const FString& PreviousManifest, const FString& CurrentManifest,
-		const FString& OldManifestVersion, const FString& InstallManifestVersion,
-		int32 NumFailedDownloads, int32 NumSuccessfulDownloads);
-
-
-	/**
-	 * @EventName InstallBundleManager.BundleSourceBPS.BackgroundDownloadStats
-	 *
-	 * @Trigger Fired after BackgroundDownload completes
-	 *
-	 * @Type Client
-	 *
-	 * @EventParam BundleName (string) String Name of bundle being installed.
-	 * @EventParam PreviousManfest (string) Manifest version information for currently installed version
-	 * @EventParam CurrentManifest (string) Manifest version information for version we are going to patch to
-	 * @EventParam OldManifestVersion (string) Content version information for currently installed version
-	 * @EventParam InstallManifestVersion (string) Content version information for version we are going to patch to
-	 * @EventParam NumFailedDownloads (int) Number of times we had downloads completely fail and be out of retries.
-	 * @EventParam NumSuccessfulDownloads (int) Number of times we had downloads succeed.
-	 *
-	 * @Comments
-	 *
-	 */
-	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_BackgroundDownloadStats_BundleSourceBPS(IAnalyticsProviderET* AnalyticsProvider,
-		const FString& BundleName,
-		const FString& PreviousManifest, const FString& CurrentManifest,
-		const FString& OldManifestVersion, const FString& InstallManifestVersion,
-		int32 NumFailedDownloads, int32 NumSuccessfulDownloads);
 
 	/**
 	 * @EventName InstallBundleManager.BundleLatestClientCheckComplete
@@ -474,24 +301,6 @@ namespace InstallBundleManagerAnalytics
 		const FString& BundleName);
 
 	/**
-	 * @EventName InstallBundleManager.BundleSourceBPS.BundleRequestStarted
-	 *
-	 * @Trigger Fired when a bundle request is started
-	 *
-	 * @Type Client
-	 *
-	 * @EventParam BundleName (string) String Name of bundle being installed.
-	 * @EventParam PreviousManfest (string) Manifest version information for currently installed version
-	 * @EventParam CurrentManifest (string) Manifest version information for version we are going to patch to
-	 * @EventParam InstallManifestVersion (string) Content version information for version we are going to patch to
-	 *
-	 */
-	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_BundleRequestStarted_BundleSourceBPS(IAnalyticsProviderET* AnalyticsProvider,
-		const FString& BundleName,
-		const FString& PreviousManifest, const FString& CurrentManifest,
-		const FString& InstallManifestVersion);
-
-	/**
 	 * @EventName InstallBundleManager.BundleRequestComplete
 	 *
 	 * @Trigger Fired after an install bundle request is completed
@@ -510,35 +319,6 @@ namespace InstallBundleManagerAnalytics
 		const InstallBundleUtil::FContentRequestStats& TimingStats);
 
 	/**
-	 * @EventName InstallBundleManager.BundleSourceBPS.BundleRequestComplete
-	 *
-	 * @Trigger Fired after an install bundle request is completed
-	 *
-	 * @Type Client
-	 *
-	 * @EventParam BundleName (string) String Name of bundle being installed.
-	 * @EventParam PreviousManfest (string) Manifest version information for currently installed version
-	 * @EventParam CurrentManifest (string) Manifest version information for version we are going to patch to
-	 * @EventParam OldManifestVersion (string) Content version information for currently installed version
-	 * @EventParam InstallManifestVersion (string) Content version information for version we are going to patch to
-	 * @EventParam OldVersionTimeStamp (string) Timestamp of when the previous version as installed
-	 * @EventParam TotalDownloadedBytes (uint64) Total bytes downloaded
-	 * @EventParam EstimatedFullDownloadBytes (uint64) Estimated bytes that needed download
-	 * @EventParam Result (string) Result of the request
-	 * @EventParam BPTErrorCode (string) Any BPT Error
-	 */
-	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_BundleRequestComplete_BundleSourceBPS(IAnalyticsProviderET* AnalyticsProvider,
-		const FString& BundleName,
-		const FString& PreviousManifest, const FString& CurrentManifest,
-		const FString& OldManifestVersion, const FString& InstallManifestVersion,
-		const FString& OldVersionTimeStamp,
-		uint64 TotalDownloadedBytes,
-		uint64 EstimatedFullDownloadBytes,
-		bool bDidInstall,
-		const FString& Result,
-		const FString& BPTErrorCode);
-
-	/**
 	 * @EventName InstallBundleManager.BundleReleaseRequestStarted
 	 *
 	 * @Trigger Fired when a bundle release request is started
@@ -551,18 +331,6 @@ namespace InstallBundleManagerAnalytics
 	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_BundleReleaseRequestStarted(IAnalyticsProviderET* AnalyticsProvider,
 		const FString& BundleName,
 		bool bRemoveFilesIfPossible);
-
-	/**
-	 * @EventName InstallBundleManager.BundleSourceBPS.BundleRemoveRequestStarted
-	 *
-	 * @Trigger Fired when a bundle remove request is started for BundleSourceBPS
-	 *
-	 * @Type Client
-	 *
-	 * @EventParam BundleName (string) String Name of bundle.
-	 */
-	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_BundleRemoveRequestStarted_BundleSourceBPS(IAnalyticsProviderET* AnalyticsProvider,
-		const FString& BundleName);
 
 	/**
 	 * @EventName InstallBundleManager.BundleReleaseRequestComplete
@@ -579,19 +347,6 @@ namespace InstallBundleManagerAnalytics
 		const FString& BundleName,
 		bool bRemoveFilesIfPossible,
 		const FString& Result);
-
-	/**
-	 * @EventName InstallBundleManager.BundleSourceBPS.BundleRemoveRequestComplete
-	 *
-	 * @Trigger Fired when a bundle remove request is complete for BundleSourceBPS
-	 *
-	 * @Type Client
-	 *
-	 * @EventParam BundleName (string) String Name of bundle.
-	 * @EventParam Result (string) Result of the request
-	 */
-	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_BundleRemoveRequestComplete_BundleSourceBPS(IAnalyticsProviderET* AnalyticsProvider,
-		const FString& BundleName, const FString& Result);
 
 	/**
 	 * @EventName InstallBundleManager.BundleEvictedFromCache
@@ -638,56 +393,6 @@ namespace InstallBundleManagerAnalytics
 	 */
 	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_BundleCacheMiss(IAnalyticsProviderET* AnalyticsProvider,
 								   const FString& BundleName, const FString& BundleSource, bool bPatchRequired);
-
-	/**
-	 * @EventName InstallBundleManager.InstallHeartbeat
-	 *
-	 * @Trigger Fired every minute when there are bundles being installed
-	 *
-	 * @Type Client
-	 *
-	 * @EventParam IsAnyBundleInError (bool) True if any bundle had an error
-	 * @EventParam BundleStatus (string) JSON array of current bundle status
-	 *
-	 */
-	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_InstallHeartbeat(IAnalyticsProviderET* AnalyticsProvider, const TArray<FBundleHeartbeatStats>& BundleStats);
-
-	/*
-	 * @EventName EarlyStartupPatcher.Stall
-	 *
-	 * @Trigger Fired whenever EarlyStartupPatcher has been stalled for a long time with no progress. (Configurable amount, default is 1 minutes with no progress).
-	 *
-	 * @Type Client
-	 *
-	 * @EventParam BundleName (string) String Name of bundle being installed.
-	 * @EventParam ProgressPercent (float) How far we've gotten in the patch
-	 *
-	 * @EventParam AppName (string) App being installed.
-	 * @EventParam AppInstalledVersion (string) Version of App already installed. "NONE" denotes that this was a fresh install.
-	 * @EventParam AppPatchVersion (string) Version of App being installed. Can be empty if we haven't downloaded the manifest from the CDN yet.
-	 * @EventParam NumInstallRetries (uint32) Number of retries made to complete this installation logged by BPS (after ESP has started BPS). 0 is the normal value.
-	 * @EventParam InstallRetryTypes (string) FailureType for each retry requirement logged by BPS.
-	 * @EventParam InstallRetryCodes (string) Error code for each retry requirement.
-	 *
-	 * @Comments
-	 *
-	 */
-	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_EarlyStartupPatcherStall(IAnalyticsProviderET* AnalyticsProvider, const FString& BundleName, IBuildInstallerPtr ContentBuildInstaller);
-
-	/*
-	 * @EventName InstallBundleManager.BundleSourceBPS.BackgroundDownloadStall
-	 *
-	 * @Trigger Fired whenever Background Downloads has been stalled for a long time with no progress. (Configurable amount, default is 1 minutes with no progress).
-	 *
-	 * @Type Client
-	 *
-	 * @EventParam BundleName (string) String Name of bundle being installed.
-	 * @EventParam ProgressPercent (float) How far we've gotten in the patch
-	 *
-	 * @Comments
-	 *
-	 */
-	DEFAULTINSTALLBUNDLEMANAGER_API void FireEvent_BackgroundDownloadStall_BundleSourceBPS(IAnalyticsProviderET* AnalyticsProvider, const FString& BundleName, float ProgressPercentReached);
 
 	/*
 	 * @EventName PersistentPatchStats.StartPatching
