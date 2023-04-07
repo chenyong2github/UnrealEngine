@@ -52,8 +52,7 @@ public:
 	 * Adds the given vector to the accumulated input in world space. Input vectors are usually between 0 and 1 in magnitude. 
 	 * They are accumulated during a frame then applied as acceleration during the movement update.
 	 *
-	 * @param WorldDirection	Direction in world space to apply input
-	 * @param ScaleValue		Scale to apply to input. This can be used for analog input, ie a value of 0.5 applies half the normal value.
+	 * @param WorldVector		Direction in world space to apply input
 	 * @param bForce			If true always add the input, ignoring the result of IsMoveInputIgnored().
 	 * @see APawn::AddMovementInput()
 	 */
