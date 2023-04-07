@@ -156,6 +156,21 @@ void SSourceControlReview::Construct(const FArguments& InArgs)
 							.Font(FStyleFonts::Get().Normal)
 						]
 					]
+					+SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					[
+						SNew(SButton)
+						.HAlign(HAlign_Center)
+						.Visibility(this, &SSourceControlReview::EnableCommentsButtonVisibility)
+						.OnClicked(this, &SSourceControlReview::OnEnableCommentsButtonClicked)
+						.ToolTipText(LOCTEXT("EnableCommentsTooltip", "Create a swarm review to store comments"))
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("EnableComments", "Enable Comments"))
+							.Font(FStyleFonts::Get().Normal)
+						]
+					]
 				]
 
 				// Author
@@ -318,6 +333,7 @@ void SSourceControlReview::LoadChangelist(const FString& Changelist)
 	GlobalReviewComments.Empty();
 	FileReviewComments.Empty();
 	TempLocalPathToDepotPath.Empty();
+	ReviewTopic.Reset();
 
 	//This command runs p4 -describe (or similar for other version controls) to retrieve changelist record information
 	GetChangelistDetailsCommand = ISourceControlOperation::Create<FGetChangelistDetails>();
@@ -337,7 +353,7 @@ const TArray<FReviewComment>* SSourceControlReview::GetReviewCommentsForFile(con
 
 void SSourceControlReview::UpdateReviewComments()
 {
-	if (bReviewCommentsDirty && CommentsAPI)
+	if (bReviewCommentsDirty && CommentsAPI && ReviewTopic)
 	{
 		CommentsAPI->GetComments(ReviewTopic.GetValue(), FSwarmCommentsAPI::OnGetCommentsComplete::CreateRaw(this, &SSourceControlReview::OnGetReviewComments));
 		bReviewCommentsDirty = false;
@@ -411,6 +427,12 @@ FString SSourceControlReview::GetReviewerUsername() const
 
 bool SSourceControlReview::IsFileInReview(const FString& File) const
 {
+	// require review comments to be valid
+	if (!CommentsAPI || !ReviewTopic.IsSet() || IsLoading())
+	{
+		return false;
+	}
+	
 	FString Path = File;
 	if (!Path.StartsWith(TEXT("//")))
 	{
@@ -635,8 +657,16 @@ void SSourceControlReview::OnGetReviewTopic(const FReviewTopic& Topic, const FSt
 {
 	if(!ErrorMessage.IsEmpty())
 	{
-		UE_LOG(LogSourceControl, Error, TEXT("IReviewCommentsAPI::GetReviewTopicForCL Error: %s"), *ErrorMessage)
-		ReviewTopic= {CurrentChangelistInfo.ChangelistNum, CurrentChangelistInfo.Author.ToString() == TEXT("Swarm") ? EReviewTopicType::Review : EReviewTopicType::Change};
+		// if a review wasn't found, we'll display a button to create a review
+		if (ErrorMessage != TEXT("Review Not Found"))
+		{
+			UE_LOG(LogSourceControl, Error, TEXT("IReviewCommentsAPI::GetReviewTopicForCL Error: %s"), *ErrorMessage);
+		}
+		
+		// skip loading comments
+		IncrementItemsLoaded();
+		IncrementItemsLoaded();
+		return;
 	}
 	else
 	{
@@ -814,6 +844,25 @@ void SSourceControlReview::OnChangelistNumCommitted(const FText& Text, ETextComm
 	{
 		LoadChangelist(Text.ToString());
 	}
+}
+
+FReply SSourceControlReview::OnEnableCommentsButtonClicked()
+{
+	if (CommentsAPI)
+	{
+		NumItemsToLoad += 2;
+		CommentsAPI->GetOrCreateReviewTopicForCL(CurrentChangelistInfo.ChangelistNum, FSwarmCommentsAPI::OnGetReviewTopicForCLComplete::CreateRaw(this, &SSourceControlReview::OnGetReviewTopic));
+	}
+	return FReply::Handled();
+}
+
+EVisibility SSourceControlReview::EnableCommentsButtonVisibility() const
+{
+	if (!CurrentChangelistInfo.ChangelistNum.IsEmpty() && CommentsAPI && !ReviewTopic.IsSet() && !IsLoading())
+	{
+		return EVisibility::Visible;
+	}
+	return EVisibility::Collapsed;
 }
 
 TSharedRef<SWidget> SSourceControlReview::MakeCLComboOption(TSharedPtr<FChangelistLightInfo> Item) const

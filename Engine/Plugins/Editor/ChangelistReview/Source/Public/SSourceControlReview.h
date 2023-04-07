@@ -191,6 +191,9 @@ private:
 	FText LoadChangelistTooltip() const;
 	void OnChangelistNumChanged(const FText& Text);
 	void OnChangelistNumCommitted(const FText& Text, ETextCommit::Type CommitMethod);
+	
+	FReply OnEnableCommentsButtonClicked();
+	EVisibility EnableCommentsButtonVisibility() const;
 
 	TSharedRef<SWidget> MakeCLComboOption(TSharedPtr<SourceControlReview::FChangelistLightInfo>Item) const;
 	void OnCLComboSelection(TSharedPtr<SourceControlReview::FChangelistLightInfo> Item, ESelectInfo::Type SelectInfo) const;

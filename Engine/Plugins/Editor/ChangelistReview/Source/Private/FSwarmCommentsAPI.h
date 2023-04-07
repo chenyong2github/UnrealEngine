@@ -40,8 +40,11 @@ public:
 	// all unset members will be left unchanged.
 	virtual void EditComment(const FReviewComment& Comment, const OnEditCommentComplete& OnComplete, bool bSilenceNotification = false) const override;
 	
-	// retrieves the review associated with a CL. If there is none, it creates a new review and returns that.
+	// retrieves the review associated with a CL.
 	virtual void GetReviewTopicForCL(const FString &ChangelistNum, const OnGetReviewTopicForCLComplete& OnComplete) const override;
+	
+	// retrieves the review associated with a CL. If there is none, it creates a new review and returns that.
+	virtual void GetOrCreateReviewTopicForCL(const FString& ChangelistNum, const OnGetReviewTopicForCLComplete& OnComplete) const override;
 
 private:
 	

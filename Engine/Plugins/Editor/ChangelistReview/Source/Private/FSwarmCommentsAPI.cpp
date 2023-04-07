@@ -430,7 +430,7 @@ void FSwarmCommentsAPI::GetReviewTopicForCL(const FString& ChangelistNum,
 
 	TWeakPtr<const FSwarmCommentsAPI> WeakSelf = AsWeak();
 	
-	HttpRequest->OnProcessRequestComplete().BindLambda([OnComplete, ChangelistNum, WeakSelf](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bConnectedSuccessfully)
+	HttpRequest->OnProcessRequestComplete().BindLambda([OnComplete, WeakSelf](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bConnectedSuccessfully)
 	{
 		const TSharedPtr<const FSwarmCommentsAPI> Self = WeakSelf.Pin();
 		if (!Self)
@@ -457,12 +457,11 @@ void FSwarmCommentsAPI::GetReviewTopicForCL(const FString& ChangelistNum,
 				const TArray<TSharedPtr<FJsonValue>> ReviewsJson = JsonObject->GetArrayField("reviews");
 				if (ReviewsJson.IsEmpty())
 				{
-					Self->CreateReviewTopicForCL(ChangelistNum, OnComplete);
+					OnComplete.ExecuteIfBound({}, TEXT("Review Not Found"));
 					return;
 				}
 				
 				const TSharedPtr<FJsonObject> Review = ReviewsJson[0]->AsObject();
-				
 				OnComplete.ExecuteIfBound(FReviewTopic{
 					FString::FromInt(Review->GetIntegerField(TEXT("id"))),
 					EReviewTopicType::Review
@@ -475,6 +474,31 @@ void FSwarmCommentsAPI::GetReviewTopicForCL(const FString& ChangelistNum,
 	});
 	
 	HttpRequest->ProcessRequest();
+}
+
+void FSwarmCommentsAPI::GetOrCreateReviewTopicForCL(const FString& ChangelistNum,
+	const OnGetReviewTopicForCLComplete& OnComplete) const
+{
+	TWeakPtr<const FSwarmCommentsAPI> WeakSelf = AsWeak();
+	GetReviewTopicForCL(ChangelistNum,
+		OnGetReviewTopicForCLComplete::CreateLambda([OnComplete, ChangelistNum, WeakSelf](const FReviewTopic& Topic, const FString& ErrorMessage)
+		{
+			const TSharedPtr<const FSwarmCommentsAPI> Self = WeakSelf.Pin();
+			if (!Self)
+			{
+				return;
+			}
+			
+			if (ErrorMessage == TEXT("Review Not Found"))
+			{
+				Self->CreateReviewTopicForCL(ChangelistNum, OnComplete);
+			}
+			else
+			{
+				OnComplete.Execute(Topic, ErrorMessage);
+			}
+		})
+	);
 }
 
 void FSwarmCommentsAPI::CreateReviewTopicForCL(const FString& ChangelistNum, const OnGetReviewTopicForCLComplete& OnComplete) const
