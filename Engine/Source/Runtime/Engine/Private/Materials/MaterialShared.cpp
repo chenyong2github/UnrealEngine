@@ -1971,7 +1971,7 @@ bool FMaterialResource::HasMaterialPropertyConnected(EMaterialProperty In) const
 			return Material->HasAmbientOcclusionConnected();
 		}
 		// Strata material traversal is cached as this is an expensive operation
-		return FStrataMaterialInfo::HasPropertyConnected(Material->CachedConnectedInputs, In);
+		return FStrataMaterialInfo::HasPropertyConnected(Material->GetCachedExpressionData().PropertyConnectedBitmask, In);
 	}
 	else
 	{

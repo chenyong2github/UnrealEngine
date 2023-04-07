@@ -4811,8 +4811,30 @@ void UMaterial::RebuildShadingModelField()
 		check(EditorOnly->FrontMaterial.Expression);
 		if (EditorOnly->FrontMaterial.Expression->IsResultStrataMaterial(EditorOnly->FrontMaterial.OutputIndex))
 		{
+			// Mask of all input collected by Strata BSDF nodes
+			static const uint32 ConnectionMask = 
+				  (1u << MP_BaseColor)
+				| (1u << MP_Metallic)
+				| (1u << MP_Specular)
+				| (1u << MP_Roughness)
+				| (1u << MP_Anisotropy)
+				| (1u << MP_EmissiveColor)
+				| (1u << MP_Normal)
+				| (1u << MP_Tangent)
+				| (1u << MP_SubsurfaceColor)
+				| (1u << MP_CustomData0)
+				| (1u << MP_CustomData1)
+				| (1u << MP_Opacity)
+				| (1u << MP_ShadingModel)
+				| (1u << MP_DiffuseColor)
+				| (1u << MP_SpecularColor);
+
 			EditorOnly->FrontMaterial.Expression->GatherStrataMaterialInfo(StrataMaterialInfo, EditorOnly->FrontMaterial.OutputIndex);
-			this->CachedConnectedInputs = StrataMaterialInfo.GetPropertyConnected();
+
+			// Override the cached expression data with collected connection from StrataMaterialInfo, but preserve all other input (e.g., refraction)
+			check(this->CachedExpressionData);
+			this->CachedExpressionData->PropertyConnectedBitmask &= ~ConnectionMask;
+			this->CachedExpressionData->PropertyConnectedBitmask |= StrataMaterialInfo.GetPropertyConnected();
 
 			if (StrataMaterialInfo.GetStrataTreeOutOfStackDepthOccurred())
 			{
