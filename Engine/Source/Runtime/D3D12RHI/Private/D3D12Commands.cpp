@@ -1031,8 +1031,7 @@ struct FD3D12ResourceBinder
 	void SetTexture(FRHITexture* InTexture, uint32 Index)
 	{
 		FD3D12Texture* D3D12Texture = FD3D12CommandContext::RetrieveTexture(InTexture, GpuIndex);
-		check(D3D12Texture);
-		FD3D12ShaderResourceView* D3D12ShaderResourceView = D3D12Texture->GetShaderResourceView();
+		FD3D12ShaderResourceView* D3D12ShaderResourceView = D3D12Texture ? D3D12Texture->GetShaderResourceView() : nullptr;
 
 #if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 		if (bBindlessResources)
