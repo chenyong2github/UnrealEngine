@@ -423,6 +423,57 @@
             When attached to a list field, indicates that a list of structures can be included in the record
             </summary>
         </member>
+        <member name="T:EpicGames.Perforce.PerforceChangeView">
+            <summary>
+            Represents a change view from a clientspec or stream
+            </summary>
+        </member>
+        <member name="P:EpicGames.Perforce.PerforceChangeView.Entries">
+            <summary>
+            List of entries for this change view
+            </summary>
+        </member>
+        <member name="M:EpicGames.Perforce.PerforceChangeView.IsVisible(System.String,System.Int32)">
+            <summary>
+            Determines if a file revision is visible 
+            </summary>
+            <param name="depotFile">Path to the depot file</param>
+            <param name="change">Change number of the file</param>
+        </member>
+        <member name="M:EpicGames.Perforce.PerforceChangeView.Parse(System.Collections.Generic.IEnumerable{System.String},System.Boolean)">
+            <summary>
+            Parse a change view from a specification
+            </summary>
+            <param name="lines">Lines for the change view</param>
+            <param name="ignoreCase">Whether this will be evaluated in the context of a case-insensitive server</param>
+        </member>
+        <member name="T:EpicGames.Perforce.PerforceChangeViewEntry">
+            <summary>
+            Entry for a change view
+            </summary>
+        </member>
+        <member name="P:EpicGames.Perforce.PerforceChangeViewEntry.Path">
+            <summary>
+            Pattern to match
+            </summary>
+        </member>
+        <member name="P:EpicGames.Perforce.PerforceChangeViewEntry.Change">
+            <summary>
+            Change to be imported at
+            </summary>
+        </member>
+        <member name="M:EpicGames.Perforce.PerforceChangeViewEntry.#ctor(System.String,System.Boolean)">
+            <summary>
+            Constructor
+            </summary>
+        </member>
+        <member name="M:EpicGames.Perforce.PerforceChangeViewEntry.Matches(System.String)">
+            <summary>
+            Determine
+            </summary>
+            <param name="depotPath"></param>
+            <returns></returns>
+        </member>
         <member name="T:EpicGames.Perforce.PerforceChildProcess">
             <summary>
             Wraps a call to a p4.exe child process, and allows reading data from it
@@ -5620,6 +5671,11 @@
             Case handling setting on the server
             </summary>
         </member>
+        <member name="P:EpicGames.Perforce.InfoRecord.IsCaseSensitive">
+            <summary>
+            Whether the server is case sensitive
+            </summary>
+        </member>
         <member name="P:EpicGames.Perforce.InfoRecord.PathComparer">
             <summary>
             How to compare paths on this server
@@ -6688,6 +6744,11 @@
         <member name="P:EpicGames.Perforce.StreamRecord.View">
             <summary>
             Computed view for the stream
+            </summary>
+        </member>
+        <member name="P:EpicGames.Perforce.StreamRecord.ChangeView">
+            <summary>
+            Specific changelists to import
             </summary>
         </member>
         <member name="M:EpicGames.Perforce.StreamRecord.#ctor">
