@@ -30,6 +30,6 @@ struct FTypedElementLabelHashColumn final : public FTypedElementDataStorageColum
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(meta = (IgnoreForMemberInitializationTest))
 	uint64 LabelHash;
 };

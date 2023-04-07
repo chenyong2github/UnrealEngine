@@ -16,7 +16,7 @@ struct FTypedElementU32IntValueCacheColumn final : public FTypedElementDataStora
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(meta = (IgnoreForMemberInitializationTest))
 	uint32 Value;
 };
 
@@ -28,7 +28,7 @@ struct FTypedElementI32IntValueCacheColumn final : public FTypedElementDataStora
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(meta = (IgnoreForMemberInitializationTest))
 	int32 Value;
 };
 
@@ -40,6 +40,6 @@ struct FTypedElementFloatValueCacheColumn final : public FTypedElementDataStorag
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(meta = (IgnoreForMemberInitializationTest))
 	float Value;
 };

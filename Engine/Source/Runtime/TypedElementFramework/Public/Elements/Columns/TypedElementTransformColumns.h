@@ -21,6 +21,6 @@ struct FTypedElementLocalTransformColumn final : public FTypedElementDataStorage
 	// Transfrom will be updated the first and following ticks after it's creation. If this
 	// isn't initialized at the correct time, then the sync from source or the true initialization
 	// need to be moved to an earlier phase or group.
-	UPROPERTY()
+	UPROPERTY(meta = (IgnoreForMemberInitializationTest))
 	FTransform Transform { NoInit };
 };
