@@ -54,24 +54,12 @@ FNaniteMaterialFlags GetShadingBinMaterialFlags(uint BinIndex)
 
 #if SHADING_BIN_COUNT || SHADING_BIN_SCATTER
 
-[numthreads(8, 8, 1)]
-void ShadingBinBuildCS(uint ThreadIndex : SV_GroupIndex, uint2 GroupId : SV_GroupID, uint ThreadId : SV_GroupIndex)
+void BinShadingQuad(uint2 Coord)
 {
 	const uint ViewWidth  = ViewRect.z - ViewRect.x;
 	const uint ViewHeight = ViewRect.w - ViewRect.y;
 
-	uint2 Coord = GroupId.xy * 8u;
-
-#if 1
-	// [0 1][2 3] -> [0 1][4 5]
-	// [4 5][6 7] -> [2 3][6 7]
-	Coord.x += BitFieldInsertU32(BitFieldMaskU32(1u, 0u), ThreadIndex, BitFieldExtractU32(ThreadIndex, 3u, 2u));
-	Coord.y += BitFieldInsertU32(BitFieldMaskU32(2u, 0u), BitFieldExtractU32(ThreadIndex, 2u, 1u), BitFieldExtractU32(ThreadIndex, 3u, 3u));
-#else
-	Coord += Unflatten2D(ThreadIndex, uint2(8u, 8u));
-#endif
-
-	const uint2 QuadTLCoord = uint2(Coord.xy << 1u) + uint2(ViewRect.xy);
+	const uint2 QuadTLCoord = uint2(Coord << 1u) + uint2(ViewRect.xy);
 
 	// .x = TL, .y = TR, .z = BL, .w = BR
 	const uint2 QuadCoords[4] =
@@ -201,8 +189,6 @@ void ShadingBinBuildCS(uint ThreadIndex : SV_GroupIndex, uint2 GroupId : SV_Grou
 	}
 #endif
 
-	const uint LaneIndex = WaveGetLaneIndex();
-
 	// Create quad-lane mask of valid pixels to vote with (exclude non-Nanite or out of bounds).
 	uint VotingMask = PackQuadCoverage(ValidPixels);
 
@@ -297,6 +283,94 @@ void ShadingBinBuildCS(uint ThreadIndex : SV_GroupIndex, uint2 GroupId : SV_Grou
 	}
 }
 
+uint2 LinearToSwizzled(uint LinearIndex)
+{
+	// Just like pixel shaders, compute 2x2 CS quads from thread index so we can leverage the 4 lane cross bar.
+	// [0 1][2 3] -> [0 1][4 5]
+	// [4 5][6 7] -> [2 3][6 7]
+	const uint SwizzleX = BitFieldInsertU32(BitFieldMaskU32(1u, 0u), LinearIndex, BitFieldExtractU32(LinearIndex, 3u, 2u));
+	const uint SwizzleY = BitFieldInsertU32(BitFieldMaskU32(2u, 0u), BitFieldExtractU32(LinearIndex, 2u, 1u), BitFieldExtractU32(LinearIndex, 3u, 3u));
+	return uint2(SwizzleX, SwizzleY);
+}
+
+#if BINNING_TECHNIQUE == 2
+
+// Binning at 32x32 macro tile granularity (64x64 super tiles)
+[numthreads(32, 32, 1)]
+void ShadingBinBuildCS(uint ThreadIndex : SV_GroupIndex, uint2 GroupId : SV_GroupID)
+{
+	const uint2 MacroTileDim = uint2(32u, 32u);
+	const uint2 MicroTileDim = uint2( 8u,  8u);
+
+	// Compute the starting 2x2 quad location of the 32x32 macro tile
+	const uint2 MacroTileBase = GroupId * MacroTileDim * uint2(2u, 2u);
+
+	// Compute linear index of 8x8 micro tile
+	// 0...1023 -> 0...15
+	const uint MicroTileIndex = ThreadIndex >> 6u;
+
+	// Compute index within 8x8 micro tile
+	const uint TileQuad = ThreadIndex - (MicroTileIndex * MicroTileDim.x * MicroTileDim.y);
+
+	const uint2 MicroTileStart = LinearToSwizzled(MicroTileIndex) * MicroTileDim;
+	const uint2 BaseCoord = MicroTileStart + LinearToSwizzled(TileQuad);
+
+	// TL MacroTile
+	BinShadingQuad(MacroTileBase + uint2(0, 0) + BaseCoord);
+
+	// TR MacroTile
+	BinShadingQuad(MacroTileBase + uint2(MacroTileDim.x, 0) + BaseCoord);
+
+	// BL MacroTile
+	BinShadingQuad(MacroTileBase + uint2(0, MacroTileDim.y) + BaseCoord);
+
+	// BR MacroTile
+	BinShadingQuad(MacroTileBase + MacroTileDim + BaseCoord);
+}
+
+#elif BINNING_TECHNIQUE == 1
+
+// Binning at 32x32 macro tile granularity
+[numthreads(32, 32, 1)]
+void ShadingBinBuildCS(uint ThreadIndex : SV_GroupIndex, uint2 GroupId : SV_GroupID)
+{
+	const uint2 MacroTileDim = uint2(32u, 32u);
+	const uint2 MicroTileDim = uint2( 8u,  8u);
+
+	// Compute the starting 2x2 quad location of the 32x32 macro tile
+	const uint2 MacroTileStart = GroupId * MacroTileDim;
+
+	// Compute linear index of 8x8 micro tile
+	// 0...1023 -> 0...15
+	const uint MicroTileIndex = ThreadIndex >> 6u;
+
+	// Compute index within 8x8 micro tile
+	const uint TileQuad  = ThreadIndex - (MicroTileIndex * MicroTileDim.x * MicroTileDim.y);
+	
+	const uint2 MicroTileStart = LinearToSwizzled(MicroTileIndex) * MicroTileDim;
+	uint2 Coord = MacroTileStart + MicroTileStart + LinearToSwizzled(TileQuad);
+
+	BinShadingQuad(Coord);
+}
+
+#else
+
+[numthreads(8, 8, 1)]
+void ShadingBinBuildCS(uint ThreadIndex : SV_GroupIndex, uint2 GroupId : SV_GroupID)
+{
+	uint2 Coord = GroupId.xy * 8u;
+
+#if 1
+	Coord += LinearToSwizzled(ThreadIndex);
+#else
+	Coord += Unflatten2D(ThreadIndex, uint2(8u, 8u));
+#endif
+
+	BinShadingQuad(Coord);
+}
+
+#endif // BINNING_TECHNIQUE
+
 #elif SHADING_BIN_RESERVE
 
 #if GATHER_STATS
@@ -363,10 +437,10 @@ void ShadingBinReserveCS(uint ShadingBin : SV_DispatchThreadID)
 	#endif
 #endif // QUAD_BINNING
 
-		OutShadingBinArgs[ArgsOffset + 0] = (BinPixelCount + 63u) / 64u;	// ThreadGroupCountX
-		OutShadingBinArgs[ArgsOffset + 1] = 1;								// ThreadGroupCountY
-		OutShadingBinArgs[ArgsOffset + 2] = 1;								// ThreadGroupCountZ
-		OutShadingBinArgs[ArgsOffset + 3] = 0;								// padding
+		OutShadingBinArgs[ArgsOffset + 0] = DivideAndRoundUp(BinPixelCount, 64u);	// ThreadGroupCountX
+		OutShadingBinArgs[ArgsOffset + 1] = 1;										// ThreadGroupCountY
+		OutShadingBinArgs[ArgsOffset + 2] = 1;										// ThreadGroupCountZ
+		OutShadingBinArgs[ArgsOffset + 3] = 0;										// padding
 	}
 }
 

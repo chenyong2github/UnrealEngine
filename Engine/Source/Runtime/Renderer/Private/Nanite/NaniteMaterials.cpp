@@ -41,7 +41,16 @@ static FAutoConsoleVariableRef CVarNaniteComputeMaterials(
 );
 
 // TODO: Heavily work in progress / experimental - do not use!
-static int32 GNaniteSoftwareVRS = 0;
+static int32 GBinningTechnique = 2;
+static FAutoConsoleVariableRef CVarNaniteBinningTechnique(
+	TEXT("r.Nanite.BinningTechnique"),
+	GBinningTechnique,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+// TODO: Heavily work in progress / experimental - do not use!
+static int32 GNaniteSoftwareVRS = 1;
 static FAutoConsoleVariableRef CVarNaniteSoftwareVRS(
 	TEXT("r.Nanite.SoftwareVRS"),
 	GNaniteSoftwareVRS,
@@ -500,10 +509,11 @@ class FShadingBinBuildCS : public FNaniteGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FShadingBinBuildCS, FNaniteGlobalShader);
 
 	class FBuildPassDim : SHADER_PERMUTATION_SPARSE_INT("SHADING_BIN_PASS", NANITE_SHADING_BIN_COUNT, NANITE_SHADING_BIN_SCATTER);
+	class FTechniqueDim : SHADER_PERMUTATION_INT("BINNING_TECHNIQUE", 3);
 	class FGatherStatsDim : SHADER_PERMUTATION_BOOL("GATHER_STATS");
 	class FQuadBinningDim : SHADER_PERMUTATION_BOOL("QUAD_BINNING");
 	class FVariableRateDim : SHADER_PERMUTATION_BOOL("VARIABLE_SHADING_RATE");
-	using FPermutationDomain = TShaderPermutationDomain<FBuildPassDim, FGatherStatsDim, FQuadBinningDim, FVariableRateDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FBuildPassDim, FTechniqueDim, FGatherStatsDim, FQuadBinningDim, FVariableRateDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -3075,10 +3085,12 @@ FShadeBinning ShadeBinning(
 
 	const uint32 PixelCount = InViewRect.Width() * InViewRect.Height();
 
-	const int32 QuadWidth = FMath::DivideAndRoundUp(InViewRect.Width(), 2);
-	const int32 QuadHeight = FMath::DivideAndRoundUp(InViewRect.Height(), 2);
+	const int32 MacroTileLoops = GBinningTechnique == 2 ? 2 : 1; // 4x 32x32
+	const int32 QuadWidth = FMath::DivideAndRoundUp(InViewRect.Width(), 2 * MacroTileLoops);
+	const int32 QuadHeight = FMath::DivideAndRoundUp(InViewRect.Height(), 2 * MacroTileLoops);
 
-	const FIntVector  QuadDispatchDim = FComputeShaderUtils::GetGroupCount(FIntPoint(QuadWidth, QuadHeight), FIntPoint(8u, 8u));
+	const FIntPoint GroupDim = GBinningTechnique == 0 ? FIntPoint(8u, 8u) : FIntPoint(32u, 32u);
+	const FIntVector  QuadDispatchDim = FComputeShaderUtils::GetGroupCount(FIntPoint(QuadWidth, QuadHeight), GroupDim);
 	const FIntVector   BinDispatchDim = FComputeShaderUtils::GetGroupCount(ShadingBinCount, 64u);
 
 	FMetaBufferArray MetaBufferData;
@@ -3132,6 +3144,7 @@ FShadeBinning ShadeBinning(
 
 		FShadingBinBuildCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FShadingBinBuildCS::FBuildPassDim>(NANITE_SHADING_BIN_COUNT);
+		PermutationVector.Set<FShadingBinBuildCS::FTechniqueDim>(FMath::Clamp<int32>(GBinningTechnique, 0, 2));
 		PermutationVector.Set<FShadingBinBuildCS::FGatherStatsDim>(bGatherStats);
 		PermutationVector.Set<FShadingBinBuildCS::FQuadBinningDim>(bQuadBinning);
 		PermutationVector.Set<FShadingBinBuildCS::FVariableRateDim>(PassParameters->ShadingRateTileSize != 0u);
@@ -3191,6 +3204,7 @@ FShadeBinning ShadeBinning(
 
 		FShadingBinBuildCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FShadingBinBuildCS::FBuildPassDim>(NANITE_SHADING_BIN_SCATTER);
+		PermutationVector.Set<FShadingBinBuildCS::FTechniqueDim>(FMath::Clamp<int32>(GBinningTechnique, 0, 2));
 		PermutationVector.Set<FShadingBinBuildCS::FGatherStatsDim>(false);
 		PermutationVector.Set<FShadingBinBuildCS::FQuadBinningDim>(bQuadBinning);
 		PermutationVector.Set<FShadingBinBuildCS::FVariableRateDim>(PassParameters->ShadingRateTileSize != 0u);

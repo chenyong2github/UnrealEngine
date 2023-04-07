@@ -323,6 +323,7 @@ void MainCS(uint ThreadIndex : SV_GroupIndex, uint GroupID : SV_GroupID, uint3 G
 			const uint PixelStart = Nanite.ShadingBinMeta[ShadingBin].z;
 			FShadingPixel Pixel = UnpackShadingPixel(Nanite.ShadingBinData[PixelStart + PixelIndex]);
 			Quad.TopLeft = Pixel.PosXY;
+			PixelCopy = Pixel.Copy;
 		}
 	}
 
