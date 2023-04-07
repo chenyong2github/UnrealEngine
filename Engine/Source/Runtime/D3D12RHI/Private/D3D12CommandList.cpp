@@ -180,6 +180,15 @@ FD3D12CommandList::FD3D12CommandList(FD3D12CommandAllocator* CommandAllocator, F
 #if D3D12_MAX_COMMANDLIST_INTERFACE >= 6
 		Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.GraphicsCommandList6.GetInitReference()));
 #endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 7
+		Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.GraphicsCommandList7.GetInitReference()));
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 8
+		Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.GraphicsCommandList8.GetInitReference()));
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 9
+		Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.GraphicsCommandList9.GetInitReference()));
+#endif
 #if D3D12_PLATFORM_SUPPORTS_ASSERTRESOURCESTATES
 		Interfaces.CommandList->QueryInterface(IID_PPV_ARGS(Interfaces.DebugCommandList.GetInitReference()));
 #endif

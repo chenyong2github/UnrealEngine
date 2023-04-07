@@ -172,6 +172,18 @@ public:
 #if D3D12_MAX_DEVICE_INTERFACE >= 7
 	FORCEINLINE ID3D12Device7* GetD3DDevice7() { return RootDevice7; }
 #endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 8
+	FORCEINLINE ID3D12Device8* GetD3DDevice8() { return RootDevice8; }
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 9
+	FORCEINLINE ID3D12Device9* GetD3DDevice9() { return RootDevice9; }
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 10
+	FORCEINLINE ID3D12Device10* GetD3DDevice10() { return RootDevice10; }
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 11
+	FORCEINLINE ID3D12Device11* GetD3DDevice11() { return RootDevice11; }
+#endif
 
 	FORCEINLINE IDXGIFactory2* GetDXGIFactory2() const { return DxgiFactory2; }
 #if DXGI_MAX_FACTORY_INTERFACE >= 3
@@ -185,6 +197,9 @@ public:
 #endif
 #if DXGI_MAX_FACTORY_INTERFACE >= 6
 	FORCEINLINE IDXGIFactory6* GetDXGIFactory6() const { return DxgiFactory6; }
+#endif
+#if DXGI_MAX_FACTORY_INTERFACE >= 7
+	FORCEINLINE IDXGIFactory7* GetDXGIFactory7() const { return DxgiFactory7; }
 #endif
 
 	FORCEINLINE const bool IsDebugDevice() const { return bDebugDevice; }
@@ -484,6 +499,9 @@ protected:
 #if D3D12_MAX_DEVICE_INTERFACE >= 10
 	TRefCountPtr<ID3D12Device10> RootDevice10;
 #endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 11
+	TRefCountPtr<ID3D12Device11> RootDevice11;
+#endif
 
 	TRefCountPtr<IDXGIFactory2> DxgiFactory2;
 #if DXGI_MAX_FACTORY_INTERFACE >= 3
@@ -497,6 +515,9 @@ protected:
 #endif
 #if DXGI_MAX_FACTORY_INTERFACE >= 6
 	TRefCountPtr<IDXGIFactory6> DxgiFactory6;
+#endif
+#if DXGI_MAX_FACTORY_INTERFACE >= 7
+	TRefCountPtr<IDXGIFactory7> DxgiFactory7;
 #endif
 
 #if D3D12_SUPPORTS_DXGI_DEBUG

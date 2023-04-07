@@ -113,6 +113,15 @@ private:
 #if D3D12_MAX_COMMANDLIST_INTERFACE >= 6
 		TRefCountPtr<ID3D12GraphicsCommandList6> GraphicsCommandList6;
 #endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 7
+		TRefCountPtr<ID3D12GraphicsCommandList7> GraphicsCommandList7;
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 8
+		TRefCountPtr<ID3D12GraphicsCommandList8> GraphicsCommandList8;
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 9
+		TRefCountPtr<ID3D12GraphicsCommandList9> GraphicsCommandList9;
+#endif
 #if D3D12_PLATFORM_SUPPORTS_ASSERTRESOURCESTATES
 		TRefCountPtr<ID3D12DebugCommandList>     DebugCommandList;
 #endif
@@ -187,6 +196,15 @@ public:
 #endif
 #if D3D12_MAX_COMMANDLIST_INTERFACE >= 6
 	auto GraphicsCommandList6 () { return BuildRValuePtr(&FInterfaces::GraphicsCommandList6); }
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 7
+	auto GraphicsCommandList7 () { return BuildRValuePtr(&FInterfaces::GraphicsCommandList7); }
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 8
+	auto GraphicsCommandList8 () { return BuildRValuePtr(&FInterfaces::GraphicsCommandList8); }
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 9
+	auto GraphicsCommandList9 () { return BuildRValuePtr(&FInterfaces::GraphicsCommandList9); }
 #endif
 #if D3D12_PLATFORM_SUPPORTS_ASSERTRESOURCESTATES
 	auto DebugCommandList     () { return BuildRValuePtr(&FInterfaces::DebugCommandList    ); }

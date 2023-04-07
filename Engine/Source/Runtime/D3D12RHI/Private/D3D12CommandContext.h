@@ -283,26 +283,35 @@ public:
 	auto BaseCommandList      () { return GetCommandList().BaseCommandList(); }
 	auto CopyCommandList      () { return GetCommandList().CopyCommandList(); }
 	auto GraphicsCommandList  () { return GetCommandList().GraphicsCommandList(); }
-#if D3D12_MAX_COMMANDLIST_INTERFACE >= 1					    
-	auto GraphicsCommandList1 () { return GetCommandList().GraphicsCommandList1(); }
-#endif														    
-#if D3D12_MAX_COMMANDLIST_INTERFACE >= 2					    
-	auto GraphicsCommandList2 () { return GetCommandList().GraphicsCommandList2(); }
-#endif														    
-#if D3D12_MAX_COMMANDLIST_INTERFACE >= 3					    
-	auto GraphicsCommandList3 () { return GetCommandList().GraphicsCommandList3(); }
-#endif														    
-#if D3D12_MAX_COMMANDLIST_INTERFACE >= 4					    
-	auto GraphicsCommandList4 () { return GetCommandList().GraphicsCommandList4(); }
-#endif														    
-#if D3D12_MAX_COMMANDLIST_INTERFACE >= 5					    
-	auto GraphicsCommandList5 () { return GetCommandList().GraphicsCommandList5(); }
-#endif														    
-#if D3D12_MAX_COMMANDLIST_INTERFACE >= 6					    
-	auto GraphicsCommandList6 () { return GetCommandList().GraphicsCommandList6(); }
-#endif														    
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 1
+	auto GraphicsCommandList1() { return GetCommandList().GraphicsCommandList1(); }
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 2
+	auto GraphicsCommandList2() { return GetCommandList().GraphicsCommandList2(); }
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 3
+	auto GraphicsCommandList3() { return GetCommandList().GraphicsCommandList3(); }
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 4
+	auto GraphicsCommandList4() { return GetCommandList().GraphicsCommandList4(); }
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 5
+	auto GraphicsCommandList5() { return GetCommandList().GraphicsCommandList5(); }
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 6
+	auto GraphicsCommandList6() { return GetCommandList().GraphicsCommandList6(); }
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 7
+	auto GraphicsCommandList7() { return GetCommandList().GraphicsCommandList7(); }
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 8
+	auto GraphicsCommandList8() { return GetCommandList().GraphicsCommandList8(); }
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 9
+	auto GraphicsCommandList9() { return GetCommandList().GraphicsCommandList9(); }
+#endif
 #if D3D12_PLATFORM_SUPPORTS_ASSERTRESOURCESTATES			    
-	auto DebugCommandList     () { return GetCommandList().DebugCommandList(); }
+	auto DebugCommandList() { return GetCommandList().DebugCommandList(); }
 #endif
 #if D3D12_RHI_RAYTRACING
 	auto RayTracingCommandList() { return GetCommandList().RayTracingCommandList(); }

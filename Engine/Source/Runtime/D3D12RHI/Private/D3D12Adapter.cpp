@@ -928,6 +928,12 @@ void FD3D12Adapter::InitializeDevices()
 				UE_LOG(LogD3D12RHI, Log, TEXT("ID3D12Device10 is supported."));
 			}
 #endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 11
+			if (SUCCEEDED(RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice11.GetInitReference()))))
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("ID3D12Device11 is supported."));
+			}
+#endif
 
 			const bool bRenderDocPresent = D3D12RHI_IsRenderDocPresent(RootDevice);
 
@@ -1543,6 +1549,9 @@ void FD3D12Adapter::InitDXGIFactoryVariants(IDXGIFactory2* InDxgiFactory2)
 #endif
 #if DXGI_MAX_FACTORY_INTERFACE >= 6
 	InDxgiFactory2->QueryInterface(IID_PPV_ARGS(DxgiFactory6.GetInitReference()));
+#endif
+#if DXGI_MAX_FACTORY_INTERFACE >= 7
+	InDxgiFactory2->QueryInterface(IID_PPV_ARGS(DxgiFactory7.GetInitReference()));
 #endif
 }
 

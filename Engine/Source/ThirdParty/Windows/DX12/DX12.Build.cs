@@ -1,8 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using Microsoft.Extensions.Logging;
-using System;
 using System.IO;
 using System.Linq;
 using UnrealBuildTool;
@@ -20,8 +17,6 @@ public class DX12 : ModuleRules
 
 		if (bUsesWindowsD3D12)
 		{
-			Logger.LogDebug("Running DX12");
-
 			string[] AllD3DLibs = new string[]
 			{
 				"dxgi.lib",
@@ -77,11 +72,11 @@ public class DX12 : ModuleRules
 
 			PublicSystemIncludePaths.Add(DirectX.GetIncludeDir(Target));
 
-			PublicDefinitions.Add("D3D12_MAX_DEVICE_INTERFACE=10");
-			PublicDefinitions.Add("D3D12_MAX_COMMANDLIST_INTERFACE=6");
+			PublicDefinitions.Add("D3D12_MAX_DEVICE_INTERFACE=11");
+			PublicDefinitions.Add("D3D12_MAX_COMMANDLIST_INTERFACE=9");
 			PublicDefinitions.Add("D3D12_SUPPORTS_INFO_QUEUE=1");
 			PublicDefinitions.Add("D3D12_SUPPORTS_DXGI_DEBUG=1");
-			PublicDefinitions.Add("DXGI_MAX_FACTORY_INTERFACE=6");
+			PublicDefinitions.Add("DXGI_MAX_FACTORY_INTERFACE=7");
 			PublicDefinitions.Add("DXGI_MAX_SWAPCHAIN_INTERFACE=4");
 
 			// DX12 extensions, not part of SDK
