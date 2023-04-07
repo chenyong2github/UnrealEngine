@@ -1037,6 +1037,30 @@ namespace Chaos
 		return ActivatedBodies;
 	}
 
+	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::ReleaseChildrenParticleAndParents"), ReleaseChildrenParticleAndParents, STATGROUP_Chaos);
+	void FRigidClustering::ForceReleaseChildParticleAndParents(FPBDRigidClusteredParticleHandle* ChildClusteredParticle, bool bTriggerBreakEvents)
+	{
+		SCOPE_CYCLE_COUNTER(ReleaseChildrenParticleAndParents);
+
+		if (ChildClusteredParticle)
+		{
+			// make sure we set unbreakable to false so that the children can be released
+			ChildClusteredParticle->SetUnbreakable(false);
+			if (ChildClusteredParticle->Disabled())
+			{
+				// first release any parent if any
+				if (FPBDRigidClusteredParticleHandle* ParentCluster = ChildClusteredParticle->Parent())
+				{
+					// we need now to force parents to break
+					ForceReleaseChildParticleAndParents(ParentCluster, bTriggerBreakEvents);
+
+					SetExternalStrain(ChildClusteredParticle, TNumericLimits<FRealSingle>::Max());
+					ReleaseClusterParticles(ParentCluster, bTriggerBreakEvents);
+				}
+			}
+		}
+	}
+
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::AdvanceClustering"), STAT_AdvanceClustering, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::Update Impulse from Strain"), STAT_UpdateImpulseStrain, STATGROUP_Chaos);

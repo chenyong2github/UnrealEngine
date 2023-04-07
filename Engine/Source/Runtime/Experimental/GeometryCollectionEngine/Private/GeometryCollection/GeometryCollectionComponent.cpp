@@ -1629,7 +1629,8 @@ void UGeometryCollectionComponent::UpdateRepData()
 						//a one off so record it
 						ensureMsgf(TransformGroupIdx >= 0, TEXT("Non-internal cluster should always have a group index"));
 						ensureMsgf(TransformGroupIdx < TNumericLimits<uint16>::Max(), TEXT("Trying to replicate GC with more than 65k pieces. We assumed uint16 would suffice"));
-	
+						ensureMsgf(PhysicsProxy->GetParticles().IsValidIndex(TransformGroupIdx) && PhysicsProxy->GetParticles()[TransformGroupIdx] != nullptr, TEXT("Invalid particle index being replicated - Contact physics team"));
+
 						// Because we cull ClustersToRep with abandoned level, we must make sure we don't add duplicates to one off activated.
 						// TODO: avoid search for entry for perf
 						// TODO: once we support deep fracture we should be able to remove one offs clusters that are now disabled, reducing the amount to be replicated
@@ -1913,16 +1914,6 @@ bool UGeometryCollectionComponent::ProcessRepData(const float DeltaTime, const f
 		{
 			if (FPBDRigidClusteredParticleHandle* ClusterParticle = OneOff->CastToClustered())
 			{
-				// If there's a parent cluster particle we need to release them first.
-				// This is generally an indication that something desynced between the client and server though...maybe something needs to be done
-				// to ensure internal clusters stay in sync.
-				if (FPBDRigidClusteredParticleHandle* ParentParticle = ClusterParticle->Parent())
-				{
-					// server authoritative particles are unbreakable, we need to set them breakable again 
-					ParentParticle->SetUnbreakable(false);
-					RigidClustering.ReleaseClusterParticles(TArray<FPBDRigidParticleHandle*>{ ParentParticle }, true);
-				}
-
 				// Set initial velocities if not hard snapping
 				if (!bHardSnap)
 				{
@@ -1932,7 +1923,9 @@ bool UGeometryCollectionComponent::ProcessRepData(const float DeltaTime, const f
 					OneOff->SetW(ActivatedCluster.InitialAngularVelocity);
 				}
 
-				RigidClustering.ReleaseClusterParticles(TArray<FPBDRigidParticleHandle*>{ ClusterParticle }, true);
+				// OneOffActivated is not garanteed to be sorted by level, so we may need to release particles before their parent get released
+				// so we make sure the full parent chain is properly released as well 
+				RigidClustering.ForceReleaseChildParticleAndParents(ClusterParticle, /* bTriggerBreakEvents */true);
 			}
 		}
 	}

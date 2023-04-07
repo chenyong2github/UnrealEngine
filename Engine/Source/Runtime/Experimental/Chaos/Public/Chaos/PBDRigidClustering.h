@@ -151,6 +151,12 @@ public:
 	TSet<FPBDRigidParticleHandle*> ReleaseClusterParticles(
 		TArray<FPBDRigidParticleHandle*> ChildrenParticles, bool bTriggerBreakEvents = false);
 
+	/** 
+	* Force Release a particle at any level by making sure their parent particles are also release if necessary 
+	* @Warning this will force all particles including the ones in the parent chain to be made breakable 
+	*/
+	void ForceReleaseChildParticleAndParents(FPBDRigidClusteredParticleHandle* ChildClusteredParticle, bool bTriggerBreakEvents);
+
 	/*
 	*  DestroyClusterParticle
 	*    Disable the cluster particle and remove from all internal clustering
