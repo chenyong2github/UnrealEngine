@@ -5,7 +5,7 @@
 #include "LevelSequenceEditorSettings.generated.h"
 
 USTRUCT()
-struct FLevelSequencePropertyTrackSettings
+struct LEVELSEQUENCEEDITOR_API FLevelSequencePropertyTrackSettings
 {
 	GENERATED_BODY()
 
@@ -20,7 +20,7 @@ struct FLevelSequencePropertyTrackSettings
 
 
 USTRUCT()
-struct FLevelSequenceTrackSettings
+struct LEVELSEQUENCEEDITOR_API FLevelSequenceTrackSettings
 {
 	GENERATED_BODY()
 
@@ -50,7 +50,7 @@ struct FLevelSequenceTrackSettings
  * Level Sequence Editor settings.
  */
 UCLASS(config=EditorPerProjectUserSettings)
-class ULevelSequenceEditorSettings
+class LEVELSEQUENCEEDITOR_API ULevelSequenceEditorSettings
 	: public UObject
 {
 	GENERATED_BODY()
@@ -76,7 +76,7 @@ public:
  * Level Sequence With Shots Settings.
  */
 UCLASS(config=EditorPerProjectUserSettings)
-class ULevelSequenceWithShotsSettings
+class LEVELSEQUENCEEDITOR_API ULevelSequenceWithShotsSettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()
