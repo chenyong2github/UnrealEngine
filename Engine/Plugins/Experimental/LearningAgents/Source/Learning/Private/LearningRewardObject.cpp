@@ -308,10 +308,7 @@ namespace UE::Learning
 			Rewards[RewardIdx]->Evaluate(Instances);
 		}
 
-		for (const int32 InstanceIdx : Instances)
-		{
-			Reward[InstanceIdx] = 0.0f;
-		}
+		Array::Zero(Reward, Instances);
 
 		for (int32 RewardIdx = 0; RewardIdx < RewardNum; RewardIdx++)
 		{

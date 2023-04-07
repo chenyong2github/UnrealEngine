@@ -19,7 +19,7 @@
 
 namespace UE::Learning::Agents::Policy::Private
 {
-	static inline FString ArrayToString(const TLearningArrayView<1, const float> Array)
+	static inline FString FloatArrayToString(const TLearningArrayView<1, const float> Array)
 	{
 		const int32 ItemNum = Array.Num();
 		const int32 MaxItemNum = 32;
@@ -35,21 +35,18 @@ namespace UE::Learning::Agents::Policy::Private
 			{
 				Output += TEXT(" ");
 			}
-			else if (Idx == ItemNum - 1)
-			{
-				Output += TEXT("]");
-			}
 			else if (Idx == MaxItemNum - 1)
 			{
-				Output += TEXT("...]");
+				Output += TEXT("...");
 			}
 		}
 
+		Output += TEXT("]");
 
 		return Output;
 	}
 
-	static inline FString ArrayToStatsString(const TLearningArrayView<1, const float> Array)
+	static inline FString FloatArrayToStatsString(const TLearningArrayView<1, const float> Array)
 	{
 		const int32 ItemNum = Array.Num();
 
@@ -116,6 +113,7 @@ void ULearningAgentsPolicy::SetupPolicy(ULearningAgentsType* InAgentType, const 
 	UE::Learning::FNeuralNetworkPolicyFunctionSettings PolicyFunctionSettings;
 	PolicyFunctionSettings.ActionNoiseMin = PolicySettings.ActionNoiseMin;
 	PolicyFunctionSettings.ActionNoiseMax = PolicySettings.ActionNoiseMax;
+	PolicyFunctionSettings.ActionNoiseScale = PolicySettings.InitialActionNoiseScale;
 
 	PolicyObject = MakeShared<UE::Learning::FNeuralNetworkPolicyFunction>(
 		TEXT("PolicyObject"),
@@ -125,15 +123,7 @@ void ULearningAgentsPolicy::SetupPolicy(ULearningAgentsType* InAgentType, const 
 		PolicySettings.ActionNoiseSeed,
 		PolicyFunctionSettings);
 
-	if (AgentType->GetInstanceData()->HasLink(AgentType->GetActionFeature().FeatureHandle))
-	{
-		UE_LOG(LogLearning, Warning, TEXT("AgentType actions are already linked to a difference policy."));
-	}
-	else
-	{
-		AgentType->GetInstanceData()->Link(AgentType->GetObservationFeature().FeatureHandle, PolicyObject->InputHandle);
-		AgentType->GetInstanceData()->Link(PolicyObject->OutputHandle, AgentType->GetActionFeature().FeatureHandle);
-	}
+	AgentType->GetInstanceData()->Link(AgentType->GetObservationFeature().FeatureHandle, PolicyObject->InputHandle);
 
 	// Done!
 	bPolicySetupPerformed = true;
@@ -342,9 +332,56 @@ void ULearningAgentsPolicy::EvaluatePolicy()
 
 	PolicyObject->Evaluate(SelectedAgentIds);
 
+	// Copy the actions computed by the policy into the agent-type's feature buffer.
+	// 
+	// Normally we would just link these two handles, but in this case we want to allow
+	// for multiple difference policies to be used for different agents, so that means
+	// there may be multiple writers to the action feature vector handle and so therefore
+	// the handles cannot be linked and we need to do the copy manually
+	UE::Learning::Array::Copy(
+		PolicyObject->InstanceData->View(AgentType->GetActionFeature().FeatureHandle),
+		PolicyObject->InstanceData->ConstView(PolicyObject->OutputHandle),
+		SelectedAgentIds);
+
 #if ENABLE_VISUAL_LOG
 	VisualLog(SelectedAgentIds);
 #endif
+}
+
+float ULearningAgentsPolicy::GetAgentActionNoiseScale(const int32 AgentId) const
+{
+	if (!IsPolicySetupPerformed())
+	{
+		UE_LOG(LogLearning, Error, TEXT("Setup must be run before getting the action noise."));
+		return 0.0f;
+	}
+
+	if (!SelectedAgentsSet.Contains(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("Unable to get action noise for agent - AgentId %d not found in the added agents set."), AgentId);
+		return 0.0f;
+	}
+
+	const TLearningArrayView<1, const float> ActionNoiseScaleView = PolicyObject->InstanceData->ConstView(PolicyObject->ActionNoiseScaleHandle);
+	return ActionNoiseScaleView[AgentId];
+}
+
+void ULearningAgentsPolicy::SetAgentActionNoiseScale(const int32 AgentId, const float ActionNoiseScale)
+{
+	if (!IsPolicySetupPerformed())
+	{
+		UE_LOG(LogLearning, Error, TEXT("Setup must be run before setting the action noise."));
+		return;
+	}
+
+	if (!SelectedAgentsSet.Contains(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("Unable to set action noise for agent - AgentId %d not found in the added agents set."), AgentId);
+		return;
+	}
+
+	const TLearningArrayView<1, float> ActionNoiseScaleView = PolicyObject->InstanceData->View(PolicyObject->ActionNoiseScaleHandle);
+	ActionNoiseScaleView[AgentId] = ActionNoiseScale;
 }
 
 #if ENABLE_VISUAL_LOG
@@ -362,12 +399,12 @@ void ULearningAgentsPolicy::VisualLog(const UE::Learning::FIndexSet Instances) c
 	{
 		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
 		{
-			const FString InputArrayString = UE::Learning::Agents::Policy::Private::ArrayToString(InputView[Instance]);
-			const FString OutputArrayString = UE::Learning::Agents::Policy::Private::ArrayToString(OutputView[Instance]);
-			const FString OutputMeanArrayString = UE::Learning::Agents::Policy::Private::ArrayToString(OutputMeanView[Instance]);
-			const FString OutputStdArrayString = UE::Learning::Agents::Policy::Private::ArrayToString(OutputStdView[Instance]);
-			const FString InputStatsString = UE::Learning::Agents::Policy::Private::ArrayToStatsString(InputView[Instance]);
-			const FString OutputStatsString = UE::Learning::Agents::Policy::Private::ArrayToStatsString(OutputView[Instance]);
+			const FString InputArrayString = UE::Learning::Agents::Policy::Private::FloatArrayToString(InputView[Instance]);
+			const FString OutputArrayString = UE::Learning::Agents::Policy::Private::FloatArrayToString(OutputView[Instance]);
+			const FString OutputMeanArrayString = UE::Learning::Agents::Policy::Private::FloatArrayToString(OutputMeanView[Instance]);
+			const FString OutputStdArrayString = UE::Learning::Agents::Policy::Private::FloatArrayToString(OutputStdView[Instance]);
+			const FString InputStatsString = UE::Learning::Agents::Policy::Private::FloatArrayToStatsString(InputView[Instance]);
+			const FString OutputStatsString = UE::Learning::Agents::Policy::Private::FloatArrayToStatsString(OutputView[Instance]);
 
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
 				Actor->GetActorLocation(),

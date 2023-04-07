@@ -79,7 +79,7 @@
 #define UE_LEARNING_CHECKF(...)
 #endif
 
-#define UE_LEARNING_NOT_IMPLEMENTED() UE_LEARNING_CHECKF(false, TEXT("Not Implemented!"))
+#define UE_LEARNING_NOT_IMPLEMENTED() checkf(false, TEXT("Not Implemented!"))
 
 #if UE_LEARNING_ARRAY_CHECK_SHAPE == 1
 #define UE_LEARNING_ARRAY_SHAPE_CHECK(Expr) check(Expr)

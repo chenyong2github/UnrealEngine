@@ -53,7 +53,7 @@ namespace UE::Learning::SharedMemoryTraining
 		const float SleepTime = 0.001f;
 		float WaitTime = 0.0f;
 
-		// Wait until the Policy is done being written by the sub-process
+		// Wait until the policy is done being written by the sub-process
 		while (!Controls[(uint8)EControls::PolicySignal])
 		{
 			// Check if Completed Signal has been raised
@@ -101,7 +101,7 @@ namespace UE::Learning::SharedMemoryTraining
 		const float SleepTime = 0.001f;
 		float WaitTime = 0.0f;
 
-		// Wait until the Critic is done being written by the sub-process
+		// Wait until the critic is done being written by the sub-process
 		while (!Controls[(uint8)EControls::CriticSignal])
 		{
 			FPlatformProcess::Sleep(SleepTime);
@@ -118,7 +118,7 @@ namespace UE::Learning::SharedMemoryTraining
 			UE_LOG(LogLearning, Display, TEXT("Pulling Critic..."));
 		}
 
-		// Read the policy
+		// Read the critic
 		{
 			FScopeNullableWriteLock ScopeLock(NetworkLock);
 			OutNetwork.DeserializeFromBytes(Critic);
@@ -141,7 +141,7 @@ namespace UE::Learning::SharedMemoryTraining
 		const float SleepTime = 0.001f;
 		float WaitTime = 0.0f;
 
-		// Wait until the Policy is requested by the sub-process
+		// Wait until the policy is requested by the sub-process
 		while (!Controls[(uint8)EControls::PolicySignal])
 		{
 			FPlatformProcess::Sleep(SleepTime);
@@ -181,7 +181,7 @@ namespace UE::Learning::SharedMemoryTraining
 		const float SleepTime = 0.001f;
 		float WaitTime = 0.0f;
 
-		// Wait until the Critic is requested by the sub-process
+		// Wait until the critic is requested by the sub-process
 		while (!Controls[(uint8)EControls::CriticSignal])
 		{
 			FPlatformProcess::Sleep(SleepTime);
@@ -247,17 +247,13 @@ namespace UE::Learning::SharedMemoryTraining
 		const int32 StepNum = ReplayBuffer.GetStepNum();
 
 		// Write experience to the shared memory
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(Learning::SharedMemoryTraining::SendExperience::Copy);
-
-			Array::Copy(EpisodeStarts.Slice(0, EpisodeNum), ReplayBuffer.GetEpisodeStarts());
-			Array::Copy(EpisodeLengths.Slice(0, EpisodeNum), ReplayBuffer.GetEpisodeLengths());
-			Array::Copy(EpisodeCompletionModes.Slice(0, EpisodeNum), ReplayBuffer.GetEpisodeCompletionModes());
-			Array::Copy(EpisodeFinalObservations.Slice(0, EpisodeNum), ReplayBuffer.GetEpisodeFinalObservations());
-			Array::Copy(Observations.Slice(0, StepNum), ReplayBuffer.GetObservations());
-			Array::Copy(Actions.Slice(0, StepNum), ReplayBuffer.GetActions());
-			Array::Copy(Rewards.Slice(0, StepNum), ReplayBuffer.GetRewards());
-		}
+		Array::Copy(EpisodeStarts.Slice(0, EpisodeNum), ReplayBuffer.GetEpisodeStarts());
+		Array::Copy(EpisodeLengths.Slice(0, EpisodeNum), ReplayBuffer.GetEpisodeLengths());
+		Array::Copy(EpisodeCompletionModes.Slice(0, EpisodeNum), ReplayBuffer.GetEpisodeCompletionModes());
+		Array::Copy(EpisodeFinalObservations.Slice(0, EpisodeNum), ReplayBuffer.GetEpisodeFinalObservations());
+		Array::Copy(Observations.Slice(0, StepNum), ReplayBuffer.GetObservations());
+		Array::Copy(Actions.Slice(0, StepNum), ReplayBuffer.GetActions());
+		Array::Copy(Rewards.Slice(0, StepNum), ReplayBuffer.GetRewards());
 
 		// Indicate that experience is written
 		Controls[(uint8)EControls::ExperienceEpisodeNum] = EpisodeNum;
@@ -299,12 +295,8 @@ namespace UE::Learning::SharedMemoryTraining
 		const int32 StepNum = ObservationExperience.Num(0);
 
 		// Write experience to the shared memory
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(Learning::SharedMemoryTraining::SendExperience::Copy);
-
-			Array::Copy(Observations.Slice(0, StepNum), ObservationExperience);
-			Array::Copy(Actions.Slice(0, StepNum), ActionExperience);
-		}
+		Array::Copy(Observations.Slice(0, StepNum), ObservationExperience);
+		Array::Copy(Actions.Slice(0, StepNum), ActionExperience);
 
 		// Confirm that experience is written
 		Controls[(uint8)EControls::ExperienceStepNum] = StepNum;

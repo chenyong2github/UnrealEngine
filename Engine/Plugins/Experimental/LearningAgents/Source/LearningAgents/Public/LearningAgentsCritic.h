@@ -136,6 +136,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void EvaluateCritic();
 
+	/**
+	* Gets an estimate of the average discounted return expected by an agent according to the critic. I.E. the total
+	* sum of future rewards, scaled by the discount factor that was used during training. This value can be useful if 
+	* you want to make some decision based on how well the agent thinks they are doing at achieving their task. This 
+	* should be called after EvaluateCritic.
+	* 
+	* @param AgentId	The AgentId to look-up the estimated discounted return for
+	* @returns			The estimated average discounted return according to the critic
+	*/
+	UFUNCTION(BlueprintPure, Category = "LearningAgents")
+	float GetEstimatedDiscountedReturn(const int32 AgentId) const;
+
 // ----- Non-blueprint public interface -----
 public:
 

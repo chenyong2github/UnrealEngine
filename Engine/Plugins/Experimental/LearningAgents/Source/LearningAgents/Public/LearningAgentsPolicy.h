@@ -40,6 +40,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", UIMin = "0.0"))
 	float ActionNoiseMax = 0.25f;
 
+	/** Initial scale of the action noise used by the policy. Should be 1.0 for agents participating in training. */
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	float InitialActionNoiseScale = 1.0f;
+
 	/** Total layers for policy network including input, hidden, and output layers */
 	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "2", UIMin = "2"))
 	int32 LayerNum = 3;
@@ -148,6 +152,27 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void EvaluatePolicy();
+
+	/**
+	* Get the action noise scale used by an agent.
+	*
+	* @param AgentId			The AgentId to get the action noise scale for.
+	* @return					Action noise scale for that agent.
+	*/
+	UFUNCTION(BlueprintPure, Category = "LearningAgents")
+	float GetAgentActionNoiseScale(const int32 AgentId) const;
+
+	/**
+	* Set the action noise scale used by an agent. This can be useful if you have certain
+	* agents that are participating in training (and so should have an action noise scale of 1.0)
+	* and certain agents which you are testing the inference for (and so will want action noise
+	* scale of 0.0)
+	*
+	* @param AgentId			The AgentId to set the action noise scale for.
+	* @param ActionNoiseScale	Action noise scale for that agent.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void SetAgentActionNoiseScale(const int32 AgentId, const float ActionNoiseScale);
 
 // ----- Non-blueprint public interface -----
 public:

@@ -19,7 +19,7 @@
 
 namespace UE::Learning::Agents::Critic::Private
 {
-	static inline FString ArrayToString(const TLearningArrayView<1, const float> Array)
+	static inline FString FloatArrayToString(const TLearningArrayView<1, const float> Array)
 	{
 		const int32 ItemNum = Array.Num();
 		const int32 MaxItemNum = 32;
@@ -35,21 +35,18 @@ namespace UE::Learning::Agents::Critic::Private
 			{
 				Output += TEXT(" ");
 			}
-			else if (Idx == ItemNum - 1)
-			{
-				Output += TEXT("]");
-			}
 			else if (Idx == MaxItemNum - 1)
 			{
-				Output += TEXT("...]");
+				Output += TEXT("...");
 			}
 		}
 
+		Output += TEXT("]");
 
 		return Output;
 	}
 
-	static inline FString ArrayToStatsString(const TLearningArrayView<1, const float> Array)
+	static inline FString FloatArrayToStatsString(const TLearningArrayView<1, const float> Array)
 	{
 		const int32 ItemNum = Array.Num();
 
@@ -326,11 +323,30 @@ void ULearningAgentsCritic::EvaluateCritic()
 		return;
 	}
 
-	CriticObject->Evaluate(SelectedAgentIds);
+	CriticObject->Evaluate(SelectedAgentsSet);
 
 #if ENABLE_VISUAL_LOG
-	VisualLog(SelectedAgentIds);
+	VisualLog(SelectedAgentsSet);
 #endif
+}
+
+float ULearningAgentsCritic::GetEstimatedDiscountedReturn(const int32 AgentId) const
+{
+	if (!IsCriticSetupPerformed())
+	{
+		UE_LOG(LogLearning, Error, TEXT("Setup must be run before the critic can get the estimated discounted return."));
+		return 0.0f;
+	}
+
+	if (!SelectedAgentsSet.Contains(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("Unable to get estimate for agent - AgentId %d not found in the added agents set."), AgentId);
+		return 0.0f;
+	}
+
+	const TLearningArrayView<1, const float> CriticOutputView = CriticObject->InstanceData->ConstView(CriticObject->OutputHandle);
+
+	return CriticOutputView[AgentId];
 }
 
 #if ENABLE_VISUAL_LOG
@@ -345,8 +361,8 @@ void ULearningAgentsCritic::VisualLog(const UE::Learning::FIndexSet Instances) c
 	{
 		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
 		{
-			const FString InputArrayString = UE::Learning::Agents::Critic::Private::ArrayToString(InputView[Instance]);
-			const FString InputStatsString = UE::Learning::Agents::Critic::Private::ArrayToStatsString(InputView[Instance]);
+			const FString InputArrayString = UE::Learning::Agents::Critic::Private::FloatArrayToString(InputView[Instance]);
+			const FString InputStatsString = UE::Learning::Agents::Critic::Private::FloatArrayToStatsString(InputView[Instance]);
 
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
 				Actor->GetActorLocation(),
