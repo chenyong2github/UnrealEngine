@@ -916,8 +916,14 @@ namespace TypedElementQueryBuilder
 			Query.Callback.Type = ITypedElementDataStorageInterface::EQueryCallbackType::Processor;
 			Query.Callback.Phase = Processor.Phase;
 			Query.Callback.Group = Processor.Group;
-			Query.Callback.BeforeGroup = Processor.BeforeGroup;
-			Query.Callback.AfterGroup = Processor.AfterGroup;
+			if (!Processor.BeforeGroup.IsNone())
+			{
+				Query.Callback.BeforeGroups.Add(Processor.BeforeGroup);
+			}
+			if (!Processor.AfterGroup.IsNone())
+			{
+				Query.Callback.AfterGroups.Add(Processor.AfterGroup);
+			}
 			Query.Callback.bForceToGameThread = Processor.bForceToGameThread;
 		}
 
@@ -934,6 +940,21 @@ namespace TypedElementQueryBuilder
 			}
 			Query.Callback.MonitoredType = Observer.Monitor;
 			Query.Callback.bForceToGameThread = Observer.bForceToGameThread;
+		}
+
+		inline void PrepareForQueryBinding(QueryDescription& Query, const FPhaseAmble& PhaseAmble)
+		{
+			switch (PhaseAmble.Location)
+			{
+			case FPhaseAmble::ELocation::Preamble:
+				Query.Callback.Type = ITypedElementDataStorageInterface::EQueryCallbackType::PhasePreparation;
+				break;
+			case FPhaseAmble::ELocation::Postamble:
+				Query.Callback.Type = ITypedElementDataStorageInterface::EQueryCallbackType::PhaseFinalization;
+				break;
+			}
+			Query.Callback.Phase = PhaseAmble.Phase;
+			Query.Callback.bForceToGameThread = PhaseAmble.bForceToGameThread;
 		}
 		
 		template<typename CallbackType, typename Function>

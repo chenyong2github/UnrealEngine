@@ -14,6 +14,7 @@
 #include "TypedElementDatabase.generated.h"
 
 struct FMassEntityManager;
+struct FMassProcessingPhaseManager;
 class UWorld;
 
 struct FTypedElementDatabaseExtendedQuery
@@ -64,6 +65,9 @@ public:
 		TConstArrayView<TypedElement::ColumnUtils::Argument> Arguments) override;
 	ColumnDataResult GetColumnData(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName) override;
 
+	void RegisterTickGroup(FName GroupName, EQueryTickPhase Phase, FName BeforeGroup, FName AfterGroup, bool bRequiresMainThread);
+	void UnregisterTickGroup(FName GroupName, EQueryTickPhase Phase);
+
 	TypedElementQueryHandle RegisterQuery(FQueryDescription&& Query) override;
 	void UnregisterQuery(TypedElementQueryHandle Query) override;
 	const FQueryDescription& GetQueryDescription(TypedElementQueryHandle Query) const override;
@@ -78,22 +82,41 @@ public:
 private:
 	using QueryStore = TTypedElementHandleStore<FTypedElementDatabaseExtendedQuery>;
 
+	struct FTickGroupId
+	{
+		FName Name;
+		EQueryTickPhase Phase;
+
+		friend inline uint32 GetTypeHash(const FTickGroupId& Id){ return HashCombine(GetTypeHash(Id.Name), GetTypeHash(Id.Phase)); }
+		friend inline bool operator==(const FTickGroupId& Lhs, const FTickGroupId& Rhs) { return Lhs.Phase == Rhs.Phase && Lhs.Name == Rhs.Name; }
+		friend inline bool operator!=(const FTickGroupId& Lhs, const FTickGroupId& Rhs) { return Lhs.Phase != Rhs.Phase || Lhs.Name != Rhs.Name; }
+	};
+
+	struct FTickGroupDescription
+	{
+		TArray<FName> BeforeGroups;
+		TArray<FName> AfterGroups;
+		bool bRequiresMainThread{ false };
+	};
+	
+	void PreparePhase(EQueryTickPhase Phase, float DeltaTime);
+	void FinalizePhase(EQueryTickPhase Phase, float DeltaTime);
+	void PhasePreOrPostAmble(EQueryTickPhase Phase, float DeltaTime, TArray<TypedElementQueryHandle>& Queries);
 	void Reset();
 	
-	static const FName TickGroupName_PrepareSyncWorldToMass;
-	static const FName TickGroupName_FinalizeSyncWorldToMass;
-	static const FName TickGroupName_PrepareSyncMassToExternal;
-	static const FName TickGroupName_FinalizeSyncMassToExternal;
-	static const FName TickGroupName_PrepareSyncWidget;
 	static const FName TickGroupName_SyncWidget;
-	static const FName TickGroupName_FinalizeSyncWidget;
 	
 	TArray<FMassArchetypeHandle> Tables;
 	TMap<FName, TypedElementTableHandle> TableNameLookup;
+	TMap<FTickGroupId, FTickGroupDescription> TickGroupDescriptions;
+
+	TArray<TypedElementQueryHandle> PhasePreparationQueries[static_cast<std::underlying_type_t<EQueryTickPhase>>(EQueryTickPhase::Max)];
+	TArray<TypedElementQueryHandle> PhaseFinalizationQueries[static_cast<std::underlying_type_t<EQueryTickPhase>>(EQueryTickPhase::Max)];
 
 	QueryStore Queries;
 
 	FTypedElementOnDataStorageUpdate OnUpdateDelegate;
 
 	TSharedPtr<FMassEntityManager> ActiveEditorEntityManager;
+	TSharedPtr<FMassProcessingPhaseManager> ActiveEditorPhaseManager;
 };

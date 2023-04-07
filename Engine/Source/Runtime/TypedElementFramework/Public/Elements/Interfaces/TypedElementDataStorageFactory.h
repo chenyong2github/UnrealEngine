@@ -19,6 +19,8 @@ class TYPEDELEMENTFRAMEWORK_API UTypedElementDataStorageFactory : public UObject
 public:
 	~UTypedElementDataStorageFactory() override = default;
 
+	virtual void RegisterTables(ITypedElementDataStorageInterface& DataStorage) const {}
+	virtual void RegisterTickGroups(ITypedElementDataStorageInterface& DataStorage) const {}
 	virtual void RegisterQueries(ITypedElementDataStorageInterface& DataStorage) const {}
 	virtual void RegisterWidgetConstructor(ITypedElementDataStorageInterface& DataStorage,
 		ITypedElementDataStorageUiInterface& DataStorageUi) const {}

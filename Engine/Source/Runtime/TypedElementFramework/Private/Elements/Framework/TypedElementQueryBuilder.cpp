@@ -223,6 +223,33 @@ namespace TypedElementQueryBuilder
 	}
 
 
+	/**
+	 * FPhaseAmble
+	 */
+
+	FPhaseAmble::FPhaseAmble(ELocation InLocation, ITypedElementDataStorageInterface::EQueryTickPhase InPhase)
+		: Phase(InPhase)
+		, Location(InLocation)
+	{}
+
+	FPhaseAmble& FPhaseAmble::SetLocation(ELocation NewLocation)
+	{
+		Location = NewLocation;
+		return *this;
+	}
+
+	FPhaseAmble& FPhaseAmble::SetPhase(ITypedElementDataStorageInterface::EQueryTickPhase NewPhase)
+	{
+		Phase = NewPhase;
+		return *this;
+	}
+
+	FPhaseAmble& FPhaseAmble::ForceToGameThread(bool bForce)
+	{
+		bForceToGameThread = bForce;
+		return *this;
+	}
+
 
 	/**
 	 * Select

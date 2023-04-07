@@ -19,7 +19,7 @@ void UTypedElementSlateWidgetReferenceColumnUpdateFactory::RegisterDeleteRowOnWi
 	DataStorage.RegisterQuery(
 		Select(
 			TEXT("Delete row with deleted widget"),
-			FProcessor(DSI::EQueryTickPhase::FrameEnd, DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::PrepareSyncWidgets)).ForceToGameThread(true),
+			FPhaseAmble(FPhaseAmble::ELocation::Preamble, DSI::EQueryTickPhase::FrameEnd),
 			[](DSI::IQueryContext& Context, TypedElementRowHandle Row, const FTypedElementSlateWidgetReferenceColumn& WidgetReference)
 			{
 				if (!WidgetReference.Widget.IsValid())
@@ -42,7 +42,7 @@ void UTypedElementSlateWidgetReferenceColumnUpdateFactory::RegisterDeleteColumnO
 	DataStorage.RegisterQuery(
 		Select(
 			TEXT("Delete widget column for deleted widget"),
-			FProcessor(DSI::EQueryTickPhase::FrameEnd, DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::PrepareSyncWidgets)).ForceToGameThread(true),
+			FPhaseAmble(FPhaseAmble::ELocation::Preamble, DSI::EQueryTickPhase::FrameEnd),
 			[](DSI::IQueryContext& Context, TypedElementRowHandle Row, const FTypedElementSlateWidgetReferenceColumn& WidgetReference)
 			{
 				if (!WidgetReference.Widget.IsValid())

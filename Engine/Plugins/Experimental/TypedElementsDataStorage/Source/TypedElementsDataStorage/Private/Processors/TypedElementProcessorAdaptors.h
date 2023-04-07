@@ -2,7 +2,9 @@
 
 #pragma once
 
+#include "Containers/ArrayView.h"
 #include "Elements/Interfaces/TypedElementDataStorageInterface.h"
+#include "MassExecutionContext.h"
 #include "MassObserverProcessor.h"
 #include "MassProcessor.h"
 #include "UObject/ObjectMacros.h"
@@ -10,6 +12,17 @@
 #include "TypedElementProcessorAdaptors.generated.h"
 
 struct FTypedElementDatabaseExtendedQuery;
+
+struct FPhasePreOrPostAmbleExecutor
+{
+	FPhasePreOrPostAmbleExecutor(FMassEntityManager& EntityManager, float DeltaTime);
+	~FPhasePreOrPostAmbleExecutor();
+
+	void ExecuteQuery(ITypedElementDataStorageInterface::FQueryDescription& Description, FMassEntityQuery& NativeQuery,
+		ITypedElementDataStorageInterface::QueryCallbackRef Callback);
+
+	FMassExecutionContext Context;
+};
 
 USTRUCT()
 struct FTypedElementQueryProcessorData
@@ -19,7 +32,7 @@ struct FTypedElementQueryProcessorData
 	FTypedElementQueryProcessorData() = default;
 	explicit FTypedElementQueryProcessorData(UMassProcessor& Owner);
 
-	EMassProcessingPhase MapToMassProcessingPhase(ITypedElementDataStorageInterface::EQueryTickPhase Phase) const;
+	static EMassProcessingPhase MapToMassProcessingPhase(ITypedElementDataStorageInterface::EQueryTickPhase Phase);
 	FString GetProcessorName() const;
 
 	static ITypedElementDataStorageInterface::FQueryResult Execute(
@@ -29,12 +42,11 @@ struct FTypedElementQueryProcessorData
 		FMassEntityManager& EntityManager);
 	void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context);
 
+	static bool PrepareCachedDependenciesOnQuery(
+		ITypedElementDataStorageInterface::FQueryDescription& Description, FMassExecutionContext& Context);
+
 	FTypedElementDatabaseExtendedQuery* ParentQuery{ nullptr };
 	FMassEntityQuery Query;
-
-private:
-	static bool PrepareCachedDependenciesOnParentQuery(
-		ITypedElementDataStorageInterface::FQueryDescription& Description, FMassExecutionContext& Context);
 };
 
 /**

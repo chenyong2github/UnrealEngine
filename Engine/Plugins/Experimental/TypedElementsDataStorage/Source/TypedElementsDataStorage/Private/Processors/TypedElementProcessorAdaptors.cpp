@@ -269,6 +269,38 @@ struct FMassDirectContextForwarder final : public ITypedElementDataStorageInterf
 };
 
 
+
+/**
+ * FPhasePreOrPostAmbleExecutor
+ */
+FPhasePreOrPostAmbleExecutor::FPhasePreOrPostAmbleExecutor(FMassEntityManager& EntityManager, float DeltaTime)
+	: Context(EntityManager, DeltaTime)
+{
+	Context.SetDeferredCommandBuffer(MakeShared<FMassCommandBuffer>());
+}
+
+FPhasePreOrPostAmbleExecutor::~FPhasePreOrPostAmbleExecutor()
+{
+	Context.FlushDeferred();
+}
+
+void FPhasePreOrPostAmbleExecutor::ExecuteQuery(ITypedElementDataStorageInterface::FQueryDescription& Description, FMassEntityQuery& NativeQuery,
+	ITypedElementDataStorageInterface::QueryCallbackRef Callback)
+{
+	NativeQuery.ForEachEntityChunk(Context.GetEntityManagerChecked(), Context,
+		[&Callback, &Description](FMassExecutionContext& ExecutionContext)
+		{
+			if (FTypedElementQueryProcessorData::PrepareCachedDependenciesOnQuery(Description, ExecutionContext))
+			{
+				FMassContextForwarder QueryContext(ExecutionContext);
+				Callback(Description, QueryContext);
+			}
+		}
+	);
+}
+
+
+
 /**
  * FTypedElementQueryProcessorData
  */
@@ -277,7 +309,7 @@ FTypedElementQueryProcessorData::FTypedElementQueryProcessorData(UMassProcessor&
 {
 }
 
-EMassProcessingPhase FTypedElementQueryProcessorData::MapToMassProcessingPhase(ITypedElementDataStorageInterface::EQueryTickPhase Phase) const
+EMassProcessingPhase FTypedElementQueryProcessorData::MapToMassProcessingPhase(ITypedElementDataStorageInterface::EQueryTickPhase Phase)
 {
 	switch(Phase)
 	{
@@ -300,7 +332,7 @@ FString FTypedElementQueryProcessorData::GetProcessorName() const
 	return ParentQuery ? ParentQuery->Description.Callback.Name.ToString() : FString(TEXT("<unnamed>"));
 }
 
-bool FTypedElementQueryProcessorData::PrepareCachedDependenciesOnParentQuery(
+bool FTypedElementQueryProcessorData::PrepareCachedDependenciesOnQuery(
 	ITypedElementDataStorageInterface::FQueryDescription& Description, FMassExecutionContext& Context)
 {
 	const int32 DependencyCount = Description.DependencyTypes.Num();
@@ -345,7 +377,7 @@ ITypedElementDataStorageInterface::FQueryResult FTypedElementQueryProcessorData:
 	NativeQuery.ForEachEntityChunk(EntityManager, Context,
 		[&Result, &Callback, &Description](FMassExecutionContext& Context)
 		{
-			if (PrepareCachedDependenciesOnParentQuery(Description, Context))
+			if (PrepareCachedDependenciesOnQuery(Description, Context))
 			{
 				FMassDirectContextForwarder QueryContext(Context);
 				Callback(Description, QueryContext);
@@ -368,7 +400,7 @@ void FTypedElementQueryProcessorData::Execute(FMassEntityManager& EntityManager,
 	Query.ForEachEntityChunk(EntityManager, Context,
 		[&Description](FMassExecutionContext& Context)
 		{
-			if (PrepareCachedDependenciesOnParentQuery(Description, Context))
+			if (PrepareCachedDependenciesOnQuery(Description, Context))
 			{
 				FMassContextForwarder QueryContext(Context);
 				Description.Callback.Function(Description, QueryContext);
@@ -402,14 +434,8 @@ void UTypedElementQueryProcessorCallbackAdapterProcessor::ConfigureQueryCallback
 	bRequiresGameThreadExecution = TargetParentQuery.Description.Callback.bForceToGameThread;
 	ExecutionFlags = static_cast<int32>(EProcessorExecutionFlags::Editor); 
 	ExecutionOrder.ExecuteInGroup = TargetParentQuery.Description.Callback.Group;
-	if (!TargetParentQuery.Description.Callback.BeforeGroup.IsNone())
-	{
-		ExecutionOrder.ExecuteBefore.Add(TargetParentQuery.Description.Callback.BeforeGroup);
-	}
-	if (!TargetParentQuery.Description.Callback.AfterGroup.IsNone())
-	{
-		ExecutionOrder.ExecuteAfter.Add(TargetParentQuery.Description.Callback.AfterGroup);
-	}
+	ExecutionOrder.ExecuteBefore = TargetParentQuery.Description.Callback.BeforeGroups;
+	ExecutionOrder.ExecuteAfter = TargetParentQuery.Description.Callback.AfterGroups;
 	ProcessingPhase = Data.MapToMassProcessingPhase(TargetParentQuery.Description.Callback.Phase);
 
 	Super::PostInitProperties();

@@ -187,7 +187,7 @@ namespace TypedElementQueryBuilder
 		};
 
 		template<typename ColumnType>
-		FObserver(EEvent MonitorForEvent);
+		explicit FObserver(EEvent MonitorForEvent);
 		FObserver(EEvent MonitorForEvent, const UScriptStruct* MonitoredColumn);
 
 		FObserver& SetEvent(EEvent MonitorForEvent);
@@ -198,6 +198,24 @@ namespace TypedElementQueryBuilder
 
 		const UScriptStruct* Monitor;
 		EEvent Event;
+		bool bForceToGameThread{ false };
+	};
+
+	struct TYPEDELEMENTFRAMEWORK_API FPhaseAmble final : public FQueryCallbackType
+	{
+		enum class ELocation : uint8
+		{
+			Preamble,
+			Postamble
+		};
+
+		FPhaseAmble(ELocation InLocation, ITypedElementDataStorageInterface::EQueryTickPhase InPhase);
+		FPhaseAmble& SetLocation(ELocation NewLocation);
+		FPhaseAmble& SetPhase(ITypedElementDataStorageInterface::EQueryTickPhase NewPhase);
+		FPhaseAmble& ForceToGameThread(bool bForce);
+
+		ITypedElementDataStorageInterface::EQueryTickPhase Phase;
+		ELocation Location;
 		bool bForceToGameThread{ false };
 	};
 

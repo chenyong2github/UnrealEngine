@@ -24,8 +24,7 @@ void UTypedElementActorTransformFactory::RegisterActorAddTransformColumn(ITypedE
 		Select(
 			TEXT("Add transform column to actor"),
 			FProcessor(DSI::EQueryTickPhase::PrePhysics, 
-				DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::PrepareSyncExternalToDataStorage))
-				.SetBeforeGroup(DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::SyncExternalToDataStorage))
+				DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::SyncExternalToDataStorage))
 				.ForceToGameThread(true),
 			[](DSI::IQueryContext& Context, TypedElementRowHandle Row, const FMassActorFragment& Actor)
 			{

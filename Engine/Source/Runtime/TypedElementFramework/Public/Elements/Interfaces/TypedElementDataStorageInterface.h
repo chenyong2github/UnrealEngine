@@ -154,7 +154,7 @@ public:
 		PostPhysics, //< Queries that need rigid body and cloth simulation to be completed before being executed.
 		FrameEnd, //< Catchall for queries demoted to the last possible moment.
 
-		MAX
+		Max //< Value indicating the maximum value in this enum. Not to be used as an enum value.
 	};
 
 	enum class EQueryTickGroups : uint8
@@ -162,40 +162,22 @@ public:
 		/** The standard group to run work in. */
 		Default,
 		
-		/**
-		 * Prepares to sync data from an external source to the Data Storage. This is typically used for preparing columns with
-		 * data that is needed to sync from external sources.
-		 */
-		PrepareSyncExternalToDataStorage,
 		/** 
 		 * The group for queries that need to sync data from external sources such as subsystems or the world into
 		 * the Data Storage. These typically run early in a phase.
 		 */
 		SyncExternalToDataStorage,
 		/**
-		 * Finalizes the steps to sync data from an external source to the Data Storage. This is typically needed for processing 
-		 * data with a dependency on external updates being completed.
-		 */
-		FinalizeSyncExternalToDataStorage,
-		
-		/** Prepares for data from the Data Storage to be synced to external sources such as subsystem or the world. */
-		PrepareSyncDataStorageToExternal,
-		/**
 		 * The group for quries that need to sync data from the Data Storage to external sources such as subsystems
 		 * or the world into. These typically run late in a phase.
 		 */
 		SyncDataStorageToExternal,
-		/** Finalizes the sync of data from the Data Storage to external sources such as subsystem or the world. */
-		FinalizeSyncDataStorageToExternal,
-
-		/** Prepares for widgets getting synced to/from widgets. */
-		PrepareSyncWidgets,
 		/**
 		 * Queries grouped under this name will sync data to/from widgets.
 		 */
 		SyncWidgets,
-		/** Finalize for widgets getting synced to/from widgets. */
-		FinalizeSyncWidgets
+
+		Max //< Value indicating the maximum value in this enum. Not to be used as an enum value.
 	};
 
 	enum class EQueryCallbackType : uint8
@@ -207,7 +189,22 @@ public:
 		/** The query will be run when a row is added that matches the query. The first recorded column will be actively monitored for changes. */
 		ObserveAdd,
 		/** The query will be run when a row is removed that matches the query. The first recorded column will be actively monitored for changes. */
-		ObserveRemove
+		ObserveRemove,
+		/** 
+		 * At the start of the assigned phase this query will run if there are any matches. These queries will have any deferred operations such as
+		 * adding/removing rows/columns executed before the phase starts. This introduces sync points that hinder performance and are therefore
+		 * recommended only for queries that save on work later in the phase such as repeated checks for validity.
+		 */
+		PhasePreparation,
+		/**
+		 * At the end of the assigned phase this query will run if there are any matches. These queries will have any deferred operations such as
+		 * adding/removing rows/columns executed before the phase ends. This introduces sync points that hinder performance and are therefore
+		 * recommended only cases where delaying deferred operations is not possible e.g. when tables are known to be referenced outside the update
+		 * cycle.
+		 */
+		 PhaseFinalization,
+
+		 Max //< Value indicating the maximum value in this enum. Not to be used as an enum value.
 	};
 
 	enum class EQueryAccessType : bool
@@ -341,6 +338,7 @@ public:
 
 	struct FQueryDescription;
 	using QueryCallback = TFunction<void(const FQueryDescription&, IQueryContext&)>;
+	using QueryCallbackRef = TFunctionRef<void(const FQueryDescription&, IQueryContext&)>;
 	using DirectQueryCallbackRef = TFunctionRef<void(const FQueryDescription&, IDirectQueryContext&)>;
 
 	struct FQueryDescription final
@@ -348,25 +346,30 @@ public:
 		static constexpr int32 NumInlineSelections = 8;
 		static constexpr int32 NumInlineConditions = 8;
 		static constexpr int32 NumInlineDependencies = 2;
+		static constexpr int32 NumInlineGroups = 2;
 
 		enum class EActionType : uint8
 		{
-			None,	/** Do nothing. */
-			Select,	/** Selects a set of columns for further processing. */
-			Count	/** Counts the number of entries that match the filter condition. */
+			None,	//< Do nothing.
+			Select,	//< Selects a set of columns for further processing.
+			Count,	//< Counts the number of entries that match the filter condition.
+
+			Max //< Value indicating the maximum value in this enum. Not to be used as an enum value.
 		};
 
 		using OperatorIndex = int32;
 		enum class EOperatorType : uint16
 		{
-			SimpleAll,			// Unary: Type
-			SimpleAny,			// Unary: Type
-			SimpleNone,			// Unary: Type
-			SimpleOptional,		// Unary: Type
-			And,				// Binary: left operator index, right operator index
-			Or,					// Binary: left operator index, right operator index
-			Not,				// Unary: condition index
-			Type				// Unary: Type
+			SimpleAll,			//< Unary: Type
+			SimpleAny,			//< Unary: Type
+			SimpleNone,			//< Unary: Type
+			SimpleOptional,		//< Unary: Type
+			And,				//< Binary: left operator index, right operator index
+			Or,					//< Binary: left operator index, right operator index
+			Not,				//< Unary: condition index
+			Type,				//< Unary: Type
+
+			Max //< Value indicating the maximum value in this enum. Not to be used as an enum value.
 		};
 
 		struct FBinaryOperator final
@@ -384,11 +387,11 @@ public:
 
 		struct FCallbackData
 		{
+			TArray<FName, TInlineAllocator<NumInlineGroups>> BeforeGroups;
+			TArray<FName, TInlineAllocator<NumInlineGroups>> AfterGroups;
 			QueryCallback Function;
 			FName Name;
 			FName Group;
-			FName BeforeGroup;
-			FName AfterGroup;
 			const UScriptStruct* MonitoredType{ nullptr };
 			EQueryCallbackType Type{ EQueryCallbackType::None };
 			EQueryTickPhase Phase;

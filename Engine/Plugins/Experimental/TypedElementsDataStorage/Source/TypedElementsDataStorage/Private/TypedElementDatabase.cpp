@@ -13,13 +13,7 @@
 #include "Stats/Stats2.h"
 #include "TickTaskManagerInterface.h"
 
-const FName UTypedElementDatabase::TickGroupName_PrepareSyncWorldToMass(TEXT("PrepareSyncWorldToMass"));
-const FName UTypedElementDatabase::TickGroupName_FinalizeSyncWorldToMass(TEXT("FinalizeSyncWorldToMass"));
-const FName UTypedElementDatabase::TickGroupName_PrepareSyncMassToExternal(TEXT("PrepareSyncMassToExternal"));
-const FName UTypedElementDatabase::TickGroupName_FinalizeSyncMassToExternal(TEXT("FinalizeSyncMassToExternal"));
-const FName UTypedElementDatabase::TickGroupName_PrepareSyncWidget(TEXT("PrepareSyncWidgets"));
 const FName UTypedElementDatabase::TickGroupName_SyncWidget(TEXT("SyncWidgets"));
-const FName UTypedElementDatabase::TickGroupName_FinalizeSyncWidget(TEXT("FinalizeSyncWidgets"));
 
 void UTypedElementDatabase::Initialize()
 {
@@ -29,6 +23,33 @@ void UTypedElementDatabase::Initialize()
 	Mass->GetOnPreTickDelegate().AddUObject(this, &UTypedElementDatabase::OnPreMassTick);
 
 	ActiveEditorEntityManager = Mass->GetMutableEntityManager();
+	ActiveEditorPhaseManager = Mass->GetMutablePhaseManager();
+
+	using PhaseType = std::underlying_type_t<EQueryTickPhase>;
+	for (PhaseType PhaseId = 0; PhaseId < static_cast<PhaseType>(EQueryTickPhase::Max); ++PhaseId)
+	{
+		EQueryTickPhase Phase = static_cast<EQueryTickPhase>(PhaseId);
+		EMassProcessingPhase MassPhase = FTypedElementQueryProcessorData::MapToMassProcessingPhase(Phase);
+		
+		ActiveEditorPhaseManager->GetOnPhaseStart(MassPhase).AddLambda(
+			[this, Phase](float DeltaTime)
+			{
+				PreparePhase(Phase, DeltaTime);
+			});
+
+		ActiveEditorPhaseManager->GetOnPhaseEnd(MassPhase).AddLambda(
+			[this, Phase](float DeltaTime)
+			{
+				FinalizePhase(Phase, DeltaTime);
+			});
+
+		// Guarantee that syncing to the data storage always happens before syncing to external.
+		RegisterTickGroup(GetQueryTickGroupName(EQueryTickGroups::SyncExternalToDataStorage), 
+			Phase, GetQueryTickGroupName(EQueryTickGroups::SyncDataStorageToExternal), {}, false);
+		// Guarantee that widgets syncs happen after external data has been updated to the data storage.
+		RegisterTickGroup(GetQueryTickGroupName(EQueryTickGroups::SyncWidgets),
+			Phase, {}, GetQueryTickGroupName(EQueryTickGroups::SyncExternalToDataStorage), false);
+	}
 }
 
 void UTypedElementDatabase::Deinitialize()
@@ -261,6 +282,32 @@ ColumnDataResult UTypedElementDatabase::GetColumnData(TypedElementRowHandle Row,
 	return ColumnDataResult{ nullptr, nullptr };
 }
 
+void UTypedElementDatabase::RegisterTickGroup(
+	FName GroupName, EQueryTickPhase Phase, FName BeforeGroup, FName AfterGroup, bool bRequiresMainThread)
+{
+	FTickGroupDescription& Group = TickGroupDescriptions.FindOrAdd({ GroupName, Phase });
+
+	if (!Group.BeforeGroups.Find(BeforeGroup))
+	{
+		Group.BeforeGroups.Add(BeforeGroup);
+	}
+
+	if (!Group.AfterGroups.Find(AfterGroup))
+	{
+		Group.AfterGroups.Add(AfterGroup);
+	}
+
+	if (bRequiresMainThread)
+	{
+		Group.bRequiresMainThread = true;
+	}
+}
+
+void UTypedElementDatabase::UnregisterTickGroup(FName GroupName, EQueryTickPhase Phase)
+{
+	TickGroupDescriptions.Remove({ GroupName, Phase });
+}
+
 TypedElementQueryHandle UTypedElementDatabase::RegisterQuery(FQueryDescription&& Query)
 {
 	auto LocalToNativeAccess = [](EQueryAccessType Access) -> EMassFragmentAccess
@@ -301,6 +348,10 @@ TypedElementQueryHandle UTypedElementDatabase::RegisterQuery(FQueryDescription&&
 					StoredQuery.Processor.Reset(Observer);
 					return Observer->GetQuery();
 				}
+				case EQueryCallbackType::PhasePreparation:
+					break;
+				case EQueryCallbackType::PhaseFinalization:
+					break;
 				default:
 					checkf(false, TEXT("Unsupported query callback type %i."), static_cast<int>(Query.Callback.Type));
 					break;
@@ -314,12 +365,13 @@ TypedElementQueryHandle UTypedElementDatabase::RegisterQuery(FQueryDescription&&
 	
 	FMassEntityQuery& NativeQuery = SetupNativeQuery(Query, StoredQuery);
 
+	// Setup selected columns section
 	if (Query.Action == FQueryDescription::EActionType::Count)
 	{
 		checkf(Query.SelectionTypes.IsEmpty(), TEXT("Count queries for the Typed Elements Data Storage can't have entries for selection."));
 		checkf(Query.SelectionAccessTypes.IsEmpty(), TEXT("Count queries for the Typed Elements Data Storage can't have entries for selection."));
 	}
-	else
+	else if (Query.Action == FQueryDescription::EActionType::Select)
 	{
 		const int32 SelectionCount = Query.SelectionTypes.Num();
 		checkf(SelectionCount == Query.SelectionAccessTypes.Num(),
@@ -338,7 +390,12 @@ TypedElementQueryHandle UTypedElementDatabase::RegisterQuery(FQueryDescription&&
 			NativeQuery.AddRequirement(Type.Get(), LocalToNativeAccess(Query.SelectionAccessTypes[SelectionIndex]));
 		}
 	}
+	else
+	{
+		checkf(Query.Action == FQueryDescription::EActionType::None, TEXT("Unexpected query action: %i."), static_cast<int32>(Query.Action));
+	}
 
+	// Configure conditions
 	if (Query.bSimpleQuery) // This backend currently only supports simple queries.
 	{
 		checkf(Query.ConditionTypes.Num() == Query.ConditionOperators.Num(),
@@ -376,6 +433,7 @@ TypedElementQueryHandle UTypedElementDatabase::RegisterQuery(FQueryDescription&&
 		}
 	}
 
+	// Assign dependencies.
 	const int32 DependencyCount = Query.DependencyTypes.Num();
 	checkf(DependencyCount == Query.DependencyFlags.Num() && DependencyCount == Query.CachedDependencies.Num(),
 		TEXT("The number of query depedencies (%i) doesn't match the number of dependency access types (%i) and/or cached dependencies count (%i)."),
@@ -394,8 +452,46 @@ TypedElementQueryHandle UTypedElementDatabase::RegisterQuery(FQueryDescription&&
 			EnumHasAllFlags(Flags, EQueryDependencyFlags::GameThreadBound));
 	}
 
+	// Copy pre-registered phase and group information.
+	const FTickGroupDescription* TickGroup = TickGroupDescriptions.Find({ Query.Callback.Group, Query.Callback.Phase });
+	if (TickGroup)
+	{
+		for (auto It = Query.Callback.BeforeGroups.CreateIterator(); It; ++It)
+		{
+			if (TickGroup->BeforeGroups.Contains(*It))
+			{
+				It.RemoveCurrentSwap();
+			}
+		}
+		Query.Callback.BeforeGroups.Append(TickGroup->BeforeGroups);
+		for (auto It = Query.Callback.AfterGroups.CreateIterator(); It; ++It)
+		{
+			if (TickGroup->AfterGroups.Contains(*It))
+			{
+				It.RemoveCurrentSwap();
+			}
+		}
+		Query.Callback.AfterGroups.Append(TickGroup->AfterGroups);
+		if (TickGroup->bRequiresMainThread)
+		{
+			Query.Callback.bForceToGameThread = true;
+		}
+	}
+
+	// Register Phase processors locally.
+	switch (Query.Callback.Type)
+	{
+	case EQueryCallbackType::PhasePreparation:
+		PhasePreparationQueries[static_cast<std::underlying_type_t<EQueryTickPhase>>(Query.Callback.Phase)].Add(Result.Handle);
+		break;
+	case EQueryCallbackType::PhaseFinalization:
+		PhaseFinalizationQueries[static_cast<std::underlying_type_t<EQueryTickPhase>>(Query.Callback.Phase)].Add(Result.Handle);
+		break;
+	}
+
 	StoredQuery.Description = MoveTemp(Query);
 
+	// Register regular processors and observer with Mass.
 	if (StoredQuery.Processor)
 	{
 		if (StoredQuery.Processor->IsA<UTypedElementQueryProcessorCallbackAdapterProcessor>())
@@ -452,6 +548,22 @@ void UTypedElementDatabase::UnregisterQuery(TypedElementQueryHandle Query)
 					*QueryData.Description.Callback.Name.ToString(), *QueryData.Processor->GetSparseClassDataStruct()->GetName());
 			}
 		}
+		else if (QueryData.Description.Callback.Type == EQueryCallbackType::PhasePreparation)
+		{
+			int32 Index;
+			if (PhasePreparationQueries[static_cast<std::underlying_type_t<EQueryTickPhase>>(QueryData.Description.Callback.Phase)].Find(Query, Index))
+			{
+				PhasePreparationQueries[static_cast<std::underlying_type_t<EQueryTickPhase>>(QueryData.Description.Callback.Phase)].RemoveAt(Index);
+			}
+		}
+		else if (QueryData.Description.Callback.Type == EQueryCallbackType::PhaseFinalization)
+		{
+			int32 Index;
+			if (PhaseFinalizationQueries[static_cast<std::underlying_type_t<EQueryTickPhase>>(QueryData.Description.Callback.Phase)].Find(Query, Index))
+			{
+				PhaseFinalizationQueries[static_cast<std::underlying_type_t<EQueryTickPhase>>(QueryData.Description.Callback.Phase)].RemoveAt(Index);
+			}
+		}
 		else
 		{
 			QueryData.NativeQuery.Clear();
@@ -484,27 +596,12 @@ FName UTypedElementDatabase::GetQueryTickGroupName(EQueryTickGroups Group) const
 	{
 		case EQueryTickGroups::Default:
 			return NAME_None;
-		case EQueryTickGroups::PrepareSyncExternalToDataStorage:
-			return TickGroupName_PrepareSyncWorldToMass;
 		case EQueryTickGroups::SyncExternalToDataStorage:
 			return UE::Mass::ProcessorGroupNames::SyncWorldToMass;
-		case EQueryTickGroups::FinalizeSyncExternalToDataStorage:
-			return TickGroupName_FinalizeSyncWorldToMass;
-		
-		case EQueryTickGroups::PrepareSyncDataStorageToExternal:
-			return TickGroupName_PrepareSyncMassToExternal;
 		case EQueryTickGroups::SyncDataStorageToExternal:
 			return UE::Mass::ProcessorGroupNames::UpdateWorldFromMass;
-		case EQueryTickGroups::FinalizeSyncDataStorageToExternal:
-			return TickGroupName_FinalizeSyncMassToExternal;
-		
-		case EQueryTickGroups::PrepareSyncWidgets:
-			return TickGroupName_PrepareSyncWidget;
 		case EQueryTickGroups::SyncWidgets:
 			return TickGroupName_SyncWidget;
-		case EQueryTickGroups::FinalizeSyncWidgets:
-			return TickGroupName_FinalizeSyncWidget;
-
 		default:
 			checkf(false, TEXT("EQueryTickGroups value %i can't be translated to a group name by this Data Storage backend."), static_cast<int>(Group));
 			return NAME_None;
@@ -533,10 +630,15 @@ ITypedElementDataStorageInterface::FQueryResult UTypedElementDatabase::RunQuery(
 				case FQueryDescription::EActionType::Select:
 					// Fallthrough: There's nothing to callback to, so only return the total count.
 				case FQueryDescription::EActionType::Count:
-					checkf(ActiveEditorEntityManager, 
-						TEXT("Unable to run Typed Element Data Storage query before a MASS Entity Manager has been assigned."));
-					Result.Count = QueryData.NativeQuery.GetNumMatchingEntities(*ActiveEditorEntityManager);
-					Result.Completed = FQueryResult::ECompletion::Fully;
+					if (ActiveEditorEntityManager)
+					{
+						Result.Count = QueryData.NativeQuery.GetNumMatchingEntities(*ActiveEditorEntityManager);
+						Result.Completed = FQueryResult::ECompletion::Fully;
+					}
+					else
+					{
+						Result.Completed = FQueryResult::ECompletion::Unavailable;
+					}
 					break;
 				default:
 					Result.Completed = FQueryResult::ECompletion::Unsupported;
@@ -578,17 +680,34 @@ ITypedElementDataStorageInterface::FQueryResult UTypedElementDatabase::RunQuery(
 				Result.Completed = FQueryResult::ECompletion::Fully;
 				break;
 			case FQueryDescription::EActionType::Select:
-				checkf(ActiveEditorEntityManager,
-					TEXT("Unable to run Typed Element Data Storage query before a MASS Entity Manager has been assigned."));
-				Result = FTypedElementQueryProcessorData::Execute(
-					Callback, QueryData.Description, QueryData.NativeQuery, *ActiveEditorEntityManager);
+				if (ActiveEditorEntityManager)
+				{
+					if (!QueryData.Processor.IsValid())
+					{
+						Result = FTypedElementQueryProcessorData::Execute(
+							Callback, QueryData.Description, QueryData.NativeQuery, *ActiveEditorEntityManager);
+					}
+					else
+					{
+						Result.Completed = FQueryResult::ECompletion::Unsupported;
+					}
+				}
+				else
+				{
+					Result.Completed = FQueryResult::ECompletion::Unavailable;
+				}
 				break;
 			case FQueryDescription::EActionType::Count:
 				// Only the count is requested so no need to trigger the callback.
-				checkf(ActiveEditorEntityManager,
-					TEXT("Unable to run Typed Element Data Storage query before a MASS Entity Manager has been assigned."));
-				Result.Count = QueryData.NativeQuery.GetNumMatchingEntities(*ActiveEditorEntityManager);
-				Result.Completed = FQueryResult::ECompletion::Fully;
+				if (ActiveEditorEntityManager)
+				{
+					Result.Count = QueryData.NativeQuery.GetNumMatchingEntities(*ActiveEditorEntityManager);
+					Result.Completed = FQueryResult::ECompletion::Fully;
+				}
+				else
+				{
+					Result.Completed = FQueryResult::ECompletion::Unavailable;
+				}
 				break;
 			default:
 				Result.Completed = FQueryResult::ECompletion::Unsupported;
@@ -626,6 +745,31 @@ void* UTypedElementDatabase::GetExternalSystemAddress(UClass* Target)
 		return FMassSubsystemAccess::FetchSubsystemInstance(/*World=*/nullptr, Target);
 	}
 	return nullptr;
+}
+
+void UTypedElementDatabase::PreparePhase(EQueryTickPhase Phase, float DeltaTime)
+{
+	PhasePreOrPostAmble(Phase, DeltaTime, PhasePreparationQueries[static_cast<std::underlying_type_t<EQueryTickPhase>>(Phase)]);
+}
+
+void UTypedElementDatabase::FinalizePhase(EQueryTickPhase Phase, float DeltaTime)
+{
+	PhasePreOrPostAmble(Phase, DeltaTime, PhaseFinalizationQueries[static_cast<std::underlying_type_t<EQueryTickPhase>>(Phase)]);
+}
+
+void UTypedElementDatabase::PhasePreOrPostAmble(EQueryTickPhase Phase, float DeltaTime, TArray<TypedElementQueryHandle>& QueryHandles)
+{
+	if (ActiveEditorEntityManager && !QueryHandles.IsEmpty())
+	{
+		FPhasePreOrPostAmbleExecutor Executor(*ActiveEditorEntityManager, DeltaTime);
+		for (TypedElementQueryHandle Query : QueryHandles)
+		{
+			QueryStore::Handle Handle;
+			Handle.Handle = Query;
+			FTypedElementDatabaseExtendedQuery& QueryData = Queries.GetMutable(Handle);
+			Executor.ExecuteQuery(QueryData.Description, QueryData.NativeQuery, QueryData.Description.Callback.Function);
+		}
+	}
 }
 
 void UTypedElementDatabase::Reset()
