@@ -1932,6 +1932,19 @@ void FDatasmithSceneXmlWriter::Serialize( TSharedRef< IDatasmithScene > Datasmit
 	XmlString = TEXT("<User ID=\"") + FPlatformMisc::GetLoginId() + TEXT("\" OS=\"") + OSVersion + TEXT("\"/>") + LINE_TERMINATOR;
 	FDatasmithSceneXmlWriterImpl::SerializeToArchive(Archive, XmlString);
 
+	FDatasmithSceneXmlWriterImpl::WriteIndent(Archive, 1);
+
+	FVector Geolocation = DatasmithScene->GetGeolocation();
+	
+	XmlString = FString::Printf( TEXT("<%s %s=\"%s\" %s=\"%s\" %s=\"%s\"/>"),
+		DATASMITH_GEOLOCATION,
+		DATASMITH_GEOLOCATION_LATITUDE, *FString::SanitizeFloat(Geolocation.X),
+		DATASMITH_GEOLOCATION_LONGITUDE, *FString::SanitizeFloat(Geolocation.Y),
+		DATASMITH_GEOLOCATION_ELEVATION, *FString::SanitizeFloat(Geolocation.Z)
+		) + LINE_TERMINATOR;
+
+	FDatasmithSceneXmlWriterImpl::SerializeToArchive(Archive, XmlString);
+
 	FDatasmithSceneXmlWriterImpl::WritePostProcessElement( DatasmithScene->GetPostProcess(), Archive, 1 );
 
 	bool bHasIlluminationEnvironment = false;

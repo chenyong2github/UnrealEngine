@@ -1609,6 +1609,9 @@ public:
 	virtual const TCHAR* GetUserOS() const override { return *(FString&)UserOS; }
 	virtual void SetUserOS(const TCHAR* InUserOS) override { UserOS = InUserOS; }
 
+	virtual FVector GetGeolocation() const override { return Geolocation; }
+	virtual void SetGeolocation(FVector InGeolocation) override { Geolocation = InGeolocation; }
+
 	virtual int32 GetExportDuration() const override { return ExportDuration; }
 	virtual void SetExportDuration(int32 InExportDuration) override { ExportDuration = InExportDuration; }
 
@@ -1704,6 +1707,7 @@ private:
 	TReflected<FString> ProductVersion;
 	TReflected<FString> UserID;
 	TReflected<FString> UserOS;
+	TReflected<FVector> Geolocation;
 	TReflected<FString> ResourcePath;
 
 	TReflected<uint32> ExportDuration;

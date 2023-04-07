@@ -1201,6 +1201,13 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 			OutScene->SetUserID(*Nodes[i]->GetAttribute(DATASMITH_USERID));
 			OutScene->SetUserOS(*Nodes[i]->GetAttribute(DATASMITH_USEROS));
 		}
+		else if (Nodes[i]->GetTag() == DATASMITH_GEOLOCATION)
+		{
+			OutScene->SetGeolocation(FVector(
+				ValueFromString<double>(Nodes[i]->GetAttribute(DATASMITH_GEOLOCATION_LATITUDE)),
+				ValueFromString<double>(Nodes[i]->GetAttribute(DATASMITH_GEOLOCATION_LONGITUDE)),
+				ValueFromString<double>(Nodes[i]->GetAttribute(DATASMITH_GEOLOCATION_ELEVATION))));
+		}
 		// STATIC MESHES
 		else if (Nodes[i]->GetTag() == DATASMITH_STATICMESHNAME)
 		{

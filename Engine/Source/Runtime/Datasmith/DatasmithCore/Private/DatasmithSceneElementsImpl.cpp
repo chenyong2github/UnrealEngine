@@ -1060,6 +1060,7 @@ FDatasmithSceneImpl::FDatasmithSceneImpl(const TCHAR * InName)
 	Store.RegisterParameter(ProductVersion,     "ProductVersion"     );
 	Store.RegisterParameter(UserID,             "UserID"             );
 	Store.RegisterParameter(UserOS,             "UserOS"             );
+	Store.RegisterParameter(Geolocation,        "Geolocation"        );
 	Store.RegisterParameter(ExportDuration,     "ExportDuration"     );
 	Store.RegisterParameter(bUseSky,            "bUseSky"            );
 	FDatasmithSceneImpl::Reset();
@@ -1085,6 +1086,7 @@ void FDatasmithSceneImpl::Reset()
 	ProductVersion = TEXT("");
 	UserID = TEXT("");
 	UserOS = TEXT("");
+	Geolocation = FVector::ZeroVector;
 	ResourcePath = TEXT("");
 
 	ExportDuration = 0;

@@ -6028,6 +6028,34 @@ SWIGEXPORT wchar_t * SWIGSTDCALL CSharp_FDatasmithFacadeScene_GetAssetsOutputPat
 }
 
 
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_SetGeolocation(void * jarg1, double jarg2, double jarg3, double jarg4) {
+  FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
+  double arg2 ;
+  double arg3 ;
+  double arg4 ;
+  
+  arg1 = (FDatasmithFacadeScene *)jarg1; 
+  arg2 = (double)jarg2; 
+  arg3 = (double)jarg3; 
+  arg4 = (double)jarg4; 
+  (arg1)->SetGeolocation(arg2,arg3,arg4);
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_GetGeolocation(void * jarg1, double * jarg2, double * jarg3, double * jarg4) {
+  FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
+  double *arg2 = 0 ;
+  double *arg3 = 0 ;
+  double *arg4 = 0 ;
+  
+  arg1 = (FDatasmithFacadeScene *)jarg1; 
+  arg2 = (double *)jarg2; 
+  arg3 = (double *)jarg3; 
+  arg4 = (double *)jarg4; 
+  ((FDatasmithFacadeScene const *)arg1)->GetGeolocation(*arg2,*arg3,*arg4);
+}
+
+
 SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeScene_PreExport(void * jarg1) {
   FDatasmithFacadeScene *arg1 = (FDatasmithFacadeScene *) 0 ;
   

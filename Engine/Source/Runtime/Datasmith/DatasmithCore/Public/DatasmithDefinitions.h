@@ -451,6 +451,12 @@ static const TCHAR* KeyValuePropertyTypeStrings[] = { TEXT("String"), TEXT("Colo
 #define DATASMITH_EXPORTDURATION				TEXT("Duration")
 #define DATASMITH_RESOURCEPATH					TEXT("ResourcePath")
 
+// SCENE GEOLOCATION
+#define DATASMITH_GEOLOCATION					TEXT("Geolocation")
+#define DATASMITH_GEOLOCATION_LATITUDE			TEXT("lat")
+#define DATASMITH_GEOLOCATION_LONGITUDE			TEXT("lon")
+#define DATASMITH_GEOLOCATION_ELEVATION			TEXT("ele")
+
 //ELEMENTS
 #define DATASMITH_HASH							TEXT("Hash")
 #define DATASMITH_ENABLED						TEXT("Enabled")

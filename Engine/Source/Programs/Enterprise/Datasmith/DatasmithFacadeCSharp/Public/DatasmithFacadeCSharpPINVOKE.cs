@@ -1667,6 +1667,12 @@ class DatasmithFacadeCSharpPINVOKE {
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_GetAssetsOutputPath")]
   public static extern global::System.IntPtr FDatasmithFacadeScene_GetAssetsOutputPath(global::System.Runtime.InteropServices.HandleRef jarg1);
 
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_SetGeolocation")]
+  public static extern void FDatasmithFacadeScene_SetGeolocation(global::System.Runtime.InteropServices.HandleRef jarg1, double jarg2, double jarg3, double jarg4);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_GetGeolocation")]
+  public static extern void FDatasmithFacadeScene_GetGeolocation(global::System.Runtime.InteropServices.HandleRef jarg1, out double jarg2, out double jarg3, out double jarg4);
+
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeScene_PreExport")]
   public static extern void FDatasmithFacadeScene_PreExport(global::System.Runtime.InteropServices.HandleRef jarg1);
 

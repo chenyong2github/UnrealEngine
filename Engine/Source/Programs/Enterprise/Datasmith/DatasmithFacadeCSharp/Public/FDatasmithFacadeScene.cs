@@ -348,6 +348,14 @@ public class FDatasmithFacadeScene : global::System.IDisposable {
     return ret;
   }
 
+  public void SetGeolocation(double Latitude, double Longitude, double Elevation) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_SetGeolocation(swigCPtr, Latitude, Longitude, Elevation);
+  }
+
+  public void GetGeolocation(out double OutLatitude, out double OutLongitude, out double OutElevation) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_GetGeolocation(swigCPtr, out OutLatitude, out OutLongitude, out OutElevation);
+  }
+
   public void PreExport() {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_PreExport(swigCPtr);
   }

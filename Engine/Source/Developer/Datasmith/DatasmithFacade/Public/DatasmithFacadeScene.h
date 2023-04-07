@@ -236,7 +236,7 @@ public:
 	/** Set the Datasmith scene name */
 	void SetName(const TCHAR* InName);
 
-	/** Set the Datasmith scene file name */
+	/** Get the Datasmith scene file name */
 	const TCHAR* GetName() const;
 
 	/** Set the path to the folder where the .datasmith file will be saved. */
@@ -247,6 +247,12 @@ public:
 
 	/** Get the path were additional assets will be saved to. */
 	const TCHAR* GetAssetsOutputPath() const;
+
+	/** Set the Datasmith scene Geolocation data*/
+	void SetGeolocation(double Latitude, double Longitude, double Elevation);
+
+	/** Get the Datasmith scene Geolocation data*/
+	void GetGeolocation(double& OutLatitude, double& OutLongitude, double& OutElevation) const;
 
 	/** Instantiate an exporter and register export start time */
 	void PreExport();

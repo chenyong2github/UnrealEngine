@@ -1554,6 +1554,12 @@ public:
 	 */
 	virtual void SetUserOS(const TCHAR*) = 0;
 
+	/** Get Geolocation data of the scene. Where X = Latitude, Y = Longitude, Z = Elevation */
+	virtual FVector GetGeolocation() const = 0; 
+
+	/** Set Geolocation data of the scene. Where X = Latitude, Y = Longitude, Z = Elevation */
+	virtual void SetGeolocation(FVector) = 0;
+
 	/** Returns the time taken to export the scene */
 	virtual int32 GetExportDuration() const = 0;
 

@@ -197,6 +197,11 @@ ADatasmithSceneActor* FDatasmithImporterUtils::CreateImportSceneActor( FDatasmit
 		RootComponent->RegisterComponent();
 	}
 
+	FVector Geolocation = ImportContext.Scene->GetGeolocation();
+	UDatasmithAssetUserData::SetDatasmithUserDataValueForKey(SceneActor, TEXT("Geolocation_Latitude"),  FString::SanitizeFloat(Geolocation.X));
+	UDatasmithAssetUserData::SetDatasmithUserDataValueForKey(SceneActor, TEXT("Geolocation_Longitude"),  FString::SanitizeFloat(Geolocation.Y));
+	UDatasmithAssetUserData::SetDatasmithUserDataValueForKey(SceneActor, TEXT("Geolocation_Elevation"),  FString::SanitizeFloat(Geolocation.Z));
+
 	ImportContext.ActorsContext.ImportSceneActor = SceneActor;
 
 	return SceneActor;
