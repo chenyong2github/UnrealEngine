@@ -982,6 +982,30 @@ bool DoCompileMetalShader(
 			TargetDesc.CompileFlags.SetDefine(TEXT("invariant_float_math"), Options.bEnableFMAPass ? 1 : 0);
 			TargetDesc.CompileFlags.SetDefine(TEXT("enable_decoration_binding"), 1);
 
+			#if PLATFORM_MAC_ENABLE_EXPERIMENTAL_NANITE_SUPPORT
+			 // Detect if we need to patch VSM shaders (flatten 2D array as regular 2D texture).
+			 // Must be done as VSM uses 2DArray and requires atomics support. And Metal does not
+			 // support atomics on 2Darray...
+			 const auto& DefinesMap = Input.Environment.GetDefinitions();
+			 bool bShouldFlatten2DArray = DefinesMap.Find("VIRTUAL_SHADOW_MAP") != nullptr
+			                           || DefinesMap.Find("VIRTUAL_TEXTURE_TARGET") != nullptr
+			                           || Input.ShaderName.Find("PhysicalPage") != INDEX_NONE
+			                           || Input.ShaderName.Find("Virtual") != INDEX_NONE
+			                           || Input.ShaderName.Find("ClassifyMaterial") != INDEX_NONE;
+
+			 // Need to patch Clear/Memset CS too.
+			 if (!bShouldFlatten2DArray)
+			 {
+			     auto* IsTexArrayClearShader = DefinesMap.Find("RESOURCE_TYPE");
+			     if (IsTexArrayClearShader != nullptr)
+			     {
+			         bShouldFlatten2DArray = (*IsTexArrayClearShader).Find("2") != INDEX_NONE;
+			     }
+			 }
+
+			 TargetDesc.CompileFlags.SetDefine(TEXT("flatten_2d_array"), bShouldFlatten2DArray ? 1 : 0);
+			 #endif
+
 			switch (Semantics)
 			{
 			case EMetalGPUSemanticsImmediateDesktop:

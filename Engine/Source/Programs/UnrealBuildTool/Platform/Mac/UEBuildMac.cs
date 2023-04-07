@@ -334,6 +334,13 @@ namespace UnrealBuildTool
 				Target.GlobalDefinitions.Add("HAS_METAL=0");
 			}
 
+			// Here be dragons, use at your own risk. YMMV.
+			// Enables *extremely experimental* nanite support for M2+ devices. 
+			// Even after enabling this, spriv cross still needs to have it's own
+			// define enabled and be built separately with:
+			// (Engine/Source/ThirdParty/ShaderConductor/Build_ShaderConductor_Mac.command)
+			Target.GlobalDefinitions.Add("PLATFORM_MAC_ENABLE_EXPERIMENTAL_NANITE_SUPPORT=0");
+
 			// Force using the ANSI allocator if ASan is enabled
 			string? AddressSanitizer = Environment.GetEnvironmentVariable("ENABLE_ADDRESS_SANITIZER");
 			if(Target.MacPlatform.bEnableAddressSanitizer || (AddressSanitizer != null && AddressSanitizer == "YES"))

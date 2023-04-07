@@ -379,6 +379,42 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 		GRHISupportsWaveOperations = true;
 		GRHIMinimumWaveSize = 32;
 		GRHIMaximumWaveSize = 32;
+
+#if PLATFORM_MAC_ENABLE_EXPERIMENTAL_NANITE_SUPPORT
+        // Int64 atomic support was introduced with M2 devices.
+        GRHISupportsAtomicUInt64 = !GRHIAdapterName.Contains("M1");
+        GRHIPersistentThreadGroupCount = 1024;
+
+        // Disable persistent threads on Apple Silicon (as it doesn't support forward progress guarantee).
+        IConsoleVariable* NanitePersistentThreadCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.PersistentThreadsCulling"));
+        if (NanitePersistentThreadCVar != nullptr && NanitePersistentThreadCVar->GetInt() == 1)
+        {
+            NanitePersistentThreadCVar->Set(0);
+        }
+
+        // Switch back to single page allocation for VSM (Metal does not support atomic operations on Texture2DArrays...).
+        IConsoleVariable* VSMCacheStaticSeparateCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.Cache.StaticSeparate"));
+        if (VSMCacheStaticSeparateCVar != nullptr)
+        {
+            VSMCacheStaticSeparateCVar->Set(0);
+        }
+
+        // TODO: FIXME: Workaround to fix visual artifacts on the CitySample demo (has a severe performance cost 
+		// compared to non-compute materials. This is highly experimental).
+#if 1
+        IConsoleVariable* NaniteAllowComputeMatsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.AllowComputeMaterials"));
+        if (NaniteAllowComputeMatsCVar != nullptr)
+        {
+            NaniteAllowComputeMatsCVar->Set(1);
+        }
+
+        IConsoleVariable* NaniteComputeMatsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.ComputeMaterials"));
+        if (NaniteComputeMatsCVar != nullptr)
+        {
+            NaniteComputeMatsCVar->Set(1);
+        }
+#endif
+#endif // PLATFORM_MAC_ENABLE_EXPERIMENTAL_NANITE_SUPPORT
 	}
 
 	bool const bRequestedSM5 = (RequestedFeatureLevel == ERHIFeatureLevel::SM5 || (!bRequestedFeatureLevel && (FParse::Param(FCommandLine::Get(),TEXT("metalsm5")) || FParse::Param(FCommandLine::Get(),TEXT("metalmrt")))));

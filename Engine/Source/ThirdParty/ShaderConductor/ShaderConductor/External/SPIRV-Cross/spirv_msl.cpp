@@ -5640,6 +5640,18 @@ void CompilerMSL::emit_custom_functions()
 			end_scope();
 			statement("");
 
+// UE Change Begin: Experimental support for Nanite on M2+ based devices
+#if UE_EXPERIMENTAL_MAC_NANITE_SUPPORT
+			statement("template<typename T, access A>");
+			statement("inline uint spvImageAtomicCoord(texture2d_array<T, A> tex, uint2 tc, uint element_pitch)");
+			begin_scope();
+			statement("const uint aligned_width = element_pitch;");
+			statement("return tc.y * aligned_width + tc.x;");
+			end_scope();
+			statement("");
+#endif
+// UE Change End: Experimental support for Nanite on M2+ based devices
+
 			statement("template<typename T, access A>");
 			statement("inline uint spvImageAtomicCoord(texture2d_array<T, A> tex, uint3 tc, uint element_pitch)");
 			begin_scope();
@@ -5673,6 +5685,24 @@ void CompilerMSL::emit_custom_functions()
 		}
 		// UE Change End: Clamp access to SSBOs to the size of the buffer
 
+// UE Change Begin: Experimental support for Nanite on M2+ based devices
+#if UE_EXPERIMENTAL_MAC_NANITE_SUPPORT
+        case SPVFuncImplImage64ReadOps:
+        {
+            statement("template <access A>");
+            statement("inline ulong4 spvImage64Read(texture2d<uint, A> tex, uint2 tc)");
+            begin_scope();
+            statement("uint4 content = tex.read(tc, 0u);");
+            statement("ulong unpacked_content1 = ((ulong)content.y << 32) | content.x;");
+            statement("ulong unpacked_content2 = ((ulong)content.w << 32) | content.z;");
+            statement("return ulong4( unpacked_content1, unpacked_content2, 0, 0);");
+            end_scope();
+            statement("");
+            break;
+        }
+#endif
+// UE Change End: Experimental support for Nanite on M2+ based devices
+                
 		// UE Change Begin: Identity function as workaround to bug in Metal compiler
 		case SPVFuncImplIdentity:
 		{
@@ -8628,10 +8658,29 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 		                    mem_sem, mem_sem, false, ptr, val,                                                   \
 		                    false, valconst);                                                                    \
 	} while (false)
-
+// UE Change Begin: Experimental support for Nanite on M2+ based devices
+#if UE_EXPERIMENTAL_MAC_NANITE_SUPPORT
+#define MSL_AMO_IMPL(op, valsrc, valconst)                                                                      \
+	do                                                                                                           \
+	{                                                                                                            \
+		uint32_t result_type = ops[0];                                                                           \
+		uint32_t id = ops[1];                                                                                    \
+		uint32_t ptr = ops[2];                                                                                   \
+		uint32_t mem_sem = ops[4];                                                                               \
+		uint32_t val = valsrc;                                                                                   \
+		emit_atomic_func_op(result_type, id, "atomic_" #op "_explicit", opcode, mem_sem, mem_sem, false, ptr, val, \
+							false, valconst);                                                                    \
+	} while (false)
+#endif
+// UE Change End: Experimental support for Nanite on M2+ based devices 
 #define MSL_AFMO(op) MSL_AFMO_IMPL(op, ops[5], false)
 #define MSL_AFMIO(op) MSL_AFMO_IMPL(op, 1, true)
-
+// UE Change Begin: Experimental support for Nanite on M2+ based devices
+#if UE_EXPERIMENTAL_MAC_NANITE_SUPPORT
+#define MSL_AMO(op) MSL_AMO_IMPL(op, ops[5], false)
+#define MSL_AMIO(op) MSL_AMO_IMPL(op, 1, true)
+#endif
+// UE Change End: Experimental support for Nanite on M2+ based devices
 	case OpAtomicIIncrement:
 		MSL_AFMIO(add);
 		break;
@@ -8655,8 +8704,24 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 
 	case OpAtomicSMax:
 	case OpAtomicUMax:
-		MSL_AFMO(max);
-		break;
+// UE Change Begin: Experimental support for Nanite on M2+ based devices
+#if UE_EXPERIMENTAL_MAC_NANITE_SUPPORT
+        {
+            auto &type = get_pointee_type(expression_type(ops[2]));
+            if (type.width == 64)
+            {
+                MSL_AMO(max);
+            }
+            else
+            {
+                MSL_AFMO(max);
+            }
+        }
+#else
+			MSL_AFMO(max);
+#endif
+// UE Change End: Experimental support for Nanite on M2+ based devices
+        break;
 
 	case OpAtomicAnd:
 		MSL_AFMO(and);
@@ -8709,6 +8774,19 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 			uint32_t var_index = get_metal_resource_index(*var, var_type->basetype);
 			if (type.image.dim == Dim2D || type.image.dim == Dim3D)
 			{
+// UE Change Begin: Experimental support for Nanite on M2+ based devices
+#if UE_EXPERIMENTAL_MAC_NANITE_SUPPORT
+				if (ShouldEmulateFlatArray(to_expression(ops[2]))
+					&& type.image.arrayed /*&& msl_options.texture_2Darray_as_2D*/)
+				{
+					std::string coord_3d = coord;
+					coord = "uint2( " + coord_3d + ".xy + " 
+							          + coord_3d + ".z * uint2( " + to_expression(ops[2]) + ".get_width(), " + to_expression(ops[2]) + ".get_height() )"
+								 ")";
+				}
+#endif
+// UE Change End: Experimental support for Nanite on M2+ based devices
+				
 				coord = join("spvImageAtomicCoord(", to_expression(ops[2]), ", ", coord, ", ", "spvBufferSizeConstants[(", convert_to_string(var_index), "*3)+2])");
 			}
 			// UE Change End: Add support for Image2/3D atomic emulation
@@ -8812,9 +8890,29 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 		// UE Change Begin: Identity function as workaround to bug in Metal compiler
 #if 1
 		add_spv_func_and_recompile(SPVFuncImplIdentity);
+// UE Change Begin: Experimental support for Nanite on M2+ based devices  
+#if UE_EXPERIMENTAL_MAC_NANITE_SUPPORT
+        if (store_type.width == 64)
+        {
+            // Unpack int64 to 32bit and do the write ops.
+            expr += join(to_expression(img_id), ".write(spvIdentity(uint4("
+                         "uint(", to_expression(texel_id), "), uint(", to_expression(texel_id), " >> 32),"
+                         "0u, 0u)), ",
+                         CompilerMSL::to_function_args(args, &forward), ")");
+        }
+        else
+        {
+            expr += join(to_expression(img_id), ".write(spvIdentity(",
+                         remap_swizzle(store_type, texel_type.vecsize, to_expression(texel_id)), "), ",
+                         CompilerMSL::to_function_args(args, &forward), ")");
+        }
+#else
 		expr += join(to_expression(img_id), ".write(spvIdentity(",
-		             remap_swizzle(store_type, texel_type.vecsize, to_expression(texel_id)), "), ",
-		             CompilerMSL::to_function_args(args, &forward), ")");
+ 		             remap_swizzle(store_type, texel_type.vecsize, to_expression(texel_id)), "), ",
+ 		             CompilerMSL::to_function_args(args, &forward), ")");
+#endif
+// UE Change End: Experimental support for Nanite on M2+ based devices  
+
 #else
 		expr += join(to_expression(img_id), ".write(",
 		             remap_swizzle(store_type, texel_type.vecsize, to_expression(texel_id)), ", ",
@@ -9422,9 +9520,36 @@ void CompilerMSL::emit_texture_op(const Instruction &i, bool sparse)
 	if (sparse)
 		SPIRV_CROSS_THROW("Sparse feedback not yet supported in MSL.");
 
+// UE Change Begin: Experimental support for Nanite on M2+ based devices  
+#if UE_EXPERIMENTAL_MAC_NANITE_SUPPORT
+    auto *ops = stream(i);
+    auto &type = get<SPIRType>(ops[0]);
+    
+    // Since Metal does not support uint64 typed textures, we need to fake our way through
+    // by reading 32bits integers and repacking those as 64bits.
+    if (type.width == 64 || type.basetype == SPIRType::UInt64)
+    {
+        add_spv_func_and_recompile(SPVFuncImplImage64ReadOps);
+        
+        uint32_t result_type_id = ops[0];
+        uint32_t id = ops[1];
+        VariableID img = ops[2];
+        uint32_t coord = ops[3];
+        
+        string expr = "spvImage64Read(" + to_expression(img) + ", " + to_expression(coord) + ")";
+        emit_op(result_type_id, id, expr, true);
+        return;
+    }
+#endif
+// UE Change End: Experimental support for Nanite on M2+ based devices  
+
 	if (msl_options.use_framebuffer_fetch_subpasses)
 	{
+// UE Change Begin: Experimental support for Nanite on M2+ based devices  
+#if !UE_EXPERIMENTAL_MAC_NANITE_SUPPORT
 		auto *ops = stream(i);
+#endif
+// UE Change End: Experimental support for Nanite on M2+ based devices  
 
 		uint32_t result_type_id = ops[0];
 		uint32_t id = ops[1];
@@ -9747,8 +9872,14 @@ void CompilerMSL::emit_atomic_func_op(uint32_t result_type, uint32_t result_id, 
 	else if (opcode == OpAtomicSMax || opcode == OpAtomicSMin)
 		expected_type = to_signed_basetype(type.width);
 
+// UE Change Begin: Experimental support for Nanite on M2+ based devices  
+#if UE_EXPERIMENTAL_MAC_NANITE_SUPPORT
+    bool is_nofetch_op = strcmp(op, "atomic_store_explicit") != 0 && strcmp(op, "atomic_max_explicit") != 0;
+#else
 	if (type.width == 64)
 		SPIRV_CROSS_THROW("MSL currently does not support 64-bit atomics.");
+#endif
+// UE Change End: Experimental support for Nanite on M2+ based devices  
 
 	auto remapped_type = type;
 	remapped_type.basetype = expected_type;
@@ -9936,8 +10067,13 @@ void CompilerMSL::emit_atomic_func_op(uint32_t result_type, uint32_t result_id, 
 
 		if (expected_type != type.basetype)
 			exp = bitcast_expression(type, expected_type, exp);
-
+// UE Change Begin: Experimental support for Nanite on M2+ based devices  
+#if UE_EXPERIMENTAL_MAC_NANITE_SUPPORT
+        if (strcmp(op, "atomic_store_explicit") != 0 && strcmp(op, "atomic_max_explicit") != 0)
+#else
 		if (strcmp(op, "atomic_store_explicit") != 0)
+#endif
+// UE Change End: Experimental support for Nanite on M2+ based devices  
 			emit_op(result_type, result_id, exp, false);
 		else
 			statement(exp, ";");
@@ -10895,17 +11031,47 @@ string CompilerMSL::to_function_args(const TextureFunctionArguments &args, bool 
 			}
 			else
 			{
-				farg_str +=
-				    ", uint(" +
-				    round_fp_tex_coords(to_extract_component_expression(args.coord, alt_coord_component), coord_is_fp) +
-				    ")";
-				if (imgtype.image.dim == DimSubpassData)
+// UE Change Begin: Experimental support for Nanite on M2+ based devices  
+#if UE_EXPERIMENTAL_MAC_NANITE_SUPPORT
+				if (args.base.is_fetch && ShouldEmulateFlatArray(to_expression(img)) /* && msl_options.texture_2Darray_as_2D*/)
 				{
-					if (msl_options.multiview)
-						farg_str += " + gl_ViewIndex";
-					else if (msl_options.arrayed_subpass_input)
-						farg_str += " + gl_Layer";
+					string array_idx = "uint(" +
+						round_fp_tex_coords(to_extract_component_expression(args.coord, alt_coord_component), coord_is_fp) +
+						")";
+						
+					string img_dims = "(" + array_idx + " * uint2(" + to_expression(img) + ".get_width(), " + to_expression(img) + ".get_height()))";
+
+					farg_str += " + ";
+					farg_str += img_dims;
 				}
+				else
+				{
+					farg_str +=
+						", uint(" +
+						round_fp_tex_coords(to_extract_component_expression(args.coord, alt_coord_component), coord_is_fp) +
+						")";
+					if (imgtype.image.dim == DimSubpassData)
+					{
+						if (msl_options.multiview)
+							farg_str += " + gl_ViewIndex";
+						else if (msl_options.arrayed_subpass_input)
+							farg_str += " + gl_Layer";
+					}
+				}
+#else
+				farg_str +=
+						", uint(" +
+						round_fp_tex_coords(to_extract_component_expression(args.coord, alt_coord_component), coord_is_fp) +
+						")";
+					if (imgtype.image.dim == DimSubpassData)
+					{
+						if (msl_options.multiview)
+							farg_str += " + gl_ViewIndex";
+						else if (msl_options.arrayed_subpass_input)
+							farg_str += " + gl_Layer";
+					}
+#endif
+// UE Change End: Experimental support for Nanite on M2+ based devices 
 			}
 		}
 		else if (imgtype.image.dim == DimSubpassData)
@@ -15140,7 +15306,13 @@ string CompilerMSL::image_type_glsl(const SPIRType &type, uint32_t id)
 			else if (img_type.ms)
 				img_type_name += "texture2d_ms";
 			else if (img_type.arrayed || subpass_array)
+// UE Change Begin: Experimental support for Nanite on M2+ based devices  
+#if UE_EXPERIMENTAL_MAC_NANITE_SUPPORT
+				img_type_name += (ShouldEmulateFlatArray(to_expression(id)) /*&& msl_options.texture_2Darray_as_2D*/) ? "texture2d" : "texture2d_array";
+#else
 				img_type_name += "texture2d_array";
+#endif
+// UE Change End: Experimental support for Nanite on M2+ based devices 
 			else
 				img_type_name += "texture2d";
 			break;
@@ -15162,7 +15334,19 @@ string CompilerMSL::image_type_glsl(const SPIRType &type, uint32_t id)
 
 	// Append the pixel type
 	img_type_name += "<";
-	img_type_name += type_to_glsl(get<SPIRType>(img_type.type));
+    
+// UE Change Begin: Experimental support for Nanite on M2+ based devices
+// TEMPORARY FIX - need to revisit this
+#if UE_EXPERIMENTAL_MAC_NANITE_SUPPORT
+    // YOLO Patching: override incoming type (since Metal does not support texture2d<ulong>).
+    if (get<SPIRType>(img_type.type).basetype == SPIRType::UInt64)
+        img_type_name += "uint";
+    else if (get<SPIRType>(img_type.type).basetype == SPIRType::Int64)
+        img_type_name += "int";
+	else
+#endif
+// UE Change End: Experimental support for Nanite on M2+ based devices
+        img_type_name += type_to_glsl(get<SPIRType>(img_type.type));
 
 	// For unsampled images, append the sample/read/write access qualifier.
 	// For kernel images, the access qualifier my be supplied directly by SPIR-V.

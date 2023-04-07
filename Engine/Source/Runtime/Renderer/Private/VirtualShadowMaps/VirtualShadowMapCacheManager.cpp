@@ -649,7 +649,12 @@ void FVirtualShadowMapArrayCacheManager::SetPhysicalPoolSize(FRDGBuilder& GraphB
 			PF_R32_UINT,
 			FClearValueBinding::None,
 			PhysicalPagePoolCreateFlags,
+		#if PLATFORM_MAC_ENABLE_EXPERIMENTAL_NANITE_SUPPORT
+			TexCreate_ShaderResource | TexCreate_UAV | TexCreate_AtomicCompatible,
+		#else
+			
 			TexCreate_ShaderResource | TexCreate_UAV,
+		#endif
 			false,
 			RequestedArraySize
 		);

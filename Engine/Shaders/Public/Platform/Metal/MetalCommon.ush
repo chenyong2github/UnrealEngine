@@ -54,4 +54,28 @@
 	#define SubpassFetchRGBA_0() ((float4)0.0)
 	#define SubpassFetchR_0() (0.0)
 	#define SubpassFetchR_4() (0.0)
-#endif //IOS && PIXELSHADER 
+#endif //IOS && PIXELSHADER
+
+#define MTL_COMPILER_SUPPORTS_ULONG_TYPES (1 && MTL_ENABLE_EXPERIMENTAL_NANITE_SUPPORT)
+#define MTL_COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS (1 && MTL_COMPILER_SUPPORTS_ULONG_TYPES)
+
+#if MTL_COMPILER_SUPPORTS_ULONG_TYPES
+    #define UlongType uint64_t
+
+    UlongType PackUlongType(uint2 Value)
+    {
+        return ((UlongType)Value.y << 32) | Value.x;
+    }
+
+    uint2 UnpackUlongType(UlongType Value)
+    {
+        return uint2(uint(Value), uint(Value >> 32));
+    }
+#endif
+
+#if MTL_COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS
+    void ImageInterlockedMaxUInt64(RWTexture2D<UlongType> Dest, uint2 Coord, UlongType Value)
+    {
+        InterlockedMax(Dest[Coord], Value);
+    }
+#endif

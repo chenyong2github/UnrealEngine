@@ -162,6 +162,11 @@ static bool ParseSpirvCrossOptionMetal(spirv_cross::CompilerMSL::Options& opt, c
     PARSE_SPIRVCROSS_OPTION(define, "raytracing_instance_descriptor_table_index", opt.raytracing_instance_descriptor_table_index);
 // UE Change End: MetalRT Support
 
+// UE Change Begin: Experimental support for Nanite on M2+ based devices
+// Allow implicit 2Darray to 2D conversion (for VSM)
+    PARSE_SPIRVCROSS_OPTION(define, "flatten_2d_array", opt.flatten_2d_array);
+// UE Change End: Experimental support for Nanite on M2+ based devices
+
     // Specify dimension of subpass input attachments.
     static const char* subpassInputDimIdent = "subpass_input_dimension";
     static const size_t subpassInputDimIdentLen = std::strlen(subpassInputDimIdent);

@@ -1580,7 +1580,7 @@ void FMetalStateCache::SetShaderUnorderedAccessView(EMetalShaderStages ShaderSta
 
 				SetShaderTexture(ShaderStage, View, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write));
 
-				if (Surface->Texture.GetBuffer() && (EnumHasAllFlags(Surface->GetDesc().Flags, TexCreate_UAV | TexCreate_NoTiling) || EnumHasAllFlags(Surface->GetDesc().Flags, TexCreate_AtomicCompatible)))
+				if (Surface->Texture.GetBuffer() && (EnumHasAllFlags(Surface->GetDesc().Flags, TexCreate_UAV | TexCreate_NoTiling) || EnumHasAllFlags(Surface->GetDesc().Flags, TexCreate_AtomicCompatible) || EnumHasAllFlags(Surface->GetDesc().Flags, ETextureCreateFlags::Atomic64Compatible)))
 				{
 					uint32 BytesPerRow = Surface->Texture.GetBufferBytesPerRow();
 					uint32 ElementsPerRow = BytesPerRow / GPixelFormats[(EPixelFormat)Surface->GetFormat()].BlockBytes;

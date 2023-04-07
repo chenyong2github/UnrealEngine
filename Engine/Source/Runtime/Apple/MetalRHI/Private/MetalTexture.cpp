@@ -662,8 +662,9 @@ FMetalSurface::FMetalSurface(FMetalTextureCreateDesc const& CreateDesc)
             }
         }
 #endif
-        
-		if(bBufferCompatibleOption && (EnumHasAllFlags(CreateDesc.Flags, TexCreate_UAV | TexCreate_NoTiling) || EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible)))
+        const bool bTextureArrayWithAtomics = NewCreateDesc.Desc.GetTextureType() == mtlpp::TextureType::Texture2DArray && EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible);
+
+		if(bBufferCompatibleOption && (EnumHasAllFlags(CreateDesc.Flags, TexCreate_UAV | TexCreate_NoTiling) || EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible) || EnumHasAllFlags(CreateDesc.Flags, ETextureCreateFlags::Atomic64Compatible)))
 		{
 			mtlpp::Device Device = GetMetalDeviceContext().GetDevice();
 
@@ -676,6 +677,22 @@ FMetalSurface::FMetalSurface(FMetalTextureCreateDesc const& CreateDesc)
 
 			Texture = Buffer.NewTexture(NewCreateDesc.Desc, 0, BytesPerRow);
 		}
+        else if (bTextureArrayWithAtomics)
+        {
+            mtlpp::Device Device = GetMetalDeviceContext().GetDevice();
+
+            const uint32 MinimumByteAlignment = Device.GetMinimumLinearTextureAlignmentForPixelFormat(CreateDesc.MTLFormat);
+            const NSUInteger BytesPerRow = Align(NewCreateDesc.Desc.GetWidth() * NewCreateDesc.Desc.GetArrayLength() * GPixelFormats[NewCreateDesc.Format].BlockBytes, MinimumByteAlignment);
+
+            // Backing buffer resource options must match the texture we are going to create from it
+            FMetalPooledBufferArgs Args(Device, BytesPerRow * NewCreateDesc.Desc.GetHeight(), BUF_Dynamic, mtlpp::StorageMode::Private, NewCreateDesc.Desc.GetCpuCacheMode());
+            FMetalBuffer Buffer = GetMetalDeviceContext().CreatePooledBuffer(Args);
+
+            NewCreateDesc.Desc.SetWidth(NewCreateDesc.Desc.GetWidth() * NewCreateDesc.Desc.GetArrayLength());
+            NewCreateDesc.Desc.SetArrayLength(1);
+            NewCreateDesc.Desc.SetTextureType(mtlpp::TextureType::Texture2D);
+            Texture = Buffer.NewTexture(NewCreateDesc.Desc, 0, BytesPerRow);
+        }
 		else
 		{
 			// If we are in here then either the texture description is not buffer compatable or these flags were not set

@@ -31,6 +31,10 @@
 #include <unordered_map>
 #include <unordered_set>
 
+// UE Change Begin: Experimental support for Nanite on M2+ based devices
+#define UE_EXPERIMENTAL_MAC_NANITE_SUPPORT 0
+// UE Change End: Experimental support for Nanite on M2+ based devices
+
 namespace SPIRV_CROSS_NAMESPACE
 {
 
@@ -457,6 +461,11 @@ public:
 		std::map<uint32_t, int> subpass_input_dimensions;
 		// UE Change End: Use subpass input dimension specified by user options.
 
+		// UE Change Begin: Experimental support for Nanite on M2+ based devices
+		// Allow implicit 2Darray to 2D conversion (for VSM)
+		bool flatten_2d_array = false;
+		// UE Change End: Experimental support for Nanite on M2+ based devices
+
 		enum class IndexType
 		{
 			None = 0,
@@ -802,6 +811,11 @@ protected:
 		//      myTex.write(spvIdentity(int4(a || b ? 1 : 0)), uint2(0))
 		SPVFuncImplIdentity,
 		// UE Change End: Identity function as workaround to bug in Metal compiler
+// UE Change Begin: Experimental support for Nanite on M2+ based devices
+#if UE_EXPERIMENTAL_MAC_NANITE_SUPPORT
+        SPVFuncImplImage64ReadOps, // Read 2 int64 from a 32bit int texture
+#endif
+// UE Change End: Experimental support for Nanite on M2+ based devices
 	};
 
 	// If the underlying resource has been used for comparison then duplicate loads of that resource must be too
