@@ -150,46 +150,46 @@ int32 FSmartObjectContainer::Remove(const FSmartObjectContainer& Other)
 
 	int32 EntriesRemovedCount = 0;
 
-	for (int32 InIndex = 0; InIndex < Other.CollectionEntries.Num();)
+	for (int32 InputIndex = 0; InputIndex < Other.CollectionEntries.Num();)
 	{
-		const FSmartObjectCollectionEntry& Entry = Other.CollectionEntries[InIndex];
+		const FSmartObjectCollectionEntry& Entry = Other.CollectionEntries[InputIndex];
 
-		const int32 EntryIndex = CollectionEntries.IndexOfByPredicate([Handle = Entry.GetHandle()](const FSmartObjectCollectionEntry& Element) 
+		const int32 LocalIndex = CollectionEntries.IndexOfByPredicate([Handle = Entry.GetHandle()](const FSmartObjectCollectionEntry& Element) 
 			{
 				return Element.GetHandle() == Handle;
 			});
 
 		// found something
-		if (EntryIndex != INDEX_NONE)
+		if (LocalIndex != INDEX_NONE)
 		{
 			RegisteredIdToObjectMap.Remove(Entry.GetHandle());
 
-			// check if there's a sequence of matching entries - in case Other represents a Container 
+			// check if there's a sequence of matching entries - in case 'Other' represents a container 
 			// that has been appended in the past
-			int32 Count = 1;
+			int32 NumMatchingSequentialEntries = 1;
 
-			for (int32 ExistingIndex = EntryIndex
-				; (ExistingIndex < CollectionEntries.Num()) && (InIndex + Count < Other.CollectionEntries.Num())
-				; ++ExistingIndex)
+			for (int32 NextLocalIndex = LocalIndex + 1, NextInputIndex = InputIndex + 1
+				; (NextLocalIndex < CollectionEntries.Num()) && (NextInputIndex < Other.CollectionEntries.Num())
+				; ++NextLocalIndex, ++NextInputIndex)
 			{
-				const FSmartObjectCollectionEntry& AnotherLocalEntry = CollectionEntries[ExistingIndex];
-				const FSmartObjectCollectionEntry& AnotherInputEntry = Other.CollectionEntries[InIndex + Count];
+				const FSmartObjectCollectionEntry& AnotherLocalEntry = CollectionEntries[NextLocalIndex];
+				const FSmartObjectCollectionEntry& AnotherInputEntry = Other.CollectionEntries[NextInputIndex];
 				if (AnotherLocalEntry.GetHandle() != AnotherInputEntry.GetHandle())
 				{
 					break;
 				}
 				RegisteredIdToObjectMap.Remove(AnotherInputEntry.GetHandle());
-				++Count;
+				++NumMatchingSequentialEntries;
 			}
 
 			// not using *Swap flavor to maintain the order of appended entries in case we remove whole batches 
-			CollectionEntries.RemoveAt(EntryIndex, Count, false);
-			EntriesRemovedCount += Count;
-			InIndex += Count;
+			CollectionEntries.RemoveAt(LocalIndex, NumMatchingSequentialEntries, false);
+			EntriesRemovedCount += NumMatchingSequentialEntries;
+			InputIndex += NumMatchingSequentialEntries;
 		}
 		else
 		{
-			++InIndex;
+			++InputIndex;
 		}
 	}
 
@@ -198,7 +198,7 @@ int32 FSmartObjectContainer::Remove(const FSmartObjectContainer& Other)
 	{
 		Bounds = FBox(ForceInitToZero);
 
-		for (const FSmartObjectCollectionEntry& Entry : Other.CollectionEntries)
+		for (const FSmartObjectCollectionEntry& Entry : CollectionEntries)
 		{
 			Bounds += Entry.GetBounds();
 		}
