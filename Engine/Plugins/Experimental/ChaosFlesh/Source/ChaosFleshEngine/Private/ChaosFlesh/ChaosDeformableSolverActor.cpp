@@ -3,8 +3,8 @@
 #include "ChaosFlesh/ChaosDeformableSolverActor.h"
 
 #include "ChaosFlesh/ChaosDeformableSolverComponent.h"
-#include "UObject/ConstructorHelpers.h"
 #include "Engine/Texture2D.h"
+#include "UObject/ConstructorHelpers.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogChaosDeformableSolverActor, Log, All);
 
@@ -18,6 +18,14 @@ ADeformableSolverActor::ADeformableSolverActor(const FObjectInitializer& ObjectI
 	CreateBillboardIcon(ObjectInitializer);
 }
 
+#if WITH_EDITOR
+void ADeformableSolverActor::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	//TSharedPtr<IPropertyHandle> bReplicatePhysicsProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(AFleshActor, bAsyncPhysicsTickEnabled), AActor::StaticClass());
+	//bReplicatePhysicsProperty->MarkHiddenByCustomization();
+}
+
+#endif
 
 void ADeformableSolverActor::CreateBillboardIcon(const FObjectInitializer& ObjectInitializer)
 {

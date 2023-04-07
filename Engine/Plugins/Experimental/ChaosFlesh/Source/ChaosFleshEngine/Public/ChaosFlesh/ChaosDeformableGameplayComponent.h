@@ -67,11 +67,11 @@ public:
 	void DetectEnvironmentCollisions(const int32 MaxNumTests = 100, const bool bTestDownOnly = true, const float TestRange = 0.0, const ECollisionChannel CollisionChannel = ECollisionChannel::ECC_PhysicsBody);
 
 
-	UPROPERTY(EditAnywhere, Category = "ChaosDeformable")
+	UPROPERTY(EditAnywhere, Category = "Physics")
 	FRigBoundRayCasts RigBoundRayCasts;
 
 	/** Objects to skip if hit during \c DetectEnvironmentCollisions(). */
-	UPROPERTY(EditAnywhere, Category = "ChaosDeformable")
+	UPROPERTY(EditAnywhere, Category = "Physics")
 	TArray<TWeakObjectPtr<UPrimitiveComponent>> EnvironmentCollisionsSkipList;
 
 private:

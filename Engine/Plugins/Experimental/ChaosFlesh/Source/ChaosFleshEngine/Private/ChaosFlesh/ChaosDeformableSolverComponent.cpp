@@ -40,6 +40,14 @@ UDeformableSolverComponent::~UDeformableSolverComponent()
 {
 }
 
+#if WITH_EDITOR
+void UDeformableSolverComponent::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	//TSharedPtr<IPropertyHandle> bReplicatePhysicsProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(AFleshActor, bAsyncPhysicsTickEnabled), AActor::StaticClass());
+	//bReplicatePhysicsProperty->MarkHiddenByCustomization();
+}
+#endif
+
 void UDeformableSolverComponent::UpdateTickGroup()
 {
 	//

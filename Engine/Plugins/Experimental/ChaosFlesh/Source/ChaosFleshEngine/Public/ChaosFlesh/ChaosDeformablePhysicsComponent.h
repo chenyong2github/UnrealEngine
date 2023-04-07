@@ -5,6 +5,7 @@
 #include "Chaos/Deformable/ChaosDeformableSolver.h"
 #include "ChaosFlesh/ChaosDeformableSolverThreading.h"
 #include "Components/MeshComponent.h"
+#include "DeformableInterface.h"
 #include "UObject/ObjectMacros.h"
 #include "ProceduralMeshComponent.h"
 #include "ChaosDeformablePhysicsComponent.generated.h"
@@ -16,7 +17,7 @@ class UDeformableSolverComponent;
 *	UDeformablePhysicsComponent
 */
 UCLASS(meta = (BlueprintSpawnableComponent))
-class CHAOSFLESHENGINE_API UDeformablePhysicsComponent : public UPrimitiveComponent
+class CHAOSFLESHENGINE_API UDeformablePhysicsComponent : public UPrimitiveComponent, public IDeformableInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -50,29 +51,33 @@ public:
 	UDeformableSolverComponent* GetDeformableSolver();
 	const UDeformableSolverComponent* GetDeformableSolver() const;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosDeformable")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics")
 	TObjectPtr<UDeformableSolverComponent> PrimarySolverComponent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosDeformable")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics")
 	bool bTempEnableGravity = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosDeformable", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float DampingMultiplier = 1.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosDeformable", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float StiffnessMultiplier = 1.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosDeformable", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float MassMultiplier = 1.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosDeformable", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float IncompressibilityMultiplier = 1.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosDeformable", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float InflationMultiplier = 1.f;
 
 	const FThreadingProxy* GetPhysicsProxy() const { return PhysicsProxy; }
 	FThreadingProxy* GetPhysicsProxy() { return PhysicsProxy; }
+
+#if WITH_EDITOR
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+#endif
 
 protected:
 	FThreadingProxy* PhysicsProxy = nullptr;

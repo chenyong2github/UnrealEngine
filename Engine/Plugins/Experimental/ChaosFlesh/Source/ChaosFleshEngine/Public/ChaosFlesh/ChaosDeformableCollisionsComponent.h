@@ -37,7 +37,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void RemoveStaticMeshComponent(UStaticMeshComponent* StaticMeshComponent);
 
-	UPROPERTY(BlueprintReadOnly, Category = "Chaos Deformable")
+	UPROPERTY(BlueprintReadOnly, Category = "Physics")
 	TArray<TObjectPtr<UStaticMeshComponent>>  CollisionBodies;
 
 protected:

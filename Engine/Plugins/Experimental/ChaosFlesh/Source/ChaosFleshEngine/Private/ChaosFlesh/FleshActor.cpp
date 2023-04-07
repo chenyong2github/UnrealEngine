@@ -5,9 +5,6 @@
 #include "ChaosFlesh/ChaosDeformableSolverComponent.h"
 #include "ChaosFlesh/ChaosDeformableSolverActor.h"
 
-//#include "ChaosFlesh/PB.h"
-
-
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FleshActor)
 
 DEFINE_LOG_CATEGORY_STATIC(AFleshLogging, Log, All);
@@ -96,6 +93,13 @@ bool AFleshActor::GetReferencedContentObjects(TArray<UObject*>& Objects) const
 	}
 	return true;
 }
+
+void AFleshActor::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	TSharedPtr<IPropertyHandle> bReplicatePhysicsProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(AFleshActor, bAsyncPhysicsTickEnabled), AActor::StaticClass());
+	bReplicatePhysicsProperty->MarkHiddenByCustomization();
+}
+
 #endif
 
 

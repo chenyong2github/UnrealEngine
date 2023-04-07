@@ -2,12 +2,17 @@
 
 
 #include "ChaosFlesh/ChaosFleshEditorPlugin.h"
-#include "ChaosFlesh/FleshAsset.h"
-#include "Editor/FleshEditorStyle.h"
 
-#include "ChaosFlesh/Cmd/ChaosFleshCommands.h"
 #include "ChaosFlesh/Asset/AssetTypeActions_FleshAsset.h"
+#include "ChaosFlesh/Asset/FleshDeformableInterfaceDetails.h"
 #include "ChaosFlesh/Asset/FleshAssetThumbnailRenderer.h"
+#include "ChaosFlesh/ChaosDeformableCollisionsActor.h"
+#include "ChaosFlesh/ChaosDeformableSolverComponent.h"
+#include "ChaosFlesh/Cmd/ChaosFleshCommands.h"
+#include "ChaosFlesh/FleshActor.h"
+#include "ChaosFlesh/FleshAsset.h"
+#include "ChaosFlesh/FleshComponent.h"
+#include "Editor/FleshEditorStyle.h"
 
 #define LOCTEXT_NAMESPACE "FleshEditor"
 
@@ -19,9 +24,9 @@ void IChaosFleshEditorPlugin::StartupModule()
 	FChaosFleshEditorStyle::Get();
 
 	IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
+
 	FleshAssetActions = new FAssetTypeActions_FleshAsset();
 	AssetTools.RegisterAssetTypeActions(MakeShareable(FleshAssetActions));
-
 
 	if (GIsEditor && !IsRunningCommandlet())
 	{
@@ -46,6 +51,29 @@ void IChaosFleshEditorPlugin::StartupModule()
 	}
 
 	UThumbnailManager::Get().RegisterCustomRenderer(UFleshAsset::StaticClass(), UFleshAssetThumbnailRenderer::StaticClass());
+
+	// register details customization
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	PropertyModule.RegisterCustomClassLayout(
+		ADeformableCollisionsActor::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FDeformableInterfaceDetails::MakeInstance));
+
+	PropertyModule.RegisterCustomClassLayout(
+		ADeformableSolverActor::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FDeformableInterfaceDetails::MakeInstance));
+
+	PropertyModule.RegisterCustomClassLayout(
+		AFleshActor::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FDeformableInterfaceDetails::MakeInstance));
+
+	PropertyModule.RegisterCustomClassLayout(
+		UDeformablePhysicsComponent::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FDeformableInterfaceDetails::MakeInstance));
+
+	PropertyModule.RegisterCustomClassLayout(
+		UDeformableSolverComponent::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FDeformableInterfaceDetails::MakeInstance));
 
 }
 

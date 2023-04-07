@@ -75,7 +75,7 @@ public:
 	USimulationAsset* GetSimulationCollection() { return SimulationCollection; }
 	const USimulationAsset* GetSimulationCollection() const { return SimulationCollection; }
 
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics")
+	UPROPERTY(EditAnywhere, Category = "Rendering")
 	TObjectPtr<UProceduralMeshComponent> Mesh;
 
 	/** @deprecated Use GetSkeletalMeshEmbeddedPositions() instead. */
@@ -98,7 +98,7 @@ public:
 
 private:
 	/** FleshAsset that describes the simulation rest state. */
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics")
+	UPROPERTY(EditAnywhere, Category = "Physics")
 	TObjectPtr<const UFleshAsset> RestCollection;
 
 	/** Current simulation state. */
@@ -114,14 +114,14 @@ private:
 	//
 
 	/** Space the simulation will run in. */
-	UPROPERTY(EditAnywhere, Category = "ChaosDeformable")
+	UPROPERTY(EditAnywhere, Category = "Physics")
 	TEnumAsByte<ChaosDeformableSimSpace> SimSpace = ChaosDeformableSimSpace::World;
 
 	/** 
 	* Bone from the associated skeletal mesh (indicated by RestCollection.TargetSkeletalMesh) to use as 
 	* the space the sim runs in.
 	*/
-	UPROPERTY(EditAnywhere, Category = "ChaosDeformable", meta = (GetOptions = "GetSimSpaceBoneNameOptions", EditCondition = "SimSpace == ChaosDeformableSimSpace::Bone"))
+	UPROPERTY(EditAnywhere, Category = "Physics", meta = (GetOptions = "GetSimSpaceBoneNameOptions", EditCondition = "SimSpace == ChaosDeformableSimSpace::Bone"))
 	FName SimSpaceBoneName;
 
 	/** The skeletal mesh to use pull the \c SimSpaceBoneName from. */
