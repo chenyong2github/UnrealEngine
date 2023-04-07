@@ -204,6 +204,7 @@ void UListViewBase::HandleRowReleased(const TSharedRef<ITableRow>& Row)
 		{
 			GeneratedEntriesToAnnounce.Remove(EntryWidget);
 			OnEntryWidgetReleased().Broadcast(*EntryWidget);
+			NativeOnEntryReleased(EntryWidget);
 			BP_OnEntryReleased.Broadcast(EntryWidget);
 		}
 	}
@@ -234,6 +235,7 @@ void UListViewBase::HandleAnnounceGeneratedEntries()
 		if (EntryWidget.IsValid())
 		{
 			OnEntryWidgetGenerated().Broadcast(*EntryWidget);
+			NativeOnEntryGenerated(EntryWidget.Get());
 			BP_OnEntryGenerated.Broadcast(EntryWidget.Get());
 		}
 	}

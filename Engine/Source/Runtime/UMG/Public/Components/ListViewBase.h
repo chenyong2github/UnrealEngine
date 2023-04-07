@@ -568,6 +568,7 @@ protected:
     /** Called when a row widget is generated for a list item */
     UPROPERTY(BlueprintAssignable, Category = Events, meta = (DisplayName = "On Entry Generated"))
     FOnListEntryGeneratedDynamic BP_OnEntryGenerated;
+	virtual void NativeOnEntryGenerated(UUserWidget* EntryWidget) {};
 
 	/**
 	* Normally these are processed by UListViewBase::FinishGeneratingEntry which uses World->GetTimerManager() to generate entries next frame
@@ -688,12 +689,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	bool bAllowDragging = true;
 
-private:
-	virtual void HandleAnnounceGeneratedEntries();
-
 	/** Called when a row widget is released by the list (i.e. when it no longer represents a list item) */
 	UPROPERTY(BlueprintAssignable, Category = Events, meta = (DisplayName = "On Entry Released"))
 	FOnListEntryReleasedDynamic BP_OnEntryReleased;
+	virtual void NativeOnEntryReleased(UUserWidget* EntryWidget) {};
+
+private:
+	virtual void HandleAnnounceGeneratedEntries();
 
 #if WITH_EDITORONLY_DATA
 	bool bNeedsToCallRefreshDesignerItems = false;;
