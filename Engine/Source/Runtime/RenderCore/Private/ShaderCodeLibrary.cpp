@@ -1230,7 +1230,7 @@ void FShaderMapResource_SharedCode::ReleaseRHI()
 
 	if (GetNumRefs() > 0)
 	{
-		ensureMsgf(false, TEXT("FShaderMapResource_SharedCode::ReleaseRHI is still referenced (Num of references %d). Invoking OnSharedShaderMapResourceExplicitRelease delegate."), GetNumRefs());
+		ensureMsgf(false, TEXT("FShaderMapResource_SharedCode::ReleaseRHI is still referenced (Num of references %d, owner %s). Invoking OnSharedShaderMapResourceExplicitRelease delegate."), GetNumRefs(), *GetOwnerName().ToString());
 		UE_LOG(LogShaderLibrary, Warning, TEXT("FShaderMapResource_SharedCode::ReleaseRHI is still referenced (Num of references %d, owner %s). Invoking OnSharedShaderMapResourceExplicitRelease delegate."), 
 			GetNumRefs(), *GetOwnerName().ToString());
 		
