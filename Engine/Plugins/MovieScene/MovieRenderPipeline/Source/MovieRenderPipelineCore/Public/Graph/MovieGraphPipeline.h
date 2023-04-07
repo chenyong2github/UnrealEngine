@@ -11,6 +11,7 @@
 // Forward Declares
 class UMoviePipelineExecutorJob;
 class UMoviePipelineExecutorShot;
+class UMovieGraphFileOutputNode;
 class IImageWriteQueue;
 
 namespace UE::MovieGraph
@@ -72,6 +73,8 @@ protected:
 	virtual void TickPostFinalizeExport(const bool bInForceFinish);
 	virtual void TickFinalizeOutputContainers(const bool bInForceFinish);
 	virtual void TransitionToState(const EMovieRenderPipelineState InNewState);
+	virtual const TSet<TObjectPtr<UMovieGraphFileOutputNode>> GetOutputNodesUsed() const;
+	virtual void BeginFinalize();
 
 	// UMoviePipelineBase Interface
 	virtual void RequestShutdownImpl(bool bIsError) override;
@@ -97,6 +100,14 @@ protected:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UMoviePipelineExecutorShot>> ActiveShotList;
+
+	/**
+	* An array of Node CDOs that we sent data through to write data to disk.
+	* This is the list of output nodes that will have OnAllFramesSubmitted/IsFinishedWritingToDisk
+	* on them.
+	*/
+	UPROPERTY(Transient)
+	TSet<TObjectPtr<UMovieGraphFileOutputNode>> OutputNodesDataSentTo;
 
 	int32 CurrentShotIndex;
 

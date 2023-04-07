@@ -96,8 +96,19 @@ class MOVIERENDERPIPELINECORE_API UMovieGraphTimeStepBase : public UObject
 {
 	GENERATED_BODY()
 public:
+	/** Called each frame while the Movie Graph Pipeline is in a producing frames state. */
 	virtual void TickProducingFrames() {}
+
+	/** Called when the Movie Graph Pipeline is shutting down, use this to restore any changes. */
+	virtual void Shutdown() {}
+
+	/** 
+	* TickProducingFrames will be called for a frame (before the frame starts) and then this will be
+	* called at the end of the frame when we kick off the renders for the frame. Should return data
+	* needed to calculate the correct rendering timestep.
+	*/
 	virtual FMovieGraphTimeStepData GetCalculatedTimeData() const { return FMovieGraphTimeStepData(); }
+
 	UMovieGraphPipeline* GetOwningGraph() const;
 };
 
@@ -129,8 +140,13 @@ class MOVIERENDERPIPELINECORE_API UMovieGraphDataSourceBase : public UObject
 public:
 	/** An internal, high resolution framerate that seeks, etc. will be returned in. (ie: 24,000/1) */
 	virtual FFrameRate GetTickResolution() const { return FFrameRate(); }
+
 	/** A lower res, human readable Frame Rate. We convert to the Tick Resolution internally. (ie: 24/1) */
 	virtual FFrameRate GetDisplayRate() const { return FFrameRate(); }
+
+	/** Called by the Time Step system when it wants the external data source to update. Time is in TickResolution scale. */
+	virtual void SyncDataSourceTime(const FFrameTime& InTime) {}
+
 	virtual void BuildTimeRanges() { }
 	/** 
 	* Called when the Movie Graph Pipeline starts before anything has happened, allowing you to 
@@ -147,6 +163,7 @@ public:
 struct FMovieGraphRenderPassLayerData
 {
 	FString LayerName;
+	FGuid CameraIdentifier;
 };
 // ToDo: Both of these can probably go into the Default Renderer implementation.
 
@@ -196,11 +213,32 @@ namespace UE::MovieGraph
 
 	struct FMovieGraphSampleState : IImagePixelDataPayload, public TSharedFromThis<FMovieGraphSampleState>
 	{
+		FMovieGraphSampleState()
+			: bWriteSampleToDisk(false)
+			, bRequiresAccumulator(false)
+			, bFetchFromAccumulator(false)
+		{}
+
 		/** The traversal context used to read graph values at the time of submission. */
 		FMovieGraphTraversalContext TraversalContext;
 
-		/** The backbuffer resolution of this render resource(ie: the resolution the sample was rendered at). */
+		/** The backbuffer resolution of this render resource (ie: the resolution the sample was rendered at). */
 		FIntPoint BackbufferResolution;
+
+		/** 
+		* The resolution the accumulation buffer is accumulating at. This may be different than our 
+		* backbuffer resolution (due to tiling), and our final output resolution (due to overscan + crop). 
+		*/
+		FIntPoint AccumulatorResolution;
+
+		/** Debug feature, should this sample be written to disk, not being accumulated? */
+		bool bWriteSampleToDisk;
+
+		/** Set this to true for every sample if an accumulator is required (ie: has temporal/spatial sub-samples, or high res tiling). */
+		bool bRequiresAccumulator;
+
+		/** Set this to true for the last sample for a given frame (if it requires accumulation) to fetch the accumulated data out of the accumulator. */
+		bool bFetchFromAccumulator;
 	};
 
 	/**

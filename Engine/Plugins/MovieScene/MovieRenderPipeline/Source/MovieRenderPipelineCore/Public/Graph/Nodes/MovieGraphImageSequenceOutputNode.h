@@ -4,6 +4,7 @@
 #include "Graph/Nodes/MovieGraphFileOutputNode.h"
 #include "IImageWrapper.h"
 #include "Styling/AppStyle.h"
+#include "Async/Future.h"
 #include "MovieGraphImageSequenceOutputNode.generated.h"
 
 // Forward Declare
@@ -23,6 +24,8 @@ public:
 	
 	// UMovieGraphFileOutputNode Interface
 	virtual void OnReceiveImageDataImpl(UMovieGraphPipeline* InPipeline, UE::MovieGraph::FMovieGraphOutputMergerFrame* InRawFrameData) override;
+	virtual void OnAllFramesSubmittedImpl() override;
+	virtual bool IsFinishedWritingToDiskImpl() const override;
 	// ~UMovieGraphFileOutputNode Interface
 
 protected:
@@ -31,6 +34,9 @@ protected:
 
 	/** A pointer to the image write queue used for asynchronously writing images */
 	IImageWriteQueue* ImageWriteQueue;
+
+	/** A fence to keep track of when the Image Write queue has fully flushed. */
+	TFuture<void> FinalizeFence;
 };
 
 /**

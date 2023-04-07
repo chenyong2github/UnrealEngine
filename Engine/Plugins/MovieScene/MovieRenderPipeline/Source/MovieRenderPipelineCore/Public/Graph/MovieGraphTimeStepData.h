@@ -54,4 +54,12 @@ public:
 	*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Graph")
 	bool bIsLastTemporalSampleForFrame;
+
+	/**
+	* Should be set to true for every sample if there is more than one temporal sample
+	* making up this render. This will cause the renderer to allocate accumulators
+	* to store the multi-frame data into.
+	*/
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Graph")
+	bool bRequiresAccumulator;
 };

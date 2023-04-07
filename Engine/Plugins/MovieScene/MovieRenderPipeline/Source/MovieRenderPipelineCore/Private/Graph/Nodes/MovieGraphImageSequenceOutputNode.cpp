@@ -13,6 +13,17 @@ UMovieGraphImageSequenceOutputNode::UMovieGraphImageSequenceOutputNode()
 	ImageWriteQueue = &FModuleManager::Get().LoadModuleChecked<IImageWriteQueueModule>("ImageWriteQueue").GetWriteQueue();
 }
 
+void UMovieGraphImageSequenceOutputNode::OnAllFramesSubmittedImpl()
+{
+	FinalizeFence = ImageWriteQueue->CreateFence();
+}
+
+bool UMovieGraphImageSequenceOutputNode::IsFinishedWritingToDiskImpl() const
+{
+	// Wait until the finalization fence is reached meaning we've written everything to disk.
+	return Super::IsFinishedWritingToDiskImpl() && (!FinalizeFence.IsValid() || FinalizeFence.WaitFor(0));
+}
+
 void UMovieGraphImageSequenceOutputNode::OnReceiveImageDataImpl(UMovieGraphPipeline* InPipeline, UE::MovieGraph::FMovieGraphOutputMergerFrame* InRawFrameData)
 {
 	check(InRawFrameData);

@@ -4,7 +4,11 @@
 #include "Graph/MovieGraphDataTypes.h"
 #include "Misc/FrameRate.h"
 #include "Misc/FrameTime.h"
+#include "Engine/EngineCustomTimeStep.h"
 #include "MovieGraphLinearTimeStep.generated.h"
+
+// Forward Declares
+class UMovieGraphEngineTimeStep;
 
 /**
 * This class is responsible for calculating the time step of each tick of the engine during a
@@ -21,23 +25,32 @@ class MOVIERENDERPIPELINECORE_API UMovieGraphLinearTimeStep : public UMovieGraph
 {
 	GENERATED_BODY()
 public:
+	UMovieGraphLinearTimeStep();
+
+	// UMovieGraphTimeStepBase Interface
 	virtual void TickProducingFrames() override;
+	virtual void Shutdown() override;
 	virtual FMovieGraphTimeStepData GetCalculatedTimeData() const override { return CurrentTimeStepData; }
+	// ~UMovieGraphTimeStepBase Interface
 
 protected:
 	virtual void UpdateFrameMetrics();
+	virtual bool IsFirstTemporalSample() const;
+	virtual bool IsLastTemporalSample() const;
+	virtual void UpdateTemporalSampleCount();
+	virtual void ResetForEndOfOutputFrame();
 	virtual float GetBlendedMotionBlurAmount();
 
 protected:
 	/** This is the output data needed by the rest of MRQ to produce a frame. */
 	FMovieGraphTimeStepData CurrentTimeStepData;
 
-	struct FFrameData
+	struct FOutputFrameMetrics
 	{
-		FFrameData()
+		FOutputFrameMetrics()
 			: MotionBlurAmount(0.f)
 		{}
-		
+
 		/** The human readable frame rate, adjusted by the config file (24fps, 30fps, etc.) */
 		FFrameRate FrameRate;
 
@@ -70,9 +83,104 @@ protected:
 		FFrameTime MotionBlurCenteringOffsetTime;
 	};
 
+	struct FCurrentFrameData
+	{
+		FCurrentFrameData()
+			: TemporalSampleIndex(0)
+			, TemporalSampleCount(0)
+			, OutputFrameNumber(0)
+		{
+		}
+
+		/** Which temporal sub-sample are we working on? [0,TemporalSampleCount) */
+		int32 TemporalSampleIndex;
+		
+		/** How many temporal sub-samples are there for the current output frame? */
+		int32 TemporalSampleCount;
+		
+		/** Which output frame are we working on, relative to zero.*/
+		int32 OutputFrameNumber;
+
+		/** A range of time (in Tick Resolution) for the last output frame being worked on. Updated before first TS of next frame. */
+		TRange<FFrameTime> LastOutputFrameRange;
+
+		/** A range of time (in Tick Resolution) for the current frame being worked on. Represents the whole output frame (shutter closed + open). */
+		TRange<FFrameTime> CurrentOutputFrameRange;
+		
+		/** A range of time (in Tick Resolution) that the shutter is opened. */
+		TRange<FFrameTime> RangeShutterOpen;
+		
+		/** A range of time (in Tick Resolution) that the shutter is closed. Can be an empty range (when using MotionBlurAmount=1.0) */
+		TRange<FFrameTime> RangeShutterClosed;
+
+		/**
+		* A range of time (in Tick Resolution) for the last temporal sub-sample (ie: what the last tick rendered with). We don't track
+		* CurrentSampleRange as it's just TemporalRanges[TemporalSampleIndex].
+		*/
+		TRange<FFrameTime> LastSampleRange;
+
+		/** A pre-calculated (when the output frame starts) range of time, breaking RangeShutterOpen into smaller chunks, one per temporal sub-sample. */
+		TArray<TRange<FFrameTime>> TemporalRanges;
+	};
+
 	/**
 	* A set of cached values that are true for the current output frame. They will be recalculated
 	* at the start of the next output frame.
 	*/
-	FFrameData CurrentFrameMetrics;
+	FOutputFrameMetrics CurrentFrameMetrics;
+
+	/**
+	* Frame Metrics are constant data updated once per output frame, while CurrentFrameData is keeping track
+	* across engine ticks to work towards producing a single frame.
+	*/
+	FCurrentFrameData CurrentFrameData;
+
+	/**
+	* A custom timestep owned by this object that is used to inform the engine what the delta time for each
+	* frame should be. 
+	*/
+	UPROPERTY(Transient)
+	TObjectPtr<UMovieGraphEngineTimeStep> CustomTimeStep;
+
+	/** The previous custom timestep the engine was using, if any. */
+	UPROPERTY(Transient)
+	TObjectPtr<UEngineCustomTimeStep> PrevCustomTimeStep;
+};
+
+UCLASS()
+class MOVIERENDERPIPELINECORE_API UMovieGraphEngineTimeStep : public UEngineCustomTimeStep
+{
+	GENERATED_BODY()
+public:
+	UMovieGraphEngineTimeStep();
+
+	struct FTimeStepCache
+	{
+		FTimeStepCache() 
+			: UndilatedDeltaTime(0.0)
+		{}
+
+		FTimeStepCache(double InUndilatedDeltaTime)
+			: UndilatedDeltaTime(InUndilatedDeltaTime)
+		{}
+
+		double UndilatedDeltaTime;
+	};
+
+public:
+	void SetCachedFrameTiming(const FTimeStepCache& InTimeCache);
+	
+	// UEngineCustomTimeStep Interface
+	virtual bool Initialize(UEngine* InEngine) override;
+	virtual void Shutdown(UEngine* InEngine) override;
+	virtual bool UpdateTimeStep(UEngine* InEngine) override;
+	virtual ECustomTimeStepSynchronizationState GetSynchronizationState() const override { return ECustomTimeStepSynchronizationState::Synchronized; }
+	// ~UEngineCustomTimeStep Interface
+
+	/** We don't do any thinking on our own, instead we just spit out the numbers stored in our time cache. */
+	FTimeStepCache TimeCache;
+
+	// Not cached in TimeCache as TimeCache is reset every frame.
+	float PrevMinUndilatedFrameTime;
+	float PrevMaxUndilatedFrameTime;
 };

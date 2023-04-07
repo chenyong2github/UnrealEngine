@@ -11,6 +11,11 @@
 #include "MovieRenderPipelineCoreModule.h"
 #include "MoviePipelineBlueprintLibrary.h"
 #include "Engine/GameViewportClient.h"
+
+UMovieGraphSequenceDataSource::UMovieGraphSequenceDataSource()
+{
+	CustomSequenceTimeController = MakeShared<UE::MovieGraph::FMovieGraphSequenceTimeController>();
+}
  
 void UMovieGraphSequenceDataSource::CacheDataPreJob(const FMovieGraphInitConfig& InInitConfig)
 {
@@ -88,7 +93,7 @@ void UMovieGraphSequenceDataSource::CacheLevelSequenceData(ULevelSequence* InSeq
 	// Ensure the (possibly new) Level Sequence Actor uses our sequence
 	LevelSequenceActor->SetSequence(InSequence);
 
-	// LevelSequenceActor->GetSequencePlayer()->SetTimeController(CustomSequenceTimeController);
+	LevelSequenceActor->GetSequencePlayer()->SetTimeController(CustomSequenceTimeController);
 	LevelSequenceActor->GetSequencePlayer()->Stop();
 
 	LevelSequenceActor->GetSequencePlayer()->OnSequenceUpdated().AddUObject(this, &UMovieGraphSequenceDataSource::OnSequenceEvaluated);
@@ -121,4 +126,35 @@ FFrameRate UMovieGraphSequenceDataSource::GetDisplayRate() const
 	}
 
 	return FFrameRate(24, 1);
+}
+
+void UMovieGraphSequenceDataSource::InitializeShot(UMoviePipelineExecutorShot* InShot)
+{
+	//if (!InShot->ShotInfo.bEmulateFirstFrameMotionBlur)
+	{
+		// Real warm up frames walk through the Sequence
+		LevelSequenceActor->GetSequencePlayer()->Play();
+	}
+	//else
+	//{
+	//	// Ensure we don't try to evaluate as we want to sit and wait during warm up and motion blur frames.
+	//	LevelSequenceActor->GetSequencePlayer()->Pause();
+	//}
+}
+
+void UMovieGraphSequenceDataSource::SyncDataSourceTime(const FFrameTime& InTime)
+{
+	FFrameRate TickResolution = LevelSequenceActor->GetSequence()->GetMovieScene()->GetTickResolution();
+	CustomSequenceTimeController->SetCachedFrameTiming(FQualifiedFrameTime(InTime, TickResolution));
+}
+
+namespace UE::MovieGraph
+{
+	FFrameTime FMovieGraphSequenceTimeController::OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate)
+	{
+		FFrameTime RequestTime = FFrameRate::TransformTime(TimeCache.Time, TimeCache.Rate, InCurrentTime.Rate);
+		UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("[%d] OnRequestCurrentTime: %d %f"), GFrameCounter, RequestTime.FloorToFrame().Value, RequestTime.GetSubFrame());
+
+		return RequestTime;
+	}
 }

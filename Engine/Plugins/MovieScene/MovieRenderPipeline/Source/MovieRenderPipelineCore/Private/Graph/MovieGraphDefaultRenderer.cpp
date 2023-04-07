@@ -92,33 +92,54 @@ void UMovieGraphDefaultRenderer::SetupRenderingPipelineForShot(UMoviePipelineExe
 
 void UMovieGraphDefaultRenderer::TeardownRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot)
 {
-	// Ensure the GPU has actually rendered all of the frames
-	FlushRenderingCommands();
+	TRACE_CPUPROFILER_EVENT_SCOPE(MRQ_TeardownRenderingPipeline);
 
-	// Make sure all of the data has actually been copied back from the GPU and accumulation tasks started.
-	for (TPair<UE::MovieGraph::DefaultRenderer::FRenderTargetInitParams, FMoviePipelineSurfaceQueuePtr> SurfaceQueueIt : PooledSurfaceQueues)
+	// Ensure the GPU has actually rendered all of the frames
 	{
-		if (SurfaceQueueIt.Value.IsValid())
+		TRACE_CPUPROFILER_EVENT_SCOPE(MRQ_WaitForRenderWorkFinished);
+		FlushRenderingCommands();
+	}
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(MRQ_WaitForGPUReadbackFinished);
+		// Make sure all of the data has actually been copied back from the GPU and accumulation tasks started.
+		for (const TPair<UE::MovieGraph::DefaultRenderer::FRenderTargetInitParams, FMoviePipelineSurfaceQueuePtr>& SurfaceQueueIt : PooledSurfaceQueues)
 		{
-			SurfaceQueueIt.Value->Shutdown();
+			if (SurfaceQueueIt.Value.IsValid())
+			{
+				SurfaceQueueIt.Value->Shutdown();
+			}
 		}
+
 	}
 	
 	// Stall until the task graph has completed any pending accumulations.
-	FTaskGraphInterface::Get().WaitUntilTasksComplete(OutstandingTasks, ENamedThreads::GameThread);
-	OutstandingTasks.Reset();
-
-	for (TObjectPtr< UMovieGraphRenderPassNode> RenderPass : RenderPassesInUse)
 	{
-		RenderPass->Teardown();
+		TRACE_CPUPROFILER_EVENT_SCOPE(MRQ_WaitForAccumulationTasksFinished);
+
+		UE::Tasks::Wait(OutstandingTasks);
+		OutstandingTasks.Empty();
+	}
+	
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(MRQ_TeardownRenderPasses);
+		
+		for (const TObjectPtr<UMovieGraphRenderPassNode>& RenderPass : RenderPassesInUse)
+		{
+			RenderPass->Teardown();
+		}
+
+		RenderPassesInUse.Reset();
 	}
 
-	RenderPassesInUse.Reset();
-
 	// ToDo: This could probably be preserved across shots to avoid allocations
-	PooledViewRenderTargets.Reset();
-	PooledAccumulators.Reset();
-	PooledSurfaceQueues.Reset();
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(MRQ_ResetPooledData);
+		PooledViewRenderTargets.Reset();
+		PooledAccumulators.Reset();
+		PooledSurfaceQueues.Reset();
+	}
 }
 
 
@@ -140,15 +161,15 @@ void UMovieGraphDefaultRenderer::Render(const FMovieGraphTimeStepData& InTimeSte
 	// better idea of how much work we're concurrently doing. 
 	{
 		// Don't iterate through the array if someone is actively modifying it.
+		TRACE_CPUPROFILER_EVENT_SCOPE(MRQ_RemoveCompletedOutstandingTasks);
 		FScopeLock ScopeLock(&OutstandingTasksMutex);
 		for (int32 Index = 0; Index < OutstandingTasks.Num(); Index++)
 		{
-			const FGraphEventRef& Task = OutstandingTasks[Index];
-			if (Task->IsComplete())
+			const UE::Tasks::FTask& Task = OutstandingTasks[Index];
+			if (Task.IsCompleted())
 			{
-				Task->Release();
 				OutstandingTasks.RemoveAtSwap(Index);
-
+		
 				// We swapped the end array element into the current spot,
 				// so we need to check this element again, otherwise we skip
 				// checking some things.
@@ -190,12 +211,32 @@ void UMovieGraphDefaultRenderer::Render(const FMovieGraphTimeStepData& InTimeSte
 	}
 }
 
-void UMovieGraphDefaultRenderer::AddOutstandingRenderTask_AnyThread(FGraphEventRef InTask)
+void UMovieGraphDefaultRenderer::AddOutstandingRenderTask_AnyThread(UE::Tasks::FTask InTask)
 {
 	// We might be looping through the array to remove previously completed tasks,
 	// so don't modify until that is completed.
 	FScopeLock ScopeLock(&OutstandingTasksMutex);
-	OutstandingTasks.Add(InTask);
+	OutstandingTasks.Add(MoveTemp(InTask));
+}
+
+UE::MovieGraph::DefaultRenderer::FCameraInfo UMovieGraphDefaultRenderer::GetCameraInfo(const FGuid& InCameraIdentifier) const
+{
+	UE::MovieGraph::DefaultRenderer::FCameraInfo CameraInfo;
+
+	// We only support the primary camera right now
+	APlayerController* LocalPlayerController = GetWorld()->GetFirstPlayerController();
+	if (LocalPlayerController && LocalPlayerController->PlayerCameraManager)
+	{
+		CameraInfo.ViewInfo = LocalPlayerController->PlayerCameraManager->GetCameraCacheView();
+		CameraInfo.ViewActor = LocalPlayerController->GetViewTarget();
+		CameraInfo.CameraName = TEXT("Unnamed_Camera"); // ToDo: This eventually needs to come from Level Sequences
+	}
+	else
+	{
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Failed to find Local Player Controller/Camera Manager to get viewpoint!"));
+	}
+	
+	return CameraInfo;
 }
 
 UTextureRenderTarget2D* UMovieGraphDefaultRenderer::GetOrCreateViewRenderTarget(const UE::MovieGraph::DefaultRenderer::FRenderTargetInitParams& InInitParams)
@@ -279,7 +320,7 @@ FSurfaceAccumulatorPool::FInstancePtr FSurfaceAccumulatorPool::BlockAndGetAccumu
 					Accumulators[Index]->ActiveFrameNumber = InFrameNumber;
 					Accumulators[Index]->ActivePassIdentifier = InPassIdentifier;
 					Accumulators[Index]->bIsActive = true;
-					Accumulators[Index]->TaskPrereq = nullptr;
+					Accumulators[Index]->TaskPrereq = UE::Tasks::FTask();
 					AvailableIndex = Index;
 					break;
 				}

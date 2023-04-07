@@ -29,6 +29,8 @@ public:
 	* memory until the end of a render.
 	*/
 	void OnReceiveImageData(UMovieGraphPipeline* InPipeline, UE::MovieGraph::FMovieGraphOutputMergerFrame* InRawFrameData) { OnReceiveImageDataImpl(InPipeline, InRawFrameData); }
+	void OnAllFramesSubmitted() { OnAllFramesSubmittedImpl(); }
+	bool IsFinishedWritingToDisk() const { return IsFinishedWritingToDiskImpl(); }
 	// ~UMovieGraphFileOutputNode Interface
 
 	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override
@@ -54,4 +56,6 @@ public:
 
 protected:
 	virtual void OnReceiveImageDataImpl(UMovieGraphPipeline* InPipeline, UE::MovieGraph::FMovieGraphOutputMergerFrame* InRawFrameData) {}
+	virtual void OnAllFramesSubmittedImpl() {}
+	virtual bool IsFinishedWritingToDiskImpl() const { return true; }
 };

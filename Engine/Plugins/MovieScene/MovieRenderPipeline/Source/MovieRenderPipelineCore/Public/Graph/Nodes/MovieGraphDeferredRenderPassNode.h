@@ -2,6 +2,7 @@
 
 #pragma once
 #include "Graph/Nodes/MovieGraphRenderPassNode.h"
+#include "Graph/MovieGraphDefaultRenderer.h" // For CameraInfo
 #include "Graph/MovieGraphDataTypes.h"
 #include "SceneTypes.h"
 #include "Camera/CameraTypes.h"
@@ -9,6 +10,7 @@
 #include "Engine/EngineTypes.h"
 #include "Async/TaskGraphFwd.h"
 #include "Styling/AppStyle.h"
+#include "Tasks/Task.h"
 #include "MovieGraphDeferredRenderPassNode.generated.h"
 
 // Forward Declares
@@ -42,8 +44,6 @@ namespace UE::MovieGraph
 		bool bIsFirstSample;
 		// If it's the last sample, then we will trigger moving the data to the output merger. It can be both the first and last sample at the same time.
 		bool bIsLastSample;
-		// Does this accumulation event depend on a previous accumulation event before it can be executed?
-		FGraphEventRef TaskPrerequisite;
 	};
 
 	void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const UE::MovieGraph::FMovieGraphSampleState InSampleState, const UE::MovieGraph::FMovieGraphRenderDataAccumulationArgs& InAccumulationParams);
@@ -98,7 +98,6 @@ protected:
 			, AntiAliasingMethod(EAntiAliasingMethod::AAM_None)
 			, View(nullptr)
 			, SceneViewStateReference(nullptr)
-			, ViewActor(nullptr)
 		{
 		}
 
@@ -119,8 +118,8 @@ protected:
 		FSceneViewStateInterface* SceneViewStateReference;
 
 		// Camera Setup
-		FMinimalViewInfo MinimalViewInfo;
-		class AActor* ViewActor;
+		UE::MovieGraph::DefaultRenderer::FCameraInfo CameraInfo;
+
 	};
 
 	struct FMovieGraphDeferredRenderPass
@@ -141,6 +140,9 @@ protected:
 
 	protected:
 		FMovieGraphRenderPassLayerData LayerData;
+
+		/** Unique identifier passed in GatherOutputPasses and with each render that identifies the data produced by this renderer. */
+		FMovieGraphRenderDataIdentifier RenderDataIdentifier;
 
 		// Scene View history used by the renderer 
 		FSceneViewStateReference SceneViewState;

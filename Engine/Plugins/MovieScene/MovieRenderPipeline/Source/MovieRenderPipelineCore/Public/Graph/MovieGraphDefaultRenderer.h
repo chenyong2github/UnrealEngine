@@ -5,6 +5,8 @@
 #include "PixelFormat.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Camera/CameraTypes.h"
+#include "Tasks/Task.h"
 #include "MovieGraphDefaultRenderer.generated.h"
 
 // Forward Declares
@@ -20,6 +22,17 @@ typedef TSharedPtr<UE::MovieGraph::DefaultRenderer::FSurfaceAccumulatorPool, ESP
 
 namespace UE::MovieGraph::DefaultRenderer
 {
+	struct FCameraInfo
+	{
+		FCameraInfo()
+			: ViewActor(nullptr)
+		{}
+
+		FMinimalViewInfo ViewInfo;
+		FString CameraName;
+		class AActor* ViewActor;
+	};
+
 	struct FRenderTargetInitParams
 	{
 		FRenderTargetInitParams()
@@ -68,7 +81,7 @@ namespace UE::MovieGraph::DefaultRenderer
 			int32 ActiveFrameNumber;
 			FMovieGraphRenderDataIdentifier ActivePassIdentifier;
 			FThreadSafeBool bIsActive;
-			FGraphEventRef TaskPrereq;
+			UE::Tasks::FTask TaskPrereq;
 		};
 		typedef TSharedPtr<FInstance, ESPMode::ThreadSafe> FInstancePtr;
 
@@ -83,6 +96,7 @@ namespace UE::MovieGraph::DefaultRenderer
 	{
 	public:
 		FGraphEventRef LastCompletionEvent;
+		UE::Tasks::FTask TaskPrereq;
 
 	public:
 		FGraphEventRef Execute(TUniqueFunction<void()> InFunctor)
@@ -136,8 +150,10 @@ public:
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	// ~UObject Interface
 
-	void AddOutstandingRenderTask_AnyThread(FGraphEventRef InTask);
-	
+	void AddOutstandingRenderTask_AnyThread(UE::Tasks::FTask InTask);
+	UE::MovieGraph::DefaultRenderer::FCameraInfo GetCameraInfo(const FGuid& InCameraIdentifier) const;
+
+public:
 	UTextureRenderTarget2D* GetOrCreateViewRenderTarget(const UE::MovieGraph::DefaultRenderer::FRenderTargetInitParams& InInitParams);
 	FMoviePipelineSurfaceQueuePtr GetOrCreateSurfaceQueue(const UE::MovieGraph::DefaultRenderer::FRenderTargetInitParams& InInitParams);
 	
@@ -199,5 +215,5 @@ protected:
 	/** Accessed by the Render Thread when starting up a new task.Makes sure we don't add tasks to the array while we're removing finished ones. */
 	FCriticalSection OutstandingTasksMutex;
 	/** Array of outstanding accumulation / blending tasks that are currently being worked on. */
-	FGraphEventArray OutstandingTasks;
+	TArray<UE::Tasks::FTask> OutstandingTasks;
 };

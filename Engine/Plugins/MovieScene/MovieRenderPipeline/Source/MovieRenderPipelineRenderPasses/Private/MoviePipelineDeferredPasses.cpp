@@ -758,8 +758,8 @@ TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::M
 			MoviePipeline::AccumulateSample_TaskThread(MoveTemp(PixelData), AccumulationArgs);
 			if (bFinalSample)
 			{
-				SampleAccumulator->bIsActive = false;
 				SampleAccumulator->TaskPrereq = nullptr;
+				SampleAccumulator->bIsActive = false;
 			}
 		});
 		SampleAccumulator->TaskPrereq = Event;

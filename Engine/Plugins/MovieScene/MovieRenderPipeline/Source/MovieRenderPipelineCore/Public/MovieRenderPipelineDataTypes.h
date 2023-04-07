@@ -529,6 +529,9 @@ public:
 	/** The current tick of this shot that we're on in root space */
 	FFrameNumber CurrentTickInRoot;
 
+	/** The current time of this shot that we're on in root space (for the Graph version. Tracks sub-frames too.) */
+	FFrameTime CurrentTimeInRoot;
+
 	/** Converts from the outermost space into the innermost space. Only works with linear transforms. */
 	FMovieSceneTimeTransform OuterToInnerTransform;
 	

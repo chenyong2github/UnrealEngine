@@ -3,12 +3,27 @@
 
 #include "Graph/MovieGraphDataTypes.h"
 #include "Misc/FrameTime.h"
+#include "MovieSceneTimeController.h"
+
 #include "MovieGraphSequenceDataSource.generated.h"
 
 // Forward Declares
 class ULevelSequence;
 class ALevelSequenceActor;
 class UMovieSceneSequencePlayer;
+
+namespace UE::MovieGraph
+{
+	struct FMovieGraphSequenceTimeController : public FMovieSceneTimeController
+	{
+		virtual FFrameTime OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate) override;
+		void SetCachedFrameTiming(const FQualifiedFrameTime& InTimeCache) { TimeCache = InTimeCache; }
+
+	private:
+		/** Simply store the number calculated and return it when requested. */
+		FQualifiedFrameTime TimeCache;
+	};
+}
 
 /**
 * The UMovieGraphSequenceDataSource allows using a ULevelSequence as the external datasource for the Movie Graph.
@@ -22,12 +37,14 @@ class MOVIERENDERPIPELINECORE_API UMovieGraphSequenceDataSource : public UMovieG
 	GENERATED_BODY()
 
 public:
+	UMovieGraphSequenceDataSource();
 	virtual void CacheDataPreJob(const FMovieGraphInitConfig& InInitConfig) override;
 	virtual void RestoreCachedDataPostJob() override;
 	virtual void UpdateShotList() override;
 	virtual FFrameRate GetTickResolution() const override;
 	virtual FFrameRate GetDisplayRate() const override;
-
+	virtual void SyncDataSourceTime(const FFrameTime& InTime) override;
+	virtual void InitializeShot(UMoviePipelineExecutorShot* InShot) override;
 protected:
 	void CacheLevelSequenceData(ULevelSequence* InSequence);
 	void OnSequenceEvaluated(const UMovieSceneSequencePlayer& Player, FFrameTime CurrentTime, FFrameTime PreviousTime);
@@ -36,4 +53,6 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<ALevelSequenceActor> LevelSequenceActor;
 
+	/** Custom Time Controller for the Sequence Player, used to match Custom TimeStep without any floating point accumulation errors. */
+	TSharedPtr<UE::MovieGraph::FMovieGraphSequenceTimeController> CustomSequenceTimeController;
 };

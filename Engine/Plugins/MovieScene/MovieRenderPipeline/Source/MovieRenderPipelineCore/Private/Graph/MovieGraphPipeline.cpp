@@ -221,30 +221,30 @@ void UMovieGraphPipeline::TickProducingFrames()
 void UMovieGraphPipeline::TickFinalizeOutputContainers(const bool bInForceFinish)
 {
 	// Tick all containers until they all report that they have finalized.
-	bool bAllContainsFinishedProcessing = true;
+	bool bAllContainsFinishedProcessing;
 
-	//do
-	//{
-	//	bAllContainsFinishedProcessing = true;
-	//
-	//	// Ask the containers if they're all done processing.
-	//	for (UMoviePipelineOutputBase* Container : GetPipelinePrimaryConfig()->GetOutputContainers())
-	//	{
-	//		bAllContainsFinishedProcessing &= Container->HasFinishedProcessing();
-	//	}
-	//
-	//	// If we aren't forcing a finish, early out after one loop to keep
-	//	// the editor/ui responsive.
-	//	if (!bInForceFinish || bAllContainsFinishedProcessing)
-	//	{
-	//		break;
-	//	}
-	//
-	//	// If they've reached here, they're forcing them to finish so we'll sleep for a touch to give
-	//	// everyone a chance to actually do work before asking them if they're done.
-	//	FPlatformProcess::Sleep(1.f);
-	//
-	//} while (true);
+	while(true)
+	{
+		bAllContainsFinishedProcessing = true;
+
+		for (const TObjectPtr<UMovieGraphFileOutputNode>& Node : GetOutputNodesUsed())
+		{
+			bAllContainsFinishedProcessing &= Node->IsFinishedWritingToDisk();
+
+		}
+	
+		// If we aren't forcing a finish, early out after one loop to keep
+		// the editor/ui responsive.
+		if (!bInForceFinish || bAllContainsFinishedProcessing)
+		{
+			break;
+		}
+	
+		// If they've reached here, they're forcing them to finish so we'll sleep for a touch to give
+		// everyone a chance to actually do work before asking them if they're done.
+		FPlatformProcess::Sleep(0.1f);
+	
+	}
 
 	// If an output container is still working, we'll early out to keep the UI responsive.
 	// If they've forced a finish this will have to be true before we can reach this block.
@@ -310,6 +310,15 @@ void UMovieGraphPipeline::TickPostFinalizeExport(const bool bInForceFinish)
 	TransitionToState(EMovieRenderPipelineState::Finished);
 }
 
+void UMovieGraphPipeline::BeginFinalize()
+{
+	// Notify our output nodes that no more frames will be submitted. This allows
+	// them to put fences into queues for file writes, etc.
+	for (const TObjectPtr<UMovieGraphFileOutputNode>& Node : GetOutputNodesUsed())
+	{
+		Node->OnAllFramesSubmitted();
+	}
+}
 
 void UMovieGraphPipeline::SetupShot(UMoviePipelineExecutorShot* InShot)
 {
@@ -361,16 +370,14 @@ void UMovieGraphPipeline::OnEngineTickEndFrame()
 {
 	LLM_SCOPE_BYNAME(TEXT("MovieGraphEndFrame"));
 
-	// Unfortunately, since we can't control when our Initialization function is called
-	// we can end up in a situation where this callback is registered but the matching
-	// OnEngineTickBeginFrame() hasn't been called for that given engine tick. Instead of
-	// changing this registration to hang off of the end of the first OnEngineTickBeginFrame()
-	// we instead just early out here if that hasn't actually been called once. This decision
-	// is designed to minimize places where callbacks are registered and where flow changes.
-	//if (!bHasRunBeginFrameOnce)
-	//{
-	//	return;
-	//}
+	// Don't try to submit anything to the renderer if the shot isn't initialized yet, or has
+	// finished. We tick the engine when transitioning between shot states.
+	EMovieRenderShotState CurrentShotState = GetActiveShotList()[GetCurrentShotIndex()]->ShotInfo.State;
+	if (CurrentShotState == EMovieRenderShotState::Uninitialized || 
+		CurrentShotState == EMovieRenderShotState::Finished)
+	{
+		return;
+	}
 
 	UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("MovieGraph OnEngineTickEndFrame (Start)"));
 
@@ -507,20 +514,22 @@ void UMovieGraphPipeline::TransitionToState(const EMovieRenderPipelineState InNe
 			// to continue to call it to allow ticking the Finalization stage.
 			FCoreDelegates::OnEndFrame.RemoveAll(this);
 
-			// Reset the Custom Timestep because we don't care how long the engine takes now
-			// GEngine->SetCustomTimeStep(CachedPrevCustomTimeStep);
+			// Restore any custom Time Step that may have been set before. We do this here
+			// because the TimeStepInstance is only expected to be having to calculate times
+			// during ProducingFrames.
+			GetTimeStepInstance()->Shutdown();
 
 			// Ensure all frames have been processed by the GPU and sent to the Output Merger
 			FlushRenderingCommands();
 
 			// And then make sure all frames are sent to the Output Containers before we finalize.
-			// ProcessOutstandingFinishedFrames();
+			ProcessOutstandingFinishedFrames();
 
 			// PreviewTexture = nullptr;
 
 			// This is called once notifying output containers that all frames that will be submitted have been submitted.
 			PipelineState = EMovieRenderPipelineState::Finalize;
-			//BeginFinalize();
+			BeginFinalize();
 		}
 		break;
 	case EMovieRenderPipelineState::Finalize:
@@ -531,6 +540,8 @@ void UMovieGraphPipeline::TransitionToState(const EMovieRenderPipelineState InNe
 			// This is called once notifying our export step that they can begin the export.
 			PipelineState = EMovieRenderPipelineState::Export;
 
+
+
 			// Restore the sequence so that the export processes can operate on the original sequence. 
 			// This is also done in the finished state because it's not guaranteed that the Export state 
 			// will be set when the render is canceled early
@@ -539,7 +550,7 @@ void UMovieGraphPipeline::TransitionToState(const EMovieRenderPipelineState InNe
 
 			// Ensure all of our Futures have been converted to the GeneratedOutputData. This has to happen
 			// after finalize finishes, because the futures won't be available until actually written to disk.
-			// ProcessOutstandingFutures();
+			ProcessOutstandingFutures();
 
 			//BeginExport();
 		}
@@ -558,8 +569,7 @@ void UMovieGraphPipeline::TransitionToState(const EMovieRenderPipelineState InNe
 			//	Setting->OnMoviePipelineShutdown(this);
 			//}
 
-			// Restore any custom Time Step that may have been set before.
-			//GEngine->SetCustomTimeStep(CachedPrevCustomTimeStep);
+
 
 			// Ensure our delegates don't get called anymore as we're going to become null soon.
 			FCoreDelegates::OnBeginFrame.RemoveAll(this);
@@ -606,6 +616,8 @@ void UMovieGraphPipeline::TransitionToState(const EMovieRenderPipelineState InNe
 			//		StopUnrealInsightsCapture();
 			//	}
 			//}
+
+			OutputNodesDataSentTo.Reset();
 
 			OnMoviePipelineFinishedImpl();
 			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Movie Graph Render completed. Duration: %s"), *(FDateTime::UtcNow() - GraphInitializationTime).ToString());
@@ -691,8 +703,11 @@ void UMovieGraphPipeline::ProcessOutstandingFinishedFrames()
 		for (UMovieGraphFileOutputNode* CDOInstance : ContainerCDOs)
 		{
 			CDOInstance->OnReceiveImageData(this, &OutputFrame);
-		}
 
+			// Ensure we keep track of which nodes we actually sent data to during this render
+			// so that we can call BeginFinalize/IsFinishedWritingToDisk on them when shutting down.
+			OutputNodesDataSentTo.Add(CDOInstance);
+		}
 	}
 }
 
@@ -802,4 +817,9 @@ FMovieGraphTraversalContext UMovieGraphPipeline::GetCurrentTraversalContext() co
 	CurrentContext.Time = GetTimeStepInstance()->GetCalculatedTimeData();
 
 	return CurrentContext;
+}
+
+const TSet<TObjectPtr<UMovieGraphFileOutputNode>> UMovieGraphPipeline::GetOutputNodesUsed() const
+{
+	return OutputNodesDataSentTo;
 }

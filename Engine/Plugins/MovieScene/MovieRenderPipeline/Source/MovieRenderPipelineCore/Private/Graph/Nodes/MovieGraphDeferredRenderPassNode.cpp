@@ -18,6 +18,10 @@
 #include "TextureResource.h"
 #include "MovieRenderOverlappedImage.h"
 #include "MoviePipelineSurfaceReader.h"
+#include "Tasks/Task.h"
+
+// For the 1D Weight table for accumulation
+#include "MovieRenderPipelineDataTypes.h"
 
 void UMovieGraphDeferredRenderPassNode::SetupImpl(const FMovieGraphRenderPassSetupData& InSetupData)
 {
@@ -77,6 +81,12 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Setup(TWe
 	Renderer = InRenderer;
 	RenderPassNode = InRenderPassNode;
 
+	RenderDataIdentifier.RenderLayerName = LayerData.LayerName;
+	RenderDataIdentifier.RendererName = RenderPassNode->GetRendererName();
+	RenderDataIdentifier.SubResourceName = TEXT("beauty");
+	
+	UE::MovieGraph::DefaultRenderer::FCameraInfo CameraInfo = Renderer->GetCameraInfo(LayerData.CameraIdentifier);
+	RenderDataIdentifier.CameraName =  CameraInfo.CameraName;
 
 	// Figure out how big each sub-region (tile) is.
 	// const int32 TileSize = Graph->FindSetting(LayerData.LayerName, "highres.tileSize");
@@ -97,14 +107,6 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Setup(TWe
 
 void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::GatherOutputPassesImpl(TArray<FMovieGraphRenderDataIdentifier>& OutExpectedPasses) const
 {
-	// ToDo: Store this when the render pass is created, so we don't create it in two places at once.
-	// This is a problem right now due to the camera name not being pre-resolved.
-	FMovieGraphRenderDataIdentifier RenderDataIdentifier;
-	RenderDataIdentifier.RenderLayerName = LayerData.LayerName;
-	RenderDataIdentifier.RendererName = RenderPassNode->GetRendererName();
-	RenderDataIdentifier.SubResourceName = TEXT("beauty");
-	RenderDataIdentifier.CameraName = TEXT("Unnamed_Camera");
-
 	OutExpectedPasses.Add(RenderDataIdentifier);
 }
 void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Teardown()
@@ -143,19 +145,7 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Render(co
 	FViewFamilyContextInitData InitData;
 	InitData.RenderTarget = RenderTarget->GameThread_GetRenderTargetResource();
 	InitData.World = Renderer->GetWorld();
-
-	APlayerController* LocalPlayerController = Renderer->GetWorld()->GetFirstPlayerController();
-	if (LocalPlayerController && LocalPlayerController->PlayerCameraManager)
-	{
-		InitData.MinimalViewInfo = LocalPlayerController->PlayerCameraManager->GetCameraCacheView();
-		InitData.ViewActor = LocalPlayerController->GetViewTarget();
-	}
-	else
-	{
-		InitData.MinimalViewInfo = FMinimalViewInfo();
-		InitData.ViewActor = nullptr;
-		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Failed to find Local Player Controller/Camera Manager to get viewpoint!"));
-	}
+	InitData.CameraInfo = Renderer->GetCameraInfo(LayerData.CameraIdentifier);
 
 	// ToDo:
 	InitData.TimeData = InTimeData;
@@ -193,16 +183,6 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Render(co
 	//	return;
 	//}
 
-	FMovieGraphRenderDataIdentifier RenderDataIdentifier;
-	RenderDataIdentifier.RenderLayerName = LayerData.LayerName;
-	RenderDataIdentifier.RendererName = RenderPassNode->GetRendererName();
-	RenderDataIdentifier.SubResourceName = TEXT("beauty");
-	RenderDataIdentifier.CameraName = TEXT("Unnamed_Camera");
-	//if (InitData.ViewActor)
-	//{
-	//	RenderDataIdentifier.CameraName = InitData.ViewActor->GetName();
-	//}
-
 	// Take our per-frame Traversal Context and update it with context specific to this sample.
 	FMovieGraphTraversalContext UpdatedTraversalContext = InFrameTraversalContext;
 	UpdatedTraversalContext.Time = InTimeData;
@@ -212,6 +192,10 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Render(co
 	UE::MovieGraph::FMovieGraphSampleState SampleState;
 	SampleState.TraversalContext = MoveTemp(UpdatedTraversalContext);
 	SampleState.BackbufferResolution = RenderTargetInitParams.Size;
+	SampleState.AccumulatorResolution = RenderTargetInitParams.Size; // ToDo: Overscan
+	SampleState.bWriteSampleToDisk = false; // ToDo: From graph
+	SampleState.bRequiresAccumulator = InTimeData.bRequiresAccumulator;
+	SampleState.bFetchFromAccumulator = InTimeData.bIsLastTemporalSampleForFrame;
 
 	// Readback + Accumulate.
 	PostRendererSubmission(SampleState, RenderTargetInitParams, Canvas);
@@ -244,16 +228,11 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::PostRende
 		AccumulationArgs.ImageAccumulator = StaticCastSharedPtr<FImageOverlappedAccumulator>(AccumulatorInstance->Accumulator);
 		AccumulationArgs.bIsFirstSample = InSampleState.TraversalContext.Time.bIsFirstTemporalSampleForFrame; // FramePayload->IsFirstTile() && FramePayload->IsFirstTemporalSample()
 		AccumulationArgs.bIsLastSample = InSampleState.TraversalContext.Time.bIsLastTemporalSampleForFrame; // FramePayload->IsLastTile() && FramePayload->IsLastTemporalSample()
-		AccumulationArgs.TaskPrerequisite = AccumulatorInstance->TaskPrereq;
 	}
 
 	auto OnSurfaceReadbackFinished = [this, InSampleState, AccumulationArgs, AccumulatorInstance](TUniquePtr<FImagePixelData>&& InPixelData)
 	{
-		UE::MovieGraph::DefaultRenderer::FMovieGraphAccumulationTask Task;
-		// There may be other accumulations for this accumulator which need to be processed first
-		Task.LastCompletionEvent = AccumulationArgs.TaskPrerequisite;
-
-		FGraphEventRef Event = Task.Execute([PixelData = MoveTemp(InPixelData), InSampleState, AccumulationArgs, AccumulatorInstance]() mutable
+			UE::Tasks::TTask<void> Task = UE::Tasks::Launch(UE_SOURCE_LOCATION, [PixelData = MoveTemp(InPixelData), InSampleState, AccumulationArgs, AccumulatorInstance]() mutable
 			{
 				// Enqueue a encode for this frame onto our worker thread.
 				UE::MovieGraph::AccumulateSample_TaskThread(MoveTemp(PixelData), InSampleState, AccumulationArgs);
@@ -261,14 +240,15 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::PostRende
 				// We have to defer clearing the accumulator until after sample accumulation has finished
 				if (AccumulationArgs.bIsLastSample)
 				{
-					// Final sample has now been executed, break the pre-req chain and free the accumulator for reuse.
+					// Final sample has now been executed, free the accumulator for reuse.
 					AccumulatorInstance->bIsActive = false;
-					AccumulatorInstance->TaskPrereq = nullptr;
 				}
-			});
-		AccumulatorInstance->TaskPrereq = Event;
+			}, AccumulatorInstance->TaskPrereq);
 
-		this->Renderer->AddOutstandingRenderTask_AnyThread(Event);
+		// Make the next accumulation task that uses this accumulator use the task we just created as a pre-req.
+		AccumulatorInstance->TaskPrereq = Task;
+
+		this->Renderer->AddOutstandingRenderTask_AnyThread(Task);
 	};
 
 	FRenderTarget* RenderTarget = InCanvas.GetRenderTarget();
@@ -289,7 +269,7 @@ TSharedRef<FSceneViewFamilyContext> UMovieGraphDeferredRenderPassNode::FMovieGra
 	FEngineShowFlags ShowFlags = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
 	EViewModeIndex ViewModeIndex = EViewModeIndex::VMI_Lit;
 
-	const bool bIsPerspective = InInitData.MinimalViewInfo.ProjectionMode == ECameraProjectionMode::Type::Perspective;
+	const bool bIsPerspective = InInitData.CameraInfo.ViewInfo.ProjectionMode == ECameraProjectionMode::Type::Perspective;
 
 	// Allow the Engine Showflag system to override our engine showflags, based on our view mode index.
 	// This is required for certain debug view modes (to have matching show flags set for rendering).
@@ -327,10 +307,10 @@ FSceneView* UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Al
 {
 	FSceneViewInitOptions ViewInitOptions;
 	ViewInitOptions.ViewFamily = InViewFamilyContext.Get();
-	ViewInitOptions.ViewOrigin = InInitData.MinimalViewInfo.Location;
+	ViewInitOptions.ViewOrigin = InInitData.CameraInfo.ViewInfo.Location;
 	ViewInitOptions.SetViewRectangle(FIntRect(FIntPoint(0, 0), FIntPoint(InInitData.RenderTarget->GetSizeXY().X, InInitData.RenderTarget->GetSizeXY().Y)));
-	ViewInitOptions.ViewRotationMatrix = FInverseRotationMatrix(InInitData.MinimalViewInfo.Rotation);
-	ViewInitOptions.ViewActor = InInitData.ViewActor;
+	ViewInitOptions.ViewRotationMatrix = FInverseRotationMatrix(InInitData.CameraInfo.ViewInfo.Rotation);
+	ViewInitOptions.ViewActor = InInitData.CameraInfo.ViewActor;
 
 	// Rotate the view 90 degrees to match the rest of the engine.
 	ViewInitOptions.ViewRotationMatrix = ViewInitOptions.ViewRotationMatrix * FMatrix(
@@ -338,7 +318,7 @@ FSceneView* UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Al
 		FPlane(1, 0, 0, 0),
 		FPlane(0, 1, 0, 0),
 		FPlane(0, 0, 0, 1));
-	float ViewFOV = InInitData.MinimalViewInfo.FOV;
+	float ViewFOV = InInitData.CameraInfo.ViewInfo.FOV;
 
 	// Inflate our FOV to support the overscan 
 	ViewFOV = 2.0f * FMath::RadiansToDegrees(FMath::Atan((1.0f + InInitData.OverscanFraction) * FMath::Tan(FMath::DegreesToRadians(ViewFOV * 0.5f))));
@@ -347,7 +327,7 @@ FSceneView* UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Al
 	// ToDo: This isn't great but this appears to be how the system works... ideally we could fetch this from the camera itself
 	const EAspectRatioAxisConstraint AspectRatioAxisConstraint = GetDefault<ULocalPlayer>()->AspectRatioAxisConstraint;
 	FIntRect ViewportRect = FIntRect(FIntPoint(0, 0), FIntPoint(InInitData.RenderTarget->GetSizeXY().X, InInitData.RenderTarget->GetSizeXY().Y));
-	FMinimalViewInfo::CalculateProjectionMatrixGivenViewRectangle(InInitData.MinimalViewInfo, AspectRatioAxisConstraint, ViewportRect, /*InOut*/ ViewInitOptions);
+	FMinimalViewInfo::CalculateProjectionMatrixGivenViewRectangle(InInitData.CameraInfo.ViewInfo, AspectRatioAxisConstraint, ViewportRect, /*InOut*/ ViewInitOptions);
 
 	// ToDo: High Res Tiling, Overscan support, letterboxing
 	ViewInitOptions.SceneViewStateInterface = InInitData.SceneViewStateReference;
@@ -356,11 +336,6 @@ FSceneView* UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Al
 
 	FSceneView* View = new FSceneView(ViewInitOptions);
 	InViewFamilyContext->Views.Add(View);
-
-	//View->ViewLocation = CameraInfo.ViewInfo.Location;
-	//View->ViewRotation = CameraInfo.ViewInfo.Rotation;
-	// Override previous/current view transforms so that tiled renders don't use the wrong occlusion/motion blur information.
-	//View->PreviousViewTransform = CameraInfo.ViewInfo.PreviousViewTransform;
 
 	View->StartFinalPostprocessSettings(View->ViewLocation);
 	// BlendPostProcessSettings(View, InOutSampleState, OptPayload);
@@ -507,8 +482,8 @@ namespace UE::MovieGraph
 		TSharedPtr<UE::MovieGraph::FMovieGraphSampleState> SampleStatePayload = MakeShared<UE::MovieGraph::FMovieGraphSampleState>(InSampleState);
 		SamplePixelData->SetPayload(StaticCastSharedPtr<IImagePixelDataPayload>(SampleStatePayload));
 
-		TSharedPtr<IMovieGraphOutputMerger, ESPMode::ThreadSafe> AccumulatorPin = InAccumulationParams.OutputMerger.Pin();
-		if (!AccumulatorPin.IsValid())
+		TSharedPtr<IMovieGraphOutputMerger, ESPMode::ThreadSafe> OutputMergerPin = InAccumulationParams.OutputMerger.Pin();
+		if (!OutputMergerPin.IsValid())
 		{
 			return;
 		}
@@ -516,16 +491,106 @@ namespace UE::MovieGraph
 		const bool bIsWellFormed = SamplePixelData->IsDataWellFormed();
 		check(bIsWellFormed);
 
-		// ToDo:
-		bool bWriteSampleToDisk = false;
-		if (bWriteSampleToDisk)
+		if (SampleStatePayload->bWriteSampleToDisk)
 		{
 			// Debug Feature: Write the raw sample to disk for debugging purposes. We copy the data here,
 			// as we don't want to disturb the memory flow below.
 			TUniquePtr<FImagePixelData> SampleData = SamplePixelData->CopyImageData();
-			AccumulatorPin->OnSingleSampleDataAvailable_AnyThread(MoveTemp(SampleData));
+			OutputMergerPin->OnSingleSampleDataAvailable_AnyThread(MoveTemp(SampleData));
 		}
 
-		AccumulatorPin->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(SamplePixelData));
+		// Optimization! If we don't need the accumulator (no tiling, no sub-sampling) then we'll skip it and just send it straight to the output stage.
+		// This reduces memory requirements and improves performance in the baseline case.
+		if (!SampleStatePayload->bRequiresAccumulator)
+		{
+			OutputMergerPin->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(SamplePixelData));
+			return;
+		}
+
+		TSharedPtr<FImageOverlappedAccumulator> AccumulatorPin = InAccumulationParams.ImageAccumulator.Pin();
+		if (AccumulatorPin->NumChannels == 0)
+		{
+			LLM_SCOPE_BYNAME(TEXT("MoviePipeline/ImageAccumulatorInitMemory"));
+			const int32 ChannelCount = 4;
+			AccumulatorPin->InitMemory(SampleStatePayload->AccumulatorResolution, ChannelCount);
+			AccumulatorPin->ZeroPlanes();
+			AccumulatorPin->AccumulationGamma = 1.f;
+		}
+
+		// Accumulate the new sample to our target
+		{
+			// ToDo: Handle incorrectly sized samples (Post Process materials using r.screenpercentage)
+			
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(MoviePipeline_AccumulatePixelData);
+				
+				// ToDo: High-res Tiling Support
+				const FIntPoint OverlappedPad = FIntPoint(0, 0);
+				const FIntPoint TileSize = SampleStatePayload->BackbufferResolution;
+				const FIntPoint OverlappedOffset = FIntPoint(0, 0);
+				const FVector2D OverlappedSubpixelShift = FVector2D(0.5f, 0.5f);
+				::MoviePipeline::FTileWeight1D WeightFunctionX;
+				::MoviePipeline::FTileWeight1D WeightFunctionY;
+				WeightFunctionX.InitHelper(OverlappedPad.X, TileSize.X, OverlappedPad.X);
+				WeightFunctionY.InitHelper(OverlappedPad.Y, TileSize.Y, OverlappedPad.Y);
+				
+				AccumulatorPin->AccumulatePixelData(*SamplePixelData, OverlappedOffset, OverlappedSubpixelShift, WeightFunctionX, WeightFunctionY);
+			}
+
+		}
+
+		// Finally on our last sample, we fetch the data out of the accumulator
+		// and move it to the Output Merger.
+		if (SampleStatePayload->bFetchFromAccumulator)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(MoviePipeline_FetchAccumulatedPixelData);
+			int32 FullSizeX = AccumulatorPin->PlaneSize.X;
+			int32 FullSizeY = AccumulatorPin->PlaneSize.Y;
+
+			// Now that a tile is fully built and accumulated we can notify the output builder that the
+			// data is ready so it can pass that onto the output containers (if needed).
+			if (SamplePixelData->GetType() == EImagePixelType::Float32)
+			{
+				// 32 bit FLinearColor
+				TUniquePtr<TImagePixelData<FLinearColor> > FinalPixelData = MakeUnique<TImagePixelData<FLinearColor>>(FIntPoint(FullSizeX, FullSizeY), SampleStatePayload);
+				AccumulatorPin->FetchFinalPixelDataLinearColor(FinalPixelData->Pixels);
+
+				// Send the data to the Output Builder
+				OutputMergerPin->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(FinalPixelData));
+			}
+			else if (SamplePixelData->GetType() == EImagePixelType::Float16)
+			{
+				// 16 bit FLinearColor
+				TUniquePtr<TImagePixelData<FFloat16Color> > FinalPixelData = MakeUnique<TImagePixelData<FFloat16Color>>(FIntPoint(FullSizeX, FullSizeY), SampleStatePayload);
+				AccumulatorPin->FetchFinalPixelDataHalfFloat(FinalPixelData->Pixels);
+
+				// Send the data to the Output Builder
+				OutputMergerPin->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(FinalPixelData));
+			}
+			else if (SamplePixelData->GetType() == EImagePixelType::Color)
+			{
+				// 8bit FColors
+				TUniquePtr<TImagePixelData<FColor>> FinalPixelData = MakeUnique<TImagePixelData<FColor>>(FIntPoint(FullSizeX, FullSizeY), SampleStatePayload);
+				AccumulatorPin->FetchFinalPixelDataByte(FinalPixelData->Pixels);
+
+				// Send the data to the Output Builder
+				OutputMergerPin->OnCompleteRenderPassDataAvailable_AnyThread(MoveTemp(FinalPixelData));
+			}
+			else
+			{
+				check(0);
+			}
+
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(MoviePipeline_FreeAccumulatedPixelData);
+				// Free the memory in the accumulator.
+				AccumulatorPin->Reset();
+			}
+		}
+
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ReleaseSampleData);
+			SamplePixelData.Reset();
+		}
 	}
 }
