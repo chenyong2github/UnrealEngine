@@ -141,7 +141,7 @@ namespace P4VUtils.Commands
 				}
 
 				// warn user
-				MessageBoxResult result = MessageBox.Show(
+				UserInterface.Button result = UserInterface.ShowDialog(
 					"This backout is potentially unsafe:\r\n" +
 					"\r\n" +
 					ErrorString +
@@ -151,9 +151,9 @@ namespace P4VUtils.Commands
 					"You can tag @p4backouthelp in #ue-build-health or #fn-build-health for assistance.\r\n" +
 					"\r\n",
 					"Unsafe backout detected",
-					MessageBoxButton.YesNo);
+					UserInterface.YesNo, UserInterface.Button.No, Logger);
 
-				if (result == MessageBoxResult.No)
+				if (result == UserInterface.Button.No)
 				{
 					Logger.LogInformation("\r\nOperation canceled.");
 					return 0;
@@ -184,7 +184,7 @@ namespace P4VUtils.Commands
 				}
 
 				// prompt
-				MessageBoxResult result = MessageBox.Show(
+				UserInterface.Button result = UserInterface.ShowDialog(
 					"The following files are checked out on another workspace:\r\n" +
 					"\r\n" +
 					FileListTruncated +
@@ -192,9 +192,9 @@ namespace P4VUtils.Commands
 					"Do you want to proceed with the backout operation?\r\n" +
 					"\r\n",
 					"Warning",
-					MessageBoxButton.YesNo);
+					UserInterface.YesNo, UserInterface.Button.Yes, Logger);
 
-				if (result == MessageBoxResult.No)
+				if (result == UserInterface.Button.No)
 				{
 					Logger.LogInformation("\r\nOperation canceled.");
 					return 0;

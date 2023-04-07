@@ -144,7 +144,7 @@ namespace P4VUtils
 				return await Command.Execute(Args, ConfigValues, Logger);
 			}
 			else
-			{
+		{
 				Logger.LogError("Unknown command: {Command}", Args[0]);
 				PrintHelp(Logger);
 				return 1;
@@ -155,7 +155,7 @@ namespace P4VUtils
 		{
 			Dictionary<string, string> ConfigValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-			string BasePath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
+			string BasePath = System.AppContext.BaseDirectory;
 			AppendConfig(Path.Combine(BasePath, "P4VUtils.ini"), ConfigValues);
 			AppendConfig(Path.Combine(BasePath, "NotForLicensees", "P4VUtils.ini"), ConfigValues);
 
@@ -201,8 +201,48 @@ namespace P4VUtils
 			return ToolNode.SelectSingleNode("Definition")?.SelectSingleNode("Name")?.InnerText ?? string.Empty;
 		}
 
+		static bool ShouldBeRemoved(XmlElement ChildElement, FileReference ExecutableLocation)
+		{
+			XmlElement? CommandElement = ChildElement.SelectSingleNode("Definition/Command") as XmlElement;
+
+			// leave any missing entries alone
+			if (CommandElement == null || CommandElement.InnerText == null)
+			{
+				return false;
+			}
+
+			// In a recent change we started to output the Command element as a quoted argument if the path contains spaces.
+			// FileReference does not resolve quoted string properly which was causing the comparisons here to fail.
+			// We can strip the quotes before creating a FileReference to compare with DotNetLocation to ensure that the comparsion
+			// is correct.
+			FileReference ExistingCommandPath = new FileReference(CommandElement.InnerText.StripQuoteArgument());
+
+			// if the executables matches this, then we remove it
+			if (ExistingCommandPath == ExecutableLocation)
+			{
+				return true;
+			}
+
+			// if it's an old style command that ran "dotnet P4VUtils.dll", remove it
+			if (ExistingCommandPath.GetFileNameWithoutAnyExtensions().Equals("dotnet", StringComparison.OrdinalIgnoreCase))
+			{
+				XmlElement? ArgumentsElement = ChildElement.SelectSingleNode("Definition/Arguments") as XmlElement;
+				if (ArgumentsElement != null)
+				{
+					string[] Arguments = CommandLineArguments.Split(ArgumentsElement.InnerText);
+					if (Arguments.Length > 0 && Path.GetFileNameWithoutExtension(Arguments[0]).Equals("P4VUtils", StringComparison.OrdinalIgnoreCase))
+					{
+						return true;
+					}
+				}
+			}
+
+			// any other case, leave it installed
+			return false;
+		}
+
 		// returns true if all tools were removed
-		static bool RemoveCustomToolsFromNode(XmlElement RootNode, FileReference DotNetLocation, FileReference AssemblyLocation, ILogger Logger)
+		static bool RemoveCustomToolsFromNode(XmlElement RootNode, FileReference ExecutableLocation, ILogger Logger)
 		{
 			int ToolsChecked = 0;
 			int ToolsRemoved = 0;
@@ -220,28 +260,12 @@ namespace P4VUtils
 				if (ChildElement != null)
 				{
 					ToolsChecked++;
-					XmlElement? CommandElement = ChildElement.SelectSingleNode("Definition/Command") as XmlElement;
 
-
-					// In a recent change we started to output the Command element as a quoted argument if the path contains spaces.
-					// FileReference does not resolve quoted string properly which was causing the comparisons here to fail.
-					// We can strip the quotes before creating a FileReference to compare with DotNetLocation to ensure that the comparsion
-					// is correct.
-					String CommandPath = (CommandElement?.InnerText ?? String.Empty).StripQuoteArgument();
-
-					if (new FileReference(CommandPath) == DotNetLocation)
+					if (ShouldBeRemoved(ChildElement, ExecutableLocation))
 					{
-						XmlElement? ArgumentsElement = ChildElement.SelectSingleNode("Definition/Arguments") as XmlElement;
-						if (ArgumentsElement != null)
-						{
-							string[] Arguments = CommandLineArguments.Split(ArgumentsElement.InnerText);
-							if (Arguments.Length > 0 && new FileReference(Arguments[0]) == AssemblyLocation)
-							{
-								Logger.LogInformation("Removing Tool {ToolName}", GetToolName(ChildElement));
-								RootNode.RemoveChild(ChildElement);
-								ToolsRemoved++;
-							}
-						}
+						Logger.LogInformation("Removing Tool {ToolName}", GetToolName(ChildElement));
+						RootNode.RemoveChild(ChildElement);
+						ToolsRemoved++;
 					}
 				}
 			}
@@ -249,7 +273,7 @@ namespace P4VUtils
 			return ToolsChecked == ToolsRemoved;
 		}
 
-		static void InstallCommandsListInFolder(string FolderName, bool AddFolderToContextMenu, CommandCategory Category, XmlDocument Document, FileReference DotNetLocation, FileReference AssemblyLocation, ILogger Logger)
+		static void InstallCommandsListInFolder(string FolderName, bool AddFolderToContextMenu, CommandCategory Category, XmlDocument Document, FileReference ExecutableLocation, ILogger Logger)
 		{
 			// <CustomToolDefList>				// list of custom tools (top level)
 			//  < CustomToolDef >				// loose custom tool in top level
@@ -291,11 +315,16 @@ namespace P4VUtils
 							Definition.AppendChild(Description);
 
 							XmlElement Command = Document.CreateElement("Command");
-							Command.InnerText = DotNetLocation.FullName.QuoteArgument();
+							Command.InnerText = ExecutableLocation.FullName;
+							if (OperatingSystem.IsWindows())
+							{
+								Command.InnerText = Command.InnerText.QuoteArgument();
+
+							}
 							Definition.AppendChild(Command);
 
 							XmlElement Arguments = Document.CreateElement("Arguments");
-							Arguments.InnerText = $"{AssemblyLocation.FullName.QuoteArgument()} {Pair.Key} {CustomTool.Arguments}";
+							Arguments.InnerText = $"{Pair.Key} {CustomTool.Arguments}";
 							Definition.AppendChild(Arguments);
 
 							if (CustomTool.Shortcut.Length > 1)
@@ -348,7 +377,7 @@ namespace P4VUtils
 				Root.AppendChild(FolderDefinition);
 			}
 		}
-		static void RemoveCustomToolsFromFolders(XmlElement RootNode, FileReference DotNetLocation, FileReference AssemblyLocation, ILogger Logger)
+		static void RemoveCustomToolsFromFolders(XmlElement RootNode, FileReference ExecutableLocation, ILogger Logger)
 		{
 			XmlNodeList? CustomToolFolderList = RootNode.SelectNodes("CustomToolFolder");
 			if(CustomToolFolderList == null)
@@ -371,7 +400,7 @@ namespace P4VUtils
 							FolderNameString = FolderNameNode.InnerText;
 						}
 						Logger.LogInformation("Removing Tools from folder {Folder}", FolderNameString);
-						RemoveFolder = RemoveCustomToolsFromNode(FolderRoot, DotNetLocation, AssemblyLocation, Logger);
+						RemoveFolder = RemoveCustomToolsFromNode(FolderRoot, ExecutableLocation, Logger);
 					}
 
 					if (RemoveFolder)
@@ -391,7 +420,15 @@ namespace P4VUtils
 				return 1;
 			}
 
-			FileReference ConfigFile = FileReference.Combine(ConfigDir, ".p4qt", "customtools.xml");
+			FileReference ConfigFile;
+			if (OperatingSystem.IsMacOS())
+			{
+				ConfigFile = FileReference.Combine(ConfigDir, "Library", "Preferences", "com.perforce.p4v", "customtools.xml");
+			}
+			else
+			{
+				ConfigFile = FileReference.Combine(ConfigDir, ".p4qt", "customtools.xml");
+			}
 
 			XmlDocument Document = new XmlDocument();
 			if (!TryLoadXmlDocument(ConfigFile, Document))
@@ -408,8 +445,7 @@ namespace P4VUtils
 			}
 
 
-			FileReference DotNetLocation = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFiles)!, "dotnet", "dotnet.exe");
-			FileReference AssemblyLocation = new FileReference(Assembly.GetExecutingAssembly().GetOriginalLocation());
+			FileReference? ExecutableLocation = new FileReference(Environment.ProcessPath!);
 
 			XmlElement? Root = Document.SelectSingleNode("CustomToolDefList") as XmlElement;
 			if (Root == null)
@@ -419,19 +455,19 @@ namespace P4VUtils
 			}
 
 			// Remove Custom tools at the root
-			RemoveCustomToolsFromNode(Root, DotNetLocation, AssemblyLocation, Logger);
+			RemoveCustomToolsFromNode(Root, ExecutableLocation, Logger);
 
 			// Remove Custom tools in folders, and the folders
-			RemoveCustomToolsFromFolders(Root, DotNetLocation, AssemblyLocation, Logger);
+			RemoveCustomToolsFromFolders(Root, ExecutableLocation, Logger);
 
 			// Insert new entries
 			if (bInstall)
 			{
-				InstallCommandsListInFolder("UE RootHelpers", false/*AddFolderToContextMenu*/, CommandCategory.Root, Document, DotNetLocation, AssemblyLocation, Logger);
-				InstallCommandsListInFolder("UE Submit", true/*AddFolderToContextMenu*/, CommandCategory.Submission, Document, DotNetLocation, AssemblyLocation, Logger);
-				InstallCommandsListInFolder("UE Toolbox", true/*AddFolderToContextMenu*/, CommandCategory.Toolbox, Document, DotNetLocation, AssemblyLocation, Logger);
-				InstallCommandsListInFolder("UE Integrate", true/*AddFolderToContextMenu*/, CommandCategory.Integrate, Document, DotNetLocation, AssemblyLocation, Logger);
-				InstallCommandsListInFolder("UE Horde", true/*AddFolderToContextMenu*/, CommandCategory.Horde, Document, DotNetLocation, AssemblyLocation, Logger);
+				InstallCommandsListInFolder("UE RootHelpers", false/*AddFolderToContextMenu*/, CommandCategory.Root, Document, ExecutableLocation, Logger);
+				InstallCommandsListInFolder("UE Submit", true/*AddFolderToContextMenu*/, CommandCategory.Submission, Document, ExecutableLocation, Logger);
+				InstallCommandsListInFolder("UE Toolbox", true/*AddFolderToContextMenu*/, CommandCategory.Toolbox, Document, ExecutableLocation, Logger);
+				InstallCommandsListInFolder("UE Integrate", true/*AddFolderToContextMenu*/, CommandCategory.Integrate, Document, ExecutableLocation, Logger);
+				InstallCommandsListInFolder("UE Horde", true/*AddFolderToContextMenu*/, CommandCategory.Horde, Document, ExecutableLocation, Logger);
 			}
 
 			// Save the new document

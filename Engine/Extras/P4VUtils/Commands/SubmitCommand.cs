@@ -928,25 +928,28 @@ namespace P4VUtils.Commands
 		{
 			Dictionary<string, string> installations = new Dictionary<string, string>();
 
-			try
+			if (OperatingSystem.IsWindows())
 			{
-				using RegistryKey? subKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Epic Games\\Unreal Engine\\Builds", false);
-				if (subKey != null)
+				try
 				{
-					foreach (string installName in subKey.GetValueNames())
+					using RegistryKey? subKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Epic Games\\Unreal Engine\\Builds", false);
+					if (subKey != null)
 					{
-						string? installPath = subKey.GetValue(installName) as string;
-						if (!String.IsNullOrEmpty(installPath))
+						foreach (string installName in subKey.GetValueNames())
 						{
-							installations.Add(installName, NormalizeDirectoryName(installPath));
+							string? installPath = subKey.GetValue(installName) as string;
+							if (!String.IsNullOrEmpty(installPath))
+							{
+								installations.Add(installName, NormalizeDirectoryName(installPath));
+							}
 						}
 					}
 				}
-			}
-			catch (Exception ex)
-			{
-				logger.LogWarning("EnumerateCustomEngineInstallations: {Message}", ex.Message);
-				installations.Clear();
+				catch (Exception ex)
+				{
+					logger.LogWarning("EnumerateCustomEngineInstallations: {Message}", ex.Message);
+					installations.Clear();
+				}
 			}
 
 			return installations;

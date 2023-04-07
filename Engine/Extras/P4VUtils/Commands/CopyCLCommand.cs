@@ -38,21 +38,7 @@ namespace P4VUtils.Commands
 				return 1;
 			}
 
-			// Jump through some hoops to make async & windows com happy and force STA on the clipboard call
-			var tcs = new TaskCompletionSource<int>();
-
-			var SetClipThread = new Thread(() => 
-				{ 
-					Clipboard.SetText(Change.ToString());
-					tcs.SetResult(0);
-				}
-			);
-
-			SetClipThread.SetApartmentState(ApartmentState.STA);
-			SetClipThread.Start();
-			SetClipThread.Join();
-
-			await tcs.Task;
+			await UserInterface.CopyTextToClipboard(Change.ToString(), Logger);
 
 			return 0;
 		}
