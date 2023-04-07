@@ -952,17 +952,12 @@ void FOpenXRHMD::SetFinalViewRect(FRHICommandListImmediate& RHICmdList, const in
 	};
 
 	XrSwapchainSubImage& DepthImage = PipelinedLayerStateRendering.DepthImages[ViewIndex];
-	if (EnumHasAnyFlags(PipelinedLayerStateRendering.LayerStateFlags, EOpenXRLayerStateFlags::SubmitDepthLayer))
-	{
-		DepthImage.imageArrayIndex = ColorImage.imageArrayIndex;
-		DepthImage.imageRect = ColorImage.imageRect;
-	}
+	DepthImage.imageArrayIndex = ColorImage.imageArrayIndex;
+	DepthImage.imageRect = ColorImage.imageRect;
+
 	XrSwapchainSubImage& EmulationImage = PipelinedLayerStateRendering.EmulatedLayerState.EmulationImages[ViewIndex];
-	if (EnumHasAnyFlags(PipelinedLayerStateRendering.LayerStateFlags, EOpenXRLayerStateFlags::SubmitEmulatedFaceLockedLayer))
-	{
-		EmulationImage.imageArrayIndex = ColorImage.imageArrayIndex;
-		EmulationImage.imageRect = ColorImage.imageRect;
-	}
+	EmulationImage.imageArrayIndex = ColorImage.imageArrayIndex;
+	EmulationImage.imageRect = ColorImage.imageRect;
 }
 
 EStereoscopicPass FOpenXRHMD::GetViewPassForIndex(bool bStereoRequested, int32 ViewIndex) const

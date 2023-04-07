@@ -487,11 +487,11 @@ FPlatformRect FAndroidWindow::GetScreenRect(bool bUseEventThreadWindow)
 			{
 				AndroidWindowUtils::ApplyContentScaleFactor(ScreenWidth, ScreenHeight);
 			}
-			CurrentParams.WindowWidth = ScreenWidth;
-			CurrentParams.WindowHeight = ScreenHeight;
 		}
 
 		// save for future calls
+		CurrentParams.WindowWidth = ScreenWidth;
+		CurrentParams.WindowHeight = ScreenHeight;
 		CacheRect(bUseEventThreadWindow, CurrentParams);
 	}
 
