@@ -934,15 +934,10 @@ bool SaveStablePipelineCacheDeprecated(const FString& OutputFilename, const TArr
 			}
 			else if (Item.PSO->Type == FPipelineCacheFileFormatPSO::DescriptorType::RayTracing)
 			{
-				// Serialize ray tracing PSO state description in backwards-compatible way, reusing graphics PSO fields.
-				// This is only required due to legacy.
-
 				FPipelineCacheFileFormatPSO::GraphicsDescriptor Desc;
 				FMemory::Memzero(Desc);
 
-				// Re-purpose graphics state fields to store RT PSO properties
-				// See corresponding parsing code in ParseStableCSV().
-				Desc.MSAASamples = Item.PSO->RayTracingDesc.MaxPayloadSizeInBytes;
+				// Serialize ray tracing PSO state description in backwards-compatible way, reusing graphics PSO fields. This is only required due to legacy.
 				Desc.DepthStencilFlags = Item.PSO->RayTracingDesc.bAllowHitGroupIndexing ? ETextureCreateFlags::SRGB : ETextureCreateFlags::None;
 
 				PSOLine += FString::Printf(TEXT("\"%s\""), *Desc.StateToString());
@@ -1582,7 +1577,6 @@ static TSet<FPipelineCacheFileFormatPSO> ParseStableCSV(const FString& FileName,
 				PSO.RayTracingDesc.ShaderHash = Match;
 				// See corresponding serialization code in ExpandPSOSC()
 				PSO.RayTracingDesc.Frequency = EShaderFrequency(AdjustedSlotIndex);
-				PSO.RayTracingDesc.MaxPayloadSizeInBytes = PSO.GraphicsDesc.MSAASamples;
 				PSO.RayTracingDesc.bAllowHitGroupIndexing = static_cast<uint64>(PSO.GraphicsDesc.DepthStencilFlags) != 0;
 				break;
 			default:

@@ -1091,44 +1091,47 @@ bool FShaderPipelineCacheTask::Precompile(FRHICommandListImmediate& RHICmdList, 
 		}
 		else if (FPipelineCacheFileFormatPSO::DescriptorType::RayTracing == PSO.Type)
 		{
-		#if 0 // Workaround for UE-97607:
-			  // If ray tracing PSO file cache is generated using one payload size but later shaders were re-compiled with a different payload declaration 
-			  // it is possible for the wrong size to be used here, which leads to a D3D run-time error when attempting to create the PSO.
-			  // Ray tracing shader pre-compilation is disabled until a robust solution is found.
-			  // Consider setting r.RayTracing.NonBlockingPipelineCreation=1 meanwhile to avoid most of the RTPSO creation stalls during gameplay.
+			// If ray tracing PSO file cache is generated using one payload size but later shaders were re-compiled with a different payload declaration 
+			// it is possible for the wrong size to be used here, which leads to a D3D run-time error when attempting to create the PSO.
+			// Ray tracing shader pre-compilation is disabled until a robust solution is found.
+			// Consider setting r.RayTracing.NonBlockingPipelineCreation=1 meanwhile to avoid most of the RTPSO creation stalls during gameplay.
 			if (IsRayTracingEnabled())
 			{
-				FRayTracingPipelineStateInitializer Initializer;
-				Initializer.bPartial = true;
-				Initializer.MaxPayloadSizeInBytes = PSO.RayTracingDesc.MaxPayloadSizeInBytes;
-				Initializer.bAllowHitGroupIndexing = PSO.RayTracingDesc.bAllowHitGroupIndexing;
-
-				FRHIRayTracingShader* ShaderTable[] =
+				FRayTracingShaderRHIRef RayTracingShader = FShaderCodeLibrary::CreateRayTracingShader(Platform, PSO.RayTracingDesc.ShaderHash, PSO.RayTracingDesc.Frequency);
+				if (RayTracingShader.IsValid())
 				{
-					FShaderCodeLibrary::CreateRayTracingShader(Platform, PSO.RayTracingDesc.ShaderHash, PSO.RayTracingDesc.Frequency)
-				};
+					FRayTracingPipelineStateInitializer Initializer;
+						Initializer.bPartial = true; // Indicates that this RTPSO is used only as input for later RTPSO linking step (not for rendering)
+						Initializer.bAllowHitGroupIndexing = PSO.RayTracingDesc.bAllowHitGroupIndexing;
+						Initializer.MaxPayloadSizeInBytes = RayTracingShader->RayTracingPayloadSize;
 
-				switch (PSO.RayTracingDesc.Frequency)
-				{
-				case SF_RayGen:
-					Initializer.SetRayGenShaderTable(ShaderTable);
-					break;
-				case SF_RayMiss:
-					Initializer.SetMissShaderTable(ShaderTable);
-					break;
-				case SF_RayHitGroup:
-					Initializer.SetHitGroupTable(ShaderTable);
-					break;
-				case SF_RayCallable:
-					Initializer.SetCallableTable(ShaderTable);
-					break;
-				default:
-					checkNoEntry();
+						FRHIRayTracingShader* ShaderTable[] =
+						{
+							RayTracingShader.GetReference()
+						};
+
+						switch (PSO.RayTracingDesc.Frequency)
+						{
+						case SF_RayGen:
+							Initializer.SetRayGenShaderTable(ShaderTable);
+							break;
+						case SF_RayMiss:
+							Initializer.SetMissShaderTable(ShaderTable);
+							break;
+						case SF_RayHitGroup:
+							Initializer.SetHitGroupTable(ShaderTable);
+							break;
+						case SF_RayCallable:
+							Initializer.SetCallableTable(ShaderTable);
+							break;
+						default:
+							checkNoEntry();
+						}
+
+					FRayTracingPipelineState* RayTracingPipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
+					bOk = RayTracingPipeline != nullptr;
 				}
-				FRayTracingPipelineState* RayTracingPipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
-				bOk = RayTracingPipeline != nullptr;
 			}
-		#endif // Workaround for UE-97607
 		}
 		else
 		{

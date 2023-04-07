@@ -1329,7 +1329,9 @@ bool FPipelineCacheFileFormatPSO::Verify() const
 		case FPipelineCacheFileFormatPSO::DescriptorType::RayTracing:
 		{
 			Ar << Info.RayTracingDesc.ShaderHash;
-			Ar << Info.RayTracingDesc.MaxPayloadSizeInBytes;
+
+			uint32 DeprecatedMaxPayloadSizeInBytes = 0; // Not used, kept for binary format compatibility
+			Ar << DeprecatedMaxPayloadSizeInBytes;
 
 			uint32 Frequency = uint32(Info.RayTracingDesc.Frequency);
 			Ar << Frequency;
@@ -4176,7 +4178,6 @@ bool FPipelineFileCacheManager::MergePipelineFileCaches(FString const& PathA, FS
 
 FPipelineCacheFileFormatPSO::FPipelineFileCacheRayTracingDesc::FPipelineFileCacheRayTracingDesc(const FRayTracingPipelineStateInitializer& Initializer, const FRHIRayTracingShader* ShaderRHI)
 : ShaderHash(ShaderRHI->GetHash())
-, MaxPayloadSizeInBytes(Initializer.MaxPayloadSizeInBytes)
 , Frequency(ShaderRHI->GetFrequency())
 , bAllowHitGroupIndexing(Initializer.bAllowHitGroupIndexing)
 {
@@ -4184,14 +4185,15 @@ FPipelineCacheFileFormatPSO::FPipelineFileCacheRayTracingDesc::FPipelineFileCach
 
 FString FPipelineCacheFileFormatPSO::FPipelineFileCacheRayTracingDesc::HeaderLine() const
 {
-	return FString(TEXT("RayTracingShader,MaxPayloadSizeInBytes,Frequency,bAllowHitGroupIndexing"));
+	return FString(TEXT("RayTracingShader,DeprecatedMaxPayloadSizeInBytes,Frequency,bAllowHitGroupIndexing"));
 }
 
 FString FPipelineCacheFileFormatPSO::FPipelineFileCacheRayTracingDesc::ToString() const
 {
+	const uint32 DeprecatedMaxPayloadSizeInBytes = 0; // Not used, but kept for back-compatibility
 	return FString::Printf(TEXT("%s,%d,%d,%d")
 		, *ShaderHash.ToString()
-		, MaxPayloadSizeInBytes
+		, DeprecatedMaxPayloadSizeInBytes
 		, uint32(Frequency)
 		, uint32(bAllowHitGroupIndexing)
 	);
@@ -4216,8 +4218,6 @@ void FPipelineCacheFileFormatPSO::FPipelineFileCacheRayTracingDesc::AddToReadabl
 			break;
 	}
 	OutBuilder << ShaderHash.ToString();
-	OutBuilder << TEXT(" MPSIB ");
-	OutBuilder << MaxPayloadSizeInBytes;
 	OutBuilder << TEXT(" AHGI ");
 	OutBuilder << bAllowHitGroupIndexing;
 }
@@ -4229,7 +4229,8 @@ void FPipelineCacheFileFormatPSO::FPipelineFileCacheRayTracingDesc::FromString(c
 
 	ShaderHash.FromString(Parts[0]);
 
-	LexFromString(MaxPayloadSizeInBytes, Parts[1]);
+	uint32 DeprecatedMaxPayloadSizeInBytes = 0; // Not used, but kept for back-compatibility
+	LexFromString(DeprecatedMaxPayloadSizeInBytes, Parts[1]);
 
 	{
 		uint32 Temp = 0;

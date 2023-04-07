@@ -184,7 +184,6 @@ struct RHI_API FPipelineCacheFileFormatPSO
 	struct RHI_API FPipelineFileCacheRayTracingDesc
 	{
 		FSHAHash ShaderHash;
-		uint32 MaxPayloadSizeInBytes = 0;
 		EShaderFrequency Frequency = SF_RayGen;
 		bool bAllowHitGroupIndexing = true;
 
@@ -199,7 +198,6 @@ struct RHI_API FPipelineCacheFileFormatPSO
 		friend uint32 GetTypeHash(const FPipelineFileCacheRayTracingDesc& Desc)
 		{
 			return GetTypeHash(Desc.ShaderHash) ^
-				GetTypeHash(Desc.MaxPayloadSizeInBytes) ^
 				GetTypeHash(Desc.Frequency) ^
 				GetTypeHash(Desc.bAllowHitGroupIndexing);
 		}
@@ -207,7 +205,6 @@ struct RHI_API FPipelineCacheFileFormatPSO
 		bool operator == (const FPipelineFileCacheRayTracingDesc& Other) const
 		{
 			return ShaderHash == Other.ShaderHash &&
-				MaxPayloadSizeInBytes == Other.MaxPayloadSizeInBytes &&
 				Frequency == Other.Frequency &&
 				bAllowHitGroupIndexing == Other.bAllowHitGroupIndexing;
 		}

@@ -809,14 +809,12 @@ bool UE::PipelineCacheUtilities::LoadStablePipelineCacheFile(const FString& File
 		}
 		else if (NewPSO.Type == FPipelineCacheFileFormatPSO::DescriptorType::RayTracing)
 		{
-			// not yet supported
-			++OutPSOsRejected;
-
-			static bool bLogged = false;
-			if (!bLogged)
+			for (const UE::PipelineCacheUtilities::FPermutation& Perm : PermGroup.Permutations)
 			{
-				UE_LOG(LogPipelineCacheUtilities, Display, TEXT("Raytracing PSOs aren't yet supported in the PSO stable cache.\nFilename:%s PSO:%s\nNOTE: Only first rejected PSO is reported."), *Filename, *NewPSO.ToStringReadable());
-				bLogged = true;
+				const EShaderFrequency Frequency = NewPSO.RayTracingDesc.Frequency;
+				NewPSO.RayTracingDesc.ShaderHash = HashesForStableKeys[Perm.Slots[Frequency]];
+
+				AddNewPSO(NewPSO);
 			}
 		}
 	}

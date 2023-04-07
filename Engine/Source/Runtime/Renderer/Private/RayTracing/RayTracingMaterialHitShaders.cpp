@@ -53,8 +53,8 @@ static FAutoConsoleVariableRef CVarRayTracingNonBlockingPipelineCreation(
 	GRayTracingNonBlockingPipelineCreation,
 	TEXT("Enable background ray tracing pipeline creation, without blocking RHI or Render thread.\n")
 	TEXT("Fallback opaque black material will be used for missing shaders meanwhile.\n")
-	TEXT(" 0: off (default, rendering will always use correct requested material)\n")
-	TEXT(" 1: on (non-blocking mode may sometimes use the fallback opaque black material)\n"),
+	TEXT(" 0: off (rendering will always use correct requested material)\n")
+	TEXT(" 1: on (default, non-blocking mode may sometimes use the fallback opaque black material outside of offline rendering scenarios)\n"),
 	ECVF_RenderThreadSafe);
 
 // CVar defined in DeferredShadingRenderer.cpp
