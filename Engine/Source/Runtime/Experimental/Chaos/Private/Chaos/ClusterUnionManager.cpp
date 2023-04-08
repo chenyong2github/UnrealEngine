@@ -349,12 +349,7 @@ namespace Chaos
 	void FClusterUnionManager::PostRemovalClusterUnionUpdate(FClusterUnion& Union)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_PostRemovalClusterUnionUpdate);
-		IPhysicsProxyBase* OldProxy = Union.InternalCluster->PhysicsProxy();
 		UpdateAllClusterUnionProperties(Union, false);
-
-		// Removing a particle should have no bearing on the proxy of the cluster.
-		// This gets changed because we go through an internal initialization route when we update the cluster union particle's properties.
-		Union.InternalCluster->SetPhysicsProxy(OldProxy);
 
 		if (!Union.ChildParticles.IsEmpty())
 		{
@@ -440,6 +435,10 @@ namespace Chaos
 		}
 
 		MClustering.RemoveParticlesFromCluster(Cluster->InternalCluster, Particles);
+
+		// Removing a particle should have no bearing on the proxy of the cluster.
+		// This gets changed because we go through an internal initialization route when we update the cluster union particle's properties.
+		Cluster->InternalCluster->SetPhysicsProxy(OldProxy);
 
 		switch (UpdateClusterPropertiesTiming)
 		{
