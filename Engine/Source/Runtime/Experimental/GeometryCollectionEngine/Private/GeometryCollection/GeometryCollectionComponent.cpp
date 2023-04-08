@@ -1624,7 +1624,7 @@ void UGeometryCollectionComponent::UpdateRepData()
 						bClustersChanged = true;
 					}
 
-					if(Root->InternalCluster() == false && bFirstUpdate == false)	//if bFirstUpdate it must be that these are the initial roots of the GC. These did not break off so no need to replicate
+					if(Root->InternalCluster() == false && Level > 0)
 					{
 						//a one off so record it
 						ensureMsgf(TransformGroupIdx >= 0, TEXT("Non-internal cluster should always have a group index"));
