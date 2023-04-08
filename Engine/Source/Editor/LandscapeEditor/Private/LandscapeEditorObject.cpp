@@ -157,7 +157,7 @@ void ULandscapeEditorObject::PostEditChangeProperty(FPropertyChangedEvent& Prope
 		PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(ULandscapeEditorObject, NewLandscape_ComponentCount))
 	{
 		// Only clamp the landscape size if we're not in World Partition
-		if (!ParentMode->IsGridBased())
+		if (ParentMode && !ParentMode->IsGridBased())
 		{
 			NewLandscape_ClampSize();
 		}

@@ -997,6 +997,11 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 	TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked);
 
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (!LandscapeEdMode)
+	{
+		return FReply::Handled();
+	}
+
 	const bool bIsNewLandscape = LandscapeEdMode->NewLandscapePreviewMode == ENewLandscapePreviewMode::NewLandscape;
 	
 	UWorld* World = LandscapeEdMode->GetWorld();

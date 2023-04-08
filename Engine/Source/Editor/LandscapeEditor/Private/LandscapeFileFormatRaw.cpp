@@ -122,7 +122,7 @@ FLandscapeFileInfo FLandscapeHeightmapFileFormat_Raw::Validate(const TCHAR* Heig
 			if (BitsPerPixel != 16)
 			{
 				Result.ResultCode = ELandscapeImportResult::Error;
-				Result.ErrorMessage = LOCTEXT("Import_WeightmapFileBitsPerPixel", "Height file has an invalid number of bits per pixel");
+				Result.ErrorMessage = LOCTEXT("Import_HeightmapFileBitsPerPixel", "Height file has an invalid number of bits per pixel");
 			}
 			else
 			{

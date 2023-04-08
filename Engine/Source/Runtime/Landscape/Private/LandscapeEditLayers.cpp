@@ -192,7 +192,7 @@ void OnLandscapeEditLayersLocalMergeChanged(IConsoleVariable* CVar)
 	}
 }
 
-int32 LandscapeEditLayersLocalMerge = 1;
+int32 LandscapeEditLayersLocalMerge = 0;
 static FAutoConsoleVariableRef CVarLandscapeEditLayersLocalMerge(
 	TEXT("landscape.EditLayersLocalMerge.Enable"),
 	LandscapeEditLayersLocalMerge,

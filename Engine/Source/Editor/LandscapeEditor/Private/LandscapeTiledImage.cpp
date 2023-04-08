@@ -138,7 +138,7 @@ FLandscapeFileInfo FLandscapeTiledImage::Load(const TCHAR* Filename)
 		else if (Width != TileResolution.X && Height != TileResolution.Y)
 		{
 			Result.ResultCode = ELandscapeImportResult::Error;
-			Result.ErrorMessage = LOCTEXT("LandscapeFileReadError", "Mimatched resolution found in tiled image");
+			Result.ErrorMessage = LOCTEXT("FileReadErrorTiledResolutionMismatch", "Mimatched resolution found in tiled image");
 			return Result;
 		}
 	}
@@ -146,7 +146,7 @@ FLandscapeFileInfo FLandscapeTiledImage::Load(const TCHAR* Filename)
 	if (TileFilenames.Num() == 0)
 	{
 		Result.ResultCode = ELandscapeImportResult::Error;
-		Result.ErrorMessage = LOCTEXT("LandscapeFileReadError", "No files found");
+		Result.ErrorMessage = LOCTEXT("FileReadErrorNoFilesFound", "No files found");
 		return Result;
 	}
 
