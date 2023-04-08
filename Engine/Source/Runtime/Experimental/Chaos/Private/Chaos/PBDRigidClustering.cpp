@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "Chaos/PBDRigidClustering.h"
 
 #include "Chaos/ErrorReporter.h"
@@ -1719,9 +1718,9 @@ namespace Chaos
 				// Now we need to go from the parent cluster union particle to the GC particle that corresponds to the proxy.
 				if (bIsInPhysicsProxiesSet)
 				{
-					ClusteredHandle = nullptr;
 					if (TArray<FPBDRigidParticleHandle*>* Children = MChildren.Find(ClusteredHandle))
 					{
+						ClusteredHandle = nullptr;
 						FPBDRigidParticleHandle** Candidate = Children->FindByPredicate(
 							[Proxy](FPBDRigidParticleHandle* Particle)
 							{
