@@ -56,6 +56,7 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, bEnableContextMenuTimeSlicing(false)
 	, ContextMenuTimeSlicingThresholdMs(50)
 	, bFavorPureCastNodes(false)
+	, bDoNotMarkAllInstancesDirtyOnDefaultValueChange(false)
 	// Compiler Settings
 	, SaveOnCompile(SoC_Never)
 	, bJumpToNodeErrors(false)

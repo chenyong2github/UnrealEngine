@@ -903,6 +903,12 @@ protected:
 	/** Handles the unloading of Blueprints (by closing the editor, if it operating on the Blueprint being unloaded)*/
 	void OnBlueprintUnloaded(UBlueprint* InBlueprint);
 
+	/** Called when a property change is about to be propagated to instances of the Blueprint */
+	void OnPreObjectPropertyChanged(UObject* InObject, const FEditPropertyChain& EditPropertyChain);
+
+	/** Called after a property change has been propagated to instances of the Blueprint */
+	void OnPostObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& PropertyChangedEvent);
+
 	//@TODO: Should the breakpoint/watch modification operations be whole-blueprint, or current-graph?
 
 	/** Deletes all breakpoints for the blueprint being edited */

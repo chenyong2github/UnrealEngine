@@ -57,6 +57,25 @@ namespace ECastCheckedType
 	};
 };
 
+#if WITH_EDITOR
+/** Flags to control how editor change events get propagated */
+enum class EEditChangePropagationFlags : uint8
+{
+	/**
+	 * No flags; use default change event propagation behavior.
+	 */
+	None = 0,
+	/**
+	 * If set, only the subset of affected instances that realign with
+	 * their archetype will be marked dirty. If not set, affected instances
+	 * will always be marked dirty, even if they already match the archetype.
+	 */
+	 OnlyMarkRealignedInstancesAsDirty = (1 << 0),
+};
+
+ENUM_CLASS_FLAGS(EEditChangePropagationFlags);
+#endif // WITH_EDITOR
+
 /** 
  * The base class of all UE objects. The type of an object is defined by its UClass.
  * This provides support functions for creating and using objects, and virtual functions that should be overridden in child classes.
@@ -467,6 +486,9 @@ public:
 	 * is located at the tail of the list.  The head of the list of the FStructProperty member variable that contains the property that was modified.
 	 */
 	virtual void PostEditChangeChainProperty( struct FPropertyChangedChainEvent& PropertyChangedEvent );
+
+	/** Called to set the flags that control how editor change events get propagated to archetype instances. */
+	void SetEditChangePropagationFlags(EEditChangePropagationFlags InFlags);
 
 	/** Called before applying a transaction to the object.  Default implementation simply calls PreEditChange. */
 	virtual void PreEditUndo();

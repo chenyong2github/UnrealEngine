@@ -96,6 +96,37 @@ static UPackage*			GObjTransientPkg								= NULL;
 #endif
 
 #if WITH_EDITOR
+	struct FPropagatedEditChangeAnnotation
+	{
+		/**
+		 * If set, archetype edits will not mark an instance dirty unless it results
+		 * in the instance realigning with the archetype after the change (that will
+		 * then result in future archetype changes being propagated to the instance).
+		 */
+		uint8 bDeferredMarkAsDirty : 1;
+		/**
+		 * If set, this instance will be affected by an archetype change (i.e. it
+		 * matched the archetype prior to propagating the change).
+		 */
+		uint8 bIdenticalToArchetype : 1;
+		/**
+		 * If set, the package containing this instance was already marked as dirty
+		 * prior to propagating the change.
+		 */
+		uint8 bWasPackageDirtyOnEdit : 1;
+
+		FPropagatedEditChangeAnnotation()
+		: bDeferredMarkAsDirty(false)
+		, bIdenticalToArchetype(false)
+		, bWasPackageDirtyOnEdit(false)
+		{}
+
+		FORCEINLINE bool IsDefault() const
+		{
+			return !bDeferredMarkAsDirty;
+		}
+	};
+	static FUObjectAnnotationSparse<FPropagatedEditChangeAnnotation, true> PropagatedEditChangeAnnotation;
 	UObject::FAssetRegistryTag::FOnGetObjectAssetRegistryTags UObject::FAssetRegistryTag::OnGetExtraObjectTags;
 	UObject::FAssetRegistryTag::FOnGetExtendedAssetRegistryTagsForSave UObject::FAssetRegistryTag::OnGetExtendedAssetRegistryTagsForSave;
 #endif // WITH_EDITOR
@@ -365,7 +396,29 @@ void UObject::PostLoad()
 #if WITH_EDITOR
 void UObject::PreEditChange(FProperty* PropertyAboutToChange)
 {
-	Modify(!GIsTransacting && !(PropertyAboutToChange && PropertyAboutToChange->HasAnyPropertyFlags(CPF_SkipSerialization)));
+	bool bShouldMarkAsDirty = true;
+
+	if (GIsTransacting)
+	{
+		// Don't mark the outer package as dirty during an undo/redo operation.
+		bShouldMarkAsDirty = false;
+	}
+	else if (PropertyAboutToChange && PropertyAboutToChange->HasAnyPropertyFlags(CPF_SkipSerialization))
+	{
+		// Don't mark the outer package as dirty if we're about to change a non-serializable property.
+		bShouldMarkAsDirty = false;
+	}
+	else
+	{
+		FPropagatedEditChangeAnnotation Annotation = PropagatedEditChangeAnnotation.GetAnnotation(this);
+		if (Annotation.bDeferredMarkAsDirty)
+		{
+			// Don't mark the outer package as dirty if annotated to be deferred (e.g. during propagation).
+			bShouldMarkAsDirty = false;
+		}
+	}
+
+	Modify(bShouldMarkAsDirty);
 }
 
 
@@ -518,10 +571,46 @@ void UObject::PropagatePreEditChange( TArray<UObject*>& AffectedObjects, FEditPr
 		}
 	}
 
+	check(PropertyAboutToChange.GetActiveNode() != nullptr);
+	const FProperty* ChangedProperty = PropertyAboutToChange.GetActiveNode()->GetValue();
+	FPropagatedEditChangeAnnotation Annotation = PropagatedEditChangeAnnotation.GetAnnotation(this);
+
 	for ( int32 i = 0; i < Instances.Num(); i++ )
 	{
 		UObject* Obj = Instances[i];
 
+		// To defer marking instances as dirty, check to see if the instance
+		// matches the value stored in its archetype, and flag it if so. We'll
+		// use this later to determine if we need to mark the package as dirty,
+		// rather than always marking all affected archetype instances as dirty.
+		if (Annotation.bDeferredMarkAsDirty)
+		{
+			// Start with the assumption that the instance matches the archetype. In
+			// that case, we won't need to dirty the package after applying the change.
+			Annotation.bIdenticalToArchetype = true;
+
+			// Note that some elements may match and thus will propagate, but we may
+			// need to dirty the package later even if only one element differs here.
+			for (int32 ArrayIdx = 0; ArrayIdx < ChangedProperty->ArrayDim; ++ArrayIdx)
+			{
+				if (!ChangedProperty->Identical_InContainer(this, Obj, ArrayIdx, PPF_DeepComparison))
+				{
+					Annotation.bIdenticalToArchetype = false;
+					break;
+				}
+			}
+
+			// Determine if the package is already marked as dirty.
+			Annotation.bWasPackageDirtyOnEdit = Obj->GetPackage()->IsDirty();
+
+			// Temporarily annotate the instance for change propagation.
+			PropagatedEditChangeAnnotation.AddAnnotation(Obj, Annotation);
+		}
+
+		// Note: This test is not the same as the flag above - change propagation can
+		// be filtered via the event (e.g. container properties via the Property Editor).
+		// For most cases (i.e. non-container), all archetype instances will pass here,
+		// regardless of whether or not they differ from the default prior to the change.
 		if ( PropertyAboutToChange.IsArchetypeInstanceAffected(Obj) )
 		{
 			// this object must now be included in any undo/redo operations
@@ -557,11 +646,51 @@ void UObject::PropagatePostEditChange( TArray<UObject*>& AffectedObjects, FPrope
 	}
 
 	check(PropertyChangedEvent.PropertyChain.GetActiveMemberNode() != nullptr);
+	const FProperty* ChangedProperty = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue();
 
+	TSet<UPackage*> PackagesMarkedAsDirty;
 	for ( int32 i = 0; i < Instances.Num(); i++ )
 	{
 		UObject* Obj = Instances[i];
 
+		UPackage* Package = Obj->GetPackage();
+		check(Package);
+
+		// Deferred marking instances as dirty - if our previous value did not
+		// match the instance but now the current value does, we need to mark
+		// the package dirty to indicate to the user that it needs to be saved.
+		FPropagatedEditChangeAnnotation Annotation = PropagatedEditChangeAnnotation.GetAndRemoveAnnotation(Obj);
+		if (Annotation.bDeferredMarkAsDirty && !Annotation.bWasPackageDirtyOnEdit && !PackagesMarkedAsDirty.Contains(Package))
+		{
+			// Clear the dirty flag if the previous value matched the archetype and if
+			// the package was not already marked as dirty prior to change propagation.
+			const bool bIsPackageDirty = Package->IsDirty();
+			if (bIsPackageDirty && Annotation.bIdenticalToArchetype)
+			{
+				Package->SetDirtyFlag(false);
+			}
+			else if (!bIsPackageDirty && !Annotation.bIdenticalToArchetype)
+			{
+				// If any index matches, that element will no longer be delta-serialized,
+				// so we need to dirty the package. If the property has multiple entries
+				// and we arrived here, that means at least one element differed from its
+				// previous value in the source, but that may not be the one that changed.
+				for (int32 ArrayIdx = 0; ArrayIdx < ChangedProperty->ArrayDim; ++ArrayIdx)
+				{
+					if (ChangedProperty->Identical_InContainer(this, Obj, ArrayIdx, PPF_DeepComparison))
+					{
+						// Using this API so that we don't unnecessarily mark certain packages (e.g. transient).
+						Obj->MarkPackageDirty();
+						PackagesMarkedAsDirty.Add(Package);
+						break;
+					}
+				}
+			}
+		}
+
+		// Note: This is not the same as the flag above - change propagation can be
+		// filtered via the event (e.g. container properties via the Property Editor),
+		// but for most cases (i.e. non-container), all archetype instances pass here.
 		if ( PropertyChangedEvent.HasArchetypeInstanceChanged(Obj) )
 		{
 			// notify the object that all changes are complete
@@ -571,6 +700,13 @@ void UObject::PropagatePostEditChange( TArray<UObject*>& AffectedObjects, FPrope
 			Obj->PropagatePostEditChange(AffectedObjects, PropertyChangedEvent);
 		}
 	}
+}
+
+void UObject::SetEditChangePropagationFlags(EEditChangePropagationFlags InFlags)
+{
+	FPropagatedEditChangeAnnotation Annotation;
+	Annotation.bDeferredMarkAsDirty = !!(InFlags & EEditChangePropagationFlags::OnlyMarkRealignedInstancesAsDirty);
+	PropagatedEditChangeAnnotation.AddAnnotation(this, MoveTemp(Annotation));
 }
 
 void UObject::PreEditUndo()
