@@ -1067,7 +1067,7 @@ public:
 	void ResizeExternalMorphTargetSets();
 
 	/** Refresh the external morph target weight buffers. This makes sure the amount of morph sets and number of weights are valid. */
-	void RefreshExternalMorphTargetWeights();
+	void RefreshExternalMorphTargetWeights(bool bZeroOldWeights = true);
 
 	/**
 	 *	Sets the value of the bForceWireframe flag and reattaches the component as necessary.
