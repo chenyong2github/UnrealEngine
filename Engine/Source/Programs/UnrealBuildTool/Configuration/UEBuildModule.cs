@@ -265,16 +265,28 @@ namespace UnrealBuildTool
 			{
 				foreach(ModuleRules.Framework FrameworkRules in Rules.PublicAdditionalFrameworks)
 				{
+					bool bLinkFramework = FrameworkRules.Mode == ModuleRules.Framework.FrameworkMode.Link || FrameworkRules.Mode == ModuleRules.Framework.FrameworkMode.LinkAndCopy;
+					bool bCopyFramework = FrameworkRules.Mode == ModuleRules.Framework.FrameworkMode.Copy || FrameworkRules.Mode == ModuleRules.Framework.FrameworkMode.LinkAndCopy;
+
 					UEBuildFramework Framework;
 					if (FrameworkRules.IsZipFile())
 					{
 						// If FrameworkPath ends in .zip, it needs to be extracted
-						Framework = new UEBuildFramework(FrameworkRules.Name, FileReference.Combine(ModuleDirectory, FrameworkRules.Path), DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate", "UnzippedFrameworks", FrameworkRules.Name, Path.GetFileNameWithoutExtension(FrameworkRules.Path)), FrameworkRules.CopyBundledAssets, FrameworkRules.bCopyFramework);
+						Framework = new UEBuildFramework(
+							Name: FrameworkRules.Name,
+							ZipFile: FileReference.Combine(ModuleDirectory, FrameworkRules.Path),
+							OutputDirectory: DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate", "UnzippedFrameworks", FrameworkRules.Name, Path.GetFileNameWithoutExtension(FrameworkRules.Path)),
+							CopyBundledAssets: FrameworkRules.CopyBundledAssets, 
+							bLinkFramework, bCopyFramework);
 					}
 					else
 					{
 						// Framework on disk
-						Framework = new UEBuildFramework(FrameworkRules.Name, DirectoryReference.Combine(ModuleDirectory, FrameworkRules.Path), FrameworkRules.CopyBundledAssets, FrameworkRules.bCopyFramework, Logger);
+						Framework = new UEBuildFramework(
+							Name: FrameworkRules.Name, 
+							FrameworkDirectory: DirectoryReference.Combine(ModuleDirectory, FrameworkRules.Path), 
+							CopyBundledAssets: FrameworkRules.CopyBundledAssets, 
+							bLinkFramework, bCopyFramework, Logger);
 					}
 					PublicAdditionalFrameworks.Add(Framework);
 				}

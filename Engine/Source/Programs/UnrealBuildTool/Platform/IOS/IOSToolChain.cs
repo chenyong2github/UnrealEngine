@@ -442,36 +442,6 @@ namespace UnrealBuildTool
 			Arguments.Add("-static");
 		}
 
-		protected override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
-		{
-			List<string> GlobalArguments = new();
-
-			GetCompileArguments_Global(CompileEnvironment, GlobalArguments);
-
-			List<FileItem> FrameworkTokenFiles = new List<FileItem>();
-			foreach (UEBuildFramework Framework in CompileEnvironment.AdditionalFrameworks)
-			{
-				if (Framework.ZipFile != null)
-				{
-					// modern xcode manages all this in xcode script
-					if (!bUseModernXcode)
-					{
-						ExtractFramework(Framework, Graph, Logger);
-					}
-					FrameworkTokenFiles.Add(Framework.ExtractedTokenFile!);
-				}
-			}
-
-			CPPOutput Result = new CPPOutput();
-			// Create a compile action for each source file.
-			foreach (FileItem SourceFile in InputFiles)
-			{
-				Action CompileAction = CompileCPPFile(CompileEnvironment, SourceFile, OutputDir, ModuleName, Graph, GlobalArguments, Result);
-				CompileAction.PrerequisiteItems.UnionWith(FrameworkTokenFiles);
-			}
-			return Result;
-		}
-
 		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
 		{
 			FileReference LinkerPath = LinkEnvironment.bIsBuildingLibrary ? Info.Archiver : Info.Clang;
@@ -912,42 +882,6 @@ namespace UnrealBuildTool
 				// Save it out
 				Zip.Save(IPAName);
 			}
-		}
-
-		FileItem ExtractFramework(UEBuildFramework Framework, IActionGraphBuilder Graph, ILogger Logger)
-		{
-			if (Framework.ZipFile == null)
-			{
-				throw new BuildException("Unable to extract framework '{0}' - no zip file specified", Framework.Name);
-			}
-			if (!Framework.bHasMadeUnzipAction)
-			{
-				Framework.bHasMadeUnzipAction = true;
-
-				FileItem InputFile = FileItem.GetItemByFileReference(Framework.ZipFile);
-
-				StringBuilder ExtractScript = new StringBuilder();
-				ExtractScript.AppendLine("#!/bin/sh");
-				ExtractScript.AppendLine("set -e");
-				// ExtractScript.AppendLine("set -x"); // For debugging
-				ExtractScript.AppendLine(String.Format("[ -d {0} ] && rm -rf {0}", Utils.MakePathSafeToUseWithCommandLine(Framework.ZipOutputDirectory!.FullName)));
-				ExtractScript.AppendLine(String.Format("unzip -q -o {0} -d {1}", Utils.MakePathSafeToUseWithCommandLine(Framework.ZipFile.FullName), Utils.MakePathSafeToUseWithCommandLine(Framework.ZipOutputDirectory.ParentDirectory!.FullName))); // Zip contains folder with the same name, hence ParentDirectory
-				ExtractScript.AppendLine(String.Format("touch {0}", Utils.MakePathSafeToUseWithCommandLine(Framework.ExtractedTokenFile!.AbsolutePath)));
-
-				FileItem ExtractScriptFileItem = Graph.CreateIntermediateTextFile(new FileReference(Framework.ZipOutputDirectory.FullName + ".sh"), ExtractScript.ToString());
-
-				Action UnzipAction = Graph.CreateAction(ActionType.BuildProject);
-				UnzipAction.CommandPath = new FileReference("/bin/sh");
-				UnzipAction.CommandArguments = Utils.MakePathSafeToUseWithCommandLine(ExtractScriptFileItem.AbsolutePath);
-				UnzipAction.WorkingDirectory = Unreal.EngineDirectory;
-				UnzipAction.PrerequisiteItems.Add(InputFile);
-				UnzipAction.PrerequisiteItems.Add(ExtractScriptFileItem);
-				UnzipAction.ProducedItems.Add(Framework.ExtractedTokenFile);
-				UnzipAction.DeleteItems.Add(Framework.ExtractedTokenFile);
-				UnzipAction.StatusDescription = String.Format("Unzipping : {0} -> {1}", Framework.ZipFile, Framework.ZipOutputDirectory);
-				UnzipAction.bCanExecuteRemotely = false;
-			}
-			return Framework.ExtractedTokenFile!;
 		}
 
 		public static DirectoryReference GenerateAssetCatalog(FileReference? ProjectFile, UnrealTargetPlatform Platform, ref bool bUserImagesExist)

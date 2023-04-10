@@ -3,6 +3,7 @@
 using UnrealBuildTool;
 using System.IO;
 using System.Collections.Generic;
+using EpicGames.Core;
 
 public class CEF3 : ModuleRules
 {
@@ -100,29 +101,51 @@ public class CEF3 : ModuleRules
 
 				PublicAdditionalLibraries.Add(WrapperPath);
 
-				if(Directory.Exists(LibraryPath + "/locale"))
+				if (Target.MacPlatform.bUseModernXcode)
 				{
-					var LocaleFolders = Directory.GetFileSystemEntries(LibraryPath + "/locale", "*.lproj");
-					foreach (var FolderName in LocaleFolders)
+					DirectoryReference ModuleDir = new(GetModuleDirectory("CEF3"));
+					
+					if (Target.Architectures.Contains(UnrealArch.Arm64))
 					{
-						AdditionalBundleResources.Add(new BundleResource(FolderName, bShouldLog: false));
+						string FrameworkPathArm64Zip = new DirectoryReference(FrameworkPathArm64 + ".zip").MakeRelativeTo(ModuleDir);
+						PublicAdditionalFrameworks.Add(
+							new Framework(Path.GetFileNameWithoutExtension(FrameworkPathArm64), FrameworkPathArm64Zip, Framework.FrameworkMode.Copy, null)
+							);
+					}
+					if (Target.Architectures.Contains(UnrealArch.X64))
+					{
+						string FrameworkPathX86Zip = new DirectoryReference(FrameworkPathX86 + ".zip").MakeRelativeTo(ModuleDir);
+						PublicAdditionalFrameworks.Add(
+							new Framework(Path.GetFileNameWithoutExtension(FrameworkPathX86), FrameworkPathX86Zip, Framework.FrameworkMode.Copy, null)
+							);
 					}
 				}
+				else
+				{
+					if (Directory.Exists(LibraryPath + "/locale"))
+					{
+						var LocaleFolders = Directory.GetFileSystemEntries(LibraryPath + "/locale", "*.lproj");
+						foreach (var FolderName in LocaleFolders)
+						{
+							AdditionalBundleResources.Add(new BundleResource(FolderName, bShouldLog: false));
+						}
+					}
 
-				if (Target.Architectures.Contains(UnrealArch.Arm64))
-				{
-					// Add contents of framework directory as runtime dependencies
-					foreach (string FilePath in Directory.EnumerateFiles(FrameworkPathArm64, "*", SearchOption.AllDirectories))
+					if (Target.Architectures.Contains(UnrealArch.Arm64))
 					{
-						RuntimeDependencies.Add(FilePath);
+						// Add contents of framework directory as runtime dependencies
+						foreach (string FilePath in Directory.EnumerateFiles(FrameworkPathArm64, "*", SearchOption.AllDirectories))
+						{
+							RuntimeDependencies.Add(FilePath);
+						}
 					}
-				}
-				if (Target.Architectures.Contains(UnrealArch.X64))
-				{
-					// Add contents of framework directory as runtime dependencies
-					foreach (string FilePath in Directory.EnumerateFiles(FrameworkPathX86, "*", SearchOption.AllDirectories))
+					if (Target.Architectures.Contains(UnrealArch.X64))
 					{
-						RuntimeDependencies.Add(FilePath);
+						// Add contents of framework directory as runtime dependencies
+						foreach (string FilePath in Directory.EnumerateFiles(FrameworkPathX86, "*", SearchOption.AllDirectories))
+						{
+							RuntimeDependencies.Add(FilePath);
+						}
 					}
 				}
 

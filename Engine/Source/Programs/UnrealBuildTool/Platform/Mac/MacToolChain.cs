@@ -838,7 +838,13 @@ namespace UnrealBuildTool
 				}
 				foreach (UEBuildFramework Framework in LinkEnvironment.AdditionalFrameworks)
 				{
-					if (!AllFrameworks.ContainsKey(Framework.Name))
+					if (Framework.ZipFile != null)
+					{
+						FileItem ExtractedTokenFile = ExtractFramework(Framework, Graph, Logger);
+						LinkAction.PrerequisiteItems.Add(ExtractedTokenFile);
+					}
+
+					if (Framework.bLinkFramework && !AllFrameworks.ContainsKey(Framework.Name))
 					{
 						AllFrameworks.Add(Framework.Name, false);
 					}

@@ -15,10 +15,13 @@
 #		define CEF3_BIN_DIR TEXT("Binaries/ThirdParty/CEF3")
 #     if PLATFORM_MAC_ARM64
 #		define CEF3_FRAMEWORK_DIR CEF3_BIN_DIR TEXT("/Mac/Chromium Embedded Framework arm64.framework")
+#		define CEF3_BUNDLE_DIR TEXT("../Frameworks/Chromium Embedded Framework arm64.framework")
 #     else
 #		define CEF3_FRAMEWORK_DIR CEF3_BIN_DIR TEXT("/Mac/Chromium Embedded Framework x86.framework")
+#		define CEF3_BUNDLE_DIR TEXT("../Frameworks/Chromium Embedded Framework arm64.framework")
 #     endif
 #		define CEF3_FRAMEWORK_EXE CEF3_FRAMEWORK_DIR TEXT("/Chromium Embedded Framework")
+#		define CEF3_BUNDLE_EXE CEF3_BUNDLE_DIR TEXT("/Chromium Embedded Framework")
 #	endif
 #endif
 
@@ -38,6 +41,7 @@ namespace CEF3Utils
 #elif PLATFORM_MAC
 	// Dynamically load the CEF framework library.
 	CefScopedLibraryLoader *CEFLibraryLoader = nullptr;
+	FString FrameworkPath;
 #endif
 
 	void* LoadDllCEF(const FString& Path)
@@ -81,30 +85,30 @@ namespace CEF3Utils
 		// Dynamically load the CEF framework library.
 		CEFLibraryLoader = new CefScopedLibraryLoader();
 		
-		FString CefFrameworkPath(FPaths::Combine(*FPaths::EngineDir(), CEF3_FRAMEWORK_EXE));
-		CefFrameworkPath = FPaths::ConvertRelativePathToFull(CefFrameworkPath);
-		
+		// look for proper framework bundle, and failing that, fall back to old location
+		FrameworkPath = FPaths::Combine(FPaths::GetPath(FPlatformProcess::ExecutablePath()), CEF3_BUNDLE_EXE);
+		if (!FPaths::FileExists(FrameworkPath))
+		{
+			FrameworkPath = (FPaths::Combine(*FPaths::EngineDir(), CEF3_FRAMEWORK_EXE));
+		}
+		FrameworkPath = FPaths::ConvertRelativePathToFull(FrameworkPath);
+
 		bool bLoaderInitialized = false;
 		if (bIsMainApp)
 		{
-			if (!CEFLibraryLoader->LoadInMain(TCHAR_TO_ANSI(*CefFrameworkPath)))
+			// first look in standard Frameworks dir, then loom in old UE path
+			bLoaderInitialized = CEFLibraryLoader->LoadInMain(TCHAR_TO_ANSI(*FrameworkPath));
+			if (!bLoaderInitialized)
 			{
 				UE_LOG(LogCEF3Utils, Error, TEXT("Chromium loader initialization failed"));
-			}
-			else
-			{
-				bLoaderInitialized = true;
 			}
 		}
 		else
 		{
-			if (!CEFLibraryLoader->LoadInHelper(TCHAR_TO_ANSI(*CefFrameworkPath)))
+			bLoaderInitialized = CEFLibraryLoader->LoadInHelper(TCHAR_TO_ANSI(*FrameworkPath));
+			if (!bLoaderInitialized)
 			{
 				UE_LOG(LogCEF3Utils, Error, TEXT("Chromium helper loader initialization failed"));
-			}
-			else
-			{
-				bLoaderInitialized = true;
 			}
 		}
 		return bLoaderInitialized;
@@ -139,6 +143,13 @@ namespace CEF3Utils
 	CEF3UTILS_API void* GetCEF3ModuleHandle()
 	{
 		return CEF3DLLHandle;
+	}
+#endif
+
+#if PLATFORM_MAC
+	FString GetCEF3ModulePath()
+	{
+		 return FrameworkPath;
 	}
 #endif
 

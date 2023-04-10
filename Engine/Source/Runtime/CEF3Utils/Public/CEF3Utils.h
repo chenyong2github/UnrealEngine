@@ -26,6 +26,13 @@ namespace CEF3Utils
 	CEF3UTILS_API void* GetCEF3ModuleHandle();
 #endif
 
+#if PLATFORM_MAC
+	/**
+	  * Get the module loaded path
+	 */
+	CEF3UTILS_API FString GetCEF3ModulePath();
+#endif
+
 	/**
 	 * Move the current cef3.log file to a backup file, so CEF makes a new log when it starts up.
 	 * This backup file is then cleaned up by the logic in FMaintenance::DeleteOldLogs()

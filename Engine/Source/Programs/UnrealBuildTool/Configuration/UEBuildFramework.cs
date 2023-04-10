@@ -43,6 +43,11 @@ namespace UnrealBuildTool
 		public readonly string? CopyBundledAssets;
 
 		/// <summary>
+		/// Link the framework libraries into the executable
+		/// </summary>
+		public readonly bool bLinkFramework = true;
+
+		/// <summary>
 		/// Copy the framework to the target's Framework directory
 		/// </summary>
 		public readonly bool bCopyFramework = false;
@@ -83,8 +88,9 @@ namespace UnrealBuildTool
 		/// <param name="ZipFile">Path to the zip file for this framework</param>
 		/// <param name="OutputDirectory">Path for the extracted zip file</param>
 		/// <param name="CopyBundledAssets"></param>
+		/// <param name="bLinkFramework">Link the framework into the executable</param>
 		/// <param name="bCopyFramework">Copy the framework to the target's Framework directory</param>
-		public UEBuildFramework(string Name, FileReference? ZipFile, DirectoryReference OutputDirectory, string? CopyBundledAssets, bool bCopyFramework)
+		public UEBuildFramework(string Name, FileReference? ZipFile, DirectoryReference OutputDirectory, string? CopyBundledAssets, bool bLinkFramework, bool bCopyFramework)
 		{
 			this.Name = Name;
 			this.ZipFile = ZipFile;
@@ -92,6 +98,7 @@ namespace UnrealBuildTool
 			this.FrameworkDirectory = OutputDirectory;
 			this.CopyBundledAssets = CopyBundledAssets;
 			this.bCopyFramework = bCopyFramework;
+			this.bLinkFramework = bLinkFramework;
 		}
 
 		/// <summary>
@@ -100,9 +107,10 @@ namespace UnrealBuildTool
 		/// <param name="Name">The framework name</param>
 		/// <param name="FrameworkDirectory">Path for the framework on disk</param>
 		/// <param name="CopyBundledAssets"></param>
+		/// <param name="bLinkFramework">Link the framework into the executable</param>
 		/// <param name="bCopyFramework">Copy the framework to the target's Framework directory</param>
 		/// <param name="Logger">Logger for diagnostic output</param>
-		public UEBuildFramework(String Name, DirectoryReference FrameworkDirectory, string? CopyBundledAssets, bool bCopyFramework, ILogger Logger)
+		public UEBuildFramework(String Name, DirectoryReference FrameworkDirectory, string? CopyBundledAssets, bool bLinkFramework, bool bCopyFramework, ILogger Logger)
 		{
 			this.Name = Name;
 			this.FrameworkDirectory = FrameworkDirectory;

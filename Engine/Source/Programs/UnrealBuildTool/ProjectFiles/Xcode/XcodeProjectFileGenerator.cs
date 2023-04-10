@@ -435,8 +435,8 @@ namespace UnrealBuildTool
 			}
 		}
 
-		internal static Dictionary<Tuple<ProjectFile, UnrealTargetPlatform>, List<UEBuildFramework>> TargetFrameworks = new();
-		internal static Dictionary<Tuple<ProjectFile, UnrealTargetPlatform>, List<UEBuildBundleResource>> TargetBundles = new();
+		internal static Dictionary<Tuple<ProjectFile, UnrealTargetPlatform>, IEnumerable<UEBuildFramework>> TargetFrameworks = new();
+		internal static Dictionary<Tuple<ProjectFile, UnrealTargetPlatform>, IEnumerable<UEBuildBundleResource>> TargetBundles = new();
 
 		protected override void AddAdditionalNativeTargetInformation(PlatformProjectGeneratorCollection PlatformProjectGenerators, List<Tuple<ProjectFile, ProjectTarget>> Targets, ILogger Logger)
 		{
@@ -459,58 +459,60 @@ namespace UnrealBuildTool
 
 				ProjectTarget CurTarget = TargetPair.Item2;
 
-				UnrealTargetPlatform Platform = UnrealTargetPlatform.IOS;
-				UnrealArch Arch = UnrealArch.Arm64;
-
-				if (!CurTarget.SupportedPlatforms.Any(x => x == Platform))
+				UnrealTargetPlatform[] PlatformsToGenerate = { UnrealTargetPlatform.Mac, UnrealTargetPlatform.IOS };
+				foreach (UnrealTargetPlatform Platform in PlatformsToGenerate)
 				{
-					continue;
-				}
-				TargetDescriptor TargetDesc = new TargetDescriptor(CurTarget.UnrealProjectFilePath, CurTarget.Name, Platform, UnrealTargetConfiguration.Development,
-					new UnrealArchitectures(Arch), new CommandLineArguments(new string[] { "-skipclangvalidation" }));
-				DateTime Start = DateTime.UtcNow;
+					UnrealArch Arch = UnrealArch.Arm64;
 
-				try
-				{
-					// Create the target
-					UEBuildTarget Target = UEBuildTarget.Create(TargetDesc, true, false, bUsePrecompiled, Logger);
-
-					List<UEBuildFramework> Frameworks = new();
-					List<UEBuildBundleResource> Bundles = new();
-					// Generate a compile environment for each module in the binary
-					CppCompileEnvironment GlobalCompileEnvironment = Target.CreateCompileEnvironmentForProjectFiles(Logger);
-					foreach (UEBuildBinary Binary in Target.Binaries)
+					if (!CurTarget.SupportedPlatforms.Any(x => x == Platform))
 					{
-						CppCompileEnvironment BinaryCompileEnvironment = Binary.CreateBinaryCompileEnvironment(GlobalCompileEnvironment);
-						foreach (UEBuildModuleCPP Module in Binary.Modules.OfType<UEBuildModuleCPP>())
+						continue;
+					}
+					TargetDescriptor TargetDesc = new TargetDescriptor(CurTarget.UnrealProjectFilePath, CurTarget.Name, Platform, UnrealTargetConfiguration.Development,
+						new UnrealArchitectures(Arch), new CommandLineArguments(new string[] { "-skipclangvalidation" }));
+					DateTime Start = DateTime.UtcNow;
+
+					try
+					{
+						// Create the target
+						UEBuildTarget Target = UEBuildTarget.Create(TargetDesc, true, false, bUsePrecompiled, Logger);
+
+						List<UEBuildFramework> Frameworks = new();
+						List<UEBuildBundleResource> Bundles = new();
+						// Generate a compile environment for each module in the binary
+						CppCompileEnvironment GlobalCompileEnvironment = Target.CreateCompileEnvironmentForProjectFiles(Logger);
+						foreach (UEBuildBinary Binary in Target.Binaries)
 						{
-							CppCompileEnvironment CompileEnvironment = Module.CreateModuleCompileEnvironment(Target.Rules, BinaryCompileEnvironment, Logger);
-							Frameworks.AddRange(CompileEnvironment.AdditionalFrameworks);
+							CppCompileEnvironment BinaryCompileEnvironment = Binary.CreateBinaryCompileEnvironment(GlobalCompileEnvironment);
+							foreach (UEBuildModuleCPP Module in Binary.Modules.OfType<UEBuildModuleCPP>())
+							{
+								CppCompileEnvironment CompileEnvironment = Module.CreateModuleCompileEnvironment(Target.Rules, BinaryCompileEnvironment, Logger);
+								Frameworks.AddRange(CompileEnvironment.AdditionalFrameworks);
+							}
+						}
+
+						// track frameworks if we found any
+						if (Frameworks.Count > 0)
+						{
+							lock (TargetFrameworks)
+							{
+								TargetFrameworks.Add(Tuple.Create(TargetProjectFile, Platform), Frameworks.Distinct());
+							}
+						}
+						if (Bundles.Count > 0)
+						{
+							lock (TargetBundles)
+							{
+								TargetBundles.Add(Tuple.Create(TargetProjectFile, Platform), Bundles.Distinct());
+							}
 						}
 					}
-
-					// track frameworks if we found any
-					if (Frameworks.Count > 0)
+					catch (Exception)
 					{
-						lock (TargetFrameworks)
-						{
-							TargetFrameworks.Add(Tuple.Create(TargetProjectFile, Platform), Frameworks);
-						}
-					}
-					if (Bundles.Count > 0)
-					{
-						lock (TargetBundles)
-						{
-							TargetBundles.Add(Tuple.Create(TargetProjectFile, Platform), Bundles);
-						}
-					}
-				}
-				catch (Exception)
-				{
 
+					}
 				}
 			}
-
 			Logger.LogInformation("GettingNativeInfo {TimeMs}ms overall", (DateTime.UtcNow - MainStart).TotalMilliseconds);
 		}
 	}

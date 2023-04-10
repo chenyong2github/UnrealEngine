@@ -407,9 +407,30 @@ namespace UnrealBuildTool
 			internal string? CopyBundledAssets = null;
 
 			/// <summary>
-			/// Copy the framework to the target's Framework directory
+			/// How to handle linking and copying the framework
 			/// </summary>
-			internal bool bCopyFramework = false;
+			public  enum FrameworkMode
+			{
+				/// <summary>
+				/// Pass this framework to the linker
+				/// </summary>
+				Link,
+
+				/// <summary>
+				/// Copy this framework into the final .app
+				/// </summary>
+				Copy,
+
+				/// <summary>
+				/// Both link into executable and copy into .app
+				/// </summary>
+				LinkAndCopy,
+			}
+
+			/// <summary>
+			/// How to treat the framework during linking and creating the .app
+			/// </summary>
+			internal FrameworkMode Mode;
 
 			/// <summary>
 			/// Constructor
@@ -419,11 +440,23 @@ namespace UnrealBuildTool
 			/// <param name="CopyBundledAssets"></param>
 			/// <param name="bCopyFramework">Copy the framework to the target's Framework directory</param>
 			public Framework(string Name, string Path, string? CopyBundledAssets = null, bool bCopyFramework = false)
+				: this(Name, Path, bCopyFramework ? FrameworkMode.LinkAndCopy : FrameworkMode.Link, CopyBundledAssets)
+			{
+			}
+
+			/// <summary>
+			/// Constructor
+			/// </summary>
+			/// <param name="Name">Name of the framework</param>
+			/// <param name="Path">Path to a zip file containing the framework or a framework on disk</param>
+			/// <param name="Mode">How to treat the framework during linking and creating the .app</param>
+			/// <param name="CopyBundledAssets"></param>
+			public Framework(string Name, string Path, FrameworkMode Mode, string? CopyBundledAssets = null)
 			{
 				this.Name = Name;
 				this.Path = Path;
+				this.Mode = Mode;
 				this.CopyBundledAssets = CopyBundledAssets;
-				this.bCopyFramework = bCopyFramework;
 			}
 
 			/// <summary>

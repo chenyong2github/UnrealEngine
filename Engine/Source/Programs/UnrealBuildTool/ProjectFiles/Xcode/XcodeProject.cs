@@ -1333,7 +1333,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		{
 			// look up to see if we had cached any Frameworks
 			Tuple<ProjectFile, UnrealTargetPlatform> FrameworkKey = Tuple.Create((ProjectFile)ProjectFile, Platform);
-			List<UEBuildFramework>? Frameworks;
+			IEnumerable<UEBuildFramework>? Frameworks;
 			if (XcodeProjectFileGenerator.TargetFrameworks.TryGetValue(FrameworkKey, out Frameworks))
 			{
 				XcodeCopyFilesBuildPhase EmbedFrameworks = new XcodeCopyFilesBuildPhase(Project.FileCollection);
