@@ -34,12 +34,28 @@ USTRUCT(BlueprintType, meta = (DisplayName = "MetaSound Node Input Handle"))
 struct METASOUNDENGINE_API FMetaSoundBuilderNodeInputHandle : public FMetasoundFrontendVertexHandle
 {
 	GENERATED_BODY()
+
+public:
+	FMetaSoundBuilderNodeInputHandle() = default;
+	FMetaSoundBuilderNodeInputHandle(const FGuid InNodeID, const FGuid& InVertexID)
+	{
+		NodeID = InNodeID;
+		VertexID = InVertexID;
+	}
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName = "MetaSound Node Output Handle"))
 struct METASOUNDENGINE_API FMetaSoundBuilderNodeOutputHandle : public FMetasoundFrontendVertexHandle
 {
 	GENERATED_BODY()
+
+public:
+	FMetaSoundBuilderNodeOutputHandle() = default;
+	FMetaSoundBuilderNodeOutputHandle(const FGuid InNodeID, const FGuid& InVertexID)
+	{
+		NodeID = InNodeID;
+		VertexID = InVertexID;
+	}
 };
 
 USTRUCT(BlueprintType)
