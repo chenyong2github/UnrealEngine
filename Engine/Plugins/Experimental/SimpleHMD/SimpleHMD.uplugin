@@ -22,12 +22,19 @@
 		"Mac",
 		"IOS"
 	],
-	"Modules" :
+	"Modules" : 
 	[
 		{
 			"Name" : "SimpleHMD",
 			"Type" : "Runtime",
 			"LoadingPhase" : "Default"
+		}
+	],
+	"Plugins" : 
+	[
+		{
+			"Name" : "XRBase",
+			"Enabled" : true
 		}
 	]
 }

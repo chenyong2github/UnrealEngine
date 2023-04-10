@@ -24,10 +24,6 @@ class HEADMOUNTEDDISPLAY_API UMotionControllerComponent : public UPrimitiveCompo
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetAssociatedPlayerIndex, Category = "MotionController")
 	int32 PlayerIndex;
 
-	/** DEPRECATED (use MotionSource instead) Which hand this component should automatically follow */
-	UPROPERTY(BlueprintSetter = SetTrackingSource, BlueprintGetter = GetTrackingSource, Category = "MotionController")
-	EControllerHand Hand_DEPRECATED;
-
 	/** Defines which pose this component should receive from the OpenXR Runtime. Left/Right MotionSource is the same as LeftGrip/RightGrip. See OpenXR specification for details on poses. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetTrackingMotionSource, Category = "MotionController")
 	FName MotionSource;
@@ -39,9 +35,6 @@ class HEADMOUNTEDDISPLAY_API UMotionControllerComponent : public UPrimitiveCompo
 	/** The tracking status for the device (e.g. full tracking, inertial tracking only, no tracking) */
 	UPROPERTY(BlueprintReadOnly, Category = "MotionController")
 	ETrackingStatus CurrentTrackingStatus;
-
-	/** Used to visualize this component's device */
-	UXRDeviceVisualizationComponent* VisualizationComponent;
 
 	/** Used to automatically render a model associated with the set hand. */
 	UE_DEPRECATED(5.2, "bDisplayDeviceModel is deprecated. Please use the XRDeviceVisualizationComponent for rendering instead.")
@@ -98,7 +91,6 @@ class HEADMOUNTEDDISPLAY_API UMotionControllerComponent : public UPrimitiveCompo
 	UFUNCTION(BlueprintSetter)
 	void SetAssociatedPlayerIndex(const int32 NewPlayer);
 
-	void BeginPlay() override;
 	void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	void BeginDestroy() override;
 
@@ -141,6 +133,10 @@ public:
 	virtual void InitializeComponent() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 
+	// Delegate for activation of XRDeviceVisualizationComponent
+	DECLARE_MULTICAST_DELEGATE_OneParam(FActivateVisualizationComponent, bool);
+	static FActivateVisualizationComponent OnActivateVisualizationComponent;
+
 protected:
 	//~ Begin UActorComponent Interface.
 	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
@@ -168,9 +164,6 @@ private:
 
 	/** Whether or not this component has authority within the frame*/
 	bool bHasAuthority;
-
-	/** Whether or not this component has informed the visualization component (if present) to start rendering */
-	bool bHasStartedRendering;
 
 	/** If true, the Position and Orientation args will contain the most recent controller state */
 	bool PollControllerState(FVector& Position, FRotator& Orientation, float WorldToMetersScale);

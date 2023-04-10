@@ -28,7 +28,6 @@
 #include "UI/VREditorRadialFloatingUI.h"
 #include "UI/VREditorUISystem.h"
 #include "VRModeSettings.h"
-#include "XRMotionControllerBase.h" // for FXRMotionControllerBase::Left/RightHandSourceId and GetHandEnumForSourceName()
 
 namespace VREd
 {
@@ -274,7 +273,7 @@ void UVREditorInteractor::Init_Implementation( UVREditorMode* InVRMode )
 	const FName HMDDeviceType = InVRMode->GetHMDDeviceType();
 
 	// Setup keys
-	if (ControllerMotionSource == FXRMotionControllerBase::LeftHandSourceId)
+	if (ControllerMotionSource == IMotionController::LeftHandSourceId)
 	{
 		AddKeyAction( UVREditorInteractor::MotionController_Left_FullyPressedTriggerAxis, FViewportActionKeyInput( ViewportWorldActionTypes::SelectAndMove_FullyPressed ) );
 		AddKeyAction( UVREditorInteractor::MotionController_Left_PressedTriggerAxis, FViewportActionKeyInput( ViewportWorldActionTypes::SelectAndMove ) );
@@ -287,7 +286,7 @@ void UVREditorInteractor::Init_Implementation( UVREditorMode* InVRMode )
 			}
 		}
 	}
-	else if (ControllerMotionSource == FXRMotionControllerBase::RightHandSourceId)
+	else if (ControllerMotionSource == IMotionController::RightHandSourceId)
 	{
 		AddKeyAction( UVREditorInteractor::MotionController_Right_FullyPressedTriggerAxis, FViewportActionKeyInput( ViewportWorldActionTypes::SelectAndMove_FullyPressed ) );
 		AddKeyAction( UVREditorInteractor::MotionController_Right_PressedTriggerAxis, FViewportActionKeyInput( ViewportWorldActionTypes::SelectAndMove ) );
@@ -326,7 +325,7 @@ void UVREditorInteractor::SetupComponent_Implementation( AActor* OwningActor )
 	// Hand mesh
 	{
 		HandMeshComponent = VRMode->CreateMotionControllerMesh(OwningAvatar, MotionControllerComponent);
-		if (ControllerMotionSource == FXRMotionControllerBase::RightHandSourceId &&
+		if (ControllerMotionSource == IMotionController::RightHandSourceId &&
 			GetHMDDeviceType() == OculusDeviceType)	// Oculus has asymmetrical controllers, so we mirror the mesh horizontally
 		{
 			HandMeshBaseScale = FVector3d(1.0, -1.0, 1.0);
@@ -353,7 +352,7 @@ void UVREditorInteractor::SetupComponent_Implementation( AActor* OwningActor )
 		LaserMotionControllerComponent->SetMobility(EComponentMobility::Movable);
 		LaserMotionControllerComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		LaserMotionControllerComponent->MotionSource =
-			(ControllerMotionSource == FXRMotionControllerBase::LeftHandSourceId)
+			(ControllerMotionSource == IMotionController::LeftHandSourceId)
 			? FName("LeftAim")
 			: FName("RightAim");
 	}
@@ -530,7 +529,7 @@ void UVREditorInteractor::Shutdown_Implementation()
 EControllerHand UVREditorInteractor::GetControllerSide() const
 {
 	EControllerHand Hand = EControllerHand::Left;
-	FXRMotionControllerBase::GetHandEnumForSourceName( ControllerMotionSource, Hand );
+	IMotionController::GetHandEnumForSourceName( ControllerMotionSource, Hand );
 	return Hand;
 
 }
@@ -1021,7 +1020,7 @@ void UVREditorInteractor::HandleInputAxis( FEditorViewportClient& ViewportClient
 				bHasTriggerBeenReleasedSinceLastPress = false;
 				// Synthesize an input key for this light press
 				const EInputEvent InputEvent = IE_Pressed;
-				const bool bWasLightPressHandled = UViewportInteractor::HandleInputKey( ViewportClient, ControllerMotionSource == FXRMotionControllerBase::LeftHandSourceId ? MotionController_Left_PressedTriggerAxis : MotionController_Right_PressedTriggerAxis, InputEvent );
+				const bool bWasLightPressHandled = UViewportInteractor::HandleInputKey( ViewportClient, ControllerMotionSource == IMotionController::LeftHandSourceId ? MotionController_Left_PressedTriggerAxis : MotionController_Right_PressedTriggerAxis, InputEvent );
 			}
 			else if (bIsTriggerPressed && Delta < TriggerPressedThreshold)
 			{
@@ -1029,7 +1028,7 @@ void UVREditorInteractor::HandleInputAxis( FEditorViewportClient& ViewportClient
 
 				// Synthesize an input key for this light press
 				const EInputEvent InputEvent = IE_Released;
-				const bool bWasLightReleaseHandled = UViewportInteractor::HandleInputKey( ViewportClient, ControllerMotionSource == FXRMotionControllerBase::LeftHandSourceId ? MotionController_Left_PressedTriggerAxis : MotionController_Right_PressedTriggerAxis, InputEvent );
+				const bool bWasLightReleaseHandled = UViewportInteractor::HandleInputKey( ViewportClient, ControllerMotionSource == IMotionController::LeftHandSourceId ? MotionController_Left_PressedTriggerAxis : MotionController_Right_PressedTriggerAxis, InputEvent );
 			}
 		}
 
@@ -1048,14 +1047,14 @@ void UVREditorInteractor::HandleInputAxis( FEditorViewportClient& ViewportClient
 				bIsTriggerFullyPressed = true;
 
 				const EInputEvent InputEvent = IE_Pressed;
-				UViewportInteractor::HandleInputKey( ViewportClient, ControllerMotionSource == FXRMotionControllerBase::LeftHandSourceId ? MotionController_Left_FullyPressedTriggerAxis : MotionController_Right_FullyPressedTriggerAxis, InputEvent );
+				UViewportInteractor::HandleInputKey( ViewportClient, ControllerMotionSource == IMotionController::LeftHandSourceId ? MotionController_Left_FullyPressedTriggerAxis : MotionController_Right_FullyPressedTriggerAxis, InputEvent );
 			}
 			else if (bIsTriggerFullyPressed && Delta < TriggerPressedThreshold)
 			{
 				bIsTriggerFullyPressed = false;
 
 				const EInputEvent InputEvent = IE_Released;
-				UViewportInteractor::HandleInputKey( ViewportClient, ControllerMotionSource == FXRMotionControllerBase::LeftHandSourceId ? MotionController_Left_FullyPressedTriggerAxis : MotionController_Right_FullyPressedTriggerAxis, InputEvent );
+				UViewportInteractor::HandleInputKey( ViewportClient, ControllerMotionSource == IMotionController::LeftHandSourceId ? MotionController_Left_FullyPressedTriggerAxis : MotionController_Right_FullyPressedTriggerAxis, InputEvent );
 			}
 		}
 	}
@@ -1219,8 +1218,8 @@ void UVREditorInteractor::PlayHapticEffect( const float Strength )
 
 		//@todo viewportinteration
 		FForceFeedbackValues ForceFeedbackValues;
-		ForceFeedbackValues.LeftLarge = ControllerMotionSource == FXRMotionControllerBase::LeftHandSourceId ? Strength : 0;
-		ForceFeedbackValues.RightLarge = ControllerMotionSource == FXRMotionControllerBase::RightHandSourceId ? Strength : 0;
+		ForceFeedbackValues.LeftLarge = ControllerMotionSource == IMotionController::LeftHandSourceId ? Strength : 0;
+		ForceFeedbackValues.RightLarge = ControllerMotionSource == IMotionController::RightHandSourceId ? Strength : 0;
 
 		// @todo vreditor: If an Xbox controller is plugged in, this causes both the motion controllers and the Xbox controller to vibrate!
 		InputInterface->SetForceFeedbackChannelValues( WorldInteraction->GetMotionControllerID(), ForceFeedbackValues );
@@ -1538,7 +1537,7 @@ void UVREditorInteractor::UpdateHelpLabels()
 			FTransform SocketRelativeTransform( Socket->RelativeRotation, Socket->RelativeLocation, Socket->RelativeScale );
 
 			// Oculus has asymmetrical controllers, so we the sock transform horizontally
-			if (ControllerMotionSource == FXRMotionControllerBase::RightHandSourceId && GetVRMode().GetHMDDeviceType() == OculusDeviceType)
+			if (ControllerMotionSource == IMotionController::RightHandSourceId && GetVRMode().GetHMDDeviceType() == OculusDeviceType)
 			{
 				const FVector Scale3D = SocketRelativeTransform.GetLocation();
 				SocketRelativeTransform.SetLocation( FVector( Scale3D.X, -Scale3D.Y, Scale3D.Z ) );

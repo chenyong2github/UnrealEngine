@@ -306,7 +306,7 @@ public class UnrealEd : ModuleRules
 				"InputBindingEditor",
 				"ClothingSystemEditor",
 				"PluginWarden",
-				//"PIEPreviewDeviceProfileSelector",
+				"MaterialShaderQualitySettings",
 				"EditorInteractiveToolsFramework"
 			}
 		);

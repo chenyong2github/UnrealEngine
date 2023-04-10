@@ -16,6 +16,7 @@ namespace UnrealBuildTool.Rules
                     "CoreUObject",
                     "Engine",
 					"HeadMountedDisplay",
+					"XRBase",
                     "InputCore",
 					"LiveLinkAnimationCore",
 					"LiveLinkInterface",

@@ -22,7 +22,8 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
-					"AugmentedReality"
+					"AugmentedReality",
+					"HeadMountedDisplay"
 				}
 			);
 

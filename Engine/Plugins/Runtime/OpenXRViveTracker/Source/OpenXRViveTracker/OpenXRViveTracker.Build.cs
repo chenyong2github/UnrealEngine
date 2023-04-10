@@ -32,6 +32,7 @@ namespace UnrealBuildTool.Rules
                     "CoreUObject",
                     "Engine",
 					"HeadMountedDisplay",
+					"XRBase",
                     "InputCore",
 					"OpenXRHMD",
 					"OpenXRInput",

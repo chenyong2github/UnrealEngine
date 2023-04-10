@@ -21,7 +21,8 @@ namespace UnrealBuildTool.Rules
 					"RHI",
 					"RenderCore",
 					"Renderer",
-					"HeadMountedDisplay"
+					"HeadMountedDisplay",
+					"XRBase"
 				}
 				);
 		}

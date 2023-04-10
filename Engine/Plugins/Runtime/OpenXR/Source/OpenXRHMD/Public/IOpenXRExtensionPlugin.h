@@ -12,6 +12,8 @@
 #include "GenericPlatform/IInputInterface.h"
 #include <openxr/openxr.h>
 
+class FHeadMountedDisplayBase;
+
 class IOpenXRCustomAnchorSupport
 {
 public:

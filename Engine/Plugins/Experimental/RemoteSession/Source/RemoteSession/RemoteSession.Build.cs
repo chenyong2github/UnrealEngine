@@ -20,6 +20,7 @@ public class RemoteSession : ModuleRules
 				"MediaIOCore",
 				"BackChannel",
 				"ApplicationCore",
+				"XRBase",
 				// ... add other public dependencies that you statically link with here ...
 			}
 		);

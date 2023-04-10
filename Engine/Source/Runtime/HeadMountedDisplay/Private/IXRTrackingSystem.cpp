@@ -7,6 +7,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Misc/App.h"
 
+const int32 IXRTrackingSystem::HMDDeviceId;
+
 void IXRTrackingSystem::GetHMDData(UObject* WorldContext, FXRHMDData& HMDData)
 {
 	HMDData.bValid = true;

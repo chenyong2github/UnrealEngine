@@ -19,6 +19,8 @@ struct FSpectatorScreenModeTexturePlusEyeLayout;
 class HEADMOUNTEDDISPLAY_API ISpectatorScreenController : public IModularFeature
 {
 public:
+	virtual ~ISpectatorScreenController() {}
+
 	static FName GetModularFeatureName()
 	{
 		static FName FeatureName = FName(TEXT("SpectatorScreenController"));

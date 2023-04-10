@@ -6,9 +6,20 @@ namespace UnrealBuildTool.Rules
 	{
 		public OpenXRHMD(ReadOnlyTargetRules Target) : base(Target)
         {
-			PublicIncludePathModuleNames.Add("OpenXR");
+			PublicIncludePathModuleNames.AddRange(
+				new string[]
+				{
+					"OpenXR"
+				}
+				);
 
-            PublicDependencyModuleNames.Add("HeadMountedDisplay");
+			PublicDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"HeadMountedDisplay",
+					"XRBase",
+				}
+				);
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]

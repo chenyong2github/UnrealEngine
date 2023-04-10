@@ -31,6 +31,10 @@
 	{
 		"Name": "OpenCVLensDistortion",
 		"Enabled": true
+	},
+	{
+		"Name": "XRBase",
+		"Enabled": true
 	}
-	]
+  ]
 }

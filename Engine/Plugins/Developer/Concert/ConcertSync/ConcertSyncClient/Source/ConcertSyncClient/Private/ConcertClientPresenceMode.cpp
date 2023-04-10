@@ -19,7 +19,7 @@
 #include "ConcertClientVRPresenceActor.h"
 #include "EngineUtils.h"
 #include "Features/IModularFeatures.h"
-#include "XRMotionControllerBase.h"
+#include "IMotionController.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -243,8 +243,8 @@ void FConcertClientVRPresenceMode::SendEvents(IConcertClientSession& Session)
 			return MotionControllerToWorld;
 		};
 
-		FTransform LeftMotionControllerTransform = GetControllerTransform(FXRMotionControllerBase::LeftHandSourceId);
-		FTransform RightMotionControllerTransform = GetControllerTransform(FXRMotionControllerBase::RightHandSourceId);
+		FTransform LeftMotionControllerTransform = GetControllerTransform(IMotionController::LeftHandSourceId);
+		FTransform RightMotionControllerTransform = GetControllerTransform(IMotionController::RightHandSourceId);
 		
 		FConcertClientVRPresenceUpdateEvent Event;
 		Event.LeftMotionControllerOrientation = LeftMotionControllerTransform.GetRotation();

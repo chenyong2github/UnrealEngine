@@ -25,6 +25,7 @@ public class AppleARKitPoseTrackingLiveLink : ModuleRules
 		{
 			"CoreUObject",
 			"HeadMountedDisplay",
+			"XRBase",
 			"LiveLinkAnimationCore",
 			"LiveLinkInterface",
 			"AppleARKit",

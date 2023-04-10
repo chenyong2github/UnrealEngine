@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"GoogleARCoreSDK",
+					"XRBase",
 				}
 			);
 

@@ -62,6 +62,10 @@
 	],
 	"Plugins": [
 		{
+			"Name": "XRBase",
+			"Enabled": true
+		},
+		{
 			"Name": "EnhancedInput",
 			"Enabled": true
 		}

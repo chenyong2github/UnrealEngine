@@ -11,7 +11,6 @@
 #include "SceneTexturesConfig.h"
 #include "IEyeTracker.h"
 #include "IHeadMountedDisplay.h"
-#include "HeadMountedDisplayFunctionLibrary.h"
 #include "SceneRendering.h"
 
 /* CVar values used to control generator behavior */

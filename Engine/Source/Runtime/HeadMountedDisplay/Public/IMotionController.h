@@ -122,7 +122,7 @@ public:
 	 * @return			The value of the parameter
 	 */
 	virtual float GetCustomParameterValue(const FName MotionSource, FName ParameterName, bool& bOutValueFound) const = 0;
-
+	
 	virtual bool GetHandJointPosition(const FName MotionSource, int jointIndex, FVector& OutPosition) const = 0;
 
 	/**
@@ -134,4 +134,11 @@ public:
 	 * @return			False if the input config can't be attached to the session, true otherwise
 	 */
 	virtual bool SetPlayerMappableInputConfig(TObjectPtr<class UPlayerMappableInputConfig> InputConfig = nullptr) { return true; };
+
+	// explicit source names
+	static FName LeftHandSourceId;
+	static FName RightHandSourceId;
+	static FName HMDSourceId;
+
+	static bool GetHandEnumForSourceName(const FName Source, EControllerHand& OutHand);
 };

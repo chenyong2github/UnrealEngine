@@ -29,6 +29,7 @@ public class AppleARKitFaceSupport : ModuleRules
 			{
 				"CoreUObject",
                 "HeadMountedDisplay",
+				"XRBase",
                 "AugmentedReality",
                 "ProceduralMeshComponent",
                 "LiveLinkInterface",

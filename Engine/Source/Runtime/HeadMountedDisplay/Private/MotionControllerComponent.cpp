@@ -10,13 +10,14 @@
 #include "Components/StaticMeshComponent.h"
 #include "MotionDelayBuffer.h"
 #include "UObject/VRObjectVersion.h"
-#include "XRDeviceVisualizationComponent.h"
-#include "XRMotionControllerBase.h"
 #include "IXRTrackingSystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MotionControllerComponent)
 
 DEFINE_LOG_CATEGORY_STATIC(LogMotionControllerComponent, Log, All);
+
+UMotionControllerComponent::FActivateVisualizationComponent UMotionControllerComponent::OnActivateVisualizationComponent;
+
 
 namespace {
 	/** This is to prevent destruction of motion controller components while they are
@@ -66,7 +67,7 @@ UMotionControllerComponent::UMotionControllerComponent(const FObjectInitializer&
 	PrimaryComponentTick.bTickEvenWhenPaused = true;
 
 	PlayerIndex = 0;
-	MotionSource = FXRMotionControllerBase::LeftHandSourceId;
+	MotionSource = IMotionController::LeftHandSourceId;
 	bDisableLowLatencyUpdate = false;
 	bHasAuthority = false;
 	bAutoActivate = true;
@@ -103,24 +104,6 @@ void UMotionControllerComponent::PostLoad()
 }
 
 //=============================================================================
-void UMotionControllerComponent::BeginPlay() 
-{
-	Super::BeginPlay();
-
-	TArray<USceneComponent*> ChildrenComponents;
-	GetChildrenComponents(/*bIncludeAllDescendants*/ false, ChildrenComponents);
-
-	for (USceneComponent* ChildComponent : ChildrenComponents) 
-	{
-		VisualizationComponent = Cast<UXRDeviceVisualizationComponent>(ChildComponent);
-		if (VisualizationComponent != nullptr) 
-		{
-			return;
-		}
-	}
-}
-
-//=============================================================================
 FName UMotionControllerComponent::GetTrackingMotionSource() 
 {
 	return MotionSource;
@@ -144,13 +127,9 @@ void UMotionControllerComponent::TickComponent(float DeltaTime, enum ELevelTick 
 
 		// if controller tracking just kicked in or we haven't started rendering in the (possibly present) 
 		// visualization component.
-		if (!bTracked && bNewTrackedState && !bHasStartedRendering)
+		if (!bTracked && bNewTrackedState)
 		{
-			if (VisualizationComponent)
-			{
-				VisualizationComponent->SetIsRenderingActive(true);
-				bHasStartedRendering = true;
-			}
+			OnActivateVisualizationComponent.Broadcast(true);
 		}
 
 		// This part is deprecated and will be removed in later versions.
@@ -217,7 +196,7 @@ void UMotionControllerComponent::SetTrackingSource(const EControllerHand NewSour
 EControllerHand UMotionControllerComponent::GetTrackingSource() const
 {
 	EControllerHand Hand = EControllerHand::Left;
-	FXRMotionControllerBase::GetHandEnumForSourceName(MotionSource, Hand);
+	IMotionController::GetHandEnumForSourceName(MotionSource, Hand);
 	return Hand;
 }
 
@@ -250,11 +229,6 @@ void UMotionControllerComponent::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FVRObjectVersion::GUID);
 
 	Super::Serialize(Ar);
-
-	if (Ar.CustomVer(FVRObjectVersion::GUID) < FVRObjectVersion::UseFNameInsteadOfEControllerHandForMotionSource)
-	{
-		LegacyMotionSources::GetSourceNameForHand(Hand_DEPRECATED, MotionSource);
-	}
 }
 
 //=============================================================================
@@ -384,7 +358,7 @@ bool UMotionControllerComponent::PollControllerState(FVector& Position, FRotator
 			}
 		}
 
-		if (MotionSource == FXRMotionControllerBase::HMDSourceId)
+		if (MotionSource == IMotionController::HMDSourceId)
 		{
 			IXRTrackingSystem* TrackingSys = GEngine->XRSystem.Get();
 			if (TrackingSys)
@@ -672,14 +646,14 @@ void UMotionControllerComponent::RefreshDisplayComponent(const bool bForceDestro
 					}
 
 					int32 DeviceId = INDEX_NONE;
-					if (MotionSource == FXRMotionControllerBase::HMDSourceId)
+					if (MotionSource == IMotionController::HMDSourceId)
 					{
 						DeviceId = IXRTrackingSystem::HMDDeviceId;
 					}
 					else
 					{
 						EControllerHand ControllerHandIndex;
-						if (!FXRMotionControllerBase::GetHandEnumForSourceName(MotionSource, ControllerHandIndex))
+						if (!IMotionController::GetHandEnumForSourceName(MotionSource, ControllerHandIndex))
 						{
 							break;
 						}

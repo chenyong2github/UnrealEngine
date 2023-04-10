@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
 					"RenderCore",
 					"Renderer",
 					"HeadMountedDisplay",
+					"XRBase",
 					"SlateCore"
 				}
 			);

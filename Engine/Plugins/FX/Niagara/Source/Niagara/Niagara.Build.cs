@@ -30,7 +30,6 @@ public class Niagara : ModuleRules
                 "Core",
                 "DeveloperSettings",
                 "Engine",
-                "HeadMountedDisplay",
                 "Json",
                 "JsonUtilities",
                 "Landscape",

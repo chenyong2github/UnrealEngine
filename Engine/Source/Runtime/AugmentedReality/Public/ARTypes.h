@@ -7,7 +7,6 @@
 #include "ARTypes.generated.h"
 
 class USceneComponent;
-class IXRTrackingSystem;
 class UARPin;
 class UARTrackedGeometry;
 class UARLightEstimate;

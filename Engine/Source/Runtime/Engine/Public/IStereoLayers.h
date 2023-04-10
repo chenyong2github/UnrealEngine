@@ -239,64 +239,6 @@ public:
 	virtual bool ShouldCopyDebugLayersToSpectatorScreen() const = 0;
 
 public:
-	/**
-	* Set the splash screen attributes
-	*
-	* @param Texture			(in) A texture to be used for the splash. B8R8G8A8 format.
-	* @param Scale				(in) Scale of the texture.
-	* @param Offset				(in) Position from which to start rendering the texture.
-	* @param ShowLoadingMovie	(in) Whether the splash screen presents loading movies.
-	*/
-	UE_DEPRECATED(4.24, "Use the IXRLoadingScreen interface instead of IStereoLayers::*SplashScreen")
-	void SetSplashScreen(FTextureRHIRef Texture, FVector2D Scale, FVector Offset, bool bShowLoadingMovie)
-	{
-		bSplashShowMovie = bShowLoadingMovie;
-		SplashTexture = nullptr;
-		if (Texture)
-		{
-			SplashTexture = Texture->GetTexture2D();
-			SplashOffset = Offset;
-			SplashScale = Scale;
-		}
-	}
-
-	/**
-	* Show the splash screen and override the normal VR display
-	*/
-	UE_DEPRECATED(4.24, "Use the IXRLoadingScreen interface instead of IStereoLayers::*SplashScreen")
-	void ShowSplashScreen()
-	{
-		bSplashIsShown = true;
-		UpdateSplashScreen();
-	}
-
-	/**
-	* Hide the splash screen and return to normal display.
-	*/
-	UE_DEPRECATED(4.24, "Use the IXRLoadingScreen interface instead of IStereoLayers::*SplashScreen")
-	void HideSplashScreen()
-	{
-		bSplashIsShown = false;
-		UpdateSplashScreen();
-	}
-
-	/**
-	* Set the splash screen's movie texture.
-	*
-	* @param InMovieTexture		(in) A movie texture to be used for the splash. B8R8G8A8 format.
-	*/
-	UE_DEPRECATED(4.24, "Use the IXRLoadingScreen interface instead of IStereoLayers::*SplashScreen")
-	void SetSplashScreenMovie(FTextureRHIRef Texture)
-	{
-		SplashMovie = nullptr;
-		if (Texture)
-		{
-			SplashMovie = Texture->GetTexture2D();
-			bSplashShowMovie = true;
-		}
-		UpdateSplashScreen();
-	}
-
 	virtual FLayerDesc GetDebugCanvasLayerDesc(FTextureRHIRef Texture)
 	{
 		// Default debug layer desc

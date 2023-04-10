@@ -17,7 +17,8 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"Slate",
 					"DeveloperSettings",
-					"HeadMountedDisplay"
+					"HeadMountedDisplay",
+					"XRBase",
 				}
 			);
 

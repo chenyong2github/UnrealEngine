@@ -30,6 +30,7 @@ public class OpenXRAR : ModuleRules
                 "RHI",
 				"Projects",
 				"OpenXRHMD",
+				"XRBase",
 			}
             );
 			

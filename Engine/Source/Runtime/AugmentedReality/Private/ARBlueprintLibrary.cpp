@@ -6,6 +6,7 @@
 #include "Engine/Engine.h"
 #include "ARPin.h"
 #include "ARGeoTrackingSupport.h"
+#include "IXRTrackingSystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ARBlueprintLibrary)
 

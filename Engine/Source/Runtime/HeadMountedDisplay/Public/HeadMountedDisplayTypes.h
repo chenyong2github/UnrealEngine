@@ -229,8 +229,6 @@ struct FSpectatorScreenModeTexturePlusEyeLayout
 	bool bClearBlack;
 };
 
-DECLARE_DELEGATE_FiveParams(FSpectatorScreenRenderDelegate, FRHICommandListImmediate& /* RHICmdList */, FTexture2DRHIRef /* TargetTexture */, FTexture2DRHIRef /* EyeTexture */, FTexture2DRHIRef /* OtherTexture */, FVector2D /* WindowSize */);
-
 UENUM(BlueprintType)
 enum class EXRTrackedDeviceType : uint8
 {

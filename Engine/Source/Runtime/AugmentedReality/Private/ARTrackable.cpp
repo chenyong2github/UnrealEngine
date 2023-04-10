@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ARTrackable.h"
+#include "ARSupportInterface.h"
 #include "ARSystem.h"
 #include "ARDebugDrawHelpers.h"
 #include "DrawDebugHelpers.h"
 #include "MRMeshComponent.h"
+#include "IXRTrackingSystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ARTrackable)
 

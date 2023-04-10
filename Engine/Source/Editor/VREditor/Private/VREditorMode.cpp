@@ -51,7 +51,7 @@
 #include "Engine/StaticMeshActor.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
-#include "XRMotionControllerBase.h" // for FXRMotionControllerBase::Left/RightHandSourceId
+#include "IMotionController.h"
 #include "UI/VREditorFloatingUI.h"
 #include "AssetEditorViewportLayout.h"
 #include "LevelViewportActions.h"
@@ -221,8 +221,8 @@ void UVREditorMode::AllocateInteractors()
 	Interactors.Add( LeftHandInteractor );
 	Interactors.Add( RightHandInteractor );
 
-	LeftHandInteractor->SetControllerHandSide( FXRMotionControllerBase::LeftHandSourceId );
-	RightHandInteractor->SetControllerHandSide( FXRMotionControllerBase::RightHandSourceId );
+	LeftHandInteractor->SetControllerHandSide(IMotionController::LeftHandSourceId );
+	RightHandInteractor->SetControllerHandSide( IMotionController::RightHandSourceId );
 
 	for (UVREditorInteractor* Interactor : Interactors)
 	{

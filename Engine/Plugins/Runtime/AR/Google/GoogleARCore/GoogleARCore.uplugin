@@ -28,18 +28,22 @@
             "PlatformAllowList": [ "Win64", "Mac", "Android", "Linux" ]
         },
     ],
-    "Plugins": [
-        {
-            "Name": "AndroidPermission",
-            "Enabled": true
-        },
+	"Plugins": [
 		{
-            "Name": "ProceduralMeshComponent",
-            "Enabled": true
-        },
+			"Name": "XRBase",
+			"Enabled": true
+		},
 		{
-            "Name": "ARUtilities",
-            "Enabled": true
-        }
-    ]
+			"Name": "AndroidPermission",
+			"Enabled": true
+		},
+		{
+			"Name": "ProceduralMeshComponent",
+			"Enabled": true
+		},
+		{
+			"Name": "ARUtilities",
+			"Enabled": true
+		}
+	]
 }

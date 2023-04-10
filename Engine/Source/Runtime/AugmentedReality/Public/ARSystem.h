@@ -3,17 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "XRTrackingSystemBase.h"
 #include "ARTypes.h"
 #include "ARSessionConfig.h"
 #include "Engine/Engine.h" // for FWorldContext
 
 class UARPin;
+class UARTexture;
 class UARTrackedGeometry;
 class UARSessionConfig;
 class UARTextureCameraImage;
 class UARTextureCameraDepth;
 struct FARTraceResult;
+enum class EARTextureType : uint8;
 
 #define DEFINE_AR_DELEGATE_BASE(DelegateName) \
 private: \

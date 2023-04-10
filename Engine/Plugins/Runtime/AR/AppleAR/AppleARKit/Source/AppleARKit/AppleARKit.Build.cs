@@ -30,6 +30,7 @@ public class AppleARKit : ModuleRules
 			"Renderer",
 			"RenderCore",
 			"HeadMountedDisplay",
+			"XRBase",
 			"AugmentedReality",
 			"AppleImageUtils",
 			"Projects",

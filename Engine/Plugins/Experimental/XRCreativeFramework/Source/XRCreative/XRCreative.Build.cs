@@ -24,6 +24,7 @@ public class XRCreative : ModuleRules
 				"Engine",
 				"EnhancedInput",
 				"HeadMountedDisplay",
+				"XRBase",
 				"InputCore",
 				"InteractiveToolsFramework",
 				"LevelSequence",

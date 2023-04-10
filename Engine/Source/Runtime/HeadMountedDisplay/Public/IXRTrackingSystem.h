@@ -8,13 +8,13 @@
 #include "UObject/ObjectMacros.h"
 #include "Features/IModularFeature.h"
 #include "IXRInput.h"
-#include "XRGestureConfig.h"
 #include "StereoRendering.h"
 
 class IXRCamera;
 class UARPin;
 class FSceneViewFamily;
 struct FWorldContext;
+class FARSupportInterface;
 
 /**
  * Struct representing the properties of an external tracking sensor.
@@ -341,6 +341,13 @@ public:
 
 
 	/**
+	* Access optionsal ARCompositionComponent
+	**/
+	virtual TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe> GetARCompositionComponent() { return nullptr; }
+	virtual const TSharedPtr<const FARSupportInterface, ESPMode::ThreadSafe> GetARCompositionComponent() const { return nullptr; }
+
+
+	/**
 	 * Access the loading screen interface associated with this tracking system, if any.
 	 *
 	 * @return an IXRLoadingScreen pointer or a nullptr if this tracking system does not support loading screens.
@@ -424,7 +431,8 @@ public:
 	virtual void GetMotionControllerData(UObject* WorldContext, const EControllerHand Hand, FXRMotionControllerData& MotionControllerData) = 0;
 	virtual bool GetCurrentInteractionProfile(const EControllerHand Hand, FString& InteractionProfile) = 0;
 
-	virtual bool ConfigureGestures(const FXRGestureConfig& GestureConfig) = 0;
+	UE_DEPRECATED(5.3, "The only implementation for this function was removed many UE releases ago.")
+	virtual bool ConfigureGestures(const struct FXRGestureConfig& GestureConfig) { return false; };
 
 	virtual EXRDeviceConnectionResult::Type ConnectRemoteXRDevice(const FString& IpAddress, const int32 BitRate)
 	{ 

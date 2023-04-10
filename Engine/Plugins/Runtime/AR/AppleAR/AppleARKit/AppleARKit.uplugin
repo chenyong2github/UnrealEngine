@@ -31,14 +31,18 @@
 
 		}
 	],
-    "Plugins": [
-        {
-            "Name": "AppleImageUtils",
-            "Enabled": true
+	"Plugins": [
+		{
+			"Name": "XRBase",
+			"Enabled": true
 		},
 		{
-            "Name": "ARUtilities",
-            "Enabled": true
-        }
-    ]
+			"Name": "AppleImageUtils",
+			"Enabled": true
+		},
+		{
+			"Name": "ARUtilities",
+			"Enabled": true
+		}
+	]
 }

@@ -16,6 +16,7 @@ namespace UnrealBuildTool.Rules
                     "RenderCore",
 					"RHI",
 					"HeadMountedDisplay",
+					"XRBase",
 					"ProceduralMeshComponent",
 				}
 			);

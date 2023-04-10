@@ -6,6 +6,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Kismet/BlueprintAsyncActionBase.h"
 #include "ARTypes.h"
+#include "ARSupportInterface.h"
 #include "ARSystem.h"
 #include "ARTraceResult.h"
 #include "ARSessionConfig.h"

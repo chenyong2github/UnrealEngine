@@ -6,7 +6,7 @@
 #include "ARComponent.h"
 #include "ARTrackable.generated.h"
 
-class FARSupportInterface ;
+class FARSupportInterface;
 class UAREnvironmentCaptureProbeTexture;
 class UMRMeshComponent;
 

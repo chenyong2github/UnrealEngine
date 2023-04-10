@@ -36,6 +36,7 @@ namespace UnrealBuildTool.Rules
 			CircularlyReferencedDependentModules.AddRange(
 				new string[]
 				{
+					"MaterialShaderQualitySettings",
 					"UnrealEd"
 				}
 			);

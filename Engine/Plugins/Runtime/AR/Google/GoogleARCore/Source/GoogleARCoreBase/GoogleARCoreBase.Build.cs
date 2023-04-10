@@ -36,6 +36,7 @@ namespace UnrealBuildTool.Rules
 				"UElibPNG",
 				"zlib",
 				"MRMesh",
+				"XRBase",
 			});
 
 			PrivateIncludePathModuleNames.AddRange(

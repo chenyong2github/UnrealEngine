@@ -11,7 +11,6 @@
 #include "Templates/TypeHash.h"
 #include "Features/IModularFeatures.h"
 #include "GameFramework/WorldSettings.h"
-#include "XRMotionControllerBase.h"
 #include "Engine/Engine.h" // for GEngine->XRSystem
 
 DEFINE_LOG_CATEGORY_STATIC(LogMotionDelayBuffer, Log, All);
@@ -279,7 +278,7 @@ static bool MotionDelayService_Impl::SampleDevicePose(const FMotionDelayTarget::
 		}
 	}
 
-	if (TargetSource.SourceId == FXRMotionControllerBase::HMDSourceId)
+	if (TargetSource.SourceId == IMotionController::HMDSourceId)
 	{
 		IXRTrackingSystem* TrackingSys = GEngine->XRSystem.Get();
 		if (TrackingSys)

@@ -161,6 +161,7 @@ namespace UnrealBuildTool
 			new KeyValuePair<string, string>("NavigationSystem", "UnrealEd"),
 			new KeyValuePair<string, string>("PacketHandler", "ReliabilityHandlerComponent"),
 			new KeyValuePair<string, string>("PIEPreviewDeviceProfileSelector", "UnrealEd"),
+			new KeyValuePair<string, string>("PIEPreviewDeviceProfileSelector", "MaterialShaderQualitySettings"),
 			new KeyValuePair<string, string>("PixelInspectorModule", "UnrealEd"),
 			new KeyValuePair<string, string>("Sequencer", "MovieSceneTools"),
 			new KeyValuePair<string, string>("Sequencer", "ViewportInteraction"),
@@ -178,6 +179,7 @@ namespace UnrealBuildTool
 			new KeyValuePair<string, string>("UnrealEd", "ToolMenusEditor"),
 			new KeyValuePair<string, string>("UnrealEd", "ViewportInteraction"),
 			new KeyValuePair<string, string>("UnrealEd", "VREditor"),
+			new KeyValuePair<string, string>("UnrealEd", "MaterialShaderQualitySettings"),
 			new KeyValuePair<string, string>("WebBrowser", "WebBrowserTexture"),
 		};
 

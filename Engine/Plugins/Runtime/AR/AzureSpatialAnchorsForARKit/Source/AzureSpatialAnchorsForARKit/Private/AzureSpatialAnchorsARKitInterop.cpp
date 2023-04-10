@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AzureSpatialAnchorsARKitInterop.h"
+#include "IXRTrackingSystem.h"
 #include <sstream>
 
 DEFINE_LOG_CATEGORY(LogAzureSpatialAnchorsARKitInterop);
@@ -116,7 +117,7 @@ bool FAzureSpatialAnchorsARKitInterop::CreateSession()
     
     UE_LOG(LogAzureSpatialAnchorsARKitInterop, Log, TEXT("Creating an Azure Spatial Anchors session"));
     
-    auto TempARSystem = TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe>{ StaticCastSharedPtr<FXRTrackingSystemBase>(GEngine->XRSystem)->GetARCompositionComponent() };
+    auto TempARSystem = TSharedPtr<FARSupportInterface, ESPMode::ThreadSafe>{ (GEngine->XRSystem)->GetARCompositionComponent() };
     if (!TempARSystem.IsValid())
     {
         UE_LOG(LogAzureSpatialAnchorsARKitInterop, Error, TEXT("Azure Spatial Anchors failed to obtain a valid AR System"));

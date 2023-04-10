@@ -20,7 +20,8 @@ namespace UnrealBuildTool.Rules
                     "InputDevice",
                     "InputCore",
                     "HeadMountedDisplay",
-                    "OpenXRHMD"
+					"XRBase",
+                    "OpenXRHMD",
                 }
                 );
 
