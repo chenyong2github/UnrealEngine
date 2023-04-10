@@ -656,6 +656,11 @@ void UWorldPartition::Uninitialize()
 
 		InitState = EWorldPartitionInitState::Uninitializing;
 
+		if (IsMainWorldPartition())
+		{
+			AWorldPartitionReplay::Uninitialize(World);
+		}
+
 		UnregisterDelegates();
 		
 		// Unload all loaded cells

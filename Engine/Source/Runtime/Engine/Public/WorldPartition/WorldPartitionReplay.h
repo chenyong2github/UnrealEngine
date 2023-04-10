@@ -51,6 +51,7 @@ class ENGINE_API AWorldPartitionReplay : public AActor
 
 public:
 	static void Initialize(UWorld* World);
+	static void Uninitialize(UWorld* World);
 	static bool IsPlaybackEnabled(UWorld* World);
 	static bool IsRecordingEnabled(UWorld* World);
 

@@ -109,6 +109,20 @@ void AWorldPartitionReplay::Initialize(UWorld* World)
 	}
 }
 
+void AWorldPartitionReplay::Uninitialize(UWorld* World)
+{
+	if (World->IsGameWorld())
+	{
+		UWorldPartition* WorldPartition = World->GetWorldPartition();
+		if (ensure(WorldPartition && WorldPartition->Replay))
+		{
+			World->DestroyActor(WorldPartition->Replay);
+			WorldPartition->Replay->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional);
+			WorldPartition->Replay = nullptr;
+		}
+	}
+}
+
 bool AWorldPartitionReplay::IsPlaybackEnabled(UWorld* World)
 {
 	if (GUseReplayStreamingSources && World->IsPlayingReplay())
