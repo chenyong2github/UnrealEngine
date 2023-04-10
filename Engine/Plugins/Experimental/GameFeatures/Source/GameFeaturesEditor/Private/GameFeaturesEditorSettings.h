@@ -30,6 +30,10 @@ struct FPluginTemplateData
 	UPROPERTY(EditAnywhere, Category = PluginTemplate)
 	FText Description;
 
+	/** Optional sub folder that new plugins will be created in. */
+	UPROPERTY(EditAnywhere, Category = PluginTemplate)
+	FString DefaultSubfolder;
+
 	/** The default class of game feature data to create for new game feature plugins (if not set, UGameFeatureData will be used) */
 	UPROPERTY(config, EditAnywhere, Category = Plugins)
 	TSubclassOf<UGameFeatureData> DefaultGameFeatureDataClass;

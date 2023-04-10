@@ -34,12 +34,13 @@
 
 struct FGameFeaturePluginTemplateDescription : public FPluginTemplateDescription
 {
-	FGameFeaturePluginTemplateDescription(FText InName, FText InDescription, FString InOnDiskPath
+	FGameFeaturePluginTemplateDescription(FText InName, FText InDescription, FString InOnDiskPath, FString InDefaultSubfolder
 		, TSubclassOf<UGameFeatureData> GameFeatureDataClassOverride, FString GameFeatureDataNameOverride, EPluginEnabledByDefault InEnabledByDefault)
 		: FPluginTemplateDescription(InName, InDescription, InOnDiskPath, /*bCanContainContent=*/ true, EHostType::Runtime)
 	{
 		SortPriority = 10;
 		bCanBePlacedInEngine = false;
+		DefaultSubfolder = InDefaultSubfolder;
 		GameFeatureDataName = !GameFeatureDataNameOverride.IsEmpty() ? GameFeatureDataNameOverride : FString();
 		GameFeatureDataClass = GameFeatureDataClassOverride != nullptr ? GameFeatureDataClassOverride : TSubclassOf<UGameFeatureData>(UGameFeatureData::StaticClass());
 		PluginEnabledByDefault = InEnabledByDefault;
@@ -128,6 +129,13 @@ struct FGameFeaturePluginTemplateDescription : public FPluginTemplateDescription
 	FString GetGameFeatureRoot() const
 	{
 		FString Result = IFileManager::Get().ConvertToAbsolutePathForExternalAppForWrite(*(FPaths::ProjectPluginsDir() / TEXT("GameFeatures/")));
+
+		// Append the optional subfolder if specified.
+		if (!DefaultSubfolder.IsEmpty())
+		{
+			Result /= DefaultSubfolder + TEXT("/");
+		}
+
 		FPaths::MakePlatformFilename(Result);
 		return Result;
 	}
@@ -138,6 +146,7 @@ struct FGameFeaturePluginTemplateDescription : public FPluginTemplateDescription
 		return GetDefault<UGameFeaturesSubsystemSettings>()->IsValidGameFeaturePlugin(ConvertedPath);
 	}
 
+	FString DefaultSubfolder;
 	TSubclassOf<UGameFeatureData> GameFeatureDataClass;
 	FString GameFeatureDataName;
 	EPluginEnabledByDefault PluginEnabledByDefault = EPluginEnabledByDefault::Disabled;
@@ -230,6 +239,7 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 					PluginTemplate.Label,
 					PluginTemplate.Description,
 					PluginTemplate.Path.Path,
+					PluginTemplate.DefaultSubfolder,
 					PluginTemplate.DefaultGameFeatureDataClass,
 					PluginTemplate.DefaultGameFeatureDataName,
 					PluginTemplate.bIsEnabledByDefault ? EPluginEnabledByDefault::Enabled : EPluginEnabledByDefault::Disabled)));
