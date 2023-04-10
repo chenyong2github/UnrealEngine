@@ -30,6 +30,7 @@ public class ChaosClothAssetTools : ModuleRules
 				"ClothPainter",                 // For clothing asset exporter
 				"ClothingSystemRuntimeCommon",
 				"GeometryCore",					// For DynamicMesh conversion
+				"SkeletalMeshDescription",		// For FSkeletalMeshAttributes::DefaultSkinWeightProfileName
 			}
 		);
 	}

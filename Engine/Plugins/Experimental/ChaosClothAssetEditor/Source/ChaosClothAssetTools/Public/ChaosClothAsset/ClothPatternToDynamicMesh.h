@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+
+#include "CoreTypes.h"
+#include "Templates/SharedPointer.h"
 
 namespace UE::Geometry { class FDynamicMesh3; }
 class UChaosClothAsset;
