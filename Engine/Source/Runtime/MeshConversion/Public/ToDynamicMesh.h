@@ -6,6 +6,8 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/DynamicMeshOverlay.h"
+#include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
+#include "DynamicMesh/DynamicBoneAttribute.h"
 #include "VectorTypes.h"
 #include "Async/Async.h"
 
@@ -308,6 +310,18 @@ public:
 *	    int32 NumWeightMapLayers() const;
 *       float GetVertexWeight(int32 WeightMapIndex, int32 SrcVertID) const;
 *	    FName GetWeightMapName(int32 WeightMapIndex) const;
+*
+*		// skin weight attributes information
+*		int32 NumSkinWeightAttributes() const;
+*		UE::AnimationCore::FBoneWeights GetVertexSkinWeight(int32 SkinWeightAttributeIndex, VertIDType VtxID) const;
+*		FName GetSkinWeightAttributeName(int32 SkinWeightAttributeIndex) const;
+*
+*		// bone attributes information
+*		int32 GetNumBones() const;
+*		FName GetBoneName(int32 BoneIdx) const;
+*		int32 GetBoneParentIndex(int32 BoneIdx) const;
+*		FTransform GetBonePose(int32 BoneIdx) const;
+*		FVector4f GetBoneColor(int32 BoneIdx) const;
 *	};
 *
 */
@@ -367,7 +381,6 @@ protected:
 
 		// -- Create Overlays
 		const int32 NumUVLayers = MeshIn.NumUVLayers();
-		const int32 NumWeightMaps = MeshIn.NumWeightMapLayers();
 
 		MeshOut.EnableAttributes(); // by default 1-UV layer and 1-normal layer
 
@@ -514,6 +527,7 @@ protected:
 		}
 
 		//populate WeightMap attribute
+		const int32 NumWeightMaps = MeshIn.NumWeightMapLayers();
 		MeshOut.Attributes()->SetNumWeightLayers(NumWeightMaps);
 		for (int WeightMapIndex = 0; WeightMapIndex < NumWeightMaps; WeightMapIndex++)	//-V654 //-V621 (The static analyzer complains if it knows NumWeightMaps is 0 for a given SrcMeshType)
 		{
@@ -531,6 +545,65 @@ protected:
 				WeightMapAttrib->SetName( MeshIn.GetWeightMapName(WeightMapIndex) );
 			});
 			Pending.Add(MoveTemp(WeightMapFuture));
+		}
+
+		
+		// populate skinning weight attribute
+		const int32 NumSkinWeightAttributes = MeshIn.NumSkinWeightAttributes();
+		
+		// first, attach all the skinning weight attributes (this also allocates memory to store skinning weights for each attribute)
+		for (int AttributeIndex = 0; AttributeIndex < NumSkinWeightAttributes; ++AttributeIndex) 
+		{
+			UE::Geometry::FDynamicMeshVertexSkinWeightsAttribute* Attribute = new UE::Geometry::FDynamicMeshVertexSkinWeightsAttribute(&MeshOut);
+			const FName AttribName = MeshIn.GetSkinWeightAttributeName(AttributeIndex);
+			Attribute->SetName(AttribName);
+			MeshOut.Attributes()->AttachSkinWeightsAttribute(AttribName, Attribute);
+		}
+
+		// now set all of the skin weight data
+		for (int AttributeIndex = 0; AttributeIndex < NumSkinWeightAttributes; ++AttributeIndex)
+		{
+			auto SkinAttributeFeature = Async(EAsyncExecution::ThreadPool, [this, &MeshIn, &MeshOut, AttributeIndex]()
+			{
+				const FName AttribName = MeshIn.GetSkinWeightAttributeName(AttributeIndex);
+				
+				UE::Geometry::FDynamicMeshVertexSkinWeightsAttribute* OutAttribute = MeshOut.Attributes()->GetSkinWeightsAttribute(AttribName);
+				checkSlow(OutAttribute != nullptr);
+
+				if (OutAttribute) 
+				{
+					for (int32 VertexID : MeshOut.VertexIndicesItr())
+					{
+						SrcVertIDType SrcVertID = MyBase::ToSrcVertIDMap[VertexID];
+						UE::AnimationCore::FBoneWeights SkinWeight = MeshIn.GetVertexSkinWeight(AttributeIndex, SrcVertID);
+						OutAttribute->SetValue(VertexID, SkinWeight);
+					}
+				}
+			});
+			Pending.Add(MoveTemp(SkinAttributeFeature));
+		}
+
+		// populate bones attribute
+		const int NumBones = MeshIn.GetNumBones();
+		if (MeshIn.GetNumBones())
+		{	
+			MeshOut.Attributes()->EnableBones(NumBones);
+			FDynamicMeshBoneNameAttribute* BoneNameAttrib = MeshOut.Attributes()->GetBoneNames();
+			FDynamicMeshBoneParentIndexAttribute* BoneParentIndices = MeshOut.Attributes()->GetBoneParentIndices();
+			FDynamicMeshBonePoseAttribute* BonePoses = MeshOut.Attributes()->GetBonePoses();
+			FDynamicMeshBoneColorAttribute* BoneColors = MeshOut.Attributes()->GetBoneColors();
+
+			auto BoneAttributeFeature = Async(EAsyncExecution::ThreadPool, [this, &MeshIn, &MeshOut, BoneNameAttrib, BoneParentIndices, BonePoses, BoneColors, NumBones]()
+			{
+				for (int32 BoneIdx = 0; BoneIdx < NumBones; ++BoneIdx)
+				{
+					BoneNameAttrib->SetValue(BoneIdx, MeshIn.GetBoneName(BoneIdx));
+					BoneParentIndices->SetValue(BoneIdx, MeshIn.GetBoneParentIndex(BoneIdx));
+					BonePoses->SetValue(BoneIdx, MeshIn.GetBonePose(BoneIdx));
+					BoneColors->SetValue(BoneIdx, MeshIn.GetBoneColor(BoneIdx));
+				}
+			});
+			Pending.Add(MoveTemp(BoneAttributeFeature));
 		}
 
 		// TODO: PolyGroup layers

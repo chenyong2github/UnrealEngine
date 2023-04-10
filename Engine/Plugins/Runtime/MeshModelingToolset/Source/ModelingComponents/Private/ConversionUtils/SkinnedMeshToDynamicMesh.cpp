@@ -12,7 +12,8 @@
 #include "SkeletalRenderPublic.h"
 #include "ToDynamicMesh.h"
 #include "Rendering/SkeletalMeshRenderData.h"
-
+#include "BoneWeights.h"
+#include "SkeletalMeshAttributes.h"
 
 namespace UE 
 {
@@ -48,7 +49,7 @@ public:
 
 		// This step does the actual skinning (and isn't as const as the api suggests..)
 		Component->GetCPUSkinnedVertices(SkinnedVertices, RequestedLOD);
-		const FSkeletalMeshLODRenderData& LODData  = SkeletalMeshRenderData.LODRenderData[RequestedLOD];
+		const FSkeletalMeshLODRenderData& LODData = SkeletalMeshRenderData.LODRenderData[RequestedLOD];
 		
 
 		const int32 NumSections = LODData.RenderSections.Num();
@@ -78,7 +79,7 @@ public:
 		
 		// construct a list of all valid VertIDs for this mesh.
 		VertIDs.Reserve(NumVerts);
-		for (const  FSkelMeshRenderSection& Section : LODData.RenderSections)
+		for (const FSkelMeshRenderSection& Section : LODData.RenderSections)
 		{
 			if (SkipSection(Section))
 			{
@@ -87,9 +88,43 @@ public:
 
 			const int32 BaseVertexIndex = static_cast<int32>( Section.BaseVertexIndex);
 			const int32 NumSectionVtx = static_cast<int32>( Section.NumVertices );
-			for (int32 VtxIndex = BaseVertexIndex;  VtxIndex < NumSectionVtx + BaseVertexIndex;  ++VtxIndex)
+			for (int32 VtxIndex = BaseVertexIndex; VtxIndex < NumSectionVtx + BaseVertexIndex; ++VtxIndex)
 			{
 				VertIDs.Add(VtxIndex);
+			}
+		}
+
+
+		// generate vertex weights and remap the indices
+		const FSkinWeightVertexBuffer* SkinWeightBuffer = Component->GetSkinWeightBuffer(LOD);
+		const bool bSkinWeightsValid = SkinWeightBuffer && SkinWeightBuffer->GetDataVertexBuffer() && SkinWeightBuffer->GetDataVertexBuffer()->IsInitialized() && SkinWeightBuffer->GetDataVertexBuffer()->GetNumVertices() > 0;
+
+		if (bSkinWeightsValid)
+		{
+			SkinWeights.Reserve(NumVerts);
+			for (const FSkelMeshRenderSection& Section : LODData.RenderSections)
+			{
+				if (SkipSection(Section))
+				{
+					continue;
+				}
+
+				const int32 BaseVertexIndex = static_cast<int32>(Section.BaseVertexIndex);
+				const int32 NumSectionVtx = static_cast<int32>(Section.NumVertices);
+				for (int32 VtxIndex = BaseVertexIndex; VtxIndex < NumSectionVtx + BaseVertexIndex; ++VtxIndex)
+				{
+					FSkinWeightInfo SrcWeights = SkinWeightBuffer->GetVertexSkinWeights(VtxIndex);
+
+					for (int32 Idx = 0; Idx < MAX_TOTAL_INFLUENCES; ++Idx)
+					{
+						const int32 SectionBoneIdx = static_cast<int32>(SrcWeights.InfluenceBones[Idx]);
+						if (ensure(SectionBoneIdx < Section.BoneMap.Num()))
+						{
+							SrcWeights.InfluenceBones[Idx] = Section.BoneMap[SectionBoneIdx];
+						}
+					}
+					SkinWeights.Add(SrcWeights);
+				}
 			}
 		}
 
@@ -98,7 +133,7 @@ public:
 		TriIDtoSectionID.Init(-1, NumTris);
 		for (int32 s = 0; s < NumSections; ++s)
 		{
-			const  FSkelMeshRenderSection& Section = LODData.RenderSections[s];
+			const FSkelMeshRenderSection& Section = LODData.RenderSections[s];
 			if (SkipSection(Section))
 			{
 				continue; 
@@ -126,7 +161,7 @@ public:
 
 	int32 NumUVLayers() const
 	{
-		const FSkeletalMeshLODRenderData& LODData  = SkeletalMeshRenderData.LODRenderData[LOD];
+		const FSkeletalMeshLODRenderData& LODData = SkeletalMeshRenderData.LODRenderData[LOD];
 		return static_cast<int32>( LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() );
 	}
 
@@ -170,8 +205,8 @@ public:
 	
 	bool HasColors() const
 	{
-		const FSkeletalMeshLODRenderData& LODData  = SkeletalMeshRenderData.LODRenderData[LOD];
-		return  (LODData.StaticVertexBuffers.ColorVertexBuffer.IsInitialized() && LODData.StaticVertexBuffers.ColorVertexBuffer.GetNumVertices() > 0);
+		const FSkeletalMeshLODRenderData& LODData = SkeletalMeshRenderData.LODRenderData[LOD];
+		return (LODData.StaticVertexBuffers.ColorVertexBuffer.IsInitialized() && LODData.StaticVertexBuffers.ColorVertexBuffer.GetNumVertices() > 0);
 	}
 
 	//-- Access to per-wedge attributes --//
@@ -217,9 +252,9 @@ public:
 		if (HasColors())
 		{ 
 			const int32 VID = GetVertID(WID);
-			const FSkeletalMeshLODRenderData& LODData  = SkeletalMeshRenderData.LODRenderData[LOD];
+			const FSkeletalMeshLODRenderData& LODData = SkeletalMeshRenderData.LODRenderData[LOD];
 			const FColor& Color = LODData.StaticVertexBuffers.ColorVertexBuffer.VertexColor(VID);
-			LinearColor =  Color.ReinterpretAsLinear();
+			LinearColor = Color.ReinterpretAsLinear();
 		}
 		return FVector4f(LinearColor.R, LinearColor.G, LinearColor.B, LinearColor.A);
 	}
@@ -230,8 +265,8 @@ public:
 		int32 SectionID = TriIDtoSectionID[TriID];
 		check(SectionID > -1);
 
-		const FSkeletalMeshLODRenderData& LODData  = SkeletalMeshRenderData.LODRenderData[LOD];
-		const  FSkelMeshRenderSection& Section = LODData.RenderSections[SectionID];
+		const FSkeletalMeshLODRenderData& LODData = SkeletalMeshRenderData.LODRenderData[LOD];
+		const FSkelMeshRenderSection& Section = LODData.RenderSections[SectionID];
 		
 		int32 MaterialIndex = Section.MaterialIndex;
 		// use the remapping of material indices if there is a valid value
@@ -243,7 +278,72 @@ public:
 		return MaterialIndex;
 	}
 
+	int32 NumSkinWeightAttributes() const 
+	{ 
+		const bool bSkinWeightsValid = SkinWeights.Num() == SkinnedVertices.Num();
 
+		return static_cast<int32>(bSkinWeightsValid);
+	}
+
+	UE::AnimationCore::FBoneWeights GetVertexSkinWeight(int32 SkinWeightAttributeIndex, VertIDType VertexID) const
+	{
+		checkfSlow(SkinWeightAttributeIndex == 0, TEXT("USkinnedMeshComponent can have at most one skin weight attribute"));
+		checkfSlow(VertexID < SkinWeights.Num() && VertexID >= 0, TEXT("Invalid vertex id"));
+
+		const FSkinWeightInfo& WeightInfo = SkinWeights[VertexID];
+
+		const UE::AnimationCore::FBoneWeights Weights = UE::AnimationCore::FBoneWeights::Create(WeightInfo.InfluenceBones, WeightInfo.InfluenceWeights);
+
+		return Weights;
+	}
+
+	FName GetSkinWeightAttributeName(int32 SkinWeightAttributeIndex) const
+	{
+		checkfSlow(SkinWeightAttributeIndex == 0, TEXT("USkinnedMeshComponent can have at most one skin weight attribute"));
+		
+		return FSkeletalMeshAttributes::DefaultSkinWeightProfileName;
+	};
+	
+
+	int32 GetNumBones() const 
+	{ 
+		return Asset->GetRefSkeleton().GetRawBoneNum(); 
+	}
+
+    FName GetBoneName(int32 BoneIdx) const 
+	{
+		if (ensure(BoneIdx >= 0 && BoneIdx < GetNumBones()))
+		{
+			return Asset->GetRefSkeleton().GetRawRefBoneInfo()[BoneIdx].Name;
+		}
+
+		return NAME_None;
+	}
+
+	int32 GetBoneParentIndex(int32 BoneIdx) const
+	{
+		if (ensure(BoneIdx >= 0 && BoneIdx < GetNumBones()))
+		{
+			return Asset->GetRefSkeleton().GetRawRefBoneInfo()[BoneIdx].ParentIndex;
+		}
+
+		return INDEX_NONE;
+	}
+
+	FTransform GetBonePose(int32 BoneIdx) const
+	{
+		if (ensure(BoneIdx >= 0 && BoneIdx < GetNumBones()))
+		{
+			return Asset->GetRefSkeleton().GetRawRefBonePose()[BoneIdx];
+		}
+
+		return FTransform::Identity;
+	}
+
+	FVector4f GetBoneColor(int32 BoneIdx) const
+	{
+		return FVector4f::One();
+	}
 
 	//-- null implementation of shared attributes: Skeletal mesh model doesn't use these --//
 	const TArray<int32>& GetUVIDs(int32 LayerID) const { return EmptyArray; }
@@ -290,7 +390,7 @@ private:
 
 private:
 
-	TArray<FFinalSkinVertex>  SkinnedVertices;
+	TArray<FFinalSkinVertex> SkinnedVertices;
 	USkinnedMeshComponent* Component;
 	int32                  LOD;
 	bool                   bUseDisabledSections;
@@ -307,6 +407,8 @@ private:
 
 	TArray<int32> TriIDtoSectionID;
 	TArray<int32> EmptyArray;
+
+	TArray<FSkinWeightInfo> SkinWeights;
 };
 
 
@@ -326,7 +428,7 @@ void SkinnedMeshComponentToDynamicMesh(USkinnedMeshComponent& SkinnedMeshCompone
 		return;
 	}
 
-	if (RequestedLOD < 0 || RequestedLOD  > NumLODs - 1)
+	if (RequestedLOD < 0 || RequestedLOD > NumLODs - 1)
 	{
 		return;
 	}

@@ -33,6 +33,7 @@ public class ModelingComponents : ModuleRules
 				"RenderCore",
 				"RHI",
 				"ImageWriteQueue",
+				"SkeletalMeshDescription", // FSkeletalMeshAttributes::DefaultSkinWeightProfileName
 				// ... add private dependencies that you statically link with here ...
 			}
 		);

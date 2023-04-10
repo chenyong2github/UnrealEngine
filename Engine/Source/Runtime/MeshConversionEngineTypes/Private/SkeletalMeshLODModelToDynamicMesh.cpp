@@ -20,7 +20,7 @@ public:
 	typedef int32 NormalIDType;
 	typedef int32 ColorIDType;
 
-	FSkeletalMeshLODModelWrapper(const  FSkeletalMeshLODModel& MeshIn, bool bUseDisabledSections) :
+	FSkeletalMeshLODModelWrapper(const FSkeletalMeshLODModel& MeshIn, bool bUseDisabledSections) :
 		bIncludeDisabledSections(bUseDisabledSections),
 		Mesh(&MeshIn)
 	{
@@ -271,6 +271,17 @@ public:
 	FVector4f GetColor(ColorIDType ID) const { check(0); return FVector4f(); }
 	bool GetColorTri(const TriIDType&, ColorIDType& ID0, ColorIDType& ID1, ColorIDType& ID2) const { ID0 = ID1 = ID2 = ColorIDType(-1); return false; }
 
+	// TODO: This file is only used in an outdated geometry blueprint library that is not being used. So adding an empty 
+	// implementation for skin weights and bones for now. See SkinnedMeshToDynamicMesh.h/cpp for reference.
+	int32 NumSkinWeightAttributes() const { return 0; }
+	UE::AnimationCore::FBoneWeights GetVertexSkinWeight(int32 SkinWeightAttributeIndex, VertIDType VertexID) const { return UE::AnimationCore::FBoneWeights(); }
+	FName GetSkinWeightAttributeName(int32 SkinWeightAttributeIndex) const { return NAME_None; }
+
+	int32 GetNumBones() const { return 0; }
+	FName GetBoneName(int32 BoneIdx) const { return NAME_None; }
+	int32 GetBoneParentIndex(int32 BoneIdx) const { return INDEX_NONE; }
+	FTransform GetBonePose(int32 BoneIdx) const { return FTransform::Identity; }
+	FVector4f GetBoneColor(int32 BoneIdx) const { return FVector4f::One(); }
 	
 	// -- additional methods, not required by the conversion interface
 	const  FSkeletalMeshLODModel& GetSrcMesh() const
@@ -304,20 +315,20 @@ private:
 
 private:
 
-	bool   bIncludeDisabledSections;
+	bool bIncludeDisabledSections;
 	TArray<VertIDType> VertIDToSectionID;
 	TArray<TriIDType> TriIDToSectionID;
 	TArray<TriIDType> TriIDs;
 	TArray<VertIDType> VertIDs;
 	
-	const  FSkeletalMeshLODModel* Mesh;
+	const FSkeletalMeshLODModel* Mesh;
 };
 
 
 
 
 
-void FSkeletalMeshLODModelToDynamicMesh::Convert(const  FSkeletalMeshLODModel* MeshIn, FDynamicMesh3& MeshOut, bool bCopyTangents)
+void FSkeletalMeshLODModelToDynamicMesh::Convert(const FSkeletalMeshLODModel* MeshIn, FDynamicMesh3& MeshOut, bool bCopyTangents)
 {
 
 	
@@ -382,7 +393,7 @@ void FSkeletalMeshLODModelToDynamicMesh::Convert(const  FSkeletalMeshLODModel* M
 
 #else
 
-void  FSkeletalMeshLODModelToDynamicMesh::Convert(const  FSkeletalMeshLODModel* MeshIn, FDynamicMesh3& MeshOut, bool bCopyTangents)
+void FSkeletalMeshLODModelToDynamicMesh::Convert(const FSkeletalMeshLODModel* MeshIn, FDynamicMesh3& MeshOut, bool bCopyTangents)
 {
 	// Conversion only supported with editor.
 	check(0);
