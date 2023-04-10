@@ -125,11 +125,13 @@
 		},
 		{
 			"Name": "PixelStreaming",
-			"Enabled": true
+			"Enabled": true,
+			"PlatformAllowList" : [ "Win64", "Linux" ]
 		},
 		{
 			"Name" : "PixelCapture",
-			"Enabled": true
+			"Enabled": true,
+            "PlatformAllowList" : [ "Win64", "Linux" ]
 		}
 	]
 }
