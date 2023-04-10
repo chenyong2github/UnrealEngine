@@ -1,44 +1,38 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include <iostream>
-#include "WorkerSocket.h"
+#include "ComputeChannel.h"
 #include "SharedMemoryBuffer.h"
 
 int main()
 {
-	FWorkerSocket Socket;
-	if (!Socket.Open())
+	FComputeChannel Channel;
+	if (!Channel.Open())
 	{
 		std::cout << "Environment variable not set correctly" << std::endl;
 		return 1;
 	}
 
-	FSharedMemoryBuffer Buffer;
-	if (!Buffer.CreateNew(1024 * 1024))
-	{
-		std::cout << "Couldn't create buffer" << std::endl;
-		return 1;
-	}
-	if (!Socket.TryAttachRecvBuffer(1, &Buffer))
-	{
-		std::cout << "Failed to attach recieve buffer" << std::endl;
-		return 1;
-	}
-
 	std::cout << "Connected to client" << std::endl; // // Client will wait for output before sending data on channel 1
 
-	while (!Buffer.HasFinishedReading())
-	{
-		long long Size;
-		const unsigned char* Memory = Buffer.GetReadMemory(Size);
+	size_t Length = 0;
+	char Buffer[4];
 
-		if (Size > 0)
+	for (;;)
+	{
+		size_t Read = Channel.Receive(Buffer + Length, sizeof(Buffer) - Length);
+		if (Read == 0)
 		{
-			std::cout << "Read value " << (int)*Memory << std::endl;
-			Buffer.AdvanceReadPosition(1);
+			return 0;
 		}
 
-		Buffer.WaitForData(0);
+		Length += Read;
+
+		if (Length >= 4)
+		{
+			std::cout << "Read value " << *(int*)Buffer << std::endl;
+			Length = 0;
+		}
 	}
 
 	return 0;

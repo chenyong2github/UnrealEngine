@@ -5,80 +5,105 @@
 #include <iostream>
 #include "SharedMemoryBuffer.h"
 
-enum class FSharedMemoryBuffer::EState : int
+enum class FSharedMemoryBuffer::EWriteState : int
 {
-	Normal,
-	ReaderWaitingForData, // Once new data is available, set _readerTcs
-	WriterWaitingToFlush, // Once flush has been complete, set _writerTcs
-	Finished
+	// Chunk is still being appended to
+	Writing = 0,
+
+	// Writer has moved to the next chunk
+	MovedToNext = 2,
+
+	// This chunk marks the end of the stream
+	Complete = 3,
 };
 
-class FSharedMemoryBuffer::FHeader
+struct FSharedMemoryBuffer::FChunkState
 {
-public:
-	EState GetState() const
+	const long long Value;
+
+	// Constructor
+	FChunkState(long long InValue)
+		: Value(InValue)
 	{
-		return (EState)InterlockedCompareExchange((long*)&State, 0, 0);
 	}
 
-	bool UpdateState(EState OldState, EState NewState)
+	// Constructor
+	FChunkState(EWriteState WriteState, int ReaderFlags, int Length)
+		: Value((unsigned long long)Length | ((unsigned long long)ReaderFlags << 31) | ((unsigned long long)WriteState << 62))
 	{
-		return InterlockedCompareExchange((long*)&State, (long)NewState, (long)OldState) == (long)OldState;
 	}
 
-	void Compact()
+	// Written length of this chunk
+	int GetLength() const { return (int)(Value & 0x7fffffff); }
+
+	// Set of flags which are set for each reader that still has to read from a chunk
+	int GetReaderFlags() const { return (int)((Value >> 31) & 0x7fffffff); }
+
+	// State of the writer
+	EWriteState GetWriteState() const { return (EWriteState)(Value >> 62); }
+
+	// Test whether a particular reader is still referencing the chunk
+	bool HasReaderFlag() const { return (Value & (1UL << 31)) != 0; }
+
+	// Read the state value from memory
+	static FChunkState Read(volatile long long* StateValue)
 	{
-		InterlockedExchange64(&ReadPosition, 0);
-		InterlockedExchange64(&WritePosition, GetReadLength());
+		return FChunkState(InterlockedCompareExchange64(StateValue, 0, 0));
 	}
 
-	long long GetReadPosition() const
+	// Append data to the chunk
+	static void Append(volatile long long* StateValue, long long length)
 	{
-		return InterlockedCompareExchange64(const_cast<long long*>(&ReadPosition), 0, 0);
+		InterlockedAdd64(StateValue, length);
 	}
 
-	long long AdvanceReadPosition(long long Value)
+	// Mark the chunk as being written to
+	static void StartWriting(volatile long long* StateValue, int numReaders)
 	{
-		InterlockedAdd64(&ReadPosition, Value);
-		return InterlockedAdd64(&ReadLength, -Value);
+		InterlockedExchange64(StateValue, FChunkState(EWriteState::Writing, (1 << numReaders) - 1, 0).Value);
 	}
 
-	long long GetReadLength() const
+	// Move to the next chunk
+	static void MoveToNext(volatile long long* StateValue)
 	{
-		return InterlockedCompareExchange64(const_cast<long long*>(&ReadLength), 0, 0);
+		InterlockedOr64(StateValue, FChunkState(EWriteState::MovedToNext, 0, 0).Value);
 	}
 
-	long long GetWritePosition() const
+	// Move to the next chunk
+	static void MarkComplete(volatile long long* StateValue)
 	{
-		return InterlockedCompareExchange64(const_cast<long long*>(&WritePosition), 0, 0);
+		InterlockedOr64(StateValue, FChunkState(EWriteState::Complete, 0, 0).Value);
 	}
 
-	long long AdvanceWritePosition(long long value)
+	// Clear the reader flag
+	static void FinishReading(volatile long long* StateValue)
 	{
-		InterlockedAdd64(&WritePosition, value);
-		return InterlockedAdd64(&ReadLength, value);
+		InterlockedAnd64(StateValue, ~(1LL << (0 + 31)));
 	}
-
-	void FinishWriting()
-	{
-		InterlockedExchange((long*)&State, (long)EState::Finished);
-	}
-
-private:
-	EState State;
-	unsigned char Padding[4];
-	long long ReadPosition;
-	long long ReadLength;
-	long long WritePosition;
 };
+
+struct FSharedMemoryBuffer::FHeader
+{
+	int NumChunks;
+	int ChunkLength;
+};
+
+////////////////////////////
 
 FSharedMemoryBuffer::FSharedMemoryBuffer()
 	: MemoryMappedFile(nullptr)
-	, Memory(nullptr)
-	, Length(0)
 	, Header(nullptr)
 	, ReaderEvent(nullptr)
 	, WriterEvent(nullptr)
+	// Reader
+	, ReadChunkIdx(-1)
+	, ReadOffset(0)
+	, ReadChunkStatePtr(nullptr)
+	, ReadChunkDataPtr(nullptr)
+	// Writer
+	, WriteChunkIdx(-1)
+	, WriteChunkStatePtr(nullptr)
+	, WriteChunkDataPtr(nullptr)
 {
 }
 
@@ -87,38 +112,58 @@ FSharedMemoryBuffer::~FSharedMemoryBuffer()
 	Close();
 }
 
-bool FSharedMemoryBuffer::CreateNew(long long Capacity)
+bool FSharedMemoryBuffer::OpenExisting(const char* Name)
 {
-	Close();
+	char NameBuffer[MAX_PATH];
+	sprintf_s(NameBuffer, "%s_M", Name);
 
-	LARGE_INTEGER CapacityLargeInt;
-	CapacityLargeInt.QuadPart = Capacity;
-
-	ReaderEvent = CreateEvent(nullptr, true, FALSE, nullptr);
-	WriterEvent = CreateEvent(nullptr, true, FALSE, nullptr);
-	MemoryMappedFile = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, CapacityLargeInt.HighPart, CapacityLargeInt.LowPart, nullptr);
-
-	if (ReaderEvent == nullptr || WriterEvent == nullptr || MemoryMappedFile == nullptr || !Initialize())
+	MemoryMappedFile = OpenFileMappingA(FILE_MAP_ALL_ACCESS, TRUE, NameBuffer);
+	if (MemoryMappedFile == nullptr)
 	{
+		std::cout << "No filemap" << NameBuffer << std::endl;
 		Close();
 		return false;
 	}
 
-	return true;
-}
+	Header = (FHeader*)MapViewOfFile(MemoryMappedFile, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+	if (Header == nullptr)
+	{
+		std::cout << "No filemap view" << std::endl;
+		Close();
+		return false;
+	}
 
-bool FSharedMemoryBuffer::OpenExisting(void* InMemoryMappedFile, void* InReaderEvent, void* InWriterEvent)
-{
-	MemoryMappedFile = InMemoryMappedFile;
-	ReaderEvent = InReaderEvent;
-	WriterEvent = InWriterEvent;
-	return Initialize();
+	sprintf_s(NameBuffer, "%s_R", Name);
+	ReaderEvent = OpenEventA(SYNCHRONIZE | EVENT_MODIFY_STATE, TRUE, NameBuffer);
+	if (ReaderEvent == nullptr)
+	{
+		std::cout << "No read event" << std::endl;
+		Close();
+		return false;
+	}
+
+	sprintf_s(NameBuffer, "%s_W", Name);
+	WriterEvent = OpenEventA(SYNCHRONIZE | EVENT_MODIFY_STATE, TRUE, NameBuffer);
+	if (WriterEvent == nullptr)
+	{
+		std::cout << "No write event" << std::endl;
+		Close();
+		return false;
+	}
+
+	ReadChunkIdx = 0;
+	ReadChunkDataPtr = GetChunkDataPtr(ReadChunkIdx);
+	ReadChunkStatePtr = GetChunkStatePtr(ReadChunkIdx);
+
+	WriteChunkIdx = 0;
+	WriteChunkDataPtr = GetChunkDataPtr(WriteChunkIdx);
+	WriteChunkStatePtr = GetChunkStatePtr(WriteChunkIdx);
+
+	return true;
 }
 
 void FSharedMemoryBuffer::Close()
 {
-	Memory = nullptr;
-
 	if (Header != nullptr)
 	{
 		UnmapViewOfFile(Header);
@@ -142,159 +187,152 @@ void FSharedMemoryBuffer::Close()
 		CloseHandle(ReaderEvent);
 		ReaderEvent = nullptr;
 	}
+
+	ReadChunkIdx = -1;
+	ReadOffset = 0;
+	ReadChunkStatePtr = nullptr;
+	ReadChunkDataPtr = nullptr;
+
+	WriteChunkIdx = -1;
+	WriteChunkStatePtr = nullptr;
+	WriteChunkDataPtr = nullptr;
 }
 
-bool FSharedMemoryBuffer::DuplicateHandles(void* TargetProcess, void*& OutMemoryMappedFile, void*& OutReaderEvent, void*& OutWriterEvent)
+bool FSharedMemoryBuffer::IsComplete() const
 {
-	HANDLE CurrentProcess = GetCurrentProcess();
+	FChunkState State = FChunkState::Read(ReadChunkStatePtr);
+	return State.GetWriteState() == EWriteState::Complete && ReadOffset == State.GetLength();
+}
 
-	HANDLE TargetMemoryMappedFile;
-	if (DuplicateHandle(CurrentProcess, MemoryMappedFile, TargetProcess, &TargetMemoryMappedFile, 0, false, DUPLICATE_SAME_ACCESS))
+void FSharedMemoryBuffer::AdvanceReadPosition(size_t Size)
+{
+	ReadOffset += Size;
+}
+
+const unsigned char* FSharedMemoryBuffer::GetReadMemory(size_t& OutSize)
+{
+	FChunkState State = FChunkState::Read(ReadChunkStatePtr);
+	if (State.HasReaderFlag())
 	{
-		HANDLE TargetWriterEvent;
-		if (DuplicateHandle(CurrentProcess, WriterEvent, TargetProcess, &TargetWriterEvent, 0, false, DUPLICATE_SAME_ACCESS))
+		OutSize = State.GetLength() - ReadOffset;
+		return ReadChunkDataPtr + ReadOffset;
+	}
+	else
+	{
+		OutSize = 0;
+		return nullptr;
+	}
+}
+
+void FSharedMemoryBuffer::WaitToRead(size_t CurrentLength)
+{
+	for (; ; )
+	{
+		FChunkState State = FChunkState::Read(ReadChunkStatePtr);
+
+		if (!State.HasReaderFlag())
 		{
-			HANDLE TargetReaderEvent;
-			if (DuplicateHandle(CurrentProcess, ReaderEvent, TargetProcess, &TargetReaderEvent, 0, false, DUPLICATE_SAME_ACCESS))
+			// Wait until the current chunk is readable
+			ResetEvent(ReaderEvent);
+			if (!FChunkState::Read(ReadChunkStatePtr).HasReaderFlag())
 			{
-				OutMemoryMappedFile = TargetMemoryMappedFile;
-				OutReaderEvent = TargetReaderEvent;
-				OutWriterEvent = TargetWriterEvent;
-				return true;
+				WaitForSingleObject(ReaderEvent, INFINITE);
 			}
-			CloseHandle(TargetWriterEvent);
 		}
-		CloseHandle(TargetMemoryMappedFile);
-	}
-
-	return false;
-}
-
-bool FSharedMemoryBuffer::HasFinishedReading() const
-{
-	return Header->GetState() == EState::Finished && Header->GetReadLength() == 0;
-}
-
-void FSharedMemoryBuffer::AdvanceReadPosition(long long Size)
-{
-	if (Header->AdvanceReadPosition(Size) == 0)
-	{
-		SetEvent(WriterEvent);
-	}
-}
-
-const unsigned char* FSharedMemoryBuffer::GetReadMemory(long long& OutSize)
-{
-	OutSize = Header->GetReadLength();
-	return Memory + Header->GetReadPosition();
-}
-
-void FSharedMemoryBuffer::WaitForData(long long Size)
-{
-	while (Header->GetReadLength() == Size)
-	{
-		EState State = Header->GetState();
-		if (State == EState::Finished)
+		else if (ReadOffset + CurrentLength < State.GetLength() || State.GetWriteState() == EWriteState::Complete)
 		{
+			// Still have data to read from this chunk
 			break;
 		}
-		else if (State == EState::Normal)
+		else if (ReadOffset + CurrentLength >= State.GetLength() && State.GetWriteState() == EWriteState::Writing)
 		{
+			// Wait until there is more data in the chunk
 			ResetEvent(ReaderEvent);
-			Header->UpdateState(State, EState::ReaderWaitingForData);
+			if (FChunkState::Read(ReadChunkStatePtr).Value == State.Value)
+			{
+				WaitForSingleObject(ReaderEvent, INFINITE);
+			}
 		}
-		else if (State == EState::ReaderWaitingForData)
+		else if (State.GetWriteState() == EWriteState::MovedToNext)
 		{
-			WaitForSingleObject(ReaderEvent, INFINITE);
-		}
-		else if (State == EState::WriterWaitingToFlush)
-		{
-			Header->Compact();
-			Header->UpdateState(State, EState::Normal);
+			// Move to the next chunk
+			FChunkState::FinishReading(GetChunkStatePtr(ReadChunkIdx));
 			SetEvent(WriterEvent);
+
+			ReadChunkIdx++;
+			if (ReadChunkIdx == Header->NumChunks)
+			{
+				ReadChunkIdx = 0;
+			}
+			ReadOffset = 0;
 		}
 		else
 		{
-			assert(false);
+			// Still need to read data from the current buffer
+			break;
 		}
 	}
 }
 
-void FSharedMemoryBuffer::FinishWriting()
+
+void FSharedMemoryBuffer::MarkComplete()
 {
-	Header->FinishWriting();
+	FChunkState::MarkComplete(ReadChunkStatePtr);
 	SetEvent(ReaderEvent);
 }
 
-void FSharedMemoryBuffer::AdvanceWritePosition(long long size)
+void FSharedMemoryBuffer::AdvanceWritePosition(size_t Size)
 {
-	assert(Header->GetState() != EState::Finished);
-
-	Header->AdvanceWritePosition(size);
-
-	if (Header->UpdateState(EState::ReaderWaitingForData, EState::Normal))
-	{
-		SetEvent(ReaderEvent);
-	}
+	FChunkState::Append(ReadChunkStatePtr, Size);
+	SetEvent(ReaderEvent);
 }
 
-unsigned char* FSharedMemoryBuffer::GetWriteMemory(long long& OutSize)
+unsigned char* FSharedMemoryBuffer::GetWriteMemory(size_t& OutSize)
 {
-	long long WritePosition = Header->GetWritePosition();
-	OutSize = Length - WritePosition;
-	return Memory + WritePosition;
+	FChunkState State = FChunkState::Read(ReadChunkStatePtr);
+	OutSize = State.GetLength() - ReadOffset;
+	return ReadChunkDataPtr + ReadOffset;
 }
 
-void FSharedMemoryBuffer::Flush()
+void FSharedMemoryBuffer::WaitToWrite(size_t CurrentLength)
 {
-	while (Header->GetReadPosition() > 0)
+	for (; ; )
 	{
-		EState State = Header->GetState();
-		if (State == EState::Finished)
+		size_t Length;
+		GetWriteMemory(Length);
+
+		if (Length != CurrentLength)
 		{
 			break;
 		}
-		else if (State == EState::Normal)
+
+		FChunkState::MoveToNext(WriteChunkStatePtr);
+
+		WriteChunkIdx++;
+		if (WriteChunkIdx == Header->NumChunks)
 		{
-			SetEvent(WriterEvent);
-			Header->UpdateState(State, EState::WriterWaitingToFlush);
+			WriteChunkIdx = 0;
 		}
-		else if (State == EState::ReaderWaitingForData)
-		{
-			Header->Compact();
-			break;
-		}
-		else if (State == EState::WriterWaitingToFlush)
+
+		WriteChunkDataPtr = GetChunkDataPtr(WriteChunkIdx);
+		WriteChunkStatePtr = GetChunkStatePtr(WriteChunkIdx);
+
+		while (FChunkState::Read(WriteChunkStatePtr).GetReaderFlags() != 0)
 		{
 			WaitForSingleObject(WriterEvent, INFINITE);
+			ResetEvent(WriterEvent);
 		}
+
+		FChunkState::StartWriting(WriteChunkStatePtr, 1);
 	}
 }
 
-bool FSharedMemoryBuffer::Initialize()
+unsigned char* FSharedMemoryBuffer::GetChunkDataPtr(int chunkIdx) const
 {
-	if (ReaderEvent == nullptr || WriterEvent == nullptr || MemoryMappedFile == nullptr)
-	{
-		Close();
-		return false;
-	}
+	return (unsigned char*)(Header + 1) + (sizeof(long long) * Header->NumChunks) + (chunkIdx * Header->ChunkLength);
+}
 
-	Header = (FHeader*)MapViewOfFile(MemoryMappedFile, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-	if (Header == nullptr)
-	{
-		Close();
-		return false;
-	}
-
-	Memory = (unsigned char*)(Header + 1);
-
-	MEMORY_BASIC_INFORMATION MemInfo;
-	if (VirtualQuery(Header, &MemInfo, sizeof(MemInfo)) == 0)
-	{
-		Close();
-		return false;
-	}
-
-	Length = MemInfo.RegionSize;
-	return true;
+volatile long long* FSharedMemoryBuffer::GetChunkStatePtr(int chunkIdx) const
+{
+	return (volatile long long*)(Header + 1) + chunkIdx;
 }

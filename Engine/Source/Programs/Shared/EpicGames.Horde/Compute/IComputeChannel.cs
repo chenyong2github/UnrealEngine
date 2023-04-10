@@ -114,7 +114,6 @@ namespace EpicGames.Horde.Compute
 		internal static string GetSendBufferName(string baseName) => $"{baseName}_SEND";
 		internal static string GetRecvBufferName(string baseName) => $"{baseName}_RECV";
 
-
 		/// <summary>
 		/// Creates a socket for a worker
 		/// </summary>

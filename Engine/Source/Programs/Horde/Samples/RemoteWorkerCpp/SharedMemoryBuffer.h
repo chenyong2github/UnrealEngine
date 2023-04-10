@@ -4,62 +4,68 @@
 
 class FSharedMemoryBuffer
 {
-	enum class EState : int;
-	class FHeader;
+	enum class EWriteState : int;
+	struct FChunkState;
+	struct FHeader;
 
 public:
 	FSharedMemoryBuffer();
 	~FSharedMemoryBuffer();
 
-	// Initialize the object to a new shared memory buffer of the given size
-	bool CreateNew(long long Capacity);
-
 	// Opens an existing shared memory buffer (typically from handles created in another process)
-	bool OpenExisting(void* MemoryMappedFile, void* ReaderEvent, void* WriterEvent);
+	bool OpenExisting(const char* Name);
 
 	// Close the current buffer and release all allocated resources
 	void Close();
-
-	// Duplicates handles for this buffer into another process
-	bool DuplicateHandles(void* TargetProcess, void*& OutMemoryMappedFile, void*& OutReaderEvent, void*& OutWriterEvent);
 
 
 	/*** Reader Interface ***/
 
 	// Test whether the buffer has finished being written to (ie. FinishWriting() has been called) and all data has been read from it.
-	bool HasFinishedReading() const;
+	bool IsComplete() const;
 
 	// Move the read cursor forwards by the given number of bytes
-	void AdvanceReadPosition(long long Size);
+	void AdvanceReadPosition(size_t Size);
 
 	// Gets the next data to be read (and the number of valid bytes accessible from the given pointer)
-	const unsigned char* GetReadMemory(long long& OutSize);
+	const unsigned char* GetReadMemory(size_t& OutSize);
 
 	// Wait for more data to be written to the buffer. The given parameter indicates the current size of the read buffer, used to exit immediately if it's changed since the value was fetched.
-	void WaitForData(long long CurrentLength);
+	void WaitToRead(size_t CurrentLength);
 
 
 	/*** Writer Interface ***/
 
 	// Signal that we've finished writing to this buffer
-	void FinishWriting();
+	void MarkComplete();
 
 	// Move the write cursor forward by the given number of bytes
-	void AdvanceWritePosition(long long Size);
+	void AdvanceWritePosition(size_t Size);
 
 	// Gets the memory that can be written to, and the available space in it
-	unsigned char* GetWriteMemory(long long& OutSize);
+	unsigned char* GetWriteMemory(size_t& OutSize);
 
 	// Waits until all data has been read from the buffer (or more specifically, that the reader is stalled) and moves any unread data to the start of the buffer.
-	void Flush();
+	void WaitToWrite(size_t currentLength);
 
 private:
-	bool Initialize();
+	unsigned char* GetChunkDataPtr(int chunkIdx) const;
+	volatile long long* GetChunkStatePtr(int chunkIdx) const;
+
+	const int ReaderIdx = 0;
 
 	void* MemoryMappedFile;
-	long long Length;
 	FHeader* Header;
-	unsigned char* Memory;
 	void* ReaderEvent;
 	void* WriterEvent;
+
+	int ReadChunkIdx;
+	size_t ReadOffset;
+	volatile long long* ReadChunkStatePtr;
+	unsigned char* ReadChunkDataPtr;
+
+	int WriteChunkIdx;
+	volatile long long* WriteChunkStatePtr;
+	unsigned char* WriteChunkDataPtr;
 };
+

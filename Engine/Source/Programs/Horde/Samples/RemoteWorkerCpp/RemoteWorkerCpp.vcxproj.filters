@@ -3,10 +3,10 @@
   <ItemGroup>
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="SharedMemoryBuffer.cpp" />
-    <ClCompile Include="WorkerSocket.cpp" />
+    <ClCompile Include="ComputeChannel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SharedMemoryBuffer.h" />
-    <ClInclude Include="WorkerSocket.h" />
+    <ClInclude Include="ComputeChannel.h" />
   </ItemGroup>
 </Project>
