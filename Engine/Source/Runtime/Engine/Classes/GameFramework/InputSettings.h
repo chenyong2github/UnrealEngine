@@ -444,7 +444,14 @@ struct ENGINE_API FHardwareDeviceIdentifier
 	/** Hardware device ID that represents a keyboard and mouse. This is what will be set when an Input Event's FKey is not a gamepad key. */
 	static FHardwareDeviceIdentifier DefaultKeyboardAndMouse;
 
+	/** Hardware device ID that represents a default, generic, gamepad. */
+	static FHardwareDeviceIdentifier DefaultGamepad;
+
+	/** Hardware device id that represents a default, generic, mobile touch input (tablet, phone, etc) */
+	static FHardwareDeviceIdentifier DefaultMobileTouch;
+
 	bool operator==(const FHardwareDeviceIdentifier& Other) const;
+	bool operator!=(const FHardwareDeviceIdentifier& Other) const;
 
 	ENGINE_API friend uint32 GetTypeHash(const FHardwareDeviceIdentifier& InDevice);
 	ENGINE_API friend FArchive& operator<<(FArchive& Ar, FHardwareDeviceIdentifier& InDevice);

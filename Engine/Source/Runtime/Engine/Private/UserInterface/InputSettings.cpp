@@ -522,6 +522,22 @@ FHardwareDeviceIdentifier FHardwareDeviceIdentifier::DefaultKeyboardAndMouse =
 		/* .SupportedFeaturesMask= */ EHardwareDeviceSupportedFeatures::Type::Keypress | EHardwareDeviceSupportedFeatures::Type::Pointer
 	};
 
+FHardwareDeviceIdentifier FHardwareDeviceIdentifier::DefaultGamepad = 
+	{
+	/* .InputClassName= */ TEXT("DefaultGamepad"),
+	/* .HardwareDeviceIdentifier= */ TEXT("Gamepad"),
+	/* .PrimaryDeviceType= */ EHardwareDevicePrimaryType::Gamepad,
+	/* .SupportedFeaturesMask= */  EHardwareDeviceSupportedFeatures::Type::Gamepad
+};
+
+FHardwareDeviceIdentifier FHardwareDeviceIdentifier::DefaultMobileTouch = 
+	{
+	/* .InputClassName= */ TEXT("DefaultMobileTouch"),
+	/* .HardwareDeviceIdentifier= */ TEXT("MobileTouch"),
+	/* .PrimaryDeviceType= */ EHardwareDevicePrimaryType::Touch,
+	/* .SupportedFeaturesMask= */ EHardwareDeviceSupportedFeatures::Type::Touch
+};
+
 // Default to the invalid hardware device identifier
 FHardwareDeviceIdentifier::FHardwareDeviceIdentifier()
 	: InputClassName(Invalid.InputClassName)
@@ -585,6 +601,11 @@ bool FHardwareDeviceIdentifier::operator==(const FHardwareDeviceIdentifier& Othe
 		Other.PrimaryDeviceType == PrimaryDeviceType;	
 }
 
+bool FHardwareDeviceIdentifier::operator!=(const FHardwareDeviceIdentifier& Other) const
+{
+	return !(Other == *this);
+}
+
 //////////////////////////////////////////////////////////////////
 // UInputPlatformSettings
 
@@ -594,7 +615,14 @@ UInputPlatformSettings::UInputPlatformSettings()
 	, MaxTriggerVibrationTriggerPosition(9)
 	, MaxTriggerVibrationFrequency(255)
 	, MaxTriggerVibrationAmplitude(8)
-{ }
+{
+	// Add the default invalid and KBM hardware device ID's here so that they will
+	// be found if no custom devices exist when you call GetHardwareDeviceForClassName
+	HardwareDevices.AddUnique(FHardwareDeviceIdentifier::Invalid);
+	HardwareDevices.AddUnique(FHardwareDeviceIdentifier::DefaultKeyboardAndMouse);
+	HardwareDevices.AddUnique(FHardwareDeviceIdentifier::DefaultGamepad);
+	HardwareDevices.AddUnique(FHardwareDeviceIdentifier::DefaultMobileTouch);
+}
 
 UInputPlatformSettings* UInputPlatformSettings::Get()
 {
