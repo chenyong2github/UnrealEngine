@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Internationalization/Text.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundBuildError.h"
 #include "MetasoundDataReference.h"
@@ -11,16 +10,9 @@
 #include "MetasoundLiteral.h"
 #include "MetasoundNode.h"
 #include "MetasoundNodeInterface.h"
-#include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorInterface.h"
-#include "MetasoundParameterTransmitter.h"
-#include "MetasoundRouter.h"
-#include "MetasoundTrigger.h"
 #include "MetasoundVertexData.h"
 #include "UObject/NameTypes.h"
-
-#define LOCTEXT_NAMESPACE "MetasoundFrontend"
-
 
 namespace Metasound
 {
@@ -319,10 +311,45 @@ namespace Metasound
 		MetasoundInputNodePrivate::FNonExecutableInputPassThroughOperator
 	>;
 
+	/** FInputNode represents an input to a metasound graph. */
+	class METASOUNDFRONTEND_API FInputNode : public FNode
+	{
+		static FLazyName ConstructorVariant;
+		// Use Variant names to differentiate between normal input nodes and constructor 
+		// input nodes.
+		static FName GetVariantName(EVertexAccessType InVertexAccess);
+
+		static FVertexInterface CreateVertexInterface(const FVertexName& InVertexName, const FName& InDataTypeName, EVertexAccessType InVertexAccess, const FLiteral& InLiteral);
+
+	protected:
+
+		static FVertexInterface CreateDefaultVertexInterface(const FVertexName& InVertexName, const FName& InDataTypeName, EVertexAccessType InVertexAccess);
+
+	public:
+
+		static FNodeClassMetadata GetNodeMetadata(const FVertexName& InVertexName, const FName& InDataTypeName, EVertexAccessType InVertexAccess);
+
+		/* Construct a TInputNode using the TInputOperatorLiteralFactory<> and moving
+		 * InParam to the TInputOperatorLiteralFactory constructor.*/
+		explicit FInputNode(FInputNodeConstructorParams&& InParams, const FName& InDataTypeName, EVertexAccessType InVertexAccess, FOperatorFactorySharedRef InFactory);
+
+		const FVertexName& GetVertexName() const;
+
+		virtual const FVertexInterface& GetVertexInterface() const override;
+		virtual bool SetVertexInterface(const FVertexInterface& InInterface) override;
+		virtual bool IsVertexInterfaceSupported(const FVertexInterface& InInterface) const override;
+		virtual TSharedRef<IOperatorFactory, ESPMode::ThreadSafe> GetDefaultOperatorFactory() const override;
+
+	private:
+		FVertexName VertexName;
+		FVertexInterface Interface;
+		FOperatorFactorySharedRef Factory;
+	};
+
 
 	/** TInputNode represents an input to a metasound graph. */
 	template<typename DataType, EVertexAccessType VertexAccess=EVertexAccessType::Reference>
-	class TInputNode : public FNode
+	class TInputNode : public FInputNode
 	{
 		static constexpr bool bIsConstructorInput = VertexAccess == EVertexAccessType::Value;
 		static constexpr bool bIsSupportedConstructorInput = TIsConstructorVertexSupported<DataType>::Value && bIsConstructorInput;
@@ -330,20 +357,6 @@ namespace Metasound
 		static constexpr bool bIsSupportedReferenceInput = TLiteralTraits<DataType>::bIsParsableFromAnyLiteralType && bIsReferenceInput;
 
 		static constexpr bool bIsSupportedInput = bIsSupportedConstructorInput || bIsSupportedReferenceInput;
-
-		// Use Variant names to differentiate between normal input nodes and constructor 
-		// input nodes.
-		static FName GetVariantName()
-		{
-			if constexpr (EVertexAccessType::Value == VertexAccess)
-			{
-				return FName("Constructor");
-			}
-			else
-			{
-				return FName();
-			}
-		}
 
 		// Factory for creating input operators. 
 		class FInputNodeOperatorFactory : public IOperatorFactory
@@ -408,8 +421,6 @@ namespace Metasound
 					return MakeUnique<TInputOperator<DataType, VertexAccess>>(VertexKey, InParams.OperatorSettings, Literal);
 				}
 			}
-
-		private:
 		};
 
 
@@ -417,85 +428,22 @@ namespace Metasound
 		// If true, this node can be instantiated by the Frontend.
 		static constexpr bool bCanRegister = bIsSupportedInput;
 
-		static FVertexInterface CreateVertexInterface(const FVertexName& InVertexName, const FLiteral& InLiteral)
-		{
-			return FVertexInterface(
-				FInputVertexInterface(
-					FInputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), FDataVertexMetadata{ FText::GetEmpty() }, VertexAccess, InLiteral)
-				),
-				FOutputVertexInterface(
-					FOutputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), FDataVertexMetadata{ FText::GetEmpty() }, VertexAccess)
-				)
-			);
-		}
-
-		static FVertexInterface CreateDefaultVertexInterface(const FVertexName& InVertexName)
-		{
-			return CreateVertexInterface(InVertexName, FLiteral());
-		}
-
-
-		UE_DEPRECATED(5.3, "Use TInputNode<>::CreateDefaultVertexInterface or TInputNode<>::CreateVertexInterface instead.")
+		UE_DEPRECATED(5.3, "Access the default vertex interface from the input node metadata.")
 		static FVertexInterface DeclareVertexInterface(const FVertexName& InVertexName)
 		{
-			return CreateDefaultVertexInterface(InVertexName);
+			return CreateDefaultVertexInterface(InVertexName, GetMetasoundDataTypeName<DataType>(), VertexAccess);
 		}
 
 		static FNodeClassMetadata GetNodeInfo(const FVertexName& InVertexName)
 		{
-			FNodeClassMetadata Info;
-
-			Info.ClassName = { "Input", GetMetasoundDataTypeName<DataType>(), GetVariantName() };
-			Info.MajorVersion = 1;
-			Info.MinorVersion = 0;
-			Info.Description = METASOUND_LOCTEXT("Metasound_InputNodeDescription", "Input into the parent Metasound graph.");
-			Info.Author = PluginAuthor;
-			Info.PromptIfMissing = PluginNodeMissingPrompt;
-			Info.DefaultInterface = CreateDefaultVertexInterface(InVertexName);
-
-			return Info;
+			return GetNodeMetadata(InVertexName, GetMetasoundDataTypeName<DataType>(), VertexAccess);
 		}
 
 		/* Construct a TInputNode using the TInputOperatorLiteralFactory<> and moving
 		 * InParam to the TInputOperatorLiteralFactory constructor.*/
 		explicit TInputNode(FInputNodeConstructorParams&& InParams)
-		:	FNode(InParams.NodeName, InParams.InstanceID, GetNodeInfo(InParams.VertexName))
-		,	VertexName(InParams.VertexName)
-		,	Interface(CreateVertexInterface(InParams.VertexName, InParams.InitParam))
-		,	Factory(MakeShared<FInputNodeOperatorFactory>())
+		:	FInputNode(MoveTemp(InParams), GetMetasoundDataTypeName<DataType>(), VertexAccess, MakeShared<FInputNodeOperatorFactory>())
 		{
 		}
-
-		const FVertexName& GetVertexName() const
-		{
-			return VertexName;
-		}
-
-		virtual const FVertexInterface& GetVertexInterface() const override
-		{
-			return Interface;
-		}
-
-		virtual bool SetVertexInterface(const FVertexInterface& InInterface) override
-		{
-			return Interface == InInterface;
-		}
-
-		virtual bool IsVertexInterfaceSupported(const FVertexInterface& InInterface) const override
-		{
-			return Interface == InInterface;
-		}
-
-		virtual TSharedRef<IOperatorFactory, ESPMode::ThreadSafe> GetDefaultOperatorFactory() const override
-		{
-			return Factory;
-		}
-
-	private:
-		FVertexName VertexName;
-
-		FVertexInterface Interface;
-		FOperatorFactorySharedRef Factory;
 	};
 } // namespace Metasound
-#undef LOCTEXT_NAMESPACE // MetasoundFrontend

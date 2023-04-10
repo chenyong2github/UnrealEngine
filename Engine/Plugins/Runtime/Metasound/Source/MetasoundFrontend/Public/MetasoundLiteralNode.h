@@ -11,8 +11,7 @@
 #include "MetasoundParamHelper.h"
 #include "MetasoundVertex.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundGraphCore"
-
+#define LOCTEXT_NAMESPACE "MetasoundFrontend"
 
 namespace Metasound
 {
@@ -137,97 +136,62 @@ namespace Metasound
 	};
 
 	/** TLiteralNode represents a variable within a metasound graph. */
+	class METASOUNDFRONTEND_API FLiteralNode : public FNode
+	{
+	protected:
+		static FVertexInterface CreateVertexInterface(const FName& InDataTypeName, EVertexAccessType InAccessType);
+
+	public:
+
+		static FNodeClassMetadata GetNodeMetadata(const FName& InDataTypeName, EVertexAccessType InAccessType);
+
+		FLiteralNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, const FName& InDataTypeName, EVertexAccessType InAccessType, FOperatorFactorySharedRef InFactory);
+
+		virtual const FVertexInterface& GetVertexInterface() const override;
+
+		virtual bool SetVertexInterface(const FVertexInterface& InInterface) override;
+
+		virtual bool IsVertexInterfaceSupported(const FVertexInterface& InInterface) const override;
+
+		virtual TSharedRef<IOperatorFactory, ESPMode::ThreadSafe> GetDefaultOperatorFactory() const override;
+
+	private:
+		FVertexInterface Interface;
+		FOperatorFactorySharedRef Factory;
+	};
+
+	/** TLiteralNode represents a variable within a metasound graph. */
 	template<typename DataType>
-	class TLiteralNode : public FNode
+	class TLiteralNode : public FLiteralNode
 	{
 		// Executable data types handle Triggers which need to be advanced every
 		// block.
 		static constexpr bool bIsExecutableDataType = TExecutableDataType<DataType>::bIsExecutable;
 		static constexpr bool bIsPostExecutableDataType = TPostExecutableDataType<DataType>::bIsPostExecutable;
 
+		// If the data type is executable, we treat it as a reference since it is non-const
+		static constexpr EVertexAccessType AccessType = (bIsExecutableDataType || bIsPostExecutableDataType) ? EVertexAccessType::Reference : EVertexAccessType::Value;
+
 	public:
 
+		UE_DEPRECATED(5.3, "Use the default interface on the node class metadata")
 		static FVertexInterface DeclareVertexInterface()
 		{
-			using namespace LiteralNodeNames; 
-			static const FDataVertexMetadata OutputMetadata
-			{
-				  FText::GetEmpty() // description
-				, METASOUND_GET_PARAM_DISPLAYNAME(OutputValue) // display name
-			};
-
-			if constexpr (bIsExecutableDataType || bIsPostExecutableDataType)
-			{
-				return FVertexInterface(
-					FInputVertexInterface(),
-					FOutputVertexInterface(
-						TOutputDataVertex<DataType>(METASOUND_GET_PARAM_NAME(OutputValue), OutputMetadata)
-					)
-				);
-			}
-			else
-			{
-				// If the data type is not executable, we treat it as a constructor
-				// vertex to produce a constant value.
-				return FVertexInterface(
-					FInputVertexInterface(),
-					FOutputVertexInterface(
-						TOutputConstructorVertex<DataType>(METASOUND_GET_PARAM_NAME(OutputValue), OutputMetadata)
-					)
-				);
-			}
+			return CreateVertexInterface(GetMetasoundDataTypeName<DataType>(), AccessType);
 		}
 
 		static FNodeClassMetadata GetNodeInfo()
 		{
-			FNodeClassMetadata Info;
-
-			Info.ClassName = {"Literal", GetMetasoundDataTypeName<DataType>(), ""};
-			Info.MajorVersion = 1;
-			Info.MinorVersion = 0;
-#if WITH_EDITOR
-			Info.DisplayName = FText::Format(LOCTEXT("Metasound_LiteralNodeDisplayNameFormat", "Literal {0}"), FText::FromName(GetMetasoundDataTypeName<DataType>()));
-			Info.Description = LOCTEXT("Metasound_LiteralNodeDescription", "Literal accessible within a parent Metasound graph.");
-#endif // WITH_EDITOR
-			Info.Author = PluginAuthor;
-			Info.PromptIfMissing = PluginNodeMissingPrompt;
-			Info.DefaultInterface = DeclareVertexInterface();
-
-			return Info;
+			return GetNodeMetadata(GetMetasoundDataTypeName<DataType>(), AccessType);
 		}
 
 		/* Construct a TLiteralNode using the TLiteralOperatorLiteralFactory<> and moving
 		 * InParam to the TLiteralOperatorLiteralFactory constructor.*/
 		explicit TLiteralNode(const FVertexName& InInstanceName, const FGuid& InInstanceID, FLiteral&& InParam)
-		:	FNode(InInstanceName, InInstanceID, GetNodeInfo())
-		,	Interface(DeclareVertexInterface())
-		, 	Factory(MakeOperatorFactoryRef<TLiteralOperatorLiteralFactory<DataType>>(MoveTemp(InParam)))
+		:	FLiteralNode(InInstanceName, InInstanceID, GetMetasoundDataTypeName<DataType>(), AccessType, MakeOperatorFactoryRef<TLiteralOperatorLiteralFactory<DataType>>(MoveTemp(InParam)))
 		{
 		}
 
-		virtual const FVertexInterface& GetVertexInterface() const override
-		{
-			return Interface;
-		}
-
-		virtual bool SetVertexInterface(const FVertexInterface& InInterface) override
-		{
-			return Interface == InInterface;
-		}
-
-		virtual bool IsVertexInterfaceSupported(const FVertexInterface& InInterface) const override
-		{
-			return Interface == InInterface;
-		}
-
-		virtual TSharedRef<IOperatorFactory, ESPMode::ThreadSafe> GetDefaultOperatorFactory() const override
-		{
-			return Factory;
-		}
-
-	private:
-		FVertexInterface Interface;
-		FOperatorFactorySharedRef Factory;
 	};
 
 	template<typename DataType>
@@ -238,5 +202,5 @@ namespace Metasound
 	}
 
 } // namespace Metasound
-#undef LOCTEXT_NAMESPACE // MetasoundGraphCore
+#undef LOCTEXT_NAMESPACE // MetasoundFrontend
 
