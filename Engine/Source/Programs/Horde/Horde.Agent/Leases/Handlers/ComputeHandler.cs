@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Compute;
-using EpicGames.Horde.Compute.Sockets;
 using EpicGames.Horde.Compute.Transports;
 using Horde.Agent.Services;
 using HordeCommon.Rpc.Tasks;
@@ -55,7 +54,7 @@ namespace Horde.Agent.Leases.Handlers
 
 				_logger.LogInformation("Matched connection for {Nonce}", StringUtils.FormatHexString(computeTask.Nonce.Span));
 
-				await using (ClientComputeSocket socket = new ClientComputeSocket(new TcpTransport(tcpClient.Client), _logger))
+				await using (IComputeSocket socket = ComputeSocket.Create(new TcpTransport(tcpClient.Client), _logger))
 				{
 					ComputeWorker worker = new ComputeWorker(_sandboxDir, _memoryCache, _logger);
 					await worker.RunAsync(socket, cancellationToken);

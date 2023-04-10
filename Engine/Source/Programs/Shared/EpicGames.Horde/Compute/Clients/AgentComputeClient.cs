@@ -10,7 +10,6 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using EpicGames.Horde.Compute.Sockets;
 using EpicGames.Horde.Compute.Transports;
 using Microsoft.Extensions.Logging;
 
@@ -90,7 +89,7 @@ namespace EpicGames.Horde.Compute.Clients
 			using BackgroundTask agentTask = BackgroundTask.StartNew(ctx => RunAgentAsync(_hordeAgentAssembly, _port, _logger, ctx));
 			using Socket tcpSocket = await listener.AcceptAsync(cancellationToken);
 
-			await using ClientComputeSocket socket = new ClientComputeSocket(new TcpTransport(tcpSocket), _logger);
+			await using IComputeSocket socket = ComputeSocket.Create(new TcpTransport(tcpSocket), _logger);
 			yield return socket;
 
 			await socket.CloseAsync(cancellationToken);

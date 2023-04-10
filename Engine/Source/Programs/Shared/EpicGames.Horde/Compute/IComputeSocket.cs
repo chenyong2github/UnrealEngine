@@ -41,6 +41,25 @@ namespace EpicGames.Horde.Compute
 		/// <param name="channelId">Channel to receive data on</param>
 		/// <param name="reader">Reader for the data to send</param>
 		void AttachSendBuffer(int channelId, IComputeBufferReader reader);
+
+		/// <summary>
+		/// Attempt to gracefully close the current connection and shutdown both ends of the transport
+		/// </summary>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		ValueTask CloseAsync(CancellationToken cancellationToken);
+	}
+
+	/// <summary>
+	/// Static methods for sockets
+	/// </summary>
+	public static class ComputeSocket
+	{
+		/// <summary>
+		/// Create a new compute socket
+		/// </summary>
+		/// <param name="transport">Transport to use for the socket</param>
+		/// <param name="logger">Logger for diagnostic output</param>
+		public static IComputeSocket Create(IComputeTransport transport, ILogger logger) => new DefaultComputeSocket(transport, logger);
 	}
 
 	/// <summary>

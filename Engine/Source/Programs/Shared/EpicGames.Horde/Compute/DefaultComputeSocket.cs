@@ -4,7 +4,6 @@ using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -15,7 +14,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Manages a set of readers and writers to buffers across a transport layer
 	/// </summary>
-	public abstract class ComputeSocketBase : IComputeSocket, IAsyncDisposable
+	class DefaultComputeSocket : IComputeSocket, IAsyncDisposable
 	{
 		readonly object _lockObject = new object();
 
@@ -37,7 +36,7 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="transport">Transport to communicate with the remote</param>
 		/// <param name="logger">Logger for trace output</param>
-		protected ComputeSocketBase(IComputeTransport transport, ILogger logger)
+		public DefaultComputeSocket(IComputeTransport transport, ILogger logger)
 		{
 			_transport = transport;
 			_logger = logger;
@@ -67,7 +66,7 @@ namespace EpicGames.Horde.Compute
 		}
 
 		/// <inheritdoc/>
-		public virtual async ValueTask DisposeAsync()
+		public async ValueTask DisposeAsync()
 		{
 			await _recvTask.DisposeAsync();
 			_sendSemaphore.Dispose();
@@ -221,9 +220,6 @@ namespace EpicGames.Horde.Compute
 				_sendSemaphore.Release();
 			}
 		}
-
-		/// <inheritdoc/>
-		public abstract IComputeBuffer CreateBuffer(long capacity);
 
 		/// <inheritdoc/>
 		public void AttachRecvBuffer(int channelId, IComputeBufferWriter recvBuffer)

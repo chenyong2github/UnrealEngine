@@ -7,7 +7,6 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using EpicGames.Horde.Compute.Sockets;
 using EpicGames.Horde.Compute.Transports;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -25,9 +24,9 @@ namespace EpicGames.Horde.Compute.Clients
 			public IReadOnlyDictionary<string, int> AssignedResources => new Dictionary<string, int>();
 			public IComputeSocket Socket => _socket;
 
-			readonly ClientComputeSocket _socket;
+			readonly IComputeSocket _socket;
 
-			public LeaseImpl(ClientComputeSocket socket) => _socket = socket;
+			public LeaseImpl(IComputeSocket socket) => _socket = socket;
 			public ValueTask DisposeAsync() => _socket.DisposeAsync();
 		}
 
@@ -73,7 +72,7 @@ namespace EpicGames.Horde.Compute.Clients
 
 			using MemoryCache memoryCache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 10 * 1024 * 1024 });
 
-			await using (ClientComputeSocket socket = new ClientComputeSocket(new TcpTransport(tcpSocket), logger))
+			await using (IComputeSocket socket = ComputeSocket.Create(new TcpTransport(tcpSocket), logger))
 			{
 				ComputeWorker worker = new ComputeWorker(sandboxDir, memoryCache, logger);
 				await worker.RunAsync(socket, cancellationToken);
@@ -85,7 +84,7 @@ namespace EpicGames.Horde.Compute.Clients
 		public Task<IComputeLease?> TryAssignWorkerAsync(ClusterId clusterId, Requirements? requirements, CancellationToken cancellationToken)
 		{
 #pragma warning disable CA2000 // Dispose objects before losing scope
-			ClientComputeSocket socket = new ClientComputeSocket(new TcpTransport(_socket), _logger);
+			IComputeSocket socket = ComputeSocket.Create(new TcpTransport(_socket), _logger);
 			return Task.FromResult<IComputeLease?>(new LeaseImpl(socket));
 #pragma warning restore CA2000 // Dispose objects before losing scope
 		}
