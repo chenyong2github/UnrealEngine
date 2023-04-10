@@ -6,7 +6,6 @@
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundGenerator.h"
 #include "MetasoundNodeInterface.h"
-#include "MetasoundOperatorInterface.h"
 
 namespace Metasound::Test
 {
@@ -17,21 +16,18 @@ namespace Metasound::Test
 		FNodeTestGraphBuilder();
 
 		/** Add a node to the graph */
-		Frontend::FNodeHandle AddNode(const FNodeClassName& ClassName, int32 MajorVersion);
+		Frontend::FNodeHandle AddNode(const FNodeClassName& ClassName, int32 MajorVersion) const;
 
 		/** Add an input node to the graph */
-		Frontend::FNodeHandle AddInput(const FName& InputName, const FName& TypeName);
+		Frontend::FNodeHandle AddInput(const FName& InputName, const FName& TypeName) const;
 
 		/** Add an output node to the graph */
 		Frontend::FNodeHandle AddOutput(const FName& OutputName, const FName& TypeName);
 
-		/** Build the graph and get the graph's operator to work with */
-		TUniquePtr<IOperator> BuildGraph(FSampleRate SampleRate = 48000, int32 SamplesPerBlock = 256);
-
-		TUniquePtr<FMetasoundGenerator> BuildGenerator(FSampleRate SampleRate = 48000, int32 SamplesPerBlock = 256);
+		TUniquePtr<FMetasoundGenerator> BuildGenerator(FSampleRate SampleRate = 48000, int32 SamplesPerBlock = 256) const;
 
 		/** Helper that will add a single node, wire up the node's inputs and outputs, and hand back the graph's operator */
-		static TUniquePtr<IOperator> MakeSingleNodeGraph(
+		static TUniquePtr<FMetasoundGenerator> MakeSingleNodeGraph(
 			const FNodeClassName& ClassName,
 			int32 MajorVersion,
 			FSampleRate SampleRate = 48000,
