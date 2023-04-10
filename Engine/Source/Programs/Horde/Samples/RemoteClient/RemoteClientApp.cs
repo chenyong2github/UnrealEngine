@@ -114,7 +114,7 @@ namespace RemoteClient
 			const int DataChannelId = 1;
 
 			byte[] buffer = new byte[4];
-			for (int idx = 0; idx < 100; idx++)
+			for (int idx = 0; idx < 3; idx++)
 			{
 				cancellationToken.ThrowIfCancellationRequested();
 				logger.LogInformation("Writing value: {Value}", idx);
@@ -122,6 +122,8 @@ namespace RemoteClient
 				await socket.SendAsync(DataChannelId, buffer, cancellationToken);
 				await Task.Delay(1000, cancellationToken);
 			}
+
+			await socket.MarkCompleteAsync(DataChannelId, cancellationToken);
 		}
 
 		static async Task<IComputeClient> CreateClientAsync(ClientAppOptions options, ILogger logger)

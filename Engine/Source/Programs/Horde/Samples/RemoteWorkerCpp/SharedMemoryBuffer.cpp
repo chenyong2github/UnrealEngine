@@ -40,7 +40,7 @@ struct FSharedMemoryBuffer::FChunkState
 	int GetReaderFlags() const { return (int)((Value >> 31) & 0x7fffffff); }
 
 	// State of the writer
-	EWriteState GetWriteState() const { return (EWriteState)(Value >> 62); }
+	EWriteState GetWriteState() const { return (EWriteState)((unsigned long long)Value >> 62); }
 
 	// Test whether a particular reader is still referencing the chunk
 	bool HasReaderFlag() const { return (Value & (1UL << 31)) != 0; }

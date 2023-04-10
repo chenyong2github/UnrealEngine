@@ -2,16 +2,15 @@
 
 using System.Buffers.Binary;
 using EpicGames.Horde.Compute;
-using Microsoft.Extensions.Logging.Abstractions;
 
-namespace RemoteServer
+namespace RemoteWorker
 {
-	class ServerApp
+	class WorkerApp
 	{
 		static async Task Main()
 		{
 			using IComputeChannel channel = ComputeChannel.ConnectAsWorker();
-			Console.WriteLine("Connected to client"); // Client will wait for output before sending data on channel 1
+			Console.WriteLine("Connected to client");
 
 			byte[] data = new byte[4];
 			while(await channel.TryReceiveMessageAsync(data))
@@ -19,6 +18,8 @@ namespace RemoteServer
 				int value = BinaryPrimitives.ReadInt32LittleEndian(data);
 				Console.WriteLine("Read value {0}", value);
 			}
+
+			Console.WriteLine("Exiting worker");
 		}
 	}
 }

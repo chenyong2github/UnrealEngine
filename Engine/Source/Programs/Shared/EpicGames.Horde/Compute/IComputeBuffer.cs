@@ -97,7 +97,7 @@ namespace EpicGames.Horde.Compute
 			for (; ; )
 			{
 				ReadOnlyMemory<byte> readMemory = reader.GetMemory();
-				if (readMemory.Length > 0)
+				if (reader.IsComplete || readMemory.Length > 0)
 				{
 					int length = Math.Min(readMemory.Length, buffer.Length);
 					readMemory.Slice(0, length).CopyTo(buffer);

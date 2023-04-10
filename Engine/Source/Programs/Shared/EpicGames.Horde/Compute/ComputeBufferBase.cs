@@ -256,7 +256,7 @@ namespace EpicGames.Horde.Compute
 			{
 				if (currentLength >= _chunks[_chunkIdx].Memory.Length)
 				{
-					throw new NotImplementedException("Will never succeed");
+					throw new ArgumentException("Current length is already complete buffer size; cannot allocate more.", nameof(currentLength));
 				}
 
 				for (; ; )
