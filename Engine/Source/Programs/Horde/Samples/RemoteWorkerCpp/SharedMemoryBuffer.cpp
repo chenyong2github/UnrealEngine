@@ -120,7 +120,6 @@ bool FSharedMemoryBuffer::OpenExisting(const char* Name)
 	MemoryMappedFile = OpenFileMappingA(FILE_MAP_ALL_ACCESS, TRUE, NameBuffer);
 	if (MemoryMappedFile == nullptr)
 	{
-		std::cout << "No filemap" << NameBuffer << std::endl;
 		Close();
 		return false;
 	}
@@ -128,7 +127,6 @@ bool FSharedMemoryBuffer::OpenExisting(const char* Name)
 	Header = (FHeader*)MapViewOfFile(MemoryMappedFile, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 	if (Header == nullptr)
 	{
-		std::cout << "No filemap view" << std::endl;
 		Close();
 		return false;
 	}
@@ -137,7 +135,6 @@ bool FSharedMemoryBuffer::OpenExisting(const char* Name)
 	ReaderEvent = OpenEventA(SYNCHRONIZE | EVENT_MODIFY_STATE, TRUE, NameBuffer);
 	if (ReaderEvent == nullptr)
 	{
-		std::cout << "No read event" << std::endl;
 		Close();
 		return false;
 	}
@@ -146,7 +143,6 @@ bool FSharedMemoryBuffer::OpenExisting(const char* Name)
 	WriterEvent = OpenEventA(SYNCHRONIZE | EVENT_MODIFY_STATE, TRUE, NameBuffer);
 	if (WriterEvent == nullptr)
 	{
-		std::cout << "No write event" << std::endl;
 		Close();
 		return false;
 	}

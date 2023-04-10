@@ -25,7 +25,6 @@ bool FComputeChannel::Open()
 
 	if (Length <= 0 || Length >= sizeof(EnvVar))
 	{
-		std::cout << "No env var" << std::endl;
 		Close();
 		return false;
 	}
@@ -35,7 +34,6 @@ bool FComputeChannel::Open()
 	sprintf_s(Buffer, "%s_SEND", EnvVar);
 	if (!SendBuffer.OpenExisting(Buffer))
 	{
-		std::cout << "No send: " << Buffer << std::endl;
 		Close();
 		return false;
 	}
@@ -43,7 +41,6 @@ bool FComputeChannel::Open()
 	sprintf_s(Buffer, "%s_RECV", EnvVar);
 	if (!RecvBuffer.OpenExisting(Buffer))
 	{
-		std::cout << "No recv: " << Buffer << std::endl;
 		Close();
 		return false;
 	}
