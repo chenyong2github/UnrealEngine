@@ -67,6 +67,10 @@ public:
 	void SetHLODAlwaysLoadedCullDistance(int32 InCullDistance);
 
 	void OnCVarsChanged();
+
+#ifdef WITH_EDITOR
+	static bool WriteHLODStatsCSV(UWorld* InWorld, const FString& InFilename);
+#endif
 	
 private:
 	struct FCellData

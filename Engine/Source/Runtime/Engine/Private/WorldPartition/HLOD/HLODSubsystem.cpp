@@ -819,12 +819,12 @@ void UHLODSubsystem::OnBeginRenderViews(const FSceneViewFamily& InViewFamily)
 
 #if WITH_EDITOR
 
-static void DumpHLODStats(UWorld* World)
+bool UHLODSubsystem::WriteHLODStatsCSV(UWorld* InWorld, const FString& InFilename)
 {
-	UWorldPartition* WorldPartition = World ? World->GetWorldPartition() : nullptr;
+	UWorldPartition* WorldPartition = InWorld ? InWorld->GetWorldPartition() : nullptr;
 	if (!WorldPartition)
 	{
-		return;
+		return false;
 	}
 	
 	typedef TFunction<FString(const FHLODActorDesc&)> FGetStatFunc;
@@ -846,7 +846,8 @@ static void DumpHLODStats(UWorld* World)
 	};
 
 	TArray<TPair<FName, FGetStatFunc>> StatsToWrite =
-	{
+	{	
+		{ "WorldPackage",		[InWorld](const FHLODActorDesc& InActorDesc) { return InWorld->GetPackage()->GetName(); } },
 		{ "Name",				[](const FHLODActorDesc& InActorDesc) { return InActorDesc.GetActorLabel().ToString(); } },
 		{ "HLODLayer",			[](const FHLODActorDesc& InActorDesc) { return InActorDesc.GetSourceHLODLayerName().ToString(); } },
 		{ "SpatiallyLoaded",	[](const FHLODActorDesc& InActorDesc) { return InActorDesc.GetIsSpatiallyLoaded() ? TEXT("true") : TEXT("false"); } },
@@ -879,10 +880,14 @@ static void DumpHLODStats(UWorld* World)
 		GetHLODStat(FWorldPartitionHLODStats::BuildTimeTotalMilliseconds)				
 	};
 
-	// Write header
 	FStringOutputDevice Output;
-	const FString StatHeader = FString::JoinBy(StatsToWrite, TEXT(","), [](const TPair<FName, FGetStatFunc>& Pair) { return Pair.Key.ToString(); });
-	Output.Logf(TEXT("%s" LINE_TERMINATOR_ANSI), *StatHeader);
+
+	// Write header if file doesn't exist
+	if (!IFileManager::Get().FileExists(*InFilename))
+	{
+		const FString StatHeader = FString::JoinBy(StatsToWrite, TEXT(","), [](const TPair<FName, FGetStatFunc>& Pair) { return Pair.Key.ToString(); });
+		Output.Logf(TEXT("%s" LINE_TERMINATOR_ANSI), *StatHeader);
+	}
 
 	// Write one line per HLOD actor desc
 	for (FActorDescContainerCollection::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
@@ -892,8 +897,7 @@ static void DumpHLODStats(UWorld* World)
 	}
 
 	// Write to file
-	const FString HLODStatsOutputFilename = FPaths::ProjectSavedDir() / TEXT("WorldPartition") / FString::Printf(TEXT("HLODStats-%s-%08x-%s.csv"), *World->GetName(), FPlatformProcess::GetCurrentProcessId(), *FDateTime::Now().ToString());
-	FFileHelper::SaveStringToFile(Output, *HLODStatsOutputFilename);
+	return FFileHelper::SaveStringToFile(Output, *InFilename, FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), EFileWrite::FILEWRITE_Append);
 }
 
 FAutoConsoleCommand HLODDumpStats(
@@ -901,11 +905,13 @@ FAutoConsoleCommand HLODDumpStats(
 	TEXT("Write various HLOD stats to a CSV formatted file."),
 	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
 	{
+		const FString HLODStatsOutputFilename = FPaths::ProjectLogDir() / TEXT("WorldPartition") / FString::Printf(TEXT("HLODStats-%08x-%s.csv"), FPlatformProcess::GetCurrentProcessId(), *FDateTime::Now().ToString());
+
 		for (const FWorldContext& Context : GEngine->GetWorldContexts())
 		{
 			if (UWorld* World = Context.World())
 			{
-				DumpHLODStats(World);
+				UHLODSubsystem::WriteHLODStatsCSV(World, HLODStatsOutputFilename);
 			}
 		}
 	})
