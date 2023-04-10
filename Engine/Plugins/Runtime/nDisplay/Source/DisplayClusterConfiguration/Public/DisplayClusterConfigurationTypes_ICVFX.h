@@ -244,7 +244,7 @@ public:
 
 	/** Marker Color */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
-	FLinearColor MarkerColor;
+	FLinearColor MarkerColor = { 0.f, 0.25f, 0.f, 1.f };
 
 	/** Texture to use as the chromakey marker tile. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
@@ -260,7 +260,7 @@ public:
 
 	/** Offset value for the chromakey marker tiles, normalized to the tile distance.  Adjust placement of the chromakey markers within the composition of the camera framing.  Whole numbers will offset chromakey markers by a cyclical amount and have no visual change. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (EditCondition = "bEnable"))
-	FVector2D MarkerTileOffset;
+	FVector2D MarkerTileOffset = { 0, 0 };
 };
 
 USTRUCT(Blueprintable)
@@ -507,16 +507,14 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraC
 {
 	GENERATED_BODY()
 
-	FDisplayClusterConfigurationICVFX_CameraCustomFrustum();
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = NDisplay)
+	FIntPoint EstimatedOverscanResolution = { 2560, 1440 };
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = NDisplay)
-	FIntPoint EstimatedOverscanResolution;
-	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = NDisplay)
-	FIntPoint InnerFrustumResolution;
+	FIntPoint InnerFrustumResolution = { 2560, 1440 };
 
 	UPROPERTY(BlueprintReadOnly, Category = NDisplay, meta = (HideInDetailPanel))
-	float OverscanPixelsIncrease;
+	float OverscanPixelsIncrease = 0.f;
 
 	/** Enable Custom Frustum. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustum Overscan"))

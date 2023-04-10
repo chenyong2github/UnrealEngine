@@ -162,10 +162,6 @@ FDisplayClusterConfigurationProjection::FDisplayClusterConfigurationProjection()
 	Type = TEXT("simple");
 }
 
-FDisplayClusterConfigurationPostprocess::FDisplayClusterConfigurationPostprocess()
-{
-
-}
 
 const float UDisplayClusterConfigurationViewport::ViewportMinimumSize = 1.0f;
 const float UDisplayClusterConfigurationViewport::ViewportMaximumSize = 15360.0f;

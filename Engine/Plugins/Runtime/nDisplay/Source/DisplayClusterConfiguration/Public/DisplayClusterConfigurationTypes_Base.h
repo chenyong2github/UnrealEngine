@@ -184,8 +184,6 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationPostprocess
 	GENERATED_BODY()
 
 public:
-	FDisplayClusterConfigurationPostprocess();
-
 	// Control postprocess rendering order. Bigger value rendered last
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = NDisplay)
 	int32 Order = -1;
