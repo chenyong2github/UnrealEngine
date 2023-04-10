@@ -4457,22 +4457,22 @@ void FWrapLayer::GetCalibratedTimestampsEXT(VkResult Result, VkDevice Device, ui
 	}
 }
 
-void FWrapLayer::BindBufferMemory2KHR(VkResult Result, VkDevice Device, uint32_t BindInfoCount, const VkBindBufferMemoryInfo* BindInfos)
+void FWrapLayer::BindBufferMemory2(VkResult Result, VkDevice Device, uint32_t BindInfoCount, const VkBindBufferMemoryInfo* BindInfos)
 {
 	if (Result == VK_RESULT_MAX_ENUM)
 	{
 #if VULKAN_ENABLE_DUMP_LAYER
-		PrintfBeginResult(FString::Printf(TEXT("BindBufferMemory2KHR(Device=0x%p, BindInfoCount=%u)"), Device, BindInfoCount));
+		PrintfBeginResult(FString::Printf(TEXT("BindBufferMemory2(Device=0x%p, BindInfoCount=%u)"), Device, BindInfoCount));
 #endif
 	}
 }
 
-void FWrapLayer::BindImageMemory2KHR(VkResult Result, VkDevice Device, uint32_t BindInfoCount, const VkBindImageMemoryInfo* BindInfos)
+void FWrapLayer::BindImageMemory2(VkResult Result, VkDevice Device, uint32_t BindInfoCount, const VkBindImageMemoryInfo* BindInfos)
 {
 	if (Result == VK_RESULT_MAX_ENUM)
 	{
 #if VULKAN_ENABLE_DUMP_LAYER
-		PrintfBeginResult(FString::Printf(TEXT("BindImageMemory2KHR(Device=0x%p, BindInfoCount=%u)"), Device, BindInfoCount));
+		PrintfBeginResult(FString::Printf(TEXT("BindImageMemory2(Device=0x%p, BindInfoCount=%u)"), Device, BindInfoCount));
 #endif
 	}
 }
