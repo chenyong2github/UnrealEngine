@@ -165,8 +165,8 @@ struct FWrapLayer
 	static void AcquireNextImageKHR(VkResult Result, VkDevice Device, VkSwapchainKHR Swapchain, uint64_t Timeout, VkSemaphore Semaphore, VkFence Fence, uint32_t* ImageIndex) VULKAN_LAYER_BODY
 	static void DestroySurfaceKHR(VkResult Result, VkInstance Instance, VkSurfaceKHR SurfaceKHR) VULKAN_LAYER_BODY
 	static void DestroySwapchainKHR(VkResult Result, VkDevice Device, VkSwapchainKHR Swapchain) VULKAN_LAYER_BODY
-	static void GetImageMemoryRequirements2KHR(VkResult Result, VkDevice Device, const VkImageMemoryRequirementsInfo2KHR* Info, VkMemoryRequirements2KHR* MemoryRequirements) VULKAN_LAYER_BODY
-	static void GetBufferMemoryRequirements2KHR(VkResult Result, VkDevice Device, const VkBufferMemoryRequirementsInfo2KHR* Info, VkMemoryRequirements2KHR* MemoryRequirements) VULKAN_LAYER_BODY
+	static void GetImageMemoryRequirements2(VkResult Result, VkDevice Device, const VkImageMemoryRequirementsInfo2* Info, VkMemoryRequirements2* MemoryRequirements) VULKAN_LAYER_BODY
+	static void GetBufferMemoryRequirements2(VkResult Result, VkDevice Device, const VkBufferMemoryRequirementsInfo2* Info, VkMemoryRequirements2* MemoryRequirements) VULKAN_LAYER_BODY
 
 	VULKAN_EXTERN_EXPORT static void GetPhysicalDeviceMemoryProperties2(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceMemoryProperties2* MemoryProperties) VULKAN_LAYER_BODY 
 	VULKAN_EXTERN_EXPORT static void GetPhysicalDeviceProperties2(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceProperties2* Properties) VULKAN_LAYER_BODY
@@ -1398,18 +1398,18 @@ namespace VulkanRHI
 		FWrapLayer::DestroySurfaceKHR(VK_SUCCESS, Instance, Surface);
 	}
 
-	static FORCEINLINE_DEBUGGABLE void vkGetImageMemoryRequirements2KHR(VkDevice Device, const VkImageMemoryRequirementsInfo2KHR* Info, VkMemoryRequirements2KHR* MemoryRequirements)
+	static FORCEINLINE_DEBUGGABLE void vkGetImageMemoryRequirements2(VkDevice Device, const VkImageMemoryRequirementsInfo2* Info, VkMemoryRequirements2* MemoryRequirements)
 	{
-		FWrapLayer::GetImageMemoryRequirements2KHR(VK_RESULT_MAX_ENUM, Device, Info, MemoryRequirements);
-		VULKANAPINAMESPACE::vkGetImageMemoryRequirements2KHR(Device, Info, MemoryRequirements);
-		FWrapLayer::GetImageMemoryRequirements2KHR(VK_SUCCESS, Device, Info, MemoryRequirements);
+		FWrapLayer::GetImageMemoryRequirements2(VK_RESULT_MAX_ENUM, Device, Info, MemoryRequirements);
+		VULKANAPINAMESPACE::vkGetImageMemoryRequirements2(Device, Info, MemoryRequirements);
+		FWrapLayer::GetImageMemoryRequirements2(VK_SUCCESS, Device, Info, MemoryRequirements);
 	}
 
-	static FORCEINLINE_DEBUGGABLE void vkGetBufferMemoryRequirements2KHR(VkDevice Device, const VkBufferMemoryRequirementsInfo2KHR* Info, VkMemoryRequirements2KHR* MemoryRequirements)
+	static FORCEINLINE_DEBUGGABLE void vkGetBufferMemoryRequirements2(VkDevice Device, const VkBufferMemoryRequirementsInfo2* Info, VkMemoryRequirements2* MemoryRequirements)
 	{
-		FWrapLayer::GetBufferMemoryRequirements2KHR(VK_RESULT_MAX_ENUM, Device, Info, MemoryRequirements);
-		VULKANAPINAMESPACE::vkGetBufferMemoryRequirements2KHR(Device, Info, MemoryRequirements);
-		FWrapLayer::GetBufferMemoryRequirements2KHR(VK_SUCCESS, Device, Info, MemoryRequirements);
+		FWrapLayer::GetBufferMemoryRequirements2(VK_RESULT_MAX_ENUM, Device, Info, MemoryRequirements);
+		VULKANAPINAMESPACE::vkGetBufferMemoryRequirements2(Device, Info, MemoryRequirements);
+		FWrapLayer::GetBufferMemoryRequirements2(VK_SUCCESS, Device, Info, MemoryRequirements);
 	}
 
 #if VULKAN_RHI_RAYTRACING

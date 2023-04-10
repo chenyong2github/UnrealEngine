@@ -37,6 +37,8 @@
 	EnumMacro(PFN_vkGetBufferMemoryRequirements, vkGetBufferMemoryRequirements) \
 	EnumMacro(PFN_vkGetImageMemoryRequirements, vkGetImageMemoryRequirements) \
 	EnumMacro(PFN_vkGetImageSparseMemoryRequirements, vkGetImageSparseMemoryRequirements) \
+	EnumMacro(PFN_vkGetImageMemoryRequirements2, vkGetImageMemoryRequirements2) \
+	EnumMacro(PFN_vkGetBufferMemoryRequirements2, vkGetBufferMemoryRequirements2) \
 	EnumMacro(PFN_vkGetPhysicalDeviceSparseImageFormatProperties, vkGetPhysicalDeviceSparseImageFormatProperties) \
 	EnumMacro(PFN_vkQueueBindSparse, vkQueueBindSparse) \
 	EnumMacro(PFN_vkCreateFence, vkCreateFence) \
@@ -190,8 +192,6 @@
 	ENUM_VK_ENTRYPOINTS_RAYTRACING(EnumMacro) \
 	EnumMacro(PFN_vkGetPhysicalDeviceProperties2, vkGetPhysicalDeviceProperties2) \
 	EnumMacro(PFN_vkGetPhysicalDeviceFeatures2, vkGetPhysicalDeviceFeatures2) \
-	EnumMacro(PFN_vkGetImageMemoryRequirements2KHR , vkGetImageMemoryRequirements2KHR) \
-	EnumMacro(PFN_vkGetBufferMemoryRequirements2KHR , vkGetBufferMemoryRequirements2KHR) \
 	EnumMacro(PFN_vkGetPhysicalDeviceMemoryProperties2, vkGetPhysicalDeviceMemoryProperties2) \
 	EnumMacro(PFN_vkCreateRenderPass2KHR, vkCreateRenderPass2KHR) \
 	EnumMacro(PFN_vkCmdBeginRenderPass2KHR, vkCmdBeginRenderPass2KHR) \

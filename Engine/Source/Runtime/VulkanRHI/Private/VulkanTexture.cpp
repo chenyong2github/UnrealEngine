@@ -2331,12 +2331,12 @@ FDynamicRHI::FRHICalcTextureSizeResult FVulkanDynamicRHI::RHICalcTexturePlatform
 
 	if (Device->GetOptionalExtensions().HasKHRMaintenance4)
 	{
-		VkDeviceImageMemoryRequirementsKHR ImageMemReq;
+		VkDeviceImageMemoryRequirements ImageMemReq;
 		ZeroVulkanStruct(ImageMemReq, VK_STRUCTURE_TYPE_DEVICE_IMAGE_MEMORY_REQUIREMENTS);
 		ImageMemReq.pCreateInfo = &TmpCreateInfo.ImageCreateInfo;
 		ImageMemReq.planeAspect = (VulkanRHI::GetAspectMaskFromUEFormat(CleanDesc.Format, true, true) == VK_IMAGE_ASPECT_COLOR_BIT) ? VK_IMAGE_ASPECT_COLOR_BIT : VK_IMAGE_ASPECT_DEPTH_BIT;  // should be ignored
 
-		VkMemoryRequirements2KHR MemReq2;
+		VkMemoryRequirements2 MemReq2;
 		ZeroVulkanStruct(MemReq2, VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2);
 
 		VulkanRHI::vkGetDeviceImageMemoryRequirementsKHR(Device->GetInstanceHandle(), &ImageMemReq, &MemReq2);

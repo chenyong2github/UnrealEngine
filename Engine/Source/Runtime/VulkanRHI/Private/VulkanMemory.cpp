@@ -2994,11 +2994,11 @@ namespace VulkanRHI
 		VkMemoryDedicatedRequirementsKHR DedMemoryReqs;
 		ZeroVulkanStruct(DedMemoryReqs, VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS_KHR);
 
-		VkMemoryRequirements2KHR MemoryReqs2;
+		VkMemoryRequirements2 MemoryReqs2;
 		ZeroVulkanStruct(MemoryReqs2, VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2_KHR);
 		MemoryReqs2.pNext = &DedMemoryReqs;
 
-		VulkanRHI::vkGetImageMemoryRequirements2KHR(Device->GetInstanceHandle(), &ImageMemoryReqs2, &MemoryReqs2);
+		VulkanRHI::vkGetImageMemoryRequirements2(Device->GetInstanceHandle(), &ImageMemoryReqs2, &MemoryReqs2);
 
 		bool bUseDedicated = DedMemoryReqs.prefersDedicatedAllocation != VK_FALSE || DedMemoryReqs.requiresDedicatedAllocation != VK_FALSE;
 		if (bUseDedicated)
