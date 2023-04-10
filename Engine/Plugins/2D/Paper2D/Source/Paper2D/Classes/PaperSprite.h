@@ -326,6 +326,10 @@ public:
 	virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const override;
 	// End of IInterface_CollisionDataProvider
 
+#if WITH_EDITOR
+	static FName GetSourceTextureMemberName();
+#endif
+
 protected:
 	void RefreshBakedData();
 

@@ -1755,6 +1755,13 @@ bool UPaperSprite::ContainsPhysicsTriMeshData(bool InUseAllTriData) const
 	return false;
 }
 
+#if WITH_EDITOR
+FName UPaperSprite::GetSourceTextureMemberName()
+{
+	return GET_MEMBER_NAME_CHECKED(UPaperSprite, SourceTexture);
+}
+#endif // WITH_EDITOR
+
 FBoxSphereBounds UPaperSprite::GetRenderBounds() const
 {
 	FBox BoundingBox(ForceInit);

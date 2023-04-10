@@ -3,6 +3,8 @@
 #include "Paper2DEditorModule.h"
 #include "Paper2DEditorLog.h"
 #include "EditorModeRegistry.h"
+
+#include "AssetRegistry/IAssetRegistry.h"
 #include "Subsystems/ImportSubsystem.h"
 #include "UObject/UObjectIterator.h"
 
@@ -296,9 +298,39 @@ private:
 	{
 		if (UTexture2D* Texture = Cast<UTexture2D>(InObject))
 		{
-			for (TObjectIterator<UPaperSprite> SpriteIt; SpriteIt; ++SpriteIt)
+			if (GetDefault<UPaperRuntimeSettings>()->bResizeSpriteDataToMatchTextures)
 			{
-				SpriteIt->OnObjectReimported(Texture);
+				// Ideally we wouldn't need to load the sprite to keep the atlas up to date but this will work for now.
+				IAssetRegistry& AssetRegistry = IAssetRegistry::GetChecked();
+				AssetRegistry.WaitForCompletion();
+				TArray<FAssetData> AssetsData;
+				const bool bSearchSubClasses = true;
+				AssetRegistry.GetAssetsByClass(UPaperSprite::StaticClass()->GetClassPathName(), AssetsData, bSearchSubClasses);
+
+				const FString TexturePath = Texture->GetPathName();
+				const FName SourceTextureMemberName = UPaperSprite::GetSourceTextureMemberName();
+				for (const FAssetData& SpriteAssetData : AssetsData)
+				{
+					FAssetData SavedTextureAssetData = AssetRegistry.GetAssetByObjectPath(SpriteAssetData.TagsAndValues.FindTag(SourceTextureMemberName).GetValue());
+				
+					FSoftObjectPath TextureSourcePath;
+					if (SavedTextureAssetData.IsRedirector())
+					{
+						TextureSourcePath = AssetRegistry.GetRedirectedObjectPath(SavedTextureAssetData.GetSoftObjectPath());
+					}
+					else
+					{
+						TextureSourcePath = SavedTextureAssetData.GetSoftObjectPath();
+					}
+
+					if (TextureSourcePath == TexturePath)
+					{
+						if (UPaperSprite* PaperSprite = Cast<UPaperSprite>(SpriteAssetData.GetAsset()))
+						{
+							PaperSprite->OnObjectReimported(Texture);
+						}
+					}
+				}
 			}
 		}
 	}
