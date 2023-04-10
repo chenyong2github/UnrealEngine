@@ -371,6 +371,11 @@ UEdGraphNode_Reference* UEdGraph_ReferenceViewer::RefilterGraph()
 		// Create the root node
 		bool bRootIsDuplicated = false;
 
+		for (const FAssetIdentifier& RootID : CurrentGraphRootIdentifiers)
+		{
+			bRootIsDuplicated |= (Settings->IsShowDependencies() && DependencyNodeInfos.Contains(RootID) && DependencyNodeInfos[RootID].IsADuplicate()) ||
+				(Settings->IsShowReferencers() && ReferencerNodeInfos.Contains(RootID) && ReferencerNodeInfos[RootID].IsADuplicate());
+		}
 		for ( const FAssetIdentifier& RootID : CurrentGraphRootIdentifiers )
 		{
 			bRootIsDuplicated |= (Settings->IsShowDependencies() && DependencyNodeInfos.Contains(RootID) && DependencyNodeInfos[RootID].IsADuplicate()) ||
