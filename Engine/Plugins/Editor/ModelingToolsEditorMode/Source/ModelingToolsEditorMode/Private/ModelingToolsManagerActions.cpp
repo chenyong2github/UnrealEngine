@@ -190,24 +190,24 @@ void FModelingToolsManagerCommands::RegisterCommands()
 	// VoxOps
 	if ( bUseShortNames )
 	{
-		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelSolidifyTool, "VoxWrap", "Wrap the selected Meshes using voxels");
-		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelBlendTool, "VoxBlnd", "Blend the selected Meshes using voxels");
-		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelMorphologyTool, "VoxMrph", "Offset/Inset the selected Meshes using voxels");
+		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelSolidifyTool, "VoxWrap", "Wrap the selected Meshes using SDFs/voxels");
+		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelBlendTool, "VoxBlnd", "Blend the selected Meshes using SDFs/voxels");
+		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelMorphologyTool, "VoxMrph", "Offset/Inset the selected Meshes using SDFs/voxels");
 #if WITH_PROXYLOD
 		// The ProxyLOD plugin is currently only available on Windows. Without it, the following tools do not work as expected.
-		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelBooleanTool, "VoxBool", "Boolean the selected Meshes using voxels");
-		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelMergeTool, "VoxMrg", "Merge the selected Meshes using voxels");
+		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelBooleanTool, "VoxBool", "Boolean the selected Meshes using SDFs/voxels");
+		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelMergeTool, "VoxMrg", "Merge the selected Meshes using SDFs/voxels");
 #endif	// WITH_PROXYLOD
 	}
 	else
 	{
-		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelSolidifyTool, "Vox Wrap", "Wrap the selected Meshes using voxels");
-		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelBlendTool, "Vox Blend", "Blend the selected Meshes using voxels");
-		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelMorphologyTool, "Vox Offset", "Offset/Inset the selected Meshes using voxels");
+		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelSolidifyTool, "Voxel Wrap", "Wrap the selected Meshes using SDFs/voxels");
+		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelBlendTool, "Voxel Blend", "Blend the selected Meshes using SDFs/voxels");
+		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelMorphologyTool, "Voxel Offset", "Offset/Inset the selected Meshes using SDFs/voxels");
 #if WITH_PROXYLOD
 		// The ProxyLOD plugin is currently only available on Windows. Without it, the following tools do not work as expected.
-		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelBooleanTool, "Vox Boolean", "Boolean the selected Meshes using voxels");
-		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelMergeTool, "Vox Merge", "Merge the selected Meshes using voxels");
+		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelBooleanTool, "Voxel Boolean", "Boolean the selected Meshes using SDFs/voxels");
+		REGISTER_MODELING_TOOL_COMMAND(BeginVoxelMergeTool, "Voxel Merge", "Merge the selected Meshes using SDFs/voxels");
 #endif	// WITH_PROXYLOD
 	}
 
@@ -394,20 +394,20 @@ void FModelingToolsManagerCommands::RegisterCommands()
 	UI_COMMAND(AddToFavorites, "Add to Favorites", "Add to Favorites", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(RemoveFromFavorites, "Remove from Favorites", "Remove from Favorites", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(LoadFavoritesTools, "Favorites", "Favorites", EUserInterfaceActionType::RadioButton, FInputChord());
-	UI_COMMAND(LoadSelectionTools, "Selection", "Selection", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadSelectionTools, "Selection", "Edit Mesh Selections", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(LoadShapesTools, "Shapes", "Shapes", EUserInterfaceActionType::RadioButton, FInputChord());
-	UI_COMMAND(LoadCreateTools, "Create", "Create", EUserInterfaceActionType::RadioButton, FInputChord());
-	UI_COMMAND(LoadPolyTools, "PolyEdit", "PolyEdit", EUserInterfaceActionType::RadioButton, FInputChord());
-	UI_COMMAND(LoadTriTools, "TriTools", "TriTools", EUserInterfaceActionType::RadioButton, FInputChord());
-	UI_COMMAND(LoadDeformTools, "Deform", "Deform", EUserInterfaceActionType::RadioButton, FInputChord());
-	UI_COMMAND(LoadTransformTools, "Transform", "Transform", EUserInterfaceActionType::RadioButton, FInputChord());
-	UI_COMMAND(LoadMeshOpsTools, "MeshOps", "MeshOps", EUserInterfaceActionType::RadioButton, FInputChord());
-	UI_COMMAND(LoadVoxOpsTools, "VoxOps", "VoxOps", EUserInterfaceActionType::RadioButton, FInputChord());
-	UI_COMMAND(LoadAttributesTools, "Attributes", "Atrribute", EUserInterfaceActionType::RadioButton, FInputChord());
-	UI_COMMAND(LoadUVsTools, "UVs", "UVs", EUserInterfaceActionType::RadioButton, FInputChord());
-	UI_COMMAND(LoadBakingTools, "Baking", "Baking", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadCreateTools, "Create", "Create New Shapes", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadPolyTools, "Model", "Shape Modeling", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadTriTools, "Process", "Mesh Processing", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadDeformTools, "Deform", "Deformations", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadTransformTools, "Transform", "Transforms & Conversion", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadMeshOpsTools, "MeshOps", "Mesh Processing", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadVoxOpsTools, "VoxOps", "Voxel Processing", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadAttributesTools, "Attributes", "Mesh Attributes", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadUVsTools, "UVs", "Create & Edit UVs", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadBakingTools, "Baking", "Bake Textures & Colors", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(LoadVolumeTools, "Volumes", "Volumes", EUserInterfaceActionType::RadioButton, FInputChord());
-	UI_COMMAND(LoadLodsTools, "LODs", "LODs", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(LoadLodsTools, "Misc", "Additional Utility Tools", EUserInterfaceActionType::RadioButton, FInputChord());
 
 	UI_COMMAND(AcceptActiveTool, "Accept", "Accept the active Tool", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(CancelActiveTool, "Cancel", "Cancel the active Tool", EUserInterfaceActionType::Button, FInputChord());
