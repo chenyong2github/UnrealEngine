@@ -22,6 +22,7 @@
 #include "Materials/MaterialExpressionBreakMaterialAttributes.h"
 #include "Materials/MaterialExpressionRerouteBase.h"
 #include "ShaderCompiler.h"
+#include "MeshMaterialShader.h"
 #include "MeshMaterialShaderType.h"
 #include "RendererInterface.h"
 #include "Materials/HLSLMaterialTranslator.h"
@@ -3369,6 +3370,30 @@ bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertex
 	TArray<FShaderCommonCompileJobPtr> CompileJobs;
 	bool bMissingShader = false;
 
+	auto ShouldCacheShaderType = [&ShaderPlatform, this, &PermutationFlags](const FShaderType* ShaderType, const FVertexFactoryType* VertexFactoryType) -> bool {
+		// Check to see if the FMaterial should cache these types.
+		if (!ShouldCache(ShaderPlatform, ShaderType, VertexFactoryType))
+		{
+			return false;
+		}
+
+		// if we are just a MaterialShaderType (not associated with a mesh)
+		if (const FMaterialShaderType* MaterialShader = ShaderType->GetMaterialShaderType())
+		{
+			return MaterialShader->ShouldCompilePermutation(ShaderPlatform, this, kUniqueShaderPermutationId, PermutationFlags);
+		}
+
+		// if we are a MeshMaterialShader
+		if (const FMeshMaterialShaderType* MeshMaterialShader = ShaderType->GetMeshMaterialShaderType())
+		{
+			const bool bVFShouldCache = FMeshMaterialShaderType::ShouldCompileVertexFactoryPermutation(ShaderPlatform, this, VertexFactoryType, ShaderType, PermutationFlags);
+			const bool bShaderShouldCache = MeshMaterialShader->ShouldCompilePermutation(ShaderPlatform, this, VertexFactoryType, kUniqueShaderPermutationId, PermutationFlags);
+			return bVFShouldCache && bShaderShouldCache;
+		}
+		
+		return false;
+	};
+
 	if (InTypes.PipelineType &&
 		RHISupportsShaderPipelines(ShaderPlatform) &&
 		CVarShaderPipelines && CVarShaderPipelines->GetValueOnAnyThread(bIsInGameThread) != 0)
@@ -3403,6 +3428,13 @@ bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertex
 				{
 					if (GODSCManager->IsHandlingRequests())
 					{
+				        for (const FShaderType* ShaderType : InTypes.PipelineType->GetStages())
+				        {
+					        if (!ShouldCacheShaderType(ShaderType, InVertexFactoryType))
+					        {
+						        return false;
+					        }
+				        }
 						const FString MaterialName = GetFullPath();
 						const FString VFTypeName(InVertexFactoryType ? InVertexFactoryType->GetName() : TEXT(""));
 						const FString PipelineName(InTypes.PipelineType->GetName());
@@ -3485,6 +3517,10 @@ bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertex
 					{
 						if (GODSCManager->IsHandlingRequests())
 						{
+					        if (!ShouldCacheShaderType(ShaderType, InVertexFactoryType))
+					        {
+						        return false;
+					        }
 							const FString MaterialName = GetFullPath();
 							const FString VFTypeName(InVertexFactoryType ? InVertexFactoryType->GetName() : TEXT(""));
 							const FString PipelineName;
