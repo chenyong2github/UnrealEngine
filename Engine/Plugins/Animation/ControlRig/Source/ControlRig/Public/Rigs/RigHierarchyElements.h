@@ -296,27 +296,14 @@ struct CONTROLRIG_API FRigLocalAndGlobalTransform
 		EDirtyMax
 	};
 
-	void Save(FArchive& Ar);
-	void Load(FArchive& Ar);
-
-	FRigLocalAndGlobalTransform& operator=(const FRigLocalAndGlobalTransform& Other)
-	{
-		Local = Other.Local;
-		Global = Other.Global;
-		for (int32 i=0; i<FRigLocalAndGlobalTransform::EDirtyMax; ++i)
-		{
-			bDirty[i] = Other.bDirty[i];
-		}
-		return *this;
-	}
+	void Save(FArchive& Ar, bool bDirty[EDirtyMax]);
+	void Load(FArchive& Ar, bool bDirty[EDirtyMax]);
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Pose")
 	FRigComputedTransform Local;
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Pose")
 	FRigComputedTransform Global;
-
-	bool bDirty[FRigLocalAndGlobalTransform::EDirtyMax] = { false, false };
 };
 
 USTRUCT(BlueprintType)
@@ -382,16 +369,16 @@ struct CONTROLRIG_API FRigCurrentAndInitialTransform
 		switch (InTransformType)
 		{
 			case ERigTransformType::CurrentLocal:
-				return Current.bDirty[FRigLocalAndGlobalTransform::ELocal];
+				return bDirtyCurrent[FRigLocalAndGlobalTransform::ELocal];
 
 			case ERigTransformType::CurrentGlobal:
-				return Current.bDirty[FRigLocalAndGlobalTransform::EGlobal];
+				return bDirtyCurrent[FRigLocalAndGlobalTransform::EGlobal];
 
 			case ERigTransformType::InitialLocal:
-				return Initial.bDirty[FRigLocalAndGlobalTransform::ELocal];
+				return bDirtyInitial[FRigLocalAndGlobalTransform::ELocal];
 			
 			default:
-				return Initial.bDirty[FRigLocalAndGlobalTransform::EGlobal];
+				return bDirtyInitial[FRigLocalAndGlobalTransform::EGlobal];
 		}
 	}
 
@@ -400,16 +387,16 @@ struct CONTROLRIG_API FRigCurrentAndInitialTransform
 		switch (InTransformType)
 		{
 		case ERigTransformType::CurrentLocal:
-			return Current.bDirty[FRigLocalAndGlobalTransform::ELocal];
+			return bDirtyCurrent[FRigLocalAndGlobalTransform::ELocal];
 
 		case ERigTransformType::CurrentGlobal:
-			return Current.bDirty[FRigLocalAndGlobalTransform::EGlobal];
+			return bDirtyCurrent[FRigLocalAndGlobalTransform::EGlobal];
 
 		case ERigTransformType::InitialLocal:
-			return Initial.bDirty[FRigLocalAndGlobalTransform::ELocal];
+			return bDirtyInitial[FRigLocalAndGlobalTransform::ELocal];
 
 		default:
-			return Initial.bDirty[FRigLocalAndGlobalTransform::EGlobal];
+			return bDirtyInitial[FRigLocalAndGlobalTransform::EGlobal];
 		}
 	}
 
@@ -439,10 +426,10 @@ struct CONTROLRIG_API FRigCurrentAndInitialTransform
 
 	bool operator == (const FRigCurrentAndInitialTransform& Other) const
 	{
-		return Current.bDirty[FRigLocalAndGlobalTransform::ELocal]  == Other.Current.bDirty[FRigLocalAndGlobalTransform::ELocal]  && Current.Local  == Other.Current.Local
-			&& Current.bDirty[FRigLocalAndGlobalTransform::EGlobal] == Other.Current.bDirty[FRigLocalAndGlobalTransform::EGlobal] && Current.Global == Other.Current.Global
-			&& Initial.bDirty[FRigLocalAndGlobalTransform::ELocal]  == Other.Initial.bDirty[FRigLocalAndGlobalTransform::ELocal]  && Initial.Local  == Other.Initial.Local
-			&& Initial.bDirty[FRigLocalAndGlobalTransform::EGlobal] == Other.Initial.bDirty[FRigLocalAndGlobalTransform::EGlobal] && Initial.Global == Other.Initial.Global;
+		return bDirtyCurrent[FRigLocalAndGlobalTransform::ELocal]  == Other.bDirtyCurrent[FRigLocalAndGlobalTransform::ELocal]  && Current.Local  == Other.Current.Local
+			&& bDirtyCurrent[FRigLocalAndGlobalTransform::EGlobal] == Other.bDirtyCurrent[FRigLocalAndGlobalTransform::EGlobal] && Current.Global == Other.Current.Global
+			&& bDirtyInitial[FRigLocalAndGlobalTransform::ELocal]  == Other.bDirtyInitial[FRigLocalAndGlobalTransform::ELocal]  && Initial.Local  == Other.Initial.Local
+			&& bDirtyInitial[FRigLocalAndGlobalTransform::EGlobal] == Other.bDirtyInitial[FRigLocalAndGlobalTransform::EGlobal] && Initial.Global == Other.Initial.Global;
 	}
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Pose")
@@ -450,6 +437,9 @@ struct CONTROLRIG_API FRigCurrentAndInitialTransform
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Pose")
 	FRigLocalAndGlobalTransform Initial;
+
+	bool bDirtyCurrent[FRigLocalAndGlobalTransform::EDirtyMax] = { false, false };
+	bool bDirtyInitial[FRigLocalAndGlobalTransform::EDirtyMax] = { false, false };
 };
 
 USTRUCT(BlueprintType)

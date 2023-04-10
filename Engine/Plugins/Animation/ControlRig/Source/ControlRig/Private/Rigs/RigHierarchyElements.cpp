@@ -306,13 +306,13 @@ void FRigComputedTransform::Load(FArchive& Ar, bool& bDirty)
 // FRigLocalAndGlobalTransform
 ////////////////////////////////////////////////////////////////////////////////
 
-void FRigLocalAndGlobalTransform::Save(FArchive& Ar)
+void FRigLocalAndGlobalTransform::Save(FArchive& Ar, bool bDirty[EDirtyMax])
 {
 	Local.Save(Ar, bDirty[ELocal]);
 	Global.Save(Ar, bDirty[EGlobal]);
 }
 
-void FRigLocalAndGlobalTransform::Load(FArchive& Ar)
+void FRigLocalAndGlobalTransform::Load(FArchive& Ar, bool bDirty[EDirtyMax])
 {
 	Local.Load(Ar, bDirty[ELocal]);
 	Global.Load(Ar, bDirty[EGlobal]);
@@ -324,14 +324,14 @@ void FRigLocalAndGlobalTransform::Load(FArchive& Ar)
 
 void FRigCurrentAndInitialTransform::Save(FArchive& Ar)
 {
-	Current.Save(Ar);
-	Initial.Save(Ar);
+	Current.Save(Ar, bDirtyCurrent);
+	Initial.Save(Ar, bDirtyInitial);
 }
 
 void FRigCurrentAndInitialTransform::Load(FArchive& Ar)
 {
-	Current.Load(Ar);
-	Initial.Load(Ar);
+	Current.Load(Ar, bDirtyCurrent);
+	Initial.Load(Ar, bDirtyInitial);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
