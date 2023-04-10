@@ -122,7 +122,10 @@ registerIcons({
       "More": IconContents.MORE,
       "Share": IconContents.SHARE,
       "Wrench": IconContents.WRENCH,
-      "Dashboard": IconContents.DASHBOARD
+      "Dashboard": IconContents.DASHBOARD,
+      "Document": IconContents.DOCUMENT,
+      "Folder": IconContents.FOLDER_CLOSE,
+      "CloudDownload" : IconContents.CLOUD_DOWNLOAD
    }
 });
 

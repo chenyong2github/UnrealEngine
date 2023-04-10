@@ -13,6 +13,7 @@ import { NewBuild } from '../NewBuild';
 import { NotificationDropdown } from '../NotificationDropdown';
 import { PauseStepModal } from '../StepPauseModal';
 import { AbortJobModal } from './AbortJobModal';
+import { JobArtifactsModal } from './JobDetailArtifactsV3';
 import { JobDetailsV2 } from './JobDetailsViewCommon';
 import { StepRetryModal, StepRetryType } from './StepRetryModal';
 
@@ -28,6 +29,8 @@ export const JobOperations: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({
    const navigate = useNavigate();
    const [abortShown, setAbortShown] = useState(false);
    const [editShown, setEditShown] = useState(false);
+   const [artifactsShown, setArtifactsShown] = useState(false);
+
    const [parametersState, setParametersState] = useState(query.get("newbuild") ? ParameterState.Clone : ParameterState.Hidden);
 
    const stepId = query.get("step") ? query.get("step")! : undefined;
@@ -43,6 +46,8 @@ export const JobOperations: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({
    if (!jobId || !jobData) {
       return null;
    }
+
+   const stepArtifacts = jobDetails.stepArtifacts.get(stepId ?? "");
 
    const abortDisabled = jobData.state === JobState.Complete;
    const runAgainDisabled = false; /*jobDetails.jobdata?.state !== JobState.Complete*/
@@ -117,6 +122,7 @@ export const JobOperations: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({
    }
 
    return <Stack>
+      {artifactsShown && !!step && <JobArtifactsModal stepId={step.id} jobDetails={jobDetails} onClose={() => { setArtifactsShown(false); }} />}
       <AbortJobModal jobDetails={jobDetails} show={abortShown} onClose={() => { setAbortShown(false); }} />
       <EditJobModal jobData={jobDetails.jobData} show={editShown} onClose={() => { setEditShown(false); }} />
       <NewBuild streamId={jobDetails.stream!.id} jobDetails={jobDetails} readOnly={parametersState === ParameterState.Parameters}
@@ -141,6 +147,12 @@ export const JobOperations: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({
             </Stack>
             </Link>}
 
+            {!!step && !!stepArtifacts?.length && <div onClick={() => { setArtifactsShown(true) }}>
+               <Stack styles={{ root: { paddingTop: 4 } }}>
+                  <CommandBarButton disabled={viewLogDisabled} className={hordeClasses.commandBarSmall} styles={{ root: { padding: "10px 8px 10px 8px" } }} iconProps={{ iconName: "CloudDownload" }} text="Artifacts" />
+               </Stack>
+            </div>}
+
             <Stack className={hordeClasses.commandBarSmall} styles={{ root: { paddingTop: 4 } }}>
                {notifications}
             </Stack>
@@ -160,6 +172,7 @@ export const JobOperations: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({
                   <CommandBarButton disabled={viewLogDisabled} className={hordeClasses.commandBarSmall} styles={{ root: { padding: "10px 8px 10px 8px" } }} iconProps={{ iconName: "AlignLeft" }} text="View Log" />
                </Stack>
             </Link>}
+
          </Stack>
       </Stack>
 
