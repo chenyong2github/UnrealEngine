@@ -1051,7 +1051,7 @@ bool NeedsAgsIntrinsicsSpace(const FD3D12ShaderData& ShaderData)
 #if D3D12RHI_NEEDS_VENDOR_EXTENSIONS
 	for (const FShaderCodeVendorExtension& Extension : ShaderData.VendorExtensions)
 	{
-		if (Extension.VendorId == 0x1002) // AMD
+		if (Extension.VendorId == EGpuVendorId::Amd)
 		{
 			// https://github.com/GPUOpen-LibrariesAndSDKs/AGS_SDK/blob/master/ags_lib/hlsl/ags_shader_intrinsics_dx12.hlsl
 			return true;

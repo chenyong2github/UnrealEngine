@@ -769,11 +769,11 @@ struct FShaderCodeVendorExtension
 	// for FindOptionalData() and AddOptionalData()
 	static const uint8 Key = 'v';
 
-	uint32 VendorId = 0;
+	EGpuVendorId VendorId = EGpuVendorId::NotQueried;
 	FParameterAllocation Parameter;
 
 	FShaderCodeVendorExtension() = default;
-	FShaderCodeVendorExtension(uint32 InVendorId, uint16 InBufferIndex, uint16 InBaseIndex, uint16 InSize, EShaderParameterType InType)
+	FShaderCodeVendorExtension(EGpuVendorId InVendorId, uint16 InBufferIndex, uint16 InBaseIndex, uint16 InSize, EShaderParameterType InType)
 		: VendorId(InVendorId)
 		, Parameter(InBufferIndex, InBaseIndex, InSize, InType)
 	{

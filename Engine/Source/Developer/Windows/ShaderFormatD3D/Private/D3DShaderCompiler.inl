@@ -473,7 +473,7 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 
 			if (bIsVendorParameter)
 			{
-				VendorExtensions.Emplace(0x1002 /*AMD*/, 0, BindDesc.BindPoint, BindCount, ParameterType);
+				VendorExtensions.Emplace(EGpuVendorId::Amd, 0, BindDesc.BindPoint, BindCount, ParameterType);
 			}
 			else if (ParameterType == EShaderParameterType::Sampler)
 			{
@@ -512,11 +512,11 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 			const uint32 BindCount = 1;
 			if (bIsVendorParameter)
 			{
-				const uint32 VendorId =
-					bIsNVExtension ? 0x10DE : // NVIDIA
-					(bIsAMDExtensionDX11 || bIsAMDExtensionDX12) ? 0x1002 : // AMD
-					bIsIntelExtension ? 0x8086 : // Intel
-					0;
+				const EGpuVendorId VendorId =
+					bIsNVExtension ? EGpuVendorId::Nvidia :
+					(bIsAMDExtensionDX11 || bIsAMDExtensionDX12) ? EGpuVendorId::Amd :
+					bIsIntelExtension ? EGpuVendorId::Intel :
+					EGpuVendorId::Unknown;
 				VendorExtensions.Emplace(VendorId, 0, BindDesc.BindPoint, BindCount, EShaderParameterType::UAV);
 			}
 			else if (bIsDiagnosticBufferParameter)

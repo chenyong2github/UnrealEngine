@@ -69,7 +69,7 @@ static bool ApplyVendorExtensions(ID3D11Device* Direct3DDevice, EShaderFrequency
 #if !PLATFORM_HOLOLENS
 	for (const FShaderCodeVendorExtension& Extension : ShaderData->VendorExtensions)
 	{
-		if (Extension.VendorId == 0x10DE) // NVIDIA
+		if (Extension.VendorId == EGpuVendorId::Nvidia)
 		{
 			if (!IsRHIDeviceNVIDIA())
 			{
@@ -86,7 +86,7 @@ static bool ApplyVendorExtensions(ID3D11Device* Direct3DDevice, EShaderFrequency
 			}
 #endif
 		}
-		else if (Extension.VendorId == 0x1002) // AMD
+		else if (Extension.VendorId == EGpuVendorId::Amd)
 		{
 			if (!IsRHIDeviceAMD())
 			{
@@ -95,7 +95,7 @@ static bool ApplyVendorExtensions(ID3D11Device* Direct3DDevice, EShaderFrequency
 			}
 			// TODO: https://github.com/GPUOpen-LibrariesAndSDKs/AGS_SDK/blob/master/ags_lib/hlsl/ags_shader_intrinsics_dx11.hlsl
 		}
-		else if (Extension.VendorId == 0x8086) // Intel
+		else if (Extension.VendorId == EGpuVendorId::Intel)
 		{
 			if (!IsRHIDeviceIntel())
 			{

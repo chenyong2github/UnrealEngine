@@ -804,9 +804,9 @@ ENUM_CLASS_FLAGS(EBufferUsageFlags);
 #define BUF_MultiGPUAllocate       EBufferUsageFlags::MultiGPUAllocate
 #define BUF_MultiGPUGraphIgnore    EBufferUsageFlags::MultiGPUGraphIgnore
 
-enum class EGpuVendorId
+enum class EGpuVendorId : uint32
 {
-	Unknown		= -1,
+	Unknown		= 0xffffffff,
 	NotQueried	= 0,
 
 	Amd			= 0x1002,

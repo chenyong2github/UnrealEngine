@@ -888,7 +888,7 @@ static void CreatePipelineStateWithExtensions(ID3D12PipelineState** PSO, FD3D12A
 	for (const FShaderCodeVendorExtension& Extension : VendorExtensions)
 	{
 #if WITH_NVAPI
-		if (Extension.VendorId == 0x10DE) // NVIDIA
+		if (Extension.VendorId == EGpuVendorId::Nvidia)
 		{
 			if (Extension.Parameter.Type == EShaderParameterType::UAV)
 			{
@@ -915,14 +915,14 @@ static void CreatePipelineStateWithExtensions(ID3D12PipelineState** PSO, FD3D12A
 			}
 		}
 #endif //  WITH_NVAPI
-		if (Extension.VendorId == 0x1002) // AMD
+		if (Extension.VendorId == EGpuVendorId::Amd)
 		{
 			// https://github.com/GPUOpen-LibrariesAndSDKs/AGS_SDK/blob/master/ags_lib/hlsl/ags_shader_intrinsics_dx12.hlsl
 			// No special create override needed, pass through to default:
 			CreatePipelineStateWrapper(PSO, Adapter, CreationArgs);
 			return;
 		}
-		else if (Extension.VendorId == 0x8086) // INTEL
+		else if (Extension.VendorId == EGpuVendorId::Intel)
 		{
 			// https://github.com/intel/intel-graphics-compiler/blob/master/inc/IntelExtensions.hlsl
 			// No special create override needed, pass through to default:
