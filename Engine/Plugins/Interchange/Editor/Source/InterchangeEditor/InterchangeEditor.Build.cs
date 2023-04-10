@@ -14,15 +14,21 @@ namespace UnrealBuildTool.Rules
                     "Core",
 					"CoreUObject",
 					"Engine",
+					"UnrealEd",
 				}
 			);
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"AssetDefinition",
+					"ContentBrowser",
 					"InterchangeCore",
 					"InterchangeEngine",
+					"InterchangeImport",
 					"MessageLog",
+					"SlateCore",
+					"ToolMenus",
 				}
 			);
 		}

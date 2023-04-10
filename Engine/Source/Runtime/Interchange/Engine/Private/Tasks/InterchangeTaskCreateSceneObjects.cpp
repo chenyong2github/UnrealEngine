@@ -4,9 +4,11 @@
 #include "CoreMinimal.h"
 
 #include "Async/TaskGraphInterfaces.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "InterchangeEngineLogPrivate.h"
 #include "InterchangeFactoryBase.h"
+#include "InterchangeImportCommon.h"
 #include "InterchangeManager.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
@@ -37,6 +39,7 @@ void UE::Interchange::FTaskCreateSceneObjects::DoTask(ENamedThreads::Type Curren
 #if INTERCHANGE_TRACE_ASYNCHRONOUS_TASK_ENABLED
 	INTERCHANGE_TRACE_ASYNCHRONOUS_TASK(SpawnActor)
 #endif
+	using namespace UE::Interchange;
 
 	TOptional<FGCScopeGuard> GCScopeGuard;
 	if (!IsInGameThread())
@@ -44,7 +47,7 @@ void UE::Interchange::FTaskCreateSceneObjects::DoTask(ENamedThreads::Type Curren
 		GCScopeGuard.Emplace();
 	}
 
-	TSharedPtr<UE::Interchange::FImportAsyncHelper> AsyncHelper = WeakAsyncHelper.Pin();
+	TSharedPtr<FImportAsyncHelper> AsyncHelper = WeakAsyncHelper.Pin();
 	check(WeakAsyncHelper.IsValid());
 
 	//Verify if the task was canceled
@@ -52,6 +55,12 @@ void UE::Interchange::FTaskCreateSceneObjects::DoTask(ENamedThreads::Type Curren
 	{
 		return;
 	}
+
+	UObject* ReimportObject = AsyncHelper->TaskData.ReimportObject;
+	ULevel* CurrentLevel = GWorld->GetCurrentLevel();
+	const FString WorldPath = GWorld->GetOutermost()->GetPathName();
+	const FString WorldName = GWorld->GetName();
+	const FString NodePrefix = CurrentLevel->GetName() + TEXT(".");
 
 	for (UInterchangeFactoryBaseNode* FactoryNode : FactoryNodes)
 	{
@@ -68,7 +77,9 @@ void UE::Interchange::FTaskCreateSceneObjects::DoTask(ENamedThreads::Type Curren
 		UInterchangeFactoryBase::FImportSceneObjectsParams CreateSceneObjectsParams;
 		CreateSceneObjectsParams.ObjectName = NodeDisplayName;
 		CreateSceneObjectsParams.FactoryNode = FactoryNode;
-		CreateSceneObjectsParams.Level = GWorld->GetCurrentLevel();
+		CreateSceneObjectsParams.Level = CurrentLevel;
+		CreateSceneObjectsParams.ReimportObject = FFactoryCommon::GetObjectToReimport(ReimportObject, WorldPath, WorldName, NodePrefix + NodeDisplayName);
+		CreateSceneObjectsParams.ReimportFactoryNode = FFactoryCommon::GetFactoryNode(ReimportObject, WorldPath, WorldName, NodePrefix + NodeDisplayName);
 
 		if (AsyncHelper->BaseNodeContainers.IsValidIndex(SourceIndex))
 		{

@@ -6,6 +6,8 @@
 #include "InterchangeCameraNode.h"
 #include "InterchangeCineCameraFactoryNode.h"
 #include "InterchangeCommonPipelineDataFactoryNode.h"
+#include "InterchangeSceneImportAsset.h"
+#include "InterchangeSceneImportAssetFactoryNode.h"
 #include "InterchangeLightNode.h"
 #include "InterchangeLightFactoryNode.h"
 #include "InterchangeMeshActorFactoryNode.h"
@@ -99,6 +101,33 @@ void UInterchangeGenericLevelPipeline::ExecutePipeline(UInterchangeBaseNodeConta
 		}
 	});
 
+#if WITH_EDITORONLY_DATA
+	// Add the SceneImportData factory node
+	{
+		ensure(!SceneImportFactoryNode);
+
+		const FString FilePath = FPaths::ConvertRelativePathToFull(InSourceDatas[0]->GetFilename());
+		const FString DisplayLabel = TEXT("SceneImport_") + FPaths::GetBaseFilename(FilePath);
+		const FString NodeUid = TEXT("SceneImport_") + FilePath;
+		const FString FactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(NodeUid);
+		ensure(!BaseNodeContainer->IsNodeUidValid(FactoryNodeUid));
+		SceneImportFactoryNode = NewObject<UInterchangeSceneImportAssetFactoryNode>(BaseNodeContainer, NAME_None);
+
+		SceneImportFactoryNode->InitializeNode(FactoryNodeUid, DisplayLabel, EInterchangeNodeContainerType::FactoryData);
+
+		// Add dependency to all the factory nodes created so far
+		BaseNodeContainer->IterateNodesOfType<UInterchangeFactoryBaseNode>(
+			[this](const FString& NodeUid, UInterchangeFactoryBaseNode* Node)
+			{
+				// Make sure the UInterchangeSceneImportAsset is the last asset created
+				this->SceneImportFactoryNode->AddFactoryDependencyUid(NodeUid);
+			}
+		);
+
+		BaseNodeContainer->AddNode(SceneImportFactoryNode);
+	}
+#endif
+
 	for (const UInterchangeSceneNode* SceneNode : SceneNodes)
 	{
 		if (SceneNode)
@@ -112,7 +141,7 @@ void UInterchangeGenericLevelPipeline::ExecutePipeline(UInterchangeBaseNodeConta
 					bool bSkipNode = true;
 					if (SpecializeTypes.Contains(UE::Interchange::FSceneNodeStaticData::GetJointSpecializeTypeString()))
 					{
-						//check if its the rootjoint (we want to create an actor for the rootjoint)
+						//check if its the root joint (we want to create an actor for the root joint)
 						FString CurrentNodesParentUid = SceneNode->GetParentUid();
 						const UInterchangeBaseNode* ParentNode = BaseNodeContainer->GetNode(CurrentNodesParentUid);
 						if (const UInterchangeSceneNode* ParentSceneNode = Cast<UInterchangeSceneNode>(ParentNode))
@@ -138,18 +167,18 @@ void UInterchangeGenericLevelPipeline::ExecutePipeline(UInterchangeBaseNodeConta
 	//Find all translated scene variant sets
 	TArray<UInterchangeSceneVariantSetsNode*> SceneVariantSetNodes;
 
-InBaseNodeContainer->IterateNodesOfType<UInterchangeSceneVariantSetsNode>([&SceneVariantSetNodes](const FString& NodeUid, UInterchangeSceneVariantSetsNode* Node)
-	{
-		SceneVariantSetNodes.Add(Node);
-	});
+	InBaseNodeContainer->IterateNodesOfType<UInterchangeSceneVariantSetsNode>([&SceneVariantSetNodes](const FString& NodeUid, UInterchangeSceneVariantSetsNode* Node)
+		{
+			SceneVariantSetNodes.Add(Node);
+		});
 
-for (const UInterchangeSceneVariantSetsNode* SceneVariantSetNode : SceneVariantSetNodes)
-{
-	if (SceneVariantSetNode)
+	for (const UInterchangeSceneVariantSetsNode* SceneVariantSetNode : SceneVariantSetNodes)
 	{
-		ExecuteSceneVariantSetNodePreImport(*SceneVariantSetNode);
+		if (SceneVariantSetNode)
+		{
+			ExecuteSceneVariantSetNodePreImport(*SceneVariantSetNode);
+		}
 	}
-}
 }
 
 void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(const FTransform& GlobalOffsetTransform, const UInterchangeSceneNode* SceneNode)
@@ -265,6 +294,14 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(const FTransfor
 	{
 		SetUpFactoryNode(ActorFactoryNode, SceneNode, TranslatedAssetNode);
 	}
+
+	//Make sure all actor factory nodes have the specified strategy
+	ActorFactoryNode->SetReimportStrategyFlags(ReimportStrategy);
+
+#if WITH_EDITORONLY_DATA
+	// Add dependency to newly created factory node
+	SceneImportFactoryNode->AddFactoryDependencyUid(ActorFactoryNode->GetUniqueID());
+#endif
 }
 
 UInterchangeActorFactoryNode* UInterchangeGenericLevelPipeline::CreateActorFactoryNode(const UInterchangeSceneNode* SceneNode, const UInterchangeBaseNode* TranslatedAssetNode) const
@@ -560,3 +597,29 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneVariantSetNodePreImport(const
 
 	BaseNodeContainer->AddNode(FactoryNode);
 }
+
+void UInterchangeGenericLevelPipeline::ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* InBaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport)
+{
+	Super::ExecutePostImportPipeline(InBaseNodeContainer, NodeKey, CreatedAsset, bIsAReimport);
+
+#if WITH_EDITORONLY_DATA
+	//We do not use the provided base container since ExecutePreImportPipeline cache it
+	//We just make sure the same one is pass in parameter
+	if (!InBaseNodeContainer || !ensure(BaseNodeContainer == InBaseNodeContainer) || !CreatedAsset)
+	{
+		return;
+	}
+
+	if (UInterchangeSceneImportAsset* SceneImportAsset = Cast<UInterchangeSceneImportAsset>(CreatedAsset))
+	{
+		const UInterchangeSceneImportAssetFactoryNode* FactoryNode = Cast<UInterchangeSceneImportAssetFactoryNode>(BaseNodeContainer->GetFactoryNode(NodeKey));
+		if (!ensure(FactoryNode))
+		{
+			return;
+		}
+
+		SceneImportAsset->UpdateSceneObjects();
+	}
+#endif
+}
+

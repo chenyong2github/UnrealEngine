@@ -9,6 +9,7 @@
 #include "InterchangeAssetImportData.h"
 #include "InterchangeEngineLogPrivate.h"
 #include "InterchangeFactoryBase.h"
+#include "InterchangeImportCommon.h"
 #include "InterchangeManager.h"
 #include "InterchangeResult.h"
 #include "InterchangeSourceData.h"
@@ -118,6 +119,9 @@ namespace UE::Interchange::Private
 		return false;
 	}
 
+
+
+
 	bool CanImportClass(UE::Interchange::FImportAsyncHelper& AsyncHelper, UInterchangeFactoryBaseNode& FactoryNode, int32 SourceIndex)
 	{
 	#if WITH_EDITOR
@@ -185,7 +189,7 @@ namespace UE::Interchange::Private
 		FString AssetName;
 		Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, FactoryNode, PackageName, AssetName);
 		bool bSkipAsset = false;
-		UObject* ReimportObject = AsyncHelper->TaskData.ReimportObject;
+		UObject* ReimportObject = UE::Interchange::FFactoryCommon::GetObjectToReimport(AsyncHelper->TaskData.ReimportObject, PackageName, AssetName);
 		if (ReimportObject)
 		{
 			UInterchangeBaseNodeContainer* NodeContainer = nullptr;
@@ -288,7 +292,9 @@ void UE::Interchange::FTaskImportObject_GameThread::DoTask(ENamedThreads::Type C
 	UPackage* Pkg = nullptr;
 	FString PackageName;
 	FString AssetName;
-	UObject* ReimportObject = AsyncHelper->TaskData.ReimportObject;
+	Private::InternalGetPackageName(*AsyncHelper, SourceIndex, PackageBasePath, FactoryNode, PackageName, AssetName);
+
+	UObject* ReimportObject = FFactoryCommon::GetObjectToReimport(AsyncHelper->TaskData.ReimportObject, PackageName, AssetName);
 	//If we do a reimport no need to create a package
 	if (ReimportObject)
 	{
@@ -479,7 +485,7 @@ void UE::Interchange::FTaskImportObjectFinalize_GameThread::DoTask(ENamedThreads
 
 	if (ImportAssetResult.ImportedObject)
 	{
-		//If the factory skip the asset, we simply set the node custom refernece object
+		//If the factory skip the asset, we simply set the node custom reference object
 		if (!ImportAssetResult.bIsFactorySkipAsset)
 		{
 			FScopeLock Lock(&AsyncHelper->ImportedAssetsPerSourceIndexLock);
@@ -495,7 +501,9 @@ void UE::Interchange::FTaskImportObjectFinalize_GameThread::DoTask(ENamedThreads
 				AssetInfo.ImportedObject = ImportAssetResult.ImportedObject;
 				AssetInfo.Factory = Factory;
 				AssetInfo.FactoryNode = FactoryNode;
-				AssetInfo.bIsReimport = bool(AsyncHelper->TaskData.ReimportObject != nullptr);
+
+				const UObject* ReimportObject = FFactoryCommon::GetObjectToReimport(AsyncHelper->TaskData.ReimportObject, ImportAssetResult.ImportedObject->GetPathName(), ImportAssetResult.ImportedObject->GetName());
+				AssetInfo.bIsReimport = bool(ReimportObject != nullptr);
 			}
 
 			// Fill in destination asset and type in any results which have been added previously by a translator or pipeline, now that we have a corresponding factory.

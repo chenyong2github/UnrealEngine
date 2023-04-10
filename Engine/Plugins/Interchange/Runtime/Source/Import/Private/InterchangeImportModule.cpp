@@ -21,6 +21,7 @@
 #include "Modules/ModuleManager.h"
 #include "Scene/InterchangeActorFactory.h"
 #include "Scene/InterchangeCineCameraActorFactory.h"
+#include "Scene/InterchangeSceneImportAssetFactory.h"
 #include "Scene/InterchangeLightActorFactory.h"
 #include "Scene/InterchangeSceneVariantSetsFactory.h"
 #include "Scene/InterchangeStaticMeshActorFactory.h"
@@ -87,6 +88,7 @@ void FInterchangeImportModule::StartupModule()
 		InterchangeManager.RegisterFactory(UInterchangeSkeletalMeshActorFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangeSceneVariantSetsFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangeLightActorFactory::StaticClass());
+		InterchangeManager.RegisterFactory(UInterchangeSceneImportAssetFactory::StaticClass());
 	};
 	
 	if (GEngine)

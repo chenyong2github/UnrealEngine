@@ -144,11 +144,11 @@ AActor* UE::Interchange::ActorHelper::SpawnFactoryActor(const UInterchangeFactor
 				RootComponent->SetMobility(TargetMobility);
 			}
 		}
-	}
 
-	if (ParentActor || !SpawnedActor->IsAttachedTo(ParentActor))
-	{
-		SpawnedActor->AttachToActor(ParentActor, FAttachmentTransformRules::KeepWorldTransform);
+		if (ParentActor || !SpawnedActor->IsAttachedTo(ParentActor))
+		{
+			SpawnedActor->AttachToActor(ParentActor, FAttachmentTransformRules::KeepWorldTransform);
+		}
 	}
 
 	return SpawnedActor;
@@ -227,4 +227,3 @@ void UE::Interchange::ActorHelper::ApplyAllCustomAttributes(const UInterchangeFa
 		CreateSceneObjectsParams.FactoryNode->ApplyAllCustomAttributeToObject(&ObjectToUpdate);
 	}
 }
-#pragma optimize ("", on)

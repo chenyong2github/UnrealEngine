@@ -45,18 +45,18 @@ namespace UE::Interchange
 		};
 
 		/**
-		* Update the AssetImportData source file of the specified asset in the parameters. Also update the node container and the node unique id.
-		* If the AssetImportData is null it will create one. If the AssetImportData is not an UInterchangeAssetImportData it will create a new one.
-		* @return The source data that should be stored on the asset or nullptr if a parameter is invalid
-		*/
+		 * Update the AssetImportData source file of the specified asset in the parameters. Also update the node container and the node unique id.
+		 * If the AssetImportData is null it will create one. If the AssetImportData is not an UInterchangeAssetImportData it will create a new one.
+		 * @return The source data that should be stored on the asset or nullptr if a parameter is invalid
+		 */
 		static UAssetImportData* UpdateImportAssetData(FUpdateImportAssetDataParameters& Parameters);
 
 		/**
-		* Update the AssetImportData of the specified asset in the parameters. Also update the node container and the node unique id.
-		* If the AssetImportData is null it will create one. If the AssetImportData is not an UInterchangeAssetImportData it will create a new one.
-		* The file source update is done by calling the function parameter CustomFileSourceUpdate, so its the client responsability to properly update the file source.
-		* @return The source data that should be stored on the asset or nullptr if a parameter is invalid
-		*/
+		 * Update the AssetImportData of the specified asset in the parameters. Also update the node container and the node unique id.
+		 * If the AssetImportData is null it will create one. If the AssetImportData is not an UInterchangeAssetImportData it will create a new one.
+		 * The file source update is done by calling the function parameter CustomFileSourceUpdate, so its the client responsability to properly update the file source.
+		 * @return The source data that should be stored on the asset or nullptr if a parameter is invalid
+		 */
 		static UAssetImportData* UpdateImportAssetData(FUpdateImportAssetDataParameters& Parameters, TFunctionRef<void(UInterchangeAssetImportData*)> CustomFileSourceUpdate);
 
 #if WITH_EDITORONLY_DATA
@@ -74,36 +74,58 @@ namespace UE::Interchange
 		};
 
 		/**
-		* Set the AssetImportData source file of the specified asset in the parameters. Also update the node container and the node unique id.
-		* If the AssetImportData is null it will create one. If the AssetImportData is not an UInterchangeAssetImportData it will create a new one.
-		* @return The source data that should be stored on the asset or nullptr if a parameter is invalid
-		*/
+		 * Set the AssetImportData source file of the specified asset in the parameters. Also update the node container and the node unique id.
+		 * If the AssetImportData is null it will create one. If the AssetImportData is not an UInterchangeAssetImportData it will create a new one.
+		 * @return The source data that should be stored on the asset or nullptr if a parameter is invalid
+		 */
 		static UAssetImportData* SetImportAssetData(FSetImportAssetDataParameters& Parameters);
 
 		/**
-		* Fills the OutSourceFilenames array with the list of source files contained in the asset source data.
-		* Returns true if the operation was successful.
-		*/
+		 * Fills the OutSourceFilenames array with the list of source files contained in the asset source data.
+		 * Returns true if the operation was successful.
+		 */
 		static bool GetSourceFilenames(const UAssetImportData* AssetImportData, TArray<FString>& OutSourceFilenames);
 
 		/**
-		* Sets the SourceFileName value at the specified index.
-		*/
+		 * Sets the SourceFileName value at the specified index.
+		 */
 		static bool SetSourceFilename(UAssetImportData* AssetImportData, const FString& SourceFilename, int32 SourceIndex, const FString& SourceLabel = FString());
 
 		/**
-		* Set the object's reimport source at the specified index value.
-		*/
+		 * Set the object's reimport source at the specified index value.
+		 */
 		static bool SetReimportSourceIndex(const UObject* Object, UAssetImportData* AssetImportData, int32 SourceIndex);
 
 #endif // WITH_EDITORONLY_DATA
 
 		/**
-		* Apply the current strategy to the PipelineAssetNode
-		*/
+		 * Apply the current strategy to the PipelineAssetNode
+		 */
 		static void ApplyReimportStrategyToAsset(UObject* Asset
 											, const UInterchangeFactoryBaseNode* PreviousAssetNode
 											, const UInterchangeFactoryBaseNode* CurrentAssetNode
 											, UInterchangeFactoryBaseNode* PipelineAssetNode);
+
+		/**
+		 * If the ReimportObject is a UInterchangeSceneImportAsset, returns the UObject which asset path
+		 * is //PackageName.AssetName[:SubPathString].
+		 * Returns ReimportObject otherwise.
+		 * @oaram ReimportObject: Original object to reimport
+		 * @oaram PackageName: Package path of the actual object to reimport
+		 * @oaram AssetName: Asset name of the actual object to reimport
+		 * @oaram SubPathString: Optional subobject name
+		 */
+		static 	UObject* GetObjectToReimport(UObject* ReimportObject, const FString& PackageName, const FString& AssetName, const FString& SubPathString = FString());
+
+		/**
+		 * If the ReimportObject is a UInterchangeSceneImportAsset, returns the factory node
+		 * associated with the asset which path is //PackageName.AssetName[:SubPathString].
+		 * Returns nullptr otherwise.
+		 * @oaram ReimportObject: Original object to reimport
+		 * @oaram PackageName: Package path of the actual object to reimport
+		 * @oaram AssetName: Asset name of the actual object to reimport
+		 * @oaram SubPathString: Optional subobject name
+		 */
+		static 	const UInterchangeFactoryBaseNode* GetFactoryNode(UObject* ReimportObject, const FString& PackageName, const FString& AssetName, const FString& SubPathString = FString());
 	};
 } //ns UE::Interchange
