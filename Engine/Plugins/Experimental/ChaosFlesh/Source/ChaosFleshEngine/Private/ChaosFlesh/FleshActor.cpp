@@ -58,9 +58,9 @@ void AFleshActor::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyC
 				if (FleshComponent)
 				{
 					FleshComponent->PrimarySolverComponent = SolverComponent;
-					if (!SolverComponent->DeformableComponents.Contains(FleshComponent))
+					if (!SolverComponent->ConnectedObjects.DeformableComponents.Contains(FleshComponent))
 					{
-						SolverComponent->DeformableComponents.Add(TObjectPtr<UDeformablePhysicsComponent>(FleshComponent));
+						SolverComponent->ConnectedObjects.DeformableComponents.Add(TObjectPtr<UDeformablePhysicsComponent>(FleshComponent));
 					}
 				}
 			}
@@ -72,9 +72,9 @@ void AFleshActor::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyC
 				if (FleshComponent)
 				{
 					FleshComponent->PrimarySolverComponent = nullptr;
-					if (SolverComponent->DeformableComponents.Contains(FleshComponent))
+					if (SolverComponent->ConnectedObjects.DeformableComponents.Contains(FleshComponent))
 					{
-						SolverComponent->DeformableComponents.Remove(FleshComponent);
+						SolverComponent->ConnectedObjects.DeformableComponents.Remove(FleshComponent);
 					}
 				}
 			}

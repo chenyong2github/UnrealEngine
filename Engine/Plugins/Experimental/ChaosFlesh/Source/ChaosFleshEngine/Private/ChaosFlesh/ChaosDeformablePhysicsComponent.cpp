@@ -132,9 +132,9 @@ void UDeformablePhysicsComponent::EnableSimulation(UDeformableSolverComponent* D
 	if (DeformableSolverComponent)
 	{
 		PrimarySolverComponent = DeformableSolverComponent;
-		if (!DeformableSolverComponent->DeformableComponents.Contains(this))
+		if (!DeformableSolverComponent->ConnectedObjects.DeformableComponents.Contains(this))
 		{
-			DeformableSolverComponent->DeformableComponents.Add(this);
+			DeformableSolverComponent->ConnectedObjects.DeformableComponents.Add(this);
 		}
 		DeformableSolverComponent->AddDeformableProxy(this);
 	}
@@ -146,9 +146,9 @@ void UDeformablePhysicsComponent::EnableSimulationFromActor(ADeformableSolverAct
 	if (DeformableSolverActor && DeformableSolverActor->GetDeformableSolverComponent())
 	{
 		PrimarySolverComponent = DeformableSolverActor->GetDeformableSolverComponent();
-		if (!DeformableSolverActor->GetDeformableSolverComponent()->DeformableComponents.Contains(this))
+		if (!DeformableSolverActor->GetDeformableSolverComponent()->ConnectedObjects.DeformableComponents.Contains(this))
 		{
-			DeformableSolverActor->GetDeformableSolverComponent()->DeformableComponents.Add(this);
+			DeformableSolverActor->GetDeformableSolverComponent()->ConnectedObjects.DeformableComponents.Add(this);
 		}
 		DeformableSolverActor->GetDeformableSolverComponent()->AddDeformableProxy(this);
 	}

@@ -21,8 +21,11 @@ ADeformableSolverActor::ADeformableSolverActor(const FObjectInitializer& ObjectI
 #if WITH_EDITOR
 void ADeformableSolverActor::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	//TSharedPtr<IPropertyHandle> bReplicatePhysicsProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(AFleshActor, bAsyncPhysicsTickEnabled), AActor::StaticClass());
-	//bReplicatePhysicsProperty->MarkHiddenByCustomization();
+	TSharedPtr<IPropertyHandle> bAsyncPhysicsTickEnabledProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ADeformableSolverActor, bAsyncPhysicsTickEnabled), AActor::StaticClass());
+	bAsyncPhysicsTickEnabledProperty->MarkHiddenByCustomization();
+
+	TSharedPtr<IPropertyHandle> ShouldUpdatePhysicsVolumnProperty = DetailBuilder.GetProperty("bShouldUpdatePhysicsVolume", USceneComponent::StaticClass());
+	ShouldUpdatePhysicsVolumnProperty->MarkHiddenByCustomization();
 }
 
 #endif

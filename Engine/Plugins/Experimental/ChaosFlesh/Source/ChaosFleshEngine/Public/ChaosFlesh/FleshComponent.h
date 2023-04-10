@@ -5,6 +5,8 @@
 #include "Chaos/Deformable/ChaosDeformableSolver.h"
 #include "ChaosFlesh/ChaosDeformableSolverThreading.h"
 #include "ChaosFlesh/ChaosDeformablePhysicsComponent.h"
+#include "ChaosFlesh/ChaosDeformableTetrahedralComponent.h"
+#include "ChaosFlesh/ChaosDeformableGameplayComponent.h"
 #include "ChaosFlesh/FleshAsset.h"
 #include "ChaosFlesh/FleshDynamicAsset.h"
 #include "ChaosFlesh/SimulationAsset.h"
@@ -17,161 +19,18 @@ class FFleshCollection;
 class ADeformableSolverActor;
 class UDeformableSolverComponent;
 
-/**
-*  Options for binding positions query.
-*/
-UENUM()
-enum ChaosDeformableBindingOption : uint8
-{
-	WorldPos		UMETA(DisplayName = "World Positions"),
-	WorldDelta		UMETA(DisplayName = "World Deltas"),
-	ComponentPos    UMETA(DisplayName = "Component Positions"),
-	ComponentDelta  UMETA(DisplayName = "Component Deltas"),
-	BonePos			UMETA(DisplayName = "Bone Positions"),
-	BoneDelta		UMETA(DisplayName = "Bone Deltas"),
-};
+
 
 
 /**
 *	FleshComponent
 */
 UCLASS(meta = (BlueprintSpawnableComponent))
-class CHAOSFLESHENGINE_API UFleshComponent : public UDeformablePhysicsComponent
+class CHAOSFLESHENGINE_API UFleshComponent : public UDeformableGameplayComponent
 {
 	GENERATED_UCLASS_BODY()
-
 public:
-	typedef Chaos::Softs::FFleshThreadingProxy FFleshThreadingProxy;
 
-	~UFleshComponent();
+	TArray<int32> HideTetrahedra;
 
-	/** USceneComponent Interface */
-	virtual void BeginPlay() override;
-	virtual void OnRegister() override;
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
-	void UpdateLocalBounds();
-	virtual void EndPlay(const EEndPlayReason::Type ReasonEnd) override;
-	void Invalidate();
-
-	/** Simulation Interface*/
-	virtual FThreadingProxy* NewProxy() override;
-	virtual FDataMapValue NewDeformableData() override;
-	virtual void UpdateFromSimualtion(const FDataMapValue* SimualtionBuffer) override;
-
-
-	/** RestCollection */
-	void SetRestCollection(const UFleshAsset * InRestCollection);
-	const UFleshAsset* GetRestCollection() const { return RestCollection; }
-
-
-	/** DynamicCollection */
-	void ResetDynamicCollection();
-	UFleshDynamicAsset* GetDynamicCollection() { return DynamicCollection; }
-	const UFleshDynamicAsset* GetDynamicCollection() const { return DynamicCollection; }
-
-	/** SimulationCollection */
-	void ResetSimulationCollection();
-	USimulationAsset* GetSimulationCollection() { return SimulationCollection; }
-	const USimulationAsset* GetSimulationCollection() const { return SimulationCollection; }
-
-	UPROPERTY(EditAnywhere, Category = "Rendering")
-	TObjectPtr<UProceduralMeshComponent> Mesh;
-
-	/** @deprecated Use GetSkeletalMeshEmbeddedPositions() instead. */
-	UFUNCTION(BlueprintCallable, Category = "Physics", meta = (DeprecatedFunction, DeprecationMessage = "Use GetSkeletalMeshEmbeddedPositions() instead."))
-	TArray<FVector> GetSkeletalMeshBindingPositions(const USkeletalMesh* InSkeletalMesh) const;
-
-	/**
-	* Get the current positions of the transformation hierarchy from \c TargetDeformationSkeleton,
-	* deformed by the tetrahedral mesh.  Results can be in world space postions/deltas, component space
-	* positions/deltas, or bone space positions/deltas.  If a bone space is desired \p TargetBone
-	* must indicate which bone to use. TargetDeformationSkeletonOffset is an offset transform that moves 
-	* the \c TargetDeformationSkeleton to be co-located with the flesh mesh.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "Physics")
-	TArray<FVector> GetSkeletalMeshEmbeddedPositions(const ChaosDeformableBindingOption Format, const FTransform TargetDeformationSkeletonOffset, const FName TargetBone = "", const float SimulationBlendWeight = 1.f) const;
-
-	/** Indices of tetrahedra to hide. */
-	UPROPERTY(EditAnywhere, Category = "Rendering")
-	TSet<int32> HideTetrahedra;
-
-private:
-	/** FleshAsset that describes the simulation rest state. */
-	UPROPERTY(EditAnywhere, Category = "Physics")
-	TObjectPtr<const UFleshAsset> RestCollection;
-
-	/** Current simulation state. */
-	UPROPERTY()
-	TObjectPtr<UFleshDynamicAsset> DynamicCollection;
-
-	/** Simulator input */
-	UPROPERTY()
-	TObjectPtr<USimulationAsset> SimulationCollection;
-
-	//
-	// Sim Space
-	//
-
-	/** Space the simulation will run in. */
-	UPROPERTY(EditAnywhere, Category = "Physics")
-	TEnumAsByte<ChaosDeformableSimSpace> SimSpace = ChaosDeformableSimSpace::World;
-
-	/** 
-	* Bone from the associated skeletal mesh (indicated by RestCollection.TargetSkeletalMesh) to use as 
-	* the space the sim runs in.
-	*/
-	UPROPERTY(EditAnywhere, Category = "Physics", meta = (GetOptions = "GetSimSpaceBoneNameOptions", EditCondition = "SimSpace == ChaosDeformableSimSpace::Bone"))
-	FName SimSpaceBoneName;
-
-	/** The skeletal mesh to use pull the \c SimSpaceBoneName from. */
-	UPROPERTY()
-	TObjectPtr<USkeletalMesh> SimSpaceSkeletalMesh;
-
-	/* Returns a list of bone names from the currently selected skeletal mesh. */
-	UFUNCTION(CallInEditor)
-	TArray<FString> GetSimSpaceBoneNameOptions() const;
-
-	//! Update \c SimSpaceSkeletalMesh and \c SimSpaceTransformIndex according to
-	//! \c RestCollection->TargetSkeletalMesh and SimSpaceBoneName.
-	//! \ret \c true if a valid sim space transform is found.
-	bool UpdateSimSpaceTransformIndex();
-
-	//! Return the rest transform to be used as the simulation space. 
-	//! \c UpdateSimSpaceTransformIndex() must be called prior to calling this function.
-	FTransform GetSimSpaceRestTransform() const;
-
-	//
-	// Render the Procedural Mesh
-	//
-	struct FFleshRenderMesh
-	{
-		TArray<FVector> Vertices;
-		TArray<int32> Triangles;
-		TArray<FVector> Normals;
-		TArray<FVector2D> UVs;
-		TArray<FLinearColor> Colors;
-		TArray<FProcMeshTangent> Tangents;
-	};
-	FFleshRenderMesh* RenderMesh = nullptr;
-	void RenderProceduralMesh();
-	void ResetProceduralMesh();
-
-	bool bBoundsNeedsUpdate = true;
-	FBoxSphereBounds BoundingBox = FBoxSphereBounds(ForceInitToZero);
-
-	FTransform PrevTransform = FTransform::Identity;
-
-	TArray<FVector> GetSkeletalMeshEmbeddedPositionsInternal(const ChaosDeformableBindingOption Format, const FTransform TargetDeformationSkeletonOffset, const FName TargetBone = "", const float SimulationBlendWeight = 1.f, TArray<bool>* OutInfluence = nullptr) const;
-	TArray<FVector> GetEmbeddedPositionsInternal(const TArray<FVector>& InPositions, const FName SkeletalMeshName, const float SimulationBlendWeight = 1.f, TArray<bool>* OutInfluence = nullptr) const;
-	TArray<FVector> GetSkeletalMeshBindingPositionsInternal(const USkeletalMesh* InSkeletalMesh, TArray<bool>* OutInfluence = nullptr) const;
-	void DebugDrawSkeletalMeshBindingPositions() const;
-
-	int32 SimSpaceTransformIndex = INDEX_NONE;
-	int32 SimSpaceTransformGlobalIndex = INDEX_NONE;
-
-	TSet<int32> FaceVerticesToSkip;
-	int32 NumSkippedFaces = 0;
-	int32 NumSkippedTets = 0;
 };
-

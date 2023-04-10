@@ -3,7 +3,7 @@
 
 #include "CoreMinimal.h"
 
-#include "ChaosFlesh/FleshComponent.h"
+#include "ChaosFlesh/ChaosDeformableTetrahedralComponent.h"
 #include "UObject/ObjectMacros.h"
 
 
@@ -17,27 +17,42 @@ struct FRigBoundRayCasts
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "RigBoundRaycasts")
+	UPROPERTY(EditAnywhere, Category = "Physics")
 		bool bEnableRigBoundRaycasts = false;
 
-	UPROPERTY(EditAnywhere, Category = "RigBoundRaycasts")
+	UPROPERTY(EditAnywhere, Category = "Physics")
 		int32 MaxNumTests = 5;
 
-	UPROPERTY(EditAnywhere, Category = "RigBoundRaycasts")
+	UPROPERTY(EditAnywhere, Category = "Physics")
 		bool bTestDownOnly = false;
 
-	UPROPERTY(EditAnywhere, Category = "RigBoundRaycasts")
+	UPROPERTY(EditAnywhere, Category = "Physics")
 		float TestRange = 0.5f;
+	
+	/** Objects to skip if hit during \c DetectEnvironmentCollisions(). */
+	UPROPERTY(EditAnywhere, Category = "Physics")
+	TArray<TWeakObjectPtr<UPrimitiveComponent>> EnvironmentCollisionsSkipList;
 
-	UPROPERTY(EditAnywhere, Category = "RigBoundRaycasts")
+	UPROPERTY(EditAnywhere, Category = "Physics")
 		TEnumAsByte<ECollisionChannel> CollisionChannel = ECC_WorldStatic;
+};
+
+
+USTRUCT()
+struct FGameplayColllisions
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Physics")
+	FRigBoundRayCasts RigBoundRayCasts;
+
 };
 
 /**
 *	UDeformableGameplayComponent
 */
 UCLASS(meta = (BlueprintSpawnableComponent))
-class CHAOSFLESHENGINE_API UDeformableGameplayComponent : public UFleshComponent
+class CHAOSFLESHENGINE_API UDeformableGameplayComponent : public UDeformableTetrahedralComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -67,12 +82,10 @@ public:
 	void DetectEnvironmentCollisions(const int32 MaxNumTests = 100, const bool bTestDownOnly = true, const float TestRange = 0.0, const ECollisionChannel CollisionChannel = ECollisionChannel::ECC_PhysicsBody);
 
 
-	UPROPERTY(EditAnywhere, Category = "Physics")
-	FRigBoundRayCasts RigBoundRayCasts;
+	UPROPERTY(EditAnywhere, Category = "Physics", DisplayName = "Collisions", meta = (DisplayPriority = 10))
+	FGameplayColllisions GameplayColllisions;
 
-	/** Objects to skip if hit during \c DetectEnvironmentCollisions(). */
-	UPROPERTY(EditAnywhere, Category = "Physics")
-	TArray<TWeakObjectPtr<UPrimitiveComponent>> EnvironmentCollisionsSkipList;
+
 
 private:
 	TSet<int32> EnvCollisionsPreviousHits;

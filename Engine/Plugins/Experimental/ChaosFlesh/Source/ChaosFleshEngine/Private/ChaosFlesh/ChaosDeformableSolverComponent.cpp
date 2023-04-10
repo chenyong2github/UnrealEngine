@@ -43,8 +43,8 @@ UDeformableSolverComponent::~UDeformableSolverComponent()
 #if WITH_EDITOR
 void UDeformableSolverComponent::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	//TSharedPtr<IPropertyHandle> bReplicatePhysicsProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(AFleshActor, bAsyncPhysicsTickEnabled), AActor::StaticClass());
-	//bReplicatePhysicsProperty->MarkHiddenByCustomization();
+	TSharedPtr<IPropertyHandle> ShouldUpdatePhysicsVolumnProperty = DetailBuilder.GetProperty("bShouldUpdatePhysicsVolume", USceneComponent::StaticClass());
+	ShouldUpdatePhysicsVolumnProperty->MarkHiddenByCustomization();
 }
 #endif
 
@@ -55,12 +55,12 @@ void UDeformableSolverComponent::UpdateTickGroup()
 	// see : CacheManagerActor.cpp::348
 	
 	//
-	if (ExecutionModel == EDeformableExecutionModel::Chaos_Deformable_PrePhysics)
+	if (SolverTiming.ExecutionModel == EDeformableExecutionModel::Chaos_Deformable_PrePhysics)
 	{
 		PrimaryComponentTick.TickGroup = TG_PrePhysics;
 		DeformableEndTickFunction.TickGroup = TG_PrePhysics;
 	}
-	else if (ExecutionModel == EDeformableExecutionModel::Chaos_Deformable_PostPhysics)
+	else if (SolverTiming.ExecutionModel == EDeformableExecutionModel::Chaos_Deformable_PostPhysics)
 	{
 		PrimaryComponentTick.TickGroup = TG_PostPhysics;
 		DeformableEndTickFunction.TickGroup = TG_LastDemotable;
@@ -74,7 +74,7 @@ void UDeformableSolverComponent::UpdateTickGroup()
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bTickEvenWhenPaused = false;
 
-	if (bDoThreadedAdvance)
+	if (SolverTiming.bDoThreadedAdvance)
 	{
 		DeformableEndTickFunction.bCanEverTick = true;
 		DeformableEndTickFunction.bStartWithTickEnabled = true;
@@ -116,7 +116,7 @@ void UDeformableSolverComponent::UpdateDeformableEndTickState(bool bRegister)
 	TRACE_CPUPROFILER_EVENT_SCOPE(ChaosDeformable_UDeformableSolverComponent_UpdateDeformableEndTickState);
 
 	bRegister &= PrimaryComponentTick.IsTickFunctionRegistered();
-	if (bDoThreadedAdvance)
+	if (SolverTiming.bDoThreadedAdvance)
 	{
 		if (bRegister != DeformableEndTickFunction.IsTickFunctionRegistered())
 		{
@@ -165,7 +165,7 @@ void UDeformableSolverComponent::TickComponent(float DeltaTime, enum ELevelTick 
 
 		UpdateFromGameThread(DeltaTime);
 
-		if (bDoThreadedAdvance)
+		if (SolverTiming.bDoThreadedAdvance)
 		{
 			// see FParallelClothCompletionTask
 			FGraphEventArray Prerequisites;
@@ -195,27 +195,27 @@ void UDeformableSolverComponent::Reset()
 	if (GChaosEngineDeformableCVarParams.bEnableDeformableSolver)
 	{
 		Solver.Reset(new FDeformableSolver({
-			NumSubSteps
-			, NumSolverIterations
-			, FixTimeStep
-			, TimeStepSize
-			, CacheToFile
-			, bEnableKinematics
-			, bUseFloor
-			, bDoSelfCollision
-			, bUseGridBasedConstraints
-			, GridDx
-			, bDoQuasistatics
-			, YoungModulus
-			, bDoBlended
-			, BlendedZeta
-			, Damping
-			, bEnableGravity
-			, bEnableCorotatedConstraint
-			, bEnablePositionTargets
+			SolverTiming.NumSubSteps
+			, SolverTiming.NumSolverIterations
+			, SolverTiming.FixTimeStep
+			, SolverTiming.TimeStepSize
+			, SolverDebugging.CacheToFile
+			, SolverConstraints.bEnableKinematics
+			, SolverCollisions.bUseFloor
+			, SolverCollisions.bDoSelfCollision
+			, false /*SolverCollisions.SolverGridBasedCollisions.bUseGridBasedConstraints*/
+			, 25. /*SolverCollisions.SolverGridBasedCollisions.GridDx*/
+			, SolverEvolution.SolverQuasistatics.bDoQuasistatics
+			, SolverForces.YoungModulus
+			, SolverConstraints.CorotatedConstraints.bDoBlended
+			, SolverConstraints.CorotatedConstraints.BlendedZeta
+			, SolverForces.Damping
+			, SolverForces.bEnableGravity
+			, SolverConstraints.CorotatedConstraints.bEnableCorotatedConstraint
+			, SolverConstraints.bEnablePositionTargets
 		}));
 
-		for (TObjectPtr<UDeformablePhysicsComponent>& DeformableComponent : DeformableComponents)
+		for (TObjectPtr<UDeformablePhysicsComponent>& DeformableComponent : ConnectedObjects.DeformableComponents)
 		{
 			if( DeformableComponent )
 			{
@@ -266,7 +266,7 @@ void UDeformableSolverComponent::UpdateFromGameThread(float DeltaTime)
 		FDeformableSolver::FGameThreadAccess GameThreadSolver(Solver.Get(), Chaos::Softs::FGameThreadAccessor());
 
 		Chaos::Softs::FDeformableDataMap DataMap;
-		for (TObjectPtr<UDeformablePhysicsComponent>& DeformableComponent : DeformableComponents)
+		for (TObjectPtr<UDeformablePhysicsComponent>& DeformableComponent : ConnectedObjects.DeformableComponents)
 		{
 			if (DeformableComponent)
 			{
@@ -301,7 +301,7 @@ void UDeformableSolverComponent::UpdateFromSimulation(float DeltaTime)
 
 		if (Output)
 		{
-			for (TObjectPtr<UDeformablePhysicsComponent>& DeformableComponent : DeformableComponents)
+			for (TObjectPtr<UDeformablePhysicsComponent>& DeformableComponent : ConnectedObjects.DeformableComponents)
 			{
 				if (DeformableComponent)
 				{

@@ -28,7 +28,7 @@ public:
 	TObjectPtr<UFleshComponent> FleshComponent;
 	UFleshComponent* GetFleshComponent() const { return FleshComponent; }
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics", meta = (DisplayPriority = 1))
 	TObjectPtr<ADeformableSolverActor> PrimarySolver;
 
 #if WITH_EDITOR

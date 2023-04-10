@@ -19,8 +19,8 @@ ADeformableCollisionsActor::ADeformableCollisionsActor(const FObjectInitializer&
 #if WITH_EDITOR
 void ADeformableCollisionsActor::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	//TSharedPtr<IPropertyHandle> bReplicatePhysicsProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(AFleshActor, bAsyncPhysicsTickEnabled), AActor::StaticClass());
-	//bReplicatePhysicsProperty->MarkHiddenByCustomization();
+	TSharedPtr<IPropertyHandle> bReplicatePhysicsProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ADeformableCollisionsActor, bAsyncPhysicsTickEnabled), AActor::StaticClass());
+	bReplicatePhysicsProperty->MarkHiddenByCustomization();
 }
 #endif
 
@@ -86,9 +86,9 @@ void ADeformableCollisionsActor::PostEditChangeProperty(struct FPropertyChangedE
 				if (DeformableCollisionsComponent)
 				{
 					DeformableCollisionsComponent->PrimarySolverComponent = SolverComponent;
-					if (!SolverComponent->DeformableComponents.Contains(DeformableCollisionsComponent))
+					if (!SolverComponent->ConnectedObjects.DeformableComponents.Contains(DeformableCollisionsComponent))
 					{
-						SolverComponent->DeformableComponents.Add(TObjectPtr<UDeformablePhysicsComponent>(DeformableCollisionsComponent));
+						SolverComponent->ConnectedObjects.DeformableComponents.Add(TObjectPtr<UDeformablePhysicsComponent>(DeformableCollisionsComponent));
 					}
 				}
 			}
@@ -100,9 +100,9 @@ void ADeformableCollisionsActor::PostEditChangeProperty(struct FPropertyChangedE
 				if (DeformableCollisionsComponent)
 				{
 					DeformableCollisionsComponent->PrimarySolverComponent = nullptr;
-					if (SolverComponent->DeformableComponents.Contains(DeformableCollisionsComponent))
+					if (SolverComponent->ConnectedObjects.DeformableComponents.Contains(DeformableCollisionsComponent))
 					{
-						SolverComponent->DeformableComponents.Remove(DeformableCollisionsComponent);
+						SolverComponent->ConnectedObjects.DeformableComponents.Remove(DeformableCollisionsComponent);
 					}
 				}
 			}

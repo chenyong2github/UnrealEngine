@@ -16,6 +16,146 @@
 class UDeformablePhysicsComponent;
 class UDeformableCollisionsComponent;
 
+USTRUCT(BlueprintType)
+struct FConnectedObjectsGroup
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ConnectedObjects", meta = (EditCondition = "false"))
+	TArray< TObjectPtr<UDeformablePhysicsComponent> > DeformableComponents;
+};
+
+USTRUCT(BlueprintType)
+struct FSolverTimingGroup
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "SolverTiming")
+		int32 NumSubSteps = 2;
+
+	UPROPERTY(EditAnywhere, Category = "SolverTiming")
+		int32 NumSolverIterations = 5;
+
+	UPROPERTY(EditAnywhere, Category = "SolverTiming")
+		bool FixTimeStep = false;
+
+	UPROPERTY(EditAnywhere, Category = "SolverTiming")
+		float TimeStepSize = 0.05;
+
+	UPROPERTY(EditAnywhere, Category = "SolverTiming")
+		bool bDoThreadedAdvance = true;
+
+	/** ObjectType defines how to initialize the rigid objects state, Kinematic, Sleeping, Dynamic. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "SolverTiming")
+		EDeformableExecutionModel ExecutionModel = EDeformableExecutionModel::Chaos_Deformable_PostPhysics;
+};
+
+
+USTRUCT(BlueprintType)
+struct FSolverDebuggingGroup
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Physics")
+	bool CacheToFile = false;
+};
+
+
+USTRUCT(BlueprintType)
+struct FSolverQuasistaticsGroup
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Quasistatics")
+	bool bDoQuasistatics = false;
+};
+
+
+USTRUCT(BlueprintType)
+struct FSolverEvolutionGroup
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Evolution")
+	FSolverQuasistaticsGroup SolverQuasistatics;
+
+};
+
+
+USTRUCT(BlueprintType)
+struct FSolverGridBasedCollisionsGroup
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "GridBasedCollisions")
+		bool bUseGridBasedConstraints = false;
+
+	UPROPERTY(EditAnywhere, Category = "GridBasedCollisions")
+		float GridDx = 25.;
+};
+
+
+USTRUCT(BlueprintType)
+struct FSolverCollisionsGroup
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Collisions")
+	bool bDoSelfCollision = false;
+
+	UPROPERTY(EditAnywhere, Category = "Physics")
+	bool bUseFloor = true;
+
+	//UPROPERTY(EditAnywhere, Category = "Collisions")
+	//FSolverGridBasedCollisionsGroup SolverGridBasedCollisions;
+};
+
+USTRUCT(BlueprintType)
+struct FSolverCorotatedConstraintsGroup
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Corotated")
+	bool bEnableCorotatedConstraint = true;
+
+	UPROPERTY(EditAnywhere, Category = "Corotated")
+	bool bDoBlended = false;
+
+	UPROPERTY(EditAnywhere, Category = "Corotated")
+	float BlendedZeta = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FSolverConstraintsGroup
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Constraints")
+	bool bEnablePositionTargets = true;
+
+	UPROPERTY(EditAnywhere, Category = "Constraints")
+	bool bEnableKinematics = true;
+
+	UPROPERTY(EditAnywhere, Category = "Constraints")
+	FSolverCorotatedConstraintsGroup CorotatedConstraints;
+};
+
+
+USTRUCT(BlueprintType)
+struct FSolverForcesGroup
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Forces")
+	float YoungModulus = 100000;
+
+	UPROPERTY(EditAnywhere, Category = "Forces")
+	float Damping = 0;
+
+	UPROPERTY(EditAnywhere, Category = "Forces")
+	bool bEnableGravity = true;
+};
+
 /**
 *	UDeformableSolverComponent
 */
@@ -52,76 +192,27 @@ public:
 	//bool ShouldWaitForDeformableInTickFunction() const;
 	void UpdateDeformableEndTickState(bool bRegister);
 
-	/* Properties */
-
+	/* Properties : Do NOT place ungrouped properties in this class */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics", meta = (EditCondition = "false"))
-	TArray< TObjectPtr<UDeformablePhysicsComponent> > DeformableComponents;
+	FConnectedObjectsGroup ConnectedObjects;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics", meta = (EditCondition = "false"))
-	TObjectPtr<UDeformableCollisionsComponent> CollisionComponent;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics")
+	FSolverTimingGroup SolverTiming;
 
-	/** ObjectType defines how to initialize the rigid objects state, Kinematic, Sleeping, Dynamic. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly , Category = "Physics")
-	EDeformableExecutionModel ExecutionModel = EDeformableExecutionModel::Chaos_Deformable_DuringPhysics;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics")
+	FSolverEvolutionGroup SolverEvolution;
 
-	UPROPERTY(EditAnywhere, Category = "Physics")
-		int32 NumSubSteps = 2;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics")
+	FSolverCollisionsGroup SolverCollisions;
 
-	UPROPERTY(EditAnywhere, Category = "Physics")
-		int32 NumSolverIterations = 5;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics")
+	FSolverConstraintsGroup SolverConstraints;
 
-	UPROPERTY(EditAnywhere, Category = "Physics")
-		bool FixTimeStep = false;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics")
+	FSolverForcesGroup SolverForces;
 
-	UPROPERTY(EditAnywhere, Category = "Physics")
-		float TimeStepSize = 0.05;
-
-	UPROPERTY(EditAnywhere, Category = "Physics")
-		bool CacheToFile = false;
-
-	UPROPERTY(EditAnywhere, Category = "Physics")
-		bool bEnableKinematics = true;
-
-	UPROPERTY(EditAnywhere, Category = "Physics")
-		bool bUseFloor = true;
-
-	UPROPERTY(EditAnywhere, Category = "Physics")
-		bool bDoSelfCollision = false;
-
-	UPROPERTY(EditAnywhere, Category = "Physics")
-		bool bDoThreadedAdvance = true;
-
-	UPROPERTY(EditAnywhere, Category = "Physics|Expermental" )
-		bool bUseGridBasedConstraints = false;
-
-	UPROPERTY(EditAnywhere, Category = "Physics")
-		float GridDx = 25.;
-
-	UPROPERTY(EditAnywhere, Category = "Physics")
-		bool bDoQuasistatics = false;
-
-	UPROPERTY(EditAnywhere, Category = "Physics")
-		float YoungModulus = 100000;
-
-	UPROPERTY(EditAnywhere, Category = "Physics")
-		bool bDoBlended = false;
-
-	UPROPERTY(EditAnywhere, Category = "Physics")
-		float BlendedZeta = 0;
-
-	UPROPERTY(EditAnywhere, Category = "Physics")
-		float Damping = 0;
-
-	UPROPERTY(EditAnywhere, Category = "Physics")
-		bool bEnableGravity = true;
-
-	UPROPERTY(EditAnywhere, Category = "Physics")
-		bool bEnableCorotatedConstraint = true;
-
-	UPROPERTY(EditAnywhere, Category = "Physics")
-		bool bEnablePositionTargets = true;
-	//UPROPERTY(EditAnywhere, Category = Chaos)
-	//	bool bWaitForParallelDeformableTask = true;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics")
+	FSolverDebuggingGroup SolverDebugging;
 
 	// Simulation Variables
 	TUniquePtr<FDeformableSolver> Solver;

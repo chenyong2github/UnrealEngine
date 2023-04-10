@@ -49,9 +49,9 @@ UDeformableGameplayComponent::~UDeformableGameplayComponent()
 void UDeformableGameplayComponent::PreSolverUpdate()
 {
 	PERF_SCOPE(STAT_ChaosDeformable_UDeformableGameplayComponent_PreSolverUpdate)
-	if (RigBoundRayCasts.bEnableRigBoundRaycasts)
+	if (GameplayColllisions.RigBoundRayCasts.bEnableRigBoundRaycasts)
 	{
-		DetectEnvironmentCollisions(RigBoundRayCasts.MaxNumTests, RigBoundRayCasts.bTestDownOnly, RigBoundRayCasts.TestRange, RigBoundRayCasts.CollisionChannel.GetValue());
+		DetectEnvironmentCollisions(GameplayColllisions.RigBoundRayCasts.MaxNumTests, GameplayColllisions.RigBoundRayCasts.bTestDownOnly, GameplayColllisions.RigBoundRayCasts.TestRange, GameplayColllisions.RigBoundRayCasts.CollisionChannel.GetValue());
 	}
 }
 
@@ -316,7 +316,7 @@ void UDeformableGameplayComponent::DetectEnvironmentCollisions(const int32 MaxNu
 		{
 			FHitResult& Hit = HitBuffer[i];
 
-			if (EnvironmentCollisionsSkipList.Contains(Hit.Component))
+			if (GameplayColllisions.RigBoundRayCasts.EnvironmentCollisionsSkipList.Contains(Hit.Component))
 			{
 				continue;
 			}

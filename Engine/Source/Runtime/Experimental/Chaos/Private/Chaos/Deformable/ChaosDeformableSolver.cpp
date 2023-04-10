@@ -1430,7 +1430,7 @@ namespace Chaos::Softs
 
 				WriteTrisGEO(Evolution->Particles(), *SurfaceElements);
 				FString file = FPaths::ProjectDir();
-				file.Append(TEXT("/HoudiniOutput/DtLog.txt"));
+				file.Append(TEXT("/DebugOutput/DtLog.txt"));
 				if (Frame == 0)
 				{
 					FFileHelper::SaveStringToFile(FString(TEXT("DeltaTime\r\n")), *file);
@@ -1443,8 +1443,7 @@ namespace Chaos::Softs
 	void FDeformableSolver::WriteTrisGEO(const FSolverParticles& Particles, const TArray<TVec3<int32>>& Mesh)
 	{
 		FString file = FPaths::ProjectDir();
-		//file.Append(TEXT("\HoudiniOuput\Test.geo"));
-		file.Append(TEXT("/HoudiniOutput/sim_frame_"));
+		file.Append(TEXT("/DebugOutput/sim_frame_"));
 		file.Append(FString::FromInt(Frame));
 		file.Append(TEXT(".geo"));
 

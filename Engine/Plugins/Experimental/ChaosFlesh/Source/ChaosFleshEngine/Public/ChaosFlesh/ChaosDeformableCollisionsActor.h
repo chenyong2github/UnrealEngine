@@ -29,10 +29,10 @@ public:
 	TObjectPtr<UDeformableCollisionsComponent> DeformableCollisionsComponent;
 	UDeformableCollisionsComponent* GetCollisionsComponent() const { return DeformableCollisionsComponent; }
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics", meta = (DisplayPriority = 1))
 	TObjectPtr<ADeformableSolverActor> PrimarySolver;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics", meta = (DisplayPriority = 2))
 	TArray<TObjectPtr<AStaticMeshActor>> StaticCollisions;
 
 #if WITH_EDITOR
