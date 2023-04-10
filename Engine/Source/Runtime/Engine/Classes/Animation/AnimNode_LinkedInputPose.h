@@ -45,6 +45,10 @@ struct ENGINE_API FAnimNode_LinkedInputPose : public FAnimNode_Base
 	FBlendedHeapCurve CachedInputCurve;
 	UE::Anim::FHeapAttributeContainer CachedAttributes;
 
+	// CachedInputPose can have bone data allocated but uninitialized.
+	// This can happen if an anim graph has an Input Pose node with nothing populating it (e.g. if it's played as the only animbp on an actor).
+	bool bIsCachedInputPoseInitialized = false;
+
 	// The node index of the currently-linked outer node
 	int32 OuterGraphNodeIndex;
 

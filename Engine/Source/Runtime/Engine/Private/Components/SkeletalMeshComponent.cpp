@@ -989,6 +989,9 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit, boo
 				if(FAnimNode_LinkedInputPose* InputNode = PostProcessAnimInstance->GetLinkedInputPoseNode())
 				{
 					InputNode->CachedInputPose.SetBoneContainer(&PostProcessAnimInstance->GetRequiredBones());
+
+					// SetBoneContainer allocates space for bone data but leaves it uninitalized.
+					InputNode->bIsCachedInputPoseInitialized = false;
 				}
 
 				bInitializedPostInstance = true;
@@ -2201,12 +2204,14 @@ void USkeletalMeshComponent::EvaluatePostProcessMeshInstance(TArray<FTransform>&
 				InputNode->CachedInputPose.CopyBonesFrom(InOutPose);
 				InputNode->CachedInputCurve.CopyFrom(OutCurve);
 				InputNode->CachedAttributes.CopyFrom(OutAttributes);
+				InputNode->bIsCachedInputPoseInitialized = true;
 			}
 			else
 			{
 				const FBoneContainer& RequiredBone = PostProcessAnimInstance->GetRequiredBonesOnAnyThread();
 				InputNode->CachedInputPose.ResetToRefPose(RequiredBone);
 				InputNode->CachedInputCurve.InitFrom(RequiredBone);
+				InputNode->bIsCachedInputPoseInitialized = true;
 			}
 		}
 

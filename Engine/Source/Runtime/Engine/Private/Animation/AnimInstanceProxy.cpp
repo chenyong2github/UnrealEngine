@@ -1126,6 +1126,9 @@ void FAnimInstanceProxy::RecalcRequiredBones(USkeletalMeshComponent* Component, 
 	if(DefaultLinkedInstanceInputNode)
 	{
 		DefaultLinkedInstanceInputNode->CachedInputPose.SetBoneContainer(&RequiredBones);
+		
+		// SetBoneContainer allocates space for bone data but leaves it uninitalized.
+		DefaultLinkedInstanceInputNode->bIsCachedInputPoseInitialized = false;
 	}
 
 	// When RequiredBones mapping has changed, AnimNodes need to update their bones caches. 
