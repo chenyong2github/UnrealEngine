@@ -531,11 +531,11 @@ RENDERCORE_API bool SupportsTextureCubeArray(ERHIFeatureLevel::Type FeatureLevel
 
 RENDERCORE_API bool MaskedInEarlyPass(const FStaticShaderPlatform Platform)
 {
-	static IConsoleVariable* CVarMobileEarlyZPassOnlyMaterialMasking = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.EarlyZPassOnlyMaterialMasking"));
+	static FShaderPlatformCachedIniValue<bool> CVarMobileEarlyZPassOnlyMaterialMasking(TEXT("r.Mobile.EarlyZPassOnlyMaterialMasking"));
 	static IConsoleVariable* CVarEarlyZPassOnlyMaterialMasking = IConsoleManager::Get().FindConsoleVariable(TEXT("r.EarlyZPassOnlyMaterialMasking"));
 	if (IsMobilePlatform(Platform))
 	{
-		return (CVarMobileEarlyZPassOnlyMaterialMasking && CVarMobileEarlyZPassOnlyMaterialMasking->GetInt() != 0);
+		return CVarMobileEarlyZPassOnlyMaterialMasking.Get(Platform) == 1;
 	}
 	else
 	{

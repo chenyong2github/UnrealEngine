@@ -4722,7 +4722,7 @@ void FScene::GetEarlyZPassMode(ERHIFeatureLevel::Type InFeatureLevel, EDepthDraw
 	{
 		OutZPassMode = DDM_None;
 				 
-		static const bool bMaskedInEarlyPass = MaskedInEarlyPass(ShaderPlatform);
+		const bool bMaskedInEarlyPass = MaskedInEarlyPass(ShaderPlatform);
 		if (bMaskedInEarlyPass)
 		{
 			OutZPassMode = DDM_MaskedOnly;
