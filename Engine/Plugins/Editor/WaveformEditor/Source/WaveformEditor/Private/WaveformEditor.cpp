@@ -686,13 +686,13 @@ void FWaveformEditor::HandleRenderDataUpdate()
 	if (TransportCoordinator != nullptr)
 	{
 		TransportCoordinator->UpdatePlaybackRange(WaveformView.DataProvider->GetTransformedWaveformBounds());
-		WaveformView.DataProvider->RequestSequenceView(TRange<double>::Inclusive(TransportCoordinator->GetDisplayRange().GetLowerBoundValue(), TransportCoordinator->GetDisplayRange().GetUpperBoundValue()));
+		WaveformView.DataProvider->RequestSequenceView(TransportCoordinator->GetDisplayRange());
 	}
 }
 
-void FWaveformEditor::HandleDisplayRangeUpdate(const TRange<float> NewRange)
+void FWaveformEditor::HandleDisplayRangeUpdate(const TRange<double> NewRange)
 {
-	WaveformView.DataProvider->RequestSequenceView(TRange<double>::Inclusive(NewRange.GetLowerBoundValue(), NewRange.GetUpperBoundValue()));
+	WaveformView.DataProvider->RequestSequenceView(NewRange);
 }
 
 void FWaveformEditor::HandlePlayheadScrub(const float InTargetPlayBackRatio, const bool bIsMoving)

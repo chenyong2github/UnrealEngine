@@ -91,7 +91,7 @@ void SWaveformTransformationsOverlay::UpdateLayerConstraints()
 	UpdateAnchors();
 }
 
-void SWaveformTransformationsOverlay::OnNewWaveformDisplayRange(const TRange<float> NewDisplayRange)
+void SWaveformTransformationsOverlay::OnNewWaveformDisplayRange(const TRange<double> NewDisplayRange)
 {
 	UpdateAnchors();
 }

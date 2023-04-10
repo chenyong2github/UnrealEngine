@@ -25,7 +25,7 @@ Zoom is defined as a ratio = displayed length / total length
 
 */
 
-void FSparseSampledSequenceTransportCoordinator::UpdatePlaybackRange(const TRange<float>& NewRange)
+void FSparseSampledSequenceTransportCoordinator::UpdatePlaybackRange(const TRange<double>& NewRange)
 {
 	ProgressRange = NewRange;
 }
@@ -45,12 +45,12 @@ float FSparseSampledSequenceTransportCoordinator::ConvertZoomedRatioToAbsolute(c
 	return InZoomedRatio * ZoomRatio + DisplayRange.GetLowerBoundValue();
 }
 
-const TRange<float> FSparseSampledSequenceTransportCoordinator::GetDisplayRange() const
+const TRange<double> FSparseSampledSequenceTransportCoordinator::GetDisplayRange() const
 {
 	return DisplayRange;
 }
 
-void FSparseSampledSequenceTransportCoordinator::MoveFocusPoint(const float InFocusPoint)
+void FSparseSampledSequenceTransportCoordinator::MoveFocusPoint(const double InFocusPoint)
 {
 	FocusPoint = InFocusPoint;
 	OnFocusPointMoved.Broadcast(FocusPoint);
@@ -61,35 +61,35 @@ void FSparseSampledSequenceTransportCoordinator::UpdateZoomRatioAndDisplayRange(
 	const float ClampedZoomRatio = FMath::Clamp(NewZoomRatio, UE_KINDA_SMALL_NUMBER, 1.f);
 	const float ZoomRatioDelta = ZoomRatio - ClampedZoomRatio;
 
- 	const float DeltaOutsideBoundaries = DisplayRange.GetUpperBoundValue() - (DisplayRange.GetUpperBoundValue() - ZoomRatioDelta);
+ 	const double DeltaOutsideBoundaries = DisplayRange.GetUpperBoundValue() - (DisplayRange.GetUpperBoundValue() - ZoomRatioDelta);
 
-	const float DeltaStepL = DeltaOutsideBoundaries * FocusPoint;
-	const float DeltaStepR = DeltaOutsideBoundaries * (1.f - FocusPoint);
+	const double DeltaStepL = DeltaOutsideBoundaries * FocusPoint;
+	const double DeltaStepR = DeltaOutsideBoundaries * (1.f - FocusPoint);
 
-	float MinDisplayRangeValue = DeltaStepL + DisplayRange.GetLowerBoundValue();
-	float MaxDisplayRangeValue = DisplayRange.GetUpperBoundValue() - DeltaStepR;
+	double MinDisplayRangeValue = DeltaStepL + DisplayRange.GetLowerBoundValue();
+	double MaxDisplayRangeValue = DisplayRange.GetUpperBoundValue() - DeltaStepR;
 
-	const float CurrentPlaybackPosition = (ZoomRatio * FocusPoint) + DisplayRange.GetLowerBoundValue();
+	const double CurrentPlaybackPosition = (ZoomRatio * FocusPoint) + DisplayRange.GetLowerBoundValue();
 
 	//if Min < 0 or Max > 1 we can't zoom out further on that side
 
 	//hence we shift the zooming entirely on the opposite side
 	if (MinDisplayRangeValue < 0.f)
 	{
-		const float ExceedingDelta = FMath::Abs(MinDisplayRangeValue);
+		const double ExceedingDelta = FMath::Abs(MinDisplayRangeValue);
 		MaxDisplayRangeValue = MaxDisplayRangeValue + ExceedingDelta;
 		MinDisplayRangeValue = 0.f;
 	}
 
 	else if (MaxDisplayRangeValue > 1.f)
 	{
-		const float ExceedingDelta = MaxDisplayRangeValue - 1.f;
+		const double ExceedingDelta = MaxDisplayRangeValue - 1.f;
 
 		MinDisplayRangeValue = MinDisplayRangeValue - ExceedingDelta;
 		MaxDisplayRangeValue = 1.f;
 	}
 
-	const float NewPlayheadPosition = (CurrentPlaybackPosition - MinDisplayRangeValue) / ClampedZoomRatio;
+	const double NewPlayheadPosition = (CurrentPlaybackPosition - MinDisplayRangeValue) / ClampedZoomRatio;
 
 	ZoomRatio = ClampedZoomRatio;
 	UpdateDisplayRange(MinDisplayRangeValue, MaxDisplayRangeValue);
@@ -163,10 +163,10 @@ void FSparseSampledSequenceTransportCoordinator::SetProgressRatio(const float Ne
 
 	check(NewRatio >= 0.f && NewRatio <= 1.f);
 
-	const float PlaybackRangeScale = ProgressRange.Size<float>();
-	const float ScaledPlaybackRatio = NewRatio * PlaybackRangeScale + ProgressRange.GetLowerBoundValue();
+	const double PlaybackRangeScale = ProgressRange.Size<double>();
+	const double ScaledPlaybackRatio = NewRatio * PlaybackRangeScale + ProgressRange.GetLowerBoundValue();
 
-	const float NewPlayheadPosition = (ScaledPlaybackRatio - DisplayRange.GetLowerBoundValue()) / ZoomRatio;
+	const double NewPlayheadPosition = (ScaledPlaybackRatio - DisplayRange.GetLowerBoundValue()) / ZoomRatio;
 
 	MoveFocusPoint(NewPlayheadPosition);
 
@@ -182,10 +182,10 @@ void FSparseSampledSequenceTransportCoordinator::SetProgressRatio(const float Ne
 	else if (FocusPoint >= FocusPointLockPosition)
 	{
 
-		const float NewDisplayUpBound = FMath::Clamp(ScaledPlaybackRatio + (ZoomRatio * (1.f - FocusPointLockPosition)), 0.f, 1.f);
-		float NewDisplayLowBound = NewDisplayUpBound < 1.f ? ScaledPlaybackRatio - (ZoomRatio * FocusPointLockPosition) : 1.f - ZoomRatio;
+		const double NewDisplayUpBound = FMath::Clamp(ScaledPlaybackRatio + (ZoomRatio * (1.f - FocusPointLockPosition)), 0.f, 1.f);
+		double NewDisplayLowBound = NewDisplayUpBound < 1.f ? ScaledPlaybackRatio - (ZoomRatio * FocusPointLockPosition) : 1.f - ZoomRatio;
 
-		NewDisplayLowBound = FMath::Clamp(NewDisplayLowBound, 0.f, 1.f);
+		NewDisplayLowBound = FMath::Clamp(NewDisplayLowBound, 0, 1);
 
 		if (NewDisplayUpBound < 1.f)
 		{
@@ -204,7 +204,7 @@ void FSparseSampledSequenceTransportCoordinator::SetZoomRatio(const float NewLev
 	UpdateZoomRatioAndDisplayRange(NewLevel);
 }
 
-void FSparseSampledSequenceTransportCoordinator::UpdateDisplayRange(const float MinValue, const float MaxValue)
+void FSparseSampledSequenceTransportCoordinator::UpdateDisplayRange(const double MinValue, const double MaxValue)
 {
 	check(MinValue < MaxValue);
 
@@ -217,15 +217,15 @@ void FSparseSampledSequenceTransportCoordinator::UpdateDisplayRange(const float 
 	}
 }
 
-bool FSparseSampledSequenceTransportCoordinator::IsRatioWithinDisplayRange(const float Ratio) const
+bool FSparseSampledSequenceTransportCoordinator::IsRatioWithinDisplayRange(const double Ratio) const
 {
 	return DisplayRange.Contains(Ratio);
 }
 
-float FSparseSampledSequenceTransportCoordinator::GetPlayBackRatioFromFocusPoint(const float InFocusPoint) const
+double FSparseSampledSequenceTransportCoordinator::GetPlayBackRatioFromFocusPoint(const double InFocusPoint) const
 {
 	check(InFocusPoint >= 0.f && InFocusPoint <= 1.f);
 
-	const float PlayBackRatio = ((InFocusPoint * ZoomRatio) + DisplayRange.GetLowerBoundValue() - ProgressRange.GetLowerBoundValue()) / ProgressRange.Size<float>();
+	const double PlayBackRatio = ((InFocusPoint * ZoomRatio) + DisplayRange.GetLowerBoundValue() - ProgressRange.GetLowerBoundValue()) / ProgressRange.Size<float>();
 	return PlayBackRatio;
 }

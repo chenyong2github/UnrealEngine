@@ -70,7 +70,7 @@ public:
 
 	TArrayView<const FTransformationRenderLayerInfo> GetTransformLayers() const;
 
-	const TRange<float> GetTransformedWaveformBounds() const;
+	const TRange<double> GetTransformedWaveformBounds() const;
 
 	/** Called when a new layer chain of transformations UI is created */
 	FOnLayersChainGenerated OnLayersChainGenerated;
@@ -84,7 +84,7 @@ public:
 private:
 	void GenerateSequenceDataInternal();
 
-	void UpdateTransformedWaveformBounds(const uint32 FirstEditedSample, const uint32 LastEditedSample, const float NumOriginalSamples);
+	void UpdateTransformedWaveformBounds(const uint32 FirstEditedSample, const uint32 LastEditedSample, const uint32 NumOriginalSamples);
 
 	void CreateDurationHighlightLayer();
 
@@ -111,5 +111,5 @@ private:
 	uint32 NumOriginalWaveformFrames = 0;
 
 	/* The bounds of the transformed waveform in relation to the original */
-	TRange<float> TransformedWaveformBounds = TRange<float>::Inclusive(0.f, 1.f);
+	TRange<double> TransformedWaveformBounds = TRange<double>::Inclusive(0, 1);
 };

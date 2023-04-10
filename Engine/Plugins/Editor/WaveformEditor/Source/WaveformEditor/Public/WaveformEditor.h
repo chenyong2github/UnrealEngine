@@ -75,7 +75,7 @@ private:
 
 	/* Delegates Handlers*/
 	void HandleRenderDataUpdate();
-	void HandleDisplayRangeUpdate(const TRange<float>);
+	void HandleDisplayRangeUpdate(const TRange<double>);
 
 	/** FGCObject overrides */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;

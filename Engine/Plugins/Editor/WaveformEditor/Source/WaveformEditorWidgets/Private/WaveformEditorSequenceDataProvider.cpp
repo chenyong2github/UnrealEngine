@@ -195,10 +195,10 @@ void FWaveformEditorSequenceDataProvider::GenerateSequenceDataInternal()
 	}
 }
 
-void FWaveformEditorSequenceDataProvider::UpdateTransformedWaveformBounds(const uint32 FirstEditedSample, const uint32 LastEditedSample, const float NumOriginalSamples)
+void FWaveformEditorSequenceDataProvider::UpdateTransformedWaveformBounds(const uint32 FirstEditedSample, const uint32 LastEditedSample, const uint32 NumOriginalSamples)
 {
-	const float FirstEditedSampleOffset = FirstEditedSample / NumOriginalSamples;
-	const float LastEditedSampleOffset = (NumOriginalSamples - LastEditedSample) / NumOriginalSamples;
+	const double FirstEditedSampleOffset = FirstEditedSample / (double) NumOriginalSamples;
+	const double LastEditedSampleOffset = (NumOriginalSamples - LastEditedSample) / (double) NumOriginalSamples;
 
 	TransformedWaveformBounds.SetLowerBoundValue(FirstEditedSampleOffset);
 	TransformedWaveformBounds.SetUpperBoundValue(1 - LastEditedSampleOffset);
@@ -233,7 +233,7 @@ TArrayView<const FTransformationRenderLayerInfo> FWaveformEditorSequenceDataProv
 	return MakeArrayView(RenderLayers.GetData(), RenderLayers.Num());
 }
 
-const TRange<float> FWaveformEditorSequenceDataProvider::GetTransformedWaveformBounds() const
+const TRange<double> FWaveformEditorSequenceDataProvider::GetTransformedWaveformBounds() const
 {
 	return TransformedWaveformBounds;
 }

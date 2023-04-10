@@ -5,7 +5,7 @@
 #include "Delegates/Delegate.h"
 #include "ISparseSampledSequenceTransportCoordinator.h"
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnDisplayRangeUpdated, const TRange<float> /* New Display Range */);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnDisplayRangeUpdated, const TRange<double> /* New Display Range */);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnFocusPointMoved, const float /* New Position */);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnFocusPointScrubUpdate, const float /* Focused Playback Ratio */, const bool /*Playhead is Moving*/);
 
@@ -25,7 +25,7 @@ public:
 	FOnDisplayRangeUpdated OnDisplayRangeUpdated;
 
 	/** ISparseSampledSequenceTransportCoordinator interface */
-	const TRange<float> GetDisplayRange() const;
+	const TRange<double> GetDisplayRange() const;
 	const float GetFocusPoint() const override;
 	void ScrubFocusPoint(const float InTargetFocusPoint, const bool bIsMoving) override;
 	const bool IsScrubbing() const;
@@ -33,26 +33,27 @@ public:
 	void SetZoomRatio(const float NewRatio) override;
 	float ConvertAbsoluteRatioToZoomed(const float InAbsoluteRatio) const override;
 	float ConvertZoomedRatioToAbsolute(const float InZoomedRatio) const override;
-	void UpdatePlaybackRange(const TRange<float>& NewRange);
+	void UpdatePlaybackRange(const TRange<double>& NewRange);
 	void Stop();
 
 private:
-	FORCEINLINE void MoveFocusPoint(const float InFocusPoint);
+	FORCEINLINE void MoveFocusPoint(const double InFocusPoint);
 	void UpdateZoomRatioAndDisplayRange(const float NewZoomRatio);
-	void UpdateDisplayRange(const float MinValue, const float MaxValue);
-	bool IsRatioWithinDisplayRange(const float Ratio) const;
-	float GetPlayBackRatioFromFocusPoint(const float InFocusPoint) const;
 
-	float CurrentPlaybackRatio = 0.f;
-	float FocusPointLockPosition = 0.95f;
-	float FocusPoint = 0.f;
+	void UpdateDisplayRange(const double MinValue, const double MaxValue);
+	bool IsRatioWithinDisplayRange(const double Ratio) const;
+	double GetPlayBackRatioFromFocusPoint(const double InFocusPoint) const;
+
+	double CurrentPlaybackRatio = 0.f;
+	double FocusPointLockPosition = 0.95f;
+	double FocusPoint = 0;
 	float ZoomRatio = 1.f;
 
 	/* The currently displayed render data range */
-	TRange<float> DisplayRange = TRange<float>::Inclusive(0.f, 1.f);
+	TRange<double> DisplayRange = TRange<double>::Inclusive(0, 1);
 
 	/* Progress range to scale the incoming progress ratio with*/
-	TRange<float> ProgressRange = TRange<float>::Inclusive(0.f, 1.f);
+	TRange<double> ProgressRange = TRange<double>::Inclusive(0, 1);
 
 	bool bIsScrubbing = false;
 };
