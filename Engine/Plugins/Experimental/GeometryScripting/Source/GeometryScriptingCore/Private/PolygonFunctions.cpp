@@ -4,6 +4,7 @@
 
 #include "Curve/GeneralPolygon2.h"
 #include "Curve/PolygonIntersectionUtils.h"
+#include "Curve/PolygonOffsetUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PolygonFunctions)
 
@@ -479,5 +480,161 @@ FGeometryScriptGeneralPolygonList UGeometryScriptLibrary_PolygonListFunctions::P
 	return PolygonListResult;
 }
 
+namespace
+{
+	// Helper to convert the polygon/polypath join types from the GeometryScript enum to the corresponding GeometryAlgorithms enum
+	static UE::Geometry::EPolygonOffsetJoinType ConvertJoinTypeEnum(EGeometryScriptPolyOffsetJoinType GeometryScriptJoinType)
+	{
+		using namespace UE::Geometry;
+		switch (GeometryScriptJoinType)
+		{
+		case EGeometryScriptPolyOffsetJoinType::Square:
+			return EPolygonOffsetJoinType::Square;
+		case EGeometryScriptPolyOffsetJoinType::Round:
+			return EPolygonOffsetJoinType::Round;
+		case EGeometryScriptPolyOffsetJoinType::Miter:
+			return EPolygonOffsetJoinType::Miter;
+		default:
+			checkNoEntry();
+		}
+		return EPolygonOffsetJoinType::Square;
+	}
+
+	// Helper to convert the open-path end types from the GeometryScript enum to the corresponding GeometryAlgorithms enum
+	static UE::Geometry::EPolygonOffsetEndType ConvertEndTypeEnum(EGeometryScriptPathOffsetEndType GeometryScriptEndType)
+	{
+		using namespace UE::Geometry;
+		switch (GeometryScriptEndType)
+		{
+		case EGeometryScriptPathOffsetEndType::Butt:
+			return EPolygonOffsetEndType::Butt;
+		case EGeometryScriptPathOffsetEndType::Square:
+			return EPolygonOffsetEndType::Square;
+		case EGeometryScriptPathOffsetEndType::Round:
+			return EPolygonOffsetEndType::Round;
+		default:
+			checkNoEntry();
+		}
+		return EPolygonOffsetEndType::Square;
+	}
+}
+
+FGeometryScriptGeneralPolygonList UGeometryScriptLibrary_PolygonListFunctions::PolygonsOffset(
+	FGeometryScriptGeneralPolygonList PolygonList, FGeometryScriptPolygonOffsetOptions OffsetOptions, double Offset, bool& bOperationSuccess, bool bCopyInputOnFailure)
+{
+	using namespace UE::Geometry;
+	FGeometryScriptGeneralPolygonList PolygonListResult;
+	PolygonListResult.Reset();
+	if (!PolygonList.Polygons)
+	{
+		return PolygonListResult;
+	}
+	bOperationSuccess = UE::Geometry::PolygonsOffset(
+		Offset, *PolygonList.Polygons, *PolygonListResult.Polygons, bCopyInputOnFailure, OffsetOptions.MiterLimit,
+		ConvertJoinTypeEnum(OffsetOptions.JoinType),
+		OffsetOptions.bOffsetBothSides ? EPolygonOffsetEndType::Joined : EPolygonOffsetEndType::Polygon,
+		OffsetOptions.MaximumStepsPerRadian, OffsetOptions.StepsPerRadianScale);
+	return PolygonListResult;
+}
+
+FGeometryScriptGeneralPolygonList UGeometryScriptLibrary_PolygonListFunctions::PolygonsOffsets(
+	FGeometryScriptGeneralPolygonList PolygonList, FGeometryScriptPolygonOffsetOptions OffsetOptions, double FirstOffset, double SecondOffset, bool& bOperationSuccess, bool bCopyInputOnFailure)
+{
+	using namespace UE::Geometry;
+	FGeometryScriptGeneralPolygonList PolygonListResult;
+	PolygonListResult.Reset();
+	if (!PolygonList.Polygons)
+	{
+		return PolygonListResult;
+	}
+	bOperationSuccess = UE::Geometry::PolygonsOffsets(
+		FirstOffset, SecondOffset, *PolygonList.Polygons, *PolygonListResult.Polygons, bCopyInputOnFailure, OffsetOptions.MiterLimit,
+		ConvertJoinTypeEnum(OffsetOptions.JoinType),
+		OffsetOptions.bOffsetBothSides ? EPolygonOffsetEndType::Joined : EPolygonOffsetEndType::Polygon,
+		OffsetOptions.MaximumStepsPerRadian, OffsetOptions.StepsPerRadianScale);
+	return PolygonListResult;
+}
+
+FGeometryScriptGeneralPolygonList UGeometryScriptLibrary_PolygonListFunctions::PolygonsMorphologyOpen(FGeometryScriptGeneralPolygonList PolygonList, FGeometryScriptPolygonOffsetOptions OffsetOptions,
+	double Offset, bool& bOperationSuccess, bool bCopyInputOnFailure)
+{
+	if (OffsetOptions.bOffsetBothSides)
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("The polygons Morphology Open operation was called with 'Offset Both Sides' enabled; this is likely not intended."));
+	}
+	return PolygonsOffsets(PolygonList, OffsetOptions, -Offset, +Offset, bOperationSuccess, bCopyInputOnFailure);
+}
+
+FGeometryScriptGeneralPolygonList UGeometryScriptLibrary_PolygonListFunctions::PolygonsMorphologyClose(FGeometryScriptGeneralPolygonList PolygonList, FGeometryScriptPolygonOffsetOptions OffsetOptions,
+	double Offset, bool& bOperationSuccess, bool bCopyInputOnFailure)
+{
+	if (OffsetOptions.bOffsetBothSides)
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("The polygons Morphology Close operation was called with 'Offset Both Sides' enabled; this is likely not intended."));
+	}
+	return PolygonsOffsets(PolygonList, OffsetOptions, +Offset, -Offset, bOperationSuccess, bCopyInputOnFailure);
+}
+
+FGeometryScriptGeneralPolygonList UGeometryScriptLibrary_PolygonListFunctions::CreatePolygonsFromPathOffset(TArray<FVector2D> Path, FGeometryScriptOpenPathOffsetOptions OffsetOptions,
+	double Offset, bool& bOperationSuccess, bool bCopyInputOnFailure)
+{
+	using namespace UE::Geometry;
+	FOffsetPolygon2d PolygonOffset;
+	PolygonOffset.EndType = ConvertEndTypeEnum(OffsetOptions.EndType);
+	PolygonOffset.JoinType = ConvertJoinTypeEnum(OffsetOptions.JoinType);
+	PolygonOffset.MiterLimit = OffsetOptions.MiterLimit;
+	PolygonOffset.MaxStepsPerRadian = OffsetOptions.MaximumStepsPerRadian;
+	PolygonOffset.DefaultStepsPerRadianScale = OffsetOptions.StepsPerRadianScale;
+	PolygonOffset.Offset = Offset;
+	PolygonOffset.Polygons.Add(TArrayView<FVector2D>(Path.GetData(), Path.Num()));
+	PolygonOffset.ComputeResult();
+	FGeometryScriptGeneralPolygonList PolygonListResult;
+	PolygonListResult.Reset();
+	*PolygonListResult.Polygons = MoveTemp(PolygonOffset.Result);
+	return PolygonListResult;
+}
+
+FGeometryScriptGeneralPolygonList UGeometryScriptLibrary_PolygonListFunctions::CreatePolygonsFromOpenPolyPathsOffset(TArray<FGeometryScriptPolyPath> PolyPaths, FGeometryScriptOpenPathOffsetOptions OffsetOptions,
+	double Offset, bool& bOperationSuccess, bool bCopyInputOnFailure)
+{
+	using namespace UE::Geometry;
+	FOffsetPolygon2d PolygonOffset;
+	PolygonOffset.EndType = ConvertEndTypeEnum(OffsetOptions.EndType);
+	PolygonOffset.JoinType = ConvertJoinTypeEnum(OffsetOptions.JoinType);
+	PolygonOffset.MiterLimit = OffsetOptions.MiterLimit;
+	PolygonOffset.MaxStepsPerRadian = OffsetOptions.MaximumStepsPerRadian;
+	PolygonOffset.DefaultStepsPerRadianScale = OffsetOptions.StepsPerRadianScale;
+
+	PolygonOffset.Offset = Offset;
+	// Convert PolyPath's FVector paths to FVector2D, and pass to PolygonOffset
+	TArray<FVector2D> AllPathPts;
+	TArray<int32> PathLens;
+	PathLens.Reserve(PolyPaths.Num());
+	for (int32 Idx = 0; Idx < PolyPaths.Num(); ++Idx)
+	{
+		const TSharedPtr<TArray<FVector>>& Path = PolyPaths[Idx].Path;
+		if (Path.IsValid() && !Path->IsEmpty())
+		{
+			int32 PathLen = Path->Num();
+			int32 Start = AllPathPts.Num();
+			for (int32 PathIdx = 0; PathIdx < PathLen; ++PathIdx)
+			{
+				const FVector& Pt = (*Path)[PathIdx];
+				AllPathPts.Emplace(Pt.X, Pt.Y);
+			}
+			PathLens.Add(PathLen);
+		}
+	}
+	PolygonOffset.Polygons.Reserve(PathLens.Num());
+	for (int32 Idx = 0, PathPtIdx = 0; Idx < PathLens.Num(); PathPtIdx += PathLens[Idx++])
+	{
+		PolygonOffset.Polygons.Add(TArrayView<FVector2D>(AllPathPts.GetData() + PathPtIdx, PathLens[Idx]));
+	}
+	PolygonOffset.ComputeResult();
+	FGeometryScriptGeneralPolygonList PolygonListResult;
+	PolygonListResult.Reset();
+	*PolygonListResult.Polygons = MoveTemp(PolygonOffset.Result);
+	return PolygonListResult;
+}
 
 #undef LOCTEXT_NAMESPACE

@@ -93,6 +93,16 @@ inline bool IsClosedPath(EndType et)
 // ClipperOffset methods
 //------------------------------------------------------------------------------
 
+// @UE BEGIN
+// additional controls over the number of steps for Round Joins
+void ClipperOffset::SetRoundScaleFactors(double InputRangeIntRangeRatio, double InStepsPerRadScaleFactor, double InMaxStepsPerRadian)
+{
+	BoundsScaleFactor = InputRangeIntRangeRatio;
+	CustomStepsPerRadScaleFactor = FMath::Max(InStepsPerRadScaleFactor, 1e-8);
+	MaxStepsPerRadian = InMaxStepsPerRadian > 0 ? FMath::Min(InMaxStepsPerRadian, StepsPerRadianHardLimit) : StepsPerRadianHardLimit;
+}
+// @UE END
+
 void ClipperOffset::AddPath(const Path64& path, JoinType jt_, EndType et_)
 {
 	Paths64 paths;
@@ -258,7 +268,10 @@ void ClipperOffset::DoRound(Group& group, const Path64& path, size_t j, size_t k
 	// explicit casts
 	group.path_.push_back(Point64(pt.x + static_cast<int64>(pt2.x), pt.y + static_cast<int64>(pt2.y)));
 	// @UE END
-	for (int i = 0; i < steps; i++)
+	// @UE BEGIN
+	// note: start at 1 to take one fewer step here
+	for (int i = 1; i < steps; i++)
+	// @UE END
 	{
 		pt2 = PointD(pt2.x * step_cos - step_sin * pt2.y,
 			pt2.x * step_sin + pt2.y * step_cos);
@@ -347,11 +360,9 @@ void ClipperOffset::OffsetOpenPath(Group& group, Path64& path, EndType end_type)
 		// @UE BEGIN
 		// explicit casts
 		group.path_.push_back(Point64(
-			static_cast<int64>(static_cast<double>(path[0].x) + norms[0].x * group_delta_),
-			static_cast<int64>(static_cast<double>(path[0].y) + norms[0].y * group_delta_)));
-		group.path_.push_back(Point64(
 			static_cast<int64>(static_cast<double>(path[0].x) - norms[0].x * group_delta_),
 			static_cast<int64>(static_cast<double>(path[0].y) - norms[0].y * group_delta_)));
+		group.path_.push_back(GetPerpendic(path[0], norms[0], group_delta_));
 		// @UE END
 		break;
 	case EndType::Round:
@@ -380,11 +391,9 @@ void ClipperOffset::OffsetOpenPath(Group& group, Path64& path, EndType end_type)
 		// @UE BEGIN
 		// explicit casts
 		group.path_.push_back(Point64(
-			static_cast<int64>(static_cast<double>(path[highI].x) + norms[1].x * group_delta_),
-			static_cast<int64>(static_cast<double>(path[highI].y) + norms[1].y * group_delta_)));
-		group.path_.push_back(Point64(
-			static_cast<int64>(static_cast<double>(path[highI].x) - norms[1].x * group_delta_),
-			static_cast<int64>(static_cast<double>(path[highI].y) - norms[1].y * group_delta_)));
+			static_cast<int64>(static_cast<double>(path[highI].x) - norms[highI].x * group_delta_),
+			static_cast<int64>(static_cast<double>(path[highI].y) - norms[highI].y * group_delta_)));
+		group.path_.push_back(GetPerpendic(path[highI], norms[highI], group_delta_));
 		// @UE END
 		break;
 	case EndType::Round:
@@ -427,16 +436,23 @@ void ClipperOffset::DoGroupOffset(Group& group, double delta)
 	abs_group_delta_ = std::abs(group_delta_);
 	join_type_ = group.join_type_;
 
-	double arcTol = (arc_tolerance_ > floating_point_tolerance ? arc_tolerance_
-		: std::log10(2 + abs_group_delta_) * default_arc_tolerance); // empirically derived
-
 	//calculate a sensible number of steps (for 360 deg for the given offset
 	if (group.join_type_ == JoinType::Round || group.end_type_ == EndType::Round)
 	{
-		steps_per_rad_ = PI / std::acos(1 - arcTol / abs_group_delta_) / (PI *2);
 		// @UE BEGIN
-		// default calculation above results in far too many vertices
-		steps_per_rad_ /= StepsPerRadianDivisor;
+		// use a scaled delta here to account for the coordinate rescaling we do
+		double ScaledAbsGroupDelta = abs_group_delta_ * BoundsScaleFactor;
+		double arcTol = (arc_tolerance_ > floating_point_tolerance ? arc_tolerance_
+			: std::log10(2 + ScaledAbsGroupDelta) * default_arc_tolerance); // empirically derived
+		steps_per_rad_ = 1.0 / (2.0 * std::acos(1 - arcTol / ScaledAbsGroupDelta));
+		// @UE END
+		// @UE BEGIN
+		// apply additional controls on the steps per radian used
+		steps_per_rad_ = steps_per_rad_ * StandardStepsPerRadianMultiplier * CustomStepsPerRadScaleFactor;
+		if (MaxStepsPerRadian > 0 && steps_per_rad_ > MaxStepsPerRadian)
+		{
+			steps_per_rad_ = MaxStepsPerRadian;
+		}
 		// @UE END
 	}
 

@@ -18,7 +18,9 @@ namespace UE::Geometry::Private
 		const EPolygonOffsetEndType& InEndType,
 		const RealType& InOffset,
 		const RealType& InMiterLimit,
-		TArray<UE::Geometry::TGeneralPolygon2<RealType>>& OutResult)
+		TArray<UE::Geometry::TGeneralPolygon2<RealType>>& OutResult,
+		double MaxStepsPerRadian,
+		double DefaultStepsPerRadianScale)
 	{
 		// Get combined bounds (min, max) of points 
 		UE::Math::TBox2<RealType> InputBounds(EForceInit::ForceInitToZero);
@@ -38,7 +40,8 @@ namespace UE::Geometry::Private
 		RealType OffsetExpand = bOneSidedOffset ? FMath::Max(0, InOffset) : FMath::Abs(InOffset);
 		RealType MaxMiterExpand = InJoinType == EPolygonOffsetJoinType::Miter ? InMiterLimit : 0;
 		InputBounds.ExpandBy(OffsetExpand + MaxMiterExpand); // pad to allow for offset geometry
-		RealType InputRange = InputBounds.GetSize().GetMax();
+		RealType InputRange = FMath::Max(TMathUtil<RealType>::ZeroTolerance, InputBounds.GetSize().GetMax());
+		ClipperOffset.SetRoundScaleFactors(static_cast<double>(InputRange) / static_cast<double>(IntRange), DefaultStepsPerRadianScale, MaxStepsPerRadian);
 		
 		const Clipper2Lib::Paths<IntegralType> Paths = ConvertPolygonsToPaths<RealType, IntegralType>(InPolygons, InputBounds.Min, InputRange);
 
@@ -91,7 +94,9 @@ namespace UE::Geometry::Private
 		TArrayView<const RealType> InOffsets,
 		const RealType& InMiterLimit,
 		TArray<UE::Geometry::TGeneralPolygon2<RealType>>& OutResult,
-		bool bCopyInputOnFailure)
+		bool bCopyInputOnFailure,
+		double MaxStepsPerRadian,
+		double DefaultStepsPerRadianScale)
 	{
 		// Get combined bounds (min, max) of points 
 		FAxisAlignedBox2d AccumBounds = FAxisAlignedBox2d::Empty();
@@ -109,8 +114,7 @@ namespace UE::Geometry::Private
 		}
 		RealType MaxMiterExpand = InJoinType == EPolygonOffsetJoinType::Miter ? InMiterLimit : 0;
 		AccumBounds.Expand(MaxExpandBounds + MaxMiterExpand); // pad to allow for offset geometry
-		RealType InputRange = (AccumBounds.Extents() * 2).GetMax();
-
+		RealType InputRange = FMath::Max(TMathUtil<RealType>::ZeroTolerance, (AccumBounds.Extents() * 2).GetMax());
 
 		Clipper2Lib::Paths64 CurrentPaths;
 		for (const FGeneralPolygon2d& Polygon : InPolygons)
@@ -122,6 +126,7 @@ namespace UE::Geometry::Private
 		for (int OffsetIdx = 0; OffsetIdx < NumOffsets; ++OffsetIdx)
 		{
 			Clipper2Lib::ClipperOffset ClipperOffset;
+			ClipperOffset.SetRoundScaleFactors(static_cast<double>(InputRange) / static_cast<double>(IntRange), DefaultStepsPerRadianScale, MaxStepsPerRadian);
 			ClipperOffset.MergeGroups(OffsetIdx + 1 != NumOffsets); // This disables union clipping for the final offset, so we can perform it later to get a polytree
 			ClipperOffset.AddPaths(CurrentPaths, static_cast<Clipper2Lib::JoinType>(InJoinType), static_cast<Clipper2Lib::EndType>(InEndType));
 			ClipperOffset.MiterLimit(InMiterLimit);
@@ -186,7 +191,7 @@ template <typename GeometryType, typename RealType>
 bool TOffsetPolygon2<GeometryType, RealType>::ComputeResult()
 {
 	MiterLimit = FMath::Max<RealType>(static_cast<RealType>(2.0), MiterLimit); // Clamps lower value to 2.0
-	return Private::Offset<RealType>(Polygons, JoinType, EndType, Offset, MiterLimit, Result);
+	return Private::Offset<RealType>(Polygons, JoinType, EndType, Offset, MiterLimit, Result, MaxStepsPerRadian, DefaultStepsPerRadianScale);
 }
 
 namespace UE::Geometry
@@ -200,12 +205,14 @@ namespace UE::Geometry
 		bool bCopyInputOnFailure,
 		double MiterLimit,
 		EPolygonOffsetJoinType JoinType,
-		EPolygonOffsetEndType EndType)
+		EPolygonOffsetEndType EndType,
+		double MaxStepsPerRadian,
+		double DefaultStepsPerRadianScale)
 	{
 		using namespace UE::Geometry::Private;
 
 		TArrayView<const double> OffsetsView(&Offset, 1);
-		bool bSuccess = ApplyOffsetsToGeneralPolygons<double>(Polygons, JoinType, EndType, OffsetsView, MiterLimit, ResultOut, bCopyInputOnFailure);
+		bool bSuccess = ApplyOffsetsToGeneralPolygons<double>(Polygons, JoinType, EndType, OffsetsView, MiterLimit, ResultOut, bCopyInputOnFailure, MaxStepsPerRadian, DefaultStepsPerRadianScale);
 
 		return bSuccess;
 	}
@@ -215,13 +222,15 @@ namespace UE::Geometry
 		bool bCopyInputOnFailure,
 		double MiterLimit,
 		EPolygonOffsetJoinType JoinType,
-		EPolygonOffsetEndType EndType)
+		EPolygonOffsetEndType EndType,
+		double MaxStepsPerRadian,
+		double DefaultStepsPerRadianScale)
 	{
 		using namespace UE::Geometry::Private;
 
 		double Offsets[2]{ FirstOffset, SecondOffset };
 		TArrayView<const double> OffsetsView(Offsets, 2);
-		bool bSuccess = ApplyOffsetsToGeneralPolygons<double>(Polygons, JoinType, EndType, OffsetsView, MiterLimit, ResultOut, bCopyInputOnFailure);
+		bool bSuccess = ApplyOffsetsToGeneralPolygons<double>(Polygons, JoinType, EndType, OffsetsView, MiterLimit, ResultOut, bCopyInputOnFailure, MaxStepsPerRadian, DefaultStepsPerRadianScale);
 
 		return bSuccess;
 	}

@@ -9,7 +9,85 @@
 #include "PolyPathFunctions.h" // For spline sampling options
 #include "PolygonFunctions.generated.h"
 
+// Join types to define the shape of corners between polygon and polypath edges
+UENUM(BlueprintType)
+enum class EGeometryScriptPolyOffsetJoinType : uint8
+{
+	/* Uniform squaring on all convex edge joins. */
+	Square,
+	/* Arcs on all convex edge joins. */
+	Round,
+	/* Squaring of convex edge joins with acute angles ("spikes"). Use in combination with MiterLimit. */
+	Miter,
+};
 
+// End types to apply when offsetting open paths
+UENUM(BlueprintType)
+enum class EGeometryScriptPathOffsetEndType : uint8
+{
+	/* Offsets both sides of a path, with square blunt ends */
+	Butt,
+	/* Offsets both sides of a path, with square extended ends */
+	Square,
+	/* Offsets both sides of a path, with round extended ends */
+	Round,
+};
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptPolygonOffsetOptions
+{
+	GENERATED_BODY()
+public:
+
+	// How to join / extend corners between two edges
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	EGeometryScriptPolyOffsetJoinType JoinType = EGeometryScriptPolyOffsetJoinType::Square;
+
+	// if JoinType is Miter, limits how far the miter can extend
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	double MiterLimit = 2.0;
+
+	// Whether to apply the offset to both sides of the polygon, i.e. adding an inner hole to any polygon. If false, the offset is only applied to one side.
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bOffsetBothSides = false;
+
+	// Scales the default number of vertices (per radian) used for round joins.
+	UPROPERTY(BlueprintReadWrite, Category = Options, meta = (ClampMin = "0"))
+	double StepsPerRadianScale = 1.0;
+
+	// Maximum vertices per radian for round joins. Only applied if > 0.
+	UPROPERTY(BlueprintReadWrite, Category = Options, meta = (ClampMin = "-1"))
+	double MaximumStepsPerRadian = 10.0;
+};
+
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptOpenPathOffsetOptions
+{
+	GENERATED_BODY()
+public:
+
+	// How to join / extend corners between two edges
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	EGeometryScriptPolyOffsetJoinType JoinType = EGeometryScriptPolyOffsetJoinType::Square;
+
+	// if JoinType is Miter, limits how far the miter can extend
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	double MiterLimit = 2.0;
+
+	// How the ends of a path should be closed off
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	EGeometryScriptPathOffsetEndType EndType = EGeometryScriptPathOffsetEndType::Square;
+
+	// Scales the default number of vertices (per radian) used for round joins and ends.
+	UPROPERTY(BlueprintReadWrite, Category = Options, meta = (ClampMin = "0"))
+	double StepsPerRadianScale = 1.0;
+
+	// Maximum vertices per radian for round joins and ends. Only applied if > 0.
+	UPROPERTY(BlueprintReadWrite, Category = Options, meta = (ClampMin = "-1"))
+	double MaximumStepsPerRadian = 10.0;
+
+};
 
 UCLASS(meta = (ScriptName = "GeometryScript_SimplePolygon"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_SimplePolygonFunctions : public UBlueprintFunctionLibrary
@@ -209,5 +287,35 @@ public:
 	/** Compute exclusive or of Polygon List and Polygons to Exclusive Or */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolygonList", meta = (ScriptMethod))
 	static FGeometryScriptGeneralPolygonList PolygonsExclusiveOr(FGeometryScriptGeneralPolygonList PolygonList, FGeometryScriptGeneralPolygonList PolygonsToExclusiveOr);
+
+	/** Apply a single offset to a list of closed polygons */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolygonList", meta = (ScriptMethod))
+	static FGeometryScriptGeneralPolygonList PolygonsOffset(FGeometryScriptGeneralPolygonList PolygonList, FGeometryScriptPolygonOffsetOptions OffsetOptions,
+		double Offset, bool& bOperationSuccess, bool bCopyInputOnFailure = true);
+
+	/** Apply two offsets in sequence to a list of closed polygons */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolygonList", meta = (ScriptMethod))
+	static FGeometryScriptGeneralPolygonList PolygonsOffsets(FGeometryScriptGeneralPolygonList PolygonList, FGeometryScriptPolygonOffsetOptions OffsetOptions,
+		double FirstOffset, double SecondOffset, bool& bOperationSuccess, bool bCopyInputOnFailure = true);
+
+	/** Apply a morphological "open" operator to a list of closed polygons -- first offsetting by -Offset, then by +Offset. If Offset is negative, this will instead function as a 'Close' operation */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolygonList", meta = (ScriptMethod))
+	static FGeometryScriptGeneralPolygonList PolygonsMorphologyOpen(FGeometryScriptGeneralPolygonList PolygonList, FGeometryScriptPolygonOffsetOptions OffsetOptions,
+		double Offset, bool& bOperationSuccess, bool bCopyInputOnFailure = true);
+
+	/** Apply a morphological "close" operator to a list of closed polygons -- first offsetting by +Offset, then by -Offset. If Offset is negative, this will instead function as an 'Open' operation */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolygonList", meta = (ScriptMethod))
+	static FGeometryScriptGeneralPolygonList PolygonsMorphologyClose(FGeometryScriptGeneralPolygonList PolygonList, FGeometryScriptPolygonOffsetOptions OffsetOptions,
+		double Offset, bool& bOperationSuccess, bool bCopyInputOnFailure = true);
+
+	/** Apply an offset to a single open 2D path, generating closed polygons as a result */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolygonList")
+	static FGeometryScriptGeneralPolygonList CreatePolygonsFromPathOffset(TArray<FVector2D> Path, FGeometryScriptOpenPathOffsetOptions OffsetOptions,
+		double Offset, bool& bOperationSuccess, bool bCopyInputOnFailure = true);
+	
+	/** Apply an offset to a set of open 2D PolyPaths, generating closed polygons as a result */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolygonList")
+	static FGeometryScriptGeneralPolygonList CreatePolygonsFromOpenPolyPathsOffset(TArray<FGeometryScriptPolyPath> PolyPaths, FGeometryScriptOpenPathOffsetOptions OffsetOptions,
+		double Offset, bool& bOperationSuccess, bool bCopyInputOnFailure = true);
 	
 };

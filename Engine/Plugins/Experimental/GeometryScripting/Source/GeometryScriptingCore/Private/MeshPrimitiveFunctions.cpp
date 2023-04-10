@@ -1331,19 +1331,30 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendPolygonListTr
 		return TargetMesh;
 	}
 
+
+	FFlatTriangulationMeshGenerator TriangulationMeshGen;
+	TriangulationMeshGen.bReverseOrientation = true; // because FDelaunay2 generates triangles with reversed orientation vs what we want
+
 	// Triangulate and append each polygon separately
 	bool bAnyFailed = false;
 	for (const UE::Geometry::FGeneralPolygon2d& Polygon : *PolygonList.Polygons)
 	{
 		UE::Geometry::FDelaunay2 Delaunay;
-		FFlatTriangulationMeshGenerator TriangulationMeshGen;
-		TriangulationMeshGen.bReverseOrientation = true; // because FDelaunay2 generates triangles with reversed orientation vs what we want
-		Delaunay.Triangulate(Polygon, &TriangulationMeshGen.Triangles2D, &TriangulationMeshGen.Vertices2D);
-
-		if (TriangulationMeshGen.Vertices2D.Num() > 2 && TriangulationMeshGen.Triangles2D.Num() > 0)
+		Delaunay.bAutomaticallyFixEdgesToDuplicateVertices = true;
+		TArray<FIndex3i> Triangles;
+		TArray<FVector2d> Vertices;
+		Delaunay.Triangulate(Polygon, &Triangles, &Vertices);
+		int32 VertStart = TriangulationMeshGen.Vertices2D.Num();
+		TriangulationMeshGen.Vertices2D.Append(Vertices);
+		TriangulationMeshGen.Triangles2D.Reserve(TriangulationMeshGen.Triangles2D.Num() + Triangles.Num());
+		for (const FIndex3i& Tri : Triangles)
 		{
-			AppendPrimitive(TargetMesh, &TriangulationMeshGen.Generate(), Transform, PrimitiveOptions);
+			TriangulationMeshGen.Triangles2D.Emplace(Tri.A + VertStart, Tri.B + VertStart, Tri.C + VertStart);
 		}
+	}
+	if (TriangulationMeshGen.Vertices2D.Num() > 2 && TriangulationMeshGen.Triangles2D.Num() > 0)
+	{
+		AppendPrimitive(TargetMesh, &TriangulationMeshGen.Generate(), Transform, PrimitiveOptions);
 	}
 	if (bAnyFailed)
 	{

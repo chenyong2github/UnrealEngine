@@ -22,8 +22,10 @@
 namespace Clipper2Lib {
 
 // @UE BEGIN
-// default calculation results in far too many vertices, so divide by amount below
-constexpr static int32 StepsPerRadianDivisor = 1000;
+// global standard / default constant controlling the number of vertices used for round joins and ends
+constexpr static double StandardStepsPerRadianMultiplier = 3.0;
+// as a safety, define a hard limit on max steps per radian
+constexpr static double StepsPerRadianHardLimit = 2000.0;
 // @UE END
 
 enum class JoinType { Square, Round, Miter };
@@ -64,6 +66,16 @@ private:
 	bool preserve_collinear_ = false;
 	bool reverse_solution_ = false;
 
+	// @UE BEGIN
+	// additional controls over the number of steps for Round Joins
+	// We scale every bounding box to the same range for computation, but need to know the actual scale when deciding how much resolution to give to round joins/ends
+	double BoundsScaleFactor = 1.0;
+	// Allow custom scaling of the default number of vertices per radian
+	double CustomStepsPerRadScaleFactor = 1.0;
+	// Set a hard max on the number of steps, as a safety feature
+	double MaxStepsPerRadian = StepsPerRadianHardLimit;
+	// @UE END
+
 	void DoSquare(Group& group, const Path64& path, size_t j, size_t k);
 	void DoMiter(Group& group, const Path64& path, size_t j, size_t k, double cos_a);
 	void DoRound(Group& group, const Path64& path, size_t j, size_t k, double angle);
@@ -83,6 +95,11 @@ public:
 		reverse_solution_(reverse_solution) { };
 
 	~ClipperOffset() { Clear(); };
+
+	// @UE BEGIN
+	// additional controls over the number of steps for Round Joins
+	void SetRoundScaleFactors(double InputRangeIntRangeRatio, double InStepsPerRadScaleFactor, double InMaxStepsPerRadian = -1);
+	// @UE END
 
 	void AddPath(const Path64& path, JoinType jt_, EndType et_);
 	void AddPaths(const Paths64& paths, JoinType jt_, EndType et_);
