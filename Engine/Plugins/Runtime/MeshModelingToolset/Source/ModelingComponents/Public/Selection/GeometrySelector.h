@@ -62,7 +62,6 @@ struct MODELINGCOMPONENTS_API FGeometryIdentifier
 	 */
 	TWeakObjectPtr<UObject> TargetObject = nullptr;
 
-
 	FGeometryIdentifier() = default;
 	FGeometryIdentifier(const FGeometryIdentifier& Other) = default;
 
@@ -269,6 +268,20 @@ public:
 	virtual FGeometryIdentifier GetIdentifier() const = 0;
 
 
+	//
+	// Locking support. When a Selector is locked, it will not allow selection changes.
+	// The primary use of this is to support configurable enable/disable of selection on 
+	// certain types of objects (eg on static meshes). Although it could potentially be
+	// supported at a higher level, this adds a lot of complications to state management
+	// that are avoided if the Selector is always created.
+	//
+
+	virtual bool IsLockable() const { return false; }
+	virtual bool IsLocked() const { return false; }
+	virtual void SetLockedState(bool bLocked) { }
+
+
+
 	enum class EInitializeSelectionMode
 	{
 		// create a selection of all geometry elements
@@ -447,6 +460,7 @@ public:
 	 */
 	virtual TUniquePtr<IGeometrySelector> BuildForTarget(FGeometryIdentifier TargetIdentifier) const = 0;
 };
+
 
 
 

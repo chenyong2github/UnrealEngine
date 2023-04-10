@@ -116,6 +116,8 @@ void FBaseDynamicMeshSelector::InitializeSelectionFromPredicate(
 	EInitializeSelectionMode InitializeMode,
 	const FGeometrySelection* ReferenceSelection)
 {
+	if (IsLockable() && IsLocked()) return;
+
 	const FGroupTopology* UseGroupTopology = ( SelectionOut.TopologyType == EGeometryTopologyType::Polygroup ) ? 
 		GetGroupTopology() : nullptr;
 
@@ -157,6 +159,8 @@ void FBaseDynamicMeshSelector::UpdateSelectionFromSelection(
 	const FGeometrySelectionUpdateConfig& UpdateConfig,
 	FGeometrySelectionDelta* SelectionDelta )
 {
+	if (IsLockable() && IsLocked()) return;
+
 	if ( FromSelection.IsSameType(SelectionEditor.GetSelection()) )
 	{
 		UE::Geometry::UpdateSelectionWithNewElements(&SelectionEditor, UpdateConfig.ChangeType,
@@ -198,6 +202,7 @@ bool FBaseDynamicMeshSelector::RayHitTest(
 	FInputRayHit& HitResultOut )
 {
 	HitResultOut = FInputRayHit();
+	if (IsLockable() && IsLocked()) return false;
 
 	// todo: do we need to sometimes ignore surface hits here? maybe for Volumes in (eg) edge mode...
 
@@ -240,6 +245,8 @@ void FBaseDynamicMeshSelector::UpdateSelectionViaRaycast(
 	const FGeometrySelectionUpdateConfig& UpdateConfig,
 	FGeometrySelectionUpdateResult& ResultOut)
 {
+	if (IsLockable() && IsLocked()) return;
+
 	if (SelectionEditor.GetTopologyType() == EGeometryTopologyType::Triangle)
 	{
 		UpdateSelectionViaRaycast_MeshTopology(RayInfo, SelectionEditor, UpdateConfig, ResultOut);
@@ -344,6 +351,8 @@ void FBaseDynamicMeshSelector::GetSelectionPreviewForRaycast(
 	const FWorldRayQueryInfo& RayInfo,
 	FGeometrySelectionEditor& PreviewEditor)
 {
+	if (IsLockable() && IsLocked()) return;
+
 	FGeometrySelectionUpdateResult UpdateResult;
 	UpdateSelectionViaRaycast(RayInfo, PreviewEditor,
 		FGeometrySelectionUpdateConfig(),	// defaults to add
@@ -360,6 +369,8 @@ void FBaseDynamicMeshSelector::UpdateSelectionViaShape(
 {
 	ResultOut.bSelectionModified = false;
 	ResultOut.bSelectionMissed = true;
+
+	if (IsLockable() && IsLocked()) return;
 
 	FTransformSRT3d WorldTransform = GetWorldTransformFunc();
 	TArray<uint64> InsideElements;

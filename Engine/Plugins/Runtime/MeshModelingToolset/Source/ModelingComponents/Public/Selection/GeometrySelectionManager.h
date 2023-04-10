@@ -125,6 +125,12 @@ public:
 	 */
 	bool AddActiveTarget(FGeometryIdentifier Target);
 
+
+	bool GetAnyCurrentTargetsLockable() const;
+	bool GetAnyCurrentTargetsLocked() const;
+	void SetCurrentTargetsLockState(bool bLocked);
+
+
 	/**
 	 * Update the current active target set based on DesiredActiveSet, assuming that a valid IGeometrySelectorFactory
 	 * can be found for each identifier. 
@@ -400,6 +406,9 @@ protected:
 	TMap<FGeometryIdentifier, TSharedPtr<FGeometrySelectionTarget>> ActiveTargetMap;
 
 
+	TArray<FGeometryIdentifier> UnlockedTargets;
+
+
 	//
 	// Support for cached FGeometrySelectionTarget / IGeometrySelectors. 
 	// The intention here is to reduce the overhead on selection changes.
@@ -437,6 +446,9 @@ protected:
 
 	friend class FGeometrySelectionManager_SelectionTypeChange;
 	friend class FGeometrySelectionManager_ActiveTargetsChange;
+	
+	friend class FGeometrySelectionManager_TargetLockStateChange;
+	void SetTargetLockStateOnUndoRedo(FGeometryIdentifier TargetIdentifier, bool bLocked);
 
 
 	// support for complex selection changes that are driven externally

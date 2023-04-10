@@ -9,6 +9,7 @@
 #include "InteractiveToolManager.h"
 #include "ModelingToolsEditorModeSettings.h"
 #include "ModelingToolsEditorModeStyle.h"
+#include "ModelingToolsEditorMode.h"
 
 #include "Modules/ModuleManager.h"
 #include "IDetailsView.h"
@@ -118,6 +119,12 @@ FModelingToolsEditorModeToolkit::~FModelingToolsEditorModeToolkit()
 {
 	if (IsHosted())
 	{
+		if (SelectionPaletteOverlayWidget.IsValid())
+		{
+			GetToolkitHost()->RemoveViewportOverlayWidget(SelectionPaletteOverlayWidget.ToSharedRef());
+			SelectionPaletteOverlayWidget.Reset();
+		}
+
 		if (GizmoNumericalUIOverlayWidget.IsValid())
 		{
 			GetToolkitHost()->RemoveViewportOverlayWidget(GizmoNumericalUIOverlayWidget.ToSharedRef());
@@ -504,6 +511,14 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 	// it can be bound to the buttons there.
 	MakeGizmoNumericalUIOverlayWidget();
 	GetToolkitHost()->AddViewportOverlayWidget(GizmoNumericalUIOverlayWidget.ToSharedRef());
+
+	const UModelingToolsEditorModeSettings* ModelingModeSettings = GetDefault<UModelingToolsEditorModeSettings>();
+	bool bEnableSelectionUI = ModelingModeSettings && ModelingModeSettings->bEnablePersistentSelections;
+	if (bEnableSelectionUI)
+	{
+		MakeSelectionPaletteOverlayWidget();
+		GetToolkitHost()->AddViewportOverlayWidget(SelectionPaletteOverlayWidget.ToSharedRef());
+	}
 }
 
 void FModelingToolsEditorModeToolkit::AddReferencedObjects(FReferenceCollector& Collector)
@@ -1822,6 +1837,15 @@ void FModelingToolsEditorModeToolkit::BindGizmoNumericalUI()
 	}
 }
 
+
+UGeometrySelectionManager* FModelingToolsEditorModeToolkit::GetMeshSelectionManager()
+{
+	if (CachedSelectionManager == nullptr)
+	{
+		CachedSelectionManager = Cast<UModelingToolsEditorMode>(GetScriptableEditorMode())->GetSelectionManager();
+	}
+	return CachedSelectionManager;
+}
 
 void FModelingToolsEditorModeToolkit::OnToolPaletteChanged(FName PaletteName) 
 {

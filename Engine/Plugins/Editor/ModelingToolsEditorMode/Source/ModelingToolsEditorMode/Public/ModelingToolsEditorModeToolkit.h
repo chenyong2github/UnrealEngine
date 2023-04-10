@@ -19,6 +19,7 @@ class STransformGizmoNumericalUIOverlay;
 class IDetailsView;
 class SButton;
 class STextBlock;
+class UGeometrySelectionManager;
 class UInteractiveToolsPresetCollectionAsset;
 
 UCLASS()
@@ -99,6 +100,9 @@ public:
 	// created gizmos are bound to the numerical UI.
 	void BindGizmoNumericalUI();
 
+	// get cached UGeometrySelectionManager pointer for the current Mode
+	UGeometrySelectionManager* GetMeshSelectionManager();
+
 	// This is exposed only for the convenience of being able to create the numerical UI submenu
 	// in a non-member function in ModelingModeToolkit_Toolbars.cpp
 	TSharedPtr<STransformGizmoNumericalUIOverlay> GetGizmoNumericalUIOverlayWidget() { return GizmoNumericalUIOverlayWidget; }
@@ -115,6 +119,8 @@ private:
 	FStatusBarMessageHandle ActiveToolMessageHandle;
 	const FSlateBrush* ActiveToolIcon = nullptr;
 
+	UGeometrySelectionManager* CachedSelectionManager = nullptr;
+
 	TSharedPtr<SWidget> ToolkitWidget;
 	void UpdateActiveToolProperties();
 	void InvalidateCachedDetailPanelState(UObject* ChangedObject);
@@ -125,6 +131,9 @@ private:
 	TSharedPtr<SWidget> ToolShutdownViewportOverlayWidget;
 	void MakeToolShutdownOverlayWidget();
 	
+	TSharedPtr<SWidget> SelectionPaletteOverlayWidget;
+	void MakeSelectionPaletteOverlayWidget();
+
 	void MakeGizmoNumericalUIOverlayWidget();
 	TSharedPtr<STransformGizmoNumericalUIOverlay> GizmoNumericalUIOverlayWidget;
 

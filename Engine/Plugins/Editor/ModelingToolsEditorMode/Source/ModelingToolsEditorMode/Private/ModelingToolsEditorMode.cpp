@@ -1314,7 +1314,9 @@ bool UModelingToolsEditorMode::BoxSelect(FBox& InBox, bool InSelect)
 
 bool UModelingToolsEditorMode::FrustumSelect(const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, bool InSelect)
 {
-	if (SelectionManager && SelectionManager->HasActiveTargets())
+	if (SelectionManager 
+		&& SelectionManager->HasActiveTargets() 
+		&& SelectionManager->GetMeshTopologyMode() != UGeometrySelectionManager::EMeshTopologyMode::None)
 	{
 		UE::Geometry::FGeometrySelectionUpdateConfig UpdateConfig;
 		UpdateConfig.ChangeType = UE::Geometry::EGeometrySelectionChangeType::Replace;

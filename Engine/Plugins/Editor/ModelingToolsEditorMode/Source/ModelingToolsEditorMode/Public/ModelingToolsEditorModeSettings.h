@@ -358,10 +358,10 @@ public:
 	int32 LastMeshSelectionTopologyMode = 0;
 
 	UPROPERTY()
-	bool bLastMeshSelectionVolumeToggle = false;
+	bool bLastMeshSelectionVolumeToggle = true;
 
 	UPROPERTY()
-	bool bLastMeshSelectionStaticMeshToggle = false;
+	bool bLastMeshSelectionStaticMeshToggle = true;
 
 
 };

@@ -87,10 +87,10 @@ public:
 	}
 
 	UPROPERTY()
-	bool bEnableVolumeElementSelection = false;
+	bool bEnableVolumeElementSelection = true;
 
 	UPROPERTY()
-	bool bEnableStaticMeshElementSelection = false;
+	bool bEnableStaticMeshElementSelection = true;
 
 
 protected:

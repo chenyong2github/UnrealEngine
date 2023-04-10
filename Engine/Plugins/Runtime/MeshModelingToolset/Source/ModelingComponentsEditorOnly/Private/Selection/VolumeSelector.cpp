@@ -18,10 +18,43 @@
 
 #include "Selection/DynamicMeshPolygroupTransformer.h"
 
+#include "Editor.h"		// for GEditor
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "FVolumeSelector"
 
+
+
+namespace UEGlobal
+{
+	TSet<UBrushComponent*> UnlockedBrushComponents;
+}
+
+
+bool FVolumeSelector::IsLocked() const
+{
+	return BrushComponent != nullptr && (UEGlobal::UnlockedBrushComponents.Contains(BrushComponent) == false);
+}
+
+void FVolumeSelector::SetLockedState(bool bLocked)
+{
+	if (BrushComponent != nullptr)
+	{
+		if (bLocked)
+		{
+			UEGlobal::UnlockedBrushComponents.Remove(BrushComponent);
+		}
+		else
+		{
+			UEGlobal::UnlockedBrushComponents.Add(BrushComponent);
+			if (IsLocked() == false)
+			{
+				UpdateDynamicMeshFromVolume();
+			}
+		}
+	}
+}
 
 
 
@@ -45,15 +78,19 @@ bool FVolumeSelector::Initialize(
 	}
 	
 	LocalTargetMesh.Reset( NewObject<UDynamicMesh>() );
-
-	LocalTargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
-	{
-		UE::Conversion::FVolumeToMeshOptions ConvertOptions;
-		UE::Conversion::BrushComponentToDynamicMesh(BrushComponent, EditMesh, ConvertOptions);
-	});
+	UpdateDynamicMeshFromVolume();
 
 	FBaseDynamicMeshSelector::Initialize(SourceGeometryIdentifierIn, LocalTargetMesh.Get(), 
 		[this]() { return IsValid(this->BrushComponent) ? (UE::Geometry::FTransformSRT3d)this->BrushComponent->GetComponentTransform() : FTransformSRT3d::Identity(); });
+
+	// AVolume and BrushComponent seem to have no way of signalling when they are modified,
+	// so on undo and redo, we have no idea that the mesh has changed. The brute-force way
+	// to work around this is simply to rebuild the mesh on every undo/redo event. 
+	// This is expensive and may have other negative reprecussions...
+	if (GEditor != nullptr)
+	{
+		GEditor->RegisterForUndo(this);
+	}
 
 	return true;
 }
@@ -63,6 +100,39 @@ void FVolumeSelector::Shutdown()
 {
 	LocalTargetMesh.Reset();
 	FBaseDynamicMeshSelector::Shutdown();
+
+	if (GEditor != nullptr)
+	{
+		GEditor->UnregisterForUndo(this);
+	}
+}
+
+
+void FVolumeSelector::PostUndo(bool bSuccess)
+{
+	// see comment in Initialize() for details
+	if (IsLocked() == false)
+	{
+		UpdateDynamicMeshFromVolume();
+	}
+}
+void FVolumeSelector::PostRedo(bool bSuccess)
+{
+	// see comment in Initialize() for details
+	if (IsLocked() == false)
+	{
+		UpdateDynamicMeshFromVolume();
+	}
+}
+
+
+void FVolumeSelector::UpdateDynamicMeshFromVolume()
+{
+	LocalTargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+	{
+		UE::Conversion::FVolumeToMeshOptions ConvertOptions;
+		UE::Conversion::BrushComponentToDynamicMesh(BrushComponent, EditMesh, ConvertOptions);
+	});
 }
 
 

@@ -24,6 +24,41 @@ using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "FStaticMeshSelector"
 
+namespace UEGlobal
+{
+	TSet<UStaticMesh*> UnlockedStaticMeshes;
+}
+
+
+bool FStaticMeshSelector::IsLocked() const
+{
+	return StaticMesh != nullptr && (UEGlobal::UnlockedStaticMeshes.Contains(StaticMesh) == false);
+}
+
+void FStaticMeshSelector::SetLockedState(bool bLocked)
+{
+	if (StaticMesh != nullptr)
+	{
+		if (bLocked)
+		{
+			UEGlobal::UnlockedStaticMeshes.Remove(StaticMesh);
+		}
+		else
+		{
+			UEGlobal::UnlockedStaticMeshes.Add(StaticMesh);
+
+			// if the mesh was locked, we were not updating it on changes, so we
+			// need to do an update now
+			if (IsLocked() == false)
+			{
+				CopyFromStaticMesh();
+				InvalidateOnMeshChange(FDynamicMeshChangeInfo());
+			}
+		}
+	}
+}
+
+
 
 bool FStaticMeshSelector::Initialize(
 	FGeometryIdentifier SourceGeometryIdentifierIn)
@@ -48,14 +83,20 @@ bool FStaticMeshSelector::Initialize(
 	// It is currently a very large hammer, though...
 	StaticMesh_OnMeshChangedHandle = StaticMesh->OnMeshChanged.AddLambda([this]()
 	{
-		CopyFromStaticMesh();
-		InvalidateOnMeshChange(FDynamicMeshChangeInfo());
+		if (IsLocked() == false)
+		{
+			CopyFromStaticMesh();
+			InvalidateOnMeshChange(FDynamicMeshChangeInfo());
+		}
 	});
 
 	// create new transient UDyanmicMesh that will be owned by this Selector
 	LocalTargetMesh.Reset( NewObject<UDynamicMesh>() );
 
-	CopyFromStaticMesh();
+	if (IsLocked() == false)
+	{
+		CopyFromStaticMesh();
+	}
 
 	FBaseDynamicMeshSelector::Initialize(SourceGeometryIdentifierIn, LocalTargetMesh.Get(), 
 		[this]() { return IsValid(this->StaticMeshComponent) ? (UE::Geometry::FTransformSRT3d)this->StaticMeshComponent->GetComponentTransform() : FTransformSRT3d::Identity(); });

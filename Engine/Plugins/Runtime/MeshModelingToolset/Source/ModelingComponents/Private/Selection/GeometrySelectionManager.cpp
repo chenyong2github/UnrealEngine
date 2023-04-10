@@ -277,6 +277,31 @@ public:
 
 
 
+class FGeometrySelectionManager_TargetLockStateChange : public FToolCommandChange
+{
+public:
+	FGeometryIdentifier TargetIdentifier;
+	bool bToState;
+
+	virtual void Apply(UObject* Object) override
+	{
+		CastChecked<UGeometrySelectionManager>(Object)->SetTargetLockStateOnUndoRedo(TargetIdentifier, bToState);
+	}
+
+	virtual void Revert(UObject* Object) override
+	{
+		CastChecked<UGeometrySelectionManager>(Object)->SetTargetLockStateOnUndoRedo(TargetIdentifier, !bToState);
+	}
+
+	virtual FString ToString() const override { return TEXT("FGeometrySelectionManager_TargetLockStateChange"); }
+
+	virtual bool HasExpired(UObject* Object) const override
+	{
+		UGeometrySelectionManager* Manager = Cast<UGeometrySelectionManager>(Object);
+		return (Manager == nullptr || IsValid(Manager) == false || Manager->HasBeenShutDown());
+	}
+};
+
 
 
 bool UGeometrySelectionManager::HasActiveTargets() const
@@ -375,6 +400,80 @@ void UGeometrySelectionManager::SynchronizeActiveTargets(
 		GetTransactionsAPI()->AppendChange(this, MoveTemp(Change), LOCTEXT("Change Targets", "Change Targets"));
 	}
 }
+
+
+bool UGeometrySelectionManager::GetAnyCurrentTargetsLockable() const
+{
+	for (TSharedPtr<FGeometrySelectionTarget> Target : ActiveTargetReferences)
+	{
+		if (Target->Selector->IsLockable())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UGeometrySelectionManager::GetAnyCurrentTargetsLocked() const
+{
+	for (TSharedPtr<FGeometrySelectionTarget> Target : ActiveTargetReferences)
+	{
+		if (Target->Selector->IsLockable() && Target->Selector->IsLocked())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void UGeometrySelectionManager::SetCurrentTargetsLockState(bool bLocked)
+{
+	bool bInTransaction = false;
+
+	bool bLockStateModified = false;
+	for (TSharedPtr<FGeometrySelectionTarget> Target : ActiveTargetReferences)
+	{
+		if (Target->Selector->IsLockable() && Target->Selector->IsLocked() != bLocked)
+		{
+			Target->Selector->SetLockedState(bLocked);
+			bLockStateModified = true;
+
+			if (!bInTransaction)
+			{
+				GetTransactionsAPI()->BeginUndoTransaction((bLocked) ?
+					LOCTEXT("Lock Target", "Lock Target") : LOCTEXT("Unlock Target", "Unlock Target"));
+				bInTransaction = true;
+			}
+
+			TUniquePtr<FGeometrySelectionManager_TargetLockStateChange> Change = MakeUnique<FGeometrySelectionManager_TargetLockStateChange>();
+			Change->TargetIdentifier = Target->TargetIdentifier;
+			Change->bToState = bLocked;
+			GetTransactionsAPI()->AppendChange(this, MoveTemp(Change), LOCTEXT("Lock Target", "Lock Target"));
+		}
+	}
+
+	if (bLockStateModified)
+	{
+		ClearSelection();
+	}
+
+	if (bInTransaction)
+	{
+		GetTransactionsAPI()->EndUndoTransaction();
+	}
+}
+
+void UGeometrySelectionManager::SetTargetLockStateOnUndoRedo(FGeometryIdentifier TargetIdentifier, bool bLocked)
+{
+	for (TSharedPtr<FGeometrySelectionTarget> Target : ActiveTargetReferences)
+	{
+		if (Target->TargetIdentifier == TargetIdentifier)
+		{
+			Target->Selector->SetLockedState(bLocked);
+		}
+	}
+}
+
 
 TArray<FGeometryIdentifier> UGeometrySelectionManager::GetCurrentTargetIdentifiers() const
 {
@@ -516,7 +615,7 @@ void UGeometrySelectionManager::ClearSelection()
 		if (ClearDelta.IsEmpty() == false)
 		{
 			TUniquePtr<FGeometrySelectionDeltaChange> ClearChange = MakeUnique<FGeometrySelectionDeltaChange>();
-			ClearChange->Identifier = Target->SelectionIdentifer;
+			ClearChange->Identifier = Target->TargetIdentifier;
 			ClearChange->Delta = MoveTemp(ClearDelta);
 			GetTransactionsAPI()->AppendChange(this, MoveTemp(ClearChange), LOCTEXT("ClearSelection", "Clear Selection"));
 		}
@@ -557,7 +656,7 @@ void UGeometrySelectionManager::UpdateSelectionViaRaycast(
 	if (ResultOut.bSelectionModified)
 	{
 		TUniquePtr<FGeometrySelectionDeltaChange> DeltaChange = MakeUnique<FGeometrySelectionDeltaChange>();
-		DeltaChange->Identifier = Target->SelectionIdentifer;
+		DeltaChange->Identifier = Target->TargetIdentifier;
 		DeltaChange->Delta = ResultOut.SelectionDelta;
 
 		GetTransactionsAPI()->BeginUndoTransaction(LOCTEXT("UpdateSelectionViaRaycast", "Change Selection"));
@@ -600,7 +699,7 @@ void UGeometrySelectionManager::UpdateSelectionViaConvex(
 	if (ResultOut.bSelectionModified)
 	{
 		TUniquePtr<FGeometrySelectionDeltaChange> DeltaChange = MakeUnique<FGeometrySelectionDeltaChange>();
-		DeltaChange->Identifier = Target->SelectionIdentifer;
+		DeltaChange->Identifier = Target->TargetIdentifier;
 		DeltaChange->Delta = ResultOut.SelectionDelta;
 
 		GetTransactionsAPI()->BeginUndoTransaction(LOCTEXT("UpdateSelectionViaConvex", "Change Selection"));
@@ -698,7 +797,7 @@ void UGeometrySelectionManager::EndTrackedSelectionChange()
 			if (InitialTrackedDelta.IsEmpty() == false)
 			{
 				TUniquePtr<FGeometrySelectionDeltaChange> InitialDeltaChange = MakeUnique<FGeometrySelectionDeltaChange>();
-				InitialDeltaChange->Identifier = Target->SelectionIdentifer;
+				InitialDeltaChange->Identifier = Target->TargetIdentifier;
 				InitialDeltaChange->Delta = MoveTemp(InitialTrackedDelta);
 				GetTransactionsAPI()->AppendChange(this, MoveTemp(InitialDeltaChange), LOCTEXT("ChangeSelection", "Change Selection"));
 			}
@@ -706,7 +805,7 @@ void UGeometrySelectionManager::EndTrackedSelectionChange()
 			if (ActiveTrackedDelta.IsEmpty() == false)
 			{
 				TUniquePtr<FGeometrySelectionDeltaChange> AccumDeltaChange = MakeUnique<FGeometrySelectionDeltaChange>();
-				AccumDeltaChange->Identifier = Target->SelectionIdentifer;
+				AccumDeltaChange->Identifier = Target->TargetIdentifier;
 				AccumDeltaChange->Delta = MoveTemp(ActiveTrackedDelta);
 				GetTransactionsAPI()->AppendChange(this, MoveTemp(AccumDeltaChange), LOCTEXT("ChangeSelection", "Change Selection"));
 			}
@@ -732,7 +831,7 @@ bool UGeometrySelectionManager::SetSelectionForComponent(UPrimitiveComponent* Co
 			if ( AfterDelta.IsEmpty() == false )
 			{
 				TUniquePtr<FGeometrySelectionReplaceChange> NewSelectionChange = MakeUnique<FGeometrySelectionReplaceChange>();
-				NewSelectionChange->Identifier = Target->Selector->GetIdentifier();
+				NewSelectionChange->Identifier = Target->TargetIdentifier; //Target->Selector->GetIdentifier();
 				NewSelectionChange->After = Target->Selection;
 				NewSelectionChange->Before = InitialSelection;
 				GetTransactionsAPI()->AppendChange(this, MoveTemp(NewSelectionChange), LOCTEXT("NewSelection", "New Selection"));
@@ -971,7 +1070,7 @@ void UGeometrySelectionManager::ExecuteSelectionCommand(UGeometrySelectionEditCo
 		// so it will not be holding onto the active Selection on Redo later
 		// (if that becomes necessary, this sequence of changes will need to become more complicated....)
 		TUniquePtr<FGeometrySelectionReplaceChange> ClearChange = MakeUnique<FGeometrySelectionReplaceChange>();
-		ClearChange->Identifier = Target->Selector->GetIdentifier();
+		ClearChange->Identifier = Target->TargetIdentifier; //Target->Selector->GetIdentifier();
 		ClearChange->Before = Target->Selection;
 		ClearChange->After.InitializeTypes(ClearChange->Before);
 		GetTransactionsAPI()->AppendChange(this, MoveTemp(ClearChange), LOCTEXT("ClearSelection", "Clear Selection"));
@@ -998,7 +1097,7 @@ void UGeometrySelectionManager::ExecuteSelectionCommand(UGeometrySelectionEditCo
 				if (Target->Selection.IsEmpty() == false)
 				{
 					TUniquePtr<FGeometrySelectionReplaceChange> NewSelectionChange = MakeUnique<FGeometrySelectionReplaceChange>();
-					NewSelectionChange->Identifier = Target->Selector->GetIdentifier();
+					NewSelectionChange->Identifier = Target->TargetIdentifier; //Target->Selector->GetIdentifier();
 					NewSelectionChange->After = Target->Selection;
 					NewSelectionChange->Before.InitializeTypes(Target->Selection);
 					GetTransactionsAPI()->AppendChange(this, MoveTemp(NewSelectionChange), LOCTEXT("NewSelection", "New Selection"));
@@ -1050,7 +1149,7 @@ void UGeometrySelectionManager::ApplyChange(IGeometrySelectionChange* Change)
 
 	for (int32 k = 0; k < ActiveTargetReferences.Num(); ++k)
 	{
-		if (ActiveTargetReferences[k]->SelectionIdentifer == Identifer) 
+		if (ActiveTargetReferences[k]->TargetIdentifier == Identifer)
 		{
 			FGeometrySelectionDelta ApplyDelta;
 			Change->ApplyChange( ActiveTargetReferences[k]->SelectionEditor.Get(), ApplyDelta);
@@ -1079,7 +1178,7 @@ void UGeometrySelectionManager::RevertChange(IGeometrySelectionChange* Change)
 
 	for (int32 k = 0; k < ActiveTargetReferences.Num(); ++k)
 	{
-		if (ActiveTargetReferences[k]->SelectionIdentifer == Identifer) 
+		if (ActiveTargetReferences[k]->TargetIdentifier == Identifer) 
 		{
 			FGeometrySelectionDelta RevertDelta;
 			Change->RevertChange( ActiveTargetReferences[k]->SelectionEditor.Get(), RevertDelta);

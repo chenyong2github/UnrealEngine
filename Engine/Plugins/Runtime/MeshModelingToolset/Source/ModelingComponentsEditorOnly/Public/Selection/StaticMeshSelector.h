@@ -33,6 +33,10 @@ public:
 	//virtual bool Restore();
 
 
+	virtual bool IsLockable() const override { return true; }
+	virtual bool IsLocked() const override;
+	virtual void SetLockedState(bool bLocked) override;
+
 
 	virtual IGeometrySelectionTransformer* InitializeTransformation(const FGeometrySelection& Selection) override;
 	virtual void ShutdownTransformation(IGeometrySelectionTransformer* Transformer) override;
@@ -54,7 +58,7 @@ protected:
 
 /**
  * FStaticMeshComponentSelectorFactory constructs FStaticMeshSelector instances 
- * for UBrushComponents
+ * for UStaticMeshComponents
  */
 class MODELINGCOMPONENTSEDITORONLY_API FStaticMeshComponentSelectorFactory : public IGeometrySelectorFactory
 {
