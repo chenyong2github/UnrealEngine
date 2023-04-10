@@ -740,7 +740,8 @@ void SDMXMVRFixtureList::RefreshList()
 			if (!bUpdatedGeneralSceneDescription)
 			{	
 				// Ony update the General Scene Description when Nodes were never acquired, or new patches were added.
-				DMXLibrary->Modify();
+				constexpr bool bAlwaysMarkDirty = false;
+				DMXLibrary->Modify(bAlwaysMarkDirty);				
 				DMXLibrary->UpdateGeneralSceneDescription();
 				bUpdatedGeneralSceneDescription = true;
 			}
