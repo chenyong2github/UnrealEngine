@@ -100,7 +100,8 @@ struct ENGINE_API FLightWeightInstanceSubsystem
 	}
 
 	// Helper that converts a position (world space) into a coordinate for the LWI grid.
-	static FInt32Vector3 ConvertPositionToCoord(const FVector & InPosition);
+	UE_DEPRECATED(5.3, "Use LWI Managers version of ConvertPositionToCoord()")
+	static FInt32Vector3 ConvertPositionToCoord(const FVector& InPosition);
 
 	// Add a manager to the subsystem, thread safe.
 	bool AddManager(ALightWeightInstanceManager* Manager);
@@ -125,10 +126,6 @@ private:
 	// TODO: preallocate the size of this based on a config variable
 	UPROPERTY()
 	TArray<ALightWeightInstanceManager*> LWInstanceManagers;
-
-	// CVar variable that is the size of the grid managers are placed into.
-	static int32 LWIGridSize;
-	static FAutoConsoleVariableRef CVarLWIGridSize;
 
 	// Mutex to make sure we don't change the LWInstanceManagers array while reading/writing it.
 	mutable FRWLock LWIManagersRWLock;

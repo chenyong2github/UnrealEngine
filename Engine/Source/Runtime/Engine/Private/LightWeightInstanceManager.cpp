@@ -8,6 +8,17 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LightWeightInstanceManager)
 
+// CVar variable that is the size of the grid managers are placed into.
+static int32 LWIGridSize = -1;
+static FAutoConsoleVariableRef CVarLWIGridSize
+(
+	TEXT("LWI.Editor.GridSize"),
+	LWIGridSize,
+	TEXT("Sets the size of a grid that LWI managers will be generated with."),
+	ECVF_Default
+);
+
+
 UActorInstanceHandleInterface::UActorInstanceHandleInterface(const FObjectInitializer& ObjectInitializer)
 	:Super(ObjectInitializer)
 {
@@ -199,6 +210,42 @@ int32 ALightWeightInstanceManager::ConvertCollisionIndexToLightWeightIndex(int32
 int32 ALightWeightInstanceManager::ConvertLightWeightIndexToCollisionIndex(int32 InIndex) const
 {
 	return InIndex;
+}
+
+int32 ALightWeightInstanceManager::GetGridSize() const
+{
+	return LWIGridSize;	
+}
+
+FInt32Vector3 ALightWeightInstanceManager::ConvertPositionToCoord(const FVector& InPosition) const
+{
+	float GridSize = GetGridSize();
+	if (GridSize > 0)
+	{
+		return FInt32Vector3(
+			FMath::FloorToInt(InPosition.X / GridSize),
+			FMath::FloorToInt(InPosition.Y / GridSize),
+			FMath::FloorToInt(InPosition.Z / GridSize)
+		);
+	}
+
+	return FInt32Vector3::ZeroValue;
+}
+
+FBox ALightWeightInstanceManager::ConvertPositionToGridBounds(const FVector& InPosition) const
+{
+	float GridSize = GetGridSize();
+	if (GridSize > 0)
+	{
+		const FInt32Vector3 GridCoord = ConvertPositionToCoord(InPosition);
+
+		FBox GridBounds;
+		GridBounds.Min = FVector(GridCoord * GridSize);
+		GridBounds.Max = FVector(GridCoord * GridSize + FInt32Vector3(GridSize));
+		return GridBounds;
+	}
+
+	return FBox(InPosition, InPosition);
 }
 
 void ALightWeightInstanceManager::SetSpawnParameters(FActorSpawnParameters& SpawnParams)

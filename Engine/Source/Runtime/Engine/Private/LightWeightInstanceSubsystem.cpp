@@ -10,16 +10,6 @@ DEFINE_LOG_CATEGORY(LogLightWeightInstance);
 TSharedPtr<FLightWeightInstanceSubsystem> FLightWeightInstanceSubsystem::LWISubsystem;
 FCriticalSection FLightWeightInstanceSubsystem::GetFunctionCS;
 
-// CVar variable that is the size of the grid managers are placed into.
-int32 FLightWeightInstanceSubsystem::LWIGridSize = -1;
-FAutoConsoleVariableRef FLightWeightInstanceSubsystem::CVarLWIGridSize
-(
-TEXT("LWI.Editor.GridSize"),
-FLightWeightInstanceSubsystem::LWIGridSize,
-TEXT("Sets the size of a grid that LWI managers will be generated with."),
-ECVF_Cheat
-);
-
 FLightWeightInstanceSubsystem::FLightWeightInstanceSubsystem()
 {
 #if WITH_EDITOR
@@ -86,21 +76,6 @@ bool FLightWeightInstanceSubsystem::RemoveManager(ALightWeightInstanceManager* M
 	return Get().LWInstanceManagers.Remove(Manager) ? true : false;
 }
 
-FInt32Vector3 FLightWeightInstanceSubsystem::ConvertPositionToCoord(const FVector & InPosition)
-{
-	const int32 GridSize = LWIGridSize;
-	if (GridSize > 0)
-	{
-		return FInt32Vector3(
-			FMath::FloorToInt(InPosition.X / (float)GridSize),
-			FMath::FloorToInt(InPosition.Y / (float)GridSize),
-			FMath::FloorToInt(InPosition.Z / (float)GridSize)
-			);
-	}
-
-	return FInt32Vector3::ZeroValue;
-}
-
 ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInstanceManager(const FActorInstanceHandle& Handle) const
 {
 	if (Handle.Manager.IsValid())
@@ -110,27 +85,29 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInsta
 
 	if (Handle.Actor.IsValid())
 	{
-		const FInt32Vector3 GridCoord = ConvertPositionToCoord(Handle.GetLocation());
-
 		FReadScopeLock Lock(LWIManagersRWLock);
 		// see if we already have a match
 		for (ALightWeightInstanceManager* LWInstance : LWInstanceManagers)
 		{
-			const FInt32Vector3 ManagerGridCoord = ConvertPositionToCoord(LWInstance->GetActorLocation());
-			if (Handle.Actor->GetClass() == LWInstance->GetRepresentedClass() && ManagerGridCoord == GridCoord)
+			if (Handle.Actor->GetClass() == LWInstance->GetRepresentedClass())
 			{
-#if WITH_EDITOR
-				// make sure the data layers match
-				TArray<const UDataLayerInstance*> ManagerLayers = LWInstance->GetDataLayerInstances();
-				const UDataLayerInstance* ManagerLayer = ManagerLayers.Num() > 0 ? ManagerLayers[0] : nullptr;
-
-				TArray<const UDataLayerInstance*> ActorLayers = LWInstance->GetDataLayerInstances();
-				const UDataLayerInstance* ActorLayer = ActorLayers.Num() > 0 ? ActorLayers[0] : nullptr;
-
-				if (ManagerLayer == ActorLayer)
-#endif // WITH_EDITOR
+				const FInt32Vector3 GridCoord = LWInstance->ConvertPositionToCoord(Handle.GetLocation());
+				const FInt32Vector3 ManagerGridCoord = LWInstance->ConvertPositionToCoord(LWInstance->GetActorLocation());
+				if (ManagerGridCoord == GridCoord)
 				{
-					return LWInstance;
+#if WITH_EDITOR
+					// make sure the data layers match
+					TArray<const UDataLayerInstance*> ManagerLayers = LWInstance->GetDataLayerInstances();
+					const UDataLayerInstance* ManagerLayer = ManagerLayers.Num() > 0 ? ManagerLayers[0] : nullptr;
+
+					TArray<const UDataLayerInstance*> ActorLayers = LWInstance->GetDataLayerInstances();
+					const UDataLayerInstance* ActorLayer = ActorLayers.Num() > 0 ? ActorLayers[0] : nullptr;
+
+					if (ManagerLayer == ActorLayer)
+#endif // WITH_EDITOR
+					{
+						return LWInstance;
+					}
 				}
 			}
 		}
@@ -155,22 +132,25 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeight
 
 ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInstanceManager(UClass& ActorClass, UWorld& World, const FVector& InPos, const UDataLayerInstance* DataLayer) const
 {
-	const FInt32Vector3 GridCoord = ConvertPositionToCoord(InPos);
 	FReadScopeLock Lock(LWIManagersRWLock);
 
 	for (ALightWeightInstanceManager* InstanceManager : LWInstanceManagers)
 	{
 		if (IsValid(InstanceManager))
 		{
-			const FInt32Vector3 ManagerGridCoord = ConvertPositionToCoord(InstanceManager->GetActorLocation());
-			
-			if (InstanceManager->GetRepresentedClass() == &ActorClass && ManagerGridCoord == GridCoord)
+			if (InstanceManager->GetRepresentedClass() == &ActorClass)
 			{
-	#if WITH_EDITOR
-				if (!DataLayer || (InstanceManager->SupportsDataLayer() && InstanceManager->ContainsDataLayer(DataLayer)))
-	#endif // WITH_EDITOR
+				const FInt32Vector3 GridCoord = InstanceManager->ConvertPositionToCoord(InPos);
+				const FInt32Vector3 ManagerGridCoord = InstanceManager->ConvertPositionToCoord(InstanceManager->GetActorLocation());
+
+				if (ManagerGridCoord == GridCoord)
 				{
-					return InstanceManager;
+#if WITH_EDITOR
+					if (!DataLayer || (InstanceManager->SupportsDataLayer() && InstanceManager->ContainsDataLayer(DataLayer)))
+#endif // WITH_EDITOR
+					{
+						return InstanceManager;
+					}
 				}
 			}
 		}
@@ -199,11 +179,14 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeight
 	SpawnParams.ObjectFlags = RF_Transactional;
 
 	FTransform ManagerTransform(FTransform::Identity);
-	if (LWIGridSize > 0)
+
+	ALightWeightInstanceManager* InstanceManagerCDO = CastChecked<ALightWeightInstanceManager>(BestMatchingClass->GetDefaultObject(true));
+	int32 GridSize = InstanceManagerCDO->GetGridSize();
+	if (GridSize > 0)
 	{
-		FVector ManagerLocation(ConvertPositionToCoord(InPos));
-		ManagerLocation *= LWIGridSize;
-		ManagerLocation += FVector((float)LWIGridSize * 0.5f);
+		FVector ManagerLocation(InstanceManagerCDO->ConvertPositionToCoord(InPos));
+		ManagerLocation *= GridSize;
+		ManagerLocation += FVector((float)GridSize * 0.5f);
 		ManagerTransform.SetLocation(ManagerLocation);
 	}
 

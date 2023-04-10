@@ -105,6 +105,15 @@ public:
 	// Returns the index used by collision and rendering that is associated with the instance referred to by InIndex
 	virtual int32 ConvertLightWeightIndexToCollisionIndex(int32 InIndex) const;
 
+	// LWI grid size to use for this manager.
+	virtual int32 GetGridSize() const;
+
+	// Helper that converts a position (world space) into a coordinate for the LWI grid.
+	FInt32Vector3 ConvertPositionToCoord(const FVector& InPosition) const;
+
+	// Helper that retrieve the world space bounds of the LWI grid cell encompassing the provided coordinate.
+	FBox ConvertPositionToGridBounds(const FVector& InPosition) const;
+
 	template<typename U>
 	bool IsInterfaceSupported() const
 	{
