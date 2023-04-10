@@ -184,6 +184,7 @@ struct RHI_API FPipelineCacheFileFormatPSO
 	struct RHI_API FPipelineFileCacheRayTracingDesc
 	{
 		FSHAHash ShaderHash;
+		uint32 DeprecatedMaxPayloadSizeInBytes = 0;
 		EShaderFrequency Frequency = SF_RayGen;
 		bool bAllowHitGroupIndexing = true;
 
