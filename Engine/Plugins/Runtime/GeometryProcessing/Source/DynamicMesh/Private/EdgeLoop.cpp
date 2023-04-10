@@ -318,7 +318,7 @@ bool UE::Geometry::ConvertTriOrderedEdgeLoopToLoop(const FDynamicMesh3& Mesh,
 		EdgeLoop->Reserve(N);
 		for (int32 k = 0; k < N; ++k)
 		{
-			int32 EdgeID = Mesh.FindEdgeFromTri( TriOrderedEdgesLoopOut[k].TriangleID, VertexLoop[k], VertexLoop[(k+1)%N] );
+			int32 EdgeID = Mesh.FindEdgeFromTri(VertexLoop[k], VertexLoop[(k+1)%N], TriOrderedEdgesLoopOut[k].TriangleID);
 			EdgeLoop->Add(EdgeID);
 		}
 	}
