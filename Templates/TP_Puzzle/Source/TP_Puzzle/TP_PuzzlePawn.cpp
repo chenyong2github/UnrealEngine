@@ -43,7 +43,7 @@ void ATP_PuzzlePawn::CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutRes
 
 void ATP_PuzzlePawn::OnResetVR()
 {
-	UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition();
+	//UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition();
 }
 
 void ATP_PuzzlePawn::TriggerClick()
