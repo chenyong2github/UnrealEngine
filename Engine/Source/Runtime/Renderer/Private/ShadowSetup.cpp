@@ -731,7 +731,6 @@ FProjectedShadowInfo::FProjectedShadowInfo()
 	, bTransmission(false)
 	, bHairStrandsDeepShadow(false)
 	, bNaniteGeometry(true)
-	, bIncludeInScreenSpaceShadowMask(true)
 	, bContainsNaniteSubjects(false)
 	, bShouldRenderVSM(true)
 	, PerObjectShadowFadeStart(UE_OLD_WORLD_MAX)		// LWC_TODO: Upgrade to double? Should have been HALF_WORLD_MAX to match precision.
@@ -1087,7 +1086,6 @@ void FProjectedShadowInfo::SetupClipmapProjection(FLightSceneInfo* InLightSceneI
 	bDirectionalLight = true;
 	bWholeSceneShadow = true;
 	BorderSize = 0;
-	bIncludeInScreenSpaceShadowMask = false;
 	MaxNonFarCascadeDistance = InMaxNonFarCascadeDistance;
 	MeshPassTargetType = EMeshPass::VSMShadowDepth;
 	MeshSelectionMask = EShadowMeshSelection::VSM;
@@ -2317,7 +2315,7 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 	const uint32 InstanceFactor = bMayUseHostCubeFaceReplication ? 6 : 1;
 
 	// Ensure all work goes down the one path to simplify processing
-	EBatchProcessingMode SingleInstanceProcessingMode = (HasVirtualShadowMap() || VirtualShadowMapClipmap.IsValid()) ? EBatchProcessingMode::Generic : EBatchProcessingMode::UnCulled;
+	EBatchProcessingMode SingleInstanceProcessingMode = HasVirtualShadowMap() ? EBatchProcessingMode::Generic : EBatchProcessingMode::UnCulled;
 
 	ShadowDepthPass.DispatchPassSetup(
 		Renderer.Scene,
@@ -6010,7 +6008,7 @@ void FSceneRenderer::FilterDynamicShadows(FDynamicShadowsTaskData& TaskData)
 					// Certain shadow types skip the depth pass when there are no movable primitives to composite.
 					bool bAlwaysHasDepthPass = true;
 
-					if (ProjectedShadowInfo->HasVirtualShadowMap() || ProjectedShadowInfo->VirtualShadowMapClipmap.IsValid())
+					if (ProjectedShadowInfo->HasVirtualShadowMap())
 					{
 						SortedShadowsForShadowDepthPass.VirtualShadowMapShadows.Add(ProjectedShadowInfo);
 					}

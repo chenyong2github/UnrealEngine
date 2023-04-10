@@ -427,11 +427,6 @@ public:
 	/** Whether to render Nanite geometry into this shadow map. */
 	uint32 bNaniteGeometry : 1;
 
-	/** Whether to include this shadow in the direct lighting shadow mask.
-	 * Currently this is used to disable projection of some low-resolution proxy shadow maps when using other high resolution virtual shadow maps
-	 * for direct lighting visibility. */
-	uint32 bIncludeInScreenSpaceShadowMask : 1;
-
 	/** Whether the the shadow overlaps any nanite primitives */
 	uint32 bContainsNaniteSubjects : 1;
 	uint32 bShouldRenderVSM : 1;
@@ -773,7 +768,7 @@ public:
 		return FShadowDepthType(bDirectionalLight, bOnePassPointLightShadow);
 	}
 
-	bool HasVirtualShadowMap() const { return VirtualShadowMaps.Num() > 0; }
+	bool HasVirtualShadowMap() const { return VirtualShadowMaps.Num() > 0 || VirtualShadowMapClipmap.IsValid(); }
 
 	FParallelMeshDrawCommandPass& GetShadowDepthPass() { return ShadowDepthPass; }
 

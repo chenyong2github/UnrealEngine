@@ -2100,11 +2100,6 @@ void FSceneRenderer::RenderShadowProjections(
 	for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.ShadowsToProject.Num(); ShadowIndex++)
 	{
 		FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightInfo.ShadowsToProject[ShadowIndex];
-		if (!ProjectedShadowInfo->bIncludeInScreenSpaceShadowMask)
-		{
-			continue;
-		}
-
 		if (ProjectedShadowInfo->bRayTracedDistanceField)
 		{
 			DistanceFieldShadows.Add(ProjectedShadowInfo);
@@ -2207,8 +2202,6 @@ void FSceneRenderer::BeginAsyncDistanceFieldShadowProjections(FRDGBuilder& Graph
 			for (int32 DFShadowIndex = 0; DFShadowIndex < ProjectedDistanceFieldShadows.Num(); ++DFShadowIndex)
 			{
 				FProjectedShadowInfo* ProjectedShadowInfo = ProjectedDistanceFieldShadows[DFShadowIndex];
-
-				check(ProjectedShadowInfo->bIncludeInScreenSpaceShadowMask);
 
 				FIntRect ScissorRect;
 				if (ProjectedShadowInfo->bDirectionalLight || !ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetScissorRect(ScissorRect, View, View.ViewRect))
@@ -2320,10 +2313,6 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 			for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.ShadowsToProject.Num(); ShadowIndex++)
 			{
 				FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightInfo.ShadowsToProject[ShadowIndex];
-				if (!ProjectedShadowInfo->bIncludeInScreenSpaceShadowMask)
-				{
-					continue;
-				}
 				if (ProjectedShadowInfo->HasVirtualShadowMap())
 				{
 					bNeedHairShadowMaskPass = false;

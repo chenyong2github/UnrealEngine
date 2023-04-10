@@ -1025,22 +1025,6 @@ void FVirtualShadowMapArray::MergeStaticPhysicalPages(FRDGBuilder& GraphBuilder)
 	}
 }
 
-/**
- * Helper to get hold of / check for associated virtual shadow map
- */
-FORCEINLINE FProjectedShadowInfo* GetVirtualShadowMapInfo(const FVisibleLightInfo &LightInfo)
-{
-	for (FProjectedShadowInfo *ProjectedShadowInfo : LightInfo.AllProjectedShadows)
-	{
-		if (ProjectedShadowInfo->HasVirtualShadowMap())
-		{
-			return ProjectedShadowInfo;
-		}
-	}
-
-	return nullptr;
-}
-
 
 class FInitPageRectBoundsCS : public FVirtualPageManagementShader
 {
@@ -1261,7 +1245,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 
 		for (FProjectedShadowInfo* ProjectedShadowInfo : VisibleLightInfo.AllProjectedShadows)
 		{
-			if (ProjectedShadowInfo->HasVirtualShadowMap())
+			if (ProjectedShadowInfo->VirtualShadowMaps.Num() > 0)
 			{
 				const float ResolutionLodBiasLocal = GetResolutionLODBiasLocal(GetLightMobilityFactor(LightId));
 				check(ProjectedShadowInfo->CascadeSettings.ShadowSplitIndex == INDEX_NONE);		// We use clipmaps for virtual shadow maps, not cascades

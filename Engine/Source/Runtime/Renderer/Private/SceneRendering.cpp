@@ -490,8 +490,7 @@ bool FVisibleLightInfo::ContainsOnlyVirtualShadowMaps() const
 	{
 		// Simple test for now, but sufficient
 		const FProjectedShadowInfo* ProjectedShadowInfo = AllProjectedShadows[ShadowIndex];
-		if (ProjectedShadowInfo->bIncludeInScreenSpaceShadowMask && ProjectedShadowInfo->bAllocated &&
-			!(ProjectedShadowInfo->HasVirtualShadowMap() || ProjectedShadowInfo->VirtualShadowMapClipmap))
+		if (ProjectedShadowInfo->bAllocated && !ProjectedShadowInfo->HasVirtualShadowMap())
 		{
 			return false;
 		}
