@@ -81,8 +81,6 @@ public:
 	//~ End FArchive Interface
 
 
-
-protected:
 	FObjectReader(const TArray<uint8>& InBytes)
 		: Bytes(InBytes)
 	{
@@ -91,6 +89,8 @@ protected:
 		ArIgnoreClassRef = false;
 		ArIgnoreArchetypeRef = false;
 	}
+
+protected:
 
 	const TArray<uint8>& Bytes;
 };
