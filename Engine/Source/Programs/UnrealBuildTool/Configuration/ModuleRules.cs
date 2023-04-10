@@ -1300,11 +1300,11 @@ namespace UnrealBuildTool
 		public CStandardVersion? CStandard;
 
 		/// <summary>
-        /// A list of subdirectory names and functions that are invoked to generate header files.
-        /// The subdirectory name is appended to the generated code directory to form a new directory
-        /// that headers are generated inside.
+		/// A list of subdirectory names and functions that are invoked to generate header files.
+		/// The subdirectory name is appended to the generated code directory to form a new directory
+		/// that headers are generated inside.
 		/// </summary>
-        public List<Tuple<string, Action<ILogger, DirectoryReference>>> GenerateHeaderFuncs = new List<Tuple<string, Action<ILogger, DirectoryReference>>>();
+		public List<Tuple<string, Action<ILogger, DirectoryReference>>> GenerateHeaderFuncs = new List<Tuple<string, Action<ILogger, DirectoryReference>>>();
 
 		/// <summary>
 		///  Control visibility of symbols

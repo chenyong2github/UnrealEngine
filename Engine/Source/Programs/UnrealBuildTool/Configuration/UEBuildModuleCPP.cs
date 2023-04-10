@@ -335,10 +335,10 @@ namespace UnrealBuildTool
 					IncludePaths.Add(GeneratedCodeDirectoryVNI!);
 				}
 
-                foreach (var (Subdirectory, _) in Rules.GenerateHeaderFuncs)
-                {
+				foreach (var (Subdirectory, _) in Rules.GenerateHeaderFuncs)
+				{
 					IncludePaths.Add(DirectoryReference.Combine(GeneratedCodeDirectory, Subdirectory));
-                }
+				}
 			}
 
 			ModuleInterfacePaths.Add(UEToolChain.GetModuleInterfaceDir(IntermediateDirectory));
