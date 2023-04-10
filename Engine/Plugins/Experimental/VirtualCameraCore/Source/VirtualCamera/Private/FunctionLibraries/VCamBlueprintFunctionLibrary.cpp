@@ -29,6 +29,7 @@
 #include "Recorder/TakeRecorderPanel.h"
 #include "SLevelViewport.h"
 #include "SceneView.h"
+#include "TakesCoreBlueprintLibrary.h"
 #include "TakePreset.h"
 #include "VPUtilitiesEditorBlueprintLibrary.h"
 #endif
@@ -474,6 +475,24 @@ bool UVCamBlueprintFunctionLibrary::TryOpenTakeRecorderPanel()
 	return IsValid(UTakeRecorderBlueprintLibrary::OpenTakeRecorderPanel());
 #else
 	return false;
+#endif
+}
+
+bool UVCamBlueprintFunctionLibrary::IsRecording()
+{
+#if WITH_EDITOR
+	return UTakeRecorderBlueprintLibrary::IsRecording();
+#else
+	return false;
+#endif
+}
+
+void UVCamBlueprintFunctionLibrary::SetOnTakeRecorderSlateChanged(FOnTakeRecorderSlateChanged_VCam OnTakeRecorderSlateChanged)
+{
+#if WITH_EDITOR
+	FScriptDelegate Delegate;
+	Delegate.BindUFunction(OnTakeRecorderSlateChanged.GetUObject(), OnTakeRecorderSlateChanged.GetFunctionName());
+	UTakesCoreBlueprintLibrary::SetOnTakeRecorderSlateChanged(UTakesCoreBlueprintLibrary::FOnTakeRecorderSlateChanged(Delegate));
 #endif
 }
 

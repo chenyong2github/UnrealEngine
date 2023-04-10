@@ -163,12 +163,22 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
 	static void SetActorLabel(AActor* Actor, const FString& NewActorLabel);
-
-	UFUNCTION(BlueprintPure, Category = "VirtualCamera")
+	
+	UFUNCTION(BlueprintPure, Category = "VirtualCamera|Take Recorder")
 	static bool IsTakeRecorderPanelOpen();
 
-	UFUNCTION(BlueprintCallable, Category = "VirtualCamera")
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera|Take Recorder")
 	static bool TryOpenTakeRecorderPanel();
+
+	/** Check whether a recording is currently active */
+	UFUNCTION(BlueprintPure, Category="VirtualCamera|Take Recorder")
+	static bool IsRecording();
+
+	DECLARE_DYNAMIC_DELEGATE_OneParam(FOnTakeRecorderSlateChanged_VCam, const FString&, Slate);
+	/** Called when the slate is changed. */
+	UFUNCTION(BlueprintCallable, Category = "VirtualCamera|Take Recorder")
+	static void SetOnTakeRecorderSlateChanged(FOnTakeRecorderSlateChanged_VCam OnTakeRecorderSlateChanged);
+	
 private:
 
 	static bool DeprojectScreenToWorld(const FVector2D& InScreenPosition, FVector& OutWorldPosition, FVector& OutWorldDirection);
