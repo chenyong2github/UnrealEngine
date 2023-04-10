@@ -966,10 +966,10 @@ FString URigHierarchyController::ExportToText(TArray<FRigElementKey> InKeys) con
 
 		if(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(Element))
 		{
-			PerElementData.Pose.Initial.Local.Set(Hierarchy->GetTransform(TransformElement, ERigTransformType::InitialLocal), PerElementData.Pose.bDirtyInitial[FRigLocalAndGlobalTransform::ELocal]);
-			PerElementData.Pose.Initial.Global.Set(Hierarchy->GetTransform(TransformElement, ERigTransformType::InitialGlobal), PerElementData.Pose.bDirtyInitial[FRigLocalAndGlobalTransform::EGlobal]);
-			PerElementData.Pose.Current.Local.Set(Hierarchy->GetTransform(TransformElement, ERigTransformType::CurrentLocal), PerElementData.Pose.bDirtyCurrent[FRigLocalAndGlobalTransform::ELocal]);
-			PerElementData.Pose.Current.Global.Set(Hierarchy->GetTransform(TransformElement, ERigTransformType::CurrentGlobal), PerElementData.Pose.bDirtyCurrent[FRigLocalAndGlobalTransform::EGlobal]);
+			PerElementData.Pose.Initial.Local.Set(Hierarchy->GetTransform(TransformElement, ERigTransformType::InitialLocal), PerElementData.Pose.Initial.bDirty[FRigLocalAndGlobalTransform::ELocal]);
+			PerElementData.Pose.Initial.Global.Set(Hierarchy->GetTransform(TransformElement, ERigTransformType::InitialGlobal), PerElementData.Pose.Initial.bDirty[FRigLocalAndGlobalTransform::EGlobal]);
+			PerElementData.Pose.Current.Local.Set(Hierarchy->GetTransform(TransformElement, ERigTransformType::CurrentLocal), PerElementData.Pose.Current.bDirty[FRigLocalAndGlobalTransform::ELocal]);
+			PerElementData.Pose.Current.Global.Set(Hierarchy->GetTransform(TransformElement, ERigTransformType::CurrentGlobal), PerElementData.Pose.Current.bDirty[FRigLocalAndGlobalTransform::EGlobal]);
 		}
 
 		switch (Key.Type)
