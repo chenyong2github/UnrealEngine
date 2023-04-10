@@ -943,6 +943,21 @@ void ShowResaveMessage(const UAnimSequence* Sequence)
 	}
 }
 
+EDataValidationResult UAnimSequence::IsDataValid(TArray<FText>& ValidationErrors)
+{
+	EDataValidationResult ValidationResult = Super::IsDataValid(ValidationErrors);
+	// Do not validate cooked anim sequence
+	if (GetPackage()->HasAnyPackageFlags(PKG_Cooked) == false)
+	{
+		if (!GetSkeleton())
+		{
+			ValidationErrors.Add(LOCTEXT("AnimSequenceValidation_NoSkeleton", "This anim sequence asset has no Skeleton. Anim sequence asset need a valid skeleton."));
+			ValidationResult = EDataValidationResult::Invalid;
+		}
+	}
+	return ValidationResult;
+}
+
 #endif // WITH_EDITOR
 void UAnimSequence::BeginDestroy()
 {
@@ -1086,6 +1101,7 @@ bool UAnimSequence::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Targ
 			return (*CompressedDataPtr)->IsValid(this) && !CacheTasksByKeyHash.Contains(KeyHash);
 		}
 	}
+
 
 	return false;
 }

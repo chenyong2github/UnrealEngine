@@ -2428,6 +2428,8 @@ public:
 
 	void UpdateGenerateUpToData();
 
+	virtual EDataValidationResult IsDataValid(class FDataValidationContext& Context) override;
+
 #endif // WITH_EDITOR
 	virtual void BeginDestroy() override;
 	virtual bool IsReadyForFinishDestroy() override;
