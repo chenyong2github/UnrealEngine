@@ -2,6 +2,7 @@
 
 #include "LandscapeProxyUIDetails.h"
 
+#include "Algo/AnyOf.h"
 #include "Algo/Count.h"
 #include "Algo/Find.h"
 #include "Algo/Transform.h"
@@ -83,6 +84,18 @@ void FLandscapeProxyUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBui
 				LandscapeActors.AddUnique(LandscapeActor);
 			}
 		}
+	}
+
+	// Hide World Partition specific properties in non WP levels
+	const bool bShouldDisplayWorldPartitionProperties = Algo::AnyOf(EditingProxies, [](const TWeakObjectPtr<ALandscapeProxy> InProxy)
+	{
+		UWorld* World = InProxy.IsValid() ? InProxy->GetTypedOuter<UWorld>() : nullptr;
+		return UWorld::IsPartitionedWorld(World);
+	});
+
+	if (!bShouldDisplayWorldPartitionProperties)
+	{
+		DetailBuilder.HideProperty(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ALandscape, bAreNewLandscapeActorsSpatiallyLoaded), ALandscape::StaticClass()));
 	}
 
 	if (LandscapeActors.Num() == 1)
@@ -266,7 +279,6 @@ void FLandscapeProxyUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBui
 		};
 
 		IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory("Nanite", FText::GetEmpty(), ECategoryPriority::Default);
-		TSharedRef<IPropertyHandle> EnableNaniteProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ALandscape, bEnableNanite));
 		CategoryBuilder.AddCustomRow(FText::FromString(TEXT("Rebuild Nanite Data")))
 		.RowTag("RebuildNaniteData")
 		[

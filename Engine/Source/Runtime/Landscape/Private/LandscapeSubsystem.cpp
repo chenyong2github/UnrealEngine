@@ -15,6 +15,7 @@
 #include "LandscapeModule.h"
 #include "LandscapeRender.h"
 #include "LandscapePrivate.h"
+#include "LandscapeSettings.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
@@ -292,6 +293,23 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 #endif
 }
 
+void ULandscapeSubsystem::ForEachLandscapeInfo(TFunctionRef<bool(ULandscapeInfo*)> ForEachLandscapeInfoFunc) const
+{
+	if (ULandscapeInfoMap* LandscapeInfoMap = ULandscapeInfoMap::FindLandscapeInfoMap(GetWorld()))
+	{
+		for (const auto& Pair : LandscapeInfoMap->Map)
+		{
+			if (ULandscapeInfo* LandscapeInfo = Pair.Value)
+			{
+				if (!ForEachLandscapeInfoFunc(LandscapeInfo))
+				{
+					return;
+				}
+			}
+		}
+	}
+}
+
 #if WITH_EDITOR
 void ULandscapeSubsystem::BuildAll()
 {
@@ -385,26 +403,18 @@ void ULandscapeSubsystem::BuildNanite(TArrayView<ALandscapeProxy*> InProxiesToBu
 	}
 }
 
-void ULandscapeSubsystem::ForEachLandscapeInfo(TFunctionRef<bool(ULandscapeInfo*)> ForEachLandscapeInfoFunc) const
-{
-	if (ULandscapeInfoMap* LandscapeInfoMap = ULandscapeInfoMap::FindLandscapeInfoMap(GetWorld()))
-	{
-		for (const auto& Pair : LandscapeInfoMap->Map)
-		{
-			if (ULandscapeInfo* LandscapeInfo = Pair.Value)
-			{
-				if (!ForEachLandscapeInfoFunc(LandscapeInfo))
-				{
-					return;
-				}
-			}
-		}
-	}
-}
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool ULandscapeSubsystem::IsDirtyOnlyInModeEnabled()
 {
 	return ULandscapeInfo::IsDirtyOnlyInModeEnabled();
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool ULandscapeSubsystem::GetDirtyOnlyInMode() const
+{
+	const ULandscapeSettings* Settings = GetDefault<ULandscapeSettings>();
+	return (Settings->LandscapeDirtyingMode == ELandscapeDirtyingMode::InLandscapeModeOnly) 
+		|| (Settings->LandscapeDirtyingMode == ELandscapeDirtyingMode::InLandscapeModeAndUserTriggeredChanges);
 }
 
 void ULandscapeSubsystem::SaveModifiedLandscapes()

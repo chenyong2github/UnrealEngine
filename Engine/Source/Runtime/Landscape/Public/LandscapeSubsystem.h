@@ -88,7 +88,9 @@ public:
 	LANDSCAPE_API void MarkModifiedLandscapesAsDirty();
 	LANDSCAPE_API void SaveModifiedLandscapes();
 	LANDSCAPE_API bool HasModifiedLandscapes() const;
+	UE_DEPRECATED(5.3, "Use GetDirtyOnlyInMode instead")
 	LANDSCAPE_API static bool IsDirtyOnlyInModeEnabled();
+	LANDSCAPE_API bool GetDirtyOnlyInMode() const;
 	FLandscapeNotificationManager* GetNotificationManager() { return NotificationManager; }
 	FOnHeightmapStreamedDelegate& GetOnHeightmapStreamedDelegate() { return OnHeightmapStreamed; }
 	LANDSCAPE_API bool AnyViewShowCollisions() const { return bAnyViewShowCollisions; }  //! Returns true if any view has view collisions enabled.
@@ -96,9 +98,7 @@ public:
 #endif // WITH_EDITOR
 
 private:
-#if WITH_EDITOR
 	LANDSCAPE_API void ForEachLandscapeInfo(TFunctionRef<bool(ULandscapeInfo*)> ForEachLandscapeInfoFunc) const;
-#endif
 
 	// Begin USubsystem
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;

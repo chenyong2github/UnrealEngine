@@ -142,18 +142,7 @@ public:
 			FUIAction ActionBuildNanite(FExecuteAction::CreateStatic(&BuildNanite), FCanExecuteAction());
 			Section.AddMenuEntry(NAME_None, LOCTEXT("BuildNaniteOnly", "Build Nanite Only"), LOCTEXT("BuildLandscapeNanite", "Build Nanite representation"), TAttribute<FSlateIcon>(), ActionBuildNanite, EUserInterfaceActionType::Button);
 
-			FUIAction ActionSaveModifiedLandscapes(FExecuteAction::CreateStatic(&SaveModifiedLandscapes),
-				FCanExecuteAction::CreateLambda([]()
-				{
-					if (!ULandscapeSubsystem::IsDirtyOnlyInModeEnabled())
-					{
-						return false;
-					}
-
-					return HasModifiedLandscapes();
-				}
-			));
-			
+			FUIAction ActionSaveModifiedLandscapes(FExecuteAction::CreateStatic(&SaveModifiedLandscapes), FCanExecuteAction::CreateStatic(&HasModifiedLandscapes));
 			Section.AddMenuEntry(NAME_None,
 				LOCTEXT("SaveModifiedLandscapes", "Save Modified Landscapes"), LOCTEXT("SaveModifiedLandscapesToolTip", "Save landscapes that were modified outside of the editor mode"),
 				TAttribute<FSlateIcon>(), ActionSaveModifiedLandscapes, EUserInterfaceActionType::Button);
@@ -278,8 +267,6 @@ public:
 
 	static bool HasModifiedLandscapes()
 	{
-		check(ULandscapeSubsystem::IsDirtyOnlyInModeEnabled());
-		
 		if (UWorld* World = GEditor->GetEditorWorldContext().World())
 		{
 			if (ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>())

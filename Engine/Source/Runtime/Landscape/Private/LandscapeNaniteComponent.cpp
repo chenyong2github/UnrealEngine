@@ -150,7 +150,7 @@ bool ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscap
 		NaniteSettings.FallbackPercentTriangles = 0.01f; // Keep effectively no fallback mesh triangles
 		NaniteSettings.FallbackRelativeError = 1.0f;
 
-		const int32 LOD = Landscape->GetLandscapeActor()->NaniteLODIndex; // TODO: Needed?
+		const int32 LOD = Landscape->GetLandscapeActor()->GetNaniteLODIndex(); // TODO: Needed?
 
 		NaniteMeshDescription = NaniteStaticMesh->CreateMeshDescription(0u);
 		{

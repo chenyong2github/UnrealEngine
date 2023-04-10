@@ -370,7 +370,7 @@ protected:
 	TSet<FWorldPartitionReference> ActorDescReferences;
 
 	friend class FLandscapeActorDesc;
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 	UPROPERTY()
 	TObjectPtr<ULandscapeSplinesComponent> SplineComponent;
@@ -379,20 +379,23 @@ protected:
 	UPROPERTY()
 	FGuid LandscapeGuid;
 
+	/** Use Nanite to render landscape as a mesh on supported platforms. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Nanite)
+	bool bEnableNanite = false;
+
 	UPROPERTY(EditAnywhere, Category = Landscape)
 	TArray<FLandscapePerLODMaterialOverride> PerLODOverrideMaterials;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)
 	TArray<FLandscapePerLODMaterialOverride> PreEditPerLODOverrideMaterials;
+
+	/** LOD level of the landscape when generating the Nanite mesh. Mostly there for debug reasons, since Nanite is meant to allow high density meshes, we want to use 0 most of the times. */
+	UPROPERTY(EditAnywhere, Category = Nanite, AdvancedDisplay, meta = (EditCondition = "bEnableNanite"))
+	int32 NaniteLODIndex = 0;
 #endif // WITH_EDITORONLY_DATA
 
 public:
-	LANDSCAPE_API TOptional<float> GetHeightAtLocation(FVector Location, EHeightfieldSource HeightFieldSource = EHeightfieldSource::Complex) const;
-
-	/** Fills an array with height values **/
-	LANDSCAPE_API void GetHeightValues(int32& SizeX, int32& SizeY, TArray<float>& ArrayValue) const;
-
 	/** Offset in quads from global components grid origin (in quads) **/
 	UPROPERTY()
 	FIntPoint LandscapeSectionOffset;
@@ -717,7 +720,7 @@ public:
 
 	/** Set to true when we know that weightmap usages are being reconstructed and might be temporarily invalid as a result (ValidateProxyLayersWeightmapUsage should be called after setting this back to false) */
 	bool bTemporarilyDisableWeightmapUsagesValidation = false;
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 	/** Data set at creation time */
 	UPROPERTY()
@@ -747,7 +750,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category=Landscape)
 	int32 MaxPaintedLayersPerComponent; // 0 = disabled
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 	/** Flag whether or not this Landscape's surface can be used for culling hidden triangles **/
 	UPROPERTY(EditAnywhere, Category = HLOD)
@@ -759,16 +762,14 @@ public:
 
 #if WITH_EDITOR
 	LANDSCAPE_API static ULandscapeLayerInfoObject* VisibilityLayer;
-#endif
+
+	FOnLandscapeProxyComponentDataChanged OnComponentDataChanged;
+#endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
 	/** Map of material instance constants used to for the components. Key is generated with ULandscapeComponent::GetLayerAllocationKey() */
 	TMap<FString, UMaterialInstanceConstant*> MaterialInstanceConstantMap;
-#endif
-
-#if WITH_EDITOR
-	FOnLandscapeProxyComponentDataChanged OnComponentDataChanged;
-#endif
+#endif // WITH_EDITORONLY_DATA
 
 	// Blueprint functions
 
@@ -838,8 +839,14 @@ public:
 	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 	virtual bool EditorCanAttachTo(const AActor* InParent, FText& OutReason) const override { return false; }
 	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
-	virtual bool IsNaniteEnabled() const PURE_VIRTUAL(IsNaniteEnabled, return false;)
+	virtual bool IsNaniteEnabled() const { return bEnableNanite; }
+	virtual int32 GetNaniteLODIndex() const { return NaniteLODIndex; }
 #endif	//WITH_EDITOR
+
+	LANDSCAPE_API TOptional<float> GetHeightAtLocation(FVector Location, EHeightfieldSource HeightFieldSource = EHeightfieldSource::Complex) const;
+
+	/** Fills an array with height values **/
+	LANDSCAPE_API void GetHeightValues(int32& SizeX, int32& SizeY, TArray<float>& ArrayValue) const;
 
 	virtual FGuid GetLandscapeGuid() const override { return LandscapeGuid; }
 	void SetLandscapeGuid(const FGuid& Guid) { LandscapeGuid = Guid; }
@@ -947,7 +954,7 @@ public:
 	FDelegateHandle FeatureLevelChangedDelegateHandle;
 
 	FGuid GetNaniteContentId() const;
-#endif
+#endif // WITH_EDITOR
 
 	//~ Begin UObject Interface.
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
@@ -1052,7 +1059,7 @@ public:
 	LANDSCAPE_API void ChangedPhysMaterial();
 
 	// Assign only mismatching data and mark proxy package dirty
-	LANDSCAPE_API void FixupSharedData(ALandscape* Landscape);
+	LANDSCAPE_API void FixupSharedData(ALandscape* Landscape, bool bMapCheck = false);
 
 	/** Set landscape absolute location in section space */
 	LANDSCAPE_API void SetAbsoluteSectionBase(FIntPoint SectionOffset);

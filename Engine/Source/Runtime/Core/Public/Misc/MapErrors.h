@@ -126,6 +126,8 @@ struct CORE_API FMapErrors
 	/** Landscape proxy {ProxyName} of {LevelName} points to a LandscapeActor that is not currently loaded. This will lose the property upon save.  */
 	static FLazyName LandscapeLazyObjectPtrDeprecation_Warning;
 
+	/** Landscape proxy {Proxy} had one or more shared properties not in sync with its parent landscape actor {Parent}. This has been fixed but the proxy needs to be saved in order to ensure cooking behaves as expected..  */
+	static FLazyName LandscapeProxyFixupSharedData_Warning;
 
     /**  Level */
 

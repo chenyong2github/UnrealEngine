@@ -257,15 +257,36 @@ public:
 	 */
 	LANDSCAPE_API ALandscapeProxy* GetLandscapeProxyForLevel(ULevel* Level) const;
 
-	LANDSCAPE_API static bool IsDirtyOnlyInModeEnabled();
+	UE_DEPRECATED(5.3, "Use ULandscapeSubsystem::GetDirtyOnlyInMode() instead")
+	LANDSCAPE_API static bool IsDirtyOnlyInModeEnabled() { return false; }
+
+	LANDSCAPE_API bool GetDirtyOnlyInMode() const;
 
 	LANDSCAPE_API void OnModifiedPackageSaved(UPackage* InPackage);
 	LANDSCAPE_API int32 GetModifiedPackageCount() const;
 	LANDSCAPE_API TArray<UPackage*> GetModifiedPackages() const;
 	LANDSCAPE_API void MarkModifiedPackagesAsDirty();
 
-	LANDSCAPE_API void ModifyObject(UObject* InObject, bool bAlwaysMarkDirty = true);
-	LANDSCAPE_API void MarkObjectDirty(UObject* InObject);
+	/** Landscapes are a bit special in that they contain derived data within their source data, which can be updated on-the-fly depending on many external factors (e.g. a procedural edit layer can invalidate some 
+		data on load). Depending on project preference, the modifications can be either automatically taken into account (leading to landscape actors becoming dirty on load) or manually by the user (i.e. invalidated
+		landscape actors are not made dirty on load but the user is required to save the modified actors through a Build menu action). 
+		Therefore we use these 2 functions as a replacement to Modify or MarkPackageDirty in cases where we don't know if the modification was initiated by the user : */
+
+	/**
+	 * See UObject::Modify
+	 * @param InObject Object being modified. Must be either a ALandscapeProxy or one of its inner objects
+	 * @param bAlwaysMarkDirty if true, marks the package dirty even if we aren't currently recording an active undo/redo transaction
+	 * @return true if the object could not be marked dirty but has been added to the list of ModifiedPackages
+	 */
+	LANDSCAPE_API bool ModifyObject(UObject* InObject, bool bAlwaysMarkDirty = true);
+	/**
+	 * See UObjectBaseUtility::MarkPackageDirty
+	 * @param InObject Object to mark dirty. Must be either a ALandscapeProxy or one of its inner objects
+	 * @param bInForceResave passed to true in order to bypass the bDirtyOnlyInMode and force the object into the list of modified packages. This ensures the object is marked as needing resaving in case we want to 
+	 *  help the user re-save its landscape actors (e.g. following a data fixup)
+	 * @return true if the object could not be marked dirty but has been added to the list of ModifiedPackages
+	 */
+	LANDSCAPE_API bool MarkObjectDirty(UObject* InObject, bool bInForceResave = false);
 #endif //WITH_EDITOR
 
 	/**
@@ -437,5 +458,6 @@ private:
 	void MoveSegment(ULandscapeSplineSegment* InSegment, TScriptInterface<ILandscapeSplineInterface> From, TScriptInterface<ILandscapeSplineInterface> To);
 	void MoveControlPoint(ULandscapeSplineControlPoint* InControlPoint, TScriptInterface<ILandscapeSplineInterface> From, TScriptInterface<ILandscapeSplineInterface> To);
 	bool UpdateLayerInfoMapInternal(ALandscapeProxy* Proxy, bool bInvalidate);
+	bool TryAddToModifiedPackages(UPackage* InPackage);
 #endif
 };

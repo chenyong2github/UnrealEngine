@@ -53,9 +53,6 @@ public:
 	void LANDSCAPE_API SetLandscapeActor(ALandscape* InLandscape);
 	virtual UMaterialInterface* GetLandscapeMaterial(int8 InLODIndex = INDEX_NONE) const override;
 	virtual UMaterialInterface* GetLandscapeHoleMaterial() const override;
-#if WITH_EDITOR
-	virtual bool IsNaniteEnabled() const override;
-#endif
 	//~ End ALandscapeBase Interface
 
 	// Check input Landscape actor is match for this LandscapeProxy (by GUID)

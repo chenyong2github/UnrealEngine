@@ -71,28 +71,19 @@ Landscape.cpp: Terrain rendering
 #include "Rendering/Texture2DResource.h"
 #include "RenderCaptureInterface.h"
 #include "VisualLogger/VisualLogger.h"
-#include "LandscapeSettings.h"
 #include "NaniteSceneProxy.h"
 #include "Misc/ArchiveMD5.h"
-
-#if WITH_EDITOR
-#include "LandscapeEdit.h"
-#include "MaterialUtilities.h"
-#include "Editor.h"
-#include "Editor/EditorEngine.h"
-#include "Algo/Transform.h"
-#include "Algo/BinarySearch.h"
-#include "Engine/Texture2D.h"
-#endif
 #include "LandscapeVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/FortniteReleaseBranchCustomObjectVersion.h"
+#include "UObject/EditorObjectVersion.h"
+#include "UObject/UObjectThreadContext.h"
 #include "LandscapeDataAccess.h"
 #include "LandscapeNotification.h"
 #include "LandscapeHeightfieldCollisionComponent.h"
-#include "UObject/EditorObjectVersion.h"
 #include "Algo/BinarySearch.h"
-#include "UObject/UObjectThreadContext.h"
+#include "Algo/Count.h"
+#include "Algo/Transform.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionHandle.h"
@@ -103,6 +94,11 @@ Landscape.cpp: Terrain rendering
 #include "Misc/ScopedSlowTask.h"
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
+#include "LandscapeEdit.h"
+#include "MaterialUtilities.h"
+#include "Editor.h"
+#include "Editor/EditorEngine.h"
+#include "Engine/Texture2D.h"
 #endif
 
 /** Landscape stats */
@@ -390,6 +386,9 @@ FGuid ALandscapeProxy::GetNaniteContentId() const
 	}
 
 	FBufferArchive ContentStateAr;
+
+	int32 LocalNaniteLODIndex = GetNaniteLODIndex(); // Use the getter to validate it's set at the same value as the parent actor's
+	ContentStateAr << LocalNaniteLODIndex;
 
 	struct FCompareULandscapeComponentBySectionBase
 	{
@@ -2901,11 +2900,6 @@ FBox ALandscape::GetCompleteBounds() const
 	}
 }
 
-bool ALandscape::IsNaniteEnabled() const
-{
-	return bEnableNanite;
-}
-
 void ALandscape::SetUseGeneratedLandscapeSplineMeshesActors(bool bInEnabled)
 {
 	if (bUseGeneratedLandscapeSplineMeshesActors != bInEnabled)
@@ -3582,7 +3576,6 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		//@todo UE merge, landscape, this needs work
 		RootComponent->SetRelativeScale3D(Landscape->GetRootComponent()->GetComponentToWorld().GetScale3D());
 
-		//PrePivot = Landscape->PrePivot;
 		StaticLightingResolution = Landscape->StaticLightingResolution;
 		CastShadow = Landscape->CastShadow;
 		bCastDynamicShadow = Landscape->bCastDynamicShadow;
@@ -3615,6 +3608,11 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		bVirtualTextureRenderWithQuadHQ = Landscape->bVirtualTextureRenderWithQuadHQ;
 		VirtualTextureNumLods = Landscape->VirtualTextureNumLods;
 		VirtualTextureRenderPassType = Landscape->VirtualTextureRenderPassType;
+		bEnableNanite = Landscape->bEnableNanite;
+
+#if WITH_EDITORONLY_DATA
+		NaniteLODIndex = Landscape->NaniteLODIndex;
+#endif // WITH_EDITORONLY_DATA
 
 		if (!LandscapeMaterial)
 		{
@@ -3713,15 +3711,19 @@ UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeHoleMaterial() const
 
 #if WITH_EDITOR
 
-void ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
+void ALandscapeProxy::FixupSharedData(ALandscape* Landscape, bool bMapCheck)
 {
-	if (Landscape == nullptr)
+	if ((Landscape == nullptr) || (Landscape == this))
 	{
 		return;
 	}
 
-	bool bUpdated = false;
+	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
+	checkf(LandscapeInfo != nullptr, TEXT("FixupSharedData can only be called after the proxies are registered to ULandscapeInfo"));
+	ULandscapeSubsystem* LandscapeSubsystem = GetWorld() ? GetWorld()->GetSubsystem<ULandscapeSubsystem>() : nullptr;
+	checkf(LandscapeSubsystem != nullptr, TEXT("FixupSharedData can only be called when a subsystem is available"));
 
+	bool bUpdated = false;
 	if (MaxLODLevel != Landscape->MaxLODLevel)
 	{
 		MaxLODLevel = Landscape->MaxLODLevel;
@@ -3764,6 +3766,17 @@ void ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
 		bUpdated = true;
 	}
 
+	if (bEnableNanite != Landscape->IsNaniteEnabled())
+	{
+		bEnableNanite = Landscape->IsNaniteEnabled();
+		bUpdated = true;
+	}
+
+	if (NaniteLODIndex != Landscape->GetNaniteLODIndex())
+	{
+		NaniteLODIndex = Landscape->GetNaniteLODIndex();
+		bUpdated = true;
+	}
 
 	TSet<FGuid> LayerGuids;
 	Algo::Transform(Landscape->LandscapeLayers, LayerGuids, [](const FLandscapeLayer& Layer) { return Layer.Guid; });
@@ -3776,7 +3789,26 @@ void ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
 
 	if (bUpdated)
 	{
-		MarkPackageDirty();
+		// Force resave the proxy through the modified landscape system, so that the user can then use the Save Modified Landscapes menu and therefore manually trigger the re-save of all modified proxies. * /
+		bool bNeedsManualResave = LandscapeInfo->MarkObjectDirty(/*InObject = */this, /*bInForceResave = */true);
+
+		if (bMapCheck && bNeedsManualResave)
+		{
+			FFormatNamedArguments Arguments;
+			Arguments.Add(TEXT("Proxy"), FText::FromString(GetActorNameOrLabel()));
+			Arguments.Add(TEXT("Landscape"), FText::FromString(Landscape->GetActorNameOrLabel()));
+			FMessageLog("MapCheck").Warning()
+				->AddToken(FUObjectToken::Create(this, FText::FromString(GetActorNameOrLabel())))
+				->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_LandscapeProxy_FixupSharedData", "had some shared properties not in sync with its parent landscape actor. This has been fixed but the proxy needs to be saved in order to ensure cooking behaves as expected. ")))
+				->AddToken(FActionToken::Create(LOCTEXT("MapCheck_SaveFixedUpData", "Save Modified Landscapes"), LOCTEXT("MapCheck_SaveFixedUpData_Desc", "Saves the modified landscape proxy actors"), 
+					FOnActionTokenExecuted::CreateUObject(LandscapeSubsystem, &ULandscapeSubsystem::SaveModifiedLandscapes), 
+					// TODO [jonathan.bard] Enable after the FActionToken change has been submitted : FCanExecuteActionToken::CreateUObject(LandscapeSubsystem, &ULandscapeSubsystem::HasModifiedLandscapes),
+					/*bInSingleUse = */false))
+				->AddToken(FMapErrorToken::Create(FMapErrors::LandscapeComponentPostLoad_Warning));
+
+			// Show MapCheck window
+			FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
+		}
 	}
 }
 
@@ -3839,52 +3871,28 @@ void ALandscapeProxy::RecreateComponentsRenderState(TFunctionRef<void(ULandscape
 	}
 }
 
-bool ALandscapeStreamingProxy::IsNaniteEnabled() const
+bool ULandscapeInfo::GetDirtyOnlyInMode() const
 {
-	if (const ALandscape* Landscape = GetLandscapeActor())
+	if (const ALandscape* Landscape = LandscapeActor.Get())
 	{
-		return Landscape->IsNaniteEnabled();
+		if (const UWorld* World = Landscape->GetWorld())
+		{
+			if (const ULandscapeSubsystem* LandscapeSubsystem = World->GetSubsystem<ULandscapeSubsystem>())
+			{
+				return LandscapeSubsystem->GetDirtyOnlyInMode();
+			}
+		}
+		return false;
 	}
-	
+
 	return false;
-}
-
-void ALandscape::PreSave(const class ITargetPlatform* TargetPlatform)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	Super::PreSave(TargetPlatform);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
-}
-
-void ALandscape::PreSave(FObjectPreSaveContext ObjectSaveContext)
-{
-	Super::PreSave(ObjectSaveContext);
-	//ULandscapeInfo* Info = GetLandscapeInfo();
-	//if (GIsEditor && Info && !ObjectSaveContext.IsProceduralSave())
-	//{
-	//	for (TSet<ALandscapeProxy*>::TIterator It(Info->StreamingProxies); It; ++It)
-	//	{
-	//		ALandscapeProxy* Proxy = *It;
-	//		if (!ensure(Proxy->LandscapeActor == this))
-	//		{
-	//			Proxy->LandscapeActor = this;
-	//			Proxy->GetSharedProperties(this);
-	//		}
-	//	}
-	//}
-}
-
-bool ULandscapeInfo::IsDirtyOnlyInModeEnabled()
-{
-	const ULandscapeSettings* Settings = GetDefault<ULandscapeSettings>();
-	return Settings->LandscapeDirtyingMode == ELandscapeDirtyingMode::InLandscapeModeOnly || Settings->LandscapeDirtyingMode == ELandscapeDirtyingMode::InLandscapeModeAndUserTriggeredChanges;
 }
 
 FLandscapeDirtyOnlyInModeScope::FLandscapeDirtyOnlyInModeScope(ULandscapeInfo* InLandscapeInfo)
 	: LandscapeInfo(InLandscapeInfo)
 	, bDirtyOnlyInModePrevious(InLandscapeInfo->bDirtyOnlyInMode)
 {
-	LandscapeInfo->bDirtyOnlyInMode = ULandscapeInfo::IsDirtyOnlyInModeEnabled();
+	LandscapeInfo->bDirtyOnlyInMode = LandscapeInfo->GetDirtyOnlyInMode();
 }
 
 
@@ -3909,14 +3917,9 @@ TArray<UPackage*> ULandscapeInfo::GetModifiedPackages() const
 {
 	TArray<UPackage*> LocalModifiedPackages;
 	LocalModifiedPackages.Reserve(ModifiedPackages.Num());
-	for (const TWeakObjectPtr<UPackage>& WeakPackagePtr : ModifiedPackages)
-	{
-		if (UPackage* Package = WeakPackagePtr.Get())
-		{
-			LocalModifiedPackages.Add(Package);
-		}
-	}
-
+	Algo::TransformIf(ModifiedPackages, LocalModifiedPackages, 
+		[](const TWeakObjectPtr<UPackage>& InWeakPackagePtr) { return InWeakPackagePtr.IsValid(); }, 
+		[](const TWeakObjectPtr<UPackage>& InWeakPackagePtr) { return InWeakPackagePtr.Get(); });
 	return LocalModifiedPackages;
 }
 
@@ -3934,24 +3937,51 @@ void ULandscapeInfo::MarkModifiedPackagesAsDirty()
 
 int32 ULandscapeInfo::GetModifiedPackageCount() const
 {
-	int32 ModifiedPackageCount = 0;
-
-	for (const TWeakObjectPtr<UPackage>& WeakPackagePtr : ModifiedPackages)
-	{
-		if (UPackage* Package = WeakPackagePtr.Get())
-		{
-			ModifiedPackageCount++;
-		}
-	}
-
-	return ModifiedPackageCount;
+	return Algo::CountIf(ModifiedPackages, [](const TWeakObjectPtr<UPackage>& InWeakPackagePtr) { return InWeakPackagePtr.IsValid(); });
 }
 
-void ULandscapeInfo::MarkObjectDirty(UObject* InObject)
+bool ULandscapeInfo::TryAddToModifiedPackages(UPackage* InPackage)
+{
+	ALandscape* LocalLandscapeActor = LandscapeActor.Get();
+	check(LocalLandscapeActor);
+
+	// We don't want to bother with packages being marked dirty for anything else than the Editor world 
+	if (LocalLandscapeActor->GetWorld()->WorldType != EWorldType::Editor)
+	{
+		return false;
+	}
+
+	// Also don't track packages when rolling back a transaction because they are already dirty anyway 
+	if (GIsTransacting)
+	{
+		return false;
+	}
+
+	// Don't consider unsaved packages as modified/not dirty because they will be saved later on anyway. What we're really after are existing packages made dirty on load
+	if (FPackageName::IsTempPackage(InPackage->GetName()))
+	{
+		return false;
+	}
+
+	ModifiedPackages.Add(InPackage);
+	return true;
+}
+
+bool ULandscapeInfo::MarkObjectDirty(UObject* InObject, bool bInForceResave)
 {
 	check(InObject && (InObject->IsA<ALandscapeProxy>() || InObject->GetTypedOuter<ALandscapeProxy>() != nullptr));
-		
-	if (bDirtyOnlyInMode)
+
+	bool bWasAddedToModifiedPackages = false;
+	if (bInForceResave)
+	{
+		if (!InObject->MarkPackageDirty())
+		{
+			// When force-resaving (e.g. when syncing must-sync properties on load), unconditionally add the package to the list of packages to save if we couldn't mark it dirty already, so that 
+			//  the user can manually resave all that needs to be saved with the Save Modified Landscapes button :
+			bWasAddedToModifiedPackages = TryAddToModifiedPackages(InObject->GetPackage());
+		}
+	}
+	else if (bDirtyOnlyInMode)
 	{
 		ALandscape* LocalLandscapeActor = LandscapeActor.Get();
 		check(LocalLandscapeActor);
@@ -3961,18 +3991,21 @@ void ULandscapeInfo::MarkObjectDirty(UObject* InObject)
 		}
 		else
 		{
-			ModifiedPackages.Add(InObject->GetPackage());
+			bWasAddedToModifiedPackages = TryAddToModifiedPackages(InObject->GetPackage());
 		}
 	}
 	else
 	{
 		InObject->MarkPackageDirty();
 	}
+
+	return bWasAddedToModifiedPackages;
 }
 
-void ULandscapeInfo::ModifyObject(UObject* InObject, bool bAlwaysMarkDirty)
+bool ULandscapeInfo::ModifyObject(UObject* InObject, bool bAlwaysMarkDirty)
 {
 	check(InObject && (InObject->IsA<ALandscapeProxy>() || InObject->GetTypedOuter<ALandscapeProxy>() != nullptr));
+	bool bWasAddedToModifiedPackages = false;
 	
 	if (!bAlwaysMarkDirty)
 	{
@@ -3993,9 +4026,11 @@ void ULandscapeInfo::ModifyObject(UObject* InObject, bool bAlwaysMarkDirty)
 		else 
 		{
 			InObject->Modify(false);
-			ModifiedPackages.Add(InObject->GetPackage());
+			bWasAddedToModifiedPackages = TryAddToModifiedPackages(InObject->GetPackage());
 		}
 	}
+
+	return bWasAddedToModifiedPackages;
 }
 
 ALandscapeProxy* ULandscapeInfo::GetLandscapeProxyForLevel(ULevel* Level) const
@@ -4399,7 +4434,7 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck, bool 
 				{
 					StreamingProxy->SetLandscapeActor(LandscapeActor.Get());
 #if WITH_EDITOR
-					StreamingProxy->FixupSharedData(Landscape);
+					StreamingProxy->FixupSharedData(Landscape, bMapCheck);
 #endif // WITH_EDITOR
 				}
 			}
@@ -4449,7 +4484,7 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck, bool 
 			StreamingProxy->SetLandscapeActor(LandscapeActor.Get());
 		}
 #if WITH_EDITOR
-		StreamingProxy->FixupSharedData(LandscapeActor.Get());
+		StreamingProxy->FixupSharedData(LandscapeActor.Get(), bMapCheck);
 #endif // WITH_EDITOR
 	}
 
