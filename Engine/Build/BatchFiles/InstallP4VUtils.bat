@@ -1,13 +1,23 @@
+@rem Copyright Epic Games, Inc. All Rights Reserved.
+
+@echo off
 setlocal
 
-set LIBPATH=%LOCALAPPDATA%\Unreal Engine\P4VUtils
+cd %~dp0%
 
-echo Copying P4VUtils files to %LIBPATH%...
-mkdir "%LIBPATH%" 2> NUL
+set DESTDIR=%LOCALAPPDATA%\Unreal Engine\P4VUtils
+set SOURCEDIR=..\..\..\Extras\P4VUtils\Binaries\Win64
+set MESSAGE=Installing P4VUtils into p4v...
 
-copy ..\..\Extras\P4VUtils\Binaries\Win64\* "%LIBPATH%"
-copy ..\..\Extras\P4VUtils\P4VUtils.ini "%LIBPATH%"
-xcopy /s /y ..\..\Restricted\NotForLicensees\Extras\P4VUtils\* "%LIBPATH%\NotForLicensees\" 2> NUL
+dir
+dir ..\..\Restricted\NotForLicensees\Extras\P4VUtils
+if EXIST ..\..\Restricted\NotForLicensees\Extras\P4VUtils (
+	set MESSAGE=Installing P4VUtils [with Epic extensions] into p4v...
+	set SOURCEDIR=..\..\Restricted\NotForLicensees\Extras\P4VUtils\Binaries\Win64
+)
 
-echo Installing P4VUtils into p4v...
-dotnet "%LIBPATH%\P4VUtils.dll" install
+rmdir /s /q "%DESTDIR%" 2> NUL
+xcopy /s /y /i "%SOURCEDIR%" "%DESTDIR%" 2> NUL
+
+echo %MESSAGE%
+"%DESTDIR%\P4VUtils" install
