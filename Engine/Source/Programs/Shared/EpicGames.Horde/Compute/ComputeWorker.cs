@@ -51,7 +51,7 @@ namespace EpicGames.Horde.Compute
 
 		async Task RunAsync(IComputeSocket socket, int channelId, CancellationToken cancellationToken)
 		{
-			await using (IComputeMessageChannel channel = await socket.CreateMessageChannelAsync(channelId, 4 * 1024 * 1024, _logger, cancellationToken))
+			using (IComputeMessageChannel channel = socket.CreateMessageChannel(channelId, 4 * 1024 * 1024, _logger, cancellationToken))
 			{
 				await channel.SendReadyAsync(cancellationToken);
 
@@ -66,12 +66,6 @@ namespace EpicGames.Horde.Compute
 						case ComputeMessageType.None:
 							await Task.WhenAll(childTasks);
 							return;
-						case ComputeMessageType.Fork:
-							{
-								ForkMessage fork = message.ParseForkMessage();
-								childTasks.Add(RunAsync(socket, fork.ChannelId, cancellationToken));
-							}
-							break;
 						case ComputeMessageType.WriteFiles:
 							{
 								UploadFilesMessage writeFiles = message.ParseUploadFilesMessage();
@@ -171,94 +165,31 @@ namespace EpicGames.Horde.Compute
 
 		async Task ExecuteProcessWindowsAsync(IComputeSocket socket, IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
 		{
-			using SharedMemoryBuffer ipcBuffer = new SharedMemoryBuffer(4096);
-			await using (BackgroundTask ipcTask = BackgroundTask.StartNew(ctx => RunIpcChannel(socket, ipcBuffer, ctx)))
+			const int ChannelId = 1;
+			string baseBufferName = $"Local\\Compute-{Guid.NewGuid()}";
+
+			using SharedMemoryBuffer sendBuffer = SharedMemoryBuffer.CreateNew(ComputeChannel.GetSendBufferName(baseBufferName), 4096);
+			socket.AttachSendBuffer(ChannelId, sendBuffer.Reader);
+
+			using SharedMemoryBuffer recvBuffer = SharedMemoryBuffer.CreateNew(ComputeChannel.GetRecvBufferName(baseBufferName), 4096);
+			socket.AttachRecvBuffer(ChannelId, recvBuffer.Writer);
+
+			Dictionary<string, string?> newEnvVars = new Dictionary<string, string?>();
+			if (envVars != null)
 			{
-				Dictionary<string, string?> newEnvVars = new Dictionary<string, string?>();
-				if (envVars != null)
+				foreach ((string name, string? value) in envVars)
 				{
-					foreach ((string name, string? value) in envVars)
-					{
-						newEnvVars.Add(name, value);
-					}
+					newEnvVars.Add(name, value);
 				}
-
-				newEnvVars[WorkerComputeSocket.IpcEnvVar] = WorkerComputeSocket.GetIpcEnvVarValue(ipcBuffer);
-
-				_logger.LogInformation("Launching {Executable} {Arguments}", CommandLineArguments.Quote(executable), CommandLineArguments.Join(arguments));
-				await ExecuteProcessInternalAsync(channel, executable, arguments, workingDir, newEnvVars, cancellationToken);
-				_logger.LogInformation("Finished executing process");
-
-				Memory<byte> buffer = ipcBuffer.GetWriteMemory();
-				buffer.Span[0] = (byte)IpcMessageType.Finish;
-				ipcBuffer.AdvanceWritePosition(1);
-
-				await ipcTask.Task.WaitAsync(TimeSpan.FromSeconds(5.0), cancellationToken);
 			}
+
+			newEnvVars[ComputeChannel.IpcEnvVar] = baseBufferName;
+
+			_logger.LogInformation("Launching {Executable} {Arguments}", CommandLineArguments.Quote(executable), CommandLineArguments.Join(arguments));
+			await ExecuteProcessInternalAsync(channel, executable, arguments, workingDir, newEnvVars, cancellationToken);
+			_logger.LogInformation("Finished executing process");
+
 			_logger.LogInformation("Child process has shut down");
-		}
-
-		async Task RunIpcChannel(IComputeSocket socket, SharedMemoryBuffer ipcBuffer, CancellationToken cancellationToken)
-		{
-			List<IDisposable> buffers = new List<IDisposable>();
-			try
-			{
-				for (; ; )
-				{
-					ReadOnlyMemory<byte> memory = ipcBuffer.GetReadMemory();
-					if (memory.Length == 0)
-					{
-						await ipcBuffer.WaitForDataAsync(0, cancellationToken);
-						continue;
-					}
-
-					IpcMessageType messageType = (IpcMessageType)memory.Span[0];
-					switch (messageType)
-					{
-						case IpcMessageType.Finish:
-							return;
-						case IpcMessageType.AttachRecvBuffer:
-							{
-								IpcAttachBufferRequest attachRecvBuffer = IpcAttachBufferRequest.Read(ipcBuffer);
-
-								_logger.LogInformation("Attaching receive buffer to channel {Id}", attachRecvBuffer.ChannelId);
-#pragma warning disable CA2000 // Dispose objects before losing scope
-								SharedMemoryBuffer buffer = new SharedMemoryBuffer(attachRecvBuffer.MemoryHandle, attachRecvBuffer.ReaderEventHandle, attachRecvBuffer.WriterEventHandle);
-								(IComputeBufferReader reader, IComputeBufferWriter writer) = buffer.ToShared();
-								reader.Dispose();
-								await socket.AttachRecvBufferAsync(attachRecvBuffer.ChannelId, writer, cancellationToken);
-#pragma warning restore CA2000 // Dispose objects before losing scope
-							}
-							break;
-						case IpcMessageType.AttachSendBuffer:
-							{
-								IpcAttachBufferRequest attachSendBuffer = IpcAttachBufferRequest.Read(ipcBuffer);
-
-								_logger.LogInformation("Attaching send buffer to channel {Id}", attachSendBuffer.ChannelId);
-#pragma warning disable CA2000 // Dispose objects before losing scope
-								SharedMemoryBuffer buffer = new SharedMemoryBuffer(attachSendBuffer.MemoryHandle, attachSendBuffer.ReaderEventHandle, attachSendBuffer.WriterEventHandle);
-								(IComputeBufferReader reader, IComputeBufferWriter writer) = buffer.ToShared();
-								writer.Dispose();
-								await socket.AttachSendBufferAsync(attachSendBuffer.ChannelId, reader, cancellationToken);
-#pragma warning restore CA2000 // Dispose objects before losing scope
-							}
-							break;
-						default:
-							throw new ComputeInternalException($"Invalid IPC message type: {messageType}");
-					}
-				}
-			}
-			catch (OperationCanceledException)
-			{
-				_logger.LogInformation("Cancelled during process exec");
-			}
-			finally
-			{
-				foreach (SharedMemoryBuffer buffer in buffers)
-				{
-					buffer.Dispose();
-				}
-			}
 		}
 
 		async Task ExecuteProcessInternalAsync(IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)

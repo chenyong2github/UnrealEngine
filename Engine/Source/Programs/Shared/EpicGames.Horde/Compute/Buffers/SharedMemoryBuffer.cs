@@ -2,15 +2,12 @@
 
 using System;
 using EpicGames.Core;
-using Microsoft.Win32.SafeHandles;
 using System.IO.MemoryMappedFiles;
-using System.Reflection;
 using System.IO;
 using System.Threading.Tasks;
 using System.Threading;
-using System.Linq;
-using System.Globalization;
-using System.ComponentModel;
+using System.Buffers.Binary;
+using System.Runtime.InteropServices;
 
 namespace EpicGames.Horde.Compute.Buffers
 {
@@ -19,190 +16,123 @@ namespace EpicGames.Horde.Compute.Buffers
 	/// </summary>
 	public sealed class SharedMemoryBuffer : ComputeBufferBase
 	{
-		const int HeaderLength = 32;
+		const int HeaderLength = sizeof(int) + sizeof(int); // num chunks, chunk length
 
-		enum State
+		sealed unsafe class Chunk : ChunkBase
 		{
-			Normal,
-			ReaderWaitingForData, // Once new data is available, set _readerTcs
-			WriterWaitingToFlush, // Once flush has been complete, set _writerTcs
-			Finished
-		}
+			readonly ulong* _statePtr;
 
-		sealed unsafe class Header
-		{
-			readonly int* _statePtr;
-			readonly long* _readPositionPtr;
-			readonly long* _readLengthPtr;
-			readonly long* _writePositionPtr;
+			protected override ref ulong StateValue => ref *_statePtr;
 
-			public Header(MemoryMappedView view)
+			public Chunk(ulong* statePtr, Memory<byte> memory)
+				: base(memory)
 			{
-				byte* basePtr = view.GetPointer();
-				_statePtr = (int*)basePtr;
-
-				long* nextPtr = (long*)basePtr + 1;
-				_readPositionPtr = nextPtr++;
-				_readLengthPtr = nextPtr++;
-				_writePositionPtr = nextPtr++;
-			}
-
-			public State State => (State)Interlocked.CompareExchange(ref *_statePtr, 0, 0);
-			public long ReadPosition => Interlocked.Read(ref *_readPositionPtr);
-			public long ReadLength => Interlocked.Read(ref *_readLengthPtr);
-			public long WritePosition => Interlocked.Read(ref *_writePositionPtr);
-
-			public void Compact()
-			{
-				Interlocked.Exchange(ref *_readPositionPtr, 0);
-				Interlocked.Exchange(ref *_writePositionPtr, ReadLength);
-			}
-
-			public bool UpdateState(State oldState, State newState) => Interlocked.CompareExchange(ref *_statePtr, (int)newState, (int)oldState) == (int)oldState;
-
-			public void FinishWriting()
-			{
-				*_statePtr = (int)State.Finished;
-			}
-
-			public long AdvanceReadPosition(long value)
-			{
-				Interlocked.Add(ref *_readPositionPtr, value);
-				return Interlocked.Add(ref *_readLengthPtr, -value);
-			}
-
-			public long AdvanceWritePosition(long value)
-			{
-				Interlocked.Add(ref *_writePositionPtr, value);
-				return Interlocked.Add(ref *_readLengthPtr, value);
+				_statePtr = statePtr;
 			}
 		}
-
-		const int ChunkOffsetPow2 = 10;
 
 		readonly MemoryMappedFile _memoryMappedFile;
 		readonly MemoryMappedViewAccessor _memoryMappedViewAccessor;
 		readonly MemoryMappedView _memoryMappedView;
-		readonly long _length;
-		readonly Header _header;
-		readonly Memory<byte> _memory; // TODO: DEPRECATE
-		readonly Memory<byte>[] _chunks;
 
 		readonly Native.EventHandle _readerEvent;
 		readonly Native.EventHandle _writerEvent;
 
 		/// <inheritdoc/>
-		public override long Length => _length;
+		public string Name { get; }
 
 		/// <summary>
-		/// Creates a new shared memory buffer with the given capacity
+		/// Constructor
 		/// </summary>
-		/// <param name="capacity">Capacity of the buffer</param>
-		public SharedMemoryBuffer(long capacity)
-			: this(MemoryMappedFile.CreateNew(null, capacity, MemoryMappedFileAccess.ReadWrite, MemoryMappedFileOptions.None, HandleInheritability.Inheritable))
+		private unsafe SharedMemoryBuffer(string name, MemoryMappedFile memoryMappedFile, MemoryMappedViewAccessor memoryMappedViewAccessor, MemoryMappedView memoryMappedView, Chunk[] chunks, Native.EventHandle readerEvent, Native.EventHandle writerEvent)
+			: base(chunks, 1)
 		{
-		}
+			Name = name;
 
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="buffer"></param>
-		public SharedMemoryBuffer(MemoryMappedFile buffer)
-			: this(buffer, new Native.EventHandle(HandleInheritability.Inheritable), new Native.EventHandle(HandleInheritability.Inheritable))
-		{
-		}
-
-		/// <summary>
-		/// Opens a <see cref="SharedMemoryBuffer"/> from handles
-		/// </summary>
-		public SharedMemoryBuffer(IntPtr memoryHandle, IntPtr readerEventHandle, IntPtr writerEventHandle)
-			: this(OpenMemoryMappedFileFromHandle(memoryHandle), new Native.EventHandle(readerEventHandle, true), new Native.EventHandle(writerEventHandle, true))
-		{
-		}
-
-		/// <summary>
-		/// Creates a shared memory buffer from a memory mapped file
-		/// </summary>
-		internal SharedMemoryBuffer(MemoryMappedFile memoryMappedFile, Native.EventHandle writtenEvent, Native.EventHandle flushedEvent)
-		{
 			_memoryMappedFile = memoryMappedFile;
-			_memoryMappedViewAccessor = memoryMappedFile.CreateViewAccessor();
-			_memoryMappedView = new MemoryMappedView(_memoryMappedViewAccessor);
+			_memoryMappedViewAccessor = memoryMappedViewAccessor;
+			_memoryMappedView = memoryMappedView;
 
-			_readerEvent = writtenEvent;
-			_writerEvent = flushedEvent;
-
-			_header = new Header(_memoryMappedView);
-			_length = _memoryMappedViewAccessor.Capacity;
-
-			_memory = _memoryMappedView.GetMemory(HeaderLength, (int)(_length - HeaderLength)); // TODO: REMOVE
-
-			int chunkCount = (int)((_length + ((1 << ChunkOffsetPow2) - 1)) >> ChunkOffsetPow2);
-			_chunks = new Memory<byte>[chunkCount];
-
-			for (int chunkIdx = 0; chunkIdx < chunkCount; chunkIdx++)
-			{
-				long offset = (chunkIdx << ChunkOffsetPow2) + HeaderLength;
-				int length = (int)Math.Min(Length - offset, Int32.MaxValue);
-				_chunks[chunkIdx] = _memoryMappedView.GetMemory(offset, length);
-			}
+			_readerEvent = readerEvent;
+			_writerEvent = writerEvent;
 		}
 
 		/// <summary>
-		/// Opens an IpcBuffer from a string passed in from another process
+		/// Create a new shared memory buffer
 		/// </summary>
-		/// <param name="handle">Descriptor for the buffer to open</param>
-		static MemoryMappedFile OpenMemoryMappedFileFromHandle(IntPtr handle)
+		/// <param name="name">Name of the buffer</param>
+		/// <param name="capacity">Capacity of the buffer</param>
+		public static SharedMemoryBuffer CreateNew(string? name, long capacity)
 		{
-			MethodInfo? setHandleInfo = typeof(SafeMemoryMappedFileHandle).GetMethod("SetHandle", BindingFlags.Instance | BindingFlags.NonPublic, new[] { typeof(IntPtr) });
-			if (setHandleInfo == null)
-			{
-				throw new InvalidOperationException("Cannot find SetHandle method for SafeMemoryMappedFileHandle");
-			}
-
-			ConstructorInfo? constructorInfo = typeof(MemoryMappedFile).GetConstructor(BindingFlags.Instance | BindingFlags.NonPublic, null, new[] { typeof(SafeMemoryMappedFileHandle) }, null);
-			if (constructorInfo == null)
-			{
-				throw new InvalidOperationException("Cannot find private constructor for memory mapped file");
-			}
-
-			SafeMemoryMappedFileHandle safeHandle = new SafeMemoryMappedFileHandle();
-			setHandleInfo.Invoke(safeHandle, new object[] { handle });
-
-			return (MemoryMappedFile)constructorInfo.Invoke(new object[] { safeHandle });
+			int numChunks = (int)Math.Max(4, capacity / Int32.MaxValue);
+			return CreateNew(name, numChunks, (int)(capacity / numChunks));
 		}
 
 		/// <summary>
-		/// Gets a string that can be used to open the same buffer in another process
+		/// Create a new shared memory buffer
 		/// </summary>
-		public void GetHandles(out IntPtr memoryHandle, out IntPtr readerEventHandle, out IntPtr writerEventHandle)
+		/// <param name="name">Name of the buffer</param>
+		/// <param name="numChunks">Number of chunks in the buffer</param>
+		/// <param name="chunkLength">Length of each chunk</param>
+		public static unsafe SharedMemoryBuffer CreateNew(string? name, int numChunks, int chunkLength)
 		{
-			memoryHandle = _memoryMappedFile.SafeMemoryMappedFileHandle.DangerousGetHandle();
-			readerEventHandle = _readerEvent.SafeWaitHandle.DangerousGetHandle();
-			writerEventHandle = _writerEvent.SafeWaitHandle.DangerousGetHandle();
+			long capacity = HeaderLength + (numChunks * sizeof(ulong)) + (numChunks * chunkLength);
+
+			name ??= $"Local\\COMPUTE_{Guid.NewGuid()}";
+
+			MemoryMappedFile memoryMappedFile = MemoryMappedFile.CreateNew($"{name}_M", capacity, MemoryMappedFileAccess.ReadWrite, MemoryMappedFileOptions.None, HandleInheritability.Inheritable);
+			MemoryMappedViewAccessor memoryMappedViewAccessor = memoryMappedFile.CreateViewAccessor();
+			MemoryMappedView memoryMappedView = new MemoryMappedView(memoryMappedViewAccessor);
+
+			Span<byte> header = memoryMappedView.GetMemory(0, 8).Span;
+			BinaryPrimitives.WriteInt32LittleEndian(header, numChunks);
+			BinaryPrimitives.WriteInt32LittleEndian(header.Slice(4), chunkLength);
+
+			Native.EventHandle writerEvent = Native.EventHandle.CreateNew($"{name}_W", EventResetMode.ManualReset, true, HandleInheritability.Inheritable);
+			Native.EventHandle readerEvent = Native.EventHandle.CreateNew($"{name}_R", EventResetMode.ManualReset, true, HandleInheritability.Inheritable);
+
+			Chunk[] chunks = CreateChunks(numChunks, chunkLength, memoryMappedView);
+			return new SharedMemoryBuffer(name, memoryMappedFile, memoryMappedViewAccessor, memoryMappedView, chunks, readerEvent, writerEvent);
+		}
+
+		static unsafe Chunk[] CreateChunks(int numChunks, int chunkLength, MemoryMappedView memoryMappedView)
+		{
+			Chunk[] chunks = new Chunk[numChunks];
+			for (int chunkIdx = 0; chunkIdx < numChunks; chunkIdx++)
+			{
+				byte* statePtr = memoryMappedView.GetPointer() + HeaderLength + (chunkIdx * sizeof(ulong));
+				int chunkOffset = HeaderLength + (numChunks * sizeof(ulong)) + (chunkLength * chunkIdx);
+
+				Chunk chunk = new Chunk((ulong*)statePtr, memoryMappedView.GetMemory(chunkOffset, chunkLength));
+				chunks[chunkIdx] = chunk;
+			}
+			return chunks;
 		}
 
 		/// <summary>
-		/// Gets a string that can be used to open the same buffer in another process
+		/// Open an existing buffer by name
 		/// </summary>
-		public void DuplicateHandles(IntPtr targetProcessHandle, out IntPtr targetMemoryHandle, out IntPtr targetReaderEventHandle, out IntPtr targetWriterEventHandle)
+		/// <param name="name">Name of the buffer to open</param>
+		public static SharedMemoryBuffer OpenExisting(string name)
 		{
-			IntPtr sourceProcessHandle = Native.GetCurrentProcess();
-
-			if (!Native.DuplicateHandle(sourceProcessHandle, _memoryMappedFile.SafeMemoryMappedFileHandle.DangerousGetHandle(), targetProcessHandle, out targetMemoryHandle, 0, false, Native.DUPLICATE_SAME_ACCESS))
+			if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
-				throw new Win32Exception();
+				throw new NotSupportedException();
 			}
 
-			if (!Native.DuplicateHandle(sourceProcessHandle, _readerEvent.SafeWaitHandle.DangerousGetHandle(), targetProcessHandle, out targetReaderEventHandle, 0, false, Native.DUPLICATE_SAME_ACCESS))
-			{
-				throw new Win32Exception();
-			}
+			MemoryMappedFile memoryMappedFile = MemoryMappedFile.OpenExisting($"{name}_M");
+			MemoryMappedViewAccessor memoryMappedViewAccessor = memoryMappedFile.CreateViewAccessor();
+			MemoryMappedView memoryMappedView = new MemoryMappedView(memoryMappedViewAccessor);
 
-			if (!Native.DuplicateHandle(sourceProcessHandle, _writerEvent.SafeWaitHandle.DangerousGetHandle(), targetProcessHandle, out targetWriterEventHandle, 0, false, Native.DUPLICATE_SAME_ACCESS))
-			{
-				throw new Win32Exception();
-			}
+			ReadOnlySpan<byte> header = memoryMappedView.GetMemory(0, HeaderLength).Span;
+			int numChunks = BinaryPrimitives.ReadInt32LittleEndian(header);
+			int chunkLength = BinaryPrimitives.ReadInt32LittleEndian(header.Slice(4));
+
+			Native.EventHandle readerEvent = Native.EventHandle.OpenExisting($"{name}_R");
+			Native.EventHandle writerEvent = Native.EventHandle.OpenExisting($"{name}_W");
+
+			Chunk[] chunks = CreateChunks(numChunks, chunkLength, memoryMappedView);
+			return new SharedMemoryBuffer(name, memoryMappedFile, memoryMappedViewAccessor, memoryMappedView, chunks, readerEvent, writerEvent);
 		}
 
 		/// <inheritdoc/>
@@ -212,8 +142,9 @@ namespace EpicGames.Horde.Compute.Buffers
 
 			if (disposing)
 			{
-				_writerEvent.Dispose();
 				_readerEvent.Dispose();
+				_writerEvent.Dispose();
+
 				_memoryMappedView.Dispose();
 				_memoryMappedViewAccessor.Dispose();
 				_memoryMappedFile.Dispose();
@@ -221,137 +152,21 @@ namespace EpicGames.Horde.Compute.Buffers
 		}
 
 		/// <inheritdoc/>
-		public override Memory<byte> GetMemory(long offset, int length)
-		{
-			int chunkIdx = (int)(offset >> ChunkOffsetPow2);
-			long baseOffset = offset - (chunkIdx << ChunkOffsetPow2);
-			return _chunks[chunkIdx].Slice((int)(offset - baseOffset), length);
-		}
-
-		#region Reader
+		protected override void SetReadEvent(int readerIdx) => _readerEvent.Set();
 
 		/// <inheritdoc/>
-		public override bool FinishedReading() => _header.State == State.Finished && _header.ReadLength == 0;
+		protected override void ResetReadEvent(int readerIdx) => _readerEvent.Reset();
 
 		/// <inheritdoc/>
-		public override void AdvanceReadPosition(int size)
-		{
-			if (_header.AdvanceReadPosition(size) == 0)
-			{
-				_writerEvent.Set();
-			}
-		}
+		protected override Task WaitForReadEvent(int readerIdx, CancellationToken cancellationToken) => _readerEvent.WaitOneAsync(cancellationToken);
 
 		/// <inheritdoc/>
-		public override ReadOnlyMemory<byte> GetReadMemory()
-		{
-			return _memory.Slice((int)_header.ReadPosition, (int)_header.ReadLength);
-		}
+		protected override void SetWriteEvent() => _writerEvent.Set();
 
 		/// <inheritdoc/>
-		public override async ValueTask WaitForDataAsync(int currentLength, CancellationToken cancellationToken)
-		{
-			try
-			{
-				while (_header.ReadLength == currentLength)
-				{
-					State state = _header.State;
-					if (state == State.Finished)
-					{
-						break;
-					}
-					else if (state == State.Normal)
-					{
-						_readerEvent.Reset();
-						_header.UpdateState(state, State.ReaderWaitingForData);
-					}
-					else if (state == State.ReaderWaitingForData)
-					{
-						await _readerEvent.WaitOneAsync(cancellationToken);
-					}
-					else if (state == State.WriterWaitingToFlush)
-					{
-						_header.Compact();
-						_header.UpdateState(state, State.Normal);
-						_writerEvent.Set();
-					}
-					else
-					{
-						throw new NotImplementedException();
-					}
-					cancellationToken.ThrowIfCancellationRequested();
-				}
-			}
-			finally
-			{
-				_header.UpdateState(State.ReaderWaitingForData, State.Normal);
-			}
-		}
-
-		#endregion
-
-		#region Writer
+		protected override void ResetWriteEvent() => _writerEvent.Reset();
 
 		/// <inheritdoc/>
-		public override void FinishWriting()
-		{
-			_header.FinishWriting();
-			_readerEvent.Set();
-		}
-
-		/// <inheritdoc/>
-		public override void AdvanceWritePosition(int size)
-		{
-			if (_header.State == State.Finished)
-			{
-				throw new InvalidOperationException("Cannot update write position after marking as complete");
-			}
-
-			_header.AdvanceWritePosition(size);
-
-			if (_header.UpdateState(State.ReaderWaitingForData, State.Normal))
-			{
-				_readerEvent.Set();
-			}
-		}
-
-		/// <inheritdoc/>
-		public override Memory<byte> GetWriteMemory() => _memory.Slice((int)_header.WritePosition);
-
-		/// <inheritdoc/>
-		public override async ValueTask FlushAsync(CancellationToken cancellationToken)
-		{
-			try
-			{
-				while (_header.ReadPosition > 0)
-				{
-					State state = _header.State;
-					if (state == State.Finished)
-					{
-						break;
-					}
-					else if (state == State.Normal)
-					{
-						_writerEvent.Reset();
-						_header.UpdateState(state, State.WriterWaitingToFlush);
-					}
-					else if (state == State.ReaderWaitingForData)
-					{
-						_header.Compact();
-						break;
-					}
-					else if (state == State.WriterWaitingToFlush)
-					{
-						await _writerEvent.WaitOneAsync(cancellationToken);
-					}
-				}
-			}
-			finally
-			{
-				_header.UpdateState(State.WriterWaitingToFlush, State.Normal);
-			}
-		}
-
-		#endregion
+		protected override Task WaitForWriteEvent(CancellationToken cancellationToken) => _writerEvent.WaitOneAsync(cancellationToken);
 	}
 }

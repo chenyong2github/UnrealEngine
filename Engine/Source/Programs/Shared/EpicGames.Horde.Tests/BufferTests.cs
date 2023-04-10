@@ -22,6 +22,8 @@ namespace EpicGames.Horde.Tests
 	[TestClass]
 	public class BufferTests
 	{
+		const int ChannelId = 0;
+
 		[TestMethod]
 		public async Task TestPooledBuffer()
 		{
@@ -33,7 +35,7 @@ namespace EpicGames.Horde.Tests
 		{
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
-				await TestProducerConsumerAsync(length => new SharedMemoryBuffer(length), CancellationToken.None);
+				await TestProducerConsumerAsync(length => SharedMemoryBuffer.CreateNew(null, length), CancellationToken.None);
 			}
 		}
 
@@ -44,34 +46,33 @@ namespace EpicGames.Horde.Tests
 			Pipe sourceToTargetPipe = new Pipe();
 			Pipe targetToSourcePipe = new Pipe();
 
-			await using IComputeSocket sourceSocket = new ClientComputeSocket(new PipeTransport(targetToSourcePipe.Reader, sourceToTargetPipe.Writer), NullLogger.Instance);
-			await using IComputeSocket targetSocket = new ClientComputeSocket(new PipeTransport(sourceToTargetPipe.Reader, targetToSourcePipe.Writer), NullLogger.Instance);
+			await using IComputeSocket producerSocket = new ClientComputeSocket(new PipeTransport(targetToSourcePipe.Reader, sourceToTargetPipe.Writer), NullLogger.Instance);
+			await using IComputeSocket consumerSocket = new ClientComputeSocket(new PipeTransport(sourceToTargetPipe.Reader, targetToSourcePipe.Writer), NullLogger.Instance);
 
-			using IComputeBufferWriter sourceWriter = await sourceSocket.AttachSendBufferAsync(0, createBuffer(Length), cancellationToken);
-			using IComputeBufferReader targetReader = await targetSocket.AttachRecvBufferAsync(0, createBuffer(Length), cancellationToken);
+			using IComputeBuffer consumerBuffer = createBuffer(Length);
+			consumerSocket.AttachRecvBuffer(ChannelId, consumerBuffer.Writer);
 
 			byte[] input = RandomNumberGenerator.GetBytes(Length);
-			Task producerTask = RunProducerAsync(sourceWriter, input);
+			Task producerTask = RunProducerAsync(producerSocket, input);
 
 			byte[] output = new byte[Length];
-			await RunConsumerAsync(targetReader, output);
+			await RunConsumerAsync(consumerBuffer.Reader, output);
 
 			await producerTask;
 			Assert.IsTrue(input.SequenceEqual(output));
 		}
 
-		static async Task RunProducerAsync(IComputeBufferWriter writer, ReadOnlyMemory<byte> input)
+		static async Task RunProducerAsync(IComputeSocket socket, ReadOnlyMemory<byte> input)
 		{
 			int offset = 0;
 			while (offset < input.Length)
 			{
 				int length = Math.Min(input.Length - offset, 100);
-				input.Slice(offset, length).CopyTo(writer.GetMemory());
-				writer.Advance(length);
+				await socket.SendAsync(ChannelId, input.Slice(offset, length));
 				await Task.Delay(10);
 				offset += length;
 			}
-			writer.MarkComplete();
+			await socket.MarkCompleteAsync(ChannelId);
 		}
 
 		static async Task RunConsumerAsync(IComputeBufferReader reader, Memory<byte> output)
@@ -80,10 +81,15 @@ namespace EpicGames.Horde.Tests
 			while (!reader.IsComplete)
 			{
 				ReadOnlyMemory<byte> memory = reader.GetMemory();
+				if (memory.Length == 0)
+				{
+					await reader.WaitToReadAsync(0, CancellationToken.None);
+					continue;
+				}
+
 				int length = Math.Min(memory.Length, 7);
 				memory.Slice(0, length).CopyTo(output.Slice(offset));
 				reader.Advance(length);
-				await reader.WaitForDataAsync(memory.Length - length, CancellationToken.None);
 				offset += length;
 			}
 		}

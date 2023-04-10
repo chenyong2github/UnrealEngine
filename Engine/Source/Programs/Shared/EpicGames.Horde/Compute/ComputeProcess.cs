@@ -109,7 +109,7 @@ namespace EpicGames.Horde.Compute
 				else
 				{
 					AppendToBuffer(data.Slice(0, lineLen));
-					str = Encoding.UTF8.GetString(data.Slice(0, _bufferLength + lineLen));
+					str = Encoding.UTF8.GetString(_buffer.AsSpan(0, _bufferLength + lineLen));
 					_bufferLength = 0;
 				}
 

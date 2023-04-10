@@ -26,7 +26,7 @@ namespace EpicGames.Horde.Compute.Sockets
 		{
 			if (capacity > Int32.MaxValue)
 			{
-				return new SharedMemoryBuffer(capacity);
+				return SharedMemoryBuffer.CreateNew(null, capacity);
 			}
 			else
 			{

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Buffers.Binary;
 using System.Net.Http.Headers;
 using System.Reflection;
 using EpicGames.Core;
@@ -79,7 +80,7 @@ namespace RemoteClient
 		{
 			// Create a message channel on channel id 0. The Horde Agent always listens on this channel for requests.
 			const int ControlChannelId = 0;
-			await using IComputeMessageChannel channel = await lease.Socket.CreateMessageChannelAsync(ControlChannelId, 4 * 1024 * 1024, logger);
+			using IComputeMessageChannel channel = lease.Socket.CreateMessageChannel(ControlChannelId, 4 * 1024 * 1024, logger);
 			await channel.WaitForAttachAsync();
 
 			// Upload the sandbox
@@ -111,16 +112,15 @@ namespace RemoteClient
 		{
 			// Generate data into a buffer attached to channel 1. The remote server will echo them back to us as it receives them, then exit when the channel is complete/closed.
 			const int DataChannelId = 1;
-			using (IComputeBufferWriter writer = await socket.AttachSendBufferAsync(DataChannelId, 1024 * 1024, cancellationToken))
+
+			byte[] buffer = new byte[4];
+			for (int idx = 0; idx < 100; idx++)
 			{
-				for (int idx = 0; idx < 100; idx++)
-				{
-					cancellationToken.ThrowIfCancellationRequested();
-					logger.LogInformation("Writing value: {Value}", idx);
-					writer.GetMemory().Span[0] = (byte)idx;
-					writer.Advance(1);
-					await Task.Delay(1000, cancellationToken);
-				}
+				cancellationToken.ThrowIfCancellationRequested();
+				logger.LogInformation("Writing value: {Value}", idx);
+				BinaryPrimitives.WriteInt32LittleEndian(buffer, idx);
+				await socket.SendAsync(DataChannelId, buffer, cancellationToken);
+				await Task.Delay(1000, cancellationToken);
 			}
 		}
 

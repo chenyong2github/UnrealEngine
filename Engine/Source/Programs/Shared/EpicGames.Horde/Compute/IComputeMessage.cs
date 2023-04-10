@@ -4,11 +4,9 @@ using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using EpicGames.Horde.Compute.Buffers;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
 
@@ -33,16 +31,6 @@ namespace EpicGames.Horde.Compute
 		/// Sent in place of a regular response if an error occurs on the remote
 		/// </summary>
 		Exception = 0x02,
-
-		/// <summary>
-		/// Fork a new request channel
-		/// </summary>
-		Fork = 0x03,
-
-		/// <summary>
-		/// Untyped user data
-		/// </summary>
-		UserData = 0x04,
 
 		#region Process Management
 
@@ -129,11 +117,6 @@ namespace EpicGames.Horde.Compute
 	public record struct ExceptionMessage(string Message, string Description);
 
 	/// <summary>
-	/// Message to request forking the message loop
-	/// </summary>
-	public record struct ForkMessage(int ChannelId);
-
-	/// <summary>
 	/// Extract files from a bundle to a path in the remote sandbox
 	/// </summary>
 	/// <param name="Name">Path to extract the files to</param>
@@ -212,35 +195,6 @@ namespace EpicGames.Horde.Compute
 			string description = message.ReadString();
 			return new ExceptionMessage(msg, description);
 		}
-/*
-		/// <inheritdoc/>
-		public static void Fork(this IComputeMessageChannel channel, int newChannelId)
-		{
-			using (IComputeMessageBuilder builder = channel.CreateMessage(ComputeMessageType.Fork))
-			{
-				builder.WriteInt32(newChannelId);
-				builder.Send();
-			}
-		}
-*/
-		/// <summary>
-		/// Parses a fork message from the given compute message
-		/// </summary>
-		public static ForkMessage ParseForkMessage(this IComputeMessage message)
-		{
-			int channelId = message.ReadInt32();
-			return new ForkMessage(channelId);
-		}
-
-		/// <summary>
-		/// Sends untyped user data to the remote
-		/// </summary>
-		public static async ValueTask SendUserDataAsync(this IComputeMessageChannel channel, ReadOnlyMemory<byte> memory, CancellationToken cancellationToken)
-		{
-			using IComputeMessageBuilder message = await channel.CreateMessageAsync(ComputeMessageType.UserData, memory.Length, cancellationToken);
-			message.WriteFixedLengthBytes(memory.Span);
-			message.Send();
-		}
 
 		#region Process
 
@@ -286,7 +240,7 @@ namespace EpicGames.Horde.Compute
 			using IComputeMessage response = await RunStorageServer(channel, storage, cancellationToken);
 			if (response.Type != ComputeMessageType.WriteFilesResponse)
 			{
-				throw new NotSupportedException();
+				throw new ComputeInvalidMessageException(response);
 			}
 		}
 
@@ -413,7 +367,7 @@ namespace EpicGames.Horde.Compute
 			readonly IComputeMessage _message;
 
 			public BlobDataStream(IComputeMessage message)
-				: base(message.Data)
+				: base(message.Data.Slice(8))
 			{
 				_message = message;
 			}
@@ -448,14 +402,45 @@ namespace EpicGames.Horde.Compute
 				request.Send();
 			}
 
-			IComputeMessage response = await channel.ReceiveAsync(cancellationToken);
-			if (response.Type != ComputeMessageType.ReadBlobResponse)
+			byte[]? buffer = null;
+			for(; ;)
 			{
-				response.Dispose();
-				throw new ComputeInvalidMessageException(response);
+				IComputeMessage? response = null;
+				try
+				{
+					response = await channel.ReceiveAsync(cancellationToken);
+					if (response.Type != ComputeMessageType.ReadBlobResponse)
+					{
+						throw new ComputeInvalidMessageException(response);
+					}
+
+					int chunkOffset = BinaryPrimitives.ReadInt32LittleEndian(response.Data.Span.Slice(0, 4));
+					int chunkLength = response.Data.Length - 8;
+					int totalLength = BinaryPrimitives.ReadInt32LittleEndian(response.Data.Span.Slice(4, 4));
+
+					if (chunkOffset == 0 && chunkLength == totalLength)
+					{
+						BlobDataStream stream = new BlobDataStream(response);
+						response = null;
+						return stream;
+					}
+
+					buffer ??= new byte[totalLength];
+					response.Data.Slice(8).CopyTo(buffer.AsMemory(chunkOffset));
+
+					if (chunkOffset + chunkLength == totalLength)
+					{
+						break;
+					}
+				}
+				catch
+				{
+					response?.Dispose();
+					throw;
+				}
 			}
 
-			return new BlobDataStream(response);
+			return new ReadOnlyMemoryStream(buffer);
 		}
 
 		/// <summary>
@@ -501,10 +486,18 @@ namespace EpicGames.Horde.Compute
 				}
 			}
 
-			using (IComputeMessageBuilder response = await channel.CreateMessageAsync(ComputeMessageType.ReadBlobResponse, data.Length + 128, cancellationToken))
+			const int MaxChunkSize = 512 * 1024;
+			for (int chunkOffset = 0; chunkOffset < data.Length;)
 			{
-				response.WriteFixedLengthBytes(data);
-				response.Send();
+				int chunkLength = Math.Min(data.Length - chunkOffset, MaxChunkSize);
+				using (IComputeMessageBuilder response = await channel.CreateMessageAsync(ComputeMessageType.ReadBlobResponse, chunkLength + 128, cancellationToken))
+				{
+					response.WriteInt32(chunkOffset);
+					response.WriteInt32(data.Length);
+					response.WriteFixedLengthBytes(data.AsSpan(chunkOffset, chunkLength));
+					response.Send();
+				}
+				chunkOffset += chunkLength;
 			}
 		}
 

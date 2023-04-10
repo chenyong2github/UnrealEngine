@@ -10,7 +10,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Full-duplex channel for sending and receiving messages
 	/// </summary>
-	public interface IComputeMessageChannel : IAsyncDisposable
+	public interface IComputeMessageChannel : IDisposable
 	{
 		/// <summary>
 		/// Reads a message from the channel
@@ -43,7 +43,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Extension methods to allow creating channels from leases
 	/// </summary>
-	public static class ComputeChannelExtensions
+	public static class ComputeMessageChannelExtensions
 	{
 		/// <summary>
 		/// Waits for the remote machine to send a 'ready' response

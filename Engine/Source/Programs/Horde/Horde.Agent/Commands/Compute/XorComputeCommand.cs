@@ -31,7 +31,7 @@ namespace Horde.Agent.Commands.Compute
 		protected override async Task<bool> HandleRequestAsync(IComputeLease lease, CancellationToken cancellationToken)
 		{
 			IComputeSocket socket = lease.Socket;
-			await using (IComputeMessageChannel mainChannel = await socket.CreateMessageChannelAsync(0, _logger, cancellationToken))
+			using (IComputeMessageChannel mainChannel = socket.CreateMessageChannel(0, _logger, cancellationToken))
 			{
 				_logger.LogInformation("Forking compute channel...");
 
