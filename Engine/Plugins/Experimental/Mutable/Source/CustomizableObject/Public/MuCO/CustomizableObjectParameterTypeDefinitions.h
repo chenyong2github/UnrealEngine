@@ -279,7 +279,7 @@ struct FCustomizableObjectProjectorParameterValue
 {
 	GENERATED_USTRUCT_BODY()
 
-	static constexpr FCustomizableObjectProjector DEFAULT_PARAMETER_VALUE;
+	inline static const FCustomizableObjectProjector DEFAULT_PARAMETER_VALUE = {};
 
 	UPROPERTY(Category = CustomizableObjectVectorParameterValue, VisibleAnywhere)
 	FString ParameterName;
