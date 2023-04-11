@@ -285,11 +285,11 @@ namespace Horde.Server.Artifacts
 							await ExpandDirectoriesAsync(reader, subDirectoryNode, depth + 1, subDirectoryEntryResponse, cancellationToken);
 						}
 					}
-					else if (depth < 5)
+					else if (depth < 10)
 					{
 						if (subDirectoryNode.Directories.Count == 1 && subDirectoryNode.Files.Count == 0)
 						{
-							await ExpandDirectoriesAsync(reader, subDirectoryNode, depth, subDirectoryEntryResponse, cancellationToken);
+							await ExpandDirectoriesAsync(reader, subDirectoryNode, depth + 1, subDirectoryEntryResponse, cancellationToken);
 						}
 					}
 					response.Directories.Add(subDirectoryEntryResponse);
