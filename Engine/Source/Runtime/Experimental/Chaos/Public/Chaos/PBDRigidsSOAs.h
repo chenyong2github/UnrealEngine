@@ -560,14 +560,7 @@ public:
 						RemoveGeometryCollectionParticle(PBDRigidGC);
 						InsertGeometryCollectionParticle(PBDRigidGC);
 					}
-					else if (FPBDRigidClusteredParticleHandle* PBDRigidClustered = Particle->CastToClustered())
-					{
-						RemoveFromActiveArray(PBDRigid, /*bStillDirty=*/true);
-					}
-					else
-					{
-						RemoveFromActiveArray(PBDRigid, /*bStillDirty=*/true);
-					}
+					RemoveFromActiveArray(PBDRigid, /*bStillDirty=*/true);
 
 					if (!DeferUpdateViews)
 					{
