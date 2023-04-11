@@ -92,6 +92,15 @@ struct FMassEntityTemplateBuildContext
 	}
 
 	template<typename T>
+	T& GetFragmentChecked()
+	{
+		check(TraitAddedTypes.Find(T::StaticStruct()) != nullptr);
+		T* FragmentInstance = TemplateData.GetMutableFragment<T>();
+		check(FragmentInstance);
+		return *FragmentInstance;
+	}
+
+	template<typename T>
 	bool HasFragment() const
 	{
 		ensureMsgf(!BuildingTrait, TEXT("This method is not expected to be called within the build from trait call."));
