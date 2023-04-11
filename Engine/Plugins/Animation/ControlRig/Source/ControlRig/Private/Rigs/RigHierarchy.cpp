@@ -4450,17 +4450,17 @@ void URigHierarchy::CleanupInvalidCaches()
 		FRigBaseElement* BaseElement = HierarchyForCacheValidation->Elements[ElementIndex];
 		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(BaseElement))
 		{
-			if(Local::NeedsCheck(ControlElement->Offset.bDirtyInitial))
+			if(Local::NeedsCheck(ControlElement->Offset.Initial.bDirty))
 			{
 				ControlElement->Offset.MarkDirty(ERigTransformType::InitialGlobal);
 			}
 
-			if(Local::NeedsCheck(ControlElement->Pose.bDirtyInitial))
+			if(Local::NeedsCheck(ControlElement->Pose.Initial.bDirty))
 			{
 				ControlElement->Pose.MarkDirty(ERigTransformType::InitialGlobal);
 			}
 
-			if(Local::NeedsCheck(ControlElement->Shape.bDirtyInitial))
+			if(Local::NeedsCheck(ControlElement->Shape.Initial.bDirty))
 			{
 				ControlElement->Shape.MarkDirty(ERigTransformType::InitialGlobal);
 			}
@@ -4469,7 +4469,7 @@ void URigHierarchy::CleanupInvalidCaches()
 
 		if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(BaseElement))
 		{
-			if(Local::NeedsCheck(MultiParentElement->Pose.bDirtyInitial))
+			if(Local::NeedsCheck(MultiParentElement->Pose.Initial.bDirty))
 			{
 				MultiParentElement->Pose.MarkDirty(ERigTransformType::InitialLocal);
 			}
@@ -4478,7 +4478,7 @@ void URigHierarchy::CleanupInvalidCaches()
 
 		if(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(BaseElement))
 		{
-			if(Local::NeedsCheck(TransformElement->Pose.bDirtyInitial))
+			if(Local::NeedsCheck(TransformElement->Pose.Initial.bDirty))
 			{
 				TransformElement->Pose.MarkDirty(ERigTransformType::InitialGlobal);
 			}
@@ -4497,7 +4497,7 @@ void URigHierarchy::CleanupInvalidCaches()
 		{
 			FRigControlElement* OtherControlElement = HierarchyForCacheValidation->FindChecked<FRigControlElement>(ControlElement->GetKey());
 			
-			if(Local::NeedsCheck(ControlElement->Offset.bDirtyInitial))
+			if(Local::NeedsCheck(ControlElement->Offset.Initial.bDirty))
 			{
 				const FTransform CachedGlobalTransform = OtherControlElement->Offset.Get(ERigTransformType::InitialGlobal);
 				const FTransform ComputedGlobalTransform = HierarchyForCacheValidation->GetControlOffsetTransform(OtherControlElement, ERigTransformType::InitialGlobal);
@@ -4508,7 +4508,7 @@ void URigHierarchy::CleanupInvalidCaches()
 				}
 			}
 
-			if(Local::NeedsCheck(ControlElement->Pose.bDirtyInitial))
+			if(Local::NeedsCheck(ControlElement->Pose.Initial.bDirty))
 			{
 				const FTransform CachedGlobalTransform = ControlElement->Pose.Get(ERigTransformType::InitialGlobal);
 				const FTransform ComputedGlobalTransform = HierarchyForCacheValidation->GetTransform(OtherControlElement, ERigTransformType::InitialGlobal);
@@ -4519,7 +4519,7 @@ void URigHierarchy::CleanupInvalidCaches()
 				}
 			}
 
-			if(Local::NeedsCheck(ControlElement->Shape.bDirtyInitial))
+			if(Local::NeedsCheck(ControlElement->Shape.Initial.bDirty))
 			{
 				const FTransform CachedGlobalTransform = ControlElement->Shape.Get(ERigTransformType::InitialGlobal);
 				const FTransform ComputedGlobalTransform = HierarchyForCacheValidation->GetControlShapeTransform(OtherControlElement, ERigTransformType::InitialGlobal);
@@ -4536,7 +4536,7 @@ void URigHierarchy::CleanupInvalidCaches()
 		{
 			FRigMultiParentElement* OtherMultiParentElement = HierarchyForCacheValidation->FindChecked<FRigMultiParentElement>(MultiParentElement->GetKey());
 
-			if(Local::NeedsCheck(MultiParentElement->Pose.bDirtyInitial))
+			if(Local::NeedsCheck(MultiParentElement->Pose.Initial.bDirty))
 			{
 				const FTransform CachedGlobalTransform = MultiParentElement->Pose.Get(ERigTransformType::InitialGlobal);
 				const FTransform ComputedGlobalTransform = HierarchyForCacheValidation->GetTransform(OtherMultiParentElement, ERigTransformType::InitialGlobal);
@@ -4554,7 +4554,7 @@ void URigHierarchy::CleanupInvalidCaches()
 		{
 			FRigTransformElement* OtherTransformElement = HierarchyForCacheValidation->FindChecked<FRigTransformElement>(TransformElement->GetKey());
 
-			if(Local::NeedsCheck(TransformElement->Pose.bDirtyInitial))
+			if(Local::NeedsCheck(TransformElement->Pose.Initial.bDirty))
 			{
 				const FTransform CachedGlobalTransform = TransformElement->Pose.Get(ERigTransformType::InitialGlobal);
 				const FTransform ComputedGlobalTransform = HierarchyForCacheValidation->GetTransform(OtherTransformElement, ERigTransformType::InitialGlobal);
