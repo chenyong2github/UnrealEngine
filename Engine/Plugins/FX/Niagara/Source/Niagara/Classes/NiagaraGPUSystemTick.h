@@ -29,9 +29,9 @@ struct FNiagaraComputeInstanceData
 		FPerStageInfo(int32 InNumIterations, FIntVector InElementCountXYZ) : NumIterations(InNumIterations), ElementCountXYZ(InElementCountXYZ) {}
 
 		int32 NumIterations = 0;
-		FIntVector ElementCountXYZ = FIntVector::NoneValue;
+		FIntVector ElementCountXYZ = FIntVector::ZeroValue;
 
-		bool ShouldRunStage() const { return NumIterations > 0 && (ElementCountXYZ != FIntVector::ZeroValue); }
+		bool ShouldRunStage() const { return NumIterations > 0; }
 	};
 
 	FNiagaraComputeInstanceData()
