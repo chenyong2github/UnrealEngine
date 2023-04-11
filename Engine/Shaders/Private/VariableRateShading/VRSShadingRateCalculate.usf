@@ -160,28 +160,7 @@ void CalculateShadingRateImage(
 	uint GroupIndex : SV_GroupIndex)
 {
 	int2 TextureCoord = int2(int(ViewRect.x + DispatchThreadId.x), int(ViewRect.y + DispatchThreadId.y));
-#if FORCE_RATE != -1
-	const float2 VRSTileSize = float2(THREADGROUP_SIZEX, THREADGROUP_SIZEY);
-	uint2 MaxSize = ceil(ViewRect.zw / VRSTileSize);
 
-	if (all(DispatchThreadId.xy < MaxSize))
-	{
-		uint DebugRate =
-	#if FORCE_RATE == 0
-			D3D12_SHADING_RATE_1X1;
-	#elif FORCE_RATE == 1
-			D3D12_SHADING_RATE_1X2;
-	#elif FORCE_RATE == 4
-			D3D12_SHADING_RATE_2X1;
-	#else // FORCE_RATE == 5
-			D3D12_SHADING_RATE_2X2;
-	#endif
-
-		VariableRateShadingTexture[TextureCoord] = 
-			(DebugRate << CONSERVATIVE_SHADING_RATE_SHIFT) |
-			DebugRate;
-	}
-#else
 	CalculateShadingRateImageInner(
 		DispatchThreadId.xy, 
 		GroupThreadId.xy, 
@@ -189,7 +168,6 @@ void CalculateShadingRateImage(
 		GroupId, 
 		GroupIndex,
 		LuminanceTexture[TextureCoord]);
-#endif
 }
 
 #endif /* COMPUTE_SHADER */

@@ -191,17 +191,8 @@ void FFoveatedImageGenerator::PrepareImages(FRDGBuilder& GraphBuilder, const FSc
 	// Sanity check VRS tile size.
 	check(GRHIVariableRateShadingImageTileMinWidth >= 8 && GRHIVariableRateShadingImageTileMinWidth <= 64 && GRHIVariableRateShadingImageTileMinHeight >= 8 && GRHIVariableRateShadingImageTileMaxHeight <= 64);
 
-	// Calculate texture size
-	const FIntPoint Size = FSceneTexturesConfig::Get().Extent;
-	const FIntPoint TextureSize(Size.X / GRHIVariableRateShadingImageTileMinWidth, Size.Y / GRHIVariableRateShadingImageTileMinHeight);
-
 	// Create texture to hold shading rate image
-	FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-		TextureSize,
-		GRHIVariableRateShadingImageFormat,
-		FClearValueBinding::None,
-		TexCreate_Foveation | TexCreate_UAV);
-
+	FRDGTextureDesc Desc = FVariableRateShadingImageManager::GetSRIDesc();
 	FRDGTextureRef ShadingRateTexture = GraphBuilder.CreateTexture(Desc, TEXT("FoveatedShadingRateTexture"));
 
 	// Setup shader parameters and flags
@@ -213,7 +204,7 @@ void FFoveatedImageGenerator::PrepareImages(FRDGBuilder& GraphBuilder, const FSc
 	PassParameters->FoveationFullRateCutoffSquared = FoveationFullRateCutoff * FoveationFullRateCutoff;
 	PassParameters->FoveationHalfRateCutoffSquared = FoveationHalfRateCutoff * FoveationHalfRateCutoff;
 
-	PassParameters->LeftEyeCenterPixelXY = FVector2f(TextureSize.X * FoveationCenterX, TextureSize.Y * FoveationCenterY);
+	PassParameters->LeftEyeCenterPixelXY = FVector2f(Desc.Extent.X * FoveationCenterX, Desc.Extent.Y * FoveationCenterY);
 	PassParameters->RightEyeCenterPixelXY = PassParameters->LeftEyeCenterPixelXY;
 
 	EVRSGenerationFlags GenFlags = EVRSGenerationFlags::None;
@@ -226,16 +217,16 @@ void FFoveatedImageGenerator::PrepareImages(FRDGBuilder& GraphBuilder, const FSc
 
 		// Adjust eyes for side-by-side stereo and/or quadview
 		PassParameters->LeftEyeCenterPixelXY.X /= ViewFamily.Views.Num();;
-		PassParameters->RightEyeCenterPixelXY.X = PassParameters->LeftEyeCenterPixelXY.X + TextureSize.X / ViewFamily.Views.Num();
+		PassParameters->RightEyeCenterPixelXY.X = PassParameters->LeftEyeCenterPixelXY.X + Desc.Extent.X / ViewFamily.Views.Num();
 	}
 
 	// Set up remaining parameters
-	const FVector2f ViewCenterPoint = FVector2f(TextureSize.X / ViewFamily.Views.Num() * 0.5f, TextureSize.Y * 0.5f);
+	const FVector2f ViewCenterPoint = FVector2f(Desc.Extent.X / ViewFamily.Views.Num() * 0.5f, Desc.Extent.Y * 0.5f);
 	PassParameters->ViewDiagonalSquaredInPixels = FVector2f::DotProduct(ViewCenterPoint, ViewCenterPoint);
 	PassParameters->ShadingRateAttachmentGenerationFlags = (uint32)GenFlags;
 
 	TShaderMapRef<FComputeVariableRateShadingImageGeneration> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel)); // If in stereo, shader sets up a single side-by-side image for both eyes at once
-	FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(TextureSize, FComputeShaderUtils::kGolden2DGroupSize);
+	FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(Desc.Extent, FComputeShaderUtils::kGolden2DGroupSize);
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("GenerateFoveatedVRSImage"),
 		PassParameters,

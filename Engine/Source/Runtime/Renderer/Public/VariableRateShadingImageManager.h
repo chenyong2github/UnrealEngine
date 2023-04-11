@@ -96,6 +96,7 @@ public:
 	static bool IsVRSCompatibleWithOutputType(const EDisplayOutputFormat& DisplayOutputFormat);
 
 	static FIntPoint GetSRITileSize();
+	static FRDGTextureDesc GetSRIDesc();
 
 	void DrawDebugPreview(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, FRDGTextureRef OutputSceneColor);
 
@@ -104,6 +105,7 @@ private:
 	TArray<TUniquePtr<IVariableRateShadingImageGenerator>> ImageGenerators;
 
 	FRDGTextureRef CombineShadingRateImages(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, TArray<FRDGTextureRef> Sources);
+	FRDGTextureRef GetForceRateImage(FRDGBuilder& GraphBuilder, int RateIndex = 0);
 };
 
 ENUM_CLASS_FLAGS(FVariableRateShadingImageManager::EVRSSourceType);

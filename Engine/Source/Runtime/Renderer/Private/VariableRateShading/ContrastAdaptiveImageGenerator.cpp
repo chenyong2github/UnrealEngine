@@ -125,17 +125,11 @@ TAutoConsoleVariable<int32> CVarVRSDecals(
  * Debug Settings 
  */
 
-int GVRSDebugForceRate = -1;
-FAutoConsoleVariableRef CVarVRSDebugForceRate(
-	TEXT("r.VRS.ContrastAdaptiveShading.Debug.ForceRate"),
-	GVRSDebugForceRate,
-	TEXT("-1 : None, 0 : Force 1x1, 1 : Force 1x2, 4 : Force 2x1, 5: Force 2x2"));
-
 TAutoConsoleVariable<int32> CVarCASPreviewType(
 	TEXT("r.VRS.ContrastAdaptiveShading.PreviewType"),
 	1,
 	TEXT("Include CAS in the VRS debug overlay.")
-	TEXT("0 - off, 1 - the SRI texture, 2- the conservative SRI texture"),
+	TEXT("0 - off, 1 - the SRI texture, 2- the conservative SRI texture, 3 - the pre-reprojection SRI texture"),
 	ECVF_RenderThreadSafe);
 
 
@@ -152,9 +146,8 @@ class FCalculateShadingRateImageCS : public FGlobalShader
 
 	class FThreadGroupX : SHADER_PERMUTATION_SPARSE_INT("THREADGROUP_SIZEX", 8, 16);
 	class FThreadGroupY : SHADER_PERMUTATION_SPARSE_INT("THREADGROUP_SIZEY", 8, 16);
-	class FForceRate : SHADER_PERMUTATION_SPARSE_INT("FORCE_RATE", -1, 0, 1, 4, 5);
 
-	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupX, FThreadGroupY, FForceRate>;
+	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupX, FThreadGroupY>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, LuminanceTexture)
@@ -380,29 +373,27 @@ struct RENDERER_API FVRSTextures
 private:
 	static FRDGTextureDesc CreateSRIDesc(const FSceneViewFamily& ViewFamily, bool bIsForDynResScaled)
 	{
-		FIntPoint TileSize = FVariableRateShadingImageManager::GetSRITileSize();
-
-		FIntPoint ViewTargetExtents = FIntPoint::ZeroValue;
 		if (bIsForDynResScaled)
 		{
-			ViewTargetExtents = FSceneTexturesConfig::Get().Extent;
+			// Use SceneTextures
+			return FVariableRateShadingImageManager::GetSRIDesc();
 		}
 		else
 		{
 			// Get initial size based on luminance texture from previous frame
 			check(ViewFamily.Views[0]->bIsViewInfo);
 			const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(ViewFamily.Views[0]);
-			ViewTargetExtents = ViewInfo->PrevViewInfo.LuminanceHistory->GetDesc().Extent;
-		}
+			const FIntPoint ViewTargetExtents = ViewInfo->PrevViewInfo.LuminanceHistory->GetDesc().Extent;
 
-		FIntPoint SRIDimensions = FMath::DivideAndRoundUp(ViewTargetExtents, TileSize);
-		return FRDGTextureDesc::Create2D(
-			SRIDimensions,
-			GRHIVariableRateShadingImageFormat,
-			EClearBinding::ENoneBound,
-			ETextureCreateFlags::DisableDCC |
-			ETextureCreateFlags::ShaderResource |
-			ETextureCreateFlags::UAV);
+			const FIntPoint SRIDimensions = FMath::DivideAndRoundUp(ViewTargetExtents, FVariableRateShadingImageManager::GetSRITileSize());
+			return FRDGTextureDesc::Create2D(
+				SRIDimensions,
+				GRHIVariableRateShadingImageFormat,
+				EClearBinding::ENoneBound,
+				ETextureCreateFlags::DisableDCC |
+				ETextureCreateFlags::ShaderResource |
+				ETextureCreateFlags::UAV);
+		}
 	}
 };
 RDG_REGISTER_BLACKBOARD_STRUCT(FVRSTextures);
@@ -453,18 +444,6 @@ bool AddCreateShadingRateImagePass(
 		const FIntPoint TileSize = FVariableRateShadingImageManager::GetSRITileSize();
 		PermutationVector.Set<FCalculateShadingRateImageCS::FThreadGroupX>(TileSize.X);
 		PermutationVector.Set<FCalculateShadingRateImageCS::FThreadGroupY>(TileSize.Y);
-
-		// Set an override rate if we're in a debug mode
-		int32 ForceRate = GVRSDebugForceRate;
-		if (ForceRate != 0 &&
-			ForceRate != 1 &&
-			ForceRate != 4 &&
-			ForceRate != 5)
-		{
-			ForceRate = -1;
-		}
-
-		PermutationVector.Set<FCalculateShadingRateImageCS::FForceRate>(ForceRate);
 
 		TShaderMapRef<FCalculateShadingRateImageCS> ComputeShader(View.ShaderMap, PermutationVector);
 		auto* PassParameters = GraphBuilder.AllocParameters<FCalculateShadingRateImageCS::FParameters>();
@@ -640,11 +619,14 @@ FRDGTextureRef FContrastAdaptiveImageGenerator::GetDebugImage(FRDGBuilder& Graph
 
 	switch (PreviewType)
 	{
-	case ESRIPreviewType::BeforeReprojection:
-		return VRSTextures.ConstructedSRI;
-		break;
 	case ESRIPreviewType::Projected:
 		return VRSTextures.ScaledSRI;
+		break;
+	case ESRIPreviewType::ProjectedConservative:
+		return VRSTextures.ScaledConservativeSRI;
+		break;
+	case ESRIPreviewType::BeforeReprojection:
+		return VRSTextures.ConstructedSRI;
 		break;
 	}
 

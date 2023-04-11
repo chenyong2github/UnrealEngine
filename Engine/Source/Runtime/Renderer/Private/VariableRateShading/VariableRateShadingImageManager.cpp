@@ -34,6 +34,12 @@ TAutoConsoleVariable<int32> CVarVRSPreview(
 	TEXT("0 - off, 1 - on"),
 	ECVF_RenderThreadSafe);
 
+int GVRSDebugForceRate = -1;
+FAutoConsoleVariableRef CVarVRSDebugForceRate(
+	TEXT("r.VRS.DebugForceRate"),
+	GVRSDebugForceRate,
+	TEXT("-1 : None, 0 : Force 1x1, 1 : Force 1x2, 2 : Force 2x1, 3: Force 2x2, 4 : Force 2x4, 5 : Force 4x2, 6 : Force 4x4"));
+
 /**
  * Shaders
  */
@@ -209,49 +215,17 @@ FIntPoint FVariableRateShadingImageManager::GetSRITileSize()
 	return FIntPoint(GRHIVariableRateShadingImageTileMinWidth, GRHIVariableRateShadingImageTileMinHeight);
 }
 
-FRDGTextureRef FVariableRateShadingImageManager::CombineShadingRateImages(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, TArray<FRDGTextureRef> Sources)
+FRDGTextureDesc FVariableRateShadingImageManager::GetSRIDesc()
 {
-	// If we have more than one source, combine the first available two
-	// TODO: Support combining more textures
-	if (Sources.Num() < 1)
-	{
-		return nullptr;
-	}
-	else if (Sources.Num() == 1)
-	{
-		return Sources[0];
-	}
-	else
-	{
-		FIntPoint ViewSize = FSceneTexturesConfig::Get().Extent;
-		const FIntPoint TileSize = GetSRITileSize();
+	const FIntPoint Size = FSceneTexturesConfig::Get().Extent;
+	const FIntPoint TileSize = GetSRITileSize();
+	const FIntPoint SRISize = FMath::DivideAndRoundUp(Size, TileSize);
 
-		// Create texture to hold shading rate image
-		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-			ViewSize / TileSize,
-			GRHIVariableRateShadingImageFormat,
-			FClearValueBinding::None,
-			TexCreate_Foveation | TexCreate_UAV);
-
-		FRDGTextureRef CombinedShadingRateTexture = GraphBuilder.CreateTexture(Desc, TEXT("CombinedShadingRateTexture"));
-
-		FCombineShadingRateTexturesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCombineShadingRateTexturesCS::FParameters>();
-		PassParameters->SourceTexture0 = Sources[0];
-		PassParameters->SourceTexture1 = Sources[1];
-		PassParameters->RWOutputTexture = GraphBuilder.CreateUAV(CombinedShadingRateTexture);
-
-		TShaderMapRef<FCombineShadingRateTexturesCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("CombineShadingRateImages"),
-			ERDGPassFlags::AsyncCompute | ERDGPassFlags::NeverCull,
-			ComputeShader,
-			PassParameters,
-			FComputeShaderUtils::GetGroupCount(ViewSize, TileSize));
-
-		return CombinedShadingRateTexture;
-	}
+	return FRDGTextureDesc::Create2D(
+		SRISize,
+		GRHIVariableRateShadingImageFormat,
+		FClearValueBinding::None,
+		TexCreate_Foveation | TexCreate_UAV | TexCreate_ShaderResource | TexCreate_DisableDCC);
 
 }
 
@@ -262,6 +236,12 @@ FRDGTextureRef FVariableRateShadingImageManager::GetVariableRateShadingImage(FRD
 	if (!IsVRSCompatibleWithView(ViewInfo))
 	{
 		return nullptr;
+	}
+
+	// Use debug rate if provided
+	if (CVarVRSDebugForceRate->GetInt() >= 0)
+	{
+		return GetForceRateImage(GraphBuilder, CVarVRSDebugForceRate->GetInt());
 	}
 
 	// Otherwise collate all internal sources
@@ -293,9 +273,11 @@ FRDGTextureRef FVariableRateShadingImageManager::GetVariableRateShadingImage(FRD
 	{
 		return GraphBuilder.RegisterExternalTexture((*ExternalVRSSources)[0]);
 	}
+
+	// Default to 1x1 shading rate if no sources are available
 	else
 	{
-		return nullptr;
+		return GetForceRateImage(GraphBuilder);
 	}
 }
 
@@ -390,28 +372,37 @@ void FVariableRateShadingImageManager::DrawDebugPreview(FRDGBuilder& GraphBuilde
 		auto ViewInfo = static_cast<const FViewInfo*>(View);
 		if (IsVRSCompatibleWithView(*ViewInfo))
 		{
-			// Collate debug images
-			TArray<FRDGTextureRef> InternalVRSSources;
-
-			for (TUniquePtr<IVariableRateShadingImageGenerator>& Generator : ImageGenerators)
+			FRDGTextureRef PreviewTexture;
+			
+			// Use debug rate if provided
+			if (CVarVRSDebugForceRate->GetInt() >= 0)
 			{
-				FRDGTextureRef Image = nullptr;
-				if (Generator->IsEnabledForView(*View))
-				{
-					Image = Generator->GetDebugImage(GraphBuilder, *ViewInfo);
-				}
-
-				if (Image)
-				{
-					InternalVRSSources.Add(Image);
-				}
+				PreviewTexture = GetForceRateImage(GraphBuilder, CVarVRSDebugForceRate->GetInt());
 			}
 
-			FRDGTextureRef PreviewTexture = CombineShadingRateImages(GraphBuilder, *ViewInfo, InternalVRSSources);
-			if (!PreviewTexture)
+			// Otherwise collate debug images
+			else
 			{
-				return;
+				
+				TArray<FRDGTextureRef> InternalVRSSources;
+
+				for (TUniquePtr<IVariableRateShadingImageGenerator>& Generator : ImageGenerators)
+				{
+					FRDGTextureRef Image = nullptr;
+					if (Generator->IsEnabledForView(*View))
+					{
+						Image = Generator->GetDebugImage(GraphBuilder, *ViewInfo);
+					}
+
+					if (Image)
+					{
+						InternalVRSSources.Add(Image);
+					}
+				}
+
+				PreviewTexture = CombineShadingRateImages(GraphBuilder, *ViewInfo, InternalVRSSources);
 			}
+			
 
 			// If we have an active debug image, render it as a preview overlay
 			auto& RHICmdList = GraphBuilder.RHICmdList;
@@ -458,7 +449,63 @@ void FVariableRateShadingImageManager::DrawDebugPreview(FRDGBuilder& GraphBuilde
 		}
 	}
 
-	
+}
 
-	
+
+/**
+ * Private functions
+ */
+
+FRDGTextureRef FVariableRateShadingImageManager::CombineShadingRateImages(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, TArray<FRDGTextureRef> Sources)
+{
+	// If we have more than one source, combine the first available two
+	// TODO: Support combining more textures
+	if (Sources.Num() < 1)
+	{
+		return GetForceRateImage(GraphBuilder); // Fall back to uniform 1x1 shading rate if no images provided
+	}
+	else if (Sources.Num() == 1)
+	{
+		return Sources[0];
+	}
+	else
+	{
+		// Create texture to hold shading rate image
+		FRDGTextureRef CombinedShadingRateTexture = GraphBuilder.CreateTexture(GetSRIDesc(), TEXT("CombinedShadingRateTexture"));
+
+		FCombineShadingRateTexturesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCombineShadingRateTexturesCS::FParameters>();
+		PassParameters->SourceTexture0 = Sources[0];
+		PassParameters->SourceTexture1 = Sources[1];
+		PassParameters->RWOutputTexture = GraphBuilder.CreateUAV(CombinedShadingRateTexture);
+
+		TShaderMapRef<FCombineShadingRateTexturesCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("CombineShadingRateImages"),
+			ERDGPassFlags::AsyncCompute | ERDGPassFlags::NeverCull,
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(FSceneTexturesConfig::Get().Extent, GetSRITileSize()));
+
+		return CombinedShadingRateTexture;
+	}
+
+}
+
+FRDGTextureRef FVariableRateShadingImageManager::GetForceRateImage(FRDGBuilder& GraphBuilder, int RateIndex /* = 0*/)
+{
+	static const TArray<uint32> ValidShadingRates = { VRSSR_1x1, VRSSR_1x2, VRSSR_2x1, VRSSR_2x2, VRSSR_2x4, VRSSR_4x2, VRSSR_4x4 };
+
+	if (RateIndex >= ValidShadingRates.Num())
+	{
+		// TODO: Log warning
+		RateIndex = ValidShadingRates.Num() - 1; // Default to maximum shading rate if value exceeds valid rates
+	}
+
+	FRDGTextureRef ForceShadingRateTexture = GraphBuilder.CreateTexture(GetSRIDesc(), TEXT("ForceShadingRateTexture"));
+	FRDGTextureUAVRef ForceShadingRateUAV = GraphBuilder.CreateUAV(ForceShadingRateTexture);
+	AddClearUAVPass(GraphBuilder, ForceShadingRateUAV, ValidShadingRates[RateIndex]);
+
+	return ForceShadingRateTexture;
 }
