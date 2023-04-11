@@ -667,7 +667,15 @@ void AddVisualizationPasses(
 
 				Visualization.ModeOutput = GraphBuilder.CreateTexture(VisualizationOutputDesc, TEXT("Nanite.Visualization"));
 
-				FRDGBufferRef ShadingBinMeta = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetShadingBinMetaBufferRef());
+				FRDGBufferRef ShadingBinMeta = nullptr;
+				if (Nanite::GGlobalResources.GetShadingBinMetaBufferRef().IsValid())
+				{
+					ShadingBinMeta = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetShadingBinMetaBufferRef());
+				}
+				else
+				{
+					ShadingBinMeta = GSystemTextures.GetDefaultStructuredBuffer<FUint32Vector4>(GraphBuilder);
+				}
 
 				FNaniteVisualizeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteVisualizeCS::FParameters>();
 
