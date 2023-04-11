@@ -253,13 +253,24 @@ void UBlueprintGeneratedClass::GetAssetRegistryTags(TArray<FAssetRegistryTag>& O
 #endif //#if WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
-	if (AActor* BlueprintCDO = Cast<AActor>(ClassDefaultObject))
+	/*
+	 * Can't use GetExtendedAssetRegistryTagsForSave here because:
+	 *	- UBlueprint is an asset in editor builds only.
+	 *	- UBlueprintGeneratedClass is an asset in cooked builds only.
+	 *	- Extended tags are not present in cooked builds.
+	 *
+	 * See UBlueprint::GetExtendedAssetRegistryTagsForSave.
+	 */
+	if (GIsSavingPackage)
 	{
-		if (UPackage* BlueprintCDOPackage = BlueprintCDO->GetPackage())
+		if (AActor* BlueprintCDO = Cast<AActor>(ClassDefaultObject))
 		{
-			if (!FPackageName::IsTempPackage(BlueprintCDOPackage->GetName()) && !BlueprintCDOPackage->HasAnyPackageFlags(PKG_PlayInEditor))
+			if (UPackage* BlueprintCDOPackage = BlueprintCDO->GetPackage())
 			{
-				FWorldPartitionActorDescUtils::AppendAssetDataTagsFromActor(BlueprintCDO, OutTags);
+				if (!FPackageName::IsTempPackage(BlueprintCDOPackage->GetName()) && !BlueprintCDOPackage->HasAnyPackageFlags(PKG_PlayInEditor))
+				{
+					FWorldPartitionActorDescUtils::AppendAssetDataTagsFromActor(BlueprintCDO, OutTags);
+				}
 			}
 		}
 	}

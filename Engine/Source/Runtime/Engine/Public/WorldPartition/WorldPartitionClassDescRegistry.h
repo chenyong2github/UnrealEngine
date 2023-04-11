@@ -43,7 +43,6 @@ private:
 	const FWorldPartitionActorDesc* GetClassDescDefaultForActor(const FTopLevelAssetPath& InClassPath) const;
 	const FWorldPartitionActorDesc* GetClassDescDefaultForClass(const FTopLevelAssetPath& InClassPath) const;
 
-	void OnAssetLoaded(UObject* InAssetLoaded);
 	void OnObjectPreSave(UObject* InObject, FObjectPreSaveContext InSaveContext);
 	void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InPropertyChangedEvent);
 
