@@ -153,11 +153,17 @@ public:
 	void SetHardwareDeviceId(const FHardwareDeviceIdentifier& InDeviceId);
 
 	/**
+	 * Sets the Default Key on this mapping to that of the given ActionKeyMapping.
+	 * Checks for customization of this key. This is for use during player key registration.
+	 */
+	void UpdateDefaultKeyFromActionKeyMapping(const FEnhancedActionKeyMapping& OriginalMapping);
+
+	/**
 	 * Updates the metadata properties on this player mapped key based on the given
 	 * enhanced action mapping. This will populate the fields on this struct that are not editable
 	 * by the player such as the localized display name and default key.  
 	 */
-	void UpdateOriginalKey(const FEnhancedActionKeyMapping& OriginalMapping);
+	void UpdateMetadataFromActionKeyMapping(const FEnhancedActionKeyMapping& OriginalMapping);
 	
 	ENHANCEDINPUT_API friend uint32 GetTypeHash(const FPlayerKeyMapping& InMapping);
 	bool operator==(const FPlayerKeyMapping& Other) const;
@@ -165,7 +171,7 @@ public:
 
 	/** Returns true if this mapping has been modified since it was registered from an IMC */
 	const bool IsDirty() const;
-
+	
 protected:
 	
 	/** The name of the mapping for this key */
@@ -531,9 +537,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings", meta = (AutoCreateRefTerm = "FailureReason"))
 	virtual void MapPlayerKey(const FMapPlayerKeyArgs& InArgs, FGameplayTagContainer& FailureReason);
 
-	/** Unmap what is currently mapped to the given mapping in the given slot */
+	/** 
+	* Unmaps a single player mapping that matches the given Mapping name, slot, and hardware device.
+	*/
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings", meta = (AutoCreateRefTerm = "FailureReason"))
 	virtual void UnMapPlayerKey(const FMapPlayerKeyArgs& InArgs, FGameplayTagContainer& FailureReason);
+
+	/**
+	* Resets each player mapped key to it's default value from the Input Mapping Context that it was registered from.
+	* If a key did not come from an IMC (i.e. it was added additionally by the player) then it will be reset to EKeys::Invalid.
+	* 
+	* @param InArgs				Arguments that contain the mapping name and profile ID to find the mapping to reset.
+	* @param FailureReason		Populated with failure reasons if the operation fails.
+	*/
+	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings", meta = (AutoCreateRefTerm = "FailureReason"))
+	virtual void ResetAllPlayerKeysInRow(const FMapPlayerKeyArgs& InArgs, FGameplayTagContainer& FailureReason);
 
 	/** Returns a set of all player key mappings for the given mapping name. */
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
@@ -643,6 +661,15 @@ protected:
 	 */
 	virtual bool RegisterKeyMappingsToProfile(UEnhancedPlayerMappableKeyProfile& Profile, UInputMappingContext* IMC);
 
+	/**
+	 * Determines the hardware device that an action key mapping is associated with. By default, the hardware will be FHardwareDeviceIdentifier::Invalid.
+	 *
+	 * Override this function if you wish to have Input Device Specific Player Key mappings. For example, specify hardware
+	 * devices based on some metadata on the UPlayerMappableKeySettings of the action mapping, or infer a device based
+	 * on the type of FKey it is.
+	 */
+	virtual FHardwareDeviceIdentifier DetermineHardwareDeviceForActionMapping(const FEnhancedActionKeyMapping& ActionMapping) const;
+	
 	/** 
 	* Provides a space for subclasses to add additional debug info if desired.
 	* By default this will draw info about all player mapped keys.
