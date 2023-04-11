@@ -436,16 +436,19 @@ void UCameraAnimationSequencePlayer::Jump(FFrameTime NewPosition)
 
 void UCameraAnimationSequencePlayer::Stop()
 {
-	Status = EMovieScenePlayerStatus::Stopped;
-
-	PlayPosition.Reset(StartFrame);
-
-	if (TSharedPtr<FMovieSceneEntitySystemRunner> Runner = RootTemplateInstance.GetRunner())
+	if (Status != EMovieScenePlayerStatus::Stopped)
 	{
-		if (Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle()))
+		Status = EMovieScenePlayerStatus::Stopped;
+
+		PlayPosition.Reset(StartFrame);
+
+		if (TSharedPtr<FMovieSceneEntitySystemRunner> Runner = RootTemplateInstance.GetRunner())
 		{
-			// @todo: we should really only call flush _once_ for all camera anim sequences
-			Runner->Flush();
+			if (Runner->QueueFinalUpdate(RootTemplateInstance.GetRootInstanceHandle()))
+			{
+				// @todo: we should really only call flush _once_ for all camera anim sequences
+				Runner->Flush();
+			}
 		}
 	}
 }
