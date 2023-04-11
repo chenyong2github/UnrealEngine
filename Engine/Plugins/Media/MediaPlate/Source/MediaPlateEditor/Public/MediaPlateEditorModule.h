@@ -8,6 +8,7 @@
 #include "Modules/ModuleManager.h"
 #include "TickableEditorObject.h"
 #include "UObject/ObjectPtr.h"
+#include "UObject/WeakObjectPtr.h"
 
 class FDragDropEvent;
 class FPlacementModeID;

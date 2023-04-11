@@ -12,6 +12,9 @@
 
 #include <type_traits>
 
+
+struct FWeakObjectPtr;
+
 /**
  * TWeakObjectPtr is the templated version of the generic FWeakObjectPtr
  */
@@ -22,7 +25,7 @@ struct TWeakObjectPtr : private TWeakObjectPtrBase
 
 	// Although templated, these parameters are not intended to be anything other than the default,
 	// and are only templates for module organization reasons.
-	static_assert(std::is_same_v<TWeakObjectPtrBase, FWeakObjectPtr>, "TWeakObjectPtrBase should not be overridden");
+	static_assert(std::is_same_v<TWeakObjectPtrBase*, FWeakObjectPtr*>, "TWeakObjectPtrBase should not be overridden");
 
 public:
 	using ElementType = T;
