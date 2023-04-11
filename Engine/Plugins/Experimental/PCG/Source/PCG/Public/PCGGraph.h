@@ -190,8 +190,6 @@ public:
 	/** Calls the lambda on every node in graph. */
 	void ForEachNode(const TFunction<void(UPCGNode*)>& Action);
 
-	bool RemoveAllInboundEdges(UPCGNode* InNode);
-	bool RemoveAllOutboundEdges(UPCGNode* InNode);
 	bool RemoveInboundEdges(UPCGNode* InNode, const FName& InboundLabel);
 	bool RemoveOutboundEdges(UPCGNode* InNode, const FName& OutboundLabel);
 
