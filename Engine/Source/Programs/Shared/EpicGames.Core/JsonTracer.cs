@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -195,7 +193,6 @@ namespace EpicGames.Core
 				CheckForFinished("Tried to finish already finished span");
 				_finishTimestamp = finishTimestamp;
 				_tracer.AppendFinishedSpan(this);
-				_tracer.DeactivateActiveSpan(this);
 				_finished = true;
 			}
 		}
@@ -382,7 +379,6 @@ namespace EpicGames.Core
 		public IScope StartActive(bool finishSpanOnDispose)
 		{
 			ISpan span = Start();
-			_tracer.ActivateSpan(span);
 			return _tracer.ScopeManager.Activate(span, finishSpanOnDispose);
 		}
 
@@ -402,212 +398,20 @@ namespace EpicGames.Core
 			return new JsonTracerSpan(_tracer, _operationName, _startTimestamp, _tags, _references);
 		}
 	}
-
-	public sealed class JsonTracer : ITracer, IDisposable
+	
+	public class JsonTracer : ITracer
 	{
-		private class LocalEventListener : EventListener
-		{
-			protected override void OnEventSourceCreated(EventSource eventSource)
-			{
-				base.OnEventSourceCreated(eventSource);
-				switch(eventSource.Name)
-				{
-					case "System.Threading.Tasks.Parallel.EventSource":
-					case "System.Threading.Tasks.TplEventSource":
-						{
-							EnableEvents(eventSource, EventLevel.LogAlways, EventKeywords.All);
-							break;
-						}
-					default:
-						{
-							break;
-						}
-				}
-			}
-		}
-
 		public IScopeManager ScopeManager { get; }
-		public ISpan? ActiveSpan
-		{ 
-			get
-			{
-				if (PerThreadActiveSpans.TryGetValue(Environment.CurrentManagedThreadId, out Stack<ISpan>? currentThreadActiveSpan) && currentThreadActiveSpan.Any())
-				{
-					return currentThreadActiveSpan.Peek();
-				}	
-				return null;
-			}
-		}
+		public ISpan? ActiveSpan => ScopeManager.Active?.Span;
 
 		private readonly object _lock = new object();
 		private readonly List<JsonTracerSpan> _finishedSpans = new List<JsonTracerSpan>();
 		private readonly DirectoryReference? _telemetryDir;
-		private readonly LocalEventListener _eventListener = new LocalEventListener();
-
-		private readonly ConcurrentDictionary<int, Stack<ISpan>> PerThreadActiveSpans = new ConcurrentDictionary<int, Stack<ISpan>>();
-		private readonly ConcurrentDictionary<int, Stack<ISpan>> ForkIdToActiveSpans = new ConcurrentDictionary<int, Stack<ISpan>>();
-		private readonly ConcurrentDictionary<int, Stack<ISpan>> TaskIdToActiveSpans = new ConcurrentDictionary<int, Stack<ISpan>>();
-
-		// These could possible be set to 2, which is what MS sets them to internally, if this becomes a performance issue.
-		private static int? ParallelLoopBegin_ForkJoinContextIDIndex;
-		private static int? ParallelLoopEnd_ForkJoinContextIDIndex;
-		private static int? ParallelFork_ForkJoinContextIDIndex;
-		private static int? ParallelJoin_ForkJoinContextIDIndex;
-		private static int? TraceOperationBegin_TaskIDIndex;
-		private static int? TraceOperationEnd_TaskIDIndex;
-		private static int? TaskStarted_TaskIDIndex;
-		private const string ForkJoinContextIDStr = "ForkJoinContextID";
-		private const string TaskIDStr = "TaskID";
-
+		
 		public JsonTracer(DirectoryReference? telemetryDir = null)
 		{
 			ScopeManager = new AsyncLocalScopeManager();
 			_telemetryDir = telemetryDir;
-			_eventListener.EventWritten += EventListenerEventWritten;
-		}
-
-		public void Dispose()
-		{
-			_eventListener.Dispose();
-		}
-
-		private static int GetEventIntPayload(EventWrittenEventArgs e, string payloadName, ref int? payloadIndex)
-		{
-			if (!payloadIndex.HasValue)
-			{
-				int? foundIndex = e.PayloadNames?.FindIndex(pn => pn == payloadName);
-				if (foundIndex == null || foundIndex == -1)
-				{
-					throw new InvalidOperationException($"{payloadName} was not found in the event name payload.");
-				}
-				payloadIndex = foundIndex;
-			}
-
-			if (e.Payload == null || e.Payload.Count <= payloadIndex.Value)
-			{
-				throw new InvalidOperationException($"{payloadName} was not in the event payload.");
-			}
-
-			int? intValue = e.Payload[payloadIndex.Value] as int?;
-			if (!intValue.HasValue)
-			{
-				throw new InvalidOperationException($"{payloadName} in not an int.");
-			}
-			return intValue.Value;
-		}
-
-		private void BeginEvent(EventWrittenEventArgs e, string PayloadName, ref int? payloadIndex, ConcurrentDictionary<int, Stack<ISpan>> eventActiveSpansDict)
-		{
-			int value = GetEventIntPayload(e, PayloadName, ref payloadIndex);
-
-			Stack<ISpan>? currentActiveSpanStack = null;
-			if (PerThreadActiveSpans.TryGetValue(Environment.CurrentManagedThreadId, out Stack<ISpan>? currentThreadActiveSpan) && currentThreadActiveSpan.Any())
-			{
-				currentActiveSpanStack = new Stack<ISpan>(currentThreadActiveSpan.Reverse());
-			}
-
-			// the current active span on this thread needs to be attached to this new event
-			if (currentActiveSpanStack != null)
-			{
-				if (!eventActiveSpansDict.TryAdd(value, currentActiveSpanStack))
-				{
-					throw new InvalidOperationException($"Event id '{value}' was already added.");
-				}
-			}
-		}
-
-		private static void EndEvent(EventWrittenEventArgs e, string payloadName, ref int? payloadIndex, ConcurrentDictionary<int, Stack<ISpan>> eventActiveSpansDict)
-		{
-			int value = GetEventIntPayload(e, payloadName, ref payloadIndex);
-			if (eventActiveSpansDict.ContainsKey(value))
-			{
-				if (!eventActiveSpansDict.TryRemove(value, out _))
-				{
-					throw new InvalidOperationException($"Event id '{value}' could not be removed.");
-				}
-			}
-		}
-
-		private void BeginWork(EventWrittenEventArgs e, string payloadName, ref int? payloadIndex, ConcurrentDictionary<int, Stack<ISpan>> eventActiveSpansDict)
-		{
-			// find the active span for this event and make it the active span for this thread
-			int value = GetEventIntPayload(e, payloadName, ref payloadIndex);
-			if (eventActiveSpansDict.TryGetValue(value, out Stack<ISpan>? activeSpanForEvent))
-			{
-				PerThreadActiveSpans.AddOrUpdate(Environment.CurrentManagedThreadId,
-				(k) =>
-				{
-					return new Stack<ISpan>(activeSpanForEvent.Reverse());
-				},
-				(k, v) =>
-				{
-					return new Stack<ISpan>(activeSpanForEvent.Reverse());
-				}
-				);
-			}
-		}
-
-		private void EndWork(EventWrittenEventArgs e, string payloadName, ref int? payloadIndex, ConcurrentDictionary<int, Stack<ISpan>> eventActiveSpansDict)
-		{
-			int value = GetEventIntPayload(e, payloadName, ref payloadIndex);
-			if (eventActiveSpansDict.TryGetValue(value, out Stack<ISpan>? activeSpanForEventStack))
-			{
-				if (PerThreadActiveSpans.TryGetValue(Environment.CurrentManagedThreadId, out Stack<ISpan>? activeSpanForThreadStack))
-				{
-					ISpan eventActiveSpan = activeSpanForEventStack.Peek();
-					ISpan threadActiveSpan = activeSpanForThreadStack.Peek();
-					if (eventActiveSpan.Context.SpanId != threadActiveSpan.Context.SpanId)
-					{
-						throw new InvalidOperationException($"Span should be equal. Event span op: '{((JsonTracerSpan)eventActiveSpan).OperationName}' | Event span id: {eventActiveSpan.Context.SpanId} | Thread span op: '{((JsonTracerSpan)threadActiveSpan).OperationName} | | Event span id: {threadActiveSpan.Context.SpanId}'.");
-					}
-				}
-			}
-		}
-
-		private void EventListenerEventWritten(object? sender, EventWrittenEventArgs e)
-		{
-			switch (e.EventName)
-			{
-				case "ParallelLoopBegin":
-					{
-						BeginEvent(e, ForkJoinContextIDStr, ref ParallelLoopBegin_ForkJoinContextIDIndex, ForkIdToActiveSpans);
-						break;
-					}
-				case "ParallelLoopEnd":
-					{
-						EndEvent(e, ForkJoinContextIDStr, ref ParallelLoopEnd_ForkJoinContextIDIndex, ForkIdToActiveSpans);
-						break;
-					}
-				case "ParallelFork":
-					{
-						BeginWork(e, ForkJoinContextIDStr, ref ParallelFork_ForkJoinContextIDIndex, ForkIdToActiveSpans);
-						break;
-					}
-				case "ParallelJoin":
-					{
-						EndWork(e, ForkJoinContextIDStr, ref ParallelJoin_ForkJoinContextIDIndex, ForkIdToActiveSpans);
-						break;
-					}
-				case "TraceOperationBegin":
-					{
-						BeginEvent(e, TaskIDStr, ref TraceOperationBegin_TaskIDIndex, TaskIdToActiveSpans);
-						break;
-					}
-				case "TraceOperationEnd":
-					{
-						EndEvent(e, TaskIDStr, ref TraceOperationEnd_TaskIDIndex, TaskIdToActiveSpans);
-						break;
-					}
-				case "TaskStarted":
-					{
-						BeginWork(e, TaskIDStr, ref TaskStarted_TaskIDIndex, TaskIdToActiveSpans);
-						break;
-					}
-				default:
-					{
-						break;
-					}
-			}
 		}
 
 		public static JsonTracer? TryRegisterAsGlobalTracer()
@@ -705,35 +509,6 @@ namespace EpicGames.Core
 			lock (_lock)
 			{
 				_finishedSpans.Add(jsonTracerSpan);
-			}
-		}
-
-		internal void ActivateSpan(ISpan span)
-		{
-			PerThreadActiveSpans.AddOrUpdate(Environment.CurrentManagedThreadId, 
-			(k) =>
-			{
-				Stack<ISpan> stack = new Stack<ISpan>();
-				stack.Push(span);
-				return stack;
-			}, 
-			(k,v) =>
-			{
-				v.Push(span);
-				return v;
-			}
-			);
-		}
-
-		internal void DeactivateActiveSpan(ISpan span)
-		{
-			// It's possible for other threads to finish spans
-			foreach(Stack<ISpan> threadSpanStack in PerThreadActiveSpans.Values)
-			{
-				if (threadSpanStack != null && threadSpanStack.Any() && threadSpanStack.Peek() == span)
-				{
-					threadSpanStack.Pop();
-				}
 			}
 		}
 	}

@@ -716,7 +716,6 @@ namespace UnrealBuildTool
 				if (Tracer != null)
 				{
 					Tracer.Flush();
-					Tracer.Dispose();
 				}
 
 				// Delete the ubt run file
