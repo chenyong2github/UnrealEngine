@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetPredictionTestDriver.h"
+#include "HAL/PlatformMath.h"
 #include "NetPredictionMockPackageMap.h"
 #include "NetPredictionTestChannel.h"
 #include "NetworkPredictionModelDefRegistry.h"
@@ -12,6 +13,8 @@
 
 namespace UE::Net::Private
 {
+
+const uint8 FNetPredictionTestDriver::ChangeFlagsBitsNeeded = 1 + FPlatformMath::FloorLog2(static_cast<uint8>(EChangeFlags::MaxFlagPlusOne) - 1);
 
 struct FTestNetPredictionModelDef : public FNetworkPredictionModelDef
 {
@@ -115,36 +118,29 @@ void FNetPredictionTestDriver::ReceiveServerRPCs()
 	}
 }
 
-void FNetPredictionTestDriver::TestNetSerialize(FArchive& Ar)
+void FNetPredictionTestDriver::NetSerialize(FArchive& Ar, EChangeFlags Flags)
 {
 	bool bSuccess = false;
 
-	Proxy.NetSerialize(Ar, nullptr, bSuccess);
+	Ar.SerializeBits(&Flags, ChangeFlagsBitsNeeded);
 
-	// Emulate the replication conditions from UNetworkPredictionComponent
-	if (Proxy.GetCachedHasNetConnection())
+	if (EnumHasAnyFlags(Flags, EChangeFlags::PredictionProxyChanged))
 	{
-		ReplicationProxy_Autonomous.NetSerialize(Ar, UNetPredictionMockPackageMap::Get(), bSuccess);
+		Proxy.NetSerialize(Ar, UNetPredictionMockPackageMap::Get(), bSuccess);
 	}
-	else
+
+	if (EnumHasAnyFlags(Flags, EChangeFlags::ReplicationProxyChanged))
 	{
-		ReplicationProxy_Simulated.NetSerialize(Ar, UNetPredictionMockPackageMap::Get(), bSuccess);
+		// Emulate the replication conditions from UNetworkPredictionComponent
+		if (Proxy.GetCachedHasNetConnection())
+		{
+			ReplicationProxy_Autonomous.NetSerialize(Ar, UNetPredictionMockPackageMap::Get(), bSuccess);
+		}
+		else
+		{
+			ReplicationProxy_Simulated.NetSerialize(Ar, UNetPredictionMockPackageMap::Get(), bSuccess);
+		}
 	}
-}
-
-void FNetPredictionTestDriver::ServerSend()
-{
-	FNetBitWriter TempWriter(1024 * 8 * 2);
-	TestNetSerialize(TempWriter);
-	ServerToClient->Send(TempWriter);
-}
-
-void FNetPredictionTestDriver::ClientReceive()
-{
-	REQUIRE(ServerToClient->HasPendingData());
-
-	FNetBitReader TempReader = ServerToClient->Receive();
-	TestNetSerialize(TempReader);
 }
 
 FNetPredictionTestObject::FNetPredictionTestObject(
@@ -158,6 +154,53 @@ FNetPredictionTestObject::FNetPredictionTestObject(
 {
 	ServerObject.Proxy.InitForNetworkRole(ENetRole::ROLE_Authority, ClientRole == ENetRole::ROLE_AutonomousProxy);
 	ClientObject.Proxy.InitForNetworkRole(ClientRole, ClientRole == ENetRole::ROLE_AutonomousProxy);
+}
+
+void FNetPredictionTestObject::ServerSend()
+{
+	ServerObject.ReplicationProxy_Autonomous.OnPreReplication();
+	ServerObject.ReplicationProxy_Simulated.OnPreReplication();
+	
+	// Simple emulation of not sending changed properties.
+	// Note this only works when no "packets" are "dropped" in the tests, which is currently the case
+	FNetPredictionTestDriver::EChangeFlags Flags = FNetPredictionTestDriver::EChangeFlags::None;
+	
+	if (!ProxyShadowState.Identical(&ServerObject.Proxy, 0))
+	{
+		Flags |= FNetPredictionTestDriver::EChangeFlags::PredictionProxyChanged;
+		ProxyShadowState = ServerObject.Proxy;
+	}
+
+	// Emulate the replication conditions from UNetworkPredictionComponent
+	if (ServerObject.Proxy.GetCachedHasNetConnection())
+	{
+		if (!AutonomousProxyShadowState.Identical(&ServerObject.ReplicationProxy_Autonomous, 0))
+		{
+			Flags |= FNetPredictionTestDriver::EChangeFlags::ReplicationProxyChanged;
+			AutonomousProxyShadowState = ServerObject.ReplicationProxy_Autonomous;
+		}
+	}
+	else
+	{
+		if (!SimulatedProxyShadowState.Identical(&ServerObject.ReplicationProxy_Simulated, 0))
+		{
+			Flags |= FNetPredictionTestDriver::EChangeFlags::ReplicationProxyChanged;
+			SimulatedProxyShadowState = ServerObject.ReplicationProxy_Simulated;
+		}
+	}
+
+	FNetBitWriter TempWriter(1024 * 8 * 2);
+	ServerObject.NetSerialize(TempWriter, Flags);
+	ServerToClient->Send(TempWriter);
+}
+
+void FNetPredictionTestObject::ClientReceive()
+{
+	while(ServerToClient->HasPendingData())
+	{
+		FNetBitReader TempReader = ServerToClient->Receive();
+		ClientObject.NetSerialize(TempReader, FNetPredictionTestDriver::EChangeFlags());
+	}
 }
 
 }

@@ -105,13 +105,13 @@ struct FSingleSimulatedObjectWorld
 		ServerWorld.PreTick(PredictionTestFixedFrameRate);
 		SimObject.ServerObject.ReceiveServerRPCs();
 		ServerWorld.Tick(PredictionTestFixedFrameRate);
-		SimObject.ServerObject.ServerSend();
+		SimObject.ServerSend();
 	}
 
 	void TickClient()
 	{
 		ClientWorld.PreTick(PredictionTestFixedFrameRate);
-		SimObject.ClientObject.ClientReceive();
+		SimObject.ClientReceive();
 		ClientWorld.Tick(PredictionTestFixedFrameRate);
 	}
 };

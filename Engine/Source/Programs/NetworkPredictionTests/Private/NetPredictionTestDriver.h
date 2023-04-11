@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Engine/EngineBaseTypes.h"
+#include "Misc/EnumClassFlags.h"
 #include "NetPredictionTestChannel.h"
 #include "NetworkPredictionModelDef.h"
 #include "NetworkPredictionProxy.h"
@@ -69,6 +70,17 @@ struct FNetPredictionTestDriver
 	bool bHidden = false;
 	bool bInputPressed = false;
 
+	enum class EChangeFlags : uint8
+	{
+		None = 0,
+		PredictionProxyChanged = 1 << 0,
+		ReplicationProxyChanged = 1 << 1,
+
+		// Add new entries above
+		MaxFlagPlusOne
+	};
+	static const uint8 ChangeFlagsBitsNeeded;
+
 	FNetPredictionTestDriver(UNetworkPredictionWorldManager* WorldManager, ENetMode Mode,
 		TSharedPtr<FNetPredictionTestChannel> InClientToServer,
 		TSharedPtr<FNetPredictionTestChannel> InServerToClient);
@@ -81,10 +93,7 @@ struct FNetPredictionTestDriver
 	void CallServerRPC();
 	void ReceiveServerRPCs();
 
-	void TestNetSerialize(FArchive& Ar);
-
-	void ServerSend();
-	void ClientReceive();
+	void NetSerialize(FArchive& Ar, EChangeFlags Flags);
 
 private:
 	FReplicationProxySet GetReplicationProxies()
@@ -95,6 +104,8 @@ private:
 	TSharedPtr<FNetPredictionTestChannel> ClientToServer;
 	TSharedPtr<FNetPredictionTestChannel> ServerToClient;
 };
+
+ENUM_CLASS_FLAGS(FNetPredictionTestDriver::EChangeFlags);
 
 // Conveniently associates the server & client object drivers and their channels for ease of writing unit tests.
 struct FNetPredictionTestObject
@@ -109,6 +120,16 @@ struct FNetPredictionTestObject
 		UNetworkPredictionWorldManager* ServerWorldManager,
 		UNetworkPredictionWorldManager* ClientWorldManager,
 		ENetRole ClientRole);
+
+	void ServerSend();
+	void ClientReceive();
+
+private:
+	// Stores previously sent state, compared with current state to prevent "sending" when it hasn't changed.
+	// For emulating FRepLayout behavior.
+	FNetworkPredictionProxy ProxyShadowState;
+	FReplicationProxy AutonomousProxyShadowState;
+	FReplicationProxy SimulatedProxyShadowState;
 };
 
 }

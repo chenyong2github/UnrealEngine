@@ -32,15 +32,15 @@ struct FTestPossession
 		Object1.ServerObject.ReceiveServerRPCs();
 		Object2.ServerObject.ReceiveServerRPCs();
 		ServerWorld.Tick(FixedFrameRate);
-		Object1.ServerObject.ServerSend();
-		Object2.ServerObject.ServerSend();
+		Object1.ServerSend();
+		Object2.ServerSend();
 	}
 
 	void TickClient()
 	{
 		ClientWorld.PreTick(FixedFrameRate);
-		Object1.ClientObject.ClientReceive();
-		Object2.ClientObject.ClientReceive();
+		Object1.ClientReceive();
+		Object2.ClientReceive();
 		ClientWorld.Tick(FixedFrameRate);
 	}
 
@@ -55,6 +55,11 @@ TEST_CASE("NetworkPrediction interpolation mode, one simulated proxy", "[.][poss
 	Settings->Settings.SimulatedProxyNetworkLOD = ENetworkLOD::Interpolated;
 
 	FTestPossession Worlds(Settings);
+		
+	Worlds.Object1.ServerObject.DebugName = TEXT("Obj1Server");
+	Worlds.Object1.ClientObject.DebugName = TEXT("Obj1Client");
+	Worlds.Object2.ServerObject.DebugName = TEXT("Obj2Server");
+	Worlds.Object2.ClientObject.DebugName = TEXT("Obj2Client");
 
 	float ExpectedServerAutoCounterValue = 0.0f;
 
@@ -106,11 +111,6 @@ TEST_CASE("NetworkPrediction interpolation mode, one simulated proxy", "[.][poss
 		// This section repros UE-170936
 		const FNetPredictionTestSyncState* ServerState1 = nullptr;
 		const FNetPredictionTestSyncState* ServerState2 = nullptr;
-
-		Worlds.Object1.ServerObject.DebugName = TEXT("Obj1Server");
-		Worlds.Object1.ClientObject.DebugName = TEXT("Obj1Client");
-		Worlds.Object2.ServerObject.DebugName = TEXT("Obj2Server");
-		Worlds.Object2.ClientObject.DebugName = TEXT("Obj2Client");
 
 		constexpr int32 ExpectedForwardPredictFrames = 6;
 
