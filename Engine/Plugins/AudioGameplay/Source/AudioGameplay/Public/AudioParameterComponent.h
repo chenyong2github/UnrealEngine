@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Components/ActorComponent.h"
+#include "AudioGameplayComponent.h"
 #include "AudioParameter.h"
 #include "AudioParameterControllerInterface.h"
 #include "Audio/ActorSoundParameterInterface.h"
@@ -11,6 +11,7 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAudioParameterComponent, Log, All);
 
+// Forward Declarations
 class UAudioComponent;
 
 /**
@@ -18,7 +19,7 @@ class UAudioComponent;
  *  to any sounds played by the component's Owner Actor
  */
 UCLASS(BlueprintType, HideCategories=(Object, ActorComponent, Physics, Rendering, Mobility, LOD), meta=(BlueprintSpawnableComponent))
-class AUDIOGAMEPLAY_API UAudioParameterComponent : public UActorComponent, 
+class AUDIOGAMEPLAY_API UAudioParameterComponent : public UAudioGameplayComponent, 
 		  										   public IAudioParameterControllerInterface, 
 												   public IActorSoundParameterInterface
 {
