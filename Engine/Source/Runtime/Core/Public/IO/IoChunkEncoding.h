@@ -54,11 +54,11 @@ public:
 		uint64 BlockSizeExponent: 8;
 		uint64 Flags: 8;
 		uint64 Pad: 8;
-		uint32 Blocks[];
 
 		bool IsValid() const;
 		uint32 GetBlockSize() const;
 		uint32 GetBlockCount() const;
+		TConstArrayView<uint32> GetBlocks() const;
 		uint64 GetTotalHeaderSize() const;
 
 		static const FHeader* Decode(FMemoryView HeaderData);
