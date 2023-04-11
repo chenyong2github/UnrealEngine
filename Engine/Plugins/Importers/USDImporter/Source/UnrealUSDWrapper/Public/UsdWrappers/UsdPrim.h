@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "Misc/Optional.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/NameTypes.h"
@@ -92,6 +93,15 @@ namespace UE
 
 		UE_DEPRECATED( 5.3, "Please use the one FName overload for single apply API schemas, or the two FName overload for multiple apply API schemas." )
 		bool HasAPI( FName SchemaType, TOptional<FName> InstanceName ) const;
+
+		bool CanApplyAPI( FName SchemaIdentifier, FString* OutWhyNot = nullptr ) const;
+		bool CanApplyAPI( FName SchemaIdentifier, FName InstanceName, FString* OutWhyNot = nullptr ) const;
+
+		bool ApplyAPI( FName SchemaIdentifier ) const;
+		bool ApplyAPI( FName SchemaIdentifier, FName InstanceName ) const;
+
+		bool RemoveAPI( FName SchemaIdentifier ) const;
+		bool RemoveAPI( FName SchemaIdentifier, FName InstanceName ) const;
 
 		const FSdfPath GetPrimPath() const;
 		FUsdStage GetStage() const;

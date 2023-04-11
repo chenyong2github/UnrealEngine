@@ -292,6 +292,108 @@ namespace UE
 		return HasAPI( SchemaType );
 	}
 
+	bool FUsdPrim::CanApplyAPI( FName SchemaIdentifier, FString* OutWhyNot ) const
+	{
+		bool bResult = false;
+
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+
+		const pxr::TfToken UsdSchemaIdentifier( TCHAR_TO_ANSI( *SchemaIdentifier.ToString() ) );
+
+		std::string WhyNot;
+		bResult = Impl->PxrUsdPrim.Get().CanApplyAPI(
+			UsdSchemaIdentifier,
+			OutWhyNot != nullptr ? &WhyNot : nullptr );
+
+		if ( !bResult && OutWhyNot != nullptr )
+		{
+			*OutWhyNot = ANSI_TO_TCHAR( WhyNot.c_str() );
+		}
+#endif // #if USE_USD_SDK
+
+		return bResult;
+	}
+
+	bool FUsdPrim::CanApplyAPI( FName SchemaIdentifier, FName InstanceName, FString* OutWhyNot ) const
+	{
+		bool bResult = false;
+
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+
+		const pxr::TfToken UsdSchemaIdentifier( TCHAR_TO_ANSI( *SchemaIdentifier.ToString() ) );
+		const pxr::TfToken UsdInstanceName( TCHAR_TO_ANSI( *InstanceName.ToString() ) );
+
+		std::string WhyNot;
+		bResult = Impl->PxrUsdPrim.Get().CanApplyAPI(
+			UsdSchemaIdentifier,
+			UsdInstanceName,
+			OutWhyNot != nullptr ? &WhyNot : nullptr);
+
+		if ( !bResult && OutWhyNot != nullptr )
+		{
+			*OutWhyNot = ANSI_TO_TCHAR( WhyNot.c_str() );
+		}
+#endif // #if USE_USD_SDK
+
+		return bResult;
+	}
+
+	bool FUsdPrim::ApplyAPI( FName SchemaIdentifier ) const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+
+		const pxr::TfToken UsdSchemaIdentifier( TCHAR_TO_ANSI( *SchemaIdentifier.ToString() ) );
+
+		return Impl->PxrUsdPrim.Get().ApplyAPI( UsdSchemaIdentifier );
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdPrim::ApplyAPI( FName SchemaIdentifier, FName InstanceName ) const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+
+		const pxr::TfToken UsdSchemaIdentifier( TCHAR_TO_ANSI( *SchemaIdentifier.ToString() ) );
+		const pxr::TfToken UsdInstanceName( TCHAR_TO_ANSI( *InstanceName.ToString() ) );
+
+		return Impl->PxrUsdPrim.Get().ApplyAPI( UsdSchemaIdentifier, UsdInstanceName );
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdPrim::RemoveAPI( FName SchemaIdentifier ) const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+
+		const pxr::TfToken UsdSchemaIdentifier( TCHAR_TO_ANSI( *SchemaIdentifier.ToString() ) );
+
+		return Impl->PxrUsdPrim.Get().RemoveAPI( UsdSchemaIdentifier );
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdPrim::RemoveAPI( FName SchemaIdentifier, FName InstanceName ) const
+	{
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+
+		const pxr::TfToken UsdSchemaIdentifier( TCHAR_TO_ANSI( *SchemaIdentifier.ToString() ) );
+		const pxr::TfToken UsdInstanceName( TCHAR_TO_ANSI( *InstanceName.ToString() ) );
+
+		return Impl->PxrUsdPrim.Get().RemoveAPI( UsdSchemaIdentifier, UsdInstanceName );
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
 	const FSdfPath FUsdPrim::GetPrimPath() const
 	{
 #if USE_USD_SDK
