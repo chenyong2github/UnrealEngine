@@ -732,8 +732,8 @@ bool URemoteControlPreset::RemoveController(const FName& InPropertyName)
 
 		if (const URCVirtualPropertyBase* ControllerToDelete = ControllerContainer->GetVirtualProperty(InPropertyName))
 		{
-			ControllerContainer->RemoveProperty(ControllerToDelete->GetPropertyName());
 			OnControllerRemoved().Broadcast(this, ControllerToDelete->Id);
+			ControllerContainer->RemoveProperty(ControllerToDelete->GetPropertyName());
 
 			FRCTransactionListenerHelper<URemoteControlPreset*, const FName, const FGuid&>(ERCTransaction::Undo, OnControllerAdded(), this, ControllerToDelete->DisplayName, ControllerToDelete->Id);
 			FRCTransactionListenerHelper<URemoteControlPreset*, const FGuid&>(ERCTransaction::Redo, OnControllerRemoved(), this, ControllerToDelete->Id);
