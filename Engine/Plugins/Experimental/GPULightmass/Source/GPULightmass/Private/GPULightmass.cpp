@@ -26,36 +26,55 @@ FGPULightmass::FGPULightmass(UWorld* InWorld, FGPULightmassModule* InGPULightmas
 
 	SettingsGuard = MakeUnique<FGCObjectScopeGuard>(Settings);
 
-	// Start the lightmass 'progress' notification
-	FNotificationInfo Info(LOCTEXT("LightBuildMessage", "Building lighting"));
-	Info.bFireAndForget = false;
+	StartTime = FPlatformTime::Seconds();
+}
 
-	if (InSettings->Mode == EGPULightmassMode::BakeWhatYouSee)
+void FGPULightmass::ShowLightBuildNotification()
+{
+	if (!IsEngineExitRequested() && !LightBuildNotification.IsValid())
 	{
-		Info.ButtonDetails.Add(FNotificationButtonInfo(
-		LOCTEXT("Save", "Save and Stop"),
-		FText::GetEmpty(),
-		FSimpleDelegate::CreateLambda([InWorld, this]() { 
-			this->Scene.ApplyFinishedLightmapsToWorld(); 
-			InWorld->GetSubsystem<UGPULightmassSubsystem>()->Stop(); 
-		})));
-	}
-	
-	Info.ButtonDetails.Add(FNotificationButtonInfo(
-		LOCTEXT("LightBuildCancel", "Cancel"),
-		LOCTEXT("LightBuildCancelToolTip", "Cancels the lighting build in progress."),
-		FSimpleDelegate::CreateLambda([InWorld]() { 
-			InWorld->GetSubsystem<UGPULightmassSubsystem>()->Stop(); 
-			InWorld->GetSubsystem<UGPULightmassSubsystem>()->OnLightBuildEnded().Broadcast();
-			})));
+		// Start the lightmass 'progress' notification
+		FNotificationInfo Info(LOCTEXT("LightBuildMessage", "Building lighting"));
+		Info.bFireAndForget = false;
 
-	LightBuildNotification = FSlateNotificationManager::Get().AddNotification(Info);
+		if (Settings->Mode == EGPULightmassMode::BakeWhatYouSee)
+		{
+			Info.ButtonDetails.Add(FNotificationButtonInfo(
+			LOCTEXT("Save", "Save and Stop"),
+			FText::GetEmpty(),
+			FSimpleDelegate::CreateLambda([World = World, this]() { 
+				this->Scene.ApplyFinishedLightmapsToWorld(); 
+				World->GetSubsystem<UGPULightmassSubsystem>()->Stop(); 
+			})));
+		}
+	
+		Info.ButtonDetails.Add(FNotificationButtonInfo(
+			LOCTEXT("LightBuildCancel", "Cancel"),
+			LOCTEXT("LightBuildCancelToolTip", "Cancels the lighting build in progress."),
+			FSimpleDelegate::CreateLambda([World = World]() { 
+				World->GetSubsystem<UGPULightmassSubsystem>()->Stop(); 
+				World->GetSubsystem<UGPULightmassSubsystem>()->OnLightBuildEnded().Broadcast();
+				})));
+
+		LightBuildNotification = FSlateNotificationManager::Get().AddNotification(Info);
+		if (LightBuildNotification.IsValid())
+		{
+			LightBuildNotification->SetCompletionState(SNotificationItem::CS_Pending);
+		}
+	}
+}
+
+void FGPULightmass::RemoveLightBuildNotification()
+{
 	if (LightBuildNotification.IsValid())
 	{
-		LightBuildNotification->SetCompletionState(SNotificationItem::CS_Pending);
-	}
-
-	StartTime = FPlatformTime::Seconds();
+		// Shows a notification that fades out slowly
+		FText CompletedText = LOCTEXT("LightBuildDoneMessage", "Lighting build completed");
+		LightBuildNotification->SetText(CompletedText);
+		LightBuildNotification->SetCompletionState(SNotificationItem::CS_Success);
+		LightBuildNotification->ExpireAndFadeout();
+		LightBuildNotification.Reset();
+	}	
 }
 
 void FGPULightmass::GameThreadDestroy()
@@ -65,23 +84,7 @@ void FGPULightmass::GameThreadDestroy()
 	UE_LOG(LogGPULightmass, Log, TEXT("Total lighting time: %s"), *FPlatformTime::PrettyTime(FPlatformTime::Seconds() - StartTime));
 
 	RemoveGameThreadEventHooks();
-
-	if (LightBuildNotification.IsValid())
-	{
-		if (!IsEngineExitRequested())
-		{
-			// Shows a notification that fades out slowly
-			FText CompletedText = LOCTEXT("LightBuildDoneMessage", "Lighting build completed");
-			LightBuildNotification->SetText(CompletedText);
-			LightBuildNotification->SetCompletionState(SNotificationItem::CS_Success);
-			LightBuildNotification->ExpireAndFadeout();
-		}
-		else
-		{
-			// Immediately destroys the notification widget to avoid crash
-			LightBuildNotification.Reset();
-		}
-	}
+	RemoveLightBuildNotification();
 
 	Scene.RemoveAllComponents();
 }

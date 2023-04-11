@@ -30,6 +30,9 @@ public:
 	void InstallGameThreadEventHooks();
 	void RemoveGameThreadEventHooks();
 
+	void ShowLightBuildNotification();
+	void RemoveLightBuildNotification();
+
 	void StartRecordingVisibleTiles();
 	void EndRecordingVisibleTiles();
 

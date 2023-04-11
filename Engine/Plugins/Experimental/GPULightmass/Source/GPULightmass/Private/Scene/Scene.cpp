@@ -1491,6 +1491,15 @@ void FScene::BackgroundTick()
 {
 	int32 Percentage = FPlatformAtomics::AtomicRead(&RenderState.Percentage);
 
+	if (Percentage != 100)
+	{
+		GPULightmass->ShowLightBuildNotification();
+	}
+	else
+	{
+		GPULightmass->RemoveLightBuildNotification();
+	}
+	
 	if (GPULightmass->LightBuildNotification.IsValid())
 	{
 		bool bIsViewportNonRealtime = GCurrentLevelEditingViewportClient && !GCurrentLevelEditingViewportClient->IsRealtime();
