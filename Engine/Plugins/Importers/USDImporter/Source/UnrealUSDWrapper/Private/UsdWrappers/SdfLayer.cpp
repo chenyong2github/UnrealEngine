@@ -309,23 +309,60 @@ namespace UE
 	}
 
 	template<typename PtrType>
-	FSdfLayer FSdfLayerBase<PtrType>::FindOrOpen( const TCHAR* Identifier )
+	FSdfLayer FSdfLayerBase<PtrType>::FindOrOpen( const TCHAR* Identifier, const TMap< FString, FString >& FileFormatArguments )
 	{
 #if USE_USD_SDK
-		return FSdfLayer( pxr::SdfLayer::FindOrOpen( TCHAR_TO_ANSI( Identifier ) ) );
+		FScopedUsdAllocs Allocs;
+
+		std::map< std::string, std::string > UsdFileFormatArguments;
+		for ( const TPair< FString, FString >& Pair : FileFormatArguments )
+		{
+			UsdFileFormatArguments.insert( { TCHAR_TO_ANSI( *Pair.Key ), TCHAR_TO_ANSI( *Pair.Value ) } );
+		}
+
+		return FSdfLayer( pxr::SdfLayer::FindOrOpen( TCHAR_TO_ANSI( Identifier ), UsdFileFormatArguments ) );
 #else
 		return FSdfLayer();
 #endif // #if USE_USD_SDK
 	}
 
 	template<typename PtrType>
-	FSdfLayer FSdfLayerBase<PtrType>::CreateNew( const TCHAR* Identifier )
+	FSdfLayer FSdfLayerBase<PtrType>::CreateNew( const TCHAR* Identifier, const TMap< FString, FString >& FileFormatArguments )
 	{
 #if USE_USD_SDK
-		return FSdfLayer( pxr::SdfLayer::CreateNew( TCHAR_TO_ANSI( Identifier ) ) );
+		FScopedUsdAllocs Allocs;
+
+		std::map< std::string, std::string > UsdFileFormatArguments;
+		for ( const TPair< FString, FString >& Pair : FileFormatArguments )
+		{
+			UsdFileFormatArguments.insert( { TCHAR_TO_ANSI( *Pair.Key ), TCHAR_TO_ANSI( *Pair.Value ) } );
+		}
+
+		return FSdfLayer( pxr::SdfLayer::CreateNew( TCHAR_TO_ANSI( Identifier ), UsdFileFormatArguments ) );
 #else
 		return FSdfLayer();
 #endif // #if USE_USD_SDK
+	}
+
+	template<typename PtrType>
+	TMap< FString, FString > FSdfLayerBase<PtrType>::GetFileFormatArguments() const
+	{
+		TMap< FString, FString > FileFormatArguments;
+
+#if USE_USD_SDK
+		FScopedUsdAllocs Allocs;
+
+		if ( const PtrType& Ptr = Impl->GetInner() )
+		{
+			const std::map< std::string, std::string >& UsdFileFormatArguments = Ptr->GetFileFormatArguments();
+			for ( std::map< std::string, std::string >::const_iterator Iter = UsdFileFormatArguments.cbegin(); Iter != UsdFileFormatArguments.cend(); ++Iter )
+			{
+				FileFormatArguments.Add( ANSI_TO_TCHAR( Iter->first.c_str() ), ANSI_TO_TCHAR( Iter->second.c_str() ) );
+			}
+		}
+#endif // #if USE_USD_SDK
+
+		return FileFormatArguments;
 	}
 
 	template<typename PtrType>
@@ -785,12 +822,20 @@ namespace UE
 	}
 
 	template<typename PtrType>
-	bool FSdfLayerBase<PtrType>::Export( const TCHAR* Filename ) const
+	bool FSdfLayerBase<PtrType>::Export( const TCHAR* Filename, const FString& Comment, const TMap< FString, FString >& FileFormatArguments ) const
 	{
 #if USE_USD_SDK
 		if ( const PtrType& Ptr = Impl->GetInner() )
 		{
-			return Ptr->Export( TCHAR_TO_ANSI( Filename ) );
+			FScopedUsdAllocs Allocs;
+
+			std::map< std::string, std::string > UsdFileFormatArguments;
+			for ( const TPair< FString, FString >& Pair : FileFormatArguments )
+			{
+				UsdFileFormatArguments.insert( { TCHAR_TO_ANSI( *Pair.Key ), TCHAR_TO_ANSI( *Pair.Value ) } );
+			}
+
+			return Ptr->Export( TCHAR_TO_ANSI( Filename ), TCHAR_TO_ANSI ( *Comment ), UsdFileFormatArguments);
 		}
 #endif // #if USE_USD_SDK
 

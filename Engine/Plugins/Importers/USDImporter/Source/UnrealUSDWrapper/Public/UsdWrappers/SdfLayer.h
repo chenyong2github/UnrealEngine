@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
 
 #include "UsdWrappers/ForwardDeclarations.h"
 
@@ -91,8 +93,14 @@ namespace UE
 		void TransferContent( const FSdfLayer& SourceLayer );
 
 		static TSet<FSdfLayerWeak> GetLoadedLayers();
-		static FSdfLayer FindOrOpen( const TCHAR* Identifier );
-		static FSdfLayer CreateNew( const TCHAR* Identifier );
+		static FSdfLayer FindOrOpen(
+			const TCHAR* Identifier,
+			const TMap< FString, FString >& FileFormatArguments = {} );
+		static FSdfLayer CreateNew(
+			const TCHAR* Identifier,
+			const TMap< FString, FString >& FileFormatArguments = {} );
+
+		TMap< FString, FString > GetFileFormatArguments() const;
 
 		bool Save( bool bForce = false ) const;
 
@@ -112,7 +120,10 @@ namespace UE
 		bool IsEmpty() const;
 		bool IsAnonymous() const;
 
-		bool Export( const TCHAR* Filename ) const;
+		bool Export(
+			const TCHAR* Filename,
+			const FString& Comment = {},
+			const TMap< FString, FString >& FileFormatArguments = {} ) const;
 
 		void Clear();
 
