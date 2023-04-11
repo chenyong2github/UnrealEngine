@@ -6,11 +6,8 @@
 #include "Templates/SharedPointer.h"
 
 class IOnlineFactory;
-
 class IOnlineSubsystem;
-
 typedef TSharedPtr<class IOnlineSubsystem, ESPMode::ThreadSafe> IOnlineSubsystemPtr;
-
 
 /**
  * Online subsystem module class
@@ -44,13 +41,20 @@ private:
 	TMap<FString, FName> ConfigDefinedSubsystems;
 
 	/** Existing instances of any online subsystems created <PlatformName:InstanceName> */
-	TMap<FName, class IOnlineFactory*> OnlineFactories;
+	TMap<FName, IOnlineFactory*> OnlineFactories;
 
 	/** Mapping of all currently loaded platform service subsystems to their name */
 	TMap<FName, IOnlineSubsystemPtr> OnlineSubsystems;
 
+	/**
+	 * Read write lock for access to OnlineSubsystems.
+	 * The intent is OnlineSubsystems can have elements added on separate threads through normal gameplay, though this is expected to be very rare and only once per subsystem type.
+	 * OnlineSubsystems is not expected to remove elements except in very controlled scenarios.
+	 */
+	mutable FRWLock OnlineSubsystemsLock;
+
 	/** Have we warned already for a given online subsystem creation failure */
-	TMap<FName, bool> OnlineSubsystemFailureNotes;
+	TSet<FName> OnlineSubsystemFailureNotes;
 
 	/** Config driven override of module name for online subsystem */
 	TMap<FString, FName> ModuleRedirects;
