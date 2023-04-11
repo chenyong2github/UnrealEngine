@@ -74,11 +74,12 @@ UObject* UAnimSequenceFactory::FactoryCreateNew(UClass* Class, UObject* InParent
 	}
 
 	AnimSequence->GetController().InitializeModel();
-	
+	AnimSequence->GetController().SetNumberOfFrames(1);
 	if (PreviewSkeletalMesh)
 	{
 		AnimSequence->SetPreviewMesh(PreviewSkeletalMesh);
 	}
+	AnimSequence->GetController().NotifyPopulated();
 
 	return AnimSequence;
 }

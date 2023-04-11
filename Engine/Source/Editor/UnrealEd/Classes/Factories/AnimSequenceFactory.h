@@ -14,16 +14,16 @@
 struct FAssetData;
 class SWindow;
 
-UCLASS(HideCategories=Object)
+UCLASS(HideCategories=Object, BlueprintType)
 class UNREALED_API UAnimSequenceFactory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animation)
 	TObjectPtr<class USkeleton> TargetSkeleton;
 
 	/** The preview mesh to use with this animation */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Animation)
 	TObjectPtr<class USkeletalMesh> PreviewSkeletalMesh;
 
 	//~ Begin UFactory Interface
