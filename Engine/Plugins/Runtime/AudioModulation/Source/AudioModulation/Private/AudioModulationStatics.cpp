@@ -423,6 +423,15 @@ void UAudioModulationStatics::ClearAllGlobalBusMixValues(const UObject* WorldCon
 	}
 }
 
+void UAudioModulationStatics::DeactivateAllBusMixes(const UObject* WorldContextObject)
+{
+	UWorld* World = GetAudioWorld(WorldContextObject);
+	if (AudioModulation::FAudioModulationManager* ModSystem = GetModulation(World))
+	{
+		ModSystem->DeactivateAllBusMixes();
+	}
+}
+
 void UAudioModulationStatics::UpdateMixByFilter(
 	const UObject* WorldContextObject,
 	USoundControlBusMix* Mix,

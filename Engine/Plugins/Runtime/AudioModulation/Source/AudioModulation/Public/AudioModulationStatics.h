@@ -266,6 +266,14 @@ public:
 	)
 	static void ClearAllGlobalBusMixValues(const UObject* WorldContextObject, float FadeTime = -1.0f);
 
+	/** Deactivates all currently active Control Bus Mixes. This includes the Global Control Bus Mixes.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Audio|Modulation", DisplayName = "Deactivate All Control Bus Mixes", meta = (
+		WorldContext = "WorldContextObject",
+		Keywords = "modulation modulator stage")
+	)
+	static void DeactivateAllBusMixes(const UObject* WorldContextObject);
+
 	/** Sets filtered stages of a given class to a provided target value for active instance of mix.
 	 * Does not update UObject definition of mix.
 	 * @param Mix - Mix to modify
