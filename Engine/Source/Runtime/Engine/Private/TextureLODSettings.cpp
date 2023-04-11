@@ -112,11 +112,17 @@ UTextureLODSettings::UTextureLODSettings(const FObjectInitializer& ObjectInitial
  */
 TArray<FString> UTextureLODSettings::GetTextureGroupNames()
 {
+	// no need for this to be FString, could be TCHAR *
 	TArray<FString> TextureGroupNames;
+
+	// TEXTUREGROUP_MAX is not actually Max, it's count
+	TextureGroupNames.Reserve(TEXTUREGROUP_MAX);
 
 #define GROUPNAMES(g) new(TextureGroupNames) FString(TEXT(#g));
 	FOREACH_ENUM_TEXTUREGROUP(GROUPNAMES)
 #undef GROUPNAMES
+
+	check( TextureGroupNames.Num() == TEXTUREGROUP_MAX );
 
 	return TextureGroupNames;
 }
