@@ -6,18 +6,6 @@
 #include "PoseSearchDebuggerReflection.generated.h"
 
 /**
- * Used by the reflection UObject to encompass draw options for the query and database selections
- */
-USTRUCT()
-struct FPoseSearchDebuggerFeatureDrawOptions
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Category="Draw Options")
-    bool bDisable = false;
-};
-
-/**
  * Reflection UObject being observed in the details view panel of the debugger
  */
 UCLASS()
@@ -26,16 +14,9 @@ class POSESEARCHEDITOR_API UPoseSearchDebuggerReflection : public UObject
 	GENERATED_BODY()
 
 public:
-
-	UPROPERTY(VisibleAnywhere, Category="Motion Matching State", Meta=(DisplayName="Current Database"))
-	FString CurrentDatabaseName = "";
-
 	/** Time since last PoseSearch */
 	UPROPERTY(VisibleAnywhere, Category="Motion Matching State")
 	float ElapsedPoseSearchTime = 0.0f;
-
-	UPROPERTY(VisibleAnywhere, Category = "Motion Matching State")
-	FString AssetPlayerAssetName = "";
 
 	UPROPERTY(VisibleAnywhere, Category = "Motion Matching State")
 	float AssetPlayerTime = 0.0f;
@@ -54,18 +35,6 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = "Motion Matching State")
 	float AnimAngularVelocity;
-
-	UPROPERTY(EditAnywhere, Category="Draw Options", Meta=(DisplayName="Query"))
-	FPoseSearchDebuggerFeatureDrawOptions QueryDrawOptions;
-
-	UPROPERTY(EditAnywhere, Category="Draw Options", Meta=(DisplayName="Selected Pose"))
-	FPoseSearchDebuggerFeatureDrawOptions SelectedPoseDrawOptions;
-
-	UPROPERTY(EditAnywhere, Category = "Draw Options")
-	bool bDrawActiveSkeleton = false;
-	
-	UPROPERTY(EditAnywhere, Category = "Draw Options")
-	bool bDrawSelectedSkeleton = false;
 
     UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
 	TArray<float> QueryPoseVector;

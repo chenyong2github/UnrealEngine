@@ -95,14 +95,7 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 		const FPoseSearchIndex& CurrentSearchIndex = CurrentDatabase->GetSearchIndex();
 		int32 CurrentDbPoseIdx = State.GetCurrentDatabasePoseIndex();
 
-		Reflection->CurrentDatabaseName = CurrentDatabase->GetName();
 		Reflection->ElapsedPoseSearchTime = State.ElapsedPoseSearchTime;
-
-		Reflection->AssetPlayerAssetName = "None";
-		if (const FPoseSearchIndexAsset* IndexAsset = CurrentSearchIndex.GetAssetForPoseSafe(CurrentDbPoseIdx))
-		{
-			Reflection->AssetPlayerAssetName = CurrentDatabase->GetSourceAssetName(*IndexAsset);
-		}
 
 		Reflection->AssetPlayerTime = State.AssetPlayerTime;
 		Reflection->LastDeltaTime = State.DeltaTime;
@@ -161,7 +154,7 @@ void SDebuggerView::Construct(const FArguments& InArgs, uint64 InAnimInstanceId)
 		SAssignNew(DebuggerView, SVerticalBox)
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
-		.VAlign(VAlign_Center)
+		.VAlign(VAlign_Fill)
 		.HAlign(HAlign_Fill)
 		[
 			SAssignNew(Switcher, SWidgetSwitcher)
@@ -171,7 +164,7 @@ void SDebuggerView::Construct(const FArguments& InArgs, uint64 InAnimInstanceId)
 			+ SWidgetSwitcher::Slot()
 			.Padding(40.0f)
 			.HAlign(HAlign_Fill)
-            .VAlign(VAlign_Center)
+            .VAlign(VAlign_Fill)
 			[
 				SAssignNew(SelectionView, SVerticalBox)
 			]
@@ -272,8 +265,6 @@ void SDebuggerView::Tick(const FGeometry& AllottedGeometry, const double InCurre
 		bUpdated = true;
 	}
 
-	Model->UpdateAsset();
-	
 	// Draw visualization every tick
 	DrawVisualization();
 }
@@ -354,46 +345,39 @@ void SDebuggerView::DrawFeatures(
 	const USkinnedMeshComponent* Mesh
 ) const
 {
-	const TObjectPtr<UPoseSearchDebuggerReflection> Reflection = DetailsView->GetReflection();
-
+	// @todo: have a check box like "Channels Breakdown" to disable drawing the query vector
+	// @todo: draw the query with greater thickness?
 	// Draw query vector
-	if (!Reflection || !Reflection->QueryDrawOptions.bDisable)
+	const UPoseSearchDatabase* CurrentDatabase = ViewModel.Get()->GetCurrentDatabase();
+	if (CurrentDatabase)
 	{
-		const UPoseSearchDatabase* CurrentDatabase = ViewModel.Get()->GetCurrentDatabase();
-		if (CurrentDatabase)
+		for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : State.DatabaseEntries)
 		{
-			for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : State.DatabaseEntries)
+			const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
+			if (Database && Database == CurrentDatabase && DbEntry.QueryVector.Num() == Database->Schema->SchemaCardinality &&
+				FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(CurrentDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 			{
-				const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
-				if (Database && Database == CurrentDatabase && DbEntry.QueryVector.Num() == Database->Schema->SchemaCardinality && 
-					FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(CurrentDatabase, ERequestAsyncBuildFlag::ContinueRequest))
-				{
-					FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, CurrentDatabase, EDebugDrawFlags::DrawQuery);
-					DrawParams.DrawFeatureVector(DbEntry.QueryVector);
-					break;
-				}
+				FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, CurrentDatabase, EDebugDrawFlags::DrawQuery);
+				DrawParams.DrawFeatureVector(DbEntry.QueryVector);
+				break;
 			}
 		}
 	}
 
 	// Draw selected poses
-	if (!Reflection || !Reflection->QueryDrawOptions.bDisable)
-	{
-		const TSharedPtr<SListView<TSharedRef<FDebuggerDatabaseRowData>>>& DatabaseRows = DatabaseView->GetDatabaseRows();
-		TArray<TSharedRef<FDebuggerDatabaseRowData>> SelectedRows = DatabaseRows->GetSelectedItems();
+	const TSharedPtr<SListView<TSharedRef<FDebuggerDatabaseRowData>>>& DatabaseRows = DatabaseView->GetDatabaseRows();
+	TArray<TSharedRef<FDebuggerDatabaseRowData>> SelectedRows = DatabaseRows->GetSelectedItems();
 	
-		// Draw any selected database vectors
-		for (const TSharedRef<FDebuggerDatabaseRowData>& Row : SelectedRows)
+	// Draw any selected database vectors
+	for (const TSharedRef<FDebuggerDatabaseRowData>& Row : SelectedRows)
+	{
+		const UPoseSearchDatabase* RowDatabase = Row->SourceDatabase.Get();
+		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(RowDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 		{
-			const UPoseSearchDatabase* RowDatabase = Row->SourceDatabase.Get();
-			if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(RowDatabase, ERequestAsyncBuildFlag::ContinueRequest))
-			{
-				FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, RowDatabase);
-				DrawParams.DrawFeatureVector(Row->PoseIdx);
-			}
+			FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, RowDatabase);
+			DrawParams.DrawFeatureVector(Row->PoseIdx);
 		}
 	}
-
 
 	// Draw active pose
 	{
@@ -433,23 +417,6 @@ void SDebuggerView::DrawFeatures(
 		}
 	}
 
-
-	// Draw skeleton
-	{
-		FSkeletonDrawParams SkeletonDrawParams;
-		if (Reflection && Reflection->bDrawSelectedSkeleton)
-		{
-			SkeletonDrawParams.Flags |= ESkeletonDrawFlags::SelectedPose;
-		}
-		if (Reflection && Reflection->bDrawActiveSkeleton)
-		{
-			SkeletonDrawParams.Flags |= ESkeletonDrawFlags::ActivePose;
-		}
-
-		SkeletonDrawParams.Flags |= ESkeletonDrawFlags::Asset;
-
-		ViewModel.Get()->OnDraw(SkeletonDrawParams);
-	}
 }
 
 int32 SDebuggerView::SelectView() const
@@ -504,9 +471,6 @@ void SDebuggerView::OnPoseSelectionChanged(const UPoseSearchDatabase* Database, 
 	else
 	{
 		Model->ShowSelectedSkeleton(Database, DbPoseIdx, Time);
-
-		// Stop asset player when switching selections
-		Model->StopSelection();
 	}
 }
 
@@ -515,27 +479,6 @@ FReply SDebuggerView::OnUpdateNodeSelection(int32 InSelectedNodeId)
 	// -1 will backtrack to selection view
 	SelectedNodeId = InSelectedNodeId;
 	bUpdated = false;
-	return FReply::Handled();
-}
-
-FReply SDebuggerView::TogglePlaySelectedAssets() const
-{
-	const TSharedPtr<SListView<TSharedRef<FDebuggerDatabaseRowData>>>& DatabaseRows = DatabaseView->GetDatabaseRows();
-	TArray<TSharedRef<FDebuggerDatabaseRowData>> Selected = DatabaseRows->GetSelectedItems();
-	const bool bPlaying = ViewModel.Get()->IsPlayingSelections();
-	if (!bPlaying)
-	{
-		if (!Selected.IsEmpty())
-		{
-			// @TODO: Make functional with multiple poses being selected
-			ViewModel.Get()->PlaySelection(Selected[0]->PoseIdx, Selected[0]->AssetTime);
-		}
-	}
-	else
-	{
-		ViewModel.Get()->StopSelection();
-	}
-
 	return FReply::Handled();
 }
 
@@ -603,113 +546,42 @@ TSharedRef<SHorizontalBox> SDebuggerView::GenerateReturnButtonView()
 					.Justification(ETextJustify::Center)
 				]
 			]
+		]
+		+SHorizontalBox::Slot()
+		.VAlign(VAlign_Top)
+		.HAlign(HAlign_Left)
+		.Padding(64, 5, 0, 0)
+		.AutoWidth()
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0, 5, 0, 0)
+			[
+				SNew(SCheckBox)
+				.IsChecked_Lambda([this]
+				{
+					return ViewModel.Get()->IsVerbose() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; 
+				})
+				.OnCheckStateChanged_Lambda([this](ECheckBoxState State)
+				{
+					ViewModel.Get()->SetVerbose(State == ECheckBoxState::Checked);
+					UpdateViews();
+				})
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("PoseSearchDebuggerShowVerbose", "Channels Breakdown"))
+				]
+			]
 		];
 }
 
 TSharedRef<SWidget> SDebuggerView::GenerateNodeDebuggerView()
 {
-	TSharedRef<SHorizontalBox> ReturnButtonView = GenerateReturnButtonView();
-	ReturnButtonView->AddSlot()
-	.VAlign(VAlign_Center)
-	.HAlign(HAlign_Fill)
-	.Padding(32, 5, 0, 0)
-	.AutoWidth()
-	[
-		SNew(SButton)
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Fill)
-		.ButtonStyle(FAppStyle::Get(), "Button")
-		.ContentPadding( FMargin(5, 0) )
-		.OnClicked(this, &SDebuggerView::TogglePlaySelectedAssets)
-		[
-			SNew(SHorizontalBox)
-			// Icon
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SImage)
-				.Image_Lambda([this]
-				{
-					const bool bPlayingSelections = ViewModel.Get()->IsPlayingSelections();
-					return FSlateIcon("FAppStyle", bPlayingSelections ? "PlayWorld.StopPlaySession.Small" : "PlayWorld.PlayInViewport.Small").GetSmallIcon();
-				})
-			]
-			// Text
-			+ SHorizontalBox::Slot()
-			.Padding(FMargin(8, 0, 0, 0))
-			.AutoWidth()
-			[
-				SNew(STextBlock)
-				.Text_Lambda([this] { return ViewModel.Get()->IsPlayingSelections() ? FText::FromString("Stop Selected Asset") : FText::FromString("Play Selected Asset"); })
-				.Justification(ETextJustify::Center)
-			]
-		]
-	];
-	
-	ReturnButtonView->AddSlot()
-	.VAlign(VAlign_Center)
-	.HAlign(HAlign_Left)
-	.Padding(64, 5, 0, 0)
-	.AutoWidth()
-	[
-		SNew(SHorizontalBox)
-		
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(0, 5, 0, 0)
-		[
-			SNew(STextBlock)
-			.Text(FText::FromString("Asset Play Rate: "))
-		]
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(8, 0, 0, 0)
-		[
-			SNew(SNumericEntryBox<float>)
-			.MinValue(0.0f)
-			.MaxValue(5.0f)
-			.MinSliderValue(0.0f)
-			.MaxSliderValue(5.0f)
-			.Delta(0.01f)
-			.AllowSpin(true)
-			// Lambda to accomodate the TOptional this requires (for now)
-			.Value_Lambda([this] { return ViewModel.Get()->GetPlayRate(); })
-			.OnValueChanged(ViewModel.Get().ToSharedRef(), &FDebuggerViewModel::ChangePlayRate)	
-		]
-	];
-
-	ReturnButtonView->AddSlot()
-	.VAlign(VAlign_Center)
-	.HAlign(HAlign_Left)
-	.Padding(64, 5, 0, 0)
-	.AutoWidth()
-	[
-		SNew(SHorizontalBox)
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(0, 5, 0, 0)
-		[
-			SNew(SCheckBox)
-			.IsChecked_Lambda([this]
-			{
-				return ViewModel.Get()->IsVerbose() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; 
-			})
-			.OnCheckStateChanged_Lambda([this](ECheckBoxState State)
-			{
-				ViewModel.Get()->SetVerbose(State == ECheckBoxState::Checked);
-				UpdateViews();
-			})
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("PoseSearchDebuggerShowVerbose", "Channels Breakdown"))
-			]
-		]
-	];
-
 	return 
 		SNew(SSplitter)
-		.Orientation(Orient_Horizontal)
+		.Orientation(Orient_Vertical)
 		.ResizeMode(ESplitterResizeMode::Fill)
 	
 		// Database view
@@ -721,7 +593,7 @@ TSharedRef<SWidget> SDebuggerView::GenerateNodeDebuggerView()
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			[
-				ReturnButtonView
+				GenerateReturnButtonView()
 			]
 			
 			+ SVerticalBox::Slot()

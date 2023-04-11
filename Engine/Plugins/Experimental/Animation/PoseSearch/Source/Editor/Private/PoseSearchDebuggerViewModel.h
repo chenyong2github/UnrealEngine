@@ -17,21 +17,6 @@ namespace UE::PoseSearch
 
 struct FTraceMotionMatchingStateMessage;
 
-/** Draw flags for the view's debug draw */
-enum class ESkeletonDrawFlags : uint32
-{
-	None			= 0,
-	ActivePose		= 1 << 0,
-	SelectedPose	= 1 << 1,
-	Asset			= 1 << 2,
-};
-ENUM_CLASS_FLAGS(ESkeletonDrawFlags)
-
-struct FSkeletonDrawParams
-{
-	ESkeletonDrawFlags Flags = ESkeletonDrawFlags::None;
-};
-
 class FDebuggerViewModel : public TSharedFromThis<FDebuggerViewModel>
 {
 public:
@@ -54,29 +39,11 @@ public:
 	/** Updates active motion matching state based on node selection */
 	void OnUpdateNodeSelection(int32 InNodeId);
 
-	/** Updates internal Skeletal Mesh Component depending on input */
-	void OnDraw(FSkeletonDrawParams& DrawParams);
-	
 	/** Sets the selected pose skeleton*/
 	void ShowSelectedSkeleton(const UPoseSearchDatabase* Database, int32 DbPoseIdx, float Time);
 	
 	/** Clears the selected pose skeleton */
 	void ClearSelectedSkeleton();
-	
-	/** Plays the selected row upon button press */
-	void PlaySelection(int32 PoseIdx, float Time);
-
-	/** Stops the playing selection upon button press */
-	void StopSelection();
-	
-	/** If there is an asset selection playing */
-	bool IsPlayingSelections() const { return AssetData.bActive; }
-	
-	/** Play Rate of the asset selection player */
-	void ChangePlayRate(float PlayRate) { AssetPlayRate = PlayRate; }
-	
-	/** Current play rate of the asset selection player */
-	float GetPlayRate() const { return AssetPlayRate; }
 	
 	void SetVerbose(bool bVerbose) { bIsVerbose = bVerbose; }
 
@@ -84,9 +51,6 @@ public:
 
 	/** Callback to reset debug skeletons for the active world */
 	void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
-
-	/** Updates the current playing asset */
-	void UpdateAsset();
 
 	const USkinnedMeshComponent* GetMeshComponent() const;
 
@@ -176,26 +140,6 @@ private:
 	/** If we currently have a selection active in the view */
 	bool bSelecting = false;
 	
-	/** Data of the active playing asset */
-	struct FAsset
-	{
-		/** How long to stop upon reaching target */
-		static constexpr float StopDuration = 2.0f;
-
-		/** Time since the start of play */
-		float AccumulatedTime = 0.0f;
-
-		/** Start time of the asset */
-		float StartTime = 0.0f;
-
-		/** If we are currently playing a asset */
-		bool bActive = false;
-
-	} AssetData;
-	
-	/** Current play rate of the asset selection player */
-	float AssetPlayRate = 1.0f;
-
 	bool bIsVerbose = false;
 
 	/** Limits some public API */

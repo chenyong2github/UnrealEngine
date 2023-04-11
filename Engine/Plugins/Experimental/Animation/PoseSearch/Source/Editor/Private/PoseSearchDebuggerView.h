@@ -97,9 +97,6 @@ private:
 
 	void OnPoseSelectionChanged(const UPoseSearchDatabase* Database, int32 PoseIdx, float Time);
 
-	/** Button interaction to toggle play / stop of the asset */
-	FReply TogglePlaySelectedAssets() const;
-
 	/** Generates the message view relaying that there is no data */
 	TSharedRef<SWidget> GenerateNoDataMessageView();
 
