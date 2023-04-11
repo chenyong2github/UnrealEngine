@@ -1107,7 +1107,6 @@ void FMovieSceneEntitySystemRunner::OnLinkerAbandon(UMovieSceneEntitySystemLinke
 		InLinker->Events.AbandonLinker.RemoveAll(this);
 	}
 
-	ensure(InLinker == WeakLinker.Get(true));
 	WeakLinker.Reset();
 }
 
