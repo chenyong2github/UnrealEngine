@@ -888,10 +888,10 @@ void AActor::Serialize(FArchive& Ar)
 
 		if (!IsTemplate())
 		{
-			check(!ActorInstanceGuid.IsValid());
 			const FGuid NewActorInstanceGuid = TLazySingleton<FActorInstanceGuidMapper>::Get().MapGuid(GetOuter()->GetPackage()->GetFName(), ActorGuid);
 			if (NewActorInstanceGuid != ActorGuid)
 			{
+				check(!ActorInstanceGuid.IsValid());
 				ActorInstanceGuid = NewActorInstanceGuid;
 			}
 		}

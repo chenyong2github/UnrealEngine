@@ -16950,6 +16950,7 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 
 #if WITH_EDITOR
 	FGuid NewActorGuid;
+	FGuid NewActorInstanceGuid;
 #endif
 
 	// Bad idea to write data to an actor while its components are registered
@@ -16963,6 +16964,7 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 
 #if WITH_EDITOR
 		NewActorGuid = NewActor->GetActorGuid();
+		NewActorInstanceGuid = NewActor->GetActorInstanceGuid();
 #endif
 	}
 
@@ -17172,6 +17174,11 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 		if (NewActorGuid.IsValid())
 		{
 			FSetActorGuid SetActorGuid(NewActor, NewActorGuid);
+		}
+
+		if (NewActorInstanceGuid.IsValid())
+		{
+			FSetActorInstanceGuid SetActorInstanceGuid(NewActor, NewActorInstanceGuid);
 		}
 #endif
 	}

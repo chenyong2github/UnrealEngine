@@ -911,7 +911,7 @@ protected:
 	 * @see		ActorGuid
 	 * @note	This is not guaranteed to be valid during PostLoad in all situations, but safe to access from RegisterAllComponents.
 	 */
-	UPROPERTY(BluePrintReadOnly, AdvancedDisplay, Category=Actor, Transient, NonTransactional)
+	UPROPERTY(BluePrintReadOnly, AdvancedDisplay, Category=Actor, Transient, NonPIEDuplicateTransient, TextExportTransient, NonTransactional)
 	FGuid ActorInstanceGuid;
 
 	/**
@@ -4253,9 +4253,15 @@ private:
 	FSetActorInstanceGuid(AActor* InActor, const FGuid& InActorInstanceGuid)
 	{
 		InActor->ActorInstanceGuid = InActorInstanceGuid;
+		if (InActorInstanceGuid == InActor->ActorGuid)
+		{
+			InActor->ActorInstanceGuid.Invalidate();
+		}
 	}
+	friend class UEngine;
 	friend class ULevelStreamingLevelInstance;
 	friend class FWorldPartitionLevelHelper;
+	friend class FReplaceActorHelperSetActorInstanceGuid;
 };
 
 struct FSetActorFolderPath

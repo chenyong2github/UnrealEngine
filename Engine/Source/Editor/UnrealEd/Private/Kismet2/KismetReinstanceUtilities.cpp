@@ -1535,6 +1535,15 @@ namespace InstancedPropertyUtils
 	};
 }
 
+class FReplaceActorHelperSetActorInstanceGuid
+{
+public:
+	FReplaceActorHelperSetActorInstanceGuid(AActor* InActor, const FGuid& InActorInstanceGuid)
+	{
+		FSetActorInstanceGuid SetActorInstanceGuid(InActor, InActorInstanceGuid);
+	}
+};
+
 // @todo_deprecated - Remove in a future release.
 void FBlueprintCompileReinstancer::ReplaceInstancesOfClass(UClass* OldClass, UClass* NewClass, UObject*	OriginalCDO, TSet<UObject*>* ObjectsThatShouldUseOldStuff, bool bClassObjectReplaced, bool bPreserveRootComponent)
 {
@@ -2088,6 +2097,9 @@ static void ReplaceActorHelper(AActor* OldActor, UClass* OldClass, UObject*& New
 	}
 
 	check(NewActor != nullptr);
+
+	// Set the actor instance guid before registering components
+	FReplaceActorHelperSetActorInstanceGuid SetActorInstanceGuid(NewActor, OldActor->GetActorInstanceGuid());
 
 	// When Spawning an actor that has an external package the package can be PKG_NewlyCreated. 
 	// We need to remove this flag if the package didn't have that flag prior to the SpawnActor. 
