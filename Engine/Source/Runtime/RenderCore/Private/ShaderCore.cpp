@@ -1030,8 +1030,6 @@ void CompileShaderPipeline(const TArray<const IShaderFormat*>& ShaderFormats, FS
 
 	// This tells the shader compiler we do want to remove unused outputs
 	bool bEnableRemovingUnused = true;
-	// This tells us the hlsl parser failed at removing unused outputs
-	bool bJobFailedRemovingUnused = false;
 
 	//#todo-rco: Currently only removes for pure VS & PS stages
 	for (int32 Index = 0; Index < PipelineJob->StageJobs.Num(); ++Index)
@@ -1065,12 +1063,9 @@ void CompileShaderPipeline(const TArray<const IShaderFormat*>& ShaderFormats, FS
 			// Can't carry on compiling the pipeline
 			return;
 		}
-
-		bJobFailedRemovingUnused = CurrentJob->Output.bFailedRemovingUnused || bJobFailedRemovingUnused;
 	}
 
 	PipelineJob->bSucceeded = true;
-	PipelineJob->bFailedRemovingUnused = bJobFailedRemovingUnused;
 }
 
 /**

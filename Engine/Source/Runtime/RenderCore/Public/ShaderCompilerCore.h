@@ -23,7 +23,7 @@ class FShaderPipelineCompileJob;
 // this is for the protocol, not the data, bump if FShaderCompilerInput or ProcessInputFromArchive changes.
 inline const int32 ShaderCompileWorkerInputVersion = 18;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
-inline const int32 ShaderCompileWorkerOutputVersion = 12;
+inline const int32 ShaderCompileWorkerOutputVersion = 13;
 // this is for the protocol, not the data.
 inline const int32 ShaderCompileWorkerSingleJobHeader = 'S';
 // this is for the protocol, not the data.
@@ -468,7 +468,6 @@ struct FShaderCompilerOutput
 	,	CompileTime(0.0)
 	,	PreprocessTime(0.0)
 	,	bSucceeded(false)
-	,	bFailedRemovingUnused(false)
 	,	bSupportsQueryingUsedAttributes(false)
 	,	bUsedHLSLccCompiler(false)
 	{
@@ -485,10 +484,21 @@ struct FShaderCompilerOutput
 	double CompileTime;
 	double PreprocessTime;
 	bool bSucceeded;
+	UE_DEPRECATED(5.3, "bFailedRemovingUnused field is no longer used")
 	bool bFailedRemovingUnused;
 	bool bSupportsQueryingUsedAttributes;
 	bool bUsedHLSLccCompiler;
 	TArray<FString> UsedAttributes;
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// Explicitly-defaulted copy/move ctors & assignment operators are needed temporarily due to 
+	// deprecation of bFailedRemovingUnused field. These can be removed once the deprecation
+	// window for said field ends.
+	FShaderCompilerOutput(FShaderCompilerOutput&&) = default;
+	FShaderCompilerOutput(const FShaderCompilerOutput&) = default;
+	FShaderCompilerOutput& operator=(FShaderCompilerOutput&&) = default;
+	FShaderCompilerOutput& operator=(const FShaderCompilerOutput&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	TArray<FShaderCodeValidationStride> ParametersStrideToValidate;
 
@@ -509,7 +519,7 @@ struct FShaderCompilerOutput
 	{
 		// Note: this serialize is used to pass between UE and the shader compile worker, recompile both when modifying
 		Ar << Output.ParameterMap << Output.Errors << Output.Target << Output.ShaderCode << Output.OutputHash << Output.NumInstructions << Output.NumTextureSamplers << Output.bSucceeded;
-		Ar << Output.bFailedRemovingUnused << Output.bSupportsQueryingUsedAttributes << Output.UsedAttributes;
+		Ar << Output.bSupportsQueryingUsedAttributes << Output.UsedAttributes;
 		Ar << Output.CompileTime;
 		Ar << Output.PreprocessTime;
 		Ar << Output.OptionalFinalShaderSource;

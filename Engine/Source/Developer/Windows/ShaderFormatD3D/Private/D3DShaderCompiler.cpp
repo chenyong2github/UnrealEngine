@@ -880,7 +880,6 @@ static bool CompileAndProcessD3DShaderFXCExt(
 								NewError.StrippedErrorMessage = FString::Printf(TEXT("Second pass had more used attributes (%d) than first pass (%d)"), Output.UsedAttributes.Num(), ShaderInputs.Num());
 								Output = OriginalOutput;
 								Output.Errors.Add(NewError);
-								Output.bFailedRemovingUnused = true;
 								break;
 							}
 
@@ -900,7 +899,6 @@ static bool CompileAndProcessD3DShaderFXCExt(
 									);
 								Output = OriginalOutput;
 								Output.Errors.Add(NewError);
-								Output.bFailedRemovingUnused = true;
 								break;
 							}
 
@@ -918,7 +916,6 @@ static bool CompileAndProcessD3DShaderFXCExt(
 								NewError.StrippedErrorMessage = ErrorMessage;
 								Output.Errors.Add(NewError);
 							}
-							Output.bFailedRemovingUnused = true;
 							break;
 						}
 					}
@@ -1134,7 +1131,6 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 
 	FString EntryPointName = Input.EntryPointName;
 
-	Output.bFailedRemovingUnused = false;
 	if (Input.Environment.CompilerFlags.Contains(CFLAG_ForceRemoveUnusedInterpolators) && Input.Target.Frequency == SF_Vertex && Input.bCompilingForShaderPipeline)
 	{
 		// Always add SV_Position
@@ -1180,7 +1176,6 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 				NewError.StrippedErrorMessage = ErrorReport;
 				Output.Errors.Add(NewError);
 			}
-			Output.bFailedRemovingUnused = true;
 		}
 	}
 

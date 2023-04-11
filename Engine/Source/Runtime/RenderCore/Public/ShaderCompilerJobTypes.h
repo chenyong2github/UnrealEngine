@@ -5,6 +5,7 @@
 #include "HAL/PlatformTime.h"
 #include "Hash/Blake3.h"
 #include "Shader.h"
+#include "ShaderCompilerCore.h"
 #include "VertexFactory.h"
 #include "Templates/Function.h"
 
@@ -244,6 +245,7 @@ public:
 
 	FShaderPipelineCompileJobKey Key;
 	TArray<TRefCountPtr<FShaderCompileJob>> StageJobs;
+	UE_DEPRECATED(5.3, "bFailedRemovingUnused field is no longer used")
 	bool bFailedRemovingUnused;
 
 	virtual RENDERCORE_API FInputHash GetInputHash() override;

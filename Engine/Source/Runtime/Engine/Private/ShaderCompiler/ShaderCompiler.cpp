@@ -2114,7 +2114,6 @@ void FShaderCompileUtilities::DoReadTaskResults(const TArray<FShaderCommonCompil
 				bool bSucceeded = false;
 				OutputFile << bSucceeded;
 				CurrentJob->bSucceeded = bSucceeded;
-				OutputFile << CurrentJob->bFailedRemovingUnused;
 				if (PipelineName != CurrentJob->Key.ShaderPipeline->GetName())
 				{
 					OutputFileContext.ModalErrorOrLog(TEXT("Expecting pipeline job \"%s\", got \"%s\" instead!"), CurrentJob->Key.ShaderPipeline->GetName(), *PipelineName);
@@ -2521,10 +2520,6 @@ void FShaderCompileThreadRunnable::PushCompletedJobsToManager()
 					{
 						const FShaderPipelineCompileJob* PipelineJob = Job.GetShaderPipelineJob();
 						JobNames += FString(PipelineJob->Key.ShaderPipeline->GetName());
-						if (PipelineJob->bFailedRemovingUnused)
-						{
-							JobNames += FString(TEXT("(failed to optimize)"));
-						}
 					}
 					if (JobIndex < SortedJobs.Num() - 1)
 					{

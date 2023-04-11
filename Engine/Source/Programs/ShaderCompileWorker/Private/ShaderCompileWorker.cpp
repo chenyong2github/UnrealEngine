@@ -754,7 +754,6 @@ private:
 				OutputFile << PipelineNames[JobIndex];
 				bool bSucceeded = (bool)PipelineJob.bSucceeded;
 				OutputFile << bSucceeded;
-				OutputFile << PipelineJob.bFailedRemovingUnused;
 				int32 NumStageJobs = PipelineJob.StageJobs.Num();
 				OutputFile << NumStageJobs;
 
