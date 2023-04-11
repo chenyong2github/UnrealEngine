@@ -82,13 +82,11 @@ namespace Metrics
 			BufferType  		 = EStreamType::Video;
 			MaxDurationInSeconds = 0.0;
 			DurationInUse   	 = 0.0;
-			MaxByteCapacity 	 = 0;
 			BytesInUse  		 = 0;
 		}
 		EStreamType		BufferType;
 		double			MaxDurationInSeconds;
 		double			DurationInUse;
-		int64			MaxByteCapacity;
 		int64			BytesInUse;
 	};
 

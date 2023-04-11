@@ -72,7 +72,6 @@ void FAdaptiveStreamingPlayer::DispatchBufferUtilizationEvent(EStreamType Buffer
 		stats.BufferType = BufferType;
 		stats.MaxDurationInSeconds = BufferConfig ? BufferConfig->MaxDuration.GetAsSeconds() : 0.0;
 		stats.DurationInUse 	   = BufferStats->PushedDuration.GetAsSeconds();
-		stats.MaxByteCapacity      = BufferConfig ? BufferConfig->MaxDataSize : 0;
 		stats.BytesInUse		   = BufferStats->CurrentMemInUse;
 		DispatchEvent(FMetricEvent::ReportBufferUtilization(stats));
 	}

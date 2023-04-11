@@ -231,19 +231,16 @@ namespace Electra
 	public:
 		struct FConfiguration
 		{
-			FConfiguration(int64 InMaxByteSize = 0, double InMaxSeconds = 0.0)
-				: MaxDataSize(InMaxByteSize)
+			FConfiguration(double InMaxSeconds = 0.0)
 			{
 				MaxDuration.SetFromSeconds(InMaxSeconds);
 			}
 			FTimeValue	MaxDuration;
-			int64		MaxDataSize;
 		};
 
 		struct FExternalBufferInfo
 		{
 			FTimeValue	Duration = FTimeValue::GetZero();
-			int64		DataSize = 0;
 		};
 
 		FAccessUnitBuffer()
@@ -624,21 +621,13 @@ namespace Electra
 			}
 			if (ExternalInfo == nullptr)
 			{
-				// Memory ok?
-				if (AU->TotalMemSize() + CurrentMemInUse <= Limit->MaxDataSize)
-				{
-					// Max allowed duration ok?
-					return PlayableDuration.IsValid() && PlayableDuration + AU->Duration > Limit->MaxDuration ? false : true;
-				}
+				// Max allowed duration ok?
+				return PlayableDuration.IsValid() && PlayableDuration + AU->Duration > Limit->MaxDuration ? false : true;
 			}
 			else
 			{
-				// Memory ok?
-				if (AU->TotalMemSize() + ExternalInfo->DataSize <= Limit->MaxDataSize)
-				{
-					// Max allowed duration ok?
-					return AU->Duration + ExternalInfo->Duration > Limit->MaxDuration ? false : true;
-				}
+				// Max allowed duration ok?
+				return AU->Duration + ExternalInfo->Duration > Limit->MaxDuration ? false : true;
 			}
 			return false;
 		}

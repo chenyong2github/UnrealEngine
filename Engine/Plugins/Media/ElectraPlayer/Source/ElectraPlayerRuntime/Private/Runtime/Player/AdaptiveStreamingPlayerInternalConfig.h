@@ -13,15 +13,12 @@ namespace Electra
 			FConfiguration()
 			{
 				// Set default values to maximum permitted values.
-				StreamBufferConfigVideo.MaxDataSize = 128 << 20;
 				StreamBufferConfigVideo.MaxDuration.SetFromSeconds(6.0);
 
-				StreamBufferConfigAudio.MaxDataSize = 8 << 20;
 				StreamBufferConfigAudio.MaxDuration.SetFromSeconds(6.0);
 
 				// Subtitle streams tend to be sparse and each AU could potentially have
 				// a huge duration, so we need to ignore durations altogether.
-				StreamBufferConfigText.MaxDataSize = 8 << 20;
 				StreamBufferConfigText.MaxDuration.SetToPositiveInfinity();
 
 				bHoldLastFrameDuringSeek = true;

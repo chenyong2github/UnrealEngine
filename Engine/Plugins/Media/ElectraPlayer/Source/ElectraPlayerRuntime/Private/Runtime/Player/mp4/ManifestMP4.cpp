@@ -827,10 +827,9 @@ void FManifestMP4Internal::FTimelineAssetMP4::LogMessage(IInfoLog::ELevel Level,
 
 void FManifestMP4Internal::FTimelineAssetMP4::LimitSegmentDownloadSize(TSharedPtrTS<IStreamSegment>& InOutSegment)
 {
-	// Limit the segment download size.
+	// Limit the segment size by content duration.
 	// This helps with downloads that might otherwise take too long or keep the connection open for too long (when downloading a large mp4 from start to finish).
-	const int64 MaxSegmentSize = 4 * 1024 * 1024;
-	const int64 MaxSegmentDurationMSec = 2000;
+	const int64 MaxSegmentDurationMSec = 3000;
 	if (InOutSegment.IsValid())
 	{
 		FStreamSegmentRequestMP4* Request = static_cast<FStreamSegmentRequestMP4*>(InOutSegment.Get());
@@ -870,9 +869,7 @@ void FManifestMP4Internal::FTimelineAssetMP4::LimitSegmentDownloadSize(TSharedPt
 				}
 				int64 CurrentTrackOffset = LastTrackOffset;
 				bool bDurationLimitReached = TrackDurationLimit > 0 && TrackDur > TrackDurationLimit;
-				if (CurrentTrackOffset >= EndOffset ||
-					CurrentTrackOffset - StartOffset >= MaxSegmentSize ||
-					bDurationLimitReached)
+				if (CurrentTrackOffset >= EndOffset || bDurationLimitReached)
 				{
 					// Limit reached.
 					Request->FileEndOffset = CurrentTrackOffset - 1;
