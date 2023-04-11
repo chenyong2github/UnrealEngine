@@ -1632,6 +1632,12 @@ namespace Chaos
 			ClusteredParticle->ClusterIds() = ClusterId();
 			ClusteredParticle->ClusterGroupIndex() = 0;
 
+			// If we have a parent, need to disconnect potentially from fellow children in connectivity edges.
+			RemoveNodeConnections(ClusteredParticle);
+
+			// Need to also check if the particle is a cluster union and remove from that as well.
+			ClusterUnionManager.HandleRemoveOperationWithClusterLookup({ ClusteredParticle }, EClusterUnionOperationTiming::Defer);
+
 			if (MChildren.Contains(ParentParticle))
 			{
 				FRigidHandleArray& Children = MChildren[ParentParticle];

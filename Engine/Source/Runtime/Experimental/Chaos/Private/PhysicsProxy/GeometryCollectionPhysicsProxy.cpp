@@ -2469,6 +2469,8 @@ void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::FPBDRigidsSolver
 		}
 	}
 
+	Evolution->GetRigidClustering().GetClusterUnionManager().HandleDeferredClusterUnionUpdateProperties();
+
 	for (int i = 0; i < SolverParticleHandles.Num(); i++)
 	{
 		if (FClusterHandle* Handle = SolverParticleHandles[i])
