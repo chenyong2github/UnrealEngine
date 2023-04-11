@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Null/DesktopPlatformNull.h"
+
 #include "DesktopPlatformPrivate.h"
 #include "HAL/FileManager.h"
 #include "HAL/ThreadHeartBeat.h"
@@ -12,7 +14,6 @@
 #include "Misc/Guid.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
-#include "Null/DesktopPlatformNull.h"
 
 #if PLATFORM_LINUX
 #include "ISlateFontDialogModule.h" 
