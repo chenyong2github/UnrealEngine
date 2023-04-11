@@ -35,12 +35,18 @@ public:
 	virtual FName GetDefaultNodeName() const override;
 	virtual FText GetDefaultNodeTitle() const override;
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
+	virtual bool HasDynamicPins() const override { return true; }
 #endif
 
-	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
 	virtual FName AdditionalTaskName() const override;
+
+protected:
+	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
+	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
+	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings interface
 
+public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	EPCGAttributeFilterOperation Operation = EPCGAttributeFilterOperation::KeepSelectedAttributes;
 
@@ -51,9 +57,6 @@ public:
 	UPROPERTY()
 	TArray<FName> AttributesToKeep_DEPRECATED;
 #endif // WITH_EDITORONLY_DATA
-
-protected:
-	virtual FPCGElementPtr CreateElement() const override;
 };
 
 

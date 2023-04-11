@@ -32,12 +32,19 @@ TArray<FPCGPinProperties> UPCGMetadataSettingsBase::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
 
+	EPCGDataType FirstPinInputTypeUnion = EPCGDataType::Any;
+	if (GetInputPinNum() > 0)
+	{
+		const EPCGDataType IncidentTypeUnion = GetTypeUnionOfIncidentEdges(GetInputPinLabel(0));
+		FirstPinInputTypeUnion = (IncidentTypeUnion != EPCGDataType::None) ? IncidentTypeUnion : FirstPinInputTypeUnion;
+	}
+
 	for (uint32 i = 0; i < GetInputPinNum(); ++i)
 	{
 		const FName PinLabel = GetInputPinLabel(i);
 		if (PinLabel != NAME_None)
 		{
-			PinProperties.Emplace(PinLabel, EPCGDataType::Any, /*bAllowMultipleConnections=*/false);
+			PinProperties.Emplace(PinLabel, (i == 0) ? FirstPinInputTypeUnion : EPCGDataType::Any, /*bAllowMultipleConnections=*/false);
 		}
 	}
 
@@ -48,12 +55,19 @@ TArray<FPCGPinProperties> UPCGMetadataSettingsBase::OutputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
 	
+	EPCGDataType OutputType = EPCGDataType::Any;
+	if (GetInputPinNum() > 0)
+	{
+		const EPCGDataType IncidentTypeUnion = GetTypeUnionOfIncidentEdges(GetInputPinLabel(0));
+		OutputType = (IncidentTypeUnion != EPCGDataType::None) ? IncidentTypeUnion : OutputType;
+	}
+
 	for (uint32 i = 0; i < GetOutputPinNum(); ++i)
 	{
 		const FName PinLabel = GetOutputPinLabel(i);
 		if (PinLabel != NAME_None)
 		{
-			PinProperties.Emplace(PinLabel, EPCGDataType::Any);
+			PinProperties.Emplace(PinLabel, OutputType);
 		}
 	}
 

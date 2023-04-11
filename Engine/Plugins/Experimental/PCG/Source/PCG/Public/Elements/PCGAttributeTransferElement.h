@@ -39,20 +39,26 @@ public:
 	virtual FName GetDefaultNodeName() const override;
 	virtual FText GetDefaultNodeTitle() const override;
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
+	virtual FText GetNodeTooltipText() const override;
+	virtual bool HasDynamicPins() const override { return true; }
 #endif
 	virtual FName AdditionalTaskName() const override;
 
+protected:
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
+	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
+	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings interface
 
+	/** Get allowed types for all pins */
+	EPCGDataType GetPinsType() const;
+
+public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	FName SourceAttributeName;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	FName TargetAttributeName;
-
-protected:
-	virtual FPCGElementPtr CreateElement() const override;
 };
 
 

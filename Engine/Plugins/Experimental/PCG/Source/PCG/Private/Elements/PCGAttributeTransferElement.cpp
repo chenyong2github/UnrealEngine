@@ -21,6 +21,16 @@ FText UPCGAttributeTransferSettings::GetDefaultNodeTitle() const
 {
 	return PCGAttributeTransferConstants::NodeTitle;
 }
+
+FText UPCGAttributeTransferSettings::GetNodeTooltipText() const
+{
+	return LOCTEXT("NodeTooltip",
+		"Transfer an attribute from a source metadata to a target data. Only supports Spatial to Spatial and Points to Points, and they need to match.\n\n"
+		" - For Spatial data, number of entries in the metadata should be the same between source and target.\n"
+		" - For Point data, number of points should be the same between source and target.\n\n"
+		"The output will be the target data with the updated metadata. If the TargetAttributeName is None, it will use SourceAttributeName instead."
+	);
+}
 #endif
 
 FName UPCGAttributeTransferSettings::AdditionalTaskName() const
@@ -37,9 +47,19 @@ FName UPCGAttributeTransferSettings::AdditionalTaskName() const
 
 TArray<FPCGPinProperties> UPCGAttributeTransferSettings::InputPinProperties() const
 {
+	const EPCGDataType InputType = GetPinsType();
+
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGAttributeTransferConstants::TargetLabel, EPCGDataType::Spatial, /*bInAllowMultipleConnections=*/ false);
-	PinProperties.Emplace(PCGAttributeTransferConstants::SourceLabel, EPCGDataType::Spatial, /*bInAllowMultipleConnections=*/ false);
+	PinProperties.Emplace(PCGAttributeTransferConstants::TargetLabel, InputType, /*bInAllowMultipleConnections=*/ false);
+	PinProperties.Emplace(PCGAttributeTransferConstants::SourceLabel, InputType, /*bInAllowMultipleConnections=*/ false);
+
+	return PinProperties;
+}
+
+TArray<FPCGPinProperties> UPCGAttributeTransferSettings::OutputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, GetPinsType());
 
 	return PinProperties;
 }
@@ -47,6 +67,15 @@ TArray<FPCGPinProperties> UPCGAttributeTransferSettings::InputPinProperties() co
 FPCGElementPtr UPCGAttributeTransferSettings::CreateElement() const
 {
 	return MakeShared<FPCGAttributeTransferElement>();
+}
+
+EPCGDataType UPCGAttributeTransferSettings::GetPinsType() const
+{
+	// If either input is type Point then all pins are Point, otherwise Spatial
+	const bool bAnyArePoint = GetTypeUnionOfIncidentEdges(PCGAttributeTransferConstants::TargetLabel) == EPCGDataType::Point
+		|| GetTypeUnionOfIncidentEdges(PCGAttributeTransferConstants::SourceLabel) == EPCGDataType::Point;
+
+	return bAnyArePoint ? EPCGDataType::Point : EPCGDataType::Spatial;
 }
 
 bool FPCGAttributeTransferElement::ExecuteInternal(FPCGContext* Context) const

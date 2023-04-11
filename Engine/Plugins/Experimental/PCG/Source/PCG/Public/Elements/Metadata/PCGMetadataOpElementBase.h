@@ -78,6 +78,7 @@ public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
+	virtual bool HasDynamicPins() const override { return true; }
 #endif
 
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override;

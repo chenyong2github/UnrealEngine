@@ -49,10 +49,22 @@ FName UPCGFilterByTagSettings::AdditionalTaskName() const
 	}
 }
 
+TArray<FPCGPinProperties> UPCGFilterByTagSettings::InputPinProperties() const
+{
+	const EPCGDataType InputTypeUnion = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
+
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, (InputTypeUnion != EPCGDataType::None) ? InputTypeUnion : EPCGDataType::Any);
+
+	return PinProperties;
+}
+
 TArray<FPCGPinProperties> UPCGFilterByTagSettings::OutputPinProperties() const
 {
+	const EPCGDataType InputTypeUnion = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
+
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Any);
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, (InputTypeUnion != EPCGDataType::None) ? InputTypeUnion : EPCGDataType::Any);
 
 	return PinProperties;
 }
