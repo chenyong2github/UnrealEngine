@@ -191,6 +191,7 @@ enum EMaterialProperty : int
 	MP_ShadingModel UMETA(Hidden),
 	MP_FrontMaterial UMETA(Hidden),
 	MP_SurfaceThickness UMETA(Hidden),
+	MP_Displacement UMETA(Hidden),
 
 	//^^^ New material properties go above here ^^^^
 	MP_MaterialAttributes UMETA(Hidden),

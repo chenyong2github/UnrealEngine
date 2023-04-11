@@ -692,7 +692,8 @@ public:
 		bUsesAnisotropy(false),
 		StrataMaterialType(0),
 		StrataBSDFCount(0),
-		StrataUintPerPixel(0)
+		StrataUintPerPixel(0),
+		bUsesDisplacement(false)
 	{}
 
 	ENGINE_API bool IsSceneTextureUsed(ESceneTextureId TexId) const { return (UsedSceneTextures & (1 << TexId)) != 0; }
@@ -814,6 +815,8 @@ public:
 	/** Strata uint per pixel, at compile time (0-7) */
 	LAYOUT_BITFIELD(uint8, StrataUintPerPixel, 8);
 	
+	/** Whether the material uses scalar displacement. */
+	LAYOUT_BITFIELD(uint8, bUsesDisplacement, 1);
 };
 
 struct FDebugShaderPipelineInfo
@@ -1365,6 +1368,7 @@ public:
 	bool NeedsSceneTextures() const { return GetContent()->MaterialCompilationOutput.bNeedsSceneTextures; }
 	bool UsesGlobalDistanceField() const { return GetContent()->MaterialCompilationOutput.bUsesGlobalDistanceField; }
 	bool UsesWorldPositionOffset() const { return GetContent()->MaterialCompilationOutput.bUsesWorldPositionOffset; }
+	bool UsesDisplacement() const { return GetContent()->MaterialCompilationOutput.bUsesDisplacement; }
 	bool NeedsGBuffer() const { return GetContent()->MaterialCompilationOutput.NeedsGBuffer(); }
 	bool UsesEyeAdaptation() const { return GetContent()->MaterialCompilationOutput.bUsesEyeAdaptation; }
 	bool ModifiesMeshPosition() const { return GetContent()->MaterialCompilationOutput.bModifiesMeshPosition; }
@@ -2076,6 +2080,10 @@ public:
 	/** Does the material use world position offset. */
 	ENGINE_API bool MaterialUsesWorldPositionOffset_RenderThread() const;
 	ENGINE_API bool MaterialUsesWorldPositionOffset_GameThread() const;
+
+	/** Does the material use displacement. */
+	ENGINE_API bool MaterialUsesDisplacement_RenderThread() const;
+	ENGINE_API bool MaterialUsesDisplacement_GameThread() const;
 
 	UE_DEPRECATED(5.0, "This function is deprecated. Use MaterialUsesWorldPositionOffset_GameThread() instead.")
 	inline bool UsesWorldPositionOffset_GameThread() const

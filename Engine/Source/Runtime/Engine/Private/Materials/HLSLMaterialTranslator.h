@@ -394,6 +394,7 @@ protected:
 	uint32 bOutputsBasePassVelocities : 1;
 	uint32 bUsesPixelDepthOffset : 1;
 	uint32 bUsesWorldPositionOffset : 1;
+	uint32 bUsesDisplacement : 1;
 	uint32 bUsesEmissiveColor : 1;
 	uint32 bUsesDistanceCullFade : 1;
 	/** true if the Roughness input evaluates to a constant 1.0 */

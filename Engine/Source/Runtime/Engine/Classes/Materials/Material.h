@@ -348,6 +348,9 @@ public:
 	UPROPERTY()
 	FVectorMaterialInput WorldPositionOffset;
 
+	UPROPERTY()
+	FScalarMaterialInput Displacement;
+
 	/** Inner material color, only used for ShadingModel=Subsurface */
 	UPROPERTY()
 	FColorMaterialInput SubsurfaceColor;
@@ -1754,6 +1757,7 @@ public:
 	ENGINE_API bool HasSurfaceThicknessConnected() const;
 	ENGINE_API bool HasStrataFrontMaterialConnected() const;
 	ENGINE_API bool HasVertexPositionOffsetConnected() const;
+	ENGINE_API bool HasDisplacementConnected() const;
 	ENGINE_API bool HasPixelDepthOffsetConnected() const;
 
 	// Return true if the property is supported

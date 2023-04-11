@@ -32,6 +32,7 @@ struct ENGINE_API FMaterialRelevance
 			uint8 bOutputsTranslucentVelocity : 1;
 			uint8 bUsesGlobalDistanceField : 1;
 			uint8 bUsesWorldPositionOffset : 1;
+			uint8 bUsesDisplacement : 1;
 			uint8 bUsesPixelDepthOffset : 1;
 			uint8 bDecal : 1;
 			uint8 bTranslucentSurfaceLighting : 1;

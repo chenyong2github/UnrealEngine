@@ -600,7 +600,7 @@ FSceneProxy::FSceneProxy(const FMaterialAudit& MaterialAudit, UStaticMeshCompone
 	DistanceFieldData = MeshResources.DistanceFieldData;
 	CardRepresentationData = MeshResources.CardRepresentationData;
 
-	bEvaluateWorldPositionOffset = !IsOptimizedWPO() || Component->bEvaluateWorldPositionOffset;
+	bEvaluateWorldPositionOffset = !IsOptimizedWPO() || !!Component->bEvaluateWorldPositionOffset;
 	
 	MaterialSections.SetNumZeroed(MeshSections.Num());
 
@@ -699,6 +699,7 @@ FSceneProxy::FSceneProxy(const FMaterialAudit& MaterialAudit, UStaticMeshCompone
 		// NOTE: MaterialRelevance.bTwoSided does not go into bHasProgrammableRaster because we want only want this flag to control culling, not a full raster bin
 		bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bUsesPixelDepthOffset;
 		bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bMasked;
+		bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bUsesDisplacement;
 
 		if (MaterialSection.bHidden)
 		{
@@ -1040,6 +1041,7 @@ void FSceneProxy::OnEvaluateWorldPositionOffsetChanged_RenderThread()
 
 		bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bUsesPixelDepthOffset;
 		bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bMasked;
+		bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bUsesDisplacement;
 
 		MaterialSection.RasterMaterialProxy = bProgrammableRasterMaterial ? MaterialSection.ShadingMaterialProxy : DefaultRasterProxy;
 

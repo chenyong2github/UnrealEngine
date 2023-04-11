@@ -71,6 +71,9 @@ class UMaterialExpressionMakeMaterialAttributes : public UMaterialExpression
 	UPROPERTY()
 	FExpressionInput ShadingModel;
 
+	UPROPERTY()
+	FExpressionInput Displacement;
+
 	/** Get the input for a material property. Returns nullptr if the property isn't supported. */
 	FExpressionInput* GetExpressionInput(EMaterialProperty InProperty);
 

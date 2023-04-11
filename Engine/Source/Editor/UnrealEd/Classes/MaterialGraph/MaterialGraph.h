@@ -59,7 +59,7 @@ struct FMaterialInputInfo
 			return false;
 		}
 
-		if(Material->bUseMaterialAttributes && !bIgnoreMaterialAttributes)
+		if (Material->bUseMaterialAttributes && !bIgnoreMaterialAttributes)
 		{
 			return Property == MP_MaterialAttributes;
 		}
@@ -90,12 +90,12 @@ struct FMaterialInputInfo
 		}
 		else
 		{
-			if(Property == MP_MaterialAttributes)
+			if (Property == MP_MaterialAttributes)
 			{
 				return false;
 			}
 
-			if(Property >= MP_CustomizedUVs0 && Property <= MP_CustomizedUVs7)
+			if (Property >= MP_CustomizedUVs0 && Property <= MP_CustomizedUVs7)
 			{
 				return (Property - MP_CustomizedUVs0) < Material->NumCustomizedUVs;
 			}

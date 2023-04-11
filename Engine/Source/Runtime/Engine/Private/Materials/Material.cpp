@@ -2776,7 +2776,7 @@ void UMaterial::Serialize(FArchive& Ar)
 	}
 #endif // #if WITH_EDITOR
 
-	static_assert(MP_MAX == 34, "New material properties must have DoMaterialAttributeReorder called on them to ensure that any future reordering of property pins is correctly applied.");
+	static_assert(MP_MAX == 35, "New material properties must have DoMaterialAttributeReorder called on them to ensure that any future reordering of property pins is correctly applied.");
 
 	if (Ar.UEVer() < VER_UE4_MATERIAL_MASKED_BLENDMODE_TIDY)
 	{
@@ -3765,6 +3765,7 @@ void UMaterial::PostLoad()
 	DoMaterialAttributeReorder(&EditorOnly->ShadingModelFromMaterialExpression, UEVer, RenderObjVer, UE5MainVer);
 	DoMaterialAttributeReorder(&EditorOnly->FrontMaterial, UEVer, RenderObjVer, UE5MainVer);
 	DoMaterialAttributeReorder(&EditorOnly->SurfaceThickness, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&EditorOnly->Displacement, UEVer, RenderObjVer, UE5MainVer);
 
 	if (ParameterGroupData_DEPRECATED.Num() > 0)
 	{
@@ -4224,6 +4225,11 @@ bool UMaterial::HasStrataFrontMaterialConnected() const
 bool UMaterial::HasVertexPositionOffsetConnected() const
 {
 	return IsPropertyConnected(MP_WorldPositionOffset);
+}
+
+bool UMaterial::HasDisplacementConnected() const
+{
+	return IsPropertyConnected(MP_Displacement);
 }
 
 bool UMaterial::HasPixelDepthOffsetConnected() const
@@ -5674,6 +5680,7 @@ bool UMaterial::GetExpressionInputDescription(EMaterialProperty InProperty, FMat
 	case MP_Normal: SetMaterialInputDescription(EditorOnly->Normal, false, OutDescription); return true;
 	case MP_Tangent: SetMaterialInputDescription(EditorOnly->Tangent, false, OutDescription); return true;
 	case MP_WorldPositionOffset: SetMaterialInputDescription(EditorOnly->WorldPositionOffset, false, OutDescription); return true;
+	case MP_Displacement: SetMaterialInputDescription(EditorOnly->Displacement, false, OutDescription); return true;
 	case MP_SubsurfaceColor: SetMaterialInputDescription(EditorOnly->SubsurfaceColor, false, OutDescription); return true;
 	case MP_CustomData0: SetMaterialInputDescription(EditorOnly->ClearCoat, false, OutDescription); return true;
 	case MP_CustomData1: SetMaterialInputDescription(EditorOnly->ClearCoatRoughness, false, OutDescription); return true;
@@ -6286,6 +6293,7 @@ int32 UMaterial::CompilePropertyEx( FMaterialCompiler* Compiler, const FGuid& At
 		case MP_Normal:					return EditorOnly->Normal.CompileWithDefault(Compiler, Property);
 		case MP_Tangent:				return EditorOnly->Tangent.CompileWithDefault(Compiler, Property);
 		case MP_WorldPositionOffset:	return EditorOnly->WorldPositionOffset.CompileWithDefault(Compiler, Property);
+		case MP_Displacement:			return EditorOnly->Displacement.CompileWithDefault(Compiler, Property);
 		case MP_PixelDepthOffset:		return EditorOnly->PixelDepthOffset.CompileWithDefault(Compiler, Property);
 		case MP_ShadingModel:			return EditorOnly->ShadingModelFromMaterialExpression.CompileWithDefault(Compiler, Property);
 		case MP_SurfaceThickness:		return EditorOnly->SurfaceThickness.CompileWithDefault(Compiler, Property);
@@ -6585,6 +6593,14 @@ void UMaterial::SetShadingModel(EMaterialShadingModel NewModel)
 bool UMaterial::IsPropertySupported(EMaterialProperty InProperty) const
 {
 	bool bSupported = true;
+
+#if !NANITE_TESSELLATION
+	if (InProperty == MP_Displacement)
+	{
+		return false;
+	}
+#endif
+
 	if (Strata::IsStrataEnabled())
 	{
 		bSupported = false;
@@ -6594,6 +6610,7 @@ bool UMaterial::IsPropertySupported(EMaterialProperty InProperty) const
 		case MP_OpacityMask:
 		case MP_AmbientOcclusion:
 		case MP_WorldPositionOffset:
+		case MP_Displacement:
 		case MP_PixelDepthOffset:
 		case MP_SurfaceThickness:
 		case MP_FrontMaterial:
@@ -6776,6 +6793,9 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 			case MP_WorldPositionOffset:
 				Active = true;
 				break;
+			case MP_Displacement:
+				Active = true;
+				break;
 			case MP_PixelDepthOffset:
 				Active = (!bIsTranslucentBlendMode) || (bIsTranslucencyWritingVelocity);
 				break;
@@ -6845,6 +6865,9 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 			Active = !IsAlphaHoldoutBlendMode(BlendMode);
 			break;
 		case MP_WorldPositionOffset:
+			Active = true;
+			break;
+		case MP_Displacement:
 			Active = true;
 			break;
 		case MP_PixelDepthOffset:

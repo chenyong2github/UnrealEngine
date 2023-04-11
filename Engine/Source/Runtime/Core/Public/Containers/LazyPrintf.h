@@ -38,7 +38,7 @@ public:
 		}
 		else
 		{
-			// internal error, more ReplacePercentS() calls than %s in MaterialTemplate.usf
+			// internal error, more ReplacePercentS() calls than %s in MaterialTemplate.ush
 			check(0);
 		}
 	}

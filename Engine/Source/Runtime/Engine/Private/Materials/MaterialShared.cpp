@@ -1031,6 +1031,17 @@ bool FMaterial::MaterialUsesWorldPositionOffset_GameThread() const
 	return GameThreadShaderMap.GetReference() ? GameThreadShaderMap->UsesWorldPositionOffset() : false; 
 }
 
+bool FMaterial::MaterialUsesDisplacement_RenderThread() const
+{
+	check(IsInParallelRenderingThread());
+	return RenderingThreadShaderMap ? RenderingThreadShaderMap->UsesDisplacement() : false;
+}
+
+bool FMaterial::MaterialUsesDisplacement_GameThread() const
+{
+	return GameThreadShaderMap.GetReference() ? GameThreadShaderMap->UsesDisplacement() : false;
+}
+
 bool FMaterial::MaterialModifiesMeshPosition_RenderThread() const
 { 
 	check(IsInParallelRenderingThread());

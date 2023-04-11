@@ -2956,6 +2956,15 @@ half GetMaterialMaskedOpacity(FPixelMaterialInputs PixelMaterialInputs)
 }
 #endif
 
+float GetMaterialDisplacement(FMaterialVertexParameters Parameters)
+{
+#if USES_DISPLACEMENT
+%s;
+#else
+	return 0.0f;
+#endif
+}
+
 bool ShouldEnableWorldPositionOffset(FMaterialVertexParameters Parameters)
 {
 #if USES_WORLD_POSITION_OFFSET

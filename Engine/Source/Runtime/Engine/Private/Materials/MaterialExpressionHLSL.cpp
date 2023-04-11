@@ -1523,6 +1523,7 @@ bool UMaterialExpressionMakeMaterialAttributes::GenerateHLSLExpression(FMaterial
 
 	AttributesExpression = SetAttribute(Generator, Scope, MP_Tangent, Tangent, AttributesExpression);
 	AttributesExpression = SetAttribute(Generator, Scope, MP_WorldPositionOffset, WorldPositionOffset, AttributesExpression);
+	AttributesExpression = SetAttribute(Generator, Scope, MP_Displacement, Displacement, AttributesExpression);
 	AttributesExpression = SetAttribute(Generator, Scope, MP_SubsurfaceColor, SubsurfaceColor, AttributesExpression);
 	AttributesExpression = SetAttribute(Generator, Scope, MP_CustomData0, ClearCoat, AttributesExpression);
 	AttributesExpression = SetAttribute(Generator, Scope, MP_CustomData1, ClearCoatRoughness, AttributesExpression);
