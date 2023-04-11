@@ -157,6 +157,11 @@ void UIKRig_LimbSolver::RemoveGoal(const FName& GoalName)
 	}
 }
 
+bool UIKRig_LimbSolver::IsGoalConnected(const FName& GoalName) const
+{
+	return (Effector->GoalName == GoalName);
+}
+
 #if WITH_EDITOR
 
 FText UIKRig_LimbSolver::GetNiceName() const
@@ -215,11 +220,6 @@ void UIKRig_LimbSolver::SetGoalBone(const FName& GoalName, const FName& NewBoneN
 		Effector->Modify();
 		Effector->BoneName = NewBoneName;
 	}
-}
-
-bool UIKRig_LimbSolver::IsGoalConnected(const FName& GoalName) const
-{
-	return (Effector->GoalName == GoalName);
 }
 
 UObject* UIKRig_LimbSolver::GetGoalSettings(const FName& GoalName) const

@@ -202,6 +202,11 @@ void UIKRigFBIKSolver::RemoveGoal(const FName& GoalName)
 	Effectors.RemoveAt(GoalIndex);
 }
 
+bool UIKRigFBIKSolver::IsGoalConnected(const FName& GoalName) const
+{
+	return GetIndexOfGoal(GoalName) != INDEX_NONE;
+}
+
 #if WITH_EDITOR
 
 FText UIKRigFBIKSolver::GetNiceName() const
@@ -260,11 +265,6 @@ void UIKRigFBIKSolver::SetGoalBone(const FName& GoalName, const FName& NewBoneNa
 	// rename
 	Effectors[GoalIndex]->Modify();
 	Effectors[GoalIndex]->BoneName = NewBoneName;
-}
-
-bool UIKRigFBIKSolver::IsGoalConnected(const FName& GoalName) const
-{
-	return GetIndexOfGoal(GoalName) != INDEX_NONE;
 }
 
 void UIKRigFBIKSolver::SetRootBone(const FName& RootBoneName)

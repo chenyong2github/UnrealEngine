@@ -108,6 +108,23 @@ void UIKRigProcessor::Initialize(
 				return;
 			}
 		}
+
+		// warn if goal is not connected to any solvers
+		bool bIsGoalConnectedToAnySolver = false;
+		const TArray<UIKRigSolver*>& AssetSolvers = InRigAsset->GetSolverArray();
+		for (const UIKRigSolver* IKRigSolver : AssetSolvers)
+		{
+			if (IKRigSolver->IsGoalConnected(EffectorGoal->GoalName))
+			{
+				bIsGoalConnectedToAnySolver = true;
+			}
+		}
+		if (!bIsGoalConnectedToAnySolver)
+		{
+			Log.LogWarning(FText::Format(
+				LOCTEXT("DisconnectedGoal", "IK Rig, '{0}' has a Goal, '{1}' that is not connected to any solvers. It will have no effect."),
+				FText::FromString(InRigAsset->GetName()), FText::FromName(EffectorGoal->GoalName)));
+		}
 		
 		GoalBones.Add(EffectorGoal->GoalName, NewGoalBone);
 	}

@@ -90,6 +90,7 @@ public:
 
 	virtual FName GetRootBone() const override { return RootBone; };
 	virtual void RemoveGoal(const FName& GoalName) override;
+	virtual bool IsGoalConnected(const FName& GoalName) const override;
 	virtual void UpdateSolverSettings(UIKRigSolver* InSettings) override;
 
 #if WITH_EDITOR
@@ -100,7 +101,6 @@ public:
 	virtual void AddGoal(const UIKRigEffectorGoal& NewGoal) override;
 	virtual void RenameGoal(const FName& OldName, const FName& NewName) override;
 	virtual void SetGoalBone(const FName& GoalName, const FName& NewBoneName) override;
-	virtual bool IsGoalConnected(const FName& GoalName) const override;
 	virtual UObject* GetGoalSettings(const FName& GoalName) const override;
 	// root bone can be set on this solver
 	virtual bool RequiresRootBone() const override { return true; };

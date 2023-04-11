@@ -50,6 +50,8 @@ public:
 
 	/** override to support REMOVING a goal from custom solver */
 	virtual void RemoveGoal(const FName& GoalName) PURE_VIRTUAL("RemoveGoal");
+	/** override to support QUERY for a connected goal */
+	virtual bool IsGoalConnected(const FName& GoalName) const {return false;};
 
 #if WITH_EDITORONLY_DATA
 	
@@ -70,8 +72,6 @@ public:
 	virtual void RenameGoal(const FName& OldName, const FName& NewName) PURE_VIRTUAL("RenameGoal");
 	/** override to support CHANGING BONE for an existing goal */
 	virtual void SetGoalBone(const FName& GoalName, const FName& NewBoneName) PURE_VIRTUAL("SetGoalBone");
-	/** override to support QUERY for a connected goal */
-	virtual bool IsGoalConnected(const FName& GoalName) const {return false;};
 	/** override to support supplying goals settings specific to this solver to outside systems for editing/UI */
 	virtual UObject* GetGoalSettings(const FName& GoalName) const {return nullptr;};
 	//** END GOALS */

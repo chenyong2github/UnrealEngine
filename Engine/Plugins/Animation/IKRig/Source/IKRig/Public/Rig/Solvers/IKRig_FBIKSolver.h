@@ -244,6 +244,7 @@ public:
 
 	virtual void UpdateSolverSettings(UIKRigSolver* InSettings) override;
 	virtual void RemoveGoal(const FName& GoalName) override;
+	virtual bool IsGoalConnected(const FName& GoalName) const override;
 	
 #if WITH_EDITOR
 	virtual FText GetNiceName() const override;
@@ -252,7 +253,6 @@ public:
 	virtual void AddGoal(const UIKRigEffectorGoal& NewGoal) override;
 	virtual void RenameGoal(const FName& OldName, const FName& NewName) override;
 	virtual void SetGoalBone(const FName& GoalName, const FName& NewBoneName) override;
-	virtual bool IsGoalConnected(const FName& GoalName) const override;
 	virtual UObject* GetGoalSettings(const FName& GoalName) const override;
 	// bone settings
 	virtual void AddBoneSetting(const FName& BoneName) override;

@@ -76,6 +76,11 @@ void UIKRig_SetTransform::RemoveGoal(const FName& GoalName)
 	}	
 }
 
+bool UIKRig_SetTransform::IsGoalConnected(const FName& GoalName) const
+{
+	return Goal == GoalName;
+}
+
 #if WITH_EDITOR
 
 FText UIKRig_SetTransform::GetNiceName() const
@@ -113,11 +118,6 @@ void UIKRig_SetTransform::SetGoalBone(const FName& GoalName, const FName& NewBon
 	{
 		RootBone = NewBoneName;
 	}
-}
-
-bool UIKRig_SetTransform::IsGoalConnected(const FName& GoalName) const
-{
-	return Goal == GoalName;
 }
 
 UObject* UIKRig_SetTransform::GetGoalSettings(const FName& GoalName) const

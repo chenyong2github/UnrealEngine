@@ -161,6 +161,11 @@ void UIKRig_PoleSolver::RemoveGoal(const FName& GoalName)
 	}
 }
 
+bool UIKRig_PoleSolver::IsGoalConnected(const FName& GoalName) const
+{
+	return (Effector->GoalName == GoalName);
+}
+
 #if WITH_EDITOR
 
 FText UIKRig_PoleSolver::GetNiceName() const
@@ -220,11 +225,6 @@ void UIKRig_PoleSolver::SetGoalBone(const FName& GoalName, const FName& NewBoneN
 		Effector->Modify();
 		Effector->BoneName = NewBoneName;
 	}
-}
-
-bool UIKRig_PoleSolver::IsGoalConnected(const FName& GoalName) const
-{
-	return (Effector->GoalName == GoalName);
 }
 
 UObject* UIKRig_PoleSolver::GetGoalSettings(const FName& GoalName) const

@@ -917,12 +917,6 @@ FName UIKRigController::AddNewGoal(const FName GoalName, const FName BoneName) c
 	// set initial transform
 	NewGoal->InitialTransform = GetRefPoseTransformOfBone(NewGoal->BoneName);
 	NewGoal->CurrentTransform = NewGoal->InitialTransform;
-
-	// connect the new goal to all the solvers
-	for (int32 SolverIndex=0; SolverIndex<GetNumSolvers(); ++SolverIndex)
-	{
-		ConnectGoalToSolver(NewGoal->GoalName, SolverIndex);
-	}
  
 	BroadcastNeedsReinitialized();
 	BroadcastGoalsChange();

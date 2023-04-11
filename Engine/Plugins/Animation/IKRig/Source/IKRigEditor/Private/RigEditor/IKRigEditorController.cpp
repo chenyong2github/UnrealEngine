@@ -506,6 +506,14 @@ void FIKRigEditorController::AddNewGoals(const TArray<FName>& GoalNames, const T
 		// ask user if they want to assign this goal to a chain (if there is one on this bone)
 		PromptToAssignGoalToChain(NewGoalName);
 
+		// connect the new goal to selected solvers
+		TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers;
+		GetSelectedSolvers(SelectedSolvers);
+		for (TSharedPtr<FSolverStackElement>& Solver : SelectedSolvers)
+		{
+			AssetController->ConnectGoalToSolver(NewGoalName, Solver.Get()->IndexInStack);
+		}
+
 		LastCreatedGoalName = GoalName;
 	}
 	
@@ -553,7 +561,7 @@ void FIKRigEditorController::HandleBoneSelectedInViewport(const FName& BoneName,
 	ShowDetailsForBone(BoneName);
 }
 
-void FIKRigEditorController::GetSelectedSolvers(TArray<TSharedPtr<FSolverStackElement>>& OutSelectedSolvers)
+void FIKRigEditorController::GetSelectedSolvers(TArray<TSharedPtr<FSolverStackElement>>& OutSelectedSolvers) const
 {
 	if (SolverStackView.IsValid())
 	{
@@ -1068,6 +1076,14 @@ FName FIKRigEditorController::PromptToAddNewRetargetChain(FBoneChain& BoneChain)
 			// create new goal
 			const FName NewGoalName = FName(FText::Format(LOCTEXT("GoalOnNewChainName", "{0}_Goal"), FText::FromName(BoneChain.ChainName)).ToString());
 			GoalName = AssetController->AddNewGoal(NewGoalName, BoneChain.EndBone.BoneName);
+
+			// connect the new goal to selected solvers
+			TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers;
+			GetSelectedSolvers(SelectedSolvers);
+			for (TSharedPtr<FSolverStackElement>& Solver : SelectedSolvers)
+			{
+				AssetController->ConnectGoalToSolver(GoalName, Solver.Get()->IndexInStack);
+			}
 		}
 		
 		// assign the existing goal to it

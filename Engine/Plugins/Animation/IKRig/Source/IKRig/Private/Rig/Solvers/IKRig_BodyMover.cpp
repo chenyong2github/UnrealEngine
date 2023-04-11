@@ -125,6 +125,11 @@ void UIKRig_BodyMover::RemoveGoal(const FName& GoalName)
 	Effectors.RemoveAt(GoalIndex);
 }
 
+bool UIKRig_BodyMover::IsGoalConnected(const FName& GoalName) const
+{
+	return GetIndexOfGoal(GoalName) != INDEX_NONE;
+}
+
 #if WITH_EDITOR
 
 FText UIKRig_BodyMover::GetNiceName() const
@@ -182,11 +187,6 @@ void UIKRig_BodyMover::SetGoalBone(const FName& GoalName, const FName& NewBoneNa
 	// rename
 	Effectors[GoalIndex]->Modify();
 	Effectors[GoalIndex]->BoneName = NewBoneName;
-}
-
-bool UIKRig_BodyMover::IsGoalConnected(const FName& GoalName) const
-{
-	return GetIndexOfGoal(GoalName) != INDEX_NONE;
 }
 
 UObject* UIKRig_BodyMover::GetGoalSettings(const FName& GoalName) const
