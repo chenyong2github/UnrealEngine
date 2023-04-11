@@ -30,7 +30,7 @@ public:
 private:
 	union FState;
 
-	void LockSlow(FState CurrentState, const uint32 CurrentThreadId);
+	void LockSlow(FState CurrentState, uint32 CurrentThreadId);
 	void UnlockSlow(FState CurrentState);
 
 	std::atomic<uint32> State = 0;

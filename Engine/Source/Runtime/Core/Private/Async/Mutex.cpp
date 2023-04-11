@@ -18,27 +18,27 @@ void FMutex::LockSlow()
 
 		// Try to acquire the lock if it was unlocked, even if there are waiting threads.
 		// Acquiring the lock despite the waiting threads means that this lock is not FIFO and thus not fair.
-		if (!(CurrentState & IsLockedFlag))
+		if (LIKELY(!(CurrentState & IsLockedFlag)))
 		{
-			if (State.compare_exchange_weak(CurrentState, CurrentState | IsLockedFlag, std::memory_order_acquire))
+			if (LIKELY(State.compare_exchange_weak(CurrentState, CurrentState | IsLockedFlag, std::memory_order_acquire)))
 			{
 				return;
 			}
 			continue;
 		}
 
-		// Spin up to the spin limit while there are no waiting threads.
-		if (!(CurrentState & HasWaitingThreadsFlag) && SpinCount < SpinLimit)
+		if (LIKELY(!(CurrentState & HasWaitingThreadsFlag)))
 		{
-			FPlatformProcess::YieldThread();
-			++SpinCount;
-			continue;
-		}
+			// Spin up to the spin limit while there are no waiting threads.
+			if (LIKELY(SpinCount < SpinLimit))
+			{
+				FPlatformProcess::YieldThread();
+				++SpinCount;
+				continue;
+			}
 
-		// Store that there are waiting threads. Restart if the state has changed since it was loaded.
-		if (!(CurrentState & HasWaitingThreadsFlag))
-		{
-			if (!State.compare_exchange_weak(CurrentState, CurrentState | HasWaitingThreadsFlag, std::memory_order_acquire))
+			// Store that there are waiting threads. Restart if the state has changed since it was loaded.
+			if (UNLIKELY(!State.compare_exchange_weak(CurrentState, CurrentState | HasWaitingThreadsFlag, std::memory_order_acquire)))
 			{
 				continue;
 			}
@@ -52,36 +52,28 @@ void FMutex::LockSlow()
 
 void FMutex::UnlockSlow()
 {
-	uint8 CurrentState;
+	uint8 CurrentState = State.load(std::memory_order_acquire);
+	checkSlow(CurrentState & IsLockedFlag);
 
-	for (;;)
+	// Spin on the fast path because there may be spurious failures.
+	while (LIKELY(CurrentState == IsLockedFlag))
 	{
-		CurrentState = State.load(std::memory_order_acquire);
-
-		checkSlow(CurrentState & IsLockedFlag);
-
-		// Spin on the fast path because there may be spurious failures.
-		if (CurrentState == IsLockedFlag)
+		if (LIKELY(State.compare_exchange_weak(CurrentState, 0, std::memory_order_release)))
 		{
-			if (State.compare_exchange_weak(CurrentState, 0, std::memory_order_release))
-			{
-				return;
-			}
-			continue;
+			return;
 		}
-
-		// There is at least one thread waiting. Wake one thread and return.
-		ParkingLot::WakeOne(&State, [this](ParkingLot::FWakeState WakeState) -> uint64
-		{
-			constexpr uint8 ExpectedState = IsLockedFlag | HasWaitingThreadsFlag;
-			const uint8 NewState = WakeState.bHasWaitingThreads ? HasWaitingThreadsFlag : 0;
-			uint8 OldState = ExpectedState;
-			State.compare_exchange_strong(OldState, NewState, std::memory_order_release);
-			checkSlow(OldState == ExpectedState);
-			return 0;
-		});
-		return;
 	}
+
+	// There is at least one thread waiting. Wake one thread and return.
+	ParkingLot::WakeOne(&State, [this](ParkingLot::FWakeState WakeState) -> uint64
+	{
+		constexpr uint8 ExpectedState = IsLockedFlag | HasWaitingThreadsFlag;
+		const uint8 NewState = WakeState.bHasWaitingThreads ? HasWaitingThreadsFlag : 0;
+		uint8 OldState = ExpectedState;
+		State.compare_exchange_strong(OldState, NewState, std::memory_order_release);
+		checkSlow(OldState == ExpectedState);
+		return 0;
+	});
 }
 
 } // UE

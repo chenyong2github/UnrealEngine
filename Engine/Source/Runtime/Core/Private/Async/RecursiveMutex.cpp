@@ -36,13 +36,13 @@ bool FRecursiveMutex::TryLock()
 
 	// Try to acquire the lock if it was unlocked, even if there are waiting threads.
 	// Acquiring the lock despite the waiting threads means that this lock is not FIFO and thus not fair.
-	if (!CurrentState.bIsLocked)
+	if (LIKELY(!CurrentState.bIsLocked))
 	{
-		checkSlow(ThreadId.load(std::memory_order_relaxed) == 0 && CurrentState.RecurseCount == 0);
 		FState NewState = CurrentState;
 		NewState.bIsLocked = true;
 		if (LIKELY(State.compare_exchange_strong(CurrentState.Value, NewState.Value, std::memory_order_acquire)))
 		{
+			checkSlow(ThreadId.load(std::memory_order_relaxed) == 0 && CurrentState.RecurseCount == 0);
 			ThreadId.store(CurrentThreadId, std::memory_order_relaxed);
 			return true;
 		}
@@ -67,13 +67,13 @@ void FRecursiveMutex::Lock()
 
 	// Try to acquire the lock if it was unlocked, even if there are waiting threads.
 	// Acquiring the lock despite the waiting threads means that this lock is not FIFO and thus not fair.
-	if (!CurrentState.bIsLocked)
+	if (LIKELY(!CurrentState.bIsLocked))
 	{
-		checkSlow(ThreadId.load(std::memory_order_relaxed) == 0 && CurrentState.RecurseCount == 0);
 		FState NewState = CurrentState;
 		NewState.bIsLocked = true;
 		if (LIKELY(State.compare_exchange_weak(CurrentState.Value, NewState.Value, std::memory_order_acquire)))
 		{
+			checkSlow(ThreadId.load(std::memory_order_relaxed) == 0 && CurrentState.RecurseCount == 0);
 			ThreadId.store(CurrentThreadId, std::memory_order_relaxed);
 			return;
 		}
@@ -99,34 +99,34 @@ FORCENOINLINE void FRecursiveMutex::LockSlow(FState CurrentState, const uint32 C
 	{
 		// Try to acquire the lock if it was unlocked, even if there are waiting threads.
 		// Acquiring the lock despite the waiting threads means that this lock is not FIFO and thus not fair.
-		if (!CurrentState.bIsLocked)
+		if (LIKELY(!CurrentState.bIsLocked))
 		{
-			checkSlow(ThreadId.load(std::memory_order_relaxed) == 0 && CurrentState.RecurseCount == 0);
 			FState NewState = CurrentState;
 			NewState.bIsLocked = true;
 			if (LIKELY(State.compare_exchange_weak(CurrentState.Value, NewState.Value, std::memory_order_acquire)))
 			{
+				checkSlow(ThreadId.load(std::memory_order_relaxed) == 0 && CurrentState.RecurseCount == 0);
 				ThreadId.store(CurrentThreadId, std::memory_order_relaxed);
 				return;
 			}
 			continue;
 		}
 
-		// Spin up to the spin limit while there are no waiting threads.
-		if (!CurrentState.bHasWaitingThreads && SpinCount < SpinLimit)
+		if (LIKELY(!CurrentState.bHasWaitingThreads))
 		{
-			FPlatformProcess::YieldThread();
-			++SpinCount;
-			CurrentState.Value = State.load(std::memory_order_acquire);
-			continue;
-		}
+			// Spin up to the spin limit while there are no waiting threads.
+			if (LIKELY(SpinCount < SpinLimit))
+			{
+				FPlatformProcess::YieldThread();
+				++SpinCount;
+				CurrentState.Value = State.load(std::memory_order_acquire);
+				continue;
+			}
 
-		// Store that there are waiting threads. Restart if the state has changed since it was loaded.
-		if (!CurrentState.bHasWaitingThreads)
-		{
+			// Store that there are waiting threads. Restart if the state has changed since it was loaded.
 			FState NewState = CurrentState;
 			NewState.bHasWaitingThreads = true;
-			if (!State.compare_exchange_weak(CurrentState.Value, NewState.Value, std::memory_order_acquire))
+			if (UNLIKELY(!State.compare_exchange_weak(CurrentState.Value, NewState.Value, std::memory_order_acquire)))
 			{
 				continue;
 			}
@@ -151,7 +151,7 @@ void FRecursiveMutex::Unlock()
 		ThreadId.store(0, std::memory_order_relaxed);
 
 		// Unlocking with no waiting threads only requires resetting the state.
-		if (!CurrentState.bHasWaitingThreads)
+		if (LIKELY(!CurrentState.bHasWaitingThreads))
 		{
 			FState NewState;
 			if (LIKELY(State.compare_exchange_strong(CurrentState.Value, NewState.Value, std::memory_order_release, std::memory_order_relaxed)))
