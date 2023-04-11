@@ -20,6 +20,7 @@ struct CORE_API FMessageDialog
 	 * @param OptTitle Optional title to use (defaults to "Message")
 	*/
 	static void Debugf( const FText& Message, const FText* OptTitle = nullptr );
+	static void Debugf( const FText& Message, const FText& Title );
 
 	/** Pops up a message dialog box containing the last system error code in string form. */
 	static void ShowLastError();
@@ -31,6 +32,7 @@ struct CORE_API FMessageDialog
 	 * @param OptTitle Optional title to use (defaults to "Message")
 	*/
 	static EAppReturnType::Type Open( EAppMsgType::Type MessageType, const FText& Message, const FText* OptTitle = nullptr);
+	static EAppReturnType::Type Open( EAppMsgType::Type MessageType, const FText& Message, const FText& Title);
 
 	/**
 	 * Open a modal message box dialog
@@ -40,4 +42,5 @@ struct CORE_API FMessageDialog
 	 * @param OptTitle Optional title to use (defaults to "Message")
 	*/
 	static EAppReturnType::Type Open(EAppMsgType::Type MessageType, EAppReturnType::Type DefaultValue, const FText& Message, const FText* OptTitle = nullptr);
+	static EAppReturnType::Type Open(EAppMsgType::Type MessageType, EAppReturnType::Type DefaultValue, const FText& Message, const FText& Title);
 };

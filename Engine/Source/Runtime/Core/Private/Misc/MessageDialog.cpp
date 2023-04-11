@@ -33,13 +33,17 @@ namespace
 
 void FMessageDialog::Debugf( const FText& Message, const FText* OptTitle )
 {
+	Debugf(Message, OptTitle ? *OptTitle : GetDefaultMessageTitle());
+}
+
+void FMessageDialog::Debugf( const FText& Message, const FText& Title )
+{
 	if( FApp::IsUnattended() == true )
 	{
 		GLog->Logf( TEXT("%s"), *Message.ToString() );
 	}
 	else
 	{
-		FText Title = OptTitle ? *OptTitle : GetDefaultMessageTitle();
 		if ( GIsEditor && FCoreDelegates::ModalErrorMessage.IsBound() )
 		{
 			FCoreDelegates::ModalErrorMessage.Execute(EAppMsgType::Ok, Message, Title);
@@ -68,6 +72,11 @@ void FMessageDialog::ShowLastError()
 }
 
 EAppReturnType::Type FMessageDialog::Open( EAppMsgType::Type MessageType, const FText& Message, const FText* OptTitle )
+{
+	return Open(MessageType, Message, OptTitle ? *OptTitle : GetDefaultMessageTitle());
+}
+
+EAppReturnType::Type FMessageDialog::Open(EAppMsgType::Type MessageType, const FText& Message, const FText& Title)
 {
 	EAppReturnType::Type DefaultValue = EAppReturnType::Yes;
 	switch(MessageType)
@@ -113,13 +122,17 @@ EAppReturnType::Type FMessageDialog::Open( EAppMsgType::Type MessageType, const 
 		}
 	}
 
-	return Open(MessageType, DefaultValue, Message, OptTitle);
+	return Open(MessageType, DefaultValue, Message, Title);
 }
 
 EAppReturnType::Type FMessageDialog::Open(EAppMsgType::Type MessageType, EAppReturnType::Type DefaultValue, const FText& Message, const FText* OptTitle)
 {
+	return Open(MessageType, DefaultValue, Message, OptTitle ? *OptTitle : GetDefaultMessageTitle());
+}
+
+EAppReturnType::Type FMessageDialog::Open(EAppMsgType::Type MessageType, EAppReturnType::Type DefaultValue, const FText& Message, const FText& Title)
+{
 	EAppReturnType::Type Result = DefaultValue;
-	const FText Title = OptTitle ? *OptTitle : GetDefaultMessageTitle();
 
 	if (!FApp::IsUnattended() && !GIsRunningUnattendedScript)
 	{
