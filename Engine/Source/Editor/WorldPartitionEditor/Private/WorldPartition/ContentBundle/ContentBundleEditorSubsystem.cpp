@@ -379,6 +379,16 @@ bool UContentBundleEditorSubsystem::IsContentBundleEditingActivated(TSharedPtr<F
 	return ContentBundleEditor.IsValid() && IsEditingContentBundle(ContentBundleEditor->GetDescriptor()->GetGuid());
 }
 
+void UContentBundleEditorSubsystem::PushContentBundleEditing()
+{
+	ContentBundleEditingSubModule->PushContentBundleEditing();
+}
+
+void UContentBundleEditorSubsystem::PopContentBundleEditing()
+{
+	ContentBundleEditingSubModule->PopContentBundleEditing();
+}
+
 void UContentBundleEditorSubsystem::SelectActorsInternal(FContentBundleEditor& EditorContentBundle, bool bSelect)
 {
 	GEditor->GetSelectedActors()->BeginBatchSelectOperation();

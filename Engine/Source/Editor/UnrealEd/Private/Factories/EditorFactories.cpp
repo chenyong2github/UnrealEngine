@@ -196,6 +196,7 @@
 #include "SSkeletonWidget.h"
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
+#include "WorldPartition/ContentBundle/ContentBundleActivationScope.h"
 
 #include "DDSFile.h"
 #include "IESConverter.h"
@@ -904,6 +905,11 @@ UObject* ULevelFactory::FactoryCreateText
 						}
 					}
 				}
+
+
+				FGuid ActorContentBundleGuid;
+				FParse::Value(Str, TEXT("ActorContentBundleGuid="), ActorContentBundleGuid);
+				FContentBundleActivationScope Scope(ActorContentBundleGuid);
 
 				// If we're pasting from a class that belongs to a map we need to duplicate the class and use that instead
 				if (FBlueprintEditorUtils::IsAnonymousBlueprintClass(TempClass))

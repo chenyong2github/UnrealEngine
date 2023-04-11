@@ -15,13 +15,14 @@ public:
 	{
 		if (InContentBundleGuid.IsValid())
 		{
-			IContentBundleEditorSubsystemInterface* ContentBundleEditorSubsystem = IContentBundleEditorSubsystemInterface::Get();
-			if (TSharedPtr<FContentBundleEditor> ContentBundleEditor = ContentBundleEditorSubsystem->GetEditorContentBundle(InContentBundleGuid))
-			{
-				check(!ContentBundleEditorSubsystem->IsEditingContentBundle());
+			ContentBundleGuid = InContentBundleGuid;
 
+			IContentBundleEditorSubsystemInterface* ContentBundleEditorSubsystem = IContentBundleEditorSubsystemInterface::Get();
+			ContentBundleEditorSubsystem->PushContentBundleEditing();
+
+			if (TSharedPtr<FContentBundleEditor> ContentBundleEditor = ContentBundleEditorSubsystem->GetEditorContentBundle(ContentBundleGuid))
+			{
 				ContentBundleEditorSubsystem->ActivateContentBundleEditing(ContentBundleEditor);
-				ContentBundleGuid = InContentBundleGuid;
 			}
 		}
 	}
@@ -34,6 +35,8 @@ public:
 			{
 				ContentBundleEditorSubsystem->DeactivateContentBundleEditing(ContentBundleEditor);
 			}
+
+			ContentBundleEditorSubsystem->PopContentBundleEditing();
 		}
 	}
 

@@ -22,6 +22,8 @@ public:
 	virtual bool IsEditingContentBundle() const = 0;
 	virtual bool ActivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const = 0;
 	virtual bool DeactivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const = 0;
+	virtual void PushContentBundleEditing() = 0;
+	virtual void PopContentBundleEditing() = 0;
 
 protected:
 	static void SetInstance(IContentBundleEditorSubsystemInterface* InInstance);

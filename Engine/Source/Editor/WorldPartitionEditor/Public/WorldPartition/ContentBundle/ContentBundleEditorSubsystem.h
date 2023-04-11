@@ -44,6 +44,8 @@ class UContentBundleEditingSubmodule : public UContentBundleEditorSubsystemModul
 {
 	GENERATED_BODY()
 
+	friend class UContentBundleEditorSubsystem;
+
 public:
 	//~ Begin IActorEditorContextClient interface
 	virtual void OnExecuteActorEditorContextAction(UWorld* InWorld, const EActorEditorContextAction& InType, AActor* InActor = nullptr) override;
@@ -131,6 +133,9 @@ public:
 	bool ActivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const override;
 	bool DeactivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const override;
 	bool IsContentBundleEditingActivated(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const;
+
+	virtual void PushContentBundleEditing() override;
+	virtual void PopContentBundleEditing() override;
 
 	DECLARE_EVENT_OneParam(UContentBundleEditorSubsystem, FOnContentBundleChanged, const FContentBundleEditor*);
 	FOnContentBundleChanged& OnContentBundleChanged() { return ContentBundleChanged; }
