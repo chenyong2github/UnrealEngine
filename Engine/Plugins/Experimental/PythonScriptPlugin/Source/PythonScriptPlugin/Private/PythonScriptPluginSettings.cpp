@@ -13,7 +13,7 @@ UPythonScriptPluginSettings::UPythonScriptPluginSettings()
 	SectionName  = TEXT("Python");
 
 	RemoteExecutionMulticastGroupEndpoint = TEXT("239.0.0.1:6766");
-	RemoteExecutionMulticastBindAddress = TEXT("0.0.0.0");
+	RemoteExecutionMulticastBindAddress = TEXT("127.0.0.1");
 	RemoteExecutionSendBufferSizeBytes = 2 * 1024 * 1024;
 	RemoteExecutionReceiveBufferSizeBytes = 2 * 1024 * 1024;
 	RemoteExecutionMulticastTtl = 0;
