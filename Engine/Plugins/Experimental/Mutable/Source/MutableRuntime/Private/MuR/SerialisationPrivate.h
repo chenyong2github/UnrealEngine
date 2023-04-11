@@ -149,15 +149,12 @@ namespace mu
 			arch.GetPrivate()->m_pStream->Write( &t, sizeof(T) );		\
 		}																\
 																		\
-		template void operator<< ( OutputArchive& arch, const T& t );	\
-																		\
 		template<>														\
 		inline void operator>> <T>( InputArchive& arch, T& t )			\
 		{																\
 			arch.GetPrivate()->m_pStream->Read( &t, sizeof(T) );		\
 		}																\
 																		\
-		template void operator>> ( InputArchive& arch, T& t );			\
 
 
 	MUTABLE_IMPLEMENT_POD_SERIALISABLE(float);
@@ -256,8 +253,6 @@ namespace mu
             arch.GetPrivate()->m_pStream->Write( &v, sizeof(uint32) );  \
 		}																\
 																		\
-		template void operator<< ( OutputArchive& arch, const T& t );	\
-																		\
 		template<>														\
         inline void operator>> <T>( InputArchive& arch, T& t )   		\
 		{																\
@@ -265,9 +260,6 @@ namespace mu
             arch.GetPrivate()->m_pStream->Read( &v, sizeof(uint32) );	\
 			t = (T)v;													\
 		}																\
-																		\
-		template void operator>> ( InputArchive& arch, T& t ); 			\
-
 
 
     //---------------------------------------------------------------------------------------------
