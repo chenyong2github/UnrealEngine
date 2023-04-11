@@ -636,25 +636,25 @@ FD3D12SamplerState::FD3D12SamplerState(FD3D12Device* InParent, const D3D12_SAMPL
 	, ID(SamplerID)
 {
 	FD3D12OfflineDescriptorManager& OfflineAllocator = GetParentDevice()->GetOfflineDescriptorManager(ERHIDescriptorHeapType::Sampler);
-	OfflineHandle = OfflineAllocator.AllocateHeapSlot(OfflineIndex);
+	OfflineDescriptor = OfflineAllocator.AllocateHeapSlot();
 
-	GetParentDevice()->CreateSamplerInternal(Desc, OfflineHandle);
+	GetParentDevice()->CreateSamplerInternal(Desc, OfflineDescriptor);
 
 	FD3D12BindlessDescriptorManager& BindlessDescriptorManager = GetParentDevice()->GetBindlessDescriptorManager();
 	BindlessHandle = BindlessDescriptorManager.Allocate(ERHIDescriptorHeapType::Sampler);
 
 	if (BindlessHandle.IsValid())
 	{
-		GetParentDevice()->GetBindlessDescriptorManager().UpdateImmediately(BindlessHandle, OfflineHandle);
+		GetParentDevice()->GetBindlessDescriptorManager().UpdateImmediately(BindlessHandle, OfflineDescriptor);
 	}
 }
 
 FD3D12SamplerState::~FD3D12SamplerState()
 {
-	if (OfflineHandle.ptr)
+	if (OfflineDescriptor)
 	{
 		FD3D12OfflineDescriptorManager& OfflineAllocator = GetParentDevice()->GetOfflineDescriptorManager(ERHIDescriptorHeapType::Sampler);
-		OfflineAllocator.FreeHeapSlot(OfflineHandle, OfflineIndex);
+		OfflineAllocator.FreeHeapSlot(OfflineDescriptor);
 
 		if (BindlessHandle.IsValid())
 		{

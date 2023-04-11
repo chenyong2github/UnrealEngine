@@ -465,12 +465,12 @@ void FMetalCommandEncoder::CommitCommandBuffer(uint32 const Flags)
         
         TSet<ns::AutoReleased<FMetalBuffer>> NewActiveBuffers = MoveTemp(ActiveBuffers);
         AddCompletionHandler([NewActiveBuffers](mtlpp::CommandBuffer const&)
-                             {
-                                 for (FMetalBuffer const& Buffer : NewActiveBuffers)
-                                 {
-                                     GetMetalDeviceContext().RemoveActiveBuffer(Buffer);
-                                 }
-                             });
+        {
+            for (FMetalBuffer const& Buffer : NewActiveBuffers)
+            {
+                GetMetalDeviceContext().RemoveActiveBuffer(Buffer);
+            }
+        });
     }
 #endif
 #if ENABLE_METAL_GPUPROFILE
@@ -495,14 +495,9 @@ void FMetalCommandEncoder::CommitCommandBuffer(uint32 const Flags)
 
 #pragma mark - Public Command Encoder Accessors -
 	
-bool FMetalCommandEncoder::IsParallelRenderCommandEncoderActive(void) const
-{
-	return ParallelRenderCommandEncoder.GetPtr() != nil;
-}
-	
 bool FMetalCommandEncoder::IsRenderCommandEncoderActive(void) const
 {
-	return RenderCommandEncoder.GetPtr() != nil || ParallelRenderCommandEncoder.GetPtr() != nil;
+	return RenderCommandEncoder.GetPtr() != nil;
 }
 
 bool FMetalCommandEncoder::IsComputeCommandEncoderActive(void) const
@@ -522,16 +517,6 @@ bool FMetalCommandEncoder::IsAccelerationStructureCommandEncoderActive(void) con
 }
 #endif // METAL_RHI_RAYTRACING
 
-bool FMetalCommandEncoder::IsImmediate(void) const
-{
-	return CommandList.IsImmediate();
-}
-
-bool FMetalCommandEncoder::IsParallel(void) const
-{
-	return CommandList.IsParallel() && (Type == EMetalCommandEncoderCurrent);
-}
-
 bool FMetalCommandEncoder::IsRenderPassDescriptorValid(void) const
 {
 	return (RenderPassDesc != nil);
@@ -540,17 +525,6 @@ bool FMetalCommandEncoder::IsRenderPassDescriptorValid(void) const
 mtlpp::RenderPassDescriptor const& FMetalCommandEncoder::GetRenderPassDescriptor(void) const
 {
 	return RenderPassDesc;
-}
-
-mtlpp::ParallelRenderCommandEncoder& FMetalCommandEncoder::GetParallelRenderCommandEncoder(void)
-{
-	return ParallelRenderCommandEncoder;
-}
-
-mtlpp::RenderCommandEncoder& FMetalCommandEncoder::GetChildRenderCommandEncoder(uint32 Index)
-{
-	check(IsParallelRenderCommandEncoderActive() && Index < ChildRenderCommandEncoders.Num());
-	return ChildRenderCommandEncoders[Index];
 }
 
 mtlpp::RenderCommandEncoder& FMetalCommandEncoder::GetRenderCommandEncoder(void)
@@ -586,54 +560,10 @@ TRefCountPtr<FMetalFence> const& FMetalCommandEncoder::GetEncoderFence(void) con
 	
 #pragma mark - Public Command Encoder Mutators -
 
-void FMetalCommandEncoder::BeginParallelRenderCommandEncoding(uint32 NumChildren)
-{
-	check(IsImmediate());
-	check(RenderPassDesc);
-	check(CommandBuffer);
-	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false
-#if METAL_RHI_RAYTRACING
-		&& IsAccelerationStructureCommandEncoderActive() == false
-#endif // METAL_RHI_RAYTRACING
-	);
-	
-	FenceResources.Append(TransitionedResources);
-	
-	ParallelRenderCommandEncoder = MTLPP_VALIDATE(mtlpp::CommandBuffer, CommandBuffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, ParallelRenderCommandEncoder(RenderPassDesc));
-	METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, ParallelEncoderDebug = FMetalParallelRenderCommandEncoderDebugging(ParallelRenderCommandEncoder, RenderPassDesc, CommandBufferDebug));
-	
-	EncoderNum++;
-	
-	check(!EncoderFence);
-	NSString* Label = nil;
-	
-	if(GetEmitDrawEvents())
-	{
-		Label = [NSString stringWithFormat:@"ParallelRenderCommandEncoder: %@", [DebugGroups count] > 0 ? [DebugGroups lastObject] : (NSString*)CFSTR("InitialPass")];
-		ParallelRenderCommandEncoder.SetLabel(Label);
-		
-		if([DebugGroups count])
-		{
-			for (NSString* Group in DebugGroups)
-			{
-				ParallelRenderCommandEncoder.PushDebugGroup(Group);
-				METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, RenderEncoderDebug.PushDebugGroup(Group));
-			}
-		}
-	}
-	
-	for (uint32 i = 0; i < NumChildren; i++)
-	{
-		mtlpp::RenderCommandEncoder CommandEncoder = MTLPP_VALIDATE(mtlpp::ParallelRenderCommandEncoder, ParallelRenderCommandEncoder, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, GetRenderCommandEncoder());
-		ChildRenderCommandEncoders.Add(CommandEncoder);
-		METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, ParallelEncoderDebug.GetRenderCommandEncoderDebugger(CommandEncoder));
-	}
-}
-
 void FMetalCommandEncoder::BeginRenderCommandEncoding(void)
 {
 	check(RenderPassDesc);
-	check(CommandList.IsParallel() || CommandBuffer);
+	check(CommandBuffer);
 	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false
 #if METAL_RHI_RAYTRACING
 	 && IsAccelerationStructureCommandEncoderActive() == false
@@ -642,18 +572,10 @@ void FMetalCommandEncoder::BeginRenderCommandEncoding(void)
 	
 	FenceResources.Append(TransitionedResources);
 	
-	if (!CommandList.IsParallel() || Type == EMetalCommandEncoderPrologue)
-	{
-		RenderCommandEncoder = MTLPP_VALIDATE(mtlpp::CommandBuffer, CommandBuffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, RenderCommandEncoder(RenderPassDesc));
-		METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, RenderEncoderDebug = FMetalRenderCommandEncoderDebugging(RenderCommandEncoder, RenderPassDesc, CommandBufferDebug));
-		EncoderNum++;	
-	}
-	else
-	{
-		RenderCommandEncoder = GetMetalDeviceContext().GetParallelRenderCommandEncoder(CommandList.GetParallelIndex(), ParallelRenderCommandEncoder, CommandBuffer);
-		METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, RenderEncoderDebug = FMetalRenderCommandEncoderDebugging::Get(RenderCommandEncoder));
-	}
-	
+	RenderCommandEncoder = MTLPP_VALIDATE(mtlpp::CommandBuffer, CommandBuffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, RenderCommandEncoder(RenderPassDesc));
+	METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, RenderEncoderDebug = FMetalRenderCommandEncoderDebugging(RenderCommandEncoder, RenderPassDesc, CommandBufferDebug));
+	EncoderNum++;
+
 	check(!EncoderFence);
 	NSString* Label = nil;
 	
@@ -671,11 +593,8 @@ void FMetalCommandEncoder::BeginRenderCommandEncoding(void)
 			}
 		}
 	}
-	
-	if (CommandList.IsImmediate())
-	{
-		EncoderFence = CommandList.GetCommandQueue().CreateFence(Label);
-	}
+
+	EncoderFence = CommandList.GetCommandQueue().CreateFence(Label);
 }
 
 void FMetalCommandEncoder::BeginComputeCommandEncoding(mtlpp::DispatchType DispatchType)
@@ -806,33 +725,30 @@ TRefCountPtr<FMetalFence> FMetalCommandEncoder::EndEncoding(void)
 		{
 			if (RenderCommandEncoder)
 			{
-				check(!bSupportsFences || EncoderFence || !CommandList.IsImmediate());
-				if (ParallelRenderCommandEncoder.GetPtr() == nil)
-				{
-					check(RenderPassDesc);
+				check(!bSupportsFences || EncoderFence);
+				check(RenderPassDesc);
 					
-					ns::Array<mtlpp::RenderPassColorAttachmentDescriptor> ColorAttachments = RenderPassDesc.GetColorAttachments();
-					for (uint32 i = 0; i < MaxSimultaneousRenderTargets; i++)
+				ns::Array<mtlpp::RenderPassColorAttachmentDescriptor> ColorAttachments = RenderPassDesc.GetColorAttachments();
+				for (uint32 i = 0; i < MaxSimultaneousRenderTargets; i++)
+				{
+					if (ColorAttachments[i].GetTexture() && ColorAttachments[i].GetStoreAction() == mtlpp::StoreAction::Unknown)
 					{
-						if (ColorAttachments[i].GetTexture() && ColorAttachments[i].GetStoreAction() == mtlpp::StoreAction::Unknown)
-						{
-							mtlpp::StoreAction Action = ColorStoreActions[i];
-							check(Action != mtlpp::StoreAction::Unknown);
-							RenderCommandEncoder.SetColorStoreAction((mtlpp::StoreAction)Action, i);
-						}
-					}
-					if (RenderPassDesc.GetDepthAttachment().GetTexture() && RenderPassDesc.GetDepthAttachment().GetStoreAction() == mtlpp::StoreAction::Unknown)
-					{
-						mtlpp::StoreAction Action = DepthStoreAction;
+						mtlpp::StoreAction Action = ColorStoreActions[i];
 						check(Action != mtlpp::StoreAction::Unknown);
-						RenderCommandEncoder.SetDepthStoreAction((mtlpp::StoreAction)Action);
+						RenderCommandEncoder.SetColorStoreAction((mtlpp::StoreAction)Action, i);
 					}
-					if (RenderPassDesc.GetStencilAttachment().GetTexture() && RenderPassDesc.GetStencilAttachment().GetStoreAction() == mtlpp::StoreAction::Unknown)
-					{
-						mtlpp::StoreAction Action = StencilStoreAction;
-						check(Action != mtlpp::StoreAction::Unknown);
-						RenderCommandEncoder.SetStencilStoreAction((mtlpp::StoreAction)Action);
-					}
+				}
+				if (RenderPassDesc.GetDepthAttachment().GetTexture() && RenderPassDesc.GetDepthAttachment().GetStoreAction() == mtlpp::StoreAction::Unknown)
+				{
+					mtlpp::StoreAction Action = DepthStoreAction;
+					check(Action != mtlpp::StoreAction::Unknown);
+					RenderCommandEncoder.SetDepthStoreAction((mtlpp::StoreAction)Action);
+				}
+				if (RenderPassDesc.GetStencilAttachment().GetTexture() && RenderPassDesc.GetStencilAttachment().GetStoreAction() == mtlpp::StoreAction::Unknown)
+				{
+					mtlpp::StoreAction Action = StencilStoreAction;
+					check(Action != mtlpp::StoreAction::Unknown);
+					RenderCommandEncoder.SetStencilStoreAction((mtlpp::StoreAction)Action);
 				}
 				
 				for (FMetalFence* FragFence : FragmentFences)
@@ -874,75 +790,6 @@ TRefCountPtr<FMetalFence> FMetalCommandEncoder::EndEncoding(void)
 				METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, RenderEncoderDebug.EndEncoder());
 				RenderCommandEncoder = nil;
 				EncoderFence = nullptr;
-			}
-			
-			if (ParallelRenderCommandEncoder && IsParallel())
-			{
-				RingBuffer.Commit(CommandBuffer);
-				
-			#if METAL_DEBUG_OPTIONS
-				if(CommandList.GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation)
-				{
-					for (FMetalBuffer const& Buffer : ActiveBuffers)
-					{
-						GetMetalDeviceContext().AddActiveBuffer(Buffer);
-					}
-					
-					TSet<ns::AutoReleased<FMetalBuffer>> NewActiveBuffers = MoveTemp(ActiveBuffers);
-					AddCompletionHandler([NewActiveBuffers](mtlpp::CommandBuffer const&)
-										{
-											for (FMetalBuffer const& Buffer : NewActiveBuffers)
-											{
-												GetMetalDeviceContext().RemoveActiveBuffer(Buffer);
-											}
-										});
-				}
-			#endif
-
-				BufferBindingHistory.Empty();
-				TextureBindingHistory.Empty();
-				
-				EncoderNum = 0;
-
-				CommandBuffer = nil;
-				
-				ParallelRenderCommandEncoder = nil;
-			}
-
-			if (ParallelRenderCommandEncoder && IsImmediate())
-			{
-				{
-					check(RenderPassDesc);
-					
-					ns::Array<mtlpp::RenderPassColorAttachmentDescriptor> ColorAttachments = RenderPassDesc.GetColorAttachments();
-					for (uint32 i = 0; i < MaxSimultaneousRenderTargets; i++)
-					{
-						if (ColorAttachments[i].GetTexture() && ColorAttachments[i].GetStoreAction() == mtlpp::StoreAction::Unknown)
-						{
-							mtlpp::StoreAction Action = ColorStoreActions[i];
-							check(Action != mtlpp::StoreAction::Unknown);
-							ParallelRenderCommandEncoder.SetColorStoreAction((mtlpp::StoreAction)Action, i);
-						}
-					}
-					if (RenderPassDesc.GetDepthAttachment().GetTexture() && RenderPassDesc.GetDepthAttachment().GetStoreAction() == mtlpp::StoreAction::Unknown)
-					{
-						mtlpp::StoreAction Action = DepthStoreAction;
-						check(Action != mtlpp::StoreAction::Unknown);
-						ParallelRenderCommandEncoder.SetDepthStoreAction((mtlpp::StoreAction)Action);
-					}
-					if (RenderPassDesc.GetStencilAttachment().GetTexture() && RenderPassDesc.GetStencilAttachment().GetStoreAction() == mtlpp::StoreAction::Unknown)
-					{
-						mtlpp::StoreAction Action = StencilStoreAction;
-						check(Action != mtlpp::StoreAction::Unknown);
-						ParallelRenderCommandEncoder.SetStencilStoreAction((mtlpp::StoreAction)Action);
-					}
-				}
-
-				ParallelRenderCommandEncoder.EndEncoding();
-				METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, ParallelEncoderDebug.EndEncoder());
-				ParallelRenderCommandEncoder = nil;
-
-				ChildRenderCommandEncoders.Empty();
 			}
 		}
 		else if(IsComputeCommandEncoderActive())
@@ -1268,11 +1115,6 @@ void FMetalCommandEncoder::InsertDebugSignpost(ns::String const& String)
 			RenderCommandEncoder.InsertDebugSignpost(String);
 			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, RenderEncoderDebug.InsertDebugSignpost(String));
 		}
-		else if (ParallelRenderCommandEncoder && !IsParallel())
-		{
-			ParallelRenderCommandEncoder.InsertDebugSignpost(String);
-			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, ParallelRenderCommandEncoder.InsertDebugSignpost(String));
-		}
 		else if (ComputeCommandEncoder)
 		{
 			ComputeCommandEncoder.InsertDebugSignpost(String);
@@ -1302,11 +1144,6 @@ void FMetalCommandEncoder::PushDebugGroup(ns::String const& String)
 			RenderCommandEncoder.PushDebugGroup(String);
 			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, RenderEncoderDebug.PushDebugGroup(String));
 		}
-		else if (ParallelRenderCommandEncoder && !IsParallel())
-		{
-			ParallelRenderCommandEncoder.PushDebugGroup(String);
-			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, ParallelRenderCommandEncoder.PushDebugGroup(String));
-		}
 		else if (ComputeCommandEncoder)
 		{
 			ComputeCommandEncoder.PushDebugGroup(String);
@@ -1335,11 +1172,6 @@ void FMetalCommandEncoder::PopDebugGroup(void)
 		{
 			RenderCommandEncoder.PopDebugGroup();
 			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, RenderEncoderDebug.PopDebugGroup());
-		}
-		else if (ParallelRenderCommandEncoder && !IsParallel())
-		{
-			ParallelRenderCommandEncoder.PopDebugGroup();
-			METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, ParallelRenderCommandEncoder.PopDebugGroup());
 		}
 		else if (ComputeCommandEncoder)
 		{

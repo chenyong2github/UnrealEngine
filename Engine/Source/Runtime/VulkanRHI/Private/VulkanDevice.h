@@ -345,9 +345,9 @@ public:
 		return *DefaultSampler;
 	}
 
-	inline const FVulkanTextureView& GetDefaultImageView() const
+	inline const FVulkanView::FTextureView& GetDefaultImageView() const
 	{
-		return DefaultTexture->DefaultView;
+		return DefaultTexture->DefaultView->GetTextureView();
 	}
 
 	const VkFormatProperties& GetFormatProperties(VkFormat InFormat) const;

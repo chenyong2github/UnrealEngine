@@ -543,7 +543,7 @@ uint32 FVulkanDescriptorSetWriter::SetupDescriptorWrites(
 	VkWriteDescriptorSetAccelerationStructureKHR* InAccelerationStructuresWriteDescriptors,
 	VkAccelerationStructureKHR* InAccelerationStructures,
 #endif // VULKAN_RHI_RAYTRACING
-	const FVulkanSamplerState& DefaultSampler, const FVulkanTextureView& DefaultImageView)
+	const FVulkanSamplerState& DefaultSampler, const FVulkanView::FTextureView& DefaultImageView)
 {
 	HashableDescriptorInfos = InHashableDescriptorInfos;
 	WriteDescriptors = InWriteDescriptors;
@@ -551,8 +551,6 @@ uint32 FVulkanDescriptorSetWriter::SetupDescriptorWrites(
 
 	BindingToDynamicOffsetMap = InBindingToDynamicOffsetMap;
 
-	BufferViewReferences.Empty(NumWrites);
-	BufferViewReferences.AddDefaulted(NumWrites);
 	InitWrittenMasks(NumWrites);
 
 	uint32 DynamicOffsetIndex = 0;

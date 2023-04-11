@@ -2,9 +2,21 @@
 
 #pragma once
 
-#include "D3D12CommandList.h"
-#include "D3D12DirectCommandListManager.h"
 #include "RHIDescriptorAllocator.h"
+#include "MultiGPU.h"
+#include "D3D12RHICommon.h"
+
+inline D3D12_DESCRIPTOR_HEAP_TYPE Translate(ERHIDescriptorHeapType InHeapType)
+{
+	switch (InHeapType)
+	{
+	default: checkNoEntry();
+	case ERHIDescriptorHeapType::Standard:     return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	case ERHIDescriptorHeapType::RenderTarget: return D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	case ERHIDescriptorHeapType::DepthStencil: return D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	case ERHIDescriptorHeapType::Sampler:      return FD3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
+	}
+}
 
 struct FD3D12DescriptorHeap : public FD3D12DeviceChild, public FThreadSafeRefCountedObject
 {
@@ -176,6 +188,17 @@ struct FD3D12OfflineHeapEntry
 	TDoubleLinkedList<FD3D12OfflineHeapFreeRange> FreeList;
 };
 
+struct FD3D12OfflineDescriptor : public D3D12_CPU_DESCRIPTOR_HANDLE
+{
+public:
+	operator bool () const { return ptr != 0; }
+	FD3D12OfflineDescriptor() { ptr = 0; }
+
+private:
+	friend class FD3D12OfflineDescriptorManager;
+	uint32 HeapIndex = 0;
+};
+
 /** Manages and allows allocations of CPU descriptors only. Creates small heaps on demand to satisfy allocations. */
 class FD3D12OfflineDescriptorManager : public FD3D12DeviceChild
 {
@@ -186,8 +209,8 @@ public:
 
 	inline ERHIDescriptorHeapType GetHeapType() const { return HeapType; }
 
-	D3D12_CPU_DESCRIPTOR_HANDLE AllocateHeapSlot(uint32& outIndex);
-	void FreeHeapSlot(D3D12_CPU_DESCRIPTOR_HANDLE Offset, uint32 index);
+	FD3D12OfflineDescriptor AllocateHeapSlot();
+	void FreeHeapSlot(FD3D12OfflineDescriptor& Descriptor);
 
 private:
 	void AllocateHeap();

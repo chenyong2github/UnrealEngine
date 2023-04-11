@@ -1341,7 +1341,18 @@ bool FMetalStateCache::NeedsToSetRenderTarget(const FRHIRenderPassInfo& InRender
 	return bAllChecksPassed == false;
 }
 
-void FMetalStateCache::SetShaderBuffer(EMetalShaderStages const Frequency, FMetalBuffer const& Buffer, FMetalBufferData* const Bytes, NSUInteger const Offset, NSUInteger const Length, NSUInteger const Index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format, NSUInteger const ElementRowPitch, TArray<TTuple<ns::AutoReleased<mtlpp::Resource>, mtlpp::ResourceUsage>> ReferencedResources)
+void FMetalStateCache::SetShaderBuffer(
+	  EMetalShaderStages const Frequency
+	, FMetalBuffer const& Buffer
+	, FMetalBufferData* const Bytes
+	, NSUInteger const Offset
+	, NSUInteger const Length
+	, NSUInteger const Index
+	, mtlpp::ResourceUsage const Usage
+	, EPixelFormat const Format
+	, NSUInteger const ElementRowPitch
+	, TArray<TTuple<ns::AutoReleased<mtlpp::Resource>, mtlpp::ResourceUsage>> ReferencedResources
+)
 {
 	check(Frequency < EMetalShaderStages::Num);
 	check(Index < ML_MaxBuffers);
@@ -1458,267 +1469,146 @@ void FMetalStateCache::SetShaderSamplerState(EMetalShaderStages const Frequency,
 	}
 }
 
-void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FRHITexture* RESTRICT TextureRHI)
+static EMetalShaderStages TranslateShaderStage(CrossCompiler::EShaderStage ShaderStage)
 {
-	FMetalSurface* Surface = GetMetalSurfaceFromRHITexture(TextureRHI);
-	ns::AutoReleased<FMetalTexture> Texture;
-	mtlpp::ResourceUsage Usage = (mtlpp::ResourceUsage)0;
-	if (Surface != nullptr)
-	{
-		Texture = Surface->Texture;
-		Usage = mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read|mtlpp::ResourceUsage::Sample);
-	}
-	
 	switch (ShaderStage)
 	{
-		case CrossCompiler::SHADER_STAGE_PIXEL:
-			SetShaderTexture(EMetalShaderStages::Pixel, Texture, BindIndex, Usage);
-			break;
-			
-		case CrossCompiler::SHADER_STAGE_VERTEX:
-			SetShaderTexture(EMetalShaderStages::Vertex, Texture, BindIndex, Usage);
-			break;
-			
-		case CrossCompiler::SHADER_STAGE_COMPUTE:
-			SetShaderTexture(EMetalShaderStages::Compute, Texture, BindIndex, Usage);
-			break;
-			
-		default:
-			check(0);
-			break;
+	default: checkNoEntry(); [[fallthrough]];
+	case CrossCompiler::SHADER_STAGE_PIXEL  : return EMetalShaderStages::Pixel;
+	case CrossCompiler::SHADER_STAGE_VERTEX : return EMetalShaderStages::Vertex;
+	case CrossCompiler::SHADER_STAGE_COMPUTE: return EMetalShaderStages::Compute;
 	}
 }
 
-void FMetalStateCache::SetShaderResourceView(FMetalContext* Context, EMetalShaderStages ShaderStage, uint32 BindIndex, FMetalShaderResourceView* RESTRICT SRV)
+void FMetalStateCache::SetShaderResourceView(EMetalShaderStages ShaderStage, uint32 BindIndex, FMetalShaderResourceView* SRV)
 {
 	if (SRV)
 	{
-		if (SRV->bTexture)
+		switch (SRV->GetMetalType())
 		{
-			FMetalTexture const& View = SRV->GetTextureView();
-			if (View)
-			{
-				SetShaderTexture(ShaderStage, View, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Sample));
-			}
-			else
-			{
-				SetShaderTexture(ShaderStage, nil, BindIndex, mtlpp::ResourceUsage(0));
-			}
-		}
-		else
-		{
-			if (IsLinearBuffer(ShaderStage, BindIndex) && SRV->GetLinearTexture())
-			{
-				ns::AutoReleased<FMetalTexture> Tex;
-				Tex = SRV->GetLinearTexture();
+		case FMetalResourceViewBase::EMetalType::Null:
+			checkf(false, TEXT("Attempt to bind a null SRV."));
+			break;
 
-				SetShaderTexture(ShaderStage, Tex, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Sample));
-			}
-			else
+		case FMetalResourceViewBase::EMetalType::TextureView:
+            {
+                SetShaderTexture(ShaderStage, SRV->GetTextureView(), BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Sample));
+            }
+			break;
+
+		case FMetalResourceViewBase::EMetalType::BufferView:
 			{
-				FMetalResourceMultiBuffer* Buffer = SRV->GetSourceBuffer();
-				if(Buffer != nullptr)
-				{
-#if METAL_RHI_RAYTRACING
-					if (Buffer->IsAccelerationStructure())
-					{
-						SetShaderBuffer(ShaderStage, Buffer->AccelerationStructureHandle, BindIndex, SRV->ReferencedResources);
-					}
-					else
-#endif // METAL_RHI_RAYTRACING
-					{
-						SetShaderBuffer(ShaderStage, Buffer->GetCurrentBufferOrNil(), Buffer->Data, SRV->Offset, Buffer->GetSize(), BindIndex, mtlpp::ResourceUsage::Read, (EPixelFormat)SRV->Format, 0, SRV->ReferencedResources);
-					}
-				}
-				else
-				{
-					SetShaderBuffer(ShaderStage, nil, nullptr, 0, 0, BindIndex, mtlpp::ResourceUsage(0));
-				}
+				auto const& View = SRV->GetBufferView();
+				SetShaderBuffer(ShaderStage, View.Buffer, nil, View.Offset, View.Size, BindIndex, mtlpp::ResourceUsage::Read);
 			}
+			break;
+
+#if METAL_RHI_RAYTRACING
+		case FMetalResourceViewBase::EMetalType::AccelerationStructure:
+			SetShaderBuffer(ShaderStage, Buffer->GetAccelerationStructure(), BindIndex, SRV->ReferencedResources);
+			break;
+#endif
 		}
 	}
 }
 
-bool FMetalStateCache::IsLinearBuffer(EMetalShaderStages ShaderStage, uint32 BindIndex)
-{
-    switch (ShaderStage)
-    {
-        case EMetalShaderStages::Vertex:
-        {
-            return (GraphicsPSO->VertexShader->Bindings.LinearBuffer & (1 << BindIndex)) != 0;
-            break;
-        }
-        case EMetalShaderStages::Pixel:
-        {
-            return (GraphicsPSO->PixelShader->Bindings.LinearBuffer & (1 << BindIndex)) != 0;
-            break;
-        }
-        case EMetalShaderStages::Compute:
-        {
-            return (ComputeShader->Bindings.LinearBuffer & (1 << BindIndex)) != 0;
-        }
-        default:
-        {
-            check(false);
-            return false;
-        }
-    }
-}
-
-void FMetalStateCache::SetShaderUnorderedAccessView(EMetalShaderStages ShaderStage, uint32 BindIndex, FMetalUnorderedAccessView* RESTRICT UAV)
+void FMetalStateCache::SetShaderUnorderedAccessView(EMetalShaderStages ShaderStage, uint32 BindIndex, FMetalUnorderedAccessView* UAV)
 {
 	if (UAV)
 	{
-		if (UAV->bTexture)
+		mtlpp::ResourceUsage const Usage = mtlpp::ResourceUsage(
+			mtlpp::ResourceUsage::Read |
+			mtlpp::ResourceUsage::Write
+		);
+
+		switch (UAV->GetMetalType())
 		{
-			FMetalSurface* Surface = UAV->GetSourceTexture();
-			FMetalTexture const& View = UAV->GetTextureView();
+		case FMetalResourceViewBase::EMetalType::Null:
+			checkf(false, TEXT("Attempt to bind a null UAV."));
+			break;
 
-			if (View)
+		case FMetalResourceViewBase::EMetalType::TextureView:
+            {
+                SetShaderTexture(ShaderStage, UAV->GetTextureView(), BindIndex, Usage);
+            }
+			break;
+
+		case FMetalResourceViewBase::EMetalType::BufferView:
 			{
-				FPlatformAtomics::InterlockedExchange(&Surface->Written, 1);
-
-				SetShaderTexture(ShaderStage, View, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write));
-
-				if (Surface->Texture.GetBuffer() && (EnumHasAllFlags(Surface->GetDesc().Flags, TexCreate_UAV | TexCreate_NoTiling) || EnumHasAllFlags(Surface->GetDesc().Flags, TexCreate_AtomicCompatible) || EnumHasAllFlags(Surface->GetDesc().Flags, ETextureCreateFlags::Atomic64Compatible)))
-				{
-					uint32 BytesPerRow = Surface->Texture.GetBufferBytesPerRow();
-					uint32 ElementsPerRow = BytesPerRow / GPixelFormats[(EPixelFormat)Surface->GetFormat()].BlockBytes;
-
-					FMetalBuffer Buffer(Surface->Texture.GetBuffer(), false);
-					const uint32 BufferOffset = Surface->Texture.GetBufferOffset();
-					const uint32 BufferSize = Surface->Texture.GetBuffer().GetLength();
-					SetShaderBuffer(ShaderStage, Buffer, nullptr, BufferOffset, BufferSize, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write), static_cast<EPixelFormat>(UAV->Format), ElementsPerRow);
-				}
+				auto const& View = UAV->GetBufferView();
+				SetShaderBuffer(ShaderStage, View.Buffer, nil, View.Offset, View.Size, BindIndex, Usage);
 			}
-			else
-			{
-				SetShaderTexture(ShaderStage, nil, BindIndex, mtlpp::ResourceUsage(0));
-			}
+			break;
+                
+        case FMetalResourceViewBase::EMetalType::TextureBufferBacked:
+            {
+                auto const& View = UAV->GetTextureBufferBacked();
+                uint32 BytesPerRow = View.Texture.GetBufferBytesPerRow();
+                uint32 ElementsPerRow = BytesPerRow / GPixelFormats[View.Format].BlockBytes;
+                
+                SetShaderBuffer(ShaderStage, View.Buffer, nil, View.Offset, View.Size,
+                                BindIndex, Usage, static_cast<EPixelFormat>(View.Format), ElementsPerRow);
+                SetShaderTexture(ShaderStage, View.Texture, BindIndex, Usage);
+            }
+            break;
+
+#if METAL_RHI_RAYTRACING
+		case FMetalResourceViewBase::EMetalType::AccelerationStructure:
+			checkNoEntry(); // not implemented
+			break;
+#endif
 		}
-		else
+
+		if (UAV->IsTexture())
 		{
-			FMetalResourceMultiBuffer* Buffer = UAV->GetSourceBuffer();
-			check(!Buffer->Data && Buffer->GetCurrentBufferOrNil());
-
-			if (IsLinearBuffer(ShaderStage, BindIndex) && UAV->GetLinearTexture())
-			{
-				ns::AutoReleased<FMetalTexture> Tex;
-				Tex = UAV->GetLinearTexture();
-				SetShaderTexture(ShaderStage, Tex, BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write));
-			}
-
-			SetShaderBuffer(ShaderStage, Buffer->GetCurrentBufferOrNil(), Buffer->Data, 0, Buffer->GetSize(), BindIndex, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Write), (EPixelFormat)UAV->Format);
+			// @todo this needs refactoring.
+			FPlatformAtomics::InterlockedExchange(&ResourceCast(UAV->GetTexture())->Written, 1);
 		}
-	}
-}
-
-void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FMetalShaderResourceView* RESTRICT SRV)
-{
-	switch (ShaderStage)
-	{
-		case CrossCompiler::SHADER_STAGE_PIXEL:
-			SetShaderResourceView(nullptr, EMetalShaderStages::Pixel, BindIndex, SRV);
-			break;
-			
-		case CrossCompiler::SHADER_STAGE_VERTEX:
-			SetShaderResourceView(nullptr, EMetalShaderStages::Vertex, BindIndex, SRV);
-			break;
-			
-		case CrossCompiler::SHADER_STAGE_COMPUTE:
-			SetShaderResourceView(nullptr, EMetalShaderStages::Compute, BindIndex, SRV);
-			break;
-			
-		default:
-			check(0);
-			break;
-	}
-}
-
-void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FMetalSamplerState* RESTRICT SamplerState)
-{
-	check(SamplerState->State);
-	switch (ShaderStage)
-	{
-		case CrossCompiler::SHADER_STAGE_PIXEL:
-			SetShaderSamplerState(EMetalShaderStages::Pixel, SamplerState, BindIndex);
-			break;
-			
-		case CrossCompiler::SHADER_STAGE_VERTEX:
-			SetShaderSamplerState(EMetalShaderStages::Vertex, SamplerState, BindIndex);
-			break;
-			
-		case CrossCompiler::SHADER_STAGE_COMPUTE:
-			SetShaderSamplerState(EMetalShaderStages::Compute, SamplerState, BindIndex);
-			break;
-			
-		default:
-			check(0);
-			break;
-	}
-}
-
-void FMetalStateCache::SetResource(uint32 ShaderStage, uint32 BindIndex, FMetalUnorderedAccessView* RESTRICT UAV)
-{
-	switch (ShaderStage)
-	{
-		case CrossCompiler::SHADER_STAGE_PIXEL:
-			SetShaderUnorderedAccessView(EMetalShaderStages::Pixel, BindIndex, UAV);
-			break;
-			
-		case CrossCompiler::SHADER_STAGE_VERTEX:
-			SetShaderUnorderedAccessView(EMetalShaderStages::Vertex, BindIndex, UAV);
-			break;
-			
-		case CrossCompiler::SHADER_STAGE_COMPUTE:
-			SetShaderUnorderedAccessView(EMetalShaderStages::Compute, BindIndex, UAV);
-			break;
-			
-		default:
-			check(0);
-			break;
 	}
 }
 
 template <class ShaderType>
-void FMetalStateCache::SetResourcesFromTables(ShaderType Shader, uint32 ShaderStage)
+void FMetalStateCache::SetResourcesFromTables(ShaderType Shader, CrossCompiler::EShaderStage ShaderStage)
 {
 	checkSlow(Shader);
 	
-	EMetalShaderStages Frequency;
-	switch (ShaderStage)
-	{
-		case CrossCompiler::SHADER_STAGE_VERTEX:
-			Frequency = EMetalShaderStages::Vertex;
-			break;
-		case CrossCompiler::SHADER_STAGE_PIXEL:
-			Frequency = EMetalShaderStages::Pixel;
-			break;
-		case CrossCompiler::SHADER_STAGE_COMPUTE:
-			Frequency = EMetalShaderStages::Compute;
-			break;
-		default:
-			Frequency = EMetalShaderStages::Num; //Silence a compiler warning/error
-			check(false);
-			break;
-	}
+	EMetalShaderStages Frequency = TranslateShaderStage(ShaderStage);
 
 	if (!FMetalCommandQueue::SupportsFeature(EMetalFeaturesIABs))
 	{
 		struct FUniformResourceBinder
 		{
 			FMetalStateCache& StateCache;
-			uint32 ShaderStage;
+			EMetalShaderStages Frequency;
 
-			void SetUAV(FRHIUnorderedAccessView*  UAV, uint8 Index) { StateCache.SetResource(ShaderStage, Index, static_cast<FMetalUnorderedAccessView*>(UAV)); }
-			void SetSRV(FRHIShaderResourceView*   SRV, uint8 Index) { StateCache.SetResource(ShaderStage, Index, static_cast<FMetalShaderResourceView*>(SRV)); }
+			void SetUAV(FRHIUnorderedAccessView* UAV, uint8 Index)
+			{
+				StateCache.SetShaderUnorderedAccessView(Frequency, Index, static_cast<FMetalUnorderedAccessView*>(UAV));
+			}
 
-			void SetTexture(FRHITexture*      Texture, uint8 Index) { StateCache.SetResource(ShaderStage, Index, Texture); }
-			void SetSampler(FRHISamplerState* Sampler, uint8 Index) { StateCache.SetResource(ShaderStage, Index, static_cast<FMetalSamplerState*>(Sampler)); }
+			void SetSRV(FRHIShaderResourceView* SRV, uint8 Index)
+			{
+				StateCache.SetShaderResourceView(Frequency, Index, static_cast<FMetalShaderResourceView*>(SRV));
+			}
+
+			void SetTexture(FRHITexture* Texture, uint8 Index)
+			{
+				StateCache.SetShaderTexture(
+					  Frequency
+					, GetMetalSurfaceFromRHITexture(Texture)->Texture
+					, Index
+					, mtlpp::ResourceUsage(mtlpp::ResourceUsage::Read | mtlpp::ResourceUsage::Sample)
+				);
+			}
+
+			void SetSampler(FRHISamplerState* Sampler, uint8 Index)
+			{
+				StateCache.SetShaderSamplerState(Frequency, static_cast<FMetalSamplerState*>(Sampler), Index);
+			}
 		};
 
 		UE::RHICore::SetResourcesFromTables(
-			  FUniformResourceBinder { *this, ShaderStage }
+			  FUniformResourceBinder { *this, Frequency }
 			, *Shader
 			, Shader->Bindings.ShaderResourceTable
 			, DirtyUniformBuffers[Frequency]

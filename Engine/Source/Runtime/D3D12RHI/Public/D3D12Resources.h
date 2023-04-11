@@ -554,47 +554,48 @@ public:
 	static void TransferOwnership(FD3D12ResourceLocation& Destination, FD3D12ResourceLocation& Source);
 
 	// Setters
-	inline void SetOwner(FD3D12BaseShaderResource* InOwner) { Owner = InOwner; }
+	void SetOwner   (FD3D12BaseShaderResource* InOwner) { Owner = InOwner; }
+	void SetType    (ResourceLocationType Value)        { Type = Value;}
 	void SetResource(FD3D12Resource* Value);
-	inline void SetType(ResourceLocationType Value) { Type = Value;}
 
-	inline void SetAllocator(FD3D12BaseAllocatorType* Value) { Allocator = Value; AllocatorType = AT_Default; }
-	inline void SetSegListAllocator(FD3D12SegListAllocator* Value) { SegListAllocator = Value; AllocatorType = AT_SegList; }
-	inline void SetPoolAllocator(FD3D12PoolAllocator* Value) { PoolAllocator = Value; AllocatorType = AT_Pool; }
-	inline void ClearAllocator() { Allocator = nullptr; AllocatorType = AT_Unknown; }
+	void SetAllocator       (FD3D12BaseAllocatorType* Value) { Allocator        = Value; AllocatorType = AT_Default; }
+	void SetSegListAllocator(FD3D12SegListAllocator*  Value) { SegListAllocator = Value; AllocatorType = AT_SegList; }
+	void SetPoolAllocator   (FD3D12PoolAllocator*     Value) { PoolAllocator    = Value; AllocatorType = AT_Pool;    }
 
-	inline void SetMappedBaseAddress(void* Value) { MappedBaseAddress = Value; }
-	inline void SetGPUVirtualAddress(D3D12_GPU_VIRTUAL_ADDRESS Value) { GPUVirtualAddress = Value; }
-	inline void SetOffsetFromBaseOfResource(uint64 Value) { OffsetFromBaseOfResource = Value; }
-	inline void SetSize(uint64 Value) { Size = Value; }
+	void ClearAllocator() { Allocator = nullptr; AllocatorType = AT_Unknown; }
+
+	void SetMappedBaseAddress       (void* Value                    ) { MappedBaseAddress = Value; }
+	void SetGPUVirtualAddress       (D3D12_GPU_VIRTUAL_ADDRESS Value) { GPUVirtualAddress = Value; }
+	void SetOffsetFromBaseOfResource(uint64 Value                   ) { OffsetFromBaseOfResource = Value; }
+	void SetSize                    (uint64 Value                   ) { Size = Value; }
 
 	// Getters
-	inline ResourceLocationType GetType() const { return Type; }
-	inline EAllocatorType GetAllocatorType() const { return AllocatorType; }
-	inline FD3D12BaseAllocatorType* GetAllocator() { check(AT_Default == AllocatorType); return Allocator; }
-	inline FD3D12SegListAllocator* GetSegListAllocator() { check(AT_SegList == AllocatorType); return SegListAllocator; }
-	inline FD3D12PoolAllocator* GetPoolAllocator() { check(AT_Pool == AllocatorType); return PoolAllocator; }
-	inline FD3D12Resource* GetResource() const { return UnderlyingResource; }
-	inline void* GetMappedBaseAddress() const { return MappedBaseAddress; }
-	inline D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const { return GPUVirtualAddress; }
-	inline uint64 GetOffsetFromBaseOfResource() const { return OffsetFromBaseOfResource; }
-	inline uint64 GetSize() const { return Size; }
-	inline FD3D12ResidencyHandle& GetResidencyHandle() { check(ResidencyHandle); return *ResidencyHandle; }
-	inline FD3D12BuddyAllocatorPrivateData& GetBuddyAllocatorPrivateData() { return AllocatorData.BuddyAllocatorPrivateData; }
-	inline FD3D12BlockAllocatorPrivateData& GetBlockAllocatorPrivateData() { return AllocatorData.BlockAllocatorPrivateData; }
-	inline FD3D12SegListAllocatorPrivateData& GetSegListAllocatorPrivateData() { return AllocatorData.SegListAllocatorPrivateData; }
-	inline FD3D12PoolAllocatorPrivateData& GetPoolAllocatorPrivateData() { return AllocatorData.PoolAllocatorPrivateData; }
+	ResourceLocationType               GetType                       () const { return Type;                                                 }
+	EAllocatorType                     GetAllocatorType              () const { return AllocatorType;                                        }
+	FD3D12BaseAllocatorType*           GetAllocator                  ()       { check(AT_Default == AllocatorType); return Allocator;        }
+	FD3D12SegListAllocator*            GetSegListAllocator           ()       { check(AT_SegList == AllocatorType); return SegListAllocator; }
+	FD3D12PoolAllocator*               GetPoolAllocator              ()       { check(AT_Pool == AllocatorType);    return PoolAllocator;    }
+	FD3D12Resource*                    GetResource                   () const { return UnderlyingResource;                                   }
+	void*                              GetMappedBaseAddress          () const { return MappedBaseAddress;                                    }
+	D3D12_GPU_VIRTUAL_ADDRESS          GetGPUVirtualAddress          () const { return GPUVirtualAddress;                                    }
+	uint64                             GetOffsetFromBaseOfResource   () const { return OffsetFromBaseOfResource;                             }
+	uint64                             GetSize                       () const { return Size;                                                 }
+	FD3D12ResidencyHandle&             GetResidencyHandle            ()       { check(ResidencyHandle); return *ResidencyHandle;             }
+	FD3D12BuddyAllocatorPrivateData&   GetBuddyAllocatorPrivateData  ()       { return AllocatorData.BuddyAllocatorPrivateData;              }
+	FD3D12BlockAllocatorPrivateData&   GetBlockAllocatorPrivateData  ()       { return AllocatorData.BlockAllocatorPrivateData;              }
+	FD3D12SegListAllocatorPrivateData& GetSegListAllocatorPrivateData()       { return AllocatorData.SegListAllocatorPrivateData;            }
+	FD3D12PoolAllocatorPrivateData&    GetPoolAllocatorPrivateData   ()       { return AllocatorData.PoolAllocatorPrivateData;               }
 
 	// Pool allocation specific functions
 	bool OnAllocationMoved(FRHIPoolAllocationData* InNewData);
 	void UnlockPoolData();
 
-	const inline bool IsValid() const { return Type != ResourceLocationType::eUndefined; }
+	bool IsValid() const { return Type != ResourceLocationType::eUndefined; }
 
 	void AsStandAlone(FD3D12Resource* Resource, uint64 InSize = 0, bool bInIsTransient = false, const D3D12_HEAP_PROPERTIES* CustomHeapProperties = nullptr);
 	bool IsStandaloneOrPooledPlacedResource() const;
 
-	inline void AsHeapAliased(FD3D12Resource* Resource)
+	void AsHeapAliased(FD3D12Resource* Resource)
 	{
 		check(Resource->GetHeapType() != D3D12_HEAP_TYPE_READBACK);
 
@@ -611,7 +612,7 @@ public:
 	}
 
 
-	inline void AsFastAllocation(FD3D12Resource* Resource, uint32 BufferSize, D3D12_GPU_VIRTUAL_ADDRESS GPUBase, void* CPUBase, uint64 ResourceOffsetBase, uint64 Offset, bool bMultiFrame = false)
+	void AsFastAllocation(FD3D12Resource* Resource, uint32 BufferSize, D3D12_GPU_VIRTUAL_ADDRESS GPUBase, void* CPUBase, uint64 ResourceOffsetBase, uint64 Offset, bool bMultiFrame = false)
 	{
 		if (bMultiFrame)
 		{
@@ -652,8 +653,6 @@ public:
 	{
 		return bTransient;
 	}
-
-	void Swap(FD3D12ResourceLocation& Other);
 
 	/**  Get an address used by LLM to track the GPU allocation that this location represents. */
 	void* GetAddressForLLMTracking() const
@@ -757,8 +756,8 @@ protected:
 /** The base class of resources that may be bound as shader resources (texture or buffer). */
 class FD3D12BaseShaderResource : public FD3D12DeviceChild, public IRefCountedObject
 {
-protected:
-	FCriticalSection RenameListenersCS;
+private:
+	mutable FCriticalSection RenameListenersCS;
 	TArray<FD3D12ShaderResourceRenameListener*> RenameListeners;
 
 public:
@@ -779,49 +778,34 @@ public:
 		checkf(Removed == 1, TEXT("Should have exactly one registered listener during remove (same listener shouldn't registered twice and we shouldn't call this if not registered"));
 	}
 
-	void Swap(FD3D12BaseShaderResource& Other)
-	{
-		// assume RHI thread when swapping listeners and resources
-		check(!IsRunningRHIInSeparateThread() || IsInRHIThread());
-
-		::Swap(Parent, Other.Parent);
-		ResourceLocation.Swap(Other.ResourceLocation);
-		ResourceLocation.SetOwner(this);
-		::Swap(BufferAlignment, Other.BufferAlignment);
-
-		// NOTE: Don't swap the rename listeners because these are still referencing the original BaseShaderResource
-	}
-
-	void RemoveAllRenameListeners()
+	bool HasLinkedViews() const
 	{
 		FScopeLock Lock(&RenameListenersCS);
-		ResourceRenamed(nullptr);
-		RenameListeners.Reset();
+		return RenameListeners.Num() != 0;
 	}
 
-	void ResourceRenamed(FD3D12ResourceLocation* InNewResourceLocation)
+	void ResourceRenamed()
 	{
 		FScopeLock Lock(&RenameListenersCS);
 		for (FD3D12ShaderResourceRenameListener* RenameListener : RenameListeners)
 		{
-			RenameListener->ResourceRenamed(this, InNewResourceLocation);
+			RenameListener->ResourceRenamed(this, &ResourceLocation);
 		}
 	}
 
 	FD3D12ResourceLocation ResourceLocation;
-	uint32 BufferAlignment;
 
 public:
 	FD3D12BaseShaderResource(FD3D12Device* InParent)
 		: FD3D12DeviceChild(InParent)
 		, ResourceLocation(InParent)
-		, BufferAlignment(0)
 	{
+		ResourceLocation.SetOwner(this);
 	}
 
 	~FD3D12BaseShaderResource()
 	{
-		RemoveAllRenameListeners();
+		check(!HasLinkedViews());
 	}
 };
 
@@ -862,19 +846,12 @@ public:
 class FD3D12Buffer : public FRHIBuffer, public FD3D12BaseShaderResource, public FD3D12LinkedAdapterObject<FD3D12Buffer>
 {
 public:
-	FD3D12Buffer()
-		: FRHIBuffer(0, BUF_None, 0)
-		, FD3D12BaseShaderResource(nullptr)
-		, LockedData(nullptr)
-	{
-	}
-
-	FD3D12Buffer(FD3D12Device* InParent, uint32 InSize, EBufferUsageFlags InUsage, uint32 InStride)
-		: FRHIBuffer(InSize, InUsage, InStride)
+	FD3D12Buffer(FD3D12Device* InParent, FRHIBufferDesc const& Desc)
+		: FRHIBuffer(Desc)
 		, FD3D12BaseShaderResource(InParent)
 		, LockedData(InParent)
-	{
-	}
+	{}
+
 	virtual ~FD3D12Buffer();
 
 	virtual uint32 GetParentGPUIndex() const override;
@@ -902,9 +879,8 @@ public:
 	void Rename(FD3D12ResourceLocation& NewLocation);
 	void RenameLDAChain(FD3D12ResourceLocation& NewLocation);
 
-	void Swap(FD3D12Buffer& Other);
-
-	void ReleaseUnderlyingResource();
+	void TakeOwnership(FD3D12Buffer& Other);
+	void ReleaseOwnership();
 
 	// IRefCountedObject interface.
 	virtual uint32 AddRef() const
@@ -920,9 +896,10 @@ public:
 		return FRHIResource::GetRefCount();
 	}
 
-	static void GetResourceDescAndAlignment(uint64 InSize, uint32 InStride, EBufferUsageFlags& InUsage, D3D12_RESOURCE_DESC& ResourceDesc, uint32& Alignment);
+	static void GetResourceDescAndAlignment(uint64 InSize, uint32 InStride, EBufferUsageFlags InUsage, D3D12_RESOURCE_DESC& ResourceDesc, uint32& Alignment);
 
 	FD3D12LockedResource LockedData;
+	uint32 BufferAlignment = 0;
 };
 
 class FD3D12ResourceBarrierBatcher

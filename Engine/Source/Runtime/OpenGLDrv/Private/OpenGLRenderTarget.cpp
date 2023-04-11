@@ -376,7 +376,7 @@ void ReleaseOpenGLFramebuffers(FRHITexture* TextureRHI)
 {
 	VERIFY_GL_SCOPE();
 
-	const FOpenGLTexture* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
+	const FOpenGLTexture* Texture = FOpenGLDynamicRHI::ResourceCast(TextureRHI);
 
 	if (Texture)
 	{
@@ -450,8 +450,8 @@ void FOpenGLDynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FR
 		return;
 	}
 
-	FOpenGLTexture* SourceTexture = GetOpenGLTextureFromRHITexture(SourceTextureRHI);
-	FOpenGLTexture* DestTexture = GetOpenGLTextureFromRHITexture(DestTextureRHI);
+	FOpenGLTexture* SourceTexture = ResourceCast(SourceTextureRHI);
+	FOpenGLTexture* DestTexture = ResourceCast(DestTextureRHI);
 
 	if (SourceTexture != DestTexture)
 	{
@@ -593,7 +593,7 @@ void FOpenGLDynamicRHI::ReadSurfaceDataRaw(FOpenGLContextState& ContextState, FR
 {
 	VERIFY_GL_SCOPE();
 
-	FOpenGLTexture* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
+	FOpenGLTexture* Texture = ResourceCast(TextureRHI);
 	if( !Texture)
 	{
 		return;	// just like in D3D11
@@ -926,7 +926,7 @@ void FOpenGLDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 	RHITHREAD_GLCOMMAND_PROLOGUE();
 	VERIFY_GL_SCOPE();
 
-	FOpenGLTexture* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
+	FOpenGLTexture* Texture = ResourceCast(TextureRHI);
 	if (!ensure(Texture))
 	{
 		return;
@@ -966,7 +966,7 @@ void FOpenGLDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFen
 
 	VERIFY_GL_SCOPE();
 	
-	FOpenGLTexture* Texture = GetOpenGLTextureFromRHITexture(TextureRHI->GetTexture2D());
+	FOpenGLTexture* Texture = ResourceCast(TextureRHI->GetTexture2D());
 	check(Texture);
 	check(EnumHasAnyFlags(Texture->GetDesc().Flags, TexCreate_CPUReadback));
 
@@ -986,7 +986,7 @@ void FOpenGLDynamicRHI::RHIUnmapStagingSurface(FRHITexture* TextureRHI, uint32 G
 
 	VERIFY_GL_SCOPE();
 	
-	FOpenGLTexture* Texture = GetOpenGLTextureFromRHITexture(TextureRHI->GetTexture2D());
+	FOpenGLTexture* Texture = ResourceCast(TextureRHI->GetTexture2D());
 	check(Texture);
 
 	Texture->Unlock( 0, 0 );
@@ -1003,7 +1003,7 @@ void FOpenGLDynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI,FIntRect
 
 	//reading from arrays only supported on SM5 and up.
 	check(FOpenGL::SupportsFloatReadSurface() && (ArrayIndex == 0 || GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5));	
-	FOpenGLTexture* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
+	FOpenGLTexture* Texture = ResourceCast(TextureRHI);
 	check(TextureRHI->GetFormat() == PF_FloatRGBA);
 
 	const uint32 MipmapLevel = MipIndex;
@@ -1080,7 +1080,7 @@ void FOpenGLDynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI,FIntRe
 	check( FOpenGL::SupportsTexture3D() );
 	check( TextureRHI->GetFormat() == PF_FloatRGBA );
 
-	FOpenGLTexture* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
+	FOpenGLTexture* Texture = ResourceCast(TextureRHI);
 
 	uint32 SizeX = Rect.Width();
 	uint32 SizeY = Rect.Height();

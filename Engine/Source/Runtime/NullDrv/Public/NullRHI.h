@@ -116,13 +116,13 @@ public:
 
 	}
 
-	virtual FBufferRHIRef RHICreateBuffer(FRHICommandListBase& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState , FRHIResourceCreateInfo& CreateInfo) final override
+	virtual FBufferRHIRef RHICreateBuffer(FRHICommandListBase& RHICmdList, FRHIBufferDesc const& Desc, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo) final override
 	{ 
 		if(CreateInfo.ResourceArray) 
 		{ 
 			CreateInfo.ResourceArray->Discard(); 
 		} 
-		return new FRHIBuffer(Size, Usage, Stride);
+		return new FRHIBuffer(Desc);
 	}
 
 	virtual void RHICopyBuffer(FRHIBuffer* SourceBuffer, FRHIBuffer* DestBuffer) final override
@@ -143,39 +143,6 @@ public:
 	virtual void RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer) final override
 	{
 
-	}
-
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIBuffer* StructuredBuffer, bool bUseUAVCounter, bool bAppendBuffer) final override
-	{ 
-		return new FRHIUnorderedAccessView(StructuredBuffer); 
-	}
-
-
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices) final override
-	{ 
-		return new FRHIUnorderedAccessView(Texture);
-	}
-
-
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIBuffer* Buffer, uint8 Format) final override
-	{ 
-		return new FRHIUnorderedAccessView(Buffer);
-	}
-
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIBuffer* Buffer) final override
-	{ 
-		return new FRHIShaderResourceView(Buffer); 
-	}
-
-
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIBuffer* Buffer, uint32 Stride, uint8 Format) final override
-	{ 
-		return new FRHIShaderResourceView(Buffer);
-	}
-
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer) final override
-	{
-		return new FRHIShaderResourceView(Initializer.AsBufferSRV().Buffer);
 	}
 
 	virtual void RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4f& Values) final override
@@ -228,9 +195,14 @@ public:
 		return this->RHICreateTexture(Desc);
 	}
 
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo) final override
-	{ 
-		return new FRHIShaderResourceView(Texture); 
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(class FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
+	{
+		return new FRHIShaderResourceView(Resource, ViewDesc);
+	}
+
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(class FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
+	{
+		return new FRHIUnorderedAccessView(Resource, ViewDesc);
 	}
 
 	virtual void RHIGenerateMips(FRHITexture* Texture) final override
@@ -590,14 +562,6 @@ public:
 		return false; 
 	}
 	virtual void RHIGetSupportedResolution(uint32& Width, uint32& Height) final override
-	{
-
-	}
-	virtual void RHIVirtualTextureSetFirstMipInMemory(FRHITexture2D* Texture, uint32 FirstMip) final override
-	{
-
-	}
-	virtual void RHIVirtualTextureSetFirstMipVisible(FRHITexture2D* Texture, uint32 FirstMip) final override
 	{
 
 	}

@@ -163,9 +163,6 @@ public:
 
 #pragma mark - Public Command Encoder Accessors -
 	
-	/** @returns True if and only if there is an active parallel render command encoder, otherwise false. */
-	bool IsParallelRenderCommandEncoderActive(void) const;
-	
 	/** @returns True if and only if there is an active render command encoder, otherwise false. */
 	bool IsRenderCommandEncoderActive(void) const;
 	
@@ -180,29 +177,11 @@ public:
 	bool IsAccelerationStructureCommandEncoderActive(void) const;
 #endif // METAL_RHI_RAYTRACING
 
-	/**
-	 * True iff the command-encoder submits immediately to the command-queue, false if it performs any buffering.
-	 * @returns True iff the command-list submits immediately to the command-queue, false if it performs any buffering.
-	 */
-	bool IsImmediate(void) const;
-	
-	/**
-	 * True iff the command-encoder encodes only to a child of a parallel render command encoder, false if it is standalone.
-	 * @returns True iff the command-encoder encodes only to a child of a parallel render command encoder, false if it is standalone.
-	 */
-	bool IsParallel(void) const;
-
 	/** @returns True if and only if there is valid render pass descriptor set on the encoder, otherwise false. */
 	bool IsRenderPassDescriptorValid(void) const;
 	
 	/** @returns The current render pass descriptor. */
 	mtlpp::RenderPassDescriptor const& GetRenderPassDescriptor(void) const;
-	
-	/** @returns The active render command encoder or nil if there isn't one. */
-	mtlpp::ParallelRenderCommandEncoder& GetParallelRenderCommandEncoder(void);
-	
-	/** @returns The child render command encoder of the current parallel render encoder for Index. */
-	mtlpp::RenderCommandEncoder& GetChildRenderCommandEncoder(uint32 Index);
 
 	/** @returns The active render command encoder or nil if there isn't one. */
 	mtlpp::RenderCommandEncoder& GetRenderCommandEncoder(void);
@@ -225,12 +204,6 @@ public:
 	uint32 NumEncodedPasses(void) const { return EncoderNum; }
 	
 #pragma mark - Public Command Encoder Mutators -
-
-	/**
- 	 * Begins encoding rendering commands into the current command buffer. No other encoder may be active & the mtlpp::RenderPassDescriptor must previously have been set.
-	 * @param NumChildren The number of child render-encoders to create. 
-	 */
-	void BeginParallelRenderCommandEncoding(uint32 NumChildren);
 
 	/**
  	 * Begins encoding rendering commands into the current command buffer. No other encoder may be active & the mtlpp::RenderPassDescriptor must previously have been set.
@@ -306,9 +279,6 @@ public:
 	
 	/** @returns The active blit command encoder or nil if there isn't one. */
 	FMetalBlitCommandEncoderDebugging& GetBlitCommandEncoderDebugging(void) { return BlitEncoderDebug; }
-	
-	/** @returns The active blit command encoder or nil if there isn't one. */
-	FMetalParallelRenderCommandEncoderDebugging& GetParallelRenderCommandEncoderDebugging(void) { return ParallelEncoderDebug; }
 #endif
 	
 #pragma mark - Public Render State Mutators -
@@ -604,21 +574,18 @@ public:
 	mtlpp::RenderPassDescriptor RenderPassDesc;
 	
 	mtlpp::CommandBuffer CommandBuffer;
-	mtlpp::ParallelRenderCommandEncoder ParallelRenderCommandEncoder;
 	mtlpp::RenderCommandEncoder RenderCommandEncoder;
 	mtlpp::ComputeCommandEncoder ComputeCommandEncoder;
 	mtlpp::BlitCommandEncoder BlitCommandEncoder;
 #if METAL_RHI_RAYTRACING
 	mtlpp::AccelerationStructureCommandEncoder AccelerationStructureCommandEncoder;
 #endif // METAL_RHI_RAYTRACING
-	TArray<mtlpp::RenderCommandEncoder> ChildRenderCommandEncoders;
 	FMetalCommandBufferMarkers CommandBufferMarkers;
 	
 	METAL_DEBUG_ONLY(FMetalCommandBufferDebugging CommandBufferDebug);
 	METAL_DEBUG_ONLY(FMetalRenderCommandEncoderDebugging RenderEncoderDebug);
 	METAL_DEBUG_ONLY(FMetalComputeCommandEncoderDebugging ComputeEncoderDebug);
 	METAL_DEBUG_ONLY(FMetalBlitCommandEncoderDebugging BlitEncoderDebug);
-	METAL_DEBUG_ONLY(FMetalParallelRenderCommandEncoderDebugging ParallelEncoderDebug);
 	
 	TRefCountPtr<FMetalFence> EncoderFence;
 #if ENABLE_METAL_GPUPROFILE

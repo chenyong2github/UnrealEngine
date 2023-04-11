@@ -58,19 +58,21 @@ public:
 			
 	// Accessors.
 	bool IsStreamable() const									{ return EnumHasAnyFlags(GetDesc().Flags, ETextureCreateFlags::Streamable); }
-	FD3D12ShaderResourceView* GetShaderResourceView() const		{ return ShaderResourceView; }
+	bool SkipsFastClearFinalize() const                         { return EnumHasAnyFlags(GetDesc().Flags, ETextureCreateFlags::NoFastClearFinalize); }
+
 	const FTextureRHIRef& GetAliasingSourceTexture() const		{ return AliasingSourceTexture; }
-	bool HasRenderTargetViews() const							{ return (RenderTargetViews.Num() > 0); }
+
 	void GetReadBackHeapDesc(D3D12_PLACED_SUBRESOURCE_FOOTPRINT& OutFootprint, uint32 Subresource) const;
+
+	bool HasRenderTargetViews() const							{ return (RenderTargetViews.Num() > 0); }
+	FD3D12ShaderResourceView* GetShaderResourceView() const		{ return ShaderResourceView.Get(); }
 	FD3D12RenderTargetView* GetRenderTargetView(int32 MipIndex, int32 ArraySliceIndex) const;
-	FD3D12DepthStencilView* GetDepthStencilView(FExclusiveDepthStencil AccessType) const { return DepthStencilViews[AccessType.GetIndex()]; }
+	FD3D12DepthStencilView* GetDepthStencilView(FExclusiveDepthStencil AccessType) const { return DepthStencilViews[AccessType.GetIndex()].Get(); }
+
 #if PLATFORM_REQUIRES_TYPELESS_RESOURCE_DISCARD_WORKAROUND
 	bool GetRequiresTypelessResourceDiscardWorkaround() const { return bRequiresTypelessResourceDiscardWorkaround; }
 #endif // #if PLATFORM_REQUIRES_TYPELESS_RESOURCE_DISCARD_WORKAROUND
 		
-	// Setters
-	void SetShaderResourceView(FD3D12ShaderResourceView* InShaderResourceView) { ShaderResourceView = InShaderResourceView; }
-
 	// Setup functionality
 	void InitializeTextureData(class FRHICommandListImmediate* RHICmdList, const FRHITextureCreateDesc& CreateDesc, D3D12_RESOURCE_STATES DestinationState);
 	void CreateViews();
@@ -79,18 +81,41 @@ public:
 		bCreatedRTVsPerSlice = Value;
 		RTVArraySizePerMip = InRTVArraySize;
 	}
-	void SetNumRenderTargetViews(int32 InNumViews)
+
+	void SetNumRTVs(int32 Num)
 	{
-		RenderTargetViews.Empty(InNumViews);
-		RenderTargetViews.AddDefaulted(InNumViews);
+		RenderTargetViews.SetNum(Num);
 	}
-	void SetRenderTargetView(FD3D12RenderTargetView* View)
+
+	void EmplaceRTV(D3D12_RENDER_TARGET_VIEW_DESC const& RTVDesc, int32 Index)
 	{
-		RenderTargetViews.Empty(1);
-		RenderTargetViews.Add(View);
+		check(RenderTargetViews.IsValidIndex(Index));
+		check(!RenderTargetViews[Index]);
+
+		RenderTargetViews[Index] = MakeShared<FD3D12RenderTargetView>(GetParentDevice());
+		RenderTargetViews[Index]->CreateView(this, RTVDesc);
 	}
-	void SetDepthStencilView(FD3D12DepthStencilView* View, uint32 SubResourceIndex);
-	void SetRenderTargetViewIndex(FD3D12RenderTargetView* View, uint32 SubResourceIndex);
+
+	void EmplaceDSV(D3D12_DEPTH_STENCIL_VIEW_DESC const& DSVDesc, int32 Index)
+	{
+		check(Index < FExclusiveDepthStencil::MaxIndex);
+		check(!DepthStencilViews[Index]);
+
+		DepthStencilViews[Index] = MakeShared<FD3D12DepthStencilView>(GetParentDevice());
+		DepthStencilViews[Index]->CreateView(this, DSVDesc);
+	}
+
+	void EmplaceSRV(D3D12_SHADER_RESOURCE_VIEW_DESC const& SRVDesc)
+	{
+		check(!ShaderResourceView);
+
+		FD3D12ShaderResourceView::EFlags Flags = SkipsFastClearFinalize()
+			? FD3D12ShaderResourceView::EFlags::SkipFastClearFinalize
+			: FD3D12ShaderResourceView::EFlags::None;
+
+		ShaderResourceView = MakeShared<FD3D12ShaderResourceView>(GetParentDevice());
+		ShaderResourceView->CreateView(this, SRVDesc, Flags);
+	}
 
 	// Locking/update functions
 	void* Lock(class FRHICommandListImmediate* RHICmdList, uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride);
@@ -102,14 +127,14 @@ public:
 	// Resource aliasing
 	void AliasResources(FD3D12Texture* Texture);
 	void SetAliasingSource(FTextureRHIRef& SourceTextureRHI)	{ AliasingSourceTexture = SourceTextureRHI; }
-	
+
 protected:
 
 	// Lock helper functions
 	void UnlockInternal(class FRHICommandListImmediate* RHICmdList, FLinkedObjectIterator NextObject, uint32 MipIndex, uint32 ArrayIndex);
 		
 	// A shader resource view of the texture.
-	TRefCountPtr<FD3D12ShaderResourceView> ShaderResourceView;
+	TSharedPtr<FD3D12ShaderResourceView> ShaderResourceView;
 
 	// Set when RTVs are created for each slice - TexCreate_TargetArraySlicesIndependently for TextureArrays & Cubemaps
 	bool bCreatedRTVsPerSlice{ false };
@@ -122,10 +147,10 @@ protected:
 	int32 RTVArraySizePerMip{};
 
 	// A render targetable view of the texture.
-	TArray<TRefCountPtr<FD3D12RenderTargetView>, TInlineAllocator<1>> RenderTargetViews;
+	TArray<TSharedPtr<FD3D12RenderTargetView>, TInlineAllocator<1>> RenderTargetViews;
 
 	// A depth-stencil targetable view of the texture.
-	TRefCountPtr<FD3D12DepthStencilView> DepthStencilViews[FExclusiveDepthStencil::MaxIndex];
+	TSharedPtr<FD3D12DepthStencilView> DepthStencilViews[FExclusiveDepthStencil::MaxIndex];
 
 	// Data for each subresource while texture is locked
 	TMap<uint32, FD3D12LockedResource*> LockedMap;
@@ -155,7 +180,7 @@ inline FD3D12RenderTargetView* FD3D12Texture::GetRenderTargetView(int32 MipIndex
 
 	if (ArrayIndex < RenderTargetViews.Num())
 	{
-		return RenderTargetViews[ArrayIndex];
+		return RenderTargetViews[ArrayIndex].Get();
 	}
 	return 0;
 }

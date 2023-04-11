@@ -38,7 +38,7 @@ inline void ValidateShaderParameters(FRHIShader* RHIShader, RHIValidation::FTrac
 				{
 					RHIValidation::ValidateShaderResourceView(RHIShader, Parameter.Index, SRV);
 				}
-				Tracker->Assert(SRV->ViewIdentity, InRequiredAccess);
+				Tracker->Assert(SRV->GetViewIdentity(), InRequiredAccess);
 			}
 			break;
 		case FRHIShaderParameterResource::EType::UnorderedAccessView:
@@ -155,13 +155,13 @@ public:
 
 	virtual void RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4f& Values) override final
 	{
-		Tracker->Assert(UnorderedAccessViewRHI->ViewIdentity, ERHIAccess::UAVCompute);
+		Tracker->Assert(UnorderedAccessViewRHI->GetViewIdentity(), ERHIAccess::UAVCompute);
 		RHIContext->RHIClearUAVFloat(UnorderedAccessViewRHI, Values);
 	}
 
 	virtual void RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FUintVector4& Values) override final
 	{
-		Tracker->Assert(UnorderedAccessViewRHI->ViewIdentity, ERHIAccess::UAVCompute);
+		Tracker->Assert(UnorderedAccessViewRHI->GetViewIdentity(), ERHIAccess::UAVCompute);
 		RHIContext->RHIClearUAVUint(UnorderedAccessViewRHI, Values);
 	}
 
@@ -181,7 +181,7 @@ public:
 	{
 		for (FRHIUnorderedAccessView* UAV : UAVs)
 		{
-			Tracker->SpecificUAVOverlap(UAV->ViewIdentity, true);
+			Tracker->SpecificUAVOverlap(UAV->GetViewIdentity(), true);
 		}
 		RHIContext->RHIBeginUAVOverlap(UAVs);
 	}
@@ -190,7 +190,7 @@ public:
 	{
 		for (FRHIUnorderedAccessView* UAV : UAVs)
 		{
-			Tracker->SpecificUAVOverlap(UAV->ViewIdentity, false);
+			Tracker->SpecificUAVOverlap(UAV->GetViewIdentity(), false);
 		}
 		RHIContext->RHIEndUAVOverlap(UAVs);
 	}
@@ -253,7 +253,7 @@ public:
 		checkf(State.bComputePSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
 		if (SRV) 
 		{
-			Tracker->Assert(SRV->ViewIdentity, ERHIAccess::SRVCompute);
+			Tracker->Assert(SRV->GetViewIdentity(), ERHIAccess::SRVCompute);
 		}
 		RHIContext->RHISetShaderResourceViewParameter(Shader, SamplerIndex, SRV);
 	}
@@ -441,7 +441,7 @@ public:
 	{
 		for (FRHIUnorderedAccessView* UAV : UAVs)
 		{
-			Tracker->SpecificUAVOverlap(UAV->ViewIdentity, true);
+			Tracker->SpecificUAVOverlap(UAV->GetViewIdentity(), true);
 		}
 		RHIContext->RHIBeginUAVOverlap(UAVs);
 	}
@@ -450,7 +450,7 @@ public:
 	{
 		for (FRHIUnorderedAccessView* UAV : UAVs)
 		{
-			Tracker->SpecificUAVOverlap(UAV->ViewIdentity, false);
+			Tracker->SpecificUAVOverlap(UAV->GetViewIdentity(), false);
 		}
 		RHIContext->RHIEndUAVOverlap(UAVs);
 	}
@@ -762,7 +762,7 @@ public:
 		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to set resources into a shader!"));
 		if (SRV)
 		{
-			Tracker->Assert(SRV->ViewIdentity, ERHIAccess::SRVGraphics);
+			Tracker->Assert(SRV->GetViewIdentity(), ERHIAccess::SRVGraphics);
 		}
 		RHIContext->RHISetShaderResourceViewParameter(Shader, SamplerIndex, SRV);
 	}
@@ -772,7 +772,7 @@ public:
 		checkf(State.bComputePSOSet, TEXT("A Compute PSO has to be set to set resources into a shader!"));
 		if (SRV)
 		{
-			Tracker->Assert(SRV->ViewIdentity, ERHIAccess::SRVCompute);
+			Tracker->Assert(SRV->GetViewIdentity(), ERHIAccess::SRVCompute);
 		}
 		RHIContext->RHISetShaderResourceViewParameter(Shader, SamplerIndex, SRV);
 	}

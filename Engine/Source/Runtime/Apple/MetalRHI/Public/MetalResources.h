@@ -10,6 +10,10 @@
 #include "MetalShaderResources.h"
 #include "ShaderCodeArchive.h"
 
+#define UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER 1
+
+class FMetalRHICommandContext;
+
 THIRD_PARTY_INCLUDES_START
 #include "mtlpp.hpp"
 THIRD_PARTY_INCLUDES_END
@@ -140,8 +144,33 @@ struct FMetalTextureCreateDesc : public FRHITextureCreateDesc
 	uint8 FormatKey = 0;
 };
 
+class FMetalResourceViewBase;
+class FMetalShaderResourceView;
+class FMetalUnorderedAccessView;
+
+class FMetalViewableResource
+{
+public:
+	~FMetalViewableResource()
+	{
+		checkf(!HasLinkedViews(), TEXT("All linked views must have been removed before the underlying resource can be deleted."));
+	}
+
+	bool HasLinkedViews() const
+	{
+		return LinkedViews != nullptr;
+	}
+
+	void UpdateLinkedViews();
+
+private:
+	friend FMetalShaderResourceView;
+	friend FMetalUnorderedAccessView;
+	FMetalResourceViewBase* LinkedViews = nullptr;
+};
+
 // Metal RHI texture resource
-class METALRHI_API FMetalSurface : public FRHITexture
+class METALRHI_API FMetalSurface : public FRHITexture, public FMetalViewableResource
 {
 public:
 
@@ -155,9 +184,6 @@ public:
 	 */
 	virtual ~FMetalSurface();
 
-	/** Prepare for texture-view support - need only call this once on the source texture which is to be viewed. */
-	void PrepareTextureView();
-	
 	/** @returns A newly allocated buffer object large enough for the surface within the texture specified. */
 	id <MTLBuffer> AllocSurface(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride, bool SingleLayer = false);
 
@@ -260,77 +286,14 @@ private:
 -(instancetype)initWithBytes:(void const*)Data length:(uint32)Size;
 @end
 
-enum class EMetalBufferUsage
-{
-	None = 0,
-	GPUOnly = 1 << 0,
-	LinearTex = 1 << 1,
-};
-ENUM_CLASS_FLAGS(EMetalBufferUsage);
-
-class FMetalLinearTextureDescriptor
-{
-public:
-	FMetalLinearTextureDescriptor() = default;
-
-	FMetalLinearTextureDescriptor(uint32 InStartOffsetBytes, uint32 InNumElements, uint32 InBytesPerElement)
-		: StartOffsetBytes(InStartOffsetBytes)
-		, NumElements     (InNumElements)
-		, BytesPerElement (InBytesPerElement)
-	{}
-
-	friend uint32 GetTypeHash(FMetalLinearTextureDescriptor const& Key)
-	{
-		uint32 Hash = GetTypeHash((uint64)Key.StartOffsetBytes);
-		Hash = HashCombine(Hash, GetTypeHash((uint64)Key.NumElements));
-		Hash = HashCombine(Hash, GetTypeHash((uint64)Key.BytesPerElement));
-		return Hash;
-	}
-
-	bool operator==(FMetalLinearTextureDescriptor const& Other) const
-	{
-		return    StartOffsetBytes == Other.StartOffsetBytes
-		       && NumElements      == Other.NumElements
-		       && BytesPerElement  == Other.BytesPerElement;
-	}
-
-	uint32 StartOffsetBytes = 0;
-	uint32 NumElements      = UINT_MAX;
-	uint32 BytesPerElement  = 0;
-};
-
-class FMetalRHIBuffer
+class FMetalRHIBuffer final : public FRHIBuffer, public FMetalViewableResource
 {
 public:
 	// Matches other RHIs
 	static constexpr const uint32 MetalMaxNumBufferedFrames = 4;
 	
-	using LinearTextureMapKey = TTuple<EPixelFormat, FMetalLinearTextureDescriptor>;
-	using LinearTextureMap = TMap<LinearTextureMapKey, FMetalTexture>;
-	
-	struct FMetalBufferAndViews
-	{
-		FMetalBuffer Buffer;
-		LinearTextureMap Views;
-	};
-	
-	FMetalRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, EMetalBufferUsage InMetalUsage, ERHIResourceType InType);
+	FMetalRHIBuffer(FRHICommandListBase& RHICmdList, FRHIBufferDesc const& InBufferDesc, FRHIResourceCreateInfo& CreateInfo);
 	virtual ~FMetalRHIBuffer();
-	
-	/**
-	 * Initialize the buffer contents from the render-thread.
-	 */
-	void Init(class FRHICommandListBase& RHICmdList, uint32 Size, EBufferUsageFlags InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource);
-	
-	/**
-	 * Get a linear texture for given format.
-	 */
-	void CreateLinearTexture(EPixelFormat InFormat, FRHIResource* InParent, const FMetalLinearTextureDescriptor* InLinearTextureDescriptor = nullptr);
-	
-	/**
-	 * Get a linear texture for given format.
-	 */
-	ns::AutoReleased<FMetalTexture> GetLinearTexture(EPixelFormat InFormat, const FMetalLinearTextureDescriptor* InLinearTextureDescriptor = nullptr);
 	
 	/**
 	 * Prepare a CPU accessible buffer for uploading to GPU memory
@@ -342,31 +305,18 @@ public:
 	 */
 	void Unlock();
 	
-	void Swap(FMetalRHIBuffer& Other);
-	
-	const FMetalBufferAndViews& GetCurrentBacking()
+	FMetalBuffer& GetCurrentBuffer()
 	{
-		check(NumberOfBuffers > 0);
 		return BufferPool[CurrentIndex];
-	}
-	
-	const FMetalBuffer& GetCurrentBuffer()
-	{
-		return BufferPool[CurrentIndex].Buffer;
 	}
 	
 	FMetalBuffer GetCurrentBufferOrNil()
 	{
-		if(NumberOfBuffers > 0)
+		if (NumberOfBuffers > 0)
 		{
 			return GetCurrentBuffer();
 		}
 		return nil;
-	}
-	
-	EMetalBufferUsage GetMetalUsage() const
-	{
-		return MetalUsage;
 	}
 	
 	void AdvanceBackingIndex()
@@ -387,210 +337,182 @@ public:
 	 */
 	bool UsePrivateMemory() const;
 	
+    void TakeOwnership(FMetalRHIBuffer& Other);
+    void ReleaseOwnership();
+    
 	// A temporary shared/CPU accessible buffer for upload/download
 	FMetalBuffer TransferBuffer;
 	
-	TArray<FMetalBufferAndViews> BufferPool;
+	TArray<FMetalBuffer> BufferPool;
 	
 	/** Buffer for small buffers < 4Kb to avoid heap fragmentation. */
-	FMetalBufferData* Data;
-	
-	// Frame we last locked (for debugging, mainly)
-	uint32 LastLockFrame;
+	FMetalBufferData* Data = nullptr;
 	
 	// The active buffer.
-	uint32 CurrentIndex		: 8;
+	uint8 CurrentIndex = 0;
 	// How many buffers are actually allocated
-	uint32 NumberOfBuffers	: 8;
+	uint8 NumberOfBuffers = 0;
 	// Current lock mode. RLM_Num indicates this buffer is not locked.
-	uint32 CurrentLockMode	: 16;
+	uint16 CurrentLockMode = RLM_Num;
 	
 	// offset into the buffer (for lock usage)
-	uint32 LockOffset;
+	uint32 LockOffset = 0;
 	
 	// Sizeof outstanding lock.
-	uint32 LockSize;
+	uint32 LockSize = 0;
 	
 	// Initial buffer size.
 	uint32 Size;
 	
-	// Buffer usage.
-	EBufferUsageFlags Usage;
-	
-	// Metal buffer usage.
-	EMetalBufferUsage MetalUsage;
-	
 	// Storage mode
 	mtlpp::StorageMode Mode;
 	
-	// Resource type
-	ERHIResourceType Type;
-	
+	// 16- or 32-bit; used for index buffers only.
+	mtlpp::IndexType GetIndexType() const
+	{
+		return GetStride() == 2
+			? mtlpp::IndexType::UInt16
+			: mtlpp::IndexType::UInt32;
+	}
+
 	static_assert((1 << 16) > RLM_Num, "Lock mode does not fit in bitfield");
 	static_assert((1 << 8) > MetalMaxNumBufferedFrames, "Buffer count does not fit in bitfield");
 	
 private:
-	FMetalBufferAndViews& GetCurrentBackingInternal()
-	{
-		return BufferPool[CurrentIndex];
-	}
-	
-	FMetalBuffer& GetCurrentBufferInternal()
-	{
-		return BufferPool[CurrentIndex].Buffer;
-	}
-	
-	/**
-	 * Allocate the CPU accessible buffer for data transfer.
-	 */
+	// Allocate the CPU accessible buffer for data transfer.
 	void AllocTransferBuffer(bool bOnRHIThread, uint32 InSize, EResourceLockMode LockMode);
-	
-	/**
-	 * Allocate a linear texture for given format.
-	 */
-	void AllocLinearTextures(const LinearTextureMapKey& InLinearTextureMapKey);
 };
 
-class FMetalResourceMultiBuffer : public FRHIBuffer, public FMetalRHIBuffer
+class FMetalResourceViewBase : public TIntrusiveLinkedList<FMetalResourceViewBase>
 {
 public:
-	FMetalResourceMultiBuffer(uint32 InSize, EBufferUsageFlags InUsage, EMetalBufferUsage InMetalUsage, uint32 InStride, ERHIResourceType ResourceType);
-	virtual ~FMetalResourceMultiBuffer();
+	struct FBufferView
+	{
+		FMetalBuffer& Buffer;
+		uint32 Offset;
+		uint32 Size;
 
-	void Swap(FMetalResourceMultiBuffer& Other);
+		FBufferView(FMetalBuffer& Buffer, uint32 Offset, uint32 Size)
+			: Buffer(Buffer)
+			, Offset(Offset)
+			, Size(Size)
+		{}
+	};
+    
+    struct FTextureBufferBacked
+    {
+        FMetalTexture Texture;
+        FMetalBuffer Buffer;
+        uint32 Offset;
+        uint32 Size;
+        EPixelFormat Format;
 
-	// 16- or 32-bit; used for index buffers only.
-	mtlpp::IndexType IndexType;
-};
+        FTextureBufferBacked(FMetalTexture& Texture, FMetalBuffer& Buffer, uint32 Offset, uint32 Size, EPixelFormat Format)
+            :
+              Texture(Texture)
+            , Buffer(Buffer)
+            , Offset(Offset)
+            , Size(Size)
+            , Format(Format)
+        {}
+    };
 
-typedef FMetalResourceMultiBuffer FMetalIndexBuffer;
-typedef FMetalResourceMultiBuffer FMetalVertexBuffer;
-typedef FMetalResourceMultiBuffer FMetalStructuredBuffer;
+	typedef TVariant<FEmptyVariantState
+		, FMetalTexture
+		, FBufferView
+        , FTextureBufferBacked
+#if METAL_RHI_RAYTRACING
+		, mtlpp::AccelerationStructure
+#endif
+	> TStorage;
 
-class FMetalResourceViewBase
-{
+	enum class EMetalType
+	{
+		Null                  = TStorage::IndexOfType<FEmptyVariantState>(),
+		TextureView           = TStorage::IndexOfType<FMetalTexture>(),
+		BufferView            = TStorage::IndexOfType<FBufferView>(),
+        TextureBufferBacked   = TStorage::IndexOfType<FTextureBufferBacked>(),
+#if METAL_RHI_RAYTRACING
+		AccelerationStructure = TStorage::IndexOfType<mtlpp::AccelerationStructure>()
+#endif
+	};
+
 protected:
-	// Constructor for buffers
-	FMetalResourceViewBase(
-		  FRHIBuffer* InBuffer
-		, uint32 InStartOffsetBytes
-		, uint32 InNumElements
-		, EPixelFormat InFormat
-	);
-
-	// Constructor for textures
-	FMetalResourceViewBase(
-		  FRHITexture* InTexture
-		, EPixelFormat InFormat
-		, uint8 InMipLevel
-		, uint8 InNumMipLevels
-		, ERHITextureSRVOverrideSRGBType InSRGBOverride
-		, uint32 InFirstArraySlice
-		, uint32 InNumArraySlices
-		, bool bInUAV
-	);
+	FMetalResourceViewBase() = default;
 
 public:
-	~FMetalResourceViewBase();
+	virtual ~FMetalResourceViewBase();
 
-	inline FMetalResourceMultiBuffer* GetSourceBuffer () const { check(!bTexture); return SourceBuffer; }
+	EMetalType GetMetalType() const
+	{
+		return static_cast<EMetalType>(Storage.GetIndex());
+	}
 
-	inline FMetalSurface*             GetSourceTexture() const { check(bTexture); return SourceTexture; }
-	inline FMetalTexture const&       GetTextureView  () const { check(bTexture); return TextureView;   }
+	FMetalTexture const& GetTextureView() const
+	{
+		check(GetMetalType() == EMetalType::TextureView);
+		return Storage.Get<FMetalTexture>();
+	}
 
-public:
+	FBufferView const& GetBufferView() const
+	{
+		check(GetMetalType() == EMetalType::BufferView);
+		return Storage.Get<FBufferView>();
+	}
+    
+    FTextureBufferBacked const& GetTextureBufferBacked() const
+    {
+        check(GetMetalType() == EMetalType::TextureBufferBacked);
+        return Storage.Get<FTextureBufferBacked>();
+    }
+
+#if METAL_RHI_RAYTRACING
+	mtlpp::AccelerationStructure const& GetAccelerationStructure() const
+	{
+		check(GetMetalType() == EMetalType::AccelerationStructure);
+		return Storage.Get<mtlpp::AccelerationStructure>();
+	}
+#endif
+
 	// TODO: This is kinda awkward; should probably be refactored at some point.
 	TArray<TTuple<ns::AutoReleased<mtlpp::Resource>, mtlpp::ResourceUsage>> ReferencedResources;
 
+	virtual void UpdateView() = 0;
+
+protected:
+	FMetalTexture& InitAsTextureView();
+	void InitAsBufferView(FMetalBuffer& Buffer, uint32 Offset, uint32 Size);
+    void InitAsTextureBufferBacked(FMetalTexture& Texture, FMetalBuffer& Buffer, uint32 Offset, uint32 Size, EPixelFormat Format);
+
+	void Invalidate();
+
+	bool bOwnsResource = true;
+
 private:
-	// Needed for RHIUpdateShaderResourceView
-	friend class FMetalDynamicRHI;
-
-	union
-	{
-		FMetalResourceMultiBuffer* SourceBuffer;
-		FMetalSurface* SourceTexture;
-	};
-
-	TUniquePtr<FMetalLinearTextureDescriptor> LinearTextureDesc = nullptr;
-	FMetalTexture TextureView = nullptr;
-
-public:
-	uint8 const bTexture : 1;
-	uint8       bSRGBForceDisable : 1;
-	uint8       MipLevel : 4;
-	uint8       Reserved : 2;
-	uint8       NumMips;
-	uint8       Format;
-	uint8       Stride;
-	uint32      Offset;
-
-	ns::AutoReleased<FMetalTexture> GetLinearTexture();
+	TStorage Storage;
 };
 
 class FMetalShaderResourceView final : public FRHIShaderResourceView, public FMetalResourceViewBase
 {
 public:
-	explicit FMetalShaderResourceView(const FShaderResourceViewInitializer& Initializer)
-		: FRHIShaderResourceView(Initializer.AsBufferSRV().Buffer)
-		, FMetalResourceViewBase(
-			  Initializer.AsBufferSRV().Buffer
-			, Initializer.AsBufferSRV().StartOffsetBytes
-			, Initializer.AsBufferSRV().NumElements
-			, Initializer.AsBufferSRV().Format
-		)
-	{}
+	FMetalShaderResourceView(FRHICommandListImmediate& RHICmdList, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc);
+	FMetalViewableResource* GetBaseResource() const;
 
-	explicit FMetalShaderResourceView(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo)
-		: FRHIShaderResourceView(Texture)
-		, FMetalResourceViewBase(
-			  Texture
-			, CreateInfo.Format
-			, CreateInfo.MipLevel
-			, CreateInfo.NumMipLevels
-			, CreateInfo.SRGBOverride
-			, CreateInfo.FirstArraySlice
-			, CreateInfo.NumArraySlices
-			, false // bInUAV
-		)
-	{}
-
-	virtual ~FMetalShaderResourceView()
-	{}
+	virtual void UpdateView() override;
 };
 
 class FMetalUnorderedAccessView final : public FRHIUnorderedAccessView, public FMetalResourceViewBase
 {
 public:
-	explicit FMetalUnorderedAccessView(FRHIBuffer* Buffer, EPixelFormat Format)
-		: FRHIUnorderedAccessView(Buffer)
-		, FMetalResourceViewBase(Buffer, 0, UINT_MAX, Format)
-	{}
+	FMetalUnorderedAccessView(FRHICommandListImmediate& RHICmdList, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc);
+	FMetalViewableResource* GetBaseResource() const;
 
-	explicit FMetalUnorderedAccessView(FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer)
-		: FRHIUnorderedAccessView(Buffer)
-		, FMetalResourceViewBase(Buffer, 0, UINT_MAX, PF_Unknown)
-	{
-		checkf(!bUseUAVCounter, TEXT("UAV counters not implemented."));
-		checkf(!bAppendBuffer, TEXT("UAV append buffers not implemented."));
-	}
+	virtual void UpdateView() override;
 
-	explicit FMetalUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices)
-		: FRHIUnorderedAccessView(Texture)
-		, FMetalResourceViewBase(
-			  Texture
-			, PF_Unknown
-			, MipLevel
-			, 1 // NumMipLevels
-			, ERHITextureSRVOverrideSRGBType::SRGBO_ForceDisable
-			, FirstArraySlice
-			, NumArraySlices
-			, true // bInUAV
-		)
-	{}
-
-	virtual ~FMetalUnorderedAccessView()
-	{}
+	void ClearUAV(TRHICommandList_RecursiveHazardous<FMetalRHICommandContext>& RHICmdList, const void* ClearValue, bool bFloat);
+#if UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER
+	void ClearUAVWithBlitEncoder(TRHICommandList_RecursiveHazardous<FMetalRHICommandContext>& RHICmdList, uint32 Pattern);
+#endif
 };
 
 class FMetalGPUFence final : public FRHIGPUFence
@@ -678,7 +600,7 @@ struct TMetalResourceTraits<FRHIUniformBuffer>
 template<>
 struct TMetalResourceTraits<FRHIBuffer>
 {
-	typedef FMetalResourceMultiBuffer TConcreteType;
+	typedef FMetalRHIBuffer TConcreteType;
 };
 template<>
 struct TMetalResourceTraits<FRHIShaderResourceView>

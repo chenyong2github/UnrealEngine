@@ -6,11 +6,12 @@
 
 #pragma once
 
+#include "D3D12Descriptors.h"
+
 class FD3D12SamplerState : public FRHISamplerState, public FD3D12DeviceChild, public FD3D12LinkedAdapterObject<FD3D12SamplerState>
 {
 public:
-	D3D12_CPU_DESCRIPTOR_HANDLE OfflineHandle{};
-	uint32 OfflineIndex{};
+	FD3D12OfflineDescriptor OfflineDescriptor;
 	FRHIDescriptorHandle BindlessHandle;
 	const uint16 ID;
 

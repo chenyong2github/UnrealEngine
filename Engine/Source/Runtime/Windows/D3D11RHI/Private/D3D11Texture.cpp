@@ -997,86 +997,6 @@ FTextureRHIRef FD3D11DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 	return Texture;
 }
 
-FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FRHITexture* TextureRHI, const FRHITextureSRVCreateInfo& CreateInfo)
-{
-	FD3D11Texture* Texture = ResourceCast(TextureRHI);
-
-	// Create a Shader Resource View
-	D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
-	DXGI_FORMAT BaseTextureFormat = DXGI_FORMAT_UNKNOWN;
-
-	if (TextureRHI->GetTexture3D() != NULL)
-	{
-		D3D11_TEXTURE3D_DESC TextureDesc;
-		Texture->GetD3D11Texture3D()->GetDesc(&TextureDesc);
-		BaseTextureFormat = TextureDesc.Format;
-
-		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
-		SRVDesc.Texture3D.MostDetailedMip = CreateInfo.MipLevel;
-		SRVDesc.Texture3D.MipLevels = CreateInfo.NumMipLevels;
-	}
-	else if (TextureRHI->GetTexture2DArray() != NULL)
-	{
-		D3D11_TEXTURE2D_DESC TextureDesc;
-		Texture->GetD3D11Texture2D()->GetDesc(&TextureDesc);
-		BaseTextureFormat = TextureDesc.Format;
-
-		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
-		SRVDesc.Texture2DArray.MostDetailedMip = CreateInfo.MipLevel;
-		SRVDesc.Texture2DArray.MipLevels = CreateInfo.NumMipLevels;
-		SRVDesc.Texture2DArray.FirstArraySlice = CreateInfo.FirstArraySlice;
-		SRVDesc.Texture2DArray.ArraySize = (CreateInfo.NumArraySlices == 0 ? TextureDesc.ArraySize : CreateInfo.NumArraySlices);
-	}
-	else if (TextureRHI->GetTextureCube() != NULL)
-	{
-		D3D11_TEXTURE2D_DESC TextureDesc;
-		Texture->GetD3D11Texture2D()->GetDesc(&TextureDesc);
-		BaseTextureFormat = TextureDesc.Format;
-
-		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-		SRVDesc.TextureCube.MostDetailedMip = CreateInfo.MipLevel;
-		SRVDesc.TextureCube.MipLevels = CreateInfo.NumMipLevels;
-	}
-	else
-	{
-		D3D11_TEXTURE2D_DESC TextureDesc;
-		Texture->GetD3D11Texture2D()->GetDesc(&TextureDesc);
-		BaseTextureFormat = TextureDesc.Format;
-
-		if (TextureDesc.SampleDesc.Count > 1)
-		{
-			///MS textures can't have mips apparently, so nothing else to set.
-			SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
-		}
-		else
-		{
-			SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-			SRVDesc.Texture2D.MostDetailedMip = CreateInfo.MipLevel;
-			SRVDesc.Texture2D.MipLevels = CreateInfo.NumMipLevels;
-		}
-	}
-
-	// Allow input CreateInfo to override SRGB and/or format
-	const bool bBaseSRGB = EnumHasAnyFlags(TextureRHI->GetFlags(), TexCreate_SRGB);
-	const bool bSRGB = CreateInfo.SRGBOverride != SRGBO_ForceDisable && bBaseSRGB;
-	if (CreateInfo.Format != PF_Unknown)
-	{
-		BaseTextureFormat = (DXGI_FORMAT)GPixelFormats[CreateInfo.Format].PlatformFormat;
-	}
-	SRVDesc.Format = FindShaderResourceDXGIFormat(BaseTextureFormat, bSRGB);
-
-	// Create a Shader Resource View
-	TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
-	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateShaderResourceView(Texture->GetResource(), &SRVDesc, (ID3D11ShaderResourceView**)ShaderResourceView.GetInitReference()), Direct3DDevice);
-
-	return new FD3D11ShaderResourceView(ShaderResourceView, Texture, Texture);
-}
-
-FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo)
-{
-	return RHICreateShaderResourceView(Texture, CreateInfo);
-}
-
 /** Generates mip maps for the surface. */
 void FD3D11DynamicRHI::RHIGenerateMips(FRHITexture* TextureRHI)
 {
@@ -1618,14 +1538,6 @@ void FD3D11DynamicRHI::RHIBindDebugLabelName(FRHITexture* TextureRHI, const TCHA
 		ResourceD3D->SetPrivateData(WKPDID_D3DDebugObjectName, FCString::Strlen(Name) + 1, TCHAR_TO_ANSI(Name));
 	}
 #endif
-}
-
-void FD3D11DynamicRHI::RHIVirtualTextureSetFirstMipInMemory(FRHITexture2D* TextureRHI, uint32 FirstMip)
-{
-}
-
-void FD3D11DynamicRHI::RHIVirtualTextureSetFirstMipVisible(FRHITexture2D* TextureRHI, uint32 FirstMip)
-{
 }
 
 FD3D11Texture* FD3D11DynamicRHI::CreateTextureFromResource(bool bTextureArray, bool bCubeTexture, EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D11Texture2D* TextureResource)

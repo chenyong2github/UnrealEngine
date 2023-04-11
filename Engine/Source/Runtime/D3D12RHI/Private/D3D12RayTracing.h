@@ -117,7 +117,6 @@ public:
 
 	struct FLayerData
 	{
-		FShaderResourceViewRHIRef ShaderResourceView;
 		D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS BuildInputs = {};
 		FRayTracingAccelerationStructureSize SizeInfo = {};
 		uint32 BufferOffset;

@@ -770,6 +770,13 @@ void FD3D12ResourceLocation::InternalClear()
 
 void FD3D12ResourceLocation::TransferOwnership(FD3D12ResourceLocation& Destination, FD3D12ResourceLocation& Source)
 {
+	// The bTransient field is not preserved
+	check(!Destination.bTransient && !Source.bTransient);
+
+	// Preserve the owner fields
+	FD3D12BaseShaderResource* DstOwner = Destination.Owner;
+	FD3D12BaseShaderResource* SrcOwner = Source.Owner;
+
 	// Clear out the destination
 	Destination.Clear();
 
@@ -790,80 +797,9 @@ void FD3D12ResourceLocation::TransferOwnership(FD3D12ResourceLocation& Destinati
 
 	// Destroy the source but don't invoke any resource destruction
 	Source.InternalClear<false>();
-}
 
-void FD3D12ResourceLocation::Swap(FD3D12ResourceLocation& Other)
-{
-	// TODO: Probably shouldn't manually track suballocations. It's error-prone and inaccurate
-#if !PLATFORM_WINDOWS && ENABLE_LOW_LEVEL_MEM_TRACKER
-	const bool bRequiresManualTracking = GetType() == ResourceLocationType::eSubAllocation && AllocatorType != AT_SegList;
-	const bool bOtherRequiresManualTracking = Other.GetType() == ResourceLocationType::eSubAllocation && Other.AllocatorType != AT_SegList;
-
-	if (bRequiresManualTracking)
-	{
-		FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Default, GetAddressForLLMTracking());
-	}
-	if (bOtherRequiresManualTracking)
-	{
-		FLowLevelMemTracker::Get().OnLowLevelAllocMoved(ELLMTracker::Default, GetAddressForLLMTracking(), Other.GetAddressForLLMTracking());
-	}
-	if (bRequiresManualTracking)
-	{
-		FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Default, Other.GetAddressForLLMTracking(), GetSize());
-	}
-#endif
-
-	if (Other.Type == ResourceLocationType::eStandAlone)
-	{
-		bool bIncrement = false;
-		Other.UpdateStandAloneStats(bIncrement);
-	}
-
-	if (Other.GetAllocatorType() == FD3D12ResourceLocation::AT_Pool)
-	{
-		// Swap all members except the pool data because that needs to happen while the pool is taken
-		FD3D12DeviceChild::Swap(Other);
-
-		::Swap(Owner, Other.Owner);
-		::Swap(UnderlyingResource, Other.UnderlyingResource);
-		::Swap(ResidencyHandle, Other.ResidencyHandle);
-				
-		::Swap(MappedBaseAddress, Other.MappedBaseAddress);
-		::Swap(GPUVirtualAddress, Other.GPUVirtualAddress);
-		::Swap(OffsetFromBaseOfResource, Other.OffsetFromBaseOfResource);
-
-		::Swap(Type, Other.Type);
-		::Swap(Size, Other.Size);
-		::Swap(bTransient, Other.bTransient);
-				
-		// Also pool allocated, then perform full swap with lock
-		if (GetAllocatorType() == EAllocatorType::AT_Pool)
-		{
-			check(PoolAllocator == Other.PoolAllocator);
-			GetPoolAllocator()->Swap(*this, Other);
-		}
-		else
-		{
-			// Assume unallocated
-			check(GetAllocatorType() == FD3D12ResourceLocation::AT_Unknown);
-
-			// We know this allocation is empty so can use transfer instead of full swap
-			Other.GetPoolAllocator()->TransferOwnership(Other, *this);
-
-			::Swap(AllocatorType, Other.AllocatorType);
-			::Swap(PoolAllocator, Other.PoolAllocator);
-		}
-	}
-	else
-	{
-		::Swap(*this, Other);
-	}
-
-	if (Type == ResourceLocationType::eStandAlone)
-	{
-		bool bIncrement = true;
-		UpdateStandAloneStats(bIncrement);
-	}
+	Destination.Owner = DstOwner;
+	Source.Owner = SrcOwner;
 }
 
 void FD3D12ResourceLocation::Alias(FD3D12ResourceLocation & Destination, FD3D12ResourceLocation & Source)
@@ -1198,7 +1134,7 @@ bool FD3D12ResourceLocation::OnAllocationMoved(FRHIPoolAllocationData* InNewData
 	check(!CurrentResource->GetDesc().NeedsUAVAliasWorkarounds());
 
 	// Notify all the dependent resources about the change
-	Owner->ResourceRenamed(this);
+	Owner->ResourceRenamed();
 
 	return true;
 }

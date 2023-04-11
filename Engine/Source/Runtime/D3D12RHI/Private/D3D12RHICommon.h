@@ -6,6 +6,10 @@ D3D12RHICommon.h: Common D3D12 RHI definitions for Windows.
 
 #pragma once
 
+#include "Stats/Stats2.h"
+#include "MultiGPU.h"
+#include "Containers/StaticArray.h"
+
 DECLARE_STATS_GROUP(TEXT("D3D12RHI"), STATGROUP_D3D12RHI, STATCAT_Advanced);
 DECLARE_STATS_GROUP(TEXT("D3D12RHI: Memory"), STATGROUP_D3D12Memory, STATCAT_Advanced);
 DECLARE_STATS_GROUP(TEXT("D3D12RHI: Memory Details"), STATGROUP_D3D12MemoryDetails, STATCAT_Advanced);
@@ -13,9 +17,6 @@ DECLARE_STATS_GROUP(TEXT("D3D12RHI: Resources"), STATGROUP_D3D12Resources, STATC
 DECLARE_STATS_GROUP(TEXT("D3D12RHI: Buffer Details"), STATGROUP_D3D12BufferDetails, STATCAT_Advanced);
 DECLARE_STATS_GROUP(TEXT("D3D12RHI: Pipeline State (PSO)"), STATGROUP_D3D12PipelineState, STATCAT_Advanced);
 DECLARE_STATS_GROUP(TEXT("D3D12RHI: Descriptor Heap (GPU Visible)"), STATGROUP_D3D12DescriptorHeap, STATCAT_Advanced);
-
-#include "Windows/WindowsHWrapper.h"
-#include "D3D12RHI.h"
 
 class FD3D12Adapter;
 class FD3D12Device;
@@ -63,11 +64,6 @@ public:
 	FD3D12Device* GetParentDevice_Unsafe() const
 	{
 		return Parent;
-	}
-
-	void Swap(FD3D12DeviceChild& Other)
-	{
-		::Swap(*this, Other);
 	}
 };
 
@@ -219,27 +215,6 @@ public:
 		return LinkedObjects.GPUMask;
 #else
 		return FRHIGPUMask::GPU0();
-#endif
-	}
-
-	void Swap(FD3D12LinkedAdapterObject& Other)
-	{
-#if WITH_MGPU
-		check(IsHeadLink() && Other.IsHeadLink());
-		check(LinkedObjects.GPUMask == Other.LinkedObjects.GPUMask);
-
-		// Swap array entries for every index other than the first since that's this.
-		for (auto GPUIterator = ++FRHIGPUMask::FIterator(LinkedObjects.GPUMask); GPUIterator; ++GPUIterator)
-		{
-			Exchange(LinkedObjects.Objects[*GPUIterator], Other.LinkedObjects.Objects[*GPUIterator]);
-		}
-
-		// Propagate the exchanged arrays to the rest of the links in the chain.
-		for (auto GPUIterator = ++FRHIGPUMask::FIterator(LinkedObjects.GPUMask); GPUIterator; ++GPUIterator)
-		{
-			LinkedObjects.Objects[*GPUIterator]->LinkedObjects.Objects = LinkedObjects.Objects;
-			Other.LinkedObjects.Objects[*GPUIterator]->LinkedObjects.Objects = Other.LinkedObjects.Objects;
-		}
 #endif
 	}
 

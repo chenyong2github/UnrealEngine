@@ -425,7 +425,7 @@ void FVulkanRayTracingGeometry::CompactAccelerationStructure(FVulkanCmdBuffer& C
 
 	FString DebugNameString = Initializer.DebugName.ToString();
 	FRHIResourceCreateInfo BlasBufferCreateInfo(*DebugNameString);
-	AccelerationStructureBuffer = new FVulkanResourceMultiBuffer(Device, InSizeAfterCompaction, BUF_AccelerationStructure, 0, BlasBufferCreateInfo);
+	AccelerationStructureBuffer = new FVulkanResourceMultiBuffer(Device, FRHIBufferDesc(InSizeAfterCompaction, 0, BUF_AccelerationStructure), BlasBufferCreateInfo);
 	
 	VkDevice NativeDevice = Device->GetInstanceHandle();
 
@@ -561,10 +561,8 @@ FVulkanRayTracingScene::FVulkanRayTracingScene(FRayTracingSceneInitializer2 InIn
 	const uint32 ParameterBufferSize = FMath::Max<uint32>(1, Initializer.NumTotalSegments) * sizeof(FVulkanRayTracingGeometryParameters);
 	FRHIResourceCreateInfo ParameterBufferCreateInfo(TEXT("RayTracingSceneMetadata"));
 	PerInstanceGeometryParameterBuffer = new FVulkanResourceMultiBuffer(Device,
-		ParameterBufferSize, BUF_StructuredBuffer | BUF_ShaderResource, sizeof(FVulkanRayTracingGeometryParameters),
+		FRHIBufferDesc(ParameterBufferSize, sizeof(FVulkanRayTracingGeometryParameters), BUF_StructuredBuffer | BUF_ShaderResource),
 		ParameterBufferCreateInfo);
-
-	PerInstanceGeometryParameterSRV = new FVulkanShaderResourceView(Device, PerInstanceGeometryParameterBuffer, 0);
 }
 
 FVulkanRayTracingScene::~FVulkanRayTracingScene()
@@ -581,12 +579,17 @@ void FVulkanRayTracingScene::BindBuffer(FRHIBuffer* InBuffer, uint32 InBufferOff
 
 	for (auto& Layer : Layers)
 	{
-		checkf(Layer.ShaderResourceView == nullptr, TEXT("Binding multiple buffers is not currently supported."));
+		checkf(!Layer.View.IsValid(), TEXT("Binding multiple buffers is not currently supported."));
 
 		const uint32 LayerOffset = InBufferOffset + Layer.BufferOffset;
 		check(LayerOffset % GRHIRayTracingAccelerationStructureAlignment == 0);
 
-		Layer.ShaderResourceView = new FVulkanShaderResourceView(Device, AccelerationStructureBuffer, LayerOffset);
+		Layer.View = MakeUnique<FVulkanView>(*Device);
+		Layer.View->InitAsAccelerationStructureView(
+			AccelerationStructureBuffer
+			, LayerOffset
+			, InBuffer->GetSize() - LayerOffset
+		);
 	}
 }
 
@@ -637,8 +640,8 @@ void FVulkanRayTracingScene::BuildAccelerationStructure(
 		FVkRtTLASBuildData& BuildData = BuildDatas[LayerIndex];
 		GetTLASBuildData(Device->GetInstanceHandle(), Initializer.NumNativeInstancesPerLayer[LayerIndex], InstanceBufferAddress, BuildData);
 
-		checkf(Layer.ShaderResourceView, TEXT("A buffer must be bound to the ray tracing scene before it can be built."));
-		BuildData.GeometryInfo.dstAccelerationStructure = Layer.ShaderResourceView->AccelerationStructureHandle;
+		checkf(Layer.View.IsValid(), TEXT("A buffer must be bound to the ray tracing scene before it can be built."));
+		BuildData.GeometryInfo.dstAccelerationStructure = Layer.View->GetAccelerationStructureView().Handle;
 		BuildData.GeometryInfo.scratchData.deviceAddress = InScratchBuffer->GetDeviceAddress() + InScratchOffset + Layer.ScratchBufferOffset;
 
 		GeometryInfos[LayerIndex] = BuildData.GeometryInfo;

@@ -29,7 +29,7 @@ class FMetalRHIBuffer;
 class FMetalContext
 {
 public:
-	FMetalContext(mtlpp::Device InDevice, FMetalCommandQueue& Queue, bool const bIsImmediate);
+	FMetalContext(mtlpp::Device InDevice, FMetalCommandQueue& Queue);
 	virtual ~FMetalContext();
 	
 	mtlpp::Device& GetDevice();
@@ -70,14 +70,14 @@ public:
 	
 	void DrawPrimitive(uint32 PrimitiveType, uint32 BaseVertexIndex, uint32 NumPrimitives, uint32 NumInstances);
 	
-	void DrawPrimitiveIndirect(uint32 PrimitiveType, FMetalVertexBuffer* VertexBuffer, uint32 ArgumentOffset);
+	void DrawPrimitiveIndirect(uint32 PrimitiveType, FMetalRHIBuffer* VertexBuffer, uint32 ArgumentOffset);
 	
 	void DrawIndexedPrimitive(FMetalBuffer const& IndexBuffer, uint32 IndexStride, mtlpp::IndexType IndexType, uint32 PrimitiveType, int32 BaseVertexIndex, uint32 FirstInstance,
 							  uint32 NumVertices, uint32 StartIndex, uint32 NumPrimitives, uint32 NumInstances);
 	
-	void DrawIndexedIndirect(FMetalIndexBuffer* IndexBufferRHI, uint32 PrimitiveType, FMetalStructuredBuffer* VertexBufferRHI, int32 DrawArgumentsIndex, uint32 NumInstances);
+	void DrawIndexedIndirect(FMetalRHIBuffer* IndexBufferRHI, uint32 PrimitiveType, FMetalRHIBuffer* VertexBufferRHI, int32 DrawArgumentsIndex, uint32 NumInstances);
 	
-	void DrawIndexedPrimitiveIndirect(uint32 PrimitiveType,FMetalIndexBuffer* IndexBufferRHI,FMetalVertexBuffer* VertexBufferRHI,uint32 ArgumentOffset);
+	void DrawIndexedPrimitiveIndirect(uint32 PrimitiveType,FMetalRHIBuffer* IndexBufferRHI,FMetalRHIBuffer* VertexBufferRHI,uint32 ArgumentOffset);
 	
 	void DrawPatches(uint32 PrimitiveType, FMetalBuffer const& IndexBuffer, uint32 IndexBufferStride, int32 BaseVertexIndex, uint32 FirstInstance, uint32 StartIndex,
 					 uint32 NumPrimitives, uint32 NumInstances);
@@ -109,7 +109,7 @@ public:
 	void FillBuffer(FMetalBuffer const& Buffer, ns::Range Range, uint8 Value);
 
 	void Dispatch(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ);
-	void DispatchIndirect(FMetalVertexBuffer* ArgumentBuffer, uint32 ArgumentOffset);
+	void DispatchIndirect(FMetalRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset);
 
 	void StartTiming(class FMetalEventNode* EventNode);
 	void EndTiming(class FMetalEventNode* EventNode);
@@ -119,11 +119,7 @@ public:
 	static FMetalContext* GetCurrentContext();
 #endif
 	
-	void SetParallelPassFences(FMetalFence* Start, FMetalFence* End);
-	TRefCountPtr<FMetalFence> const& GetParallelPassStartFence(void) const;
-	TRefCountPtr<FMetalFence> const& GetParallelPassEndFence(void) const;
-	
-	void InitFrame(bool const bImmediateContext, uint32 Index, uint32 Num);
+	void InitFrame();
 	void FinishFrame(bool const bImmediateContext);
 
 	// Track Write->Read transitions for TBDR Fragment->Verex fencing
@@ -155,19 +151,10 @@ protected:
 	/** A pool of buffers for writing visibility query results. */
 	TSharedPtr<FMetalQueryBufferPool, ESPMode::ThreadSafe> QueryBuffer;
 	
-	/** Initial fence to wait on for parallel contexts */
-	TRefCountPtr<FMetalFence> StartFence;
-	
-	/** Fence to update at the end for parallel contexts */
-	TRefCountPtr<FMetalFence> EndFence;
-	
 #if ENABLE_METAL_GPUPROFILE
 	/** the slot to store a per-thread context ref */
 	static uint32 CurrentContextTLSSlot;
 #endif
-	
-	/** Total number of parallel contexts that constitute the current pass. */
-	int32 NumParallelContextsInPass;
 	
 	/** Whether the validation layer is enabled */
 	bool bValidationEnabled;
@@ -216,20 +203,6 @@ public:
 	
 	void BeginDrawingViewport(FMetalViewport* Viewport);
 	void EndDrawingViewport(FMetalViewport* Viewport, bool bPresent, bool bLockToVsync);
-	
-	/** Take a parallel FMetalContext from the free-list or allocate a new one if required */
-	FMetalRHICommandContext* AcquireContext(int32 NewIndex, int32 NewNum);
-	
-	/** Release a parallel FMetalContext back into the free-list */
-	void ReleaseContext(FMetalRHICommandContext* Context);
-	
-	/** Returns the number of concurrent contexts encoding commands, including the device context. */
-	uint32 GetNumActiveContexts(void) const;
-
-	void BeginParallelRenderCommandEncoding(uint32 Num);
-	void SetParallelRenderPassDescriptor(FRHIRenderPassInfo const& TargetInfo);
-	mtlpp::RenderCommandEncoder GetParallelRenderCommandEncoder(uint32 Index, mtlpp::ParallelRenderCommandEncoder& ParallelEncoder, mtlpp::CommandBuffer& CommandBuffer);
-	void EndParallelRenderCommandEncoding(void);
 	
 	/** Get the index of the bound Metal device in the global list of rendering devices. */
 	uint32 GetDeviceIndex(void) const;
@@ -308,12 +281,6 @@ private:
     TMap<id<MTLBuffer>, TArray<NSRange>> ActiveBuffers;
 #endif
 	
-	/** Free-list of contexts for parallel encoding */
-	TLockFreePointerListLIFO<FMetalRHICommandContext> ParallelContexts;
-	
-	/** Fences for parallel execution */
-	TArray<TRefCountPtr<FMetalFence>> ParallelFences;
-	
 	/** Critical section for FreeList */
 	FCriticalSection FreeListMutex;
 	
@@ -328,12 +295,6 @@ private:
 	
 	/** Bitfield of supported Metal features with varying availability depending on OS/device */
 	uint32 Features;
-	
-	/** Count of concurrent contexts encoding commands. */
-	int32 ActiveContexts;
-	
-	/** Count of concurrent parallel contexts encoding commands. */
-	int32 ActiveParallelContexts;
 	
 	/** Whether we presented this frame - only used to track when to introduce debug markers */
 	bool bPresented;

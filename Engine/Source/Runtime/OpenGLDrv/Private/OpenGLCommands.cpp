@@ -928,9 +928,9 @@ void FOpenGLDynamicRHI::UpdateSRV(FOpenGLShaderResourceView* SRV)
 	check(SRV);
 	// For Depth/Stencil textures whose Stencil component we wish to sample we must blit the stencil component out to an intermediate texture when we 'Store' the texture.
 #if PLATFORM_DESKTOP
-	if (FOpenGL::GetFeatureLevel() >= ERHIFeatureLevel::SM5 && IsValidRef(SRV->Texture))
+	if (FOpenGL::GetFeatureLevel() >= ERHIFeatureLevel::SM5 && SRV->IsTexture())
 	{
-		FOpenGLTexture* Texture = SRV->Texture;
+		FOpenGLTexture* Texture = ResourceCast(SRV->GetTexture());
 		
 		uint32 ArrayIndices = 0;
 		uint32 MipmapLevels = 0;
@@ -943,7 +943,7 @@ void FOpenGLDynamicRHI::UpdateSRV(FOpenGLShaderResourceView* SRV)
 		uint32 SizeY = Texture->GetSizeY();
 		
 		uint32 MipBytes = SizeX * SizeY;
-		TRefCountPtr<FOpenGLPixelBuffer> PixelBuffer = new FOpenGLPixelBuffer(nullptr, GL_PIXEL_UNPACK_BUFFER, 0, MipBytes, BUF_Dynamic, nullptr);
+		TRefCountPtr<FOpenGLPixelBuffer> PixelBuffer = new FOpenGLPixelBuffer(nullptr, GL_PIXEL_UNPACK_BUFFER, FRHIBufferDesc(MipBytes, 0, BUF_Dynamic), nullptr);
 		
 		glBindBuffer( GL_PIXEL_PACK_BUFFER, 0 );
 		glBindBuffer( GL_PIXEL_PACK_BUFFER, PixelBuffer->Resource );
@@ -1016,6 +1016,7 @@ void FOpenGLDynamicRHI::RHISetShaderResourceViewParameter(FRHIGraphicsShader* Sh
 void FOpenGLDynamicRHI::RHISetShaderResourceViewParameter(FRHIComputeShader* ComputeShaderRHI,uint32 TextureIndex, FRHIShaderResourceView* SRVRHI)
 {
 	VERIFY_GL_SCOPE();
+
 	FOpenGLShaderResourceView* SRV = ResourceCast(SRVRHI);
 	GLuint Resource = 0;
 	GLenum Target = GL_TEXTURE_BUFFER;
@@ -1045,7 +1046,7 @@ void FOpenGLDynamicRHI::RHISetShaderResourceViewParameter(FRHIComputeShader* Com
 void FOpenGLDynamicRHI::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI,uint32 TextureIndex, FRHITexture* NewTextureRHI)
 {
 	VERIFY_GL_SCOPE();
-	FOpenGLTexture* NewTexture = GetOpenGLTextureFromRHITexture(NewTextureRHI);
+	FOpenGLTexture* NewTexture = ResourceCast(NewTextureRHI);
 
 	GLint Index = 0;
 	GLint MaxUnits = 0;
@@ -1077,7 +1078,7 @@ void FOpenGLDynamicRHI::RHISetShaderSampler(FRHIGraphicsShader* ShaderRHI,uint32
 void FOpenGLDynamicRHI::RHISetShaderTexture(FRHIComputeShader* ComputeShaderRHI,uint32 TextureIndex, FRHITexture* NewTextureRHI)
 {
 	VERIFY_GL_SCOPE();
-	FOpenGLTexture* NewTexture = GetOpenGLTextureFromRHITexture(NewTextureRHI);
+	FOpenGLTexture* NewTexture = ResourceCast(NewTextureRHI);
 	ensureMsgf((int32)TextureIndex < FOpenGL::GetMaxComputeTextureImageUnits(), TEXT("Using more compute texture units (%d) than allowed (%d)!"), TextureIndex, FOpenGL::GetMaxComputeTextureImageUnits());
 	if (NewTexture)
 	{
@@ -1575,7 +1576,7 @@ void FOpenGLDynamicRHI::SetRenderTargets(
 
 	for( int32 RenderTargetIndex = NumSimultaneousRenderTargets - 1; RenderTargetIndex >= 0; --RenderTargetIndex )
 	{
-		PendingState.RenderTargets[RenderTargetIndex] = GetOpenGLTextureFromRHITexture(NewRenderTargetsRHI[RenderTargetIndex].Texture);
+		PendingState.RenderTargets[RenderTargetIndex] = ResourceCast(NewRenderTargetsRHI[RenderTargetIndex].Texture);
 		PendingState.RenderTargetMipmapLevels[RenderTargetIndex] = NewRenderTargetsRHI[RenderTargetIndex].MipIndex;
 		PendingState.RenderTargetArrayIndex[RenderTargetIndex] = NewRenderTargetsRHI[RenderTargetIndex].ArraySliceIndex;
 
@@ -1585,7 +1586,7 @@ void FOpenGLDynamicRHI::SetRenderTargets(
 		}
 	}
 
-	FOpenGLTexture* NewDepthStencilRT = GetOpenGLTextureFromRHITexture(NewDepthStencilTargetRHI ? NewDepthStencilTargetRHI->Texture : nullptr);
+	FOpenGLTexture* NewDepthStencilRT = ResourceCast(NewDepthStencilTargetRHI ? NewDepthStencilTargetRHI->Texture : nullptr);
 	
 	PendingState.DepthStencil = NewDepthStencilRT;
 	PendingState.StencilStoreAction = NewDepthStencilTargetRHI ? NewDepthStencilTargetRHI->GetStencilStoreAction() : ERenderTargetStoreAction::ENoAction;
@@ -2204,7 +2205,7 @@ FORCEINLINE void FOpenGLDynamicRHI::SetResourcesFromTables(ShaderType* Shader)
 				, GetNumTextureUnits<Frequency>()
 			);
 
-			FOpenGLTexture* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
+			FOpenGLTexture* Texture = ResourceCast(TextureRHI);
 
 			if (Texture)
 			{

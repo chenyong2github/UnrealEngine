@@ -343,9 +343,7 @@ void FD3D12Adapter::AllocateBuffer(FD3D12Device* Device,
 FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 	const D3D12_RESOURCE_DESC& InDesc,
 	uint32 Alignment,
-	uint32 Stride,
-	uint32 Size,
-	EBufferUsageFlags InUsage,
+	FRHIBufferDesc const& BufferDesc,
 	ED3D12ResourceStateMode InResourceStateMode,
 	D3D12_RESOURCE_STATES InCreateState,
 	bool bHasInitialData,
@@ -360,18 +358,18 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 
 	UE_TRACE_METADATA_SCOPE_ASSET_FNAME(FName(InDebugName), GetRHIBufferClassName(ClassName), OwnerName);
 
-	check(InDesc.Width == Size);
+	check(InDesc.Width == BufferDesc.Size);
 
 	FD3D12Buffer* BufferOut = nullptr;
 
-	if (EnumHasAnyFlags(InUsage, BUF_AnyDynamic))
+	if (EnumHasAnyFlags(BufferDesc.Usage, BUF_AnyDynamic))
 	{
 		const uint32 FirstGPUIndex = InGPUMask.GetFirstIndex();
 
 		FD3D12Buffer* NewBuffer0 = nullptr;
 		BufferOut = CreateLinkedObject<FD3D12Buffer>(InGPUMask, [&](FD3D12Device* Device)
 		{
-			FD3D12Buffer* NewBuffer = new FD3D12Buffer(Device, Size, InUsage, Stride);
+			FD3D12Buffer* NewBuffer = new FD3D12Buffer(Device, BufferDesc);
 			NewBuffer->BufferAlignment = Alignment;
 
 #if NAME_OBJECTS
@@ -382,9 +380,9 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 			}
 #endif // NAME_OBJECTS
 
-			if ((Device->GetGPUIndex() == FirstGPUIndex) || EnumHasAnyFlags(InUsage, BUF_MultiGPUAllocate))
+			if ((Device->GetGPUIndex() == FirstGPUIndex) || EnumHasAnyFlags(BufferDesc.Usage, BUF_MultiGPUAllocate))
 			{
-				AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, InCreateState, Alignment, NewBuffer, NewBuffer->ResourceLocation, ResourceAllocator, InDebugName);
+				AllocateBuffer(Device, InDesc, BufferDesc.Size, BufferDesc.Usage, InResourceStateMode, InCreateState, Alignment, NewBuffer, NewBuffer->ResourceLocation, ResourceAllocator, InDebugName);
 				NewBuffer0 = NewBuffer;
 			}
 			else
@@ -400,7 +398,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 	{
 		BufferOut = CreateLinkedObject<FD3D12Buffer>(InGPUMask, [&](FD3D12Device* Device)
 		{
-			FD3D12Buffer* NewBuffer = new FD3D12Buffer(Device, Size, InUsage, Stride);
+			FD3D12Buffer* NewBuffer = new FD3D12Buffer(Device, BufferDesc);
 			NewBuffer->BufferAlignment = Alignment;
 
 #if NAME_OBJECTS
@@ -411,7 +409,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 			}
 #endif // NAME_OBJECTS
 
-			AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, InCreateState, Alignment, NewBuffer, NewBuffer->ResourceLocation, ResourceAllocator, InDebugName);
+			AllocateBuffer(Device, InDesc, BufferDesc.Size, BufferDesc.Usage, InResourceStateMode, InCreateState, Alignment, NewBuffer, NewBuffer->ResourceLocation, ResourceAllocator, InDebugName);
 			
 			// Unlock immediately if there is no initial data
 			if (!bHasInitialData)
@@ -435,7 +433,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 void FD3D12Buffer::Rename(FD3D12ResourceLocation& NewLocation)
 {
 	FD3D12ResourceLocation::TransferOwnership(ResourceLocation, NewLocation);
-	ResourceRenamed(&ResourceLocation);
+	ResourceRenamed();
 }
 
 void FD3D12Buffer::RenameLDAChain(FD3D12ResourceLocation& NewLocation)
@@ -456,46 +454,40 @@ void FD3D12Buffer::RenameLDAChain(FD3D12ResourceLocation& NewLocation)
 			for (auto NextBuffer = ++FLinkedObjectIterator(this); NextBuffer; ++NextBuffer)
 			{
 				FD3D12ResourceLocation::ReferenceNode(NextBuffer->GetParentDevice(), NextBuffer->ResourceLocation, ResourceLocation);
-				NextBuffer->ResourceRenamed(&NextBuffer->ResourceLocation);
+				NextBuffer->ResourceRenamed();
 			}
 		}
 	}
 }
 
-void FD3D12Buffer::Swap(FD3D12Buffer& Other)
+void FD3D12Buffer::TakeOwnership(FD3D12Buffer& Other)
 {
-	check(!LockedData.bLocked && !Other.LockedData.bLocked);
+	check(!Other.LockedData.bLocked);
 
-	FRHIBuffer::Swap(Other);
-	FD3D12BaseShaderResource::Swap(Other);
-	FD3D12LinkedAdapterObject<FD3D12Buffer>::Swap(Other);
+	// Clean up any resource this buffer already owns
+	ReleaseOwnership();
 
-	check(IsHeadLink());
-	for (FLinkedObjectIterator NextBuffer(this); NextBuffer; ++NextBuffer)
-	{
-		NextBuffer->ResourceRenamed(&NextBuffer->ResourceLocation);
-	}
+	// Transfer ownership of Other's resources to this instance
+	FRHIBuffer::TakeOwnership(Other);
+	FD3D12ResourceLocation::TransferOwnership(ResourceLocation, Other.ResourceLocation);
 }
 
-void FD3D12Buffer::ReleaseUnderlyingResource()
+void FD3D12Buffer::ReleaseOwnership()
 {
-	int64 BufferSize = ResourceLocation.GetSize();
-	bool bTransient = ResourceLocation.IsTransient();
-	if (!bTransient)
+	check(!LockedData.bLocked);
+	check(IsHeadLink());
+
+	FRHIBuffer::ReleaseOwnership();
+
+	if (!ResourceLocation.IsTransient())
 	{
 		UpdateBufferStats(this, false);
 	}
 
-	check(IsHeadLink());
-	for (FLinkedObjectIterator NextBuffer(this); NextBuffer; ++NextBuffer)
-	{
-		check(!NextBuffer->LockedData.bLocked && NextBuffer->ResourceLocation.IsValid());
-		NextBuffer->ResourceLocation.Clear();
-		NextBuffer->ResourceRenamed(&NextBuffer->ResourceLocation);
-	}
+	ResourceLocation.Clear();
 }
 
-void FD3D12Buffer::GetResourceDescAndAlignment(uint64 InSize, uint32 InStride, EBufferUsageFlags& InUsage, D3D12_RESOURCE_DESC& ResourceDesc, uint32& Alignment)
+void FD3D12Buffer::GetResourceDescAndAlignment(uint64 InSize, uint32 InStride, EBufferUsageFlags InUsage, D3D12_RESOURCE_DESC& ResourceDesc, uint32& Alignment)
 {
 	ResourceDesc = CD3DX12_RESOURCE_DESC::Buffer(InSize);
 
@@ -523,37 +515,37 @@ void FD3D12Buffer::GetResourceDescAndAlignment(uint64 InSize, uint32 InStride, E
 	Alignment = (InStride > 0) && (EnumHasAnyFlags(InUsage, BUF_StructuredBuffer) || !EnumHasAnyFlags(InUsage, BUF_ByteAddressBuffer | BUF_DrawIndirect)) ? InStride : 4;
 }
 
-FBufferRHIRef FD3D12DynamicRHI::RHICreateBuffer(FRHICommandListBase& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+FBufferRHIRef FD3D12DynamicRHI::RHICreateBuffer(FRHICommandListBase& RHICmdList, FRHIBufferDesc const& Desc, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	return CreateBuffer(RHICmdList, Size, Usage, Stride, InResourceState, CreateInfo);
+	return CreateBuffer(RHICmdList, Desc, ResourceState, CreateInfo);
 }
 
-FBufferRHIRef FD3D12DynamicRHI::CreateBuffer(FRHICommandListBase& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+FBufferRHIRef FD3D12DynamicRHI::CreateBuffer(FRHICommandListBase& RHICmdList, FRHIBufferDesc const& BufferDesc, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	if (CreateInfo.bWithoutNativeResource)
+	if (BufferDesc.IsNull())
 	{
-		return GetAdapter().CreateLinkedObject<FD3D12Buffer>(CreateInfo.GPUMask, [](FD3D12Device* Device)
-			{
-				return new FD3D12Buffer();
-			});
+		return GetAdapter().CreateLinkedObject<FD3D12Buffer>(CreateInfo.GPUMask, [BufferDesc](FD3D12Device* Device)
+		{
+			return new FD3D12Buffer(Device, BufferDesc);
+		});
 	}
 
-	return CreateD3D12Buffer(&RHICmdList, Size, Usage, Stride, InResourceState, CreateInfo);
+	return CreateD3D12Buffer(&RHICmdList, BufferDesc, InResourceState, CreateInfo);
 }
 
-FD3D12Buffer* FD3D12DynamicRHI::CreateD3D12Buffer(class FRHICommandListBase* RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, ID3D12ResourceAllocator* ResourceAllocator)
+FD3D12Buffer* FD3D12DynamicRHI::CreateD3D12Buffer(class FRHICommandListBase* RHICmdList, FRHIBufferDesc const& BufferDesc, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, ID3D12ResourceAllocator* ResourceAllocator)
 {
 	FName TraceClassName = GetRHIBufferClassName(CreateInfo.GetTraceClassName());
 
 	D3D12_RESOURCE_DESC Desc;
 	uint32 Alignment;
-	FD3D12Buffer::GetResourceDescAndAlignment(Size, Stride, Usage, Desc, Alignment);
+	FD3D12Buffer::GetResourceDescAndAlignment(BufferDesc.Size, BufferDesc.Stride, BufferDesc.Usage, Desc, Alignment);
 
-	ED3D12ResourceStateMode StateMode = EnumHasAllFlags(Usage, BUF_AccelerationStructure) 
+	ED3D12ResourceStateMode StateMode = EnumHasAllFlags(BufferDesc.Usage, BUF_AccelerationStructure)
 		? ED3D12ResourceStateMode::SingleState 
 		: ED3D12ResourceStateMode::Default;
 
-	const bool bIsDynamic = EnumHasAnyFlags(Usage, BUF_AnyDynamic);
+	const bool bIsDynamic = EnumHasAnyFlags(BufferDesc.Usage, BUF_AnyDynamic);
 	D3D12_HEAP_TYPE HeapType = bIsDynamic ? D3D12_HEAP_TYPE_UPLOAD : D3D12_HEAP_TYPE_DEFAULT;
 	const FD3D12Resource::FD3D12ResourceTypeHelper Type(Desc, HeapType);
 
@@ -562,13 +554,13 @@ FD3D12Buffer* FD3D12DynamicRHI::CreateD3D12Buffer(class FRHICommandListBase* RHI
 
 	// Initial state is derived from the InResourceState if it supports tracking
 	D3D12_RESOURCE_STATES DesiredState = bSupportResourceStateTracking ? Type.GetOptimalInitialState(InResourceState, false) :
-		FD3D12DefaultBufferAllocator::GetDefaultInitialResourceState(HeapType, (EBufferUsageFlags)Usage, StateMode);
+		FD3D12DefaultBufferAllocator::GetDefaultInitialResourceState(HeapType, BufferDesc.Usage, StateMode);
 
 	// Setup the state at which the resource needs to be created - copy dest only supported for placed resources
 	D3D12_RESOURCE_STATES CreateState = (CreateInfo.ResourceArray && bSupportResourceStateTracking) ? D3D12_RESOURCE_STATE_COPY_DEST : DesiredState;
 	bool bHasInitialData = CreateInfo.ResourceArray != nullptr;
 
-	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(Desc, Alignment, Stride, Size, Usage, StateMode, CreateState, bHasInitialData, CreateInfo.GPUMask, ResourceAllocator, CreateInfo.DebugName, CreateInfo.OwnerName, TraceClassName);
+	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(Desc, Alignment, BufferDesc, StateMode, CreateState, bHasInitialData, CreateInfo.GPUMask, ResourceAllocator, CreateInfo.DebugName, CreateInfo.OwnerName, TraceClassName);
 	check(Buffer->ResourceLocation.IsValid());
 
 	// Copy the resource data if available 
@@ -584,7 +576,7 @@ FD3D12Buffer* FD3D12DynamicRHI::CreateD3D12Buffer(class FRHICommandListBase* RHI
 FRHIBuffer* FD3D12DynamicRHI::CreateBuffer(const FRHIBufferCreateInfo& CreateInfo, const TCHAR* DebugName, ERHIAccess InitialState, ID3D12ResourceAllocator* ResourceAllocator)
 {
 	FRHIResourceCreateInfo ResourceCreateInfo(DebugName);
-	return CreateD3D12Buffer(nullptr, CreateInfo.Size, CreateInfo.Usage, CreateInfo.Stride, InitialState, ResourceCreateInfo, ResourceAllocator);
+	return CreateD3D12Buffer(nullptr, FRHIBufferDesc(CreateInfo.Size, CreateInfo.Stride, CreateInfo.Usage), InitialState, ResourceCreateInfo, ResourceAllocator);
 }
 
 void* FD3D12DynamicRHI::LockBuffer(FRHICommandListBase& RHICmdList, FD3D12Buffer* Buffer, uint32 BufferSize, EBufferUsageFlags BufferUsage, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
@@ -801,17 +793,22 @@ void FD3D12DynamicRHI::RHIUnlockBufferMGPU(FRHICommandListBase& RHICmdList, FRHI
 
 void FD3D12DynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer)
 {
-	check(DestBuffer);
-	FD3D12Buffer* Dest = ResourceCast(DestBuffer);
-	if (!SrcBuffer)
+	FD3D12Buffer* Dst = ResourceCast(DestBuffer);
+	FD3D12Buffer* Src = ResourceCast(SrcBuffer);
+
+	if (Src)
 	{
-		Dest->ReleaseUnderlyingResource();
+		// The source buffer should not have any associated views.
+		check(!Src->HasLinkedViews());
+
+		Dst->TakeOwnership(*Src);
 	}
 	else
 	{
-		FD3D12Buffer* Src = ResourceCast(SrcBuffer);
-		Dest->Swap(*Src);
+		Dst->ReleaseOwnership();
 	}
+
+	Dst->ResourceRenamed();
 }
 
 void FD3D12DynamicRHI::RHICopyBuffer(FRHIBuffer* SourceBufferRHI, FRHIBuffer* DestBufferRHI)

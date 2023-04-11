@@ -373,22 +373,6 @@ FBufferRHIRef FRawStaticIndexBuffer::CreateRHIBuffer_Async()
 	return CreateRHIBuffer_Internal<false>();
 }
 
-void FRawStaticIndexBuffer::CopyRHIForStreaming(const FRawStaticIndexBuffer& Other, bool InAllowCPUAccess)
-{
-	// Copy serialized properties.
-	CachedNumIndices = Other.CachedNumIndices;
-	b32Bit = Other.b32Bit;
-
-	// Handle CPU access.
-	if (InAllowCPUAccess)
-	{
-		IndexStorage = Other.IndexStorage;
-	}
-
-	// Copy resource references.
-	IndexBufferRHI = Other.IndexBufferRHI;
-}
-
 void FRawStaticIndexBuffer::InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, FRHIResourceUpdateBatcher& Batcher)
 {
 	if (IndexBufferRHI && IntermediateBuffer)
@@ -484,10 +468,6 @@ void FRawStaticIndexBuffer16or32Interface::InitRHIForStreaming(FRHIBuffer* Inter
 	if (IndexBufferRHI && IntermediateBuffer)
 	{
 		Batcher.QueueUpdateRequest(IndexBufferRHI, IntermediateBuffer);
-		if (SRVValue)
-		{
-			Batcher.QueueUpdateRequest(SRVValue, IndexBufferRHI, IndexSize, IndexSize == 2 ? PF_R16_UINT : PF_R32_UINT);
-		}
 	}
 }
 
@@ -496,10 +476,6 @@ void FRawStaticIndexBuffer16or32Interface::ReleaseRHIForStreaming(FRHIResourceUp
 	if (IndexBufferRHI)
 	{
 		Batcher.QueueUpdateRequest(IndexBufferRHI, nullptr);
-	}
-	if (SRVValue)
-	{
-		Batcher.QueueUpdateRequest(SRVValue, nullptr, 0, 0);
 	}
 }
 

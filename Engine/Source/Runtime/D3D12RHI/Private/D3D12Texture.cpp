@@ -1180,7 +1180,7 @@ FTextureRHIRef FD3D12DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 Si
 		SRVDesc.Texture2D.PlaneSlice = GetPlaneSliceFromViewFormat(PlatformResourceFormat, SRVDesc.Format);
 
 		// Create a wrapper for the SRV and set it on the texture
-		NewTexture->SetShaderResourceView(new FD3D12ShaderResourceView(NewTexture, SRVDesc));
+		NewTexture->EmplaceSRV(SRVDesc);
 
 		return NewTexture;
 	});
@@ -1512,35 +1512,11 @@ void* FD3D12Texture::GetNativeResource() const
 
 FRHIDescriptorHandle FD3D12Texture::GetDefaultBindlessHandle() const
 {
-	if (FRHIShaderResourceView* View = GetShaderResourceView())
+	if (FD3D12ShaderResourceView* View = GetShaderResourceView())
 	{
 		return View->GetBindlessHandle();
 	}
 	return FRHIDescriptorHandle();
-}
-
-void FD3D12Texture::SetDepthStencilView(FD3D12DepthStencilView* View, uint32 SubResourceIndex)
-{
-	if (SubResourceIndex < FExclusiveDepthStencil::MaxIndex)
-	{
-		DepthStencilViews[SubResourceIndex] = View;
-	}
-	else
-	{
-		check(false);
-	}
-}
-
-void FD3D12Texture::SetRenderTargetViewIndex(FD3D12RenderTargetView* View, uint32 SubResourceIndex)
-{
-	if (SubResourceIndex < (uint32)RenderTargetViews.Num())
-	{
-		RenderTargetViews[SubResourceIndex] = View;
-	}
-	else
-	{
-		check(false);
-	}
 }
 
 
@@ -1602,12 +1578,13 @@ void FD3D12Texture::CreateViews()
 			RTVDesc.Texture3D.FirstWSlice = 0;
 			RTVDesc.Texture3D.WSize = Desc.Depth;
 
-			SetRenderTargetView(new FD3D12RenderTargetView(Device, RTVDesc, this));
+			SetNumRTVs(1);
+			EmplaceRTV(RTVDesc, 0);
 		}
 		else
 		{
 			const bool bCreateRTVsPerSlice = EnumHasAnyFlags(Desc.Flags, TexCreate_TargetArraySlicesIndependently) && (bTextureArray || bCubeTexture);
-			SetNumRenderTargetViews(bCreateRTVsPerSlice ? Desc.NumMips * ResourceDesc.DepthOrArraySize : Desc.NumMips);
+			SetNumRTVs(bCreateRTVsPerSlice ? Desc.NumMips * ResourceDesc.DepthOrArraySize : Desc.NumMips);
 
 			// Create a render target view for each mip
 			uint32 RTVIndex = 0;
@@ -1629,7 +1606,7 @@ void FD3D12Texture::CreateViews()
 						RTVDesc.Texture2DArray.MipSlice = MipIndex;
 						RTVDesc.Texture2DArray.PlaneSlice = GetPlaneSliceFromViewFormat(PlatformResourceFormat, RTVDesc.Format);
 
-						SetRenderTargetViewIndex(new FD3D12RenderTargetView(Device, RTVDesc, this), RTVIndex++);
+						EmplaceRTV(RTVDesc, RTVIndex++);
 					}
 				}
 				else
@@ -1671,7 +1648,7 @@ void FD3D12Texture::CreateViews()
 						}
 					}
 
-					SetRenderTargetViewIndex(new FD3D12RenderTargetView(Device, RTVDesc, this), RTVIndex++);
+					EmplaceRTV(RTVDesc, RTVIndex++);
 				}
 			}
 		}
@@ -1724,7 +1701,7 @@ void FD3D12Texture::CreateViews()
 				DSVDesc.Flags |= (AccessType & FExclusiveDepthStencil::DepthWrite_StencilRead) ? D3D12_DSV_FLAG_READ_ONLY_STENCIL : D3D12_DSV_FLAG_NONE;
 			}
 
-			SetDepthStencilView(new FD3D12DepthStencilView(Device, DSVDesc, this, HasStencil), AccessType);
+			EmplaceDSV(DSVDesc, AccessType);
 		}
 	}
 
@@ -1756,7 +1733,6 @@ void FD3D12Texture::CreateViews()
 				SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMSARRAY;
 				SRVDesc.Texture2DMSArray.FirstArraySlice = 0;
 				SRVDesc.Texture2DMSArray.ArraySize = ResourceDesc.DepthOrArraySize;
-				//SRVDesc.Texture2DArray.PlaneSlice = GetPlaneSliceFromViewFormat(PlatformResourceFormat, SRVDesc.Format);
 			}
 			else
 			{
@@ -1790,7 +1766,7 @@ void FD3D12Texture::CreateViews()
 			}
 		}
 
-		SetShaderResourceView(new FD3D12ShaderResourceView(this, SRVDesc, Desc.Flags));
+		EmplaceSRV(SRVDesc);
 	}
 }
 
@@ -1806,6 +1782,8 @@ void FD3D12Texture::AliasResources(FD3D12Texture* Texture)
 	{
 		DepthStencilViews[Index] = Texture->DepthStencilViews[Index];
 	}
+
+	RenderTargetViews.SetNum(Texture->RenderTargetViews.Num());
 	for (int32 Index = 0; Index < Texture->RenderTargetViews.Num(); Index++)
 	{
 		RenderTargetViews[Index] = Texture->RenderTargetViews[Index];
@@ -2492,7 +2470,7 @@ void FD3D12DynamicRHI::RHIEndMultiUpdateTexture3D(FRHICommandListBase& RHICmdLis
 			FUpdateTexture3DData& UpdateData = UpdateDataArray[Idx];
 			FD3D12UpdateTexture3DData* UpdateDataD3D12 =
 				reinterpret_cast<FD3D12UpdateTexture3DData*>(&UpdateData.PlatformData[0]);
-			EndUpdateTexture3D_ComputeShader(RHICmdList, UpdateData, UpdateDataD3D12);
+			EndUpdateTexture3D_ComputeShader(static_cast<FRHIComputeCommandList&>(RHICmdList), UpdateData, UpdateDataD3D12);
 		}
 	}
 	else
@@ -2702,7 +2680,7 @@ void FD3D12DynamicRHI::EndUpdateTexture3D_Internal(FRHICommandListBase& RHICmdLi
 
 	if (UpdateDataD3D12->bComputeShaderCopy)
 	{
-		EndUpdateTexture3D_ComputeShader(RHICmdList, UpdateData, UpdateDataD3D12);
+		EndUpdateTexture3D_ComputeShader(static_cast<FRHIComputeCommandList&>(RHICmdList), UpdateData, UpdateDataD3D12);
 	}
 	else
 	{
@@ -2799,14 +2777,6 @@ void FD3D12DynamicRHI::RHIBindDebugLabelName(FRHITexture* TextureRHI, const TCHA
 	}
 	
 #endif
-}
-
-void FD3D12DynamicRHI::RHIVirtualTextureSetFirstMipInMemory(FRHITexture2D* TextureRHI, uint32 FirstMip)
-{
-}
-
-void FD3D12DynamicRHI::RHIVirtualTextureSetFirstMipVisible(FRHITexture2D* TextureRHI, uint32 FirstMip)
-{
 }
 
 FD3D12Texture* FD3D12DynamicRHI::CreateTextureFromResource(bool bTextureArray, bool bCubeTexture, EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D12Resource* Resource)
@@ -2941,50 +2911,6 @@ FD3D12Texture* FD3D12DynamicRHI::CreateAliasedD3D12Texture2D(FD3D12Texture* Sour
 	{
 		return CreateNewD3D12Texture(CreateDesc, Device);
 	});
-
-	// Set up the texture bind flags.
-	bool bCreateRTV = (TextureDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) != 0;
-	bool bCreateDSV = (TextureDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) != 0;
-
-	const D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
-
-	bool bCreatedRTVPerSlice = false;
-	const bool bCubeTexture = CreateDesc.IsTextureCube();
-	const bool bTextureArray = !bCubeTexture && TextureDesc.DepthOrArraySize > 1;
-
-	if (bCreateRTV)
-	{
-		Texture2D->SetCreatedRTVsPerSlice(false, NumMips);
-		Texture2D->SetNumRenderTargetViews(NumMips);
-
-		// Create a render target view for each array index and mip index.
-		for (uint32 MipIndex = 0; MipIndex < TextureDesc.MipLevels; MipIndex++)
-		{
-			// These are null because we'll be aliasing them shortly.
-			if (EnumHasAnyFlags(SourceTexture->GetDesc().Flags, TexCreate_TargetArraySlicesIndependently) && (bTextureArray || bCubeTexture))
-			{
-				bCreatedRTVPerSlice = true;
-
-				for (uint32 SliceIndex = 0; SliceIndex < TextureDesc.DepthOrArraySize; SliceIndex++)
-				{
-					Texture2D->SetRenderTargetViewIndex(nullptr, SliceIndex * NumMips + MipIndex);
-				}
-			}
-			else
-			{
-				Texture2D->SetRenderTargetViewIndex(nullptr, MipIndex);
-			}
-		}
-	}
-
-	if (bCreateDSV)
-	{
-		// Create a depth-stencil-view for the texture.
-		for (uint32 AccessType = 0; AccessType < FExclusiveDepthStencil::MaxIndex; ++AccessType)
-		{
-			Texture2D->SetDepthStencilView(nullptr, AccessType);
-		}
-	}
 
 	RHIAliasTextureResources((FTextureRHIRef&)Texture2D, (FTextureRHIRef&)SourceTexture);
 

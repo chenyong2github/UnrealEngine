@@ -146,9 +146,6 @@ public:
 	FBufferRHIRef CreateRHIBuffer_RenderThread();
 	FBufferRHIRef CreateRHIBuffer_Async();
 
-	/** Copy everything, keeping reference to the same RHI resources. */
-	void CopyRHIForStreaming(const FColorVertexBuffer& Other, bool InAllowCPUAccess);
-
 	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
 	void InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, FRHIResourceUpdateBatcher& Batcher);
 	void ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batcher);

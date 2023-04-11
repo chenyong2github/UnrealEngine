@@ -240,7 +240,7 @@ void FMetalRayTracingCompactionRequestHandler::Update(FMetalDeviceContext* Devic
 static void FillPrimitiveAccelerationStructureDesc(mtlpp::PrimitiveAccelerationStructureDescriptor& AccelerationStructureDescriptor, const FRayTracingGeometryInitializer& Initializer,  NSMutableArray<MTLAccelerationStructureGeometryDescriptor*>*& GeometryDescriptors)
 {
 	// Populate Segments Descriptors.
-	FMetalIndexBuffer* IndexBuffer = ResourceCast(Initializer.IndexBuffer.GetReference());
+	FMetalRHIBuffer* IndexBuffer = ResourceCast(Initializer.IndexBuffer.GetReference());
 
 	int32 SegmentIndex = 0;
 	for (const FRayTracingGeometrySegment& Segment : Initializer.Segments)
@@ -248,7 +248,7 @@ static void FillPrimitiveAccelerationStructureDesc(mtlpp::PrimitiveAccelerationS
 		check(Segment.NumPrimitives > 0);
 
 		// Vertex Buffer Infos
-		FMetalVertexBuffer* VertexBuffer = ResourceCast(Segment.VertexBuffer.GetReference());
+		FMetalRHIBuffer* VertexBuffer = ResourceCast(Segment.VertexBuffer.GetReference());
 		check(VertexBuffer);
 
 		mtlpp::AccelerationStructureTriangleGeometryDescriptor GeometryDescriptor = mtlpp::AccelerationStructureTriangleGeometryDescriptor();
@@ -261,7 +261,7 @@ static void FillPrimitiveAccelerationStructureDesc(mtlpp::PrimitiveAccelerationS
 		{
 			const FMetalBuffer& IndexBufferRes = IndexBuffer->GetCurrentBuffer();
 
-			GeometryDescriptor.SetIndexType(IndexBuffer->IndexType);
+			GeometryDescriptor.SetIndexType(IndexBuffer->GetIndexType());
 			GeometryDescriptor.SetIndexBuffer(IndexBufferRes);
 			GeometryDescriptor.SetIndexBufferOffset(IndexBufferRes.GetOffset() + Initializer.IndexBufferOffset);
 		}
@@ -538,13 +538,13 @@ void FMetalRayTracingScene::BuildPerInstanceGeometryParameterBuffer()
 
 		const FRayTracingGeometryInitializer& GeometryInitializer = Geometry->GetInitializer();
 
-		FMetalResourceMultiBuffer* IndexBuffer = ResourceCast(GeometryInitializer.IndexBuffer.GetReference());
+		FMetalRHIBuffer* IndexBuffer = ResourceCast(GeometryInitializer.IndexBuffer.GetReference());
 		const uint32 IndexStride = IndexBuffer ? IndexBuffer->GetStride() : 0;
 		const uint32 IndexOffsetInBytes = GeometryInitializer.IndexBufferOffset;
 
 		for (const FRayTracingGeometrySegment& Segment : GeometryInitializer.Segments)
 		{
-			FMetalResourceMultiBuffer* VertexBuffer = ResourceCast(Segment.VertexBuffer.GetReference());
+			FMetalRHIBuffer* VertexBuffer = ResourceCast(Segment.VertexBuffer.GetReference());
 			checkf(VertexBuffer, TEXT("All ray tracing geometry segments must have a valid vertex buffer"));
 
 			FHitGroupSystemRootConstants SysRootConstants;
@@ -582,8 +582,8 @@ void FMetalRayTracingScene::BuildPerInstanceGeometryParameterBuffer()
 
 void FMetalRayTracingScene::BuildAccelerationStructure(
 		FMetalRHICommandContext& CommandContext,
-		FMetalResourceMultiBuffer* InScratchBuffer, uint32 ScratchOffset,
-		FMetalResourceMultiBuffer* InstanceBuffer, uint32 InstanceOffset)
+		FMetalRHIBuffer* InScratchBuffer, uint32 ScratchOffset,
+		FMetalRHIBuffer* InstanceBuffer, uint32 InstanceOffset)
 {
 	check(AccelerationStructureBuffer.IsValid());
 	check(InstanceBuffer != nullptr);
@@ -599,7 +599,7 @@ void FMetalRayTracingScene::BuildAccelerationStructure(
 
 	BuildPerInstanceGeometryParameterBuffer();
 
-	TRefCountPtr<FMetalResourceMultiBuffer> ScratchBuffer;
+	TRefCountPtr<FMetalRHIBuffer> ScratchBuffer;
 	if (InScratchBuffer == nullptr)
 	{
 		FRHIResourceCreateInfo ScratchBufferCreateInfo(TEXT("BuildScratchTLAS"));
@@ -645,7 +645,7 @@ void FMetalRayTracingScene::BuildAccelerationStructure(
 		InstanceDescriptor.SetInstanceDescriptorStride(GRHIRayTracingInstanceDescriptorSize);
 		InstanceDescriptor.SetInstanceDescriptorType(mtlpp::AccelerationStructureInstanceDescriptorType::UserID);
 
-		mtlpp::AccelerationStructure& AS = Layer.ShaderResourceView->GetSourceBuffer()->AccelerationStructureHandle;
+		mtlpp::AccelerationStructure& AS = ResourceCast(Layer.ShaderResourceView->GetBuffer())->AccelerationStructureHandle;
 		CommandEncoder.BuildAccelerationStructure(AS, InstanceDescriptor, CurScratchBuffer, ScratchOffset);
 	}
 
@@ -656,8 +656,8 @@ void FMetalRayTracingScene::BuildAccelerationStructure(
 void FMetalRHICommandContext::RHIBuildAccelerationStructure(const FRayTracingSceneBuildParams& SceneBuildParams)
 {
 	FMetalRayTracingScene* const Scene = ResourceCast(SceneBuildParams.Scene);
-	FMetalResourceMultiBuffer* const ScratchBuffer = ResourceCast(SceneBuildParams.ScratchBuffer);
-	FMetalResourceMultiBuffer* const InstanceBuffer = ResourceCast(SceneBuildParams.InstanceBuffer);
+	FMetalRHIBuffer* const ScratchBuffer = ResourceCast(SceneBuildParams.ScratchBuffer);
+	FMetalRHIBuffer* const InstanceBuffer = ResourceCast(SceneBuildParams.InstanceBuffer);
 	Scene->BuildAccelerationStructure(
 		*this,
 		ScratchBuffer, SceneBuildParams.ScratchBufferOffset,
@@ -719,7 +719,7 @@ void FMetalRHICommandContext::RHIBuildAccelerationStructures(const TArrayView<co
 		ScratchBufferRange.Size, ScratchBufferRange.Offset, ScratchBufferRange.Buffer->GetSize());
 
 	const uint64 ScratchAlignment = GRHIRayTracingScratchBufferAlignment;
-	FMetalResourceMultiBuffer* ScratchBuffer = ResourceCast(ScratchBufferRange.Buffer);
+	FMetalRHIBuffer* ScratchBuffer = ResourceCast(ScratchBufferRange.Buffer);
 	uint32 ScratchBufferOffset = static_cast<uint32>(ScratchBufferRange.Offset);
 
 	mtlpp::Device& Device = Context->GetDevice();

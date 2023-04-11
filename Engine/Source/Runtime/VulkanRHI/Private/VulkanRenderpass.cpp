@@ -145,7 +145,7 @@ void FVulkanRenderPassManager::BeginRenderPass(FVulkanCommandListContext& Contex
 
 		FRHITexture* ColorTexture = ColorEntry.RenderTarget;
 		CA_ASSUME(ColorTexture);
-		FVulkanTexture& ColorSurface = *FVulkanTexture::Cast(ColorTexture);
+		FVulkanTexture& ColorSurface = *ResourceCast(ColorTexture);
 		const bool bPassPerformsResolve = ColorSurface.GetNumSamples() > 1 && ColorEntry.ResolveTarget;
 
 		if (GetLoadAction(ColorEntry.Action) == ERenderTargetLoadAction::ELoad)

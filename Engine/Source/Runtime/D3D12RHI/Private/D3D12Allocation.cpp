@@ -1053,13 +1053,41 @@ FD3D12UploadHeapAllocator::FD3D12UploadHeapAllocator(FD3D12Adapter* InParent, FD
 	: FD3D12AdapterChild(InParent)
 	, FD3D12DeviceChild(InParentDevice)
 	, FD3D12MultiNodeGPUObject(InParentDevice->GetGPUMask(), FRHIGPUMask::All()) // Upload memory, thus they can be trivially visibile to all GPUs
-	, TraceHeapId(MemoryTrace_HeapSpec(EMemoryTraceRootHeap::VideoMemory, *FString(InName + TEXT(" (UploadHeapAllocator)")))),
-	SmallBlockAllocator(InParentDevice, GetVisibilityMask(), FD3D12ResourceInitConfig::CreateUpload(), TEXT("Small Block Multi Buddy Allocator"), EResourceAllocationStrategy::kManualSubAllocation,
-		GD3D12UploadHeapSmallBlockMaxAllocationSize, GD3D12UploadHeapSmallBlockPoolSize, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, TraceHeapId),
-	BigBlockAllocator(InParentDevice, GetVisibilityMask(), FD3D12ResourceInitConfig::CreateUpload(), TEXT("Big Block Pool Allocator"), EResourceAllocationStrategy::kManualSubAllocation,
-		GD3D12UploadHeapBigBlockPoolSize, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT, GD3D12UploadHeapBigBlockMaxAllocationSize, FRHIMemoryPool::EFreeListOrder::SortByOffset, false /*defrag*/, TraceHeapId),
-	FastConstantPageAllocator(InParentDevice, GetVisibilityMask(), FD3D12ResourceInitConfig::CreateUpload(), TEXT("Fast Constant Page Multi Buddy Allocator"), EResourceAllocationStrategy::kManualSubAllocation,
-		GD3D12FastConstantAllocatorPageSize * 64, GD3D12UploadHeapSmallBlockPoolSize, GD3D12FastConstantAllocatorPageSize, TraceHeapId)
+	, TraceHeapId(MemoryTrace_HeapSpec(EMemoryTraceRootHeap::VideoMemory, *FString(InName + TEXT(" (UploadHeapAllocator)"))))
+	, SmallBlockAllocator(
+		InParentDevice
+		, GetVisibilityMask()
+		, FD3D12ResourceInitConfig::CreateUpload()
+		, TEXT("Small Block Multi Buddy Allocator")
+		, EResourceAllocationStrategy::kManualSubAllocation
+		, GD3D12UploadHeapSmallBlockMaxAllocationSize
+		, GD3D12UploadHeapSmallBlockPoolSize
+		, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT
+		, TraceHeapId)
+
+	, BigBlockAllocator(
+		InParentDevice
+		, GetVisibilityMask()
+		, FD3D12ResourceInitConfig::CreateUpload()
+		, TEXT("Big Block Pool Allocator")
+		, EResourceAllocationStrategy::kManualSubAllocation
+		, GD3D12UploadHeapBigBlockPoolSize
+		, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT
+		, GD3D12UploadHeapBigBlockMaxAllocationSize
+		, FRHIMemoryPool::EFreeListOrder::SortByOffset
+		, false /*defrag*/
+		, TraceHeapId)
+
+	, FastConstantPageAllocator(
+		InParentDevice
+		, GetVisibilityMask()
+		, FD3D12ResourceInitConfig::CreateUpload()
+		, TEXT("Fast Constant Page Multi Buddy Allocator")
+		, EResourceAllocationStrategy::kManualSubAllocation
+		, GD3D12FastConstantAllocatorPageSize * 64
+		, GD3D12UploadHeapSmallBlockPoolSize
+		, GD3D12FastConstantAllocatorPageSize
+		, TraceHeapId)
 {
 }
 
@@ -2274,7 +2302,7 @@ void* FD3D12FastConstantAllocator::Allocate(uint32 Bytes, FD3D12ResourceLocation
 
 	if (OutCBView)
 	{
-		OutCBView->Create(UnderlyingResource.GetGPUVirtualAddress() + Offset, AlignedSize);
+		OutCBView->CreateView(&UnderlyingResource, Offset, AlignedSize);
 	}
 
 	Offset += AlignedSize;

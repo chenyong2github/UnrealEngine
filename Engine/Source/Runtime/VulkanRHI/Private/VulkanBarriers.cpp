@@ -684,7 +684,7 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 		if (Info.Type == FRHITransitionInfo::EType::Texture)
 		{
 			// CPU accessible "textures" are implemented as buffers. Check if this is a real texture or a buffer.
-			FVulkanTexture* Texture = FVulkanTexture::Cast(Info.Texture);
+			FVulkanTexture* Texture = ResourceCast(Info.Texture);
 			if (Texture->GetCpuReadbackBuffer() == nullptr)
 			{
 				++NumTextures;
@@ -695,7 +695,7 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 		if (Info.Type == FRHITransitionInfo::EType::UAV)
 		{
 			FVulkanUnorderedAccessView* UAV = ResourceCast(Info.UAV);
-			if (UAV->SourceTexture)
+			if (UAV->IsTexture())
 			{
 				++NumTextures;
 				continue;
@@ -738,7 +738,7 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 		{
 		case FRHITransitionInfo::EType::Texture:
 		{
-			Texture = FVulkanTexture::Cast(Info.Texture);
+			Texture = ResourceCast(Info.Texture);
 			if (Texture->GetCpuReadbackBuffer())
 			{
 				Texture = nullptr;
@@ -756,21 +756,16 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FR
 		case FRHITransitionInfo::EType::UAV:
 		{
 			FVulkanUnorderedAccessView* UAV = ResourceCast(Info.UAV);
-			if (UAV->SourceTexture)
+			if (UAV->IsTexture())
 			{
-				Texture = FVulkanTexture::Cast(UAV->SourceTexture);
+				Texture = ResourceCast(UAV->GetTexture());
 				UnderlyingType = FRHITransitionInfo::EType::Texture;
-			}
-			else if (UAV->SourceBuffer)
-			{
-				Buffer = UAV->SourceBuffer;
-				UnderlyingType = FRHITransitionInfo::EType::Buffer;
-				UsageFlags = Buffer->GetBufferUsageFlags();
 			}
 			else
 			{
-				checkNoEntry();
-				continue;
+				Buffer = ResourceCast(UAV->GetBuffer());
+				UnderlyingType = FRHITransitionInfo::EType::Buffer;
+				UsageFlags = Buffer->GetBufferUsageFlags();
 			}
 			break;
 		}

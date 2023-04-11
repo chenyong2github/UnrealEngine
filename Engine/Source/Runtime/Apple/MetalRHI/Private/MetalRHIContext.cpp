@@ -66,13 +66,9 @@ void SafeReleaseMetalFence(FMetalFence* Object)
 	}
 }
 
-FMetalRHICommandContext::FMetalRHICommandContext(class FMetalProfiler* InProfiler, FMetalContext* WrapContext)
-: Context(WrapContext)
-, Profiler(InProfiler)
-, PendingVertexDataStride(0)
-, PendingIndexDataStride(0)
-, PendingPrimitiveType(0)
-, PendingNumPrimitives(0)
+FMetalRHICommandContext::FMetalRHICommandContext(class FMetalProfiler* InProfiler, FMetalDeviceContext* WrapContext)
+	: Context(WrapContext)
+	, Profiler(InProfiler)
 {
 	check(Context);
 	GlobalUniformBuffers.AddZeroed(FUniformBufferStaticSlotRegistry::Get().GetSlotCount());
@@ -83,51 +79,7 @@ FMetalRHICommandContext::~FMetalRHICommandContext()
 	delete Context;
 }
 
-FMetalRHIComputeContext::FMetalRHIComputeContext(class FMetalProfiler* InProfiler, FMetalContext* WrapContext)
-: FMetalRHICommandContext(InProfiler, WrapContext)
-{
-	if (FMetalCommandQueue::SupportsFeature(EMetalFeaturesFences) && FApplePlatformMisc::IsOSAtLeastVersion((uint32[]){10, 14, 0}, (uint32[]){12, 0, 0}, (uint32[]){12, 0, 0}))
-	{
-		WrapContext->GetCurrentRenderPass().SetDispatchType(mtlpp::DispatchType::Concurrent);
-	}
-}
-
-FMetalRHIComputeContext::~FMetalRHIComputeContext()
-{
-}
-
-void FMetalRHIComputeContext::RHISetAsyncComputeBudget(EAsyncComputeBudget Budget)
-{
-	if (!Context->GetCurrentCommandBuffer())
-	{
-		Context->InitFrame(false, 0, 0);
-	}
-	FMetalRHICommandContext::RHISetAsyncComputeBudget(Budget);
-}
-
-void FMetalRHIComputeContext::RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState)
-{
-	if (!Context->GetCurrentCommandBuffer())
-	{
-		Context->InitFrame(false, 0, 0);
-	}
-	FMetalRHICommandContext::RHISetComputePipelineState(ComputePipelineState);
-}
-
-void FMetalRHIComputeContext::RHISubmitCommandsHint()
-{
-	if (!Context->GetCurrentCommandBuffer())
-	{
-		Context->InitFrame(false, 0, 0);
-	}
-	Context->FinishFrame(false);
-	
-#if ENABLE_METAL_GPUPROFILE
-	FMetalContext::MakeCurrent(&GetMetalDeviceContext());
-#endif
-}
-
-FMetalRHIImmediateCommandContext::FMetalRHIImmediateCommandContext(class FMetalProfiler* InProfiler, FMetalContext* WrapContext)
+FMetalRHIImmediateCommandContext::FMetalRHIImmediateCommandContext(class FMetalProfiler* InProfiler, FMetalDeviceContext* WrapContext)
 	: FMetalRHICommandContext(InProfiler, WrapContext)
 {
 }
@@ -135,11 +87,6 @@ FMetalRHIImmediateCommandContext::FMetalRHIImmediateCommandContext(class FMetalP
 void FMetalRHICommandContext::RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* InName)
 {
 	SCOPED_AUTORELEASE_POOL;
-	
-	if (InInfo.NumOcclusionQueries > 0)
-	{
-		Context->GetCommandList().SetParallelIndex(0, 0);
-	}
 
 	Context->SetRenderPassInfo(InInfo);
 

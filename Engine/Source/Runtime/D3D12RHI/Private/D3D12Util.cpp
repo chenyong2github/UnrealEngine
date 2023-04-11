@@ -24,6 +24,23 @@ D3D12Util.h: D3D RHI utility implementation.
 
 extern bool D3D12RHI_ShouldCreateWithD3DDebug();
 
+template<typename PerDeviceFunction>
+void FD3D12DynamicRHI::ForEachDevice(ID3D12Device* inDevice, const PerDeviceFunction& pfPerDeviceFunction)
+{
+	for (uint32 AdapterIndex = 0; AdapterIndex < GetNumAdapters(); ++AdapterIndex)
+	{
+		FD3D12Adapter& D3D12Adapter = GetAdapter(AdapterIndex);
+		for (uint32 GPUIndex : FRHIGPUMask::All())
+		{
+			FD3D12Device* D3D12Device = D3D12Adapter.GetDevice(GPUIndex);
+			if (inDevice == nullptr || D3D12Device->GetDevice() == inDevice)
+			{
+				pfPerDeviceFunction(D3D12Device);
+			}
+		}
+	}
+}
+
 static FString GetUniqueName()
 {
 	static int64 ID = 0;
@@ -1666,13 +1683,11 @@ void CResourceState::SetSubresourceState(uint32 SubresourceIndex, D3D12_RESOURCE
 	}
 }
 
+#if ASSERT_RESOURCE_STATES
 // Forward declarations are required for the template functions
-template bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12View<D3D12_RENDER_TARGET_VIEW_DESC>* pView, const D3D12_RESOURCE_STATES& State);
-template bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12View<D3D12_UNORDERED_ACCESS_VIEW_DESC>* pView, const D3D12_RESOURCE_STATES& State);
-template bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12View<D3D12_SHADER_RESOURCE_VIEW_DESC>* pView, const D3D12_RESOURCE_STATES& State);
+template bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12View* pView, const D3D12_RESOURCE_STATES& State);
 
-template <class TView>
-bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12View<TView>* pView, const D3D12_RESOURCE_STATES& State)
+bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12View* pView, const D3D12_RESOURCE_STATES& State)
 {
 	// Check the view
 	if (!pView)
@@ -1694,11 +1709,11 @@ bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12Resource* pResou
 		return true;
 	}
 
-	CViewSubresourceSubset SubresourceSubset(Subresource, pResource->GetMipLevels(), pResource->GetArraySize(), pResource->GetPlaneCount());
-	return AssertResourceState(pCommandList, pResource, State, SubresourceSubset);
+	FD3D12ViewSubset ViewSubset(Subresource, pResource->GetMipLevels(), pResource->GetArraySize(), pResource->GetPlaneCount());
+	return AssertResourceState(pCommandList, pResource, State, ViewSubset);
 }
 
-bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12Resource* pResource, const D3D12_RESOURCE_STATES& State, const CViewSubresourceSubset& SubresourceSubset)
+bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12Resource* pResource, const D3D12_RESOURCE_STATES& State, const FD3D12ViewSubset& ViewSubset)
 {
 #if PLATFORM_WINDOWS
 	// Check the resource
@@ -1726,21 +1741,19 @@ bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12Resource* pResou
 	check(pD3D12Resource);
 
 	// For each subresource in the view...
-	for (CViewSubresourceSubset::CViewSubresourceIterator it = SubresourceSubset.begin(); it != SubresourceSubset.end(); ++it)
+	for (uint32 SubresourceIndex : ViewSubset)
 	{
-		for (uint32 SubresourceIndex = it.StartSubresource(); SubresourceIndex < it.EndSubresource(); SubresourceIndex++)
+		const bool bGoodState = !!pDebugCommandList->AssertResourceState(pD3D12Resource, SubresourceIndex, State);
+		if (!bGoodState)
 		{
-			const bool bGoodState = !!pDebugCommandList->AssertResourceState(pD3D12Resource, SubresourceIndex, State);
-			if (!bGoodState)
-			{
-				return false;
-			}
+			return false;
 		}
 	}
 #endif // PLATFORM_WINDOWS
 
 	return true;
 }
+#endif
 
 //
 // Stat declarations.

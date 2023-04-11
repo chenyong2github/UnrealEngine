@@ -10,8 +10,6 @@
 #include "Containers/Queue.h"
 #include "RenderUtils.h"
 
-class FD3D12Adapter;
-
 namespace D3D12RHI
 {
 	/**
@@ -55,7 +53,7 @@ namespace D3D12RHI
 	const TCHAR* GetD3D12TextureFormatString(DXGI_FORMAT TextureFormat);
 
 	/** Checks if given GPU virtual address corresponds to any known resource allocations and logs results */
-	void LogPageFaultData(FD3D12Adapter* InAdapter, FD3D12Device* InDevice, D3D12_GPU_VIRTUAL_ADDRESS InPageFaultAddress);
+	void LogPageFaultData(class FD3D12Adapter* InAdapter, FD3D12Device* InDevice, D3D12_GPU_VIRTUAL_ADDRESS InPageFaultAddress);
 	
 } // namespace D3D12RHI
 
@@ -710,15 +708,18 @@ static void Get4KTileShape(D3D12_TILE_SHAPE* pTileShape, DXGI_FORMAT DXGIFormat,
 	}
 }
 
-template <class TView>
+#define ASSERT_RESOURCE_STATES 0	// Disabled for now.
+
+#if ASSERT_RESOURCE_STATES
 class FD3D12View;
-class CViewSubresourceSubset;
+class FD3D12ViewSubset;
 
 template <class TView>
-bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12View<TView>* pView, const D3D12_RESOURCE_STATES& State);
+bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12View* pView, const D3D12_RESOURCE_STATES& State);
 
 bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12Resource* pResource, const D3D12_RESOURCE_STATES& State, uint32 Subresource);
-bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12Resource* pResource, const D3D12_RESOURCE_STATES& State, const CViewSubresourceSubset& SubresourceSubset);
+bool AssertResourceState(ID3D12CommandList* pCommandList, FD3D12Resource* pResource, const D3D12_RESOURCE_STATES& State, const FD3D12ViewSubset& ViewSubset);
+#endif
 
 FORCEINLINE_DEBUGGABLE D3D12_PRIMITIVE_TOPOLOGY_TYPE TranslatePrimitiveTopologyType(EPrimitiveTopologyType TopologyType)
 {
@@ -806,17 +807,14 @@ inline DXGI_FORMAT FindDepthStencilParentDXGIFormat(DXGI_FORMAT InFormat)
 {
 	switch (InFormat)
 	{
-	case DXGI_FORMAT_D24_UNORM_S8_UINT:
-	case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
-		return DXGI_FORMAT_R24G8_TYPELESS;
-		// Changing Depth Buffers to 32 bit on Dingo as D24S8 is actually implemented as a 32 bit buffer in the hardware
-	case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-	case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
-		return DXGI_FORMAT_R32G8X24_TYPELESS;
-	case DXGI_FORMAT_D32_FLOAT:
-		return DXGI_FORMAT_R32_TYPELESS;
-	case DXGI_FORMAT_D16_UNORM:
-		return DXGI_FORMAT_R16_TYPELESS;
+	case DXGI_FORMAT_D24_UNORM_S8_UINT      : return DXGI_FORMAT_R24G8_TYPELESS;
+	case DXGI_FORMAT_X24_TYPELESS_G8_UINT   : return DXGI_FORMAT_R24G8_TYPELESS;
+
+	case DXGI_FORMAT_D32_FLOAT_S8X24_UINT   : return DXGI_FORMAT_R32G8X24_TYPELESS;
+	case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT: return DXGI_FORMAT_R32G8X24_TYPELESS;
+
+	case DXGI_FORMAT_D32_FLOAT              : return DXGI_FORMAT_R32_TYPELESS;
+	case DXGI_FORMAT_D16_UNORM              : return DXGI_FORMAT_R16_TYPELESS;
 	};
 	return InFormat;
 }
@@ -829,28 +827,24 @@ static uint8 GetPlaneSliceFromViewFormat(DXGI_FORMAT ResourceFormat, DXGI_FORMAT
 	case DXGI_FORMAT_R24G8_TYPELESS:
 		switch (ViewFormat)
 		{
-		case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
-			return 0;
-		case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
-			return 1;
+		case DXGI_FORMAT_R24_UNORM_X8_TYPELESS: return 0;
+		case DXGI_FORMAT_X24_TYPELESS_G8_UINT : return 1;
 		}
 		break;
+	
 	case DXGI_FORMAT_R32G8X24_TYPELESS:
 		switch (ViewFormat)
 		{
-		case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
-			return 0;
-		case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
-			return 1;
+		case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS: return 0;
+		case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT : return 1;
 		}
 		break;
+
 	case DXGI_FORMAT_NV12:
 		switch (ViewFormat)
 		{
-		case DXGI_FORMAT_R8_UNORM:
-			return 0;
-		case DXGI_FORMAT_R8G8_UNORM:
-			return 1;
+		case DXGI_FORMAT_R8_UNORM  : return 0;
+		case DXGI_FORMAT_R8G8_UNORM: return 1;
 		}
 		break;
 	}
@@ -870,6 +864,145 @@ static uint8 GetPlaneCount(DXGI_FORMAT Format)
 	default:
 		return 1;
 	}
+}
+
+static uint32 D3D12GetFormatSizeInBits(DXGI_FORMAT Format)
+{
+	switch (Format)
+	{
+	default: checkNoEntry(); [[fallthrough]];
+	case DXGI_FORMAT_UNKNOWN:
+		return 0;
+
+	case DXGI_FORMAT_R32G32B32A32_TYPELESS:
+	case DXGI_FORMAT_R32G32B32A32_FLOAT:
+	case DXGI_FORMAT_R32G32B32A32_UINT:
+	case DXGI_FORMAT_R32G32B32A32_SINT:
+	case DXGI_FORMAT_BC2_TYPELESS:
+	case DXGI_FORMAT_BC2_UNORM:
+	case DXGI_FORMAT_BC2_UNORM_SRGB:
+	case DXGI_FORMAT_BC3_TYPELESS:
+	case DXGI_FORMAT_BC3_UNORM:
+	case DXGI_FORMAT_BC3_UNORM_SRGB:
+	case DXGI_FORMAT_BC5_TYPELESS:
+	case DXGI_FORMAT_BC5_UNORM:
+	case DXGI_FORMAT_BC5_SNORM:
+	case DXGI_FORMAT_BC6H_TYPELESS:
+	case DXGI_FORMAT_BC6H_UF16:
+	case DXGI_FORMAT_BC6H_SF16:
+	case DXGI_FORMAT_BC7_TYPELESS:
+	case DXGI_FORMAT_BC7_UNORM:
+	case DXGI_FORMAT_BC7_UNORM_SRGB:
+		return 128;
+
+	case DXGI_FORMAT_R32G32B32_TYPELESS:
+	case DXGI_FORMAT_R32G32B32_FLOAT:
+	case DXGI_FORMAT_R32G32B32_UINT:
+	case DXGI_FORMAT_R32G32B32_SINT:
+		return 96;
+
+	case DXGI_FORMAT_R16G16B16A16_TYPELESS:
+	case DXGI_FORMAT_R16G16B16A16_FLOAT:
+	case DXGI_FORMAT_R16G16B16A16_UNORM:
+	case DXGI_FORMAT_R16G16B16A16_UINT:
+	case DXGI_FORMAT_R16G16B16A16_SNORM:
+	case DXGI_FORMAT_R16G16B16A16_SINT:
+	case DXGI_FORMAT_R32G32_TYPELESS:
+	case DXGI_FORMAT_R32G32_FLOAT:
+	case DXGI_FORMAT_R32G32_UINT:
+	case DXGI_FORMAT_R32G32_SINT:
+	case DXGI_FORMAT_R32G8X24_TYPELESS:
+	case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+	case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+	case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+	case DXGI_FORMAT_BC1_TYPELESS:
+	case DXGI_FORMAT_BC1_UNORM:
+	case DXGI_FORMAT_BC1_UNORM_SRGB:
+	case DXGI_FORMAT_BC4_TYPELESS:
+	case DXGI_FORMAT_BC4_UNORM:
+	case DXGI_FORMAT_BC4_SNORM:
+	case DXGI_FORMAT_Y416:
+	case DXGI_FORMAT_Y210:
+	case DXGI_FORMAT_Y216:
+		return 64;
+
+	case DXGI_FORMAT_R10G10B10A2_TYPELESS:
+	case DXGI_FORMAT_R10G10B10A2_UNORM:
+	case DXGI_FORMAT_R10G10B10A2_UINT:
+	case DXGI_FORMAT_R11G11B10_FLOAT:
+	case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+	case DXGI_FORMAT_R8G8B8A8_UNORM:
+	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+	case DXGI_FORMAT_R8G8B8A8_UINT:
+	case DXGI_FORMAT_R8G8B8A8_SNORM:
+	case DXGI_FORMAT_R8G8B8A8_SINT:
+	case DXGI_FORMAT_R16G16_TYPELESS:
+	case DXGI_FORMAT_R16G16_FLOAT:
+	case DXGI_FORMAT_R16G16_UNORM:
+	case DXGI_FORMAT_R16G16_UINT:
+	case DXGI_FORMAT_R16G16_SNORM:
+	case DXGI_FORMAT_R16G16_SINT:
+	case DXGI_FORMAT_R32_TYPELESS:
+	case DXGI_FORMAT_D32_FLOAT:
+	case DXGI_FORMAT_R32_FLOAT:
+	case DXGI_FORMAT_R32_UINT:
+	case DXGI_FORMAT_R32_SINT:
+	case DXGI_FORMAT_R24G8_TYPELESS:
+	case DXGI_FORMAT_D24_UNORM_S8_UINT:
+	case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+	case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+	case DXGI_FORMAT_R9G9B9E5_SHAREDEXP:
+	case DXGI_FORMAT_R8G8_B8G8_UNORM:
+	case DXGI_FORMAT_G8R8_G8B8_UNORM:
+	case DXGI_FORMAT_B8G8R8A8_UNORM:
+	case DXGI_FORMAT_B8G8R8X8_UNORM:
+	case DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM:
+	case DXGI_FORMAT_B8G8R8A8_TYPELESS:
+	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+	case DXGI_FORMAT_B8G8R8X8_TYPELESS:
+	case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+	case DXGI_FORMAT_AYUV:
+	case DXGI_FORMAT_Y410:
+	case DXGI_FORMAT_P010:
+	case DXGI_FORMAT_P016:
+	case DXGI_FORMAT_YUY2:
+		return 32;
+
+	case DXGI_FORMAT_R8G8_TYPELESS:
+	case DXGI_FORMAT_R8G8_UNORM:
+	case DXGI_FORMAT_R8G8_UINT:
+	case DXGI_FORMAT_R8G8_SNORM:
+	case DXGI_FORMAT_R8G8_SINT:
+	case DXGI_FORMAT_R16_TYPELESS:
+	case DXGI_FORMAT_R16_FLOAT:
+	case DXGI_FORMAT_D16_UNORM:
+	case DXGI_FORMAT_R16_UNORM:
+	case DXGI_FORMAT_R16_UINT:
+	case DXGI_FORMAT_R16_SNORM:
+	case DXGI_FORMAT_R16_SINT:
+	case DXGI_FORMAT_B5G6R5_UNORM:
+	case DXGI_FORMAT_B5G5R5A1_UNORM:
+	case DXGI_FORMAT_B4G4R4A4_UNORM:
+	case DXGI_FORMAT_NV12:
+	case DXGI_FORMAT_NV11:
+		return 16;
+
+	case DXGI_FORMAT_R8_TYPELESS:
+	case DXGI_FORMAT_R8_UNORM:
+	case DXGI_FORMAT_R8_UINT:
+	case DXGI_FORMAT_R8_SNORM:
+	case DXGI_FORMAT_R8_SINT:
+	case DXGI_FORMAT_A8_UNORM:
+		return 8;
+
+	case DXGI_FORMAT_R1_UNORM:
+		return 1;
+	}
+}
+
+static uint32 D3D12GetFormatSizeInBytes(DXGI_FORMAT Format)
+{
+	return D3D12GetFormatSizeInBits(Format) / 8;
 }
 
 struct FD3D12ScopeLock

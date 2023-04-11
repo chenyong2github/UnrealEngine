@@ -106,3 +106,19 @@ void FMetalTransitionData::EndResourceTransitions() const
 		}
 	}
 }
+
+void FMetalRHICommandContext::RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions)
+{
+	for (auto Transition : Transitions)
+	{
+		Transition->GetPrivateData<FMetalTransitionData>()->BeginResourceTransitions();
+	}
+}
+
+void FMetalRHICommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> Transitions)
+{
+	for (auto Transition : Transitions)
+	{
+		Transition->GetPrivateData<FMetalTransitionData>()->EndResourceTransitions();
+	}
+}

@@ -93,7 +93,7 @@ void FVulkanCommonPipelineDescriptorState::CreateDescriptorWriteInfos()
 	DSWriter.AddDefaulted(NumSets);
 
 	const FVulkanSamplerState& DefaultSampler = Device->GetDefaultSampler();
-	const FVulkanTextureView& DefaultImageView = Device->GetDefaultImageView();
+	const FVulkanView::FTextureView& DefaultImageView = Device->GetDefaultImageView();
 
 	FVulkanHashableDescriptorInfo* CurrentHashableDescriptorInfo = nullptr;
 	if (UseVulkanDescriptorCache())
@@ -726,4 +726,85 @@ void FVulkanDescriptorSetWriter::InitWrittenMasks(uint32 NumDescriptorWrites)
 	BaseWrittenMask.Empty(Size);
 	BaseWrittenMask.SetNumZeroed(Size);
 #endif
+}
+
+void FVulkanCommonPipelineDescriptorState::SetSRV(FVulkanCmdBuffer* CmdBuffer, bool bCompute, uint8 DescriptorSet, uint32 BindingIndex, FVulkanShaderResourceView* SRV)
+{
+	check(!bUseBindless);
+
+	ERHIAccess Access = bCompute
+		? ERHIAccess::SRVCompute
+		: ERHIAccess::SRVGraphics;
+
+	switch (SRV->GetViewType())
+	{
+	case FVulkanView::EType::Null:
+		checkf(false, TEXT("Attempt to bind a null SRV."));
+		break;
+		
+	case FVulkanView::EType::TypedBuffer:
+		check((SRV->GetTypedBufferView().Flags & VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT) == VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT);
+		MarkDirty(DSWriter[DescriptorSet].WriteUniformTexelBuffer(BindingIndex, SRV->GetTypedBufferView()));
+		break;
+
+	case FVulkanView::EType::Texture:
+		{
+			const FVulkanTexture* VulkanTexture = ResourceCast(SRV->GetTexture());
+			const VkImageLayout Layout = FVulkanLayoutManager::GetDefaultLayout(CmdBuffer, *VulkanTexture, Access);
+			MarkDirty(DSWriter[DescriptorSet].WriteImage(BindingIndex, SRV->GetTextureView(), Layout));
+		}
+		break;
+
+	case FVulkanView::EType::StructuredBuffer:
+		check((ResourceCast(SRV->GetBuffer())->GetBufferUsageFlags() & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) == VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+		MarkDirty(DSWriter[DescriptorSet].WriteStorageBuffer(BindingIndex, SRV->GetStructuredBufferView()));
+		break;
+
+#if VULKAN_RHI_RAYTRACING
+	case FVulkanView::EType::AccelerationStructure:
+		MarkDirty(DSWriter[DescriptorSet].WriteAccelerationStructure(BindingIndex, SRV->GetAccelerationStructureView().Handle));
+		break;
+#endif
+	}
+}
+
+void FVulkanCommonPipelineDescriptorState::SetUAV(FVulkanCmdBuffer* CmdBuffer, bool bCompute, uint8 DescriptorSet, uint32 BindingIndex, FVulkanUnorderedAccessView* UAV)
+{
+	check(!bUseBindless);
+
+	ERHIAccess Access = bCompute
+		? ERHIAccess::UAVCompute
+		: ERHIAccess::UAVGraphics;
+
+	switch (UAV->GetViewType())
+	{
+	case FVulkanView::EType::Null:
+		checkf(false, TEXT("Attempt to bind a null UAV."));
+		break;
+
+	case FVulkanView::EType::TypedBuffer:
+		check((UAV->GetTypedBufferView().Flags & VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT) == VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT);
+		MarkDirty(DSWriter[DescriptorSet].WriteStorageTexelBuffer(BindingIndex, UAV->GetTypedBufferView()));
+		break;
+
+	case FVulkanView::EType::Texture:
+		{
+			const FVulkanTexture* VulkanTexture = ResourceCast(UAV->GetTexture());
+			const VkImageLayout ExpectedLayout = FVulkanLayoutManager::GetDefaultLayout(CmdBuffer, *VulkanTexture, Access);
+			MarkDirty(DSWriter[DescriptorSet].WriteStorageImage(BindingIndex, UAV->GetTextureView(), ExpectedLayout));
+		}
+		break;
+
+
+	case FVulkanView::EType::StructuredBuffer:
+		check((ResourceCast(UAV->GetBuffer())->GetBufferUsageFlags() & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) == VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+		MarkDirty(DSWriter[DescriptorSet].WriteStorageBuffer(BindingIndex, UAV->GetStructuredBufferView()));
+		break;
+
+#if VULKAN_RHI_RAYTRACING
+	case FVulkanView::EType::AccelerationStructure:
+		MarkDirty(DSWriter[DescriptorSet].WriteAccelerationStructure(BindingIndex, UAV->GetAccelerationStructureView().Handle));
+		break;
+#endif
+	}
 }

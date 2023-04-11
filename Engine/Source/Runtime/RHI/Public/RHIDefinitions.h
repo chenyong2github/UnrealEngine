@@ -776,6 +776,9 @@ enum class EBufferUsageFlags : uint32
 	**/
 	RayTracingScratch = (1 << 19) | UnorderedAccess,
 
+	/** The buffer is a placeholder for streaming, and does not contain an underlying GPU resource. */
+	NullResource = 1 << 20,
+
 	// Helper bit-masks
 	AnyDynamic = (Dynamic | Volatile),
 };
@@ -803,6 +806,7 @@ ENUM_CLASS_FLAGS(EBufferUsageFlags);
 #define BUF_AnyDynamic             EBufferUsageFlags::AnyDynamic
 #define BUF_MultiGPUAllocate       EBufferUsageFlags::MultiGPUAllocate
 #define BUF_MultiGPUGraphIgnore    EBufferUsageFlags::MultiGPUGraphIgnore
+#define BUF_NullResource           EBufferUsageFlags::NullResource
 
 enum class EGpuVendorId : uint32
 {

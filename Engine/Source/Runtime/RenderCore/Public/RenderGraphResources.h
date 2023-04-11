@@ -715,11 +715,14 @@ public:
 	static FRDGTextureSRVDesc CreateForSlice(FRDGTextureRef Texture, int32 SliceIndex)
 	{
 		check(Texture);
-		check(Texture->Desc.IsTextureArray());
+        check(Texture->Desc.Dimension == ETextureDimension::Texture2DArray);
 		check(SliceIndex >= 0 && SliceIndex < Texture->Desc.ArraySize);
+        
 		FRDGTextureSRVDesc Desc = FRDGTextureSRVDesc::Create(Texture);
 		Desc.FirstArraySlice = (uint16)SliceIndex;
 		Desc.NumArraySlices = 1;
+        Desc.DimensionOverride = ETextureDimension::Texture2D;
+        
 		return Desc;
 	}
 
@@ -1090,7 +1093,6 @@ struct FRDGBufferSRVDesc final
 		: FRHIBufferSRVCreateInfo(InFormat)
 		, Buffer(InBuffer)
 	{
-		BytesPerElement = GPixelFormats[Format].BlockBytes;
 	}
 
 	FRDGBufferSRVDesc(FRDGBufferRef InBuffer, uint32 InStartOffsetBytes, uint32 InNumElements)
@@ -1161,9 +1163,7 @@ public:
 	{
 		if (EnumHasAnyFlags(InDesc.Usage, EBufferUsageFlags::StructuredBuffer | EBufferUsageFlags::ByteAddressBuffer))
 		{
-			FRHIBufferSRVCreateInfo SRVDesc;
-			SRVDesc.BytesPerElement = Desc.BytesPerElement;
-			CachedSRV = GetOrCreateSRV(SRVDesc);
+			CachedSRV = GetOrCreateSRV(FRHIBufferSRVCreateInfo());
 		}
 	}
 

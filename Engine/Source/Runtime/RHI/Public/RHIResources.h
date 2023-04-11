@@ -1313,9 +1313,14 @@ protected:
 		, TrackedAccess(InAccess)
 	{}
 
-	void Swap(FRHIViewableResource& Other)
+	void TakeOwnership(FRHIViewableResource& Other)
 	{
-		::Swap(TrackedAccess, Other.TrackedAccess);
+		TrackedAccess = Other.TrackedAccess;
+	}
+
+	void ReleaseOwnership()
+	{
+		TrackedAccess = ERHIAccess::Unknown;
 	}
 
 	FName Name;
@@ -1327,31 +1332,59 @@ private:
 	friend class IRHIComputeContext;
 };
 
+struct FRHIBufferDesc
+{
+	uint32 Size{};
+	uint32 Stride{};
+	EBufferUsageFlags Usage{};
+
+	FRHIBufferDesc() = default;
+	FRHIBufferDesc(uint32 InSize, uint32 InStride, EBufferUsageFlags InUsage)
+		: Size  (InSize)
+		, Stride(InStride)
+		, Usage (InUsage)
+	{}
+
+	static FRHIBufferDesc Null()
+	{
+		return FRHIBufferDesc(0, 0, BUF_NullResource);
+	}
+
+	bool IsNull() const
+	{
+		if (EnumHasAnyFlags(Usage, BUF_NullResource))
+		{
+			// The null resource descriptor should have its other fields zeroed, and no additional flags.
+			check(Size == 0 && Stride == 0 && Usage == BUF_NullResource);
+			return true;
+		}
+
+		return false;
+	}
+};
+
 class FRHIBuffer : public FRHIViewableResource
 #if ENABLE_RHI_VALIDATION
 	, public RHIValidation::FBufferResource
 #endif
 {
 public:
-	FRHIBuffer() : FRHIViewableResource(RRT_Buffer, ERHIAccess::Unknown) {}
-
 	/** Initialization constructor. */
-	FRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, uint32 InStride)
+	FRHIBuffer(FRHIBufferDesc const& InDesc)
 		: FRHIViewableResource(RRT_Buffer, ERHIAccess::Unknown /* TODO (RemoveUnknowns): Use InitialAccess from descriptor after refactor. */)
-		, Size(InSize)
-		, Stride(InStride)
-		, Usage(InUsage)
-	{
-	}
+		, Desc(InDesc)
+	{}
+
+	FRHIBufferDesc const& GetDesc() const { return Desc; }
 
 	/** @return The number of bytes in the buffer. */
-	uint32 GetSize() const { return Size; }
+	uint32 GetSize() const { return Desc.Size; }
 
 	/** @return The stride in bytes of the buffer. */
-	uint32 GetStride() const { return Stride; }
+	uint32 GetStride() const { return Desc.Stride; }
 
 	/** @return The usage flags used to create the buffer. */
-	EBufferUsageFlags GetUsage() const { return Usage; }
+	EBufferUsageFlags GetUsage() const { return Desc.Usage; }
 
 	void SetName(const FName& InName) { Name = InName; }
 
@@ -1365,30 +1398,26 @@ public:
 #endif
 
 protected:
-	void Swap(FRHIBuffer& Other)
-	{
-		FRHIViewableResource::Swap(Other);
-		::Swap(Stride, Other.Stride);
-		::Swap(Size, Other.Size);
-		::Swap(Usage, Other.Usage);
-	}
-
 	// Used by RHI implementations that may adjust internal usage flags during object construction.
 	void SetUsage(EBufferUsageFlags InUsage)
 	{
-		Usage = InUsage;
+		Desc.Usage = InUsage;
 	}
 
-	void ReleaseUnderlyingResource()
+	void TakeOwnership(FRHIBuffer& Other)
 	{
-		Stride = Size = 0;
-		Usage = EBufferUsageFlags::None;
+		FRHIViewableResource::TakeOwnership(Other);
+		Desc = Other.Desc;
+	}
+
+	void ReleaseOwnership()
+	{
+		FRHIViewableResource::ReleaseOwnership();
+		Desc = FRHIBufferDesc::Null();
 	}
 
 private:
-	uint32 Size{};
-	uint32 Stride{};
-	EBufferUsageFlags Usage{};
+	FRHIBufferDesc Desc;
 };
 
 //
@@ -2217,52 +2246,700 @@ public:
 	virtual bool NeedFlushBeforeEndDrawing() { return true; }
 };
 
+/** Used to specify a texture metadata plane when creating a view. */
+enum class ERHITexturePlane : uint8
+{
+	// The primary plane is used with default compression behavior.
+	Primary = 0,
+
+	// The primary plane is used without decompressing it.
+	PrimaryCompressed = 1,
+
+	// The depth plane is used with default compression behavior.
+	Depth = 2,
+
+	// The stencil plane is used with default compression behavior.
+	Stencil = 3,
+
+	// The HTile plane is used.
+	HTile = 4,
+
+	// the FMask plane is used.
+	FMask = 5,
+
+	// the CMask plane is used.
+	CMask = 6,
+
+	// This enum is packed into various structures. Avoid adding new 
+	// members without verifying structure sizes aren't increased.
+	Num,
+	NumBits = 3,
+
+	// @todo deprecate
+	None = Primary,
+	CompressedSurface = PrimaryCompressed,
+};
+static_assert((1u << uint32(ERHITexturePlane::NumBits)) >= uint32(ERHITexturePlane::Num), "Not enough bits in the ERHITexturePlane enum");
+
+//UE_DEPRECATED(5.3, "Use ERHITexturePlane.")
+using ERHITextureMetaDataAccess = ERHITexturePlane;
+
 //
 // Views
 //
 
+template <typename TType>
+struct TRHIRange
+{
+	TType First = 0;
+	TType Num = 0;
+
+	TRHIRange() = default;
+	TRHIRange(uint32 InFirst, uint32 InNum)
+		: First(InFirst)
+		, Num  (InNum)
+	{
+		check( InFirst < TNumericLimits<TType>::Max()
+			&& InNum   < TNumericLimits<TType>::Max()
+			&& (InFirst + InNum) < TNumericLimits<TType>::Max());
+	}
+
+	TType ExclusiveLast() const { return First + Num; }
+	TType InclusiveLast() const { return First + Num - 1; }
+
+	bool IsInRange(uint32 Value) const
+	{
+		check(Value < TNumericLimits<TType>::Max());
+		return Value >= First && Value < ExclusiveLast();
+	}
+};
+
+using FRHIRange8  = TRHIRange<uint8>;
+using FRHIRange16 = TRHIRange<uint16>;
+
+//
+// The unified RHI view descriptor. These are stored in the base FRHIView type, and packed to minimize memory usage.
+// Platform RHI implementations use the GetViewInfo() functions to convert an FRHIViewDesc into the required info to make a view / descriptor for the GPU.
+//
+struct FRHIViewDesc
+{
+	enum class EViewType : uint8
+	{
+		BufferSRV,
+		BufferUAV,
+		TextureSRV,
+		TextureUAV
+	};
+
+	enum class EBufferType : uint8
+	{
+		Unknown               = 0,
+
+		Typed                 = 1,
+		Structured            = 2,
+		AccelerationStructure = 3,
+		Raw                   = 4
+	};
+
+	enum class EDimension : uint8
+	{
+		Unknown          = 0,
+
+		Texture2D        = 1,
+		Texture2DArray   = 2,
+		TextureCube      = 3,
+		TextureCubeArray = 4,
+		Texture3D        = 5,
+
+		NumBits          = 3
+	};
+
+	// Properties that apply to all views.
+	struct FCommon
+	{
+		EViewType    ViewType;
+		EPixelFormat Format;
+	};
+
+	// Properties shared by buffer views. Some fields are SRV or UAV specific.
+	struct FBuffer : public FCommon
+	{
+		EBufferType BufferType;
+		uint8       bAtomicCounter : 1; // UAV only
+		uint8       bAppendBuffer  : 1; // UAV only
+		uint8       /* padding */  : 6;
+		uint32      OffsetInBytes;
+		uint32      NumElements;
+		uint32      Stride;
+
+		struct FViewInfo;
+	protected:
+		FViewInfo GetViewInfo(FRHIBuffer* TargetBuffer) const;
+	};
+
+	// Properties shared by texture views. Some fields are SRV or UAV specific.
+	struct FTexture : public FCommon
+	{
+		ERHITexturePlane Plane        : uint32(ERHITexturePlane::NumBits);
+		uint8            bDisableSRGB : 1; // SRV only
+		EDimension       Dimension    : uint32(EDimension::NumBits);
+		FRHIRange8       MipRange;    // UAVs only support 1 mip
+		FRHIRange16      ArrayRange;
+
+		struct FViewInfo;
+	protected:
+		FViewInfo GetViewInfo(FRHITexture* TargetTexture) const;
+	};
+
+	struct FBufferSRV : public FBuffer
+	{
+		struct FInitializer;
+		struct FViewInfo;
+		RHI_API FViewInfo GetViewInfo(FRHIBuffer* TargetBuffer) const;
+	};
+
+	struct FBufferUAV : public FBuffer
+	{
+		struct FInitializer;
+		struct FViewInfo;
+		RHI_API FViewInfo GetViewInfo(FRHIBuffer* TargetBuffer) const;
+	};
+
+	struct FTextureSRV : public FTexture
+	{
+		struct FInitializer;
+		struct FViewInfo;
+		RHI_API FViewInfo GetViewInfo(FRHITexture* TargetTexture) const;
+	};
+
+	struct FTextureUAV : public FTexture
+	{
+		struct FInitializer;
+		struct FViewInfo;
+		RHI_API FViewInfo GetViewInfo(FRHITexture* TargetTexture) const;
+	};
+
+	union
+	{
+		FCommon Common;
+		union
+		{
+			FBufferSRV SRV;
+			FBufferUAV UAV;
+		} Buffer;
+		union
+		{
+			FTextureSRV SRV;
+			FTextureUAV UAV;
+		} Texture;
+	};
+
+	static inline FBufferSRV::FInitializer CreateBufferSRV();
+	static inline FBufferUAV::FInitializer CreateBufferUAV();
+
+	static inline FTextureSRV::FInitializer CreateTextureSRV();
+	static inline FTextureUAV::FInitializer CreateTextureUAV();
+
+	bool IsSRV() const { return Common.ViewType == EViewType::BufferSRV || Common.ViewType == EViewType::TextureSRV; }
+	bool IsUAV() const { return !IsSRV(); }
+
+	bool IsBuffer () const { return Common.ViewType == EViewType::BufferSRV || Common.ViewType == EViewType::BufferUAV; }
+	bool IsTexture() const { return !IsBuffer(); }
+
+	bool operator == (FRHIViewDesc const& RHS) const
+	{
+		return FMemory::Memcmp(this, &RHS, sizeof(*this)) == 0;
+	}
+
+	bool operator != (FRHIViewDesc const& RHS) const
+	{
+		return !(*this == RHS);
+	}
+
+	FRHIViewDesc()
+		: FRHIViewDesc(EViewType::BufferSRV)
+	{
+		FMemory::Memzero(*this);
+	}
+
+protected:
+	FRHIViewDesc(EViewType ViewType)
+	{
+		FMemory::Memzero(*this);
+		Common.ViewType = ViewType;
+	}
+};
+
+// These static asserts are to ensure the descriptor is minimal in size and can be copied around by-value.
+// If they fail, consider re-packing the struct.
+static_assert(sizeof(FRHIViewDesc) == 16, "Packing of FRHIViewDesc is unexpected.");
+static_assert(TIsTrivial<FRHIViewDesc>::Value, "FRHIViewDesc must be a trivial type.");
+
+struct FRHIViewDesc::FBufferSRV::FInitializer : private FRHIViewDesc
+{
+	friend FRHIViewDesc;
+	friend FRHICommandListImmediate;
+	friend struct FShaderResourceViewInitializer;
+	friend struct FRawBufferShaderResourceViewInitializer;
+
+protected:
+	FInitializer()
+		: FRHIViewDesc(EViewType::BufferSRV)
+	{}
+
+public:
+	FInitializer& SetType(EBufferType Type)
+	{
+		check(Type != EBufferType::Unknown);
+		Buffer.SRV.BufferType = Type;
+		return *this;
+	}
+
+	//
+	// Provided for back-compat with existing code. Consider using SetType() instead for more direct control over the view.
+	// For example, it is possible to create a typed view of a BUF_ByteAddress buffer, but not using this function which always choses raw access.
+	//
+	FInitializer& SetTypeFromBuffer(FRHIBuffer* TargetBuffer)
+	{
+		check(TargetBuffer);
+		checkf(!TargetBuffer->GetDesc().IsNull(), TEXT("Null buffer resources are placeholders for the streaming system. They do not contain a valid descriptor for this function to use. Call SetType() instead."));
+
+		Buffer.SRV.BufferType =
+			EnumHasAnyFlags(TargetBuffer->GetUsage(), BUF_ByteAddressBuffer    ) ? EBufferType::Raw                   :
+			EnumHasAnyFlags(TargetBuffer->GetUsage(), BUF_StructuredBuffer     ) ? EBufferType::Structured            :
+			EnumHasAnyFlags(TargetBuffer->GetUsage(), BUF_AccelerationStructure) ? EBufferType::AccelerationStructure :
+			EBufferType::Typed;
+		return *this;
+	}
+
+	FInitializer& SetFormat(EPixelFormat InFormat)
+	{
+		Buffer.SRV.Format = InFormat;
+		return *this;
+	}
+
+	FInitializer& SetOffsetInBytes(uint32 InOffsetBytes)
+	{
+		Buffer.SRV.OffsetInBytes = InOffsetBytes;
+		return *this;
+	}
+
+	FInitializer& SetStride(uint32 InStride)
+	{
+		Buffer.SRV.Stride = InStride;
+		return *this;
+	}
+
+	FInitializer& SetNumElements(uint32 InNumElements)
+	{
+		Buffer.SRV.NumElements = InNumElements;
+		return *this;
+	}
+};
+
+struct FRHIViewDesc::FBufferUAV::FInitializer : private FRHIViewDesc
+{
+	friend FRHIViewDesc;
+	friend FRHICommandListImmediate;
+
+protected:
+	FInitializer()
+		: FRHIViewDesc(EViewType::BufferUAV)
+	{}
+
+public:
+	FInitializer& SetType(EBufferType Type)
+	{
+		check(Type != EBufferType::Unknown);
+		Buffer.UAV.BufferType = Type;
+		return *this;
+	}
+
+	//
+	// Provided for back-compat with existing code. Consider using SetType() instead for more direct control over the view.
+	// For example, it is possible to create a typed view of a BUF_ByteAddress buffer, but not using this function which always choses raw access.
+	//
+	FInitializer& SetTypeFromBuffer(FRHIBuffer* TargetBuffer)
+	{
+		check(TargetBuffer);
+		checkf(!TargetBuffer->GetDesc().IsNull(), TEXT("Null buffer resources are placeholders for the streaming system. They do not contain a valid descriptor for this function to use. Call SetType() instead."));
+
+		Buffer.UAV.BufferType =
+			EnumHasAnyFlags(TargetBuffer->GetUsage(), BUF_ByteAddressBuffer    ) ? EBufferType::Raw                   :
+			EnumHasAnyFlags(TargetBuffer->GetUsage(), BUF_StructuredBuffer     ) ? EBufferType::Structured            :
+			EnumHasAnyFlags(TargetBuffer->GetUsage(), BUF_AccelerationStructure) ? EBufferType::AccelerationStructure :
+			EBufferType::Typed;
+		return *this;
+	}
+
+	FInitializer& SetFormat(EPixelFormat InFormat)
+	{
+		Buffer.UAV.Format = InFormat;
+		return *this;
+	}
+
+	FInitializer& SetOffsetInBytes(uint32 InOffsetBytes)
+	{
+		Buffer.UAV.OffsetInBytes = InOffsetBytes;
+		return *this;
+	}
+
+	FInitializer& SetStride(uint32 InStride)
+	{
+		Buffer.UAV.Stride = InStride;
+		return *this;
+	}
+
+	FInitializer& SetNumElements(uint32 InNumElements)
+	{
+		Buffer.UAV.NumElements = InNumElements;
+		return *this;
+	}
+
+	FInitializer& SetAtomicCounter(bool InAtomicCounter)
+	{
+		Buffer.UAV.bAtomicCounter = InAtomicCounter;
+		return *this;
+	}
+
+	FInitializer& SetAppendBuffer(bool InAppendBuffer)
+	{
+		Buffer.UAV.bAppendBuffer = InAppendBuffer;
+		return *this;
+	}
+};
+
+struct FRHIViewDesc::FTextureSRV::FInitializer : private FRHIViewDesc
+{
+	friend FRHIViewDesc;
+	friend FRHICommandListImmediate;
+
+protected:
+	FInitializer()
+		: FRHIViewDesc(EViewType::TextureSRV)
+	{}
+
+public:
+	FInitializer& SetDimension(ETextureDimension InDimension)
+	{
+		switch (InDimension)
+		{
+		default: checkNoEntry(); break;
+		case ETextureDimension::Texture2D       : Texture.SRV.Dimension = EDimension::Texture2D       ; break;
+		case ETextureDimension::Texture2DArray  : Texture.SRV.Dimension = EDimension::Texture2DArray  ; break;
+		case ETextureDimension::Texture3D       : Texture.SRV.Dimension = EDimension::Texture3D       ; break;
+		case ETextureDimension::TextureCube     : Texture.SRV.Dimension = EDimension::TextureCube     ; break;
+		case ETextureDimension::TextureCubeArray: Texture.SRV.Dimension = EDimension::TextureCubeArray; break;
+		}
+		return *this;
+	}
+
+	//
+	// Provided for back-compat with existing code. Consider using SetDimension() instead for more direct control over the view.
+	// For example, it is possible to create a 2D view of a 2DArray texture, but not using this function which always choses 2DArray dimension.
+	//
+	FInitializer& SetDimensionFromTexture(FRHITexture* TargetTexture)
+	{
+		check(TargetTexture);
+		SetDimension(TargetTexture->GetDesc().Dimension);
+		return *this;
+	}
+
+	FInitializer& SetFormat(EPixelFormat InFormat)
+	{
+		Texture.SRV.Format = InFormat;
+		return *this;
+	}
+
+	FInitializer& SetPlane(ERHITexturePlane InPlane)
+	{
+		Texture.SRV.Plane = InPlane;
+		return *this;
+	}
+
+	FInitializer& SetMipRange(uint8 InFirstMip, uint8 InNumMips)
+	{
+		Texture.SRV.MipRange.First = InFirstMip;
+		Texture.SRV.MipRange.Num = InNumMips;
+		return *this;
+	}
+
+	//
+	// The meaning of array "elements" is given by the view dimension. I.e. a view with "Dimension == CubeArray" indexes the array in whole cubes.
+	// [0] = the first cube (2D slices 0 to 5)
+	// [1] = the second cube (2D slices 6 to 11)
+	//
+	FInitializer& SetArrayRange(uint16 InFirstElement, uint16 InNumElements)
+	{
+		Texture.SRV.ArrayRange.First = InFirstElement;
+		Texture.SRV.ArrayRange.Num = InNumElements;
+		return *this;
+	}
+
+	FInitializer& SetDisableSRGB(bool InDisableSRGB)
+	{
+		Texture.SRV.bDisableSRGB = InDisableSRGB;
+		return *this;
+	}
+};
+
+struct FRHIViewDesc::FTextureUAV::FInitializer : private FRHIViewDesc
+{
+	friend FRHIViewDesc;
+	friend FRHICommandListImmediate;
+
+protected:
+	FInitializer()
+		: FRHIViewDesc(EViewType::TextureUAV)
+	{
+		// Texture UAVs only support 1 mip
+		Texture.UAV.MipRange.Num = 1;
+	}
+
+public:
+	FInitializer& SetDimension(ETextureDimension InDimension)
+	{
+		switch (InDimension)
+		{
+		default: checkNoEntry(); break;
+		case ETextureDimension::Texture2D       : Texture.UAV.Dimension = EDimension::Texture2D       ; break;
+		case ETextureDimension::Texture2DArray  : Texture.UAV.Dimension = EDimension::Texture2DArray  ; break;
+		case ETextureDimension::Texture3D       : Texture.UAV.Dimension = EDimension::Texture3D       ; break;
+		case ETextureDimension::TextureCube     : Texture.UAV.Dimension = EDimension::TextureCube     ; break;
+		case ETextureDimension::TextureCubeArray: Texture.UAV.Dimension = EDimension::TextureCubeArray; break;
+		}
+		return *this;
+	}
+
+	//
+	// Provided for back-compat with existing code. Consider using SetDimension() instead for more direct control over the view.
+	// For example, it is possible to create a 2D view of a 2DArray texture, but not using this function which always choses 2DArray dimension.
+	//
+	FInitializer& SetDimensionFromTexture(FRHITexture* TargetTexture)
+	{
+		check(TargetTexture);
+		SetDimension(TargetTexture->GetDesc().Dimension);
+		return *this;
+	}
+
+	FInitializer& SetFormat(EPixelFormat InFormat)
+	{
+		Texture.UAV.Format = InFormat;
+		return *this;
+	}
+
+	FInitializer& SetPlane(ERHITexturePlane InPlane)
+	{
+		Texture.UAV.Plane = InPlane;
+		return *this;
+	}
+
+	FInitializer& SetMipLevel(uint8 InMipLevel)
+	{
+		Texture.UAV.MipRange.First = InMipLevel;
+		return *this;
+	}
+
+	//
+	// The meaning of array "elements" is given by the view dimension. I.e. a view with "Dimension == CubeArray" indexes the array in whole cubes.
+	// [0] = the first cube (2D slices 0 to 5)
+	// [1] = the second cube (2D slices 6 to 11)
+	//
+	FInitializer& SetArrayRange(uint16 InFirstElement, uint16 InNumElements)
+	{
+		Texture.UAV.ArrayRange.First = InFirstElement;
+		Texture.UAV.ArrayRange.Num = InNumElements;
+		return *this;
+	}
+};
+
+inline FRHIViewDesc::FBufferSRV::FInitializer FRHIViewDesc::CreateBufferSRV()
+{
+	return FRHIViewDesc::FBufferSRV::FInitializer();
+}
+
+inline FRHIViewDesc::FBufferUAV::FInitializer FRHIViewDesc::CreateBufferUAV()
+{
+	return FRHIViewDesc::FBufferUAV::FInitializer();
+}
+
+inline FRHIViewDesc::FTextureSRV::FInitializer FRHIViewDesc::CreateTextureSRV()
+{
+	return FRHIViewDesc::FTextureSRV::FInitializer();
+}
+
+inline FRHIViewDesc::FTextureUAV::FInitializer FRHIViewDesc::CreateTextureUAV()
+{
+	return FRHIViewDesc::FTextureUAV::FInitializer();
+}
+
+//
+// Used by platform RHIs to create views of buffers. The data in this structure is computed in GetViewInfo(),
+// and is specific to a particular buffer resource. It is not intended to be stored in a view instance.
+//
+struct FRHIViewDesc::FBuffer::FViewInfo
+{
+	// The offset in bytes from the beginning of the viewed buffer resource.
+	uint32 OffsetInBytes;
+
+	// The size in bytes of a single element in the view.
+	uint32 StrideInBytes;
+
+	// The number of elements visible in the view.
+	uint32 NumElements;
+
+	// The total number of bytes the data visible in the view covers (i.e. stride * numelements).
+	uint32 SizeInBytes;
+
+	// Whether this is a typed / structured / raw view etc.
+	EBufferType BufferType;
+
+	// The format of the data exposed by this view. PF_Unknown for all buffer types except typed buffer views.
+	EPixelFormat Format;
+
+	// When true, the view is refering to a BUF_NullResource, so a null descriptor should be created.
+	bool bNullView;
+};
+
+// Buffer SRV specific info
+struct FRHIViewDesc::FBufferSRV::FViewInfo : public FRHIViewDesc::FBuffer::FViewInfo
+{};
+
+// Buffer UAV specific info
+struct FRHIViewDesc::FBufferUAV::FViewInfo : public FRHIViewDesc::FBuffer::FViewInfo
+{
+	bool bAtomicCounter = false;
+	bool bAppendBuffer = false;
+};
+
+//
+// Used by platform RHIs to create views of textures. The data in this structure is computed in GetViewInfo(),
+// and is specific to a particular texture resource. It is not intended to be stored in a view instance.
+//
+struct FRHIViewDesc::FTexture::FViewInfo
+{
+	//
+	// The range of array "elements" the view covers.
+	// 
+	// The meaning of "elements" is given by the view dimension.
+	// I.e. a view with "Dimension == CubeArray" indexes the array in whole cubes.
+	// 
+	//		- [0]: the first cube (2D slices 0 to 5)
+	//		- [1]: the second cube (2D slices 6 to 11)
+	// 
+	// 3D textures always have ArrayRange.Num == 1 because there are no "3D texture arrays".
+	//
+	FRHIRange16 ArrayRange;
+
+	// Which plane of a texture to access (i.e. color, depth, stencil etc). 
+	ERHITexturePlane Plane;
+
+	// The typed format to use when reading / writing data in the viewed texture.
+	EPixelFormat Format;
+
+	// Specifies how to treat the texture resource when creating the view.
+	// E.g. it is possible to create a 2DArray view of a 2D or Cube texture.
+	EDimension Dimension : uint32(EDimension::NumBits);
+
+	// True when the view covers every mip of the resource.
+	uint8 bAllMips : 1;
+
+	// True when the view covers every array slice of the resource.
+	// This includes depth slices for 3D textures, and faces of texture cubes.
+	uint8 bAllSlices : 1;
+};
+
+// Texture SRV specific info
+struct FRHIViewDesc::FTextureSRV::FViewInfo : public FRHIViewDesc::FTexture::FViewInfo
+{
+	// The range of texture mips the view covers.
+	FRHIRange8 MipRange;
+
+	// Indicates if this view should use an sRGB variant of the typed format.
+	uint8 bSRGB : 1;
+};
+
+
+// Texture UAV specific info
+struct FRHIViewDesc::FTextureUAV::FViewInfo : public FRHIViewDesc::FTexture::FViewInfo
+{
+	// The single mip level covered by this view.
+	uint8 MipLevel;
+};
+
 class FRHIView : public FRHIResource
 {
 public:
-	FRHIView(ERHIResourceType InResourceType, FRHIViewableResource* InParentResource)
+	FRHIView(ERHIResourceType InResourceType, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
 		: FRHIResource(InResourceType)
-		, ParentResource(InParentResource)
-	{}
-
-	virtual FRHIDescriptorHandle GetBindlessHandle() const { return FRHIDescriptorHandle(); }
-
-	FRHIViewableResource* GetParentResource() const { return ParentResource; }
-
-protected:
-	void SetParentResource(FRHIViewableResource* InParentResource)
+		, Resource(InResource)
+		, ViewDesc(InViewDesc)
 	{
-		ParentResource = InParentResource;
+		checkf(InResource, TEXT("Cannot create a view of a nullptr resource."));
+	}
+
+	virtual FRHIDescriptorHandle GetBindlessHandle() const
+	{
+		return FRHIDescriptorHandle();
+	}
+
+	FRHIViewableResource* GetResource() const
+	{
+		return Resource;
+	}
+
+	FRHIBuffer* GetBuffer() const
+	{
+		check(ViewDesc.IsBuffer());
+		return static_cast<FRHIBuffer*>(Resource.GetReference());
+	}
+
+	FRHITexture* GetTexture() const
+	{
+		check(ViewDesc.IsTexture());
+		return static_cast<FRHITexture*>(Resource.GetReference());
+	}
+
+	bool IsBuffer () const { return ViewDesc.IsBuffer (); }
+	bool IsTexture() const { return ViewDesc.IsTexture(); }
+
+#if ENABLE_RHI_VALIDATION
+	RHIValidation::FViewIdentity GetViewIdentity()
+	{
+		return RHIValidation::FViewIdentity(Resource, ViewDesc);
+	}
+#endif
+
+	FRHIViewDesc const& GetDesc() const
+	{
+		return ViewDesc;
 	}
 
 private:
-	FRHIViewableResource* ParentResource;
+	TRefCountPtr<FRHIViewableResource> Resource;
+
+protected:
+	FRHIViewDesc const ViewDesc;
 };
 
 class FRHIUnorderedAccessView : public FRHIView
-#if ENABLE_RHI_VALIDATION
-	, public RHIValidation::FUnorderedAccessView
-#endif
 {
 public:
-	explicit FRHIUnorderedAccessView(FRHIViewableResource* InParentResource)
-		: FRHIView(RRT_UnorderedAccessView, InParentResource)
-	{}
+	explicit FRHIUnorderedAccessView(FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
+		: FRHIView(RRT_UnorderedAccessView, InResource, InViewDesc)
+	{
+		check(ViewDesc.IsUAV());
+	}
 };
 
 class FRHIShaderResourceView : public FRHIView
-#if ENABLE_RHI_VALIDATION
-	, public RHIValidation::FShaderResourceView
-#endif
 {
 public:
-	explicit FRHIShaderResourceView(FRHIViewableResource* InParentResource)
-		: FRHIView(RRT_ShaderResourceView, InParentResource)
-	{}
+	explicit FRHIShaderResourceView(FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
+		: FRHIView(RRT_ShaderResourceView, InResource, InViewDesc)
+	{
+		check(ViewDesc.IsSRV());
+	}
 };
 
 /**
@@ -2588,7 +3265,7 @@ public:
 	// Returns a buffer view for RHI-specific system parameters associated with this scene.
 	// This may be needed to access ray tracing geometry data in shaders that use ray queries.
 	// Returns NULL if current RHI does not require this buffer.
-	virtual FRHIShaderResourceView* GetMetadataBufferSRV() const
+	virtual FRHIShaderResourceView* GetOrCreateMetadataBufferSRV(FRHICommandListImmediate& RHICmdList)
 	{
 		return nullptr;
 	}
@@ -3995,37 +4672,14 @@ struct FRHIRenderPassInfo
 	RHI_API void ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& OutRTInfo) const;
 };
 
-/** Used to specify a texture metadata plane when creating a view. */
-enum class ERHITextureMetaDataAccess : uint8
-{
-	/** The primary plane is used with default compression behavior. */
-	None = 0,
-
-	/** The primary plane is used without decompressing it. */
-	CompressedSurface,
-
-	/** The depth plane is used with default compression behavior. */
-	Depth,
-
-	/** The stencil plane is used with default compression behavior. */
-	Stencil,
-
-	/** The HTile plane is used. */
-	HTile,
-
-	/** the FMask plane is used. */
-	FMask,
-
-	/** the CMask plane is used. */
-	CMask
-};
-
+//UE_DEPRECATED(5.3, "Use FRHITextureSRVCreateDesc::SetDisableSRGB to create a view which explicitly disables SRGB.")
 enum ERHITextureSRVOverrideSRGBType : uint8
 {
 	SRGBO_Default,
 	SRGBO_ForceDisable,
 };
 
+//UE_DEPRECATED(5.3, "Use FRHITextureSRVCreateDesc rather than FRHITextureSRVCreateInfo.")
 struct FRHITextureSRVCreateInfo
 {
 	explicit FRHITextureSRVCreateInfo(uint8 InMipLevel = 0u, uint8 InNumMipLevels = 1u, EPixelFormat InFormat = PF_Unknown)
@@ -4066,6 +4720,9 @@ struct FRHITextureSRVCreateInfo
 
 	/** Specify the metadata plane to use when creating a view. */
 	ERHITextureMetaDataAccess MetaData = ERHITextureMetaDataAccess::None;
+    
+    /** Specify a dimension to use which overrides the default  */
+    TOptional<ETextureDimension> DimensionOverride;
 
 	FORCEINLINE bool operator==(const FRHITextureSRVCreateInfo& Other)const
 	{
@@ -4076,7 +4733,8 @@ struct FRHITextureSRVCreateInfo
 			SRGBOverride == Other.SRGBOverride &&
 			FirstArraySlice == Other.FirstArraySlice &&
 			NumArraySlices == Other.NumArraySlices &&
-			MetaData == Other.MetaData);
+			MetaData == Other.MetaData &&
+            DimensionOverride == Other.DimensionOverride);
 	}
 
 	FORCEINLINE bool operator!=(const FRHITextureSRVCreateInfo& Other)const
@@ -4088,6 +4746,7 @@ struct FRHITextureSRVCreateInfo
 	{
 		uint32 Hash = uint32(Info.Format) | uint32(Info.MipLevel) << 8 | uint32(Info.NumMipLevels) << 16 | uint32(Info.SRGBOverride) << 24;
 		Hash = HashCombine(Hash, uint32(Info.FirstArraySlice) | uint32(Info.NumArraySlices) << 16);
+        Hash = HashCombine(Hash, Info.DimensionOverride.IsSet() ? uint32(*Info.DimensionOverride) : MAX_uint32);
 		Hash = HashCombine(Hash, uint32(Info.MetaData));
 		return Hash;
 	}
@@ -4120,7 +4779,9 @@ public:
 
 	FORCEINLINE bool operator==(const FRHITextureUAVCreateInfo& Other)const
 	{
-		return Format == Other.Format && MipLevel == Other.MipLevel && MetaData == Other.MetaData && FirstArraySlice == Other.FirstArraySlice && NumArraySlices == Other.NumArraySlices;
+		return Format == Other.Format && MipLevel == Other.MipLevel && MetaData == Other.MetaData &&
+                FirstArraySlice == Other.FirstArraySlice && NumArraySlices == Other.NumArraySlices &&
+                DimensionOverride == Other.DimensionOverride;
 	}
 
 	FORCEINLINE bool operator!=(const FRHITextureUAVCreateInfo& Other)const
@@ -4131,6 +4792,7 @@ public:
 	friend uint32 GetTypeHash(const FRHITextureUAVCreateInfo& Info)
 	{
 		uint32 Hash = uint32(Info.Format) | uint32(Info.MipLevel) << 8 | uint32(Info.FirstArraySlice) << 16;
+        Hash = HashCombine(Hash, Info.DimensionOverride.IsSet() ? uint32(*Info.DimensionOverride) : MAX_uint32);
 		Hash = HashCombine(Hash, uint32(Info.NumArraySlices) | uint32(Info.MetaData) << 16);
 		return Hash;
 	}
@@ -4140,6 +4802,9 @@ public:
 	uint16 FirstArraySlice = 0;
 	uint16 NumArraySlices = 0;	// When 0, the default behavior will be used, e.g. all slices mapped.
 	ERHITextureMetaDataAccess MetaData = ERHITextureMetaDataAccess::None;
+    
+    /** Specify a dimension to use which overrides the default  */
+    TOptional<ETextureDimension> DimensionOverride;
 };
 
 /** Descriptor used to create a buffer resource */
@@ -4174,12 +4839,7 @@ struct FRHIBufferSRVCreateInfo
 
 	explicit FRHIBufferSRVCreateInfo(EPixelFormat InFormat)
 		: Format(InFormat)
-	{
-		if (InFormat != PF_Unknown)
-		{
-			BytesPerElement = GPixelFormats[Format].BlockBytes;
-		}
-	}
+	{}
 
 	FRHIBufferSRVCreateInfo(uint32 InStartOffsetBytes, uint32 InNumElements)
 		: StartOffsetBytes(InStartOffsetBytes)
@@ -4188,8 +4848,7 @@ struct FRHIBufferSRVCreateInfo
 
 	FORCEINLINE bool operator==(const FRHIBufferSRVCreateInfo& Other)const
 	{
-		return BytesPerElement == Other.BytesPerElement 
-			&& Format == Other.Format
+		return Format == Other.Format
 			&& StartOffsetBytes == Other.StartOffsetBytes
 			&& NumElements == Other.NumElements;
 	}
@@ -4201,11 +4860,11 @@ struct FRHIBufferSRVCreateInfo
 
 	friend uint32 GetTypeHash(const FRHIBufferSRVCreateInfo& Desc)
 	{
-		return HashCombine(uint32(Desc.BytesPerElement), uint32(Desc.Format));
+		return HashCombine(
+			HashCombine(GetTypeHash(Desc.Format), GetTypeHash(Desc.StartOffsetBytes)),
+			GetTypeHash(Desc.NumElements)
+		);
 	}
-
-	/** Number of bytes per element. */
-	uint32 BytesPerElement = 1;
 
 	/** Encoding format for the element. */
 	EPixelFormat Format = PF_Unknown;

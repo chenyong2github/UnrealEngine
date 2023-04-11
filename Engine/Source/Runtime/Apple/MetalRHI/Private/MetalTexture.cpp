@@ -155,110 +155,49 @@ void SafeReleaseMetalTexture(FMetalSurface* Surface, FMetalTexture& Texture)
 	}
 }
 
-#if PLATFORM_MAC
-mtlpp::PixelFormat ToSRGBFormat_NonAppleMacGPU(mtlpp::PixelFormat MTLFormat)
+mtlpp::PixelFormat UEToMetalFormat(EPixelFormat UEFormat, bool bSRGB)
 {
-	// Expand as R8_sRGB is Apple Silicon only.
-	if (MTLFormat == mtlpp::PixelFormat::R8Unorm)
-	{
-		MTLFormat = mtlpp::PixelFormat::RGBA8Unorm;
-	}
+	bool bAppleGPU = [GetMetalDeviceContext().GetDevice().GetPtr() supportsFamily:MTLGPUFamilyApple1];
+	mtlpp::PixelFormat MTLFormat = (mtlpp::PixelFormat)GPixelFormats[UEFormat].PlatformFormat;
 
-	switch (MTLFormat)
+	if (bSRGB)
 	{
-		case mtlpp::PixelFormat::RGBA8Unorm:
-			MTLFormat = mtlpp::PixelFormat::RGBA8Unorm_sRGB;
-			break;
-		case mtlpp::PixelFormat::BGRA8Unorm:
-			MTLFormat = mtlpp::PixelFormat::BGRA8Unorm_sRGB;
-			break;
-		case mtlpp::PixelFormat::BC1_RGBA:
-			MTLFormat = mtlpp::PixelFormat::BC1_RGBA_sRGB;
-			break;
-		case mtlpp::PixelFormat::BC2_RGBA:
-			MTLFormat = mtlpp::PixelFormat::BC2_RGBA_sRGB;
-			break;
-		case mtlpp::PixelFormat::BC3_RGBA:
-			MTLFormat = mtlpp::PixelFormat::BC3_RGBA_sRGB;
-			break;
-		case mtlpp::PixelFormat::BC7_RGBAUnorm:
-			MTLFormat = mtlpp::PixelFormat::BC7_RGBAUnorm_sRGB;
-			break;
-		default:
-			break;
-	}
-	return MTLFormat;
-}
-#endif
-
-mtlpp::PixelFormat ToSRGBFormat_AppleGPU(mtlpp::PixelFormat MTLFormat)
-{
-	switch (MTLFormat)
-	{
-		case mtlpp::PixelFormat::RGBA8Unorm:
-			MTLFormat = mtlpp::PixelFormat::RGBA8Unorm_sRGB;
-			break;
-		case mtlpp::PixelFormat::BGRA8Unorm:
-			MTLFormat = mtlpp::PixelFormat::BGRA8Unorm_sRGB;
-			break;
-		case mtlpp::PixelFormat::R8Unorm:
-			MTLFormat = mtlpp::PixelFormat::R8Unorm_sRGB;
-			break;
-		case mtlpp::PixelFormat::PVRTC_RGBA_2BPP:
-			MTLFormat = mtlpp::PixelFormat::PVRTC_RGBA_2BPP_sRGB;
-			break;
-		case mtlpp::PixelFormat::PVRTC_RGBA_4BPP:
-			MTLFormat = mtlpp::PixelFormat::PVRTC_RGBA_4BPP_sRGB;
-			break;
-		case mtlpp::PixelFormat::ASTC_4x4_LDR:
-			MTLFormat = mtlpp::PixelFormat::ASTC_4x4_sRGB;
-			break;
-		case mtlpp::PixelFormat::ASTC_6x6_LDR:
-			MTLFormat = mtlpp::PixelFormat::ASTC_6x6_sRGB;
-			break;
-		case mtlpp::PixelFormat::ASTC_8x8_LDR:
-			MTLFormat = mtlpp::PixelFormat::ASTC_8x8_sRGB;
-			break;
-		case mtlpp::PixelFormat::ASTC_10x10_LDR:
-			MTLFormat = mtlpp::PixelFormat::ASTC_10x10_sRGB;
-			break;
-		case mtlpp::PixelFormat::ASTC_12x12_LDR:
-			MTLFormat = mtlpp::PixelFormat::ASTC_12x12_sRGB;
-			break;
+        if (!bAppleGPU && UEFormat == PF_G8)
+        {
+            MTLFormat = mtlpp::PixelFormat::RGBA8Unorm;
+        }
+        
+		switch (MTLFormat)
+		{
+		default: break;
+		case mtlpp::PixelFormat::RGBA8Unorm   : MTLFormat = mtlpp::PixelFormat::RGBA8Unorm_sRGB   ; break;
+		case mtlpp::PixelFormat::BGRA8Unorm   : MTLFormat = mtlpp::PixelFormat::BGRA8Unorm_sRGB   ; break;
 #if PLATFORM_MAC
 		// Fix for Apple silicon M1 macs that can support BC pixel formats even though they are Apple family GPUs.
-		case mtlpp::PixelFormat::BC1_RGBA:
-			MTLFormat = mtlpp::PixelFormat::BC1_RGBA_sRGB;
-			break;
-		case mtlpp::PixelFormat::BC2_RGBA:
-			MTLFormat = mtlpp::PixelFormat::BC2_RGBA_sRGB;
-			break;
-		case mtlpp::PixelFormat::BC3_RGBA:
-			MTLFormat = mtlpp::PixelFormat::BC3_RGBA_sRGB;
-			break;
-		case mtlpp::PixelFormat::BC7_RGBAUnorm:
-			MTLFormat = mtlpp::PixelFormat::BC7_RGBAUnorm_sRGB;
-			break;
+		case mtlpp::PixelFormat::BC1_RGBA     : MTLFormat = mtlpp::PixelFormat::BC1_RGBA_sRGB     ; break;
+		case mtlpp::PixelFormat::BC2_RGBA     : MTLFormat = mtlpp::PixelFormat::BC2_RGBA_sRGB     ; break;
+		case mtlpp::PixelFormat::BC3_RGBA     : MTLFormat = mtlpp::PixelFormat::BC3_RGBA_sRGB     ; break;
+		case mtlpp::PixelFormat::BC7_RGBAUnorm: MTLFormat = mtlpp::PixelFormat::BC7_RGBAUnorm_sRGB; break;
 #endif
-		default:
-			break;
-	}
-	return MTLFormat;
-}
+		}
 
-mtlpp::PixelFormat ToSRGBFormat(mtlpp::PixelFormat MTLFormat)
-{
-	if([GetMetalDeviceContext().GetDevice().GetPtr() supportsFamily:MTLGPUFamilyApple1])
-	{
-		MTLFormat = ToSRGBFormat_AppleGPU(MTLFormat);
+		if (bAppleGPU)
+		{
+			switch (MTLFormat)
+			{
+			default: break;
+			case mtlpp::PixelFormat::R8Unorm        : MTLFormat = mtlpp::PixelFormat::R8Unorm_sRGB        ; break;
+			case mtlpp::PixelFormat::PVRTC_RGBA_2BPP: MTLFormat = mtlpp::PixelFormat::PVRTC_RGBA_2BPP_sRGB; break;
+			case mtlpp::PixelFormat::PVRTC_RGBA_4BPP: MTLFormat = mtlpp::PixelFormat::PVRTC_RGBA_4BPP_sRGB; break;
+			case mtlpp::PixelFormat::ASTC_4x4_LDR   : MTLFormat = mtlpp::PixelFormat::ASTC_4x4_sRGB       ; break;
+			case mtlpp::PixelFormat::ASTC_6x6_LDR   : MTLFormat = mtlpp::PixelFormat::ASTC_6x6_sRGB       ; break;
+			case mtlpp::PixelFormat::ASTC_8x8_LDR   : MTLFormat = mtlpp::PixelFormat::ASTC_8x8_sRGB       ; break;
+			case mtlpp::PixelFormat::ASTC_10x10_LDR : MTLFormat = mtlpp::PixelFormat::ASTC_10x10_sRGB     ; break;
+			case mtlpp::PixelFormat::ASTC_12x12_LDR : MTLFormat = mtlpp::PixelFormat::ASTC_12x12_sRGB     ; break;
+			}
+		}
 	}
-#if PLATFORM_MAC
-	else if([GetMetalDeviceContext().GetDevice().GetPtr() supportsFamily:MTLGPUFamilyMac1])
-	{
-		MTLFormat = ToSRGBFormat_NonAppleMacGPU(MTLFormat);
-	}
-#endif
-	
+
 	return MTLFormat;
 }
 
@@ -267,49 +206,6 @@ static inline uint32 ComputeLockIndex(uint32 MipIndex, uint32 ArrayIndex)
 	check(MipIndex < MAX_uint16);
 	check(ArrayIndex < MAX_uint16);
 	return (MipIndex & MAX_uint16) | ((ArrayIndex & MAX_uint16) << 16);
-}
-
-void FMetalSurface::PrepareTextureView()
-{
-	// Recreate the texture to enable MTLTextureUsagePixelFormatView which must be off unless we definitely use this feature or we are throwing ~4% performance vs. Windows on the floor.
-	mtlpp::TextureUsage Usage = (mtlpp::TextureUsage)Texture.GetUsage();
-	bool bMemoryLess = false;
-#if PLATFORM_IOS
-	bMemoryLess = (Texture.GetStorageMode() == mtlpp::StorageMode::Memoryless);
-#endif
-	if(!(Usage & mtlpp::TextureUsage::PixelFormatView) && !bMemoryLess)
-	{
-		check(ImageSurfaceRef == nullptr);
-		
-		check(Texture);
-		const bool bMSAATextureIsTexture = MSAATexture == Texture;
-		const bool bMSAAResolveTextureIsTexture = MSAAResolveTexture == Texture;
-		if (MSAATexture && !bMSAATextureIsTexture)
-		{
-			FMetalTexture OldMSAATexture = MSAATexture;
-			MSAATexture = Reallocate(MSAATexture, mtlpp::TextureUsage::PixelFormatView);
-			SafeReleaseMetalTexture(this, OldMSAATexture, ImageSurfaceRef != nullptr);
-		}
-		if (MSAAResolveTexture && !bMSAAResolveTextureIsTexture)
-		{
-			FMetalTexture OldMSAAResolveTexture = MSAAResolveTexture;
-			MSAAResolveTexture = Reallocate(MSAAResolveTexture, mtlpp::TextureUsage::PixelFormatView);
-			SafeReleaseMetalTexture(this, OldMSAAResolveTexture, ImageSurfaceRef != nullptr);
-		}
-		
-		FMetalTexture OldTexture = Texture;
-		Texture = Reallocate(Texture, mtlpp::TextureUsage::PixelFormatView);
-		SafeReleaseMetalTexture(this, OldTexture, ImageSurfaceRef != nullptr);
-		
-		if (bMSAATextureIsTexture)
-		{
-			MSAATexture = Texture;
-		}
-		if (bMSAAResolveTextureIsTexture)
-		{
-			MSAAResolveTexture = Texture;
-		}
-	}
 }
 
 FMetalTexture FMetalSurface::Reallocate(FMetalTexture InTexture, mtlpp::TextureUsage UsageModifier)
@@ -406,11 +302,7 @@ FMetalTextureCreateDesc::FMetalTextureCreateDesc(FRHITextureCreateDesc const& In
 	: FRHITextureCreateDesc(InDesc)
 	, bIsRenderTarget(IsRenderTarget(InDesc.Flags))
 {
-	MTLFormat = (mtlpp::PixelFormat)GPixelFormats[InDesc.Format].PlatformFormat;
-	if (EnumHasAnyFlags(InDesc.Flags, TexCreate_SRGB))
-	{
-		MTLFormat = ToSRGBFormat(MTLFormat);
-	}
+	MTLFormat = UEToMetalFormat(InDesc.Format, EnumHasAnyFlags(InDesc.Flags, TexCreate_SRGB));
 
 	// get a unique key for this surface's format
 	FormatKey = GetMetalPixelFormatKey(MTLFormat);
@@ -576,9 +468,8 @@ FMetalSurface::FMetalSurface(FMetalTextureCreateDesc const& CreateDesc)
 	, ImageSurfaceRef   (nullptr)
 {
 	FPlatformAtomics::InterlockedExchange(&Written, 0);
-
 	check(CreateDesc.Extent.X > 0 && CreateDesc.Extent.Y > 0 && CreateDesc.NumMips > 0);
-
+    
 	// the special back buffer surface will be updated in GetMetalDeviceContext().BeginDrawingViewport - no need to set the texture here
 	if (EnumHasAnyFlags(CreateDesc.Flags, TexCreate_Presentable))
 	{
@@ -856,6 +747,14 @@ FMetalSurface::FMetalSurface(FMetalTextureCreateDesc const& CreateDesc)
 		}
 	}
 #endif
+    
+    if (Texture && EnumHasAnyFlags(CreateDesc.Flags, TexCreate_ShaderResource | TexCreate_UAV) &&
+            !(Texture.GetUsage() & mtlpp::TextureUsage::PixelFormatView))
+    {
+        // If the texture was created without PixelFormatView delete the resources
+        // unless we definitely use this feature or we are throwing ~4% performance vs. Windows on the floor.
+        check(0);
+    }
 }
 
 @interface FMetalDeferredStats : FApplePlatformObject
@@ -1069,7 +968,7 @@ void FMetalSurface::UpdateSurfaceAndDestroySourceBuffer(id <MTLBuffer> SourceBuf
 		
 		int64 Count = FPlatformAtomics::InterlockedAdd(&ActiveUploads, Size);
 		
-		bool const bWait = ((GetMetalDeviceContext().GetNumActiveContexts() == 1) && (GMetalMaxOutstandingAsyncTexUploads > 0) && (Count >= GMetalMaxOutstandingAsyncTexUploads));
+		bool const bWait = GMetalMaxOutstandingAsyncTexUploads > 0 && Count >= GMetalMaxOutstandingAsyncTexUploads;
 		
 		mtlpp::BlitOption Options = mtlpp::BlitOption::None;
 #if !PLATFORM_MAC
@@ -1969,16 +1868,6 @@ void FMetalDynamicRHI::RHIBindDebugLabelName(FRHITexture* TextureRHI, const TCHA
 	}
 }
 
-void FMetalDynamicRHI::RHIVirtualTextureSetFirstMipInMemory(FRHITexture2D* TextureRHI, uint32 FirstMip)
-{
-	NOT_SUPPORTED("RHIVirtualTextureSetFirstMipInMemory");
-}
-
-void FMetalDynamicRHI::RHIVirtualTextureSetFirstMipVisible(FRHITexture2D* TextureRHI, uint32 FirstMip)
-{
-	NOT_SUPPORTED("RHIVirtualTextureSetFirstMipVisible");
-}
-
 inline bool MetalRHICopyTexutre_IsTextureFormatCompatible(EPixelFormat SrcFmt, EPixelFormat DstFmt)
 {
 	//
@@ -2112,8 +2001,8 @@ void FMetalRHICommandContext::RHICopyBufferRegion(FRHIBuffer* DstBufferRHI, uint
 	}
 
 	@autoreleasepool {
-		FMetalResourceMultiBuffer* DstBuffer = ResourceCast(DstBufferRHI);
-		FMetalResourceMultiBuffer* SrcBuffer = ResourceCast(SrcBufferRHI);
+		FMetalRHIBuffer* DstBuffer = ResourceCast(DstBufferRHI);
+		FMetalRHIBuffer* SrcBuffer = ResourceCast(SrcBufferRHI);
 
 		check(DstBuffer && SrcBuffer);
 		check(!DstBuffer->Data && !SrcBuffer->Data);

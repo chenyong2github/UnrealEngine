@@ -9,7 +9,7 @@ class FRHIBufferTests
 {
 	// Copies data in the specified vertex buffer back to the CPU, and passes a pointer to that data to the provided verification lambda.
 	static bool VerifyBufferContents(const TCHAR* TestName, FRHICommandListImmediate& RHICmdList, TArrayView<FRHIBuffer*> Buffers, TFunctionRef<bool(int32 BufferIndex, void* Ptr, uint32 NumBytes)> VerifyCallback);
-	static bool VerifyBufferContents(const TCHAR* TestName, FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, TFunctionRef<bool(void* Ptr, uint32 NumBytes)> VerifyCallback);
+	static bool VerifyBufferContents(const TCHAR* TestName, FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, TConstArrayView<uint8> ExpectedData);
 
 	template <typename TestLambdaType>
 	static void ParallelDispatchCommands(FRHICommandListImmediate& RHICmdList, int32 NumTests, TestLambdaType TestLambda)
@@ -59,25 +59,52 @@ class FRHIBufferTests
 	}
 
 	template <typename BufferType, typename ValueType, uint32 NumTestBytes>
-	static bool RunTest_UAVClear_Buffer(FRHICommandListImmediate& RHICmdList, const FString& TestName, BufferType* BufferRHI, FRHIUnorderedAccessView* UAV, uint32 BufferSize, const ValueType& ClearValue, void(FRHIComputeCommandList::* ClearPtr)(FRHIUnorderedAccessView*, ValueType const&), const uint8(&TestValue)[NumTestBytes])
+	static bool RunTest_UAVClear_Buffer(
+		FRHICommandListImmediate& RHICmdList
+		, const FString& TestName
+		, BufferType* BufferRHI
+		, FRHIUnorderedAccessView* WholeResourceUAV
+		, FRHIUnorderedAccessView* OffsetUAV
+		, const ValueType& ClearValue
+		, void(FRHIComputeCommandList::* ClearPtr)(FRHIUnorderedAccessView*, ValueType const&)
+		, const uint8(&TestValue)[NumTestBytes]
+	)
 	{
-		bool bResult0, bResult1;
+		auto const InfoWhole = WholeResourceUAV->GetDesc().Buffer.UAV.GetViewInfo(BufferRHI);
+		auto const InfoOffset = OffsetUAV->GetDesc().Buffer.UAV.GetViewInfo(BufferRHI);
+
+		uint32 BufferSize = BufferRHI->GetDesc().Size;
 
 		checkf(BufferSize % NumTestBytes == 0, TEXT("BufferSize must be a multiple of NumTestBytes."));
 
+		// Build arrays of the expected buffer values
+		TArray<uint8> Expected_Zero;
+		TArray<uint8> Expected_Cleared;
+		TArray<uint8> Expected_Offset;
+		{
+			Expected_Zero.SetNumZeroed(BufferSize);
+			Expected_Cleared.SetNumUninitialized(BufferSize);
+			for (uint32 Index = 0; Index < BufferSize; Index += NumTestBytes)
+			{
+				FMemory::Memcpy(&Expected_Cleared[Index], TestValue, NumTestBytes);
+			}
+
+			Expected_Offset = Expected_Cleared;
+			for (uint32 Element = 0; Element < InfoOffset.NumElements; Element++)
+			{
+				FMemory::Memzero(&Expected_Offset[(Element * InfoOffset.StrideInBytes) + InfoOffset.OffsetInBytes], InfoOffset.StrideInBytes);
+			}
+		}
+
 		// Test clear buffer to zero
-		RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		RHICmdList.Transition(FRHITransitionInfo(WholeResourceUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 
 		ValueType ZerosValue;
 		FMemory::Memset(&ZerosValue, 0, sizeof(ZerosValue));
-		(RHICmdList.*ClearPtr)(UAV, ZerosValue);
+		(RHICmdList.*ClearPtr)(WholeResourceUAV, ZerosValue);
 
-		RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::CopySrc));
-		bResult0 = VerifyBufferContents(*FString::Printf(TEXT("%s - clear to zero"), *TestName), RHICmdList, BufferRHI, [&](void* Ptr, uint32 Size)
-		{
-			check(Size == BufferSize);
-			return IsZeroMem(Ptr, Size);
-		});
+		RHICmdList.Transition(FRHITransitionInfo(WholeResourceUAV, ERHIAccess::Unknown, ERHIAccess::CopySrc));
+		bool bResult0 = VerifyBufferContents(*FString::Printf(TEXT("%s - clear whole resource to zero"), *TestName), RHICmdList, BufferRHI, Expected_Zero);
 
 		FString ClearValueStr;
 		if constexpr (std::is_same_v<ValueType, FVector4f>)
@@ -90,98 +117,109 @@ class FRHIBufferTests
 		}
 
 		// Clear the buffer to the provided value
-		RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-		(RHICmdList.*ClearPtr)(UAV, ClearValue);
-		RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::CopySrc));
-		bResult1 = VerifyBufferContents(*FString::Printf(TEXT("%s - clear to (%s)"), *TestName, *ClearValueStr), RHICmdList, BufferRHI, [&](void* Ptr, uint32 Size)
-		{
-			check(Size == BufferSize);
+		RHICmdList.Transition(FRHITransitionInfo(WholeResourceUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		(RHICmdList.*ClearPtr)(WholeResourceUAV, ClearValue);
+		RHICmdList.Transition(FRHITransitionInfo(WholeResourceUAV, ERHIAccess::Unknown, ERHIAccess::CopySrc));
+		bool bResult1 = VerifyBufferContents(*FString::Printf(TEXT("%s - clear to (%s)"), *TestName, *ClearValueStr), RHICmdList, BufferRHI, Expected_Cleared);
 
-			uint32 NumElements = BufferSize / NumTestBytes;
+		// Clear the offset UAV to zero, leaving the outer elements untouched.
+		RHICmdList.Transition(FRHITransitionInfo(OffsetUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		(RHICmdList.*ClearPtr)(OffsetUAV, ZerosValue);
+		RHICmdList.Transition(FRHITransitionInfo(OffsetUAV, ERHIAccess::Unknown, ERHIAccess::CopySrc));
+		bool bResult2 = VerifyBufferContents(*FString::Printf(TEXT("%s - clear offset UAV to zero"), *TestName), RHICmdList, BufferRHI, Expected_Offset);
 
-			for (uint32 Index = 0; Index < NumElements; ++Index)
-			{
-				uint8* Element = ((uint8*)Ptr) + Index * NumTestBytes;
-				if (FMemory::Memcmp(Element, TestValue, NumTestBytes) != 0)
-				{
-					return false;
-				}
-			}
-
-			return true;
-		});
-
-		return bResult0 && bResult1;
+		return bResult0 && bResult1 && bResult2;
 	}
 
 	template <typename ValueType, uint32 NumTestBytes>
-	static bool RunTest_UAVClear_VertexBuffer(FRHICommandListImmediate& RHICmdList, uint32 BufferSize, EPixelFormat Format, const ValueType& ClearValue, void(FRHIComputeCommandList::* ClearPtr)(FRHIUnorderedAccessView*, ValueType const&), const uint8(&TestValue)[NumTestBytes])
+	static bool RunTest_UAVClear_Buffer(
+		  FRHICommandListImmediate& RHICmdList
+		, EBufferUsageFlags BufferFlags
+		, uint32 BufferSize
+		, EPixelFormat Format
+		, uint32 Stride
+		, bool bRawView
+		, const ValueType& ClearValue
+		, void(FRHIComputeCommandList::* ClearPtr)(FRHIUnorderedAccessView*, ValueType const&)
+		, const uint8(&TestValue)[NumTestBytes]
+	)
 	{
-		FString TestName = FString::Printf(TEXT("RunTest_UAVClear_VertexBuffer, Format: %s"), GPixelFormats[Format].Name);
+		checkf((Format == PF_Unknown) ^ (Stride == 0), TEXT("Either format or stride should be provided, not both."));
 
-		if (!GPixelFormats[Format].Supported)
-		{
-			UE_LOG(LogRHIUnitTestCommandlet, Display, TEXT("Test skipped. \"%s\". Unsupported format."), *TestName);
-			return true;
-		}
+		bool bStructured = Format == PF_Unknown;
+		bool bRaw = EnumHasAnyFlags(BufferFlags, BUF_ByteAddressBuffer);
 
-		FRHIResourceCreateInfo Info(*TestName);
-		FBufferRHIRef VertexBuffer = RHICreateVertexBuffer(BufferSize, BUF_ShaderResource | BUF_UnorderedAccess | BUF_SourceCopy, Info);
-		FUnorderedAccessViewRHIRef UAV = RHICreateUnorderedAccessView(VertexBuffer, Format);
-		FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(VertexBuffer, GPixelFormats[Format].BlockBytes, Format);
-		bool bResult = RunTest_UAVClear_Buffer(RHICmdList, TestName, VertexBuffer.GetReference(), UAV, BufferSize, ClearValue, ClearPtr, TestValue);
+		FString TestName = bStructured
+			? FString::Printf(TEXT("RunTest_UAVClear_Buffer (Structured) - Stride: %d"), Stride)
+			: FString::Printf(TEXT("RunTest_UAVClear_Buffer (%s) - Format: %s, Raw View: %s")
+				, bRaw ? TEXT("Raw") : TEXT("Typed")
+				, GPixelFormats[Format].Name
+				, bRawView ? TEXT("True") : TEXT("False")
+			);
 
-		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
-
-		return bResult;
-	}
-
-	template <typename ValueType, uint32 NumTestBytes>
-	static bool RunTest_UAVClear_ByteAddressVertexBuffer(FRHICommandListImmediate& RHICmdList, uint32 BufferSize, EPixelFormat Format, const ValueType& ClearValue, void(FRHIComputeCommandList::* ClearPtr)(FRHIUnorderedAccessView*, ValueType const&), const uint8(&TestValue)[NumTestBytes])
-	{
-		FString TestName = FString::Printf(TEXT("RunTest_UAVClear_ByteAddressVertexBuffer, Format: %s"), GPixelFormats[Format].Name);
-
-		if (!GPixelFormats[Format].Supported)
+		if (!bStructured && !GPixelFormats[Format].Supported)
 		{
 			UE_LOG(LogRHIUnitTestCommandlet, Display, TEXT("Test skipped. \"%s\". Unsupported format."), *TestName);
 			return true;
 		}
 
 		FRHIResourceCreateInfo Info(*TestName);
-		FBufferRHIRef VertexBuffer = RHICreateVertexBuffer(BufferSize, BUF_ShaderResource | BUF_UnorderedAccess | BUF_SourceCopy | BUF_ByteAddressBuffer, Info);
-		FUnorderedAccessViewRHIRef UAV = RHICreateUnorderedAccessView(VertexBuffer, Format);
-		FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(VertexBuffer, GPixelFormats[Format].BlockBytes, Format);
-		bool bResult = RunTest_UAVClear_Buffer(RHICmdList, TestName, VertexBuffer.GetReference(), UAV, BufferSize, ClearValue, ClearPtr, TestValue);
+		FBufferRHIRef Buffer = RHICreateBuffer(BufferSize, BufferFlags | BUF_ShaderResource | BUF_UnorderedAccess | BUF_SourceCopy, Stride, ERHIAccess::UAVMask, Info);
+
+		auto UAVCreateDesc = FRHIViewDesc::CreateBufferUAV();
+		auto SRVCreateDesc = FRHIViewDesc::CreateBufferSRV();
+
+		if (bRawView)
+		{
+			UAVCreateDesc.SetType(FRHIViewDesc::EBufferType::Raw);
+			SRVCreateDesc.SetType(FRHIViewDesc::EBufferType::Raw);
+		}
+		else
+		{
+			UAVCreateDesc
+				.SetType(bStructured ? FRHIViewDesc::EBufferType::Structured : FRHIViewDesc::EBufferType::Typed)
+				.SetFormat(Format)
+				.SetStride(Stride);
+
+			SRVCreateDesc
+				.SetType(bStructured ? FRHIViewDesc::EBufferType::Structured : FRHIViewDesc::EBufferType::Typed)
+				.SetFormat(Format)
+				.SetStride(Stride);
+		}
+
+		FUnorderedAccessViewRHIRef WholeResourceUAV = RHICmdList.CreateUnorderedAccessView(Buffer, UAVCreateDesc);
+		auto const ViewInfo = WholeResourceUAV->GetDesc().Buffer.UAV.GetViewInfo(Buffer);
+
+		// Use an offset of 1 element (or minimum supported alignment)
+        uint32 TestOffset = ViewInfo.StrideInBytes;
+        if (bRawView)
+        {
+            TestOffset = FMath::Max(TestOffset, 16u);
+        }
+        if (!bStructured)
+        {
+            TestOffset = FMath::Max(TestOffset, uint32(RHIGetMinimumAlignmentForBufferBackedSRV(Format)));
+        }
+
+		// Leave up to 5 elements at the end of the buffer
+		uint32 NumElements = FMath::DivideAndRoundDown(ViewInfo.SizeInBytes - TestOffset, ViewInfo.StrideInBytes);
+		NumElements = FMath::Max(1, int32(NumElements) - 5);
+
+		// Adjust the UAV desc so that it covers a region in the middle of the buffer
+		UAVCreateDesc
+			.SetOffsetInBytes(TestOffset)
+			.SetNumElements(NumElements);
+
+		FUnorderedAccessViewRHIRef OffsetUAV = RHICmdList.CreateUnorderedAccessView(Buffer, UAVCreateDesc);
+
+		// Also test SRV creation
+		FShaderResourceViewRHIRef SRV = RHICmdList.CreateShaderResourceView(Buffer, SRVCreateDesc);
+
+		bool bResult = RunTest_UAVClear_Buffer(RHICmdList, TestName, Buffer.GetReference(), WholeResourceUAV, OffsetUAV, ClearValue, ClearPtr, TestValue);
 
 		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 
 		return bResult;
-	}
-
-	template <typename ValueType, uint32 NumTestBytes>
-	static bool RunTest_UAVClear_StructuredBuffer(FRHICommandListImmediate& RHICmdList, uint32 Stride, uint32 BufferSize, EBufferUsageFlags InExtraUsage, const ValueType& ClearValue, void(FRHIComputeCommandList::* ClearPtr)(FRHIUnorderedAccessView*, ValueType const&), const uint8(&TestValue)[NumTestBytes])
-	{
-		FString TestName = FString::Printf(TEXT("RunTest_UAVClear_StructuredBuffer, Stride: %d, Size: %d, ByteAddress: %d"), Stride, BufferSize, EnumHasAnyFlags(InExtraUsage, BUF_ByteAddressBuffer) ? 1 : 0);
-
-		check(NumTestBytes == Stride);
-
-		FRHIResourceCreateInfo Info(*TestName);
-		FBufferRHIRef StructuredBuffer = RHICreateStructuredBuffer(Stride, BufferSize, BUF_ShaderResource | BUF_UnorderedAccess | BUF_SourceCopy | InExtraUsage, Info);
-		FUnorderedAccessViewRHIRef UAV = RHICreateUnorderedAccessView(StructuredBuffer, false, false);
-		FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(StructuredBuffer);
-		bool bResult = RunTest_UAVClear_Buffer(RHICmdList, TestName, StructuredBuffer.GetReference(), UAV, BufferSize, ClearValue, ClearPtr, TestValue);
-
-		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
-
-		return bResult;
-	}
-
-	template <typename ValueType, uint32 NumTestBytes>
-	static bool RunTest_UAVClear_StructuredBuffer(FRHICommandListImmediate& RHICmdList, uint32 Stride, uint32 BufferSize, const ValueType& ClearValue, void(FRHIComputeCommandList::* ClearPtr)(FRHIUnorderedAccessView*, ValueType const&), const uint8(&TestValue)[NumTestBytes])
-	{
-		return
-			RunTest_UAVClear_StructuredBuffer(RHICmdList, Stride, BufferSize, BUF_None, ClearValue, ClearPtr, TestValue) &&
-			RunTest_UAVClear_StructuredBuffer(RHICmdList, Stride, BufferSize, BUF_ByteAddressBuffer, ClearValue, ClearPtr, TestValue);
 	}
 
 public:
@@ -195,60 +233,65 @@ public:
 			const FUintVector4 ClearValueUint16(0x0123, 0x4567, 0x89ab, 0xcdef);
 			const FUintVector4 ClearValueUint32(0x01234567, 0x89abcdef, 0x8899aabb, 0xccddeeff);
 
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R8_UINT, ClearValueUint8, &FRHICommandListImmediate::ClearUAVUint, { 0x01 }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R8G8B8A8_UINT, ClearValueUint8, &FRHICommandListImmediate::ClearUAVUint, { 0x01, 0x23, 0x45, 0x67 }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R16_UINT, ClearValueUint16, &FRHICommandListImmediate::ClearUAVUint, { 0x23, 0x01 }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R16G16_UINT, ClearValueUint16, &FRHICommandListImmediate::ClearUAVUint, { 0x23, 0x01, 0x67, 0x45 }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R16G16B16A16_UINT, ClearValueUint16, &FRHICommandListImmediate::ClearUAVUint, { 0x23, 0x01, 0x67, 0x45, 0xab, 0x89, 0xef, 0xcd }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R32_UINT, ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint, { 0x67, 0x45, 0x23, 0x01 }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R32G32_UINT, ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint, { 0x67, 0x45, 0x23, 0x01, 0xef, 0xcd, 0xab, 0x89 }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R32G32B32A32_UINT, ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint, { 0x67, 0x45, 0x23, 0x01, 0xef, 0xcd, 0xab, 0x89, 0xbb, 0xaa, 0x99, 0x88, 0xff, 0xee, 0xdd, 0xcc }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R8_UINT          , 0, false, ClearValueUint8 , &FRHICommandListImmediate::ClearUAVUint, { 0x01 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R8G8B8A8_UINT    , 0, false, ClearValueUint8 , &FRHICommandListImmediate::ClearUAVUint, { 0x01, 0x23, 0x45, 0x67 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R16_UINT         , 0, false, ClearValueUint16, &FRHICommandListImmediate::ClearUAVUint, { 0x23, 0x01 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R16G16_UINT      , 0, false, ClearValueUint16, &FRHICommandListImmediate::ClearUAVUint, { 0x23, 0x01, 0x67, 0x45 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R16G16B16A16_UINT, 0, false, ClearValueUint16, &FRHICommandListImmediate::ClearUAVUint, { 0x23, 0x01, 0x67, 0x45, 0xab, 0x89, 0xef, 0xcd }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R32_UINT         , 0, false, ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint, { 0x67, 0x45, 0x23, 0x01 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R32G32_UINT      , 0, false, ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint, { 0x67, 0x45, 0x23, 0x01, 0xef, 0xcd, 0xab, 0x89 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R32G32B32A32_UINT, 0, false, ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint, { 0x67, 0x45, 0x23, 0x01, 0xef, 0xcd, 0xab, 0x89, 0xbb, 0xaa, 0x99, 0x88, 0xff, 0xee, 0xdd, 0xcc }));
 
 			// Signed integer
 			const FUintVector4 ClearValueInt16_Positive(0x1122, 0x3344, 0x5566, 0x7788);
 			const FUintVector4 ClearValueInt32_Positive(0x10112233, 0x44556677, 0x0899aabb, 0x4cddeeff);
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R16_SINT, ClearValueInt16_Positive, &FRHICommandListImmediate::ClearUAVUint, { 0x22, 0x11 }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R16G16B16A16_SINT, ClearValueInt16_Positive, &FRHICommandListImmediate::ClearUAVUint, { 0x22, 0x11, 0x44, 0x33, 0x66, 0x55, 0x88, 0x77 }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R32_SINT, ClearValueInt32_Positive, &FRHICommandListImmediate::ClearUAVUint, { 0x33, 0x22, 0x11, 0x10 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R16_SINT         , 0, false, ClearValueInt16_Positive, &FRHICommandListImmediate::ClearUAVUint, { 0x22, 0x11 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R16G16B16A16_SINT, 0, false, ClearValueInt16_Positive, &FRHICommandListImmediate::ClearUAVUint, { 0x22, 0x11, 0x44, 0x33, 0x66, 0x55, 0x88, 0x77 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R32_SINT         , 0, false, ClearValueInt32_Positive, &FRHICommandListImmediate::ClearUAVUint, { 0x33, 0x22, 0x11, 0x10 }));
 
 			const FUintVector4 ClearValueInt16_Negative(0xffff9122, 0xffffb344, 0xffffd566, 0xfffff788);
 			const FUintVector4 ClearValueInt32_Negative(0x80112233, 0xc4556677, 0x8899aabb, 0xccddeeff);
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R16_SINT, ClearValueInt16_Negative, &FRHICommandListImmediate::ClearUAVUint, { 0x22, 0x91 }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R16G16B16A16_SINT, ClearValueInt16_Negative, &FRHICommandListImmediate::ClearUAVUint, { 0x22, 0x91, 0x44, 0xb3, 0x66, 0xd5, 0x88, 0xf7 }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R32_SINT, ClearValueInt32_Negative, &FRHICommandListImmediate::ClearUAVUint, { 0x33, 0x22, 0x11, 0x80 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R16_SINT         , 0, false, ClearValueInt16_Negative, &FRHICommandListImmediate::ClearUAVUint, { 0x22, 0x91 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R16G16B16A16_SINT, 0, false, ClearValueInt16_Negative, &FRHICommandListImmediate::ClearUAVUint, { 0x22, 0x91, 0x44, 0xb3, 0x66, 0xd5, 0x88, 0xf7 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R32_SINT         , 0, false, ClearValueInt32_Negative, &FRHICommandListImmediate::ClearUAVUint, { 0x33, 0x22, 0x11, 0x80 }));
 
-			// Raw (ByteAddress) buffer. Only the first channel of the clear value is used and that is used directly as 32bit.
-			RUN_TEST(RunTest_UAVClear_ByteAddressVertexBuffer(RHICmdList, 256, PF_R8G8B8A8_UINT, ClearValueUint8, &FRHICommandListImmediate::ClearUAVUint, { 0x01, 0x00, 0x00, 0x00 }));
-			RUN_TEST(RunTest_UAVClear_ByteAddressVertexBuffer(RHICmdList, 256, PF_R16G16_UINT, ClearValueUint16, &FRHICommandListImmediate::ClearUAVUint, { 0x23, 0x01, 0x00, 0x00 }));
-			RUN_TEST(RunTest_UAVClear_ByteAddressVertexBuffer(RHICmdList, 256, PF_R32_UINT, ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint, { 0x67, 0x45, 0x23, 0x01 }));
+			// Raw (ByteAddress) buffer. A raw view uses only the first channle of the clear value, directly as a 32bit integer. Typed views still do the appropriate format conversion.
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer | BUF_ByteAddressBuffer, 512, PF_R8G8B8A8_UINT, 0, false, ClearValueUint8 , &FRHICommandListImmediate::ClearUAVUint, { 0x01, 0x23, 0x45, 0x67 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer | BUF_ByteAddressBuffer, 512, PF_R8G8B8A8_UINT, 0, true , ClearValueUint8 , &FRHICommandListImmediate::ClearUAVUint, { 0x01, 0x00, 0x00, 0x00 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer | BUF_ByteAddressBuffer, 512, PF_R16G16_UINT  , 0, false, ClearValueUint16, &FRHICommandListImmediate::ClearUAVUint, { 0x23, 0x01, 0x67, 0x45 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer | BUF_ByteAddressBuffer, 512, PF_R16G16_UINT  , 0, true , ClearValueUint16, &FRHICommandListImmediate::ClearUAVUint, { 0x23, 0x01, 0x00, 0x00 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer | BUF_ByteAddressBuffer, 512, PF_R32_UINT     , 0, false, ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint, { 0x67, 0x45, 0x23, 0x01 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer | BUF_ByteAddressBuffer, 512, PF_R32_UINT     , 0, true , ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint, { 0x67, 0x45, 0x23, 0x01 }));
 		}
 
 		{
 			// Clamping unsigned int tests (components of ClearValueUint are > 0xffff, so will be clamped by the format conversion for formats < 32 bits per channel wide).
 			const FUintVector4 ClearValueUint(0xeeffccdd, 0xaabb8899, 0x66774455, 0x22330011);
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R8_UINT, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xff }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R16_UINT, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xff, 0xff }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R16G16_UINT, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xff, 0xff, 0xff, 0xff }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R16G16B16A16_UINT, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R8G8B8A8_UINT, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xff, 0xff, 0xff, 0xff }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R32_UINT, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xdd, 0xcc, 0xff, 0xee }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R32G32_UINT, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xdd, 0xcc, 0xff, 0xee, 0x99, 0x88, 0xbb, 0xaa }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R32G32B32A32_UINT, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xdd, 0xcc, 0xff, 0xee, 0x99, 0x88, 0xbb, 0xaa, 0x55, 0x44, 0x77, 0x66, 0x11, 0x00, 0x33, 0x22 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R8_UINT          , 0, false, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xff }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R16_UINT         , 0, false, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xff, 0xff }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R16G16_UINT      , 0, false, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xff, 0xff, 0xff, 0xff }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R16G16B16A16_UINT, 0, false, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R8G8B8A8_UINT    , 0, false, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xff, 0xff, 0xff, 0xff }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R32_UINT         , 0, false, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xdd, 0xcc, 0xff, 0xee }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R32G32_UINT      , 0, false, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xdd, 0xcc, 0xff, 0xee, 0x99, 0x88, 0xbb, 0xaa }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R32G32B32A32_UINT, 0, false, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xdd, 0xcc, 0xff, 0xee, 0x99, 0x88, 0xbb, 0xaa, 0x55, 0x44, 0x77, 0x66, 0x11, 0x00, 0x33, 0x22 }));
 
 			// Signed integer
 			const FUintVector4 ClearValueInt16_ClampToMaxInt16(0x8001, 0x8233, 0x8455, 0x8677);
 			const FUintVector4 ClearValueInt16_ClampToMinInt16(0xfabc7123, 0x80123456, 0x80203040, 0x8a0b0c0d);
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R16_SINT, ClearValueInt16_ClampToMaxInt16, &FRHICommandListImmediate::ClearUAVUint, { 0xff, 0x7f }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R16_SINT, ClearValueInt16_ClampToMinInt16, &FRHICommandListImmediate::ClearUAVUint, { 0x00, 0x80 }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R16G16B16A16_SINT, ClearValueInt16_ClampToMaxInt16, &FRHICommandListImmediate::ClearUAVUint, { 0xff, 0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0x7f }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R16G16B16A16_SINT, ClearValueInt16_ClampToMinInt16, &FRHICommandListImmediate::ClearUAVUint, { 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R16_SINT         , 0, false, ClearValueInt16_ClampToMaxInt16, &FRHICommandListImmediate::ClearUAVUint, { 0xff, 0x7f }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R16_SINT         , 0, false, ClearValueInt16_ClampToMinInt16, &FRHICommandListImmediate::ClearUAVUint, { 0x00, 0x80 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R16G16B16A16_SINT, 0, false, ClearValueInt16_ClampToMaxInt16, &FRHICommandListImmediate::ClearUAVUint, { 0xff, 0x7f, 0xff, 0x7f, 0xff, 0x7f, 0xff, 0x7f }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R16G16B16A16_SINT, 0, false, ClearValueInt16_ClampToMinInt16, &FRHICommandListImmediate::ClearUAVUint, { 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R32_SINT         , 0, false, ClearValueUint                 , &FRHICommandListImmediate::ClearUAVUint, { 0xdd, 0xcc, 0xff, 0xee }));
 
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R32_SINT, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xdd, 0xcc, 0xff, 0xee }));
-
-			// Raw (ByteAddress) buffer. Only the first channel of the clear value is used and that is used directly as 32bit.
-			RUN_TEST(RunTest_UAVClear_ByteAddressVertexBuffer(RHICmdList, 256, PF_R16G16_UINT, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xdd, 0xcc, 0xff, 0xee }));
-			RUN_TEST(RunTest_UAVClear_ByteAddressVertexBuffer(RHICmdList, 256, PF_R8G8B8A8_UINT, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xdd, 0xcc, 0xff, 0xee }));
-			RUN_TEST(RunTest_UAVClear_ByteAddressVertexBuffer(RHICmdList, 256, PF_R32_UINT, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xdd, 0xcc, 0xff, 0xee }));
+			// Raw (ByteAddress) buffer. A raw view uses only the first channle of the clear value, directly as a 32bit integer. Typed views still do the appropriate format conversion.
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer | BUF_ByteAddressBuffer, 512, PF_R16G16_UINT  , 0, false, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xff, 0xff, 0xff, 0xff }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer | BUF_ByteAddressBuffer, 512, PF_R16G16_UINT  , 0, true , ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xdd, 0xcc, 0xff, 0xee }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer | BUF_ByteAddressBuffer, 512, PF_R8G8B8A8_UINT, 0, false, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xff, 0xff, 0xff, 0xff }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer | BUF_ByteAddressBuffer, 512, PF_R8G8B8A8_UINT, 0, true , ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xdd, 0xcc, 0xff, 0xee }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer | BUF_ByteAddressBuffer, 512, PF_R32_UINT     , 0, false, ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xdd, 0xcc, 0xff, 0xee }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer | BUF_ByteAddressBuffer, 512, PF_R32_UINT     , 0, true , ClearValueUint, &FRHICommandListImmediate::ClearUAVUint, { 0xdd, 0xcc, 0xff, 0xee }));
 		}
 
 		return bResult;
@@ -267,21 +310,24 @@ public:
 			const FVector4f ClearValueFloat(0.2345f, 0.8499f, 0.417f, 0.00145f);
 
 			// Half precision float tests
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R16F, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0x81, 0x33 }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R16F_FILTER, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0x81, 0x33 }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_G16R16F, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0x81, 0x33, 0xcc, 0x3a }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_G16R16F_FILTER, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0x81, 0x33, 0xcc, 0x3a }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R16F          , 0, false, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0x81, 0x33 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R16F_FILTER   , 0, false, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0x81, 0x33 }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_G16R16F       , 0, false, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0x81, 0x33, 0xcc, 0x3a }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_G16R16F_FILTER, 0, false, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0x81, 0x33, 0xcc, 0x3a }));
 
 			// Full precision float tests
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_R32_FLOAT, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_G32R32F, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e, 0x0c, 0x93, 0x59, 0x3f }));
-			RUN_TEST(RunTest_UAVClear_VertexBuffer(RHICmdList, 256, PF_A32B32G32R32F, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e, 0x0c, 0x93, 0x59, 0x3f, 0x06, 0x81, 0xd5, 0x3e, 0xed, 0x0d, 0xbe, 0x3a }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_R32_FLOAT    , 0, false, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_G32R32F      , 0, false, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e, 0x0c, 0x93, 0x59, 0x3f }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer, 512, PF_A32B32G32R32F, 0, false, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e, 0x0c, 0x93, 0x59, 0x3f, 0x06, 0x81, 0xd5, 0x3e, 0xed, 0x0d, 0xbe, 0x3a }));
 
 			// @todo - 11,11,10 formats etc.
 
-			RUN_TEST(RunTest_UAVClear_ByteAddressVertexBuffer(RHICmdList, 256, PF_G16R16F, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e }));
-			RUN_TEST(RunTest_UAVClear_ByteAddressVertexBuffer(RHICmdList, 256, PF_G16R16F_FILTER, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e }));
-			RUN_TEST(RunTest_UAVClear_ByteAddressVertexBuffer(RHICmdList, 256, PF_R32_FLOAT, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer | BUF_ByteAddressBuffer, 512, PF_G16R16F       , 0, false, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0x81, 0x33, 0xcc, 0x3a }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer | BUF_ByteAddressBuffer, 512, PF_G16R16F       , 0, true , ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer | BUF_ByteAddressBuffer, 512, PF_G16R16F_FILTER, 0, false, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0x81, 0x33, 0xcc, 0x3a }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer | BUF_ByteAddressBuffer, 512, PF_G16R16F_FILTER, 0, true , ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer | BUF_ByteAddressBuffer, 512, PF_R32_FLOAT     , 0, false, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_VertexBuffer | BUF_ByteAddressBuffer, 512, PF_R32_FLOAT     , 0, true , ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e }));
 		}
 
 		return bResult;
@@ -296,34 +342,34 @@ public:
 		const FUintVector4 ClearValueUint16(0x0123, 0x4567, 0x89ab, 0xcdef);
 		const FUintVector4 ClearValueUint32(0x01234567, 0x89abcdef, 0x8899aabb, 0xccddeeff);
 
-		RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 4, 256, ClearValueUint8, &FRHICommandListImmediate::ClearUAVUint, { 0x01, 0x00, 0x00, 0x00 }));
-		RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 8, 256, ClearValueUint8, &FRHICommandListImmediate::ClearUAVUint, { 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00 }));
-		RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 12, 264, ClearValueUint8, &FRHICommandListImmediate::ClearUAVUint, { 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00 }));
-		RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 16, 256, ClearValueUint8, &FRHICommandListImmediate::ClearUAVUint, { 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00 }));
+		RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 256, PF_Unknown,  4, false, ClearValueUint8 , &FRHICommandListImmediate::ClearUAVUint, { 0x01, 0x00, 0x00, 0x00 }));
+		RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 256, PF_Unknown,  8, false, ClearValueUint8 , &FRHICommandListImmediate::ClearUAVUint, { 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00 }));
+		RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 264, PF_Unknown, 12, false, ClearValueUint8 , &FRHICommandListImmediate::ClearUAVUint, { 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00 }));
+		RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 256, PF_Unknown, 16, false, ClearValueUint8 , &FRHICommandListImmediate::ClearUAVUint, { 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00 }));
 
-		RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 4, 256, ClearValueUint16, &FRHICommandListImmediate::ClearUAVUint, { 0x23, 0x01, 0x00, 0x00 }));
-		RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 8, 256, ClearValueUint16, &FRHICommandListImmediate::ClearUAVUint, { 0x23, 0x01, 0x00, 0x00, 0x23, 0x01, 0x00, 0x00 }));
-		RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 12, 264, ClearValueUint16, &FRHICommandListImmediate::ClearUAVUint, { 0x23, 0x01, 0x00, 0x00, 0x23, 0x01, 0x00, 0x00, 0x23, 0x01, 0x00, 0x00 }));
-		RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 16, 256, ClearValueUint16, &FRHICommandListImmediate::ClearUAVUint, { 0x23, 0x01, 0x00, 0x00, 0x23, 0x01, 0x00, 0x00, 0x23, 0x01, 0x00, 0x00, 0x23, 0x01, 0x00, 0x00 }));
+		RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 256, PF_Unknown,  4, false, ClearValueUint16, &FRHICommandListImmediate::ClearUAVUint, { 0x23, 0x01, 0x00, 0x00 }));
+		RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 256, PF_Unknown,  8, false, ClearValueUint16, &FRHICommandListImmediate::ClearUAVUint, { 0x23, 0x01, 0x00, 0x00, 0x23, 0x01, 0x00, 0x00 }));
+		RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 264, PF_Unknown, 12, false, ClearValueUint16, &FRHICommandListImmediate::ClearUAVUint, { 0x23, 0x01, 0x00, 0x00, 0x23, 0x01, 0x00, 0x00, 0x23, 0x01, 0x00, 0x00 }));
+		RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 256, PF_Unknown, 16, false, ClearValueUint16, &FRHICommandListImmediate::ClearUAVUint, { 0x23, 0x01, 0x00, 0x00, 0x23, 0x01, 0x00, 0x00, 0x23, 0x01, 0x00, 0x00, 0x23, 0x01, 0x00, 0x00 }));
 
-		RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 4, 256, ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint, { 0x67, 0x45, 0x23, 0x01 }));
-		RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 8, 256, ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint, { 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01 }));
-		RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 12, 264, ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint, { 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01 }));
-		RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 16, 256, ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint, { 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01 }));
+		RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 256, PF_Unknown,  4, false, ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint, { 0x67, 0x45, 0x23, 0x01 }));
+		RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 256, PF_Unknown,  8, false, ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint, { 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01 }));
+		RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 264, PF_Unknown, 12, false, ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint, { 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01 }));
+		RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 256, PF_Unknown, 16, false, ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint, { 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01 }));
 
 		// Large stride
-		RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 32, 256, ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint,
-			{
-				0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01,
-				0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01
-			}));
+		RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 256, PF_Unknown, 32, false, ClearValueUint32, &FRHICommandListImmediate::ClearUAVUint,
+		{
+			0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01,
+			0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01, 0x67, 0x45, 0x23, 0x01
+		}));
 
 		// Signed integer
 		const FUintVector4 ClearValueInt32_Negative(0x80112233, 0xc4556677, 0x8899aabb, 0xccddeeff);
-		RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 4, 256, ClearValueInt32_Negative, &FRHICommandListImmediate::ClearUAVUint, { 0x33, 0x22, 0x11, 0x80 }));
-		RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 8, 256, ClearValueInt32_Negative, &FRHICommandListImmediate::ClearUAVUint, { 0x33, 0x22, 0x11, 0x80, 0x33, 0x22, 0x11, 0x80 }));
-		RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 12, 264, ClearValueInt32_Negative, &FRHICommandListImmediate::ClearUAVUint, { 0x33, 0x22, 0x11, 0x80, 0x33, 0x22, 0x11, 0x80, 0x33, 0x22, 0x11, 0x80 }));
-		RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 16, 256, ClearValueInt32_Negative, &FRHICommandListImmediate::ClearUAVUint, { 0x33, 0x22, 0x11, 0x80, 0x33, 0x22, 0x11, 0x80, 0x33, 0x22, 0x11, 0x80, 0x33, 0x22, 0x11, 0x80 }));
+		RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 256, PF_Unknown,  4, false, ClearValueInt32_Negative, &FRHICommandListImmediate::ClearUAVUint, { 0x33, 0x22, 0x11, 0x80 }));
+		RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 256, PF_Unknown,  8, false, ClearValueInt32_Negative, &FRHICommandListImmediate::ClearUAVUint, { 0x33, 0x22, 0x11, 0x80, 0x33, 0x22, 0x11, 0x80 }));
+		RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 264, PF_Unknown, 12, false, ClearValueInt32_Negative, &FRHICommandListImmediate::ClearUAVUint, { 0x33, 0x22, 0x11, 0x80, 0x33, 0x22, 0x11, 0x80, 0x33, 0x22, 0x11, 0x80 }));
+		RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 256, PF_Unknown, 16, false, ClearValueInt32_Negative, &FRHICommandListImmediate::ClearUAVUint, { 0x33, 0x22, 0x11, 0x80, 0x33, 0x22, 0x11, 0x80, 0x33, 0x22, 0x11, 0x80, 0x33, 0x22, 0x11, 0x80 }));
 
 		return bResult;
 	}
@@ -341,10 +387,10 @@ public:
 			const FVector4f ClearValueFloat(0.2345f, 0.8499f, 0.417f, 0.00145f);
 
 			// Full precision float tests
-			RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 4, 256, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e }));
-			RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 8, 256, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e, 0xc5, 0x20, 0x70, 0x3e }));
-			RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 12, 264, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e, 0xc5, 0x20, 0x70, 0x3e, 0xc5, 0x20, 0x70, 0x3e }));
-			RUN_TEST(RunTest_UAVClear_StructuredBuffer(RHICmdList, 16, 256, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e, 0xc5, 0x20, 0x70, 0x3e, 0xc5, 0x20, 0x70, 0x3e, 0xc5, 0x20, 0x70, 0x3e }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 256, PF_Unknown,  4, false, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 256, PF_Unknown,  8, false, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e, 0xc5, 0x20, 0x70, 0x3e }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 264, PF_Unknown, 12, false, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e, 0xc5, 0x20, 0x70, 0x3e, 0xc5, 0x20, 0x70, 0x3e }));
+			RUN_TEST(RunTest_UAVClear_Buffer(RHICmdList, BUF_StructuredBuffer, 256, PF_Unknown, 16, false, ClearValueFloat, &FRHICommandListImmediate::ClearUAVFloat, { 0xc5, 0x20, 0x70, 0x3e, 0xc5, 0x20, 0x70, 0x3e, 0xc5, 0x20, 0x70, 0x3e, 0xc5, 0x20, 0x70, 0x3e }));
 		}
 
 		return bResult;

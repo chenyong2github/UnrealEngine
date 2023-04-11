@@ -1904,34 +1904,21 @@ FRHIShaderResourceView* FRHITextureViewCache::GetOrCreateSRV(FRHITexture* Textur
 		}
 	}
 
-	FShaderResourceViewRHIRef RHIShaderResourceView;
-
-	if (SRVCreateInfo.MetaData != ERHITextureMetaDataAccess::None)
-	{
-		FRHITexture2D* Texture2D = Texture->GetTexture2D();
-		check(Texture2D);
-
-		switch (SRVCreateInfo.MetaData)
-		{
-		case ERHITextureMetaDataAccess::HTile:
-			check(GRHISupportsExplicitHTile);
-			RHIShaderResourceView = RHICreateShaderResourceViewHTile(Texture2D);
-			break;
-
-		case ERHITextureMetaDataAccess::FMask:
-			RHIShaderResourceView = RHICreateShaderResourceViewFMask(Texture2D);
-			break;
-
-		case ERHITextureMetaDataAccess::CMask:
-			RHIShaderResourceView = RHICreateShaderResourceViewWriteMask(Texture2D);
-			break;
-		}
-	}
-
-	if (!RHIShaderResourceView)
-	{
-		RHIShaderResourceView = RHICreateShaderResourceView(Texture, SRVCreateInfo);
-	}
+    check(Texture);
+    ETextureDimension Dimension = Texture->GetDesc().Dimension;
+    if(SRVCreateInfo.DimensionOverride.IsSet())
+    {
+        Dimension = *SRVCreateInfo.DimensionOverride;
+    }
+    
+	FShaderResourceViewRHIRef RHIShaderResourceView = RHICreateShaderResourceView(Texture, FRHIViewDesc::CreateTextureSRV()
+		.SetDimension   (Dimension)
+		.SetFormat      (SRVCreateInfo.Format)
+		.SetMipRange    (SRVCreateInfo.MipLevel, SRVCreateInfo.NumMipLevels)
+		.SetDisableSRGB (SRVCreateInfo.SRGBOverride == SRGBO_ForceDisable)
+		.SetArrayRange  (SRVCreateInfo.FirstArraySlice, SRVCreateInfo.NumArraySlices)
+		.SetPlane       (SRVCreateInfo.MetaData)
+	);
 
 	check(RHIShaderResourceView);
 	FRHIShaderResourceView* View = RHIShaderResourceView.GetReference();
@@ -1949,37 +1936,20 @@ FRHIUnorderedAccessView* FRHITextureViewCache::GetOrCreateUAV(FRHITexture* Textu
 		}
 	}
 
-	FUnorderedAccessViewRHIRef RHIUnorderedAccessView;
-
-	if (UAVCreateInfo.MetaData != ERHITextureMetaDataAccess::None)
-	{
-		FRHITexture2D* Texture2D = Texture->GetTexture2D();
-		check(Texture2D);
-
-		switch (UAVCreateInfo.MetaData)
-		{
-		case ERHITextureMetaDataAccess::HTile:
-			check(GRHISupportsExplicitHTile);
-			RHIUnorderedAccessView = RHICreateUnorderedAccessViewHTile(Texture2D);
-			break;
-
-		case ERHITextureMetaDataAccess::Stencil:
-			RHIUnorderedAccessView = RHICreateUnorderedAccessViewStencil(Texture2D, UAVCreateInfo.MipLevel);
-			break;
-		}
-	}
-
-	if (!RHIUnorderedAccessView)
-	{
-		if (UAVCreateInfo.Format != PF_Unknown)
-		{
-			RHIUnorderedAccessView = RHICreateUnorderedAccessView(Texture, UAVCreateInfo.MipLevel, UAVCreateInfo.Format, UAVCreateInfo.FirstArraySlice, UAVCreateInfo.NumArraySlices);
-		}
-		else
-		{
-			RHIUnorderedAccessView = RHICreateUnorderedAccessView(Texture, UAVCreateInfo.MipLevel, UAVCreateInfo.FirstArraySlice, UAVCreateInfo.NumArraySlices);
-		}
-	}
+    check(Texture);
+    ETextureDimension Dimension = Texture->GetDesc().Dimension;
+    if(UAVCreateInfo.DimensionOverride.IsSet())
+    {
+        Dimension = *UAVCreateInfo.DimensionOverride;
+    }
+    
+	FUnorderedAccessViewRHIRef RHIUnorderedAccessView = RHICreateUnorderedAccessView(Texture, FRHIViewDesc::CreateTextureUAV()
+		.SetDimension (Dimension)
+		.SetFormat    (UAVCreateInfo.Format)
+		.SetMipLevel  (UAVCreateInfo.MipLevel)
+		.SetArrayRange(UAVCreateInfo.FirstArraySlice, UAVCreateInfo.NumArraySlices)
+		.SetPlane     (UAVCreateInfo.MetaData)
+	);
 
 	check(RHIUnorderedAccessView);
 	FRHIUnorderedAccessView* View = RHIUnorderedAccessView.GetReference();
@@ -1997,16 +1967,33 @@ FRHIShaderResourceView* FRHIBufferViewCache::GetOrCreateSRV(FRHIBuffer* Buffer, 
 		}
 	}
 
-	FShaderResourceViewRHIRef RHIShaderResourceView;
+	auto CreateDesc = FRHIViewDesc::CreateBufferSRV();
+	CreateDesc.SetOffsetInBytes(SRVCreateInfo.StartOffsetBytes);
 
-	if (SRVCreateInfo.Format != PF_Unknown)
+	if (SRVCreateInfo.NumElements != UINT32_MAX)
 	{
-		RHIShaderResourceView = RHICreateShaderResourceView(Buffer, SRVCreateInfo.BytesPerElement, SRVCreateInfo.Format);
+		CreateDesc.SetNumElements(SRVCreateInfo.NumElements);
+	}
+
+	if (EnumHasAnyFlags(Buffer->GetUsage(), BUF_ByteAddressBuffer))
+	{
+		CreateDesc.SetType(FRHIViewDesc::EBufferType::Raw);
+	}
+	else if (EnumHasAnyFlags(Buffer->GetUsage(), BUF_StructuredBuffer))
+	{
+		CreateDesc.SetType(FRHIViewDesc::EBufferType::Structured);
+	}
+	else if (EnumHasAnyFlags(Buffer->GetUsage(), BUF_AccelerationStructure))
+	{
+		CreateDesc.SetType(FRHIViewDesc::EBufferType::AccelerationStructure);
 	}
 	else
 	{
-		RHIShaderResourceView = RHICreateShaderResourceView(FShaderResourceViewInitializer(Buffer, SRVCreateInfo.StartOffsetBytes, SRVCreateInfo.NumElements));
+		CreateDesc.SetType(FRHIViewDesc::EBufferType::Typed);
+		CreateDesc.SetFormat(SRVCreateInfo.Format);
 	}
+
+	FShaderResourceViewRHIRef RHIShaderResourceView = RHICreateShaderResourceView(Buffer, CreateDesc);
 
 	FRHIShaderResourceView* View = RHIShaderResourceView.GetReference();
 	SRVs.Emplace(SRVCreateInfo, MoveTemp(RHIShaderResourceView));
@@ -2023,16 +2010,29 @@ FRHIUnorderedAccessView* FRHIBufferViewCache::GetOrCreateUAV(FRHIBuffer* Buffer,
 		}
 	}
 
-	FUnorderedAccessViewRHIRef RHIUnorderedAccessView;
+	auto CreateDesc = FRHIViewDesc::CreateBufferUAV();
+	CreateDesc.SetAtomicCounter(UAVCreateInfo.bSupportsAtomicCounter);
+	CreateDesc.SetAppendBuffer(UAVCreateInfo.bSupportsAppendBuffer);
 
-	if (UAVCreateInfo.Format != PF_Unknown)
+	if (EnumHasAnyFlags(Buffer->GetUsage(), BUF_ByteAddressBuffer))
 	{
-		RHIUnorderedAccessView = RHICreateUnorderedAccessView(Buffer, UAVCreateInfo.Format);
+		CreateDesc.SetType(FRHIViewDesc::EBufferType::Raw);
+	}
+	else if (EnumHasAnyFlags(Buffer->GetUsage(), BUF_StructuredBuffer))
+	{
+		CreateDesc.SetType(FRHIViewDesc::EBufferType::Structured);
+	}
+	else if (EnumHasAnyFlags(Buffer->GetUsage(), BUF_AccelerationStructure))
+	{
+		CreateDesc.SetType(FRHIViewDesc::EBufferType::AccelerationStructure);
 	}
 	else
 	{
-		RHIUnorderedAccessView = RHICreateUnorderedAccessView(Buffer, UAVCreateInfo.bSupportsAtomicCounter, UAVCreateInfo.bSupportsAppendBuffer);
+		CreateDesc.SetType(FRHIViewDesc::EBufferType::Typed);
+		CreateDesc.SetFormat(UAVCreateInfo.Format);
 	}
+
+	FUnorderedAccessViewRHIRef RHIUnorderedAccessView = RHICreateUnorderedAccessView(Buffer, CreateDesc);
 
 	FRHIUnorderedAccessView* View = RHIUnorderedAccessView.GetReference();
 	UAVs.Emplace(UAVCreateInfo, MoveTemp(RHIUnorderedAccessView));

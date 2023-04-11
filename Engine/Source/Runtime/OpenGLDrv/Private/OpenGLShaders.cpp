@@ -410,7 +410,7 @@ namespace
 	{
 		if (Dest.Num() > 0)
 		{
-			Dest.Insert(Source, FCStringAnsi::Strlen(Source), Dest.Num() - 1);;
+			Dest.Insert(Source, FCStringAnsi::Strlen(Source), Dest.Num() - 1);
 		}
 		else
 		{

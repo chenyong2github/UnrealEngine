@@ -1364,7 +1364,7 @@ uint32 FMetalResourceHeap::GetMagazineIndex(uint32 Size)
 	while( Upper - Lower > 1 );
 	
 	check( Size <= MagazineSizes[Lower] );
-	check( (Lower == 0 ) || ( Size > MagazineSizes[Lower-1] ) );;
+	check( (Lower == 0 ) || ( Size > MagazineSizes[Lower-1] ) );
 	
 	return Lower;
 }
@@ -1390,7 +1390,7 @@ uint32 FMetalResourceHeap::GetHeapIndex(uint32 Size)
 	while( Upper - Lower > 1 );
 	
 	check( Size <= HeapSizes[Lower] );
-	check( (Lower == 0 ) || ( Size > HeapSizes[Lower-1] ) );;
+	check( (Lower == 0 ) || ( Size > HeapSizes[Lower-1] ) );
 	
 	return Lower;
 }

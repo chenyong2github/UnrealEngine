@@ -220,7 +220,7 @@ static bool PlatformOpenGLDebugCtx()
 #if UE_BUILD_DEBUG
 	return ! FParse::Param(FCommandLine::Get(),TEXT("openglNoDebug"));
 #else
-	return FParse::Param(FCommandLine::Get(),TEXT("openglDebug"));;
+	return FParse::Param(FCommandLine::Get(),TEXT("openglDebug"));
 #endif
 }
 

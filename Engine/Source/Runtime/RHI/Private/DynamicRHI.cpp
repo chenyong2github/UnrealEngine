@@ -522,31 +522,25 @@ void FDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FR
 	UE_LOG(LogRHI, Fatal, TEXT("RHITransferBufferUnderlyingResource isn't implemented for the current RHI"));
 }
 
-FUnorderedAccessViewRHIRef FDynamicRHI::RHICreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint8 Format, uint16 FirstArraySlice, uint16 NumArraySlices)
-{
-	UE_LOG(LogRHI, Fatal, TEXT("RHICreateUnorderedAccessView with Format parameter isn't implemented for the current RHI"));
-	return RHICreateUnorderedAccessView(Texture, MipLevel, FirstArraySlice, NumArraySlices);
-}
-
-void FDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIBuffer* Buffer, uint32 Stride, uint8 Format)
-{
-	UE_LOG(LogRHI, Fatal, TEXT("RHIUpdateShaderResourceView isn't implemented for the current RHI"));
-}
-
-void FDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIBuffer* Buffer)
-{
-	UE_LOG(LogRHI, Fatal, TEXT("RHIUpdateShaderResourceView isn't implemented for the current RHI"));
-}
-
 void FDynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* InReferencedTexture)
 {
 	FRHITexture* ReferencedTexture = InReferencedTexture ? InReferencedTexture : FRHITextureReference::GetDefaultTexture();
 	TextureRef->SetReferencedTexture(ReferencedTexture);
 }
 
+void FDynamicRHI::RHIVirtualTextureSetFirstMipInMemory(FRHICommandListImmediate& RHICmdList, FRHITexture2D* TextureRHI, uint32 FirstMip)
+{
+	UE_LOG(LogRHI, Fatal, TEXT("The current RHI does not implement support for virtually allocated textures."));
+}
+
+void FDynamicRHI::RHIVirtualTextureSetFirstMipVisible(FRHICommandListImmediate& RHICmdList, FRHITexture2D* TextureRHI, uint32 FirstMip)
+{
+	UE_LOG(LogRHI, Fatal, TEXT("The current RHI does not implement support for virtually allocated textures."));
+}
+
 uint64 FDynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format)
 {
-	return 1;
+	return GPixelFormats[Format].BlockBytes;
 }
 
 FTextureRHIRef FDynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, void** InitialMipData, uint32 NumInitialMips)
@@ -782,82 +776,55 @@ void FDynamicRHI::RHIUnlockBufferMGPU(FRHICommandListBase& RHICmdList, FRHIBuffe
 	RHIUnlockBuffer(RHICmdList, Buffer);
 }
 
-FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIBuffer* InBuffer, EPixelFormat InFormat, uint32 InStartOffsetBytes, uint32 InNumElements)
-	: BufferInitializer({ InBuffer, InStartOffsetBytes, InNumElements, InFormat }), Type(EType::VertexBufferSRV)
+// Provided for back-compat.
+RHI_API FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIBuffer* InBuffer, EPixelFormat InFormat, uint32 InStartOffsetBytes, uint32 InNumElements)
+	: FRHIViewDesc::FBufferSRV::FInitializer()
+	, Buffer(InBuffer)
 {
-	check(InStartOffsetBytes % RHIGetMinimumAlignmentForBufferBackedSRV(InFormat) == 0);
-	/*if (!BufferInitializer.IsWholeResource())
+	if (EnumHasAnyFlags(Buffer->GetUsage(), BUF_ByteAddressBuffer))
 	{
-		const uint32 Stride = GPixelFormats[InFormat].BlockBytes;
-		check((BufferInitializer.NumElements * Stride + BufferInitializer.StartOffsetBytes) <= BufferInitializer.Buffer->GetSize());
-	}*/
-
-	InitType();
-}
-
-FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIBuffer* InBuffer, EPixelFormat InFormat)
-	: BufferInitializer({ InBuffer, 0, UINT32_MAX, InFormat }), Type(EType::VertexBufferSRV) 
-{
-	InitType();
-}
-
-FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIBuffer* InBuffer, uint32 InStartOffsetBytes, uint32 InNumElements)
-	: BufferInitializer({ InBuffer, InStartOffsetBytes, InNumElements, PF_Unknown }), Type(EType::StructuredBufferSRV)
-{
-	const uint32 Stride = EnumHasAnyFlags(InBuffer->GetUsage(), BUF_AccelerationStructure) 
-		? 1 // Acceleration structure buffers don't have a stride as they are opaque and not indexable
-		: InBuffer->GetStride();
-
-	check(InStartOffsetBytes % Stride == 0);
-	if (!BufferInitializer.IsWholeResource())
+		SetType(FRHIViewDesc::EBufferType::Raw);
+	}
+	else
 	{
-		check((BufferInitializer.NumElements * Stride + BufferInitializer.StartOffsetBytes) <= BufferInitializer.Buffer->GetSize());
+		SetType(FRHIViewDesc::EBufferType::Typed);
+		SetFormat(InFormat);
 	}
 
-	InitType();
+	SetOffsetInBytes(InStartOffsetBytes);
+	SetNumElements(InNumElements);
 }
 
-FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIBuffer* InBuffer)
-	: BufferInitializer({ InBuffer, 0, UINT32_MAX }), Type(EType::StructuredBufferSRV)
+// Provided for back-compat.
+RHI_API FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIBuffer* InBuffer, EPixelFormat InFormat)
+	: FRHIViewDesc::FBufferSRV::FInitializer()
+	, Buffer(InBuffer)
 {
-	InitType();
-}
-
-FRawBufferShaderResourceViewInitializer::FRawBufferShaderResourceViewInitializer(FRHIBuffer* InBuffer)
-	: FShaderResourceViewInitializer(nullptr)
-{
-	check(GRHISupportsRawViewsForAnyBuffer);
-
-	Type = EType::RawBufferSRV;
-
-	BufferInitializer.Buffer = InBuffer;
-	BufferInitializer.Format = PF_Unknown;
-	BufferInitializer.StartOffsetBytes = 0;
-	BufferInitializer.NumElements = UINT32_MAX; // Whole resource
-}
-
-void FShaderResourceViewInitializer::InitType()
-{
-	if (BufferInitializer.Buffer)
+	if (EnumHasAnyFlags(Buffer->GetUsage(), BUF_ByteAddressBuffer))
 	{
-		EBufferUsageFlags Usage = BufferInitializer.Buffer->GetUsage();
-		// Buffer could have a mixed usage, eg (BUF_ByteAddressBuffer | BUF_VertexBuffer), so make sure we create SRV for a correct use case
-		if (EnumHasAnyFlags(Usage, BUF_VertexBuffer) && BufferInitializer.Format != PF_Unknown)
-		{
-			Type = EType::VertexBufferSRV;
-		}
-		else if (EnumHasAnyFlags(Usage, BUF_IndexBuffer))
-		{
-			Type = EType::IndexBufferSRV;
-		}
-		else if (EnumHasAnyFlags(Usage, BUF_AccelerationStructure))
-		{
-			Type = EType::AccelerationStructureSRV;
-		}
-		else
-		{
-			check(EnumHasAnyFlags(Usage, BUF_StructuredBuffer | BUF_ByteAddressBuffer));
-			Type = EType::StructuredBufferSRV;
-		}
+		SetType(FRHIViewDesc::EBufferType::Raw);
 	}
+	else
+	{
+		SetType(FRHIViewDesc::EBufferType::Typed);
+		SetFormat(InFormat);
+	}
+}
+
+// Provided for back-compat.
+RHI_API FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIBuffer* InBuffer, uint32 InStartOffsetBytes, uint32 InNumElements)
+	: FRHIViewDesc::FBufferSRV::FInitializer()
+	, Buffer(InBuffer)
+{
+	SetOffsetInBytes(InStartOffsetBytes);
+	SetNumElements(InNumElements);
+	SetTypeFromBuffer(Buffer);
+}
+
+// Provided for back-compat.
+RHI_API FShaderResourceViewInitializer::FShaderResourceViewInitializer(FRHIBuffer* InBuffer)
+	: FRHIViewDesc::FBufferSRV::FInitializer()
+	, Buffer(InBuffer)
+{
+	SetTypeFromBuffer(InBuffer);
 }

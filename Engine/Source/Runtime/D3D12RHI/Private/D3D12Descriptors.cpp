@@ -3,18 +3,6 @@
 #include "D3D12RHIPrivate.h"
 #include "D3D12Descriptors.h"
 
-inline D3D12_DESCRIPTOR_HEAP_TYPE Translate(ERHIDescriptorHeapType InHeapType)
-{
-	switch (InHeapType)
-	{
-	default: checkNoEntry();
-	case ERHIDescriptorHeapType::Standard:     return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	case ERHIDescriptorHeapType::RenderTarget: return D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-	case ERHIDescriptorHeapType::DepthStencil: return D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-	case ERHIDescriptorHeapType::Sampler:      return FD3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
-	}
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // FD3D12DescriptorHeap
 
@@ -379,9 +367,11 @@ void FD3D12OfflineDescriptorManager::AllocateHeap()
 	FreeHeaps.AddTail(NewHeapIndex);
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE FD3D12OfflineDescriptorManager::AllocateHeapSlot(uint32& OutIndex)
+FD3D12OfflineDescriptor FD3D12OfflineDescriptorManager::AllocateHeapSlot()
 {
 	FScopeLock Lock(&CriticalSection);
+	FD3D12OfflineDescriptor Result;
+
 	if (FreeHeaps.Num() == 0)
 	{
 		AllocateHeap();
@@ -390,13 +380,13 @@ D3D12_CPU_DESCRIPTOR_HANDLE FD3D12OfflineDescriptorManager::AllocateHeapSlot(uin
 	check(FreeHeaps.Num() != 0);
 
 	auto Head = FreeHeaps.GetHead();
-	OutIndex = Head->GetValue();
+	Result.HeapIndex = Head->GetValue();
 
-	FD3D12OfflineHeapEntry& HeapEntry = Heaps[OutIndex];
+	FD3D12OfflineHeapEntry& HeapEntry = Heaps[Result.HeapIndex];
 	check(0 != HeapEntry.FreeList.Num());
 	FD3D12OfflineHeapFreeRange& Range = HeapEntry.FreeList.GetHead()->GetValue();
 
-	const D3D12_CPU_DESCRIPTOR_HANDLE Ret{ Range.Start };
+	Result.ptr = Range.Start;
 	Range.Start += DescriptorSize;
 
 	if (Range.Start == Range.End)
@@ -407,15 +397,16 @@ D3D12_CPU_DESCRIPTOR_HANDLE FD3D12OfflineDescriptorManager::AllocateHeapSlot(uin
 			FreeHeaps.RemoveNode(Head);
 		}
 	}
-	return Ret;
+
+	return Result;
 }
 
-void FD3D12OfflineDescriptorManager::FreeHeapSlot(D3D12_CPU_DESCRIPTOR_HANDLE Offset, uint32 InIndex)
+void FD3D12OfflineDescriptorManager::FreeHeapSlot(FD3D12OfflineDescriptor& Descriptor)
 {
 	FScopeLock Lock(&CriticalSection);
-	FD3D12OfflineHeapEntry& HeapEntry = Heaps[InIndex];
+	FD3D12OfflineHeapEntry& HeapEntry = Heaps[Descriptor.HeapIndex];
 
-	const FD3D12OfflineHeapFreeRange NewRange{ Offset.ptr, Offset.ptr + DescriptorSize };
+	const FD3D12OfflineHeapFreeRange NewRange{ Descriptor.ptr, Descriptor.ptr + DescriptorSize };
 
 	bool bFound = false;
 	for (auto Node = HeapEntry.FreeList.GetHead();
@@ -424,20 +415,20 @@ void FD3D12OfflineDescriptorManager::FreeHeapSlot(D3D12_CPU_DESCRIPTOR_HANDLE Of
 	{
 		FD3D12OfflineHeapFreeRange& Range = Node->GetValue();
 		check(Range.Start < Range.End);
-		if (Range.Start == Offset.ptr + DescriptorSize)
+		if (Range.Start == Descriptor.ptr + DescriptorSize)
 		{
-			Range.Start = Offset.ptr;
+			Range.Start = Descriptor.ptr;
 			bFound = true;
 		}
-		else if (Range.End == Offset.ptr)
+		else if (Range.End == Descriptor.ptr)
 		{
 			Range.End += DescriptorSize;
 			bFound = true;
 		}
 		else
 		{
-			check(Range.End < Offset.ptr || Range.Start > Offset.ptr);
-			if (Range.Start > Offset.ptr)
+			check(Range.End < Descriptor.ptr || Range.Start > Descriptor.ptr);
+			if (Range.Start > Descriptor.ptr)
 			{
 				HeapEntry.FreeList.InsertNode(NewRange, Node);
 				bFound = true;
@@ -449,10 +440,12 @@ void FD3D12OfflineDescriptorManager::FreeHeapSlot(D3D12_CPU_DESCRIPTOR_HANDLE Of
 	{
 		if (HeapEntry.FreeList.Num() == 0)
 		{
-			FreeHeaps.AddTail(InIndex);
+			FreeHeaps.AddTail(Descriptor.HeapIndex);
 		}
 		HeapEntry.FreeList.AddTail(NewRange);
 	}
+
+	Descriptor = {};
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

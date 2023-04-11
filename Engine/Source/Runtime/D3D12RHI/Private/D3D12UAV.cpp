@@ -3,202 +3,238 @@
 #include "D3D12RHIPrivate.h"
 #include "ClearReplacementShaders.h"
 
-FD3D12UnorderedAccessView::FD3D12UnorderedAccessView(FD3D12Device* InParent, FRHIViewableResource* InParentResource)
-	: FRHIUnorderedAccessView(InParentResource)
-	, FD3D12View(InParent, ERHIDescriptorHeapType::Standard, ViewSubresourceSubsetFlags_None)
-{
-}
+// -----------------------------------------------------------------------------------------------------
+//
+//                                      FD3D12UnorderedAccessView                                       
+//
+// -----------------------------------------------------------------------------------------------------
 
-FD3D12UnorderedAccessView::FD3D12UnorderedAccessView(FD3D12Device* InParent, FRHIViewableResource* InParentResource, const D3D12_UNORDERED_ACCESS_VIEW_DESC& InDesc, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12Resource* InCounterResource)
-	: FRHIUnorderedAccessView(InParentResource)
-	, FD3D12View(InParent, ERHIDescriptorHeapType::Standard, ViewSubresourceSubsetFlags_None)
-	, CounterResource(InCounterResource)
-{
-	SetDesc(InDesc);
-	CreateView(InBaseShaderResource, InBaseShaderResource->ResourceLocation, InCounterResource, ED3D12DescriptorCreateReason::InitialCreate);
-}
+FD3D12UnorderedAccessView::FD3D12UnorderedAccessView(FD3D12Device* InDevice)
+	: TD3D12View(InDevice, ERHIDescriptorHeapType::Standard)
+{}
 
-void FD3D12UnorderedAccessView::RecreateView()
+void FD3D12UnorderedAccessView::CreateView(FResourceInfo const& InResource, D3D12_UNORDERED_ACCESS_VIEW_DESC const& InD3DViewDesc, EFlags InFlags)
 {
-	check(CounterResource == nullptr);
-	check(ResourceLocation->GetOffsetFromBaseOfResource() == 0);
-	CreateView(BaseShaderResource, *ResourceLocation, nullptr, ED3D12DescriptorCreateReason::UpdateOrRename);
-}
+	OffsetInBytes = 0;
+	StrideInBytes = 0;
 
-void FD3D12UnorderedAccessView::CreateView(FD3D12BaseShaderResource* InBaseShaderResource, FD3D12ResourceLocation& InResourceLocation, FD3D12Resource* InCounterResource, ED3D12DescriptorCreateReason Reason)
-{
-	InitializeInternal(InBaseShaderResource, InResourceLocation);
-
-	if (Resource)
+	//
+	// Buffer views can apply an offset in bytes from the start of the logical resource.
+	//
+	// Reconstruct this value and store it for later. We'll need it if the view is renamed, 
+	// to determine where the view should exist within the bounds of the new resource location.
+	//
+	if (InD3DViewDesc.ViewDimension == D3D12_UAV_DIMENSION_BUFFER)
 	{
-		ID3D12Resource* D3DResource = Resource->GetUAVAccessResource() ? Resource->GetUAVAccessResource() : Resource->GetResource();
-		ID3D12Resource* D3DCounterResource = InCounterResource ? InCounterResource->GetResource() : nullptr;
-		Descriptor.CreateView(Desc, D3DResource, D3DCounterResource, Reason);
-	}
-}
+		StrideInBytes = InD3DViewDesc.Format == DXGI_FORMAT_UNKNOWN
+			? InD3DViewDesc.Buffer.StructureByteStride
+			: D3D12GetFormatSizeInBytes(InD3DViewDesc.Format);
 
-template<typename ResourceType>
-inline FD3D12UnorderedAccessView* CreateUAV(D3D12_UNORDERED_ACCESS_VIEW_DESC& Desc, ResourceType* Resource, bool bNeedsCounterResource)
-{
-	if (Resource == nullptr)
-	{
-		return nullptr;
+		check(StrideInBytes > 0);
+
+		OffsetInBytes = (InD3DViewDesc.Buffer.FirstElement * StrideInBytes) - InResource.ResourceLocation->GetOffsetFromBaseOfResource();
+		check((OffsetInBytes % StrideInBytes) == 0);
 	}
 
-	FD3D12Adapter* Adapter = Resource->GetParentDevice()->GetParentAdapter();
-
-	return Adapter->CreateLinkedViews<ResourceType, FD3D12UnorderedAccessView>(Resource, [bNeedsCounterResource, &Desc](ResourceType* Resource)
+	//
+	// UAVs optionally support a hidden counter. D3D12 requires the user to allocate this as a buffer resource.
+	//
+	if (EnumHasAnyFlags(InFlags, EFlags::NeedsCounter))
 	{
-		FD3D12Device* Device = Resource->GetParentDevice();
-		FD3D12Resource* CounterResource = nullptr;
+		FD3D12Device* Device = GetParentDevice();
+		const FRHIGPUMask Node = Device->GetGPUMask();
 
-		if (bNeedsCounterResource)
+		Device->GetParentAdapter()->CreateBuffer(
+			CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, Node.GetNative(), Node.GetNative())
+			, Node
+			, D3D12_RESOURCE_STATE_UNORDERED_ACCESS
+			, ED3D12ResourceStateMode::MultiState
+			, D3D12_RESOURCE_STATE_UNORDERED_ACCESS
+			, 4
+			, CounterResource.GetInitReference()
+			, TEXT("Counter")
+			, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
+		);
+	}
+
+	TD3D12View::CreateView(InResource, InD3DViewDesc);
+}
+
+void FD3D12UnorderedAccessView::ResourceRenamed(FD3D12BaseShaderResource* InRenamedResource, FD3D12ResourceLocation* InNewResourceLocation)
+{
+	// Buffer SRV descriptors contain offsets / GPU virtual addresses which need to be updated to match the new resource location.
+	if (D3DViewDesc.ViewDimension == D3D12_UAV_DIMENSION_BUFFER)
+		D3DViewDesc.Buffer.FirstElement = (OffsetInBytes + InNewResourceLocation->GetOffsetFromBaseOfResource()) / StrideInBytes;
+
+	TD3D12View::ResourceRenamed(InRenamedResource, InNewResourceLocation);
+}
+
+void FD3D12UnorderedAccessView::UpdateDescriptor()
+{
+	ID3D12Resource* Resource = ResourceInfo.Resource->GetUAVAccessResource()
+		? ResourceInfo.Resource->GetUAVAccessResource()
+		: ResourceInfo.Resource->GetResource();
+
+	ID3D12Resource* Counter = CounterResource
+		? CounterResource->GetResource()
+		: nullptr;
+
+	GetParentDevice()->GetDevice()->CreateUnorderedAccessView(
+		Resource, 
+		Counter, 
+		&D3DViewDesc,
+		OfflineCpuHandle
+	);
+}
+
+void FD3D12UnorderedAccessView_RHI::CreateView()
+{
+	if (IsBuffer())
+	{
+		FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(GetBuffer());
+
+		auto const Info = ViewDesc.Buffer.UAV.GetViewInfo(Buffer);
+
+		D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc{};
+		EFlags Flags = EFlags::None;
+		if (!Info.bNullView)
 		{
-			const FRHIGPUMask Node = Device->GetGPUMask();
-			const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT, Node.GetNative(), Node.GetNative());
-			const D3D12_RESOURCE_STATES InitialState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
-			Device->GetParentAdapter()->CreateBuffer(HeapProps, Node, InitialState, ED3D12ResourceStateMode::MultiState, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, 4, &CounterResource,  TEXT("Counter"), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+			if (Info.bAppendBuffer || Info.bAtomicCounter)
+				Flags = EFlags::NeedsCounter;
+
+			UAVDesc.ViewDimension       = D3D12_UAV_DIMENSION_BUFFER;
+			UAVDesc.Format              = FindUnorderedAccessDXGIFormat(DXGI_FORMAT(GPixelFormats[Info.Format].PlatformFormat));
+			UAVDesc.Buffer.FirstElement = (Info.OffsetInBytes + Buffer->ResourceLocation.GetOffsetFromBaseOfResource()) / Info.StrideInBytes;
+			UAVDesc.Buffer.NumElements  = Info.NumElements;
+
+			switch (Info.BufferType)
+			{
+			case FRHIViewDesc::EBufferType::Raw:
+				UAVDesc.Format       = DXGI_FORMAT_R32_TYPELESS;
+				UAVDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
+				break;
+
+			case FRHIViewDesc::EBufferType::Structured:
+				UAVDesc.Buffer.StructureByteStride = Info.StrideInBytes;
+				break;
+
+			case FRHIViewDesc::EBufferType::Typed:
+				// Nothing more to specify
+				break;
+
+			default:
+				checkNoEntry(); // unsupported / unimplemented
+				break;
+			}
 		}
 
-		return new FD3D12UnorderedAccessView(Device, Resource, Desc, Resource, CounterResource);
-	});
-}
-
-FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHIBuffer* BufferRHI, bool bUseUAVCounter, bool bAppendBuffer)
-{
-	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(BufferRHI);
-
-	FD3D12ResourceLocation& Location = Buffer->ResourceLocation;
-
-	const EBufferUsageFlags BufferUsage = Buffer->GetUsage();
-	const bool bByteAccessBuffer = EnumHasAnyFlags(BufferUsage, BUF_ByteAddressBuffer);
-	const bool bStructuredBuffer = !bByteAccessBuffer;
-	check(bByteAccessBuffer != bStructuredBuffer); // You can't have a structured buffer that allows raw views
-
-	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc{};
-	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-	UAVDesc.Format = DXGI_FORMAT_UNKNOWN;
-
-	uint32 EffectiveStride = Buffer->GetStride();
-
-	if (bByteAccessBuffer)
-	{
-		UAVDesc.Format  = DXGI_FORMAT_R32_TYPELESS;
-		UAVDesc.Buffer.Flags |= D3D12_BUFFER_UAV_FLAG_RAW;
-		EffectiveStride = 4;
-	}
-	else if (EnumHasAnyFlags(BufferUsage, BUF_DrawIndirect))
-	{
-		UAVDesc.Format  = DXGI_FORMAT_R32_UINT;
-		EffectiveStride = 4;
-	}
-
-	UAVDesc.Buffer.FirstElement = Location.GetOffsetFromBaseOfResource() / EffectiveStride;
-	UAVDesc.Buffer.NumElements  = Location.GetSize() / EffectiveStride;
-	UAVDesc.Buffer.StructureByteStride = bStructuredBuffer ? EffectiveStride : 0;
-
-	const bool bNeedsCounterResource = bAppendBuffer | bUseUAVCounter;
-	return CreateUAV(UAVDesc, Buffer, bNeedsCounterResource);
-}
-
-FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHITexture* TextureRHI, uint32 MipLevel, uint8 Format, uint16 FirstArraySlice, uint16 NumArraySlices)
-{
-	FD3D12Texture* Texture = GetD3D12TextureFromRHITexture(TextureRHI);
-	ETextureDimension Dimension = TextureRHI->GetDesc().Dimension;
-
-	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
-
-	const DXGI_FORMAT PlatformResourceFormat = (DXGI_FORMAT)GPixelFormats[Format].PlatformFormat;
-	UAVDesc.Format = FindShaderResourceDXGIFormat(PlatformResourceFormat, false);
-
-	switch (Dimension)
-	{
-	case ETextureDimension::Texture3D:
-	{
-		UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
-		UAVDesc.Texture3D.MipSlice = MipLevel;
-		UAVDesc.Texture3D.FirstWSlice = 0;
-		UAVDesc.Texture3D.WSize = Texture->GetDesc().Depth >> MipLevel;
-
-		return CreateUAV(UAVDesc, Texture, false);
-	}
-	case ETextureDimension::Texture2DArray:
-	{
-		UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
-		UAVDesc.Texture2DArray.MipSlice = MipLevel;
-		UAVDesc.Texture2DArray.FirstArraySlice = NumArraySlices == 0 ? 0 : FirstArraySlice;
-		UAVDesc.Texture2DArray.ArraySize = NumArraySlices == 0 ? Texture->GetDesc().ArraySize : NumArraySlices;
-		UAVDesc.Texture2DArray.PlaneSlice = GetPlaneSliceFromViewFormat(PlatformResourceFormat, UAVDesc.Format);
-
-		return CreateUAV(UAVDesc, Texture, false);
-	}
-	case ETextureDimension::TextureCube:
-	{
-		UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
-		UAVDesc.Texture2DArray.MipSlice = MipLevel;
-		UAVDesc.Texture2DArray.FirstArraySlice = 0;
-		UAVDesc.Texture2DArray.ArraySize = 6;
-		UAVDesc.Texture2DArray.PlaneSlice = GetPlaneSliceFromViewFormat(PlatformResourceFormat, UAVDesc.Format);
-
-		return CreateUAV(UAVDesc, Texture, false);
-	}
-	case ETextureDimension::TextureCubeArray:
-	{
-		UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
-		UAVDesc.Texture2DArray.MipSlice = MipLevel;
-		UAVDesc.Texture2DArray.FirstArraySlice = NumArraySlices == 0 ? 0 : FirstArraySlice * 6;
-		UAVDesc.Texture2DArray.ArraySize = NumArraySlices == 0 ? Texture->GetDesc().ArraySize * 6 : NumArraySlices * 6;
-		UAVDesc.Texture2DArray.PlaneSlice = GetPlaneSliceFromViewFormat(PlatformResourceFormat, UAVDesc.Format);
-
-		return CreateUAV(UAVDesc, Texture, false);
-	}
-	default:
-	{
-		UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-		UAVDesc.Texture2D.MipSlice = MipLevel;
-		UAVDesc.Texture2D.PlaneSlice = GetPlaneSliceFromViewFormat(PlatformResourceFormat, UAVDesc.Format);
-
-		return CreateUAV(UAVDesc, Texture, false);
-	}
-	}
-}
-
-FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHITexture* TextureRHI, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices)
-{
-	return RHICreateUnorderedAccessView(TextureRHI, MipLevel, TextureRHI->GetFormat(), FirstArraySlice, NumArraySlices);
-}
-
-FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(FRHIBuffer* BufferRHI, uint8 Format)
-{
-	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(BufferRHI);
-	FD3D12ResourceLocation& Location = Buffer->ResourceLocation;
-
-	D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc{};
-	UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-
-	uint32 EffectiveStride;
-	if (EnumHasAnyFlags(Buffer->GetUsage(), BUF_ByteAddressBuffer))
-	{
-		UAVDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-		UAVDesc.Buffer.Flags |= D3D12_BUFFER_UAV_FLAG_RAW;
-		EffectiveStride = 4;
+		FD3D12UnorderedAccessView::CreateView(Buffer, UAVDesc, Flags);
 	}
 	else
 	{
-		UAVDesc.Format = FindUnorderedAccessDXGIFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat);
-		EffectiveStride = GPixelFormats[Format].BlockBytes;
+		FD3D12Texture* Texture = FD3D12DynamicRHI::ResourceCast(GetTexture());
+
+		FRHITextureDesc const& TextureDesc = Texture->GetDesc();
+		check(TextureDesc.NumSamples == 1);
+
+		auto const Info = ViewDesc.Texture.UAV.GetViewInfo(Texture);
+
+		DXGI_FORMAT const ViewFormat = FindUnorderedAccessDXGIFormat   (DXGI_FORMAT(GPixelFormats[Info.Format       ].PlatformFormat));
+		DXGI_FORMAT const BaseFormat = GetPlatformTextureResourceFormat(DXGI_FORMAT(GPixelFormats[TextureDesc.Format].PlatformFormat), TextureDesc.Flags);
+
+		D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc{};
+		UAVDesc.Format = ViewFormat;
+
+		uint32 const PlaneSlice = GetPlaneSliceFromViewFormat(BaseFormat, ViewFormat);
+		FRHIRange8 const PlaneRange(PlaneSlice, 1);
+
+		switch (Info.Dimension)
+		{
+		case FRHIViewDesc::EDimension::Texture2D:
+			UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+			UAVDesc.Texture2D.MipSlice   = Info.MipLevel;
+			UAVDesc.Texture2D.PlaneSlice = PlaneSlice;
+			break;
+
+		case FRHIViewDesc::EDimension::TextureCube:
+		case FRHIViewDesc::EDimension::TextureCubeArray:
+			UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+			UAVDesc.Texture2DArray.FirstArraySlice = Info.ArrayRange.First * 6;
+			UAVDesc.Texture2DArray.ArraySize       = Info.ArrayRange.Num * 6;
+			UAVDesc.Texture2DArray.MipSlice        = Info.MipLevel;
+			UAVDesc.Texture2DArray.PlaneSlice      = PlaneSlice;
+			break;
+
+		case FRHIViewDesc::EDimension::Texture2DArray:
+			UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+			UAVDesc.Texture2DArray.FirstArraySlice = Info.ArrayRange.First;
+			UAVDesc.Texture2DArray.ArraySize       = Info.ArrayRange.Num;
+			UAVDesc.Texture2DArray.MipSlice        = Info.MipLevel;
+			UAVDesc.Texture2DArray.PlaneSlice      = PlaneSlice;
+			break;
+
+		case FRHIViewDesc::EDimension::Texture3D:
+			UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE3D;
+			UAVDesc.Texture3D.FirstWSlice = 0;
+			UAVDesc.Texture3D.WSize       = FMath::Max(TextureDesc.Depth >> Info.MipLevel, 1);
+			UAVDesc.Texture3D.MipSlice    = Info.MipLevel;
+			break;
+
+		default:
+			checkNoEntry();
+			break;
+		}
+
+		FD3D12UnorderedAccessView::CreateView(Texture, UAVDesc, EFlags::None);
 	}
-
-	UAVDesc.Buffer.FirstElement = Location.GetOffsetFromBaseOfResource() / EffectiveStride;
-	UAVDesc.Buffer.NumElements = Location.GetSize() / EffectiveStride;
-
-	return CreateUAV(UAVDesc, Buffer, false);
 }
 
-void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12CommandContext>& RHICmdList, FD3D12UnorderedAccessView* UnorderedAccessView, const void* ClearValues, bool bFloat)
+FD3D12UnorderedAccessView_RHI::FD3D12UnorderedAccessView_RHI(FD3D12Device* InDevice, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
+	: FRHIUnorderedAccessView(InResource, InViewDesc)
+	, FD3D12UnorderedAccessView(InDevice)
+{}
+
+
+
+// -----------------------------------------------------------------------------------------------------
+//
+//                                         RHI Create Functions                                             
+//
+// -----------------------------------------------------------------------------------------------------
+
+FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView(class FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc)
 {
-	const D3D12_RESOURCE_DESC& ResourceDesc = UnorderedAccessView->GetResource()->GetDesc();
-	const D3D12_UNORDERED_ACCESS_VIEW_DESC& UAVDesc = UnorderedAccessView->GetDesc();
+	FRHIGPUMask RelevantGPUs = ViewDesc.IsBuffer()
+		? FD3D12DynamicRHI::ResourceCast(static_cast<FRHIBuffer* >(Resource))->GetLinkedObjectsGPUMask()
+		: FD3D12DynamicRHI::ResourceCast(static_cast<FRHITexture*>(Resource))->GetLinkedObjectsGPUMask();
+
+	FD3D12UnorderedAccessView_RHI* View = GetAdapter().CreateLinkedObject<FD3D12UnorderedAccessView_RHI>(RelevantGPUs, [&](FD3D12Device* Device)
+	{
+		FRHIViewableResource* TargetResource = ViewDesc.IsBuffer()
+			? static_cast<FRHIViewableResource*>(FD3D12DynamicRHI::ResourceCast(static_cast<FRHIBuffer* >(Resource), Device->GetGPUIndex()))
+			: static_cast<FRHIViewableResource*>(FD3D12DynamicRHI::ResourceCast(static_cast<FRHITexture*>(Resource), Device->GetGPUIndex()));
+
+		return new FD3D12UnorderedAccessView_RHI(Device, TargetResource, ViewDesc);
+	});
+
+	bool bDynamic = View->IsBuffer() && EnumHasAnyFlags(View->GetBuffer()->GetUsage(), EBufferUsageFlags::AnyDynamic);
+	View->CreateViews(RHICmdList, bDynamic);
+
+	return View;
+}
+
+
+
+// -----------------------------------------------------------------------------------------------------
+//
+//                                         UAV Clear Functions                                          
+//
+// -----------------------------------------------------------------------------------------------------
+
+void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12CommandContext>& RHICmdList, FD3D12UnorderedAccessView_RHI* UnorderedAccessView, const void* ClearValues, bool bFloat)
+{
+	const D3D12_RESOURCE_DESC& ResourceDesc = static_cast<FD3D12UnorderedAccessView*>(UnorderedAccessView)->GetResource()->GetDesc();
+	const D3D12_UNORDERED_ACCESS_VIEW_DESC& UAVDesc = UnorderedAccessView->GetD3DDesc();
 
 	// Only structured buffers can have an unknown format
 	check(UAVDesc.ViewDimension == D3D12_UAV_DIMENSION_BUFFER || UAVDesc.Format != DXGI_FORMAT_UNKNOWN);
@@ -252,7 +288,6 @@ void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12Com
 
 				FD3D12Device* ParentDevice = Context.GetParentDevice();
 				ID3D12Device* Device = ParentDevice->GetDevice();
-				ID3D12Resource* Resource = UnorderedAccessView->GetResource()->GetResource();
 
 				D3D12_UNORDERED_ACCESS_VIEW_DESC R32UAVDesc{};
 				if ((UAVDesc.Buffer.Flags & D3D12_BUFFER_UAV_FLAG_RAW) != 0)
@@ -273,11 +308,9 @@ void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12Com
 					R32UAVDesc.Buffer.NumElements = UAVDesc.Buffer.NumElements * DwordsPerElement;
 				}
 
-				// Scoped descriptor handle will free the offline CPU handle once we return
-				FD3D12ViewDescriptorHandle UAVHandle(ParentDevice, ERHIDescriptorHeapType::Standard);
-				UAVHandle.CreateView(R32UAVDesc, Resource, nullptr, ED3D12DescriptorCreateReason::InitialCreate);
-
-				const D3D12_CPU_DESCRIPTOR_HANDLE CPUHandle = UAVHandle.GetOfflineCpuHandle();
+				// Scoped view will free the offline CPU handle once we return
+				FD3D12UnorderedAccessView UAV(ParentDevice);
+				UAV.CreateView(UnorderedAccessView->GetResourceLocation(), R32UAVDesc, FD3D12UnorderedAccessView::EFlags::None);
 
 				D3D12_GPU_DESCRIPTOR_HANDLE GPUHandle;
 				if (!Context.StateCache.GetDescriptorCache()->IsViewHeapOverridden())
@@ -292,18 +325,18 @@ void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12Com
 					D3D12_CPU_DESCRIPTOR_HANDLE DestSlot = Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->GetCPUSlotHandle(ReservedSlot);
 					GPUHandle = Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->GetGPUSlotHandle(ReservedSlot);
 
-					Device->CopyDescriptorsSimple(1, DestSlot, CPUHandle, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+					Device->CopyDescriptorsSimple(1, DestSlot, UAV.GetOfflineCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 				}
 				else
 				{
-					GPUHandle = ParentDevice->GetBindlessDescriptorManager().GetGpuHandle(UAVHandle.GetBindlessHandle());
+					GPUHandle = ParentDevice->GetBindlessDescriptorManager().GetGpuHandle(UAV.GetBindlessHandle());
 				}
 
 				Context.TransitionResource(UnorderedAccessView, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 				Context.FlushResourceBarriers();
-				Context.GraphicsCommandList()->ClearUnorderedAccessViewUint(GPUHandle, CPUHandle, Resource, *reinterpret_cast<const UINT(*)[4]>(ClearValues), 0, nullptr);
-				Context.UpdateResidency(UnorderedAccessView->GetResource());
+				Context.GraphicsCommandList()->ClearUnorderedAccessViewUint(GPUHandle, UAV.GetOfflineCpuHandle(), UAV.GetResource()->GetResource(), *reinterpret_cast<const UINT(*)[4]>(ClearValues), 0, nullptr);
+				Context.UpdateResidency(UnorderedAccessView->GetResidencyHandle());
 				Context.ConditionalSplitCommandList();
 
 				if (Context.IsDefaultContext())
@@ -348,74 +381,11 @@ void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12Com
 void FD3D12CommandContext::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FVector4f& Values)
 {
 	TRHICommandList_RecursiveHazardous<FD3D12CommandContext> RHICmdList(this);
-	ClearUAV(RHICmdList, RetrieveObject<FD3D12UnorderedAccessView>(UnorderedAccessViewRHI), &Values, true);
+	ClearUAV(RHICmdList, RetrieveObject<FD3D12UnorderedAccessView_RHI>(UnorderedAccessViewRHI), &Values, true);
 }
 
 void FD3D12CommandContext::RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FUintVector4& Values)
 {
 	TRHICommandList_RecursiveHazardous<FD3D12CommandContext> RHICmdList(this);
-	ClearUAV(RHICmdList, RetrieveObject<FD3D12UnorderedAccessView>(UnorderedAccessViewRHI), &Values, false);
-}
-
-FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView_RenderThread(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI, bool bUseUAVCounter, bool bAppendBuffer)
-{
-	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(BufferRHI);
-	// TODO: we have to stall the RHI thread when creating SRVs of dynamic buffers because they get renamed.
-	// perhaps we could do a deferred operation?
-	if (EnumHasAnyFlags(Buffer->GetUsage(), BUF_AnyDynamic))
-	{
-		FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-		return RHICreateUnorderedAccessView(BufferRHI, bUseUAVCounter, bAppendBuffer);
-	}
-	return RHICreateUnorderedAccessView(BufferRHI, bUseUAVCounter, bAppendBuffer);
-}
-
-FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices)
-{
-	return FD3D12DynamicRHI::RHICreateUnorderedAccessView(Texture, MipLevel, FirstArraySlice, NumArraySlices);
-}
-
-FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, uint32 MipLevel, uint8 Format, uint16 FirstArraySlice, uint16 NumArraySlices)
-{
-	return FD3D12DynamicRHI::RHICreateUnorderedAccessView(Texture, MipLevel, Format, FirstArraySlice, NumArraySlices);
-}
-
-FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView_RenderThread(FRHICommandListImmediate& RHICmdList, FRHIBuffer* BufferRHI, uint8 Format)
-{
-	FD3D12Buffer* Buffer = FD3D12DynamicRHI::ResourceCast(BufferRHI);
-
-	// TODO: we have to stall the RHI thread when creating SRVs of dynamic buffers because they get renamed.
-	// perhaps we could do a deferred operation?
-	if (EnumHasAnyFlags(Buffer->GetUsage(), BUF_AnyDynamic))
-	{
-		FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-		return RHICreateUnorderedAccessView(BufferRHI, Format);
-	}
-	return RHICreateUnorderedAccessView(BufferRHI, Format);
-}
-
-FD3D12StagingBuffer::~FD3D12StagingBuffer()
-{
-	ResourceLocation.Clear();
-}
-
-void* FD3D12StagingBuffer::Lock(uint32 Offset, uint32 NumBytes)
-{
-	check(!bIsLocked);
-	bIsLocked = true;
-	if (ResourceLocation.IsValid())
-	{
-		// readback resource are kept mapped after creation
-		return reinterpret_cast<uint8*>(ResourceLocation.GetMappedBaseAddress()) + Offset;
-	}
-	else
-	{
-		return nullptr;
-	}
-}
-
-void FD3D12StagingBuffer::Unlock()
-{
-	check(bIsLocked);
-	bIsLocked = false;
+	ClearUAV(RHICmdList, RetrieveObject<FD3D12UnorderedAccessView_RHI>(UnorderedAccessViewRHI), &Values, false);
 }

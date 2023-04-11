@@ -412,8 +412,7 @@ public:
 	/**
 	* @param ResourceArray - An optional pointer to a resource array containing the resource's data.
 	*/
-	// FlushType: Wait RHI Thread
-	virtual FBufferRHIRef RHICreateBuffer(FRHICommandListBase& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo) override final
+	virtual FBufferRHIRef RHICreateBuffer(FRHICommandListBase& RHICmdList, FRHIBufferDesc const& Desc, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo) override final
 	{
 		if (CreateInfo.ResourceArray && RHICmdList.IsInsideRenderPass())
 		{
@@ -421,7 +420,7 @@ public:
 			RHI_VALIDATION_CHECK(false, *Msg);
 		}
 
-		FBufferRHIRef Buffer = RHI->RHICreateBuffer(RHICmdList, Size, Usage, Stride, ResourceState, CreateInfo);
+		FBufferRHIRef Buffer = RHI->RHICreateBuffer(RHICmdList, Desc, ResourceState, CreateInfo);
 		Buffer->InitBarrierTracking(ResourceState, CreateInfo.DebugName);
 		return Buffer;
 	}
@@ -447,108 +446,13 @@ public:
 		RHI->RHIUnlockBufferMGPU(RHICmdList, Buffer, GPUIndex);
 	}
 
-	/** Creates an unordered access view of the given structured buffer. */
-	// FlushType: Wait RHI Thread
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer) override final
+	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(class FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc) override final
 	{
-		FUnorderedAccessViewRHIRef UAV = RHI->RHICreateUnorderedAccessView(Buffer, bUseUAVCounter, bAppendBuffer);
-		UAV->ViewIdentity = Buffer->GetWholeResourceIdentity();
-		return UAV;
+		return RHI->RHICreateShaderResourceView(RHICmdList, Resource, ViewDesc);
 	}
-
-	/** Creates an unordered access view of the given texture. */
-	// FlushType: Wait RHI Thread
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices) override final
+	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(class FRHICommandListImmediate& RHICmdList, FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc) override final
 	{
-		RHI_VALIDATION_CHECK(Texture->GetTextureReference() == nullptr, TEXT("Creating an unordered access view of an FRHITextureReference is not supported."));
-		RHI_VALIDATION_CHECK(Texture->GetTexture2DArray() != nullptr || (Texture->GetTexture2DArray() == nullptr && (FirstArraySlice == 0 && NumArraySlices == 0)), TEXT("ArraySlice controls are only supported with Texture2dArray (it could be supported with Texture1dArray and Cubemap)."));
-		RHI_VALIDATION_CHECK(Texture->GetTexture2DArray() == nullptr || (Texture->GetTexture2DArray() != nullptr && (NumArraySlices == 0 || (FirstArraySlice + NumArraySlices) <= Texture->GetSizeXYZ().Z)), TEXT("ArraySlice controls missused on Texture2dArray."));
-
-		FUnorderedAccessViewRHIRef UAV = RHI->RHICreateUnorderedAccessView(Texture, MipLevel, FirstArraySlice, NumArraySlices);
-		UAV->ViewIdentity = Texture->GetViewIdentity(MipLevel, 1, FirstArraySlice, NumArraySlices, uint32(RHIValidation::EResourcePlane::Common), 1);
-		return UAV;
-	}
-
-	/** Creates an unordered access view of the given texture. */
-	// FlushType: Wait RHI Thread
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint8 Format, uint16 FirstArraySlice, uint16 NumArraySlices) override final
-	{
-		RHI_VALIDATION_CHECK(Texture->GetTextureReference() == nullptr, TEXT("Creating an unordered access view of an FRHITextureReference is not supported."));
-
-		FUnorderedAccessViewRHIRef UAV = RHI->RHICreateUnorderedAccessView(Texture, MipLevel, Format, FirstArraySlice, NumArraySlices);
-		UAV->ViewIdentity = Texture->GetViewIdentity(MipLevel, 1, FirstArraySlice, NumArraySlices, uint32(RHIValidation::EResourcePlane::Common), 1);
-		return UAV;
-	}
-
-	/** Creates an unordered access view of the given buffer. */
-	// FlushType: Wait RHI Thread
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView(FRHIBuffer* Buffer, uint8 Format) override final
-	{
-		FUnorderedAccessViewRHIRef UAV = RHI->RHICreateUnorderedAccessView(Buffer, Format);
-		UAV->ViewIdentity = Buffer->GetWholeResourceIdentity();
-		return UAV;
-	}
-
-	/** Creates a shader resource view of the given buffer. */
-	// FlushType: Wait RHI Thread
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIBuffer* Buffer) override final
-	{
-		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView(Buffer);
-		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
-		SRV->ValidationStride = Buffer->GetStride();
-		return SRV;
-	}
-
-	/** Creates a shader resource view of the given buffer. */
-	// FlushType: Wait RHI Thread
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHIBuffer* Buffer, uint32 Stride, uint8 Format) override final
-	{
-		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView(Buffer, Stride, Format);
-		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
-		SRV->ValidationStride = Stride;
-		return SRV;
-	}
-
-
-	/** Creates a shader resource view of the given buffer. */
-	// FlushType: Wait RHI Thread
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(const FShaderResourceViewInitializer& Initializer) override final
-	{
-		return RHI->RHICreateShaderResourceView(Initializer);
-	}
-
-	// Must be called on RHI thread timeline
-	// Make sure to call RHIThreadFence(true) afterwards so that parallel translation doesn't refer old resources
-	virtual void RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIBuffer* Buffer, uint32 Stride, uint8 Format) override final
-	{
-		RHI->RHIUpdateShaderResourceView(SRV, Buffer, Stride, Format);
-
-		if (Buffer)
-		{
-			SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
-			SRV->ValidationStride = Stride;
-		}
-		else
-		{
-			SRV->ResetViewIdentity();
-			SRV->ValidationStride = 0;
-		}
-	}
-
-	virtual void RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIBuffer* Buffer) override final
-	{
-		RHI->RHIUpdateShaderResourceView(SRV, Buffer);
-
-		if (Buffer)
-		{
-			SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
-			SRV->ValidationStride = Buffer->GetStride();
-		}
-		else
-		{
-			SRV->ResetViewIdentity();
-			SRV->ValidationStride = 0;
-		}
+		return RHI->RHICreateUnorderedAccessView(RHICmdList, Resource, ViewDesc);
 	}
 
 	virtual FRHICalcTextureSizeResult RHICalcTexturePlatformSize(FRHITextureDesc const& Desc, uint32 FirstMipIndex) override final
@@ -624,53 +528,6 @@ public:
 	void RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer) override final
 	{
 		RHI->RHITransferBufferUnderlyingResource(DestBuffer, SrcBuffer);
-	}
-
-	/**
-	* Creates a shader resource view for a texture
-	*/
-	// FlushType: Wait RHI Thread
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITexture* TextureRHI, const FRHITextureSRVCreateInfo& CreateInfo) override final
-	{
-		RHI_VALIDATION_CHECK(TextureRHI->GetTextureReference() == nullptr, TEXT("Creating a shader resource view of an FRHITextureReference is not supported."));
-		FRHITextureSRVCreateInfo::CheckValidity(TextureRHI->GetDesc(), CreateInfo, TextureRHI->GetTrackerResource()->GetDebugName());
-
-		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView(TextureRHI, CreateInfo);
-
-		uint32 Plane = CreateInfo.Format == PF_X24_G8
-			? (uint32)RHIValidation::EResourcePlane::Stencil
-			: (uint32)RHIValidation::EResourcePlane::Common;
-
-		SRV->ViewIdentity = TextureRHI->GetViewIdentity(CreateInfo.MipLevel, CreateInfo.NumMipLevels, CreateInfo.FirstArraySlice, CreateInfo.NumArraySlices, Plane, 1);
-		return SRV;
-	}
-
-	/**
-	* Create a shader resource view that can be used to access the write mask metadata of a render target on supported platforms.
-	*/
-	// FlushType: Wait RHI Thread
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewWriteMask(FRHITexture2D* Texture2DRHI) override final
-	{
-		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceViewWriteMask(Texture2DRHI);
-		if (SRV)
-		{
-			SRV->ViewIdentity = Texture2DRHI->GetViewIdentity(0, 0, 0, 0, uint32(RHIValidation::EResourcePlane::Cmask), 1);
-		}
-		return SRV;
-	}
-
-	/**
-	* Create a shader resource view that can be used to access the multi-sample fmask metadata of a render target on supported platforms.
-	*/
-	// FlushType: Wait RHI Thread
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewFMask(FRHITexture2D* Texture2DRHI) override final
-	{
-		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceViewFMask(Texture2DRHI);
-		if (SRV)
-		{
-			SRV->ViewIdentity = Texture2DRHI->GetViewIdentity(0, 0, 0, 0, uint32(RHIValidation::EResourcePlane::Fmask), 1);
-		}
-		return SRV;
 	}
 
 	/**
@@ -988,27 +845,6 @@ public:
 		return RHI->RHIGetHTilePlatformConfig(DepthWidth, DepthHeight);
 	}
 
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewHTile(FRHITexture2D* RenderTarget) override final
-	{
-		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceViewHTile(RenderTarget);
-		SRV->ViewIdentity = RenderTarget->GetViewIdentity(0, 0, 0, 0, uint32(RHIValidation::EResourcePlane::Htile), 1);
-		return SRV;
-	}
-
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessViewHTile(FRHITexture2D* RenderTarget) override final
-	{
-		FUnorderedAccessViewRHIRef UAV = RHI->RHICreateUnorderedAccessViewHTile(RenderTarget);
-		UAV->ViewIdentity = RenderTarget->GetViewIdentity(0, 0, 0, 0, uint32(RHIValidation::EResourcePlane::Htile), 1);
-		return UAV;
-	}
-
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessViewStencil(FRHITexture2D* DepthTarget, int32 MipLevel) override final
-	{
-		FUnorderedAccessViewRHIRef UAV = RHI->RHICreateUnorderedAccessViewStencil(DepthTarget, MipLevel);
-		UAV->ViewIdentity = DepthTarget->GetViewIdentity(MipLevel, 1, 0, 0, uint32(RHIValidation::EResourcePlane::Stencil), 1);
-		return UAV;
-	}
-
 	virtual void RHIAliasTextureResources(FTextureRHIRef& DestTexture, FTextureRHIRef& SourceTexture) override final
 	{
 		// Source and target need to be valid objects.
@@ -1191,9 +1027,9 @@ public:
 	* @param FirstMip - the first mip that should be in memory
 	*/
 	// FlushType: Wait RHI Thread
-	virtual void RHIVirtualTextureSetFirstMipInMemory(FRHITexture2D* Texture, uint32 FirstMip) override final
+	virtual void RHIVirtualTextureSetFirstMipInMemory(FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture, uint32 FirstMip) override final
 	{
-		RHI->RHIVirtualTextureSetFirstMipInMemory(Texture, FirstMip);
+		RHI->RHIVirtualTextureSetFirstMipInMemory(RHICmdList, Texture, FirstMip);
 	}
 
 	/**
@@ -1202,9 +1038,9 @@ public:
 	* @param FirstMip - the first mip that should be visible to the GPU
 	*/
 	// FlushType: Wait RHI Thread
-	virtual void RHIVirtualTextureSetFirstMipVisible(FRHITexture2D* Texture, uint32 FirstMip) override final
+	virtual void RHIVirtualTextureSetFirstMipVisible(FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture, uint32 FirstMip) override final
 	{
-		RHI->RHIVirtualTextureSetFirstMipVisible(Texture, FirstMip);
+		RHI->RHIVirtualTextureSetFirstMipVisible(RHICmdList, Texture, FirstMip);
 	}
 
 	/**
@@ -1279,41 +1115,6 @@ public:
 	virtual uint64 RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat Format) override final
 	{
 		return RHI->RHIGetMinimumAlignmentForBufferBackedSRV(Format);
-	}
-
-	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Stride, uint8 Format) override final
-	{
-		FShaderResourceViewRHIRef SRV = RHI->CreateShaderResourceView_RenderThread(RHICmdList, Buffer, Stride, Format);
-		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
-		SRV->ValidationStride = Stride;
-		return SRV;
-	}
-
-	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer) override final
-	{
-		FShaderResourceViewRHIRef SRV = RHI->CreateShaderResourceView_RenderThread(RHICmdList, Initializer);
-
-		SRV->ViewIdentity = RHIValidation::FResourceIdentity{};
-
-		if (Initializer.AsBufferSRV().Buffer)
-		{
-			SRV->ViewIdentity = Initializer.AsBufferSRV().Buffer->GetWholeResourceIdentity();
-		}
-
-		if (Initializer.GetType() == FShaderResourceViewInitializer::EType::StructuredBufferSRV && Initializer.AsStructuredBufferSRV().Buffer)
-		{
-			SRV->ValidationStride = Initializer.AsStructuredBufferSRV().Buffer->GetStride();
-		}
-
-		return SRV;
-	}
-
-	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer) override final
-	{
-		FShaderResourceViewRHIRef SRV = RHI->CreateShaderResourceView_RenderThread(RHICmdList, Buffer);
-		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
-		SRV->ValidationStride = Buffer->GetStride();
-		return SRV;
 	}
 
 	virtual FTexture2DRHIRef AsyncReallocateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D, int32 NewMipCount, int32 NewSizeX, int32 NewSizeY, FThreadSafeCounter* RequestStatus) override final
@@ -1395,88 +1196,6 @@ public:
 		return Texture;
 	}
 
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, bool bUseUAVCounter, bool bAppendBuffer) override final
-	{
-		FUnorderedAccessViewRHIRef UAV = RHI->RHICreateUnorderedAccessView_RenderThread(RHICmdList, Buffer, bUseUAVCounter, bAppendBuffer);
-		UAV->ViewIdentity = Buffer->GetWholeResourceIdentity();
-		return UAV;
-	}
-
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices) override final
-	{
-		RHI_VALIDATION_CHECK(Texture->GetTextureReference() == nullptr, TEXT("Creating an unordered access view of an FRHITextureReference is not supported."));
-
-		FUnorderedAccessViewRHIRef UAV = RHI->RHICreateUnorderedAccessView_RenderThread(RHICmdList, Texture, MipLevel, FirstArraySlice, NumArraySlices);
-		UAV->ViewIdentity = Texture->GetViewIdentity(MipLevel, 1, FirstArraySlice, NumArraySlices, uint32(RHIValidation::EResourcePlane::Common), 1);
-		return UAV;
-	}
-
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, uint32 MipLevel, uint8 Format, uint16 FirstArraySlice, uint16 NumArraySlices) override final
-	{
-		RHI_VALIDATION_CHECK(Texture->GetTextureReference() == nullptr, TEXT("Creating an unordered access view of an FRHITextureReference is not supported."));
-
-		FUnorderedAccessViewRHIRef UAV = RHI->RHICreateUnorderedAccessView_RenderThread(RHICmdList, Texture, MipLevel, Format, FirstArraySlice, NumArraySlices);
-		UAV->ViewIdentity = Texture->GetViewIdentity(MipLevel, 1, FirstArraySlice, NumArraySlices, uint32(RHIValidation::EResourcePlane::Common), 1);
-		return UAV;
-	}
-
-	virtual FUnorderedAccessViewRHIRef RHICreateUnorderedAccessView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint8 Format) override final
-	{
-		FUnorderedAccessViewRHIRef UAV = RHI->RHICreateUnorderedAccessView_RenderThread(RHICmdList, Buffer, Format);
-		UAV->ViewIdentity = Buffer->GetWholeResourceIdentity();
-		return UAV;
-	}
-
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo) override final
-	{
-		RHI_VALIDATION_CHECK(Texture->GetTextureReference() == nullptr, TEXT("Creating a shader resource view of an FRHITextureReference is not supported."));
-		FRHITextureSRVCreateInfo::CheckValidity(Texture->GetDesc(), CreateInfo, Texture->GetTrackerResource()->GetDebugName());
-
-		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, Texture, CreateInfo);
-		RHIValidation::EResourcePlane Plane = CreateInfo.Format == PF_X24_G8
-			? RHIValidation::EResourcePlane::Stencil
-			: RHIValidation::EResourcePlane::Common;
-
-		SRV->ViewIdentity = Texture->GetViewIdentity(CreateInfo.MipLevel, CreateInfo.NumMipLevels, CreateInfo.FirstArraySlice, CreateInfo.NumArraySlices, uint32(Plane), 1);
-		return SRV;
-	}
-
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, uint32 Stride, uint8 Format) override final
-	{
-		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, Buffer, Stride, Format);
-		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
-		SRV->ValidationStride = Stride;
-		return SRV;
-	}
-
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer) override final
-	{
-		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, Buffer);
-		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
-		SRV->ValidationStride = Buffer->GetStride();
-		return SRV;
-	}
-
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewWriteMask_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D) override final
-	{
-		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceViewWriteMask_RenderThread(RHICmdList, Texture2D);
-		if (SRV)
-		{
-			SRV->ViewIdentity = Texture2D->GetViewIdentity(0, 0, 0, 0, uint32(RHIValidation::EResourcePlane::Cmask), 1);
-		}
-		return SRV;
-	}
-
-	virtual FShaderResourceViewRHIRef RHICreateShaderResourceViewFMask_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture2D) override final
-	{
-		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceViewFMask_RenderThread(RHICmdList, Texture2D);
-		if (SRV)
-		{
-			SRV->ViewIdentity = Texture2D->GetViewIdentity(0, 0, 0, 0, uint32(RHIValidation::EResourcePlane::Fmask), 1);
-		}
-		return SRV;
-	}
-
 	virtual void* RHILockTextureCubeFace_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITextureCube* Texture, uint32 FaceIndex, uint32 ArrayIndex, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail) override final
 	{
 		return RHI->RHILockTextureCubeFace_RenderThread(RHICmdList, Texture, FaceIndex, ArrayIndex, MipIndex, LockMode, DestStride, bLockWithinMiptail);
@@ -1501,16 +1220,6 @@ public:
 	virtual bool CheckGpuHeartbeat() const override final
 	{
 		return RHI->CheckGpuHeartbeat();
-	}
-
-	virtual void VirtualTextureSetFirstMipInMemory_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture, uint32 FirstMip) override final
-	{
-		RHI->VirtualTextureSetFirstMipInMemory_RenderThread(RHICmdList, Texture, FirstMip);
-	}
-
-	virtual void VirtualTextureSetFirstMipVisible_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture, uint32 FirstMip) override final
-	{
-		RHI->VirtualTextureSetFirstMipVisible_RenderThread(RHICmdList, Texture, FirstMip);
 	}
 
 	virtual FRHIFlipDetails RHIWaitForFlip(double TimeoutInSeconds) override final

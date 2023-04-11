@@ -109,14 +109,6 @@ public:
 	 * @param CommandBuffer The command buffer to commit, must be non-nil.
  	 */
 	void CommitCommandBuffer(mtlpp::CommandBuffer& CommandBuffer);
-	
-	/**
-	 * Deferred contexts submit their internal lists of command-buffers out of order, the command-queue takes ownership and handles reordering them & lazily commits them once all command-buffer lists are submitted.
-	 * @param BufferList The list of buffers to enqueue into the command-queue at the given index.
-	 * @param Index The 0-based index to commit BufferList's contents into relative to other active deferred contexts.
-	 * @param Count The total number of deferred contexts that will submit - only once all are submitted can any command-buffer be committed.
-	 */
-	void SubmitCommandBuffers(TArray<mtlpp::CommandBuffer> BufferList, uint32 Index, uint32 Count);
 
 	/** @returns Creates a new MTLFence or nil if this is unsupported */
 	FMetalFence* CreateFence(ns::String const& Label) const;
@@ -166,9 +158,7 @@ private:
 #pragma mark - Private Member Variables -
 	mtlpp::Device Device;
 	mtlpp::CommandQueue CommandQueue;
-	TArray<TArray<mtlpp::CommandBuffer>> CommandBuffers;
 	TLockFreePointerListLIFO<mtlpp::CommandBufferFence> CommandBufferFences;
-	uint64 ParallelCommandLists;
 	int32 RuntimeDebuggingLevel;
 	static NSUInteger PermittedOptions;
 	static uint64 Features;

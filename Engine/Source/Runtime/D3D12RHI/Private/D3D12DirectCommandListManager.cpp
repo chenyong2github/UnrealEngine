@@ -106,6 +106,32 @@ void FD3D12DynamicRHI::RHIUnlockStagingBuffer(FRHIStagingBuffer* StagingBufferRH
 	StagingBuffer->Unlock();
 }
 
+FD3D12StagingBuffer::~FD3D12StagingBuffer()
+{
+	ResourceLocation.Clear();
+}
+
+void* FD3D12StagingBuffer::Lock(uint32 Offset, uint32 NumBytes)
+{
+	check(!bIsLocked);
+	bIsLocked = true;
+	if (ResourceLocation.IsValid())
+	{
+		// readback resource are kept mapped after creation
+		return reinterpret_cast<uint8*>(ResourceLocation.GetMappedBaseAddress()) + Offset;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+void FD3D12StagingBuffer::Unlock()
+{
+	check(bIsLocked);
+	bIsLocked = false;
+}
+
 // =============================================================================
 
 FD3D12ManualFence::FD3D12ManualFence(FD3D12Adapter* InParent)

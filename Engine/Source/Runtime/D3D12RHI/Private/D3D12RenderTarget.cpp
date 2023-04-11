@@ -186,7 +186,7 @@ void FD3D12CommandContext::ResolveTextureUsingShader(
 
 			FlushResourceBarriers();
 
-			GraphicsCommandList()->ClearDepthStencilView(DestTextureDSV->GetView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 0, 0, 0, nullptr);
+			GraphicsCommandList()->ClearDepthStencilView(DestTextureDSV->GetOfflineCpuHandle(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 0, 0, 0, nullptr);
 			UpdateResidency(DestTextureDSV->GetResource());
 		}
 
@@ -218,7 +218,7 @@ void FD3D12CommandContext::ResolveTextureUsingShader(
 			FlushResourceBarriers();
 
 			FLinearColor ClearColor(0, 0, 0, 0);
-			GraphicsCommandList()->ClearRenderTargetView(DestTextureRTV->GetView(), (float*)&ClearColor, 0, nullptr);
+			GraphicsCommandList()->ClearRenderTargetView(DestTextureRTV->GetOfflineCpuHandle(), (float*)&ClearColor, 0, nullptr);
 			UpdateResidency(DestTextureRTV->GetResource());
 		}
 
@@ -1091,7 +1091,6 @@ static void ConvertRAWSurfaceDataToFLinearColor(EPixelFormat Format, uint32 Widt
 			}
 		}
 	}
-	// Changing Depth Buffers to 32 bit on Dingo as D24S8 is actually implemented as a 32 bit buffer in the hardware
 	else if (Format == PF_DepthStencil)
 	{
 		// Depth stencil
@@ -1296,16 +1295,16 @@ void FD3D12DynamicRHI::ReadSurfaceDataMSAARaw(FRHITexture* TextureRHI, FIntRect 
 	FD3D12ResourceLocation ResourceLocation(Device);
 	ResourceLocation.AsStandAlone(NonMSAATexture2D);
 
-	TRefCountPtr<FD3D12RenderTargetView> NonMSAARTV;
-	D3D12_RENDER_TARGET_VIEW_DESC RTVDesc;
-	FMemory::Memset(&RTVDesc, 0, sizeof(RTVDesc));
+	D3D12_RENDER_TARGET_VIEW_DESC RTVDesc = {};
 
 	// typeless is not supported, similar code might be needed for other typeless formats
 	RTVDesc.Format = ConvertTypelessToUnorm(NonMSAADesc.Format);
 
 	RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 	RTVDesc.Texture2D.MipSlice = 0;
-	NonMSAARTV = new FD3D12RenderTargetView(Device, RTVDesc, Texture, ResourceLocation);
+
+	FD3D12RenderTargetView NonMSAARTV(Device);
+	NonMSAARTV.CreateView(&ResourceLocation, RTVDesc);
 
 	// Create a CPU-accessible staging texture to copy the resolved sample data to.
 	TRefCountPtr<FD3D12Resource> StagingTexture2D;
@@ -1357,7 +1356,7 @@ void FD3D12DynamicRHI::ReadSurfaceDataMSAARaw(FRHITexture* TextureRHI, FIntRect 
 		DefaultContext.ResolveTextureUsingShader<FResolveSingleSamplePS>(
 			ResourceCast(TextureRHI->GetTexture2D()),
 			NULL,
-			NonMSAARTV,
+			&NonMSAARTV,
 			NULL,
 			NonMSAADesc,
 			FResolveRect(InRect.Min.X, InRect.Min.Y, InRect.Max.X, InRect.Max.Y),

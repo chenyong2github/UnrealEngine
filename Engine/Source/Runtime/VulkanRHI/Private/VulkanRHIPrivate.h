@@ -270,39 +270,38 @@ public:
 
 	bool Matches(const FRHISetRenderTargetsInfo& RTInfo) const;
 
-	inline uint32 GetNumColorAttachments() const
+	uint32 GetNumColorAttachments() const
 	{
 		return NumColorAttachments;
 	}
 
 	void Destroy(FVulkanDevice& Device);
 
-	inline VkFramebuffer GetHandle()
+	VkFramebuffer GetHandle()
 	{
 		return Framebuffer;
 	}
 
-	inline const FVulkanTextureView& GetPartialDepthTextureView() const
+	const FVulkanView::FTextureView& GetPartialDepthTextureView() const
 	{
-		check(PartialDepthTextureView.View != VK_NULL_HANDLE);
-		return PartialDepthTextureView;
+		check(PartialDepthTextureView);
+		return PartialDepthTextureView->GetTextureView();
 	}
 
-	TArray<FVulkanTextureView> AttachmentTextureViews;
+	TIndirectArray<FVulkanView> OwnedTextureViews;
+	TArray<FVulkanView const*> AttachmentTextureViews;
+
 	// Copy from the Depth render target partial view
-	FVulkanTextureView PartialDepthTextureView;
+	FVulkanView const* PartialDepthTextureView = nullptr;
 
-	// Image views and memory allocations we need to addref + release
-	TArray<VkImageView> AttachmentViewsToDelete;
-
-	inline bool ContainsRenderTarget(FRHITexture* Texture) const
+	bool ContainsRenderTarget(FRHITexture* Texture) const
 	{
 		ensure(Texture);
-		FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(Texture);
+		FVulkanTexture* VulkanTexture = ResourceCast(Texture);
 		return ContainsRenderTarget(VulkanTexture->Image);
 	}
 
-	inline bool ContainsRenderTarget(VkImage Image) const
+	bool ContainsRenderTarget(VkImage Image) const
 	{
 		ensure(Image != VK_NULL_HANDLE);
 		for (uint32 Index = 0; Index < NumColorAttachments; ++Index)
@@ -316,7 +315,7 @@ public:
 		return (DepthStencilRenderTargetImage == Image);
 	}
 
-	inline VkRect2D GetRenderArea() const
+	VkRect2D GetRenderArea() const
 	{
 		return RenderArea;
 	}

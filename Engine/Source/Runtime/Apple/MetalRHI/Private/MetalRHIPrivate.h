@@ -217,7 +217,7 @@ mtlpp::PrimitiveType TranslatePrimitiveType(uint32 PrimitiveType);
 mtlpp::PrimitiveTopologyClass TranslatePrimitiveTopology(uint32 PrimitiveType);
 #endif
 
-mtlpp::PixelFormat ToSRGBFormat(mtlpp::PixelFormat LinMTLFormat);
+mtlpp::PixelFormat UEToMetalFormat(EPixelFormat UEFormat, bool bSRGB);
 
 uint8 GetMetalPixelFormatKey(mtlpp::PixelFormat Format);
 

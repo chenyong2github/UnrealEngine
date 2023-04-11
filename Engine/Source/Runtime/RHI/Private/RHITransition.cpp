@@ -15,7 +15,7 @@ FRHIViewableResource* GetViewableResource(const FRHITransitionInfo& Info)
 		return Info.ViewableResource;
 
 	case FRHITransitionInfo::EType::UAV:
-		return Info.UAV ? Info.UAV->GetParentResource() : nullptr;
+		return Info.UAV ? Info.UAV->GetResource() : nullptr;
 	}
 
 	return nullptr;

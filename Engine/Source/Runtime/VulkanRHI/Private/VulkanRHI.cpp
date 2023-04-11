@@ -1426,8 +1426,8 @@ FVulkanRHIImageViewInfo FVulkanDynamicRHI::RHIGetImageViewInfo(FRHITexture* InTe
 	const FRHITextureDesc& Desc = InTexture->GetDesc();
 
 	FVulkanRHIImageViewInfo Info{};
-	Info.ImageView = VulkanTexture->DefaultView.View;
-	Info.Image = VulkanTexture->DefaultView.Image;
+	Info.ImageView = VulkanTexture->DefaultView->GetTextureView().View;
+	Info.Image = VulkanTexture->DefaultView->GetTextureView().Image;
 	Info.Format = VulkanTexture->ViewFormat;
 	Info.Width = Desc.Extent.X;
 	Info.Height = Desc.Extent.Y;
@@ -1590,7 +1590,7 @@ void FVulkanDynamicRHI::RHIAliasTextureResources(FTextureRHIRef& DestTextureRHI,
 {
 	if (DestTextureRHI && SrcTextureRHI)
 	{
-		FVulkanTexture* DestTexture = FVulkanTexture::Cast(DestTextureRHI);
+		FVulkanTexture* DestTexture = ResourceCast(DestTextureRHI);
 		DestTexture->AliasTextureResources(SrcTextureRHI);
 	}
 }
@@ -1837,60 +1837,6 @@ void FVulkanDescriptorSetsLayout::Compile(FVulkanDescriptorSetLayoutMap& DSetLay
 	ZeroVulkanStruct(DescriptorSetAllocateInfo, VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO);
 	DescriptorSetAllocateInfo.descriptorSetCount = LayoutHandles.Num();
 	DescriptorSetAllocateInfo.pSetLayouts = LayoutHandles.GetData();
-}
-
-
-void FVulkanBufferView::Create(FVulkanResourceMultiBuffer* Buffer, EPixelFormat Format, uint32 InOffset, uint32 InSize)
-{
-	check(Format != PF_Unknown);
-	VkFormat BufferFormat = GVulkanBufferFormat[Format];
-	check(BufferFormat != VK_FORMAT_UNDEFINED);
-	Create(BufferFormat, Buffer, InOffset, InSize);
-}
-
-void FVulkanBufferView::Create(VkFormat Format, FVulkanResourceMultiBuffer* Buffer, uint32 InOffset, uint32 InSize)
-{
-	Offset = InOffset;
-	Size = InSize;
-	check(Format != VK_FORMAT_UNDEFINED);
-
-	VkBufferViewCreateInfo ViewInfo;
-	ZeroVulkanStruct(ViewInfo, VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO);
-	ViewInfo.buffer = Buffer->GetHandle();
-	ViewInfo.format = Format;
-	ViewInfo.offset = Offset;
-
-	//#todo-rco: Revisit this if buffer views become VK_BUFFER_USAGE_STORAGE_BUFFER_BIT instead of VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT
-	const VkPhysicalDeviceLimits& Limits = Device->GetLimits();
-	const uint64 MaxSize = (uint64)Limits.maxTexelBufferElements * GetNumBitsPerPixel(Format) / 8;
-	ViewInfo.range = FMath::Min<uint64>(Size, MaxSize);
-	// TODO: add a check() for exceeding MaxSize, to catch code which blindly makes views without checking the platform limits.
-
-	Flags = Buffer->GetBufferUsageFlags() & (VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT);
-	check(Flags);
-	check(IsAligned(Offset, Limits.minTexelBufferOffsetAlignment));
-
-	VERIFYVULKANRESULT(VulkanRHI::vkCreateBufferView(GetParent()->GetInstanceHandle(), &ViewInfo, VULKAN_CPU_ALLOCATOR, &View));
-	
-	bVolatile = Buffer->IsVolatile();
-	if (!bVolatile && UseVulkanDescriptorCache())
-	{
-		ViewId = ++GVulkanBufferViewHandleIdCounter;
-	}
-
-	INC_DWORD_STAT(STAT_VulkanNumBufferViews);
-}
-
-void FVulkanBufferView::Destroy()
-{
-	if (View != VK_NULL_HANDLE)
-	{
-		DEC_DWORD_STAT(STAT_VulkanNumBufferViews);
-		Device->GetDeferredDeletionQueue().EnqueueResource(FDeferredDeletionQueue2::EType::BufferView, View);
-		View = VK_NULL_HANDLE;
-		ViewId = 0;
-		bVolatile = false;
-	}
 }
 
 FVulkanRenderPass::FVulkanRenderPass(FVulkanDevice& InDevice, const FVulkanRenderTargetLayout& InRTLayout) :

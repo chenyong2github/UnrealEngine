@@ -185,7 +185,7 @@ void FD3D12DescriptorCache::SetUAVs(EShaderFrequency ShaderStage, const FD3D12Ro
 	{
 		if ((SlotIndex < UAVStartSlot) || (UAVs[SlotIndex] == nullptr))
 		{
-			SrcDescriptors[SlotIndex] = DefaultViews.NullUAV->GetOfflineCpuHandle();
+			SrcDescriptors[SlotIndex] = DefaultViews.NullUAV;
 		}
 		else
 		{
@@ -250,7 +250,7 @@ void FD3D12DescriptorCache::SetRenderTargets(FD3D12RenderTargetView** RenderTarg
 		}
 		else
 		{
-			RTVDescriptors[i] = DefaultViews.NullRTV->GetOfflineCpuHandle();
+			RTVDescriptors[i] = DefaultViews.NullRTV;
 		}
 	}
 
@@ -333,11 +333,11 @@ void FD3D12DescriptorCache::SetSamplers(EShaderFrequency ShaderStage, const FD3D
 		{
 			if (Samplers[SlotIndex] != nullptr)
 			{
-				SrcDescriptors[SlotIndex] = Samplers[SlotIndex]->OfflineHandle;
+				SrcDescriptors[SlotIndex] = Samplers[SlotIndex]->OfflineDescriptor;
 			}
 			else
 			{
-				SrcDescriptors[SlotIndex] = DefaultViews.DefaultSampler->OfflineHandle;
+				SrcDescriptors[SlotIndex] = DefaultViews.DefaultSampler->OfflineDescriptor;
 			}
 		}
 		FD3D12SamplerStateCache::CleanSlots(CurrentDirtySlotMask, SlotsNeeded);
@@ -384,7 +384,7 @@ static D3D12_RESOURCE_STATES GetBindingResourceState(FD3D12CommandContext& Conte
 		? D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE
 		: D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 
-	if (SRV->IsDepthStencilResource())
+	if (SRV->GetResource()->IsDepthStencilResource())
 	{
 		State |= D3D12_RESOURCE_STATE_DEPTH_READ;
 	}
@@ -427,7 +427,7 @@ void FD3D12DescriptorCache::SetSRVs(EShaderFrequency ShaderStage, const FD3D12Ro
 		}
 		else
 		{
-			SrcDescriptors[SlotIndex] = DefaultViews.NullSRV->GetOfflineCpuHandle();
+			SrcDescriptors[SlotIndex] = DefaultViews.NullSRV;
 		}
 		check(SrcDescriptors[SlotIndex].ptr != 0);
 	}
@@ -523,7 +523,7 @@ void FD3D12DescriptorCache::SetConstantBufferViews(EShaderFrequency ShaderStage,
 		}
 		else
 		{
-			Device->CopyDescriptorsSimple(1, DestDescriptor, DefaultViews.NullCBV->GetOfflineCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			Device->CopyDescriptorsSimple(1, DestDescriptor, DefaultViews.NullCBV, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		}
 
 		DestDescriptorSlot++;

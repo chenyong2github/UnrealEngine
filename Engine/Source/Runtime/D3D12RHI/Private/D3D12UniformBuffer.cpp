@@ -64,7 +64,7 @@ FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Conten
 				UE::RHICore::UpdateUniformBufferConstants(MappedData, Contents, *Layout);
 
 #if USE_STATIC_ROOT_SIGNATURE
-				NewUniformBuffer->View->Create(NewUniformBuffer->ResourceLocation.GetGPUVirtualAddress(), NumBytesActualData);
+				NewUniformBuffer->View->CreateView(&NewUniformBuffer->ResourceLocation, 0, NumBytesActualData);
 #endif
 			}
 		}
@@ -137,7 +137,7 @@ FRHICOMMAND_MACRO(FRHICommandD3D12UpdateUniformBuffer)
 		FD3D12ResourceLocation::TransferOwnership(UniformBuffer->ResourceLocation, UpdatedLocation);
 #if USE_STATIC_ROOT_SIGNATURE
 		const uint32 NumBytes = Align(UniformBuffer->GetLayout().ConstantBufferSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-		UniformBuffer->View->Create(UniformBuffer->ResourceLocation.GetGPUVirtualAddress(), NumBytes);
+		UniformBuffer->View->CreateView(&UniformBuffer->ResourceLocation, 0, NumBytes);
 #endif
 	}
 };

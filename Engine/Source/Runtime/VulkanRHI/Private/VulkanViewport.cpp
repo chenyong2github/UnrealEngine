@@ -22,8 +22,12 @@ FVulkanBackBuffer::FVulkanBackBuffer(FVulkanDevice& Device, FVulkanViewport* InV
 
 void FVulkanBackBuffer::ReleaseAcquiredImage()
 {
-	DefaultView.View = VK_NULL_HANDLE;
-	DefaultView.ViewId = 0;
+	if (DefaultView)
+	{
+		DefaultView->Invalidate();
+		DefaultView = nullptr;
+	}
+
 	Image = VK_NULL_HANDLE;
 }
 
@@ -68,11 +72,10 @@ void FVulkanBackBuffer::AcquireBackBufferImage(FVulkanCommandListContext& Contex
 			int32 AcquiredImageIndex = Viewport->AcquiredImageIndex;
 			check(AcquiredImageIndex >= 0 && AcquiredImageIndex < Viewport->TextureViews.Num());
 
-			FVulkanTextureView& ImageView = Viewport->TextureViews[AcquiredImageIndex];
+			FVulkanView& ImageView = Viewport->TextureViews[AcquiredImageIndex];
 
-			Image = ImageView.Image;
-			DefaultView.View = ImageView.View;
-			DefaultView.ViewId = ImageView.ViewId;
+			Image = ImageView.GetTextureView().Image;
+			DefaultView = &ImageView;
 
 			FVulkanCommandBufferManager* CmdBufferManager = Context.GetCommandBufferManager();
 			FVulkanCmdBuffer* CmdBuffer = CmdBufferManager->GetActiveCmdBuffer();
@@ -81,7 +84,7 @@ void FVulkanBackBuffer::AcquireBackBufferImage(FVulkanCommandListContext& Contex
 			// right after acquiring image is in undefined state
 			FVulkanLayoutManager& LayoutMgr = CmdBuffer->GetLayoutManager();
 			const FVulkanImageLayout CustomLayout(VK_IMAGE_LAYOUT_UNDEFINED, 1, 1, VK_IMAGE_ASPECT_COLOR_BIT);
-			LayoutMgr.SetFullLayout(ImageView.Image, CustomLayout);
+			LayoutMgr.SetFullLayout(Image, CustomLayout);
 
 			// Wait for semaphore signal before writing to backbuffer image
 			CmdBuffer->AddWaitSemaphore(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, Viewport->AcquiredSemaphore);
@@ -90,10 +93,9 @@ void FVulkanBackBuffer::AcquireBackBufferImage(FVulkanCommandListContext& Contex
 		{
 			// fallback to a 'dummy' backbuffer
 			check(Viewport->RenderingBackBuffer);
-			const FVulkanTextureView& DummyView = Viewport->RenderingBackBuffer->DefaultView;
-			Image = DummyView.Image;
-			DefaultView.View = DummyView.View;
-			DefaultView.ViewId = DummyView.ViewId;
+			FVulkanView* DummyView = Viewport->RenderingBackBuffer->DefaultView;
+			Image = DummyView->GetTextureView().Image;
+			DefaultView = DummyView;
 		}
 	}
 }
@@ -106,9 +108,8 @@ FVulkanBackBuffer::~FVulkanBackBuffer()
 	ReleaseAcquiredImage();
 }
 
-FVulkanViewport::FVulkanViewport(FVulkanDynamicRHI* InRHI, FVulkanDevice* InDevice, void* InWindowHandle, uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen, EPixelFormat InPreferredPixelFormat)
+FVulkanViewport::FVulkanViewport(FVulkanDevice* InDevice, void* InWindowHandle, uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen, EPixelFormat InPreferredPixelFormat)
 	: VulkanRHI::FDeviceChild(InDevice)
-	, RHI(InRHI)
 	, SizeX(InSizeX)
 	, SizeY(InSizeY)
 	, bIsFullscreen(bInIsFullscreen)
@@ -122,11 +123,10 @@ FVulkanViewport::FVulkanViewport(FVulkanDynamicRHI* InRHI, FVulkanDevice* InDevi
 	, AcquiredSemaphore(nullptr)
 {
 	check(IsInGameThread());
-	FMemory::Memzero(BackBufferImages);
-	RHI->Viewports.Add(this);
+	FVulkanDynamicRHI::Get().Viewports.Add(this);
 
 	// Make sure Instance is created
-	RHI->InitInstance();
+	FVulkanDynamicRHI::Get().InitInstance();
 
 	bRenderOffscreen = FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen"));
 	CreateSwapchain(nullptr);
@@ -153,11 +153,11 @@ FVulkanViewport::~FVulkanViewport()
 	
 	if (SupportsStandardSwapchain())
 	{
+		TextureViews.Empty();
+
 		for (int32 Index = 0, NumBuffers = RenderingDoneSemaphores.Num(); Index < NumBuffers; ++Index)
 		{
 			RenderingDoneSemaphores[Index]->Release();
-
-			TextureViews[Index].Destroy(*Device);
 
 			// FIXME: race condition on TransitionAndLayoutManager, could this be called from RT while RHIT is active?
 			Device->NotifyDeletedImage(BackBufferImages[Index], true);
@@ -169,7 +169,7 @@ FVulkanViewport::~FVulkanViewport()
 		SwapChain = nullptr;
 	}
 
-	RHI->Viewports.Remove(this);
+	FVulkanDynamicRHI::Get().Viewports.Remove(this);
 }
 
 bool FVulkanViewport::DoCheckedSwapChainJob(TFunction<int32(FVulkanViewport*)> SwapChainJob)
@@ -301,8 +301,22 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 {
 	FMemory::Memzero(ColorRenderTargetImages);
 	FMemory::Memzero(ColorResolveTargetImages);
-		
+
 	AttachmentTextureViews.Empty(RTLayout.GetNumAttachmentDescriptions());
+
+	auto CreateOwnedView = [&]()
+	{
+		FVulkanView* View = new FVulkanView(Device);
+		AttachmentTextureViews.Add(View);
+		OwnedTextureViews.Add(View);
+		return View;
+	};
+
+	auto AddExternalView = [&](FVulkanView const* View)
+	{
+		AttachmentTextureViews.Add(View);
+	};
+
 	uint32 MipIndex = 0;
 
 	const VkExtent3D& RTExtents = RTLayout.GetExtent3D();
@@ -318,7 +332,7 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 			continue;
 		}
 
-		FVulkanTexture* Texture = FVulkanTexture::Cast(RHITexture);
+		FVulkanTexture* Texture = ResourceCast(RHITexture);
 		const FRHITextureDesc& Desc = Texture->GetDesc();
 
 		// this could fire in case one of the textures is FVulkanBackBuffer and it has not acquired an image
@@ -329,7 +343,6 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 		ColorRenderTargetImages[Index] = Texture->Image;
 		MipIndex = InRTInfo.ColorRenderTarget[Index].MipIndex;
 
-		FVulkanTextureView RTView;
 		if (Texture->GetViewType() == VK_IMAGE_VIEW_TYPE_2D || Texture->GetViewType() == VK_IMAGE_VIEW_TYPE_2D_ARRAY)
 		{
 			uint32 ArraySliceIndex, NumArraySlices;
@@ -344,25 +357,58 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 				NumArraySlices = 1;
 				check(ArraySliceIndex < Texture->GetNumberOfArrayLevels());
 			}
-			RTView.Create(*Texture->Device, Texture->Image, Texture->GetViewType(), Texture->GetFullAspectMask(), Desc.Format, Texture->ViewFormat, MipIndex, 1, ArraySliceIndex, NumArraySlices, true);
+
+			CreateOwnedView()->InitAsTextureView(
+				  Texture->Image
+				, Texture->GetViewType()
+				, Texture->GetFullAspectMask()
+				, Desc.Format
+				, Texture->ViewFormat
+				, MipIndex
+				, 1
+				, ArraySliceIndex
+				, NumArraySlices
+				, true
+			);
 		}
 		else if (Texture->GetViewType() == VK_IMAGE_VIEW_TYPE_CUBE)
 		{
 			// Cube always renders one face at a time
 			INC_DWORD_STAT(STAT_VulkanNumImageViews);
-			RTView.Create(*Texture->Device, Texture->Image, VK_IMAGE_VIEW_TYPE_2D, Texture->GetFullAspectMask(), Desc.Format, Texture->ViewFormat, MipIndex, 1, InRTInfo.ColorRenderTarget[Index].ArraySliceIndex, 1, true);
+
+			CreateOwnedView()->InitAsTextureView(
+				  Texture->Image
+				, VK_IMAGE_VIEW_TYPE_2D
+				, Texture->GetFullAspectMask()
+				, Desc.Format
+				, Texture->ViewFormat
+				, MipIndex
+				, 1
+				, InRTInfo.ColorRenderTarget[Index].ArraySliceIndex
+				, 1
+				, true
+			);
 		}
 		else if (Texture->GetViewType() == VK_IMAGE_VIEW_TYPE_3D)
 		{
-			RTView.Create(*Texture->Device, Texture->Image, VK_IMAGE_VIEW_TYPE_2D_ARRAY, Texture->GetFullAspectMask(), Desc.Format, Texture->ViewFormat, MipIndex, 1, 0, Desc.Depth, true, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+			CreateOwnedView()->InitAsTextureView(
+				  Texture->Image
+				, VK_IMAGE_VIEW_TYPE_2D_ARRAY
+				, Texture->GetFullAspectMask()
+				, Desc.Format
+				, Texture->ViewFormat
+				, MipIndex
+				, 1
+				, 0
+				, Desc.Depth
+				, true
+				, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+			);
 		}
 		else
 		{
 			ensure(0);
 		}
-
-		AttachmentTextureViews.Add(RTView);
-		AttachmentViewsToDelete.Add(RTView.View);
 
 		++NumColorAttachments;
 
@@ -371,19 +417,25 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 		if (InRTInfo.bHasResolveAttachments && RTLayout.GetHasResolveAttachments() && RTLayout.GetResolveAttachmentReferences()[Index].layout != VK_IMAGE_LAYOUT_UNDEFINED)
 		{
 			FRHITexture* ResolveRHITexture = InRTInfo.ColorResolveRenderTarget[Index].Texture;
-			FVulkanTexture* ResolveTexture = FVulkanTexture::Cast(ResolveRHITexture);
+			FVulkanTexture* ResolveTexture = ResourceCast(ResolveRHITexture);
 			ColorResolveTargetImages[Index] = ResolveTexture->Image;
 
 			//resolve attachments only supported for 2d/2d array textures
-			FVulkanTextureView ResolveRTView;
 			if (ResolveTexture->GetViewType() == VK_IMAGE_VIEW_TYPE_2D || ResolveTexture->GetViewType() == VK_IMAGE_VIEW_TYPE_2D_ARRAY)
 			{
-				ResolveRTView.Create(*ResolveTexture->Device, ResolveTexture->Image, ResolveTexture->GetViewType(), ResolveTexture->GetFullAspectMask(), ResolveTexture->GetDesc().Format, ResolveTexture->ViewFormat,
-					MipIndex, 1, FMath::Max(0, (int32)InRTInfo.ColorRenderTarget[Index].ArraySliceIndex), ResolveTexture->GetNumberOfArrayLevels(), true);
+				CreateOwnedView()->InitAsTextureView(
+					  ResolveTexture->Image
+					, ResolveTexture->GetViewType()
+					, ResolveTexture->GetFullAspectMask()
+					, ResolveTexture->GetDesc().Format
+					, ResolveTexture->ViewFormat
+					, MipIndex
+					, 1
+					, FMath::Max(0, (int32)InRTInfo.ColorRenderTarget[Index].ArraySliceIndex)
+					, ResolveTexture->GetNumberOfArrayLevels()
+					, true
+				);
 			}
-
-			AttachmentTextureViews.Add(ResolveRTView);
-			AttachmentViewsToDelete.Add(ResolveRTView.View);
 		}
 	}
 
@@ -391,61 +443,87 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 
 	if (RTLayout.GetHasDepthStencil())
 	{
-		FVulkanTexture* Texture = FVulkanTexture::Cast(InRTInfo.DepthStencilRenderTarget.Texture);
+		FVulkanTexture* Texture = ResourceCast(InRTInfo.DepthStencilRenderTarget.Texture);
 		const FRHITextureDesc& Desc = Texture->GetDesc();
 		DepthStencilRenderTargetImage = Texture->Image;
 		bool bHasStencil = (Texture->GetDesc().Format == PF_DepthStencil || Texture->GetDesc().Format == PF_X24_G8);
-		check(Texture->PartialView);
-		PartialDepthTextureView = *Texture->PartialView;
 
-		FVulkanTextureView RTView;
+		check(Texture->PartialView);
+		PartialDepthTextureView = Texture->PartialView;
+
 		ensure(Texture->GetViewType() == VK_IMAGE_VIEW_TYPE_2D || Texture->GetViewType() == VK_IMAGE_VIEW_TYPE_2D_ARRAY || Texture->GetViewType() == VK_IMAGE_VIEW_TYPE_CUBE);
 		if (NumColorAttachments == 0 && Texture->GetViewType() == VK_IMAGE_VIEW_TYPE_CUBE)
 		{
-			RTView.Create(*Texture->Device, Texture->Image, VK_IMAGE_VIEW_TYPE_2D_ARRAY, Texture->GetFullAspectMask(), Texture->GetDesc().Format, Texture->ViewFormat, MipIndex, 1, 0, 6, true);
+			CreateOwnedView()->InitAsTextureView(
+				  Texture->Image
+				, VK_IMAGE_VIEW_TYPE_2D_ARRAY
+				, Texture->GetFullAspectMask()
+				, Texture->GetDesc().Format
+				, Texture->ViewFormat
+				, MipIndex
+				, 1
+				, 0
+				, 6
+				, true
+			);
+
 			NumLayers = 6;
-			AttachmentTextureViews.Add(RTView);
-			AttachmentViewsToDelete.Add(RTView.View);
 		}
 		else if (Texture->GetViewType() == VK_IMAGE_VIEW_TYPE_2D  || Texture->GetViewType() == VK_IMAGE_VIEW_TYPE_2D_ARRAY)
 		{
 			// depth attachments need a separate view to have no swizzle components, for validation correctness
-			RTView.Create(*Texture->Device, Texture->Image, Texture->GetViewType(), Texture->GetFullAspectMask(), Texture->GetDesc().Format, Texture->ViewFormat, MipIndex, 1, 0, Texture->GetNumberOfArrayLevels(), true);
-			AttachmentTextureViews.Add(RTView);
-			AttachmentViewsToDelete.Add(RTView.View);
+			CreateOwnedView()->InitAsTextureView(
+				  Texture->Image
+				, Texture->GetViewType()
+				, Texture->GetFullAspectMask()
+				, Texture->GetDesc().Format
+				, Texture->ViewFormat
+				, MipIndex
+				, 1
+				, 0
+				, Texture->GetNumberOfArrayLevels()
+				, true
+			);
 		}
-		else if (QCOMRenderPassTransform != VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR &&
-			Desc.Extent.X == RTExtents.width && Desc.Extent.Y == RTExtents.height)
+		else if (QCOMRenderPassTransform != VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR && Desc.Extent.X == RTExtents.width && Desc.Extent.Y == RTExtents.height)
 		{
 			FVulkanSwapChain* SwapChain = Device.GetImmediateContext().GetSwapChain();
-			PartialDepthTextureView = *SwapChain->GetOrCreateQCOMDepthView(*Texture);
-			AttachmentTextureViews.Add(*SwapChain->GetOrCreateQCOMDepthStencilView(*Texture));
+
+			PartialDepthTextureView = SwapChain->GetOrCreateQCOMDepthView(*Texture);
+			AddExternalView(SwapChain->GetOrCreateQCOMDepthStencilView(*Texture));
 		}
 		else
 		{
-			AttachmentTextureViews.Add(Texture->DefaultView);
+			AddExternalView(Texture->DefaultView);
 		}
 	}
 
 	if (GRHISupportsAttachmentVariableRateShading && GRHIVariableRateShadingEnabled && GRHIAttachmentVariableRateShadingEnabled && RTLayout.GetHasFragmentDensityAttachment())
 	{
-		FVulkanTexture* Texture = FVulkanTexture::Cast(InRTInfo.ShadingRateTexture);
+		FVulkanTexture* Texture = ResourceCast(InRTInfo.ShadingRateTexture);
 		FragmentDensityImage = Texture->Image;
 
 		ensure(Texture->GetViewType() == VK_IMAGE_VIEW_TYPE_2D || Texture->GetViewType() == VK_IMAGE_VIEW_TYPE_2D_ARRAY);
 
-		FVulkanTextureView RTView;
-		RTView.Create(*Texture->Device, Texture->Image, Texture->GetViewType(), Texture->GetFullAspectMask(), Texture->GetDesc().Format, Texture->ViewFormat, MipIndex, 1, 0, Texture->GetNumberOfArrayLevels(), true);
-
-		AttachmentTextureViews.Add(RTView);
-		AttachmentViewsToDelete.Add(RTView.View);
+		CreateOwnedView()->InitAsTextureView(
+			Texture->Image
+			, Texture->GetViewType()
+			, Texture->GetFullAspectMask()
+			, Texture->GetDesc().Format
+			, Texture->ViewFormat
+			, MipIndex
+			, 1
+			, 0
+			, Texture->GetNumberOfArrayLevels()
+			, true
+		);
 	}
 
 	TArray<VkImageView> AttachmentViews;
-	AttachmentViews.Empty(AttachmentTextureViews.Num());
-	for (auto& TextureView : AttachmentTextureViews)
+	AttachmentViews.Reserve(AttachmentTextureViews.Num());
+	for (FVulkanView const* View : AttachmentTextureViews)
 	{
-		AttachmentViews.Add(TextureView.View);
+		AttachmentViews.Add(View->GetTextureView().View);
 	}
 
 	VkFramebufferCreateInfo CreateInfo;
@@ -486,12 +564,6 @@ void FVulkanFramebuffer::Destroy(FVulkanDevice& Device)
 	Queue.EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::Framebuffer, Framebuffer);
 	Framebuffer = VK_NULL_HANDLE;
 
-	for (int32 Index = 0; Index < AttachmentViewsToDelete.Num(); ++Index)
-	{
-		DEC_DWORD_STAT(STAT_VulkanNumImageViews);
-		Queue.EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::ImageView, AttachmentViewsToDelete[Index]);
-	}
-
 	DEC_DWORD_STAT(STAT_VulkanNumFrameBuffers);
 }
 
@@ -507,7 +579,7 @@ bool FVulkanFramebuffer::Matches(const FRHISetRenderTargetsInfo& InRTInfo) const
 		if (B.Texture)
 		{
 			VkImage AImage = DepthStencilRenderTargetImage;
-			VkImage BImage = FVulkanTexture::Cast(B.Texture)->Image;
+			VkImage BImage = ResourceCast(B.Texture)->Image;
 			if (AImage != BImage)
 			{
 				return false;
@@ -520,7 +592,7 @@ bool FVulkanFramebuffer::Matches(const FRHISetRenderTargetsInfo& InRTInfo) const
 		if (Texture)
 		{
 			VkImage AImage = FragmentDensityImage;
-			VkImage BImage = FVulkanTexture::Cast(Texture)->Image;
+			VkImage BImage = ResourceCast(Texture)->Image;
 			if (AImage != BImage)
 			{
 				return false;
@@ -537,7 +609,7 @@ bool FVulkanFramebuffer::Matches(const FRHISetRenderTargetsInfo& InRTInfo) const
 			if (R.Texture)
 			{
 				VkImage AImage = ColorResolveTargetImages[AttachementIndex];
-				VkImage BImage = FVulkanTexture::Cast(R.Texture)->Image;
+				VkImage BImage = ResourceCast(R.Texture)->Image;
 				if (AImage != BImage)
 				{
 					return false;
@@ -549,7 +621,7 @@ bool FVulkanFramebuffer::Matches(const FRHISetRenderTargetsInfo& InRTInfo) const
 		if (B.Texture)
 		{
 			VkImage AImage = ColorRenderTargetImages[AttachementIndex];
-			VkImage BImage = FVulkanTexture::Cast(B.Texture)->Image;
+			VkImage BImage = ResourceCast(B.Texture)->Image;
 			if (AImage != BImage)
 			{
 				return false;
@@ -625,7 +697,7 @@ void FVulkanViewport::CreateSwapchain(FVulkanSwapChainRecreateInfo* RecreateInfo
 
 		TArray<VkImage> Images;
 		SwapChain = new FVulkanSwapChain(
-			RHI->Instance, *Device, WindowHandle,
+			FVulkanDynamicRHI::Get().Instance, *Device, WindowHandle,
 			PixelFormat, SizeX, SizeY, bIsFullscreen,
 			&DesiredNumBackBuffers,
 			Images,
@@ -636,7 +708,6 @@ void FVulkanViewport::CreateSwapchain(FVulkanSwapChainRecreateInfo* RecreateInfo
 		checkf(Images.Num() >= NUM_BUFFERS, TEXT("We wanted at least %i images, actual Num: %i"), NUM_BUFFERS, Images.Num());
 		BackBufferImages.SetNum(Images.Num());
 		RenderingDoneSemaphores.SetNum(Images.Num());
-		TextureViews.SetNum(Images.Num());
 
 		FVulkanCmdBuffer* CmdBuffer = Device->GetImmediateContext().GetCommandBufferManager()->GetUploadCmdBuffer();
 		ensure(CmdBuffer->IsOutsideRenderPass());
@@ -649,7 +720,7 @@ void FVulkanViewport::CreateSwapchain(FVulkanSwapChainRecreateInfo* RecreateInfo
 		for (int32 Index = 0; Index < Images.Num(); ++Index)
 		{
 			BackBufferImages[Index] = Images[Index];
-			TextureViews[Index].Create(*Device, Images[Index], VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, PixelFormat, UEToVkTextureFormat(PixelFormat, false), 0, 1, 0, 1, false);
+			TextureViews.Add((new FVulkanView(*Device))->InitAsTextureView(Images[Index], VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, PixelFormat, UEToVkTextureFormat(PixelFormat, false), 0, 1, 0, 1, false));
 
 			// Clear the swapchain to avoid a validation warning, and transition to ColorAttachment
 			{
@@ -683,7 +754,7 @@ void FVulkanViewport::CreateSwapchain(FVulkanSwapChainRecreateInfo* RecreateInfo
 			}
 			if (RecreateInfo->Surface)
 			{
-				VulkanRHI::vkDestroySurfaceKHR(RHI->Instance, RecreateInfo->Surface, VULKAN_CPU_ALLOCATOR);
+				VulkanRHI::vkDestroySurfaceKHR(FVulkanDynamicRHI::Get().Instance, RecreateInfo->Surface, VULKAN_CPU_ALLOCATOR);
 				RecreateInfo->Surface = VK_NULL_HANDLE;
 			}
 		}
@@ -729,9 +800,9 @@ void FVulkanViewport::DestroySwapchain(FVulkanSwapChainRecreateInfo* RecreateInf
 		
 	if (SupportsStandardSwapchain() && SwapChain)
 	{
+		TextureViews.Empty();
 		for (int32 Index = 0, NumBuffers = BackBufferImages.Num(); Index < NumBuffers; ++Index)
 		{
-			TextureViews[Index].Destroy(*Device);
 			Device->NotifyDeletedImage(BackBufferImages[Index], true);
 			BackBufferImages[Index] = VK_NULL_HANDLE;
 		}
@@ -1002,17 +1073,17 @@ VkFormat FVulkanViewport::GetSwapchainImageFormat() const
 
 bool FVulkanViewport::SupportsStandardSwapchain()
 {
-	return !bRenderOffscreen && !RHI->bIsStandaloneStereoDevice;
+	return !bRenderOffscreen && !FVulkanDynamicRHI::Get().bIsStandaloneStereoDevice;
 }
 
 bool FVulkanViewport::RequiresRenderingBackBuffer()
 {
-	return !RHI->bIsStandaloneStereoDevice;
+	return !FVulkanDynamicRHI::Get().bIsStandaloneStereoDevice;
 }
 
 EPixelFormat FVulkanViewport::GetPixelFormatForNonDefaultSwapchain()
 {
-	if (bRenderOffscreen || RHI->bIsStandaloneStereoDevice)
+	if (bRenderOffscreen || FVulkanDynamicRHI::Get().bIsStandaloneStereoDevice)
 	{
 		return PF_R8G8B8A8;
 	}
@@ -1037,7 +1108,7 @@ FViewportRHIRef FVulkanDynamicRHI::RHICreateViewport(void* WindowHandle, uint32 
 		PreferredPixelFormat = EDefaultBackBufferPixelFormat::Convert2PixelFormat(EDefaultBackBufferPixelFormat::FromInt(CVarDefaultBackBufferPixelFormat->GetValueOnAnyThread()));
 	}
 
-	return new FVulkanViewport(this, Device, WindowHandle, SizeX, SizeY, bIsFullscreen, PreferredPixelFormat);
+	return new FVulkanViewport(Device, WindowHandle, SizeX, SizeY, bIsFullscreen, PreferredPixelFormat);
 }
 
 void FVulkanDynamicRHI::RHIResizeViewport(FRHIViewport* ViewportRHI, uint32 SizeX, uint32 SizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat)

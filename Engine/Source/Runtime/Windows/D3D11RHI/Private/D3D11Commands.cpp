@@ -352,7 +352,7 @@ void FD3D11DynamicRHI::RHISetUAVParameter(FRHIPixelShader* ComputeShaderRHI, uin
 
 	if (UAV)
 	{
-		ConditionalClearShaderResource(UAV->Resource, true);
+		ConditionalClearShaderResource(UAV->GetBaseResource(), true);
 		for (uint32 i = 0; i < D3D11_PS_CS_UAV_REGISTER_COUNT; i++)
 		{
 			if (i != UAVIndex && CurrentUAVs[i] == UAV)
@@ -377,7 +377,7 @@ void FD3D11DynamicRHI::RHISetUAVParameter(FRHIComputeShader* ComputeShaderRHI,ui
 
 	if(UAV)
 	{
-		ConditionalClearShaderResource(UAV->Resource, true);		
+		ConditionalClearShaderResource(UAV->GetBaseResource(), true);
 	}
 
 	ID3D11UnorderedAccessView* D3D11UAV = UAV ? UAV->View : NULL;
@@ -394,7 +394,7 @@ void FD3D11DynamicRHI::RHISetUAVParameter(FRHIComputeShader* ComputeShaderRHI,ui
 	
 	if(UAV)
 	{
-		ConditionalClearShaderResource(UAV->Resource, true);
+		ConditionalClearShaderResource(UAV->GetBaseResource(), true);
 	}
 
 	ID3D11UnorderedAccessView* D3D11UAV = UAV ? UAV->View : NULL;
@@ -404,13 +404,14 @@ void FD3D11DynamicRHI::RHISetUAVParameter(FRHIComputeShader* ComputeShaderRHI,ui
 void FD3D11DynamicRHI::RHISetShaderResourceViewParameter(FRHIGraphicsShader* ShaderRHI,uint32 TextureIndex, FRHIShaderResourceView* SRVRHI)
 {
 	FD3D11ShaderResourceView* SRV = ResourceCast(SRVRHI);
-	FD3D11BaseShaderResource* Resource = nullptr;
+	FD3D11ViewableResource* Resource = nullptr;
 	ID3D11ShaderResourceView* D3D11SRV = nullptr;
 	if (SRV)
 	{
-		Resource = SRV->Resource;
+		Resource = SRV->GetBaseResource();
 		D3D11SRV = SRV->View;
 	}
+
 	switch (ShaderRHI->GetFrequency())
 	{
 	case SF_Vertex:
@@ -445,12 +446,12 @@ void FD3D11DynamicRHI::RHISetShaderResourceViewParameter(FRHIComputeShader* Comp
 
 	FD3D11ShaderResourceView* SRV = ResourceCast(SRVRHI);
 
-	FD3D11BaseShaderResource* Resource = nullptr;
+	FD3D11ViewableResource* Resource = nullptr;
 	ID3D11ShaderResourceView* D3D11SRV = nullptr;
 	
 	if (SRV)
 	{
-		Resource = SRV->Resource;
+		Resource = SRV->GetBaseResource();
 		D3D11SRV = SRV->View;
 	}
 
@@ -732,7 +733,7 @@ void FD3D11DynamicRHI::InternalSetUAVPS(uint32 BindIndex, FD3D11UnorderedAccessV
 		CurrentUAVs[BindIndex] = UnorderedAccessViewRHI;
 		UAVSChanged = 1;
 	}
-	ConditionalClearShaderResource(UnorderedAccessViewRHI->Resource, true);
+	ConditionalClearShaderResource(UnorderedAccessViewRHI->GetBaseResource(), true);
 	for (uint32 i = 0; i < D3D11_PS_CS_UAV_REGISTER_COUNT; i++)
 	{
 		if (i != BindIndex && CurrentUAVs[i] == UnorderedAccessViewRHI)
@@ -785,7 +786,7 @@ void FD3D11DynamicRHI::CommitUAVs()
 					ID3D11UnorderedAccessView* UAV = UAVs[i];
 
 					// Unbind any shader views of the UAV's resource.
-					ConditionalClearShaderResource(RHIUAV->Resource, true);
+					ConditionalClearShaderResource(RHIUAV->GetBaseResource(), true);
 					UAVBound[i] = UAV;
 				}
 			}
@@ -1117,7 +1118,7 @@ void FD3D11DynamicRHI::SetResourcesFromTables(const ShaderType* RESTRICT Shader)
 		{
 			FD3D11ShaderResourceView* SRVRHI = ResourceCast(SRV);
 			RHI.SetShaderResourceView<Frequency>(
-				SRVRHI->Resource,
+				SRVRHI->GetBaseResource(),
 				SRVRHI->View,
 				Index
 			);
@@ -1696,6 +1697,42 @@ void FD3D11DynamicRHI::RHIEndUAVOverlap()
 FStagingBufferRHIRef FD3D11DynamicRHI::RHICreateStagingBuffer()
 {
 	return new FD3D11StagingBuffer();
+}
+
+FD3D11StagingBuffer::~FD3D11StagingBuffer()
+{
+	if (StagedRead)
+	{
+		StagedRead.SafeRelease();
+	}
+}
+
+void* FD3D11StagingBuffer::Lock(uint32 Offset, uint32 NumBytes)
+{
+	check(!bIsLocked);
+	bIsLocked = true;
+	if (StagedRead)
+	{
+		// Map the staging buffer's memory for reading.
+		D3D11_MAPPED_SUBRESOURCE MappedSubresource;
+		VERIFYD3D11RESULT(Context->Map(StagedRead, 0, D3D11_MAP_READ, 0, &MappedSubresource));
+
+		return (void*)((uint8*)MappedSubresource.pData + Offset);
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+void FD3D11StagingBuffer::Unlock()
+{
+	check(bIsLocked);
+	bIsLocked = false;
+	if (StagedRead)
+	{
+		Context->Unmap(StagedRead, 0);
+	}
 }
 
 void FD3D11DynamicRHI::RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, FRHIStagingBuffer* StagingBufferRHI, uint32 Offset, uint32 NumBytes)

@@ -176,40 +176,39 @@ void BeginFrame_VertexBufferCleanup()
 	FrameBytes = 0;
 }
 
-FBufferRHIRef FOpenGLDynamicRHI::RHICreateBuffer(FRHICommandListBase& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
+FBufferRHIRef FOpenGLDynamicRHI::RHICreateBuffer(FRHICommandListBase& RHICmdList, FRHIBufferDesc const& Desc, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	if (CreateInfo.bWithoutNativeResource)
+	const void* Data = nullptr;
+	GLenum BufferType = 0;
+
+	if (!Desc.IsNull())
 	{
-		return new FOpenGLBuffer();
+		// If a resource array was provided for the resource, create the resource pre-populated
+		if(CreateInfo.ResourceArray)
+		{
+			check(Desc.Size == CreateInfo.ResourceArray->GetResourceDataSize());
+			Data = CreateInfo.ResourceArray->GetResourceData();
+		}
+
+		BufferType = GL_ARRAY_BUFFER;
+		if (EnumHasAnyFlags(Desc.Usage, BUF_StructuredBuffer))
+		{
+			BufferType = GL_SHADER_STORAGE_BUFFER;
+		}
+		else if (EnumHasAnyFlags(Desc.Usage, BUF_IndexBuffer))
+		{
+			BufferType = GL_ELEMENT_ARRAY_BUFFER;
+		}
 	}
 
-	const void *Data = NULL;
+	FOpenGLBuffer* Buffer = new FOpenGLBuffer(&RHICmdList, BufferType, Desc, Data);
 
-	// If a resource array was provided for the resource, create the resource pre-populated
-	if(CreateInfo.ResourceArray)
-	{
-		check(Size == CreateInfo.ResourceArray->GetResourceDataSize());
-		Data = CreateInfo.ResourceArray->GetResourceData();
-	}
-
-	GLenum BufferType = GL_ARRAY_BUFFER;
-	if (EnumHasAnyFlags(Usage, BUF_StructuredBuffer))
-	{
-		BufferType = GL_SHADER_STORAGE_BUFFER;
-	}
-	else if (EnumHasAnyFlags(Usage, BUF_IndexBuffer))
-	{
-		BufferType = GL_ELEMENT_ARRAY_BUFFER;
-	}
-
-	TRefCountPtr<FOpenGLBuffer> Buffer = new FOpenGLBuffer(&RHICmdList, BufferType, Stride, Size, Usage, Data);
-	
 	if (CreateInfo.ResourceArray)
 	{
 		CreateInfo.ResourceArray->Discard();
 	}
-	
-	return Buffer.GetReference();
+
+	return Buffer;
 }
 
 void* FOpenGLDynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListBase& RHICmdList, FRHIBuffer* BufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
@@ -268,18 +267,22 @@ void FOpenGLDynamicRHI::RHICopyBufferRegion(FRHIBuffer* DestBufferRHI, uint64 Ds
 void FOpenGLDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer)
 {
 	VERIFY_GL_SCOPE();
-	check(DestBuffer);
-	FOpenGLBuffer* Dest = ResourceCast(DestBuffer);
-	if (!SrcBuffer)
+	FOpenGLBuffer* Dst = ResourceCast(DestBuffer);
+	FOpenGLBuffer* Src = ResourceCast(SrcBuffer);
+
+	if (Src)
 	{
-		TRefCountPtr<FOpenGLBuffer> Src = new FOpenGLBuffer();
-		Dest->Swap(*Src);
+		// The source buffer should not have any associated views.
+		check(!Src->HasLinkedViews());
+
+		Dst->TakeOwnership(*Src);
 	}
 	else
 	{
-		FOpenGLBuffer* Src = ResourceCast(SrcBuffer);
-		Dest->Swap(*Src);
+		Dst->ReleaseOwnership();
 	}
+
+	Dst->UpdateLinkedViews();
 }
 
 FStagingBufferRHIRef FOpenGLDynamicRHI::RHICreateStagingBuffer()

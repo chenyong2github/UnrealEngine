@@ -232,7 +232,7 @@ protected:
 	{
 #if D3D11_ALLOW_STATE_CACHE
 		D3D11_STATE_CACHE_VERIFY_PRE();
-		check(SamplerIndex < ARRAYSIZE(CurrentSamplerStates[ShaderFrequency]));;
+		check(SamplerIndex < ARRAYSIZE(CurrentSamplerStates[ShaderFrequency]));
 		if ((CurrentSamplerStates[ShaderFrequency][SamplerIndex] != SamplerState) || GD3D11SkipStateCaching)
 		{
 			CurrentSamplerStates[ShaderFrequency][SamplerIndex] = SamplerState;

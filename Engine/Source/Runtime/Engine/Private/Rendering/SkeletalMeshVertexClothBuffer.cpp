@@ -95,9 +95,7 @@ void FSkeletalMeshVertexClothBuffer::InitRHIForStreaming(FRHIBuffer* Intermediat
 {
 	if (VertexBufferRHI && IntermediateBuffer)
 	{
-		check(VertexBufferSRV);
 		Batcher.QueueUpdateRequest(VertexBufferRHI, IntermediateBuffer);
-		Batcher.QueueUpdateRequest(VertexBufferSRV, VertexBufferRHI, sizeof(FVector4f), PF_A32B32G32R32F);
 	}
 }
 
@@ -106,10 +104,6 @@ void FSkeletalMeshVertexClothBuffer::ReleaseRHIForStreaming(FRHIResourceUpdateBa
 	if (VertexBufferRHI)
 	{
 		Batcher.QueueUpdateRequest(VertexBufferRHI, nullptr);
-	}
-	if (VertexBufferSRV)
-	{
-		Batcher.QueueUpdateRequest(VertexBufferSRV, nullptr, 0, 0);
 	}
 }
 
@@ -120,13 +114,10 @@ void FSkeletalMeshVertexClothBuffer::InitRHI()
 {
 	SCOPED_LOADTIMER(FSkeletalMeshVertexClothBuffer_InitRHI);
 
-	const bool bHadVertexData = VertexData != nullptr;
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();
 	if (VertexBufferRHI)
 	{
-		// When VertexData is null, this buffer hasn't been streamed in yet. We still need to create a FRHIShaderResourceView which will be
-		// cached in a vertex factory uniform buffer later. The nullptr tells the RHI that the SRV doesn't view on anything yet.
-		VertexBufferSRV = RHICreateShaderResourceView(FShaderResourceViewInitializer(bHadVertexData ? VertexBufferRHI : nullptr, PF_A32B32G32R32F));
+		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, 16, PF_A32B32G32R32F);
 	}
 }
 

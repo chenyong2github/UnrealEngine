@@ -29,18 +29,15 @@ extern void BuildMetalShaderOutput(
 	uint32 Version,
 	TCHAR const* Standard,
 	TCHAR const* MinOSVersion,
-	EMetalTypeBufferMode TypeMode,
 	TArray<FShaderCompilerError>& OutErrors,
 	uint32 TypedBuffers,
 	uint32 InvariantBuffers,
 	uint32 TypedUAVs,
 	uint32 ConstantBuffers,
-	TArray<uint8> const& TypedBufferFormats,
 	bool bAllowFastIntriniscs
 );
 struct FMetalShaderOutputMetaData
 {
-	TArray<uint8> TypedBufferFormats;
 	uint32 InvariantBuffers = 0;
 	uint32 TypedBuffers = 0;
 	uint32 TypedUAVs = 0;
@@ -203,7 +200,6 @@ bool DoCompileMetalShader(
 	uint32 VersionEnum,
 	uint32 CCFlags,
 	EMetalGPUSemantics Semantics,
-	EMetalTypeBufferMode TypeMode,
 	uint32 MaxUnrollLoops,
 	EShaderFrequency Frequency,
 	bool bDumpDebugInfo,
@@ -1403,7 +1399,7 @@ bool DoCompileMetalShader(
 	if (Result != 0)
 	{
 		Output.Target = Input.Target;
-		BuildMetalShaderOutput(Output, Input, GUIDHash, CCFlags, MetalSource.c_str(), MetalSource.length(), CRCLen, CRC, VersionEnum, *Standard, *MinOSVersion, TypeMode, Output.Errors, OutputData.TypedBuffers, OutputData.InvariantBuffers, OutputData.TypedUAVs, OutputData.ConstantBuffers, OutputData.TypedBufferFormats, bAllowFastIntrinsics);
+		BuildMetalShaderOutput(Output, Input, GUIDHash, CCFlags, MetalSource.c_str(), MetalSource.length(), CRCLen, CRC, VersionEnum, *Standard, *MinOSVersion, Output.Errors, OutputData.TypedBuffers, OutputData.InvariantBuffers, OutputData.TypedUAVs, OutputData.ConstantBuffers, bAllowFastIntrinsics);
 		return Output.bSucceeded;
 	}
 	else

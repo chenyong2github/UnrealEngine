@@ -244,19 +244,6 @@ public:
 	void SetupAfterDeviceCreation();
 };
 
-struct FD3D12DefaultViews
-{
-	FD3D12ViewDescriptorHandle* NullSRV = nullptr;
-	FD3D12ViewDescriptorHandle* NullRTV = nullptr;
-	FD3D12ViewDescriptorHandle* NullUAV = nullptr;
-
-#if USE_STATIC_ROOT_SIGNATURE
-	FD3D12ConstantBufferView* NullCBV = nullptr;
-#endif
-
-	TRefCountPtr<FD3D12SamplerState> DefaultSampler;
-};
-
 class FD3D12Device final : public FD3D12SingleNodeGPUObject, public FNoncopyable, public FD3D12AdapterChild
 {
 public:

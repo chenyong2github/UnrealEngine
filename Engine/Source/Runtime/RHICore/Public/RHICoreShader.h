@@ -195,7 +195,7 @@ void SetResourcesFromTables(TBinder&& Binder, FRHIShader const& Shader, FShaderR
 						? ERHIAccess::SRVCompute
 						: ERHIAccess::SRVGraphics;
 
-					Tracker->Assert(SRV->ViewIdentity, Access);
+					Tracker->Assert(SRV->GetViewIdentity(), Access);
 				}
 				if (GRHIValidationEnabled)
 				{

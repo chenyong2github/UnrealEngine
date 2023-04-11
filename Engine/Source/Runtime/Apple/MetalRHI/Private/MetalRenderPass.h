@@ -24,13 +24,9 @@ public:
 #pragma mark -
 	void SetDispatchType(mtlpp::DispatchType Type);
 	
-    void Begin(FMetalFence* Fence, bool const bParallelBegin = false);
+    void Begin();
 	
 	void Wait(FMetalFence* Fence);
-
-	void Update(FMetalFence* Fence);
-	
-    void BeginParallelRenderPass(mtlpp::RenderPassDescriptor RenderPass, uint32 NumParallelContextsInPass);
 
     void BeginRenderPass(mtlpp::RenderPassDescriptor RenderPass);
 
@@ -38,18 +34,18 @@ public:
     
     void DrawPrimitive(uint32 PrimitiveType, uint32 BaseVertexIndex, uint32 NumPrimitives, uint32 NumInstances);
     
-    void DrawPrimitiveIndirect(uint32 PrimitiveType, FMetalVertexBuffer* VertexBuffer, uint32 ArgumentOffset);
+    void DrawPrimitiveIndirect(uint32 PrimitiveType, FMetalRHIBuffer* VertexBuffer, uint32 ArgumentOffset);
     
     void DrawIndexedPrimitive(FMetalBuffer const& IndexBuffer, uint32 IndexStride, uint32 PrimitiveType, int32 BaseVertexIndex, uint32 FirstInstance,
                          uint32 NumVertices, uint32 StartIndex, uint32 NumPrimitives, uint32 NumInstances);
     
-    void DrawIndexedIndirect(FMetalIndexBuffer* IndexBufferRHI, uint32 PrimitiveType, FMetalStructuredBuffer* VertexBufferRHI, int32 DrawArgumentsIndex, uint32 NumInstances);
+    void DrawIndexedIndirect(FMetalRHIBuffer* IndexBufferRHI, uint32 PrimitiveType, FMetalRHIBuffer* VertexBufferRHI, int32 DrawArgumentsIndex, uint32 NumInstances);
     
-    void DrawIndexedPrimitiveIndirect(uint32 PrimitiveType,FMetalIndexBuffer* IndexBufferRHI,FMetalVertexBuffer* VertexBufferRHI,uint32 ArgumentOffset);
+    void DrawIndexedPrimitiveIndirect(uint32 PrimitiveType,FMetalRHIBuffer* IndexBufferRHI,FMetalRHIBuffer* VertexBufferRHI,uint32 ArgumentOffset);
 	
     void Dispatch(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ);
     
-    void DispatchIndirect(FMetalVertexBuffer* ArgumentBufferRHI, uint32 ArgumentOffset);
+    void DispatchIndirect(FMetalRHIBuffer* ArgumentBufferRHI, uint32 ArgumentOffset);
     
     TRefCountPtr<FMetalFence> const& EndRenderPass(void);
     
@@ -141,18 +137,6 @@ public:
 	 */
 	void ShrinkRingBuffers(void);
 	
-	/*
-	 * Whether the render-pass is within a parallel rendering pass.
-	 * @returns True if and only if within a parallel rendering pass, otherwise false.
-	 */
-	bool IsWithinParallelPass(void);
-
-	/*
-	 * Get a child render command-encoder and the parent parallel command-encoder when within a parallel pass.
-	 * @returns A valid render command encoder or nil.
-	 */
-    mtlpp::RenderCommandEncoder GetParallelRenderCommandEncoder(uint32 Index, mtlpp::ParallelRenderCommandEncoder& ParallelEncoder);
-	
 	void InsertTextureBarrier();
 
 #if METAL_RHI_RAYTRACING
@@ -205,7 +189,6 @@ private:
 	// Fences for the current command encoder chain
 	TRefCountPtr<FMetalFence> PassStartFence;
 	TRefCountPtr<FMetalFence> CurrentEncoderFence;
-	TRefCountPtr<FMetalFence> ParallelPassEndFence;
 
 	// Fences for the prologue command encoder chain
 	TRefCountPtr<FMetalFence> PrologueStartEncoderFence;

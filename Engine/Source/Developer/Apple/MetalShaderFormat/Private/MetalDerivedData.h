@@ -99,7 +99,6 @@ bool DoCompileMetalShader(
 	uint32 VersionEnum,
 	uint32 CCFlags,
 	EMetalGPUSemantics Semantics,
-	EMetalTypeBufferMode TypeMode,
 	uint32 MaxUnrollLoops,
 	EShaderFrequency Frequency,
 	bool bDumpDebugInfo,

@@ -315,7 +315,7 @@ struct FOpenGLES : public FOpenGLBase
 			Access = GL_MAP_READ_BIT;
 			break;
 		case EResourceLockMode::RLM_ReadOnlyPersistent:
-			Access = (GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);;
+			Access = (GL_MAP_READ_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
 			break;
 		case EResourceLockMode::RLM_WriteOnly:
 			Access = (GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT);

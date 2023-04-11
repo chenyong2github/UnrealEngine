@@ -21,13 +21,9 @@ extern bool GIsSuspended;
 #endif
 extern int32 GMetalDebugOpsCount;
 
-FMetalCommandList::FMetalCommandList(FMetalCommandQueue& InCommandQueue, bool const bInImmediate)
-: CommandQueue(InCommandQueue)
-, Index(0)
-, Num(0)
-, bImmediate(bInImmediate)
-{
-}
+FMetalCommandList::FMetalCommandList(FMetalCommandQueue& InCommandQueue)
+	: CommandQueue(InCommandQueue)
+{}
 
 FMetalCommandList::~FMetalCommandList(void)
 {
@@ -291,15 +287,6 @@ void FMetalCommandList::HandleMetalCommandBufferFailure(mtlpp::CommandBuffer con
 	}
 }
 
-void FMetalCommandList::SetParallelIndex(uint32 InIndex, uint32 InNum)
-{
-	if (!IsImmediate())
-	{
-		Index = InIndex;
-		Num = InNum;
-	}
-}
-
 void FMetalCommandList::Commit(mtlpp::CommandBuffer& Buffer, TArray<ns::Object<mtlpp::CommandBufferHandler>> CompletionHandlers, bool const bWait, bool const bIsLastCommandBuffer)
 {
 	check(Buffer);
@@ -348,27 +335,9 @@ void FMetalCommandList::Commit(mtlpp::CommandBuffer& Buffer, TArray<ns::Object<m
 		FrameCommitedBufferTimings = MakeShared<TArray<FMetalCommandBufferTiming>, ESPMode::ThreadSafe>();
 	}
 
-	if (bImmediate)
+	CommandQueue.CommitCommandBuffer(Buffer);
+	if (bWait)
 	{
-		CommandQueue.CommitCommandBuffer(Buffer);
-		if (bWait)
-		{
-			Buffer.WaitUntilCompleted();
-		}
+		Buffer.WaitUntilCompleted();
 	}
-	else
-	{
-		check(!bWait);
-		SubmittedBuffers.Add(Buffer);
-	}
-}
-
-void FMetalCommandList::Submit(uint32 InIndex, uint32 Count)
-{
-	// Only deferred contexts should call Submit, the immediate context commits directly to the command-queue.
-	check(!bImmediate);
-
-	// Command queue takes ownership of the array
-	CommandQueue.SubmitCommandBuffers(SubmittedBuffers, InIndex, Count);
-	SubmittedBuffers.Empty();
 }

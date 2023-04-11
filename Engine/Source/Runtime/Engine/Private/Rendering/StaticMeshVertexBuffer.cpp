@@ -299,34 +299,6 @@ FBufferRHIRef FStaticMeshVertexBuffer::CreateTexCoordRHIBuffer_Async()
 	return CreateTexCoordRHIBuffer_Internal<false>();
 }
 
-void FStaticMeshVertexBuffer::CopyRHIForStreaming(const FStaticMeshVertexBuffer& Other, bool InAllowCPUAccess)
-{
-	// Copy serialized properties.
-	TangentsStride = Other.TangentsStride;
-	TexcoordStride = Other.TexcoordStride;
-	NumTexCoords = Other.NumTexCoords;
-	NumVertices = Other.NumVertices;
-	bUseFullPrecisionUVs = Other.bUseFullPrecisionUVs;
-	bUseHighPrecisionTangentBasis = Other.bUseHighPrecisionTangentBasis;
-
-	// Handle CPU access.
-	if (InAllowCPUAccess)
-	{
-		NeedsCPUAccess = Other.NeedsCPUAccess;
-		AllocateData(NeedsCPUAccess);
-	}
-	else
-	{
-		NeedsCPUAccess = false;
-	}
-
-	// Copy resource references.
-	TangentsVertexBuffer.VertexBufferRHI = Other.TangentsVertexBuffer.VertexBufferRHI;
-	TexCoordVertexBuffer.VertexBufferRHI = Other.TexCoordVertexBuffer.VertexBufferRHI;
-	TangentsSRV = Other.TangentsSRV;
-	TextureCoordinatesSRV = Other.TextureCoordinatesSRV;
-}
-
 void FStaticMeshVertexBuffer::InitRHIForStreaming(
 	FRHIBuffer* IntermediateTangentsBuffer,
 	FRHIBuffer* IntermediateTexCoordBuffer,
@@ -336,26 +308,10 @@ void FStaticMeshVertexBuffer::InitRHIForStreaming(
 	if (IntermediateTangentsBuffer)
 	{
 		Batcher.QueueUpdateRequest(TangentsVertexBuffer.VertexBufferRHI, IntermediateTangentsBuffer);
-		if (TangentsSRV)
-		{
-			Batcher.QueueUpdateRequest(
-				TangentsSRV,
-				TangentsVertexBuffer.VertexBufferRHI,
-				GetUseHighPrecisionTangentBasis() ? 8u : 4u,
-				GetUseHighPrecisionTangentBasis() ? (uint8)PF_R16G16B16A16_SNORM : (uint8)PF_R8G8B8A8_SNORM);;
-		}
 	}
 	if (IntermediateTexCoordBuffer)
 	{
 		Batcher.QueueUpdateRequest(TexCoordVertexBuffer.VertexBufferRHI, IntermediateTexCoordBuffer);
-		if (TextureCoordinatesSRV)
-		{
-			Batcher.QueueUpdateRequest(
-				TextureCoordinatesSRV,
-				TexCoordVertexBuffer.VertexBufferRHI,
-				GetUseFullPrecisionUVs() ? 8u : 4u,
-				GetUseFullPrecisionUVs() ? (uint8)PF_G32R32F : (uint8)PF_G16R16F);
-		}
 	}
 }
 
@@ -364,14 +320,6 @@ void FStaticMeshVertexBuffer::ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& 
 	check(TangentsVertexBuffer.VertexBufferRHI && TexCoordVertexBuffer.VertexBufferRHI);
 	Batcher.QueueUpdateRequest(TangentsVertexBuffer.VertexBufferRHI, nullptr);
 	Batcher.QueueUpdateRequest(TexCoordVertexBuffer.VertexBufferRHI, nullptr);
-	if (TangentsSRV)
-	{
-		Batcher.QueueUpdateRequest(TangentsSRV, nullptr, 0, 0);
-	}
-	if (TextureCoordinatesSRV)
-	{
-		Batcher.QueueUpdateRequest(TextureCoordinatesSRV, nullptr, 0, 0);
-	}
 }
 
 void FStaticMeshVertexBuffer::InitRHI()
@@ -388,11 +336,9 @@ void FStaticMeshVertexBuffer::InitRHI()
 	TangentsVertexBuffer.VertexBufferRHI = CreateTangentsRHIBuffer_RenderThread();
 	if (TangentsVertexBuffer.VertexBufferRHI && (bCreateTangentsSRV || RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || FLocalVertexFactory::IsGPUSkinPassThroughSupported(GMaxRHIShaderPlatform)))
 	{
-		// When TangentsData is null, this buffer hasn't been streamed in yet. We still need to create a FRHIShaderResourceView which will be
-		// cached in a vertex factory uniform buffer later. The nullptr tells the RHI that the SRV doesn't view on anything yet.
-		TangentsSRV = RHICreateShaderResourceView(FShaderResourceViewInitializer(
-			bHadTangentsData ? TangentsVertexBuffer.VertexBufferRHI : nullptr,
-			GetUseHighPrecisionTangentBasis() ? PF_R16G16B16A16_SNORM : PF_R8G8B8A8_SNORM));
+		uint32       Stride = GetUseHighPrecisionTangentBasis() ? 8 : 4;
+		EPixelFormat Format = GetUseHighPrecisionTangentBasis() ? PF_R16G16B16A16_SNORM : PF_R8G8B8A8_SNORM;
+		TangentsSRV = RHICreateShaderResourceView(TangentsVertexBuffer.VertexBufferRHI, Stride, Format);
 	}
 
 	const bool bHadTexCoordData = TexcoordData != nullptr;
@@ -400,11 +346,9 @@ void FStaticMeshVertexBuffer::InitRHI()
 	TexCoordVertexBuffer.VertexBufferRHI = CreateTexCoordRHIBuffer_RenderThread();
 	if (TexCoordVertexBuffer.VertexBufferRHI && (bCreateTexCoordSRV || RHISupportsManualVertexFetch(GMaxRHIShaderPlatform)))
 	{
-		// When TexcoordData is null, this buffer hasn't been streamed in yet. We still need to create a FRHIShaderResourceView which will be
-		// cached in a vertex factory uniform buffer later. The nullptr tells the RHI that the SRV doesn't view on anything yet.
-		TextureCoordinatesSRV = RHICreateShaderResourceView(FShaderResourceViewInitializer(
-			bHadTexCoordData ? TexCoordVertexBuffer.VertexBufferRHI : nullptr,
-			GetUseFullPrecisionUVs() ? PF_G32R32F : PF_G16R16F));
+		uint32       Stride = GetUseFullPrecisionUVs() ? 8 : 4;
+		EPixelFormat Format = GetUseFullPrecisionUVs() ? PF_G32R32F : PF_G16R16F;
+		TextureCoordinatesSRV = RHICreateShaderResourceView(TexCoordVertexBuffer.VertexBufferRHI, Stride, Format);
 	}
 }
 

@@ -146,8 +146,8 @@ void FVulkanCommandListContext::RHICopyToResolveTarget(FRHITexture* SourceTextur
 	FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
 	check(CmdBuffer->IsOutsideRenderPass());
 
-	const FVulkanTexture& SrcSurface = *FVulkanTexture::Cast(SourceTextureRHI);
-	const FVulkanTexture& DstSurface = *FVulkanTexture::Cast(DestTextureRHI);
+	const FVulkanTexture& SrcSurface = *ResourceCast(SourceTextureRHI);
+	const FVulkanTexture& DstSurface = *ResourceCast(DestTextureRHI);
 
 	const FRHITextureDesc& SrcDesc = SrcSurface.GetDesc();
 	const FRHITextureDesc& DstDesc = DstSurface.GetDesc();
@@ -409,7 +409,7 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 		return;
 	}
 
-	FVulkanTexture& Surface = *FVulkanTexture::Cast(TextureRHI);
+	FVulkanTexture& Surface = *ResourceCast(TextureRHI);
 
 	Device->PrepareForCPURead();
 
@@ -511,7 +511,7 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 void FVulkanDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFence* FenceRHI, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex)
 {
 	check(TextureRHI->GetDesc().Dimension == ETextureDimension::Texture2D);
-	FVulkanTexture* Texture = FVulkanTexture::Cast(TextureRHI);
+	FVulkanTexture* Texture = ResourceCast(TextureRHI);
 
 	if (FenceRHI && !FenceRHI->Poll())
 	{
@@ -622,7 +622,7 @@ void FVulkanDynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRec
 		InDevice->GetStagingManager().ReleaseBuffer(InCmdBuffer, StagingBuffer);
 	};
 
-	FVulkanTexture& Surface = *FVulkanTexture::Cast(TextureRHI);
+	FVulkanTexture& Surface = *ResourceCast(TextureRHI);
 	const FRHITextureDesc& Desc = Surface.GetDesc();
 
 	if (GIgnoreCPUReads == 1)
@@ -676,7 +676,7 @@ void FVulkanDynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRec
 
 void FVulkanDynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI, FIntRect InRect, FIntPoint ZMinMax, TArray<FFloat16Color>& OutData)
 {
-	FVulkanTexture& Surface = *FVulkanTexture::Cast(TextureRHI);
+	FVulkanTexture& Surface = *ResourceCast(TextureRHI);
 	const FRHITextureDesc& Desc = Surface.GetDesc();
 
 	const uint32 SizeX = InRect.Width();
@@ -814,7 +814,7 @@ bool FVulkanCommandListContext::IsSwapchainImage(FRHITexture* InTexture) const
 
 	for (uint32 i = 0; i < NumViewports; i++)
 	{
-		VkImage Image = FVulkanTexture::Cast(InTexture)->Image;
+		VkImage Image = ResourceCast(InTexture)->Image;
 		uint32 BackBufferImageCount = Viewports[i]->GetBackBufferImageCount();
 
 		for (uint32 SwapchainImageIdx = 0; SwapchainImageIdx < BackBufferImageCount; SwapchainImageIdx++)
@@ -855,7 +855,7 @@ void FVulkanCommandListContext::RHIBeginRenderPass(const FRHIRenderPassInfo& InI
 	VkImageLayout CurrentStencilLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	if (DSTexture)
 	{
-		FVulkanTexture& VulkanTexture = *FVulkanTexture::Cast(DSTexture);
+		FVulkanTexture& VulkanTexture = *ResourceCast(DSTexture);
 		const VkImageAspectFlags AspectFlags = VulkanTexture.GetFullAspectMask();
 
 		if (GetDevice()->SupportsParallelRendering())
@@ -1055,7 +1055,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 		const FRHIRenderTargetView& RTView = RTInfo.ColorRenderTarget[Index];
 		if (RTView.Texture)
 		{
-			FVulkanTexture* Texture = FVulkanTexture::Cast(RTView.Texture);
+			FVulkanTexture* Texture = ResourceCast(RTView.Texture);
 			check(Texture);
 			const FRHITextureDesc& TextureDesc = Texture->GetDesc();
 
@@ -1134,7 +1134,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 	{
 		VkAttachmentDescription& CurrDesc = Desc[NumAttachmentDescriptions];
 		FMemory::Memzero(CurrDesc);
-		FVulkanTexture* Texture = FVulkanTexture::Cast(RTInfo.DepthStencilRenderTarget.Texture);
+		FVulkanTexture* Texture = ResourceCast(RTInfo.DepthStencilRenderTarget.Texture);
 		check(Texture);
 		const FRHITextureDesc& TextureDesc = Texture->GetDesc();
 
@@ -1209,7 +1209,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 
 	if (GRHISupportsAttachmentVariableRateShading && GRHIVariableRateShadingEnabled && GRHIAttachmentVariableRateShadingEnabled && RTInfo.ShadingRateTexture)
 	{
-		FVulkanTexture* Texture = FVulkanTexture::Cast(RTInfo.ShadingRateTexture);
+		FVulkanTexture* Texture = ResourceCast(RTInfo.ShadingRateTexture);
 		check(Texture->GetFormat() == GRHIVariableRateShadingImageFormat);
 
 		VkAttachmentDescription& CurrDesc = Desc[NumAttachmentDescriptions];
@@ -1279,7 +1279,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 	for (int32 Index = 0; Index < NumColorRenderTargets; ++Index)
 	{
 		const FRHIRenderPassInfo::FColorEntry& ColorEntry = RPInfo.ColorRenderTargets[Index];
-		FVulkanTexture* Texture = FVulkanTexture::Cast(ColorEntry.RenderTarget);
+		FVulkanTexture* Texture = ResourceCast(ColorEntry.RenderTarget);
 		check(Texture);
 		const FRHITextureDesc& TextureDesc = Texture->GetDesc();
 
@@ -1359,7 +1359,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 	{
 		VkAttachmentDescription& CurrDesc = Desc[NumAttachmentDescriptions];
 		FMemory::Memzero(CurrDesc);
-		FVulkanTexture* Texture = FVulkanTexture::Cast(RPInfo.DepthStencilRenderTarget.DepthStencilTarget);
+		FVulkanTexture* Texture = ResourceCast(RPInfo.DepthStencilRenderTarget.DepthStencilTarget);
 		check(Texture);
 		const FRHITextureDesc& TextureDesc = Texture->GetDesc();
 
@@ -1463,7 +1463,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 
 	if (GRHISupportsAttachmentVariableRateShading && GRHIVariableRateShadingEnabled && GRHIAttachmentVariableRateShadingEnabled && RPInfo.ShadingRateTexture)
 	{
-		FVulkanTexture* Texture = FVulkanTexture::Cast(RPInfo.ShadingRateTexture);
+		FVulkanTexture* Texture = ResourceCast(RPInfo.ShadingRateTexture);
 		check(Texture->GetFormat() == GRHIVariableRateShadingImageFormat);
 
 		VkAttachmentDescription& CurrDesc = Desc[NumAttachmentDescriptions];

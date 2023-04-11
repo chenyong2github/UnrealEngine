@@ -220,39 +220,12 @@ FBufferRHIRef FPositionVertexBuffer::CreateRHIBuffer_Async()
 	return CreateRHIBuffer_Internal<false>();
 }
 
-/** Copy everything, keeping reference to the same RHI resources. */
-void FPositionVertexBuffer::CopyRHIForStreaming(const FPositionVertexBuffer& Other, bool InAllowCPUAccess)
-{
-	// Copy serialized properties.
-	Stride = Other.Stride;
-	NumVertices = Other.NumVertices;
-
-	// Handle CPU access.
-	if (InAllowCPUAccess)
-	{
-		bNeedsCPUAccess = Other.bNeedsCPUAccess;
-		AllocateData(bNeedsCPUAccess);
-	}
-	else
-	{
-		bNeedsCPUAccess = false;
-	}
-
-	// Copy resource references.
-	VertexBufferRHI = Other.VertexBufferRHI;
-	PositionComponentSRV = Other.PositionComponentSRV;
-}
-
 void FPositionVertexBuffer::InitRHIForStreaming(FRHIBuffer* IntermediateBuffer, FRHIResourceUpdateBatcher& Batcher)
 {
 	check(VertexBufferRHI);
 	if (IntermediateBuffer)
 	{
 		Batcher.QueueUpdateRequest(VertexBufferRHI, IntermediateBuffer);
-		if (PositionComponentSRV)
-		{
-			Batcher.QueueUpdateRequest(PositionComponentSRV, VertexBufferRHI, 4, PF_R32_FLOAT);
-		}
 	}
 }
 
@@ -260,17 +233,12 @@ void FPositionVertexBuffer::ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Ba
 {
 	check(VertexBufferRHI);
 	Batcher.QueueUpdateRequest(VertexBufferRHI, nullptr);
-	if (PositionComponentSRV)
-	{
-		Batcher.QueueUpdateRequest(PositionComponentSRV, nullptr, 0, 0);
-	}
 }
 
 void FPositionVertexBuffer::InitRHI()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPositionVertexBuffer::InitRHI);
 
-	const bool bHadVertexData = VertexData != nullptr;
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();
 	// we have decide to create the SRV based on GMaxRHIShaderPlatform because this is created once and shared between feature levels for editor preview.
 	// Also check to see whether cpu access has been activated on the vertex data
@@ -287,7 +255,7 @@ void FPositionVertexBuffer::InitRHI()
 		{
 			// When VertexData is null, this buffer hasn't been streamed in yet. We still need to create a FRHIShaderResourceView which will be
 			// cached in a vertex factory uniform buffer later. The nullptr tells the RHI that the SRV doesn't view on anything yet.
-			PositionComponentSRV = RHICreateShaderResourceView(FShaderResourceViewInitializer(bHadVertexData ? VertexBufferRHI : nullptr, PF_R32_FLOAT));
+			PositionComponentSRV = RHICreateShaderResourceView(VertexBufferRHI, 4, PF_R32_FLOAT);
 		}
 	}
 }

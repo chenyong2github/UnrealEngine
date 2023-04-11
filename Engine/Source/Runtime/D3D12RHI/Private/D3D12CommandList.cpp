@@ -372,7 +372,7 @@ FD3D12CommandList::FState::FState(FD3D12CommandAllocator* CommandAllocator, FD3D
 void FD3D12ContextCommon::TransitionResource(FD3D12DepthStencilView* View)
 {
 	// Determine the required subresource states from the view desc
-	const D3D12_DEPTH_STENCIL_VIEW_DESC& DSVDesc = View->GetDesc();
+	const D3D12_DEPTH_STENCIL_VIEW_DESC& DSVDesc = View->GetD3DDesc();
 	const bool bDSVDepthIsWritable = (DSVDesc.Flags & D3D12_DSV_FLAG_READ_ONLY_DEPTH) == 0;
 	const bool bDSVStencilIsWritable = (DSVDesc.Flags & D3D12_DSV_FLAG_READ_ONLY_STENCIL) == 0;
 	// TODO: Check if the PSO depth stencil is writable. When this is done, we need to transition in SetDepthStencilState too.
@@ -388,20 +388,20 @@ void FD3D12ContextCommon::TransitionResource(FD3D12DepthStencilView* View)
 	FD3D12Resource* Resource = View->GetResource();
 	if (bDepthIsWritable)
 	{
-		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_DEPTH_WRITE, View->GetDepthOnlyViewSubresourceSubset());
+		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_DEPTH_WRITE, View->GetDepthOnlySubset());
 	}
 	else if (bHasDepth)
 	{
-		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_DEPTH_READ, View->GetDepthOnlyViewSubresourceSubset());
+		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_DEPTH_READ, View->GetDepthOnlySubset());
 	}
 
 	if (bStencilIsWritable)
 	{
-		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_DEPTH_WRITE, View->GetStencilOnlyViewSubresourceSubset());
+		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_DEPTH_WRITE, View->GetStencilOnlySubset());
 	}
 	else if (bHasStencil)
 	{
-		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_DEPTH_READ, View->GetStencilOnlyViewSubresourceSubset());
+		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_DEPTH_READ, View->GetStencilOnlySubset());
 	}
 }
 
@@ -409,7 +409,7 @@ void FD3D12ContextCommon::TransitionResource(FD3D12DepthStencilView* View, D3D12
 {
 	FD3D12Resource* Resource = View->GetResource();
 
-	const D3D12_DEPTH_STENCIL_VIEW_DESC& Desc = View->GetDesc();
+	const D3D12_DEPTH_STENCIL_VIEW_DESC& Desc = View->GetD3DDesc();
 	switch (Desc.ViewDimension)
 	{
 	case D3D12_DSV_DIMENSION_TEXTURE2D:
@@ -417,7 +417,7 @@ void FD3D12ContextCommon::TransitionResource(FD3D12DepthStencilView* View, D3D12
 		if (Resource->GetPlaneCount() > 1)
 		{
 			// Multiple subresources to transtion
-			TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, After, View->GetViewSubresourceSubset());
+			TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, After, View->GetViewSubset());
 		}
 		else
 		{
@@ -430,7 +430,7 @@ void FD3D12ContextCommon::TransitionResource(FD3D12DepthStencilView* View, D3D12
 	case D3D12_DSV_DIMENSION_TEXTURE2DARRAY:
 	case D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY:
 		// Multiple subresources to transtion
-		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, After, View->GetViewSubresourceSubset());
+		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, After, View->GetViewSubset());
 		break;
 
 	default:
@@ -443,7 +443,7 @@ void FD3D12ContextCommon::TransitionResource(FD3D12RenderTargetView* View, D3D12
 {
 	FD3D12Resource* Resource = View->GetResource();
 
-	const D3D12_RENDER_TARGET_VIEW_DESC& Desc = View->GetDesc();
+	const D3D12_RENDER_TARGET_VIEW_DESC& Desc = View->GetD3DDesc();
 	switch (Desc.ViewDimension)
 	{
 	case D3D12_RTV_DIMENSION_TEXTURE3D:
@@ -458,7 +458,7 @@ void FD3D12ContextCommon::TransitionResource(FD3D12RenderTargetView* View, D3D12
 	case D3D12_RTV_DIMENSION_TEXTURE2DARRAY:
 	case D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY:
 		// Multiple subresources to transition
-		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, After, View->GetViewSubresourceSubset());
+		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, After, View->GetViewSubset());
 		break;
 
 	default:
@@ -476,21 +476,21 @@ void FD3D12ContextCommon::TransitionResource(FD3D12ShaderResourceView* View, D3D
 		return;
 
 	const D3D12_RESOURCE_DESC& ResDesc = Resource->GetDesc();
-	const CViewSubresourceSubset& SubresourceSubset = View->GetViewSubresourceSubset();
+	const FD3D12ViewSubset& ViewSubset = View->GetViewSubset();
 
-	const D3D12_SHADER_RESOURCE_VIEW_DESC& Desc = View->GetDesc();
+	const D3D12_SHADER_RESOURCE_VIEW_DESC& Desc = View->GetD3DDesc();
 	switch (Desc.ViewDimension)
 	{
 	default:
 		// Transition the resource
-		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, After, SubresourceSubset);
+		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, After, ViewSubset);
 		break;
 
 	case D3D12_SRV_DIMENSION_BUFFER:
 		if (Resource->GetHeapType() == D3D12_HEAP_TYPE_DEFAULT)
 		{
 			// Transition the resource
-			TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, After, SubresourceSubset);
+			TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, After, ViewSubset);
 		}
 		break;
 	}
@@ -500,7 +500,7 @@ void FD3D12ContextCommon::TransitionResource(FD3D12UnorderedAccessView* View, D3
 {
 	FD3D12Resource* Resource = View->GetResource();
 
-	const D3D12_UNORDERED_ACCESS_VIEW_DESC& Desc = View->GetDesc();
+	const D3D12_UNORDERED_ACCESS_VIEW_DESC& Desc = View->GetD3DDesc();
 	switch (Desc.ViewDimension)
 	{
 	case D3D12_UAV_DIMENSION_BUFFER:
@@ -514,12 +514,12 @@ void FD3D12ContextCommon::TransitionResource(FD3D12UnorderedAccessView* View, D3
 
 	case D3D12_UAV_DIMENSION_TEXTURE2DARRAY:
 		// Multiple subresources to transtion
-		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, After, View->GetViewSubresourceSubset());
+		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, After, View->GetViewSubset());
 		break;
 
 	case D3D12_UAV_DIMENSION_TEXTURE3D:
 		// Multiple subresources to transtion
-		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, After, View->GetViewSubresourceSubset());
+		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, After, View->GetViewSubset());
 		break;
 
 	default:
@@ -568,7 +568,7 @@ bool FD3D12ContextCommon::TransitionResource(FD3D12Resource* Resource, D3D12_RES
 }
 
 // Transition subresources from current to a new state, using resource state tracking.
-bool FD3D12ContextCommon::TransitionResource(FD3D12Resource* Resource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After, const CViewSubresourceSubset& SubresourceSubset)
+bool FD3D12ContextCommon::TransitionResource(FD3D12Resource* Resource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After, FD3D12ViewSubset const& ViewSubset)
 {
 	check(Resource);
 	check(Resource->RequiresResourceStateTracking());
@@ -580,7 +580,7 @@ bool FD3D12ContextCommon::TransitionResource(FD3D12Resource* Resource, D3D12_RES
 
 	UpdateResidency(Resource);
 
-	const bool bIsWholeResource = SubresourceSubset.IsWholeResource();
+	const bool bIsWholeResource = ViewSubset.IsWholeResource();
 	CResourceState& ResourceState = GetCommandList().GetResourceState_OnCommandList(Resource);
 
 	bool bRequireUAVBarrier = false;
@@ -597,17 +597,14 @@ bool FD3D12ContextCommon::TransitionResource(FD3D12Resource* Resource, D3D12_RES
 		// Either way, we'll need to loop over each subresource in the view...
 
 		bool bWholeResourceWasTransitionedToSameState = bIsWholeResource;
-		for (CViewSubresourceSubset::CViewSubresourceIterator it = SubresourceSubset.begin(); it != SubresourceSubset.end(); ++it)
+		for (uint32 SubresourceIndex : ViewSubset)
 		{
-			for (uint32 SubresourceIndex = it.StartSubresource(); SubresourceIndex < it.EndSubresource(); SubresourceIndex++)
-			{
-				bool bForceInAfterState = false;
-				bRequireUAVBarrier |= TransitionResource(Resource, ResourceState, SubresourceIndex, Before, After, bForceInAfterState);
+			bool bForceInAfterState = false;
+			bRequireUAVBarrier |= TransitionResource(Resource, ResourceState, SubresourceIndex, Before, After, bForceInAfterState);
 
-				// Subresource not in the same state, then whole resource is not in the same state anymore
-				if (ResourceState.GetSubresourceState(SubresourceIndex) != After)
-					bWholeResourceWasTransitionedToSameState = false;
-			}
+			// Subresource not in the same state, then whole resource is not in the same state anymore
+			if (ResourceState.GetSubresourceState(SubresourceIndex) != After)
+				bWholeResourceWasTransitionedToSameState = false;
 		}
 
 		// If we just transtioned every subresource to the same state, lets update it's tracking so it's on a per-resource level

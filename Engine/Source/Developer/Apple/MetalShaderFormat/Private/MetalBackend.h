@@ -13,15 +13,6 @@ enum EMetalGPUSemantics
 	EMetalGPUSemanticsImmediateDesktop // Desktop shaders for Immediate GPUs
 };
 
-enum EMetalTypeBufferMode
-{
-	EMetalTypeBufferModeRaw = 0, // No typed buffers
-	EMetalTypeBufferMode2DSRV = 1, // Buffer<> SRVs are typed via 2D textures, RWBuffer<> UAVs are raw buffers
-	EMetalTypeBufferModeTBSRV = 2, // Buffer<> SRVs are typed via texture-buffers, RWBuffer<> UAVs are raw buffers
-    EMetalTypeBufferMode2D = 3, // Buffer<> SRVs & RWBuffer<> UAVs are typed via 2D textures
-    EMetalTypeBufferModeTB = 4, // Buffer<> SRVs & RWBuffer<> UAVs are typed via texture-buffers
-};
-
 // Metal supports 16 across all HW
 static const int32 MaxMetalSamplers = 16;
 

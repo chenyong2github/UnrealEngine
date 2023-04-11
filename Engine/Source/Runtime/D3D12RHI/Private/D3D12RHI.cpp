@@ -111,6 +111,7 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 		GPixelFormats[PF_DepthStencil].bIs24BitUnormDepthStencil = true;
 		GPixelFormats[PF_X24_G8].PlatformFormat = DXGI_FORMAT_X24_TYPELESS_G8_UINT;
 		GPixelFormats[PF_X24_G8].BlockBytes = 4;
+		GPixelFormats[PF_X24_G8].Supported = true;
 	}
 	else
 	{
@@ -120,6 +121,7 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& Chos
 		GPixelFormats[PF_DepthStencil].bIs24BitUnormDepthStencil = false;
 		GPixelFormats[PF_X24_G8].PlatformFormat = DXGI_FORMAT_X32_TYPELESS_G8X24_UINT;
 		GPixelFormats[PF_X24_G8].BlockBytes = 5;
+		GPixelFormats[PF_X24_G8].Supported = true;
 	}
 	GPixelFormats[PF_ShadowDepth	].PlatformFormat = DXGI_FORMAT_R16_TYPELESS;
 	GPixelFormats[PF_ShadowDepth	].BlockBytes = 2;
@@ -271,6 +273,27 @@ FD3D12DynamicRHI::~FD3D12DynamicRHI()
 	UE_LOG(LogD3D12RHI, Log, TEXT("~FD3D12DynamicRHI"));
 
 	check(ChosenAdapters.Num() == 0);
+}
+
+void FD3D12DynamicRHI::ForEachQueue(TFunctionRef<void(FD3D12Queue&)> Callback)
+{
+	for (uint32 AdapterIndex = 0; AdapterIndex < GetNumAdapters(); ++AdapterIndex)
+	{
+		FD3D12Adapter& Adapter = GetAdapter(AdapterIndex);
+
+		for (FD3D12Device* Device : Adapter.GetDevices())
+		{
+			for (FD3D12Queue& Queue : Device->GetQueues())
+			{
+				Callback(Queue);
+			}
+		}
+	}
+}
+
+FD3D12Device* FD3D12DynamicRHI::GetRHIDevice(uint32 GPUIndex) const
+{
+	return GetAdapter().GetDevice(GPUIndex);
 }
 
 void FD3D12DynamicRHI::Shutdown()
@@ -652,7 +675,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE FD3D12DynamicRHI::RHIGetRenderTargetView(FRHITexture
 {
 	FD3D12Texture* D3D12Texture = GetD3D12TextureFromRHITexture(InTexture);
 	FD3D12RenderTargetView* RTV = D3D12Texture->GetRenderTargetView(InMipIndex, InArraySliceIndex);
-	return RTV ? RTV->GetView() : D3D12_CPU_DESCRIPTOR_HANDLE{};
+	return RTV ? RTV->GetOfflineCpuHandle() : D3D12_CPU_DESCRIPTOR_HANDLE{};
 }
 
 void FD3D12DynamicRHI::RHIFinishExternalComputeWork(uint32 InDeviceIndex, ID3D12GraphicsCommandList* InCommandList)

@@ -632,14 +632,12 @@ void FVulkanSwapChain::Destroy(FVulkanSwapChainRecreateInfo* RecreateInfo)
 
 	if (QCOMDepthView && QCOMDepthView != QCOMDepthStencilView)
 	{
-		QCOMDepthView->Destroy(Device);
 		delete QCOMDepthView;
 		QCOMDepthView = nullptr;
 	}
 
 	if (QCOMDepthStencilView)
 	{
-		QCOMDepthStencilView->Destroy(Device);
 		delete QCOMDepthStencilView;
 		QCOMDepthStencilView = nullptr;
 		QCOMDepthView = nullptr;
@@ -899,9 +897,19 @@ void FVulkanSwapChain::CreateQCOMDepthStencil(const FVulkanTexture& InSurface) c
 	check(QCOMDepthStencilSurface->GetViewType() == VK_IMAGE_VIEW_TYPE_2D);
 	check(QCOMDepthStencilSurface->Image != VK_NULL_HANDLE);
 
-	QCOMDepthStencilView = new FVulkanTextureView;
-	QCOMDepthStencilView->Create(*QCOMDepthStencilSurface->Device, QCOMDepthStencilSurface->Image, QCOMDepthStencilSurface->GetViewType(), QCOMDepthStencilSurface->GetFullAspectMask(),
-								QCOMDepthStencilSurface->GetDesc().Format, QCOMDepthStencilSurface->ViewFormat, 0, FMath::Max(QCOMDepthStencilSurface->GetNumMips(), 1u), 0, 1u, false);
+	QCOMDepthStencilView = new FVulkanView(*QCOMDepthStencilSurface->Device);
+	QCOMDepthStencilView->InitAsTextureView(
+		  QCOMDepthStencilSurface->Image
+		, QCOMDepthStencilSurface->GetViewType()
+		, QCOMDepthStencilSurface->GetFullAspectMask()
+		, QCOMDepthStencilSurface->GetDesc().Format
+		, QCOMDepthStencilSurface->ViewFormat
+		, 0
+		, FMath::Max(QCOMDepthStencilSurface->GetNumMips(), 1u)
+		, 0
+		, 1u
+		, false
+	);
 
 	if (QCOMDepthStencilSurface->GetFullAspectMask() == QCOMDepthStencilSurface->GetPartialAspectMask())
 	{
@@ -909,13 +917,23 @@ void FVulkanSwapChain::CreateQCOMDepthStencil(const FVulkanTexture& InSurface) c
 	}
 	else
 	{
-		QCOMDepthView = new FVulkanTextureView;
-		QCOMDepthView->Create(*QCOMDepthStencilSurface->Device, QCOMDepthStencilSurface->Image, QCOMDepthStencilSurface->GetViewType(), QCOMDepthStencilSurface->GetPartialAspectMask(),
-			QCOMDepthStencilSurface->GetDesc().Format, QCOMDepthStencilSurface->ViewFormat, 0, FMath::Max(QCOMDepthStencilSurface->GetNumMips(), 1u), 0, 1u, false);
+		QCOMDepthView = new FVulkanView(*QCOMDepthStencilSurface->Device);
+		QCOMDepthView->InitAsTextureView(
+			  QCOMDepthStencilSurface->Image
+			, QCOMDepthStencilSurface->GetViewType()
+			, QCOMDepthStencilSurface->GetPartialAspectMask()
+			, QCOMDepthStencilSurface->GetDesc().Format
+			, QCOMDepthStencilSurface->ViewFormat
+			, 0
+			, FMath::Max(QCOMDepthStencilSurface->GetNumMips(), 1u)
+			, 0
+			, 1u
+			, false
+		);
 	}
 }
 
-const FVulkanTextureView* FVulkanSwapChain::GetOrCreateQCOMDepthStencilView(const FVulkanTexture& InSurface) const
+const FVulkanView* FVulkanSwapChain::GetOrCreateQCOMDepthStencilView(const FVulkanTexture& InSurface) const
 {
 	if (QCOMDepthStencilView)
 	{
@@ -927,7 +945,7 @@ const FVulkanTextureView* FVulkanSwapChain::GetOrCreateQCOMDepthStencilView(cons
 	return QCOMDepthStencilView;
 }
 
-const FVulkanTextureView* FVulkanSwapChain::GetOrCreateQCOMDepthView(const FVulkanTexture& InSurface) const
+const FVulkanView* FVulkanSwapChain::GetOrCreateQCOMDepthView(const FVulkanTexture& InSurface) const
 {
 	if (QCOMDepthView)
 	{

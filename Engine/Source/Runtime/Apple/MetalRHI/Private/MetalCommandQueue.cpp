@@ -22,9 +22,8 @@ bool GMetalCommandBufferDebuggingEnabled = 0;
 #pragma mark - Public C++ Boilerplate -
 
 FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxNumCommandBuffers /* = 0 */)
-: Device(InDevice)
-, ParallelCommandLists(0)
-, RuntimeDebuggingLevel(EMetalDebugLevelOff)
+	: Device(InDevice)
+	, RuntimeDebuggingLevel(EMetalDebugLevelOff)
 {
 	int32 IndirectArgumentTier = 0;
     int32 MetalShaderVersion = 0;
@@ -318,28 +317,6 @@ void FMetalCommandQueue::CommitCommandBuffer(mtlpp::CommandBuffer& CommandBuffer
 	if (RuntimeDebuggingLevel >= EMetalDebugLevelWaitForComplete)
 	{
 		CommandBuffer.WaitUntilCompleted();
-	}
-}
-
-void FMetalCommandQueue::SubmitCommandBuffers(TArray<mtlpp::CommandBuffer> BufferList, uint32 Index, uint32 Count)
-{
-	CommandBuffers.SetNumZeroed(Count);
-	CommandBuffers[Index] = BufferList;
-	ParallelCommandLists |= (1 << Index);
-	if (ParallelCommandLists == ((1 << Count) - 1))
-	{
-		for (uint32 i = 0; i < Count; i++)
-		{
-			TArray<mtlpp::CommandBuffer>& CmdBuffers = CommandBuffers[i];
-			for (mtlpp::CommandBuffer Buffer : CmdBuffers)
-			{
-				check(Buffer);
-				CommitCommandBuffer(Buffer);
-			}
-			CommandBuffers[i].Empty();
-		}
-		
-		ParallelCommandLists = 0;
 	}
 }
 

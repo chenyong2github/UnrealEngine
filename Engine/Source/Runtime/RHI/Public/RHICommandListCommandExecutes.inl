@@ -502,14 +502,6 @@ void FRHIResourceUpdateInfo::ReleaseRefs()
 			Buffer.SrcBuffer->Release();
 		}
 		break;
-	case UT_BufferSRV:
-	case UT_BufferFormatSRV:
-		BufferSRV.SRV->Release();
-		if (BufferSRV.Buffer)
-		{
-			BufferSRV.Buffer->Release();
-		}
-		break;
 	case UT_RayTracingGeometry:
 		RayTracingGeometry.DestGeometry->Release();
 		if (RayTracingGeometry.SrcGeometry)
@@ -545,18 +537,6 @@ void FRHICommandUpdateRHIResources::Execute(FRHICommandListBase& CmdList)
 			GDynamicRHI->RHITransferBufferUnderlyingResource(
 				Info.Buffer.DestBuffer,
 				Info.Buffer.SrcBuffer);
-			break;
-		case FRHIResourceUpdateInfo::UT_BufferFormatSRV:
-			GDynamicRHI->RHIUpdateShaderResourceView(
-				Info.BufferSRV.SRV,
-				Info.BufferSRV.Buffer,
-				Info.BufferSRV.Stride,
-				Info.BufferSRV.Format);
-			break;
-		case FRHIResourceUpdateInfo::UT_BufferSRV:
-			GDynamicRHI->RHIUpdateShaderResourceView(
-				Info.BufferSRV.SRV,
-				Info.BufferSRV.Buffer);
 			break;
 #if RHI_RAYTRACING
 		case FRHIResourceUpdateInfo::UT_RayTracingGeometry:

@@ -78,7 +78,18 @@ public:
 	 * @param Format The UAV pixel format.
 	 * @param ReferencedResources The resources indirectly used by the bound buffer.
 	 */
-	void SetShaderBuffer(EMetalShaderStages const Frequency, FMetalBuffer const& Buffer, FMetalBufferData* const Bytes, NSUInteger const Offset, NSUInteger const Length, NSUInteger const Index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format = PF_Unknown, NSUInteger const ElementRowPitch = 0, TArray<TTuple<ns::AutoReleased<mtlpp::Resource>, mtlpp::ResourceUsage>> ReferencedResources = {});
+	void SetShaderBuffer(
+		EMetalShaderStages const Frequency
+		, FMetalBuffer const& Buffer
+		, FMetalBufferData* const Bytes
+		, NSUInteger const Offset
+		, NSUInteger const Length
+		, NSUInteger const Index
+		, mtlpp::ResourceUsage const Usage
+		, EPixelFormat const Format = PF_Unknown
+		, NSUInteger const ElementRowPitch = 0
+		, TArray<TTuple<ns::AutoReleased<mtlpp::Resource>, mtlpp::ResourceUsage>> ReferencedResources = {}
+	);
 
 #if METAL_RHI_RAYTRACING
 	/*
@@ -108,9 +119,9 @@ public:
 	 */
 	void SetShaderSamplerState(EMetalShaderStages const Frequency, FMetalSamplerState* const Sampler, NSUInteger const Index);
 
-	void SetShaderResourceView(FMetalContext* Context, EMetalShaderStages ShaderStage, uint32 BindIndex, FMetalShaderResourceView* RESTRICT SRV);
+	void SetShaderResourceView(EMetalShaderStages ShaderStage, uint32 BindIndex, FMetalShaderResourceView* SRV);
 	
-	void SetShaderUnorderedAccessView(EMetalShaderStages ShaderStage, uint32 BindIndex, FMetalUnorderedAccessView* RESTRICT UAV);
+	void SetShaderUnorderedAccessView(EMetalShaderStages ShaderStage, uint32 BindIndex, FMetalUnorderedAccessView* UAV);
 
 	void SetStateDirty(void);
 	
@@ -151,7 +162,6 @@ public:
     bool CanRestartRenderPass() const { return bCanRestartRenderPass; }
 	mtlpp::RenderPassDescriptor GetRenderPassDescriptor(void) const { return RenderPassDesc; }
 	uint32 GetSampleCount(void) const { return SampleCount; }
-    bool IsLinearBuffer(EMetalShaderStages ShaderStage, uint32 BindIndex);
 	FMetalShaderPipeline* GetPipelineState() const;
 	EPrimitiveType GetPrimitiveType();
 	mtlpp::VisibilityResultMode GetVisibilityResultMode() { return VisibilityMode; }
@@ -170,14 +180,9 @@ private:
 	
 	void SetDepthStencilState(FMetalDepthStencilState* InDepthStencilState);
 	void SetRasterizerState(FMetalRasterizerState* InRasterizerState);
-
-	FORCEINLINE void SetResource(uint32 ShaderStage, uint32 BindIndex, FRHITexture* RESTRICT TextureRHI);
-	FORCEINLINE void SetResource(uint32 ShaderStage, uint32 BindIndex, FMetalShaderResourceView* RESTRICT SRV);
-	FORCEINLINE void SetResource(uint32 ShaderStage, uint32 BindIndex, FMetalSamplerState* RESTRICT SamplerState);
-	FORCEINLINE void SetResource(uint32 ShaderStage, uint32 BindIndex, FMetalUnorderedAccessView* RESTRICT UAV);
 	
 	template <class ShaderType>
-	void SetResourcesFromTables(ShaderType Shader, uint32 ShaderStage);
+	void SetResourcesFromTables(ShaderType Shader, CrossCompiler::EShaderStage ShaderStage);
 	
 	void SetViewport(uint32 Index, const mtlpp::Viewport& InViewport);
 	void SetScissorRect(uint32 Index, bool const bEnable, mtlpp::ScissorRect const& Rect);

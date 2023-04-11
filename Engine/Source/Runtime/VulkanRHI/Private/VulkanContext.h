@@ -235,9 +235,6 @@ protected:
 
 	void InternalClearMRT(FVulkanCmdBuffer* CmdBuffer, bool bClearColor, int32 NumClearColors, const FLinearColor* ColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil);
 
-	static void ClearUAVFillBuffer(FVulkanUnorderedAccessView* UAV, uint32_t ClearValue);
-	static void ClearUAV(TRHICommandList_RecursiveHazardous<FVulkanCommandListContext>& RHICmdList, FVulkanUnorderedAccessView* UnorderedAccessView, const void* ClearValue, bool bFloat);
-
 public:
 	bool IsSwapchainImage(FRHITexture* InTexture) const;
 	VkSurfaceTransformFlagBitsKHR GetSwapchainQCOMRenderPassTransform() const;

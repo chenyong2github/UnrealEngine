@@ -139,7 +139,7 @@ FRHITransientBuffer* FVulkanTransientResourceAllocator::CreateBuffer(const FRHIB
 		[&](const FRHITransientHeap::FResourceInitializer& Initializer)
 	{
 		FRHIResourceCreateInfo ResourceCreateInfo(InDebugName);
-		FRHIBuffer* Buffer = new FVulkanResourceMultiBuffer(Device, InCreateInfo.Size, InCreateInfo.Usage, InCreateInfo.Stride, ResourceCreateInfo, nullptr, &Initializer.Allocation);
+		FRHIBuffer* Buffer = new FVulkanResourceMultiBuffer(Device, FRHIBufferDesc(InCreateInfo.Size, InCreateInfo.Stride, InCreateInfo.Usage), ResourceCreateInfo, nullptr, &Initializer.Allocation);
 		Buffer->SetTrackedAccess_Unsafe(ERHIAccess::Discard);
 		return new FRHITransientBuffer(Buffer, 0/*GpuVirtualAddress*/, Initializer.Hash, Size, ERHITransientAllocationType::Heap, InCreateInfo);
 	});

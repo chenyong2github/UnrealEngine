@@ -42,8 +42,8 @@ public:
 	void RenderThreadPacing();
 	inline int8 DoesLockToVsync() { return LockToVsync; }
 
-	const FVulkanTextureView* GetOrCreateQCOMDepthStencilView(const FVulkanTexture& InSurface) const;
-	const FVulkanTextureView* GetOrCreateQCOMDepthView(const FVulkanTexture& InSurface) const;
+	const FVulkanView* GetOrCreateQCOMDepthStencilView(const FVulkanTexture& InSurface) const;
+	const FVulkanView* GetOrCreateQCOMDepthView(const FVulkanTexture& InSurface) const;
 	const FVulkanTexture* GetQCOMDepthStencilSurface() const;
 
 protected:
@@ -87,8 +87,8 @@ protected:
 	// With this approach we should be careful in case if depth in swapchain pass is used as attachement and fetched in shader in same time
 	void CreateQCOMDepthStencil(const FVulkanTexture& InSurface) const;
 	mutable FVulkanTexture* QCOMDepthStencilSurface = nullptr;
-	mutable FVulkanTextureView* QCOMDepthStencilView = nullptr;
-	mutable FVulkanTextureView* QCOMDepthView = nullptr;
+	mutable FVulkanView* QCOMDepthStencilView = nullptr;
+	mutable FVulkanView* QCOMDepthView = nullptr;
 
 	friend class FVulkanViewport;
 	friend class FVulkanQueue;

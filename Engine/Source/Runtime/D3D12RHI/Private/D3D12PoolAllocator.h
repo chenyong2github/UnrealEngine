@@ -147,7 +147,6 @@ public:
 	void FlushPendingCopyOps(FD3D12CommandContext& InCommandContext);
 
 	void TransferOwnership(FD3D12ResourceLocation& InSource, FD3D12ResourceLocation& InDest);
-	void Swap(FD3D12ResourceLocation& InLHS, FD3D12ResourceLocation& InRHS);
 	bool IsOwner(FD3D12ResourceLocation& ResourceLocation) const { return ResourceLocation.GetPoolAllocator() == this; }
 
 	EResourceAllocationStrategy GetAllocationStrategy() const { return AllocationStrategy; }

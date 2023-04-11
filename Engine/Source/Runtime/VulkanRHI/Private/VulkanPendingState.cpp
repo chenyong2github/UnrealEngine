@@ -331,63 +331,16 @@ FVulkanPendingComputeState::~FVulkanPendingComputeState()
 	}
 }
 
-
 void FVulkanPendingComputeState::SetSRVForUBResource(uint32 DescriptorSet, uint32 BindingIndex, FVulkanShaderResourceView* SRV)
 {
 	check(SRV);
-
-	// make sure any dynamically backed SRV points to current memory
-	SRV->UpdateView();
-	if (SRV->BufferViews.Num() != 0)
-	{
-		FVulkanBufferView* BufferView = SRV->GetBufferView();
-		checkf(BufferView->View != VK_NULL_HANDLE, TEXT("Empty SRV"));
-		CurrentState->SetSRVBufferViewState(DescriptorSet, BindingIndex, BufferView);
-	}
-	else if (SRV->SourceStructuredBuffer)
-	{
-		CurrentState->SetStorageBuffer(DescriptorSet, BindingIndex, SRV->SourceStructuredBuffer);
-	}
-#if VULKAN_RHI_RAYTRACING
-	else if (SRV->AccelerationStructureHandle)
-	{
-		CurrentState->SetAccelerationStructure(DescriptorSet, BindingIndex, SRV->AccelerationStructureHandle);
-	}
-#endif // VULKAN_RHI_RAYTRACING
-	else
-	{
-		const FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(SRV->SourceTexture.GetReference());
-		checkf((SRV->TextureView.View != VK_NULL_HANDLE) && VulkanTexture, TEXT("Empty SRV"));
-		const VkImageLayout ExpectedLayout = FVulkanLayoutManager::GetDefaultLayout(
-			Context.GetCommandBufferManager()->GetActiveCmdBuffer(), *VulkanTexture, ERHIAccess::SRVCompute);
-		CurrentState->SetSRVTextureView(DescriptorSet, BindingIndex, SRV->TextureView, ExpectedLayout);
-	}
+	CurrentState->SetSRV(Context.GetCommandBufferManager()->GetActiveCmdBuffer(), true, DescriptorSet, BindingIndex, SRV);
 }
 
 void FVulkanPendingComputeState::SetUAVForUBResource(uint32 DescriptorSet, uint32 BindingIndex, FVulkanUnorderedAccessView* UAV)
 {
 	check(UAV);
-
-	// make sure any dynamically backed UAV points to current memory
-	UAV->UpdateView();
-	if (UAV->SourceBuffer && UAV->BufferViewFormat == PF_Unknown)
-	{
-		CurrentState->SetStorageBuffer(DescriptorSet, BindingIndex, UAV->SourceBuffer);
-	}
-	else if (UAV->BufferView)
-	{
-		CurrentState->SetUAVTexelBufferViewState(DescriptorSet, BindingIndex, UAV->BufferView);
-	}
-	else if (UAV->SourceTexture)
-	{
-		const FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(UAV->SourceTexture.GetReference());
-		const VkImageLayout ExpectedLayout = FVulkanLayoutManager::GetDefaultLayout(Context.GetCommandBufferManager()->GetActiveCmdBuffer(), *VulkanTexture, ERHIAccess::UAVCompute);
-		CurrentState->SetUAVTextureView(DescriptorSet, BindingIndex, UAV->TextureView, ExpectedLayout);
-	}
-	else
-	{
-		ensure(0);
-	}
+	CurrentState->SetUAV(Context.GetCommandBufferManager()->GetActiveCmdBuffer(), true, DescriptorSet, BindingIndex, UAV);
 }
 
 
@@ -595,7 +548,7 @@ void FVulkanPendingGfxState::UpdateInputAttachments(FVulkanFramebuffer* Framebuf
 		switch (AttachmentData.Type)
 		{
 		case FVulkanShaderHeader::EAttachmentType::Color0:
-			CurrentState->SetInputAttachment(AttachmentData.DescriptorSet, AttachmentData.BindingIndex, Framebuffer->AttachmentTextureViews[0], VK_IMAGE_LAYOUT_GENERAL);
+			CurrentState->SetInputAttachment(AttachmentData.DescriptorSet, AttachmentData.BindingIndex, Framebuffer->AttachmentTextureViews[0]->GetTextureView(), VK_IMAGE_LAYOUT_GENERAL);
 			break;
 		case FVulkanShaderHeader::EAttachmentType::Color1:
 		case FVulkanShaderHeader::EAttachmentType::Color2:
@@ -605,7 +558,7 @@ void FVulkanPendingGfxState::UpdateInputAttachments(FVulkanFramebuffer* Framebuf
 		case FVulkanShaderHeader::EAttachmentType::Color6:
 		case FVulkanShaderHeader::EAttachmentType::Color7:
 			check(ColorIndex < Framebuffer->GetNumColorAttachments());
-			CurrentState->SetInputAttachment(AttachmentData.DescriptorSet, AttachmentData.BindingIndex, Framebuffer->AttachmentTextureViews[ColorIndex], VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+			CurrentState->SetInputAttachment(AttachmentData.DescriptorSet, AttachmentData.BindingIndex, Framebuffer->AttachmentTextureViews[ColorIndex]->GetTextureView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 			break;
 		case FVulkanShaderHeader::EAttachmentType::Depth:
 			CurrentState->SetInputAttachment(AttachmentData.DescriptorSet, AttachmentData.BindingIndex, Framebuffer->GetPartialDepthTextureView(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
@@ -619,54 +572,13 @@ void FVulkanPendingGfxState::UpdateInputAttachments(FVulkanFramebuffer* Framebuf
 void FVulkanPendingGfxState::SetSRVForUBResource(uint8 DescriptorSet, uint32 BindingIndex, FVulkanShaderResourceView* SRV)
 {
 	check(SRV);
-
-	// make sure any dynamically backed SRV points to current memory
-	SRV->UpdateView();
-	if (SRV->BufferViews.Num() != 0)
-	{
-		FVulkanBufferView* BufferView = SRV->GetBufferView();
-		checkf(BufferView->View != VK_NULL_HANDLE, TEXT("Empty SRV"));
-
-		CurrentState->SetSRVBufferViewState(DescriptorSet, BindingIndex, BufferView);
-	}
-	else if (SRV->SourceStructuredBuffer)
-	{
-		CurrentState->SetStorageBuffer(DescriptorSet, BindingIndex, SRV->SourceStructuredBuffer);
-	}
-	else
-	{
-		const FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(SRV->SourceTexture.GetReference());
-		checkf((SRV->TextureView.View != VK_NULL_HANDLE) && VulkanTexture, TEXT("Empty SRV"));
-		const VkImageLayout ExpectedLayout = FVulkanLayoutManager::GetDefaultLayout(Context.GetCommandBufferManager()->GetActiveCmdBuffer(), *VulkanTexture, ERHIAccess::SRVGraphics);
-		CurrentState->SetSRVTextureView(DescriptorSet, BindingIndex, SRV->TextureView, ExpectedLayout);
-	}
+	CurrentState->SetSRV(Context.GetCommandBufferManager()->GetActiveCmdBuffer(), false, DescriptorSet, BindingIndex, SRV);
 }
 
 void FVulkanPendingGfxState::SetUAVForUBResource(uint8 DescriptorSet, uint32 BindingIndex, FVulkanUnorderedAccessView* UAV)
 {
 	check(UAV);
-
-	// make sure any dynamically backed UAV points to current memory
-	UAV->UpdateView();
-	if (UAV->SourceBuffer && UAV->BufferViewFormat == PF_Unknown)
-	{
-		CurrentState->SetStorageBuffer(DescriptorSet, BindingIndex, UAV->SourceBuffer);
-	}
-	else if (UAV->BufferView)
-	{
-		CurrentState->SetUAVTexelBufferViewState(DescriptorSet, BindingIndex, UAV->BufferView);
-	}
-	else if (UAV->SourceTexture)
-	{
-		const FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(UAV->SourceTexture.GetReference());
-		checkf(VulkanTexture, TEXT("Empty UAV"));
-		const VkImageLayout Layout = FVulkanLayoutManager::GetDefaultLayout(Context.GetCommandBufferManager()->GetActiveCmdBuffer(), *VulkanTexture, ERHIAccess::UAVGraphics);
-		CurrentState->SetUAVTextureView(DescriptorSet, BindingIndex, UAV->TextureView, Layout);
-	}
-	else
-	{
-		ensure(0);
-	}
+	CurrentState->SetUAV(Context.GetCommandBufferManager()->GetActiveCmdBuffer(), false, DescriptorSet, BindingIndex, UAV);
 }
 
 int32 GDSetCacheTargetSetsPerPool = 4096;

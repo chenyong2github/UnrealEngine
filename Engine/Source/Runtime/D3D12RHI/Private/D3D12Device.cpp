@@ -405,7 +405,7 @@ void FD3D12Device::SetupAfterDeviceCreation()
 	D3D12_RESOURCE_DESC DispatchRaysDescBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(D3D12_DISPATCH_RAYS_DESC), D3D12RHI_RESOURCE_FLAG_ALLOW_INDIRECT_BUFFER);
 	RayTracingDispatchRaysDescBuffer = GetParentAdapter()->CreateRHIBuffer(
 		DispatchRaysDescBufferDesc, 256,
-		0, DispatchRaysDescBufferDesc.Width, BUF_DrawIndirect,
+		FRHIBufferDesc(DispatchRaysDescBufferDesc.Width, 0, BUF_DrawIndirect),
 		ED3D12ResourceStateMode::MultiState, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, false /*bInitialData*/,
 		GetGPUMask(), nullptr /*ResourceAllocator*/, TEXT("DispatchRaysDescBuffer"));
 #endif // D3D12_RHI_RAYTRACING
@@ -425,8 +425,8 @@ void FD3D12Device::CreateDefaultViews()
 		SRVDesc.Texture2D.MostDetailedMip = 0;
 		SRVDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-		DefaultViews.NullSRV = new FD3D12ViewDescriptorHandle(this, ERHIDescriptorHeapType::Standard);
-		DefaultViews.NullSRV->CreateView(SRVDesc, nullptr, ED3D12DescriptorCreateReason::InitialCreate);
+		DefaultViews.NullSRV = GetOfflineDescriptorManager(ERHIDescriptorHeapType::Standard).AllocateHeapSlot();
+		GetDevice()->CreateShaderResourceView(nullptr, &SRVDesc, DefaultViews.NullSRV);
 	}
 
 	{
@@ -435,8 +435,8 @@ void FD3D12Device::CreateDefaultViews()
 		RTVDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 		RTVDesc.Texture2D.MipSlice = 0;
 
-		DefaultViews.NullRTV = new FD3D12ViewDescriptorHandle(this, ERHIDescriptorHeapType::RenderTarget);
-		DefaultViews.NullRTV->CreateView(RTVDesc, nullptr);
+		DefaultViews.NullRTV = GetOfflineDescriptorManager(ERHIDescriptorHeapType::RenderTarget).AllocateHeapSlot();
+		GetDevice()->CreateRenderTargetView(nullptr, &RTVDesc, DefaultViews.NullRTV);
 	}
 
 	{
@@ -445,13 +445,26 @@ void FD3D12Device::CreateDefaultViews()
 		UAVDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 		UAVDesc.Texture2D.MipSlice = 0;
 
-		DefaultViews.NullUAV = new FD3D12ViewDescriptorHandle(this, ERHIDescriptorHeapType::Standard);
-		DefaultViews.NullUAV->CreateView(UAVDesc, nullptr, nullptr, ED3D12DescriptorCreateReason::InitialCreate);
+		DefaultViews.NullUAV = GetOfflineDescriptorManager(ERHIDescriptorHeapType::Standard).AllocateHeapSlot();
+		GetDevice()->CreateUnorderedAccessView(nullptr, nullptr, &UAVDesc, DefaultViews.NullUAV);
 	}
 
-#if USE_STATIC_ROOT_SIGNATURE
-	DefaultViews.NullCBV = new FD3D12ConstantBufferView(this);
-#endif
+	{
+		D3D12_DEPTH_STENCIL_VIEW_DESC DSVDesc{};
+		DSVDesc.Format = DXGI_FORMAT_D32_FLOAT;
+		DSVDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+		DSVDesc.Texture2D.MipSlice = 0;
+
+		DefaultViews.NullDSV = GetOfflineDescriptorManager(ERHIDescriptorHeapType::DepthStencil).AllocateHeapSlot();
+		GetDevice()->CreateDepthStencilView(nullptr, &DSVDesc, DefaultViews.NullDSV);
+	}
+
+	{
+		D3D12_CONSTANT_BUFFER_VIEW_DESC CBVDesc{};
+
+		DefaultViews.NullCBV = GetOfflineDescriptorManager(ERHIDescriptorHeapType::Standard).AllocateHeapSlot();
+		GetDevice()->CreateConstantBufferView(&CBVDesc, DefaultViews.NullCBV);
+	}
 
 	{
 		const FSamplerStateInitializerRHI SamplerDesc(SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp);

@@ -46,7 +46,7 @@ class FVulkanViewport : public FRHIViewport, public VulkanRHI::FDeviceChild
 public:
 	enum { NUM_BUFFERS = 3 };
 
-	FVulkanViewport(FVulkanDynamicRHI* InRHI, FVulkanDevice* InDevice, void* InWindowHandle, uint32 InSizeX,uint32 InSizeY,bool bInIsFullscreen, EPixelFormat InPreferredPixelFormat);
+	FVulkanViewport(FVulkanDevice* InDevice, void* InWindowHandle, uint32 InSizeX,uint32 InSizeY,bool bInIsFullscreen, EPixelFormat InPreferredPixelFormat);
 	~FVulkanViewport();
 
 	FTexture2DRHIRef GetBackBuffer(FRHICommandListImmediate& RHICmdList);
@@ -114,7 +114,7 @@ protected:
 	// NUM_BUFFERS don't have to match exactly as the driver can require a minimum number larger than NUM_BUFFERS. Provide some slack
 	TArray<VkImage, TInlineAllocator<NUM_BUFFERS*2>> BackBufferImages;
 	TArray<VulkanRHI::FSemaphore*, TInlineAllocator<NUM_BUFFERS*2>> RenderingDoneSemaphores;
-	TArray<FVulkanTextureView, TInlineAllocator<NUM_BUFFERS*2>> TextureViews;
+	TIndirectArray<FVulkanView, TInlineAllocator<NUM_BUFFERS*2>> TextureViews;
 	TRefCountPtr<FVulkanBackBuffer> RHIBackBuffer;
 
 	// 'Dummy' back buffer
@@ -123,7 +123,6 @@ protected:
 	/** narrow-scoped section that locks access to back buffer during its recreation*/
 	FCriticalSection RecreatingSwapchain;
 
-	FVulkanDynamicRHI* RHI;
 	uint32 SizeX;
 	uint32 SizeY;
 	bool bIsFullscreen;

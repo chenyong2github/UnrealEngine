@@ -44,8 +44,28 @@ bool FRHIBufferTests::VerifyBufferContents(const TCHAR* TestName, FRHICommandLis
 	return true;
 }
 
+static FString HexDump(uint8 const* Ptr, uint32 NumBytes)
+{
+	FString Result = 
+		TEXT("          |  00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F \n")
+		TEXT("   ------ | -------------------------------------------------\n");
+
+	for (uint32 i = 0; i < NumBytes; )
+	{
+		Result += FString::Printf(TEXT("   0x%04x | "), i);
+
+		for (uint32 j = 0; j < 16 && i < NumBytes; ++j)
+		{
+			Result += FString::Printf(TEXT(" %02x"), Ptr[i++]);
+		}
+
+		Result += TEXT("\n");
+	}
+	return Result;
+}
+
 // Copies data in the specified vertex buffer back to the CPU, and passes a pointer to that data to the provided verification lambda.
-bool FRHIBufferTests::VerifyBufferContents(const TCHAR* TestName, FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, TFunctionRef<bool(void* Ptr, uint32 NumBytes)> VerifyCallback)
+bool FRHIBufferTests::VerifyBufferContents(const TCHAR* TestName, FRHICommandListImmediate& RHICmdList, FRHIBuffer* Buffer, TConstArrayView<uint8> ExpectedData)
 {
 	bool Result;
 	{
@@ -59,21 +79,27 @@ bool FRHIBufferTests::VerifyBufferContents(const TCHAR* TestName, FRHICommandLis
 		RHICmdList.FlushResources();
 
 		void* Memory = RHILockStagingBuffer(StagingBuffer, 0, NumBytes);
-		Result = VerifyCallback(Memory, NumBytes);
+
+		check(ExpectedData.Num() == NumBytes);
+		Result = FMemory::Memcmp(ExpectedData.GetData(), Memory, NumBytes) == 0;
+
+		if (!Result)
+		{
+			FString ExpectedStr = HexDump(ExpectedData.GetData(), NumBytes);
+			FString ActualStr = HexDump(static_cast<uint8*>(Memory), NumBytes);
+
+			UE_LOG(LogRHIUnitTestCommandlet, Error, TEXT("Test failed. \"%s\"\n\nExpected Data:\n%s\n\nActual Data:\n%s\n\n"), TestName, *ExpectedStr, *ActualStr);
+		}
+		else
+		{
+			UE_LOG(LogRHIUnitTestCommandlet, Display, TEXT("Test passed. \"%s\""), TestName);
+		}
+
 		RHIUnlockStagingBuffer(StagingBuffer);
 	}
 
 	// Immediate flush to clean up the staging buffer / other resources
 	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
-
-	if (!Result)
-	{
-		UE_LOG(LogRHIUnitTestCommandlet, Error, TEXT("Test failed. \"%s\""), TestName);
-	}
-	else
-	{
-		UE_LOG(LogRHIUnitTestCommandlet, Display, TEXT("Test passed. \"%s\""), TestName);
-	}
 
 	return Result;
 }

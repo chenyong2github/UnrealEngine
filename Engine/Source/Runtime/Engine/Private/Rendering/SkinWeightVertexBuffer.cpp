@@ -128,7 +128,6 @@ void FSkinWeightLookupVertexBuffer::AllocateData()
 void FSkinWeightLookupVertexBuffer::InitRHI()
 {
 	// BUF_ShaderResource is needed for support of the SkinCache (we could make is dependent on GEnableGPUSkinCacheShaders or are there other users?)
-	const bool bHadLookupData = LookupData != nullptr;
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();
 	if (VertexBufferRHI)
 	{
@@ -140,7 +139,7 @@ void FSkinWeightLookupVertexBuffer::InitRHI()
 
 		if (bSRV)
 		{
-			SRVValue = RHICreateShaderResourceView(FShaderResourceViewInitializer(bHadLookupData? VertexBufferRHI : nullptr, PixelFormat));
+			SRVValue = RHICreateShaderResourceView(VertexBufferRHI, PixelFormatStride, PixelFormat);
 		}
 	}
 }
@@ -166,9 +165,7 @@ void FSkinWeightLookupVertexBuffer::InitRHIForStreaming(FRHIBuffer* Intermediate
 {
 	if (VertexBufferRHI && IntermediateBuffer)
 	{
-		check(SRVValue);
 		Batcher.QueueUpdateRequest(VertexBufferRHI, IntermediateBuffer);
-		Batcher.QueueUpdateRequest(SRVValue, VertexBufferRHI, PixelFormatStride, PixelFormat);
 	}
 }
 
@@ -177,10 +174,6 @@ void FSkinWeightLookupVertexBuffer::ReleaseRHIForStreaming(FRHIResourceUpdateBat
 	if (VertexBufferRHI)
 	{
 		Batcher.QueueUpdateRequest(VertexBufferRHI, nullptr);
-	}
-	if (SRVValue)
-	{
-		Batcher.QueueUpdateRequest(SRVValue, nullptr, 0, 0);
 	}
 }
 
@@ -421,9 +414,7 @@ void FSkinWeightDataVertexBuffer::InitRHIForStreaming(FRHIBuffer* IntermediateBu
 {
 	if (VertexBufferRHI && IntermediateBuffer)
 	{
-		check(SRVValue);
 		Batcher.QueueUpdateRequest(VertexBufferRHI, IntermediateBuffer);
-		Batcher.QueueUpdateRequest(SRVValue, VertexBufferRHI, GetPixelFormatStride(), GetPixelFormat());
 	}
 }
 
@@ -432,10 +423,6 @@ void FSkinWeightDataVertexBuffer::ReleaseRHIForStreaming(FRHIResourceUpdateBatch
 	if (VertexBufferRHI)
 	{
 		Batcher.QueueUpdateRequest(VertexBufferRHI, nullptr);
-	}
-	if (SRVValue)
-	{
-		Batcher.QueueUpdateRequest(SRVValue, nullptr, 0, 0);
 	}
 }
 
@@ -449,7 +436,6 @@ void FSkinWeightDataVertexBuffer::InitRHI()
 	SCOPED_LOADTIMER(FSkinWeightVertexBuffer_InitRHI);
 
 	// BUF_ShaderResource is needed for support of the SkinCache (we could make is dependent on GEnableGPUSkinCacheShaders or are there other users?)
-	const bool bHadWeightData = WeightData != nullptr;
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();
 	
 	bool bSRV = VertexBufferRHI && GPixelFormats[GetPixelFormat()].Supported;
@@ -460,7 +446,7 @@ void FSkinWeightDataVertexBuffer::InitRHI()
 
 	if (bSRV)
 	{
-		SRVValue = RHICreateShaderResourceView(FShaderResourceViewInitializer(bHadWeightData ? VertexBufferRHI : nullptr, GetPixelFormat()));
+		SRVValue = RHICreateShaderResourceView(VertexBufferRHI, GetPixelFormatStride(), GetPixelFormat());
 	}
 }
 

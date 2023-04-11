@@ -139,7 +139,7 @@ struct FVulkanResourceBinder
 	{
 		if (bClearResources)
 		{
-			//Context.ClearShaderResources(D3D12UAV);
+			//Context.ClearShaderResources(UAV);
 		}
 
 		PendingState->SetUAVForUBResource(GlobalRemappingInfo[Index].NewDescriptorSet, GlobalRemappingInfo[Index].NewBindingIndex, ResourceCast(UAV));
@@ -147,15 +147,15 @@ struct FVulkanResourceBinder
 
 	void SetSRV(FRHIShaderResourceView* SRV, uint8 Index)
 	{
-		PendingState->SetSRVForUBResource(GlobalRemappingInfo[Index].NewDescriptorSet, GlobalRemappingInfo[Index].NewBindingIndex, ResourceCast(SRV));;
+		PendingState->SetSRVForUBResource(GlobalRemappingInfo[Index].NewDescriptorSet, GlobalRemappingInfo[Index].NewBindingIndex, ResourceCast(SRV));
 	}
 
 	void SetTexture(FRHITexture* TextureRHI, uint8 Index)
 	{
-		FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(TextureRHI);
+		FVulkanTexture* VulkanTexture = ResourceCast(TextureRHI);
 		const ERHIAccess RHIAccess = (Frequency == SF_Compute) ? ERHIAccess::SRVCompute : ERHIAccess::SRVGraphics;
 		const VkImageLayout ExpectedLayout = FVulkanLayoutManager::GetDefaultLayout(Context.GetCommandBufferManager()->GetActiveCmdBuffer(), *VulkanTexture, RHIAccess);
-		PendingState->SetTextureForUBResource(GlobalRemappingInfo[Index].NewDescriptorSet, GlobalRemappingInfo[Index].NewBindingIndex, VulkanTexture, ExpectedLayout);;
+		PendingState->SetTextureForUBResource(GlobalRemappingInfo[Index].NewDescriptorSet, GlobalRemappingInfo[Index].NewBindingIndex, VulkanTexture, ExpectedLayout);
 	}
 
 	void SetSampler(FRHISamplerState* Sampler, uint8 Index)
@@ -340,7 +340,7 @@ void FVulkanCommandListContext::RHISetUAVParameter(FRHIComputeShader* ComputeSha
 
 void FVulkanCommandListContext::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI, uint32 TextureIndex, FRHITexture* NewTextureRHI)
 {
-	FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(NewTextureRHI);
+	FVulkanTexture* VulkanTexture = ResourceCast(NewTextureRHI);
 	const VkImageLayout ExpectedLayout = FVulkanLayoutManager::GetDefaultLayout(GetCommandBufferManager()->GetActiveCmdBuffer(), *VulkanTexture, ERHIAccess::SRVGraphics);
 
 	ShaderStage::EStage Stage = GetAndVerifyShaderStage(ShaderRHI, PendingGfxState);
@@ -353,7 +353,7 @@ void FVulkanCommandListContext::RHISetShaderTexture(FRHIComputeShader* ComputeSh
 	FVulkanComputeShader* ComputeShader = ResourceCast(ComputeShaderRHI);
 	check(PendingComputeState->GetCurrentShader() == ComputeShader);
 
-	FVulkanTexture* VulkanTexture = FVulkanTexture::Cast(NewTextureRHI);
+	FVulkanTexture* VulkanTexture = ResourceCast(NewTextureRHI);
 	const VkImageLayout ExpectedLayout = FVulkanLayoutManager::GetDefaultLayout(GetCommandBufferManager()->GetActiveCmdBuffer(), *VulkanTexture, ERHIAccess::SRVCompute);
 	PendingComputeState->SetTextureForStage(TextureIndex, VulkanTexture, ExpectedLayout);
 	NewTextureRHI->SetLastRenderTime((float)FPlatformTime::Seconds());
@@ -410,40 +410,8 @@ void FVulkanCommandListContext::RHISetShaderParameter(FRHIComputeShader* Compute
 	PendingComputeState->SetPackedGlobalShaderParameter(BufferIndex, BaseIndex, NumBytes, NewValue);
 }
 
-static void UpdateBindlessHandles(TConstArrayView<FRHIShaderParameterResource> InBindlessParameters)
-{
-	for (const FRHIShaderParameterResource& Parameter : InBindlessParameters)
-	{
-		if (FRHIResource* Resource = Parameter.Resource)
-		{
-			switch (Parameter.Type)
-			{
-			case FRHIShaderParameterResource::EType::ResourceView:
-			{
-				FRHIShaderResourceView* ShaderResourceView = static_cast<FRHIShaderResourceView*>(Resource);
-				FVulkanShaderResourceView* VKShaderResourceView = ResourceCast(ShaderResourceView);
-				VKShaderResourceView->UpdateView();
-				checkSlow(VKShaderResourceView->GetBindlessHandle().IsValid());
-			}
-			break;
-			case FRHIShaderParameterResource::EType::UnorderedAccessView:
-			{
-				FRHIUnorderedAccessView* UnorderedAccessView = static_cast<FRHIUnorderedAccessView*>(Resource);
-				FVulkanUnorderedAccessView* VKUnorderedAccessView = ResourceCast(UnorderedAccessView);
-				VKUnorderedAccessView->UpdateView();
-				checkSlow(VKUnorderedAccessView->GetBindlessHandle().IsValid());
-			}
-			default:
-				break;
-			}
-		}
-	}
-}
-
 void FVulkanCommandListContext::RHISetShaderParameters(FRHIGraphicsShader* Shader, TConstArrayView<uint8> InParametersData, TConstArrayView<FRHIShaderParameter> InParameters, TConstArrayView<FRHIShaderParameterResource> InResourceParameters, TConstArrayView<FRHIShaderParameterResource> InBindlessParameters)
 {
-	UpdateBindlessHandles(InBindlessParameters);
-
 	UE::RHICore::RHISetShaderParametersShared(
 		*this
 		, Shader
@@ -456,8 +424,6 @@ void FVulkanCommandListContext::RHISetShaderParameters(FRHIGraphicsShader* Shade
 
 void FVulkanCommandListContext::RHISetShaderParameters(FRHIComputeShader* Shader, TConstArrayView<uint8> InParametersData, TConstArrayView<FRHIShaderParameter> InParameters, TConstArrayView<FRHIShaderParameterResource> InResourceParameters, TConstArrayView<FRHIShaderParameterResource> InBindlessParameters)
 {
-	UpdateBindlessHandles(InBindlessParameters);
-
 	UE::RHICore::RHISetShaderParametersShared(
 		*this
 		, Shader

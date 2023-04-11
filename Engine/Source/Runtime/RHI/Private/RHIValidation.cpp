@@ -188,6 +188,123 @@ namespace RHIValidation
 
 		return Identity;
 	}
+
+	RHI_API FViewIdentity::FViewIdentity(FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
+	{
+		if (InViewDesc.IsBuffer())
+		{
+			FRHIBuffer* Buffer = static_cast<FRHIBuffer*>(InResource);
+			Resource = Buffer;
+
+			if (InViewDesc.IsUAV())
+			{
+				auto const Info = InViewDesc.Buffer.UAV.GetViewInfo(Buffer);
+				if (ensureMsgf(!Info.bNullView, TEXT("Attempt to use a null buffer UAV.")))
+				{
+					SubresourceRange = Resource->GetWholeResourceRange();
+					Stride = Info.StrideInBytes;
+				}
+			}
+			else
+			{
+				auto const Info = InViewDesc.Buffer.SRV.GetViewInfo(Buffer);
+				if (ensureMsgf(!Info.bNullView, TEXT("Attempt to use a null buffer SRV.")))
+				{
+					SubresourceRange = Resource->GetWholeResourceRange();
+					Stride = Info.StrideInBytes;
+				}
+			}
+		}
+		else
+		{
+			FRHITexture* Texture = static_cast<FRHITexture*>(InResource);
+			Resource = Texture->GetTrackerResource();
+			
+			auto GetPlaneIndex = [](ERHITexturePlane Plane)
+			{
+				switch (Plane)
+				{
+				default: checkNoEntry(); [[fallthrough]];
+				case ERHITexturePlane::Primary:
+				case ERHITexturePlane::PrimaryCompressed:
+				case ERHITexturePlane::Depth:
+					return EResourcePlane::Common;
+				
+				case ERHITexturePlane::Stencil:
+					return EResourcePlane::Stencil;
+
+				case ERHITexturePlane::HTile:
+					return EResourcePlane::Htile;
+
+				case ERHITexturePlane::FMask:
+					return EResourcePlane::Cmask;
+
+				case ERHITexturePlane::CMask:
+					return EResourcePlane::Fmask;
+				}
+			};
+
+			if (InViewDesc.IsUAV())
+			{
+				auto const Info = InViewDesc.Texture.UAV.GetViewInfo(Texture);
+
+				SubresourceRange.MipIndex       = Info.MipLevel;
+				SubresourceRange.NumMips        = 1;
+				SubresourceRange.ArraySlice     = Info.ArrayRange.First;
+				SubresourceRange.NumArraySlices = Info.ArrayRange.Num;
+				SubresourceRange.PlaneIndex     = uint32(GetPlaneIndex(Info.Plane));
+				SubresourceRange.NumPlanes      = 1;
+
+				Stride = GPixelFormats[Info.Format].BlockBytes;
+			}
+			else
+			{
+				auto const Info = InViewDesc.Texture.SRV.GetViewInfo(Texture);
+
+				SubresourceRange.MipIndex       = Info.MipRange.First;
+				SubresourceRange.NumMips        = Info.MipRange.Num;
+				SubresourceRange.ArraySlice     = Info.ArrayRange.First;
+				SubresourceRange.NumArraySlices = Info.ArrayRange.Num;
+				SubresourceRange.PlaneIndex     = uint32(GetPlaneIndex(Info.Plane));
+				SubresourceRange.NumPlanes      = 1;
+
+				Stride = GPixelFormats[Info.Format].BlockBytes;
+			}
+		}
+	}
+
+	void FTracker::FUAVTracker::DrawOrDispatch(FTracker* BarrierTracker, const FState& RequiredState)
+	{
+		// The barrier tracking expects us to call Assert() only once per unique resource.
+		// However, multiple UAVs may be bound, all referencing the same resource.
+		// Find the unique resources to ensure we only do the tracking once per resource.
+		uint32 NumUniqueIdentities = 0;
+		FResourceIdentity UniqueIdentities[MaxSimultaneousUAVs];
+
+		for (int32 UAVIndex = 0; UAVIndex < UAVs.Num(); ++UAVIndex)
+		{
+			if (UAVs[UAVIndex])
+			{
+				const FResourceIdentity& Identity = UAVs[UAVIndex]->GetViewIdentity();
+
+				// Check if we've already seen this resource.
+				bool bFound = false;
+				for (uint32 Index = 0; !bFound && Index < NumUniqueIdentities; ++Index)
+				{
+					bFound = UniqueIdentities[Index] == Identity;
+				}
+
+				if (!bFound)
+				{
+					check(NumUniqueIdentities < UE_ARRAY_COUNT(UniqueIdentities));
+					UniqueIdentities[NumUniqueIdentities++] = Identity;
+
+					// Assert unique resources have the required state.
+					BarrierTracker->AddOp(FOperation::Assert(Identity, RequiredState));
+				}
+			}
+		}
+	}
 }
 
 TSet<uint32> FValidationRHI::SeenFailureHashes;
@@ -519,7 +636,7 @@ void FValidationRHI::RHICreateTransition(FRHITransition* Transition, const FRHIT
 			break;
 
 		case FRHITransitionInfo::EType::UAV:
-			Identity = Info.UAV->ViewIdentity;
+			Identity = Info.UAV->GetViewIdentity();
 			break;
 
 		case FRHITransitionInfo::EType::BVH:
@@ -670,12 +787,12 @@ void FValidationRHI::RHIBindDebugLabelName(FRHIBuffer* Buffer, const TCHAR* Name
 
 void FValidationRHI::RHIBindDebugLabelName(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const TCHAR* Name)
 {
-	RHIValidation::FResource* Resource = UnorderedAccessViewRHI->ViewIdentity.Resource;
+	RHIValidation::FResource* Resource = UnorderedAccessViewRHI->GetViewIdentity().Resource;
 	FString NameCopyRT = Name;
 	FRHICommandListExecutor::GetImmediateCommandList().EnqueueLambda([Resource, NameCopyRHIT = MoveTemp(NameCopyRT)](FRHICommandListImmediate& RHICmdList)
-		{
-			((FValidationContext&)RHICmdList.GetContext()).Tracker->Rename(Resource, *NameCopyRHIT);
-		});
+	{
+		((FValidationContext&)RHICmdList.GetContext()).Tracker->Rename(Resource, *NameCopyRHIT);
+	});
 
 	RHI->RHIBindDebugLabelName(UnorderedAccessViewRHI, Name);
 }
@@ -1947,20 +2064,21 @@ namespace RHIValidation
 		{
 			// DebugStrideValidationData is supposed to be already sorted
 			static const auto ShaderCodeValidationStridePredicate = [](const FShaderCodeValidationStride& lhs, const FShaderCodeValidationStride& rhs) -> bool { return lhs.BindPoint < rhs.BindPoint; };
-			FShaderCodeValidationStride SRVValidationStride = { BindIndex , SRV->ValidationStride };
+
+			auto const ViewIdentity = SRV->GetViewIdentity();
+
+			FShaderCodeValidationStride SRVValidationStride = { BindIndex , ViewIdentity.Stride };
 			const int32 FoundIndex =  Algo::BinarySearch(RHIShaderBase->DebugStrideValidationData, SRVValidationStride, ShaderCodeValidationStridePredicate);
 			if (FoundIndex != INDEX_NONE)
 			{
 				uint16 ExpectedStride = RHIShaderBase->DebugStrideValidationData[FoundIndex].Stride;
-				// ensure(SRVValidationStride.Stride > 0) because there's a few ways to set .ValidationStride: don't trigger a validation error if we forgot to set the validation data during 
-				// some *CreateShaderResourceView* variant
-				if (ensure(SRVValidationStride.Stride > 0) && ExpectedStride != SRVValidationStride.Stride)
+				if (ExpectedStride != SRVValidationStride.Stride)
 				{
 					FString SRVName;
 					// It seems that owner name is usually unknown. Instead try to rely on the tracked buffer
-					if (SRV->ViewIdentity.Resource)
+					if (ViewIdentity.Resource)
 					{
-						SRVName = SRV->ViewIdentity.Resource->GetDebugName();
+						SRVName = ViewIdentity.Resource->GetDebugName();
 					}
 					if (SRVName.IsEmpty())
 					{

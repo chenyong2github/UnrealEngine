@@ -200,12 +200,12 @@ struct FD3D12ShaderResourceViewCache : public FD3D12ResourceCache<SRVSlotMask>
 		{
 			for (int32 SRVIdx = 0; SRVIdx < MAX_SRVS; ++SRVIdx)
 			{
-				Views[FrequencyIdx][SRVIdx].SafeRelease();
+				Views[FrequencyIdx][SRVIdx] = nullptr;
 			}
 		}
 	}
 
-	TRefCountPtr<FD3D12ShaderResourceView> Views[SF_NumStandardFrequencies][MAX_SRVS];
+	FD3D12ShaderResourceView* Views[SF_NumStandardFrequencies][MAX_SRVS];
 	FD3D12ResidencyHandle* ResidencyHandles[SF_NumStandardFrequencies][MAX_SRVS];
 
 	SRVSlotMask BoundMask[SF_NumStandardFrequencies];

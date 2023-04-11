@@ -100,8 +100,13 @@ public:
 		FVulkanResourceMultiBuffer* ScratchBuffer, uint32 ScratchOffset, 
 		FVulkanResourceMultiBuffer* InstanceBuffer, uint32 InstanceOffset);
 
-	virtual FRHIShaderResourceView* GetMetadataBufferSRV() const override final
+	virtual FRHIShaderResourceView* GetOrCreateMetadataBufferSRV(FRHICommandListImmediate& RHICmdList) override final
 	{
+		if (!PerInstanceGeometryParameterSRV.IsValid())
+		{
+			PerInstanceGeometryParameterSRV = RHICmdList.CreateShaderResourceView(PerInstanceGeometryParameterBuffer, FRHIViewDesc::CreateBufferSRV().SetType(FRHIViewDesc::EBufferType::Structured));
+		}
+
 		return PerInstanceGeometryParameterSRV.GetReference();
 	}
 
@@ -120,7 +125,7 @@ private:
 
 	struct FLayerData
 	{
-		TRefCountPtr<FVulkanShaderResourceView> ShaderResourceView;
+		TUniquePtr<FVulkanView> View;
 		uint32 BufferOffset;
 		uint32 ScratchBufferOffset;
 	};
@@ -131,7 +136,7 @@ private:
 
 	// Buffer that contains per-instance index and vertex buffer binding data
 	TRefCountPtr<FVulkanResourceMultiBuffer> PerInstanceGeometryParameterBuffer;
-	TRefCountPtr<FVulkanShaderResourceView> PerInstanceGeometryParameterSRV;
+	FShaderResourceViewRHIRef PerInstanceGeometryParameterSRV;
 	void BuildPerInstanceGeometryParameterBuffer(FVulkanCommandListContext& CommandContext);
 };
 

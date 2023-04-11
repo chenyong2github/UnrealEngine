@@ -15,8 +15,8 @@ THIRD_PARTY_INCLUDES_END
 
 struct FMetalRayTracingGeometryParameters
 {
-	FMetalIndexBuffer* IndexBuffer;
-	FMetalResourceMultiBuffer* VertexBuffer;
+	FMetalRHIBuffer* IndexBuffer;
+	FMetalRHIBuffer* VertexBuffer;
 	uint64 RootConstantsBufferOffsetInBytes;
 	uint64 VertexBufferOffset;
 };
@@ -53,12 +53,12 @@ public:
 	static constexpr uint32 MaxNumAccelerationStructure = 2;
 	static constexpr uint32 IndicesPerPrimitive = 3; // Triangle geometry only
 
-	inline TRefCountPtr<FMetalResourceMultiBuffer> GetAccelerationStructureRead()
+	inline TRefCountPtr<FMetalRHIBuffer> GetAccelerationStructureRead()
 	{
 		return AccelerationStructure[AccelerationStructureIndex];
 	}
 
-	inline TRefCountPtr<FMetalResourceMultiBuffer> GetAccelerationStructureWrite()
+	inline TRefCountPtr<FMetalRHIBuffer> GetAccelerationStructureWrite()
 	{
 		uint32 NextAccelerationStructure = (AccelerationStructureIndex + 1) % MaxNumAccelerationStructure;
 		return AccelerationStructure[NextAccelerationStructure];
@@ -73,7 +73,7 @@ private:
 	NSMutableArray<MTLAccelerationStructureGeometryDescriptor*>* GeomArray;
 
 	uint32 AccelerationStructureIndex;
-	TRefCountPtr<FMetalResourceMultiBuffer> AccelerationStructure[MaxNumAccelerationStructure];
+	TRefCountPtr<FMetalRHIBuffer> AccelerationStructure[MaxNumAccelerationStructure];
 };
 
 class FMetalRayTracingScene : public FRHIRayTracingScene
@@ -85,8 +85,8 @@ public:
 	void BindBuffer(FRHIBuffer* InBuffer, uint32 InBufferOffset);
 	void BuildAccelerationStructure(
 		FMetalRHICommandContext& CommandContext,
-		FMetalResourceMultiBuffer* ScratchBuffer, uint32 ScratchOffset,
-		FMetalResourceMultiBuffer* InstanceBuffer, uint32 InstanceOffset);
+		FMetalRHIBuffer* ScratchBuffer, uint32 ScratchOffset,
+		FMetalRHIBuffer* InstanceBuffer, uint32 InstanceOffset);
 
 	void BuildPerInstanceGeometryParameterBuffer();
 
@@ -112,13 +112,13 @@ private:
 	const FRayTracingSceneInitializer2 Initializer;
 
 	/** Acceleration Structure for the whole scene (shared between each layer). */
-	TRefCountPtr<FMetalResourceMultiBuffer> AccelerationStructureBuffer;
+	TRefCountPtr<FMetalRHIBuffer> AccelerationStructureBuffer;
 
 	/** Root Constants for geometry evaluation in HitGroup/Miss (emulates D3D12 RootConstants with a global scope). */
 	TArray<FMetalRayTracingGeometryParameters> PerInstanceGeometryParameters;
 
 	// Buffer that contains per-instance index and vertex buffer binding data
-	TRefCountPtr<FMetalResourceMultiBuffer> PerInstanceGeometryParameterBuffer;
+	TRefCountPtr<FMetalRHIBuffer> PerInstanceGeometryParameterBuffer;
 	TRefCountPtr<FMetalShaderResourceView> PerInstanceGeometryParameterSRV;
 
 	/** Segments descriptors  (populated when the constructor is called). */

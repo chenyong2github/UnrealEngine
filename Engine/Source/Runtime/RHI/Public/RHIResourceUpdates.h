@@ -4,14 +4,7 @@
 
 #include "RHIFwd.h"
 #include "Containers/ArrayView.h"
-
-struct FRHIShaderResourceViewUpdateInfo
-{
-	FRHIShaderResourceView* SRV;
-	FRHIBuffer* Buffer;
-	uint32 Stride;
-	uint8 Format;
-};
+#include "RHIResources.h"
 
 struct FRHIBufferUpdateInfo
 {
@@ -31,10 +24,6 @@ struct FRHIResourceUpdateInfo
 	{
 		/** Take over underlying resource from an intermediate buffer */
 		UT_Buffer,
-		/** Update an SRV to view on a different buffer */
-		UT_BufferSRV,
-		/** Update an SRV to view on a different buffer with a given format */
-		UT_BufferFormatSRV,
 		/** Take over underlying resource from an intermediate geometry */
 		UT_RayTracingGeometry,
 		/** Number of update types */
@@ -45,7 +34,6 @@ struct FRHIResourceUpdateInfo
 	union
 	{
 		FRHIBufferUpdateInfo Buffer;
-		FRHIShaderResourceViewUpdateInfo BufferSRV;
 		FRHIRayTracingGeometryUpdateInfo RayTracingGeometry;
 	};
 
@@ -63,8 +51,6 @@ struct RHI_API FRHIResourceUpdateBatcher
 
 	void QueueUpdateRequest(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer);
 	void QueueUpdateRequest(FRHIRayTracingGeometry* DestGeometry, FRHIRayTracingGeometry* SrcGeometry);
-	void QueueUpdateRequest(FRHIShaderResourceView* SRV, FRHIBuffer* Buffer, uint32 Stride, uint8 Format);
-	void QueueUpdateRequest(FRHIShaderResourceView* SRV, FRHIBuffer* Buffer);
 
 protected:
 	FRHIResourceUpdateBatcher() = delete;

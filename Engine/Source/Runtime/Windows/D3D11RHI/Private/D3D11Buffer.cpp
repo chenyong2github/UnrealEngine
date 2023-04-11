@@ -13,61 +13,61 @@ TAutoConsoleVariable<int32> GCVarUseSharedKeyedMutex(
 	TEXT("with the D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX flag instead of D3D11_RESOURCE_MISC_SHARED (default).\n"),
 	ECVF_Default);
 
-FBufferRHIRef FD3D11DynamicRHI::RHICreateBuffer(FRHICommandListBase&, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
+FBufferRHIRef FD3D11DynamicRHI::RHICreateBuffer(FRHICommandListBase& RHICmdList, FRHIBufferDesc const& BufferDesc, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
-	if (CreateInfo.bWithoutNativeResource)
+	if (BufferDesc.IsNull())
 	{
-		return new FD3D11Buffer();
+		return new FD3D11Buffer(nullptr, BufferDesc);
 	}
 
 	// Explicitly check that the size is nonzero before allowing CreateBuffer to opaquely fail.
-	checkf(Size > 0, TEXT("Attempt to create buffer '%s' with size 0."), CreateInfo.DebugName ? CreateInfo.DebugName : TEXT("(null)"));
+	checkf(BufferDesc.Size > 0, TEXT("Attempt to create buffer '%s' with size 0."), CreateInfo.DebugName ? CreateInfo.DebugName : TEXT("(null)"));
 
 	// Describe the buffer.
-	D3D11_BUFFER_DESC Desc = { Size };
+	D3D11_BUFFER_DESC Desc = { BufferDesc.Size };
 
-	if (EnumHasAnyFlags(Usage, BUF_AnyDynamic))
+	if (EnumHasAnyFlags(BufferDesc.Usage, BUF_AnyDynamic))
 	{
 		Desc.Usage = D3D11_USAGE_DYNAMIC;
 		Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	}
 
-	if (EnumHasAnyFlags(Usage, BUF_VertexBuffer))
+	if (EnumHasAnyFlags(BufferDesc.Usage, BUF_VertexBuffer))
 	{
 		Desc.BindFlags |= D3D11_BIND_VERTEX_BUFFER;
 	}
 
-	if (EnumHasAnyFlags(Usage, BUF_IndexBuffer))
+	if (EnumHasAnyFlags(BufferDesc.Usage, BUF_IndexBuffer))
 	{
 		Desc.BindFlags |= D3D11_BIND_INDEX_BUFFER;
 	}
 
-	if (EnumHasAnyFlags(Usage, BUF_ByteAddressBuffer))
+	if (EnumHasAnyFlags(BufferDesc.Usage, BUF_ByteAddressBuffer))
 	{
 		Desc.MiscFlags |= D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
 	}
-	else if (EnumHasAnyFlags(Usage, BUF_StructuredBuffer))
+	else if (EnumHasAnyFlags(BufferDesc.Usage, BUF_StructuredBuffer))
 	{
-		Desc.StructureByteStride = Stride;
+		Desc.StructureByteStride = BufferDesc.Stride;
 		Desc.MiscFlags |= D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
 	}
 
-	if (EnumHasAnyFlags(Usage, BUF_ShaderResource))
+	if (EnumHasAnyFlags(BufferDesc.Usage, BUF_ShaderResource))
 	{
 		Desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 	}
 
-	if (EnumHasAnyFlags(Usage, BUF_UnorderedAccess))
+	if (EnumHasAnyFlags(BufferDesc.Usage, BUF_UnorderedAccess))
 	{
 		Desc.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
 	}
 
-	if (EnumHasAnyFlags(Usage, BUF_DrawIndirect))
+	if (EnumHasAnyFlags(BufferDesc.Usage, BUF_DrawIndirect))
 	{
 		Desc.MiscFlags |= D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
 	}
 
-	if (EnumHasAnyFlags(Usage, BUF_Shared))
+	if (EnumHasAnyFlags(BufferDesc.Usage, BUF_Shared))
 	{
 		if (GCVarUseSharedKeyedMutex->GetInt() != 0)
 		{
@@ -84,9 +84,9 @@ FBufferRHIRef FD3D11DynamicRHI::RHICreateBuffer(FRHICommandListBase&, uint32 Siz
 	D3D11_SUBRESOURCE_DATA* pInitData = NULL;
 	if(CreateInfo.ResourceArray)
 	{
-		check(Size == CreateInfo.ResourceArray->GetResourceDataSize());
+		check(BufferDesc.Size == CreateInfo.ResourceArray->GetResourceDataSize());
 		InitData.pSysMem = CreateInfo.ResourceArray->GetResourceData();
-		InitData.SysMemPitch = Size;
+		InitData.SysMemPitch = BufferDesc.Size;
 		InitData.SysMemSlicePitch = 0;
 		pInitData = &InitData;
 	}
@@ -120,7 +120,7 @@ FBufferRHIRef FD3D11DynamicRHI::RHICreateBuffer(FRHICommandListBase&, uint32 Siz
 		CreateInfo.ResourceArray->Discard();
 	}
 
-	FD3D11Buffer* NewBuffer = new FD3D11Buffer(BufferResource, Size, Usage, Stride);
+	FD3D11Buffer* NewBuffer = new FD3D11Buffer(BufferResource, BufferDesc);
 	if (CreateInfo.DebugName)
 	{
 		NewBuffer->SetName(CreateInfo.DebugName);
@@ -259,17 +259,22 @@ void FD3D11DynamicRHI::RHICopyBuffer(FRHIBuffer* SourceBufferRHI, FRHIBuffer* De
 
 void FD3D11DynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer)
 {
-	check(DestBuffer);
-	FD3D11Buffer* Dest = ResourceCast(DestBuffer);
-	if (!SrcBuffer)
+	FD3D11Buffer* Dst = ResourceCast(DestBuffer);
+	FD3D11Buffer* Src = ResourceCast(SrcBuffer);
+
+	if (Src)
 	{
-		Dest->ReleaseUnderlyingResource();
+		// The source buffer should not have any associated views.
+		check(!Src->HasLinkedViews());
+
+		Dst->TakeOwnership(*Src);
 	}
 	else
 	{
-		FD3D11Buffer* Src = ResourceCast(SrcBuffer);
-		Dest->Swap(*Src);
+		Dst->ReleaseOwnership();
 	}
+
+	Dst->UpdateLinkedViews();
 }
 
 void FD3D11DynamicRHI::RHIBindDebugLabelName(FRHIBuffer* BufferRHI, const TCHAR* Name)

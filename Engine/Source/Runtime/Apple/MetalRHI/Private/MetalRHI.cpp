@@ -947,6 +947,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GPixelFormats[PF_FloatRGBA			].BlockBytes		= 8;
     GPixelFormats[PF_X24_G8				].PlatformFormat	= (uint32)mtlpp::PixelFormat::Stencil8;
     GPixelFormats[PF_X24_G8				].BlockBytes		= 1;
+    GPixelFormats[PF_X24_G8             ].Supported         = true;
 	GPixelFormats[PF_R32_FLOAT			].PlatformFormat	= (uint32)mtlpp::PixelFormat::R32Float;
 	GPixelFormats[PF_G16R16				].PlatformFormat	= (uint32)mtlpp::PixelFormat::RG16Unorm;
 	GPixelFormats[PF_G16R16				].Supported			= true;
@@ -1376,6 +1377,13 @@ void FMetalDynamicRHI::RHIBlockUntilGPUIdle()
 	@autoreleasepool {
 	ImmediateContext.Context->SubmitCommandBufferAndWait();
 	}
+}
+
+void FMetalDynamicRHI::RHISubmitCommandsAndFlushGPU()
+{
+    @autoreleasepool {
+    ImmediateContext.Context->SubmitCommandBufferAndWait();
+    }
 }
 
 uint32 FMetalDynamicRHI::RHIGetGPUFrameCycles(uint32 GPUIndex)

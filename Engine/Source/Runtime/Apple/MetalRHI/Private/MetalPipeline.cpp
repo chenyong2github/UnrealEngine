@@ -210,16 +210,13 @@ struct FMetalGraphicsPipelineKey
 		for (uint32 i = 0; i < NumActiveTargets; i++)
 		{
 			EPixelFormat TargetFormat = (EPixelFormat)Init.RenderTargetFormats[i];
-			if (TargetFormat == PF_Unknown) { continue; }
 
-			mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[TargetFormat].PlatformFormat;
-			ETextureCreateFlags Flags = (ETextureCreateFlags)Init.RenderTargetFlags[i];
-			if (EnumHasAnyFlags(Flags, TexCreate_SRGB))
-			{
-				MetalFormat = ToSRGBFormat(MetalFormat);
-			}
+			if (TargetFormat == PF_Unknown)
+				continue;
+
+			mtlpp::PixelFormat MetalFormat = UEToMetalFormat(TargetFormat, EnumHasAnyFlags(Init.RenderTargetFlags[i], TexCreate_SRGB));
 			
-			uint8 FormatKey = GetMetalPixelFormatKey(MetalFormat);;
+			uint8 FormatKey = GetMetalPixelFormatKey(MetalFormat);
 			Key.SetHashValue(RTBitOffsets[i], NumBits_RenderTargetFormat, FormatKey);
 			Key.SetHashValue(BlendBitOffsets[i], NumBits_BlendState, BlendState->RenderTargetStates[i].BlendStateKey);
 			
@@ -651,12 +648,7 @@ static bool ConfigureRenderPipelineDescriptor(mtlpp::RenderPipelineDescriptor& R
 		
 		TargetWidth += GPixelFormats[TargetFormat].BlockBytes;
 		
-		mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[TargetFormat].PlatformFormat;
-		ETextureCreateFlags Flags = (ETextureCreateFlags)Init.RenderTargetFlags[ActiveTargetIndex];
-		if (EnumHasAnyFlags(Flags, TexCreate_SRGB))
-		{
-			MetalFormat = ToSRGBFormat(MetalFormat);
-		}
+		mtlpp::PixelFormat MetalFormat = UEToMetalFormat(TargetFormat, EnumHasAnyFlags(Init.RenderTargetFlags[ActiveTargetIndex], TexCreate_SRGB));
 		
 		mtlpp::RenderPipelineColorAttachmentDescriptor Attachment = ColorAttachments[ActiveTargetIndex];
 		Attachment.SetPixelFormat(MetalFormat);

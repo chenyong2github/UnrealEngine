@@ -27,6 +27,7 @@ class FValidationRHI;
 
 struct FRHITextureCreateDesc;
 struct FRHITransitionInfo;
+struct FRHIViewDesc;
 
 namespace RHIValidation
 {
@@ -220,6 +221,13 @@ namespace RHIValidation
 		{
 			return !(*this == RHS);
 		}
+	};
+
+	struct FViewIdentity : public FResourceIdentity
+	{
+		uint32 Stride = 0;
+
+		RHI_API FViewIdentity(FRHIViewableResource* Resource, FRHIViewDesc const& ViewDesc);
 	};
 
 	struct FTransientState
@@ -427,30 +435,6 @@ namespace RHIValidation
 			return Identity;
 		}
 	};
-
-	struct FView
-	{
-		FView()
-		{
-			ResetViewIdentity();
-		}
-
-		void ResetViewIdentity()
-		{
-			ViewIdentity.Resource = nullptr;
-			ViewIdentity.SubresourceRange = FSubresourceRange(0, 0, 0, 0, 0, 0);
-		}
-
-		FResourceIdentity ViewIdentity;
-	};
-
-	struct FShaderResourceView : public FView
-	{
-		uint32 ValidationStride = 0;
-	};
-
-	struct FUnorderedAccessView : public FView
-	{};
 
 	struct FFence
 	{
@@ -825,7 +809,7 @@ namespace RHIValidation
 		struct FUAVTracker
 		{
 		private:
-			TArray<FUnorderedAccessView*> UAVs;
+			TArray<FRHIUnorderedAccessView*> UAVs;
 
 		public:
 			FUAVTracker()
@@ -833,7 +817,7 @@ namespace RHIValidation
 				UAVs.Reserve(MaxSimultaneousUAVs);
 			}
 
-			inline FUnorderedAccessView*& operator[](int32 Slot)
+			inline FRHIUnorderedAccessView*& operator[](int32 Slot)
 			{
 				if (Slot >= UAVs.Num())
 				{
@@ -847,38 +831,7 @@ namespace RHIValidation
 				UAVs.SetNum(0, false);
 			}
 
-			inline void DrawOrDispatch(FTracker* BarrierTracker, const FState& RequiredState)
-			{
-				// The barrier tracking expects us to call Assert() only once per unique resource.
-				// However, multiple UAVs may be bound, all referencing the same resource.
-				// Find the unique resources to ensure we only do the tracking once per resource.
-				uint32 NumUniqueIdentities = 0;
-				FResourceIdentity UniqueIdentities[MaxSimultaneousUAVs];
-
-				for (int32 UAVIndex = 0; UAVIndex < UAVs.Num(); ++UAVIndex)
-				{
-					if (UAVs[UAVIndex])
-					{
-						const FResourceIdentity& Identity = UAVs[UAVIndex]->ViewIdentity;
-
-						// Check if we've already seen this resource.
-						bool bFound = false;
-						for (uint32 Index = 0; !bFound && Index < NumUniqueIdentities; ++Index)
-						{
-							bFound = UniqueIdentities[Index] == Identity;
-						}
-
-						if (!bFound)
-						{
-							check(NumUniqueIdentities < UE_ARRAY_COUNT(UniqueIdentities));
-							UniqueIdentities[NumUniqueIdentities++] = Identity;
-
-							// Assert unique resources have the required state.
-							BarrierTracker->AddOp(FOperation::Assert(Identity, RequiredState));
-						}
-					}
-				}
-			}
+			void DrawOrDispatch(FTracker* BarrierTracker, const FState& RequiredState);
 		};
 
 	public:
@@ -930,13 +883,13 @@ namespace RHIValidation
 			AddOp(FOperation::Assert(Identity, FState(RequiredAccess, Pipeline)));
 		}
 
-		inline void AssertUAV(FUnorderedAccessView* UAV, EUAVMode Mode, int32 Slot)
+		inline void AssertUAV(FRHIUnorderedAccessView* UAV, EUAVMode Mode, int32 Slot)
 		{
 			checkSlow(Mode == EUAVMode::Compute || Pipeline == ERHIPipeline::Graphics);
 			UAVTrackers[int32(Mode)][Slot] = UAV;
 		}
 
-		inline void AssertUAV(FUnorderedAccessView* UAV, ERHIAccess Access, int32 Slot)
+		inline void AssertUAV(FRHIUnorderedAccessView* UAV, ERHIAccess Access, int32 Slot)
 		{
 			checkSlow(!(Access & ~ERHIAccess::UAVMask));
 			AssertUAV(UAV, Access == ERHIAccess::UAVGraphics ? EUAVMode::Graphics : EUAVMode::Compute, Slot);

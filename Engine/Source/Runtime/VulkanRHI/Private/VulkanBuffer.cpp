@@ -129,20 +129,20 @@ VkBufferUsageFlags FVulkanResourceMultiBuffer::UEToVKBufferUsageFlags(FVulkanDev
 	return OutVkUsage;
 }
 
-FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, uint32 InSize, EBufferUsageFlags InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo, FRHICommandListBase* InRHICmdList, const FRHITransientHeapAllocation* InTransientHeapAllocation)
-	: FRHIBuffer(InSize, InUEUsage, InStride)
+FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, FRHIBufferDesc const& InBufferDesc, FRHIResourceCreateInfo& CreateInfo, FRHICommandListBase* InRHICmdList, const FRHITransientHeapAllocation* InTransientHeapAllocation)
+	: FRHIBuffer(InBufferDesc)
 	, VulkanRHI::FDeviceChild(InDevice)
 {
 	VULKAN_TRACK_OBJECT_CREATE(FVulkanResourceMultiBuffer, this);
 
-	const bool bZeroSize = (InSize == 0);
-	BufferUsageFlags = UEToVKBufferUsageFlags(InDevice, InUEUsage, bZeroSize);
+	const bool bZeroSize = (InBufferDesc.Size == 0);
+	BufferUsageFlags = UEToVKBufferUsageFlags(InDevice, InBufferDesc.Usage, bZeroSize);
 	
 	if (!bZeroSize)
 	{
 		check(InDevice);
 
-		const bool bVolatile = EnumHasAnyFlags(InUEUsage, BUF_Volatile);
+		const bool bVolatile = EnumHasAnyFlags(InBufferDesc.Usage, BUF_Volatile);
 		if (bVolatile)
 		{
 			check(InRHICmdList);
@@ -151,16 +151,16 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 			CurrentBufferIndex = BufferAllocs.Emplace();
 
 			// Get a dummy buffer as sometimes the high-level misbehaves and tries to use SRVs off volatile buffers before filling them in...
-			void* Data = Lock(*InRHICmdList, RLM_WriteOnly, InSize, 0);
+			void* Data = Lock(*InRHICmdList, RLM_WriteOnly, InBufferDesc.Size, 0);
 
 			if (CreateInfo.ResourceArray)
 			{
-				uint32 CopyDataSize = FMath::Min(InSize, CreateInfo.ResourceArray->GetResourceDataSize());
+				uint32 CopyDataSize = FMath::Min(InBufferDesc.Size, CreateInfo.ResourceArray->GetResourceDataSize());
 				FMemory::Memcpy(Data, CreateInfo.ResourceArray->GetResourceData(), CopyDataSize);
 			}
 			else
 			{
-				FMemory::Memzero(Data, InSize);
+				FMemory::Memzero(Data, InBufferDesc.Size);
 			}
 
 			Unlock(*InRHICmdList);
@@ -168,8 +168,7 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 		else
 		{
 			const bool bUnifiedMem = InDevice->HasUnifiedMemory();
-			const uint32 BufferAlignment = FMemoryManager::CalculateBufferAlignment(*InDevice, InUEUsage, bZeroSize);
-
+			const uint32 BufferAlignment = FMemoryManager::CalculateBufferAlignment(*InDevice, InBufferDesc.Usage, bZeroSize);
 
 			if (InTransientHeapAllocation != nullptr)
 			{
@@ -177,7 +176,7 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 				NewBufferAlloc.Alloc = FVulkanTransientHeap::GetVulkanAllocation(*InTransientHeapAllocation);
 				NewBufferAlloc.HostPtr = bUnifiedMem ? NewBufferAlloc.Alloc.GetMappedPointer(Device) : nullptr;
 				check(NewBufferAlloc.Alloc.Offset % BufferAlignment == 0);
-				check(NewBufferAlloc.Alloc.Size >= InSize);
+				check(NewBufferAlloc.Alloc.Size >= InBufferDesc.Size);
 				CurrentBufferIndex = BufferAllocs.Add(NewBufferAlloc);
 			}
 			else
@@ -191,7 +190,7 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 			{
 				check(InRHICmdList);
 
-				uint32 CopyDataSize = FMath::Min(InSize, CreateInfo.ResourceArray->GetResourceDataSize());
+				uint32 CopyDataSize = FMath::Min(InBufferDesc.Size, CreateInfo.ResourceArray->GetResourceDataSize());
 				// We know this buffer is not in use by GPU atm. If we do have a direct access initialize it without extra copies
 				if (bUnifiedMem)
 				{
@@ -207,7 +206,7 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 				CreateInfo.ResourceArray->Discard();
 			}
 
-			UpdateVulkanBufferStats(InSize, BufferUsageFlags, true);
+			UpdateVulkanBufferStats(InBufferDesc.Size, BufferUsageFlags, true);
 		}
 	}
 }
@@ -215,17 +214,7 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 FVulkanResourceMultiBuffer::~FVulkanResourceMultiBuffer()
 {
 	VULKAN_TRACK_OBJECT_DELETE(FVulkanResourceMultiBuffer, this);
-	uint64_t TotalSize = 0;
-	for (int32 Index = 0; Index < BufferAllocs.Num(); ++Index)
-	{
-		if (BufferAllocs[Index].Alloc.HasAllocation())
-		{
-			TotalSize += BufferAllocs[Index].Alloc.Size;
-			Device->GetMemoryManager().FreeVulkanAllocation(BufferAllocs[Index].Alloc);
-		}
-		BufferAllocs[Index].Fence = nullptr;
-	}
-	UpdateVulkanBufferStats(TotalSize, BufferUsageFlags, false);
+	ReleaseOwnership();
 }
 
 
@@ -496,6 +485,7 @@ inline void FVulkanResourceMultiBuffer::InternalUnlock(FVulkanCommandListContext
 	MultiBuffer->GetParent()->GetStagingManager().ReleaseBuffer(Cmd, StagingBuffer);
 
 	MultiBuffer->UpdateBufferAllocStates(Context);
+	MultiBuffer->UpdateLinkedViews();
 }
 
 struct FRHICommandMultiBufferUnlock final : public FRHICommand<FRHICommandMultiBufferUnlock>
@@ -532,7 +522,17 @@ void FVulkanResourceMultiBuffer::Unlock(FRHICommandListBase* RHICmdList, FVulkan
 
 	if (bVolatile)
 	{
-		// Nothing to do here...
+		if (RHICmdList && RHICmdList->IsTopOfPipe())
+		{
+			RHICmdList->EnqueueLambda([this](FRHICommandListBase&)
+			{
+				UpdateLinkedViews();
+			});
+		}
+		else
+		{
+			UpdateLinkedViews();
+		}
 	}
 	else if (LockStatus == ELockStatus::PersistentMapping)
 	{
@@ -583,30 +583,53 @@ void FVulkanResourceMultiBuffer::Unlock(FRHICommandListBase* RHICmdList, FVulkan
 	LockStatus = ELockStatus::Unlocked;
 }
 
-void FVulkanResourceMultiBuffer::Swap(FVulkanResourceMultiBuffer& Other)
+void FVulkanResourceMultiBuffer::TakeOwnership(FVulkanResourceMultiBuffer& Other)
 {
-	FRHIBuffer::Swap(Other);
+	check(Other.LockStatus == ELockStatus::Unlocked);
+	check(GetParent() == Other.GetParent());
 
-	check(LockStatus == ELockStatus::Unlocked);
+	// Clean up any resource this buffer already owns
+	ReleaseOwnership();
 
-	// FDeviceChild
-	::Swap(Device, Other.Device);
-	
-	::Swap(BufferUsageFlags, Other.BufferUsageFlags);
-	::Swap(CurrentBufferIndex, Other.CurrentBufferIndex);
-	::Swap(BufferAllocs, Other.BufferAllocs);
-	::Swap(LockCounter, Other.LockCounter);
+	// Transfer ownership of Other's resources to this instance
+	FRHIBuffer::TakeOwnership(Other);
+
+	BufferUsageFlags   = Other.BufferUsageFlags;
+	BufferAllocs       = Other.BufferAllocs;
+	CurrentBufferIndex = Other.CurrentBufferIndex;
+
+	Other.BufferUsageFlags   = {};
+	Other.BufferAllocs       = {};
+	Other.CurrentBufferIndex = -1;
 }
 
-FBufferRHIRef FVulkanDynamicRHI::RHICreateBuffer(FRHICommandListBase& RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& ResourceCreateInfo)
+void FVulkanResourceMultiBuffer::ReleaseOwnership()
+{
+	check(LockStatus == ELockStatus::Unlocked);
+
+	FRHIBuffer::ReleaseOwnership();
+
+	uint64 TotalSize = 0;
+	for (int32 Index = 0; Index < BufferAllocs.Num(); ++Index)
+	{
+		if (BufferAllocs[Index].Alloc.HasAllocation())
+		{
+			TotalSize += BufferAllocs[Index].Alloc.Size;
+			Device->GetMemoryManager().FreeVulkanAllocation(BufferAllocs[Index].Alloc);
+		}
+		BufferAllocs[Index].Fence = nullptr;
+	}
+
+	if (TotalSize > 0)
+	{
+		UpdateVulkanBufferStats(TotalSize, BufferUsageFlags, false);
+	}
+}
+
+FBufferRHIRef FVulkanDynamicRHI::RHICreateBuffer(FRHICommandListBase& RHICmdList, FRHIBufferDesc const& Desc, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanBuffers);
-
-	if (ResourceCreateInfo.bWithoutNativeResource)
-	{
-		return new FVulkanResourceMultiBuffer(Device, 0, BUF_None, 0, ResourceCreateInfo, &RHICmdList);
-	}
-	return new FVulkanResourceMultiBuffer(Device, Size, Usage, Stride, ResourceCreateInfo, &RHICmdList);
+	return new FVulkanResourceMultiBuffer(Device, Desc, CreateInfo, &RHICmdList);
 }
 
 void* FVulkanDynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListBase& RHICmdList, FRHIBuffer* BufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
@@ -630,19 +653,22 @@ void FVulkanDynamicRHI::RHICopyBuffer(FRHIBuffer* SourceBufferRHI, FRHIBuffer* D
 
 void FVulkanDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer)
 {
-	check(DestBuffer);
-	FVulkanResourceMultiBuffer* Dest = ResourceCast(DestBuffer);
-	if (!SrcBuffer)
+	FVulkanResourceMultiBuffer* Dst = ResourceCast(DestBuffer);
+	FVulkanResourceMultiBuffer* Src = ResourceCast(SrcBuffer);
+
+	if (Src)
 	{
-		FRHIResourceCreateInfo CreateInfo(TEXT("RHITransferBufferUnderlyingResource"));
-		TRefCountPtr<FVulkanResourceMultiBuffer> DeletionProxy = new FVulkanResourceMultiBuffer(Dest->GetParent(), 0, BUF_None, 0, CreateInfo, nullptr);
-		Dest->Swap(*DeletionProxy);
+		// The source buffer should not have any associated views.
+		check(!Src->HasLinkedViews());
+
+		Dst->TakeOwnership(*Src);
 	}
 	else
 	{
-		FVulkanResourceMultiBuffer* Src = ResourceCast(SrcBuffer);
-		Dest->Swap(*Src);
+		Dst->ReleaseOwnership();
 	}
+
+	Dst->UpdateLinkedViews();
 }
 
 void FVulkanDynamicRHI::RHIUnlockBuffer(FRHICommandListBase& RHICmdList, FRHIBuffer* BufferRHI)

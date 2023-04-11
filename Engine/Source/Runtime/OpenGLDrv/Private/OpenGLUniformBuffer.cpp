@@ -544,7 +544,7 @@ static FUniformBufferRHIRef CreateUniformBuffer(const void* Contents, const FRHI
 
 	const uint32 BucketIndex = GetPoolBucketIndex(Layout->ConstantBufferSize);
 	const uint32 SizeOfBufferToAllocate = UniformBufferSizeBuckets[BucketIndex];
-	const uint32 AllocatedSize = (SizeOfBufferToAllocate > 0) ? SizeOfBufferToAllocate : Layout->ConstantBufferSize;;
+	const uint32 AllocatedSize = (SizeOfBufferToAllocate > 0) ? SizeOfBufferToAllocate : Layout->ConstantBufferSize;
 	
 	// EmulatedUniformDataRef will not be initialized on RHI thread. safe to use on RT thread.
 	FOpenGLEUniformBufferDataRef EmulatedUniformDataRef;

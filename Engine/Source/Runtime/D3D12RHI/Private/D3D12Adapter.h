@@ -33,6 +33,8 @@
 
 #pragma once
 
+#include "D3D12RHIPrivate.h"
+
 struct FD3D12DeviceBasicInfo
 {
 	D3D_FEATURE_LEVEL           MaxFeatureLevel;
@@ -362,7 +364,7 @@ public:
 
 	FD3D12Buffer* CreateRHIBuffer(
 		const D3D12_RESOURCE_DESC& Desc,
-		uint32 Alignment, uint32 Stride, uint32 Size, EBufferUsageFlags InUsage,
+		uint32 Alignment, FRHIBufferDesc const& BufferDesc,
 		ED3D12ResourceStateMode InResourceStateMode,
 		D3D12_RESOURCE_STATES InCreateState,
 		bool bHasInitialData,
@@ -383,16 +385,6 @@ public:
 		return FD3D12LinkedAdapterObject<typename ObjectType::LinkedObjectType>::template CreateLinkedObjects<ObjectType>(
 			GPUMask,
 			[this](uint32 GPUIndex) { return GetDevice(GPUIndex); },
-			pfnCreationCore
-		);
-	}
-
-	template <typename ResourceType, typename ViewType, typename CreationCoreFunction>
-	inline ViewType* CreateLinkedViews(ResourceType* Resource, const CreationCoreFunction& pfnCreationCore)
-	{
-		return FD3D12LinkedAdapterObject<typename ViewType::LinkedObjectType>::template CreateLinkedObjects<ViewType>(
-			Resource->GetLinkedObjectsGPUMask(),
-			[Resource](uint32 GPUIndex) { return static_cast<ResourceType*>(Resource->GetLinkedObject(GPUIndex)); },
 			pfnCreationCore
 		);
 	}

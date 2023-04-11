@@ -10,28 +10,18 @@
 #include "RHICore.h"
 #include "BoundShaderStateHistory.h"
 
-#define UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER	1
-
-class FMetalContext;
+class FMetalDeviceContext;
 struct FMetalCommandBufferFence;
-
-#if UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER
-enum class EMetalRHIClearUAVType : uint8
-{
-	VertexBuffer,
-	StructuredBuffer
-};
-#endif // UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER
 
 /** The interface RHI command context. */
 class FMetalRHICommandContext : public IRHICommandContext
 {
 public:
-	FMetalRHICommandContext(class FMetalProfiler* InProfiler, FMetalContext* WrapContext);
+	FMetalRHICommandContext(class FMetalProfiler* InProfiler, FMetalDeviceContext* WrapContext);
 	virtual ~FMetalRHICommandContext();
 
 	/** Get the internal context */
-	FORCEINLINE FMetalContext& GetInternalContext() const { return *Context; }
+	FORCEINLINE FMetalDeviceContext& GetInternalContext() const { return *Context; }
 	
 	/** Get the profiler pointer */
 	FORCEINLINE class FMetalProfiler* GetProfiler() const { return Profiler; }
@@ -252,23 +242,23 @@ protected:
 	static TGlobalResource<TBoundShaderStateHistory<10000>> BoundShaderStateHistory;
 	
 	/** Context implementation details. */
-	FMetalContext* Context;
+	FMetalDeviceContext* Context = nullptr;
 	
 	/** Occlusion query batch fence */
 	TSharedPtr<FMetalCommandBufferFence, ESPMode::ThreadSafe> CommandBufferFence;
 	
 	/** Profiling implementation details. */
-	class FMetalProfiler* Profiler;
+	class FMetalProfiler* Profiler = nullptr;
 	
 	/** Some local variables to track the pending primitive information used in RHIEnd*UP functions */
 	FMetalBuffer PendingVertexBuffer;
-	uint32 PendingVertexDataStride;
+	uint32 PendingVertexDataStride = 0;
 	
 	FMetalBuffer PendingIndexBuffer;
-	uint32 PendingIndexDataStride;
+	uint32 PendingIndexDataStride = 0;
 	
-	uint32 PendingPrimitiveType;
-	uint32 PendingNumPrimitives;
+	uint32 PendingPrimitiveType = 0;
+	uint32 PendingNumPrimitives = 0;
 
 	template <typename TRHIShader>
 	void ApplyStaticUniformBuffers(TRHIShader* Shader);
@@ -278,29 +268,13 @@ protected:
 	TArray<FRHIUniformBuffer*> GlobalUniformBuffers;
 
 private:
-#if UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER
-	void ClearUAVWithBlitEncoder(FRHIUnorderedAccessView* UnorderedAccessViewRHI, EMetalRHIClearUAVType Type, uint32 Pattern);
-#endif // UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER
-	void ClearUAV(TRHICommandList_RecursiveHazardous<FMetalRHICommandContext>& RHICmdList, FMetalUnorderedAccessView* UnorderedAccessView, const void* ClearValue, bool bFloat);
-
 	void RHIClearMRT(bool bClearColor, int32 NumClearColors, const FLinearColor* ColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil);
-};
-
-class FMetalRHIComputeContext : public FMetalRHICommandContext
-{
-public:
-	FMetalRHIComputeContext(class FMetalProfiler* InProfiler, FMetalContext* WrapContext);
-	virtual ~FMetalRHIComputeContext();
-	
-	virtual void RHISetAsyncComputeBudget(EAsyncComputeBudget Budget) final override;
-	virtual void RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState) final override;
-	virtual void RHISubmitCommandsHint() final override;
 };
 
 class FMetalRHIImmediateCommandContext : public FMetalRHICommandContext
 {
 public:
-	FMetalRHIImmediateCommandContext(class FMetalProfiler* InProfiler, FMetalContext* WrapContext);
+	FMetalRHIImmediateCommandContext(class FMetalProfiler* InProfiler, FMetalDeviceContext* WrapContext);
 
 	// FRHICommandContext API accessible only on the immediate device context
 	virtual void RHIBeginDrawingViewport(FRHIViewport* Viewport, FRHITexture* RenderTargetRHI) final override;

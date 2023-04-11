@@ -234,13 +234,11 @@ void BuildMetalShaderOutput(
 	uint32 Version,
 	TCHAR const* Standard,
 	TCHAR const* MinOSVersion,
-	EMetalTypeBufferMode TypeMode,
 	TArray<FShaderCompilerError>& OutErrors,
 	uint32 TypedBuffers,
 	uint32 InvariantBuffers,
 	uint32 TypedUAVs,
 	uint32 ConstantBuffers,
-	TArray<uint8> const& TypedBufferFormats,
 	bool bAllowFastIntriniscs
 	)
 {
@@ -293,35 +291,7 @@ void BuildMetalShaderOutput(
 	Header.SourceCRC = SourceCRC;
 	Header.Bindings.bDiscards = false;
 	Header.Bindings.ConstantBuffers = ConstantBuffers;
-	{
-		Header.Bindings.TypedBuffers = TypedBuffers;
-		for (uint32 i = 0; i < (uint32)TypedBufferFormats.Num(); i++)
-		{
-			if ((TypedBuffers & (1 << i)) != 0)
-			{
-				check(TypedBufferFormats[i] > (uint8)EMetalBufferFormat::Unknown);
-				check(TypedBufferFormats[i] < (uint8)EMetalBufferFormat::Max);
-				if ((TypeMode > EMetalTypeBufferModeRaw)
-					&& (TypeMode <= EMetalTypeBufferModeTB)
-					&& (TypedBufferFormats[i] < (uint8)EMetalBufferFormat::RGB8Sint || TypedBufferFormats[i] > (uint8)EMetalBufferFormat::RGB32Float)
-					&& (TypeMode == EMetalTypeBufferMode2D || TypeMode == EMetalTypeBufferModeTB || !(TypedUAVs & (1 << i))))
-				{
-					Header.Bindings.LinearBuffer |= (1 << i);
-					Header.Bindings.TypedBuffers &= ~(1 << i);
-				}
-			}
-		}
-		
-		Header.Bindings.LinearBuffer = Header.Bindings.TypedBuffers;
-		Header.Bindings.TypedBuffers = 0;
-		
-		// Raw mode means all buffers are invariant
-		if (TypeMode == EMetalTypeBufferModeRaw)
-		{
-			Header.Bindings.TypedBuffers = 0;
-		}
-	}
-	
+    
 	FShaderParameterMap& ParameterMap = ShaderOutput.ParameterMap;
 
 	TBitArray<> UsedUniformBufferSlots;
@@ -866,10 +836,8 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 
 	AdditionalDefines.SetDefine(TEXT("COMPILER_HLSLCC"), 2);
 	
-	EMetalTypeBufferMode TypeMode = EMetalTypeBufferModeRaw;
 	FString MinOSVersion;
 	FString StandardVersion;
-    TypeMode = EMetalTypeBufferModeTB;
 	switch(VersionEnum)
 	{
     case 8:
@@ -1094,7 +1062,7 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 		FSHA1::HashBuffer(&Guid, sizeof(FGuid), GUIDHash.Hash);
 	}
 
-	bool bCompiled = DoCompileMetalShader(Input, Output, WorkingDirectory, PreprocessedShader, GUIDHash, VersionEnum, CCFlags, Semantics, TypeMode, MaxUnrollLoops, Frequency, bDumpDebugInfo, Standard, MinOSVersion);
+	bool bCompiled = DoCompileMetalShader(Input, Output, WorkingDirectory, PreprocessedShader, GUIDHash, VersionEnum, CCFlags, Semantics, MaxUnrollLoops, Frequency, bDumpDebugInfo, Standard, MinOSVersion);
 	if (bCompiled && Output.bSucceeded)
 	{
 

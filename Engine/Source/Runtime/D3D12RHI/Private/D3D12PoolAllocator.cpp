@@ -520,7 +520,7 @@ void FD3D12PoolAllocator::DeallocateResource(FD3D12ResourceLocation& ResourceLoc
 	}
 
 	int16 PoolIndex = AllocationData.GetPoolIndex();
-	FRHIPoolAllocationData* ReleasedAllocationData = (AllocationDataPool.Num() > 0) ? AllocationDataPool.Pop(false) : new FRHIPoolAllocationData();;
+	FRHIPoolAllocationData* ReleasedAllocationData = (AllocationDataPool.Num() > 0) ? AllocationDataPool.Pop(false) : new FRHIPoolAllocationData();
 	bool bLocked = true;
 	ReleasedAllocationData->MoveFrom(AllocationData, bLocked);
 
@@ -761,52 +761,6 @@ void FD3D12PoolAllocator::TransferOwnership(FD3D12ResourceLocation& InSource, FD
 	DestinationPoolData.MoveFrom(InSource.GetPoolAllocatorPrivateData().PoolData, bLocked);
 	DestinationPoolData.SetOwner(&InDest);
 }
-
-
-void FD3D12PoolAllocator::Swap(FD3D12ResourceLocation& InLHS, FD3D12ResourceLocation& InRHS)
-{
-	FScopeLock Lock(&CS);
-
-	check(IsOwner(InLHS) && IsOwner(InRHS));
-
-	FRHIPoolAllocationData& LHSPoolData = InLHS.GetPoolAllocatorPrivateData().PoolData;
-	FRHIPoolAllocationData& RHSPoolData = InRHS.GetPoolAllocatorPrivateData().PoolData;
-
-	// If locked then assume the block is currently being defragged and then the frame fenced operation
-	// also needs to be updated
-	if (LHSPoolData.IsLocked() || RHSPoolData.IsLocked())
-	{
-		int32 bFoundRequired = 0;
-		bFoundRequired += LHSPoolData.IsLocked() ? 1 : 0;
-		bFoundRequired += RHSPoolData.IsLocked() ? 1 : 0;
-		for (FrameFencedAllocationData& Operation : FrameFencedOperations)
-		{
-			if (Operation.AllocationData == &LHSPoolData || Operation.AllocationData == &RHSPoolData)
-			{
-				check(Operation.Operation == FrameFencedAllocationData::EOperation::Unlock);
-				Operation.AllocationData = Operation.AllocationData == &LHSPoolData ? &RHSPoolData : &LHSPoolData;
-				bFoundRequired--;
-				if (bFoundRequired == 0)
-				{
-					break;
-				}
-			}
-		}
-		check(bFoundRequired == 0);
-	}
-
-	// Perform swap with data & locking state but keep ownership
-	FRHIPoolAllocationData TmpAllocationData = LHSPoolData;
-	bool TmpIsLocked = LHSPoolData.IsLocked();
-	FRHIPoolResource* TmpOwnerLHS = LHSPoolData.GetOwner();
-	FRHIPoolResource* TmpOwnerRHS = RHSPoolData.GetOwner();
-
-	LHSPoolData.MoveFrom(RHSPoolData, RHSPoolData.IsLocked());
-	LHSPoolData.SetOwner(TmpOwnerLHS);
-	RHSPoolData.MoveFrom(TmpAllocationData, TmpIsLocked);
-	RHSPoolData.SetOwner(TmpOwnerRHS);
-}
-
 
 FD3D12Resource* FD3D12PoolAllocator::GetBackingResource(FD3D12ResourceLocation& InResourceLocation) const
 {

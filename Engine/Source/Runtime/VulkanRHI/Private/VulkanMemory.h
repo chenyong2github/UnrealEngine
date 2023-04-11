@@ -202,50 +202,21 @@ namespace VulkanRHI
 	class FDeviceChild
 	{
 	public:
-		FDeviceChild(FVulkanDevice* InDevice = nullptr) :
-			Device(InDevice)
-		{
-		}
+		FDeviceChild(FVulkanDevice* InDevice)
+			: Device(InDevice)
+		{}
 
-		inline FVulkanDevice* GetParent() const
+		FVulkanDevice* GetParent() const
 		{
 			// Has to have one if we are asking for it...
 			check(Device);
 			return Device;
 		}
 
-		inline void SetParent(FVulkanDevice* InDevice)
-		{
-			check(!Device);
-			Device = InDevice;
-		}
-
 	protected:
-		FVulkanDevice* Device;
+		FVulkanDevice* const Device;
 	};
 
-
-	class FVulkanViewBase : public FDeviceChild
-	{
-	public:
-		virtual ~FVulkanViewBase()
-		{
-			check(NextView == 0);
-		}
-
-		FVulkanViewBase(FVulkanDevice* Device = nullptr)
-		: FDeviceChild(Device)
-		, NextView(0)
-		{
-		}
-
-		virtual void Invalidate() {}
-		FVulkanViewBase* NextView;
-
-	protected:
-		void FreeBindlessHandle();
-		FRHIDescriptorHandle BindlessHandle;
-	};
 	// An Allocation off a Device Heap. Lowest level of allocations and bounded by VkPhysicalDeviceLimits::maxMemoryAllocationCount.
 	class FDeviceMemoryAllocation
 	{
