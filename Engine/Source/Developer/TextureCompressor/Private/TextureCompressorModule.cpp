@@ -3657,8 +3657,6 @@ private:
 				check(SourceImage.GetBytesPerPixel() == sizeof(FLinearColor));
 				check(TargetImage.GetBytesPerPixel() == sizeof(FLinearColor));
 
-				const int32 SourceBytesPerLine = SourceImage.SizeX * SourceImage.GetBytesPerPixel();
-				const int32 DestBytesPerLine = TargetImage.SizeX * TargetImage.GetBytesPerPixel();
 				for (int32 SliceIndex = 0; SliceIndex < SourceImage.NumSlices; ++SliceIndex)
 				{
 					for (int32 Y = 0; Y < TargetTextureSizeY; ++Y)

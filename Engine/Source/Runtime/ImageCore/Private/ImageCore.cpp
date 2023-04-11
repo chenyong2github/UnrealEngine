@@ -1190,9 +1190,9 @@ IMAGECORE_API const TCHAR * ERawImageFormat::GetName(Type Format)
 	}
 }
 
-IMAGECORE_API int32 ERawImageFormat::GetBytesPerPixel(Type Format)
+IMAGECORE_API int64 ERawImageFormat::GetBytesPerPixel(Type Format)
 {
-	int32 BytesPerPixel = 0;
+	int64 BytesPerPixel = 0;
 	switch (Format)
 	{
 	case ERawImageFormat::G8:

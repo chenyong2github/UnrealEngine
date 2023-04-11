@@ -280,7 +280,7 @@ public:
 	 * @return Image width.
 	 * @see GetHeight
 	 */
-	virtual int32 GetWidth() const = 0;
+	virtual int64 GetWidth() const = 0;
 
 	/** 
 	 * Gets the height of the image.
@@ -288,7 +288,7 @@ public:
 	 * @return Image height.
 	 * @see GetWidth
 	 */
-	virtual int32 GetHeight() const = 0;
+	virtual int64 GetHeight() const = 0;
 
 	/** 
 	 * Gets the bit depth of the image.
@@ -327,7 +327,7 @@ public:
 	IMAGEWRAPPER_API static void ConvertRawImageFormat(ERawImageFormat::Type RawFormat, ERGBFormat & OutFormat,int & OutBitDepth);
 	IMAGEWRAPPER_API static ERawImageFormat::Type ConvertRGBFormat(ERGBFormat RGBFormat,int BitDepth,bool * bIsExactMatch = nullptr);
 	
-	IMAGEWRAPPER_API static int GetRGBFormatBytesPerPel(ERGBFormat RGBFormat,int BitDepth);
+	IMAGEWRAPPER_API static int64 GetRGBFormatBytesPerPel(ERGBFormat RGBFormat,int BitDepth);
 
 	/* get the current image format, mapped to an ERawImageFormat
 	 * if ! *bIsExactMatch , conversion is needed

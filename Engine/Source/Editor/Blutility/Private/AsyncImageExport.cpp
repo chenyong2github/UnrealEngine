@@ -92,25 +92,25 @@ void UAsyncImageExport::Activate()
 
 		check( TextureSource.IsValid() );
 
-		// todo : should use GetMipImage instead of GetMipData
+		// todo : should use GetMipImage instead of GetMipData ; use FImage and FImageUtils for image export
 		TArray64<uint8> TextureRawData;
 		verify( TextureSource.GetMipData(TextureRawData, 0) );
 
-		const int32 BytesPerPixel = TextureSource.GetBytesPerPixel();
+		const int64 BytesPerPixel = TextureSource.GetBytesPerPixel();
 		const ETextureSourceFormat SourceFormat = TextureSource.GetFormat();
 
-		const int32 Width = TextureSource.GetSizeX();
-		const int32 Height = TextureSource.GetSizeY();
+		const int64 Width = TextureSource.GetSizeX();
+		const int64 Height = TextureSource.GetSizeY();
 
 		TArray<FColor> OutPixels;
 		OutPixels.SetNumZeroed(Width * Height);
 
 		FColor Color(0, 0, 0, 0);
-		for (int Y = 0; Y < Height; ++Y)
+		for (int64 Y = 0; Y < Height; ++Y)
 		{
-			for (int X = 0; X < Width; ++X)
+			for (int64 X = 0; X < Width; ++X)
 			{
-				const int32 PixelByteOffset = (X + Y * Width) * BytesPerPixel;
+				const int64 PixelByteOffset = (X + Y * Width) * BytesPerPixel;
 				const uint8* PixelPtr = TextureRawData.GetData() + PixelByteOffset;
 
 				switch (SourceFormat)

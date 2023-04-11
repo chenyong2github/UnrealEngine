@@ -233,12 +233,12 @@ bool FHdrImageWrapper::GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArra
 	return true;
 }
 
-int32 FHdrImageWrapper::GetWidth() const
+int64 FHdrImageWrapper::GetWidth() const
 {
 	return Width;
 }
 
-int32 FHdrImageWrapper::GetHeight() const
+int64 FHdrImageWrapper::GetHeight() const
 {
 	return Height;
 }

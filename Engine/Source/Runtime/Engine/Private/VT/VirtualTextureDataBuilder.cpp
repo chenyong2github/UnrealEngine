@@ -34,8 +34,8 @@ static TAutoConsoleVariable<int32> CVarVTParallelTileCompression(
 struct FPixelDataRectangle
 {
 	ETextureSourceFormat Format;
-	int32 Width;
-	int32 Height;
+	int64 Width;
+	int64 Height;
 	uint8 *Data;
 
 	FPixelDataRectangle(ETextureSourceFormat SetFormat, int32 SetWidth, int32 SetHeight, uint8* SetData) :
@@ -55,9 +55,9 @@ struct FPixelDataRectangle
 		checkf(DestX >= 0 && DestX < Width, TEXT("Destination location out of bounds"));
 		checkf(DestY >= 0 && DestY < Height, TEXT("Destination location out of bounds"));
 
-		int32 PixelSize = FTextureSource::GetBytesPerPixel(Source.Format);
-		int32 SrcScanlineSize = Source.Width * PixelSize;
-		int32 DstScanlineSize = Width * PixelSize;
+		int64 PixelSize = FTextureSource::GetBytesPerPixel(Source.Format);
+		int64 SrcScanlineSize = Source.Width * PixelSize;
+		int64 DstScanlineSize = Width * PixelSize;
 
 		// Handle source position having negative coordinates in source image
 		if (SourceX < 0)
@@ -83,7 +83,7 @@ struct FPixelDataRectangle
 		// Copy the data a scan line at a time
 
 		uint8 *DstScanline = Data + DestX * PixelSize + DestY * DstScanlineSize;
-		const uint8 *SrcScanline = Source.Data + SourceX * PixelSize + (SIZE_T)SourceY * (SIZE_T)SrcScanlineSize;
+		const uint8 *SrcScanline = Source.Data + SourceX * PixelSize + SourceY * SrcScanlineSize;
 
 		for (int Y = 0; Y < ClampedHeight; Y++)
 		{
@@ -97,15 +97,23 @@ struct FPixelDataRectangle
 	{
 		switch (Mode)
 		{
-		case TA_Wrap:
-			return (x % Width + Width) % Width; // Make sure it's a proper module for negative numbers ....
-		case TA_Clamp:
-			return FMath::Max(FMath::Min(x, Width-1), 0);
-		case TA_Mirror:
-			int32 DoubleWidth = Width + Width;
-			int32 DoubleWrap = (x % DoubleWidth + DoubleWidth) % DoubleWidth;
-			return (DoubleWrap < Width) ? DoubleWrap : (Width-1) - (DoubleWrap - Width);
+			case TA_Wrap:
+			{
+				// Make sure it's a proper module for negative numbers ....
+				int x_Wrap = x % Width;
+				return x_Wrap + ((x_Wrap < 0) ? Width : 0);
+			}
+			case TA_Clamp:
+				return FMath::Max(FMath::Min(x, Width-1), 0);
+			case TA_Mirror:
+			{
+				int32 DoubleWidth = Width + Width;
+				int32 DoubleWrap = x % DoubleWidth;
+				DoubleWrap += ((DoubleWrap < 0) ? DoubleWidth : 0);
+				return (DoubleWrap < Width) ? DoubleWrap : ((Width-1) - (DoubleWrap - Width));
+			}
 		}
+		check(0);
 		return x;
 	}
 
@@ -122,7 +130,7 @@ struct FPixelDataRectangle
 		// Fast copy of regular pixels
 		CopyRectangle(DestX, DestY, Source, SourceX, SourceY, RectWidth, RectHeight);
 
-		size_t pixelSize = FTextureSource::GetBytesPerPixel(Format);
+		int64 pixelSize = FTextureSource::GetBytesPerPixel(Format);
 
 		// Special case the out of bounds pixels loop over all oob pixels and get the properly adjusted values
 		if (SourceX < 0 ||
@@ -183,13 +191,13 @@ struct FPixelDataRectangle
 		FMemory::Memzero(Data, FTextureSource::GetBytesPerPixel(Format) * Width * Height);
 	}
 
-	inline void SetPixel(int32 x, int32 y, void *Value, size_t PixelSize)
+	inline void SetPixel(int32 x, int32 y, void *Value, int64 PixelSize)
 	{
 		void *DestPixelData = GetPixel(x, y, PixelSize);
 		FMemory::Memcpy(DestPixelData, Value, PixelSize);
 	}
 
-	inline void *GetPixel(int32 x, int32 y, size_t PixelSize) const
+	inline void *GetPixel(int32 x, int32 y, int64 PixelSize) const
 	{
 		check(x >= 0);
 		check(y >= 0);
@@ -682,7 +690,6 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 
 			CompressedFormat = (EPixelFormat)CompressedMip[0].PixelFormat;
 
-			const uint32 SizeRaw = CompressedMip[0].RawData.Num() * CompressedMip[0].RawData.GetTypeSize();
 			GeneratedData.TilePayload[TileIndex] = MoveTemp(CompressedMip[0].RawData);
 
 			// if the SourceBlocks we used has no more tiles that need to read from it, free it now?
@@ -727,7 +734,7 @@ void FVirtualTextureDataBuilder::PushDataToChunk(const TArray<FVTSourceTileEntry
 {
 	const int32 NumLayers = SourceLayers.Num();
 
-	uint32 TotalSize = sizeof(FVirtualTextureChunkHeader);
+	int64 TotalSize = sizeof(FVirtualTextureChunkHeader);
 	for (int32 Layer = 0; Layer < NumLayers; ++Layer)
 	{
 		TotalSize += LayerData[Layer].CodecPayload.Num();
@@ -737,12 +744,15 @@ void FVirtualTextureDataBuilder::PushDataToChunk(const TArray<FVTSourceTileEntry
 		}
 	}
 
+	// Built VT data structures use uint32 :
+	check(TotalSize <= MAX_uint32 );
+
 	FVirtualTextureDataChunk& Chunk = OutData.Chunks.AddDefaulted_GetRef();
 	Chunk.SizeInBytes = TotalSize;
 	FByteBulkData& BulkData = Chunk.BulkData;
 	BulkData.Lock(LOCK_READ_WRITE);
 	uint8* NewChunkData = (uint8*)BulkData.Realloc(TotalSize);
-	uint32 ChunkOffset = 0u;
+	int64 ChunkOffset = 0u;
 
 	// Header for the chunk
 	FVirtualTextureChunkHeader* Header = (FVirtualTextureChunkHeader*)NewChunkData;

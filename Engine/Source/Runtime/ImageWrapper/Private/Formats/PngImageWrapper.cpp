@@ -378,7 +378,7 @@ void FPngImageWrapper::UncompressPNGData(const ERGBFormat InFormat, const int32 
 				png_set_palette_to_rgb(png_ptr);
 			}
 
-			// really we should just call png_expand() here and remove all these conditionals
+			// @todo Oodle: really we should just call png_expand() here and remove all these conditionals
 
 			if (((ColorType & PNG_COLOR_MASK_COLOR) == 0) && BitDepth < 8)
 			{
@@ -428,6 +428,10 @@ void FPngImageWrapper::UncompressPNGData(const ERGBFormat InFormat, const int32 
 				Transform |= PNG_TRANSFORM_SWAP_ENDIAN;
 			}
 #endif
+
+			// @todo Oodle : remove all these conversions
+			//	ImageWrappers should load images as they are in the file
+			//	FImage does conversions after loading
 
 			// Convert grayscale png to RGB if requested
 			if ((ColorType & PNG_COLOR_MASK_COLOR) == 0 &&

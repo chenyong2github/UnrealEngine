@@ -153,7 +153,7 @@ bool FImageWrapperBase::SetRaw(const void* InRawData, int64 InRawSize, const int
 }
 
 
-int IImageWrapper::GetRGBFormatBytesPerPel(ERGBFormat RGBFormat,int BitDepth)
+int64 IImageWrapper::GetRGBFormatBytesPerPel(ERGBFormat RGBFormat,int BitDepth)
 {
 	switch(RGBFormat)
 	{

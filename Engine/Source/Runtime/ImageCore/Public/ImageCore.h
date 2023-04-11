@@ -62,7 +62,7 @@ namespace ERawImageFormat
 	// RGBA -> G8 takes from the  *R* channel
 	// G8 -> RGBA replicated to gray
  
-	IMAGECORE_API int32 GetBytesPerPixel(Type Format);
+	IMAGECORE_API int64 GetBytesPerPixel(Type Format);
 	
 	IMAGECORE_API const TCHAR * GetName(Type Format);
 	
@@ -161,7 +161,7 @@ struct FImageInfo
 	 *
 	 * @return Bytes per pixel.
 	 */
-	FORCEINLINE int32 GetBytesPerPixel() const
+	FORCEINLINE int64 GetBytesPerPixel() const
 	{
 		return ERawImageFormat::GetBytesPerPixel(Format);
 	}
@@ -186,8 +186,8 @@ struct FImageInfo
 		return GetSliceNumPixels() * GetBytesPerPixel();
 	}
 	
-	FORCEINLINE int32 GetWidth()  const { return SizeX; }
-	FORCEINLINE int32 GetHeight() const { return SizeY; }
+	FORCEINLINE int64 GetWidth()  const { return SizeX; }
+	FORCEINLINE int64 GetHeight() const { return SizeY; }
 	
 	FORCEINLINE EGammaSpace GetGammaSpace() const
 	{

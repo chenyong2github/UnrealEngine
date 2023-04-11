@@ -3222,7 +3222,7 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, int64 Length, FFeedbackCo
 
 UTexture* UTextureFactory::ImportTextureUDIM(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, const TCHAR* Type, const TMap<int32, FString>& UDIMIndexToFile, FFeedbackContext* Warn)
 {
-	TArray<uint8> TextureData;
+	TArray64<uint8> TextureData;
 	TArray<FImportImage> SourceImages;
 	TArray<FTextureSourceBlock> SourceBlocks;
 	TArray<FString> SourceFileNames;
@@ -3792,7 +3792,7 @@ UObject* UTextureFactory::FactoryCreateBinary
 	UObject*			Context,
 	const TCHAR*		Type,
 	const uint8*&		Buffer,
-	const uint8*			BufferEnd,
+	const uint8*		BufferEnd,
 	FFeedbackContext*	Warn
 )
 {
@@ -4486,11 +4486,11 @@ void UTextureFactory::ApplyAutoImportSettings(UTexture* Texture)
 
 bool UTextureFactory::IsImportResolutionValid(int64 Width, int64 Height, bool bAllowNonPowerOfTwo, FFeedbackContext* Warn)
 {
+	// code dupe to:
+	//UE::Interchange::FImportImageHelper::IsImportResolutionValid
+
 	static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures")); check(CVarVirtualTexturesEnabled);
 
-	// VT res is currently limited by pixel count fitting in int32
-	const int64 MaximumSupportedVirtualTextureResolution = 32768;
-	
 	// Get the non-VT size limit :
 	int64 MaximumSupportedResolutionNonVT = (int64)UTexture::GetMaximumDimensionOfNonVT();
 	
@@ -4503,10 +4503,7 @@ bool UTextureFactory::IsImportResolutionValid(int64 Width, int64 Height, bool bA
 	// No zero-size textures :
 	if (Width == 0 || Height == 0 )
 	{
-		Warn->Log(ELogVerbosity::Error, *FText::Format(
-			NSLOCTEXT("UnrealEd", "Warning_TextureSizeZero", "Texture has zero width or height"),
-			FText::AsNumber(FMath::Square(MaximumSupportedVirtualTextureResolution))
-			).ToString());
+		Warn->Log(ELogVerbosity::Error, NSLOCTEXT("UnrealEd", "Warning_TextureSizeZero", "Texture has zero width or height").ToString());
 
 		return false;
 	}
@@ -4515,42 +4512,15 @@ bool UTextureFactory::IsImportResolutionValid(int64 Width, int64 Height, bool bA
 	//  could be negative here if it was over 2G and int32 was used earlier
 	if (Width < 0 || Height < 0 || Width > MAX_int32 || Height > MAX_int32)
 	{
-		Warn->Log(ELogVerbosity::Error, *FText::Format(
-			NSLOCTEXT("UnrealEd", "Warning_TextureSizeTooLargeOrInvalid", "Texture is too large to import or it has an invalid resolution. The current maximum is {0} pixels"),
-			FText::AsNumber(FMath::Square(MaximumSupportedVirtualTextureResolution))
-			).ToString());
+		Warn->Log(ELogVerbosity::Error, NSLOCTEXT("UnrealEd", "Warning_TextureSizeTooLargeOrInvalid", "Texture is has an invalid resolution.").ToString());
 
 		return false;
 	}
-
-	// pixel count must fit in int32 :
-	//  mip surface could still be larger than 2 GB, that's allowed
-	//	eg. 16k RGBA float = 4 GB
-	if ( Width * Height > MAX_int32)
-	{
-		Warn->Log(ELogVerbosity::Error, *FText::Format(
-			NSLOCTEXT("UnrealEd", "Warning_TextureSizeTooLargeOrInvalid", "Texture is too large to import or it has an invalid resolution. The current maximum is {0} pixels"),
-			FText::AsNumber(FMath::Square(MaximumSupportedVirtualTextureResolution))
-			).ToString());
-
-		return false;
-	}
-	
-	if ( (Width * Height) > FMath::Square(MaximumSupportedVirtualTextureResolution))
-	{
-		Warn->Log(ELogVerbosity::Error, *FText::Format(
-			NSLOCTEXT("UnrealEd", "Warning_TextureSizeTooLargeOrInvalid", "Texture is too large to import or it has an invalid resolution. The current maximum is {0} pixels"),
-			FText::AsNumber(FMath::Square(MaximumSupportedVirtualTextureResolution))
-			).ToString());
-
-		return false;
-	}
-
+		
 	if ( Width > MaximumSupportedResolutionNonVT || Height > MaximumSupportedResolutionNonVT )
 	{
 
 		// we're larger than MaximumSupportedResolution
-		// but not larger than MaximumSupportedVirtualTextureResolution
 		// so this texture can still work, but only as VT
 		// prompt about this :
 

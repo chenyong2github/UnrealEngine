@@ -259,11 +259,14 @@ void FJpegImageWrapper::Uncompress(const ERGBFormat InFormat, int32 InBitDepth)
 	check(CompressedData.Num());
 
 	int32 NumColors;
+	int32 jpegWidth,jpegHeight;
 	uint8* OutData = jpgd::decompress_jpeg_image_from_memory(
-		CompressedData.GetData(), CompressedData.Num(), &Width, &Height, &NumColors, Channels, (int)InFormat);
+		CompressedData.GetData(), CompressedData.Num(), &jpegWidth, &jpegHeight, &NumColors, Channels, (int)InFormat);
 
 	if (OutData)
 	{
+		Width = jpegWidth;
+		Height = jpegHeight;
 		RawData.Reset(Width * Height * Channels);
 		RawData.AddUninitialized(Width * Height * Channels);
 		FMemory::Memcpy(RawData.GetData(), OutData, RawData.Num());

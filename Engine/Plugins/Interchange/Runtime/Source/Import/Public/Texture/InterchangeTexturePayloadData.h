@@ -58,7 +58,7 @@ namespace UE
 			 *
 			 * @return bool true if the given height/width represent a supported texture resolution, false if not
 			 */
-			static bool IsImportResolutionValid(int32 Width, int32 Height, bool bAllowNonPowerOfTwo, FText* OutErrorMessage = nullptr);
+			static bool IsImportResolutionValid(int64 Width, int64 Height, bool bAllowNonPowerOfTwo, FText* OutErrorMessage = nullptr);
 		};
 	}//ns Interchange
 }//ns UE

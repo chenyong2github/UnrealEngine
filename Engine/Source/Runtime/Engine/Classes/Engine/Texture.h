@@ -91,7 +91,7 @@ struct FTextureSource
 	ENGINE_API FTextureSource();
 
 	// should match ERawImageFormat::GetBytesPerPixel
-	ENGINE_API static int32 GetBytesPerPixel(ETextureSourceFormat Format);
+	ENGINE_API static int64 GetBytesPerPixel(ETextureSourceFormat Format);
 	// should match ERawImageFormat::IsHDR
 	FORCEINLINE static bool IsHDR(ETextureSourceFormat Format) { return UE::TextureDefines::IsHDR(Format); }
 	
@@ -293,7 +293,7 @@ struct FTextureSource
 	ENGINE_API int64 CalcMipSize(int32 BlockIndex, int32 LayerIndex, int32 MipIndex) const;
 
 	/** Computes the number of bytes per-pixel. */
-	ENGINE_API int32 GetBytesPerPixel(int32 LayerIndex = 0) const;
+	ENGINE_API int64 GetBytesPerPixel(int32 LayerIndex = 0) const;
 
 	/** Return true if the source XY size is power-of-2.  Does not check Z size for volumes.  */
 	ENGINE_API bool IsPowerOfTwo(int32 BlockIndex = 0) const;

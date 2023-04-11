@@ -1772,7 +1772,7 @@ FTextureSourceBlock::FTextureSourceBlock()
 {
 }
 
-int32 FTextureSource::GetBytesPerPixel(ETextureSourceFormat Format)
+int64 FTextureSource::GetBytesPerPixel(ETextureSourceFormat Format)
 {
 	ERawImageFormat::Type RawFormat = FImageCoreUtils::ConvertToRawImageFormat(Format);
 	return ERawImageFormat::GetBytesPerPixel(RawFormat);
@@ -2474,7 +2474,7 @@ int64 FTextureSource::CalcMipSize(int32 BlockIndex, int32 LayerIndex, int32 MipI
 	return MipSizeX * MipSizeY * MipSlices * BytesPerPixel;
 }
 
-int32 FTextureSource::GetBytesPerPixel(int32 LayerIndex) const
+int64 FTextureSource::GetBytesPerPixel(int32 LayerIndex) const
 {
 	return GetBytesPerPixel(GetFormat(LayerIndex));
 }

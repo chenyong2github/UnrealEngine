@@ -30,8 +30,8 @@ public:
 	virtual bool CanSetRawFormat(const ERGBFormat InFormat, const int32 InBitDepth) const override;
 	virtual ERawImageFormat::Type GetSupportedRawFormat(const ERawImageFormat::Type InFormat) const override;
 
-	virtual int32 GetWidth() const override;
-	virtual int32 GetHeight() const override;
+	virtual int64 GetWidth() const override;
+	virtual int64 GetHeight() const override;
 	virtual int32 GetBitDepth() const override;
 	virtual ERGBFormat GetFormat() const override;
 
@@ -72,9 +72,9 @@ private:
 	TArray64<uint8> RawDataHolder;
 
 	/** INDEX_NONE if not valid */
-	int32 Width = INDEX_NONE;
+	int64 Width = INDEX_NONE;
 	/** INDEX_NONE if not valid */
-	int32 Height = INDEX_NONE;
+	int64 Height = INDEX_NONE;
 
 	// Reported error
 	FText ErrorMessage;

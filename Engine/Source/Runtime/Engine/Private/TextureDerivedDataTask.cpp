@@ -945,7 +945,7 @@ static int64 GetBuildRequiredMemoryEstimate(UTexture* InTexture,
 			
 			ERawImageFormat::Type IntermediateImageFormat = UE::TextureBuildUtilities::GetVirtualTextureBuildIntermediateFormat(BuildSettings);
 
-			int IntermediateBytesPerPixel = ERawImageFormat::GetBytesPerPixel(IntermediateImageFormat);
+			int64 IntermediateBytesPerPixel = ERawImageFormat::GetBytesPerPixel(IntermediateImageFormat);
 
 			VTIntermediateSizeBytes += TotalPixelsPerLayer * IntermediateBytesPerPixel;
 
