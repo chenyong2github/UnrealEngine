@@ -1008,6 +1008,15 @@ void FPCGGraphExecutor::BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollec
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGraphExecutor::BuildTaskInput);
 
+	auto LogDiscardedData = [&Task](const UPCGPin* InPin)
+	{
+		// Log only - currently context has not yet been allocated when this is called
+		UE_LOG(LogPCG, Warning, TEXT("[%s] %s - BuildTaskInput - too many data items arriving on single data pin '%s', only first data item will be used"),
+			(Task.SourceComponent.Get() && Task.SourceComponent->GetOwner()) ? *Task.SourceComponent->GetOwner()->GetName() : TEXT("MissingComponent"),
+			Task.Node ? *Task.Node->GetNodeTitle().ToString() : TEXT("MissingNode"),
+			InPin ? *InPin->Properties.Label.ToString() : TEXT("MissingPin"));
+	};
+
 	// Initialize a Crc onto which each input Crc will be combined.
 	FPCGCrc Crc(Task.Inputs.Num());
 
@@ -1021,6 +1030,15 @@ void FPCGGraphExecutor::BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollec
 			continue;
 		}
 
+		const bool bAllowMultipleData = Input.OutPin ? Input.OutPin->Properties.bAllowMultipleData : true;
+
+		// Enforce single data - if already have input for this pin, don't add more. Early check before other side effects below.
+		if (Input.OutPin && !bAllowMultipleData && TaskInput.GetInputCountByPin(Input.OutPin->Properties.Label) > 0)
+		{
+			LogDiscardedData(Input.OutPin);
+			continue;
+		}
+
 		const FPCGDataCollection& InputCollection = OutputData[Input.TaskId];
 
 		TaskInput.bCancelExecution |= InputCollection.bCancelExecution;
@@ -1029,7 +1047,17 @@ void FPCGGraphExecutor::BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollec
 		const int32 TaggedDataOffset = TaskInput.TaggedData.Num();
 		if (Input.InPin)
 		{
-			TaskInput.TaggedData.Append(InputCollection.GetInputsByPin(Input.InPin->Properties.Label));
+			// Proceed carefully when adding data items - if pin is single-data, only add first item.
+			TArray<FPCGTaggedData> InputsOnPin = InputCollection.GetInputsByPin(Input.InPin->Properties.Label);
+			if (InputsOnPin.Num() > 1 && !bAllowMultipleData)
+			{
+				LogDiscardedData(Input.OutPin);
+				TaskInput.TaggedData.Add(InputsOnPin[0]);
+			}
+			else
+			{
+				TaskInput.TaggedData.Append(InputsOnPin);
+			}
 
 			// Write input pin name Crc to uniquely identify inputs per-pin.
 			Crc.Combine(GetTypeHash(Input.OutPin ? Input.OutPin->Properties.Label : FName(TEXT("MissingLabel"))));

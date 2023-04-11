@@ -46,7 +46,7 @@ bool FPCGProjectionElement::ExecuteInternal(FPCGContext* Context) const
 	TArray<FPCGTaggedData> Targets = Context->InputData.GetInputsByPin(PCGProjectionConstants::ProjectionTargetLabel);
 
 	// If there are no sources or no targets, then nothing to do.
-	if (Sources.Num() == 0 || Targets.Num() != 1)
+	if (Sources.Num() == 0 || Targets.Num() == 0)
 	{
 		return true;
 	}
