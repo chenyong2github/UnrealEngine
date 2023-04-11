@@ -49,7 +49,7 @@ namespace EpicGames.Horde.Compute
 
 		async Task RunAsync(IComputeSocket socket, int channelId, CancellationToken cancellationToken)
 		{
-			using (IComputeMessageChannel channel = socket.CreateMessageChannel(channelId, 4 * 1024 * 1024, _logger, cancellationToken))
+			using (IComputeMessageChannel channel = socket.CreateMessageChannel(channelId, 4 * 1024 * 1024, _logger))
 			{
 				await channel.SendReadyAsync(cancellationToken);
 

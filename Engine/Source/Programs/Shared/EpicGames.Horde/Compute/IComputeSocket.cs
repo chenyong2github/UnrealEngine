@@ -73,9 +73,8 @@ namespace EpicGames.Horde.Compute
 		/// <param name="socket">Socket to create a channel for</param>
 		/// <param name="channelId">Identifier for the channel</param>
 		/// <param name="logger">Logger for the channel</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static IComputeMessageChannel CreateMessageChannel(this IComputeSocket socket, int channelId, ILogger logger, CancellationToken cancellationToken = default) 
-			=> socket.CreateMessageChannel(channelId, 65536, logger, cancellationToken);
+		public static IComputeMessageChannel CreateMessageChannel(this IComputeSocket socket, int channelId, ILogger logger) 
+			=> socket.CreateMessageChannel(channelId, 65536, logger);
 
 		/// <summary>
 		/// Creates a message channel with the given identifier
@@ -84,9 +83,8 @@ namespace EpicGames.Horde.Compute
 		/// <param name="channelId">Identifier for the channel</param>
 		/// <param name="bufferSize">Size of the send and receive buffer</param>
 		/// <param name="logger">Logger for the channel</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static IComputeMessageChannel CreateMessageChannel(this IComputeSocket socket, int channelId, int bufferSize, ILogger logger, CancellationToken cancellationToken = default)
-			=> socket.CreateMessageChannel(channelId, bufferSize, bufferSize, logger, cancellationToken);
+		public static IComputeMessageChannel CreateMessageChannel(this IComputeSocket socket, int channelId, int bufferSize, ILogger logger)
+			=> socket.CreateMessageChannel(channelId, bufferSize, bufferSize, logger);
 
 		/// <summary>
 		/// Creates a message channel with the given identifier
@@ -96,8 +94,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="sendBufferSize">Size of the send buffer</param>
 		/// <param name="recvBufferSize">Size of the recieve buffer</param>
 		/// <param name="logger">Logger for the channel</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static IComputeMessageChannel CreateMessageChannel(this IComputeSocket socket, int channelId, int sendBufferSize, int recvBufferSize, ILogger logger, CancellationToken cancellationToken = default)
+		public static IComputeMessageChannel CreateMessageChannel(this IComputeSocket socket, int channelId, int sendBufferSize, int recvBufferSize, ILogger logger)
 		{
 			PooledBuffer sendBuffer = new PooledBuffer(sendBufferSize);
 			PooledBuffer recvBuffer = new PooledBuffer(recvBufferSize);
