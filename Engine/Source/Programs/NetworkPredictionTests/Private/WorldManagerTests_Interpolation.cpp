@@ -49,7 +49,7 @@ private:
 };
 
 // This case includes a repro for UE-170936, disabled until it's fixed.
-TEST_CASE("NetworkPrediction interpolation mode, one simulated proxy", "[.][possession]")
+TEST_CASE("NetworkPrediction interpolation mode, one simulated proxy", "[possession]")
 {
 	UNetworkPredictionSettingsObject* Settings = NewObject<UNetworkPredictionSettingsObject>();
 	Settings->Settings.SimulatedProxyNetworkLOD = ENetworkLOD::Interpolated;

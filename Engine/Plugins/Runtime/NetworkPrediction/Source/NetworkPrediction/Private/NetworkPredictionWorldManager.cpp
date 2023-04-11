@@ -403,7 +403,7 @@ void UNetworkPredictionWorldManager::BeginNewSimulationFrame_Internal(float Delt
 	// -------------------------------------------------------------------------
 	if (Services.FixedInterpolate.Array.Num() > 0)
 	{
-		const int32 LatestRecvFrame = FixedTickState.Interpolation.LatestRecvFrameAP != INDEX_NONE ? FixedTickState.Interpolation.LatestRecvFrameAP : FixedTickState.Interpolation.LatestRecvFrameSP;
+		const int32 LatestRecvFrame = FMath::Max(FixedTickState.Interpolation.LatestRecvFrameAP, FixedTickState.Interpolation.LatestRecvFrameSP);
 		if (LatestRecvFrame != INDEX_NONE)
 		{
 			// We want 100ms of buffered time. As long a actors replicate at >= 10hz, this is should be good
