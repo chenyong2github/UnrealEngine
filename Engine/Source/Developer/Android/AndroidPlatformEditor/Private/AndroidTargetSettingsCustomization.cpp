@@ -268,6 +268,18 @@ void FAndroidTargetSettingsCustomization::BuildAppManifestSection(IDetailLayoutB
 	GooglePlayCategory.AddProperty(SupportAdMobProperty)
 		.EditCondition(SetupForGooglePlayAttribute, NULL);
 
+	TSharedRef<IPropertyHandle> AdMobAppIDProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, AdMobAppID));
+	GooglePlayCategory.AddProperty(AdMobAppIDProperty);
+
+	TSharedRef<IPropertyHandle> TagForChildDirectedTreatmentProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, TagForChildDirectedTreatment));
+	GooglePlayCategory.AddProperty(TagForChildDirectedTreatmentProperty);
+
+	TSharedRef<IPropertyHandle> TagForUnderAgeOfConsentProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, TagForUnderAgeOfConsent));
+	GooglePlayCategory.AddProperty(TagForUnderAgeOfConsentProperty);
+
+	TSharedRef<IPropertyHandle> MaxAdContentRatingProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, MaxAdContentRating));
+	GooglePlayCategory.AddProperty(MaxAdContentRatingProperty);
+
 	TSharedRef<IPropertyHandle> AdMobAdUnitIDProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UAndroidRuntimeSettings, AdMobAdUnitID));
 	AdMobAdUnitIDProperty->MarkHiddenByCustomization();
 

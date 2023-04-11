@@ -91,6 +91,43 @@ namespace EOculusMobileDevice
 	};
 }
 
+/** AdMob TagForChildDirectedTreament  */
+UENUM()
+namespace ETagForChildDirectedTreatment
+{
+	enum Type : int
+	{
+		TAG_FOR_CHILD_DIRECTED_TREATMENT_UNSPECIFIED = 0,
+		TAG_FOR_CHILD_DIRECTED_TREATMENT_TRUE = 1,
+		TAG_FOR_CHILD_DIRECTED_TREATMENT_FALSE = 2,
+	};
+}
+
+/** AdMob TagForChildDirectedTreament  */
+UENUM()
+namespace ETagForUnderAgeOfConsent
+{
+	enum Type : int
+	{
+		TAG_FOR_UNDER_AGE_OF_CONSENT_UNSPECIFIED = 0,
+		TAG_FOR_UNDER_AGE_OF_CONSENT_TRUE = 1,
+		TAG_FOR_UNDER_AGE_OF_CONSENT_FALSE = 2,
+	};
+}
+
+/** AdMob MaxAdContentRating  */
+UENUM()
+namespace EMaxAdContentRating
+{
+	enum Type : int
+	{
+		MAX_AD_CONTENT_RATING_G = 0,
+		MAX_AD_CONTENT_RATING_PG = 1,
+		MAX_AD_CONTENT_RATING_T = 2,
+		MAX_AD_CONTENT_RATING_MA = 2,
+	};
+}
+
 /**
  * Holds the game-specific achievement name and corresponding ID from Google Play services.
  */
@@ -448,6 +485,22 @@ public:
 	// Enabling this includes the AdMob SDK and will be detected by Google Play Console on upload of APK.  Disable if you do not need ads to remove this warning.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = GooglePlayServices, meta = (DisplayName = "Include AdMob support for ads"))
 	bool bSupportAdMob;
+
+	// AdMob Application ID
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = GooglePlayServices, meta = (DisplayName = "AdMob App ID"), meta = (EditCondition = "bSupportAdMob"), meta = (ToolTip = "AdMob Application ID (see https://support.google.com/admob/answer/7356431)"))
+	FString AdMobAppID;
+
+	// Admob TagForChildDirectedTreatment (see https://developers.google.com/admob/android/targeting)
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = GooglePlayServices, meta = (DisplayName = "AdMob Tag For Child-Directed Treatment"), meta = (EditCondition = "bSupportAdMob"), meta = (ToolTip = "Admob TagForChildDirectedTreatment (see https://developers.google.com/admob/android/targeting)"))
+	TEnumAsByte<ETagForChildDirectedTreatment::Type> TagForChildDirectedTreatment;
+
+	// Admob TagForUnderAgeOfConsent (see https://developers.google.com/admob/android/targeting)
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = GooglePlayServices, meta = (DisplayName = "AdMob Tag For Under Age Of Consent"), meta = (EditCondition = "bSupportAdMob"), meta = (ToolTip = "Admob TagForUnderAgeOfConsent (see https://developers.google.com/admob/android/targeting)"))
+	TEnumAsByte<ETagForUnderAgeOfConsent::Type> TagForUnderAgeOfConsent;
+
+	// Admob MaxAdContentRating (see https://developers.google.com/admob/android/targeting)
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = GooglePlayServices, meta = (DisplayName = "AdMob Max ad content rating"), meta = (EditCondition = "bSupportAdMob"), meta = (ToolTip = "Admob MaxAdContentRating (see https://developers.google.com/admob/android/targeting)"))
+	TEnumAsByte<EMaxAdContentRating::Type> MaxAdContentRating;
 
 	// The unique identifier for the ad obtained from AdMob.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = GooglePlayServices)

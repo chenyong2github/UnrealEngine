@@ -31,10 +31,10 @@
 	
     <buildGradleAdditions>
         <insert>
-            dependencies {
-            implementation('com.google.android.gms:play-services-auth:11.8.0')
-            }
-        </insert>
+			dependencies {
+			implementation('com.google.android.gms:play-services-auth:18.1.0')
+			}
+		</insert>
     </buildGradleAdditions>
 
 	<!-- optional updates applied to AndroidManifest.xml -->

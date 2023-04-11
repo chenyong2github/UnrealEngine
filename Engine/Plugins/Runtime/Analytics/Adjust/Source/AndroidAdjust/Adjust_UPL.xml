@@ -47,7 +47,7 @@
 	<buildGradleAdditions>
 		<insert>
 dependencies {
-	implementation('com.google.android.gms:play-services-analytics:11.8.0')
+	implementation('com.google.android.gms:play-services-analytics:18.0.2')
 }
 		</insert>
 	</buildGradleAdditions>

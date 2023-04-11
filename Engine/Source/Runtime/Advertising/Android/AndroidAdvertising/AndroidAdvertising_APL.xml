@@ -8,6 +8,24 @@
 		<!-- get packaging with ad support -->
 		<setBoolFromProperty result="bRequestGAID" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="bRequestGAID" default="false"/>
 		<setBoolFromProperty result="bSupportAdMob" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="bSupportAdMob" default="true"/>
+		<setBoolFromProperty result="AdMobAppID" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="AdMobAppID" default="[NOT SET]"/>
+
+		<setStringFromProperty result="TagForChildDirectedTreatment" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="TagForChildDirectedTreatment" default="TAG_FOR_CHILD_DIRECTED_TREATMENT_UNSPECIFIED"/>
+		<setStringFromProperty result="TagForUnderAgeOfConsent" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="TagForUnderAgeOfConsent" default="TAG_FOR_UNDER_AGE_OF_CONSENT_UNSPECIFIED"/>
+		<setStringFromProperty result="MaxAdContentRating" ini="Engine" section="/Script/AndroidRuntimeSettings.AndroidRuntimeSettings" property="MaxAdContentRating" default="MAX_AD_CONTENT_RATING_PG"/>
+
+		<if condition="bSupportAdMob">
+			<setBoolIsEqual result="bAdMobAppIDNotSet" arg1="S$(AdMobAppID)" arg2="[NOT SET]"/>
+			<setBoolIsEqual result="bAdMobAppIDEmpty" arg1="S$(AdMobAppID)" arg2=""/>
+			<setBoolOr result="bAdMobAppIDInvalid" arg1="B$(bAdMobAppIDNotSet)" arg2="B$(bAdMobAppIDEmpty)"/>
+			<if condition="bAdMobAppIDInvalid">
+				<true>
+					<log text="AdMob App ID is not set; disabling AdMob support!"/>
+					<setBool result="bSupportAdMob" value="false"/>
+				</true>
+			</if>
+		</if>
+		
 		<if condition="bSupportAdMob">
 			<true>
 				<log text="Including AdMob support. Disable in Android project settings if you do not need to use it."/>
@@ -24,7 +42,7 @@
 			<true>
 				<insert>
 dependencies {
-	implementation('com.google.android.gms:play-services-ads:11.8.0')
+	implementation('com.google.android.gms:play-services-ads:18.1.0')
 	implementation('com.google.android.gms:play-services-ads-identifier:18.0.1')
 }
 				</insert>
@@ -38,6 +56,10 @@ dependencies {
 			<true>
 				<addPermission android:name="android.permission.INTERNET"/>
 				<addPermission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+				<setElement result="AdMobMeta" value="meta-data" />
+				<addAttribute tag="$AdMobMeta" name="android:name" value="com.google.android.gms.ads.APPLICATION_ID" />
+				<addAttribute tag="$AdMobMeta" name="android:value" value="$S(AdMobAppID)" />
+				<addElement tag="application" name="AdMobMeta" />
 			</true>
 		</if>
 	</androidManifestUpdates>
@@ -48,11 +70,15 @@ dependencies {
 			<true>
 				<insert>
 import com.google.android.gms.common.GoogleApiAvailability;
+import com.google.android.gms.ads.MobileAds;
+import com.google.android.gms.ads.initialization.InitializationStatus;
+import com.google.android.gms.ads.initialization.OnInitializationCompleteListener;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.AdSize;
 import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.InterstitialAd;
+import com.google.android.gms.ads.RequestConfiguration;
 import com.google.android.gms.ads.identifier.AdvertisingIdClient;
 import com.google.android.gms.ads.identifier.AdvertisingIdClient.Info;
 				</insert>
@@ -415,6 +441,31 @@ import com.google.android.gms.ads.identifier.AdvertisingIdClient.Info;
 			</false>
 		</if>
 	</gameActivityClassAdditions>
+	
+	<gameActivityOnCreateAdditions>
+		<if condition="bSupportAdMob">
+			<true>
+				<insert>
+		RequestConfiguration AdMobConfig = new RequestConfiguration.Builder()
+				</insert>
+				<insertValue value="				.setTagForChildDirectedTreatment(RequestConfiguration.$S(TagForChildDirectedTreatment))"/>
+				<insertNewline/>
+				<insertValue value="				.setTagForUnderAgeOfConsent(RequestConfiguration.$S(TagForUnderAgeOfConsent))"/>
+				<insertNewline/>
+				<insertValue value="				.setMaxAdContentRating(RequestConfiguration.$S(MaxAdContentRating))"/>
+				<insertNewline/>
+				<insert>
+				.build();
+		MobileAds.setRequestConfiguration(AdMobConfig);
+        MobileAds.initialize(this, new OnInitializationCompleteListener() {
+            @Override
+            public void onInitializationComplete(InitializationStatus initializationStatus) {
+            }
+        });
+				</insert>
+			</true>
+		</if>
+	</gameActivityOnCreateAdditions>
 
 	<gameActivityBeforeConfigRulesAppliedAdditions>
 		<if condition="bRequestGAID">

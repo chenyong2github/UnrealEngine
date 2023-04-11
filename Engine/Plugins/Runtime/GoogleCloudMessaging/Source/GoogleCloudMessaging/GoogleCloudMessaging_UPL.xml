@@ -16,7 +16,7 @@
 			<true>
 				<insert>
 dependencies {
-	implementation('com.google.android.gms:play-services-gcm:11.8.0')
+	implementation('com.google.android.gms:play-services-gcm:17.0.0')
 }
 				</insert>
 			</true>
