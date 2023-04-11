@@ -8776,8 +8776,7 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 			{
 // UE Change Begin: Experimental support for Nanite on M2+ based devices
 #if UE_EXPERIMENTAL_MAC_NANITE_SUPPORT
-				if (ShouldEmulateFlatArray(to_expression(ops[2]))
-					&& type.image.arrayed /*&& msl_options.texture_2Darray_as_2D*/)
+				if (msl_options.flatten_2d_array && type.image.arrayed)
 				{
 					std::string coord_3d = coord;
 					coord = "uint2( " + coord_3d + ".xy + " 
@@ -11033,7 +11032,7 @@ string CompilerMSL::to_function_args(const TextureFunctionArguments &args, bool 
 			{
 // UE Change Begin: Experimental support for Nanite on M2+ based devices  
 #if UE_EXPERIMENTAL_MAC_NANITE_SUPPORT
-				if (args.base.is_fetch && ShouldEmulateFlatArray(to_expression(img)) /* && msl_options.texture_2Darray_as_2D*/)
+				if (args.base.is_fetch && msl_options.flatten_2d_array)
 				{
 					string array_idx = "uint(" +
 						round_fp_tex_coords(to_extract_component_expression(args.coord, alt_coord_component), coord_is_fp) +
@@ -15308,7 +15307,7 @@ string CompilerMSL::image_type_glsl(const SPIRType &type, uint32_t id)
 			else if (img_type.arrayed || subpass_array)
 // UE Change Begin: Experimental support for Nanite on M2+ based devices  
 #if UE_EXPERIMENTAL_MAC_NANITE_SUPPORT
-				img_type_name += (ShouldEmulateFlatArray(to_expression(id)) /*&& msl_options.texture_2Darray_as_2D*/) ? "texture2d" : "texture2d_array";
+				img_type_name += (msl_options.flatten_2d_array) ? "texture2d" : "texture2d_array";
 #else
 				img_type_name += "texture2d_array";
 #endif
