@@ -643,10 +643,7 @@ public:
 	 */
 	virtual bool AllowAudioVisualData() const = 0;
 
-	/**
-	 * Checks if this Target will want to load this object (generally used to mark an object to not be cooked for this target,
-	 * as called by ConditionallyExcludeObjectForTarget)
-	 */
+	/** Checks if this Target will want to load this object (generally used to mark an object to not be cooked for this target) */
 	virtual bool AllowObject(const class UObject* Object) const = 0;
 
 	/**

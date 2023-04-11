@@ -8,6 +8,7 @@
 #include "Serialization/ArchiveUObject.h"
 #include "UObject/NameTypes.h"
 
+enum class ESaveableStatus;
 enum class ESaveRealm : uint32;
 enum class EIllegalRefReason : uint8;
 class FSaveContext;
@@ -23,12 +24,13 @@ struct FSoftObjectPath;
 class FPackageHarvester : public FArchiveUObject
 {
 public:
+	using FExportingRealmsArray = TArray<ESaveRealm, TInlineAllocator<2>>;
 	struct FExportWithContext
 	{
 		/* Export to process */
 		UObject* Export = nullptr;
-		/* The harvesting context from which this export was harvested. */
-		ESaveRealm HarvestedFromRealm;
+		/* The realms from which this export was harvested. */
+		FExportingRealmsArray HarvestedFromRealms;
 
 		operator bool() const
 		{
@@ -36,34 +38,21 @@ public:
 		}
 	};
 
-	class FExportScope
+	/** Scope object constructed when changing the CurrentExportHarvestingRealms that restores the previous realms when done */
+	class FHarvestScope
 	{
 	public:
-		FExportScope(FPackageHarvester& InHarvester, const FExportWithContext& InToProcess, bool bIsEditorOnlyObject);
-		~FExportScope();
+		FHarvestScope(FPackageHarvester& InHarvester);
+		FHarvestScope(FHarvestScope&& Other);
+		FHarvestScope(const FHarvestScope& Other) = delete;
+		FHarvestScope& operator=(FHarvestScope&& Other) = delete;
+		FHarvestScope& operator=(const FHarvestScope& Other) = delete;
+		~FHarvestScope();
+		bool IsEmpty() const;
 	private:
 		FPackageHarvester& Harvester;
-		ESaveRealm PreviousRealm;
-		bool bPreviousFilterEditorOnly;
-	};
-
-	class FIgnoreDependenciesScope
-	{
-	public:
-		FIgnoreDependenciesScope(FPackageHarvester& InHarvester)
-			: Harvester(InHarvester)
-			, bPreviousValue(Harvester.CurrentExportDependencies.bIgnoreDependencies)
-		{
-			Harvester.CurrentExportDependencies.bIgnoreDependencies = true;
-		}
-
-		~FIgnoreDependenciesScope()
-		{
-			Harvester.CurrentExportDependencies.bIgnoreDependencies = bPreviousValue;
-		}
-	private:
-		FPackageHarvester& Harvester;
-		bool bPreviousValue;
+		FExportingRealmsArray PreviousExportHarvestingRealms;
+		bool bActive;
 	};
 
 public:
@@ -71,16 +60,17 @@ public:
 
 	FExportWithContext PopExportToProcess();
 
-	void ProcessExport(const FExportWithContext& InProcessContext);
 	void TryHarvestExport(UObject* InObject);
-	void TryHarvestImport(UObject* InObject);
+	/** Add objects/names/others that are referenced when an object is being saved */
+	void ProcessExport(const FExportWithContext& InProcessContext);
+	FHarvestScope EnterRootReferencesScope();
 
 	void HarvestExportDataName(FName Name);
 	void HarvestPackageHeaderName(FName Name);
 	void HarvestSearchableName(UObject* TypeObject, FName Name);
 	void HarvestDependency(UObject* InObj, bool bIsNative);
 
-	bool CurrentExportHasDependency(UObject* InObj) const;
+	bool CurrentExportHasDependency(UObject* InObj, ESaveRealm HarvestingRealm) const;
 	TMap<UObject*, TSet<FProperty*>> ReleaseTransientPropertyOverrides();
 
 	// FArchiveUObject implementation
@@ -95,17 +85,7 @@ public:
 	virtual bool ShouldSkipProperty(const FProperty* InProperty) const;
 
 private:
-	void ResolveOverrides();
-
-	ESaveRealm GetObjectHarvestingRealm(UObject* InObject, EIllegalRefReason& OutReason) const;
-
-	void HarvestExport(UObject* InObject, ESaveRealm InContext);
-	void HarvestImport(UObject* InObject);
-
-	void AppendCurrentExportDependencies();
-	FString GetUnsaveableReason(UObject* Required);
-
-
+	/** Dependencies collected for the current export, and scope information about how to collect them. */
 	struct FExportDependencies
 	{
 		UObject* CurrentExport = nullptr;
@@ -114,12 +94,73 @@ private:
 		bool bIgnoreDependencies = false;
 	};
 
-	FSaveContext& SaveContext;
+	/**
+	 * Set dependencies and other storage to write to the given export, and set
+	 * CurrentExportHarvestingRealms and other data based on where the export was harvested.
+	 */
+	class FExportScope
+	{
+	public:
+		FExportScope(FPackageHarvester& InHarvester, const FExportWithContext& InToProcess);
+		~FExportScope();
+	private:
+		FPackageHarvester& Harvester;
+		FExportingRealmsArray PreviousExportHarvestingRealms;
+		bool bPreviousFilterEditorOnly;
+	};
 
+	/** Mark that dependencies should be ignored when harvesting further imports/exports in this scope. */
+	class FIgnoreDependenciesScope
+	{
+	public:
+		FIgnoreDependenciesScope(FPackageHarvester& InHarvester);
+		~FIgnoreDependenciesScope();
+	private:
+		FPackageHarvester& Harvester;
+		bool bPreviousValue;
+	};
+
+private:
+	/** Return whether the Object and all its Outers are native. */
+	static bool IsObjNative(UObject* InObj);
+	/** Report whether the object should be put in the optional realm even if harvesting realm is non-optional. */
+	bool ShouldObjectBeHarvestedInOptionalRealm(UObject* InObj) const;
+
+	/** Call void (ESaveRealm HarvestingRealm) on each Realm in CurrentExportHarvestingRealms */
+	template <typename CallbackType>
+	void ForEachExportHarvestingRealm(CallbackType&& Callback);
+	bool HasAnyExportHarvestingRealms();
+
+	void ResolveOverrides();
+
+	void TryHarvestExportInternal(UObject* InObject);
+	void HarvestExport(UObject* InObject);
+	void TryHarvestImport(UObject* InObject);
+	void HarvestImport(UObject* InObject);
+	/** Add objects/names/others that are referenced even when an object is just being imported */
+	void ProcessImport(UObject* InObject);
+
+	void AppendCurrentExportDependencies();
+	FString GetUnsaveableReason(UObject* Required, ESaveRealm RealmInWhichItIsUnsaveable);
+	ESaveableStatus GetSaveableStatusForRealm(UObject* Obj, ESaveRealm RealmInWhichItIsUnsaveable,
+		UObject*& OutCulprit, FString& OutReason);
+
+	/** If bIsEditorOnly is true, remove CurrentExportHarvestingRealms that do not follow editoronly references. */
+	FHarvestScope EnterConditionalEditorOnlyScope(bool bIsEditorOnly);
+	/** If the Object is optional, clear CurrentExportHarvestingRealms and populate it with the Optional Realm. */
+	FHarvestScope EnterConditionalOptionalObjectScope(UObject* Object);
+	/** Remove CurrentExportHarvestingRealms that already include Export. */
+	FHarvestScope EnterNewExportOnlyScope(UObject* Export);
+	/** Remove CurrentExportHarvestingRealms that return false for ConditionallyExcludeObjectForRealm(Object). */
+	FHarvestScope EnterNotExcludedScope(UObject* Object);
+	/** Remove CurrentExportHarvestingRealms that return true for IsExcluded(Object). */
+	FHarvestScope EnterNotPreviouslyExcludedScope(UObject* Object);
+	/** Remove CurrentExportHarvestingRealms that return false for IsIncluded(Object). */
+	FHarvestScope EnterIncludedScope(UObject* Object);
+
+	FSaveContext& SaveContext;
 	TQueue<FExportWithContext> ExportsToProcess;
 	FExportDependencies CurrentExportDependencies;
 	TMap<UObject*, TSet<FProperty*>> TransientPropertyOverrides;
-	ESaveRealm CurrentExportHarvestingRealm;
-	//@todo: bIsEditorOnlyExportOnStack can be probably be folded in CurrentExportHarvestingContext
-	bool bIsEditorOnlyExportOnStack;
+	FExportingRealmsArray CurrentExportHarvestingRealms;
 };

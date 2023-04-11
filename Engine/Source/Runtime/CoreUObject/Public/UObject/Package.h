@@ -102,6 +102,9 @@ struct FSavePackageResultStruct
 
 	TArray<FAssetData> SavedAssets;
 
+	TArray<FName> ImportPackages;
+	TArray<FName> SoftPackageReferences;
+
 	/** Constructors, it will implicitly construct from the result enum */
 	COREUOBJECT_API FSavePackageResultStruct();
 	COREUOBJECT_API FSavePackageResultStruct(ESavePackageResult InResult);

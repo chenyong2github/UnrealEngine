@@ -66,7 +66,7 @@ bool FSaveContext::IsUnsaveable(UObject* InObject, bool bEmitWarning) const
 	return true;
 }
 
-FSaveContext::ESaveableStatus FSaveContext::GetSaveableStatus(UObject* InObject, UObject** OutCulprit, ESaveableStatus* OutCulpritStatus) const
+ESaveableStatus FSaveContext::GetSaveableStatus(UObject* InObject, UObject** OutCulprit, ESaveableStatus* OutCulpritStatus) const
 {
 	UObject* Obj = InObject;
 	while (Obj)
@@ -97,7 +97,7 @@ FSaveContext::ESaveableStatus FSaveContext::GetSaveableStatus(UObject* InObject,
 	return ESaveableStatus::Success;
 }
 
-FSaveContext::ESaveableStatus FSaveContext::GetSaveableStatusNoOuter(UObject* Obj) const
+ESaveableStatus FSaveContext::GetSaveableStatusNoOuter(UObject* Obj) const
 {
 	// pending kill object are unsaveable
 	if (!IsValidChecked(Obj))
@@ -125,6 +125,32 @@ FSaveContext::ESaveableStatus FSaveContext::GetSaveableStatusNoOuter(UObject* Ob
 	}
 
 	return ESaveableStatus::Success;
+}
+
+FSavePackageResultStruct FSaveContext::GetFinalResult()
+{
+	if (Result != ESavePackageResult::Success)
+	{
+		return Result;
+	}
+
+	ESavePackageResult FinalResult = IsStubRequested() ? ESavePackageResult::GenerateStub : ESavePackageResult::Success;
+	FSavePackageResultStruct ResultData(FinalResult, TotalPackageSizeUncompressed,
+		SerializedPackageFlags, IsCompareLinker() ? MoveTemp(GetHarvestedRealm().Linker) : nullptr);
+
+	ResultData.SavedAssets = MoveTemp(SavedAssets);
+	UClass* PackageClass = UPackage::StaticClass();
+	for (UObject* Import : GetImports())
+	{
+		if (Import->IsA(PackageClass))
+		{
+			ResultData.ImportPackages.Add(Import->GetFName());
+		}
+	}
+	TSet<FName>& SoftPackageReferenceList = GetSoftPackageReferenceList();
+	ResultData.SoftPackageReferences = SoftPackageReferenceList.Array();
+
+	return ResultData;
 }
 
 namespace
@@ -165,18 +191,32 @@ void FSaveContext::SetupHarvestingRealms()
 	}
 }
 
-const TCHAR* LexToString(FSaveContext::ESaveableStatus Status)
+EObjectMark FSaveContext::GetExcludedObjectMarksForGameRealm(const ITargetPlatform* TargetPlatform)
 {
-	static_assert(static_cast<int32>(FSaveContext::ESaveableStatus::__Count) == 7);
+	if (TargetPlatform)
+	{
+		return SavePackageUtilities::GetExcludedObjectMarksForTargetPlatform(TargetPlatform);
+	}
+	else
+	{
+		return static_cast<EObjectMark>(OBJECTMARK_NotForTargetPlatform | OBJECTMARK_EditorOnly);
+	}
+}
+
+const TCHAR* LexToString(ESaveableStatus Status)
+{
+	static_assert(static_cast<int32>(ESaveableStatus::__Count) == 9);
 	switch (Status)
 	{
-	case FSaveContext::ESaveableStatus::Success: return TEXT("is saveable");
-	case FSaveContext::ESaveableStatus::PendingKill: return TEXT("is pendingkill");
-	case FSaveContext::ESaveableStatus::Transient: return TEXT("is transient");
-	case FSaveContext::ESaveableStatus::AbstractClass: return TEXT("has a Class with CLASS_Abstract");
-	case FSaveContext::ESaveableStatus::DeprecatedClass: return TEXT("has a Class with CLASS_Deprecated");
-	case FSaveContext::ESaveableStatus::NewerVersionExistsClass: return TEXT("has a Class with CLASS_NewerVersionExists");
-	case FSaveContext::ESaveableStatus::OuterUnsaveable: return TEXT("has an unsaveable Outer");
+	case ESaveableStatus::Success: return TEXT("is saveable");
+	case ESaveableStatus::PendingKill: return TEXT("is pendingkill");
+	case ESaveableStatus::Transient: return TEXT("is transient");
+	case ESaveableStatus::AbstractClass: return TEXT("has a Class with CLASS_Abstract");
+	case ESaveableStatus::DeprecatedClass: return TEXT("has a Class with CLASS_Deprecated");
+	case ESaveableStatus::NewerVersionExistsClass: return TEXT("has a Class with CLASS_NewerVersionExists");
+	case ESaveableStatus::OuterUnsaveable: return TEXT("has an unsaveable Outer");
+	case ESaveableStatus::ClassUnsaveable: return TEXT("has an unsaveable Class");
+	case ESaveableStatus::ExcludedByPlatform: return TEXT("is excluded by TargetPlatform");
 	default: return TEXT("Unknown");
 	}
 }
