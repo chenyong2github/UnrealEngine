@@ -18,6 +18,7 @@ class UCanvas;
 class UTargetingPreset;
 class UTargetingTask;
 class UWorld;
+struct FCollisionQueryTaskData;
 
 
 #if ENABLE_DRAW_DEBUG
@@ -122,7 +123,7 @@ public:
 	TARGETINGSYSTEM_API static void ReleaseTargetRequestHandle(FTargetingRequestHandle& Handle);
 
 	/** The handle released delegate that fires right before a handle is release so all data stores can clean up their state */
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnTargetingRequestHandleReleased, FTargetingRequestHandle)
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnTargetingRequestHandleReleased, const FTargetingRequestHandle&)
 	static FOnTargetingRequestHandleReleased ReleaseHandleDelegate;
 
 	/** Target Handle Generation Methods */
@@ -182,6 +183,10 @@ public:
 	/** Helper method to get the set of hit results for a given targeting handle */
 	UFUNCTION(BlueprintCallable, Category = "Targeting System | Targeting Results")
 	TARGETINGSYSTEM_API void GetTargetingResults(FTargetingRequestHandle TargetingHandle, TArray<FHitResult>& OutTargets) const;
+
+	/** Function that lets you set a data store from a certain Targeting Handle to add some Collision Query Param Overrides  */
+	UFUNCTION(BlueprintCallable, Category = "Targeting System | Data Stores")
+	static void OverrideCollisionQueryTaskData(const FTargetingRequestHandle& TargetingHandle, const FCollisionQueryTaskData& CollisionQueryDataOverride);
 
 	/** ~Blueprint Helper Methods */
 

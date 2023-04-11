@@ -73,9 +73,9 @@ void UAsyncAction_PerformTargeting::Activate()
 
 			TARGETING_LOG(Verbose, TEXT("Source Actor: %s"), *GetNameSafe(SourceContext.SourceActor));
 
-			FTargetingRequestHandle TargetingHandle = UTargetingSubsystem::MakeTargetRequestHandle(TargetingPreset, SourceContext);
+			TargetingHandle = UTargetingSubsystem::MakeTargetRequestHandle(TargetingPreset, SourceContext);
 
-			SetupInitialTargetsForRequest(TargetingHandle);
+			SetupInitialTargetsForRequest();
 
 			FTargetingRequestDelegate Delegate = FTargetingRequestDelegate::CreateWeakLambda(this, [this](FTargetingRequestHandle TargetingHandle)
 				{
@@ -112,7 +112,7 @@ void UAsyncAction_PerformTargeting::Activate()
 	}
 }
 
-void UAsyncAction_PerformTargeting::SetupInitialTargetsForRequest(const FTargetingRequestHandle& TargetingHandle) const
+void UAsyncAction_PerformTargeting::SetupInitialTargetsForRequest() const
 {
 	if (TargetingHandle.IsValid() && InitialTargets.Num() > 0)
 	{

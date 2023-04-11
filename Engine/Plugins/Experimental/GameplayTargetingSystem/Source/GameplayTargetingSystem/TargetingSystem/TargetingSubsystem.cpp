@@ -4,13 +4,14 @@
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
-#include "Types/TargetingSystemLogs.h"
-#include "Types/TargetingSystemTypes.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/KismetStringLibrary.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Stats/Stats2.h"
 #include "TargetingPreset.h"
+#include "Tasks/CollisionQueryTaskData.h"
+#include "Types/TargetingSystemLogs.h"
+#include "Types/TargetingSystemTypes.h"
 
 #if ENABLE_DRAW_DEBUG
 #include "GameFramework/HUD.h"
@@ -120,6 +121,11 @@ void UTargetingSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollec
 			{
 				Collector.AddReferencedObjects<UTargetingTask>(FoundTaskSet->Tasks);
 			}
+		}
+		
+		if (FCollisionQueryTaskData* FoundOverride = UE::TargetingSystem::TTargetingDataStore<FCollisionQueryTaskData>::Find(CurHandle))
+		{
+			FoundOverride->AddStructReferencedObjects(Collector);
 		}
 	}
 }
@@ -646,6 +652,15 @@ void UTargetingSubsystem::GetTargetingResults(FTargetingRequestHandle TargetingH
 				OutTargets.Add(ResultData.HitResult);
 			}
 		}
+	}
+}
+
+void UTargetingSubsystem::OverrideCollisionQueryTaskData(const FTargetingRequestHandle& TargetingHandle, const FCollisionQueryTaskData& CollisionQueryDataOverride)
+{
+	if (TargetingHandle.IsValid())
+	{
+		FCollisionQueryTaskData& AddedCollisionQueryDataOverride = UE::TargetingSystem::TTargetingDataStore<FCollisionQueryTaskData>::FindOrAdd(TargetingHandle);
+		AddedCollisionQueryDataOverride = CollisionQueryDataOverride;
 	}
 }
 

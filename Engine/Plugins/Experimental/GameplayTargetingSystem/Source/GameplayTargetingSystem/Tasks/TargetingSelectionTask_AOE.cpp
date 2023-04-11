@@ -2,18 +2,19 @@
 #include "TargetingSelectionTask_AOE.h"
 
 #include "CollisionQueryParams.h"
+#include "CollisionQueryTaskData.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "TargetingSystem/TargetingSubsystem.h"
+#include "Types/TargetingSystemDataStores.h"
 #include "Types/TargetingSystemLogs.h"
 
 #if ENABLE_DRAW_DEBUG
 #include "Engine/Canvas.h"
 #endif // ENABLE_DRAW_DEBUG
-
 
 UTargetingSelectionTask_AOE::UTargetingSelectionTask_AOE(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
@@ -374,6 +375,12 @@ void UTargetingSelectionTask_AOE::InitCollisionParams(const FTargetingRequestHan
 		{
 			OutParams.AddIgnoredActor(SourceContext->InstigatorActor);
 		}
+	}
+
+	// If we have a data store to override the collision query params from, add that to our collision params
+	if (FCollisionQueryTaskData* FoundOverride = UE::TargetingSystem::TTargetingDataStore<FCollisionQueryTaskData>::Find(TargetingHandle))
+	{
+		OutParams.AddIgnoredActors(FoundOverride->IgnoredActors);
 	}
 }
 
