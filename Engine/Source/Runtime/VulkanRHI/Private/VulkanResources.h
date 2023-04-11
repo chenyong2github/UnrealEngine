@@ -458,7 +458,6 @@ public:
 
 	FRHIDescriptorHandle GetBindlessHandle() const
 	{
-		check(BindlessHandle.IsValid());
 		return BindlessHandle;
 	}
 
