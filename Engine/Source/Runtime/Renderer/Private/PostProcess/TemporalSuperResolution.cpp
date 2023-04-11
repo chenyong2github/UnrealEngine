@@ -19,22 +19,35 @@ namespace
 
 TAutoConsoleVariable<float> CVarTSRHistorySampleCount(
 	TEXT("r.TSR.History.SampleCount"), 16.0f,
-	TEXT("Maximum number sample for each output pixel in the history."),
+	TEXT("Maximum number sample for each output pixel in the history. Higher values means more stability on highlights on static images, ")
+	TEXT("but may introduce additional ghosting on firefliers style of VFX. Minimum value supported is 8.0 as TSR was in 5.0 and 5.1. ")
+	TEXT("Maximum value possible due to the encoding of the TSR.History.Metadata is 32.0. Defaults to 16.0."),
 	ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<float> CVarTSRHistorySP(
 	TEXT("r.TSR.History.ScreenPercentage"), 100.0f,
-	TEXT("Size of TSR's history."),
+	TEXT("Resolution multiplier of the history of TSR based of output resolution. While increasing the resolution adds runtime cost ")
+	TEXT("to TSR, it allows to maintain a better sharpness and stability of the details stored in history through out the reprojection.\n")
+	TEXT("\n")
+	TEXT("Setting to 200 brings on a very particular property relying on NyQuist-Shannon sampling theorem that establishes a sufficient ")
+	TEXT("condition for the sample rate of the accumulated details in the history. As a result only values between 100 and 200 are supported.\n")
+	TEXT("It is controlled by default in the anti-aliasing scalability group set to 200 on Epic and Cinematic, 100 otherwise."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarTSRR11G11B10History(
 	TEXT("r.TSR.History.R11G11B10"), 1,
-	TEXT("Select the bitdepth of the history."),
+	TEXT("Select the bitdepth of the history. r.TSR.History.R11G11B10=1 Saves memory bandwidth that is of particular interest of the TSR's ")
+	TEXT("UpdateHistory's runtime performance by saving memory both at previous frame's history reprojection and write out of the output and ")
+	TEXT("new history.\n")
+	TEXT("This optimisation is unsupported with r.PostProcessing.PropagateAlpha=1.\n")
+	TEXT("\n")
+	TEXT("Please also not that increasing r.TSR.History.ScreenPercentage=200 adds 2 additional implicit encoding bits in the history compared to the TSR.Output's bitdepth thanks to the downscaling pass from TSR history resolution to TSR output resolution."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarTSRHistoryUpdateQuality(
 	TEXT("r.TSR.History.UpdateQuality"), 3,
-	TEXT("Select the quality of the history update."),
+	TEXT("Selects shader permutation of the quality of the update of the history in the TSR HistoryUpdate pass currently driven by the sg.AntiAliasingQuality scalability group. ")
+	TEXT("For further details about what each offers, you are invited to look at DIM_UPDATE_QUALITY in TSRUpdateHistory.usf and customise to your need."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarTSRHistorySeparateTranslucency(
@@ -49,7 +62,12 @@ TAutoConsoleVariable<int32> CVarTSRHistoryGrandReprojection(
 
 TAutoConsoleVariable<int32> CVarTSRWaveOps(
 	TEXT("r.TSR.WaveOps"), 1,
-	TEXT("Whether to use wave ops in the shading rejection heuristics"),
+	TEXT("Whether to use wave ops in the shading rejection heuristics to speeds up convolutions.\n")
+	TEXT("\n")
+	TEXT("The shading rejection heuristic optimisation can be particularily hard for shader compiler and hit bug in them causing corruption/quality loss.\n")
+	TEXT("\n")
+	TEXT("Note this optimisation is currently disabled on SPIRV platforms (mainly Vulkan and Metal) due to 5min+ compilation times in SPIRV ")
+	TEXT("backend of DXC which is not great for editor startup."),
 	ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarTSR16BitVALU(
@@ -59,85 +77,155 @@ TAutoConsoleVariable<int32> CVarTSR16BitVALU(
 
 TAutoConsoleVariable<float> CVarTSRHistoryRejectionSampleCount(
 	TEXT("r.TSR.ShadingRejection.SampleCount"), 2.0f,
-	TEXT("Maximum number of sample in each output pixel of the history after total shading rejection."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
+	TEXT("Maximum number of sample in each output pixel of the history after total shading rejection.\n")
+	TEXT("\n")
+	TEXT("Lower values means higher clarity of the image after shading rejection of the history, but at the trade of higher instability ")
+	TEXT("of the pixel on following frames accumulating new details which can be distracting to the human eye (Defaults to 2.0)."),
+	ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarTSRFlickeringEnable(
 	TEXT("r.TSR.ShadingRejection.Flickering"), 1,
-	TEXT("Whether to enable the flickering detection heuristic.\n"),
+	TEXT("Instability in TSR output 99% of the time coming from instability of the shading rejection, for different reasons:\n")
+	TEXT(" - One first source of instability is most famously moire pattern between structured geometry and the rendering pixel grid changing ")
+	TEXT("every frame due to the offset of the jittering pixel grid offset;\n")
+	TEXT(" - Another source of instability can happen on extrem geometric complexity due to temporal history's chicken-and-egg problem that can ")
+	TEXT("not be overcome by other mechanisms in place in TSR's RejectHistory pass: ")
+	TEXT("how can the history be identical to rendered frame if the amount of details you have in the rendered frame is not in history? ")
+	TEXT("how can the history accumulate details if the history is too different from the rendered frame?\n")
+	TEXT("\n")
+	TEXT("When enabled, this heuristic monitor how the luminance of the scene right before any translucency drawing stored in the ")
+	TEXT("TSR.Moire.Luma resource how it involves over successive frames. And if it is detected to constantly flicker regularily above a certain ")
+	TEXT("threshold defined with this r.TSR.ShadingRejection.Flickering.* cvars, the heuristic attempts to stabilize the image by letting ghost within ")
+	TEXT("luminance boundary tied to the amplititude of flickering.\n")
+	TEXT("\n")
+	TEXT("One particular caveat of this heuristic is that any opaque geometry with incorrect motion vector can make a pixel look identically flickery ")
+	TEXT("quicking this heuristic in and leaving undesired ghosting effects on the said geometry. When that happens, it is highly encourage to ")
+	TEXT("verify the motion vector through the VisualizeMotionBlur show flag and how these motion vectors are able to reproject previous frame ")
+	TEXT("with the VisualizeReprojection show flag.\n")
+	TEXT("\n")
+	TEXT("The variable to countrol the frame frequency at which a pixel is considered flickery and needs to be stabilized with this heuristic is defined ")
+	TEXT("with the r.TSR.ShadingRejection.Flickering.Period in frames. For instance, a value r.TSR.ShadingRejection.Flickering.Period=3, it means any ")
+	TEXT("pixel that have its luminance changing of variation every more often than every frames is considered flickering.\n")
+	TEXT("\n")
+	TEXT("However another caveats on this boundary between flickering pixel versus animated pixel is that: flickering ")
+	TEXT("happens regardless of frame rate, whereas a visual effects that are/should be based on time and are therefore independent of the frame rate. This mean that ")
+	TEXT("a visual effect that looks smooth at 60hz might appear to 'flicker' at lower frame rates, like 24hz for instance.\nTo make sure a visual ")
+	TEXT("effect authored by an artists doesn't start to ghost of frame rate, r.TSR.ShadingRejection.Flickering.AdjustToFrameRate is enabled by default ")
+	TEXT("such that this frame frequency boundary is automatically when the frame rate drops below a refresh rate below r.TSR.ShadingRejection.Flickering.FrameRateCap.\n")
+	TEXT("\n")
+	TEXT("While r.TSR.ShadingRejection.Flickering is controled based of scalability settings turn on/off this heuristic on lower/high-end GPU ")
+	TEXT("the other r.TSR.ShadingRejection.Flickering.* can be set orthogonally in the Project's DefaultEngine.ini for a consistent behavior ")
+	TEXT("across all platforms.\n")
+	TEXT("\n")
+	TEXT("It is enabled by default in the anti-aliasing scalability group High, Epic and Cinematic."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<float> CVarTSRFlickeringFrameRateCap(
 	TEXT("r.TSR.ShadingRejection.Flickering.FrameRateCap"), 60,
-	TEXT("Framerate cap at which point there is no frame rate adjustment anymore.\n"),
+	TEXT("Framerate cap in hertz at which point there is automatic adjustment of r.TSR.ShadingRejection.Flickering.Period when the rendering frame rate is lower. ")
+	TEXT("Please read r.TSR.ShadingRejection.Flickering's help for further details. (Default to 60hz)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarTSRFlickeringAdjustToFrameRate(
 	TEXT("r.TSR.ShadingRejection.Flickering.AdjustToFrameRate"), 1,
-	TEXT("Whether TSR settings should adjust to frame rate below r.TSR.ShadingRejection.Flickering.FrameRateCap (Enabled by default, meant for exclusive use of EngineTest).\n"),
+	TEXT("Whether r.TSR.ShadingRejection.Flickering.Period settings should adjust to frame rate when below r.TSR.ShadingRejection.Flickering.FrameRateCap. ")
+	TEXT("Please read r.TSR.ShadingRejection.Flickering's help for further details. (Enabled by default)."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<float> CVarTSRFlickeringPeriod(
 	TEXT("r.TSR.ShadingRejection.Flickering.Period"), 3.0f,
-	TEXT("Periode in 60hz frames in which luma oscilations at equal or greater frequency is considered flickering and should ghost (Default=3.0).\n"),
+	TEXT("Periode in frames in which luma oscilations at equal or greater frequency is considered flickering and should ghost to stabilize the image ")
+	TEXT("Please read r.TSR.ShadingRejection.Flickering's help for further details. (Default to 3 frames)."),
 	ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<float> CVarTSRFlickeringMaxParralaxVelocity(
 	TEXT("r.TSR.ShadingRejection.Flickering.MaxParralaxVelocity"), 10.0,
-	TEXT("Maximum parralax velocity in 1080p at frame rate defined by r.TSR.ShadingRejection.Flickering.FrameRateCap pixels allowed before diminishing flickering.\n"),
+	TEXT("Some material might for instance might do something like parallax occlusion mapping such as CitySample's buildings' window's interiors. ")
+	TEXT("This often can not render accurately a motion vector of this fake interior geometry and therefore make the heuristic believe it is in fact flickering.\n")
+	TEXT("\n")
+	TEXT("This variable define the parralax velocity in 1080p pixel at frame rate defined by r.TSR.ShadingRejection.Flickering.FrameRateCap at which point the ")
+	TEXT("heuristic should be disabled to not ghost. ")
+	TEXT("\n")
+	TEXT("(Default to 10 pixels 1080p).\n"),
 	ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarTSRRejectionAntiAliasingQuality(
 	TEXT("r.TSR.RejectionAntiAliasingQuality"), 3,
-	TEXT("Controls the quality of spatial anti-aliasing on history rejection (default=1)."),
+	TEXT("Controls the quality of TSR's built-in spatial anti-aliasing technology when the history needs to be rejected. ")
+	TEXT("While this may not be critical when the rendering resolution is not much lowered than display resolution, ")
+	TEXT("this technic however becomes essential to hide lower rendering resolution rendering because of two reasons:\n")
+	TEXT(" - the screen space size of aliasing is inverse proportional to rendering resolution;\n")
+	TEXT(" - rendering at lower resolution means need more frame to reach at least 1 rendered pixel per display pixel.")
+	TEXT("")
+	TEXT("By default, it is only disabled by default in the low anti-aliasing scalability group."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarTSRAsyncCompute(
 	TEXT("r.TSR.AsyncCompute"), 2,
-	TEXT("Whether to run TSR on async compute. Some TSR passes can overlap with previous passe.\n")
+	TEXT("Controls how TSR run on async compute. Some TSR passes can overlap with previous passes.\n")
 	TEXT(" 0: Disabled (default);\n")
-	TEXT(" 1: Only ClearPrevTextures pass;\n")
-	TEXT(" 2: Only ClearPrevTextures through DecimateHistory passes;\n")
-	TEXT(" 3: All passes;"),
+	TEXT(" 1: Run on async compute only passes that are completly independent from any intermediary resource of this frame, namely ClearPrevTextures and ForwardScatterDepth passes;\n")
+	TEXT(" 2: Run on async compute only passes that are completly independent or only dependent on the depth and velocity buffer which can overlap for instance with translucency or DOF. Any passes on critical path remains on the graphics queue;\n")
+	TEXT(" 3: Run all passes on async compute;"),
 	ECVF_RenderThreadSafe);
 
-TAutoConsoleVariable<float> CVarTSRTranslucencyHighlightLuminance(
-	TEXT("r.TSR.Translucency.HighlightLuminance"), -1.0f,
-	TEXT("Sets the liminance at which translucency is considered an highlights (default=-1.0)."),
-	ECVF_RenderThreadSafe);
+// TODO: remove this dead code
+//TAutoConsoleVariable<float> CVarTSRTranslucencyHighlightLuminance(
+//	TEXT("r.TSR.Translucency.HighlightLuminance"), -1.0f,
+//	TEXT("Sets the luminance at which translucency is considered an highlights (default=-1.0)."),
+//	ECVF_RenderThreadSafe);
 
+// TODO: remove this dead code
 //TAutoConsoleVariable<int32> CVarTSRTranslucencyPreviousFrameRejection(
 //	TEXT("r.TSR.Translucency.PreviousFrameRejection"), 0,
 //	TEXT("Enable heuristic to reject Separate translucency based on previous frame translucency."),
 //	ECVF_RenderThreadSafe);
 
-TAutoConsoleVariable<int32> CVarTSREnableResponiveAA(
-	TEXT("r.TSR.Translucency.EnableResponiveAA"), 1,
-	TEXT("Whether the responsive AA should keep history fully clamped."),
-	ECVF_RenderThreadSafe);
+// TODO: currently dead code, that is technically relevent for 5.0's r.TSR.History.SeparateTranslucency=1 but that has too many problems on translucency contour around opaque geometry.
+//TAutoConsoleVariable<int32> CVarTSREnableResponiveAA(
+//	TEXT("r.TSR.Translucency.EnableResponiveAA"), 1,
+//	TEXT("Whether the responsive AA should keep history fully clamped."),
+//	ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<float> CVarTSRWeightClampingSampleCount(
 	TEXT("r.TSR.Velocity.WeightClampingSampleCount"), 4.0f,
-	TEXT("Sample count in history pixel to clamp history to when output pixel velocity reach r.TSR.Velocity.WeightClampingPixelSpeed (Default = 4.0f)."),
+	TEXT("Number of sample to count to in history pixel to clamp history to when output pixel velocity reach r.TSR.Velocity.WeightClampingPixelSpeed. ")
+	TEXT("Higher value means higher stability on movement, but at the expense of additional blur due to successive convolution of each history reprojection.\n")
+	TEXT("\n")
+	TEXT("It is possible to visualize the number of sample in TSR history with the console command `vis TSR.History.Metadata`.\n")
+	TEXT("\n")
+	TEXT("Please note this clamp the sample count in history pixel, not output pixel, and therefore lower values are by designed less ")
+	TEXT("noticeable with higher r.TSR.History.ScreenPercentage. This is done so such that increasing r.TSR.History.ScreenPercentage uniterally & automatically ")
+	TEXT("give more temporal stability and maintaining sharpness of the details reprojection at the expense of that extra runtime cost regardless of this setting.\n")
+	TEXT("\n")
+	TEXT("A story telling game might preferer to keep this 4.0 for a 'cinematic look' whereas a competitive game like Fortnite would preferer to lower that to 2.0. ")
+	TEXT("(Default = 4.0f)."),
 	ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<float> CVarTSRWeightClampingPixelSpeed(
 	TEXT("r.TSR.Velocity.WeightClampingPixelSpeed"), 1.0f,
 	TEXT("Defines the output pixel velocity at which the the high frequencies of the history get's their contributing weight clamped. ")
-	TEXT("Smallest reduce blur in movement (Default = 1.0f)."),
+	TEXT("It's basically to lerp the effect of r.TSR.Velocity.WeightClampingSampleCount when the pixel velocity get smaller than r.TSR.Velocity.WeightClampingPixelSpeed. ")
+	TEXT("(Default = 1.0f)."),
 	ECVF_RenderThreadSafe);
 
-TAutoConsoleVariable<float> CVarTSRVelocityExtrapolation(
-	TEXT("r.TSR.Velocity.Extrapolation"), 1.0f,
-	TEXT("Defines how much the velocity should be extrapolated on geometric discontinuities (Default = 1.0f)."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
+// TODO: improve CONFIG_VELOCITY_EXTRAPOLATION in TSRDilateVelcity.usf that is disabled at the moment.
+//TAutoConsoleVariable<float> CVarTSRVelocityExtrapolation(
+//	TEXT("r.TSR.Velocity.Extrapolation"), 1.0f,
+//	TEXT("Defines how much the velocity should be extrapolated on geometric discontinuities (Default = 1.0f)."),
+//	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarTSRSubpixelMethod(
 	TEXT("r.TSR.Subpixel.Method"), 2,
-	TEXT("Selects the method to reproject and/or discard the subpixel details.\n")
-	TEXT(" 0: disable subpixel detail accumulation\n")
-	TEXT(" 1: accumulate how much subpixel detail can paralax under movement for history rejection\n")
-	TEXT(" 2: accumulate subpixel details' closest depth to be able to reproject them even when not drawing in depth/velocity buffer (default)\n"),
+	TEXT("One particular challenge of Nanite amount of details is that sometimes these details can be thiner than a rendering pixel in which case ")
+	TEXT("they only render in some frames. When that happens, it means neither depth or velocity buffer to be able to reproject them. This is for instance ")
+	TEXT("visible with the `vis SceneDepthZ` command.")
+	TEXT("\n")
+	TEXT("This settings control the method to reproject and/or discard the subpixel details.\n")
+	TEXT(" 0: disable subpixel details accumulation in history which means all this these subpixel features may ghost; \n")
+	TEXT(" 1: accumulate how much subpixel detail can paralax under movement of their background for history rejection which allow minimise ")
+	TEXT("amount of ghosting but at the expense of some image stability on these very thin geometry.\n")
+	TEXT(" 2: accumulate subpixel details' closest depth to be able to reproject them even when not drawing in depth/velocity buffer which works great for static geometry but not so much for any moving geometry (default)\n"),
 	ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarTSRSubpixelDepthMaxAge(
@@ -147,7 +235,8 @@ TAutoConsoleVariable<int32> CVarTSRSubpixelDepthMaxAge(
 
 TAutoConsoleVariable<int32> CVarTSRSubpixelIncludeMovingDepth(
 	TEXT("r.TSR.Subpixel.IncludeMovingDepth"), 0,
-	TEXT("Whether the depth of moving subpixel detail should also be included in the subpixel depth history for their reprojection (disabled by default)."),
+	TEXT("Whether the depth of moving subpixel detail should also be included in the subpixel depth history for their reprojection. This is a really bad idea to turn this on ")
+	TEXT("because it is impossible how a moving object's velocity involves overtime when it's only occasionally drawing its velocity. (disabled by default)."),
 	ECVF_RenderThreadSafe);
 
 #if COMPILE_TSR_DEBUG_PASSES
@@ -1552,7 +1641,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 			PassParameters->WorldDepthToDepthError = WorldDepthToPixelWorldRadius * 2.0f;
 		}
-		PassParameters->VelocityExtrapolationMultiplier = FMath::Clamp(CVarTSRVelocityExtrapolation.GetValueOnRenderThread(), 0.0f, 1.0f);
+		PassParameters->VelocityExtrapolationMultiplier = 0.0; //FMath::Clamp(CVarTSRVelocityExtrapolation.GetValueOnRenderThread(), 0.0f, 1.0f);
 		{
 			float FlickeringMaxParralaxVelocity = RefreshRateToFrameRateCap * CVarTSRFlickeringMaxParralaxVelocity.GetValueOnRenderThread() * float(View.ViewRect.Width()) / 1920.0f;
 			PassParameters->InvFlickeringMaxParralaxVelocity = 1.0f / FlickeringMaxParralaxVelocity;
@@ -1786,7 +1875,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 			SeparateTranslucencyTexture->Desc.Extent, SeparateTranslucencyRect));
 		PassParameters->PrevTranslucencyInfo = GetScreenPassTextureViewportParameters(PrevTranslucencyViewport);
 		PassParameters->PrevTranslucencyPreExposureCorrection = PrevHistoryParameters.HistoryPreExposureCorrection;
-		PassParameters->TranslucencyHighlightLuminance = CVarTSRTranslucencyHighlightLuminance.GetValueOnRenderThread();
+		PassParameters->TranslucencyHighlightLuminance = -1.0; //CVarTSRTranslucencyHighlightLuminance.GetValueOnRenderThread();
 
 		PassParameters->ScreenPosToPrevTranslucencyTextureUV = FScreenTransform::ChangeTextureBasisFromTo(
 			PrevTranslucencyViewport, FScreenTransform::ETextureBasis::ScreenPosition, FScreenTransform::ETextureBasis::TextureUV);
@@ -2007,7 +2096,8 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->InputToHistoryFactor = float(HistorySize.X) / float(InputRect.Width());
 		PassParameters->InputContributionMultiplier = OutputToHistoryResolutionFractionSquare; 
 		PassParameters->GrandPrevPreExposureCorrection = bCameraCut ? 1.0f : View.PreExposure / InputHistory.PrevSceneColorPreExposure;
-		PassParameters->ResponsiveStencilMask = CVarTSREnableResponiveAA.GetValueOnRenderThread() ? (STENCIL_TEMPORAL_RESPONSIVE_AA_MASK) : 0;
+		//PassParameters->ResponsiveStencilMask = CVarTSREnableResponiveAA.GetValueOnRenderThread() ? (STENCIL_TEMPORAL_RESPONSIVE_AA_MASK) : 0;
+		PassParameters->ResponsiveStencilMask = 0;
 		PassParameters->bGenerateOutputMip1 = false;
 		PassParameters->bGenerateOutputMip2 = false;
 		PassParameters->bHasSeparateTranslucency = bHasSeparateTranslucency;
