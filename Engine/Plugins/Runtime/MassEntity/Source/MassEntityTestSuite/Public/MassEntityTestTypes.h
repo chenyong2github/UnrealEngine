@@ -40,6 +40,8 @@ struct FTestFragment_Int : public FMassFragment
 	int32 Value = 0;
 
 	FTestFragment_Int(const int32 InValue = 0) : Value(InValue) {}
+
+	static constexpr int32 TestIntValue = 123456;
 };
 
 USTRUCT()
@@ -73,6 +75,33 @@ struct FTestFragment_Array : public FMassFragment
 	{
 		Value.Reserve(Num);
 	}
+};
+
+USTRUCT()
+struct FTestChunkFragment_Int : public FMassChunkFragment
+{
+	GENERATED_BODY()
+	int32 Value = 0;
+
+	FTestChunkFragment_Int(const int32 InValue = 0) : Value(InValue) {}
+};
+
+USTRUCT()
+struct FTestSharedFragment_Int : public FMassSharedFragment
+{
+	GENERATED_BODY()
+	int32 Value = 0;
+
+	FTestSharedFragment_Int(const int32 InValue = 0) : Value(InValue) {}
+};
+
+USTRUCT()
+struct FTestSharedFragment_Float : public FMassSharedFragment
+{
+	GENERATED_BODY()
+	float Value = 0.f;
+
+	FTestSharedFragment_Float(const float InValue = 0) : Value(InValue) {}
 };
 
 /** @todo rename to FTestTag */
@@ -227,8 +256,6 @@ struct MASSENTITYTESTSUITE_API FExecutionTestBase : FAITestBase
 
 	virtual bool SetUp() override;
 };
-
-const int TestIntValue = 123456;
 
 struct MASSENTITYTESTSUITE_API FEntityTestBase : FExecutionTestBase
 {

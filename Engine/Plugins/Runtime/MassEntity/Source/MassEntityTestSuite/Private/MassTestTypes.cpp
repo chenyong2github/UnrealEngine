@@ -34,7 +34,7 @@ bool FEntityTestBase::SetUp()
 	FloatsIntsArchetype = EntityManager->CreateArchetype(MakeArrayView(FragmentTypes, 2));
 
 	FTestFragment_Int IntFrag;
-	IntFrag.Value = TestIntValue;
+	IntFrag.Value = FTestFragment_Int::TestIntValue;
 	InstanceInt = FInstancedStruct::Make(IntFrag);
 
 	return true;
