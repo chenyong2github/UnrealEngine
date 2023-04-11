@@ -42,6 +42,9 @@
  *
  *	[Saving a existing Blueprint]
  *	  - Create or update the class descriptor.
+ *
+ *	[Loading a Blueprint]
+ *	  - Create or update the class descriptor from the assset-registry data.
  */
 
 /*
@@ -91,6 +94,7 @@ void FWorldPartitionClassDescRegistry::Initialize()
 
 	RegisterClasses();
 
+	FCoreUObjectDelegates::OnAssetLoaded.AddRaw(this, &FWorldPartitionClassDescRegistry::OnAssetLoaded);
 	FCoreUObjectDelegates::OnObjectPreSave.AddRaw(this, &FWorldPartitionClassDescRegistry::OnObjectPreSave);
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FWorldPartitionClassDescRegistry::OnObjectPropertyChanged);
 
@@ -113,6 +117,7 @@ void FWorldPartitionClassDescRegistry::Uninitialize()
 	check(IsInitialized());
 	FActorDescList::Empty();
 
+	FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
 	FCoreUObjectDelegates::OnObjectPreSave.RemoveAll(this);
 	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
 	
@@ -378,6 +383,36 @@ void FWorldPartitionClassDescRegistry::RegisterClassDescriptorFromActorClass(con
 	RegisterClassDescriptor(NewActorDesc);
 }
 
+void FWorldPartitionClassDescRegistry::OnAssetLoaded(UObject* InAssetLoaded)
+{
+	check(InAssetLoaded);
+	check(IsInitialized());
+
+	if (InAssetLoaded->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor))
+	{
+		return;
+	}
+
+	UBlueprintGeneratedClass* BlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>(InAssetLoaded);
+
+	if (!BlueprintGeneratedClass)
+	{
+		if (UBlueprint* Blueprint = Cast<UBlueprint>(InAssetLoaded))
+		{
+			BlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>(Blueprint->GeneratedClass);
+		}
+	}
+
+	if (!BlueprintGeneratedClass || !BlueprintGeneratedClass->IsChildOf<AActor>())
+	{
+		return;
+	}
+
+	ValidateInternalState();
+	PrefetchClassDescs({ FTopLevelAssetPath(BlueprintGeneratedClass->GetPathName()) });
+	ValidateInternalState();
+}
+
 void FWorldPartitionClassDescRegistry::OnObjectPreSave(UObject* InObject, FObjectPreSaveContext InSaveContext)
 {
 	if (!InSaveContext.IsProceduralSave() && !(InSaveContext.GetSaveFlags() & SAVE_FromAutosave))
@@ -530,52 +565,49 @@ void FWorldPartitionClassDescRegistry::UpdateClassDescriptor(UObject* InObject, 
 	const FTopLevelAssetPath ClassPath(ActorCDO->GetClass()->GetPathName());
 	const FTopLevelAssetPath CurrentParentClassPath = FTopLevelAssetPath(ActorCDO->GetClass()->GetSuperClass()->GetPathName());
 
-	ValidateInternalState();
-
-	if (!ClassByPath.Contains(ClassPath))
+	if (TUniquePtr<FWorldPartitionActorDesc>** ExistingClassDesc = ClassByPath.Find(ClassPath))
 	{
-		PrefetchClassDescs({ ClassPath });
-	}
-
-	TUniquePtr<FWorldPartitionActorDesc>* ExistingClassDesc = ClassByPath.FindChecked(ClassPath);
-
-	ValidateInternalState();
-
-	if (!ExistingClassDesc)
-	{
-		if (!bOnlyIfExists)
-		{
-			FWorldPartitionActorDesc* NewActorDesc = ActorCDO->CreateActorDesc().Release();
-			RegisterClassDescriptor(NewActorDesc);
-
-			ParentClassMap.Add(ClassPath, CurrentParentClassPath);
-		}
-	}
-	else
-	{
-		FWorldPartitionActorDescUtils::UpdateActorDescriptorFromActor(ActorCDO, *ExistingClassDesc);
-
 		const FTopLevelAssetPath PreviousParentClassPath = ParentClassMap.FindChecked(ClassPath);
-		if (PreviousParentClassPath != CurrentParentClassPath)
-		{
-			// We are reparenting a blueprint, update our parent map
-			ParentClassMap.Add(ClassPath, CurrentParentClassPath);
-		}
-	}
 
-	ValidateInternalState();
+		ValidateInternalState();
+
+		if (!*ExistingClassDesc)
+		{
+			if (!bOnlyIfExists)
+			{
+				FWorldPartitionActorDesc* NewActorDesc = ActorCDO->CreateActorDesc().Release();
+				RegisterClassDescriptor(NewActorDesc);
+
+				ParentClassMap.Add(ClassPath, CurrentParentClassPath);
+			}
+		}
+		else
+		{
+			FWorldPartitionActorDescUtils::UpdateActorDescriptorFromActor(ActorCDO, **ExistingClassDesc);
+
+			if (PreviousParentClassPath != CurrentParentClassPath)
+			{
+				// We are reparenting a blueprint, update our parent map
+				ParentClassMap.Add(ClassPath, CurrentParentClassPath);
+			}
+		}
+
+		ValidateInternalState();
+	}
 }
 
 void FWorldPartitionClassDescRegistry::ValidateInternalState()
 {
 #if DO_GUARD_SLOW
-	check(ClassByPath.Num() == ParentClassMap.Num());
-	static const FTopLevelAssetPath ActorClassPath(TEXT("/Script/Engine.Actor"));
 	for (auto& [ClassPath, ParentClassPath] : ParentClassMap)
 	{
 		// Validate that the class parents chain is valid
-		check(ClassByPath.Contains(ClassPath));
-		check((ParentClassPath != ActorClassPath) || ParentClassMap.Contains(ParentClassPath));
+		static const FTopLevelAssetPath ActorClassPath(TEXT("/Script/Engine.Actor"));
+		for (FTopLevelAssetPath CurrentClassPath = ClassPath; CurrentClassPath != ActorClassPath; CurrentClassPath = ParentClassMap.FindChecked(CurrentClassPath))
+		{
+			check(CurrentClassPath.IsValid());
+			ClassByPath.FindChecked(CurrentClassPath);
+		}
 	}
 #endif
 }
