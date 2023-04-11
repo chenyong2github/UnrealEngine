@@ -1652,19 +1652,37 @@ const TCHAR* FProperty::ImportSingleProperty( const TCHAR* Str, void* DestData, 
 
 	// strip leading whitespace
 	const TCHAR* Start = FAsciiSet::Skip(Str, Whitespaces);
-	// find first delimiter
-	Str = FAsciiSet::FindFirstOrEnd(Start, Delimiters);
-	// check if delimiter was found...
-	if (*Str)
+	FName PropertyName;
+	
+	if (*Start == '"')
 	{
-		// strip trailing whitespace
-		int32 Len = UE_PTRDIFF_TO_INT32(Str - Start);
-		while (Len > 0 && Whitespaces.Contains(Start[Len - 1]))
+		int32 OutQuotedLen;
+		FString OutUnquotedString;
+		FParse::QuotedString(Start, OutUnquotedString, &OutQuotedLen);
+		PropertyName = FName(OutUnquotedString);
+		
+		// advance iterator to next delimiter
+		Str = FAsciiSet::FindFirstOrEnd(Start + OutQuotedLen, Delimiters);
+	}
+	else // legacy format requires that we support un-quoted and un-escaped property names
+	{
+		// find first delimiter
+		Str = FAsciiSet::FindFirstOrEnd(Start, Delimiters);
+		// check if delimiter was found...
+		if (*Str)
 		{
-			--Len;
+			// strip trailing whitespace
+			int32 Len = UE_PTRDIFF_TO_INT32(Str - Start);
+			while (Len > 0 && Whitespaces.Contains(Start[Len - 1]))
+			{
+				--Len;
+			}
+			PropertyName = FName(Len, Start);
 		}
-
-		const FName PropertyName(Len, Start);
+	}
+	
+	if (*Str && !PropertyName.IsNone())
+	{
 		FProperty* Property = FindFProperty<FProperty>(ObjectStruct, PropertyName);
 
 		if (Property == nullptr)

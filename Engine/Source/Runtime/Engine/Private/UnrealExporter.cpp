@@ -16,6 +16,7 @@
 #include "Model.h"
 #include "Misc/FeedbackContext.h"
 #include "AssetExportTask.h"
+#include "Misc/AsciiSet.h"
 #include "UObject/GCObjectScopeGuard.h"
 
 #if WITH_EDITOR
@@ -679,7 +680,6 @@ void ExportProperties
 	UObject*		ExportRootScope
 )
 {
-	FString ThisName = TEXT("(none)");
 	check(ObjectClass != NULL);
 
 	for( FProperty* Property = ObjectClass->PropertyLink; Property; Property = Property->PropertyLinkNext )
@@ -687,7 +687,7 @@ void ExportProperties
 		if (!Property->ShouldPort(PortFlags))
 			continue;
 
-		ThisName = Property->GetName();
+		const FString SanitizedPropertyName = FString::Format(TEXT("\"{0}\""), {Property->GetName().ReplaceCharWithEscapedChar()});
 		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property);
 		FObjectPropertyBase* ExportObjectProp = (Property->PropertyFlags & CPF_ExportObject) != 0 ? CastField<FObjectPropertyBase>(Property) : NULL;
 		const uint32 ExportFlags = PortFlags | PPF_Delimited;
@@ -724,7 +724,7 @@ void ExportProperties
 				// If the current size of the array is 0 and the default one is not, add in an empty item so on import it will be empty
 				if( ArrayHelper.Num() == 0 && DiffArrayHelper.Num() != 0 )
 				{
-					Out.Logf(TEXT("%s%s=\r\n"), FCString::Spc(Indent), *Property->GetName());
+					Out.Logf(TEXT("%s%s=\r\n"), FCString::Spc(Indent), *SanitizedPropertyName);
 				}
 				else
 				{
@@ -779,12 +779,12 @@ void ExportProperties
 								}
 							}
 
-							Out.Logf(TEXT("%s%s(%i)=%s\r\n"), FCString::Spc(Indent), *Property->GetName(), DynamicArrayIndex, *Value);
+							Out.Logf(TEXT("%s%s(%i)=%s\r\n"), FCString::Spc(Indent), *SanitizedPropertyName, DynamicArrayIndex, *Value);
 						}
 					}
 					for (int32 DynamicArrayIndex = DiffArrayHelper.Num()-1; DynamicArrayIndex >= ArrayHelper.Num(); --DynamicArrayIndex)
 					{
-						Out.Logf(TEXT("%s%s.RemoveIndex(%d)\r\n"), FCString::Spc(Indent), *Property->GetName(), DynamicArrayIndex);
+						Out.Logf(TEXT("%s%s.RemoveIndex(%d)\r\n"), FCString::Spc(Indent), *SanitizedPropertyName, DynamicArrayIndex);
 					}
 				}
 			}
@@ -837,11 +837,11 @@ void ExportProperties
 
 					if( Property->ArrayDim == 1 )
 					{
-						Out.Logf( TEXT("%s%s=%s\r\n"), FCString::Spc(Indent), *Property->GetName(), *Value );
+						Out.Logf( TEXT("%s%s=%s\r\n"), FCString::Spc(Indent), *SanitizedPropertyName, *Value );
 					}
 					else
 					{
-						Out.Logf( TEXT("%s%s(%i)=%s\r\n"), FCString::Spc(Indent), *Property->GetName(), PropertyArrayIndex, *Value );
+						Out.Logf( TEXT("%s%s(%i)=%s\r\n"), FCString::Spc(Indent), *SanitizedPropertyName, PropertyArrayIndex, *Value );
 					}
 				}
 			}
