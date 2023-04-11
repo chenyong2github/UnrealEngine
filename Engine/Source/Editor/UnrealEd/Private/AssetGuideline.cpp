@@ -278,6 +278,7 @@ void UAssetGuideline::EnableMissingGuidelines(TArray<FString> IncorrectPlugins, 
 			}
 		}
 
+		TSet<FString> ConfigFilesToFlush;
 		for (const FIniStringValue& IncorrectProjectSetting : IncorrectProjectSettings)
 		{
 			// Only fails if file DNE
@@ -289,6 +290,7 @@ void UAssetGuideline::EnableMissingGuidelines(TArray<FString> IncorrectPlugins, 
 				if (!FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*FilenamePath))
 				{
 					GConfig->SetString(*IncorrectProjectSetting.Section, *IncorrectProjectSetting.Key, *IncorrectProjectSetting.Value, FilenamePath);
+					ConfigFilesToFlush.Add(MoveTemp(FilenamePath));
 				}
 				else
 				{
@@ -301,6 +303,12 @@ void UAssetGuideline::EnableMissingGuidelines(TArray<FString> IncorrectPlugins, 
 				bSuccess = false;
 				break;
 			}
+		}
+
+		for (const FString& ConfigFileToFlush : ConfigFilesToFlush)
+		{
+			constexpr bool bRemoveFromCache = false;
+			GConfig->Flush(bRemoveFromCache, ConfigFileToFlush);
 		}
 
 		if (bSuccess)
