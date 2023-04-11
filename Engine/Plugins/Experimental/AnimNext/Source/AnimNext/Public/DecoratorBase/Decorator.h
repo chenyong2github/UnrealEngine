@@ -38,7 +38,7 @@
 		UE::AnimNext::FDecoratorMemoryLayout{ sizeof(DecoratorName), alignof(DecoratorName), sizeof(DecoratorName::FSharedData), alignof(DecoratorName::FSharedData), sizeof(DecoratorName::FInstanceData), alignof(DecoratorName::FInstanceData) }; \
 	void DecoratorName::ConstructInstance(UE::AnimNext::FExecutionContext& Context, UE::AnimNext::FWeakDecoratorPtr DecoratorPtr, const UE::AnimNext::FDecoratorDescription& DecoratorDesc, UE::AnimNext::FDecoratorInstance& DecoratorInstance) const \
 	{ \
-		FInstanceData* Data = new(&DecoratorInstance) FInstanceData(); \
+		FInstanceData* Data = new(&static_cast<FInstanceData&>(DecoratorInstance)) FInstanceData(); \
 		Data->Construct(Context, DecoratorPtr, static_cast<const FSharedData&>(DecoratorDesc)); \
 	} \
 	void DecoratorName::DestructInstance(UE::AnimNext::FExecutionContext& Context, UE::AnimNext::FWeakDecoratorPtr DecoratorPtr, const UE::AnimNext::FDecoratorDescription& DecoratorDesc, UE::AnimNext::FDecoratorInstance& DecoratorInstance) const \
