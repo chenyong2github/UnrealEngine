@@ -2,13 +2,21 @@
 
 #include "DesktopPlatformModule.h"
 #include "DesktopPlatformPrivate.h"
+#include "Null/NullPlatformApplicationMisc.h"
 
 IMPLEMENT_MODULE( FDesktopPlatformModule, DesktopPlatform );
 DEFINE_LOG_CATEGORY(LogDesktopPlatform);
 
 void FDesktopPlatformModule::StartupModule()
 {
-	DesktopPlatform = new FDesktopPlatform();
+	if(FNullPlatformApplicationMisc::IsUsingNullApplication())
+	{
+		DesktopPlatform = new FDesktopPlatformNull();
+	}
+	else
+	{
+		DesktopPlatform = new FDesktopPlatform();
+	}
 
 	FPlatformMisc::SetEnvironmentVar(TEXT("UE_DesktopUnrealProcess"), TEXT("1"));
 }
