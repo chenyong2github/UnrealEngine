@@ -280,6 +280,8 @@ private:
 	void RegisterChaosEvents();
 	void UnregisterChaosEvents();
 
+
+	TArray<UObject*> GetInterestedProxyOwnersForCollisionEvents();
 	// Chaos Event Handlers
 	void HandleCollisionEvents(const Chaos::FCollisionEventData& CollisionData);
 	void HandleBreakingEvents(const Chaos::FBreakingEventData& BreakingData);

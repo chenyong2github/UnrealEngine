@@ -235,4 +235,42 @@ namespace Chaos
 			return false;
 		}
 	}
+	
+	template<typename PayloadType>
+	const TMap<IPhysicsProxyBase*, TArray<int32>>* GetProxyToIndexMap(const PayloadType* Buffer)
+	{
+		if (!Buffer)
+		{
+			return nullptr;
+		}
+
+		if constexpr (std::is_same_v<PayloadType, FCollisionEventData>)
+		{
+			return &Buffer->PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap;
+		}
+		else if constexpr (std::is_same_v<PayloadType, FBreakingEventData>)
+		{
+			return nullptr; // &Buffer->PhysicsProxyToBreakingIndices.PhysicsProxyToIndicesMap;
+		}
+		else if constexpr (std::is_same_v<PayloadType, FTrailingEventData>)
+		{
+			return nullptr; // &Buffer->PhysicsProxyToTrailingIndices.PhysicsProxyToIndicesMap;
+		}
+		else if constexpr (std::is_same_v<PayloadType, FRemovalEventData>)
+		{
+			return nullptr; // &Buffer->PhysicsProxyToRemovalIndices.PhysicsProxyToIndicesMap;
+		}
+		else if constexpr (std::is_same_v<PayloadType, FSleepingEventData>)
+		{
+			return nullptr;
+		}
+		else if constexpr (std::is_same_v<PayloadType, FCrumblingEventData>)
+		{
+			return nullptr; // &Buffer->PhysicsProxyToCrumblingIndices.PhysicsProxyToIndicesMap;
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
 }
