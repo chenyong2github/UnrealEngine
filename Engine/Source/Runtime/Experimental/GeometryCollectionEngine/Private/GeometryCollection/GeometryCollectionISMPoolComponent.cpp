@@ -84,6 +84,8 @@ FGeometryCollectionISM::FGeometryCollectionISM(AActor* OwmingActor, const FGeome
 	ISMC->bAffectDistanceFieldLighting = MeshInstance.Desc.bAffectDistanceFieldLighting;
 	ISMC->SetCanEverAffectNavigation(false);
 	ISMC->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	ISMC->bOverrideMinLOD = MeshInstance.Desc.MinLod > 0;	
+	ISMC->MinLOD = MeshInstance.Desc.MinLod;
 	
 	if (HISMC)
 	{
