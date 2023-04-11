@@ -190,6 +190,11 @@ namespace Horde.Agent
 		/// Incoming port for listening for compute work. Needs to be tied with a lease.
 		/// </summary>
 		public int ComputePort { get; set; } = 7000;
+		
+		/// <summary>
+		/// How often to report telemetry events to server in milliseconds
+		/// </summary>
+		public int TelemetryReportInterval { get; set; } = 10 * 1000;
 
 		/// <summary>
 		/// Key/value properties in addition to those set internally by the agent
