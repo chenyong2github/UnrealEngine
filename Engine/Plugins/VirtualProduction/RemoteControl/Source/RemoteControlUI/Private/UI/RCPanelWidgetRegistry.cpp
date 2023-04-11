@@ -116,6 +116,13 @@ TSharedPtr<IDetailTreeNode> FRCPanelWidgetRegistry::GetObjectTreeNode(UObject* I
 	{
 		if (Node->IsValid() && Node->Pin()->CreatePropertyHandle() && Node->Pin()->CreatePropertyHandle()->GetNumOuterObjects() != 0)
 		{
+			if (TSharedPtr<IPropertyRowGenerator>* FoundGenerator = ObjectToRowGenerator.Find({ InObject }))
+			{
+				// Since we are returning cached node from the second time refresh onwards
+				// It is important that we refresh the corresponding row to keep the consistency.
+				FoundGenerator->Get()->OnRowsRefreshed().Broadcast();
+			}
+
 			return Node->Pin();
 		}
 		else

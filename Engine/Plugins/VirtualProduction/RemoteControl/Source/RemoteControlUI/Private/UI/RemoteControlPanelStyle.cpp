@@ -163,6 +163,10 @@ void FRemoteControlPanelStyle::SetupPanelStyles(TSharedRef<FSlateStyleSet> InSty
 	// Header Row Style
 	FHeaderRowStyle HeaderRowStyle = AppStyle.GetWidgetStyle<FHeaderRowStyle>("PropertyTable.HeaderRow");
 	HeaderRowStyle.BackgroundBrush = FSlateColorBrush(FStyleColors::Background);
+	HeaderRowStyle.SplitterHandleSize = 1.f;
+	HeaderRowStyle.ColumnSplitterStyle = FSplitterStyle()
+	.SetHandleNormalBrush(FSlateColorBrush(FStyleColors::AccentGray))
+	.SetHandleHighlightBrush(FSlateColorBrush(FStyleColors::AccentGray));
 	HeaderRowStyle.HorizontalSeparatorBrush = FSlateColorBrush(FStyleColors::Background);
 
 	// Table Row Style
