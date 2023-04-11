@@ -11,13 +11,13 @@ namespace UE::Interchange
 		int64 ComputeBlockSize(const FTextureSourceBlock& Block, ETextureSourceFormat Format)
 		{
 			int64 Size = 0;
-			int32 Width = Block.SizeX;
-			int32 Height = Block.SizeY;
+			int64 Width = Block.SizeX;
+			int64 Height = Block.SizeY;
 			for (int32 CurrentMip = 0; CurrentMip < Block.NumMips; ++CurrentMip)
 			{
 				Size += Width * Height * FTextureSource::GetBytesPerPixel(Format) * Block.NumSlices;
-				Width >>= 2;
-				Height >>= 2;
+				Width  = FMath::Max(Width>>1,1);
+				Height = FMath::Max(Height>>1,1);
 			}
 			return Size;
 		}
