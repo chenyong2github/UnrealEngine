@@ -142,45 +142,36 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	template< typename T >
-	inline void operator<< ( OutputArchive& arch, const T& t )
-	{
-        t.Serialise( arch );
-	}
-
-	template< typename T >
-	inline void operator>> ( InputArchive& arch, T& t )
-	{
-        t.Unserialise( arch );
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-#define MUTABLE_DEFINE_POD_SERIALISABLE(T)								\
+#define MUTABLE_IMPLEMENT_POD_SERIALISABLE(T)							\
 		template<>														\
 		inline void operator<< <T>( OutputArchive& arch, const T& t )	\
 		{																\
 			arch.GetPrivate()->m_pStream->Write( &t, sizeof(T) );		\
 		}																\
 																		\
+		template void operator<< ( OutputArchive& arch, const T& t );	\
+																		\
 		template<>														\
 		inline void operator>> <T>( InputArchive& arch, T& t )			\
 		{																\
 			arch.GetPrivate()->m_pStream->Read( &t, sizeof(T) );		\
-		}
+		}																\
+																		\
+		template void operator>> ( InputArchive& arch, T& t );			\
 
-	MUTABLE_DEFINE_POD_SERIALISABLE(float);
-	MUTABLE_DEFINE_POD_SERIALISABLE(double);
 
-    MUTABLE_DEFINE_POD_SERIALISABLE( int8 );
-    MUTABLE_DEFINE_POD_SERIALISABLE( int16 );
-    MUTABLE_DEFINE_POD_SERIALISABLE( int32 );
-    MUTABLE_DEFINE_POD_SERIALISABLE( int64 );
+	MUTABLE_IMPLEMENT_POD_SERIALISABLE(float);
+	MUTABLE_IMPLEMENT_POD_SERIALISABLE(double);
 
-    MUTABLE_DEFINE_POD_SERIALISABLE( uint8 );
-    MUTABLE_DEFINE_POD_SERIALISABLE( uint16 );
-    MUTABLE_DEFINE_POD_SERIALISABLE( uint32 );
-    MUTABLE_DEFINE_POD_SERIALISABLE( uint64 );
+    MUTABLE_IMPLEMENT_POD_SERIALISABLE( int8 );
+    MUTABLE_IMPLEMENT_POD_SERIALISABLE( int16 );
+    MUTABLE_IMPLEMENT_POD_SERIALISABLE( int32 );
+    MUTABLE_IMPLEMENT_POD_SERIALISABLE( int64 );
+
+    MUTABLE_IMPLEMENT_POD_SERIALISABLE( uint8 );
+    MUTABLE_IMPLEMENT_POD_SERIALISABLE( uint16 );
+    MUTABLE_IMPLEMENT_POD_SERIALISABLE( uint32 );
+    MUTABLE_IMPLEMENT_POD_SERIALISABLE( uint64 );
 
 	//---------------------------------------------------------------------------------------------
 	// TVariant custom serialize. Based on the default serialization.
@@ -257,21 +248,26 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-#define MUTABLE_DEFINE_ENUM_SERIALISABLE(T)								\
+#define MUTABLE_IMPLEMENT_ENUM_SERIALISABLE(T)							\
 		template<>														\
         inline void operator<< <T>( OutputArchive& arch, const T& t )	\
 		{																\
-            auto v = (uint32)t;                                       \
-            arch.GetPrivate()->m_pStream->Write( &v, sizeof(uint32) );\
+            auto v = (uint32)t;                                         \
+            arch.GetPrivate()->m_pStream->Write( &v, sizeof(uint32) );  \
 		}																\
 																		\
+		template void operator<< ( OutputArchive& arch, const T& t );	\
+																		\
 		template<>														\
-        inline void operator>> <T>( InputArchive& arch, T& t )          \
+        inline void operator>> <T>( InputArchive& arch, T& t )   		\
 		{																\
             uint32 v;													\
             arch.GetPrivate()->m_pStream->Read( &v, sizeof(uint32) );	\
 			t = (T)v;													\
-		}
+		}																\
+																		\
+		template void operator>> ( InputArchive& arch, T& t ); 			\
+
 
 
     //---------------------------------------------------------------------------------------------
@@ -288,31 +284,6 @@ namespace mu
         arch >> v.first;
         arch >> v.second;
     }
-
-
-	
-	//---------------------------------------------------------------------------------------------
-	template<typename T> inline void operator<<(OutputArchive& arch, const TArray<T>& v)
-	{
-		// TODO: Optimise for vectors of PODs
-		arch << (uint32)v.Num();
-		for (std::size_t i = 0; i < v.Num(); ++i)
-		{
-			arch << v[i];
-		}
-	}
-
-	template<typename T> inline void operator>>(InputArchive& arch, TArray<T>& v)
-	{
-		// TODO: Optimise for vectors of PODs
-		uint32 size;
-		arch >> size;
-		v.SetNum(size);
-		for (std::size_t i = 0; i < size; ++i)
-		{
-			arch >> v[i];
-		}
-	}
 
 	
 	//---------------------------------------------------------------------------------------------
@@ -363,8 +334,9 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-#define MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(T)										\
-	template<> inline void operator<<<T>(OutputArchive& arch, const TArray<T>& v)		\
+#define MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(T)									\
+	template<>																			\
+	inline void operator<< <T>(OutputArchive& arch, const TArray<T>& v)					\
 	{                                                                                   \
 		uint32 Num = uint32(v.Num());													\
 		arch << Num;																	\
@@ -374,7 +346,10 @@ namespace mu
 		}                                                                               \
 	}                                                                                   \
 																						\
-	template<> inline void operator>><T>(InputArchive& arch, TArray<T>& v)				\
+	template void operator<< (OutputArchive& arch, const TArray<T>& v);					\
+																						\
+	template<>																			\
+	inline void operator>> <T>(InputArchive& arch, TArray<T>& v)						\
 	{                                                                                   \
 		uint32 Num;																		\
 		arch >> Num;																	\
@@ -383,37 +358,39 @@ namespace mu
 		{                                                                               \
 			arch.GetPrivate()->m_pStream->Read(&v[0], Num * sizeof(T));					\
 		}                                                                               \
-	}
+	}																					\
+																						\
+	template void operator>> (InputArchive& arch, TArray<T>& v);						\
 
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(float);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(double);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(uint8);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(uint16);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(uint32);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(uint64);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(int8);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(int16);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(int32);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(int64);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(float);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(double);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(uint8);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(uint16);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(uint32);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(uint64);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(int8);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(int16);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(int32);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(int64);
 
-	MUTABLE_DEFINE_POD_SERIALISABLE(vec2f);
-	MUTABLE_DEFINE_POD_SERIALISABLE(vec3f);
-	MUTABLE_DEFINE_POD_SERIALISABLE(mat3f);
-	MUTABLE_DEFINE_POD_SERIALISABLE(mat4f);
-	MUTABLE_DEFINE_POD_SERIALISABLE(vec2<int>);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(vec2f);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(vec3f);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(mat3f);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(mat4f);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(vec2<int>);
+	MUTABLE_IMPLEMENT_POD_SERIALISABLE(vec2f);
+	MUTABLE_IMPLEMENT_POD_SERIALISABLE(vec3f);
+	MUTABLE_IMPLEMENT_POD_SERIALISABLE(mat3f);
+	MUTABLE_IMPLEMENT_POD_SERIALISABLE(mat4f);
+	MUTABLE_IMPLEMENT_POD_SERIALISABLE(vec2<int>);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(vec2f);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(vec3f);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(mat3f);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(mat4f);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(vec2<int>);
 
 	// Unreal POD Serializables
-	MUTABLE_DEFINE_POD_SERIALISABLE(FUintVector2);
-	MUTABLE_DEFINE_POD_SERIALISABLE(UE::Math::TIntVector2<uint16>);
-	MUTABLE_DEFINE_POD_SERIALISABLE(UE::Math::TIntVector2<int16>);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(FUintVector2);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(UE::Math::TIntVector2<uint16>);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(UE::Math::TIntVector2<int16>);
+	MUTABLE_IMPLEMENT_POD_SERIALISABLE(FUintVector2);
+	MUTABLE_IMPLEMENT_POD_SERIALISABLE(UE::Math::TIntVector2<uint16>);
+	MUTABLE_IMPLEMENT_POD_SERIALISABLE(UE::Math::TIntVector2<int16>);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(FUintVector2);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(UE::Math::TIntVector2<uint16>);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(UE::Math::TIntVector2<int16>);
 
 
 	//---------------------------------------------------------------------------------------------

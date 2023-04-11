@@ -51,10 +51,6 @@ public class CustomizableObject : ModuleRules
                 "TargetPlatform"
         });
 
-		PrivateIncludePaths.AddRange(new string[] {
-				"MutableRuntime/Private",
-			});
-
 		if (TargetRules.bBuildEditor == true)
         {
             PublicDependencyModuleNames.Add("UnrealEd");	// @todo api: Only public because of WITH_EDITOR

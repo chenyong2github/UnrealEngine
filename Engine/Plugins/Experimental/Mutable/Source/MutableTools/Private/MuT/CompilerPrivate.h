@@ -13,7 +13,7 @@
 
 namespace mu
 {
-	MUTABLE_DEFINE_ENUM_SERIALISABLE(ETextureCompressionStrategy);
+	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE(ETextureCompressionStrategy);
 
     //!
     struct FStateOptimizationOptions

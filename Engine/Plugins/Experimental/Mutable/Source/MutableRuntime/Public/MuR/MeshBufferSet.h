@@ -2,16 +2,14 @@
 
 #pragma once
 
-#include "MuR/SerialisationPrivate.h"
+#include "MuR/Serialisation.h"
 #include "Containers/Array.h"
 #include "HAL/PlatformMath.h"
 #include "MuR/MutableMemory.h"
-#include "MuR/Serialisation.h"
 
 
 namespace mu
 {
-
 	//! Supported formats for the elements in mesh buffers.
 	//! \ingroup runtime
 	typedef enum
@@ -163,11 +161,6 @@ namespace mu
 
 	};
 
-	MUTABLE_DEFINE_POD_SERIALISABLE(MESH_BUFFER_CHANNEL);
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(MESH_BUFFER_CHANNEL);
-	MUTABLE_DEFINE_ENUM_SERIALISABLE(MESH_BUFFER_FORMAT);
-	MUTABLE_DEFINE_ENUM_SERIALISABLE(MESH_BUFFER_SEMANTIC);
-
 
 	struct MESH_BUFFER
 	{
@@ -178,7 +171,7 @@ namespace mu
 		}
 
 		//!
-		TArray<MESH_BUFFER_CHANNEL> m_channels;
+		TArray<mu::MESH_BUFFER_CHANNEL> m_channels;
 
 		//!
 		TArray<uint8> m_data;
@@ -187,20 +180,10 @@ namespace mu
 		uint32 m_elementSize;
 
 		//!
-		inline void Serialise(OutputArchive& arch) const
-		{
-			arch << m_channels;
-			arch << m_data;
-			arch << m_elementSize;
-		}
+		void Serialise(mu::OutputArchive& arch) const;
 
 		//!
-		inline void Unserialise(InputArchive& arch)
-		{
-			arch >> m_channels;
-			arch >> m_data;
-			arch >> m_elementSize;
-		}
+		inline void Unserialise(mu::InputArchive& arch);
 
 		//!
 		inline bool operator==(const MESH_BUFFER& o) const
@@ -226,18 +209,10 @@ namespace mu
 		TArray<MESH_BUFFER> m_buffers;
 
 		//!
-		inline void Serialise(OutputArchive& arch) const
-		{
-			arch << m_elementCount;
-			arch << m_buffers;
-		}
+		inline void Serialise(OutputArchive& arch) const;
 
 		//!
-		inline void Unserialise(InputArchive& arch)
-		{
-			arch >> m_elementCount;
-			arch >> m_buffers;
-		}
+		inline void Unserialise(InputArchive& arch);
 
 		//!
 		inline bool operator==(const FMeshBufferSet& o) const
@@ -401,7 +376,12 @@ namespace mu
 
 		//!
 		void UpdateOffsets(int32 b);
-	};
+	};	
 
+	
+	MUTABLE_DEFINE_POD_SERIALISABLE(MESH_BUFFER_CHANNEL);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(MESH_BUFFER_CHANNEL);
+	MUTABLE_DEFINE_ENUM_SERIALISABLE(MESH_BUFFER_FORMAT);
+	MUTABLE_DEFINE_ENUM_SERIALISABLE(MESH_BUFFER_SEMANTIC);
 }
 

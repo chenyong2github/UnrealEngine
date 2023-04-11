@@ -318,7 +318,6 @@ namespace mu
         }
     }
 
-
     //---------------------------------------------------------------------------------------------
     Model::Private* Model::GetPrivate() const
     {
@@ -335,6 +334,137 @@ namespace mu
         {
             m_pD->m_generatedResources.Empty();
         }
+    }
+
+
+    //---------------------------------------------------------------------------------------------
+    bool Model::GetBoolDefaultValue(int32 Index) const
+    {
+    	check(m_pD->m_program.m_parameters.IsValidIndex(Index));
+		check(m_pD->m_program.m_parameters[Index].m_type == PARAMETER_TYPE::T_BOOL);
+
+        // Early out in case of invalid parameters
+        if (m_pD->m_program.m_parameters.IsValidIndex(Index) ||
+            m_pD->m_program.m_parameters[Index].m_type == PARAMETER_TYPE::T_BOOL)
+        {
+            return false;
+        }
+		
+        return m_pD->m_program.m_parameters[Index].m_defaultValue.Get<ParamBoolType>();
+    }
+
+
+    //---------------------------------------------------------------------------------------------
+	int32 Model::GetIntDefaultValue(int Index) const
+	{
+		check(m_pD->m_program.m_parameters.IsValidIndex(Index));
+		check(m_pD->m_program.m_parameters[Index].m_type == PARAMETER_TYPE::T_INT);
+
+        // Early out in case of invalid parameters
+        if (m_pD->m_program.m_parameters.IsValidIndex(Index) ||
+            m_pD->m_program.m_parameters[Index].m_type == PARAMETER_TYPE::T_INT)
+        {
+            return 0;
+        }
+		
+        return m_pD->m_program.m_parameters[Index].m_defaultValue.Get<ParamIntType>();
+	}
+
+
+    //---------------------------------------------------------------------------------------------
+	float Model::GetFloatDefaultValue(int32 Index) const
+	{
+    	check(m_pD->m_program.m_parameters.IsValidIndex(Index));
+		check(m_pD->m_program.m_parameters[Index].m_type == PARAMETER_TYPE::T_FLOAT);
+
+        // Early out in case of invalid parameters
+        if (m_pD->m_program.m_parameters.IsValidIndex(Index) ||
+            m_pD->m_program.m_parameters[Index].m_type == PARAMETER_TYPE::T_FLOAT)
+        {
+            return 0.0f;
+        }
+		
+        return m_pD->m_program.m_parameters[Index].m_defaultValue.Get<ParamFloatType>();
+	}
+
+
+	void Model::GetColourDefaultValue(int32 Index, float* R, float* G, float* B) const
+    {
+    	check(m_pD->m_program.m_parameters.IsValidIndex(Index));
+		check(m_pD->m_program.m_parameters[Index].m_type == PARAMETER_TYPE::T_COLOUR);
+
+        // Early out in case of invalid parameters
+        if (m_pD->m_program.m_parameters.IsValidIndex(Index) ||
+            m_pD->m_program.m_parameters[Index].m_type == PARAMETER_TYPE::T_COLOUR)
+        {
+            return;
+        }
+
+        ParamColorType& Color = m_pD->m_program.m_parameters[Index].m_defaultValue.Get<ParamColorType>();
+        if (R) *R = Color[0];
+    	if (G) *G = Color[1];
+    	if (B) *B = Color[2];
+    }
+
+
+	void Model::GetProjectorDefaultValue(int32 Index, PROJECTOR_TYPE* OutProjectionType, FVector3f* OutPos,
+		FVector3f* OutDir, FVector3f* OutUp, FVector3f* OutScale, float* OutProjectionAngle) const
+	{
+    	check(m_pD->m_program.m_parameters.IsValidIndex(Index));
+		check(m_pD->m_program.m_parameters[Index].m_type == PARAMETER_TYPE::T_PROJECTOR);
+
+        // Early out in case of invalid parameters
+        if (m_pD->m_program.m_parameters.IsValidIndex(Index) ||
+            m_pD->m_program.m_parameters[Index].m_type == PARAMETER_TYPE::T_PROJECTOR)
+        {
+            return;
+        }
+
+        const ParamProjectorType& Projector = m_pD->m_program.m_parameters[Index].m_defaultValue.Get<ParamProjectorType>();
+        if (OutProjectionType) *OutProjectionType = Projector.type;
+    	if (OutPos) *OutPos = Projector.position;
+		if (OutDir) *OutDir = Projector.direction;
+    	if (OutUp) *OutUp = Projector.up;
+    	if (OutScale) *OutScale = Projector.scale;
+    	if (OutProjectionAngle) *OutProjectionAngle = Projector.projectionAngle;
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+    EXTERNAL_IMAGE_ID Model::GetImageDefaultValue(int32 Index) const
+    {
+	    check(m_pD->m_program.m_parameters.IsValidIndex(Index));
+		check(m_pD->m_program.m_parameters[Index].m_type == PARAMETER_TYPE::T_IMAGE);
+
+        // Early out in case of invalid parameters
+        if (m_pD->m_program.m_parameters.IsValidIndex(Index) ||
+            m_pD->m_program.m_parameters[Index].m_type == PARAMETER_TYPE::T_IMAGE)
+        {
+            return 0;
+        }
+		
+        return m_pD->m_program.m_parameters[Index].m_defaultValue.Get<ParamImageType>();
+    }
+
+
+    //---------------------------------------------------------------------------------------------
+    int32 Model::GetRomCount() const
+    {
+    	return m_pD->m_program.m_roms.Num();
+    }
+
+
+    //---------------------------------------------------------------------------------------------
+    uint32 Model::GetRomId(int32 Index) const
+    {
+    	return m_pD->m_program.m_roms[Index].Id;
+    }
+
+
+    //---------------------------------------------------------------------------------------------
+    uint32 Model::GetRomSize(int32 Index) const
+    {
+    	return m_pD->m_program.m_roms[Index].Size;
     }
 
 

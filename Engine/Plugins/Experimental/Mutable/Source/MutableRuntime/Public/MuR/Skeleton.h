@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MuR/SerialisationPrivate.h"
+#include "MuR/Serialisation.h"
 #include "Containers/Array.h"
 #include "HAL/PlatformMath.h"
 #include "Math/Transform.h"
@@ -10,12 +10,14 @@
 #include "Misc/AssertionMacros.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
-#include "MuR/Serialisation.h"
+
+#include <string>
 
 
 namespace mu
 {
-
+	typedef std::string string;
+	
 	// Forward references
     class Skeleton;
 
@@ -77,43 +79,10 @@ namespace mu
 
 
 		//!
-		inline void Serialise(OutputArchive& arch) const
-		{
-			uint32 ver = 5;
-			arch << ver;
-
-			arch << m_bones;
-			arch << m_boneParents;
-		}
+		inline void Serialise(OutputArchive& arch) const;
 
 		//!
-		inline void Unserialise(InputArchive& arch)
-		{
-			uint32 ver;
-			arch >> ver;
-			check(ver >= 3);
-
-			arch >> m_bones;
-
-			if (ver == 3)
-			{
-				arch >> m_boneTransforms_DEPRECATED;
-			}
-
-			arch >> m_boneParents;
-
-			if (ver <= 4)
-			{
-				TArray<int32> boneIds;
-				arch >> boneIds;
-			}
-
-			if (ver == 3)
-			{
-				bool bBoneTransformModified;
-				arch >> bBoneTransformModified;
-			}
-		}
+		inline void Unserialise(InputArchive& arch);
 
 
 		//!

@@ -104,7 +104,53 @@ namespace mu
         //! that keep models loaded. This could be called when a game finishes, or a change of
         //! level.
         void ClearCaches();
+    	
+		//! Return the default value of a boolean parameter.
+		//! \pre The parameter specified by index is a T_BOOL.
+		//! \param Index Index of the parameter from 0 to GetCount()-1
+    	bool GetBoolDefaultValue(int32 Index) const;
 
+   		//! Return the default value of a integer parameter.
+		//! \pre The parameter specified by index is a T_INT.
+		//! \param Index Index of the parameter from 0 to GetCount()-1
+    	int32 GetIntDefaultValue(int32 Index) const;
+
+		//! Return the default value of a float parameter.
+		//! \pre The parameter specified by index is a T_FLOAT.
+		//! \param Index Index of the parameter from 0 to GetCount()-1
+        float GetFloatDefaultValue(int32 Index) const;
+
+		//! Return the default value of a colour parameter.
+		//! \pre The parameter specified by index is a T_FLOAT.
+        //! \param Index Index of the parameter from 0 to GetCount()-1
+        //! \param R,G,B Pointers to values where every resulting colour channel will be stored
+    	void GetColourDefaultValue(int32 Index, float* R, float* G, float* B) const;
+
+    	//! Return the default value of a projector parameter, as a 4x4 matrix. The matrix is supposed to be
+		//! a linear transform in column-major.
+		//! \pre The parameter specified by index is a T_PROJECTOR.
+        //! \param Index Index of the parameter from 0 to GetCount()-1
+        //! \param OutPos Pointer to where the object-space position coordinates of the projector will be stored.
+        //! \param OutDir Pointer to where the object-space direction vector of the projector will be stored.
+        //! \param OutUp Pointer to where the object-space vertically up direction vector
+        //!         of the projector will be stored. This controls the "roll" angle of the
+        //!         projector.
+        //! \param OutScale Pointer to the projector-space scaling of the projector.
+    	void GetProjectorDefaultValue(int32 Index, PROJECTOR_TYPE* OutProjectionType, FVector3f* OutPos,
+    	 	FVector3f* OutDir, FVector3f* OutUp, FVector3f* OutScale, float* OutProjectionAngle) const;
+
+        //! Return the default value of an image parameter.
+        //! \pre The parameter specified by index is a T_IMAGE.
+        //! \param Index Index of the parameter from 0 to GetCount()-1
+		//! \return The externalId specified when setting the image value (\see SetImageValue)
+        EXTERNAL_IMAGE_ID GetImageDefaultValue(int32 Index) const;
+
+    	int32 GetRomCount() const;
+
+		uint32 GetRomId(int32 Index) const;
+
+		uint32 GetRomSize(int32 Index) const;
+    	
 		//-----------------------------------------------------------------------------------------
 		// Interface pattern
 		//-----------------------------------------------------------------------------------------
