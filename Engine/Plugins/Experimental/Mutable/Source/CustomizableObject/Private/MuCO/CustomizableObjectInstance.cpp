@@ -245,7 +245,11 @@ void UCustomizableObjectInstance::PreEditChange(FProperty* PropertyAboutToChange
 			if (Texture)
 			{
 				const int32 TextureId = DefaultImageProvider.Get(Texture);
-				DefaultImageProvider.Keep(TextureId, false);
+
+				if (TextureId != INDEX_NONE)
+				{
+					DefaultImageProvider.Keep(TextureId, false);
+				}
 			}
 		}
 	}
