@@ -42,23 +42,12 @@ public:
 	virtual void RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FUintVector4& Values) final override;
 	
 	virtual void RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FRHICopyTextureInfo& CopyInfo) final override;
-	
 	virtual void RHICopyBufferRegion(FRHIBuffer* DstBufferRHI, uint64 DstOffset, FRHIBuffer* SrcBufferRHI, uint64 SrcOffset, uint64 NumBytes) final override;
 
-	/**
-	 * Resolves from one texture to another.
-	 * @param SourceTexture - texture to resolve from, 0 is silenty ignored
-	 * @param DestTexture - texture to resolve to, 0 is silenty ignored
-	 * @param ResolveParams - optional resolve params
-	 */
-	virtual void RHICopyToResolveTarget(FRHITexture* SourceTexture, FRHITexture* DestTexture, const FResolveParams& ResolveParams) final override;
-	
 	virtual void RHIBeginRenderQuery(FRHIRenderQuery* RenderQuery) final override;
-	
 	virtual void RHIEndRenderQuery(FRHIRenderQuery* RenderQuery) final override;
 	
 	void RHIBeginOcclusionQueryBatch(uint32 NumQueriesInBatch);
-	
 	void RHIEndOcclusionQueryBatch();
 	
 	virtual void RHISubmitCommandsHint() override;

@@ -455,17 +455,6 @@ public:
 		RHIContext->RHIEndUAVOverlap(UAVs);
 	}
 
-	/**
-	* Resolves from one texture to another.
-	* @param SourceTexture - texture to resolve from, 0 is silenty ignored
-	* @param DestTexture - texture to resolve to, 0 is silenty ignored
-	* @param ResolveParams - optional resolve params
-	*/
-	virtual void RHICopyToResolveTarget(FRHITexture* SourceTexture, FRHITexture* DestTexture, const FResolveParams& ResolveParams) override final
-	{
-		RHIContext->RHICopyToResolveTarget(SourceTexture, DestTexture, ResolveParams);
-	}
-
 	virtual void RHIResummarizeHTile(FRHITexture2D* DepthTexture) override final
 	{
 		Tracker->Assert(DepthTexture->GetWholeResourceIdentity(), ERHIAccess::DSVWrite);

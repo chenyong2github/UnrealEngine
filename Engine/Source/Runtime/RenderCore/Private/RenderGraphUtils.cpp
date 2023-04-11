@@ -349,54 +349,6 @@ RENDERCORE_API void AddDrawTexturePass(
 	}
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FCopyToResolveTargetParameters, )
-	RDG_TEXTURE_ACCESS_DYNAMIC(Input)
-	RDG_TEXTURE_ACCESS_DYNAMIC(Output)
-END_SHADER_PARAMETER_STRUCT()
-
-void AddCopyToResolveTargetPass(
-	FRDGBuilder& GraphBuilder,
-	FRDGTextureRef InputTexture,
-	FRDGTextureRef OutputTexture,
-	const FResolveParams& ResolveParams)
-{
-	check(InputTexture && OutputTexture);
-
-	if (InputTexture == OutputTexture)
-	{
-		return;
-	}
-
-	ERHIAccess AccessSource = ERHIAccess::ResolveSrc;
-	ERHIAccess AccessDest = ERHIAccess::ResolveDst;
-
-	// This might also just be a copy.
-	if (InputTexture->Desc.NumSamples == OutputTexture->Desc.NumSamples)
-	{
-		AccessSource = ERHIAccess::CopySrc;
-		AccessDest = ERHIAccess::CopyDest;
-	}
-
-	FCopyToResolveTargetParameters* Parameters = GraphBuilder.AllocParameters<FCopyToResolveTargetParameters>();
-	Parameters->Input = FRDGTextureAccess(InputTexture, AccessSource);
-	Parameters->Output = FRDGTextureAccess(OutputTexture, AccessDest);
-
-	FResolveParams LocalResolveParams = ResolveParams;
-	LocalResolveParams.SourceAccessFinal = AccessSource;
-	LocalResolveParams.DestAccessFinal = AccessDest;
-
-	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("CopyToResolveTarget(%s -> %s)", InputTexture->Name, OutputTexture->Name),
-		Parameters,
-		ERDGPassFlags::Copy | ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-		[InputTexture, OutputTexture, LocalResolveParams](FRHICommandList& RHICmdList)
-	{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		RHICmdList.CopyToResolveTarget(InputTexture->GetRHI(), OutputTexture->GetRHI(), LocalResolveParams);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	});
-}
-
 BEGIN_SHADER_PARAMETER_STRUCT(FCopyBufferParameters, )
 	RDG_BUFFER_ACCESS(SrcBuffer, ERHIAccess::CopySrc)
 	RDG_BUFFER_ACCESS(DstBuffer, ERHIAccess::CopyDest)

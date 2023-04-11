@@ -1527,23 +1527,6 @@ FRHICOMMAND_MACRO(FRHICommandClearUAVUint)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-FRHICOMMAND_MACRO(FRHICommandCopyToResolveTarget)
-{
-	FResolveParams ResolveParams;
-	FRHITexture* SourceTexture;
-	FRHITexture* DestTexture;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandCopyToResolveTarget(FRHITexture* InSourceTexture, FRHITexture* InDestTexture, const FResolveParams& InResolveParams)
-		: ResolveParams(InResolveParams)
-		, SourceTexture(InSourceTexture)
-		, DestTexture(InDestTexture)
-	{
-		ensure(SourceTexture);
-		ensure(DestTexture);
-	}
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
 FRHICOMMAND_MACRO(FRHICommandCopyTexture)
 {
 	FRHICopyTextureInfo CopyInfo;
@@ -3220,18 +3203,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		ALLOC_COMMAND(FRHICommandSetShadingRate)(ShadingRate, Combiner);
 #endif
-	}
-
-	UE_DEPRECATED(5.1, "CopyToResolveTarget is deprecated. Use render passes for MSAA resolves, or CopyTexture for copies instead.")
-	FORCEINLINE_DEBUGGABLE void CopyToResolveTarget(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FResolveParams& ResolveParams)
-	{
-		//check(IsOutsideRenderPass());
-		if (Bypass())
-		{
-			GetContext().RHICopyToResolveTarget(SourceTextureRHI, DestTextureRHI, ResolveParams);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandCopyToResolveTarget)(SourceTextureRHI, DestTextureRHI, ResolveParams);
 	}
 
 	FORCEINLINE_DEBUGGABLE void CopyTexture(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FRHICopyTextureInfo& CopyInfo)

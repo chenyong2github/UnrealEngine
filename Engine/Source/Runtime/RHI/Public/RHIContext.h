@@ -23,7 +23,6 @@
 class FRHIDepthRenderTargetView;
 class FRHIRenderTargetView;
 class FRHISetRenderTargetsInfo;
-struct FResolveParams;
 struct FViewportBounds;
 struct FRayTracingGeometryInstance;
 struct FRayTracingShaderBindings;
@@ -549,15 +548,6 @@ public:
 	// @param Count >0
 	// @param Data must not be 0
 	virtual void RHISetMultipleViewports(uint32 Count, const FViewportBounds* Data) = 0;
-
-	/**
-	* Resolves from one texture to another.
-	* @param SourceTexture - texture to resolve from, 0 is silently ignored
-	* @param DestTexture - texture to resolve to, 0 is silently ignored
-	* @param ResolveParams - optional resolve params
-	* @param Fence - optional fence, will be set once copy is completed by GPU
-	*/
-	virtual void RHICopyToResolveTarget(FRHITexture* SourceTexture, FRHITexture* DestTexture, const FResolveParams& ResolveParams) = 0;
 
 	/**
 	* Rebuilds the depth target HTILE meta data (on supported platforms).

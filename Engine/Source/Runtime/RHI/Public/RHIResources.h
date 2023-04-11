@@ -4337,51 +4337,6 @@ struct FResolveRect
 	}
 };
 
-struct FResolveParams
-{
-	/** used to specify face when resolving to a cube map texture */
-	ECubeFace CubeFace;
-	/** resolve RECT bounded by [X1,Y1]..[X2,Y2]. Or -1 for fullscreen */
-	FResolveRect Rect;
-	FResolveRect DestRect;
-	/** The mip index to resolve in both source and dest. */
-	int32 MipIndex;
-	/** Array index to resolve in the source. */
-	int32 SourceArrayIndex;
-	/** Array index to resolve in the dest. */
-	int32 DestArrayIndex;
-	/** States to transition to at the end of the resolve operation. */
-	ERHIAccess SourceAccessFinal = ERHIAccess::SRVMask;
-	ERHIAccess DestAccessFinal = ERHIAccess::SRVMask;
-
-	/** constructor */
-	FResolveParams(
-		const FResolveRect& InRect = FResolveRect(),
-		ECubeFace InCubeFace = CubeFace_PosX,
-		int32 InMipIndex = 0,
-		int32 InSourceArrayIndex = 0,
-		int32 InDestArrayIndex = 0,
-		const FResolveRect& InDestRect = FResolveRect())
-		: CubeFace(InCubeFace)
-		, Rect(InRect)
-		, DestRect(InDestRect)
-		, MipIndex(InMipIndex)
-		, SourceArrayIndex(InSourceArrayIndex)
-		, DestArrayIndex(InDestArrayIndex)
-	{}
-
-	FORCEINLINE FResolveParams(const FResolveParams& Other)
-		: CubeFace(Other.CubeFace)
-		, Rect(Other.Rect)
-		, DestRect(Other.DestRect)
-		, MipIndex(Other.MipIndex)
-		, SourceArrayIndex(Other.SourceArrayIndex)
-		, DestArrayIndex(Other.DestArrayIndex)
-		, SourceAccessFinal(Other.SourceAccessFinal)
-		, DestAccessFinal(Other.DestAccessFinal)
-	{}
-};
-
 struct FRHIRenderPassInfo
 {
 	struct FColorEntry

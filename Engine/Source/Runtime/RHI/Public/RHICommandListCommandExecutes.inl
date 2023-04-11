@@ -27,7 +27,6 @@ struct FRHICommandBeginScene;
 struct FRHICommandBuildLocalBoundShaderState;
 struct FRHICommandBuildLocalGraphicsPipelineState;
 struct FRHICommandBuildLocalUniformBuffer;
-struct FRHICommandCopyToResolveTarget;
 struct FRHICommandDrawIndexedIndirect;
 struct FRHICommandDrawIndexedPrimitive;
 struct FRHICommandDrawIndexedPrimitiveIndirect;
@@ -288,12 +287,6 @@ void FRHICommandClearUAVUint::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(ClearUAV);
 	INTERNAL_DECORATOR_COMPUTE(RHIClearUAVUint)(UnorderedAccessViewRHI, Values);
-}
-
-void FRHICommandCopyToResolveTarget::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(CopyToResolveTarget);
-	INTERNAL_DECORATOR(RHICopyToResolveTarget)(SourceTexture, DestTexture, ResolveParams);
 }
 
 void FRHICommandCopyTexture::Execute(FRHICommandListBase& CmdList)

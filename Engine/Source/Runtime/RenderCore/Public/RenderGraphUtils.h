@@ -734,16 +734,6 @@ RENDERCORE_API void AddDrawTexturePass(
 	FRDGTextureRef OutputTexture,
 	const FRDGDrawTextureInfo& DrawInfo);
 
-/** Adds a render graph pass to resolve from one texture to another. Uses RHICopyToResolveTarget under the hood.
- *  The formats of the two textures don't need to match.
- */
-UE_DEPRECATED(5.1, "AddCopyToResolveTargetPass is deprecated. Use AddCopyTexturePass to perform texture copies, or FRenderTargetBinding to perform resolves.")
-RENDERCORE_API void AddCopyToResolveTargetPass(
-	FRDGBuilder& GraphBuilder,
-	FRDGTextureRef InputTexture,
-	FRDGTextureRef OutputTexture,
-	const FResolveParams& ResolveParams);
-
 /** Adds a render graph pass to clear a texture or buffer UAV with a single typed value. */
 RENDERCORE_API void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV, uint32 Value, ERDGPassFlags ComputePassFlags = ERDGPassFlags::Compute);
 
