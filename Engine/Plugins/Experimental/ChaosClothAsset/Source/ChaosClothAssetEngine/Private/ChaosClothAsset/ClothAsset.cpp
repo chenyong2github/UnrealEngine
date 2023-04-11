@@ -625,6 +625,36 @@ void UChaosClothAsset::SetSkeleton(USkeleton* InSkeleton, bool bRebuildModels)
 	}
 }
 
+void UChaosClothAsset::UpdateSkeletonFromCollection(bool bRebuildModels)
+{
+	using namespace UE::Chaos::ClothAsset;
+	check(ClothCollection.IsValid());
+
+	FCollectionClothConstFacade ClothFacade(ClothCollection);
+
+	USkeleton* InSkeleton = nullptr;
+	if (ClothFacade.GetNumLods())
+	{
+		const FString& SkeletonAssetPathName = ClothFacade.GetLod(0).GetSkeletonAssetPathName();
+		InSkeleton = LoadObject<USkeleton>(nullptr, *SkeletonAssetPathName, nullptr, LOAD_None, nullptr);
+	}
+
+	if (!InSkeleton)
+	{
+		SetSkeleton(nullptr, true);
+	}
+	else
+	{
+		Skeleton = InSkeleton;
+		RefSkeleton = Skeleton->GetReferenceSkeleton();
+
+		if (bRebuildModels)
+		{
+			Build();
+		}
+	}
+}
+
 void UChaosClothAsset::CopySimMeshToRenderMesh(UMaterialInterface* Material)
 {
 	using namespace UE::Chaos::ClothAsset;

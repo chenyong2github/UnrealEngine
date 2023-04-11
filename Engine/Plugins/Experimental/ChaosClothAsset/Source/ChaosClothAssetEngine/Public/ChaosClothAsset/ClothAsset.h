@@ -122,9 +122,15 @@ public:
 	/**
 	 * Set the skeleton asset and bone hierachy to use for this cloth.
 	 * @param InSkeleton The skeleton asset to use for this cloth, or nullptr to setup a default skeleton asset.
-	 * @param bRebuildClothModel Whether to rebuild the simulation and rendering models (editor builds only).
+	 * @param bRebuildModels Whether to rebuild the simulation and rendering models (editor builds only).
 	 */
 	void SetSkeleton(USkeleton* InSkeleton, bool bRebuildModels);
+
+	/**
+	 * Set the skeleton asset using the LOD0 skeleton specified in the cloth collection, or load a default skeleton if it is invalid.
+	 * @param bRebuildModels Whether to rebuild the simulation and rendering models (editor builds only).
+	 */
+	void UpdateSkeletonFromCollection(bool bRebuildModels);
 
 	/** Set the bone hierachy to use for this cloth. */
 	UE_DEPRECATED(5.3, "Use SetSkeleton instead")
