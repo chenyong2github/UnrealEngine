@@ -7,6 +7,7 @@
 #include "Components/PrimitiveComponent.h"
 
 #include "Chaos/ChaosEngineInterface.h"
+#include "Chaos/PhysicsObjectCollisionInterface.h"
 #include "ChaosInterfaceWrapperCore.h"
 #include "Collision/CollisionConversions.h"
 #include "Engine/Level.h"
@@ -2936,8 +2937,9 @@ bool UPrimitiveComponent::LineTraceComponent(struct FHitResult& OutHit, const FV
 			}
 		);
 
+		Chaos::FPhysicsObjectCollisionInterface_External CollisionInterface{ Interface.GetInterface() };
 		ChaosInterface::FRaycastHit BestHit;
-		if (Interface->LineTrace(Objects, Start, End, Params.bTraceComplex, BestHit))
+		if (CollisionInterface.LineTrace(Objects, Start, End, Params.bTraceComplex, BestHit))
 		{
 			bHaveHit = true;
 
@@ -2988,8 +2990,17 @@ bool UPrimitiveComponent::SweepComponent(struct FHitResult& OutHit, const FVecto
 		}
 	);
 
+	Chaos::FPhysicsObjectCollisionInterface_External CollisionInterface{ Interface.GetInterface() };
 	ChaosInterface::FSweepHit BestHit;
-	if (Interface->ShapeSweep(Objects, ShapeAdapter.GetGeometry(), ShapeAdapter.GetGeomPose(Start), End, bTraceComplex, BestHit))
+
+	Chaos::FSweepParameters Params;
+	Params.bSweepComplex = bTraceComplex;
+
+	// TODO: Expose this even further via parameters in the primitive component.
+	// For now, having this be always true guarantees us identical behavior to tracing via the Chaos SQ
+	// since TSQTraits::GetHitFlags() will always have the MTD flag on.
+	Params.bComputeMTD = true;
+	if (CollisionInterface.ShapeSweep(Objects, ShapeAdapter.GetGeometry(), ShapeAdapter.GetGeomPose(Start), End, Params, BestHit))
 	{
 		FCollisionFilterData QueryFilter;
 		QueryFilter.Word1 = 0xFFFFF;
@@ -3051,11 +3062,12 @@ bool UPrimitiveComponent::ComponentOverlapComponentImpl(class UPrimitiveComponen
 		}
 	);
 
+	Chaos::FPhysicsObjectCollisionInterface_External CollisionInterface{ Interface.GetInterface() };
 	for (Chaos::FPhysicsObjectHandle InObject : InObjects)
 	{
 		for (Chaos::FPhysicsObjectHandle ThisObject : ThisObjects)
 		{
-			if (Interface->PhysicsObjectOverlap(InObject, FTransform::Identity, ThisObject, FTransform::Identity, Params.bTraceComplex))
+			if (CollisionInterface.PhysicsObjectOverlap(InObject, FTransform::Identity, ThisObject, FTransform::Identity, Params.bTraceComplex))
 			{
 				return true;
 			}
@@ -3085,12 +3097,13 @@ bool UPrimitiveComponent::ComponentOverlapComponentWithResultImpl(const class UP
 		}
 	);
 
+	Chaos::FPhysicsObjectCollisionInterface_External CollisionInterface{ Interface.GetInterface() };
 	for (Chaos::FPhysicsObjectHandle InObject : InObjects)
 	{
 		for (Chaos::FPhysicsObjectHandle ThisObject : ThisObjects)
 		{
 			TArray<ChaosInterface::FOverlapHit> OverlapHits;
-			if (Interface->PhysicsObjectOverlap(ThisObject, FTransform::Identity, InObject, InTransform, Params.bTraceComplex, OverlapHits))
+			if (CollisionInterface.PhysicsObjectOverlap(ThisObject, FTransform::Identity, InObject, InTransform, Params.bTraceComplex, OverlapHits))
 			{
 				TArray<FOverlapResult> Overlaps;
 
@@ -3132,8 +3145,9 @@ bool UPrimitiveComponent::OverlapComponentWithResult(const FVector& Pos, const F
 		}
 	);
 
+	Chaos::FPhysicsObjectCollisionInterface_External CollisionInterface{ Interface.GetInterface() };
 	TArray<ChaosInterface::FOverlapHit> OverlapHits;
-	if (Interface->ShapeOverlap(Objects, ShapeAdapter.GetGeometry(), ShapeAdapter.GetGeomPose(Pos), OverlapHits))
+	if (CollisionInterface.ShapeOverlap(Objects, ShapeAdapter.GetGeometry(), ShapeAdapter.GetGeomPose(Pos), OverlapHits))
 	{
 		TArray<FOverlapResult> Overlaps;
 

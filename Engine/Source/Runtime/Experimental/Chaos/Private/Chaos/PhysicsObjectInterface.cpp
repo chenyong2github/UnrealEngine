@@ -3,6 +3,7 @@
 
 #include "Chaos/CastingUtilities.h"
 #include "Chaos/CollisionFilterData.h"
+#include "Chaos/PhysicsObjectCollisionInterface.h"
 #include "Chaos/PhysicsObjectInternal.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Math/Transform.h"
@@ -306,16 +307,17 @@ namespace Chaos
 	bool FReadPhysicsObjectInterface<Id>::GetPhysicsObjectOverlap(const FConstPhysicsObjectHandle ObjectA, const FConstPhysicsObjectHandle ObjectB, bool bTraceComplex, Chaos::FOverlapInfo& OutOverlap)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FReadPhysicsObjectInterface<Id>::GetPhysicsObjectOverlap);
+		FPhysicsObjectCollisionInterface Interface{ *this };
 		// This is slow and inefficient and hence deprecated.
 		bool bRetOverlap = false;
 		if (OutOverlap.MTD)
 		{
-			bRetOverlap |= PhysicsObjectOverlapWithMTD(ObjectA, FTransform::Identity, ObjectB, FTransform::Identity, bTraceComplex, *OutOverlap.MTD);
+			bRetOverlap |= Interface.PhysicsObjectOverlapWithMTD(ObjectA, FTransform::Identity, ObjectB, FTransform::Identity, bTraceComplex, *OutOverlap.MTD);
 		}
 
 		if (OutOverlap.AxisOverlap)
 		{
-			bRetOverlap |= PhysicsObjectOverlapWithAABB(ObjectA, FTransform::Identity, ObjectB, FTransform::Identity, bTraceComplex, FVector::Zero(), *OutOverlap.AxisOverlap);
+			bRetOverlap |= Interface.PhysicsObjectOverlapWithAABB(ObjectA, FTransform::Identity, ObjectB, FTransform::Identity, bTraceComplex, FVector::Zero(), *OutOverlap.AxisOverlap);
 		}
 
 		return bRetOverlap;
@@ -325,175 +327,20 @@ namespace Chaos
 	bool FReadPhysicsObjectInterface<Id>::GetPhysicsObjectOverlapWithTransform(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, Chaos::FOverlapInfo& OutOverlap)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FReadPhysicsObjectInterface<Id>::GetPhysicsObjectOverlapWithTransform);
+		FPhysicsObjectCollisionInterface Interface{ *this };
 		// This is slow and inefficient and hence deprecated.
 		bool bRetOverlap = false;
 		if (OutOverlap.MTD)
 		{
-			bRetOverlap |= PhysicsObjectOverlapWithMTD(ObjectA, InTransformA, ObjectB, InTransformB, bTraceComplex, *OutOverlap.MTD);
+			bRetOverlap |= Interface.PhysicsObjectOverlapWithMTD(ObjectA, InTransformA, ObjectB, InTransformB, bTraceComplex, *OutOverlap.MTD);
 		}
 
 		if (OutOverlap.AxisOverlap)
 		{
-			bRetOverlap |= PhysicsObjectOverlapWithAABB(ObjectA, InTransformA, ObjectB, InTransformB, bTraceComplex, FVector::Zero(), *OutOverlap.AxisOverlap);
+			bRetOverlap |= Interface.PhysicsObjectOverlapWithAABB(ObjectA, InTransformA, ObjectB, InTransformB, bTraceComplex, FVector::Zero(), *OutOverlap.AxisOverlap);
 		}
 
 		return bRetOverlap;
-	}
-
-	template<EThreadContext Id>
-	bool FReadPhysicsObjectInterface<Id>::PhysicsObjectOverlap(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FReadPhysicsObjectInterface<Id>::PhysicsObjectOverlap);
-		return PairwiseShapeOverlapHelper(ObjectA, InTransformA, ObjectB, InTransformB, bTraceComplex, false, FVector::Zero(), [](const FShapeOverlapData&, const FShapeOverlapData&, const FMTDInfo&) { return false; });
-	}
-
-	template<EThreadContext Id>
-	bool FReadPhysicsObjectInterface<Id>::PhysicsObjectOverlapWithMTD(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, FMTDInfo& OutMTD)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FReadPhysicsObjectInterface<Id>::PhysicsObjectOverlapWithMTD);
-		OutMTD.Penetration = 0.0;
-		return PairwiseShapeOverlapHelper(
-			ObjectA,
-			InTransformA,
-			ObjectB,
-			InTransformB,
-			bTraceComplex,
-			true,
-			FVector::Zero(),
-			[&OutMTD](const FShapeOverlapData&, const FShapeOverlapData&, const FMTDInfo& MTDInfo)
-			{
-				OutMTD.Penetration = FMath::Max(OutMTD.Penetration, MTDInfo.Penetration);
-				return true;
-			}
-		);
-	}
-
-	template<EThreadContext Id>
-	bool FReadPhysicsObjectInterface<Id>::PhysicsObjectOverlapWithAABB(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, const FVector& Tolerance, FBox& OutOverlap)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FReadPhysicsObjectInterface<Id>::PhysicsObjectOverlapWithAABB);
-		OutOverlap = FBox{ EForceInit::ForceInitToZero };
-		return PairwiseShapeOverlapHelper(
-			ObjectA,
-			InTransformA,
-			ObjectB,
-			InTransformB,
-			bTraceComplex,
-			false,
-			Tolerance,
-			[&OutOverlap, &Tolerance](const FShapeOverlapData& ShapeA, const FShapeOverlapData& ShapeB, const FMTDInfo&)
-			{
-				const FAABB3 Intersection = ShapeA.BoundingBox.GetIntersection(ShapeB.BoundingBox);
-				OutOverlap += FBox{ Intersection.Min(), Intersection.Max() };
-				return true;
-			}
-		);
-	}
-
-	template<EThreadContext Id>
-	bool FReadPhysicsObjectInterface<Id>::PhysicsObjectOverlapWithAABBSize(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, const FVector& Tolerance, FVector& OutOverlapSize)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FReadPhysicsObjectInterface<Id>::PhysicsObjectOverlapWithAABBSize);
-		OutOverlapSize = FVector::Zero();
-		return PairwiseShapeOverlapHelper(
-			ObjectA,
-			InTransformA,
-			ObjectB,
-			InTransformB,
-			bTraceComplex,
-			false,
-			Tolerance,
-			[&OutOverlapSize](const FShapeOverlapData& ShapeA, const FShapeOverlapData& ShapeB, const FMTDInfo&)
-			{
-				const FAABB3 Intersection = ShapeA.BoundingBox.GetIntersection(ShapeB.BoundingBox);
-				OutOverlapSize += Intersection.Extents();
-				return true;
-			}
-		);
-	}
-
-	template<EThreadContext Id>
-	bool FReadPhysicsObjectInterface<Id>::PairwiseShapeOverlapHelper(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, bool bComputeMTD, const FVector& Tolerance, const TFunction<bool(const FShapeOverlapData&, const FShapeOverlapData&, const FMTDInfo&)>& Lambda)
-	{
-		TArray<TThreadShapeInstance<Id>*> ShapesA = GetAllThreadShapes({ &ObjectA, 1 });
-		const FTransform TransformA = FTransform{ GetR(ObjectA), GetX(ObjectA) } *InTransformA;
-		const FBox BoxA = GetWorldBounds({ &ObjectA, 1 }).TransformBy(InTransformA);
-
-		TArray<TThreadShapeInstance<Id>*> ShapesB = GetAllThreadShapes({ &ObjectB, 1 });
-		const FTransform TransformB = FTransform{ GetR(ObjectB), GetX(ObjectB) } *InTransformB;
-		const FBox BoxB = GetWorldBounds({ &ObjectB, 1 }).TransformBy(InTransformB);
-
-		if (!BoxA.Intersect(BoxB))
-		{
-			return false;
-		}
-
-		bool bFoundOverlap = false;
-		for (TThreadShapeInstance<Id>* B : ShapesB)
-		{
-			if (!B)
-			{
-				continue;
-			}
-
-			const TSerializablePtr<FImplicitObject> GeomB = B->GetGeometry();
-			if (!GeomB || !GeomB->IsConvex())
-			{
-				continue;
-			}
-
-			const FAABB3 BoxShapeB = GeomB->CalculateTransformedBounds(TransformB).ShrinkSymmetrically(Tolerance);
-			// At this point on, this function should be mirror the Overlap_GeomInternal function in PhysInterface_Chaos.cpp.
-			// ShapeA is equivalent to InInstance and GeomB is equivalent to InGeom.
-
-			for (TThreadShapeInstance<Id>* A : ShapesA)
-			{
-				if (!A)
-				{
-					continue;
-				}
-
-				FCollisionFilterData ShapeFilter = A->GetQueryData();
-				const bool bShapeIsComplex = (ShapeFilter.Word3 & static_cast<uint8>(EFilterFlags::ComplexCollision)) != 0;
-				const bool bShapeIsSimple = (ShapeFilter.Word3 & static_cast<uint8>(EFilterFlags::SimpleCollision)) != 0;
-				const bool bShouldTrace = (bTraceComplex && bShapeIsComplex) || (!bTraceComplex && bShapeIsSimple);
-				if (!bShouldTrace)
-				{
-					continue;
-				}
-
-				const FAABB3 BoxShapeA = A->GetGeometry()->CalculateTransformedBounds(TransformA).ShrinkSymmetrically(Tolerance);
-				if (!BoxShapeA.Intersects(BoxShapeB))
-				{
-					continue;
-				}
-
-				Chaos::FMTDInfo TmpMTDInfo;
-				const bool bOverlap = Chaos::Utilities::CastHelper(
-					*GeomB,
-					TransformB,
-					[A, &TransformA, bComputeMTD, &TmpMTDInfo](const auto& Downcast, const auto& FullTransformB)
-					{
-						return Chaos::OverlapQuery(*A->GetGeometry(), TransformA, Downcast, FullTransformB, 0, bComputeMTD ? &TmpMTDInfo : nullptr);
-					}
-				);
-
-				if (bOverlap)
-				{
-					bFoundOverlap = true;
-
-					FShapeOverlapData OverlapDataA = { A, BoxShapeA };
-					FShapeOverlapData OverlapDataB = { B, BoxShapeB };
-
-					if (!Lambda(OverlapDataA, OverlapDataB, TmpMTDInfo))
-					{
-						return true;
-					}
-				}
-			}
-		}
-
-		return bFoundOverlap;
 	}
 
 	template<EThreadContext Id>
