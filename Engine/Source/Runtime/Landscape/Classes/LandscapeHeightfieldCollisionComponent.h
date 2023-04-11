@@ -279,6 +279,13 @@ public:
 	/** Creates collision object from a cooked collision data */
 	virtual void CreateCollisionObject();
 
+	/** Creates collision object from raw runtime data.  Data is assumed at this point to contain valid physical material indices with visiblility layer set to 0xFF*/
+	LANDSCAPE_API void CreateCollisionObject(
+		bool bUseDefaultMaterialOnly,
+		TArrayView<const uint16> Heights, TArrayView<const uint16> SimpleHeights,
+		TArrayView<const uint8> PhysicalMaterialIds, TArrayView<const uint8> SimplePhysicalMaterialIds,
+		TArrayView<const TObjectPtr<UPhysicalMaterial>> PhysicalMaterialObjects);
+
 	/** Return the landscape actor associated with this component. */
 	LANDSCAPE_API ALandscapeProxy* GetLandscapeProxy() const;
 

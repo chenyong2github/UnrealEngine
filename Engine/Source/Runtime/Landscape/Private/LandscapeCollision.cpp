@@ -798,6 +798,91 @@ void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 	}
 }
 
+void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject(
+	bool bUseDefaultMaterialOnly, 
+	TArrayView<const uint16> Heights, TArrayView<const uint16> SimpleHeights, 
+	TArrayView<const uint8> PhysicalMaterialIds, TArrayView<const uint8> SimplePhysicalMaterialIds, 
+	TArrayView<const TObjectPtr<UPhysicalMaterial>> PhysicalMaterialObjects)
+{
+	TArrayView<const uint8> ComplexMaterialIndicesView;
+	TArrayView<const uint8> SimpleMaterialIndicesView;
+
+	bool bGenerateSimpleCollision = SimpleCollisionSizeQuads > 0 && !bUseDefaultMaterialOnly;
+
+	if(!ensureMsgf(!HeightfieldGuid.IsValid(), TEXT("Attempting to create a runtime collision object, but one already exists")))
+	{
+		return;
+	}
+
+	int32 CollisionSizeVerts;
+	int32 SimpleCollisionSizeVerts;
+	int32 NumSamples;
+	int32 NumSimpleSamples;
+	GetCollisionSampleInfo(CollisionSizeVerts, SimpleCollisionSizeVerts, NumSamples, NumSimpleSamples);
+
+	if (!ensure(Heights.Num() == NumSamples))
+	{
+		return;
+	}
+
+	int32 NumQuads = (CollisionSizeVerts - 1) * (CollisionSizeVerts - 1);
+	if (!ensure(PhysicalMaterialIds.Num() == NumQuads))
+	{
+		return;
+	}
+
+	if(bGenerateSimpleCollision)
+	{
+		if (!ensure(SimpleHeights.Num() == NumSimpleSamples))
+		{
+			return;
+		}
+
+		int32 NumSimpleQuads = (SimpleCollisionSizeVerts - 1) * (SimpleCollisionSizeVerts - 1);
+		if (!ensure(SimplePhysicalMaterialIds.Num() == NumSimpleQuads))
+		{
+			return;
+		}
+	}
+
+	// In non performant builds, validate that the incoming data's indices are all valid
+#if !UE_BUILD_TEST && !UE_BUILD_SHIPPING
+	for (uint8 Sample : PhysicalMaterialIds)
+	{
+		if (!ensure(Sample == 0xFF || PhysicalMaterialObjects.IsValidIndex(Sample)))
+		{
+			return;
+		}
+	}
+
+	if (bGenerateSimpleCollision)
+	{
+		for (uint8 Sample : SimplePhysicalMaterialIds)
+		{
+			if (!ensure(Sample == 0xFF || PhysicalMaterialObjects.IsValidIndex(Sample)))
+			{
+				return;
+			}
+		}
+	}
+#endif
+
+	HeightfieldGuid = FGuid::NewGuid();
+
+	HeightfieldRef = GSharedHeightfieldRefs.Add(HeightfieldGuid, new FHeightfieldGeometryRef(HeightfieldGuid));
+	HeightfieldRef->Heightfield = MakeUnique<Chaos::FHeightField>(Heights, PhysicalMaterialIds, CollisionSizeVerts, CollisionSizeVerts, Chaos::FVec3(1));
+	
+	if (bGenerateSimpleCollision)
+	{
+		HeightfieldRef->HeightfieldSimple = MakeUnique<Chaos::FHeightField>(SimpleHeights, SimplePhysicalMaterialIds, SimpleCollisionSizeVerts, SimpleCollisionSizeVerts, Chaos::FVec3(1));
+	}
+
+	for (UPhysicalMaterial* PhysicalMaterial : PhysicalMaterialObjects)
+	{
+		HeightfieldRef->UsedChaosMaterials.Add(PhysicalMaterial->GetPhysicsMaterial());
+	}
+}
+
 #if WITH_EDITOR
 void ULandscapeHeightfieldCollisionComponent::SpeculativelyLoadAsyncDDCCollsionData()
 {

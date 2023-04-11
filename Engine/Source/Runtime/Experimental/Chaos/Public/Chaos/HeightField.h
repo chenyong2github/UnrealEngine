@@ -28,7 +28,7 @@ namespace Chaos
 		using FImplicitObject::GetTypeName;
 
 		FHeightField(TArray<FReal>&& Height, TArray<uint8>&& InMaterialIndices, int32 InNumRows, int32 InNumCols, const FVec3& InScale);
-		FHeightField(TArrayView<const uint16> InHeights, TArrayView<uint8> InMaterialIndices, int32 InNumRows, int32 InNumCols, const FVec3& InScale);
+		FHeightField(TArrayView<const uint16> InHeights, TArrayView<const uint8> InMaterialIndices, int32 InNumRows, int32 InNumCols, const FVec3& InScale);
 		FHeightField(const FHeightField& Other) = delete;
 		
 		// Not required as long as FImplicitObject also has deleted move constructor (adding this causes an error on Linux build)
