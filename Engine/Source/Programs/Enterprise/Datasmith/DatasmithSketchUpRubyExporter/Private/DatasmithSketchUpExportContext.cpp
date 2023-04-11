@@ -166,6 +166,8 @@ bool FExportContext::Update(bool bModifiedHint)
 
 	bModified |= Scenes.Update();
 
+	bModified |= ModelDefinition->UpdateModel(*this);
+
 	if (!bModified)
 	{
 		// code below is not supposed to change Datasmith scene if not modification hint(i.e. no invalidated data) was present

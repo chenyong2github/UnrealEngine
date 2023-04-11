@@ -17,6 +17,7 @@
 #include <SketchUpAPI/model/entity.h>
 #include "SketchUpAPI/model/group.h"
 #include "SketchUpAPI/model/layer.h"
+#include "SketchUpAPI/model/location.h"
 #include "SketchUpAPI/model/model.h"
 #include "SketchUpAPI/model/component_instance.h"
 #include "SketchUpAPI/geometry/transformation.h"
@@ -345,6 +346,7 @@ void FModelDefinition::UpdateGeometry(FExportContext& Context)
 
 void FModelDefinition::UpdateMetadata(FExportContext& Context)
 {
+
 }
 
 void FModelDefinition::InvalidateInstancesGeometry(FExportContext& Context)
@@ -380,6 +382,31 @@ SUTransformation FModelDefinition::GetMeshBakedTransform()
 	SUTransformation Transform;
 	SUTransformationScale(&Transform, 1.0);
 	return Transform;
+}
+
+bool FModelDefinition::UpdateModel(FExportContext& Context)
+{
+	// SketchUp API has no notification of Geolocation change so retrieve it every time and compare to check if we need to set DirectLink update
+	FVector Geolocation = Context.DatasmithScene->GetGeolocation();
+	FVector GeolocationNew = Geolocation;
+
+	SULocationRef Location = SU_INVALID;
+	if (SU_ERROR_NONE == SUModelGetLocation(Model, &Location))
+	{
+		double Latitude = 0;
+		double Longitude = 0;
+		SULocationGetLatLong(Location, &Latitude, &Longitude);
+
+		GeolocationNew = FVector(Latitude, Longitude, 0);
+	}
+
+	if ((Geolocation - GeolocationNew).IsNearlyZero(1e-10))
+	{
+		return false;
+	}
+
+	Context.DatasmithScene->SetGeolocation(GeolocationNew);
+	return true;
 }
 
 FString FModelDefinition::GetSketchupSourceGUID()

@@ -220,7 +220,7 @@ namespace DatasmithSketchUp
 	public:
 		FModelDefinition(SUModelRef Model);
 
-		// Being FDefinition
+		// Beging FDefinition
 		virtual void Parse(FExportContext& Context) override;
 		
 		virtual void UpdateGeometry(FExportContext& Context) override;
@@ -239,6 +239,8 @@ namespace DatasmithSketchUp
 
 		virtual SUTransformation GetMeshBakedTransform() override;
 		// End FDefinition
+
+		bool UpdateModel(FExportContext& Context);
 
 	private:
 		SUModelRef Model;
