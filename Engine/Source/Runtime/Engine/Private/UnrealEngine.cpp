@@ -3786,7 +3786,7 @@ bool UEngine::InitializeHMDDevice()
 				StereoRenderingDevice = XRSystem->GetStereoRenderingDevice();
 				const bool bShouldStartInVR = StereoRenderingDevice.IsValid() && 
 											  !GIsEditor &&
-											  (FParse::Param(FCommandLine::Get(), TEXT("vr")) || GetDefault<UGeneralProjectSettings>()->bStartInVR);
+											  IStereoRendering::IsStartInVR();
 				if (bShouldStartInVR)
 				{
 					StereoRenderingDevice->EnableStereo(true);

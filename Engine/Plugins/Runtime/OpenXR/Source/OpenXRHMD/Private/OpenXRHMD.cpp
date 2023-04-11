@@ -1290,9 +1290,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	ReconfigureForShaderPlatform(GMaxRHIShaderPlatform);
 
 #if PLATFORM_HOLOLENS || PLATFORM_ANDROID
-	bool bStartInVR = false;
-	GConfig->GetBool(TEXT("/Script/EngineSettings.GeneralProjectSettings"), TEXT("bStartInVR"), bStartInVR, GGameIni);
-	bIsStandaloneStereoOnlyDevice = FParse::Param(FCommandLine::Get(), TEXT("vr")) || bStartInVR;
+	bIsStandaloneStereoOnlyDevice = IStereoRendering::IsStartInVR();
 #else
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 	{

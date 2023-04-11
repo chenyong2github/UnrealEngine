@@ -183,4 +183,8 @@ public:
 	virtual bool OverrideFinalPostprocessSettings(struct FPostProcessSettings* OverridePostProcessingSettings, const enum EStereoscopicPass StereoPassType, const int32 StereoViewIndex, float& BlendWeight) { return false; }
 	virtual void EndFinalPostprocessSettings(struct FPostProcessSettings* FinalPostProcessingSettings, const enum EStereoscopicPass StereoPassType, const int32 StereoViewIndex) {}
 
+	/**
+	* Static helper. Return true if the Start in VR setting is set to true, or if we have the "-vr" commandline argument
+	*/
+	static bool IsStartInVR();
 };

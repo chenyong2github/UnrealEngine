@@ -28,6 +28,7 @@
 #include "Stats/StatsTrace.h"
 #include "UnrealEngine.h"
 #include "UObject/UObjectIterator.h"
+#include "StereoRendering.h"
 
 #if WITH_EDITOR
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -7219,7 +7220,7 @@ bool FAudioDevice::CanUseVRAudioDevice()
 	else
 #endif
 	{
-		return FParse::Param(FCommandLine::Get(), TEXT("vr")) || GetDefault<UGeneralProjectSettings>()->bStartInVR;
+		return IStereoRendering::IsStartInVR();
 	}
 }
 

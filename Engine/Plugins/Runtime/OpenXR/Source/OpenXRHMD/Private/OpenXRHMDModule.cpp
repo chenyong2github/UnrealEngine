@@ -179,9 +179,7 @@ bool FOpenXRHMDModule::IsStandaloneStereoOnlyDevice()
 		}
 
 #if PLATFORM_HOLOLENS || PLATFORM_ANDROID
-		bool bStartInVR = false;
-		GConfig->GetBool(TEXT("/Script/EngineSettings.GeneralProjectSettings"), TEXT("bStartInVR"), bStartInVR, GGameIni); 
-		return FParse::Param(FCommandLine::Get(), TEXT("vr")) || bStartInVR;
+		return IStereoRendering::IsStartInVR();
 #endif
 	}
 	return false;
