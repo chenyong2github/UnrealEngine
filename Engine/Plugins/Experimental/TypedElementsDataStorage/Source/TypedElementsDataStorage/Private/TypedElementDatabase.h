@@ -15,6 +15,7 @@
 
 struct FMassEntityManager;
 struct FMassProcessingPhaseManager;
+class FOutputDevice;
 class UWorld;
 
 struct FTypedElementDatabaseExtendedQuery
@@ -79,6 +80,7 @@ public:
 	bool IsAvailable() const override;
 	void* GetExternalSystemAddress(UClass* Target) override;
 
+	void DebugPrintQueryCallbacks(FOutputDevice& Output);
 private:
 	using QueryStore = TTypedElementHandleStore<FTypedElementDatabaseExtendedQuery>;
 

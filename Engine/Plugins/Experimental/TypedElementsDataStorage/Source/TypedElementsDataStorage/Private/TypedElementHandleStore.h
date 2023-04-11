@@ -2,21 +2,29 @@
 
 #pragma once
 
+#include <type_traits>
 #include "Containers/Array.h"
 #include "Containers/Deque.h"
+#include "Templates/Function.h"
 
 template<typename DataType, uint32 ReservationSize = 64>
 class TTypedElementHandleStore
 {
 public:
-	struct HandleData
+	struct FGeneration
 	{
-		uint32 Index;
+		uint32 Generation : 31;
+		uint32 bIsAlive : 1;
+	};
+	
+	struct FHandleData
+	{
 		uint32 Generation;
+		uint32 Index;
 	};
 	union Handle
 	{
-		HandleData Data;
+		FHandleData Data;
 		uint64 Handle;
 	};
 	
@@ -27,14 +35,15 @@ public:
 	DataType& GetMutable(Handle Entry);
 	const DataType& Get(Handle Entry) const;
 
-	/** Removes the entry at the given handle if alive. This doesn't destroy the entry until the slot is reused. */
+	/** Removes the entry at the given handle if alive. */
 	void Remove(Handle Entry);
 
 	bool IsAlive(Handle Entry) const;
+	void ListAliveEntries(const TFunctionRef<void(const DataType&)>& Callback) const;
 
 private:
 	TArray<DataType> Data;
-	TArray<uint32> Generations;
+	TArray<FGeneration> Generations;
 	TDeque<uint32> RecycleBin; // Using a deque to avoid the same slot being constantly reused.
 };
 
@@ -54,7 +63,7 @@ auto TTypedElementHandleStore<DataType, ReservationSize>::Emplace(Args... Argume
 		for (uint32 Index = Data.Num(); Index < NewSize; ++Index)
 		{
 			Data.AddZeroed();
-			Generations.Add(0);
+			Generations.AddZeroed();
 			RecycleBin.EmplaceLast(Index);
 		}
 	}
@@ -67,7 +76,8 @@ auto TTypedElementHandleStore<DataType, ReservationSize>::Emplace(Args... Argume
 
 	Handle Result;
 	Result.Data.Index = Index;
-	Result.Data.Generation = Generations[Index];
+	Result.Data.Generation = Generations[Index].Generation;
+	Generations[Index].bIsAlive = 1;
 	return Result;
 }
 
@@ -97,7 +107,13 @@ void TTypedElementHandleStore<DataType, ReservationSize>::Remove(Handle Entry)
 {
 	if (IsAlive(Entry))
 	{
-		++Generations[Entry.Data.Index];
+		FGeneration& Generation = Generations[Entry.Data.Index];
+		++Generation.Generation;
+		Generation.bIsAlive = 0;
+		if constexpr (std::is_destructible_v<DataType> && !std::is_trivially_destructible_v<DataType>)
+		{
+			Data[Entry.Data.Index].~DataType();
+		}
 		RecycleBin.EmplaceLast(Entry.Data.Index);
 	}
 }
@@ -107,5 +123,24 @@ bool TTypedElementHandleStore<DataType, ReservationSize>::IsAlive(Handle Entry) 
 {
 	return
 		Entry.Data.Index < static_cast<uint32>(Generations.Num()) &&
-		Generations[Entry.Data.Index] == Entry.Data.Generation;
+		Generations[Entry.Data.Index].Generation == Entry.Data.Generation;
+}
+
+template<typename DataType, uint32 ReservationSize>
+void TTypedElementHandleStore<DataType, ReservationSize>::ListAliveEntries(const TFunctionRef<void(const DataType&)>& Callback) const
+{
+	int32 Count = Data.Num();
+	const DataType* EntryIt = Data.GetData();
+	const FGeneration* GenerationIt = Generations.GetData();
+	
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		if (GenerationIt->bIsAlive)
+		{
+			Callback(*EntryIt);
+		}
+
+		++EntryIt;
+		++GenerationIt;
+	}
 }

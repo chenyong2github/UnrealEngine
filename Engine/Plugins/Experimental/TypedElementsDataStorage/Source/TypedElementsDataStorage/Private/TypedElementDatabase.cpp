@@ -3,17 +3,53 @@
 #include "TypedElementDatabase.h"
 
 #include "Editor.h"
+#include "Elements/Framework/TypedElementRegistry.h"
 #include "Engine/World.h"
 #include "MassCommonTypes.h"
 #include "MassEntityEditorSubsystem.h"
+#include "MassEntityTypes.h"
 #include "MassSimulationSubsystem.h"
 #include "MassSubsystemAccess.h"
 #include "Processors/TypedElementProcessorAdaptors.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Stats/Stats2.h"
 #include "TickTaskManagerInterface.h"
+#include "UObject/UObjectIterator.h"
 
 const FName UTypedElementDatabase::TickGroupName_SyncWidget(TEXT("SyncWidgets"));
+
+FAutoConsoleCommandWithOutputDevice PrintQueryCallbacksConsoleCommand(
+	TEXT("TEDS.PrintQueryCallbacks"),
+	TEXT("Prints out a list of all processors."),
+	FConsoleCommandWithOutputDeviceDelegate::CreateLambda([](FOutputDevice& Output)
+		{
+			if (UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance())
+			{
+				if (UTypedElementDatabase* DataStorage = Cast<UTypedElementDatabase>(Registry->GetMutableDataStorage()))
+				{
+					DataStorage->DebugPrintQueryCallbacks(Output);
+				}
+			}
+		}));
+
+FAutoConsoleCommandWithOutputDevice PrintSupportedColumnsConsoleCommand(
+	TEXT("TEDS.PrintSupportedColumns"),
+	TEXT("Prints out a list of available Data Storage columns."),
+	FConsoleCommandWithOutputDeviceDelegate::CreateLambda([](FOutputDevice& Output)
+		{
+			Output.Log(TEXT("The Typed Elements Data Storage supports the following columns:"));
+			
+			UScriptStruct* FragmentTypeInfo = FMassFragment::StaticStruct();
+			UScriptStruct* TagTypeInfo = FMassTag::StaticStruct();
+			for (TObjectIterator<UScriptStruct> It; It; ++It)
+			{
+				if (It->IsChildOf(FragmentTypeInfo) || It->IsChildOf(TagTypeInfo))
+				{
+					Output.Logf(TEXT("    %s"), *It->GetFullName());
+				}
+			}
+			Output.Log(TEXT("End of Typed Elements Data Storage supported column list."));
+		}));
 
 void UTypedElementDatabase::Initialize()
 {
@@ -777,4 +813,40 @@ void UTypedElementDatabase::Reset()
 	Tables.Reset();
 	TableNameLookup.Reset();
 	ActiveEditorEntityManager.Reset();
+}
+
+void UTypedElementDatabase::DebugPrintQueryCallbacks(FOutputDevice& Output)
+{
+	Output.Log(TEXT("The Typed Elements Data Storage has the following query callbacks:"));
+	Queries.ListAliveEntries(
+		[&Output](const FTypedElementDatabaseExtendedQuery& Query)
+		{
+			if (Query.Processor)
+			{
+				Output.Logf(TEXT("    [%s] %s"), 
+					IsValid(Query.Processor.Get()) ? TEXT("Valid") : TEXT("Invalid"),
+					*(Query.Processor->GetProcessorName()));
+			}
+		});
+
+	using PhaseType = std::underlying_type_t<EQueryTickPhase>;
+	for (PhaseType PhaseId = 0; PhaseId < static_cast<PhaseType>(EQueryTickPhase::Max); ++PhaseId)
+	{
+		for (TypedElementQueryHandle QueryHandle : PhasePreparationQueries[PhaseId])
+		{
+			QueryStore::Handle Handle;
+			Handle.Handle = QueryHandle;
+			const FTypedElementDatabaseExtendedQuery& QueryData = Queries.Get(Handle);
+			Output.Logf(TEXT("    [Valid] %s [Editor Phase Preamble]"), *QueryData.Description.Callback.Name.ToString());
+		}
+		for (TypedElementQueryHandle QueryHandle : PhaseFinalizationQueries[PhaseId])
+		{
+			QueryStore::Handle Handle;
+			Handle.Handle = QueryHandle;
+			const FTypedElementDatabaseExtendedQuery& QueryData = Queries.Get(Handle);
+			Output.Logf(TEXT("    [Valid] %s [Editor Phase Postamble]"), *QueryData.Description.Callback.Name.ToString());
+		}
+	}
+
+	Output.Log(TEXT("End of Typed Elements Data Storage query callback list."));
 }
