@@ -11,7 +11,7 @@
 #include "MetasoundParamHelper.h"
 #include "MetasoundVertex.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundFrontend"
+#define LOCTEXT_NAMESPACE "MetasoundLiteralNode"
 
 namespace Metasound
 {
@@ -202,5 +202,5 @@ namespace Metasound
 	}
 
 } // namespace Metasound
-#undef LOCTEXT_NAMESPACE // MetasoundFrontend
+#undef LOCTEXT_NAMESPACE // MetasoundLiteralNode
 

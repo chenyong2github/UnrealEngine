@@ -2,7 +2,7 @@
 
 #include "MetasoundLiteralNode.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundFrontend"
+#define LOCTEXT_NAMESPACE "MetasoundLiteralNode"
 namespace Metasound
 {
 	FVertexInterface FLiteralNode::CreateVertexInterface(const FName& InDataTypeName, EVertexAccessType InAccessType)
@@ -67,4 +67,4 @@ namespace Metasound
 		return Factory;
 	}
 }
-#undef LOCTEXT_NAMESPACE // MetasoundFrontend
+#undef LOCTEXT_NAMESPACE // MetasoundLiteralNode
