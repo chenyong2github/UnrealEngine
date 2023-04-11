@@ -181,7 +181,14 @@ void FAnalyticsProviderFileLogging::RecordEvent(const FString& EventName, const 
 				}
 				FileArchive->Logf(TEXT("\t\t\t{"));
 				FileArchive->Logf(TEXT("\t\t\t\t\"name\" : \"%s\","), *Attr.GetName());
-				FileArchive->Logf(TEXT("\t\t\t\t\"value\" : \"%s\""), *Attr.GetValue());
+				if (Attr.IsJsonFragment())
+				{
+					FileArchive->Logf(TEXT("\t\t\t\t\"value\" : %s"), *Attr.GetValue());
+				}
+				else
+				{
+					FileArchive->Logf(TEXT("\t\t\t\t\"value\" : \"%s\""), *Attr.GetValue());
+				}
 				FileArchive->Logf(TEXT("\t\t\t}"));
 				bHasWrittenFirstAttr = true;
 			}
