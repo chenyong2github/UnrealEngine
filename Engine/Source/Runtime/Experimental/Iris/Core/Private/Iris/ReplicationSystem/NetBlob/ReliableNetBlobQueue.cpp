@@ -107,8 +107,8 @@ uint32 FReliableNetBlobQueue::SerializeInternal(FNetSerializationContext& Contex
 			Writer->WriteBits(Index, IndexBitCount);
 		}
 
-		// If we have exports, write them now, if attachment is rolled back we will roll back any written exports as well.
-		ObjectReferenceCache->WriteExports(Context, Attachment->CallGetExports());
+		// If we have exports, append them, if attachment is rolled back we will roll back any appended exports as well.
+		ObjectReferenceCache->AddPendingExports(Context, Attachment->CallGetExports());
 
 		Attachment->SerializeCreationInfo(Context, Attachment->GetCreationInfo());
 		if (bSerializeWithObject)
@@ -223,9 +223,6 @@ uint32 FReliableNetBlobQueue::DeserializeInternal(FNetSerializationContext& Cont
 
 			return DeserializedCount;
 		}
-
-		// If we have exports, import them now.
-		ObjectReferenceCache->ReadExports(Context);
 
 		FNetBlobCreationInfo CreationInfo;
 		FNetBlob::DeserializeCreationInfo(Context, CreationInfo);

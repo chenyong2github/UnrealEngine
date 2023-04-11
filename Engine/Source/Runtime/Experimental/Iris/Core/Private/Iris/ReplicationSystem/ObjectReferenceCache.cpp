@@ -113,7 +113,7 @@ bool FObjectReferenceCache::IsAuthority() const
 bool FObjectReferenceCache::CanClientLoadObjectInternal(const UObject* Object, bool bIsDynamic) const
 {
 	// PackageMapClient can't load maps, we must wait for the client to load the map when ready
-	// These guids are special guids, where the guid and all child guids resolve once the map has been loaded
+	// These references are special references, where the reference and all child references resolve once the map has been loaded
 	if (bIsDynamic)
 	{
 		return false;
@@ -142,7 +142,7 @@ bool FObjectReferenceCache::ShouldIgnoreWhenMissing(FNetRefHandle RefHandle) con
 {
 	if (RefHandle.IsDynamic())
 	{
-		return true;		// Ignore missing dynamic guids (even on server because client may send RPC on/with object it doesn't know server destroyed)
+		return true;		// Ignore missing dynamic references (even on server because client may send RPC on/with object it doesn't know server destroyed)
 	}
 
 	if (IsAuthority())
@@ -153,7 +153,7 @@ bool FObjectReferenceCache::ShouldIgnoreWhenMissing(FNetRefHandle RefHandle) con
 	const FCachedNetObjectReference* CacheObject = ReferenceHandleToCachedReference.Find(RefHandle);
 	if (CacheObject == nullptr)
 	{
-		return false;		// If we haven't been told about this static guid before, we need to warn
+		return false;		// If we haven't been told about this static reference before, we need to warn
 	}
 
 	const FCachedNetObjectReference* OutermostCacheObject = CacheObject;
@@ -743,7 +743,7 @@ UObject* FObjectReferenceCache::ResolveObjectReferenceHandleInternal(FNetRefHand
 		{
 			// This isn't really a package but it should be
 			CacheObjectPtr->bIsBroken = true;
-			//UE_LOG( LogNetPackageMap, Error, TEXT( "GetObjectFromNetGUID: Object is not a package but should be! Path: %s, NetGUID: %s" ), *Path.ToString(), *NetGUID.ToString() );
+			UE_LOG(LogIris, Error, TEXT( "GetObjectFromRefHandle: Object is not a package but should be! Path: %s, NetRefHandle: %s" ), *ObjectPath, *RefHandle.ToString() );
 			return nullptr;
 		}
 
@@ -775,7 +775,7 @@ UObject* FObjectReferenceCache::ResolveObjectReferenceHandleInternal(FNetRefHand
 	//	{
 	//		if ( NetworkChecksumMode == ENetworkChecksumMode::SaveAndUse )
 	//		{
-	//			FString ErrorStr = FString::Printf(TEXT("GetObjectFromNetGUID: Network checksum mismatch. ``IDPath: %s, %u, %u"), *FullNetGUIDPath(NetGUID), CacheObjectPtr->NetworkChecksum, NetworkChecksum);
+	//			FString ErrorStr = FString::Printf(TEXT("GetObjectFromRefHandle: Network checksum mismatch. ``IDPath: %s, %u, %u"), *FullRefHandlePath(RefHandle), CacheObjectPtr->NetworkChecksum, NetworkChecksum);
 	//			UE_LOG( LogNetPackageMap, Warning, TEXT("%s"), *ErrorStr );
 
 	//			CacheObjectPtr->bIsBroken = true;
@@ -785,7 +785,7 @@ UObject* FObjectReferenceCache::ResolveObjectReferenceHandleInternal(FNetRefHand
 	//		}
 	//		else
 	//		{
-	//			UE_LOG( LogNetPackageMap, Verbose, TEXT( "GetObjectFromNetGUID: Network checksum mismatch. ``IDPath: %s, %u, %u" ), *FullNetGUIDPath( NetGUID ), CacheObjectPtr->NetworkChecksum, NetworkChecksum );
+	//			UE_LOG( LogNetPackageMap, Verbose, TEXT( "GetObjectFromRefHandle: Network checksum mismatch. ``IDPath: %s, %u, %u" ), *FullRefHandlePath( RefHandle ), CacheObjectPtr->NetworkChecksum, NetworkChecksum );
 	//		}
 	//	}
 	//}
@@ -797,7 +797,7 @@ UObject* FObjectReferenceCache::ResolveObjectReferenceHandleInternal(FNetRefHand
 		return nullptr;
 	}
 
-	// Assign the resolved object to this guid
+	// Assign the resolved object to this reference
 	if (!Object)
 	{
 		if (!CacheObjectPtr->bIgnoreWhenMissing)
@@ -1236,6 +1236,13 @@ void FObjectReferenceCache::ReadFullReferenceInternal(FNetSerializationContext& 
 
 void FObjectReferenceCache::ReadFullReference(FNetSerializationContext& Context, FNetObjectReference& OutRef)
 {
+	// Normally all references are imported, unless we are doing this when reading exports
+	if (Context.GetInternalContext()->bInlineObjectReferenceExports == 0U)
+	{
+		ReadReference(Context, OutRef);
+		return;
+	}
+
 	FNetObjectReference ObjectRef;
 	FNetBitStreamReader* Reader = Context.GetBitStreamReader();
 
@@ -1267,6 +1274,17 @@ void FObjectReferenceCache::WriteFullReference(FNetSerializationContext& Context
 {
 	UE_NET_TRACE_SCOPE(FullNetObjectReference, *Context.GetBitStreamWriter(), Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
 
+	// If we do not inline reference exports we just write the reference
+	if (Context.GetInternalContext()->bInlineObjectReferenceExports == 0U)
+	{
+		if (FNetExportContext* ExportContext = Context.GetExportContext())
+		{
+			AddPendingExport(*ExportContext, Ref);
+		}
+		WriteReference(Context, Ref);
+		return;
+	}		
+
 	// Handle client assigned reference 
 	FNetBitStreamWriter* Writer = Context.GetBitStreamWriter();
 	const bool bIsClientAssignedReference = Ref.PathToken.IsValid();
@@ -1274,9 +1292,7 @@ void FObjectReferenceCache::WriteFullReference(FNetSerializationContext& Context
 	{
 		WriteNetRefHandle(Context, Ref.GetRefHandle());
 		WriteNetToken(Writer, Ref.PathToken);
-		FNetExportContext* ExportContext = Context.GetExportContext();
-		ConditionalWriteNetTokenData(Context, ExportContext, Ref.PathToken);
-
+		ConditionalWriteNetTokenData(Context, Context.GetExportContext(), Ref.PathToken);
 		return;
 	}
 
@@ -1326,7 +1342,6 @@ void FObjectReferenceCache::ReadReference(FNetSerializationContext& Context, FNe
 {
 	UE_NET_TRACE_SCOPE(NetObjectReference, *Context.GetBitStreamReader(), Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
 	UE_NET_TRACE_NAMED_OBJECT_SCOPE(ReferenceScope, FNetRefHandle(), *Context.GetBitStreamReader(), Context.GetTraceCollector(), ENetTraceVerbosity::Verbose);
-	LLM_SCOPE_BYTAG(Iris);
 
 	FNetBitStreamReader* Reader = Context.GetBitStreamReader();
 
@@ -1370,26 +1385,132 @@ void FObjectReferenceCache::ReadReference(FNetSerializationContext& Context, FNe
 	}
 }
 
-bool FObjectReferenceCache::WriteExports(FNetSerializationContext& Context, TArrayView<const FNetObjectReference> ExportsView) const
+void FObjectReferenceCache::AddPendingExport(FNetExportContext& ExportContext, const FNetObjectReference& Reference) const
 {
-	FNetBitStreamWriter& Writer = *Context.GetBitStreamWriter();
+	const bool bIsClientAssigned = Reference.PathToken.IsValid();
+	const FNetRefHandle Handle = Reference.GetRefHandle();
 
+	if (bIsClientAssigned || (IsAuthority() && Reference.CanBeExported()))
+	{
+		LLM_SCOPE_BYTAG(Iris);
+		ExportContext.AddPendingExport(Reference);
+	}
+}
+
+void FObjectReferenceCache::AddPendingExports(FNetSerializationContext& Context, TArrayView<const FNetObjectReference> ExportsView) const
+{
 	if (FNetExportContext* ExportContext = Context.GetExportContext())
 	{
-		UE_NET_TRACE_SCOPE(Exports, Writer, Context.GetTraceCollector(), ENetTraceVerbosity::Verbose);
+		for (const FNetObjectReference& Reference : ExportsView)
+		{
+			AddPendingExport(*ExportContext, Reference);
+		}
+	}
+}
+
+FObjectReferenceCache::EWriteExportsResult FObjectReferenceCache::WritePendingExports(FNetSerializationContext& Context)
+{	
+	FNetBitStreamWriter& Writer = *Context.GetBitStreamWriter();
+
+	FNetExportContext* ExportContext = Context.GetExportContext();
+	if (!ExportContext || ExportContext->GetBatchExports().ReferencesPendingExportInCurrentBatch.IsEmpty())
+	{
+		return EWriteExportsResult::NoExports;
+	}
+
+	UE_NET_TRACE_SCOPE(Exports, Writer, Context.GetTraceCollector(), ENetTraceVerbosity::Verbose);
+	FNetBitStreamRollbackScope Rollback(*Context.GetBitStreamWriter());
+	const uint32 ExportsStartBitPos = Writer.GetPosBits();
+
+	TArrayView<const FNetObjectReference> ExportsView = MakeArrayView(ExportContext->GetBatchExports().ReferencesPendingExportInCurrentBatch);
+
+	// Force exports to be written
+	{
+		FForceInlineExportScope ForceInlineExportScope(Context.GetInternalContext());
 
 		for (const FNetObjectReference& Reference : ExportsView)
 		{
 			const bool bIsClientAssigned = Reference.PathToken.IsValid();
 			const FNetRefHandle Handle = Reference.GetRefHandle();
-
 			if ((bIsClientAssigned && !ExportContext->IsExported(Reference.GetPathToken())) || (IsAuthority() && Reference.CanBeExported() && !ExportContext->IsExported(Handle)))
 			{
 				Writer.WriteBool(true);
 				WriteFullReference(Context, Reference);
 			}
 		}
+
+		// Write stop bit
+		Writer.WriteBool(false);
 	}
+
+	// We also write any must be mapped exports
+	WriteMustBeMappedExports(Context, ExportsView);
+
+	// Reset state of pending exports
+	ExportContext->ClearPendingExports();
+
+	if (Writer.IsOverflown())
+	{
+		return EWriteExportsResult::BitStreamOverflow;
+	}
+	else if ((Writer.GetPosBits() - ExportsStartBitPos) > 2U)
+	{
+		return EWriteExportsResult::WroteExports;
+	}
+	
+	Rollback.Rollback();
+
+	return EWriteExportsResult::NoExports;
+}
+
+bool FObjectReferenceCache::ReadExports(FNetSerializationContext& Context, TArray<FNetRefHandle>* MustBeMappedExports)
+{
+	FNetBitStreamReader& Reader = *Context.GetBitStreamReader();
+
+	bool bHasExportsToRead = Reader.ReadBool(); 
+	UE_NET_TRACE_SCOPE(Exports, Reader, Context.GetTraceCollector(), ENetTraceVerbosity::Verbose);
+
+	// Force inlined exports
+	{
+		FForceInlineExportScope ForceInlineExportScope(Context.GetInternalContext());
+		while (bHasExportsToRead && !Context.HasErrorOrOverflow())
+		{
+			FNetObjectReference Import;
+			ReadFullReference(Context, Import);
+			bHasExportsToRead = Reader.ReadBool();
+		}
+	}
+
+	if (!Context.HasErrorOrOverflow())
+	{
+		ReadMustBeMappedExports(Context, MustBeMappedExports);
+	}
+
+	return !Context.HasErrorOrOverflow();
+}
+
+bool FObjectReferenceCache::WriteMustBeMappedExports(FNetSerializationContext& Context, TArrayView<const FNetObjectReference> ExportsView) const
+{
+	FNetBitStreamWriter& Writer = *Context.GetBitStreamWriter();
+	FNetExportContext* ExportContext = Context.GetExportContext();
+
+	// $TODO: Will be enabled in later changelist
+	//if (IsAuthority() && ShouldAsyncLoad() && ExportContext)
+	//{
+	//	UE_NET_TRACE_SCOPE(MustBeMappedExports, Writer, Context.GetTraceCollector(), ENetTraceVerbosity::Verbose);
+
+	//	for (const FNetObjectReference& Reference : ExportsView)
+	//	{
+	//		const FNetRefHandle Handle = Reference.GetRefHandle();
+	//		const FCachedNetObjectReference* CachedObject = Reference.CanBeExported() ? ReferenceHandleToCachedReference.Find(Handle) : nullptr;
+	//		if (CachedObject && !CachedObject->bNoLoad)
+	//		{
+	//			UE_NET_TRACE_OBJECT_SCOPE(Handle, *Context.GetBitStreamWriter(), Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
+	//			Writer.WriteBool(true);
+	//			WriteNetRefHandle(Context, Handle);
+	//		}
+	//	}
+	//}
 
 	// Write stop bit
 	Writer.WriteBool(false);
@@ -1397,21 +1518,23 @@ bool FObjectReferenceCache::WriteExports(FNetSerializationContext& Context, TArr
 	return !Writer.IsOverflown();
 }
 
-bool FObjectReferenceCache::ReadExports(FNetSerializationContext& Context)
+void FObjectReferenceCache::ReadMustBeMappedExports(FNetSerializationContext& Context, TArray<FNetRefHandle>* MustBeMappedExports)
 {
 	FNetBitStreamReader& Reader = *Context.GetBitStreamReader();
 
 	bool bHasExportsToRead = Reader.ReadBool(); 
-	UE_NET_TRACE_SCOPE(Exports, Reader, Context.GetTraceCollector(), ENetTraceVerbosity::Verbose);
+	UE_NET_TRACE_SCOPE(MustBeMappedExports, Reader, Context.GetTraceCollector(), ENetTraceVerbosity::Verbose);
 
 	while (bHasExportsToRead && !Context.HasErrorOrOverflow())
 	{
-		FNetObjectReference Import;
-		ReadFullReference(Context, Import);
-		bHasExportsToRead  = Reader.ReadBool();
-	}
+		const FNetRefHandle MustBeMappedHandle = ReadNetRefHandle(Context);
+		bHasExportsToRead = Reader.ReadBool();
 
-	return !Context.HasErrorOrOverflow();
+		if (MustBeMappedExports)
+		{
+			MustBeMappedExports->Add(MustBeMappedHandle);
+		}
+	}
 }
 
 FString FObjectReferenceCache::FullPath(FNetRefHandle RefHandle, const FNetObjectResolveContext& ResolveContext) const
@@ -1425,7 +1548,7 @@ FString FObjectReferenceCache::FullPath(FNetRefHandle RefHandle, const FNetObjec
 
 void FObjectReferenceCache::GenerateFullPath_r(FNetRefHandle RefHandle, const FNetObjectResolveContext& ResolveContext, FString& FullPath) const
 {
-	if ( !RefHandle.IsValid() )
+	if (!RefHandle.IsValid())
 	{
 		// This is the end of the outer chain, we're done
 		return;

@@ -291,11 +291,13 @@ private:
 	struct FHugeObjectContext
 	{
 		FHugeObjectContext();
+		~FHugeObjectContext();
 
 		EHugeObjectSendStatus SendStatus;
 		uint32 InternalIndex;
 		FBatchRecord BatchRecord;
 		FNetExportContext::FBatchExports BatchExports;
+		FNetTraceCollector* TraceCollector;
 		const FNetDebugName* DebugName;
 		// Cycle counter for when the huge object context went from idle to sending.
 		uint64 StartSendingTime;
@@ -367,7 +369,7 @@ private:
 	void SetState(uint32 InternalIndex, EReplicatedObjectState NewState);
 
 	// Write index part of handle
-	void WriteNetRefHandleId(FNetBitStreamWriter& Writer, FNetRefHandle RefHandle);
+	void WriteNetRefHandleId(FNetSerializationContext& Context, FNetRefHandle RefHandle);
 		
 	// Create new ObjectRecord
 	// Note: be aware that it will allocate a copy of the ChangeMask that needs to be handled if the record is not Committed
@@ -387,6 +389,9 @@ private:
 
 	// Write all objects pending destroy (or as many as we fit in the current packet)
 	uint32 WriteObjectsPendingDestroy(FNetSerializationContext& Context);
+
+	// Write object and SubObjects
+	EWriteObjectStatus WriteObjectAndSubObjects(FNetSerializationContext& Context, uint32 InternalIndex, uint32 WriteObjectFlags, FBatchInfo& OutBatchInfo);
 
 	// Write objects recursive
 	EWriteObjectStatus WriteObjectInBatch(FNetSerializationContext& Context, uint32 InternalIndex, uint32 WriteObjectFlags, FBatchInfo& OutBatchInfo);
@@ -454,7 +459,7 @@ private:
 
 	bool HasDataToSend(const FWriteContext& Context) const;
 
-	bool CollectAndWriteExports(FNetSerializationContext& Context, uint8* RESTRICT InternalBuffer, const FReplicationProtocol* Protocol) const;
+	void CollectAndAppendExports(FNetSerializationContext& Context, uint8* RESTRICT InternalBuffer, const FReplicationProtocol* Protocol) const;
 
 	bool IsWriteObjectSuccess(EWriteObjectStatus Status) const;
 

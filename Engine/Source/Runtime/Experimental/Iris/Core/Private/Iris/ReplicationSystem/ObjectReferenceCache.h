@@ -81,12 +81,30 @@ public:
 	
 	// Read reference, as written by WriteReference
 	void ReadReference(FNetSerializationContext& Context, FNetObjectReference& OutRef);
- 
-	// Exports are expected to be part of the written state, so if WriteExports returns false or the BitStream is overflown
-	// it us up to the caller to roll back written data and exports
-	bool WriteExports(FNetSerializationContext& Context, TArrayView<const FNetObjectReference> ExportsView) const;
 
-	bool ReadExports(FNetSerializationContext& Context);
+	// Add exports to the set of pending exports for the current batch being written
+	void AddPendingExports(FNetSerializationContext& Context, TArrayView<const FNetObjectReference> ExportsView) const;
+
+	// Add export to the set of pending exports for the current batch being written
+	void AddPendingExport(FNetExportContext& ExportContext, const FNetObjectReference& Reference) const;
+
+	enum class EWriteExportsResult : unsigned
+	{
+		// We did write exports
+		WroteExports,
+
+		// BitStream overflow.
+		BitStreamOverflow,
+
+		// Some error occurred while serializing the object.
+		NoExports,
+	};
+
+	// Exports are expected to be part of the written state, so if the result is a BitStreamOverflow
+	// it is up to the caller to roll back written data and pending exports
+	EWriteExportsResult WritePendingExports(FNetSerializationContext& Context);
+
+	bool ReadExports(FNetSerializationContext& Context, TArray<FNetRefHandle>* MustBeMappedExports);
 
 	static FNetObjectReference MakeNetObjectReference(FNetRefHandle Handle);
 
@@ -137,6 +155,11 @@ private:
 
 	static FNetObjectReference MakeNetObjectReference(FNetRefHandle RefHandle, FNetToken RelativePath);
 	static FNetObjectReference MakeNetObjectReference(const FCachedNetObjectReference& CachedReference);
+
+	// Must be mapped exports are written for each batch that serializes object references, if async loading is enabled the client
+	// will defer application of data contained in the batch until the must be mapped exports are resolvable.
+	bool WriteMustBeMappedExports(FNetSerializationContext& Context, TArrayView<const FNetObjectReference> ExportsView) const;
+	void ReadMustBeMappedExports(FNetSerializationContext& Context, TArray<FNetRefHandle>* MustBeMappedExports);
 
 private:
 

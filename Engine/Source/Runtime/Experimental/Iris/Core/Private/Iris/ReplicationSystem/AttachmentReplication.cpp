@@ -366,8 +366,8 @@ uint32 FNetObjectAttachmentSendQueue::SerializeUnreliable(FNetSerializationConte
 
 		const TRefCountPtr<FNetBlob>& Attachment = UnreliableQueue.PeekAtOffsetNoCheck(AttachmentIt);
 
-		// Write exports, if attachment does not fit we will rollback exports as well.
-		ObjectReferenceCache->WriteExports(Context, Attachment->CallGetExports());
+		// If we have exports, append them, if attachment is rolled back we will roll back any appended exports as well.
+		ObjectReferenceCache->AddPendingExports(Context, Attachment->CallGetExports());
 
 		Attachment->SerializeCreationInfo(Context, Attachment->GetCreationInfo());
 		if (bSerializeWithObject)
@@ -871,8 +871,6 @@ uint32 FNetObjectAttachmentReceiveQueue::DeserializeUnreliable(FNetSerialization
 			Context.SetError(NetError_UnreliableQueueFull);
 			break;
 		}
-
-		Context.GetInternalContext()->ObjectReferenceCache->ReadExports(Context);
 
 		FNetBlobCreationInfo CreationInfo;
 		FNetBlob::DeserializeCreationInfo(Context, CreationInfo);

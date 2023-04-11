@@ -129,7 +129,10 @@ private:
 	uint32 ReadInternalIndex(FNetBitStreamReader& Reader) const;
 
 	// Read a new or updated object
-	void ReadObject(FNetSerializationContext& Context);
+	uint32 ReadObjectBatch(FNetSerializationContext& Context);
+
+	// Read object or subobject
+	void ReadObjectInBatch(FNetSerializationContext& Context, FNetRefHandle BatchHandle, bool bIsSubObject);
 
 	// Read all objects pending destroy
 	uint16 ReadObjectsPendingDestroy(FNetSerializationContext& Context);

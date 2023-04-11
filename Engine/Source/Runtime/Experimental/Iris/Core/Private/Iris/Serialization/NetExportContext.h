@@ -8,6 +8,7 @@
 #include "Iris/ReplicationSystem/NetRefHandle.h"
 #include "Iris/ReplicationSystem/NetToken.h"
 #include "Iris/Serialization/NetSerializationContext.h"
+#include "Iris/Core/NetObjectReference.h"
 
 namespace UE::Net::Private
 {
@@ -17,6 +18,7 @@ class FNetExportContext
 public:
 	typedef TArray<FNetRefHandle, TInlineAllocator<32>> FExportsArray;
 	typedef TArray<FNetToken, TInlineAllocator<32>> FNetTokenExportsArray;
+	typedef TArray<FNetObjectReference, TInlineAllocator<32>> FPendingExportArray;
 
 	struct FAcknowledgedExports
 	{
@@ -30,11 +32,13 @@ public:
 		{
 			HandlesExportedInCurrentBatch.Empty();
 			NetTokensExportedInCurrentBatch.Empty();
+			ReferencesPendingExportInCurrentBatch.Empty();
 		}
 
 		// Exports in the current batch
 		FExportsArray HandlesExportedInCurrentBatch;
 		FNetTokenExportsArray NetTokensExportedInCurrentBatch;
+		FPendingExportArray ReferencesPendingExportInCurrentBatch;
 	};
 
 public:
@@ -52,6 +56,15 @@ public:
 
 	// Add a Handle to the current export batch
 	void AddExported(FNetToken Token);
+
+	// Add a reference to the current pending exports list.
+	void AddPendingExport(const FNetObjectReference& Ref);
+
+	// Returns true if the Reference is in PendingExports array
+	bool IsPendingExport(const FNetObjectReference& Ref) const;
+
+	// Clear the list of reference pending exports
+	void ClearPendingExports() { BatchExports.ReferencesPendingExportInCurrentBatch.Empty(); }
 
 	// Get current batch exports
 	const FNetExportContext::FBatchExports& GetBatchExports() const { return BatchExports; }
@@ -79,6 +92,7 @@ private:
 	FNetSerializationContext& Context;
 	int32 StartNumNetHandleExports;
 	int32 StartNumNetTokenExports;
+	int32 StartNumPendingExports;
 };
 
 inline FNetExportRollbackScope::FNetExportRollbackScope(FNetSerializationContext& InContext)
@@ -88,6 +102,7 @@ inline FNetExportRollbackScope::FNetExportRollbackScope(FNetSerializationContext
 
 	StartNumNetHandleExports = ExportContext ? ExportContext->BatchExports.HandlesExportedInCurrentBatch.Num() : 0;
 	StartNumNetTokenExports = ExportContext ? ExportContext->BatchExports.NetTokensExportedInCurrentBatch.Num() : 0;
+	StartNumPendingExports = ExportContext ? ExportContext->BatchExports.ReferencesPendingExportInCurrentBatch.Num() : 0;
 }
 
 inline void FNetExportRollbackScope::Rollback()
@@ -96,6 +111,7 @@ inline void FNetExportRollbackScope::Rollback()
 	{ 
 		ExportContext->BatchExports.HandlesExportedInCurrentBatch.SetNum(StartNumNetHandleExports);
 		ExportContext->BatchExports.NetTokensExportedInCurrentBatch.SetNum(StartNumNetTokenExports);
+		ExportContext->BatchExports.ReferencesPendingExportInCurrentBatch.SetNum(StartNumPendingExports);
 	}
 }
 
@@ -133,5 +149,16 @@ inline void FNetExportContext::AddExported(FNetToken Token)
 {
 	BatchExports.NetTokensExportedInCurrentBatch.Add(Token);
 }
+
+inline void FNetExportContext::AddPendingExport(const FNetObjectReference& Ref)
+{
+	BatchExports.ReferencesPendingExportInCurrentBatch.AddUnique(Ref);
+}
+
+inline bool FNetExportContext::IsPendingExport(const FNetObjectReference& Ref) const
+{
+	return BatchExports.ReferencesPendingExportInCurrentBatch.Contains(Ref);
+}
+
 
 }

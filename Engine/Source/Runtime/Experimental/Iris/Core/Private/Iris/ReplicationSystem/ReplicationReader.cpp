@@ -366,43 +366,136 @@ void FReplicationReader::DeserializeObjectStateDelta(FNetSerializationContext& C
 	}
 }
 
-void FReplicationReader::ReadObject(FNetSerializationContext& Context)
+uint32 FReplicationReader::ReadObjectBatch(FNetSerializationContext& Context)
 {
 	FNetBitStreamReader& Reader = *Context.GetBitStreamReader();
 
+	// Special handling for desrtuction infos
 	if (const bool bIsDestructionInfo = Reader.ReadBool())
 	{
 		FReplicationBridgeSerializationContext BridgeContext(Context, Parameters.ConnectionId, true);
 
+		// For destruction infos we inline the exports
+		FForceInlineExportScope ForceInlineExportScope(Context.GetInternalContext());
 		ReplicationBridge->ReadAndExecuteDestructionInfoFromRemote(BridgeContext);
 
 #if UE_NET_USE_READER_WRITER_SENTINEL
 		ReadAndVerifySentinelBits(&Reader, TEXT("DestructionInfo"), 8);
 #endif
 		
-		return;
+		return 1U;
 	}
 
 #if UE_NET_USE_READER_WRITER_SENTINEL
 	ReadAndVerifySentinelBits(&Reader, TEXT("ReadObject"), 8);
 #endif
 
+	uint32 ObjectsReadInBatch = 0U;
+	
+	// A batch starts with (RefHandleId | BatchSize | bHasBatchObjectData | bHasExports)
+	// If the batch has exports we must to seek to the end of the batch to read and process exports before reading/processing batch data
 	const FNetRefHandle IncompleteHandle = ReadNetRefHandleId(Reader);
+
+	uint32 BatchSize = 0U;
+	// Read Batch size
+	{
+		const uint32 NumBitsUsedForBatchSize = Parameters.NumBitsUsedForBatchSize;
+
+		UE_NET_TRACE_SCOPE(BatchSize, Reader, Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
+		BatchSize = Reader.ReadBits(NumBitsUsedForBatchSize);
+	}
+
+	if (Context.HasErrorOrOverflow() || BatchSize > Reader.GetBitsLeft())
+	{
+		Context.SetError(GNetError_InvalidValue);
+		return 0U;
+	}
+
+	// This either marks the end of the data associated with this batch or the offset in the stream where exports are stored.
+	const uint32 BatchEndOrStartOfExportsPos = Reader.GetPosBits() + BatchSize;
+
+	uint32 ReadObjectCount = 0;
+
+	// Do we have state data or attachments for the owner of the batch?
+	const bool bHasBatchOwnerData = Reader.ReadBool();
+
+	// Do we have exports or not?
+	const bool bHasExports = Reader.ReadBool();
+
+	// First we need to read exports, they are stored at the end of the batch
+	uint32 BatchEndPos = BatchEndOrStartOfExportsPos;
+	if (bHasExports)
+	{
+		const uint32 ReturnPos = Reader.GetPosBits();
+
+		// Seek to the export section
+		Reader.Seek(BatchEndPos);
+
+		ObjectReferenceCache->ReadExports(Context, nullptr /* Currently we do not process MustBeMappedReferences */);
+		if (Context.HasErrorOrOverflow())
+		{
+			return 0U;
+		}
+
+		// Update BatchEndPos if we successfully read exports
+		BatchEndPos = Reader.GetPosBits();
+
+		// Seek back to state data
+		Reader.Seek(ReturnPos);
+	}
+
+	// If the batch owner had state, we read it now
+	if (bHasBatchOwnerData)
+	{
+		ReadObjectInBatch(Context, IncompleteHandle, false);
+		if (Context.HasErrorOrOverflow())
+		{
+			return 0U;
+		}
+		++ReadObjectCount;
+	}
+
+	// ReadSubObjects 
+	while (Reader.GetPosBits() < BatchEndOrStartOfExportsPos)
+	{
+		ReadObjectInBatch(Context, IncompleteHandle, true);
+		if (Context.HasErrorOrOverflow())
+		{
+			return 0U;
+		}
+		++ReadObjectCount;
+	}
+
+	// Skip to the end as we already have read any exports
+	Reader.Seek(BatchEndPos);
+
+	return ReadObjectCount;
+}
+
+void FReplicationReader::ReadObjectInBatch(FNetSerializationContext& Context, FNetRefHandle BatchHandle, bool bIsSubObject)
+{
+	FNetBitStreamReader& Reader = *Context.GetBitStreamReader();
+
+	// If we are reading 
+	FNetRefHandle IncompleteHandle = BatchHandle;
+	if (bIsSubObject)
+	{
+		IncompleteHandle = ReadNetRefHandleId(Reader);
+	}
 	
 	// Read replicated destroy header if necessary
 	const bool bReadReplicatedDestroyHeader = !IsObjectIndexForOOBAttachment(IncompleteHandle.GetId());
 	const uint32 ReplicatedDestroyHeaderFlags = bReadReplicatedDestroyHeader ? Reader.ReadBits(ReplicatedDestroyHeaderFlags_BitCount) : ReplicatedDestroyHeaderFlags_None;
 
 	const bool bHasState = Reader.ReadBool();
-	uint32 NewBaselineIndex = FDeltaCompressionBaselineManager::InvalidBaselineIndex;
-
 	if (bHasState)
 	{
-		ObjectReferenceCache->ReadExports(Context);
 #if UE_NET_USE_READER_WRITER_SENTINEL
 		ReadAndVerifySentinelBits(&Reader, TEXT("Exports"), 8);
 #endif
 	}
+
+	uint32 NewBaselineIndex = FDeltaCompressionBaselineManager::InvalidBaselineIndex;
 
 	const bool bIsInitialState = bHasState && Reader.ReadBool();
 	uint32 InternalIndex = ObjectIndexForOOBAttachment;
@@ -419,16 +512,12 @@ void FReplicationReader::ReadObject(FNetSerializationContext& Context)
 	{
 		UE_NET_TRACE_SCOPE(CreationInfo, *Context.GetBitStreamReader(), Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
 
-#if UE_NET_REPLICATION_SUPPORT_SKIP_INITIAL_STATE
-		const uint32 NumBitsUsedForInitialStateSize = Parameters.NumBitsUsedForInitialStateSize;
-		const uint32 SkipSeekPos = Reader.ReadBits(NumBitsUsedForInitialStateSize) + Reader.GetPosBits();
-#endif
-
-		// SubObject data
+		// SubObject data for initial state
 		FNetRefHandle SubObjectOwnerHandle;
-		if (Reader.ReadBool())
+		if (bIsSubObject)
 		{
-			const FNetRefHandle IncompleteOwnerHandle = ReadNetRefHandleId(Reader);
+			// The owner is the same as the Batch owner
+			const FNetRefHandle IncompleteOwnerHandle = BatchHandle;
 				
 			FInternalNetRefIndex SubObjectOwnerInternalIndex = NetRefHandleManager->GetInternalIndex(IncompleteOwnerHandle);
 			if (Reader.IsOverflown() || SubObjectOwnerInternalIndex == FNetRefHandleManager::InvalidInternalIndex)
@@ -464,14 +553,7 @@ void FReplicationReader::ReadObject(FNetSerializationContext& Context)
 		const FReplicationBridgeCreateNetRefHandleResult CreateResult = ReplicationBridge->CallCreateNetRefHandleFromRemote(SubObjectOwnerHandle, IncompleteHandle, BridgeContext);
 		FNetRefHandle NetRefHandle = CreateResult.NetRefHandle;
 		if (!NetRefHandle.IsValid())
-		{
-#if UE_NET_REPLICATION_SUPPORT_SKIP_INITIAL_STATE
-			// If we support skipping
-			UE_LOG_REPLICATIONREADER_WARNING(TEXT("FReplicationReader::ReadObject Failed to instantiate %s, skipping over it assuming that object was streamed out"), *NetRefHandle.ToString());
-			Reader.Seek(SkipSeekPos);
-			return;
-#endif
-	
+		{	
 			UE_LOG_REPLICATIONREADER_ERROR(TEXT("FReplicationReader::ReadObject Unable to create handle for %s."), *IncompleteHandle.ToString());
 			Context.SetError(GNetError_InvalidNetHandle);
 			bHasErrors = true;
@@ -1293,6 +1375,7 @@ void FReplicationReader::DispatchEndReplication(FNetSerializationContext& Contex
 	}
 }
 
+
 void FReplicationReader::ReadObjects(FNetSerializationContext& Context, uint32 ObjectCountToRead)
 {
 	IRIS_PROFILER_SCOPE(ReplicationReader_ReadObjects);
@@ -1301,8 +1384,14 @@ void FReplicationReader::ReadObjects(FNetSerializationContext& Context, uint32 O
 	
 	while (ObjectCountToRead && !Context.HasErrorOrOverflow())
 	{
-		ReadObject(Context);
-		--ObjectCountToRead;
+		const uint32 ReadObjectCount = ReadObjectBatch(Context);
+		if (ReadObjectCount > ObjectCountToRead)
+		{			
+			Context.SetError(GNetError_BitStreamError);
+			break;
+		}
+
+		ObjectCountToRead -= ReadObjectCount;
 	}
 
 	ensureAlwaysMsgf(!Context.HasErrorOrOverflow(), TEXT("Overflow: %c Error: %s Bit stream bits left: %u position: %u"), "YN"[Context.HasError()], ToCStr(Context.GetError().ToString()), Reader.GetBitsLeft(), Reader.GetPosBits());
@@ -1366,8 +1455,8 @@ void FReplicationReader::ProcessHugeObjectAttachment(FNetSerializationContext& C
 	if (FNetTraceCollector* TraceCollector = Context.GetTraceCollector())
 	{
 		FNetBitStreamReader& Reader = *Context.GetBitStreamReader();
-		// Need a valid fake bitstream position, a position that starts before the end of the packet.
-		FNetTrace::FoldTraceCollector(TraceCollector, HugeObjectTraceCollector, GetBitStreamPositionForNetTrace(Reader) - 1U);
+		// Inject after all other trace events
+		FNetTrace::FoldTraceCollector(TraceCollector, HugeObjectTraceCollector, GetBitStreamPositionForNetTrace(Reader));
 	}
 #endif
 }
