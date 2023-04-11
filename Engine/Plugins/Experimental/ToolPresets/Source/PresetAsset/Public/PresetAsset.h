@@ -13,12 +13,12 @@
 #define LOCTEXT_NAMESPACE "PresetAsset"
 
 USTRUCT(BlueprintType)
-struct FInteractiveToolPresetDefintion
+struct PRESETASSET_API FInteractiveToolPresetDefintion
 {
 	GENERATED_BODY()
 public:
 	UPROPERTY(VisibleAnywhere, Category = "PresetAsset")
-	TArray< TObjectPtr<UObject> > Properties;
+	FString StoredProperties;
 
 	UPROPERTY(EditAnywhere, Category = "PresetAsset")
 	FString Label;
@@ -26,18 +26,24 @@ public:
 	UPROPERTY(EditAnywhere, Category = "PresetAsset")
 	FString Tooltip;
 
-	// TODO: Investigate how to store things like icons. This doesn't work as written, as FSlateBrush can't be serialized?
-	//UPROPERTY(EditAnywhere, Category = "PresetAsset")
-	//FSlateBrush Icon;
+	bool IsValid() const;
+	void SetStoredPropertyData(TArray<UObject*>& Properties);
+	void LoadStoredPropertyData(TArray<UObject*>& Properties);
 };
 
 USTRUCT(BlueprintType)
-struct FInteractiveToolPresetStore
+struct PRESETASSET_API FInteractiveToolPresetStore
 {
 	GENERATED_BODY()
 public:
 	UPROPERTY(EditAnywhere, Category = "PresetAsset")
-	TMap< FString, FInteractiveToolPresetDefintion> NamedPresets;
+	TArray<FInteractiveToolPresetDefintion> NamedPresets;
+
+	UPROPERTY(VisibleAnywhere, Category = "PresetAsset")
+	FText ToolLabel;
+
+	UPROPERTY(VisibleAnywhere, Category = "PresetAsset")
+	FSlateBrush ToolIcon;
 };
 
 /**
@@ -61,6 +67,8 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "PresetAsset")
 	TMap<FString, FInteractiveToolPresetStore > PerToolPresets;
 
+	UPROPERTY(EditAnywhere, Category = "PresetAsset")
+	FText CollectionLabel;
 };
 
 

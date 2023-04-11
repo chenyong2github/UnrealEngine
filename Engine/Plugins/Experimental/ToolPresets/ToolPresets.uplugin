@@ -11,7 +11,7 @@
 	"MarketplaceURL": "",
 	"SupportURL": "",
 	"EnabledByDefault": true,
-	"CanContainContent": false,
+	"CanContainContent": true,
 	"IsBetaVersion": false,
 	"Installed": false,
 	"IsExperimentalVersion": true,
@@ -20,6 +20,12 @@
 			"Name": "PresetAsset",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "PresetEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
+
 	]
 }

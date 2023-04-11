@@ -39,6 +39,8 @@ public class PresetAsset: ModuleRules
 				"SlateCore",
 				"UnrealEd",
 				"AssetDefinition",
+				"JsonUtilities",
+				"Json",
 			}
 			);
 		

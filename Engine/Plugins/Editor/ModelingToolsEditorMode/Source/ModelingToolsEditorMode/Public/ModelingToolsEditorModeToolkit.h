@@ -4,9 +4,6 @@
 
 #include "Toolkits/BaseToolkit.h"
 #include "StatusBarSubsystem.h"
-#include "UObject/GCObject.h"
-
-#include "ModelingToolsEditorModeToolkit.generated.h"
 
 class IAssetViewport;
 class SEditableTextBox;
@@ -22,26 +19,16 @@ class STextBlock;
 class UGeometrySelectionManager;
 class UInteractiveToolsPresetCollectionAsset;
 
-UCLASS()
-class UPresetSettingsProperties : public UObject
-{
-	GENERATED_BODY()
-public:
-
-	UPROPERTY(EditAnywhere, Category = "Presets", meta=(MetaClass = "/Script/PresetAsset.InteractiveToolsPresetCollectionAsset"))
-	TArray< FSoftObjectPath > ActivePresetCollectionsPaths;
-};
-
 struct FToolPresetOption
 {
 	FString PresetLabel;
 	FString PresetTooltip;
 	FSlateIcon PresetIcon;
-	FString PresetName;
+	int32 PresetIndex;
 	FSoftObjectPath PresetCollection;
 };
 
-class FModelingToolsEditorModeToolkit : public FModeToolkit, public FGCObject
+class FModelingToolsEditorModeToolkit : public FModeToolkit
 {
 public:
 
@@ -107,10 +94,6 @@ public:
 	// in a non-member function in ModelingModeToolkit_Toolbars.cpp
 	TSharedPtr<STransformGizmoNumericalUIOverlay> GetGizmoNumericalUIOverlayWidget() { return GizmoNumericalUIOverlayWidget; }
 
-	/** GCObject interface */
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const override;
-
 private:
 	const static TArray<FName> PaletteNames_Standard;
 
@@ -165,9 +148,11 @@ private:
 	void SelectNewAssetPath() const;
 
 	// Presets
-	TObjectPtr<UPresetSettingsProperties> PresetSettings;
+	TSharedPtr<SWidget> ToolPresetArea;
 	TSharedPtr<SWidget> MakePresetPanel();
 	FSoftObjectPath CurrentPreset;
+	FText CurrentPresetLabel;
+	FToolPresetOption SelectedPresetToEdit;
 	FString NewPresetLabel;
 	FString NewPresetTooltip;
 	FSlateIcon NewPresetIcon;
@@ -175,16 +160,15 @@ private:
 	TArray<TSharedPtr<FToolPresetOption>> AvailablePresetsForTool;
 	TSharedPtr<SEditableComboBox<TSharedPtr<FString>>> PresetComboBox;
 
-	TSharedRef<SWidget> GetPresetSettingsButtonContent();
 	TSharedRef<SWidget> GetPresetCreateButtonContent();
 
 	void CreateNewPresetInCollection(const FString& PresetLabel, FSoftObjectPath CollectionPath, const FString& ToolTip, FSlateIcon Icon);
-	void LoadPresetFromCollection(const FString& PresetName, FSoftObjectPath CollectionPath);
+	void LoadPresetFromCollection(const int32 PresetIndex, FSoftObjectPath CollectionPath);
+	void UpdatePresetInCollection(const FToolPresetOption& PresetToEditIn, bool bUpdateStoredPresetValues);
 
 	FString GetCurrentPresetPath() { return CurrentPreset.GetAssetPathString(); }
 	void HandlePresetAssetChanged(const FAssetData& InAssetData);
 	bool HandleFilterPresetAsset(const FAssetData& InAssetData);
-	void SaveActivePreset();
 	
 	void RebuildPresetListForTool(bool bSettingsOpened);
 	TSharedRef<SWidget> MakePresetComboWidget(TSharedPtr<FString> InItem);

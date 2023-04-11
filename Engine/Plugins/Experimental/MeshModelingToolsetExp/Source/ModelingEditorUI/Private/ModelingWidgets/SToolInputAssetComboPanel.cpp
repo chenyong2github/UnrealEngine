@@ -30,6 +30,7 @@ void SToolInputAssetComboPanel::Construct(const FArguments& InArgs)
 	this->Property = InArgs._Property;
 	this->CollectionSets = InArgs._CollectionSets;
 	this->OnSelectionChanged = InArgs._OnSelectionChanged;
+	RecentAssetsProvider = InArgs._RecentAssetsProvider;
 
 	// validate arguments
 	if ( InArgs._AssetClassType == nullptr )
@@ -56,9 +57,6 @@ void SToolInputAssetComboPanel::Construct(const FArguments& InArgs)
 		[
 			AssetThumbnail->MakeThumbnailWidget(ThumbnailConfig)
 		];
-
-	RecentAssetsProvider = InArgs._RecentAssetsProvider;
-
 
 	ComboButton = SNew(SComboButton)
 		.ToolTipText(UseTooltipText)
@@ -223,6 +221,10 @@ void SToolInputAssetComboPanel::Construct(const FArguments& InArgs)
 		}
 	}
 
+	if (InArgs._InitiallySelectedAsset.IsValid())
+	{
+		NewAssetSelected(InArgs._InitiallySelectedAsset);
+	}
 
 	ChildSlot
 		[

@@ -65,6 +65,7 @@ public:
 		, _FlyoutSize(600, 400)
 		, _AssetClassType(0)
 		, _OnSelectionChanged()
+		, _InitiallySelectedAsset()
 	{
 		}
 
@@ -94,6 +95,9 @@ public:
 			
 		/** This delegate is executed each time the Selected Asset is modified */
 		SLATE_EVENT( FOnSelectedAssetChanged, OnSelectionChanged )
+
+		/** Sets the asset selected by the widget before any user made selection occurs. */
+		SLATE_ARGUMENT( FAssetData, InitiallySelectedAsset)
 
 	SLATE_END_ARGS()
 

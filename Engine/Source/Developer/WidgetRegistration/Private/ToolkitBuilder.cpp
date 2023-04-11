@@ -479,6 +479,17 @@ void FToolkitBuilder::DefineWidget()
 		]
 	];
 	
+	if (ToolkitSections->ToolPresetArea)
+	{
+		ToolkitWidgetVBox->AddSlot()
+			.AutoHeight()
+			.HAlign(HAlign_Fill)
+			.Padding(5)
+			[
+				ToolkitSections->ToolPresetArea->AsShared()
+			];
+	}
+
 	if (ToolkitSections->ToolWarningArea)
 	{
 		ToolkitWidgetVBox->AddSlot()

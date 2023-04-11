@@ -21,6 +21,7 @@ struct WIDGETREGISTRATION_API FToolkitSections
 {
 	TSharedPtr<STextBlock> ModeWarningArea = nullptr;
 	TSharedPtr<STextBlock> ToolWarningArea = nullptr;
+	TSharedPtr<SWidget> ToolPresetArea = nullptr;
 	TSharedPtr<IDetailsView> DetailsView = nullptr;
 	TSharedPtr<SWidget> Footer = nullptr;
 };
