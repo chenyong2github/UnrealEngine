@@ -2,7 +2,9 @@
 
 #include "GoogleARCoreAugmentedFace.h"
 
+#include "IXRTrackingSystem.h"
 #include "ARSystem.h"
+#include "ARSupportInterface.h"
 
 void UGoogleARCoreAugmentedFace::DebugDraw(UWorld* World, const FLinearColor& OutlineColor, float OutlineThickness, float PersistForSeconds /*= 0.0f*/) const
 {
