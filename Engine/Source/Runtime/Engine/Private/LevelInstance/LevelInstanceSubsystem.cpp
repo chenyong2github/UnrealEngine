@@ -113,33 +113,38 @@ ILevelInstanceInterface* ULevelInstanceSubsystem::GetLevelInstance(const FLevelI
 
 FLevelInstanceID::FLevelInstanceID(ULevelInstanceSubsystem* LevelInstanceSubsystem, ILevelInstanceInterface* LevelInstance)
 {
+	TArray<FGuid> Guids;
 	AActor* LevelInstanceActor = CastChecked<AActor>(LevelInstance);
-	LevelInstanceSubsystem->ForEachLevelInstanceAncestorsAndSelf(LevelInstanceActor, [this](const ILevelInstanceInterface* AncestorOrSelf)
+	LevelInstanceSubsystem->ForEachLevelInstanceAncestorsAndSelf(LevelInstanceActor, [&Guids](const ILevelInstanceInterface* AncestorOrSelf)
 	{
 		Guids.Add(AncestorOrSelf->GetLevelInstanceGuid());
 		return true;
 	});
 	check(!Guids.IsEmpty());
 	
-	uint64 NameHash = 0;
-	ActorName = LevelInstanceActor->GetFName();
-	// Add Actor Name to hash because with World Partition Embedding top level of Level Instance hierarchy can get stripped leaving us with clashing ids.
-	// When embedding actors we make sure their names are unique (they get suffixed with their parent container id)
-	// Only do it for actor with a stable name. Actor with an unstable name are dynamically spawned and should have an unique replicated GUID.
+	uint64 TmpHash = 0;
+		
 	if (LevelInstanceActor->IsNameStableForNetworking())
 	{
+		ActorName = LevelInstanceActor->GetFName();
 		FString NameStr = ActorName.ToString();
-		NameHash = CityHash64((const char*)*NameStr, NameStr.Len() * sizeof(TCHAR));
+		TmpHash = CityHash64((const char*)*NameStr, NameStr.Len() * sizeof(TCHAR));
+
+		if (UWorld* OuterWorld = LevelInstanceActor->GetTypedOuter<UWorld>())
+		{
+			PackageShortName = UWorld::RemovePIEPrefix(FPackageName::GetShortName(OuterWorld->GetPackage()));
+			TmpHash = CityHash64WithSeed((const char*)*PackageShortName, PackageShortName.Len() * sizeof(TCHAR), TmpHash);
+		}
 	}
 	
-	Hash = CityHash64WithSeed((const char*)Guids.GetData(), Guids.Num() * sizeof(FGuid), NameHash);
-
 	// Make sure to start main container id
 	ContainerID = FActorContainerID();
 	for (int32 GuidIndex = Guids.Num() - 1; GuidIndex >= 0; GuidIndex--)
 	{
 		ContainerID = FActorContainerID(ContainerID, Guids[GuidIndex]);
 	}
+
+	Hash = CityHash64WithSeed((const char*)&ContainerID, sizeof(ContainerID), TmpHash);	
 }
 
 FLevelInstanceID ULevelInstanceSubsystem::RegisterLevelInstance(ILevelInstanceInterface* LevelInstance)

@@ -27,10 +27,10 @@ struct FLevelInstanceID
 
 	inline bool operator==(const FLevelInstanceID& Other) const
 	{
-		return Hash == Other.Hash && Guids == Other.Guids && ActorName == Other.ActorName;
+		return Hash == Other.Hash && ContainerID == Other.ContainerID && ActorName == Other.ActorName && PackageShortName == Other.PackageShortName;
 	}
 
-	inline bool IsValid() const { return !Guids.IsEmpty(); }
+	inline bool IsValid() const { return !ContainerID.IsMainContainer(); }
 
 	inline uint64 GetHash() const { return Hash; }
 
@@ -39,8 +39,17 @@ struct FLevelInstanceID
 private:
 	uint64 Hash = 0;
 	FActorContainerID ContainerID;
-	TArray<FGuid> Guids;
+	
+	// Hashed only for Loaded LevelInstances 
+	// Spawned LevelInstances have a unique Guid which is enough.
+	
+	// Name allows distinguishing between LevelInstances with embedded parent LevelInstances because embedded actors have a guaranteed unique name (ContainerID suffix)
 	FName ActorName;
+	// PackageShortName allows distinguising between instanced LevelInstances of the same source level.
+	// - Loading /Game/Path/WorldA.WorldA as /Game/Path/WorldA_LevelInstance1.WorldA & /Game/Path/WorldA_LevelInstance".WorldA
+	//   with the source WorldA containing one of many LevelInstance actors. 
+	//   Those actors would end up with the same hash. We use PackageShortName (WorldA_LevelInstance1 & WorldA_LevelInstance2) to distinguish them.
+	FString PackageShortName;
 };
 
 UENUM()
