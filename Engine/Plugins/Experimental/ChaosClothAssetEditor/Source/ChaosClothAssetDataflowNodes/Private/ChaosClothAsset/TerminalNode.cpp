@@ -34,7 +34,6 @@ void FChaosClothAssetTerminalNode::SetAssetValue(TObjectPtr<UObject> Asset, Data
 		ClothFacade.DefineSchema();
 
 		// Iterate through the LODs
-		FString SkeletonPathName;
 		FString PhysicsAssetPathName;
 
 		const TArray<const FManagedArrayCollection*> CollectionLods = GetCollectionLods();
@@ -95,12 +94,11 @@ void FChaosClothAssetTerminalNode::SetAssetValue(TObjectPtr<UObject> Asset, Data
 					}
 				}
 
-				// Set properties, skeleton, and physics asset only with LOD 0 at the moment
+				// Set properties and physics asset only with LOD 0 at the moment
 				if (LodIndex == 0)
 				{
 					using namespace ::Chaos::Softs;
 
-					SkeletonPathName = InClothLodFacade.GetSkeletonAssetPathName();
 					PhysicsAssetPathName = InClothLodFacade.GetPhysicsAssetPathName();
 				
 					FCollectionPropertyMutableFacade(ClothCollection).Append(*InClothCollection);
@@ -116,10 +114,7 @@ void FChaosClothAssetTerminalNode::SetAssetValue(TObjectPtr<UObject> Asset, Data
 
 		// Set reference skeleton
 		constexpr bool bRebuildModels = false;  // Avoid rebuilding the asset twice
-		USkeleton* const Skeleton = !SkeletonPathName.IsEmpty() ?
-			LoadObject<USkeleton>(nullptr, *SkeletonPathName, nullptr, LOAD_None, nullptr) :
-			nullptr;
-		ClothAsset->SetSkeleton(Skeleton, bRebuildModels);
+		ClothAsset->UpdateSkeletonFromCollection(bRebuildModels);
 
 		// Set physics asset (note: the cloth asset's physics asset is only replaced if a collection path name is found valid)
 		UPhysicsAsset* const PhysicsAsset = !PhysicsAssetPathName.IsEmpty() ?

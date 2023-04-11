@@ -26,11 +26,14 @@ public class ChaosClothAssetDataflowNodes : ModuleRules
 				"DataflowEditor",
 				"DataflowEngine",
 				"DatasmithImporter",
+				"DynamicMesh",
 				"Engine",
 				"ExternalSource",
-				"Slate",
 				"GeometryCore",
-				"MeshConversion"
+				"MeshConversion",
+				"MeshDescription",
+				"SkeletalMeshDescription",
+				"Slate",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
