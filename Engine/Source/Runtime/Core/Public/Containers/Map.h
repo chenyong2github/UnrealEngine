@@ -1415,6 +1415,26 @@ public:
 	}
 
 	/**
+	* Visit all values associated with the specified key 
+	* This is replacement to the array returning MultiFind when allocations is to be avoided
+	* if the visitor function return false, this will exit out from looping through the values
+	* Visitor Function signature must be compatible with : bool VisitorFunction(const ValueType&)
+	*
+	* @param Key The key to find associated values for.
+	* @param VisitorFunction visitor function 
+	*/
+	template<typename TVisitorFunction> void ForEachValue(KeyInitType Key, TVisitorFunction VisitorFunction) const
+	{
+		for (typename Super::ElementSetType::TConstKeyIterator It(Super::Pairs, Key); It; ++It)
+		{
+			if (!VisitorFunction(It->Value))
+			{
+				return;
+			}
+		}
+	}
+
+	/**
 	 * Finds all values associated with the specified key.
 	 *
 	 * @param Key The key to find associated values for.

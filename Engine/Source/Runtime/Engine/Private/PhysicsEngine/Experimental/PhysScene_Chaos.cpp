@@ -790,23 +790,26 @@ const FBodyInstance* FPhysScene_Chaos::GetBodyInstanceFromProxyAndShape(IPhysics
 FCollisionNotifyInfo& FPhysScene_Chaos::GetPendingCollisionForContactPair(const void* P0, const void* P1, Chaos::FReal SolverTime, bool& bNewEntry)
 {
 	const FUniqueContactPairKey Key = { P0, P1 };
-	TArray<int32> ExistingPairs;
-	ContactPairToPendingNotifyMap.MultiFind(Key, ExistingPairs);
-	for(int32 ExistingIdx : ExistingPairs)
-	{
-		if(FMath::IsNearlyEqual(PendingCollisionNotifies[ExistingIdx].SolverTime, SolverTime))
-		{
-			// we already have one for this pair
-			bNewEntry = false;
-			return PendingCollisionNotifies[ExistingIdx];	
-		}
-	}
 
-	// make a new entry
-	bNewEntry = true;
-	int32 NewIdx = PendingCollisionNotifies.AddZeroed();
-	ContactPairToPendingNotifyMap.Add(Key, NewIdx);
-	return PendingCollisionNotifies[NewIdx];
+	int32 ExistingIndex = INDEX_NONE;
+	ContactPairToPendingNotifyMap.ForEachValue(Key, [this, SolverTime, &ExistingIndex](const int32 Value)
+		{
+			if (FMath::IsNearlyEqual(PendingCollisionNotifies[Value].SolverTime, SolverTime))
+			{
+				ExistingIndex = Value;
+				return false; // early exit we have found what we were looking for 
+			}
+			return true;
+		});
+
+	bNewEntry = (ExistingIndex == INDEX_NONE);
+	if (bNewEntry)
+	{
+		// make a new entry
+		ExistingIndex = PendingCollisionNotifies.AddZeroed();
+		ContactPairToPendingNotifyMap.Add(Key, ExistingIndex);
+	}
+	return PendingCollisionNotifies[ExistingIndex];
 }
 
 void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& Event)
