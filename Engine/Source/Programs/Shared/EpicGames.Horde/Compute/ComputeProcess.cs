@@ -54,10 +54,12 @@ namespace EpicGames.Horde.Compute
 			try
 			{
 				await RunInternalAsync(channel, cancellationToken);
+				_output.Writer.TryComplete();
 			}
 			catch (Exception ex)
 			{
 				_result.TrySetException(ex);
+				_output.Writer.TryComplete(ex);
 			}
 		}
 

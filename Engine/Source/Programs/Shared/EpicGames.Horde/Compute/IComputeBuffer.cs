@@ -20,6 +20,11 @@ namespace EpicGames.Horde.Compute
 		/// Writer for this buffer
 		/// </summary>
 		IComputeBufferWriter Writer { get; }
+
+		/// <summary>
+		/// Creates a new reference to the underlying buffer. The underlying resources will only be destroyed once all instances are disposed of.
+		/// </summary>
+		IComputeBuffer AddRef();
 	}
 
 	/// <summary>
@@ -60,7 +65,8 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Mark the output to this buffer as complete
 		/// </summary>
-		void MarkComplete();
+		/// <returns>Whether the writer was marked as complete. False if the writer has already been marked as complete.</returns>
+		bool MarkComplete();
 
 		/// <summary>
 		/// Updates the current write position within the buffer

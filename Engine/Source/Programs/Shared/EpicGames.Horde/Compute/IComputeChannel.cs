@@ -46,7 +46,7 @@ namespace EpicGames.Horde.Compute
 				_channelId = channelId;
 				_recvBuffer = recvBuffer;
 
-				_socket.AttachRecvBuffer(_channelId, recvBuffer.Writer);
+				_socket.AttachRecvBuffer(_channelId, recvBuffer);
 			}
 
 			public void Dispose()
@@ -73,8 +73,8 @@ namespace EpicGames.Horde.Compute
 				_recvBuffer = recvBuffer;
 				_sendBuffer = sendBuffer;
 
-				_socket.AttachRecvBuffer(_channelId, recvBuffer.Writer);
-				_socket.AttachSendBuffer(_channelId, sendBuffer.Reader);
+				_socket.AttachRecvBuffer(_channelId, recvBuffer);
+				_socket.AttachSendBuffer(_channelId, sendBuffer);
 			}
 
 			public void Dispose()
@@ -125,8 +125,8 @@ namespace EpicGames.Horde.Compute
 				throw new InvalidOperationException($"Environment variable {IpcEnvVar} is not defined; cannot connect as worker.");
 			}
 
-			SharedMemoryBuffer recvBuffer = SharedMemoryBuffer.OpenExisting(GetRecvBufferName(baseName));
-			SharedMemoryBuffer sendBuffer = SharedMemoryBuffer.OpenExisting(GetSendBufferName(baseName));
+			IComputeBuffer recvBuffer = SharedMemoryBuffer.OpenExisting(GetRecvBufferName(baseName)).ToSharedInstance();
+			IComputeBuffer sendBuffer = SharedMemoryBuffer.OpenExisting(GetSendBufferName(baseName)).ToSharedInstance();
 			return new WorkerChannel(recvBuffer, sendBuffer);
 		}
 

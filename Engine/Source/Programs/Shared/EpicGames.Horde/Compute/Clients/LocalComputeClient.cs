@@ -27,7 +27,12 @@ namespace EpicGames.Horde.Compute.Clients
 			readonly IComputeSocket _socket;
 
 			public LeaseImpl(IComputeSocket socket) => _socket = socket;
+
+			/// <inheritdoc/>
 			public ValueTask DisposeAsync() => _socket.DisposeAsync();
+
+			/// <inheritdoc/>
+			public ValueTask CloseAsync(CancellationToken cancellationToken) => _socket.CloseAsync(cancellationToken);
 		}
 
 		readonly BackgroundTask _listenerTask;

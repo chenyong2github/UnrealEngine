@@ -2,6 +2,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace EpicGames.Horde.Compute
 {
@@ -24,5 +26,11 @@ namespace EpicGames.Horde.Compute
 		/// Socket to communicate with the remote
 		/// </summary>
 		IComputeSocket Socket { get; }
+
+		/// <summary>
+		/// Relinquish the lease gracefully
+		/// </summary>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		ValueTask CloseAsync(CancellationToken cancellationToken = default);
 	}
 }

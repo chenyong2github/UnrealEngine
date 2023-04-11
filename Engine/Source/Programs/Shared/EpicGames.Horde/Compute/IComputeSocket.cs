@@ -32,21 +32,21 @@ namespace EpicGames.Horde.Compute
 		/// Attaches a buffer to receive data.
 		/// </summary>
 		/// <param name="channelId">Channel to receive data on</param>
-		/// <param name="writer">Writer for the received data</param>
-		void AttachRecvBuffer(int channelId, IComputeBufferWriter writer);
+		/// <param name="buffer">Buffer to receive data</param>
+		void AttachRecvBuffer(int channelId, IComputeBuffer buffer);
 
 		/// <summary>
 		/// Attaches a buffer to send data.
 		/// </summary>
 		/// <param name="channelId">Channel to receive data on</param>
-		/// <param name="reader">Reader for the data to send</param>
-		void AttachSendBuffer(int channelId, IComputeBufferReader reader);
+		/// <param name="buffer">Buffer to send data from</param>
+		void AttachSendBuffer(int channelId, IComputeBuffer buffer);
 
 		/// <summary>
 		/// Attempt to gracefully close the current connection and shutdown both ends of the transport
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		ValueTask CloseAsync(CancellationToken cancellationToken);
+		ValueTask CloseAsync(CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
@@ -96,8 +96,8 @@ namespace EpicGames.Horde.Compute
 		/// <param name="logger">Logger for the channel</param>
 		public static IComputeMessageChannel CreateMessageChannel(this IComputeSocket socket, int channelId, int sendBufferSize, int recvBufferSize, ILogger logger)
 		{
-			PooledBuffer sendBuffer = new PooledBuffer(sendBufferSize);
-			PooledBuffer recvBuffer = new PooledBuffer(recvBufferSize);
+			IComputeBuffer sendBuffer = new PooledBuffer(sendBufferSize).ToSharedInstance();
+			IComputeBuffer recvBuffer = new PooledBuffer(recvBufferSize).ToSharedInstance();
 			return new ComputeMessageChannel(socket, channelId, sendBuffer, recvBuffer, logger);
 		}
 	}

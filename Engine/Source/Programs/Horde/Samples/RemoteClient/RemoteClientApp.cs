@@ -80,32 +80,35 @@ namespace RemoteClient
 		{
 			// Create a message channel on channel id 0. The Horde Agent always listens on this channel for requests.
 			const int ControlChannelId = 0;
-			using IComputeMessageChannel channel = lease.Socket.CreateMessageChannel(ControlChannelId, 4 * 1024 * 1024, logger);
-			await channel.WaitForAttachAsync();
-
-			// Upload the sandbox
-			MemoryStorageClient storage = new MemoryStorageClient();
-			using (TreeWriter treeWriter = new TreeWriter(storage))
+			using (IComputeMessageChannel channel = lease.Socket.CreateMessageChannel(ControlChannelId, 4 * 1024 * 1024, logger))
 			{
-				DirectoryNode sandbox = new DirectoryNode();
-				await sandbox.CopyFromDirectoryAsync(uploadDir.ToDirectoryInfo(), new ChunkingOptions(), treeWriter, null);
-				NodeHandle handle = await treeWriter.FlushAsync(sandbox);
-				await channel.UploadFilesAsync("", handle.Locator, storage);
-			}
+				await channel.WaitForAttachAsync();
 
-			// Run the task remotely in the background and echo the output to the console
-			await using (IComputeProcess process = await channel.ExecuteAsync(executable, arguments, null, null))
-			{
-				string? line = await process.ReadLineAsync();
-				logger.LogInformation("[REMOTE] {Line}", line);
-
-				await using BackgroundTask tickTask = BackgroundTask.StartNew(ctx => WriteNumbersAsync(lease.Socket, logger, ctx));
-
-				while ((line = await process.ReadLineAsync()) != null)
+				// Upload the sandbox
+				MemoryStorageClient storage = new MemoryStorageClient();
+				using (TreeWriter treeWriter = new TreeWriter(storage))
 				{
+					DirectoryNode sandbox = new DirectoryNode();
+					await sandbox.CopyFromDirectoryAsync(uploadDir.ToDirectoryInfo(), new ChunkingOptions(), treeWriter, null);
+					NodeHandle handle = await treeWriter.FlushAsync(sandbox);
+					await channel.UploadFilesAsync("", handle.Locator, storage);
+				}
+
+				// Run the task remotely in the background and echo the output to the console
+				await using (IComputeProcess process = await channel.ExecuteAsync(executable, arguments, null, null))
+				{
+					string? line = await process.ReadLineAsync();
 					logger.LogInformation("[REMOTE] {Line}", line);
+
+					await using BackgroundTask tickTask = BackgroundTask.StartNew(ctx => WriteNumbersAsync(lease.Socket, logger, ctx));
+
+					while ((line = await process.ReadLineAsync()) != null)
+					{
+						logger.LogInformation("[REMOTE] {Line}", line);
+					}
 				}
 			}
+			await lease.CloseAsync();
 		}
 
 		static async Task WriteNumbersAsync(IComputeSocket socket, ILogger logger, CancellationToken cancellationToken)

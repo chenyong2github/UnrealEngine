@@ -63,6 +63,9 @@ namespace EpicGames.Horde.Compute.Clients
 				await _source.MoveNextAsync();
 				await _source.DisposeAsync();
 			}
+
+			/// <inheritdoc/>
+			public ValueTask CloseAsync(CancellationToken cancellationToken) => Socket.CloseAsync(cancellationToken);
 		}
 
 		readonly HttpClient? _defaultHttpClient;

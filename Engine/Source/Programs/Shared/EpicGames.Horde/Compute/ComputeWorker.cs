@@ -166,11 +166,11 @@ namespace EpicGames.Horde.Compute
 			const int ChannelId = 1;
 			string baseBufferName = $"Local\\Compute-{Guid.NewGuid()}";
 
-			using SharedMemoryBuffer sendBuffer = SharedMemoryBuffer.CreateNew(ComputeChannel.GetSendBufferName(baseBufferName), 4096);
-			socket.AttachSendBuffer(ChannelId, sendBuffer.Reader);
+			using IComputeBuffer sendBuffer = SharedMemoryBuffer.CreateNew(ComputeChannel.GetSendBufferName(baseBufferName), 4096).ToSharedInstance();
+			socket.AttachSendBuffer(ChannelId, sendBuffer);
 
-			using SharedMemoryBuffer recvBuffer = SharedMemoryBuffer.CreateNew(ComputeChannel.GetRecvBufferName(baseBufferName), 4096);
-			socket.AttachRecvBuffer(ChannelId, recvBuffer.Writer);
+			using IComputeBuffer recvBuffer = SharedMemoryBuffer.CreateNew(ComputeChannel.GetRecvBufferName(baseBufferName), 4096).ToSharedInstance();
+			socket.AttachRecvBuffer(ChannelId, recvBuffer);
 
 			Dictionary<string, string?> newEnvVars = new Dictionary<string, string?>();
 			if (envVars != null)
@@ -188,6 +188,9 @@ namespace EpicGames.Horde.Compute
 			_logger.LogInformation("Finished executing process");
 
 			_logger.LogInformation("Child process has shut down");
+
+			recvBuffer.Writer.MarkComplete();
+			sendBuffer.Writer.MarkComplete();
 		}
 
 		async Task ExecuteProcessInternalAsync(IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)

@@ -86,5 +86,8 @@ namespace EpicGames.Horde.Compute.Transports
 				Position += memory.Length;
 			}
 		}
+
+		/// <inheritdoc/>
+		public ValueTask MarkCompleteAsync(CancellationToken cancellationToken) => _writer.CompleteAsync();
 	}
 }

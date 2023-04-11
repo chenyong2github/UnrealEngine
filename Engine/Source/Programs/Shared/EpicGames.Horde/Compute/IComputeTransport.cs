@@ -31,6 +31,12 @@ namespace EpicGames.Horde.Compute
 		/// <param name="buffer">Buffer to be written</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		ValueTask WriteAsync(ReadOnlySequence<byte> buffer, CancellationToken cancellationToken);
+
+		/// <summary>
+		/// Indicate that all data has been written to the transport layer, and that there will be no more calls to <see cref="WriteAsync(ReadOnlySequence{Byte}, CancellationToken)"/>
+		/// </summary>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		ValueTask MarkCompleteAsync(CancellationToken cancellationToken);
 	}
 
 	/// <summary>

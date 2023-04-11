@@ -26,7 +26,7 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task TestPooledBuffer()
 		{
-			await TestProducerConsumerAsync(length => new PooledBuffer(length), CancellationToken.None);
+			await TestProducerConsumerAsync(length => new PooledBuffer(length).ToSharedInstance(), CancellationToken.None);
 		}
 
 		[TestMethod]
@@ -34,7 +34,7 @@ namespace EpicGames.Horde.Tests
 		{
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
-				await TestProducerConsumerAsync(length => SharedMemoryBuffer.CreateNew(null, length), CancellationToken.None);
+				await TestProducerConsumerAsync(length => SharedMemoryBuffer.CreateNew(null, length).ToSharedInstance(), CancellationToken.None);
 			}
 		}
 
@@ -49,7 +49,7 @@ namespace EpicGames.Horde.Tests
 			await using IComputeSocket consumerSocket = ComputeSocket.Create(new PipeTransport(sourceToTargetPipe.Reader, targetToSourcePipe.Writer), NullLogger.Instance);
 
 			using IComputeBuffer consumerBuffer = createBuffer(Length);
-			consumerSocket.AttachRecvBuffer(ChannelId, consumerBuffer.Writer);
+			consumerSocket.AttachRecvBuffer(ChannelId, consumerBuffer);
 
 			byte[] input = RandomNumberGenerator.GetBytes(Length);
 			Task producerTask = RunProducerAsync(producerSocket, input);

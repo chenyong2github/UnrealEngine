@@ -132,8 +132,8 @@ namespace EpicGames.Horde.Compute
 		{
 			_socket = socket;
 			_channelId = channelId;
-			_socket.AttachRecvBuffer(channelId, recvBuffer.Writer);
-			_socket.AttachSendBuffer(channelId, sendBuffer.Reader);
+			_socket.AttachRecvBuffer(channelId, recvBuffer);
+			_socket.AttachSendBuffer(channelId, sendBuffer);
 			_recvBuffer = recvBuffer;
 			_sendBuffer = sendBuffer;
 			_logger = logger;
@@ -145,6 +145,7 @@ namespace EpicGames.Horde.Compute
 		public void Dispose()
 		{
 			_currentBuilder?.Dispose();
+			_sendBuffer.Writer.MarkComplete();
 			_sendBuffer.Dispose();
 			_recvBuffer.Dispose();
 		}

@@ -210,5 +210,8 @@ namespace EpicGames.Horde.Compute.Transports
 		{
 			BinaryPrimitives.WriteInt64LittleEndian(nonce, BinaryPrimitives.ReadInt64LittleEndian(nonce) + 1);
 		}
+
+		/// <inheritdoc/>
+		public ValueTask MarkCompleteAsync(CancellationToken cancellationToken) => _inner.MarkCompleteAsync(cancellationToken);
 	}
 }
