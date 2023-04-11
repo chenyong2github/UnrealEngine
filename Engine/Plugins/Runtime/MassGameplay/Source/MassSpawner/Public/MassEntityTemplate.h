@@ -14,6 +14,7 @@
 class UMassEntityTraitBase;
 struct FMassEntityView;
 struct FMassEntityTemplateIDFactory;
+struct FMassEntityTemplate;
 
 
 //ID of the template an entity is using
@@ -84,6 +85,7 @@ struct MASSSPAWNER_API FMassEntityTemplateData
 	typedef TFunction<void(UObject& /*Owner*/, FMassEntityView& /*EntityView*/, const EMassTranslationDirection /*CurrentDirection*/)> FObjectFragmentInitializerFunction;
 
 	FMassEntityTemplateData() = default;
+	explicit FMassEntityTemplateData(const FMassEntityTemplate& InFinalizedTemplate);
 
 	bool IsEmpty() const { return Composition.IsEmpty(); }
 
@@ -144,6 +146,14 @@ struct MASSSPAWNER_API FMassEntityTemplateData
 	}
 
 	template<typename T>
+	T* GetMutableFragment()
+	{
+		static_assert(TIsDerivedFrom<T, FMassFragment>::IsDerived, "Given struct doesn't represent a valid fragment type. Make sure to inherit from FMassFragment or one of its child-types.");
+		FInstancedStruct* Fragment = InitialFragmentValues.FindByPredicate(FStructTypeEqualOperator(T::StaticStruct()));
+		return Fragment ? &Fragment->template GetMutable<T>() : (T*)nullptr;
+	}
+
+	template<typename T>
 	void AddTag()
 	{
 		static_assert(TIsDerivedFrom<T, FMassTag>::IsDerived, "Given struct doesn't represent a valid mass tag type. Make sure to inherit from FMassTag or one of its child-types.");
@@ -152,7 +162,7 @@ struct MASSSPAWNER_API FMassEntityTemplateData
 	
 	void AddTag(const UScriptStruct& TagType)
 	{
-		checkf(TagType.IsChildOf(FMassFragment::StaticStruct()), TEXT("Given struct doesn't represent a valid mass tag type. Make sure to inherit from FMassTag or one of its child-types."));
+		checkf(TagType.IsChildOf(FMassTag::StaticStruct()), TEXT("Given struct doesn't represent a valid mass tag type. Make sure to inherit from FMassTag or one of its child-types."));
 		Composition.Tags.Add(TagType);
 	}
 
@@ -297,6 +307,8 @@ struct MASSSPAWNER_API FMassEntityTemplate final : public TSharedFromThis<FMassE
 	FORCEINLINE const FMassArchetypeCompositionDescriptor& GetCompositionDescriptor() const { return TemplateData.GetCompositionDescriptor(); }
 	FORCEINLINE const FMassArchetypeSharedFragmentValues& GetSharedFragmentValues() const { return TemplateData.GetSharedFragmentValues(); }
 	FORCEINLINE TConstArrayView<FInstancedStruct> GetInitialFragmentValues() const { return TemplateData.GetInitialFragmentValues(); }
+
+	const FMassEntityTemplateData& GetTemplateData() const { return TemplateData; }
 
 private:
 	FMassEntityTemplateData TemplateData;

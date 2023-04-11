@@ -17,8 +17,17 @@ FString FMassEntityTemplateID::ToString() const
 //----------------------------------------------------------------------//
 //  FMassEntityTemplateData
 //----------------------------------------------------------------------//
+FMassEntityTemplateData::FMassEntityTemplateData(const FMassEntityTemplate& InFinalizedTemplate)
+	: FMassEntityTemplateData(InFinalizedTemplate.GetTemplateData())
+{
+
+}
+
 uint32 GetTypeHash(const FMassEntityTemplateData& Template)
 {
+	// @todo: using the template name is temporary solution to allow to tell two templates apart based on something 
+	// else than composition. Ideally we would hash the fragment values instead.
+	const int32 NameHash = GetTypeHash(Template.GetTemplateName());
 	const uint32 CompositionHash = Template.Composition.CalculateHash();
 	const uint32 SharedFragmentValuesHash = GetTypeHash(Template.SharedFragmentValues);
 	
@@ -39,7 +48,7 @@ uint32 GetTypeHash(const FMassEntityTemplateData& Template)
 	}*/
 
 	// @todo maybe better to have two separate hashes - one for composition and maybe shared fragments, and then the other one for the rest, and use multimap for look up
-	return HashCombine(HashCombine(CompositionHash, SharedFragmentValuesHash), HashCombine(InitialValuesHash, InitializersHash));
+	return HashCombine(NameHash, HashCombine(HashCombine(CompositionHash, SharedFragmentValuesHash), HashCombine(InitialValuesHash, InitializersHash)));
 }
 
 //-----------------------------------------------------------------------------
