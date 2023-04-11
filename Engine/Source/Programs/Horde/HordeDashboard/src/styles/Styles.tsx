@@ -125,7 +125,8 @@ registerIcons({
       "Dashboard": IconContents.DASHBOARD,
       "Document": IconContents.DOCUMENT,
       "Folder": IconContents.FOLDER_CLOSE,
-      "CloudDownload" : IconContents.CLOUD_DOWNLOAD
+      "CloudDownload": IconContents.CLOUD_DOWNLOAD,
+      "Eye" : IconContents.EYE_OPEN
    }
 });
 
