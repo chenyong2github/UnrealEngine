@@ -31,6 +31,12 @@ namespace GeometryCollectionTest
 	};
 
 	template<typename PayloadType>
+	const TMap<IPhysicsProxyBase*, TArray<int32>>* GetProxyToIndexMap(const PayloadType* Buffer)
+	{
+		return nullptr;
+	}
+
+	template<typename PayloadType>
 	bool IsEventDataEmpty(const PayloadType* Buffer)
 	{
 		return false;
