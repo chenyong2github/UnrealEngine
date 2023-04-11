@@ -46,6 +46,8 @@ enum class EAssetClassAction : uint8
 	ViewAsset,
 	/** Whether an asset can be imported */
 	ImportAsset,
+	/** Whether an asset can be exported */
+	ExportAsset,
 	AllAssetActions
 };
 
@@ -458,6 +460,14 @@ public:
 	 * @param	ExportPath						The directory path to export to.
 	 */
 	virtual void ExportAssetsWithDialog(const TArray<UObject*>& AssetsToExport, bool bPromptForIndividualFilenames) = 0;
+
+	/**
+	 * Check if specified assets can be exported.
+	 *
+	 * @param	AssetsToExport					List of assets to export
+	 * @return true if all assets specified can be exported
+	 */
+	virtual bool CanExportAssets(const TArray<FAssetData>& AssetsToExport) const = 0;
 
 	/** Creates a unique package and asset name taking the form InBasePackageName+InSuffix */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")

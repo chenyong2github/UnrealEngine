@@ -377,10 +377,7 @@ void FAssetFileContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 	if (bCanBeModified)
 	{
 		FToolMenuSection& Section = Menu->AddSection("AssetContextMoveActions", LOCTEXT("AssetContextMoveActionsMenuHeading", "Move"));
-		const bool bCanExportAllSelectedAssets = !Algo::AnyOf(SelectedAssets, [](const FAssetData& AssetData)
-		{
-			return AssetData.HasAnyPackageFlags(EPackageFlags::PKG_DisallowExport);
-		});
+		const bool bCanExportAllSelectedAssets = FAssetToolsModule::GetModule().Get().CanExportAssets(SelectedAssets);
 
 		if (bCanExportAllSelectedAssets)
 		{

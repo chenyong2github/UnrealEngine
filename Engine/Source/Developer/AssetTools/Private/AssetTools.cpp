@@ -3841,6 +3841,13 @@ void UAssetToolsImpl::ExportAssetsInternal(const TArray<UObject*>& ObjectsToExpo
 
 	// Export the objects.
 	bool bAnyObjectMissingSourceData = false;
+
+	// Permission filter based on class
+	TSharedPtr<FPathPermissionList> ExportClassPermissionList = GetAssetClassPathPermissionList(EAssetClassAction::ExportAsset);
+	const bool bExportClassPermissionListHasFiltering = ExportClassPermissionList && ExportClassPermissionList->HasFiltering();
+	// Use TMap as optimization because FPathPermissionList performs slow TArray<FString> search
+	TMap<UClass*, bool> ClassPassesFilterResults;
+
 	for (int32 Index = 0; Index < ObjectsToExport.Num(); Index++)
 	{
 		GWarn->StatusUpdate(Index, ObjectsToExport.Num(), FText::Format(NSLOCTEXT("UnrealEd", "Exportingf", "Exporting ({0} of {1})"), FText::AsNumber(Index), FText::AsNumber(ObjectsToExport.Num())));
@@ -3854,6 +3861,34 @@ void UAssetToolsImpl::ExportAssetsInternal(const TArray<UObject*>& ObjectsToExpo
 		if (ObjectToExport->GetOutermost()->HasAnyPackageFlags(PKG_DisallowExport))
 		{
 			continue;
+		}
+
+		// Look at export class permission filter
+		if (bExportClassPermissionListHasFiltering)
+		{
+			// Reuse results as optimization
+			const bool* FoundPassesFilterResult = ClassPassesFilterResults.Find(ObjectToExport->GetClass());
+			if (FoundPassesFilterResult)
+			{
+				if (*FoundPassesFilterResult == false)
+				{
+					continue;
+				}
+			}
+			else
+			{
+				FNameBuilder AssetClassPath;
+				ObjectToExport->GetClass()->GetPathName(nullptr, AssetClassPath);
+				const bool bPassesFilterResult = ExportClassPermissionList->PassesFilter(AssetClassPath.ToView());
+
+				// Save result to be reused as optimization
+				ClassPassesFilterResults.Add(ObjectToExport->GetClass(), bPassesFilterResult);
+
+				if (bPassesFilterResult == false)
+				{
+					continue;
+				}
+			}
 		}
 
 		// Find all the exporters that can export this type of object and construct an export file dialog.
@@ -4134,6 +4169,47 @@ void UAssetToolsImpl::ExportAssetsInternal(const TArray<UObject*>& ObjectsToExpo
 	GWarn->EndSlowTask();
 
 	FEditorDirectories::Get().SetLastDirectory(ELastDirectory::GENERIC_EXPORT, LastExportPath);
+}
+
+bool UAssetToolsImpl::CanExportAssets(const TArray<FAssetData>& AssetsToExport) const
+{
+	const TSharedPtr<FPathPermissionList> PermissionList = GetAssetClassPathPermissionList(EAssetClassAction::ExportAsset);
+	if (PermissionList && PermissionList->HasFiltering())
+	{
+		// Use TSet as optimization because FPathPermissionList performs slow TArray<FString> search
+		TSet<FTopLevelAssetPath> AlreadyPassed;
+		for (const FAssetData& AssetData : AssetsToExport)
+		{
+			if (AssetData.HasAnyPackageFlags(EPackageFlags::PKG_DisallowExport))
+			{
+				return false;
+			}
+
+			if (!AlreadyPassed.Contains(AssetData.AssetClassPath))
+			{
+				FNameBuilder ClassPath;
+				AssetData.AssetClassPath.AppendString(ClassPath);
+				if (!PermissionList->PassesFilter(ClassPath.ToView()))
+				{
+					return false;
+				}
+
+				AlreadyPassed.Add(AssetData.AssetClassPath);
+			}
+		}
+	}
+	else
+	{
+		for (const FAssetData& AssetData : AssetsToExport)
+		{
+			if (AssetData.HasAnyPackageFlags(EPackageFlags::PKG_DisallowExport))
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 UAssetToolsImpl& UAssetToolsImpl::Get()
