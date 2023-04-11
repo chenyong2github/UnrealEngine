@@ -346,8 +346,6 @@ namespace mu
 		}                                                                               \
 	}                                                                                   \
 																						\
-	template void operator<< (OutputArchive& arch, const TArray<T>& v);					\
-																						\
 	template<>																			\
 	inline void operator>> <T>(InputArchive& arch, TArray<T>& v)						\
 	{                                                                                   \
@@ -359,8 +357,6 @@ namespace mu
 			arch.GetPrivate()->m_pStream->Read(&v[0], Num * sizeof(T));					\
 		}                                                                               \
 	}																					\
-																						\
-	template void operator>> (InputArchive& arch, TArray<T>& v);						\
 
 	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(float);
 	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(double);
