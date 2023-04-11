@@ -21,6 +21,9 @@ const bool GRHIValidationEnabled = false;
 #if ENABLE_RHI_VALIDATION
 
 class FRHIUniformBuffer;
+class FRHIViewableResource;
+class FRHIUnorderedAccessView;
+
 class FValidationComputeContext;
 class FValidationContext;
 class FValidationRHI;
