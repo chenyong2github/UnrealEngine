@@ -38,8 +38,9 @@ namespace ContentBrowserDataUtils
 	 * @param InFolderPath Internal path to get display name override for
 	 * @param InFolderItemName Short name of InFolderPath (rightmost folder name)
 	 * @param bIsClassesFolder True if this folder is a classes folder
+	 * @param bIsCookedPath True if this folder only contains cooked content (recursively), or false if it contains any uncooked content
 	 * 
 	 * @return Override display name or empty string
 	 */
-	CONTENTBROWSERDATA_API FText GetFolderItemDisplayNameOverride(const FName InFolderPath, const FString& InFolderItemName, const bool bIsClassesFolder);
+	CONTENTBROWSERDATA_API FText GetFolderItemDisplayNameOverride(const FName InFolderPath, const FString& InFolderItemName, const bool bIsClassesFolder, const bool bIsCookedPath = false);
 }

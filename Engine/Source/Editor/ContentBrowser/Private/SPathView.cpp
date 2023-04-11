@@ -1551,7 +1551,7 @@ void SPathView::Populate(const bool bIsRefreshingFilter)
 		TArray<TSharedPtr<FTreeItem>> ItemsCreated;
 		ContentBrowserData->EnumerateItemsMatchingFilter(CompiledDataFilter, [this, bFilteringByText, bDisplayEmpty, ContentBrowserData, &ItemsCreated](FContentBrowserItemData&& InItemData)
 		{
-			bool bPassesFilter = bDisplayEmpty || ContentBrowserData->IsFolderVisibleIfHidingEmpty(InItemData.GetVirtualPath());
+			bool bPassesFilter = ContentBrowserData->IsFolderVisible(InItemData.GetVirtualPath(), ContentBrowserUtils::GetIsFolderVisibleFlags(bDisplayEmpty));
 			if (bPassesFilter && bFilteringByText)
 			{
 				// Use the whole path so we deliberately include any children of matched parents in the filtered list
@@ -2012,7 +2012,7 @@ void SPathView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataUp
 			return false;
 		}
 
-		if (!bDisplayEmpty && !ContentBrowserData->IsFolderVisibleIfHidingEmpty(InItemData.GetVirtualPath()))
+		if (!ContentBrowserData->IsFolderVisible(InItemData.GetVirtualPath(), ContentBrowserUtils::GetIsFolderVisibleFlags(bDisplayEmpty)))
 		{
 			return false;
 		}

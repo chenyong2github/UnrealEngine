@@ -48,6 +48,22 @@ enum class EContentBrowserPathType : uint8
 	Virtual
 };
 
+enum class EContentBrowserIsFolderVisibleFlags : uint8
+{
+	None = 0,
+
+	/**
+	 * Hide folders that recursively contain no file items.
+	 */
+	HideEmptyFolders = 1<<0,
+
+	/**
+	 * Default visibility flags.
+	 */
+	Default = None,
+};
+ENUM_CLASS_FLAGS(EContentBrowserIsFolderVisibleFlags);
+
 /** Called for incremental item data updates from data sources that can provide delta-updates */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnContentBrowserItemDataUpdated, TArrayView<const FContentBrowserItemDataUpdate>);
 
@@ -236,8 +252,14 @@ public:
 	bool PrioritizeSearchPath(const FName InPath);
 
 	/**
+	 * Query whether the given virtual folder should be visible in the UI.
+	 */
+	bool IsFolderVisible(const FName InPath, const EContentBrowserIsFolderVisibleFlags InFlags = EContentBrowserIsFolderVisibleFlags::Default) const;
+
+	/**
 	 * Query whether the given virtual folder should be visible if the UI is asking to hide empty content folders.
 	 */
+	UE_DEPRECATED(5.3, "IsFolderVisibleIfHidingEmpty is deprecated. Use IsFolderVisible instead and add EContentBrowserIsFolderVisibleFlags::HideEmptyFolders to the flags.")
 	bool IsFolderVisibleIfHidingEmpty(const FName InPath) const;
 
 	/*

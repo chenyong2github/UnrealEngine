@@ -1055,7 +1055,7 @@ bool UContentBrowserFileDataSource::PrioritizeSearchPath(const FName InPath)
 	return true;
 }
 
-bool UContentBrowserFileDataSource::IsFolderVisibleIfHidingEmpty(const FName InPath)
+bool UContentBrowserFileDataSource::IsFolderVisible(const FName InPath, const EContentBrowserIsFolderVisibleFlags InFlags)
 {
 	FName ConvertedPath;
 	const EContentBrowserPathType ConvertedPathType = TryConvertVirtualPath(InPath, ConvertedPath);
@@ -1080,6 +1080,7 @@ bool UContentBrowserFileDataSource::IsFolderVisibleIfHidingEmpty(const FName InP
 	const uint32 InternalPathHash = GetTypeHash(InternalPathStrView);
 
 	return AlwaysVisibleFolders.ContainsByHash(InternalPathHash, InternalPathStrView)
+		|| !EnumHasAnyFlags(InFlags, EContentBrowserIsFolderVisibleFlags::HideEmptyFolders)
 		|| !EmptyFolders.ContainsByHash(InternalPathHash, InternalPathStrView);
 }
 

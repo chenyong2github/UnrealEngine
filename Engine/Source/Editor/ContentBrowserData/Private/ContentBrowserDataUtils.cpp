@@ -187,7 +187,7 @@ bool ContentBrowserDataUtils::PathPassesAttributeFilter(const FStringView InPath
 	return true;
 }
 
-FText ContentBrowserDataUtils::GetFolderItemDisplayNameOverride(const FName InFolderPath, const FString& InFolderItemName, const bool bIsClassesFolder)
+FText ContentBrowserDataUtils::GetFolderItemDisplayNameOverride(const FName InFolderPath, const FString& InFolderItemName, const bool bIsClassesFolder, const bool bIsCookedPath)
 {
 	FText FolderDisplayNameOverride;
 
@@ -228,18 +228,13 @@ FText ContentBrowserDataUtils::GetFolderItemDisplayNameOverride(const FName InFo
 				}
 			}
 
-			FString OverrideName;
-			if (GetDefault<UContentBrowserSettings>()->bDisplayFriendlyNameForPluginFolders)
-			{
-				if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TopLevelFolderName))
-				{
-					if (Plugin->GetFriendlyName().Len() > 0)
-					{
-						OverrideName = Plugin->GetFriendlyName();
-					}
-				}
-			}
+			TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TopLevelFolderName);
 
+			FString OverrideName;
+			if (GetDefault<UContentBrowserSettings>()->bDisplayFriendlyNameForPluginFolders && Plugin && Plugin->GetFriendlyName().Len() > 0)
+			{
+				OverrideName = Plugin->GetFriendlyName();
+			}
 			if (OverrideName.IsEmpty())
 			{
 				OverrideName = TopLevelFolderName;
@@ -251,7 +246,14 @@ FText ContentBrowserDataUtils::GetFolderItemDisplayNameOverride(const FName InFo
 			}
 			else
 			{
-				if (GetDefault<UContentBrowserSettings>()->bDisplayContentFolderSuffix)
+				bool bDisplayContentFolderSuffix = GetDefault<UContentBrowserSettings>()->bDisplayContentFolderSuffix;
+				if (bDisplayContentFolderSuffix && Plugin && Plugin->GetDescriptor().Modules.Num() == 0 && bIsCookedPath)
+				{
+					// Exclude the content suffix for plugins that only contain cooked content and have no C++ modules
+					bDisplayContentFolderSuffix = false;
+				}
+
+				if (bDisplayContentFolderSuffix)
 				{
 					FolderDisplayNameOverride = FText::Format(LOCTEXT("ContentFolderDisplayNameFmt", "{0} Content"), FText::AsCultureInvariant(OverrideName));
 				}

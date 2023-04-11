@@ -718,6 +718,11 @@ FName ContentBrowserUtils::GetInvariantPath(const FContentBrowserItemPath& ItemP
 	return ItemPath.GetInternalPathName();
 }
 
+EContentBrowserIsFolderVisibleFlags ContentBrowserUtils::GetIsFolderVisibleFlags(const bool bDisplayEmpty)
+{
+	return EContentBrowserIsFolderVisibleFlags::Default | (bDisplayEmpty ? EContentBrowserIsFolderVisibleFlags::None : EContentBrowserIsFolderVisibleFlags::HideEmptyFolders);
+}
+
 bool ContentBrowserUtils::IsFavoriteFolder(const FString& FolderPath)
 {
 	return IsFavoriteFolder(FContentBrowserItemPath(FolderPath, EContentBrowserPathType::Virtual));

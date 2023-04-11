@@ -75,6 +75,36 @@ public:
 	FARCompiledFilter ExclusiveFilter;
 };
 
+enum class EContentBrowserFolderAttributes : uint8
+{
+	/**
+	 * No special attributes.
+	 */
+	None = 0,
+
+	/**
+	 * This folder should always be visible, even if it contains no content in the Content Browser view.
+	 * This will include root content folders, and any folders that have been created directly (or indirectly) by a user action.
+	 */
+	AlwaysVisible = 1<<0,
+
+	/**
+	 * This folder has content that will appear in the Content Browser view.
+	 */
+	HasContent = 1<<1,
+
+	/**
+	 * This folder has public content that will appear in the Content Browser view.
+	 */
+	HasPublicContent = 1<<2,
+
+	/**
+	 * This folder has source (uncooked) content that will appear in the Content Browser view.
+	 */
+	HasSourceContent = 1<<3,
+};
+ENUM_CLASS_FLAGS(EContentBrowserFolderAttributes);
+
 UCLASS()
 class CONTENTBROWSERASSETDATASOURCE_API UContentBrowserAssetDataSource : public UContentBrowserDataSource
 {
@@ -195,7 +225,7 @@ public:
 
 	virtual bool PrioritizeSearchPath(const FName InPath) override;
 
-	virtual bool IsFolderVisibleIfHidingEmpty(const FName InPath) override;
+	virtual bool IsFolderVisible(const FName InPath, const EContentBrowserIsFolderVisibleFlags InFlags) override;
 
 	virtual bool CanCreateFolder(const FName InPath, FText* OutErrorMsg) override;
 
@@ -339,17 +369,21 @@ private:
 
 	void OnPathRemoved(const FString& InPath);
 
-	void OnPathPopulated(const FName InPath);
+	void OnPathPopulated(const FAssetData& InAssetData);
 
-	void OnPathPopulated(const FStringView InPath);
+	void OnPathPopulated(const FStringView InPath, const EContentBrowserFolderAttributes InAttributesToSet);
 
 	void OnAlwaysShowPath(const FString& InPath);
-
-	void OnScanCompleted();
 
 	void OnContentPathMounted(const FString& InAssetPath, const FString& InFileSystemPath);
 
 	void OnContentPathDismounted(const FString& InAssetPath, const FString& InFileSystemPath);
+
+	EContentBrowserFolderAttributes GetAssetFolderAttributes(const FName InPath) const;
+
+	bool SetAssetFolderAttributes(const FName InPath, const EContentBrowserFolderAttributes InAttributesToSet);
+
+	bool ClearAssetFolderAttributes(const FName InPath, const EContentBrowserFolderAttributes InAttributesToClear);
 
 	void PopulateAddNewContextMenu(UToolMenu* InMenu);
 
@@ -400,20 +434,14 @@ private:
 	TArray<FString> RootContentPaths;
 
 	/**
-	 * The set of folders that should always be visible, even if they contain no assets in the Content Browser view.
-	 * This will include root content folders, and any folders that have been created directly (or indirectly) by a user action.
+	 * Map of folders that have attributes set.
 	 */
-	TSet<FName> AlwaysVisibleAssetFolders;
+	TMap<FName, EContentBrowserFolderAttributes> AssetFolderToAttributes;
 
 	/**
-	 * A cache of folders that contain no assets in the Content Browser view.
+	 * A cache of folders that have been populated since the last time any new asset folders were added.
 	 */
-	TSet<FName> EmptyAssetFolders;
-	
-	/**
-	 * A cache of folders that visited since the last time any empty asset folders were added.
-	 */
-	TSet<FName> VisitedEmptyAssetFolders;
+	TMap<FName, EContentBrowserFolderAttributes> RecentlyPopulatedAssetFolders;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

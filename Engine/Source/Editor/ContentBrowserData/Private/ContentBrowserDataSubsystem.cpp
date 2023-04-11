@@ -537,7 +537,7 @@ bool UContentBrowserDataSubsystem::PrioritizeSearchPath(const FName InPath)
 	return bDidPrioritize;
 }
 
-bool UContentBrowserDataSubsystem::IsFolderVisibleIfHidingEmpty(const FName InPath) const
+bool UContentBrowserDataSubsystem::IsFolderVisible(const FName InPath, const EContentBrowserIsFolderVisibleFlags InFlags) const
 {
 	bool bIsVisible = false;
 	bool bIsKnownPath = false;
@@ -547,10 +547,15 @@ bool UContentBrowserDataSubsystem::IsFolderVisibleIfHidingEmpty(const FName InPa
 		if (DataSource->IsVirtualPathUnderMountRoot(InPath))
 		{
 			bIsKnownPath = true;
-			bIsVisible |= DataSource->IsFolderVisibleIfHidingEmpty(InPath);
+			bIsVisible |= DataSource->IsFolderVisible(InPath, InFlags);
 		}
 	}
 	return bIsVisible || !bIsKnownPath;
+}
+
+bool UContentBrowserDataSubsystem::IsFolderVisibleIfHidingEmpty(const FName InPath) const
+{
+	return IsFolderVisible(InPath, EContentBrowserIsFolderVisibleFlags::Default | EContentBrowserIsFolderVisibleFlags::HideEmptyFolders);
 }
 
 bool UContentBrowserDataSubsystem::CanCreateFolder(const FName InPath, FText* OutErrorMsg) const

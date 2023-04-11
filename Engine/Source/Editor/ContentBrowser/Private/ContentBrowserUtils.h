@@ -25,6 +25,7 @@ struct FAssetData;
 struct FContentBrowserDataFilter;
 struct FContentBrowserItem;
 struct FContentBrowserItemPath;
+enum class EContentBrowserIsFolderVisibleFlags : uint8;
 
 namespace ContentBrowserUtils
 {
@@ -97,6 +98,9 @@ namespace ContentBrowserUtils
 
 	/** Returns internal path if it has one, otherwise strips /All prefix from virtual path*/
 	FName GetInvariantPath(const FContentBrowserItemPath& ItemPath);
+
+	/** Get the set of flags to use with IsFolderVisible */
+	EContentBrowserIsFolderVisibleFlags GetIsFolderVisibleFlags(const bool bDisplayEmpty);
 
 	/** Returns if this folder has been marked as a favorite folder */
 	UE_DEPRECATED(5.3, "Use function that takes FContentBrowserItemPath instead.")

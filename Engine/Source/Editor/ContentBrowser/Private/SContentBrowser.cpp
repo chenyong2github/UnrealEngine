@@ -2553,7 +2553,7 @@ TSharedRef<SWidget> SContentBrowser::OnGetCrumbDelimiterContent(const FString& C
 				}
 			}
 
-			if (!bDisplayEmpty && !ContentBrowserData->IsFolderVisibleIfHidingEmpty(Item.GetVirtualPath()))
+			if (!ContentBrowserData->IsFolderVisible(Item.GetVirtualPath(), ContentBrowserUtils::GetIsFolderVisibleFlags(bDisplayEmpty)))
 			{
 				It.RemoveCurrent();
 				continue;

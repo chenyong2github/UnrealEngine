@@ -247,11 +247,10 @@ public:
 	virtual bool PrioritizeSearchPath(const FName InPath);
 
 	/**
-	 * Query whether the given virtual folder should be visible if the UI is asking to hide empty content folders.
+	 * Query whether the given virtual folder should be visible in the UI.
 	 * @note This function must be able to answer the question quickly or not at all (and assume visible). It *must not* block doing something like a file system scan.
-	 * @note "Empty" in this case means that it recursively contains no file items.
 	 */
-	virtual bool IsFolderVisibleIfHidingEmpty(const FName InPath);
+	virtual bool IsFolderVisible(const FName InPath, const EContentBrowserIsFolderVisibleFlags InFlags);
 
 	/*
 	 * Query whether a folder can be created at the given virtual path, optionally providing error information if it cannot.

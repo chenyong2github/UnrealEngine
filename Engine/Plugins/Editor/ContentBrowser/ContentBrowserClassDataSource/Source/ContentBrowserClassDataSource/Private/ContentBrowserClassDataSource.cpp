@@ -412,7 +412,7 @@ bool UContentBrowserClassDataSource::EnumerateItemsForObjects(const TArrayView<U
 	return true;
 }
 
-bool UContentBrowserClassDataSource::IsFolderVisibleIfHidingEmpty(const FName InPath)
+bool UContentBrowserClassDataSource::IsFolderVisible(const FName InPath, const EContentBrowserIsFolderVisibleFlags InFlags)
 {
 	FName ConvertedPath;
 	const EContentBrowserPathType ConvertedPathType = TryConvertVirtualPath(InPath, ConvertedPath);
@@ -435,6 +435,7 @@ bool UContentBrowserClassDataSource::IsFolderVisibleIfHidingEmpty(const FName In
 	ConditionalCreateNativeClassHierarchy();
 
 	return ContentBrowserDataUtils::IsTopLevelFolder(ConvertedPath) 
+		|| !EnumHasAnyFlags(InFlags, EContentBrowserIsFolderVisibleFlags::HideEmptyFolders)
 		|| NativeClassHierarchy->HasClasses(ConvertedPath, /*bRecursive*/true);
 }
 

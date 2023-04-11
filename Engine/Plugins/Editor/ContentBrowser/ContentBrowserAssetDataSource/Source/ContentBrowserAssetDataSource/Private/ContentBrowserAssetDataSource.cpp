@@ -63,7 +63,6 @@ void UContentBrowserAssetDataSource::Initialize(const bool InAutoRegister)
 	AssetRegistry->OnAssetUpdatedOnDisk().AddUObject(this, &UContentBrowserAssetDataSource::OnAssetUpdatedOnDisk);
 	AssetRegistry->OnPathAdded().AddUObject(this, &UContentBrowserAssetDataSource::OnPathAdded);
 	AssetRegistry->OnPathRemoved().AddUObject(this, &UContentBrowserAssetDataSource::OnPathRemoved);
-	AssetRegistry->OnFilesLoaded().AddUObject(this, &UContentBrowserAssetDataSource::OnScanCompleted);
 
 	// Listen for when assets are loaded or changed
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &UContentBrowserAssetDataSource::OnObjectPropertyChanged);
@@ -147,17 +146,14 @@ void UContentBrowserAssetDataSource::Initialize(const bool InAutoRegister)
 
 	DiscoveryStatusText = LOCTEXT("InitializingAssetDiscovery", "Initializing Asset Discovery...");
 
-	// Populate the initial set of hidden empty folders
+	// Populate the initial set of folder attributes
 	// This will be updated as the scan finds more content
-	AssetRegistry->EnumerateAllCachedPaths([this](FName InPath)
+	AssetRegistry->EnumerateAllAssets([this](const FAssetData& InAssetData)
 		{
-			if (!AssetRegistry->HasAssets(InPath, /*bRecursive*/true))
-			{
-				EmptyAssetFolders.Add(InPath);
-			}
+			OnPathPopulated(InAssetData);
 			return true;
-		});
-	VisitedEmptyAssetFolders.Empty();
+		}, /*bIncludeOnlyOnDiskAssets*/true);
+	RecentlyPopulatedAssetFolders.Empty();
 
 	FPackageName::QueryRootContentPaths(RootContentPaths);
 
@@ -1281,7 +1277,7 @@ bool UContentBrowserAssetDataSource::PrioritizeSearchPath(const FName InPath)
 	return true;
 }
 
-bool UContentBrowserAssetDataSource::IsFolderVisibleIfHidingEmpty(const FName InPath)
+bool UContentBrowserAssetDataSource::IsFolderVisible(const FName InPath, const EContentBrowserIsFolderVisibleFlags InFlags)
 {
 	FName ConvertedPath;
 	const EContentBrowserPathType ConvertedPathType = TryConvertVirtualPath(InPath, ConvertedPath);
@@ -1301,8 +1297,20 @@ bool UContentBrowserAssetDataSource::IsFolderVisibleIfHidingEmpty(const FName In
 		return false;
 	}
 
-	return AlwaysVisibleAssetFolders.Contains(ConvertedPath)
-		|| !EmptyAssetFolders.Contains(ConvertedPath);
+	const EContentBrowserFolderAttributes FolderAttributes = GetAssetFolderAttributes(ConvertedPath);
+	if (EnumHasAnyFlags(FolderAttributes, EContentBrowserFolderAttributes::AlwaysVisible))
+	{
+		return true;
+	}
+
+	// Hide folders that only contain cooked private content
+	if (EnumHasAnyFlags(FolderAttributes, EContentBrowserFolderAttributes::HasContent) && !EnumHasAnyFlags(FolderAttributes, EContentBrowserFolderAttributes::HasPublicContent | EContentBrowserFolderAttributes::HasSourceContent))
+	{
+		return false;
+	}
+
+	return !EnumHasAnyFlags(InFlags, EContentBrowserIsFolderVisibleFlags::HideEmptyFolders)
+		|| EnumHasAnyFlags(FolderAttributes, EContentBrowserFolderAttributes::HasContent);
 }
 
 bool UContentBrowserAssetDataSource::CanCreateFolder(const FName InPath, FText* OutErrorMsg)
@@ -2050,7 +2058,10 @@ FContentBrowserItemData UContentBrowserAssetDataSource::CreateAssetFolderItem(co
 	FName VirtualizedPath;
 	TryConvertInternalPathToVirtual(InFolderPath, VirtualizedPath);
 
-	return ContentBrowserAssetData::CreateAssetFolderItem(this, VirtualizedPath, InFolderPath);
+	const EContentBrowserFolderAttributes FolderAttributes = GetAssetFolderAttributes(InFolderPath);
+	const bool bIsCookedPath = EnumHasAnyFlags(FolderAttributes, EContentBrowserFolderAttributes::HasContent) && !EnumHasAnyFlags(FolderAttributes, EContentBrowserFolderAttributes::HasSourceContent);
+
+	return ContentBrowserAssetData::CreateAssetFolderItem(this, VirtualizedPath, InFolderPath, bIsCookedPath);
 }
 
 FContentBrowserItemData UContentBrowserAssetDataSource::CreateAssetFileItem(const FAssetData& InAssetData)
@@ -2126,7 +2137,7 @@ void UContentBrowserAssetDataSource::OnAssetAdded(const FAssetData& InAssetData)
 	if (ContentBrowserAssetData::IsPrimaryAsset(InAssetData))
 	{
 		// The owner folder of this asset is no longer considered empty
-		OnPathPopulated(InAssetData.PackagePath);
+		OnPathPopulated(InAssetData);
 
 		QueueItemDataUpdate(FContentBrowserItemDataUpdate::MakeItemAddedUpdate(CreateAssetFileItem(InAssetData)));
 	}
@@ -2145,7 +2156,7 @@ void UContentBrowserAssetDataSource::OnAssetRenamed(const FAssetData& InAssetDat
 	if (ContentBrowserAssetData::IsPrimaryAsset(InAssetData))
 	{
 		// The owner folder of this asset is no longer considered empty
-		OnPathPopulated(InAssetData.PackagePath);
+		OnPathPopulated(InAssetData);
 
 		FName VirtualizedPath;
 		TryConvertInternalPathToVirtual(*InOldObjectPath, VirtualizedPath);
@@ -2190,11 +2201,9 @@ void UContentBrowserAssetDataSource::OnObjectPreSave(UObject* InObject, FObjectP
 
 void UContentBrowserAssetDataSource::OnPathAdded(const FString& InPath)
 {
-	// New paths are considered empty until assets are added inside them
 	FName PathName(InPath);
-	EmptyAssetFolders.Add(PathName);
-	VisitedEmptyAssetFolders.Empty();
-
+	RecentlyPopulatedAssetFolders.Empty();
+	
 	QueueItemDataUpdate(FContentBrowserItemDataUpdate::MakeItemAddedUpdate(CreateAssetFolderItem(PathName)));
 }
 
@@ -2202,18 +2211,23 @@ void UContentBrowserAssetDataSource::OnPathRemoved(const FString& InPath)
 {
 	// Deleted paths are no longer relevant for tracking
 	FName PathName(InPath);
-	AlwaysVisibleAssetFolders.Remove(PathName);
-	EmptyAssetFolders.Remove(PathName);
+	RecentlyPopulatedAssetFolders.Remove(PathName);
+	AssetFolderToAttributes.Remove(PathName);
 
 	QueueItemDataUpdate(FContentBrowserItemDataUpdate::MakeItemRemovedUpdate(CreateAssetFolderItem(PathName)));
 }
 
-void UContentBrowserAssetDataSource::OnPathPopulated(const FName InPath)
+void UContentBrowserAssetDataSource::OnPathPopulated(const FAssetData& InAssetData)
 {
-	OnPathPopulated(FNameBuilder(InPath));
+	const EContentBrowserFolderAttributes FolderAttributes 
+		= EContentBrowserFolderAttributes::HasContent
+		| (InAssetData.PackageFlags & PKG_Cooked ? EContentBrowserFolderAttributes::None : EContentBrowserFolderAttributes::HasSourceContent)
+		| (InAssetData.PackageFlags & PKG_NotExternallyReferenceable ? EContentBrowserFolderAttributes::None : EContentBrowserFolderAttributes::HasPublicContent);
+
+	OnPathPopulated(FNameBuilder(InAssetData.PackagePath), FolderAttributes);
 }
 
-void UContentBrowserAssetDataSource::OnPathPopulated(const FStringView InPath)
+void UContentBrowserAssetDataSource::OnPathPopulated(const FStringView InPath, const EContentBrowserFolderAttributes InAttributesToSet)
 {
 	// Recursively un-hide this path, emitting update events for any paths that change state so that the view updates
 	if (InPath.Len() > 1)
@@ -2229,29 +2243,28 @@ void UContentBrowserAssetDataSource::OnPathPopulated(const FStringView InPath)
 
 		// If we've already visited this path then we can assume we visited the parents as well
 		// and can skip visiting this path and its parents
-		if (VisitedEmptyAssetFolders.Contains(PathName))
+		if (const EContentBrowserFolderAttributes* RecentlyAddedFolderAttributesPtr = RecentlyPopulatedAssetFolders.Find(PathName);
+			RecentlyAddedFolderAttributesPtr && EnumHasAllFlags(*RecentlyAddedFolderAttributesPtr, InAttributesToSet))
 		{
 			return;
 		}
 
 		// Recurse first as we want parents to be updated before their children
+		if (int32 LastSlashIndex = INDEX_NONE;
+			Path.FindLastChar(TEXT('/'), LastSlashIndex) && LastSlashIndex > 0)
 		{
-			int32 LastSlashIndex = INDEX_NONE;
-			if (Path.FindLastChar(TEXT('/'), LastSlashIndex) && LastSlashIndex > 0)
-			{
-				OnPathPopulated(Path.Left(LastSlashIndex));
-			}
+			OnPathPopulated(Path.Left(LastSlashIndex), InAttributesToSet);
 		}
 
 		// Unhide this folder and emit a notification if required
-		if (EmptyAssetFolders.Remove(PathName) > 0)
+		if (SetAssetFolderAttributes(PathName, InAttributesToSet))
 		{
 			// Queue an update event for this path as it may have become visible in the view
 			QueueItemDataUpdate(FContentBrowserItemDataUpdate::MakeItemModifiedUpdate(CreateAssetFolderItem(PathName)));
 		}
 
 		// Mark that this path has been visited
-		VisitedEmptyAssetFolders.Add(PathName);
+		RecentlyPopulatedAssetFolders.FindOrAdd(PathName) |= InAttributesToSet;
 	}
 }
 
@@ -2268,30 +2281,20 @@ void UContentBrowserAssetDataSource::OnAlwaysShowPath(const FString& InPath)
 		}
 
 		// Recurse first as we want parents to be updated before their children
+		if (int32 LastSlashIndex = INDEX_NONE;
+			Path.FindLastChar(TEXT('/'), LastSlashIndex) && LastSlashIndex > 0)
 		{
-			int32 LastSlashIndex = INDEX_NONE;
-			if (Path.FindLastChar(TEXT('/'), LastSlashIndex) && LastSlashIndex > 0)
-			{
-				OnAlwaysShowPath(Path.Left(LastSlashIndex));
-			}
+			OnAlwaysShowPath(Path.Left(LastSlashIndex));
 		}
 
 		// Force show this folder and emit a notification if required
 		FName PathName(Path);
-		if (!AlwaysVisibleAssetFolders.Contains(PathName))
+		if (SetAssetFolderAttributes(PathName, EContentBrowserFolderAttributes::AlwaysVisible))
 		{
-			AlwaysVisibleAssetFolders.Add(PathName);
-
 			// Queue an update event for this path as it may have become visible in the view
 			QueueItemDataUpdate(FContentBrowserItemDataUpdate::MakeItemModifiedUpdate(CreateAssetFolderItem(PathName)));
 		}
 	}
-}
-
-void UContentBrowserAssetDataSource::OnScanCompleted()
-{
-	// Done finding content - compact this set as items would have been removed as assets were found
-	EmptyAssetFolders.CompactStable();
 }
 
 void UContentBrowserAssetDataSource::BuildRootPathVirtualTree() 
@@ -2319,6 +2322,51 @@ void UContentBrowserAssetDataSource::OnContentPathDismounted(const FString& InAs
 	RootPathRemoved(InAssetPath);
 
 	RootContentPaths.Remove(InAssetPath);
+}
+
+EContentBrowserFolderAttributes UContentBrowserAssetDataSource::GetAssetFolderAttributes(const FName InPath) const
+{
+	const EContentBrowserFolderAttributes* FolderAttributesPtr = AssetFolderToAttributes.Find(InPath);
+	return FolderAttributesPtr
+		? *FolderAttributesPtr
+		: EContentBrowserFolderAttributes::None;
+}
+
+bool UContentBrowserAssetDataSource::SetAssetFolderAttributes(const FName InPath, const EContentBrowserFolderAttributes InAttributesToSet)
+{
+	if (InAttributesToSet != EContentBrowserFolderAttributes::None)
+	{
+		EContentBrowserFolderAttributes& FolderAttributes = AssetFolderToAttributes.FindOrAdd(InPath);
+
+		const EContentBrowserFolderAttributes PreviousAttributes = FolderAttributes;
+		EnumAddFlags(FolderAttributes, InAttributesToSet);
+
+		const bool bHasChanged = FolderAttributes != PreviousAttributes;
+		return bHasChanged;
+	}
+
+	return false;
+}
+
+bool UContentBrowserAssetDataSource::ClearAssetFolderAttributes(const FName InPath, const EContentBrowserFolderAttributes InAttributesToClear)
+{
+	if (InAttributesToClear != EContentBrowserFolderAttributes::None)
+	{
+		if (EContentBrowserFolderAttributes* FolderAttributesPtr = AssetFolderToAttributes.Find(InPath))
+		{
+			const EContentBrowserFolderAttributes PreviousAttributes = *FolderAttributesPtr;
+			EnumRemoveFlags(*FolderAttributesPtr, InAttributesToClear);
+
+			const bool bHasChanged = *FolderAttributesPtr != PreviousAttributes;
+			if (*FolderAttributesPtr == EContentBrowserFolderAttributes::None)
+			{
+				AssetFolderToAttributes.Remove(InPath);
+			}
+			return bHasChanged;
+		}
+	}
+
+	return false;
 }
 
 void UContentBrowserAssetDataSource::PopulateAddNewContextMenu(UToolMenu* InMenu)
