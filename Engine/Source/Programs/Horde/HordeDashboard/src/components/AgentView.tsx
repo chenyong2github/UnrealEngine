@@ -1926,8 +1926,8 @@ export const AgentView: React.FC = observer(() => {
                   let diskCapacity: string | number | null = getAgentCapability(agent, "DiskTotalSize");
                   toCheck = "Unknown";
                   if (diskFree !== null && diskCapacity !== null) {
-                     diskFree = Number(diskFree) / 1000000000;
-                     diskCapacity = Number(diskCapacity) / 1000000000;
+                     diskFree = Number(diskFree) /  1073741824;
+                     diskCapacity = Number(diskCapacity) / 1073741824;
                      const percentage = (diskCapacity - diskFree) / diskCapacity;
                      toCheck = (diskCapacity - (percentage * diskCapacity)).toFixed(0);
                   }
@@ -2491,13 +2491,13 @@ export const AgentView: React.FC = observer(() => {
             let descVal = "Unknown";
             let descNumber = 0;
             if (diskFree !== null && diskCapacity !== null) {
-               diskFree = Number(diskFree) / 1000000000;
-               diskCapacity = Number(diskCapacity) / 1000000000;
+               diskFree = Number(diskFree) / 1073741824;
+               diskCapacity = Number(diskCapacity) / 1073741824;
                realPercentage = (diskCapacity - diskFree) / diskCapacity;
                // nudge percentage for the progress bar length
                nudgedPercentage = realPercentage * .965;
                descNumber = (diskCapacity - (realPercentage * diskCapacity));
-               descVal = descNumber.toLocaleString(undefined, { maximumFractionDigits: 0 }) + " GB Free";
+               descVal = descNumber.toLocaleString(undefined, { maximumFractionDigits: 0 }) + " GiB Free";
             }
             localState.columnSearchState['storage'][agent.id] = descNumber;
             return <Stack horizontal horizontalAlign={"center"}>

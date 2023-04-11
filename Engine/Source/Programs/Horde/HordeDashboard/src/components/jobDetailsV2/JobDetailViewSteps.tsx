@@ -361,7 +361,22 @@ export const StepsPanelInner: React.FC<{ jobDetails: JobDetailsV2, depStepId?: s
 
    const stateFilter = jobFilter.filterStates;
    jobDetails.getSteps().forEach(step => {
-      if (stateFilter.indexOf("All") === -1 && stateFilter.indexOf(step.outcome as StateFilter) === -1 && stateFilter.indexOf(step.state) === -1) {
+
+      if (stateFilter.indexOf("All") !== -1) {
+         return;
+      }
+
+      if (stateFilter.indexOf("Skipped") === -1 && step.state === JobStepState.Skipped) {
+         jobStateFilter.add(step.id);
+         return;
+      }
+
+      if (stateFilter.indexOf("Aborted") === -1 && step.state === JobStepState.Aborted) {
+         jobStateFilter.add(step.id);
+         return;
+      }
+
+      if (stateFilter.indexOf(step.outcome as StateFilter) === -1 && stateFilter.indexOf(step.state) === -1) {
          jobStateFilter.add(step.id);
       }
    })

@@ -1109,9 +1109,19 @@ export const JobFilterBar: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({ 
    const stateItems: StateItem[] = ["All", "Failure", "Warnings", "Skipped", "Running", "Completed", "Aborted", "Waiting", "Ready"].map(state => {
       return {
          key: state,
-         text: state === "Aborted" ? "Canceled" : state,
+         text: state,
          state: state as StateFilter
       };
+   });
+
+   stateItems.forEach(item => {
+      if (item.state === "Aborted") {
+         item.text = "Canceled";
+      }
+      else if (item.state === "Failure") {
+         item.text = "Errors";
+      }
+
    });
 
    // steps

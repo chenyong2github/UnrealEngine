@@ -200,7 +200,7 @@ class HistoryModalState {
                                  subItemData[1] += " GB";
                               }
                               else if (subItemData[0].indexOf("Disk") !== -1) {
-                                 subItemData[1] = (Number(subItemData[1]) / 1000000000).toLocaleString(undefined, { maximumFractionDigits: 0 }) + " GB";
+                                 subItemData[1] = (Number(subItemData[1]) / 1073741824).toLocaleString(undefined, { maximumFractionDigits: 0 }) + " GiB";
                               }
                               subItems.push({ name: subItemData[0], value: subItemData[1] });
                            }
