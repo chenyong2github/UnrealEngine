@@ -379,7 +379,7 @@ void FScreenshotRequest::CreateViewportScreenShotFilename(FString& InOutFilename
 
 	//default to using the path that is given
 	InOutFilename = TypeName;
-	if (!TypeName.Contains(TEXT("/")))
+	if (!TypeName.Contains(TEXT("/")) && !TypeName.Contains(TEXT("\\")))
 	{
 		InOutFilename = GetDefault<UEngine>()->GameScreenshotSaveDirectory.Path / TypeName;
 	}
