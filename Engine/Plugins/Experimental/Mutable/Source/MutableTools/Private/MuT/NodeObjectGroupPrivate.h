@@ -11,7 +11,7 @@
 namespace mu
 {
 
-	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE( NodeObjectGroup::CHILD_SELECTION )
+	MUTABLE_DEFINE_ENUM_SERIALISABLE( NodeObjectGroup::CHILD_SELECTION )
 
 
 	class NodeObjectGroup::Private : public NodeObject::Private

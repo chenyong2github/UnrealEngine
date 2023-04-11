@@ -6,7 +6,6 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "Math/IntPoint.h"
 #include "MuR/MutableMath.h"
-#include "MuR/SerialisationPrivate.h"
 
 
 namespace mu {
@@ -187,66 +186,6 @@ namespace mu {
 
 
 	//---------------------------------------------------------------------------------------------
-	void Layout::Serialise(OutputArchive& arch) const
-	{
-		uint32 ver = 5;
-		arch << ver;
-
-		arch << m_size;
-		arch << m_blocks;
-
-		arch << m_maxsize;
-		arch << uint32(m_strategy);
-		arch << FirstLODToIgnoreWarnings;
-		arch << uint32(ReductionMethod);
-	}
-
-	
-	//---------------------------------------------------------------------------------------------
-	void Layout::Unserialise(InputArchive& arch)
-	{
-		uint32 ver;
-		arch >> ver;
-		check(ver <= 5);
-
-		arch >> m_size;
-
-		if (ver < 5)
-		{
-			uint32_t Size = 0;
-			arch >> Size;
-			m_blocks.SetNum(Size);
-
-			for (uint32_t BlockIndex = 0; BlockIndex < Size; ++BlockIndex)
-			{
-				m_blocks[BlockIndex].UnserialiseOldVersion(arch, ver);
-			}
-		}
-		else
-		{
-			arch >> m_blocks;
-		}
-
-		arch >> m_maxsize;
-
-		uint32 temp;
-		arch >> temp;
-		m_strategy = EPackStrategy(temp);
-
-		if (ver >= 4)
-		{
-			arch >> FirstLODToIgnoreWarnings;
-		}
-
-		if (ver >= 5)
-		{
-			arch >> temp;
-			ReductionMethod = EReductionMethod(temp);
-		}
-	}
-
-
-	//---------------------------------------------------------------------------------------------
 	bool Layout::IsSimilar(const Layout& o) const
 	{
 		if (m_size != o.m_size || m_maxsize != o.m_maxsize ||
@@ -318,39 +257,6 @@ namespace mu {
 	EReductionMethod Layout::GetBlockReductionMethod() const
 	{
 		return ReductionMethod;
-	}
-
-	
-	//---------------------------------------------------------------------------------------------
-	void Layout::FBlock::Serialise(OutputArchive& arch) const
-	{
-		arch << m_min;
-		arch << m_size;
-		arch << m_id;
-		arch << m_priority;
-		arch << bUseSymmetry;
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-	void Layout::FBlock::Unserialise(InputArchive& arch)
-	{
-		arch >> m_min;
-		arch >> m_size;
-		arch >> m_id;
-		arch >> m_priority;
-		arch >> bUseSymmetry;
-	}
-
-	
-	//---------------------------------------------------------------------------------------------
-	void Layout::FBlock::UnserialiseOldVersion(InputArchive& Archive, const int32 Version)
-	{
-		// Use the version if the Layout version changes to 6
-		Archive >> m_min;
-		Archive >> m_size;
-		Archive >> m_id;
-		Archive >> m_priority;
 	}
 }
 

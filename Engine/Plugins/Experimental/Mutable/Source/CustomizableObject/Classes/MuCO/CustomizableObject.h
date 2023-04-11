@@ -1335,6 +1335,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = CustomizableObject)
 	void UnloadMaskOutCache();
 
+private:
+	
+	/** Returns true or false if the parameter with name can be located and it has the type the caller is looking for. It will also
+	 * check if the model has been set to ensure access to it can take place at the calculated parameter index.
+	 * @param InParameterName The name of the parameter to look for.
+	 * @param InParameterType The type the parameter we are looking for we know has. If the name does not match this type this check will fail and return false.
+	 * @param OutParameterIndex The index of the parameter.
+	 * @return True if the parameter can be accessed for it's default values, false if it can not be accessed.
+	 */
+	bool CanDefaultParameterBeAccessed(const FString& InParameterName,const EMutableParameterType& InParameterType, int32& OutParameterIndex) const;
+
+public:
 	/** Get the default value of a parameter of type Float.
 	 * @param InParameterName The name of the Float parameter to get the default value of.
 	 * @return The default value of the provided parameter name.

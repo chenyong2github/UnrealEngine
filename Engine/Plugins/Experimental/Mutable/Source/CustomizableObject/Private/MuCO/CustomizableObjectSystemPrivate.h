@@ -872,3 +872,8 @@ private:
 
 };
 
+
+void ConvertImage(UTexture2D* Texture, mu::ImagePtrConst MutableImage, const struct FMutableModelImageProperties& Props);
+
+
+

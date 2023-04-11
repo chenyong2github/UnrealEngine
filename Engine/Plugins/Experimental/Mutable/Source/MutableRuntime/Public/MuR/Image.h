@@ -176,71 +176,7 @@ namespace mu
 	};
 	static_assert(uint32(EMinFilterMethod::MaxValue) <= (1 << 3), "EMinFilterMethod enum cannot hold more than 8 values");
 
-	struct FImageFormatData
-	{
-		static constexpr SIZE_T MAX_BYTES_PER_BLOCK = 16;
 
-		FImageFormatData
-			(
-				unsigned pixelsPerBlockX = 0,
-				unsigned pixelsPerBlockY = 0,
-				unsigned bytesPerBlock = 0,
-				unsigned channels = 0
-			)
-		{
-			m_pixelsPerBlockX = (uint8)pixelsPerBlockX;
-			m_pixelsPerBlockY = (uint8)pixelsPerBlockY;
-			m_bytesPerBlock = (uint16)bytesPerBlock;
-			m_channels = (uint16)channels;	
-		}
-
-		FImageFormatData
-			(
-				unsigned pixelsPerBlockX,
-				unsigned pixelsPerBlockY,
-				unsigned bytesPerBlock,
-				unsigned channels,
-				std::initializer_list<uint8> BlackBlockInit
-			)
-			: FImageFormatData(pixelsPerBlockX, pixelsPerBlockY, bytesPerBlock, channels)
-		{
-			check(MAX_BYTES_PER_BLOCK >= BlackBlockInit.size());
-
-			const SIZE_T SanitizedBlockSize = FMath::Min<SIZE_T>(MAX_BYTES_PER_BLOCK, BlackBlockInit.size());
-			FMemory::Memcpy(BlackBlock, BlackBlockInit.begin(), SanitizedBlockSize);
-		}
-
-		//! For block based formats, size of the block size. For uncompressed formats it will
-		//! always be 1,1. For non-block-based compressed formats, it will be 0,0.
-        uint8 m_pixelsPerBlockX, m_pixelsPerBlockY;
-
-		//! Number of bytes used by every pixel block, if uncompressed or block-compressed format.
-		//! For non-block-compressed formats, it returns 0.
-        uint16 m_bytesPerBlock;
-
-		//! Channels in every pixel of the image.
-        uint16 m_channels;
-
-		//! Representation of a black block of the image.
-		uint8 BlackBlock[MAX_BYTES_PER_BLOCK] = { 0 };
-	};
-		
-	MUTABLERUNTIME_API const FImageFormatData& GetImageFormatData(EImageFormat format );
-
-	//---------------------------------------------------------------------------------------------
-	//! Convert an image to another pixel format.
-	//! Allocates the destination image.
-	//! \warning Not all format conversions are implemented.
-	//! \param onlyLOD If different than -1, only the specified lod level will be converted in the
-	//! returned image.
-	//! \return false if the conversion failed, usually because not enough memory was allocated in
-	//!     the result. This is only checked for RLE compression.
-	//---------------------------------------------------------------------------------------------
-	MUTABLERUNTIME_API ImagePtr ImagePixelFormat( int quality, const Image* pBase, EImageFormat targetFormat,
-	                                      int onlyLOD = -1 );
-
-	MUTABLERUNTIME_API Ptr<Image> ImageSwizzle(EImageFormat format, const Ptr<const Image> pSources[], const uint8 channels[]);
-	
     //! \brief 2D image resource with mipmaps.
 	//! \ingroup runtime
     class MUTABLERUNTIME_API Image : public RefCounted
@@ -451,6 +387,7 @@ namespace mu
 
 		/** Fill the image with a plain colour. */
 		void FillColour(FVector4f c);
+
 	};
 }
 

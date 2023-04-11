@@ -44,7 +44,7 @@ namespace mu
 		uint32 ResourceType;        
     };
 
-    MUTABLE_IMPLEMENT_POD_SERIALISABLE(FRomData);
+    MUTABLE_DEFINE_POD_SERIALISABLE(FRomData);
 
     //!
     template<typename DATA>
@@ -66,7 +66,7 @@ namespace mu
 		uint8 LODCount = 0;
 		EImageFormat ImageFormat = EImageFormat::IF_NONE;
 	};
-	MUTABLE_IMPLEMENT_POD_SERIALISABLE(FImageLODRange);
+	MUTABLE_DEFINE_POD_SERIALISABLE(FImageLODRange);
 
 	struct FExtensionDataConstant
 	{

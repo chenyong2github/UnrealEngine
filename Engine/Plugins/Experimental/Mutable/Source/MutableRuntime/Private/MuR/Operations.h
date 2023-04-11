@@ -1170,8 +1170,8 @@ namespace mu
     typedef t_OP<uint32> OP;
 
     // OP is not serialisable anymore, we link code now.
-    MUTABLE_IMPLEMENT_POD_SERIALISABLE( OP );
-    MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE( OP );
+    MUTABLE_DEFINE_POD_SERIALISABLE( OP );
+    MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE( OP );
     
     // Check that we didn't go out of control with the operation size
     static_assert( sizeof(OP::FArgs)==28, "Argument union has an unexpected size." );

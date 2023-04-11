@@ -580,7 +580,7 @@ namespace mu
              ||
              GetType(index) != PARAMETER_TYPE::T_FLOAT )
         {
-            return 0.0f;
+            return false;
         }
 
         // Single value case
@@ -768,16 +768,6 @@ namespace mu
         check( index >= 0 && index < (int)m_pD->m_values.Num() );
         check( GetType( index ) == PARAMETER_TYPE::T_IMAGE );
 
-		// Early out in case of invalid parameters
-        if ( index < 0
-             ||
-             index >= (int)m_pD->m_values.Num()
-             ||
-             GetType(index) != PARAMETER_TYPE::T_IMAGE )
-        {
-            return 0;
-        }
-		
 		// Single value case
 		if (!pos)
 		{

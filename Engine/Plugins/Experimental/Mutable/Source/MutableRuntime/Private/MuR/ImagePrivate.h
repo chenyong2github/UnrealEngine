@@ -10,12 +10,61 @@
 namespace mu
 {
 
-	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE( EBlendType );
-	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE( EMipmapFilterType );
-	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE( ECompositeImageMode );
-	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE( ESamplingMethod );
-	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE( EMinFilterMethod );
-	MUTABLE_IMPLEMENT_ENUM_SERIALISABLE( EImageFormat );
+	MUTABLE_DEFINE_ENUM_SERIALISABLE( EBlendType );
+	MUTABLE_DEFINE_ENUM_SERIALISABLE( EMipmapFilterType );
+	MUTABLE_DEFINE_ENUM_SERIALISABLE( ECompositeImageMode );
+	MUTABLE_DEFINE_ENUM_SERIALISABLE( ESamplingMethod );
+	MUTABLE_DEFINE_ENUM_SERIALISABLE( EMinFilterMethod );
+	MUTABLE_DEFINE_ENUM_SERIALISABLE( EImageFormat );
+
+    struct FImageFormatData
+	{
+		static constexpr SIZE_T MAX_BYTES_PER_BLOCK = 16;
+
+		FImageFormatData
+			(
+				unsigned pixelsPerBlockX = 0,
+				unsigned pixelsPerBlockY = 0,
+				unsigned bytesPerBlock = 0,
+				unsigned channels = 0
+			)
+		{
+			m_pixelsPerBlockX = (uint8)pixelsPerBlockX;
+			m_pixelsPerBlockY = (uint8)pixelsPerBlockY;
+			m_bytesPerBlock = (uint16)bytesPerBlock;
+			m_channels = (uint16)channels;	
+		}
+
+		FImageFormatData
+			(
+				unsigned pixelsPerBlockX,
+				unsigned pixelsPerBlockY,
+				unsigned bytesPerBlock,
+				unsigned channels,
+				std::initializer_list<uint8> BlackBlockInit
+			)
+			: FImageFormatData(pixelsPerBlockX, pixelsPerBlockY, bytesPerBlock, channels)
+		{
+			check(MAX_BYTES_PER_BLOCK >= BlackBlockInit.size());
+
+			const SIZE_T SanitizedBlockSize = FMath::Min<SIZE_T>(MAX_BYTES_PER_BLOCK, BlackBlockInit.size());
+			FMemory::Memcpy(BlackBlock, BlackBlockInit.begin(), SanitizedBlockSize);
+		}
+
+		//! For block based formats, size of the block size. For uncompressed formats it will
+		//! always be 1,1. For non-block-based compressed formats, it will be 0,0.
+        uint8 m_pixelsPerBlockX, m_pixelsPerBlockY;
+
+		//! Number of bytes used by every pixel block, if uncompressed or block-compressed format.
+		//! For non-block-compressed formats, it returns 0.
+        uint16 m_bytesPerBlock;
+
+		//! Channels in every pixel of the image.
+        uint16 m_channels;
+
+		//! Representation of a black block of the image.
+		uint8 BlackBlock[MAX_BYTES_PER_BLOCK] = { 0 };
+	};
 
 
 	struct FMipmapGenerationSettings
@@ -46,6 +95,13 @@ namespace mu
 			arch >> m_ditherMipmapAlpha;
 		}
 	};
+
+
+	//---------------------------------------------------------------------------------------------
+	//!
+	//---------------------------------------------------------------------------------------------
+	MUTABLERUNTIME_API const FImageFormatData& GetImageFormatData(EImageFormat format );
+
 
 	//---------------------------------------------------------------------------------------------
 	//!

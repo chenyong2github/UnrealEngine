@@ -101,43 +101,4 @@ namespace mu
 	}
 
 
-	//-------------------------------------------------------------------------------------------------
-	void Skeleton::Serialise(OutputArchive& arch) const
-	{
-		uint32 ver = 5;
-		arch << ver;
-
-		arch << m_bones;
-		arch << m_boneParents;
-	}
-
-
-	//-------------------------------------------------------------------------------------------------
-	void Skeleton::Unserialise(InputArchive& arch)
-	{
-		uint32 ver;
-		arch >> ver;
-		check(ver >= 3);
-
-		arch >> m_bones;
-
-		if (ver == 3)
-		{
-			arch >> m_boneTransforms_DEPRECATED;
-		}
-
-		arch >> m_boneParents;
-
-		if (ver <= 4)
-		{
-			TArray<int32> boneIds;
-			arch >> boneIds;
-		}
-
-		if (ver == 3)
-		{
-			bool bBoneTransformModified;
-			arch >> bBoneTransformModified;
-		}
-	}
 }

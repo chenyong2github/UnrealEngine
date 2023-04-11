@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include <string>
-
-#include "MuR/Serialisation.h"
+#include "MuR/SerialisationPrivate.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
 #include "MuR/Serialisation.h"
@@ -19,8 +17,6 @@
 
 namespace mu
 {
-	typedef std::string string;
-
 	struct FBodyShape
 	{
 		string Name;
@@ -32,10 +28,25 @@ namespace mu
 		}
 	
 		//!
-		inline void Serialise( OutputArchive& arch ) const;
+		inline void Serialise( OutputArchive& arch ) const
+		{
+			const uint32 ver = 0;
+			arch << ver;
+
+			arch << Name;
+			arch << Flags;
+		}
 
 		//!
-		inline void Unserialise( InputArchive& arch );
+		inline void Unserialise( InputArchive& arch )
+		{
+			uint32 ver;
+			arch >> ver;
+			check(ver == 0);
+
+			arch >> Name;
+			arch >> Flags;
+		}
 	};
 
 	struct FSphereBody : FBodyShape
@@ -49,10 +60,29 @@ namespace mu
 		}
 		 
 		//!
-		inline void Serialise( OutputArchive& arch ) const;
+		inline void Serialise( OutputArchive& arch ) const
+		{
+			FBodyShape::Serialise(arch);
+
+			const uint32 ver = 0;
+			arch << ver;
+
+			arch << Position;
+			arch << Radius;
+		}
 
 		//!
-		inline void Unserialise( InputArchive& arch );
+		inline void Unserialise( InputArchive& arch )
+		{
+			FBodyShape::Unserialise(arch);
+
+			uint32 ver;
+			arch >> ver;
+			check(ver == 0);
+
+			arch >> Position;
+			arch >> Radius;
+		} 
 	};
 	
 	struct FBoxBody : FBodyShape
@@ -67,10 +97,31 @@ namespace mu
 		}
 
 		//!
-		inline void Serialise( OutputArchive& arch ) const;
+		inline void Serialise( OutputArchive& arch ) const
+		{
+			FBodyShape::Serialise( arch );
 
-		//!
-		inline void Unserialise( InputArchive& arch );
+			const uint32 ver = 0;
+			arch << ver;
+
+			arch << Position;
+			arch << Orientation;
+			arch << Size;
+		}
+
+		  //!
+		inline void Unserialise( InputArchive& arch )
+		{
+			FBodyShape::Unserialise( arch );
+
+			uint32 ver;
+			arch >> ver;
+			check(ver == 0);
+
+			arch >> Position;
+			arch >> Orientation;
+			arch >> Size;
+		} 
 	};
 
 	struct FSphylBody : FBodyShape
@@ -90,10 +141,33 @@ namespace mu
 		}
 		 
 		//!
-		inline void Serialise( OutputArchive& arch ) const;
+		inline void Serialise( OutputArchive& arch ) const
+		{
+			FBodyShape::Serialise( arch );
+
+			const uint32 ver = 0;
+			arch << ver;
+
+			arch << Position;
+			arch << Orientation;
+			arch << Radius;
+			arch << Length;
+		}
 
 		//!
-		inline void Unserialise( InputArchive& arch );
+		inline void Unserialise( InputArchive& arch )
+		{
+			FBodyShape::Unserialise( arch );
+
+			uint32 ver;
+			arch >> ver;
+			check(ver == 0);
+
+			arch >> Position;
+			arch >> Orientation;
+			arch >> Radius;
+			arch >> Length;
+		}
 	};
 	
 	struct FTaperedCapsuleBody : FBodyShape
@@ -115,10 +189,35 @@ namespace mu
 		}
 		 
 		//!
-		inline void Serialise( OutputArchive& arch ) const;
+		inline void Serialise( OutputArchive& arch ) const
+		{
+			FBodyShape::Serialise( arch );
 
-		//!
-		inline void Unserialise( InputArchive& arch );
+			const uint32 ver = 0;
+			arch << ver;
+
+			arch << Position;
+			arch << Orientation;
+			arch << Radius0;
+			arch << Radius1;
+			arch << Length;
+		}
+
+		 //!
+		inline void Unserialise( InputArchive& arch )
+		{
+			FBodyShape::Unserialise( arch );
+			
+			uint32 ver;
+			arch >> ver;
+			check(ver == 0);
+
+			arch >> Position;
+			arch >> Orientation;
+			arch >> Radius0;
+			arch >> Radius1;
+			arch >> Length;
+		 }
 	};
 	
 	struct FConvexBody : FBodyShape
@@ -137,10 +236,29 @@ namespace mu
 		}
 
 		//!
-		inline void Serialise( OutputArchive& arch ) const;
+		inline void Serialise( OutputArchive& arch ) const
+		{
+			FBodyShape::Serialise( arch );
+	
+		 	uint32 ver = 0;
+		 	arch << ver;
 
-		//!
-		inline void Unserialise( InputArchive& arch );
+		 	arch << Vertices;
+		 	arch << Indices;
+		 	arch << Transform;
+		}
+
+		  //!
+		inline void Unserialise( InputArchive& arch )
+		{
+		 	uint32 ver;
+		 	arch >> ver;
+		 	check(ver == 0);
+
+		 	arch >> Vertices;
+		 	arch >> Indices;
+		 	arch >> Transform;
+		}
 	};
 	
 	struct FPhysicsBodyAggregate
@@ -161,10 +279,31 @@ namespace mu
 		}
 
 		 //!
-		inline void Serialise( OutputArchive& arch ) const;
+		inline void Serialise( OutputArchive& arch ) const
+		{
+		 	uint32 ver = 0;
+		 	arch << ver;
+		
+		 	arch << Spheres;
+		 	arch << Boxes;
+		 	arch << Convex;
+		 	arch << Sphyls;
+		 	arch << TaperedCapsules;
+		}
 
-		//!
-		inline void Unserialise( InputArchive& arch );
+		 //!
+		inline void Unserialise( InputArchive& arch )
+		{
+		 	uint32 ver;
+		 	arch >> ver;
+		 	check(ver == 0);
+		
+		 	arch >> Spheres;
+		 	arch >> Boxes;
+		 	arch >> Convex;
+		 	arch >> Sphyls;
+		 	arch >> TaperedCapsules;
+		}
 	};
 
 	class MUTABLERUNTIME_API PhysicsBody : public RefCounted
@@ -305,12 +444,41 @@ namespace mu
 		bool bBodiesModified = false;
 
         //!
-        inline void Serialise( OutputArchive& arch ) const;
+        inline void Serialise( OutputArchive& arch ) const
+		{
+            uint32 ver = 2;
+			arch << ver;
+        	
+			arch << CustomId;
+        	arch << Bodies;
+        	arch << Bones;
+        	arch << BodiesCustomIds;
+			arch << bBodiesModified;
+        }
 
-		//!
-        inline void Unserialise( InputArchive& arch );
+        //!
+        inline void Unserialise( InputArchive& arch )
+		{
+            uint32 ver;
+			arch >> ver;
+            check(ver <= 2);
+        	
+			if (ver >= 2)
+			{
+				arch >> CustomId;
+			}
+        	
+        	arch >> Bodies;
+        	arch >> Bones;
+        	arch >> BodiesCustomIds;
 
-		//!
+			if (ver >= 1)
+			{
+				arch >> bBodiesModified;
+			}
+		}
+		
+        //!
 		inline bool operator==(const PhysicsBody& Other) const
         {
         	return CustomId        == Other.CustomId        &&

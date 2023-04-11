@@ -23,7 +23,8 @@
 #include "MuCO/MutableProjectorTypeUtils.h"
 #include "MuCO/UnrealMutableModelDiskStreamer.h"
 #include "MuCO/UnrealPortabilityHelpers.h"
-#include "MuR/Model.h"
+#include "MuR/ModelPrivate.h"
+#include "MuR/ParametersPrivate.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
@@ -33,8 +34,6 @@
 #include "Editor.h"
 #endif
 
-
-#include "MuR/Model.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CustomizableObject)
 
@@ -349,17 +348,19 @@ void UCustomizableObject::UpdateCompiledDataFromModel()
 	TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model = PrivateData->GetModel();
 
 	// Generate a map that using the resource id tells the offset and size of the resource inside the bulk data
-	if (Model)
+	if(Model)
 	{
-		uint64 Offset = 0;
+		uint64_t Offset = 0;
+		uint32_t ResourceId = 0;
+		uint32_t ResourceSize = 0;
 
-		const int32 NumStreamingFiles = Model->GetRomCount();
+		int32 NumStreamingFiles = Model->GetPrivate()->m_program.m_roms.Num();
 		HashToStreamableBlock.Empty(NumStreamingFiles);
 
 		for (size_t FileIndex = 0; FileIndex < NumStreamingFiles; ++FileIndex)
 		{
-			const uint32 ResourceId = Model->GetRomId(FileIndex);
-			const uint32 ResourceSize = Model->GetRomSize(FileIndex);
+			ResourceId = Model->GetPrivate()->m_program.m_roms[FileIndex].Id;
+			ResourceSize = Model->GetPrivate()->m_program.m_roms[FileIndex].Size;
 
 			HashToStreamableBlock.Add(ResourceId, FMutableStreamableBlock({0, Offset, ResourceSize }));
 			Offset += ResourceSize;
@@ -1436,85 +1437,99 @@ void UCustomizableObject::UnloadMaskOutCache()
 }
 
 
+bool UCustomizableObject::CanDefaultParameterBeAccessed(const FString& InParameterName,
+	const EMutableParameterType& InParameterType, int32& OutParameterIndex) const
+{
+	OutParameterIndex = FindParameter(InParameterName);
+	if (OutParameterIndex == INDEX_NONE)
+	{
+		UE_LOG(LogMutable,Error,TEXT("The parameter with name [%s] does not exist in the CO with name [%s]."), *InParameterName,*GetName());
+		return false;
+	}
+
+	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
+	if (!MutableModel)
+	{
+		UE_LOG(LogMutable,Error,TEXT("Mutable model not set in [%s] CO. Compile this Customizable Object in order to be able to acces the default values of the parameters."),*GetName());
+		return false;
+	}
+	
+	const int32 ParameterCount = MutableModel->GetPrivate()->m_program.m_parameters.Num();
+	check (OutParameterIndex < ParameterCount);		// this failing would mean the data between CO and core is not synced 
+	
+	if ( GetParameterType(OutParameterIndex) != InParameterType)
+	{
+		UE_LOG(LogMutable,Error,TEXT("The parameter with name [%s] is not a [%s] parameter of the [%s] CO."), *InParameterName,*UEnum::GetValueAsString(InParameterType),*GetName());
+		return false;
+	}
+	
+	return true;
+}
+
 float UCustomizableObject::GetFloatParameterDefaultValue(const FString& InParameterName) const
 {
-	const int32 ParameterIndex = FindParameter(InParameterName);
-	if (ParameterIndex == INDEX_NONE)
+	float Value = -1.0f;
+	
+	int32 ParameterIndex;
+	if (!CanDefaultParameterBeAccessed(InParameterName,EMutableParameterType::Float,ParameterIndex))
 	{
-		checkNoEntry();
-		return FCustomizableObjectFloatParameterValue::DEFAULT_PARAMETER_VALUE;
+		return Value;
 	}
 
-	const TSharedPtr<mu::Model> Model = GetModel();
-	if (!Model)
-	{
-		checkNoEntry();
-		return FCustomizableObjectFloatParameterValue::DEFAULT_PARAMETER_VALUE;
-	}
-
-	return Model->GetFloatDefaultValue(ParameterIndex);
+	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
+	Value = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.Get<mu::ParamFloatType>();
+	return Value;
 }
 
 
 int32 UCustomizableObject::GetIntParameterDefaultValue(const FString& InParameterName) const
 {
-	const int32 ParameterIndex = FindParameter(InParameterName);
-	if (ParameterIndex == INDEX_NONE)
+	int32 Value = -1;
+	
+	int32 ParameterIndex;
+	if (!CanDefaultParameterBeAccessed(InParameterName,EMutableParameterType::Int,ParameterIndex))
 	{
-		checkNoEntry();
-		return FCustomizableObjectIntParameterValue::DEFAULT_PARAMETER_VALUE;
+		return Value;
 	}
 
-	const TSharedPtr<mu::Model> Model = GetModel();
-	if (!Model)
-	{
-		checkNoEntry();
-		return FCustomizableObjectIntParameterValue::DEFAULT_PARAMETER_VALUE;
-	}
-	
-	return Model->GetIntDefaultValue(ParameterIndex);
+	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
+	Value = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.Get<mu::ParamIntType>();
+	return Value;
 }
 
 
 bool UCustomizableObject::GetBoolParameterDefaultValue(const FString& InParameterName) const
 {
-	const int32 ParameterIndex = FindParameter(InParameterName);
-	if (ParameterIndex == INDEX_NONE)
+	bool Value = false;
+	
+	int32 ParameterIndex;
+	if (!CanDefaultParameterBeAccessed(InParameterName,EMutableParameterType::Bool,ParameterIndex))
 	{
-		checkNoEntry();
-		return FCustomizableObjectBoolParameterValue::DEFAULT_PARAMETER_VALUE;
-	}
-
-	const TSharedPtr<mu::Model> Model = GetModel();
-	if (!Model)
-	{
-		checkNoEntry();
-		return FCustomizableObjectBoolParameterValue::DEFAULT_PARAMETER_VALUE;;
+		return Value;
 	}
 	
-	return Model->GetBoolDefaultValue(ParameterIndex);
+	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
+	Value = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.Get<mu::ParamBoolType>();
+	return Value;
 }
 
 
 FLinearColor UCustomizableObject::GetColorParameterDefaultValue(const FString& InParameterName) const
 {
-	const int32 ParameterIndex = FindParameter(InParameterName);
-	if (ParameterIndex == INDEX_NONE)
+	FLinearColor Value = FLinearColor::Black;
+	
+	int32 ParameterIndex;
+	if (!CanDefaultParameterBeAccessed(InParameterName,EMutableParameterType::Color,ParameterIndex))
 	{
-		checkNoEntry();
-		return FCustomizableObjectVectorParameterValue::DEFAULT_PARAMETER_VALUE;;
-	}
-
-	const TSharedPtr<mu::Model> Model = GetModel();
-	if (!Model)
-	{
-		checkNoEntry();
-		return FCustomizableObjectVectorParameterValue::DEFAULT_PARAMETER_VALUE;
+		return Value;
 	}
 	
-	FLinearColor Value;
-	Model->GetColourDefaultValue(ParameterIndex, &Value.R, &Value.G, &Value.B);
-
+	const mu::Model::Private* ModelPrivate = PrivateData->GetModel()->GetPrivate();
+	Value.R = ModelPrivate->m_program.m_parameters[ParameterIndex].m_defaultValue.Get<mu::ParamColorType>()[0];
+	Value.G = ModelPrivate->m_program.m_parameters[ParameterIndex].m_defaultValue.Get<mu::ParamColorType>()[1];
+	Value.B = ModelPrivate->m_program.m_parameters[ParameterIndex].m_defaultValue.Get<mu::ParamColorType>()[2];
+	Value.A = 1.0f;
+	
 	return Value;
 }
 
@@ -1523,74 +1538,74 @@ void UCustomizableObject::GetProjectorParameterDefaultValue(const FString& InPar
 	FVector3f& OutDirection, FVector3f& OutUp, FVector3f& OutScale, float& OutAngle,
 	ECustomizableObjectProjectorType& OutType) const
 {
-	const FCustomizableObjectProjector Projector = GetProjectorParameterDefaultValue(InParameterName);
-		
-	OutType = Projector.ProjectionType;
-	OutPos = Projector.Position;
-	OutDirection = Projector.Direction;
-	OutUp = Projector.Up;
-	OutScale = Projector.Scale;
-	OutAngle = Projector.Angle;
+	int32 ParameterIndex;
+	if (!CanDefaultParameterBeAccessed(InParameterName,EMutableParameterType::Projector,ParameterIndex))
+	{
+		return;
+	}
+	
+	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
+	
+	mu::FProjector MutableProjector = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.Get<mu::ParamProjectorType>();
+	OutType = ProjectorUtils::GetEquivalentProjectorType(MutableProjector.type);
+	OutPos = MutableProjector.position;
+	OutDirection = MutableProjector.direction;
+	OutUp = MutableProjector.up;
+	OutScale = MutableProjector.scale;
+	OutAngle = MutableProjector.projectionAngle;
 }
 
 
 FCustomizableObjectProjector UCustomizableObject::GetProjectorParameterDefaultValue(const FString& InParameterName) const 
 {
-	const int32 ParameterIndex = FindParameter(InParameterName);
-	if (ParameterIndex == INDEX_NONE)
-	{
-		checkNoEntry();
-		return FCustomizableObjectProjectorParameterValue::DEFAULT_PARAMETER_VALUE;
-	}
-
-	const TSharedPtr<mu::Model> Model = GetModel();
-	if (!Model)
-	{
-		checkNoEntry();
-		return FCustomizableObjectProjectorParameterValue::DEFAULT_PARAMETER_VALUE;
-	}
-
 	FCustomizableObjectProjector Value;
-	mu::PROJECTOR_TYPE Type;
-	Model->GetProjectorDefaultValue(ParameterIndex, &Type, &Value.Position, &Value.Direction, &Value.Up, &Value.Scale, &Value.Angle);
-	Value.ProjectionType = ProjectorUtils::GetEquivalentProjectorType(Type);
 	
+	int32 ParameterIndex;
+	if (!CanDefaultParameterBeAccessed(InParameterName,EMutableParameterType::Projector,ParameterIndex))
+	{
+		return Value;
+	}
+	
+	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
+
+	mu::FProjector MutableProjector = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.Get<mu::ParamProjectorType>();
+	Value.Angle = MutableProjector.projectionAngle;
+	Value.Direction = MutableProjector.direction;
+	Value.Position = MutableProjector.position;
+	Value.Scale = MutableProjector.scale;
+	Value.Up = MutableProjector.up;
+	Value.ProjectionType = ProjectorUtils::GetEquivalentProjectorType(MutableProjector.type);
+
 	return Value;
 }
 
 
 uint64 UCustomizableObject::GetTextureParameterDefaultValue(const FString& InParameterName) const
 {
-	const int32 ParameterIndex = FindParameter(InParameterName);
-	if (ParameterIndex == INDEX_NONE)
+	uint64 Value = false;
+	
+	int32 ParameterIndex;
+	if (!CanDefaultParameterBeAccessed(InParameterName,EMutableParameterType::Texture,ParameterIndex))
 	{
-		checkNoEntry();
-		return FCustomizableObjectTextureParameterValue::DEFAULT_PARAMETER_VALUE;
-	}
-
-	const TSharedPtr<mu::Model> Model = GetModel();
-	if (!Model)
-	{
-		checkNoEntry();
-		return FCustomizableObjectTextureParameterValue::DEFAULT_PARAMETER_VALUE;
+		return Value;
 	}
 	
-	return Model->GetImageDefaultValue(ParameterIndex);
+	const TSharedPtr<const mu::Model> MutableModel = PrivateData->GetModel();
+	Value = MutableModel->GetPrivate()->m_program.m_parameters[ParameterIndex].m_defaultValue.Get<mu::ParamImageType>();
+	return Value;
 }
-
 
 bool UCustomizableObject::IsParameterMultidimensional(const FString& InParameterName) const
 {
 	const int32 ParameterIndex = FindParameter(InParameterName);
 	if (ParameterIndex == INDEX_NONE)
 	{
+		UE_LOG(LogMutable,Error,TEXT("The parameter with name %s does not exist in the CO with name %s."), *InParameterName,*GetName());
 		checkNoEntry();
-		return {};
 	}
 
 	return IsParameterMultidimensional(ParameterIndex);
 }
-
 
 bool UCustomizableObject::IsParameterMultidimensional(const int32& InParamIndex) const
 {
@@ -1957,7 +1972,7 @@ void UCustomizableObjectBulk::PrepareBulkData(UCustomizableObject* InOuter, cons
 	BulkDataFileNames.Empty();
 	
 	// Split the Streamable data into several separate files and fix up FileIndex and Offset of each StreamableBlock
-	if (TSharedPtr<const mu::Model, ESPMode::ThreadSafe> Model = CustomizableObject->GetModel())
+	if(TSharedPtr<const mu::Model, ESPMode::ThreadSafe> Model = CustomizableObject->GetModel())
 	{
 		const uint64 MaxChunkSize = UCustomizableObjectSystem::GetInstance()->GetMaxChunkSizeForPlatform(TargetPlatform);
 
@@ -1966,10 +1981,10 @@ void UCustomizableObjectBulk::PrepareBulkData(UCustomizableObject* InOuter, cons
 		uint16 CurrentFileIndex = 0;
 		uint64 CurrentChunkSize = 0;
 
-		const int32 NumStreamingFiles = Model->GetRomCount();
+		const int32 NumStreamingFiles = Model->GetPrivate()->m_program.m_roms.Num();
 		for (size_t FileIndex = 0; FileIndex < NumStreamingFiles; ++FileIndex)
 		{
-			const uint32 ResourceId = Model->GetRomId(FileIndex);
+			const uint32 ResourceId = Model->GetPrivate()->m_program.m_roms[FileIndex].Id;
 
 			FMutableStreamableBlock& StreamableBlock = CustomizableObject->HashToStreamableBlock[ResourceId];
 

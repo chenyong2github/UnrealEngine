@@ -46,10 +46,6 @@ struct FCustomizableObjectBoolParameterValue
 {
 	GENERATED_USTRUCT_BODY()
 
-	static constexpr bool DEFAULT_PARAMETER_VALUE = false;
-
-	inline static const FString DEFAULT_PARAMETER_VALUE_NAME;
-	
 	UPROPERTY(Category = CustomizableObjectBoolParameterValue, VisibleAnywhere)
 	FString ParameterName;
 
@@ -75,8 +71,6 @@ struct FCustomizableObjectIntParameterValue
 {
 	GENERATED_USTRUCT_BODY()
 
-	static constexpr int32 DEFAULT_PARAMETER_VALUE = INDEX_NONE;
-	
 	UPROPERTY(Category = CustomizableObjectIntParameterValue, VisibleAnywhere)
 	FString ParameterName;
 
@@ -122,8 +116,6 @@ struct FCustomizableObjectFloatParameterValue
 {
 	GENERATED_USTRUCT_BODY()
 
-	static constexpr float DEFAULT_PARAMETER_VALUE = 0;
-
 	UPROPERTY(Category = CustomizableObjectFloatParameterValue, VisibleAnywhere)
 	FString ParameterName;
 
@@ -155,10 +147,10 @@ inline uint32 GetTypeHash(const FCustomizableObjectFloatParameterValue& Key)
 USTRUCT(BlueprintType)
 struct FCustomizableObjectTextureParameterValue
 {
-	GENERATED_USTRUCT_BODY()
-
 	static constexpr uint64 DEFAULT_PARAMETER_VALUE = 0;
 	
+	GENERATED_USTRUCT_BODY()
+
 	UPROPERTY(Category = CustomizableObjectTextureParameterValue, VisibleAnywhere)
 	FString ParameterName;
 
@@ -192,8 +184,6 @@ struct FCustomizableObjectVectorParameterValue
 {
 	GENERATED_USTRUCT_BODY()
 
-	inline static const FLinearColor DEFAULT_PARAMETER_VALUE = FLinearColor::Black;
-	
 	UPROPERTY(Category = CustomizableObjectVectorParameterValue, VisibleAnywhere)
 	FString ParameterName;
 
