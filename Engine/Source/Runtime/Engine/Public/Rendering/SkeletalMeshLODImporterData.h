@@ -441,6 +441,11 @@ public:
 	 */
 	bool GetMeshDescription(FMeshDescription &OutMeshDescription) const;
 
+	/**
+	 * @note MeshDescription always contains color, normal and tangent data by default. Therefore, while iterating
+	 * over the vertices, we check if at least one normal/tangent vector is not a zero vector and the color is
+	 * not white, then we set the corresponding bHasNormals/bHasTangent/bHasVertexColors flags to true.
+	 */
 	static FSkeletalMeshImportData CreateFromMeshDescription(const FMeshDescription &InMeshDescription);
 
 private:

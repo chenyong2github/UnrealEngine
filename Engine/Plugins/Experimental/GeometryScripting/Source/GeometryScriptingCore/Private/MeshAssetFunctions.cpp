@@ -599,6 +599,10 @@ UDynamicMesh* UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToSkeletalMesh
 		Converter.Convert(&ReadMesh, MeshDescription, !Options.bEnableRecomputeTangents);
 	});
 
+	FSkeletalMeshLODInfo* SkeletalLODInfo = ToSkeletalMeshAsset->GetLODInfo(TargetLOD.LODIndex);
+	SkeletalLODInfo->BuildSettings.bRecomputeNormals = Options.bEnableRecomputeNormals;
+	SkeletalLODInfo->BuildSettings.bRecomputeTangents = Options.bEnableRecomputeTangents;
+
 	FSkeletalMeshImportData SkeletalMeshImportData = 
 		FSkeletalMeshImportData::CreateFromMeshDescription(MeshDescription);
 

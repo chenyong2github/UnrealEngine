@@ -2005,6 +2005,16 @@ FSkeletalMeshImportData FSkeletalMeshImportData::CreateFromMeshDescription(const
 			Face.TangentZ[Corner] = VertexInstanceNormals[VertexInstanceID];
 			Face.TangentY[Corner] = FVector3f::CrossProduct(VertexInstanceNormals[VertexInstanceID], VertexInstanceTangents[VertexInstanceID]).GetSafeNormal() * VertexInstanceBiNormalSigns[VertexInstanceID];
 
+			if (Face.TangentX[Corner] != FVector3f::ZeroVector)
+			{
+				SkelMeshImportData.bHasTangents = true;
+			}
+			
+			if (Face.TangentZ[Corner] != FVector3f::ZeroVector)
+			{
+				SkelMeshImportData.bHasNormals = true;
+			}
+
 			Face.WedgeIndex[Corner] = SkelMeshImportData.Wedges.Add(Wedge);
 		}
 	}
