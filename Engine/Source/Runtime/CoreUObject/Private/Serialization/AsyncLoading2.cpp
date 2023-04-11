@@ -4841,14 +4841,16 @@ void FAsyncPackage2::InitializeLinkerLoadState(const FLinkerInstancingContext* I
 
 void FAsyncPackage2::CreateLinker(const FLinkerInstancingContext* InstancingContext)
 {
+	uint32 LinkerFlags = (LOAD_Async | LOAD_NoVerify | LOAD_SkipLoadImportedPackages | Desc.LoadFlags);
+#if WITH_EDITOR
+	if ((!FApp::IsGame() || GIsEditor) && (Desc.PackageFlags & PKG_PlayInEditor) != 0)
+	{
+		LinkerFlags |= LOAD_PackageForPIE;
+	}
+#endif
 	FLinkerLoad* Linker = FLinkerLoad::FindExistingLinkerForPackage(LinkerRoot);
 	if (!Linker)
 	{
-		uint32 LinkerFlags = (LOAD_Async | LOAD_NoVerify | LOAD_SkipLoadImportedPackages);
-		if ((!FApp::IsGame() || GIsEditor) && (Desc.PackageFlags & PKG_PlayInEditor) != 0)
-		{
-			LinkerFlags |= LOAD_PackageForPIE;
-		}
 		FUObjectSerializeContext* LoadContext = GetSerializeContext();
 #if ALT2_ENABLE_NEW_ARCHIVE_FOR_LINKERLOAD
 		Linker = new FLinkerLoad(LinkerRoot, Desc.PackagePathToLoad, LinkerFlags, InstancingContext ? *InstancingContext : FLinkerInstancingContext());
@@ -4862,7 +4864,7 @@ void FAsyncPackage2::CreateLinker(const FLinkerInstancingContext* InstancingCont
 	}
 	else
 	{
-		Linker->LoadFlags |= LOAD_Async | LOAD_NoVerify | LOAD_SkipLoadImportedPackages;
+		Linker->LoadFlags |= LinkerFlags;
 	}
 	check(Linker);
 	check(Linker->LinkerRoot == LinkerRoot);

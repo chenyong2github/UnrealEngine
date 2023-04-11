@@ -1568,10 +1568,17 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 
 		ThreadContext.SyncLoadUsingAsyncLoaderCount++;
 		EPackageFlags PackageFlags = PKG_None;
+#if WITH_EDITOR
+		// If we are loading a package for diffing, set the package flag
+		if (LoadFlags & LOAD_ForDiff)
+		{
+			PackageFlags |= PKG_ForDiffing;
+		}
 		if ((!FApp::IsGame() || GIsEditor) && (LoadFlags & LOAD_PackageForPIE) != 0)
 		{
 			PackageFlags |= PKG_PlayInEditor;
 		}
+#endif
 		constexpr int32 PIEInstanceID = INDEX_NONE;
 		constexpr int32 Priority = INT32_MAX;
 		int32 RequestID = LoadPackageAsync(PackagePath, PackageName, FLoadPackageAsyncDelegate(), PackageFlags, PIEInstanceID, Priority, InstancingContext, LoadFlags);
