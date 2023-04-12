@@ -17,10 +17,20 @@
 
 DECLARE_GPU_STAT(NaniteStreamOutData);
 
+static bool GNaniteStreamOutCacheTraversalData = true;
+static FAutoConsoleVariableRef CVarNaniteStreamOutCacheTraversalData(
+	TEXT("r.Nanite.StreamOut.CacheTraversalData"),
+	GNaniteStreamOutCacheTraversalData,
+	TEXT("Cache traversal data during count pass to be able to skip traversal during stream out pass."),
+	ECVF_RenderThreadSafe
+);
+
+static const uint32 CandididateClusterSizeInUints = 3;
+
 namespace Nanite
 {
 	BEGIN_SHADER_PARAMETER_STRUCT(FQueueParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< FQueuePassState >, QueueState)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FQueuePassState>, QueueState)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, NodesAndClusterBatches)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, CandididateClusters)
 		SHADER_PARAMETER(uint32, MaxNodes)
@@ -78,10 +88,10 @@ namespace Nanite
 	};
 	IMPLEMENT_GLOBAL_SHADER(FInitQueueCS, "/Engine/Private/Nanite/NaniteStreamOut.usf", "InitQueue", SF_Compute);
 
-	struct FNaniteStreamOutCS : public FNaniteGlobalShader
+	struct FNaniteStreamOutTraversalCS : public FNaniteGlobalShader
 	{
-		DECLARE_GLOBAL_SHADER(FNaniteStreamOutCS);
-		SHADER_USE_PARAMETER_STRUCT(FNaniteStreamOutCS, FNaniteGlobalShader);
+		DECLARE_GLOBAL_SHADER(FNaniteStreamOutTraversalCS);
+		SHADER_USE_PARAMETER_STRUCT(FNaniteStreamOutTraversalCS, FNaniteGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
@@ -98,6 +108,9 @@ namespace Nanite
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float>, VertexBuffer)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, IndexBuffer)
 
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, OutputClustersRW)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutputClustersStateRW)
+
 			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, StreamOutRequests)
 			SHADER_PARAMETER(uint32, NumRequests)
 
@@ -109,20 +122,77 @@ namespace Nanite
 		END_SHADER_PARAMETER_STRUCT()
 
 		class FCountVerticesAndTrianglesDim : SHADER_PERMUTATION_BOOL("NANITE_STREAM_OUT_COUNT_VERTICES_AND_TRIANGLES");
-		using FPermutationDomain = TShaderPermutationDomain<FCountVerticesAndTrianglesDim>;
-
-		static constexpr uint32 ThreadGroupSize = 64;
+		class FCacheClustersDim : SHADER_PERMUTATION_BOOL("NANITE_STREAM_OUT_CACHE_CLUSTERS");
+		using FPermutationDomain = TShaderPermutationDomain<FCountVerticesAndTrianglesDim, FCacheClustersDim>;
 
 		static inline void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 		{
 			FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
-			OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), ThreadGroupSize);
-
 			OutEnvironment.SetDefine(TEXT("NANITE_HIERARCHY_TRAVERSAL"), 1);
 
 			OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
 			OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+		}
+	};
+	IMPLEMENT_GLOBAL_SHADER(FNaniteStreamOutTraversalCS, "/Engine/Private/Nanite/NaniteStreamOut.usf", "NaniteStreamOutTraversalCS", SF_Compute);
+
+	class FAllocateRangesCS : public FNaniteGlobalShader
+	{
+		DECLARE_GLOBAL_SHADER(FAllocateRangesCS);
+		SHADER_USE_PARAMETER_STRUCT(FAllocateRangesCS, FNaniteGlobalShader);
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, StreamOutRequests)
+			SHADER_PARAMETER(uint32, NumRequests)
+
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, MeshDataBuffer)
+
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, VertexAndIndexAllocator)
+			SHADER_PARAMETER(uint32, CurrentAllocationFrameIndex)
+			SHADER_PARAMETER(uint32, NumAllocationFrames)
+			SHADER_PARAMETER(uint32, VertexBufferSize)
+			SHADER_PARAMETER(uint32, IndexBufferSize)
+
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutputClustersStateRW)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, StreamOutDispatchIndirectArgsRW)
+
+			SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrint)
+		END_SHADER_PARAMETER_STRUCT()
+	};
+	IMPLEMENT_GLOBAL_SHADER(FAllocateRangesCS, "/Engine/Private/Nanite/NaniteStreamOut.usf", "AllocateRangesCS", SF_Compute);
+
+	struct FNaniteStreamOutCS : public FNaniteGlobalShader
+	{
+		DECLARE_GLOBAL_SHADER(FNaniteStreamOutCS);
+		SHADER_USE_PARAMETER_STRUCT(FNaniteStreamOutCS, FNaniteGlobalShader);
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+			SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
+			SHADER_PARAMETER(FIntVector4, PageConstants)
+
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, AuxiliaryDataBufferRW)
+
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, MeshDataBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float>, VertexBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, IndexBuffer)
+
+			SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, OutputClusters)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutputClustersStateRW)
+
+			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, StreamOutRequests)
+			SHADER_PARAMETER(uint32, NumRequests)
+
+			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, SegmentMappingBuffer)
+
+			SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrint)
+
+			RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static inline void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+		{
+			FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		}
 	};
 	IMPLEMENT_GLOBAL_SHADER(FNaniteStreamOutCS, "/Engine/Private/Nanite/NaniteStreamOut.usf", "NaniteStreamOutCS", SF_Compute);
@@ -225,7 +295,7 @@ namespace Nanite
 			RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
 			const uint32 CandididateNodeSizeInUints = 3;
-			FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(4, MaxCullingBatches + MaxNodes * CandididateNodeSizeInUints);
+			FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxCullingBatches + MaxNodes * CandididateNodeSizeInUints);
 			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_ByteAddressBuffer);
 			NodesAndClusterBatchesBufferRDG = GraphBuilder.CreateBuffer(Desc, TEXT("NaniteStreamOut.NodesAndClusterBatchesBuffer"));
 			AddPassInitNodesAndClusterBatchesUAV(GraphBuilder, ShaderMap, GraphBuilder.CreateUAV(NodesAndClusterBatchesBufferRDG), MaxNodes, MaxCandidateClusters, MaxCullingBatches);
@@ -235,8 +305,7 @@ namespace Nanite
 		// Allocate candidate cluster buffer
 		FRDGBufferRef CandididateClustersBuffer = nullptr;
 		{
-			const uint32 CandididateClusterSizeInUints = 3;
-			FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(4, MaxCandidateClusters * CandididateClusterSizeInUints);
+			FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxCandidateClusters * CandididateClusterSizeInUints);
 			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_ByteAddressBuffer);
 			CandididateClustersBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("NaniteStreamOut.CandididateClustersBuffer"));
 		}
@@ -272,7 +341,19 @@ namespace Nanite
 		FRDGBufferRef VertexAndIndexAllocatorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 2), TEXT("NaniteStreamOut.VertexAndIndexAllocatorBuffer"));
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(VertexAndIndexAllocatorBuffer), 0);
 
-		FRDGBufferUAVRef AuxiliaryDataBufferUAV = GraphBuilder.CreateUAV(AuxiliaryDataBuffer);
+		const uint32 MaxCandidateClusters = Nanite::FGlobalResources::GetMaxCandidateClusters();
+
+		// Allocate output cluster buffer
+		FRDGBufferRef OutputClustersBuffer = nullptr;
+		{
+			FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxCandidateClusters * CandididateClusterSizeInUints);
+			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_ByteAddressBuffer);
+			OutputClustersBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("NaniteStreamOut.OutputClustersBuffer"));
+		}
+
+		FRDGBufferRef OutputClustersStateBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 2), TEXT("NaniteStreamOut.OutputClustersStateBuffer"));
+		FRDGBufferUAVRef OutputClustersStateUAV = GraphBuilder.CreateUAV(OutputClustersStateBuffer);
+		AddClearUAVPass(GraphBuilder, OutputClustersStateUAV, 0);
 
 		AddInitQueuePass(
 			GraphBuilder,
@@ -290,7 +371,7 @@ namespace Nanite
 
 		// count pass
 		{
-			FNaniteStreamOutCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteStreamOutCS::FParameters>();
+			auto* PassParameters = GraphBuilder.AllocParameters<FNaniteStreamOutTraversalCS::FParameters>();
 			PassParameters->GPUScenePrimitiveSceneData = GPUScenePrimitiveBufferSRV;
 
 			PassParameters->QueueParameters = QueueParameters;
@@ -310,37 +391,42 @@ namespace Nanite
 			PassParameters->MeshDataBuffer = GraphBuilder.CreateUAV(MeshDataBuffer);
 			PassParameters->VertexBuffer = nullptr;
 			PassParameters->IndexBuffer = nullptr;
+
+			PassParameters->OutputClustersRW = GraphBuilder.CreateUAV(OutputClustersBuffer);
+			PassParameters->OutputClustersStateRW = OutputClustersStateUAV;
 			
 			PassParameters->StreamOutCutError = CutError;
 
 			ShaderPrint::SetParameters(GraphBuilder, PassParameters->ShaderPrint);
 
-			FNaniteStreamOutCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FNaniteStreamOutCS::FCountVerticesAndTrianglesDim>(true);
+			FNaniteStreamOutTraversalCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FNaniteStreamOutTraversalCS::FCountVerticesAndTrianglesDim>(true);
+			PermutationVector.Set<FNaniteStreamOutTraversalCS::FCacheClustersDim>(GNaniteStreamOutCacheTraversalData);
 
-			auto ComputeShader = ShaderMap->GetShader<FNaniteStreamOutCS>(PermutationVector);
+			auto ComputeShader = ShaderMap->GetShader<FNaniteStreamOutTraversalCS>(PermutationVector);
 
 			const FIntVector GroupCount = FIntVector(GRHIPersistentThreadGroupCount, 1, 1);
 			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("NaniteStreamOut::CountVerticesAndTriangles"), ComputeShader, PassParameters, GroupCount);
 		}
 
-		AddInitQueuePass(
-			GraphBuilder,
-			ShaderMap,
-			QueueParameters,
-			GraphBuilder.CreateSRV(RequestBuffer),
-			NumRequests,
-			true,
-			GraphBuilder.CreateUAV(MeshDataBuffer),
-			GraphBuilder.CreateUAV(VertexAndIndexAllocatorBuffer),
-			0,
-			1,
-			MaxNumVertices,
-			MaxNumIndices);
-
 		// write pass
+		if(!GNaniteStreamOutCacheTraversalData)
 		{
-			FNaniteStreamOutCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteStreamOutCS::FParameters>();
+			AddInitQueuePass(
+				GraphBuilder,
+				ShaderMap,
+				QueueParameters,
+				GraphBuilder.CreateSRV(RequestBuffer),
+				NumRequests,
+				true,
+				GraphBuilder.CreateUAV(MeshDataBuffer),
+				GraphBuilder.CreateUAV(VertexAndIndexAllocatorBuffer),
+				0,
+				1,
+				MaxNumVertices,
+				MaxNumIndices);
+
+			auto* PassParameters = GraphBuilder.AllocParameters<FNaniteStreamOutTraversalCS::FParameters>();
 
 			PassParameters->GPUScenePrimitiveSceneData = GPUScenePrimitiveBufferSRV;
 
@@ -356,7 +442,7 @@ namespace Nanite
 
 			PassParameters->SegmentMappingBuffer = GraphBuilder.CreateSRV(SegmentMappingBuffer);
 
-			PassParameters->AuxiliaryDataBufferRW = AuxiliaryDataBufferUAV;
+			PassParameters->AuxiliaryDataBufferRW = GraphBuilder.CreateUAV(AuxiliaryDataBuffer);
 
 			PassParameters->MeshDataBuffer = GraphBuilder.CreateUAV(MeshDataBuffer);
 			PassParameters->VertexBuffer = GraphBuilder.CreateUAV(VertexBuffer);
@@ -366,13 +452,78 @@ namespace Nanite
 
 			ShaderPrint::SetParameters(GraphBuilder, PassParameters->ShaderPrint);
 
-			FNaniteStreamOutCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FNaniteStreamOutCS::FCountVerticesAndTrianglesDim>(false);
+			FNaniteStreamOutTraversalCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FNaniteStreamOutTraversalCS::FCountVerticesAndTrianglesDim>(false);
+			PermutationVector.Set<FNaniteStreamOutTraversalCS::FCacheClustersDim>(false);
 
-			auto ComputeShader = ShaderMap->GetShader<FNaniteStreamOutCS>(PermutationVector);
+			auto ComputeShader = ShaderMap->GetShader<FNaniteStreamOutTraversalCS>(PermutationVector);
 
 			const FIntVector GroupCount = FIntVector(GRHIPersistentThreadGroupCount, 1, 1);
 			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("NaniteStreamOut::StreamOut"), ComputeShader, PassParameters, GroupCount);
+		}
+		else
+		{
+			FRDGBufferRef StreamOutDispatchIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(), TEXT("NaniteStreamOut.DispatchIndirectArgs"));
+
+			// allocate vertex and index buffer ranges
+			{
+				auto* PassParameters = GraphBuilder.AllocParameters<FAllocateRangesCS::FParameters>();
+
+				PassParameters->StreamOutRequests = GraphBuilder.CreateSRV(RequestBuffer);
+				PassParameters->NumRequests = NumRequests;
+
+				PassParameters->MeshDataBuffer = GraphBuilder.CreateUAV(MeshDataBuffer);
+
+				PassParameters->VertexAndIndexAllocator = GraphBuilder.CreateUAV(VertexAndIndexAllocatorBuffer);
+				PassParameters->CurrentAllocationFrameIndex = 0;
+				PassParameters->NumAllocationFrames = 1;
+				PassParameters->VertexBufferSize = MaxNumVertices;
+				PassParameters->IndexBufferSize = MaxNumIndices;
+
+				PassParameters->OutputClustersStateRW = OutputClustersStateUAV;
+				PassParameters->StreamOutDispatchIndirectArgsRW = GraphBuilder.CreateUAV(StreamOutDispatchIndirectArgsBuffer);
+
+				ShaderPrint::SetParameters(GraphBuilder, PassParameters->ShaderPrint);
+
+				auto ComputeShader = ShaderMap->GetShader<FAllocateRangesCS>();
+
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("NaniteStreamOut::AllocateRanges"), ComputeShader, PassParameters, FComputeShaderUtils::GetGroupCountWrapped(NumRequests, 64));
+			}
+
+			// stream out mesh data
+			{
+				auto* PassParameters = GraphBuilder.AllocParameters<FNaniteStreamOutCS::FParameters>();
+
+				PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
+				PassParameters->PageConstants.X = 0;
+				PassParameters->PageConstants.Y = Nanite::GStreamingManager.GetMaxStreamingPages();
+
+				PassParameters->StreamOutRequests = GraphBuilder.CreateSRV(RequestBuffer);
+				PassParameters->NumRequests = NumRequests;
+
+				PassParameters->SegmentMappingBuffer = GraphBuilder.CreateSRV(SegmentMappingBuffer);
+
+				PassParameters->AuxiliaryDataBufferRW = GraphBuilder.CreateUAV(AuxiliaryDataBuffer);
+
+				PassParameters->MeshDataBuffer = GraphBuilder.CreateUAV(MeshDataBuffer);
+				PassParameters->VertexBuffer = GraphBuilder.CreateUAV(VertexBuffer);
+				PassParameters->IndexBuffer = GraphBuilder.CreateUAV(IndexBuffer);
+
+				PassParameters->OutputClusters = GraphBuilder.CreateSRV(OutputClustersBuffer);
+				PassParameters->OutputClustersStateRW = OutputClustersStateUAV;
+
+				PassParameters->IndirectArgs = StreamOutDispatchIndirectArgsBuffer;
+
+				ShaderPrint::SetParameters(GraphBuilder, PassParameters->ShaderPrint);
+
+				auto ComputeShader = ShaderMap->GetShader<FNaniteStreamOutCS>();
+
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("NaniteStreamOut::StreamOut"), ComputeShader, PassParameters, StreamOutDispatchIndirectArgsBuffer, 0);
+			}
+
+			{
+				// again with different method
+			}
 		}
 	}
 } // namespace Nanite

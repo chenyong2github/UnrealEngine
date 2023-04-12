@@ -420,6 +420,8 @@ namespace Nanite
 			return;
 		}
 
+		RDG_EVENT_SCOPE(GraphBuilder, "Nanite::FRayTracingManager::ProcessUpdateRequests");
+
 		bUpdating = true;
 
 		FReadbackData& ReadbackData = ReadbackBuffers[ReadbackBuffersWriteIndex];
@@ -584,7 +586,7 @@ namespace Nanite
 
 		// scheduling pending builds
 		{
-			checkf(ScheduledBuilds.IsEmpty(), TEXT("Scheduled builds were not dispacthed last frame."));
+			checkf(ScheduledBuilds.IsEmpty(), TEXT("Scheduled builds were not dispatched last frame."));
 
 			for (const FPendingBuild& PendingBuild : PendingBuilds)
 			{
