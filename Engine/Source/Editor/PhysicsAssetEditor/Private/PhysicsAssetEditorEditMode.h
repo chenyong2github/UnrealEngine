@@ -50,6 +50,8 @@ public:
 	virtual bool GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData) override;
 	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy *HitProxy, const FViewportClick &Click) override;
 	virtual bool IsCompatibleWith(FEditorModeID OtherModeID) const override { return true; }
+	virtual bool ReceivedFocus(FEditorViewportClient* ViewportClient, FViewport* Viewport);
+	virtual bool LostFocus(FEditorViewportClient* ViewportClient, FViewport* Viewport);
 
 private:
 	/** Simulation mouse forces */
@@ -75,6 +77,9 @@ private:
 	void OpenConstraintMenu(FEditorViewportClient* InViewportClient);
 
 	void OpenSelectionMenu(FEditorViewportClient* InViewportClient);
+
+	/** Returns the identifier for the constraint frame (child or parent) in which the manipulator widget should be drawn. */
+	EConstraintFrame::Type GetConstraintFrameForWidget() const;
 
 private:
 	/** Shared data */

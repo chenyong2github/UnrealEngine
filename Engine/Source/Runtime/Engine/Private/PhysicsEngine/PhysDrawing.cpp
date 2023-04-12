@@ -1358,24 +1358,6 @@ static void DrawLinearLimit(FPrimitiveDrawInterface* PDI, const FVector& Origin,
 	}
 }
 
-//creates fan shape along visualized axis for rotation axis of length Length
-FMatrix HelpBuildFan(const FTransform& Con1Frame, const FTransform& Con2Frame, EAxis::Type DrawOnAxis, EAxis::Type RotationAxis, float Length)
-{
-	FVector Con1DrawOnAxis = Con1Frame.GetScaledAxis(DrawOnAxis);
-	FVector Con2DrawOnAxis = Con2Frame.GetScaledAxis(DrawOnAxis);
-
-	FVector Con1RotationAxis = Con1Frame.GetScaledAxis(RotationAxis);
-	FVector Con2RotationAxis = Con2Frame.GetScaledAxis(RotationAxis);
-
-	// Rotate parent twist ref axis
-	FQuat Con2ToCon1Rot = FQuat::FindBetween(Con2RotationAxis, Con1RotationAxis);
-	FVector Con2InCon1DrawOnAxis = Con2ToCon1Rot.RotateVector(Con2DrawOnAxis);
-
-	FTransform ConeLimitTM(Con2InCon1DrawOnAxis, Con1RotationAxis ^ Con2InCon1DrawOnAxis, Con1RotationAxis, Con1Frame.GetTranslation());
-	FMatrix ConeToWorld = FScaleMatrix(FVector(Length * 0.9f)) * ConeLimitTM.ToMatrixWithScale();
-	return ConeToWorld;
-}
-
 //builds radians for limit based on limit type
 float HelpBuildAngle(float LimitAngle, EAngularConstraintMotion LimitType)
 {
@@ -1387,13 +1369,12 @@ float HelpBuildAngle(float LimitAngle, EAngularConstraintMotion LimitType)
 	}
 }
 
-
 FPrimitiveDrawInterface* FConstraintInstance::FPDIOrCollector::GetPDI() const
 {
 	return PDI ? PDI : Collector->GetPDI(ViewIndex);
 }
 
-void FConstraintInstance::FPDIOrCollector::DrawCylinder(const FVector& Start, const FVector& End, float Thickness, FMaterialRenderProxy* MaterialProxy, ESceneDepthPriorityGroup DepthPriority) const
+void FConstraintInstance::FPDIOrCollector::DrawCylinder(const FVector& Start, const FVector& End, const float Thickness, const FMaterialRenderProxy* const MaterialProxy, const ESceneDepthPriorityGroup DepthPriority) const
 {
 	if (HasCollector())
 	{
@@ -1403,6 +1384,35 @@ void FConstraintInstance::FPDIOrCollector::DrawCylinder(const FVector& Start, co
 	{
 		::DrawCylinder(PDI, Start, End, Thickness, 4, MaterialProxy, DepthPriority);
 	}
+}
+
+void FConstraintInstance::FPDIOrCollector::DrawCone(const FMatrix& ConeTransform, const float AngleWidth, const float AngleHeight, const uint32 NumSides, const FColor& PDIColor, const FMaterialRenderProxy* MaterialRenderProxy, const ESceneDepthPriorityGroup DepthPriority) const
+{
+	if (HasCollector())
+	{
+		GetConeMesh(ConeTransform, FMath::RadiansToDegrees(AngleWidth), FMath::RadiansToDegrees(AngleHeight), NumSides, MaterialRenderProxy, DepthPriority, ViewIndex, *Collector);
+	}
+	else
+	{
+		::DrawCone(GetPDI(), ConeTransform, AngleWidth, AngleHeight, NumSides, false, PDIColor, MaterialRenderProxy, DepthPriority);
+	}
+}
+
+void FConstraintInstance::FPDIOrCollector::DrawArrow(const FMatrix& ArrowTransform, const float Length, const float Thickness, const uint32 NumSides, const FColor& PDIColor, const FMaterialRenderProxy* MaterialRenderProxy, const ESceneDepthPriorityGroup DepthPriority) const
+{
+	const FVector ArrowDirection = ArrowTransform.GetScaledAxis(EAxis::X);
+	const FVector ArrowPosition = ArrowTransform.GetOrigin();
+	
+	// Draw the arrow shaft as a cylinder.	
+	DrawCylinder(ArrowPosition, ArrowPosition + Length * ArrowDirection, Thickness, MaterialRenderProxy, DepthPriority);
+
+	// Draw the arrow head as a cone on the end of the shaft.
+	FMatrix ArrowHeadTM = ArrowTransform;
+	ArrowHeadTM.SetOrigin(ArrowPosition + Length * 1.05 * ArrowDirection);
+	const float ConeAngle = UE_PI / 4;
+	const FMatrix ConeToWorld = FScaleMatrix(FVector(Length * -0.1f)) * ArrowHeadTM;
+
+	DrawCone(ConeToWorld, ConeAngle, ConeAngle, NumSides, PDIColor, MaterialRenderProxy, DepthPriority);
 }
 
 void FConstraintInstance::GetUsedMaterials(TArray<UMaterialInterface*>& Materials)
@@ -1434,8 +1444,8 @@ void FConstraintInstance::DrawConstraintImp(const FPDIOrCollector& PDIOrCollecto
 	static UMaterialInterface * LimitMaterialZ = GEngine->ConstraintLimitMaterialZ;
 	static UMaterialInterface * LimitMaterialZAxis = GEngine->ConstraintLimitMaterialZAxis;
 	
-	FVector Con1Pos = Con1Frame.GetTranslation();
-	FVector Con2Pos = Con2Frame.GetTranslation();
+	const FVector Con1Pos = Con1Frame.GetTranslation();
+	const FVector Con2Pos = Con2Frame.GetTranslation();
 
 	float Length = (bDrawSelected ? SelectedJointRenderSize : UnselectedJointRenderSize) * Scale;
 	float Thickness = JointRenderThickness;
@@ -1461,7 +1471,7 @@ void FConstraintInstance::DrawConstraintImp(const FPDIOrCollector& PDIOrCollecto
 		const bool bLockSwing2 = GetAngularSwing2Motion() == ACM_Locked;
 		const bool bLockAllSwing = bLockSwing1 && bLockSwing2;
 
-		// If swing is limited (but not locked) - draw the limit cone.
+		// If swing is limited (but not locked) - draw the swing limit cone.
 		if (!bLockAllSwing)
 		{
 			if (ProfileInstance.ConeLimit.Swing1Motion == ACM_Free && ProfileInstance.ConeLimit.Swing2Motion == ACM_Free)
@@ -1477,71 +1487,52 @@ void FConstraintInstance::DrawConstraintImp(const FPDIOrCollector& PDIOrCollecto
 			}
 			else
 			{
-				FTransform ConeLimitTM = Con2Frame;
-				ConeLimitTM.SetTranslation(Con1Frame.GetTranslation());
-
+				const FTransform ConeLimitTM = Con2Frame;
 				const float Swing1Ang = HelpBuildAngle(GetAngularSwing1Limit(), GetAngularSwing1Motion());
 				const float Swing2Ang = HelpBuildAngle(GetAngularSwing2Limit(), GetAngularSwing2Motion());
-				FMatrix ConeToWorld = FScaleMatrix(FVector(Length * 0.9f)) * ConeLimitTM.ToMatrixWithScale();
-
-				if (PDIOrCollector.HasCollector())
-				{
-					GetConeMesh(ConeToWorld, FMath::RadiansToDegrees(Swing1Ang), FMath::RadiansToDegrees(Swing2Ang), DrawConeLimitSides, LimitMaterialX->GetRenderProxy(), Layer, PDIOrCollector.ViewIndex, *PDIOrCollector.Collector);
-				}
-				else
-				{
-					DrawCone(PDI, ConeToWorld, Swing1Ang, Swing2Ang, DrawConeLimitSides, false, JointLimitColor, LimitMaterialX->GetRenderProxy(), Layer);
-				}
+				const FMatrix ConeToWorld = FScaleMatrix(FVector(Length * 0.9f)) * ConeLimitTM.ToMatrixWithScale();
+				PDIOrCollector.DrawCone(ConeToWorld, Swing1Ang, Swing2Ang, DrawConeLimitSides, JointLimitColor, LimitMaterialX->GetRenderProxy(), Layer);
 			}
+	
+			// Draw the swing Dial indicator - shows the current orientation of the child frame relative to the parent frame on the swing axis.	
+			FTransform ArrowTM = Con1Frame;
+			ArrowTM.SetTranslation(Con2Pos);
+			PDIOrCollector.DrawArrow(ArrowTM.ToMatrixWithScale(), Length, Thickness, DrawConeLimitSides, JointLimitColor, LimitMaterialX->GetRenderProxy(), Layer);
 		}
 
-		//twist
+		// Draw the twist limit - A green arc that shows the allowed range of rotation about the parent frame's x axis.
 		if (GetAngularTwistMotion() != ACM_Locked)
 		{
-			FMatrix ConeToWorld = HelpBuildFan(Con1Frame, Con2Frame, EAxis::Y, EAxis::X, Length);
-			float Limit = HelpBuildAngle(GetAngularTwistLimit(), GetAngularTwistMotion());
-			if (PDIOrCollector.HasCollector())
-			{
-				GetConeMesh(ConeToWorld, FMath::RadiansToDegrees(Limit), 0, DrawConeLimitSides, LimitMaterialY->GetRenderProxy(), Layer, PDIOrCollector.ViewIndex, *PDIOrCollector.Collector);
-			}
-			else
-			{
-				DrawCone(PDI, ConeToWorld, Limit, 0, DrawConeLimitSides, false, JointLimitColor, LimitMaterialY->GetRenderProxy(), Layer);
-			}
+			const FTransform ConeLimitTM(Con2Frame.GetScaledAxis(EAxis::Y), Con2Frame.GetScaledAxis(EAxis::Z), Con2Frame.GetScaledAxis(EAxis::X), Con2Frame.GetTranslation()); // Draw the fan in the parent frame (Con2Frame).
+			const FMatrix ConeToWorld = FScaleMatrix(FVector(Length * 0.9f)) * ConeLimitTM.ToMatrixWithScale();
+			const float LimitAngle = HelpBuildAngle(GetAngularTwistLimit(), GetAngularTwistMotion());
+			PDIOrCollector.DrawCone(ConeToWorld, LimitAngle, 0, DrawConeLimitSides, JointLimitColor, LimitMaterialY->GetRenderProxy(), Layer);
+
+			// Draw the twist Dial indicator - shows the current orientation of the child frame relative to the parent frame on the twist axis.
+			const FVector TwistIndicator = FVector::PointPlaneProject(Con1Frame.GetScaledAxis(EAxis::Y), FVector::ZeroVector, Con2Frame.GetUnitAxis(EAxis::X)).GetSafeNormal(); // project the y axis of the child frame into the parent frame's yz plane
+			const FTransform ArrowTM(TwistIndicator, Con2Frame.GetScaledAxis(EAxis::X), TwistIndicator ^ Con2Frame.GetScaledAxis(EAxis::X), Con2Frame.GetTranslation());
+			PDIOrCollector.DrawArrow(ArrowTM.ToMatrixWithScale(), Length, Thickness, DrawConeLimitSides, JointLimitColor, LimitMaterialYAxis->GetRenderProxy(), Layer);
 		}
 	}
 
-
 	//////////////////////////////////////////////////////////////////////////
 	// COORDINATE AXES
-	FVector Position = Con1Frame.GetTranslation();
 
-	PDIOrCollector.DrawCylinder(Position, Position + Length * Con1Frame.GetScaledAxis(EAxis::X), Thickness, LimitMaterialXAxis->GetRenderProxy(), Layer);
-	PDIOrCollector.DrawCylinder(Position, Position + Length * Con1Frame.GetScaledAxis(EAxis::Y), Thickness, LimitMaterialYAxis->GetRenderProxy(), Layer);
-	PDIOrCollector.DrawCylinder(Position, Position + Length * Con1Frame.GetScaledAxis(EAxis::Z), Thickness, LimitMaterialZAxis->GetRenderProxy(), Layer);
+	const float FrameTransformRenderSize = Length * 0.1f;
 
-	PDIOrCollector.DrawCylinder(Position, Position + Length * Con2Frame.GetScaledAxis(EAxis::X), Thickness, LimitMaterialXAxis->GetRenderProxy(), Layer);
-	PDIOrCollector.DrawCylinder(Position, Position + Length * Con2Frame.GetScaledAxis(EAxis::Y), Thickness, LimitMaterialYAxis->GetRenderProxy(), Layer);
-	PDIOrCollector.DrawCylinder(Position, Position + Length * Con2Frame.GetScaledAxis(EAxis::Z), Thickness, LimitMaterialZAxis->GetRenderProxy(), Layer);
-
-
-	//Draw arrow on twist axist
+	// Child Transform
 	{
-		FTransform ConeLimitTM = Con2Frame;
-		ConeLimitTM.SetTranslation(Con1Frame.GetTranslation() + Length*1.05*Con2Frame.GetScaledAxis(EAxis::X));
+		PDIOrCollector.DrawCylinder(Con1Pos, Con1Pos + FrameTransformRenderSize * Con1Frame.GetScaledAxis(EAxis::X), Thickness, LimitMaterialXAxis->GetRenderProxy(), Layer);
+		PDIOrCollector.DrawCylinder(Con1Pos, Con1Pos + FrameTransformRenderSize * Con1Frame.GetScaledAxis(EAxis::Y), Thickness, LimitMaterialYAxis->GetRenderProxy(), Layer);
+		PDIOrCollector.DrawCylinder(Con1Pos, Con1Pos + FrameTransformRenderSize * Con1Frame.GetScaledAxis(EAxis::Z), Thickness, LimitMaterialZAxis->GetRenderProxy(), Layer);
+	}
 
-		const float Swing1Ang = UE_PI / 4;
-		const float Swing2Ang = UE_PI / 4;
-		FMatrix ConeToWorld = FScaleMatrix(FVector(Length * -0.1f)) * ConeLimitTM.ToMatrixWithScale();
-
-		if (PDIOrCollector.HasCollector())
-		{
-			GetConeMesh(ConeToWorld, FMath::RadiansToDegrees(Swing1Ang), FMath::RadiansToDegrees(Swing2Ang), DrawConeLimitSides, LimitMaterialXAxis->GetRenderProxy(), Layer, PDIOrCollector.ViewIndex, *PDIOrCollector.Collector);
-		}
-		else
-		{
-			DrawCone(PDI, ConeToWorld, Swing1Ang, Swing2Ang, DrawConeLimitSides, false, JointLimitColor, LimitMaterialXAxis->GetRenderProxy(), Layer);
-		}
+	// Parent Transform
+	{
+		const FVector Position = Con2Frame.GetTranslation();
+		PDIOrCollector.DrawCylinder(Con2Pos, Con2Pos + FrameTransformRenderSize * Con2Frame.GetScaledAxis(EAxis::X), Thickness, LimitMaterialXAxis->GetRenderProxy(), Layer);
+		PDIOrCollector.DrawCylinder(Con2Pos, Con2Pos + FrameTransformRenderSize * Con2Frame.GetScaledAxis(EAxis::Y), Thickness, LimitMaterialYAxis->GetRenderProxy(), Layer);
+		PDIOrCollector.DrawCylinder(Con2Pos, Con2Pos + FrameTransformRenderSize * Con2Frame.GetScaledAxis(EAxis::Z), Thickness, LimitMaterialZAxis->GetRenderProxy(), Layer);
 	}
 
 	//////////////////////////////////////////////////////////////////////////

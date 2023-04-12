@@ -228,6 +228,8 @@ FViewportClick::FViewportClick(const FSceneView* View, FEditorViewportClient* Vi
 	AltDown = ViewportClient->IsAltPressed();
 }
 
+static const FName InputChordName_CameraLockedToWidget = FName("InputChordName_CameraLockedToWidget");
+
 FViewportClick::~FViewportClick()
 {
 }
@@ -514,6 +516,8 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	FCoreDelegates::StatEnabled.AddRaw(this, &FEditorViewportClient::HandleViewportStatEnabled);
 	FCoreDelegates::StatDisabled.AddRaw(this, &FEditorViewportClient::HandleViewportStatDisabled);
 	FCoreDelegates::StatDisableAll.AddRaw(this, &FEditorViewportClient::HandleViewportStatDisableAll);
+
+	RegisterPrioritizedInputChord(FPrioritizedInputChord(10, InputChordName_CameraLockedToWidget, EModifierKey::Shift));
 
 	RequestUpdateDPIScale();
 
@@ -2549,7 +2553,7 @@ void FEditorViewportClient::MarkMouseMovedSinceClick()
 bool FEditorViewportClient::IsUsingAbsoluteTranslation(bool bAlsoCheckAbsoluteRotation) const
 {
 	bool bIsHotKeyAxisLocked = Viewport->KeyState(EKeys::LeftControl) || Viewport->KeyState(EKeys::RightControl);
-	bool bCameraLockedToWidget = !(Widget && Widget->GetCurrentAxis() & EAxisList::Screen) && (Viewport->KeyState(EKeys::LeftShift) || Viewport->KeyState(EKeys::RightShift));
+	bool bCameraLockedToWidget = !(Widget && Widget->GetCurrentAxis() & EAxisList::Screen) && IsPrioritizedInputChordPressed(InputChordName_CameraLockedToWidget);
 	// Screen-space movement must always use absolute translation
 	bool bScreenSpaceTransformation = Widget && (Widget->GetCurrentAxis() == EAxisList::Screen) && GetWidgetMode() != UE::Widget::WM_Rotate;
 	bool bAbsoluteMovementEnabled = GetDefault<ULevelEditorViewportSettings>()->bUseAbsoluteTranslation || bScreenSpaceTransformation;
@@ -3263,6 +3267,51 @@ bool FEditorViewportClient::IsCommandChordPressed(const TSharedPtr<FUICommandInf
 			&& (InOptionalKey.IsValid() ? (Chord.Key == InOptionalKey) : Viewport->KeyState(Chord.Key));
 	}
 	return bIsChordPressed;
+}
+
+void FEditorViewportClient::RegisterPrioritizedInputChord(const FPrioritizedInputChord& InInputChord)
+{
+	const int32 PreceedingElementIndex = PrioritizedInputChords.FindLastByPredicate([InInputChord](const FPrioritizedInputChord& Element) { return Element.Priority < InInputChord.Priority; });
+	const int32 TargetElementIndex = (PreceedingElementIndex != INDEX_NONE) ? PreceedingElementIndex + 1 : 0;
+	PrioritizedInputChords.Insert(InInputChord, TargetElementIndex);
+}
+
+void FEditorViewportClient::UnregisterPrioritizedInputChord(const FName InInputChordName)
+{
+	PrioritizedInputChords.RemoveAll([InInputChordName](const FPrioritizedInputChord& Element) { return Element.Name == InInputChordName; });
+}
+
+bool FEditorViewportClient::IsPrioritizedInputChordPressed(const FName InInputChordName) const
+{	
+	EModifierKey::Type ConsumedModifiers = EModifierKey::None;
+	TArray<FKey> ConsumedKeys;
+
+	// Iterate over all chords preceding the argument to determine if any key presses should be consumed before the target chord is evaluated.
+	for (const FPrioritizedInputChord& PrioritizedInputChord : PrioritizedInputChords)
+	{
+		const FInputChord& Chord = PrioritizedInputChord.InputChord;
+
+		bool IsPressed = true;
+		IsPressed &= !Chord.Key.IsValid()	|| (!ConsumedKeys.Contains(Chord.Key) && Viewport->KeyState(Chord.Key));
+		IsPressed &= !Chord.NeedsControl()	|| (!(ConsumedModifiers & EModifierKey::Control) && IsCtrlPressed());
+		IsPressed &= !Chord.NeedsAlt()		|| (!(ConsumedModifiers & EModifierKey::Alt) && IsAltPressed());
+		IsPressed &= !Chord.NeedsShift()	|| (!(ConsumedModifiers & EModifierKey::Shift) && IsShiftPressed());
+		IsPressed &= !Chord.NeedsCommand()	|| (!(ConsumedModifiers & EModifierKey::Command) && IsCmdPressed());
+
+		if (IsPressed)
+		{
+			// Mark all of the keys required by this chord as used so that they cannot be considered by any other, lower priority chords.
+			if (Chord.Key.IsValid()) { ConsumedKeys.Add(Chord.Key); }
+			ConsumedModifiers |= EModifierKey::FromBools(Chord.NeedsControl(), Chord.NeedsAlt(), Chord.NeedsShift(), Chord.NeedsCommand());
+		}
+
+		if (PrioritizedInputChord.Name == InInputChordName)
+		{
+			return IsPressed;
+		}
+	}	
+
+	return false;
 }
 
 void FEditorViewportClient::ProcessDoubleClickInViewport( const struct FInputEventState& InputState, FSceneView& View )

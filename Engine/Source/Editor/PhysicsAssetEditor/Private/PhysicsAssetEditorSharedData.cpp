@@ -2313,10 +2313,10 @@ void FPhysicsAssetEditorSharedData::SetConstraintRelTM(const FPhysicsAssetEditor
 	ConstraintSetup->Modify();
 
 	// Get child bone transform
-	int32 BoneIndex = EditorSkelMesh->GetRefSkeleton().FindBoneIndex(ConstraintSetup->DefaultInstance.ConstraintBone1);
+	const int32 BoneIndex = EditorSkelComp->GetBoneIndex(ConstraintSetup->DefaultInstance.ConstraintBone1);
 	if (BoneIndex != INDEX_NONE)
 	{
-		FTransform BoneTM = EditorSkelComp->GetBoneTransform(BoneIndex);
+		const FTransform BoneTM = EditorSkelComp->GetBoneTransform(BoneIndex);
 		ConstraintSetup->DefaultInstance.SetRefFrame(EConstraintFrame::Frame1, WNewChildFrame.GetRelativeTransform(BoneTM));
 	}
 }
@@ -2638,49 +2638,28 @@ void FPhysicsAssetEditorSharedData::DeleteCurrentPrim()
 
 FTransform FPhysicsAssetEditorSharedData::GetConstraintBodyTM(const UPhysicsConstraintTemplate* ConstraintSetup, EConstraintFrame::Type Frame) const
 {
-	if (ConstraintSetup == NULL)
+	if ((ConstraintSetup != nullptr) && (EditorSkelComp == nullptr))
 	{
-		return FTransform::Identity;
+		const FName BoneName = (Frame == EConstraintFrame::Frame1) ? ConstraintSetup->DefaultInstance.ConstraintBone1 : ConstraintSetup->DefaultInstance.ConstraintBone2;
+		const int32 BoneIndex = EditorSkelComp->GetBoneIndex(BoneName);
+
+		if (BoneIndex != INDEX_NONE)
+		{
+			FTransform BoneTM = EditorSkelComp->GetBoneTransform(BoneIndex);
+			BoneTM.RemoveScaling();
+			return BoneTM;
+		}
 	}
 
-	USkeletalMesh* EditorSkelMesh = PhysicsAsset->GetPreviewMesh();
-	if(EditorSkelMesh == nullptr)
-	{
-		return FTransform::Identity;
-	}
-
-	int32 BoneIndex;
-	if (Frame == EConstraintFrame::Frame1)
-	{
-		BoneIndex = EditorSkelMesh->GetRefSkeleton().FindBoneIndex(ConstraintSetup->DefaultInstance.ConstraintBone1);
-	}
-	else
-	{
-		BoneIndex = EditorSkelMesh->GetRefSkeleton().FindBoneIndex(ConstraintSetup->DefaultInstance.ConstraintBone2);
-	}
-
-	// If we couldn't find the bone - fall back to identity.
-	if (BoneIndex == INDEX_NONE)
-	{
-		return FTransform::Identity;
-	}
-	else
-	{
-		FTransform BoneTM = EditorSkelComp->GetBoneTransform(BoneIndex);
-		BoneTM.RemoveScaling();
-
-		return BoneTM;
-	}
+	return FTransform::Identity; // If we couldn't find the bone - fall back to identity.
 }
 
 FTransform FPhysicsAssetEditorSharedData::GetConstraintWorldTM(const UPhysicsConstraintTemplate* const ConstraintSetup, const EConstraintFrame::Type Frame, const float Scale) const
 {
-	USkeletalMesh* EditorSkelMesh = PhysicsAsset->GetPreviewMesh();
-
-	if ((ConstraintSetup != nullptr) && (EditorSkelMesh != nullptr))
+	if ((ConstraintSetup != nullptr) && (EditorSkelComp != nullptr))
 	{
 		const FName BoneName = (Frame == EConstraintFrame::Frame1) ? ConstraintSetup->DefaultInstance.ConstraintBone1 : ConstraintSetup->DefaultInstance.ConstraintBone2;
-		const int32 BoneIndex = EditorSkelMesh->GetRefSkeleton().FindBoneIndex(BoneName);
+		const int32 BoneIndex = EditorSkelComp->GetBoneIndex(BoneName);
 
 		if (BoneIndex != INDEX_NONE)
 		{	

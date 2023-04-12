@@ -27,6 +27,8 @@
 
 FName FPhysicsAssetEditorEditMode::ModeName("PhysicsAssetEditor");
 
+static const FName InputChordName_EditConstraintChildTransform = FName("InputChordName_EditConstraintChildTransform");
+
 FPhysicsAssetEditorEditMode::FPhysicsAssetEditorEditMode()
 	: MinPrimSize(0.5f)
 	, PhysicsAssetEditor_TranslateSpeed(0.25f)
@@ -422,7 +424,7 @@ bool FPhysicsAssetEditorEditMode::InputDelta(FEditorViewportClient* InViewportCl
 			if (SharedData->bManipulating)
 			{
 				float BoneScale = 1.f;
-				SelectedObject.WidgetTM = SharedData->GetConstraintMatrix(SelectedObject.Index, EConstraintFrame::Frame2, 1.f);
+				SelectedObject.WidgetTM = SharedData->GetConstraintMatrix(SelectedObject.Index, GetConstraintFrameForWidget(), 1.f);
 
 				if (InViewportClient->GetWidgetMode() == UE::Widget::WM_Translate)
 				{
@@ -519,11 +521,11 @@ void FPhysicsAssetEditorEditMode::Tick(FEditorViewportClient* ViewportClient, fl
 	{
 		RenderSettings->ConstraintViewportManipulationFlags = EConstraintTransformComponentFlags::All;
 
-		if (ViewportClient->IsShiftPressed() && ViewportClient->IsAltPressed()) // Shft + Alt + Move will rotate or move the child transform only.
+		if (ViewportClient->IsPrioritizedInputChordPressed(InputChordName_EditConstraintChildTransform)) // Rotate or move the child transform only.
 		{
 			EnumRemoveFlags(RenderSettings->ConstraintViewportManipulationFlags, EConstraintTransformComponentFlags::AllParent); // Remove Parent Frame flags.
 		}
-		else if (ViewportClient->IsAltPressed()) // Alt + Move will rotate or move the parent transform only.
+		else if (ViewportClient->IsAltPressed()) // Rotate or move the parent transform only.
 		{
 			EnumRemoveFlags(RenderSettings->ConstraintViewportManipulationFlags, EConstraintTransformComponentFlags::AllChild); // Remove Child Frame flags.
 		}	
@@ -654,6 +656,21 @@ bool FPhysicsAssetEditorEditMode::UsesTransformWidget(UE::Widget::EWidgetMode Ch
 	return ShouldDrawWidget() && (CheckMode == UE::Widget::WM_Scale || CheckMode == UE::Widget::WM_Translate || CheckMode == UE::Widget::WM_Rotate || CheckMode == UE::Widget::WM_None);
 }
 
+EConstraintFrame::Type FPhysicsAssetEditorEditMode::GetConstraintFrameForWidget() const
+{
+	FPhysicsAssetRenderSettings* const RenderSettings = SharedData->GetRenderSettings();
+
+	// Draw widget in the constraint's parent relative frame by default and in the child frame if the user is exclusively editing the child frame.
+	EConstraintFrame::Type ConstraintFrame = EConstraintFrame::Frame2;
+
+	if (RenderSettings && !EnumHasAnyFlags(RenderSettings->ConstraintViewportManipulationFlags, EConstraintTransformComponentFlags::AllParent))
+	{
+		ConstraintFrame = EConstraintFrame::Frame1;
+	}
+
+	return ConstraintFrame;
+}
+
 bool FPhysicsAssetEditorEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData)
 {
 	// Don't draw widget if nothing selected.
@@ -671,7 +688,7 @@ bool FPhysicsAssetEditorEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMa
 	}
 	else if (SharedData->GetSelectedConstraint())
 	{
-		InMatrix = SharedData->GetConstraintMatrix(SharedData->GetSelectedConstraint()->Index, EConstraintFrame::Frame2, 1.f).ToMatrixNoScale().RemoveTranslation();
+		InMatrix = SharedData->GetConstraintMatrix(SharedData->GetSelectedConstraint()->Index, GetConstraintFrameForWidget(), 1.f).ToMatrixNoScale().RemoveTranslation();
 		return true;
 	}
 
@@ -700,7 +717,7 @@ FVector FPhysicsAssetEditorEditMode::GetWidgetLocation() const
 	}
 	else if (SharedData->GetSelectedConstraint())
 	{
-		return SharedData->GetConstraintMatrix(SharedData->GetSelectedConstraint()->Index, EConstraintFrame::Frame2, 1.f).GetTranslation();
+		return SharedData->GetConstraintMatrix(SharedData->GetSelectedConstraint()->Index, GetConstraintFrameForWidget(), 1.f).GetTranslation();
 	}
 
 	return FVector::ZeroVector;
@@ -791,6 +808,20 @@ bool FPhysicsAssetEditorEditMode::HandleClick(FEditorViewportClient* InViewportC
 	}
 
 	return false;
+}
+
+bool FPhysicsAssetEditorEditMode::ReceivedFocus(FEditorViewportClient* ViewportClient, FViewport* Viewport)
+{
+	ViewportClient->RegisterPrioritizedInputChord(FPrioritizedInputChord(1, InputChordName_EditConstraintChildTransform, EModifierKey::Shift | EModifierKey::Alt));
+
+	return IPersonaEditMode::ReceivedFocus(ViewportClient, Viewport);
+}
+
+bool FPhysicsAssetEditorEditMode::LostFocus(FEditorViewportClient* ViewportClient, FViewport* Viewport)
+{
+	ViewportClient->UnregisterPrioritizedInputChord(InputChordName_EditConstraintChildTransform);
+
+	return IPersonaEditMode::LostFocus(ViewportClient, Viewport);
 }
 
 /** Helper function to open a viewport context menu */

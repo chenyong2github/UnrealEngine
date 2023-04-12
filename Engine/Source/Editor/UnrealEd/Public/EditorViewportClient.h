@@ -79,6 +79,26 @@ public:
 	TSharedPtr< FUICommandInfo > FovZoomOut;
 };
 
+// FPrioritizedInputChord
+//
+// Provides a way to resolve conflict between overlapping keyboard commands. Instances of this class 
+// are registered with an FEditorViewportClient instance and held in a prioritized list. When input 
+// matches one of them the keys referenced by that one are ignored when evaluating all lower priority 
+// instances.
+//
+struct FPrioritizedInputChord
+{	
+	FPrioritizedInputChord(const int32 InPriority, const FName InName, const EModifierKey::Type InModifierKeyFlags, const FKey InKey = EKeys::Invalid)
+	: InputChord(InModifierKeyFlags, InKey)
+	, Name(InName)
+	, Priority(InPriority)
+	{}
+
+	FInputChord InputChord;
+	FName Name;
+	int32 Priority;
+};
+
 struct FInputEventState
 {
 public:
@@ -1054,6 +1074,14 @@ public:
 	bool IsShiftPressed() const;
 	bool IsCmdPressed() const;
 	
+	// Functions for registering and evaluating prioritized input chords. 
+	// When a prioritized chord evaluates true its required keys are 
+	// ignored by all lower priority chords, providing a way to resolve 
+	// conflict between input key combinations.
+	void RegisterPrioritizedInputChord(const FPrioritizedInputChord& InInputCord);
+	void UnregisterPrioritizedInputChord(const FName InInputCordName);
+	bool IsPrioritizedInputChordPressed(const FName InInputCordName) const;
+
 	/**
 	 * Utility function to return whether the command accepts the key states
 	 * @param InCommand The command being checked
@@ -2009,6 +2037,9 @@ private:
 	FSceneViewFamily *DragStartViewFamily;
 
 	TArray<FIntPoint> CapturedMouseMoves;
+
+	/** A list of input key combinations, sorted by priority. See FPrioritizedInputChord. */
+	TArray<FPrioritizedInputChord> PrioritizedInputChords;
 
 	/** True if this is the current viewport client in editing */
 	bool bIsCurrentLevelEditingFocus = false;

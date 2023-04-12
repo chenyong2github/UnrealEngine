@@ -1025,7 +1025,10 @@ private:
 
 		FPrimitiveDrawInterface* GetPDI() const;
 
-		void DrawCylinder(const FVector& Start, const FVector& End, float Thickness, FMaterialRenderProxy* MaterialProxy, ESceneDepthPriorityGroup DepthPriority) const;
+		void DrawCylinder(const FVector& Start, const FVector& End, const float Thickness, const FMaterialRenderProxy* const MaterialProxy, const ESceneDepthPriorityGroup DepthPriority) const;
+		void DrawCone(const FMatrix& ConeTransform, const float AngleWidth, const float AngleHeight, const uint32 NumSides, const FColor& PDIColor, const FMaterialRenderProxy* const MaterialRenderProxy, const ESceneDepthPriorityGroup DepthPriority) const;
+		void DrawArrow(const FMatrix& ArrowTransform, const float Length, const float Thickness, const uint32 NumSides, const FColor& PDIColor, const FMaterialRenderProxy* const MaterialRenderProxy, const ESceneDepthPriorityGroup DepthPriority) const;
+
 	};
 
 	void DrawConstraintImp(const FPDIOrCollector& PDIOrCollector,
