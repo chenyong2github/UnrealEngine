@@ -24,10 +24,6 @@ public class D3D12RHI : ModuleRules
 
 		PublicIncludePathModuleNames.Add("HeadMountedDisplay");
 
-		///////////////////////////////////////////////////////////////
-        // Platform specific defines
-        ///////////////////////////////////////////////////////////////
-
 		if (!Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
         {
             PrecompileForTargets = PrecompileTargetsType.None;

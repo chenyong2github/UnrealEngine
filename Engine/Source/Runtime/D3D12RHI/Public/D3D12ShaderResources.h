@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	D3D12Resources.h: D3D resource RHI definitions.
+	D3D12ShaderResources.h: Public D3D12 RHI shader definitions.
 =============================================================================*/
 
 #pragma once

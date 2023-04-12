@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "D3D12RHI.h"
 #include "RayTracingBuiltInResources.h"
 
 enum class ED3D12RootSignatureFlags
