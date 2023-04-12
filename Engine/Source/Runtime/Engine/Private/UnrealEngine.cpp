@@ -17053,6 +17053,10 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 			{
 				FInstancedObjectRecord& Record = SavedInstances[*pOldInstanceIndex];
 				ReferenceReplacementMap.Add(Record.OldInstance, NewInstance);
+				if(Params.OptionalReplacementMappings)
+				{
+					Params.OptionalReplacementMappings->Add(Record.OldInstance, NewInstance);
+				}
 				if (bDoAggressiveReplacement || bAuditAggressiveReplacement)
 				{
 					UClass* Class = OldObject->GetClass()->GetSuperClass();
