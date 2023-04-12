@@ -10,7 +10,7 @@
 #include "Containers/Set.h"
 #include "Templates/Function.h"
 #include "UObject/ObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
+#include "UObject/WeakObjectPtr.h"
 
 class AActor;
 class APCGPartitionActor;

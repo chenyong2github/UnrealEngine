@@ -4,6 +4,7 @@
 
 #include "Math/BoxSphereBounds.h"
 #include "Math/GenericOctree.h"
+#include "Misc/ScopeRWLock.h"
 #include "UObject/ObjectPtr.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/SharedPointerFwd.h"
