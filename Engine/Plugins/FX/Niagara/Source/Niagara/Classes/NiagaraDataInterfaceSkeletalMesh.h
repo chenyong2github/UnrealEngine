@@ -721,7 +721,10 @@ public:
 	UPROPERTY(EditAnywhere, Category="Mesh")
 	TArray<FName> SamplingRegions;
 
-	/** If no regions are specified, we'll sample the whole mesh at this LODIndex. -1 indicates to use the last LOD.*/
+	/**
+	If no regions are specified, we'll sample the whole mesh at this LODIndex.
+	-1 will use the lowest quality LOD available, i.e. Number of LODs - 1.
+	*/
 	UPROPERTY(EditAnywhere, Category="Mesh")
 	int32 WholeMeshLOD;
 
