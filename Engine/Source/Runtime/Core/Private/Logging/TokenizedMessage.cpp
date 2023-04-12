@@ -230,9 +230,14 @@ FDocumentationToken::FDocumentationToken(const FString& InDocumentationLink, con
 	}
 }
 
-TSharedRef<FActionToken> FActionToken::Create(const FText& ActionName, const FText& ActionDescription, const FOnActionTokenExecuted& Action, bool bInSingleUse)
+TSharedRef<FActionToken> FActionToken::Create(const FText& InActionName, const FText& InActionDescription, const FOnActionTokenExecuted& InAction, bool bInSingleUse)
 {
-	return MakeShared<FActionToken>(FPrivateToken(), ActionName, ActionDescription, Action, bInSingleUse);
+	return MakeShared<FActionToken>(FPrivateToken(), InActionName, InActionDescription, InAction, bInSingleUse);
+}
+
+TSharedRef<FActionToken> FActionToken::Create(const FText& InActionName, const FText& InActionDescription, const FOnActionTokenExecuted& InAction, const FCanExecuteActionToken& InCanExecuteAction, bool bInSingleUse)
+{
+	return MakeShared<FActionToken>(FPrivateToken(), InActionName, InActionDescription, InAction, InCanExecuteAction, bInSingleUse);
 }
 
 TSharedRef<FTutorialToken> FTutorialToken::Create(const FString& TutorialAssetName)
