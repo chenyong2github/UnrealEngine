@@ -1,10 +1,10 @@
 {
 	"FileVersion": 3,
 	"Version": 2,
-	"VersionName": "2.0",
+	"VersionName": "2.1",
 	"FriendlyName": "AnimToTexture",
 	"Description": "Converts SkeletalMesh Animations into Textures",
-	"Category": "Other",
+	"Category": "Animation",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "https://epicgames.com",
 	"DocsURL": "",

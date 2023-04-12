@@ -43,6 +43,10 @@ void GetSkinWeights(const USkeletalMesh* SkeletalMesh, const int32 LODIndex,
 /** Reduce Weights from MAX_TOTAL_INFLUENCES to 4 */
 void ReduceSkinWeights(const TArray<VertexSkinWeightMax>& InSkinWeights, TArray<VertexSkinWeightFour>& OutSkinWeights);
 
+/* Interpolates an Array of SkinWeights with an Array of Weights(InverseDistanceWeights) */
+void InterpolateVertexSkinWeights(const TArray<VertexSkinWeightMax>& VertexSkinWeights, const TArray<float>& Weights,
+	VertexSkinWeightMax& OutVertexSkinWeights);
+
 /* Returns Number of RawBones (no virtual bones)*/
 int32 GetNumBones(const USkeletalMesh* SkeletalMesh);
 
@@ -57,5 +61,31 @@ bool HasBone(const USkeletalMesh* SkeletalMesh, const FName& Bone);
 /* Returns Bone Names. 
    Only the RawBones are returned (no virtual bones) */
 void GetBoneNames(const USkeletalMesh* SkeletalMesh, TArray<FName>& OutNames);
+
+/* Computes closest point to triangle */
+FVector3f FindClosestPointToTriangle(const FVector3f& Point, const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC);
+
+/* Computes Barycentric coordinates from point to triangle */
+FVector3f BarycentricCoordinates(const FVector3f& Point, const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC);
+
+/* Returns Point at Barycentric coordinates of the given triangle */
+FVector3f PointAtBarycentricCoordinates(const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC, const FVector3f& BarycentricCoords);
+
+/* Computes Triangle Normal (not normalized) */
+FVector3f GetTriangleNormal(const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC);
+
+/* Returns TangentIndex for Triangle 
+* TangentIndex 0: PointA - PointP
+* TangentIndex 1: PointB - PointP
+* TangentIndex 2: PointC - PointP */
+uint8 GetTriangleTangentIndex(const FVector3f& Point, const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC);
+
+/* Computes Triangle Matrix */
+FMatrix44f GetTriangleMatrix(const FVector3f& Point, const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC, const uint8 TangentIndex);
+
+// Returns a list of weights from Point to each of the given Points.
+// The returned Weights are the size of Points and normalized (sum to 1.0) 
+void InverseDistanceWeights(const FVector3f& Point, const TArray<FVector3f>& Points,
+	TArray<float>& OutWeights, float Sigma = 1.f);
 
 } // end namespace AnimToTexture_Private

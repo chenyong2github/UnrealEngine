@@ -8,50 +8,66 @@
 namespace AnimToTexture_Private
 {
 
-// Static to Skeletal Mapping
-struct FVertexToMeshMapping
+struct FSourceVertexDriverTriangleData
 {
-	// Closest SkeletalMesh Triangle
-	FIntVector3 Triangle;
-	// SkeletalMesh Triangle Barycentric Coordinates
-	FVector3f  BarycentricCoords;
-	// SkeletalMesh Triangle Inverted Matrix
-	FMatrix44f InvMatrix;
+	uint8               TangentIndex;
+	float               InverseDistanceWeight;
+	FIntVector3         Triangle;
+	FVector3f           ClosestPoint;
+	FVector3f           BarycentricCoords;
+	FMatrix44f          InvMatrix;
+	VertexSkinWeightMax SkinWeights;
+};
+
+class FSourceVertexData
+{
+public:
+
+	FSourceVertexData() = default;	
+	FSourceVertexData(const FVector3f& SourceVertex,
+		const TArray<FVector3f>& DriverVertices, const TArray<FIntVector3>& DriverTriangles, const TArray<VertexSkinWeightMax>& DriverSkinWeights, 
+		const float Sigma=1.f);
+
+	// DriverTriangle Data specific to this SourceVertex
+	TArray<FSourceVertexDriverTriangleData> DriverTriangleData;
 	
-	/* Transforms Point with given Triangle */
-	FVector3f TransformPosition(const FVector3f& Point, const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC) const;
+};
+
+// Creates Mapping between StaticMesh (Source) and SkeletalMesh (Driver)
+class FSourceMeshToDriverMesh
+{
+public:
+
+	FSourceMeshToDriverMesh() = default;
+	FSourceMeshToDriverMesh(const UStaticMesh* StaticMesh, const int32 StaticMeshLODIndex,
+		const USkeletalMesh* SkeletalMesh, const int32 SkeletalMeshLODIndex);
+
+	// Returns Number of Source Vertices
+	int32 GetNumSourceVertices() const;
+	// Returns Source Vertices
+	int32 GetSourceVertices(TArray<FVector3f>& OutVertices) const;
+	// Returns Source Normals
+	int32 GetSourceNormals(TArray<FVector3f>& OutNormals) const;
 	
-	/* Transforms Vector with given Triangle */
-	FVector3f TransformVector(const FVector3f& Vector, const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC) const;
-	
-	/* Interpolate VertexSkinWeights with Barycentric Coordinates */
-	void InterpolateVertexSkinWeights(const VertexSkinWeightMax& A, const VertexSkinWeightMax& B, const VertexSkinWeightMax& C,
-		VertexSkinWeightMax& OutWeights) const;
-	
-	/* Computes closest point to triangle*/
-	static FVector3f FindClosestPointToTriangle(const FVector3f& Point, const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC);
+	// Deforms Source Vertices with Driver Triangles
+	void DeformVerticesAndNormals(const TArray<FVector3f>& DriverVertices, 
+		TArray<FVector3f>& OutVertices, TArray<FVector3f>& OutNormals) const;
 
-	/* Computes Barycentric coordinates from point to triangle */
-	static FVector3f BarycentricCoordinates(const FVector3f& Point, const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC);
+	// Project SkinWeights
+	void ProjectSkinWeights(TArray<VertexSkinWeightMax>& OutSkinWeights) const;
 
-	/* Computes Triangle Normal */
-	static FVector3f GetTriangleNormal(const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC);
+private:
 
-	/* Computes Triangle Matrix */
-	static FMatrix44f GetTriangleMatrix(const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC);
+	// Size of Source Mesh
+	TArray<FVector3f>         SourceVertices;
+	TArray<FVector3f>         SourceNormals;
+	TArray<FSourceVertexData> SourceVerticesData;
 
-	/* Finds closest triangle, point on triangle and barycentric coordinates */
-	static int32 FindClosestTriangle(const FVector3f& Point, const TArray<FVector3f>& Vertices, const TArray<FIntVector3>& Triangles,
-		FVector3f& OutClosestPoint, FVector3f& OutBarycentricCoords);
+	// Driver Data
+	TArray<FVector3f>   DriverVertices;
+	TArray<FIntVector3> DriverTriangles;
+	TArray<VertexSkinWeightMax> DriverSkinWeights;
 
-	// Creates Mapping between StaticMesh and SkeletalMesh
-	static void Create(const UStaticMesh* StaticMesh, const int32 StaticMeshLODIndex,
-		const USkeletalMesh* SkeletalMesh, const int32 SkeletalMeshLODIndex,
-		TArray<FVertexToMeshMapping>& OutMapping);
-
-	/* Interpolate SkinWeights with VertexToMeshMapping */
-	static void InterpolateSkinWeights(const TArray<FVertexToMeshMapping>& Mapping, const TArray<VertexSkinWeightMax>& SkinWeights,
-		TArray<VertexSkinWeightMax>& OutSkinWeights);
 };
 
 } // end namespace AnimToTexture_Private

@@ -77,15 +77,18 @@ struct FAnimToTextureAnimSequenceInfo
 
 	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite, meta = (EditCondition = "bEnabled", EditConditionHides))
 	TObjectPtr<UAnimSequence> AnimSequence = nullptr;
-
+	
+	/* Use Custom FrameRange */
 	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite, meta = (EditCondition = "bEnabled", EditConditionHides))
 	bool bUseCustomRange = false;
 
+	/* Animation Start Frame */
 	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite, meta = (EditCondition = "bEnabled && bUseCustomRange", EditConditionHides))
 	int32 StartFrame = 0;
 
+	/* Animation End Frame (Inclusive) */
 	UPROPERTY(EditAnywhere, Category = Default, BlueprintReadWrite, meta = (EditCondition = "bEnabled && bUseCustomRange", EditConditionHides))
-	int32 EndFrame = 1;
+	int32 EndFrame = 0;
 
 };
 

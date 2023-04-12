@@ -7,6 +7,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
+#include "Algo/Reverse.h"
+#include "Math/NumericLimits.h"
 
 namespace AnimToTexture_Private
 {
@@ -194,6 +196,10 @@ void GetBoneNames(const USkeletalMesh* SkeletalMesh, TArray<FName>& OutNames)
 	{
 		OutNames[BoneIndex] = RefSkeleton.GetBoneName(BoneIndex);
 	}
+}
+FVector3f PointAtBarycentricCoordinates(const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC, const FVector3f& BarycentricCoords)
+{
+	return (PointA * BarycentricCoords.X) + (PointB * BarycentricCoords.Y) + (PointC * (1.f - BarycentricCoords.X - BarycentricCoords.Y));
 };
 
 void GetSkinWeights(const USkeletalMesh* SkeletalMesh, const int32 LODIndex, 
@@ -252,6 +258,68 @@ void GetSkinWeights(const USkeletalMesh* SkeletalMesh, const int32 LODIndex,
 			OutSkinWeights[VertexIndex].BoneWeights[Index] = BoneWeight;
 			OutSkinWeights[VertexIndex].MeshBoneIndices[Index] = MeshBoneIndex;
 		}
+	}
+}
+
+void InterpolateVertexSkinWeights(const TArray<VertexSkinWeightMax>& SkinWeights, const TArray<float>& Weights,
+	VertexSkinWeightMax& OutVertexSkinWeights)
+{
+	check(SkinWeights.Num() == Weights.Num())
+
+	// Reset Values
+	OutVertexSkinWeights.BoneWeights = TStaticArray<uint8, MAX_TOTAL_INFLUENCES>(InPlace, 0.f);
+	OutVertexSkinWeights.MeshBoneIndices = TStaticArray<uint16, MAX_TOTAL_INFLUENCES>(InPlace, 0);
+
+	// Create Sparse Weighted-SkinWeights
+	TMap<uint16, float> SparseSkinWeights;
+	SparseSkinWeights.Reserve(TNumericLimits<uint16>::Max());
+
+	for (int32 Index = 0; Index < SkinWeights.Num(); Index++)
+	{
+		for (int32 InfluIndex = 0; InfluIndex < MAX_TOTAL_INFLUENCES; InfluIndex++)
+		{
+			const uint8& BoneWeight = SkinWeights[Index].BoneWeights[InfluIndex];
+			const uint16& MeshBoneIndex = SkinWeights[Index].MeshBoneIndices[InfluIndex];
+
+			const float WeightedVertexSkinWeight = (float)BoneWeight / 255.f * Weights[Index];
+
+			if (WeightedVertexSkinWeight > SMALL_NUMBER)
+			{
+				float* Value = SparseSkinWeights.Find(MeshBoneIndex);
+
+				// Inititialize
+				if (Value == nullptr)
+				{
+					SparseSkinWeights.Add(MeshBoneIndex, WeightedVertexSkinWeight);
+				}
+				// Accumulate Weighted VertexSkinWeight
+				else
+				{
+					*Value += WeightedVertexSkinWeight;
+				}
+			}
+		}
+	}
+
+	// Convert Weights to uint8 (and get them ready for Sort)
+	TArray<TPair<uint8, uint16>> SortedVertexSkinWeights;
+	SortedVertexSkinWeights.SetNumZeroed(MAX_TOTAL_INFLUENCES); // note allocate the max 12 influences
+	int32 Index = 0;
+	for (const auto& Item : SparseSkinWeights)
+	{
+		const uint8 BoneWeight = (uint8)FMath::RoundToInt(Item.Value * 255.f);
+		const uint16& MeshBoneIndex = Item.Key;
+		SortedVertexSkinWeights[Index] = TPair<uint8, uint16>(BoneWeight, MeshBoneIndex);
+		Index++;
+	}
+
+	// Sort Weights InPlace and reverse
+	SortedVertexSkinWeights.Sort();
+	Algo::Reverse(SortedVertexSkinWeights);
+	for (int32 InfluIndex = 0; InfluIndex < MAX_TOTAL_INFLUENCES; InfluIndex++)
+	{
+		OutVertexSkinWeights.BoneWeights[InfluIndex] = SortedVertexSkinWeights[InfluIndex].Key;
+		OutVertexSkinWeights.MeshBoneIndices[InfluIndex] = SortedVertexSkinWeights[InfluIndex].Value;
 	}
 }
 
@@ -326,5 +394,173 @@ void GetSkinnedVertices(const USkeletalMeshComponent* SkeletalMeshComponent, con
 		OutPositions[VertexIndex] = SkinnedVertex;
 	};
 };
+
+FVector3f FindClosestPointToTriangle(const FVector3f& P, const FVector3f& A, const FVector3f& B, const FVector3f& C)
+{
+	const FVector3f AB = B - A;
+	const FVector3f AC = C - A;
+	const FVector3f AP = P - A;
+
+	const float D1 = FVector3f::DotProduct(AB, AP);
+	const float D2 = FVector3f::DotProduct(AC, AP);
+	if (D1 <= 0.f && D2 <= 0.f)
+	{
+		return A;
+	}
+
+	const FVector3f BP = P - B;
+	const float D3 = FVector3f::DotProduct(AB, BP);
+	const float D4 = FVector3f::DotProduct(AC, BP);
+	if (D3 >= 0.f && D4 <= D3)
+	{
+		return B;
+	}
+
+	const FVector3f CP = P - C;
+	const float D5 = FVector3f::DotProduct(AB, CP);
+	const float D6 = FVector3f::DotProduct(AC, CP);
+	if (D6 >= 0.f && D5 <= D6)
+	{
+		return C;
+	}
+
+	const float VC = D1 * D4 - D3 * D2;
+	if (VC <= 0.f && D1 >= 0.f && D3 <= 0.f)
+	{
+		const float V = D1 / (D1 - D3);
+		return A + V * AB;
+	}
+
+	const float VB = D5 * D2 - D1 * D6;
+	if (VB <= 0.f && D2 >= 0.f && D6 <= 0.f)
+	{
+		const float V = D2 / (D2 - D6);
+		return A + V * AC;
+	}
+
+	const float VA = D3 * D6 - D5 * D4;
+	if (VA <= 0.f && (D4 - D3) >= 0.f && (D5 - D6) >= 0.f)
+	{
+		const float V = (D4 - D3) / ((D4 - D3) + (D5 - D6));
+		return B + V * (C - B);
+	}
+
+	const float Denom = 1.0f / (VA + VB + VC);
+	const float V = VB * Denom;
+	const float W = VC * Denom;
+
+	return A + V * AB + W * AC;
+}
+
+FVector3f GetTriangleNormal(const FVector3f& A, const FVector3f& B, const FVector3f& C)
+{
+	const FVector3f V0 = B - A;
+	const FVector3f V1 = C - A;
+	return FVector3f::CrossProduct(V0, V1); // .GetSafeNormal();
+}
+
+uint8 GetTriangleTangentIndex(const FVector3f& P, const FVector3f& A, const FVector3f& B, const FVector3f& C)
+{
+	TArray<FVector3f> TangentVectors = { A - P, B - P, C - P };
+
+	float MaxDistance = 0.f;
+	uint8 TangentIndex = 0;
+	for (uint8 Index=0; Index < 3; Index++)
+	{
+		const float Distance = TangentVectors[Index].Length();
+		if (Distance > MaxDistance)
+		{
+			TangentIndex = Index;
+			MaxDistance = Distance;
+		}
+	}
+
+	return TangentIndex;
+}
+
+
+
+FMatrix44f GetTriangleMatrix(const FVector3f& P, const FVector3f& A, const FVector3f& B, const FVector3f& C, const uint8 TangentIndex)
+{
+	// Tangent Vector
+	FVector3f V0;
+	if (TangentIndex == 0)
+	{
+		V0 = A - P;
+	}
+	else if (TangentIndex == 1)
+	{
+		V0 = B - P;
+	}
+	else if (TangentIndex == 2)
+	{
+		V0 = C - P;
+	}
+
+	const FVector3f V1 = GetTriangleNormal(A, B, C);
+	const FVector3f V2 = FVector3f::CrossProduct(V0, V1);
+
+	FMatrix44f Matrix = FMatrix44f::Identity; // SetAxes doesn't set [3] elements.
+	Matrix.SetAxes(&V0, &V1, &V2, &P);
+
+	return Matrix;
+}
+
+FVector3f BarycentricCoordinates(const FVector3f& P, const FVector3f& A, const FVector3f& B, const FVector3f& C)
+{
+	const FVector3f V0 = B - A;
+	const FVector3f V1 = C - A;
+	const FVector3f V2 = P - A;
+	const float D00 = FVector3f::DotProduct(V0, V0);
+	const float D01 = FVector3f::DotProduct(V0, V1);
+	const float D11 = FVector3f::DotProduct(V1, V1);
+	const float D20 = FVector3f::DotProduct(V2, V0);
+	const float D21 = FVector3f::DotProduct(V2, V1);
+	const float Denom = 1.0f / (D00 * D11 - D01 * D01);
+
+	const float V = (D11 * D20 - D01 * D21) * Denom;
+	const float W = (D00 * D21 - D01 * D20) * Denom;
+	const float U = 1.0f - V - W;
+
+	return FVector3f(U, V, W);
+}
+
+void InverseDistanceWeights(const FVector3f& Point, const TArray<FVector3f>& Points,
+	TArray<float>& OutWeights, float Sigma)
+{
+	// Allocate
+	const int32 Count = Points.Num();
+	OutWeights.SetNumZeroed(Count);
+
+	float SumInverseDistance = 0.f;
+	TArray<float> InverseDistances;
+	InverseDistances.SetNumUninitialized(Count);
+
+	for (int32 Index = 0; Index < Count; Index++)
+	{
+		const float Distance = FVector3f::Distance(Point, Points[Index]);
+
+		// No need to interpolate if we are right on top of point.
+		if (Distance < UE_KINDA_SMALL_NUMBER)
+		{
+			OutWeights[Index] = 1.f;
+			return;
+		}
+
+		InverseDistances[Index] = 1.f / FMath::Pow(Distance, Sigma);
+		if (InverseDistances[Index] < UE_KINDA_SMALL_NUMBER)
+		{
+			InverseDistances[Index] = 0.f;
+		}
+		SumInverseDistance += InverseDistances[Index];
+	}
+
+	// Normalize Weights
+	for (int32 Index = 0; Index < Count; Index++)
+	{
+		OutWeights[Index] = InverseDistances[Index] / SumInverseDistance;
+	}
+}
+
 
 } // end namespace AnimToTexture_Private

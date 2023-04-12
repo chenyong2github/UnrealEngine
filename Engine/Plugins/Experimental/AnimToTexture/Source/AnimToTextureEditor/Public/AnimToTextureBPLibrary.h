@@ -60,7 +60,7 @@ private:
 	// Get Vertex and Normals from Current Pose
 	// The VertexDelta is returned from the RefPose
 	static void GetVertexDeltasAndNormals(const USkeletalMeshComponent* SkeletalMeshComponent, const int32 LODIndex, 
-		const TArray<FVector3f>& Vertices, const TArray<FVector3f>& Normals, const TArray<AnimToTexture_Private::FVertexToMeshMapping>& Mapping,
+		const AnimToTexture_Private::FSourceMeshToDriverMesh& SourceMeshToDriverMesh,
 		const FTransform RootTransform,
 		TArray<FVector3f>& OutVertexDeltas, TArray<FVector3f>& OutVertexNormals);
 

@@ -110,7 +110,9 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		{
 			// Check Frame Range
 			if (AnimSequenceInfo.bUseCustomRange &&
-				(AnimSequenceInfo.EndFrame - AnimSequenceInfo.StartFrame) <= 0)
+				(AnimSequenceInfo.StartFrame < 0 ||
+				 AnimSequenceInfo.EndFrame > AnimSequence->GetNumberOfSampledKeys() - 1 ||
+				 AnimSequenceInfo.EndFrame - AnimSequenceInfo.StartFrame < 0 ))
 			{
 				UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid Custom Range for AnimSequence: %s"), *AnimSequence->GetName());
 				return false;
@@ -131,21 +133,15 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 	//       Since they dont have same number of points.
 	//
 
-	// Get Static Vertices 
-	// NOTE: these are the RenderData Vertices.
-	TArray<FVector3f> Vertices;
-	TArray<FVector3f> Normals;
-	const int32 NumVertices = GetVertices(DataAsset->GetStaticMesh(), DataAsset->StaticLODIndex, Vertices, Normals);
-
-	// Get SkeletalMesh Vertices 
-	TArray<FVector3f> SkelVertices;
-	GetVertices(DataAsset->GetSkeletalMesh(), DataAsset->SkeletalLODIndex, SkelVertices);
+	// Get SourceMeshToDriverMesh
+	FSourceMeshToDriverMesh Mapping(DataAsset->GetStaticMesh(), DataAsset->StaticLODIndex, DataAsset->GetSkeletalMesh(), DataAsset->SkeletalLODIndex);
 	
-	// Get Mapping
-	TArray<FVertexToMeshMapping> Mapping;
-	FVertexToMeshMapping::Create(
-		DataAsset->GetStaticMesh(), DataAsset->StaticLODIndex,
-		DataAsset->GetSkeletalMesh(), DataAsset->SkeletalLODIndex, Mapping);
+	// Get Number of Source Vertices (StaticMesh)
+	const int32 NumVertices = Mapping.GetNumSourceVertices();
+	if (!NumVertices)
+	{
+		return false;
+	}
 
 	// ---------------------------------------------------------------------------
 	// Get Reference Skeleton Transforms
@@ -184,6 +180,8 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 			return false;
 		}
 
+		// TODO: SocketIndex can only be < TNumericLimits<uint16>::Max()
+		
 		// Add RefPose 
 		// Note: this is added in the first frame of the Bone Position and Rotation Textures
 		BonePositions.Append(BoneRefPositions);
@@ -218,8 +216,6 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 	
 	// Get Animation Frames Data
 	//
-	const float SampleInterval = 1.f / DataAsset->SampleRate;
-
 	for (const FAnimToTextureAnimSequenceInfo& AnimSequenceInfo : DataAsset->AnimSequences)
 	{
 		UAnimSequence* AnimSequence = AnimSequenceInfo.AnimSequence;
@@ -230,6 +226,7 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		}
 		
 		// Make sure SkeletalMesh is compatible with AnimSequence
+		// TODO: move this to early Checks.
 		if (!SkeletalMeshComponent->GetSkeletalMeshAsset()->GetSkeleton()->IsCompatibleForEditor(AnimSequence->GetSkeleton()))
 		{
 			UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid AnimSequence: %s for given SkeletalMesh: %s"), *AnimSequence->GetFName().ToString(), *SkeletalMeshComponent->GetSkeletalMeshAsset()->GetFName().ToString());
@@ -237,43 +234,40 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		}
 		// Set AnimSequence
 		else
-		{			
+		{
 			SkeletalMeshComponent->SetAnimation(AnimSequence);
 		}
 
 		// -----------------------------------------------------------------------------------
 		// Get Number of Frames
 		//
-		int32 StartFrame;
-		int32 EndFrame;
+		int32 AnimStartFrame;
+		int32 AnimEndFrame;
 		
 		// Get Range from AnimSequence
 		if (!AnimSequenceInfo.bUseCustomRange)
 		{
-			StartFrame = 0;
-			EndFrame = AnimSequence->GetNumberOfSampledKeys() - 1; // AnimSequence->GetNumberOfFrames();
+			AnimStartFrame = 0;
+			AnimEndFrame = AnimSequence->GetNumberOfSampledKeys() - 1; // AnimSequence->GetNumberOfFrames();
 		}
 		// Get Range from DataAsset
 		else
 		{
-			StartFrame = AnimSequenceInfo.StartFrame;
-			EndFrame = AnimSequenceInfo.EndFrame;
-		}
-		if (EndFrame - StartFrame <= 0)
-		{
-			continue;
+			AnimStartFrame = AnimSequenceInfo.StartFrame;
+			AnimEndFrame = AnimSequenceInfo.EndFrame;
 		}
 		
 		// ---------------------------------------------------------------------------
 		// 
-		float Time = 0.f;
-		const float EndTime = AnimSequence->GetTimeAtFrame(EndFrame);
+		const int32 AnimNumFrames = AnimEndFrame - AnimStartFrame + 1;
+		const float AnimStartTime = AnimSequence->GetTimeAtFrame(AnimStartFrame);
 
 		int32 SampleIndex = 0;
+		const float SampleInterval = 1.f / DataAsset->SampleRate;
 
-		while (Time < EndTime)
+		while (SampleIndex < AnimNumFrames)
 		{
-			Time = FMath::Clamp(SampleIndex * SampleInterval, 0.f, EndTime);
+			const float Time = AnimStartTime + ((float)SampleIndex * SampleInterval);
 			SampleIndex++;
 
 			// Go To Time
@@ -293,8 +287,7 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 				TArray<FVector3f> VertexFrameNormals;
 				
 				GetVertexDeltasAndNormals(SkeletalMeshComponent, DataAsset->SkeletalLODIndex,
-					Vertices, Normals, Mapping,
-					DataAsset->RootTransform,
+					Mapping, DataAsset->RootTransform,
 					VertexFrameDeltas, VertexFrameNormals);
 					
 				VertexDeltas.Append(VertexFrameDeltas);
@@ -323,23 +316,22 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		// Store Anim Info Data
 		FAnimToTextureAnimInfo AnimInfo;
 		AnimInfo.StartFrame = DataAsset->NumFrames;
-		AnimInfo.EndFrame = DataAsset->NumFrames + EndFrame;
+		AnimInfo.EndFrame = DataAsset->NumFrames + AnimNumFrames - 1;
 		DataAsset->Animations.Add(AnimInfo);
 
 		// Accumulate Frames
-		DataAsset->NumFrames += SampleIndex;
+		DataAsset->NumFrames += AnimNumFrames;
 	} // End Anim
 		
-	// Destroy Temp Component
+	// Destroy Temp Component & Actor
 	SkeletalMeshComponent->UnregisterComponent();
 	SkeletalMeshComponent->DestroyComponent();
-
 	Actor->Destroy();
 	
 	// ---------------------------------------------------------------------------
 	// Nothing to do here ...
 	//
-	if (!DataAsset->NumFrames || !NumVertices)
+	if (!DataAsset->NumFrames)
 	{
 		return false;
 	}
@@ -428,7 +420,7 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 
 		// ---------------------------------------------------------------------------
 
-		// Find Best Resolution for Weights Data
+		// Find Best Resolution for Bone Weights Texture
 		if (!FindBestResolution(2, NumVertices, 
 								Height, Width, DataAsset->BoneWeightRowsPerFrame, 
 								DataAsset->MaxHeight, DataAsset->MaxWidth, DataAsset->bEnforcePowerOfTwo))
@@ -441,18 +433,14 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		{
 			TArray<TVertexSkinWeight<4>> SkinWeights;
 
-			// Store Influence Weights
+			// Reduce BoneWeights to 4 Influences.
 			if (!bValidSocket)
-			{
-				// Get SkeletalMesh Weights
-				TArray<VertexSkinWeightMax> SkeletalMeshSkinWeights;
-				GetSkinWeights(DataAsset->GetSkeletalMesh(), DataAsset->SkeletalLODIndex, SkeletalMeshSkinWeights);
-
-				// Interpolate Weights with Mapping
+			{	
+				// Project SkinWeights from SkeletalMesh to StaticMesh
 				TArray<VertexSkinWeightMax> StaticMeshSkinWeights;
-				FVertexToMeshMapping::InterpolateSkinWeights(Mapping, SkeletalMeshSkinWeights, StaticMeshSkinWeights);
-				
-				// Reduce SkeletalMesh Weights to 4 highest influences.
+				Mapping.ProjectSkinWeights(StaticMeshSkinWeights);
+
+				// Reduce Weights to 4 highest influences.
 				ReduceSkinWeights(StaticMeshSkinWeights, SkinWeights);
 			}
 
@@ -495,43 +483,41 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 
 // 
 void UAnimToTextureBPLibrary::GetVertexDeltasAndNormals(const USkeletalMeshComponent* SkeletalMeshComponent, const int32 LODIndex, 
-	const TArray<FVector3f>& Vertices, const TArray<FVector3f>& Normals,  const TArray<FVertexToMeshMapping>& Mapping,
+	const AnimToTexture_Private::FSourceMeshToDriverMesh& SourceMeshToDriverMesh,
 	const FTransform RootTransform,
 	TArray<FVector3f>& OutVertexDeltas, TArray<FVector3f>& OutVertexNormals)
 {
 	OutVertexDeltas.Reset();
 	OutVertexNormals.Reset();
-
-	check(Vertices.Num() == Mapping.Num());
-	const int32 NumVertices = Vertices.Num();
-
+		
 	// Get Deformed vertices at current frame
 	TArray<FVector3f> SkinnedVertices;
 	GetSkinnedVertices(SkeletalMeshComponent, LODIndex, SkinnedVertices);
+	
+	// Get Source Vertices (StaticMesh)
+	TArray<FVector3f> SourceVertices;
+	const int32 NumVertices = SourceMeshToDriverMesh.GetSourceVertices(SourceVertices);
+
+	// Deform Source Vertices with DriverMesh (SkeletalMesh
+	TArray<FVector3f> DeformedVertices;
+	TArray<FVector3f> DeformedNormals;
+	SourceMeshToDriverMesh.DeformVerticesAndNormals(SkinnedVertices, DeformedVertices, DeformedNormals);
 
 	// Allocate
+	check(DeformedVertices.Num() == NumVertices && DeformedNormals.Num() == NumVertices);
 	OutVertexDeltas.SetNumUninitialized(NumVertices);
 	OutVertexNormals.SetNumUninitialized(NumVertices);
 
-	// Loop thru static vertices and find the mapped SkeletalMesh Vertex
+	// Transform Vertices and Normals with RootTransform
 	for (int32 VertexIndex = 0; VertexIndex < NumVertices; VertexIndex++)
 	{
-		// Get Static/SkeletalMesh Mapping
-		const FVertexToMeshMapping& VertexMapping = Mapping[VertexIndex];
-
-		// Transform Vertex
-		// (assuming indices are valid)
-		const FIntVector3& Triangle = VertexMapping.Triangle;
-		const FVector3f& A = SkinnedVertices[Triangle.X];
-		const FVector3f& B = SkinnedVertices[Triangle.Y];
-		const FVector3f& C = SkinnedVertices[Triangle.Z];
-
-		const FVector3f VertexPosition = VertexMapping.TransformPosition(Vertices[VertexIndex], A, B, C);
-		const FVector3f VertexNormal = VertexMapping.TransformVector(Normals[VertexIndex], A, B, C);
-
+		const FVector3f& SourceVertex   = SourceVertices[VertexIndex];
+		const FVector3f& DeformedVertex = DeformedVertices[VertexIndex];
+		const FVector3f& DeformedNormal = DeformedNormals[VertexIndex];
+	
 		// Transform Position and Delta with RootTransform
-		const FVector3f TransformedVertexDelta = ((FVector3f)RootTransform.TransformPosition((FVector)VertexPosition)) - Vertices[VertexIndex];
-		const FVector3f TransformedVertexNormal = (FVector3f)RootTransform.TransformVector((FVector)VertexNormal);
+		const FVector3f TransformedVertexDelta = ((FVector3f)RootTransform.TransformPosition((FVector)DeformedVertex)) - SourceVertex;
+		const FVector3f TransformedVertexNormal = (FVector3f)RootTransform.TransformVector((FVector)DeformedNormal);
 		
 		OutVertexDeltas[VertexIndex] = TransformedVertexDelta;
 		OutVertexNormals[VertexIndex] = TransformedVertexNormal;
