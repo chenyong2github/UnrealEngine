@@ -1059,7 +1059,7 @@ bool FMaterial::MaterialMayModifyMeshPosition() const
 {
 	// Conservative estimate when called before material translation has occurred. 
 	// This function is only intended for use in deciding whether or not shader permutations are required.
-	return HasVertexPositionOffsetConnected() || HasPixelDepthOffsetConnected();
+	return HasVertexPositionOffsetConnected() || HasPixelDepthOffsetConnected() || HasDisplacementConnected();
 }
 
 bool FMaterial::MaterialUsesPixelDepthOffset_GameThread() const
@@ -1955,6 +1955,11 @@ bool FMaterialResource::HasAnisotropyConnected() const
 bool FMaterialResource::HasAmbientOcclusionConnected() const
 {
 	return Material->HasAmbientOcclusionConnected();
+}
+
+bool FMaterialResource::HasDisplacementConnected() const
+{
+	return Material->HasDisplacementConnected();
 }
 
 bool FMaterialResource::IsStrataMaterial() const
@@ -5137,6 +5142,7 @@ FMaterialShaderParameters::FMaterialShaderParameters(const FMaterial* InMaterial
 	}
 	bHasVertexPositionOffsetConnected = InMaterial->HasVertexPositionOffsetConnected();
 	bHasPixelDepthOffsetConnected = InMaterial->HasPixelDepthOffsetConnected();
+	bHasDisplacementConnected = InMaterial->HasDisplacementConnected();
 	bMaterialMayModifyMeshPosition = InMaterial->MaterialMayModifyMeshPosition();
 	bIsUsedWithStaticLighting = InMaterial->IsUsedWithStaticLighting();
 	bIsUsedWithParticleSprites = InMaterial->IsUsedWithParticleSprites();

@@ -2956,10 +2956,10 @@ half GetMaterialMaskedOpacity(FPixelMaterialInputs PixelMaterialInputs)
 }
 #endif
 
-float GetMaterialDisplacement(FMaterialVertexParameters Parameters)
+float GetMaterialDisplacement(FPixelMaterialInputs PixelMaterialInputs)
 {
 #if USES_DISPLACEMENT
-%s;
+	return PixelMaterialInputs.Displacement;
 #else
 	return 0.0f;
 #endif

@@ -1944,6 +1944,7 @@ public:
 	virtual bool HasAnisotropyConnected() const { return false; }
 	virtual bool HasAmbientOcclusionConnected() const { return false; }
 	virtual bool HasMaterialPropertyConnected(EMaterialProperty In) const { return false; }
+	virtual bool HasDisplacementConnected() const { return false; }
 	virtual bool IsStrataMaterial() const { return false; }
 	virtual bool RequiresSynchronousCompilation() const { return false; };
 	virtual bool IsDefaultMaterial() const { return false; };
@@ -2629,6 +2630,7 @@ public:
 	ENGINE_API virtual bool HasEmissiveColorConnected() const override;
 	ENGINE_API virtual bool HasAnisotropyConnected() const override;
 	ENGINE_API virtual bool HasAmbientOcclusionConnected() const override;
+	ENGINE_API virtual bool HasDisplacementConnected() const override;
 	ENGINE_API virtual bool IsStrataMaterial() const override;
 	ENGINE_API virtual bool HasMaterialPropertyConnected(EMaterialProperty In) const override;
 	ENGINE_API virtual FMaterialShadingModelField GetShadingModels() const override;
@@ -2989,6 +2991,7 @@ struct FMaterialShaderParameters
 			uint64 bHasEmissiveColorConnected : 1;
 			uint64 bHasAmbientOcclusionConnected : 1;
 			uint64 bHasAnisotropyConnected : 1;
+			uint64 bHasDisplacementConnected : 1;
 			uint64 bHasVertexPositionOffsetConnected : 1;
 			uint64 bHasPixelDepthOffsetConnected : 1;
 			uint64 bMaterialMayModifyMeshPosition : 1;

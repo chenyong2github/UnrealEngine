@@ -793,6 +793,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	SharedPixelProperties[MP_ShadingModel] = true;
 	SharedPixelProperties[MP_SurfaceThickness] = true;
 	SharedPixelProperties[MP_FrontMaterial] = true;
+	SharedPixelProperties[MP_Displacement] = true;
 
 	bool bUsesWorldPositionOffset = false;
 	bool bUsesPixelDepthOffset = false;
@@ -848,6 +849,11 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		if (CachedTree->IsAttributeUsed(EmitContext, *EmitResultScope, PixelResultType0, MP_PixelDepthOffset))
 		{
 			bUsesPixelDepthOffset = true;
+		}
+
+		if (CachedTree->IsAttributeUsed(EmitContext, *EmitResultScope, PixelResultType0, MP_Displacement))
+		{
+			bUsesDisplacement = true;
 		}
 
 		const bool bUseNormal = EmitMaterialData.IsExternalInputUsed(SF_Pixel, Material::EExternalInput::WorldNormal);
@@ -931,7 +937,6 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		EmitMaterialData.EmitInterpolatorStatements(EmitContext, *EmitResultScope);
 
 		bUsesWorldPositionOffset = CachedTree->IsAttributeUsed(EmitContext, *EmitResultScope, VertexResultType, MP_WorldPositionOffset);
-		bUsesDisplacement = CachedTree->IsAttributeUsed(EmitContext, *EmitResultScope, VertexResultType, MP_Displacement);
 
 		CachedTree->GetTree().EmitShader(EmitContext, VertexCode);
 	}
