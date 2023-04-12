@@ -11,6 +11,7 @@ class ITextureCompressorModule;
 class IImageWrapperModule;
 struct FTextureSourceData;
 struct FTextureSourceBlockData;
+struct FTextureBuildSettings;
 
 struct FVTSourceTileEntry
 {
@@ -80,15 +81,15 @@ public:
 	~FVirtualTextureDataBuilder();
 
 	// note: InSourceData is freed by this function
-	void Build(FTextureSourceData& InSourceData, FTextureSourceData& InCompositeSourceData, const FTextureBuildSettings* InSettingsPerLayer, bool bAllowAsync);
+	bool Build(FTextureSourceData& InSourceData, FTextureSourceData& InCompositeSourceData, const FTextureBuildSettings* InSettingsPerLayer, bool bAllowAsync);
 
 private:
 	friend struct FAsyncMacroBlockTask;
 
-	void BuildPagesMacroBlocks(bool bAllowAsync);
-	void BuildPagesForChunk(const TArray<FVTSourceTileEntry>& ActiveTileList, bool bAllowAsync);
+	bool BuildPagesMacroBlocks(bool bAllowAsync);
+	bool BuildPagesForChunk(const TArray<FVTSourceTileEntry>& ActiveTileList, bool bAllowAsync);
 	void BuildTiles(const TArray<FVTSourceTileEntry>& TileList, uint32 layer, FLayerData& GeneratedData, bool bAllowAsync);
-	void PushDataToChunk(const TArray<FVTSourceTileEntry> &Tiles, const TArray<FLayerData>& LayerData);
+	bool PushDataToChunk(const TArray<FVTSourceTileEntry> &Tiles, const TArray<FLayerData>& LayerData);
 
 	int32 FindSourceBlockIndex(int32 MipIndex, int32 BlockX, int32 BlockY) const;
 

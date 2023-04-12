@@ -632,6 +632,8 @@ static void DDC1_BuildTexture(
 	const bool bHasValidMip0 = TextureData.Blocks.Num() && TextureData.Blocks[0].MipsPerLayer.Num() && TextureData.Blocks[0].MipsPerLayer[0].Num();
 	const bool bForVirtualTextureStreamingBuild = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::ForVirtualTextureStreamingBuild);
 
+	check( bSucceeded == false ); // we set it to true if we succeed
+
 	if (!ensure(Compressor))
 	{
 		UE_LOG(LogTexture, Warning, TEXT("Missing Compressor required to build texture %s"), *TexturePathName);
@@ -656,10 +658,24 @@ static void DDC1_BuildTexture(
 		}
 		
 		FVirtualTextureBuilderDerivedInfo PredictedInfo;
-		PredictedInfo.InitializeFromBuildSettings(TextureData, InBuildSettingsPerLayer.GetData());
+		if ( ! PredictedInfo.InitializeFromBuildSettings(TextureData, InBuildSettingsPerLayer.GetData()) )
+		{
+			UE_LOG(LogTexture, Warning, TEXT("VT InitializeFromBuildSettings failed: %s"), *TexturePathName);
+			delete DerivedData->VTData;
+			DerivedData->VTData = nullptr;
+			bSucceeded = false;
+			return;		
+		}
 
 		FVirtualTextureDataBuilder Builder(*DerivedData->VTData, TexturePathName, Compressor, ImageWrapper);
-		Builder.Build(TextureData, CompositeTextureData, &InBuildSettingsPerLayer[0], true);
+		if ( ! Builder.Build(TextureData, CompositeTextureData, &InBuildSettingsPerLayer[0], true) )
+		{
+			UE_LOG(LogTexture, Warning, TEXT("VT Build failed: %s"), *TexturePathName);
+			delete DerivedData->VTData;
+			DerivedData->VTData = nullptr;
+			bSucceeded = false;
+			return;		
+		}
 
 		// TextureData was freed by Build (FTextureSourceData.ReleaseMemory), don't use it from here down
 
@@ -766,6 +782,7 @@ static void DDC1_BuildTexture(
 			// will log below
 			check( DerivedData->Mips.Num() == 0 );
 			DerivedData->Mips.Empty();
+			bSucceeded = false;
 
 			UE_LOG(LogTexture, Warning, TEXT("BuildTexture failed to build %s derived data for %s"), *InBuildSettingsPerLayer[0].TextureFormatName.GetPlainNameString(), *TexturePathName);
 		}
@@ -1935,9 +1952,6 @@ void FTextureCacheDerivedDataWorker::DoWork()
 					Chunk.bCorruptDataLoadedFromDDC = true;
 				}
 			}
-
-			// this always ignores whether the build failed?
-			bSucceeded = true;
 		}
 		else
 		{
@@ -1945,11 +1959,11 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		}
 	}
 
+	TextureData.ReleaseMemory();
+	CompositeTextureData.ReleaseMemory();
+
 	if (bSucceeded)
 	{
-		TextureData.ReleaseMemory();
-		CompositeTextureData.ReleaseMemory();
-
 		// Populate the VT DDC Cache now if we're asynchronously loading to avoid too many high prio/synchronous request on the render thread
 		if (!IsInGameThread() && DerivedData->VTData && !DerivedData->VTData->Chunks.Last().DerivedDataKey.IsEmpty())
 		{

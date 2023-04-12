@@ -99,7 +99,7 @@ uint32 FVirtualTextureBuiltData::GetMemoryFootprint() const
 
 uint32 FVirtualTextureBuiltData::GetTileMemoryFootprint() const
 {
-	uint32 TotalSize = 0;
+	uint64 TotalSize = 0;
 
 	// Legacy tile offsets are used if tiles are compressed.
 	TotalSize += TileOffsetInChunk.GetAllocatedSize();
@@ -115,7 +115,7 @@ uint32 FVirtualTextureBuiltData::GetTileMemoryFootprint() const
 		TotalSize += Data.Offsets.GetAllocatedSize();
 	}
 
-	return TotalSize;
+	return IntCastChecked<uint32>( TotalSize );
 }
 
 uint32 FVirtualTextureBuiltData::GetNumTileHeaders() const
@@ -210,7 +210,8 @@ uint32 FVirtualTextureBuiltData::GetTileOffset(uint32 vLevel, uint32 vAddress, u
 				const uint32 TileDataSize = TileDataOffsetPerLayer.Last();
 				const uint32 LayerDataOffset = LayerIndex == 0 ? 0 : TileDataOffsetPerLayer[LayerIndex - 1];
 				
-				Offset = BaseOffset + (TileOffset * TileDataSize) + LayerDataOffset;
+				int64 Offset64 = BaseOffset + (int64) TileOffset * TileDataSize + LayerDataOffset;
+				Offset = IntCastChecked<uint32>( Offset64 );
 			}
 		}
 	}
@@ -428,10 +429,10 @@ bool FVirtualTextureBuiltData::ValidateData(FStringView const& InDDCDebugContext
 		FBulkDataLockedScope BulkDataLockedScope;
 
 		const void* ChunkData = nullptr;
-		uint32 ChunkDataSize = 0u;
+		int64 ChunkDataSize = 0;
 		if (Chunk.BulkData.GetBulkDataSize() > 0)
 		{
-			ChunkDataSize = IntCastChecked<uint32>(Chunk.BulkData.GetBulkDataSize());
+			ChunkDataSize = Chunk.BulkData.GetBulkDataSize();
 			ChunkData = Chunk.BulkData.LockReadOnly();
 			BulkDataLockedScope.BulkData = &Chunk.BulkData;
 		}
@@ -455,13 +456,13 @@ bool FVirtualTextureBuiltData::ValidateData(FStringView const& InDDCDebugContext
 			}
 
 			ChunkData = ChunkDataDDC.GetData();
-			ChunkDataSize = IntCastChecked<uint32>(ChunkDataDDC.GetSize());
+			ChunkDataSize = ChunkDataDDC.GetSize();
 		}
 #endif // WITH_EDITORONLY_DATA
 
 		if (!ChunkData || ChunkDataSize < sizeof(FVirtualTextureChunkHeader))
 		{
-			UE_LOG(LogTexture, Error, TEXT("Virtual Texture %s has invalid size %u for chunk %d"), *TextureName, ChunkDataSize, ChunkIndex);
+			UE_LOG(LogTexture, Error, TEXT("Virtual Texture %s has invalid size %lld for chunk %d"), *TextureName, ChunkDataSize, ChunkIndex);
 			bResult = false;
 			break;
 		}

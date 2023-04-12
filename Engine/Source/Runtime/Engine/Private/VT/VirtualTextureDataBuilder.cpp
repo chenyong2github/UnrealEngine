@@ -286,8 +286,10 @@ bool FVirtualTextureBuilderDerivedInfo::InitializeFromBuildSettings(const FTextu
 	}
 
 	// We require VT blocks (UDIM pages) to be PoT, but multi block textures may have full logical dimension that's not PoT
-	check(FMath::IsPowerOfTwo(BlockSizeX));
-	check(FMath::IsPowerOfTwo(BlockSizeY));
+	if ( ! FMath::IsPowerOfTwo(BlockSizeX) || ! FMath::IsPowerOfTwo(BlockSizeY) )
+	{
+		return false;
+	}
 
 	// Ensure block size is at least 1 tile, while preserving aspect ratio
 	BlockSizeScale = 1;
@@ -312,10 +314,11 @@ bool FVirtualTextureBuilderDerivedInfo::InitializeFromBuildSettings(const FTextu
 	// the fact that the Min(x, VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE) is load bearing. In order to get an incorrect
 	// mip count, you need Size to be non pow2 and the result to be larger than VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE.
 	NumMips = FMath::Min<uint32>(FMath::CeilLogTwo(Size) + 1, VIRTUALTEXTURE_LOG2_MAX_PAGETABLE_SIZE);
+
 	return true;
 }
 
-void FVirtualTextureDataBuilder::Build(FTextureSourceData& InSourceData, FTextureSourceData& InCompositeSourceData, const FTextureBuildSettings* InSettingsPerLayer, bool bAllowAsync)
+bool FVirtualTextureDataBuilder::Build(FTextureSourceData& InSourceData, FTextureSourceData& InCompositeSourceData, const FTextureBuildSettings* InSettingsPerLayer, bool bAllowAsync)
 {
 	const int32 NumLayers = InSourceData.Layers.Num();
 	checkf(NumLayers <= (int32)VIRTUALTEXTURE_DATA_MAXLAYERS, TEXT("The maximum amount of layers is exceeded."));
@@ -363,12 +366,14 @@ void FVirtualTextureDataBuilder::Build(FTextureSourceData& InSourceData, FTextur
 	bAllowAsync = bAllowAsync && CVarVTParallelTileCompression.GetValueOnAnyThread();
 
 	// encode SourceBlocks to VT Tiles and pack into chunks :
-	BuildPagesMacroBlocks(bAllowAsync);
+	bool ok = BuildPagesMacroBlocks(bAllowAsync);
 	// free SourceBlocks :
 	FreeSourcePixels();
+
+	return ok;
 }
 
-void FVirtualTextureDataBuilder::BuildPagesForChunk(const TArray<FVTSourceTileEntry>& ActiveTileList, bool bAllowAsync)
+bool FVirtualTextureDataBuilder::BuildPagesForChunk(const TArray<FVTSourceTileEntry>& ActiveTileList, bool bAllowAsync)
 {
 	TArray<FLayerData> LayerData;
 	LayerData.AddDefaulted(SourceLayers.Num());
@@ -392,21 +397,21 @@ void FVirtualTextureDataBuilder::BuildPagesForChunk(const TArray<FVTSourceTileEn
 		}
 		if (bIsRawGPUData)
 		{
-			uint32 TileDataOffset = 0;
+			int64 TileDataOffset = 0;
 			OutData.TileDataOffsetPerLayer.Reserve(LayerData.Num());
 			for (int32 LayerIndex = 0; LayerIndex < LayerData.Num(); LayerIndex++)
 			{
 				TileDataOffset += LayerData[LayerIndex].TilePayload[0].Num();
-				OutData.TileDataOffsetPerLayer.Add(TileDataOffset);
+				OutData.TileDataOffsetPerLayer.Add( IntCastChecked<uint32>(TileDataOffset) );
 			}
 		}
 	}
 
 	// Write tiles out to chunk.
-	PushDataToChunk(ActiveTileList, LayerData);
+	return PushDataToChunk(ActiveTileList, LayerData);
 }
 
-void FVirtualTextureDataBuilder::BuildPagesMacroBlocks(bool bAllowAsync)
+bool FVirtualTextureDataBuilder::BuildPagesMacroBlocks(bool bAllowAsync)
 {
 	static const uint32 MinSizePerChunk = 1024u; // Each chunk will contain a mip level of at least this size (MinSizePerChunk x MinSizePerChunk)
 	const uint32 NumLayers = SourceLayers.Num();
@@ -496,7 +501,8 @@ void FVirtualTextureDataBuilder::BuildPagesMacroBlocks(bool bAllowAsync)
 			if (!bInFinalChunk && TilesInChunk.Num() >= (int32)MinTilesPerChunk)
 			{
 				OutData.TileIndexPerChunk.Add(TileIndex);
-				BuildPagesForChunk(TilesInChunk, bAllowAsync);
+				if ( ! BuildPagesForChunk(TilesInChunk, bAllowAsync) )
+					return false;
 				TilesInChunk.Reset();
 			}
 			else
@@ -514,7 +520,8 @@ void FVirtualTextureDataBuilder::BuildPagesMacroBlocks(bool bAllowAsync)
 
 		if (TilesInChunk.Num() > 0)
 		{
-			BuildPagesForChunk(TilesInChunk, bAllowAsync);
+			if ( ! BuildPagesForChunk(TilesInChunk, bAllowAsync) )
+				return false;
 		}
 
 		check(OutData.BaseOffsetPerMip.Num() == OutData.NumMips);
@@ -560,6 +567,8 @@ void FVirtualTextureDataBuilder::BuildPagesMacroBlocks(bool bAllowAsync)
 		OutData.TileIndexPerMip.Empty();
 		OutData.TileOffsetInChunk.Empty();
 	}
+
+	return true;
 }
 
 static const TCHAR* GetSafePixelFormatName(EPixelFormat Format)
@@ -730,7 +739,7 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 	}
 }
 
-void FVirtualTextureDataBuilder::PushDataToChunk(const TArray<FVTSourceTileEntry>& Tiles, const TArray<FLayerData>& LayerData)
+bool FVirtualTextureDataBuilder::PushDataToChunk(const TArray<FVTSourceTileEntry>& Tiles, const TArray<FLayerData>& LayerData)
 {
 	const int32 NumLayers = SourceLayers.Num();
 
@@ -743,16 +752,20 @@ void FVirtualTextureDataBuilder::PushDataToChunk(const TArray<FVTSourceTileEntry
 			TotalSize += TilePayload.Num();
 		}
 	}
-
+	
 	// Built VT data structures use uint32 :
-	check(TotalSize <= MAX_uint32 );
+	if ( TotalSize >= MAX_uint32 )
+	{
+		UE_LOG(LogVirtualTexturing,Error,TEXT("Cannot build VT; data bigger than 4 GB : %lld"),TotalSize);
+		return false;
+	}
 
 	FVirtualTextureDataChunk& Chunk = OutData.Chunks.AddDefaulted_GetRef();
 	Chunk.SizeInBytes = TotalSize;
 	FByteBulkData& BulkData = Chunk.BulkData;
 	BulkData.Lock(LOCK_READ_WRITE);
 	uint8* NewChunkData = (uint8*)BulkData.Realloc(TotalSize);
-	int64 ChunkOffset = 0u;
+	int64 ChunkOffset = 0;
 
 	// Header for the chunk
 	FVirtualTextureChunkHeader* Header = (FVirtualTextureChunkHeader*)NewChunkData;
@@ -763,7 +776,7 @@ void FVirtualTextureDataBuilder::PushDataToChunk(const TArray<FVTSourceTileEntry
 	// codec payloads
 	for (int32 Layer = 0; Layer < NumLayers; ++Layer)
 	{
-		Chunk.CodecPayloadOffset[Layer] = ChunkOffset;
+		Chunk.CodecPayloadOffset[Layer] = IntCastChecked<uint32>( ChunkOffset );
 		Chunk.CodecType[Layer] = LayerData[Layer].Codec;
 		if (LayerData[Layer].CodecPayload.Num() > 0)
 		{
@@ -780,13 +793,13 @@ void FVirtualTextureDataBuilder::PushDataToChunk(const TArray<FVTSourceTileEntry
 		// Set BaseOffsetPerMip from the first tile we find for the MipIndex.
 		if (OutData.BaseOffsetPerMip[MipIndex] == ~0u)
 		{
-			OutData.BaseOffsetPerMip[MipIndex] = ChunkOffset;
+			OutData.BaseOffsetPerMip[MipIndex] = IntCastChecked<uint32>( ChunkOffset );
 		}
 		int32 TileIndex = Tile.TileIndex;
 		for (int32 Layer = 0; Layer < NumLayers; ++Layer)
 		{
 			check(OutData.TileOffsetInChunk[TileIndex] == ~0u);
-			OutData.TileOffsetInChunk[TileIndex] = ChunkOffset;
+			OutData.TileOffsetInChunk[TileIndex] = IntCastChecked<uint32>( ChunkOffset );
 			++TileIndex;
 
 			const TArray<uint8>& TilePayload = LayerData[Layer].TilePayload[TileIdx];
@@ -804,6 +817,8 @@ void FVirtualTextureDataBuilder::PushDataToChunk(const TArray<FVTSourceTileEntry
 
 	BulkData.Unlock();
 	BulkData.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
+
+	return true;
 }
 
 int32 FVirtualTextureDataBuilder::FindSourceBlockIndex(int32 MipIndex, int32 BlockX, int32 BlockY) const
