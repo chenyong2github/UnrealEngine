@@ -12,6 +12,10 @@ class AWorldSettings;
 class ULandscapeInfo;
 class FLandscapeNotificationManager;
 struct FDateTime;
+namespace UE::Landscape
+{
+	enum class EOutdatedDataFlags : uint8;
+} // end of namespace UE::Landscape
 
 #if WITH_EDITOR
 struct FOnHeightmapStreamedContext
@@ -65,22 +69,28 @@ public:
 
 #if WITH_EDITOR
 	LANDSCAPE_API void BuildAll();
+	LANDSCAPE_API void BuildGrassMaps();
+	LANDSCAPE_API void BuildPhysicalMaterial();
 
 	UE_DEPRECATED(5.3, "BuildGIBakedTextures is officially deprecated nowe")
 	LANDSCAPE_API void BuildGIBakedTextures() {}
 	UE_DEPRECATED(5.3, "GetOutdatedGIBakedTextureComponentsCount is officially deprecated now")
 	LANDSCAPE_API int32 GetOutdatedGIBakedTextureComponentsCount() { return 0; }
 
-	LANDSCAPE_API int32 GetOutdatedGrassMapCount();
-	LANDSCAPE_API void BuildGrassMaps();
-	LANDSCAPE_API int32 GetOudatedPhysicalMaterialComponentsCount();
-	LANDSCAPE_API void BuildPhysicalMaterial();
 	/**
 	 * Updates the Nanite mesh on all landscape actors whose mesh is not up to date.
 	 * @param InProxiesToBuild - If specified, only the Nanite meshes of the specified landscape actors (recursively for all streaming proxies, in the case of a 1 ALandscape / N ALandscapeStreamingProxy setup) will be built
 	 * @param bForceRebuild - If true, forces the Nanite meshes to be rebuilt, no matter if they're up to date or not
 	 */
 	LANDSCAPE_API void BuildNanite(TArrayView<ALandscapeProxy*> InProxiesToBuild = TArrayView<ALandscapeProxy*>(), bool bForceRebuild = false);
+	
+	LANDSCAPE_API TArray<ALandscapeProxy*> GetOutdatedProxies(UE::Landscape::EOutdatedDataFlags InMatchingOutdatedDataFlags, bool bInMustMatchAllFlags) const;
+	
+	UE_DEPRECATED(5.3, "GetOutdatedGrassMapCount is now deprecated, use GetOutdatedProxies")
+	LANDSCAPE_API int32 GetOutdatedGrassMapCount();
+	UE_DEPRECATED(5.3, "GetOudatedPhysicalMaterialComponentsCount is now deprecated, use GetOutdatedProxies")
+	LANDSCAPE_API int32 GetOudatedPhysicalMaterialComponentsCount();
+
 	LANDSCAPE_API bool IsGridBased() const;
 	LANDSCAPE_API void ChangeGridSize(ULandscapeInfo* LandscapeInfo, uint32 NewGridSizeInComponents);
 	LANDSCAPE_API ALandscapeProxy* FindOrAddLandscapeProxy(ULandscapeInfo* LandscapeInfo, const FIntPoint& SectionBase);
