@@ -23,6 +23,7 @@ public:
 		, MotionBlurFraction(0.f)
 		, bIsFirstTemporalSampleForFrame(false)
 		, bIsLastTemporalSampleForFrame(false)
+		, bRequiresAccumulator(false)
 	{}
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Graph")
