@@ -3216,7 +3216,9 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 			}
 		}
 #endif
-		
+		TManagedArray<bool>* AnimationsActive =
+			GameThreadCollection.FindAttribute<bool>("AnimateTransformAttribute", FGeometryCollection::TransformGroup);
+
 		// second : interpolate-able ones
 		const bool bNeedInterpolation = (NextPullData!= nullptr);
 		if (bNeedInterpolation)
@@ -3225,8 +3227,10 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 			const FGeometryCollectionResults& Next = NextPullData->Results;
 			for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
 			{
+				const bool bAnimatingWhileDisabled = AnimationsActive ? (*AnimationsActive)[TransformGroupIndex] : false;
 				const bool WasDisabled = Prev.States[TransformGroupIndex].DisabledState;
-				if (!WasDisabled)
+
+				if (!WasDisabled || bAnimatingWhileDisabled)
 				{
 					if (GTParticles[TransformGroupIndex] == nullptr)
 					{
@@ -3279,9 +3283,6 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 		}
 		else
 		{
-			TManagedArray<bool>* AnimationsActive =
-				GameThreadCollection.FindAttribute<bool>("AnimateTransformAttribute", FGeometryCollection::TransformGroup);
-
 			for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
 			{
 				bool bAnimatingWhileDisabled = AnimationsActive ? (*AnimationsActive)[TransformGroupIndex] : false;

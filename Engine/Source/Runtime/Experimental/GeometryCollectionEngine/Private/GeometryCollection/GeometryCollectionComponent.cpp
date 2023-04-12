@@ -2929,7 +2929,10 @@ void UGeometryCollectionComponent::RequestUpdateRepData()
 {
 	if (FPhysScene* PhysScene = GetInnerChaosScene())
 	{
-		PhysScene->EnqueueAsyncPhysicsCommand(0, this,
+		Chaos::FPBDRigidsSolver* Solver = PhysicsProxy->GetSolver<Chaos::FPBDRigidsSolver>();
+		const int32 CurrentFrame = Solver->GetCurrentFrame();
+
+		PhysScene->EnqueueAsyncPhysicsCommand(CurrentFrame, this,
 			[this]()
 			{
 				UpdateRepData();

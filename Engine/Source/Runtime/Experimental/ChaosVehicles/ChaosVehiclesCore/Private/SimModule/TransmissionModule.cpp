@@ -60,9 +60,9 @@ namespace Chaos
 			{
 				ChangeDown();
 			}
-			else if (Inputs.ControlInputs.SetGearNumber)
+			else if (Inputs.ControlInputs.GearNumber)
 			{
-				TargetGear = Inputs.ControlInputs.SetGearNumber;
+				TargetGear = Inputs.ControlInputs.GearNumber;
 			}
 		}
 

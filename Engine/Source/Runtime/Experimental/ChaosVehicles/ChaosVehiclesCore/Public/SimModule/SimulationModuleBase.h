@@ -24,7 +24,8 @@ namespace Chaos
 	{
 
 		FControlInputs()
-			: Throttle(0)
+			: IsValid(false)
+			, Throttle(0)
 			, Brake(0)
 			, Steering(0)
 			, Clutch(0)
@@ -34,10 +35,12 @@ namespace Chaos
 			, Yaw(0)
 			, ChangeUp(false)
 			, ChangeDown(false)
-			, SetGearNumber(0)
+			, GearNumber(0)
+			, InputDebugIndex(0)
 		{
 		}
 
+		bool IsValid;
 		float Throttle;
 		float Brake;
 		float Steering;
@@ -48,7 +51,10 @@ namespace Chaos
 		float Yaw;
 		bool ChangeUp;
 		bool ChangeDown;
-		int SetGearNumber;
+		int GearNumber;
+		int InputDebugIndex;
+
+		int GetChecksum() { return (int)((Throttle+Brake+Steering)*100000.0f);}
 	};
 
 	struct CHAOSVEHICLESCORE_API FModuleHitResults
