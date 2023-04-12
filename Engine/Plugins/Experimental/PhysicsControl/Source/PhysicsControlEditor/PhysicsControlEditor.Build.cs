@@ -6,7 +6,7 @@ public class PhysicsControlEditor : ModuleRules
 	public PhysicsControlEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 
 		PublicIncludePaths.AddRange(
 			new string[] {

@@ -8,7 +8,7 @@ namespace UnrealBuildTool.Rules
 	{
 		public BlendSpaceMotionAnalysis(ReadOnlyTargetRules Target) : base(Target)
 		{
-			UnsafeTypeCastWarningLevel = WarningLevel.Warning;
+			UnsafeTypeCastWarningLevel = WarningLevel.Error;
 
 			PublicDependencyModuleNames.AddRange(
 				new string[]

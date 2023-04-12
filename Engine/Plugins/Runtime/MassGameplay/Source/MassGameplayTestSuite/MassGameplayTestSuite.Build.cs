@@ -8,9 +8,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public MassGameplayTestSuite(ReadOnlyTargetRules Target) : base(Target)
 		{
-			OptimizeCode = CodeOptimization.Never;
-			bUseUnity = false;
-
 			PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 			PublicIncludePaths.AddRange(

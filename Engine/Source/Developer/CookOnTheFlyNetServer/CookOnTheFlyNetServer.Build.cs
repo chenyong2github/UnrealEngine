@@ -5,8 +5,8 @@ using UnrealBuildTool;
 public class CookOnTheFlyNetServer : ModuleRules
 {
     public CookOnTheFlyNetServer(ReadOnlyTargetRules Target) : base(Target)
-    {
-		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
+	{
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 		PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {

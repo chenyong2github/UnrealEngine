@@ -7,7 +7,7 @@ public class PhysicsControl : ModuleRules
 	public PhysicsControl(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]
