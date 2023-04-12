@@ -43,6 +43,7 @@ void FStateTreeStateDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 	TSharedPtr<IPropertyHandle> TypeProperty = DetailBuilder.GetProperty(TEXT("Type"));
 	TSharedPtr<IPropertyHandle> LinkedSubtreeProperty = DetailBuilder.GetProperty(TEXT("LinkedSubtree"));
 	TSharedPtr<IPropertyHandle> ParametersProperty = DetailBuilder.GetProperty(TEXT("Parameters"));
+	TSharedPtr<IPropertyHandle> SelectionBehaviorProperty = DetailBuilder.GetProperty(TEXT("SelectionBehavior"));
 
 	uint8 StateTypeValue = 0;
 	TypeProperty->GetValue(StateTypeValue);
@@ -59,6 +60,11 @@ void FStateTreeStateDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 	if (!(StateType == EStateTreeStateType::Subtree || StateType == EStateTreeStateType::Linked))
 	{
 		ParametersProperty->MarkHiddenByCustomization();
+	}
+
+	if (StateType == EStateTreeStateType::Linked)
+	{
+		SelectionBehaviorProperty->MarkHiddenByCustomization();
 	}
 	
 	const FName EnterConditionsCategoryName(TEXT("Enter Conditions"));

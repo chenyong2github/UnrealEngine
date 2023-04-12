@@ -110,7 +110,8 @@ public:
 
 	const UStateTreeState* GetRootState() const;
 	const UStateTreeState* GetNextSiblingState() const;
-
+	const UStateTreeState* GetNextSelectableSiblingState() const;
+	
 	// StateTree Builder API
 	/** @return state link to this state. */
 	FStateTreeStateLink GetLinkToState() const;
@@ -186,6 +187,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "State")
 	EStateTreeStateType Type = EStateTreeStateType::State;
 
+	UPROPERTY(EditDefaultsOnly, Category = "State")
+	EStateTreeStateSelectionBehavior SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
+	
 	UPROPERTY(EditDefaultsOnly, Category = "State", Meta=(DirectStatesOnly, SubtreesOnly))
 	FStateTreeStateLink LinkedSubtree;
 

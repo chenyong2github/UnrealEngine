@@ -90,10 +90,10 @@ enum class EStateTreeConditionOperand : uint8
 UENUM()
 enum class EStateTreeStateType : uint8
 {
-	/** A State containing tasks and evaluators. */
+	/** A State containing tasks and child states. */
 	State,
 	
-	/** A State containing just sub states. */
+	/** A State containing just child states. */
 	Group,
 	
 	/** A State that is linked to another state in the tree (the execution continues on the linked state). */
@@ -101,6 +101,22 @@ enum class EStateTreeStateType : uint8
 	
 	/** A subtree that can be linked to. */
 	Subtree,
+};
+
+UENUM()
+enum class EStateTreeStateSelectionBehavior : uint8
+{
+	/** The State cannot be directly selected. */
+	None,
+
+	/** When state is considered for selection, it is selected even if it has child states. */
+	TryEnterState,
+
+	/** When state is considered for selection, try to selects the first child state (in order they appear in the child list). If no child states are present, behaves like SelectState. */
+	TrySelectChildrenInOrder,
+	
+	/** When state is considered for selection, try to trigger the transitions instead. */
+	TryFollowTransitions,
 };
 
 
@@ -724,9 +740,13 @@ struct STATETREEMODULE_API FCompactStateTreeState
 	UPROPERTY()
 	uint8 TasksNum = 0;
 
-	/** Type of the sate */
+	/** Type of the state */
 	UPROPERTY()
 	EStateTreeStateType Type = EStateTreeStateType::State;
+
+	/** What to do when the state is considered for selection. */
+	UPROPERTY()
+	EStateTreeStateSelectionBehavior SelectionBehavior = EStateTreeStateSelectionBehavior::None;
 
 	/** True if the state contains tasks that should be called during transition handling. */
 	UPROPERTY()

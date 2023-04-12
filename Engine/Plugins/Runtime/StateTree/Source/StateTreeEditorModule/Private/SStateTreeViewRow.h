@@ -31,12 +31,15 @@ private:
 
 	FSlateColor GetTitleColor() const;
 	FSlateColor GetActiveStateColor() const;
+	FSlateColor GetSubTreeMarkerColor() const;
 	FText GetStateDesc() const;
 
 	EVisibility GetConditionVisibility() const;
-	EVisibility GetSelectorVisibility() const;
 	EVisibility GetBreakpointVisibility() const;
-	FText GetSelectorDesc() const;
+	
+	const FSlateBrush* GetSelectorIcon() const;
+	FText GetSelectorTooltip() const;
+	FText GetStateTypeTooltip() const;
 
 	EVisibility GetTasksVisibility() const;
 	FText GetTasksDesc() const;

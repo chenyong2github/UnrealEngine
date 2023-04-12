@@ -106,6 +106,11 @@ void FStateTreeStateLinkDetails::CacheStates(const UStateTreeState* State)
 		bShouldAdd = false;
 	}
 
+	if (State->SelectionBehavior == EStateTreeStateSelectionBehavior::None)
+	{
+		bShouldAdd = false;
+	}
+	
 	if (bShouldAdd)
 	{
 		CachedNames.Add(State->Name);

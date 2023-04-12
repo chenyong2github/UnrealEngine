@@ -35,8 +35,8 @@ FStateTreeExecutionContext::FStateTreeExecutionContext(UObject& InOwner, const U
 	}
 	else
 	{
-		STATETREE_LOG(Warning, TEXT("%s: StateTree asset is not valid ('%s' using StateTree '%s')"),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		STATETREE_LOG(Warning, TEXT("%hs: StateTree asset is not valid ('%s' using StateTree '%s')"),
+			__FUNCTION__, *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 	}
 }
 
@@ -162,8 +162,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start()
 
 	if (!IsValid())
 	{
-		STATETREE_LOG(Warning, TEXT("%s: StateTree context is not initialized properly ('%s' using StateTree '%s')"),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		STATETREE_LOG(Warning, TEXT("%hs: StateTree context is not initialized properly ('%s' using StateTree '%s')"),
+			__FUNCTION__, *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 		return EStateTreeRunStatus::Failed;
 	}
 
@@ -176,8 +176,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start()
 	UpdateInstanceData(Empty, Empty);
 	if (!InstanceData.IsValid())
 	{
-		STATETREE_LOG(Warning, TEXT("%s: Failed to initialize instance data on '%s' using StateTree '%s'. Try to recompile the StateTree asset."),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		STATETREE_LOG(Warning, TEXT("%hs: Failed to initialize instance data on '%s' using StateTree '%s'. Try to recompile the StateTree asset."),
+			__FUNCTION__, *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 		return EStateTreeRunStatus::Failed;
 	}
 
@@ -188,8 +188,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start()
 	if (!StartEvaluatorsAndGlobalTasks(LastInitializedTaskIndex))
 	{
 		StopEvaluatorsAndGlobalTasks(LastInitializedTaskIndex);
-		STATETREE_LOG(Warning, TEXT("%s: Failed to start evaluators and global tasks '%s' using StateTree '%s'. Try to recompile the StateTree asset."),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		STATETREE_LOG(Warning, TEXT("%hs: Failed to start evaluators and global tasks '%s' using StateTree '%s'. Try to recompile the StateTree asset."),
+			__FUNCTION__, *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 		return EStateTreeRunStatus::Failed;
 	}
 
@@ -206,13 +206,14 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start()
 	static const FStateTreeStateHandle RootState = FStateTreeStateHandle(0);
 
 	FStateTreeActiveStates NextActiveStates;
-	if (SelectState(RootState, NextActiveStates))
+	FStateTreeActiveStates VisitedStates;
+	if (SelectState(RootState, NextActiveStates, VisitedStates))
 	{
 		if (NextActiveStates.Last().IsCompletionState())
 		{
 			// Transition to a terminal state (succeeded/failed), or default transition failed.
-			STATETREE_LOG(Warning, TEXT("%s: Tree %s at StateTree start on '%s' using StateTree '%s'."),
-				ANSI_TO_TCHAR(__FUNCTION__), NextActiveStates.Last() == FStateTreeStateHandle::Succeeded ? TEXT("succeeded") : TEXT("failed"), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+			STATETREE_LOG(Warning, TEXT("%hs: Tree %s at StateTree start on '%s' using StateTree '%s'."),
+				__FUNCTION__, NextActiveStates.Last() == FStateTreeStateHandle::Succeeded ? TEXT("succeeded") : TEXT("failed"), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 			Exec->TreeRunStatus = NextActiveStates.Last().ToCompletionStatus();
 		}
 		else
@@ -240,8 +241,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::Start()
 	if (Exec->ActiveStates.IsEmpty())
 	{
 		// Should not happen. This may happen if initial state could not be selected.
-		STATETREE_LOG(Error, TEXT("%s: Failed to select initial state on '%s' using StateTree '%s'. This should not happen, check that the StateTree logic can always select a state at start."),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		STATETREE_LOG(Error, TEXT("%hs: Failed to select initial state on '%s' using StateTree '%s'. This should not happen, check that the StateTree logic can always select a state at start."),
+			__FUNCTION__, *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 		Exec->TreeRunStatus = EStateTreeRunStatus::Failed;
 	}
 
@@ -254,8 +255,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::Stop()
 
 	if (!IsValid())
 	{
-		STATETREE_LOG(Warning, TEXT("%s: StateTree context is not initialized properly ('%s' using StateTree '%s')"),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		STATETREE_LOG(Warning, TEXT("%hs: StateTree context is not initialized properly ('%s' using StateTree '%s')"),
+			__FUNCTION__, *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 		return EStateTreeRunStatus::Failed;
 	}
 	
@@ -306,15 +307,15 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime)
 
 	if (!IsValid())
 	{
-		STATETREE_LOG(Warning, TEXT("%s: StateTree context is not initialized properly ('%s' using StateTree '%s')"),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		STATETREE_LOG(Warning, TEXT("%hs: StateTree context is not initialized properly ('%s' using StateTree '%s')"),
+			__FUNCTION__, *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 		return EStateTreeRunStatus::Failed;
 	}
 
 	if (!InstanceData.IsValid())
 	{
-		STATETREE_LOG(Error, TEXT("%s: Tick called on %s using StateTree %s with invalid instance data. Start() must be called before Tick()."),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		STATETREE_LOG(Error, TEXT("%hs: Tick called on %s using StateTree %s with invalid instance data. Start() must be called before Tick()."),
+			__FUNCTION__, *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 		return EStateTreeRunStatus::Failed;
 	}
 
@@ -416,8 +417,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime)
 	if (Exec->ActiveStates.IsEmpty())
 	{
 		// Should not happen. This may happen if a state completion transition could not be selected. 
-		STATETREE_LOG(Error, TEXT("%s: Failed to select state on '%s' using StateTree '%s'. This should not happen, state completion transition is likely missing."),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		STATETREE_LOG(Error, TEXT("%hs: Failed to select state on '%s' using StateTree '%s'. This should not happen, state completion transition is likely missing."),
+			__FUNCTION__, *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 		Exec->TreeRunStatus = EStateTreeRunStatus::Failed;
 		return Exec->TreeRunStatus;
 	}
@@ -431,8 +432,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::GetStateTreeRunStatus() const
 {
 	if (!IsValid())
 	{
-		STATETREE_LOG(Warning, TEXT("%s: StateTree context is not initialized properly ('%s' using StateTree '%s')"),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		STATETREE_LOG(Warning, TEXT("%hs: StateTree context is not initialized properly ('%s' using StateTree '%s')"),
+			__FUNCTION__, *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 		return EStateTreeRunStatus::Failed;
 	}
 
@@ -455,15 +456,15 @@ void FStateTreeExecutionContext::SendEvent(const FGameplayTag Tag, const FConstS
 
 	if (!IsValid())
 	{
-		STATETREE_LOG(Warning, TEXT("%s: StateTree context is not initialized properly ('%s' using StateTree '%s')"),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		STATETREE_LOG(Warning, TEXT("%hs: StateTree context is not initialized properly ('%s' using StateTree '%s')"),
+			__FUNCTION__, *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 		return;
 	}
 
 	if (!InstanceData.IsValid())
 	{
-		STATETREE_LOG(Error, TEXT("%s: SendEvent called on %s using StateTree %s with invalid instance data. Start() must be called before sending events."),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		STATETREE_LOG(Error, TEXT("%hs: SendEvent called on %s using StateTree %s with invalid instance data. Start() must be called before sending events."),
+			__FUNCTION__, *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 		return;
 	}
 
@@ -480,15 +481,15 @@ void FStateTreeExecutionContext::RequestTransition(const FStateTreeTransitionReq
 
 	if (!IsValid())
 	{
-		STATETREE_LOG(Warning, TEXT("%s: StateTree context is not initialized properly ('%s' using StateTree '%s')"),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		STATETREE_LOG(Warning, TEXT("%hs: StateTree context is not initialized properly ('%s' using StateTree '%s')"),
+			__FUNCTION__, *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 		return;
 	}
 
 	if (!InstanceData.IsValid())
 	{
-		STATETREE_LOG(Error, TEXT("%s: RequestTransition called on %s using StateTree %s with invalid instance data. Start() must be called before requesting transition."),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		STATETREE_LOG(Error, TEXT("%hs: RequestTransition called on %s using StateTree %s with invalid instance data. Start() must be called before requesting transition."),
+			__FUNCTION__, *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 		return;
 	}
 
@@ -693,8 +694,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(const FStateTreeTrans
 
 		if (!Exec.ActiveStates.Push(CurrentHandle))
 		{
-			STATETREE_LOG(Error, TEXT("%s: Reached max execution depth when trying to enter state '%s'.  '%s' using StateTree '%s'."),
-				ANSI_TO_TCHAR(__FUNCTION__), *GetStateStatusString(Exec), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+			STATETREE_LOG(Error, TEXT("%hs: Reached max execution depth when trying to enter state '%s'.  '%s' using StateTree '%s'."),
+				__FUNCTION__, *GetStateStatusString(Exec), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 			break;
 		}
 
@@ -1369,7 +1370,8 @@ bool FStateTreeExecutionContext::RequestTransition(const FStateTreeStateHandle N
 	}
 
 	FStateTreeActiveStates NewActiveState;
-	if (SelectState(NextState, NewActiveState))
+	FStateTreeActiveStates VisitedStates;
+	if (SelectState(NextState, NewActiveState, VisitedStates))
 	{
 		NextTransition.CurrentActiveStates = Exec.ActiveStates;
 		NextTransition.CurrentRunStatus = Exec.TreeRunStatus;
@@ -1644,7 +1646,7 @@ FStateTreeStateHandle FStateTreeExecutionContext::GetParentLinkedStateHandle(con
 	return FStateTreeStateHandle();
 }
 
-bool FStateTreeExecutionContext::SelectState(const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveState)
+bool FStateTreeExecutionContext::SelectState(const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveState, FStateTreeActiveStates& VisitedStates)
 {
 	const FStateTreeExecutionState& Exec = GetExecState();
 
@@ -1675,8 +1677,8 @@ bool FStateTreeExecutionContext::SelectState(const FStateTreeStateHandle NextSta
 		}
 		if (NumInBetweenStates == InBetweenStates.Num())
 		{
-			STATETREE_LOG(Error, TEXT("%s: Too many parent states when selecting state '%s' from '%s'.  '%s' using StateTree '%s'."),
-				ANSI_TO_TCHAR(__FUNCTION__), *GetSafeStateName(NextState), *GetStateStatusString(Exec), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+			STATETREE_LOG(Error, TEXT("%hs: Too many parent states when selecting state '%s' from '%s'.  '%s' using StateTree '%s'."),
+				__FUNCTION__, *GetSafeStateName(NextState), *GetStateStatusString(Exec), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 			return false;
 		}
 
@@ -1695,15 +1697,15 @@ bool FStateTreeExecutionContext::SelectState(const FStateTreeStateHandle NextSta
 
 	if (bActiveStatesOverflow)
 	{
-		STATETREE_LOG(Error, TEXT("%s: Reached max execution depth when trying to select state %s from '%s'.  '%s' using StateTree '%s'."),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetSafeStateName(NextState), *GetStateStatusString(Exec), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		STATETREE_LOG(Error, TEXT("%hs: Reached max execution depth when trying to select state %s from '%s'.  '%s' using StateTree '%s'."),
+			__FUNCTION__, *GetSafeStateName(NextState), *GetStateStatusString(Exec), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 		return false;
 	}
-
-	return SelectStateInternal(NextState, OutNewActiveState);
+	
+	return SelectStateInternal(NextState, OutNewActiveState, VisitedStates);
 }
 
-bool FStateTreeExecutionContext::SelectStateInternal(const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveState)
+bool FStateTreeExecutionContext::SelectStateInternal(const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveState, FStateTreeActiveStates& VisitedStates)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_SelectState);
 
@@ -1712,51 +1714,126 @@ bool FStateTreeExecutionContext::SelectStateInternal(const FStateTreeStateHandle
 	if (!NextState.IsValid())
 	{
 		// Trying to select non-existing state.
-		STATETREE_LOG(Error, TEXT("%s: Trying to select invalid state from '%s'.  '%s' using StateTree '%s'."),
-            ANSI_TO_TCHAR(__FUNCTION__), *GetStateStatusString(Exec), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+		STATETREE_LOG(Error, TEXT("%hs: Trying to select invalid state from '%s'.  '%s' using StateTree '%s'."),
+            __FUNCTION__, *GetStateStatusString(Exec), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 		return false;
 	}
 
 	const FCompactStateTreeState& State = StateTree.States[NextState.Index];
 
 	// Check that the state can be entered
-	if (TestAllConditions(State.EnterConditionsBegin, State.EnterConditionsNum))
+	if (State.SelectionBehavior != EStateTreeStateSelectionBehavior::None
+		&& TestAllConditions(State.EnterConditionsBegin, State.EnterConditionsNum))
 	{
 		if (!OutNewActiveState.Push(NextState))
 		{
-			STATETREE_LOG(Error, TEXT("%s: Reached max execution depth when trying to select state %s from '%s'.  '%s' using StateTree '%s'."),
-				ANSI_TO_TCHAR(__FUNCTION__), *GetSafeStateName(NextState), *GetStateStatusString(Exec), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+			STATETREE_LOG(Error, TEXT("%hs: Reached max execution depth when trying to select state %s from '%s'.  '%s' using StateTree '%s'."),
+				__FUNCTION__, *GetSafeStateName(NextState), *GetStateStatusString(Exec), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+			return false;
+		}
+		if (!VisitedStates.Push(NextState))
+		{
+			STATETREE_LOG(Error, TEXT("%hs: Reached max visited state depth when trying to select state %s from '%s'.  '%s' using StateTree '%s'."),
+				__FUNCTION__, *GetSafeStateName(NextState), *GetStateStatusString(Exec), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
 			return false;
 		}
 		
 		if (State.LinkedState.IsValid())
 		{
 			// If State is linked, proceed to the linked state.
-			if (SelectStateInternal(State.LinkedState, OutNewActiveState))
+			if (SelectStateInternal(State.LinkedState, OutNewActiveState, VisitedStates))
 			{
 				// Selection succeeded
 				return true;
 			}
 		}
-		else if (State.HasChildren())
-		{
-			// If the state has children, proceed to select children.
-			for (uint16 ChildState = State.ChildrenBegin; ChildState < State.ChildrenEnd; ChildState = StateTree.States[ChildState].GetNextSibling())
-			{
-				if (SelectStateInternal(FStateTreeStateHandle(ChildState), OutNewActiveState))
-				{
-					// Selection succeeded
-					return true;
-				}
-			}
-		}
-		else
+		else if (State.SelectionBehavior == EStateTreeStateSelectionBehavior::TryEnterState)
 		{
 			// Select this state.
 			return true;
 		}
+		else if (State.SelectionBehavior == EStateTreeStateSelectionBehavior::TryFollowTransitions)
+		{
+			EStateTreeTransitionPriority CurrentPriority = EStateTreeTransitionPriority::None;
+			
+			for (uint8 i = 0; i < State.TransitionsNum; i++)
+			{
+				const int16 TransitionIndex = State.TransitionsBegin + i;
+				const FCompactStateTransition& Transition = StateTree.Transitions[TransitionIndex];
+
+				// No need to test the transition if same or higher priority transition has already been processed.
+				if (Transition.Priority <= CurrentPriority)
+				{
+					continue;
+				}
+
+				// Skip completion transitions
+				if (EnumHasAnyFlags(Transition.Trigger, EStateTreeTransitionTrigger::OnStateCompleted))
+				{
+					continue;
+				}
+
+				// Cannot follow transitions with delay.
+				if (Transition.HasDelay())
+				{
+					continue;
+				}
+
+				// Try to prevent (infinite) loops in the selection.
+				if (VisitedStates.Contains(Transition.State))
+				{
+					STATETREE_LOG(Error, TEXT("%hs: Loop detected when trying to select state %s from '%s'. Prior states: %s.  '%s' using StateTree '%s'."),
+						__FUNCTION__, *GetSafeStateName(NextState), *GetStateStatusString(Exec), *DebugGetStatePath(VisitedStates), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
+					continue;
+				}
+
+				const bool bShouldTrigger = Transition.Trigger == EStateTreeTransitionTrigger::OnTick
+											|| (Transition.Trigger == EStateTreeTransitionTrigger::OnEvent
+												&& HasEventToProcess(Transition.EventTag));
+				
+				if (bShouldTrigger
+					&& TestAllConditions(Transition.ConditionsBegin, Transition.ConditionsNum))
+				{
+					// Using SelectState() instead of SelectStateInternal to treat the transitions the same way as regular transitions,
+					// e.g. it may jump to a completely different branch.
+					FStateTreeActiveStates NewActiveState;
+					if (SelectState(Transition.State, NewActiveState, VisitedStates))
+					{
+						// Selection succeeded
+						OutNewActiveState = NewActiveState;
+						CurrentPriority = Transition.Priority;
+					}
+				}
+			}
+
+			if (CurrentPriority != EStateTreeTransitionPriority::None)
+			{
+				return true;
+			}
+		}
+		else if (State.SelectionBehavior == EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder)
+		{
+			if (State.HasChildren())
+			{
+				// If the state has children, proceed to select children.
+				for (uint16 ChildState = State.ChildrenBegin; ChildState < State.ChildrenEnd; ChildState = StateTree.States[ChildState].GetNextSibling())
+				{
+					if (SelectStateInternal(FStateTreeStateHandle(ChildState), OutNewActiveState, VisitedStates))
+					{
+						// Selection succeeded
+						return true;
+					}
+				}
+			}
+			else
+			{
+				// Select this state (For backwards compatibility)
+				return true;
+			}
+		}
 		
 		OutNewActiveState.Pop();
+		VisitedStates.Pop();
 	}
 
 	// Nothing got selected.

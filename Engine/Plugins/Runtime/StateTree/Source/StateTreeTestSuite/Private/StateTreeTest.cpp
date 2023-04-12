@@ -1322,6 +1322,167 @@ struct FStateTreeTest_BindingsCompiler : FAITestBase
 };
 IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_BindingsCompiler, "System.StateTree.BindingsCompiler");
 
+struct FStateTreeTest_FollowTransitions : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		UStateTree& StateTree = UE::StateTree::Tests::NewStateTree(&GetWorld());
+		UStateTreeEditorData& EditorData = *Cast<UStateTreeEditorData>(StateTree.EditorData);
+
+		EditorData.RootParameters.Parameters.AddProperty(FName(TEXT("Int")), EPropertyBagPropertyType::Int32);
+		EditorData.RootParameters.Parameters.SetValueInt32(FName(TEXT("Int")), 1);
+		
+		UStateTreeState& Root = EditorData.AddSubTree(FName(TEXT("Root")));
+		UStateTreeState& StateTrans = Root.AddChildState(FName(TEXT("Trans")));
+		UStateTreeState& StateA = Root.AddChildState(FName(TEXT("A")));
+		UStateTreeState& StateB = Root.AddChildState(FName(TEXT("B")));
+		UStateTreeState& StateC = Root.AddChildState(FName(TEXT("C")));
+
+		// Root
+
+		// Trans
+		{
+			StateTrans.SelectionBehavior = EStateTreeStateSelectionBehavior::TryFollowTransitions;
+
+			{
+				// This transition should be skipped due to the condition
+				FStateTreeTransition& TransA = StateTrans.AddTransition(EStateTreeTransitionTrigger::OnTick, EStateTreeTransitionType::GotoState, &StateA);
+				TStateTreeEditorNode<FStateTreeCompareIntCondition>& TransIntCond = TransA.AddCondition<FStateTreeCompareIntCondition>(EGenericAICheck::Equal);
+				TransIntCond.GetInstanceData().Right = 0;
+				EditorData.AddPropertyBinding(
+					FStateTreePropertyPath(EditorData.RootParameters.ID, TEXT("Int")),
+					FStateTreePropertyPath(TransIntCond.ID, TEXT("Left")));
+			}
+
+			{
+				// This transition leads to selection, but will be overridden.
+				FStateTreeTransition& TransB = StateTrans.AddTransition(EStateTreeTransitionTrigger::OnTick, EStateTreeTransitionType::GotoState, &StateB);
+				TransB.Priority = EStateTreeTransitionPriority::Normal;
+				TStateTreeEditorNode<FStateTreeCompareIntCondition>& TransIntCond = TransB.AddCondition<FStateTreeCompareIntCondition>(EGenericAICheck::Equal);
+				TransIntCond.GetInstanceData().Right = 1;
+				EditorData.AddPropertyBinding(
+					FStateTreePropertyPath(EditorData.RootParameters.ID, TEXT("Int")),
+					FStateTreePropertyPath(TransIntCond.ID, TEXT("Left")));
+			}
+
+			{
+				// This transition is selected, should override previous one due to priority.
+				FStateTreeTransition& TransC = StateTrans.AddTransition(EStateTreeTransitionTrigger::OnTick, EStateTreeTransitionType::GotoState, &StateC);
+				TransC.Priority = EStateTreeTransitionPriority::High;
+				TStateTreeEditorNode<FStateTreeCompareIntCondition>& TransIntCond = TransC.AddCondition<FStateTreeCompareIntCondition>(EGenericAICheck::Equal);
+				TransIntCond.GetInstanceData().Right = 1;
+				EditorData.AddPropertyBinding(
+					FStateTreePropertyPath(EditorData.RootParameters.ID, TEXT("Int")),
+					FStateTreePropertyPath(TransIntCond.ID, TEXT("Left")));
+			}
+		}
+
+		auto& TaskA = StateA.AddTask<FTestTask_Stand>(FName(TEXT("TaskA")));
+		auto& TaskB = StateB.AddTask<FTestTask_Stand>(FName(TEXT("TaskB")));
+		auto& TaskC = StateC.AddTask<FTestTask_Stand>(FName(TEXT("TaskC")));
+
+		FStateTreeCompilerLog Log;
+		FStateTreeCompiler Compiler(Log);
+		const bool bResult = Compiler.Compile(StateTree);
+
+		AITEST_TRUE("StateTree should get compiled", bResult);
+
+		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
+		FStateTreeInstanceData InstanceData;
+		FTestStateTreeExecutionContext Exec(StateTree, StateTree, InstanceData);
+		const bool bInitSucceeded = Exec.IsValid();
+		AITEST_TRUE("StateTree should init", bInitSucceeded);
+
+		const FString TickStr(TEXT("Tick"));
+		const FString EnterStateStr(TEXT("EnterState"));
+		const FString ExitStateStr(TEXT("ExitState"));
+
+		Status = Exec.Start();
+		AITEST_FALSE("StateTree TaskA should not enter state", Exec.Expect(TaskA.GetName(), EnterStateStr));
+		AITEST_FALSE("StateTree TaskB should not enter state", Exec.Expect(TaskB.GetName(), EnterStateStr));
+		AITEST_TRUE("StateTree TaskC should enter state", Exec.Expect(TaskC.GetName(), EnterStateStr));
+		Exec.LogClear();
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_FollowTransitions, "System.StateTree.FollowTransitions");
+
+struct FStateTreeTest_InfiniteLoop : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		UStateTree& StateTree = UE::StateTree::Tests::NewStateTree(&GetWorld());
+		UStateTreeEditorData& EditorData = *Cast<UStateTreeEditorData>(StateTree.EditorData);
+
+		EditorData.RootParameters.Parameters.AddProperty(FName(TEXT("Int")), EPropertyBagPropertyType::Int32);
+		EditorData.RootParameters.Parameters.SetValueInt32(FName(TEXT("Int")), 1);
+		
+		UStateTreeState& Root = EditorData.AddSubTree(FName(TEXT("Root")));
+		UStateTreeState& StateA = Root.AddChildState(FName(TEXT("A")));
+		UStateTreeState& StateB = StateA.AddChildState(FName(TEXT("B")));
+
+		// Root
+
+		// State A
+		{
+			StateA.SelectionBehavior = EStateTreeStateSelectionBehavior::TryFollowTransitions;
+			{
+				// A -> B
+				FStateTreeTransition& Trans = StateA.AddTransition(EStateTreeTransitionTrigger::OnTick, EStateTreeTransitionType::GotoState, &StateB);
+				TStateTreeEditorNode<FStateTreeCompareIntCondition>& TransIntCond = Trans.AddCondition<FStateTreeCompareIntCondition>(EGenericAICheck::Equal);
+				TransIntCond.GetInstanceData().Right = 1;
+				EditorData.AddPropertyBinding(
+					FStateTreePropertyPath(EditorData.RootParameters.ID, TEXT("Int")),
+					FStateTreePropertyPath(TransIntCond.ID, TEXT("Left")));
+			}
+		}
+
+		// State B
+		{
+			StateB.SelectionBehavior = EStateTreeStateSelectionBehavior::TryFollowTransitions;
+			{
+				// B -> A
+				FStateTreeTransition& Trans = StateB.AddTransition(EStateTreeTransitionTrigger::OnTick, EStateTreeTransitionType::GotoState, &StateA);
+				TStateTreeEditorNode<FStateTreeCompareIntCondition>& TransIntCond = Trans.AddCondition<FStateTreeCompareIntCondition>(EGenericAICheck::Equal);
+				TransIntCond.GetInstanceData().Right = 1;
+				EditorData.AddPropertyBinding(
+					FStateTreePropertyPath(EditorData.RootParameters.ID, TEXT("Int")),
+					FStateTreePropertyPath(TransIntCond.ID, TEXT("Left")));
+			}
+		}
+		
+		auto& TaskA = StateA.AddTask<FTestTask_Stand>(FName(TEXT("TaskA")));
+		auto& TaskB = StateB.AddTask<FTestTask_Stand>(FName(TEXT("TaskB")));
+
+		FStateTreeCompilerLog Log;
+		FStateTreeCompiler Compiler(Log);
+		const bool bResult = Compiler.Compile(StateTree);
+
+		AITEST_TRUE("StateTree should get compiled", bResult);
+
+		EStateTreeRunStatus Status = EStateTreeRunStatus::Unset;
+		FStateTreeInstanceData InstanceData;
+		FTestStateTreeExecutionContext Exec(StateTree, StateTree, InstanceData);
+		const bool bInitSucceeded = Exec.IsValid();
+		AITEST_TRUE("StateTree should init", bInitSucceeded);
+
+		const FString TickStr(TEXT("Tick"));
+		const FString EnterStateStr(TEXT("EnterState"));
+		const FString ExitStateStr(TEXT("ExitState"));
+
+		GetTestRunner().AddExpectedError(TEXT("Loop detected when trying to select state"), EAutomationExpectedErrorFlags::Contains, 1);
+		GetTestRunner().AddExpectedError(TEXT("Failed to select initial state"), EAutomationExpectedErrorFlags::Contains, 1);
+
+		Status = Exec.Start();
+		AITEST_EQUAL("Start should fail", Status, EStateTreeRunStatus::Failed);
+		Exec.LogClear();
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_InfiniteLoop, "System.StateTree.InfiniteLoop");
+
 
 UE_ENABLE_OPTIMIZATION_SHIP
 

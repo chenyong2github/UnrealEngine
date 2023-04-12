@@ -11,12 +11,6 @@
 #include "Serialization/ArchiveUObject.h"
 
 
-class FStateTreeArchiveCheckOuters : public FArchiveUObject
-{
-	
-};
-
-
 namespace UE::StateTree::Compiler
 {
 	// Helper archive that checks that the all instanced sub-objects have correct outer. 
@@ -332,7 +326,8 @@ bool FStateTreeCompiler::CreateStateRecursive(UStateTreeState& State, const FSta
 	CompactState.Name = State.Name;
 	CompactState.Parent = Parent;
 
-	CompactState.Type = State.Type; 
+	CompactState.Type = State.Type;
+	CompactState.SelectionBehavior = State.SelectionBehavior;
 	
 	SourceStates.Add(&State);
 	IDToState.Add(State.ID, StateIdx);
@@ -345,7 +340,7 @@ bool FStateTreeCompiler::CreateStateRecursive(UStateTreeState& State, const FSta
 		return false;
 	}
 	CompactState.ChildrenBegin = uint16(ChildrenBegin);
-	
+
 	for (UStateTreeState* Child : State.Children)
 	{
 		if (Child != nullptr && Child->Type != EStateTreeStateType::Subtree)
@@ -363,8 +358,8 @@ bool FStateTreeCompiler::CreateStateRecursive(UStateTreeState& State, const FSta
 		Validation.Log(Log, TEXT("ChildrenEnd"));
 		return false;
 	}
-	StateTree->States[StateIdx].ChildrenEnd = uint16(ChildrenEnd);
-
+	StateTree->States[StateIdx].ChildrenEnd = uint16(ChildrenEnd); // Not using CompactState here because the array may have changed.
+	
 	return true;
 }
 
@@ -690,9 +685,18 @@ bool FStateTreeCompiler::CreateStateTransitions()
 			CompactTransition.Trigger = Transition.Trigger;
 			CompactTransition.Priority = Transition.Priority;
 			CompactTransition.EventTag = Transition.EventTag;
+			
 			if (Transition.bDelayTransition)
 			{
 				CompactTransition.Delay.Set(Transition.DelayDuration, Transition.DelayRandomVariance);
+			}
+			
+			if (CompactState.SelectionBehavior == EStateTreeStateSelectionBehavior::TryFollowTransitions
+				&& Transition.bDelayTransition)
+			{
+				Log.Reportf(EMessageSeverity::Warning,
+					TEXT("Transition to '%s' with delay will be ignored during state selection."),
+					*Transition.State.Name.ToString());
 			}
 
 			if (EnumHasAnyFlags(Transition.Trigger, EStateTreeTransitionTrigger::OnStateCompleted))
@@ -769,7 +773,15 @@ bool FStateTreeCompiler::ResolveTransitionState(const UStateTreeState* SourceSta
 				Log.Reportf(EMessageSeverity::Warning,
 					TEXT("Target state '%s' is in different subtree. Verify that this is intentional."),
 					*Link.Name.ToString());
-			}			
+			}
+
+			if (TargetState->SelectionBehavior == EStateTreeStateSelectionBehavior::None)
+			{
+				Log.Reportf(EMessageSeverity::Error,
+					TEXT("The target State '%s' is not selectable, it's selection behavior is set to None."),
+					*Link.Name.ToString());
+				return false;
+			}
 		}
 		
 		OutTransitionHandle = GetStateHandle(Link.ID);
@@ -784,11 +796,11 @@ bool FStateTreeCompiler::ResolveTransitionState(const UStateTreeState* SourceSta
 	else if (Link.LinkType == EStateTreeTransitionType::NextState)
 	{
 		// Find next state.
-		const UStateTreeState* NextState = SourceState ? SourceState->GetNextSiblingState() : nullptr;
+		const UStateTreeState* NextState = SourceState ? SourceState->GetNextSelectableSiblingState() : nullptr;
 		if (NextState == nullptr)
 		{
 			Log.Reportf(EMessageSeverity::Error,
-				TEXT("Failed to resolve transition, there's no next state."));
+				TEXT("Failed to resolve transition, there's no selectable next state."));
 			return false;
 		}
 		OutTransitionHandle = GetStateHandle(NextState->ID);

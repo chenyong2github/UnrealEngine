@@ -62,6 +62,7 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 	
 	static const FStateTreeEditPropertyPath StateNamePath(UStateTreeState::StaticClass(), TEXT("Name"));
 	static const FStateTreeEditPropertyPath StateTypePath(UStateTreeState::StaticClass(), TEXT("Type"));
+	static const FStateTreeEditPropertyPath SelectionBehaviorPath(UStateTreeState::StaticClass(), TEXT("SelectionBehavior"));
 	static const FStateTreeEditPropertyPath StateLinkedSubtreePath(UStateTreeState::StaticClass(), TEXT("LinkedSubtree"));
 	static const FStateTreeEditPropertyPath StateParametersPath(UStateTreeState::StaticClass(), TEXT("Parameters"));
 	static const FStateTreeEditPropertyPath StateTasksPath(UStateTreeState::StaticClass(), TEXT("Tasks"));
@@ -80,6 +81,16 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 		}
 	}
 
+	// Broadcast selection type changes so that the UI can update.
+	if (SelectionBehaviorPath.IsPathExact(StateTypePath))
+	{
+		const UStateTree* StateTree = GetTypedOuter<UStateTree>();
+		if (ensure(StateTree))
+		{
+			UE::StateTree::Delegates::OnIdentifierChanged.Broadcast(*StateTree);
+		}
+	}
+	
 	if (ChangePropertyPath.IsPathExact(StateTypePath))
 	{
 		// Remove any tasks and evaluators when they are not used.
@@ -99,6 +110,7 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 			// Linked parameter layout is fixed, and copied from the linked target state.
 			Parameters.bFixedLayout = true;
 			UpdateParametersFromLinkedSubtree();
+			SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
 		}
 		else if (Type == EStateTreeStateType::Subtree)
 		{
@@ -310,6 +322,30 @@ const UStateTreeState* UStateTreeState::GetNextSiblingState() const
 			break;
 		}
 	}
+	return nullptr;
+}
+
+const UStateTreeState* UStateTreeState::GetNextSelectableSiblingState() const
+{
+	if (!Parent)
+	{
+		return nullptr;
+	}
+
+	const int32 StartChildIndex = Parent->Children.IndexOfByKey(this);
+	if (StartChildIndex == INDEX_NONE)
+	{
+		return nullptr;
+	}
+	
+	for (int32 ChildIdx = StartChildIndex + 1; ChildIdx < Parent->Children.Num(); ChildIdx++)
+	{
+		if (Parent->Children[ChildIdx]->SelectionBehavior != EStateTreeStateSelectionBehavior::None)
+		{
+			return Parent->Children[ChildIdx];
+		}
+	}
+	
 	return nullptr;
 }
 
