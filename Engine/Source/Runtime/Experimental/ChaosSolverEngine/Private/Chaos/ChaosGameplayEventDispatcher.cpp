@@ -320,7 +320,8 @@ void UChaosGameplayEventDispatcher::RegisterChaosEvents()
 		if (Chaos::FPhysicsSolver* Solver = Scene->GetSolver())
 		{
 			Chaos::FEventManager* EventManager = Solver->GetEventManager();
-			EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UChaosGameplayEventDispatcher::HandleCollisionEvents);
+			EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UChaosGameplayEventDispatcher::HandleCollisionEvents, &UChaosGameplayEventDispatcher::GetInterestedProxyOwnersForCollisionEvents);
+			// Todo implement GetInterestedProxies for these as well 
 			EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UChaosGameplayEventDispatcher::HandleBreakingEvents);
 			EventManager->RegisterHandler<Chaos::FRemovalEventData>(Chaos::EEventType::Removal, this, &UChaosGameplayEventDispatcher::HandleRemovalEvents);
 			EventManager->RegisterHandler<Chaos::FCrumblingEventData>(Chaos::EEventType::Crumbling, this, &UChaosGameplayEventDispatcher::HandleCrumblingEvents);
@@ -345,6 +346,29 @@ void UChaosGameplayEventDispatcher::UnregisterChaosEvents()
 			}
 		}
 	}
+}
+
+TArray<UObject*> UChaosGameplayEventDispatcher::GetInterestedProxyOwnersForCollisionEvents()
+{
+	TArray<UObject*> Result;
+	FPhysScene_Chaos& Scene = *(GetWorld()->GetPhysicsScene());
+		
+	// look through all the components that someone is interested in and get all the proxies
+	for (decltype(CollisionEventRegistrations)::TIterator It(CollisionEventRegistrations); It; ++It)
+	{
+		UPrimitiveComponent* const Comp0 = Cast<UPrimitiveComponent>(It.Key());
+		const TArray<IPhysicsProxyBase*>* PhysicsProxyArray = Scene.GetOwnedPhysicsProxies(Comp0);
+
+		if (PhysicsProxyArray)
+		{
+			for (IPhysicsProxyBase* PhysicsProxy0 : *PhysicsProxyArray)
+			{
+				Result.AddUnique(PhysicsProxy0->GetOwner());
+			}
+		}
+	}
+
+	return Result;
 }
 
 void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisionEventData& Event)
