@@ -36,12 +36,6 @@ UCustomizableObjectNodeObject::UCustomizableObjectNodeObject()
 		Identifier = FGuid::NewGuid();
 		IdentifierVerification = Identifier;
 	}
-
-	if (ComponentSettings.IsEmpty())
-	{
-		ComponentSettings.Add(FComponentSettings());
-		ComponentSettings.Last().LODReductionSettings.Add(FLODReductionSettings());
-	}
 }
 
 
@@ -271,6 +265,15 @@ void UCustomizableObjectNodeObject::PostBackwardsCompatibleFixup()
 		.Severity(EMessageSeverity::Warning)
 		.Node(*this)
 		.Log();
+	}
+
+	// Fix up ComponentSettings
+	if (ComponentSettings.IsEmpty())
+	{
+		FComponentSettings ComponentSettingsTemplate;
+		ComponentSettingsTemplate.LODReductionSettings.SetNum(NumLODs);
+
+		ComponentSettings.Init(ComponentSettingsTemplate, NumMeshComponents);
 	}
 
 	// Reconstruct in case any extension pins have changed

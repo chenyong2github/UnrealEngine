@@ -631,6 +631,11 @@ mu::NodeObjectPtr GenerateMutableSource(const UEdGraphPin * Pin, FMutableGraphGe
 				{
 					MaxRefMeshLODs = RefSkeletalMesh->GetLODNum();
 				}
+
+				if (TypedNodeObj->ComponentSettings.IsValidIndex(MeshIndex))
+				{
+					GenerationContext.ComponentInfos[MeshIndex].AccumulateBonesToRemovePerLOD(TypedNodeObj->ComponentSettings[MeshIndex], TypedNodeObj->NumLODs);
+				}
 			}
 
 			if (MaxRefMeshLODs < NumLODs)
@@ -1514,5 +1519,74 @@ void AddSocketTagsToMesh(const USkeletalMesh* SourceMesh, mu::MeshPtr MutableMes
 		AddTagToMutableMeshUnique(*MutableMesh, SocketTag);
 	}
 }
+
+
+FMutableComponentInfo::FMutableComponentInfo(USkeletalMesh* InRefSkeletalMesh)
+{
+	if (!InRefSkeletalMesh || !InRefSkeletalMesh->GetSkeleton())
+	{
+		return;
+	}
+
+	RefSkeletalMesh = InRefSkeletalMesh;
+	RefSkeleton = RefSkeletalMesh->GetSkeleton();
+
+	const int32 NumBones = RefSkeleton->GetReferenceSkeleton().GetRawBoneNum();
+	BoneNamesToPathHash.Reserve(NumBones);
+
+	const TArray<FMeshBoneInfo>& Bones = RefSkeleton->GetReferenceSkeleton().GetRawRefBoneInfo();
+
+	for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+	{
+		const FMeshBoneInfo& Bone = Bones[BoneIndex];
+
+		// Retrieve parent bone name and respective hash, root-bone is assumed to have a parent hash of 0
+		const FName ParentName = Bone.ParentIndex != INDEX_NONE ? Bones[Bone.ParentIndex].Name : NAME_None;
+		const uint32 ParentHash = Bone.ParentIndex != INDEX_NONE ? GetTypeHash(ParentName) : 0;
+
+		// Look-up the path-hash from root to the parent bone
+		const uint32* ParentPath = BoneNamesToPathHash.Find(ParentName);
+		const uint32 ParentPathHash = ParentPath ? *ParentPath : 0;
+
+		// Append parent hash to path to give full path hash to current bone
+		const uint32 BonePathHash = HashCombine(ParentPathHash, ParentHash);
+
+		// Add path hash to current bone
+		BoneNamesToPathHash.Add(Bone.Name, BonePathHash);
+	}
+}
+
+
+void FMutableComponentInfo::AccumulateBonesToRemovePerLOD(const FComponentSettings& ComponentSettings, int32 NumLODs)
+{
+	BonesToRemovePerLOD.SetNum(NumLODs);
+
+	TMap<FName, bool> BonesToRemove;
+
+	const int32 ComponentSettingsLODCount = ComponentSettings.LODReductionSettings.Num();
+	for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
+	{
+		if (LODIndex < ComponentSettingsLODCount)
+		{
+			const FLODReductionSettings& LODReductionSettings = ComponentSettings.LODReductionSettings[LODIndex];
+
+			for (const FBoneToRemove& Bone : LODReductionSettings.BonesToRemove)
+			{
+				if (bool* bOnlyRemoveChildren = BonesToRemove.Find(Bone.BoneName))
+				{
+					// Removed by a previous LOD
+					*bOnlyRemoveChildren = (*bOnlyRemoveChildren) && Bone.bOnlyRemoveChildren;
+				}
+				else
+				{
+					BonesToRemove.Add(Bone.BoneName, Bone.bOnlyRemoveChildren);
+				}
+			}
+		}
+		
+		BonesToRemovePerLOD[LODIndex] = BonesToRemove;
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE

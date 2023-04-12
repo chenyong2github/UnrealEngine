@@ -367,40 +367,9 @@ inline uint32 GetTypeHash(const FMeshData& Key)
 /** Struct used to store info specific to each component during compilation */
 struct FMutableComponentInfo
 {
-	FMutableComponentInfo(USkeletalMesh* InRefSkeletalMesh)
-	{
-		if(!InRefSkeletalMesh || !InRefSkeletalMesh->GetSkeleton())
-		{
-			return;
-		}
-		
-		RefSkeletalMesh = InRefSkeletalMesh;
-		RefSkeleton = RefSkeletalMesh->GetSkeleton();
-			
-		const int32 NumBones = RefSkeleton->GetReferenceSkeleton().GetRawBoneNum();
-		BoneNamesToPathHash.Reserve(NumBones);
+	FMutableComponentInfo(USkeletalMesh* InRefSkeletalMesh);
 
-		const TArray<FMeshBoneInfo>& Bones = RefSkeleton->GetReferenceSkeleton().GetRawRefBoneInfo();
-
-		for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
-		{
-			const FMeshBoneInfo& Bone = Bones[BoneIndex];
-
-			// Retrieve parent bone name and respective hash, root-bone is assumed to have a parent hash of 0
-			const FName ParentName = Bone.ParentIndex != INDEX_NONE ? Bones[Bone.ParentIndex].Name : NAME_None;
-			const uint32 ParentHash = Bone.ParentIndex != INDEX_NONE ? GetTypeHash(ParentName) : 0;
-
-			// Look-up the path-hash from root to the parent bone
-			const uint32* ParentPath = BoneNamesToPathHash.Find(ParentName);
-			const uint32 ParentPathHash = ParentPath ? *ParentPath : 0;
-
-			// Append parent hash to path to give full path hash to current bone
-			const uint32 BonePathHash = HashCombine(ParentPathHash, ParentHash);
-
-			// Add path hash to current bone
-			BoneNamesToPathHash.Add(Bone.Name, BonePathHash);
-		}
-	}
+	void AccumulateBonesToRemovePerLOD(const FComponentSettings& ComponentSettings, int32 NumLODs);
 
 	// Each component must have a reference SkeletalMesh with a valid Skeleton
 	USkeletalMesh* RefSkeletalMesh = nullptr;
@@ -412,6 +381,9 @@ struct FMutableComponentInfo
 	// Hierarchy hash from parent-bone to root bone, used to check if additional skeletons are compatible with
 	// the RefSkeleton
 	TMap<FName, uint32> BoneNamesToPathHash;
+
+	// Bones to remove on each LOD, include bones on previous LODs. FName (BoneToRemove) - bool (bOnlyRemoveChildren)
+	TArray<TMap<FName, bool>> BonesToRemovePerLOD;
 };
 
 
@@ -741,19 +713,6 @@ struct FMutableGraphGenerationContext
 	// Stores the parameters generated in the node tables
 	TMap<const class UCustomizableObjectNodeTable*, TArray<FGuid>> GeneratedParametersInTables;
 
-	struct FMeshWithBoneRemovalApplied
-	{
-		TObjectPtr<class USkeletalMesh> Mesh;
-		
-		// Key is LOD index
-		//
-		// This is a cache. Entries are added on demand. A processed LOD with no bones removed will have an empty entry.
-		TMap<int32, TMap<int32, int32>> RemovedBonesActiveParentIndicesPerLOD;
-
-		bool bHasBonesToRemove = false;
-	};
-
-	TMap<TObjectPtr<class USkeletalMesh>, FMeshWithBoneRemovalApplied> MeshesWithBoneRemovalApplied;
 
 	/** Extension Data constants are collected here */
 	FExtensionDataCompilerInterface ExtensionDataCompilerInterface;

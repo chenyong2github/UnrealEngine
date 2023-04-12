@@ -26,7 +26,7 @@ void FCustomizableObjectLODReductionSettings::CustomizeHeader(TSharedRef<IProper
 	constexpr bool bRecurse = false;
 
 	BoneNameProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBoneToRemove, BoneName), bRecurse);
-	IncludeBoneProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBoneToRemove, bIncludeBone), bRecurse);
+	IncludeBoneProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FBoneToRemove, bOnlyRemoveChildren), bRecurse);
 
 	TSharedPtr<IPropertyHandle> Parent = StructPropertyHandle->GetParentHandle();
 	if (Parent)
@@ -39,8 +39,8 @@ void FCustomizableObjectLODReductionSettings::CustomizeHeader(TSharedRef<IProper
 	{
 		ObjectNode = GetObjectNode();
 
-		bool bIncludeBoneProperty = false;
-		IncludeBoneProperty->GetValue(bIncludeBoneProperty);
+		bool bOnlyRemoveChildrenProperty = false;
+		IncludeBoneProperty->GetValue(bOnlyRemoveChildrenProperty);
 
 		HeaderRow
 		.NameContent()
@@ -97,7 +97,7 @@ void FCustomizableObjectLODReductionSettings::CustomizeHeader(TSharedRef<IProper
 				[
 					SNew(SCheckBox)
 					.OnCheckStateChanged(this, &FCustomizableObjectLODReductionSettings::OnBoneCheckBoxChanged)
-					.IsChecked(bIncludeBoneProperty ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+					.IsChecked(bOnlyRemoveChildrenProperty ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
 				]
 			]
 		];

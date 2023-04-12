@@ -22,7 +22,7 @@ struct FBoneToRemove
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
-	bool bIncludeBone = false;
+	bool bOnlyRemoveChildren = false;
 
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	FName BoneName;
