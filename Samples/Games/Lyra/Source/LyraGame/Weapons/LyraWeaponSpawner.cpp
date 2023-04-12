@@ -56,9 +56,12 @@ void ALyraWeaponSpawner::BeginPlay()
 	{
 		CoolDownTime = WeaponDefinition->SpawnCoolDownSeconds;	
 	}
-	else
+	else if (const UWorld* World = GetWorld())
 	{
-		UE_LOG(LogLyra, Error, TEXT("'%s' does not have a valid weapon definition! Make sure to set this data on the instance!"), *GetNameSafe(this));
+		if (!World->IsPlayingReplay())
+		{
+			UE_LOG(LogLyra, Error, TEXT("'%s' does not have a valid weapon definition! Make sure to set this data on the instance!"), *GetNameSafe(this));	
+		}
 	}
 }
 
