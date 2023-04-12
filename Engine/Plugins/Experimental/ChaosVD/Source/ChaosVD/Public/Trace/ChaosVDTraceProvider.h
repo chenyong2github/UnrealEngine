@@ -12,7 +12,7 @@ struct FChaosVDRecording;
  * It stores and handles rebuilt recorded frame data from Trace events
  * dispatched by the Chaos VD Trace analyzer
  */
-class FChaosVDTraceProvider : public TraceServices::IEditableProvider
+class FChaosVDTraceProvider : public TraceServices::IProvider
 {
 public:
 	
