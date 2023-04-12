@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Text;
-using System.Text.Json.Serialization;
 
 namespace EpicGames.UHT.Types
 {

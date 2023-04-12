@@ -53,7 +53,6 @@ namespace EpicGames.UHT.Types
 			KeyProperty.PropertyFlags = (ValueProperty.PropertyFlags & ~EPropertyFlags.UObjectWrapper) | (KeyProperty.PropertyFlags & EPropertyFlags.UObjectWrapper);
 			KeyProperty.DisallowPropertyFlags = ~(EPropertyFlags.ContainsInstancedReference | EPropertyFlags.InstancedReference | EPropertyFlags.UObjectWrapper);
 
-
 			PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef;
 			PropertyCaps &= ~(UhtPropertyCaps.CanBeContainerValue | UhtPropertyCaps.CanBeContainerKey);
 			UpdateCaps();

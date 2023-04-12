@@ -726,11 +726,11 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					builder.Append("{\r\n");
 					if (String.IsNullOrEmpty(scriptStruct.RigVMStructInfo.ExecuteContextMember))
 					{
-						builder.Append("\t").Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append(" TemporaryExecuteContext;\r\n");
+						builder.Append('\t').Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append(" TemporaryExecuteContext;\r\n");
 					}
 					else
 					{
-						builder.Append("\t").Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append("& TemporaryExecuteContext = ").Append(scriptStruct.RigVMStructInfo.ExecuteContextMember).Append(";\r\n");
+						builder.Append('\t').Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append("& TemporaryExecuteContext = ").Append(scriptStruct.RigVMStructInfo.ExecuteContextMember).Append(";\r\n");
 					}
 
 					builder.Append("\tTemporaryExecuteContext.Initialize();\r\n");
@@ -902,7 +902,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				builder.AppendPropertiesParamsCountStaticAssert(function, staticsName);
 
-				if (!string.IsNullOrEmpty(sizeOfStatic))
+				if (!String.IsNullOrEmpty(sizeOfStatic))
 				{
 					builder.Append("\tstatic_assert(").Append(sizeOfStatic).Append(" < MAX_uint16);\r\n");
 				}
@@ -1088,7 +1088,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			callbackFunctions.Sort((x, y) => StringComparerUE.OrdinalIgnoreCase.Compare(x.EngineName, y.EngineName));
 
 			// Generate the callback parameter structures
-			AppendCallbackParametersDecls(builder, classObj, callbackFunctions);
+			AppendCallbackParametersDecls(builder, callbackFunctions);
 
 			// VM -> C++ proxies (events and delegates).
 			if (!classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.NoExport))
@@ -1296,7 +1296,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			return builder;
 		}
 
-		private StringBuilder AppendSparseAccessors(StringBuilder builder, UhtClass classObj)
+		private static StringBuilder AppendSparseAccessors(StringBuilder builder, UhtClass classObj)
 		{
 			string[]? sparseDataTypes = classObj.MetaData.GetStringArray(UhtNames.SparseClassDataTypes);
 			if (sparseDataTypes == null)
@@ -1352,9 +1352,12 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append("\t\tUFunction* const Func = O->FindFunction(NAME_").Append(function.Outer?.SourceName).Append('_').Append(function.SourceName).Append(");\r\n");
 				builder.Append("\t\tif (Func)\r\n");
 				builder.Append("\t\t{\r\n");
-				foreach (UhtProperty property in function.ParameterProperties.Span)
+				foreach (UhtType parameter in function.ParameterProperties.Span)
 				{
-					builder.Append("\t\t\tParms.").Append(property.SourceName).Append('=').Append(property.SourceName).Append(";\r\n");
+					if (parameter is UhtProperty property)
+					{
+						builder.Append("\t\t\tParms.").Append(property.SourceName).Append('=').Append(property.SourceName).Append(";\r\n");
+					}
 				}
 				builder
 					.Append("\t\t\t")
@@ -1362,11 +1365,14 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					.Append("->ProcessEvent(Func, ")
 					.Append(function.Children.Count > 0 ? "&Parms" : "NULL")
 					.Append(");\r\n");
-				foreach (UhtProperty property in function.ParameterProperties.Span)
+				foreach (UhtType parameter in function.ParameterProperties.Span)
 				{
-					if (property.PropertyFlags.HasExactFlags(EPropertyFlags.OutParm | EPropertyFlags.ConstParm, EPropertyFlags.OutParm))
+					if (parameter is UhtProperty property)
 					{
-						builder.Append("\t\t\t").Append(property.SourceName).Append("=Parms.").Append(property.SourceName).Append(";\r\n");
+						if (property.PropertyFlags.HasExactFlags(EPropertyFlags.OutParm | EPropertyFlags.ConstParm, EPropertyFlags.OutParm))
+						{
+							builder.Append("\t\t\t").Append(property.SourceName).Append("=Parms.").Append(property.SourceName).Append(";\r\n");
+						}
 					}
 				}
 				builder.Append("\t\t}\r\n");
@@ -1390,14 +1396,17 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					builder.Append("I->").Append(function.SourceName).Append("_Implementation(");
 
 					bool first = true;
-					foreach (UhtProperty property in function.ParameterProperties.Span)
+					foreach (UhtType parameter in function.ParameterProperties.Span)
 					{
-						if (!first)
+						if (parameter is UhtProperty property)
 						{
-							builder.Append(',');
+							if (!first)
+							{
+								builder.Append(',');
+							}
+							first = false;
+							builder.Append(property.SourceName);
 						}
-						first = false;
-						builder.Append(property.SourceName);
 					}
 					builder.Append(");\r\n");
 					builder.Append("\t\t}\r\n");
@@ -1806,7 +1815,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			return builder;
 		}
 
-		private StringBuilder AppendCallbackParametersDecls(StringBuilder builder, UhtClass classObj, List<UhtFunction> callbackFunctions)
+		private static StringBuilder AppendCallbackParametersDecls(StringBuilder builder, List<UhtFunction> callbackFunctions)
 		{
 			foreach (UhtFunction function in callbackFunctions)
 			{
@@ -1814,6 +1823,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			}
 			return builder;
 		}
+
 		private StringBuilder AppendCallbackFunctions(StringBuilder builder, UhtClass classObj, List<UhtFunction> callbackFunctions)
 		{
 			if (callbackFunctions.Count > 0)
@@ -1903,9 +1913,12 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		private static StringBuilder AppendFunctionThunk(StringBuilder builder, UhtFunction function)
 		{
 			// Export the GET macro for the parameters
-			foreach (UhtProperty parameter in function.ParameterProperties.Span)
+			foreach (UhtType parameter in function.ParameterProperties.Span)
 			{
-				builder.Append("\t\t").AppendFunctionThunkParameterGet(parameter).Append(";\r\n");
+				if (parameter is UhtProperty property)
+				{
+					builder.Append("\t\t").AppendFunctionThunkParameterGet(property).Append(";\r\n");
+				}
 			}
 
 			builder.Append("\t\tP_FINISH;\r\n");
@@ -2034,14 +2047,17 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		public static StringBuilder AppendFunctionThunkParameterNames(this StringBuilder builder, UhtFunction function)
 		{
 			bool first = true;
-			foreach (UhtProperty parameter in function.ParameterProperties.Span)
+			foreach (UhtType parameter in function.ParameterProperties.Span)
 			{
-				if (!first)
+				if (parameter is UhtProperty property)
 				{
-					builder.Append(',');
+					if (!first)
+					{
+						builder.Append(',');
+					}
+					builder.AppendFunctionThunkParameterArg(property);
+					first = false;
 				}
-				builder.AppendFunctionThunkParameterArg(parameter);
-				first = false;
 			}
 			return builder;
 		}

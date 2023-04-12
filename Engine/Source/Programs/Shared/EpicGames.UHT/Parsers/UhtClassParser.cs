@@ -110,10 +110,7 @@ namespace EpicGames.UHT.Parsers
 
 					specifiers.ParseDeferred();
 
-					if (classObj.Outer != null)
-					{
-						classObj.Outer.AddChild(classObj);
-					}
+					classObj.Outer?.AddChild(classObj);
 
 					topScope.AddModuleRelativePathToMetaData();
 

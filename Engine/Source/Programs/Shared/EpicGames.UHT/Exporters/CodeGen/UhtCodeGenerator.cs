@@ -124,21 +124,24 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				bool writeHeader = false;
 				prereqs.Clear();
-				foreach (UhtHeaderFile headerFile in package.Children)
+				foreach (UhtType packageChild in package.Children)
 				{
-					prereqs.Add(HeaderInfos[headerFile.HeaderFileTypeIndex].Task);
-					if (!writeHeader)
+					if (packageChild is UhtHeaderFile headerFile)
 					{
-						foreach (UhtType type in headerFile.Children)
+						prereqs.Add(HeaderInfos[headerFile.HeaderFileTypeIndex].Task);
+						if (!writeHeader)
 						{
-							if (type is UhtClass classObj)
+							foreach (UhtType type in headerFile.Children)
 							{
-								if (classObj.ClassType != UhtClassType.NativeInterface &&
-									classObj.ClassFlags.HasExactFlags(EClassFlags.Native | EClassFlags.Intrinsic, EClassFlags.Native) &&
-									!classObj.ClassExportFlags.HasAllFlags(UhtClassExportFlags.NoExport))
+								if (type is UhtClass classObj)
 								{
-									writeHeader = true;
-									break;
+									if (classObj.ClassType != UhtClassType.NativeInterface &&
+										classObj.ClassFlags.HasExactFlags(EClassFlags.Native | EClassFlags.Intrinsic, EClassFlags.Native) &&
+										!classObj.ClassExportFlags.HasAllFlags(UhtClassExportFlags.NoExport))
+									{
+										writeHeader = true;
+										break;
+									}
 								}
 							}
 						}
@@ -247,9 +250,12 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			objectInfo.UnregisteredExternalDecl = objectInfo.RegsiteredExternalDecl = $"\t{packageInfo.Api}_API UPackage* {objectInfo.RegisteredSingletonName}();\r\n"; //COMPATIBILITY-TODO remove the extra _API
 			objectInfo.UnregsiteredCrossReference = objectInfo.RegsiteredCrossReference = $"\tUPackage* {objectInfo.RegisteredSingletonName}();\r\n";
 
-			foreach (UhtHeaderFile headerFile in package.Children)
+			foreach (UhtType packageChild in package.Children)
 			{
-				InitHeaderInfo(builder, package, ref packageInfo, headerFile);
+				if (packageChild is UhtHeaderFile headerFile)
+				{
+					InitHeaderInfo(builder, package, ref packageInfo, headerFile);
+				}
 			}
 		}
 
@@ -300,9 +306,12 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			}
 			headerInfo.FileId = new string(outFilePath);
 
-			foreach (UhtObject obj in headerFile.Children)
+			foreach (UhtType headerFileChild in headerFile.Children)
 			{
-				InitObjectInfo(builder, package, ref packageInfo, ref headerInfo, obj);
+				if (headerFileChild is UhtObject obj)
+				{
+					InitObjectInfo(builder, package, ref packageInfo, ref headerInfo, obj);
+				}
 			}
 		}
 
@@ -407,11 +416,14 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		private static List<UhtHeaderFile> GetSortedHeaderFiles(UhtPackage package)
 		{
 			List<UhtHeaderFile> sortedHeaders = new(package.Children.Count);
-			foreach (UhtHeaderFile headerFile in package.Children)
+			foreach (UhtType packageChild in package.Children)
 			{
-				if (headerFile.ShouldExport)
+				if (packageChild is UhtHeaderFile headerFile)
 				{
-					sortedHeaders.Add(headerFile);
+					if (headerFile.ShouldExport)
+					{
+						sortedHeaders.Add(headerFile);
+					}
 				}
 			}
 			sortedHeaders.Sort((lhs, rhs) => { return StringComparerUE.OrdinalIgnoreCase.Compare(lhs.FilePath, rhs.FilePath); });

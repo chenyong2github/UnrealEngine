@@ -57,35 +57,38 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			builder.AppendTabs(tabs).Append('{').Append(endl);
 
 			++tabs;
-			foreach (UhtProperty property in function.Children)
+			foreach (UhtType functionChild in function.Children)
 			{
-				bool emitConst = property.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm) && property is UhtObjectProperty;
-
-				//@TODO: UCREMOVAL: This is awful code duplication to avoid a double-const
+				if (functionChild is UhtProperty property)
 				{
-					//@TODO: bEmitConst will only be true if we have an object, so checking interface here doesn't do anything.
-					// export 'const' for parameters
-					bool isConstParam = property is UhtInterfaceProperty && !property.PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm); //@TODO: This should be const once that flag exists
-					bool isOnConstClass = false;
-					if (property is UhtObjectProperty objectProperty)
+					bool emitConst = property.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm) && property is UhtObjectProperty;
+
+					//@TODO: UCREMOVAL: This is awful code duplication to avoid a double-const
 					{
-						isOnConstClass = objectProperty.Class.ClassFlags.HasAnyFlags(EClassFlags.Const);
+						//@TODO: bEmitConst will only be true if we have an object, so checking interface here doesn't do anything.
+						// export 'const' for parameters
+						bool isConstParam = property is UhtInterfaceProperty && !property.PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm); //@TODO: This should be const once that flag exists
+						bool isOnConstClass = false;
+						if (property is UhtObjectProperty objectProperty)
+						{
+							isOnConstClass = objectProperty.Class.ClassFlags.HasAnyFlags(EClassFlags.Const);
+						}
+
+						if (isConstParam || isOnConstClass)
+						{
+							emitConst = false; // ExportCppDeclaration will do it for us
+						}
 					}
 
-					if (isConstParam || isOnConstClass)
+					builder.AppendTabs(tabs);
+					if (emitConst)
 					{
-						emitConst = false; // ExportCppDeclaration will do it for us
+						builder.Append("const ");
 					}
-				}
 
-				builder.AppendTabs(tabs);
-				if (emitConst)
-				{
-					builder.Append("const ");
+					builder.AppendFullDecl(property, textType, false);
+					builder.Append(';').Append(endl);
 				}
-
-				builder.AppendFullDecl(property, textType, false);
-				builder.Append(';').Append(endl);
 			}
 
 			if (outputConstructor)
@@ -295,23 +298,26 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			builder.AppendTabs(tabs).Append(eventParameterStructName).Append(" Parms;").Append(endl);
 
 			// Declare a parameter struct for this event/delegate and assign the struct members using the values passed into the event/delegate call.
-			foreach (UhtProperty property in function.ParameterProperties.Span)
+			foreach (UhtType parameter in function.ParameterProperties.Span)
 			{
-				if (property.IsStaticArray)
+				if (parameter is UhtProperty property)
 				{
-					builder.AppendTabs(tabs).Append("FMemory::Memcpy(Parm.")
-						.Append(property.SourceName).Append(',')
-						.Append(property.SourceName).Append(",sizeof(Parms.")
-						.Append(property.SourceName).Append(");").Append(endl);
-				}
-				else
-				{
-					builder.AppendTabs(tabs).Append("Parms.").Append(property.SourceName).Append('=').Append(property.SourceName);
-					if (property is UhtBoolProperty)
+					if (property.IsStaticArray)
 					{
-						builder.Append(" ? true : false");
+						builder.AppendTabs(tabs).Append("FMemory::Memcpy(Parm.")
+							.Append(property.SourceName).Append(',')
+							.Append(property.SourceName).Append(",sizeof(Parms.")
+							.Append(property.SourceName).Append(");").Append(endl);
 					}
-					builder.Append(';').Append(endl);
+					else
+					{
+						builder.AppendTabs(tabs).Append("Parms.").Append(property.SourceName).Append('=').Append(property.SourceName);
+						if (property is UhtBoolProperty)
+						{
+							builder.Append(" ? true : false");
+						}
+						builder.Append(';').Append(endl);
+					}
 				}
 			}
 			return builder;
@@ -322,30 +328,33 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			++tabs;
 
 			// Out parm copying.
-			foreach (UhtProperty property in function.ParameterProperties.Span)
+			foreach (UhtType parameter in function.ParameterProperties.Span)
 			{
-				if (property.PropertyFlags.HasExactFlags(EPropertyFlags.ConstParm | EPropertyFlags.OutParm, EPropertyFlags.OutParm))
+				if (parameter is UhtProperty property)
 				{
-					if (property.IsStaticArray)
+					if (property.PropertyFlags.HasExactFlags(EPropertyFlags.ConstParm | EPropertyFlags.OutParm, EPropertyFlags.OutParm))
 					{
-						builder
-							.AppendTabs(tabs)
-							.Append("FMemory::Memcpy(&")
-							.Append(property.SourceName)
-							.Append(",&Parms.")
-							.Append(property.SourceName)
-							.Append(",sizeof(")
-							.Append(property.SourceName)
-							.Append("));").Append(endl);
-					}
-					else
-					{
-						builder
-							.AppendTabs(tabs)
-							.Append(property.SourceName)
-							.Append("=Parms.")
-							.Append(property.SourceName)
-							.Append(';').Append(endl);
+						if (property.IsStaticArray)
+						{
+							builder
+								.AppendTabs(tabs)
+								.Append("FMemory::Memcpy(&")
+								.Append(property.SourceName)
+								.Append(",&Parms.")
+								.Append(property.SourceName)
+								.Append(",sizeof(")
+								.Append(property.SourceName)
+								.Append("));").Append(endl);
+						}
+						else
+						{
+							builder
+								.AppendTabs(tabs)
+								.Append(property.SourceName)
+								.Append("=Parms.")
+								.Append(property.SourceName)
+								.Append(';').Append(endl);
+						}
 					}
 				}
 			}
@@ -390,17 +399,20 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				needsSeperator = true;
 			}
 
-			foreach (UhtProperty parameter in function.ParameterProperties.Span)
+			foreach (UhtType parameter in function.ParameterProperties.Span)
 			{
-				if (needsSeperator)
+				if (parameter is UhtProperty property)
 				{
-					builder.Append(", ");
+					if (needsSeperator)
+					{
+						builder.Append(", ");
+					}
+					else
+					{
+						needsSeperator = true;
+					}
+					builder.AppendFullDecl(property, textType, skipParameterName);
 				}
-				else
-				{
-					needsSeperator = true;
-				}
-				builder.AppendFullDecl(parameter, textType, skipParameterName);
 			}
 
 			builder.Append(')');
@@ -517,7 +529,6 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				}
 			}
 		}
-
 
 		protected static string GetDelegateFunctionExportName(UhtFunction function)
 		{

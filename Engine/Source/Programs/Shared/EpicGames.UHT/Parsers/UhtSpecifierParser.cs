@@ -183,10 +183,7 @@ namespace EpicGames.UHT.Parsers
 				{
 					if (specifier.When == UhtSpecifierWhen.Deferred)
 					{
-						if (_deferredSpecifiers == null)
-						{
-							_deferredSpecifiers = new List<DeferredSpecifier>();
-						}
+						_deferredSpecifiers ??= new List<DeferredSpecifier>();
 						_deferredSpecifiers.Add(new DeferredSpecifier { _specifier = specifier, _value = value });
 					}
 					else
@@ -223,19 +220,13 @@ namespace EpicGames.UHT.Parsers
 
 		private void ParseKVPValueInternal()
 		{
-			if (_currentKVPValues == null)
-			{
-				_currentKVPValues = new List<KeyValuePair<StringView, StringView>>();
-			}
+			_currentKVPValues ??= new List<KeyValuePair<StringView, StringView>>();
 			_currentKVPValues.Add(ReadKVP());
 		}
 
 		private void ParseStringViewListInternal()
 		{
-			if (_currentStringValues == null)
-			{
-				_currentStringValues = new List<StringView>();
-			}
+			_currentStringValues ??= new List<StringView>();
 			_currentStringValues.Add(ReadValue());
 		}
 

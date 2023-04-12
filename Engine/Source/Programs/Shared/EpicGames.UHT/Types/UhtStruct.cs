@@ -114,7 +114,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Stack used to test to see if we are recursing in a ScanForInstanceReferenced call
 		/// </summary>
-		private readonly ThreadLocal<List<UhtType>> _scanForInstanceReferencedStack = new ThreadLocal<List<UhtType>>(() =>
+		private static readonly ThreadLocal<List<UhtType>> s_scanForInstanceReferencedStack = new(() =>
 		{
 			return new List<UhtType>();
 		});
@@ -156,10 +156,7 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override void ResolveSuper(UhtResolvePhase resolvePhase)
 		{
-			if (Super != null)
-			{
-				Super.Resolve(resolvePhase);
-			}
+			Super?.Resolve(resolvePhase);
 
 			foreach (UhtStruct baseStruct in Bases)
 			{
@@ -177,7 +174,7 @@ namespace EpicGames.UHT.Types
 		/// <returns></returns>
 		public bool ScanForInstancedReferenced(bool deepScan)
 		{
-			List<UhtType> scanForInstanceReferencedStack = _scanForInstanceReferencedStack.Value!;
+			List<UhtType> scanForInstanceReferencedStack = s_scanForInstanceReferencedStack.Value!;
 			if (scanForInstanceReferencedStack.Contains(this))
 			{
 				return false;
@@ -257,10 +254,7 @@ namespace EpicGames.UHT.Types
 					UhtStruct? baseStruct = (UhtStruct?)FindType(findOptions | UhtFindOptions.Class | UhtFindOptions.ScriptStruct | UhtFindOptions.SourceName | UhtFindOptions.NoSelf, baseIdentifier);
 					if (baseStruct != null)
 					{
-						if (_bases == null)
-						{
-							_bases = new List<UhtStruct>();
-						}
+						_bases ??= new List<UhtStruct>();
 						_bases.Add(baseStruct);
 						HeaderFile.AddReferencedHeader(baseStruct);
 					}

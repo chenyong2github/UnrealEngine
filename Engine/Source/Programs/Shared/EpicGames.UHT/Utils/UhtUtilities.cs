@@ -297,10 +297,7 @@ namespace EpicGames.UHT.Utils
 		{
 			if (!_useStringBuilder)
 			{
-				if (_stringBuilder == null)
-				{
-					_stringBuilder = new StringBuilder();
-				}
+				_stringBuilder ??= new StringBuilder();
 				_useStringBuilder = true;
 				_stringBuilder.Append(_stringView.Span);
 			}
