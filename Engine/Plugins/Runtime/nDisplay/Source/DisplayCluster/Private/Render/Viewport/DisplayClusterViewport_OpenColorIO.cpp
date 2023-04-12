@@ -127,7 +127,7 @@ float FDisplayClusterViewport_OpenColorIO::GetDisplayGamma(const FDisplayCluster
 }
 
 bool FDisplayClusterViewport_OpenColorIO::AddPass_RenderThread(FRDGBuilder& GraphBuilder, const FDisplayClusterViewport_Context& InViewportContext,
-	FRHITexture2D* InputTextureRHI, const FIntRect& InputRect, FRHITexture2D* OutputTextureRHI, const FIntRect& OutputRect) const
+	FRHITexture2D* InputTextureRHI, const FIntRect& InputRect, FRHITexture2D* OutputTextureRHI, const FIntRect& OutputRect, bool bUnpremultiply, bool bInvertAlpha) const
 {
 	if (IsEnabled_RenderThread())
 	{
@@ -135,6 +135,11 @@ bool FDisplayClusterViewport_OpenColorIO::AddPass_RenderThread(FRDGBuilder& Grap
 		FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(OutputTextureRHI, TEXT("nDisplayOCIORenderTargetTexture")));
 
 		FScreenPassRenderTarget Output = FScreenPassRenderTarget(OutputTexture, OutputRect, ERenderTargetLoadAction::EClear);
+		EOpenColorIOTransformAlpha TransformAlpha = EOpenColorIOTransformAlpha::None;
+		if (bUnpremultiply)
+		{
+			TransformAlpha = bInvertAlpha ? EOpenColorIOTransformAlpha::InvertUnpremultiply: EOpenColorIOTransformAlpha::Unpremultiply;
+		}
 
 		FOpenColorIORendering::AddPass_RenderThread(
 			GraphBuilder,
@@ -143,7 +148,8 @@ bool FDisplayClusterViewport_OpenColorIO::AddPass_RenderThread(FRDGBuilder& Grap
 			FScreenPassTexture(InputTexture),
 			Output,
 			CachedResourcesRenderThread,
-			GetDisplayGamma(InViewportContext)
+			GetDisplayGamma(InViewportContext),
+			TransformAlpha
 		);
 
 		return true;

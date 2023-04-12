@@ -680,11 +680,16 @@ void FDisplayClusterViewportProxy::UpdateDeferredResources(FRHICommandListImmedi
 
 			for (int32 ContextNum = 0; ContextNum < Input.Num(); ContextNum++)
 			{
+				const bool bUnpremultiply = EnumHasAnyFlags(RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::UVLightcard | EDisplayClusterViewportRuntimeICVFXFlags::Lightcard);
+				const bool bInvertAlpha = !EnumHasAnyFlags(RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::UVLightcard);
+
 				if (OpenColorIO->AddPass_RenderThread(
 					GraphBuilder,
 					SourceViewportProxy.GetContexts_RenderThread()[ContextNum],
 					Input[ContextNum], InputRects[ContextNum],
-					Output[ContextNum], OutputRects[ContextNum]))
+					Output[ContextNum], OutputRects[ContextNum],
+					bUnpremultiply,
+					bInvertAlpha))
 				{
 					bPass0Applied = true;
 				}

@@ -30,6 +30,14 @@ struct OPENCOLORIO_API FOpenColorIORenderPassResources
 	FString TransformName = FString();
 };
 
+/** Option to transform the render target alpha before applying the color transform. */
+enum class EOpenColorIOTransformAlpha : uint32
+{
+	None = 0,
+	Unpremultiply = 1,
+	InvertUnpremultiply = 2
+};
+
 /** Entry point to trigger OpenColorIO conversion rendering */
 class OPENCOLORIO_API FOpenColorIORendering
 {
@@ -56,6 +64,7 @@ public:
 	 * @param Output Destination render target
 	 * @param InPassInfo OpenColorIO shader and texture resources
 	 * @param InGamma Display gamma
+	 * @param TransformAlpha Whether to unpremult/invert before applying the color transform
 	 */
 	static void AddPass_RenderThread(
 		FRDGBuilder& GraphBuilder,
@@ -64,5 +73,6 @@ public:
 		const FScreenPassTexture& Input,
 		const FScreenPassRenderTarget& Output,
 		const FOpenColorIORenderPassResources& InPassInfo,
-		float InGamma);
+		float InGamma,
+		EOpenColorIOTransformAlpha TransformAlpha = EOpenColorIOTransformAlpha::None);
 };

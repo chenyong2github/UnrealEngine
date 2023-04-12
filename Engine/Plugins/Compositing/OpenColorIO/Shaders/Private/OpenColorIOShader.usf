@@ -13,6 +13,7 @@ SamplerState	InputTextureSampler;
 float4x4		WorkingColorSpaceToInterchange;
 float4x4		InterchangeToWorkingColorSpace;
 float			Gamma;
+uint TransformAlpha;
 
 /*=============================================================================
  * OCIO generated start
@@ -28,6 +29,29 @@ float			Gamma;
 /* Helpers
 =============================================================================*/
 
+float SafeRcp(float x)
+{
+	if (x > 0)
+	{
+		return rcp(x);
+	}
+	return 0;
+}
+
+float4 InvertAlpha(float4 InColor)
+{
+	return float4(InColor.xyz, 1.0 - InColor.w);
+}
+
+float4 Unpremultiply(float4 InColor)
+{
+	return float4(InColor.xyz * SafeRcp(InColor.w), InColor.w);
+}
+
+float4 Premultiply(float4 InColor)
+{
+	return float4(InColor.xyz * InColor.w, InColor.w);
+}
 
 
 /* Pixel shader
@@ -40,6 +64,16 @@ void MainPS(in noperspective float4 InUVAndScreenPos : TEXCOORD0,
 	InputColor.xyz = max(0.0, InputColor.xyz);
 	InputColor.xyz = pow(InputColor.xyz, Gamma);
 
+	if(TransformAlpha > 0)
+	{
+		if(TransformAlpha == 2 /*InvertUnpremultiply*/)
+		{
+			InputColor = InvertAlpha(InputColor);
+		}
+
+		InputColor = Unpremultiply(InputColor);
+	}
+
 #if WORKING_COLOR_SPACE_TRANSFORM_TYPE == 1 // EOpenColorIOWorkingColorSpaceTransform::Source
 	InputColor.xyz = mul((float3x3)WorkingColorSpaceToInterchange, InputColor.xyz);
 #endif
@@ -50,4 +84,14 @@ void MainPS(in noperspective float4 InUVAndScreenPos : TEXCOORD0,
 #if WORKING_COLOR_SPACE_TRANSFORM_TYPE == 2 // EOpenColorIOWorkingColorSpaceTransform::Destination
 	OutColor.xyz = mul((float3x3)InterchangeToWorkingColorSpace, OutColor.xyz);
 #endif
+
+	if(TransformAlpha > 0)
+	{
+		OutColor = Premultiply(OutColor);
+		
+		if(TransformAlpha == 2 /*InvertUnpremultiply*/)
+		{
+			OutColor = InvertAlpha(OutColor);
+		}
+	}
 }

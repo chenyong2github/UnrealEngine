@@ -47,7 +47,8 @@ void FOpenColorIORendering::AddPass_RenderThread(
 	const FScreenPassTexture& Input,
 	const FScreenPassRenderTarget& Output,
 	const FOpenColorIORenderPassResources& InPassResource,
-	float InGamma)
+	float InGamma, 
+	EOpenColorIOTransformAlpha TransformAlpha)
 {
 	check(IsInRenderingThread());
 
@@ -81,6 +82,7 @@ void FOpenColorIORendering::AddPass_RenderThread(
 			break;	
 		}
 		Parameters->Gamma = InGamma;
+		Parameters->TransformAlpha = (uint32)TransformAlpha;
 		Parameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 		
 		FRDGEventName PassName = RDG_EVENT_NAME("OpenColorIOPass %dx%d (%s)", Output.ViewRect.Width(), Output.ViewRect.Height(), InPassResource.TransformName.IsEmpty() ? TEXT("Unspecified Transform") : *InPassResource.TransformName);
