@@ -2,6 +2,9 @@
 
 #include "MuCO/CustomizableSkeletalComponent.h"
 
+#include "MuCO/CustomizableObjectSystem.h"
+#include "MuCO/CustomizableInstancePrivateData.h"
+
 #include "AnimationRuntime.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -9,7 +12,6 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "MuCO/CustomizableInstancePrivateData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "UObject/ObjectSaveContext.h"
 #include "MuCO/UnrealPortabilityHelpers.h"
@@ -98,7 +100,7 @@ void UCustomizableSkeletalComponent::SetPhysicsAsset(UPhysicsAsset* PhysicsAsset
 {
 	USkeletalMeshComponent* Parent = Cast<USkeletalMeshComponent>(GetAttachParent());
 
-	if (Parent && GetWorld())
+	if (Parent && Parent->GetWorld())
 	{
 		Parent->SetPhysicsAsset(PhysicsAsset, true);
 	}
@@ -303,24 +305,32 @@ void UCustomizableSkeletalComponent::TickComponent(float DeltaTime, ELevelTick T
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if (!bPendingSetSkeletalMesh)
+	if (!bPendingSetSkeletalMesh || !CustomizableObjectInstance || !CustomizableObjectInstance->GetCustomizableObject())
 	{
-		USkeletalMeshComponent* Parent = Cast<USkeletalMeshComponent>(GetAttachParent());
+		return;
+	}
 
-		if (Parent && CustomizableObjectInstance)
+	if (USkeletalMeshComponent* Parent = Cast<USkeletalMeshComponent>(GetAttachParent()))
+	{
+		UCustomizableObject* CustomizableObject = CustomizableObjectInstance->GetCustomizableObject();
+
+		// Hacky. Replace once we know if the instance has been generated
+		const bool bInstanceGenerated = CustomizableObjectInstance->HasAnySkeletalMesh();
+
+		// Generated SkeletalMesh to set, can be null if the component is empty
+		USkeletalMesh* SkeletalMesh = CustomizableObjectInstance->GetSkeletalMesh(ComponentIndex);
+
+		// If not generated yet, conditionally set the SkeletalMesh of reference
+		if (!bInstanceGenerated && !bSkipSetReferenceSkeletalMesh)
 		{
-			UCustomizableObject* CustomizableObject = CustomizableObjectInstance->GetCustomizableObject(); 
+			// Can be nullptr
+			SkeletalMesh = CustomizableObject->GetRefSkeletalMesh(ComponentIndex);
+		}
 
-			bPendingSetSkeletalMesh = true;
-
-			if (CustomizableObjectInstance->GetSkeletalMesh(ComponentIndex))
-			{
-				Parent->SetSkeletalMesh(CustomizableObjectInstance->GetSkeletalMesh(ComponentIndex));
-			}
-			else if (!bSkipSetReferenceSkeletalMesh && CustomizableObject)
-			{
-				Parent->SetSkeletalMesh(CustomizableObject->GetRefSkeletalMesh(ComponentIndex));
-			}
+		// Set SkeletalMesh
+		if (bInstanceGenerated || SkeletalMesh)
+		{
+			Parent->SetSkeletalMesh(SkeletalMesh);
 
 			if (Parent->OverrideMaterials.Num() > 0)
 			{
@@ -334,6 +344,7 @@ void UCustomizableSkeletalComponent::TickComponent(float DeltaTime, ELevelTick T
 				Parent->EmptyOverrideMaterials();
 			}
 
+			bPendingSetSkeletalMesh = false;
 		}
 	}
 }
@@ -347,7 +358,7 @@ void UCustomizableSkeletalComponent::OnAttachmentChanged()
 
 	if (Parent)
 	{
-		bPendingSetSkeletalMesh = false;
+		bPendingSetSkeletalMesh = true;
 	}
 	else if(!GetAttachParent())
 	{

@@ -322,9 +322,12 @@ void UCustomizableObjectInstance::BeginDestroy()
 	// Release the Live Instance ID if there it hadn't been released before
 	DestroyLiveUpdateInstance();
 
-	if (PrivateData && PrivateData->StreamingHandle)
+	if (PrivateData)
 	{
-		PrivateData->StreamingHandle->CancelHandle();
+		if (PrivateData->StreamingHandle.IsValid() && PrivateData->StreamingHandle->IsActive())
+		{
+			PrivateData->StreamingHandle->CancelHandle();
+		}
 		PrivateData->StreamingHandle = nullptr;
 	}
 	
@@ -1921,7 +1924,6 @@ bool UCustomizableInstancePrivateData::DoComponentsNeedUpdate(UCustomizableObjec
 	bOutEmptyMesh = bFoundEmptyLOD || bFoundEmptyMesh;
 	return bUpdateMeshes;
 }
-
 
 
 bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCustomizableObjectInstance* Public, const TSharedPtr<FMutableOperationData>& OperationData)
@@ -5020,7 +5022,8 @@ bool UCustomizableInstancePrivateData::BuildOrCopyRenderData(const TSharedPtr<FM
 
 			const mu::FMeshBufferSet& MutableMeshVertexBuffers = Component.Mesh->GetVertexBuffers();
 
-			for (int32 ProfileIndex = 0; ProfileIndex < SkinWeightProfilesInfo.Num(); ++ProfileIndex)
+			const int32 SkinWeightProfilesCount = CustomizableObject->SkinWeightProfilesInfo.Num();
+			for (int32 ProfileIndex = 0; ProfileIndex < SkinWeightProfilesCount; ++ProfileIndex)
 			{
 				const int32 ProfileSemanticsIndex = ProfileIndex + 10;
 				int32 BoneIndicesBufferIndex, BoneIndicesBufferChannelIndex;
@@ -5040,7 +5043,7 @@ bool UCustomizableInstancePrivateData::BuildOrCopyRenderData(const TSharedPtr<FM
 					bHasSkinWeightProfiles = true;
 				}
 
-				const FMutableSkinWeightProfileInfo& Profile = SkinWeightProfilesInfo[ProfileIndex];
+				const FMutableSkinWeightProfileInfo& Profile = CustomizableObject->SkinWeightProfilesInfo[ProfileIndex];
 
 				const FSkinWeightProfileInfo* ExistingProfile = SkeletalMesh->GetSkinWeightProfiles().FindByPredicate(
 					[&Profile](const FSkinWeightProfileInfo& P) { return P.Name == Profile.Name; });

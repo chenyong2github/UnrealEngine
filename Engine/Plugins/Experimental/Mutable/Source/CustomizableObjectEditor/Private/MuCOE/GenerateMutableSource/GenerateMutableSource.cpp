@@ -1282,11 +1282,16 @@ void PopulateReferenceSkeletalMeshesData(FMutableGraphGenerationContext& Generat
 	GenerationContext.ReferenceSkeletalMeshesData.AddDefaulted(ComponentCount);
 	for(uint32 ComponentIndex = 0; ComponentIndex < ComponentCount; ++ComponentIndex)
 	{
-		const USkeletalMesh* RefSkeletalMesh = GenerationContext.ComponentInfos[ComponentIndex].RefSkeletalMesh;
+		USkeletalMesh* RefSkeletalMesh = GenerationContext.ComponentInfos[ComponentIndex].RefSkeletalMesh;
 		check(RefSkeletalMesh);
 
-		// Gather LODData, this may include per LOD settings such as render data config or LODDataInfoArray
 		FMutableRefSkeletalMeshData& Data = GenerationContext.ReferenceSkeletalMeshesData[ComponentIndex];
+
+		// Set the RefSkeletalMesh
+		Data.SkeletalMesh = TObjectPtr<USkeletalMesh>(RefSkeletalMesh);
+		Data.SkeletalMeshAssetPath = FSoftObjectPath(RefSkeletalMesh);
+
+		// Gather LODData, this may include per LOD settings such as render data config or LODDataInfoArray
 		Data.LODData.AddDefaulted(GenerationContext.NumLODsInRoot);
 		
 		const uint32 RefSkeletalMeshLODCount = RefSkeletalMesh->GetLODNum();

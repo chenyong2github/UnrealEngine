@@ -1270,6 +1270,8 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 			CleanCachedReferencers();
 			UpdateArrayGCProtect();
 
+			CurrentObject->PostCompile(); 
+
 			State = ECustomizableObjectCompilationState::Completed;
 		}
 		else

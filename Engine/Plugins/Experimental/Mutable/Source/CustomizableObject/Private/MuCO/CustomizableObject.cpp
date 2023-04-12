@@ -169,6 +169,21 @@ void UCustomizableObject::PostLoad()
 }
 
 
+void UCustomizableObject::BeginDestroy()
+{
+#if !WITH_EDITORONLY_DATA
+	if (RefSkeletalMeshStreamingHandle.IsValid() && RefSkeletalMeshStreamingHandle->IsActive())
+	{
+		RefSkeletalMeshStreamingHandle->CancelHandle();
+	}
+	
+	RefSkeletalMeshStreamingHandle = nullptr;
+#endif
+
+	Super::BeginDestroy();
+}
+
+
 bool UCustomizableObject::IsLocked() const
 {
 	if (PrivateData.IsValid())
@@ -464,7 +479,7 @@ void UCustomizableObject::LoadCompiledData(FArchive& MemoryReader, bool bSkipEdi
 
 		MemoryReader << ReferenceSkeletalMeshesData;
 
-		// Some resources require an outer to initialize themselves. 
+		// Initialize resources. 
 		for(FMutableRefSkeletalMeshData& ReferenceSkeletalMeshData : ReferenceSkeletalMeshesData)
 		{
 			ReferenceSkeletalMeshData.InitResources(this);
@@ -926,11 +941,18 @@ bool UCustomizableObject::IsCompiled() const
 
 USkeletalMesh* UCustomizableObject::GetRefSkeletalMesh(int32 ComponentIndex)
 {
+#if WITH_EDITORONLY_DATA
 	if (ReferenceSkeletalMeshes.IsValidIndex(ComponentIndex))
 	{
 		return ReferenceSkeletalMeshes[ComponentIndex];
 	}
-
+#else
+	if (ReferenceSkeletalMeshesData.IsValidIndex(ComponentIndex))
+	{
+		// Can be nullptr if RefSkeletalMeshes are not loaded yet.
+		return ReferenceSkeletalMeshesData[ComponentIndex].SkeletalMesh;
+	}
+#endif
 	return nullptr;
 }
 
@@ -975,6 +997,60 @@ TSoftObjectPtr<USkeleton> UCustomizableObject::GetReferencedSkeletonAssetPtr( ui
 		"Skeleton data and CustomizableObject data may be out of sync. "
 		"Try recompiling and saving the CustomizableObject asset [%s]."), *GetName());
 	return nullptr;
+}
+
+
+void UCustomizableObject::LoadReferenceSkeletalMeshesAsync()
+{
+#if !WITH_EDITORONLY_DATA
+	if (!RefSkeletalMeshStreamingHandle)
+	{
+		TArray<FSoftObjectPath> MeshesToStream;
+
+		for (const FMutableRefSkeletalMeshData& RefSkeletalMeshData : ReferenceSkeletalMeshesData)
+		{
+			MeshesToStream.Add(RefSkeletalMeshData.SkeletalMeshAssetPath);
+		}
+
+		if (!MeshesToStream.IsEmpty())
+		{
+			TWeakObjectPtr<UCustomizableObject> WeakCO(this);
+
+			FStreamableManager& StreamableManager = UCustomizableObjectSystem::GetInstance()->GetStreamableManager();
+			RefSkeletalMeshStreamingHandle = StreamableManager.RequestAsyncLoad(MeshesToStream, FStreamableDelegate::CreateUObject(this, &UCustomizableObject::OnReferenceSkeletalMeshesAsyncLoaded),
+				FStreamableManager::AsyncLoadHighPriority);
+		}
+
+	}
+#endif
+}
+
+
+void UCustomizableObject::UnloadReferenceSkeletalMeshes()
+{
+#if !WITH_EDITORONLY_DATA
+	for (FMutableRefSkeletalMeshData& Data : ReferenceSkeletalMeshesData)
+	{
+		Data.SkeletalMesh = nullptr;
+	}
+#endif
+}
+
+
+void UCustomizableObject::OnReferenceSkeletalMeshesAsyncLoaded()
+{
+#if !WITH_EDITORONLY_DATA
+	if (RefSkeletalMeshStreamingHandle)
+	{
+		for (FMutableRefSkeletalMeshData& Data : ReferenceSkeletalMeshesData)
+		{
+			Data.SkeletalMesh = TSoftObjectPtr<USkeletalMesh>(Data.SkeletalMeshAssetPath).Get();
+			check(Data.SkeletalMesh);
+		}
+
+		RefSkeletalMeshStreamingHandle.Reset();
+	}
+#endif
 }
 
 
@@ -2022,7 +2098,7 @@ void UCustomizableObjectBulk::PrepareBulkData(UCustomizableObject* InOuter, cons
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
-void FMutableRefAssetUserData::InitResources(UObject* InOuter)
+void FMutableRefAssetUserData::InitResources(UCustomizableObject* InOuter)
 {
 	UClass* AssetUserDataClass = FindObject<UClass>(nullptr, *ClassPath);
 	if (AssetUserDataClass)
@@ -2066,6 +2142,77 @@ FArchive& operator<<(FArchive& Ar, FMutableRefAssetUserData& Data)
 
 	return Ar;
 }
+
+
+FArchive& operator<<(FArchive& Ar, FMutableRefSkeletalMeshData& Data)
+{
+	Ar << Data.LODData;
+	Ar << Data.Sockets;
+	Ar << Data.Bounds;
+	Ar << Data.Settings;
+
+	if (Ar.IsSaving())
+	{
+		FString AssetPath = Data.SkeletalMeshAssetPath.ToString();
+		Ar << AssetPath;
+
+		AssetPath = Data.Skeleton.ToSoftObjectPath().ToString();
+		Ar << AssetPath;
+
+		AssetPath = Data.PhysicsAsset.ToSoftObjectPath().ToString();
+		Ar << AssetPath;
+
+		AssetPath = Data.PostProcessAnimInst.ToSoftObjectPath().ToString();
+		Ar << AssetPath;
+
+		AssetPath = Data.ShadowPhysicsAsset.ToSoftObjectPath().ToString();
+		Ar << AssetPath;
+
+	}
+	else
+	{
+		FString SkeletalMeshAssetPath;
+		Ar << SkeletalMeshAssetPath;
+		Data.SkeletalMeshAssetPath = SkeletalMeshAssetPath;
+
+		FString SkeletonAssetPath;
+		Ar << SkeletonAssetPath;
+		Data.Skeleton = TSoftObjectPtr<USkeleton>(FSoftObjectPath(SkeletonAssetPath));
+
+		FString PhysicsAssetPath;
+		Ar << PhysicsAssetPath;
+		Data.PhysicsAsset = TSoftObjectPtr<UPhysicsAsset>(FSoftObjectPath(PhysicsAssetPath));
+
+		FString PostProcessAnimInstAssetPath;
+		Ar << PostProcessAnimInstAssetPath;
+		Data.PostProcessAnimInst = TSoftClassPtr<UAnimInstance>(FSoftObjectPath(PostProcessAnimInstAssetPath));
+
+		FString ShadowPhysicsAssetPath;
+		Ar << ShadowPhysicsAssetPath;
+		Data.ShadowPhysicsAsset = TSoftObjectPtr<UPhysicsAsset>(FSoftObjectPath(ShadowPhysicsAssetPath));
+	}
+
+	Ar << Data.AssetUserData;
+
+	return Ar;
+}
+
+
+void FMutableRefSkeletalMeshData::InitResources(UCustomizableObject* InOuter)
+{
+	check(InOuter);
+	if (InOuter->bEnableUseRefSkeletalMeshAsPlaceholder)
+	{
+		SkeletalMesh = TSoftObjectPtr<USkeletalMesh>(SkeletalMeshAssetPath).LoadSynchronous();
+	}
+
+	// Initialize AssetUserData
+	for (FMutableRefAssetUserData& Data : AssetUserData)
+	{
+		Data.InitResources(InOuter);
+	}
+}
+
 
 #endif
 

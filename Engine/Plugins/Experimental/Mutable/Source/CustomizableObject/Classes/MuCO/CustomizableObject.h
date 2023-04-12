@@ -34,6 +34,7 @@ class UPhysicsAsset;
 class USkeletalMesh;
 class USkeleton;
 struct FFrame;
+struct FStreamableHandle;
 template <typename FuncType> class TFunctionRef;
 
 DECLARE_MULTICAST_DELEGATE(FPostCompileDelegate)
@@ -899,7 +900,7 @@ struct FMutableRefAssetUserData
 
 	friend FArchive& operator<<(FArchive& Ar, FMutableRefAssetUserData& Data);
 
-	void InitResources(UObject* InOuter);
+	void InitResources(UCustomizableObject* InOuter);
 #endif
 
 };
@@ -909,7 +910,15 @@ USTRUCT()
 struct FMutableRefSkeletalMeshData
 {
 	GENERATED_BODY()
-	
+
+	// Reference Skeletal Mesh
+	UPROPERTY()
+	TObjectPtr<USkeletalMesh> SkeletalMesh;
+
+	// Path to load the ReferenceSkeletalMesh
+	UPROPERTY()
+	FSoftObjectPath SkeletalMeshAssetPath;
+
 	// LOD info
 	UPROPERTY()
 	TArray<FMutableRefLODData> LODData;
@@ -947,60 +956,9 @@ struct FMutableRefSkeletalMeshData
 	TArray<FMutableRefAssetUserData> AssetUserData;
 
 #if WITH_EDITORONLY_DATA
-	friend FArchive& operator<<(FArchive& Ar, FMutableRefSkeletalMeshData& Data)
-	{
-		Ar << Data.LODData;
-		Ar << Data.Sockets;
-		Ar << Data.Bounds;
-		Ar << Data.Settings;
+	friend FArchive& operator<<(FArchive& Ar, FMutableRefSkeletalMeshData& Data);
 
-		if (Ar.IsSaving())
-		{
-			FString AssetPath = Data.Skeleton.ToSoftObjectPath().ToString();
-			Ar << AssetPath;
-
-			AssetPath = Data.PhysicsAsset.ToSoftObjectPath().ToString();
-			Ar << AssetPath;
-
-			AssetPath = Data.PostProcessAnimInst.ToSoftObjectPath().ToString();
-			Ar << AssetPath;
-
-			AssetPath = Data.ShadowPhysicsAsset.ToSoftObjectPath().ToString();
-			Ar << AssetPath;
-		
-		}
-		else
-		{
-			FString SkeletonAssetPath;
-			Ar << SkeletonAssetPath;
-			Data.Skeleton = TSoftObjectPtr<USkeleton>(FSoftObjectPath(SkeletonAssetPath));
-
-			FString PhysicsAssetPath;
-			Ar << PhysicsAssetPath;
-			Data.PhysicsAsset = TSoftObjectPtr<UPhysicsAsset>(FSoftObjectPath(PhysicsAssetPath));
-			
-			FString PostProcessAnimInstAssetPath;
-			Ar << PostProcessAnimInstAssetPath;
-			Data.PostProcessAnimInst = TSoftClassPtr<UAnimInstance>(FSoftObjectPath(PostProcessAnimInstAssetPath));
-			
-			FString ShadowPhysicsAssetPath;
-			Ar << ShadowPhysicsAssetPath;
-			Data.ShadowPhysicsAsset = TSoftObjectPtr<UPhysicsAsset>(FSoftObjectPath(ShadowPhysicsAssetPath));
-		}
-
-		Ar << Data.AssetUserData;
-
-		return Ar;
-	}
-
-	void InitResources(UObject* InOuter)
-	{
-		check(InOuter);
-		for (FMutableRefAssetUserData& Data : AssetUserData)
-		{
-			Data.InitResources(InOuter);
-		}
-	}
+	void InitResources(UCustomizableObject* InOuter);
 #endif
 
 };
@@ -1107,6 +1065,7 @@ public:
 
 	UCustomizableObject();
 
+#if WITH_EDITORONLY_DATA
 	/** All the SkeletalMeshes generated for this CustomizableObject instances will use the Reference Skeletal Mesh 
 	* properties for everything that Mutable doesn't create or modify. This includes data like LOD distances, Physics
 	* properties, Bounding Volumes, Skeleton, etc.
@@ -1134,6 +1093,7 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, Category=CustomizableObject)
 	TArray< TObjectPtr<class USkeletalMesh> > ReferenceSkeletalMeshes;
+#endif
 
 	/** All the SkeletalMeshes generated for this CustomizableObject instances will use the Reference Skeletal Mesh
 	 * properties for everything that Mutable doesn't create or modify. This struct stores the information used from
@@ -1142,11 +1102,6 @@ public:
 	 */
 	UPROPERTY()
 	TArray<FMutableRefSkeletalMeshData> ReferenceSkeletalMeshesData;
-
-	// Hide for now, since it is not supported yet
-	//UPROPERTY(EditAnywhere, Category = CustomizableObject)
-	UPROPERTY()
-	TObjectPtr<class UStaticMesh> ReferenceStaticMesh;
 
 	/** List of Materials referenced by this or any child customizable object. */
 	UPROPERTY()
@@ -1195,6 +1150,13 @@ public:
 	TArray<FCustomizableObjectStreamedExtensionData> StreamedExtensionData;
 
 #if WITH_EDITORONLY_DATA
+
+	/** Use the SkeletalMesh of reference as a placeholder until the custom mesh is ready to use.
+	  * 
+	  * Note: If disabled, a null mesh will be used to replace the discarded mesh due to 'ReplaceDiscardedWithReferenceMesh' being enabled.
+	  */
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	bool bEnableUseRefSkeletalMeshAsPlaceholder = true;
 
 	// Hide this property because it is not used yet.
 	//UPROPERTY(EditAnywhere, Category = CustomizableObject)
@@ -1335,7 +1297,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category = CustomizableObject)
 	void UnloadMaskOutCache();
 
+	// Called to load the reference SkeletalMesh if it needs to be used as a placeholder and it's not loaded.
+	UFUNCTION(BlueprintCallable, Category = CustomizableObject)
+	void LoadReferenceSkeletalMeshesAsync();
+
+	UFUNCTION(BlueprintCallable, Category = CustomizableObject)
+	void UnloadReferenceSkeletalMeshes();
+
+	// Callback of LoadReferenceSkeletalMeshesAsync
+	void OnReferenceSkeletalMeshesAsyncLoaded();
+
 private:
+
+#if !WITH_EDITORONLY_DATA
+	// Handle used to store a streaming request operation.
+	TSharedPtr<FStreamableHandle> RefSkeletalMeshStreamingHandle;
+#endif
+
 	
 	/** Returns true or false if the parameter with name can be located and it has the type the caller is looking for. It will also
 	 * check if the model has been set to ensure access to it can take place at the calculated parameter index.
@@ -1435,7 +1413,7 @@ private:
 	// This is a manual version number for the binary blobs in this asset.
 	// Increasing it invalidates all the previously compiled models.
 	// Warning: If while merging code both versions have changed, take the highest+1.
-	static const int32 CurrentSupportedVersion = 380;
+	static const int32 CurrentSupportedVersion = 381;
 
 public:
 
@@ -1517,6 +1495,7 @@ public:
 	void LoadEmbeddedData(FArchive& Ar);
 
 	void PostLoad() override;
+	void BeginDestroy() override;
 
 	void Serialize(FArchive& Ar) override;
 
