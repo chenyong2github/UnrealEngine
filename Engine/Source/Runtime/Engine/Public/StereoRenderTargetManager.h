@@ -52,6 +52,7 @@ public:
 	/**
 	* Returns true, if render target texture must be re-calculated.
 	*/
+	UE_DEPRECATED(5.2, "Return true in NeedReAllocateViewportRenderTarget instead")
 	virtual bool NeedReAllocateDepthTexture(const TRefCountPtr<struct IPooledRenderTarget>& DepthTarget) { return false; }
 
 	/**
@@ -62,6 +63,7 @@ public:
 	/**
 	 * Returns number of required buffered frames.
 	 */
+	UE_DEPRECATED(5.2, "Inferred from the array size returned in AllocateRenderTargetTextures")
 	virtual uint32 GetNumberOfBufferedFrames() const { return 1; }
 
 	/**
@@ -71,13 +73,29 @@ public:
 	 * @param Index			(in) index of the buffer, changing from 0 to GetNumberOfBufferedFrames()
 	 * @return				true, if texture was allocated; false, if the default texture allocation should be used.
 	 */
+	UE_DEPRECATED(5.2, "Implement AllocateRenderTargetTextures to allocate all textures at once")
 	virtual bool AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) { return false; }
+
+	/**
+	 * Allocates the render target textures, which includes the color textures and optionally other textures like depth.
+	 * The default implementation always returns false to indicate that the default texture allocation should be used instead.
+	 *
+	 * @return				true, if textures were allocated; false, if the default texture allocation should be used.
+	 */
+	virtual bool AllocateRenderTargetTextures(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumLayers, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, TArray<FTexture2DRHIRef>& OutTargetableTextures, TArray<FTexture2DRHIRef>& OutShaderResourceTextures, uint32 NumSamples = 1) { return false; }
 
 	/**
 	 * Returns pixel format that the device created its swapchain with (which can be different than what was requested in AllocateRenderTargetTexture)
 	 */
 	virtual EPixelFormat GetActualColorSwapchainFormat() const { return PF_Unknown; }
-	
+
+	/**
+	 * Acquires the next available color texture.
+	 * 
+	 * @return				the index of the texture in the array returned by AllocateRenderTargetTexture.
+	 */
+	virtual int32 AcquireColorTexture() { return -1; }
+
 	/**
 	 * Allocates a depth texture.
 	 *

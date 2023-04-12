@@ -440,7 +440,6 @@ private:
 	FTexture2DRHIRef RenderTargetTextureRenderThreadRHI;
 	class FSlateRenderTargetRHI* RenderThreadSlateTexture;
 
-	int32 NumBufferedFrames;
 	int32 CurrentBufferedTargetIndex;
 	int32 NextBufferedTargetIndex;
 

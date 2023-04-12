@@ -9,6 +9,8 @@
 #include "Templates/SharedPointer.h"
 #include "Templates/UnrealTemplate.h"
 
+#include <atomic>
+
 class FRHICommandListImmediate;
 
 //-------------------------------------------------------------------------------------------------
@@ -27,6 +29,7 @@ public:
 	FRHITexture2DArray* GetTexture2DArray() const { return RHITexture->GetTexture2DArray(); }
 	FRHITextureCube* GetTextureCube() const { return RHITexture->GetTextureCube(); }
 	uint32 GetSwapChainLength() const { return (uint32)RHITextureSwapChain.Num(); }
+	TArray<FTextureRHIRef> GetSwapChain() const { return RHITextureSwapChain; }
 
 	void GenerateMips_RenderThread(FRHICommandListImmediate& RHICmdList);
 	uint32 GetSwapChainIndex_RHIThread() { return SwapChainIndex_RHIThread; }
@@ -41,7 +44,7 @@ protected:
 
 	FTextureRHIRef RHITexture;
 	TArray<FTextureRHIRef> RHITextureSwapChain;
-	uint32 SwapChainIndex_RHIThread;
+	std::atomic_uint32_t SwapChainIndex_RHIThread;
 };
 
 typedef TSharedPtr<FXRSwapChain, ESPMode::ThreadSafe> FXRSwapChainPtr;

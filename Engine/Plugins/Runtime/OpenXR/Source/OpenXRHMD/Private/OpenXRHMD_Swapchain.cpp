@@ -23,41 +23,41 @@ FOpenXRSwapchain::~FOpenXRSwapchain()
 	XR_ENSURE(xrDestroySwapchain(Handle));
 }
 
-// TODO: This function should be moved to the RenderThread, that change is currently blocked
-// by the Vulkan extension requiring access to the VkQueue in xrAcquireSwapchainImage.
+// FIXME: The Vulkan extension requires access to the VkQueue in xrAcquireSwapchainImage,
+// so calling this function on any other thread than the RHI thread is unsafe on some runtimes.
 void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread()
 {
-	check(IsInRenderingThread() || IsInRHIThread());
-
-	// TODO: When moving this function to the RenderThread remove this logic so the RenderThread
-	// can acquire a new swapchain image before the RHI thread is done with it.
 	bool WasAcquired = false;
 	ImageAcquired.compare_exchange_strong(WasAcquired, true);
 	if (WasAcquired)
 	{
-		UE_LOG(LogHMD, Verbose, TEXT("Attempted to redundantly acquire image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
+		UE_LOG(LogHMD, Verbose, TEXT("Attempted to redundantly acquire image %d in swapchain %p"), SwapChainIndex_RHIThread.load(), Handle);
 		return;
 	}
 
 	SCOPED_NAMED_EVENT(AcquireImage, FColor::Red);
 
+	uint32_t SwapChainIndex = 0;
 	XrSwapchainImageAcquireInfo Info;
 	Info.type = XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO;
 	Info.next = nullptr;
-	XR_ENSURE(xrAcquireSwapchainImage(Handle, &Info, &SwapChainIndex_RHIThread));
+	XR_ENSURE(xrAcquireSwapchainImage(Handle, &Info, &SwapChainIndex));
 
-	UE_LOG(LogHMD, VeryVerbose, TEXT("Acquired image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
+	UE_LOG(LogHMD, VeryVerbose, TEXT("Acquired image %d in swapchain %p"), SwapChainIndex, Handle);
 
-	GDynamicRHI->RHIAliasTextureResources((FTextureRHIRef&)RHITexture, (FTextureRHIRef&)RHITextureSwapChain[SwapChainIndex_RHIThread]);
+	RHITexture = RHITextureSwapChain[SwapChainIndex];
+	SwapChainIndex_RHIThread = SwapChainIndex;
 }
 
 void FOpenXRSwapchain::WaitCurrentImage_RHIThread(int64 Timeout)
 {
 	check(IsInRenderingThread() || IsInRHIThread());
 
-	if (!ImageAcquired)
+	bool WasAcquired = true;
+	ImageAcquired.compare_exchange_strong(WasAcquired, false);
+	if (!WasAcquired)
 	{
-		UE_LOG(LogHMD, Warning, TEXT("Attempted to wait on unacquired image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
+		UE_LOG(LogHMD, Warning, TEXT("Attempted to wait on unacquired image %d in swapchain %p"), SwapChainIndex_RHIThread.load(), Handle);
 		return;
 	}
 
@@ -65,7 +65,7 @@ void FOpenXRSwapchain::WaitCurrentImage_RHIThread(int64 Timeout)
 	ImageReady.compare_exchange_strong(WasReady, true);
 	if (WasReady)
 	{
-		UE_LOG(LogHMD, Verbose, TEXT("Attempted to redundantly wait on image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
+		UE_LOG(LogHMD, Verbose, TEXT("Attempted to redundantly wait on image %d in swapchain %p"), SwapChainIndex_RHIThread.load(), Handle);
 		return;
 	}
 
@@ -83,7 +83,7 @@ void FOpenXRSwapchain::WaitCurrentImage_RHIThread(int64 Timeout)
 		XR_ENSURE(WaitResult = xrWaitSwapchainImage(Handle, &WaitInfo));
 		if (WaitResult == XR_TIMEOUT_EXPIRED) //-V547
 		{
-			UE_LOG(LogHMD, Warning, TEXT("Timed out waiting on swapchain image %u! Attempts remaining %d."), SwapChainIndex_RHIThread, RetryCount);
+			UE_LOG(LogHMD, Warning, TEXT("Timed out waiting on swapchain image %u! Attempts remaining %d."), SwapChainIndex_RHIThread.load(), RetryCount);
 		}
 	} while (WaitResult == XR_TIMEOUT_EXPIRED && RetryCount-- > 0);
 
@@ -93,26 +93,18 @@ void FOpenXRSwapchain::WaitCurrentImage_RHIThread(int64 Timeout)
 		UE_LOG(LogHMD, Fatal, TEXT("Failed to wait on acquired swapchain image. This usually indicates a problem with the OpenXR runtime."));
 	}
 
-	UE_LOG(LogHMD, VeryVerbose, TEXT("Waited on image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
+	UE_LOG(LogHMD, VeryVerbose, TEXT("Waited on image %d in swapchain %p"), SwapChainIndex_RHIThread.load(), Handle);
 }
 
 void FOpenXRSwapchain::ReleaseCurrentImage_RHIThread()
 {
 	check(IsInRenderingThread() || IsInRHIThread());
 
-	bool WasAcquired = true;
-	ImageAcquired.compare_exchange_strong(WasAcquired, false);
-	if (!WasAcquired)
-	{
-		UE_LOG(LogHMD, Warning, TEXT("Attempted to release unacquired image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
-		return;
-	}
-
 	bool WasReady = true;
-	ImageReady.compare_exchange_strong(WasAcquired, false);
+	ImageReady.compare_exchange_strong(WasReady, false);
 	if (!WasReady)
 	{
-		UE_LOG(LogHMD, Warning, TEXT("Attempted to release image %d in swapchain %p that wasn't ready for being written to."), SwapChainIndex_RHIThread, Handle);
+		UE_LOG(LogHMD, Warning, TEXT("Attempted to release image %d in swapchain %p that wasn't ready for being written to."), SwapChainIndex_RHIThread.load(), Handle);
 		return;
 	}
 
@@ -123,7 +115,7 @@ void FOpenXRSwapchain::ReleaseCurrentImage_RHIThread()
 	ReleaseInfo.next = nullptr;
 	XR_ENSURE(xrReleaseSwapchainImage(Handle, &ReleaseInfo));
 
-	UE_LOG(LogHMD, VeryVerbose, TEXT("Released on image %d in swapchain %p"), SwapChainIndex_RHIThread, Handle);
+	UE_LOG(LogHMD, VeryVerbose, TEXT("Released on image %d in swapchain %p"), SwapChainIndex_RHIThread.load(), Handle);
 }
 
 uint8 FOpenXRSwapchain::GetNearestSupportedSwapchainFormat(XrSession InSession, uint8 RequestedFormat, TFunction<uint32(uint8)> ToPlatformFormat /*= nullptr*/)
@@ -288,9 +280,7 @@ FXRSwapChainPtr CreateSwapchain_D3D11(XrSession InSession, uint8 Format, uint8& 
 			D3D11RHI->RHICreateTexture2DFromResource(GPixelFormats[Format].UnrealFormat, CreateFlags, ClearValueBinding, Image.texture)
 			));
 	}
-	FTextureRHIRef ChainTarget = static_cast<FTextureRHIRef>(D3D11RHI->RHICreateAliasedTexture((FTextureRHIRef&)TextureChain[0]));
-
-	return CreateXRSwapChain<FOpenXRSwapchain>(MoveTemp(TextureChain), ChainTarget, Swapchain);
+	return CreateXRSwapChain<FOpenXRSwapchain>(MoveTemp(TextureChain), (FTextureRHIRef&)TextureChain[0], Swapchain);
 }
 #endif
 
@@ -325,9 +315,7 @@ FXRSwapChainPtr CreateSwapchain_D3D12(XrSession InSession, uint8 Format, uint8& 
 			DynamicRHI->RHICreateTexture2DFromResource(GPixelFormats[Format].UnrealFormat, CreateFlags, ClearValueBinding, Image.texture)
 			));
 	}
-	FTextureRHIRef ChainTarget = static_cast<FTextureRHIRef>(DynamicRHI->RHICreateAliasedTexture((FTextureRHIRef&)TextureChain[0]));
-
-	return CreateXRSwapChain<FOpenXRSwapchain>(MoveTemp(TextureChain), ChainTarget, Swapchain);
+	return CreateXRSwapChain<FOpenXRSwapchain>(MoveTemp(TextureChain), (FTextureRHIRef&)TextureChain[0], Swapchain);
 }
 #endif
 
@@ -357,9 +345,7 @@ FXRSwapChainPtr CreateSwapchain_OpenGL(XrSession InSession, uint8 Format, uint8&
 			DynamicRHI->RHICreateTexture2DFromResource(GPixelFormats[Format].UnrealFormat, SizeX, SizeY, NumMips, NumSamples, 1, ClearValueBinding, Image.image, CreateFlags);
 		TextureChain.Add(NewTexture.GetReference());
 	}
-	FTextureRHIRef ChainTarget = static_cast<FTextureRHIRef>(DynamicRHI->RHICreateAliasedTexture((FTextureRHIRef&)TextureChain[0]));
-
-	return CreateXRSwapChain<FOpenXRSwapchain>(MoveTemp(TextureChain), ChainTarget, Swapchain);
+	return CreateXRSwapChain<FOpenXRSwapchain>(MoveTemp(TextureChain), (FTextureRHIRef&)TextureChain[0], Swapchain);
 }
 #endif
 
@@ -389,9 +375,7 @@ FXRSwapChainPtr CreateSwapchain_OpenGLES(XrSession InSession, uint8 Format, uint
 			DynamicRHI->RHICreateTexture2DFromResource(GPixelFormats[Format].UnrealFormat, SizeX, SizeY, NumMips, NumSamples, 1, ClearValueBinding, Image.image, CreateFlags);
 		TextureChain.Add(NewTexture.GetReference());
 	}
-	FTextureRHIRef ChainTarget = static_cast<FTextureRHIRef>(DynamicRHI->RHICreateAliasedTexture((FTextureRHIRef&)TextureChain[0]));
-
-	return CreateXRSwapChain<FOpenXRSwapchain>(MoveTemp(TextureChain), ChainTarget, Swapchain);
+	return CreateXRSwapChain<FOpenXRSwapchain>(MoveTemp(TextureChain), (FTextureRHIRef&)TextureChain[0], Swapchain);
 }
 #endif
 
@@ -442,8 +426,6 @@ FXRSwapChainPtr CreateSwapchain_Vulkan(XrSession InSession, uint8 Format, uint8&
 			VulkanRHI->RHICreateTexture2DFromResource(GPixelFormats[Format].UnrealFormat, SizeX, SizeY, NumMips, NumSamples, Image.image, CreateFlags, ClearValueBinding)
 			));
 	}
-	FTextureRHIRef ChainTarget = static_cast<FTextureRHIRef>(VulkanRHI->RHICreateAliasedTexture((FTextureRHIRef&)TextureChain[0]));
-
-	return CreateXRSwapChain<FOpenXRSwapchain>(MoveTemp(TextureChain), ChainTarget, Swapchain);
+	return CreateXRSwapChain<FOpenXRSwapchain>(MoveTemp(TextureChain), (FTextureRHIRef&)TextureChain[0], Swapchain);
 }
 #endif

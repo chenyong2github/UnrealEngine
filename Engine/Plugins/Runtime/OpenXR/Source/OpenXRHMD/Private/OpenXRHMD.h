@@ -270,7 +270,7 @@ protected:
 	
 	void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, const FXRSwapChainPtr& DstSwapChain, FIntRect DstRect, bool bClearBlack, ETextureCopyBlendModifier SrcTextureCopyModifier) const;
 
-	void AllocateDepthTextureInternal(uint32 Index, uint32 SizeX, uint32 SizeY, uint32 NumSamples, uint32 ArraySize);
+	void AllocateDepthTextureInternal(uint32 SizeX, uint32 SizeY, uint32 NumSamples, uint32 ArraySize);
 
 	// Used with FCoreDelegates
 	void VRHeadsetRecenterDelegate();
@@ -344,8 +344,8 @@ public:
 	/** IStereoRenderTargetManager */
 	virtual bool ShouldUseSeparateRenderTarget() const override { return IsStereoEnabled() && RenderBridge.IsValid(); }
 	virtual void CalculateRenderTargetSize(const FViewport& Viewport, uint32& InOutSizeX, uint32& InOutSizeY) override;
-	virtual bool AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
-	virtual bool NeedReAllocateDepthTexture(const TRefCountPtr<IPooledRenderTarget>& DepthTarget) override final { return bNeedReAllocatedDepth; }
+	virtual bool AllocateRenderTargetTextures(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumLayers, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, TArray<FTexture2DRHIRef>& OutTargetableTextures, TArray<FTexture2DRHIRef>& OutShaderResourceTextures, uint32 NumSamples = 1) override;
+	virtual int32 AcquireColorTexture() override final;
 	virtual bool AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags InTexFlags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override final;
 	virtual bool ReconfigureForShaderPlatform(EShaderPlatform NewShaderPlatform) override;
 	virtual EPixelFormat GetActualColorSwapchainFormat() const override { return static_cast<EPixelFormat>(LastActualColorSwapchainFormat); }
@@ -425,7 +425,6 @@ private:
 	bool					bDepthExtensionSupported;
 	bool					bHiddenAreaMaskSupported;
 	bool					bViewConfigurationFovSupported;
-	bool					bNeedReAllocatedDepth;
 	bool					bNeedReBuildOcclusionMesh;
 	bool					bIsMobileMultiViewEnabled;
 	bool					bSupportsHandTracking;
@@ -433,7 +432,7 @@ private:
 	bool					bProjectionLayerAlphaEnabled;
 	bool					bIsStandaloneStereoOnlyDevice;
 	bool					bIsTrackingOnlySession;
-	bool					bIsAcquireOnRenderThreadSupported;
+	bool					bIsAcquireOnAnyThreadSupported;
 	float					WorldToMetersScale = 100.0f;
 	float					RuntimePixelDensityMax = FHeadMountedDisplayBase::PixelDensityMax;
 	EShaderPlatform			ConfiguredShaderPlatform = EShaderPlatform::SP_NumPlatforms;
