@@ -78,7 +78,11 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 					NewObject<UInterchangeTranslatorBase>(TransientPackage, TranslatorClass, NAME_None)
 					, NewObject<UInterchangeSourceData>(TransientPackage, UInterchangeSourceData::StaticClass(), NAME_None)
 				);
+			}
 
+			for (TPair<UInterchangeTranslatorBase*, UInterchangeSourceData*>& TranslatorAndSourceData : TranslatorsAndSourcesData)
+			{
+				TranslatorAndSourceData.Key->SetResultsContainer(BaseTranslator.Results);
 			}
 		};
 
