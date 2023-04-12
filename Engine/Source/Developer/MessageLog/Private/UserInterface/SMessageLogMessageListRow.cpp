@@ -223,6 +223,7 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 			.Text(InMessageToken->ToText())
 			.ToolTipText(ActionToken->GetActionDescription())
 			.TextStyle(FAppStyle::Get(), "MessageLog")
+			.IsEnabled_Raw(this, &SMessageLogMessageListRow::GetActionLinkEnable, ActionToken)
 			.OnNavigate(this, &SMessageLogMessageListRow::HandleActionHyperlinkNavigate, ActionToken);
 
 		TokenContentVisbility = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateRaw(this, &SMessageLogMessageListRow::GetActionLinkVisibility, ActionToken));

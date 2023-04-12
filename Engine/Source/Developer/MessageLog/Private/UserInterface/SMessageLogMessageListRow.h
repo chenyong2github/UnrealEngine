@@ -74,7 +74,12 @@ private:
 
 	EVisibility GetActionLinkVisibility(TSharedRef<FActionToken> ActionToken) const
 	{
-		return ActionToken->CanExecuteAction() ? EVisibility::Visible : EVisibility::Collapsed;
+		return ActionToken->IsValidAction() ? EVisibility::Visible : EVisibility::Collapsed;
+	}
+
+	bool GetActionLinkEnable(TSharedRef<FActionToken> ActionToken) const
+	{
+		return ActionToken->CanExecuteAction();
 	}
 
 	void HandleActionHyperlinkNavigate( TSharedRef<FActionToken> ActionToken )
