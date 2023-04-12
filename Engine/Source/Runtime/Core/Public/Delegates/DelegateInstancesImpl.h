@@ -12,6 +12,7 @@
 
 #include "CoreTypes.h"
 #include "Delegates/DelegateInstanceInterface.h"
+#include "Delegates/IDelegateInstance.h"
 #include "Misc/AssertionMacros.h"
 #include "Templates/RemoveReference.h"
 #include "Templates/SharedPointer.h"
@@ -20,8 +21,6 @@
 #include "UObject/NameTypes.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
-class FDelegateBase;
-class FDelegateHandle;
 enum class ESPMode : uint8;
 
 namespace UE::Delegates::Private
@@ -134,7 +133,7 @@ public:
 
 	void CreateCopy(DelegateBaseType& Base) const final
 	{
-		new (Base) TBaseUFunctionDelegateInstance(*this);
+		Base.template CreateDelegateInstance<TBaseUFunctionDelegateInstance>(*this);
 	}
 
 	RetValType Execute(ParamTypes... Params) const final
@@ -254,7 +253,7 @@ public:
 
 	void CreateCopy(DelegateBaseType& Base) const final
 	{
-		new (Base) TBaseSPMethodDelegateInstance(*this);
+		Base.template CreateDelegateInstance<TBaseSPMethodDelegateInstance>(*this);
 	}
 
 	RetValType Execute(ParamTypes... Params) const final
@@ -390,7 +389,7 @@ public:
 
 	void CreateCopy(DelegateBaseType& Base) const final
 	{
-		new (Base) TBaseRawMethodDelegateInstance(*this);
+		Base.template CreateDelegateInstance<TBaseRawMethodDelegateInstance>(*this);
 	}
 
 	RetValType Execute(ParamTypes... Params) const final
@@ -514,7 +513,7 @@ public:
 
 	void CreateCopy(DelegateBaseType& Base) const final
 	{
-		new (Base) TBaseUObjectMethodDelegateInstance(*this);
+		Base.template CreateDelegateInstance<TBaseUObjectMethodDelegateInstance>(*this);
 	}
 
 	RetValType Execute(ParamTypes... Params) const final
@@ -637,7 +636,7 @@ public:
 
 	void CreateCopy(DelegateBaseType& Base) const final
 	{
-		new (Base) TBaseStaticDelegateInstance(*this);
+		Base.template CreateDelegateInstance<TBaseStaticDelegateInstance>(*this);
 	}
 
 	RetValType Execute(ParamTypes... Params) const final
@@ -730,7 +729,7 @@ public:
 	// IBaseDelegateInstance interface
 	void CreateCopy(DelegateBaseType& Base) const final
 	{
-		new (Base) TBaseFunctorDelegateInstance(*this);
+		Base.template CreateDelegateInstance<TBaseFunctorDelegateInstance>(*this);
 	}
 
 	RetValType Execute(ParamTypes... Params) const final
@@ -824,7 +823,7 @@ public:
 	// IBaseDelegateInstance interface
 	void CreateCopy(DelegateBaseType& Base) const final
 	{
-		new (Base) TWeakBaseFunctorDelegateInstance(*this);
+		Base.template CreateDelegateInstance<TWeakBaseFunctorDelegateInstance>(*this);
 	}
 
 	RetValType Execute(ParamTypes... Params) const final
