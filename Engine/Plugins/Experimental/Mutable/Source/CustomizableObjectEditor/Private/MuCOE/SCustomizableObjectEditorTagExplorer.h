@@ -4,16 +4,16 @@
 
 #include "Widgets/SCompoundWidget.h"
 
-class UCustomizableObjectNode;
 namespace ESelectInfo { enum Type : int; }
 template <typename ItemType> class SListView;
-template <typename OptionType> class SComboBox;
 
 class FCustomizableObjectEditor;
 class ITableRow;
 class STableViewBase;
+class SComboButton;
 class SWidget;
 class UCustomizableObject;
+class UCustomizableObjectNode;
 
 class SCustomizableObjectEditorTagExplorer : public SCompoundWidget
 {
@@ -27,8 +27,8 @@ public:
 
 private:
 
-	/** Button Callback to fill the tag list */
-	FReply GetCustomizableObjectTags();
+	/** Callback to fill the combobox options */
+	TSharedRef<SWidget> OnGetTagsMenuContent();
 
 	/** Fills a list with all the tags found in the nodes of a graph */
 	void FillTagInformation(UCustomizableObject* Object, TArray<FString>& Tags);
@@ -43,7 +43,7 @@ private:
 	FReply CopyTagToClipboard();
 
 	/** OnSelectionChanged callback of the tags combobox */
-	void OnComboBoxSelectionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type);
+	void OnComboBoxSelectionChanged(FString NewValue);
 
 	/** Tags table callbacks*/
 	TSharedRef<ITableRow> OnGenerateTableRow(UCustomizableObjectNode* Node, const TSharedRef<STableViewBase>& OwnerTable);
@@ -55,13 +55,10 @@ private:
 	FCustomizableObjectEditor* CustomizableObjectEditorPtr;
 
 	/** Combobox for the Customizable Object Tags */
-	TSharedPtr<SComboBox<TSharedPtr<FString>>> TagComboBox;
-
-	/** Combobox string container */
-	TArray<TSharedPtr<FString>> ComboboxTags;
+	TSharedPtr<SComboButton> TagComboBox;
 
 	/** Combobox Selection */
-	TSharedPtr<FString> TagComboBoxItem;
+	FString SelectedTag;
 
 	/** List views for the nodes that contain the same tag */
 	TSharedPtr<SListView<UCustomizableObjectNode*>> ColumnMat;
@@ -69,6 +66,7 @@ private:
 	TSharedPtr<SListView<UCustomizableObjectNode*>> ColumnClipMesh;
 	TSharedPtr<SListView<UCustomizableObjectNode*>> ColumnClipMorph;
 	TSharedPtr<SListView<UCustomizableObjectNode*>> ColumnExtend;
+	TSharedPtr<SListView<UCustomizableObjectNode*>> ColumnClipDeform;
 
 	/** Arrays for each type of node that contains a tag */
 	TArray<UCustomizableObjectNode*> MaterialNodes;
@@ -76,6 +74,7 @@ private:
 	TArray<UCustomizableObjectNode*> ClipMeshNodes;
 	TArray<UCustomizableObjectNode*> ClipMorphNodes;
 	TArray<UCustomizableObjectNode*> ExtendNodes;
+	TArray<UCustomizableObjectNode*> ClipDeformNodes;
 
 	/** Multimap to relatre the nodes with the tags */
 	TMultiMap<FString, UCustomizableObjectNode*> NodeTags;
