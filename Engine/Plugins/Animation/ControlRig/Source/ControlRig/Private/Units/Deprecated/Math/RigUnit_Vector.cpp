@@ -90,25 +90,3 @@ FRigVMStructUpgradeInfo FRigUnit_Distance_VectorVector::GetUpgradeInfo() const
 	Info.AddRemappedPin(TEXT("Argument1"), TEXT("B"));
 	return Info;
 }
-
-FRigUnit_MathVectorBezierFourPoint_Execute()
-{
-    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FControlRigMathLibrary::FourPointBezier(Bezier, T, Result, Tangent);
-}
-
-FRigVMStructUpgradeInfo FRigUnit_MathVectorBezierFourPoint::GetUpgradeInfo() const
-{
-	// this node is no longer supported
-	return FRigVMStructUpgradeInfo();
-}
-
-FRigUnit_MathVectorMakeBezierFourPoint_Execute()
-{
-}
-
-FRigVMStructUpgradeInfo FRigUnit_MathVectorMakeBezierFourPoint::GetUpgradeInfo() const
-{
-	// this node is no longer supported
-	return FRigVMStructUpgradeInfo();
-}
