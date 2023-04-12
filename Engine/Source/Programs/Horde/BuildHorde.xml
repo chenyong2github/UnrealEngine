@@ -17,6 +17,7 @@
 		<Property Name="StagingDir" Value="$(RootDir)/Engine/Saved/Horde.Server"/>
 		
 		<Node Name="Check HordeServer Licenses">
+			<DotNet Arguments="build &quot;$(RootDir)/Engine/Source/Programs/Horde/Horde.Server/Horde.Server.csproj&quot; $(VersionArguments)"/>
 			<Property Name="IgnorePackages">
 				NETStandard.Library@2.0.0
 				Serilog.Enrichers.OpenTracing@0.0.2
