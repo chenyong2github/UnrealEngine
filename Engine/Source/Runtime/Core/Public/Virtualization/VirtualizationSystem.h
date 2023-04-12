@@ -720,6 +720,11 @@ public:
 	/**
 	 * Runs the virtualization process on a set of packages. All of the packages will be parsed and any found to be containing locally stored
 	 * payloads will have them removed but before they are removed they will be pushed to persistent storage.
+	 * 
+	 * Note that if errors occur some or all of the payloads could still get pushed to persistent storage, usually if the errors occur when
+	 * trying to remove the now virtualized payload from the packages on disk.
+	 * In addition, if errors do occur when removing the virtualized payloads, some packages may be virtualized successfully. In any case the
+	 * packages should still be usable and safe to checkin after the process has run, even with failure cases.
 	 *
 	 * @param PackagePaths			An array of file paths to packages that should be virtualized. If a path resolves to a file that is not
 	 *								a valid package then it will be silently skipped and will not be considered an error.
