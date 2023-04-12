@@ -2510,12 +2510,12 @@ namespace UnrealBuildTool
 			}
 
 			// Make sure all the checked headers were valid
-			List<string> InvalidIncludeDirectiveMessages = Modules.Values.OfType<UEBuildModuleCPP>().Where(x => x.InvalidIncludeDirectiveMessages != null).SelectMany(x => x.InvalidIncludeDirectiveMessages!).ToList();
-			if (InvalidIncludeDirectiveMessages.Count > 0)
+			List<UEBuildModuleCPP.InvalidIncludeDirective> InvalidIncludeDirectives = Modules.Values.OfType<UEBuildModuleCPP>().Where(x => x.InvalidIncludeDirectives != null).SelectMany(x => x.InvalidIncludeDirectives!).ToList();
+			if (InvalidIncludeDirectives.Count > 0)
 			{
-				foreach (string InvalidIncludeDirectiveMessage in InvalidIncludeDirectiveMessages)
+				foreach (UEBuildModuleCPP.InvalidIncludeDirective InvalidIncludeDirective in InvalidIncludeDirectives)
 				{
-					Log.WriteLine(LogEventType.Warning, LogFormatOptions.NoSeverityPrefix, "{0}", InvalidIncludeDirectiveMessage);
+					Logger.LogWarning("{CppFile}(1): error: Expected {HeaderFile} to be first header included.", InvalidIncludeDirective.CppFile, InvalidIncludeDirective.HeaderFile.GetFileName());
 				}
 			}
 
