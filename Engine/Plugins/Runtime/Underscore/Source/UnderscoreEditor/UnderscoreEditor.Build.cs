@@ -6,8 +6,6 @@ public class UnderscoreEditor : ModuleRules
 {
 	public UnderscoreEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivatePCHHeaderFile = "Public/UnderscoreEditor.h";
-
 		PublicIncludePaths.AddRange(
 			new string[] {
 			}
