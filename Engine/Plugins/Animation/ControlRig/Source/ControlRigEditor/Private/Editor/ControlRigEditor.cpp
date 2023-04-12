@@ -2285,6 +2285,7 @@ void FControlRigEditor::Compile()
 		
 		if (ControlRig)
 		{
+			ControlRigLog.Reset();
 			ControlRig->RigVMLog = &ControlRigLog;
 
 			URigVMBlueprintGeneratedClass* GeneratedClass = Cast<URigVMBlueprintGeneratedClass>(ControlRig->GetClass());
