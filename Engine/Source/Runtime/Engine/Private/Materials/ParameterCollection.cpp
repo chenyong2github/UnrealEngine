@@ -3,6 +3,7 @@
 #include "ParameterCollection.h"
 #include "UObject/UObjectIterator.h"
 #include "RenderingThread.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "MaterialShared.h"
 #include "MaterialCachedData.h"
