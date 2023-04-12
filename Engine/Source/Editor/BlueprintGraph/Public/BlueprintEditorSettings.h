@@ -354,6 +354,8 @@ public:
 	void UnregisterIsClassPathAllowedOnPinDelegate(const FName OwnerName);
 	bool IsClassPathAllowedOnPin(const FTopLevelAssetPath& InClassPath) const;
 	bool HasClassPathOnPinFiltering() const { return IsClassPathAllowedOnPinDelegates.Num() > 0; }
+
+	bool IsFunctionAllowed(const UBlueprint* InBlueprint, const FName FunctionName) const;
 	
 private:
 	/** All function permissions */

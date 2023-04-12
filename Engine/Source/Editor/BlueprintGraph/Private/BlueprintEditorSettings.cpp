@@ -271,3 +271,29 @@ bool UBlueprintEditorSettings::IsClassPathAllowedOnPin(const FTopLevelAssetPath&
 	}
 	return true;
 }
+
+bool UBlueprintEditorSettings::IsFunctionAllowed(const UBlueprint* InBlueprint, const FName FunctionName) const
+{
+	if (!FunctionPermissions.HasFiltering())
+	{
+		return true;
+	}
+
+	if (FunctionPermissions.PassesFilter(FunctionName))
+	{
+		return true;
+	}
+
+	if (InBlueprint && InBlueprint->ParentClass)
+	{
+		if (const UFunction* ParentFunction = InBlueprint->ParentClass->FindFunctionByName(FunctionName))
+		{
+			if (FunctionPermissions.PassesFilter(ParentFunction->GetPathName()))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
