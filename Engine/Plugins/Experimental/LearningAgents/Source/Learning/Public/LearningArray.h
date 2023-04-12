@@ -104,6 +104,9 @@
 #endif
 
 
+template <typename FuncType> class TFunctionRef;
+
+
 // Learning Multi-Dimensional Array Types
 
 template<uint32 DimNum>

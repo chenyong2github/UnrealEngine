@@ -2,8 +2,8 @@
 
 #pragma once
 
-
 #include "Math/IntPoint.h"
+#include "Templates/Function.h"
 
 #ifdef USE_MDLSDK
 

@@ -8,6 +8,7 @@
 #include "Delegates/DelegateInstancesImpl.h"
 #include "Delegates/IDelegateInstance.h"
 #include "Misc/AssertionMacros.h"
+#include "Templates/Function.h"
 
 DECLARE_MULTICAST_DELEGATE(FDelayedAutoRegisterDelegate);
 

@@ -4,14 +4,12 @@
 
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
-#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/ContainersFwd.h"
 #include "HAL/Platform.h"
 #include "Math/NumericLimits.h"
 #include "Memory/MemoryFwd.h"
 #include "Memory/MemoryView.h"
 #include "Memory/SharedBuffer.h"
-#include "Templates/Function.h"
 #include "Templates/UnrealTemplate.h"
 
 #include <type_traits>
@@ -94,8 +92,12 @@ public:
 	[[nodiscard]] CORE_API FMemoryView ViewOrCopyRange(
 		uint64 Offset,
 		uint64 Size,
+		FUniqueBuffer& CopyBuffer) const;
+	[[nodiscard]] CORE_API FMemoryView ViewOrCopyRange(
+		uint64 Offset,
+		uint64 Size,
 		FUniqueBuffer& CopyBuffer,
-		TFunctionRef<FUniqueBuffer (uint64 Size)> Allocator = FUniqueBuffer::Alloc) const;
+		TFunctionRef<FUniqueBuffer (uint64 Size)> Allocator) const;
 
 	/**
 	 * Copies a range of the buffer to a contiguous region of memory.
@@ -142,3 +144,8 @@ private:
 };
 
 inline const FCompositeBuffer FCompositeBuffer::Null;
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "Containers/ContainerAllocationPolicies.h"
+#include "Templates/Function.h"
+#endif

@@ -15,7 +15,6 @@
 #include "Serialization/ArchiveCookData.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/EnableIf.h"
-#include "Templates/Function.h"
 #include "Templates/IsArrayOrRefOfTypeByPredicate.h"
 #include "Templates/IsEnumClass.h"
 #include "Templates/IsSigned.h"
@@ -36,7 +35,8 @@ class ITargetPlatform;
 class UObject;
 namespace UE::Serialization{ class FEditorBulkData; }
 struct FArchiveSerializedPropertyChain;
-template<class TEnum> class TEnumAsByte;
+template <typename TEnum> class TEnumAsByte;
+template <typename FuncType> class TFunction;
 template <typename T> struct TObjectPtr;
 
 typedef TFunction<bool (double RemainingTime)> FExternalReadCallback;
@@ -2260,3 +2260,7 @@ FORCEINLINE FArchive& operator<<(FArchive& Ar, EnumType& Value)
 {
 	return Ar << (__underlying_type(EnumType)&)Value;
 }
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "Templates/Function.h"
+#endif

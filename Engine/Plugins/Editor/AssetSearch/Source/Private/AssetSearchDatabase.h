@@ -12,6 +12,8 @@ enum class ESQLiteDatabaseOpenMode : uint8;
 class FAssetSearchDatabaseStatements;
 struct FAssetData;
 
+template <typename FuncType> class TFunctionRef;
+
 DECLARE_LOG_CATEGORY_EXTERN(LogAssetSearch, Log, All);
 
 class FAssetSearchDatabase

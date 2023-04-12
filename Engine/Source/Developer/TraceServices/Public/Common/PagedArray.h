@@ -6,6 +6,7 @@
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 #include "Math/Interval.h"
+#include "Templates/Function.h"
 
 #ifndef TRACESERVICES_PAGED_ARRAY_ITERATOR_V2
 #define TRACESERVICES_PAGED_ARRAY_ITERATOR_V2 0 // enables a simpler implementation of TPagedArrayIterator, for debug purposes

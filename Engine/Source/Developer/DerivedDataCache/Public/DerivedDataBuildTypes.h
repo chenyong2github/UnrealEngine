@@ -10,6 +10,9 @@
 
 #define UE_API DERIVEDDATACACHE_API
 
+template <typename FuncType> class TFunctionRef;
+template <typename FuncType> class TUniqueFunction;
+
 namespace UE::DerivedData { class FBuildOutput; }
 namespace UE::DerivedData { struct FBuildCompleteParams; }
 namespace UE::DerivedData { struct FCacheKey; }

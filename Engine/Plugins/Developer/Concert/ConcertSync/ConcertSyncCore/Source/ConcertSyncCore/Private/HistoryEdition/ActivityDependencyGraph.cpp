@@ -6,6 +6,7 @@
 #include "CoreGlobals.h"
 #include "HistoryEdition/ActivityDependencyEdge.h"
 #include "HistoryEdition/ActivityNode.h"
+#include "Templates/Function.h"
 
 #include "Algo/ForEach.h"
 

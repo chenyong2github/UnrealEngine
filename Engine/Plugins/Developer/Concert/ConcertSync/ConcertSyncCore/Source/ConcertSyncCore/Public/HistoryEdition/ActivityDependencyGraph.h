@@ -4,6 +4,7 @@
 
 #include "ActivityNode.h"
 
+template <typename FuncType> class TFunctionRef;
 template <typename OptionalType> struct TOptional;
 
 namespace UE::ConcertSyncCore { class FActivityDependencyEdge; }

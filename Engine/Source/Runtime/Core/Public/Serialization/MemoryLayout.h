@@ -6,12 +6,14 @@
 #include "Concepts/StaticStructProvider.h"
 #include "Containers/EnumAsByte.h"
 #include "Containers/StringFwd.h"
+#include "HAL/UnrealMemory.h"
 #include "Misc/DelayedAutoRegister.h"
 #include "Templates/EnableIf.h"
 #include "Templates/IsAbstract.h"
 #include "Templates/IsPolymorphic.h"
 #include "Templates/IsTriviallyDestructible.h"
 #include "Templates/Models.h"
+#include "Templates/UnrealTemplate.h"
 
 class FHashedName;
 class FSHA1;

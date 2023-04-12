@@ -3,7 +3,8 @@
 #pragma once
 
 #include "HAL/Platform.h"
-#include "Templates/Function.h"
+
+template <typename FuncType> class TFunction;
 
 enum class EDelayedRegisterRunPhase : uint8
 {
@@ -29,3 +30,7 @@ struct CORE_API FDelayedAutoRegisterHelper
 
 	static void RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase RunPhase);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "Templates/Function.h"
+#endif

@@ -76,6 +76,14 @@ FCompositeBuffer FCompositeBuffer::Mid(uint64 Offset, uint64 Size) const
 FMemoryView FCompositeBuffer::ViewOrCopyRange(
 	const uint64 Offset,
 	const uint64 Size,
+	FUniqueBuffer& CopyBuffer) const
+{
+	return ViewOrCopyRange(Offset, Size, CopyBuffer, FUniqueBuffer::Alloc);
+}
+
+FMemoryView FCompositeBuffer::ViewOrCopyRange(
+	const uint64 Offset,
+	const uint64 Size,
 	FUniqueBuffer& CopyBuffer,
 	TFunctionRef<FUniqueBuffer (uint64 Size)> Allocator) const
 {

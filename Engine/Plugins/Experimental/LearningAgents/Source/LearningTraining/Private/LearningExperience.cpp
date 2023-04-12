@@ -4,6 +4,7 @@
 
 #include "LearningCompletion.h"
 #include "LearningLog.h"
+#include "Templates/Function.h"
 
 namespace UE::Learning
 {

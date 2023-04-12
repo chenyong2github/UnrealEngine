@@ -2,6 +2,7 @@
 
 #pragma once
 #include "Containers/Array.h"
+#include "Templates/Function.h"
 
 // Helper struct to encapsulate optional, delayed writing of new element to TNetworkSimAuxBuffer buffer
 template<typename ElementType>
