@@ -422,6 +422,8 @@ class TMulticastScriptDelegate
 
 public:
 
+	using InvocationListType = TArray<UnicastDelegateType>;
+
 	TMulticastScriptDelegate() = default;
 
 public:
@@ -618,7 +620,7 @@ public:
 		{
 			FString AllDelegatesString = TEXT( "[" );
 			bool bAddComma = false;
-			for( typename FInvocationList::TConstIterator CurDelegate( InvocationList ); CurDelegate; ++CurDelegate )
+			for( typename InvocationListType::TConstIterator CurDelegate( InvocationList ); CurDelegate; ++CurDelegate )
 			{
 				if (bAddComma)
 				{
@@ -721,7 +723,7 @@ public:
 		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
 
 		TArray< UObject* > OutputList;
-		for( typename FInvocationList::TIterator CurDelegate( InvocationList ); CurDelegate; ++CurDelegate )
+		for( typename InvocationListType::TIterator CurDelegate( InvocationList ); CurDelegate; ++CurDelegate )
 		{
 			UObject* CurObject = CurDelegate->GetUObject();
 			if( CurObject != nullptr )
@@ -742,7 +744,7 @@ public:
 		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
 
 		TArray< UObject* > OutputList;
-		for( typename FInvocationList::TIterator CurDelegate( InvocationList ); CurDelegate; ++CurDelegate )
+		for( typename InvocationListType::TIterator CurDelegate( InvocationList ); CurDelegate; ++CurDelegate )
 		{
 			UObject* CurObject = CurDelegate->GetUObjectEvenIfUnreachable();
 			if( CurObject != nullptr )
@@ -770,14 +772,14 @@ protected:
 	*/
 	void AddInternal( const UnicastDelegateType& InDelegate )
 	{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if DO_ENSURE
 		// Verify same function isn't already bound
 		const int32 NumFunctions = InvocationList.Num();
 		for( int32 CurFunctionIndex = 0; CurFunctionIndex < NumFunctions; ++CurFunctionIndex )
 		{
 			(void)ensure( InvocationList[ CurFunctionIndex ] != InDelegate );
 		}
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // DO_CHECK
 		InvocationList.Add( InDelegate );
 	}
 
@@ -831,13 +833,10 @@ protected:
 		});
 	}
 
-public:
-	typedef TArray<UnicastDelegateType> FInvocationList;
-
 protected:
 
 	/** Ordered list functions to invoke when the Broadcast function is called */
-	mutable FInvocationList InvocationList;		// Mutable so that we can housekeep list even with 'const' broadcasts
+	mutable InvocationListType InvocationList;		// Mutable so that we can housekeep list even with 'const' broadcasts
 
 	UE_DELEGATES_MT_ACCESS_DETECTOR(AccessDetector);
 
@@ -856,5 +855,5 @@ protected:
 template <typename TWeakPtr>
 struct TIsZeroConstructType<TMulticastScriptDelegate<TWeakPtr>>
 {
-	static constexpr bool Value = TIsZeroConstructType<typename TMulticastScriptDelegate<TWeakPtr>::FInvocationList>::Value;
+	static constexpr bool Value = TIsZeroConstructType<typename TMulticastScriptDelegate<TWeakPtr>::InvocationListType>::Value;
 };

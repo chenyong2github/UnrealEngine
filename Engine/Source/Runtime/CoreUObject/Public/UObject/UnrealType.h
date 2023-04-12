@@ -5965,8 +5965,8 @@ public:
 protected:
 	friend class FProperty;
 
-	static FMulticastScriptDelegate::FInvocationList EmptyList;
-	virtual FMulticastScriptDelegate::FInvocationList& GetInvocationList(const void* PropertyValue) const PURE_VIRTUAL(FMulticastDelegateProperty::GetInvocationList, return EmptyList;);
+	static FMulticastScriptDelegate::InvocationListType EmptyList;
+	virtual FMulticastScriptDelegate::InvocationListType& GetInvocationList(const void* PropertyValue) const PURE_VIRTUAL(FMulticastDelegateProperty::GetInvocationList, return EmptyList;);
 
 
 	const TCHAR* ImportText_Add( const TCHAR* Buffer, void* PropertyValue, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText ) const;
@@ -6081,7 +6081,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void ClearDelegate(UObject* Parent = nullptr, void* PropertyValue = nullptr) const override;
 
 protected:
-	virtual FMulticastScriptDelegate::FInvocationList& GetInvocationList(const void* PropertyValue) const;
+	virtual FMulticastScriptDelegate::InvocationListType& GetInvocationList(const void* PropertyValue) const;
 	// End of FMulticastDelegateProperty interface
 };
 
@@ -6132,7 +6132,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void ClearDelegate(UObject* Parent = nullptr, void* PropertyValue = nullptr) const override;
 
 protected:
-	virtual FMulticastScriptDelegate::FInvocationList& GetInvocationList(const void* PropertyValue) const;
+	virtual FMulticastScriptDelegate::InvocationListType& GetInvocationList(const void* PropertyValue) const;
 	// End of FMulticastDelegateProperty interface
 
 private:

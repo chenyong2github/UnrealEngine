@@ -528,7 +528,7 @@ public:
 		DelegateInstanceInterfaceType* LocalDelegateInstance = GetDelegateInstanceProtected();
 
 		// If this assert goes off, Execute() was called before a function was bound to the delegate.
-		// Consider using ExecuteIfSafe() instead.
+		// Consider using ExecuteIfBound() instead.
 		checkSlow(LocalDelegateInstance != nullptr);
 
 		return LocalDelegateInstance->Execute(Params...);
@@ -629,6 +629,9 @@ public:
 		}
 		return *this;
 	}
+
+	TMulticastDelegate(TMulticastDelegate&&) = default;
+	TMulticastDelegate& operator=(TMulticastDelegate&&) = default;
 
 public:
 
@@ -867,9 +870,6 @@ public:
 		}
 		return bResult;
 	}
-
-	TMulticastDelegate(TMulticastDelegate&&) = default;
-	TMulticastDelegate& operator=(TMulticastDelegate&&) = default;
 
 	/**
 	 * Broadcasts this delegate to all bound objects, except to those that may have expired.

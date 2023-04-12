@@ -9,7 +9,7 @@
 #include "UObject/LinkerPlaceholderFunction.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
 
-FMulticastScriptDelegate::FInvocationList FMulticastDelegateProperty::EmptyList;
+FMulticastScriptDelegate::InvocationListType FMulticastDelegateProperty::EmptyList;
 
 FMulticastDelegateProperty::FMulticastDelegateProperty(FFieldVariant InOwner, const UECodeGen_Private::FMulticastDelegatePropertyParams& Prop, EPropertyFlags AdditionalPropertyFlags /*= CPF_None*/)
 	: FProperty(InOwner, (const UECodeGen_Private::FPropertyParamsBaseWithOffset&)Prop, AdditionalPropertyFlags)
@@ -43,8 +43,8 @@ void FMulticastDelegateProperty::InstanceSubobjects(void* Data, void const* Defa
 		for( int32 i=0; i<ArrayDim; i++ )
 		{
 			// Fix up references to the class default object (if necessary)
-			FMulticastScriptDelegate::FInvocationList::TIterator CurInvocation(GetInvocationList((uint8*)Data + i));
-			FMulticastScriptDelegate::FInvocationList::TIterator DefaultInvocation(GetInvocationList((uint8*)DefaultData + i));
+			FMulticastScriptDelegate::InvocationListType::TIterator CurInvocation(GetInvocationList((uint8*)Data + i));
+			FMulticastScriptDelegate::InvocationListType::TIterator DefaultInvocation(GetInvocationList((uint8*)DefaultData + i));
 			for(; CurInvocation && DefaultInvocation; ++CurInvocation, ++DefaultInvocation )
 			{
 				FScriptDelegate& DestDelegateInvocation = *CurInvocation;
@@ -76,7 +76,7 @@ void FMulticastDelegateProperty::InstanceSubobjects(void* Data, void const* Defa
 	{
 		for( int32 i=0; i<ArrayDim; i++ )
 		{
-			for( FMulticastScriptDelegate::FInvocationList::TIterator CurInvocation(GetInvocationList((uint8*)Data + i)); CurInvocation; ++CurInvocation )
+			for( FMulticastScriptDelegate::InvocationListType::TIterator CurInvocation(GetInvocationList((uint8*)Data + i)); CurInvocation; ++CurInvocation )
 			{
 				FScriptDelegate& DestDelegateInvocation = *CurInvocation;
 				UObject* CurrentUObject = DestDelegateInvocation.GetUObject();
@@ -93,8 +93,8 @@ void FMulticastDelegateProperty::InstanceSubobjects(void* Data, void const* Defa
 
 bool FMulticastDelegateProperty::Identical( const void* A, const void* B, uint32 PortFlags ) const
 {
-	const FMulticastScriptDelegate::FInvocationList& ListA = GetInvocationList(A);
-	const FMulticastScriptDelegate::FInvocationList& ListB = GetInvocationList(B);
+	const FMulticastScriptDelegate::InvocationListType& ListA = GetInvocationList(A);
+	const FMulticastScriptDelegate::InvocationListType& ListB = GetInvocationList(B);
 
 	const int32 ListASize = ListA.Num();
 	if (ListASize != ListB.Num())
@@ -181,7 +181,7 @@ FString FMulticastDelegateProperty::GetCPPTypeForwardDeclaration() const
 
 void FMulticastDelegateProperty::ExportText_Internal( FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
 {
-	const FMulticastScriptDelegate::FInvocationList* InvocationList = nullptr;
+	const FMulticastScriptDelegate::InvocationListType* InvocationList = nullptr;
 	
 	if (PropertyPointerType == EPropertyPointerType::Container && HasGetter())
 	{
@@ -198,7 +198,7 @@ void FMulticastDelegateProperty::ExportText_Internal( FString& ValueStr, const v
 	ValueStr += TEXT( "(" );
 
 	bool bIsFirstFunction = true;
-	for (FMulticastScriptDelegate::FInvocationList::TConstIterator CurInvocation(*InvocationList); CurInvocation; ++CurInvocation)
+	for (FMulticastScriptDelegate::InvocationListType::TConstIterator CurInvocation(*InvocationList); CurInvocation; ++CurInvocation)
 	{
 		if (CurInvocation->IsBound())
 		{
@@ -394,7 +394,7 @@ void FMulticastInlineDelegateProperty::SetMulticastDelegate(void* PropertyValue,
 	*(FMulticastScriptDelegate*)PropertyValue = MoveTemp(ScriptDelegate);
 }
 
-FMulticastScriptDelegate::FInvocationList& FMulticastInlineDelegateProperty::GetInvocationList(const void* PropertyValue) const
+FMulticastScriptDelegate::InvocationListType& FMulticastInlineDelegateProperty::GetInvocationList(const void* PropertyValue) const
 {
 	return (PropertyValue ? ((FMulticastScriptDelegate*)PropertyValue)->InvocationList : EmptyList);
 }
@@ -505,7 +505,7 @@ void FMulticastSparseDelegateProperty::SetMulticastDelegate(void* PropertyValue,
 }
 
 
-FMulticastScriptDelegate::FInvocationList& FMulticastSparseDelegateProperty::GetInvocationList(const void* PropertyValue) const
+FMulticastScriptDelegate::InvocationListType& FMulticastSparseDelegateProperty::GetInvocationList(const void* PropertyValue) const
 {
 	if (FSparseDelegate* SparseDelegate = (FSparseDelegate*)PropertyValue)
 	{

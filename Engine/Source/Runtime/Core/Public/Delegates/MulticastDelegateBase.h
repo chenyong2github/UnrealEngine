@@ -225,7 +225,7 @@ protected:
 		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
 
 		FDelegateHandle Result;
-		if (GetDelegateInstanceProtectedHelper(NewDelegateBaseRef))
+		if (NewDelegateBaseRef.IsBound())
 		{
 			// compact but obey threshold of when this will trigger
 			CompactInvocationList(true);

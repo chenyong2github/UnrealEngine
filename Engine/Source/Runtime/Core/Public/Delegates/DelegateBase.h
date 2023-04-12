@@ -50,24 +50,13 @@ class FDelegateBase //-V1062
 	friend class TDelegateBase;
 
 protected:
-	/**
-	 * Creates and initializes a new instance.
-	 *
-	 * @param InDelegateInstance The delegate instance to assign.
-	 */
-	explicit FDelegateBase()
-		: DelegateSize(0)
-	{
-	}
+	explicit FDelegateBase() = default;
 
 	~FDelegateBase()
 	{
 		Unbind();
 	}
 
-	/**
-	 * Move constructor.
-	 */
 	FDelegateBase(FDelegateBase&& Other)
 	{
 		DelegateAllocator.MoveToEmpty(Other.DelegateAllocator);
@@ -75,9 +64,6 @@ protected:
 		Other.DelegateSize = 0;
 	}
 
-	/**
-	 * Move assignment.
-	 */
 	FDelegateBase& operator=(FDelegateBase&& Other)
 	{
 		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
@@ -149,7 +135,7 @@ private:
 
 private:
 	FDelegateAllocatorType::ForElementType<FAlignedInlineDelegateType> DelegateAllocator;
-	int32 DelegateSize;
+	int32 DelegateSize = 0;
 
 	UE_DELEGATES_MT_ACCESS_DETECTOR(AccessDetector);
 };

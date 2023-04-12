@@ -212,7 +212,7 @@
 #define FUNC_DECLARE_MULTICAST_DELEGATE( MulticastDelegateName, ReturnType, ... ) \
 	typedef TMulticastDelegate<ReturnType(__VA_ARGS__)> MulticastDelegateName;
 
-  /** Declares a broadcast thread-safe delegate that can bind to multiple native functions simultaneously */
+/** Declares a broadcast thread-safe delegate that can bind to multiple native functions simultaneously */
 #define FUNC_DECLARE_TS_MULTICAST_DELEGATE( MulticastDelegateName, ReturnType, ... ) \
 	typedef TMulticastDelegate<ReturnType(__VA_ARGS__), FDefaultTSDelegateUserPolicy> MulticastDelegateName;
 
