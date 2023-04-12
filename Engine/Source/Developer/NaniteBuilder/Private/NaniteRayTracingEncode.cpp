@@ -346,7 +346,7 @@ static void CompressWideBVHNode(FEmbreeBVH8Node* Node, FCompressedBVHNodeData& D
 			uint32 UnaryEncodedPrimitiveCount = (1 << (LeafNode->LeafPrimitiveCount + 1)) - 1;
 			uint32 MetaField = (UnaryEncodedPrimitiveCount << 5) | (LeafChildPrimitiveCount & 0b11111);
 	
-			DestNode.ChildMetaField[ChildIndex] = MetaField;
+			DestNode.ChildMetaField[ChildIndex] = (uint8)MetaField;
 
 			for (uint32 i = 0; i < LeafNode->LeafPrimitiveCount; i++)
 			{

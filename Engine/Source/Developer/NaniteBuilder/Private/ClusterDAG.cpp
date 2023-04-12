@@ -44,7 +44,7 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 			MaxError = FMath::Max( MaxError, Cluster.LODError );
 			AvgError += Cluster.LODError;
 		}
-		AvgError /= LevelClusters.Num();
+		AvgError /= (float)LevelClusters.Num();
 
 		UE_LOG( LogStaticMesh, Verbose, TEXT("Num clusters %i. Error %.4f, %.4f, %.4f"), LevelClusters.Num(), MinError, AvgError, MaxError );
 

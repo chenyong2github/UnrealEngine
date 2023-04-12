@@ -1516,7 +1516,7 @@ float TMeshSimplifier<T, NumAttributes>::ComputeMergePenalty( TSimpVert<T>* v0, 
 		} while( v != v1 );
 
 		if( degree > degreeLimit )
-			penalty += degreePenalty * ( degree - degreeLimit );
+			penalty += degreePenalty * float( degree - degreeLimit );
 	}
 
 	{

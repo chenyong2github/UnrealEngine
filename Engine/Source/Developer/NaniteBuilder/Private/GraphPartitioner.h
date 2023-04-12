@@ -95,9 +95,9 @@ void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, const FBo
 			FVector3f CenterLocal = ( Center - Bounds.Min ) / FVector3f( Bounds.Max - Bounds.Min ).GetMax();
 
 			uint32 Morton;
-			Morton  = FMath::MortonCode3( CenterLocal.X * 1023 );
-			Morton |= FMath::MortonCode3( CenterLocal.Y * 1023 ) << 1;
-			Morton |= FMath::MortonCode3( CenterLocal.Z * 1023 ) << 2;
+			Morton  = FMath::MortonCode3( uint32( CenterLocal.X * 1023 ) );
+			Morton |= FMath::MortonCode3( uint32( CenterLocal.Y * 1023 ) ) << 1;
+			Morton |= FMath::MortonCode3( uint32( CenterLocal.Z * 1023 ) ) << 2;
 			SortKeys[ Index ] = Morton;
 		});
 

@@ -91,7 +91,7 @@ FCluster::FCluster(
 						AdjCount++;
 				} );
 
-			ExternalEdges.Add( AdjCount );
+			ExternalEdges.Add( (int8)AdjCount );
 			NumExternalEdges += AdjCount != 0 ? 1 : 0;
 		}
 
@@ -167,7 +167,7 @@ FCluster::FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const 
 						AdjCount++;
 				} );
 
-			ExternalEdges.Add( AdjCount );
+			ExternalEdges.Add( (int8)AdjCount );
 			NumExternalEdges += AdjCount != 0 ? 1 : 0;
 		}
 
@@ -247,7 +247,7 @@ FCluster::FCluster( const TArray< const FCluster*, TInlineAllocator<32> >& Merge
 		// The only way to catch it would be to rebuild full adjacency after every pass which isn't practical.
 		AdjCount = FMath::Max( AdjCount, 0 );
 
-		ExternalEdges[ EdgeIndex ] = AdjCount;
+		ExternalEdges[ EdgeIndex ] = (int8)AdjCount;
 		NumExternalEdges += AdjCount != 0 ? 1 : 0;
 	}
 
@@ -286,7 +286,7 @@ float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 LimitN
 		}
 	}
 
-	float TriangleSize = FMath::Sqrt( SurfaceArea / NumTris );
+	float TriangleSize = FMath::Sqrt( SurfaceArea / (float)NumTris );
 	
 	FFloat32 CurrentSize( FMath::Max( TriangleSize, THRESH_POINTS_ARE_SAME ) );
 	FFloat32 DesiredSize( 0.25f );
@@ -364,7 +364,7 @@ float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 LimitN
 		}
 		else
 		{
-			float TriangleUVSize = FMath::Sqrt(UVArea[UVIndex] / NumTris);
+			float TriangleUVSize = FMath::Sqrt(UVArea[UVIndex] / (float)NumTris);
 			TriangleUVSize = FMath::Max(TriangleUVSize, THRESH_UVS_ARE_SAME);
 
 			UVWeights[2 * UVIndex + 0] = 1.0f / (128.0f * TriangleUVSize);

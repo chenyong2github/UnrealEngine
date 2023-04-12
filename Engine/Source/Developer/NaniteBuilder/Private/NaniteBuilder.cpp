@@ -446,7 +446,7 @@ static void ClusterTriangles(
 	const uint32 OptimalNumClusters = FMath::DivideAndRoundUp< int32 >( Indexes.Num(), FCluster::ClusterSize * 3 );
 
 	uint32 ClusterTime = FPlatformTime::Cycles();
-	UE_LOG( LogStaticMesh, Log, TEXT("Clustering [%.2fs]. Ratio: %f"), FPlatformTime::ToMilliseconds( ClusterTime - BoundaryTime ) / 1000.0f, (float)Partitioner.Ranges.Num() / OptimalNumClusters );
+	UE_LOG( LogStaticMesh, Log, TEXT("Clustering [%.2fs]. Ratio: %f"), FPlatformTime::ToMilliseconds( ClusterTime - BoundaryTime ) / 1000.0f, (float)Partitioner.Ranges.Num() / (float)OptimalNumClusters );
 
 	const uint32 BaseCluster = Clusters.Num();
 	Clusters.AddDefaulted( Partitioner.Ranges.Num() );
@@ -523,8 +523,8 @@ bool FBuilderModule::Build(
 
 	Resources.NumInputTriangles	= InputMeshData.TriangleIndices.Num() / 3;
 	Resources.NumInputVertices	= InputMeshData.Vertices.Position.Num();
-	Resources.NumInputMeshes	= InputMeshData.TriangleCounts.Num();
-	Resources.NumInputTexCoords = InputMeshData.NumTexCoords;
+	Resources.NumInputMeshes	= (uint16)InputMeshData.TriangleCounts.Num();
+	Resources.NumInputTexCoords = (uint16)InputMeshData.NumTexCoords;
 
 	Resources.ResourceFlags = 0x0;
 
@@ -575,7 +575,7 @@ bool FBuilderModule::Build(
 	for( FCluster& Cluster : Clusters )
 		SurfaceArea += Cluster.SurfaceArea;
 
-	int32 FallbackTargetNumTris = Resources.NumInputTriangles * Settings.FallbackPercentTriangles;
+	int32 FallbackTargetNumTris = int32((float)Resources.NumInputTriangles * Settings.FallbackPercentTriangles);
 	float FallbackTargetError = Settings.FallbackRelativeError * 0.01f * FMath::Sqrt( FMath::Min( 2.0f * SurfaceArea, InputMeshData.VertexBounds.GetSurfaceArea() ) );
 
 	bool bFallbackIsReduced = Settings.FallbackPercentTriangles < 1.0f || FallbackTargetError > 0.0f;
@@ -603,7 +603,7 @@ bool FBuilderModule::Build(
 	
 	if( Settings.KeepPercentTriangles < 1.0f || Settings.TrimRelativeError > 0.0f )
 	{
-		int32 TargetNumTris = Resources.NumInputTriangles * Settings.KeepPercentTriangles;
+		int32 TargetNumTris = int32((float)Resources.NumInputTriangles * Settings.KeepPercentTriangles);
 		float TargetError = Settings.TrimRelativeError * 0.01f * FMath::Sqrt( FMath::Min( 2.0f * SurfaceArea, InputMeshData.VertexBounds.GetSurfaceArea() ) );
 
 		TBitArray<> SelectedGroupsMask;
@@ -648,7 +648,7 @@ bool FBuilderModule::Build(
 		if( FallbackLODIndex > 0 )
 		{
 			FallbackTargetNumTris = OutputLODMeshData[0].TriangleIndices.Num() / 3;
-			FallbackTargetNumTris *= FallbackLODMeshData.PercentTriangles;
+			FallbackTargetNumTris = int32((float)FallbackTargetNumTris * FallbackLODMeshData.PercentTriangles);
 			FallbackTargetError = 0.0f;
 		}
 

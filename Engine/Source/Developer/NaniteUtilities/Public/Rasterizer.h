@@ -28,7 +28,7 @@ void RasterizeTri( const FVector3f Verts[3], const FIntRect& ScissorRect, uint32
 		return;
 	}
 
-	FVector2D GradZ;
+	FVector2f GradZ;
 	GradZ.X = ( v01.Z * v02.Y - v01.Y * v02.Z ) / DetXY;
 	GradZ.Y = ( v01.X * v02.Z - v01.Z * v02.X ) / DetXY;
 
@@ -93,7 +93,7 @@ void RasterizeTri( const FVector3f Verts[3], const FIntRect& ScissorRect, uint32
 	int32 C0 = EdgeC( Edge01, Vert0 );
 	int32 C1 = EdgeC( Edge12, Vert1 );
 	int32 C2 = EdgeC( Edge20, Vert2 );
-	float Z0 = Verts[0].Z - ( GradZ.X * Vert0.X + GradZ.Y * Vert0.Y ) / SubpixelSamples;
+	float Z0 = Verts[0].Z - ( GradZ.X * (float)Vert0.X + GradZ.Y * (float)Vert0.Y ) / (float)SubpixelSamples;
 	
 	int32 CY0 = C0;
 	int32 CY1 = C1;

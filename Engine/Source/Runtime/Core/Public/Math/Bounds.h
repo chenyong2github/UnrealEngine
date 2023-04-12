@@ -70,18 +70,18 @@ struct TBounds
 
 	FORCEINLINE TVector<T> GetCenter() const
 	{
-		return (Max + Min) * 0.5;
+		return (Max + Min) * 0.5f;
 	}
 
 	FORCEINLINE TVector<T> GetExtent() const
 	{
-		return (Max - Min) * 0.5;
+		return (Max - Min) * 0.5f;
 	}
 
 	FORCEINLINE T GetSurfaceArea() const
 	{
 		TVector<T> Size = Max - Min;
-		return 0.5 * (Size.X * Size.Y + Size.X * Size.Z + Size.Y * Size.Z);
+		return 0.5f * (Size.X * Size.Y + Size.X * Size.Z + Size.Y * Size.Z);
 	}
 
 	template< typename U >

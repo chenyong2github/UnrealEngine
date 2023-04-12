@@ -4,7 +4,7 @@
 #include "Rasterizer.h"
 #include "Cluster.h"
 
-inline FVector3f OctahedronToUnitVector( const FVector2D& Oct )
+inline FVector3f OctahedronToUnitVector( const FVector2f& Oct )
 {
 	FVector3f N( Oct.X, Oct.Y, 1.0f - FMath::Abs( Oct.X ) - FMath::Abs( Oct.Y ) );
 	float t = FMath::Max( -N.Z, 0.0f );
@@ -27,7 +27,7 @@ FImposterAtlas::FImposterAtlas( TArray< uint16 >& InPixels, const FBounds3f& Bou
 
 FMatrix44f FImposterAtlas::GetLocalToImposter( const FIntPoint& TilePos ) const
 {
-	FVector2D Oct = ( FVector2D( TilePos ) + 0.5f ) / AtlasSize * 2.0f - 1.0f;
+	FVector2f Oct = ( FVector2f( TilePos ) + 0.5f ) / AtlasSize * 2.0f - 1.0f;
 
 	FVector3f ImposterZ = OctahedronToUnitVector( Oct );
 	
@@ -97,7 +97,7 @@ void FImposterAtlas::Rasterize( const FIntPoint& TilePos, const FCluster& Cluste
 			[&]( int32 x, int32 y, float z )
 			{
 				uint32 Depth = FMath::RoundToInt( FMath::Clamp( z, 1.0f, 255.0f ) );
-				uint16 PixelValue = ( Depth << 8 ) | ( ClusterIndex << 7 ) | TriIndex;
+				uint16 PixelValue = uint16(( Depth << 8 ) | ( ClusterIndex << 7 ) | TriIndex);
 				//uint32 PixelIndex = x + y * ViewSize;
 				uint32 PixelIndex = x + ( y + ( TilePos.X + TilePos.Y * AtlasSize ) * TileSize ) * TileSize;
 				Pixels[ PixelIndex ] = FMath::Max( Pixels[ PixelIndex ], PixelValue );

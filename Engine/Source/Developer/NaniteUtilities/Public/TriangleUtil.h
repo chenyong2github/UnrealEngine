@@ -53,8 +53,8 @@ FORCEINLINE float EquilateralEdgeLength( float Area )
 FORCEINLINE int32 ApproxNumTris( int32 a, int32 b, int32 c )
 {
 	// Heron's formula divided by area of unit triangle
-	float s = 0.5f * ( a + b + c );
-	float NumTris = 4.0f * FMath::Sqrt( FMath::Max( 0.0625f, s * (s - a) * (s - b) * (s - c) / 3.0f ) );
+	float s = 0.5f * float( a + b + c );
+	float NumTris = 4.0f * FMath::Sqrt( FMath::Max( 0.0625f, s * (s - (float)a) * (s - (float)b) * (s - (float)c) / 3.0f ) );
 	int32 MaxFactor = FMath::Max3( a, b, c );
 	return FMath::Max( FMath::RoundToInt( NumTris ), MaxFactor );
 }
@@ -118,10 +118,10 @@ FORCEINLINE void SubtriangleBarycentrics( uint32 TriX, uint32 TriY, uint32 FlipT
 
 	for( int Corner = 0; Corner < 3; Corner++ )
 	{
-		Barycentrics[ Corner ][0] = VertXY[ Corner ][0];
-		Barycentrics[ Corner ][1] = VertXY[ Corner ][1];
-		Barycentrics[ Corner ][2] = NumSubdivisions - VertXY[ Corner ][0] - VertXY[ Corner ][1];
-		Barycentrics[ Corner ]   /= NumSubdivisions;
+		Barycentrics[ Corner ][0] = (float)VertXY[ Corner ][0];
+		Barycentrics[ Corner ][1] = (float)VertXY[ Corner ][1];
+		Barycentrics[ Corner ][2] = float(NumSubdivisions - VertXY[ Corner ][0] - VertXY[ Corner ][1]);
+		Barycentrics[ Corner ]   /= (float)NumSubdivisions;
 	}
 }
 

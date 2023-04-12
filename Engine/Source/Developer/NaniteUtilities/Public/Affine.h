@@ -249,5 +249,5 @@ FORCEINLINE TAffine< float, Num > InvSqrt( const TAffine< float, Num >& x )
 template< typename T, uint32 Num >
 FORCEINLINE TAffine< T, Num > Normalize( const TAffine< T, Num >& x )
 {
-	return x * InvSqrt( Clamp( x.SizeSquared(), 1e-4, 1.0f ) );
+	return x * InvSqrt( Clamp( x.SizeSquared(), 1e-4f, 1.0f ) );
 }
