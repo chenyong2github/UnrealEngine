@@ -34,6 +34,13 @@ struct FConcertClientPresenceInVREvent
 	FName VRDevice;
 };
 
+UENUM()
+enum class EPresenceModeType
+{
+	Desktop,
+	VRMode
+};
+
 USTRUCT()
 struct FConcertClientPresenceDataUpdateEvent : public FConcertClientPresenceEventBase
 {
@@ -43,6 +50,7 @@ struct FConcertClientPresenceDataUpdateEvent : public FConcertClientPresenceEven
 		: WorldPath()
 		, Position(FVector::ZeroVector)
 		, Orientation(FQuat::Identity)
+		, PresenceType(EPresenceModeType::Desktop)
 	{
 	}
 
@@ -56,6 +64,9 @@ struct FConcertClientPresenceDataUpdateEvent : public FConcertClientPresenceEven
 
 	UPROPERTY()
 	FQuat Orientation;
+
+	UPROPERTY()
+	EPresenceModeType PresenceType;
 };
 
 USTRUCT()

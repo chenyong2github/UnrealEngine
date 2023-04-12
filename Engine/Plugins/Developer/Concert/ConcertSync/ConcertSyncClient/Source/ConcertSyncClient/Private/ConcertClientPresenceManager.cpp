@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertClientPresenceManager.h"
+#include "ConcertPresenceEvents.h"
 #include "CoreMinimal.h"
 #include "IConcertSession.h"
 #include "IConcertSessionHandler.h"
@@ -787,8 +788,8 @@ void FConcertClientPresenceManager::OnJumpToPresence(FGuid InEndpointId, FTransf
 
 		FVector JumpPosition = OtherClientState->Position + InTransformOffset.GetLocation();
 
-		// Disregard pitch and roll when teleporting to a VR presence.
-		if (CurrentAvatarMode && !CurrentAvatarMode->GetVRDeviceType().IsNone())
+		// Disregard pitch and roll when teleporting to a VR presence or we are in VR mode.
+		if (OtherClientState->PresenceType == EPresenceModeType::VRMode || IVREditorModule::Get().GetVRModeBase())
 		{
 			OtherClientRotation.Pitch = 0.0f;
 			OtherClientRotation.Roll = 0.0f;
