@@ -825,6 +825,13 @@ float FAppleHttpNSUrlConnectionRequest::GetElapsedTime() const
 }
 #endif
 
+- (NSCachedURLResponse *)connection:(NSURLConnection *)connection willCacheResponse:(NSCachedURLResponse *)cachedResponse
+{
+	// All FAppleHttpNSUrlConnectionRequest use NSURLRequestReloadIgnoringLocalCacheData
+	// NSURLRequestReloadIgnoringLocalCacheData disables loading of data from cache, but responses can still be stored in cache
+	// Returning nil in this delegate disables caching the responses
+	return nil;
+}
 
 -(void) connectionDidFinishLoading:(NSURLConnection *)connection
 {
@@ -843,8 +850,6 @@ float FAppleHttpNSUrlConnectionRequest::GetElapsedTime() const
 }
 
 @end
-
-
 
 
 /****************************************************************************
