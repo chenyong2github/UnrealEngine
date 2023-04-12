@@ -8,6 +8,17 @@
 
 class UReplayNetConnection;
 
+namespace UE::ReplaySubsystem
+{
+	enum class EStopReplayFlags : uint32
+	{
+		None = 0x0,
+		Flush = 0x1,
+	};
+
+	ENUM_CLASS_FLAGS(EStopReplayFlags);
+};
+
 UCLASS(DisplayName = "Replay Subsystem")
 class ENGINE_API UReplaySubsystem : public UGameInstanceSubsystem
 {
@@ -122,7 +133,7 @@ public:
 	bool bLoadDefaultMapOnStop = true;
 
 private:
-	void StopExistingReplays(UWorld* InWorld);
+	void StopExistingReplays(UWorld* InWorld, UE::ReplaySubsystem::EStopReplayFlags Flags = UE::ReplaySubsystem::EStopReplayFlags::None);
 
 	void OnSeamlessTravelStart(UWorld* CurrentWorld, const FString& LevelName);
 	void OnSeamlessLevelTransition(UWorld* CurrentWorld);

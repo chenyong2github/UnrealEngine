@@ -140,12 +140,14 @@ void UReplaySubsystem::RecordReplay(const FString& Name, const FString& Friendly
 		DemoURL.AddOption(*Option);
 	}
 
+	const UE::ReplaySubsystem::EStopReplayFlags StopExistingFlags = DemoURL.HasOption(TEXT("flush")) ? UE::ReplaySubsystem::EStopReplayFlags::Flush : UE::ReplaySubsystem::EStopReplayFlags::None;
+
 	UNetDriver* NetDriver = CurrentWorld->GetNetDriver();
 
 	// must be server and using a replication graph to use a replay connection
 	if (NetDriver && NetDriver->IsServer() && NetDriver->GetReplicationDriver() && ReplaySubsystem::CVarUseReplayConnection.GetValueOnAnyThread())
 	{
-		StopExistingReplays(CurrentWorld);
+		StopExistingReplays(CurrentWorld, StopExistingFlags);
 
 		UReplayNetConnection* Connection = NewObject<UReplayNetConnection>();
 
@@ -169,7 +171,7 @@ void UReplaySubsystem::RecordReplay(const FString& Name, const FString& Friendly
 
 	if (!DemoNetDriver || !DemoNetDriver->IsRecordingMapChanges() || !DemoNetDriver->IsRecordingPaused())
 	{
-		StopExistingReplays(CurrentWorld);
+		StopExistingReplays(CurrentWorld, StopExistingFlags);
 
 		bDestroyedDemoNetDriver = true;
 
@@ -231,17 +233,17 @@ bool UReplaySubsystem::PlayReplay(const FString& Name, UWorld* WorldOverride, co
 		return false;
 	}
 
-	StopExistingReplays(CurrentWorld);
-
 	FURL DemoURL;
-	UE_LOG(LogDemo, Log, TEXT("PlayReplay: Attempting to play demo %s"), *Name);
-
 	DemoURL.Map = Name;
 
 	for (const FString& Option : AdditionalOptions)
 	{
 		DemoURL.AddOption(*Option);
 	}
+
+	StopExistingReplays(CurrentWorld, DemoURL.HasOption(TEXT("flush")) ? UE::ReplaySubsystem::EStopReplayFlags::Flush : UE::ReplaySubsystem::EStopReplayFlags::None);
+
+	UE_LOG(LogDemo, Log, TEXT("PlayReplay: Attempting to play demo %s"), *Name);
 
 	if (!GEngine->CreateNamedNetDriver(CurrentWorld, NAME_DemoNetDriver, NAME_DemoNetDriver))
 	{
@@ -295,7 +297,7 @@ void UReplaySubsystem::StopReplay()
 	}
 }
 
-void UReplaySubsystem::StopExistingReplays(UWorld* InWorld)
+void UReplaySubsystem::StopExistingReplays(UWorld* InWorld, UE::ReplaySubsystem::EStopReplayFlags Flags)
 {
 	UWorld* CurrentWorld = InWorld ? InWorld : GetWorld();
 
@@ -308,6 +310,12 @@ void UReplaySubsystem::StopExistingReplays(UWorld* InWorld)
 	{
 		Connection->CleanUp();
 		ReplayConnection = nullptr;
+	}
+
+	if (EnumHasAnyFlags(Flags, UE::ReplaySubsystem::EStopReplayFlags::Flush))
+	{
+		//@todo: narrow to specific streamer that was stopped
+		FNetworkReplayStreaming::Get().Flush();
 	}
 }
 

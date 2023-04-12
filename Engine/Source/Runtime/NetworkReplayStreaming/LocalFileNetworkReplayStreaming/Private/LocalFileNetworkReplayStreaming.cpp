@@ -947,7 +947,15 @@ void FLocalFileNetworkReplayStreamer::StartStreaming(const FStartStreamingParame
 
 				TaskReplayInfo.bIsValid = WriteReplayInfo(CurrentStreamName, TaskReplayInfo);
 
-				RequestData.DelegateResult.Result = EStreamingOperationResult::Success;
+				if (!TaskReplayInfo.bIsValid)
+				{
+					UE_LOG(LogLocalFileReplay, Warning, TEXT("StartStreaming was unable to write to the replay file: %s"), *FullDemoFilename);
+					RequestData.AsyncError = ELocalFileReplayResult::FileWriter;
+				}
+				else
+				{
+					RequestData.DelegateResult.Result = EStreamingOperationResult::Success;
+				}
 			},
 			[this, Delegate](TLocalFileRequestCommonData<FStartStreamingResult>& RequestData)
 			{
@@ -3688,10 +3696,10 @@ void FLocalFileNetworkReplayStreamer::UpdateCurrentReplayInfo(FLocalFileReplayIn
 		
 		if (!EnumHasAnyFlags(UpdateFlags, EUpdateReplayInfoFlags::FullUpdate))
 		{
-		CurrentReplayInfo.LengthInMS = TotalLengthInMS;
-		CurrentReplayInfo.EncryptionKey = MoveTemp(CurrentKey);
+			CurrentReplayInfo.LengthInMS = TotalLengthInMS;
+			CurrentReplayInfo.EncryptionKey = MoveTemp(CurrentKey);
+		}
 	}
-}
 }
 
 int32 FLocalFileNetworkReplayStreamer::GetDecompressedSizeBackCompat(FArchive& InCompressed) const
