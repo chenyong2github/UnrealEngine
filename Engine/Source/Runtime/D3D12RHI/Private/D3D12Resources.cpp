@@ -859,16 +859,26 @@ void FD3D12ResourceLocation::ReleaseResource()
 		bool bIncrement = false;
 		UpdateStandAloneStats(bIncrement);
 
-		// Multi-GPU support : because of references, several GPU nodes can refrence the same stand-alone resource.
-		check(UnderlyingResource->GetRefCount() == 1 || GNumExplicitGPUsForRendering > 1);
-		
-		if (UnderlyingResource->ShouldDeferDelete())
+		// Multi-GPU support : When the resource enters this point for the first time the number of references should be the same as number of GPUs.
+		// Shouldn't queue deferred deletion until all references are released as this could cause issues at the end of the pipe.
+		// Instead reduce number of references until nothing else holds the resource.
+		if (GNumExplicitGPUsForRendering > 1 && UnderlyingResource->GetRefCount() > 1)
 		{
-			UnderlyingResource->DeferDelete();
+			check(UnderlyingResource->GetRefCount() <= GNumExplicitGPUsForRendering)
+			UnderlyingResource->Release();
 		}
 		else
 		{
-			UnderlyingResource->Release();
+			check(UnderlyingResource->GetRefCount() == 1);
+
+			if (UnderlyingResource->ShouldDeferDelete())
+			{
+				UnderlyingResource->DeferDelete();
+			}
+			else
+			{
+				UnderlyingResource->Release();
+			}
 		}
 		break;
 	}
