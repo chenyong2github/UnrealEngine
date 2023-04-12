@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "CollisionQueryTaskData.h"
 
 DEFINE_TARGETING_DATA_STORE(FCollisionQueryTaskData)
