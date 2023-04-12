@@ -76,7 +76,7 @@ protected:
 	virtual void Filter(FNetObjectFilteringParams&) override;
 	virtual void PostFilter(FNetObjectPostFilteringParams&) override;
 
-private:
+protected:
 	UMockNetObjectFilter();
 
 	FFunctionCallStatus CallStatus;
@@ -85,8 +85,27 @@ private:
 	UE::Net::FNetBitArray AddedConnectionIndices;
 	SIZE_T AddedCount;
 
+	static constexpr float DefaultPriority = 1.0f;
+};
+
+/**
+ * Filter that reads fragment data to decide if an object is filtered out or not
+ */
+UCLASS()
+class UMockNetObjectFilterUsingFragmentData : public UMockNetObjectFilter
+{
+	GENERATED_BODY()
+
+protected:
+
+	virtual void Init(FNetObjectFilterInitParams&) override;
+	virtual bool AddObject(uint32 ObjectIndex, FNetObjectFilterAddObjectParams&) override;
+	virtual void RemoveObject(uint32 ObjectIndex, const FNetObjectFilteringInfo&) override;
+	virtual void UpdateObjects(FNetObjectFilterUpdateParams&) override;
+	virtual void Filter(FNetObjectFilteringParams&) override;
+
+private:
+
 	TMap<uint32, UPTRINT> ObjectToFilterOutOffset;
 	TMap<uint32, bool> ObjectToFilterOut;
-
-	static constexpr float DefaultPriority = 1.0f;
 };

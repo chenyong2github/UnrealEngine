@@ -41,10 +41,20 @@ private:
 
 		// Modify definitions to only include our mock prioritizer. Ugly... 
 		TArray<FNetObjectFilterDefinition> NewFilterDefinitions;
-		FNetObjectFilterDefinition& MockDefinition = NewFilterDefinitions.Emplace_GetRef();
-		MockDefinition.FilterName = "MockFilter";
-		MockDefinition.ClassName = "/Script/ReplicationSystemTestPlugin.MockNetObjectFilter";
-		MockDefinition.ConfigClassName = "/Script/ReplicationSystemTestPlugin.MockNetObjectFilterConfig";
+		{
+			FNetObjectFilterDefinition& MockDefinition = NewFilterDefinitions.Emplace_GetRef();
+			MockDefinition.FilterName = "MockFilter";
+			MockDefinition.ClassName = "/Script/ReplicationSystemTestPlugin.MockNetObjectFilter";
+			MockDefinition.ConfigClassName = "/Script/ReplicationSystemTestPlugin.MockNetObjectFilterConfig";
+		}
+
+		{
+			FNetObjectFilterDefinition& MockDefinition = NewFilterDefinitions.Emplace_GetRef();
+			MockDefinition.FilterName = "MockFilterWithFragments";
+			MockDefinition.ClassName = "/Script/ReplicationSystemTestPlugin.MockNetObjectFilterUsingFragmentData";
+			MockDefinition.ConfigClassName = "/Script/ReplicationSystemTestPlugin.MockNetObjectFilterConfig";
+		}
+
 		DefinitionsProperty->CopyCompleteValue((void*)(UPTRINT(FilterDefinitions) + DefinitionsProperty->GetOffset_ForInternal()), &NewFilterDefinitions);
 	}
 
@@ -65,11 +75,17 @@ private:
 	{
 		MockNetObjectFilter = ExactCast<UMockNetObjectFilter>(Server->GetReplicationSystem()->GetFilter("MockFilter"));
 		MockFilterHandle = Server->GetReplicationSystem()->GetFilterHandle("MockFilter");
+
+		MockNetObjectFilterWithFragments = ExactCast<UMockNetObjectFilterUsingFragmentData>(Server->GetReplicationSystem()->GetFilter("MockFilterWithFragments"));
+		MockFilterWithFragmentsHandle = Server->GetReplicationSystem()->GetFilterHandle("MockFilterWithFragments");
 	}
 
 protected:
 	UMockNetObjectFilter* MockNetObjectFilter;
 	FNetObjectFilterHandle MockFilterHandle;
+
+	UMockNetObjectFilterUsingFragmentData* MockNetObjectFilterWithFragments;
+	FNetObjectFilterHandle MockFilterWithFragmentsHandle;
 
 private:
 	TArray<FNetObjectFilterDefinition> OriginalFilterDefinitions;
@@ -1139,8 +1155,8 @@ UE_NET_TEST_FIXTURE(FTestFilteringFixture, ObjectGetsFilterOutSettingFromStart)
 		UMockNetObjectFilter::FFunctionCallSetup CallSetup;
 		CallSetup.AddObject.bReturnValue = true;
 		CallSetup.Filter.bFilterOutByDefault = false;
-		MockNetObjectFilter->SetFunctionCallSetup(CallSetup);
-		MockNetObjectFilter->ResetFunctionCallStatus();
+		MockNetObjectFilterWithFragments->SetFunctionCallSetup(CallSetup);
+		MockNetObjectFilterWithFragments->ResetFunctionCallStatus();
 	}
 
 	// Add client
@@ -1148,7 +1164,7 @@ UE_NET_TEST_FIXTURE(FTestFilteringFixture, ObjectGetsFilterOutSettingFromStart)
 
 	// Create object and set filter
 	UTestFilteringObject* ServerObject = Server->CreateObject<UTestFilteringObject>();
-	Server->ReplicationSystem->SetFilter(ServerObject->NetRefHandle, MockFilterHandle);
+	Server->ReplicationSystem->SetFilter(ServerObject->NetRefHandle, MockFilterWithFragmentsHandle);
 
 	// We want the object to be filtered out
 	constexpr bool bFilterOut = true;
@@ -1170,17 +1186,8 @@ UE_NET_TEST_FIXTURE(FTestFilteringFixture, ObjectGetsUpdatedFilterOutSetting)
 		UMockNetObjectFilter::FFunctionCallSetup CallSetup;
 		CallSetup.AddObject.bReturnValue = true;
 		CallSetup.Filter.bFilterOutByDefault = false;
-		MockNetObjectFilter->SetFunctionCallSetup(CallSetup);
-		MockNetObjectFilter->ResetFunctionCallStatus();
-	}
-
-	// Setup dynamic filter for the test. For this test we want the value of the object's filter property to rule.
-	{
-		UMockNetObjectFilter::FFunctionCallSetup CallSetup;
-		CallSetup.AddObject.bReturnValue = true;
-		CallSetup.Filter.bFilterOutByDefault = false;
-		MockNetObjectFilter->SetFunctionCallSetup(CallSetup);
-		MockNetObjectFilter->ResetFunctionCallStatus();
+		MockNetObjectFilterWithFragments->SetFunctionCallSetup(CallSetup);
+		MockNetObjectFilterWithFragments->ResetFunctionCallStatus();
 	}
 
 	// Add client
@@ -1188,7 +1195,7 @@ UE_NET_TEST_FIXTURE(FTestFilteringFixture, ObjectGetsUpdatedFilterOutSetting)
 
 	// Create object and set filter
 	UTestFilteringObject* ServerObject = Server->CreateObject<UTestFilteringObject>();
-	Server->ReplicationSystem->SetFilter(ServerObject->NetRefHandle, MockFilterHandle);
+	Server->ReplicationSystem->SetFilter(ServerObject->NetRefHandle, MockFilterWithFragmentsHandle);
 
 	// We don't want the object to be filtered out
 	ServerObject->SetFilterOut(false);
