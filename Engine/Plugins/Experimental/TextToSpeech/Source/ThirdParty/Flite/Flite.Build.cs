@@ -41,6 +41,10 @@ public class Flite : ModuleRules
 			{
 				return "Android";
 			}
+			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
+			{
+				return "Win64";
+			}
 			else
 			{
 				return Target.Platform.ToString();
@@ -64,7 +68,7 @@ public class Flite : ModuleRules
 	// Override in child platforms that require the use of Windows headers 
 	protected virtual bool bRequiresWindowsHeaders
 	{
-		get { return Target.Platform == UnrealTargetPlatform.Win64; }
+		get { return Target.IsInPlatformGroup(UnrealPlatformGroup.Windows); }
 	}
 
 	public Flite(ReadOnlyTargetRules Target) : base(Target)
@@ -73,7 +77,7 @@ public class Flite : ModuleRules
 
 		PublicSystemIncludePaths.Add(FliteIncludePath);
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			// Only VS2019 supported as of now
 			string VSVersion = "VS2019";

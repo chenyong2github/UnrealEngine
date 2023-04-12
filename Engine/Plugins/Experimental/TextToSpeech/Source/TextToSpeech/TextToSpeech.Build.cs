@@ -12,7 +12,7 @@ public class TextToSpeech : ModuleRules
 		get
 		{
 			// Expand to other platforms as needed
-			return Target.Platform == UnrealTargetPlatform.Win64
+			return Target.IsInPlatformGroup(UnrealPlatformGroup.Windows)
 				|| Target.IsInPlatformGroup(UnrealPlatformGroup.Android)
 				|| Target.IsInPlatformGroup(UnrealPlatformGroup.Unix);
 		}
