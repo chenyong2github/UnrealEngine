@@ -52,6 +52,10 @@ struct FLandscapePerLODMaterialOverride;
 class FLandscapeProxyComponentDataChangedParams;
 struct FMeshDescription;
 enum class ENavDataGatheringMode : uint8;
+namespace UE::Landscape
+{
+	enum class EOutdatedDataFlags : uint8;
+} // end of namespace UE::Landscape
 
 #if WITH_EDITOR
 LANDSCAPE_API extern bool GLandscapeEditModeActive;
@@ -841,6 +845,7 @@ public:
 	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
 	virtual bool IsNaniteEnabled() const { return bEnableNanite; }
 	virtual int32 GetNaniteLODIndex() const { return NaniteLODIndex; }
+	virtual UE::Landscape::EOutdatedDataFlags GetOutdatedDataFlags() const;
 #endif	//WITH_EDITOR
 
 	LANDSCAPE_API TOptional<float> GetHeightAtLocation(FVector Location, EHeightfieldSource HeightFieldSource = EHeightfieldSource::Complex) const;

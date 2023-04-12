@@ -222,11 +222,16 @@ bool ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscap
 			UE_LOG(LogLandscape, Verbose, TEXT("Successful export of raw static mesh for Nanite landscape (%i components) for actor %s"), InputComponents.Num(), *GetOwner()->GetName());
 		}
 
-		NaniteStaticMesh->CommitMeshDescription(0);
+		UStaticMesh::FCommitMeshDescriptionParams CommitParams;
+		CommitParams.bUseHashAsGuid = true; // Make sure to use the hash as Guid since those meshes are embedded, to maximize DDC sharing
+		NaniteStaticMesh->CommitMeshDescription(/*LODIndex = */0, CommitParams);
 		NaniteStaticMesh->ClearMeshDescription(0u); // Evict LOD0 mesh description from cache without dropping the bulk data
 
 		NaniteStaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
 	}
+
+	// Disable navigation prior to building the body setup
+	NaniteStaticMesh->MarkAsNotHavingNavigationData();
 
 	SetStaticMesh(NaniteStaticMesh);
 	UStaticMesh::BatchBuild({ NaniteStaticMesh });
@@ -239,9 +244,6 @@ bool ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscap
 		// We won't ever enable collisions (since collisions are handled by ULandscapeHeightfieldCollisionComponent), ensure we don't even cook or load any collision data on this mesh: 
 		BodySetup->bNeverNeedsCookedCollisionData = true;
 	}
-
-	// Disable navigation
-	NaniteStaticMesh->bHasNavigationData = false;
 
 	ProxyContentId = NewProxyContentId;
 

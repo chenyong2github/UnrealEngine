@@ -8,6 +8,7 @@
 #include "Modules/ModuleManager.h"
 #include "ContentStreaming.h"
 #include "Landscape.h"
+#include "LandscapeEditTypes.h"
 #include "LandscapeProxy.h"
 #include "LandscapeStreamingProxy.h"
 #include "LandscapeInfo.h"
@@ -37,6 +38,7 @@
 
 #if WITH_EDITOR
 #include "FileHelpers.h"
+#include "Editor.h"
 #endif
 
 static int32 GUseStreamingManagerForCameras = 1;
@@ -326,14 +328,36 @@ void ULandscapeSubsystem::BuildGrassMaps()
 	GrassMapsBuilder->Build();
 }
 
-int32 ULandscapeSubsystem::GetOutdatedGrassMapCount()
-{
-	return GrassMapsBuilder->GetOutdatedGrassMapCount(/*bInForceUpdate*/false);
-}
-
 void ULandscapeSubsystem::BuildPhysicalMaterial()
 {
 	PhysicalMaterialBuilder->Build();
+}
+
+TArray<ALandscapeProxy*> ULandscapeSubsystem::GetOutdatedProxies(UE::Landscape::EOutdatedDataFlags InMatchingOutdatedDataFlags, bool bInMustMatchAllFlags) const
+{
+	UWorld* World = GetWorld();
+	if (!World || World->IsGameWorld())
+	{
+		return {};
+	}
+
+	TArray<ALandscapeProxy*> FinalProxiesToBuild;
+	Algo::TransformIf(Proxies, FinalProxiesToBuild, 
+		[InMatchingOutdatedDataFlags, bInMustMatchAllFlags](const TWeakObjectPtr<ALandscapeProxy>& InProxyPtr)
+		{ 
+			UE::Landscape::EOutdatedDataFlags ProxyOutdatedDataFlags = InProxyPtr->GetOutdatedDataFlags();
+			return bInMustMatchAllFlags
+				? EnumHasAllFlags(ProxyOutdatedDataFlags, InMatchingOutdatedDataFlags)
+				: EnumHasAnyFlags(ProxyOutdatedDataFlags, InMatchingOutdatedDataFlags);
+		}, 
+		[](const TWeakObjectPtr<ALandscapeProxy>& InProxyPtr) { return InProxyPtr.Get(); });
+
+	return FinalProxiesToBuild;
+}
+
+int32 ULandscapeSubsystem::GetOutdatedGrassMapCount()
+{
+	return GrassMapsBuilder->GetOutdatedGrassMapCount(/*bInForceUpdate*/false);
 }
 
 int32 ULandscapeSubsystem::GetOudatedPhysicalMaterialComponentsCount()
@@ -389,7 +413,7 @@ void ULandscapeSubsystem::BuildNanite(TArrayView<ALandscapeProxy*> InProxiesToBu
 	for (ALandscapeProxy* Proxy : FinalProxiesToBuild)
 	{
 		SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("Landscape_BuildNaniteProgress", "Building Nanite Landscape Mesh ({0} of {1})"), FText::AsNumber(SlowTask.CompletedWork), FText::AsNumber(SlowTask.TotalAmountOfWork)));
-		if (SlowTask.ShouldCancel())
+		if (SlowTask.ShouldCancel() || GEditor->GetMapBuildCancelled())
 		{
 			break;
 		}
@@ -532,22 +556,29 @@ void ULandscapeSubsystem::DisplayMessages(FCanvas* Canvas, float& XPos, float& Y
 	FCanvasTextItem SmallTextItem(FVector2D(0, 0), FText::GetEmpty(), GEngine->GetSmallFont(), FLinearColor::White);
 	SmallTextItem.EnableShadow(FLinearColor::Black);
 
-	if (int32 OutdatedGrassMapCount = GetOutdatedGrassMapCount())
+	auto DisplayMessageForOutdatedDataFlag = [&SmallTextItem, Canvas, XPos, &YPos, FontSizeY, this] (UE::Landscape::EOutdatedDataFlags InOutdatedDataFlag, const FTextFormat& InTextFormat)
 	{
-		SmallTextItem.SetColor(FLinearColor::Red);
-		SmallTextItem.Text = FText::Format(LOCTEXT("GRASS_MAPS_NEED_TO_BE_REBUILT_FMT", "LANDSCAPE: GRASS MAPS NEEDS TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), OutdatedGrassMapCount);
-		Canvas->DrawItem(SmallTextItem, FVector2D(XPos, YPos));
-		YPos += FontSizeY;
-	}
+		TArray<ALandscapeProxy*> OutdatedProxies = GetOutdatedProxies(InOutdatedDataFlag, /*bInMustMatchAllFlags = */false);
+		if (int32 OutdatedProxiesCount = OutdatedProxies.Num())
+		{
+			SmallTextItem.SetColor(FLinearColor::Red);
+			SmallTextItem.Text = FText::Format(InTextFormat, OutdatedProxiesCount);
+			Canvas->DrawItem(SmallTextItem, FVector2D(XPos, YPos));
+			YPos += FontSizeY;
+		}
+	};
 
-	if (int32 ComponentsWithOudatedPhysicalMaterial = GetOudatedPhysicalMaterialComponentsCount())
-	{
-		SmallTextItem.SetColor(FLinearColor::Red);
-		SmallTextItem.Text = FText::Format(LOCTEXT("LANDSCAPE_PHYSICALMATERIAL_NEED_TO_BE_REBUILT_FMT", "LANDSCAPE: PHYSICAL MATERIAL NEEDS TO BE REBUILT ({0} {0}|plural(one=object,other=objects))"), ComponentsWithOudatedPhysicalMaterial);
-		Canvas->DrawItem(SmallTextItem, FVector2D(XPos, YPos));
-		YPos += FontSizeY;
-	}
+	// Outdated grass maps message :
+	DisplayMessageForOutdatedDataFlag(UE::Landscape::EOutdatedDataFlags::GrassMaps, LOCTEXT("GRASS_MAPS_NEED_TO_BE_REBUILT_FMT", "LANDSCAPE: {0} {0}|plural(one=ACTOR,other=ACTORS) WITH GRASS MAPS {0}|plural(one=NEEDS,other=NEED) TO BE REBUILT"));
 
+	// Outdated physical materials message :
+	DisplayMessageForOutdatedDataFlag(UE::Landscape::EOutdatedDataFlags::PhysicalMaterials, LOCTEXT("LANDSCAPE_PHYSICALMATERIAL_NEED_TO_BE_REBUILT_FMT", "LANDSCAPE: {0} {0}|plural(one=ACTOR,other=ACTORS) WITH PHYSICAL MATERIALS {0}|plural(one=NEEDS,other=NEED) TO BE REBUILT"));
+
+	// Outdated Nanite meshes message :
+	DisplayMessageForOutdatedDataFlag(UE::Landscape::EOutdatedDataFlags::NaniteMeshes, LOCTEXT("LANDSCAPE_NANITE_MESHES_NEED_TO_BE_REBUILT_FMT", "LANDSCAPE: {0} {0}|plural(one=ACTOR,other=ACTORS) WITH NANITE MESHES {0}|plural(one=NEEDS,other=NEED) TO BE REBUILT"));
+
+	// TODO [jonathan.bard] : this should be handled in the same way as the other cases (UE::Landscape::EOutdatedDataFlags::DirtyActors), but we need to slightly refactor the system so that it's 
+	//  based on ALandscapeProxy, rather than ULandscapeInfo/UPackage... : 
 	if (ULandscapeInfoMap* LandscapeInfoMap = ULandscapeInfoMap::FindLandscapeInfoMap(GetWorld()))
 	{
 		int32 ModifiedNotDirtyCount = 0;
