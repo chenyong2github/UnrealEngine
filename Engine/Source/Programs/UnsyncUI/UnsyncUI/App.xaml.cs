@@ -117,6 +117,7 @@ namespace UnsyncUI
 		public string CustomDstPath { get; set; }
 		public string CustomInclude { get; set; }
 		public string AdditionalArgs { get; set; }
+		public bool AppendBuildName { get; set; } = false;
 
 		public static UserPreferences Load()
 		{

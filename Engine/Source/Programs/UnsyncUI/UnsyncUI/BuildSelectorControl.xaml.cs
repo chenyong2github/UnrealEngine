@@ -229,8 +229,10 @@ namespace UnsyncUI
 		public Command OnStopRefreshBuildsClicked { get; }
 		public Command<IList> OnStartSync { get; }
 		public Command CopyBuildCLClicked { get; }
+		public Command CopyBuildNameClicked { get; }
 		public Command OpenBuildLocationClicked { get; }
 		public Command ResetDestinationClicked { get; }
+		public Command OpenDestinationClicked { get; }
 
 		public ObservableCollection<BuildModel> Builds { get; } = new ObservableCollection<BuildModel>();
 		public ICollectionView BuildsView { get; }
@@ -259,6 +261,8 @@ namespace UnsyncUI
 			set
 			{
 				SetProperty(ref selectedBuild, value);
+
+				UpdateFinalDstPath();
 
 				if (selectedBuild != null)
 				{
@@ -294,9 +298,52 @@ namespace UnsyncUI
 			set
 			{
 				SetProperty(ref dstPath, value);
-				App.Current.UserConfig.ProjectDestinationMap[Name] = value;
+
+				UpdateFinalDstPath();
+
+				App.Current.UserConfig.ProjectDestinationMap[Name] = DstPath;
 
 				ResetDestinationClicked.Enabled = CanResetDestinationToDefault;
+			}
+		}
+
+		void UpdateFinalDstPath()
+		{
+			string finalPath = dstPath;
+			if (AppendBuildName && (selectedBuild != null))
+			{
+				string buildFolderName = new DirectoryInfo(selectedBuild.Path).Name;
+				finalPath = Path.Combine(DstPath, buildFolderName);
+			}
+
+			finalPath = Path.TrimEndingDirectorySeparator(finalPath);
+			if (FinalDstPath != finalPath)
+			{
+				FinalDstPath = finalPath;
+			}
+		}
+
+		private string finalDstPath = null;
+		public string FinalDstPath
+		{
+			get => finalDstPath;
+			set
+			{
+				SetProperty(ref finalDstPath, value);
+			}
+		}
+
+		private bool appendBuildName = true;
+		public bool AppendBuildName
+		{
+			get => appendBuildName;
+			set
+			{
+				SetProperty(ref appendBuildName, value);
+
+				App.Current.UserConfig.AppendBuildName = value;
+
+				UpdateFinalDstPath();
 			}
 		}
 
@@ -308,7 +355,9 @@ namespace UnsyncUI
 			OnStopRefreshBuildsClicked = new Command(StopRefreshBuilds) { Enabled = false };
 			OnStartSync = new Command<IList>(l => StartSync(l.OfType<BuildPlatformModel>())) { Enabled = true };
 			CopyBuildCLClicked = new Command(CopyBuildCL) { Enabled = true };
+			CopyBuildNameClicked = new Command(CopyBuildName) { Enabled = true };
 			OpenBuildLocationClicked = new Command(OpenBuildLocation) { Enabled = true };
+			OpenDestinationClicked = new Command(OpenDestinationLocation) { Enabled = true };
 
 			BuildsView = CollectionViewSource.GetDefaultView(Builds);
 			BuildsView.Filter = BuildsViewFilter;
@@ -342,6 +391,8 @@ namespace UnsyncUI
 				defaultDstPath = "";
 			}
 
+			appendBuildName = App.Current.UserConfig.AppendBuildName;
+
 			string userDstPath = null;
 
 			if (App.Current.UserConfig.ProjectDestinationMap.TryGetValue(Name, out userDstPath))
@@ -352,6 +403,7 @@ namespace UnsyncUI
 			{
 				dstPath = defaultDstPath;
 			}
+			UpdateFinalDstPath();
 
 			ResetDestinationClicked = new Command(ResetDestinationToDefault) { Enabled = CanResetDestinationToDefault };
 		}
@@ -420,7 +472,7 @@ namespace UnsyncUI
 
 		public void StartSync(IEnumerable<BuildPlatformModel> selectedBuilds)
 		{
-			onBuildsSelected?.Invoke(selectedBuilds.Select(s => (Path.Combine(dstPath, s.DestPathRelative), Definition.Exclusions?.ToArray(), s)).ToList());
+			onBuildsSelected?.Invoke(selectedBuilds.Select(s => (Path.Combine(finalDstPath, s.DestPathRelative), Definition.Exclusions?.ToArray(), s)).ToList());
 		}
 
 		public override void OnSelected()
@@ -432,33 +484,47 @@ namespace UnsyncUI
 			}
 		}
 
+		private void CopyStringToClipboard(string str)
+		{
+			// Clipboard can be locked if timing is just right(wrong), retry a few times on failure.
+			int retryDelay = 0;
+			const int attempts = 7;
+			for (int attempt = 0; attempt < attempts; attempt++)
+			{
+				if (retryDelay > 0)
+				{
+					System.Threading.Thread.Sleep(retryDelay);
+					retryDelay *= 2;
+				}
+				else
+				{
+					retryDelay = 5;
+				}
+				try
+				{
+					Clipboard.SetText(str, TextDataFormat.Text);
+					break;
+				}
+				catch (System.Runtime.InteropServices.COMException)
+				{
+				}
+			}
+		}
+
 		private void CopyBuildCL()
 		{
 			if (selectedBuild != null)
 			{
-				// Clipboard can be locked if timing is just right(wrong), retry a few times on failure.
-                int retryDelay = 0;
-				const int attempts = 7;
-				for (int attempt = 0; attempt < attempts; attempt++)
-				{
-					if (retryDelay > 0)
-					{
-                        System.Threading.Thread.Sleep(retryDelay);
-                        retryDelay *= 2;
-                    }
-					else
-					{
-						retryDelay = 5;
-                    }
-                    try
-                    {
-                        Clipboard.SetText(selectedBuild.CL, TextDataFormat.Text);
-						break;
-                    }
-                    catch (System.Runtime.InteropServices.COMException)
-                    {
-	                }
-                }
+				CopyStringToClipboard(selectedBuild.CL);
+			}
+		}
+
+		private void CopyBuildName()
+		{
+			if (selectedBuild != null)
+			{
+				string buildFolderName = new DirectoryInfo(selectedBuild.Path).Name;
+				CopyStringToClipboard(buildFolderName);
 			}
 		}
 
@@ -468,6 +534,21 @@ namespace UnsyncUI
 			{
 				Shell.LaunchExplorer(selectedBuild.Path);
 			}
+		}
+
+		private void OpenDestinationLocation()
+		{
+			if (!Directory.Exists(FinalDstPath))
+			{
+				try
+				{
+					Directory.CreateDirectory(FinalDstPath);
+				}
+				catch (Exception)
+				{
+				}
+			}
+			Shell.LaunchExplorer(FinalDstPath);
 		}
 	}
 }
