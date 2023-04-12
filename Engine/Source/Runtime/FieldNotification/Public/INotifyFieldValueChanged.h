@@ -42,4 +42,7 @@ public:
 
 	/** @returns the list of all the field that can notify when their value changes. */
 	virtual const UE::FieldNotification::IClassDescriptor& GetFieldNotificationDescriptor() const = 0;
+
+	/** Broadcast to the registered delegate that the FieldId value changed. */
+	virtual void BroadcastFieldValueChanged(UE::FieldNotification::FFieldId InFieldId) = 0;
 };

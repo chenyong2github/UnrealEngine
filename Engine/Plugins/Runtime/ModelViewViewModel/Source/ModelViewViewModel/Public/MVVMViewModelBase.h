@@ -49,6 +49,7 @@ public:
 	virtual int32 RemoveAllFieldValueChangedDelegates(const void* InUserObject) override final;
 	virtual int32 RemoveAllFieldValueChangedDelegates(UE::FieldNotification::FFieldId InFieldId, const void* InUserObject) override final;
 	virtual const UE::FieldNotification::IClassDescriptor& GetFieldNotificationDescriptor() const override;
+	virtual void BroadcastFieldValueChanged(UE::FieldNotification::FFieldId InFieldId) override;
 	//~ End INotifyFieldValueChanged Interface
 
 	UFUNCTION(BlueprintCallable, Category = "FieldNotify", meta = (DisplayName = "Add Field Value Changed Delegate", ScriptName = "AddFieldValueChangedDelegate"))
@@ -58,14 +59,12 @@ public:
 	void K2_RemoveFieldValueChangedDelegate(FFieldNotificationId FieldId, FFieldValueChangedDynamicDelegate Delegate);
 
 protected:
-	UFUNCTION(BlueprintCallable, Category="FieldNotify", meta=(DisplayName="Broadcast Field Value Changed", ScriptName="BroadcastFieldValueChanged"))
+	UE_DEPRECATED(5.3, "BroadcastFieldValueChanged has been deprecated, please use the regular blueprint setter.")
+	UFUNCTION(BlueprintCallable, Category="FieldNotify", meta=(DisplayName="Broadcast Field Value Changed", ScriptName="BroadcastFieldValueChanged", DeprecatedFunction, DeprecatedMessage = "Use the regular setter node."))
 	void K2_BroadcastFieldValueChanged(FFieldNotificationId FieldId);
 
-	/** Broadcast the event (doesn't execute the replication code). */
-	void BroadcastFieldValueChanged(UE::FieldNotification::FFieldId InFieldId);
-
-protected:
-	UFUNCTION(BlueprintCallable, CustomThunk, Category="Viewmodel", meta=(CustomStructureParam="OldValue,NewValue", ScriptName="SetPropertyValue", BlueprintInternalUseOnly="true"))
+	UE_DEPRECATED(5.3, "SetPropertyValue has been deprecated, please use the regular blueprint setter.")
+	UFUNCTION(BlueprintCallable, CustomThunk, Category="Viewmodel", meta=(CustomStructureParam="OldValue,NewValue", ScriptName="SetPropertyValue", DeprecatedFunction, DeprecatedMessage = "Use the regular setter node.", BlueprintInternalUseOnly="true"))
 	bool K2_SetPropertyValue(UPARAM(ref) const int32& OldValue, UPARAM(ref) const int32& NewValue);
 
 	/** Set the new value and notify if the property value changed. */

@@ -201,6 +201,7 @@ public:
 	virtual int32 RemoveAllFieldValueChangedDelegates(const void* InUserObject) override final { return 0; }
 	virtual int32 RemoveAllFieldValueChangedDelegates(UE::FieldNotification::FFieldId InFieldId, const void* InUserObject) override final { return 0; }
 	virtual const UE::FieldNotification::IClassDescriptor& GetFieldNotificationDescriptor() const override { static FFieldNotificationClassDescriptor Tmp; return Tmp; }
+	virtual void BroadcastFieldValueChanged(UE::FieldNotification::FFieldId InFieldId) override {}
 	//~ End INotifyFieldValueChanged Interface
 };
 

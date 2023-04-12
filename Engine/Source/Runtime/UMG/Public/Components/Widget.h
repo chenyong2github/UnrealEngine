@@ -771,6 +771,7 @@ public:
 	virtual bool RemoveFieldValueChangedDelegate(UE::FieldNotification::FFieldId InFieldId, FDelegateHandle InHandle) override final;
 	virtual int32 RemoveAllFieldValueChangedDelegates(const void* InUserObject) override final;
 	virtual int32 RemoveAllFieldValueChangedDelegates(UE::FieldNotification::FFieldId InFieldId, const void* InUserObject) override final;
+	virtual void BroadcastFieldValueChanged(UE::FieldNotification::FFieldId InFieldId) override final;
 	//~ End INotifyFieldValueChanged Interface
 
 	UFUNCTION(BlueprintCallable, Category = "FieldNotify", meta = (DisplayName = "Add Field Value Changed Delegate", ScriptName = "AddFieldValueChangedDelegate"))
@@ -780,8 +781,6 @@ public:
 	void K2_RemoveFieldValueChangedDelegate(FFieldNotificationId FieldId, FFieldValueChangedDynamicDelegate Delegate);
 
 protected:
-	void BroadcastFieldValueChanged(UE::FieldNotification::FFieldId InFieldId);
-
 	UFUNCTION(BlueprintCallable, Category="FieldNotify", meta = (DisplayName="Broadcast Field Value Changed", ScriptName="BroadcastFieldValueChanged"))
 	void K2_BroadcastFieldValueChanged(FFieldNotificationId FieldId);
 
