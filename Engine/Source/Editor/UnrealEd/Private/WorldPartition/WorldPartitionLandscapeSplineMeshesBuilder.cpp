@@ -43,7 +43,7 @@ UWorldPartitionLandscapeSplineMeshesBuilder::UWorldPartitionLandscapeSplineMeshe
 	: Super(ObjectInitializer)
 	, NewGridSize(0)
 {
-	FParse::Value(FCommandLine::Get(), TEXT("NewGridSize="), NewGridSize);
+	GetParamValue("NewGridSize=", NewGridSize);
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> ConstructorStatics(TEXT("/Engine/EditorLandscapeResources/SplineEditorMesh"));
 	SplineEditorMesh = ConstructorStatics.Object;

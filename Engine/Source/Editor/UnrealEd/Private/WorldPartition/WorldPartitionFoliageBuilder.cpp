@@ -21,7 +21,7 @@ UWorldPartitionFoliageBuilder::UWorldPartitionFoliageBuilder(const FObjectInitia
 	: Super(ObjectInitializer)
 	, NewGridSize(0)
 {
-	FParse::Value(FCommandLine::Get(), TEXT("NewGridSize="), NewGridSize);
+	GetParamValue("NewGridSize=", NewGridSize);
 }
 
 bool UWorldPartitionFoliageBuilder::RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper)

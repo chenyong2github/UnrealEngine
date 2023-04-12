@@ -34,6 +34,11 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 {
 	FPackageSourceControlHelper PackageHelper;
 
+	// Use the commandlet parameters as it may differ from FCommandline::Get()
+	// Provided through this scope as most WP builders are retrieving their arguments from their
+	// constructors which can't receive parameters.
+	FWorldPartitionBuilderArgsScope BuilderArgsScope(Params);
+
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionBuilderCommandlet::Main);
 
 	UE_SCOPED_TIMER(TEXT("Execution"), LogWorldPartitionBuilderCommandlet, Display);
@@ -95,7 +100,7 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 
 	// Parse builder class name
 	FString BuilderClassName;
-	if (!FParse::Value(FCommandLine::Get(), TEXT("Builder="), BuilderClassName, false))
+	if (!FParse::Value(*Params, TEXT("Builder="), BuilderClassName, false))
 	{
 		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Invalid builder name."));
 		return 1;

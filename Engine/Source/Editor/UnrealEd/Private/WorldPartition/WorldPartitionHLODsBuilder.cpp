@@ -157,23 +157,23 @@ UWorldPartitionHLODsBuilder::UWorldPartitionHLODsBuilder(const FObjectInitialize
 	, BuilderIdx(INDEX_NONE)
 	, BuilderCount(INDEX_NONE)
 {
-	BuildOptions = FParse::Param(FCommandLine::Get(), TEXT("SetupHLODs")) ? EHLODBuildStep::HLOD_Setup : EHLODBuildStep::None;
-	BuildOptions |= FParse::Param(FCommandLine::Get(), TEXT("BuildHLODs")) ? EHLODBuildStep::HLOD_Build : EHLODBuildStep::None;
-	BuildOptions |= FParse::Param(FCommandLine::Get(), TEXT("RebuildHLODs")) ? EHLODBuildStep::HLOD_Build : EHLODBuildStep::None;
-	BuildOptions |= FParse::Param(FCommandLine::Get(), TEXT("DeleteHLODs")) ? EHLODBuildStep::HLOD_Delete : EHLODBuildStep::None;
-	BuildOptions |= FParse::Param(FCommandLine::Get(), TEXT("FinalizeHLODs")) ? EHLODBuildStep::HLOD_Finalize : EHLODBuildStep::None;
-	BuildOptions |= FParse::Param(FCommandLine::Get(), TEXT("DumpStats")) ? EHLODBuildStep::HLOD_Stats : EHLODBuildStep::None;
+	BuildOptions  = HasParam("SetupHLODs") ? EHLODBuildStep::HLOD_Setup : EHLODBuildStep::None;
+	BuildOptions |= HasParam("BuildHLODs") ? EHLODBuildStep::HLOD_Build : EHLODBuildStep::None;
+	BuildOptions |= HasParam("RebuildHLODs") ? EHLODBuildStep::HLOD_Build : EHLODBuildStep::None;
+	BuildOptions |= HasParam("DeleteHLODs") ? EHLODBuildStep::HLOD_Delete : EHLODBuildStep::None;
+	BuildOptions |= HasParam("FinalizeHLODs") ? EHLODBuildStep::HLOD_Finalize : EHLODBuildStep::None;
+	BuildOptions |= HasParam("DumpStats") ? EHLODBuildStep::HLOD_Stats : EHLODBuildStep::None;
 
-	bResumeBuild = FParse::Value(FCommandLine::Get(), TEXT("ResumeBuild="), ResumeBuildIndex);
+	bResumeBuild = GetParamValue("ResumeBuild=", ResumeBuildIndex);
 
-	bDistributedBuild = FParse::Param(FCommandLine::Get(), TEXT("DistributedBuild"));
-	bForceBuild = FParse::Param(FCommandLine::Get(), TEXT("RebuildHLODs"));
+	bDistributedBuild = HasParam("DistributedBuild");
+	bForceBuild = HasParam("RebuildHLODs");
 
-	FParse::Value(FCommandLine::Get(), TEXT("BuildManifest="), BuildManifest);
-	FParse::Value(FCommandLine::Get(), TEXT("BuilderIdx="), BuilderIdx);
-	FParse::Value(FCommandLine::Get(), TEXT("BuilderCount="), BuilderCount);
-	FParse::Value(FCommandLine::Get(), TEXT("BuildHLODLayer="), HLODLayerToBuild);
-	FParse::Value(FCommandLine::Get(), TEXT("BuildSingleHLOD="), HLODActorToBuild);
+	GetParamValue("BuildManifest=", BuildManifest);
+	GetParamValue("BuilderIdx=", BuilderIdx);
+	GetParamValue("BuilderCount=", BuilderCount);
+	GetParamValue("BuildHLODLayer=", HLODLayerToBuild);
+	GetParamValue("BuildSingleHLOD=", HLODActorToBuild);
 
 	if (!HLODActorToBuild.IsNone() || !HLODLayerToBuild.IsNone())
 	{

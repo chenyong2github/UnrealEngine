@@ -59,10 +59,7 @@ bool UWorldPartitionNavigationDataBuilder::PreRun(UWorld* World, FPackageSourceC
 	FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::EditorWorldPartitionBuildMode);
 	IterativeCellOverlapSize = FMath::CeilToInt32(FNavigationSystem::GetWorldPartitionNavigationDataBuilderOverlap(*World));
 
-	TArray<FString> Tokens, Switches;
-	UCommandlet::ParseCommandLine(FCommandLine::Get(), Tokens, Switches);
-
-	bCleanBuilderPackages = Switches.Contains(TEXT("CleanPackages"));
+	bCleanBuilderPackages = HasParam("CleanPackages");
 
 	UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("Starting NavigationDataBuilder"));
 	UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("   ANavigationDataChunkActor GridSize: %8i"), GridSize);

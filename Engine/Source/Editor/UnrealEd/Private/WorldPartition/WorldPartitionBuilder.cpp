@@ -45,6 +45,8 @@ FCellInfo::FCellInfo()
 {
 }
 
+FString UWorldPartitionBuilder::Args;
+
 UWorldPartitionBuilder::UWorldPartitionBuilder(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

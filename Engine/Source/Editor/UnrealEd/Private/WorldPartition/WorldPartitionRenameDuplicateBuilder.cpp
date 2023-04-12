@@ -131,8 +131,8 @@ static bool DeleteExistingMapPackages(const FString& ExistingPackageName, FPacka
 UWorldPartitionRenameDuplicateBuilder::UWorldPartitionRenameDuplicateBuilder(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	FParse::Value(FCommandLine::Get(), TEXT("NewPackage="), NewPackageName);
-	bRename = FParse::Param(FCommandLine::Get(), TEXT("Rename"));
+	GetParamValue("NewPackage=", NewPackageName);
+	bRename = HasParam("Rename");
 }
 
 bool UWorldPartitionRenameDuplicateBuilder::RunInternal(UWorld* World, const FCellInfo& CellInfo, FPackageSourceControlHelper& PackageHelper)

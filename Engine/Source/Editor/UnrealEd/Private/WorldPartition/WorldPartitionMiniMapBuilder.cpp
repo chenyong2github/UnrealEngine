@@ -52,7 +52,7 @@ bool UWorldPartitionMiniMapBuilder::PreRun(UWorld* World, FPackageSourceControlH
 	}
 
 	// Dump bitmaps for debugging purpose
-	bDebugCapture = FParse::Param(FCommandLine::Get(), TEXT("DebugCapture"));
+	bDebugCapture = HasParam("DebugCapture");
 
 	// World bounds to process
 	IterativeWorldBounds = WorldMiniMap->GetMiniMapWorldBounds();

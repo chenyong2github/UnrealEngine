@@ -92,6 +92,37 @@ protected:
 	bool OnFilesModified(const TArray<FString>& InModifiedFiles, const FString& InChangelistDescription) const;
 	bool OnPackagesModified(const TArray<UPackage*>& InModifiedPackages, const FString& InChangelistDescription) const;
 
+	/**
+	 * Test if the builder was provided the given parameter.
+	 * @param	Param	Parameter to look for.
+	 * @return true if Parameter was provided, false otherwise.
+	 */
+	bool HasParam(const FString& Param) const
+	{
+		return FParse::Param(*Args, *Param);
+	}
+
+	/**
+	 * Retrieve the given parameter's value.
+	 * @param	Param	Parameter to look for.
+	 * @param	Value	[out] Will contain the value if parameter is found, otherwise will be left unchanged.
+	 * @return true if Parameter was provided, false otherwise.
+	 */
+	template <typename T>
+	bool GetParamValue(const FString& Param, T& Value) const
+	{
+		return FParse::Value(*Args, *Param, Value);
+	}
+
+	/**
+	 * Retrieve the arguments provided to the builder.
+	 * @return the arguments provided to the builder.
+	 */
+	const FString& GetBuilderArgs() const
+	{
+		return Args;
+	}
+
 	UE_DEPRECATED(5.3, "Please use OnFilesModified")
 	bool AutoSubmitFiles(const TArray<FString>& InModifiedFiles, const FString& InChangelistDescription) const;
 	UE_DEPRECATED(5.3, "Please use OnPackagesModified")
@@ -112,4 +143,25 @@ protected:
 	bool bLoadInitiallyActiveDataLayers = true;
 
 	FModifiedFilesHandler ModifiedFilesHandler;
+
+private:
+	friend struct FWorldPartitionBuilderArgsScope;
+	static FString Args;
+};
+
+/**
+ * Assign parameters to the World Partition builders for the lifetime of this scope.
+ */
+struct FWorldPartitionBuilderArgsScope
+{
+	FWorldPartitionBuilderArgsScope(const FString& InArgs)
+	{
+		check(UWorldPartitionBuilder::Args.IsEmpty());
+		UWorldPartitionBuilder::Args = InArgs;
+	}
+
+	~FWorldPartitionBuilderArgsScope()
+	{
+		UWorldPartitionBuilder::Args.Empty();
+	}
 };

@@ -30,7 +30,7 @@ UWorldPartitionResaveActorsBuilder::UWorldPartitionResaveActorsBuilder(const FOb
 bool UWorldPartitionResaveActorsBuilder::PreRun(UWorld* World, FPackageSourceControlHelper& PackageHelper)
 {
 	TArray<FString> Tokens, Switches;
-	UCommandlet::ParseCommandLine(FCommandLine::Get(), Tokens, Switches);
+	UCommandlet::ParseCommandLine(*GetBuilderArgs(), Tokens, Switches);
 
 	//@todo_ow: generalize to all builders
 	for (const FString& Switch : Switches)
