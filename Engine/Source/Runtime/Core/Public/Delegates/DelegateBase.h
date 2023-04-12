@@ -41,7 +41,7 @@ ALIAS_TEMPLATE_TYPE_LAYOUT(template<typename ElementType>, FDelegateAllocatorTyp
 /**
  * Base class for unicast delegates.
  */
-class FDelegateBase
+class FDelegateBase //-V1062
 {
 	template <typename>
 	friend class TMulticastDelegateBase;
@@ -59,12 +59,19 @@ protected:
 
 	FDelegateBase(FDelegateBase&& Other)
 	{
-		MoveConstruct(MoveTemp(Other));
+		DelegateAllocator.MoveToEmpty(Other.DelegateAllocator);
+		DelegateSize = Other.DelegateSize;
+		Other.DelegateSize = 0;
 	}
 
 	FDelegateBase& operator=(FDelegateBase&& Other)
 	{
-		MoveAssign(MoveTemp(Other));
+		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+
+		Unbind();
+		DelegateAllocator.MoveToEmpty(Other.DelegateAllocator);
+		DelegateSize = Other.DelegateSize;
+		Other.DelegateSize = 0;
 		return *this;
 	}
 
@@ -104,25 +111,9 @@ protected:
 		return DelegateAllocator.GetAllocatedSize(DelegateSize, sizeof(FAlignedInlineDelegateType));
 	}
 
-public:
-	/**
-	 * "emplacement" of delegate instance of the given type
-	 */
-	template<typename DelegateInstanceType, typename... DelegateInstanceParams>
-	void CreateDelegateInstance(DelegateInstanceParams&&... Params)
-	{
-		UE_DELEGATES_MT_SCOPED_READ_ACCESS(AccessDetector);
-
-		IDelegateInstance* DelegateInstance = GetDelegateInstanceProtected();
-		if (DelegateInstance)
-		{
-			DelegateInstance->~IDelegateInstance();
-		}
-
-		new(Allocate(sizeof(DelegateInstanceType))) DelegateInstanceType(Forward<DelegateInstanceParams>(Params)...);
-	}
-
 private:
+	friend void* operator new(size_t Size, FDelegateBase& Base);
+
 	void* Allocate(int32 Size)
 	{
 		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
@@ -142,29 +133,17 @@ private:
 		return DelegateAllocator.GetAllocation();
 	}
 
-	void MoveConstruct(FDelegateBase&& Other)
-	{
-		DelegateAllocator.MoveToEmpty(Other.DelegateAllocator);
-		DelegateSize = Other.DelegateSize;
-		Other.DelegateSize = 0;
-	}
-
-	void MoveAssign(FDelegateBase&& Other)
-	{
-		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
-
-		Unbind();
-		DelegateAllocator.MoveToEmpty(Other.DelegateAllocator);
-		DelegateSize = Other.DelegateSize;
-		Other.DelegateSize = 0;
-	}
-
 private:
 	FDelegateAllocatorType::ForElementType<FAlignedInlineDelegateType> DelegateAllocator;
 	int32 DelegateSize = 0;
 
 	UE_DELEGATES_MT_ACCESS_DETECTOR(AccessDetector);
 };
+
+inline void* operator new(size_t Size, FDelegateBase& Base)
+{
+	return Base.Allocate((int32)Size);
+}
 
 struct FDefaultDelegateUserPolicy
 {
