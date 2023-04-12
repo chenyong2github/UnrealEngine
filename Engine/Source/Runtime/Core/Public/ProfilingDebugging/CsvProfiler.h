@@ -385,13 +385,14 @@ public:
 	CORE_API static void EndWait();
 
 	/** Singleton interface */
-	CORE_API bool IsCapturing();
-	CORE_API bool IsCapturing_Renderthread();
-	CORE_API bool IsWritingFile();
+	CORE_API bool IsCapturing() const;
+	CORE_API bool IsCapturing_Renderthread() const;
+	CORE_API bool IsWritingFile() const;
+	CORE_API bool IsEndCapturePending() const;
 
-	CORE_API int32 GetCaptureFrameNumber();
-	CORE_API int32 GetCaptureFrameNumberRT();
-	CORE_API int32 GetNumFrameToCaptureOnEvent();
+	CORE_API int32 GetCaptureFrameNumber() const;
+	CORE_API int32 GetCaptureFrameNumberRT() const;
+	CORE_API int32 GetNumFrameToCaptureOnEvent() const;
 
 	CORE_API bool EnableCategoryByString(const FString& CategoryName) const;
 	CORE_API void EnableCategoryByIndex(uint32 CategoryIndex, bool bEnable) const;

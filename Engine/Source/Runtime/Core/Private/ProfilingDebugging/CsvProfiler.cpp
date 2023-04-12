@@ -3205,16 +3205,37 @@ void FCsvProfiler::BeginCapture(int InNumFramesToCapture,
 	ECsvProfilerFlags InFlags)
 {
 	LLM_SCOPE(ELLMTag::CsvProfiler);
-
 	check(IsInGameThread());
+
+	// If there's already a start command in flight for this capture, warn and continue
+	FCsvCaptureCommand CurrentCommand;
+	if (CommandQueue.Peek(CurrentCommand) && CurrentCommand.CommandType == ECsvCommandType::Start)
+	{
+		UE_LOG(LogCsvProfiler, Warning, TEXT("BeginCapture() called, but there is already a pending start command. Ignoring!"));
+		return;
+	}
+
+
 	CommandQueue.Enqueue(FCsvCaptureCommand(ECsvCommandType::Start, GCsvProfilerFrameNumber, InNumFramesToCapture, InDestinationFolder, InFilename, InFlags));
 }
 
 TSharedFuture<FString> FCsvProfiler::EndCapture(FGraphEventRef EventToSignal)
 {
 	LLM_SCOPE(ELLMTag::CsvProfiler);
-
 	check(IsInGameThread());
+
+	// If there's already a stop command in flight for this capture, warn and continue
+	FCsvCaptureCommand CurrentCommand;
+	if (CommandQueue.Peek(CurrentCommand) && CurrentCommand.CommandType == ECsvCommandType::Stop)
+	{
+		UE_LOG(LogCsvProfiler, Warning, TEXT("EndCapture() called, but there is already a pending stop command. Ignoring!"));
+		return CurrentCommand.Future;
+	}
+
+	if (CommandQueue.Peek(CurrentCommand) && CurrentCommand.CommandType == ECsvCommandType::Start)
+	{
+		UE_LOG(LogCsvProfiler, Warning, TEXT("EndCapture() called, but there is already a pending start command!"));
+	}
 
 	// Fire before we copy the metadata so it gives other systems a chance to write any final information.
 	OnCSVProfileEndRequestedDelegate.Broadcast();
@@ -3777,17 +3798,26 @@ void FCsvProfiler::Init()
 	}
 }
 
-bool FCsvProfiler::IsCapturing()
+bool FCsvProfiler::IsCapturing() const
 {
 	check(IsInGameThread());
 	return GCsvProfilerIsCapturing;
 }
 
-bool FCsvProfiler::IsWritingFile()
+bool FCsvProfiler::IsWritingFile() const
 {
 	check(IsInGameThread());
 	return GCsvProfilerIsWritingFile;
 }
+
+bool FCsvProfiler::IsEndCapturePending() const
+{
+	check(IsInGameThread());
+	// Return true if the next command is Stop. If the next command is Start then we ignore, since any further Stop command corresponds to a different capture
+	FCsvCaptureCommand CurrentCommand;
+	return CommandQueue.Peek(CurrentCommand) && CurrentCommand.CommandType == ECsvCommandType::Stop;
+}
+
 
 bool FCsvProfiler::IsWaitTrackingEnabledOnCurrentThread()
 {
@@ -3795,12 +3825,12 @@ bool FCsvProfiler::IsWaitTrackingEnabledOnCurrentThread()
 }
 
 /*Get the current frame capture count*/
-int32 FCsvProfiler::GetCaptureFrameNumber()
+int32 FCsvProfiler::GetCaptureFrameNumber() const
 {
 	return CaptureFrameNumber;
 }
 
-int32 FCsvProfiler::GetCaptureFrameNumberRT()
+int32 FCsvProfiler::GetCaptureFrameNumberRT() const
 {
 	return CaptureFrameNumberRT;
 }
@@ -3809,7 +3839,7 @@ int32 FCsvProfiler::GetCaptureFrameNumberRT()
 //Get the total frame to capture when we are capturing on event. 
 //Example:  -csvStartOnEvent="My Event"
 //			-csvCaptureOnEventFrameCount=2500
-int32 FCsvProfiler::GetNumFrameToCaptureOnEvent()
+int32 FCsvProfiler::GetNumFrameToCaptureOnEvent() const
 {
 	return CaptureOnEventFrameCount;
 }
@@ -3839,7 +3869,7 @@ bool FCsvProfiler::IsCategoryEnabled(uint32 CategoryIndex) const
 	return GCsvCategoriesEnabled[CategoryIndex];
 }
 
-bool FCsvProfiler::IsCapturing_Renderthread()
+bool FCsvProfiler::IsCapturing_Renderthread() const
 {
 	check(IsInParallelRenderingThread());
 	return GCsvProfilerIsCapturingRT;
