@@ -32,7 +32,7 @@ public:
 	FChaosVDSceneUpdatedDelegate& OnSceneUpdated() { return SceneUpdatedDelegate; }
 
 	/** Updates, Adds and Remove actors to match the provided Step Data */
-	void UpdateFromRecordedStepData(EChaosVDSolverType SolverID, const FChaosVDStepData& InRecordedStepData);
+	void UpdateFromRecordedStepData(const int32 SolverID, const FString& SolverName, const FChaosVDStepData& InRecordedStepData);
 
 	/** Deletes all actors of the Scene and underlying UWorld */
 	void CleanUpScene();
@@ -40,10 +40,12 @@ public:
 	/** Returns the a ptr to the UWorld used to represent the current recorded frame data */
 	UWorld* GetUnderlyingWorld() const { return PhysicsVDWorld; };
 
+	bool IsInitialized() const { return  bIsInitialized; }
+
 private:
 
 	/** Creates an ChaosVDParticle actor for the Provided recorded Particle Data */
-	AChaosVDParticleActor* SpawnParticleFromRecordedData(const FChaosVDParticleDebugData& InParticleData);
+	AChaosVDParticleActor* SpawnParticleFromRecordedData(const FChaosVDParticleDebugData& InParticleData) const;
 
 	/** Returns the ID used to track this recorded particle data */
 	uint32 GetIDForRecordedParticleData(const FChaosVDParticleDebugData& InParticleData) const;

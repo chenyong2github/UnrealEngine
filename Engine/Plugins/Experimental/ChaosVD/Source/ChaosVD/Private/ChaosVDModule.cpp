@@ -10,8 +10,15 @@
 #include "ChaosVDEngine.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+#include "Trace/ChaosVDTraceManager.h"
+#include "Misc/Guid.h"
 
 #define LOCTEXT_NAMESPACE "ChaosVisualDebugger"
+
+FChaosVDModule& FChaosVDModule::Get()
+{
+	return FModuleManager::Get().LoadModuleChecked<FChaosVDModule>(TEXT("ChaosVD"));
+}
 
 void FChaosVDModule::StartupModule()
 {	
@@ -26,6 +33,8 @@ void FChaosVDModule::StartupModule()
 								//TODO: Hook up the final icon
 								.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "CollisionAnalyzer.TabIcon"))
 								.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory());
+
+	ChaosVDTraceManager = MakeShared<FChaosVDTraceManager>();
 }
 
 void FChaosVDModule::ShutdownModule()
@@ -41,7 +50,7 @@ void FChaosVDModule::RegisterClassesCustomDetails() const
 	PropertyModule.RegisterCustomClassLayout("ChaosVDParticleActor", FOnGetDetailCustomizationInstance::CreateStatic(&FChaosVDParticleActorCustomization::MakeInstance));
 }
 
-TSharedRef<SDockTab> FChaosVDModule::SpawnMainTab(const FSpawnTabArgs& Args) const
+TSharedRef<SDockTab> FChaosVDModule::SpawnMainTab(const FSpawnTabArgs& Args)
 {
 	TSharedRef<SDockTab> MainTabInstance =
 		SNew(SDockTab)
@@ -62,7 +71,42 @@ TSharedRef<SDockTab> FChaosVDModule::SpawnMainTab(const FSpawnTabArgs& Args) con
 
 	MainTabInstance->SetTabIcon(FChaosVDStyle::Get().GetBrush("TabIconPlaybackViewport"));
 
+	const FGuid InstanceGuid = ChaosVDEngineInstance->GetInstanceGuid();
+	RegisterChaosVDInstance(InstanceGuid, ChaosVDEngineInstance);
+
+	// Workaround. Currently the ChaosVD Engine instance determines the lifetime of the Editor world and other objects
+	// Some widgets, like UE Level viewport tries to iterate on these objects on destruction
+	// For now we can avoid any crashes by just de-initializing ChaosVD Engine on the next frame but that is not the real fix.
+	
+	//TODO: Ensure that systems that uses the Editor World we create know beforehand when it is about to be Destroyed and GC'd
+	MainTabInstance->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateLambda( [this, InstanceGuid](TSharedRef<SDockTab>)
+	{
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this, InstanceGuid](float DeltaTime)->bool
+		{
+			DeregisterChaosVDInstance(InstanceGuid);
+			return false;
+		}));
+	}));
+
 	return MainTabInstance;
+}
+
+void FChaosVDModule::RegisterChaosVDInstance(const FGuid& InstanceGuid, TSharedPtr<FChaosVDEngine> Instance)
+{
+	ActiveChaosVDInstances.Add(InstanceGuid, Instance);
+}
+
+void FChaosVDModule::DeregisterChaosVDInstance(const FGuid& InstanceGuid)
+{
+	if (TSharedPtr<FChaosVDEngine>* InstancePtrPtr = ActiveChaosVDInstances.Find(InstanceGuid))
+	{
+		if (TSharedPtr<FChaosVDEngine> InstancePtr = *InstancePtrPtr)
+		{
+			InstancePtr->DeInitialize();
+		}
+	
+		ActiveChaosVDInstances.Remove(InstanceGuid);
+	}	
 }
 
 #undef LOCTEXT_NAMESPACE

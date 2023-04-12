@@ -2,8 +2,10 @@
 
 #include "ChaosVDEngine.h"
 
+#include "ChaosVDModule.h"
 #include "ChaosVDPlaybackController.h"
 #include "ChaosVDScene.h"
+#include "Trace/ChaosVDTraceManager.h"
 
 void FChaosVDEngine::Initialize()
 {
@@ -30,7 +32,17 @@ void FChaosVDEngine::DeInitialize()
 	}
 
 	CurrentScene->DeInitialize();
+	CurrentScene.Reset();
+	PlaybackController.Reset();
 }
+
+void FChaosVDEngine::LoadRecording(const FString& FilePath)
+{
+	CurrentSessionName = FChaosVDModule::Get().GetTraceManager()->LoadTraceFile(FilePath);
+
+	PlaybackController->LoadChaosVDRecordingFromTraceSession(CurrentSessionName);
+}
+
 bool FChaosVDEngine::Tick(float DeltaTime)
 {
 	return true;

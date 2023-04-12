@@ -190,14 +190,6 @@ TSharedRef<FTabManager::FLayout> SChaosVDMainTab::GenerateMainLayout()
 		);
 }
 
-SChaosVDMainTab::~SChaosVDMainTab()
-{
-	if (ChaosVDEngine.IsValid())
-	{
-		ChaosVDEngine->DeInitialize();
-	}
-}
-
 void SChaosVDMainTab::GenerateMainWindowMenu()
 {
 	FMenuBarBuilder MenuBarBuilder = FMenuBarBuilder(TSharedPtr<FUICommandList >());
@@ -234,12 +226,18 @@ void SChaosVDMainTab::BrowseAndOpenChaosVDFile()
 	TArray<FString> OutOpenFilenames;
 	if (IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get())
 	{
+		
+		FString ExtensionStr;
+		ExtensionStr += TEXT("Unreal Trace|*.utrace|");
+		//TODO: Re-enable this when we add "Clips" support as these will use our own format
+		//ExtensionStr += TEXT("Chaos Visual Debugger|*.cvd");
+	
 		DesktopPlatform->OpenFileDialog(
 			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(AsShared()),
 			LOCTEXT("OpenDialogTitle", "Open Chaos Visual Debug File").ToString(),
 			TEXT(""),
 			TEXT(""),
-			TEXT("Chaos Visual Debugger Files|*.cvd"),
+			*ExtensionStr,
 			EFileDialogFlags::None,
 			OutOpenFilenames
 		);
@@ -247,10 +245,10 @@ void SChaosVDMainTab::BrowseAndOpenChaosVDFile()
 
 	if (OutOpenFilenames.Num() > 0)
 	{
-		if (ensure(ChaosVDEngine->GetPlaybackController()))
+		if (OutOpenFilenames[0].EndsWith(TEXT("utrace")))
 		{
-			ChaosVDEngine->GetPlaybackController()->LoadChaosVDRecording(OutOpenFilenames[0]);
-		}	
+			GetChaosVDEngineInstance()->LoadRecording(OutOpenFilenames[0]);
+		}
 	}
 }
 

@@ -2,21 +2,28 @@
 
 #include "ChaosVDPlaybackController.h"
 
+#include "ChaosVDModule.h"
 #include "ChaosVDRecording.h"
 #include "ChaosVDScene.h"
-#include "Misc/FileHelper.h"
-#include "Serialization/MemoryReader.h"
+#include "Trace/ChaosVDTraceManager.h"
+#include "Trace/ChaosVDTraceProvider.h"
+#include "TraceServices/Model/AnalysisSession.h"
 
-FChaosVDPlaybackController::FChaosVDPlaybackController(TWeakPtr<FChaosVDScene> InSceneToControl)
-	: CurrentFrame(0),
-	CurrentStep(0)
+
+FChaosVDPlaybackController::FChaosVDPlaybackController(const TWeakPtr<FChaosVDScene>& InSceneToControl)
 {
 	SceneToControl = InSceneToControl;
 }
 
-bool FChaosVDPlaybackController::LoadChaosVDRecording(const FString& RecordingPath)
+FChaosVDPlaybackController::~FChaosVDPlaybackController()
 {
-	if (RecordingPath.IsEmpty())
+	constexpr bool bBroadcastControllerUpdate = false;
+	UnloadCurrentRecording(bBroadcastControllerUpdate);
+}
+
+bool FChaosVDPlaybackController::LoadChaosVDRecordingFromTraceSession(const FString& InSessionName)
+{
+	if (InSessionName.IsEmpty())
 	{
 		return false;
 	}
@@ -26,66 +33,117 @@ bool FChaosVDPlaybackController::LoadChaosVDRecording(const FString& RecordingPa
 		UnloadCurrentRecording();
 	}
 
-	//TODO: Show a notification or loading bar. The plan is support streaming of the file so maybe we don't need this at all
+	if (const TSharedPtr<const TraceServices::IAnalysisSession> TraceSession = FChaosVDModule::Get().GetTraceManager()->GetSession(InSessionName))
+	{
+		if (const FChaosVDTraceProvider* ChaosVDProvider = TraceSession->ReadProvider<FChaosVDTraceProvider>(FChaosVDTraceProvider::ProviderName))
+		{
+			LoadedRecording = ChaosVDProvider->GetRecordingForSession();
+		}
+	}
 
-	TArray<uint8> SerializedDebugData;
-	if (!ensure(FFileHelper::LoadFileToArray(SerializedDebugData, *RecordingPath)))
+	if (!LoadedRecording.IsValid())
 	{
 		return false;
 	}
 
-	LoadedRecording = MakeShared<FChaosVDRecording>();
+	LoadedRecording->OnRecordingUpdated().AddRaw(this, &FChaosVDPlaybackController::HandleCurrentRecordingUpdated);
 
-	FMemoryReader SerializedDataReader(SerializedDebugData, false);					
-	FChaosVDRecording::StaticStruct()->SerializeBin(SerializedDataReader, LoadedRecording.Get());
-
-	if (!ensure(!SerializedDataReader.IsError()))
+	for (TMap<int32, TArray<FChaosVDSolverFrameData>>::TConstIterator SolversIterator = LoadedRecording->GetAvailableSolvers().CreateConstIterator(); SolversIterator; ++SolversIterator)
 	{
-		//TODO: Pop up an error message informing the user
-		LoadedRecording.Reset();
-		return false;
+		GoToRecordedStep(SolversIterator->Key, 0, 0);
 	}
-
-	GoToRecordedStep(0,0);
-
-	OnControllerUpdated().ExecuteIfBound(this);
+	
+	OnControllerUpdated().ExecuteIfBound(AsWeak());
 
 	return true;
 }
 
-void FChaosVDPlaybackController::UnloadCurrentRecording()
+void FChaosVDPlaybackController::UnloadCurrentRecording(const bool bBroadcastUpdate)
 {
-	CurrentFrame = 0;
-	CurrentStep = 0;
-	LoadedRecording.Reset();
-	
+	CurrentFramePerTrack.Reset();
+	CurrentStepPerTrack.Reset();
+
+	if (LoadedRecording.IsValid())
+	{
+		LoadedRecording->OnRecordingUpdated().RemoveAll(this);
+
+		if (const TSharedPtr<const TraceServices::IAnalysisSession> TraceSession = FChaosVDModule::Get().GetTraceManager()->GetSession(LoadedRecording->SessionName))
+		{
+			TraceServices::IAnalysisSession* TraceSessionPtr = const_cast<TraceServices::IAnalysisSession*>(TraceSession.Get());
+			if (FChaosVDTraceProvider* ChaosVDProvider = TraceSessionPtr->EditProvider<FChaosVDTraceProvider>(FChaosVDTraceProvider::ProviderName))
+			{
+				TraceServices::FAnalysisSessionEditScope SessionEditScope(*TraceSessionPtr);
+				ChaosVDProvider->DeleteRecordingInstanceForSession();
+			}
+		}
+
+		LoadedRecording.Reset();
+	}
+
 	if (const TSharedPtr<FChaosVDScene> SceneToControlSharedPtr = SceneToControl.Pin())
 	{
-		SceneToControlSharedPtr->CleanUpScene();
+		if (SceneToControlSharedPtr->IsInitialized())
+		{
+			SceneToControlSharedPtr->CleanUpScene();
+		}	
 	}
-	
-	OnControllerUpdated().ExecuteIfBound(this);
+
+	if (bBroadcastUpdate)
+	{
+		const TWeakPtr<FChaosVDPlaybackController> ThisWeakPtr = DoesSharedInstanceExist() ? AsWeak() : nullptr;
+		OnControllerUpdated().ExecuteIfBound(ThisWeakPtr);
+	}
 }
 
-void FChaosVDPlaybackController::GoToRecordedStep(int32 FrameNumber, int32 Step)
+void FChaosVDPlaybackController::GoToRecordedStep(const int32 InTrackID, const int32 FrameNumber, const int32 Step)
 {
 	if (const TSharedPtr<FChaosVDScene> SceneToControlSharedPtr = SceneToControl.Pin())
 	{
 		if (ensure(LoadedRecording.IsValid()))
 		{
-			if (!LoadedRecording->RecordedFramesData.IsValidIndex(FrameNumber))
+			const EChaosVDFrameLoadState FrameState = LoadedRecording->GetFrameState(InTrackID, FrameNumber);
+			if (FrameState == EChaosVDFrameLoadState::Unknown)
 			{
+				// Invalid Frame Number
 				return;
 			}
 
-			//TODO: Handle different steps per solver if that is something that can happen
-			for (TPair<EChaosVDSolverType, FChaosVDSolverData>& SolverData : LoadedRecording->RecordedFramesData[FrameNumber].RecordedSolvers)
 			{
-				SceneToControlSharedPtr->UpdateFromRecordedStepData(SolverData.Key, SolverData.Value.SolverSteps[Step]);
+				const TSharedPtr<const TraceServices::IAnalysisSession> TraceSession = FChaosVDModule::Get().GetTraceManager()->GetSession(LoadedRecording->SessionName);
+				if (!ensure(TraceSession))
+				{
+					return;	
+				}
+
+				// TODO: This will not cover a future case where the recording is not own/populated by Trace
+				// If in the future we decide implement the CVD format standalone with streaming support again,
+				// we will need to add a lock to the file. A feature that might need that is Recording Clips
+				TraceServices::FAnalysisSessionReadScope SessionReadScope(*TraceSession);
+
+				const FChaosVDSolverFrameData* SolverFrameData = LoadedRecording->GetFrameForSolver(InTrackID, FrameNumber);
+				if (SolverFrameData && ensure(SolverFrameData->SolverSteps.IsValidIndex(Step)))
+				{
+					SceneToControlSharedPtr->UpdateFromRecordedStepData(InTrackID, SolverFrameData->DebugName, SolverFrameData->SolverSteps[Step]);
+				}
 			}
 
-			CurrentStep = Step;
-			CurrentFrame = FrameNumber;
+			if (int32* CurrentFrameNumber = CurrentFramePerTrack.Find(InTrackID))
+			{
+				 *CurrentFrameNumber = FrameNumber;
+			}
+			else
+			{
+				CurrentFramePerTrack.Add(InTrackID, FrameNumber);
+			}
+
+			if (int32* CurrentStepNumber = CurrentStepPerTrack.Find(InTrackID))
+			{
+				*CurrentStepNumber = Step;
+			}
+			else
+			{
+				CurrentStepPerTrack.Add(InTrackID, Step);
+			}
 		}
 	}
 	else
@@ -94,32 +152,77 @@ void FChaosVDPlaybackController::GoToRecordedStep(int32 FrameNumber, int32 Step)
 	}
 }
 
-int32 FChaosVDPlaybackController::GetStepsForFrame(int32 FrameNumber) const
+int32 FChaosVDPlaybackController::GetStepsForFrame(const int32 InTrackID, const int32 FrameNumber) const
 {
 	if (LoadedRecording.IsValid())
 	{
-		if (!LoadedRecording->RecordedFramesData.IsValidIndex(FrameNumber))
+		if (const FChaosVDSolverFrameData* FrameData = LoadedRecording->GetFrameForSolver(InTrackID, FrameNumber))
+		{
+			return FrameData->SolverSteps.Num();
+		}
+		else
 		{
 			return INDEX_NONE;
-		}
-
-		for (const TPair<EChaosVDSolverType, FChaosVDSolverData>& SolverData : LoadedRecording->RecordedFramesData[FrameNumber].RecordedSolvers)
-		{
-			//TODO: Handle different steps per solver if that is something that can happen
-			return SolverData.Value.SolverSteps.Num();
 		}
 	}
 
 	return	INDEX_NONE;
 }
 
-int32 FChaosVDPlaybackController::GetAvailableFramesNumber() const
+int32 FChaosVDPlaybackController::GetAvailableFramesNumber(const int32 InTrackID) const
 {
 	if (!LoadedRecording.IsValid())
 	{
 		return INDEX_NONE;
 	}
 
-	return LoadedRecording->RecordedFramesData.Num();
+	return LoadedRecording->GetAvailableFramesNumber(InTrackID);
+}
+
+int32 FChaosVDPlaybackController::GetAvailableSolversNumber() const
+{
+	if (!LoadedRecording.IsValid())
+	{
+		return INDEX_NONE;
+	}
+
+	return LoadedRecording->GetAvailableSolvers().Num();
+}
+
+int32 FChaosVDPlaybackController::GetActiveSolverTrackID() const
+{
+	//For Now use the Last Solver if any
+	int32 SolverID = INDEX_NONE;
+	for (const TPair<int32, TArray<FChaosVDSolverFrameData>>& SolverData : LoadedRecording->GetAvailableSolvers())
+	{
+		SolverID = SolverData.Key;
+	}
+
+	return SolverID;
+}
+
+int32 FChaosVDPlaybackController::GetCurrentFrame(const int32 InTrackID) const
+{
+	if (const int32* FrameNumber = CurrentFramePerTrack.Find(InTrackID))
+	{
+		return *FrameNumber;
+	}
+
+	return INDEX_NONE;
+}
+
+int32 FChaosVDPlaybackController::GetCurrentStep(const int32 InTrackID) const
+{
+	if (const int32* StepNumber = CurrentStepPerTrack.Find(InTrackID))
+	{
+		return *StepNumber;
+	}
+
+	return INDEX_NONE;
+}
+
+void FChaosVDPlaybackController::HandleCurrentRecordingUpdated()
+{
+	OnControllerUpdated().ExecuteIfBound(AsWeak());
 }
 

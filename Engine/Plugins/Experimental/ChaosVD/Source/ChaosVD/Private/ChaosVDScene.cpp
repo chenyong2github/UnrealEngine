@@ -47,7 +47,7 @@ void FChaosVDScene::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddStableReferenceMap(ParticleVDInstancesByID);
 }
 
-void FChaosVDScene::UpdateFromRecordedStepData(EChaosVDSolverType SolverID, const FChaosVDStepData& InRecordedStepData)
+void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FString& SolverName, const FChaosVDStepData& InRecordedStepData)
 {
 	TSet<uint32> ParticlesIDsInRecordedStepData;
 	ParticlesIDsInRecordedStepData.Reserve(InRecordedStepData.RecordedParticles.Num());
@@ -74,7 +74,9 @@ void FChaosVDScene::UpdateFromRecordedStepData(EChaosVDSolverType SolverID, cons
 		{
 			if (AChaosVDParticleActor* NewParticleVDInstance = SpawnParticleFromRecordedData(Particle))
 			{
-				FName FolderPath = *FPaths::Combine(TEXT("Solver ID : ") + UEnum::GetDisplayValueAsText(SolverID).ToString(), UEnum::GetDisplayValueAsText(Particle.ParticleType).ToString());
+				FStringFormatOrderedArguments Args {SolverName, FString::FromInt(SolverID)};
+				const FName FolderPath = *FPaths::Combine(FString::Format(TEXT("Solver {0} | ID {1}"), Args), UEnum::GetDisplayValueAsText(Particle.ParticleType).ToString());
+
 				NewParticleVDInstance->SetFolderPath(FolderPath);
 
 				// TODO: Precalculate the max num of entries we would see in the loaded file, and use that number to pre-allocate this map
@@ -109,9 +111,12 @@ void FChaosVDScene::UpdateFromRecordedStepData(EChaosVDSolverType SolverID, cons
 
 void FChaosVDScene::CleanUpScene()
 {
-	for (const TPair<uint32, AChaosVDParticleActor*>& ParticleVDInstanceWithID : ParticleVDInstancesByID)
+	if (PhysicsVDWorld)
 	{
-		PhysicsVDWorld->DestroyActor(ParticleVDInstanceWithID.Value);
+		for (const TPair<uint32, AChaosVDParticleActor*>& ParticleVDInstanceWithID : ParticleVDInstancesByID)
+		{
+			PhysicsVDWorld->DestroyActor(ParticleVDInstanceWithID.Value);
+		}
 	}
 
 	ParticleVDInstancesByID.Reset();
@@ -119,7 +124,7 @@ void FChaosVDScene::CleanUpScene()
 	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 }
 
-AChaosVDParticleActor* FChaosVDScene::SpawnParticleFromRecordedData(const FChaosVDParticleDebugData& InParticleData)
+AChaosVDParticleActor* FChaosVDScene::SpawnParticleFromRecordedData(const FChaosVDParticleDebugData& InParticleData) const
 {
 	// Temp code until we have geometry data
 	const UChaosVDEditorSettings* Settings = GetDefault<UChaosVDEditorSettings>();
@@ -131,7 +136,12 @@ AChaosVDParticleActor* FChaosVDScene::SpawnParticleFromRecordedData(const FChaos
 	if (AChaosVDParticleActor* NewActor = PhysicsVDWorld->SpawnActor<AChaosVDParticleActor>(Params))
 	{
 		NewActor->UpdateFromRecordedData(InParticleData);
-		NewActor->SetActorLabel(InParticleData.DebugName);
+
+		if (!InParticleData.DebugName.IsEmpty())
+		{
+			NewActor->SetActorLabel(InParticleData.DebugName);
+		}
+
 		NewActor->SetStaticMesh(DebugMesh);
 
 		return NewActor;

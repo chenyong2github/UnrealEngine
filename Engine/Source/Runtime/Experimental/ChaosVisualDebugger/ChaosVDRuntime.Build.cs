@@ -12,7 +12,8 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",
-					"CoreUObject"
+					"CoreUObject",
+					"TraceLog"
 				}
 			);
 		}

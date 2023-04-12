@@ -29,7 +29,9 @@ protected:
 
 	TSharedPtr<FLevelEditorViewportClient> CreateViewportClient() const;
 
-	void OnPlaybackControllerUpdated(FChaosVDPlaybackController* Controller) const;
+	void OnPlaybackControllerUpdated(TWeakPtr<FChaosVDPlaybackController> InController);
+
+	void RegisterNewController(TWeakPtr<FChaosVDPlaybackController> NewController);
 
 	void OnFrameSelectionUpdated(int32 NewFrameIndex) const;
 	void OnStepSelectionUpdated(int32 NewStepIndex) const;

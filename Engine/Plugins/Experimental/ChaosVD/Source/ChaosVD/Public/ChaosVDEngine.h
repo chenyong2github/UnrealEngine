@@ -4,7 +4,9 @@
 
 #include "Templates/SharedPointer.h"
 #include "Containers/Ticker.h"
+#include "Misc/Guid.h"
 
+class FChaosVDTraceManager;
 class FChaosVDPlaybackController;
 class FChaosVDScene;
 class FChaosVisualDebuggerMainUI;
@@ -13,17 +15,28 @@ class FChaosVisualDebuggerMainUI;
 class FChaosVDEngine : public FTSTickerObjectBase, public TSharedFromThis<FChaosVDEngine>
 {
 public:
+	FChaosVDEngine()
+	{
+		InstanceGUID = FGuid::NewGuid();
+	}
 
 	void Initialize();
 	
 	void DeInitialize();
-	
+
 	virtual bool Tick(float DeltaTime) override;
-	
+
+	const FGuid& GetInstanceGuid() const { return InstanceGUID; };
 	TSharedPtr<FChaosVDScene>& GetCurrentScene() { return CurrentScene; };
 	TSharedPtr<FChaosVDPlaybackController>& GetPlaybackController() { return PlaybackController; };
+
+	void LoadRecording(const FString& FilePath);
 	
 private:
+
+	FGuid InstanceGUID;
+
+	FString CurrentSessionName;
 
 	TSharedPtr<FChaosVDScene> CurrentScene;
 	TSharedPtr<FChaosVDPlaybackController> PlaybackController;

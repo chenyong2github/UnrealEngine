@@ -26,6 +26,8 @@ public:
 
 	void UpdateMinMaxValue(float NewMin, float NewMax);
 
+	void SetCurrentTimelineFrame(float FrameNumber);
+
 	/** Brings back the state of the timeline to its original state*/
 	void ResetTimeline();
 
@@ -34,7 +36,6 @@ public:
 
 protected:
 
-	void SetCurrentTimelineFrame(float FrameNumber);
 
 	FReply  Play();
 	FReply  Stop();

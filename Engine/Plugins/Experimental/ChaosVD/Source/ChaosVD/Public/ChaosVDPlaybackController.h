@@ -11,28 +11,34 @@ struct FChaosVDRecording;
 class FChaosVDPlaybackController;
 class FString;
 
-DECLARE_DELEGATE_OneParam(FChaosVDPlaybackControllerUpdated, FChaosVDPlaybackController*)
+DECLARE_DELEGATE_OneParam(FChaosVDPlaybackControllerUpdated, TWeakPtr<FChaosVDPlaybackController>)
 
 /** Loads,unloads and owns a Chaos VD recording file */
-class FChaosVDPlaybackController
+class FChaosVDPlaybackController : public TSharedFromThis<FChaosVDPlaybackController>
 {
 public:
 
-	FChaosVDPlaybackController(TWeakPtr<FChaosVDScene> InSceneToControl);
-
-	bool LoadChaosVDRecording(const FString& RecordingPath);
+	FChaosVDPlaybackController(const TWeakPtr<FChaosVDScene>& InSceneToControl);
+	~FChaosVDPlaybackController();
 	
-	void UnloadCurrentRecording();
+	bool LoadChaosVDRecordingFromTraceSession(const FString& InSessionName);
+	
+	void UnloadCurrentRecording(const bool bBroadcastUpdate = true);
 
-	void GoToRecordedStep(int32 FrameNumber, int32 Step);
+	void GoToRecordedStep(const int32 InTrackID, const int32 FrameNumber, const int32 Step);
 
 	TWeakPtr<FChaosVDRecording> GetCurrentRecording() { return LoadedRecording; }
 
-	int32 GetStepsForFrame(int32 FrameNumber) const;
-	int32 GetAvailableFramesNumber() const;
+	int32 GetStepsForFrame(const int32 InTrackID, const int32 FrameNumber) const;
+	int32 GetAvailableFramesNumber(const int32 InTrackID) const;
+	int32 GetAvailableSolversNumber() const;
 
-	int32 GetCurrentFrame() const { return CurrentFrame; }
-	int32 GetCurrentStep() const { return CurrentStep; }
+	int32 GetActiveSolverTrackID() const;
+
+	int32 GetCurrentFrame(const int32 InTrackID) const;
+	int32 GetCurrentStep(const int32 InTrackID) const;
+
+	bool IsRecordingLoaded() const { return LoadedRecording.IsValid(); }
 
 	TWeakPtr<FChaosVDScene> GetControllerScene() { return SceneToControl; }
 
@@ -40,8 +46,10 @@ public:
 
 protected:
 
-	int32 CurrentFrame;
-	int32 CurrentStep;
+	void HandleCurrentRecordingUpdated();
+
+	TMap<int32,int32> CurrentFramePerTrack;
+	TMap<int32,int32> CurrentStepPerTrack;
 	
 	TSharedPtr<FChaosVDRecording> LoadedRecording;
 

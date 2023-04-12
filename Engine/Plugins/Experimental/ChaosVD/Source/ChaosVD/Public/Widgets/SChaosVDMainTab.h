@@ -22,7 +22,6 @@ public:
 		SLATE_ARGUMENT(TSharedPtr<SDockTab>, OwnerTab)
 	SLATE_END_ARGS()
 
-	virtual ~SChaosVDMainTab() override;
 	void Construct(const FArguments& InArgs, TSharedPtr<FChaosVDEngine> InChaosVDEngine);
 
 	TSharedRef<FChaosVDEngine> GetChaosVDEngineInstance() const { return ChaosVDEngine.ToSharedRef(); };

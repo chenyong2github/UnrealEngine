@@ -10,11 +10,15 @@
 #include "Widgets/SViewport.h"
 #include "Widgets/Text/STextBlock.h"
 
-
 #define LOCTEXT_NAMESPACE "ChaosVisualDebugger"
 
 SChaosVDPlaybackViewport::~SChaosVDPlaybackViewport()
 {
+	if (const TSharedPtr<FChaosVDPlaybackController> CurrentPlaybackControllerPtr = PlaybackController.Pin())
+	{
+		CurrentPlaybackControllerPtr->OnControllerUpdated().Unbind();
+	}
+
 	LevelViewportClient->Viewport = nullptr;
 	LevelViewportClient.Reset();
 }
@@ -40,8 +44,6 @@ void SChaosVDPlaybackViewport::Construct(const FArguments& InArgs, const UWorld*
 {
 	ensure(DefaultWorld);
 	ensure(InPlaybackController.IsValid());
-
-	PlaybackController = InPlaybackController;
 
 	LevelViewportClient = CreateViewportClient();
 
@@ -120,23 +122,23 @@ void SChaosVDPlaybackViewport::Construct(const FArguments& InArgs, const UWorld*
 		]
 	];
 
-	if (const TSharedPtr<FChaosVDPlaybackController> PlaybackControllerPtr = PlaybackController.Pin())
-	{
-		PlaybackControllerPtr->OnControllerUpdated().BindRaw(this, &SChaosVDPlaybackViewport::OnPlaybackControllerUpdated);
-	}
+	RegisterNewController(InPlaybackController);
 }
 
-void SChaosVDPlaybackViewport::OnPlaybackControllerUpdated(FChaosVDPlaybackController* Controller) const
+void SChaosVDPlaybackViewport::OnPlaybackControllerUpdated(TWeakPtr<FChaosVDPlaybackController> InController)
 {
-	if (!ensure(Controller))
+	if (PlaybackController != InController)
 	{
-		return;
+		RegisterNewController(InController);
 	}
 
-	if (TSharedPtr<FChaosVDRecording> LoadedRecording = Controller->GetCurrentRecording().Pin())
+	const TSharedPtr<FChaosVDPlaybackController> ControllerSharedPtr = PlaybackController.Pin();
+	if (ControllerSharedPtr.IsValid() && ControllerSharedPtr->IsRecordingLoaded())
 	{
-		const int32 AvailableFrames = Controller->GetAvailableFramesNumber();
-		const int32 AvailableSteps = Controller->GetStepsForFrame(Controller->GetCurrentFrame());
+		const int32 TrackID = ControllerSharedPtr->GetActiveSolverTrackID();
+		
+		const int32 AvailableFrames = ControllerSharedPtr->GetAvailableFramesNumber(TrackID);
+		const int32 AvailableSteps = ControllerSharedPtr->GetStepsForFrame(TrackID, ControllerSharedPtr->GetCurrentFrame(TrackID));
 
 		// Max is inclusive and we use this to request as the index on the recorded frames/steps arrays so we need to -1 to the available frames/steps
 		FramesTimelineWidget->UpdateMinMaxValue(0, AvailableFrames != INDEX_NONE ? AvailableFrames -1  : 0);
@@ -156,12 +158,36 @@ void SChaosVDPlaybackViewport::OnPlaybackControllerUpdated(FChaosVDPlaybackContr
 	LevelViewportClient->bNeedsRedraw = true;
 }
 
+void SChaosVDPlaybackViewport::RegisterNewController(TWeakPtr<FChaosVDPlaybackController> NewController)
+{
+	if (PlaybackController != NewController)
+	{
+		if (const TSharedPtr<FChaosVDPlaybackController> CurrentPlaybackControllerPtr = PlaybackController.Pin())
+		{
+			CurrentPlaybackControllerPtr->OnControllerUpdated().Unbind();
+		}
+
+		PlaybackController = NewController;
+
+		if (const TSharedPtr<FChaosVDPlaybackController> NewPlaybackControllerPtr = PlaybackController.Pin())
+		{
+			NewPlaybackControllerPtr->OnControllerUpdated().BindRaw(this, &SChaosVDPlaybackViewport::OnPlaybackControllerUpdated);
+		}
+	}
+}
+
 void SChaosVDPlaybackViewport::OnFrameSelectionUpdated(int32 NewFrameIndex) const
 {
 	if (const TSharedPtr<FChaosVDPlaybackController> PlaybackControllerPtr = PlaybackController.Pin())
 	{
+		const int32 TrackID = PlaybackControllerPtr->GetActiveSolverTrackID();
+		
+		const int32 AvailableSteps = PlaybackControllerPtr->GetStepsForFrame(TrackID, PlaybackControllerPtr->GetCurrentFrame(TrackID));
+		StepsTimelineWidget->UpdateMinMaxValue(0,AvailableSteps != INDEX_NONE ? AvailableSteps -1 : 0);
+
 		// On Frame updates, always use Step 0
-		PlaybackControllerPtr->GoToRecordedStep(NewFrameIndex, 0);
+		StepsTimelineWidget->SetCurrentTimelineFrame(0);
+		PlaybackControllerPtr->GoToRecordedStep(TrackID, NewFrameIndex, 0);
 
 		LevelViewportClient->bNeedsRedraw = true;
 	}
@@ -171,8 +197,9 @@ void SChaosVDPlaybackViewport::OnStepSelectionUpdated(int32 NewStepIndex) const
 {
 	if (const TSharedPtr<FChaosVDPlaybackController> PlaybackControllerPtr = PlaybackController.Pin())
 	{
+		const int32 TrackID = PlaybackControllerPtr->GetActiveSolverTrackID();
 		// On Steps updates. Always use the current Frame
-		PlaybackControllerPtr->GoToRecordedStep(PlaybackControllerPtr->GetCurrentFrame(), NewStepIndex);
+		PlaybackControllerPtr->GoToRecordedStep(TrackID, PlaybackControllerPtr->GetCurrentFrame(TrackID), NewStepIndex);
 	
 		LevelViewportClient->bNeedsRedraw = true;
 	}

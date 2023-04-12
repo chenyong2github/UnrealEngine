@@ -12,7 +12,8 @@ public class ChaosVD : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"ChaosVDRuntime",
+				"ChaosVDRuntime", 
+				"TraceServices",
 			});
 
 		PrivateDependencyModuleNames.AddRange(
@@ -28,7 +29,10 @@ public class ChaosVD : ModuleRules
 				"SlateCore", 
 				"OutputLog", 
 				"SceneOutliner", 
-				"WorkspaceMenuStructure",
+				"WorkspaceMenuStructure", 
+				"TraceAnalysis", 
+				"TraceInsights",
+				"TraceLog",
 			}
 			);
 	}

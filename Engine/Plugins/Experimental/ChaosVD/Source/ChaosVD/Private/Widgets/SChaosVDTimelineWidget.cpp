@@ -122,7 +122,11 @@ void SChaosVDTimelineWidget::UpdateMinMaxValue(float NewMin, float NewMax)
 
 	MinFrames = NewMin;
 	MaxFrames = NewMax;
-	CurrentFrame = NewMin;
+	
+	if(CurrentFrame < NewMin || CurrentFrame > NewMax)
+	{
+		CurrentFrame = NewMin;
+	}
 }
 
 void SChaosVDTimelineWidget::ResetTimeline()
@@ -134,6 +138,7 @@ void SChaosVDTimelineWidget::ResetTimeline()
 void SChaosVDTimelineWidget::SetCurrentTimelineFrame(float FrameNumber)
 {
 	CurrentFrame = static_cast<int32>(FrameNumber);
+	TimelineSlider->SetValue(CurrentFrame);
 	FrameChangedDelegate.ExecuteIfBound(CurrentFrame);
 }
 
@@ -158,7 +163,6 @@ FReply SChaosVDTimelineWidget::Stop()
 	CurrentFrame = 0;
 	CurrentPlaybackTime = 0.0f;
 	bIsPlaying = false;
-	TimelineSlider->SetValue(CurrentFrame);
 
 	SetCurrentTimelineFrame(CurrentFrame);
 
@@ -176,7 +180,6 @@ FReply SChaosVDTimelineWidget::Next()
 	}
 
 	CurrentFrame++;
-	TimelineSlider->SetValue(CurrentFrame);
 	
 	SetCurrentTimelineFrame(CurrentFrame);
 
@@ -191,7 +194,6 @@ FReply SChaosVDTimelineWidget::Prev()
 	}
 
 	CurrentFrame--;
-	TimelineSlider->SetValue(CurrentFrame);
 
 	SetCurrentTimelineFrame(CurrentFrame);
 

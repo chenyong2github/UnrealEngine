@@ -3,8 +3,9 @@
 #pragma once
 #include "UObject/ObjectMacros.h"
 #include "Containers/UnrealString.h"
-
 #include "ChaosVDRecording.generated.h"
+
+DECLARE_MULTICAST_DELEGATE(FChaosVDRecordingUpdated)
 
 UENUM()
 enum class EChaosVDParticleType : uint8
@@ -20,7 +21,19 @@ enum class EChaosVDParticleType : uint8
 };
 
 UENUM()
-enum class EChaosVDSolverType
+enum class EChaosVDParticleState : int8
+{
+	Uninitialized = 0,
+	Sleeping = 1,
+	Kinematic = 2,
+	Static = 3,
+	Dynamic = 4,
+
+	Count
+};
+
+UENUM()
+enum class EChaosVDSolverType : uint32
 {
 	Rigid
 };
@@ -32,90 +45,73 @@ struct FChaosVDParticleDebugData
 
 	UPROPERTY(VisibleAnywhere, Category= "Chaos Visual Debugger Data")
 	EChaosVDParticleType ParticleType;
-
 	UPROPERTY(VisibleAnywhere, Category= "Chaos Visual Debugger Data")
 	FString DebugName;
-
 	UPROPERTY(VisibleAnywhere, Category= "Chaos Visual Debugger Data")
 	int32 ParticleIndex;
-
 	UPROPERTY(VisibleAnywhere, Category= "Chaos Visual Debugger Data")
 	FVector Position;
-
 	UPROPERTY(VisibleAnywhere, Category= "Chaos Visual Debugger Data")
 	FQuat Rotation;
+	UPROPERTY(VisibleAnywhere, Category= "Chaos Visual Debugger Data")
+	FVector Velocity;
+	UPROPERTY(VisibleAnywhere, Category= "Chaos Visual Debugger Data")
+	FVector AngularVelocity;
+	UPROPERTY(VisibleAnywhere, Category= "Chaos Visual Debugger Data")
+	EChaosVDParticleState ParticleState;
 };
 
-USTRUCT()
 struct FChaosVDStepData
 {
-	GENERATED_BODY()
-
-	UPROPERTY()
 	TArray<FChaosVDParticleDebugData> RecordedParticles;
 };
 
-USTRUCT()
-struct FChaosVDSolverData
+struct CHAOSVDRUNTIME_API FChaosVDSolverFrameData
 {
-	GENERATED_BODY()
-
-	UPROPERTY()
-	EChaosVDSolverType SolverType;
-
-	UPROPERTY()
-	TArray<FChaosVDStepData> SolverSteps;
+	FString DebugName;
+	int32 SolverID;
+	TArray<FChaosVDStepData, TInlineAllocator<16>> SolverSteps;
 };
 
-USTRUCT()
-struct FChaosVDEventData
+enum class EChaosVDFrameLoadState
 {
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FString EventID;
-
-	UPROPERTY()
-	TArray<uint8> SerializedEventData;
+	Unloaded,
+	Loaded,
+	Buffering,
+	Unknown
 };
 
-USTRUCT()
-struct CHAOSVDRUNTIME_API FChaosVDFrameData
+/**
+ * Struct that represents a recorded Physics simulation.
+ * It is currently populated while analyzing a Trace session
+ */
+struct CHAOSVDRUNTIME_API FChaosVDRecording
 {
-	GENERATED_BODY()
+	/** Returns the current available recorded frames per recorded solver */
+	int32 GetAvailableFramesNumber(const int32 SolverID) const;
+	/** Returns the current available recorded solvers number */
+	int32 GetAvailableSolversNumber() const { return RecordedFramesDataPerSolver.Num();}
+	
+	const TMap<int32, TArray<FChaosVDSolverFrameData>>& GetAvailableSolvers() const { return RecordedFramesDataPerSolver; }
 
-	UPROPERTY()
-	TMap<EChaosVDSolverType, FChaosVDSolverData> RecordedSolvers;
+	/** Returns a ptr to the recorded frame data for a specific solver -  Do not store as it is a reference to the element in the array */
+	FChaosVDSolverFrameData* GetFrameForSolver(const int32 SolverID, const int32 FrameNumber);
 
-	UPROPERTY()
-	TArray<FChaosVDEventData> RecordedEvents;
+	/** Adds a Frame Data for a specific Solver ID. Creates a solver entry if it does not exist */
+	void AddFrameForSolver(const int32 SolverID, FChaosVDSolverFrameData&& InFrameData);
 
-	FChaosVDSolverData& GetSolverData(EChaosVDSolverType SolverType) { return RecordedSolvers.Contains(SolverType) ? RecordedSolvers[SolverType] : RecordedSolvers.Add(SolverType,FChaosVDSolverData()); }
+	/** Returns the current frame state of a frame used to determine if it is ready for use*/
+	EChaosVDFrameLoadState GetFrameState(const int32 SolverID, const int32 FrameNumber);
 
-	//FChaosVDSolverData& AddSolverData(EChaosVDSolverType SolverType) { return RecordedSolvers.Contains(SolverType) ? RecordedSolvers[SolverType] : RecordedSolvers.Add(SolverType,FChaosVDSolverData()); }
-};
+	/** Called each time the recording changes - Mainly when a new frame is added from the Trace analysis */
+	FChaosVDRecordingUpdated& OnRecordingUpdated() { return RecordingUpdatedDelegate; };
 
-USTRUCT()
-struct FChaosVDRecordingHeader
-{
-	GENERATED_BODY()
+	/** Session name of the trace session used to re-build this recording */
+	FString SessionName;
 
-	UPROPERTY()
-	bool bIsRealTimeRecording = false;
-};
+protected:
 
-USTRUCT()
-struct CHAOSVDRUNTIME_API FChaosVDRecording 
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FChaosVDRecordingHeader RecordingHeader;
-
-	UPROPERTY()
-	TArray<FChaosVDFrameData> RecordedFramesData;
-
-	FChaosVDFrameData& GetCurrentFrame() { return RecordedFramesData.Num() ? RecordedFramesData.Last() : AddFrame(); }
-
-	FChaosVDFrameData& AddFrame();
+	TMap<int32, EChaosVDFrameLoadState> AvailableFramesState;
+	TMap<int32, TArray<FChaosVDSolverFrameData>> RecordedFramesDataPerSolver;
+	FChaosVDRecordingUpdated RecordingUpdatedDelegate;
 };
