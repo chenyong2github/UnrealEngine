@@ -19,6 +19,10 @@
             "PlatformAllowList": [ "Win64", "Mac", "Android", "Linux", "IOS"]
         },
     ],
-    "Plugins": [
-    ]
+	"Plugins": [
+		{
+			"Name": "XRBase",
+			"Enabled": true
+		}
+	]
 }
