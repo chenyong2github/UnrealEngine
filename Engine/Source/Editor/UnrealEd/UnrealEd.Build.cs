@@ -322,7 +322,6 @@ public class UnrealEd : ModuleRules
 				"CollectionManager",
 				"ContentBrowser",
 				"BlueprintGraph",
-				"AddContentDialog",
 				"MeshUtilities",
 				"KismetCompiler",
 				"NavigationSystem",
