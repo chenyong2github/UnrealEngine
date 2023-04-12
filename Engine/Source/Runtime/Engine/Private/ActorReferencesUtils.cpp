@@ -49,7 +49,7 @@ public:
 
 	virtual FArchive& operator<<(FWeakObjectPtr& Value) override
 	{
-		if (UObject* Object = Value.Get(true))
+		if (UObject* Object = Value.Get())
 		{
 			return *this << Object;
 		}
