@@ -382,7 +382,7 @@ float UAISense_Sight::Update()
 				const bool bIsVisible = VisibilityResult == EVisibilityResult::Visible;
 				const bool bWasVisible = SightQuery->GetLastResult();
 				const FVector TargetLocation = TargetActor->GetActorLocation();
-				UpdateQueryVisibilityStatus(*SightQuery, Listener, bIsVisible, SeenLocation, StimulusStrength, TargetActor, TargetLocation);
+				UpdateQueryVisibilityStatus(*SightQuery, Listener, bIsVisible, SeenLocation, StimulusStrength, *TargetActor, TargetLocation);
 
 				const float SightRadiusSq = bWasVisible ? PropDigest.LoseSightRadiusSq : PropDigest.SightRadiusSq;
 				SightQuery->Importance = CalcQueryImportance(Listener, TargetLocation, SightRadiusSq);
@@ -578,10 +578,18 @@ UAISense_Sight::EVisibilityResult UAISense_Sight::ComputeVisibility(UWorld* Worl
 
 void UAISense_Sight::UpdateQueryVisibilityStatus(FAISightQuery& SightQuery, FPerceptionListener& Listener, const bool bIsVisible, const FVector& SeenLocation, const float StimulusStrength, AActor* TargetActor, const FVector& TargetLocation) const
 {
+	if (TargetActor)
+	{
+		UpdateQueryVisibilityStatus(SightQuery, Listener, bIsVisible, SeenLocation, StimulusStrength, *TargetActor, TargetLocation);
+	}
+}
+
+void UAISense_Sight::UpdateQueryVisibilityStatus(FAISightQuery& SightQuery, FPerceptionListener& Listener, const bool bIsVisible, const FVector& SeenLocation, const float StimulusStrength, AActor& TargetActor, const FVector& TargetLocation) const
+{
 	if (bIsVisible)
 	{
 		const bool bHasValidSeenLocation = SeenLocation != FAISystem::InvalidLocation;
-		Listener.RegisterStimulus(TargetActor, FAIStimulus(*this, StimulusStrength, bHasValidSeenLocation ? SeenLocation : SightQuery.LastSeenLocation, Listener.CachedLocation));
+		Listener.RegisterStimulus(&TargetActor, FAIStimulus(*this, StimulusStrength, bHasValidSeenLocation ? SeenLocation : SightQuery.LastSeenLocation, Listener.CachedLocation));
 		SightQuery.SetLastResult(true);
 		if (bHasValidSeenLocation)
 		{
@@ -591,12 +599,12 @@ void UAISense_Sight::UpdateQueryVisibilityStatus(FAISightQuery& SightQuery, FPer
 	// communicate failure only if we've seen given actor before
 	else if (SightQuery.GetLastResult())
 	{
-		Listener.RegisterStimulus(TargetActor, FAIStimulus(*this, 0.f, TargetLocation, Listener.CachedLocation, FAIStimulus::SensingFailed));
+		Listener.RegisterStimulus(&TargetActor, FAIStimulus(*this, 0.f, TargetLocation, Listener.CachedLocation, FAIStimulus::SensingFailed));
 		SightQuery.SetLastResult(false);
 		SightQuery.LastSeenLocation = FAISystem::InvalidLocation;
 	}
 
-	SIGHT_LOG_SEGMENT(ListenerPtr->GetOwner(), Listener.CachedLocation, TargetLocation, bIsVisible ? FColor::Green : FColor::Red, TEXT("TargetID %d"), Target.TargetId);
+	SIGHT_LOG_SEGMENT(Listener.GetBodyActor(), Listener.CachedLocation, TargetLocation, bIsVisible ? FColor::Green : FColor::Red, TEXT("Target: %s"), *TargetActor.GetName());
 }
 
 void UAISense_Sight::OnPendingCanBeSeenQueryProcessed(const FAISightQueryID& QueryID, const bool bIsVisible, const float StimulusStrength, const FVector& SeenLocation, const TOptional<int32>& UserData)
@@ -677,7 +685,7 @@ void UAISense_Sight::OnPendingQueryProcessed(const int32 SightQueryIndex, const 
 
 	const bool bWasVisible = SightQuery.GetLastResult();
 	const FVector TargetLocation = TargetActor->GetActorLocation();
-	UpdateQueryVisibilityStatus(SightQuery, *Listener, bIsVisible, SeenLocation, StimulusStrength, TargetActor, TargetLocation);
+	UpdateQueryVisibilityStatus(SightQuery, *Listener, bIsVisible, SeenLocation, StimulusStrength, *TargetActor, TargetLocation);
 
 	if (UserData.IsSet())
 	{

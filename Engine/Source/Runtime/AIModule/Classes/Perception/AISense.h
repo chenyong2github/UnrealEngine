@@ -49,13 +49,13 @@ private:
 	FAISenseID SenseID;
 
 protected:
-	/**	If bound will be called when new FPerceptionListener gets registers with AIPerceptionSystem */
+	/**	Called when a new FPerceptionListener registers with AIPerceptionSystem */
 	FOnPerceptionListenerUpdateDelegate OnNewListenerDelegate;
 
-	/**	If bound will be called when a FPerceptionListener's in AIPerceptionSystem change */
+	/**	Called when a registered FPerceptionListener changes */
 	FOnPerceptionListenerUpdateDelegate OnListenerUpdateDelegate;
 
-	/**	If bound will be called when a FPerceptionListener's in removed from AIPerceptionSystem */
+	/**	Called when a FPerceptionListener is removed from AIPerceptionSystem */
 	FOnPerceptionListenerUpdateDelegate OnListenerRemovedDelegate;
 				
 public:
