@@ -165,18 +165,24 @@ bool USequencerPlaylistPlayer::IsPlaying(USequencerPlaylistItem* Item)
 
 FSequencerPlaylistPlaybackState USequencerPlaylistPlayer::GetPlaybackState(USequencerPlaylistItem* Item)
 {
+	FSequencerPlaylistPlaybackState Result;
+
 	if (!Item)
 	{
-		return FSequencerPlaylistPlaybackState();
+		return Result;
 	}
 
 	// If Sequencer isn't already open, don't open it
-	if (!WeakSequencer.IsValid())
+	if (WeakSequencer.IsValid())
 	{
-		return FSequencerPlaylistPlaybackState();
+		Result = GetCheckedItemPlayer(Item)->GetPlaybackState(Item);
+	}
+	else
+	{
+		Result.bIsPaused = Item->bHoldAtFirstFrame;
 	}
 
-	return GetCheckedItemPlayer(Item)->GetPlaybackState(Item);
+	return Result;
 }
 
 
@@ -521,6 +527,23 @@ void USequencerPlaylistPlayer::OnTakeRecorderInitialized(UTakeRecorder* InRecord
 
 void USequencerPlaylistPlayer::OnTakeRecorderStarted(UTakeRecorder* InRecorder)
 {
+	if (!ensure(Playlist))
+	{
+		return;
+	}
+
+	if (TSharedPtr<ISequencer> Sequencer = GetOrCreateSequencer())
+	{
+		FScopedTransaction Transaction(LOCTEXT("TakeRecorderStartedTransaction", "Playlist - Take Recorder started"));
+
+		for (USequencerPlaylistItem* Item : Playlist->Items)
+		{
+			if (Item->bHoldAtFirstFrame && !Item->bMute)
+			{
+				GetCheckedItemPlayer(Item)->AddHold(Item);
+			}
+		}
+	}
 }
 
 

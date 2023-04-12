@@ -81,11 +81,11 @@ TSharedRef<FSlateStyleSet> FSequencerPlaylistsStyle::Create()
 	DimColor.A = 0.5f;
 	Style->Set("SequencerPlaylists.Item.Dim", new FSlateColorBrush(DimColor));
 
-	Style->Set("SequencerPlaylists.NewPlaylist", new IMAGE_BRUSH_SVG("PlaylistNew", Icon16x16));
+	Style->Set("SequencerPlaylists.NewPlaylist", new IMAGE_BRUSH_SVG("PlaylistNew", Icon20x20));
 	// SavePlaylist is registered under a different root below.
-	Style->Set("SequencerPlaylists.OpenPlaylist", new IMAGE_BRUSH_SVG("PlaylistLoad", Icon16x16));
+	Style->Set("SequencerPlaylists.OpenPlaylist", new IMAGE_BRUSH_SVG("PlaylistLoad", Icon20x20));
 
-	Style->Set("SequencerPlaylists.PlayMode", new IMAGE_BRUSH_SVG("PlaybackAuto", Icon16x16));
+	Style->Set("SequencerPlaylists.PlayMode", new IMAGE_BRUSH_SVG("PlaybackAuto", Icon20x20));
 
 	Style->Set("SequencerPlaylists.HoldFrame", new IMAGE_BRUSH_SVG("HoldFrame", Icon16x16));
 
@@ -102,7 +102,7 @@ TSharedRef<FSlateStyleSet> FSequencerPlaylistsStyle::Create()
 	{
 		const FToolBarStyle& SlimToolbarStyle = FAppStyle::Get().GetWidgetStyle<FToolBarStyle>("SlimToolBar");
 		FToolBarStyle MainToolbarStyle = FToolBarStyle(SlimToolbarStyle)
-			.SetIconSize(Icon16x16)
+			.SetIconSize(Icon20x20)
 			.SetComboButtonPadding(FMargin(2.0f, 0.0f));
 
 		FButtonStyle MainToolbarButtonStyle = FButtonStyle(SlimToolbarStyle.ButtonStyle)
@@ -281,7 +281,7 @@ TSharedRef<FSlateStyleSet> FSequencerPlaylistsStyle::Create()
 			Style->SetContentRoot(EngineEditorSlateDir);
 			Style->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
-			Style->Set("SequencerPlaylists.SavePlaylist", new IMAGE_BRUSH_SVG("Starship/Common/SaveCurrent", Icon16x16));
+			Style->Set("SequencerPlaylists.SavePlaylist", new IMAGE_BRUSH_SVG("Starship/Common/SaveCurrent", Icon20x20));
 
 			Style->Set("SequencerPlaylists.Play", new IMAGE_BRUSH_SVG("Starship/Common/play", Icon20x20));
 			Style->Set("SequencerPlaylists.Play.Small", new IMAGE_BRUSH_SVG("Starship/Common/play", Icon16x16));

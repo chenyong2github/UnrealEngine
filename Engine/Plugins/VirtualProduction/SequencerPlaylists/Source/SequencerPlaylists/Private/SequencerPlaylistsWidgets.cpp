@@ -381,6 +381,7 @@ TSharedRef<SWidget> SSequencerPlaylistPanel::Construct_Transport()
 			[
 				SNew(SImage)
 				.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Stop"))
+				.DesiredSizeOverride(FVector2D(18.0f, 18.0f))
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		]
@@ -1227,6 +1228,7 @@ void SSequencerPlaylistItemWidget::ConstructChildren(ETableViewMode::Type InOwne
 				[
 					SNew(SImage)
 					.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Stop"))
+					.DesiredSizeOverride(FVector2D(18.0f, 18.0f))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
@@ -1330,6 +1332,7 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 					[
 						SNew(SImage)
 						.Image(FSequencerPlaylistsStyle::Get().GetBrush("SequencerPlaylists.Stop.Small"))
+						.DesiredSizeOverride(FVector2D(14.0f, 14.0f))
 						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
 				]

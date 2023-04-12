@@ -140,15 +140,22 @@ FSequencerPlaylistItemPlayer_Sequence::GetPlaybackState(USequencerPlaylistItem* 
 		return Result;
 	}
 
-	const FItemState* ItemState = ItemStates.Find(Item);
-	if (!ItemState)
+	if (IsSequencerRecordingOrPlaying())
 	{
-		return Result;
-	}
+		const FItemState* ItemState = ItemStates.Find(Item);
+		if (!ItemState)
+		{
+			return Result;
+		}
 
-	Result.bIsPlaying = ItemState->PlayingUntil_RootTicks > Sequencer->GetGlobalTime().Time.FloorToFrame().Value;
-	Result.bIsPaused = ItemState->WeakHoldSection.IsValid();
-	Result.PlaybackDirection = ItemState->LastPlayDirection;
+		Result.bIsPlaying = ItemState->PlayingUntil_RootTicks > Sequencer->GetGlobalTime().Time.FloorToFrame().Value;
+		Result.bIsPaused = ItemState->WeakHoldSection.IsValid();
+		Result.PlaybackDirection = ItemState->LastPlayDirection;
+	}
+	else
+	{
+		Result.bIsPaused = Item->bHoldAtFirstFrame;
+	}
 
 	return Result;
 }
@@ -271,13 +278,10 @@ bool FSequencerPlaylistItemPlayer_Sequence::InternalPause(USequencerPlaylistItem
 		return bSequenceWasModified;
 	}
 
-	const FQualifiedFrameTime GlobalTime = Sequencer->GetGlobalTime();
-
-	FItemState& ItemState = ItemStates.FindOrAdd(Item);
-	UMovieSceneSubSection* HoldSection = ItemState.WeakHoldSection.Get();
-	if (HoldSection)
+	if (IsSequencerRecordingOrPlaying())
 	{
-		if (IsSequencerRecordingOrPlaying())
+		FItemState& ItemState = ItemStates.FindOrAdd(Item);
+		if (UMovieSceneSubSection* HoldSection = ItemState.WeakHoldSection.Get())
 		{
 			// Resume playback
 			FPlayParams PlayParams;
@@ -287,16 +291,9 @@ bool FSequencerPlaylistItemPlayer_Sequence::InternalPause(USequencerPlaylistItem
 		}
 		else
 		{
-			// Cancel hold
-			bSequenceWasModified |= Stop(Item);
-			ItemState.bHoldOnReset = false;
-		}
-	}
-	else
-	{
-		FHoldParams HoldParams;
-		if (IsSequencerRecordingOrPlaying())
-		{
+			FHoldParams HoldParams;
+
+			const FQualifiedFrameTime GlobalTime = Sequencer->GetGlobalTime();
 			UMovieSceneSubSection* CurrentPlayingSection = IsTimeWithinAnySection(GlobalTime, ItemState.WeakPlaySections);
 			if (CurrentPlayingSection)
 			{
@@ -305,14 +302,14 @@ bool FSequencerPlaylistItemPlayer_Sequence::InternalPause(USequencerPlaylistItem
 
 				HoldParams.StartFrameOffset_SceneTicks = InnerTimeAndWarp.Get<0>().GetValue();
 			}
-		}
-		else
-		{
-			ItemState.bHoldOnReset = true;
-		}
 
-		bSequenceWasModified |= Stop(Item);
-		bSequenceWasModified |= InternalAddHold(Item, HoldParams);
+			bSequenceWasModified |= Stop(Item);
+			bSequenceWasModified |= InternalAddHold(Item, HoldParams);
+		}
+	}
+	else
+	{
+		Item->bHoldAtFirstFrame = !Item->bHoldAtFirstFrame;
 	}
 
 	return bSequenceWasModified;
@@ -422,15 +419,16 @@ bool FSequencerPlaylistItemPlayer_Sequence::InternalReset(USequencerPlaylistItem
 {
 	bool bSequenceWasModified = false;
 
-	FItemState& ItemState = ItemStates.FindOrAdd(Item);
-	if (ItemState.bHoldOnReset)
+	if (!Item)
 	{
-		bSequenceWasModified |= Stop(Item);
-		bSequenceWasModified |= AddHold(Item);
+		return bSequenceWasModified;
 	}
-	else
+
+	bSequenceWasModified |= Stop(Item);
+
+	if (Item->bHoldAtFirstFrame)
 	{
-		bSequenceWasModified |= Stop(Item);
+		bSequenceWasModified |= AddHold(Item);
 	}
 
 	return bSequenceWasModified;

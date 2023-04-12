@@ -37,7 +37,6 @@ class FSequencerPlaylistItemPlayer_Sequence : public ISequencerPlaylistItemPlaye
 		TArray<TWeakObjectPtr<UMovieSceneSubSection>> WeakPlaySections;
 		int32 PlayingUntil_RootTicks = TNumericLimits<int32>::Min();
 		ESequencerPlaylistPlaybackDirection LastPlayDirection = ESequencerPlaylistPlaybackDirection::Forward;
-		bool bHoldOnReset = false;
 	};
 
 public:
