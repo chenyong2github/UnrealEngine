@@ -1902,6 +1902,9 @@ public:
 	/** Delay loading this texture until it is needed by the renderer. */
 	void LoadDefaultFilmGrainTexture();
 
+	/** Conditionally load this texture for a platform. Always loaded in Editor */
+	void ConditionallyLoadPreIntegratedSkinBRDFTexture();
+
 private:
 	#if WITH_DYNAMIC_RESOLUTION
 		/** Last dynamic resolution event. */

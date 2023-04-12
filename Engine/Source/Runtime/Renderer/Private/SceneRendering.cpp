@@ -1841,6 +1841,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.FarShadowStaticMeshLODBias = 0;
 	}
 
+	if (GEngine->PreIntegratedSkinBRDFTexture)
 	{
 		const FTextureResource* TextureResource = GEngine->PreIntegratedSkinBRDFTexture->GetResource();
 		if (TextureResource)

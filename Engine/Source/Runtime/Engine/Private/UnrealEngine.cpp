@@ -3112,10 +3112,10 @@ void UEngine::InitializeObjectReferences()
 	LoadEngineTexture(DefaultDiffuseTexture, *DefaultDiffuseTextureName.ToString());
 	LoadEngineTexture(HighFrequencyNoiseTexture, *HighFrequencyNoiseTextureName.ToString());
 	LoadEngineTexture(DefaultBokehTexture, *DefaultBokehTextureName.ToString());
-	LoadEngineTexture(PreIntegratedSkinBRDFTexture, *PreIntegratedSkinBRDFTextureName.ToString());
 	LoadEngineTexture(MiniFontTexture, *MiniFontTextureName.ToString());
 	LoadEngineTexture(WeightMapPlaceholderTexture, *WeightMapPlaceholderTextureName.ToString());
 	LoadEngineTexture(LightMapDensityTexture, *LightMapDensityTextureName.ToString());
+	ConditionallyLoadPreIntegratedSkinBRDFTexture();
 
 #if WITH_EDITOR
 	// Avoid breaking some engine textures that might be cached very early (i.e. BlueNoise)
@@ -3303,6 +3303,19 @@ void UEngine::LoadDefaultFilmGrainTexture()
 	if (DefaultFilmGrainTexture == nullptr && DefaultFilmGrainTextureName.IsValid())
 	{
 		LoadEngineTexture(DefaultFilmGrainTexture, *DefaultFilmGrainTextureName.ToString());
+	}
+}
+
+void UEngine::ConditionallyLoadPreIntegratedSkinBRDFTexture()
+{
+	if (PreIntegratedSkinBRDFTexture == nullptr)
+	{
+		uint32 ShadingModelsMask = GetPlatformShadingModelsMask(GMaxRHIShaderPlatform);
+		uint32 SkinShadingMask = (1u << (uint32)MSM_PreintegratedSkin);
+		if (GIsEditor || (ShadingModelsMask & SkinShadingMask) != 0)
+		{
+			LoadEngineTexture(PreIntegratedSkinBRDFTexture, *PreIntegratedSkinBRDFTextureName.ToString());
+		}
 	}
 }
 
