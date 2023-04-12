@@ -1310,13 +1310,13 @@ namespace CrossCompiler
 			else
 			{
 				FString Directive = TEXT("#if 0") + Tokenizer.ReadToEndOfLine();
-				CompilerMessages.SourceWarning(*FString::Printf(TEXT("Unhandled preprocessor directive (%s); HlslParser requires preprocessed input!"), Tokenizer.Current));
+				CompilerMessages.SourceWarning(*FString::Printf(TEXT("Unhandled preprocessor directive (%.500s); HlslParser requires preprocessed input!"), *Directive));
 			}
 		}
 		else
 		{
-			FString Directive = TEXT("#") + Tokenizer.ReadToEndOfLine();
-			CompilerMessages.SourceWarning(*FString::Printf(TEXT("Unhandled token (%s); HlslParser requires preprocessed input!"), Tokenizer.Current));
+			FString Directive = Tokenizer.ReadToEndOfLine();
+			CompilerMessages.SourceWarning(*FString::Printf(TEXT("Unhandled token (%.500s); HlslParser requires preprocessed input!"), *Directive));
 		}
 
 		Tokenizer.SkipToNextLine();
