@@ -184,6 +184,9 @@ protected:
 	/** Calculate a hash used to determine if the StreamingTexture contents are valid for use. The hash doesn't include whether the contents are up to date. */
 	uint64 CalculateStreamingTextureSettingsHash() const;
 
+	/** @return true if the owning World is one where URuntimeVirtualTextureComponent should actually do anything (avoids updating RVT for non-game/PIE/editor world types) */
+	bool IsActiveInWorld() const;
+
 public:
 	/** Scene proxy object. Managed by the scene but stored here. */
 	class FRuntimeVirtualTextureSceneProxy* SceneProxy;
