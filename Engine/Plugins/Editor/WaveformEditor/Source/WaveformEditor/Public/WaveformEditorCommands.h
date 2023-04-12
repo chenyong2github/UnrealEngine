@@ -26,4 +26,9 @@ public:
 	TSharedPtr<FUICommandInfo> ExportWaveform;
 	TSharedPtr<FUICommandInfo> ExportFormatMono;
 	TSharedPtr<FUICommandInfo> ExportFormatStereo;
+
+	TSharedPtr<FUICommandInfo> ReimportAsset;
+	TSharedPtr<FUICommandInfo> ReimportModeSameFile;
+	TSharedPtr<FUICommandInfo> ReimportModeNewFile;
+
 };

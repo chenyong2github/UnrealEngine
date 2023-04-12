@@ -25,6 +25,7 @@ class WAVEFORMEDITOR_API FWaveformEditor
 public:
 
 	bool Init(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, USoundWave* SoundWaveToEdit);
+	virtual ~FWaveformEditor();
 
 	/** FAssetEditorToolkit interface */
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
@@ -34,6 +35,8 @@ public:
 	virtual FText GetBaseToolkitName() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
+
+	void OnAssetReimport(UObject* ReimportedObject, bool bSuccessfullReimport);
 
 	/** FNotifyHook interface */
 	void NotifyPreChange(class FEditPropertyChain* PropertyAboutToChange) override {};
@@ -50,6 +53,8 @@ private:
 	bool CreateTransportController();
 	bool InitializeZoom();
 	bool BindDelegates();
+	bool SetUpAssetReimport();
+	void ExecuteReimport();
 
 	/**	Sets the wave editor layout */
 	const TSharedRef<FTabManager::FLayout> SetupStandaloneLayout();
@@ -58,6 +63,8 @@ private:
 	bool RegisterToolbar();
 	bool BindCommands();
 	TSharedRef<SWidget> GenerateExportOptionsMenu();
+	TSharedRef<SWidget> GenerateImportOptionsMenu();
+	bool CanExecuteReimport() const;
 
 	/**	Details tabs set up */
 	TSharedRef<SDockTab> SpawnTab_Properties(const FSpawnTabArgs& Args);
@@ -67,13 +74,14 @@ private:
 	/**	Waveform view tab setup */
 	TSharedRef<SDockTab> SpawnTab_WaveformDisplay(const FSpawnTabArgs& Args);
 	bool CreateWaveformView();
+	bool CreateTransportCoordinator();
 
 	/** Playback delegates handlers */
 	void HandlePlaybackPercentageChange(const UAudioComponent* InComponent, const USoundWave* InSoundWave, const float InPlaybackPercentage);
 	void HandleAudioComponentPlayStateChanged(const UAudioComponent* InAudioComponent, EAudioComponentPlayState NewPlayState);
 	void HandlePlayheadScrub(const float InTargetPlayBackRatio, const bool bIsMoving);
 
-	/* Delegates Handlers*/
+	/* Data View Delegates Handlers*/
 	void HandleRenderDataUpdate();
 	void HandleDisplayRangeUpdate(const TRange<double>);
 
@@ -124,5 +132,16 @@ private:
 	float PlaybackTimeBeforeTransformInteraction = 0.f;
 	float StartTimeBeforeTransformInteraction = 0.f;
 	FWaveTransformUObjectConfiguration TransformationChainConfig;
+
+	enum class EWaveEditorReimportMode : uint8
+	{
+		SameFile = 0, 
+		SelectFile,
+		COUNT
+
+	} ReimportMode;
+
+	FText GetReimportButtonToolTip() const;
+	FText GetExportButtonToolTip() const;
 };
 
