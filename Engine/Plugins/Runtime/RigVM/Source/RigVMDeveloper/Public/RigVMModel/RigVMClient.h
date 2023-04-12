@@ -85,6 +85,7 @@ public:
 	FRigVMClient()
 		: ExecuteContextStruct(nullptr)
 		, FunctionLibrary(nullptr)
+		, ActionStack(nullptr)
 		, bSuspendNotifications(false)
 		, bIgnoreModelNotifications(false)
 		, OuterClientHost(nullptr)
@@ -188,6 +189,7 @@ private:
 
 	URigVMController* CreateController(const URigVMGraph* InModel);
 	URigVMActionStack* GetOrCreateActionStack();
+	void ResetActionStack();
 
 	UPROPERTY(transient)
 	TObjectPtr<UScriptStruct> ExecuteContextStruct;

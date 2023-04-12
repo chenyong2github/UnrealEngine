@@ -73,6 +73,8 @@ void FRigVMClient::Reset()
 	Models.Reset();
 	Controllers.Reset();
 	FunctionLibrary = nullptr;
+
+	ResetActionStack();
 }
 
 URigVMGraph* FRigVMClient::GetDefaultModel() const
@@ -709,17 +711,23 @@ URigVMActionStack* FRigVMClient::GetOrCreateActionStack()
 {
 	if(UObject* Outer = GetOuter())
 	{
+		if (ActionStack && ActionStack->GetOuter() != Outer)
+		{
+			ResetActionStack();
+		}
+		
 		if(ActionStack == nullptr)
 		{
 			ActionStack = NewObject<URigVMActionStack>(Outer, TEXT("ActionStack"));
 		}
-		else if(ActionStack->GetOuter() != Outer)
-		{
-			// make sure the action stack is parented correctly
-			ActionStack->Rename(nullptr, Outer, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
-		}
 	}
 	return ActionStack;
+}
+
+void FRigVMClient::ResetActionStack()
+{
+	DestroyObject(ActionStack);
+	ActionStack = nullptr;
 }
 
 FName FRigVMClient::GetUniqueName(const FName& InDesiredName) const
