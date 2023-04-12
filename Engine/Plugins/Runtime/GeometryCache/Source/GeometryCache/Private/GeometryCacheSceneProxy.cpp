@@ -1488,7 +1488,7 @@ void FGeomCacheIndexBuffer::InitRHI()
 
 	if (IndexBufferRHI && NumAllocatedIndices)
 	{
-		BufferSRV = RHICreateShaderResourceView(IndexBufferRHI);
+		BufferSRV = RHICreateShaderResourceView(IndexBufferRHI, sizeof(uint32), PF_R32_UINT);
 	}
 }
 
@@ -1544,7 +1544,7 @@ void FGeomCacheIndexBuffer::Update(const TArray<uint32>& Indices)
 
 	if (bReallocate && IndexBufferRHI && NumAllocatedIndices)
 	{
-		BufferSRV = RHICreateShaderResourceView(IndexBufferRHI);
+		BufferSRV = RHICreateShaderResourceView(IndexBufferRHI, sizeof(uint32), PF_R32_UINT);
 	}
 }
 
@@ -1565,7 +1565,7 @@ void FGeomCacheIndexBuffer::UpdateSizeOnly(int32 NewNumIndices)
 
 	if (bReallocate && IndexBufferRHI && NumAllocatedIndices)
 	{
-		BufferSRV = RHICreateShaderResourceView(IndexBufferRHI);
+		BufferSRV = RHICreateShaderResourceView(IndexBufferRHI, sizeof(uint32), PF_R32_UINT);
 	}
 }
 

@@ -3990,9 +3990,11 @@ public:
 	//UE_DEPRECATED(5.3, "Use the CreateShaderResourceView function that takes an FRHIViewDesc.")
 	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHIBuffer* Buffer)
 	{
-		return CreateShaderResourceView(Buffer, FRHIViewDesc::CreateBufferSRV()
-			.SetTypeFromBuffer(Buffer)
-		);
+		FShaderResourceViewRHIRef SRVRef = CreateShaderResourceView(Buffer, FRHIViewDesc::CreateBufferSRV()
+				.SetTypeFromBuffer(Buffer));
+		checkf(SRVRef->GetDesc().Buffer.SRV.BufferType != FRHIViewDesc::EBufferType::Typed,
+			TEXT("Typed buffer should be created using CreateShaderResourceView where Format is specified."));
+		return SRVRef;
 	}
 	
 	//UE_DEPRECATED(5.3, "Use the CreateShaderResourceView function that takes an FRHIViewDesc.")
