@@ -6517,6 +6517,8 @@ AActor* UEditorEngine::AddActor(ULevel* InLevel, UClass* Class, const FTransform
 
 		if (Actor)
 		{
+			FActorLabelUtilities::SetActorLabelUnique(Actor, Actor->GetDefaultActorLabel());
+
 			if (bSelectActor)
 			{
 				SelectActor(Actor, 1, 0);
