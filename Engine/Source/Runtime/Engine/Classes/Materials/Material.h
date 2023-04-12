@@ -776,7 +776,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Usage)
 	uint32 bUsedWithNanite : 1;
 
-	/**
+	/** 
 	 * Indicates that the material and its instances with volumetric cloud. Without that flag, it can only be used on volumetric fog.
 	 * This will result in the shaders required to support Volumetric Cloud rendering being compiled which will increase shader compile time and memory usage.
 	 */
@@ -1004,7 +1004,7 @@ public:
 	UPROPERTY(EditAnywhere, Category=Refraction)
 	float RefractionDepthBias;
 
-	/**
+	/** 
 	 * Specifies the max world position offset of the material. Use this value to resolve issues with culling and self-occlusion caused by
 	 * World Position Offset, and/or to restrict how much offset is permitted (i.e. values are clamped on each axis).
 	 * NOTE: A value of 0.0 effectively means "no maximum", and will not clamp the offsets, however it will also not extend culling bounds.
@@ -1124,6 +1124,7 @@ public:
 	ENGINE_API virtual USubsurfaceProfile* GetSubsurfaceProfile_Internal() const override;
 	ENGINE_API virtual bool CastsRayTracedShadows() const override;
 	ENGINE_API virtual float GetMaxWorldPositionOffsetDisplacement() const override;
+	ENGINE_API virtual bool WritesToRuntimeVirtualTexture() const override;
 
 	ENGINE_API virtual FGraphEventArray PrecachePSOs(const FPSOPrecacheVertexFactoryDataList& VertexFactoryDataList, const FPSOPrecacheParams& PreCacheParams, EPSOPrecachePriority Priority, TArray<FMaterialPSOPrecacheRequestID>& OutMaterialPSORequestIDs) override;
 

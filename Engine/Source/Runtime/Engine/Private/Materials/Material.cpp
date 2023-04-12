@@ -6566,6 +6566,11 @@ bool UMaterial::IsPostProcessMaterial() const
 	return MaterialDomain == MD_PostProcess;
 }
 
+bool UMaterial::WritesToRuntimeVirtualTexture() const
+{
+	return GetCachedExpressionData().bHasRuntimeVirtualTextureOutput;
+}
+
 USubsurfaceProfile* UMaterial::GetSubsurfaceProfile_Internal() const
 {
 	checkSlow(IsInGameThread());

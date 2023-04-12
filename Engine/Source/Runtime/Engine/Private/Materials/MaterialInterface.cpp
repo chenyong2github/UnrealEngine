@@ -1286,7 +1286,13 @@ bool UMaterialInterface::IsDeferredDecal() const
 {
 	return false;
 }
+
 bool UMaterialInterface::GetCastDynamicShadowAsMasked() const
+{
+	return false;
+}
+
+bool UMaterialInterface::WritesToRuntimeVirtualTexture() const
 {
 	return false;
 }

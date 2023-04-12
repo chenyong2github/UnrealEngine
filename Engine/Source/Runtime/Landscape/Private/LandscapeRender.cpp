@@ -3163,6 +3163,12 @@ float ULandscapeMaterialInstanceConstant::GetLandscapeTexelFactor(const FName& T
 	return 1.0f;
 }
 
+bool ULandscapeMaterialInstanceConstant::WritesToRuntimeVirtualTexture() const
+{
+	// Don't invalidate the RVTs for the thumbnail material updates, that would be a waste : 
+	return !bIsLayerThumbnail && Super::WritesToRuntimeVirtualTexture();
+}
+
 #if WITH_EDITOR
 
 void ULandscapeMaterialInstanceConstant::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

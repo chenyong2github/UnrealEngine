@@ -3586,7 +3586,7 @@ void ALandscape::InvalidateRVTForTextures(const TSet<UTexture2D*>& InTextures)
 				//  gets fully streamed in so that we're not left with low-res mips being rendered in the RVT tiles : 
 				for (UMaterialInterface* MaterialInterface : ObjectCacheScope.GetContext().GetMaterialsAffectedByTexture(Texture))
 				{
-					if (MaterialInterface->GetCachedExpressionData().bHasRuntimeVirtualTextureOutput)
+					if (MaterialInterface->WritesToRuntimeVirtualTexture())
 					{
 						for (UPrimitiveComponent* PrimitiveComponent : ObjectCacheScope.GetContext().GetPrimitivesAffectedByMaterial(MaterialInterface))
 						{

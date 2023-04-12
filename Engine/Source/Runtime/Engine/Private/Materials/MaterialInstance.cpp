@@ -1768,6 +1768,11 @@ FMaterialResource* UMaterialInstance::GetMaterialResource(ERHIFeatureLevel::Type
 	return Parent ? Parent->GetMaterialResource(InFeatureLevel, QualityLevel) : nullptr;
 }
 
+bool UMaterialInstance::WritesToRuntimeVirtualTexture() const
+{
+	return Parent ? Parent->WritesToRuntimeVirtualTexture() : false;
+}
+
 const FMaterialResource* UMaterialInstance::GetMaterialResource(ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel) const
 {
 	return const_cast<UMaterialInstance*>(this)->GetMaterialResource(InFeatureLevel, QualityLevel);
@@ -4013,8 +4018,7 @@ void UMaterialInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 	if (GIsEditor)
 	{
 		// Brute force all flush virtual textures if this material writes to any runtime virtual texture.
-		const UMaterial* BaseMaterial = GetMaterial();
-		if (BaseMaterial != nullptr && BaseMaterial->GetCachedExpressionData().bHasRuntimeVirtualTextureOutput)
+		if (WritesToRuntimeVirtualTexture())
 		{
 			ENQUEUE_RENDER_COMMAND(FlushVTCommand)([ResourcePtr = Resource](FRHICommandListImmediate& RHICmdList) 
 			{

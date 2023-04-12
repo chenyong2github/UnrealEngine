@@ -5048,7 +5048,7 @@ void FMaterialEditor::OnNumericParameterDefaultChanged(class UMaterialExpression
 void FMaterialEditor::OnParameterDefaultChanged()
 {
 	// Brute force all flush virtual textures if this material writes to any runtime virtual texture.
-	if (Material->GetCachedExpressionData().bHasRuntimeVirtualTextureOutput)
+	if (Material->WritesToRuntimeVirtualTexture())
 	{
 		ENQUEUE_RENDER_COMMAND(FlushVTCommand)([](FRHICommandListImmediate& RHICmdList)
 		{
