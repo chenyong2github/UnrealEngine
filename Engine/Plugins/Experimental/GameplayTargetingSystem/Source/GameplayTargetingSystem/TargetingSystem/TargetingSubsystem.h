@@ -123,7 +123,7 @@ public:
 	TARGETINGSYSTEM_API static void ReleaseTargetRequestHandle(FTargetingRequestHandle& Handle);
 
 	/** The handle released delegate that fires right before a handle is release so all data stores can clean up their state */
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnTargetingRequestHandleReleased, const FTargetingRequestHandle&)
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnTargetingRequestHandleReleased, FTargetingRequestHandle)
 	static FOnTargetingRequestHandleReleased ReleaseHandleDelegate;
 
 	/** Target Handle Generation Methods */
@@ -186,7 +186,7 @@ public:
 
 	/** Function that lets you set a data store from a certain Targeting Handle to add some Collision Query Param Overrides  */
 	UFUNCTION(BlueprintCallable, Category = "Targeting System | Data Stores")
-	static void OverrideCollisionQueryTaskData(const FTargetingRequestHandle& TargetingHandle, const FCollisionQueryTaskData& CollisionQueryDataOverride);
+	static void OverrideCollisionQueryTaskData(FTargetingRequestHandle TargetingHandle, const FCollisionQueryTaskData& CollisionQueryDataOverride);
 
 	/** ~Blueprint Helper Methods */
 

@@ -655,7 +655,7 @@ void UTargetingSubsystem::GetTargetingResults(FTargetingRequestHandle TargetingH
 	}
 }
 
-void UTargetingSubsystem::OverrideCollisionQueryTaskData(const FTargetingRequestHandle& TargetingHandle, const FCollisionQueryTaskData& CollisionQueryDataOverride)
+void UTargetingSubsystem::OverrideCollisionQueryTaskData(FTargetingRequestHandle TargetingHandle, const FCollisionQueryTaskData& CollisionQueryDataOverride)
 {
 	if (TargetingHandle.IsValid())
 	{
