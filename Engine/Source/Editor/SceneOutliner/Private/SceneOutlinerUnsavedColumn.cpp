@@ -118,7 +118,14 @@ SHeaderRow::FColumn::FArguments FSceneOutlinerActorUnsavedColumn::ConstructHeade
 
 const TSharedRef<SWidget> FSceneOutlinerActorUnsavedColumn::ConstructRowWidget(FSceneOutlinerTreeItemRef TreeItem, const STableRow<FSceneOutlinerTreeItemPtr>& Row)
 {
-	FString AssetPath =  USourceControlHelpers::PackageFilename(SceneOutliner::FSceneOutlinerHelpers::GetExternalPackageName(TreeItem.Get()));
+	FString ItemPath = SceneOutliner::FSceneOutlinerHelpers::GetExternalPackageName(TreeItem.Get());
+
+	if (ItemPath.IsEmpty()) 
+	{
+		return SNullWidget::NullWidget;
+	}
+
+	FString AssetPath =  USourceControlHelpers::PackageFilename(ItemPath);
 
 	if (AssetPath.IsEmpty())
 	{
