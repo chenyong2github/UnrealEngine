@@ -806,9 +806,16 @@ void FConcertClientPresenceManager::OnJumpToPresence(FGuid InEndpointId, FTransf
 		}
 		else
 		{
-			FLevelEditorViewportClient* PerspectiveViewport = GetPerspectiveViewport();
-			if (PerspectiveViewport)
+			if (FLevelEditorViewportClient* PerspectiveViewport = GetPerspectiveViewport())
 			{
+				if (UVREditorModeBase* VRMode = IVREditorModule::Get().GetVRModeBase())
+				{
+					const FTransform HeadTransform = VRMode->GetHeadTransform();
+					const FTransform RoomTransform = VRMode->GetRoomTransform();
+					JumpPosition -= HeadTransform.GetLocation() - RoomTransform.GetLocation();
+					OtherClientRotation.Yaw -= (HeadTransform.Rotator().Yaw - RoomTransform.Rotator().Yaw);
+				}
+
 				PerspectiveViewport->SetViewLocation(JumpPosition);
 				PerspectiveViewport->SetViewRotation(OtherClientRotation);
 			}
