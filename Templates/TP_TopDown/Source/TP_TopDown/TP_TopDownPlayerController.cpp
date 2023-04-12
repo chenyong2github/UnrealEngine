@@ -8,7 +8,11 @@
 #include "TP_TopDownCharacter.h"
 #include "Engine/World.h"
 #include "EnhancedInputComponent.h"
+#include "InputActionValue.h"
 #include "EnhancedInputSubsystems.h"
+#include "Engine/LocalPlayer.h"
+
+DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
 ATP_TopDownPlayerController::ATP_TopDownPlayerController()
 {
@@ -36,7 +40,7 @@ void ATP_TopDownPlayerController::SetupInputComponent()
 	Super::SetupInputComponent();
 
 	// Set up action bindings
-	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(InputComponent))
+	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent))
 	{
 		// Setup mouse input events
 		EnhancedInputComponent->BindAction(SetDestinationClickAction, ETriggerEvent::Started, this, &ATP_TopDownPlayerController::OnInputStarted);
@@ -49,6 +53,10 @@ void ATP_TopDownPlayerController::SetupInputComponent()
 		EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Triggered, this, &ATP_TopDownPlayerController::OnTouchTriggered);
 		EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Completed, this, &ATP_TopDownPlayerController::OnTouchReleased);
 		EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Canceled, this, &ATP_TopDownPlayerController::OnTouchReleased);
+	}
+	else
+	{
+		UE_LOG(LogTemplateCharacter, Error, TEXT("'%s' Failed to find an Enhanced Input Component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
 	}
 }
 

@@ -4,15 +4,17 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
-#include "InputActionValue.h"
+#include "Logging/LogMacros.h"
 #include "TP_FirstPersonCharacter.generated.h"
 
 class UInputComponent;
 class USkeletalMeshComponent;
-class USceneComponent;
 class UCameraComponent;
-class UAnimMontage;
-class USoundBase;
+class UInputAction;
+class UInputMappingContext;
+struct FInputActionValue;
+
+DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
 UCLASS(config=Game)
 class ATP_FirstPersonCharacter : public ACharacter
@@ -29,16 +31,15 @@ class ATP_FirstPersonCharacter : public ACharacter
 
 	/** MappingContext */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
-	class UInputMappingContext* DefaultMappingContext;
+	UInputMappingContext* DefaultMappingContext;
 
 	/** Jump Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
-	class UInputAction* JumpAction;
+	UInputAction* JumpAction;
 
 	/** Move Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Input, meta=(AllowPrivateAccess = "true"))
-	class UInputAction* MoveAction;
-
+	UInputAction* MoveAction;
 	
 public:
 	ATP_FirstPersonCharacter();
