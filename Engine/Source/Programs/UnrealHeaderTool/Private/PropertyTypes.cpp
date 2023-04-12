@@ -9,6 +9,7 @@
 #include "UnrealTypeDefinitionInfo.h"
 #include "Misc/DefaultValueHelper.h"
 #include "UObject/ObjectMacros.h"
+#include <functional>
 
 // Globals for common class definitions
 extern FUnrealClassDefinitionInfo* GUObjectDef;
