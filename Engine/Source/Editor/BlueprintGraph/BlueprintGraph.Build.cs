@@ -22,8 +22,6 @@ public class BlueprintGraph : ModuleRules
 				"Engine",
                 "InputCore",
 				"Slate",
-                
-				"EditorSubsystem",
 				"DeveloperSettings"
 			}
 		);
@@ -41,6 +39,7 @@ public class BlueprintGraph : ModuleRules
                 "PropertyEditor",
 				"ToolMenus",
 				"AssetTools",
+				"EditorSubsystem",
 			}
 		);
 
