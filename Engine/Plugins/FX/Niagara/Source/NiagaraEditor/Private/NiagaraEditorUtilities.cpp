@@ -2382,6 +2382,30 @@ TArray<FNiagaraUserParameterBinding*> FNiagaraEditorUtilities::GetUserParameterB
 	return Bindings;
 }
 
+TArray<TPair<FNiagaraVariableAttributeBinding*, ENiagaraRendererSourceDataMode>> FNiagaraEditorUtilities::GetVariableAttributeBindingsForParameter(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel, FNiagaraVariable Parameter)
+{
+	TArray<TPair<FNiagaraVariableAttributeBinding*, ENiagaraRendererSourceDataMode>> AttributeBindings;
+	
+	const TArray<UNiagaraRendererProperties*>& Renderers = EmitterViewModel->GetEmitter().GetEmitterData()->GetRenderers();
+	for(UNiagaraRendererProperties* Renderer : Renderers)
+	{
+		for(TFieldIterator<FStructProperty> It(Renderer->GetClass()); It; ++It)
+		{
+			if((*It)->Struct == StaticStruct<FNiagaraVariableAttributeBinding>())
+			{				
+				FNiagaraVariableAttributeBinding* ParameterBinding = (FNiagaraVariableAttributeBinding*) (*It)->ContainerPtrToValuePtr<void>(Renderer, 0);
+				
+				if(ParameterBinding->GetName().IsEqual(Parameter.GetName()))
+				{
+					AttributeBindings.Add({ParameterBinding, Renderer->GetCurrentSourceMode()});
+				}
+			}
+		}
+	}
+
+	return AttributeBindings;
+}
+
 TObjectPtr<UNiagaraScriptVariable> FNiagaraEditorUtilities::GetScriptVariableForUserParameter(const FNiagaraVariable& UserParameter, TSharedPtr<FNiagaraSystemViewModel> SystemViewModel)
 {
 	return Cast<UNiagaraSystemEditorData>(SystemViewModel->GetSystem().GetEditorData())->FindOrAddUserScriptVariable(UserParameter, SystemViewModel->GetSystem());
@@ -2392,7 +2416,7 @@ TObjectPtr<UNiagaraScriptVariable> FNiagaraEditorUtilities::GetScriptVariableFor
 	return Cast<UNiagaraSystemEditorData>(System.GetEditorData())->FindOrAddUserScriptVariable(UserParameter, System);
 }
 
-TObjectPtr<UNiagaraScriptVariable> FNiagaraEditorUtilities::FindScriptVariableForUserParameter(const FGuid& UserParameterGuid, UNiagaraSystem& System)
+const UNiagaraScriptVariable* FNiagaraEditorUtilities::FindScriptVariableForUserParameter(const FGuid& UserParameterGuid, const UNiagaraSystem& System)
 {
 	return Cast<UNiagaraSystemEditorData>(System.GetEditorData())->FindUserScriptVariable(UserParameterGuid);
 }
@@ -2406,6 +2430,12 @@ void FNiagaraEditorUtilities::ReplaceUserParameterReferences(TSharedRef<FNiagara
 		ReferencingBinding->Parameter = NewUserParameter;
 	}
 
+	TArray<TPair<FNiagaraVariableAttributeBinding*, ENiagaraRendererSourceDataMode>> ReferencingAttributeBindings = FNiagaraEditorUtilities::GetVariableAttributeBindingsForParameter(EmitterViewModel, OldUserParameter);
+	for(const auto& ReferencingBinding : ReferencingAttributeBindings)
+	{
+		ReferencingBinding.Key->SetValue(NewUserParameter.GetName(), EmitterViewModel->GetEmitter(), ReferencingBinding.Value);
+	}
+	
 	TArray<UNiagaraNodeParameterMapGet*> ReferencingMapGetNodes = FNiagaraEditorUtilities::GetParameterMapGetNodesWithUserParameter(EmitterViewModel, OldUserParameter);
 
 	for(UNiagaraNodeParameterMapGet* MapGet : ReferencingMapGetNodes)
@@ -4029,6 +4059,125 @@ TSharedRef<SWidget> FNiagaraParameterUtilities::GetParameterWidget(FNiagaraVaria
 	}
 
 	return ParameterWidget;
+}
+
+TSharedRef<SWidget> FNiagaraParameterUtilities::GetParameterWidget(FNiagaraVariable Variable, FNiagaraVariableMetaData Metadata, FNiagaraParameterWidgetOptions Options)
+{
+	TSharedRef<SHorizontalBox> IconBox = SNew(SHorizontalBox);
+
+	if(Options.bShowEditConditionIcon && !Metadata.EditCondition.InputName.IsNone())
+	{
+		TArray<FString> TargetValues = Metadata.EditCondition.TargetValues;
+
+		FString TooltipString = LOCTEXT("ParameterEditConditionWidgetTooltip", "This parameter is editable in the details panel when {0} is set to: ").ToString();
+
+		if(TargetValues.Num() == 0)
+		{
+			TooltipString.Append("true");
+		}
+		else
+		{
+			if(TargetValues.Num() > 1)
+			{
+				TooltipString.Append("\n");
+			}
+			
+			for(int32 TargetValueIndex = 0; TargetValueIndex < TargetValues.Num(); TargetValueIndex++)
+			{
+				TooltipString.Append(TargetValues[TargetValueIndex]);
+				
+				if(TargetValueIndex < TargetValues.Num() - 2)
+				{
+					TooltipString.Append("or\n");
+				}
+			}
+		}
+		
+		FText TooltipText = FText::FormatOrdered(FText::FromString(TooltipString), FText::FromName(Metadata.EditCondition.InputName));
+		
+		IconBox->AddSlot()
+		.Padding(2.f)
+		.AutoWidth()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SImage)
+			.Image(FAppStyle::GetBrush("Icons.Edit"))
+			.ToolTipText(TooltipText)
+		];
+	}
+
+	if(Options.bShowVisibilityConditionIcon && !Metadata.VisibleCondition.InputName.IsNone())
+	{
+		TArray<FString> TargetValues = Metadata.VisibleCondition.TargetValues;
+
+		FString TooltipString = LOCTEXT("ParameterVisibleConditionWidgetTooltip", "This parameter becomes visible in the details panel when {0} is set to: ").ToString();
+
+		if(TargetValues.Num() == 0)
+		{
+			TooltipString.Append("true");
+		}
+		else
+		{
+			if(TargetValues.Num() > 1)
+			{
+				TooltipString.Append("\n");
+			}
+			
+			for(int32 TargetValueIndex = 0; TargetValueIndex < TargetValues.Num(); TargetValueIndex++)
+			{
+				TooltipString.Append(TargetValues[TargetValueIndex]);
+				
+				if(TargetValueIndex < TargetValues.Num() - 2)
+				{
+					TooltipString.Append("or\n");
+				}
+			}
+		}
+		
+		FText TooltipText = FText::FormatOrdered(FText::FromString(TooltipString), FText::FromName(Metadata.VisibleCondition.InputName));
+		
+		IconBox->AddSlot()
+		.Padding(2.f)
+		.AutoWidth()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SImage)
+			.Image(FAppStyle::GetBrush("Icons.Visible"))
+			.ToolTipText(TooltipText)
+		];
+	}
+
+	if(Options.bShowAdvanced && Metadata.bAdvancedDisplay)
+	{		
+		FText TooltipText = LOCTEXT("ParameterIsAdvancedWidgetTooltip", "This parameter is 'advanced' and will only show up in the details panel when 'Show Advanced' is activated.");
+		
+		IconBox->AddSlot()
+		.Padding(2.f)
+		.AutoWidth()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SImage)
+			.Image(FAppStyle::GetBrush("DetailsView.PulldownArrow.Down"))
+			.ToolTipText(TooltipText)
+		];
+	}
+	
+	return SNew(SHorizontalBox)
+	+ SHorizontalBox::Slot()
+	.AutoWidth()
+	.VAlign(VAlign_Center)
+	[
+		GetParameterWidget(Variable, Options.bAddTypeIcon, Options.bShowValue)
+	]
+	+ SHorizontalBox::Slot()
+	.HAlign(HAlign_Right)
+	.VAlign(VAlign_Center)
+	[
+		IconBox
+	];	
 }
 
 TSharedRef<SToolTip> FNiagaraParameterUtilities::GetTooltipWidget(FNiagaraVariable Variable, bool bShowValue, TSharedPtr<SWidget> AdditionalVerticalWidget,  TSharedPtr<SWidget> AdditionalHorizontalWidget)

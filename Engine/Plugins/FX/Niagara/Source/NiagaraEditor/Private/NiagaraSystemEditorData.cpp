@@ -400,9 +400,9 @@ UNiagaraScriptVariable* UNiagaraSystemEditorData::FindOrAddUserScriptVariable(FN
 	return nullptr;
 }
 
-UNiagaraScriptVariable* UNiagaraSystemEditorData::FindUserScriptVariable(FGuid UserParameterGuid)
+const UNiagaraScriptVariable* UNiagaraSystemEditorData::FindUserScriptVariable(FGuid UserParameterGuid) const
 {
-	TObjectPtr<UNiagaraScriptVariable>* ExistingScriptVariable = UserParameterMetaData.FindByPredicate([UserParameterGuid](const UNiagaraScriptVariable* ScriptVariable)
+	const TObjectPtr<UNiagaraScriptVariable>* ExistingScriptVariable = UserParameterMetaData.FindByPredicate([UserParameterGuid](const UNiagaraScriptVariable* ScriptVariable)
 		{
 			return ScriptVariable->Metadata.GetVariableGuid() == UserParameterGuid;
 		});

@@ -1269,7 +1269,13 @@ bool FNiagaraSystemViewModel::RenameParameter(const FNiagaraVariable TargetParam
 			GetEditorData().RenameUserScriptVariable(TargetParameter, NewName);
 			ExposedParametersStore->RenameParameter(TargetParameter, NewName);
 		}
-		
+
+		FNiagaraVariable NewVariable = TargetParameter;
+		NewVariable.SetName(NewName);
+		for(TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : GetEmitterHandleViewModels())
+		{
+			FNiagaraEditorUtilities::ReplaceUserParameterReferences(EmitterHandleViewModel->GetEmitterViewModel(), TargetParameter, NewVariable);
+		}
 		bExposedParametersRename = true;
 	}
 

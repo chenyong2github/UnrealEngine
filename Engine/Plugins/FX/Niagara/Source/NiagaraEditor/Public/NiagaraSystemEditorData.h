@@ -98,7 +98,7 @@ public:
 	FOnUserParameterScriptVariablesSynced& OnUserParameterScriptVariablesSynced() { return OnUserParameterScriptVariablesSyncedDelegate; }
 	
 	UNiagaraScriptVariable* FindOrAddUserScriptVariable(FNiagaraVariable UserParameter, UNiagaraSystem& System);
-	UNiagaraScriptVariable* FindUserScriptVariable(FGuid UserParameterGuid);
+	const UNiagaraScriptVariable* FindUserScriptVariable(FGuid UserParameterGuid) const;
 	bool RenameUserScriptVariable(FNiagaraVariable OldVariable, FName NewName);
 	bool RemoveUserScriptVariable(FNiagaraVariable Variable);
 
