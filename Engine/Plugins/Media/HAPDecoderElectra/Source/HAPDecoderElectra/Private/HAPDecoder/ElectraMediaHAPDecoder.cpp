@@ -73,14 +73,6 @@ public:
 	{
 		return Crop;
 	}
-	int32 GetFrameWidth() const override
-	{
-		return Pitch;
-	}
-	int32 GetFrameHeight() const override
-	{
-		return Height;
-	}
 	int32 GetAspectRatioW() const override
 	{
 		return AspectW;
@@ -104,10 +96,6 @@ public:
 	void GetExtraValues(TMap<FString, FVariant>& OutExtraValues) const override
 	{
 		OutExtraValues = ExtraValues;
-	}
-	int32 GetPixelFormat() const override
-	{
-		return PixelFormat;
 	}
 	void* GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType InTypeOfHandle) const override
 	{
@@ -135,7 +123,7 @@ public:
 	{
 		return NumBuffers;
 	}
-	TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> GetBufferByIndex(int32 InBufferIndex) const override
+	TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> GetBufferDataByIndex(int32 InBufferIndex) const override
 	{
 		if (InBufferIndex == 0)
 		{
@@ -147,7 +135,11 @@ public:
 		}
 		return nullptr;
 	}
-	uint64 GetBufferFormatByIndex(int32 InBufferIndex) const override
+	void* GetBufferTextureByIndex(int32 InBufferIndex) const override
+	{
+		return nullptr;
+	}
+	EElectraDecoderPlatformPixelFormat GetBufferFormatByIndex(int32 InBufferIndex) const override
 	{
 		if (InBufferIndex == 0)
 		{
@@ -157,9 +149,32 @@ public:
 		{
 			return AlphaBufferFormat;
 		}
-	return 0;
+	return EElectraDecoderPlatformPixelFormat::INVALID;
 	}
-
+	EElectraDecoderPlatformPixelEncoding GetBufferEncodingByIndex(int32 InBufferIndex) const override
+	{
+		if (InBufferIndex == 0)
+		{
+			return ColorBufferEncoding;
+		}
+		else if (InBufferIndex == 1)
+		{
+			return AlphaBufferEncoding;
+		}
+		return EElectraDecoderPlatformPixelEncoding::Native;
+	}
+	int32 GetBufferPitchByIndex(int32 InBufferIndex) const override
+	{
+		if (InBufferIndex == 0)
+		{
+			return ColorPitch;
+		}
+		else if (InBufferIndex == 1)
+		{
+			return AlphaPitch;
+		}
+		return 0;
+	}
 
 public:
 	FTimespan PTS;
@@ -168,7 +183,8 @@ public:
 	FElectraVideoDecoderOutputCropValues Crop;
 	int32 Width = 0;
 	int32 Height = 0;
-	int32 Pitch = 0;
+	int32 ColorPitch = 0;
+	int32 AlphaPitch = 0;
 	int32 NumBits = 0;
 	int32 AspectW = 1;
 	int32 AspectH = 1;
@@ -181,10 +197,11 @@ public:
 	int32 NumBuffers = 0;
 	TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> ColorBuffer;
 	TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> AlphaBuffer;
-	HapTextureFormat ColorBufferFormat;
-	HapTextureFormat AlphaBufferFormat;
+	EElectraDecoderPlatformPixelFormat ColorBufferFormat;
+	EElectraDecoderPlatformPixelEncoding ColorBufferEncoding;
+	EElectraDecoderPlatformPixelFormat AlphaBufferFormat;
+	EElectraDecoderPlatformPixelEncoding AlphaBufferEncoding;
 };
-
 
 
 class FVideoDecoderHAPElectra : public IElectraDecoder
@@ -408,6 +425,59 @@ TSharedPtr<IElectraDecoderDefaultOutputFormat, ESPMode::ThreadSafe> FVideoDecode
 	return nullptr;
 }
 
+static bool ConvertHapTextureFormat(HapTextureFormat HapFmt, EElectraDecoderPlatformPixelFormat& Format, EElectraDecoderPlatformPixelEncoding& Encoding)
+{
+	switch (HapFmt)
+	{
+		case HapTextureFormat_RGB_DXT1:
+			Format = EElectraDecoderPlatformPixelFormat::DXT1;
+			Encoding = EElectraDecoderPlatformPixelEncoding::Native;
+			break;
+		case HapTextureFormat_RGBA_DXT5:
+			Format = EElectraDecoderPlatformPixelFormat::DXT5;
+			Encoding = EElectraDecoderPlatformPixelEncoding::Native;
+			break;
+		case HapTextureFormat_YCoCg_DXT5:
+			Format = EElectraDecoderPlatformPixelFormat::DXT5;
+			Encoding = EElectraDecoderPlatformPixelEncoding::YCoCg;
+			break;
+		case HapTextureFormat_A_RGTC1:
+			Format = EElectraDecoderPlatformPixelFormat::BC4;
+			Encoding = EElectraDecoderPlatformPixelEncoding::Native;
+			break;
+		case HapTextureFormat_RGBA_BPTC_UNORM:
+		case HapTextureFormat_RGB_BPTC_UNSIGNED_FLOAT:
+		case HapTextureFormat_RGB_BPTC_SIGNED_FLOAT:
+		default:
+			Format = EElectraDecoderPlatformPixelFormat::INVALID;
+			Encoding = EElectraDecoderPlatformPixelEncoding::Native;
+			break;
+	}
+	return Format != EElectraDecoderPlatformPixelFormat::INVALID;
+}
+
+static uint32 GetImageBufferPitch(HapTextureFormat HapFmt, uint32 Width)
+{
+	uint32 Pitch = 0;
+	switch (HapFmt)
+	{
+		case HapTextureFormat_RGB_DXT1:
+		case HapTextureFormat_A_RGTC1:
+			Pitch = ((Width + 3) / 4) * 8;		// 4 pixel wide blocks with 8 bytes
+			break;
+		case HapTextureFormat_RGBA_DXT5:
+		case HapTextureFormat_YCoCg_DXT5:
+			Pitch = ((Width + 3) / 4) * 16;		// 4 pixel wide blocks with 16 bytes
+			break;
+		case HapTextureFormat_RGBA_BPTC_UNORM:
+		case HapTextureFormat_RGB_BPTC_UNSIGNED_FLOAT:
+		case HapTextureFormat_RGB_BPTC_SIGNED_FLOAT:
+		default:
+			break;
+	}
+	return Pitch;
+}
+
 IElectraDecoder::EDecoderError FVideoDecoderHAPElectra::DecodeAccessUnit(const FInputAccessUnit& InInputAccessUnit, const TMap<FString, FVariant>& InAdditionalOptions)
 {
 	// If already in error do nothing!
@@ -446,7 +516,6 @@ IElectraDecoder::EDecoderError FVideoDecoderHAPElectra::DecodeAccessUnit(const F
 
 		NewOutput->Width = DecodedWidth;
 		NewOutput->Height = DecodedHeight;
-		NewOutput->Pitch = NewOutput->Width;
 		NewOutput->Crop.Right = DecodedWidth - DisplayWidth;
 		NewOutput->Crop.Bottom = DecodedHeight - DisplayHeight;
 		if (AspectW && AspectH)
@@ -475,7 +544,9 @@ IElectraDecoder::EDecoderError FVideoDecoderHAPElectra::DecodeAccessUnit(const F
 			return IElectraDecoder::EDecoderError::Error;
 		}
 		NewOutput->ColorBuffer->SetNumUnsafeInternal((int32) ColorBufferBytesUsed);
-		NewOutput->ColorBufferFormat = static_cast<HapTextureFormat>(ColorBufferTextureFormat);
+		ConvertHapTextureFormat(static_cast<HapTextureFormat>(ColorBufferTextureFormat), NewOutput->ColorBufferFormat, NewOutput->ColorBufferEncoding);
+
+		NewOutput->ColorPitch = GetImageBufferPitch(static_cast<HapTextureFormat>(ColorBufferTextureFormat), NewOutput->Width);
 
 		NewOutput->NumBuffers = (int32)TextureCount;
 		NewOutput->Codec4CC = Codec4CC;
@@ -497,7 +568,9 @@ IElectraDecoder::EDecoderError FVideoDecoderHAPElectra::DecodeAccessUnit(const F
 				return IElectraDecoder::EDecoderError::Error;
 			}
 			NewOutput->AlphaBuffer->SetNumUnsafeInternal((int32) AlphaBufferBytesUsed);
-			NewOutput->AlphaBufferFormat = static_cast<HapTextureFormat>(AlphaBufferTextureFormat);
+			ConvertHapTextureFormat(static_cast<HapTextureFormat>(AlphaBufferTextureFormat), NewOutput->AlphaBufferFormat, NewOutput->AlphaBufferEncoding);
+
+			NewOutput->AlphaPitch = GetImageBufferPitch(static_cast<HapTextureFormat>(AlphaBufferTextureFormat), NewOutput->Width);
 		}
 
 		CurrentOutput = MoveTemp(NewOutput);

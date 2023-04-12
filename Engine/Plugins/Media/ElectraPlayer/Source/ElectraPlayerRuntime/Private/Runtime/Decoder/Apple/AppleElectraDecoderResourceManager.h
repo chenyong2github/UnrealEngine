@@ -40,8 +40,6 @@ public:
 
 private:
 	class FInstanceVars;
-	static bool SetupRenderBufferFromDecoderOutput_Default(IMediaRenderer::IBuffer* InOutBufferToSetup, TSharedPtr<FParamDict, ESPMode::ThreadSafe> InOutBufferPropertes, TSharedPtr<IElectraDecoderVideoOutput, ESPMode::ThreadSafe> InDecoderOutput, IDecoderPlatformResource* InPlatformSpecificResource);
-	static bool SetupRenderBufferFromDecoderOutput_Images(IMediaRenderer::IBuffer* InOutBufferToSetup, TSharedPtr<FParamDict, ESPMode::ThreadSafe> InOutBufferPropertes, TSharedPtr<IElectraDecoderVideoOutput, ESPMode::ThreadSafe> InDecoderOutput, IDecoderPlatformResource* InPlatformSpecificResource);
 };
 
 using FPlatformElectraDecoderResourceManager = FElectraDecoderResourceManagerApple;

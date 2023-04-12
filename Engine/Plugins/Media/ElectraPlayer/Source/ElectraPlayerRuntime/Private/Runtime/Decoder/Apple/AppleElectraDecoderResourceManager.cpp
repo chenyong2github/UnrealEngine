@@ -19,32 +19,6 @@ namespace Electra
 
 namespace AppleDecoderResources
 {
-	static constexpr uint32 Make4CC(const uint8 A, const uint8 B, const uint8 C, const uint8 D)
-	{
-		return (static_cast<uint32>(A) << 24) | (static_cast<uint32>(B) << 16) | (static_cast<uint32>(C) << 8) | static_cast<uint32>(D);
-	}
-
-	static bool IsHAP(uint32 Codec4CC)
-	{
-		return Codec4CC == AppleDecoderResources::Make4CC('H','a','p','1') ||
-			   Codec4CC == AppleDecoderResources::Make4CC('H','a','p','5') ||
-			   Codec4CC == AppleDecoderResources::Make4CC('H','a','p','Y') ||
-			   Codec4CC == AppleDecoderResources::Make4CC('H','a','p','M') ||
-			   Codec4CC == AppleDecoderResources::Make4CC('H','a','p','A') ||
-			   Codec4CC == AppleDecoderResources::Make4CC('H','a','p','7') ||
-			   Codec4CC == AppleDecoderResources::Make4CC('H','a','p','H');
-	}
-
-	static bool IsProRes(uint32 Codec4CC)
-	{
-		return Codec4CC == AppleDecoderResources::Make4CC('a','p','c','h') ||
-			   Codec4CC == AppleDecoderResources::Make4CC('a','p','c','n') ||
-			   Codec4CC == AppleDecoderResources::Make4CC('a','p','c','s') ||
-			   Codec4CC == AppleDecoderResources::Make4CC('a','p','c','o') ||
-			   Codec4CC == AppleDecoderResources::Make4CC('a','p','4','h') ||
-			   Codec4CC == AppleDecoderResources::Make4CC('a','p','4','x');
-	}
-
 	static FElectraDecoderResourceManagerApple::FCallbacks Callbacks;
 }
 
@@ -73,7 +47,6 @@ FElectraDecoderResourceManagerApple::~FElectraDecoderResourceManagerApple()
 class FElectraDecoderResourceManagerApple::FInstanceVars : public FElectraDecoderResourceManagerApple::IDecoderPlatformResource
 {
 public:
-	bool (*SetupRenderBufferFromDecoderOutput)(IMediaRenderer::IBuffer* /*InOutBufferToSetup*/, TSharedPtr<FParamDict, ESPMode::ThreadSafe> /*InOutBufferPropertes*/, TSharedPtr<IElectraDecoderVideoOutput, ESPMode::ThreadSafe> /*InDecoderOutput*/, IDecoderPlatformResource* /*InPlatformSpecificResource*/) = nullptr;
 	uint32 Codec4CC = 0;
 };
 
@@ -82,20 +55,11 @@ public:
 IElectraDecoderResourceDelegateApple::IDecoderPlatformResource* FElectraDecoderResourceManagerApple::CreatePlatformResource(void* InOwnerHandle, EDecoderPlatformResourceType InDecoderResourceType, const TMap<FString, FVariant> InOptions)
 {
 	FInstanceVars* Vars = new FInstanceVars;
-
-	/*
-		We can't be as codec agnostic here as we would like to be.
-		Image decoders return specific texture formats in a CPU buffer that one must be aware of.
-	*/
-	uint32 Codec4CC = (uint32)ElectraDecodersUtil::GetVariantValueSafeU64(InOptions, TEXT("codec_4cc"), 0);
-	if (AppleDecoderResources::IsHAP(Codec4CC))
+	check(Vars);
+	if (Vars)
 	{
+		uint32 Codec4CC = (uint32)ElectraDecodersUtil::GetVariantValueSafeU64(InOptions, TEXT("codec_4cc"), 0);
 		Vars->Codec4CC = Codec4CC;
-		Vars->SetupRenderBufferFromDecoderOutput = FElectraDecoderResourceManagerApple::SetupRenderBufferFromDecoderOutput_Images;
-	}
-	else
-	{
-		Vars->SetupRenderBufferFromDecoderOutput = FElectraDecoderResourceManagerApple::SetupRenderBufferFromDecoderOutput_Default;
 	}
 	return Vars;
 }
@@ -121,169 +85,119 @@ bool FElectraDecoderResourceManagerApple::GetMetalDevice(void **OutMetalDevice)
 }
 
 
-bool FElectraDecoderResourceManagerApple::SetupRenderBufferFromDecoderOutput(IMediaRenderer::IBuffer* InOutBufferToSetup, TSharedPtr<FParamDict, ESPMode::ThreadSafe> InOutBufferPropertes, TSharedPtr<IElectraDecoderVideoOutput, ESPMode::ThreadSafe> InDecoderOutput, IDecoderPlatformResource* InPlatformSpecificResource)
+bool FElectraDecoderResourceManagerApple::SetupRenderBufferFromDecoderOutput(IMediaRenderer::IBuffer* InOutBufferToSetup, TSharedPtr<FParamDict, ESPMode::ThreadSafe> InOutBufferPropertes, TSharedPtr<IElectraDecoderVideoOutput, ESPMode::ThreadSafe> InDecoderOutput, FElectraDecoderResourceManagerApple::IDecoderPlatformResource* InPlatformSpecificResource)
 {
 	check(InOutBufferToSetup);
 	check(InOutBufferPropertes.IsValid());
 	check(InDecoderOutput.IsValid());
 
-	if (!InPlatformSpecificResource)
-	{
-		return SetupRenderBufferFromDecoderOutput_Default(InOutBufferToSetup, InOutBufferPropertes, InDecoderOutput, InPlatformSpecificResource);
-	}
-	else
-	{
-		FInstanceVars* Vars = static_cast<FInstanceVars*>(InPlatformSpecificResource);
-		return Vars->SetupRenderBufferFromDecoderOutput(InOutBufferToSetup, InOutBufferPropertes, InDecoderOutput, InPlatformSpecificResource);
-	}
-}
-
-bool FElectraDecoderResourceManagerApple::SetupRenderBufferFromDecoderOutput_Default(IMediaRenderer::IBuffer* InOutBufferToSetup, TSharedPtr<FParamDict, ESPMode::ThreadSafe> InOutBufferPropertes, TSharedPtr<IElectraDecoderVideoOutput, ESPMode::ThreadSafe> InDecoderOutput, IDecoderPlatformResource* InPlatformSpecificResource)
-{
 	TSharedPtr<FElectraPlayerVideoDecoderOutputApple, ESPMode::ThreadSafe> DecoderOutput = InOutBufferToSetup->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputApple>();
+	FInstanceVars* Vars = static_cast<FInstanceVars*>(InPlatformSpecificResource);
+
 	if (DecoderOutput.IsValid())
 	{
-		CVImageBufferRef ImageBuffer = reinterpret_cast<CVImageBufferRef>(InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::ImageBufferRef));
-		if (ImageBuffer)
-		{
-			FElectraVideoDecoderOutputCropValues Crop = InDecoderOutput->GetCropValues();
-			InOutBufferPropertes->Set(TEXT("width"), FVariantValue((int64) InDecoderOutput->GetWidth()));
-			InOutBufferPropertes->Set(TEXT("height"), FVariantValue((int64) InDecoderOutput->GetHeight()));
-			InOutBufferPropertes->Set(TEXT("pitch"), FVariantValue((int64) InDecoderOutput->GetFrameWidth()));
-			InOutBufferPropertes->Set(TEXT("crop_left"), FVariantValue((int64) Crop.Left));
-			InOutBufferPropertes->Set(TEXT("crop_right"), FVariantValue((int64) Crop.Right));
-			InOutBufferPropertes->Set(TEXT("crop_top"), FVariantValue((int64) Crop.Top));
-			InOutBufferPropertes->Set(TEXT("crop_bottom"), FVariantValue((int64) Crop.Bottom));
-			InOutBufferPropertes->Set(TEXT("aspect_ratio"), FVariantValue((double) InDecoderOutput->GetAspectRatioW() / (double) InDecoderOutput->GetAspectRatioH()));
-			InOutBufferPropertes->Set(TEXT("aspect_w"), FVariantValue((int64) InDecoderOutput->GetAspectRatioW()));
-			InOutBufferPropertes->Set(TEXT("aspect_h"), FVariantValue((int64) InDecoderOutput->GetAspectRatioH()));
-			InOutBufferPropertes->Set(TEXT("fps_num"), FVariantValue((int64) InDecoderOutput->GetFrameRateNumerator()));
-			InOutBufferPropertes->Set(TEXT("fps_denom"), FVariantValue((int64) InDecoderOutput->GetFrameRateDenominator()));
-			int32 PixelFormat =	InDecoderOutput->GetPixelFormat();
-			if (PixelFormat == kCVPixelFormatType_4444AYpCbCr16)
-			{
-				InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)PF_R16G16B16A16_UNORM));
-			}
-			else if ((PixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange) || (PixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange))
-			{
-				InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)PF_NV12));
-			}
-			else
-			{
-				InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)PF_P010));
-			}
-			InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64) InDecoderOutput->GetNumberOfBits()));
-#if 0
-			// What type of decoder output do we have here?
-			TMap<FString, FVariant> ExtraValues;
-			InDecoderOutput->GetExtraValues(ExtraValues);
-			if (ElectraDecodersUtil::GetVariantValueFString(ExtraValues, TEXT("codec")).Equals(TEXT("prores")))
-			{
-				uint32 Codec4CC = (uint32)ElectraDecodersUtil::GetVariantValueSafeI64(ExtraValues, TEXT("codec_4cc"), 0);
-				// ...
-			}
-#endif
-			DecoderOutput->Initialize(ImageBuffer, InOutBufferPropertes);
-			return true;
-		}
-	}
-	return false;
-}
-
-
-bool FElectraDecoderResourceManagerApple::SetupRenderBufferFromDecoderOutput_Images(IMediaRenderer::IBuffer* InOutBufferToSetup, TSharedPtr<FParamDict, ESPMode::ThreadSafe> InOutBufferPropertes, TSharedPtr<IElectraDecoderVideoOutput, ESPMode::ThreadSafe> InDecoderOutput, IDecoderPlatformResource* InPlatformSpecificResource)
-{
-	TSharedPtr<FElectraPlayerVideoDecoderOutputApple, ESPMode::ThreadSafe> DecoderOutput = InOutBufferToSetup->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputApple>();
-	IElectraDecoderVideoOutputImageBuffers* ImageBuffers = reinterpret_cast<IElectraDecoderVideoOutputImageBuffers*>(InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::ImageBuffers));
-	FInstanceVars* Vars = static_cast<FInstanceVars*>(InPlatformSpecificResource);
-	if (DecoderOutput.IsValid() && Vars)
-	{
 		FElectraVideoDecoderOutputCropValues Crop = InDecoderOutput->GetCropValues();
-		InOutBufferPropertes->Set(TEXT("width"), FVariantValue((int64) InDecoderOutput->GetWidth()));
-		InOutBufferPropertes->Set(TEXT("height"), FVariantValue((int64) InDecoderOutput->GetHeight()));
-		InOutBufferPropertes->Set(TEXT("pitch"), FVariantValue((int64) InDecoderOutput->GetFrameWidth()));
-		InOutBufferPropertes->Set(TEXT("crop_left"), FVariantValue((int64) Crop.Left));
-		InOutBufferPropertes->Set(TEXT("crop_right"), FVariantValue((int64) Crop.Right));
-		InOutBufferPropertes->Set(TEXT("crop_top"), FVariantValue((int64) Crop.Top));
-		InOutBufferPropertes->Set(TEXT("crop_bottom"), FVariantValue((int64) Crop.Bottom));
-		InOutBufferPropertes->Set(TEXT("aspect_ratio"), FVariantValue((double) InDecoderOutput->GetAspectRatioW() / (double) InDecoderOutput->GetAspectRatioH()));
-		InOutBufferPropertes->Set(TEXT("aspect_w"), FVariantValue((int64) InDecoderOutput->GetAspectRatioW()));
-		InOutBufferPropertes->Set(TEXT("aspect_h"), FVariantValue((int64) InDecoderOutput->GetAspectRatioH()));
-		InOutBufferPropertes->Set(TEXT("fps_num"), FVariantValue((int64) InDecoderOutput->GetFrameRateNumerator()));
-		InOutBufferPropertes->Set(TEXT("fps_denom"), FVariantValue((int64) InDecoderOutput->GetFrameRateDenominator()));
+		InOutBufferPropertes->Set(TEXT("width"), FVariantValue((int64)InDecoderOutput->GetWidth()));
+		InOutBufferPropertes->Set(TEXT("height"), FVariantValue((int64)InDecoderOutput->GetHeight()));
+		InOutBufferPropertes->Set(TEXT("crop_left"), FVariantValue((int64)Crop.Left));
+		InOutBufferPropertes->Set(TEXT("crop_right"), FVariantValue((int64)Crop.Right));
+		InOutBufferPropertes->Set(TEXT("crop_top"), FVariantValue((int64)Crop.Top));
+		InOutBufferPropertes->Set(TEXT("crop_bottom"), FVariantValue((int64)Crop.Bottom));
+		InOutBufferPropertes->Set(TEXT("aspect_ratio"), FVariantValue((double)InDecoderOutput->GetAspectRatioW() / (double)InDecoderOutput->GetAspectRatioH()));
+		InOutBufferPropertes->Set(TEXT("aspect_w"), FVariantValue((int64)InDecoderOutput->GetAspectRatioW()));
+		InOutBufferPropertes->Set(TEXT("aspect_h"), FVariantValue((int64)InDecoderOutput->GetAspectRatioH()));
+		InOutBufferPropertes->Set(TEXT("fps_num"), FVariantValue((int64)InDecoderOutput->GetFrameRateNumerator()));
+		InOutBufferPropertes->Set(TEXT("fps_denom"), FVariantValue((int64)InDecoderOutput->GetFrameRateDenominator()));
 
 		int32 Width = InDecoderOutput->GetDecodedWidth();
 		int32 Height = InDecoderOutput->GetDecodedHeight();
-		int32 Pitch = InDecoderOutput->GetFrameWidth();
 
-		if (AppleDecoderResources::IsHAP(Vars->Codec4CC))
+		InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64)InDecoderOutput->GetNumberOfBits()));
+
+		//
+		// Image buffers?
+		//
+		IElectraDecoderVideoOutputImageBuffers* ImageBuffers = reinterpret_cast<IElectraDecoderVideoOutputImageBuffers*>(InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::ImageBuffers));
+		if (ImageBuffers != nullptr)
 		{
-			if (!ImageBuffers)
-			{
-				UE_LOG(LogElectraPlayer, Log, TEXT("Did not receive image buffers for HAP output"));
-				return false;
-			}
-
-			// One or two buffers (color or color+alpha)
 			int32 NumImageBuffers = ImageBuffers->GetNumberOfBuffers();
 			check(NumImageBuffers == 1 || NumImageBuffers == 2);
 
-			uint32 ColorBufferFormat = (uint32) ImageBuffers->GetBufferFormatByIndex(0);
-			switch(ColorBufferFormat)
+			// Color buffer
+
+			EElectraDecoderPlatformPixelFormat PixFmt = ImageBuffers->GetBufferFormatByIndex(0);
+			EElectraDecoderPlatformPixelEncoding PixEnc = ImageBuffers->GetBufferEncodingByIndex(0);
+
+			EPixelFormat RHIPixFmt;
+			switch (PixFmt)
 			{
-				case 0x01:		// HapTextureFormat_YCoCg_DXT5
-				{
-					InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_DXT5));
-					InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64) 8));
-					InOutBufferPropertes->Set(TEXT("pixelenc"), FVariantValue((int64)EVideoDecoderPixelEncoding::YCoCg));
-					Pitch = ((Pitch + 3) / 4) * 16;		// 4 pixel wide blocks with 16 bytes
-					break;
-				}
-				case 0x83F0:	// HapTextureFormat_RGB_DXT1
-				{
-					InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_DXT1));
-					InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64) 8));
-					Pitch = ((Pitch + 3) / 4) * 8;		// 4 pixel wide blocks with 8 bytes
-					break;
-				}
-				case 0x83F3:	// HapTextureFormat_RGBA_DXT5
-				{
-					InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_DXT5));
-					InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64) 8));
-					Pitch = ((Pitch + 3) / 4) * 16;		// 4 pixel wide blocks with 16 bytes
-					break;
-				}
-				case 0x8DBB:	// HapTextureFormat_A_RGTC1
-				{
-					InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_BC4));
-					InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64) 8));
-					Pitch = ((Pitch + 3) / 4) * 8;		// 4 pixel wide blocks with 8 bytes
-					break;
-				}
-				case 0x8E8C:	// HapTextureFormat_RGBA_BPTC_UNORM
-				case 0x8E8F:	// HapTextureFormat_RGB_BPTC_UNSIGNED_FLOAT
-				case 0x8E8E:	// HapTextureFormat_RGB_BPTC_SIGNED_FLOAT
-				default:
-				{
-					UE_LOG(LogElectraPlayer, Log, TEXT("Unsupported HAP texture format 0x%04x"), ColorBufferFormat);
-					return false;
-				}
+				case EElectraDecoderPlatformPixelFormat::R8G8B8A8:		RHIPixFmt = EPixelFormat::PF_R8G8B8A8; break;
+				case EElectraDecoderPlatformPixelFormat::A8R8G8B8:		RHIPixFmt = EPixelFormat::PF_A8R8G8B8; break;
+				case EElectraDecoderPlatformPixelFormat::B8G8R8A8:		RHIPixFmt = EPixelFormat::PF_B8G8R8A8; break;
+				case EElectraDecoderPlatformPixelFormat::R16G16B16A16:	RHIPixFmt = EPixelFormat::PF_R16G16B16A16_UNORM; break;
+				case EElectraDecoderPlatformPixelFormat::A16B16G16R16:	RHIPixFmt = EPixelFormat::PF_A16B16G16R16; break;
+				case EElectraDecoderPlatformPixelFormat::A32B32G32R32F:	RHIPixFmt = EPixelFormat::PF_A32B32G32R32F; break;
+				case EElectraDecoderPlatformPixelFormat::A2B10G10R10:	RHIPixFmt = EPixelFormat::PF_A2B10G10R10; break;
+				case EElectraDecoderPlatformPixelFormat::DXT1:			RHIPixFmt = EPixelFormat::PF_DXT1; break;
+				case EElectraDecoderPlatformPixelFormat::DXT5:			RHIPixFmt = EPixelFormat::PF_DXT5; break;
+				case EElectraDecoderPlatformPixelFormat::BC4:			RHIPixFmt = EPixelFormat::PF_BC4; break;
+				case EElectraDecoderPlatformPixelFormat::NV12:			RHIPixFmt = EPixelFormat::PF_NV12; break;
+				case EElectraDecoderPlatformPixelFormat::P010:			RHIPixFmt = EPixelFormat::PF_P010; break;
+				default: RHIPixFmt = EPixelFormat::PF_Unknown; break;
+			}
+			check(RHIPixFmt != EPixelFormat::PF_Unknown);
+
+			EVideoDecoderPixelEncoding DecPixEnc;
+			switch (PixEnc)
+			{
+				case EElectraDecoderPlatformPixelEncoding::Native:			DecPixEnc = EVideoDecoderPixelEncoding::Native; break;
+				case EElectraDecoderPlatformPixelEncoding::RGB:				DecPixEnc = EVideoDecoderPixelEncoding::RGB; break;
+				case EElectraDecoderPlatformPixelEncoding::RGBA:			DecPixEnc = EVideoDecoderPixelEncoding::RGBA; break;
+				case EElectraDecoderPlatformPixelEncoding::YCbCr:			DecPixEnc = EVideoDecoderPixelEncoding::YCbCr; break;
+				case EElectraDecoderPlatformPixelEncoding::YCbCr_Alpha:		DecPixEnc = EVideoDecoderPixelEncoding::YCbCr_Alpha; break;
+				case EElectraDecoderPlatformPixelEncoding::YCoCg:			DecPixEnc = EVideoDecoderPixelEncoding::YCoCg; break;
+				case EElectraDecoderPlatformPixelEncoding::YCoCg_Alpha:		DecPixEnc = EVideoDecoderPixelEncoding::YCoCg_Alpha; break;
+				case EElectraDecoderPlatformPixelEncoding::CbY0CrY1:		DecPixEnc = EVideoDecoderPixelEncoding::CbY0CrY1; break;
+				case EElectraDecoderPlatformPixelEncoding::Y0CbY1Cr:		DecPixEnc = EVideoDecoderPixelEncoding::Y0CbY1Cr; break;
+				case EElectraDecoderPlatformPixelEncoding::ARGB_BigEndian:	DecPixEnc = EVideoDecoderPixelEncoding::ARGB_BigEndian; break;
+				default: DecPixEnc = DecPixEnc = EVideoDecoderPixelEncoding::Native; break;
 			}
 
-			TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> ColorBuffer = ImageBuffers->GetBufferByIndex(0);
+			int32 Pitch = ImageBuffers->GetBufferPitchByIndex(0);
+
+			InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)RHIPixFmt));
+			InOutBufferPropertes->Set(TEXT("pixelenc"), FVariantValue((int64)DecPixEnc));
+			InOutBufferPropertes->Set(TEXT("pitch"), FVariantValue((int64)Pitch));
+
+// [...] ALPHA BUFFER -- HOW DO WE PASS IT ON!?
+// [...] ANY CS/HDR INFO FROM THE DECODER? -- PASSING IT ON WOULD BE EASY, BUT RIGHT NOW WE ALWAYS READ IT FROM THE CONTAINER (in code further up the chain)
+
+			TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> ColorBuffer = ImageBuffers->GetBufferDataByIndex(0);
 			if (ColorBuffer.IsValid() && ColorBuffer->Num())
 			{
+				//
+				// CPU side buffer
+				//
 				DecoderOutput->InitializeWithBuffer(ColorBuffer,
 					Pitch,							// Buffer stride
 					FIntPoint(Width, Height),		// Buffer dimensions
 					InOutBufferPropertes);
 				return true;
 			}
-		}
-		else
-		{
-			UE_LOG(LogElectraPlayer, Log, TEXT("Unsupported decoded 4CC 0x%08x"), Vars->Codec4CC);
-			return false;
+			else
+			{
+				// Note: we assume a DX11 texture at this point, but this could also be interpreted as IUknown and then either DX11 or DX12 resources being derived from it...
+				CVImageBufferRef ImageBuffer = static_cast<CVImageBufferRef>(ImageBuffers->GetBufferTextureByIndex(0));
+				if (ImageBuffer != nullptr)
+				{
+					//
+					// GPU texture (CVImageBuffer)
+					//
+					DecoderOutput->Initialize(ImageBuffer, InOutBufferPropertes);
+					return true;
+				}
+			}
+
 		}
 	}
 	return false;

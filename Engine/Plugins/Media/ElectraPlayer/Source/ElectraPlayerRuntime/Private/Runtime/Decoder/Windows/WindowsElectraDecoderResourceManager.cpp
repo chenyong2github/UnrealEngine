@@ -20,37 +20,6 @@ namespace Electra
 
 namespace WindowsDecoderResources
 {
-	static constexpr uint32 Make4CC(const uint8 A, const uint8 B, const uint8 C, const uint8 D)
-	{
-		return (static_cast<uint32>(A) << 24) | (static_cast<uint32>(B) << 16) | (static_cast<uint32>(C) << 8) | static_cast<uint32>(D);
-	}
-
-	static bool IsHAP(uint32 Codec4CC)
-	{
-		return Codec4CC == WindowsDecoderResources::Make4CC('H','a','p','1') ||
-			   Codec4CC == WindowsDecoderResources::Make4CC('H','a','p','5') ||
-			   Codec4CC == WindowsDecoderResources::Make4CC('H','a','p','Y') ||
-			   Codec4CC == WindowsDecoderResources::Make4CC('H','a','p','M') ||
-			   Codec4CC == WindowsDecoderResources::Make4CC('H','a','p','A') ||
-			   Codec4CC == WindowsDecoderResources::Make4CC('H','a','p','7') ||
-			   Codec4CC == WindowsDecoderResources::Make4CC('H','a','p','H');
-	}
-
-	static bool IsProRes(uint32 Codec4CC)
-	{
-		return Codec4CC == WindowsDecoderResources::Make4CC('a','p','c','h') ||
-			   Codec4CC == WindowsDecoderResources::Make4CC('a','p','c','n') ||
-			   Codec4CC == WindowsDecoderResources::Make4CC('a','p','c','s') ||
-			   Codec4CC == WindowsDecoderResources::Make4CC('a','p','c','o') ||
-			   Codec4CC == WindowsDecoderResources::Make4CC('a','p','4','h') ||
-			   Codec4CC == WindowsDecoderResources::Make4CC('a','p','4','x');
-	}
-
-	static bool IsAvidDNxHD(uint32 Codec4CC)
-	{
-		return Codec4CC == WindowsDecoderResources::Make4CC('A', 'V', 'd', 'h');
-	}
-
 	static FElectraDecoderResourceManagerWindows::FCallbacks Callbacks;
 	static bool bDidInitializeMF = false;
 }
@@ -106,7 +75,6 @@ FElectraDecoderResourceManagerWindows::~FElectraDecoderResourceManagerWindows()
 class FElectraDecoderResourceManagerWindows::FInstanceVars : public IElectraDecoderResourceDelegateWindows::IDecoderPlatformResource
 {
 public:
-	bool (*SetupRenderBufferFromDecoderOutput)(IMediaRenderer::IBuffer* /*InOutBufferToSetup*/, TSharedPtr<FParamDict, ESPMode::ThreadSafe> /*InOutBufferPropertes*/, TSharedPtr<IElectraDecoderVideoOutput, ESPMode::ThreadSafe> /*InDecoderOutput*/, IDecoderPlatformResource* /*InPlatformSpecificResource*/) = nullptr;
 	uint32 Codec4CC = 0;
 };
 
@@ -115,23 +83,14 @@ public:
 IElectraDecoderResourceDelegateWindows::IDecoderPlatformResource* FElectraDecoderResourceManagerWindows::CreatePlatformResource(void* InOwnerHandle, EDecoderPlatformResourceType InDecoderResourceType, const TMap<FString, FVariant> InOptions)
 {
 	FInstanceVars* Vars = new FInstanceVars;
-
-	/*
-		We can't be as codec agnostic here as we would like to be.
-		Image decoders return specific texture formats in a CPU buffer that one must be aware of.
-	*/
-	uint32 Codec4CC = (uint32)ElectraDecodersUtil::GetVariantValueSafeU64(InOptions, TEXT("codec_4cc"), 0);
-	if (WindowsDecoderResources::IsHAP(Codec4CC) || WindowsDecoderResources::IsProRes(Codec4CC) || WindowsDecoderResources::IsAvidDNxHD(Codec4CC))
+	check(Vars);
+	if (Vars)
 	{
-		Vars->Codec4CC = Codec4CC;
-		Vars->SetupRenderBufferFromDecoderOutput = FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput_Images;
-	}
-	else
-	{
-		Vars->SetupRenderBufferFromDecoderOutput = FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput_Default;
+		Vars->Codec4CC = (uint32)ElectraDecodersUtil::GetVariantValueSafeU64(InOptions, TEXT("codec_4cc"), 0);
 	}
 	return Vars;
 }
+
 
 void FElectraDecoderResourceManagerWindows::ReleasePlatformResource(void* InOwnerHandle, IDecoderPlatformResource* InHandleToDestroy)
 {
@@ -142,23 +101,6 @@ void FElectraDecoderResourceManagerWindows::ReleasePlatformResource(void* InOwne
 	}
 }
 
-
-bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput(IMediaRenderer::IBuffer* InOutBufferToSetup, TSharedPtr<FParamDict, ESPMode::ThreadSafe> InOutBufferPropertes, TSharedPtr<IElectraDecoderVideoOutput, ESPMode::ThreadSafe> InDecoderOutput, IDecoderPlatformResource* InPlatformSpecificResource)
-{
-	check(InOutBufferToSetup);
-	check(InOutBufferPropertes.IsValid());
-	check(InDecoderOutput.IsValid());
-
-	if (!InPlatformSpecificResource)
-	{
-		return SetupRenderBufferFromDecoderOutput_Default(InOutBufferToSetup, InOutBufferPropertes, InDecoderOutput, InPlatformSpecificResource);
-	}
-	else
-	{
-		FInstanceVars* Vars = static_cast<FInstanceVars*>(InPlatformSpecificResource);
-		return Vars->SetupRenderBufferFromDecoderOutput(InOutBufferToSetup, InOutBufferPropertes, InDecoderOutput, InPlatformSpecificResource);
-	}
-}
 
 bool FElectraDecoderResourceManagerWindows::GetD3DDevice(void **OutD3DDevice, int32* OutD3DVersionTimes1000)
 {
@@ -172,10 +114,7 @@ bool FElectraDecoderResourceManagerWindows::GetD3DDevice(void **OutD3DDevice, in
 }
 
 
-
-
-
-bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput_Default(IMediaRenderer::IBuffer* InOutBufferToSetup, TSharedPtr<FParamDict, ESPMode::ThreadSafe> InOutBufferPropertes, TSharedPtr<IElectraDecoderVideoOutput, ESPMode::ThreadSafe> InDecoderOutput, FElectraDecoderResourceManagerWindows::IDecoderPlatformResource* InPlatformSpecificResource)
+bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutputFromMFSample(IMediaRenderer::IBuffer* InOutBufferToSetup, TSharedPtr<FParamDict, ESPMode::ThreadSafe> InOutBufferPropertes, TSharedPtr<IElectraDecoderVideoOutput, ESPMode::ThreadSafe> InDecoderOutput, FElectraDecoderResourceManagerWindows::IDecoderPlatformResource* InPlatformSpecificResource)
 {
 	TSharedPtr<FElectraPlayerVideoDecoderOutputPC, ESPMode::ThreadSafe> DecoderOutput = InOutBufferToSetup->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputPC>();
 	if (DecoderOutput.IsValid())
@@ -183,7 +122,6 @@ bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput_D
 		FElectraVideoDecoderOutputCropValues Crop = InDecoderOutput->GetCropValues();
 		InOutBufferPropertes->Set(TEXT("width"), FVariantValue((int64)InDecoderOutput->GetWidth()));
 		InOutBufferPropertes->Set(TEXT("height"), FVariantValue((int64)InDecoderOutput->GetHeight()));
-		InOutBufferPropertes->Set(TEXT("pitch"), FVariantValue((int64)InDecoderOutput->GetFrameWidth()));
 		InOutBufferPropertes->Set(TEXT("crop_left"), FVariantValue((int64)Crop.Left));
 		InOutBufferPropertes->Set(TEXT("crop_right"), FVariantValue((int64)Crop.Right));
 		InOutBufferPropertes->Set(TEXT("crop_top"), FVariantValue((int64)Crop.Top));
@@ -193,8 +131,6 @@ bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput_D
 		InOutBufferPropertes->Set(TEXT("aspect_h"), FVariantValue((int64)InDecoderOutput->GetAspectRatioH()));
 		InOutBufferPropertes->Set(TEXT("fps_num"), FVariantValue((int64)InDecoderOutput->GetFrameRateNumerator()));
 		InOutBufferPropertes->Set(TEXT("fps_denom"), FVariantValue((int64)InDecoderOutput->GetFrameRateDenominator()));
-		InOutBufferPropertes->Set(TEXT("pixelfmt"), InDecoderOutput->GetPixelFormat() == 0 ? FVariantValue((int64)EPixelFormat::PF_NV12) : FVariantValue((int64)EPixelFormat::PF_P010));
-		InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64)InDecoderOutput->GetNumberOfBits()));
 
 		// What type of decoder output do we have here?
 		TMap<FString, FVariant> ExtraValues;
@@ -207,8 +143,8 @@ bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput_D
 		bool bIsSW = !!ElectraDecodersUtil::GetVariantValueSafeI64(ExtraValues, TEXT("sw"), 0);
 
 		HRESULT Result;
-		// DX12 or non-DX, but HW accelerated?
-		if ((DXVersion == 0 || DXVersion >= 12000) && !bIsSW)
+		// DX11, DX12 or non-DX & HW accelerated?
+		if ((DXVersion == 0 || DXVersion >= 11000) && !bIsSW)
 		{
 			TRefCountPtr<IMFSample> DecodedOutputSample = reinterpret_cast<IMFSample*>(InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::MFSample));
 
@@ -252,64 +188,79 @@ bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput_D
 				return false;
 			}
 
-			TRefCountPtr<IMF2DBuffer> Buffer2D;
-			if ((Result = Buffer->QueryInterface(__uuidof(IMF2DBuffer), (void**)Buffer2D.GetInitReference())) != S_OK)
+			InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)(TextureDesc.Format == DXGI_FORMAT_NV12 ? EPixelFormat::PF_NV12 : EPixelFormat::PF_P010)));
+			InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64)(TextureDesc.Format == DXGI_FORMAT_NV12 ? 8 : 10)));
+
+			if (DXVersion == 0 || DXVersion >= 12000)
 			{
-				UE_LOG(LogElectraPlayer, Error, TEXT("IMFDXGIBuffer::QueryInterface(IMF2DBuffer) failed with %08x"), Result);
-				return false;
+				//
+				// DX12 & non-DX
+				// 
+				// (access buffer for CPU use)
+				//
+				TRefCountPtr<IMF2DBuffer> Buffer2D;
+				if ((Result = Buffer->QueryInterface(__uuidof(IMF2DBuffer), (void**)Buffer2D.GetInitReference())) != S_OK)
+				{
+					UE_LOG(LogElectraPlayer, Error, TEXT("IMFDXGIBuffer::QueryInterface(IMF2DBuffer) failed with %08x"), Result);
+					return false;
+				}
+
+				uint8* Data = nullptr;
+				LONG Pitch = 0;
+				if ((Result = Buffer2D->Lock2D(&Data, &Pitch)) != S_OK)
+				{
+					UE_LOG(LogElectraPlayer, Error, TEXT("IMF2DBuffer::Lock2D() failed with %08x"), Result);
+					return false;
+				}
+
+				InOutBufferPropertes->Set(TEXT("pitch"), FVariantValue((int64)Pitch));
+
+				// Get decoded with (e.g. featuring any height adjustments for CPU buffer usage of NV12 etc.)
+				int32 Width = InDecoderOutput->GetDecodedWidth();
+				int32 Height = InDecoderOutput->GetDecodedHeight();
+
+				DecoderOutput->InitializeWithBuffer(Data, Pitch * Height,
+					Pitch,						// Buffer stride
+					FIntPoint(Width, Height),	// Buffer dimensions
+					InOutBufferPropertes);
+
+				if ((Result = Buffer2D->Unlock2D()) != S_OK)
+				{
+					UE_LOG(LogElectraPlayer, Error, TEXT("IMF2DBuffer::Unlock2D() failed with %08x"), Result);
+					return false;
+				}
 			}
-
-			uint8* Data = nullptr;
-			LONG Pitch = 0;
-			if ((Result = Buffer2D->Lock2D(&Data, &Pitch)) != S_OK)
+			else
 			{
-				UE_LOG(LogElectraPlayer, Error, TEXT("IMF2DBuffer::Lock2D() failed with %08x"), Result);
-				return false;
-			}
+				//
+				// DX11
+				//
+				check(DXVersion >= 11000);
 
-			DecoderOutput->InitializeWithBuffer(Data, Pitch * (TextureDesc.Height * 3 / 2),
-				Pitch,															// Buffer stride
-				FIntPoint(TextureDesc.Width, TextureDesc.Height * 3 / 2),		// Buffer dimensions
-				InOutBufferPropertes);
-
-			if ((Result = Buffer2D->Unlock2D()) != S_OK)
-			{
-				UE_LOG(LogElectraPlayer, Error, TEXT("IMF2DBuffer::Unlock2D() failed with %08x"), Result);
-				return false;
-			}
-			return true;
-		}
-		if (DXVersion >= 11000 && !bIsSW)
-		{
-			TRefCountPtr<IMFSample> DecodedOutputSample = reinterpret_cast<IMFSample*>(InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::MFSample));
-
-			TRefCountPtr<ID3D11Device> DxDevice = reinterpret_cast<ID3D11Device*>(InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::DXDevice));
-			TRefCountPtr<ID3D11DeviceContext> DxDeviceContext = reinterpret_cast<ID3D11DeviceContext*>(InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::DXDeviceContext));
-
-			DWORD BuffersNum = 0;
-			if ((Result = DecodedOutputSample->GetBufferCount(&BuffersNum)) != S_OK)
-			{
-				UE_LOG(LogElectraPlayer, Error, TEXT("IMFSample::GetBufferCount() failed with %08x"), Result);
-				return false;
-			}
-			if (BuffersNum != 1)
-			{
-				UE_LOG(LogElectraPlayer, Error, TEXT("IMFSample::GetBufferCount() returned %u buffers instead of 1"), Result);
-				return false;
-			}
-
-			int32 Width = InDecoderOutput->GetWidth();
-			int32 Height = InDecoderOutput->GetHeight();
-			DecoderOutput->InitializeWithSharedTexture(DxDevice, DxDeviceContext, DecodedOutputSample, FIntPoint(Width, Height), InOutBufferPropertes);
-			if (!DecoderOutput->GetTexture())
-			{
-				UE_LOG(LogElectraPlayer, Error, TEXT("ID3D11Device::CreateTexture2D() failed!"));
-				return false;
+				// Notes:
+				// - No need to apply a *1.5 factor to the height in this case. DX11 can access sub-resources in both NV12 & P010 to get to the CbCr data
+				// - No need to specify a pitch as this is all directly handled on the GPU side of things
+				//
+				ID3D11Device* Device = reinterpret_cast<ID3D11Device*>(InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::DXDevice));
+				ID3D11DeviceContext* DeviceContext = reinterpret_cast<ID3D11DeviceContext*>(InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::DXDeviceContext));
+				if (!Device || !DeviceContext)
+				{
+					return false;
+				}
+				DecoderOutput->InitializeWithSharedTexture(Device, DeviceContext, Texture2D, FIntPoint(InDecoderOutput->GetWidth(), InDecoderOutput->GetHeight()), InOutBufferPropertes);
+				if (!DecoderOutput->GetTexture())
+				{
+					UE_LOG(LogElectraPlayer, Error, TEXT("ID3D11Device::CreateTexture2D() failed!"));
+					return false;
+				}
 			}
 			return true;
 		}
 		else if (bIsSW)
 		{
+			//
+			// "Software" case
+			//
 			TRefCountPtr<IMFSample> DecodedOutputSample = reinterpret_cast<IMFSample*>(InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::MFSample));
 
 			DWORD BuffersNum = 0;
@@ -323,7 +274,6 @@ bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput_D
 				UE_LOG(LogElectraPlayer, Error, TEXT("IMFSample::GetBufferCount() returned %u buffers instead of 1"), Result);
 				return false;
 			}
-
 			TRefCountPtr<IMFMediaBuffer> Buffer;
 			if ((Result = DecodedOutputSample->GetBufferByIndex(0, Buffer.GetInitReference())) != S_OK)
 			{
@@ -331,31 +281,70 @@ bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput_D
 				return false;
 			}
 
-			DWORD BufferSize = 0;
-			uint8* Data = nullptr;
-			if ((Result = Buffer->GetCurrentLength(&BufferSize)) != S_OK)
-			{
-				UE_LOG(LogElectraPlayer, Error, TEXT("IMFMediaBuffer::GetCurrentLength() failed with %08x"), Result);
-				return false;
-			}
-			if ((Result = Buffer->Lock(&Data, NULL, NULL)) != S_OK)
-			{
-				UE_LOG(LogElectraPlayer, Error, TEXT("IMFMediaBuffer::Lock() failed with %08x"), Result);
-				return false;
-			}
-
 			int32 Width = InDecoderOutput->GetDecodedWidth();
 			int32 Height = InDecoderOutput->GetDecodedHeight();
-			int32 Pitch = InDecoderOutput->GetFrameWidth();
-			DecoderOutput->InitializeWithBuffer(Data, BufferSize,
-				Pitch,									// Buffer stride
-				FIntPoint(Width, Height * 3 / 2),		// Buffer dimensions
-				InOutBufferPropertes);
 
-			if ((Result = Buffer->Unlock()) != S_OK)
+			// With software decode we cannot query any DXGI/DirectX data types, so we query the decoder extra data...
+			EElectraDecoderPlatformPixelFormat SamplePixFmt = static_cast<EElectraDecoderPlatformPixelFormat>(ElectraDecodersUtil::GetVariantValueSafeI64(ExtraValues, TEXT("pixfmt"), (int64)EElectraDecoderPlatformPixelFormat::NV12));
+
+			EPixelFormat PixFmt = (SamplePixFmt == EElectraDecoderPlatformPixelFormat::NV12) ? EPixelFormat::PF_NV12 : EPixelFormat::PF_P010;
+
+			InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)PixFmt));
+			InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64)((PixFmt == EPixelFormat::PF_NV12) ? 8 : 10)));
+
+			TRefCountPtr<IMF2DBuffer> Buffer2D;
+			if ((Result = Buffer->QueryInterface(__uuidof(IMF2DBuffer), (void**)Buffer2D.GetInitReference())) == S_OK)
 			{
-				UE_LOG(LogElectraPlayer, Error, TEXT("IMFMediaBuffer::Unlock() failed with %08x"), Result);
-				return false;
+				uint8* Data = nullptr;
+				LONG Pitch = 0;
+				if ((Result = Buffer2D->Lock2D(&Data, &Pitch)) != S_OK)
+				{
+					UE_LOG(LogElectraPlayer, Error, TEXT("IMF2DBuffer::Lock2D() failed with %08x"), Result);
+					return false;
+				}
+
+				InOutBufferPropertes->Set(TEXT("pitch"), FVariantValue((int64)Pitch));
+
+				DecoderOutput->InitializeWithBuffer(Data, Pitch * Height,
+					Pitch,						// Buffer stride
+					FIntPoint(Width, Height),	// Buffer dimensions
+					InOutBufferPropertes);
+
+				if ((Result = Buffer2D->Unlock2D()) != S_OK)
+				{
+					UE_LOG(LogElectraPlayer, Error, TEXT("IMF2DBuffer::Unlock2D() failed with %08x"), Result);
+					return false;
+				}
+			}
+			else
+			{
+				DWORD BufferSize = 0;
+				uint8* Data = nullptr;
+				if ((Result = Buffer->GetCurrentLength(&BufferSize)) != S_OK)
+				{
+					UE_LOG(LogElectraPlayer, Error, TEXT("IMFMediaBuffer::GetCurrentLength() failed with %08x"), Result);
+					return false;
+				}
+				if ((Result = Buffer->Lock(&Data, NULL, NULL)) != S_OK)
+				{
+					UE_LOG(LogElectraPlayer, Error, TEXT("IMFMediaBuffer::Lock() failed with %08x"), Result);
+					return false;
+				}
+
+				int32 Pitch = Width * ((PixFmt == EPixelFormat::PF_NV12) ? 1 : 2);
+
+				InOutBufferPropertes->Set(TEXT("pitch"), FVariantValue((int64)Pitch));
+
+				DecoderOutput->InitializeWithBuffer(Data, BufferSize,
+					Pitch,						// Buffer stride
+					FIntPoint(Width, Height),	// Buffer dimensions
+					InOutBufferPropertes);
+
+				if ((Result = Buffer->Unlock()) != S_OK)
+				{
+					UE_LOG(LogElectraPlayer, Error, TEXT("IMFMediaBuffer::Unlock() failed with %08x"), Result);
+					return false;
+				}
 			}
 			return true;
 		}
@@ -363,17 +352,21 @@ bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput_D
 	return false;
 }
 
-bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput_Images(IMediaRenderer::IBuffer* InOutBufferToSetup, TSharedPtr<FParamDict, ESPMode::ThreadSafe> InOutBufferPropertes, TSharedPtr<IElectraDecoderVideoOutput, ESPMode::ThreadSafe> InDecoderOutput, FElectraDecoderResourceManagerWindows::IDecoderPlatformResource* InPlatformSpecificResource)
+
+bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput(IMediaRenderer::IBuffer* InOutBufferToSetup, TSharedPtr<FParamDict, ESPMode::ThreadSafe> InOutBufferPropertes, TSharedPtr<IElectraDecoderVideoOutput, ESPMode::ThreadSafe> InDecoderOutput, FElectraDecoderResourceManagerWindows::IDecoderPlatformResource* InPlatformSpecificResource)
 {
+	check(InOutBufferToSetup);
+	check(InOutBufferPropertes.IsValid());
+	check(InDecoderOutput.IsValid());
+
 	TSharedPtr<FElectraPlayerVideoDecoderOutputPC, ESPMode::ThreadSafe> DecoderOutput = InOutBufferToSetup->GetBufferProperties().GetValue("texture").GetSharedPointer<FElectraPlayerVideoDecoderOutputPC>();
-	IElectraDecoderVideoOutputImageBuffers* ImageBuffers = reinterpret_cast<IElectraDecoderVideoOutputImageBuffers*>(InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::ImageBuffers));
 	FInstanceVars* Vars = static_cast<FInstanceVars*>(InPlatformSpecificResource);
-	if (DecoderOutput.IsValid() && Vars)
+
+	if (DecoderOutput.IsValid())
 	{
 		FElectraVideoDecoderOutputCropValues Crop = InDecoderOutput->GetCropValues();
 		InOutBufferPropertes->Set(TEXT("width"), FVariantValue((int64)InDecoderOutput->GetWidth()));
 		InOutBufferPropertes->Set(TEXT("height"), FVariantValue((int64)InDecoderOutput->GetHeight()));
-		InOutBufferPropertes->Set(TEXT("pitch"), FVariantValue((int64)InDecoderOutput->GetFrameWidth()));
 		InOutBufferPropertes->Set(TEXT("crop_left"), FVariantValue((int64)Crop.Left));
 		InOutBufferPropertes->Set(TEXT("crop_right"), FVariantValue((int64)Crop.Right));
 		InOutBufferPropertes->Set(TEXT("crop_top"), FVariantValue((int64)Crop.Top));
@@ -386,330 +379,108 @@ bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput_I
 
 		int32 Width = InDecoderOutput->GetDecodedWidth();
 		int32 Height = InDecoderOutput->GetDecodedHeight();
-		int32 Pitch = InDecoderOutput->GetFrameWidth();
 
-		TMap<FString, FVariant> ExtraValues;
-		InDecoderOutput->GetExtraValues(ExtraValues);
+		InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64)InDecoderOutput->GetNumberOfBits()));
 
-		if (WindowsDecoderResources::IsHAP(Vars->Codec4CC))
+		//
+		// Image buffers?
+		//
+		IElectraDecoderVideoOutputImageBuffers* ImageBuffers = reinterpret_cast<IElectraDecoderVideoOutputImageBuffers*>(InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::ImageBuffers));
+		if (ImageBuffers != nullptr)
 		{
-			if (!ImageBuffers)
-			{
-				UE_LOG(LogElectraPlayer, Log, TEXT("Did not receive image buffers for HAP output"));
-				return false;
-			}
-
-			// One or two buffers (color or color+alpha)
 			int32 NumImageBuffers = ImageBuffers->GetNumberOfBuffers();
 			check(NumImageBuffers == 1 || NumImageBuffers == 2);
 
-			uint32 ColorBufferFormat = (uint32) ImageBuffers->GetBufferFormatByIndex(0);
-			switch(ColorBufferFormat)
-			{
-				case 0x01:		// HapTextureFormat_YCoCg_DXT5
-				{
-					InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_DXT5));
-					InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64) 8));
-					InOutBufferPropertes->Set(TEXT("pixelenc"), FVariantValue((int64)EVideoDecoderPixelEncoding::YCoCg));
-					Pitch = ((Pitch + 3) / 4) * 16;		// 4 pixel wide blocks with 16 bytes
-					break;
-				}
-				case 0x83F0:	// HapTextureFormat_RGB_DXT1
-				{
-					InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_DXT1));
-					InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64) 8));
-					Pitch = ((Pitch + 3) / 4) * 8;		// 4 pixel wide blocks with 8 bytes
-					break;
-				}
-				case 0x83F3:	// HapTextureFormat_RGBA_DXT5
-				{
-					InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_DXT5));
-					InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64) 8));
-					Pitch = ((Pitch + 3) / 4) * 16;		// 4 pixel wide blocks with 16 bytes
-					break;
-				}
-				case 0x8DBB:	// HapTextureFormat_A_RGTC1
-				{
-					InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_BC4));
-					InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64) 8));
-					Pitch = ((Pitch + 3) / 4) * 8;		// 4 pixel wide blocks with 8 bytes
-					break;
-				}
-				case 0x8E8C:	// HapTextureFormat_RGBA_BPTC_UNORM
-				case 0x8E8F:	// HapTextureFormat_RGB_BPTC_UNSIGNED_FLOAT
-				case 0x8E8E:	// HapTextureFormat_RGB_BPTC_SIGNED_FLOAT
-				default:
-				{
-					UE_LOG(LogElectraPlayer, Log, TEXT("Unsupported HAP texture format 0x%04x"), ColorBufferFormat);
-					return false;
-				}
-			}
+			// Color buffer
 
-			TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> ColorBuffer = ImageBuffers->GetBufferByIndex(0);
+			EElectraDecoderPlatformPixelFormat PixFmt = ImageBuffers->GetBufferFormatByIndex(0);
+			EElectraDecoderPlatformPixelEncoding PixEnc = ImageBuffers->GetBufferEncodingByIndex(0);
+
+			EPixelFormat RHIPixFmt;
+			switch (PixFmt)
+			{
+				case EElectraDecoderPlatformPixelFormat::R8G8B8A8:		RHIPixFmt = EPixelFormat::PF_R8G8B8A8; break;
+				case EElectraDecoderPlatformPixelFormat::A8R8G8B8:		RHIPixFmt = EPixelFormat::PF_A8R8G8B8; break;
+				case EElectraDecoderPlatformPixelFormat::B8G8R8A8:		RHIPixFmt = EPixelFormat::PF_B8G8R8A8; break;
+				case EElectraDecoderPlatformPixelFormat::R16G16B16A16:	RHIPixFmt = EPixelFormat::PF_R16G16B16A16_UNORM; break;
+				case EElectraDecoderPlatformPixelFormat::A16B16G16R16:	RHIPixFmt = EPixelFormat::PF_A16B16G16R16; break;
+				case EElectraDecoderPlatformPixelFormat::A32B32G32R32F:	RHIPixFmt = EPixelFormat::PF_A32B32G32R32F; break;
+				case EElectraDecoderPlatformPixelFormat::A2B10G10R10:	RHIPixFmt = EPixelFormat::PF_A2B10G10R10; break;
+				case EElectraDecoderPlatformPixelFormat::DXT1:			RHIPixFmt = EPixelFormat::PF_DXT1; break;
+				case EElectraDecoderPlatformPixelFormat::DXT5:			RHIPixFmt = EPixelFormat::PF_DXT5; break;
+				case EElectraDecoderPlatformPixelFormat::BC4:			RHIPixFmt = EPixelFormat::PF_BC4; break;
+				case EElectraDecoderPlatformPixelFormat::NV12:			RHIPixFmt = EPixelFormat::PF_NV12; break;
+				case EElectraDecoderPlatformPixelFormat::P010:			RHIPixFmt = EPixelFormat::PF_P010; break;
+				default: RHIPixFmt = EPixelFormat::PF_Unknown; break;
+			}
+			check(RHIPixFmt != EPixelFormat::PF_Unknown);
+
+			EVideoDecoderPixelEncoding DecPixEnc;
+			switch (PixEnc)
+			{
+				case EElectraDecoderPlatformPixelEncoding::Native:			DecPixEnc = EVideoDecoderPixelEncoding::Native; break;
+				case EElectraDecoderPlatformPixelEncoding::RGB:				DecPixEnc = EVideoDecoderPixelEncoding::RGB; break;
+				case EElectraDecoderPlatformPixelEncoding::RGBA:			DecPixEnc = EVideoDecoderPixelEncoding::RGBA; break;
+				case EElectraDecoderPlatformPixelEncoding::YCbCr:			DecPixEnc = EVideoDecoderPixelEncoding::YCbCr; break;
+				case EElectraDecoderPlatformPixelEncoding::YCbCr_Alpha:		DecPixEnc = EVideoDecoderPixelEncoding::YCbCr_Alpha; break;
+				case EElectraDecoderPlatformPixelEncoding::YCoCg:			DecPixEnc = EVideoDecoderPixelEncoding::YCoCg; break;
+				case EElectraDecoderPlatformPixelEncoding::YCoCg_Alpha:		DecPixEnc = EVideoDecoderPixelEncoding::YCoCg_Alpha; break;
+				case EElectraDecoderPlatformPixelEncoding::CbY0CrY1:		DecPixEnc = EVideoDecoderPixelEncoding::CbY0CrY1; break;
+				case EElectraDecoderPlatformPixelEncoding::Y0CbY1Cr:		DecPixEnc = EVideoDecoderPixelEncoding::Y0CbY1Cr; break;
+				case EElectraDecoderPlatformPixelEncoding::ARGB_BigEndian:	DecPixEnc = EVideoDecoderPixelEncoding::ARGB_BigEndian; break;
+				default: DecPixEnc = DecPixEnc = EVideoDecoderPixelEncoding::Native; break;
+			}
+			
+			int32 Pitch = ImageBuffers->GetBufferPitchByIndex(0);
+
+			InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)RHIPixFmt));
+			InOutBufferPropertes->Set(TEXT("pixelenc"), FVariantValue((int64)DecPixEnc));
+			InOutBufferPropertes->Set(TEXT("pitch"), FVariantValue((int64)Pitch));
+
+// [...] ALPHA BUFFER -- HOW DO WE PASS IT ON!?
+// [...] ANY CS/HDR INFO FROM THE DECODER? -- PASSING IT ON WOULD BE EASY, BUT RIGHT NOW WE ALWAYS READ IT FROM THE CONTAINER (in code further up the chain)
+
+			TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> ColorBuffer = ImageBuffers->GetBufferDataByIndex(0);
 			if (ColorBuffer.IsValid() && ColorBuffer->Num())
 			{
+				//
+				// CPU side buffer
+				//
 				DecoderOutput->InitializeWithBuffer(ColorBuffer,
 					Pitch,							// Buffer stride
 					FIntPoint(Width, Height),		// Buffer dimensions
 					InOutBufferPropertes);
 				return true;
 			}
-		}
-		else if (WindowsDecoderResources::IsProRes(Vars->Codec4CC))
-		{
-			if (!ImageBuffers)
+			else
 			{
-				UE_LOG(LogElectraPlayer, Log, TEXT("Did not receive image buffers for ProRes output"));
-				return false;
-			}
-			check(ImageBuffers->GetNumberOfBuffers() == 1);
-			uint32 ColorBufferFormat = (uint32) ImageBuffers->GetBufferFormatByIndex(0);
-			switch(ColorBufferFormat)
-			{
-				case 0x32767579:	// '2vuy'; 4:2:2   Y'CbCr  8-bit video range
+				// Note: we assume a DX11 texture at this point, but this could also be interpreted as IUknown and then either DX11 or DX12 resources being derived from it...
+				ID3D11Texture2D* Texture = static_cast<ID3D11Texture2D*>(ImageBuffers->GetBufferTextureByIndex(0));
+				if (Texture != nullptr)
 				{
-					InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_B8G8R8A8));
-					InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64)8));
-					InOutBufferPropertes->Set(TEXT("pixelenc"), FVariantValue((int64)EVideoDecoderPixelEncoding::CbY0CrY1));
-					Width = (Width + 1) / 2; // each pixel contains TWO horizontally adjacent output pixels)
-					Pitch *= 2;
-					break;
-				}
-				case 0x79343136:	// 'y416'; 4:4:4:4 AY'CbCr 16-bit little endian full range alpha, video range Y'CbCr
-				{
-					InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_A16B16G16R16));
-					InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64) 16));
-					InOutBufferPropertes->Set(TEXT("pixelenc"), FVariantValue((int64)EVideoDecoderPixelEncoding::YCbCr_Alpha));
-					Pitch *= 8;
-					break;
-				}
-				case 0x7234666c:	// 'r4fl'; 4:4:4:4 AY'CbCr 32-bit float
-				{
-					InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_A32B32G32R32F));
-					InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64)32));
-					InOutBufferPropertes->Set(TEXT("pixelenc"), FVariantValue((int64)EVideoDecoderPixelEncoding::YCbCr_Alpha));
-					Pitch *= 16;
-					break;
-				}
-				case 0x76323130:	// 'v210'; 4:2:2   Y'CbCr 10-bit video range
-				{
-					InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_A2B10G10R10));
-					InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64)10));
-					InOutBufferPropertes->Set(TEXT("pixelenc"), FVariantValue((int64)EVideoDecoderPixelEncoding::CbY0CrY1));
-					Width = 4 * ((Width + 5) / 6); // each 4 pixel contain 6 horizontally adjacent YCbCr pixels (incl. 4x 2-bit padding)
-					Pitch = Width * 4;
-					break;
-				}
-				case 0x76323136:	// 'v216'; 4:2:2   Y'CbCr 16-bit little endian video range (Cb:Y0:Cr:Y1)
-				{
-					InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_A16B16G16R16));
-					InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64)16));
-					InOutBufferPropertes->Set(TEXT("pixelenc"), FVariantValue((int64)EVideoDecoderPixelEncoding::CbY0CrY1));
-					Width = (Width + 1) / 2; // each pixel contains TWO horizontally adjacent output pixels)
-					Pitch *= 4;
-					break;
-				}
-				case 0x62363461:	// 'b64a'; 4:4:4:4 Full-range (0-65535) ARGB  16-bit big endian per component
-				{
-					InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_A16B16G16R16));
-					InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64)16));
-					InOutBufferPropertes->Set(TEXT("pixelenc"), FVariantValue((int64)EVideoDecoderPixelEncoding::ARGB_BigEndian));
-					Pitch *= 8;
-					break;
-				}
-				default:
-				{
-					UE_LOG(LogElectraPlayer, Log, TEXT("Unsupported ProRes texture format 0x%08x"), ColorBufferFormat);
-					return false;
-				}
-			}
-
-			TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> ColorBuffer = ImageBuffers->GetBufferByIndex(0);
-			if (ColorBuffer.IsValid() && ColorBuffer->Num())
-			{
-				DecoderOutput->InitializeWithBuffer(ColorBuffer,
-					Pitch,							// Buffer stride
-					FIntPoint(Width, Height),		// Buffer dimensions
-					InOutBufferPropertes);
-				return true;
-			}
-		}
-		else if (WindowsDecoderResources::IsAvidDNxHD(Vars->Codec4CC))
-		{
-			if (!ImageBuffers)
-			{
-				UE_LOG(LogElectraPlayer, Log, TEXT("Did not receive image buffers for Avid output"));
-				return false;
-			}
-
-			int32 AvidComponentType = InDecoderOutput->GetPixelFormat();
-				/*
-					,DNX_CT_UCHAR        = 0x001   ///< 8 bit
-					,DNX_CT_USHORT_10_6  = 0x004   ///< 10 bit
-					,DNX_CT_SHORT_2_14   = 0x008   ///< Fixed point
-					,DNX_CT_SHORT        = 0x010   ///< 16 bit. Premultiplied by 257. Byte ordering is machine dependent.
-					,DNX_CT_10Bit_2_8    = 0x040   ///< 10 bit in 2_8 format. Byte ordering is fixed. This is to be used with 10-bit 4:2:2 YCbCr components.
-					,DNX_CT_V210         = 0x400   ///< Apple's V210
-					,DNX_CT_USHORT_12_4  = 0x20000 ///< 12 bit
-				*/
-			uint32 AvidComponentOrder = (uint32)ImageBuffers->GetBufferFormatByIndex(0);
-				/*
-					,DNX_CCO_YCbYCr_NoA          = 0x00000001    ///< Y0CbY1Cr
-					,DNX_CCO_CbYCrY_NoA          = 0x00000002    ///< CbY0CrY1
-					,DNX_CCO_ARGB_Interleaved    = 0x00000004    ///< ARGB
-					,DNX_CCO_BGRA_Interleaved    = 0x00000008    ///< BGRA
-					,DNX_CCO_RGB_NoA             = 0x00000040    ///< RGB
-					,DNX_CCO_BGR_NoA             = 0x00000080    ///< BGR
-					,DNX_CCO_RGBA_Interleaved    = 0x00000800    ///< RGBA
-					,DNX_CCO_ABGR_Interleaved    = 0x00001000    ///< ABGR
-					,DNX_CCO_YCbCr_Interleaved   = 0x00002000    ///< YCbCr 444
-					,DNX_CCO_Ch1Ch2Ch3           = 0x00004000    ///< Arbitrary 444 subsampled color components for any colorspace other than RGB and YCbCr
-					,DNX_CCO_Ch1Ch2Ch1Ch3        = 0x00008000    ///< Arbitrary 422 subsampled color components for any colorspace other than RGB and YCbCr with not subsampled channel first
-					,DNX_CCO_Ch2Ch1Ch3Ch1        = 0x00010000    ///< Arbitrary 422 subsampled color components for any colorspace other than RGB and YCbCr with subsampled channel first
-					,DNX_CCO_YCbCr_Planar        = 0x00020000    ///< YCbCr 420 stored in planar form. Y followed by Cb followed by Cr
-					,DNX_CCO_CbYACrYA_Interleaved= 0x00040000    ///< YCbCrA 4224
-					,DNX_CCO_CbYCrA_Interleaved  = 0x00080000    ///< YCbCrA 4444
-					,DNX_CCO_YCbCrA_Planar       = 0x00100000    ///< YCbCrA 4204 stored in planar form. Y followed by Cb followed by Cr followed by A
-					,DNX_CCO_Ch1Ch2Ch3A          = 0x00200000    ///< Arbitrary 4444 subsampled color components for any colorspace other than RGB and YCbCr with Alpha (Alpha channel last)
-					,DNX_CCO_Ch3Ch2Ch1A          = 0x00400000    ///< Arbitrary 4444 subsampled color components for any colorspace other than RGB and YCbCr with Alpha with reversed channel order (Alpha channel last)
-					,DNX_CCO_ACh1Ch2Ch3          = 0x00800000    ///< Arbitrary 4444 subsampled color components for any colorspace other than RGB and YCbCr with Alpha (Alpha channel first)
-					,DNX_CCO_Ch2Ch1ACh3Ch1A      = 0x01000000    ///< Arbitrary 4224 subsampled color components for any colorspace other than RGB and YCbCr with not subsampled channel first with Alpha
-					,DNX_CCO_CbYCrY_A            = 0x02000000    ///< YCbCrA 4224 mixed-planar (separate Alpha plane)
-				*/
-
-			int32 AvidColorVolume = (int32)ElectraDecodersUtil::GetVariantValueSafeI64(ExtraValues, TEXT("avid_color_volume"), 0);
-				/*
-					,DNX_CV_709             = 0x01     ///< Rec. 709
-					,DNX_CV_2020            = 0x02     ///< Non-constant luminance Rec. 2020
-					,DNX_CV_2020c           = 0x04     ///< Constant luminance Rec. 2020
-					,DNX_CV_OutOfBand       = 0x08     ///< Any other
-				*/
-
-			switch (AvidComponentType)
-			{
-				case	0x001:	// DNX_CT_UCHAR
-				{
-					switch (AvidComponentOrder)
+					//
+					// GPU texture
+					//
+					ID3D11Device* Device = reinterpret_cast<ID3D11Device*>(InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::DXDevice));
+					ID3D11DeviceContext* DeviceContext = reinterpret_cast<ID3D11DeviceContext*>(InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::DXDeviceContext));
+					if (Device && DeviceContext)
 					{
-						case	0x00000001:	// DNX_CCO_YCbYCr_NoA
-						case	0x00000002:	// DNX_CCO_CbYCrY_NoA
-						{
-							InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_B8G8R8A8));
-							InOutBufferPropertes->Set(TEXT("pixelenc"), FVariantValue((int64)((AvidComponentOrder == 0x00000002) ? EVideoDecoderPixelEncoding::CbY0CrY1 : EVideoDecoderPixelEncoding::Y0CbY1Cr)));
-							Width = (Width + 1) / 2; // each pixel contains TWO horizontally adjacent output pixels)
-							Pitch *= 2;
-							break;
-						}
-						case	0x00000004:	// DNX_CCO_ARGB_Interleaved
-						{
-							InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_A8R8G8B8));
-							Pitch *= 4;
-							break;
-						}
-						case	0x00000800:	// DNX_CCO_RGBA_Interleaved
-						{
-							InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_R8G8B8A8));
-							Pitch *= 4;
-							break;
-						}
-						case	0x00080000:	// DNX_CCO_CbYCrA_Interleaved
-						{
-							InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_B8G8R8A8));
-							InOutBufferPropertes->Set(TEXT("pixelenc"), FVariantValue((int64)EVideoDecoderPixelEncoding::YCbCr_Alpha));
-							Pitch *= 4;
-							break;
-						}
-						case	0x00020000:	// DNX_CCO_YCbCr_Planar
-						{
-							InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_NV12));
-							Height = (Height * 3) / 2;
-							break;
-						}
-						default:
-						{
-							return false;
-						}
+						DecoderOutput->InitializeWithSharedTexture(Device, DeviceContext, Texture, FIntPoint(InDecoderOutput->GetWidth(), InDecoderOutput->GetHeight()), InOutBufferPropertes);
+						return true;
 					}
-					break;
-				}
-				case	0x010:	// DNX_CT_USHORT
-				case	0x004:	// DNX_CT_USHORT_10_6
-				case	0x20000: // DNX_CT_USHORT_12_4
-				{
-					switch (AvidComponentOrder)
-					{
-						case	0x00000001:	// DNX_CCO_YCbYCr_NoA
-						case	0x00000002:	// DNX_CCO_CbYCrY_NoA
-						{
-							InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_A16B16G16R16));
-							InOutBufferPropertes->Set(TEXT("pixelenc"), FVariantValue((int64)((AvidComponentOrder == 0x00000002) ? EVideoDecoderPixelEncoding::CbY0CrY1 : EVideoDecoderPixelEncoding::Y0CbY1Cr)));
-							Width = (Width + 1) / 2; // each pixel contains TWO horizontally adjacent output pixels)
-							Pitch *= 2;
-							break;
-						}
-						case	0x00000800:	// DNX_CCO_RGBA_Interleaved
-						{
-							InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_R16G16B16A16_UNORM));
-							Pitch *= 8;
-							break;
-						}
-						case	0x00001000:	// DNX_CCO_ABGR_Interleaved
-						{
-							InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_A16B16G16R16));
-							Pitch *= 8;
-							break;
-						}
-						case	0x00080000:	// DNX_CCO_CbYCrA_Interleaved
-						{
-							InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_A16B16G16R16));
-							InOutBufferPropertes->Set(TEXT("pixelenc"), FVariantValue((int64)EVideoDecoderPixelEncoding::YCbCr_Alpha));
-							Pitch *= 8;
-							break;
-						}
-						case	0x00020000:	// DNX_CCO_YCbCr_Planar
-						{
-							InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_P010));
-							Height = (Height * 3) / 2;
-							break;
-						}
-						default:
-						{
-							return false;
-						}
-					}
-					break;
-				}
-				case	0x400:	// DNX_CT_USHORT_V210
-				{
-					InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)EPixelFormat::PF_A2B10G10R10));
-					InOutBufferPropertes->Set(TEXT("pixelenc"), FVariantValue((int64)EVideoDecoderPixelEncoding::CbY0CrY1));
-					Width = 4 * ((Width + 5) / 6); // each 4 pixel contain 6 horizontally adjacent YCbCr pixels (incl. 4x 2-bit padding)
-					Pitch = Width * 4;
-					break;
-				}
-				default:
-				{
 				}
 			}
 
-//TODO >>> AvidColorVolume: right now we only deliver MP4-based HDR information
-
-			InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64)InDecoderOutput->GetNumberOfBits()));
-
-			TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> ColorBuffer = ImageBuffers->GetBufferByIndex(0);
-			if (ColorBuffer.IsValid() && ColorBuffer->Num())
-			{
-				DecoderOutput->InitializeWithBuffer(ColorBuffer,
-					Pitch,							// Buffer stride
-					FIntPoint(Width, Height),		// Buffer dimensions
-					InOutBufferPropertes);
-				return true;
-			}
 		}
 		else
 		{
-			UE_LOG(LogElectraPlayer, Log, TEXT("Unsupported decoded 4CC 0x%08x"), Vars->Codec4CC);
-			return false;
+			//
+			// IMF sample?
+			//
+			if (InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::MFSample) != nullptr)
+			{
+				return SetupRenderBufferFromDecoderOutputFromMFSample(InOutBufferToSetup, InOutBufferPropertes, InDecoderOutput, InPlatformSpecificResource);
+			}
 		}
 
 	}

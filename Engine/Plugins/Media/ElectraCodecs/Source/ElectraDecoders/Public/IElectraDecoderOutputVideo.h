@@ -78,8 +78,11 @@ public:
 	
 	/**
 	 * Returns the number of decoded horizontal pixels.
-	 * This value may be greater than GetWidth() since it does not take any
+	 * This value may be different from GetWidth() since it does not take any
 	 * cropping values into account.
+	 * Note that this represents the actual dimension of the data returned, which
+	 * may differ from GetWidth() + cropping offsets!
+	 * (e.g. if the data is returned as RGBA pixels, but represents a YUYV 4:2:2 format)
 	 */
 	virtual int32 GetDecodedWidth() const = 0;
 
@@ -87,6 +90,9 @@ public:
 	 * Returns the number of decoded vertical pixels.
 	 * This value may be greater than GetHeight() since it does not take any
 	 * cropping values into account.
+	 * Note that this represents the actual dimension of the data returned, which
+	 * may differ from GetWidth() + cropping offsets!
+	 * (e.g. if the data is returned as RGBA pixels, but represents a YUYV 4:2:2 format)
 	 */
 	virtual int32 GetDecodedHeight() const = 0;
 	
@@ -96,18 +102,6 @@ public:
 	 * that give you the number of pixels created by the decoder.
 	 */
 	virtual FElectraVideoDecoderOutputCropValues GetCropValues() const = 0;
-
-	/**
-	 * Returns the horizontal size of the frame buffer.
-	 * This includes any required horizontal pitch.
-	 */
-	virtual int32 GetFrameWidth() const = 0;
-
-	/**
-	 * Returns the vertical size of the frame buffer.
-	 * This includes any required vertical pitch.
-	 */
-	virtual int32 GetFrameHeight() const = 0;
 
 	/**
 	 * Returns the aspect ratio w value.
@@ -141,13 +135,6 @@ public:
 	 * in handling this output in a platform specific way.
 	 */
 	virtual void GetExtraValues(TMap<FString, FVariant>& OutExtraValues) const = 0;
-
-	/**
-	 * Returns the internal pixel format of the decoded image.
-	 * This is a value particular to the target hardware.
-	 * It usually describes the internal texture format.
-	 */
-	virtual int32 GetPixelFormat() const = 0;
 
 	/**
 	 * Returns the platform specific decoder output handle, if any.

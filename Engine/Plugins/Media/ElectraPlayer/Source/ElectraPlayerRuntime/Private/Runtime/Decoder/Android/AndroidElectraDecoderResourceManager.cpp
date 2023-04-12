@@ -190,7 +190,6 @@ bool FElectraDecoderResourceManagerAndroid::SetupRenderBufferFromDecoderOutput(I
 		FElectraVideoDecoderOutputCropValues Crop = InDecoderOutput->GetCropValues();
 		InOutBufferPropertes->Set(TEXT("width"), FVariantValue((int64) InDecoderOutput->GetWidth()));
 		InOutBufferPropertes->Set(TEXT("height"), FVariantValue((int64) InDecoderOutput->GetHeight()));
-		InOutBufferPropertes->Set(TEXT("pitch"), FVariantValue((int64) InDecoderOutput->GetFrameWidth()));
 		InOutBufferPropertes->Set(TEXT("crop_left"), FVariantValue((int64) Crop.Left));
 		InOutBufferPropertes->Set(TEXT("crop_right"), FVariantValue((int64) Crop.Right));
 		InOutBufferPropertes->Set(TEXT("crop_top"), FVariantValue((int64) Crop.Top));
@@ -200,10 +199,11 @@ bool FElectraDecoderResourceManagerAndroid::SetupRenderBufferFromDecoderOutput(I
 		InOutBufferPropertes->Set(TEXT("aspect_h"), FVariantValue((int64) InDecoderOutput->GetAspectRatioH()));
 		InOutBufferPropertes->Set(TEXT("fps_num"), FVariantValue((int64) InDecoderOutput->GetFrameRateNumerator()));
 		InOutBufferPropertes->Set(TEXT("fps_denom"), FVariantValue((int64) InDecoderOutput->GetFrameRateDenominator()));
-		check(InDecoderOutput->GetPixelFormat() == 0);
 		int32 NumBits = InDecoderOutput->GetNumberOfBits();
 		InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)((NumBits > 8)  ? EPixelFormat::PF_A2B10G10R10 : EPixelFormat::PF_B8G8R8A8)));
 		InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64) NumBits));
+
+		InOutBufferPropertes->Set(TEXT("pitch"), FVariantValue((int64)InDecoderOutput->GetDecodedWidth() * ((NumBits > 8) ? 2 : 1)));
 
 		FElectraDecoderVideoOutputCopyResources cr;
 		IElectraDecoderVideoOutput::EImageCopyResult CopyResult = InDecoderOutput->CopyPlatformImage(&cr);

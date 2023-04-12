@@ -63,10 +63,6 @@ public:
 	{ return Height; }
 	FElectraVideoDecoderOutputCropValues GetCropValues() const override
 	{ return Crop; }
-	int32 GetFrameWidth() const override
-	{ return Pitch; }
-	int32 GetFrameHeight() const override
-	{ return Height; }
 	int32 GetAspectRatioW() const override
 	{ return AspectW; }
 	int32 GetAspectRatioH() const override
@@ -79,8 +75,6 @@ public:
 	{ return NumBits; }
 	void GetExtraValues(TMap<FString, FVariant>& OutExtraValues) const override
 	{ OutExtraValues = ExtraValues; }
-	int32 GetPixelFormat() const override
-	{ return PixelFormat; }
 	void* GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType InTypeOfHandle) const override
 	{ return nullptr; }
 	IElectraDecoderVideoOutputTransferHandle* GetTransferHandle() const override

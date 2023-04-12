@@ -31,7 +31,7 @@ public:
 };
 
 
-class FElectraVideoDecoderOutputH264_Apple : public IElectraDecoderVideoOutput
+class FElectraVideoDecoderOutputH264_Apple : public IElectraDecoderVideoOutput, public IElectraDecoderVideoOutputImageBuffers
 {
 public:
 	virtual ~FElectraVideoDecoderOutputH264_Apple()
@@ -54,10 +54,6 @@ public:
 	{ return Height; }
 	FElectraVideoDecoderOutputCropValues GetCropValues() const override
 	{ return Crop; }
-	int32 GetFrameWidth() const override
-	{ return Pitch; }
-	int32 GetFrameHeight() const override
-	{ return Height; }
 	int32 GetAspectRatioW() const override
 	{ return AspectW; }
 	int32 GetAspectRatioH() const override
@@ -70,14 +66,11 @@ public:
 	{ return NumBits; }
 	void GetExtraValues(TMap<FString, FVariant>& OutExtraValues) const override
 	{ OutExtraValues = ExtraValues; }
-	int32 GetPixelFormat() const override
-	{ return PixelFormat; }
 	void* GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType InTypeOfHandle) const override
 	{
-		check(InTypeOfHandle == EElectraDecoderPlatformOutputHandleType::ImageBufferRef);
-		if (InTypeOfHandle == EElectraDecoderPlatformOutputHandleType::ImageBufferRef)
+		if (InTypeOfHandle == EElectraDecoderPlatformOutputHandleType::ImageBuffers)
 		{
-			return ImageBuffer;
+			return static_cast<IElectraDecoderVideoOutputImageBuffers*>(const_cast<FElectraVideoDecoderOutputH264_Apple*>(this));
 		}
 		return nullptr;
 	}
@@ -85,6 +78,36 @@ public:
 	{ return nullptr; }
 	IElectraDecoderVideoOutput::EImageCopyResult CopyPlatformImage(IElectraDecoderVideoOutputCopyResources* InCopyResources) const override
 	{ return IElectraDecoderVideoOutput::EImageCopyResult::NotSupported; }
+
+	// Methods from IElectraDecoderVideoOutputImageBuffers
+	uint32 GetCodec4CC() const override
+	{
+		return 0x34363248;
+	}
+	int32 GetNumberOfBuffers() const override
+	{
+		return 1;
+	}
+	TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> GetBufferDataByIndex(int32 InBufferIndex) const override
+	{
+		return nullptr;
+	}
+	void* GetBufferTextureByIndex(int32 InBufferIndex) const override
+	{
+		return InBufferIndex == 0 ? ImageBuffer : nullptr;
+	}
+	EElectraDecoderPlatformPixelFormat GetBufferFormatByIndex(int32 InBufferIndex) const override
+	{
+		return PixelFormat;
+	}
+	EElectraDecoderPlatformPixelEncoding GetBufferEncodingByIndex(int32 InBufferIndex) const override
+	{
+		return PixelEncoding;
+	}
+	int32 GetBufferPitchByIndex(int32 InBufferIndex) const override
+	{
+		return Pitch;
+	}
 
 public:
 	void ReleaseOutputBuffer()
@@ -108,7 +131,8 @@ public:
 	int32 AspectH = 1;
 	int32 FrameRateN = 0;
 	int32 FrameRateD = 0;
-	int32 PixelFormat = 0;
+	EElectraDecoderPlatformPixelFormat PixelFormat = EElectraDecoderPlatformPixelFormat::INVALID;
+	EElectraDecoderPlatformPixelEncoding PixelEncoding = EElectraDecoderPlatformPixelEncoding::Native;
 	TMap<FString, FVariant> ExtraValues;
 
 	CVImageBufferRef ImageBuffer = nullptr;
@@ -856,12 +880,33 @@ FElectraVideoDecoderH264_Apple::EConvertResult FElectraVideoDecoderH264_Apple::C
 	NewOutput->Height = In->SPS->GetHeight();
 	NewOutput->Pitch = NewOutput->Width;
 
-	//NewOutput->NumBits = 8 + In->SPS->bit_depth_luma_minus8;
-	//NewOutput->PixelFormat = 0;
-
 	NewOutput->ImageBuffer = NextImage.ReleaseImageBufferRef();
 	int pixelFormat = CVPixelBufferGetPixelFormatType(NewOutput->ImageBuffer);
-	NewOutput->PixelFormat = pixelFormat;
+
+	switch (pixelFormat)
+	{
+		case	kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange:
+		case	kCVPixelFormatType_420YpCbCr8BiPlanarFullRange:
+		{
+			NewOutput->PixelFormat = EElectraDecoderPlatformPixelFormat::NV12;
+			NewOutput->PixelEncoding = EElectraDecoderPlatformPixelEncoding::Native;
+			break;
+		}
+		case	kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange:
+		case	kCVPixelFormatType_420YpCbCr10BiPlanarFullRange:
+		{
+			NewOutput->PixelFormat = EElectraDecoderPlatformPixelFormat::P010;
+			NewOutput->PixelEncoding = EElectraDecoderPlatformPixelEncoding::Native;
+			break;
+		}
+		default:
+		{
+			check(!"Unexpected output format!");
+			NewOutput->PixelFormat = EElectraDecoderPlatformPixelFormat::INVALID;
+			NewOutput->PixelEncoding = EElectraDecoderPlatformPixelEncoding::Native;
+		}
+	}
+
 	NewOutput->NumBits = ElectraVideoDecoderFormatTypesApple::GetNumComponentBitsForPixelFormat(pixelFormat);
 	if (NewOutput->NumBits < 0)
 	{

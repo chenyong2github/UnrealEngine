@@ -56,11 +56,11 @@ public:
 
 	int32 GetWidth() const override
 	{
-		return Width - Crop.Left - Crop.Right;
+		return ImageWidth;
 	}
 	int32 GetHeight() const override
 	{
-		return Height - Crop.Top - Crop.Bottom;
+		return ImageHeight;
 	}
 	int32 GetDecodedWidth() const override
 	{
@@ -73,14 +73,6 @@ public:
 	FElectraVideoDecoderOutputCropValues GetCropValues() const override
 	{
 		return Crop;
-	}
-	int32 GetFrameWidth() const override
-	{
-		return Pitch;
-	}
-	int32 GetFrameHeight() const override
-	{
-		return Height;
 	}
 	int32 GetAspectRatioW() const override
 	{
@@ -105,10 +97,6 @@ public:
 	void GetExtraValues(TMap<FString, FVariant>& OutExtraValues) const override
 	{
 		OutExtraValues = ExtraValues;
-	}
-	int32 GetPixelFormat() const override
-	{
-		return PixelFormat;
 	}
 	void* GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType InTypeOfHandle) const override
 	{
@@ -136,13 +124,25 @@ public:
 	{
 		return 1;
 	}
-	TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> GetBufferByIndex(int32 InBufferIndex) const override
+	TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> GetBufferDataByIndex(int32 InBufferIndex) const override
 	{
 		return InBufferIndex == 0 ? Buffer : nullptr;
 	}
-	uint64 GetBufferFormatByIndex(int32 InBufferIndex) const override
+	void* GetBufferTextureByIndex(int32 InBufferIndex) const override
 	{
-		return static_cast<uint64>(BufferFormat);
+		return nullptr;
+	}
+	EElectraDecoderPlatformPixelFormat GetBufferFormatByIndex(int32 InBufferIndex) const override
+	{
+		return BufferFormat;
+	}
+	EElectraDecoderPlatformPixelEncoding GetBufferEncodingByIndex(int32 InBufferIndex) const override
+	{
+		return BufferEncoding;
+	}
+	int32 GetBufferPitchByIndex(int32 InBufferIndex) const override
+	{
+		return Pitch;
 	}
 
 public:
@@ -150,6 +150,8 @@ public:
 	uint64 UserValue = 0;
 
 	FElectraVideoDecoderOutputCropValues Crop;
+	int32 ImageWidth = 0;
+	int32 ImageHeight = 0;
 	int32 Width = 0;
 	int32 Height = 0;
 	int32 Pitch = 0;
@@ -163,9 +165,9 @@ public:
 
 	uint32 Codec4CC = 0;
 	TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> Buffer;
-	PRPixelFormat BufferFormat = kPRFormat_2vuy;
+	EElectraDecoderPlatformPixelFormat BufferFormat = EElectraDecoderPlatformPixelFormat::INVALID;
+	EElectraDecoderPlatformPixelEncoding BufferEncoding = EElectraDecoderPlatformPixelEncoding::Native;
 };
-
 
 
 class FVideoDecoderProResElectra : public IElectraDecoder
@@ -623,7 +625,7 @@ IElectraDecoder::EDecoderError FVideoDecoderProResElectra::DecodeAccessUnit(cons
 
 		NewOutput->Width = DecodedWidth;
 		NewOutput->Height = DecodedHeight;
-		NewOutput->Pitch = NewOutput->Width;
+		NewOutput->Pitch = DecodedWidth;
 		NewOutput->Crop.Right = DecodedWidth - DisplayWidth;
 		NewOutput->Crop.Bottom = DecodedHeight - DisplayHeight;
 		if (AspectW && AspectH)
@@ -632,28 +634,57 @@ IElectraDecoder::EDecoderError FVideoDecoderProResElectra::DecodeAccessUnit(cons
 			NewOutput->AspectH = AspectH;
 		}
 
+		NewOutput->ImageWidth = DecodedWidth - NewOutput->Crop.Left - NewOutput->Crop.Right;
+		NewOutput->ImageHeight = DecodedHeight - NewOutput->Crop.Top - NewOutput->Crop.Bottom;
+
 		NewOutput->Codec4CC = Codec4CC;
 		NewOutput->PixelFormat = static_cast<int32>(OutputPixelFormat);
 		switch(OutputPixelFormat)
 		{
 			case kPRFormat_2vuy:
 				NewOutput->NumBits = 8;
+				NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::B8G8R8A8;
+				NewOutput->BufferEncoding = EElectraDecoderPlatformPixelEncoding::CbY0CrY1;
+				NewOutput->Width /= 2;
+				NewOutput->Pitch *= 2;
 				break;
-			case kPRFormat_v210:
-			case kPRFormat_R10k:
-			case kPRFormat_r210:
-				NewOutput->NumBits = 10;
-				break;
-			case kPRFormat_b64a:
-			case kPRFormat_v216:
 			case kPRFormat_y416:
 				NewOutput->NumBits = 16;
+				NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::A16B16G16R16;
+				NewOutput->BufferEncoding = EElectraDecoderPlatformPixelEncoding::YCbCr_Alpha;
+				NewOutput->Pitch *= 8;
 				break;
 			case kPRFormat_r4fl:
 				NewOutput->NumBits = 32;
+				NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::A32B32G32R32F;
+				NewOutput->BufferEncoding = EElectraDecoderPlatformPixelEncoding::YCbCr_Alpha;
+				NewOutput->Pitch *= 16;
 				break;
+			case kPRFormat_v210:
+				NewOutput->NumBits = 10;
+				NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::A2B10G10R10;
+				NewOutput->BufferEncoding = EElectraDecoderPlatformPixelEncoding::CbY0CrY1;
+				NewOutput->Width = 4 * ((NewOutput->Width + 5) / 6); // each 4 pixel contain 6 horizontally adjacent YCbCr pixels (incl. 4x 2-bit padding)
+				NewOutput->Pitch = NewOutput->Width * 4;
+				break;
+			case kPRFormat_v216:
+				NewOutput->NumBits = 16;
+				NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::A16B16G16R16;
+				NewOutput->BufferEncoding = EElectraDecoderPlatformPixelEncoding::CbY0CrY1;
+				NewOutput->Width /= 2;
+				NewOutput->Pitch *= 4;
+				break;
+			case kPRFormat_b64a:
+				NewOutput->NumBits = 16;
+				NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::A16B16G16R16;
+				NewOutput->BufferEncoding = EElectraDecoderPlatformPixelEncoding::ARGB_BigEndian;
+				NewOutput->Pitch *= 8;
+				break;
+			case kPRFormat_R10k:
+			case kPRFormat_r210:
 			default:
 				NewOutput->NumBits = 0;
+				NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::INVALID;
 				break;
 		}
 
@@ -662,7 +693,6 @@ IElectraDecoder::EDecoderError FVideoDecoderProResElectra::DecodeAccessUnit(cons
 
 		NewOutput->Buffer = MakeShared<TArray<uint8>, ESPMode::ThreadSafe>();
 		NewOutput->Buffer->AddUninitialized(BufferAllocationSize);
-		NewOutput->BufferFormat = OutputPixelFormat;
 
 		PRPixelBuffer pb;
 		FMemory::Memzero(pb);

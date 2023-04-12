@@ -54,15 +54,11 @@ public:
 	int32 GetHeight() const override
 	{ return Height - Crop.Top - Crop.Bottom; }
 	int32 GetDecodedWidth() const override
-	{ return Width; }
+	{ return DecodedWidth; }
 	int32 GetDecodedHeight() const override
-	{ return Height; }
+	{ return DecodedHeight; }
 	FElectraVideoDecoderOutputCropValues GetCropValues() const override
 	{ return Crop; }
-	int32 GetFrameWidth() const override
-	{ return Pitch; }
-	int32 GetFrameHeight() const override
-	{ return Height; }
 	int32 GetAspectRatioW() const override
 	{ return AspectW; }
 	int32 GetAspectRatioH() const override
@@ -75,8 +71,6 @@ public:
 	{ return NumBits; }
 	void GetExtraValues(TMap<FString, FVariant>& OutExtraValues) const override
 	{ OutExtraValues = ExtraValues; }
-	int32 GetPixelFormat() const override
-	{ return PixelFormat; }
 	void* GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType InTypeOfHandle) const override
 	{ 
 		switch(InTypeOfHandle)
@@ -103,6 +97,8 @@ public:
 	FElectraVideoDecoderOutputCropValues Crop;
 	int32 Width = 0;
 	int32 Height = 0;
+	int32 DecodedWidth = 0;
+	int32 DecodedHeight = 0;
 	int32 Pitch = 0;
 	int32 NumBits = 0;
 	int32 AspectW = 1;
@@ -838,11 +834,22 @@ bool FElectraVideoDecoderH264_DX::ConvertDecoderOutput()
 			break;
 		}
 	}
+
+	// If no exact match is found then the decoder transform may have interpolated the PTS given the individual
+	// frame durations or perhaps due to SEI messages.
+	if (!bFoundMatch)
+	{
+		MatchingInput = InDecoderInput[0];
+		bFoundMatch = true;
+		InDecoderInput.RemoveAt(0);
+	}
+	/*
 	if (!bFoundMatch)
 	{
 		PostError(0, TEXT("There is no matching decoder input for the decoded output!"), ERRCODE_INTERNAL_FAILED_TO_CONVERT_OUTPUT_SAMPLE);
 		return false;
 	}
+	*/
 
 	TSharedPtr<FElectraVideoDecoderOutputH264_DX, ESPMode::ThreadSafe> NewOutput = MakeShared<FElectraVideoDecoderOutputH264_DX>();
 	NewOutput->PTS = MatchingInput.AccessUnit.PTS;
@@ -870,9 +877,18 @@ bool FElectraVideoDecoderH264_DX::ConvertDecoderOutput()
 	}
 
 	NewOutput->NumBits = 8;
-	// Width and height are the total pixels without cropping.
-	NewOutput->Width = (int32) dwInputWidth;
-	NewOutput->Height = (int32) dwInputHeight;
+	// Width and height of the final output image
+	NewOutput->Width = (int32)videoArea.Area.cx;
+	NewOutput->Height = (int32)videoArea.Area.cy;
+
+	// Width and height as "decoded dims" (which are featuring format specific scales & no cropping)
+	NewOutput->DecodedWidth = (int32)dwInputWidth;
+	NewOutput->DecodedHeight = (int32)dwInputHeight;
+	if (DecoderPlatformHandle->IsSoftware() || DecoderPlatformHandle->GetDXVersionTimes1000() >= 12000)
+	{
+		// We are returning a CPU side buffer (software decode OR DX12 render device) - adjust the height so it can be interpreted as a single plane texture
+		NewOutput->DecodedHeight = NewOutput->DecodedHeight * 3 / 2;
+	}
 
 	// Note: Decoder crops at the lower right border.
 	NewOutput->Crop.Left = 0;
@@ -906,6 +922,8 @@ bool FElectraVideoDecoderH264_DX::ConvertDecoderOutput()
 	NewOutput->ExtraValues.Emplace(TEXT("dxversion"), FVariant((int64) DecoderPlatformHandle->GetDXVersionTimes1000()));
 	NewOutput->ExtraValues.Emplace(TEXT("sw"), FVariant(DecoderPlatformHandle->IsSoftware()));
 	NewOutput->ExtraValues.Emplace(TEXT("codec"), FVariant(TEXT("avc")));
+	NewOutput->ExtraValues.Emplace(TEXT("pixfmt"), FVariant((int64)EElectraDecoderPlatformPixelFormat::NV12));
+	NewOutput->ExtraValues.Emplace(TEXT("pixenc"), FVariant((int64)EElectraDecoderPlatformPixelEncoding::Native));
 
 	// Retain the IMFSample in the output. It is needed later in converting it for display.
 	NewOutput->MFSample = DecodedOutputSample;

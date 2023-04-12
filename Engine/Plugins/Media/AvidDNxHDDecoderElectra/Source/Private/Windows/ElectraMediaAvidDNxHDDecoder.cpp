@@ -60,11 +60,11 @@ public:
 
 	int32 GetWidth() const override
 	{
-		return Width - Crop.Left - Crop.Right;
+		return ImageWidth;
 	}
 	int32 GetHeight() const override
 	{
-		return Height - Crop.Top - Crop.Bottom;
+		return ImageHeight;
 	}
 	int32 GetDecodedWidth() const override
 	{
@@ -77,14 +77,6 @@ public:
 	FElectraVideoDecoderOutputCropValues GetCropValues() const override
 	{
 		return Crop;
-	}
-	int32 GetFrameWidth() const override
-	{
-		return Pitch;
-	}
-	int32 GetFrameHeight() const override
-	{
-		return Height;
 	}
 	int32 GetAspectRatioW() const override
 	{
@@ -109,10 +101,6 @@ public:
 	void GetExtraValues(TMap<FString, FVariant>& OutExtraValues) const override
 	{
 		OutExtraValues = ExtraValues;
-	}
-	int32 GetPixelFormat() const override
-	{
-		return PixelFormat;
 	}
 	void* GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType InTypeOfHandle) const override
 	{
@@ -140,7 +128,7 @@ public:
 	{
 		return 1;
 	}
-	TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> GetBufferByIndex(int32 InBufferIndex) const override
+	TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> GetBufferDataByIndex(int32 InBufferIndex) const override
 	{
 		if (InBufferIndex == 0)
 		{
@@ -148,21 +136,42 @@ public:
 		}
 		return nullptr;
 	}
-	uint64 GetBufferFormatByIndex(int32 InBufferIndex) const override
+	void* GetBufferTextureByIndex(int32 InBufferIndex) const override
+	{
+		return nullptr;
+	}
+	EElectraDecoderPlatformPixelFormat GetBufferFormatByIndex(int32 InBufferIndex) const override
 	{
 		if (InBufferIndex == 0)
 		{
 			return BufferFormat;
 		}
+		return EElectraDecoderPlatformPixelFormat::INVALID;
+	}
+	EElectraDecoderPlatformPixelEncoding GetBufferEncodingByIndex(int32 InBufferIndex) const override
+	{
+		if (InBufferIndex == 0)
+		{
+			return BufferEncoding;
+		}
+		return EElectraDecoderPlatformPixelEncoding::Native;
+	}
+	int32 GetBufferPitchByIndex(int32 InBufferIndex) const override
+	{
+		if (InBufferIndex == 0)
+		{
+			return Pitch;
+		}
 		return 0;
 	}
-
 
 public:
 	FTimespan PTS;
 	uint64 UserValue = 0;
 
 	FElectraVideoDecoderOutputCropValues Crop;
+	int32 ImageWidth = 0;
+	int32 ImageHeight = 0;
 	int32 Width = 0;
 	int32 Height = 0;
 	int32 Pitch = 0;
@@ -176,7 +185,8 @@ public:
 
 	uint32 Codec4CC = 0;
 	TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> Buffer;
-	uint64 BufferFormat = 0;
+	EElectraDecoderPlatformPixelFormat BufferFormat = EElectraDecoderPlatformPixelFormat::INVALID;
+	EElectraDecoderPlatformPixelEncoding BufferEncoding = EElectraDecoderPlatformPixelEncoding::Native;
 };
 
 
@@ -493,8 +503,126 @@ IElectraDecoder::EDecoderError FVideoDecoderAvidDNxHDElectra::DecodeAccessUnit(c
 		}
 		NewOutput->Codec4CC = Codec4CC;
 		NewOutput->NumBits = Decoder.GetNumOutputBits();
+
+		NewOutput->ImageWidth = DecodedWidth - NewOutput->Crop.Left - NewOutput->Crop.Right;
+		NewOutput->ImageHeight = DecodedHeight - NewOutput->Crop.Top - NewOutput->Crop.Bottom;
+
 		NewOutput->PixelFormat = (int32) Decoder.CurrentUncompressedParams.compType;
-		NewOutput->BufferFormat = (uint64) Decoder.CurrentUncompressedParams.compOrder;
+
+		switch (Decoder.CurrentUncompressedParams.compType)
+		{
+			case	DNX_CT_UCHAR:
+			{
+				switch (Decoder.CurrentUncompressedParams.compOrder)
+				{
+					case	DNX_CCO_YCbYCr_NoA:
+					case	DNX_CCO_CbYCrY_NoA:
+					{
+						NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::B8G8R8A8;
+						NewOutput->BufferEncoding = (Decoder.CurrentUncompressedParams.compOrder  == DNX_CCO_CbYCrY_NoA) ?  EElectraDecoderPlatformPixelEncoding::CbY0CrY1 : EElectraDecoderPlatformPixelEncoding::Y0CbY1Cr;
+						NewOutput->Width /= 2;
+						NewOutput->Pitch *= 2;
+						break;
+					}
+					case	DNX_CCO_ARGB_Interleaved:
+					{
+						NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::A8R8G8B8;
+						NewOutput->BufferEncoding = EElectraDecoderPlatformPixelEncoding::Native;
+						NewOutput->Pitch *= 4;
+						break;
+					}
+					case	DNX_CCO_RGBA_Interleaved:
+					{
+						NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::R8G8B8A8;
+						NewOutput->BufferEncoding = EElectraDecoderPlatformPixelEncoding::Native;
+						NewOutput->Pitch *= 4;
+						break;
+					}
+					case	DNX_CCO_CbYCrA_Interleaved:
+					{
+						NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::B8G8R8A8;
+						NewOutput->BufferEncoding = EElectraDecoderPlatformPixelEncoding::YCbCr_Alpha;
+						NewOutput->Pitch *= 4;
+						break;
+					}
+					case	DNX_CCO_YCbCr_Planar:
+					{
+						NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::NV12;
+						NewOutput->BufferEncoding = EElectraDecoderPlatformPixelEncoding::Native;
+						NewOutput->Height = (NewOutput->Height * 3) / 2;
+						break;
+					}
+					default:
+					{
+						NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::INVALID;
+						NewOutput->BufferEncoding = EElectraDecoderPlatformPixelEncoding::Native;
+					}
+				}
+				break;
+			}
+			case	DNX_CT_SHORT:
+			case	DNX_CT_USHORT_10_6:
+			case	DNX_CT_USHORT_12_4:
+			{
+				switch (Decoder.CurrentUncompressedParams.compOrder)
+				{
+					case	DNX_CCO_YCbYCr_NoA:
+					case	DNX_CCO_CbYCrY_NoA:
+					{
+						NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::A16B16G16R16;
+						NewOutput->BufferEncoding = (Decoder.CurrentUncompressedParams.compOrder == DNX_CCO_CbYCrY_NoA) ? EElectraDecoderPlatformPixelEncoding::CbY0CrY1 : EElectraDecoderPlatformPixelEncoding::Y0CbY1Cr;
+						NewOutput->Width /= 2;
+						NewOutput->Pitch *= 4;
+						break;
+					}
+					case	DNX_CCO_RGBA_Interleaved:
+					{
+						NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::R16G16B16A16;
+						NewOutput->BufferEncoding = EElectraDecoderPlatformPixelEncoding::Native;
+						NewOutput->Pitch *= 8;
+						break;
+					}
+					case	DNX_CCO_ABGR_Interleaved:
+					{
+						NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::A16B16G16R16;
+						NewOutput->BufferEncoding = EElectraDecoderPlatformPixelEncoding::Native;
+						NewOutput->Pitch *= 8;
+						break;
+					}
+					case	DNX_CCO_CbYCrA_Interleaved:
+					{
+						NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::A16B16G16R16;
+						NewOutput->BufferEncoding = EElectraDecoderPlatformPixelEncoding::YCbCr_Alpha;
+						NewOutput->Pitch *= 8;
+						break;
+					}
+					case	DNX_CCO_YCbCr_Planar:
+					{
+						NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::P010;
+						NewOutput->BufferEncoding = EElectraDecoderPlatformPixelEncoding::Native;
+						NewOutput->Height = (NewOutput->Height * 3) / 2;
+						break;
+					}
+					default:
+					{
+						NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::INVALID;
+						NewOutput->BufferEncoding = EElectraDecoderPlatformPixelEncoding::Native;
+					}
+				}
+				break;
+			}
+			case	DNX_CT_V210:
+			{
+				NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::A2B10G10R10;
+				NewOutput->BufferEncoding = EElectraDecoderPlatformPixelEncoding::CbY0CrY1;
+				break;
+			}
+			default:
+			{
+				NewOutput->BufferFormat = EElectraDecoderPlatformPixelFormat::INVALID;
+				NewOutput->BufferEncoding = EElectraDecoderPlatformPixelEncoding::Native;
+			}
+		}
 
 		NewOutput->ExtraValues.Emplace(TEXT("codec"), FVariant(TEXT("avid")));
 		NewOutput->ExtraValues.Emplace(TEXT("codec_4cc"), FVariant(Codec4CC));

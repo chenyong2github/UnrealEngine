@@ -268,7 +268,6 @@ bool FElectraDecoderResourceManagerLinux::SetupRenderBufferFromDecoderOutput(IMe
 			FElectraVideoDecoderOutputCropValues Crop = InDecoderOutput->GetCropValues();
 			InOutBufferPropertes->Set(TEXT("width"), FVariantValue((int64) InDecoderOutput->GetWidth()));
 			InOutBufferPropertes->Set(TEXT("height"), FVariantValue((int64) InDecoderOutput->GetHeight()));
-			InOutBufferPropertes->Set(TEXT("pitch"), FVariantValue((int64) InDecoderOutput->GetFrameWidth()));
 			InOutBufferPropertes->Set(TEXT("crop_left"), FVariantValue((int64) Crop.Left));
 			InOutBufferPropertes->Set(TEXT("crop_right"), FVariantValue((int64) Crop.Right));
 			InOutBufferPropertes->Set(TEXT("crop_top"), FVariantValue((int64) Crop.Top));
@@ -285,6 +284,8 @@ bool FElectraDecoderResourceManagerLinux::SetupRenderBufferFromDecoderOutput(IMe
 
 			InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64) num_bits));
 			InOutBufferPropertes->Set(TEXT("pixelfmt"), FVariantValue((int64)((num_bits <= 8) ? EPixelFormat::PF_NV12 : EPixelFormat::PF_P010)));
+
+			InOutBufferPropertes->Set(TEXT("pitch"), FVariantValue((int64)InDecoderOutput->GetDecodedWidth() * ((num_bits <= 8) ? 1 : 2)));
 
 #if WITH_LIBAV
 			const ILibavDecoderVideoCommon::FOutputInfo& DecodedImageInfo = DecodedImage->GetOutputInfo();
