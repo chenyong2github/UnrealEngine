@@ -1315,24 +1315,9 @@ bool AssetViewUtils::IsValidObjectPathForCreate(const FString& ObjectPath, const
 {
 	const FString ObjectName = FPackageName::ObjectPathToPathWithinPackage(ObjectPath);
 
-	// Make sure the name is not already a class or otherwise invalid for saving
-	if ( !FFileHelper::IsFilenameValidForSaving(ObjectName, OutErrorMessage) )
-	{
-		// Return false to indicate that the user should enter a new name
-		return false;
-	}
-
 	// Make sure the new name only contains valid characters
-	if ( !FName::IsValidXName( ObjectName, INVALID_OBJECTNAME_CHARACTERS INVALID_LONGPACKAGE_CHARACTERS, &OutErrorMessage ) )
+	if (!FName::IsValidXName( ObjectName, INVALID_OBJECTNAME_CHARACTERS INVALID_LONGPACKAGE_CHARACTERS, &OutErrorMessage))
 	{
-		// Return false to indicate that the user should enter a new name
-		return false;
-	}
-
-	// Make sure we are not creating an FName that is too large
-	if ( ObjectPath.Len() >= NAME_SIZE )
-	{
-		OutErrorMessage = LOCTEXT("AssetNameTooLong", "This asset name is too long. Please choose a shorter name.");
 		// Return false to indicate that the user should enter a new name
 		return false;
 	}
@@ -1341,6 +1326,14 @@ bool AssetViewUtils::IsValidObjectPathForCreate(const FString& ObjectPath, const
 
 	if (!IsValidPackageForCooking(PackageName, OutErrorMessage))
 	{
+		return false;
+	}
+
+	// Make sure we are not creating an FName that is too large
+	if ( ObjectPath.Len() >= NAME_SIZE )
+	{
+		OutErrorMessage = LOCTEXT("AssetNameTooLong", "This asset name is too long. Please choose a shorter name.");
+		// Return false to indicate that the user should enter a new name
 		return false;
 	}
 
@@ -1400,6 +1393,19 @@ bool AssetViewUtils::IsValidObjectPathForCreate(const FString& ObjectPath, const
 	{
 		return false;
 	}
+
+	/** 
+	 * Make sure the name is not already a class or otherwise invalid for saving
+	 * Some other function above also test for some issues that this function can also find,
+	 * but they have an better error message more suited for the asset view.
+	 * Because of this, this test should be the last one to be run.
+	 */
+	if ( !FFileHelper::IsFilenameValidForSaving(ObjectName, OutErrorMessage) )
+	{
+		// Return false to indicate that the user should enter a new name
+		return false;
+	}
+
 
 	return true;
 }
