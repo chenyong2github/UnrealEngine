@@ -280,8 +280,14 @@ private:
 	void RegisterChaosEvents();
 	void UnregisterChaosEvents();
 
+	template <typename EventIterator>
+	void FillPhysicsProxy(FPhysScene_Chaos& Scene, TArray<UObject*>& Result, EventIterator& It);
 
 	TArray<UObject*> GetInterestedProxyOwnersForCollisionEvents();
+	TArray<UObject*> GetInterestedProxyOwnersForBreakingEvents();
+	TArray<UObject*> GetInterestedProxyOwnersForRemovalEvents();
+	TArray<UObject*> GetInterestedProxyOwnersForCrumblingEvents();
+
 	// Chaos Event Handlers
 	void HandleCollisionEvents(const Chaos::FCollisionEventData& CollisionData);
 	void HandleBreakingEvents(const Chaos::FBreakingEventData& BreakingData);

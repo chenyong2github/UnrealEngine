@@ -250,15 +250,15 @@ namespace Chaos
 		}
 		else if constexpr (std::is_same_v<PayloadType, FBreakingEventData>)
 		{
-			return nullptr; // &Buffer->PhysicsProxyToBreakingIndices.PhysicsProxyToIndicesMap;
+			return &Buffer->PhysicsProxyToBreakingIndices.PhysicsProxyToIndicesMap;
 		}
 		else if constexpr (std::is_same_v<PayloadType, FTrailingEventData>)
 		{
-			return nullptr; // &Buffer->PhysicsProxyToTrailingIndices.PhysicsProxyToIndicesMap;
+			return &Buffer->PhysicsProxyToTrailingIndices.PhysicsProxyToIndicesMap;
 		}
 		else if constexpr (std::is_same_v<PayloadType, FRemovalEventData>)
 		{
-			return nullptr; // &Buffer->PhysicsProxyToRemovalIndices.PhysicsProxyToIndicesMap;
+			return &Buffer->PhysicsProxyToRemovalIndices.PhysicsProxyToIndicesMap;
 		}
 		else if constexpr (std::is_same_v<PayloadType, FSleepingEventData>)
 		{
@@ -266,7 +266,7 @@ namespace Chaos
 		}
 		else if constexpr (std::is_same_v<PayloadType, FCrumblingEventData>)
 		{
-			return nullptr; // &Buffer->PhysicsProxyToCrumblingIndices.PhysicsProxyToIndicesMap;
+			return &Buffer->PhysicsProxyToCrumblingIndices.PhysicsProxyToIndicesMap;
 		}
 		else
 		{
