@@ -315,7 +315,7 @@ static void RecordStrataAnalytics(EShaderPlatform InPlatform)
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("Enabled"), 1));
 		EventAttributes.Add(FAnalyticsEventAttribute(TEXT("BytesPerPixel"), GetBytePerPixel(InPlatform)));
 
-		FString OutStr(TEXT("Substrate"));
+		FString OutStr(TEXT("Substrate.Usage.ProjectSettings"));
 		FEngineAnalytics::GetProvider().RecordEvent(OutStr, EventAttributes);
 	}
 }
