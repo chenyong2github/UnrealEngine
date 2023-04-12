@@ -81,7 +81,7 @@ namespace AutomationTool.Tasks
 			CommandUtils.ERunOptions Options = CommandUtils.ERunOptions.Default;
 			if (!LogOutput)
 			{
-				Options &= ~CommandUtils.ERunOptions.AllowSpew;
+				Options |= CommandUtils.ERunOptions.SpewIsVerbose;
 			}
 
 			IProcessResult Result = CommandUtils.Run(Exe, Arguments, Env: EnvVars, WorkingDir: WorkingDir, Options: Options, Input: Input, SpewFilterCallback: SpewFilterCallback);
