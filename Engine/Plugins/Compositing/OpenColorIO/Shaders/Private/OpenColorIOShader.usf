@@ -37,12 +37,12 @@ void MainPS(in noperspective float4 InUVAndScreenPos : TEXCOORD0,
 	out float4 OutColor : SV_Target0)
 {
 	float4 InputColor = InputTexture.Sample(InputTextureSampler, InUVAndScreenPos.xy);
-	
+	InputColor.xyz = max(0.0, InputColor.xyz);
+	InputColor.xyz = pow(InputColor.xyz, Gamma);
+
 #if WORKING_COLOR_SPACE_TRANSFORM_TYPE == 1 // EOpenColorIOWorkingColorSpaceTransform::Source
 	InputColor.xyz = mul((float3x3)WorkingColorSpaceToInterchange, InputColor.xyz);
 #endif
-	InputColor.xyz = max(0.0, InputColor.xyz);
-	InputColor.xyz = pow(InputColor.xyz, Gamma);
 
 	// Apply main transform
 	OutColor = float4(OCIOConvert(InputColor).xyz, InputColor.w);
