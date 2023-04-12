@@ -56,7 +56,12 @@ void UMaterialParameterCollection::SetupWorldParameterCollectionInstances()
 	for (TObjectIterator<UWorld> It; It; ++It)
 	{
 		UWorld* CurrentWorld = *It;
-		CurrentWorld->AddParameterCollectionInstance(this, true);
+		ULevel* Level = CurrentWorld->PersistentLevel;
+		const bool bIsWorldPartitionRuntimeCell = Level && Level->IsWorldPartitionRuntimeCell();
+		if (!bIsWorldPartitionRuntimeCell)
+		{
+			CurrentWorld->AddParameterCollectionInstance(this, true);
+		}
 	}
 }
 

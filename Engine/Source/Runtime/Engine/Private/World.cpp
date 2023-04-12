@@ -1522,15 +1522,20 @@ UWorld* UWorld::GetWorld() const
 
 void UWorld::SetupParameterCollectionInstances()
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_World_SetupParameterCollectionInstances);
-
-	// Create an instance for each parameter collection in memory
-	for (UMaterialParameterCollection* CurrentCollection : TObjectRange<UMaterialParameterCollection>())
+	ULevel* Level = PersistentLevel;
+	const bool bIsWorldPartitionRuntimeCell = Level && Level->IsWorldPartitionRuntimeCell();
+	if (!bIsWorldPartitionRuntimeCell)
 	{
-		AddParameterCollectionInstance(CurrentCollection, false);
-	}
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_World_SetupParameterCollectionInstances);
 
-	UpdateParameterCollectionInstances(false, false);
+		// Create an instance for each parameter collection in memory
+		for (UMaterialParameterCollection* CurrentCollection : TObjectRange<UMaterialParameterCollection>())
+		{
+			AddParameterCollectionInstance(CurrentCollection, false);
+		}
+
+		UpdateParameterCollectionInstances(false, false);
+	}
 }
 
 void UWorld::AddParameterCollectionInstance(UMaterialParameterCollection* Collection, bool bUpdateScene)
