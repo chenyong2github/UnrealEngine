@@ -200,9 +200,10 @@ void FNavLinkRenderingProxy::GetDynamicMeshElements(const TArray<const FSceneVie
 				if (NavMesh != NULL)
 				{
 					AgentMask = NavMesh->IsDrawingEnabled() ? AgentMask | (1 << DataIndex) : AgentMask;
-					if (NavMesh->AgentMaxStepHeight > 0 && NavMesh->IsDrawingEnabled())
+					const float AgentMaxStepHeight = NavMesh->GetAgentMaxStepHeight(ENavigationDataResolution::Default);
+					if (AgentMaxStepHeight > 0 && NavMesh->IsDrawingEnabled())
 					{
-						StepHeights.Add(NavMesh->AgentMaxStepHeight);
+						StepHeights.Add(AgentMaxStepHeight);
 					}
 				}
 			}

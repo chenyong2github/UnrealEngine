@@ -433,7 +433,7 @@ FRecastNavMeshGenerationProperties::FRecastNavMeshGenerationProperties(const ARe
 	AgentRadius = RecastNavMesh.AgentRadius;
 	AgentHeight = RecastNavMesh.AgentHeight;
 	AgentMaxSlope = RecastNavMesh.AgentMaxSlope;
-	AgentMaxStepHeight = RecastNavMesh.AgentMaxStepHeight;
+	AgentMaxStepHeight = RecastNavMesh.GetAgentMaxStepHeight(ENavigationDataResolution::Default); //FRecastNavMeshGenerationProperties is getting deprecated 
 	MinRegionArea = RecastNavMesh.MinRegionArea;
 	MergeRegionSize = RecastNavMesh.MergeRegionSize;
 	MaxSimplificationError = RecastNavMesh.MaxSimplificationError;
@@ -655,6 +655,15 @@ void ARecastNavMesh::PostLoad()
 			SetCellHeight((ENavigationDataResolution)i, CellHeight);
 		}
 	}
+
+	// If needed, initialize AgentMaxStepHeight from the deprecated value.
+	if (NavMeshVersion < NAVMESHVER_TILE_RESOLUTIONS_AGENTMAXSTEPHEIGHT)
+	{
+		for (int i = 0; i < (uint8)ENavigationDataResolution::MAX; ++i)
+		{
+			SetAgentMaxStepHeight((ENavigationDataResolution)i, AgentMaxStepHeight);
+		}
+	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	
 	for (uint8 Index = 0; Index < (uint8)ENavigationDataResolution::MAX; Index++)
@@ -763,6 +772,16 @@ void ARecastNavMesh::PostInitProperties()
 
 				NavMeshResolutionParams[i].CellHeight = DefaultObjectCellHeight;
 			}
+
+			const float CurrentAgentMaxStepHeight = NavMeshResolutionParams[i].AgentMaxStepHeight;
+			const float DefaultObjectAgentMaxStepHeight = DefOb->NavMeshResolutionParams[i].AgentMaxStepHeight;
+			if (CurrentAgentMaxStepHeight != DefaultObjectAgentMaxStepHeight)
+			{
+				UE_LOG(LogNavigation, Warning, TEXT("%s param: AgentMaxStepHeight(%f) differs from config settings, forcing value %f so it can be used with voxel cache!"),
+					*GetNameSafe(this), CurrentAgentMaxStepHeight, DefaultObjectAgentMaxStepHeight);
+
+				NavMeshResolutionParams[i].AgentMaxStepHeight = DefaultObjectAgentMaxStepHeight;
+			}			
 		}
 
 		if (AgentMaxSlope != DefOb->AgentMaxSlope)
@@ -771,14 +790,6 @@ void ARecastNavMesh::PostInitProperties()
 				*GetNameSafe(this), AgentMaxSlope, DefOb->AgentMaxSlope);
 
 			AgentMaxSlope = DefOb->AgentMaxSlope;
-		}
-
-		if (AgentMaxStepHeight != DefOb->AgentMaxStepHeight)
-		{
-			UE_LOG(LogNavigation, Warning, TEXT("%s param: AgentMaxStepHeight(%f) differs from config settings, forcing value %f so it can be used with voxel cache!"),
-				*GetNameSafe(this), AgentMaxStepHeight, DefOb->AgentMaxStepHeight);
-
-			AgentMaxStepHeight = DefOb->AgentMaxStepHeight;
 		}
 	}
 	
@@ -1120,7 +1131,11 @@ void ARecastNavMesh::SetConfig(const FNavDataConfig& Src)
 
 	if (Src.HasStepHeightOverride())
 	{
-		AgentMaxStepHeight = Src.AgentStepHeight;
+		// If there is an override, apply it to all resolutions
+		for (int32 Index = 0; Index < (int32)ENavigationDataResolution::MAX; Index++)
+		{
+			SetAgentMaxStepHeight((ENavigationDataResolution)Index, Src.AgentStepHeight);
+		}
 	}
 }
 
@@ -1129,7 +1144,7 @@ void ARecastNavMesh::FillConfig(FNavDataConfig& Dest)
 	Dest = NavDataConfig;
 	Dest.AgentHeight = AgentHeight;
 	Dest.AgentRadius = AgentRadius;
-	Dest.AgentStepHeight = AgentMaxStepHeight;
+	Dest.AgentStepHeight = GetAgentMaxStepHeight(ENavigationDataResolution::Default);
 }
 
 void ARecastNavMesh::BeginBatchQuery() const
@@ -3344,7 +3359,9 @@ void ARecastNavMesh::UpdateGenerationProperties(const FRecastNavMeshGenerationPr
 	AgentRadius = GenerationProps.AgentRadius;
 	AgentHeight = GenerationProps.AgentHeight;
 	AgentMaxSlope = GenerationProps.AgentMaxSlope;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	AgentMaxStepHeight = GenerationProps.AgentMaxStepHeight;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	MinRegionArea = GenerationProps.MinRegionArea;
 	MergeRegionSize = GenerationProps.MergeRegionSize;
 	MaxSimplificationError = GenerationProps.MaxSimplificationError;

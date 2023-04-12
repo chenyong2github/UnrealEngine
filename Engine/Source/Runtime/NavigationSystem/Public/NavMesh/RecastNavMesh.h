@@ -605,15 +605,19 @@ struct NAVIGATIONSYSTEM_API FNavMeshResolutionParam
 {
 	GENERATED_BODY()
 
-	bool IsValid() const { return CellSize > 0.f && CellHeight > 0.f; }
+	bool IsValid() const { return CellSize > 0.f && CellHeight > 0.f && AgentMaxStepHeight > 0.f; }
 	
-	/** horizontal size of voxelization cell */
+	/** Horizontal size of voxelization cell */
 	UPROPERTY(EditAnywhere, Category = Generation, config, meta = (ClampMin = "1.0", ClampMax = "1024.0"))
 	float CellSize = 25.f;
 
-	/** vertical size of voxelization cell */
+	/** Vertical size of voxelization cell */
 	UPROPERTY(EditAnywhere, Category = Generation, config, meta = (ClampMin = "1.0", ClampMax = "1024.0"))
 	float CellHeight = 10.f;
+
+	/** Largest vertical step the agent can perform */
+	UPROPERTY(EditAnywhere, Category = Generation, config, meta = (ClampMin = "0.0"))
+	float AgentMaxStepHeight = 35.f;
 };
 
 UCLASS(config=Engine, defaultconfig, hidecategories=(Input,Rendering,Tags,Transformation,Actor,Layers,Replication), notplaceable)
@@ -758,7 +762,8 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	float AgentMaxSlope;
 
 	/** Largest vertical step the agent can perform */
-	UPROPERTY(EditAnywhere, Category = Generation, config, meta = (ClampMin = "0.0"))
+	UE_DEPRECATED(5.3, "Set the AgentMaxStepHeight for the required navmesh resolutions in NavMeshResolutionParams.")
+	UPROPERTY(config)
 	float AgentMaxStepHeight;
 
 	/* The minimum dimension of area. Areas smaller than this will be discarded */
@@ -1078,6 +1083,12 @@ public:
 
 	/** Set the CellHeight for the given resolution. */
 	void SetCellHeight(const ENavigationDataResolution Resolution, const float Height) { NavMeshResolutionParams[(uint8)Resolution].CellHeight = Height; }
+
+	/** Get the AgentMaxStepHeight for the given resolution. */
+	float GetAgentMaxStepHeight(const ENavigationDataResolution Resolution) const { return NavMeshResolutionParams[(uint8)Resolution].AgentMaxStepHeight; }
+
+	/** Set the AgentMaxStepHeight for the given resolution. */
+	void SetAgentMaxStepHeight(const ENavigationDataResolution Resolution, const float MaxStepHeight) { NavMeshResolutionParams[(uint8)Resolution].AgentMaxStepHeight = MaxStepHeight; }
 	
 	/** Returns the tile size in world units. */
 	float GetTileSizeUU() const;

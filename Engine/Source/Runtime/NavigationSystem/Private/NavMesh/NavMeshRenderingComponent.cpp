@@ -580,11 +580,13 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 			const FString GenerationMode = Mode == ERuntimeGenerationType::Static ? TEXT("Static") :
 				(Mode == ERuntimeGenerationType::Dynamic ? TEXT("Dynamic") : (Mode == ERuntimeGenerationType::DynamicModifiersOnly ? TEXT("DynamicModifersOnly") : TEXT("Unknown")));
 			DebugLabels.Add(FDebugText(FString::Printf(TEXT("%s (%s%s)"), *NavMesh->GetName(), NavMesh->bIsWorldPartitioned ? TEXT("WP ") : TEXT(""), *GenerationMode)));
-			DebugLabels.Add(FDebugText(FString::Printf(TEXT("AgentRadius %0.1f, AgentHeight %0.1f, CellSizes %0.1f/%0.1f/%0.1f, CellHeights %0.1f/%0.1f/%0.1f (low/default/high)"),
-				NavMesh->AgentRadius,
-				NavMesh->AgentHeight,
+			DebugLabels.Add(FDebugText(FString::Printf(TEXT("AgentRadius %0.1f, AgentHeight %0.1f"), NavMesh->AgentRadius, NavMesh->AgentHeight)));
+			DebugLabels.Add(FDebugText(FString::Printf(
+				TEXT("CellSizes %0.1f/%0.1f/%0.1f, CellHeights %0.1f/%0.1f/%0.1f, AgentMaxStepHeight %0.1f/%0.1f/%0.1f (low/default/high)"),
 				NavMesh->GetCellSize(ENavigationDataResolution::Low), NavMesh->GetCellSize(ENavigationDataResolution::Default), NavMesh->GetCellSize(ENavigationDataResolution::High),
-				NavMesh->GetCellHeight(ENavigationDataResolution::Low), NavMesh->GetCellHeight(ENavigationDataResolution::Default), NavMesh->GetCellHeight(ENavigationDataResolution::High))));
+				NavMesh->GetCellHeight(ENavigationDataResolution::Low), NavMesh->GetCellHeight(ENavigationDataResolution::Default), NavMesh->GetCellHeight(ENavigationDataResolution::High),
+				NavMesh->GetAgentMaxStepHeight(ENavigationDataResolution::Low), NavMesh->GetAgentMaxStepHeight(ENavigationDataResolution::Default), NavMesh->GetAgentMaxStepHeight(ENavigationDataResolution::High)
+				)));
 			DebugLabels.Add(FDebugText(FString::Printf(TEXT("Region part %s, Layer part %s"), *GetPartitioningString(NavMesh->RegionPartitioning), *GetPartitioningString(NavMesh->LayerPartitioning))));
 			DebugLabels.Add(FDebugText(TEXT(""))); // empty line
 
@@ -751,11 +753,11 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 						if (Link.Direction && (Link.ValidEnds & FRecastDebugGeometry::OMLE_Left) == 0)
 						{
 							// left end invalid - mark it
-							FNavMeshRenderingHelpers::DrawWireCylinder(NavLinkLines, V0, FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), NavMeshRenderColor_OffMeshConnectionInvalid, Link.Radius, NavMesh->AgentMaxStepHeight, 16, 0, DefaultEdges_LineThickness);
+							FNavMeshRenderingHelpers::DrawWireCylinder(NavLinkLines, V0, FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), NavMeshRenderColor_OffMeshConnectionInvalid, Link.Radius, NavMesh->GetAgentMaxStepHeight(ENavigationDataResolution::Default), 16, 0, DefaultEdges_LineThickness);
 						}
 						if ((Link.ValidEnds & FRecastDebugGeometry::OMLE_Right) == 0)
 						{
-							FNavMeshRenderingHelpers::DrawWireCylinder(NavLinkLines, V1, FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), NavMeshRenderColor_OffMeshConnectionInvalid, Link.Radius, NavMesh->AgentMaxStepHeight, 16, 0, DefaultEdges_LineThickness);
+							FNavMeshRenderingHelpers::DrawWireCylinder(NavLinkLines, V1, FVector(1, 0, 0), FVector(0, 1, 0), FVector(0, 0, 1), NavMeshRenderColor_OffMeshConnectionInvalid, Link.Radius, NavMesh->GetAgentMaxStepHeight(ENavigationDataResolution::Default), 16, 0, DefaultEdges_LineThickness);
 						}
 					}
 				}
@@ -971,6 +973,7 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 						const double BuildTimeMs = DebugData->BuildTime * SecToMs;
 						const double CompressedLayerTimeMs = DebugData->BuildCompressedLayerTime * SecToMs;
 						const double NavigationDataTimeMs = DebugData->BuildNavigationDataTime * SecToMs;
+						const ENavigationDataResolution Resolution = DebugData->Resolution;
 
 						const double Range = NavMeshGeometry.MaxTileBuildTime - NavMeshGeometry.MinTileBuildTime;
 						int32 Rank = 0;
@@ -980,8 +983,9 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 							Rank = static_cast<int32>(FMath::Clamp<double>(RankCalc, 0., FRecastDebugGeometry::BuildTimeBucketsCount-1));
 						}
 
-						DebugLabels.Add(FDebugText(Pair.Value + NavMeshDrawOffset, FString::Printf(TEXT("%.2f ms\n%.2f comp + %.2f nav\n%i tri"),
-							BuildTimeMs, CompressedLayerTimeMs, NavigationDataTimeMs,
+						const FString ResolutionText = StaticEnum<ENavigationDataResolution>()->GetNameStringByValue((int64)Resolution);
+						DebugLabels.Add(FDebugText(Pair.Value + NavMeshDrawOffset, FString::Printf(TEXT("%s res\n %.2f ms\n%.2f comp + %.2f nav\n%i tri"),
+							*ResolutionText, BuildTimeMs, CompressedLayerTimeMs, NavigationDataTimeMs,
 							DebugData->TriangleCount)));
 					}
 				}

@@ -23,7 +23,8 @@
 #define NAVMESHVER_MAXTILES_COUNT_SKIP_INCLUSION 22
 #define NAVMESHVER_TILE_RESOLUTIONS				23 // Addition of a tile resolution index to the tile header.
 #define NAVMESHVER_TILE_RESOLUTIONS_CELLHEIGHT	24 // Addition of CellHeight in the resolution params, deprecating the original CellHeight.
-#define NAVMESHVER_1_VOXEL_AGENT_STEEP_SLOPE_FILTER_FIX	25 // Fix, remove steep slope filtering during heightfield ledge filtering when the agent radius is included into a single voxel 
+#define NAVMESHVER_1_VOXEL_AGENT_STEEP_SLOPE_FILTER_FIX	25 // Fix, remove steep slope filtering during heightfield ledge filtering when the agent radius is included into a single voxel
+#define NAVMESHVER_TILE_RESOLUTIONS_AGENTMAXSTEPHEIGHT 26	// Addition of AgentMaxStepHeight in the resolution params, deprecating the original AgentMaxStepHeight.
 
-#define NAVMESHVER_LATEST				NAVMESHVER_1_VOXEL_AGENT_STEEP_SLOPE_FILTER_FIX
+#define NAVMESHVER_LATEST				NAVMESHVER_TILE_RESOLUTIONS_AGENTMAXSTEPHEIGHT
 #define NAVMESHVER_MIN_COMPATIBLE		NAVMESHVER_LWCOORDS_OPTIMIZATION

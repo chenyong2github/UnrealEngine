@@ -2567,6 +2567,7 @@ bool FRecastTileGenerator::GenerateTile()
 	BuildContext.InternalDebugData.BuildTime = EndStamp - StartStamp;
 	BuildContext.InternalDebugData.BuildCompressedLayerTime = PostCompressLayerStamp - StartStamp;
 	BuildContext.InternalDebugData.BuildNavigationDataTime = EndStamp - PostCompressLayerStamp;
+	BuildContext.InternalDebugData.Resolution = TileConfig.TileResolution;
 #endif // RECAST_INTERNAL_DEBUG_DATA
 	
 	// it's possible to have valid generation with empty resulting tile (no navigable geometry in tile)
@@ -4625,8 +4626,9 @@ void FRecastNavMeshGenerator::SetupTileConfig(const ENavigationDataResolution Ti
 	ensure(GetConfig().cs == GetOwner()->GetCellSize(ENavigationDataResolution::Default));
 	const float CellSize = GetOwner()->GetCellSize(TileResolution);
 	const float CellHeight = GetOwner()->GetCellHeight(TileResolution);
+	const float AgentMaxStepHeight = GetOwner()->GetAgentMaxStepHeight(TileResolution);
 	
-	// Update all settings that depends directly on indirectly of the CellSize
+	// Update all settings that depends directly or indirectly of the CellSize
 	OutConfig.TileResolution = TileResolution;
 	OutConfig.cs = CellSize;
 	OutConfig.walkableRadius = FMath::CeilToInt(DestNavMesh->AgentRadius / CellSize);
@@ -4644,10 +4646,13 @@ void FRecastNavMeshGenerator::SetupTileConfig(const ENavigationDataResolution Ti
 	OutConfig.regionChunkSize = FMath::Max(1, OutConfig.tileSize / FMath::Max(1, DestNavMesh->LayerChunkSplits));
 	OutConfig.TileCacheChunkSize = FMath::Max(1, OutConfig.tileSize / FMath::Max(1, DestNavMesh->RegionChunkSplits));
 
-	// Update all settings that depends directly on indirectly of the CellHeight
+	// Update all settings that depends directly or indirectly of the CellHeight
 	OutConfig.ch = CellHeight;
 	OutConfig.walkableHeight = DestNavMesh->bMarkLowHeightAreas ? 1 : FMath::CeilToInt(DestNavMesh->AgentHeight / CellHeight);
-	OutConfig.walkableClimb = FMath::CeilToInt(DestNavMesh->AgentMaxStepHeight / CellHeight);
+	OutConfig.walkableClimb = FMath::CeilToInt(AgentMaxStepHeight / CellHeight);
+
+	// Update all settings that depends directly or indirectly of AgentMaxStepHeight
+	OutConfig.AgentMaxClimb = AgentMaxStepHeight;
 }
 
 void FRecastNavMeshGenerator::ConfigureBuildProperties(FRecastBuildConfig& OutConfig)
@@ -4657,7 +4662,7 @@ void FRecastNavMeshGenerator::ConfigureBuildProperties(FRecastBuildConfig& OutCo
 	const float CellHeight = DestNavMesh->GetCellHeight(ENavigationDataResolution::Default);
 	const float AgentHeight = DestNavMesh->AgentHeight;
 	const float AgentMaxSlope = DestNavMesh->AgentMaxSlope;
-	const float AgentMaxClimb = DestNavMesh->AgentMaxStepHeight;
+	const float AgentMaxClimb = DestNavMesh->GetAgentMaxStepHeight(ENavigationDataResolution::Default);
 	const float AgentRadius = DestNavMesh->AgentRadius;
 
 	OutConfig.Reset();

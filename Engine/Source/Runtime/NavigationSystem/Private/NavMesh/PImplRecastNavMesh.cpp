@@ -584,7 +584,7 @@ void FPImplRecastNavMesh::Serialize( FArchive& Ar, int32 NavMeshVersion )
 	{
 		Params.walkableHeight = NavMeshOwner->AgentHeight;
 		Params.walkableRadius = NavMeshOwner->AgentRadius;
-		Params.walkableClimb = NavMeshOwner->AgentMaxStepHeight;
+		Params.walkableClimb = NavMeshOwner->GetAgentMaxStepHeight(ENavigationDataResolution::Default);
 		const float DefaultQuantFactor =  1.f / NavMeshOwner->GetCellSize(ENavigationDataResolution::Default);
 		for(uint8 Index = 0; Index < (uint8)ENavigationDataResolution::MAX; Index++)
 		{
