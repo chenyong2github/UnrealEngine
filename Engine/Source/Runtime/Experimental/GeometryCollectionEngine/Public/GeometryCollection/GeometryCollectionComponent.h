@@ -765,8 +765,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Clustering")
 	int32 MaxSimulatedLevel;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Damage", meta = (EditCondition = "!bUseSizeSpecificDamageThreshold"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintGetter=GetDamageThreshold, BlueprintSetter=SetDamageThreshold, Category = "ChaosPhysics|Damage", meta = (EditCondition = "!bUseSizeSpecificDamageThreshold"))
 	TArray<float> DamageThreshold;
+
+	UFUNCTION(BlueprintPure, BlueprintInternalUseOnly)
+	TArray<float> GetDamageThreshold() const { return DamageThreshold; }
+
+	UFUNCTION(BlueprintCallable, BlueprintInternalUseOnly)
+	void SetDamageThreshold(const TArray<float>& InDamageThreshold);
 
 	/** Damage threshold for clusters at different levels. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Damage")

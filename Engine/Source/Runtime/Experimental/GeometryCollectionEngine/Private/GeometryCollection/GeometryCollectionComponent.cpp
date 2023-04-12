@@ -649,6 +649,19 @@ int32 UGeometryCollectionComponent::GetNumElements(FName Group) const
 	return Size > 0 ? Size : DynamicCollection->NumElements(Group);	//if not, maybe dynamic has the group
 }
 
+void UGeometryCollectionComponent::SetDamageThreshold(const TArray<float>& InDamageThreshold)
+{
+	// NOTE: Should only call this during construction, not during runtime
+
+	DamageThreshold = InDamageThreshold;
+
+	if (IsPhysicsStateCreated())
+	{
+		// NOTE: Probably should use a deferred version of this.
+		RecreatePhysicsState();
+	}
+}
+
 void UGeometryCollectionComponent::UpdateCachedBounds()
 {
 	ComponentSpaceBounds = ComputeBounds(FMatrix::Identity);
