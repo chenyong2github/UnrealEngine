@@ -118,9 +118,6 @@ public:
 	void HandleRequestToJoinReceived(const IOnlinePartyRequestToJoinInfo& Request);
 	void HandleRequestToJoinRemoved(const IOnlinePartyRequestToJoinInfo& Request, EPartyRequestToJoinRemovedReason Reason);
 
-	UE_DEPRECATED(5.1, "Use RequestToJoinParty(const FName&) instead of RequestToJoinParty(void)")
-	void RequestToJoinParty();
-
 	virtual void RequestToJoinParty(const FName& JoinMethod);
 	void AcceptRequestToJoinParty() const;
 	void DismissRequestToJoinParty() const;
@@ -130,9 +127,6 @@ public:
 
 	bool HasSentPartyInvite(const FOnlinePartyTypeId& PartyTypeId) const;
 	FJoinPartyResult CheckPartyJoinability(const FOnlinePartyTypeId& PartyTypeId) const;
-
-	UE_DEPRECATED(5.1, "Use JoinParty(const FOnlinePartyTypeId&, const FName&) instead of JoinParty(const FOnlinePartyTypeId&)")
-	void JoinParty(const FOnlinePartyTypeId& PartyTypeId) const;
 
 	virtual void JoinParty(const FOnlinePartyTypeId& PartyTypeId, const FName& JoinMethod) const;
 	virtual void RejectPartyInvite(const FOnlinePartyTypeId& PartyTypeId);

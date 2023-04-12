@@ -892,11 +892,6 @@ bool USocialUser::CanSendFriendInvite(ESocialSubsystem SubsystemType) const
 	return HasSubsystemInfo(SubsystemType) && !IsLocalUser() && !IsFriend(SubsystemType) && !IsBlocked(SubsystemType) && !IsFriendshipPending(SubsystemType);
 }
 
-void USocialUser::JoinParty(const FOnlinePartyTypeId& PartyTypeId) const
-{
-	JoinParty(PartyTypeId, PartyJoinMethod::Unspecified);
-}
-
 void USocialUser::JoinParty(const FOnlinePartyTypeId& PartyTypeId, const FName& JoinMethod) const
 {
 	const bool bHasSentInvite = HasSentPartyInvite(PartyTypeId);
@@ -1088,11 +1083,6 @@ void USocialUser::HandleRequestToJoinReceived(const IOnlinePartyRequestToJoinInf
 void USocialUser::HandleRequestToJoinRemoved(const IOnlinePartyRequestToJoinInfo& Request, EPartyRequestToJoinRemovedReason Reason)
 {
 	NotifyRequestToJoinRemoved(Request, Reason);
-}
-
-void USocialUser::RequestToJoinParty()
-{
-	RequestToJoinParty(PartyJoinMethod::Unspecified);
 }
 
 void USocialUser::RequestToJoinParty(const FName& JoinMethod)

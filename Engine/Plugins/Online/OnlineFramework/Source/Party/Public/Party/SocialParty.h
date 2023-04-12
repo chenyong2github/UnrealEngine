@@ -201,14 +201,6 @@ public:
 	DECLARE_EVENT_OneParam(USocialParty, FOnInviteSent, const USocialUser&);
 	FOnInviteSent& OnInviteSent() const { return OnInviteSentEvent; }
 
-	DECLARE_EVENT_TwoParams(USocialParty, FOnPartyJIPApproved, const FOnlinePartyId&, bool /* Success*/);
-	UE_DEPRECATED(5.1, "Use the new join in progress flow with USocialParty::RequestJoinInProgress.")
-	FOnPartyJIPApproved& OnPartyJIPApproved() const { return OnPartyJIPApprovedEvent; }
-
-	DECLARE_EVENT_ThreeParams(USocialParty, FOnPartyJIPResponse, const FOnlinePartyId&, bool /* Success*/, const FString& /*DeniedResultCode*/);
-	UE_DEPRECATED(5.1, "Use the new join in progress flow with USocialParty::RequestJoinInProgress.")
-	FOnPartyJIPResponse& OnPartyJIPResponse() const { return OnPartyJIPResponseEvent; }
-
 	DECLARE_EVENT_TwoParams(USocialParty, FOnPartyMemberConnectionStatusChanged, UPartyMember&, EMemberConnectionStatus);
 	FOnPartyMemberConnectionStatusChanged& OnPartyMemberConnectionStatusChanged() const { return OnPartyMemberConnectionStatusChangedEvent; }
 
@@ -276,10 +268,6 @@ protected:
 
 	/** Determines the joinability of this party for a group of users requesting to join */
 	virtual FPartyJoinApproval EvaluateJoinRequest(const TArray<IOnlinePartyUserPendingJoinRequestInfoConstRef>& Players, bool bFromJoinRequest) const;
-
-	/** Determines the joinability of the game a party is in for JoinInProgress */
-	UE_DEPRECATED(5.1, "Use the new join in progress flow with USocialParty::RequestJoinInProgress.")
-	virtual FPartyJoinApproval EvaluateJIPRequest(const FUniqueNetId& PlayerId) const;
 
 	/** Determines the reason why, if at all, this party is currently flat-out unjoinable  */
 	virtual FPartyJoinDenialReason DetermineCurrentJoinability() const;
@@ -493,8 +481,6 @@ private:
 	mutable FOnPartyMemberConnectionStatusChanged OnPartyMemberConnectionStatusChangedEvent;
 	mutable FOnPartyFunctionalityDegradedChanged OnPartyFunctionalityDegradedChangedEvent;
 	mutable FOnInviteSent OnInviteSentEvent;
-	mutable FOnPartyJIPApproved OnPartyJIPApprovedEvent;
-	mutable FOnPartyJIPResponse OnPartyJIPResponseEvent;
 };
 
 namespace UE::OnlineFramework::Party

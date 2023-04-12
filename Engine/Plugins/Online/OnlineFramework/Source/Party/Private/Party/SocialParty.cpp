@@ -134,26 +134,6 @@ ECrossplayPreference GetCrossplayPreferenceFromJoinData(const FOnlinePartyData& 
 	return ECrossplayPreference::NoSelection;
 }
 
-// DEPRECATED - Use the new join in progress flow with USocialParty::RequestJoinInProgress.
-FPartyJoinApproval USocialParty::EvaluateJIPRequest(const FUniqueNetId& PlayerId) const
-{
-	FPartyJoinApproval JoinApproval;
-
-	JoinApproval.SetApprovalAction(EApprovalAction::Deny);
-	JoinApproval.SetDenialReason(EPartyJoinDenialReason::GameModeRestricted);
-	for (const UPartyMember* Member : GetPartyMembers())
-	{
-		// Make sure we are already in the party.
-		if (Member->GetPrimaryNetId() == PlayerId)
-		{
-			JoinApproval.SetApprovalAction(EApprovalAction::EnqueueAndStartBeacon);
-			JoinApproval.SetDenialReason(EPartyJoinDenialReason::NoReason);
-			break;
-		}
-	}
-	return JoinApproval;
-}
-
 bool USocialParty::ApplyCrossplayRestriction(FPartyJoinApproval& JoinApproval, const FUserPlatform& Platform, const FOnlinePartyData& JoinData) const
 {
 	const ECrossplayPreference SenderCrossplayPreference = GetCrossplayPreferenceFromJoinData(JoinData);
