@@ -44,20 +44,24 @@ uint64 TotalGPUResourceSize(const TArray<FStatMessage>& StatMessages)
 FFramePerformanceProviderMessage GetLatestPerformanceData(const	TArray<FStatMessage>& StatMessages)
 {
 	const float GameThreadTime = FPlatformTime::ToMilliseconds(GGameThreadTime);
+	const float GameThreadWaitTime = FPlatformTime::ToMilliseconds(GGameThreadWaitTime);
 	const float RenderThreadTime = FPlatformTime::ToMilliseconds(GRenderThreadTime);
+	const float RenderThreadWaitTime = FPlatformTime::ToMilliseconds(GRenderThreadWaitTime);
 	const float GPUTime = FPlatformTime::ToMilliseconds(GGPUFrameTime);
 	const float IdleTimeMilli = (FApp::GetIdleTime() * 1000.0);
 	FPlatformMemoryStats Stats = FPlatformMemory::GetStats();
 	return FFramePerformanceProviderMessage(
 		EStageMonitorNodeStatus::Unknown,
 		GameThreadTime,
+		GameThreadWaitTime,
 		RenderThreadTime,
+		RenderThreadWaitTime,
 		GPUTime,
 		IdleTimeMilli,
 		Stats.UsedPhysical,
 		TotalGPUResourceSize(StatMessages),
 		CompilationTasksRemaining()
-		);
+	);
 }
 
 }

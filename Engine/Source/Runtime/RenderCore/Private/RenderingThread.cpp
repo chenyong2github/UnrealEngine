@@ -285,12 +285,12 @@ void TickRenderingTickables()
 
 /** How many cycles the renderthread used (excluding idle time). It's set once per frame in FViewport::Draw. */
 uint32 GRenderThreadTime = 0;
+/** How many cycles of wait time renderthread used. It's set once per frame in FViewport::Draw. */
+uint32 GRenderThreadWaitTime = 0;
 /** How many cycles the rhithread used (excluding idle time). */
 uint32 GRHIThreadTime = 0;
 /** How many cycles the renderthread used, including dependent wait time. */
 uint32 GRenderThreadTimeCriticalPath = 0;
-
-
 
 /** The RHI thread runnable object. */
 class FRHIThread : public FRunnable
@@ -1149,6 +1149,10 @@ bool FRenderCommandFence::IsFenceComplete() const
 
 /** How many cycles the gamethread used (excluding idle time). It's set once per frame in FViewport::Draw. */
 uint32 GGameThreadTime = 0;
+
+/** How much idle time on the game thread. It's set once per frame in FViewport::Draw. */
+uint32 GGameThreadWaitTime = 0;
+
 /** How many cycles it took to swap buffers to present the frame. */
 uint32 GSwapBufferTime = 0;
 

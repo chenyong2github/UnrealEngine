@@ -117,9 +117,12 @@ namespace DataProviderListView
 	const FName StageName = TEXT("StageName");
 	const FName Roles = TEXT("Roles");
 	const FName AverageFPS = TEXT("AverageFPS");
+	const FName EstimatedMaxFPS = TEXT("EstimatedMaxFPS");
 	const FName IdleTime = TEXT("IdleTime");
 	const FName GameThreadTiming = TEXT("GameThreadTiming");
+	const FName GameThreadWaitTiming = TEXT("GameThreadWaitTiming");
 	const FName RenderThreadTiming = TEXT("RenderThreadTiming");
+	const FName RenderThreadWaitTiming = TEXT("RenderThreadWaitTiming");
 	const FName GPUTiming = TEXT("GPUTiming");
 	const FName CPUMem = TEXT("CPUMem");
 	const FName GPUMem = TEXT("GPUMem");
@@ -279,6 +282,23 @@ namespace DataProviderListView
 				 },
 				 &SDataProviderTableRow::GetAverageFPS,
 			 }},
+			{EstimatedMaxFPS,
+			 {
+				 LOCTEXT("HeaderName_AverageFPS", "Estimated Max FPS"), IsNotSortable, IsVisible,
+				 [](SDataProviderTableRow* Provider) -> TSharedRef<SWidget>
+				 {
+					 return SNew(SHorizontalBox)
+					 + SHorizontalBox::Slot()
+					 .HAlign(HAlign_Left)
+					 .VAlign(VAlign_Center)
+					 .AutoWidth()
+					 [
+						 SNew(STextBlock)
+						 .Text(MakeAttributeSP(Provider, &SDataProviderTableRow::GetEstimatedMaxFPS))
+					 ];
+				 },
+				 &SDataProviderTableRow::GetEstimatedMaxFPS,
+			 }},
 			{IdleTime,
 			 {
 				 LOCTEXT("HeaderName_IdleTime", "Idle Time (ms)"), IsNotSortable, IsNotVisible,
@@ -314,6 +334,24 @@ namespace DataProviderListView
 				 &SDataProviderTableRow::GetGameThreadTiming,
 			 }
 			},
+			{GameThreadWaitTiming,
+			 {
+				 LOCTEXT("HeaderName_GameThread", "Game Wait Time (ms)"), IsNotSortable, IsNotVisible,
+				 [](SDataProviderTableRow* Provider) -> TSharedRef<SWidget>
+				 {
+					 return SNew(SHorizontalBox)
+					 + SHorizontalBox::Slot()
+					 .HAlign(HAlign_Left)
+					 .VAlign(VAlign_Center)
+					 .AutoWidth()
+					 [
+						 SNew(STextBlock)
+						 .Text(MakeAttributeSP(Provider, &SDataProviderTableRow::GetGameThreadWaitTiming))
+					 ];
+				 },
+				 &SDataProviderTableRow::GetGameThreadWaitTiming,
+			 }
+			},
 			{RenderThreadTiming,
 			 {
 				 LOCTEXT("HeaderName_RenderThread", "Render Thread (ms)"), IsNotSortable, IsVisible,
@@ -330,6 +368,23 @@ namespace DataProviderListView
 					 ];
 				 },
 				 &SDataProviderTableRow::GetRenderThreadTiming,
+			 }},
+			{RenderThreadWaitTiming,
+			 {
+				 LOCTEXT("HeaderName_RenderWaitThread", "Render Wait Time (ms)"), IsNotSortable, IsNotVisible,
+				 [](SDataProviderTableRow* Provider) -> TSharedRef<SWidget>
+				 {
+					 return SNew(SHorizontalBox)
+					 + SHorizontalBox::Slot()
+					 .HAlign(HAlign_Left)
+					 .VAlign(VAlign_Center)
+					 .AutoWidth()
+					 [
+						 SNew(STextBlock)
+						 .Text(MakeAttributeSP(Provider, &SDataProviderTableRow::GetRenderThreadWaitTiming))
+					 ];
+				 },
+				 &SDataProviderTableRow::GetRenderThreadWaitTiming,
 			 }},
 			{GPUTiming,
 			 {
@@ -631,6 +686,18 @@ FText SDataProviderTableRow::GetAverageFPS() const
 	return FText::AsNumber(Item->CachedPerformanceData.AverageFPS);
 }
 
+FText SDataProviderTableRow::GetEstimatedMaxFPS() const
+{
+	const FFramePerformanceProviderMessage& Data = Item->CachedPerformanceData;
+	const float AverageMS = Data.AverageFPS > 0 ? 1000.0 / Data.AverageFPS : 0;
+	const float ThreadWaitMS = FMath::Min(Data.GameThreadWaitMS, Data.RenderThreadWaitMS);
+	const float WaitMS = Data.IdleTimeMS > ThreadWaitMS ? Data.IdleTimeMS - ThreadWaitMS : ThreadWaitMS;
+
+	const float EstimatedFrameTimeMS = AverageMS > WaitMS ? (AverageMS - WaitMS) : AverageMS;
+	const float EstimatedMaxFPS = EstimatedFrameTimeMS > 0 ? 1000.f / EstimatedFrameTimeMS : 0;
+	return FText::AsNumber(EstimatedMaxFPS);
+}
+
 FText SDataProviderTableRow::GetIdleTime() const
 {
 	return FText::AsNumber(Item->CachedPerformanceData.IdleTimeMS);
@@ -641,9 +708,19 @@ FText SDataProviderTableRow::GetGameThreadTiming() const
 	return FText::AsNumber(Item->CachedPerformanceData.GameThreadMS);
 }
 
+FText SDataProviderTableRow::GetGameThreadWaitTiming() const
+{
+	return FText::AsNumber(Item->CachedPerformanceData.GameThreadWaitMS);
+}
+
 FText SDataProviderTableRow::GetRenderThreadTiming() const
 {
 	return FText::AsNumber(Item->CachedPerformanceData.RenderThreadMS);
+}
+
+FText SDataProviderTableRow::GetRenderThreadWaitTiming() const
+{
+	return FText::AsNumber(Item->CachedPerformanceData.RenderThreadWaitMS);
 }
 
 FText SDataProviderTableRow::GetGPUTiming() const

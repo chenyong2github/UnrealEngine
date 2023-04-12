@@ -32,10 +32,15 @@ public:
 
 	FFramePerformanceProviderMessage() = default;
 
-	FFramePerformanceProviderMessage(EStageMonitorNodeStatus InStatus, float GameThreadTime, float RenderThreadTime, float GPUTime, float IdleTime, uint64 CPUMem, uint64 GPUMem, int32 InAssetsToCompile)
+	FFramePerformanceProviderMessage(EStageMonitorNodeStatus InStatus,
+									 float GameThreadTime, float GameThreadWaitTime,
+									 float RenderThreadTime, float RenderThreadWaitTime,
+									 float GPUTime, float IdleTime, uint64 CPUMem, uint64 GPUMem, int32 InAssetsToCompile)
 		: Status(InStatus)
 		, GameThreadMS(GameThreadTime)
+		, GameThreadWaitMS(GameThreadWaitTime)
 		, RenderThreadMS(RenderThreadTime)
+		, RenderThreadWaitMS(RenderThreadWaitTime)
 		, GPU_MS(GPUTime)
 		, IdleTimeMS(IdleTime)
 		, CPU_MEM(CPUMem)
@@ -62,9 +67,17 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Performance", meta = (Unit = "ms"))
 	float GameThreadMS = 0.f;
 
+	/** Current GameThread wait time read from GGameThreadWaitTime in milliseconds */
+	UPROPERTY(VisibleAnywhere, Category = "Performance", meta = (Unit = "ms"))
+	float GameThreadWaitMS = 0.f;
+
 	/** Current RenderThread time read from GRenderThreadTime in milliseconds */
 	UPROPERTY(VisibleAnywhere, Category = "Performance", meta = (Unit = "ms"))
 	float RenderThreadMS = 0.f;
+
+	/** Current RenderThread wait time read from GRenderThreadWaitTime in milliseconds */
+	UPROPERTY(VisibleAnywhere, Category = "Performance", meta = (Unit = "ms"))
+	float RenderThreadWaitMS = 0.f;
 
 	/** Current GPU time read from GGPUFrameTime in milliseconds */
 	UPROPERTY(VisibleAnywhere, Category = "Performance", meta = (Unit = "ms"))

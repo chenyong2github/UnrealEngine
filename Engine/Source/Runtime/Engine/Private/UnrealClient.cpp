@@ -1832,6 +1832,7 @@ void FViewport::Draw( bool bShouldPresent /*= true */)
 							uint32 ThreadTime	= CurrentTime - Lastimestamp;
 							// add any stalls via sleep or fevent
 							GGameThreadTime		= (ThreadTime > GameThread.Waits) ? (ThreadTime - GameThread.Waits) : ThreadTime;
+							GGameThreadWaitTime = GameThread.Waits;
 						}
 						else
 						{

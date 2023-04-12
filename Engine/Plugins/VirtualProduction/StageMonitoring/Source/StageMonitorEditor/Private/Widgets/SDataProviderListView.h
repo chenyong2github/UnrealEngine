@@ -38,9 +38,12 @@ public:
 	FText GetStageName() const;
 	FText GetRoles() const;
 	FText GetAverageFPS() const;
+	FText GetEstimatedMaxFPS() const;
 	FText GetIdleTime() const;
 	FText GetGameThreadTiming() const;
+	FText GetGameThreadWaitTiming() const;
 	FText GetRenderThreadTiming() const;
+	FText GetRenderThreadWaitTiming() const;
 	FText GetGPUTiming() const;
 	FText GetGPUMem() const;
 	FText GetCPUMem() const;
