@@ -1453,7 +1453,6 @@ struct ENGINE_API FCollisionEnabledMask
 {
 	int8 Bits;
 
-	FCollisionEnabledMask(const FCollisionEnabledMask&) = default;
 	FCollisionEnabledMask(int8 InBits = 0);
 	FCollisionEnabledMask(ECollisionEnabled::Type CollisionEnabled);
 
