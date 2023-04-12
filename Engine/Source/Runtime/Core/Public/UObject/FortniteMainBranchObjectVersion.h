@@ -292,9 +292,6 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// FLevelInstanceActorDesc DeltaSerialize Filter
 		LevelInstanceActorDescDeltaSerializeFilter,
 
-		// Fix the Nanite landscape mesh non-deterministic DDC keys
-		FixNaniteLandscapeMeshDDCKey,
-
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -95,7 +95,6 @@ Landscape.cpp: Terrain rendering
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 #include "LandscapeEdit.h"
-#include "LandscapeEditTypes.h"
 #include "MaterialUtilities.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
@@ -161,10 +160,6 @@ static FAutoConsoleVariableRef CVarLiveRebuildNaniteOnModification(
 	LiveRebuildNaniteOnModification,
 	TEXT("Trigger a rebuild of Nanite representation immediately when a modification is performed"));
 
-static FAutoConsoleVariable CVarForceInvalidateNaniteOnLoad(
-	TEXT("landscape.ForceInvalidateNaniteOnLoad"),
-	false,
-	TEXT("Trigger a rebuild of Nanite representation on load (for debugging purposes)"));
 #endif // WITH_EDITOR
 
 int32 GRenderNaniteLandscape = 1;
@@ -424,9 +419,6 @@ FGuid ALandscapeProxy::GetNaniteContentId() const
 		ContentStateAr << Component->HeightmapScaleBias.Z;
 		ContentStateAr << Component->HeightmapScaleBias.W;
 
-		// Visibility affects the generated Nanite mesh so it has to be taken into account :
-		//  Note : visibility might be different at runtime if using a masked material (per-pixel visibility) but we obviously cannot take that into account
-		//  when baking the visibility into the mesh like we do with Nanite landscape
 		if (Component->ComponentHasVisibilityPainted())
 		{
 			const TArray<UTexture2D*>& WeightmapTextures = Component->GetWeightmapTextures();
@@ -438,12 +430,17 @@ FGuid ALandscapeProxy::GetNaniteContentId() const
 					UTexture2D* VisibilityWeightmap = WeightmapTextures[AllocInfo.WeightmapTextureIndex];
 					check(VisibilityWeightmap != nullptr);
 
-					// TODO [jonathan.bard] : technically, this is not good, we would need to only check the hash of AllocInfo.WeightmapTextureChannel. We'll leave it as is, though, for 
-					//  as long as we don't store the source weightmaps individually, so that this function stays fast : 
 					FGuid VisibilityWeightmapGuid = VisibilityWeightmap->Source.GetId();
 					ContentStateAr << VisibilityWeightmapGuid;
 				}
 			}
+		}
+
+		// Nanite only cares about LOD0 data
+		if (UMaterialInterface* LandscapeLOD0Material = Component->GetLandscapeMaterial(/*InLODIndex = */ 0))
+		{
+			FGuid LocalStateId = LandscapeLOD0Material->GetMaterial_Concurrent()->StateId;
+			ContentStateAr << LocalStateId;
 		}
 	}
 
@@ -2996,7 +2993,6 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FLandscapeCustomVersion::GUID);
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteReleaseBranchCustomObjectVersion::GUID);
-	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
 #if WITH_EDITORONLY_DATA
 	if (Ar.IsLoading() && Ar.CustomVer(FLandscapeCustomVersion::GUID) < FLandscapeCustomVersion::MigrateOldPropertiesToNewRenderingProperties)
@@ -3018,6 +3014,18 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 				LOD0DistributionSetting = LOD0SquareRootDistributionSettingMigrationTable[FMath::RoundToInt(LODDistanceFactor_DEPRECATED)];
 				LODDistributionSetting = LODDSquareRootDistributionSettingMigrationTable[FMath::RoundToInt(LODDistanceFactor_DEPRECATED)];
 			}
+		}
+	}
+
+	if (Ar.IsLoading())
+	{
+		// Fixup Nanite meshes which were using the wrong material and didn't have proper UVs : FFortniteReleaseBranchCustomObjectVersion::FixupNaniteLandscapeMeshes
+		// Remove cooked collision data from Nanite landscape meshes, since collisions are handled by ULandscapeHeightfieldCollisionComponent : FFortniteReleaseBranchCustomObjectVersion::RemoveUselessLandscapeMeshesCookedCollisionData
+		// Fix the names of the generated Nanite landcape UStaticMesh so that it's unique in a given package : FFortniteReleaseBranchCustomObjectVersion::FixNaniteLandscapeMeshNames
+		if (Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::FixNaniteLandscapeMeshNames)
+		{
+			// This will force the Nanite meshes to be properly regenerated during the next save :
+			InvalidateNaniteRepresentation(/* bCheckContentId = */ false);
 		}
 	}
 #endif
@@ -3505,31 +3513,16 @@ void ALandscapeProxy::PostLoad()
 	}
 	RepairInvalidTextures();
 
-	// Handle Nanite representation invalidation on load: 
-	if (!HasAnyFlags(RF_ClassDefaultObject) && !FPlatformProperties::RequiresCookedData())
+	if (World && !HasAnyFlags(RF_ClassDefaultObject) && !FPlatformProperties::RequiresCookedData())
 	{
-		// FFortniteReleaseBranchCustomObjectVersion::FixupNaniteLandscapeMeshes : Fixup Nanite meshes which were using the wrong material and didn't have proper UVs
-		// FFortniteReleaseBranchCustomObjectVersion::RemoveUselessLandscapeMeshesCookedCollisionData : Remove cooked collision data from Nanite landscape meshes, since collisions are handled by ULandscapeHeightfieldCollisionComponent
-		// FFortniteReleaseBranchCustomObjectVersion::FixNaniteLandscapeMeshNames : Fix the names of the generated Nanite landscape UStaticMesh so that it's unique in a given package
-		// FFortniteMainBranchObjectVersion::FixNaniteLandscapeMeshDDCKey : Fix the non-deterministic hash being used by the generated Nanite landscape UStaticMesh so that it can benefit from DDC sharing if it's identical to a previously uploaded mesh derived data
-		if ((GetLinkerCustomVersion(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::FixNaniteLandscapeMeshNames)
-			|| (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::FixNaniteLandscapeMeshDDCKey)
-			|| CVarForceInvalidateNaniteOnLoad->GetBool())
-		{
-			// This will force the Nanite meshes to be properly regenerated during the next save :
-			InvalidateNaniteRepresentation(/* bCheckContentId = */ false);
-		}
-		else
-		{
-			// On load, get rid of the Nanite representation if it's not up-to-date so that it's marked as needing an update and will get fixed by the user when building Nanite data
-			InvalidateNaniteRepresentation(/* bCheckContentId = */ true);
-		}
+		// TODO: Need to sort out occasional StaticAllocateObject problem on load
+		//UpdateNaniteRepresentation(/*InTargetPlatform = */nullptr);
+	}
 
-		// Remove RF_Transactional from Nanite components : they're re-created upon transacting now : 
-		if (NaniteComponent != nullptr)
-		{
-			NaniteComponent->ClearFlags(RF_Transactional);
-		}
+	// Remove RF_Transactional from Nanite components : they're re-created upon transacting now : 
+	if (NaniteComponent != nullptr)
+	{
+		NaniteComponent->ClearFlags(RF_Transactional);
 	}
 #endif // WITH_EDITOR
 
@@ -5161,28 +5154,6 @@ int32 ALandscapeProxy::GetOudatedPhysicalMaterialComponentsCount() const
 	int32 OudatedPhysicalMaterialComponentsCount = 0;
 	UpdatePhysicalMaterialTasksStatus(nullptr, &OudatedPhysicalMaterialComponentsCount);
 	return OudatedPhysicalMaterialComponentsCount;
-}
-
-UE::Landscape::EOutdatedDataFlags ALandscapeProxy::GetOutdatedDataFlags() const
-{
-	UE::Landscape::EOutdatedDataFlags OutdatedDataFlags = UE::Landscape::EOutdatedDataFlags::None;
-
-	if (GetOutdatedGrassMapCount() > 0)
-	{
-		OutdatedDataFlags |= UE::Landscape::EOutdatedDataFlags::GrassMaps;
-	}
-
-	if (GetOudatedPhysicalMaterialComponentsCount() > 0)
-	{
-		OutdatedDataFlags |= UE::Landscape::EOutdatedDataFlags::PhysicalMaterials;
-	}
-
-	if (!IsNaniteMeshUpToDate())
-	{
-		OutdatedDataFlags |= UE::Landscape::EOutdatedDataFlags::NaniteMeshes;
-	}
-
-	return OutdatedDataFlags;
 }
 
 void ALandscapeProxy::BuildPhysicalMaterial(struct FScopedSlowTask* InSlowTask)
