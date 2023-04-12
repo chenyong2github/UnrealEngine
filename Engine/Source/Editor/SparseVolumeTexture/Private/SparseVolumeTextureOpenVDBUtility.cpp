@@ -189,7 +189,16 @@ bool GetOpenVDBGridInfo(TArray64<uint8>& SourceFile, bool bCreateStrings, TArray
 #if OPENVDB_AVAILABLE
 	FArrayUint8StreamBuf StreamBuf(SourceFile);
 	std::istream IStream(&StreamBuf);
-	openvdb::io::Stream Stream(IStream, false /*delayLoad*/);
+	openvdb::io::Stream Stream;
+	try
+	{
+		Stream = openvdb::io::Stream(IStream, false /*delayLoad*/);
+	}
+	catch (const openvdb::Exception& Exception)
+	{
+		UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Error, TEXT("Failed to read file due to exception: %s"), *FString(Exception.what()));
+		return false;
+	}
 
 	openvdb::GridPtrVecPtr Grids = Stream.getGrids();
 
@@ -305,7 +314,16 @@ public:
 		// Load file
 		FArrayUint8StreamBuf StreamBuf(SourceFile);
 		std::istream IStream(&StreamBuf);
-		openvdb::io::Stream Stream(IStream, false /*delayLoad*/);
+		openvdb::io::Stream Stream;
+		try
+		{
+			Stream = openvdb::io::Stream(IStream, false /*delayLoad*/);
+		}
+		catch (const openvdb::Exception& Exception)
+		{
+			UE_LOG(LogSparseVolumeTextureOpenVDBUtility, Error, TEXT("Failed to read file due to exception: %s"), *FString(Exception.what()));
+			return false;
+		}
 
 		// Check that the source grid indices are valid
 		openvdb::GridPtrVecPtr Grids = Stream.getGrids();

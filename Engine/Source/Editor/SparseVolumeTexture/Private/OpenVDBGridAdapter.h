@@ -10,15 +10,6 @@
 
 #include "CoreMinimal.h"
 
-using FOpenVDBFloat1Grid = openvdb::FloatGrid;
-using FOpenVDBFloat2Grid = openvdb::Grid<openvdb::tree::Tree4<openvdb::Vec2f, 5, 4, 3>::Type>;
-using FOpenVDBFloat3Grid = openvdb::Vec3SGrid;
-using FOpenVDBFloat4Grid = openvdb::Grid<openvdb::tree::Tree4<openvdb::Vec4f, 5, 4, 3>::Type>;
-using FOpenVDBDouble1Grid = openvdb::DoubleGrid;
-using FOpenVDBDouble2Grid = openvdb::Grid<openvdb::tree::Tree4<openvdb::Vec2d, 5, 4, 3>::Type>;
-using FOpenVDBDouble3Grid = openvdb::Vec3DGrid;
-using FOpenVDBDouble4Grid = openvdb::Grid<openvdb::tree::Tree4<openvdb::Vec4d, 5, 4, 3>::Type>;
-
 template<typename ValueType>
 constexpr uint32 GetOpenVDBValueNumComponents()
 {

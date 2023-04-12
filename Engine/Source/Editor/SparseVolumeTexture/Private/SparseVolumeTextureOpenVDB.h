@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+#include "Misc/CoreMiscDefines.h" // UE_PUSH_MACRO seems to break without this
+
 #if PLATFORM_WINDOWS
 
 #define OPENVDB_AVAILABLE 1
@@ -36,6 +39,16 @@ UE_PUSH_MACRO("check")
 #include <openvdb/tools/Dense.h>
 #include <openvdb/math/Vec4.h>
 #include <openvdb/math/Half.h>
+#include <openvdb/Exceptions.h>
+
+using FOpenVDBFloat1Grid = openvdb::FloatGrid;
+using FOpenVDBFloat2Grid = openvdb::Grid<openvdb::tree::Tree4<openvdb::Vec2f, 5, 4, 3>::Type>;
+using FOpenVDBFloat3Grid = openvdb::Vec3SGrid;
+using FOpenVDBFloat4Grid = openvdb::Grid<openvdb::tree::Tree4<openvdb::Vec4f, 5, 4, 3>::Type>;
+using FOpenVDBDouble1Grid = openvdb::DoubleGrid;
+using FOpenVDBDouble2Grid = openvdb::Grid<openvdb::tree::Tree4<openvdb::Vec2d, 5, 4, 3>::Type>;
+using FOpenVDBDouble3Grid = openvdb::Vec3DGrid;
+using FOpenVDBDouble4Grid = openvdb::Grid<openvdb::tree::Tree4<openvdb::Vec4d, 5, 4, 3>::Type>;
 
 #if LOCAL_M_PI
 #undef M_PI
