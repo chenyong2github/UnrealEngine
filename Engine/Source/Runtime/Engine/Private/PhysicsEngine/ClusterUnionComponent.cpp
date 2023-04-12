@@ -199,7 +199,7 @@ void UClusterUnionComponent::OnCreatePhysicsState()
 
 	// TODO: Expose these parameters via the component.
 	Chaos::FClusterCreationParameters Parameters{ 0.3f, 100, false, false };
-	Parameters.ConnectionMethod = Chaos::FClusterCreationParameters::EConnectionMethod::DelaunayTriangulation;
+	Parameters.ConnectionMethod = Chaos::FClusterCreationParameters::EConnectionMethod::PointImplicit;
 
 	FChaosUserData::Set<UPrimitiveComponent>(&PhysicsUserData, this);
 

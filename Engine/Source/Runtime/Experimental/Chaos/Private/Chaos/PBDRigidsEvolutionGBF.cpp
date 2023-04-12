@@ -375,11 +375,6 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 	UpdateCollisionSolverType();
 
 	{
-		SCOPE_CYCLE_COUNTER(STAT_Evolution_UnclusterUnions);
-		Clustering.UnionClusterGroups();
-	}
-
-	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_Integrate);
 		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_Integrate);
 		Integrate(Particles.GetActiveParticlesView(), Dt);

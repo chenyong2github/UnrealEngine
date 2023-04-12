@@ -21,7 +21,8 @@ namespace Chaos
 		// AddReleased is the original behavior where if the particle to be added is a cluster, we will release the cluster first
 		// and add its children instead.
 		AddReleased,
-		Remove
+		Remove,
+		UpdateChildToParent
 	};
 
 	enum class EClusterUnionOperationTiming
@@ -63,7 +64,11 @@ namespace Chaos
 		bool bNeedsXRInitialization = true;
 	};
 
-	
+	struct FClusterUnionChildToParentUpdate
+	{
+		FTransform ChildToParent;
+		bool bLock = false;
+	};
 
 	/**
 	 * This class is used by Chaos to create internal clusters that will
@@ -93,6 +98,9 @@ namespace Chaos
 
 		// Helper function to remove particles given only the particle handle. This will consult the lookup table to find which cluster the particle is in before doing a normal remove operation.
 		void HandleRemoveOperationWithClusterLookup(const TArray<FPBDRigidParticleHandle*>& InParticles, EClusterUnionOperationTiming UpdateClusterPropertiesTiming);
+
+		// Performs the queued child to parent modifications.
+		void HandleUpdateChildToParentOperation(FClusterUnionIndex ClusterIndex, const TArray<FPBDRigidParticleHandle*>& Particles);
 
 		// Will be called at the beginning of every time step to ensure that all the expected cluster unions have been modified.
 		void FlushPendingOperations();
@@ -127,6 +135,7 @@ namespace Chaos
 
 		TClusterIndexOpMap<FClusterUnionIndex> PendingClusterIndexOperations;
 		TClusterIndexOpMap<FClusterUnionExplicitIndex> PendingExplicitIndexOperations;
+		TMap<FPBDRigidClusteredParticleHandle*, FClusterUnionChildToParentUpdate> PendingChildToParentUpdates;
 
 		template<typename TIndex>
 		void AddPendingOperation(TClusterIndexOpMap<TIndex>& OpMap, TIndex Index, EClusterUnionOperation Op, const TArray<FPBDRigidParticleHandle*>& Particles)

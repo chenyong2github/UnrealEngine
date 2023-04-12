@@ -155,7 +155,7 @@ namespace Chaos
 				FReadPhysicsObjectInterface_Internal Interface = FPhysicsObjectInternalInterface::GetRead();
 				if (FPBDRigidsEvolutionGBF* Evolution = GetEvolution(this))
 				{
-					Evolution->GetRigidClustering().GetClusterUnionManager().HandleAddOperation(ClusterUnionIndex, Interface.GetAllRigidParticles(Objects), false);
+					Evolution->GetRigidClustering().GetClusterUnionManager().AddPendingClusterIndexOperation(ClusterUnionIndex, EClusterUnionOperation::Add, Interface.GetAllRigidParticles(Objects));
 				}
 			}
 		);
@@ -174,7 +174,7 @@ namespace Chaos
 				FReadPhysicsObjectInterface_Internal Interface = FPhysicsObjectInternalInterface::GetRead();
 				if (FPBDRigidsEvolutionGBF* Evolution = GetEvolution(this))
 				{
-					Evolution->GetRigidClustering().GetClusterUnionManager().HandleRemoveOperation(ClusterUnionIndex, Interface.GetAllRigidParticles(Objects.Array()), EClusterUnionOperationTiming::Immediate);
+					Evolution->GetRigidClustering().GetClusterUnionManager().AddPendingClusterIndexOperation(ClusterUnionIndex, EClusterUnionOperation::Remove, Interface.GetAllRigidParticles(Objects.Array()));
 				}
 			}
 		);
@@ -239,8 +239,10 @@ namespace Chaos
 		);
 	}
 
+	DECLARE_CYCLE_STAT(TEXT("FClusterUnionPhysicsProxy::PushToPhysicsState"), STAT_ClusterUnionPhysicsProxyPushToPhysicsState, STATGROUP_Chaos);
 	void FClusterUnionPhysicsProxy::PushToPhysicsState(const FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyProxy& Dirty)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ClusterUnionPhysicsProxyPushToPhysicsState);
 		if (!ensure(Solver) || !ensure(Particle_Internal))
 		{
 			return;
@@ -307,8 +309,10 @@ namespace Chaos
 		}
 	}
 
+	DECLARE_CYCLE_STAT(TEXT("FClusterUnionPhysicsProxy::PullFromPhysicsState"), STAT_ClusterUnionPhysicsProxyPullFromPhysicsState, STATGROUP_Chaos);
 	bool FClusterUnionPhysicsProxy::PullFromPhysicsState(const FDirtyClusterUnionData& PullData, int32 SolverSyncTimestamp, const FDirtyClusterUnionData* NextPullData, const FRealSingle* Alpha)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ClusterUnionPhysicsProxyPullFromPhysicsState);
 		if (!ensure(Particle_External))
 		{
 			return false;
@@ -420,8 +424,10 @@ namespace Chaos
 		return true;
 	}
 
+	DECLARE_CYCLE_STAT(TEXT("FClusterUnionPhysicsProxy::BufferPhysicsResults_Internal"), STAT_ClusterUnionPhysicsProxyBufferPhysicsResultsInternal, STATGROUP_Chaos);
 	void FClusterUnionPhysicsProxy::BufferPhysicsResults_Internal(FDirtyClusterUnionData& BufferData)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ClusterUnionPhysicsProxyBufferPhysicsResultsInternal);
 		BufferPhysicsResultsImp(this, Particle_Internal, BufferData);
 	
 		FPBDRigidsEvolutionGBF& Evolution = *static_cast<FPBDRigidsSolver*>(Solver)->GetEvolution();
@@ -455,8 +461,10 @@ namespace Chaos
 		}
 	}
 
+	DECLARE_CYCLE_STAT(TEXT("FClusterUnionPhysicsProxy::BufferPhysicsResults_External"), STAT_ClusterUnionPhysicsProxyBufferPhysicsResultsExternal, STATGROUP_Chaos);
 	void FClusterUnionPhysicsProxy::BufferPhysicsResults_External(FDirtyClusterUnionData& BufferData)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ClusterUnionPhysicsProxyBufferPhysicsResultsExternal);
 		BufferPhysicsResultsImp(this, Particle_External.Get(), BufferData);
 		BufferData.bIsAnchored = SyncedData_External.bIsAnchored;
 
@@ -470,8 +478,10 @@ namespace Chaos
 		}
 	}
 
+	DECLARE_CYCLE_STAT(TEXT("FClusterUnionPhysicsProxy::SyncRemoteData"), STAT_ClusterUnionPhysicsProxySyncRemoteData, STATGROUP_Chaos);
 	void FClusterUnionPhysicsProxy::SyncRemoteData(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData) const
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ClusterUnionPhysicsProxySyncRemoteData);
 		if (!ensure(Particle_External))
 		{
 			return;

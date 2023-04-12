@@ -139,6 +139,7 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::AddPendingExplicitIndexOperation"), STAT_AddPendingExplicitIndexOperation, STATGROUP_Chaos);
 	void FClusterUnionManager::AddPendingExplicitIndexOperation(FClusterUnionExplicitIndex Index, EClusterUnionOperation Op, const TArray<FPBDRigidParticleHandle*>& Particles)
 	{
+		check(Op != EClusterUnionOperation::UpdateChildToParent);
 		SCOPE_CYCLE_COUNTER(STAT_AddPendingExplicitIndexOperation);
 		AddPendingOperation(PendingExplicitIndexOperations, Index, Op, Particles);
 	}
@@ -146,6 +147,7 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::AddPendingClusterIndexOperation"), STAT_AddPendingClusterIndexOperation, STATGROUP_Chaos);
 	void FClusterUnionManager::AddPendingClusterIndexOperation(FClusterUnionIndex Index, EClusterUnionOperation Op, const TArray<FPBDRigidParticleHandle*>& Particles)
 	{
+		check(Op != EClusterUnionOperation::UpdateChildToParent);
 		SCOPE_CYCLE_COUNTER(STAT_AddPendingClusterIndexOperation);
 		AddPendingOperation(PendingClusterIndexOperations, Index, Op, Particles);
 	}
@@ -171,9 +173,17 @@ namespace Chaos
 		}
 		PendingExplicitIndexOperations.Empty();
 
-		for (const TPair<FClusterUnionIndex, FClusterOpMap>& OpMap : PendingClusterIndexOperations)
+		for (TPair<FClusterUnionIndex, FClusterOpMap>& OpMap : PendingClusterIndexOperations)
 		{
-			for (const TPair<EClusterUnionOperation, TArray<FPBDRigidParticleHandle*>>& Op : OpMap.Value)
+			// Is this sort necessary? Better to be safe than sorry. Since we need to guarantee that the UpdateChildToParent happens after add.
+			OpMap.Value.KeyStableSort(
+				[](EClusterUnionOperation A, EClusterUnionOperation B)
+				{
+					return static_cast<int32>(A) < static_cast<int32>(B);
+				}
+			);
+
+			for (TPair<EClusterUnionOperation, TArray<FPBDRigidParticleHandle*>>& Op : OpMap.Value)
 			{
 				switch (Op.Key)
 				{
@@ -183,6 +193,9 @@ namespace Chaos
 					break;
 				case EClusterUnionOperation::Remove:
 					HandleRemoveOperation(OpMap.Key, Op.Value, EClusterUnionOperationTiming::Immediate);
+					break;
+				case EClusterUnionOperation::UpdateChildToParent:
+					HandleUpdateChildToParentOperation(OpMap.Key, Op.Value);
 					break;
 				}
 			}
@@ -585,56 +598,80 @@ namespace Chaos
 	void FClusterUnionManager::UpdateClusterUnionParticlesChildToParent(FClusterUnionIndex Index, const TArray<FPBDRigidParticleHandle*>& Particles, const TArray<FTransform>& ChildToParent, bool bLock)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateClusterUnionParticlesChildToParent);
+		AddPendingOperation(PendingClusterIndexOperations, Index, EClusterUnionOperation::UpdateChildToParent, Particles);
 
-		if (FClusterUnion* ClusterUnion = FindClusterUnion(Index))
+		for (int32 InputIndex = 0; InputIndex < Particles.Num() && InputIndex < ChildToParent.Num(); ++InputIndex)
 		{
-			// We need to keep track of all the particles we touched here. We need this because UpdateClusterUnionParticlesChildToParent
-			// is an *authoritative* update on the ChildToParent of the particle. However, UpdateAllClusterUnionProperties in certain cases
-			// may try to recompute the ChildToParent using the position of the particle. To counteract this, we will force the ChildToParent
-			// to be *temporarily* locked for the duration of UpdateAllClusterUnionProperties. However, unless bLock is true, we will restore the
-			// lock state of the particle to what it was previously.
-			TArray<TPair<FPBDRigidClusteredParticleHandle*, bool>> DirtyParticleLockStates;
-			if (!bLock)
+			if (!Particles[InputIndex])
 			{
-				DirtyParticleLockStates.Reserve(Particles.Num());
+				continue;
 			}
 
-			for (int32 ParticleIndex = 0; ParticleIndex < Particles.Num() && ParticleIndex < ChildToParent.Num(); ++ParticleIndex)
+			if (FPBDRigidClusteredParticleHandle* ClusterParticle = Particles[InputIndex]->CastToClustered())
 			{
-				FPBDRigidParticleHandle* Particle = Particles[ParticleIndex];
-				if (!ensure(Particle))
+				FClusterUnionChildToParentUpdate& Update = PendingChildToParentUpdates.FindOrAdd(ClusterParticle);
+				// If the current existing update wants to lock and we're not also locking, we can discard this new update.
+				if (Update.bLock && !bLock)
 				{
-					return;
+					continue;
 				}
+				Update.ChildToParent = ChildToParent[InputIndex];
+				Update.bLock = bLock;
+			}
+		}
+	}
 
-				const int32 ChildIndex = ClusterUnion->ChildParticles.Find(Particle->CastToRigidParticle());
-				if (ChildIndex != INDEX_NONE && ClusterUnion->InternalCluster)
+	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::HandleUpdateChildToParentOperation"), STAT_HandleUpdateChildToParentOperation, STATGROUP_Chaos);
+	void FClusterUnionManager::HandleUpdateChildToParentOperation(FClusterUnionIndex ClusterIndex, const TArray<FPBDRigidParticleHandle*>& Particles)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_UpdateClusterUnionParticlesChildToParent);
+		FClusterUnion* ClusterUnion = ClusterUnions.Find(ClusterIndex);
+		if (!ClusterUnion || Particles.IsEmpty())
+		{
+			return;
+		}
+
+		// We need to keep track of all the particles we touched here. We need this because UpdateClusterUnionParticlesChildToParent
+		// is an *authoritative* update on the ChildToParent of the particle. However, UpdateAllClusterUnionProperties in certain cases
+		// may try to recompute the ChildToParent using the position of the particle. To counteract this, we will force the ChildToParent
+		// to be *temporarily* locked for the duration of UpdateAllClusterUnionProperties. However, unless bLock is true, we will restore the
+		// lock state of the particle to what it was previously.
+		TArray<TPair<FPBDRigidClusteredParticleHandle*, bool>> DirtyParticleLockStates;
+		for (FPBDRigidParticleHandle* Particle : Particles)
+		{
+			if (!ensure(Particle))
+			{
+				return;
+			}
+
+			const int32 ChildIndex = ClusterUnion->ChildParticles.Find(Particle->CastToRigidParticle());
+			if (ChildIndex != INDEX_NONE && ClusterUnion->InternalCluster)
+			{
+				if (FPBDRigidClusteredParticleHandle* ChildHandle = ClusterUnion->ChildParticles[ChildIndex]->CastToClustered())
 				{
-					if (FPBDRigidClusteredParticleHandle* ChildHandle = ClusterUnion->ChildParticles[ChildIndex]->CastToClustered())
+					if (const FClusterUnionChildToParentUpdate* Update = PendingChildToParentUpdates.Find(ChildHandle))
 					{
-						ChildHandle->SetChildToParent(ChildToParent[ParticleIndex]);
+						ChildHandle->SetChildToParent(Update->ChildToParent);
 
-						if (!bLock)
+						if (!Update->bLock)
 						{
 							DirtyParticleLockStates.Add({ ChildHandle, ChildHandle->IsChildToParentLocked() });
 						}
 						ChildHandle->SetChildToParentLocked(true);
+						PendingChildToParentUpdates.Remove(ChildHandle);
 					}
 				}
 			}
-
-			UpdateAllClusterUnionProperties(*ClusterUnion, false);
-
-			if (!bLock)
-			{
-				for (TPair<FPBDRigidClusteredParticleHandle*, bool>& Pair : DirtyParticleLockStates)
-				{
-					Pair.Key->SetChildToParentLocked(Pair.Value);
-				}
-			}
-
-			MEvolution.GetParticles().MarkTransientDirtyParticle(ClusterUnion->InternalCluster);
-			MEvolution.DirtyParticle(*ClusterUnion->InternalCluster);
 		}
+
+		UpdateAllClusterUnionProperties(*ClusterUnion, false);
+
+		for (TPair<FPBDRigidClusteredParticleHandle*, bool>& Pair : DirtyParticleLockStates)
+		{
+			Pair.Key->SetChildToParentLocked(Pair.Value);
+		}
+
+		MEvolution.GetParticles().MarkTransientDirtyParticle(ClusterUnion->InternalCluster);
+		MEvolution.DirtyParticle(*ClusterUnion->InternalCluster);
 	}
 }

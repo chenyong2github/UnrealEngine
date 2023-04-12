@@ -384,6 +384,11 @@ namespace Chaos
 			{
 				SCOPE_CYCLE_COUNTER(STAT_EvolutionAndKinematicUpdate);
 
+				// This needs to be before BeginFrame since there's a possibility that we'll need to invalidate particles when updating cluster unions.
+				// Invalidating particles will cause us to iterate through and remove active collisions. If this is after BeginFrame but before we run
+				// the next broadphase, we'll pass the epoch check but have an invalid index into a now-empty active constraints array.
+				MSolver->GetEvolution()->GetRigidClustering().UnionClusterGroups();
+
 				// clear out the collision constraints as they will be stale from last frame if AdvanceOneTimeStep never gets called due to TimeRemaining being less than MinDeltaTime 
 				// @todo(chaos): maybe we can pull data at a better time instead to avoid collision-specific code here for event dispatch
 				MSolver->GetEvolution()->GetCollisionConstraints().BeginFrame();
