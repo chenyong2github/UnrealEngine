@@ -208,7 +208,8 @@ public:
 	*    the children clusters.
 	*/
 	void BreakingModel();
-
+	void BreakingModel(TArray<FPBDRigidClusteredParticleHandle*>& InParticles);
+	
 	//
 	// Access
 	//
