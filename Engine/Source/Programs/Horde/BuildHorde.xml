@@ -16,7 +16,16 @@
 	<Agent Name="HordeServer" Type="Linux;Win64_Docker">
 		<Property Name="StagingDir" Value="$(RootDir)/Engine/Saved/Horde.Server"/>
 		
-		<Node Name="Build HordeServer">
+		<Node Name="Check HordeServer Licenses">
+			<Property Name="IgnorePackages">
+				NETStandard.Library@2.0.0
+				Serilog.Enrichers.OpenTracing@0.0.2
+				SharpCompress@0.30.1
+			</Property>
+			<NuGet-LicenseCheck BaseDir="Engine/Source/Programs/Horde/Horde.Server" IgnorePackages="$(IgnorePackages)" LicenseDir="Engine/Source/Programs/Horde/ThirdParty/Licenses"/>
+		</Node>
+
+		<Node Name="Build HordeServer" Requires="Check HordeServer Licenses">
 			<!-- Tag all the files that need to be staged to build -->
 			<Property Name="StagePaths">
 				Engine/Binaries/DotNET/EpicGames.Perforce.Native/...

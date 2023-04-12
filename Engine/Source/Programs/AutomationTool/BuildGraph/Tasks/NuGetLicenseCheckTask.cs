@@ -32,6 +32,12 @@ namespace AutomationTool.Tasks
 		public string BaseDir;
 
 		/// <summary>
+		/// Specifies a list of packages to ignore for version checks, separated by semicolons. Optional version number may be specified with 'name@version' syntax.
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string IgnorePackages;
+
+		/// <summary>
 		/// Directory containing allowed licenses
 		/// </summary>
 		[TaskParameter(Optional = true)]
@@ -153,16 +159,28 @@ namespace AutomationTool.Tasks
 				}
 			}
 
+			HashSet<string> IgnorePackages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			if (Parameters.IgnorePackages != null)
+			{
+				IgnorePackages.UnionWith(Parameters.IgnorePackages.Split(';'));
+			}
+
 			Dictionary<string, LicenseInfo> LicenseUrlToInfo = new Dictionary<string, LicenseInfo>(StringComparer.OrdinalIgnoreCase);
 
 			Logger.LogInformation("Referenced Packages:");
 			Logger.LogInformation("");
 			foreach (PackageInfo Info in Packages.Values.OrderBy(x => x.Name).ThenBy(x => x.Version))
 			{
+				if (IgnorePackages.Contains(Info.Name) || IgnorePackages.Contains($"{Info.Name}@{Info.Version}"))
+				{
+					Logger.LogInformation("  {Name,-60} {Version,-10} Explicitly ignored via task arguments", Info.Name, Info.Version);
+					continue;
+				}
+
 				DirectoryReference PackageDir = DirectoryReference.Combine(PackageRootDir, Info.Name, Info.Version);
 				if (!DirectoryReference.Exists(PackageDir))
 				{
-					Logger.LogInformation("  {Name,-60} NuGet package not found", Info.Name);
+					Logger.LogInformation("  {Name,-60} {Version,-10} NuGet package not found", Info.Name, Info.Version);
 					continue;
 				}
 
