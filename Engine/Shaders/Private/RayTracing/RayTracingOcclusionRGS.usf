@@ -575,8 +575,9 @@ FOcclusionResult ComputeOcclusion(
 		const float3 TranslatedWorldViewOrigin = LWCToFloat(LWCAdd(PrimaryView.WorldViewOrigin, PrimaryView.PreViewTranslation));
 		const float3 V = normalize(TranslatedWorldPosition - TranslatedWorldViewOrigin);
 
-		// Apply sqrt to match the behavior of the rasterizer closer visually.
-		const float ExtinctionScale = sqrt(TransmissionProfileParams.ExtinctionScale);
+		// Apply sqrt to match the behavior of the rasterizer closer visually when ExtinctionScale <=1.
+		const float ExtinctionScale = lerp(sqrt(TransmissionProfileParams.ExtinctionScale), 
+											TransmissionProfileParams.ExtinctionScale, TransmissionProfileParams.ExtinctionScale > 1);
 		
 		// Decrease ExtinctionScale should increase the max transmission distance. Keep rasterizer and raytracing shadow behave similar for transmission.
 		const float MaxTransmissionDistance = SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE / ExtinctionScale; 

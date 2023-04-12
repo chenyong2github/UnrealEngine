@@ -356,6 +356,9 @@ static float GetNextSmallerPositiveFloat(float x)
 // 1 mfp can map to 1.44 dmfp (surface albedo -> 0.0) or 43.50 dmfp (surface albedo -> 1.0).
 #define ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT (0.01f*0.2f)
 #define DEC_UNIT_TO_DIFFUSEMEANFREEPATH_IN_MM 1/ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT
+
+#define ENC_EXTINCTIONSCALE_FACTOR	0.01f
+#define DEC_EXTINCTIONSCALE_FACTOR  1/ENC_EXTINCTIONSCALE_FACTOR
 //------------------------------------------------------------------------------------------
 
 //in [0,1]
@@ -390,6 +393,17 @@ float DecodeScatteringDistribution(float ScatteringDistribution)
 {
 	return ScatteringDistribution * 2.0f - 1.0f;
 }
+
+float EncodeExtinctionScale(float ExtinctionScale)
+{
+	return ExtinctionScale * ENC_EXTINCTIONSCALE_FACTOR;
+}
+
+float DecodeExtinctionScale(float ExtinctionScale)
+{
+	return ExtinctionScale * DEC_EXTINCTIONSCALE_FACTOR;
+}
+
 
 void SetupSurfaceAlbedoAndDiffuseMeanFreePath(FLinearColor& SurfaceAlbedo, FLinearColor& Dmfp)
 {
@@ -506,7 +520,7 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 		TextureRow[SSSS_DUAL_SPECULAR_OFFSET].A = FMath::Clamp(MaterialRoughnessToAverage / SSSS_MAX_DUAL_SPECULAR_ROUGHNESS, 0.0f, 1.0f);
 
 		//X:ExtinctionScale, Y:Normal Scale, Z:ScatteringDistribution, W:OneOverIOR
-		TextureRow[SSSS_TRANSMISSION_OFFSET].R = Data.ExtinctionScale;
+		TextureRow[SSSS_TRANSMISSION_OFFSET].R = EncodeExtinctionScale(Data.ExtinctionScale);
 		TextureRow[SSSS_TRANSMISSION_OFFSET].G = Data.NormalScale;
 		TextureRow[SSSS_TRANSMISSION_OFFSET].B = EncodeScatteringDistribution(Data.ScatteringDistribution);
 		TextureRow[SSSS_TRANSMISSION_OFFSET].A = 1.0f / Data.IOR;

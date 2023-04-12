@@ -53,6 +53,9 @@
 #define ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT (0.01f*0.2f)
 #define DEC_UNIT_TO_DIFFUSEMEANFREEPATH_IN_MM 1/ENC_DIFFUSEMEANFREEPATH_IN_MM_TO_UNIT
 
+// Make sure UIMax|ClampMax of ExtinctionScale * ENC_EXTINCTIONSCALE_FACTOR <= 1
+#define ENC_EXTINCTIONSCALE_FACTOR	0.01f
+#define DEC_EXTINCTIONSCALE_FACTOR  1/ENC_EXTINCTIONSCALE_FACTOR
 ///////////////////////////////////////////////////////////////////////////////////////////////
 // Accessors
 
@@ -125,6 +128,16 @@ float EncodeScatteringDistribution(float ScatteringDistribution)
 float DecodeScatteringDistribution(float ScatteringDistribution)
 {
 	return ScatteringDistribution * 2.0f - 1.0f;
+}
+
+float EncodeExtinctionScale(float ExtinctionScale)
+{
+	return ExtinctionScale * ENC_EXTINCTIONSCALE_FACTOR;
+}
+
+float DecodeExtinctionScale(float ExtinctionScale)
+{
+	return ExtinctionScale * DEC_EXTINCTIONSCALE_FACTOR;
 }
 
 bool GetSubsurfaceTransmittanceProfileUseBurley(uint SubsurfaceProfileInt)

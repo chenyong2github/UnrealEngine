@@ -34,7 +34,7 @@ FTransmissionProfileParams GetTransmissionProfileParams(uint SubsurfaceProfileIn
 	//X:ExtinctionScale, Y:Normal Scale, Z:ScatteringDistribution, W:OneOverIOR
 	float4 Data = View.SSProfilesTexture.Load(int3(SSSS_TRANSMISSION_OFFSET, SubsurfaceProfileInt, 0));
 
-	Result.ExtinctionScale = Data.x;
+	Result.ExtinctionScale = DecodeExtinctionScale(Data.x);
 	Result.NormalScale = Data.y;
 	Result.ScatteringDistribution = DecodeScatteringDistribution(Data.z);
 	Result.OneOverIOR = Data.w;
