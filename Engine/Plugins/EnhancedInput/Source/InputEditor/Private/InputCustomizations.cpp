@@ -659,7 +659,7 @@ bool FPlayerMappableKeyChildSettingsCustomization::OnVerifyMappingName(const FTe
 	// Validate that the new name can be used
 	FEnhancedInputPlayerMappableNameValidator NameValidator(CurrentName);
 	EValidatorResult Result = NameValidator.IsValid(InNewText.ToString(), false);
-	OutErrorMessage = INameValidatorInterface::GetErrorText(InNewText.ToString(), Result);
+	OutErrorMessage = FEnhancedInputPlayerMappableNameValidator::GetErrorText(InNewText.ToString(), Result);
 
 	return Result == EValidatorResult::Ok || Result == EValidatorResult::ExistingName;
 }

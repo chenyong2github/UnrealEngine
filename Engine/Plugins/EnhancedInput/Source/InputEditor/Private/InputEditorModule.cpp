@@ -555,19 +555,25 @@ void FInputEditorModule::AutoUpgradeDefaultInputClasses()
 	}
 }
 
-bool FInputEditorModule::IsMappingNameInUse(const FName InName)
+const UPlayerMappableKeySettings* FInputEditorModule::FindMappingByName(const FName InName)
 {
 	// Instanced objects that have been deleted will have an outer of the transient package, and we don't want to include them
 	for (TObjectIterator<UPlayerMappableKeySettings> Itr(RF_ClassDefaultObject | RF_Transient, true, EInternalObjectFlags::Garbage | EInternalObjectFlags::Unreachable); Itr; ++Itr)
 	{
-		UPlayerMappableKeySettings* Settings = *Itr;		
+		const UPlayerMappableKeySettings* Settings = *Itr;
 		if (Settings && Settings->GetOuter() != GetTransientPackage() && Settings->Name == InName)
 		{
-			return true;
+			// What if we had just removed a mapping of this name?
+			return Settings;
 		}
 	}
-	
-	return false;
+	return nullptr;
+}
+
+bool FInputEditorModule::IsMappingNameInUse(const FName InName)
+{
+	// If a mapping with this name exists, then it is in use
+	return FindMappingByName(InName) != nullptr;
 }
 
 void FInputEditorModule::Tick(float DeltaTime)

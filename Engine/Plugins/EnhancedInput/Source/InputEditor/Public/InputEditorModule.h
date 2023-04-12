@@ -16,6 +16,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogEnhancedInputEditor, Log, All);
 
 class UInputAction;
 class SWindow;
+class UPlayerMappableKeySettings;
 
 class FInputEditorModule : public IModuleInterface, public FTickableEditorObject
 {
@@ -33,6 +34,9 @@ public:
 
 	static EAssetTypeCategories::Type GetInputAssetsCategory() { return InputAssetsCategory; }
 	
+	/** Returns a pointer to the player mappable settings object that has this mapping name */
+	INPUTEDITOR_API static const UPlayerMappableKeySettings* FindMappingByName(const FName InName);
+
 	/** Returns true if the given name is in use by a player mappable key setting */
 	INPUTEDITOR_API static bool IsMappingNameInUse(const FName InName);
 		
