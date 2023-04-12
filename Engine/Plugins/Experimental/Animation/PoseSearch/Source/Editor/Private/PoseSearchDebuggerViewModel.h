@@ -49,6 +49,12 @@ public:
 
 	bool IsVerbose() const { return bIsVerbose; }
 
+	void SetDrawQuery(bool bInDrawQuery) { bDrawQuery = bInDrawQuery; }
+
+	bool GetDrawQuery() const { return bDrawQuery; }
+
+
+
 	/** Callback to reset debug skeletons for the active world */
 	void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
 
@@ -141,6 +147,8 @@ private:
 	bool bSelecting = false;
 	
 	bool bIsVerbose = false;
+
+	bool bDrawQuery = true;	
 
 	/** Limits some public API */
 	friend class FDebugger;

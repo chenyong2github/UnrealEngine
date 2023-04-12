@@ -345,21 +345,21 @@ void SDebuggerView::DrawFeatures(
 	const USkinnedMeshComponent* Mesh
 ) const
 {
-	// @todo: have a check box like "Channels Breakdown" to disable drawing the query vector
-	// @todo: draw the query with greater thickness?
 	// Draw query vector
-	const UPoseSearchDatabase* CurrentDatabase = ViewModel.Get()->GetCurrentDatabase();
-	if (CurrentDatabase)
+	if (ViewModel.Get()->GetDrawQuery())
 	{
-		for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : State.DatabaseEntries)
+		if (const UPoseSearchDatabase* CurrentDatabase = ViewModel.Get()->GetCurrentDatabase())
 		{
-			const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
-			if (Database && Database == CurrentDatabase && DbEntry.QueryVector.Num() == Database->Schema->SchemaCardinality &&
-				FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(CurrentDatabase, ERequestAsyncBuildFlag::ContinueRequest))
+			for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : State.DatabaseEntries)
 			{
-				FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, CurrentDatabase, EDebugDrawFlags::DrawQuery);
-				DrawParams.DrawFeatureVector(DbEntry.QueryVector);
-				break;
+				const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
+				if (Database && Database == CurrentDatabase && DbEntry.QueryVector.Num() == Database->Schema->SchemaCardinality &&
+					FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(CurrentDatabase, ERequestAsyncBuildFlag::ContinueRequest))
+				{
+					FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, nullptr, CurrentDatabase, EDebugDrawFlags::DrawQuery);
+					DrawParams.DrawFeatureVector(DbEntry.QueryVector);
+					break;
+				}
 			}
 		}
 	}
@@ -374,7 +374,7 @@ void SDebuggerView::DrawFeatures(
 		const UPoseSearchDatabase* RowDatabase = Row->SourceDatabase.Get();
 		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(RowDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 		{
-			FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, RowDatabase);
+			FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, nullptr, RowDatabase);
 			DrawParams.DrawFeatureVector(Row->PoseIdx);
 		}
 	}
@@ -392,7 +392,7 @@ void SDebuggerView::DrawFeatures(
 			if (Database && FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 			{
 				// Use the motion-matching state's pose idx, as the active row may be update-throttled at this point
-				FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, Database);
+				FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, nullptr, Database);
 				DrawParams.DrawFeatureVector(ActiveRows[0]->PoseIdx);
 			}
 		}
@@ -411,7 +411,7 @@ void SDebuggerView::DrawFeatures(
 			const UPoseSearchDatabase* Database = ContinuingRows[0]->SourceDatabase.Get();
 			if (Database && FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 			{
-				FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, Database);
+				FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, nullptr, Database);
 				DrawParams.DrawFeatureVector(ContinuingRows[0]->PoseIdx);
 			}
 		}
@@ -511,8 +511,7 @@ TSharedRef<SWidget> SDebuggerView::GenerateNoDataMessageView()
 
 TSharedRef<SHorizontalBox> SDebuggerView::GenerateReturnButtonView()
 {
-	return
-		SNew(SHorizontalBox)
+	return SNew(SHorizontalBox)
 
 		+ SHorizontalBox::Slot()
 		.Padding(10, 5, 0, 0)
@@ -562,7 +561,34 @@ TSharedRef<SHorizontalBox> SDebuggerView::GenerateReturnButtonView()
 				SNew(SCheckBox)
 				.IsChecked_Lambda([this]
 				{
-					return ViewModel.Get()->IsVerbose() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; 
+					return ViewModel.Get()->GetDrawQuery() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; 
+				})
+				.OnCheckStateChanged_Lambda([this](ECheckBoxState State)
+				{
+					ViewModel.Get()->SetDrawQuery(State == ECheckBoxState::Checked);
+				})
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("PoseSearchDebuggerDrawQuery", "Draw Query"))
+				]
+			]
+		]
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Top)
+		.HAlign(HAlign_Left)
+		.Padding(64, 5, 0, 0)
+		.AutoWidth()
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0, 5, 0, 0)
+			[
+				SNew(SCheckBox)
+				.IsChecked_Lambda([this]
+				{
+					return ViewModel.Get()->IsVerbose() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 				})
 				.OnCheckStateChanged_Lambda([this](ECheckBoxState State)
 				{

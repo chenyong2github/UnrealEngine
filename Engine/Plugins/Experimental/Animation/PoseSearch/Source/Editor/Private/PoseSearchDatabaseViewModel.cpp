@@ -232,26 +232,19 @@ namespace UE::PoseSearch
 			float CurrentPlayTime = PlayTime + IndexAsset.SamplingInterval.Min + PreviewActor.PlayTimeOffset;
 			FAnimationRuntime::AdvanceTime(false, CurrentPlayTime, CurrentTime, IndexAsset.SamplingInterval.Max);
 
-			// time to pose index
-			PreviewActor.CurrentPoseIndex = PoseSearchDatabase->GetPoseIndexFromTime(CurrentTime, IndexAsset);
-
-			// pose index to quantized time
-			if (PreviewActor.CurrentPoseIndex >= 0)
-			{
-				CurrentTime = PoseSearchDatabase->GetAssetTime(PreviewActor.CurrentPoseIndex);
-			}
-
-			// quantized time to scaled quantized time
-			const float CurrentScaledTime = PreviewActor.Sampler.GetScaledTime(CurrentTime);
-
-			AnimInstance->SetPosition(CurrentScaledTime);
+			AnimInstance->SetPosition(PreviewActor.Sampler.GetScaledTime(CurrentTime));
 			AnimInstance->SetPlayRate(0.f);
 			AnimInstance->SetBlendSpacePosition(IndexAsset.BlendParameters);
 
+			// time to pose index
+			PreviewActor.CurrentPoseIndex = PoseSearchDatabase->GetPoseIndexFromTime(CurrentTime, IndexAsset);
+			const float QuantizedTime = PreviewActor.CurrentPoseIndex >= 0 ? PoseSearchDatabase->GetAssetTime(PreviewActor.CurrentPoseIndex) : CurrentTime;
+			PreviewActor.QuantizedTimeRootMotion = PreviewActor.Sampler.ExtractRootTransform(QuantizedTime);
 			FTransform RootMotion = PreviewActor.Sampler.ExtractRootTransform(CurrentTime);
 			if (AnimInstance->GetMirrorDataTable())
 			{
 				RootMotion = MirrorRootMotion(RootMotion, AnimInstance->GetMirrorDataTable());
+				PreviewActor.QuantizedTimeRootMotion = MirrorRootMotion(PreviewActor.QuantizedTimeRootMotion, AnimInstance->GetMirrorDataTable());
 			}
 
 			if (PreviewActor.PlayTimeOffset != 0.f)

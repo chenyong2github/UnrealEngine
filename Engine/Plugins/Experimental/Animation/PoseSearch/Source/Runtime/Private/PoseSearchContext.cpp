@@ -19,15 +19,17 @@ FDebugDrawParams::FDebugDrawParams(FAnimInstanceProxy* InAnimInstanceProxy, cons
 : AnimInstanceProxy(InAnimInstanceProxy)
 , World(nullptr)
 , Mesh(nullptr)
+, RootMotionTransform(nullptr)
 , Database(InDatabase)
 , Flags(InFlags)
 {
 }
 
-FDebugDrawParams::FDebugDrawParams(const UWorld* InWorld, const USkinnedMeshComponent* InMesh, const UPoseSearchDatabase* InDatabase, EDebugDrawFlags InFlags)
+FDebugDrawParams::FDebugDrawParams(const UWorld* InWorld, const USkinnedMeshComponent* InMesh, const FTransform* InRootMotionTransform, const UPoseSearchDatabase* InDatabase, EDebugDrawFlags InFlags)
 : AnimInstanceProxy(nullptr)
 , World(InWorld)
 , Mesh(InMesh)
+, RootMotionTransform(InRootMotionTransform)
 , Database(InDatabase)
 , Flags(InFlags)
 {
@@ -83,7 +85,7 @@ FVector FDebugDrawParams::ExtractPosition(TConstArrayView<float> PoseVector, flo
 			return ExtractPosition(PoseVector, FoundPosition);
 		}
 
-		if (Mesh && SchemaBoneIdx >= 0)
+		if (Mesh && SchemaBoneIdx > RootSchemaBoneIdx)
 		{
 			return Mesh->GetSocketTransform(Schema->BoneReferences[SchemaBoneIdx].BoneName).GetTranslation();
 		}
@@ -93,6 +95,11 @@ FVector FDebugDrawParams::ExtractPosition(TConstArrayView<float> PoseVector, flo
 
 const FTransform& FDebugDrawParams::GetRootTransform() const
 {
+	if (RootMotionTransform)
+	{
+		return *RootMotionTransform;
+	}
+
 	if (AnimInstanceProxy)
 	{
 		return AnimInstanceProxy->GetComponentTransform();

@@ -47,6 +47,7 @@ namespace UE::PoseSearch
 		int32 CurrentPoseIndex = INDEX_NONE;
 		float PlayTimeOffset = 0.f;
 		FAnimationAssetSampler Sampler;
+		FTransform QuantizedTimeRootMotion = FTransform::Identity;
 
 		bool IsValid() const;
 		void Process();
