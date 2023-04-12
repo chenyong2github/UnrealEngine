@@ -2567,7 +2567,7 @@ bool FRecastTileGenerator::GenerateTile()
 	BuildContext.InternalDebugData.BuildTime = EndStamp - StartStamp;
 	BuildContext.InternalDebugData.BuildCompressedLayerTime = PostCompressLayerStamp - StartStamp;
 	BuildContext.InternalDebugData.BuildNavigationDataTime = EndStamp - PostCompressLayerStamp;
-	BuildContext.InternalDebugData.Resolution = TileConfig.TileResolution;
+	BuildContext.InternalDebugData.Resolution = (unsigned char)TileConfig.TileResolution;
 #endif // RECAST_INTERNAL_DEBUG_DATA
 	
 	// it's possible to have valid generation with empty resulting tile (no navigable geometry in tile)

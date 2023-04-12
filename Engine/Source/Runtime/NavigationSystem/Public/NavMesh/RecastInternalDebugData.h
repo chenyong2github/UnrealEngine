@@ -8,7 +8,6 @@
 #include "Math/UnrealMathSSE.h"
 #include "Math/Vector.h"
 #include "NavMesh/RecastHelpers.h"
-#include "AI/Navigation/NavigationTypes.h"
 
 struct FRecastInternalDebugData : public duDebugDraw
 {
@@ -30,9 +29,9 @@ struct FRecastInternalDebugData : public duDebugDraw
 	double BuildNavigationDataTime = 0.;
 
 	uint32 TriangleCount = 0;
-	ENavigationDataResolution Resolution;
+	unsigned char Resolution = 0;
 	
-	FRecastInternalDebugData() : Resolution(ENavigationDataResolution::Default) {}
+	FRecastInternalDebugData() {}
 	virtual ~FRecastInternalDebugData() override {}
 
 	virtual void depthMask(bool state) override { /*unused*/ };

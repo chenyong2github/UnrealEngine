@@ -973,7 +973,7 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 						const double BuildTimeMs = DebugData->BuildTime * SecToMs;
 						const double CompressedLayerTimeMs = DebugData->BuildCompressedLayerTime * SecToMs;
 						const double NavigationDataTimeMs = DebugData->BuildNavigationDataTime * SecToMs;
-						const ENavigationDataResolution Resolution = DebugData->Resolution;
+						const ENavigationDataResolution Resolution = (ENavigationDataResolution)DebugData->Resolution;
 
 						const double Range = NavMeshGeometry.MaxTileBuildTime - NavMeshGeometry.MinTileBuildTime;
 						int32 Rank = 0;
