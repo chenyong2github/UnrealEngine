@@ -23,8 +23,6 @@ namespace UnrealBuildTool.Rules
 					// ... add private dependencies that you statically link with here ...
 				}
 				);
-
-            PublicIncludePathModuleNames.Add("OptionalMobileFeaturesBPLibrary");
         }
 	}
 }
