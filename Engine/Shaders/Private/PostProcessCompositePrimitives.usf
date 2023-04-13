@@ -254,12 +254,28 @@ void MainPopulateSceneDepthPS(
 		(Depth_ViewportMin + ViewportUV * Depth_ViewportSize - DepthTextureJitter) * Depth_ExtentInverse,
 		Depth_UVViewportBilinearMin, Depth_UVViewportBilinearMax);
 
-	OutDepth = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV, 0).r;
-#if FORCE_DRAW_COLOR
-	OutColor = Texture2DSampleLevel(ColorTexture, ColorSampler, DepthUV, 0).rgba;
+#if FORCE_DEBUG_DRAW_COLOR
+	//This extended pass is primarily to compensate for the lack of scene color output when compositing the debug draw primitives with SimpleElementShaders
+	//Draw out the color whilst compensating for the viewport not necessarily starting at 0,0. 
+	//Does not use jitter for Scene Color as it is not upscaled for this pass
+	float2 ColorUV = clamp(ViewportUV * Color_UVViewportSize, 
+						Color_UVViewportBilinearMin - Color_UVViewportMin,
+						Color_UVViewportBilinearMax - Color_UVViewportMin);
+	ColorUV = clamp(ColorUV, float2(0, 0), float2(1, 1));
+	OutColor = Texture2DSampleLevel(ColorTexture, ColorSampler, ColorUV, 0).rgba;
+
+	//As this is also outputting color and positions need to match, compensate the depth for the viewport position not necessarily starting at 0,0
+	DepthUV = DepthUV - Depth_UVViewportMin;
+	//At larger viewport sizes, the temporal depth upscale can increase the depth viewport size significantly, 
+	//which isn't necessarily compensated for when outputting the color, so scale the DepthUV output down to match the ColorUV viewport size
+	//Clamped to the Min/Max temporal upscale values defined in PostProcessCompositePrimitivesCommon.cpp
+	DepthUV *= clamp(Depth_Extent / Color_Extent, MIN_DEPTHTEX_UPSCALE_FACTOR, MAX_DEPTHTEX_UPSCALE_FACTOR);
+	DepthUV = clamp(DepthUV, float2(0, 0), float2(1, 1));
 #else
 	OutColor = 0.0;
 #endif
+
+	OutDepth = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV, 0).r;
 }
 
 float ComputeDepthMask(float SceneDeviceZ, float EditorDeviceZ)

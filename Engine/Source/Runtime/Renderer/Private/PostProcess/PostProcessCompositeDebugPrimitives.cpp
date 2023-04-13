@@ -18,24 +18,17 @@ FScreenPassTexture AddDebugPrimitivePass(
 	check(Inputs.SceneDepth.IsValid());
 
 	RDG_EVENT_SCOPE(GraphBuilder, "CompositeDebugPrimitives");
-	
-	const uint32 NumMSAASamples = View.GetSceneTextures().Config.NumSamples;
-	//Set sizing values to match the SceneColor size
-	const FIntRect ViewRect = Inputs.SceneColor.ViewRect;
-	const FViewInfo* DebugView = CreateCompositePrimitiveView(View, ViewRect, NumMSAASamples);
 
 	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
-	FRDGTextureRef DebugPrimitiveColor = Output.Texture;
 	if (!Output.IsValid())
 	{
-		// Create a new output for the scene color
-		FRDGTextureDesc ColorDesc = Inputs.SceneColor.Texture->Desc;
-		ColorDesc.Flags |= TexCreate_ShaderResource | TexCreate_RenderTargetable;
-		DebugPrimitiveColor = GraphBuilder.CreateTexture(ColorDesc, TEXT("Debug.DrawPrimitivesColor"));
-		//Create a new depth output for the final draw
-		Output = FScreenPassRenderTarget(DebugPrimitiveColor, ViewRect, ERenderTargetLoadAction::ENoAction);
+		Output = FScreenPassRenderTarget::CreateFromInput(GraphBuilder, Inputs.SceneColor, View.GetOverwriteLoadAction(), TEXT("Debug.DrawPrimitivesColor"));
 	}
+	const uint32 NumMSAASamples = View.GetSceneTextures().Config.NumSamples;
+	//Set sizing values to match the SceneColor size
+	const FIntRect ViewRect = Output.ViewRect;
 	FIntPoint Extent = Output.Texture->Desc.Extent;
+	const FViewInfo* DebugView = CreateCompositePrimitiveView(View, ViewRect, NumMSAASamples);	
 
 	//Prepare output textures for composite draw
 	const FScreenPassTextureViewport OutputViewport(Output);
@@ -50,8 +43,7 @@ FScreenPassTexture AddDebugPrimitivePass(
 			*DebugView,
 			Inputs.SceneColor,
 			SceneDepth,
-			SceneDepthJitter,
-			NumMSAASamples);
+			SceneDepthJitter);
 	}
 
 	//Simple element pixel shaders do not output background color for composite, 
@@ -60,7 +52,7 @@ FScreenPassTexture AddDebugPrimitivePass(
 		*DebugView,
 		Inputs.SceneColor,
 		SceneDepth,
-		DebugPrimitiveColor,
+		Output.Texture,
 		DebugPrimitiveDepth,
 		SceneDepthJitter,
 		NumMSAASamples,

@@ -277,8 +277,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 					*EditorView,
 					Inputs.SceneColor,
 					SceneDepth,
-					SceneDepthJitter,
-					NumMSAASamples);
+					SceneDepthJitter);
 			}
 
 			PopulateDepthPass(GraphBuilder,

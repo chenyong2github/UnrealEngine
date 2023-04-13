@@ -7,6 +7,8 @@
 #include "PixelShaderUtils.h"
 #include "ScenePrivate.h"
 
+#define MIN_DEPTHTEX_UPSCALE_FACTOR 1
+#define MAX_DEPTHTEX_UPSCALE_FACTOR 4
 TAutoConsoleVariable<int32> CVarCompositeTemporalUpsampleDepth(
 	TEXT("r.Composite.TemporalUpsampleDepth"), 2,
 	TEXT("Temporal upsample factor of the depth buffer for depth testing editor primitives against."),
@@ -86,8 +88,8 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FPopulateCompositeDepthPS, FGlobalShader);
 
 	class FUseMSAADimension : SHADER_PERMUTATION_BOOL("USE_MSAA");
-	class FForceDrawColorOutput : SHADER_PERMUTATION_BOOL("FORCE_DRAW_COLOR"); //Allow the option to draw out the scene color too to lower draw calls
-	using FPermutationDomain = TShaderPermutationDomain<FUseMSAADimension, FForceDrawColorOutput>;
+	class FForceDebugDrawColorOutput : SHADER_PERMUTATION_BOOL("FORCE_DEBUG_DRAW_COLOR"); //Allow the option to draw out the scene color too to lower draw calls
+	using FPermutationDomain = TShaderPermutationDomain<FUseMSAADimension, FForceDebugDrawColorOutput>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -100,6 +102,18 @@ public:
 		SHADER_PARAMETER(FVector2f, DepthTextureJitter)
 		RENDER_TARGET_BINDING_SLOTS()
 		END_SHADER_PARAMETER_STRUCT()
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(InParameters, OutEnvironment);
+
+		FPermutationDomain PermutationVector(InParameters.PermutationId);
+		if (PermutationVector.Get<FForceDebugDrawColorOutput>() != 0)
+		{
+			OutEnvironment.SetDefine(TEXT("MIN_DEPTHTEX_UPSCALE_FACTOR"), MIN_DEPTHTEX_UPSCALE_FACTOR);
+			OutEnvironment.SetDefine(TEXT("MAX_DEPTHTEX_UPSCALE_FACTOR"), MAX_DEPTHTEX_UPSCALE_FACTOR);
+		}
+	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -125,8 +139,7 @@ void TemporalUpscaleDepthPass(
 	const FViewInfo& View,
 	const FScreenPassTexture& InSceneColor,
 	FScreenPassTexture& InOutSceneDepth,
-	FVector2f& SceneDepthJitter,
-	uint32 NumMSAASamples)
+	FVector2f& SceneDepthJitter)
 {
 	if (InSceneColor.ViewRect != InOutSceneDepth.ViewRect)
 	{
@@ -139,7 +152,7 @@ void TemporalUpscaleDepthPass(
 		// Upscale factor shouldn't be higher than there is TAA samples, or that means there will be unrendered pixels.
 		const int32 ComputeMaxUpsampleFactorDueToTAA = FMath::FloorToInt(FMath::Sqrt(float(View.TemporalJitterSequenceLength) / (UpscaleFactor * UpscaleFactor)));
 
-		const int32 MaxRHIUpsampleFactor = FMath::Clamp(FMath::FloorToInt(float(GetMax2DTextureDimension()) / float(Extent.GetMax())), 1, 4);
+		const int32 MaxRHIUpsampleFactor = FMath::Clamp(FMath::FloorToInt(float(GetMax2DTextureDimension()) / float(Extent.GetMax())), MIN_DEPTHTEX_UPSCALE_FACTOR, MAX_DEPTHTEX_UPSCALE_FACTOR);
 
 		const int32 ComputeMaxUpsampleFactor = FMath::Clamp(ComputeMaxUpsampleFactorDueToTAA, 0, MaxRHIUpsampleFactor);
 
@@ -235,8 +248,8 @@ void PopulateDepthPass(FRDGBuilder& GraphBuilder,
 
 	FPopulateCompositeDepthPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPopulateCompositeDepthPS::FParameters>();
 	PassParameters->View = View.ViewUniformBuffer;
-	PassParameters->Color = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(InSceneColor));
-	PassParameters->Depth = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(InSceneDepth));
+	PassParameters->Color = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(InSceneColor.Texture->Desc.Extent, View.ViewRect));
+	PassParameters->Depth = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(InSceneDepth.Texture->Desc.Extent, View.ViewRect));
 	if (bForceDrawColor)
 	{
 		PassParameters->ColorTexture = InSceneColor.Texture;
@@ -250,7 +263,7 @@ void PopulateDepthPass(FRDGBuilder& GraphBuilder,
 
 	FPopulateCompositeDepthPS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FPopulateCompositeDepthPS::FUseMSAADimension>(NumMSAASamples > 1);
-	PermutationVector.Set< FPopulateCompositeDepthPS::FForceDrawColorOutput>(bForceDrawColor);
+	PermutationVector.Set< FPopulateCompositeDepthPS::FForceDebugDrawColorOutput>(bForceDrawColor);
 	TShaderMapRef<FPopulateCompositeDepthPS> PixelShader(View.ShaderMap, PermutationVector);
 
 	FPixelShaderUtils::AddFullscreenPass(

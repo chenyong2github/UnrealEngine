@@ -76,8 +76,7 @@ void TemporalUpscaleDepthPass(
 	const FViewInfo& View,
 	const FScreenPassTexture& InSceneColor,
 	FScreenPassTexture& InOutSceneDepth,
-	FVector2f& SceneDepthJitter,
-	uint32 NumMSAASamples);
+	FVector2f& SceneDepthJitter);
 
 void PopulateDepthPass(FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
