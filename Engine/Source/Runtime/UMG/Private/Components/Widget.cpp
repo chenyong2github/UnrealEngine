@@ -1802,7 +1802,7 @@ FDelegateHandle UWidget::RegisterPostStateListener(const FOnWidgetStateBroadcast
 
 	if (bBroadcastCurrentState)
 	{
-		ListenerDelegate.ExecuteIfBound(*MyWidgetStateBitfield);
+		ListenerDelegate.ExecuteIfBound(this, *MyWidgetStateBitfield);
 	}
 
 	return PostWidgetStateChanged.Add(ListenerDelegate);
@@ -1828,7 +1828,7 @@ void UWidget::BroadcastBinaryPostStateChange(const FWidgetStateBitfield& StateCh
 	if (bShouldBroadcastState && MyWidgetStateBitfield.IsValid())
 	{
 		MyWidgetStateBitfield->SetBinaryState(StateChange, bInValue);
-		PostWidgetStateChanged.Broadcast(*MyWidgetStateBitfield);
+		PostWidgetStateChanged.Broadcast(this, *MyWidgetStateBitfield);
 	}
 }
 
@@ -1837,7 +1837,7 @@ void UWidget::BroadcastEnumPostStateChange(const FWidgetStateBitfield& StateChan
 	if (bShouldBroadcastState && MyWidgetStateBitfield.IsValid())
 	{
 		MyWidgetStateBitfield->SetEnumState(StateChange);
-		PostWidgetStateChanged.Broadcast(*MyWidgetStateBitfield);
+		PostWidgetStateChanged.Broadcast(this, *MyWidgetStateBitfield);
 	}
 }
 

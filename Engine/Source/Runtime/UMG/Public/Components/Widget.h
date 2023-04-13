@@ -252,7 +252,7 @@ public:
 	DECLARE_DYNAMIC_DELEGATE_RetVal(FEventReply, FOnReply);
 	DECLARE_DYNAMIC_DELEGATE_RetVal_TwoParams(FEventReply, FOnPointerEvent, FGeometry, MyGeometry, const FPointerEvent&, MouseEvent);
 
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnWidgetStateBroadcast, const FWidgetStateBitfield& /*InStateBitfield */);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnWidgetStateBroadcast, UWidget* /*InWidget*/, const FWidgetStateBitfield& /*InStateBitfield*/);
 
 	typedef TFunctionRef<TSharedPtr<SObjectWidget>( UUserWidget*, TSharedRef<SWidget> )> ConstructMethodType;
 
