@@ -31,7 +31,7 @@ namespace FLibavDecoderInternal
 
 	static void ShowBuildInfo()
 	{
-		UE_LOG(LogLibAV, Warning, TEXT("libav was not built any codec support. Please see the README in the libav folder and rebuild it."));
+		UE_LOG(LogLibAV, Log, TEXT("libav was not built any codec support. Please see the README in the libav folder and rebuild it."));
 	}
 }
 
