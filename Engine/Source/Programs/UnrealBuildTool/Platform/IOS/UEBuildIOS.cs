@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using EpicGames.Core;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using System.Security.Cryptography.X509Certificates;
 
 namespace UnrealBuildTool
 {
@@ -505,33 +506,12 @@ namespace UnrealBuildTool
             string? MobileProvision = ProjectSettings.MobileProvision;
 
 			FileReference? ProjectFile = ProjectSettings.ProjectFile;
-			FileReference IPhonePackager = FileReference.Combine(Unreal.EngineDirectory, "Binaries/DotNET/IOS/IPhonePackager.exe");
+			CodeSigningConfig.Initialize(ProjectFile, bIsTVOS);
 
 			if (!string.IsNullOrEmpty(SigningCertificate))
             {
-                // verify the certificate
-                Process IPPProcess = new Process();
-
-				string IPPCmd = "certificates " + ((ProjectFile != null) ? ("\"" + ProjectFile.ToString() + "\"") : "Engine") + " -bundlename " + ProjectSettings.BundleIdentifier + (bForDistribution ? " -distribution" : "");
-				IPPProcess.StartInfo.StandardOutputEncoding = Encoding.UTF8;
-				IPPProcess.StartInfo.StandardErrorEncoding = Encoding.UTF8;
-				IPPProcess.StartInfo.WorkingDirectory = Unreal.EngineDirectory.ToString();
-				IPPProcess.OutputDataReceived += new DataReceivedEventHandler((s, e) => IPPDataReceivedHandler(s, e, Logger));
-				IPPProcess.ErrorDataReceived += new DataReceivedEventHandler((s, e) => IPPDataReceivedHandler(s, e, Logger));
-
-				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
-                {
-                    IPPProcess.StartInfo.FileName = FileReference.Combine(Unreal.EngineDirectory, "Build/BatchFiles/Mac/RunMono.sh").FullName;
-					IPPProcess.StartInfo.Arguments = string.Format("\"{0}\" {1}", IPhonePackager ,IPPCmd);
-				}
-                else
-                {
-					IPPProcess.StartInfo.FileName = IPhonePackager.FullName;
-					IPPProcess.StartInfo.Arguments = IPPCmd;
-                }
-
-				Logger.LogInformation("Getting certifcate information via {IPPProcessStartInfoFileName} {IPPProcessStartInfoArguments}", IPPProcess.StartInfo.FileName, IPPProcess.StartInfo.Arguments);
-                Utils.RunLocalProcess(IPPProcess);
+				List<string> Certs = AppleCodeSign.FindCertificates();
+				List<FileReference> Provisions = AppleCodeSign.FindProvisions(ProjectSettings.BundleIdentifier, bForDistribution, out _);
             }
             else
             {
@@ -565,31 +545,13 @@ namespace UnrealBuildTool
                 MobileProvision = "";
 				MobileProvisionFile = null;
                 Logger.LogInformation("Provision not specified or not found for {Project}, searching for compatible match...", ((ProjectFile != null) ? ProjectFile.GetFileNameWithoutAnyExtensions() : "UnrealGame"));
-                Process IPPProcess = new Process();
 
-				IPPProcess.StartInfo.StandardOutputEncoding = Encoding.UTF8;
-				IPPProcess.StartInfo.StandardErrorEncoding = Encoding.UTF8;
-				IPPProcess.OutputDataReceived += new DataReceivedEventHandler((s, e) => IPPDataReceivedHandler(s, e, Logger));
-				IPPProcess.ErrorDataReceived += new DataReceivedEventHandler((s, e) => IPPDataReceivedHandler(s, e, Logger));
-				IPPProcess.StartInfo.WorkingDirectory = Unreal.EngineDirectory.ToString();
-
-				string IPPCmd = "signing_match " + ((ProjectFile != null) ? ("\"" + ProjectFile.ToString() + "\"") : "Engine") + " -bundlename " + ProjectSettings.BundleIdentifier + (bIsTVOS ? " -tvos" : "") + (bForDistribution ? " -distribution" : "");
-
-				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+				if (AppleCodeSign.FindCertAndProvision(ProjectSettings.BundleIdentifier, out MobileProvisionFile, out SigningCertificate))
 				{
-					IPPProcess.StartInfo.FileName = FileReference.Combine(Unreal.EngineDirectory, "Build/BatchFiles/Mac/RunMono.sh").FullName;
-					IPPProcess.StartInfo.Arguments = string.Format("\"{0}\" {1}", IPhonePackager, IPPCmd);
+					MobileProvision = MobileProvisionFile!.FullName;
 				}
-				else
-				{
-					IPPProcess.StartInfo.FileName = IPhonePackager.FullName;
-					IPPProcess.StartInfo.Arguments = IPPCmd;
-				}
-
-				Logger.LogInformation("Getting signing information via {IPPProcessStartInfoFileName} {IPPProcessStartInfoArguments}", IPPProcess.StartInfo.FileName, IPPProcess.StartInfo.Arguments);
-
-				Utils.RunLocalProcess(IPPProcess);
-				if(MobileProvisionFile != null)
+				
+				if (MobileProvisionFile != null)
 				{
 					Logger.LogInformation("Provision found for {Project}, Provision: {Provision}, Certificate: {Certificate}", ((ProjectFile != null) ? ProjectFile.GetFileNameWithoutAnyExtensions() : "UnrealGame"), MobileProvisionFile, SigningCertificate);
 				}

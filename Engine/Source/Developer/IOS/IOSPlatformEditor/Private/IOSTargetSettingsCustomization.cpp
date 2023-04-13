@@ -1492,8 +1492,6 @@ FReply FIOSTargetSettingsCustomization::OnInstallProvisionClicked()
 
 FReply FIOSTargetSettingsCustomization::OnGenerateImageClicked(const FString SourceImagePath, const FString TargetImagePath, FIntPoint IconRequiredSize)
 {
-    UE_LOG(LogIOSTargetSettings, Warning, TEXT("HEY SALUT=[%s]"), *SourceImagePath);
-    
 	if (FPaths::FileExists(*TargetImagePath))
 	{
 		const EAppReturnType::Type Answer = FMessageDialog::Open(EAppMsgType::YesNo, FText::FromString(TEXT("File already exists. Do you want to overwrite it ?")));
