@@ -247,27 +247,52 @@ struct FFrame : ITextColumn
 		
 	virtual FSortPredicate GetSortPredicate() const override
 	{
+		return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->AnimFrame < Row1->AnimFrame; };
+	}
+
+	virtual FText GetRowText(const FRowDataRef& Row) const override
+	{
+		return FText::AsNumber(Row->AnimFrame, &FNumberFormattingOptions::DefaultNoGrouping());
+	}
+};
+
+struct FTime : ITextColumn
+{
+	using ITextColumn::ITextColumn;
+
+	virtual FText GetLabel() const override
+	{
+		return LOCTEXT("ColumnLabelTime", "Time");
+	}
+
+	virtual FSortPredicate GetSortPredicate() const override
+	{
 		return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->AssetTime < Row1->AssetTime; };
 	}
 
 	virtual FText GetRowText(const FRowDataRef& Row) const override
 	{
-		FNumberFormattingOptions TimeFormattingOptions = FNumberFormattingOptions().SetUseGrouping(false).SetMaximumFractionalDigits(2);
-		FNumberFormattingOptions PercentageFormattingOptions = FNumberFormattingOptions().SetMaximumFractionalDigits(2);
-		
-		if (GetDefault<UPersonaOptions>()->bTimelineDisplayPercentage)
-		{
-			return FText::Format(FText::FromString("{0} ({1}) ({2})"),
-				FText::AsNumber(Row->AnimFrame, &FNumberFormattingOptions::DefaultNoGrouping()),
-				FText::AsNumber(Row->AssetTime, &TimeFormattingOptions),
-				FText::AsPercent(Row->AnimPercentage, &PercentageFormattingOptions));
-		}
-		else
-		{
-			return FText::Format(FText::FromString("{0} ({1})"),
-				FText::AsNumber(Row->AnimFrame, &FNumberFormattingOptions::DefaultNoGrouping()),
-				FText::AsNumber(Row->AssetTime, &TimeFormattingOptions));
-		}
+		return FText::AsNumber(Row->AssetTime, &FNumberFormattingOptions().SetUseGrouping(false).SetMaximumFractionalDigits(2));
+	}
+};
+
+struct FPercentage : ITextColumn
+{
+	using ITextColumn::ITextColumn;
+
+	virtual FText GetLabel() const override
+	{
+		return LOCTEXT("ColumnLabelPercentage", "Percentage");
+	}
+
+	virtual FSortPredicate GetSortPredicate() const override
+	{
+		return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->AnimPercentage < Row1->AnimPercentage; };
+	}
+
+	virtual FText GetRowText(const FRowDataRef& Row) const override
+	{
+		return FText::AsPercent(Row->AnimPercentage, &FNumberFormattingOptions().SetMaximumFractionalDigits(2));
 	}
 };
 
@@ -462,25 +487,25 @@ struct FPoseCandidateFlags : ITextColumn
 			if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_PoseJumpThresholdTime))
 			{
 				AddDelimiter(TextBuilder, bNeedDelimiter);
-				TextBuilder.AppendLine(LOCTEXT("DiscardedBy_PoseJumpThresholdTime", "PoseJumpThresholdTime"));
+				TextBuilder.AppendLine(LOCTEXT("DiscardedBy_PoseJumpThresholdTime", "JumpThresh"));
 			}
 				
 			if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_PoseReselectHistory))
 			{
 				AddDelimiter(TextBuilder, bNeedDelimiter);
-				TextBuilder.AppendLine(LOCTEXT("DiscardedBy_PoseReselectHistory", "PoseReselectHistory"));
+				TextBuilder.AppendLine(LOCTEXT("DiscardedBy_PoseReselectHistory", "History"));
 			}
 
 			if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_BlockTransition))
 			{
 				AddDelimiter(TextBuilder, bNeedDelimiter);
-				TextBuilder.AppendLine(LOCTEXT("DiscardedBy_BlockTransition", "BlockTransition"));
+				TextBuilder.AppendLine(LOCTEXT("DiscardedBy_BlockTransition", "BlockTrans"));
 			}
 
 			if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_PoseFilter))
 			{
 				AddDelimiter(TextBuilder, bNeedDelimiter);
-				TextBuilder.AppendLine(LOCTEXT("DiscardedBy_PoseFilter", "PoseFilter"));
+				TextBuilder.AppendLine(LOCTEXT("DiscardedBy_PoseFilter", "Filter"));
 			}
 
 			return TextBuilder.ToText();

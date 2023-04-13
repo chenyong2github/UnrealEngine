@@ -17,6 +17,7 @@
 #include "Trace/PoseSearchTraceProvider.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SScrollBar.h"
+#include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "PoseSearchDebugger"
@@ -352,6 +353,8 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 
 		AddColumn(MakeShared<FCostModifier>(ColumnIdx++));
 		AddColumn(MakeShared<FFrame>(ColumnIdx++));
+		AddColumn(MakeShared<FTime>(ColumnIdx++));
+		AddColumn(MakeShared<FPercentage>(ColumnIdx++));
 		AddColumn(MakeShared<FMirrored>(ColumnIdx++));
 		AddColumn(MakeShared<FLooping>(ColumnIdx++));
 		AddColumn(MakeShared<FPoseIdx>(ColumnIdx++));
@@ -393,11 +396,10 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 					.HAlignCell(HAlign_Fill);
 
 				FilteredDatabaseView.HeaderRow->AddColumn(ColumnArgs);
+				ContinuingPoseView.HeaderRow->AddColumn(ColumnArgs);
 
 				// Every time the active column is changed, update the database column
 				ActiveView.HeaderRow->AddColumn(ColumnArgs.OnWidthChanged(this, &SDebuggerDatabaseView::OnColumnWidthChanged, Column.ColumnId));
-
-				ContinuingPoseView.HeaderRow->AddColumn(ColumnArgs.OnWidthChanged(this, &SDebuggerDatabaseView::OnColumnWidthChanged, Column.ColumnId));
 			}
 		}
 	}
@@ -654,230 +656,237 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 
 	ChildSlot
 	[
-		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		// Side and top margins, ignore bottom handled by the color border below
-		.Padding(0.0f, 5.0f, 0.0f, 0.0f)
-		.AutoHeight()
+		SNew(SScrollBox)
+		.Orientation(Orient_Horizontal)
+		.ScrollBarAlwaysVisible(true)
+		+ SScrollBox::Slot()
+		.FillSize(1.f)
 		[
-			// Active Row text tab
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
+			// Side and top margins, ignore bottom handled by the color border below
+			.Padding(0.0f, 5.0f, 0.0f, 0.0f)
 			.AutoHeight()
-			.Padding(0.0f)
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Fill)
+				// Active Row text tab
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
 				.Padding(0.0f)
-				.AutoWidth()
 				[
-					SNew(SBorder)
-					.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
-					.Padding(FMargin(30.0f, 3.0f, 30.0f, 0.0f))
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Fill)
+					.Padding(0.0f)
+					.AutoWidth()
 					[
-						SNew(STextBlock)
-						.Text(FText::FromString("Active Pose"))	
+						SNew(SBorder)
+						.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
+						.Padding(FMargin(30.0f, 3.0f, 30.0f, 0.0f))
+						.HAlign(HAlign_Center)
+						.VAlign(VAlign_Fill)
+						[
+							SNew(STextBlock)
+							.Text(FText::FromString("Active Pose"))	
+						]
 					]
 				]
-			]
 
-			// Active row list view with scroll bar
-			+ SVerticalBox::Slot()
+				// Active row list view with scroll bar
+				+ SVerticalBox::Slot()
 			
-			.AutoHeight()
-			[
-				SNew(SHorizontalBox)
-				
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-				.Padding(0.0f)
+				.AutoHeight()
 				[
-					SNew(SBorder)
-					
-					.BorderImage(FAppStyle::GetBrush("NoBorder"))
+					SNew(SHorizontalBox)
+				
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Fill)
 					.Padding(0.0f)
 					[
-						ActiveView.ListView.ToSharedRef()
+						SNew(SBorder)
+					
+						.BorderImage(FAppStyle::GetBrush("NoBorder"))
+						.Padding(0.0f)
+						[
+							ActiveView.ListView.ToSharedRef()
+						]
 					]
-				]
 
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					ActiveView.ScrollBar.ToSharedRef()
-				]
-			]	
-		]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						ActiveView.ScrollBar.ToSharedRef()
+					]
+				]	
+			]
 
-		+ SVerticalBox::Slot()
-		// Side and top margins, ignore bottom handled by the color border below
-		.Padding(0.0f, 5.0f, 0.0f, 0.0f)
-		.AutoHeight()
-		[
-			// ContinuingPose Row text tab
-			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
+			// Side and top margins, ignore bottom handled by the color border below
+			.Padding(0.0f, 5.0f, 0.0f, 0.0f)
 			.AutoHeight()
-			.Padding(0.0f)
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Fill)
+				// ContinuingPose Row text tab
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
 				.Padding(0.0f)
-				.AutoWidth()
 				[
-					SNew(SBorder)
-					.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
-					.Padding(FMargin(30.0f, 3.0f, 30.0f, 0.0f))
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Fill)
+					.Padding(0.0f)
+					.AutoWidth()
 					[
-						SNew(STextBlock)
-						.Text(FText::FromString("Continuing Pose"))	
+						SNew(SBorder)
+						.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
+						.Padding(FMargin(30.0f, 3.0f, 30.0f, 0.0f))
+						.HAlign(HAlign_Center)
+						.VAlign(VAlign_Fill)
+						[
+							SNew(STextBlock)
+							.Text(FText::FromString("Continuing Pose"))	
+						]
 					]
 				]
-			]
 
-			// ContinuingPose row list view with scroll bar
-			+ SVerticalBox::Slot()
+				// ContinuingPose row list view with scroll bar
+				+ SVerticalBox::Slot()
 			
-			.AutoHeight()
-			[
-				SNew(SHorizontalBox)
-				
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-				.Padding(0.0f)
+				.AutoHeight()
 				[
-					SNew(SBorder)
-					
-					.BorderImage(FAppStyle::GetBrush("NoBorder"))
+					SNew(SHorizontalBox)
+				
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Fill)
 					.Padding(0.0f)
 					[
-						ContinuingPoseView.ListView.ToSharedRef()
+						SNew(SBorder)
+					
+						.BorderImage(FAppStyle::GetBrush("NoBorder"))
+						.Padding(0.0f)
+						[
+							ContinuingPoseView.ListView.ToSharedRef()
+						]
 					]
-				]
 
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					ContinuingPoseView.ScrollBar.ToSharedRef()
-				]
-			]	
-		]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						ContinuingPoseView.ScrollBar.ToSharedRef()
+					]
+				]	
+			]
 		
-		+ SVerticalBox::Slot()
-		.Padding(0.0f, 0.0f, 0.0f, 5.0f)
-		[
-			// Database view text tab
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Fill)
-				.Padding(0.0f)
-				[
-					SNew(SBorder)
-					.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
-					.Padding(FMargin(30.0f, 3.0f, 30.0f, 0.0f))
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Fill)
-					[
-						SNew(STextBlock)
-						.Text(FText::FromString("Pose Candidates"))
-					]
-				]
-				.AutoWidth()
-				
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Fill)
-				[
-					SNew(SBorder)
-					.BorderImage(&FilteredDatabaseView.RowStyle.EvenRowBackgroundBrush)
-				]
-			]
-			.AutoHeight()
-
-			// Gray line below the tab 
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(0.0f)
-			[
-				SNew(SBorder)
-				.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
-				.Padding(FMargin(0.0f, 3.0f, 0.0f, 3.0f))
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-			]
-
 			+ SVerticalBox::Slot()
 			.Padding(0.0f, 0.0f, 0.0f, 5.0f)
-			.AutoHeight()
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.Padding(10, 5, 10, 5)
+				// Database view text tab
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
 				[
-					SAssignNew(FilterBox, SSearchBox)
-					.OnTextChanged(this, &SDebuggerDatabaseView::OnFilterTextChanged)
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(10, 5, 10, 5)
-				[
-					SNew(SCheckBox)
-					.OnCheckStateChanged_Lambda([this](ECheckBoxState State)
-					{
-						   SDebuggerDatabaseView::OnHideInvalidPosesCheckboxChanged(State);
-					})
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Fill)
+					.Padding(0.0f)
 					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("PoseSearchDebuggerHideInvalidPosesFlag", "Hide Invalid Poses"))
+						SNew(SBorder)
+						.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
+						.Padding(FMargin(30.0f, 3.0f, 30.0f, 0.0f))
+						.HAlign(HAlign_Center)
+						.VAlign(VAlign_Fill)
+						[
+							SNew(STextBlock)
+							.Text(FText::FromString("Pose Candidates"))
+						]
+					]
+					.AutoWidth()
+				
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Fill)
+					[
+						SNew(SBorder)
+						.BorderImage(&FilteredDatabaseView.RowStyle.EvenRowBackgroundBrush)
 					]
 				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(10, 5, 10, 5)
-				[
-					SNew(SCheckBox)
-					.OnCheckStateChanged_Lambda([this](ECheckBoxState State)
-						{
-							SDebuggerDatabaseView::OnUseRegexCheckboxChanged(State);
-						})
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("PoseSearchDebuggerUseRegexFlag", "Use Regex"))
-				]
-				]
-			]
-		
-			+ SVerticalBox::Slot()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
+				.AutoHeight()
+
+				// Gray line below the tab 
+				+ SVerticalBox::Slot()
+				.AutoHeight()
 				.Padding(0.0f)
 				[
 					SNew(SBorder)
-					.BorderImage(FAppStyle::GetBrush("NoBorder"))
-					.Padding(0.0f)
+					.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
+					.Padding(FMargin(0.0f, 3.0f, 0.0f, 3.0f))
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Fill)
+				]
+
+				+ SVerticalBox::Slot()
+				.Padding(0.0f, 0.0f, 0.0f, 5.0f)
+				.AutoHeight()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.Padding(10, 5, 10, 5)
 					[
-						FilteredDatabaseView.ListView.ToSharedRef()
+						SAssignNew(FilterBox, SSearchBox)
+						.OnTextChanged(this, &SDebuggerDatabaseView::OnFilterTextChanged)
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(10, 5, 10, 5)
+					[
+						SNew(SCheckBox)
+						.OnCheckStateChanged_Lambda([this](ECheckBoxState State)
+						{
+							   SDebuggerDatabaseView::OnHideInvalidPosesCheckboxChanged(State);
+						})
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("PoseSearchDebuggerHideInvalidPosesFlag", "Hide Invalid Poses"))
+						]
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(10, 5, 10, 5)
+					[
+						SNew(SCheckBox)
+						.OnCheckStateChanged_Lambda([this](ECheckBoxState State)
+							{
+								SDebuggerDatabaseView::OnUseRegexCheckboxChanged(State);
+							})
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("PoseSearchDebuggerUseRegexFlag", "Use Regex"))
+					]
 					]
 				]
-				
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
+		
+				+ SVerticalBox::Slot()
 				[
-					FilteredDatabaseView.ScrollBar.ToSharedRef()
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.Padding(0.0f)
+					[
+						SNew(SBorder)
+						.BorderImage(FAppStyle::GetBrush("NoBorder"))
+						.Padding(0.0f)
+						[
+							FilteredDatabaseView.ListView.ToSharedRef()
+						]
+					]
+				
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						FilteredDatabaseView.ScrollBar.ToSharedRef()
+					]
 				]
 			]
 		]
