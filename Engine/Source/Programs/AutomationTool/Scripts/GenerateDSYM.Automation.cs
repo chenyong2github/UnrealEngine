@@ -90,7 +90,23 @@ public class GenerateDSYM : BuildCommand
 
 				// put dSYM next to the binary
 				string dSYM = Path.ChangeExtension(Binary, ".dSYM");
-				string Command = string.Format("-c 'rm -rf \"{0}\"; dsymutil -o \"{0}\" {2} \"{1}\"'", dSYM, Binary, bSaveFlat ? "--flat" : "");
+				if (Binary.Contains(".app/"))
+				{
+					// or the .app if the binary is inside one
+					dSYM = Path.Combine(Path.GetDirectoryName(Binary.Substring(0, Binary.LastIndexOf(".app"))), Path.GetFileName(dSYM));
+				}
+
+				Log.TraceInformation("  Generating for {0} -> {1}", Binary, dSYM);
+
+				string Command;
+				if (bSaveFlat)
+				{
+					Command = string.Format("-c 'rm -rf \"{0}\"; dsymutil -o \"{0}\" {2} \"{1}\"'", dSYM, Binary, bSaveFlat ? "--flat" : "");
+				}
+				else 
+				{ 
+					Command = $"-c '{Unreal.EngineDirectory}/Build/BatchFiles/Mac/GenerateUniversalDSYM.sh \"{Binary}\" \"{dSYM}\"'";
+				}	
 
 				DateTime RunStart = DateTime.Now;
 				Run("bash", Command, Options: ERunOptions.NoLoggingOfRunCommand);
