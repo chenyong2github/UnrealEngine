@@ -2657,7 +2657,10 @@ FShaderCommonCompileJob::FInputHash FShaderCompileJob::GetInputHash()
 	{
 		checkf(Archive.IsSaving() && !Archive.IsLoading(), TEXT("A loading archive is passed to FShaderCompileJob::GetInputHash(), this is not supported as it may corrupt its data"));
 
+		// Don't include debug group name in the hashing; this drastically worsens our cache hit rate
+		FString DebugGroupNameTmp(MoveTemp(Input.DebugGroupName));
 		Archive << Input;
+		Input.DebugGroupName = MoveTemp(DebugGroupNameTmp);
 		Input.Environment.SerializeEverythingButFiles(Archive);
 
 		// hash the source file so changes to files during the development are picked up

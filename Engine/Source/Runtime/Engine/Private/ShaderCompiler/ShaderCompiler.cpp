@@ -87,6 +87,13 @@ static FAutoConsoleVariableRef CVarShaderCompilerJobCache(
 	ECVF_Default
 );
 
+static TAutoConsoleVariable<bool> CVarShaderCompilerDebugValidateJobCache(
+	TEXT("r.ShaderCompiler.DebugValidateJobCache"),
+	false,
+	TEXT("Enables debug mode for job cache which will fully execute all jobs and validate that job outputs with matching input hashes match."),
+	ECVF_Default
+);
+
 int32 GShaderCompilerMaxJobCacheMemoryMB = 16LL * 1024LL;
 static FAutoConsoleVariableRef CVarShaderCompilerMaxJobCacheMemoryMB(
 	TEXT("r.ShaderCompiler.MaxJobCacheMemoryMB"),
@@ -307,6 +314,11 @@ namespace ShaderCompiler
 	bool IsJobCacheEnabled()
 	{
 		return GShaderCompilerJobCache != 0;
+	}
+
+	bool IsJobCacheDebugValidateEnabled()
+	{
+		return IsJobCacheEnabled() && CVarShaderCompilerDebugValidateJobCache.GetValueOnAnyThread();
 	}
 
 	bool IsRemoteCompilingAllowed()
@@ -583,7 +595,8 @@ void FShaderCompileJobCollection::SubmitJobs(const TArray<FShaderCommonCompileJo
 
 				const int32 PriorityIndex = (int32)Job->Priority;
 				bool bNewJob = true;
-				if (ShaderCompiler::IsJobCacheEnabled())
+				// check caches unless we're running in validation mode (which runs _all_ jobs and compares hashes of outputs)
+				if (ShaderCompiler::IsJobCacheEnabled() && !ShaderCompiler::IsJobCacheDebugValidateEnabled())
 				{
 					const FShaderCommonCompileJob::FInputHash& InputHash = Job->GetInputHash();
 
@@ -8809,12 +8822,45 @@ void FShaderJobCache::AddJobOutput(const FShaderCommonCompileJob* FinishedJob, c
 	}
 
 	FJobOutputHash* ExistingOutputHash = InputHashToOutput.Find(Hash);
-	if (ExistingOutputHash)
+	if (ExistingOutputHash && !ShaderCompiler::IsJobCacheDebugValidateEnabled())
 	{
 		return;
 	}
 
 	FJobOutputHash OutputHash = FBlake3::HashBuffer(Contents.GetData(), Contents.GetSize());
+
+	if (ExistingOutputHash && ShaderCompiler::IsJobCacheDebugValidateEnabled())
+	{
+		if (OutputHash != *ExistingOutputHash)
+		{
+			FString OriginalFilename = 
+				GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / 
+				TEXT("CacheMismatches") / 
+				FString::Printf(TEXT("shaderoutput-%s.orig"), *LexToString(Hash));
+			FString NewFilename = 
+				GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / 
+				TEXT("CacheMismatches") / 
+				FString::Printf(TEXT("shaderoutput-%s.mismatch"), *LexToString(Hash));
+
+			UE_LOG(
+				LogShaderCompilers,
+				Warning,
+				TEXT("Job cache validation found output mismatch. Mismatching outputs dumped to %s and %s"),
+				*OriginalFilename, *NewFilename);
+
+			FFileHelper::SaveArrayToFile(
+				TArrayView<const uint8>((const uint8*)Contents.GetData(), Contents.GetSize()), 
+				*NewFilename);
+
+			FStoredOutput** StoredOutput = Outputs.Find(*ExistingOutputHash);
+			check(StoredOutput);
+
+			FFileHelper::SaveArrayToFile(
+				TArrayView<const uint8>((const uint8*)(*StoredOutput)->JobOutput.GetData(), (*StoredOutput)->JobOutput.GetSize()),
+				*OriginalFilename);
+		}
+		return;
+	}
 
 	const bool bDumpCachedDebugInfo = CVarDumpShaderOutputCacheHits.GetValueOnAnyThread();
 
