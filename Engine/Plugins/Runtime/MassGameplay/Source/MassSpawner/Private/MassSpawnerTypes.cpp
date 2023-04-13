@@ -24,6 +24,10 @@ namespace UE::MassSpawner
 		{
 			FArchiveObjectCRC32AgentConfig Archive;
 			CRC = Archive.Crc32(Trait, CRC);
+			// @todo this piece is here to avoid an easy to repro hash class - all one needs to do is to add a 
+			// trait subclass that sets different default values
+			check(Trait && Trait->GetClass());
+			CRC = HashCombine(CRC, GetTypeHash(Trait->GetClass()->GetName()));
 		}
 		return CRC;
 	}
