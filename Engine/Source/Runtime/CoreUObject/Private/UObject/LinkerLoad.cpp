@@ -6211,9 +6211,8 @@ FString FLinkerLoad::FindNewPathNameForClass(const FString& OldClassNameOrPathNa
 			NewClassPathName = NewName.ToString();
 		}
 	}
-	if (!NewClassPathName.IsEmpty() && !FPackageName::IsValidObjectPath(NewClassPathName))
+	if (!NewClassPathName.IsEmpty() && FPackageName::IsShortPackageName(NewClassPathName))
 	{
-		TArray<UObject*> FoundClasses;
 		UClass* ExistingClass = FindFirstObject<UClass>(*NewClassPathName, EFindFirstObjectOptions::None, ELogVerbosity::Fatal, TEXT("FindNewPathNameForClass"));
 		if (ExistingClass)
 		{
