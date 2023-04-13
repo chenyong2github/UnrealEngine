@@ -78,6 +78,14 @@ bool IsValidHairStrandsSegment(const FHairControlPoint CP0, const FHairControlPo
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair attributes
 
+uint PackHairRootUV(float2 In)
+{
+	In.y = 1.0f - In.y;
+
+	return	(min(uint(saturate(In.x) * 0x7FF), 0x7FF)      )|
+			(min(uint(saturate(In.y) * 0x7FF), 0x7FF) << 11);
+}
+
 float2 UnpackHairRootUV(uint In)
 {
 	float2 RootUV, RootIndex;
@@ -89,7 +97,7 @@ float2 UnpackHairRootUV(uint In)
 	// Invert V to compensate image origin flip. Similar to GetHairStrandsRootUV in HairCardsAttributeCommon.ush
 	RootUV.y = 1.0f - RootUV.y;
 
-	return RootUV = RootUV + RootIndex;
+	return RootUV + RootIndex;
 }
 
 float UnpackHairLength(uint In)
@@ -97,9 +105,19 @@ float UnpackHairLength(uint In)
 	return f16tof32(In & 0xFFFF);
 }
 
+uint PackHairSeed(float In)
+{
+	return PackR8(In);
+}
+
 float UnpackHairSeed(uint In)
 {
-	return (In & 0xFF) / 255.f;
+	return UnpackR8(In);
+}
+
+uint PackHairClumpID(uint In)
+{
+	return min(In, 0xFFFF);
 }
 
 uint3 UnpackHairClumpID(uint In)
@@ -112,6 +130,13 @@ uint3 UnpackHairClumpID(uint2 In)
 	return uint3(In.x & 0xFFFF, (In.x>>16) & 0xFFFF, (In.x>>32) & 0xFFFF);
 }
 
+uint PackHairColor(float3 In)
+{
+	return	(min(uint(In.x * 0x7FF), 0x7FF)    )|
+			(min(uint(In.y * 0x7FF), 0x7FF)<<11)|
+			(min(uint(In.z * 0x3FF), 0x3FF)<<22);
+}
+
 float3 UnpackHairColor(uint In)
 {
 	float3 Out;
@@ -121,9 +146,24 @@ float3 UnpackHairColor(uint In)
 	return Out;
 }
 
+uint PackHairRoughness(float In)
+{
+	return PackR8(In);
+}
+
 float UnpackHairRoughness(uint In)
 {
-	return (In & 0xFF) / 255.f;
+	return UnpackR8(In);
+}
+
+uint PackHairAO(float In)
+{
+	return PackR8(In);
+}
+
+float UnpackHairAO(uint In)
+{
+	return UnpackR8(In);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

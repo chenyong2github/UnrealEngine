@@ -520,6 +520,17 @@ void InternalCreateByteAddressBufferRDG(FRDGBuilder& GraphBuilder, const TArray<
 	}
 }
 
+void InternalCreateByteAddressBufferRDG(FRDGBuilder& GraphBuilder, uint64 DataSizeInBytes, FRDGExternalBuffer& Out, const TCHAR* DebugName, const FName& OwnerName, EHairResourceUsageType UsageType)
+{
+	Out.Buffer = nullptr;
+	if (DataSizeInBytes != 0)
+	{
+		const FRDGBufferDesc Desc = ApplyUsage(FRDGBufferDesc::CreateByteAddressDesc(DataSizeInBytes), UsageType);
+		FRDGBufferRef Buffer = GraphBuilder.CreateBuffer(Desc, DebugName, ERDGBufferFlags::MultiFrame);
+		Buffer->SetOwnerName(OwnerName);
+		ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out, PF_Unknown);
+	}
+}
 /////////////////////////////////////////////////////////////////////////////////////////
 
 static UTexture2D* CreateCardTexture(FIntPoint Resolution)
@@ -1037,12 +1048,36 @@ FRDGExternalBuffer& FHairStrandsDeformedResource::GetDeformerBuffer(FRDGBuilder&
 	return DeformerBuffer;
 }
 
+FRDGExternalBuffer& FHairStrandsDeformedResource::GetDeformerCurveAttributeBuffer(FRDGBuilder& GraphBuilder)
+{
+	// Deformer curve attributes
+	if (DeformerCurveAttributeBuffer.Buffer == nullptr)
+	{		
+		check(BulkData.Data.CurveAttributes.Data.GetBulkDataSize() > 0);
+		InternalCreateByteAddressBufferRDG(GraphBuilder, BulkData.Data.CurveAttributes.Data.GetBulkDataSize(), DeformerCurveAttributeBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsDeformed_DeformerCurveAttributeBuffer), ResourceName), OwnerName, EHairResourceUsageType::Dynamic);
+	}
+	return DeformerCurveAttributeBuffer;
+}
+
+FRDGExternalBuffer& FHairStrandsDeformedResource::GetDeformerPointAttributeBuffer(FRDGBuilder& GraphBuilder)
+{
+	// Deformer point attributes
+	if (DeformerPointAttributeBuffer.Buffer == nullptr && (BulkData.Header.Flags & FHairStrandsBulkData::DataFlags_HasPointAttribute))
+	{
+		check(BulkData.Data.PointAttributes.Data.GetBulkDataSize() > 0);
+		InternalCreateByteAddressBufferRDG(GraphBuilder, BulkData.Data.PointAttributes.Data.GetBulkDataSize(), DeformerPointAttributeBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsDeformedt_DeformerPointAttributeBuffer), ResourceName), OwnerName, EHairResourceUsageType::Dynamic);
+	}
+	return DeformerPointAttributeBuffer;
+}
+
 void FHairStrandsDeformedResource::InternalRelease()
 {
 	DeformedPositionBuffer[0].Release();
 	DeformedPositionBuffer[1].Release();
 	TangentBuffer.Release();
 	DeformerBuffer.Release();
+	DeformerPointAttributeBuffer.Release();
+	DeformerCurveAttributeBuffer.Release();
 
 	DeformedOffsetBuffer[0].Release();
 	DeformedOffsetBuffer[1].Release();

@@ -13,6 +13,7 @@
 #include "GroomComponent.h"
 #include "GroomInstance.h"
 #include "DeformerGroomComponentSource.h"
+#include "RenderGraphUtils.h"
 
 FString UOptimusGroomWriteDataInterface::GetDisplayName() const
 {
@@ -30,23 +31,33 @@ TArray<FOptimusCDIPinDefinition> UOptimusGroomWriteDataInterface::GetPinDefiniti
 	FName Curve(UOptimusGroomComponentSource::Domains::Curve);
 
 	TArray<FOptimusCDIPinDefinition> Defs;
-	Defs.Add({ "Position",         "WritePosition",            ControlPoint, "ReadNumControlPoints" });
-	Defs.Add({ "Radius",           "WriteRadius",              ControlPoint, "ReadNumControlPoints" });
-	Defs.Add({ "PositionAndRadius","WritePositionAndRadius",   ControlPoint, "ReadNumControlPoints" });
+	Defs.Add({ "Position",         "WritePosition",         	ControlPoint, "ReadNumControlPoints" });
+	Defs.Add({ "Radius",           "WriteRadius",           	ControlPoint, "ReadNumControlPoints" });
+	Defs.Add({ "PositionAndRadius","WritePositionAndRadius",	ControlPoint, "ReadNumControlPoints" });
+
+	Defs.Add({ "RootUV",			"WriteRootUV",   			Curve, 		  "ReadNumCurves" });
+	Defs.Add({ "Seed",				"WriteSeed",   				Curve, 		  "ReadNumCurves" });
+	Defs.Add({ "ClumpId",			"WriteClumpId",   			Curve, 		  "ReadNumCurves" });
+	Defs.Add({ "Color",				"WriteColor",   			ControlPoint, "ReadNumControlPoints" });
+	Defs.Add({ "Roughness",			"WriteRoughness",   		ControlPoint, "ReadNumControlPoints" });
+	Defs.Add({ "AO",				"WriteAO",   				ControlPoint, "ReadNumControlPoints" });
+
 	return Defs;
 }
-
 
 TSubclassOf<UActorComponent> UOptimusGroomWriteDataInterface::GetRequiredComponentClass() const
 {
 	return UGroomComponent::StaticClass();
 }
 
-
 void UOptimusGroomWriteDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
 {
 	OutFunctions.AddDefaulted_GetRef()
 		.SetName(TEXT("ReadNumControlPoints"))
+		.AddReturnType(EShaderFundamentalType::Uint);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadNumCurves"))
 		.AddReturnType(EShaderFundamentalType::Uint);
 }
 
@@ -66,6 +77,36 @@ void UOptimusGroomWriteDataInterface::GetSupportedOutputs(TArray<FShaderFunction
 		.SetName(TEXT("WritePositionAndRadius"))
 		.AddParam(EShaderFundamentalType::Uint)
 		.AddParam(EShaderFundamentalType::Float, 4);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("WriteRootUV"))
+		.AddParam(EShaderFundamentalType::Uint)
+		.AddParam(EShaderFundamentalType::Float, 2);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("WriteSeed"))
+		.AddParam(EShaderFundamentalType::Uint)
+		.AddParam(EShaderFundamentalType::Float);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("WriteClumpId"))
+		.AddParam(EShaderFundamentalType::Uint)
+		.AddParam(EShaderFundamentalType::Float);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("WriteColor"))
+		.AddParam(EShaderFundamentalType::Uint)
+		.AddParam(EShaderFundamentalType::Float, 3);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("WriteRoughness"))
+		.AddParam(EShaderFundamentalType::Uint)
+		.AddParam(EShaderFundamentalType::Float);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("WriteAO"))
+		.AddParam(EShaderFundamentalType::Uint)
+		.AddParam(EShaderFundamentalType::Float);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FGroomWriteDataInterfaceParameters, )
@@ -74,6 +115,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FGroomWriteDataInterfaceParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PositionOffsetBufferSRV)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, PositionBufferSRV)
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint4>, PositionBufferUAV)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, CurveAttributeBufferUAV)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, PointAttributeBufferUAV)
 END_SHADER_PARAMETER_STRUCT()
 
 void UOptimusGroomWriteDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
@@ -154,21 +197,60 @@ void FOptimusGroomWriteDataProviderProxy::AllocateResources(FRDGBuilder& GraphBu
 			const int32 NumCurves = GroomInstance->Strands.Data->GetNumCurves();
 
 			FResources& R = Resources.AddDefaulted_GetRef();
-			if (OutputMask & 1)
+
+			FRDGBufferRef PositionBuffer_fallback = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(8, 1), TEXT("Groom.DeformedPositionBuffer"), ERDGBufferFlags::None);
+			R.PositionBufferSRV_fallback = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R16G16B16A16_UINT);
+			R.PositionBufferUAV_fallback = GraphBuilder.CreateUAV(PositionBuffer_fallback, PF_R16G16B16A16_UINT, ERDGUnorderedAccessViewFlags::SkipBarrier);
+
+			FRDGBufferRef AttributeBuffer_fallback = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateByteAddressDesc(16), TEXT("Groom.DeformedAttributeBuffer"), ERDGBufferFlags::None);
+			R.AttributeBufferUAV_fallback = GraphBuilder.CreateUAV(AttributeBuffer_fallback, PF_Unknown, ERDGUnorderedAccessViewFlags::SkipBarrier);
+
+			// Positions / Radius
+			if (OutputMask & 0x7)
 			{
-				R.PositionOffsetBufferSRV = Register(GraphBuilder, GroomInstance->Strands.RestResource->PositionOffsetBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
-				R.PositionBufferSRV = Register(GraphBuilder, GroomInstance->Strands.RestResource->PositionBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
-				R.PositionBufferUAV = Register(GraphBuilder, GroomInstance->Strands.DeformedResource->GetDeformerBuffer(GraphBuilder), ERDGImportedBufferFlags::CreateUAV).UAV;
-				
-				FRDGBufferRef PositionBuffer_fallback = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(8, 1), TEXT("Groom.DeformedPositionBuffer"), ERDGBufferFlags::None);
-				R.PositionBufferSRV_fallback = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R16G16B16A16_UINT);
-				R.PositionBufferUAV_fallback = GraphBuilder.CreateUAV(PositionBuffer_fallback, PF_R16G16B16A16_UINT, ERDGUnorderedAccessViewFlags::SkipBarrier);
+				R.PositionOffsetBufferSRV 	= Register(GraphBuilder, GroomInstance->Strands.RestResource->PositionOffsetBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
+				R.PositionBufferSRV 		= Register(GraphBuilder, GroomInstance->Strands.RestResource->PositionBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
+				R.PositionBufferUAV 		= Register(GraphBuilder, GroomInstance->Strands.DeformedResource->GetDeformerBuffer(GraphBuilder), ERDGImportedBufferFlags::CreateUAV).UAV;
 			}
 			else
 			{
-				R.PositionOffsetBufferSRV = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_A32B32G32R32F);
-				R.PositionBufferSRV = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R16G16B16A16_UINT);
-				R.PositionBufferUAV = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R16G16B16A16_UINT);
+				R.PositionOffsetBufferSRV 	= GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_A32B32G32R32F);
+				R.PositionBufferSRV 		= GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R16G16B16A16_UINT);
+				R.PositionBufferUAV 		= GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R16G16B16A16_UINT);
+			}
+			
+			// Curve Attributes
+			if (OutputMask & 0x38)
+			{
+				FRDGExternalBuffer CurveAttributeBufferExt = GroomInstance->Strands.DeformedResource->GetDeformerCurveAttributeBuffer(GraphBuilder);
+				if (CurveAttributeBufferExt.Buffer)
+				{
+					FRDGImportedBuffer CurveAttributeBuffer = Register(GraphBuilder, CurveAttributeBufferExt, ERDGImportedBufferFlags::CreateUAV);
+					AddCopyBufferPass(GraphBuilder, CurveAttributeBuffer.Buffer, Register(GraphBuilder, GroomInstance->Strands.RestResource->CurveAttributeBuffer, ERDGImportedBufferFlags::None).Buffer);
+					R.CurveAttributeBufferUAV = CurveAttributeBuffer.UAV;
+				}
+			}
+			if (R.CurveAttributeBufferUAV == nullptr)
+			{
+				R.CurveAttributeBufferUAV = R.AttributeBufferUAV_fallback;
+				//R.CurveAttributeBufferUAV = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R32_UINT);
+			}
+
+			// Point Attributes
+			if (OutputMask & 0x1c0)
+			{
+				FRDGExternalBuffer PointAttributeBufferExt = GroomInstance->Strands.DeformedResource->GetDeformerPointAttributeBuffer(GraphBuilder);
+				if (PointAttributeBufferExt.Buffer)
+				{
+					FRDGImportedBuffer PointAttributeBuffer = Register(GraphBuilder, PointAttributeBufferExt, ERDGImportedBufferFlags::CreateUAV);
+					AddCopyBufferPass(GraphBuilder, PointAttributeBuffer.Buffer, Register(GraphBuilder, GroomInstance->Strands.RestResource->PointAttributeBuffer, ERDGImportedBufferFlags::None).Buffer);
+					R.PointAttributeBufferUAV = PointAttributeBuffer.UAV;
+				}
+			}
+			if (R.PointAttributeBufferUAV == nullptr)
+			{
+				R.PointAttributeBufferUAV = R.AttributeBufferUAV_fallback;
+				//R.PointAttributeBufferUAV = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R32_UINT);
 			}
 		}	
 	}
@@ -189,11 +271,13 @@ void FOptimusGroomWriteDataProviderProxy::GatherDispatchData(FDispatchData const
 			const FHairGroupPublicData::FVertexFactoryInput VFInput = ComputeHairStrandsVertexInputData(GroomInstance, EGroomViewMode::None);		
 
 			FParameters& Parameters = ParameterArray[InvocationIndex];
-			Parameters.Common = VFInput.Strands.Common;
-			Parameters.OutputStreamStart = 0;
-			Parameters.PositionOffsetBufferSRV = bValid ? Resource.PositionOffsetBufferSRV : Resource.PositionBufferSRV_fallback;
-			Parameters.PositionBufferSRV = bValid ? Resource.PositionBufferSRV : Resource.PositionBufferSRV_fallback;
-			Parameters.PositionBufferUAV = bValid ? Resource.PositionBufferUAV : Resource.PositionBufferUAV_fallback;
+			Parameters.Common 					= VFInput.Strands.Common;
+			Parameters.OutputStreamStart 		= 0;
+			Parameters.PositionOffsetBufferSRV 	= bValid ? Resource.PositionOffsetBufferSRV : Resource.PositionBufferSRV_fallback;
+			Parameters.PositionBufferSRV 		= bValid ? Resource.PositionBufferSRV : Resource.PositionBufferSRV_fallback;
+			Parameters.PositionBufferUAV 		= bValid ? Resource.PositionBufferUAV : Resource.PositionBufferUAV_fallback;
+			Parameters.PointAttributeBufferUAV 	= bValid ? Resource.PointAttributeBufferUAV : Resource.AttributeBufferUAV_fallback;
+			Parameters.CurveAttributeBufferUAV 	= bValid ? Resource.CurveAttributeBufferUAV : Resource.AttributeBufferUAV_fallback;
 		}
 	}
 }

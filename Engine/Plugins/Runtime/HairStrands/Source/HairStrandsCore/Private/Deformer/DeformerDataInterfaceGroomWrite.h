@@ -83,6 +83,10 @@ private:
 		FRDGBufferUAV* PositionBufferUAV = nullptr;
 		FRDGBufferSRV* PositionBufferSRV_fallback = nullptr;
 		FRDGBufferUAV* PositionBufferUAV_fallback = nullptr;
+
+		FRDGBufferUAV* PointAttributeBufferUAV = nullptr;
+		FRDGBufferUAV* CurveAttributeBufferUAV = nullptr;
+		FRDGBufferUAV* AttributeBufferUAV_fallback = nullptr;
 	};
 	TArray<FResources> Resources;
 };

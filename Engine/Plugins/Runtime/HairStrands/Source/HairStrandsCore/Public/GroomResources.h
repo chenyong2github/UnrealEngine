@@ -411,6 +411,8 @@ struct FHairStrandsDeformedResource : public FHairCommonResource
 
 	/* Strand hair deformer buffer. This buffer is optionally created & filled in by a mesh deformer */
 	FRDGExternalBuffer DeformerBuffer;
+	FRDGExternalBuffer DeformerPointAttributeBuffer;
+	FRDGExternalBuffer DeformerCurveAttributeBuffer;
 
 	/* Position offset as the deformed positions are expressed in relative coordinate (16bits) */
 	FVector PositionOffset[2] = {FVector::ZeroVector, FVector::ZeroVector};
@@ -448,8 +450,10 @@ struct FHairStrandsDeformedResource : public FHairCommonResource
 	inline uint32 GetUniqueViewID(EFrameType T) const			{ return UniqueViewIDs[GetIndex(T)]; }
 	//bool NeedsToUpdateTangent();
 
-	// Return deformer buffer
+	// Return deformer buffers
 	FRDGExternalBuffer& GetDeformerBuffer(FRDGBuilder& GraphBuilder);
+	FRDGExternalBuffer& GetDeformerCurveAttributeBuffer(FRDGBuilder& GraphBuilder);
+	FRDGExternalBuffer& GetDeformerPointAttributeBuffer(FRDGBuilder& GraphBuilder);
 };
 
 struct FHairStrandsClusterCullingResource : public FHairCommonResource
