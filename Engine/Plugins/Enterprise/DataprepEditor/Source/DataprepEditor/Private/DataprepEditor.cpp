@@ -1007,11 +1007,11 @@ void FDataprepEditor::CreateTabs()
 		.DataprepImportProducersDelegate( FDataprepImportProducers::CreateSP(this, &FDataprepEditor::OnBuildWorld) )
 		.DataprepImportProducersEnabledDelegate( FDataprepImportProducersEnabled::CreateSP(this, &FDataprepEditor::CanBuildWorld) );
 
-	CreateScenePreviewTab();
-
 	// Create 3D viewport
 	SceneViewportView = SNew( SDataprepEditorViewport, SharedThis(this) )
 	.WorldToPreview( PreviewWorld );
+
+	CreateScenePreviewTab();
 
 	// Create Details Panel
 	CreateDetailsViews();
