@@ -7551,7 +7551,7 @@ TArray<TSharedRef<UE::Sequencer::FViewModel>> FSequencer::GetSelectedNodesToMove
 			{
 				if (Child == Node)
 				{
-					NodesToRemove.Add(NodeIndex);
+					NodesToRemove.AddUnique(NodeIndex);
 					break;
 				}
 			}
