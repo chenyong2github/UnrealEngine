@@ -35,7 +35,7 @@ struct CORE_API FApplePlatformTLS : public FGenericPlatformTLS
 		pthread_key_t SlotKey = 0;
 		if (pthread_key_create(&SlotKey, NULL) != 0)
 		{
-			SlotKey = 0xFFFFFFFF;  // matches the Windows TlsAlloc() retval.
+			SlotKey = InvalidTlsSlot;  // matches the Windows TlsAlloc() retval.
 		}
 		return SlotKey;
 	}

@@ -33,7 +33,7 @@ struct CORE_API FAndroidTLS : public FGenericPlatformTLS
 		pthread_key_t Key = 0;
 		if (pthread_key_create(&Key, NULL) != 0)
 		{
-			Key = 0xFFFFFFFF;  // matches the Windows TlsAlloc() retval //@todo android: should probably check for this below, or assert out instead
+			Key = InvalidTlsSlot;  // matches the Windows TlsAlloc() retval //@todo android: should probably check for this below, or assert out instead
 		}
 		return Key;
 	}

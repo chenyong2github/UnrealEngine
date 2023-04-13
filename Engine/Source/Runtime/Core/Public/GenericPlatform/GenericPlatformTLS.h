@@ -10,6 +10,8 @@
  */
 struct FGenericPlatformTLS
 {
+	static const uint32 InvalidTlsSlot = 0xFFFFFFFF;
+
 	/**
 	 * Return false if this is an invalid TLS slot
 	 * @param SlotIndex the TLS index to check
@@ -17,7 +19,7 @@ struct FGenericPlatformTLS
 	 */
 	static FORCEINLINE bool IsValidTlsSlot(uint32 SlotIndex)
 	{
-		return SlotIndex != 0xFFFFFFFF;
+		return SlotIndex != InvalidTlsSlot;
 	}
 
 #if 0 // provided for reference
