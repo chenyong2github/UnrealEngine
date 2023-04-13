@@ -10,6 +10,7 @@
 #include "MassClientBubbleInfoBase.h"
 #include "MassReplicationSettings.h"
 #include "MassEntityUtils.h"
+#include "VisualLogger/VisualLogger.h"
 
 
 uint32 UMassReplicationSubsystem::CurrentNetMassCounter = 0;
@@ -424,6 +425,9 @@ FMassBubbleInfoClassHandle UMassReplicationSubsystem::GetBubbleInfoClassHandle(c
 			break;
 		}
 	}
+
+	UE_CVLOG_UELOG(Handle.IsValid() == false, this, LogMassReplication, Error, TEXT("%hs failed to find required Bubble Info class"), __FUNCTION__);
+
 	return Handle;
 }
 

@@ -91,6 +91,12 @@ void UMassReplicationProcessor::PrepareExecution(FMassEntityManager& EntityManag
 
 	EntityManager.ForEachSharedFragment<FMassReplicationSharedFragment>([this](FMassReplicationSharedFragment& RepSharedFragment)
 	{
+		if (!ensureMsgf(RepSharedFragment.BubbleInfoClassHandle.IsValid()
+			, TEXT("BubbleInfoClassHandle is not valid which means no class has been indicated or the class used has not been registered pre creation of the handle.")))
+		{
+			return;
+		}
+
 		if (!RepSharedFragment.bEntityQueryInitialized)
 		{
 			RepSharedFragment.EntityQuery = EntityQuery;

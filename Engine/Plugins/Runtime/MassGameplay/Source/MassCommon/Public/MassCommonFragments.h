@@ -14,6 +14,11 @@ struct MASSCOMMON_API FTransformFragment : public FMassFragment
 {
 	GENERATED_BODY()
 
+	FTransformFragment() = default;
+	FTransformFragment(const FTransform& InTransform) 
+	: Transform(InTransform)
+	{}
+
 	const FTransform& GetTransform() const { return Transform; }
 	void SetTransform(const FTransform& InTransform) { Transform = InTransform; }
 	FTransform& GetMutableTransform() { return Transform; }
