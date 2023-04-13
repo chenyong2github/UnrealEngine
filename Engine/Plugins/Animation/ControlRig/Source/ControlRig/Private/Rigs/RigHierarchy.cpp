@@ -2462,6 +2462,11 @@ void URigHierarchy::Notify(ERigHierarchyNotification InNotifType, const FRigBase
 		return;
 	}
 
+	if (!IsValid(this))
+	{
+		return;
+	}
+
 	// if we are running a VM right now
 	{
 		FScopeLock Lock(&ExecuteContextLock);
