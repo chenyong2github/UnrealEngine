@@ -255,6 +255,7 @@ namespace UE::PoseSearch
 					OriginRootMotion = MirrorRootMotion(OriginRootMotion, AnimInstance->GetMirrorDataTable());
 				}
 				RootMotion.SetToRelativeTransform(OriginRootMotion);
+				PreviewActor.QuantizedTimeRootMotion.SetToRelativeTransform(OriginRootMotion);
 			}
 
 			PreviewActor.Actor->SetActorTransform(RootMotion);
