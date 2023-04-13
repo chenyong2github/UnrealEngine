@@ -746,7 +746,7 @@ struct STATETREEMODULE_API FCompactStateTreeState
 
 	/** What to do when the state is considered for selection. */
 	UPROPERTY()
-	EStateTreeStateSelectionBehavior SelectionBehavior = EStateTreeStateSelectionBehavior::None;
+	EStateTreeStateSelectionBehavior SelectionBehavior = EStateTreeStateSelectionBehavior::TrySelectChildrenInOrder;
 
 	/** True if the state contains tasks that should be called during transition handling. */
 	UPROPERTY()
