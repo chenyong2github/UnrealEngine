@@ -948,6 +948,8 @@ void LogCookStats(ECookMode::Type CookMode)
 		}
 #endif
 
+		GShaderCompilingManager->GatherAnalytics(Attributes);
+
 		// Record them all under cooking event
 		FStudioAnalytics::GetProvider().RecordEvent(TEXT("Core.Cooking"), Attributes);
 

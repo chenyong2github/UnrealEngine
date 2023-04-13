@@ -38,6 +38,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogShaderCompilers, Log, All);
 
 class FShaderCompileJob;
 class FShaderPipelineCompileJob;
+struct FAnalyticsEventAttribute;
 
 #define DEBUG_INFINITESHADERCOMPILE 0
 
@@ -62,10 +63,13 @@ public:
 	void AddJobOutput(const FShaderCommonCompileJob* FinishedJob, const FJobInputHash& Hash, const FJobCachedOutput& Contents, int InitialHitCount, const bool bAddToDDC);
 
 	/** Calculates memory used by the cache*/
-	uint64 GetAllocatedMemory();
+	uint64 GetAllocatedMemory() const;
 
 	/** Logs out the statistics */
 	void LogStats();
+
+	/** Gather statistics to send to analytics */
+	void GatherAnalytics(const FString& BaseName, TArray<FAnalyticsEventAttribute>& Attributes) const;
 
 	/** Calculates current memory budget, in bytes */
 	uint64 GetCurrentMemoryBudget() const;
@@ -116,10 +120,10 @@ public:
 	/** Adds the job to cache. */
 	void AddToCacheAndProcessPending(FShaderCommonCompileJob* FinishedJob);
 
-	/** Log caching statistics.
-	 *
-	 */
+	/** Log caching statistics.*/
 	void LogCachingStats();
+
+	void GatherAnalytics(const FString& BaseName, TArray<FAnalyticsEventAttribute>& Attributes) const;
 
 	inline int32 GetNumPendingJobs(EShaderCompileJobPriority InPriority) const
 	{
@@ -510,6 +514,8 @@ public:
 	/** Informs statistics about a new job batch, so we can tally up batches. */
 	void RegisterJobBatch(int32 NumJobs, EExecutionType ExecType);
 
+	void GatherAnalytics(const FString& BaseName, TArray<FAnalyticsEventAttribute>& Attributes) const;
+
 private:
 	FCriticalSection CompileStatsLock;
 	TSparseArray<ShaderCompilerStats> CompileStats;
@@ -751,6 +757,8 @@ public:
 
 	ENGINE_API int32 GetNumPendingJobs() const;
 	ENGINE_API int32 GetNumOutstandingJobs() const;
+
+	ENGINE_API void GatherAnalytics(TArray<FAnalyticsEventAttribute>& Attributes) const;
 
 	/** 
 	 * Returns whether to display a notification that shader compiling is happening in the background. 

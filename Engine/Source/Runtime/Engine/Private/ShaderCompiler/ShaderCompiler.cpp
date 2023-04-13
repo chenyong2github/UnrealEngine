@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "ShaderCompiler.h"
+#include "AnalyticsEventAttribute.h"
 #include "Async/ParallelFor.h"
 #include "ClearReplacementShaders.h"
 #include "ComponentRecreateRenderStateContext.h"
@@ -787,6 +788,12 @@ void FShaderCompileJobCollection::LogCachingStats()
 {
 	FWriteScopeLock Locker(Lock);	// write lock because logging actually changes the cache state (in a minor way - updating the memory used - but still).
 	CompletedJobsCache.LogStats();
+}
+
+void FShaderCompileJobCollection::GatherAnalytics(const FString& BaseName, TArray<FAnalyticsEventAttribute>& Attributes) const
+{
+	FWriteScopeLock Locker(Lock);
+	CompletedJobsCache.GatherAnalytics(BaseName, Attributes);
 }
 
 int32 FShaderCompileJobCollection::GetNumPendingJobs() const
@@ -3523,6 +3530,35 @@ void FShaderCompilerStats::WriteStatSummary()
 	}
 }
 
+void FShaderCompilerStats::GatherAnalytics(const FString& BaseName, TArray<FAnalyticsEventAttribute>& Attributes) const
+{
+	{
+		FString AttrName = BaseName + TEXT("ShadersCompiled");
+		Attributes.Emplace(MoveTemp(AttrName), JobsCompleted);
+	}
+
+	if (ShaderTimings.Num())
+	{
+		double TotalThreadTimeForAllShaders = 0.0;
+		double TotalThreadPreprocessTimeForAllShaders = 0.0;
+		for (TMap<FString, FShaderTimings>::TConstIterator Iter(ShaderTimings); Iter; ++Iter)
+		{
+			TotalThreadTimeForAllShaders += Iter.Value().TotalCompileTime;
+			TotalThreadPreprocessTimeForAllShaders += Iter.Value().TotalPreprocessTime;
+		}
+
+		{
+			FString AttrName = BaseName + TEXT("TotalThreadTime");
+			Attributes.Emplace(MoveTemp(AttrName), TotalThreadTimeForAllShaders);
+		}
+
+		{
+			FString AttrName = BaseName + TEXT("TotalThreadPreprocessTime");
+			Attributes.Emplace(MoveTemp(AttrName), TotalThreadPreprocessTimeForAllShaders);
+		}
+	}
+}
+
 uint32 FShaderCompilerStats::GetTotalShadersCompiled()
 {
 	FScopeLock Lock(&CompileStatsLock);
@@ -4258,6 +4294,18 @@ int32 FShaderCompilingManager::GetNumPendingJobs() const
 int32 FShaderCompilingManager::GetNumOutstandingJobs() const
 {
 	return AllJobs.GetNumOutstandingJobs();
+}
+
+void FShaderCompilingManager::GatherAnalytics(TArray<FAnalyticsEventAttribute>& Attributes) const
+{
+	const FString BaseName = TEXT("Shaders_");
+
+	if (ShaderCompiler::IsJobCacheEnabled())
+	{
+		AllJobs.GatherAnalytics(BaseName, Attributes);
+	}
+
+	GShaderCompilerStats->GatherAnalytics(BaseName, Attributes);
 }
 
 FShaderCompilingManager::EDumpShaderDebugInfo FShaderCompilingManager::GetDumpShaderDebugInfo() const
@@ -9004,7 +9052,7 @@ void FShaderJobCache::RemoveByInputHash(const FJobInputHash& InputHash)
 }
 
 /** Calculates memory used by the cache*/
-uint64 FShaderJobCache::GetAllocatedMemory()
+uint64 FShaderJobCache::GetAllocatedMemory() const
 {
 	return CurrentlyAllocatedMemory;
 }
@@ -9039,6 +9087,41 @@ void FShaderJobCache::LogStats()
 	else
 	{
 		UE_LOG(LogShaderCompilers, Display, TEXT("RAM used: %s, no memory limit set"), *FText::AsMemory(MemUsed, &SizeFormattingOptions, nullptr, EMemoryUnitStandard::IEC).ToString());
+	}
+}
+
+void FShaderJobCache::GatherAnalytics(const FString& BaseName, TArray<FAnalyticsEventAttribute>& Attributes) const
+{
+	const FString ChildName = TEXT("JobCache_");
+
+	{
+		FString AttrName = BaseName + ChildName + TEXT("Queries");
+		Attributes.Emplace(MoveTemp(AttrName), TotalSearchAttempts);
+	}
+
+	{
+		FString AttrName = BaseName + ChildName + TEXT("Hits");
+		Attributes.Emplace(MoveTemp(AttrName), TotalCacheHits);
+	}
+
+	{
+		FString AttrName = BaseName + ChildName + TEXT("NumInputs");
+		Attributes.Emplace(MoveTemp(AttrName), Outputs.Num());
+	}
+
+	{
+		FString AttrName = BaseName + ChildName + TEXT("NumOutputs");
+		Attributes.Emplace(MoveTemp(AttrName), Outputs.Num());
+	}
+
+	{
+		FString AttrName = BaseName + ChildName + TEXT("MemUsed");
+		Attributes.Emplace(MoveTemp(AttrName), GetAllocatedMemory());
+	}
+
+	{
+		FString AttrName = BaseName + ChildName + TEXT("MemBudget");
+		Attributes.Emplace(MoveTemp(AttrName), GetCurrentMemoryBudget());
 	}
 }
 
