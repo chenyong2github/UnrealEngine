@@ -3079,6 +3079,12 @@ public:
 	bool IsInitializedAndNeedsCleanup() const { return bIsWorldInitialized; }
 	/** Returns whether InitWorld has ever been called since this World was created.  */
 	bool HasEverBeenInitialized() const { return bHasEverBeenInitialized; }
+
+	/**
+	 * Calls CleanupWorld and InitWorld, while handling preservation of StreamingLevels and WorldInitialization values
+	 * Gives a warning and does nothing if IsInitialized is not currently true.
+	 */
+	void ReInitWorld();
 #endif
 
 	/** Returns whether InitWorld has been called without yet calling CleanupWorld.  */

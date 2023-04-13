@@ -2177,6 +2177,35 @@ void UWorld::InitWorld(const InitializationValues IVS)
 }
 
 #if WITH_EDITOR
+void UWorld::ReInitWorld()
+{
+	if (!IsInitialized())
+	{
+		UE_LOG(LogWorld, Warning, TEXT("ReInitWorld called on World %s, but it is not yet initialized. ReInitWorld will be ignored."), *GetPathName());
+		return;
+	}
+
+	InitializationValues IVS;
+	IVS.bInitializeScenes = Scene != nullptr;
+	IVS.bAllowAudioPlayback = bAllowAudioPlayback;
+	IVS.bRequiresHitProxies = bRequiresHitProxies;
+	IVS.bCreatePhysicsScene = PhysicsScene != nullptr;
+	IVS.bCreateNavigation = NavigationSystem != nullptr;
+	IVS.bCreateAISystem = AISystem != nullptr;
+	IVS.bShouldSimulatePhysics = bShouldSimulatePhysics;
+	IVS.bEnableTraceCollision = bEnableTraceCollision;
+	IVS.bForceUseMovementComponentInNonGameWorld = bForceUseMovementComponentInNonGameWorld;
+	IVS.bTransactional = HasAnyFlags(RF_Transactional);
+	IVS.bCreateFXSystem = FXSystem != nullptr;
+	// IVS.bCreateWorldPartition; // Only used in InitializeNewWorld, not needed by InitWorld
+	// IVS.DefaultGameMode; // Only used inInitializeNewWorld, not needed by InitWorld
+
+	CleanupWorld();
+	InitWorld(IVS);
+	RefreshStreamingLevels();
+	UpdateWorldComponents(false /* bRerunConstructionScripts */, false /* bCurrentLevelOnly */);
+}
+
 const FName UWorld::KeepInitializedDuringLoadTag(TEXT("KeepInitializedDuringLoadTag"));
 #endif
 

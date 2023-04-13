@@ -1214,8 +1214,7 @@ void FUnrealEdMisc::CB_MapChange( uint32 InFlags )
 			if (World->IsInitialized())
 			{
 				// Call CleanupWorld/InitWorld to detach components and some other stuff
-				World->CleanupWorld();
-				World->InitWorld();
+				World->ReInitWorld();
 			}
 		}
 
