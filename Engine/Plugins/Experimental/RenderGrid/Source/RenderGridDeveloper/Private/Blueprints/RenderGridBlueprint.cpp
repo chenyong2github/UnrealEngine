@@ -54,6 +54,8 @@ void URenderGridBlueprint::PostLoad()
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);
 		FBlueprintEditorUtils::AddUbergraphPage(this, NewGraph);
 		LastEditedDocuments.AddUnique(NewGraph);
+
+		FKismetEditorUtilities::CompileBlueprint(this, EBlueprintCompileOptions::SkipGarbageCollection);
 	}
 
 	OnChanged().RemoveAll(this);
