@@ -3,11 +3,13 @@
 #include "OodleNetworkHandlerComponent.h"
 #include "HAL/PlatformFile.h"
 #include "Modules/ModuleManager.h"
+#include "HAL/IConsoleManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/App.h"
 #include "Misc/EngineVersion.h"
+#include "UObject/CoreNet.h"
 
 #include "OodleNetworkTrainerCommandlet.h"
 #include "OodleNetworkAnalytics.h"

@@ -29,6 +29,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "RHIBreadcrumbs.h"
+#include "RHIGlobals.h"
 #include "RHIShaderParameters.h"
 #include "RHITextureReference.h"
 #include "Trace/Trace.h"

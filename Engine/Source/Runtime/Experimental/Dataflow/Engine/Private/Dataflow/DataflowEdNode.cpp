@@ -11,7 +11,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowEdNode)
 
-#if WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_EDITOR
 #include "EdGraph/EdGraphPin.h"
 #endif
 
