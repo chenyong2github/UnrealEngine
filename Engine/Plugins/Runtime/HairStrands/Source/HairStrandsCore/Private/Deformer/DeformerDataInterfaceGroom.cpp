@@ -33,6 +33,10 @@ TArray<FOptimusCDIPinDefinition> UOptimusGroomDataInterface::GetPinDefinitions()
 	Defs.Add({ "Length",           "ReadLength",            ControlPoint,   "ReadLength" });
 	Defs.Add({ "RootUV",           "ReadRootUV",            ControlPoint,   "ReadRootUV" });
 	Defs.Add({ "Seed",             "ReadSeed",              ControlPoint,   "ReadSeed" });
+	Defs.Add({ "ClumpId",          "ReadClumpId",           ControlPoint,   "ReadClumpId" });
+	Defs.Add({ "Color",            "ReadColor",             ControlPoint,   "ReadColor" });
+	Defs.Add({ "Roughness",        "ReadRoughness",         ControlPoint,   "ReadRoughness" });
+	Defs.Add({ "AO",               "ReadAO",                ControlPoint,   "ReadAO" });
 	Defs.Add({ "CurveOffsetPoint", "ReadCurveOffsetPoint",  Curve,          "ReadCurveOffsetPoint" });
 	Defs.Add({ "CurveNumPoint",    "ReadCurveNumPoint",     Curve,          "ReadCurveNumPoint" });
 	return Defs;
@@ -80,6 +84,26 @@ void UOptimusGroomDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefini
 
 	OutFunctions.AddDefaulted_GetRef()
 		.SetName(TEXT("ReadSeed"))
+		.AddReturnType(EShaderFundamentalType::Float)
+		.AddParam(EShaderFundamentalType::Uint);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadClumpId"))
+		.AddReturnType(EShaderFundamentalType::Uint)
+		.AddParam(EShaderFundamentalType::Uint);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadColor"))
+		.AddReturnType(EShaderFundamentalType::Float, 3)
+		.AddParam(EShaderFundamentalType::Uint);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadRoughnes"))
+		.AddReturnType(EShaderFundamentalType::Float)
+		.AddParam(EShaderFundamentalType::Uint);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadAO"))
 		.AddReturnType(EShaderFundamentalType::Float)
 		.AddParam(EShaderFundamentalType::Uint);
 
