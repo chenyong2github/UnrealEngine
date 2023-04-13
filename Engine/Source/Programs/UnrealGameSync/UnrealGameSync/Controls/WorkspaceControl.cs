@@ -4825,7 +4825,14 @@ namespace UnrealGameSync
 		{
 			if (_contextMenuChange != null)
 			{
-				System.Windows.Forms.Clipboard.SetText(_contextMenuChange.Number.ToString());
+				try
+				{
+					Clipboard.SetText(_contextMenuChange.Number.ToString());
+				}
+				catch
+				{
+					MessageBox.Show("Unable to copy data to clipboard; another process may have the clipboard locked.");
+				}
 			}
 		}
 
