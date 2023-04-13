@@ -2,7 +2,7 @@
   <Import Project="ICVFX.Automation.csproj.props" Condition="Exists('ICVFX.Automation.csproj.props')"/>
 
   <PropertyGroup>
-    <EngineDir>../../../../</EngineDir>
+    <EngineDir>../../../..</EngineDir>
   </PropertyGroup>
   
   <Import Project="$(EngineDir)\Source\Programs\Shared\UnrealEngine.csproj.props" />
