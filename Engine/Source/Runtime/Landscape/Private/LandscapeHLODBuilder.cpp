@@ -138,7 +138,7 @@ static int32 GetMeshTextureSizeFromTargetTexelDensity(const FMeshDescription& In
 
 	// Compute the perfect texture size that would get us to our texture density
 	// Also compute the nearest power of two sizes (below and above our target)
-	const int32 SizePerfect = FMath::CeilToInt(InTargetTexelDensity / TexelRatio);
+	const int32 SizePerfect = FMath::CeilToInt32(InTargetTexelDensity / TexelRatio);
 	const int32 SizeHi = FMath::RoundUpToPowerOfTwo(SizePerfect);
 	const int32 SizeLo = SizeHi >> 1;
 
@@ -166,9 +166,9 @@ static int32 ComputeRequiredLandscapeLOD(const ALandscapeProxy* InLandscapeProxy
 
 	TArray<float> LODScreenSizes = InLandscapeProxy->GetLODScreenSizeArray();
 
-	ULandscapeComponent* LSComponent = InLandscapeProxy->LandscapeComponents[0];
-	float ComponentRadiusScaled = LSComponent->GetLocalBounds().SphereRadius * LSComponent->GetComponentTransform().GetScale3D().GetAbsMax();
-	float ExpectedScreenSize = ComputeBoundsScreenSize(FVector::ZeroVector, ComponentRadiusScaled, FVector(0.0f, 0.0f, InViewDistance), ProjMatrix);
+	const ULandscapeComponent* LSComponent = InLandscapeProxy->LandscapeComponents[0];
+	const float ComponentRadiusScaled = static_cast<float>(LSComponent->GetLocalBounds().SphereRadius * LSComponent->GetComponentTransform().GetScale3D().GetAbsMax());
+	const float ExpectedScreenSize = ComputeBoundsScreenSize(FVector::ZeroVector, ComponentRadiusScaled, FVector(0.0f, 0.0f, InViewDistance), ProjMatrix);
 
 	int32 RequiredLOD;
 	for (RequiredLOD = 0; RequiredLOD < LODScreenSizes.Num(); ++RequiredLOD)
@@ -264,7 +264,7 @@ TArray<UActorComponent*> ULandscapeHLODBuilder::Build(const FHLODBuildContext& I
 		FMeshDescription* MeshDescription = nullptr;
 
 		// Compute source landscape LOD
-		int32 LandscapeLOD = ComputeRequiredLandscapeLOD(LandscapeProxy, InHLODBuildContext.MinVisibleDistance);
+		int32 LandscapeLOD = ComputeRequiredLandscapeLOD(LandscapeProxy, static_cast<float>(InHLODBuildContext.MinVisibleDistance));
 
 		// Mesh
 		{
@@ -292,7 +292,8 @@ TArray<UActorComponent*> ULandscapeHLODBuilder::Build(const FHLODBuildContext& I
 
 		// Material
 		{
-			float TargetTexelDensityPerMeter = FMaterialUtilities::ComputeRequiredTexelDensityFromDrawDistance(InHLODBuildContext.MinVisibleDistance, MeshDescription->GetBounds().SphereRadius);
+			const float TargetTexelDensityPerMeter = FMaterialUtilities::ComputeRequiredTexelDensityFromDrawDistance(
+				static_cast<float>(InHLODBuildContext.MinVisibleDistance), static_cast<float>(MeshDescription->GetBounds().SphereRadius));
 			int32 RequiredTextureSize = GetMeshTextureSizeFromTargetTexelDensity(*MeshDescription, TargetTexelDensityPerMeter);
 
 			UMaterialInterface* LandscapeMaterial = BakeLandscapeMaterial(InHLODBuildContext, *MeshDescription, LandscapeProxy, LandscapeLOD, RequiredTextureSize);
@@ -304,7 +305,7 @@ TArray<UActorComponent*> ULandscapeHLODBuilder::Build(const FHLODBuildContext& I
 		StaticMeshes.Add(StaticMesh);
 
 		ULandscapeMeshProxyComponent* LandcapeMeshProxyComponent = NewObject<ULandscapeMeshProxyComponent>();
-		LandcapeMeshProxyComponent->InitializeForLandscape(LandscapeProxy, LandscapeLOD);
+		LandcapeMeshProxyComponent->InitializeForLandscape(LandscapeProxy, static_cast<int8>(LandscapeLOD));
 		LandcapeMeshProxyComponent->SetStaticMesh(StaticMesh);
 		HLODComponents.Add(LandcapeMeshProxyComponent);
 	}

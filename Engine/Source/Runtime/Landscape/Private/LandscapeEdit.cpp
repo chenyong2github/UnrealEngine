@@ -405,7 +405,7 @@ UMaterialInstanceConstant* ULandscapeComponent::GetCombinationMaterial(FMaterial
 
 void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContext& Context)
 {
-	int32 MaxLOD = FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1;
+	const int8 MaxLOD = IntCastChecked<int8>(FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1);
 	decltype(MaterialPerLOD) NewMaterialPerLOD;
 	LODIndexToMaterialIndex.SetNumUninitialized(MaxLOD+1);
 	int8 LastLODIndex = INDEX_NONE;
@@ -413,7 +413,7 @@ void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContex
 	UMaterialInterface* BaseMaterial = GetLandscapeMaterial();
 	UMaterialInterface* LOD0Material = GetLandscapeMaterial(0);
 
-	for (int32 LODIndex = 0; LODIndex <= MaxLOD; ++LODIndex)
+	for (int8 LODIndex = 0; LODIndex <= MaxLOD; ++LODIndex)
 	{
 		UMaterialInterface* CurrentMaterial = GetLandscapeMaterial(LODIndex);
 
@@ -431,7 +431,7 @@ void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContex
 		}
 		else
 		{
-			int32 AddedIndex = NewMaterialPerLOD.Num();
+			const int8 AddedIndex = IntCastChecked<int8>(NewMaterialPerLOD.Num());
 			NewMaterialPerLOD.Add(CurrentMaterial, LODIndex);
 			LODIndexToMaterialIndex[LODIndex] = AddedIndex;
 			LastLODIndex = AddedIndex;
@@ -636,7 +636,7 @@ class UMaterialInterface* ULandscapeComponent::GetMaterial(int32 ElementIndex) c
 {
 	if (ensure(ElementIndex == 0))
 	{
-		return GetLandscapeMaterial(ElementIndex);
+		return GetLandscapeMaterial(IntCastChecked<int8>(ElementIndex));
 	}
 
 	return nullptr;
@@ -979,7 +979,7 @@ void ULandscapeComponent::FixupWeightmaps(const FGuid& InEditLayerGuid)
 				// Fix up any problems caused by the layer deletion bug.
 				if (Allocation.WeightmapTextureIndex >= LocalWeightmapTextures.Num())
 				{
-					Allocation.WeightmapTextureIndex = LocalWeightmapTextures.Num() - 1;
+					Allocation.WeightmapTextureIndex = static_cast<uint8>(LocalWeightmapTextures.Num() - 1);
 					if (!bFixedWeightmapTextureIndex)
 					{
 						FFormatNamedArguments Arguments;
@@ -1442,8 +1442,8 @@ void ULandscapeComponent::UpdateCollisionHeightBuffer(	int32 InComponentX1, int3
 	const int32 MipSizeU = InHeightmapSizeU >> InCollisionMipLevel;
 	const int32 MipSizeV = InHeightmapSizeV >> InCollisionMipLevel;
 
-	const int32 HeightmapOffsetX = FMath::RoundToInt(HeightmapScaleBias.Z * (float)InHeightmapSizeU) >> InCollisionMipLevel;
-	const int32 HeightmapOffsetY = FMath::RoundToInt(HeightmapScaleBias.W * (float)InHeightmapSizeV) >> InCollisionMipLevel;
+	const int32 HeightmapOffsetX = FMath::RoundToInt32(HeightmapScaleBias.Z * (float)InHeightmapSizeU) >> InCollisionMipLevel;
+	const int32 HeightmapOffsetY = FMath::RoundToInt32(HeightmapScaleBias.W * (float)InHeightmapSizeV) >> InCollisionMipLevel;
 
 	const int32 XYMipSizeU = XYOffsetmapTexture ? XYOffsetmapTexture->Source.GetSizeX() >> InCollisionMipLevel : 0;
 
@@ -1563,7 +1563,8 @@ void ULandscapeComponent::UpdateDominantLayerBuffer(int32 InComponentX1, int32 I
 
 					uint8 DominantLayer = 255; // 255 as invalid value
 					int32 DominantWeight = 0;
-					for (int32 LayerIdx = 0; LayerIdx < InCollisionDataPtrs.Num(); LayerIdx++)
+					const uint8 NumLayers = IntCastChecked<uint8>(InCollisionDataPtrs.Num());
+					for (uint8 LayerIdx = 0; LayerIdx < NumLayers; LayerIdx++)
 					{
 						const uint8 LayerWeight = InCollisionDataPtrs[LayerIdx][DataOffset];
 						const uint8 LayerMinimumWeight = InLayerInfos[LayerIdx] ? (uint8)(InLayerInfos[LayerIdx]->MinimumCollisionRelevanceWeight * 255) :  0;
@@ -1948,8 +1949,8 @@ void ULandscapeComponent::GenerateHeightmapMips(TArray<FColor*>& HeightmapTextur
 	int32 HeightmapSizeU = GetHeightmap()->Source.GetSizeX();
 	int32 HeightmapSizeV = GetHeightmap()->Source.GetSizeY();
 
-	int32 HeightmapOffsetX = FMath::RoundToInt(HeightmapScaleBias.Z * (float)HeightmapSizeU);
-	int32 HeightmapOffsetY = FMath::RoundToInt(HeightmapScaleBias.W * (float)HeightmapSizeV);
+	const int32 HeightmapOffsetX = FMath::RoundToInt32(HeightmapScaleBias.Z * (float)HeightmapSizeU);
+	const int32 HeightmapOffsetY = FMath::RoundToInt32(HeightmapScaleBias.W * (float)HeightmapSizeV);
 
 	for (int32 SubsectionY = 0; SubsectionY < NumSubsections; SubsectionY++)
 	{
@@ -2086,27 +2087,27 @@ void ULandscapeComponent::GenerateHeightmapMips(TArray<FColor*>& HeightmapTextur
 						uint16 PrevMipHeightValue01 = PreMipTexData01->R << 8 | PreMipTexData01->G;
 						uint16 PrevMipHeightValue10 = PreMipTexData10->R << 8 | PreMipTexData10->G;
 						uint16 PrevMipHeightValue11 = PreMipTexData11->R << 8 | PreMipTexData11->G;
-						uint16 HeightValue = FMath::RoundToInt(
+						uint16 HeightValue = static_cast<uint16>(FMath::RoundToInt(
 							FMath::Lerp(
 							FMath::Lerp((float)PrevMipHeightValue00, (float)PrevMipHeightValue10, fPrevMipTexFracX),
 							FMath::Lerp((float)PrevMipHeightValue01, (float)PrevMipHeightValue11, fPrevMipTexFracX),
-							fPrevMipTexFracY));
+							fPrevMipTexFracY)));
 
 						TexData->R = HeightValue >> 8;
 						TexData->G = HeightValue & 255;
 
 						// Lerp tangents
-						TexData->B = FMath::RoundToInt(
+						TexData->B = static_cast<uint8>(FMath::RoundToInt(
 							FMath::Lerp(
 							FMath::Lerp((float)PreMipTexData00->B, (float)PreMipTexData10->B, fPrevMipTexFracX),
 							FMath::Lerp((float)PreMipTexData01->B, (float)PreMipTexData11->B, fPrevMipTexFracX),
-							fPrevMipTexFracY));
+							fPrevMipTexFracY)));
 
-						TexData->A = FMath::RoundToInt(
+						TexData->A = static_cast<uint8>(FMath::RoundToInt(
 							FMath::Lerp(
 							FMath::Lerp((float)PreMipTexData00->A, (float)PreMipTexData10->A, fPrevMipTexFracX),
 							FMath::Lerp((float)PreMipTexData01->A, (float)PreMipTexData11->A, fPrevMipTexFracX),
-							fPrevMipTexFracY));
+							fPrevMipTexFracY)));
 
 						// Padding for missing data
 						if (EndX && SubsectionX == NumSubsections - 1 && VertX == VertX2)
@@ -2224,36 +2225,36 @@ namespace
 	template<typename DataType>
 	void BiLerpTextureData(DataType* Output, const DataType* Data00, const DataType* Data10, const DataType* Data01, const DataType* Data11, float FracX, float FracY)
 	{
-		*Output = FMath::RoundToInt(
+		*Output = static_cast<DataType>(FMath::RoundToInt(
 			FMath::Lerp(
 			FMath::Lerp((float)*Data00, (float)*Data10, FracX),
 			FMath::Lerp((float)*Data01, (float)*Data11, FracX),
-			FracY));
+			FracY)));
 	}
 
 	template<>
 	void BiLerpTextureData(FColor* Output, const FColor* Data00, const FColor* Data10, const FColor* Data01, const FColor* Data11, float FracX, float FracY)
 	{
-		Output->R = FMath::RoundToInt(
+		Output->R = static_cast<uint8>(FMath::RoundToInt(
 			FMath::Lerp(
 			FMath::Lerp((float)Data00->R, (float)Data10->R, FracX),
 			FMath::Lerp((float)Data01->R, (float)Data11->R, FracX),
-			FracY));
-		Output->G = FMath::RoundToInt(
+			FracY)));
+		Output->G = static_cast<uint8>(FMath::RoundToInt(
 			FMath::Lerp(
 			FMath::Lerp((float)Data00->G, (float)Data10->G, FracX),
 			FMath::Lerp((float)Data01->G, (float)Data11->G, FracX),
-			FracY));
-		Output->B = FMath::RoundToInt(
+			FracY)));
+		Output->B = static_cast<uint8>(FMath::RoundToInt(
 			FMath::Lerp(
 			FMath::Lerp((float)Data00->B, (float)Data10->B, FracX),
 			FMath::Lerp((float)Data01->B, (float)Data11->B, FracX),
-			FracY));
-		Output->A = FMath::RoundToInt(
+			FracY)));
+		Output->A = static_cast<uint8>(FMath::RoundToInt(
 			FMath::Lerp(
 			FMath::Lerp((float)Data00->A, (float)Data10->A, FracX),
 			FMath::Lerp((float)Data01->A, (float)Data11->A, FracX),
-			FracY));
+			FracY)));
 	}
 
 	template<typename DataType>
@@ -2479,10 +2480,10 @@ float ULandscapeComponent::GetLayerWeightAtLocation(const FVector& InLocation, U
 	}
 
 	// Find data
-	int32 X1 = FMath::FloorToInt(TestLocation.X);
-	int32 Y1 = FMath::FloorToInt(TestLocation.Y);
-	int32 X2 = FMath::CeilToInt(TestLocation.X);
-	int32 Y2 = FMath::CeilToInt(TestLocation.Y);
+	int32 X1 = FMath::FloorToInt32(TestLocation.X);
+	int32 Y1 = FMath::FloorToInt32(TestLocation.Y);
+	int32 X2 = FMath::CeilToInt32(TestLocation.X);
+	int32 Y2 = FMath::CeilToInt32(TestLocation.Y);
 
 	int32 Stride = (SubsectionSizeQuads + 1) * NumSubsections;
 
@@ -2498,8 +2499,8 @@ float ULandscapeComponent::GetLayerWeightAtLocation(const FVector& InLocation, U
 	float Sample12 = (float)((*LayerCache)[IdxX1 + Stride * IdxY2]) / 255.0f;
 	float Sample22 = (float)((*LayerCache)[IdxX2 + Stride * IdxY2]) / 255.0f;
 
-	float LerpX = FMath::Fractional(TestLocation.X);
-	float LerpY = FMath::Fractional(TestLocation.Y);
+	float LerpX = FMath::Fractional(static_cast<float>(TestLocation.X));
+	float LerpY = FMath::Fractional(static_cast<float>(TestLocation.Y));
 
 	// Bilinear interpolate
 	return FMath::Lerp(
@@ -3027,7 +3028,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 
 						if (255 - TotalWeight && MaxLayerIdx >= 0)
 						{
-							WeightValues[MaxLayerIdx][Idx] += 255 - TotalWeight;
+							WeightValues[MaxLayerIdx][Idx] += static_cast<uint8>(255 - TotalWeight);
 						}
 					}
 				}
@@ -3113,8 +3114,8 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 
 					for (int32 i = 0; i < RemainingLayers; i++)
 					{
-						ComponentWeightmapLayerAllocations[LayerIndex + i].WeightmapTextureIndex = ComponentWeightmapTextures.Num();
-						ComponentWeightmapLayerAllocations[LayerIndex + i].WeightmapTextureChannel = Allocation.ChannelsInUse;
+						ComponentWeightmapLayerAllocations[LayerIndex + i].WeightmapTextureIndex = static_cast<uint8>(ComponentWeightmapTextures.Num());
+						ComponentWeightmapLayerAllocations[LayerIndex + i].WeightmapTextureChannel = static_cast<uint8>(Allocation.ChannelsInUse);
 						WeightmapUsage->ChannelUsage[Allocation.ChannelsInUse] = LandscapeComponent;
 						switch (Allocation.ChannelsInUse)
 						{
@@ -3152,28 +3153,28 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 					UE_LOG(LogLandscape, VeryVerbose, TEXT("  ==> Storing %d channels in new texture %s"), ThisAllocationLayers, *WeightmapTexture->GetName());
 
 					WeightmapTextureDataPointers.Add((uint8*)&MipData->R);
-					ComponentWeightmapLayerAllocations[LayerIndex + 0].WeightmapTextureIndex = ComponentWeightmapTextures.Num();
+					ComponentWeightmapLayerAllocations[LayerIndex + 0].WeightmapTextureIndex = static_cast<uint8>(ComponentWeightmapTextures.Num());
 					ComponentWeightmapLayerAllocations[LayerIndex + 0].WeightmapTextureChannel = 0;
 					WeightmapUsage->ChannelUsage[0] = LandscapeComponent;
 
 					if (ThisAllocationLayers > 1)
 					{
 						WeightmapTextureDataPointers.Add((uint8*)&MipData->G);
-						ComponentWeightmapLayerAllocations[LayerIndex + 1].WeightmapTextureIndex = ComponentWeightmapTextures.Num();
+						ComponentWeightmapLayerAllocations[LayerIndex + 1].WeightmapTextureIndex = static_cast<uint8>(ComponentWeightmapTextures.Num());
 						ComponentWeightmapLayerAllocations[LayerIndex + 1].WeightmapTextureChannel = 1;
 						WeightmapUsage->ChannelUsage[1] = LandscapeComponent;
 
 						if (ThisAllocationLayers > 2)
 						{
 							WeightmapTextureDataPointers.Add((uint8*)&MipData->B);
-							ComponentWeightmapLayerAllocations[LayerIndex + 2].WeightmapTextureIndex = ComponentWeightmapTextures.Num();
+							ComponentWeightmapLayerAllocations[LayerIndex + 2].WeightmapTextureIndex = static_cast<uint8>(ComponentWeightmapTextures.Num());
 							ComponentWeightmapLayerAllocations[LayerIndex + 2].WeightmapTextureChannel = 2;
 							WeightmapUsage->ChannelUsage[2] = LandscapeComponent;
 
 							if (ThisAllocationLayers > 3)
 							{
 								WeightmapTextureDataPointers.Add((uint8*)&MipData->A);
-								ComponentWeightmapLayerAllocations[LayerIndex + 3].WeightmapTextureIndex = ComponentWeightmapTextures.Num();
+								ComponentWeightmapLayerAllocations[LayerIndex + 3].WeightmapTextureIndex = static_cast<uint8>(ComponentWeightmapTextures.Num());
 								ComponentWeightmapLayerAllocations[LayerIndex + 3].WeightmapTextureChannel = 3;
 								WeightmapUsage->ChannelUsage[3] = LandscapeComponent;
 							}
@@ -3214,8 +3215,8 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 
 							HeightmapInfo.HeightmapTextureMipData[0][HeightTexDataIdx].R = HeightValue >> 8;
 							HeightmapInfo.HeightmapTextureMipData[0][HeightTexDataIdx].G = HeightValue & 255;
-							HeightmapInfo.HeightmapTextureMipData[0][HeightTexDataIdx].B = FMath::RoundToInt(127.5f * (Normal.X + 1.0f));
-							HeightmapInfo.HeightmapTextureMipData[0][HeightTexDataIdx].A = FMath::RoundToInt(127.5f * (Normal.Y + 1.0f));
+							HeightmapInfo.HeightmapTextureMipData[0][HeightTexDataIdx].B = static_cast<uint8>(FMath::RoundToInt32(127.5f * (Normal.X + 1.0f)));
+							HeightmapInfo.HeightmapTextureMipData[0][HeightTexDataIdx].A = static_cast<uint8>(FMath::RoundToInt32(127.5f * (Normal.Y + 1.0f)));
 
 							for (int32 WeightmapIndex = 0; WeightmapIndex < WeightValues.Num(); WeightmapIndex++)
 							{
@@ -3322,7 +3323,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 
 	for (ULandscapeComponent* Component : LandscapeComponents)
 	{
-		int8 MaxLOD = FMath::CeilLogTwo(Component->SubsectionSizeQuads + 1) - 1;
+		const int8 MaxLOD = IntCastChecked<int8>(FMath::CeilLogTwo(Component->SubsectionSizeQuads + 1) - 1);
 
 		for (int8 LODIndex = 0; LODIndex < MaxLOD; ++LODIndex)
 		{
@@ -3696,11 +3697,11 @@ bool ALandscapeProxy::ExportToRawMesh(const FRawMeshExportParams& InExportParams
 		const FVector2f ComponentOffsetRelativeToProxyBoundsQuadsLOD = FVector2f(ComponentOffsetRelativeToProxyBoundsQuads) * LODScale;
 		const FVector2f ComponentUVScaleRelativeToProxyBoundsLOD = LandscapeProxyBoundsRectUVScale / LODScale;
 
-		const FVector2f ComponentHeightmapUVBias = FVector2f(Component->HeightmapScaleBias.Z, Component->HeightmapScaleBias.W);
-		const FVector2f ComponentHeightmapUVScale = FVector2f(Component->HeightmapScaleBias.X, Component->HeightmapScaleBias.Y);
+		const FVector2f ComponentHeightmapUVBias = FVector2f(static_cast<float>(Component->HeightmapScaleBias.Z), static_cast<float>(Component->HeightmapScaleBias.W));
+		const FVector2f ComponentHeightmapUVScale = FVector2f(static_cast<float>(Component->HeightmapScaleBias.X), static_cast<float>(Component->HeightmapScaleBias.Y));
 		const FVector2f ComponentHeightmapUVScaleLOD = ComponentHeightmapUVScale / LODScale;
 		const FVector2f ComponentHeightmapUVPixelOffset = ComponentHeightmapUVScale * 0.5f;
-		const FVector2f ComponentWeightmapUVScale = FVector2f(Component->WeightmapScaleBias.X, Component->WeightmapScaleBias.Y);
+		const FVector2f ComponentWeightmapUVScale = FVector2f(static_cast<float>(Component->WeightmapScaleBias.X), static_cast<float>(Component->WeightmapScaleBias.Y));
 		const FVector2f ComponentWeightmapUVScaleLOD = ComponentWeightmapUVScale / LODScale;
 		const FVector2f ComponentWeightmapUVPixelOffset = ComponentWeightmapUVScale * 0.5f; // I could have used Component->WeightmapScaleBias.ZW but then it would be confusing because it doesn't have the same signification as the heightmap UV bias
 
@@ -3745,7 +3746,7 @@ bool ALandscapeProxy::ExportToRawMesh(const FRawMeshExportParams& InExportParams
 			FIntPoint(1, 0),
 		};
 
-		const float SquaredSphereRadius = InExportParams.ExportBounds.IsSet() ? FMath::Square(InExportParams.ExportBounds->SphereRadius) : 0.0f;
+		const float SquaredSphereRadius = InExportParams.ExportBounds.IsSet() ? FMath::Square(static_cast<float>(InExportParams.ExportBounds->SphereRadius)) : 0.0f;
 
 		//We need to not duplicate the vertex position, so we use the FIndexAndZ to achieve fast result
 		TArray<FIndexAndZ> VertIndexAndZ;
@@ -3895,19 +3896,19 @@ bool ALandscapeProxy::ExportToRawMesh(const FRawMeshExportParams& InExportParams
 									{
 										case FRawMeshExportParams::EUVMappingType::RelativeToProxyBoundsUV:
 										{
-											FVector2f UV = (ComponentOffsetRelativeToProxyBoundsQuadsLOD + FVector2f(VertexX, VertexY)) * ComponentUVScaleRelativeToProxyBoundsLOD;
+											FVector2f UV = (ComponentOffsetRelativeToProxyBoundsQuadsLOD + FVector2f(static_cast<float>(VertexX), static_cast<float>(VertexY))) * ComponentUVScaleRelativeToProxyBoundsLOD;
 											VertexInstanceUVs.Set(VertexInstanceIDs[i], UVChannel, UV);
 											break;
 										}
 										case FRawMeshExportParams::EUVMappingType::HeightmapUV:
 										{
-											FVector2f UV = FVector2f(VertexX, VertexY) * ComponentHeightmapUVScaleLOD + ComponentHeightmapUVPixelOffset + ComponentHeightmapUVBias;
+											FVector2f UV = FVector2f(static_cast<float>(VertexX), static_cast<float>(VertexY)) * ComponentHeightmapUVScaleLOD + ComponentHeightmapUVPixelOffset + ComponentHeightmapUVBias;
 											VertexInstanceUVs.Set(VertexInstanceIDs[i], UVChannel, UV);
 											break;
 										}
 										case FRawMeshExportParams::EUVMappingType::WeightmapUV:
 										{
-											FVector2f UV = FVector2f(VertexX, VertexY) * ComponentWeightmapUVScaleLOD + ComponentWeightmapUVPixelOffset;
+											FVector2f UV = FVector2f(static_cast<float>(VertexX), static_cast<float>(VertexY)) * ComponentWeightmapUVScaleLOD + ComponentWeightmapUVPixelOffset;
 											VertexInstanceUVs.Set(VertexInstanceIDs[i], UVChannel, UV);
 											break;
 										}
@@ -3915,7 +3916,7 @@ bool ALandscapeProxy::ExportToRawMesh(const FRawMeshExportParams& InExportParams
 										case FRawMeshExportParams::EUVMappingType::TerrainCoordMapping_XZ:
 										case FRawMeshExportParams::EUVMappingType::TerrainCoordMapping_YZ:
 										{
-											FVector2f QuadCoords = (ComponentOffsetRelativeToProxyBoundsQuadsLOD + FVector2f(VertexX, VertexY) / LODScale);
+											FVector2f QuadCoords = (ComponentOffsetRelativeToProxyBoundsQuadsLOD + FVector2f(static_cast<float>(VertexX), static_cast<float>(VertexY)) / LODScale);
 											FVector2f UV;
 											if (UVMappingType == FRawMeshExportParams::EUVMappingType::TerrainCoordMapping_XY)
 											{
@@ -3924,7 +3925,7 @@ bool ALandscapeProxy::ExportToRawMesh(const FRawMeshExportParams& InExportParams
 											else
 											{
 												UV[0] = (UVMappingType == FRawMeshExportParams::EUVMappingType::TerrainCoordMapping_XZ) ? QuadCoords[0] : QuadCoords[1];
-												UV[1] = LocalPositions[i].Z;
+												UV[1] = static_cast<float>(LocalPositions[i].Z);
 											}
 											VertexInstanceUVs.Set(VertexInstanceIDs[i], UVChannel, UV);
 											break;
@@ -4092,7 +4093,7 @@ FVector ULandscapeInfo::GetLandscapeCenterPos(float& LengthZ, int32 MinX /*= MAX
 {
 	// MinZ, MaxZ is Local coordinate
 	float MaxZ = -UE_OLD_HALF_WORLD_MAX, MinZ = UE_OLD_HALF_WORLD_MAX;
-	const float ScaleZ = DrawScale.Z;
+	const float ScaleZ = static_cast<float>(DrawScale.Z);
 
 	if (MinX == MAX_int32)
 	{
@@ -4356,14 +4357,14 @@ void ALandscapeProxy::EditorApplyScale(const FVector& DeltaScale, const FVector*
 	FVector CurrentScale = GetRootComponent()->GetRelativeScale3D();
 	
 	// Lock X and Y scaling to the same value :
-	FVector2f XYDeltaScaleAbs(FMath::Abs(DeltaScale.X), FMath::Abs(DeltaScale.Y));
+	FVector2f XYDeltaScaleAbs(FMath::Abs(static_cast<float>(DeltaScale.X)), FMath::Abs(static_cast<float>(DeltaScale.Y)));
 	// Preserve the sign of the chosen delta :
 	bool bFavorX = (XYDeltaScaleAbs.X > XYDeltaScaleAbs.Y);
 
 	if (AActor::bUsePercentageBasedScaling)
 	{
 		// Correct for attempts to scale to 0 on any axis
-		float XYDeltaScale = bFavorX ? DeltaScale.X : DeltaScale.Y;
+		double XYDeltaScale = bFavorX ? DeltaScale.X : DeltaScale.Y;
 		if (XYDeltaScale == -1.0f)
 		{
 			XYDeltaScale = -(CurrentScale.X - 1) / CurrentScale.X;
@@ -4378,8 +4379,8 @@ void ALandscapeProxy::EditorApplyScale(const FVector& DeltaScale, const FVector*
 	else
 	{
 		// The absolute value of X and Y must be preserved so make sure they are preserved in case they flip from positive to negative (e.g.: a (-X, X) scale is accepted) : 
-		float SignMultiplier = FMath::Sign(CurrentScale.X) * FMath::Sign(CurrentScale.Y);
-		FVector2f NewScale(FVector2f::ZeroVector);
+		const float SignMultiplier = static_cast<float>(FMath::Sign(CurrentScale.X) * FMath::Sign(CurrentScale.Y));
+		FVector2d NewScale(FVector2f::ZeroVector);
 		if (bFavorX)
 		{
 			NewScale.X = CurrentScale.X + DeltaScale.X;
@@ -5175,7 +5176,7 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, ALandscapeProxy* Targ
 		// Build a list of all unique materials the landscape uses
 		TArray<UMaterialInterface*> LandscapeMaterials;
 
-		int8 MaxLOD = FMath::CeilLogTwo(Comp->SubsectionSizeQuads + 1) - 1;
+		int8 MaxLOD = static_cast<int8>(FMath::CeilLogTwo(Comp->SubsectionSizeQuads + 1) - 1);
 
 		for (int8 LODIndex = 0; LODIndex < MaxLOD; ++LODIndex)
 		{
@@ -5287,7 +5288,7 @@ namespace
 		// Change Lighting resolution to proper one...
 		if (StaticLightingResolution > 1.0f)
 		{
-			StaticLightingResolution = (int32)StaticLightingResolution;
+			StaticLightingResolution = static_cast<float>(static_cast<int32>(StaticLightingResolution));
 		}
 		else if (StaticLightingResolution < 1.0f)
 		{
@@ -6441,8 +6442,8 @@ void ULandscapeComponent::ReallocateWeightmapsInternal(FLandscapeEditDataInterfa
 							DataInterface->ZeroTextureChannel(ComponentWeightmapTextures[TexIdx], ChanIdx);
 						}
 
-						AllocInfo.WeightmapTextureIndex = TexIdx;
-						AllocInfo.WeightmapTextureChannel = ChanIdx;
+						AllocInfo.WeightmapTextureIndex = IntCastChecked<uint8>(TexIdx);
+						AllocInfo.WeightmapTextureChannel = IntCastChecked<uint8>(ChanIdx);
 
 						Usage->ChannelUsage[ChanIdx] = this;
 
@@ -6581,8 +6582,8 @@ void ULandscapeComponent::ReallocateWeightmapsInternal(FLandscapeEditDataInterfa
 
 				// Assign the new allocation
 				CurrentWeightmapUsage->ChannelUsage[ChanIdx] = this;
-				AllocInfo.WeightmapTextureIndex = NewWeightmapTextures.Num() - 1;
-				AllocInfo.WeightmapTextureChannel = ChanIdx;
+				AllocInfo.WeightmapTextureIndex = IntCastChecked<uint8>(NewWeightmapTextures.Num() - 1);
+				AllocInfo.WeightmapTextureChannel = IntCastChecked<uint8>(ChanIdx);
 				CurrentLayer++;
 				TotalNeededChannels--;
 			}
@@ -7009,11 +7010,11 @@ void ULandscapeComponent::GenerateMobilePlatformPixelData(bool bIsCooking, const
 					MobileWeightmapTextures.Add(CurrentWeightmapTexture);
 				}
 
-				CopyRequests.AddWeightmapCopy(CurrentWeightmapTexture, CurrentChannel, this, Allocation.LayerInfo);
+				CopyRequests.AddWeightmapCopy(CurrentWeightmapTexture, IntCastChecked<int8>(CurrentChannel), this, Allocation.LayerInfo);
 
 				// update Allocation
-				Allocation.WeightmapTextureIndex = MobileWeightmapTextures.Num() - 1;
-				Allocation.WeightmapTextureChannel = CurrentChannel;
+				Allocation.WeightmapTextureIndex = IntCastChecked<uint8>(MobileWeightmapTextures.Num() - 1);
+				Allocation.WeightmapTextureChannel = IntCastChecked<uint8>(CurrentChannel);
 				CurrentChannel++;
 				RemainingChannels--;
 			}
@@ -7084,9 +7085,9 @@ void ULandscapeComponent::GenerateMobilePlatformPixelData(bool bIsCooking, const
 
 		if (MaterialPerLOD.Num() == 0)
 		{
-			int32 MaxLOD = FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1;
+			const int8 MaxLOD = static_cast<int8>(FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1);
 
-			for (int32 LODIndex = 0; LODIndex <= MaxLOD; ++LODIndex)
+			for (int8 LODIndex = 0; LODIndex <= MaxLOD; ++LODIndex)
 			{
 				UMaterialInterface* CurrentMaterial = GetLandscapeMaterial(LODIndex);
 
@@ -7233,11 +7234,11 @@ TArray<FLinearColor> ALandscapeProxy::SampleRTData(UTextureRenderTarget2D* InRen
 
 			FTextureRenderTargetResource* RTResource = InRenderTarget->GameThread_GetRenderTargetResource();
 
-			InRect.R = FMath::Clamp(int(InRect.R), 0, InRenderTarget->SizeX - 1);
-			InRect.G = FMath::Clamp(int(InRect.G), 0, InRenderTarget->SizeY - 1);
-			InRect.B = FMath::Clamp(int(InRect.B), int(InRect.R + 1), InRenderTarget->SizeX);
-			InRect.A = FMath::Clamp(int(InRect.A), int(InRect.G + 1), InRenderTarget->SizeY);
-			FIntRect Rect = FIntRect(InRect.R, InRect.G, InRect.B, InRect.A);
+			InRect.R = static_cast<float>(FMath::Clamp(int(InRect.R), 0, InRenderTarget->SizeX - 1));
+			InRect.G = static_cast<float>(FMath::Clamp(int(InRect.G), 0, InRenderTarget->SizeY - 1));
+			InRect.B = static_cast<float>(FMath::Clamp(int(InRect.B), int(InRect.R + 1), InRenderTarget->SizeX));
+			InRect.A = static_cast<float>(FMath::Clamp(int(InRect.A), int(InRect.G + 1), InRenderTarget->SizeY));
+			FIntRect Rect = FIntRect(static_cast<int32>(InRect.R), static_cast<int32>(InRect.G), static_cast<int32>(InRect.B), static_cast<int32>(InRect.A));
 
 			FReadSurfaceDataFlags ReadPixelFlags(RCM_MinMax);
 
@@ -7456,8 +7457,8 @@ bool ALandscapeProxy::LandscapeExportHeightmapToRenderTarget(UTextureRenderTarge
 				SubSectionSectionBase.Y += Component->SubsectionSizeQuads * SubY;
 
 				// Offset for this component's data in heightmap texture
-				float HeightmapOffsetU = Component->HeightmapScaleBias.Z + HeightmapSubsectionOffsetU * (float)SubX;
-				float HeightmapOffsetV = Component->HeightmapScaleBias.W + HeightmapSubsectionOffsetV * (float)SubY;
+				const float HeightmapOffsetU = static_cast<float>(Component->HeightmapScaleBias.Z) + HeightmapSubsectionOffsetU * SubX;
+				const float HeightmapOffsetV = static_cast<float>(Component->HeightmapScaleBias.W) + HeightmapSubsectionOffsetV * SubY;
 
 				FCanvasUVTri Tri1;
 				Tri1.V0_Pos = FVector2D(SubSectionSectionBase.X, SubSectionSectionBase.Y);
@@ -7535,7 +7536,7 @@ bool ALandscapeProxy::LandscapeImportWeightmapFromRenderTarget(UTextureRenderTar
 		{
 			const uint32 LandscapeWidth = (uint32)(1 + MaxX - MinX);
 			const uint32 LandscapeHeight = (uint32)(1 + MaxY - MinY);
-			FLinearColor SampleRect = FLinearColor(0, 0, LandscapeWidth, LandscapeHeight);
+			const FLinearColor SampleRect = FLinearColor(0.0f, 0.0f, static_cast<float>(LandscapeWidth), static_cast<float>(LandscapeHeight));
 
 			const uint32 RTWidth = InRenderTarget->SizeX;
 			const uint32 RTHeight = InRenderTarget->SizeY;

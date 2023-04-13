@@ -222,7 +222,7 @@ public:
 		{
 			if (VisibilityMap & (1 << ViewIndex))
 			{
-				const FSceneView* View = Views[ViewIndex];
+				const FSceneView* const View = Views[ViewIndex];
 				FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
 				const uint8 DepthPriority = static_cast<uint8>(GetDepthPriorityGroup(View));
 
@@ -281,8 +281,8 @@ public:
 						double ControlPointSpriteScale = MyLocalToWorld.GetScaleVector().X * ControlPoint.SpriteScale;
 						const FLinearColor ControlPointSpriteColor = ControlPoint.bSelected ? SelectedControlPointSpriteColor : FLinearColor::White;
 						PDI->SetHitProxy(ControlPoint.HitProxy);
-						const FMatrix& ProectionMatrix = View->ViewMatrices.GetProjectionMatrix();
-						const double ZoomFactor = FMath::Min<double>(ProectionMatrix.M[0][0], ProectionMatrix.M[1][1]);
+						const FMatrix& ProjectionMatrix = View->ViewMatrices.GetProjectionMatrix();
+						const double ZoomFactor = FMath::Min<double>(ProjectionMatrix.M[0][0], ProjectionMatrix.M[1][1]);
 						const double Scale = View->WorldToScreen(ControlPointLocation).W * (4.0f / View->UnscaledViewRect.Width() / ZoomFactor);
 						ControlPointSpriteScale *= Scale;
 
@@ -1758,7 +1758,7 @@ bool ULandscapeSplineControlPoint::SupportsForeignSplineMesh() const
 FName ULandscapeSplineControlPoint::GetBestConnectionTo(FVector Destination) const
 {
 	FName BestSocket = NAME_None;
-	float BestScore = -FLT_MAX;
+	double BestScore = -DBL_MAX;
 
 	if (Mesh != nullptr)
 	{
@@ -1768,8 +1768,8 @@ FName ULandscapeSplineControlPoint::GetBestConnectionTo(FVector Destination) con
 			FVector SocketLocation = SocketTransform.GetTranslation();
 			FRotator SocketRotation = SocketTransform.GetRotation().Rotator();
 
-			const float Score = static_cast<float>((Destination - Location).Size() - (Destination - SocketLocation).Size() // Score closer sockets higher
-				* FMath::Abs(FVector::DotProduct((Destination - SocketLocation), SocketRotation.Vector()))); // score closer rotation higher
+			const double Score = (Destination - Location).Size() - (Destination - SocketLocation).Size() // Score closer sockets higher
+				* FMath::Abs(FVector::DotProduct((Destination - SocketLocation), SocketRotation.Vector())); // score closer rotation higher
 
 			if (Score > BestScore)
 			{
@@ -2691,7 +2691,7 @@ void ULandscapeSplineSegment::AutoFlipTangents()
 
 static float ApproxLength(const FInterpCurveVector& SplineInfo, const float Start = 0.0f, const float End = 1.0f, const int32 ApproxSections = 4)
 {
-	float SplineLength = 0;
+	double SplineLength = 0;
 	FVector OldPos = SplineInfo.Eval(Start, FVector::ZeroVector);
 	for (int32 i = 1; i <= ApproxSections; i++)
 	{
@@ -2700,7 +2700,7 @@ static float ApproxLength(const FInterpCurveVector& SplineInfo, const float Star
 		OldPos = NewPos;
 	}
 
-	return SplineLength;
+	return static_cast<float>(SplineLength);
 }
 
 static ESplineMeshAxis::Type CrossAxis(ESplineMeshAxis::Type InForwardAxis, ESplineMeshAxis::Type InUpAxis)

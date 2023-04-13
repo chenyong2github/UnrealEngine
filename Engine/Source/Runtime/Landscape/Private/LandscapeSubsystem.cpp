@@ -407,7 +407,7 @@ void ULandscapeSubsystem::BuildNanite(TArrayView<ALandscapeProxy*> InProxiesToBu
 	// Don't keep those that are null or already up to date :
 	FinalProxiesToBuild.SetNum(Algo::RemoveIf(FinalProxiesToBuild, [bForceRebuild](ALandscapeProxy* InProxy) { return (InProxy == nullptr) || (!bForceRebuild && InProxy->IsNaniteMeshUpToDate()); }));
 
-	FScopedSlowTask SlowTask(FinalProxiesToBuild.Num(), (LOCTEXT("Landscape_BuildNanite", "Building Nanite Landscape Meshes")));
+	FScopedSlowTask SlowTask(static_cast<float>(FinalProxiesToBuild.Num()), (LOCTEXT("Landscape_BuildNanite", "Building Nanite Landscape Meshes")));
 	SlowTask.MakeDialog(/*bShowCancelButton = */true);
 
 	for (ALandscapeProxy* Proxy : FinalProxiesToBuild)

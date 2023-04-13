@@ -332,7 +332,8 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 
 				// Setup filtering
 				FCollisionFilterData QueryFilterData, SimFilterData;
-				CreateShapeFilterData(GetCollisionObjectType(), FMaskFilter(0), GetOwner()->GetUniqueID(), GetCollisionResponseToChannels(), GetUniqueID(), 0, QueryFilterData, SimFilterData, true, false, true);
+				CreateShapeFilterData(static_cast<uint8>(GetCollisionObjectType()), FMaskFilter(0), GetOwner()->GetUniqueID(), GetCollisionResponseToChannels(), 
+				GetUniqueID(), 0, QueryFilterData, SimFilterData, true, false, true);
 
 				// Heightfield is used for simple and complex collision
 				QueryFilterData.Word3 |= bCreateSimpleCollision ? EPDF_ComplexCollision : (EPDF_SimpleCollision | EPDF_ComplexCollision);
@@ -513,8 +514,8 @@ FPrimitiveSceneProxy* ULandscapeHeightfieldCollisionComponent::CreateSceneProxy(
 			Vertices.SetNumUninitialized(NumVerts);
 			for (int32 I = 0; I < NumVerts; I++)
 			{
-				Chaos::FVec3 Point = GeomData.GetPointScaled(I);
-				Vertices[I].Position = FVector3f(Point.X, Point.Y, Point.Z);
+				const Chaos::FVec3 Point = GeomData.GetPointScaled(I);
+				Vertices[I].Position = FVector3f(static_cast<float>(Point.X), static_cast<float>(Point.Y), static_cast<float>(Point.Z));
 			}
 			Indices.SetNumUninitialized(NumTris * 3);
 
@@ -615,7 +616,7 @@ FPrimitiveSceneProxy* ULandscapeHeightfieldCollisionComponent::CreateSceneProxy(
 		}
 
 		virtual uint32 GetMemoryFootprint(void) const override { return(sizeof(*this) + GetAllocatedSize()); }
-		uint32 GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
+		uint32 GetAllocatedSize(void) const { return static_cast<uint32>(FPrimitiveSceneProxy::GetAllocatedSize()); }
 
 	private:
 		TArray<FDynamicMeshVertex> Vertices;
@@ -978,7 +979,7 @@ bool ULandscapeHeightfieldCollisionComponent::WriteRuntimeData(const FWriteRunti
 							MaterialIndex = InOutMaterials.AddUnique(DominantMaterial);
 						}
 					}
-					MaterialIndices.Add(MaterialIndex);
+					MaterialIndices.Add(IntCastChecked<uint8>(MaterialIndex));
 				}
 			}
 		}
@@ -1296,7 +1297,7 @@ bool ULandscapeMeshCollisionComponent::CookCollisionData(const FName& Format, bo
 
 			if (DominantLayers)
 			{
-				MaterialIndices[TriangleIdx] = MaterialIndex;
+				MaterialIndices[TriangleIdx] = static_cast<uint16>(MaterialIndex);
 			}
 			TriangleIdx++;
 
@@ -1316,7 +1317,7 @@ bool ULandscapeMeshCollisionComponent::CookCollisionData(const FName& Format, bo
 
 			if (DominantLayers)
 			{
-				MaterialIndices[TriangleIdx] = MaterialIndex;
+				MaterialIndices[TriangleIdx] = static_cast<uint16>(MaterialIndex);
 			}
 			TriangleIdx++;
 		}
@@ -1650,7 +1651,7 @@ void ULandscapeMeshCollisionComponent::OnCreatePhysicsState()
 			{
 				// Setup filtering
 				FCollisionFilterData QueryFilterData, SimFilterData;
-				CreateShapeFilterData(GetCollisionObjectType(), FMaskFilter(0), GetOwner()->GetUniqueID(), GetCollisionResponseToChannels(), GetUniqueID(), 0, QueryFilterData, SimFilterData, false, false, true);
+				CreateShapeFilterData(static_cast<uint8>(GetCollisionObjectType()), FMaskFilter(0), GetOwner()->GetUniqueID(), GetCollisionResponseToChannels(), GetUniqueID(), 0, QueryFilterData, SimFilterData, false, false, true);
 				QueryFilterData.Word3 |= (EPDF_SimpleCollision | EPDF_ComplexCollision);
 				SimFilterData.Word3 |= (EPDF_SimpleCollision | EPDF_ComplexCollision);
 
@@ -1708,19 +1709,19 @@ uint32 ULandscapeHeightfieldCollisionComponent::ComputeCollisionHash() const
 	Hash = HashCombine(GetTypeHash(CollisionSizeQuads), Hash);
 	Hash = HashCombine(GetTypeHash(CollisionScale), Hash);
 
-	FTransform ComponentTransform = GetComponentToWorld();
+	const FTransform ComponentTransform = GetComponentToWorld();
 	Hash = FCrc::MemCrc32(&ComponentTransform, sizeof(ComponentTransform), Hash);
 
 	const void* HeightBuffer = CollisionHeightData.LockReadOnly();
-	Hash = FCrc::MemCrc32(HeightBuffer, CollisionHeightData.GetBulkDataSize(), Hash);
+	Hash = FCrc::MemCrc32(HeightBuffer, static_cast<int32>(CollisionHeightData.GetBulkDataSize()), Hash);
 	CollisionHeightData.Unlock();
 
 	const void* DominantBuffer = DominantLayerData.LockReadOnly();
-	Hash = FCrc::MemCrc32(DominantBuffer, DominantLayerData.GetBulkDataSize(), Hash);
+	Hash = FCrc::MemCrc32(DominantBuffer, static_cast<int32>(DominantLayerData.GetBulkDataSize()), Hash);
 	DominantLayerData.Unlock();
 
 	const void* PhysicalMaterialBuffer = PhysicalMaterialRenderData.LockReadOnly();
-	Hash = FCrc::MemCrc32(PhysicalMaterialBuffer, PhysicalMaterialRenderData.GetBulkDataSize(), Hash);
+	Hash = FCrc::MemCrc32(PhysicalMaterialBuffer, static_cast<int32>(PhysicalMaterialRenderData.GetBulkDataSize()), Hash);
 	PhysicalMaterialRenderData.Unlock();
 
 	return Hash;
@@ -1910,8 +1911,8 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 			const auto* InstanceSet = MeshInfo.ComponentHash.Find(BaseId);
 			if (InstanceSet)
 			{
-				float TraceExtentSize = Bounds.SphereRadius * 2.f + 10.f; // extend a little
-				FVector TraceVector = GetOwner()->GetRootComponent()->GetComponentTransform().GetUnitAxis(EAxis::Z) * TraceExtentSize;
+				const float TraceExtentSize = static_cast<float>(Bounds.SphereRadius) * 2.f + 10.f; // extend a little
+				const FVector TraceVector = GetOwner()->GetRootComponent()->GetComponentTransform().GetUnitAxis(EAxis::Z) * TraceExtentSize;
 
 				TArray<int32> InstancesToRemove;
 				TSet<UHierarchicalInstancedStaticMeshComponent*> AffectedFoliageComponents;
@@ -2213,7 +2214,7 @@ void ULandscapeHeightfieldCollisionComponent::PrepareGeometryExportSync()
 				CachedHeightFieldSamples.Heights.SetNumUninitialized(HeightsCount);
 				for(int32 Index = 0; Index < HeightsCount; ++Index)
 				{
-					CachedHeightFieldSamples.Heights[Index] = HeightfieldRef->Heightfield->GetHeight(Index);
+					CachedHeightFieldSamples.Heights[Index] = static_cast<int16>(HeightfieldRef->Heightfield->GetHeight(Index));
 				}
 
 				const int32 HolesCount = (HeightfieldRowsCount-1) * (HeightfieldColumnsCount-1);
@@ -2534,12 +2535,12 @@ void ULandscapeHeightfieldCollisionComponent::ExportCustomProperties(FOutputDevi
 	CollisionHeightData.Unlock();
 	Out.Logf(TEXT("\r\n"));
 
-	int32 NumDominantLayerSamples = DominantLayerData.GetElementCount();
+	const int32 NumDominantLayerSamples = static_cast<int32>(DominantLayerData.GetElementCount());
 	check(NumDominantLayerSamples == 0 || NumDominantLayerSamples == NumHeights);
 
 	if (NumDominantLayerSamples > 0)
 	{
-		uint8* DominantLayerSamples = (uint8*)DominantLayerData.Lock(LOCK_READ_ONLY);
+		const uint8* DominantLayerSamples = (uint8*)DominantLayerData.Lock(LOCK_READ_ONLY);
 
 		Out.Logf(TEXT("%sCustomProperties DominantLayerData "), FCString::Spc(Indent));
 		for (int32 i = 0; i < NumDominantLayerSamples; i++)
@@ -2570,7 +2571,7 @@ void ULandscapeHeightfieldCollisionComponent::ImportCustomProperties(const TCHAR
 		{
 			if (i < NumHeights)
 			{
-				Heights[i++] = FCString::Atoi(SourceText);
+				Heights[i++] = static_cast<uint16>(FCString::Atoi(SourceText));
 				while (FChar::IsDigit(*SourceText))
 				{
 					SourceText++;
@@ -2601,7 +2602,7 @@ void ULandscapeHeightfieldCollisionComponent::ImportCustomProperties(const TCHAR
 		{
 			if (i < NumDominantLayerSamples)
 			{
-				DominantLayerSamples[i++] = FParse::HexDigit(SourceText[0]) * 16 + FParse::HexDigit(SourceText[1]);
+				DominantLayerSamples[i++] = static_cast<uint8>(FParse::HexDigit(SourceText[0]) * 16 + FParse::HexDigit(SourceText[1]));
 			}
 			SourceText += 2;
 		}
@@ -2656,7 +2657,7 @@ void ULandscapeMeshCollisionComponent::ImportCustomProperties(const TCHAR* Sourc
 		{
 			if (i < NumHeights)
 			{
-				Heights[i++] = FCString::Atoi(SourceText);
+				Heights[i++] = static_cast<uint16>(FCString::Atoi(SourceText));
 				while (FChar::IsDigit(*SourceText))
 				{
 					SourceText++;
@@ -2687,7 +2688,7 @@ void ULandscapeMeshCollisionComponent::ImportCustomProperties(const TCHAR* Sourc
 		{
 			if (i < NumDominantLayerSamples)
 			{
-				DominantLayerSamples[i++] = FParse::HexDigit(SourceText[0]) * 16 + FParse::HexDigit(SourceText[1]);
+				DominantLayerSamples[i++] = static_cast<uint8>(FParse::HexDigit(SourceText[0]) * 16 + FParse::HexDigit(SourceText[1]));
 			}
 			SourceText += 2;
 		}
@@ -2713,7 +2714,7 @@ void ULandscapeMeshCollisionComponent::ImportCustomProperties(const TCHAR* Sourc
 		{
 			if (i < NumOffsets)
 			{
-				Offsets[i++] = FCString::Atoi(SourceText);
+				Offsets[i++] = static_cast<uint16>(FCString::Atoi(SourceText));
 				while (FChar::IsDigit(*SourceText))
 				{
 					SourceText++;
@@ -2790,7 +2791,7 @@ ULandscapeComponent* ULandscapeHeightfieldCollisionComponent::GetRenderComponent
 TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, float Y, EHeightfieldSource HeightFieldSource)
 {
 	TOptional<float> Height;
-	const float ZScale = GetComponentTransform().GetScale3D().Z * LANDSCAPE_ZSCALE;
+	const float ZScale = static_cast<float>(GetComponentTransform().GetScale3D().Z * LANDSCAPE_ZSCALE); // TODO michael.balzer: Is it okay that ZScale is not used in this function?
 
 	if (!IsValidRef(HeightfieldRef))
 	{
@@ -2818,7 +2819,7 @@ TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, flo
 	
 	if (HeightField)
 	{
-		Height = HeightField->GetHeightAt({ X, Y });
+		Height = static_cast<float>(HeightField->GetHeightAt({ X, Y }));
 	}
 
 	return Height;
@@ -2835,7 +2836,7 @@ struct FHeightFieldAccessor
 
 	float GetUnscaledHeight(int32 X, int32 Y) const
 	{
-		return GeometryRef.Heightfield->GetHeight(X, Y);
+		return static_cast<float>(GeometryRef.Heightfield->GetHeight(X, Y));
 	}
 
 	uint8 GetMaterialIndex(int32 X, int32 Y) const
@@ -2864,7 +2865,7 @@ bool ULandscapeHeightfieldCollisionComponent::FillHeightTile(TArrayView<float> H
 	}
 
 	const FTransform& WorldTransform = GetComponentToWorld();
-	const float ZScale = WorldTransform.GetScale3D().Z * LANDSCAPE_ZSCALE;
+	const float ZScale = static_cast<float>(WorldTransform.GetScale3D().Z * LANDSCAPE_ZSCALE);
 
 	// Write all values to output array
 	for (int32 y = 0; y < Accessor.NumY; ++y)
@@ -2872,7 +2873,7 @@ bool ULandscapeHeightfieldCollisionComponent::FillHeightTile(TArrayView<float> H
 		for (int32 x = 0; x < Accessor.NumX; ++x)
 		{
 			const float CurrHeight = Accessor.GetUnscaledHeight(x, y);
-			const float WorldHeight = WorldTransform.TransformPositionNoScale(FVector(0, 0, CurrHeight * ZScale)).Z;
+			const float WorldHeight = static_cast<float>(WorldTransform.TransformPositionNoScale(FVector(0, 0, CurrHeight * ZScale)).Z);
 
 			// write output
 			const int32 WriteIndex = Offset + y * Stride + x;
@@ -2943,15 +2944,15 @@ TOptional<float> ALandscapeProxy::GetHeightAtLocation(FVector Location, EHeightf
 	if (ULandscapeInfo* Info = GetLandscapeInfo())
 	{
 		const FVector ActorSpaceLocation = LandscapeActorToWorld().InverseTransformPosition(Location);
-		const FIntPoint Key = FIntPoint(FMath::FloorToInt(ActorSpaceLocation.X / ComponentSizeQuads), FMath::FloorToInt(ActorSpaceLocation.Y / ComponentSizeQuads));
+		const FIntPoint Key = FIntPoint(FMath::FloorToInt32(ActorSpaceLocation.X / ComponentSizeQuads), FMath::FloorToInt32(ActorSpaceLocation.Y / ComponentSizeQuads));
 		ULandscapeHeightfieldCollisionComponent* Component = Info->XYtoCollisionComponentMap.FindRef(Key);
 		if (Component)
 		{
 			const FVector ComponentSpaceLocation = Component->GetComponentToWorld().InverseTransformPosition(Location);
-			const TOptional<float> LocalHeight = Component->GetHeight(ComponentSpaceLocation.X, ComponentSpaceLocation.Y, HeightFieldSource);
+			const TOptional<float> LocalHeight = Component->GetHeight(static_cast<float>(ComponentSpaceLocation.X), static_cast<float>(ComponentSpaceLocation.Y), HeightFieldSource);
 			if (LocalHeight.IsSet())
 			{
-				Height = Component->GetComponentToWorld().TransformPositionNoScale(FVector(0, 0, LocalHeight.GetValue())).Z;
+				Height = static_cast<float>(Component->GetComponentToWorld().TransformPositionNoScale(FVector(0, 0, LocalHeight.GetValue())).Z);
 			}
 		}
 	}
@@ -3029,15 +3030,15 @@ void ALandscapeProxy::GetHeightValues(int32& SizeX, int32& SizeY, TArray<float> 
 		const int32 NumY = HeightFieldData->GetNumRows();
 
 		const FTransform& ComponentToWorld = CollisionComponent->GetComponentToWorld();
-		const float ZScale = ComponentToWorld.GetScale3D().Z * LANDSCAPE_ZSCALE;
+		const float ZScale = static_cast<float>(ComponentToWorld.GetScale3D().Z * LANDSCAPE_ZSCALE);
 
 		// Write all values to output array
 		for (int32 x = 0; x < NumX; ++x)
 		{
 			for (int32 y = 0; y < NumY; ++y)
 			{
-				const float CurrHeight = HeightFieldData->GetHeight(x, y) * ZScale;				
-				const float WorldHeight = ComponentToWorld.TransformPositionNoScale(FVector(0, 0, CurrHeight)).Z;
+				const float CurrHeight = static_cast<float>(HeightFieldData->GetHeight(x, y) * ZScale);				
+				const float WorldHeight = static_cast<float>(ComponentToWorld.TransformPositionNoScale(FVector(0, 0, CurrHeight)).Z);
 				
 				// write output
 				const int32 WriteX = BaseX + x;
