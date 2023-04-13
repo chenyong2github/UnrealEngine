@@ -1176,6 +1176,16 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Network)
 	int32 ReplicationAbandonAfterLevel;
 
+	/**
+	* If replicating - the maximum level where clusters will have their position and velocity send over to the client for tracking and correcting
+	* When breaking, client will only receive the initial break velocity
+	* This helps save bandwidth where only the destruction state of the GC is to be replicated but the falling pieces do not need to be tracked precisely
+	* @note This will have an effect only if set to a value less than ReplicationAbandonAfterLevel
+	* @see ReplicationAbandonAfterLevel
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Network)
+	int32 ReplicationMaxPositionAndVelocityCorrectionLevel;
+
 	UPROPERTY(ReplicatedUsing=OnRep_RepData)
 	FGeometryCollectionRepData RepData;
 

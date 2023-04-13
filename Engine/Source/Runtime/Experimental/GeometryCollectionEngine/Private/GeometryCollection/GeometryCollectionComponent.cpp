@@ -336,6 +336,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	, AbandonedCollisionProfileName(UCollisionProfile::CustomCollisionProfileName)
 	, ReplicationAbandonClusterLevel_DEPRECATED(0)
 	, ReplicationAbandonAfterLevel(0)
+	, ReplicationMaxPositionAndVelocityCorrectionLevel(100)
 	, bRenderStateDirty(true)
 	, bEnableBoneSelection(false)
 	, ViewLevel(-1)
@@ -1633,8 +1634,11 @@ void UGeometryCollectionComponent::UpdateRepData()
 					if (!bEnableAbandonAfterLevel || Level <= ReplicationAbandonAfterLevel)
 					{
 						// not already replicated and not abandoned level, start replicating cluster
-						ClustersToRep->Add(Root);
-						bClustersChanged = true;
+						if (Level <= ReplicationMaxPositionAndVelocityCorrectionLevel)
+						{
+							ClustersToRep->Add(Root);
+							bClustersChanged = true;
+						}
 					}
 
 					if(Root->InternalCluster() == false && Level > 0)
