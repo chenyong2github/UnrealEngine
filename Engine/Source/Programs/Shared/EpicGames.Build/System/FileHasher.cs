@@ -2,6 +2,7 @@
 
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -123,6 +124,18 @@ namespace UnrealBuildBase
 		}
 
 		/// <summary>
+		/// In systems where the IoHash is already available, this allows it to be updated directly and
+		/// not recomputed.
+		/// </summary>
+		/// <param name="item">The updated file item information</param>
+		/// <param name="hash">The updated hash</param>
+		public void SetDigest(FileItem item, IoHash hash)
+		{
+			CachedDigest digest = new CachedDigest(item, hash);
+			CachedDigests.AddOrUpdate(item.FullName, digest, (key, oldValue) => digest);
+		}
+
+		/// <summary>
 		/// Get the IoHash digest of a file's contents.
 		/// </summary>
 		/// <param name="location">The FileReference to digest</param>
@@ -137,7 +150,7 @@ namespace UnrealBuildBase
 		static async Task<CachedDigest> ComputeDigest(FileItem item, ILogger? logger, CancellationToken CancellationToken = default)
 		{
 			using FileStream stream = FileReference.Open(item.Location, FileMode.Open, FileAccess.Read, FileShare.Read);
-			CachedDigest digest = new CachedDigest(item, await IoHash.ComputeAsync(stream, CancellationToken));
+			CachedDigest digest = new CachedDigest(item, await IoHash.ComputeAsync(stream, item.Length, CancellationToken));
 			logger?.LogDebug("Computed IoHash {Digest} File {Location} Size {Size} LastWrite {LastWrite}", digest.Digest, item.FullName, item.Length, item.LastWriteTimeUtc);
 			return digest;
 		}

@@ -127,16 +127,28 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="stream">Data to compute the hash for</param>
 		/// <returns>New content hash instance containing the hash of the data</returns>
-		public static async Task<IoHash> ComputeAsync(Stream stream, CancellationToken cancellationToken = default)
+		public static async Task<IoHash> ComputeAsync(Stream stream, CancellationToken cancellationToken = default) => await ComputeAsync(stream, -1, cancellationToken);
+
+		/// <summary>
+		/// Creates the IoHash for a stream asynchronously. 
+		/// </summary>
+		/// <param name="stream">Data to compute the hash for</param>
+		/// <param name="fileSizeHint">If available, the file size so an appropriate buffer size can be used</param>
+		/// <param name="cancellationToken">Cancellation token used to terminate processing</param>
+		/// <returns>New content hash instance containing the hash of the data</returns>
+		public static async Task<IoHash> ComputeAsync(Stream stream, long fileSizeHint, CancellationToken cancellationToken = default)
 		{
+			const int MaxBufferSize = 1 * 1024 * 1024;
+			const int MinBufferSize = 16 * 1024;
 			using (Blake3.Hasher hasher = Blake3.Hasher.New())
 			{
-				Memory<byte> buffer = new byte[16384];
-				int length;
-				while ((length = await stream.ReadAsync(buffer, cancellationToken)) > 0)
+				Task Callback(ReadOnlyMemory<byte> data)
 				{
-					hasher.Update(buffer.Slice(0, length).Span);
+					hasher.Update(data.Span);
+					return Task.CompletedTask;
 				}
+
+				await stream.ReadAllBytesAsync(fileSizeHint, MinBufferSize, MaxBufferSize, Callback, cancellationToken);
 				return FromBlake3(hasher);
 			}
 		}
