@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "LearningAgentsDebug.h"
 
 namespace UE::Learning::Agents::Debug
