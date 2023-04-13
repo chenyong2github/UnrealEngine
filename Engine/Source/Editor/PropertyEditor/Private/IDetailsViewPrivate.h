@@ -167,4 +167,7 @@ public:
 
 	/** Set the given group's favorite status. */
 	virtual void SetCustomBuilderFavorite(FStringView GroupPath, bool IsFavorite) = 0;
+	
+	/** Retrieve a list of top-most detail tree nodes. */
+	virtual void GetHeadNodes(TArray<TWeakPtr<FDetailTreeNode>>& OutNodes) {}
 };

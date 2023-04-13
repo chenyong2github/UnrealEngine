@@ -329,6 +329,19 @@ void SDetailsViewBase::HighlightProperty(const FPropertyPath& Property)
 	CurrentlyHighlightedNode = TreeNode;
 }
 
+bool SDetailsViewBase::IsAncestorCollapsed(const TSharedRef<IDetailTreeNode>& Node) const
+{
+	// in order for a node to be expanded, all it's parents have to be expanded
+	bool bIsCollapsed = false;
+	TSharedPtr<FDetailTreeNode> Ancestor = StaticCastSharedRef<FDetailTreeNode>(Node)->GetParentNode().Pin();
+	while (!bIsCollapsed && Ancestor)
+	{
+		bIsCollapsed = !DetailTree->IsItemExpanded(Ancestor.ToSharedRef());
+		Ancestor = Ancestor->GetParentNode().Pin();
+	}
+	return bIsCollapsed;
+}
+
 void SDetailsViewBase::ShowAllAdvancedProperties()
 {
 	CurrentFilter.bShowAllAdvanced = true;
@@ -337,6 +350,14 @@ void SDetailsViewBase::ShowAllAdvancedProperties()
 void SDetailsViewBase::SetOnDisplayedPropertiesChanged(FOnDisplayedPropertiesChanged InOnDisplayedPropertiesChangedDelegate)
 {
 	OnDisplayedPropertiesChangedDelegate = InOnDisplayedPropertiesChangedDelegate;
+}
+
+void SDetailsViewBase::GetHeadNodes(TArray<TWeakPtr<FDetailTreeNode>>& OutNodes)
+{
+	for (TSharedRef<FDetailTreeNode>& Node : RootTreeNodes)
+	{
+		OutNodes.Add(Node.ToWeakPtr());
+	}
 }
 
 void SDetailsViewBase::SetRightColumnMinWidth(float InMinWidth)
