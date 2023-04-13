@@ -467,6 +467,12 @@ void UStreamableSparseVolumeTexture::GetResourceSizeEx(FResourceSizeEx& Cumulati
 
 const FSparseVolumeTextureSceneProxy* UStreamableSparseVolumeTexture::GetStreamedFrameProxyOrFallback(int32 FrameIndex, int32 MipLevel) const
 {
+	if (Frames.IsEmpty())
+	{
+		UE_LOG(LogSparseVolumeTexture, Warning, TEXT("SVT is empty and has no frames at all! SVT: %s"), *GetName());
+		return nullptr;
+	}
+	FrameIndex = FMath::Clamp(FrameIndex, 0, Frames.Num() - 1);
 	ISparseVolumeTextureStreamingManager& StreamingManager = IStreamingManager::Get().GetSparseVolumeTextureStreamingManager();
 	const FSparseVolumeTextureSceneProxy* Proxy = StreamingManager.GetSparseVolumeTextureSceneProxy(this, FrameIndex, MipLevel, true);
 
@@ -754,14 +760,9 @@ void UAnimatedSparseVolumeTextureController::Stop()
 	}
 }
 
-bool UAnimatedSparseVolumeTextureController::IsPlaying()
-{
-	return bIsPlaying;
-}
-
 void UAnimatedSparseVolumeTextureController::Update(float DeltaTime)
 {
-	if (!SparseVolumeTexture || !bIsPlaying)
+	if (!IsValid(SparseVolumeTexture) || !bIsPlaying)
 	{
 		return;
 	}
@@ -771,49 +772,9 @@ void UAnimatedSparseVolumeTextureController::Update(float DeltaTime)
 	Time = FMath::Fmod(Time + DeltaTime, AnimationDuration + UE_SMALL_NUMBER);
 }
 
-void UAnimatedSparseVolumeTextureController::SetSparseVolumeTexture(USparseVolumeTexture* Texture)
-{
-	if (Texture == SparseVolumeTexture)
-	{
-		return;
-	}
-
-	SparseVolumeTexture = Texture;
-	bIsPlaying = bIsPlaying && (SparseVolumeTexture != nullptr);
-	Time = 0.0f;
-}
-
-void UAnimatedSparseVolumeTextureController::SetTime(float InTime)
-{
-	const float AnimationDuration = GetDuration();
-	Time = FMath::Fmod(InTime, AnimationDuration + UE_SMALL_NUMBER);
-}
-
-void UAnimatedSparseVolumeTextureController::SetFractionalFrameIndex(float Frame)
-{
-	if (!SparseVolumeTexture)
-	{
-		return;
-	}
-
-	const int32 FrameCount = SparseVolumeTexture->GetNumFrames();
-	Frame = FMath::Fmod(Frame, (float)FrameCount);
-	Time = Frame / (FrameRate + UE_SMALL_NUMBER);
-}
-
-USparseVolumeTexture* UAnimatedSparseVolumeTextureController::GetSparseVolumeTexture()
-{
-	return SparseVolumeTexture;
-}
-
-float UAnimatedSparseVolumeTextureController::GetTime()
-{
-	return Time;
-}
-
 float UAnimatedSparseVolumeTextureController::GetFractionalFrameIndex()
 {
-	if (!SparseVolumeTexture)
+	if (!IsValid(SparseVolumeTexture))
 	{
 		return 0.0f;
 	}
@@ -823,9 +784,22 @@ float UAnimatedSparseVolumeTextureController::GetFractionalFrameIndex()
 	return FrameIndexF;
 }
 
+USparseVolumeTextureFrame* UAnimatedSparseVolumeTextureController::GetFrameByIndex(int32 FrameIndex)
+{
+	if (!IsValid(SparseVolumeTexture))
+	{
+		return nullptr;
+	}
+
+	// Create and initialize a USparseVolumeTextureFrame which holds the frame to sample and can be bound to shaders
+	USparseVolumeTextureFrame* Frame = USparseVolumeTextureFrame::CreateFrame(SparseVolumeTexture, FrameIndex, MipLevel);
+
+	return Frame;
+}
+
 USparseVolumeTextureFrame* UAnimatedSparseVolumeTextureController::GetCurrentFrame()
 {
-	if (!SparseVolumeTexture)
+	if (!IsValid(SparseVolumeTexture))
 	{
 		return nullptr;
 	}
@@ -840,9 +814,9 @@ USparseVolumeTextureFrame* UAnimatedSparseVolumeTextureController::GetCurrentFra
 	return Frame;
 }
 
-void UAnimatedSparseVolumeTextureController::GetLerpFrames(USparseVolumeTextureFrame*& Frame0, USparseVolumeTextureFrame*& Frame1, float& LerpAlpha)
+void UAnimatedSparseVolumeTextureController::GetCurrentFramesForInterpolation(USparseVolumeTextureFrame*& Frame0, USparseVolumeTextureFrame*& Frame1, float& LerpAlpha)
 {
-	if (!SparseVolumeTexture)
+	if (!IsValid(SparseVolumeTexture))
 	{
 		return;
 	}
@@ -859,7 +833,7 @@ void UAnimatedSparseVolumeTextureController::GetLerpFrames(USparseVolumeTextureF
 
 float UAnimatedSparseVolumeTextureController::GetDuration()
 {
-	if (!SparseVolumeTexture)
+	if (!IsValid(SparseVolumeTexture))
 	{
 		return 0.0f;
 	}

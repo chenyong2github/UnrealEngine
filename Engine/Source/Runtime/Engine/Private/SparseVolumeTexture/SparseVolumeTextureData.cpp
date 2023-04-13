@@ -626,9 +626,11 @@ bool FSparseVolumeTextureData::DeduplicateTiles()
 		}
 	}
 
+#if 0 // Disabled in order to not spam the log when importing long sequences
 	const int32 NumRemovedTiles = NumProcessedTiles - NumSurvivingTiles;
 	const float RemovedTilesPercentage = ((float)NumRemovedTiles / (float)NumProcessedTiles) * 100.0f;
 	UE_LOG(LogSparseVolumeTextureData, Display, TEXT("SparseVolumeTexture tile deduplication removed %i tiles out of %i (%f%%)"), NumRemovedTiles, NumProcessedTiles, RemovedTilesPercentage);
+#endif
 
 	return true;
 }

@@ -273,6 +273,15 @@ class ENGINE_API UAnimatedSparseVolumeTextureController : public UObject
 public:
 
 	UPROPERTY(BlueprintReadWrite, Category = "Animation")
+	TObjectPtr<USparseVolumeTexture> SparseVolumeTexture;
+	
+	UPROPERTY(BlueprintReadWrite, Category = "Animation")
+	float Time;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Animation")
+	bool bIsPlaying;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Animation")
 	float FrameRate = 24.0f;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Rendering")
@@ -291,40 +300,20 @@ public:
 	void Stop();
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	bool IsPlaying();
-
-	UFUNCTION(BlueprintCallable, Category = "Animation")
 	void Update(float DeltaTime);
-
-	UFUNCTION(BlueprintCallable, Category = "Animation")
-	void SetSparseVolumeTexture(USparseVolumeTexture* Texture);
-
-	UFUNCTION(BlueprintCallable, Category = "Animation")
-	void SetTime(float Time);
-
-	UFUNCTION(BlueprintCallable, Category = "Animation")
-	void SetFractionalFrameIndex(float Frame);
-
-	UFUNCTION(BlueprintCallable, Category = "Animation")
-	USparseVolumeTexture* GetSparseVolumeTexture();
-
-	UFUNCTION(BlueprintCallable, Category = "Animation")
-	float GetTime();
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
 	float GetFractionalFrameIndex();
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
+	USparseVolumeTextureFrame* GetFrameByIndex(int32 FrameIndex);
+
+	UFUNCTION(BlueprintCallable, Category = "Animation")
 	USparseVolumeTextureFrame* GetCurrentFrame();
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
-	void GetLerpFrames(USparseVolumeTextureFrame*& Frame0, USparseVolumeTextureFrame*& Frame1, float& LerpAlpha);
+	void GetCurrentFramesForInterpolation(USparseVolumeTextureFrame*& Frame0, USparseVolumeTextureFrame*& Frame1, float& LerpAlpha);
 
 	UFUNCTION(BlueprintCallable, Category = "Animation")
 	float GetDuration();
-
-private:
-	TObjectPtr<USparseVolumeTexture> SparseVolumeTexture;
-	float Time;
-	bool bIsPlaying;
 };
