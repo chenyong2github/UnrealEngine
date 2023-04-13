@@ -112,11 +112,11 @@ ULevelStreamingLevelInstanceEditor* ULevelStreamingLevelInstanceEditor::Load(ILe
 		if (ULevel* LoadedLevel = LevelStreaming->GetLoadedLevel())
 		{
 			LoadedLevel->OnLoadedActorAddedToLevelEvent.AddUObject(LevelStreaming, &ULevelStreamingLevelInstanceEditor::OnLoadedActorAddedToLevel);
+		
+			// Create special actor that will handle changing the pivot of this level
+			FLevelInstanceEditorPivotHelper::Create(LevelInstance, LevelStreaming);
 		}
-
-		// Create special actor that will handle changing the pivot of this level
-		FLevelInstanceEditorPivotHelper::Create(LevelInstance, LevelStreaming);
-
+				
 		return LevelStreaming;
 	}
 
