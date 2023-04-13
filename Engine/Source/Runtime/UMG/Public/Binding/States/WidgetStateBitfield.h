@@ -77,22 +77,22 @@ public:
 	 */
 
 	/** True if any state flag is met */
-	bool HasAnyFlags(const FWidgetStateBitfield& InBitfield);
+	bool HasAnyFlags(const FWidgetStateBitfield& InBitfield) const;
 
 	/** True if all state flags are met */
-	bool HasAllFlags(const FWidgetStateBitfield& InBitfield);
+	bool HasAllFlags(const FWidgetStateBitfield& InBitfield) const;
 
 	/** True if any binary state flag is met */
-	bool HasAnyBinaryFlags(const FWidgetStateBitfield& InBitfield);
+	bool HasAnyBinaryFlags(const FWidgetStateBitfield& InBitfield) const;
 
 	/** True if all binary state flags are met */
-	bool HasAllBinaryFlags(const FWidgetStateBitfield& InBitfield);
+	bool HasAllBinaryFlags(const FWidgetStateBitfield& InBitfield) const;
 
 	/** True if any enum state flag is met */
-	bool HasAnyEnumFlags(const FWidgetStateBitfield& InBitfield);
+	bool HasAnyEnumFlags(const FWidgetStateBitfield& InBitfield) const;
 
 	/** True if all enum state flags are met */
-	bool HasAllEnumFlags(const FWidgetStateBitfield& InBitfield);
+	bool HasAllEnumFlags(const FWidgetStateBitfield& InBitfield) const;
 
 public:
 

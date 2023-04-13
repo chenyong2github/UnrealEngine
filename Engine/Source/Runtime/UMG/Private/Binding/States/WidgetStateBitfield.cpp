@@ -164,27 +164,27 @@ bool FWidgetStateBitfield::HasEmptyUsedEnumStates() const
 	return false;
 }
 
-bool FWidgetStateBitfield::HasAnyFlags(const FWidgetStateBitfield& InBitfield)
+bool FWidgetStateBitfield::HasAnyFlags(const FWidgetStateBitfield& InBitfield) const
 {
 	return HasAnyBinaryFlags(InBitfield) || HasAnyEnumFlags(InBitfield);
 }
 
-bool FWidgetStateBitfield::HasAllFlags(const FWidgetStateBitfield& InBitfield)
+bool FWidgetStateBitfield::HasAllFlags(const FWidgetStateBitfield& InBitfield) const
 {
 	return HasAllBinaryFlags(InBitfield) && HasAllEnumFlags(InBitfield);
 }
 
-bool FWidgetStateBitfield::HasAnyBinaryFlags(const FWidgetStateBitfield& InBitfield)
+bool FWidgetStateBitfield::HasAnyBinaryFlags(const FWidgetStateBitfield& InBitfield) const
 {
 	return (BinaryStates & InBitfield.BinaryStates) != 0;
 }
 
-bool FWidgetStateBitfield::HasAllBinaryFlags(const FWidgetStateBitfield& InBitfield)
+bool FWidgetStateBitfield::HasAllBinaryFlags(const FWidgetStateBitfield& InBitfield) const
 {
 	return (BinaryStates & InBitfield.BinaryStates) == InBitfield.BinaryStates;
 }
 
-bool FWidgetStateBitfield::HasAnyEnumFlags(const FWidgetStateBitfield& InBitfield)
+bool FWidgetStateBitfield::HasAnyEnumFlags(const FWidgetStateBitfield& InBitfield) const
 {
 	const uint16 IsEnumStateShared = IsEnumStateUsed & InBitfield.IsEnumStateUsed;
 
@@ -204,7 +204,7 @@ bool FWidgetStateBitfield::HasAnyEnumFlags(const FWidgetStateBitfield& InBitfiel
 	return false;
 }
 
-bool FWidgetStateBitfield::HasAllEnumFlags(const FWidgetStateBitfield& InBitfield)
+bool FWidgetStateBitfield::HasAllEnumFlags(const FWidgetStateBitfield& InBitfield) const
 {
 	const uint16 IsEnumStateShared = IsEnumStateUsed & InBitfield.IsEnumStateUsed;
 
