@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IOptimusNodeGraphCollectionOwner.h"
+#include "IOptimusNodeAdderPinProvider.h"
 #include "OptimusCoreNotify.h"
 #include "OptimusDataType.h"
 
@@ -297,12 +298,12 @@ public:
 	/// Add a new pin to the target node with the type of source pin
 	/// and connect the source pin to the new pin
 	/// @param InTargetNode The node to add the pin to, it has to have an adder pin
-	/// @param InPreferredTargetParentPin The preferred pin to add the new pin to, or null if it can be inferred from source
+	/// @param InSelectedAction The selected action that defines where the new pin should be added
 	/// @param InSourcePin The pin to create the new pin and to connect to the new pin
-	/// @return True if new pin and the new link is created.
-	bool AddPinAndLink(
-		UOptimusNode* InTargetNode,
-		UOptimusNodePin* InPreferredTargetParentPin,
+	/// @return True if a new pin is created.
+	bool ConnectAdderPin(
+		IOptimusNodeAdderPinProvider* InTargetNode,
+		const IOptimusNodeAdderPinProvider::FAdderPinAction& InSelectedAction,
 		UOptimusNodePin* InSourcePin
 		);
 

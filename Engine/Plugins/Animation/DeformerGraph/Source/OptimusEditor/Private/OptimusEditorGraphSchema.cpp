@@ -26,7 +26,7 @@
 
 #define LOCTEXT_NAMESPACE "OptimusEditor"
 
-static bool IsValidAdderPinConnection(const UEdGraphPin* InPinA, const UEdGraphPin* InPinB, 
+static bool IsValidAdderPinConnection(const UEdGraphPin* InPinA, const UEdGraphPin* InPinB, TArray<IOptimusNodeAdderPinProvider::FAdderPinAction>* OutActions = nullptr,
 	FString* OutReason = nullptr)
 {
 	const bool bIsPinAAdderPin = OptimusEditor::IsAdderPin(InPinA);
@@ -67,9 +67,14 @@ static bool IsValidAdderPinConnection(const UEdGraphPin* InPinA, const UEdGraphP
 	const IOptimusNodeAdderPinProvider *AdderPinProvider = Cast<IOptimusNodeAdderPinProvider>(TargetNode);
 	check(AdderPinProvider);
 
-	const bool bCanConnect = AdderPinProvider->CanAddPinFromPin(SourcePin, NewPinDirection, OutReason);
+	if (OutActions)
+	{
+		*OutActions = AdderPinProvider->GetAvailableAdderPinActions(SourcePin, NewPinDirection, OutReason);
+		return OutActions->Num() > 0;
+	}
 	
-	return bCanConnect;
+	const TArray<IOptimusNodeAdderPinProvider::FAdderPinAction> Actions = AdderPinProvider->GetAvailableAdderPinActions(SourcePin, NewPinDirection, OutReason);
+	return Actions.Num() > 0;
 }
 
 UOptimusEditorGraphSchema::UOptimusEditorGraphSchema()
@@ -193,7 +198,8 @@ bool UOptimusEditorGraphSchema::TryCreateConnection(
 	// Pins might be connectable if one of the two pins is an adder pin;
 	if (OptimusEditor::IsAdderPin(InPinA) || OptimusEditor::IsAdderPin(InPinB))
 	{
-		const bool bCanConnect = IsValidAdderPinConnection(InPinA, InPinB);
+		TArray<IOptimusNodeAdderPinProvider::FAdderPinAction> AvailableActions;
+		const bool bCanConnect = IsValidAdderPinConnection(InPinA, InPinB, &AvailableActions);
 
 		if (!bCanConnect)
 		{
@@ -212,39 +218,38 @@ bool UOptimusEditorGraphSchema::TryCreateConnection(
 		}
 
 		IOptimusNodeAdderPinProvider *AdderPinProvider = Cast<IOptimusNodeAdderPinProvider>(TargetNode);
-		TArray<UOptimusNodePin*> ParentPins = AdderPinProvider->GetTargetParentPins(SourcePin);
-
-		if (ParentPins.Num() <= 1)
+		UOptimusNodeGraph *Graph = TargetNode->GetOwningGraph();
+		
+		if (AvailableActions.Num() == 1)
 		{
-			UOptimusNodeGraph *Graph = TargetNode->GetOwningGraph();
-			return Graph->AddPinAndLink(TargetNode, ParentPins.Num() == 0? nullptr : ParentPins[0], SourcePin);
+			return Graph->ConnectAdderPin(AdderPinProvider, AvailableActions[0], SourcePin);
 		}
 
 		FMenuBuilder MenuBuilder(true, NULL);
 
-		MenuBuilder.BeginSection(NAME_None, FText::FromString(TEXT("Add pin to")));
+		MenuBuilder.BeginSection(NAME_None, FText::FromString(TEXT("Add Pin To Group")));
 
-		for (UOptimusNodePin* ParentPin : ParentPins)
+		for (const IOptimusNodeAdderPinProvider::FAdderPinAction& Action : AvailableActions)
 		{
 			FText EntryName;
-			if (!ParentPin)
+
+			if (Action.bCanAutoLink)
 			{
-				EntryName = LOCTEXT("DefaultGroupName", "Default");
+				EntryName = FText::FromString(Action.DisplayName.ToString() + TEXT(" * "));
 			}
 			else
 			{
-				EntryName = FText::FromName(ParentPin->GetFName());
+				EntryName = FText::FromName(Action.DisplayName);
 			}
 			
 			MenuBuilder.AddMenuEntry(
 				EntryName,
-				FText::GetEmpty(),
+				Action.ToolTip,
 				FSlateIcon(),
 				FUIAction(
-				FExecuteAction::CreateLambda([TargetNode, ParentPin, SourcePin]()
+				FExecuteAction::CreateLambda([AdderPinProvider, Graph, Action, SourcePin]()
 					{
-						UOptimusNodeGraph *Graph = TargetNode->GetOwningGraph();
-						Graph->AddPinAndLink(TargetNode, ParentPin, SourcePin);
+						Graph->ConnectAdderPin(AdderPinProvider, Action, SourcePin);
 					}),
 					FCanExecuteAction()
 				));
@@ -295,7 +300,7 @@ const FPinConnectionResponse UOptimusEditorGraphSchema::CanCreateConnection(
 	if (OptimusEditor::IsAdderPin(InPinA) || OptimusEditor::IsAdderPin(InPinB))
 	{
 		FString FailureReason;
-		const bool bCanConnect = IsValidAdderPinConnection(InPinA, InPinB, &FailureReason);
+		const bool bCanConnect = IsValidAdderPinConnection(InPinA, InPinB, nullptr, &FailureReason);
 
 		return FPinConnectionResponse(
 			bCanConnect ? CONNECT_RESPONSE_MAKE :  CONNECT_RESPONSE_DISALLOW,

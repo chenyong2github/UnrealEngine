@@ -455,6 +455,12 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 		return false;
 	}
 
+	// Check connection at the node level on the other node
+	if (!InOtherPin->GetOwningNode()->CanConnectPinToPin(*InOtherPin, *this, OutReason))
+	{
+		return false;
+	}
+
 	// Check for incompatible types.
 	if (!((DataType->ShaderValueType.IsValid() && InOtherPin->DataType->ShaderValueType.IsValid() &&
 		  DataType->ShaderValueType == InOtherPin->DataType->ShaderValueType) ||

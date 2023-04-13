@@ -6,6 +6,7 @@
 #include "OptimusDataDomain.h"
 #include "OptimusBindingTypes.h"
 #include "Nodes/OptimusNode_ComputeKernelBase.h"
+#include "IOptimusNodeAdderPinProvider.h"
 
 #include "UObject/UnrealNames.h"
 
@@ -366,9 +367,8 @@ struct FOptimusNodeGraphAction_ConnectAdderPin
 
 	FOptimusNodeGraphAction_ConnectAdderPin(
 		IOptimusNodeAdderPinProvider* InAdderPinProvider,
-		UOptimusNodePin* InPreferredTargetParentPin,
-		UOptimusNodePin* InSourcePin,
-		bool bInShouldLink
+		const IOptimusNodeAdderPinProvider::FAdderPinAction& InAction,
+		UOptimusNodePin* InSourcePin
 		);
 
 protected:
@@ -378,13 +378,11 @@ protected:
 private:
 	FString NodePath;
 
-	FString PreferredParentPinPath;
+	IOptimusNodeAdderPinProvider::FAdderPinAction Action;	
 	
 	FString SourcePinPath;
 
 	TArray<FString> AddedPinPaths;
-
-	bool bShouldLink;
 };
 
 USTRUCT()

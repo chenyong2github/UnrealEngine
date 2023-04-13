@@ -719,9 +719,9 @@ bool UOptimusNodeGraph::RemoveAllLinks(UOptimusNodePin* InNodePin)
 	return GetActionStack()->RunAction(Action);
 }
 
-bool UOptimusNodeGraph::AddPinAndLink(
-	UOptimusNode* InTargetNode,
-	UOptimusNodePin* InPreferredTargetParentPin,
+bool UOptimusNodeGraph::ConnectAdderPin(
+	IOptimusNodeAdderPinProvider* InTargetNode,
+	const IOptimusNodeAdderPinProvider::FAdderPinAction& InSelectedAction,
 	UOptimusNodePin* InSourcePin
 	)
 {
@@ -742,29 +742,22 @@ bool UOptimusNodeGraph::AddPinAndLink(
 		return false;
 	}
 
-	const EOptimusNodePinDirection PinDirection =
-	InSourcePin->GetDirection() == EOptimusNodePinDirection::Input ?
-		EOptimusNodePinDirection::Output : EOptimusNodePinDirection::Input;
-	if (!AdderPinProvider->CanAddPinFromPin(InSourcePin, PinDirection))
-	{
-		return false;
-	}
+	
+	IOptimusNodeAdderPinProvider::FAdderPinAction FinalAction = InSelectedAction;
 
-	// For now lets default to not disconnect exisiting link on the source pin
+	// For now lets default to not disconnect existing link on the source pin
 	// Additional logic be added in the future if we want to let the user decide
-	bool bShouldLink = true;
 	if (InSourcePin->GetDirection() == EOptimusNodePinDirection::Input)
 	{
 		// Check to see if there's an existing link on the _input_ pin.
 		TArray<int32> PinLinks = GetAllLinkIndexesToPin(InSourcePin);
 		if (PinLinks.Num() > 0)
 		{
-			
-			bShouldLink = false;
+			FinalAction.bCanAutoLink = false;
 		}
 	}
 
-	return GetActionStack()->RunAction<FOptimusNodeGraphAction_ConnectAdderPin>(AdderPinProvider, InPreferredTargetParentPin, InSourcePin, bShouldLink);
+	return GetActionStack()->RunAction<FOptimusNodeGraphAction_ConnectAdderPin>(AdderPinProvider, FinalAction, InSourcePin);
 }
 
 UOptimusNode* UOptimusNodeGraph::ConvertCustomKernelToFunction(UOptimusNode* InCustomKernel)
@@ -1405,11 +1398,15 @@ TSet<UOptimusComponentSourceBinding*> UOptimusNodeGraph::GetComponentSourceBindi
 		TArray<FOptimusRoutedNodePin> RoutedPins = GetConnectedPinsWithRouting(InNodePin, {});
 		if (RoutedPins.IsEmpty())
 		{
-			return {};
+			// this can happen if the pin is directly on a compute kernel and not connected to anything
+			StartNode = InNodePin->GetOwningNode();
+		}
+		else
+		{
+			check(RoutedPins.Num() == 1);
+			StartNode = RoutedPins[0].NodePin->GetOwningNode();
 		}
 		
-		check(RoutedPins.Num() == 1);
-		StartNode = RoutedPins[0].NodePin->GetOwningNode();
 	}
 	else
 	{

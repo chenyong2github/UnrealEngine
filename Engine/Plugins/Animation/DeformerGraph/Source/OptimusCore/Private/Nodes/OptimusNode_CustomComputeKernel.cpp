@@ -19,11 +19,16 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusNode_CustomComputeKernel)
 
+#define LOCTEXT_NAMESPACE "OptimusNode_CustomComputeKernel"
+
 static const FName DefaultKernelName("MyKernel");
 static const FName DefaultGroupName("Group"); 
 static const FName InputBindingsName= GET_MEMBER_NAME_CHECKED(UOptimusNode_CustomComputeKernel, InputBindingArray);
 static const FName OutputBindingsName = GET_MEMBER_NAME_CHECKED(UOptimusNode_CustomComputeKernel, OutputBindingArray);
 static const FName ExtraInputBindingGroupsName = GET_MEMBER_NAME_CHECKED(UOptimusNode_CustomComputeKernel, SecondaryInputBindingGroups);
+
+static const FName AdderPinActionKeyAddToPrimaryGroup("@Primary");
+static const FName AdderPinActionKeyAddNewGroup("@NewGroup");
 
 static FString GetShaderValueTypeFriendlyName(const FOptimusDataTypeRef& InDataType)
 {
@@ -51,6 +56,24 @@ static bool IsGroupingInputPin(const UOptimusNodePin *InPin)
 	return InPin->GetDirection() == EOptimusNodePinDirection::Input && InPin->IsGroupingPin();
 }
 
+bool UOptimusNode_CustomComputeKernel::DoesSourceSupportUnifiedDispatch(const UOptimusNodePin& InOtherNodesPin)
+{
+	if (InOtherNodesPin.GetDirection() == EOptimusNodePinDirection::Output )
+	{
+		if (const UOptimusNode_DataInterface* DataInterfaceNode = Cast<UOptimusNode_DataInterface>(InOtherNodesPin.GetOwningNode()))
+		{
+			if (const UOptimusComputeDataInterface* DataInterface = DataInterfaceNode->GetDataInterface(GetTransientPackage()))
+			{
+				if (!DataInterface->CanSupportUnifiedDispatch())
+				{
+					return false;
+				}
+			}
+		}	
+	}
+
+	return true;
+}
 
 
 UOptimusNode_CustomComputeKernel::UOptimusNode_CustomComputeKernel()
@@ -132,18 +155,27 @@ FString UOptimusNode_CustomComputeKernel::GetBindingDeclaration(
 }
 
 
-bool UOptimusNode_CustomComputeKernel::CanAddPinFromPin(
+TArray<IOptimusNodeAdderPinProvider::FAdderPinAction> UOptimusNode_CustomComputeKernel::GetAvailableAdderPinActions(
 	const UOptimusNodePin* InSourcePin,
 	EOptimusNodePinDirection InNewPinDirection,
 	FString* OutReason
 	) const
 {
-	if (!CanConnectPinToNode(InSourcePin, InNewPinDirection, OutReason))
-	{
-		return false;
-	}
+	TSet<UOptimusComponentSourceBinding*> SourceComponentBindings = InSourcePin->GetComponentSourceBindings();
 	
-	if (InSourcePin->GetDirection() == EOptimusNodePinDirection::Input)
+	TArray<UOptimusNodePin*> GroupPins;
+	// Nullptr represents the primary group
+	GroupPins.Add(nullptr);
+
+	for (UOptimusNodePin* GroupPin: GetPins())
+	{
+		if (IsGroupingInputPin(GroupPin))
+		{
+			GroupPins.Add(GroupPin);
+		}
+	}
+
+	if (InNewPinDirection == EOptimusNodePinDirection::Output)
 	{
 		if (InSourcePin->GetDataDomain().IsSingleton())
 		{
@@ -152,157 +184,250 @@ bool UOptimusNode_CustomComputeKernel::CanAddPinFromPin(
 				*OutReason = TEXT("Can't add parameter pin as output");
 			}
 
-			return false;
+			return {};
 		}
-	}
 
-	return true;
-}
+		FAdderPinAction	Action;
+		Action.DisplayName = TEXT("Primary Group");
+		Action.NewPinDirection = InNewPinDirection;
+		Action.Key = AdderPinActionKeyAddToPrimaryGroup;
+		Action.ToolTip = FText::GetEmpty();
+		Action.bCanAutoLink = false;
 
-TArray<UOptimusNodePin*> UOptimusNode_CustomComputeKernel::GetTargetParentPins(const UOptimusNodePin* InSourcePin) const
-{
-	TArray<UOptimusNodePin*> TargetParentPins;
-	
-	if (InSourcePin->GetDirection() == EOptimusNodePinDirection::Input)
-	{
-		return {};
-	}
-	
-	TArray<UOptimusNodePin*> GroupPinsToCheck;
-	// Nullptr represents the primary group
-	GroupPinsToCheck.Add(nullptr);
-
-	for (UOptimusNodePin* GroupPin: GetPins())
-	{
-		if (IsGroupingInputPin(GroupPin))
+		if (InSourcePin->GetDirection() != InNewPinDirection)
 		{
-			GroupPinsToCheck.Add(GroupPin);
-		}
-	}
-	
-	TSet<UOptimusComponentSourceBinding*> SourceComponentBindings = InSourcePin->GetComponentSourceBindings();
-	
-	for (UOptimusNodePin* GroupPin : GroupPinsToCheck)
-	{
-		TArray<const UOptimusNodePin*> PinsPerGroup;
+			TArray<const UOptimusNodePin*> PrimaryGroupPins = GetPrimaryGroupInputPins();
+			TSet<UOptimusComponentSourceBinding*> PrimaryGroupComponentBindings;
+			for (const UOptimusNodePin* Pin : PrimaryGroupPins)
+			{
+				PrimaryGroupComponentBindings.Append(Pin->GetComponentSourceBindings());
+			}
 		
-		if (GroupPin)
-		{
-			PinsPerGroup = GroupPin->GetSubPins();
-		}
-		else
-		{
-			PinsPerGroup = GetPrimaryGroupInputPins();
-		}
+			TSet<UOptimusComponentSourceBinding*> MatchingBindings = PrimaryGroupComponentBindings.Intersect(SourceComponentBindings);
 		
-		TSet<UOptimusComponentSourceBinding*> ComponentBindingsForGroup;
-		for (const UOptimusNodePin* Pin : PinsPerGroup)
-		{
-			ComponentBindingsForGroup.Append(Pin->GetComponentSourceBindings());
+			if (MatchingBindings.Num() > 0 ||
+				SourceComponentBindings.Num() == 0 || // Source-less pin can be added to kernel
+				PrimaryGroupComponentBindings.Num() == 0) // Source-less kernel can be a target for any pin 
+			{
+				Action.bCanAutoLink = true;
+			}
 		}
 
-		TSet<UOptimusComponentSourceBinding*> MatchingBindings = ComponentBindingsForGroup.Intersect(SourceComponentBindings);
-	
-		if (MatchingBindings.Num() > 0 ||
-			SourceComponentBindings.Num() == 0 || // Source-less pin can be added to any group
-			ComponentBindingsForGroup.Num() == 0) // Source-less group can be a target for any pin 
+		return { Action };
+	}
+	else if (InNewPinDirection == EOptimusNodePinDirection::Input)
+	{
+		if (InSourcePin->GetDirection() == EOptimusNodePinDirection::Input)
 		{
-			TargetParentPins.Add(GroupPin);
+			// For convenience lets allow input pins to be created from other input pins 
+			// of course linking is not allowed
+			TArray<FAdderPinAction> Actions;
+			
+			for (UOptimusNodePin* GroupPin: GroupPins)
+			{
+				FAdderPinAction Action;
+				Action.NewPinDirection = InNewPinDirection;
+				if (GroupPin == nullptr)
+				{
+					Action.DisplayName = TEXT("Primary Group");
+					Action.Key = AdderPinActionKeyAddToPrimaryGroup;
+				}
+				else
+				{
+					Action.DisplayName = GroupPin->GetFName();
+					Action.Key = GroupPin->GetFName();
+				}
+
+				Action.bCanAutoLink = false;
+				Action.ToolTip = LOCTEXT("AdderPinToolTipDirectionMismatch", "Add pin only, can't link input to input");
+				Actions.Add(Action);
+			}
+
+			return Actions;
+		}
+		else if (InSourcePin->GetDirection() == EOptimusNodePinDirection::Output)
+		{
+			TArray<FAdderPinAction> Actions;
+			
+			const bool bSourceSupportUnifiedDispatch = DoesSourceSupportUnifiedDispatch(*InSourcePin);
+			
+			for (UOptimusNodePin* GroupPin: GroupPins)
+			{
+				FAdderPinAction Action;
+				Action.NewPinDirection = InNewPinDirection;
+				TArray<const UOptimusNodePin*> PinsPerGroup;
+
+				if (GroupPin == nullptr)
+				{
+					Action.DisplayName = TEXT("Primary Group");
+					Action.Key = AdderPinActionKeyAddToPrimaryGroup;
+					
+					PinsPerGroup = GetPrimaryGroupInputPins();
+				}
+				else 
+				{
+					Action.DisplayName = GroupPin->GetFName();
+					Action.Key = GroupPin->GetFName();
+					
+					PinsPerGroup = GroupPin->GetSubPins();
+				}
+
+				TSet<UOptimusComponentSourceBinding*> ComponentBindingsForGroup;
+				for (const UOptimusNodePin* Pin : PinsPerGroup)
+				{
+					ComponentBindingsForGroup.Append(Pin->GetComponentSourceBindings());
+				}
+
+				TSet<UOptimusComponentSourceBinding*> MatchingBindings = ComponentBindingsForGroup.Intersect(SourceComponentBindings);
+	
+				if (MatchingBindings.Num() > 0 ||
+					SourceComponentBindings.Num() == 0 || // Source-less pin can be added to any group
+					ComponentBindingsForGroup.Num() == 0) // Source-less group can be a target for any pin 
+				{
+					Action.bCanAutoLink = true;
+				}
+				else
+				{
+					Action.bCanAutoLink = false;
+					Action.ToolTip = LOCTEXT("AdderPinToolTipComponentMismatch", "Add pin only, can't auto-link due to group's component binding not matching that of the source pin");
+				}
+
+				// Extra restrictions
+				// Secondary group does not accept data interface that does not support non unified dispatch
+				if (GroupPin != nullptr && !bSourceSupportUnifiedDispatch)
+				{
+					Action.bCanAutoLink = false;
+					Action.ToolTip = LOCTEXT("AdderPinToolTipCannotLinkNonUnified", "Add pin only, can't link due to data interface not supporting unified dispatch, consider insert kernel inbetween");
+				}
+				
+				Actions.Add(Action);
+			}
+
+			bool bHasAutoLinkAction = false;
+			for (const FAdderPinAction& Action : Actions)
+			{
+				if (Action.bCanAutoLink)
+				{
+					bHasAutoLinkAction = true;
+					break;
+				}
+			}
+			
+			if (!bHasAutoLinkAction && bSourceSupportUnifiedDispatch)
+			{
+				FAdderPinAction AddNewGroupAction;
+				AddNewGroupAction.DisplayName = TEXT("Add a New Group");
+				AddNewGroupAction.NewPinDirection = InNewPinDirection;
+				AddNewGroupAction.Key = AdderPinActionKeyAddNewGroup;
+				AddNewGroupAction.bCanAutoLink = true;
+				
+				Actions.Add(AddNewGroupAction);
+			}
+
+			for (FAdderPinAction& Action : Actions)
+			{
+				if (Action.bCanAutoLink)
+				{
+					Action.ToolTip = LOCTEXT("AdderPinToolTipAutoLink", "Group accepts pin connection");
+					break;
+				}
+			}
+			
+			return Actions;	
 		}
 	}
 
-	return TargetParentPins;
+	return {};
 }
-
 
 TArray<UOptimusNodePin*> UOptimusNode_CustomComputeKernel::TryAddPinFromPin(
-	UOptimusNodePin* InPreferredTargetParentPin,
+	const FAdderPinAction& InSelectedAction,
 	UOptimusNodePin* InSourcePin
-	) 
+	)
 {
 	TArray<UOptimusNodePin*> AddedPins;
 	
-	const EOptimusNodePinDirection NewPinDirection =
-		InSourcePin->GetDirection() == EOptimusNodePinDirection::Input ?
-				EOptimusNodePinDirection::Output : EOptimusNodePinDirection::Input;
-
 	TArray<FOptimusParameterBinding>* BindingArray = nullptr;
 	UOptimusNodePin* ParentPin = nullptr;
 	UOptimusNodePin* BeforePin = nullptr;
 
-	if (NewPinDirection == EOptimusNodePinDirection::Output)
+	if (InSelectedAction.NewPinDirection == EOptimusNodePinDirection::Output)
 	{
 		BindingArray = &OutputBindingArray.InnerArray;
 	}
-	else if (NewPinDirection == EOptimusNodePinDirection::Input)
+	else if (InSelectedAction.NewPinDirection == EOptimusNodePinDirection::Input)
 	{
-		if (InPreferredTargetParentPin)
+		if (InSelectedAction.Key == AdderPinActionKeyAddNewGroup)
 		{
-			// Making sure we are connecting from the input side of the kernel
-			check(InSourcePin->GetDirection() == EOptimusNodePinDirection::Output);
-		
-			FOptimusSecondaryInputBindingsGroup* Group = SecondaryInputBindingGroups.FindByPredicate(
-				[InPreferredTargetParentPin](const FOptimusSecondaryInputBindingsGroup& InGroup)
-				{
-					return InGroup.GroupName == InPreferredTargetParentPin->GetFName();
-				});
+			//Creating a new group
+			
+			TSet<UOptimusComponentSourceBinding*> ComponentBindings = InSourcePin->GetComponentSourceBindings();
+			
+			check(ComponentBindings.Num() != 0);
 
-			if (!ensure(Group))
-			{
-				return {};
-			}
+			UOptimusComponentSourceBinding* ComponentBinding = *ComponentBindings.begin();
 
-			ParentPin = InPreferredTargetParentPin;
-			BindingArray = &Group->BindingArray.InnerArray;
+			FName GroupName = Optimus::GetUniqueNameForScope(this, ComponentBinding->GetFName());
+
+			SecondaryInputBindingGroups.AddDefaulted_GetRef().GroupName = GroupName;
+			BindingArray = &SecondaryInputBindingGroups.Last().BindingArray.InnerArray;
+			
+			AddedPins.Add(AddGroupingPinDirect(GroupName, EOptimusNodePinDirection::Input));
+			ParentPin = AddedPins.Last();	
 		}
 		else
 		{
-			// In case there is no preferred parent pin, we infer the group pin from the source pin
-			// Two cases:
-			//		1. primary group
-			//		2. create a new group
-			TArray<UOptimusNodePin*> ParentPins = GetTargetParentPins(InSourcePin);
+			// Adding to existing group
 			
-			if (ParentPins.Num() >= 1)
+			TArray<UOptimusNodePin*> GroupPins;
+			for (UOptimusNodePin* GroupPin: GetPins())
 			{
-				// multiple parent pins but no preferred parent pin implies we want to add to the primary group,
-				// nullptr group pin means the matching group is the primary group, which does not have a grouping pin
-				check(ParentPins[0] == nullptr);
-
-				BindingArray = &InputBindingArray.InnerArray;
-
-				for (UOptimusNodePin* Pin : GetPins())
+				if (IsGroupingInputPin(GroupPin))
 				{
-					if (Pin->IsGroupingPin())
-					{
-						BeforePin = Pin;
-						break;
-					}
+					GroupPins.Add(GroupPin);
 				}
+			}	
+			
+			if (InSelectedAction.Key == AdderPinActionKeyAddToPrimaryGroup)
+			{
+				BindingArray = &InputBindingArray.InnerArray;
+				
+				ParentPin = nullptr;
+				BeforePin = GroupPins.Num() == 0 ? nullptr : GroupPins[0];
 			}
 			else
 			{
-				// This means the source pin does not belong to any existing group, so create a new group
-				TSet<UOptimusComponentSourceBinding*> ComponentBindings = InSourcePin->GetComponentSourceBindings();
+				for (UOptimusNodePin* GroupPin : GroupPins)
+				{
+					if (GroupPin->GetFName() == InSelectedAction.Key)
+					{
+						ParentPin = GroupPin;
+						break;
+					}
+				}
+
+				if (!ensure(ParentPin))
+				{
+					return {};
+				}
 				
-				check(ComponentBindings.Num() != 0);
+				// Secondary group
+				FOptimusSecondaryInputBindingsGroup* Group = SecondaryInputBindingGroups.FindByPredicate(
+				[ParentPin](const FOptimusSecondaryInputBindingsGroup& InGroup)
+				{
+					return InGroup.GroupName == ParentPin->GetFName();
+				});
 
-				UOptimusComponentSourceBinding* ComponentBinding = *ComponentBindings.begin();
-
-				FName GroupName = Optimus::GetUniqueNameForScope(this, ComponentBinding->GetFName());
-
-				SecondaryInputBindingGroups.AddDefaulted_GetRef().GroupName = GroupName;
-				BindingArray = &SecondaryInputBindingGroups.Last().BindingArray.InnerArray;
+				if (!ensure(Group))
+				{
+					return {};
+				}
 				
-				AddedPins.Add(AddGroupingPinDirect(GroupName, EOptimusNodePinDirection::Input));
-				ParentPin = AddedPins.Last();
+				BindingArray = &Group->BindingArray.InnerArray;
 			}
-		}	
-	}
-	else
-	{
-		checkNoEntry();
-	}
+		}
+	}	
+
 
 	if (ParentPin)
 	{
@@ -313,12 +438,11 @@ TArray<UOptimusNodePin*> UOptimusNode_CustomComputeKernel::TryAddPinFromPin(
 	Binding.Name = GetSanitizedNewPinName(ParentPin, InSourcePin->GetFName());
 	Binding.DataType = {InSourcePin->GetDataType()};
 	Binding.DataDomain = InSourcePin->GetDataDomain();
-
 	
 	BindingArray->Add(Binding);
 	UpdatePreamble();
 	
-	AddedPins.Add(AddPinDirect(Binding.Name, NewPinDirection, Binding.DataDomain, Binding.DataType, BeforePin, ParentPin));
+	AddedPins.Add(AddPinDirect(Binding.Name, InSelectedAction.NewPinDirection, Binding.DataDomain, Binding.DataType, BeforePin, ParentPin));
 
 	return AddedPins;
 }
@@ -1305,6 +1429,21 @@ bool UOptimusNode_CustomComputeKernel::ValidateConnection(
 	FString* OutReason
 	) const
 {
+	if (InThisNodesPin.GetDirection() == EOptimusNodePinDirection::Input)
+	{
+		// Secondary group connections need additional checks
+		if (IsGroupingInputPin(InThisNodesPin.GetRootPin()))
+		{
+			if (!DoesSourceSupportUnifiedDispatch(InOtherNodesPin))
+			{
+				if (OutReason)
+				{
+					*OutReason = TEXT("Can't link due to data interface not supporting unified dispatch, consider insert kernel inbetween");
+				}
+				return false;
+			}
+		}
+	}
 	
 	return true;
 }
@@ -1488,3 +1627,5 @@ FString UOptimusNode_CustomComputeKernel::GetDeclarationForBinding(const FOptimu
 					*Binding.Name.ToString(), *FString::Join(Indexes, TEXT(", ")), *GetShaderValueTypeFriendlyName(Binding.DataType));
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

@@ -15,25 +15,30 @@ class OPTIMUSCORE_API UOptimusNodeAdderPinProvider :
 };
 
 /**
-* Interface that provides a mechanism to query information about parameter bindings
+* Interface that provides a mechanism to add pins to node from existing pins
 */
 class OPTIMUSCORE_API IOptimusNodeAdderPinProvider
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool CanAddPinFromPin(
+	struct FAdderPinAction
+	{
+		FName DisplayName;
+		EOptimusNodePinDirection NewPinDirection;
+		FName Key;
+		FText ToolTip;
+		bool bCanAutoLink;
+	};
+	
+	virtual TArray<FAdderPinAction> GetAvailableAdderPinActions(
 		const UOptimusNodePin* InSourcePin,
 		EOptimusNodePinDirection InNewPinDirection,
 		FString* OutReason = nullptr
 		) const = 0;
-
-	// If there are multiple options for the target parent pin,
-	// a menu should show up for the user to choose one from these options
-	virtual TArray<UOptimusNodePin*> GetTargetParentPins(const UOptimusNodePin* InSourcePin) const = 0;
 	
 	virtual TArray<UOptimusNodePin*> TryAddPinFromPin(
-		UOptimusNodePin* InPreferredTargetParentPin,
+		const FAdderPinAction& InSelectedAction,
 		UOptimusNodePin* InSourcePin
 		) = 0;
 	

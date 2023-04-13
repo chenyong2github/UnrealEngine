@@ -620,13 +620,12 @@ FOptimusNodeGraphAction_RemoveLink::FOptimusNodeGraphAction_RemoveLink(
 
 FOptimusNodeGraphAction_ConnectAdderPin::FOptimusNodeGraphAction_ConnectAdderPin(
 	IOptimusNodeAdderPinProvider* InAdderPinProvider,
-	UOptimusNodePin* InPreferredTargetParentPin,
-	UOptimusNodePin* InSourcePin,
-	bool bInShouldLink
+	const IOptimusNodeAdderPinProvider::FAdderPinAction& InAction,
+	UOptimusNodePin* InSourcePin
 	) :
-	bShouldLink(bInShouldLink)
+	Action(InAction)
 {
-	if (bInShouldLink)
+	if (InAction.bCanAutoLink)
 	{
 		SetTitlef(TEXT("Add Pin & Link"));
 	}
@@ -642,11 +641,6 @@ FOptimusNodeGraphAction_ConnectAdderPin::FOptimusNodeGraphAction_ConnectAdderPin
 		NodePath = Node->GetNodePath();
 	}
 
-	if (InPreferredTargetParentPin)
-	{
-		PreferredParentPinPath = InPreferredTargetParentPin->GetPinPath();
-	}
-	
 	SourcePinPath = InSourcePin->GetPinPath();
 }
 
@@ -660,11 +654,9 @@ bool FOptimusNodeGraphAction_ConnectAdderPin::Do(IOptimusPathResolver* InRoot)
 		return false;
 	}
 
-	UOptimusNodePin* PreferredTargetParentPin = InRoot->ResolvePinPath(PreferredParentPinPath);
-
 	UOptimusNodePin* SourcePin = InRoot->ResolvePinPath(SourcePinPath);
 
-	TArray<UOptimusNodePin*> AddedPins = AdderPinProvider->TryAddPinFromPin(PreferredTargetParentPin, SourcePin);
+	TArray<UOptimusNodePin*> AddedPins = AdderPinProvider->TryAddPinFromPin(Action, SourcePin);
 
 	if (AddedPins.Num() == 0)
 	{
@@ -686,7 +678,7 @@ bool FOptimusNodeGraphAction_ConnectAdderPin::Do(IOptimusPathResolver* InRoot)
 		return false;
 	}
 
-	if (bShouldLink)
+	if (Action.bCanAutoLink)
 	{
 		if (SourcePin->GetDirection() == EOptimusNodePinDirection::Output)
 		{
@@ -720,7 +712,7 @@ bool FOptimusNodeGraphAction_ConnectAdderPin::Undo(IOptimusPathResolver* InRoot)
 		return false;
 	}
 
-	if (bShouldLink)
+	if (Action.bCanAutoLink)
 	{
 		if (!ensure(RemoveLink(InRoot)))
 		{

@@ -75,16 +75,14 @@ public:
 	FString GetBindingDeclaration(FName BindingName) const override;
 
 	// IOptimusNodeAdderPinProvider
-	bool CanAddPinFromPin(
+	TArray<FAdderPinAction> GetAvailableAdderPinActions(
 		const UOptimusNodePin* InSourcePin,
 		EOptimusNodePinDirection InNewPinDirection,
 		FString* OutReason = nullptr
 		) const override;
 
-	TArray<UOptimusNodePin*> GetTargetParentPins(const UOptimusNodePin* InSourcePin) const override;
-
 	TArray<UOptimusNodePin*> TryAddPinFromPin(
-		UOptimusNodePin* InPreferredTargetParentPin,
+		const FAdderPinAction& InSelectedAction,
 		UOptimusNodePin* InSourcePin
 		) override;
 	
@@ -173,7 +171,7 @@ protected:
 	TOptional<FText> ValidateForCompile() const override;
 	
 private:
-	
+
 #if WITH_EDITOR
 	void PropertyArrayPasted(const FPropertyChangedEvent& InPropertyChangedEvent);
 	void PropertyValueChanged(const FPropertyChangedEvent& InPropertyChangedEvent);
@@ -186,4 +184,6 @@ private:
 	void UpdatePreamble();
 
 	static FString GetDeclarationForBinding(const FOptimusParameterBinding& Binding, bool bIsInput);
+
+	static bool DoesSourceSupportUnifiedDispatch(const UOptimusNodePin& InOtherNodesPin);
 };
