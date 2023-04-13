@@ -128,6 +128,7 @@ public:
 
 	UContextualAnimSceneActorComponent(const FObjectInitializer& ObjectInitializer);
 
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	virtual void GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const;
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;

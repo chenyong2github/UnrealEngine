@@ -429,8 +429,10 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
 		return Role != NAME_None ? Data.FindByPredicate([this, &Role](const FContextualAnimSceneBinding& Item) { return GetAnimTrackFromBinding(Item).Role == Role; }) : nullptr;
 	}
 
+	void AddReferencedObjects(FReferenceCollector& Collector);
+
 	FORCEINLINE uint8 GetID() const { return Id; }
-	FORCEINLINE const UContextualAnimSceneAsset* GetSceneAsset() const { return SceneAsset.Get(); }
+	FORCEINLINE const UContextualAnimSceneAsset* GetSceneAsset() const { return SceneAsset; }
 	FORCEINLINE int32 GetSectionIdx() const { return SectionIdx; }
 	FORCEINLINE int32 GetAnimSetIdx() const { return AnimSetIdx; }
 	FORCEINLINE int32 Num() const { return Data.Num(); }
@@ -482,7 +484,7 @@ private:
 	uint8 Id = 0;
 
 	UPROPERTY()
-	TWeakObjectPtr<const UContextualAnimSceneAsset> SceneAsset = nullptr;
+	TObjectPtr<const UContextualAnimSceneAsset> SceneAsset = nullptr;
 
 	UPROPERTY()
 	int32 SectionIdx = INDEX_NONE;

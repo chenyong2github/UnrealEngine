@@ -47,6 +47,14 @@ UContextualAnimSceneActorComponent::UContextualAnimSceneActorComponent(const FOb
 	SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
+void UContextualAnimSceneActorComponent::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	UContextualAnimSceneActorComponent* This = CastChecked<UContextualAnimSceneActorComponent>(InThis);
+	This->Bindings.AddReferencedObjects(Collector);
+
+	Super::AddReferencedObjects(This, Collector);
+}
+
 void UContextualAnimSceneActorComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);

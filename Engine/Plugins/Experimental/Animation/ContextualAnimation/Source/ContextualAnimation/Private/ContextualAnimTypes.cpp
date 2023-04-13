@@ -330,15 +330,23 @@ void FContextualAnimSceneBindings::GenerateUniqueId()
 	Id = IncrementID;
 }
 
+void FContextualAnimSceneBindings::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	if (SceneAsset)
+	{
+		Collector.AddReferencedObject(SceneAsset);
+	}
+}
+
 bool FContextualAnimSceneBindings::IsValid() const
 {
-	return Id != 0 && SceneAsset.IsValid() && SceneAsset->HasValidData() && Num() > 0;
+	return Id != 0 && SceneAsset && SceneAsset->HasValidData() && Num() > 0;
 }
 
 void FContextualAnimSceneBindings::Reset()
 {
 	Id = 0;
-	SceneAsset.Reset();
+	SceneAsset = nullptr;
 	SectionIdx = INDEX_NONE;
 	AnimSetIdx = INDEX_NONE;
 	Data.Reset();
@@ -381,7 +389,7 @@ bool FContextualAnimSceneBindings::BindActorToRole(AActor& ActorRef, FName Role)
 	if(AnimTrackPtr == nullptr)
 	{
 		UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::BindActorToRole. Failed to bind Actor: '%s' to Role: '%s'. Reason: Can't find valid AnimTrack for it. SceneAsset: %s SectionIdx: %d AnimSetIdx: %d"),
-			*GetNameSafe(&ActorRef), *Role.ToString(), *GetNameSafe(SceneAsset.Get()), SectionIdx, AnimSetIdx);
+			*GetNameSafe(&ActorRef), *Role.ToString(), *GetNameSafe(SceneAsset), SectionIdx, AnimSetIdx);
 		return false;
 	}
 
