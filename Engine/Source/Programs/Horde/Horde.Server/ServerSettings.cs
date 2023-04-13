@@ -426,7 +426,7 @@ namespace Horde.Server
 		/// <summary>
 		/// Length of time before JWT tokens expire, in hours
 		/// </summary>
-		public int JwtExpiryTimeHours { get; set; } = 4;
+		public int JwtExpiryTimeHours { get; set; } = 8;
 
 		/// <summary>
 		/// Whether to enable Cors, generally for development purposes
