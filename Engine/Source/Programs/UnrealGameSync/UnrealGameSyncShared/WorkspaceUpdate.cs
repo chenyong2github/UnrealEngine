@@ -118,6 +118,10 @@ namespace UnrealGameSync
 		public static WorkspaceUpdateOptions GetOptionsFromConfig(GlobalSettings globalSettings, UserWorkspaceSettings workspaceSettings)
 		{
 			WorkspaceUpdateOptions options = 0;
+			if (globalSettings.AutoResolveConflicts)
+			{
+				options |= WorkspaceUpdateOptions.AutoResolveChanges;
+			}
 			if (workspaceSettings.Filter.AllProjects ?? globalSettings.Filter.AllProjects ?? false)
 			{
 				options |= WorkspaceUpdateOptions.SyncAllProjects | WorkspaceUpdateOptions.IncludeAllProjectsInSolution;

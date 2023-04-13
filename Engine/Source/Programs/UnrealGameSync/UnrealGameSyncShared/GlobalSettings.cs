@@ -55,6 +55,7 @@ namespace UnrealGameSync
 		public DateTime LastVersionCheck { get; set; }
 		public PerforceSyncOptions Perforce { get; set; } = new PerforceSyncOptions();
 		public FilterSettings Filter { get; set; } = new FilterSettings();
+		public bool AutoResolveConflicts { get; set; } = true;
 	}
 
 	public class GlobalSettingsFile
