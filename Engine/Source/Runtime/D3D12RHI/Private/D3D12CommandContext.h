@@ -251,7 +251,7 @@ public:
 protected:
 	void WriteGPUEventStackToBreadCrumbData(const TCHAR* Name, int32 CRC);
 	void WriteGPUEventToBreadCrumbData(FBreadcrumbStack* Breadcrumbs, uint32 MarkerIndex, bool bBeginEvent);
-	void InitPayloadBreadcrumbs();
+	[[nodiscard]] bool InitPayloadBreadcrumbs();
 	void PopGPUEventStackFromBreadCrumbData();
 
 	enum class EPhase

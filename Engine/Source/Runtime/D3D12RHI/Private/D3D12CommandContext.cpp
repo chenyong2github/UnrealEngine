@@ -466,13 +466,16 @@ FD3D12SyncPoint* FD3D12CopyScope::GetSyncPoint() const
 	return SyncPoint;
 }
 
-void FD3D12ContextCommon::InitPayloadBreadcrumbs()
+bool FD3D12ContextCommon::InitPayloadBreadcrumbs()
 {
-	FD3D12Payload* Payload = GetPayload(EPhase::Execute);
+	TUniquePtr<FD3D12DiagnosticBuffer>& DiagnosticBuffer = Device->GetQueue(QueueType).DiagnosticBuffer;
 
+	if (!DiagnosticBuffer)
+		return false;
+
+	FD3D12Payload* Payload = GetPayload(EPhase::Execute);
 	if (Payload->BreadcrumbStacks.IsEmpty() || !BreadcrumbStack.IsValid())
 	{
-		TUniquePtr<FD3D12DiagnosticBuffer>& DiagnosticBuffer = Device->GetQueue(QueueType).DiagnosticBuffer;
 		if (!BreadcrumbStack.IsValid())
 		{
 			BreadcrumbStack = MakeShared<FBreadcrumbStack>();
@@ -482,11 +485,14 @@ void FD3D12ContextCommon::InitPayloadBreadcrumbs()
 
 		Payload->BreadcrumbStacks.Add(BreadcrumbStack);
 	}
+
+	return true;
 }
 
 void FD3D12ContextCommon::WriteGPUEventStackToBreadCrumbData(const TCHAR* Name, int32 CRC)
 {
-	InitPayloadBreadcrumbs();
+	if (!InitPayloadBreadcrumbs())
+		return;
 
 	FBreadcrumbStack::FScope NewScope;
 	NewScope.NameCRC = CRC;
@@ -522,7 +528,8 @@ void FD3D12ContextCommon::WriteGPUEventStackToBreadCrumbData(const TCHAR* Name, 
 
 void FD3D12ContextCommon::PopGPUEventStackFromBreadCrumbData()
 {
-	InitPayloadBreadcrumbs();
+	if (!InitPayloadBreadcrumbs())
+		return;
 
 	if (BreadcrumbStack->ScopeStack.IsEmpty())
 	{
