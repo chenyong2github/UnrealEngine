@@ -368,7 +368,7 @@ IVirtualizationBackend::EConnectionStatus FSourceControlBackend::OnConnect()
 
 	// When a source control depot is set up a file named 'payload_metainfo.txt' should be submitted to it's root.
 	// This allows us to check for the existence of the file to confirm that the depot root is indeed valid.
-	const FString PayloadMetaInfoPath = WriteToString<512>(DepotRoot, TEXT("payload_metainfo.txt")).ToString();
+	const FString PayloadMetaInfoPath = WriteToString<512>(DepotPathRoot, TEXT("payload_metainfo.txt")).ToString();
 
 	FSharedBuffer MetaInfoBuffer;
 
@@ -624,7 +624,7 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 		if (ClientStream.IsEmpty())
 		{
 			TStringBuilder<512> DepotMapping;
-			DepotMapping << DepotRoot << TEXT("...");
+			DepotMapping << DepotPathRoot << TEXT("...");
 
 			TStringBuilder<128> ClientMapping;
 			ClientMapping << TEXT("//") << WorkspaceName << TEXT("/...");
@@ -835,7 +835,7 @@ bool FSourceControlBackend::DoPayloadsExist(TArrayView<const FIoHash> PayloadIds
 			TStringBuilder<52> LocalPayloadPath;
 			Utils::PayloadIdToPath(PayloadId, LocalPayloadPath);
 
-			DepotPaths.Emplace(WriteToString<512>(DepotRoot, LocalPayloadPath));
+			DepotPaths.Emplace(WriteToString<512>(DepotPathRoot, LocalPayloadPath));
 		}
 	}
 
@@ -864,21 +864,46 @@ bool FSourceControlBackend::DoPayloadsExist(TArrayView<const FIoHash> PayloadIds
 
 bool FSourceControlBackend::TryApplySettingsFromConfigFiles(const FString& ConfigEntry)
 {
-	// We require that a valid depot root has been provided
+	// If the depot root is within a perforce stream then we must specify which stream. This may be a virtual stream with a custom view.
 	{
-		if (!FParse::Value(*ConfigEntry, TEXT("DepotRoot="), DepotRoot))
+		FParse::Value(*ConfigEntry, TEXT("ClientStream="), ClientStream);
+		if (!ClientStream.IsEmpty())
 		{
-			UE_LOG(LogVirtualization, Error, TEXT("'DepotRoot=' not found in the config file"));
-			return false;
+			UE_LOG(LogVirtualization, Log, TEXT("[%s] Using client stream: '%s'"), *GetDebugName(), *ClientStream);
 		}
-
-		if (!DepotRoot.EndsWith(TEXT("/")))
+		else
 		{
-			DepotRoot.AppendChar(TEXT('/'));
+			UE_LOG(LogVirtualization, Log, TEXT("[%s] Not using client stream"), *GetDebugName());
 		}
 	}
 
-	// Now parse the optional config values
+	// We require that a valid depot root has been provided
+	{
+		if (FParse::Value(*ConfigEntry, TEXT("DepotRoot="), DepotPathRoot))
+		{
+			UE_LOG(LogVirtualization, Warning, TEXT("[%s] Entry 'DepotRoot' is deprecated, replace with 'DepotPath'"), *GetDebugName());
+		}
+		else
+		{
+			FParse::Value(*ConfigEntry, TEXT("DepotPath="), DepotPathRoot);
+		}
+
+		if (DepotPathRoot.IsEmpty())
+		{
+			DepotPathRoot = ClientStream;
+		}
+
+		if (DepotPathRoot.IsEmpty())
+		{
+			UE_LOG(LogVirtualization, Error, TEXT("[%s] 'DepotPath' was not found in the config file!"), *GetDebugName());
+			return false;
+		}
+
+		if (!DepotPathRoot.EndsWith(TEXT("/")))
+		{
+			DepotPathRoot.AppendChar(TEXT('/'));
+		}
+	}
 
 	{
 		FParse::Value(*ConfigEntry, TEXT("Server="), ServerAddress);
@@ -890,19 +915,6 @@ bool FSourceControlBackend::TryApplySettingsFromConfigFiles(const FString& Confi
 		else
 		{
 			UE_LOG(LogVirtualization, Log, TEXT("[%s] Will connect to the default server address"), *GetDebugName());
-		}
-	}
-
-	// If the depot root is within a perforce stream then we must specify which stream. This may be a virtual stream with a custom view.
-	{
-		FParse::Value(*ConfigEntry, TEXT("ClientStream="), ClientStream);
-		if (!ClientStream.IsEmpty())
-		{
-			UE_LOG(LogVirtualization, Log, TEXT("[%s] Using client stream: '%s'"), *GetDebugName(), *ClientStream);
-		}
-		else
-		{
-			UE_LOG(LogVirtualization, Log, TEXT("[%s] Not using client stream"), *GetDebugName());
 		}
 	}
 
@@ -996,7 +1008,7 @@ void FSourceControlBackend::CreateDepotPath(const FIoHash& PayloadId, FStringBui
 	TStringBuilder<52> PayloadPath;
 	Utils::PayloadIdToPath(PayloadId, PayloadPath);
 
-	OutPath << DepotRoot << PayloadPath;
+	OutPath << DepotPathRoot << PayloadPath;
 }
 
 bool FSourceControlBackend::FindSubmissionWorkingDir(const FString& ConfigEntry)

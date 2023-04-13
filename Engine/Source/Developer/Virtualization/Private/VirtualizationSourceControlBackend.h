@@ -22,15 +22,26 @@ class FSemaphore;
  * ----------------------------------------------------------------------------
  * 
  * Ini file setup:
- * 'Name'=(Type=P4SourceControl, DepotRoot="//ABC/")
- * Where 'Name' is the backend name in the hierarchy and 'ABC' is the path in the source control
- * depot where the payload files are being stored.
+ * 'Name'=(Type=P4SourceControl)
+ * Where 'Name' is the backend name in the hierarchy
  * 
- * Optional Values:
- * Server [string]:				When set the backend will use this server address to connect to. When not
- *								set the backend will use the environment defaults. [Default=""]
+ * Required Values:
+ * 
+ * DepotPath [string]			The path (in depot format) to the location where virtualized payloads are stored.
+ *								[Default=""]
  * ClientStream [string]:		Used when the payloads are stored in a stream based depot. It should contain
  *								the stream name to use when creating a workspace for payload submission. [Default=""]
+ * 
+ * If the payloads are being stored in a depot with type 'stream' them config value 'ClientStream' must be set to a valid
+ * stream. The 'DepotPath' value can still be set to choose a specific location within that stream or when the stream 
+ * name is not a valid depot path (such as virtual streams)
+ * 
+ * If the payloads are not being stored in a 'stream' depot then only 'DepotPath' is required.
+ * 
+ * Optional Values:
+ * 
+ * Server [string]:				When set the backend will use this server address to connect to. When not
+ *								set the backend will use the environment defaults. [Default=""]
  * UsePartitionedClient [bool]:	When true the temporary workspace client created to submit payloads 
  *								from will be created as a partitioned workspace which is less overhead
  *								on the source control server. If your server does not support this then
@@ -140,8 +151,8 @@ private:
 	/** The name of the current project */
 	FString ProjectName;
 
-	/** The root where the virtualized payloads are stored in source control */
-	FString DepotRoot;
+	/** The path (in depot format) to where the virtualized payloads are stored in source control */
+	FString DepotPathRoot;
 
 	/** Address of the server to connect to */
 	FString ServerAddress;
