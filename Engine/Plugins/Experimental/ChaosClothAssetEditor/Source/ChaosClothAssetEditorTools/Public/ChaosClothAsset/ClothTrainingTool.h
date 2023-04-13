@@ -5,13 +5,15 @@
 #include "UObject/Object.h"
 #include "SingleSelectionTool.h"
 #include "InteractiveToolBuilder.h"
-#include "Animation/AnimSequence.h"
 #include "ModelingOperators.h"
 #include "MeshOpPreviewHelpers.h"
-#include "Misc/SlowTask.h"
+#include "Misc/DateTime.h"
 
 #include "ClothTrainingTool.generated.h"
 
+struct FCacheUserToken;
+class FAsyncTaskNotification;
+class UAnimSequence;
 class UChaosCache;
 class UChaosCacheCollection;
 class UChaosClothComponent;
@@ -63,7 +65,8 @@ UENUM()
 enum class EClothTrainingToolActions
 {
 	NoAction,
-	Train
+	StartTrain,
+	TickTrain
 };
 
 UCLASS()
@@ -81,7 +84,7 @@ public:
 	UFUNCTION(CallInEditor, Category = Actions, meta = (DisplayName = "Begin Generating", DisplayPriority = 1))
 		void StartGenerating()
 	{
-		PostAction(EClothTrainingToolActions::Train);
+		PostAction(EClothTrainingToolActions::StartTrain);
 	}
 
 };
@@ -122,6 +125,9 @@ private:
 	struct FSimResource;
 	class FLaunchSimsOp;
 
+	using FTaskType = UE::Geometry::TModelingOpTask<FLaunchSimsOp>;
+	using FExecuterType = UE::Geometry::FAsyncTaskExecuterWithProgressCancel<FTaskType>;
+
 	friend class UClothTrainingToolActionProperties;
 
 	UPROPERTY()
@@ -135,19 +141,32 @@ private:
 	UPROPERTY()
 	TObjectPtr<const UChaosClothComponent> ClothComponent;
 
-	TUniquePtr<FCriticalSection> SimMutex;
-	TArray<FSimResource> SimResources;
+	struct FTaskResource
+	{
+		TUniquePtr<FCriticalSection> SimMutex;
+		TArray<FSimResource> SimResources;
+
+		TUniquePtr<FExecuterType> Executer;
+		TUniquePtr<FAsyncTaskNotification> Notification;
+		UChaosCache *Cache = nullptr;
+		TUniquePtr<FCacheUserToken> CacheUserToken;
+		FDateTime StartTime;
+		FDateTime LastUpdateTime;
+
+		bool AllocateSimResources_GameThread(const UChaosClothComponent& ClothComponent, int32 Num);
+		void FreeSimResources_GameThread();
+	};
+
+	TUniquePtr<FTaskResource> TaskResource = nullptr;
 
 	void RequestAction(EClothTrainingToolActions ActionType);
+	void StartTraining();
+	void TickTraining();
 	void RunTraining();
+	void FreeTaskResource(bool bCancelled);
 	bool IsClothComponentValid() const;
 	UChaosCacheCollection* GetCacheCollection() const;
 	bool SaveCacheCollection(UChaosCacheCollection* CacheCollection) const;
-	void PrepareAnimationSequence();
-	void RestoreAnimationSequence();
-	bool AllocateSimResources_GameThread(int32 Num);
-	void FreeSimResources_GameThread();
-
 };
 
 
