@@ -22,6 +22,7 @@ namespace UE::Learning
 	struct FSharedMemoryPPOTrainer;
 	struct FSumReward;
 	struct FCompletionObject;
+	enum class ECompletionMode : uint8;
 }
 
 class ALearningAgentsManager;
@@ -41,6 +42,14 @@ enum class ELearningAgentsCompletion : uint8
 	/** Episode ended early and zero reward was expected for all future steps. */
 	Termination	UMETA(DisplayName = "Termination"),
 };
+namespace UE::Learning::Agents
+{
+	/** Get the learning agents completion from the UE::Learning completion. */
+	LEARNINGAGENTSTRAINING_API ELearningAgentsCompletion GetLearningAgentsCompletion(const ECompletionMode CompletionMode);
+
+	/** Get the UE::Learning completion from the learning agents completion. */
+	LEARNINGAGENTSTRAINING_API ECompletionMode GetCompletionMode(const ELearningAgentsCompletion Completion);
+}
 
 /** The configurable settings for a ULearningAgentsTrainer. */
 USTRUCT(BlueprintType, Category = "LearningAgents")
@@ -208,7 +217,7 @@ public:
 	* @param InAgentType The agent type we are training with.
 	* @param InPolicy The policy to be trained.
 	* @param InCritic Optional - only needs to be provided if we want the critic to be accessible at runtime.
-	* @param Settings The trainer settings to use.
+	* @param TrainerSettings The trainer settings to use.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void SetupTrainer(
@@ -216,7 +225,7 @@ public:
 		ULearningAgentsType* InAgentType,
 		ULearningAgentsPolicy* InPolicy,
 		ULearningAgentsCritic* InCritic = nullptr,
-		const FLearningAgentsTrainerSettings& Settings = FLearningAgentsTrainerSettings());
+		const FLearningAgentsTrainerSettings& TrainerSettings = FLearningAgentsTrainerSettings());
 
 public: 
 
@@ -280,12 +289,12 @@ public:
 public:
 
 	/**
-	 * During this event, you will receive the ids of each agent that needs to be reset. Both the agent's actor and its
-	 * training environment should be reset for a new episode to commence.
+	 * During this event, all episodes should be reset for each agent.
 	 * @param AgentIds The ids of the agents that need resetting.
+	 * @see GetAgent to get the agent corresponding to each id.
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category = "LearningAgents")
-	void ResetInstance(const TArray<int32>& AgentIds);
+	void ResetEpisodes(const TArray<int32>& AgentIds);
 
 // ----- Training Process -----
 public:
@@ -332,17 +341,45 @@ public:
 
 	/**
 	* Call this function at the end of each step of your training loop. This takes the current observations/actions/
-	* rewards and moves them into the current episode's experience buffer. Finished episodes will have their agents
-	* reset and their data will be sent to the external training process. Finally, the latest iteration of the
-	* trained policy will be synced back to UE so further experience can be acquired on-policy.
+	* rewards and moves them into the episode experience buffer. All agents with full episode buffers or those which
+	* have been signaled complete will be reset. If enough experience is gathered, it will be sent to the training 
+	* process and an iteration of training will be run and the updated policy will be synced back.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void IterateTraining();
+	void ProcessExperience();
 
 	/** Manually reset all agents. Does not record the experience gathered up to this point by each agent. */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void ResetAllInstances();
+	void ResetAllEpisodes();
 
+	/**
+	* Convenience function that runs a basic training loop. If training has not been started, it will start it, and 
+	* then call RunInference. On each following call to this function, it will call EvaluateRewards, 
+	* EvaluateCompletions, and ProcessExperience, followed by RunInference.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void RunTraining();
+
+	/**
+	* Gets the current reward for an agent according to the critic. Should be called only after EvaluateRewards.
+	*
+	* @param AgentId	The AgentId to look-up the reward for
+	* @returns			The reward
+	*/
+	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (AgentId = "-1"))
+	float GetReward(const int32 AgentId) const;
+
+	/**
+	* Gets if the agent will complete the episode or not according to the given set of completions. Should be called 
+	* only after EvaluateCompletions.
+	*
+	* @param AgentId		The AgentId to look-up the completion for
+	* @param OutCompletion	The completion type if the agent will complete the episode
+	* @returns				If the agent will complete the episode
+	*/
+	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (AgentId = "-1"))
+	bool IsCompleted(const int32 AgentId, ELearningAgentsCompletion& OutCompletion) const;
+	
 // ----- Private Data ----- 
 private:
 

@@ -223,23 +223,6 @@ namespace UE::Learning
 			Output[1] = FMath::Cos(LocalAngle) / FMath::Max(Scale, Epsilon);
 		}
 
-		void PlanarRotation(
-			TLearningArrayView<1, float> Output,
-			const FQuat Rotation,
-			const FQuat RelativeRotation,
-			const float Scale,
-			const FVector Axis,
-			const float Epsilon)
-		{
-			UE_LEARNING_ARRAY_SHAPE_CHECK(Output.Num() == 2);
-			UE_LEARNING_ARRAY_VALUE_CHECK(Scale > 0.0f);
-
-			const FQuat LocalRotation = RelativeRotation.Inverse() * Rotation;
-			const float LocalAngle = LocalRotation.GetTwistAngle(Axis);
-			Output[0] = FMath::Sin(LocalAngle) / FMath::Max(Scale, Epsilon);
-			Output[1] = FMath::Cos(LocalAngle) / FMath::Max(Scale, Epsilon);
-		}
-
 		void Rotation(
 			TLearningArrayView<1, float> Output,
 			const FQuat Rotation,
@@ -286,19 +269,6 @@ namespace UE::Learning
 			UE_LEARNING_ARRAY_VALUE_CHECK(Scale > 0.0f);
 
 			Output = AngularVelocity / FMath::Max(Scale, Epsilon);
-		}
-
-		void PlanarAngularVelocity(
-			float& Output,
-			const FVector AngularVelocity,
-			const FQuat RelativeRotation,
-			const float Scale,
-			const FVector Axis,
-			const float Epsilon)
-		{
-			UE_LEARNING_ARRAY_VALUE_CHECK(Scale > 0.0f);
-
-			Output = RelativeRotation.UnrotateVector(AngularVelocity).Dot(Axis) / FMath::Max(Scale, Epsilon);
 		}
 
 		void AngularVelocity(
@@ -550,19 +520,6 @@ namespace UE::Learning
 			OutAngle = FMath::Atan2(Input[0] * Scale, Input[1] * Scale) + RelativeAngle;
 		}
 
-		void PlanarRotation(
-			FQuat& OutPlanarRotation,
-			const TLearningArrayView<1, const float> Input,
-			const FQuat RelativeRotation,
-			const float Scale,
-			const FVector Axis)
-		{
-			UE_LEARNING_ARRAY_SHAPE_CHECK(Input.Num() == 2);
-
-			const float LocalAngle = FMath::Atan2(Input[0] * Scale, Input[1] * Scale);
-			OutPlanarRotation = RelativeRotation * FQuat::MakeFromRotationVector(LocalAngle * Axis);
-		}
-
 		void Rotation(
 			FQuat& OutRotation,
 			const TLearningArrayView<1, const float> Input,
@@ -603,16 +560,6 @@ namespace UE::Learning
 			const float Scale)
 		{
 			OutScalarVelocity = Input * Scale;
-		}
-
-		void PlanarAngularVelocity(
-			FVector& OutPlanarAngularVelocity,
-			const float Input,
-			const FQuat RelativeRotation,
-			const float Scale,
-			const FVector Axis)
-		{
-			OutPlanarAngularVelocity = RelativeRotation.RotateVector(Axis * Input * Scale);
 		}
 
 		void AngularVelocity(
@@ -873,7 +820,7 @@ namespace UE::Learning
 
 	void FFloatFeature::Encode(const FIndexSet Instances)
 	{
-		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(FScalarFeature::Encode);
+		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(FFloatFeature::Encode);
 
 		const TLearningArrayView<2, const float> Value = InstanceData->ConstView(ValueHandle);
 		TLearningArrayView<2, float> Feature = InstanceData->View(FeatureHandle);
@@ -894,7 +841,7 @@ namespace UE::Learning
 
 	void FFloatFeature::Decode(const FIndexSet Instances)
 	{
-		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(FScalarFeature::Decode);
+		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(FFloatFeature::Decode);
 
 		TLearningArrayView<2, float> Value = InstanceData->View(ValueHandle);
 		const TLearningArrayView<2, const float> Feature = InstanceData->ConstView(FeatureHandle);
@@ -1711,68 +1658,6 @@ namespace UE::Learning
 		}
 	}
 
-	FPlanarRotationFeature::FPlanarRotationFeature(
-		const FName& InIdentifier,
-		const TSharedRef<FArrayMap>& InInstanceData,
-		const int32 InMaxInstanceNum,
-		const int32 InRotationNum,
-		const float InScale,
-		const FVector InAxis)
-		: FFeatureObject(InIdentifier, InInstanceData, InMaxInstanceNum, InRotationNum * 2, InScale)
-		, Axis(InAxis)
-	{
-		RotationHandle = InstanceData->Add<2, FQuat>({ InIdentifier, TEXT("Rotation") }, { InMaxInstanceNum, InRotationNum }, FQuat::Identity);
-		RelativeRotationHandle = InstanceData->Add<1, FQuat>({ InIdentifier, TEXT("RelativeRotation") }, { InMaxInstanceNum }, FQuat::Identity);
-	}
-
-	void FPlanarRotationFeature::Encode(const FIndexSet Instances)
-	{
-		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(FPlanarRotationFeature::Encode);
-
-		const TLearningArrayView<2, const FQuat> Rotation = InstanceData->ConstView(RotationHandle);
-		const TLearningArrayView<1, const FQuat> RelativeRotation = InstanceData->ConstView(RelativeRotationHandle);
-		TLearningArrayView<2, float> Feature = InstanceData->View(FeatureHandle);
-
-		const int32 RotationNum = Rotation.Num<1>();
-
-		for (const int32 InstanceIdx : Instances)
-		{
-			for (int32 RotationIdx = 0; RotationIdx < RotationNum; RotationIdx++)
-			{
-				Feature::Encode::PlanarRotation(
-					Feature[InstanceIdx].Slice(RotationIdx * 2, 2),
-					Rotation[InstanceIdx][RotationIdx],
-					RelativeRotation[InstanceIdx],
-					Scale,
-					Axis);
-			}
-		}
-	}
-
-	void FPlanarRotationFeature::Decode(const FIndexSet Instances)
-	{
-		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(FPlanarRotationFeature::Decode);
-
-		TLearningArrayView<2, FQuat> Rotation = InstanceData->View(RotationHandle);
-		const TLearningArrayView<1, const FQuat> RelativeRotation = InstanceData->ConstView(RelativeRotationHandle);
-		const TLearningArrayView<2, const float> Feature = InstanceData->ConstView(FeatureHandle);
-
-		const int32 RotationNum = Rotation.Num<1>();
-
-		for (const int32 InstanceIdx : Instances)
-		{
-			for (int32 RotationIdx = 0; RotationIdx < RotationNum; RotationIdx++)
-			{
-				Feature::Decode::PlanarRotation(
-					Rotation[InstanceIdx][RotationIdx],
-					Feature[InstanceIdx].Slice(RotationIdx * 2, 2),
-					RelativeRotation[InstanceIdx],
-					Scale,
-					Axis);
-			}
-		}
-	}
-
 	FRotationFeature::FRotationFeature(
 		const FName& InIdentifier,
 		const TSharedRef<FArrayMap>& InInstanceData,
@@ -1937,68 +1822,6 @@ namespace UE::Learning
 					AngularVelocity[InstanceIdx][AngularVelocityIdx],
 					Feature[InstanceIdx][AngularVelocityIdx],
 					Scale);
-			}
-		}
-	}
-
-	FPlanarAngularVelocityFeature::FPlanarAngularVelocityFeature(
-		const FName& InIdentifier,
-		const TSharedRef<FArrayMap>& InInstanceData,
-		const int32 InMaxInstanceNum,
-		const int32 InAngularVelocityNum,
-		const float InScale,
-		const FVector InAxis)
-		: FFeatureObject(InIdentifier, InInstanceData, InMaxInstanceNum, InAngularVelocityNum, InScale)
-		, Axis(InAxis)
-	{
-		AngularVelocityHandle = InstanceData->Add<2, FVector>({ InIdentifier, TEXT("AngularVelocity") }, { InMaxInstanceNum }, FVector::ZeroVector);
-		RelativeRotationHandle = InstanceData->Add<1, FQuat>({ InIdentifier, TEXT("RelativeRotation") }, { InMaxInstanceNum }, FQuat::Identity);
-	}
-
-	void FPlanarAngularVelocityFeature::Encode(const FIndexSet Instances)
-	{
-		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(FPlanarAngularVelocityFeature::Encode);
-
-		const TLearningArrayView<2, const FVector> AngularVelocity = InstanceData->ConstView(AngularVelocityHandle);
-		const TLearningArrayView<1, const FQuat> RelativeRotation = InstanceData->ConstView(RelativeRotationHandle);
-		TLearningArrayView<2, float> Feature = InstanceData->View(FeatureHandle);
-
-		const int32 AngularVelocityNum = AngularVelocity.Num<1>();
-
-		for (const int32 InstanceIdx : Instances)
-		{
-			for (int32 AngularVelocityIdx = 0; AngularVelocityIdx < AngularVelocityNum; AngularVelocityIdx++)
-			{
-				Feature::Encode::PlanarAngularVelocity(
-					Feature[InstanceIdx][AngularVelocityIdx],
-					AngularVelocity[InstanceIdx][AngularVelocityIdx],
-					RelativeRotation[InstanceIdx],
-					Scale,
-					Axis);
-			}
-		}
-	}
-
-	void FPlanarAngularVelocityFeature::Decode(const FIndexSet Instances)
-	{
-		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(FPlanarAngularVelocityFeature::Decode);
-
-		TLearningArrayView<2, FVector> AngularVelocity = InstanceData->View(AngularVelocityHandle);
-		const TLearningArrayView<1, const FQuat> RelativeRotation = InstanceData->ConstView(RelativeRotationHandle);
-		const TLearningArrayView<2, const float> Feature = InstanceData->ConstView(FeatureHandle);
-
-		const int32 AngularVelocityNum = AngularVelocity.Num<1>();
-
-		for (const int32 InstanceIdx : Instances)
-		{
-			for (int32 AngularVelocityIdx = 0; AngularVelocityIdx < AngularVelocityNum; AngularVelocityIdx++)
-			{
-				Feature::Decode::PlanarAngularVelocity(
-					AngularVelocity[InstanceIdx][AngularVelocityIdx],
-					Feature[InstanceIdx][AngularVelocityIdx],
-					RelativeRotation[InstanceIdx],
-					Scale,
-					Axis);
 			}
 		}
 	}

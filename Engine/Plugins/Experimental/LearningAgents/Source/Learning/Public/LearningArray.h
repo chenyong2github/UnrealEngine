@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Templates/Function.h"
+#include "Containers/UnrealString.h"
 
 #include "MultiArrayView.h"
 #include "MultiArray.h"
@@ -102,9 +104,6 @@
 #else
 #define UE_LEARNING_ARRAY_RESTRICT_CHECK(PtrLhs, PtrRhs)
 #endif
-
-
-template <typename FuncType> class TFunctionRef;
 
 
 // Learning Multi-Dimensional Array Types
@@ -972,6 +971,47 @@ namespace UE::Learning
 			return INDEX_NONE;
 		}
 
+		template<typename InElementType>
+		FString Format(const TLearningArrayView<1, const InElementType> Array, const TFunctionRef<FString(const InElementType&)> Formatter, const int32 MaxItemNum = 16)
+		{
+			const int32 ItemNum = Array.Num();
+
+			FString Output = TEXT("[");
+
+			if (ItemNum <= MaxItemNum)
+			{
+				for (int32 Idx = 0; Idx < ItemNum; Idx++)
+				{
+					Output.Append(Formatter(Array[Idx]));
+					if (Idx != ItemNum - 1) { Output.Append(TEXT(" ")); }
+				}
+			}
+			else
+			{
+				for (int32 Idx = 0; Idx < MaxItemNum / 2; Idx++)
+				{
+					Output.Append(Formatter(Array[Idx]));
+					Output.Append(TEXT(" "));
+				}
+
+				Output.Append(TEXT("... "));
+
+				for (int32 Idx = 0; Idx < MaxItemNum / 2; Idx++)
+				{
+					Output.Append(Formatter(Array[ItemNum - Idx - 1]));
+					if (Idx != MaxItemNum / 2 - 1) { Output.Append(TEXT(" ")); }
+				}
+			}
+
+			Output.Append(TEXT("]"));
+
+			return Output;
+		}
+
+		static inline FString FormatFloat(const TLearningArrayView<1, const float> Array, const int32 MaxItemNum = 16)
+		{
+			return Format<float>(Array, [](const float& Value) { return FString::Printf(TEXT("%6.3f"), Value); }, MaxItemNum);
+		}
 	}
 }
 

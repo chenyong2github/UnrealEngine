@@ -84,6 +84,34 @@ namespace UE::Learning
 
 	//------------------------------------------------------------------
 
+	FTimeElapsedCompletion::FTimeElapsedCompletion(
+		const FName& InIdentifier,
+		const TSharedRef<FArrayMap>& InInstanceData,
+		const int32 InMaxInstanceNum,
+		const float InThreshold,
+		const ECompletionMode InCompletionMode)
+		: FCompletionObject(InIdentifier, InInstanceData, InMaxInstanceNum, InCompletionMode)
+	{
+		TimeHandle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Time") }, { InMaxInstanceNum }, 0.0f);
+		ThresholdHandle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Threshold") }, { InMaxInstanceNum }, InThreshold);
+	}
+
+	void FTimeElapsedCompletion::Evaluate(const FIndexSet Instances)
+	{
+		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(FTimeElapsedCompletion::Evaluate);
+
+		const TLearningArrayView<1, const float> Time = InstanceData->ConstView(TimeHandle);
+		const TLearningArrayView<1, const float> Threshold = InstanceData->ConstView(ThresholdHandle);
+		TLearningArrayView<1, ECompletionMode> Completion = InstanceData->View(CompletionHandle);
+
+		for (const int32 InstanceIdx : Instances)
+		{
+			Completion[InstanceIdx] = Time[InstanceIdx] > Threshold[InstanceIdx] ? CompletionMode : ECompletionMode::Running;
+		}
+	}
+
+	//------------------------------------------------------------------
+
 	FScalarPositionDifferenceCompletion::FScalarPositionDifferenceCompletion(
 		const FName& InIdentifier,
 		const TSharedRef<FArrayMap>& InInstanceData,
@@ -163,6 +191,53 @@ namespace UE::Learning
 				const FVector ProjectedPosition1 = FVector(Axis0.Dot(Position1[InstanceIdx][PositionIdx]), Axis1.Dot(Position1[InstanceIdx][PositionIdx]), 0.0f);
 
 				if (FVector::Distance(ProjectedPosition0, ProjectedPosition1) > Threshold[InstanceIdx])
+				{
+					Completion[InstanceIdx] = CompletionMode;
+					break;
+				}
+			}
+		}
+	}
+
+	FPlanarPositionSimilarityCompletion::FPlanarPositionSimilarityCompletion(
+		const FName& InIdentifier,
+		const TSharedRef<FArrayMap>& InInstanceData,
+		const int32 InMaxInstanceNum,
+		const int32 InPositionNum,
+		const float InThreshold,
+		const ECompletionMode InCompletionMode,
+		const FVector InAxis0,
+		const FVector InAxis1)
+		: FCompletionObject(InIdentifier, InInstanceData, InMaxInstanceNum, InCompletionMode)
+		, Axis0(InAxis0)
+		, Axis1(InAxis1)
+	{
+		Position0Handle = InstanceData->Add<2, FVector>({ InIdentifier, TEXT("Position0") }, { InMaxInstanceNum, InPositionNum }, FVector::ZeroVector);
+		Position1Handle = InstanceData->Add<2, FVector>({ InIdentifier, TEXT("Position1") }, { InMaxInstanceNum, InPositionNum }, FVector::ZeroVector);
+		ThresholdHandle = InstanceData->Add<1, float>({ InIdentifier, TEXT("Threshold") }, { InMaxInstanceNum }, InThreshold);
+	}
+
+	void FPlanarPositionSimilarityCompletion::Evaluate(const FIndexSet Instances)
+	{
+		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(FPlanarPositionSimilarityCompletion::Evaluate);
+
+		const TLearningArrayView<2, const FVector> Position0 = InstanceData->ConstView(Position0Handle);
+		const TLearningArrayView<2, const FVector> Position1 = InstanceData->ConstView(Position1Handle);
+		const TLearningArrayView<1, const float> Threshold = InstanceData->ConstView(ThresholdHandle);
+		TLearningArrayView<1, ECompletionMode> Completion = InstanceData->View(CompletionHandle);
+
+		const int32 PositionNum = Position0.Num<1>();
+
+		for (const int32 InstanceIdx : Instances)
+		{
+			Completion[InstanceIdx] = ECompletionMode::Running;
+
+			for (int32 PositionIdx = 0; PositionIdx < PositionNum; PositionIdx++)
+			{
+				const FVector ProjectedPosition0 = FVector(Axis0.Dot(Position0[InstanceIdx][PositionIdx]), Axis1.Dot(Position0[InstanceIdx][PositionIdx]), 0.0f);
+				const FVector ProjectedPosition1 = FVector(Axis0.Dot(Position1[InstanceIdx][PositionIdx]), Axis1.Dot(Position1[InstanceIdx][PositionIdx]), 0.0f);
+
+				if (FVector::Distance(ProjectedPosition0, ProjectedPosition1) < Threshold[InstanceIdx])
 				{
 					Completion[InstanceIdx] = CompletionMode;
 					break;

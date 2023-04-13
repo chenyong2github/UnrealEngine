@@ -23,7 +23,7 @@ void ULearningAgentsController::SetupController(ALearningAgentsManager* InAgentM
 {
 	if (IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup already performed!"), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup already run!"), *GetName());
 		return;
 	}
 
@@ -35,7 +35,7 @@ void ULearningAgentsController::SetupController(ALearningAgentsManager* InAgentM
 
 	if (!InAgentManager->IsManagerSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s's SetupManager() must be run before %s can be setup."), *InAgentManager->GetName(), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: %s's SetupManager must be run before it can be used."), *GetName(), *InAgentManager->GetName());
 		return;
 	}
 
@@ -65,7 +65,7 @@ void ULearningAgentsController::EncodeActions()
 
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("Setup must be run before actions can be encoded."));
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
 		return;
 	}
 
@@ -93,4 +93,19 @@ ULearningAgentsType* ULearningAgentsController::GetAgentType(const TSubclassOf<U
 	}
 
 	return AgentType;
+}
+
+void ULearningAgentsController::RunController()
+{
+	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsController::RunController);
+
+	if (!IsSetup())
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		return;
+	}
+
+	AgentType->EncodeObservations();
+	EncodeActions();
+	AgentType->DecodeActions();
 }

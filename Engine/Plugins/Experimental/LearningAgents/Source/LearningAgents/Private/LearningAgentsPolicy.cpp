@@ -13,62 +13,6 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "GameFramework/Actor.h"
-#include "VisualLogger/VisualLogger.h"
-
-#define UE_LEARNING_AGENTS_VLOG_STRING(Owner, Category, Verbosity, Location, Color, Format, ...) \
-	UE_VLOG_LOCATION(Owner, Category, Verbosity, Location, 0.0f, Color, Format, ##__VA_ARGS__)
-
-namespace UE::Learning::Agents::Policy::Private
-{
-	static inline FString FloatArrayToString(const TLearningArrayView<1, const float> Array)
-	{
-		const int32 ItemNum = Array.Num();
-		const int32 MaxItemNum = 32;
-		const int32 OutputItemNum = FMath::Min(ItemNum, MaxItemNum);
-
-		FString Output = TEXT("[");
-
-		for (int32 Idx = 0; Idx < OutputItemNum; Idx++)
-		{
-			Output.Appendf(TEXT("% 6.3f"), Array[Idx]);
-
-			if (Idx < OutputItemNum - 1)
-			{
-				Output += TEXT(" ");
-			}
-			else if (Idx == MaxItemNum - 1)
-			{
-				Output += TEXT("...");
-			}
-		}
-
-		Output += TEXT("]");
-
-		return Output;
-	}
-
-	static inline FString FloatArrayToStatsString(const TLearningArrayView<1, const float> Array)
-	{
-		const int32 ItemNum = Array.Num();
-
-		float Min = +FLT_MAX, Max = -FLT_MAX, Mean = 0.0f;
-		for (int32 Idx = 0; Idx < ItemNum; Idx++)
-		{
-			Min = FMath::Min(Min, Array[Idx]);
-			Max = FMath::Max(Max, Array[Idx]);
-			Mean += Array[Idx] / ItemNum;
-		}
-
-		float Var = 0.0f;
-		for (int32 Idx = 0; Idx < ItemNum; Idx++)
-		{
-			Var += FMath::Square(Array[Idx] - Mean) / ItemNum;
-		}
-
-		return FString::Printf(TEXT("[% 6.3f/% 6.3f/% 6.3f/% 6.3f]"),
-			Min, Max, Mean, FMath::Sqrt(Var));
-	}
-}
 
 ULearningAgentsPolicy::ULearningAgentsPolicy() : ULearningAgentsManagerComponent() {}
 ULearningAgentsPolicy::ULearningAgentsPolicy(FVTableHelper& Helper) : ULearningAgentsPolicy() {}
@@ -78,7 +22,7 @@ void ULearningAgentsPolicy::SetupPolicy(ALearningAgentsManager* InAgentManager, 
 {
 	if (IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup already performed!"), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup already run!"), *GetName());
 		return;
 	}
 
@@ -90,7 +34,7 @@ void ULearningAgentsPolicy::SetupPolicy(ALearningAgentsManager* InAgentManager, 
 
 	if (!InAgentManager->IsManagerSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s's SetupManager() must be run before %s can be setup."), *InAgentManager->GetName(), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: %s's SetupManager must be run before it can be used."), *GetName(), *InAgentManager->GetName());
 		return;
 	}
 
@@ -136,7 +80,22 @@ void ULearningAgentsPolicy::SetupPolicy(ALearningAgentsManager* InAgentManager, 
 
 	AgentManager->GetInstanceData()->Link(AgentType->GetObservationFeature().FeatureHandle, PolicyObject->InputHandle);
 
+	InitialActionNoiseScale = PolicySettings.InitialActionNoiseScale;
+	
 	bIsSetup = true;
+}
+
+bool ULearningAgentsPolicy::AddAgent(const int32 AgentId)
+{
+	bool bSuccess = Super::AddAgent(AgentId);
+
+	if (bSuccess)
+	{
+		// Reset the noise scale for this agent back to the initial value.
+		SetAgentActionNoiseScale(AgentId, InitialActionNoiseScale);
+	}
+
+	return bSuccess;
 }
 
 UE::Learning::FNeuralNetwork& ULearningAgentsPolicy::GetPolicyNetwork()
@@ -153,7 +112,7 @@ void ULearningAgentsPolicy::LoadPolicyFromSnapshot(const FDirectoryPath& Directo
 {
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("Policy setup must be run before network can be loaded."));
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
 		return;
 	}
 
@@ -169,7 +128,7 @@ void ULearningAgentsPolicy::LoadPolicyFromSnapshot(const FDirectoryPath& Directo
 
 		if (NetworkData.Num() != TotalByteNum)
 		{
-			UE_LOG(LogLearning, Error, TEXT("Failed to load network from file %s. File size incorrect."), *FilePath);
+			UE_LOG(LogLearning, Error, TEXT("%s: Failed to load network from file %s. File size incorrect."), *GetName(), *FilePath);
 			return;
 		}
 
@@ -177,7 +136,7 @@ void ULearningAgentsPolicy::LoadPolicyFromSnapshot(const FDirectoryPath& Directo
 	}
 	else
 	{
-		UE_LOG(LogLearning, Warning, TEXT("Failed to load network. File not found: %s"), *FilePath);
+		UE_LOG(LogLearning, Error, TEXT("%s: Failed to load network. File not found: %s"), *GetName(), *FilePath);
 	}
 }
 
@@ -185,7 +144,7 @@ void ULearningAgentsPolicy::SavePolicyToSnapshot(const FDirectoryPath& Directory
 {
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("Policy setup must be run before network can be saved."));
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
 		return;
 	}
 
@@ -201,7 +160,7 @@ void ULearningAgentsPolicy::SavePolicyToSnapshot(const FDirectoryPath& Directory
 	const FString FilePath = Directory.Path + FGenericPlatformMisc::GetDefaultPathSeparator() + Filename;
 	if (!FFileHelper::SaveArrayToFile(NetworkData, *FilePath))
 	{
-		UE_LOG(LogLearning, Error, TEXT("Failed to save network to file: %s"), *FilePath);
+		UE_LOG(LogLearning, Error, TEXT("%s: Failed to save network to file: %s"), *GetName(), *FilePath);
 	}
 }
 
@@ -209,20 +168,20 @@ void ULearningAgentsPolicy::LoadPolicyFromAsset(const ULearningAgentsNeuralNetwo
 {
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("Policy setup must be run before network can be loaded."));
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
 		return;
 	}
 
 	if (!NeuralNetworkAsset || !NeuralNetworkAsset->NeuralNetwork)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Cannot load policy from invalid asset."));
+		UE_LOG(LogLearning, Error, TEXT("%s: Asset is invalid."), *GetName());
 		return;
 	}
 
 	if (NeuralNetworkAsset->NeuralNetwork->GetInputNum() != Network->NeuralNetwork->GetInputNum() ||
 		NeuralNetworkAsset->NeuralNetwork->GetOutputNum() != Network->NeuralNetwork->GetOutputNum())
 	{
-		UE_LOG(LogLearning, Error, TEXT("Failed to load policy from asset. Network Asset inputs and outputs don't match."));
+		UE_LOG(LogLearning, Error, TEXT("%s: Failed to load network from asset. Inputs and outputs don't match."), *GetName());
 		return;
 	}
 
@@ -233,13 +192,13 @@ void ULearningAgentsPolicy::SavePolicyToAsset(ULearningAgentsNeuralNetwork* Neur
 {
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("Policy setup must be run before network can be saved."));
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
 		return;
 	}
 
 	if (!NeuralNetworkAsset)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Cannot save policy to invalid asset."));
+		UE_LOG(LogLearning, Error, TEXT("%s: Asset is invalid."), *GetName());
 		return;
 	}
 
@@ -272,7 +231,7 @@ void ULearningAgentsPolicy::EvaluatePolicy()
 
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("Setup must be run before the policy can be evaluated."));
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
 		return;
 	}
 
@@ -289,22 +248,36 @@ void ULearningAgentsPolicy::EvaluatePolicy()
 		PolicyObject->InstanceData->ConstView(PolicyObject->OutputHandle),
 		AddedAgentIds);
 
-#if ENABLE_VISUAL_LOG
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	VisualLog(AddedAgentIds);
 #endif
 }
 
+void ULearningAgentsPolicy::RunInference()
+{
+	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsPolicy::RunInference);
+
+	if (!IsSetup())
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		return;
+	}
+
+	AgentType->EncodeObservations();
+	EvaluatePolicy();
+	AgentType->DecodeActions();
+}
 float ULearningAgentsPolicy::GetAgentActionNoiseScale(const int32 AgentId) const
 {
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("Setup must be run before getting the action noise."));
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
 		return 0.0f;
 	}
 
 	if (!HasAgent(AgentId))
 	{
-		UE_LOG(LogLearning, Error, TEXT("Unable to get action noise for agent - AgentId %d not found in the added agents set."), AgentId);
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return 0.0f;
 	}
 
@@ -316,13 +289,13 @@ void ULearningAgentsPolicy::SetAgentActionNoiseScale(const int32 AgentId, const 
 {
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("Setup must be run before setting the action noise."));
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
 		return;
 	}
 
 	if (!HasAgent(AgentId))
 	{
-		UE_LOG(LogLearning, Error, TEXT("Unable to set action noise for agent - AgentId %d not found in the added agents set."), AgentId);
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
 	}
 
@@ -330,7 +303,19 @@ void ULearningAgentsPolicy::SetAgentActionNoiseScale(const int32 AgentId, const 
 	ActionNoiseScaleView[AgentId] = ActionNoiseScale;
 }
 
-#if ENABLE_VISUAL_LOG
+void ULearningAgentsPolicy::SetAllAgentsActionNoiseScale(const float ActionNoiseScale)
+{
+	if (!IsSetup())
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		return;
+	}
+
+	const TLearningArrayView<1, float> ActionNoiseScaleView = PolicyObject->InstanceData->View(PolicyObject->ActionNoiseScaleHandle);
+	UE::Learning::Array::Set(ActionNoiseScaleView, ActionNoiseScale, AddedAgentSet);
+}
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 void ULearningAgentsPolicy::VisualLog(const UE::Learning::FIndexSet Instances) const
 {
 	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsPolicy::VisualLog);
@@ -345,12 +330,6 @@ void ULearningAgentsPolicy::VisualLog(const UE::Learning::FIndexSet Instances) c
 	{
 		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
 		{
-			const FString InputArrayString = UE::Learning::Agents::Policy::Private::FloatArrayToString(InputView[Instance]);
-			const FString OutputArrayString = UE::Learning::Agents::Policy::Private::FloatArrayToString(OutputView[Instance]);
-			const FString OutputMeanArrayString = UE::Learning::Agents::Policy::Private::FloatArrayToString(OutputMeanView[Instance]);
-			const FString OutputStdArrayString = UE::Learning::Agents::Policy::Private::FloatArrayToString(OutputStdView[Instance]);
-			const FString InputStatsString = UE::Learning::Agents::Policy::Private::FloatArrayToStatsString(InputView[Instance]);
-			const FString OutputStatsString = UE::Learning::Agents::Policy::Private::FloatArrayToStatsString(OutputView[Instance]);
 
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
 				Actor->GetActorLocation(),
@@ -358,15 +337,14 @@ void ULearningAgentsPolicy::VisualLog(const UE::Learning::FIndexSet Instances) c
 				TEXT("Agent %i\nAction Noise Scale: [% 6.3f]\nInput: %s\nInput Stats (Min/Max/Mean/Std): %s\nOutput Mean: %s\nOutput Std: %s\nOutput Sample: %s\nOutput Stats (Min/Max/Mean/Std): %s"),
 				Instance,
 				ActionNoiseScaleView[Instance],
-				*InputArrayString,
-				*InputStatsString,
-				*OutputMeanArrayString,
-				*OutputStdArrayString,
-				*OutputArrayString,
-				*OutputStatsString);
+				*UE::Learning::Array::FormatFloat(InputView[Instance]),
+				*UE::Learning::Array::FormatFloat(OutputView[Instance]),
+				*UE::Learning::Array::FormatFloat(OutputMeanView[Instance]),
+				*UE::Learning::Array::FormatFloat(OutputStdView[Instance]),
+				*UE::Learning::Agents::Debug::FloatArrayToStatsString(InputView[Instance]),
+				*UE::Learning::Agents::Debug::FloatArrayToStatsString(OutputView[Instance]));
+
 		}
 	}
 }
 #endif
-
-#undef UE_LEARNING_AGENTS_VLOG_STRING

@@ -38,25 +38,25 @@ void ULearningAgentsImitationTrainer::BeginTraining(
 {
 	if (IsTraining())
 	{
-		UE_LOG(LogLearning, Error, TEXT("Already Training!"));
+		UE_LOG(LogLearning, Error, TEXT("%s: Already Training!"), *GetName());
 		return;
 	}
 
 	if (!InPolicy)
 	{
-		UE_LOG(LogLearning, Error, TEXT("BeginTraining called with nullptr for Policy."));
+		UE_LOG(LogLearning, Error, TEXT("%s: InPolicy is nullptr."), *GetName());
 		return;
 	}
 
 	if (!InPolicy->IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("Policy Setup not Performed"));
+		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *InPolicy->GetName());
 		return;
 	}
 
 	if (Records.IsEmpty())
 	{
-		UE_LOG(LogLearning, Error, TEXT("Records list is empty! Imitation Trainer needs at least one record to work correctly."));
+		UE_LOG(LogLearning, Error, TEXT("%s: Records list is empty! Imitation Trainer needs at least one record."), *GetName());
 		return;
 	}
 
@@ -69,7 +69,7 @@ void ULearningAgentsImitationTrainer::BeginTraining(
 	{
 		if (!Record)
 		{
-			UE_LOG(LogLearning, Warning, TEXT("BeginTraining: Null record object."));
+			UE_LOG(LogLearning, Warning, TEXT("%s: Record is nullptr."));
 			continue;
 		}
 
@@ -108,7 +108,7 @@ void ULearningAgentsImitationTrainer::BeginTraining(
 			}
 			else
 			{
-				UE_LOG(LogLearning, Warning, TEXT("Record input or output size does not match policy."));
+				UE_LOG(LogLearning, Warning, TEXT("%s: Record input or output size does not match policy."), *GetName());
 			}
 		}
 	}
@@ -117,7 +117,7 @@ void ULearningAgentsImitationTrainer::BeginTraining(
 
 	if (DataIndex == 0)
 	{
-		UE_LOG(LogLearning, Warning, TEXT("BeginTraining: input contains no valid training data."));
+		UE_LOG(LogLearning, Warning, TEXT("%s: input contains no valid training data."), *GetName());
 		RecordedObservations.Empty();
 		RecordedActions.Empty();
 		return;
@@ -130,7 +130,7 @@ void ULearningAgentsImitationTrainer::BeginTraining(
 
 	// Begin Training Properly
 
-	UE_LOG(LogLearning, Display, TEXT("Imitation Training Started"));
+	UE_LOG(LogLearning, Display, TEXT("%s: Imitation Training Started"), *GetName());
 
 	bIsTraining = true;
 	bIsTrainingComplete = false;
@@ -194,19 +194,18 @@ void ULearningAgentsImitationTrainer::BeginTraining(
 
 void ULearningAgentsImitationTrainer::EndTraining()
 {
-	if (IsTraining())
+	if (!IsTraining())
 	{
-		UE_LOG(LogLearning, Display, TEXT("Imitation Training Ended"));
-
-		bRequestImitationTrainingStop = true;
-		ImitationTrainingTask.Wait(FTimespan(0, 0, 30));
-
-		bIsTraining = false;
+		UE_LOG(LogLearning, Warning, TEXT("%s: Not Training!"), *GetName());
+		return;
 	}
-	else
-	{
-		UE_LOG(LogLearning, Warning, TEXT("Not Training!"));
-	}
+
+	UE_LOG(LogLearning, Display, TEXT("%s: Imitation Training Ended."), *GetName());
+
+	bRequestImitationTrainingStop = true;
+	ImitationTrainingTask.Wait(FTimespan(0, 0, 30));
+
+	bIsTraining = false;
 }
 
 bool ULearningAgentsImitationTrainer::IsTraining() const

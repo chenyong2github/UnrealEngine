@@ -122,6 +122,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (AgentId = "-1"))
 	bool HasAgentById(const int32 AgentId) const;
 
+	/** Get the current added agent ids. */
+	UFUNCTION(BlueprintPure = false, Category = "LearningAgents")
+	void GetAgentIds(TArray<int32>& OutAgentIds) const;
+
 // ----- Non-blueprint public interface -----
 public:
 

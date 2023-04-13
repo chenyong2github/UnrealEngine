@@ -139,14 +139,6 @@ namespace UE::Learning
 				const float Scale = DefaultScaleDirection, // angles are encoded as directions
 				const float Epsilon = UE_SMALL_NUMBER);
 
-			LEARNING_API void PlanarRotation(
-				TLearningArrayView<1, float> Output,
-				const FQuat Rotation,
-				const FQuat RelativeRotation = FQuat::Identity,
-				const float Scale = DefaultScaleDirection,  // rotations are encoded as directions
-				const FVector Axis = FVector::UpVector,
-				const float Epsilon = UE_SMALL_NUMBER);
-
 			LEARNING_API void Rotation(
 				TLearningArrayView<1, float> Output,
 				const FQuat Rotation,
@@ -165,14 +157,6 @@ namespace UE::Learning
 				float& Output,
 				const float AngularVelocity,
 				const float Scale = DefaultScaleAngularVelocity,
-				const float Epsilon = UE_SMALL_NUMBER);
-
-			LEARNING_API void PlanarAngularVelocity(
-				float& Output,
-				const FVector AngularVelocity,
-				const FQuat RelativeRotation = FQuat::Identity,
-				const float Scale = DefaultScaleAngularVelocity,
-				const FVector Axis = FVector::UpVector,
 				const float Epsilon = UE_SMALL_NUMBER);
 
 			LEARNING_API void AngularVelocity(
@@ -314,13 +298,6 @@ namespace UE::Learning
 				const float RelativeRotation = 0.0f,
 				const float Scale = DefaultScaleDirection); // angles are encoded as directions
 
-			LEARNING_API void PlanarRotation(
-				FQuat& OutPlanarRotation,
-				const TLearningArrayView<1, const float> Input,
-				const FQuat RelativeRotation = FQuat::Identity,
-				const float Scale = DefaultScaleDirection, // rotations are encoded as directions
-				const FVector Axis = FVector::UpVector);
-
 			LEARNING_API void Rotation(
 				FQuat& OutRotation,
 				const TLearningArrayView<1, const float> Input,
@@ -338,13 +315,6 @@ namespace UE::Learning
 				float& OutScalarVelocity,
 				const float Input,
 				const float Scale = DefaultScaleAngularVelocity);
-
-			LEARNING_API void PlanarAngularVelocity(
-				FVector& OutPlanarVelocity,
-				const float Input,
-				const FQuat RelativeRotation = FQuat::Identity,
-				const float Scale = DefaultScaleAngularVelocity,
-				const FVector Axis = FVector::UpVector);
 
 			LEARNING_API void AngularVelocity(
 				FVector& OutAngularVelocity,
@@ -766,30 +736,6 @@ namespace UE::Learning
 	/**
 	* Feature for an array of rotations
 	*/
-	struct LEARNING_API FPlanarRotationFeature : public FFeatureObject
-	{
-		FPlanarRotationFeature(
-			const FName& InIdentifier,
-			const TSharedRef<FArrayMap>& InInstanceData,
-			const int32 InMaxInstanceNum,
-			const int32 InRotationNum,
-			const float InScale = Feature::DefaultScaleDirection, // rotations are encoded as directions
-			const FVector Axis = FVector::UpVector);
-
-		virtual bool IsEncodable() const override final { return true; }
-		virtual bool IsDecodable() const override final { return true; }
-		virtual void Encode(const FIndexSet Instances) override final;
-		virtual void Decode(const FIndexSet Instances) override final;
-
-		FVector Axis = FVector::UpVector;
-
-		TArrayMapHandle<2, FQuat> RotationHandle;
-		TArrayMapHandle<1, FQuat> RelativeRotationHandle;
-	};
-
-	/**
-	* Feature for an array of rotations
-	*/
 	struct LEARNING_API FRotationFeature : public FFeatureObject
 	{
 		FRotationFeature(
@@ -848,30 +794,6 @@ namespace UE::Learning
 		virtual void Decode(const FIndexSet Instances) override final;
 
 		TArrayMapHandle<2, float> AngularVelocityHandle;
-	};
-
-	/**
-	* Feature for an array of planar angular velocities
-	*/
-	struct LEARNING_API FPlanarAngularVelocityFeature : public FFeatureObject
-	{
-		FPlanarAngularVelocityFeature(
-			const FName& InIdentifier,
-			const TSharedRef<FArrayMap>& InInstanceData,
-			const int32 InMaxInstanceNum,
-			const int32 InAngularAccelerationNum,
-			const float InScale = Feature::DefaultScaleAngularVelocity,
-			const FVector InAxis = FVector::UpVector);
-
-		virtual bool IsEncodable() const override final { return true; }
-		virtual bool IsDecodable() const override final { return true; }
-		virtual void Encode(const FIndexSet Instances) override final;
-		virtual void Decode(const FIndexSet Instances) override final;
-
-		FVector Axis = FVector::UpVector;
-
-		TArrayMapHandle<2, FVector> AngularVelocityHandle;
-		TArrayMapHandle<1, FQuat> RelativeRotationHandle;
 	};
 
 	/**

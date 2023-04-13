@@ -10,41 +10,28 @@
 #include "LearningLog.h"
 
 #include "GameFramework/Actor.h"
-#include "VisualLogger/VisualLogger.h"
 
-#define UE_LEARNING_AGENTS_VLOG_STRING(Owner, Category, Verbosity, Location, Color, Format, ...) \
-	UE_VLOG_LOCATION(Owner, Category, Verbosity, Location, 0.0f, Color, Format, ##__VA_ARGS__)
-
-#define UE_LEARNING_AGENTS_VLOG_TRANSFORM(Owner, Category, Verbosity, Location, Rotation, Color, Format, ...) \
-	UE_VLOG_SEGMENT(Owner, Category, Verbosity, Location, Location + 15.0f * Rotation.RotateVector(FVector::ForwardVector), FColor::Red, TEXT("")); \
-	UE_VLOG_SEGMENT(Owner, Category, Verbosity, Location, Location + 15.0f * Rotation.RotateVector(FVector::RightVector), FColor::Green, TEXT("")); \
-	UE_VLOG_SEGMENT(Owner, Category, Verbosity, Location, Location + 15.0f * Rotation.RotateVector(FVector::UpVector), FColor::Blue, TEXT("")); \
-	UE_VLOG_OBOX(Owner, Category, Verbosity, FBox(10.0f * FVector(-1, -1, -1), 10.0f * FVector(1, 1, 1)), FTransform(Rotation, Location, FVector::OneVector).ToMatrixNoScale(), Color, TEXT("")); \
-	UE_LEARNING_AGENTS_VLOG_STRING(Owner, Category, Verbosity, Location + FVector(0.0f, 0.0f, 20.0f), Color, Format, ##__VA_ARGS__)
-
-#define UE_LEARNING_AGENTS_VLOG_PLANE(Owner, Category, Verbosity, Location, Rotation, Axis0, Axis1, Color, Format, ...) \
-	UE_VLOG_OBOX(Owner, Category, Verbosity, FBox(-25.0f * (Axis0 + Axis1), 25.0f * (Axis0 + Axis1)), FTransform(Rotation, Location, FVector::OneVector).ToMatrixNoScale(), Color, Format, ##__VA_ARGS__)
-
-namespace UE::Learning::Agents::Private
+namespace UE::Learning::Agents::Actions::Private
 {
 	template<typename ActionUObject, typename ActionFObject, typename... InArgTypes>
-	ActionUObject* AddAction(ULearningAgentsType* AgentType, const FName Name, InArgTypes&& ...Args)
+	ActionUObject* AddAction(ULearningAgentsType* InAgentType, const FName Name, InArgTypes&& ...Args)
 	{
-		if (!AgentType)
+		if (!InAgentType)
 		{
-			UE_LOG(LogLearning, Error, TEXT("AgentType is nullptr"));
+			UE_LOG(LogLearning, Error, TEXT("InAgentType is nullptr."));
 			return nullptr;
 		}
 
-		ActionUObject* Action = NewObject<ActionUObject>(AgentType, Name);
+		ActionUObject* Action = NewObject<ActionUObject>(InAgentType, Name);
 
+		Action->AgentType = InAgentType;
 		Action->FeatureObject = MakeShared<ActionFObject>(
 			Action->GetFName(),
-			AgentType->GetAgentManager()->GetInstanceData().ToSharedRef(),
-			AgentType->GetAgentManager()->GetMaxInstanceNum(),
+			InAgentType->GetAgentManager()->GetInstanceData().ToSharedRef(),
+			InAgentType->GetAgentManager()->GetMaxInstanceNum(),
 			Forward<InArgTypes>(Args)...);
 
-		AgentType->AddAction(Action, Action->FeatureObject.ToSharedRef());
+		InAgentType->AddAction(Action, Action->FeatureObject.ToSharedRef());
 
 		return Action;
 	}
@@ -52,50 +39,34 @@ namespace UE::Learning::Agents::Private
 
 //------------------------------------------------------------------
 
-UFloatAction* UFloatAction::AddFloatAction(ULearningAgentsType* AgentType, const FName Name, const float Scale)
+UFloatAction* UFloatAction::AddFloatAction(ULearningAgentsType* InAgentType, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Private::AddAction<UFloatAction, UE::Learning::FFloatFeature>(AgentType, Name, 1, Scale);
+	return UE::Learning::Agents::Actions::Private::AddAction<UFloatAction, UE::Learning::FFloatFeature>(InAgentType, Name, 1, Scale);
 }
 
-float UFloatAction::GetFloatAction(const int32 AgentId)
+float UFloatAction::GetFloatAction(const int32 AgentId) const
 {
-	const TLearningArrayView<2, const float> View = FeatureObject->InstanceData->ConstView(FeatureObject->ValueHandle);
-
-	if (AgentId == INDEX_NONE)
+	if (!AgentType->HasAgent(AgentId))
 	{
-		UE_LOG(LogLearning, Error, TEXT("AgentId is invalid (INDEX_NONE)"));
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return 0.0f;
 	}
 
-	if (AgentId < 0 || AgentId >= View.Num<0>())
-	{
-		UE_LOG(LogLearning, Error, TEXT("AgentId %d is out of index. Valid range [0, %d]."), AgentId, View.Num<0>() - 1);
-		return 0.0f;
-	}
-
-	return View[AgentId][0];
+	return FeatureObject->InstanceData->ConstView(FeatureObject->ValueHandle)[AgentId][0];
 }
 
 void UFloatAction::SetFloatAction(const int32 AgentId, const float Value)
 {
-	const TLearningArrayView<2, float> View = FeatureObject->InstanceData->View(FeatureObject->ValueHandle);
-
-	if (AgentId == INDEX_NONE)
+	if (!AgentType->HasAgent(AgentId))
 	{
-		UE_LOG(LogLearning, Error, TEXT("AgentId is invalid (INDEX_NONE)"));
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
 	}
 
-	if (AgentId < 0 || AgentId >= View.Num<0>())
-	{
-		UE_LOG(LogLearning, Error, TEXT("AgentId %d is out of index. Valid range [0, %d]."), AgentId, View.Num<0>() - 1);
-		return;
-	}
-
-	View[AgentId][0] = Value;
+	FeatureObject->InstanceData->View(FeatureObject->ValueHandle)[AgentId][0] = Value;
 }
 
-#if ENABLE_VISUAL_LOG
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 void UFloatAction::VisualLog(const UE::Learning::FIndexSet Instances) const
 {
 	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(UFloatAction::VisualLog);
@@ -103,21 +74,88 @@ void UFloatAction::VisualLog(const UE::Learning::FIndexSet Instances) const
 	const TLearningArrayView<2, const float> ValueView = FeatureObject->InstanceData->ConstView(FeatureObject->ValueHandle);
 	const TLearningArrayView<2, const float> FeatureView = FeatureObject->InstanceData->ConstView(FeatureObject->FeatureHandle);
 
-	if (const ULearningAgentsType* AgentType = Cast<ULearningAgentsType>(GetOuter()))
+	for (const int32 Instance : Instances)
 	{
-		for (const int32 Instance : Instances)
+		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
 		{
-			if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
-			{
-				UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
-					Actor->GetActorLocation(),
-					VisualLogColor.ToFColor(true),
-					TEXT("Agent %i\nScale: [% 6.2f]\nValue: [% 6.2f]\nEncoded: [% 6.3f]"),
-					Instance,
-					FeatureObject->Scale,
-					ValueView[Instance][0],
-					FeatureView[Instance][0]);
-			}
+			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
+				Actor->GetActorLocation(),
+				VisualLogColor.ToFColor(true),
+				TEXT("Agent %i\nScale: [% 6.2f]\nValue: [% 6.2f]\nEncoded: [% 6.3f]"),
+				Instance,
+				FeatureObject->Scale,
+				ValueView[Instance][0],
+				FeatureView[Instance][0]);
+		}
+	}
+}
+#endif
+
+UFloatArrayAction* UFloatArrayAction::AddFloatArrayAction(ULearningAgentsType* InAgentType, const FName Name, const int32 Num, const float Scale)
+{
+	if (Num < 1)
+	{
+		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), Num);
+		return nullptr;
+	}
+
+	return UE::Learning::Agents::Actions::Private::AddAction<UFloatArrayAction, UE::Learning::FFloatFeature>(InAgentType, Name, Num, Scale);
+}
+
+void UFloatArrayAction::GetFloatArrayAction(const int32 AgentId, TArray<float>& OutValues) const
+{
+	if (!AgentType->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		OutValues.Empty();
+		return;
+	}
+
+	const TLearningArrayView<2, const float> View = FeatureObject->InstanceData->ConstView(FeatureObject->ValueHandle);
+
+	OutValues.SetNumUninitialized(View.Num<1>());
+	UE::Learning::Array::Copy<1, float>(OutValues, View[AgentId]);
+}
+
+void UFloatArrayAction::SetFloatArrayAction(const int32 AgentId, const TArray<float>& Values)
+{
+	if (!AgentType->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return;
+	}
+
+	const TLearningArrayView<2, float> View = FeatureObject->InstanceData->View(FeatureObject->ValueHandle);
+
+	if (Values.Num() != View.Num<1>())
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Got wrong number of elements in array. Expected %i, got %i."), *GetName(), View.Num<1>(), Values.Num());
+		return;
+	}
+
+	UE::Learning::Array::Copy<1, float>(View[AgentId], Values);
+}
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
+void UFloatArrayAction::VisualLog(const UE::Learning::FIndexSet Instances) const
+{
+	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(UFloatArrayAction::VisualLog);
+
+	const TLearningArrayView<2, const float> ValueView = FeatureObject->InstanceData->ConstView(FeatureObject->ValueHandle);
+	const TLearningArrayView<2, const float> FeatureView = FeatureObject->InstanceData->ConstView(FeatureObject->FeatureHandle);
+
+	for (const int32 Instance : Instances)
+	{
+		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		{
+			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
+				Actor->GetActorLocation(),
+				VisualLogColor.ToFColor(true),
+				TEXT("Agent %i\nScale: [% 6.2f]\nValue: %s\nEncoded: %s"),
+				Instance,
+				FeatureObject->Scale,
+				*UE::Learning::Array::FormatFloat(ValueView[Instance]),
+				*UE::Learning::Array::FormatFloat(FeatureView[Instance]));
 		}
 	}
 }
@@ -125,52 +163,40 @@ void UFloatAction::VisualLog(const UE::Learning::FIndexSet Instances) const
 
 //------------------------------------------------------------------
 
-UVectorAction* UVectorAction::AddVectorAction(ULearningAgentsType* AgentType, const FName Name, const float Scale)
+UVectorAction* UVectorAction::AddVectorAction(ULearningAgentsType* InAgentType, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Private::AddAction<UVectorAction, UE::Learning::FFloatFeature>(AgentType, Name, 3, Scale);
+	return UE::Learning::Agents::Actions::Private::AddAction<UVectorAction, UE::Learning::FFloatFeature>(InAgentType, Name, 3, Scale);
 }
 
-FVector UVectorAction::GetVectorAction(const int32 AgentId)
+FVector UVectorAction::GetVectorAction(const int32 AgentId) const
 {
+	if (!AgentType->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return FVector::ZeroVector;
+	}
+
 	const TLearningArrayView<2, const float> View = FeatureObject->InstanceData->ConstView(FeatureObject->ValueHandle);
-
-	if (AgentId == INDEX_NONE)
-	{
-		UE_LOG(LogLearning, Error, TEXT("AgentId is invalid (INDEX_NONE)"));
-		return FVector::ZeroVector;
-	}
-
-	if (AgentId < 0 || AgentId >= View.Num<0>())
-	{
-		UE_LOG(LogLearning, Error, TEXT("AgentId %d is out of index. Valid range [0, %d]."), AgentId, View.Num<0>() - 1);
-		return FVector::ZeroVector;
-	}
 
 	return FVector(View[AgentId][0], View[AgentId][1], View[AgentId][2]);
 }
 
 void UVectorAction::SetVectorAction(const int32 AgentId, const FVector InAction)
 {
+	if (!AgentType->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return;
+	}
+
 	const TLearningArrayView<2, float> View = FeatureObject->InstanceData->View(FeatureObject->ValueHandle);
-
-	if (AgentId == INDEX_NONE)
-	{
-		UE_LOG(LogLearning, Error, TEXT("AgentId is invalid (INDEX_NONE)"));
-		return;
-	}
-
-	if (AgentId < 0 || AgentId >= View.Num<0>())
-	{
-		UE_LOG(LogLearning, Error, TEXT("AgentId %d is out of index. Valid range [0, %d]."), AgentId, View.Num<0>() - 1);
-		return;
-	}
 
 	View[AgentId][0] = InAction.X;
 	View[AgentId][1] = InAction.Y;
 	View[AgentId][2] = InAction.Z;
 }
 
-#if ENABLE_VISUAL_LOG
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 void UVectorAction::VisualLog(const UE::Learning::FIndexSet Instances) const
 {
 	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(UVectorAction::VisualLog);
@@ -178,34 +204,133 @@ void UVectorAction::VisualLog(const UE::Learning::FIndexSet Instances) const
 	const TLearningArrayView<2, const float> ValueView = FeatureObject->InstanceData->ConstView(FeatureObject->ValueHandle);
 	const TLearningArrayView<2, const float> FeatureView = FeatureObject->InstanceData->ConstView(FeatureObject->FeatureHandle);
 
-	if (const ULearningAgentsType* AgentType = Cast<ULearningAgentsType>(GetOuter()))
+	for (const int32 Instance : Instances)
 	{
-		for (const int32 Instance : Instances)
+		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
 		{
-			if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
-			{
-				const FVector Vector(ValueView[Instance][0], ValueView[Instance][1], ValueView[Instance][2]);
+			const FVector Vector(ValueView[Instance][0], ValueView[Instance][1], ValueView[Instance][2]);
 
-				UE_VLOG_ARROW(this, LogLearning, Display,
-					Actor->GetActorLocation(),
-					Actor->GetActorLocation() + Vector,
+			UE_LEARNING_AGENTS_VLOG_ARROW(this, LogLearning, Display,
+				Actor->GetActorLocation(),
+				Actor->GetActorLocation() + Vector,
+				VisualLogColor.ToFColor(true),
+				TEXT(""));
+
+			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
+				Actor->GetActorLocation() + Vector,
+				VisualLogColor.ToFColor(true),
+				TEXT("Vector: [% 6.4f % 6.4f % 6.4f]"),
+				Vector.X, Vector.Y, Vector.Z);
+
+			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
+				Actor->GetActorLocation(),
+				VisualLogColor.ToFColor(true),
+				TEXT("Agent %i\nScale: [% 6.2f]\nEncoded: [% 6.3f % 6.3f % 6.3f]"),
+				Instance,
+				FeatureObject->Scale,
+				FeatureView[Instance][0], FeatureView[Instance][1], FeatureView[Instance][2]);
+		}
+	}
+}
+#endif
+
+UVectorArrayAction* UVectorArrayAction::AddVectorArrayAction(ULearningAgentsType* InAgentType, const FName Name, const int32 Num, const float Scale)
+{
+	if (Num < 1)
+	{
+		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), Num);
+		return nullptr;
+	}
+
+	return UE::Learning::Agents::Actions::Private::AddAction<UVectorArrayAction, UE::Learning::FFloatFeature>(InAgentType, Name, Num * 3, Scale);
+}
+
+void UVectorArrayAction::GetVectorArrayAction(const int32 AgentId, TArray<FVector>& OutVectors) const
+{
+	if (!AgentType->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		OutVectors.Empty();
+		return;
+	}
+
+	const TLearningArrayView<2, const float> View = FeatureObject->InstanceData->ConstView(FeatureObject->ValueHandle);
+
+	OutVectors.SetNumUninitialized(View.Num<1>() / 3);
+
+	for (int32 VectorIdx = 0; VectorIdx < View.Num<1>() / 3; VectorIdx++)
+	{
+		OutVectors[VectorIdx] = FVector(
+			View[AgentId][VectorIdx * 3 + 0], 
+			View[AgentId][VectorIdx * 3 + 1], 
+			View[AgentId][VectorIdx * 3 + 2]);
+	}
+}
+
+void UVectorArrayAction::SetVectorArrayAction(const int32 AgentId, const TArray<FVector>& Vectors)
+{
+	if (!AgentType->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return;
+	}
+
+	const TLearningArrayView<2, float> View = FeatureObject->InstanceData->View(FeatureObject->ValueHandle);
+
+	if (Vectors.Num() != View.Num<1>() / 3)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Got wrong number of elements in array. Expected %i, got %i."), *GetName(), View.Num<1>() / 3, Vectors.Num());
+		return;
+	}
+
+	for (int32 VectorIdx = 0; VectorIdx < Vectors.Num(); VectorIdx++)
+	{
+		View[AgentId][VectorIdx * 3 + 0] = Vectors[VectorIdx].X;
+		View[AgentId][VectorIdx * 3 + 1] = Vectors[VectorIdx].Y;
+		View[AgentId][VectorIdx * 3 + 2] = Vectors[VectorIdx].Z;
+	}
+}
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
+void UVectorArrayAction::VisualLog(const UE::Learning::FIndexSet Instances) const
+{
+	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(UVectorArrayAction::VisualLog);
+
+	const TLearningArrayView<2, const float> ValueView = FeatureObject->InstanceData->ConstView(FeatureObject->ValueHandle);
+	const TLearningArrayView<2, const float> FeatureView = FeatureObject->InstanceData->ConstView(FeatureObject->FeatureHandle);
+
+	const int32 VectorNum = ValueView.Num<1>() / 3;
+
+	for (const int32 Instance : Instances)
+	{
+		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		{
+			for (int32 VectorIdx = 0; VectorIdx < VectorNum; VectorIdx++)
+			{
+				const FVector Vector(ValueView[Instance][VectorIdx * 3 + 0], ValueView[Instance][VectorIdx * 3 + 1], ValueView[Instance][VectorIdx * 3 + 2]);
+				const FVector Offset = UE::Learning::Agents::Debug::GridOffsetForIndex(VectorIdx, VectorNum);
+
+				UE_LEARNING_AGENTS_VLOG_ARROW(this, LogLearning, Display,
+					Actor->GetActorLocation() + Offset,
+					Actor->GetActorLocation() + Offset + Vector,
 					VisualLogColor.ToFColor(true),
 					TEXT(""));
 
 				UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
-					Actor->GetActorLocation() + Vector,
+					Actor->GetActorLocation() + Offset + Vector,
 					VisualLogColor.ToFColor(true),
-					TEXT("Vector: [% 6.4f % 6.4f % 6.4f]"),
+					TEXT("Vector %i: [% 6.4f % 6.4f % 6.4f]"),
+					VectorIdx,
 					Vector.X, Vector.Y, Vector.Z);
-
-				UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
-					Actor->GetActorLocation(),
-					VisualLogColor.ToFColor(true),
-					TEXT("Agent %i\nScale: [% 6.2f]\nEncoded: [% 6.3f % 6.3f % 6.3f]"),
-					Instance,
-					FeatureObject->Scale,
-					FeatureView[Instance][0], FeatureView[Instance][1], FeatureView[Instance][2]);
 			}
+
+			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
+				Actor->GetActorLocation(),
+				VisualLogColor.ToFColor(true),
+				TEXT("Agent %i\nScale: [% 6.2f]\nEncoded: %s"),
+				Instance,
+				FeatureObject->Scale,
+				*UE::Learning::Array::FormatFloat(FeatureView[Instance]));
 		}
 	}
 }
@@ -213,26 +338,117 @@ void UVectorAction::VisualLog(const UE::Learning::FIndexSet Instances) const
 
 //------------------------------------------------------------------
 
-URotationVectorArrayAction* URotationVectorArrayAction::AddRotationVectorArrayAction(ULearningAgentsType* AgentType, const FName Name, const int32 RotationVectorNum, const float Scale)
+URotationAction* URotationAction::AddRotationAction(ULearningAgentsType* InAgentType, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Private::AddAction<URotationVectorArrayAction, UE::Learning::FRotationVectorFeature>(AgentType, Name, RotationVectorNum, FMath::DegreesToRadians(Scale));
+	return UE::Learning::Agents::Actions::Private::AddAction<URotationAction, UE::Learning::FRotationVectorFeature>(InAgentType, Name, 1, Scale);
 }
 
-void URotationVectorArrayAction::GetRotationVectorArrayAction(const int32 AgentId, TArray<FVector>& OutRotationVectors)
+FRotator URotationAction::GetRotationAction(const int32 AgentId) const
 {
+	if (!AgentType->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return FRotator::ZeroRotator;
+	}
+
 	const TLearningArrayView<2, const FVector> View = FeatureObject->InstanceData->ConstView(FeatureObject->RotationVectorsHandle);
 
-	if (AgentId == INDEX_NONE)
+	return FQuat::MakeFromRotationVector((UE_TWO_PI / 180.0f) * View[AgentId][0]).Rotator();
+}
+
+FVector URotationAction::GetRotationActionAsRotationVector(const int32 AgentId) const
+{
+	if (!AgentType->HasAgent(AgentId))
 	{
-		UE_LOG(LogLearning, Error, TEXT("AgentId is invalid (INDEX_NONE)"));
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return FVector::ZeroVector;
+	}
+
+	return FeatureObject->InstanceData->ConstView(FeatureObject->RotationVectorsHandle)[AgentId][0];
+}
+
+FQuat URotationAction::GetRotationActionAsQuat(const int32 AgentId) const
+{
+	if (!AgentType->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return FQuat::Identity;
+	}
+
+	const TLearningArrayView<2, const FVector> View = FeatureObject->InstanceData->ConstView(FeatureObject->RotationVectorsHandle);
+
+	return FQuat::MakeFromRotationVector((UE_TWO_PI / 180.0f) * View[AgentId][0]);
+}
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
+void URotationAction::VisualLog(const UE::Learning::FIndexSet Instances) const
+{
+	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(URotationAction::VisualLog);
+
+	const TLearningArrayView<2, const FVector> ValueView = FeatureObject->InstanceData->ConstView(FeatureObject->RotationVectorsHandle);
+	const TLearningArrayView<2, const float> FeatureView = FeatureObject->InstanceData->ConstView(FeatureObject->FeatureHandle);
+
+	const int32 RotationVectorNum = ValueView.Num<1>();
+
+	for (const int32 Instance : Instances)
+	{
+		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		{
+			const FQuat Rotation = FQuat::MakeFromRotationVector((UE_TWO_PI / 180.0f) * ValueView[Instance][0]);
+			const FRotator Rotator = Rotation.Rotator();
+
+			UE_LEARNING_AGENTS_VLOG_TRANSFORM(this, LogLearning, Display,
+				Actor->GetActorLocation(),
+				Rotation,
+				VisualLogColor.ToFColor(true),
+				TEXT("Agent %i\nScale: [% 6.2f]\nRotation: [% 6.1f % 6.1f % 6.1f]\nEncoded: %s"),
+				Instance,
+				FeatureObject->Scale,
+				Rotator.Pitch, Rotator.Roll, Rotator.Yaw,
+				*UE::Learning::Array::FormatFloat(FeatureView[Instance]));
+		}
+	}
+}
+#endif
+
+
+URotationArrayAction* URotationArrayAction::AddRotationArrayAction(ULearningAgentsType* InAgentType, const FName Name, const int32 RotationNum, const float Scale)
+{
+	if (RotationNum < 1)
+	{
+		UE_LOG(LogLearning, Error, TEXT("Number of elements in array must be at least 1, got %i."), RotationNum);
+		return nullptr;
+	}
+
+	return UE::Learning::Agents::Actions::Private::AddAction<URotationArrayAction, UE::Learning::FRotationVectorFeature>(InAgentType, Name, RotationNum, Scale);
+}
+
+void URotationArrayAction::GetRotationArrayAction(const int32 AgentId, TArray<FRotator>& OutRotations) const
+{
+	if (!AgentType->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
 	}
 
-	if (AgentId < 0 || AgentId >= View.Num<0>())
+	const TLearningArrayView<2, const FVector> View = FeatureObject->InstanceData->ConstView(FeatureObject->RotationVectorsHandle);
+
+	OutRotations.SetNumUninitialized(View.Num<1>());
+	for (int32 RotationVectorIdx = 0; RotationVectorIdx < View.Num<1>(); RotationVectorIdx++)
 	{
-		UE_LOG(LogLearning, Error, TEXT("AgentId %d is out of index. Valid range [0, %d]."), AgentId, View.Num<0>() - 1);
+		OutRotations[RotationVectorIdx] = FQuat::MakeFromRotationVector((UE_TWO_PI / 180.0f) * View[AgentId][RotationVectorIdx]).Rotator();
+	}
+}
+
+void URotationArrayAction::GetRotationArrayActionAsRotationVectors(const int32 AgentId, TArray<FVector>& OutRotationVectors) const
+{
+	if (!AgentType->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
 	}
+
+	const TLearningArrayView<2, const FVector> View = FeatureObject->InstanceData->ConstView(FeatureObject->RotationVectorsHandle);
 
 	OutRotationVectors.SetNumUninitialized(View.Num<1>());
 	for (int32 RotationVectorIdx = 0; RotationVectorIdx < View.Num<1>(); RotationVectorIdx++)
@@ -241,120 +457,60 @@ void URotationVectorArrayAction::GetRotationVectorArrayAction(const int32 AgentI
 	}
 }
 
-void URotationVectorArrayAction::GetRotationVectorArrayActionAsQuats(const int32 AgentId, TArray<FQuat>& OutRotations)
+void URotationArrayAction::GetRotationArrayActionAsQuats(const int32 AgentId, TArray<FQuat>& OutRotations) const
 {
+	if (!AgentType->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return;
+	}
+
 	const TLearningArrayView<2, const FVector> View = FeatureObject->InstanceData->ConstView(FeatureObject->RotationVectorsHandle);
-
-	if (AgentId == INDEX_NONE)
-	{
-		UE_LOG(LogLearning, Error, TEXT("AgentId is invalid (INDEX_NONE)"));
-		return;
-	}
-
-	if (AgentId < 0 || AgentId >= View.Num<0>())
-	{
-		UE_LOG(LogLearning, Error, TEXT("AgentId %d is out of index. Valid range [0, %d]."), AgentId, View.Num<0>() - 1);
-		return;
-	}
 
 	OutRotations.SetNumUninitialized(View.Num<1>());
 	for (int32 RotationVectorIdx = 0; RotationVectorIdx < View.Num<1>(); RotationVectorIdx++)
 	{
-		OutRotations[RotationVectorIdx] = FQuat::MakeFromRotationVector(View[AgentId][RotationVectorIdx]);
+		OutRotations[RotationVectorIdx] = FQuat::MakeFromRotationVector((UE_TWO_PI / 180.0f) * View[AgentId][RotationVectorIdx]);
 	}
 }
 
-void URotationVectorArrayAction::GetRotationVectorArrayActionAsRotators(const int32 AgentId, TArray<FRotator>& OutRotations)
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
+void URotationArrayAction::VisualLog(const UE::Learning::FIndexSet Instances) const
 {
-	const TLearningArrayView<2, const FVector> View = FeatureObject->InstanceData->ConstView(FeatureObject->RotationVectorsHandle);
-
-	if (AgentId == INDEX_NONE)
-	{
-		UE_LOG(LogLearning, Error, TEXT("AgentId is invalid (INDEX_NONE)"));
-		return;
-	}
-
-	if (AgentId < 0 || AgentId >= View.Num<0>())
-	{
-		UE_LOG(LogLearning, Error, TEXT("AgentId %d is out of index. Valid range [0, %d]."), AgentId, View.Num<0>() - 1);
-		return;
-	}
-
-	OutRotations.SetNumUninitialized(View.Num<1>());
-	for (int32 RotationVectorIdx = 0; RotationVectorIdx < View.Num<1>(); RotationVectorIdx++)
-	{
-		OutRotations[RotationVectorIdx] = FQuat::MakeFromRotationVector(View[AgentId][RotationVectorIdx]).Rotator();
-	}
-}
-
-#if ENABLE_VISUAL_LOG
-void URotationVectorArrayAction::VisualLog(const UE::Learning::FIndexSet Instances) const
-{
-	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(URotationVectorArrayAction::VisualLog);
+	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(URotationArrayAction::VisualLog);
 
 	const TLearningArrayView<2, const FVector> ValueView = FeatureObject->InstanceData->ConstView(FeatureObject->RotationVectorsHandle);
 	const TLearningArrayView<2, const float> FeatureView = FeatureObject->InstanceData->ConstView(FeatureObject->FeatureHandle);
 
-	const int32 RotationVectorNum = ValueView.Num<1>();
+	const int32 RotationNum = ValueView.Num<1>();
 
-	if (const ULearningAgentsType* AgentType = Cast<ULearningAgentsType>(GetOuter()))
+	for (const int32 Instance : Instances)
 	{
-		for (const int32 Instance : Instances)
+		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
 		{
-			if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+			for (int32 RotationIdx = 0; RotationIdx < RotationNum; RotationIdx++)
 			{
-				for (int32 RotationVectorIdx = 0; RotationVectorIdx < RotationVectorNum; RotationVectorIdx++)
-				{
-					const FVector Offset = FVector(0.0, 10.0f * RotationVectorIdx, 0.0f);
-					const FVector RotationVector = ValueView[Instance][RotationVectorIdx];
+				const FVector Offset = UE::Learning::Agents::Debug::GridOffsetForIndex(RotationIdx, RotationNum);
+				const FQuat Rotation = FQuat::MakeFromRotationVector((UE_TWO_PI / 180.0f) * ValueView[Instance][RotationIdx]);
+				const FRotator Rotator = Rotation.Rotator();
 
-					UE_VLOG_LOCATION(this, LogLearning, Display,
-						Actor->GetActorLocation() + Offset,
-						2.5f,
-						VisualLogColor.ToFColor(true),
-						TEXT(""));
-
-					UE_VLOG_ARROW(this, LogLearning, Display,
-						Actor->GetActorLocation() + Offset,
-						Actor->GetActorLocation() + Offset + RotationVector,
-						VisualLogColor.ToFColor(true),
-						TEXT(""));
-
-					UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
-						Actor->GetActorLocation() + Offset + RotationVector,
-						VisualLogColor.ToFColor(true),
-						TEXT("Rotation Vector: [% 6.4f % 6.4f % 6.4f]"),
-						RotationVector.X, RotationVector.Y, RotationVector.Z);
-
-				}
-
-				if (RotationVectorNum > 0)
-				{
-					UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
-						Actor->GetActorLocation(),
-						VisualLogColor.ToFColor(true),
-						TEXT("Agent %i\nScale: [% 6.2f]\nEncoded: [% 6.3f % 6.3f % 6.3f ...]"),
-						Instance,
-						FeatureObject->Scale,
-						FeatureView[Instance][0], FeatureView[Instance][1], FeatureView[Instance][2]);
-				}
-				else
-				{
-					UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
-						Actor->GetActorLocation(),
-						VisualLogColor.ToFColor(true),
-						TEXT("Agent %i\nScale: [% 6.2f]\nEncoded: []"),
-						Instance,
-						FeatureObject->Scale);
-				}
+				UE_LEARNING_AGENTS_VLOG_TRANSFORM(this, LogLearning, Display,
+					Actor->GetActorLocation() + Offset,
+					Rotation,
+					VisualLogColor.ToFColor(true),
+					TEXT("Rotation %i: [% 6.3f % 6.3f % 6.3f]"),
+					RotationIdx,
+					Rotator.Pitch, Rotator.Roll, Rotator.Yaw);
 			}
+
+			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
+				Actor->GetActorLocation(),
+				VisualLogColor.ToFColor(true),
+				TEXT("Agent %i\nScale: [% 6.2f]\nEncoded: %s"),
+				Instance,
+				FeatureObject->Scale,
+				*UE::Learning::Array::FormatFloat(FeatureView[Instance]));
 		}
 	}
 }
 #endif
-
-//------------------------------------------------------------------
-
-#undef UE_LEARNING_AGENTS_VLOG_STRING
-#undef UE_LEARNING_AGENTS_VLOG_TRANSFORM
-#undef UE_LEARNING_AGENTS_VLOG_PLANE

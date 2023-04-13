@@ -121,6 +121,24 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void DecodeActions();
 
+	/**
+	* Gets the observation vector used by a given agent. Should be called only after EncodeObservations.
+	*
+	* @param AgentId				The AgentId to look-up the observation vector for
+	* @param OutObservationVector	The observation vector for the given agent
+	*/
+	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (AgentId = "-1"))
+	void GetObservationVector(const int32 AgentId, TArray<float>& OutObservationVector) const;
+
+	/**
+	* Gets the action vector used by a given agent. Should be called only after EncodeActions or EvaluatePolicy.
+	*
+	* @param AgentId				The AgentId to look-up the action vector for
+	* @param OutActionVector		The action vector for the given agent
+	*/
+	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (AgentId = "-1"))
+	void GetActionVector(const int32 AgentId, TArray<float>& OutActionVector) const;
+
 // ----- Non-blueprint public interface -----
 public:
 

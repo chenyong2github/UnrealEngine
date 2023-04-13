@@ -12,7 +12,7 @@ bool ULearningAgentsManagerComponent::AddAgent(const int32 AgentId)
 {
 	if (HasAgent(AgentId))
 	{
-		UE_LOG(LogLearning, Warning, TEXT("AgentId %i is already added to %s."), AgentId, *GetName());
+		UE_LOG(LogLearning, Warning, TEXT("%s: AgentId %i is already added."), *GetName(), AgentId);
 		return false;
 	}
 
@@ -27,7 +27,7 @@ bool ULearningAgentsManagerComponent::RemoveAgent(const int32 AgentId)
 {
 	if (AddedAgentIds.RemoveSingleSwap(AgentId, false) == 0)
 	{
-		UE_LOG(LogLearning, Warning, TEXT("Unable to remove: AgentId %d not found in %s's agent set."), AgentId, *GetName());
+		UE_LOG(LogLearning, Warning, TEXT("%s: Trying to remove an agent with id of %i but it was not found."), *GetName(), AgentId);
 		return false;
 	}
 
@@ -46,20 +46,18 @@ UObject* ULearningAgentsManagerComponent::GetAgent(const int32 AgentId, const TS
 {
 	if (!AgentManager)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Agent manager is nullptr. Call setup on this component prior to getting agents."));
+		UE_LOG(LogLearning, Error, TEXT("%s: Agent manager is nullptr. Call setup on this component prior to getting agents."), *GetName());
 		return nullptr;
 	}
 
 	if (!AddedAgentSet.Contains(AgentId))
 	{
-		UE_LOG(LogLearning, Error,
-			TEXT("%s: AgentId %d not found. Be sure to only use AgentIds returned by AddAgent() and check that the agent has not be removed."),
-			*GetName(),
-			AgentId);
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found. Be sure to only use AgentIds returned by AddAgent() and check that the agent has not be removed."), *GetName(), AgentId);
 		return nullptr;
 	}
 
-	return AgentManager->GetAgent(AgentId, AgentClass); // Calling this overload since it will log about missing manager ids
+	// Calling this overload since it will log about missing manager ids
+	return AgentManager->GetAgent(AgentId, AgentClass); 
 }
 
 const UObject* ULearningAgentsManagerComponent::GetAgent(const int32 AgentId) const
@@ -89,7 +87,7 @@ ALearningAgentsManager* ULearningAgentsManagerComponent::GetAgentManager(const T
 {
 	if (!AgentManager)
 	{
-		UE_LOG(LogLearning, Error, TEXT("AgentManager is nullptr. Did we forget to call Setup on this component and set the manager?"));
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentManager is nullptr. Did we forget to call Setup on this component and set the manager?"), *GetName());
 		return nullptr;
 	}
 
@@ -99,4 +97,9 @@ ALearningAgentsManager* ULearningAgentsManagerComponent::GetAgentManager(const T
 bool ULearningAgentsManagerComponent::IsSetup() const
 {
 	return bIsSetup;
+}
+
+void ULearningAgentsManagerComponent::AddHelper(TObjectPtr<ULearningAgentsHelper> Object)
+{
+	HelperObjects.Add(Object);
 }

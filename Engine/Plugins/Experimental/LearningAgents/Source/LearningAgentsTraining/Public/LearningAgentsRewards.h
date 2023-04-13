@@ -3,10 +3,10 @@
 #pragma once
 
 #include "LearningArray.h"
+#include "LearningAgentsDebug.h"
 
 #include "Templates/SharedPointer.h"
 #include "UObject/Object.h"
-#include "EngineDefines.h"
 
 #include "LearningAgentsRewards.generated.h"
 
@@ -26,6 +26,8 @@ class ULearningAgentsTrainer;
 // For functions in this file, we are favoring having more verbose names such as "AddFloatReward" vs simply "Add" in 
 // order to keep it easy to find the correct function in blueprints.
 
+//------------------------------------------------------------------
+
 /**
  * Base class for all rewards/penalties. Rewards are used during reinforcement learning to encourage/discourage
  * certain behaviors from occurring.
@@ -37,7 +39,10 @@ class LEARNINGAGENTSTRAINING_API ULearningAgentsReward : public UObject
 
 public:
 
-#if ENABLE_VISUAL_LOG
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
+	TObjectPtr<ULearningAgentsTrainer> AgentTrainer;
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	/** Color used to draw this reward in the visual log */
 	FLinearColor VisualLogColor = FColor::Green;
 
@@ -45,6 +50,8 @@ public:
 	virtual void VisualLog(const UE::Learning::FIndexSet Instances) const {}
 #endif
 };
+
+//------------------------------------------------------------------
 
 /** A simple float reward. Used as a catch-all for situations where a more type-specific reward does not exist yet. */
 UCLASS()
@@ -56,14 +63,14 @@ public:
 
 	/**
 	* Adds a new float reward to the given trainer. Call during ULearningAgentsTrainer::SetupRewards event.
-	* @param AgentTrainer The trainer to add this reward to.
+	* @param InAgentTrainer The trainer to add this reward to.
 	* @param Name The name of this new reward. Used for debugging.
 	* @param Weight Multiplier for this reward when being summed up for the total reward.
 	* @return The newly created reward.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	static UFloatReward* AddFloatReward(
-		ULearningAgentsTrainer* AgentTrainer,
+		ULearningAgentsTrainer* InAgentTrainer,
 		const FName Name = NAME_None,
 		const float Weight = 1.0f);
 
@@ -72,16 +79,18 @@ public:
 	* @param AgentId The agent id this data corresponds to.
 	* @param Reward The value currently being rewarded.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetFloatReward(const int32 AgentId, const float Reward);
 
-#if ENABLE_VISUAL_LOG
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	/** Describes this reward to the visual logger for debugging purposes. */
 	virtual void VisualLog(const UE::Learning::FIndexSet Instances) const override;
 #endif
 
 	TSharedPtr<UE::Learning::FFloatReward> RewardObject;
 };
+
+//------------------------------------------------------------------
 
 /** A reward for maximizing speed. */
 UCLASS()
@@ -93,7 +102,7 @@ public:
 
 	/**
 	* Adds a new scalar velocity reward to the given trainer. Call during ULearningAgentsTrainer::SetupRewards event.
-	* @param AgentTrainer The trainer to add this reward to.
+	* @param InAgentTrainer The trainer to add this reward to.
 	* @param Name The name of this new reward. Used for debugging.
 	* @param Weight Multiplier for this reward when being summed up for the total reward.
 	* @param Scale Used to normalize the data for the reward.
@@ -101,7 +110,7 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	static UScalarVelocityReward* AddScalarVelocityReward(
-		ULearningAgentsTrainer* AgentTrainer,
+		ULearningAgentsTrainer* InAgentTrainer,
 		const FName Name = NAME_None,
 		const float Weight = 1.0f,
 		const float Scale = 200.0f);
@@ -111,16 +120,18 @@ public:
 	* @param AgentId The agent id this data corresponds to.
 	* @param Velocity The current scalar velocity.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetScalarVelocityReward(const int32 AgentId, const float Velocity);
 
-#if ENABLE_VISUAL_LOG
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	/** Describes this reward to the visual logger for debugging purposes. */
 	virtual void VisualLog(const UE::Learning::FIndexSet Instances) const override;
 #endif
 
 	TSharedPtr<UE::Learning::FScalarVelocityReward> RewardObject;
 };
+
+//------------------------------------------------------------------
 
 /** A reward for maximizing velocity along a given local axis. */
 UCLASS()
@@ -132,7 +143,7 @@ public:
 
 	/**
 	* Adds a new directional velocity reward to the given trainer. Call during ULearningAgentsTrainer::SetupRewards event.
-	* @param AgentTrainer The trainer to add this reward to.
+	* @param InAgentTrainer The trainer to add this reward to.
 	* @param Name The name of this new reward. Used for debugging.
 	* @param Weight Multiplier for this reward when being summed up for the total reward.
 	* @param Scale Used to normalize the data for the reward.
@@ -141,7 +152,7 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	static ULocalDirectionalVelocityReward* AddLocalDirectionalVelocityReward(
-		ULearningAgentsTrainer* AgentTrainer,
+		ULearningAgentsTrainer* InAgentTrainer,
 		const FName Name = NAME_None,
 		const float Weight = 1.0f,
 		const float Scale = 200.0f,
@@ -153,19 +164,21 @@ public:
 	* @param Velocity The current velocity.
 	* @param RelativeRotation The frame of reference rotation.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetLocalDirectionalVelocityReward(
 		const int32 AgentId,
 		const FVector Velocity,
 		const FRotator RelativeRotation = FRotator::ZeroRotator);
 
-#if ENABLE_VISUAL_LOG
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	/** Describes this reward to the visual logger for debugging purposes. */
 	virtual void VisualLog(const UE::Learning::FIndexSet Instances) const override;
 #endif
 
 	TSharedPtr<UE::Learning::FLocalDirectionalVelocityReward> RewardObject;
 };
+
+//------------------------------------------------------------------
 
 /** A penalty for being far from a goal position in a plane. */
 UCLASS()
@@ -178,7 +191,7 @@ public:
 	/**
 	* Adds a new planar difference penalty to the given trainer. The axis parameters define the plane.
 	* Call during ULearningAgentsTrainer::SetupRewards event.
-	* @param AgentTrainer The trainer to add this penalty to.
+	* @param InAgentTrainer The trainer to add this penalty to.
 	* @param Name The name of this new penalty. Used for debugging.
 	* @param Weight Multiplier for this penalty when being summed up for the total reward.
 	* @param Scale Used to normalize the data for the penalty.
@@ -189,7 +202,7 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	static UPlanarPositionDifferencePenalty* AddPlanarPositionDifferencePenalty(
-		ULearningAgentsTrainer* AgentTrainer, 
+		ULearningAgentsTrainer* InAgentTrainer,
 		const FName Name = NAME_None,
 		const float Weight = 1.0f,
 		const float Scale = 100.0f,
@@ -203,10 +216,10 @@ public:
 	* @param Position0 The current position.
 	* @param Position1 The goal position.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetPlanarPositionDifferencePenalty(const int32 AgentId, const FVector Position0, const FVector Position1);
 
-#if ENABLE_VISUAL_LOG
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	/** Describes this reward to the visual logger for debugging purposes. */
 	virtual void VisualLog(const UE::Learning::FIndexSet Instances) const override;
 #endif
@@ -224,7 +237,7 @@ public:
 
 	/**
 	* Adds a new position array similarity reward to the given trainer. Call during ULearningAgentsTrainer::SetupRewards event.
-	* @param AgentTrainer The trainer to add this reward to.
+	* @param InAgentTrainer The trainer to add this reward to.
 	* @param Name The name of this new reward. Used for debugging.
 	* @param PositionNum The number of positions in the array.
 	* @param Scale Used to normalize the data for the reward.
@@ -233,7 +246,7 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	static UPositionArraySimilarityReward* AddPositionArraySimilarityReward(
-		ULearningAgentsTrainer* AgentTrainer,
+		ULearningAgentsTrainer* InAgentTrainer,
 		const FName Name = NAME_None,
 		const int32 PositionNum = 0,
 		const float Scale = 100.0f,
@@ -249,7 +262,7 @@ public:
 	* @param RelativeRotation0 The frame of reference rotation for Positions0.
 	* @param RelativeRotation1 The frame of reference rotation for Positions1.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetPositionArraySimilarityReward(
 		const int32 AgentId,
 		const TArray<FVector>& Positions0, 
@@ -259,7 +272,7 @@ public:
 		const FRotator RelativeRotation0 = FRotator::ZeroRotator,
 		const FRotator RelativeRotation1 = FRotator::ZeroRotator);
 
-#if ENABLE_VISUAL_LOG
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	/** Describes this reward to the visual logger for debugging purposes. */
 	virtual void VisualLog(const UE::Learning::FIndexSet Instances) const override;
 #endif

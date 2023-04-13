@@ -39,7 +39,7 @@ void ALearningAgentsManager::SetupManager()
 {
 	if (IsManagerSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup already performed!"), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup already run!"), *GetName());
 		return;
 	}
 
@@ -131,7 +131,7 @@ void ALearningAgentsManager::RemoveAgentById(const int32 AgentId)
 
 	if (RemovedCount == 0)
 	{
-		UE_LOG(LogLearning, Warning, TEXT("%s: Trying to remove an agent but its Id (%d) is not in the occupied agents."), *GetName(), AgentId);
+		UE_LOG(LogLearning, Warning, TEXT("%s: Trying to remove an agent with id of %i but it was not found."), *GetName(), AgentId);
 		return;
 	}
 
@@ -148,7 +148,7 @@ void ALearningAgentsManager::RemoveAgent(UObject* Agent)
 {
 	if (Agent == nullptr)
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Attempted to remove an agent but agent is nullptr."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Attempted to remove agent but agent is nullptr."), *GetName());
 		return;
 	}
 
@@ -157,7 +157,7 @@ void ALearningAgentsManager::RemoveAgent(UObject* Agent)
 
 	if (!bIsFound)
 	{
-		UE_LOG(LogLearning, Warning, TEXT("%s: Trying to remove an agent but it was not found."), *GetName());
+		UE_LOG(LogLearning, Warning, TEXT("%s: Trying to remove agent %s but it was not found."), *Agent->GetName(), *GetName());
 		return;
 	}
 
@@ -189,10 +189,7 @@ UObject* ALearningAgentsManager::GetAgent(const int32 AgentId, const TSubclassOf
 {
 	if (!OccupiedAgentSet.Contains(AgentId))
 	{
-		UE_LOG(LogLearning, Error,
-			TEXT("%s: AgentId %d not found. Be sure to only use AgentIds returned by AddAgent() and check that the agent has not be removed."),
-			*GetName(),
-			AgentId);
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found. Be sure to only use AgentIds returned by AddAgent() and check that the agent has not be removed."), *GetName(), AgentId);
 		return nullptr;
 	}
 
@@ -209,6 +206,11 @@ UObject* ALearningAgentsManager::GetAgent(const int32 AgentId)
 {
 	UE_LEARNING_CHECK(OccupiedAgentSet.Contains(AgentId));
 	return Agents[AgentId];
+}
+
+void ALearningAgentsManager::GetAgentIds(TArray<int32>& OutAgentIds) const
+{
+	OutAgentIds = OccupiedAgentIds;
 }
 
 void ALearningAgentsManager::UpdateAgentSets()

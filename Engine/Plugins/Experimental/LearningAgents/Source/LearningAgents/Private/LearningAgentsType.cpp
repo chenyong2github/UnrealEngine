@@ -20,7 +20,7 @@ void ULearningAgentsType::SetupAgentType(ALearningAgentsManager* InAgentManager)
 {
 	if (IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup already performed!"), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup already run!"), *GetName());
 		return;
 	}
 
@@ -32,7 +32,7 @@ void ULearningAgentsType::SetupAgentType(ALearningAgentsManager* InAgentManager)
 
 	if (!InAgentManager->IsManagerSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s's SetupManager() must be run before %s can be setup."), *InAgentManager->GetName(), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: %s's SetupManager must be run before it can be used."), *GetName(), *InAgentManager->GetName());
 		return;
 	}
 
@@ -119,7 +119,7 @@ void ULearningAgentsType::EncodeObservations()
 
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("Setup must be run before observations can be encoded."));
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
 		return;
 	}
 
@@ -144,7 +144,7 @@ void ULearningAgentsType::DecodeActions()
 
 	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("Setup must be run before actions can be decoded."));
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
 		return;
 	}
 
@@ -161,4 +161,43 @@ void ULearningAgentsType::DecodeActions()
 		}
 	}
 #endif
+}
+void ULearningAgentsType::GetObservationVector(const int32 AgentId, TArray<float>& OutObservationVector) const
+{
+	if (!IsSetup())
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		OutObservationVector.Empty();
+		return;
+	}
+
+	if (!HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		OutObservationVector.Empty();
+		return;
+	}
+
+	OutObservationVector.SetNumUninitialized(Observations->DimNum());
+	UE::Learning::Array::Copy<1, float>(OutObservationVector, Observations->FeatureBuffer()[AgentId]);
+}
+
+void ULearningAgentsType::GetActionVector(const int32 AgentId, TArray<float>& OutActionVector) const
+{
+	if (!IsSetup())
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		OutActionVector.Empty();
+		return;
+	}
+
+	if (!HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		OutActionVector.Empty();
+		return;
+	}
+
+	OutActionVector.SetNumUninitialized(Actions->DimNum());
+	UE::Learning::Array::Copy<1, float>(OutActionVector, Actions->FeatureBuffer()[AgentId]);
 }

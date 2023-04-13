@@ -5,9 +5,9 @@
 #include "LearningAgentsManagerComponent.h"
 
 #include "LearningAgentsNeuralNetwork.h" // Included for ELearningAgentsActivationFunction
+#include "LearningAgentsDebug.h"
 #include "LearningArray.h"
 #include "UObject/ObjectPtr.h"
-#include "EngineDefines.h"
 
 #include "LearningAgentsCritic.generated.h"
 
@@ -108,7 +108,7 @@ public:
 	* Gets an estimate of the average discounted return expected by an agent according to the critic. I.E. the total
 	* sum of future rewards, scaled by the discount factor that was used during training. This value can be useful if 
 	* you want to make some decision based on how well the agent thinks they are doing at achieving their task. This 
-	* should be called after EvaluateCritic.
+	* should be called only after EvaluateCritic.
 	* 
 	* @param AgentId	The AgentId to look-up the estimated discounted return for
 	* @returns			The estimated average discounted return according to the critic
@@ -140,7 +140,7 @@ private:
 
 	TSharedPtr<UE::Learning::FNeuralNetworkCriticFunction> CriticObject;
 
-#if ENABLE_VISUAL_LOG
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	/** Color used to draw this action in the visual log */
 	FLinearColor VisualLogColor = FColor::Orange;
 

@@ -5,9 +5,9 @@
 #include "LearningAgentsManagerComponent.h"
 
 #include "LearningAgentsNeuralNetwork.h" // Included for ELearningAgentsActivationFunction
+#include "LearningAgentsDebug.h"
 #include "LearningArray.h"
 #include "UObject/ObjectPtr.h"
-#include "EngineDefines.h"
 
 #include "LearningAgentsPolicy.generated.h"
 
@@ -74,6 +74,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void SetupPolicy(ALearningAgentsManager* InAgentManager, ULearningAgentsType* InAgentType, const FLearningAgentsPolicySettings& PolicySettings = FLearningAgentsPolicySettings());
 
+public:
+
+	//~ Begin ULearningAgentsManagerComponent Interface
+	virtual bool AddAgent(const int32 AgentId) override;
+	//~ End ULearningAgentsManagerComponent Interface
+
 // ----- Load / Save -----
 public:
 
@@ -119,12 +125,18 @@ public:
 	void EvaluatePolicy();
 
 	/**
+	* Calls EncodeObservations, followed by EvaluatePolicy, followed by DecodeActions
+	*/
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void RunInference();
+
+	/**
 	* Get the action noise scale used by an agent.
 	*
 	* @param AgentId			The AgentId to get the action noise scale for.
 	* @return					Action noise scale for that agent.
 	*/
-	UFUNCTION(BlueprintPure, Category = "LearningAgents")
+	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (AgentId = "-1"))
 	float GetAgentActionNoiseScale(const int32 AgentId) const;
 
 	/**
@@ -136,8 +148,16 @@ public:
 	* @param AgentId			The AgentId to set the action noise scale for.
 	* @param ActionNoiseScale	Action noise scale for that agent.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetAgentActionNoiseScale(const int32 AgentId, const float ActionNoiseScale);
+
+	/**
+	* Set the action noise scale used by all agents.
+	*
+	* @param ActionNoiseScale	Action noise scale to use for all agents
+	*/
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void SetAllAgentsActionNoiseScale(const float ActionNoiseScale);
 
 // ----- Non-blueprint public interface -----
 public:
@@ -162,8 +182,10 @@ private:
 private:
 
 	TSharedPtr<UE::Learning::FNeuralNetworkPolicyFunction> PolicyObject;
+	
+	float InitialActionNoiseScale = 1.0f;
 
-#if ENABLE_VISUAL_LOG
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	/** Color used to draw this action in the visual log */
 	FLinearColor VisualLogColor = FColor::Purple;
 

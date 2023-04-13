@@ -74,13 +74,13 @@ ULearningAgentsRecord* ULearningAgentsDataStorage::CreateRecord(const FName Reco
 {
 	if (!AgentType)
 	{
-		UE_LOG(LogLearning, Warning, TEXT("CreateRecord: AgentType is nullptr. You must pass a valid agent type. Skipping creation."));
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentType is nullptr."), *GetName());
 		return nullptr;
 	}
 
 	if (!AgentType->IsSetup())
 	{
-		UE_LOG(LogLearning, Warning, TEXT("CreateRecord: AgentType Setup must be performed before record can be created."));
+		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *AgentType->GetName());
 		return nullptr;
 	}
 
@@ -105,7 +105,7 @@ int32 ULearningAgentsDataStorage::LoadAllRecords(ULearningAgentsType* AgentType,
 {
 	if (!AgentType)
 	{
-		UE_LOG(LogLearning, Warning, TEXT("LoadAllRecords: AgentType is nullptr. You must pass a valid agent type. Skipping loading."));
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentType is nullptr."), *GetName());
 		return 0;
 	}
 
@@ -114,7 +114,7 @@ int32 ULearningAgentsDataStorage::LoadAllRecords(ULearningAgentsType* AgentType,
 
 	if (DataFiles.Num() == 0)
 	{
-		UE_LOG(LogLearning, Warning, TEXT("LoadAllRecords: Found no .%s files in directory %s"), *FileExtension, *Directory.Path);
+		UE_LOG(LogLearning, Warning, TEXT("%s: Found no .%s files in directory %s"), *GetName(), *FileExtension, *Directory.Path);
 		return 0;
 	}
 
@@ -130,13 +130,13 @@ ULearningAgentsRecord* ULearningAgentsDataStorage::LoadRecord(ULearningAgentsTyp
 {
 	if (!AgentType)
 	{
-		UE_LOG(LogLearning, Warning, TEXT("LoadRecord: AgentType is nullptr. You must pass a valid agent type. Skipping loading."));
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentType is nullptr."), *GetName());
 		return nullptr;
 	}
 
 	if (!AgentType->IsSetup())
 	{
-		UE_LOG(LogLearning, Warning, TEXT("LoadRecord: AgentType Setup must be performed before record can be created."));
+		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *AgentType->GetName());
 		return nullptr;
 	}
 
@@ -146,14 +146,14 @@ ULearningAgentsRecord* ULearningAgentsDataStorage::LoadRecord(ULearningAgentsTyp
 
 	if (!FPaths::FileExists(InputFilePath))
 	{
-		UE_LOG(LogLearning, Error, TEXT("LoadRecord: FilePath %s does not exist."), *InputFilePath);
+		UE_LOG(LogLearning, Error, TEXT("%s: FilePath %s does not exist."), *GetName(), *InputFilePath);
 		return nullptr;
 	}
 
 	const bool bSuccess = FFileHelper::LoadFileToArray(Bytes, *InputFilePath);
 	if (!bSuccess)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Failed to load data from file %s"), *InputFilePath);
+		UE_LOG(LogLearning, Error, TEXT("%s: Failed to load data from file %s"), *GetName(), *InputFilePath);
 		return nullptr;
 	}
 
@@ -163,7 +163,7 @@ ULearningAgentsRecord* ULearningAgentsDataStorage::LoadRecord(ULearningAgentsTyp
 	Reader.Serialize(&ChunksNum, sizeof(int32));
 	if (ChunksNum <= 0)
 	{
-		UE_LOG(LogLearning, Error, TEXT("LoadRecord: file ChunksNum header was %d. Must be greater than 0."), ChunksNum);
+		UE_LOG(LogLearning, Error, TEXT("%s: file ChunksNum header was %d. Must be greater than 0."), *GetName(), ChunksNum);
 		return nullptr;
 	}
 
@@ -172,7 +172,7 @@ ULearningAgentsRecord* ULearningAgentsDataStorage::LoadRecord(ULearningAgentsTyp
 	int32 AgentObsNum = AgentType->GetObservationFeature().DimNum();
 	if (AgentObsNum != ObsNum)
 	{
-		UE_LOG(LogLearning, Error, TEXT("LoadRecord: Observation data dimension size %d incompatible with agent's observation dimension size %d"), ObsNum, AgentObsNum);
+		UE_LOG(LogLearning, Error, TEXT("%s: Observation data dimension size %d incompatible with agent's observation dimension size %d"), *GetName(), ObsNum, AgentObsNum);
 		return nullptr;
 	}
 
@@ -181,7 +181,7 @@ ULearningAgentsRecord* ULearningAgentsDataStorage::LoadRecord(ULearningAgentsTyp
 	int32 AgentActionNum = AgentType->GetActionFeature().DimNum();
 	if (AgentActionNum != ActNum)
 	{
-		UE_LOG(LogLearning, Error, TEXT("LoadRecord: Action data dimension size %d incompatible with agent's action dimension size %d"), ObsNum, AgentObsNum);
+		UE_LOG(LogLearning, Error, TEXT("%s: Action data dimension size %d incompatible with agent's action dimension size %d"), *GetName(), ObsNum, AgentObsNum);
 		return nullptr;
 	}
 
@@ -222,7 +222,7 @@ void ULearningAgentsDataStorage::SaveRecord(const FDirectoryPath& Directory, ULe
 {
 	if (!Record)
 	{
-		UE_LOG(LogLearning, Warning, TEXT("SaveRecord: Record is nullptr. You must pass a valid record. Skipping save."));
+		UE_LOG(LogLearning, Warning, TEXT("%s: Record is nullptr."), *GetName());
 		return;
 	}
 
@@ -252,10 +252,11 @@ void ULearningAgentsDataStorage::SaveRecord(const FDirectoryPath& Directory, ULe
 	const FString OutputFilePath = Directory.Path + FGenericPlatformMisc::GetDefaultPathSeparator() +
 		(!Record->MetaData.bWasLoadedFromFile && bPrependUtcTimeStamp ? FDateTime::UtcNow().ToString() + "_" : "") + FileName + "." + FileExtension;
 	const bool bSuccess = FFileHelper::SaveArrayToFile(Bytes, *OutputFilePath, &IFileManager::Get(), EFileWrite::FILEWRITE_Append);
+
 	if (!bSuccess)
 	{
-		UE_LOG(LogLearning, Error, TEXT("Failed to write data to output file for %s"), *FileName);
+		UE_LOG(LogLearning, Error, TEXT("%s: Failed to write data to output file for %s"), *GetName(), *FileName);
 	}
 
-	UE_LOG(LogLearning, Display, TEXT("SaveRecord: Saved data for agent to %s"), *OutputFilePath);
+	UE_LOG(LogLearning, Display, TEXT("%s: Saved data for agent to %s"), *GetName(), *OutputFilePath);
 }

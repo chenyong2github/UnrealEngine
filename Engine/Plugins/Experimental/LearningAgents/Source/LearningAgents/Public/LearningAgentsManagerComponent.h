@@ -12,6 +12,7 @@
 #include "LearningAgentsManagerComponent.generated.h"
 
 class ALearningAgentsManager;
+class ULearningAgentsHelper;
 
 /**
  * Base class for components which can be attached to an ALearningAgentsManager.
@@ -84,6 +85,15 @@ public:
 
 	ALearningAgentsManager* GetAgentManager() const;
 
+// ----- Helpers -----
+public:
+
+	/**
+	* Used by objects derived from ULearningAgentsHelper to add themselves to this component during their creation.
+	* You shouldn't need to call this directly.
+	*/
+	void AddHelper(TObjectPtr<ULearningAgentsHelper> Object);
+
 protected:
 
 	/** True if this component has been setup. Otherwise, false. */
@@ -99,4 +109,8 @@ protected:
 	TArray<int32> AddedAgentIds;
 
 	UE::Learning::FIndexSet AddedAgentSet;
+
+	/** The list of current helper objects. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
+	TArray<TObjectPtr<ULearningAgentsHelper>> HelperObjects;
 };

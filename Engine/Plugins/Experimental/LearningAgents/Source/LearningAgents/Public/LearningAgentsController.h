@@ -43,6 +43,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void EncodeActions();
 
+	/**
+	* Calls EncodeObservations, followed by EncodeActions, followed by DecodeActions
+	*/
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void RunController();
+
 protected:
 
 	/**

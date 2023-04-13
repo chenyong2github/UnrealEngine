@@ -17,6 +17,7 @@ namespace UE::Learning
 		static constexpr float DefaultThresholdAngle = UE_PI / 2.0f; // rad
 		static constexpr float DefaultThresholdAngularVelocity = UE_PI; // rad/s
 		static constexpr float DefaultThresholdHeight = 0.0f; // cm
+		static constexpr float DefaultThresholdTime = 10.0f; // s
 	}
 
 	//------------------------------------------------------------------
@@ -85,6 +86,26 @@ namespace UE::Learning
 	//------------------------------------------------------------------
 
 	/**
+	* Completion due to time having elapsed
+	*/
+	struct LEARNING_API FTimeElapsedCompletion : public FCompletionObject
+	{
+		FTimeElapsedCompletion(
+			const FName& InIdentifier,
+			const TSharedRef<FArrayMap>& InInstanceData,
+			const int32 InMaxInstanceNum,
+			const float InThreshold = Completion::DefaultThresholdTime,
+			const ECompletionMode InCompletionMode = ECompletionMode::Terminated);
+
+		virtual void Evaluate(const FIndexSet Instances) override final;
+
+		TArrayMapHandle<1, float> TimeHandle;
+		TArrayMapHandle<1, float> ThresholdHandle;
+	};
+
+	//------------------------------------------------------------------
+
+	/**
 	* Completion due to the difference between any two scalar positions exceeding a given threshold
 	*/
 	struct LEARNING_API FScalarPositionDifferenceCompletion : public FCompletionObject
@@ -110,6 +131,31 @@ namespace UE::Learning
 	struct LEARNING_API FPlanarPositionDifferenceCompletion : public FCompletionObject
 	{
 		FPlanarPositionDifferenceCompletion(
+			const FName& InIdentifier,
+			const TSharedRef<FArrayMap>& InInstanceData,
+			const int32 InMaxInstanceNum,
+			const int32 InPositionNum,
+			const float InThreshold = Completion::DefaultThresholdPosition,
+			const ECompletionMode InCompletionMode = ECompletionMode::Terminated,
+			const FVector InAxis0 = FVector::ForwardVector,
+			const FVector InAxis1 = FVector::RightVector);
+
+		virtual void Evaluate(const FIndexSet Instances) override final;
+
+		FVector Axis0 = FVector::ForwardVector;
+		FVector Axis1 = FVector::RightVector;
+
+		TArrayMapHandle<2, FVector> Position0Handle;
+		TArrayMapHandle<2, FVector> Position1Handle;
+		TArrayMapHandle<1, float> ThresholdHandle;
+	};
+
+	/**
+	* Completion due to the similarity between any two planar positions being below a given threshold
+	*/
+	struct LEARNING_API FPlanarPositionSimilarityCompletion : public FCompletionObject
+	{
+		FPlanarPositionSimilarityCompletion(
 			const FName& InIdentifier,
 			const TSharedRef<FArrayMap>& InInstanceData,
 			const int32 InMaxInstanceNum,
