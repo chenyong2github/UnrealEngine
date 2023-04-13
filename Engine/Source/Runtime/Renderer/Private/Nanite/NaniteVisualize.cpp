@@ -459,6 +459,11 @@ void DisplayPicking(const FScene* Scene, const FNanitePickingFeedback& PickingFe
 
 			Writer.DrawLine(FText::FromString(FString::Printf(TEXT("  Programmable:"))), 10, FColor::Yellow);
 
+			if (PickedRasterMaterial.MaterialUsesDisplacement_RenderThread())
+			{
+				Writer.DrawLine(FText::FromString(FString::Printf(TEXT("  - Displacement Mapping"))), 10, FColor::Yellow);
+			}
+
 			if (PickedRasterMaterial.MaterialUsesWorldPositionOffset_RenderThread())
 			{
 				if (PickedNaniteProxy->EvaluateWorldPositionOffset())

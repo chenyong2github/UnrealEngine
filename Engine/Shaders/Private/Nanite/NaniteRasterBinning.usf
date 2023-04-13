@@ -200,9 +200,14 @@ uint AllocateRasterizerBinCluster(uint BinIndex, bool bSoftware, uint BatchCount
 void ExportRasterizerBin(uint RasterizerBin, uint ClusterIndex, uint RangeStart, uint RangeEnd, uint BatchCount, uint BatchInfoOffset, FCluster Cluster, bool bBatchInfoInlined, bool bSoftware)
 {
 	const FNaniteMaterialFlags BinMaterialFlags = GetRasterizerBinMaterialFlags(RasterizerBin);
-	bSoftware = bSoftware || BinMaterialFlags.bDynamicTessellation;
+	bool bUseBatch = bSoftware ? BinMaterialFlags.bPixelProgrammable : (bUsePrimOrMeshShader && BinMaterialFlags.bVertexProgrammable);
+	if (BinMaterialFlags.bDynamicTessellation)
+	{
+		// Dynamic tessellation forces 100% software, and also the vert reuse batching
+		bSoftware = true;
+		bUseBatch = true;
+	}
 
-	const bool bUseBatch = bSoftware ? BinMaterialFlags.bPixelProgrammable : (bUsePrimOrMeshShader && BinMaterialFlags.bVertexProgrammable);
 	BatchCount = CondMask(bUseBatch, BatchCount, 1u);
 #if RASTER_BIN_COUNT
 	IncrementRasterizerBinCount(RasterizerBin, bSoftware, BatchCount);

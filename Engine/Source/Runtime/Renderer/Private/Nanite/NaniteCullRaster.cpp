@@ -957,7 +957,7 @@ static uint32 PackMaterialBitFlags(const FMaterial& RasterMaterial, bool bMateri
 	Flags.bPixelDiscard = RasterMaterial.IsMasked();
 	Flags.bPixelDepthOffset = bMaterialUsesPixelDepthOffset;
 	Flags.bWorldPositionOffset = !bForceDisableWPO && bMaterialUsesWorldPositionOffset;
-	Flags.bDynamicTessellation = NANITE_TESSELLATION && RasterMaterial.IsMasked();	// FIXME Tie to displacement
+	Flags.bDynamicTessellation = NANITE_TESSELLATION && RasterMaterial.MaterialUsesDisplacement_GameThread();
 	return PackNaniteMaterialBitFlags(Flags);
 }
 
@@ -1027,9 +1027,8 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 		}
 
 #if NANITE_TESSELLATION
-		// TODO Tie to displacement not masked
 		// TODO Don't compile useless shaders for default material
-		if (PermutationVector.Get<FPatchesDim>() && !Parameters.MaterialParameters.bIsDefaultMaterial && !Parameters.MaterialParameters.bIsMasked)
+		if (PermutationVector.Get<FPatchesDim>() && !Parameters.MaterialParameters.bIsDefaultMaterial && !Parameters.MaterialParameters.bHasDisplacementConnected)
 #else
 		if (PermutationVector.Get<FPatchesDim>())
 #endif
@@ -1053,7 +1052,7 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 		// Get data from GPUSceneParameters rather than View.
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 
-		if (PermutationVector.Get<FPixelProgrammableDim>())
+		if (PermutationVector.Get<FPixelProgrammableDim>() || Parameters.MaterialParameters.bHasDisplacementConnected)
 		{
 			OutEnvironment.SetDefine(TEXT("NANITE_VERT_REUSE_BATCH"), 1);
 			OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);

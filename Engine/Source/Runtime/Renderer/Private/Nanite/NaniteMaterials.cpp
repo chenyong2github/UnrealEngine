@@ -3036,7 +3036,7 @@ inline uint32 PackMaterialBitFlags(const FMaterial& Material)
 	Flags.bPixelDiscard = Material.IsMasked();
 	Flags.bPixelDepthOffset = Material.MaterialUsesPixelDepthOffset_RenderThread();
 	Flags.bWorldPositionOffset = Material.MaterialUsesWorldPositionOffset_RenderThread();
-	Flags.bDynamicTessellation = false; // TODO: 
+	Flags.bDynamicTessellation = Material.MaterialUsesDisplacement_RenderThread();
 	return PackNaniteMaterialBitFlags(Flags);
 }
 

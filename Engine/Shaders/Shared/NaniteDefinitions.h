@@ -163,7 +163,7 @@
 #define NANITE_MATERIAL_FLAG_PIXEL_DISCARD					0x4
 #define NANITE_MATERIAL_FLAG_DYNAMIC_TESSELLATION			0x8
 
-#define NANITE_MATERIAL_VERTEX_PROGRAMMABLE_FLAGS			(NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET)
+#define NANITE_MATERIAL_VERTEX_PROGRAMMABLE_FLAGS			(NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET | NANITE_MATERIAL_FLAG_DYNAMIC_TESSELLATION)
 #define NANITE_MATERIAL_PIXEL_PROGRAMMABLE_FLAGS			(NANITE_MATERIAL_FLAG_PIXEL_DEPTH_OFFSET | NANITE_MATERIAL_FLAG_PIXEL_DISCARD)
 
 // Only available with the DEBUG_FLAGS permutation active.
@@ -263,7 +263,7 @@ INLINE_ATTR FNaniteMaterialFlags UnpackNaniteMaterialFlags(UINT_TYPE Packed)
 
 INLINE_ATTR bool IsNaniteMaterialVertexProgrammable(FNaniteMaterialFlags MaterialFlags)
 {
-	return MaterialFlags.bWorldPositionOffset;
+	return MaterialFlags.bWorldPositionOffset || MaterialFlags.bDynamicTessellation;
 }
 
 INLINE_ATTR bool IsNaniteMaterialPixelProgrammable(FNaniteMaterialFlags MaterialFlags)

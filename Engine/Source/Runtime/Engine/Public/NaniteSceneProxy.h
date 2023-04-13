@@ -33,6 +33,7 @@ struct FMaterialAuditEntry
 	uint8 bHasUnsupportedBlendMode		: 1;
 	uint8 bHasUnsupportedShadingModel	: 1;
 	uint8 bHasPixelDepthOffset			: 1;
+	uint8 bHasDynamicDisplacement		: 1;
 	uint8 bHasVertexInterpolator		: 1;
 	uint8 bHasPerInstanceRandomID		: 1;
 	uint8 bHasPerInstanceCustomData		: 1;

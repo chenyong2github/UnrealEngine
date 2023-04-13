@@ -186,7 +186,7 @@ struct FMaterialShader
 		PointLocal += TransformedTri.Verts[1].PointLocal * Barycentrics.UVW[1];
 		PointLocal += TransformedTri.Verts[2].PointLocal * Barycentrics.UVW[2];
 
-	#if NANITE_TESSELLATION && NANITE_PIXEL_PROGRAMMABLE && MATERIALBLENDING_MASKED
+	#if NANITE_TESSELLATION && USES_DISPLACEMENT
 		float3 Normal;
 		Normal  = TransformedTri.Verts[0].RawAttributeData.TangentZ * Barycentrics.UVW[0];
 		Normal += TransformedTri.Verts[1].RawAttributeData.TangentZ * Barycentrics.UVW[1];
@@ -194,14 +194,14 @@ struct FMaterialShader
 		Normal = normalize( Normal );
 
 		float4 SvPosition = 0;
-					
+
 		FVertexFactoryInterpolantsVSToPS Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
 		FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters( InstanceData, InstanceDynamicData, NaniteView, TransformedTri, Cluster, Barycentrics, Interpolants, SvPosition );
 
 		FPixelMaterialInputs PixelMaterialInputs;
 		CalcMaterialParameters( MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/ );
 
-		float Displacement = GetMaterialMaskInputRaw( PixelMaterialInputs );
+		float Displacement = GetMaterialDisplacement(PixelMaterialInputs);
 
 		const float DisplacementBase = 0.8;
 		const float DisplacementScale = 5.0;

@@ -8,7 +8,7 @@
 #include "NaniteCullingCommon.ush"
 #include "../WaveOpUtil.ush"
 
-#define TESS		(NANITE_TESSELLATION && NANITE_PIXEL_PROGRAMMABLE && MATERIALBLENDING_MASKED)
+#define TESS (NANITE_TESSELLATION && USES_DISPLACEMENT)
 
 #if TESS
 #include "NaniteTessellation.ush"

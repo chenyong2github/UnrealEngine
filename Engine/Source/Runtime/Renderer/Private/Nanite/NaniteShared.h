@@ -355,12 +355,12 @@ public:
 
 	static bool IsVertexProgrammable(const FMaterialShaderParameters& MaterialParameters)
 	{
-		return MaterialParameters.bHasVertexPositionOffsetConnected;
+		return MaterialParameters.bHasVertexPositionOffsetConnected || MaterialParameters.bHasDisplacementConnected;
 	}
 
 	static bool IsVertexProgrammable(uint32 MaterialBitFlags)
 	{
-		return (MaterialBitFlags & NANITE_MATERIAL_FLAG_WORLD_POSITION_OFFSET) != 0u;
+		return (MaterialBitFlags & NANITE_MATERIAL_VERTEX_PROGRAMMABLE_FLAGS);
 	}
 
 	static bool IsPixelProgrammable(const FMaterialShaderParameters& MaterialParameters)
