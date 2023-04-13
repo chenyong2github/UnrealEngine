@@ -123,7 +123,7 @@ private:
 	IAnalysisSession& Session;
 	IResolvedSymbolFilter& SymbolFilter;
 	FString Platform;
-	FString Project;
+	FString AppName;
 };
 
 /////////////////////////////////////////////////////////////////////
