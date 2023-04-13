@@ -194,7 +194,7 @@ UE::Slate::FDeprecateVector2DResult SWindow::GetWindowSizeFromClientSize(UE::Sla
 {
 	// If this is a regular non-OS window, we need to compensate for the border and title bar area that we will add
 	// Note: Windows with an OS border do this in ReshapeWindow
-	if (IsRegularWindow() && !HasOSWindowBorder())
+	if (IsRegularWindow() && !HasOSWindowBorder() && !IsAutosized())
 	{
 		const FMargin BorderSize = GetWindowBorderSize();
 
