@@ -3,7 +3,7 @@
 #include "LearningAgentsCompletions.h"
 
 #include "LearningAgentsTrainer.h"
-#include "LearningAgentsType.h"
+#include "LearningAgentsManager.h"
 #include "LearningArray.h"
 #include "LearningArrayMap.h"
 #include "LearningCompletion.h"
@@ -40,8 +40,8 @@ namespace UE::Learning::Agents::Private
 
 		Completion->CompletionObject = MakeShared<CompletionFObject>(
 			Completion->GetFName(),
-			AgentTrainer->GetAgentType()->GetInstanceData().ToSharedRef(),
-			AgentTrainer->GetAgentType()->GetMaxInstanceNum(),
+			AgentTrainer->GetAgentManager()->GetInstanceData().ToSharedRef(),
+			AgentTrainer->GetAgentManager()->GetMaxInstanceNum(),
 			Forward<InArgTypes>(Args)...);
 
 		AgentTrainer->AddCompletion(Completion, Completion->CompletionObject.ToSharedRef());

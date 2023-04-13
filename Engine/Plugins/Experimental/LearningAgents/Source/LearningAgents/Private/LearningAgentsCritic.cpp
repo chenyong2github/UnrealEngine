@@ -2,6 +2,7 @@
 
 #include "LearningAgentsCritic.h"
 
+#include "LearningAgentsManager.h"
 #include "LearningAgentsType.h"
 #include "LearningFeatureObject.h"
 #include "LearningNeuralNetwork.h"
@@ -69,36 +70,47 @@ namespace UE::Learning::Agents::Critic::Private
 	}
 }
 
-ULearningAgentsCritic::ULearningAgentsCritic() : UActorComponent() {}
+ULearningAgentsCritic::ULearningAgentsCritic() : ULearningAgentsManagerComponent() {}
 ULearningAgentsCritic::ULearningAgentsCritic(FVTableHelper& Helper) : ULearningAgentsCritic() {}
 ULearningAgentsCritic::~ULearningAgentsCritic() {}
 
-void ULearningAgentsCritic::SetupCritic(ULearningAgentsType* InAgentType, const FLearningAgentsCriticSettings& CriticSettings)
+void ULearningAgentsCritic::SetupCritic(ALearningAgentsManager* InAgentManager, ULearningAgentsType* InAgentType, const FLearningAgentsCriticSettings& CriticSettings)
 {
-	if (IsCriticSetupPerformed())
+	if (IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("Setup already performed!"));
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup already performed!"), *GetName());
 		return;
 	}
 
-	// Setup Agent Type
+	if (!InAgentManager)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: InAgentManager is nullptr."), *GetName());
+		return;
+	}
+
+	if (!InAgentManager->IsManagerSetup())
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s's SetupManager() must be run before %s can be setup."), *InAgentManager->GetName(), *GetName());
+		return;
+	}
+
+	AgentManager = InAgentManager;
 
 	if (!InAgentType)
 	{
-		UE_LOG(LogLearning, Error, TEXT("SetupCritic called but AgentType is nullptr."));
+		UE_LOG(LogLearning, Error, TEXT("%s: InAgentType is nullptr."), *GetName());
 		return;
 	}
 
-	if (!InAgentType->IsSetupPerformed())
+	if (!InAgentType->IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("AgentType Setup must be run before critic can be setup."));
+		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *InAgentType->GetName());
 		return;
 	}
 
 	AgentType = InAgentType;
 
 	// Setup Neural Network
-
 	Network = NewObject<ULearningAgentsNeuralNetwork>(this, TEXT("CriticNetwork"));
 	Network->NeuralNetwork = MakeShared<UE::Learning::FNeuralNetwork>();
 	Network->NeuralNetwork->Resize(
@@ -109,81 +121,15 @@ void ULearningAgentsCritic::SetupCritic(ULearningAgentsType* InAgentType, const 
 	Network->NeuralNetwork->ActivationFunction = UE::Learning::Agents::GetActivationFunction(CriticSettings.ActivationFunction);
 
 	// Create Critic Object
-
 	CriticObject = MakeShared<UE::Learning::FNeuralNetworkCriticFunction>(
 		TEXT("CriticObject"),
-		AgentType->GetInstanceData().ToSharedRef(),
-		AgentType->GetMaxInstanceNum(),
+		AgentManager->GetInstanceData().ToSharedRef(),
+		AgentManager->GetMaxInstanceNum(),
 		Network->NeuralNetwork.ToSharedRef());
 
-	AgentType->GetInstanceData()->Link(AgentType->GetObservationFeature().FeatureHandle, CriticObject->InputHandle);
+	AgentManager->GetInstanceData()->Link(AgentType->GetObservationFeature().FeatureHandle, CriticObject->InputHandle);
 
-	// Done!
-	bCriticSetupPerformed = true;
-}
-
-bool ULearningAgentsCritic::IsCriticSetupPerformed() const
-{
-	return bCriticSetupPerformed;
-}
-
-void ULearningAgentsCritic::AddAgent(const int32 AgentId)
-{
-	if (!IsCriticSetupPerformed())
-	{
-		UE_LOG(LogLearning, Error, TEXT("Critic setup must be run before agents can be added!"));
-		return;
-	}
-
-	if (!AgentType->GetOccupiedAgentSet().Contains(AgentId))
-	{
-		UE_LOG(LogLearning, Error, TEXT("Unable to add: AgentId %d not found on AgentType. Make sure to add agents to the agent type before adding."), AgentId);
-		return;
-	}
-
-	if (SelectedAgentIds.Contains(AgentId))
-	{
-		UE_LOG(LogLearning, Error, TEXT("AgentId %i is already included in agents set"), AgentId);
-		return;
-	}
-
-	SelectedAgentIds.Add(AgentId);
-	SelectedAgentsSet = SelectedAgentIds;
-	SelectedAgentsSet.TryMakeSlice();
-}
-
-void ULearningAgentsCritic::RemoveAgent(const int32 AgentId)
-{
-	if (!IsCriticSetupPerformed())
-	{
-		UE_LOG(LogLearning, Error, TEXT("Critic setup must be run before agents can be removed!"));
-		return;
-	}
-
-	if (SelectedAgentIds.RemoveSingleSwap(AgentId, false) == 0)
-	{
-		UE_LOG(LogLearning, Error, TEXT("Unable to remove: AgentId %d not found in the added agents set."), AgentId);
-		return;
-	}
-
-	SelectedAgentsSet = SelectedAgentIds;
-	SelectedAgentsSet.TryMakeSlice();
-}
-
-bool ULearningAgentsCritic::HasAgent(const int32 AgentId) const
-{
-	return SelectedAgentsSet.Contains(AgentId);
-}
-
-ULearningAgentsType* ULearningAgentsCritic::GetAgentType(const TSubclassOf<ULearningAgentsType> AgentClass)
-{
-	if (!IsCriticSetupPerformed())
-	{
-		UE_LOG(LogLearning, Error, TEXT("Critic setup must be run before getting the agent type!"));
-		return nullptr;
-	}
-
-	return AgentType;
+	bIsSetup = true;
 }
 
 UE::Learning::FNeuralNetwork& ULearningAgentsCritic::GetCriticNetwork()
@@ -198,7 +144,7 @@ UE::Learning::FNeuralNetworkCriticFunction& ULearningAgentsCritic::GetCriticObje
 
 void ULearningAgentsCritic::LoadCriticFromSnapshot(const FDirectoryPath& Directory, const FString Filename)
 {
-	if (!IsCriticSetupPerformed())
+	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Critic setup must be run before network can be loaded."));
 		return;
@@ -230,7 +176,7 @@ void ULearningAgentsCritic::LoadCriticFromSnapshot(const FDirectoryPath& Directo
 
 void ULearningAgentsCritic::SaveCriticToSnapshot(const FDirectoryPath& Directory, const FString Filename) const
 {
-	if (!IsCriticSetupPerformed())
+	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Critic setup must be run before network can be saved."));
 		return;
@@ -254,7 +200,7 @@ void ULearningAgentsCritic::SaveCriticToSnapshot(const FDirectoryPath& Directory
 
 void ULearningAgentsCritic::LoadCriticFromAsset(const ULearningAgentsNeuralNetwork* NeuralNetworkAsset)
 {
-	if (!IsCriticSetupPerformed())
+	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Critic setup must be run before network can be loaded."));
 		return;
@@ -278,7 +224,7 @@ void ULearningAgentsCritic::LoadCriticFromAsset(const ULearningAgentsNeuralNetwo
 
 void ULearningAgentsCritic::SaveCriticToAsset(ULearningAgentsNeuralNetwork* NeuralNetworkAsset) const
 {
-	if (!IsCriticSetupPerformed())
+	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Critic setup must be run before network can be saved."));
 		return;
@@ -317,28 +263,28 @@ void ULearningAgentsCritic::EvaluateCritic()
 {
 	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsCritic::EvaluateCritic);
 
-	if (!IsCriticSetupPerformed())
+	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Setup must be run before the critic can be evaluated."));
 		return;
 	}
 
-	CriticObject->Evaluate(SelectedAgentsSet);
+	CriticObject->Evaluate(AddedAgentSet);
 
 #if ENABLE_VISUAL_LOG
-	VisualLog(SelectedAgentsSet);
+	VisualLog(AddedAgentSet);
 #endif
 }
 
 float ULearningAgentsCritic::GetEstimatedDiscountedReturn(const int32 AgentId) const
 {
-	if (!IsCriticSetupPerformed())
+	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Setup must be run before the critic can get the estimated discounted return."));
 		return 0.0f;
 	}
 
-	if (!SelectedAgentsSet.Contains(AgentId))
+	if (!HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("Unable to get estimate for agent - AgentId %d not found in the added agents set."), AgentId);
 		return 0.0f;

@@ -2,10 +2,8 @@
 
 #pragma once
 
+#include "LearningAgentsManagerComponent.h"
 #include "LearningArray.h"
-
-#include "Components/ActorComponent.h"
-
 #include "LearningAgentsController.generated.h"
 
 /**
@@ -14,11 +12,10 @@
 * for imitation learning purposes.
 */
 UCLASS(Abstract, BlueprintType, Blueprintable)
-class LEARNINGAGENTS_API ULearningAgentsController : public UActorComponent
+class LEARNINGAGENTS_API ULearningAgentsController : public ULearningAgentsManagerComponent
 {
 	GENERATED_BODY()
 
-// ----- Setup -----
 public:
 
 	// These constructors/destructors are needed to make forward declarations happy
@@ -26,46 +23,9 @@ public:
 	ULearningAgentsController(FVTableHelper& Helper);
 	virtual ~ULearningAgentsController();
 
-	/** Initializes this object to be used with the given agent type. */
+	/** Initializes this object to be used with the given manager and agent type. */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void SetupController(ULearningAgentsType* InAgentType);
-
-	/** Returns true if SetupController has been run successfully; Otherwise, false. */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	bool IsControllerSetupPerformed() const;
-
-// ----- Agent Management -----
-public:
-
-	/**
-	 * Adds an agent to this controller.
-	 * @param AgentId The id of the agent to be added.
-	 * @warning The agent id must exist for the agent type.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void AddAgent(const int32 AgentId);
-
-	/**
-	* Removes an agent from this controller.
-	* @param AgentId The id of the agent to be removed.
-	* @warning The agent id must exist for this controller already.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void RemoveAgent(const int32 AgentId);
-
-	/** Returns true if the given id has been previously added to this controller; Otherwise, false. */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	bool HasAgent(const int32 AgentId) const;
-
-	/**
-	* Gets the agent type this controller is associated with.
-	* @param AgentClass The class to cast the agent type to (in blueprint).
-	*/
-	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (DeterminesOutputType = "AgentClass"))
-	ULearningAgentsType* GetAgentType(const TSubclassOf<ULearningAgentsType> AgentClass);
-
-// ----- Actions -----
-public:
+	void SetupController(ALearningAgentsManager* InAgentManager, ULearningAgentsType* InAgentType);
 
 	/**
 	* During this event, you should set the actions of your agents.
@@ -83,18 +43,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void EncodeActions();
 
-// ----- Private Data -----
+protected:
+
+	/**
+	* Gets the agent type associated with this component.
+	* @param AgentClass The class to cast the agent type to (in blueprint).
+	*/
+	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (DeterminesOutputType = "AgentTypeClass"))
+	ULearningAgentsType* GetAgentType(const TSubclassOf<ULearningAgentsType> AgentTypeClass) const;
+
 private:
 
 	/** The agent type this controller is associated with. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsType> AgentType;
-
-	/** The agent ids this controller is managing. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
-	TArray<int32> SelectedAgentIds;
-
-private:
-
-	UE::Learning::FIndexSet SelectedAgentsSet;
 };

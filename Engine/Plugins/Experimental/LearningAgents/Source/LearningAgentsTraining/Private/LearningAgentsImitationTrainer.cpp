@@ -48,7 +48,7 @@ void ULearningAgentsImitationTrainer::BeginTraining(
 		return;
 	}
 
-	if (!InPolicy->IsPolicySetupPerformed())
+	if (!InPolicy->IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Policy Setup not Performed"));
 		return;

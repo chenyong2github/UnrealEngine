@@ -2,10 +2,10 @@
 
 #pragma once
 
+#include "LearningAgentsManagerComponent.h"
+
 #include "LearningAgentsNeuralNetwork.h" // Included for ELearningAgentsActivationFunction
 #include "LearningArray.h"
-
-#include "Components/ActorComponent.h"
 #include "UObject/ObjectPtr.h"
 #include "EngineDefines.h"
 
@@ -43,11 +43,10 @@ public:
 
 /** A critic used by some algorithms for training the managed agents. */
 UCLASS(BlueprintType, Blueprintable)
-class LEARNINGAGENTS_API ULearningAgentsCritic : public UActorComponent
+class LEARNINGAGENTS_API ULearningAgentsCritic : public ULearningAgentsManagerComponent
 {
 	GENERATED_BODY()
 
-// ----- Setup -----
 public:
 
 	// These constructors/destructors are needed to make forward declarations happy
@@ -57,41 +56,10 @@ public:
 
 	/** Initializes this object to be used with the given agent type and critic settings. */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void SetupCritic(ULearningAgentsType* InAgentType, const FLearningAgentsCriticSettings& CriticSettings = FLearningAgentsCriticSettings());
-
-	/** Returns true if SetupCritic has been run successfully; Otherwise, false. */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	bool IsCriticSetupPerformed() const;
-
-// ----- Agent Management -----
-public:
-
-	/**
-	 * Adds an agent to this critic.
-	 * @param AgentId The id of the agent to be added.
-	 * @warning The agent id must exist for the agent type.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void AddAgent(const int32 AgentId);
-
-	/**
-	* Removes an agent from this critic.
-	* @param AgentId The id of the agent to be removed.
-	* @warning The agent id must exist for this critic already.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void RemoveAgent(const int32 AgentId);
-
-	/** Returns true if the given id has been previously added to this critic; Otherwise, false. */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	bool HasAgent(const int32 AgentId) const;
-
-	/**
-	* Gets the agent type this critic is associated with.
-	* @param AgentClass The class to cast the agent type to (in blueprint).
-	*/
-	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (DeterminesOutputType = "AgentClass"))
-	ULearningAgentsType* GetAgentType(const TSubclassOf<ULearningAgentsType> AgentClass);
+	void SetupCritic(
+		ALearningAgentsManager* InAgentManager,
+		ULearningAgentsType* InAgentType,
+		const FLearningAgentsCriticSettings& CriticSettings = FLearningAgentsCriticSettings());
 
 // ----- Load / Save -----
 public:
@@ -161,28 +129,16 @@ public:
 private:
 
 	/** The agent type this critic is associated with. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsType> AgentType;
 
-	/** The agent ids this critic is managing. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
-	TArray<int32> SelectedAgentIds;
-
-	/** True if this critic's SetupCritic has been run; Otherwise, false. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
-	bool bCriticSetupPerformed = false;
-
 	/** The underlying neural network. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsNeuralNetwork> Network;
 
 private:
 
 	TSharedPtr<UE::Learning::FNeuralNetworkCriticFunction> CriticObject;
-
-	UE::Learning::FIndexSet SelectedAgentsSet;
-
-private:
 
 #if ENABLE_VISUAL_LOG
 	/** Color used to draw this action in the visual log */

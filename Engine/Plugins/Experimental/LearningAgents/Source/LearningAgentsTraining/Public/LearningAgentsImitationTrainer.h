@@ -121,15 +121,15 @@ public:
 private:
 
 	/** The policy being trained. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsPolicy> Policy;
 
 	/** True if training is currently in-progress. Otherwise, false. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	bool bIsTraining = false;
 
 	/** True if training is completed. Otherwise, false. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	bool bIsTrainingComplete = false;
 
 	TLearningArray<2, float> RecordedObservations;

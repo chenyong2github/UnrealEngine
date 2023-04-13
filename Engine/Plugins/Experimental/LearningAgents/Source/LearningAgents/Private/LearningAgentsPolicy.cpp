@@ -2,6 +2,7 @@
 
 #include "LearningAgentsPolicy.h"
 
+#include "LearningAgentsManager.h"
 #include "LearningAgentsType.h"
 #include "LearningFeatureObject.h"
 #include "LearningNeuralNetwork.h"
@@ -69,36 +70,47 @@ namespace UE::Learning::Agents::Policy::Private
 	}
 }
 
-ULearningAgentsPolicy::ULearningAgentsPolicy() : UActorComponent() {}
+ULearningAgentsPolicy::ULearningAgentsPolicy() : ULearningAgentsManagerComponent() {}
 ULearningAgentsPolicy::ULearningAgentsPolicy(FVTableHelper& Helper) : ULearningAgentsPolicy() {}
 ULearningAgentsPolicy::~ULearningAgentsPolicy() {}
 
-void ULearningAgentsPolicy::SetupPolicy(ULearningAgentsType* InAgentType, const FLearningAgentsPolicySettings& PolicySettings)
+void ULearningAgentsPolicy::SetupPolicy(ALearningAgentsManager* InAgentManager, ULearningAgentsType* InAgentType, const FLearningAgentsPolicySettings& PolicySettings)
 {
-	if (IsPolicySetupPerformed())
+	if (IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("Setup already performed!"));
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup already performed!"), *GetName());
 		return;
 	}
 
-	// Setup Agent Type
+	if (!InAgentManager)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: InAgentManager is nullptr."), *GetName());
+		return;
+	}
+
+	if (!InAgentManager->IsManagerSetup())
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s's SetupManager() must be run before %s can be setup."), *InAgentManager->GetName(), *GetName());
+		return;
+	}
+
+	AgentManager = InAgentManager;
 
 	if (!InAgentType)
 	{
-		UE_LOG(LogLearning, Error, TEXT("SetupPolicy called but AgentType is nullptr."));
+		UE_LOG(LogLearning, Error, TEXT("%s: InAgentType is nullptr."), *GetName());
 		return;
 	}
 
-	if (!InAgentType->IsSetupPerformed())
+	if (!InAgentType->IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("AgentType Setup must be run before policy can be setup."));
+		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *InAgentType->GetName());
 		return;
 	}
 
 	AgentType = InAgentType;
 
 	// Setup Neural Network
-
 	Network = NewObject<ULearningAgentsNeuralNetwork>(this, TEXT("PolicyNetwork"));
 	Network->NeuralNetwork = MakeShared<UE::Learning::FNeuralNetwork>();
 	Network->NeuralNetwork->Resize(
@@ -109,7 +121,6 @@ void ULearningAgentsPolicy::SetupPolicy(ULearningAgentsType* InAgentType, const 
 	Network->NeuralNetwork->ActivationFunction = UE::Learning::Agents::GetActivationFunction(PolicySettings.ActivationFunction);
 
 	// Create Policy Object
-
 	UE::Learning::FNeuralNetworkPolicyFunctionSettings PolicyFunctionSettings;
 	PolicyFunctionSettings.ActionNoiseMin = PolicySettings.ActionNoiseMin;
 	PolicyFunctionSettings.ActionNoiseMax = PolicySettings.ActionNoiseMax;
@@ -117,80 +128,15 @@ void ULearningAgentsPolicy::SetupPolicy(ULearningAgentsType* InAgentType, const 
 
 	PolicyObject = MakeShared<UE::Learning::FNeuralNetworkPolicyFunction>(
 		TEXT("PolicyObject"),
-		AgentType->GetInstanceData().ToSharedRef(),
-		AgentType->GetMaxInstanceNum(),
+		AgentManager->GetInstanceData().ToSharedRef(),
+		AgentManager->GetMaxInstanceNum(),
 		Network->NeuralNetwork.ToSharedRef(),
 		PolicySettings.ActionNoiseSeed,
 		PolicyFunctionSettings);
 
-	AgentType->GetInstanceData()->Link(AgentType->GetObservationFeature().FeatureHandle, PolicyObject->InputHandle);
+	AgentManager->GetInstanceData()->Link(AgentType->GetObservationFeature().FeatureHandle, PolicyObject->InputHandle);
 
-	// Done!
-	bPolicySetupPerformed = true;
-}
-
-bool ULearningAgentsPolicy::IsPolicySetupPerformed() const
-{
-	return bPolicySetupPerformed;
-}
-
-void ULearningAgentsPolicy::AddAgent(const int32 AgentId)
-{
-	if (!IsPolicySetupPerformed())
-	{
-		UE_LOG(LogLearning, Error, TEXT("Policy setup must be run before agents can be added!"));
-		return;
-	}
-
-	if (!AgentType->GetOccupiedAgentSet().Contains(AgentId))
-	{
-		UE_LOG(LogLearning, Error, TEXT("Unable to add: AgentId %d not found on AgentType. Make sure to add agents to the agent type before adding."), AgentId);
-		return;
-	}
-
-	if (SelectedAgentIds.Contains(AgentId))
-	{
-		UE_LOG(LogLearning, Error, TEXT("AgentId %i is already included in agents set"), AgentId);
-		return;
-	}
-
-	SelectedAgentIds.Add(AgentId);
-	SelectedAgentsSet = SelectedAgentIds;
-	SelectedAgentsSet.TryMakeSlice();
-}
-
-void ULearningAgentsPolicy::RemoveAgent(const int32 AgentId)
-{
-	if (!IsPolicySetupPerformed())
-	{
-		UE_LOG(LogLearning, Error, TEXT("Policy setup must be run before agents can be removed!"));
-		return;
-	}
-
-	if (SelectedAgentIds.RemoveSingleSwap(AgentId, false) == 0)
-	{
-		UE_LOG(LogLearning, Error, TEXT("Unable to remove: AgentId %d not found in the added agents set."), AgentId);
-		return;
-	}
-
-	SelectedAgentsSet = SelectedAgentIds;
-	SelectedAgentsSet.TryMakeSlice();
-}
-
-bool ULearningAgentsPolicy::HasAgent(const int32 AgentId) const
-{
-	return SelectedAgentsSet.Contains(AgentId);
-}
-
-ULearningAgentsType* ULearningAgentsPolicy::GetAgentType(const TSubclassOf<ULearningAgentsType> AgentClass)
-{
-	if (!IsPolicySetupPerformed())
-	{
-		UE_LOG(LogLearning, Error, TEXT("Policy setup must be run before getting the agent type!"));
-		return nullptr;
-	}
-
-	return AgentType;
+	bIsSetup = true;
 }
 
 UE::Learning::FNeuralNetwork& ULearningAgentsPolicy::GetPolicyNetwork()
@@ -205,7 +151,7 @@ UE::Learning::FNeuralNetworkPolicyFunction& ULearningAgentsPolicy::GetPolicyObje
 
 void ULearningAgentsPolicy::LoadPolicyFromSnapshot(const FDirectoryPath& Directory, const FString Filename)
 {
-	if (!IsPolicySetupPerformed())
+	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Policy setup must be run before network can be loaded."));
 		return;
@@ -237,7 +183,7 @@ void ULearningAgentsPolicy::LoadPolicyFromSnapshot(const FDirectoryPath& Directo
 
 void ULearningAgentsPolicy::SavePolicyToSnapshot(const FDirectoryPath& Directory, const FString Filename) const
 {
-	if (!IsPolicySetupPerformed())
+	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Policy setup must be run before network can be saved."));
 		return;
@@ -261,7 +207,7 @@ void ULearningAgentsPolicy::SavePolicyToSnapshot(const FDirectoryPath& Directory
 
 void ULearningAgentsPolicy::LoadPolicyFromAsset(const ULearningAgentsNeuralNetwork* NeuralNetworkAsset)
 {
-	if (!IsPolicySetupPerformed())
+	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Policy setup must be run before network can be loaded."));
 		return;
@@ -285,7 +231,7 @@ void ULearningAgentsPolicy::LoadPolicyFromAsset(const ULearningAgentsNeuralNetwo
 
 void ULearningAgentsPolicy::SavePolicyToAsset(ULearningAgentsNeuralNetwork* NeuralNetworkAsset) const
 {
-	if (!IsPolicySetupPerformed())
+	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Policy setup must be run before network can be saved."));
 		return;
@@ -324,13 +270,13 @@ void ULearningAgentsPolicy::EvaluatePolicy()
 {
 	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsPolicy::EvaluatePolicy);
 
-	if (!IsPolicySetupPerformed())
+	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Setup must be run before the policy can be evaluated."));
 		return;
 	}
 
-	PolicyObject->Evaluate(SelectedAgentIds);
+	PolicyObject->Evaluate(AddedAgentIds);
 
 	// Copy the actions computed by the policy into the agent-type's feature buffer.
 	// 
@@ -341,22 +287,22 @@ void ULearningAgentsPolicy::EvaluatePolicy()
 	UE::Learning::Array::Copy(
 		PolicyObject->InstanceData->View(AgentType->GetActionFeature().FeatureHandle),
 		PolicyObject->InstanceData->ConstView(PolicyObject->OutputHandle),
-		SelectedAgentIds);
+		AddedAgentIds);
 
 #if ENABLE_VISUAL_LOG
-	VisualLog(SelectedAgentIds);
+	VisualLog(AddedAgentIds);
 #endif
 }
 
 float ULearningAgentsPolicy::GetAgentActionNoiseScale(const int32 AgentId) const
 {
-	if (!IsPolicySetupPerformed())
+	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Setup must be run before getting the action noise."));
 		return 0.0f;
 	}
 
-	if (!SelectedAgentsSet.Contains(AgentId))
+	if (!HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("Unable to get action noise for agent - AgentId %d not found in the added agents set."), AgentId);
 		return 0.0f;
@@ -368,13 +314,13 @@ float ULearningAgentsPolicy::GetAgentActionNoiseScale(const int32 AgentId) const
 
 void ULearningAgentsPolicy::SetAgentActionNoiseScale(const int32 AgentId, const float ActionNoiseScale)
 {
-	if (!IsPolicySetupPerformed())
+	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Setup must be run before setting the action noise."));
 		return;
 	}
 
-	if (!SelectedAgentsSet.Contains(AgentId))
+	if (!HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("Unable to set action noise for agent - AgentId %d not found in the added agents set."), AgentId);
 		return;

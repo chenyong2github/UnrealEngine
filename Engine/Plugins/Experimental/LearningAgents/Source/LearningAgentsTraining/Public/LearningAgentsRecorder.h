@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "LearningArray.h"
+#include "LearningAgentsManagerComponent.h"
 
-#include "Components/ActorComponent.h"
+#include "LearningArray.h"
 #include "Containers/Map.h"
 #include "UObject/ObjectPtr.h"
 
@@ -15,7 +15,7 @@ class ULearningAgentsRecord;
 
 /** A component that can be used to create recordings of training data for imitation learning. */
 UCLASS(BlueprintType, Blueprintable)
-class LEARNINGAGENTSTRAINING_API ULearningAgentsRecorder : public UActorComponent
+class LEARNINGAGENTSTRAINING_API ULearningAgentsRecorder : public ULearningAgentsManagerComponent
 {
 	GENERATED_BODY()
 
@@ -35,41 +35,15 @@ public:
 	* @param InAgentType The agent type we are recording with.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void SetupRecorder(ULearningAgentsType* InAgentType);
+	void SetupRecorder(ALearningAgentsManager* InAgentManager, ULearningAgentsType* InAgentType);
 
-	/** Returns true if SetupRecorder has been run successfully; Otherwise, false. */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	bool IsRecorderSetupPerformed() const;
-
-// ----- Agent Management -----
 public:
 
-	/**
-	 * Adds an agent to this recorder.
-	 * @param AgentId The id of the agent to be added.
-	 * @warning The agent id must exist for the agent type.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void AddAgent(const int32 AgentId);
+	//~ Begin ULearningAgentsManagerComponent Interface
+	virtual bool AddAgent(const int32 AgentId) override;
 
-	/**
-	* Removes an agent from this recorder.
-	* @param AgentId The id of the agent to be removed.
-	* @warning The agent id must exist for this recorder already.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void RemoveAgent(const int32 AgentId);
-
-	/** Returns true if the given id has been previously added to this recorder; Otherwise, false. */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	bool HasAgent(const int32 AgentId) const;
-
-	/**
-	* Gets the agent type this recorder is associated with.
-	* @param AgentClass The class to cast the agent type to (in blueprint).
-	*/
-	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (DeterminesOutputType = "AgentClass"))
-	ULearningAgentsType* GetAgentType(const TSubclassOf<ULearningAgentsType> AgentClass);
+	virtual bool RemoveAgent(const int32 AgentId) override;
+	//~ End ULearningAgentsManagerComponent Interface
 
 // ----- Recording Process -----
 public:
@@ -98,12 +72,8 @@ public:
 private:
 
 	/** The agent type this recorder is associated with. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsType> AgentType;
-
-	/** The agent ids this recorder is managing. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
-	TArray<int32> SelectedAgentIds;
 
 // ----- Recorder Configuration -----
 private:
@@ -120,18 +90,14 @@ private:
 private:
 
 	/** True if recording is currently in-progress. Otherwise, false. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	bool bIsRecording = false;
 
 	/** The data storage manager. It can be used to save/load agent records. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsDataStorage> DataStorage;
 
 	/** All records which are currently being written to. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TMap<int32, TObjectPtr<ULearningAgentsRecord>> CurrentRecords;
-
-private:
-
-	UE::Learning::FIndexSet SelectedAgentsSet;
 };

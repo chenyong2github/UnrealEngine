@@ -131,7 +131,7 @@ public:
 private:
 	
 	/** All currently loaded records. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TArray<TObjectPtr<ULearningAgentsRecord>> Records;
 
 	/** If true, prepends a timestamp to the saved file names. */

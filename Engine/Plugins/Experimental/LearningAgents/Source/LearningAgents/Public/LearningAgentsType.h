@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "LearningArray.h"
+#include "LearningAgentsManagerComponent.h"
 
-#include "Components/ActorComponent.h"
+#include "LearningArray.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 #include "Containers/ContainerAllocationPolicies.h"
@@ -21,27 +21,21 @@ namespace UE::Learning
 	struct FFeatureObject;
 }
 
+class ALearningAgentsManager;
 class ULearningAgentsAction;
 class ULearningAgentsObservation;
 
 /**
-* The agent type is the core class around which the rest of Learning Agents is built. It has a few responsibilities:
-*   1) It keeps track of which objects are agents.
-*   2) It defines how those agents' observations and actions are implemented.
-*   3) It provides methods that need to be called during the inference process of those agents.
+* The agent type defines how agents' observations and actions are implemented and provides methods to be called during
+* the inference process of those agents.
 *
 * To use this class, you need to implement the SetupObservations and SetupActions functions (as well as their
 * corresponding SetObservations and SetActions functions), which will define the size of inputs and outputs to your
 * policy. Before you can do inference, you need to call SetupAgentType, which will initialize the underlying data
 * structure, and you need to call AddAgent for each object you want controlled by this agent type.
-*
-* If you have multiple different types of objects you want controlled by Learning Agents, you should create
-* one agent type per object type, rather than trying to share an agent type.
-*
-* @see ULearningAgentsTrainer to understand how training works.
 */
 UCLASS(Abstract, BlueprintType, Blueprintable)
-class LEARNINGAGENTS_API ULearningAgentsType : public UActorComponent
+class LEARNINGAGENTS_API ULearningAgentsType : public ULearningAgentsManagerComponent
 {
 	GENERATED_BODY()
 
@@ -52,75 +46,9 @@ public:
 	ULearningAgentsType(FVTableHelper& Helper);
 	virtual ~ULearningAgentsType();
 
-	/** Sets up the agent ids so that agents can be added prior to calling SetupAgentType. */
-	virtual void PostInitProperties() override;
-
-// ----- Setup -----
-public:
-
 	/** Initializes this object and runs the setup events for observations and actions. */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void SetupAgentType();
-
-	/** Returns true if SetupAgentType has been run successfully; Otherwise, false. */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	bool IsSetupPerformed() const;
-
-	/** Returns the maximum number of agents that this agent type is configured to handle. */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	int32 GetMaxInstanceNum() const;
-
-// ----- Agent Management -----
-public:
-
-	/**
-	 * Adds the given object as an agent to this agent type. This can be called before or after SetupAgentType.
-	 * @param Agent The object to be added.
-	 * @return The agent's newly assigned id.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	int32 AddAgent(UObject* Agent);
-	
-	/**
-	 * Removes the agent with the given id from this agent type.
-	 * @param AgentId The id of the agent to remove.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void RemoveAgentById(const int32 AgentId);
-
-	/**
-	* Removes the given agent from this agent type. Use RemoveAgentById if you have the id available as this function
-	* is slower.
-	* @param Agent The agent to be removed.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void RemoveAgent(UObject* Agent);
-
-	/**
-	 * Gets the agent with the given id. Calling this from blueprint with the appropriate AgentClass will automatically
-	 * cast the object to the given type. If not in a blueprint, you should use one of the other GetAgent overloads.
-	 * @param AgentId The id of the agent to get.
-	 * @param AgentClass The class to cast the agent object to (in blueprint).
-	 * @return The agent object.
-	 */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (DeterminesOutputType = "AgentClass"))
-	UObject* GetAgent(const int32 AgentId, const TSubclassOf<UObject> AgentClass);
-
-	/** Returns true if the given object is an agent in this agent type; Otherwise, false. */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	bool HasAgent(UObject* Agent) const;
-
-	/** Returns true if the given id is used by an agent in this agent type; Otherwise, false. */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	bool HasAgentById(const int32 AgentId) const;
-
-public:
-
-	/** Gets the agent corresponding to the given id. */
-	const UObject* GetAgent(const int32 AgentId) const;
-
-	/** Gets the agent corresponding to the given id. */
-	UObject* GetAgent(const int32 AgentId);
+	void SetupAgentType(ALearningAgentsManager* InAgentManager);
 
 // ----- Observations -----
 public:
@@ -196,9 +124,6 @@ public:
 // ----- Non-blueprint public interface -----
 public:
 
-	/** Get a const reference to this agent type's underlying instance data. */
-	const TSharedPtr<UE::Learning::FArrayMap>& GetInstanceData() const;
-
 	/** Get a reference to this agent type's observation feature. */
 	UE::Learning::FFeatureObject& GetObservationFeature() const;
 
@@ -211,53 +136,22 @@ public:
 	/** Get a const array view of this agent type's action objects. */
 	TConstArrayView<ULearningAgentsAction*> GetActionObjects() const;
 
-	/** Get a const array view of this agent type's agent objects. */
-	TConstArrayView<TObjectPtr<UObject>> GetAgents() const;
+private:
 
-	/** Get an FIndexSet with this agent type's occupied agent ids. */
-	UE::Learning::FIndexSet GetOccupiedAgentSet() const;
+	/** The list of current observation objects. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
+	TArray<TObjectPtr<ULearningAgentsObservation>> ObservationObjects;
 
-	/** Get an FIndexSet with this agent type's vacant agent ids. */
-	UE::Learning::FIndexSet GetVacantAgentSet() const;
+	/** The list of current action objects. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
+	TArray<TObjectPtr<ULearningAgentsAction>> ActionObjects;
 
 // ----- Private Data -----
 private:
 
-	/** Update the agent sets to keep them in sync with the id lists. */
-	void UpdateAgentSets();
-
-	TArray<int32> OccupiedAgentIds;
-	TArray<int32> VacantAgentIds;
-	UE::Learning::FIndexSet OccupiedAgentSet;
-	UE::Learning::FIndexSet VacantAgentSet;
-
-	TSharedPtr<UE::Learning::FArrayMap> InstanceData;
-
 	TArray<TSharedRef<UE::Learning::FFeatureObject>, TInlineAllocator<16>> ObservationFeatures;
 	TArray<TSharedRef<UE::Learning::FFeatureObject>, TInlineAllocator<16>> ActionFeatures;
 
-	TSharedPtr<UE::Learning::FConcatenateFeature> Observations;	
+	TSharedPtr<UE::Learning::FConcatenateFeature> Observations;
 	TSharedPtr<UE::Learning::FConcatenateFeature> Actions;
-	
-private:
-
-	/** Maximum number of agent instances. Used to preallocate internal buffers. */
-	UPROPERTY(EditDefaultsOnly, Category = "LearningAgents", meta = (ClampMin = "1", UIMin = "1"))
-	int32 MaxInstanceNum = 1;
-
-	/** True if SetupAgentType has been performed; Otherwise, false. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
-	bool bSetupPerformed = false;
-
-	/** The list of current agents. */
-	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
-	TArray<TObjectPtr<UObject>> Agents;
-
-	/** The list of current observation objects. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
-	TArray<TObjectPtr<ULearningAgentsObservation>> ObservationObjects;
-
-	/** The list of current action objects. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
-	TArray<TObjectPtr<ULearningAgentsAction>> ActionObjects;
 };

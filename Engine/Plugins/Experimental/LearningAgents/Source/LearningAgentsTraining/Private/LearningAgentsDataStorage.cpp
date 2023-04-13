@@ -78,7 +78,7 @@ ULearningAgentsRecord* ULearningAgentsDataStorage::CreateRecord(const FName Reco
 		return nullptr;
 	}
 
-	if (!AgentType->IsSetupPerformed())
+	if (!AgentType->IsSetup())
 	{
 		UE_LOG(LogLearning, Warning, TEXT("CreateRecord: AgentType Setup must be performed before record can be created."));
 		return nullptr;
@@ -134,7 +134,7 @@ ULearningAgentsRecord* ULearningAgentsDataStorage::LoadRecord(ULearningAgentsTyp
 		return nullptr;
 	}
 
-	if (!AgentType->IsSetupPerformed())
+	if (!AgentType->IsSetup())
 	{
 		UE_LOG(LogLearning, Warning, TEXT("LoadRecord: AgentType Setup must be performed before record can be created."));
 		return nullptr;

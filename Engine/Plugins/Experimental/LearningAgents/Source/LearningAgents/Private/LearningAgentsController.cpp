@@ -2,6 +2,7 @@
 
 #include "LearningAgentsController.h"
 
+#include "LearningAgentsManager.h"
 #include "LearningAgentsType.h"
 #include "LearningAgentsActions.h"
 #include "LearningFeatureObject.h"
@@ -9,7 +10,7 @@
 
 #include "EngineDefines.h"
 
-ULearningAgentsController::ULearningAgentsController() : UActorComponent() {}
+ULearningAgentsController::ULearningAgentsController() : ULearningAgentsManagerComponent() {}
 ULearningAgentsController::ULearningAgentsController(FVTableHelper& Helper) : ULearningAgentsController() {}
 ULearningAgentsController::~ULearningAgentsController() {}
 
@@ -18,114 +19,78 @@ void ULearningAgentsController::SetActions_Implementation(const TArray<int32>& A
 	// Can be overridden to get actions without blueprints
 }
 
-void ULearningAgentsController::SetupController(ULearningAgentsType* InAgentType)
+void ULearningAgentsController::SetupController(ALearningAgentsManager* InAgentManager, ULearningAgentsType* InAgentType)
 {
-	if (IsControllerSetupPerformed())
+	if (IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("Setup already performed!"));
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup already performed!"), *GetName());
 		return;
 	}
+
+	if (!InAgentManager)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: InAgentManager is nullptr."), *GetName());
+		return;
+	}
+
+	if (!InAgentManager->IsManagerSetup())
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s's SetupManager() must be run before %s can be setup."), *InAgentManager->GetName(), *GetName());
+		return;
+	}
+
+	// This manager is not referenced in this class but we need it in blueprints to call GetAgent()
+	AgentManager = InAgentManager;
 
 	if (!InAgentType)
 	{
-		UE_LOG(LogLearning, Error, TEXT("SetupController called but AgentType is nullptr."));
+		UE_LOG(LogLearning, Error, TEXT("%s: InAgentType is nullptr."), *GetName());
 		return;
 	}
 
-	if (!InAgentType->IsSetupPerformed())
+	if (!InAgentType->IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("AgentType Setup must be run before controller can be setup."));
+		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *InAgentType->GetName());
 		return;
 	}
 
 	AgentType = InAgentType;
-}
 
-bool ULearningAgentsController::IsControllerSetupPerformed() const
-{
-	return AgentType ? true : false;
-}
-
-void ULearningAgentsController::AddAgent(const int32 AgentId)
-{
-	if (!IsControllerSetupPerformed())
-	{
-		UE_LOG(LogLearning, Error, TEXT("Controller setup must be run before agents can be added!"));
-		return;
-	}
-
-	if (!AgentType->GetOccupiedAgentSet().Contains(AgentId))
-	{
-		UE_LOG(LogLearning, Error, TEXT("Unable to add: AgentId %d not found on AgentType. Make sure to add agents to the agent type before adding."), AgentId);
-		return;
-	}
-
-	if (SelectedAgentIds.Contains(AgentId))
-	{
-		UE_LOG(LogLearning, Error, TEXT("AgentId %i is already included in agents set"), AgentId);
-		return;
-	}
-
-	SelectedAgentIds.Add(AgentId);
-	SelectedAgentsSet = SelectedAgentIds;
-	SelectedAgentsSet.TryMakeSlice();
-}
-
-void ULearningAgentsController::RemoveAgent(const int32 AgentId)
-{
-	if (!IsControllerSetupPerformed())
-	{
-		UE_LOG(LogLearning, Error, TEXT("Controller setup must be run before agents can be removed!"));
-		return;
-	}
-
-	if (SelectedAgentIds.RemoveSingleSwap(AgentId, false) == 0)
-	{
-		UE_LOG(LogLearning, Error, TEXT("Unable to remove: AgentId %d not found in the added agents set."), AgentId);
-		return;
-	}
-
-	SelectedAgentsSet = SelectedAgentIds;
-	SelectedAgentsSet.TryMakeSlice();
-}
-
-bool ULearningAgentsController::HasAgent(const int32 AgentId) const
-{
-	return SelectedAgentsSet.Contains(AgentId);
-}
-
-ULearningAgentsType* ULearningAgentsController::GetAgentType(TSubclassOf<ULearningAgentsType> AgentClass)
-{
-	if (!IsControllerSetupPerformed())
-	{
-		UE_LOG(LogLearning, Error, TEXT("Controller setup must be run before getting the agent type!"));
-		return nullptr;
-	}
-
-	return AgentType;
+	bIsSetup = true;
 }
 
 void ULearningAgentsController::EncodeActions()
 {
 	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsController::EncodeActions);
 
-	if (!IsControllerSetupPerformed())
+	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Setup must be run before actions can be encoded."));
 		return;
 	}
 
-	SetActions(SelectedAgentIds);
+	SetActions(AddedAgentIds);
 
-	AgentType->GetActionFeature().Encode(SelectedAgentsSet);
+	AgentType->GetActionFeature().Encode(AddedAgentSet);
 
 #if ENABLE_VISUAL_LOG
 	for (const ULearningAgentsAction* ActionObject : AgentType->GetActionObjects())
 	{
 		if (ActionObject)
 		{
-			ActionObject->VisualLog(SelectedAgentsSet);
+			ActionObject->VisualLog(AddedAgentSet);
 		}
 	}
 #endif
+}
+
+ULearningAgentsType* ULearningAgentsController::GetAgentType(const TSubclassOf<ULearningAgentsType> AgentTypeClass) const
+{
+	if (!AgentType)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentType is nullptr. Did we forget to call Setup on this component?"), *GetName());
+		return nullptr;
+	}
+
+	return AgentType;
 }

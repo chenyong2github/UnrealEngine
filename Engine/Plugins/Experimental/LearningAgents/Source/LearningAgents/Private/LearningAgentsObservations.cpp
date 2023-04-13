@@ -2,6 +2,7 @@
 
 #include "LearningAgentsObservations.h"
 
+#include "LearningAgentsManager.h"
 #include "LearningAgentsType.h"
 #include "LearningArray.h"
 #include "LearningArrayMap.h"
@@ -39,8 +40,8 @@ namespace UE::Learning::Agents::Private
 
 		Observation->FeatureObject = MakeShared<ObservationFObject>(
 			Observation->GetFName(),
-			AgentType->GetInstanceData().ToSharedRef(),
-			AgentType->GetMaxInstanceNum(),
+			AgentType->GetAgentManager()->GetInstanceData().ToSharedRef(),
+			AgentType->GetAgentManager()->GetMaxInstanceNum(),
 			Forward<InArgTypes>(Args)...);
 
 		AgentType->AddObservation(Observation, Observation->FeatureObject.ToSharedRef());

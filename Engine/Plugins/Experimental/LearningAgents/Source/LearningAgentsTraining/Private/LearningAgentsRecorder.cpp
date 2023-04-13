@@ -2,14 +2,16 @@
 
 #include "LearningAgentsRecorder.h"
 
-#include "Engine/World.h"
-#include "LearningAgentsDataStorage.h"
+#include "LearningAgentsManager.h"
 #include "LearningAgentsType.h"
+#include "LearningAgentsDataStorage.h"
 #include "LearningFeatureObject.h"
 #include "LearningLog.h"
 #include "LearningTrainer.h"
 
-ULearningAgentsRecorder::ULearningAgentsRecorder() : UActorComponent() {}
+#include "Engine/World.h"
+
+ULearningAgentsRecorder::ULearningAgentsRecorder() : ULearningAgentsManagerComponent() {}
 ULearningAgentsRecorder::ULearningAgentsRecorder(FVTableHelper& Helper) : ULearningAgentsRecorder() {}
 ULearningAgentsRecorder::~ULearningAgentsRecorder() {}
 
@@ -23,29 +25,41 @@ void ULearningAgentsRecorder::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void ULearningAgentsRecorder::SetupRecorder(ULearningAgentsType* InAgentType)
+void ULearningAgentsRecorder::SetupRecorder(ALearningAgentsManager* InAgentManager, ULearningAgentsType* InAgentType)
 {
-	if (IsRecorderSetupPerformed())
+	if (IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("Setup already performed!"));
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup already performed!"), *GetName());
 		return;
 	}
+
+	if (!InAgentManager)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: InAgentManager is nullptr."), *GetName());
+		return;
+	}
+
+	if (!InAgentManager->IsManagerSetup())
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s's SetupManager() must be run before %s can be setup."), *InAgentManager->GetName(), *GetName());
+		return;
+	}
+
+	AgentManager = InAgentManager;
 
 	if (!InAgentType)
 	{
-		UE_LOG(LogLearning, Error, TEXT("SetupRecorder called but AgentType is nullptr."));
+		UE_LOG(LogLearning, Error, TEXT("%s: InAgentType is nullptr."), *GetName());
 		return;
-	}
+}
 
-	if (!InAgentType->IsSetupPerformed())
+	if (!InAgentType->IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("AgentType Setup must be run before recorder can be setup."));
+		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *InAgentType->GetName());
 		return;
 	}
 
 	AgentType = InAgentType;
-
-	// Create Data Storage
 
 	DataStorage = NewObject<ULearningAgentsDataStorage>(this, TEXT("DataStorage"));
 #if WITH_EDITOR
@@ -53,81 +67,33 @@ void ULearningAgentsRecorder::SetupRecorder(ULearningAgentsType* InAgentType)
 #else
 	UE_LOG(LogLearning, Error, TEXT("ULearningAgentsRecorder: DataDirectory was not set. This is non-editor build so need a directory setting."));
 #endif
+
+	bIsSetup = true;
 }
 
-bool ULearningAgentsRecorder::IsRecorderSetupPerformed() const
+bool ULearningAgentsRecorder::AddAgent(const int32 AgentId)
 {
-	return AgentType ? true : false;
-}
+	bool bSuccess = Super::AddAgent(AgentId);
 
-void ULearningAgentsRecorder::AddAgent(const int32 AgentId)
-{
-	if (!IsRecorderSetupPerformed())
-	{
-		UE_LOG(LogLearning, Error, TEXT("Recorder setup must be run before agents can be added!"));
-		return;
-	}
-
-	if (!AgentType->GetOccupiedAgentSet().Contains(AgentId))
-	{
-		UE_LOG(LogLearning, Error, TEXT("Unable to add: AgentId %d not found on AgentType. Make sure to add agents to the agent type before adding."), AgentId);
-		return;
-	}
-
-	if (SelectedAgentIds.Contains(AgentId))
-	{
-		UE_LOG(LogLearning, Error, TEXT("AgentId %i is already included in agents set"), AgentId);
-		return;
-	}
-
-	SelectedAgentIds.Add(AgentId);
-	SelectedAgentsSet = SelectedAgentIds;
-	SelectedAgentsSet.TryMakeSlice();
-
-	if (IsRecording() && !CurrentRecords.Contains(AgentId))
+	if (bSuccess && IsRecording() && !CurrentRecords.Contains(AgentId))
 	{
 		CurrentRecords.Add(AgentId, DataStorage->CreateRecord(FName(AgentType->GetName() + "_id" + FString::FromInt(AgentId)), AgentType));
 	}
+
+	return bSuccess;
 }
 
-void ULearningAgentsRecorder::RemoveAgent(const int32 AgentId)
+bool ULearningAgentsRecorder::RemoveAgent(const int32 AgentId)
 {
-	if (!IsRecorderSetupPerformed())
-	{
-		UE_LOG(LogLearning, Error, TEXT("Recorder setup must be run before agents can be removed!"));
-		return;
-	}
+	bool bSuccess = Super::RemoveAgent(AgentId);
 
-	if (SelectedAgentIds.RemoveSingleSwap(AgentId, false) == 0)
-	{
-		UE_LOG(LogLearning, Error, TEXT("Unable to remove: AgentId %d not found in the added agents set."), AgentId);
-		return;
-	}
-
-	SelectedAgentsSet = SelectedAgentIds;
-	SelectedAgentsSet.TryMakeSlice();
-
-	if (IsRecording() && CurrentRecords.Contains(AgentId))
+	if (bSuccess && IsRecording() && CurrentRecords.Contains(AgentId))
 	{
 		CurrentRecords[AgentId]->Trim();
 		CurrentRecords.Remove(AgentId);
 	}
-}
 
-bool ULearningAgentsRecorder::HasAgent(const int32 AgentId) const
-{
-	return SelectedAgentsSet.Contains(AgentId);
-}
-
-ULearningAgentsType* ULearningAgentsRecorder::GetAgentType(TSubclassOf<ULearningAgentsType> AgentClass)
-{
-	if (!IsRecorderSetupPerformed())
-	{
-		UE_LOG(LogLearning, Error, TEXT("Recorder setup must be run before getting the agent type!"));
-		return nullptr;
-	}
-
-	return AgentType;
+	return bSuccess;
 }
 
 void ULearningAgentsRecorder::AddExperience()
@@ -138,9 +104,7 @@ void ULearningAgentsRecorder::AddExperience()
 		return;
 	}
 
-	// Add Experience to Records
-
-	for (const int32 AgentId : SelectedAgentsSet)
+	for (const int32 AgentId : AddedAgentSet)
 	{
 		CurrentRecords[AgentId]->AddExperience(
 			AgentType->GetObservationFeature().FeatureBuffer()[AgentId], 
@@ -161,32 +125,24 @@ void ULearningAgentsRecorder::EndRecording()
 		return;
 	}
 
-	// Save Records
-
 	if (bSaveDataOnEndPlay)
 	{
 		DataStorage->SaveAllRecords(DataDirectory);
 	}
 
-	// Trim Records
-
-	for (const int32 AgentId : SelectedAgentsSet)
+	for (const int32 AgentId : AddedAgentSet)
 	{
 		CurrentRecords[AgentId]->Trim();
 	}
 
-	// Reset Current Records
-
 	CurrentRecords.Empty();
-
-	// Done
 
 	bIsRecording = false;
 }
 
 void ULearningAgentsRecorder::BeginRecording()
 {
-	if (IsRecorderSetupPerformed())
+	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Setup must be run before recording can begin."));
 		return;
@@ -198,14 +154,10 @@ void ULearningAgentsRecorder::BeginRecording()
 		return;
 	}
 
-	// Create Records
-
-	for (const int32 AgentId : SelectedAgentsSet)
+	for (const int32 AgentId : AddedAgentSet)
 	{
 		CurrentRecords.Add(AgentId, DataStorage->CreateRecord(FName(AgentType->GetName() + "_id" + FString::FromInt(AgentId)), AgentType));
 	}
-
-	// Done
 
 	bIsRecording = true;
 }

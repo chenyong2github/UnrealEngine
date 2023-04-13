@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Components/ActorComponent.h"
+#include "LearningAgentsManagerComponent.h"
 #include "LearningAgentsCritic.h" // Included for FLearningAgentsCriticSettings()
 
 #include "Templates/SharedPointer.h"
@@ -24,6 +24,7 @@ namespace UE::Learning
 	struct FCompletionObject;
 }
 
+class ALearningAgentsManager;
 class ULearningAgentsType;
 class ULearningAgentsCompletion;
 class ULearningAgentsReward;
@@ -186,7 +187,7 @@ public:
 * @see ULearningAgentsType to understand how observations and actions work.
 */
 UCLASS(Abstract, BlueprintType, Blueprintable)
-class LEARNINGAGENTSTRAINING_API ULearningAgentsTrainer : public UActorComponent
+class LEARNINGAGENTSTRAINING_API ULearningAgentsTrainer : public ULearningAgentsManagerComponent
 {
 	GENERATED_BODY()
 
@@ -203,6 +204,7 @@ public:
 
 	/**
 	* Initializes this object and runs the setup functions for rewards and completions.
+	* @param InAgentManager The agent manager we are associated with.
 	* @param InAgentType The agent type we are training with.
 	* @param InPolicy The policy to be trained.
 	* @param InCritic Optional - only needs to be provided if we want the critic to be accessible at runtime.
@@ -210,58 +212,17 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void SetupTrainer(
+		ALearningAgentsManager* InAgentManager,
 		ULearningAgentsType* InAgentType,
 		ULearningAgentsPolicy* InPolicy,
 		ULearningAgentsCritic* InCritic = nullptr,
 		const FLearningAgentsTrainerSettings& Settings = FLearningAgentsTrainerSettings());
 
-	/** Returns true if SetupTrainer has been run successfully; Otherwise, false. */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	bool IsTrainerSetupPerformed() const;
+public: 
 
-// ----- Agent Management -----
-public:
-
-	/**
-	 * Adds an agent to this trainer.
-	 * @param AgentId The id of the agent to be added.
-	 * @warning The agent id must exist for the agent type.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void AddAgent(const int32 AgentId);
-
-	/**
-	* Removes an agent from this trainer.
-	* @param AgentId The id of the agent to be removed.
-	* @warning The agent id must exist for this trainer already.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void RemoveAgent(const int32 AgentId);
-
-	/** Returns true if the given id has been previously added to this trainer; Otherwise, false. */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	bool HasAgent(const int32 AgentId) const;
-
-	/**
-	* Gets the agent type this trainer is associated with.
-	* @param AgentClass The class to cast the agent type to (in blueprint).
-	*/
-	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (DeterminesOutputType = "AgentClass"))
-	ULearningAgentsType* GetAgentType(const TSubclassOf<ULearningAgentsType> AgentClass);
-
-public:
-
-	/** Gets the agent corresponding to the given id. */
-	const UObject* GetAgent(const int32 AgentId) const;
-
-	/** Gets the agent corresponding to the given id. */
-	UObject* GetAgent(const int32 AgentId);
-
-	/** Gets the associated agent type. */
-	const ULearningAgentsType* GetAgentType() const;
-
-	/** Gets the associated agent type. */
-	ULearningAgentsType* GetAgentType();
+	//~ Begin ULearningAgentsManagerComponent Interface
+	virtual bool AddAgent(const int32 AgentId) override;
+	//~ End ULearningAgentsManagerComponent Interface
 
 // ----- Rewards -----
 public:
@@ -385,36 +346,28 @@ public:
 // ----- Private Data ----- 
 private:
 
-	/** The agent type this trainer is associated with. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	/** The agent type associated with this component. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsType> AgentType;
 
-	/** The agent ids this trainer is managing. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
-	TArray<int32> SelectedAgentIds;
-
 	/** The current policy for experience gathering. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsPolicy> Policy;
 
 	/** The current critic. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsCritic> Critic;
 
-	/** True if this trainer's SetupTrainer has been run; Otherwise, false. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
-	bool bTrainerSetupPerformed = false;
-
 	/** True if training is currently in-progress. Otherwise, false. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	bool bIsTraining = false;
 
 	/** The list of current reward objects. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TArray<TObjectPtr<ULearningAgentsReward>> RewardObjects;
 
 	/** The list of current completion objects. */
-	UPROPERTY(VisibleAnywhere, Category = "LearningAgents")
+	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TArray<TObjectPtr<ULearningAgentsCompletion>> CompletionObjects;
 
 	TArray<TSharedRef<UE::Learning::FRewardObject>, TInlineAllocator<16>> RewardFeatures;
@@ -433,8 +386,6 @@ private:
 	float TrainerTimeout = 10.0f;
 
 	void DoneTraining();
-
-	UE::Learning::FIndexSet SelectedAgentsSet;
 
 // ----- Private Recording of GameSettings ----- 
 private:

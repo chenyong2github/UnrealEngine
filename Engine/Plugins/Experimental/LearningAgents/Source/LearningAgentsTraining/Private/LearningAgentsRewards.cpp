@@ -3,7 +3,7 @@
 #include "LearningAgentsRewards.h"
 
 #include "LearningAgentsTrainer.h"
-#include "LearningAgentsType.h"
+#include "LearningAgentsManager.h"
 #include "LearningArray.h"
 #include "LearningArrayMap.h"
 #include "LearningRewardObject.h"
@@ -40,8 +40,8 @@ namespace UE::Learning::Agents::Private
 
 		Reward->RewardObject = MakeShared<RewardFObject>(
 			Reward->GetFName(),
-			AgentTrainer->GetAgentType()->GetInstanceData().ToSharedRef(),
-			AgentTrainer->GetAgentType()->GetMaxInstanceNum(),
+			AgentTrainer->GetAgentManager()->GetInstanceData().ToSharedRef(),
+			AgentTrainer->GetAgentManager()->GetMaxInstanceNum(),
 			Forward<InArgTypes>(Args)...);
 
 		AgentTrainer->AddReward(Reward, Reward->RewardObject.ToSharedRef());

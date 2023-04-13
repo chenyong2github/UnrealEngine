@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LearningAgentsType.h"
+
+#include "LearningAgentsManager.h"
 #include "LearningAgentsObservations.h"
 #include "LearningAgentsActions.h"
 
@@ -10,41 +12,31 @@
 #include "LearningLog.h"
 #include "EngineDefines.h"
 
-ULearningAgentsType::ULearningAgentsType() : UActorComponent() {}
+ULearningAgentsType::ULearningAgentsType() : ULearningAgentsManagerComponent() {}
 ULearningAgentsType::ULearningAgentsType(FVTableHelper& Helper) : ULearningAgentsType() {}
 ULearningAgentsType::~ULearningAgentsType() {}
 
-void ULearningAgentsType::PostInitProperties()
+void ULearningAgentsType::SetupAgentType(ALearningAgentsManager* InAgentManager)
 {
-	Super::PostInitProperties();
-
-	if (HasAnyFlags(RF_ClassDefaultObject))
+	if (IsSetup())
 	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup already performed!"), *GetName());
 		return;
 	}
 
-	// Pre-populate the vacant ids
-	OccupiedAgentIds.Reserve(MaxInstanceNum);
-	VacantAgentIds.Reserve(MaxInstanceNum);
-	for (int32 i = MaxInstanceNum - 1; i >= 0; i--)
+	if (!InAgentManager)
 	{
-		VacantAgentIds.Push(i);
-		Agents.Add(nullptr);
-	}
-
-	UpdateAgentSets();
-}
-
-void ULearningAgentsType::SetupAgentType()
-{
-	if (IsSetupPerformed())
-	{
-		UE_LOG(LogLearning, Error, TEXT("Setup already performed!"));
+		UE_LOG(LogLearning, Error, TEXT("%s: InAgentManager is nullptr."), *GetName());
 		return;
 	}
 
-	// Allocate Instance Data
-	InstanceData = MakeShared<UE::Learning::FArrayMap>();
+	if (!InAgentManager->IsManagerSetup())
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s's SetupManager() must be run before %s can be setup."), *InAgentManager->GetName(), *GetName());
+		return;
+	}
+
+	AgentManager = InAgentManager;
 
 	// Setup Observations
 	ObservationObjects.Empty();
@@ -52,8 +44,8 @@ void ULearningAgentsType::SetupAgentType()
 	SetupObservations(this);
 	Observations = MakeShared<UE::Learning::FConcatenateFeature>(TEXT("Observations"),
 		TLearningArrayView<1, const TSharedRef<UE::Learning::FFeatureObject>>(ObservationFeatures),
-		InstanceData.ToSharedRef(),
-		MaxInstanceNum);
+		InAgentManager->GetInstanceData().ToSharedRef(),
+		InAgentManager->GetMaxInstanceNum());
 
 	// Setup Actions
 	ActionObjects.Empty();
@@ -61,26 +53,10 @@ void ULearningAgentsType::SetupAgentType()
 	SetupActions(this);
 	Actions = MakeShared<UE::Learning::FConcatenateFeature>(TEXT("Actions"),
 		TLearningArrayView<1, const TSharedRef<UE::Learning::FFeatureObject>>(ActionFeatures),
-		InstanceData.ToSharedRef(),
-		MaxInstanceNum);
+		InAgentManager->GetInstanceData().ToSharedRef(),
+		InAgentManager->GetMaxInstanceNum());
 
-	// Done!
-	bSetupPerformed = true;
-}
-
-bool ULearningAgentsType::IsSetupPerformed() const
-{
-	return bSetupPerformed;
-}
-
-int32 ULearningAgentsType::GetMaxInstanceNum() const
-{
-	return MaxInstanceNum;
-}
-
-const TSharedPtr<UE::Learning::FArrayMap>& ULearningAgentsType::GetInstanceData() const
-{
-	return InstanceData;
+	bIsSetup = true;
 }
 
 UE::Learning::FFeatureObject& ULearningAgentsType::GetObservationFeature() const
@@ -103,120 +79,6 @@ TConstArrayView<ULearningAgentsAction*> ULearningAgentsType::GetActionObjects() 
 	return ActionObjects;
 }
 
-TConstArrayView<TObjectPtr<UObject>> ULearningAgentsType::GetAgents() const
-{
-	return Agents;
-}
-
-UE::Learning::FIndexSet ULearningAgentsType::GetOccupiedAgentSet() const
-{
-	return OccupiedAgentSet;
-}
-
-UE::Learning::FIndexSet ULearningAgentsType::GetVacantAgentSet() const
-{
-	return VacantAgentSet;
-}
-
-int32 ULearningAgentsType::AddAgent(UObject* Agent)
-{
-	if (Agent == nullptr)
-	{
-		UE_LOG(LogLearning, Error, TEXT("Attempted to add an agent but agent is nullptr."));
-		return INDEX_NONE;
-	}
-
-	if (VacantAgentIds.IsEmpty())
-	{
-		UE_LOG(LogLearning, Error, TEXT("Attempting to add an agent but we have no more vacant ids. Increase MaxInstanceNum (%d) or remove unused agents."), Agents.Num());
-		return INDEX_NONE;
-	}
-
-	// Add Agent
-	const int32 NewAgentId = VacantAgentIds.Pop();
-	Agents[NewAgentId] = Agent;
-
-	OccupiedAgentIds.Add(NewAgentId);
-
-	UpdateAgentSets();
-
-	return NewAgentId;
-}
-
-void ULearningAgentsType::RemoveAgentById(const int32 AgentId)
-{
-	if (AgentId == INDEX_NONE)
-	{
-		UE_LOG(LogLearning, Warning, TEXT("Attempting to remove an agent with id of INDEX_NONE."));
-		return;
-	}
-
-	const int32 RemovedCount = OccupiedAgentIds.RemoveSingleSwap(AgentId, false);
-
-	if (RemovedCount == 0)
-	{
-		UE_LOG(LogLearning, Warning, TEXT("Trying to remove an agent but its Id (%d) is not in the occupied agents."), AgentId);
-		return;
-	}
-
-	// Remove Agent
-	VacantAgentIds.Push(AgentId);
-	Agents[AgentId] = nullptr;
-
-	UpdateAgentSets();
-}
-
-void ULearningAgentsType::RemoveAgent(UObject* Agent)
-{
-	if (Agent == nullptr)
-	{
-		UE_LOG(LogLearning, Error, TEXT("Attempted to remove an agent but agent is nullptr."));
-		return;
-	}
-
-	int32 AgentId = INDEX_NONE;
-	const bool bIsFound = Agents.Find(Agent, AgentId);
-
-	if (!bIsFound)
-	{
-		UE_LOG(LogLearning, Warning, TEXT("Trying to remove an agent but it was not found."), AgentId);
-		return;
-	}
-
-	RemoveAgentById(AgentId);
-}
-
-bool ULearningAgentsType::HasAgent(UObject* Agent) const
-{
-	return Agents.Find(Agent) ? true : false;
-}
-
-bool ULearningAgentsType::HasAgentById(const int32 AgentId) const
-{
-	return OccupiedAgentSet.Contains(AgentId);
-}
-
-UObject* ULearningAgentsType::GetAgent(const int32 AgentId, const TSubclassOf<UObject> AgentClass)
-{
-	if (AgentId < 0 || AgentId >= Agents.Num())
-	{
-		UE_LOG(LogLearning, Warning, TEXT("AgentId %d outside valid range [0, %d]"), AgentId, Agents.Num() - 1);
-		return nullptr;
-	}
-
-	return Agents[AgentId];
-}
-
-const UObject* ULearningAgentsType::GetAgent(const int32 AgentId) const
-{
-	return Agents[AgentId];
-}
-
-UObject* ULearningAgentsType::GetAgent(const int32 AgentId)
-{
-	return Agents[AgentId];
-}
-
 void ULearningAgentsType::SetupObservations_Implementation(ULearningAgentsType* AgentType)
 {
 	// Can be overridden to setup observations without blueprints
@@ -229,7 +91,7 @@ void ULearningAgentsType::SetObservations_Implementation(const TArray<int32>& Ag
 
 void ULearningAgentsType::AddObservation(TObjectPtr<ULearningAgentsObservation> Object, const TSharedRef<UE::Learning::FFeatureObject>& Feature)
 {
-	UE_LEARNING_CHECK(!IsSetupPerformed());
+	UE_LEARNING_CHECK(!IsSetup());
 	ObservationObjects.Add(Object);
 	ObservationFeatures.Add(Feature);
 }
@@ -246,7 +108,7 @@ void ULearningAgentsType::GetActions_Implementation(const TArray<int32>& AgentId
 
 void ULearningAgentsType::AddAction(TObjectPtr<ULearningAgentsAction> Object, const TSharedRef<UE::Learning::FFeatureObject>& Feature)
 {
-	UE_LEARNING_CHECK(!IsSetupPerformed());
+	UE_LEARNING_CHECK(!IsSetup());
 	ActionObjects.Add(Object);
 	ActionFeatures.Add(Feature);
 }
@@ -255,22 +117,22 @@ void ULearningAgentsType::EncodeObservations()
 {
 	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsType::EncodeObservations);
 
-	if (!IsSetupPerformed())
+	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Setup must be run before observations can be encoded."));
 		return;
 	}
 
-	SetObservations(OccupiedAgentIds);
+	SetObservations(AddedAgentIds);
 
-	Observations->Encode(OccupiedAgentSet);
+	Observations->Encode(AddedAgentSet);
 
 #if ENABLE_VISUAL_LOG
 	for (const ULearningAgentsObservation* ObservationObject : ObservationObjects)
 	{
 		if (ObservationObject)
 		{
-			ObservationObject->VisualLog(OccupiedAgentSet);
+			ObservationObject->VisualLog(AddedAgentSet);
 		}
 	}
 #endif
@@ -280,31 +142,23 @@ void ULearningAgentsType::DecodeActions()
 {
 	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsType::DecodeActions);
 
-	if (!IsSetupPerformed())
+	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("Setup must be run before actions can be decoded."));
 		return;
 	}
 
-	Actions->Decode(OccupiedAgentSet);
+	Actions->Decode(AddedAgentSet);
 
-	GetActions(OccupiedAgentIds);
+	GetActions(AddedAgentIds);
 
 #if ENABLE_VISUAL_LOG
 	for (const ULearningAgentsAction* ActionObject : ActionObjects)
 	{
 		if (ActionObject)
 		{
-			ActionObject->VisualLog(OccupiedAgentSet);
+			ActionObject->VisualLog(AddedAgentSet);
 		}
 	}
 #endif
-}
-
-void ULearningAgentsType::UpdateAgentSets()
-{
-	OccupiedAgentSet = OccupiedAgentIds;
-	OccupiedAgentSet.TryMakeSlice();
-	VacantAgentSet = VacantAgentIds;
-	VacantAgentSet.TryMakeSlice();
 }

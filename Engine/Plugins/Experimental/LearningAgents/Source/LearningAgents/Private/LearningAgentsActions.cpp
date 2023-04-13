@@ -2,6 +2,7 @@
 
 #include "LearningAgentsActions.h"
 
+#include "LearningAgentsManager.h"
 #include "LearningAgentsType.h"
 #include "LearningArray.h"
 #include "LearningArrayMap.h"
@@ -39,8 +40,8 @@ namespace UE::Learning::Agents::Private
 
 		Action->FeatureObject = MakeShared<ActionFObject>(
 			Action->GetFName(),
-			AgentType->GetInstanceData().ToSharedRef(),
-			AgentType->GetMaxInstanceNum(),
+			AgentType->GetAgentManager()->GetInstanceData().ToSharedRef(),
+			AgentType->GetAgentManager()->GetMaxInstanceNum(),
 			Forward<InArgTypes>(Args)...);
 
 		AgentType->AddAction(Action, Action->FeatureObject.ToSharedRef());
