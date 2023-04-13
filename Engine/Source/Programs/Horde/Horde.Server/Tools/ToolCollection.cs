@@ -304,7 +304,7 @@ namespace Horde.Server.Tools
 
 			// If there are already a maximum number of deployments, remove the oldest one
 			const int MaxDeploymentCount = 5;
-			while (tool.Deployments.Count >= MaxDeploymentCount)
+			while (newTool.Deployments.Count >= MaxDeploymentCount)
 			{
 				newTool = await _tools.UpdateAsync(newTool, Builders<Tool>.Update.PopFirst(x => x.Deployments));
 				if (newTool == null)
