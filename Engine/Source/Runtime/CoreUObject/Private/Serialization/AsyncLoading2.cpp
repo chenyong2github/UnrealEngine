@@ -3736,7 +3736,7 @@ void FAsyncLoadingThread2::UpdatePackagePriority(FAsyncLoadingThreadState2& Thre
 	{
 		EventQueue.UpdatePackagePriority(Package);
 	}
-	if (LoadingState <= EAsyncPackageLoadingState2::DeferredPostLoad)
+	if (LoadingState == EAsyncPackageLoadingState2::DeferredPostLoad)
 	{
 		if (ThreadState.bIsAsyncLoadingThread)
 		{
