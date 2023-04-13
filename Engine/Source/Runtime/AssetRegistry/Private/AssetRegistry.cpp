@@ -568,7 +568,7 @@ void FAssetRegistryImpl::ConsumeOrDeferPreloadedPremade(UAssetRegistryImpl& UARI
 	{
 		// if we aren't doing any preloading, then we can set the initial search is done right away.
 		// Otherwise, it is set from LoadPremadeAssetRegistry
-		bCanFinishInitialSearch = true;
+		bPreloadingComplete = true;
 		return;
 	}
 
@@ -752,7 +752,7 @@ void FAssetRegistryImpl::LoadPremadeAssetRegistry(Impl::FEventContext& EventCont
 	}
 
 	// let Tick know that it can finalize the initial search
-	bCanFinishInitialSearch = true;
+	bPreloadingComplete = true;
 }
 
 void FAssetRegistryImpl::Initialize(Impl::FInitializeContext& Context)
@@ -936,6 +936,7 @@ void UAssetRegistryImpl::InitializeEvents(UE::AssetRegistry::Impl::FInitializeCo
 #endif // WITH_EDITOR
 
 	FCoreDelegates::OnEnginePreExit.AddUObject(this, &UAssetRegistryImpl::OnEnginePreExit);
+	FCoreDelegates::OnAllModuleLoadingPhasesComplete.AddUObject(this, &UAssetRegistryImpl::OnAllModuleLoadingPhasesComplete);
 
 	// Listen for new content paths being added or removed at runtime.  These are usually plugin-specific asset paths that
 	// will be loaded a bit later on.
@@ -1399,6 +1400,13 @@ void UAssetRegistryImpl::OnEnginePreExit()
 	GuardedData.OnEnginePreExit();
 }
 
+void UAssetRegistryImpl::OnAllModuleLoadingPhasesComplete()
+{
+	LLM_SCOPE(ELLMTag::AssetRegistry);
+	FWriteScopeLock InterfaceScopeLock(InterfaceLock);
+	GuardedData.OnAllModuleLoadingPhasesComplete();
+}
+
 void UAssetRegistryImpl::FinishDestroy()
 {
 	LLM_SCOPE(ELLMTag::AssetRegistry);
@@ -1410,6 +1418,7 @@ void UAssetRegistryImpl::FinishDestroy()
 		FPackageName::OnContentPathDismounted().RemoveAll(this);
 		FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 		FCoreDelegates::OnEnginePreExit.RemoveAll(this);
+		FCoreDelegates::OnAllModuleLoadingPhasesComplete.RemoveAll(this);
 		IPluginManager::Get().OnLoadingPhaseComplete().RemoveAll(this);
 
 #if WITH_EDITOR
@@ -1490,6 +1499,11 @@ void FAssetRegistryImpl::OnEnginePreExit()
 {
 	// Shut down the GlobalGatherer's gather threads, before we start tearing down the engine
 	GlobalGatherer.Reset();
+}
+
+void FAssetRegistryImpl::OnAllModuleLoadingPhasesComplete()
+{
+	bAllModuleLoadingPhasesComplete = true;
 }
 
 void FAssetRegistryImpl::ConstructGatherer()
@@ -3981,7 +3995,7 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 		HighestPending = 0;
 		BackgroundResults.Shrink();
 
-		if (!bInitialSearchCompleted && bCanFinishInitialSearch)
+		if (!bInitialSearchCompleted && bPreloadingComplete && bAllModuleLoadingPhasesComplete)
 		{
 #if WITH_EDITOR
 			// update redirectors

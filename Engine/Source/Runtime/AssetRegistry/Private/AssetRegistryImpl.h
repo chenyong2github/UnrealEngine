@@ -118,6 +118,7 @@ public:
 	/** Construct the AssetRegistryImpl, including initial scans if applicable. */
 	void Initialize(Impl::FInitializeContext& Context);
 	void OnEnginePreExit();
+	void OnAllModuleLoadingPhasesComplete();
 
 	// Helpers for functions of the same name from UAssetRegistryImpl
 
@@ -393,8 +394,17 @@ private:
 	bool bInitialSearchStarted;
 	/** Flag to indicate if the initial background search has completed */
 	bool bInitialSearchCompleted;
-	/** Flag to indicate if the initial background search can be finalized */
-	bool bCanFinishInitialSearch = false;
+	/**
+	 * Flag to indicate PreloadingComplete; finishing the background search is blocked until preloading complete
+	 * because preloading can add assets.
+	 */
+	bool bPreloadingComplete = false;
+	/**
+	 * Flag to indicate LaunchEngineLoop's AllModuleLoadingPhases is complete; finishing the background search is
+	 * blocked until preloading complete because plugins can be mounted during startup up until that point, and
+	 * we need to wait for all the plugins that will load before declaring completion.
+	 */
+	bool bAllModuleLoadingPhasesComplete = false;
 	/** Status of the background search, so we can take actions when it changes to or from idle */
 	Impl::EGatherStatus GatherStatus;
 
