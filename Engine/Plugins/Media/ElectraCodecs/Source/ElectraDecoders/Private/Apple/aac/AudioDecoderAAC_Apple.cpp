@@ -235,7 +235,7 @@ OSStatus FElectraAudioDecoderAAC_Apple::FAudioConverterInstance::AudioToolbox_Co
 	{
 		if (WorkData.InputSize)
 		{
-			if (InOutNumberDataPackets && *InOutNumberDataPackets)
+			if (InOutNumberDataPackets)
 			{
 				*InOutNumberDataPackets = 1;
 				InOutData->mNumberBuffers = 1;
@@ -256,7 +256,10 @@ OSStatus FElectraAudioDecoderAAC_Apple::FAudioConverterInstance::AudioToolbox_Co
 		}
 		else
 		{
-			*InOutNumberDataPackets = 0;
+			if (InOutNumberDataPackets)
+			{
+				*InOutNumberDataPackets = 0;
+			}
 			if (OutDataPacketDescription)
 			{
 				*OutDataPacketDescription = &PacketDescr;
