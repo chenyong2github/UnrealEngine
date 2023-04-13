@@ -13,6 +13,15 @@
 class FEvent;
 class FRunnableThread;
 
+namespace UE
+{
+	namespace Cook
+	{
+		class ICookOnTheFlyServerConnection;
+		class FCookOnTheFlyMessage;
+	}
+}
+
 class FODSCMessageHandler : public IPlatformFile::IFileServerMessageHandler
 {
 public:
@@ -72,7 +81,7 @@ class FODSCThread
 {
 public:
 
-	FODSCThread();
+	FODSCThread(const FString& HostIP);
 	virtual ~FODSCThread();
 
 	/**
@@ -188,4 +197,9 @@ private:
 
 	/** Holds an event signaling the thread to wake up. */
 	FEvent* WakeupEvent;
+
+	void SendMessageToServer(IPlatformFile::IFileServerMessageHandler* Handler);
+
+	/** Special connection to the cooking server.  This is only used to send recompileshaders commands on. */
+	TUniquePtr<UE::Cook::ICookOnTheFlyServerConnection> CookOnTheFlyServerConnection;
 };

@@ -15,10 +15,13 @@ FODSCManager* GODSCManager = nullptr;
 FODSCManager::FODSCManager()
 	: FTSTickerObjectBase(0.0f, FTSBackgroundableTicker::GetCoreTicker())
 {
-	if (IsRunningCookOnTheFly())
+	FString Host;
+	const bool bODSCEnabled = FParse::Value(FCommandLine::Get(), TEXT("-odschost="), Host);
+
+	if (IsRunningCookOnTheFly() || bODSCEnabled)
 	{
 		FCoreDelegates::OnEnginePreExit.AddRaw(this, &FODSCManager::OnEnginePreExit);
-		Thread = new FODSCThread();
+		Thread = new FODSCThread(Host);
 		Thread->StartThread();
 	}
 }

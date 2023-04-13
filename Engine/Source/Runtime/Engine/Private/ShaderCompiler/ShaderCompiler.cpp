@@ -24,6 +24,7 @@
 #include "Internationalization/LocKeyFuncs.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
+#include "Materials/MaterialInstance.h"
 #include "Misc/Compression.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
@@ -6763,15 +6764,29 @@ namespace
 
 			// tell other side the material to load, by pathname
 			FString RequestedMaterialName( FParse::Token( CmdString, 0 ) );
-
-			for( TObjectIterator<UMaterialInterface> It; It; ++It )
+			UMaterialInterface* MatchingMaterial = nullptr;
+			for (TObjectIterator<UMaterialInterface> It; It; ++It)
 			{
 				UMaterial* Material = It->GetMaterial();
 
-				if( Material && Material->GetName() == RequestedMaterialName)
+				if (Material && Material->GetName() == RequestedMaterialName)
 				{
 					OutMaterialsToLoad.Add(It->GetPathName());
+					MatchingMaterial = Material;
 					break;
+				}
+			}
+
+			// Find all material instances from the requested material and 
+			// request a compile for them.
+			if (MatchingMaterial)
+			{
+				for (TObjectIterator<UMaterialInstance> It; It; ++It)
+				{
+					if (It && It->IsDependent(MatchingMaterial))
+					{
+						OutMaterialsToLoad.Add(It->GetPathName());
+					}
 				}
 			}
 		}
