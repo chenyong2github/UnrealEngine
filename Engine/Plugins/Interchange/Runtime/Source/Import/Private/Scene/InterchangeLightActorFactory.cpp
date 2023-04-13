@@ -41,9 +41,9 @@ UObject* UInterchangeLightActorFactory::ProcessActor(AActor& SpawnedActor, const
 						}
 					}
 				}
-
-				return LightComponent;
 			}
+
+			return LightComponent;
 		}
 	}
 
