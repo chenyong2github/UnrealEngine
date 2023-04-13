@@ -36,7 +36,9 @@ protected:
 	void OnMovementUpdated(float DeltaSeconds, FVector OldLocation, FVector OldVelocity);
 
 	void UpdateHistory(float DeltaSeconds, const FTransform& DeltaTransformCS);
-	void UpdatePrediction(const FVector& VelocityCS, const FVector& AccelerationCS);
+	void UpdatePrediction(const FVector& VelocityCS, const FVector& AccelerationCS, const FRotator& ControllerRotationRate);
+
+	FRotator CalculateControllerRotationRate(float DeltaSeconds, bool bShouldRemainVertical);
 
 protected:
 
@@ -47,20 +49,26 @@ protected:
 	// This should generally match the longest history required by a Motion Matching Database in the project.
 	// Motion Matching will use extrapolation to generate samples if the history doesn't contain enough samples.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trajectory Settings")
-	float HistoryLengthSeconds = 1.f;
+	float HistoryLengthSeconds = 1.5f;
 
 	// Higher values will cost more storage and processing time, but give higher accuracy.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trajectory Settings", meta = (ClampMin = "1", ClampMax = "120"))
-	int32 HistorySamplesPerSecond = 15;
+	int32 HistorySamplesPerSecond = 5;
 
 	// This should match the longest trajectory prediction required by a Motion Matching Database in the project.
 	// Motion Matching will use extrapolation to generate samples if the prediction doesn't contain enough samples.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trajectory Settings")
-	float PredictionLengthSeconds = 1.f;
+	float PredictionLengthSeconds = 1.5f;
 
 	// Higher values will cost more storage and processing time, but give higher accuracy.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trajectory Settings", meta = (ClampMin = "1", ClampMax = "120"))
-	int32 PredictionSamplesPerSecond = 15;
+	int32 PredictionSamplesPerSecond = 5;
+
+	// If the character is forward facing (i.e. bOrientRotationToMovement is true), this controls how quickly the trajectory will rotate
+	// to face acceleration. It's common for this to differ from the rotation rate of the character, because animations are often authored 
+	// with different rotation speeds than the character. This is especially true in cases where the character rotation snaps to movement.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trajectory Settings")
+	float RotateTowardsMovementSpeed = 10.f;
 
 	UPROPERTY()
 	TObjectPtr<USkeletalMeshComponent> SkelMeshComponent;
@@ -74,6 +82,11 @@ protected:
 
 	// Current transform of the skeletal mesh component, used to calculate the movement delta between frames.
 	FTransform SkelMeshComponentTransformWS = FTransform::Identity;
+
+	// Forward axis for the SkeletalMeshComponent. It's common for skeletal mesh and animation data to not be X forward.
+	FQuat ForwardFacingCS = FQuat::Identity;
+
+	FRotator DesiredControllerRotationLastUpdate = FRotator::ZeroRotator;
 
 	// This is temporary to support compatibility with existing data until we switch Motion Matching to use FPoseSearchQueryTrajectory.
 	UPROPERTY(BlueprintReadOnly, Category = "Trajectory")

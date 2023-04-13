@@ -37,15 +37,6 @@ void UCharacterTrajectoryComponent::InitializeComponent()
 	{
 		UE_LOG(LogMotionTrajectory, Error, TEXT("UCharacterTrajectoryComponent requires its owner to be ACharacter"));
 	}
-
-	NumHistorySamples = FMath::CeilToInt32(HistoryLengthSeconds * HistorySamplesPerSecond);
-	SecondsPerHistorySample = 1.f / HistorySamplesPerSecond;
-
-	const int32 NumPredictionSamples = FMath::CeilToInt32(PredictionLengthSeconds * PredictionSamplesPerSecond);
-	SecondsPerPredictionSample = 1.f / PredictionSamplesPerSecond;
-
-	// History + current sample + prediction
-	Trajectory.Samples.Init(FPoseSearchQueryTrajectorySample(), NumHistorySamples + 1 + NumPredictionSamples);
 }
 
 void UCharacterTrajectoryComponent::UninitializeComponent()
@@ -85,6 +76,28 @@ void UCharacterTrajectoryComponent::BeginPlay()
 	}
 
 	SkelMeshComponentTransformWS = SkelMeshComponent->GetComponentTransform();
+
+	// Default forward in the engine is the X axis, but data often diverges from this (e.g. it's common for skeletal meshes to be Y forward).
+	// We determine the forward direction in the space of the skeletal mesh component based on the offset from the actor.
+	ForwardFacingCS = SkelMeshComponent->GetRelativeRotation().Quaternion().Inverse();
+
+	// The UI clamps these to be non-zero.
+	check(HistorySamplesPerSecond);
+	check(PredictionSamplesPerSecond);
+
+	NumHistorySamples = FMath::CeilToInt32(HistoryLengthSeconds * HistorySamplesPerSecond);
+	SecondsPerHistorySample = 1.f / HistorySamplesPerSecond;
+
+	const int32 NumPredictionSamples = FMath::CeilToInt32(PredictionLengthSeconds * PredictionSamplesPerSecond);
+	SecondsPerPredictionSample = 1.f / PredictionSamplesPerSecond;
+
+	FPoseSearchQueryTrajectorySample DefaultSample;
+	DefaultSample.Facing = ForwardFacingCS;
+	DefaultSample.Position = FVector::ZeroVector;
+	DefaultSample.AccumulatedSeconds = 0.f;
+
+	// History + current sample + prediction
+	Trajectory.Samples.Init(DefaultSample, NumHistorySamples + 1 + NumPredictionSamples);
 }
 
 void UCharacterTrajectoryComponent::OnMovementUpdated(float DeltaSeconds, FVector OldLocation, FVector OldVelocity)
@@ -107,12 +120,13 @@ void UCharacterTrajectoryComponent::OnMovementUpdated(float DeltaSeconds, FVecto
 
 	const FVector VelocityCS = SkelMeshComponentTransformWS.InverseTransformVectorNoScale(CharacterMovementComponent->Velocity);
 	const FVector AccelerationCS = SkelMeshComponentTransformWS.InverseTransformVectorNoScale(CharacterMovementComponent->GetCurrentAcceleration());
-	UpdatePrediction(VelocityCS , AccelerationCS);
+	const FRotator ControllerRotationRate = CalculateControllerRotationRate(DeltaSeconds, CharacterMovementComponent->ShouldRemainVertical());
+	UpdatePrediction(VelocityCS, AccelerationCS, ControllerRotationRate);
 
 #if ENABLE_ANIM_DEBUG
 	if (CVarCharacterTrajectoryDebug.GetValueOnAnyThread() == 1)
 	{
-		Trajectory.DebugDrawTrajectory(GetWorld(), SkelMeshComponent->GetComponentTransform());
+		Trajectory.DebugDrawTrajectory(GetWorld(), SkelMeshComponentTransformWS);
 	}
 #endif // ENABLE_ANIM_DEBUG
 
@@ -131,6 +145,7 @@ void UCharacterTrajectoryComponent::OnMovementUpdated(float DeltaSeconds, FVecto
 
 void UpdateHistorySample(FPoseSearchQueryTrajectorySample& Sample, float DeltaSeconds, const FTransform& DeltaTransformCS)
 {
+	Sample.Facing = DeltaTransformCS.InverseTransformRotation(Sample.Facing);
 	Sample.Position = DeltaTransformCS.InverseTransformPosition(Sample.Position);
 	Sample.AccumulatedSeconds -= DeltaSeconds;
 }
@@ -165,24 +180,71 @@ void UCharacterTrajectoryComponent::UpdateHistory(float DeltaSeconds, const FTra
 	}
 }
 
-void UCharacterTrajectoryComponent::UpdatePrediction(const FVector& VelocityCS, const FVector& AccelerationCS)
+void UCharacterTrajectoryComponent::UpdatePrediction(const FVector& VelocityCS, const FVector& AccelerationCS, const FRotator& ControllerRotationRate)
 {
 	check(CharacterMovementComponent);
 
 	FVector CurrentPositionCS = FVector::ZeroVector;
 	FVector CurrentVelocityCS = VelocityCS;
+	FVector CurrentAccelerationCS = AccelerationCS;
+	FQuat CurrentFacingCS = ForwardFacingCS;
 	float AccumulatedSeconds = 0.f;
+
+	FQuat ControllerRotationPerStep = (ControllerRotationRate * SecondsPerPredictionSample).Quaternion();
 
 	for (int32 Index = NumHistorySamples + 1; Index < Trajectory.Samples.Num(); ++Index)
 	{
 		CurrentPositionCS += CurrentVelocityCS * SecondsPerPredictionSample;
 		AccumulatedSeconds += SecondsPerPredictionSample;
 
+		// Account for the controller (e.g. the camera) rotating.
+		CurrentFacingCS = ControllerRotationPerStep * CurrentFacingCS;
+		CurrentAccelerationCS = ControllerRotationPerStep * CurrentAccelerationCS;
+
 		Trajectory.Samples[Index].Position = CurrentPositionCS;
+		Trajectory.Samples[Index].Facing = CurrentFacingCS;
 		Trajectory.Samples[Index].AccumulatedSeconds = AccumulatedSeconds;
 
 		FVector NewVelocityCS = FVector::ZeroVector;
-		UCharacterMovementTrajectoryLibrary::StepCharacterMovementGroundPrediction(SecondsPerPredictionSample, CurrentVelocityCS, AccelerationCS, CharacterMovementComponent, NewVelocityCS);
+		UCharacterMovementTrajectoryLibrary::StepCharacterMovementGroundPrediction(
+			SecondsPerPredictionSample, CurrentVelocityCS, CurrentAccelerationCS, CharacterMovementComponent,
+			NewVelocityCS);
 		CurrentVelocityCS = NewVelocityCS;
+
+		if (CharacterMovementComponent->bOrientRotationToMovement && !CurrentAccelerationCS.IsNearlyZero())
+		{
+			// Rotate towards acceleration.
+			CurrentFacingCS = FMath::QInterpConstantTo(CurrentFacingCS, CurrentAccelerationCS.ToOrientationQuat(), SecondsPerPredictionSample, RotateTowardsMovementSpeed);
+		}
 	}
+}
+
+// Calculate how much the character is rotating each update due to the controller (e.g. the camera) rotating.
+// E.g. If the user is moving forward but rotating the camera, the character (and thus future accelerations, facing directions, etc) will rotate.
+FRotator UCharacterTrajectoryComponent::CalculateControllerRotationRate(float DeltaSeconds, bool bShouldRemainVertical)
+{
+	check(GetOwner());
+
+	// OnMovementUpdated handles DeltaSeconds == 0.f, so we should never hit this.
+	check(DeltaSeconds > 0.f);
+
+	ACharacter* CharacterOwner = Cast<ACharacter>(GetOwner());
+	if (CharacterOwner == nullptr || CharacterOwner->Controller == nullptr)
+	{
+		// @todo: Simulated proxies don't have controllers, so they'll need some other mechanism to account for controller rotation rate.
+		return FRotator::ZeroRotator;
+	}
+
+	FRotator DesiredControllerRotation = CharacterOwner->Controller->GetDesiredRotation();
+	if (bShouldRemainVertical)
+	{
+		DesiredControllerRotation.Yaw = FRotator::NormalizeAxis(DesiredControllerRotation.Yaw);
+		DesiredControllerRotation.Pitch = 0.f;
+		DesiredControllerRotation.Roll = 0.f;
+	}
+
+	const FRotator DesiredRotationDelta = DesiredControllerRotation - DesiredControllerRotationLastUpdate;
+	DesiredControllerRotationLastUpdate = DesiredControllerRotation;
+
+	return DesiredRotationDelta.GetNormalized() * (1.f / DeltaSeconds);
 }

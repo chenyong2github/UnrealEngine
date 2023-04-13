@@ -81,6 +81,13 @@ void FPoseSearchQueryTrajectory::DebugDrawTrajectory(const UWorld* World, const 
 				NextSamplePositionWS,
 				FColor::Black, false /*bPersistentLines*/, -1.f /*LifeTime*/, 0 /*DepthPriority*/, 1.f /*Thickness*/);
 		}
+
+		const FQuat CurrentSampleFacingWS = TransformWS.TransformRotation(Samples[Index].Facing);
+		DrawDebugDirectionalArrow(
+			World,
+			CurrentSamplePositionWS,
+			CurrentSamplePositionWS + CurrentSampleFacingWS.RotateVector(FVector::ForwardVector) * 25.f,
+			20.f, FColor::Orange, false /*bPersistentLines*/, -1.f /*LifeTime*/, 0 /*DepthPriority*/, 1.f /*Thickness*/);
 	}
 }
 #endif // ENABLE_ANIM_DEBUG
