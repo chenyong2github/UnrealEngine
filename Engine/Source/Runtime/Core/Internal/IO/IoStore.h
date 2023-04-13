@@ -15,6 +15,8 @@
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogIoStore, Log, All);
 
+class FCbWriter;
+
 /**
  * I/O store container format version
  */
@@ -251,4 +253,58 @@ struct FIoStoreTocResource
 	UE_NODISCARD CORE_API static TIoStatusOr<uint64> Write(const TCHAR* TocFilePath, FIoStoreTocResource& TocResource, uint32 CompressionBlockSize, uint64 MaxPartitionSize, const FIoContainerSettings& ContainerSettings);
 
 	CORE_API static uint64 HashChunkIdWithSeed(int32 Seed, const FIoChunkId& ChunkId);
+};
+
+enum class EIoOnDemandTocVersion : uint32
+{
+	Invalid			= 0,
+	Initial			= 1,
+
+	LatestPlusOne,
+	Latest			= (LatestPlusOne - 1)
+};
+
+struct FIoStoreOnDemandTocHeader
+{
+	static constexpr uint64 ExpectedMagic = 0x6f6e64656d616e64; // ondemand
+
+	uint64 Magic = ExpectedMagic;
+	uint32 Version = uint32(EIoOnDemandTocVersion::Latest);
+	uint32 BlockSize = 0;
+	FString CompressionFormat;
+	FString ChunksDirectory;
+	
+	CORE_API friend FCbWriter& operator<<(FCbWriter& Writer, const FIoStoreOnDemandTocHeader& Header);
+};
+
+struct FIoStoreOnDemandTocEntry
+{
+	FIoHash Hash = FIoHash::Zero;
+	FIoChunkId ChunkId = FIoChunkId::InvalidChunkId;
+	uint64 RawSize = 0;
+	uint64 EncodedSize = 0;
+	uint32 BlockOffset = ~uint32(0);
+	uint32 BlockCount = 0; 
+	
+	CORE_API friend FCbWriter& operator<<(FCbWriter& Writer, const FIoStoreOnDemandTocEntry& Entry);
+};
+
+struct FIoStoreOnDemandContainerEntry
+{
+	FString ContainerName;
+	FString EncryptionKeyGuid;
+	TArray<FIoStoreOnDemandTocEntry> Entries;
+	TArray<uint32> BlockSizes;
+
+	CORE_API friend FCbWriter& operator<<(FCbWriter& Writer, const FIoStoreOnDemandContainerEntry& ContainerEntry);
+};
+
+struct FIoStoreOndemandTocResource
+{
+	FIoStoreOnDemandTocHeader Header;
+	TArray<FIoStoreOnDemandContainerEntry> Containers;
+	
+	CORE_API friend FCbWriter& operator<<(FCbWriter& Writer, const FIoStoreOndemandTocResource& TocResource);
+
+	UE_NODISCARD CORE_API static TIoStatusOr<FString> Save(const TCHAR* Directory, const FIoStoreOndemandTocResource& TocResource);
 };

@@ -978,6 +978,7 @@ enum class EIoContainerFlags : uint8
 	Encrypted	= (1 << 1),
 	Signed		= (1 << 2),
 	Indexed		= (1 << 3),
+	OnDemand	= (1 << 4),
 };
 ENUM_CLASS_FLAGS(EIoContainerFlags);
 
@@ -1008,6 +1009,11 @@ struct FIoContainerSettings
 	bool IsIndexed() const
 	{
 		return !!(ContainerFlags & EIoContainerFlags::Indexed);
+	}
+	
+	bool IsOnDemand() const
+	{
+		return !!(ContainerFlags & EIoContainerFlags::OnDemand);
 	}
 };
 

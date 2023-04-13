@@ -3,16 +3,21 @@
 #pragma once
 
 #include "Containers/UnrealString.h"
+#include "IO/IoDispatcher.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/NameTypes.h"
 
 class IIoStoreWriter;
 
-struct FOnDemandWriterSettings
+class IIoStoreOnDemandWriter
 {
-	FString TocFilePath;
-	FString OutputDirectory;
-	FName ContainerName;
+public:
+	virtual ~IIoStoreOnDemandWriter() = default;
+	virtual TSharedPtr<IIoStoreWriter> CreateContainer(const FString& ContainerName, const FIoContainerSettings& ContainerSettings) = 0;
+	virtual void Flush() = 0;
 };
 
-TUniquePtr<IIoStoreWriter> MakeOnDemandIoStoreWriter(const FOnDemandWriterSettings& WriterSettings);
+TUniquePtr<IIoStoreOnDemandWriter> MakeIoStoreOnDemandWriter(
+	const FIoStoreWriterSettings& WriterSettings,
+	const FString& OutputDirectory,
+	uint32 MaxConcurrentWrites = 64);

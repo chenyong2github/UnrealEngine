@@ -2,6 +2,7 @@
 
 #include "IO/IoStore.h"
 #include "Containers/Map.h"
+#include "Containers/StringView.h"
 #include "HAL/FileManager.h"
 #include "Templates/UniquePtr.h"
 #include "Misc/Paths.h"
@@ -21,7 +22,10 @@
 #include "Misc/ConfigCacheIni.h"
 #include "DerivedDataPluginInterface.h"
 #include "DerivedDataCacheInterface.h"
+#include "Serialization/CompactBinaryWriter.h"
+#include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/LargeMemoryReader.h"
+#include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/MemoryWriter.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "Tasks/Task.h"
@@ -3238,4 +3242,108 @@ void FIoStoreReader::GetFilenamesByBlockIndex(const TArray<int32>& InBlockIndexL
 
 			return true;
 		});
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+FCbWriter& operator<<(FCbWriter& Writer, const FIoStoreOnDemandTocHeader& Header)
+{
+	Writer.BeginObject();
+	Writer.AddInteger(UTF8TEXTVIEW("Magic"), Header.Magic);
+	Writer.AddInteger(UTF8TEXTVIEW("Version"), Header.Version);
+	Writer.AddInteger(UTF8TEXTVIEW("BlockSize"), Header.BlockSize);
+	Writer.AddString(UTF8TEXTVIEW("CompressionFormat"), Header.CompressionFormat);
+	Writer.AddString(UTF8TEXTVIEW("ChunksDirectory"), Header.ChunksDirectory);
+	Writer.EndObject();
+
+	return Writer;
+}
+
+FCbWriter& operator<<(FCbWriter& Writer, const FIoStoreOnDemandTocEntry& Entry)
+{
+	Writer.BeginObject();
+	Writer.AddHash(UTF8TEXTVIEW("Hash"), Entry.Hash);
+	Writer << UTF8TEXTVIEW("ChunkId") << Entry.ChunkId;
+	Writer.AddInteger(UTF8TEXTVIEW("RawSize"), Entry.RawSize);
+	Writer.AddInteger(UTF8TEXTVIEW("EncodedSize"), Entry.EncodedSize);
+	Writer.AddInteger(UTF8TEXTVIEW("BlockOffset"), Entry.BlockOffset);
+	Writer.AddInteger(UTF8TEXTVIEW("BlockCount"), Entry.BlockCount);
+	Writer.EndObject();
+
+	return Writer;
+}
+
+FCbWriter& operator<<(FCbWriter& Writer, const FIoStoreOnDemandContainerEntry& ContainerEntry)
+{
+	Writer.BeginObject();
+	Writer.AddString(UTF8TEXTVIEW("Name"), ContainerEntry.ContainerName);
+	Writer.AddString(UTF8TEXTVIEW("EncryptionKeyGuid"), ContainerEntry.EncryptionKeyGuid);
+
+	Writer.BeginArray(UTF8TEXTVIEW("Entries"));
+	for (const FIoStoreOnDemandTocEntry& Entry : ContainerEntry.Entries)
+	{
+		Writer << Entry;
+	}
+	Writer.EndArray();
+	
+	Writer.BeginArray(UTF8TEXTVIEW("BlockSizes"));
+	for (uint32 BlockSize : ContainerEntry.BlockSizes)
+	{
+		Writer << BlockSize;
+	}
+	Writer.EndArray();
+
+	Writer.EndObject();
+
+	return Writer;
+}
+
+FCbWriter& operator<<(FCbWriter& Writer, const FIoStoreOndemandTocResource& TocResource)
+{
+	Writer.BeginObject();
+	Writer << UTF8TEXTVIEW("Header") << TocResource.Header;
+
+	Writer.BeginArray(UTF8TEXTVIEW("Containers"));
+	for (const FIoStoreOnDemandContainerEntry& Container : TocResource.Containers)
+	{
+		Writer << Container;
+	}
+	Writer.EndArray();
+	Writer.EndObject();
+	
+	return Writer;
+}
+
+TIoStatusOr<FString> FIoStoreOndemandTocResource::Save(const TCHAR* Directory, const FIoStoreOndemandTocResource& TocResource)
+{
+	if (TocResource.Header.Magic != FIoStoreOnDemandTocHeader::ExpectedMagic)
+	{
+		return FIoStatus(EIoErrorCode::CorruptToc);
+	}
+
+	if (TocResource.Header.CompressionFormat.IsEmpty())
+	{
+		return FIoStatus(EIoErrorCode::CorruptToc);
+	}
+
+	FCbWriter Writer;
+	Writer << TocResource;
+
+	FLargeMemoryWriter Ar;
+	SaveCompactBinary(Ar, Writer.Save());
+
+	const FIoHash TocHash = FIoHash::HashBuffer(Ar.GetView());
+	const FString FilePath = FString(Directory) / LexToString(TocHash) + TEXT(".iochunktoc");
+
+	IFileManager& FileMgr = IFileManager::Get();
+	if (TUniquePtr<FArchive> FileAr(FileMgr.CreateFileWriter(*FilePath)); FileAr.IsValid())
+	{
+		FileAr->Serialize(Ar.GetData(), Ar.TotalSize());
+		FileAr->Flush();
+		FileAr->Close();
+
+		return FilePath;
+	}
+
+	return FIoStatus(EIoErrorCode::WriteError);
 }

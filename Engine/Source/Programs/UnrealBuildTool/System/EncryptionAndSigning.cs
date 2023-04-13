@@ -188,6 +188,29 @@ namespace UnrealBuildTool
 				DirectoryReference.CreateDirectory(InFile.Directory);
 				FileReference.WriteAllTextIfDifferent(InFile, JsonSerializer.Serialize(this));
 			}
+
+			/// <summary>
+			/// Returns whether the specified encryption key exist.
+			/// </summary>
+			public bool ContainsEncryptionKey(string KeyGuid)
+			{
+				if (string.IsNullOrEmpty(KeyGuid))
+				{
+					return false;
+				}
+
+				if (EncryptionKey != null && EncryptionKey.Guid == KeyGuid)
+				{
+					return true;
+				}
+
+				if (SecondaryEncryptionKeys != null)
+				{
+					return SecondaryEncryptionKeys.Any(Key => Key.Guid == KeyGuid);
+				}
+
+				return false;
+			}
 		}
 
 		/// <summary>

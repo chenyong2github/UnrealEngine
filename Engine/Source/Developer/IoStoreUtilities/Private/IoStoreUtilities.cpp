@@ -2625,11 +2625,12 @@ void LogWriterResults(const TArray<FIoStoreWriterResult>& Results)
 				*Result.CompressionMethod.ToString());
 		}
 
-		FString ContainerSettings = FString::Printf(TEXT("%s/%s/%s/%s"),
+		FString ContainerSettings = FString::Printf(TEXT("%s/%s/%s/%s/%s"),
 			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Compressed) ? TEXT("C") : TEXT("-"),
 			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Encrypted) ? TEXT("E") : TEXT("-"),
 			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Signed) ? TEXT("S") : TEXT("-"),
-			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Indexed) ? TEXT("I") : TEXT("-"));
+			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Indexed) ? TEXT("I") : TEXT("-"),
+			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::OnDemand) ? TEXT("O") : TEXT("-"));
 
 		UE_LOG(LogIoStore, Display, TEXT("%-30s %10s %15.2lf %15llu %15.2lf %25s"),
 			*Result.ContainerName,
@@ -2655,7 +2656,7 @@ void LogWriterResults(const TArray<FIoStoreWriterResult>& Results)
 		TEXT("-"));
 
 	UE_LOG(LogIoStore, Display, TEXT(""));
-	UE_LOG(LogIoStore, Display, TEXT("** Flags: (C)ompressed / (E)ncrypted / (S)igned) / (I)ndexed) **"));
+	UE_LOG(LogIoStore, Display, TEXT("** Flags: (C)ompressed / (E)ncrypted / (S)igned) / (I)ndexed) / (O)nDemand **"));
 	UE_LOG(LogIoStore, Display, TEXT(""));
 	UE_LOG(LogIoStore, Display, TEXT("Compression block padding: %8.2lf MB"), (double)TotalPaddingSize / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT(""));
@@ -3719,6 +3720,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	}
 	TArray<TSharedPtr<IIoStoreWriter>> IoStoreWriters;
 	TSharedPtr<IIoStoreWriter> GlobalIoStoreWriter;
+	TUniquePtr<IIoStoreOnDemandWriter> IoStoreOnDemandWriter;
 	{
 		IOSTORE_CPU_SCOPE(InitializeWriters);
 		if (!Arguments.IsDLC())
@@ -3737,49 +3739,71 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		{
 			IOSTORE_CPU_SCOPE(InitializeWriter);
 			check(ContainerTarget->ContainerId.IsValid());
-			if (!ContainerTarget->OutputPath.IsEmpty())
+
+			if (ContainerTarget->OutputPath.IsEmpty() && ContainerTarget->OnDemandOutputPath.IsEmpty())
 			{
-				if (!ContainerTarget->OnDemandOutputPath.IsEmpty())
+				continue;
+			}
+
+			if (!ContainerTarget->OnDemandOutputPath.IsEmpty())
+			{
+				if (!IoStoreOnDemandWriter.IsValid())
 				{
-					FOnDemandWriterSettings WriterSettings;
-					WriterSettings.ContainerName = ContainerTarget->Name;
-					WriterSettings.TocFilePath = ContainerTarget->OutputPath;
-					WriterSettings.OutputDirectory = ContainerTarget->OnDemandOutputPath;
-					ContainerTarget->IoStoreWriter = TSharedPtr<IIoStoreWriter>(MakeOnDemandIoStoreWriter(WriterSettings).Release());
-					IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
+					FIoStoreWriterSettings WriterSettings;
+					WriterSettings.CompressionMethod = NAME_Oodle;
+					IoStoreOnDemandWriter = MakeIoStoreOnDemandWriter(WriterSettings, ContainerTarget->OnDemandOutputPath);
 				}
-				else
+
+				FIoContainerSettings ContainerSettings;
+				ContainerSettings.ContainerFlags = EIoContainerFlags::OnDemand | EIoContainerFlags::Compressed;
+
+				if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Encrypted))
 				{
-					FIoContainerSettings ContainerSettings;
-					ContainerSettings.ContainerId = ContainerTarget->ContainerId;
-					if (Arguments.bCreateDirectoryIndex)
+					if (const FNamedAESKey* Key = Arguments.KeyChain.GetEncryptionKeys().Find(ContainerTarget->EncryptionKeyGuid))
 					{
-						ContainerSettings.ContainerFlags = ContainerTarget->ContainerFlags | EIoContainerFlags::Indexed;
-					}
-					if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Encrypted))
-					{
-						const FNamedAESKey* Key = Arguments.KeyChain.GetEncryptionKeys().Find(ContainerTarget->EncryptionKeyGuid);
-						check(Key);
 						ContainerSettings.EncryptionKeyGuid = ContainerTarget->EncryptionKeyGuid;
 						ContainerSettings.EncryptionKey = Key->Key;
+						ContainerSettings.ContainerFlags |= EIoContainerFlags::Encrypted;
 					}
-					if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Signed))
+					else
 					{
-						ContainerSettings.SigningKey = Arguments.KeyChain.GetSigningKey();
-						ContainerSettings.ContainerFlags |= EIoContainerFlags::Signed;
+						UE_LOG(LogIoStore, Warning, TEXT("Failed to find encryption key '%s' for container '%s'"), *ContainerTarget->EncryptionKeyGuid.ToString(), *ContainerTarget->Name.ToString());
 					}
-					ContainerSettings.bGenerateDiffPatch = ContainerTarget->bGenerateDiffPatch;
-					ContainerTarget->IoStoreWriter = IoStoreWriterContext->CreateContainer(*ContainerTarget->OutputPath, ContainerSettings);
-					ContainerTarget->IoStoreWriter->EnableDiskLayoutOrdering(ContainerTarget->PatchSourceReaders);
-					ContainerTarget->IoStoreWriter->SetReferenceChunkDatabase(ChunkDatabase);
-					ContainerTarget->IoStoreWriter->SetHashDatabase(HashDatabase, Arguments.bVerifyHashDatabase);
-					IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
-					if (!ContainerTarget->OptionalSegmentOutputPath.IsEmpty())
-					{
-						ContainerTarget->OptionalSegmentIoStoreWriter = IoStoreWriterContext->CreateContainer(*ContainerTarget->OptionalSegmentOutputPath, ContainerSettings);
-					    ContainerTarget->OptionalSegmentIoStoreWriter->SetReferenceChunkDatabase(ChunkDatabase);
-						IoStoreWriters.Add(ContainerTarget->OptionalSegmentIoStoreWriter);
-					}
+				}
+				ContainerTarget->IoStoreWriter = IoStoreOnDemandWriter->CreateContainer(ContainerTarget->Name.ToString(), ContainerSettings);
+				IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
+			}
+			else
+			{
+				FIoContainerSettings ContainerSettings;
+				ContainerSettings.ContainerId = ContainerTarget->ContainerId;
+				if (Arguments.bCreateDirectoryIndex)
+				{
+					ContainerSettings.ContainerFlags = ContainerTarget->ContainerFlags | EIoContainerFlags::Indexed;
+				}
+				if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Encrypted))
+				{
+					const FNamedAESKey* Key = Arguments.KeyChain.GetEncryptionKeys().Find(ContainerTarget->EncryptionKeyGuid);
+					check(Key);
+					ContainerSettings.EncryptionKeyGuid = ContainerTarget->EncryptionKeyGuid;
+					ContainerSettings.EncryptionKey = Key->Key;
+				}
+				if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Signed))
+				{
+					ContainerSettings.SigningKey = Arguments.KeyChain.GetSigningKey();
+					ContainerSettings.ContainerFlags |= EIoContainerFlags::Signed;
+				}
+				ContainerSettings.bGenerateDiffPatch = ContainerTarget->bGenerateDiffPatch;
+				ContainerTarget->IoStoreWriter = IoStoreWriterContext->CreateContainer(*ContainerTarget->OutputPath, ContainerSettings);
+				ContainerTarget->IoStoreWriter->EnableDiskLayoutOrdering(ContainerTarget->PatchSourceReaders);
+				ContainerTarget->IoStoreWriter->SetReferenceChunkDatabase(ChunkDatabase);
+				ContainerTarget->IoStoreWriter->SetHashDatabase(HashDatabase, Arguments.bVerifyHashDatabase);
+				IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
+				if (!ContainerTarget->OptionalSegmentOutputPath.IsEmpty())
+				{
+					ContainerTarget->OptionalSegmentIoStoreWriter = IoStoreWriterContext->CreateContainer(*ContainerTarget->OptionalSegmentOutputPath, ContainerSettings);
+					ContainerTarget->OptionalSegmentIoStoreWriter->SetReferenceChunkDatabase(ChunkDatabase);
+					IoStoreWriters.Add(ContainerTarget->OptionalSegmentIoStoreWriter);
 				}
 			}
 		}
@@ -3935,6 +3959,13 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		FIoWriteOptions WriteOptions;
 		WriteOptions.DebugName = TEXT("ScriptObjects");
 		GlobalIoStoreWriter->Append(CreateIoChunkId(0, 0, EIoChunkType::ScriptObjects), ScriptObjectsBuffer, WriteOptions);
+	}
+
+	if (IoStoreOnDemandWriter.IsValid())
+	{
+		UE_LOG(LogIoStore, Display, TEXT("Serializing ondemand content..."));
+		IOSTORE_CPU_SCOPE(SerializingContentOnDemand);
+		IoStoreOnDemandWriter->Flush();
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Serializing container(s)..."));
@@ -7366,15 +7397,17 @@ bool ParseContainerGenerationArguments(FIoStoreArguments& Arguments, FIoStoreWri
 		{
 			FContainerSourceSpec& ContainerSpec = Arguments.Containers.AddDefaulted_GetRef();
 
-			if (!FParse::Value(*Command, TEXT("Output="), ContainerSpec.OutputPath))
+			if (FParse::Value(*Command, TEXT("Output="), ContainerSpec.OutputPath))
+			{
+				ContainerSpec.OutputPath = FPaths::ChangeExtension(ContainerSpec.OutputPath, TEXT(""));
+			}
+			else if (!FParse::Value(*Command, TEXT("OnDemandOutput="), ContainerSpec.OnDemandOutputPath))
 			{
 				UE_LOG(LogIoStore, Error, TEXT("Output argument missing from command '%s'"), *Command);
 				return false;
 			}
-			ContainerSpec.OutputPath = FPaths::ChangeExtension(ContainerSpec.OutputPath, TEXT(""));
 
 			FParse::Value(*Command, TEXT("OptionalOutput="), ContainerSpec.OptionalOutputPath);
-			FParse::Value(*Command, TEXT("OnDemandOutput="), ContainerSpec.OnDemandOutputPath);
 
 			FString ContainerName;
 			if (FParse::Value(*Command, TEXT("ContainerName="), ContainerName))
