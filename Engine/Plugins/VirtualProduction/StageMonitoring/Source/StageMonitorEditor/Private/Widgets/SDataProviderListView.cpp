@@ -336,7 +336,7 @@ namespace DataProviderListView
 			},
 			{GameThreadWaitTiming,
 			 {
-				 LOCTEXT("HeaderName_GameThread", "Game Wait Time (ms)"), IsNotSortable, IsNotVisible,
+				 LOCTEXT("HeaderName_GameWaitThread", "Game Wait Time (ms)"), IsNotSortable, IsNotVisible,
 				 [](SDataProviderTableRow* Provider) -> TSharedRef<SWidget>
 				 {
 					 return SNew(SHorizontalBox)

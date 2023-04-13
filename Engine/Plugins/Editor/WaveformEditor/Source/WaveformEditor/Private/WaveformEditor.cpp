@@ -958,7 +958,7 @@ FText FWaveformEditor::GetExportButtonToolTip() const
 		ExportModeText = LOCTEXT("ExportModeStereo", "stereo");
 		break;
 	case(WaveformEditorWaveWriter::EChannelFormat::Mono):
-		ExportModeText = LOCTEXT("SameFile", "mono");
+		ExportModeText = LOCTEXT("ExportModeMono", "mono");
 		break;
 	default:
 		break;
