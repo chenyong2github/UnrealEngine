@@ -1051,6 +1051,7 @@ static bool TraceTextures(
 			// Manually setting up parameters, since we don't have a real instance
 			FHairStrandsInstanceRawParameters Instance;
 			Instance.Common.GroupIndex = GroupIndex;
+			Instance.Common.GroupCount = GroupCount;
 			Instance.Common.PointCount = GroupData.Strands.RestResource->BulkData.GetNumPoints();
 			Instance.Common.CurveCount = GroupData.Strands.RestResource->BulkData.GetNumCurves();
 			Instance.Common.Radius = RenderingData.GeometrySettings.HairWidth * 0.5f;

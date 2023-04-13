@@ -64,6 +64,10 @@ void MainVS(
 
 HAIR_STRANDS_INSTANCE_PARAMETERS(InVF)
 
+#include "HairStrandsAttributeCommon.ush"
+#define HAIR_STRANDS_ATTRIBUTE_ACCESSORS(Name) InVF_##Name
+#include "/Engine/Private/HairStrands/HairStrandsAttributeTemplate.ush"
+
 float3 ComputeTangent(
 	const FHairControlPoint CP0,
 	const FHairControlPoint CP1,
@@ -284,29 +288,20 @@ bool Trace(
 
 						if (bIntersectAndClosest)
 						{
-							OutTangent = Tangent;
-							OutDepth = Distance;
+							OutTangent 	= Tangent;
+							OutDepth 	= Distance;
+							OutSeed		= GetHairStrandsSeed(P0);
+							OutRootUV	= GetHairStrandsRootUV(P0);
+							OutU		= GetHairStrandsDimensions(P0, VertexU).x;
+							OutMaterial	= 0;
 
-							OutSeed         = UnpackHairSeed(InternalGetHairStrandsAttributesPerCurve(P0, HAIR_CURVE_ATTRIBUTE_OFFSET_SEED(InVF_CurveAttributeOffsets), HAIR_CURVE_ATTRIBUTE_STRIDE_SEED, InVF_CurveAttributeBuffer, InVF_PointToCurveBuffer));
-							OutRootUV       = UnpackHairRootUV(InternalGetHairStrandsAttributesPerCurve(P0, HAIR_CURVE_ATTRIBUTE_OFFSET_ROOTUV(InVF_CurveAttributeOffsets), HAIR_CURVE_ATTRIBUTE_STRIDE_ROOTUV, InVF_CurveAttributeBuffer, InVF_PointToCurveBuffer));
-							OutU			= lerp(CP_Curr.UCoord, CP_Next.UCoord, VertexU);
-							OutMaterial.xyz = 0;
-							OutMaterial.w   = 0;
-
-							const uint ColorOffset = HAIR_POINT_ATTRIBUTE_OFFSET_COLOR(InVF_PointAttributeOffsets);
-							if (IsAttributeValid(ColorOffset))
+							if (HasHairStrandsColor())
 							{
-								const float3 C0 = UnpackHairColor(InternalGetHairStrandsAttributesPerVertex(P0, ColorOffset, HAIR_POINT_ATTRIBUTE_STRIDE_COLOR, InVF_PointAttributeBuffer));
-								const float3 C1 = UnpackHairColor(InternalGetHairStrandsAttributesPerVertex(P1, ColorOffset, HAIR_POINT_ATTRIBUTE_STRIDE_COLOR, InVF_PointAttributeBuffer));
-								OutMaterial.xyz = lerp(C0, C1, VertexU);
+								OutMaterial.xyz = GetHairStrandsColor(P0, VertexU);
 							}
-
-							const uint RoughnessOffset = HAIR_POINT_ATTRIBUTE_OFFSET_ROUGHNESS(InVF_PointAttributeOffsets);
-							if (IsAttributeValid(RoughnessOffset))
+							if (HasHairStrandsRoughness())
 							{
-								const float R0 = UnpackHairRoughness(InternalGetHairStrandsAttributesPerVertex(P0, RoughnessOffset, HAIR_POINT_ATTRIBUTE_STRIDE_ROUGHNESS, InVF_PointAttributeBuffer));
-								const float R1 = UnpackHairRoughness(InternalGetHairStrandsAttributesPerVertex(P1, RoughnessOffset, HAIR_POINT_ATTRIBUTE_STRIDE_ROUGHNESS, InVF_PointAttributeBuffer));
-								OutMaterial.w = lerp(R0, R1, VertexU);
+								OutMaterial.w = GetHairStrandsRoughness(P0, VertexU);
 							}
 
 							bIsValid = true;
