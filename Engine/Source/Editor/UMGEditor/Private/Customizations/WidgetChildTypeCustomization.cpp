@@ -51,7 +51,7 @@ void FWidgetChildTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> 
 	];
 }
 
-void FWidgetChildTypeCustomization::SetDesiredFocusWidgetChild(UUserWidget* OwnerUserWidget, const FWidgetChild& WidgetChild)
+void FWidgetChildTypeCustomization::SetWidgetChild(UUserWidget* OwnerUserWidget, FName WidgetChildName)
 {
 	ensure(OwnerUserWidget);
 
@@ -64,9 +64,23 @@ void FWidgetChildTypeCustomization::SetDesiredFocusWidgetChild(UUserWidget* Owne
 			PropertyHandlePinnedPtr->AccessRawData(RawData);
 			FWidgetChild* PreviousWidgetChild = reinterpret_cast<FWidgetChild*>(RawData[0]);
 
-			OwnerUserWidget->Modify();
+			// When setting a WidgetChild we know it will affect the preview and the CDO. Mark them transactional.
+			{
+				OwnerUserWidget->SetFlags(RF_Transactional);
+				OwnerUserWidget->Modify();
+
+				if (UWidgetBlueprintGeneratedClass* BGClass = OwnerUserWidget->GetWidgetTreeOwningClass())
+				{
+					if (UUserWidget* UserWidgetCDO = BGClass->GetDefaultObject<UUserWidget>())
+					{
+						UserWidgetCDO->SetFlags(RF_Transactional);
+						UserWidgetCDO->Modify();
+					}
+				}
+			}
 
 			FString TextValue;
+			FWidgetChild WidgetChild(OwnerUserWidget, WidgetChildName);
 			StructProperty->Struct->ExportText(TextValue, &WidgetChild, PreviousWidgetChild, OwnerUserWidget, EPropertyPortFlags::PPF_None, nullptr);
 			ensure(PropertyHandlePinnedPtr->SetValueFromFormattedString(TextValue, EPropertyValueSetFlags::DefaultFlags) == FPropertyAccess::Result::Success);
 		}
@@ -84,16 +98,19 @@ void FWidgetChildTypeCustomization::OnWidgetSelectionChanged(FName SelectedName,
 		{
 			if (UUserWidget* UserWidget = Cast<UUserWidget>(OuterObject))
 			{
-				const FScopedTransaction Transaction(LOCTEXT("SetDesiredFocus", "Set Desired Focus"));
+				const FScopedTransaction Transaction(
+					FText::Format(
+						LOCTEXT("SetWidgetChildProperty", "Set {0}"),
+						PropertyHandlePinnedPtr->GetPropertyDisplayName()));
 				if (UWidgetBlueprint* WidgetBlueprint = Editor.Pin()->GetWidgetBlueprintObj())
 				{
 					if (SelectedName == WidgetBlueprint->GetFName())
 					{
-						SetDesiredFocusWidgetChild(UserWidget, FWidgetChild());
+						SetWidgetChild(UserWidget, FName());
 						break;
 					}
 				}
-				SetDesiredFocusWidgetChild(UserWidget, FWidgetChild(UserWidget, SelectedName));
+				SetWidgetChild(UserWidget, SelectedName);
 				break;
 			}
 		}
@@ -175,7 +192,7 @@ FText FWidgetChildTypeCustomization::GetCurrentValueText() const
 			PropertyHandle->AccessRawData(RawData);
 			if (FWidgetChild* ChildWidget = reinterpret_cast<FWidgetChild*>(RawData[0]))
 			{
-				FName WidgetName = ChildWidget->GetChildName();
+				FName WidgetName = ChildWidget->GetFName();
 				return WidgetName.IsNone()? LOCTEXT("SelfText", "Self") : FText::FromName(WidgetName);
 			}
 		}		

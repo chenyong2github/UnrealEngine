@@ -9,28 +9,25 @@
 FWidgetChild::FWidgetChild()
 {}
 
-FWidgetChild::FWidgetChild(const class UUserWidget* Outer, FName InChildName)
-	:ChildName(InChildName)
+FWidgetChild::FWidgetChild(const class UUserWidget* Outer, FName InWidgetName)
+	:WidgetName(InWidgetName)
 {
-	if (!ChildName.IsNone() && Outer)
+	if (!WidgetName.IsNone() && Outer && Outer->WidgetTree)
 	{
-		ChildWidgetPtr = Outer->WidgetTree->FindWidget(ChildName);
+		WidgetPtr = Outer->WidgetTree->FindWidget(WidgetName);
 	}
 }
 
-bool FWidgetChild::IsValid() const 
+UWidget* FWidgetChild::Resolve(const UWidgetTree* WidgetTree)
 {
-	return ChildName.IsNone() || ChildWidgetPtr != nullptr; 
-}
-
-bool FWidgetChild::Resolve(const UWidgetTree* WidgetTree)
-{
-	if (!ChildName.IsNone() && WidgetTree)
+	if (!WidgetName.IsNone() && WidgetTree)
 	{
-		ChildWidgetPtr = WidgetTree->FindWidget(ChildName);
-		return ChildWidgetPtr != nullptr;
+		WidgetPtr = WidgetTree->FindWidget(WidgetName);		
+	}
+	else
+	{
+		WidgetPtr = nullptr;
 	}
 	
-	ChildWidgetPtr = nullptr;
-	return false;
+	return WidgetPtr.Get();
 }

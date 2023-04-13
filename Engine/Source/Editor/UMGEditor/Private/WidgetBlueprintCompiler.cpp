@@ -1212,6 +1212,31 @@ void FWidgetBlueprintCompilerContext::OnPostCDOCompiled(const UObject::FPostCDOC
 		WidgetClass->GetDefaultObject<UUserWidget>()->ValidateBlueprint(*WidgetBP->WidgetTree, BlueprintLog);
 		ValidateWidgetAnimations();
 	}
+
+	ValidateDesiredFocusWidgetName();
+}
+
+
+void FWidgetBlueprintCompilerContext::ValidateDesiredFocusWidgetName()
+{
+	if (UWidgetBlueprintGeneratedClass* WidgetClass = NewWidgetBlueprintClass)
+	{
+		UWidgetBlueprint* WidgetBP = WidgetBlueprint();
+		UUserWidget* UserWidgetCDO = WidgetClass->GetDefaultObject<UUserWidget>();
+		if (WidgetBP && UserWidgetCDO)
+		{
+			UWidgetTree* LatestWidgetTree = FWidgetBlueprintEditorUtils::FindLatestWidgetTree(WidgetBP, UserWidgetCDO);
+			FName DesiredFocusWidgetName = UserWidgetCDO->GetDesiredFocusWidgetName();
+
+			if (!DesiredFocusWidgetName.IsNone() && !LatestWidgetTree->FindWidget(DesiredFocusWidgetName))
+			{
+				FBlueprintCompilerLog BlueprintLog(MessageLog, WidgetClass);
+				// Notify that the desired focus widget is not found in the Widget tree, so it's invalid.
+				const FText InvalidDesiredFocusWidgetNameMessage = LOCTEXT("InvalidDesiredFocusWidgetName", "User Widget '{0}' Desired Focus is set to a non-existent widget '{1}'. Select a valid desired focus for this User Widget.");
+				BlueprintLog.Warning(FText::Format(InvalidDesiredFocusWidgetNameMessage, FText::FromString(UserWidgetCDO->GetClass()->GetName()), FText::FromName(DesiredFocusWidgetName)));
+			}
+		}
+	}
 }
 
 void FWidgetBlueprintCompilerContext::EnsureProperGeneratedClass(UClass*& TargetUClass)

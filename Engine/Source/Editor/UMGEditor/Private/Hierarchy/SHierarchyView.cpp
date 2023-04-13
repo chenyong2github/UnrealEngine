@@ -302,7 +302,7 @@ FReply SHierarchyView::HandleDeleteSelected()
 {
 	TSet<FWidgetReference> SelectedWidgets = BlueprintEditor.Pin()->GetSelectedWidgets();
 	
-	FWidgetBlueprintEditorUtils::DeleteWidgets(GetBlueprint(), SelectedWidgets);
+	FWidgetBlueprintEditorUtils::DeleteWidgets(BlueprintEditor.Pin().ToSharedRef(), GetBlueprint(), SelectedWidgets);
 
 	return FReply::Handled();
 }

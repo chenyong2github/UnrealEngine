@@ -35,7 +35,7 @@ public:
 
 private:
 
-	void SetDesiredFocusWidgetChild(UUserWidget* OwnerUserWidget, const FWidgetChild& WidgetChild);
+	void SetWidgetChild(UUserWidget* OwnerUserWidget, FName WidgetChildName);
 
 	void OnWidgetSelectionChanged(FName SelectedName, ESelectInfo::Type SelectionType);
 

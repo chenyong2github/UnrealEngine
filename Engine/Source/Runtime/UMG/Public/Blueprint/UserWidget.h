@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Blueprint/WidgetChild.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/ObjectSaveContext.h"
 #include "Styling/SlateColor.h"
@@ -1195,6 +1196,28 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Sound", meta=( DeprecatedFunction, DeprecationMessage="Use the UGameplayStatics::PlaySound2D instead." ))
 	void PlaySound(class USoundBase* SoundToPlay);
 
+	/** 
+	 * Sets the child Widget that should receive focus when this UserWidget gets focus using it's name. 
+	 *
+	 * @param WidgetName Name of the Widget to forward the focus to when this widget receives focus.
+	 * @return True if the Widget is set properly. Will return false if we can't find a child widget with the specified name.
+	 */
+	bool SetDesiredFocusWidget(FName WidgetName);
+
+	/** 
+	 * Sets the child Widget that should receive focus when this UserWidget gets focus. 
+	 *
+	 * @param Widget Widget to forward the focus to when this widget receives focus
+	 * @return True if the Widget is set properly. Will return false if it's not a child of this UserWidget.
+	 */
+	bool SetDesiredFocusWidget(UWidget* Widget);
+
+	/** @returns The Name of the Widget that should receive focus when this UserWidget gets focus. */
+	FName GetDesiredFocusWidgetName() const;
+
+	/** @returns The Widget that should receive focus when this UserWidget gets focus. */
+	UWidget* GetDesiredFocusWidget() const;
+
 	/** @returns The UObject wrapper for a given SWidget */
 	UWidget* GetWidgetHandle(TSharedRef<SWidget> InWidget);
 
@@ -1471,6 +1494,9 @@ private:
 	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Performance", meta=(AllowPrivateAccess="true"))
 	EWidgetTickFrequency TickFrequency;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Interaction", meta = (AllowPrivateAccess = "true"))
+	FWidgetChild DesiredFocusWidget;
 
 protected:
 	UPROPERTY(Transient, DuplicateTransient)

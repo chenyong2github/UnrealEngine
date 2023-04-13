@@ -769,7 +769,7 @@ bool FWidgetBlueprintEditor::CanDeleteSelectedWidgets()
 void FWidgetBlueprintEditor::DeleteSelectedWidgets()
 {
 	TSet<FWidgetReference> Widgets = GetSelectedWidgets();
-	FWidgetBlueprintEditorUtils::DeleteWidgets(GetWidgetBlueprintObj(), Widgets);
+	FWidgetBlueprintEditorUtils::DeleteWidgets(SharedThis(this), GetWidgetBlueprintObj(), Widgets);
 
 	// Clear the selection now that the widget has been deleted.
 	TSet<FWidgetReference> Empty;
@@ -797,7 +797,7 @@ bool FWidgetBlueprintEditor::CanCutSelectedWidgets()
 void FWidgetBlueprintEditor::CutSelectedWidgets()
 {
 	TSet<FWidgetReference> Widgets = GetSelectedWidgets();
-	FWidgetBlueprintEditorUtils::CutWidgets(GetWidgetBlueprintObj(), Widgets);
+	FWidgetBlueprintEditorUtils::CutWidgets(SharedThis(this), GetWidgetBlueprintObj(), Widgets);
 }
 
 const UWidgetAnimation* FWidgetBlueprintEditor::RefreshCurrentAnimation()

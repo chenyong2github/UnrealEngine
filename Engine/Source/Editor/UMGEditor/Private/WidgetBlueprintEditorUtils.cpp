@@ -224,6 +224,55 @@ bool FWidgetBlueprintEditorUtils::VerifyWidgetRename(TSharedRef<class FWidgetBlu
 	return true;
 }
 
+void FWidgetBlueprintEditorUtils::SetDesiredFocus(TSharedRef<FWidgetBlueprintEditor> BlueprintEditor, const FName DesiredFocusWidgetName)
+{
+	if (UUserWidget* PreviewWidget = BlueprintEditor->GetPreview())
+	{
+		if (UWidgetBlueprintGeneratedClass* BGClass = PreviewWidget->GetWidgetTreeOwningClass())
+		{
+			if (UUserWidget* WidgetCDO = BGClass->GetDefaultObject<UUserWidget>())
+			{
+				WidgetCDO->SetFlags(RF_Transactional);
+				WidgetCDO->Modify();
+				WidgetCDO->SetDesiredFocusWidget(DesiredFocusWidgetName);
+
+				// We need to change the PreviewWidget to make sure the DetailPanel show the right value.
+				PreviewWidget->SetFlags(RF_Transactional);
+				PreviewWidget->Modify();
+				PreviewWidget->SetDesiredFocusWidget(DesiredFocusWidgetName);
+			}
+		}
+	}
+}
+
+
+void FWidgetBlueprintEditorUtils::ReplaceDesiredFocus(TSharedRef<FWidgetBlueprintEditor> BlueprintEditor, const FName& OldName, const FName& NewName)
+{		
+	if (UUserWidget* PreviewWidget = BlueprintEditor->GetPreview())
+	{
+		if (UWidgetBlueprintGeneratedClass* BGClass = PreviewWidget->GetWidgetTreeOwningClass())
+		{
+			if (UUserWidget* WidgetCDO = BGClass->GetDefaultObject<UUserWidget>())
+			{
+				// Verify if the Name changed is the Desired focus Widget name.
+				if (WidgetCDO->GetDesiredFocusWidgetName() == OldName)
+				{
+					WidgetCDO->SetFlags(RF_Transactional);
+					WidgetCDO->Modify();
+					WidgetCDO->SetDesiredFocusWidget(NewName);
+
+					ensure(PreviewWidget->GetDesiredFocusWidgetName() == OldName);
+
+					// We need to change the PreviewWidget to make sure the DetailPanel show the right value.
+					PreviewWidget->SetFlags(RF_Transactional);
+					PreviewWidget->Modify();
+					PreviewWidget->SetDesiredFocusWidget(NewName);
+				}
+			}
+		}
+	}
+}
+
 bool FWidgetBlueprintEditorUtils::RenameWidget(TSharedRef<FWidgetBlueprintEditor> BlueprintEditor, const FName& OldObjectName, const FString& NewDisplayName)
 {
 	UWidgetBlueprint* Blueprint = BlueprintEditor->GetWidgetBlueprintObj();
@@ -321,6 +370,9 @@ bool FWidgetBlueprintEditorUtils::RenameWidget(TSharedRef<FWidgetBlueprintEditor
 		// Update Variable References and
 		// Update Event References to member variables
 		FBlueprintEditorUtils::ReplaceVariableReferences(Blueprint, OldObjectName, NewFName);
+
+		// Replace the Desired focus Widget name if it match the renamed widget
+		ReplaceDesiredFocus(BlueprintEditor, OldObjectName, NewFName);
 		
 		// Find and update all binding references in the widget blueprint
 		for ( FDelegateEditorBinding& Binding : Blueprint->Bindings )
@@ -459,7 +511,7 @@ bool FWidgetBlueprintEditorUtils::CanOpenSelectedWidgetsForEdit( TSet<FWidgetRef
 	return bCanOpenAllForEdit;
 }
 
-void FWidgetBlueprintEditorUtils::DeleteWidgets(UWidgetBlueprint* Blueprint, TSet<FWidgetReference> Widgets, bool bSilentDelete /*=false*/)
+void FWidgetBlueprintEditorUtils::DeleteWidgets(TSharedRef<FWidgetBlueprintEditor> BlueprintEditor, UWidgetBlueprint* Blueprint, TSet<FWidgetReference> Widgets, bool bSilentDelete /*=false*/)
 {
 	if ( Widgets.Num() > 0 )
 	{
@@ -519,6 +571,9 @@ void FWidgetBlueprintEditorUtils::DeleteWidgets(UWidgetBlueprint* Blueprint, TSe
 			{
 				FBlueprintEditorUtils::RemoveVariableNodes(Blueprint, WidgetTemplate->GetFName());
 			}
+
+			// Rename the Desired Focus that fit the Widget Deleted
+			ReplaceDesiredFocus(BlueprintEditor, WidgetTemplate->GetFName(), FName());
 
 			// Rename the removed widget to the transient package so that it doesn't conflict with future widgets sharing the same name.
 			WidgetTemplate->Rename(nullptr, GetTransientPackage());
@@ -981,6 +1036,24 @@ void FWidgetBlueprintEditorUtils::BuildReplaceWithMenu(FMenuBuilder& Menu, TShar
 	Menu.EndSection();
 }
 
+
+bool FWidgetBlueprintEditorUtils::IsDesiredFocusWiget(TSharedRef<FWidgetBlueprintEditor> BlueprintEditor, UWidget* Widget)
+{
+	// Verify if the Name changed is the Desired focus Widget name.
+	if (UUserWidget* PrevieWidget = BlueprintEditor->GetPreview())
+	{
+		if (UWidgetBlueprintGeneratedClass* BGClass = PrevieWidget->GetWidgetTreeOwningClass())
+		{
+			UUserWidget* WidgetCDO = BGClass->GetDefaultObject<UUserWidget>();
+			if (WidgetCDO && WidgetCDO->GetDesiredFocusWidgetName() == Widget->GetFName())
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void FWidgetBlueprintEditorUtils::ReplaceWidgetWithSelectedTemplate(TSharedRef<FWidgetBlueprintEditor> BlueprintEditor, UWidgetBlueprint* BP, FWidgetReference Widget)
 {
 	// @Todo: Needs to deal with bound object in animation tracks
@@ -988,7 +1061,7 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithSelectedTemplate(TSharedRef<F
 	const FScopedTransaction Transaction(LOCTEXT("ReplaceWidgets", "Replace Widgets"));
 	bool bIsUserWidget = false;
 
-	UWidget* ThisWidget = Widget.GetTemplate();
+	UWidget* WidgetToReplace = Widget.GetTemplate();
 	UWidget* NewReplacementWidget;
 	if (BlueprintEditor->GetSelectedTemplate().IsValid())
 	{
@@ -1011,39 +1084,42 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithSelectedTemplate(TSharedRef<F
 	NewReplacementWidget->SetFlags(RF_Transactional);
 	NewReplacementWidget->Modify();
 
-	if (UPanelWidget* ExistingPanel = Cast<UPanelWidget>(ThisWidget))
+	if (UPanelWidget* ExistingPanel = Cast<UPanelWidget>(WidgetToReplace))
 	{
 		// if they are both panel widgets then call the existing replace function
 		UPanelWidget* ReplacementPanelWidget = Cast<UPanelWidget>(NewReplacementWidget);
 		if (ReplacementPanelWidget)
 		{
-			TSet<FWidgetReference> WidgetToReplace;
-			WidgetToReplace.Add(Widget);
-			ReplaceWidgets(BlueprintEditor, BP, WidgetToReplace, ReplacementPanelWidget->GetClass());
+			TSet<FWidgetReference> ChildWidgetToReplace;
+			ChildWidgetToReplace.Add(Widget);
+			ReplaceWidgets(BlueprintEditor, BP, ChildWidgetToReplace, ReplacementPanelWidget->GetClass());
 			return;
 		}
 	}
-	ThisWidget->SetFlags(RF_Transactional);
-	ThisWidget->Modify();
+	WidgetToReplace->SetFlags(RF_Transactional);
+	WidgetToReplace->Modify();
 
 	BP->WidgetTree->SetFlags(RF_Transactional);
 	BP->WidgetTree->Modify();
 
+	// We need to check before replacing because the Widget might be deleted, reseting the DesiredFocus
+	bool bReplacingDesiredFocus = IsDesiredFocusWiget(BlueprintEditor, WidgetToReplace);
+
 	// Look if the Widget to replace is a NamedSlot.
-	if (TScriptInterface<INamedSlotInterface> NamedSlotHost = FindNamedSlotHostForContent(ThisWidget, BP->WidgetTree))
+	if (TScriptInterface<INamedSlotInterface> NamedSlotHost = FindNamedSlotHostForContent(WidgetToReplace, BP->WidgetTree))
 	{
-		ReplaceNamedSlotHostContent(ThisWidget, NamedSlotHost, NewReplacementWidget);
+		ReplaceNamedSlotHostContent(WidgetToReplace, NamedSlotHost, NewReplacementWidget);
 	}
-	else if (UPanelWidget* CurrentParent = ThisWidget->GetParent())
+	else if (UPanelWidget* CurrentParent = WidgetToReplace->GetParent())
 	{
 		CurrentParent->SetFlags(RF_Transactional);
 		CurrentParent->Modify();
-		CurrentParent->ReplaceChild(ThisWidget, NewReplacementWidget);
+		CurrentParent->ReplaceChild(WidgetToReplace, NewReplacementWidget);
 
-		FString ReplaceName = ThisWidget->GetName();
-		bool bIsGeneratedName = ThisWidget->IsGeneratedName();
+		FString ReplaceName = WidgetToReplace->GetName();
+		bool bIsGeneratedName = WidgetToReplace->IsGeneratedName();
 		// Rename the removed widget to the transient package so that it doesn't conflict with future widgets sharing the same name.
-		ThisWidget->Rename(nullptr, GetTransientPackage());
+		WidgetToReplace->Rename(nullptr, GetTransientPackage());
 
 		// Rename the new Widget to maintain the current name if it's not a generic name
 		if (!bIsGeneratedName)
@@ -1052,7 +1128,7 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithSelectedTemplate(TSharedRef<F
 			NewReplacementWidget->Rename(*ReplaceName, BP->WidgetTree);
 		}
 	}
-	else if (ThisWidget == BP->WidgetTree->RootWidget)
+	else if (WidgetToReplace == BP->WidgetTree->RootWidget)
 	{
 		BP->WidgetTree->RootWidget = NewReplacementWidget;
 	}
@@ -1064,7 +1140,12 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithSelectedTemplate(TSharedRef<F
 	// Delete the widget that has been replaced
 	TSet<FWidgetReference> WidgetsToDelete;
 	WidgetsToDelete.Add(Widget);
-	DeleteWidgets(BP, WidgetsToDelete);
+	DeleteWidgets(BlueprintEditor, BP, WidgetsToDelete);
+
+	if (bReplacingDesiredFocus)
+	{
+		FWidgetBlueprintEditorUtils::SetDesiredFocus(BlueprintEditor, NewReplacementWidget->GetFName());
+	}
 
 	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
 }
@@ -1182,7 +1263,7 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithChildren(TSharedRef<FWidgetBl
 
 		// Delete the widget that has been replaced
 		const bool bForceDelete = true;
-		DeleteWidgets(BP, WidgetsToDelete, bForceDelete);
+		DeleteWidgets(BlueprintEditor, BP, WidgetsToDelete, bForceDelete);
 
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
 	}
@@ -1237,7 +1318,7 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithNamedSlot(TSharedRef<FWidgetB
 		}
 
 		// Remove the widget replaced
-		DeleteWidgets(BP, {Widget});
+		DeleteWidgets(BlueprintEditor, BP, {Widget});
 
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
 	}
@@ -1267,22 +1348,22 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgets(TSharedRef<FWidgetBlueprintEdit
 
 		UPanelWidget* NewReplacementWidget = CastChecked<UPanelWidget>(Template->Create(BP->WidgetTree));
 
-		UWidget* ThisWidget = Item.GetTemplate();
-		ThisWidget->SetFlags(RF_Transactional);
-		ThisWidget->Modify();
+		UWidget* WidgetToReplace = Item.GetTemplate();
+		WidgetToReplace->SetFlags(RF_Transactional);
+		WidgetToReplace->Modify();
 
 		// Look if the Widget to replace is a NamedSlot.
-		if (TScriptInterface<INamedSlotInterface> NamedSlotHost = FindNamedSlotHostForContent(ThisWidget, BP->WidgetTree))
+		if (TScriptInterface<INamedSlotInterface> NamedSlotHost = FindNamedSlotHostForContent(WidgetToReplace, BP->WidgetTree))
 		{
-			ReplaceNamedSlotHostContent(ThisWidget, NamedSlotHost, NewReplacementWidget);
+			ReplaceNamedSlotHostContent(WidgetToReplace, NamedSlotHost, NewReplacementWidget);
 		}
-		else if (UPanelWidget* CurrentParent = ThisWidget->GetParent())
+		else if (UPanelWidget* CurrentParent = WidgetToReplace->GetParent())
 		{
 			CurrentParent->SetFlags(RF_Transactional);
 			CurrentParent->Modify();
-			CurrentParent->ReplaceChild(ThisWidget, NewReplacementWidget);
+			CurrentParent->ReplaceChild(WidgetToReplace, NewReplacementWidget);
 		}
-		else if (ThisWidget == BP->WidgetTree->RootWidget)
+		else if (WidgetToReplace == BP->WidgetTree->RootWidget)
 		{
 			BP->WidgetTree->RootWidget = NewReplacementWidget;
 		}
@@ -1294,7 +1375,7 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgets(TSharedRef<FWidgetBlueprintEdit
 		NewReplacementWidget->SetFlags(RF_Transactional);
 		NewReplacementWidget->Modify();
 
-		if (UPanelWidget* ExistingPanel = Cast<UPanelWidget>(ThisWidget))
+		if (UPanelWidget* ExistingPanel = Cast<UPanelWidget>(WidgetToReplace))
 		{
 			while (ExistingPanel->GetChildrenCount() > 0)
 			{
@@ -1306,12 +1387,15 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgets(TSharedRef<FWidgetBlueprintEdit
 			}
 		}
 
-		FString ReplaceName = ThisWidget->GetName();
-		const bool bIsGeneratedName = ThisWidget->IsGeneratedName();
+		// We need to check before replacing because the Widget might be deleted, reseting the DesiredFocus
+		bool bReplacingDesiredFocus = IsDesiredFocusWiget(BlueprintEditor, WidgetToReplace);
+
+		FString ReplaceName = WidgetToReplace->GetName();
+		const bool bIsGeneratedName = WidgetToReplace->IsGeneratedName();
 
 		// Delete the widget that has been replaced
 		const bool bForceDelete = true;
-		DeleteWidgets(BP, {Item}, bForceDelete);
+		DeleteWidgets(BlueprintEditor, BP, {Item}, bForceDelete);
 
 		// Rename the new Widget to maintain the current name if it's not a generic name
 		if (!bIsGeneratedName)
@@ -1319,15 +1403,20 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgets(TSharedRef<FWidgetBlueprintEdit
 			ReplaceName = FindNextValidName(BP->WidgetTree, ReplaceName);
 			NewReplacementWidget->Rename(*ReplaceName, BP->WidgetTree);
 		}
+
+		if (bReplacingDesiredFocus)
+		{
+			FWidgetBlueprintEditorUtils::SetDesiredFocus(BlueprintEditor, NewReplacementWidget->GetFName());
+		}
 	}
 
 	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
 }
 
-void FWidgetBlueprintEditorUtils::CutWidgets(UWidgetBlueprint* BP, TSet<FWidgetReference> Widgets)
+void FWidgetBlueprintEditorUtils::CutWidgets(TSharedRef<FWidgetBlueprintEditor> BlueprintEditor, UWidgetBlueprint* BP, TSet<FWidgetReference> Widgets)
 {
 	CopyWidgets(BP, Widgets);
-	DeleteWidgets(BP, Widgets);
+	DeleteWidgets(BlueprintEditor, BP, Widgets);
 }
 
 void FWidgetBlueprintEditorUtils::CopyWidgets(UWidgetBlueprint* BP, TSet<FWidgetReference> Widgets)
@@ -1744,7 +1833,7 @@ TArray<UWidget*> FWidgetBlueprintEditorUtils::PasteWidgetsInternal(TSharedRef<FW
 
 			if (ChildWidgetToDelete)
 			{
-				DeleteWidgets(BP, { BlueprintEditor->GetReferenceFromTemplate(ChildWidgetToDelete) });
+				DeleteWidgets(BlueprintEditor, BP, { BlueprintEditor->GetReferenceFromTemplate(ChildWidgetToDelete) });
 			}
 
 			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);

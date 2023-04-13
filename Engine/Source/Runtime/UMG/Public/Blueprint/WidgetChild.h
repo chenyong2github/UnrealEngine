@@ -22,18 +22,24 @@ public:
 	FWidgetChild();
 	FWidgetChild(const class UUserWidget* Outer, FName InChildName);
 
-	FName GetChildName() const { return ChildName; };
-	UWidget* GetChildWidget() const { return ChildWidgetPtr.Get(); };
+	FName GetFName() const
+	{
+		return WidgetName;
+	};
 
-	bool IsValid() const;
+	UWidget* GetWidget() const
+	{ 
+		return WidgetPtr.Get(); 
+	};
 
-	bool Resolve(const class UWidgetTree* WidgetTree);
+	/** Resolves the Widget ptr using it's name. */
+	UWidget* Resolve(const class UWidgetTree* WidgetTree);
 
 private:
 	/** This either the widget to focus, OR the name of the function to call. */
 	UPROPERTY(EditAnywhere, Category = "Interaction")
-	FName ChildName;
+	FName WidgetName;
 
 	UPROPERTY(Transient)
-	TWeakObjectPtr<UWidget> ChildWidgetPtr;	
+	TWeakObjectPtr<UWidget> WidgetPtr;
 };

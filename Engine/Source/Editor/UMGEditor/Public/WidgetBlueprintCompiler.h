@@ -66,6 +66,9 @@ protected:
 	*/
 	void ValidateWidgetAnimations();
 
+	/** Validates the Desired Focus name to make sure it's part of the Widget Tree. */
+	void ValidateDesiredFocusWidgetName();
+
 	// FKismetCompilerContext
 	virtual UEdGraphSchema_K2* CreateSchema() override;
 	virtual void CreateFunctionList() override;
