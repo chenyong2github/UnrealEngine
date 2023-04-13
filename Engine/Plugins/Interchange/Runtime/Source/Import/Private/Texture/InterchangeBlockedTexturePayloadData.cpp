@@ -49,7 +49,8 @@ namespace UE::Interchange
 			Format = Image.Format;
 			CompressionSettings = Image.CompressionSettings;
 			bSRGB = Image.bSRGB;
-			MipGenSettings = Image.MipGenSettings;
+			//don't set MipGenSettings from Image 0
+			//MipGenSettings = Image.MipGenSettings;
 			return true;
 		}
 
