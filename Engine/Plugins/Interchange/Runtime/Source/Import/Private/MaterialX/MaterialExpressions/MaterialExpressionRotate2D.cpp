@@ -6,31 +6,28 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionRotate2D)
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionRotate2D"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXRotate2D"
 
-UMaterialExpressionRotate2D::UMaterialExpressionRotate2D(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXRotate2D::UMaterialExpressionMaterialXRotate2D(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
 		FText NAME_MaterialX;
-		FText NAME_Math;
 		FConstructorStatics()
 			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
-			, NAME_Math(LOCTEXT("Math", "Math"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_Math);
 #endif
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionRotate2D::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXRotate2D::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!Input.GetTracedInput().Expression)
 	{
@@ -56,12 +53,12 @@ int32 UMaterialExpressionRotate2D::Compile(FMaterialCompiler* Compiler, int32 Ou
 	);
 }
 
-void UMaterialExpressionRotate2D::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXRotate2D::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Rotate2D"));
+	OutCaptions.Add(TEXT("MaterialX Rotate2D"));
 }
 
-void UMaterialExpressionRotate2D::GetExpressionToolTip(TArray<FString>& OutToolTip)
+void UMaterialExpressionMaterialXRotate2D::GetExpressionToolTip(TArray<FString>& OutToolTip)
 {
 	OutToolTip.Add(TEXT("rotates a vector2 value about the origin in 2D."));
 }

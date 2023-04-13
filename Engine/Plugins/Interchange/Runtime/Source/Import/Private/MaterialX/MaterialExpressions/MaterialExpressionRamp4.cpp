@@ -2,50 +2,47 @@
 #include "MaterialExpressionRamp4.h"
 #include "MaterialCompiler.h"
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionRamp4"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXRamp4"
 
-UMaterialExpressionRamp4::UMaterialExpressionRamp4(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXRamp4::UMaterialExpressionMaterialXRamp4(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
 		FText NAME_MaterialX;
-		FText NAME_Utility;
 		FConstructorStatics()
 			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
-			, NAME_Utility(LOCTEXT("Procedural", "Procedural"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_Utility);
 #endif
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionRamp4::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXRamp4::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!A.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing A input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX Ramp4 input A"));
 	}
 
 	if(!B.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing B input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX Ramp4 input B"));
 	}
 	
 	if(!C.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing C input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX Ramp4 input C"));
 	}
 
 	if(!D.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing D input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX Ramp4 input D"));
 	}
 
 	int32 IndexCoordinates = Coordinates.GetTracedInput().Expression ? Coordinates.Compile(Compiler) : Compiler->TextureCoordinate(ConstCoordinate, false, false);
@@ -64,12 +61,12 @@ int32 UMaterialExpressionRamp4::Compile(FMaterialCompiler* Compiler, int32 Outpu
 	return Compiler->Lerp(MixBot, MixTop, T);
 }
 
-void UMaterialExpressionRamp4::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXRamp4::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Ramp4"));
+	OutCaptions.Add(TEXT("MaterialX Ramp4"));
 }
 
-void UMaterialExpressionRamp4::GetExpressionToolTip(TArray<FString>& OutToolTip)
+void UMaterialExpressionMaterialXRamp4::GetExpressionToolTip(TArray<FString>& OutToolTip)
 {
 	ConvertToMultilineToolTip(TEXT("A 4-corner bilinear value ramp."), 40, OutToolTip);
 }

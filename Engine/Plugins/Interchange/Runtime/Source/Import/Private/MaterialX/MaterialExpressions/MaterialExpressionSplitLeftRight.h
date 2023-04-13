@@ -10,7 +10,7 @@
  * A material expression that computes a left-right split matte, split at a specified u value.
  */
 UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
-class UMaterialExpressionSplitLeftRight : public UMaterialExpression
+class UMaterialExpressionMaterialXSplitLeftRight : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -34,11 +34,11 @@ class UMaterialExpressionSplitLeftRight : public UMaterialExpression
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionTextureSample, meta = (OverridingInputProperty = "Coordinates"))
 	uint8 ConstCoordinate;
 
-	//~ Begin UMaterialExpression Interface
+	//~ Begin UMaterialExpressionMaterialX Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 #endif
-	//~ End UMaterialExpression Interface
+	//~ End UMaterialExpressionMaterialX Interface
 };
 

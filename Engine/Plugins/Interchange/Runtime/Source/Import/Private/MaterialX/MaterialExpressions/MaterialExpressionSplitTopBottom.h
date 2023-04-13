@@ -10,7 +10,7 @@
  * A material expression that computes a top-bottom split matte, split at a specified v value.
  */
 UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
-class UMaterialExpressionSplitTopBottom : public UMaterialExpression
+class UMaterialExpressionMaterialXSplitTopBottom : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -34,11 +34,11 @@ class UMaterialExpressionSplitTopBottom : public UMaterialExpression
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionTextureSample, meta = (OverridingInputProperty = "Coordinates"))
 	uint8 ConstCoordinate;
 
-	//~ Begin UMaterialExpression Interface
+	//~ Begin UMaterialExpressionMaterialX Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 #endif
-	//~ End UMaterialExpression Interface
+	//~ End UMaterialExpressionMaterialX Interface
 };
 

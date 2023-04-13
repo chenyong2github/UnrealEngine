@@ -4,31 +4,28 @@
 #include "MaterialCompiler.h"
 #include "Materials/MaterialExpressionCustom.h"
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionRgbToHsv"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXRgbToHsv"
 
-UMaterialExpressionRgbToHsv::UMaterialExpressionRgbToHsv(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXRgbToHsv::UMaterialExpressionMaterialXRgbToHsv(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
-		FText NAME_ImageAdjustment;
 		FText NAME_MaterialX;
 		FConstructorStatics()
-			: NAME_ImageAdjustment(LOCTEXT("Image Adjustment", "Image Adjustment"))
-			, NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
+			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_ImageAdjustment);
 #endif
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionRgbToHsv::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXRgbToHsv::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!Input.GetTracedInput().Expression)
 	{
@@ -51,9 +48,9 @@ int32 UMaterialExpressionRgbToHsv::Compile(FMaterialCompiler* Compiler, int32 Ou
 	return MaterialExpressionCustom->Compile(Compiler, OutputIndex);
 }
 
-void UMaterialExpressionRgbToHsv::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXRgbToHsv::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("RGBToHSV"));
+	OutCaptions.Add(TEXT("MaterialX RGBToHSV"));
 }
 #endif
 

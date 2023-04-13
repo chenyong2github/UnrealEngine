@@ -4,40 +4,37 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionRampLeftRight)
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionRampLeftRight"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXRampLeftRight"
 
-UMaterialExpressionRampLeftRight::UMaterialExpressionRampLeftRight(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXRampLeftRight::UMaterialExpressionMaterialXRampLeftRight(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
 		FText NAME_MaterialX;
-		FText NAME_Procedural;
 		FConstructorStatics()
 			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
-			, NAME_Procedural(LOCTEXT("Procedural", "Procedural"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_Procedural);
 #endif
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionRampLeftRight::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXRampLeftRight::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!A.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing A input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX RampLR input A"));
 	}
 
 	if(!B.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing B input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX RampLR input B"));
 	}
 
 	int32 CoordinateIndex = Coordinates.GetTracedInput().Expression ? Coordinates.Compile(Compiler) : Compiler->TextureCoordinate(ConstCoordinate, false, false);
@@ -45,9 +42,9 @@ int32 UMaterialExpressionRampLeftRight::Compile(FMaterialCompiler* Compiler, int
 	return Compiler->Lerp(A.Compile(Compiler), B.Compile(Compiler), Compiler->Saturate(Compiler->ComponentMask(CoordinateIndex, true, false, false, false)));
 }
 
-void UMaterialExpressionRampLeftRight::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXRampLeftRight::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("RampLR"));
+	OutCaptions.Add(TEXT("MaterialX RampLR"));
 }
 #endif
 

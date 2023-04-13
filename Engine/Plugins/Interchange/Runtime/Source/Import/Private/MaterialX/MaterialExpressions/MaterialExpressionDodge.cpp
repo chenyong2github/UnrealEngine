@@ -4,40 +4,37 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionDodge)
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionDodge"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXDodge"
 
-UMaterialExpressionDodge::UMaterialExpressionDodge(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXDodge::UMaterialExpressionMaterialXDodge(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
 		FText NAME_MaterialX;
-		FText NAME_Compositing;
 		FConstructorStatics()
 			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
-			, NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_Compositing);
 #endif
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionDodge::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXDodge::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!A.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing A input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX Dodge input A"));
 	}
 
 	if(!B.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing B input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX Dodge input B"));
 	}
 
 	int32 IndexAlpha = Alpha.GetTracedInput().Expression ? Alpha.Compile(Compiler) : Compiler->Constant(ConstAlpha);
@@ -52,9 +49,9 @@ int32 UMaterialExpressionDodge::Compile(FMaterialCompiler* Compiler, int32 Outpu
 	return Compiler->If(Compiler->Abs(Sub), Zero, Result, Result, Zero, Compiler->Constant(0.00001f));
 }
 
-void UMaterialExpressionDodge::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXDodge::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Dodge"));
+	OutCaptions.Add(TEXT("MaterialX Dodge"));
 }
 #endif
 

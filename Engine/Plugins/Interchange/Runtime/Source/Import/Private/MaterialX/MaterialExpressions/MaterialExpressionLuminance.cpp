@@ -5,37 +5,34 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionLuminance)
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionLuminance"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXLuminance"
 
-UMaterialExpressionLuminance::UMaterialExpressionLuminance(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXLuminance::UMaterialExpressionMaterialXLuminance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer),
 	LuminanceFactors(0.2722287, 0.6740818, 0.0536895),
-	LuminanceMode(ELuminanceMode::ACEScg)
+	LuminanceMode(EMaterialXLuminanceMode::ACEScg)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
 		FText NAME_MaterialX;
-		FText NAME_Adjustment;
 		FConstructorStatics()
 			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
-			, NAME_Adjustment(LOCTEXT("Image Adjustment", "Image Adjustment"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_Adjustment);
 #endif
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionLuminance::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXLuminance::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!Input.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing Luminance input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX Luminance input"));
 	}
 
 	const int32 LuminanceFactorsIndex = Compiler->Constant3(LuminanceFactors.R, LuminanceFactors.G, LuminanceFactors.B);
@@ -44,36 +41,36 @@ int32 UMaterialExpressionLuminance::Compile(FMaterialCompiler* Compiler, int32 O
 	return Compiler->Dot(Compiler->ComponentMask(Input.Compile(Compiler), true, true, true, false), LuminanceFactorsIndex);
 }
 
-void UMaterialExpressionLuminance::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXLuminance::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Luminance"));
+	OutCaptions.Add(TEXT("MaterialX Luminance"));
 }
 
-void UMaterialExpressionLuminance::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UMaterialExpressionMaterialXLuminance::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	FProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
 	const FString PropertyName = PropertyThatChanged ? PropertyThatChanged->GetName() : TEXT("");
 
-	if(PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionLuminance, LuminanceMode))
+	if(PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionMaterialXLuminance, LuminanceMode))
 	{
 		switch(LuminanceMode)
 		{
-		case ELuminanceMode::ACEScg:
+		case EMaterialXLuminanceMode::ACEScg:
 			LuminanceFactors = FLinearColor(0.2722287, 0.6740818, 0.0536895);
 			break;
 
-		case ELuminanceMode::Rec709:
+		case EMaterialXLuminanceMode::Rec709:
 			LuminanceFactors = FLinearColor(0.2126, 0.7152, 0.0722);
 			break;
 
-		case ELuminanceMode::Rec2020:
+		case EMaterialXLuminanceMode::Rec2020:
 			LuminanceFactors = FLinearColor(0.2627, 0.6780, 0.0593);
 			break;
 		}
 	}
-	else if(PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionLuminance, LuminanceFactors))
+	else if(PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionMaterialXLuminance, LuminanceFactors))
 	{
-		LuminanceMode = ELuminanceMode::Custom;
+		LuminanceMode = EMaterialXLuminanceMode::Custom;
 	}
 		
 	Super::PostEditChangeProperty(PropertyChangedEvent);

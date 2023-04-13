@@ -4,31 +4,28 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionPremult)
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionPremult"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXPremult"
 
-UMaterialExpressionPremult::UMaterialExpressionPremult(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXPremult::UMaterialExpressionMaterialXPremult(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
 		FText NAME_MaterialX;
-		FText NAME_Compositing;
 		FConstructorStatics()
 			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
-			, NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_Compositing);
 #endif
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionPremult::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXPremult::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!Input.GetTracedInput().Expression)
 	{
@@ -41,9 +38,9 @@ int32 UMaterialExpressionPremult::Compile(FMaterialCompiler* Compiler, int32 Out
 	return Compiler->AppendVector(Compiler->Mul(RGB, Alpha), Alpha);
 }
 
-void UMaterialExpressionPremult::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXPremult::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Premult"));
+		OutCaptions.Add(TEXT("MaterialX Premult"));
 }
 #endif
 

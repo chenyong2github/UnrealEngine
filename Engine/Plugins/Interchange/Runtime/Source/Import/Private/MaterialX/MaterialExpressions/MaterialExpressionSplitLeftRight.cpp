@@ -4,9 +4,9 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionSplitLeftRight)
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionSplitLeftRight"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXSplitLeftRight"
 
-UMaterialExpressionSplitLeftRight::UMaterialExpressionSplitLeftRight(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXSplitLeftRight::UMaterialExpressionMaterialXSplitLeftRight(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer),
 	ConstCenter(0.5f),
 	ConstCoordinate(0)
@@ -15,31 +15,28 @@ UMaterialExpressionSplitLeftRight::UMaterialExpressionSplitLeftRight(const FObje
 	struct FConstructorStatics
 	{
 		FText NAME_MaterialX;
-		FText NAME_Procedural;
 		FConstructorStatics()
 			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
-			, NAME_Procedural(LOCTEXT("Procedural", "Procedural"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_Procedural);
 #endif
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionSplitLeftRight::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXSplitLeftRight::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!A.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing A input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX SplitLR input A"));
 	}
 
 	if(!B.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing B input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX SplitLR input B"));
 	}
 
 	int32 CoordinateIndex = Coordinates.GetTracedInput().Expression ? Coordinates.Compile(Compiler) : Compiler->TextureCoordinate(ConstCoordinate, false, false);
@@ -53,9 +50,9 @@ int32 UMaterialExpressionSplitLeftRight::Compile(FMaterialCompiler* Compiler, in
 	return Compiler->Lerp(A.Compile(Compiler), B.Compile(Compiler), AAStep);
 }
 
-void UMaterialExpressionSplitLeftRight::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXSplitLeftRight::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("SplitLR"));
+	OutCaptions.Add(TEXT("MaterialX SplitLR"));
 }
 #endif
 

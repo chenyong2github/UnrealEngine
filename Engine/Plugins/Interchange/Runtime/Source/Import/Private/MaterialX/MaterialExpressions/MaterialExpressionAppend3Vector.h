@@ -10,7 +10,7 @@
  * A material expression that allows combining 3 channels together to create a vector with more channel than the original
  */
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionAppend3Vector : public UMaterialExpression
+class UMaterialExpressionMaterialXAppend3Vector : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -23,11 +23,11 @@ class UMaterialExpressionAppend3Vector : public UMaterialExpression
 	UPROPERTY()
 	FExpressionInput C;
 
-	//~ Begin UMaterialExpression Interface
+	//~ Begin UMaterialExpressionMaterialX Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 #endif
-	//~ End UMaterialExpression Interface
+	//~ End UMaterialExpressionMaterialX Interface
 };
 

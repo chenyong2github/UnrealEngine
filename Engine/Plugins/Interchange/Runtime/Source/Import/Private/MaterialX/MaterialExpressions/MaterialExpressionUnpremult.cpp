@@ -4,31 +4,28 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionUnpremult)
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionUnpremult"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXUnpremult"
 
-UMaterialExpressionUnpremult::UMaterialExpressionUnpremult(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXUnpremult::UMaterialExpressionMaterialXUnpremult(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
 		FText NAME_MaterialX;
-		FText NAME_Compositing;
 		FConstructorStatics()
 			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
-			, NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_Compositing);
 #endif
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionUnpremult::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXUnpremult::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!Input.GetTracedInput().Expression)
 	{
@@ -43,9 +40,9 @@ int32 UMaterialExpressionUnpremult::Compile(FMaterialCompiler* Compiler, int32 O
 	return Compiler->If(Alpha, Compiler->Constant(0.f), Unpremult, IndexInput, Unpremult, Compiler->Constant(0.00001f));
 }
 
-void UMaterialExpressionUnpremult::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXUnpremult::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Unpremult"));
+	OutCaptions.Add(TEXT("MaterialX Unpremult"));
 }
 #endif
 

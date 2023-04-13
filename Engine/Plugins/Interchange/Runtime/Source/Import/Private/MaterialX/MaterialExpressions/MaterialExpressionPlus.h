@@ -14,7 +14,7 @@
  * Result: Lerp(B, A + B, Alpha)
  */
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionPlus : public UMaterialExpression
+class UMaterialExpressionMaterialXPlus : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -31,11 +31,11 @@ class UMaterialExpressionPlus : public UMaterialExpression
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionLinearInterpolate, meta = (OverridingInputProperty = "Alpha"))
 	float ConstAlpha = 1.f;
 
-	//~ Begin UMaterialExpression Interface
+	//~ Begin UMaterialExpressionMaterialX Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 #endif
-	//~ End UMaterialExpression Interface
+	//~ End UMaterialExpressionMaterialX Interface
 };
 

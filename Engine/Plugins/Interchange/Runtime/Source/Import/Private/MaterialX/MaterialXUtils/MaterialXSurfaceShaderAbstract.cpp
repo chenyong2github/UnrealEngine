@@ -13,6 +13,7 @@
 #include "Materials/MaterialExpressionTransformPosition.h"
 #include "Materials/MaterialExpressionVectorNoise.h"
 #include "MaterialX/MaterialXUtils/MaterialXManager.h"
+#include "MaterialX/MaterialExpressions/MaterialExpressionTextureSampleParameterBlur.h"
 
 #define LOCTEXT_NAMESPACE "MaterialXSurfaceShaderAbstract"
 
@@ -957,14 +958,30 @@ void FMaterialXSurfaceShaderAbstract::ConnectBlurInputToOutput(MaterialX::NodePt
 					// By default TextureSampleBox uses gaussian filter
 					if(InputKernel->getValueString() == "box")
 					{
-						TextureShaderNode->AddInt32Attribute(TextureSampleBlur::Attributes::Filter.ToString(), 0);
+						TextureShaderNode->AddInt32Attribute(TextureSampleBlur::Attributes::Filter.ToString(), int32(EMaterialXTextureSampleBlurFilter::Box));
 					}
 				}
 
 				if(mx::InputPtr InputKernel = UpstreamNode->getInput("size"))
 				{
-					float KernelSize = mx::fromValueString<float>(InputKernel->getValueString());
-					TextureShaderNode->AddFloatAttribute(TextureSampleBlur::Attributes::KernelSize.ToString(), KernelSize);
+					if(InputKernel->hasValueString())
+					{
+						float KernelSize = mx::fromValueString<float>(InputKernel->getValueString());
+						constexpr float Kernel1x1 = 0.f / 3.f;
+						constexpr float Kernel3x3 = 1.f / 3.f;
+						constexpr float Kernel5x5 = 2.f / 3.f;
+						constexpr float Kernel7x7 = 3.f / 3.f;
+						TextureShaderNode->AddInt32Attribute(TextureSampleBlur::Attributes::KernelSize.ToString(),
+															 FMath::IsNearlyEqual(KernelSize, Kernel1x1) ? int32(EMAterialXTextureSampleBlurKernel::Kernel1) :
+															 KernelSize <= Kernel3x3 ? int32(EMAterialXTextureSampleBlurKernel::Kernel3) :
+															 KernelSize <= Kernel5x5 ? int32(EMAterialXTextureSampleBlurKernel::Kernel5) :
+															 KernelSize <= Kernel7x7 ? int32(EMAterialXTextureSampleBlurKernel::Kernel7) :
+															 int32(EMAterialXTextureSampleBlurKernel::Kernel1));
+					}
+					else
+					{
+						UE_LOG(LogInterchangeImport, Warning, TEXT("<%s>: input 'size' must have a value"), ANSI_TO_TCHAR(UpstreamNode->getName().c_str()));
+					}
 				}
 			}
 			else

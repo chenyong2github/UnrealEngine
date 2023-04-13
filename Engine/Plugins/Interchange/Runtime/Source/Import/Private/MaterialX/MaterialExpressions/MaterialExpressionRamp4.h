@@ -10,7 +10,7 @@
  * A material expression that computes a 4-corner bilinear value ramp..
  */
 UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
-class UMaterialExpressionRamp4: public UMaterialExpression
+class UMaterialExpressionMaterialXRamp4: public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -37,12 +37,12 @@ class UMaterialExpressionRamp4: public UMaterialExpression
 	UPROPERTY(EditAnywhere, Category = MaterialExpression, meta = (OverridingInputProperty = "Coordinates"))
 	uint8 ConstCoordinate;
 
-	//~ Begin UMaterialExpression Interface
+	//~ Begin UMaterialExpressionMaterialX Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual void GetExpressionToolTip(TArray<FString>& OutToolTip) override;
 #endif
-	//~ End UMaterialExpression Interface
+	//~ End UMaterialExpressionMaterialX Interface
 };
 

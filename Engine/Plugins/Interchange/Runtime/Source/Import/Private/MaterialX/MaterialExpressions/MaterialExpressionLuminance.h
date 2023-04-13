@@ -12,7 +12,7 @@
  */
 
 UENUM()
-enum class ELuminanceMode : uint8
+enum class EMaterialXLuminanceMode : uint8
 {
 	ACEScg,
 	Rec709,
@@ -22,7 +22,7 @@ enum class ELuminanceMode : uint8
 };
 
 UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
-class UMaterialExpressionLuminance : public UMaterialExpression
+class UMaterialExpressionMaterialXLuminance : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -33,14 +33,14 @@ class UMaterialExpressionLuminance : public UMaterialExpression
 	FLinearColor LuminanceFactors;    // Color component factors for converting a color to greyscale.
 	
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionLuminance, Meta = (ShowAsInputPin = "Advanced"))
-	ELuminanceMode LuminanceMode;
+	EMaterialXLuminanceMode LuminanceMode;
 	
-	//~ Begin UMaterialExpression Interface
+	//~ Begin UMaterialExpressionMaterialX Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
-	//~ End UMaterialExpression Interface
+	//~ End UMaterialExpressionMaterialX Interface
 };
 

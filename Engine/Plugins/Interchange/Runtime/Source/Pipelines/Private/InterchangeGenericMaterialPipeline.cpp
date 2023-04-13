@@ -1695,7 +1695,7 @@ void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterch
 		}
 		else if(TextureNode->IsA<UInterchangeTextureBlurNode>())
 		{
-			ExpressionClassName = UMaterialExpressionTextureSampleParameterBlur::StaticClass()->GetName();
+			ExpressionClassName = UMaterialExpressionMaterialXTextureSampleParameterBlur::StaticClass()->GetName();
 		}
 		else if (TextureNode->IsA<UInterchangeTexture2DNode>())
 		{
@@ -1726,7 +1726,7 @@ void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterch
 		}
 	}
 
-	if(ExpressionClassName == UMaterialExpressionTextureSampleParameterBlur::StaticClass()->GetName())
+	if(ExpressionClassName == UMaterialExpressionMaterialXTextureSampleParameterBlur::StaticClass()->GetName())
 	{
 		HandleTextureSampleBlurNode(ShaderNode, MaterialFactoryNode, TextureSampleFactoryNode);
 	}
@@ -1737,35 +1737,35 @@ void UInterchangeGenericMaterialPipeline::HandleTextureSampleBlurNode(const UInt
 	using namespace UE::Interchange::Materials::Standard::Nodes;
 
 	// KernelSize
-	if(float KernelSize; ShaderNode->GetFloatAttribute(TextureSampleBlur::Attributes::KernelSize.ToString(), KernelSize))
+	if(int32 KernelSize; ShaderNode->GetInt32Attribute(TextureSampleBlur::Attributes::KernelSize.ToString(), KernelSize))
 	{
-		const FName KernelSizeMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureSampleParameterBlur, KernelSize);
-		TextureSampleFactoryNode->AddFloatAttribute(KernelSizeMemberName.ToString(), KernelSize);
-		TextureSampleFactoryNode->AddApplyAndFillDelegates<float>(KernelSizeMemberName.ToString(), UMaterialExpressionTextureSampleParameterBlur::StaticClass(), KernelSizeMemberName);
+		const FName KernelSizeMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionMaterialXTextureSampleParameterBlur, KernelSize);
+		TextureSampleFactoryNode->AddInt32Attribute(KernelSizeMemberName.ToString(), KernelSize);
+		TextureSampleFactoryNode->AddApplyAndFillDelegates<int32>(KernelSizeMemberName.ToString(), UMaterialExpressionMaterialXTextureSampleParameterBlur::StaticClass(), KernelSizeMemberName);
 	}
 
 	// FilterSize
 	if(float FilterSize; ShaderNode->GetFloatAttribute(TextureSampleBlur::Attributes::FilterSize.ToString(), FilterSize))
 	{
-		const FName FilterSizeMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureSampleParameterBlur, FilterSize);
+		const FName FilterSizeMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionMaterialXTextureSampleParameterBlur, FilterSize);
 		TextureSampleFactoryNode->AddFloatAttribute(FilterSizeMemberName.ToString(), FilterSize);
-		TextureSampleFactoryNode->AddApplyAndFillDelegates<float>(FilterSizeMemberName.ToString(), UMaterialExpressionTextureSampleParameterBlur::StaticClass(), FilterSizeMemberName);
+		TextureSampleFactoryNode->AddApplyAndFillDelegates<float>(FilterSizeMemberName.ToString(), UMaterialExpressionMaterialXTextureSampleParameterBlur::StaticClass(), FilterSizeMemberName);
 	}
 
 	// FilterOffset
 	if(float FilterOffset; ShaderNode->GetFloatAttribute(TextureSampleBlur::Attributes::FilterOffset.ToString(), FilterOffset))
 	{
-		const FName FilterOffsetMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureSampleParameterBlur, FilterOffset);
+		const FName FilterOffsetMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionMaterialXTextureSampleParameterBlur, FilterOffset);
 		TextureSampleFactoryNode->AddFloatAttribute(FilterOffsetMemberName.ToString(), FilterOffset);
-		TextureSampleFactoryNode->AddApplyAndFillDelegates<float>(FilterOffsetMemberName.ToString(), UMaterialExpressionTextureSampleParameterBlur::StaticClass(), FilterOffsetMemberName);
+		TextureSampleFactoryNode->AddApplyAndFillDelegates<float>(FilterOffsetMemberName.ToString(), UMaterialExpressionMaterialXTextureSampleParameterBlur::StaticClass(), FilterOffsetMemberName);
 	}
 
 	// Filter
 	if(int32 Filter; ShaderNode->GetInt32Attribute(TextureSampleBlur::Attributes::Filter.ToString(), Filter))
 	{
-		const FName FilterMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureSampleParameterBlur, Filter);
+		const FName FilterMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionMaterialXTextureSampleParameterBlur, Filter);
 		TextureSampleFactoryNode->AddInt32Attribute(FilterMemberName.ToString(), Filter);
-		TextureSampleFactoryNode->AddApplyAndFillDelegates<int>(FilterMemberName.ToString(), UMaterialExpressionTextureSampleParameterBlur::StaticClass(), FilterMemberName);
+		TextureSampleFactoryNode->AddApplyAndFillDelegates<int32>(FilterMemberName.ToString(), UMaterialExpressionMaterialXTextureSampleParameterBlur::StaticClass(), FilterMemberName);
 	}
 }
 

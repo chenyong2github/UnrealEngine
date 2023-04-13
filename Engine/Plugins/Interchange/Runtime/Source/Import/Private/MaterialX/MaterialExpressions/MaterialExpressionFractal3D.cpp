@@ -6,33 +6,29 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionFractal3D)
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionFractal3D"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXFractal3D"
 
-UMaterialExpressionFractal3D::UMaterialExpressionFractal3D(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXFractal3D::UMaterialExpressionMaterialXFractal3D(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
 		FText NAME_MaterialX;
-		FText NAME_Procedural;
 		FConstructorStatics()
 			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
-			, NAME_Procedural(LOCTEXT("Procedural", "Procedural"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_Procedural);
 #endif
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionFractal3D::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXFractal3D::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-
 	UMaterialExpressionCustom* MaterialExpressionCustom = NewObject<UMaterialExpressionCustom>();
 	MaterialExpressionCustom->Inputs[0].InputName = TEXT("Position");
 	MaterialExpressionCustom->Inputs.Add({ TEXT("Octaves") });
@@ -90,9 +86,9 @@ int32 UMaterialExpressionFractal3D::Compile(FMaterialCompiler* Compiler, int32 O
 	return Compiler->Mul(IndexFractal, IndexAmplitude);
 }
 
-void UMaterialExpressionFractal3D::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXFractal3D::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Fractal3D"));
+	OutCaptions.Add(TEXT("MaterialX Fractal3D"));
 }
 #endif
 

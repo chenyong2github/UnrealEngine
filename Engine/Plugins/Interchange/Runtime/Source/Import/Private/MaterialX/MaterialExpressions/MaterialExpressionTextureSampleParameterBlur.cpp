@@ -10,7 +10,7 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionTextureSampleParameterBlur)
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionTextureSampleBlur"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXTextureSampleBlur"
 
 namespace Gauss
 {
@@ -78,31 +78,29 @@ namespace Box
 	}
 }
 
-UMaterialExpressionTextureSampleParameterBlur::UMaterialExpressionTextureSampleParameterBlur(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXTextureSampleParameterBlur::UMaterialExpressionMaterialXTextureSampleParameterBlur(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
 		FText NAME_MaterialX;
-		FText NAME_Convolution;
 		FConstructorStatics()
 			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
-			, NAME_Convolution(LOCTEXT("Convolution", "Convolution"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
+	MenuCategories.Empty();
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_Convolution);
 #endif
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionTextureSampleParameterBlur::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXTextureSampleParameterBlur::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if(KernelSize > 0)
+	if(KernelSize != EMAterialXTextureSampleBlurKernel ::Kernel1)
 	{
 		FExpressionInput TexCoordInput;
 		if(Coordinates.GetTracedInput().Expression)
@@ -149,43 +147,24 @@ int32 UMaterialExpressionTextureSampleParameterBlur::Compile(FMaterialCompiler* 
 		);
 
 		const float* Kernel;
-		int32 FilterWidth = 1;
+		int32 FilterWidth;
 
-		if(KernelSize <= (1.f / 3.f))
+		switch(KernelSize)
 		{
-			FilterWidth = 3 / 2;
-			if(Filter == ETextureSampleBlurFilter::Box)
-			{
-				Kernel = Box::KernelWeights3x3;
-			}
-			else
-			{
-				Kernel = Gauss::KernelWeights3x3;
-			}
-		}
-		else if(KernelSize <= (2.f / 3.f))
-		{
+		case EMAterialXTextureSampleBlurKernel::Kernel5:
 			FilterWidth = 5 / 2;
-			if(Filter == ETextureSampleBlurFilter::Box)
-			{
-				Kernel = Box::KernelWeights5x5;
-			}
-			else
-			{
-				Kernel = Gauss::KernelWeights5x5;
-			}
-		}
-		else
-		{
+			Kernel = Filter == EMaterialXTextureSampleBlurFilter::Box ? Box::KernelWeights5x5 : Gauss::KernelWeights5x5;
+			break;
+
+		case EMAterialXTextureSampleBlurKernel::Kernel7:
 			FilterWidth = 7 / 2;
-			if(Filter == ETextureSampleBlurFilter::Box)
-			{
-				Kernel = Box::KernelWeights7x7;
-			}
-			else
-			{
-				Kernel = Gauss::KernelWeights7x7;
-			}
+			Kernel = Filter == EMaterialXTextureSampleBlurFilter::Box ? Box::KernelWeights7x7 : Gauss::KernelWeights7x7;
+			break;
+
+		default:
+			FilterWidth = 3 / 2;
+			Kernel = Filter == EMaterialXTextureSampleBlurFilter::Box ? Box::KernelWeights3x3 : Gauss::KernelWeights3x3;
+			break;
 		}
 
 		UMaterialExpressionCustom* Convolution = NewObject<UMaterialExpressionCustom>();
@@ -236,9 +215,9 @@ int32 UMaterialExpressionTextureSampleParameterBlur::Compile(FMaterialCompiler* 
 	}
 }
 
-void UMaterialExpressionTextureSampleParameterBlur::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXTextureSampleParameterBlur::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("ParamBlur"));
+	OutCaptions.Add(TEXT("MaterialX ParamBlur"));
 	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
 }
 #endif // WITH_EDITOR

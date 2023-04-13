@@ -4,46 +4,47 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionLength)
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionLength"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXLength"
 
-UMaterialExpressionLength::UMaterialExpressionLength(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXLength::UMaterialExpressionMaterialXLength(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
 		FText NAME_MaterialX;
-		FText NAME_Math;
-		FText NAME_VectorOps;
 		FConstructorStatics()
 			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
-			, NAME_Math(LOCTEXT("Math", "Math"))
-			, NAME_VectorOps(LOCTEXT("VectorOps", "VectorOps"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_Math);
-	MenuCategories.Add(ConstructorStatics.NAME_VectorOps);
 #endif
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionLength::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXLength::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!Input.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing Length input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX Length input"));
 	}
 
-	return Compiler->Length(Input.Compile(Compiler));
+	int32 Index = Input.Compile(Compiler);
+	if(Compiler->GetType(Index) == MCT_Float)
+	{
+		// optimized
+		return Compiler->Abs(Index);
+	}
+
+	return Compiler->Length(Index);
 }
 
-void UMaterialExpressionLength::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXLength::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Length"));
+	OutCaptions.Add(TEXT("MaterialX Length"));
 }
 #endif
 

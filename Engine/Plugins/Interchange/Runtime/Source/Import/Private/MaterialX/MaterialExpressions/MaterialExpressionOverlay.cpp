@@ -4,40 +4,37 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionOverlay)
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionOverlay"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXOverlay"
 
-UMaterialExpressionOverlay::UMaterialExpressionOverlay(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXOverlay::UMaterialExpressionMaterialXOverlay(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
 		FText NAME_MaterialX;
-		FText NAME_Compositing;
 		FConstructorStatics()
 			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
-			, NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_Compositing);
 #endif
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionOverlay::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXOverlay::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!A.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing A input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX Overlay input A"));
 	}
 
 	if(!B.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing B input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX Overlay input B"));
 	}
 
 	int32 IndexAlpha = Alpha.GetTracedInput().Expression ? Alpha.Compile(Compiler) : Compiler->Constant(ConstAlpha);
@@ -62,9 +59,9 @@ int32 UMaterialExpressionOverlay::Compile(FMaterialCompiler* Compiler, int32 Out
 	return Compiler->Lerp(IndexB, Overlay, IndexAlpha);
 }
 
-void UMaterialExpressionOverlay::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXOverlay::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Overlay"));
+	OutCaptions.Add(TEXT("MaterialX Overlay"));
 }
 #endif
 

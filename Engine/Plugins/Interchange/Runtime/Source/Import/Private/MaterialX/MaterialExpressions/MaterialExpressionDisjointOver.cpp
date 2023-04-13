@@ -4,40 +4,37 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionDisjointOver)
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionDisjointOver"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXDisjointOver"
 
-UMaterialExpressionDisjointOver::UMaterialExpressionDisjointOver(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXDisjointOver::UMaterialExpressionMaterialXDisjointOver(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
 		FText NAME_MaterialX;
-		FText NAME_Compositing;
 		FConstructorStatics()
 			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
-			, NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_Compositing);
 #endif
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionDisjointOver::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXDisjointOver::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!A.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing A input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX DisjointOver input A"));
 	}
 
 	if(!B.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing B input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX DisjointOver input B"));
 	}
 
 	int32 IndexAlpha = Alpha.GetTracedInput().Expression ? Alpha.Compile(Compiler) : Compiler->Constant(ConstAlpha);
@@ -64,9 +61,9 @@ int32 UMaterialExpressionDisjointOver::Compile(FMaterialCompiler* Compiler, int3
 	return Compiler->Lerp(IndexB, IndexAppend, IndexAlpha);
 }
 
-void UMaterialExpressionDisjointOver::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXDisjointOver::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("DisjointOver"));
+	OutCaptions.Add(TEXT("MaterialX DisjointOver"));
 }
 #endif
 

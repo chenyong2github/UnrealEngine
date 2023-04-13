@@ -4,19 +4,17 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionRemap)
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionRemap"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXRemap"
 
-UMaterialExpressionRemap::UMaterialExpressionRemap(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXRemap::UMaterialExpressionMaterialXRemap(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
 		FText NAME_MaterialX;
-		FText NAME_Adjustment;
 		FConstructorStatics()
 			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
-			, NAME_Adjustment(LOCTEXT("Image Adjustment", "Image Adjustment"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
@@ -28,12 +26,11 @@ UMaterialExpressionRemap::UMaterialExpressionRemap(const FObjectInitializer& Obj
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_Adjustment);
 #endif
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionRemap::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXRemap::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!Input.GetTracedInput().Expression)
 	{
@@ -54,9 +51,9 @@ int32 UMaterialExpressionRemap::Compile(FMaterialCompiler* Compiler, int32 Outpu
 	return Compiler->Add(TargetLowIndex, Compiler->Mul(Compiler->Sub(Input.Compile(Compiler), InputLowIndex), Delta));
 }
 
-void UMaterialExpressionRemap::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXRemap::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Remap"));
+	OutCaptions.Add(TEXT("MaterialX Remap"));
 }
 #endif
 

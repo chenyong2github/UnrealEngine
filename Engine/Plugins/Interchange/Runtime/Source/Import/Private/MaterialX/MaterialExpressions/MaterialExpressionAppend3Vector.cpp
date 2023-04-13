@@ -5,46 +5,40 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionAppend3Vector)
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionAppend3Vector"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXAppend3Vector"
 
-UMaterialExpressionAppend3Vector::UMaterialExpressionAppend3Vector(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXAppend3Vector::UMaterialExpressionMaterialXAppend3Vector(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
 		FText NAME_MaterialX;
-		FText NAME_Math;
-		FText NAME_VectorOps;
 		FConstructorStatics()
 			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
-			, NAME_Math(LOCTEXT("Math", "Math"))
-			, NAME_VectorOps(LOCTEXT("VectorOps", "VectorOps"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_Math);
-	MenuCategories.Add(ConstructorStatics.NAME_VectorOps);
 #endif
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionAppend3Vector::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXAppend3Vector::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!A.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing AppendVector input A"));
+		return Compiler->Errorf(TEXT("Missing MaterialX Append3 input A"));
 	}
 	else if(!B.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing AppendVector input B"));
+		return Compiler->Errorf(TEXT("Missing MaterialX Append3 input B"));
 	}
 	else if(!C.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing AppendVector input C"));
+		return Compiler->Errorf(TEXT("Missing MaterialX Append3 input C"));
 	}
 	else
 	{
@@ -56,9 +50,9 @@ int32 UMaterialExpressionAppend3Vector::Compile(FMaterialCompiler* Compiler, int
 	}
 }
 
-void UMaterialExpressionAppend3Vector::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXAppend3Vector::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Append3"));
+	OutCaptions.Add(TEXT("MaterialX Append3"));
 }
 #endif
 

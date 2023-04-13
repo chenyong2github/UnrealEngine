@@ -16,26 +16,23 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionPlace2D)
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionPlace2D"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXPlace2D"
 
-UMaterialExpressionPlace2D::UMaterialExpressionPlace2D(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXPlace2D::UMaterialExpressionMaterialXPlace2D(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
 		FText NAME_MaterialX;
-		FText NAME_Compositing;
 		FConstructorStatics()
 			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
-			, NAME_Compositing(LOCTEXT("Math", "Math"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_Compositing);
 #endif
 }
 
@@ -57,7 +54,7 @@ namespace
 	}
 }
 
-int32 UMaterialExpressionPlace2D::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXPlace2D::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	auto Constant2Expression = [](FExpressionInput& Input, float X, float Y)
 	{
@@ -120,7 +117,7 @@ int32 UMaterialExpressionPlace2D::Compile(FMaterialCompiler* Compiler, int32 Out
 
 	FExpressionInput ApplyRot;
 	{
-		UMaterialExpressionRotate2D* Rotate2D = NewObject<UMaterialExpressionRotate2D>();
+		UMaterialExpressionMaterialXRotate2D* Rotate2D = NewObject<UMaterialExpressionMaterialXRotate2D>();
 		Rotate2D->Input = ApplyScale;
 		Rotate2D->RotationAngle = RotationAngle;
 		ApplyRot.Connect(0, Rotate2D);
@@ -144,12 +141,12 @@ int32 UMaterialExpressionPlace2D::Compile(FMaterialCompiler* Compiler, int32 Out
 	return AppendVectorAddPivot.Compile(Compiler);
 }
 
-void UMaterialExpressionPlace2D::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXPlace2D::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Place2D"));
+	OutCaptions.Add(TEXT("MaterialX Place2D"));
 }
 
-void UMaterialExpressionPlace2D::GetExpressionToolTip(TArray<FString>& OutToolTip)
+void UMaterialExpressionMaterialXPlace2D::GetExpressionToolTip(TArray<FString>& OutToolTip)
 {
 	ConvertToMultilineToolTip(TEXT("Transform incoming UV texture coordinates from one 2D frame of reference to another."
 								   "The order of operation is: -pivot, scale, rotate, translate, +pivot."),

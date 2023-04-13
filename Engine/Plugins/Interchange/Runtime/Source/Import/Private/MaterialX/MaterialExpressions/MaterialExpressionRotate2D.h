@@ -9,7 +9,7 @@
  * A material expression that rotates a vector2 value about the origin in 2D.
  */
 UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
-class UMaterialExpressionRotate2D : public UMaterialExpression
+class UMaterialExpressionMaterialXRotate2D : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -25,12 +25,12 @@ class UMaterialExpressionRotate2D : public UMaterialExpression
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionAngle, meta = (OverridingInputProperty = "RotationAngle"))
 	float ConstRotationAngle = 0.f;
 
-	//~ Begin UMaterialExpression Interface
+	//~ Begin UMaterialExpressionMaterialX Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual void GetExpressionToolTip(TArray<FString>& OutToolTip) override;
 #endif
-	//~ End UMaterialExpression Interface
+	//~ End UMaterialExpressionMaterialX Interface
 };
 

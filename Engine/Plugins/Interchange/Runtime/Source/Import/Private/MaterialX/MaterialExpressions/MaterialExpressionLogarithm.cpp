@@ -6,36 +6,32 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionLogarithm)
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionLogarithm"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXLogarithm"
 
-UMaterialExpressionLogarithm::UMaterialExpressionLogarithm(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXLogarithm::UMaterialExpressionMaterialXLogarithm(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
-
 		FText NAME_MaterialX;
-		FText NAME_Math;
 		FConstructorStatics()
 			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
-			, NAME_Math(LOCTEXT("Math", "Math"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_Math);
 #endif
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionLogarithm::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXLogarithm::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!Input.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing Ln input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX Ln input"));
 	}
 
 	const int32 Log10Euler = Compiler->Constant(0.4342945);
@@ -43,9 +39,9 @@ int32 UMaterialExpressionLogarithm::Compile(FMaterialCompiler* Compiler, int32 O
 	return Compiler->Div(Compiler->Logarithm10(Input.Compile(Compiler)), Log10Euler);
 }
 
-void UMaterialExpressionLogarithm::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXLogarithm::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Ln"));
+	OutCaptions.Add(TEXT("MaterialX Ln"));
 }
 #endif
 

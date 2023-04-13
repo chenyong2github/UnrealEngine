@@ -4,40 +4,37 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialExpressionMatte)
 
-#define LOCTEXT_NAMESPACE "MaterialExpressionMatte"
+#define LOCTEXT_NAMESPACE "MaterialExpressionMaterialXMatte"
 
-UMaterialExpressionMatte::UMaterialExpressionMatte(const FObjectInitializer& ObjectInitializer)
+UMaterialExpressionMaterialXMatte::UMaterialExpressionMaterialXMatte(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
 		FText NAME_MaterialX;
-		FText NAME_Compositing;
 		FConstructorStatics()
 			: NAME_MaterialX(LOCTEXT("MaterialX", "MaterialX"))
-			, NAME_Compositing(LOCTEXT("Compositing", "Compositing"))
 		{}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialX);
-	MenuCategories.Add(ConstructorStatics.NAME_Compositing);
 #endif
 }
 
 #if WITH_EDITOR
-int32 UMaterialExpressionMatte::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionMaterialXMatte::Compile(FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	if(!A.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing A input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX Matte input A"));
 	}
 
 	if(!B.GetTracedInput().Expression)
 	{
-		return Compiler->Errorf(TEXT("Missing B input"));
+		return Compiler->Errorf(TEXT("Missing MaterialX Matte input B"));
 	}
 
 	int32 IndexAlpha = Alpha.GetTracedInput().Expression ? Alpha.Compile(Compiler) : Compiler->Constant(ConstAlpha);
@@ -59,9 +56,9 @@ int32 UMaterialExpressionMatte::Compile(FMaterialCompiler* Compiler, int32 Outpu
 	return Compiler->Lerp(IndexB, Matte, IndexAlpha);
 }
 
-void UMaterialExpressionMatte::GetCaption(TArray<FString>& OutCaptions) const
+void UMaterialExpressionMaterialXMatte::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(TEXT("Matte"));
+	OutCaptions.Add(TEXT("MaterialX Matte"));
 }
 #endif
 

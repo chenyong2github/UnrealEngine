@@ -12,7 +12,7 @@
  * A material expression that allows combining 4 channels together to create a vector with more channel than the original
  */
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
-class UMaterialExpressionAppend4Vector : public UMaterialExpression
+class UMaterialExpressionMaterialXAppend4Vector : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -28,11 +28,11 @@ class UMaterialExpressionAppend4Vector : public UMaterialExpression
 	UPROPERTY()
 	FExpressionInput D;
 
-	//~ Begin UMaterialExpression Interface
+	//~ Begin UMaterialExpressionMaterialX Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 #endif
-	//~ End UMaterialExpression Interface
+	//~ End UMaterialExpressionMaterialX Interface
 };
 

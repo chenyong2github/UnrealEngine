@@ -10,7 +10,7 @@
  * A material expression that computes a top-to-bottom bilinear value ramp.
  */
 UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
-class UMaterialExpressionRampTopBottom : public UMaterialExpression
+class UMaterialExpressionMaterialXRampTopBottom : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -27,11 +27,11 @@ class UMaterialExpressionRampTopBottom : public UMaterialExpression
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionTextureSample, meta = (OverridingInputProperty = "Coordinates"))
 		uint8 ConstCoordinate;
 
-	//~ Begin UMaterialExpression Interface
+	//~ Begin UMaterialExpressionMaterialX Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 #endif
-	//~ End UMaterialExpression Interface
+	//~ End UMaterialExpressionMaterialX Interface
 };
 
