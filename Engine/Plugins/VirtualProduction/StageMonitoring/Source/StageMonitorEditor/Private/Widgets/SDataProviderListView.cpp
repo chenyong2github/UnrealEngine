@@ -284,7 +284,7 @@ namespace DataProviderListView
 			 }},
 			{EstimatedMaxFPS,
 			 {
-				 LOCTEXT("HeaderName_AverageFPS", "Estimated Max FPS"), IsNotSortable, IsVisible,
+				 LOCTEXT("HeaderName_EstimatedMaxFPS", "Estimated Max FPS"), IsNotSortable, IsVisible,
 				 [](SDataProviderTableRow* Provider) -> TSharedRef<SWidget>
 				 {
 					 return SNew(SHorizontalBox)
