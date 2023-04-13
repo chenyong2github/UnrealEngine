@@ -27,6 +27,8 @@ enum class EPropertyBagPropertyType : uint8
 	SoftObject UMETA(Hidden),
 	Class UMETA(Hidden),
 	SoftClass UMETA(Hidden),
+
+	Count UMETA(Hidden)
 };
 
 /** Property bag property container type. */
@@ -35,6 +37,8 @@ enum class EPropertyBagContainerType : uint8
 {
 	None UMETA(Hidden),
 	Array,
+
+	Count UMETA(Hidden)
 };
 
 /** Getter and setter result code. */
@@ -332,6 +336,9 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 	TValueOrError<UObject*, EPropertyBagResult> GetValueObject(const FName Name, const UClass* RequestedClass = nullptr) const;
 	TValueOrError<UClass*, EPropertyBagResult> GetValueClass(const FName Name) const;
 
+	/** @return string-based serialized representation of the value. */
+	TValueOrError<FString, EPropertyBagResult> GetValueSerializedString(const FName Name);
+
 	/** @return enum value of specified type. */
 	template <typename T>
 	TValueOrError<T, EPropertyBagResult> GetValueEnum(const FName Name) const
@@ -401,6 +408,12 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 	EPropertyBagResult SetValueStruct(const FName Name, FConstStructView InValue);
 	EPropertyBagResult SetValueObject(const FName Name, UObject* InValue);
 	EPropertyBagResult SetValueClass(const FName Name, UClass* InValue);
+
+	/**
+	 * Sets property value from a serialized representation of the value. If the string value provided
+	 * cannot be parsed by the property, the operation will fail.
+	 */
+	EPropertyBagResult SetValueSerializedString(const FName Name, const FString& InValue);
 
 	/** Sets enum value specified type. */
 	template <typename T>

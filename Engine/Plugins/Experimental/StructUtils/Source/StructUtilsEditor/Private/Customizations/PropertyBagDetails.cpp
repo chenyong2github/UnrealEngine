@@ -755,9 +755,17 @@ void FPropertyBagDetails::CustomizeHeader(TSharedRef<IPropertyHandle> StructProp
 	check(StructProperty);
 	
 	static const FName NAME_FixedLayout = "FixedLayout";
+	static const FName NAME_ShowOnlyInnerProperties = "ShowOnlyInnerProperties";
+	
 	if (const FProperty* MetaDataProperty = StructProperty->GetMetaDataProperty())
 	{
 		bFixedLayout = MetaDataProperty->HasMetaData(NAME_FixedLayout);
+
+		// Don't show the header if ShowOnlyInnerProperties is set
+		if (MetaDataProperty->HasMetaData(NAME_ShowOnlyInnerProperties))
+		{
+			return;
+		}
 	}
 
 	TSharedPtr<SWidget> ValueWidget = SNullWidget::NullWidget;

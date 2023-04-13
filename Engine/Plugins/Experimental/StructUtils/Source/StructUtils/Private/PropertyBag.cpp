@@ -1441,6 +1441,27 @@ TValueOrError<UClass*, EPropertyBagResult> FInstancedPropertyBag::GetValueClass(
 	return MakeValue(Class);
 }
 
+TValueOrError<FString, EPropertyBagResult> FInstancedPropertyBag::GetValueSerializedString(const FName Name)
+{
+	const FPropertyBagPropertyDesc* Desc = FindPropertyDescByName(Name);
+	if (Desc == nullptr)
+	{
+		return MakeError(EPropertyBagResult::PropertyNotFound);
+	}
+	
+	const FProperty* Property = Desc->CachedProperty;
+	check(Property);
+
+	const void* ValueAddress = GetValueAddress(Desc);
+	FString OutStringValue;
+	if (!Property->ExportText_Direct(OutStringValue, ValueAddress, ValueAddress, nullptr, PPF_None))
+	{
+		UE_LOG(LogCore, Warning, TEXT("PropertyBag: Getting the serialized value of the property '%s' failed."), *Desc->Name.ToString());
+		return MakeError(EPropertyBagResult::TypeMismatch);
+	}
+
+	return MakeValue(OutStringValue);
+}
 
 EPropertyBagResult FInstancedPropertyBag::SetValueBool(const FName Name, const bool bInValue)
 {
@@ -1518,6 +1539,26 @@ EPropertyBagResult FInstancedPropertyBag::SetValueClass(const FName Name, UClass
 {
 	const FPropertyBagPropertyDesc* Desc = FindPropertyDescByName(Name);
 	return UE::StructUtils::Private::SetPropertyValueAsObject(Desc, GetMutableValueAddress(Desc), InValue);
+}
+
+EPropertyBagResult FInstancedPropertyBag::SetValueSerializedString(const FName Name, const FString& InValue)
+{
+	const FPropertyBagPropertyDesc* Desc = FindPropertyDescByName(Name);
+	if (Desc == nullptr)
+	{
+		return EPropertyBagResult::PropertyNotFound;
+	}
+	
+	const FProperty* Property = Desc->CachedProperty;
+	check(Property);
+
+	if (!Property->ImportText_Direct(*InValue, GetMutableValueAddress(Desc), nullptr, PPF_None))
+	{
+		UE_LOG(LogCore, Warning, TEXT("PropertyBag: Setting the value of the property '%s' failed because the string representation provided was not accepted."), *Desc->Name.ToString());
+		return EPropertyBagResult::TypeMismatch;
+	}
+
+	return EPropertyBagResult::Success;
 }
 
 EPropertyBagResult FInstancedPropertyBag::SetValue(const FName Name, const FProperty* InSourceProperty, const void* InSourceContainerAddress)
