@@ -39,7 +39,7 @@ public:
 		SLATE_ARGUMENT(FName, Style)
 
 		// The parent window hosting this dialog
-		SLATE_ATTRIBUTE(TSharedPtr<SWindow>, ParentWindow)
+		SLATE_ARGUMENT(TSharedPtr<SWindow>, ParentWindow)
 
 		/** When specified, the path box will request this fixed size. */
 		SLATE_ATTRIBUTE(FOptionalSize, WidthOverride)
@@ -147,8 +147,7 @@ private:
 	/** The model used for deleting assets */
 	TSharedPtr<FAssetDeleteModel> DeleteModel;
 
-	// Attributes
-	TAttribute< TSharedPtr< SWindow > > ParentWindow;
+	TWeakPtr<SWindow> ParentWindow;
 
 	// Widgets
 	TSharedPtr< SBorder > RootContainer;
