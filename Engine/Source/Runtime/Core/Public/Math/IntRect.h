@@ -307,7 +307,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Max.Y = FMath::Max<IntType>(Max.Y, R.Max.Y);
 	}
 
-	/** Returns true if the two rects have any overlap. */
+	/**
+	 * Returns true if the two rects have any overlap.
+	 *
+	 * @param Other The rect to compare with.
+	 * @return true if the rectangle overlaps the other rectangle, false otherwise.
+	 *
+	 * @note  This function assumes rects have open bounds, i.e. rects with
+	 *        coincident borders on any edge will not overlap.
+	 */
 	bool Intersect(const TIntRect& Other) const
 	{
 		return Other.Min.X < Max.X&& Other.Max.X > Min.X && Other.Min.Y < Max.Y&& Other.Max.Y > Min.Y;
@@ -317,7 +325,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	 * Test whether this rectangle contains a point.
 	 *
 	 * @param Point The point to test against.
-	 * @return true if the rectangle contains the specified point,, false otherwise..
+	 * @return true if the rectangle contains the specified point, false otherwise.
+	 *
+	 * @note  This function assumes rects have half-open bounds, i.e. points are contained
+	 *        by the minimum border of the box, but not the maximum border.
 	 */
 	bool Contains(IntPointType P) const
 	{
