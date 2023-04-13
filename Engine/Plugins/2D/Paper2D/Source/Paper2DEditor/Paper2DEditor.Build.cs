@@ -16,6 +16,7 @@ public class Paper2DEditor : ModuleRules
 				"SlateCore",
 				"Engine",
 				"InputCore",
+				"ImageCore",
 				"EditorFramework",
 				"UnrealEd", // for AssetEditorSubsystem
 				"KismetWidgets",
