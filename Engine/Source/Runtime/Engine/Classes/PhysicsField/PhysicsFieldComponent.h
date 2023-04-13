@@ -186,12 +186,6 @@ public:
 	 */
 	void UpdateInstance(const float TimeSeconds);
 
-	/** Update the offsets and params given a node */
-	void BuildNodeParams(FFieldNodeBase* FieldNode, const TMap<FFieldNodeBase*, float> CommandTimes, const float PreviousTime);
-
-	/** Update the bounds given a node */
-	static void BuildNodeBounds(FFieldNodeBase* FieldNode, FVector& MinBounds, FVector& MaxBounds, float& MaxMagnitude);
-
 	/** The field system resource. */
 	FPhysicsFieldResource* FieldResource = nullptr;
 

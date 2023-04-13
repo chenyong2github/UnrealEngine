@@ -6,6 +6,19 @@
 #include "Chaos/Vector.h"
 #include <type_traits>
 
+namespace 
+{
+	inline FVector MinVector(const FVector& VectorA, const FVector& VectorB)
+	{
+		return FVector(FMath::Min(VectorA.X, VectorB.X), FMath::Min(VectorA.Y, VectorB.Y), FMath::Min(VectorA.Z, VectorB.Z));
+	}
+
+	inline FVector MaxVector(const FVector& VectorA, const FVector& VectorB)
+	{
+		return FVector(FMath::Max(VectorA.X, VectorB.X), FMath::Max(VectorA.Y, VectorB.Y), FMath::Max(VectorA.Z, VectorB.Z));
+	}
+}
+
 FFieldNodeBase * FieldNodeFactory(FFieldNodeBase::EFieldType BaseType,FFieldNodeBase::ESerializationType Type)
 {
 	switch (Type)
@@ -94,6 +107,7 @@ void SerializeInternal(FArchive& Ar, Enum& Var)
 /**
 * FUniformInteger
 */
+
 void FUniformInteger::Evaluate(FFieldContext& Context, TFieldArrayView<int32>& Results) const
 {
 	int32 MagnitudeVal = Magnitude;
@@ -104,11 +118,13 @@ void FUniformInteger::Evaluate(FFieldContext& Context, TFieldArrayView<int32>& R
 		Results[Context.SampleIndices[SampleIndex].Result] = MagnitudeVal;
 	}
 }
+
 void FUniformInteger::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 	Ar << Magnitude;
 }
+
 bool FUniformInteger::operator==(const FFieldNodeBase& Node)
 {
 	if (Node.SerializationType() == SerializationType())
@@ -119,10 +135,28 @@ bool FUniformInteger::operator==(const FFieldNodeBase& Node)
 	return false;
 }
 
+void FUniformInteger::FillSetupCount(int32& NumOffsets, int32& NumParams) const
+{
+	Super::FillSetupCount(NumOffsets, NumParams);
+	NumParams += 1;
+}
+
+void FUniformInteger::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+{
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	NodesParams.Add(static_cast<float>(Magnitude));
+}
+
+float FUniformInteger::EvalMaxMagnitude() const
+{
+	return static_cast<float>(Magnitude);
+}
 
 /**
 * FRadialIntMask
 */
+
 void FRadialIntMask::Evaluate(FFieldContext& Context, TFieldArrayView<int32>& Results) const
 {
 	float Radius2 = Radius * Radius;
@@ -167,6 +201,7 @@ void FRadialIntMask::Evaluate(FFieldContext& Context, TFieldArrayView<int32>& Re
 		}
 	}
 }
+
 void FRadialIntMask::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
@@ -176,6 +211,7 @@ void FRadialIntMask::Serialize(FArchive& Ar)
 	Ar << ExteriorValue;
 	SerializeInternal<ESetMaskConditionType>(Ar, SetMaskCondition);
 }
+
 bool FRadialIntMask::operator==(const FFieldNodeBase& Node)
 {
 	if (Node.SerializationType() == SerializationType())
@@ -191,9 +227,40 @@ bool FRadialIntMask::operator==(const FFieldNodeBase& Node)
 	return false;
 }
 
+void FRadialIntMask::FillSetupCount(int32& NumOffsets, int32& NumParams) const
+{
+	Super::FillSetupCount(NumOffsets, NumParams);
+	NumParams += 7;
+}
+
+void FRadialIntMask::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+{
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	NodesParams.Add(Radius);
+	NodesParams.Add(static_cast<float>(Position.X));
+	NodesParams.Add(static_cast<float>(Position.Y));
+	NodesParams.Add(static_cast<float>(Position.Z));
+	NodesParams.Add(static_cast<float>(InteriorValue));
+	NodesParams.Add(static_cast<float>(ExteriorValue));
+	NodesParams.Add(static_cast<float>(SetMaskCondition));
+}
+
+float FRadialIntMask::EvalMaxMagnitude() const
+{
+	return 1.0f;
+}
+
+void FRadialIntMask::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const
+{
+	MinBounds = (ExteriorValue == 0) ? Position - FVector(Radius) : FVector(-FLT_MAX);
+	MaxBounds = (ExteriorValue == 0) ? Position + FVector(Radius) : FVector(FLT_MAX);
+}
+
 /**
 * FUniformScalar
 */
+
 void FUniformScalar::Evaluate(FFieldContext& Context, TFieldArrayView<float>& Results) const
 {
 	float MagnitudeVal = Magnitude;
@@ -204,11 +271,13 @@ void FUniformScalar::Evaluate(FFieldContext& Context, TFieldArrayView<float>& Re
 		Results[Context.SampleIndices[SampleIndex].Result] = MagnitudeVal;
 	}
 }
+
 void FUniformScalar::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 	Ar << Magnitude;
 }
+
 bool FUniformScalar::operator==(const FFieldNodeBase& Node)
 {
 	if (Node.SerializationType() == SerializationType())
@@ -217,6 +286,24 @@ bool FUniformScalar::operator==(const FFieldNodeBase& Node)
 			&& Magnitude == static_cast<const FUniformScalar*>(&Node)->Magnitude;
 	}
 	return false;
+}
+
+void FUniformScalar::FillSetupCount(int32& NumOffsets, int32& NumParams) const
+{
+	Super::FillSetupCount(NumOffsets, NumParams);
+	NumParams += 1;
+}
+
+void FUniformScalar::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+{
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	NodesParams.Add(Magnitude);
+}
+
+float FUniformScalar::EvalMaxMagnitude() const
+{
+	return Magnitude;
 }
 
 /**
@@ -298,6 +385,7 @@ void FWaveScalar::Serialize(FArchive& Ar)
 	SerializeInternal<EWaveFunctionType>(Ar, Function);
 	SerializeInternal<EFieldFalloffType>(Ar, Falloff);
 }
+
 bool FWaveScalar::operator==(const FFieldNodeBase& Node)
 {
 	if (Node.SerializationType() == SerializationType())
@@ -313,6 +401,33 @@ bool FWaveScalar::operator==(const FFieldNodeBase& Node)
 	return false;
 }
 
+void FWaveScalar::FillSetupCount(int32& NumOffsets, int32& NumParams) const
+{
+	Super::FillSetupCount(NumOffsets, NumParams);
+	NumParams += 9;
+}
+
+void FWaveScalar::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+{
+	const float NextTime = CommandTimes.Find(this) ? CommandTimes[this] : PreviousTime;
+
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	NodesParams.Add(Magnitude);
+	NodesParams.Add(static_cast<float>(Position.X));
+	NodesParams.Add(static_cast<float>(Position.Y));
+	NodesParams.Add(static_cast<float>(Position.Z));
+	NodesParams.Add(Wavelength);
+	NodesParams.Add(Period);
+	NodesParams.Add(NextTime);
+	NodesParams.Add(static_cast<float>(Function));
+	NodesParams.Add(static_cast<float>(Falloff));
+}
+
+float FWaveScalar::EvalMaxMagnitude() const
+{
+	return Magnitude;
+}
 
 /**
 * Function Utils
@@ -409,6 +524,7 @@ void FRadialFalloff::Evaluate(FFieldContext& Context, TFieldArrayView<float>& Re
 		break;
 	}
 }
+
 void FRadialFalloff::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
@@ -421,6 +537,7 @@ void FRadialFalloff::Serialize(FArchive& Ar)
 	SerializeInternal<EFieldFalloffType>(Ar, Falloff);
 
 }
+
 bool FRadialFalloff::operator==(const FFieldNodeBase& Node)
 {
 	if (Node.SerializationType() == SerializationType())
@@ -436,6 +553,38 @@ bool FRadialFalloff::operator==(const FFieldNodeBase& Node)
 			&& Falloff == Other->Falloff;
 	}
 	return false;
+}
+
+void FRadialFalloff::FillSetupCount(int32& NumOffsets, int32& NumParams) const
+{
+	Super::FillSetupCount(NumOffsets, NumParams);
+	NumParams += 9;
+}
+
+void FRadialFalloff::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+{
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	NodesParams.Add(Magnitude);
+	NodesParams.Add(MinRange);
+	NodesParams.Add(MaxRange);
+	NodesParams.Add(Default);
+	NodesParams.Add(Radius);
+	NodesParams.Add(static_cast<float>(Position.X));
+	NodesParams.Add(static_cast<float>(Position.Y));
+	NodesParams.Add(static_cast<float>(Position.Z));
+	NodesParams.Add(static_cast<float>(Falloff));
+}
+
+float FRadialFalloff::EvalMaxMagnitude() const
+{
+	return Magnitude;
+}
+
+void FRadialFalloff::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const
+{
+	MinBounds = (Default == 0) ? Position - FVector(Radius) : FVector(-FLT_MAX);
+	MaxBounds = (Default == 0) ? Position + FVector(Radius) : FVector(FLT_MAX);
 }
 
 /**
@@ -520,6 +669,41 @@ bool FPlaneFalloff::operator==(const FFieldNodeBase& Node)
 	return false;
 }
 
+void FPlaneFalloff::FillSetupCount(int32& NumOffsets, int32& NumParams) const
+{
+	Super::FillSetupCount(NumOffsets, NumParams);
+	NumParams += 12;
+}
+
+void FPlaneFalloff::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+{
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	NodesParams.Add(Magnitude);
+	NodesParams.Add(MinRange);
+	NodesParams.Add(MaxRange);
+	NodesParams.Add(Default);
+	NodesParams.Add(Distance);
+	NodesParams.Add(static_cast<float>(Position.X));
+	NodesParams.Add(static_cast<float>(Position.Y));
+	NodesParams.Add(static_cast<float>(Position.Z));
+	NodesParams.Add(static_cast<float>(Normal.X));
+	NodesParams.Add(static_cast<float>(Normal.Y));
+	NodesParams.Add(static_cast<float>(Normal.Z));
+	NodesParams.Add(static_cast<float>(Falloff));
+}
+
+float FPlaneFalloff::EvalMaxMagnitude() const
+{
+	return Magnitude;
+}
+
+void FPlaneFalloff::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const
+{
+	MinBounds = FVector(-FLT_MAX);
+	MaxBounds = FVector(FLT_MAX);
+}
+
 /**
 * FBoxFalloff
 */
@@ -551,8 +735,7 @@ void FBoxFalloff::Evaluator(const FFieldContext& Context, TFieldArrayView<float>
 	}
 }
 
-void
-FBoxFalloff::Evaluate(FFieldContext& Context, TFieldArrayView<float>& Results) const
+void FBoxFalloff::Evaluate(FFieldContext& Context, TFieldArrayView<float>& Results) const
 {
 	switch (Falloff)
 	{
@@ -573,6 +756,7 @@ FBoxFalloff::Evaluate(FFieldContext& Context, TFieldArrayView<float>& Results) c
 		break;
 	}
 }
+
 void FBoxFalloff::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
@@ -583,6 +767,7 @@ void FBoxFalloff::Serialize(FArchive& Ar)
 	Ar << Transform;
 	SerializeInternal<EFieldFalloffType>(Ar, Falloff);
 }
+
 bool FBoxFalloff::operator==(const FFieldNodeBase& Node)
 {
 	if (Node.SerializationType() == SerializationType())
@@ -600,12 +785,56 @@ bool FBoxFalloff::operator==(const FFieldNodeBase& Node)
 	return false;
 }
 
+void FBoxFalloff::FillSetupCount(int32& NumOffsets, int32& NumParams) const
+{
+	Super::FillSetupCount(NumOffsets, NumParams);
+	NumParams += 15;
+}
+
+void FBoxFalloff::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+{
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	NodesParams.Add(Magnitude);
+	NodesParams.Add(MinRange);
+	NodesParams.Add(MaxRange);
+	NodesParams.Add(Default);
+	NodesParams.Add(static_cast<float>(Transform.GetRotation().X));
+	NodesParams.Add(static_cast<float>(Transform.GetRotation().Y));
+	NodesParams.Add(static_cast<float>(Transform.GetRotation().Z));
+	NodesParams.Add(static_cast<float>(Transform.GetRotation().W));
+	NodesParams.Add(static_cast<float>(Transform.GetTranslation().X));
+	NodesParams.Add(static_cast<float>(Transform.GetTranslation().Y));
+	NodesParams.Add(static_cast<float>(Transform.GetTranslation().Z));
+	NodesParams.Add(static_cast<float>(Transform.GetScale3D().X));
+	NodesParams.Add(static_cast<float>(Transform.GetScale3D().Y));
+	NodesParams.Add(static_cast<float>(Transform.GetScale3D().Z));
+	NodesParams.Add(static_cast<float>(Falloff));
+}
+
+float FBoxFalloff::EvalMaxMagnitude() const
+{
+	return Magnitude;
+}
+
+void FBoxFalloff::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const
+{
+	MinBounds = FVector(-FLT_MAX);
+	MaxBounds = FVector(FLT_MAX);
+	if (Default == 0)
+	{
+		const FBox UnitBox(FVector(-50), FVector(50));
+		const FBox BoundingBox = UnitBox.TransformBy(Transform);
+		MinBounds = BoundingBox.Min;
+		MaxBounds = BoundingBox.Max;
+	}
+}
 
 /**
 * FNoiseField
 */
-void
-FNoiseField::Evaluate(FFieldContext& Context, TFieldArrayView<float>& Results) const
+
+void FNoiseField::Evaluate(FFieldContext& Context, TFieldArrayView<float>& Results) const
 {
 	const float DeltaRange = (MaxRange - MinRange);
 	const int32 NumSamples = Context.SampleIndices.Num();
@@ -629,6 +858,7 @@ FNoiseField::Evaluate(FFieldContext& Context, TFieldArrayView<float>& Results) c
 		Results[Index.Result] = ScaleFunctionResult(MinRange, DeltaRange, 1.0f, PerlinValue);
 	}
 }
+
 void FNoiseField::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
@@ -636,6 +866,7 @@ void FNoiseField::Serialize(FArchive& Ar)
 	Ar << MaxRange;
 	Ar << Transform;
 }
+
 bool FNoiseField::operator==(const FFieldNodeBase& Node)
 {
 	if (Node.SerializationType() == SerializationType())
@@ -649,10 +880,39 @@ bool FNoiseField::operator==(const FFieldNodeBase& Node)
 	return false;
 }
 
+void FNoiseField::FillSetupCount(int32& NumOffsets, int32& NumParams) const
+{
+	Super::FillSetupCount(NumOffsets, NumParams);
+	NumParams += 12;
+}
+
+void FNoiseField::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+{
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	NodesParams.Add(MinRange);
+	NodesParams.Add(MaxRange);
+	NodesParams.Add(static_cast<float>(Transform.GetRotation().X));
+	NodesParams.Add(static_cast<float>(Transform.GetRotation().Y));
+	NodesParams.Add(static_cast<float>(Transform.GetRotation().Z));
+	NodesParams.Add(static_cast<float>(Transform.GetRotation().W));
+	NodesParams.Add(static_cast<float>(Transform.GetTranslation().X));
+	NodesParams.Add(static_cast<float>(Transform.GetTranslation().Y));
+	NodesParams.Add(static_cast<float>(Transform.GetTranslation().Z));
+	NodesParams.Add(static_cast<float>(Transform.GetScale3D().X));
+	NodesParams.Add(static_cast<float>(Transform.GetScale3D().Y));
+	NodesParams.Add(static_cast<float>(Transform.GetScale3D().Z));
+}
+
+float FNoiseField::EvalMaxMagnitude() const
+{
+	return MaxRange;
+}
 
 /**
 * FUniformVector
 */
+
 void FUniformVector::Evaluate(FFieldContext& Context, TFieldArrayView<FVector>& Results) const
 {
 	const FVector DirectionVal = Direction;
@@ -664,12 +924,14 @@ void FUniformVector::Evaluate(FFieldContext& Context, TFieldArrayView<FVector>& 
 		Results[Context.SampleIndices[SampleIndex].Result] = MagnitudeVal * DirectionVal;
 	}
 }
+
 void FUniformVector::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 	Ar << Magnitude;
 	Ar << Direction;
 }
+
 bool FUniformVector::operator==(const FFieldNodeBase& Node)
 {
 	if (Node.SerializationType() == SerializationType())
@@ -682,9 +944,31 @@ bool FUniformVector::operator==(const FFieldNodeBase& Node)
 	return false;
 }
 
+void FUniformVector::FillSetupCount(int32& NumOffsets, int32& NumParams) const
+{
+	Super::FillSetupCount(NumOffsets, NumParams);
+	NumParams += 4;
+}
+
+void FUniformVector::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const 
+{
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	NodesParams.Add(Magnitude);
+	NodesParams.Add(static_cast<float>(Direction.X));
+	NodesParams.Add(static_cast<float>(Direction.Y));
+	NodesParams.Add(static_cast<float>(Direction.Z));
+}
+
+float FUniformVector::EvalMaxMagnitude() const
+{
+	return Magnitude;
+}
+
 /**
 * FRadialVector
 */
+
 void FRadialVector::Evaluate(FFieldContext& Context, TFieldArrayView<FVector>& Results) const
 {
 	const int32 NumSamples = Context.SampleIndices.Num();
@@ -697,12 +981,14 @@ void FRadialVector::Evaluate(FFieldContext& Context, TFieldArrayView<FVector>& R
 	}
 	
 }
+
 void FRadialVector::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 	Ar << Magnitude;
 	Ar << Position;
 }
+
 bool FRadialVector::operator==(const FFieldNodeBase& Node)
 {
 	if (Node.SerializationType() == SerializationType())
@@ -715,9 +1001,32 @@ bool FRadialVector::operator==(const FFieldNodeBase& Node)
 	return false;
 }
 
+void FRadialVector::FillSetupCount(int32& NumOffsets, int32& NumParams) const
+{
+	Super::FillSetupCount(NumOffsets, NumParams);
+	NumParams += 4;
+}
+
+void FRadialVector::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+{
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	NodesParams.Add(Magnitude);
+	NodesParams.Add(static_cast<float>(Position.X));
+	NodesParams.Add(static_cast<float>(Position.Y));
+	NodesParams.Add(static_cast<float>(Position.Z));
+}
+
+float FRadialVector::EvalMaxMagnitude() const
+{
+	return Magnitude;
+}
+
+
 /**
 * FRandomVector
 */
+
 void FRandomVector::Evaluate(FFieldContext& Context, TFieldArrayView<FVector>& Results) const
 {
 	const int32 NumSamples = Context.SampleIndices.Num();
@@ -733,11 +1042,13 @@ void FRandomVector::Evaluate(FFieldContext& Context, TFieldArrayView<FVector>& R
 		}
 	}
 }
+
 void FRandomVector::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 	Ar << Magnitude;
 }
+
 bool FRandomVector::operator==(const FFieldNodeBase& Node)
 {
 	if (Node.SerializationType() == SerializationType())
@@ -748,11 +1059,30 @@ bool FRandomVector::operator==(const FFieldNodeBase& Node)
 	return false;
 }
 
+void FRandomVector::FillSetupCount(int32& NumOffsets, int32& NumParams) const 
+{
+	Super::FillSetupCount(NumOffsets, NumParams);
+	NumParams += 1;
+}
+
+void FRandomVector::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const 
+{
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	NodesParams.Add(Magnitude);
+}
+
+float FRandomVector::EvalMaxMagnitude() const 
+{
+	return Magnitude;
+}
+
 
 /**
 * FSumScalar 
 * 
 */
+
 void FSumScalar::Evaluate(FFieldContext& ContextIn, TFieldArrayView<float>& Results) const
 {
 	TUniquePtr<FFieldSystemMetaDataResults<float> > ResultsData(new FFieldSystemMetaDataResults<float>(Results));
@@ -850,6 +1180,7 @@ void FSumScalar::Evaluate(FFieldContext& ContextIn, TFieldArrayView<float>& Resu
 		}
 	}
 }
+
 void FSumScalar::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
@@ -858,6 +1189,7 @@ void FSumScalar::Serialize(FArchive& Ar)
 	SerializeInternal<float>(Ar, ScalarLeft);
 	SerializeInternal<EFieldOperationType>(Ar, Operation);
 }
+
 bool FSumScalar::operator==(const FFieldNodeBase& Node)
 {
 	if (Node.SerializationType() == SerializationType())
@@ -871,6 +1203,92 @@ bool FSumScalar::operator==(const FFieldNodeBase& Node)
 		return bRet;
 	}
 	return false;
+}
+
+void FSumScalar::FillSetupCount(int32& NumOffsets, int32& NumParams) const
+{
+	if (ScalarRight.IsValid())
+	{
+		ScalarRight->FillSetupCount(NumOffsets, NumParams);
+	}
+	if (ScalarLeft.IsValid())
+	{
+		ScalarLeft->FillSetupCount(NumOffsets, NumParams);
+	}
+	Super::FillSetupCount(NumOffsets, NumParams);
+	NumParams += 4;
+}
+
+void FSumScalar::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+{
+	const float NextTime = CommandTimes.Find(this) ? CommandTimes[this] : PreviousTime;
+
+	if (ScalarRight.IsValid())
+	{
+		ScalarRight->FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, NextTime);
+	}
+	if (ScalarLeft.IsValid())
+	{
+		ScalarLeft->FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, NextTime);
+	}
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	NodesParams.Add(Magnitude);
+	NodesParams.Add(static_cast<float>(ScalarRight != nullptr));
+	NodesParams.Add(static_cast<float>(ScalarLeft != nullptr));
+	NodesParams.Add(static_cast<float>(Operation));
+}
+
+float FSumScalar::EvalMaxMagnitude() const
+{
+	float MaxMagnitudeA = 0.0, MaxMagnitudeB = 0.0, MaxMagnitude = 0.0;
+	if (ScalarRight.IsValid())
+	{
+		MaxMagnitudeA = ScalarRight->EvalMaxMagnitude();
+	}
+	if (ScalarLeft.IsValid())
+	{
+		MaxMagnitudeB = ScalarLeft->EvalMaxMagnitude();
+	}
+	if (Operation == EFieldOperationType::Field_Multiply ||
+		Operation == EFieldOperationType::Field_Divide)
+	{
+		MaxMagnitude = (Operation == EFieldOperationType::Field_Multiply) ? MaxMagnitudeA * MaxMagnitudeB :
+			(FMath::Abs(MaxMagnitudeA) > FLT_EPSILON) ? MaxMagnitudeB / MaxMagnitudeA : 0.0f;
+	}
+	else if (Operation == EFieldOperationType::Field_Add ||
+		Operation == EFieldOperationType::Field_Substract)
+	{
+		MaxMagnitude = FMath::Max(MaxMagnitudeA, MaxMagnitudeB);
+	}
+
+	return Magnitude * MaxMagnitude;
+}
+
+void FSumScalar::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const
+{
+	FVector MinBoundsA(-FLT_MAX), MaxBoundsA(FLT_MAX), MinBoundsB(-FLT_MAX), MaxBoundsB(FLT_MAX);
+	if (ScalarRight.IsValid())
+	{
+		ScalarRight->ComputeFieldBounds(MinBoundsA, MaxBoundsA);
+	}
+	if (ScalarLeft.IsValid())
+	{
+		ScalarLeft->ComputeFieldBounds(MinBoundsB, MaxBoundsB);
+	}
+
+	if (Operation == EFieldOperationType::Field_Multiply ||
+		Operation == EFieldOperationType::Field_Divide)
+	{
+		MinBounds = MaxVector(MinBoundsA, MinBoundsB);
+		MaxBounds = MinVector(MaxBoundsA, MaxBoundsB);
+	}
+	else if (Operation == EFieldOperationType::Field_Add ||
+		Operation == EFieldOperationType::Field_Substract)
+	{
+		MinBounds = MinVector(MinBoundsA, MinBoundsB);
+		MaxBounds = MaxVector(MaxBoundsA, MaxBoundsB);
+	}
 }
 
 /**
@@ -1007,10 +1425,116 @@ bool FSumVector::operator==(const FFieldNodeBase& Node)
 	return false;
 }
 
+void FSumVector::FillSetupCount(int32& NumOffsets, int32& NumParams) const
+{
+	if (Scalar.IsValid())
+	{
+		Scalar->FillSetupCount(NumOffsets, NumParams);
+	}
+	if (VectorRight.IsValid())
+	{
+		VectorRight->FillSetupCount(NumOffsets, NumParams);
+	}
+	if (VectorLeft.IsValid())
+	{
+		VectorLeft->FillSetupCount(NumOffsets, NumParams);
+	}
+	Super::FillSetupCount(NumOffsets, NumParams);
+	NumParams += 5;
+}
+
+void FSumVector::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+{
+	const float NextTime = CommandTimes.Find(this) ? CommandTimes[this] : PreviousTime;
+
+	if (Scalar.IsValid())
+	{
+		Scalar->FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, NextTime);
+	}
+	if (VectorRight.IsValid())
+	{
+		VectorRight->FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, NextTime);
+	}
+	if (VectorLeft.IsValid())
+	{
+		VectorLeft->FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, NextTime);
+	}
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	NodesParams.Add(Magnitude);
+	NodesParams.Add(static_cast<float>(Scalar != nullptr));
+	NodesParams.Add(static_cast<float>(VectorRight != nullptr));
+	NodesParams.Add(static_cast<float>(VectorLeft != nullptr));
+	NodesParams.Add(static_cast<float>(Operation));
+}
+
+float FSumVector::EvalMaxMagnitude() const
+{
+	float MaxMagnitudeA = 0.0, MaxMagnitudeB = 0.0, MaxMagnitudeC = 0.0, MaxMagnitude = 0.0;
+	if (Scalar.IsValid())
+	{
+		MaxMagnitudeA = Scalar->EvalMaxMagnitude();
+	}
+	if (VectorRight.IsValid())
+	{
+		MaxMagnitudeB = VectorRight->EvalMaxMagnitude();
+	}
+	if (VectorLeft.IsValid())
+	{
+		MaxMagnitudeC = VectorLeft->EvalMaxMagnitude();
+	}
+	if (Operation == EFieldOperationType::Field_Multiply ||
+		Operation == EFieldOperationType::Field_Divide)
+	{
+		MaxMagnitude = (Operation == EFieldOperationType::Field_Multiply) ? MaxMagnitudeA * MaxMagnitudeB :
+			(FMath::Abs(MaxMagnitudeA) > FLT_EPSILON) ? MaxMagnitudeB / MaxMagnitudeA : 0.0f;
+	}
+	else if (Operation == EFieldOperationType::Field_Add ||
+		Operation == EFieldOperationType::Field_Substract)
+	{
+		MaxMagnitude = FMath::Max(MaxMagnitudeA, MaxMagnitudeB);
+	}
+
+	return Magnitude * MaxMagnitudeA * MaxMagnitude;
+}
+
+void FSumVector::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const
+{
+	FVector MinBoundsA(-FLT_MAX), MaxBoundsA(FLT_MAX), MinBoundsB(-FLT_MAX), MaxBoundsB(FLT_MAX), MinBoundsC(-FLT_MAX), MaxBoundsC(FLT_MAX);
+	if (Scalar.IsValid())
+	{
+		Scalar->ComputeFieldBounds(MinBoundsC, MaxBoundsC);
+	}
+	if (VectorRight.IsValid())
+	{
+		VectorRight->ComputeFieldBounds(MinBoundsA, MaxBoundsA);
+	}
+	if (VectorLeft.IsValid())
+	{
+		VectorLeft->ComputeFieldBounds(MinBoundsB, MaxBoundsB);
+	}
+
+	if (Operation == EFieldOperationType::Field_Multiply ||
+		Operation == EFieldOperationType::Field_Divide)
+	{
+		MinBounds = MaxVector(MinBoundsA, MinBoundsB);
+		MaxBounds = MinVector(MaxBoundsA, MaxBoundsB);
+	}
+	else if (Operation == EFieldOperationType::Field_Add ||
+		Operation == EFieldOperationType::Field_Substract)
+	{
+		MinBounds = MinVector(MinBoundsA, MinBoundsB);
+		MaxBounds = MaxVector(MaxBoundsA, MaxBoundsB);
+	}
+	MinBounds = MaxVector(MinBounds, MinBoundsC);
+	MaxBounds = MinVector(MaxBounds, MaxBoundsC);
+}
+
 
 /**
 * FConversionField<InT,OutT>
 */
+
 template<class InT, class OutT>
 void FConversionField<InT,OutT>::Evaluate(FFieldContext& Context, TFieldArrayView<OutT>& Results) const
 {
@@ -1036,12 +1560,14 @@ void FConversionField<InT,OutT>::Evaluate(FFieldContext& Context, TFieldArrayVie
 	}
 	ResultsArray.SetNum(BufferOffset, false);
 }
+
 template<class InT, class OutT>
 void FConversionField<InT, OutT>::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 	SerializeInternal<InT>(Ar, InputField);
 }
+
 template<class InT, class OutT>
 bool FConversionField<InT, OutT>::operator==(const FFieldNodeBase& Node)
 {
@@ -1054,12 +1580,62 @@ bool FConversionField<InT, OutT>::operator==(const FFieldNodeBase& Node)
 	return false;
 }
 
+template<class InT, class OutT>
+void FConversionField<InT, OutT>::FillSetupCount(int32& NumOffsets, int32& NumParams) const
+{
+	if (InputField.IsValid())
+	{
+		InputField->FillSetupCount(NumOffsets, NumParams);
+	}
+	Super::FillSetupCount(NumOffsets, NumParams);
+	NumParams += 1;
+}
+
+template<class InT, class OutT>
+void FConversionField<InT, OutT>::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+{
+	const float NextTime = CommandTimes.Find(this) ? CommandTimes[this] : PreviousTime;
+
+	if (InputField.IsValid())
+	{
+		InputField->FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, NextTime);
+	}
+
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	NodesParams.Add(static_cast<float>(InputField != nullptr));
+}
+
+template<class InT, class OutT>
+float FConversionField<InT, OutT>::EvalMaxMagnitude() const
+{
+	float MaxMagnitude = 0.0;
+	if (InputField.IsValid())
+	{
+		MaxMagnitude = InputField->EvalMaxMagnitude();
+	}
+	return MaxMagnitude;
+}
+
+template<class InT, class OutT>
+void FConversionField<InT, OutT>::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const
+{
+	FVector MinBoundsA(-FLT_MAX), MaxBoundsA(FLT_MAX);
+	if (InputField.IsValid())
+	{
+		InputField->ComputeFieldBounds(MinBoundsA, MaxBoundsA);
+	}
+	MinBounds = MinBoundsA;
+	MaxBounds = MaxBoundsA;
+}
+
 template class FConversionField<int32, float>;
 template class FConversionField<float, int32>;
 
 /**
 *  FCullingField<T>
 */
+
 template<class T>
 void FCullingField<T>::Evaluate(FFieldContext& Context, TFieldArrayView<T>& Results) const
 {
@@ -1137,6 +1713,7 @@ void FCullingField<T>::Evaluate(FFieldContext& Context, TFieldArrayView<T>& Resu
 		InputField->Evaluate(Context, Results);
 	}
 }
+
 template<class T>
 void FCullingField<T>::Serialize(FArchive& Ar)
 {
@@ -1145,6 +1722,7 @@ void FCullingField<T>::Serialize(FArchive& Ar)
 	SerializeInternal<T>(Ar, Input);
 	SerializeInternal<EFieldCullingOperationType>(Ar, Operation);
 }
+
 template<class T>
 bool FCullingField<T>::operator==(const FFieldNodeBase& Node)
 {
@@ -1158,6 +1736,79 @@ bool FCullingField<T>::operator==(const FFieldNodeBase& Node)
 	}
 	return false;
 }
+
+template<class T>
+void FCullingField<T>::FillSetupCount(int32& NumOffsets, int32& NumParams) const
+{
+	if (Culling.IsValid())
+	{
+		Culling->FillSetupCount(NumOffsets, NumParams);
+	}
+	if (Input.IsValid())
+	{
+		Input->FillSetupCount(NumOffsets, NumParams);
+	}
+	Super::FillSetupCount(NumOffsets, NumParams);
+	NumParams += 3;
+}
+
+template<class T>
+void FCullingField<T>::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+{
+	const float NextTime = CommandTimes.Find(this) ? CommandTimes[this] : PreviousTime;
+
+	if (Culling.IsValid())
+	{
+		Culling->FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, NextTime);
+	}
+	if (Input.IsValid())
+	{
+		Input->FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, NextTime);
+	}
+
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	NodesParams.Add(static_cast<float>(Culling != nullptr));
+	NodesParams.Add(static_cast<float>(Input != nullptr));
+	NodesParams.Add(static_cast<float>(Operation));
+}
+
+template<class T>
+float FCullingField<T>::EvalMaxMagnitude() const
+{
+	float MaxMagnitude = 0.0;
+	if (Input.IsValid())
+	{
+		MaxMagnitude = Input->EvalMaxMagnitude();
+	}
+	return  MaxMagnitude;
+}
+
+template<class T>
+void FCullingField<T>::ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const
+{
+	FVector MinBoundsA(-FLT_MAX), MaxBoundsA(FLT_MAX), MinBoundsB(-FLT_MAX), MaxBoundsB(FLT_MAX);
+
+	if (Culling.IsValid())
+	{
+		Culling->ComputeFieldBounds(MinBoundsA, MaxBoundsA);
+	}
+	if (Input.IsValid())
+	{
+		Input->ComputeFieldBounds(MinBoundsB, MaxBoundsB);
+	}
+	if (Operation == EFieldCullingOperationType::Field_Culling_Inside)
+	{
+		MinBounds = MinVector(MinBoundsA, MinBoundsB);
+		MaxBounds = MaxVector(MaxBoundsA, MaxBoundsB);
+	}
+	else if (Operation == EFieldCullingOperationType::Field_Culling_Outside)
+	{
+		MinBounds = MaxVector(MinBoundsA, MinBoundsB);
+		MaxBounds = MinVector(MaxBoundsA, MaxBoundsB);
+	}
+}
+
 template class CHAOS_API FCullingField<int32>;
 template class CHAOS_API FCullingField<float>;
 template class CHAOS_API FCullingField<FVector>;

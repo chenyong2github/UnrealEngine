@@ -446,6 +446,23 @@ public:
 	virtual void Serialize(FArchive& Ar) { Ar << Name; }
 	virtual bool operator==(const FFieldNodeBase& Node) { return Name.IsEqual(Node.GetName()); }
 
+	/** Count the number of offsets/params that will be used by the world physics field */
+	virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const {}
+
+	/** Fill the offsets/params arrays that will be used by the world physics field */
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const {}
+
+	/** Evaluate the maximum magnitude of the field graph  */
+	virtual float EvalMaxMagnitude() const { return 1.0; }
+
+	/** Compute the min/max spatial bounds of the field */
+	virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const
+	{
+		MinBounds = FVector(-FLT_MAX);
+		MaxBounds = FVector(FLT_MAX);
+	}
+
 	FName GetName() const { return Name; }
 	void  SetName(const FName & NameIn) { Name = NameIn; }
 
@@ -473,6 +490,22 @@ public:
 
 	static EFieldType StaticType();
 	virtual EFieldType Type() const { return StaticType(); }
+
+	/** Count the number of offsets/params that will be used by the world physics field */
+	virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override
+	{
+		++NumOffsets;
+		NumParams += 2;
+	}
+
+	/** Fill the offsets/params arrays that will be used by the world physics field */
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override
+	{
+		NodesOffsets.Add(NodesParams.Num());
+		NodesParams.Add(static_cast<float>(Type()));
+		NodesParams.Add(static_cast<float>(SerializationType()));
+	}
 };
 
 template<> inline FFieldNodeBase::EFieldType FFieldNode<int32>::StaticType() { return EFieldType::EField_Int32; }

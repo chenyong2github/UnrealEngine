@@ -23,13 +23,22 @@ public:
 	virtual FFieldNodeBase * NewCopy() const override { return new FUniformInteger(Magnitude); }
 	virtual ~FUniformInteger() {}
 
-	void Evaluate(FFieldContext&, TFieldArrayView<int32>& Results) const override;
-	virtual bool operator==(const FFieldNodeBase& Node);
+	virtual void Evaluate(FFieldContext&, TFieldArrayView<int32>& Results) const override;
+	virtual bool operator==(const FFieldNodeBase& Node) override;
 
 	/** Serialization API */
-	virtual FFieldNodeBase::ESerializationType SerializationType() const { return FFieldNodeBase::ESerializationType::FieldNode_FUniformInteger; }
+	virtual FFieldNodeBase::ESerializationType SerializationType() const override { return FFieldNodeBase::ESerializationType::FieldNode_FUniformInteger; }
 	virtual void Serialize(FArchive& Ar) override;
 
+	/** Count the number of offsets/params that will be used by the world physics field */
+	virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
+
+	/** Fill the offsets/params arrays that will be used by the world physics field */
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+
+	/** Evaluate the maximum magnitude of the field graph  */
+	virtual float EvalMaxMagnitude() const override;
 
 	int32 Magnitude;
 };
@@ -60,12 +69,25 @@ public:
 	virtual FFieldNodeBase * NewCopy() const override { return new FRadialIntMask(Radius,Position,InteriorValue,ExteriorValue,SetMaskCondition); }
 	virtual ~FRadialIntMask() {}
 
-	void Evaluate(FFieldContext&, TFieldArrayView<int32>& Results) const override;
-	virtual bool operator==(const FFieldNodeBase& Node);
+	virtual void Evaluate(FFieldContext&, TFieldArrayView<int32>& Results) const override;
+	virtual bool operator==(const FFieldNodeBase& Node) override;
 
 	/** Serialization API */
-	virtual FFieldNodeBase::ESerializationType SerializationType() const { return FFieldNodeBase::ESerializationType::FieldNode_FRadialIntMask; }
+	virtual FFieldNodeBase::ESerializationType SerializationType() const override { return FFieldNodeBase::ESerializationType::FieldNode_FRadialIntMask; }
 	virtual void Serialize(FArchive& Ar) override;
+
+	/** Count the number of offsets/params that will be used by the world physics field */
+	virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
+
+	/** Fill the offsets/params arrays that will be used by the world physics field */
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+
+	/** Evaluate the maximum magnitude of the field graph  */
+	virtual float EvalMaxMagnitude() const override;
+
+	/** Compute the min/max spatial bounds of the field */
+	virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
 
 	float Radius;
 	FVector Position;
@@ -97,8 +119,18 @@ public:
 	virtual bool operator==(const FFieldNodeBase& Node);
 
 	/** Serialization API */
-	virtual FFieldNodeBase::ESerializationType SerializationType() const { return FFieldNodeBase::ESerializationType::FieldNode_FUniformScalar; }
+	virtual FFieldNodeBase::ESerializationType SerializationType() const override { return FFieldNodeBase::ESerializationType::FieldNode_FUniformScalar; }
 	virtual void Serialize(FArchive& Ar) override;
+
+	/** Count the number of offsets/params that will be used by the world physics field */
+	virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
+
+	/** Fill the offsets/params arrays that will be used by the world physics field */
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+
+	/** Evaluate the maximum magnitude of the field graph  */
+	virtual float EvalMaxMagnitude() const override;
 
 	float Magnitude;
 };
@@ -127,12 +159,23 @@ public:
 
 	virtual ~FWaveScalar() {}
 
-	void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;
-	virtual bool operator==(const FFieldNodeBase& Node);
+	virtual void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;
+	virtual bool operator==(const FFieldNodeBase& Node) override;
 
 	/** Serialization API */
-	virtual FFieldNodeBase::ESerializationType SerializationType() const { return FFieldNodeBase::ESerializationType::FieldNode_FWaveScalar; }
+	virtual FFieldNodeBase::ESerializationType SerializationType() const override { return FFieldNodeBase::ESerializationType::FieldNode_FWaveScalar; }
 	virtual void Serialize(FArchive& Ar) override;
+
+	/** Count the number of offsets/params that will be used by the world physics field */
+	virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
+
+	/** Fill the offsets/params arrays that will be used by the world physics field */
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+
+	/** Evaluate the maximum magnitude of the field graph  */
+	virtual float EvalMaxMagnitude() const override;
+
 
 	float Magnitude;
 	FVector Position;
@@ -173,12 +216,25 @@ public:
 
 	virtual ~FRadialFalloff() {}
 
-	void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;
-	virtual bool operator==(const FFieldNodeBase& Node);
+	virtual void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;
+	virtual bool operator==(const FFieldNodeBase& Node) override;
 
 	/** Serialization API */
-	virtual FFieldNodeBase::ESerializationType SerializationType() const { return FFieldNodeBase::ESerializationType::FieldNode_FRadialFalloff; }
+	virtual FFieldNodeBase::ESerializationType SerializationType() const override { return FFieldNodeBase::ESerializationType::FieldNode_FRadialFalloff; }
 	virtual void Serialize(FArchive& Ar) override;
+
+	/** Count the number of offsets/params that will be used by the world physics field */
+	virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
+
+	/** Fill the offsets/params arrays that will be used by the world physics field */
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+
+	/** Evaluate the maximum magnitude of the field graph  */
+	virtual float EvalMaxMagnitude() const override;
+
+	/** Compute the min/max spatial bounds of the field */
+	virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
 
 	float Magnitude;
 	float MinRange;
@@ -225,12 +281,26 @@ public:
 	virtual FFieldNodeBase * NewCopy() const override { return new FPlaneFalloff(Magnitude, MinRange, MaxRange, Default, Distance, Position, Normal, Falloff); }
 	virtual ~FPlaneFalloff() {}
 
-	void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;
-	virtual bool operator==(const FFieldNodeBase& Node);
+	virtual void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;
+	virtual bool operator==(const FFieldNodeBase& Node) override;
 
 	/** Serialization API */
-	virtual FFieldNodeBase::ESerializationType SerializationType() const { return FFieldNodeBase::ESerializationType::FieldNode_FPlaneFalloff; }
+	virtual FFieldNodeBase::ESerializationType SerializationType() const override { return FFieldNodeBase::ESerializationType::FieldNode_FPlaneFalloff; }
 	virtual void Serialize(FArchive& Ar) override;
+
+	/** Count the number of offsets/params that will be used by the world physics field */
+	virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
+
+	/** Fill the offsets/params arrays that will be used by the world physics field */
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+
+	/** Evaluate the maximum magnitude of the field graph  */
+	virtual float EvalMaxMagnitude() const override;
+
+	/** Compute the min/max spatial bounds of the field */
+	virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
+
 
 	float Magnitude;
 	float MinRange;
@@ -274,12 +344,25 @@ public:
 	virtual FFieldNodeBase * NewCopy() const override { return new FBoxFalloff(Magnitude, MinRange, MaxRange, Default, Transform, Falloff); }
 	virtual ~FBoxFalloff() {}
 
-	void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;
-	virtual bool operator==(const FFieldNodeBase& Node);
+	virtual void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;
+	virtual bool operator==(const FFieldNodeBase& Node) override;
 
 	/** Serialization API */
-	virtual FFieldNodeBase::ESerializationType SerializationType() const { return FFieldNodeBase::ESerializationType::FieldNode_FBoxFalloff; }
+	virtual FFieldNodeBase::ESerializationType SerializationType() const override { return FFieldNodeBase::ESerializationType::FieldNode_FBoxFalloff; }
 	virtual void Serialize(FArchive& Ar) override;
+
+	/** Count the number of offsets/params that will be used by the world physics field */
+	virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
+
+	/** Fill the offsets/params arrays that will be used by the world physics field */
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+
+	/** Evaluate the maximum magnitude of the field graph  */
+	virtual float EvalMaxMagnitude() const override;
+
+	/** Compute the min/max spatial bounds of the field */
+	virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
 
 	float Magnitude;
 	float MinRange;
@@ -312,20 +395,27 @@ public:
 	virtual FFieldNodeBase * NewCopy() const override { return new FNoiseField(MinRange,MaxRange,Transform); }
 	virtual ~FNoiseField() {}
 
-	void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;	
-	virtual bool operator==(const FFieldNodeBase& Node);
+	virtual void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;
+	virtual bool operator==(const FFieldNodeBase& Node) override;
 
 	/** Serialization API */
-	virtual FFieldNodeBase::ESerializationType SerializationType() const { return FFieldNodeBase::ESerializationType::FieldNode_FNoiseField; }
+	virtual FFieldNodeBase::ESerializationType SerializationType() const override { return FFieldNodeBase::ESerializationType::FieldNode_FNoiseField; }
 	virtual void Serialize(FArchive& Ar) override;
+
+	/** Count the number of offsets/params that will be used by the world physics field */
+	virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
+
+	/** Fill the offsets/params arrays that will be used by the world physics field */
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+
+	/** Evaluate the maximum magnitude of the field graph  */
+	virtual float EvalMaxMagnitude() const override;
 
 	float MinRange;
 	float MaxRange;
 	FTransform Transform;
 };
-
-
-
 
 /**
 * UniformVector
@@ -346,17 +436,26 @@ public:
 	virtual FFieldNodeBase * NewCopy() const override { return new FUniformVector(Magnitude,Direction); }
 	virtual ~FUniformVector() {}
 
-	void Evaluate(FFieldContext&, TFieldArrayView<FVector>& Results) const override;
-	virtual bool operator==(const FFieldNodeBase& Node);
+	virtual void Evaluate(FFieldContext&, TFieldArrayView<FVector>& Results) const override;
+	virtual bool operator==(const FFieldNodeBase& Node) override;
 
 	/** Serialization API */
-	virtual FFieldNodeBase::ESerializationType SerializationType() const { return FFieldNodeBase::ESerializationType::FieldNode_FUniformVector; }
+	virtual FFieldNodeBase::ESerializationType SerializationType() const override { return FFieldNodeBase::ESerializationType::FieldNode_FUniformVector; }
 	virtual void Serialize(FArchive& Ar) override;
+
+	/** Count the number of offsets/params that will be used by the world physics field */
+	virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
+
+	/** Fill the offsets/params arrays that will be used by the world physics field */
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+
+	/** Evaluate the maximum magnitude of the field graph  */
+	virtual float EvalMaxMagnitude() const override;
 
 	float Magnitude;
 	FVector Direction;
 };
-
 
 /**
 * RadialVector
@@ -377,18 +476,27 @@ public:
 	virtual FFieldNodeBase * NewCopy() const override { return new FRadialVector(Magnitude,Position); }
 	virtual ~FRadialVector() {}
 
-	void Evaluate(FFieldContext&, TFieldArrayView<FVector>& Results) const override;
-	virtual bool operator==(const FFieldNodeBase& Node);
+	virtual void Evaluate(FFieldContext&, TFieldArrayView<FVector>& Results) const override;
+	virtual bool operator==(const FFieldNodeBase& Node) override;
 
 	/** Serialization API */
-	virtual FFieldNodeBase::ESerializationType SerializationType() const { return FFieldNodeBase::ESerializationType::FieldNode_FRadialVector; }
+	virtual FFieldNodeBase::ESerializationType SerializationType() const override { return FFieldNodeBase::ESerializationType::FieldNode_FRadialVector; }
 	virtual void Serialize(FArchive& Ar) override;
+
+	/** Count the number of offsets/params that will be used by the world physics field */
+	virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
+
+	/** Fill the offsets/params arrays that will be used by the world physics field */
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+
+	/** Evaluate the maximum magnitude of the field graph  */
+	virtual float EvalMaxMagnitude() const override;
 
 	float Magnitude;
 	FVector Position;
 
 };
-
 
 /**
 * RandomVector
@@ -407,15 +515,24 @@ public:
 	virtual FFieldNodeBase * NewCopy() const override { return new FRandomVector(Magnitude); }
 	virtual ~FRandomVector() {}
 
-	void Evaluate(FFieldContext&, TFieldArrayView<FVector>& Results) const override;
-	virtual bool operator==(const FFieldNodeBase& Node);
+	virtual void Evaluate(FFieldContext&, TFieldArrayView<FVector>& Results) const override;
+	virtual bool operator==(const FFieldNodeBase& Node) override;
 
 	/** Serialization API */
-	virtual FFieldNodeBase::ESerializationType SerializationType() const { return FFieldNodeBase::ESerializationType::FieldNode_FRandomVector; }
+	virtual FFieldNodeBase::ESerializationType SerializationType() const override { return FFieldNodeBase::ESerializationType::FieldNode_FRandomVector; }
 	virtual void Serialize(FArchive& Ar) override;
 
-	float Magnitude;
+	/** Count the number of offsets/params that will be used by the world physics field */
+	virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
 
+	/** Fill the offsets/params arrays that will be used by the world physics field */
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+
+	/** Evaluate the maximum magnitude of the field graph  */
+	virtual float EvalMaxMagnitude() const override;
+
+	float Magnitude;
 };
 
 /**
@@ -447,12 +564,25 @@ public:
 	}
 	virtual ~FSumScalar() {}
 
-	void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;
-	virtual bool operator==(const FFieldNodeBase& Node);
+	virtual void Evaluate(FFieldContext&, TFieldArrayView<float>& Results) const override;
+	virtual bool operator==(const FFieldNodeBase& Node) override;
 
 	/** Serialization API */
-	virtual FFieldNodeBase::ESerializationType SerializationType() const { return FFieldNodeBase::ESerializationType::FieldNode_FSumScalar; }
+	virtual FFieldNodeBase::ESerializationType SerializationType() const override { return FFieldNodeBase::ESerializationType::FieldNode_FSumScalar; }
 	virtual void Serialize(FArchive& Ar) override;
+
+	/** Count the number of offsets/params that will be used by the world physics field */
+	virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
+
+	/** Fill the offsets/params arrays that will be used by the world physics field */
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+
+	/** Evaluate the maximum magnitude of the field graph  */
+	virtual float EvalMaxMagnitude() const override;
+
+	/** Compute the min/max spatial bounds of the field */
+	virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
 
 	float Magnitude;
 	TUniquePtr< FFieldNode<float> > ScalarRight;
@@ -492,12 +622,25 @@ public:
 	}
 	virtual ~FSumVector() {}
 
-	void Evaluate(FFieldContext&, TFieldArrayView<FVector>& Results) const override;
-	virtual bool operator==(const FFieldNodeBase& Node);
+	virtual void Evaluate(FFieldContext&, TFieldArrayView<FVector>& Results) const override;
+	virtual bool operator==(const FFieldNodeBase& Node) override;
 
 	/** Serialization API */
-	virtual FFieldNodeBase::ESerializationType SerializationType() const { return FFieldNodeBase::ESerializationType::FieldNode_FSumVector; }
+	virtual FFieldNodeBase::ESerializationType SerializationType() const override { return FFieldNodeBase::ESerializationType::FieldNode_FSumVector; }
 	virtual void Serialize(FArchive& Ar) override;
+
+	/** Count the number of offsets/params that will be used by the world physics field */
+	virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
+
+	/** Fill the offsets/params arrays that will be used by the world physics field */
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+
+	/** Evaluate the maximum magnitude of the field graph  */
+	virtual float EvalMaxMagnitude() const override;
+
+	/** Compute the min/max spatial bounds of the field */
+	virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
 
 	float Magnitude;
 	TUniquePtr< FFieldNode<float> > Scalar;
@@ -527,12 +670,25 @@ public:
 	}
 	virtual ~FConversionField() {}
 
-	void Evaluate(FFieldContext&, TFieldArrayView<OutT>& Results) const override;
-	virtual bool operator==(const FFieldNodeBase& Node);
+	virtual void Evaluate(FFieldContext&, TFieldArrayView<OutT>& Results) const override;
+	virtual bool operator==(const FFieldNodeBase& Node) override;
 
 	/** Serialization API */
-	virtual FFieldNodeBase::ESerializationType SerializationType() const { return FFieldNodeBase::ESerializationType::FieldNode_FConversionField; }
+	virtual FFieldNodeBase::ESerializationType SerializationType() const override { return FFieldNodeBase::ESerializationType::FieldNode_FConversionField; }
 	virtual void Serialize(FArchive& Ar) override;
+
+	/** Count the number of offsets/params that will be used by the world physics field */
+	virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
+
+	/** Fill the offsets/params arrays that will be used by the world physics field */
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+
+	/** Evaluate the maximum magnitude of the field graph  */
+	virtual float EvalMaxMagnitude() const override;
+
+	/** Compute the min/max spatial bounds of the field */
+	virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
 
 	TUniquePtr< FFieldNode<InT> > InputField;
 };
@@ -567,12 +723,25 @@ public:
 	}
 	virtual ~FCullingField() {}
 
-	void Evaluate(FFieldContext&, TFieldArrayView<T>& Results) const override;
-	virtual bool operator==(const FFieldNodeBase& Node);
+	virtual void Evaluate(FFieldContext&, TFieldArrayView<T>& Results) const override;
+	virtual bool operator==(const FFieldNodeBase& Node) override;
 
 	/** Serialization API */
-	virtual FFieldNodeBase::ESerializationType SerializationType() const { return FFieldNodeBase::ESerializationType::FieldNode_FCullingField; }
+	virtual FFieldNodeBase::ESerializationType SerializationType() const override { return FFieldNodeBase::ESerializationType::FieldNode_FCullingField; }
 	virtual void Serialize(FArchive& Ar) override;
+
+	/** Count the number of offsets/params that will be used by the world physics field */
+	virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
+
+	/** Fill the offsets/params arrays that will be used by the world physics field */
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
+		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+
+	/** Evaluate the maximum magnitude of the field graph  */
+	virtual float EvalMaxMagnitude() const override;
+
+	/** Compute the min/max spatial bounds of the field */
+	virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
 
 	TUniquePtr< FFieldNode<float> > Culling;
 	TUniquePtr< FFieldNode<T> > Input;
@@ -586,7 +755,7 @@ extern template class CHAOS_API FCullingField<FVector>;
 #endif
 
 /**
-* FCullingField
+* FReturnResultsTerminal
 **/
 
 template<class T>
@@ -610,7 +779,6 @@ public:
 	/** Serialization API */
 	virtual FFieldNodeBase::ESerializationType SerializationType() const { return FFieldNodeBase::ESerializationType::FieldNode_FReturnResultsTerminal; }
 	virtual void Serialize(FArchive& Ar) override;
-
 };
 
 #if PLATFORM_MAC
