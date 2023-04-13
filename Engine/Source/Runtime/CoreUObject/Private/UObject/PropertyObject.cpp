@@ -91,7 +91,7 @@ EConvertFromTypeResult FObjectProperty::ConvertFromType(const FPropertyTag& Tag,
 	return EConvertFromTypeResult::UseSerializeItem;
 }
 
-void FObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value, void const* Defaults ) const
+void FObjectProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, void const* Defaults) const
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 
@@ -102,7 +102,7 @@ void FObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value
 		Slot << (*ObjectPtr);
 
 #if !(UE_BUILD_TEST || UE_BUILD_SHIPPING) 
-		if(!UnderlyingArchive.IsSaving())
+		if (!UnderlyingArchive.IsSaving())
 		{
 			CheckValidObject(ObjectPtr, *ObjectPtr);
 		}
@@ -120,34 +120,58 @@ void FObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value
 		check(CurrentValuePtr.IsResolved());
 		UObject* CurrentValue = UE::CoreUObject::Private::ReadObjectHandlePointerNoCheck(CurrentValuePtr.GetHandle());
 
-		if (ObjectValue != CurrentValue)
+		PostSerializeObjectItem(UnderlyingArchive, Value, CurrentValue, ObjectValue, EObjectPropertyOptions::None);
+	}
+}
+
+void FObjectProperty::PostSerializeObjectItem(FArchive& SerializingArchive, void* Value, UObject* CurrentValue, UObject* ObjectValue, EObjectPropertyOptions Options /*= EObjectPropertyOptions::None*/) const
+{
+	// Make sure non-nullable properties don't end up with null values
+	if (!(Options & EObjectPropertyOptions::AllowNullValuesOnNonNullableProperty) &&
+		!ObjectValue && HasAnyPropertyFlags(CPF_NonNullable) &&
+		!SerializingArchive.IsSerializingDefaults() && // null values when Serializing CDOs are allowed, they will be fixed up later
+		!SerializingArchive.IsSaving() && // Constructing new objects when saving may confuse package saving code (new import/export created after import/export collection pass)
+		!SerializingArchive.IsTransacting()) // Don't create new objects when loading from the transaction buffer
+	{
+		UObject* DefaultValue = ConstructDefaultObjectValueIfNecessary(CurrentValue);
+
+		UE_LOG(LogProperty, Warning,
+			TEXT("Failed to serialize value for non-nullable property %s. Reference will be defaulted to %s."),
+			*GetFullName(),
+			*DefaultValue->GetFullName()
+		);
+
+		SetObjectPropertyValue(Value, DefaultValue);
+		ObjectValue = DefaultValue;
+	}
+
+	if (ObjectValue != CurrentValue)
+	{
+		SetObjectPropertyValue(Value, ObjectValue);
+
+#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+		if (ULinkerPlaceholderExportObject* PlaceholderVal = Cast<ULinkerPlaceholderExportObject>(ObjectValue))
 		{
-			SetObjectPropertyValue(Value, ObjectValue);
-
-	#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-			if (ULinkerPlaceholderExportObject* PlaceholderVal = Cast<ULinkerPlaceholderExportObject>(ObjectValue))
-			{
-				PlaceholderVal->AddReferencingPropertyValue(this, Value);
-			}
-			else if (ULinkerPlaceholderClass* PlaceholderClass = Cast<ULinkerPlaceholderClass>(ObjectValue))
-			{
-				PlaceholderClass->AddReferencingPropertyValue(this, Value);
-			}
-			// NOTE: we don't remove this from CurrentValue if it is a 
-			//       ULinkerPlaceholderExportObject; this is because this property 
-			//       could be an array inner, and another member of that array (also 
-			//       referenced through this property)... if this becomes a problem,
-			//       then we could inc/decrement a ref count per referencing property 
-			//
-			// @TODO: if this becomes problematic (because ObjectValue doesn't match 
-			//        this property's PropertyClass), then we could spawn another
-			//        placeholder object (of PropertyClass's type), or use null; but
-			//        we'd have to modify ULinkerPlaceholderExportObject::ReplaceReferencingObjectValues()
-			//        to accommodate this (as it depends on finding itself as the set value)
-	#endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-
-			CheckValidObject(Value, CurrentValue);
+			PlaceholderVal->AddReferencingPropertyValue(this, Value);
 		}
+		else if (ULinkerPlaceholderClass* PlaceholderClass = Cast<ULinkerPlaceholderClass>(ObjectValue))
+		{
+			PlaceholderClass->AddReferencingPropertyValue(this, Value);
+		}
+		// NOTE: we don't remove this from CurrentValue if it is a 
+		//       ULinkerPlaceholderExportObject; this is because this property 
+		//       could be an array inner, and another member of that array (also 
+		//       referenced through this property)... if this becomes a problem,
+		//       then we could inc/decrement a ref count per referencing property 
+		//
+		// @TODO: if this becomes problematic (because ObjectValue doesn't match 
+		//        this property's PropertyClass), then we could spawn another
+		//        placeholder object (of PropertyClass's type), or use null; but
+		//        we'd have to modify ULinkerPlaceholderExportObject::ReplaceReferencingObjectValues()
+		//        to accommodate this (as it depends on finding itself as the set value)
+#endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+
+		CheckValidObject(Value, CurrentValue);
 	}
 }
 

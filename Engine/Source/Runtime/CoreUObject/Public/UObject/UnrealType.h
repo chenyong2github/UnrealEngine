@@ -2690,6 +2690,14 @@ protected:
 	virtual bool AllowObjectTypeReinterpretationTo(const FObjectPropertyBase* Other) const;
 	// End of FObjectPropertyBase interface
 
+	/**
+	 * Constructs a new object if the existing one is missing or is not compatible with the property class
+	 * Used for making sure non-nullable properties have valid values.
+	 * @param ExistingValue Previous object value (can be null)
+	 * @return Non-null object that was assigned to this property value address
+	 */
+	UObject* ConstructDefaultObjectValueIfNecessary(UObject* ExistingValue) const;
+
 	/* Helper functions for UObject property types that wrap the object pointer in a smart pointer */
 	template <typename T>
 	void GetWrappedUObjectPtrValues(UObject** OutObjects, const void* SrcAddress, EPropertyMemoryAccess SrcAccess, int32 ArrayIndex, int32 ArrayCount) const
@@ -2874,6 +2882,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 };
 
+enum class EObjectPropertyOptions
+{
+	None = 0,
+	AllowNullValuesOnNonNullableProperty = 1
+};
+ENUM_CLASS_FLAGS(EObjectPropertyOptions);
 
 //
 // Describes a reference variable to another object which may be nil.
@@ -2941,6 +2955,15 @@ public:
 	virtual FString GetCPPTypeCustom(FString* ExtendedTypeText, uint32 CPPExportFlags, const FString& InnerNativeTypeName)  const override;
 	// End of FObjectPropertyBase interface
 	
+	/**
+	 * Performs post serialization steps after loading a property value
+	 * @param SerializingArchive Archive used for serialization
+	 * @param Value Property address
+	 * @param CurrentValue Current Object value
+	 * @param ObjectValue Deserialized Object value
+	 */
+	void PostSerializeObjectItem(FArchive& SerializingArchive, void* Value, UObject* CurrentValue, UObject* ObjectValue, EObjectPropertyOptions Options = EObjectPropertyOptions::None) const;
+
 	inline TObjectPtr<UObject>* GetObjectPtrPropertyValuePtr(const void* PropertyValueAddress) const
 	{
 		return reinterpret_cast<TObjectPtr<UObject>*>(const_cast<void*>(PropertyValueAddress));
