@@ -199,6 +199,9 @@ public:
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 
+	void RegisterChaosEvents();
+	void UnregisterChaosEvents();
+
 private:
 
 	// contains the set of properties that uniquely identifies a reported collision
@@ -276,9 +279,6 @@ private:
 
 	void DispatchPendingCollisionNotifies();
 	void DispatchPendingWakeNotifies();
-
-	void RegisterChaosEvents();
-	void UnregisterChaosEvents();
 
 	template <typename EventIterator>
 	void FillPhysicsProxy(FPhysScene_Chaos& Scene, TArray<UObject*>& Result, EventIterator& It);
