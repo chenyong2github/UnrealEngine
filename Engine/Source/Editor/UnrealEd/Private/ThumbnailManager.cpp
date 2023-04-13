@@ -74,7 +74,8 @@ void UThumbnailManager::Initialize(void)
 	{
 		InitializeRenderTypeArray(RenderableThumbnailTypes);
 
-		SharedThumbnailPool = MakeShared<FAssetThumbnailPool>(100);
+		// The size of the pool is a bit large to allow the asset views to use it (each asset view used 1024 by default)
+		SharedThumbnailPool = MakeShared<FAssetThumbnailPool>(4096);
 
 		FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &UThumbnailManager::OnObjectPropertyChanged);
 

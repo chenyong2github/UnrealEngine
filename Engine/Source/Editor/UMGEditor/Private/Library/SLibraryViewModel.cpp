@@ -166,14 +166,9 @@ void FWidgetTemplateListViewModel::ConstructListView(TArray<TSharedPtr<FWidgetTe
 
 	if (!AssetViewPtr)
 	{
-		// Reserve just enough thumbnails, plus a few extra if this category has user widgets
-		uint32 ThumbnailPoolSize = NumAssets + NumClasses;
-		ThumbnailPoolSize += NumAssets > 0 ? 32 : 0;
-
 		AssetViewPtr = SNew(SAssetView)
 			.InitialCategoryFilter(EContentBrowserItemCategoryFilter::IncludeAssets | EContentBrowserItemCategoryFilter::IncludeClasses)
 			.InitialSourcesData(*LibrarySourceData)
-			.InitialThumbnailPoolSize(ThumbnailPoolSize)
 			.InitialThumbnailSize(EThumbnailSize::Small)
 			.FrontendFilters(TemplatesFilter)
 			.ForceShowEngineContent(true)

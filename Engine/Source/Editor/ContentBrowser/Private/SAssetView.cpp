@@ -50,6 +50,7 @@
 #include "SlateOptMacros.h"
 #include "Styling/AppStyle.h"
 #include "Textures/SlateIcon.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
 #include "ToolMenus.h"
 #include "UObject/UnrealType.h"
 #include "Widgets/Images/SImage.h"
@@ -184,9 +185,6 @@ SAssetView::~SAssetView()
 		// Clear the frontend filter changed delegate
 		FrontendFilters->OnChanged().RemoveAll( this );
 	}
-
-	// Release all rendering resources being held onto
-	AssetThumbnailPool.Reset();
 }
 
 
@@ -229,8 +227,8 @@ void SAssetView::Construct( const FArguments& InArgs )
 
 	ThumbnailScaleRangeScalar = (float)DisplaySize.Y / 2160.f;
 
-	// Create a thumbnail pool for rendering thumbnails	
-	AssetThumbnailPool = MakeShared<FAssetThumbnailPool>(InArgs._InitialThumbnailPoolSize);
+	// Use the shared ThumbnailPool for the rendering of thumbnails
+	AssetThumbnailPool = UThumbnailManager::Get().GetSharedThumbnailPool();
 	NumOffscreenThumbnails = 64;
 	ListViewThumbnailResolution = 128;
 	ListViewThumbnailSize = 64;

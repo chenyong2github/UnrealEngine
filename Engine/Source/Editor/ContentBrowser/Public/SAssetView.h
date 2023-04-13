@@ -99,7 +99,6 @@ public:
 		, _AllowThumbnailHintLabel(true)
 		, _InitialViewType(EAssetViewType::Tile)
 		, _InitialThumbnailSize(EThumbnailSize::Medium)
-		, _InitialThumbnailPoolSize(1024)
 		, _ShowBottomToolbar(true)
 		, _ShowViewOptions(true)
 		, _AllowThumbnailEditMode(false)
@@ -195,9 +194,6 @@ public:
 
 		/** Initial thumbnail size */
 		SLATE_ARGUMENT( EThumbnailSize, InitialThumbnailSize )
-
-		/** Initial thumbnail pool size */
-		SLATE_ARGUMENT( uint32, InitialThumbnailPoolSize )
 
 		/** Should the toolbar indicating number of selected assets, mode switch buttons, etc... be shown? */
 		SLATE_ARGUMENT( bool, ShowBottomToolbar )

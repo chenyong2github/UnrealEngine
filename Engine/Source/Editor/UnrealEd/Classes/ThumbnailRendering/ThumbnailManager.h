@@ -154,8 +154,7 @@ public:
 	UNREALED_API virtual void UnregisterCustomRenderer(UClass* Class);
 
 	/** 
-	 * Returns the thumbnail pool which should be used for most thumbnails in the editor. 
-	 * Unless you are rendering a huge amount of thumbnails at once this shared pool should be used
+	 * Returns the thumbnail pool which should be used for most thumbnails in the editor.
 	 */
 	UNREALED_API TSharedPtr<FAssetThumbnailPool> GetSharedThumbnailPool() const { return SharedThumbnailPool; }
 
