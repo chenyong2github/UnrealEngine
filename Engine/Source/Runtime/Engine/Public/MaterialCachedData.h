@@ -248,14 +248,15 @@ struct FMaterialCachedExpressionData
 
 	bool IsPropertyConnected(EMaterialProperty Property) const
 	{
-		return ((PropertyConnectedBitmask >> (uint32)Property) & 0x1) != 0;
+		return ((PropertyConnectedMask >> (uint64)Property) & 0x1) != 0;
 	}
 
 	void SetPropertyConnected(EMaterialProperty Property)
 	{
-		PropertyConnectedBitmask |= (1 << (uint32)Property);
+		PropertyConnectedMask |= (1ull << (uint64)Property);
 	}
 
+	bool Serialize(FArchive& Ar);
 	void PostSerialize(const FArchive& Ar);
 
 #if WITH_EDITORONLY_DATA
@@ -347,9 +348,12 @@ struct FMaterialCachedExpressionData
 	UPROPERTY()
 	uint32 bHasVertexInterpolator : 1;
 
+	UPROPERTY()
+	uint32 PropertyConnectedBitmask_DEPRECATED = 0;
+
 	/** Each bit corresponds to EMaterialProperty connection status. */
 	UPROPERTY()
-	uint32 PropertyConnectedBitmask = 0;
+	uint64 PropertyConnectedMask = 0;
 
 #if WITH_EDITOR
 	/** Array of errors reporting a parameter being set multiple times to distinct values. */
@@ -357,3 +361,11 @@ struct FMaterialCachedExpressionData
 #endif
 };
 
+template<>
+struct TStructOpsTypeTraits<FMaterialCachedExpressionData> : public TStructOpsTypeTraitsBase2<FMaterialCachedExpressionData>
+{
+	enum
+	{
+		WithSerializer = true,
+	};
+};

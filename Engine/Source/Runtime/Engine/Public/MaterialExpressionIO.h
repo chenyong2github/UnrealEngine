@@ -299,27 +299,27 @@ struct TStructOpsTypeTraits<FVector2MaterialInput>
 struct FMaterialAttributesInput : FExpressionInput
 {
 	FMaterialAttributesInput() 
-	: PropertyConnectedBitmask(0)
+	: PropertyConnectedMask(0)
 	{ 
-		// ensure PropertyConnectedBitmask can contain all properties.
-		static_assert((uint32)(MP_MaterialAttributes)-1 <= (8 * sizeof(PropertyConnectedBitmask)), "PropertyConnectedBitmask cannot contain entire EMaterialProperty enumeration.");
+		// Ensure PropertyConnectedMask can contain all properties.
+		static_assert((uint64)(MP_MaterialAttributes)-1 < (8 * sizeof(PropertyConnectedMask)), "PropertyConnectedMask cannot contain entire EMaterialProperty enumeration.");
 	}
 
 #if WITH_EDITOR
 	ENGINE_API int32 CompileWithDefault(class FMaterialCompiler* Compiler, const FGuid& AttributeID);
-	inline bool IsConnected(EMaterialProperty Property) { return ((PropertyConnectedBitmask >> (uint32)Property) & 0x1) != 0; }
+	inline bool IsConnected(EMaterialProperty Property) { return ((PropertyConnectedMask >> (uint64)Property) & 0x1) != 0; }
 	inline bool IsConnected() const { return FExpressionInput::IsConnected(); }
 	inline void SetConnectedProperty(EMaterialProperty Property, bool bIsConnected)
 	{
-		PropertyConnectedBitmask = bIsConnected ? PropertyConnectedBitmask | (1 << (uint32)Property) : PropertyConnectedBitmask & ~(1 << (uint32)Property);
+		PropertyConnectedMask = bIsConnected ? PropertyConnectedMask | (1ull << (uint64)Property) : PropertyConnectedMask & ~(1ull << (uint64)Property);
 	}
 #endif  // WITH_EDITOR
 
 	/** ICPPStructOps interface */
 	ENGINE_API bool Serialize(FArchive& Ar);
 
-	// each bit corresponds to EMaterialProperty connection status.
-	uint32 PropertyConnectedBitmask;
+	// Each bit corresponds to EMaterialProperty connection status.
+	uint64 PropertyConnectedMask;
 };
 
 template<>

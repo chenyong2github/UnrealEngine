@@ -346,6 +346,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Change the default for facing & alignment to be automatic
 		GroomAssetRemoveInAssetSerialization,
 
+		// Changed the material property connected bitmasks from 32bit to 64bit
+		IncreaseMaterialAttributesInputMask,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

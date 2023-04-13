@@ -83,7 +83,7 @@ USTRUCT(noexport)
 struct FMaterialAttributesInput : public FExpressionInput
 {
 	UPROPERTY(transient)
-	int32 PropertyConnectedBitmask;
+	int64 PropertyConnectedMask;
 };
 
 #endif

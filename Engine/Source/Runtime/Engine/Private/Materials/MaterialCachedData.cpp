@@ -36,6 +36,7 @@
 #include "LandscapeGrassType.h"
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveLinearColorAtlas.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialCachedData)
 
@@ -43,7 +44,7 @@ const FMaterialCachedParameterEntry FMaterialCachedParameterEntry::EmptyData{};
 const FMaterialCachedExpressionData FMaterialCachedExpressionData::EmptyData{};
 const FMaterialCachedExpressionEditorOnlyData FMaterialCachedExpressionEditorOnlyData::EmptyData{};
 
-static_assert((uint32)(EMaterialProperty::MP_MaterialAttributes)-1 <= (8 * sizeof(FMaterialCachedExpressionData::PropertyConnectedBitmask)), "PropertyConnectedBitmask cannot contain entire EMaterialProperty enumeration.");
+static_assert((uint64)(EMaterialProperty::MP_MaterialAttributes)-1 < (8 * sizeof(FMaterialCachedExpressionData::PropertyConnectedMask)), "PropertyConnectedMask cannot contain entire EMaterialProperty enumeration.");
 
 static bool GExperimentalMaterialCachedDataAnalysisEnabled = false;
 static FAutoConsoleVariableRef CVarExperimentalMaterialCachedDataAnalysisEnabled(TEXT("r.Material.ExperimentalMaterialCachedDataAnalysisEnabled"), GExperimentalMaterialCachedDataAnalysisEnabled, TEXT("Enables material cached data experimental graph based analysis"));
@@ -1097,6 +1098,36 @@ void FMaterialCachedExpressionData::GetParameterValueByIndex(EMaterialParameterT
 		checkNoEntry();
 		break;
 	}
+}
+
+bool FStrataMaterialInfo::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+	if (Ar.IsLoading())
+	{
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::IncreaseMaterialAttributesInputMask)
+		{
+			ConnectedPropertyMask = uint64(ConnectedProperties_DEPRECATED);
+		}
+	}
+
+	return true;
+}
+
+bool FMaterialCachedExpressionData::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+	if (Ar.IsLoading())
+	{
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::IncreaseMaterialAttributesInputMask)
+		{
+			PropertyConnectedMask = uint64(PropertyConnectedBitmask_DEPRECATED);
+		}
+	}
+
+	return true;
 }
 
 void FMaterialCachedExpressionData::PostSerialize(const FArchive& Ar)

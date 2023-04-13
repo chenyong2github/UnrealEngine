@@ -723,6 +723,8 @@ public:
 	FStrataMaterialInfo() {}
 	FStrataMaterialInfo(EStrataShadingModel InShadingModel) { AddShadingModel(InShadingModel); }
 
+	bool Serialize(FArchive& Ar);
+
 	// Shading model
 	void AddShadingModel(EStrataShadingModel InShadingModel) { check(InShadingModel < SSM_NUM); ShadingModelField |= (uint16)(1 << (uint16)InShadingModel); }
 	void SetSingleShadingModel(EStrataShadingModel InShadingModel) { check(InShadingModel < SSM_NUM); ShadingModelField = (uint16)(1 << (uint16)InShadingModel); }
@@ -740,10 +742,10 @@ public:
 	void SetShadingModelFromExpression(bool bIn) { bHasShadingModelFromExpression = bIn ? 1u : 0u; }
 	bool HasShadingModelFromExpression() const { return bHasShadingModelFromExpression > 0u; }
 
-	uint32 GetPropertyConnected() const { return ConnectedProperties; }
-	void AddPropertyConnected(uint32 In) { ConnectedProperties |= (1 << In); }
-	bool HasPropertyConnected(uint32 In) const { return !!(ConnectedProperties & (1 << In)); }
-	static bool HasPropertyConnected(uint32 InConnectedProperties, uint32 In) { return !!(InConnectedProperties & (1 << In)); }
+	uint64 GetPropertyConnected() const { return ConnectedPropertyMask; }
+	void AddPropertyConnected(uint64 In) { ConnectedPropertyMask |= (1ull << In); }
+	bool HasPropertyConnected(uint64 In) const { return !!(ConnectedPropertyMask & (1ull << In)); }
+	static bool HasPropertyConnected(uint64 InConnectedPropertyMask, uint64 In) { return !!(InConnectedPropertyMask & (1ull << In)); }
 
 	bool IsValid() const { return (ShadingModelField > 0) && (ShadingModelField < (1 << SSM_NUM)); }
 
@@ -776,10 +778,13 @@ private:
 	UPROPERTY()
 	uint8 bHasShadingModelFromExpression = 0;
 
+	UPROPERTY()
+	uint32 ConnectedProperties_DEPRECATED = 0;
+
 	/* Indicates which (legacy) inputs are connected */
 	UPROPERTY()
-	uint32 ConnectedProperties = 0;
-	
+	uint64 ConnectedPropertyMask = 0;
+
 	UPROPERTY()
 	TArray<TObjectPtr<USubsurfaceProfile>> SubsurfaceProfiles;
 
@@ -788,6 +793,15 @@ private:
 	bool bOutOfStackDepthWhenParsing = false;
 	int32 ParsingStackDepth = 0;
 #endif
+};
+
+template<>
+struct TStructOpsTypeTraits<FStrataMaterialInfo> : public TStructOpsTypeTraitsBase2<FStrataMaterialInfo>
+{
+	enum
+	{
+		WithSerializer = true,
+	};
 };
 
 /** Describes how textures are sampled for materials */
