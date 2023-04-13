@@ -7911,11 +7911,9 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 			static bool bNoShaderDDC =
 				FParse::Param(FCommandLine::Get(), TEXT("noshaderddc")) || 
 				FParse::Param(FCommandLine::Get(), TEXT("noglobalshaderddc"));
-			if (UNLIKELY(bNoShaderDDC))
-			{
-				bShaderMapIsBeingCompiled = true;
-			}
-			else
+
+			const bool bTempNoShaderDDC = bNoShaderDDC;
+
 			{
 				using namespace UE::DerivedData;
 
@@ -7952,8 +7950,13 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 					COOK_STAT(auto Timer = GlobalShaderCookStats::UsageStats.TimeSyncWork());
 					COOK_STAT(Timer.TrackCyclesOnly());
 					FRequestOwner BlockingOwner(EPriority::Blocking);
-					GetCache().GetValue(Requests, BlockingOwner, [&GlobalShaderMapBuffers](FCacheGetValueResponse&& Response)
+					GetCache().GetValue(Requests, BlockingOwner, [&GlobalShaderMapBuffers, &bTempNoShaderDDC](FCacheGetValueResponse&& Response)
 					{
+						if (bTempNoShaderDDC)
+						{
+							return;
+						}
+
 						GlobalShaderMapBuffers[int32(Response.UserData)] = MoveTemp(Response.Value);
 					});
 					BlockingOwner.Wait();

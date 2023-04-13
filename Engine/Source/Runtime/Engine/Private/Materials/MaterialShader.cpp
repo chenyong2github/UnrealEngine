@@ -1517,7 +1517,7 @@ TSharedRef<FMaterialShaderMap::FAsyncLoadContext> FMaterialShaderMap::BeginLoadF
 			// Do not check the DDC if the material isn't persistent, because
 			//   - this results in a lot of DDC requests when editing materials which are almost always going to return nothing.
 			//   - since the get call is synchronous, this can cause a hitch if there's network latency
-			if (bCheckCache && Material->IsPersistent())
+			if (Material->IsPersistent())
 			{
 				FCacheGetValueRequest Request;
 				Request.Name = GetMaterialShaderMapName(Material->GetFullPath(), ShaderMapId, InPlatform);
@@ -1525,12 +1525,15 @@ TSharedRef<FMaterialShaderMap::FAsyncLoadContext> FMaterialShaderMap::BeginLoadF
 				Result->AssetName = Material->GetAssetName();
 				Result->Platform = InPlatform;
 
-				GetCache().GetValue({Request}, Result->RequestOwner, [Result](FCacheGetValueResponse&& Response)
+				GetCache().GetValue({Request}, Result->RequestOwner, [Result, bCheckCache](FCacheGetValueResponse&& Response)
 				{
-					Result->CachedData = Response.Value.GetData().Decompress();
-					// This callback might hold the last reference to Result, which owns RequestOwner, so
-					// we must not cancel in the Owner's destructor; Canceling in a callback will deadlock.
-					Result->RequestOwner.KeepAlive();
+					if (bCheckCache)
+					{
+						Result->CachedData = Response.Value.GetData().Decompress();
+						// This callback might hold the last reference to Result, which owns RequestOwner, so
+						// we must not cancel in the Owner's destructor; Canceling in a callback will deadlock.
+						Result->RequestOwner.KeepAlive();
+					}
 				});
 			}
 		}
