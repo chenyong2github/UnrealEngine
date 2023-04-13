@@ -142,8 +142,7 @@ void FMaterialOverrideNanite::InitUnsafe(UMaterialInterface* InMaterial)
 void FMaterialOverrideNanite::PostLoad()
 {
 #if WITH_EDITOR
-	// Don't call RefreshOverrideMaterial() directly because we can't SyncLoad during PostLoad phase.
-	bIsRefreshRequested = true;
+	RefreshOverrideMaterial();
 #endif
 }
 
