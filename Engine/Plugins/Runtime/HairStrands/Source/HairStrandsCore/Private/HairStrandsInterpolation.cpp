@@ -1667,6 +1667,8 @@ static FHairGroupPublicData::FVertexFactoryInput InternalComputeHairStrandsVerte
 	OutVFInput.Strands.Common.bStableRasterization = Instance->Strands.Modifier.bUseStableRasterization;
 	OutVFInput.Strands.Common.bRaytracingGeometry = false;
 	OutVFInput.Strands.Common.RaytracingProceduralSplits = GetHairRaytracingProceduralSplits();
+	OutVFInput.Strands.Common.GroupIndex = Instance->Debug.GroupIndex;
+	OutVFInput.Strands.Common.GroupCount = Instance->Debug.GroupCount;
 
 	// Add local transform assignement here ...
 

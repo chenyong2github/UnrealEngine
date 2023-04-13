@@ -17,6 +17,7 @@
 	uint				Prefix##_bRaytracingGeometry; \
 	uint				Prefix##_RaytracingProceduralSplits; \
 	uint				Prefix##_GroupIndex; \
+	uint				Prefix##_GroupCount; \
 	float				Prefix##_Radius; \
 	float				Prefix##_RootScale; \
 	float				Prefix##_TipScale; \

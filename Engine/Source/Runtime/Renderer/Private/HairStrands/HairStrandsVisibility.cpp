@@ -829,6 +829,8 @@ struct FMaterialPassOutput
 	FRDGTextureRef SampleLightingTexture = nullptr;
 };
 
+static void AddAttributeDebugPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FHairStrandsMacroGroupDatas& MacroGroupDatas, const FRDGTextureRef& NodeIndexTexture, const FRDGBufferSRVRef& NodeVisBuffer);
+
 static FMaterialPassOutput AddHairMaterialPass(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
@@ -970,7 +972,6 @@ static FMaterialPassOutput AddHairMaterialPass(
 		});
 	};
 
-
 	const bool bIsPlatformRequireRenderTarget = IsPlatformRequiringRenderTargetForMaterialPass(Scene->GetShaderPlatform()) || GRHIRequiresRenderTargetForPixelShaderUAVs;
 
 	// Output:
@@ -991,7 +992,110 @@ static FMaterialPassOutput AddHairMaterialPass(
 		MaterialPass(nullptr, EHairMaterialPassFilter::NonEmissiveOnly);
 	}
 
+	// Add debug attribute pass
+	const EGroomViewMode ViewMode = GetGroomViewMode(*ViewInfo);
+	const bool bDebugEnabled = 
+		ViewMode == EGroomViewMode::UV
+		|| ViewMode == EGroomViewMode::RootUV
+		|| ViewMode == EGroomViewMode::RootUDIM
+		|| ViewMode == EGroomViewMode::Seed
+		|| ViewMode == EGroomViewMode::Dimension
+		|| ViewMode == EGroomViewMode::RadiusVariation
+		|| ViewMode == EGroomViewMode::Tangent
+		|| ViewMode == EGroomViewMode::Color
+		|| ViewMode == EGroomViewMode::Roughness
+		|| ViewMode == EGroomViewMode::AO
+		|| ViewMode == EGroomViewMode::ClumpID;
+	if (bDebugEnabled)
+	{	
+		AddAttributeDebugPass(GraphBuilder, *ViewInfo, MacroGroupDatas, CompactNodeIndex, GraphBuilder.CreateSRV(CompactNodeVis));
+	}
+	
 	return Output;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FHairAttributeDebugCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FHairAttributeDebugCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairAttributeDebugCS, FGlobalShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FHairInstance, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceCommonParameters, Common)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceResourceParameters, Resources)
+	END_SHADER_PARAMETER_STRUCT()
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, MaterialId)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, NodeIndexTexture)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedHairVis>, NodeVisBuffer)
+		SHADER_PARAMETER_STRUCT(FHairInstance, HairInstance)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters &Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters &Parameters, FShaderCompilerEnvironment &OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_ATTRIBUTE_DEBUG"), 1);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FHairAttributeDebugCS, "/Engine/Private/HairStrands/HairStrandsDebug.usf", "CSMain", SF_Compute);
+
+static void AddAttributeDebugPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FHairStrandsMacroGroupDatas& MacroGroupDatas, const FRDGTextureRef& NodeIndexTexture, const FRDGBufferSRVRef& NodeVisBuffer)
+{
+	// Force ShaderPrint on.
+	ShaderPrint::SetEnabled(true);
+	ShaderPrint::RequestSpaceForCharacters(2048);
+	ShaderPrint::RequestSpaceForLines(256);
+	if (!ShaderPrint::IsEnabled(View.ShaderPrintData))
+	{
+		return;
+	}
+
+	TShaderMapRef<FHairAttributeDebugCS> ComputeShader(View.ShaderMap);
+
+	for (const FHairStrandsMacroGroupData& MacroGroup : MacroGroupDatas)
+	{
+		const FHairStrandsMacroGroupData::TPrimitiveInfos& PrimitiveSceneInfos = MacroGroup.PrimitivesInfos;
+		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : PrimitiveSceneInfos)
+		{
+			// If a groom is not visible in primary view, but visible in shadow view, its PrimitiveInfo.Mesh will be null.
+			if (PrimitiveInfo.Mesh == nullptr || PrimitiveInfo.Mesh->Elements.Num() == 0)
+			{
+				continue;
+			}
+
+			const FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<const FHairGroupPublicData*>(PrimitiveInfo.Mesh->Elements[0].VertexFactoryUserData);
+			check(HairGroupPublicData);
+
+			const bool bCullingEnable = HairGroupPublicData->GetCullingResultAvailable();
+
+			FHairAttributeDebugCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairAttributeDebugCS::FParameters>();
+			Parameters->MaterialId = PrimitiveInfo.MaterialId;
+			Parameters->NodeIndexTexture = NodeIndexTexture;
+			Parameters->NodeVisBuffer = NodeVisBuffer;
+			GetHairStrandsInstanceCommon(GraphBuilder, View, HairGroupPublicData, Parameters->HairInstance.Common);
+			GetHairStrandsInstanceResources(GraphBuilder, View, HairGroupPublicData, true/*bForceRegister*/, Parameters->HairInstance.Resources);
+//			Parameters->HairInstance = GetHairStrandsInstanceParameters(GraphBuilder, View, HairGroupPublicData, bCullingEnable, true );
+			Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
+			ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, Parameters->ShaderPrintUniformBuffer);
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("HairStrands::AttributeDebug"),
+				ComputeShader,
+				Parameters,
+				FIntVector(1, 1, 1));
+		}
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2831,54 +2935,71 @@ IMPLEMENT_GLOBAL_SHADER(FVisiblityRasterComputePrepareDepthGridCS, "/Engine/Priv
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-FHairStrandsInstanceParameters GetHairStrandsInstanceParameters(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, const FHairGroupPublicData* HairGroupPublicData, bool bCullingEnable, bool bForceRegister)
+void GetHairStrandsInstanceCommon(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, const FHairGroupPublicData* HairGroupPublicData, FHairStrandsInstanceCommonParameters& OutCommon)
 {
 	check(HairGroupPublicData);
-
 	const FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
 
-	FHairStrandsInstanceParameters Output;
-	FHairStrandsInstanceIntermediateParameters& Out = Output.HairStrandsVF;
-	if (bForceRegister)
-	{
-		Out.Resources.PositionBuffer		= Register(GraphBuilder, VFInput.Strands.PositionBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
-		Out.Resources.PositionOffsetBuffer	= Register(GraphBuilder, VFInput.Strands.PositionOffsetBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
-		Out.Resources.CurveBuffer			= Register(GraphBuilder, VFInput.Strands.CurveBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
-		Out.Resources.PointToCurveBuffer	= Register(GraphBuilder, VFInput.Strands.PointToCurveBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
-		Out.Resources.CurveAttributeBuffer	= Register(GraphBuilder, VFInput.Strands.CurveAttributeBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
-		Out.Resources.PointAttributeBuffer	= Register(GraphBuilder, VFInput.Strands.PointAttributeBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
-	}
-	else
-	{
-		Out.Resources.PositionBuffer		= VFInput.Strands.PositionBuffer.SRV;
-		Out.Resources.PositionOffsetBuffer	= VFInput.Strands.PositionOffsetBuffer.SRV;
-		Out.Resources.CurveBuffer			= VFInput.Strands.CurveBuffer.SRV;
-		Out.Resources.PointToCurveBuffer	= VFInput.Strands.PointToCurveBuffer.SRV;
-		Out.Resources.CurveAttributeBuffer	= VFInput.Strands.CurveAttributeBuffer.SRV;
-		Out.Resources.PointAttributeBuffer	= VFInput.Strands.PointAttributeBuffer.SRV;
-	}
-
-	Out.Common = VFInput.Strands.Common;
-	Out.Culling.bCullingEnable = 0;
+	OutCommon = VFInput.Strands.Common;
 
 	// Absolute local to world
-	Out.Common.LocalToWorldPrimitiveTransform	= FMatrix44f(VFInput.LocalToWorldTransform.ToMatrixWithScale()); // LWC_TODO: Precision loss, remove usage for this
+	OutCommon.LocalToWorldPrimitiveTransform	= FMatrix44f(VFInput.LocalToWorldTransform.ToMatrixWithScale()); // LWC_TODO: Precision loss, remove usage for this
 
 	// Translated local to world
 	const FVector& TranslatedWorldOffset = ViewInfo.ViewMatrices.GetPreViewTranslation();
 	FTransform LocalToTranslatedWorldTransform = VFInput.LocalToWorldTransform;
 	LocalToTranslatedWorldTransform.AddToTranslation(TranslatedWorldOffset);
-	Out.Common.LocalToTranslatedWorldPrimitiveTransform = FMatrix44f(LocalToTranslatedWorldTransform.ToMatrixWithScale());
+	OutCommon.LocalToTranslatedWorldPrimitiveTransform = FMatrix44f(LocalToTranslatedWorldTransform.ToMatrixWithScale());
+}
 
+void GetHairStrandsInstanceResources(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, const FHairGroupPublicData* HairGroupPublicData, bool bForceRegister, FHairStrandsInstanceResourceParameters& OutResources)
+{
+	check(HairGroupPublicData);
+	const FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
+
+	if (bForceRegister)
+	{
+		OutResources.PositionBuffer			= Register(GraphBuilder, VFInput.Strands.PositionBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
+		OutResources.PositionOffsetBuffer	= Register(GraphBuilder, VFInput.Strands.PositionOffsetBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
+		OutResources.CurveBuffer			= Register(GraphBuilder, VFInput.Strands.CurveBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
+		OutResources.PointToCurveBuffer		= Register(GraphBuilder, VFInput.Strands.PointToCurveBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
+		OutResources.CurveAttributeBuffer	= Register(GraphBuilder, VFInput.Strands.CurveAttributeBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
+		OutResources.PointAttributeBuffer	= Register(GraphBuilder, VFInput.Strands.PointAttributeBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;
+	}
+	else
+	{
+		OutResources.PositionBuffer			= VFInput.Strands.PositionBuffer.SRV;
+		OutResources.PositionOffsetBuffer	= VFInput.Strands.PositionOffsetBuffer.SRV;
+		OutResources.CurveBuffer			= VFInput.Strands.CurveBuffer.SRV;
+		OutResources.PointToCurveBuffer		= VFInput.Strands.PointToCurveBuffer.SRV;
+		OutResources.CurveAttributeBuffer	= VFInput.Strands.CurveAttributeBuffer.SRV;
+		OutResources.PointAttributeBuffer	= VFInput.Strands.PointAttributeBuffer.SRV;
+	}
+}
+
+void GetHairStrandsInstanceCulling(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, const FHairGroupPublicData* HairGroupPublicData, bool bCullingEnable, FHairStrandsInstanceCullingParameters& OutCulling)
+{
+	check(HairGroupPublicData);
+	const FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
+
+	OutCulling.bCullingEnable = 0;
 	if (bCullingEnable)
 	{
 		FRDGImportedBuffer CullingIndirectBuffer = Register(GraphBuilder, HairGroupPublicData->GetDrawIndirectRasterComputeBuffer(), ERDGImportedBufferFlags::CreateSRV);
-		Out.Culling.bCullingEnable = 1;
-		Out.Culling.CullingIndirectBuffer = CullingIndirectBuffer.SRV;
-		Out.Culling.CullingIndexBuffer = RegisterAsSRV(GraphBuilder, HairGroupPublicData->GetCulledVertexIdBuffer());
-		Out.Culling.CullingRadiusScaleBuffer = RegisterAsSRV(GraphBuilder, HairGroupPublicData->GetCulledVertexRadiusScaleBuffer());
-		Out.Culling.CullingIndirectBufferArgs = CullingIndirectBuffer.Buffer;
+		OutCulling.bCullingEnable = 1;
+		OutCulling.CullingIndirectBuffer = CullingIndirectBuffer.SRV;
+		OutCulling.CullingIndexBuffer = RegisterAsSRV(GraphBuilder, HairGroupPublicData->GetCulledVertexIdBuffer());
+		OutCulling.CullingRadiusScaleBuffer = RegisterAsSRV(GraphBuilder, HairGroupPublicData->GetCulledVertexRadiusScaleBuffer());
+		OutCulling.CullingIndirectBufferArgs = CullingIndirectBuffer.Buffer;
 	}
+}
+
+FHairStrandsInstanceParameters GetHairStrandsInstanceParameters(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, const FHairGroupPublicData* HairGroupPublicData, bool bCullingEnable, bool bForceRegister)
+{
+	FHairStrandsInstanceParameters Output;
+	GetHairStrandsInstanceCommon(GraphBuilder, ViewInfo, HairGroupPublicData, Output.HairStrandsVF.Common);
+	GetHairStrandsInstanceResources(GraphBuilder, ViewInfo, HairGroupPublicData, bForceRegister, Output.HairStrandsVF.Resources);
+	GetHairStrandsInstanceCulling(GraphBuilder, ViewInfo, HairGroupPublicData, bCullingEnable, Output.HairStrandsVF.Culling);
 	return Output;
 }
 

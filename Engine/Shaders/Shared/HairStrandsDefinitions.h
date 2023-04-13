@@ -71,11 +71,11 @@
 
 // Pack all offset into uint4
 #define PACK_HAIR_ATTRIBUTE_OFFSETS(Out, In, Offset, Count) \
-	for (uint32 AttributeIt4 = 0; AttributeIt4 < Count; ++AttributeIt4) \
+	for (uint32 AttributeIt4 = 0; AttributeIt4 < Offset; ++AttributeIt4) \
 	{ \
 		Out[AttributeIt4] = FUintVector4(HAIR_ATTRIBUTE_INVALID_OFFSET, HAIR_ATTRIBUTE_INVALID_OFFSET, HAIR_ATTRIBUTE_INVALID_OFFSET, HAIR_ATTRIBUTE_INVALID_OFFSET); \
 	} \
-	for (uint32 AttributeIt = 0; AttributeIt < Offset; ++AttributeIt) \
+	for (uint32 AttributeIt = 0; AttributeIt < Count; ++AttributeIt) \
 	{ \
 		const uint32 Index4 = AttributeIt & (~0x3); \
 		const uint32 SubIndex = AttributeIt - Index4; \

@@ -33,6 +33,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceCommonParameters, RENDERER_API
 	SHADER_PARAMETER(float,  LengthScale)
 	SHADER_PARAMETER(float,  RaytracingRadiusScale)
 	SHADER_PARAMETER(uint32, GroupIndex)
+	SHADER_PARAMETER(uint32, GroupCount)
 	SHADER_PARAMETER(uint32, PointCount)
 	SHADER_PARAMETER(uint32, CurveCount)
 	SHADER_PARAMETER(uint32, RaytracingProceduralSplits)
