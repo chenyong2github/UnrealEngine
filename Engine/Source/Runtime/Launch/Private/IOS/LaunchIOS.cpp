@@ -472,8 +472,6 @@ void FAppEntry::Init()
 #if BUILD_EMBEDDED_APP
 static bool GWasTickSuspended = false;
 static double GPreviousSuspendTime = FPlatformTime::Seconds();
-#else
-static FSuspendRenderingThread* SuspendThread = NULL;
 #endif
 
 void FAppEntry::Tick()
@@ -483,13 +481,6 @@ void FAppEntry::Tick()
 	{
 		FPlatformProcess::SetRealTimeMode();
 		GWasTickSuspended = false;
-	}
-#else
-	if (SuspendThread != NULL)
-	{
-		delete SuspendThread;
-		SuspendThread = NULL;
-		FPlatformProcess::SetRealTimeMode();
 	}
 #endif
     
@@ -523,11 +514,6 @@ void FAppEntry::SuspendTick()
 	// allow for some background processing
 	FEmbeddedCommunication::TickGameThread(DeltaTime);
 	FCoreDelegates::MobileBackgroundTickDelegate.Broadcast(DeltaTime);
-#else
-	if (!SuspendThread)
-	{
-		SuspendThread = new FSuspendRenderingThread(true);
-	}
 #endif
 
 	FPlatformProcess::Sleep(0.1f);
