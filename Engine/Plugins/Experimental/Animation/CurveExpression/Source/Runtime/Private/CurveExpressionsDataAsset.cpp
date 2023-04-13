@@ -50,27 +50,18 @@ TArray<FCurveExpressionParsedAssignment> FCurveExpressionList::GetParsedAssignme
 	return ParsedAssignments;
 }
 
-struct FCompiledExpressionScratchArea : public TThreadSingleton<FCompiledExpressionScratchArea>
+void UCurveExpressionsDataAsset::SynchronizeThreadCopy() const
 {
-	// Shadowed data copy for extraction from non-game threads.
-	uint32 SerialNumber{UINT_MAX};
-	TArray<FName> NamedConstants;
-	TMap<FName, CurveExpression::Evaluator::FExpressionObject> ExpressionMap;
-};
-
-
-void UCurveExpressionsDataAsset::SynchronizeThreadLocalData() const
-{
-	FCompiledExpressionScratchArea& ThreadLocalData = FCompiledExpressionScratchArea::Get();
-		
 	const uint32 Serial = SerialNumber.load();
-	if (ThreadLocalData.SerialNumber != Serial)
+	if (ThreadCopy.SerialNumber != Serial)
 	{
 		FScopeLock ScopeLock(&ExpressionMapWriteLock);
+		
+		FExpressionDataShadowCopy& MutableThreadCopy = const_cast<FExpressionDataShadowCopy&>(ThreadCopy);
 
-		ThreadLocalData.SerialNumber = Serial;
-		ThreadLocalData.NamedConstants = NamedConstants;
-		ThreadLocalData.ExpressionMap = ExpressionMap;
+		MutableThreadCopy.SerialNumber = Serial;
+		MutableThreadCopy.NamedConstants = NamedConstants;
+		MutableThreadCopy.ExpressionMap = ExpressionMap;
 	}
 }
 
@@ -83,8 +74,8 @@ const TArray<FName>& UCurveExpressionsDataAsset::GetCompiledExpressionConstants(
 	}
 	else
 	{
-		SynchronizeThreadLocalData();
-		return FCompiledExpressionScratchArea::Get().NamedConstants;
+		SynchronizeThreadCopy();
+		return ThreadCopy.NamedConstants;
 	}
 }
 
@@ -97,8 +88,8 @@ const TMap<FName, CurveExpression::Evaluator::FExpressionObject>& UCurveExpressi
 	}
 	else
 	{
-		SynchronizeThreadLocalData();
-		return FCompiledExpressionScratchArea::Get().ExpressionMap;
+		SynchronizeThreadCopy();
+		return ThreadCopy.ExpressionMap;
 	}
 }
 

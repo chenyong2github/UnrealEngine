@@ -71,7 +71,7 @@ private:
 	void CompileExpressions();
 #endif
 
-	void SynchronizeThreadLocalData() const;
+	void SynchronizeThreadCopy() const;
 	
 	mutable FCriticalSection ExpressionMapWriteLock;
 	
@@ -81,4 +81,11 @@ private:
 	TArray<FName> NamedConstants;
 	
 	TMap<FName, CurveExpression::Evaluator::FExpressionObject> ExpressionMap;
+
+	const struct FExpressionDataShadowCopy
+	{
+		uint32 SerialNumber{UINT_MAX};
+		TArray<FName> NamedConstants;
+		TMap<FName, CurveExpression::Evaluator::FExpressionObject> ExpressionMap;
+	} ThreadCopy;
 };
