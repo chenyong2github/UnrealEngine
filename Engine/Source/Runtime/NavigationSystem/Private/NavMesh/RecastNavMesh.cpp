@@ -3359,9 +3359,9 @@ void ARecastNavMesh::UpdateGenerationProperties(const FRecastNavMeshGenerationPr
 	AgentRadius = GenerationProps.AgentRadius;
 	AgentHeight = GenerationProps.AgentHeight;
 	AgentMaxSlope = GenerationProps.AgentMaxSlope;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 	AgentMaxStepHeight = GenerationProps.AgentMaxStepHeight;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	MinRegionArea = GenerationProps.MinRegionArea;
 	MergeRegionSize = GenerationProps.MergeRegionSize;
 	MaxSimplificationError = GenerationProps.MaxSimplificationError;
