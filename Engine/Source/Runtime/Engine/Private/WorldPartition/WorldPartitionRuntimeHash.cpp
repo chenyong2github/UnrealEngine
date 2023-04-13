@@ -96,7 +96,7 @@ void UWorldPartitionRuntimeHash::OnEndPlay()
 	ModifiedActorDescListForPIE.Empty();
 }
 
-UWorldPartitionRuntimeCell* UWorldPartitionRuntimeHash::CreateRuntimeCell(UClass* CellClass, UClass* CellDataClass, const FString& CellName)
+UWorldPartitionRuntimeCell* UWorldPartitionRuntimeHash::CreateRuntimeCell(UClass* CellClass, UClass* CellDataClass, const FString& CellName, const FString& CellInstanceSuffix)
 {
 	//@todo_ow: to reduce file paths on windows, we compute a MD5 hash from the unique cell name and use that hash as the cell filename. We
 	//			should create the runtime cell using the name but make sure the package that gets associated with it when cooking gets the
@@ -115,7 +115,9 @@ UWorldPartitionRuntimeCell* UWorldPartitionRuntimeHash::CreateRuntimeCell(UClass
 		return CellNameGuid.ToString(EGuidFormats::Base36Encoded);
 	};
 
-	const FString CellObjectName = GetCellObjectName(CellName);
+	// Cooking should have an empty CellInstanceSuffix
+	check(!IsRunningCookCommandlet() || CellInstanceSuffix.IsEmpty());
+	const FString CellObjectName = GetCellObjectName(CellName) + CellInstanceSuffix;
 	UWorldPartitionRuntimeCell* RuntimeCell = NewObject<UWorldPartitionRuntimeCell>(this, CellClass, *CellObjectName);
 	RuntimeCell->RuntimeCellData = NewObject<UWorldPartitionRuntimeCellData>(RuntimeCell, CellDataClass);
 	return RuntimeCell;
