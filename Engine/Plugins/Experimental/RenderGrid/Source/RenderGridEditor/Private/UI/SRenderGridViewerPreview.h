@@ -67,9 +67,8 @@ namespace UE::RenderGrid::Private
 		void InternalRenderNewPreviewOfRenderGridJob(URenderGridJob* Job);
 		void RenderNewPreviewCallback(const bool bSuccess);
 
-		void UpdateRerenderButton();
+		void UpdateActionButton();
 		void UpdateFrameSlider();
-
 
 	private:
 		/** A reference to the blueprint editor that owns the render grid instance. */
@@ -91,8 +90,8 @@ namespace UE::RenderGrid::Private
 		/** The widget that allows the user to select what frame they'd like to see. */
 		TSharedPtr<SRenderGridViewerFrameSlider> FrameSlider;
 
-		/** The button which can be clicked to rerender the preview. */
-		TSharedPtr<SButton> RerenderButton;
+		/** The button which can be clicked, to to rerender the preview, or to open the map of the grid. */
+		TSharedPtr<SButton> ActionButton;
 
 		/** The widget that contains the image. */
 		TSharedPtr<SImage> Image;

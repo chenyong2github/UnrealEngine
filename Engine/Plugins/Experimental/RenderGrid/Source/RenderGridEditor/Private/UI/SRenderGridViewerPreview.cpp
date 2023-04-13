@@ -19,6 +19,7 @@
 #include "Widgets/Colors/SColorPicker.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScaleBox.h"
+#include "FileHelpers.h"
 
 #define LOCTEXT_NAMESPACE "SRenderGridViewerPreview"
 
@@ -30,9 +31,10 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::Tick(const FGeometry&, c
 {
 	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
+		UpdateActionButton();
+
 		if (BlueprintEditor->CanCurrentlyRender() && !CurrentRenderQueueWeakPtr.IsValid())
 		{
-			UpdateRerenderButton();
 			UpdateFrameSlider();
 
 			if (FramesUntilRenderNewPreview > 0)
@@ -105,7 +107,7 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::Construct(const FArgumen
 			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Fill)
 			[
-				SAssignNew(RerenderButton, SButton)
+				SAssignNew(ActionButton, SButton)
 				.ContentPadding(0.0f)
 				.ButtonStyle(FRenderGridEditorStyle::Get(), TEXT("Invisible"))
 				.IsFocusable(false)
@@ -121,6 +123,24 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::Construct(const FArgumen
 						SNew(STextBlock)
 						.Text_Lambda([this]() -> FText
 						{
+							if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
+							{
+								if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
+								{
+									if (Grid->GetMap().IsNull())
+									{
+										return LOCTEXT("PleaseSelectMapForGrid", "Please select a map for this grid");
+									}
+									if (!Grid->GetMap().IsValid())
+									{
+										return LOCTEXT("ClickToOpenMapOfGrid", "Click here to open the map of this grid");
+									}
+									if (!Grid->HasAnyRenderGridJobs())
+									{
+										return LOCTEXT("PleaseAddJob", "Please add a job");
+									}
+								}
+							}
 							if (URenderGridJob* SelectedJob = SelectedJobWeakPtr.Get(); IsValid(SelectedJob))
 							{
 								if (ULevelSequence* Sequence = SelectedJob->GetLevelSequence(); IsValid(Sequence))
@@ -132,16 +152,6 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::Construct(const FArgumen
 									return LOCTEXT("ClickToStartRendering", "Click here to start rendering");
 								}
 								return LOCTEXT("PleaseSelectLevelSequenceForJob", "Please select a level sequence for this job");
-							}
-							if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
-							{
-								if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
-								{
-									if (!Grid->HasAnyRenderGridJobs())
-									{
-										return LOCTEXT("PleaseAddJob", "Please add a job");
-									}
-								}
 							}
 							return LOCTEXT("PleaseSelectJob", "Please select a job");
 						})
@@ -196,11 +206,22 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 FReply UE::RenderGrid::Private::SRenderGridViewerPreview::OnClicked()
 {
+	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
+	{
+		if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
+		{
+			if (!Grid->GetMap().IsNull() && !Grid->GetMap().IsValid())
+			{
+				FEditorFileUtils::LoadMap(Grid->GetMap().ToString(), false, true);
+				return FReply::Handled();
+			}
+		}
+	}
+
 	if (!IsPreviewWidget())
 	{
 		RenderNewPreview();
 	}
-
 	return FReply::Handled();
 }
 
@@ -322,6 +343,17 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::InternalRenderNewPreview
 
 	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
+		if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
+		{
+			if (Grid->GetMap().IsNull() || !Grid->GetMap().IsValid())
+			{
+				// don't render, clear image and try again next frame
+				SetImageTexture(nullptr);
+				RenderNewPreview();
+				return;
+			}
+		}
+
 		double WidgetWidth = FMath::Max(120.0, FMath::Min(GetTickSpaceGeometry().Size.X, GetTickSpaceGeometry().Size.Y * Job->GetOutputAspectRatio()));
 		double RenderResolution = WidgetWidth * (IsPreviewWidget() ? 1.25 : 0.75); // pixels in width
 
@@ -482,16 +514,28 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::SetImageTexture(UTexture
 }
 
 
-void UE::RenderGrid::Private::SRenderGridViewerPreview::UpdateRerenderButton()
+void UE::RenderGrid::Private::SRenderGridViewerPreview::UpdateActionButton()
 {
-	if (!RerenderButton.IsValid())
+	if (!ActionButton.IsValid())
 	{
 		return;
 	}
-	const bool bIsUsable = (!IsPreviewWidget() && SelectedJobWeakPtr.IsValid());
 
-	RerenderButton->SetButtonStyle(&FRenderGridEditorStyle::Get().GetWidgetStyle<FButtonStyle>(bIsUsable ? TEXT("HoverHintOnly") : TEXT("Invisible")));
-	RerenderButton->SetCursor(bIsUsable ? EMouseCursor::Type::Hand : EMouseCursor::Type::Default);
+	bool bIsUsable = (!IsPreviewWidget() && SelectedJobWeakPtr.IsValid());
+
+	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
+	{
+		if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
+		{
+			if (!Grid->GetMap().IsNull() && !Grid->GetMap().IsValid())
+			{
+				bIsUsable = true;
+			}
+		}
+	}
+
+	ActionButton->SetButtonStyle(&FRenderGridEditorStyle::Get().GetWidgetStyle<FButtonStyle>(bIsUsable ? TEXT("HoverHintOnly") : TEXT("Invisible")));
+	ActionButton->SetCursor(bIsUsable ? EMouseCursor::Type::Hand : EMouseCursor::Type::Default);
 }
 
 void UE::RenderGrid::Private::SRenderGridViewerPreview::UpdateFrameSlider()

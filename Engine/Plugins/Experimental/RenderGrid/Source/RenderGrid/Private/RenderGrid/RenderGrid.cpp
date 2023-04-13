@@ -2,7 +2,6 @@
 
 #include "RenderGrid/RenderGrid.h"
 
-#include "DiffUtils.h"
 #include "IRenderGridModule.h"
 #include "LevelSequence.h"
 #include "Misc/Base64.h"
@@ -960,17 +959,7 @@ void URenderGrid::EndViewportRender(URenderGridJob* Job)
 	bExecutingBlueprintEvent = false;
 }
 
-URenderGridQueue* URenderGrid::Render()
-{
-	return RenderJobs(GetEnabledRenderGridJobs());
-}
-
-URenderGridQueue* URenderGrid::RenderJob(URenderGridJob* Job)
-{
-	return RenderJobs({Job});
-}
-
-URenderGridQueue* URenderGrid::RenderJobs(const TArray<URenderGridJob*>& Jobs)
+URenderGridQueue* URenderGrid::RunRenderJobs(const TArray<URenderGridJob*>& Jobs, const FRenderGridRunRenderJobsDefaultObjectCallback& DefaultObjectCallback, const FRenderGridRunRenderJobsCallback& Callback)
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -978,7 +967,10 @@ URenderGridQueue* URenderGrid::RenderJobs(const TArray<URenderGridJob*>& Jobs)
 		{
 			CopyAllProperties(DefaultObject);
 			CopyAllUserVariables(DefaultObject);
-			return DefaultObject->RenderJobs(Jobs);
+			if (DefaultObjectCallback.IsBound())
+			{
+				return DefaultObjectCallback.Execute(DefaultObject, Jobs);
+			}
 		}
 		return nullptr;
 	}
@@ -991,12 +983,38 @@ URenderGridQueue* URenderGrid::RenderJobs(const TArray<URenderGridJob*>& Jobs)
 			JobsToRender.Add(Job);
 		}
 	}
-	if (URenderGridQueue* RenderQueue = UE::RenderGrid::IRenderGridModule::Get().GetManager().CreateBatchRenderQueue(this, Jobs); IsValid(RenderQueue))
+	if (Callback.IsBound())
 	{
-		RenderQueue->Execute();
-		return RenderQueue;
+		if (URenderGridQueue* RenderQueue = Callback.Execute(this, Jobs); IsValid(RenderQueue))
+		{
+			RenderQueue->Execute();
+			return RenderQueue;
+		}
 	}
 	return nullptr;
+}
+
+URenderGridQueue* URenderGrid::Render()
+{
+	return RenderJobs(GetEnabledRenderGridJobs());
+}
+
+URenderGridQueue* URenderGrid::RenderJob(URenderGridJob* Job)
+{
+	return RenderJobs({Job});
+}
+
+URenderGridQueue* URenderGrid::RenderJobs(const TArray<URenderGridJob*>& Jobs)
+{
+	return RunRenderJobs(
+		Jobs,
+		FRenderGridRunRenderJobsDefaultObjectCallback::CreateLambda([](URenderGrid* InDefaultObject, const TArray<URenderGridJob*>& InJobs) -> URenderGridQueue* {
+			return InDefaultObject->RenderJobs(InJobs);
+		}),
+		FRenderGridRunRenderJobsCallback::CreateLambda([](URenderGrid* InThis, const TArray<URenderGridJob*>& InJobs) -> URenderGridQueue* {
+			return UE::RenderGrid::IRenderGridModule::Get().GetManager().CreateBatchRenderQueue(InThis, InJobs);
+		})
+	);
 }
 
 URenderGridQueue* URenderGrid::RenderSingleFrame(const int32 Frame)
@@ -1011,31 +1029,15 @@ URenderGridQueue* URenderGrid::RenderJobSingleFrame(URenderGridJob* Job, const i
 
 URenderGridQueue* URenderGrid::RenderJobsSingleFrame(const TArray<URenderGridJob*>& Jobs, const int32 Frame)
 {
-	if (!HasAnyFlags(RF_ClassDefaultObject))
-	{
-		if (URenderGrid* DefaultObject = Cast<URenderGrid>(GetClass()->GetDefaultObject(true)); IsValid(DefaultObject))
-		{
-			CopyAllProperties(DefaultObject);
-			CopyAllUserVariables(DefaultObject);
-			return DefaultObject->RenderJobsSingleFrame(Jobs, Frame);
-		}
-		return nullptr;
-	}
-
-	TArray<URenderGridJob*> JobsToRender;
-	for (URenderGridJob* Job : Jobs)
-	{
-		if (IsValid(Job) && HasRenderGridJob(Job))
-		{
-			JobsToRender.Add(Job);
-		}
-	}
-	if (URenderGridQueue* RenderQueue = UE::RenderGrid::IRenderGridModule::Get().GetManager().CreateBatchRenderQueueSingleFrame(this, Jobs, Frame); IsValid(RenderQueue))
-	{
-		RenderQueue->Execute();
-		return RenderQueue;
-	}
-	return nullptr;
+	return RunRenderJobs(
+		Jobs,
+		FRenderGridRunRenderJobsDefaultObjectCallback::CreateLambda([Frame](URenderGrid* InDefaultObject, const TArray<URenderGridJob*>& InJobs) -> URenderGridQueue* {
+			return InDefaultObject->RenderJobsSingleFrame(InJobs, Frame);
+		}),
+		FRenderGridRunRenderJobsCallback::CreateLambda([Frame](URenderGrid* InThis, const TArray<URenderGridJob*>& InJobs) -> URenderGridQueue* {
+			return UE::RenderGrid::IRenderGridModule::Get().GetManager().CreateBatchRenderQueueSingleFrame(InThis, InJobs, Frame);
+		})
+	);
 }
 
 URenderGridQueue* URenderGrid::RenderSingleFramePosition(const double FramePosition)
@@ -1050,31 +1052,20 @@ URenderGridQueue* URenderGrid::RenderJobSingleFramePosition(URenderGridJob* Job,
 
 URenderGridQueue* URenderGrid::RenderJobsSingleFramePosition(const TArray<URenderGridJob*>& Jobs, const double FramePosition)
 {
-	if (!HasAnyFlags(RF_ClassDefaultObject))
-	{
-		if (URenderGrid* DefaultObject = Cast<URenderGrid>(GetClass()->GetDefaultObject(true)); IsValid(DefaultObject))
-		{
-			CopyAllProperties(DefaultObject);
-			CopyAllUserVariables(DefaultObject);
-			return DefaultObject->RenderJobsSingleFramePosition(Jobs, FramePosition);
-		}
-		return nullptr;
-	}
+	return RunRenderJobs(
+		Jobs,
+		FRenderGridRunRenderJobsDefaultObjectCallback::CreateLambda([FramePosition](URenderGrid* InDefaultObject, const TArray<URenderGridJob*>& InJobs) -> URenderGridQueue* {
+			return InDefaultObject->RenderJobsSingleFramePosition(InJobs, FramePosition);
+		}),
+		FRenderGridRunRenderJobsCallback::CreateLambda([FramePosition](URenderGrid* InThis, const TArray<URenderGridJob*>& InJobs) -> URenderGridQueue* {
+			return UE::RenderGrid::IRenderGridModule::Get().GetManager().CreateBatchRenderQueueSingleFramePosition(InThis, InJobs, FramePosition);
+		})
+	);
+}
 
-	TArray<URenderGridJob*> JobsToRender;
-	for (URenderGridJob* Job : Jobs)
-	{
-		if (IsValid(Job) && HasRenderGridJob(Job))
-		{
-			JobsToRender.Add(Job);
-		}
-	}
-	if (URenderGridQueue* RenderQueue = UE::RenderGrid::IRenderGridModule::Get().GetManager().CreateBatchRenderQueueSingleFramePosition(this, Jobs, FramePosition); IsValid(RenderQueue))
-	{
-		RenderQueue->Execute();
-		return RenderQueue;
-	}
-	return nullptr;
+TSoftObjectPtr<UWorld> URenderGrid::GetMap() const
+{
+	return Settings->Map;
 }
 
 void URenderGrid::SetPropsSource(ERenderGridPropsSourceType InPropsSourceType, UObject* InPropsSourceOrigin)

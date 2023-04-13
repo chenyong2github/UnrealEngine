@@ -3,6 +3,7 @@
 #include "UI/SRenderGridViewerLive.h"
 #include "Camera/CameraComponent.h"
 #include "EngineUtils.h"
+#include "FileHelpers.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerStart.h"
 #include "IRenderGridEditor.h"
@@ -10,7 +11,9 @@
 #include "LevelSequenceActor.h"
 #include "RenderGrid/RenderGrid.h"
 #include "SlateOptMacros.h"
+#include "Styles/RenderGridEditorStyle.h"
 #include "UI/Components/SRenderGridViewerFrameSlider.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScaleBox.h"
 
 #define LOCTEXT_NAMESPACE "SRenderGridViewerLive"
@@ -73,6 +76,11 @@ void UE::RenderGrid::Private::SRenderGridEditorViewport::Render()
 
 		if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
 		{
+			if (!Grid->GetMap().IsValid() || (Grid->GetMap().Get() != GetWorld()))
+			{
+				return;
+			}
+
 			if (ULevelSequencePlayer* SequencePlayer = GetSequencePlayer(); IsValid(SequencePlayer))
 			{
 				if (!Grid->HasRenderGridJob(RenderGridJob))
@@ -190,23 +198,32 @@ ULevelSequencePlayer* UE::RenderGrid::Private::SRenderGridEditorViewport::GetSeq
 
 void UE::RenderGrid::Private::SRenderGridEditorViewport::DestroySequencePlayer()
 {
-	TObjectPtr<ALevelSequenceActor> PlayerActor = LevelSequencePlayerActor;
-	TObjectPtr<ULevelSequencePlayer> Player = LevelSequencePlayer;
+	// TObjectPtr<ALevelSequenceActor> PlayerActor = LevelSequencePlayerActor;
+	// TObjectPtr<ULevelSequencePlayer> Player = LevelSequencePlayer;
 
 	LevelSequencePlayerWorld = nullptr;
 	LevelSequencePlayerActor = nullptr;
 	LevelSequencePlayer = nullptr;
 
-	if (IsValid(Player))
-	{
-		Player->Stop();
-	}
-	if (IsValid(PlayerActor))
-	{
-		PlayerActor->Destroy();
-	}
+	//  Can cause crashes (when opening a different Map in the editor):
+	// if (IsValid(Player))
+	// {
+	//     Player->Stop();
+	// }
+	// if (IsValid(PlayerActor))
+	// {
+	//     PlayerActor->Destroy(false, false);
+	// }
 }
 
+
+void UE::RenderGrid::Private::SRenderGridViewerLive::Tick(const FGeometry&, const double, const float)
+{
+	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
+	{
+		UpdateActionButton();
+	}
+}
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -277,7 +294,7 @@ void UE::RenderGrid::Private::SRenderGridViewerLive::Construct(const FArguments&
 			.VAlign(VAlign_Fill)
 			[
 				SNew(SOverlay)
-				.Visibility_Lambda([this]() -> EVisibility { return (ViewportWidget->HasRenderedLastAttempt() ? EVisibility::Hidden : EVisibility::HitTestInvisible); })
+				.Visibility_Lambda([this]() -> EVisibility { return (ViewportWidget->HasRenderedLastAttempt() ? EVisibility::Hidden : EVisibility::Visible); })
 
 				// waiting text background (hides the viewport)
 				+ SOverlay::Slot()
@@ -289,34 +306,61 @@ void UE::RenderGrid::Private::SRenderGridViewerLive::Construct(const FArguments&
 					.ColorAndOpacity(FLinearColor(0, 0, 0, 1))
 				]
 
-				// waiting text
+				// waiting text button
 				+ SOverlay::Slot()
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
 				[
-					SNew(STextBlock)
-					.Text_Lambda([this]() -> FText
-					{
-						if (URenderGridJob* SelectedJob = SelectedJobWeakPtr.Get(); IsValid(SelectedJob))
-						{
-							if (ULevelSequence* Sequence = SelectedJob->GetLevelSequence(); IsValid(Sequence))
+					SAssignNew(ActionButton, SButton)
+					.ContentPadding(0.0f)
+					.ButtonStyle(FRenderGridEditorStyle::Get(), TEXT("Invisible"))
+					.IsFocusable(false)
+					.OnClicked(this, &SRenderGridViewerLive::OnClicked)
+					[
+						SNew(SOverlay)
+
+						// waiting text
+						+ SOverlay::Slot()
+						.HAlign(HAlign_Center)
+						.VAlign(VAlign_Center)
+						[
+							SNew(STextBlock)
+							.Text_Lambda([this]() -> FText
 							{
-								return LOCTEXT("WaitingForRenderer", "Waiting for renderer...");
-							}
-							return LOCTEXT("PleaseSelectLevelSequenceForJob", "Please select a level sequence for this job");
-						}
-						if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
-						{
-							if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
-							{
-								if (!Grid->HasAnyRenderGridJobs())
+								if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 								{
-									return LOCTEXT("PleaseAddJob", "Please add a job");
+									if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
+									{
+										if (Grid->GetMap().IsNull())
+										{
+											return LOCTEXT("PleaseSelectMapForGrid", "Please select a map for this grid");
+										}
+										if (!Grid->GetMap().IsValid())
+										{
+											return LOCTEXT("ClickToOpenMapOfGrid", "Click here to open the map of this grid");
+										}
+										if (Grid->GetMap().Get() != ViewportWidget->GetWorldPublic())
+										{
+											return LOCTEXT("ViewerWrongWorldPleaseTryReopening", "The viewer is currently trying to view the incorrect world, please try reopening the RenderGrid");
+										}
+										if (!Grid->HasAnyRenderGridJobs())
+										{
+											return LOCTEXT("PleaseAddJob", "Please add a job");
+										}
+									}
 								}
-							}
-						}
-						return LOCTEXT("PleaseSelectJob", "Please select a job");
-					})
+								if (URenderGridJob* SelectedJob = SelectedJobWeakPtr.Get(); IsValid(SelectedJob))
+								{
+									if (ULevelSequence* Sequence = SelectedJob->GetLevelSequence(); IsValid(Sequence))
+									{
+										return LOCTEXT("WaitingForRenderer", "Waiting for renderer...");
+									}
+									return LOCTEXT("PleaseSelectLevelSequenceForJob", "Please select a level sequence for this job");
+								}
+								return LOCTEXT("PleaseSelectJob", "Please select a job");
+							})
+						]
+					]
 				]
 			]
 		]
@@ -332,6 +376,22 @@ void UE::RenderGrid::Private::SRenderGridViewerLive::Construct(const FArguments&
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+FReply UE::RenderGrid::Private::SRenderGridViewerLive::OnClicked()
+{
+	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
+	{
+		if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
+		{
+			if (!Grid->GetMap().IsNull() && !Grid->GetMap().IsValid())
+			{
+				FEditorFileUtils::LoadMap(Grid->GetMap().ToString(), false, true);
+				return FReply::Handled();
+			}
+		}
+	}
+	return FReply::Handled();
+}
 
 void UE::RenderGrid::Private::SRenderGridViewerLive::OnObjectModified(UObject* Object)
 {
@@ -402,6 +462,30 @@ void UE::RenderGrid::Private::SRenderGridViewerLive::UpdateViewport()
 		}
 	}
 	ViewportWidget->ClearSequenceFrame();
+}
+
+void UE::RenderGrid::Private::SRenderGridViewerLive::UpdateActionButton()
+{
+	if (!ActionButton.IsValid())
+	{
+		return;
+	}
+
+	bool bIsUsable = false;
+
+	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
+	{
+		if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
+		{
+			if (!Grid->GetMap().IsNull() && !Grid->GetMap().IsValid())
+			{
+				bIsUsable = true;
+			}
+		}
+	}
+
+	ActionButton->SetButtonStyle(&FRenderGridEditorStyle::Get().GetWidgetStyle<FButtonStyle>(bIsUsable ? TEXT("HoverHintOnly") : TEXT("Invisible")));
+	ActionButton->SetCursor(bIsUsable ? EMouseCursor::Type::Hand : EMouseCursor::Type::Default);
 }
 
 void UE::RenderGrid::Private::SRenderGridViewerLive::UpdateFrameSlider()

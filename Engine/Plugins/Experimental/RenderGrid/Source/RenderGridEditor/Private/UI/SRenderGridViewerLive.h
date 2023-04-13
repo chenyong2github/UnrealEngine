@@ -10,6 +10,7 @@
 
 
 class ALevelSequenceActor;
+class SButton;
 class SSlider;
 class URenderGridJob;
 class URenderGrid;
@@ -59,6 +60,7 @@ namespace UE::RenderGrid::Private
 		void ClearSequenceFrame();
 		bool ShowSequenceFrame(URenderGridJob* InJob, ULevelSequence* InSequence, const float InTime);
 		bool HasRenderedLastAttempt() const { return bRenderedLastAttempt; }
+		UWorld* GetWorldPublic() const { return GetWorld(); }
 
 	protected:
 		//~ Begin SEditorViewport Interface
@@ -116,14 +118,18 @@ namespace UE::RenderGrid::Private
 		SLATE_BEGIN_ARGS(SRenderGridViewerLive) {}
 		SLATE_END_ARGS()
 
+		virtual void Tick(const FGeometry&, const double, const float) override;
 		void Construct(const FArguments& InArgs, TSharedPtr<IRenderGridEditor> InBlueprintEditor);
 
 	private:
+		FReply OnClicked();
 		void OnObjectModified(UObject* Object);
 		void RenderGridJobDataChanged();
 		void SelectedJobChanged();
 		void FrameSliderValueChanged(const float NewValue);
+
 		void UpdateViewport();
+		void UpdateActionButton();
 		void UpdateFrameSlider();
 
 	private:
@@ -138,5 +144,8 @@ namespace UE::RenderGrid::Private
 
 		/** The widget that allows the user to select what frame they'd like to see. */
 		TSharedPtr<SRenderGridViewerFrameSlider> FrameSlider;
+
+		/** The button which can be clicked, to to rerender the preview, or to open the map of the grid. */
+		TSharedPtr<SButton> ActionButton;
 	};
 }

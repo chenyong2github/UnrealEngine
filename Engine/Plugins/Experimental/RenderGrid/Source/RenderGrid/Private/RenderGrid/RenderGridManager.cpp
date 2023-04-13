@@ -58,7 +58,7 @@ URenderGridQueue* UE::RenderGrid::FRenderGridManager::RenderPreviewFrame(const F
 	const FRenderGridManagerRenderPreviewFrameArgsCallback Callback = Args.Callback;
 
 	URenderGrid* RenderGrid = Args.RenderGrid.Get();
-	if (!IsValid(RenderGrid))
+	if (!IsValid(RenderGrid) || RenderGrid->GetMap().IsNull() || !RenderGrid->GetMap().IsValid())
 	{
 		Callback.ExecuteIfBound(false);
 		return nullptr;

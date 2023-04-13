@@ -10,11 +10,11 @@
 #include "Utils/RenderGridGenericExecutionQueue.h"
 
 #include "Dom/JsonObject.h"
+#include "FileHelpers.h"
 #include "LevelSequence.h"
 #include "LevelSequenceEditorModule.h"
 #include "Modules/ModuleManager.h"
 #include "MoviePipelineAntiAliasingSetting.h"
-#include "MoviePipelineDeferredPasses.h"
 #include "MoviePipelineEditorBlueprintLibrary.h"
 #include "MoviePipelineExecutor.h"
 #include "MoviePipelineImageSequenceOutput.h"
@@ -75,6 +75,12 @@ URenderGridMoviePipelineRenderJob* URenderGridMoviePipelineRenderJob::Create(URe
 
 	UMoviePipelineExecutorJob* NewJob = UMoviePipelineEditorBlueprintLibrary::CreateJobFromSequence(RenderJob->PipelineQueue, JobSequence);
 	RenderJob->PipelineExecutorJob = NewJob;
+
+	FSoftObjectPath Map = RenderGrid->GetMap().ToSoftObjectPath();
+	if (Map.IsValid())
+	{
+		NewJob->Map = Map;
+	}
 
 	UMoviePipelinePrimaryConfig* JobRenderPreset = Job->GetRenderPreset();
 	if (IsValid(JobRenderPreset))
@@ -460,7 +466,7 @@ void URenderGridQueue::Tick(float DeltaTime)
 URenderGridQueue* URenderGridQueue::Create(const UE::RenderGrid::FRenderGridQueueCreateArgs& Args)
 {
 	URenderGrid* RenderGrid = Args.RenderGrid.Get();
-	if (!IsValid(RenderGrid))
+	if (!IsValid(RenderGrid) || RenderGrid->GetMap().IsNull())
 	{
 		return nullptr;
 	}
@@ -737,6 +743,15 @@ void URenderGridQueue::OnStart()
 	OnExecuteStartedDelegate.Broadcast(this);
 	OnExecuteStartedDelegate.Clear();
 	AddToRoot();
+
+	Queue->Add(UE::RenderGrid::Private::FRenderGridGenericExecutionQueueAction::CreateLambda([this]()
+	{
+		if (!RenderGrid->GetMap().IsValid())
+		{
+			FEditorFileUtils::LoadMap(RenderGrid->GetMap().ToString(), false, true);
+		}
+	}));
+	Queue->DelayFrames(1);
 
 	Queue->Add(UE::RenderGrid::Private::FRenderGridGenericExecutionQueueAction::CreateLambda([this]()
 	{

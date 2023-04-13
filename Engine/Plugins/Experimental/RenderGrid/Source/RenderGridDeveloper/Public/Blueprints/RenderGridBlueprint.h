@@ -8,13 +8,6 @@
 #include "RenderGridBlueprint.generated.h"
 
 
-namespace UE::RenderGrid
-{
-	/** A delegate for URenderGridBlueprint::PropagateToInstances. */
-	DECLARE_DELEGATE_OneParam(FRenderGridBlueprintRunOnInstancesCallback, URenderGrid* /*Instance*/);
-}
-
-
 /**
  * A UBlueprint child class for the RenderGrid modules.
  *
@@ -45,7 +38,8 @@ public:
 	//~ End UBlueprint Interface
 
 private:
-	void RunOnInstances(const UE::RenderGrid::FRenderGridBlueprintRunOnInstancesCallback& Callback);
+	DECLARE_DELEGATE_OneParam(FRenderGridBlueprintRunOnInstancesCallback, URenderGrid* /*Instance*/);
+	void RunOnInstances(const FRenderGridBlueprintRunOnInstancesCallback& Callback);
 
 public:
 	void Load();

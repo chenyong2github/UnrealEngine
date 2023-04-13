@@ -62,7 +62,7 @@ void URenderGridBlueprint::PostLoad()
 	OnPostVariablesChange(this);
 }
 
-void URenderGridBlueprint::RunOnInstances(const UE::RenderGrid::FRenderGridBlueprintRunOnInstancesCallback& Callback)
+void URenderGridBlueprint::RunOnInstances(const FRenderGridBlueprintRunOnInstancesCallback& Callback)
 {
 	if (UClass* MyRenderGridClass = GeneratedClass; IsValid(MyRenderGridClass))
 	{
@@ -107,7 +107,7 @@ void URenderGridBlueprint::Save()
 
 void URenderGridBlueprint::PropagateJobsToInstances()
 {
-	RunOnInstances(UE::RenderGrid::FRenderGridBlueprintRunOnInstancesCallback::CreateLambda([this](URenderGrid* Instance)
+	RunOnInstances(FRenderGridBlueprintRunOnInstancesCallback::CreateLambda([this](URenderGrid* Instance)
 	{
 		Instance->CopyJobs(RenderGrid);
 	}));
@@ -116,7 +116,7 @@ void URenderGridBlueprint::PropagateJobsToInstances()
 void URenderGridBlueprint::PropagateAllPropertiesExceptJobsToInstances()
 {
 	URenderGrid* CDO = GetRenderGridClassDefaultObject();
-	RunOnInstances(UE::RenderGrid::FRenderGridBlueprintRunOnInstancesCallback::CreateLambda([this, CDO](URenderGrid* Instance)
+	RunOnInstances(FRenderGridBlueprintRunOnInstancesCallback::CreateLambda([this, CDO](URenderGrid* Instance)
 	{
 		Instance->CopyAllPropertiesExceptJobs(RenderGrid);
 		if (IsValid(CDO))
@@ -129,7 +129,7 @@ void URenderGridBlueprint::PropagateAllPropertiesExceptJobsToInstances()
 void URenderGridBlueprint::PropagateAllPropertiesToInstances()
 {
 	URenderGrid* CDO = GetRenderGridClassDefaultObject();
-	RunOnInstances(UE::RenderGrid::FRenderGridBlueprintRunOnInstancesCallback::CreateLambda([this, CDO](URenderGrid* Instance)
+	RunOnInstances(FRenderGridBlueprintRunOnInstancesCallback::CreateLambda([this, CDO](URenderGrid* Instance)
 	{
 		Instance->CopyAllProperties(RenderGrid);
 		if (IsValid(CDO))
@@ -171,7 +171,7 @@ void URenderGridBlueprint::PropagateAllPropertiesToAsset(URenderGrid* Instance)
 URenderGrid* URenderGridBlueprint::GetRenderGridWithBlueprintGraph() const
 {
 	URenderGrid* Result = GetRenderGrid();
-	const_cast<URenderGridBlueprint*>(this)->RunOnInstances(UE::RenderGrid::FRenderGridBlueprintRunOnInstancesCallback::CreateLambda([&Result](URenderGrid* Instance)
+	const_cast<URenderGridBlueprint*>(this)->RunOnInstances(FRenderGridBlueprintRunOnInstancesCallback::CreateLambda([&Result](URenderGrid* Instance)
 	{
 		if (!IsValid(Result) || Result->HasAnyFlags(RF_ClassDefaultObject | RF_DefaultSubObject))
 		{

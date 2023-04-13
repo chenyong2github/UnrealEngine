@@ -54,11 +54,15 @@ public:
 
 	void CopyValuesFrom(URenderGridSettings* From)
 	{
+		Map = From->Map;
 		PropsSourceType = From->PropsSourceType;
 		PropsSourceOrigin_RemoteControl = From->PropsSourceOrigin_RemoteControl;
 	}
 
 public:
+	UPROPERTY(EditInstanceOnly, Category="Render Grid", DisplayName="Map", Meta=(AllowedClasses="/Script/Engine.World"))
+	TSoftObjectPtr<UWorld> Map;
+
 	/** The type of the properties that a job in this grid can have. */
 	UPROPERTY(/*EditInstanceOnly, Category="Render Grid", Meta=(DisplayName="Properties Type")*/)
 	ERenderGridPropsSourceType PropsSourceType;
@@ -559,6 +563,11 @@ public:
 	/** Overridable native event for when job rendering for the viewport viewer-mode ends. */
 	virtual void EndViewportRender(URenderGridJob* Job);
 
+private:
+	DECLARE_DELEGATE_RetVal_TwoParams(URenderGridQueue*, FRenderGridRunRenderJobsDefaultObjectCallback, URenderGrid* /*DefaultObject*/, TArray<URenderGridJob*> /*Jobs*/);
+	DECLARE_DELEGATE_RetVal_TwoParams(URenderGridQueue*, FRenderGridRunRenderJobsCallback, URenderGrid* /*This*/, TArray<URenderGridJob*> /*Jobs*/);
+	URenderGridQueue* RunRenderJobs(const TArray<URenderGridJob*>& Jobs, const FRenderGridRunRenderJobsDefaultObjectCallback& DefaultObjectCallback, const FRenderGridRunRenderJobsCallback& Callback);
+
 public:
 	/** Renders all the enabled jobs of this render grid. */
 	UFUNCTION(BlueprintCallable, Category="Render Grid")
@@ -609,6 +618,9 @@ public:
 
 public:
 	URenderGridSettings* GetSettingsObject() { return Settings; }
+
+	UFUNCTION(BlueprintPure, Category="Render Grid")
+	TSoftObjectPtr<UWorld> GetMap() const;
 
 	UFUNCTION(BlueprintCallable, Category="Render Grid")
 	void SetPropsSource(ERenderGridPropsSourceType InPropsSourceType, UObject* InPropsSourceOrigin = nullptr);
