@@ -181,6 +181,10 @@ struct FGPUSpriteEmitterInfo
 	UPROPERTY()
 	TEnumAsByte<EParticleCollisionMode::Type> CollisionMode;
 	
+	/** If true, use velocity to approximate motion blur */
+	UPROPERTY()
+	uint32 bUseVelocityForMotionBlur :1;
+
 	/** If true, removes the HMD view roll (e.g. in VR) */
 	UPROPERTY()
 	uint32 bRemoveHMDRoll : 1;
@@ -226,6 +230,7 @@ struct FGPUSpriteEmitterInfo
 		, LockAxisFlag(0)
 		, bEnableCollision(false)
 		, CollisionMode(EParticleCollisionMode::SceneDepth)
+		, bUseVelocityForMotionBlur(0)
 		, bRemoveHMDRoll(0)
 		, MinFacingCameraBlendDistance(0.f)
 		, MaxFacingCameraBlendDistance(0.f)
@@ -388,6 +393,10 @@ struct FGPUSpriteResourceData
 	UPROPERTY()
 	FVector2D PivotOffset;
 	
+	/** If true, use velocity to approximate motion blur */
+	UPROPERTY()
+	uint32 bUseVelocityForMotionBlur :1;
+
 	/** If true, removes the HMD view roll (e.g. in VR) */
 	UPROPERTY()
 	uint32 bRemoveHMDRoll:1;
@@ -435,6 +444,7 @@ struct FGPUSpriteResourceData
 		, ScreenAlignment(0)
 		, LockAxisFlag(0)
 		, PivotOffset(-0.5f,-0.5f)
+		, bUseVelocityForMotionBlur(0)
 		, bRemoveHMDRoll(0)
 		, MinFacingCameraBlendDistance(0.f)
 		, MaxFacingCameraBlendDistance(0.f)		

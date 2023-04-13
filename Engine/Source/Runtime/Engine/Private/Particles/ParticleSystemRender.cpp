@@ -1035,6 +1035,7 @@ void FDynamicSpriteEmitterData::UpdateRenderThreadResourcesEmitter(const FPartic
 		UniformParameters.TangentSelector = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
 		UniformParameters.InvDeltaSeconds = SourceData->InvDeltaSeconds;
 		UniformParameters.LWCTile = SourceData->LWCTile;
+		UniformParameters.UseVelocityForMotionBlur = Source.RequiredModule->bUseVelocityForMotionBlur ? 1.0f : 0.0f;
 
 		// Parameters for computing sprite tangents.
 		const FMatrix& LocalToWorld = InOwnerProxy->GetLocalToWorld();
@@ -1375,6 +1376,7 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 			UniformParameters.PrevTransformAvailable = Source.MeshMotionBlurOffset ? 1 : 0;
 			UniformParameters.bUseLocalSpace = Source.bUseLocalSpace;
 			UniformParameters.LWCTile = Source.LWCTile;
+			UniformParameters.UseVelocityForMotionBlur = Source.RequiredModule->bUseVelocityForMotionBlur ? 1.0f : 0.0f;
 
 			CollectorResources.UniformBuffer = FMeshParticleUniformBufferRef::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_MultiFrame);
 			MeshVertexFactory->SetUniformBuffer(CollectorResources.UniformBuffer);

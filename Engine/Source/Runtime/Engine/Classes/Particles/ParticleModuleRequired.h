@@ -113,6 +113,7 @@ struct FParticleRequiredModule
 	TArray<FVector2f> FrameData;
 	FRHIShaderResourceView* BoundingGeometryBufferSRV;
 	uint8 bCutoutTexureIsValid : 1;
+	uint8 bUseVelocityForMotionBlur : 1;
 };
 
 
@@ -210,6 +211,17 @@ class UParticleModuleRequired : public UParticleModule
 	 */
 	UPROPERTY(EditAnywhere, Category = Duration)
 	uint8 bEmitterDurationUseRange : 1;
+
+
+	UPROPERTY(EditAnywhere, Category = Rendering)
+	uint8 bOverrideUseVelocityForMotionBlur : 1;
+
+	/**
+	 * When supported by the vertex factory will use particle velocity for motion blur approximation.
+	 * This will be inaccurate in some cases, i.e. sprite rotation, but may provide a reasonable result vs having this disabled
+	 */
+	UPROPERTY(EditAnywhere, Category = Rendering, meta=(EditCondition = "bOverrideUseVelocityForMotionBlur"))
+	uint8 bUseVelocityForMotionBlur : 1;
 
 	/** 
 	 *	How long, in seconds, the emitter will run before looping.
@@ -440,6 +452,8 @@ class UParticleModuleRequired : public UParticleModule
 	virtual bool GenerateLODModuleValues(UParticleModule* SourceModule, float Percentage, UParticleLODLevel* LODLevel) override;
 	//~ End UParticleModule Interface
 
+	bool ShouldUseVelocityForMotionBlur() const;
+
 	inline int32 GetNumFrames() const
 	{
 		return SubImages_Vertical * SubImages_Horizontal;
@@ -474,6 +488,7 @@ class UParticleModuleRequired : public UParticleModule
 	{
 		FParticleRequiredModule *FReqMod = new FParticleRequiredModule();
 		FReqMod->bCutoutTexureIsValid = IsBoundingGeometryValid();
+		FReqMod->bUseVelocityForMotionBlur = ShouldUseVelocityForMotionBlur();
 		FReqMod->NumFrames = GetNumFrames();
 		FReqMod->FrameData = DerivedData.BoundingGeometry;
 		FReqMod->NumBoundingVertices = GetNumBoundingVertices();

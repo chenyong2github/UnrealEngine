@@ -1416,6 +1416,7 @@ struct FDynamicSpriteEmitterReplayDataBase
 	uint8						EmitterRenderMode;
 	uint8						EmitterNormalsMode;
 	FVector2f					PivotOffset;
+	bool						bUseVelocityForMotionBlur;
 	bool						bRemoveHMDRoll;
 	float						MinFacingCameraBlendDistance;
 	float						MaxFacingCameraBlendDistance;

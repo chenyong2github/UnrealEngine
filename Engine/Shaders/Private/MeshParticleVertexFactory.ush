@@ -430,7 +430,7 @@ float4 CalcWorldPosition(FVertexFactoryInput Input)
 	return float4(WorldPosition, Input.Position.w);
 }
 
-float4 CalcPrevWorldPosition(FVertexFactoryInput Input)
+float4 CalcPrevWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
 #if USE_PREVIOUS_TRANSFORM
 	if (MeshParticleVF.PrevTransformAvailable > 0)
@@ -442,7 +442,9 @@ float4 CalcPrevWorldPosition(FVertexFactoryInput Input)
 	else
 #endif
 	{
-		return CalcWorldPosition(Input);
+		float4 Position = CalcWorldPosition(Input);
+		Position.xyz -= Intermediates.ParticleVelocity.xyz * Intermediates.ParticleVelocity.w * MeshParticleVF.UseVelocityForMotionBlur;
+		return Position;
 	}
 }
 
@@ -666,7 +668,7 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 // @return previous translated world position
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {	
-	return CalcPrevWorldPosition(Input);
+	return CalcPrevWorldPosition(Input, Intermediates);
 }
 
 #if NEEDS_VERTEX_FACTORY_INTERPOLATION

@@ -2251,6 +2251,11 @@ bool UParticleSystem::DoesAnyEmitterHaveMotionBlur(int32 LODLevelIndex) const
 			{
 				return true;
 			}
+
+			if (EmitterLOD->RequiredModule && EmitterLOD->RequiredModule->ShouldUseVelocityForMotionBlur())
+			{
+				return true;
+			}
 		}
 	}
 

@@ -489,6 +489,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FGPUSpriteEmitterUniformParameters,)
 	SHADER_PARAMETER(float, RotationBias)
 	SHADER_PARAMETER(float, CameraMotionBlurAmount)
 	SHADER_PARAMETER(FVector2f, PivotOffset)
+	SHADER_PARAMETER(float, UseVelocityForMotionBlur)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FGPUSpriteEmitterUniformParameters, "EmitterUniforms");
@@ -4959,6 +4960,8 @@ static void SetGPUSpriteResourceData( FGPUSpriteResources* Resources, const FGPU
 		// For locked rotation about Z the particle should be rotated by 90 degrees.
 		Resources->UniformParameters.RotationBias = (LockAxisFlag == EPAL_ROTATE_Z) ? (0.5f * UE_PI) : 0.0f;
 	}
+
+	Resources->UniformParameters.UseVelocityForMotionBlur = InResourceData.bUseVelocityForMotionBlur ? 1.0f : 0.0f;
 
 	// Alignment overrides
 	Resources->UniformParameters.RemoveHMDRoll = InResourceData.bRemoveHMDRoll ? 1.f : 0.f;

@@ -115,6 +115,8 @@ struct FVertexFactoryIntermediates
 	float3 TangentRight;
 	/** The color of the sprite. */
 	float4 Color;
+	/** The delta between previous and current particle locations. */
+	float3 ParticlePrevToCurrDelta;
 	/** The velocity of the particle, XYZ: direction, W: speed. */
 	float4 ParticleVelocity;
 	/** Dynamic parameter. */
@@ -533,11 +535,17 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 #endif
 #endif
 
-#if USE_PARTICLE_VELOCITY
-	float3 ParticleVelocity = LWCToFloat(LWCSubtract(ParticleWorldPosition, ParticleOldWorldPosition)) * SpriteVF.InvDeltaSeconds;
-	Intermediates.ParticleVelocity.xyz = normalize(ParticleVelocity);
-	Intermediates.ParticleVelocity.w = length(ParticleVelocity);
+#if !USE_PARTICLE_VELOCITY
+	if (SpriteVF.UseVelocityForMotionBlur > 0.0f)
 #endif
+	{
+		Intermediates.ParticlePrevToCurrDelta = LWCToFloat(LWCSubtract(ParticleWorldPosition, ParticleOldWorldPosition));
+	#if USE_PARTICLE_VELOCITY
+		float3 ParticleVelocity = Intermediates.ParticlePrevToCurrDelta * SpriteVF.InvDeltaSeconds;
+		Intermediates.ParticleVelocity.xyz = normalize(ParticleVelocity);
+		Intermediates.ParticleVelocity.w = length(ParticleVelocity);
+	#endif
+	}
 
 #if USE_PARTICLE_TIME
 	Intermediates.RelativeTime = Input.Position.w;
@@ -669,7 +677,9 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	return VertexFactoryGetWorldPosition(Input, Intermediates);
+	float4 Position = VertexFactoryGetWorldPosition(Input, Intermediates);
+	Position.xyz -= Intermediates.ParticlePrevToCurrDelta * SpriteVF.UseVelocityForMotionBlur;
+	return Position;
 }
 
 /**

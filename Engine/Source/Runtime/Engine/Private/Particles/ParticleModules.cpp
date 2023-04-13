@@ -87,11 +87,15 @@
 #include "Particles/Collision/ParticleModuleCollisionGPU.h"
 #include "DerivedDataCacheInterface.h"
 
+static TAutoConsoleVariable<bool> CVarFxCascadeUseVelocityForMotionBlur(
+	TEXT("fx.Cascade.UseVelocityForMotionBlur"),
+	true,
+	TEXT("When enabled velocity will be used to approximate velocity for vertex factories that support this.")
+);
+
 /*-----------------------------------------------------------------------------
 	Abstract base modules used for categorization.
 -----------------------------------------------------------------------------*/
-
-
 
 /*-----------------------------------------------------------------------------
 	Helper functions.
@@ -1308,6 +1312,15 @@ void UParticleModuleRequired::CacheDerivedData()
 		COOK_STAT(Timer.AddMiss(Data.Num()));
 	}
 #endif
+}
+
+bool UParticleModuleRequired::ShouldUseVelocityForMotionBlur() const
+{
+	if ( bOverrideUseVelocityForMotionBlur )
+	{
+		return bUseVelocityForMotionBlur;
+	}
+	return CVarFxCascadeUseVelocityForMotionBlur.GetValueOnAnyThread();
 }
 
 void UParticleModuleRequired::InitBoundingGeometryBuffer()
@@ -4846,6 +4859,9 @@ void UParticleModuleTypeDataGpu::Build( FParticleEmitterBuildInfo& EmitterBuildI
 
 		// Compute the maximum number of particles allowed for this emitter.
 		EmitterInfo.MaxParticleCount = FMath::Max<int32>( 1, EmitterBuildInfo.EstimatedMaxActiveParticleCount );
+
+		EmitterInfo.bUseVelocityForMotionBlur = EmitterBuildInfo.RequiredModule->ShouldUseVelocityForMotionBlur();
+		ResourceData.bUseVelocityForMotionBlur = EmitterBuildInfo.RequiredModule->ShouldUseVelocityForMotionBlur();
 
 		// Store screen alignment for particles.
 		EmitterInfo.ScreenAlignment = EmitterBuildInfo.RequiredModule->ScreenAlignment;

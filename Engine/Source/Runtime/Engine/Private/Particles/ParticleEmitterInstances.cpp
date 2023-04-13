@@ -370,6 +370,7 @@ FParticleEmitterBuildInfo::FParticleEmitterBuildInfo()
 	, bLocalVectorFieldTileY(false)
 	, bLocalVectorFieldTileZ(false)
 	, bLocalVectorFieldUseFixDT(false)
+	, bUseVelocityForMotionBlur(0)
 	, bRemoveHMDRoll(0)
 	, MinFacingCameraBlendDistance(0.0f)
 	, MaxFacingCameraBlendDistance(0.0f)
@@ -2899,6 +2900,7 @@ bool FParticleEmitterInstance::FillReplayData( FDynamicEmitterReplayDataBase& Ou
 
 		NewReplayData->PivotOffset = FVector2f(PivotOffset);
 
+		NewReplayData->bUseVelocityForMotionBlur = LODLevel->RequiredModule->ShouldUseVelocityForMotionBlur();
 		NewReplayData->bRemoveHMDRoll = LODLevel->RequiredModule->bRemoveHMDRoll;
 		NewReplayData->MinFacingCameraBlendDistance = LODLevel->RequiredModule->MinFacingCameraBlendDistance;
 		NewReplayData->MaxFacingCameraBlendDistance = LODLevel->RequiredModule->MaxFacingCameraBlendDistance;
@@ -4027,6 +4029,7 @@ FDynamicSpriteEmitterReplayDataBase::FDynamicSpriteEmitterReplayDataBase()
 	, EmitterRenderMode(0)
 	, EmitterNormalsMode(0)
 	, PivotOffset(-0.5f, -0.5f)
+	, bUseVelocityForMotionBlur(false)
 	, bRemoveHMDRoll(false)
 	, MinFacingCameraBlendDistance(0.f)
 	, MaxFacingCameraBlendDistance(0.f)
@@ -4069,6 +4072,7 @@ void FDynamicSpriteEmitterReplayDataBase::Serialize( FArchive& Ar )
 
 	Ar << PivotOffset;
 
+	Ar << bUseVelocityForMotionBlur;
 	Ar << bRemoveHMDRoll;
 	Ar << MinFacingCameraBlendDistance;
 	Ar << MaxFacingCameraBlendDistance;

@@ -690,7 +690,9 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS( FVertexFact
  */
 float4 VertexFactoryGetPreviousWorldPosition( FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates )
 {
-	return float4(Intermediates.VertexWorldPosition,1);
+	float3 Position = Intermediates.VertexWorldPosition;
+	Position.xyz -= Intermediates.ParticleVelocity * EmitterUniforms.UseVelocityForMotionBlur;
+	return float4(Position, 1);
 }
 
 float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolantsVSToPS Interpolants)

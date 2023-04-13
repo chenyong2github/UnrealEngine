@@ -196,7 +196,9 @@ struct FParticleEmitterBuildInfo
 	uint32 bLocalVectorFieldTileZ : 1;
 	/** Use fix delta time in the simulation? */
 	uint32 bLocalVectorFieldUseFixDT : 1;
-	
+
+	uint32 bUseVelocityForMotionBlur : 1;
+
 	/** Particle alignment overrides */
 	uint32 bRemoveHMDRoll : 1;
 	float MinFacingCameraBlendDistance;
