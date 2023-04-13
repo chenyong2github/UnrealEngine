@@ -372,7 +372,7 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 		// Make sure the game has the appropriate asset manager configuration or we won't be able to load game feature data assets
 		FPrimaryAssetId DummyGameFeatureDataAssetId(UGameFeatureData::StaticClass()->GetFName(), NAME_None);
 		FPrimaryAssetRules GameDataRules = UAssetManager::Get().GetPrimaryAssetRules(DummyGameFeatureDataAssetId);
-		if (GameDataRules.IsDefault())
+		if (FApp::HasProjectName() && GameDataRules.IsDefault())
 		{
 			FMessageLog("LoadErrors").Error()
 				->AddToken(FTextToken::Create(FText::Format(NSLOCTEXT("GameFeatures", "MissingRuleForGameFeatureData", "Asset Manager settings do not include an entry for assets of type {0}, which is required for game feature plugins to function."), FText::FromName(UGameFeatureData::StaticClass()->GetFName()))))

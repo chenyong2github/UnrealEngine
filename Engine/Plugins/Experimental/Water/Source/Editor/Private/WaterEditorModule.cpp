@@ -343,7 +343,7 @@ void FWaterEditorModule::AddWaterCollisionProfile()
 	// Make sure WaterCollisionProfileName is added to Engine's collision profiles
 	const FName WaterCollisionProfileName = GetDefault<UWaterRuntimeSettings>()->GetDefaultWaterCollisionProfileName();
 	FCollisionResponseTemplate WaterBodyCollisionProfile;
-	if (!UCollisionProfile::Get()->GetProfileTemplate(WaterCollisionProfileName, WaterBodyCollisionProfile))
+	if (FApp::HasProjectName() && !UCollisionProfile::Get()->GetProfileTemplate(WaterCollisionProfileName, WaterBodyCollisionProfile))
 	{
 		WaterBodyCollisionProfile.Name = WaterCollisionProfileName;
 		WaterBodyCollisionProfile.CollisionEnabled = ECollisionEnabled::QueryOnly;
