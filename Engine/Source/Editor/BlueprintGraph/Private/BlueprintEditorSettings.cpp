@@ -52,9 +52,9 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, BreakpointReloadMethod(EBlueprintBreakpointReloadMethod::RestoreAll)
 	, bEnablePinValueInspectionTooltips(true)
 	, bEnableNamespaceEditorFeatures(true)
-	// Experimental
-	, bEnableContextMenuTimeSlicing(false)
+	, bEnableContextMenuTimeSlicing(true)
 	, ContextMenuTimeSlicingThresholdMs(50)
+	// Experimental
 	, bFavorPureCastNodes(false)
 	, bDoNotMarkAllInstancesDirtyOnDefaultValueChange(false)
 	// Compiler Settings
