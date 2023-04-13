@@ -47,11 +47,11 @@ private:
 	TMap<FName, IOnlineSubsystemPtr> OnlineSubsystems;
 
 	/**
-	 * Read write lock for access to OnlineSubsystems.
+	 * Lock for access to OnlineSubsystems array to allow for multiple threads to be able to create/get online subsystems simultaneously.
 	 * The intent is OnlineSubsystems can have elements added on separate threads through normal gameplay, though this is expected to be very rare and only once per subsystem type.
-	 * OnlineSubsystems is not expected to remove elements except in very controlled scenarios.
+	 * OnlineSubsystems is not expected to remove elements except in very controlled scenarios.  In that case, the lock is only limiting access to the OnlineSubsystems array, but the result may be invalidated.
 	 */
-	mutable FRWLock OnlineSubsystemsLock;
+	mutable FCriticalSection OnlineSubsystemsLock;
 
 	/** Have we warned already for a given online subsystem creation failure */
 	TSet<FName> OnlineSubsystemFailureNotes;
