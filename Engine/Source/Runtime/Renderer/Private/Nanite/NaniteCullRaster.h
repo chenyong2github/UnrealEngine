@@ -57,62 +57,6 @@ struct FSharedContext
 	EPipeline Pipeline;
 };
 
-struct FCullingContext
-{
-	struct FConfiguration
-	{
-		uint32 bTwoPassOcclusion : 1;
-		uint32 bUpdateStreaming : 1;
-		uint32 bSupportsMultiplePasses : 1;
-		uint32 bForceHWRaster : 1;
-		uint32 bPrimaryContext : 1;
-		uint32 bDrawOnlyVSMInvalidatingGeometry : 1;
-		uint32 bDrawOnlyRootGeometry : 1;
-		uint32 bIsSceneCapture : 1;
-		uint32 bIsReflectionCapture : 1;
-		uint32 bIsLumenCapture : 1;
-		uint32 bIsGameView : 1;
-		uint32 bEditorShowFlag : 1;
-		uint32 bGameShowFlag : 1;
-		uint32 bProgrammableRaster : 1;
-
-		void SetViewFlags(const FViewInfo& View);
-	}
-	Configuration = { 0 };
-
-	TRefCountPtr<IPooledRenderTarget> PrevHZB; // If non-null, HZB culling is enabled
-
-	uint32			DrawPassIndex;
-	uint32			NumInstancesPreCull;
-	uint32			RenderFlags;
-	uint32			DebugFlags;
-	FIntRect		HZBBuildViewRect;
-
-	FIntVector4		PageConstants;
-
-	FRDGBufferRef	MainRasterizeArgsSWHW;
-	FRDGBufferRef	PostRasterizeArgsSWHW;
-
-	FRDGBufferRef	SafeMainRasterizeArgsSWHW;
-	FRDGBufferRef	SafePostRasterizeArgsSWHW;
-
-	FRDGBufferRef	ClusterCountSWHW;
-	FRDGBufferRef	ClusterClassifyArgs;
-
-	FRDGBufferRef	QueueState;
-	FRDGBufferRef	VisibleClustersSWHW;
-	FRDGBufferRef	OccludedInstances;
-	FRDGBufferRef	OccludedInstancesArgs;
-	FRDGBufferRef	TotalPrevDrawClustersBuffer;
-	FRDGBufferRef	StreamingRequests;
-	FRDGBufferRef	ViewsBuffer;
-	FRDGBufferRef	InstanceDrawsBuffer;
-	FRDGBufferRef	PrimitiveFilterBuffer;
-	FRDGBufferRef	HiddenPrimitivesBuffer;
-	FRDGBufferRef	ShowOnlyPrimitivesBuffer;
-	FRDGBufferRef	StatsBuffer;
-};
-
 struct FRasterContext
 {
 	FVector2f			RcpViewSize;
@@ -140,15 +84,15 @@ struct FRasterResults
 	uint32			MaxNodes;
 	uint32			RenderFlags;
 
-	FRDGBufferRef	ViewsBuffer{};
-	FRDGBufferRef	VisibleClustersSWHW{};
+	FRDGBufferRef	ViewsBuffer			= nullptr;
+	FRDGBufferRef	VisibleClustersSWHW	= nullptr;
 
-	FRDGTextureRef	VisBuffer64{};
-	FRDGTextureRef	DbgBuffer64{};
-	FRDGTextureRef	DbgBuffer32{};
+	FRDGTextureRef	VisBuffer64			= nullptr;
+	FRDGTextureRef	DbgBuffer64			= nullptr;
+	FRDGTextureRef	DbgBuffer32			= nullptr;
 
-	FRDGTextureRef	MaterialDepth{};
-	FRDGTextureRef	ShadingMask{};
+	FRDGTextureRef	MaterialDepth		= nullptr;
+	FRDGTextureRef	ShadingMask			= nullptr;
 
 	FNaniteVisibilityResults VisibilityResults;
 
@@ -161,15 +105,6 @@ void CollectRasterPSOInitializers(
 	const FPSOPrecacheParams& PreCacheParams,
 	EShaderPlatform ShaderPlatform,
 	TArray<FPSOPrecacheData>& PSOInitializers);
-
-FCullingContext	InitCullingContext(
-	FRDGBuilder& GraphBuilder,
-	const FSharedContext& SharedContext,
-	const FScene& Scene,
-	const TRefCountPtr<IPooledRenderTarget> &PrevHZB,
-	const FIntRect& HZBBuildViewRect,
-	const FCullingContext::FConfiguration& Configuration
-);
 
 FRasterContext InitRasterContext(
 	FRDGBuilder& GraphBuilder,
@@ -186,39 +121,51 @@ FRasterContext InitRasterContext(
 	bool bCustomPass = false
 );
 
-void CullRasterize(
-	FRDGBuilder& GraphBuilder,
-	FNaniteRasterPipelines& RasterPipelines,
-	const FNaniteVisibilityResults& VisibilityResults,
-	const FScene& Scene,
-	const FViewInfo& SceneView,
-	const FPackedViewArray& Views,
-	const FSharedContext& SharedContext,
-	FCullingContext& CullingContext,
-	const FRasterContext& RasterContext,
-	const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws = nullptr,
-	bool bExtractStats = false
-);
+struct FConfiguration
+{
+	uint32 bTwoPassOcclusion : 1;
+	uint32 bUpdateStreaming : 1;
+	uint32 bSupportsMultiplePasses : 1;
+	uint32 bForceHWRaster : 1;
+	uint32 bPrimaryContext : 1;
+	uint32 bDrawOnlyVSMInvalidatingGeometry : 1;
+	uint32 bDrawOnlyRootGeometry : 1;
+	uint32 bIsSceneCapture : 1;
+	uint32 bIsReflectionCapture : 1;
+	uint32 bIsLumenCapture : 1;
+	uint32 bIsGameView : 1;
+	uint32 bEditorShowFlag : 1;
+	uint32 bGameShowFlag : 1;
+	uint32 bProgrammableRaster : 1;
 
-/**
- * Rasterize to a virtual shadow map (set) defined by the Views array, each view must have a virtual shadow map index set and the 
- * virtual shadow map physical memory mapping must have been defined. Note that the physical backing is provided by the raster context.
- * parameter Views - One view per layer to rasterize, the 'TargetLayerIdX_AndMipLevelY.X' must be set to the correct layer.
- */
-void CullRasterize(
-	FRDGBuilder& GraphBuilder,
-	FNaniteRasterPipelines& RasterPipelines,
-	const FNaniteVisibilityResults& VisibilityResults,
-	const FScene& Scene,
-	const FViewInfo& SceneView,
-	const FPackedViewArray& Views,
-	const FSharedContext& SharedContext,
-	FCullingContext& CullingContext,
-	const FRasterContext& RasterContext,
-	const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws,
-	// VirtualShadowMapArray is the supplier of virtual to physical translation, probably could abstract this a bit better,
-	FVirtualShadowMapArray* VirtualShadowMapArray,
-	bool bExtractStats = false
-);
+	void SetViewFlags(const FViewInfo& View);
+};
+
+class IRenderer
+{
+public:
+	static TUniquePtr< IRenderer > Create(
+		FRDGBuilder&			GraphBuilder,
+		const FScene&			Scene,
+		const FViewInfo&		SceneView,
+		const FSharedContext&	SharedContext,
+		const FRasterContext&	RasterContext,
+		const FConfiguration&	Configuration,
+		const FIntRect&			ViewRect,
+		const TRefCountPtr<IPooledRenderTarget>& PrevHZB,
+		FVirtualShadowMapArray*	VirtualShadowMapArray = nullptr );
+
+	IRenderer() = default;
+	virtual ~IRenderer() = default;
+
+	virtual void DrawGeometry(
+		FNaniteRasterPipelines& RasterPipelines,
+		const FNaniteVisibilityResults& VisibilityResults,
+		const FPackedViewArray& ViewArray,
+		const TArray<FInstanceDraw, SceneRenderingAllocator>* OptionalInstanceDraws = nullptr,
+		bool bExtractStats = false ) = 0;
+
+	virtual void ExtractResults( FRasterResults& RasterResults ) = 0;
+};
 
 } // namespace Nanite

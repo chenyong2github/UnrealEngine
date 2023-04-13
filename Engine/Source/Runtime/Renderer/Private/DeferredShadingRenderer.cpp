@@ -3154,7 +3154,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					);
 				}
 
-				Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
+				Nanite::FConfiguration CullingConfig = { 0 };
 				CullingConfig.bTwoPassOcclusion = true;
 				CullingConfig.bUpdateStreaming = true;
 				CullingConfig.bPrimaryContext = true;
@@ -3250,7 +3250,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 					Nanite::FPackedViewArray* NaniteViewsToRender = CreateNaniteViews(View, ViewIndex, RasterTextureSize, LODScaleFactor, MaxPixelsPerEdgeMultipler);
 
-					Nanite::FCullingContext CullingContext{};
+					TUniquePtr< Nanite::IRenderer > NaniteRenderer;
 
 					// Nanite::VisBuffer (Culling and Rasterization)
 					{
@@ -3259,28 +3259,26 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 						RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteVisBuffer);
 						RDG_EVENT_SCOPE(GraphBuilder, "Nanite::VisBuffer");
 
-						CullingContext = Nanite::InitCullingContext(
+						NaniteRenderer = Nanite::IRenderer::Create(
 							GraphBuilder,
-							SharedContext,
-							*Scene,
-							!bIsEarlyDepthComplete ? View.PrevViewInfo.NaniteHZB : View.PrevViewInfo.HZB,
-							ViewRect,
-							CullingConfig
-						);
-
-						Nanite::CullRasterize(
-							GraphBuilder,
-							Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
-							RasterResults.VisibilityResults,
 							*Scene,
 							View,
-							*NaniteViewsToRender,
 							SharedContext,
-							CullingContext,
 							RasterContext,
+							CullingConfig,
+							ViewRect,
+							!bIsEarlyDepthComplete ? View.PrevViewInfo.NaniteHZB : View.PrevViewInfo.HZB
+						);
+
+						NaniteRenderer->DrawGeometry(
+							Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
+							RasterResults.VisibilityResults,
+							*NaniteViewsToRender,
 							/*OptionalInstanceDraws*/ nullptr,
 							bExtractStats
 						);
+
+						NaniteRenderer->ExtractResults( RasterResults );
 					}
 
 					// Nanite::BasePass (Depth Pre-Pass and HZB Build)
@@ -3295,20 +3293,13 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 							*Scene,
 							Views[ViewIndex],
 							bDrawSceneViewsInOneNanitePass,
-							CullingContext.PageConstants,
-							CullingContext.VisibleClustersSWHW,
-							CullingContext.ViewsBuffer,
+							RasterResults,
 							SceneTextures.Depth.Target,
-							RasterContext.VisBuffer64,
-							VelocityBuffer,
-							RasterResults.MaterialDepth,
-							RasterResults.ShadingMask
+							VelocityBuffer
 						);
 						
 						// Sanity check (always force Z prepass)
 						check(bIsEarlyDepthComplete);
-
-						Nanite::ExtractResults(GraphBuilder, CullingContext, RasterContext, RasterResults);
 					}
 				}
 			}

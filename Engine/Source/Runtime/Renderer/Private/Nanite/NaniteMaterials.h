@@ -491,14 +491,9 @@ void EmitDepthTargets(
 	const FScene& Scene,
 	const FViewInfo& View,
 	bool bDrawSceneViewsInOneNanitePass,
-	const FIntVector4& PageConstants,
-	FRDGBufferRef VisibleClustersSWHW,
-	FRDGBufferRef ViewsBuffer,
+	FRasterResults& RasterResults,
 	FRDGTextureRef SceneDepth,
-	FRDGTextureRef VisBuffer64,
-	FRDGTextureRef VelocityBuffer,
-	FRDGTextureRef& OutMaterialDepth,
-	FRDGTextureRef& OutShadingMask
+	FRDGTextureRef VelocityBuffer
 );
 
 FCustomDepthContext InitCustomDepthStencilContext(
@@ -541,7 +536,7 @@ void DrawLumenMeshCapturePass(
 	FScene& Scene,
 	FViewInfo* SharedView,
 	TArrayView<const FCardPageRenderData> CardPagesToRender,
-	const FCullingContext& CullingContext,
+	const FRasterResults& RasterResults,
 	const FRasterContext& RasterContext,
 	FLumenCardPassUniformParameters* PassUniformParameters,
 	FRDGBufferSRVRef RectMinMaxBufferSRV,

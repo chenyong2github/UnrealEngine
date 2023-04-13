@@ -305,7 +305,7 @@ bool FSceneRenderer::RenderCustomDepthPass(
 			CustomDepthTextures,
 			bWriteCustomStencil);
 
-		Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
+		Nanite::FConfiguration CullingConfig = { 0 };
 		CullingConfig.bUpdateStreaming = true;
 		CullingConfig.bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
 		CullingConfig.bProgrammableRaster = bNaniteProgrammableRaster;
@@ -321,41 +321,35 @@ bool FSceneRenderer::RenderCustomDepthPass(
 				continue;
 			}
 
-			Nanite::FCullingContext CullingContext{};
+			auto NaniteRenderer = Nanite::IRenderer::Create(
+				GraphBuilder,
+				*Scene,
+				View,
+				SharedContext,
+				RasterContext,
+				CullingConfig,
+				View.ViewRect,
+				/* PrevHZB = */ nullptr
+			);
 
-			// Rasterize the view
-			{
-				CullingContext = Nanite::InitCullingContext(
-					GraphBuilder,
-					SharedContext,
-					*Scene,
-					/* PrevHZB = */ nullptr,
-					View.ViewRect,
-					CullingConfig
-				);
+			NaniteRenderer->DrawGeometry(
+				Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
+				PrimaryNaniteRasterResults[ViewIndex].VisibilityResults,
+				*Nanite::FPackedViewArray::Create(GraphBuilder, PrimaryNaniteViews[ViewIndex]),
+				&NaniteDrawLists[ViewIndex]
+			);
 
-				Nanite::CullRasterize(
-					GraphBuilder,
-					Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
-					PrimaryNaniteRasterResults[ViewIndex].VisibilityResults,
-					*Scene,
-					View,
-					*Nanite::FPackedViewArray::Create(GraphBuilder, PrimaryNaniteViews[ViewIndex]),
-					SharedContext,
-					CullingContext,
-					RasterContext,
-					&NaniteDrawLists[ViewIndex]
-				);
-			}
+			Nanite::FRasterResults RasterResults;
+			NaniteRenderer->ExtractResults( RasterResults );
 
 			// Emit depth
 			Nanite::EmitCustomDepthStencilTargets(
 				GraphBuilder,
 				*Scene,
 				View,
-				CullingContext.PageConstants,
-				CullingContext.VisibleClustersSWHW,
-				CullingContext.ViewsBuffer,
+				RasterResults.PageConstants,
+				RasterResults.VisibleClustersSWHW,
+				RasterResults.ViewsBuffer,
 				RasterContext.VisBuffer64,
 				CustomDepthContext
 			);

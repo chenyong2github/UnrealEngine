@@ -2571,46 +2571,42 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBui
 		// Prev HZB requires previous page tables and similar
 		bool bPrevHZBValid = HZBPhysical != nullptr && CacheManager->GetPrevBuffers().PageTable != nullptr;
 
-		Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
+		Nanite::FConfiguration CullingConfig = { 0 };
 		CullingConfig.bUpdateStreaming = bUpdateNaniteStreaming;
 		CullingConfig.bTwoPassOcclusion = UseTwoPassHzbOcclusion();
 		CullingConfig.bProgrammableRaster = bNaniteProgrammableRaster;
 		CullingConfig.SetViewFlags(SceneView);
 
-		Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
+		auto NaniteRenderer = Nanite::IRenderer::Create(
 			GraphBuilder,
-			SharedContext,
 			Scene,
-			bPrevHZBValid ? HZBPhysical : nullptr,
+			SceneView,
+			SharedContext,
+			RasterContext,
+			CullingConfig,
 			VirtualShadowViewRect,
-			CullingConfig
+			bPrevHZBValid ? HZBPhysical : nullptr,
+			this
 		);
 
 		if (bCsvLogEnabled)
 		{
-			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_WRITE_STATS;
+			//CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_WRITE_STATS;	FIXME
 		}
 
 		const bool bExtractStats = Nanite::IsStatFilterActive(VirtualFilterName);
 
-		Nanite::CullRasterize(
-			GraphBuilder,
+		NaniteRenderer->DrawGeometry(
 			Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass],
 			VisibilityResults,
-			Scene,
-			SceneView,
 			*VirtualShadowViews,
-			SharedContext,
-			CullingContext,
-			RasterContext,
-			nullptr,
-			this,
+			/*OptionalInstanceDraws*/ nullptr,
 			bExtractStats
 		);
 
 		if (bCsvLogEnabled)
 		{
-			StatsNaniteBufferRDG = CullingContext.StatsBuffer;
+			//StatsNaniteBufferRDG = CullingContext.StatsBuffer;		FIXME
 		}
 	}
 

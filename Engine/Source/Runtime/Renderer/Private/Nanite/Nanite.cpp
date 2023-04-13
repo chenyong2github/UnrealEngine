@@ -194,43 +194,6 @@ class FEmitCubemapShadowPS : public FNaniteGlobalShader
 };
 IMPLEMENT_GLOBAL_SHADER(FEmitCubemapShadowPS, "/Engine/Private/Nanite/NaniteEmitShadow.usf", "EmitCubemapShadowPS", SF_Pixel);
 
-// Gather raster stats and build dispatch indirect buffer for per-cluster stats
-class FCalculateRasterStatsCS : public FNaniteGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FCalculateRasterStatsCS);
-	SHADER_USE_PARAMETER_STRUCT(FCalculateRasterStatsCS, FNaniteGlobalShader);
-
-	class FTwoPassCullingDim : SHADER_PERMUTATION_BOOL( "TWO_PASS_CULLING" );
-	using FPermutationDomain = TShaderPermutationDomain<FTwoPassCullingDim>;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportNanite(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SHADER_CALCULATE_STATS"), 1);
-	}
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
-		SHADER_PARAMETER(uint32, RenderFlags)
-		SHADER_PARAMETER(uint32, NumMainPassRasterBins)
-		SHADER_PARAMETER(uint32, NumPostPassRasterBins)
-
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FNaniteStats>, OutStatsBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutClusterStatsArgs)
-
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FQueueState >, QueueState)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, MainPassRasterizeArgsSWHW)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, PostPassRasterizeArgsSWHW)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint4>, MainPassRasterBinHeaders)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint4>, PostPassRasterBinHeaders)
-	END_SHADER_PARAMETER_STRUCT()
-};
-IMPLEMENT_GLOBAL_SHADER(FCalculateRasterStatsCS, "/Engine/Private/Nanite/NanitePrintStats.usf", "CalculateRasterStats", SF_Compute);
-
 // Gather shading stats
 class FCalculateShadingStatsCS : public FNaniteGlobalShader
 {
@@ -261,44 +224,6 @@ class FCalculateShadingStatsCS : public FNaniteGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FCalculateShadingStatsCS, "/Engine/Private/Nanite/NanitePrintStats.usf", "CalculateShadingStats", SF_Compute);
-
-// Calculates and accumulates per-cluster stats
-class FCalculateClusterStatsCS : public FNaniteGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FCalculateClusterStatsCS);
-	SHADER_USE_PARAMETER_STRUCT(FCalculateClusterStatsCS, FNaniteGlobalShader);
-
-	class FTwoPassCullingDim : SHADER_PERMUTATION_BOOL("TWO_PASS_CULLING");
-	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
-	using FPermutationDomain = TShaderPermutationDomain<FTwoPassCullingDim, FVirtualTextureTargetDim>;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportNanite(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SHADER_CALCULATE_CLUSTER_STATS"), 1); 
-	}
-
-	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
-		SHADER_PARAMETER( FIntVector4, PageConstants )
-		SHADER_PARAMETER( uint32, MaxVisibleClusters )
-		SHADER_PARAMETER( uint32, RenderFlags )
-
-		SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer,	ClusterPageData )
-
-		SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer, VisibleClustersSWHW )
-		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer<FNaniteStats>, OutStatsBuffer)
-
-		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, MainPassRasterizeArgsSWHW )
-		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, PostPassRasterizeArgsSWHW )
-		RDG_BUFFER_ACCESS(StatsArgs, ERHIAccess::IndirectArgs)
-	END_SHADER_PARAMETER_STRUCT()
-};
-IMPLEMENT_GLOBAL_SHADER(FCalculateClusterStatsCS, "/Engine/Private/Nanite/NanitePrintStats.usf", "CalculateClusterStats", SF_Compute);
 
 class FPrintStatsCS : public FNaniteGlobalShader
 {
@@ -441,126 +366,6 @@ void ListStatFilters(FSceneRenderer* SceneRenderer)
 	bNaniteListStatFilters = false;
 }
 
-void ExtractRasterDebug(
-	FRDGBuilder& GraphBuilder,
-	const FSharedContext& SharedContext,
-	const FCullingContext& CullingContext,
-	const FBinningData& MainPassBinning,
-	const FBinningData& PostPassBinning,
-	bool bVirtualTextureTarget
-)
-{
-	LLM_SCOPE_BYTAG(Nanite);
-
-	if (CullingContext.DebugFlags != 0 && GNaniteShowStats != 0 && CullingContext.StatsBuffer != nullptr)
-	{
-		FRDGBufferRef ClusterStatsArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("Nanite.ClusterStatsArgs"));
-
-		{
-			FCalculateRasterStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCalculateRasterStatsCS::FParameters>();
-
-			PassParameters->RenderFlags = CullingContext.RenderFlags;
-
-			PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(CullingContext.StatsBuffer);
-			PassParameters->OutClusterStatsArgs = GraphBuilder.CreateUAV(ClusterStatsArgs);
-
-			PassParameters->QueueState = GraphBuilder.CreateSRV(CullingContext.QueueState);
-			PassParameters->MainPassRasterizeArgsSWHW = GraphBuilder.CreateSRV(CullingContext.MainRasterizeArgsSWHW);
-
-			if (CullingContext.Configuration.bTwoPassOcclusion)
-			{
-				check(CullingContext.PostRasterizeArgsSWHW);
-				PassParameters->PostPassRasterizeArgsSWHW = GraphBuilder.CreateSRV(CullingContext.PostRasterizeArgsSWHW);
-			}
-
-			PassParameters->NumMainPassRasterBins = MainPassBinning.BinCount;
-			PassParameters->MainPassRasterBinHeaders = GraphBuilder.CreateSRV(MainPassBinning.HeaderBuffer);
-
-			if (CullingContext.Configuration.bTwoPassOcclusion)
-			{
-				check(PostPassBinning.HeaderBuffer);
-
-				PassParameters->NumPostPassRasterBins = PostPassBinning.BinCount;
-				PassParameters->PostPassRasterBinHeaders = GraphBuilder.CreateSRV(PostPassBinning.HeaderBuffer);
-			}
-			else
-			{
-				PassParameters->NumPostPassRasterBins = 0;
-			}
-
-			FCalculateRasterStatsCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FCalculateRasterStatsCS::FTwoPassCullingDim>(CullingContext.Configuration.bTwoPassOcclusion);
-			auto ComputeShader = SharedContext.ShaderMap->GetShader<FCalculateRasterStatsCS>( PermutationVector );
-
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("CalculateRasterStatsArgs"),
-				ComputeShader,
-				PassParameters,
-				FIntVector(1, 1, 1)
-			);
-		}
-
-		{
-			FCalculateClusterStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCalculateClusterStatsCS::FParameters>();
-
-			PassParameters->PageConstants = CullingContext.PageConstants;
-			PassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
-			PassParameters->RenderFlags = CullingContext.RenderFlags;
-
-			PassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
-			PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
-			PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(CullingContext.StatsBuffer);
-
-			PassParameters->MainPassRasterizeArgsSWHW = GraphBuilder.CreateSRV(CullingContext.MainRasterizeArgsSWHW);
-			if (CullingContext.Configuration.bTwoPassOcclusion)
-			{
-				check(CullingContext.PostRasterizeArgsSWHW != nullptr);
-				PassParameters->PostPassRasterizeArgsSWHW = GraphBuilder.CreateSRV( CullingContext.PostRasterizeArgsSWHW );
-			}
-			PassParameters->StatsArgs = ClusterStatsArgs;
-
-			FCalculateClusterStatsCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FCalculateClusterStatsCS::FTwoPassCullingDim>(CullingContext.Configuration.bTwoPassOcclusion);
-			PermutationVector.Set<FCalculateClusterStatsCS::FVirtualTextureTargetDim>(bVirtualTextureTarget);
-			auto ComputeShader = SharedContext.ShaderMap->GetShader<FCalculateClusterStatsCS>( PermutationVector );
-
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("CalculateStats"),
-				ComputeShader,
-				PassParameters,
-				ClusterStatsArgs,
-				0
-			);
-		}
-
-		// Extract main pass buffers
-		{
-			auto& MainPassBuffers = Nanite::GGlobalResources.GetMainPassBuffers();
-			MainPassBuffers.StatsRasterizeArgsSWHWBuffer = GraphBuilder.ConvertToExternalBuffer(CullingContext.MainRasterizeArgsSWHW);
-		}
-
-		// Extract post pass buffers
-		auto& PostPassBuffers = Nanite::GGlobalResources.GetPostPassBuffers();
-		PostPassBuffers.StatsRasterizeArgsSWHWBuffer = nullptr;
-		if (CullingContext.Configuration.bTwoPassOcclusion)
-		{
-			check( CullingContext.PostRasterizeArgsSWHW != nullptr );
-			PostPassBuffers.StatsRasterizeArgsSWHWBuffer = GraphBuilder.ConvertToExternalBuffer(CullingContext.PostRasterizeArgsSWHW);
-		}
-
-		// Extract calculated stats (so VisibleClustersSWHW isn't needed later)
-		{
-			Nanite::GGlobalResources.GetStatsBufferRef() = GraphBuilder.ConvertToExternalBuffer(CullingContext.StatsBuffer);
-		}
-
-		// Save out current render and debug flags.
-		Nanite::GGlobalResources.StatsRenderFlags = CullingContext.RenderFlags;
-		Nanite::GGlobalResources.StatsDebugFlags = CullingContext.DebugFlags;
-	}
-}
-
 void ExtractShadingDebug(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -672,31 +477,6 @@ void PrintStats(
 				FIntVector(1, 1, 1)
 			);
 		}
-	}
-}
-
-void ExtractResults(
-	FRDGBuilder& GraphBuilder,
-	const FCullingContext& CullingContext,
-	const FRasterContext& RasterContext,
-	FRasterResults& RasterResults
-)
-{
-	LLM_SCOPE_BYTAG(Nanite);
-
-	RasterResults.PageConstants			= CullingContext.PageConstants;
-	RasterResults.MaxVisibleClusters	= Nanite::FGlobalResources::GetMaxVisibleClusters();
-	RasterResults.MaxNodes				= Nanite::FGlobalResources::GetMaxNodes();
-	RasterResults.RenderFlags			= CullingContext.RenderFlags;
-
-	RasterResults.ViewsBuffer			= CullingContext.ViewsBuffer;
-	RasterResults.VisibleClustersSWHW	= CullingContext.VisibleClustersSWHW;
-	RasterResults.VisBuffer64			= RasterContext.VisBuffer64;
-	
-	if (RasterContext.VisualizeActive)
-	{
-		RasterResults.DbgBuffer64 = RasterContext.DbgBuffer64;
-		RasterResults.DbgBuffer32 = RasterContext.DbgBuffer32;
 	}
 }
 

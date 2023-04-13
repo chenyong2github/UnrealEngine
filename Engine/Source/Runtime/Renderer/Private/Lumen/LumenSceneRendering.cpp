@@ -3041,23 +3041,25 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 					CardCaptureRectBufferSRV,
 					CardPagesToRender.Num());
 
-				Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
+				Nanite::FConfiguration CullingConfig = { 0 };
 				CullingConfig.bSupportsMultiplePasses	= true;
 				CullingConfig.bForceHWRaster			= RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
 				CullingConfig.SetViewFlags(*SharedView);
 				CullingConfig.bIsLumenCapture = true;
 				CullingConfig.bProgrammableRaster = GNaniteProgrammableRasterLumen != 0;
 
-				Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
+				auto NaniteRenderer = Nanite::IRenderer::Create(
 					GraphBuilder,
-					SharedContext,
 					*Scene,
-					nullptr,
+					*SharedView,
+					SharedContext,
+					RasterContext,
+					CullingConfig,
 					FIntRect(),
-					CullingConfig
+					nullptr
 				);
 
-				FNaniteVisibilityResults VisibilityResults; // No material visibility culling for Lumen at this time
+				Nanite::FRasterResults RasterResults;
 
 				const uint32 NumCardPagesToRender = CardPagesToRender.Num();
 
@@ -3115,16 +3117,10 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 							}
 						});
 
-						Nanite::CullRasterize(
-							GraphBuilder,
+						NaniteRenderer->DrawGeometry(
 							Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
-							VisibilityResults,
-							*Scene,
-							*SharedView,
+							RasterResults.VisibilityResults,
 							*NaniteViews,
-							SharedContext,
-							CullingContext,
-							RasterContext,
 							&NaniteInstanceDraws
 						);
 					}
@@ -3146,18 +3142,15 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 							GLumenDistantSceneMinInstanceBoundsRadius,
 							Lumen::GetDistanceSceneNaniteLODScaleFactor());
 
-						Nanite::CullRasterize(
-							GraphBuilder,
+						NaniteRenderer->DrawGeometry(
 							Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
-							VisibilityResults,
-							*Scene,
-							*SharedView,
-							*Nanite::FPackedViewArray::Create(GraphBuilder, PackedView),
-							SharedContext,
-							CullingContext,
-							RasterContext);
+							RasterResults.VisibilityResults,
+							*Nanite::FPackedViewArray::Create(GraphBuilder, PackedView)
+						);
 					}
 				}
+
+				NaniteRenderer->ExtractResults( RasterResults );
 
 				if (CVarLumenSceneSurfaceCacheCaptureNaniteMultiView.GetValueOnRenderThread() != 0)
 				{
@@ -3166,7 +3159,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 						*Scene,
 						SharedView,
 						TArrayView<const FCardPageRenderData>(CardPagesToRender),
-						CullingContext,
+						RasterResults,
 						RasterContext,
 						PassUniformParameters,
 						CardCaptureRectBufferSRV,
@@ -3190,7 +3183,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 								*Scene,
 								SharedView,
 								TArrayView<const FCardPageRenderData>(&CardPagesToRender[PageIndex], 1),
-								CullingContext,
+								RasterResults,
 								RasterContext,
 								PassUniformParameters,
 								CardCaptureRectBufferSRV,

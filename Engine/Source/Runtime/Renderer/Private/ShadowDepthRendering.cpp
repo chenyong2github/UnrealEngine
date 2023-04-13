@@ -1444,14 +1444,24 @@ static void RenderShadowDepthAtlasNanite(
 		FIntRect FullAtlasViewRect(FIntPoint(0, 0), AtlasSize);
 		TRefCountPtr<IPooledRenderTarget> PrevAtlasHZB = bUseHZB ? PrevAtlasHZBs[AtlasIndex] : nullptr;
 
-		Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
+		Nanite::FConfiguration CullingConfig = { 0 };
 		CullingConfig.bTwoPassOcclusion			= true;
 		CullingConfig.bUpdateStreaming			= CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
 		CullingConfig.bProgrammableRaster		= GNaniteProgrammableRasterShadows != 0;
 		CullingConfig.SetViewFlags(SceneView);
 
-		Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, SharedContext, Scene, PrevAtlasHZB, FullAtlasViewRect, CullingConfig);
 		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, ViewFamily, AtlasSize, FullAtlasViewRect, false, Nanite::EOutputBufferMode::DepthOnly);
+
+		TUniquePtr< Nanite::IRenderer > NaniteRenderer = Nanite::IRenderer::Create(
+			GraphBuilder,
+			Scene,
+			SceneView,
+			SharedContext,
+			RasterContext,
+			CullingConfig,
+			FullAtlasViewRect,
+			PrevAtlasHZB
+		);
 
 		bool bExtractStats = false;
 		if (GNaniteShowStats != 0)
@@ -1463,16 +1473,10 @@ static void RenderShadowDepthAtlasNanite(
 		{
 			FNaniteVisibilityResults VisibilityResults; // TODO: Hook up culling for shadows
 
-			Nanite::CullRasterize(
-				GraphBuilder,
+			NaniteRenderer->DrawGeometry(
 				Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass],
 				VisibilityResults,
-				Scene,
-				SceneView,
 				*PackedViews,
-				SharedContext,
-				CullingContext,
-				RasterContext,
 				nullptr,	// InstanceDraws
 				bExtractStats
 			);
@@ -1770,14 +1774,24 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 					
 					TRefCountPtr<IPooledRenderTarget> PrevHZB = (PrevShadowState && bUseHZB) ? PrevShadowState->HZB : nullptr;
 
-					Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
+					Nanite::FConfiguration CullingConfig = { 0 };
 					CullingConfig.bTwoPassOcclusion			= true;
 					CullingConfig.bUpdateStreaming			= bUpdateStreaming;
 					CullingConfig.bProgrammableRaster		= GNaniteProgrammableRasterShadows != 0;
 					CullingConfig.SetViewFlags(SceneView);
 
-					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, SharedContext, *Scene, PrevHZB, ShadowViewRect, CullingConfig);
 					Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, ViewFamily, TargetSize, ShadowViewRect, false, Nanite::EOutputBufferMode::DepthOnly);
+
+					auto NaniteRenderer = Nanite::IRenderer::Create(
+						GraphBuilder,
+						*Scene,
+						SceneView,
+						SharedContext,
+						RasterContext,
+						CullingConfig,
+						ShadowViewRect,
+						PrevHZB
+					);
 
 					FNaniteVisibilityResults VisibilityResults; // TODO: Hook up culling for shadows
 
@@ -1811,17 +1825,11 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 
 					const bool bExtractStats = Nanite::IsStatFilterActive(CubeFaceFilterName);
 
-					Nanite::CullRasterize(
-						GraphBuilder,
+					NaniteRenderer->DrawGeometry(
 						Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
 						VisibilityResults,
-						*Scene,
-						SceneView,
 						*PackedViews,
-						SharedContext,
-						CullingContext,
-						RasterContext,
-						nullptr,
+						/*OptionalInstanceDraws*/ nullptr,
 						bExtractStats
 					);
 

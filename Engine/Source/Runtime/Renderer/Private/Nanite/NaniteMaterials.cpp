@@ -1631,19 +1631,15 @@ void EmitDepthTargets(
 	const FScene& Scene,
 	const FViewInfo& View,
 	bool bDrawSceneViewsInOneNanitePass,
-	const FIntVector4& PageConstants,
-	FRDGBufferRef VisibleClustersSWHW,
-	FRDGBufferRef ViewsBuffer,
+	FRasterResults& RasterResults,
 	FRDGTextureRef SceneDepth,
-	FRDGTextureRef VisBuffer64,
-	FRDGTextureRef VelocityBuffer,
-	FRDGTextureRef& OutMaterialDepth,
-	FRDGTextureRef& OutShadingMask
+	FRDGTextureRef VelocityBuffer
 )
 {
 	LLM_SCOPE_BYTAG(Nanite);
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::EmitDepthTargets");
 
+	FRDGTextureRef VisBuffer64 = RasterResults.VisBuffer64;
 #if WITH_EDITORONLY_DATA
 	// Hide all Nanite meshes when the isolate invalid coarse mesh batch debug mode is active.
 	if (GNaniteIsolateInvalidCoarseMesh != 0)
@@ -1679,8 +1675,8 @@ void EmitDepthTargets(
 		DefaultDepthStencil,
 		TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead | (UseComputeDepthExport() ? TexCreate_UAV : TexCreate_NoFastClear));
 
-	FRDGTextureRef ShadingMask = GraphBuilder.CreateTexture(ShadingMaskDesc, TEXT("Nanite.ShadingMask"));
-	FRDGTextureRef MaterialDepth = UseLegacyCulling() ? GraphBuilder.CreateTexture(MaterialDepthDesc, TEXT("Nanite.MaterialDepth")) : nullptr;
+	RasterResults.ShadingMask = GraphBuilder.CreateTexture(ShadingMaskDesc, TEXT("Nanite.ShadingMask"));
+	RasterResults.MaterialDepth = UseLegacyCulling() ? GraphBuilder.CreateTexture(MaterialDepthDesc, TEXT("Nanite.MaterialDepth")) : nullptr;
 
 	if (UseComputeDepthExport())
 	{
@@ -1709,18 +1705,18 @@ void EmitDepthTargets(
 		FRDGTextureUAVRef SceneDepthUAV			= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::CompressedSurface));
 		FRDGTextureUAVRef SceneStencilUAV		= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::Stencil));
 		FRDGTextureUAVRef SceneHTileUAV			= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::HTile));
-		FRDGTextureUAVRef MaterialDepthUAV		= UseLegacyCulling() ? GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(MaterialDepth, ERDGTextureMetaDataAccess::CompressedSurface)) : nullptr;
-		FRDGTextureUAVRef MaterialHTileUAV		= UseLegacyCulling() ? GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(MaterialDepth, ERDGTextureMetaDataAccess::HTile)) : nullptr;
+		FRDGTextureUAVRef MaterialDepthUAV		= UseLegacyCulling() ? GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(RasterResults.MaterialDepth, ERDGTextureMetaDataAccess::CompressedSurface)) : nullptr;
+		FRDGTextureUAVRef MaterialHTileUAV		= UseLegacyCulling() ? GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(RasterResults.MaterialDepth, ERDGTextureMetaDataAccess::HTile)) : nullptr;
 		FRDGTextureUAVRef VelocityUAV			= bEmitVelocity ? GraphBuilder.CreateUAV(VelocityBuffer) : nullptr;
-		FRDGTextureUAVRef ShadingMaskUAV		= GraphBuilder.CreateUAV(ShadingMask);
+		FRDGTextureUAVRef ShadingMaskUAV		= GraphBuilder.CreateUAV(RasterResults.ShadingMask);
 
 		FDepthExportCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDepthExportCS::FParameters>();
 
 		PassParameters->View					= View.GetShaderParameters();
 		PassParameters->Scene					= View.GetSceneUniforms().GetBuffer(GraphBuilder);
-		PassParameters->InViews					= GraphBuilder.CreateSRV(ViewsBuffer);
-		PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
-		PassParameters->PageConstants			= PageConstants;
+		PassParameters->InViews					= GraphBuilder.CreateSRV(RasterResults.ViewsBuffer);
+		PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(RasterResults.VisibleClustersSWHW);
+		PassParameters->PageConstants			= RasterResults.PageConstants;
 		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 		PassParameters->DepthExportConfig		= FIntVector4(PlatformConfig, SceneTexturesExtent.X, StencilDecalMask, Nanite::FGlobalResources::GetMaxVisibleClusters());
 		PassParameters->ViewRect				= FUint32Vector4((uint32)View.ViewRect.Min.X, (uint32)View.ViewRect.Min.Y, (uint32)View.ViewRect.Max.X, (uint32)View.ViewRect.Max.Y);
@@ -1754,7 +1750,7 @@ void EmitDepthTargets(
 	else
 	{
 		// Can't use ERenderTargetLoadAction::EClear to clear here because it needs to be the same for all render targets.
-		AddClearRenderTargetPass(GraphBuilder, ShadingMask);
+		AddClearRenderTargetPass(GraphBuilder, RasterResults.ShadingMask);
 		if (bClearVelocity)
 		{
 			AddClearRenderTargetPass(GraphBuilder, VelocityBuffer);
@@ -1772,13 +1768,13 @@ void EmitDepthTargets(
 
 			PassParameters->View						= View.GetShaderParameters();
 			PassParameters->Scene						= View.GetSceneUniforms().GetBuffer(GraphBuilder);
-			PassParameters->InViews						= GraphBuilder.CreateSRV(ViewsBuffer);
-			PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(VisibleClustersSWHW);
-			PassParameters->PageConstants				= PageConstants;
+			PassParameters->InViews						= GraphBuilder.CreateSRV(RasterResults.ViewsBuffer);
+			PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(RasterResults.VisibleClustersSWHW);
+			PassParameters->PageConstants				= RasterResults.PageConstants;
 			PassParameters->VisBuffer64					= VisBuffer64;
 			PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 			PassParameters->MaterialSlotTable			= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
-			PassParameters->RenderTargets[0]			= FRenderTargetBinding(ShadingMask,	ERenderTargetLoadAction::ELoad);
+			PassParameters->RenderTargets[0]			= FRenderTargetBinding(RasterResults.ShadingMask, ERenderTargetLoadAction::ELoad);
 			PassParameters->RenderTargets[1]			= bEmitVelocity ? FRenderTargetBinding(VelocityBuffer, ERenderTargetLoadAction::ELoad) : FRenderTargetBinding();
 			PassParameters->RenderTargets.DepthStencil	= FDepthStencilBinding(SceneDepth, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
@@ -1802,10 +1798,10 @@ void EmitDepthTargets(
 
 			PassParameters->View						= View.ViewUniformBuffer;
 			PassParameters->Scene						= View.GetSceneUniforms().GetBuffer(GraphBuilder);
-			PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(VisibleClustersSWHW);
-			PassParameters->PageConstants				= PageConstants;
+			PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(RasterResults.VisibleClustersSWHW);
+			PassParameters->PageConstants				= RasterResults.PageConstants;
 			PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
-			PassParameters->ShadingMask					= ShadingMask;
+			PassParameters->ShadingMask					= RasterResults.ShadingMask;
 			PassParameters->VisBuffer64					= VisBuffer64;
 			PassParameters->RenderTargets.DepthStencil	= FDepthStencilBinding
 			(
@@ -1837,13 +1833,13 @@ void EmitDepthTargets(
 			PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 			PassParameters->MaterialSlotTable			= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
 			PassParameters->MaterialDepthTable			= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
-			PassParameters->PageConstants				= PageConstants;
+			PassParameters->PageConstants				= RasterResults.PageConstants;
 			PassParameters->View						= View.ViewUniformBuffer;
-			PassParameters->ShadingMask					= ShadingMask;
+			PassParameters->ShadingMask					= RasterResults.ShadingMask;
 			PassParameters->VisBuffer64					= VisBuffer64;
-			PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(VisibleClustersSWHW);
+			PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(RasterResults.VisibleClustersSWHW);
 			PassParameters->RenderTargets.DepthStencil	= FDepthStencilBinding(
-				MaterialDepth,
+				RasterResults.MaterialDepth,
 				ERenderTargetLoadAction::EClear,
 				FExclusiveDepthStencil::DepthWrite_StencilWrite
 			);
@@ -1873,9 +1869,6 @@ void EmitDepthTargets(
 			AddResummarizeHTilePass(GraphBuilder, SceneDepth);
 		}
 	}
-
-	OutShadingMask = ShadingMask;
-	OutMaterialDepth = MaterialDepth;
 }
 
 FCustomDepthContext InitCustomDepthStencilContext(
@@ -2130,7 +2123,7 @@ void DrawLumenMeshCapturePass(
 	FScene& Scene,
 	FViewInfo* SharedView,
 	TArrayView<const FCardPageRenderData> CardPagesToRender,
-	const FCullingContext& CullingContext,
+	const FRasterResults& RasterResults,
 	const FRasterContext& RasterContext,
 	FLumenCardPassUniformParameters* PassUniformParameters,
 	FRDGBufferSRVRef RectMinMaxBufferSRV,
@@ -2194,8 +2187,8 @@ void DrawLumenMeshCapturePass(
 		PassParameters->PS.Scene = SharedView->GetSceneUniforms().GetBuffer(GraphBuilder);
 		PassParameters->PS.DummyZero = 0u;
 
-		PassParameters->PS.VisibleClustersSWHW = GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
-		PassParameters->PS.PageConstants = CullingContext.PageConstants;
+		PassParameters->PS.VisibleClustersSWHW = GraphBuilder.CreateSRV(RasterResults.VisibleClustersSWHW);
+		PassParameters->PS.PageConstants = RasterResults.PageConstants;
 		PassParameters->PS.ClusterPageData = GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 
 		PassParameters->PS.VisBuffer64 = RasterContext.VisBuffer64;
@@ -2368,16 +2361,16 @@ void DrawLumenMeshCapturePass(
 
 		{
 			FNaniteUniformParameters* UniformParameters		= GraphBuilder.AllocParameters<FNaniteUniformParameters>();
-			UniformParameters->PageConstants				= CullingContext.PageConstants;
+			UniformParameters->PageConstants				= RasterResults.PageConstants;
 			UniformParameters->MaxNodes						= Nanite::FGlobalResources::GetMaxNodes();
 			UniformParameters->MaxVisibleClusters			= Nanite::FGlobalResources::GetMaxVisibleClusters();
-			UniformParameters->RenderFlags					= CullingContext.RenderFlags;
+			UniformParameters->RenderFlags					= RasterResults.RenderFlags;
 			UniformParameters->MaterialConfig				= FIntVector4(0, 1, 1, 0); // Tile based material culling is not required for Lumen, as each card is rendered as a small rect
 			UniformParameters->RectScaleOffset				= FVector4f(1.0f, 1.0f, 0.0f, 0.0f); // This will be overridden in vertex shader
 
 			UniformParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 			UniformParameters->HierarchyBuffer				= Nanite::GStreamingManager.GetHierarchySRV(GraphBuilder);
-			UniformParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
+			UniformParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(RasterResults.VisibleClustersSWHW);
 			UniformParameters->MaterialTileRemap			= GraphBuilder.CreateSRV(MaterialTileRemap, PF_R32_UINT);
 
 #if RHI_RAYTRACING

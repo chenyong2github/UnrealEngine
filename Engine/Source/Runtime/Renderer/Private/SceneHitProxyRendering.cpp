@@ -704,39 +704,33 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 
 		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, ViewFamily, HitProxyTextureSize, HitProxyTextureRect, false);
 
-		Nanite::FCullingContext::FConfiguration CullingConfig = {0};
+		Nanite::FConfiguration CullingConfig = {0};
 		CullingConfig.bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
 		CullingConfig.bProgrammableRaster = GNaniteProgrammableRasterHitProxy != 0;
-
-		FNaniteVisibilityResults VisibilityResults; // No material visibility culling for hit proxies at this time
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			const FViewInfo& View = Views[ViewIndex];
 			CullingConfig.SetViewFlags(View);
 
-			Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
+			auto NaniteRenderer = Nanite::IRenderer::Create(
 				GraphBuilder,
-				SharedContext,
 				*Scene,
-				nullptr,
+				View,
+				SharedContext,
+				RasterContext,
+				CullingConfig,
 				FIntRect(),
-				CullingConfig
+				nullptr
 			);
 
 			Nanite::FPackedView PackedView = Nanite::CreatePackedViewFromViewInfo(View, HitProxyTextureSize, NANITE_VIEW_FLAG_HZBTEST | NANITE_VIEW_FLAG_NEAR_CLIP);
-			Nanite::CullRasterize(
-				GraphBuilder,
+			NaniteRenderer->DrawGeometry(
 				Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
-				VisibilityResults,
-				*Scene,
-				View,
-				*Nanite::FPackedViewArray::Create(GraphBuilder, PackedView),
-				SharedContext,
-				CullingContext,
-				RasterContext
+				NaniteRasterResults[ViewIndex].VisibilityResults,
+				*Nanite::FPackedViewArray::Create(GraphBuilder, PackedView)
 			);
-			Nanite::ExtractResults(GraphBuilder, CullingContext, RasterContext, NaniteRasterResults[ViewIndex]);
+			NaniteRenderer->ExtractResults( NaniteRasterResults[ViewIndex] );
 		}
 	}
 
