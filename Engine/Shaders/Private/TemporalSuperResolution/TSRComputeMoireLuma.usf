@@ -36,7 +36,7 @@ void MainCS(
 			UNROLL_N(TILE_ROWS)
 			for (uint x = 0; x < TILE_ROWS; x++)
 			{
-				uint2 PixelOffset = uint2(x, y) * TILE_SIZE;
+				const uint2 PixelOffset = uint2(x, y) * TILE_SIZE;
 				uint2 InputPixelPos = OutputPixelOrigin + PixelOffset;
 			
 				ColorArray[x + y * TILE_ROWS] = SceneColorTexture[InputPixelPos];
@@ -46,16 +46,13 @@ void MainCS(
 
 	ISOLATE
 	{
-		const tsr_half MoireLumaToChannel = tsr_half(3.0);
-		const tsr_half3 LumaWeights = rcp(MoireLumaToChannel.xxx);
-
 		UNROLL_N(TILE_ROWS)
 		for (uint y = 0; y < TILE_ROWS; y++)
 		{
 			UNROLL_N(TILE_ROWS)
 			for (uint x = 0; x < TILE_ROWS; x++)
 			{
-				uint2 PixelOffset = uint2(x, y) * TILE_SIZE;
+				const uint2 PixelOffset = uint2(x, y) * TILE_SIZE;
 				uint2 InputPixelPos = OutputPixelOrigin + PixelOffset;
 			
 				tsr_half3 Color = ColorArray[x + y * TILE_ROWS];
@@ -63,7 +60,7 @@ void MainCS(
 
 				InputPixelPos.x = select(all(InputPixelPos < InputInfo_ViewportMax), InputPixelPos.x, uint(~0));
 				
-				MoireLumaOutput[InputPixelPos] = dot(Color, LumaWeights);
+				MoireLumaOutput[InputPixelPos] = dot(Color, kMoireLumaWeights);
 			}
 		}
 	}

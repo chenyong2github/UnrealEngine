@@ -1063,6 +1063,11 @@ static FRDGTextureUAVRef CreateDummyUAV(FRDGBuilder& GraphBuilder, EPixelFormat 
 	return GraphBuilder.CreateUAV(DummyTexture);
 };
 
+bool NeedTSRMoireLuma(const FViewInfo& View)
+{
+	return ITemporalUpscaler::GetMainTAAPassConfig(View) == EMainTAAPassConfig::TSR;
+}
+
 FScreenPassTexture AddTSRComputeMoireLuma(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FScreenPassTexture SceneColor)
 {
 	check(SceneColor.Texture)

@@ -172,7 +172,11 @@ extern RENDERER_API FTAAOutputs AddTemporalAAPass(
 	const FTemporalAAHistory& InputHistory,
 	FTemporalAAHistory* OutputHistory);
 
-extern RENDERER_API FScreenPassTexture AddTSRComputeMoireLuma(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FScreenPassTexture SceneColor);
+/** Returns whether a given view need to measure luminance of the scene color for moire anti-flickering. */
+bool NeedTSRMoireLuma(const FViewInfo& View);
+
+/** Measure luminance of the scene color for moire anti-flickering. */
+FScreenPassTexture AddTSRComputeMoireLuma(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FScreenPassTexture SceneColor);
 
 /** Interface for the main temporal upscaling algorithm. */
 class RENDERER_API ITemporalUpscaler : public ISceneViewFamilyExtention

@@ -236,6 +236,10 @@ static const tsr_half4 LargestSceneColorRGBA = (LargestNormalNumber * tsr_half(0
 static const tsr_half3 LargestSceneColorYCoCg = LargestNormalNumber.xxx;
 static const tsr_half4 LargestSceneColorYCoCgA = LargestNormalNumber.xxxx;
 
+// Weight of each channel for the computation of luminance.
+static const tsr_half kMoireLumaToChannel = tsr_half(3.0);
+static const tsr_half3 kMoireLumaWeights = rcp(kMoireLumaToChannel).xxx;
+
 
 //------------------------------------------------------- PARAMETERS
 

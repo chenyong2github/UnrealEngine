@@ -253,8 +253,6 @@ void MainCS(
 	
 	// Analyses the moire pattern overtime.
 	#if CONFIG_MOIRE_DETECTION
-	const tsr_half MoireLumaToChannel = tsr_half(3.0);
-
 	tsr_simd_half4 FinalMoire = tsr_simd_half4::Const(0.0);
 	tsr_simd_half MoireError = tsr_simd_half::Const(0.0);
 	{
@@ -265,26 +263,27 @@ void MainCS(
 		// Compute the threshold at which the variation count should quick in
 		const tsr_half TotalVariationCountThreshold = tsr_half(1.0 / (1.0 - pow(1.0 - BlendFinal, tsr_half(FlickeringFramePeriod))));
 
+		// Input luminance to monitor flickering from.
+		tsr_simd_half InputLuma = MoireInput;
 
-		tsr_simd_half InputLuma;
-		#if 1
+		// How much input luminance from the TSRComputeMoireLuma.usf measurement has been modified since for instance with fog, water.
+		tsr_simd_half InputLumaModification;
 		{
-			InputLuma = MoireInput;
-		}
-		#else
-		{
+			const tsr_half InputLumaEncodingError = tsr_half(0.5 / 255.0);
+
+			tsr_simd_half SceneColorLuma;
 			UNROLL_N(SIMD_SIZE)
 			for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
 			{
-				const tsr_half3 LumaWeights = rcp(MoireLumaToChannel.xxx);
-				
-				InputLuma.SetElement(SimdIndex, dot(OriginalOpaqueInput.GetElement(SimdIndex).rgb, LumaWeights));
+				SceneColorLuma.SetElement(SimdIndex, dot(OriginalOpaqueInput.GetElement(SimdIndex).rgb, kMoireLumaWeights));
 			}
+
+			InputLumaModification = max(abs(InputLuma - SceneColorLuma) - tsr_simd_half::Const(InputLumaEncodingError), tsr_simd_half::Const(0.0));
 		}
-		#endif
 		
 		// Convolve the input luma to have the exact same moire pattern as FilteredInput below.
 		InputLuma = Blur3x3(InputLuma, bIsValid);
+		InputLumaModification = Blur3x3(InputLumaModification, bIsValid);
 
 		// Unpack history
 		tsr_simd_half PrevFlickeringHistory = PrevMoire[0];
@@ -311,6 +310,17 @@ void MainCS(
 		//tsr_simd_half CurrentGradient = FinalFlickeringHistory - PrevFlickeringHistory;
 		tsr_simd_half CurrentGradient = ClampedPrevFlickeringHistory - PrevFlickeringHistory;
 		
+		// Remove how much luma has changed from luma measurement to final scene color from the gradient.
+		for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
+		{
+			tsr_half LocalCurrentGradient = CurrentGradient.GetElement(SimdIndex);
+			tsr_half LocalInputLumaModification = InputLumaModification.GetElement(SimdIndex);
+			
+			Debug[0].SetElement(SimdIndex, tsr_halfC(LocalInputLumaModification, 0, 0));
+
+			CurrentGradient.SetElement(SimdIndex, clamp(LocalCurrentGradient * tsr_half(POSITIVE_INFINITY), tsr_half(-1.0), tsr_half(1.0)) * max(abs(LocalCurrentGradient) - LocalInputLumaModification, tsr_half(0.0)));
+		}
+
 		#if 0
 			tsr_simd_half InputBoxSize = InputLumaMax - InputLumaMin;
 			CurrentGradient = sign(CurrentGradient) * max(abs(CurrentGradient) - tsr_simd_half::Const(0.5) * InputBoxSize, tsr_simd_half::Const(0.0));
@@ -448,11 +458,11 @@ void MainCS(
 				tsr_halfC ClampedEnergyAmount = ClampedEnergy * SafeRcp(ClampedEnergy[0] + ClampedEnergy[1] + ClampedEnergy[2]);
 
 				// Apply the moire error on each individual channel based on how much they need to clamp.
-				MoireErrorSize.SetElement(SimdIndex, ClampedEnergyAmount * (MoireLumaToChannel * MoireError.GetElement(SimdIndex)));
+				MoireErrorSize.SetElement(SimdIndex, ClampedEnergyAmount * (kMoireLumaToChannel * MoireError.GetElement(SimdIndex)));
 			}
 			#else
 			{
-				MoireErrorSize.SetElement(SimdIndex, MoireLumaToChannel * MoireError.GetElement(SimdIndex));
+				MoireErrorSize.SetElement(SimdIndex, kMoireLumaToChannel * MoireError.GetElement(SimdIndex));
 			}
 			#endif
 
@@ -574,7 +584,7 @@ void MainCS(
 			#endif
 
 			#if CONFIG_SCENE_COLOR_ALPHA
-				HistoryGuideOutput[OutputPixelPos] = FinalGuideColor;
+			HistoryGuideOutput[OutputPixelPos] = FinalGuideColor;
 			#else
 				HistoryGuideOutput[OutputPixelPos] = tsr_half4(FinalGuideColor.xyz, tsr_half(1.0));
 			#endif

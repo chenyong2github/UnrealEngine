@@ -3962,6 +3962,22 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		ReconstructVolumetricRenderTarget(GraphBuilder, Views, SceneTextures.Depth.Resolve, HalfResolutionDepthCheckerboardMinMaxTexture, bAsyncComputeVolumetricCloud);
 	}
 
+	TArray<FScreenPassTexture, TInlineAllocator<4>> TSRMoireInputTextures;
+	// Extract TSR's moire heuristic luminance before renderering translucency into the scene color.
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		FViewInfo& View = Views[ViewIndex];
+		if (NeedTSRMoireLuma(View))
+		{
+			if (TSRMoireInputTextures.Num() == 0)
+			{
+				TSRMoireInputTextures.SetNum(Views.Num());
+			}
+
+			TSRMoireInputTextures[ViewIndex] = AddTSRComputeMoireLuma(GraphBuilder, View.ShaderMap, FScreenPassTexture(SceneTextures.Color.Target, View.ViewRect));
+		}
+	}
+
 	const bool bShouldRenderTranslucency = !bHasRayTracedOverlay && ShouldRenderTranslucency();
 
 	// Union of all translucency view render flags.
@@ -4058,7 +4074,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	// Draw translucency.
-	TArray<FScreenPassTexture> TSRMoireInputTextures;
 	if (!bHasRayTracedOverlay && TranslucencyViewsToRender != ETranslucencyView::None)
 	{
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderTranslucency);
@@ -4085,21 +4100,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			if (GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::Lumen)
 			{
 				RenderLumenFrontLayerTranslucencyReflections(GraphBuilder, View, SceneTextures, LumenFrameTemporaries, FrontLayerTranslucencyData);
-			}
-		}
-
-		// Extract TSR's moire heuristic luminance before renderering translucency into the scene color.
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-		{
-			FViewInfo& View = Views[ViewIndex];
-			if (ITemporalUpscaler::GetMainTAAPassConfig(View) == EMainTAAPassConfig::TSR)
-			{
-				if (TSRMoireInputTextures.Num() == 0)
-				{
-					TSRMoireInputTextures.SetNum(Views.Num());
-				}
-
-				TSRMoireInputTextures[ViewIndex] = AddTSRComputeMoireLuma(GraphBuilder, View.ShaderMap, FScreenPassTexture(SceneTextures.Color.Target, View.ViewRect));
 			}
 		}
 
