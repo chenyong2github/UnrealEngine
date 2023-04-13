@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Engine/DataAsset.h"
-#include "Animation/AnimInstance.h"
+#include "Animation/AnimSequence.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"

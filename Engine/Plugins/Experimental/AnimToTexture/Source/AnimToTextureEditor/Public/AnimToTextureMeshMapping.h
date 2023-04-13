@@ -10,7 +10,7 @@ namespace AnimToTexture_Private
 
 struct FSourceVertexDriverTriangleData
 {
-	uint8               TangentIndex;
+	uint8               TangentLocalIndex;
 	float               InverseDistanceWeight;
 	FIntVector3         Triangle;
 	FVector3f           ClosestPoint;
@@ -24,7 +24,8 @@ class FSourceVertexData
 public:
 
 	FSourceVertexData() = default;	
-	FSourceVertexData(const FVector3f& SourceVertex,
+	
+	void Update(const FVector3f& SourceVertex,
 		const TArray<FVector3f>& DriverVertices, const TArray<FIntVector3>& DriverTriangles, const TArray<VertexSkinWeightMax>& DriverSkinWeights, 
 		const float Sigma=1.f);
 
@@ -39,7 +40,8 @@ class FSourceMeshToDriverMesh
 public:
 
 	FSourceMeshToDriverMesh() = default;
-	FSourceMeshToDriverMesh(const UStaticMesh* StaticMesh, const int32 StaticMeshLODIndex,
+	
+	void Update(const UStaticMesh* StaticMesh, const int32 StaticMeshLODIndex,
 		const USkeletalMesh* SkeletalMesh, const int32 SkeletalMeshLODIndex);
 
 	// Returns Number of Source Vertices

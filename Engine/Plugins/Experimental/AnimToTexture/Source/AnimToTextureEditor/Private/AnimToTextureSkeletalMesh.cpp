@@ -395,7 +395,8 @@ void GetSkinnedVertices(const USkeletalMeshComponent* SkeletalMeshComponent, con
 	};
 };
 
-FVector3f FindClosestPointToTriangle(const FVector3f& P, const FVector3f& A, const FVector3f& B, const FVector3f& C)
+FVector3f FindClosestPointToTriangle(const FVector3f& P, const FVector3f& A, const FVector3f& B, const FVector3f& C, 
+	int32& OutOnPointLocalIndex)
 {
 	const FVector3f AB = B - A;
 	const FVector3f AC = C - A;
@@ -405,6 +406,7 @@ FVector3f FindClosestPointToTriangle(const FVector3f& P, const FVector3f& A, con
 	const float D2 = FVector3f::DotProduct(AC, AP);
 	if (D1 <= 0.f && D2 <= 0.f)
 	{
+		OutOnPointLocalIndex = 0;
 		return A;
 	}
 
@@ -413,6 +415,7 @@ FVector3f FindClosestPointToTriangle(const FVector3f& P, const FVector3f& A, con
 	const float D4 = FVector3f::DotProduct(AC, BP);
 	if (D3 >= 0.f && D4 <= D3)
 	{
+		OutOnPointLocalIndex = 1;
 		return B;
 	}
 
@@ -421,12 +424,14 @@ FVector3f FindClosestPointToTriangle(const FVector3f& P, const FVector3f& A, con
 	const float D6 = FVector3f::DotProduct(AC, CP);
 	if (D6 >= 0.f && D5 <= D6)
 	{
+		OutOnPointLocalIndex = 2;
 		return C;
 	}
 
 	const float VC = D1 * D4 - D3 * D2;
 	if (VC <= 0.f && D1 >= 0.f && D3 <= 0.f)
 	{
+		OutOnPointLocalIndex = INDEX_NONE;
 		const float V = D1 / (D1 - D3);
 		return A + V * AB;
 	}
@@ -434,6 +439,7 @@ FVector3f FindClosestPointToTriangle(const FVector3f& P, const FVector3f& A, con
 	const float VB = D5 * D2 - D1 * D6;
 	if (VB <= 0.f && D2 >= 0.f && D6 <= 0.f)
 	{
+		OutOnPointLocalIndex = INDEX_NONE;
 		const float V = D2 / (D2 - D6);
 		return A + V * AC;
 	}
@@ -441,10 +447,12 @@ FVector3f FindClosestPointToTriangle(const FVector3f& P, const FVector3f& A, con
 	const float VA = D3 * D6 - D5 * D4;
 	if (VA <= 0.f && (D4 - D3) >= 0.f && (D5 - D6) >= 0.f)
 	{
+		OutOnPointLocalIndex = INDEX_NONE;
 		const float V = (D4 - D3) / ((D4 - D3) + (D5 - D6));
 		return B + V * (C - B);
 	}
 
+	OutOnPointLocalIndex = INDEX_NONE;
 	const float Denom = 1.0f / (VA + VB + VC);
 	const float V = VB * Denom;
 	const float W = VC * Denom;
@@ -459,40 +467,39 @@ FVector3f GetTriangleNormal(const FVector3f& A, const FVector3f& B, const FVecto
 	return FVector3f::CrossProduct(V0, V1); // .GetSafeNormal();
 }
 
-uint8 GetTriangleTangentIndex(const FVector3f& P, const FVector3f& A, const FVector3f& B, const FVector3f& C)
+uint8 GetTriangleTangentLocalIndex(const FVector3f& P, const FVector3f& A, const FVector3f& B, const FVector3f& C)
 {
-	TArray<FVector3f> TangentVectors = { A - P, B - P, C - P };
+	const TArray<float> Distances = { (A - P).Length(), (B - P).Length(), (C - P).Length() };
 
 	float MaxDistance = 0.f;
-	uint8 TangentIndex = 0;
-	for (uint8 Index=0; Index < 3; Index++)
+	uint8 TangentLocalIndex = 0;
+	for (uint8 Index=0; Index < Distances.Num(); Index++)
 	{
-		const float Distance = TangentVectors[Index].Length();
-		if (Distance > MaxDistance)
+		if (Distances[Index] > MaxDistance)
 		{
-			TangentIndex = Index;
-			MaxDistance = Distance;
+			TangentLocalIndex = Index;
+			MaxDistance = Distances[Index];
 		}
 	}
 
-	return TangentIndex;
+	return TangentLocalIndex;
 }
 
 
 
-FMatrix44f GetTriangleMatrix(const FVector3f& P, const FVector3f& A, const FVector3f& B, const FVector3f& C, const uint8 TangentIndex)
+FMatrix44f GetTriangleMatrix(const FVector3f& P, const FVector3f& A, const FVector3f& B, const FVector3f& C, const uint8 TangentLocalIndex)
 {
 	// Tangent Vector
 	FVector3f V0;
-	if (TangentIndex == 0)
+	if (TangentLocalIndex == 0)
 	{
 		V0 = A - P;
 	}
-	else if (TangentIndex == 1)
+	else if (TangentLocalIndex == 1)
 	{
 		V0 = B - P;
 	}
-	else if (TangentIndex == 2)
+	else if (TangentLocalIndex == 2)
 	{
 		V0 = C - P;
 	}
@@ -500,10 +507,11 @@ FMatrix44f GetTriangleMatrix(const FVector3f& P, const FVector3f& A, const FVect
 	const FVector3f V1 = GetTriangleNormal(A, B, C);
 	const FVector3f V2 = FVector3f::CrossProduct(V0, V1);
 
-	FMatrix44f Matrix = FMatrix44f::Identity; // SetAxes doesn't set [3] elements.
-	Matrix.SetAxes(&V0, &V1, &V2, &P);
+	//FMatrix44f Matrix = FMatrix44f::Identity; // SetAxes doesn't set [3] elements.
+	//Matrix.SetAxes(&V0, &V1, &V2, &P);
+	//return Matrix;
 
-	return Matrix;
+	return FMatrix44f(V0, V1, V2, P);
 }
 
 FVector3f BarycentricCoordinates(const FVector3f& P, const FVector3f& A, const FVector3f& B, const FVector3f& C)
@@ -525,7 +533,7 @@ FVector3f BarycentricCoordinates(const FVector3f& P, const FVector3f& A, const F
 	return FVector3f(U, V, W);
 }
 
-void InverseDistanceWeights(const FVector3f& Point, const TArray<FVector3f>& Points,
+int32 InverseDistanceWeights(const FVector3f& Point, const TArray<FVector3f>& Points,
 	TArray<float>& OutWeights, float Sigma)
 {
 	// Allocate
@@ -544,7 +552,7 @@ void InverseDistanceWeights(const FVector3f& Point, const TArray<FVector3f>& Poi
 		if (Distance < UE_KINDA_SMALL_NUMBER)
 		{
 			OutWeights[Index] = 1.f;
-			return;
+			return Index;
 		}
 
 		InverseDistances[Index] = 1.f / FMath::Pow(Distance, Sigma);
@@ -560,6 +568,8 @@ void InverseDistanceWeights(const FVector3f& Point, const TArray<FVector3f>& Poi
 	{
 		OutWeights[Index] = InverseDistances[Index] / SumInverseDistance;
 	}
+
+	return INDEX_NONE;
 }
 
 

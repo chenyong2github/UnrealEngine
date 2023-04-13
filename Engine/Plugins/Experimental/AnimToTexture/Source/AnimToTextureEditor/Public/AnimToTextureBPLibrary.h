@@ -57,6 +57,15 @@ class UAnimToTextureBPLibrary : public UBlueprintFunctionLibrary
 
 private:
 
+	// Runs some validations for the assets in DataAsset
+	// Returns false if there is any problems with the data, warnings will be printed in Log
+	static bool CheckDataAsset(const UAnimToTextureDataAsset* DataAsset,
+		int32& OutSocketIndex, TArray<FAnimToTextureAnimSequenceInfo>& OutAnimSequences);
+
+	// Returns Start, EndFrame and NumFrames in Animation
+	static int32 GetAnimationFrameRange(const FAnimToTextureAnimSequenceInfo& Animation, 
+		int32& OutStartFrame, int32& OutEndFrame);
+
 	// Get Vertex and Normals from Current Pose
 	// The VertexDelta is returned from the RefPose
 	static void GetVertexDeltasAndNormals(const USkeletalMeshComponent* SkeletalMeshComponent, const int32 LODIndex, 

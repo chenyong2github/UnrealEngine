@@ -62,8 +62,9 @@ bool HasBone(const USkeletalMesh* SkeletalMesh, const FName& Bone);
    Only the RawBones are returned (no virtual bones) */
 void GetBoneNames(const USkeletalMesh* SkeletalMesh, TArray<FName>& OutNames);
 
-/* Computes closest point to triangle */
-FVector3f FindClosestPointToTriangle(const FVector3f& Point, const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC);
+/* Computes closest point to triangle. Returns index of point [0-2] if right on top, else INDEX_NONE */
+FVector3f FindClosestPointToTriangle(const FVector3f& Point, const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC, 
+	int32& OutOnPointLocalIndex);
 
 /* Computes Barycentric coordinates from point to triangle */
 FVector3f BarycentricCoordinates(const FVector3f& Point, const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC);
@@ -74,18 +75,19 @@ FVector3f PointAtBarycentricCoordinates(const FVector3f& PointA, const FVector3f
 /* Computes Triangle Normal (not normalized) */
 FVector3f GetTriangleNormal(const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC);
 
-/* Returns TangentIndex for Triangle 
-* TangentIndex 0: PointA - PointP
-* TangentIndex 1: PointB - PointP
-* TangentIndex 2: PointC - PointP */
-uint8 GetTriangleTangentIndex(const FVector3f& Point, const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC);
+/* Returns TangentLocalIndex for Triangle 
+* TangentLocalIndex 0: PointA - PointP
+* TangentLocalIndex 1: PointB - PointP
+* TangentLocalIndex 2: PointC - PointP */
+uint8 GetTriangleTangentLocalIndex(const FVector3f& Point, const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC);
 
 /* Computes Triangle Matrix */
-FMatrix44f GetTriangleMatrix(const FVector3f& Point, const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC, const uint8 TangentIndex);
+FMatrix44f GetTriangleMatrix(const FVector3f& Point, const FVector3f& PointA, const FVector3f& PointB, const FVector3f& PointC, const uint8 TangentLocalIndex);
 
 // Returns a list of weights from Point to each of the given Points.
 // The returned Weights are the size of Points and normalized (sum to 1.0) 
-void InverseDistanceWeights(const FVector3f& Point, const TArray<FVector3f>& Points,
+// If one of the points is right on top (no need to interpolate), it will return index, else INDEX_NONE
+int32 InverseDistanceWeights(const FVector3f& Point, const TArray<FVector3f>& Points,
 	TArray<float>& OutWeights, float Sigma = 1.f);
 
 } // end namespace AnimToTexture_Private

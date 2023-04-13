@@ -18,6 +18,9 @@
 #include "MeshDescription.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "MaterialEditingLibrary.h"
+#include "Misc/ScopedSlowTask.h"
+
+#define LOCTEXT_NAMESPACE "UAnimToTextureBPLibrary"
 
 using namespace AnimToTexture_Private;
 
@@ -34,108 +37,30 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		return false;
 	}
 
+	// Runs some checks for the assets in DataAsset
+	int32 SocketIndex = INDEX_NONE;
+	TArray<FAnimToTextureAnimSequenceInfo> AnimSequences;
+	if (!CheckDataAsset(DataAsset, SocketIndex, AnimSequences))
+	{
+		return false;
+	}
+
 	// Reset DataAsset Info Values
 	DataAsset->ResetInfo();
 
-	// Check StaticMesh
-	if (!DataAsset->GetStaticMesh())
-	{
-		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid StaticMesh"));
-		return false;
-	}
-
-	// Check SkeletalMesh
-	if (!DataAsset->GetSkeletalMesh())
-	{
-		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid SkeletalMesh"));
-		return false;
-	}
-
-	// Check Skeleton
-	if (!DataAsset->GetSkeletalMesh()->GetSkeleton())
-	{
-		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid SkeletalMesh. No valid Skeleton found"));
-		return false;
-	}
-
-	// Check StaticMesh LOD
-	if (!DataAsset->GetStaticMesh()->IsSourceModelValid(DataAsset->StaticLODIndex))
-	{
-		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid StaticMesh LOD Index: %i"), DataAsset->StaticLODIndex);
-		return false;
-	}
-
-	// Check SkeletalMesh LOD
-	if (!DataAsset->GetSkeletalMesh()->IsValidLODIndex(DataAsset->SkeletalLODIndex))
-	{
-		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid SkeletalMesh LOD Index: %i"), DataAsset->SkeletalLODIndex);
-		return false;
-	}
-
-	// Check Socket.
-	bool bValidSocket = false;
-	if (DataAsset->AttachToSocket.IsValid() && !DataAsset->AttachToSocket.IsNone())
-	{
-		if (HasBone(DataAsset->GetSkeletalMesh(), DataAsset->AttachToSocket))
-		{
-			bValidSocket = true;
-		}
-		else
-		{
-			UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid Socket: %s"), *DataAsset->AttachToSocket.ToString());
-			return false;
-		}
-	}
-	if (bValidSocket && DataAsset->Mode == EAnimToTextureMode::Vertex)
-	{
-		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Unable to use Socket in Vertex Mode. Use Bone Mode instead."));
-		return false;
-	}
-
-	// Check if UVChannel is being used by the Lightmap UV
-	const FStaticMeshSourceModel& SourceModel = DataAsset->GetStaticMesh()->GetSourceModel(DataAsset->StaticLODIndex);
-	if (SourceModel.BuildSettings.bGenerateLightmapUVs &&
-		SourceModel.BuildSettings.DstLightmapIndex == DataAsset->UVChannel)
-	{
-		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid UVChannel: %i. Already used by LightMap"), DataAsset->UVChannel);
-		return false;
-	}
-
-	// Check Animations
-	int32 NumAnimations = 0;
-	for (const FAnimToTextureAnimSequenceInfo& AnimSequenceInfo : DataAsset->AnimSequences)
-	{
-		const UAnimSequence* AnimSequence = AnimSequenceInfo.AnimSequence;
-		if (AnimSequenceInfo.bEnabled && AnimSequence)
-		{
-			// Check Frame Range
-			if (AnimSequenceInfo.bUseCustomRange &&
-				(AnimSequenceInfo.StartFrame < 0 ||
-				 AnimSequenceInfo.EndFrame > AnimSequence->GetNumberOfSampledKeys() - 1 ||
-				 AnimSequenceInfo.EndFrame - AnimSequenceInfo.StartFrame < 0 ))
-			{
-				UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid Custom Range for AnimSequence: %s"), *AnimSequence->GetName());
-				return false;
-			}
-
-			NumAnimations++;
-		}
-	}
-	if (!NumAnimations)
-	{
-		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("No Animations found"));
-		return false;
-	};
-
 	// ---------------------------------------------------------------------------		
-	// Get Meshes Vertices and Mapping.
-	// NOTE: We need to create a Mapping between the StaticMesh and the SkeletalMesh
-	//       Since they dont have same number of points.
+	// Get Mapping between Static and Skeletal Meshes
+	// Since they might not have same number of points.
 	//
+	FSourceMeshToDriverMesh Mapping;
+	{
+		FScopedSlowTask ProgressBar(1.f, LOCTEXT("ProcessingAnimSequence", "Processing StaticMesh -> SkeletalMesh Mapping ..."), true /*Enabled*/);
+		ProgressBar.MakeDialog(false /*bShowCancelButton*/, false /*bAllowInPIE*/);
 
-	// Get SourceMeshToDriverMesh
-	FSourceMeshToDriverMesh Mapping(DataAsset->GetStaticMesh(), DataAsset->StaticLODIndex, DataAsset->GetSkeletalMesh(), DataAsset->SkeletalLODIndex);
-	
+		Mapping.Update(DataAsset->GetStaticMesh(), DataAsset->StaticLODIndex,
+			DataAsset->GetSkeletalMesh(), DataAsset->SkeletalLODIndex);
+	}
+
 	// Get Number of Source Vertices (StaticMesh)
 	const int32 NumVertices = Mapping.GetNumSourceVertices();
 	if (!NumVertices)
@@ -147,8 +72,6 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 	// Get Reference Skeleton Transforms
 	//
 	int32 NumBones = INDEX_NONE;
-	int32 SocketIndex = INDEX_NONE;
-	TArray<FName>     BoneNames;
 	TArray<FVector3f> BoneRefPositions;
 	TArray<FVector4>  BoneRefRotations;
 	TArray<FVector3f> BonePositions;
@@ -160,28 +83,6 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		NumBones = GetRefBonePositionsAndRotations(DataAsset->GetSkeletalMesh(),
 			BoneRefPositions, BoneRefRotations);
 
-		// NOTE: there is a limitation with the number of bones atm.
-		if (NumBones > 256)
-		{
-			UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid Number of Bones. There is a maximum of 256 bones"))
-			return false;
-		}
-
-		// Get Bone Names (no virtual)
-		GetBoneNames(DataAsset->GetSkeletalMesh(), BoneNames);
-
-		// Make sure array sizes are correct.
-		check(BoneNames.Num() == NumBones);
-
-		// Check if Socket is in BoneNames
-		if (bValidSocket && !BoneNames.Find(DataAsset->AttachToSocket, SocketIndex))
-		{
-			UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Socket: %s not found in Raw Bone List"), *DataAsset->AttachToSocket.ToString());
-			return false;
-		}
-
-		// TODO: SocketIndex can only be < TNumericLimits<uint16>::Max()
-		
 		// Add RefPose 
 		// Note: this is added in the first frame of the Bone Position and Rotation Textures
 		BonePositions.Append(BoneRefPositions);
@@ -216,66 +117,42 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 	
 	// Get Animation Frames Data
 	//
-	for (const FAnimToTextureAnimSequenceInfo& AnimSequenceInfo : DataAsset->AnimSequences)
+	for (int32 AnimSequenceIndex = 0; AnimSequenceIndex < AnimSequences.Num(); AnimSequenceIndex++)
 	{
+		const FAnimToTextureAnimSequenceInfo& AnimSequenceInfo = AnimSequences[AnimSequenceIndex];
+
+		// Set Animation
 		UAnimSequence* AnimSequence = AnimSequenceInfo.AnimSequence;
+		SkeletalMeshComponent->SetAnimation(AnimSequence);
 
-		if (!AnimSequenceInfo.bEnabled || !AnimSequence)
-		{
-			continue;
-		}
-		
-		// Make sure SkeletalMesh is compatible with AnimSequence
-		// TODO: move this to early Checks.
-		if (!SkeletalMeshComponent->GetSkeletalMeshAsset()->GetSkeleton()->IsCompatibleForEditor(AnimSequence->GetSkeleton()))
-		{
-			UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid AnimSequence: %s for given SkeletalMesh: %s"), *AnimSequence->GetFName().ToString(), *SkeletalMeshComponent->GetSkeletalMeshAsset()->GetFName().ToString());
-			continue;
-		}
-		// Set AnimSequence
-		else
-		{
-			SkeletalMeshComponent->SetAnimation(AnimSequence);
-		}
-
-		// -----------------------------------------------------------------------------------
 		// Get Number of Frames
-		//
 		int32 AnimStartFrame;
 		int32 AnimEndFrame;
-		
-		// Get Range from AnimSequence
-		if (!AnimSequenceInfo.bUseCustomRange)
-		{
-			AnimStartFrame = 0;
-			AnimEndFrame = AnimSequence->GetNumberOfSampledKeys() - 1; // AnimSequence->GetNumberOfFrames();
-		}
-		// Get Range from DataAsset
-		else
-		{
-			AnimStartFrame = AnimSequenceInfo.StartFrame;
-			AnimEndFrame = AnimSequenceInfo.EndFrame;
-		}
-		
-		// ---------------------------------------------------------------------------
-		// 
-		const int32 AnimNumFrames = AnimEndFrame - AnimStartFrame + 1;
+		const int32 AnimNumFrames = GetAnimationFrameRange(AnimSequenceInfo, AnimStartFrame, AnimEndFrame);
 		const float AnimStartTime = AnimSequence->GetTimeAtFrame(AnimStartFrame);
 
 		int32 SampleIndex = 0;
 		const float SampleInterval = 1.f / DataAsset->SampleRate;
 
+		// Progress Bar
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("AnimSequenceIndex"), AnimSequenceIndex+1);
+		Args.Add(TEXT("NumAnimSequences"), AnimSequences.Num());
+		Args.Add(TEXT("AnimSequence"), FText::FromString(*AnimSequence->GetFName().ToString()));
+		FScopedSlowTask AnimProgressBar(AnimNumFrames, FText::Format(LOCTEXT("ProcessingAnimSequence", "Processing AnimSequence: {AnimSequence} [{AnimSequenceIndex}/{NumAnimSequences}]"), Args), true /*Enabled*/);
+		AnimProgressBar.MakeDialog(false /*bShowCancelButton*/, false /*bAllowInPIE*/);
+
 		while (SampleIndex < AnimNumFrames)
 		{
+			AnimProgressBar.EnterProgressFrame();
+
 			const float Time = AnimStartTime + ((float)SampleIndex * SampleInterval);
 			SampleIndex++;
 
 			// Go To Time
 			SkeletalMeshComponent->SetPosition(Time);
-
 			// Update SkelMesh Animation.
 			SkeletalMeshComponent->TickAnimation(0.f, false /*bNeedsValidRootMotion*/);
-			// SkeletalMeshComponent->TickComponent(0.f, ELevelTick::LEVELTICK_All, nullptr);
 			SkeletalMeshComponent->RefreshBoneTransforms(nullptr /*TickFunction*/);
 			
 			// ---------------------------------------------------------------------------
@@ -293,7 +170,7 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 				VertexDeltas.Append(VertexFrameDeltas);
 				VertexNormals.Append(VertexFrameNormals);
 
-			} // End Vertex Mode
+			}
 
 			// ---------------------------------------------------------------------------
 			// Store Bone Positions & Rotations
@@ -309,8 +186,7 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 				BonePositions.Append(BoneFramePositions);
 				BoneRotations.Append(BoneFrameRotations);
 
-			} // End Bone Mode
-
+			}
 		} // End Frame
 
 		// Store Anim Info Data
@@ -321,6 +197,7 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 
 		// Accumulate Frames
 		DataAsset->NumFrames += AnimNumFrames;
+
 	} // End Anim
 		
 	// Destroy Temp Component & Actor
@@ -329,14 +206,7 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 	Actor->Destroy();
 	
 	// ---------------------------------------------------------------------------
-	// Nothing to do here ...
-	//
-	if (!DataAsset->NumFrames)
-	{
-		return false;
-	}
 
-	// ---------------------------------------------------------------------------
 	if (DataAsset->Mode == EAnimToTextureMode::Vertex)
 	{
 		// Find Best Resolution for Vertex Data
@@ -386,17 +256,17 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 		// Find Best Resolution for Bone Data
 		int32 Height, Width;
 
-		// Note we are adding +1 frame for the ref pose
-		if (!FindBestResolution(DataAsset->NumFrames + 1, NumBones, 
-								Height, Width, DataAsset->BoneRowsPerFrame, 
-								DataAsset->MaxHeight, DataAsset->MaxWidth, DataAsset->bEnforcePowerOfTwo))
-		{
-			UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Bone Animation data cannot be fit in a %ix%i texture."), DataAsset->MaxHeight, DataAsset->MaxWidth);
-			return false;
-		}
-
 		// Write Bone Position and Rotation Textures
 		{
+			// Note we are adding +1 frame for the ref pose
+			if (!FindBestResolution(DataAsset->NumFrames + 1, NumBones,
+				Height, Width, DataAsset->BoneRowsPerFrame,
+				DataAsset->MaxHeight, DataAsset->MaxWidth, DataAsset->bEnforcePowerOfTwo))
+			{
+				UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Bone Animation data cannot be fit in a %ix%i texture."), DataAsset->MaxHeight, DataAsset->MaxWidth);
+				return false;
+			}
+
 			// Normalize Bone Data
 			TArray<FVector3f> NormalizedBonePositions;
 			TArray<FVector4> NormalizedBoneRotations;
@@ -416,25 +286,28 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 				WriteVectorsToTexture<FVector3f, FLowPrecision>(NormalizedBonePositions, DataAsset->NumFrames + 1, DataAsset->BoneRowsPerFrame, Height, Width, DataAsset->GetBonePositionTexture());
 				WriteVectorsToTexture<FVector4, FLowPrecision>(NormalizedBoneRotations, DataAsset->NumFrames + 1, DataAsset->BoneRowsPerFrame, Height, Width, DataAsset->GetBoneRotationTexture());
 			}
+
+			// Update Bounds
+			SetBoundsExtensions(DataAsset->GetStaticMesh(), DataAsset->BoneMinBBox, DataAsset->BoneSizeBBox);
 		}
 
 		// ---------------------------------------------------------------------------
-
-		// Find Best Resolution for Bone Weights Texture
-		if (!FindBestResolution(2, NumVertices, 
-								Height, Width, DataAsset->BoneWeightRowsPerFrame, 
-								DataAsset->MaxHeight, DataAsset->MaxWidth, DataAsset->bEnforcePowerOfTwo))
-		{
-			UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Weights Data cannot be fit in a %ix%i texture."), DataAsset->MaxHeight, DataAsset->MaxWidth);
-			return false;
-		}
-
+		
 		// Write Weights Texture
 		{
+			// Find Best Resolution for Bone Weights Texture
+			if (!FindBestResolution(2, NumVertices,
+				Height, Width, DataAsset->BoneWeightRowsPerFrame,
+				DataAsset->MaxHeight, DataAsset->MaxWidth, DataAsset->bEnforcePowerOfTwo))
+			{
+				UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Weights Data cannot be fit in a %ix%i texture."), DataAsset->MaxHeight, DataAsset->MaxWidth);
+				return false;
+			}
+
 			TArray<TVertexSkinWeight<4>> SkinWeights;
 
 			// Reduce BoneWeights to 4 Influences.
-			if (!bValidSocket)
+			if (SocketIndex == INDEX_NONE)
 			{	
 				// Project SkinWeights from SkeletalMesh to StaticMesh
 				TArray<VertexSkinWeightMax> StaticMeshSkinWeights;
@@ -443,7 +316,6 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 				// Reduce Weights to 4 highest influences.
 				ReduceSkinWeights(StaticMeshSkinWeights, SkinWeights);
 			}
-
 			// If Valid Socket, set all influences to same index.
 			else
 			{
@@ -459,13 +331,10 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 			// Write Bone Weights Texture
 			WriteSkinWeightsToTexture(SkinWeights,
 				DataAsset->BoneWeightRowsPerFrame, Height, Width, DataAsset->GetBoneWeightTexture());
+
+			// Add Vertex UVChannel
+			CreateUVChannel(DataAsset->GetStaticMesh(), DataAsset->StaticLODIndex, DataAsset->UVChannel, Height, Width);
 		}
-
-		// Add Vertex UVChannel
-		CreateUVChannel(DataAsset->GetStaticMesh(), DataAsset->StaticLODIndex, DataAsset->UVChannel, Height, Width);
-
-		// Update Bounds
-		SetBoundsExtensions(DataAsset->GetStaticMesh(), DataAsset->BoneMinBBox, DataAsset->BoneSizeBBox);
 
 		// Done with StaticMesh
 		DataAsset->GetStaticMesh()->PostEditChange();
@@ -480,6 +349,140 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 	return true;
 }
 
+
+bool UAnimToTextureBPLibrary::CheckDataAsset(const UAnimToTextureDataAsset* DataAsset, 
+	int32& OutSocketIndex, TArray<FAnimToTextureAnimSequenceInfo>& OutAnimSequences)
+{
+	// Check StaticMesh
+	if (!DataAsset->GetStaticMesh())
+	{
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid StaticMesh"));
+		return false;
+	}
+
+	// Check SkeletalMesh
+	if (!DataAsset->GetSkeletalMesh())
+	{
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid SkeletalMesh"));
+		return false;
+	}
+
+	// Check Skeleton
+	if (!DataAsset->GetSkeletalMesh()->GetSkeleton())
+	{
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid SkeletalMesh. No valid Skeleton found"));
+		return false;
+	}
+
+	// Check StaticMesh LOD
+	if (!DataAsset->GetStaticMesh()->IsSourceModelValid(DataAsset->StaticLODIndex))
+	{
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid StaticMesh LOD Index: %i"), DataAsset->StaticLODIndex);
+		return false;
+	}
+
+	// Check SkeletalMesh LOD
+	if (!DataAsset->GetSkeletalMesh()->IsValidLODIndex(DataAsset->SkeletalLODIndex))
+	{
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid SkeletalMesh LOD Index: %i"), DataAsset->SkeletalLODIndex);
+		return false;
+	}
+
+	// Check Socket.
+	OutSocketIndex = INDEX_NONE;
+	if (DataAsset->AttachToSocket.IsValid() && !DataAsset->AttachToSocket.IsNone())
+	{
+		// Get Bone Names (no virtual)
+		TArray<FName> BoneNames;
+		GetBoneNames(DataAsset->GetSkeletalMesh(), BoneNames);
+
+		// Check if Socket is in BoneNames
+		if (!BoneNames.Find(DataAsset->AttachToSocket, OutSocketIndex))
+		{
+			UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Socket: %s not found in Raw Bone List"), *DataAsset->AttachToSocket.ToString());
+			return false;
+		}
+		else
+		{
+			// TODO: SocketIndex can only be < TNumericLimits<uint16>::Max()
+		}
+	}
+
+	// Check if UVChannel is being used by the Lightmap UV
+	const FStaticMeshSourceModel& SourceModel = DataAsset->GetStaticMesh()->GetSourceModel(DataAsset->StaticLODIndex);
+	if (SourceModel.BuildSettings.bGenerateLightmapUVs &&
+		SourceModel.BuildSettings.DstLightmapIndex == DataAsset->UVChannel)
+	{
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid UVChannel: %i. Already used by LightMap"), DataAsset->UVChannel);
+		return false;
+	}
+
+	// Check if NumBones > 256
+	const int32 NumBones = GetNumBones(DataAsset->GetSkeletalMesh());
+	if (DataAsset->Precision == EAnimToTexturePrecision::EightBits &&
+		NumBones > 256)
+	{
+		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid Number of Bones. There is a maximum of 256 bones for 8bit Precision"))
+		return false;
+	}
+
+	// Check Animations
+	OutAnimSequences.Reset();
+	for (const FAnimToTextureAnimSequenceInfo& AnimSequenceInfo : DataAsset->AnimSequences)
+	{
+		const UAnimSequence* AnimSequence = AnimSequenceInfo.AnimSequence;
+
+		if (AnimSequenceInfo.bEnabled && AnimSequence)
+		{
+			// Make sure SkeletalMesh is compatible with AnimSequence
+			if (!DataAsset->GetSkeletalMesh()->GetSkeleton()->IsCompatibleForEditor(AnimSequence->GetSkeleton()))
+			{
+				UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid AnimSequence: %s for given SkeletalMesh: %s"), *AnimSequence->GetFName().ToString(), *DataAsset->GetSkeletalMesh()->GetFName().ToString());
+				return false;
+			}
+
+			// Check Frame Range
+			if (AnimSequenceInfo.bUseCustomRange &&
+				(AnimSequenceInfo.StartFrame < 0 ||
+					AnimSequenceInfo.EndFrame > AnimSequence->GetNumberOfSampledKeys() - 1 ||
+					AnimSequenceInfo.EndFrame - AnimSequenceInfo.StartFrame < 0))
+			{
+				UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid CustomRange for AnimSequence: %s"), *AnimSequence->GetName());
+				return false;
+			}
+
+			// Store Valid AnimSequenceInfo
+			OutAnimSequences.Add(AnimSequenceInfo);
+		}
+	}
+
+	// All Good !
+	return true;
+}
+
+int32 UAnimToTextureBPLibrary::GetAnimationFrameRange(const FAnimToTextureAnimSequenceInfo& Animation, int32& OutStartFrame, int32& OutEndFrame)
+{
+	if (!Animation.AnimSequence)
+	{
+		return INDEX_NONE;
+	}
+
+	// Get Range from AnimSequence
+	if (!Animation.bUseCustomRange)
+	{
+		OutStartFrame = 0;
+		OutEndFrame = Animation.AnimSequence->GetNumberOfSampledKeys() - 1; // AnimSequence->GetNumberOfFrames();
+	}
+	// Get Custom Range
+	else
+	{
+		OutStartFrame = Animation.StartFrame;
+		OutEndFrame = Animation.EndFrame;
+	}
+
+	// Return Number of Frames
+	return OutEndFrame - OutStartFrame + 1;
+}
 
 // 
 void UAnimToTextureBPLibrary::GetVertexDeltasAndNormals(const USkeletalMeshComponent* SkeletalMeshComponent, const int32 LODIndex, 
@@ -528,13 +531,10 @@ void UAnimToTextureBPLibrary::GetVertexDeltasAndNormals(const USkeletalMeshCompo
 int32 UAnimToTextureBPLibrary::GetRefBonePositionsAndRotations(const USkeletalMesh* SkeletalMesh,
 	TArray<FVector3f>& OutBoneRefPositions, TArray<FVector4>& OutBoneRefRotations)
 {
+	check(SkeletalMesh);
+
 	OutBoneRefPositions.Reset();
 	OutBoneRefRotations.Reset();
-
-	if (!SkeletalMesh)
-	{
-		return 0;
-	}
 
 	// Get Number of RawBones (no virtual)
 	const int32 NumBones = GetNumBones(SkeletalMesh);
@@ -551,6 +551,8 @@ int32 UAnimToTextureBPLibrary::GetRefBonePositionsAndRotations(const USkeletalMe
 int32 UAnimToTextureBPLibrary::GetBonePositionsAndRotations(const USkeletalMeshComponent* SkeletalMeshComponent, const TArray<FVector3f>& BoneRefPositions,
 	TArray<FVector3f>& BonePositions, TArray<FVector4>& BoneRotations)
 {
+	check(SkeletalMeshComponent);
+
 	BonePositions.Reset();
 	BoneRotations.Reset();
 
@@ -602,11 +604,9 @@ void UAnimToTextureBPLibrary::UpdateMaterialInstanceFromDataAsset(UAnimToTexture
 	const bool bAutoPlay, const int32 AnimationIndex, 
 	const EAnimToTextureNumBoneInfluences NumBoneInfluences, const EMaterialParameterAssociation MaterialParameterAssociation)
 {
-	if (!MaterialInstance || !DataAsset)
-	{
-		return;
-	}
-
+	check(DataAsset);
+	check(MaterialInstance);
+	
 	// Set UVChannel
 	switch (DataAsset->UVChannel)
 	{
@@ -725,12 +725,9 @@ void UAnimToTextureBPLibrary::UpdateMaterialInstanceFromDataAsset(UAnimToTexture
 
 bool UAnimToTextureBPLibrary::SetLightMapIndex(UStaticMesh* StaticMesh, const int32 LODIndex, const int32 LightmapIndex, bool bGenerateLightmapUVs)
 {
-	if (!StaticMesh)
-	{
-		return false;
-	}
+	check(StaticMesh);
 
-	if (LODIndex >= 0 && !StaticMesh->IsSourceModelValid(LODIndex))
+	if (!StaticMesh->IsSourceModelValid(LODIndex))
 	{
 		return false;
 	}
@@ -760,17 +757,14 @@ bool UAnimToTextureBPLibrary::SetLightMapIndex(UStaticMesh* StaticMesh, const in
 
 UStaticMesh* UAnimToTextureBPLibrary::ConvertSkeletalMeshToStaticMesh(USkeletalMesh* SkeletalMesh, const FString PackageName, const int32 LODIndex)
 {
-	if (!SkeletalMesh || PackageName.IsEmpty())
+	check(SkeletalMesh);
+
+	if (PackageName.IsEmpty() || !FPackageName::IsValidObjectPath(PackageName))
 	{
 		return nullptr;
 	}
 
-	if (!FPackageName::IsValidObjectPath(PackageName))
-	{
-		return nullptr;
-	}
-
-	if (LODIndex >= 0 && !SkeletalMesh->IsValidLODIndex(LODIndex))
+	if (!SkeletalMesh->IsValidLODIndex(LODIndex))
 	{
 		UE_LOG(LogAnimToTextureEditor, Warning, TEXT("Invalid LODIndex: %i"), LODIndex);
 		return nullptr;
@@ -1135,3 +1129,5 @@ void UAnimToTextureBPLibrary::SetBoundsExtensions(UStaticMesh* StaticMesh, const
 	StaticMesh->SetNegativeBoundsExtension(NewNegativeBoundsExtension);
 	StaticMesh->CalculateExtendedBounds();
 }
+
+#undef LOCTEXT_NAMESPACE

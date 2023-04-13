@@ -5,12 +5,13 @@
 namespace AnimToTexture_Private
 {
 
-FSourceVertexData::FSourceVertexData(const FVector3f& SourceVertex,
+void FSourceVertexData::Update(const FVector3f& SourceVertex,
 	const TArray<FVector3f>& DriverVertices, const TArray<FIntVector3>& DriverTriangles, const TArray<VertexSkinWeightMax>& DriverSkinWeights, 
 	const float Sigma)
 {	
-	// Allocate Driver Triangle Data
+	// Reserve TriangleData
 	const int32 NumDriverTriangles = DriverTriangles.Num();
+	DriverTriangleData.Reserve(NumDriverTriangles);
 
 	// Get ClosestPoint to Triangles
 	TArray<FVector3f> ClosestPoints;
@@ -23,19 +24,17 @@ FSourceVertexData::FSourceVertexData(const FVector3f& SourceVertex,
 		const FVector3f& B = DriverVertices[DriverTriangle.Y];
 		const FVector3f& C = DriverVertices[DriverTriangle.Z];
 
-		// ClosestPoint 
-		ClosestPoints[DriverTriangleIndex] = FindClosestPointToTriangle(SourceVertex, A, B, C);
+		// ClosestPoint To Triangle 
+		int32 OnPointLocalIndex = INDEX_NONE;
+		ClosestPoints[DriverTriangleIndex] = FindClosestPointToTriangle(SourceVertex, A, B, C, OnPointLocalIndex);
 	};
 
 	// Get Inverse Distance Weighting from Vertex to each DriverTriangle (ClosestPoint)
 	TArray<float> Weights;
 	AnimToTexture_Private::InverseDistanceWeights(SourceVertex, ClosestPoints, Weights, Sigma);
-
-	// Allocate
-	DriverTriangleData.Reserve(NumDriverTriangles);
 	
 	for (int32 DriverTriangleIndex = 0; DriverTriangleIndex < NumDriverTriangles; DriverTriangleIndex++)
-	{	
+	{
 		// no need to store data if weight is small
 		if (Weights[DriverTriangleIndex] > UE_KINDA_SMALL_NUMBER)
 		{
@@ -49,9 +48,9 @@ FSourceVertexData::FSourceVertexData(const FVector3f& SourceVertex,
 			TriangleData.InverseDistanceWeight = Weights[DriverTriangleIndex];
 			TriangleData.Triangle = DriverTriangle;
 			TriangleData.BarycentricCoords = BarycentricCoordinates(ClosestPoint, A, B, C);
-			TriangleData.TangentIndex = GetTriangleTangentIndex(ClosestPoint, A, B, C);
-			TriangleData.InvMatrix = GetTriangleMatrix(ClosestPoint, A, B, C, TriangleData.TangentIndex).Inverse();
-			
+			TriangleData.TangentLocalIndex = GetTriangleTangentLocalIndex(ClosestPoint, A, B, C);
+			TriangleData.InvMatrix = GetTriangleMatrix(ClosestPoint, A, B, C, TriangleData.TangentLocalIndex).Inverse();
+
 			// Interpolate SkinWeights with Barycentric Coords
 			const TArray<VertexSkinWeightMax> SkinWeights = { DriverSkinWeights[TriangleData.Triangle.X], DriverSkinWeights[TriangleData.Triangle.Y], DriverSkinWeights[TriangleData.Triangle.Z] };
 			const TArray<float> BarycentricWeights = { TriangleData.BarycentricCoords.X, TriangleData.BarycentricCoords.Y, TriangleData.BarycentricCoords.Z };
@@ -60,11 +59,11 @@ FSourceVertexData::FSourceVertexData(const FVector3f& SourceVertex,
 			DriverTriangleData.Add(TriangleData);
 		}
 	}
-
 }
 
 
-FSourceMeshToDriverMesh::FSourceMeshToDriverMesh(const UStaticMesh* StaticMesh, const int32 StaticMeshLODIndex, const USkeletalMesh* SkeletalMesh, const int32 SkeletalMeshLODIndex)
+void FSourceMeshToDriverMesh::Update(const UStaticMesh* StaticMesh, const int32 StaticMeshLODIndex, 
+	const USkeletalMesh* SkeletalMesh, const int32 SkeletalMeshLODIndex)
 {
 	check(StaticMesh);
 	check(SkeletalMesh);
@@ -84,15 +83,14 @@ FSourceMeshToDriverMesh::FSourceMeshToDriverMesh(const UStaticMesh* StaticMesh, 
 	// Allocate
 	SourceVerticesData.SetNumZeroed(NumSourceVertices); // note this is initializing values as zero
 	
-	// Get SourceVertex > DriverTriangle Data
-	//for (int32 SourceVertexIndex = 0; SourceVertexIndex < NumSourceVertices; SourceVertexIndex++)
+	// Get SourceVertex -> DriverTriangle Data
 	ParallelFor(NumSourceVertices, [&](int32 SourceVertexIndex)
-	{
-		const FVector3f& SourceVertex = SourceVertices[SourceVertexIndex];
-		const FVector3f& SourceNormal = SourceNormals[SourceVertexIndex];
+	{	
+		// Create Mapping from StaticMesh Vertex to SkeletalMesh Triangles
+		SourceVerticesData[SourceVertexIndex].Update(SourceVertices[SourceVertexIndex], 
+			DriverVertices, DriverTriangles, DriverSkinWeights, 1.f /*Sigma*/);
 
-		// Create Mapping from StaticMesh Vertex to SkeletalMesh
-		SourceVerticesData[SourceVertexIndex] = FSourceVertexData(SourceVertex, DriverVertices, DriverTriangles, DriverSkinWeights);
+		// UE_LOG(LogTemp, Warning, TEXT("Vertex: %i NumTriangles: %i."), SourceVertexIndex, SourceVerticesData[SourceVertexIndex].DriverTriangleData.Num());
 
 	});	// end ParallelFor
 }
@@ -142,9 +140,9 @@ void FSourceMeshToDriverMesh::DeformVerticesAndNormals(const TArray<FVector3f>& 
 			const FVector3f Point = PointAtBarycentricCoordinates(A, B, C, BarycentricCoords);
 
 			// Grt Driver Triangle Matrix
-			const uint8& TangentIndex = TriangleData.TangentIndex;
+			const uint8& TangentLocalIndex = TriangleData.TangentLocalIndex;
 			const FMatrix44f& DriverTriangleInvMatrix = TriangleData.InvMatrix;
-			const FMatrix44f DriverTriangleMatrix = GetTriangleMatrix(Point, A, B, C, TangentIndex);
+			const FMatrix44f DriverTriangleMatrix = GetTriangleMatrix(Point, A, B, C, TangentLocalIndex);
 
 			// Get SourceVertex -> DriverTriangle InverseDistanceWeight
 			const float& InverseDistanceWeight = TriangleData.InverseDistanceWeight;
