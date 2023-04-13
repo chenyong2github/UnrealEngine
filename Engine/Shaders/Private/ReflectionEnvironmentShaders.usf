@@ -26,7 +26,7 @@ void CopyToCubeFaceVS(
 	)
 {	
 	DrawRectangle(float4(InPosition.xy, 0, 1), InUV, Out.Position, Out.UV);
-	Out.ScreenVector = mul(float4(Out.Position.xy, 1, 0), View.ScreenToTranslatedWorld).xyz;
+	Out.ScreenVector = ScreenVectorFromScreenRect(float4(Out.Position.xy, 1, 0));
 }
 
 int CubeFace;
@@ -861,7 +861,7 @@ void RenderRealTimeReflectionHeightFogVS(
 	UV = VertexId == 1 ? float2(-1.0f, 3.0f) : UV;
 	UV = VertexId == 2 ? float2(3.0f, -1.0f) : UV;
 	Position = float4(UV, 0.5f, 1.0f);
-	OutScreenVector = mul(float4(Position.xy, 1, 0), View.ScreenToTranslatedWorld).xyz;
+	OutScreenVector = ScreenVectorFromScreenRect(float4(Position.xy, 1, 0));
 }
 
 

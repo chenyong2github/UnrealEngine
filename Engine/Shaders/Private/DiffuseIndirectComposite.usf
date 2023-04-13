@@ -352,7 +352,7 @@ void MainPS(
 	const float AOMask = IsValid(Material);
 	const float FinalAmbientOcclusion = lerp(1.0f, Material.MaterialAO * DynamicAmbientOcclusion, AOMask * AmbientOcclusionStaticFraction);
 
-	const float3 TranslatedWorldPosition = mul(float4(ScreenPosition * Material.SceneDepth, Material.SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+	const float3 TranslatedWorldPosition = mul(float4(GetScreenPositionForProjectionType(ScreenPosition, Material.SceneDepth), Material.SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 
 	const float3 N = Material.WorldNormal;
 	const float3 V = normalize(View.TranslatedWorldCameraOrigin - TranslatedWorldPosition);

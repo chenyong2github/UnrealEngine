@@ -83,7 +83,7 @@ void MainPS(
 
 	const float4 PixelLightAttenuation = 1.0f;
 	const float3 InRadiance = 0.5f;
-	const float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
+	const float3 WorldPosition = mul(float4(GetScreenPositionForProjectionType(ScreenPosition, SceneDepth), SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
 	const float3 CameraVector = normalize(WorldPosition - PrimaryView.TranslatedWorldCameraOrigin);
 	const float3 TranslatedWorldPosition = WorldPosition;
 	const float3 V = -CameraVector;

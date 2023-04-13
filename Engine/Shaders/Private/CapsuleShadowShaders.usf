@@ -1011,7 +1011,7 @@ void CapsuleShadowingCS(
 	float SceneDepth = CalcSceneDepth(ScreenUV);
 #endif
 	
-	const float3 OpaqueTranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
+	const float3 OpaqueTranslatedWorldPosition = mul(float4(GetScreenPositionForProjectionType(ScreenPosition, SceneDepth), SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
 
 	uint CulledDataParameter = 0;
 	bool bTileShouldComputeShadowing = true;

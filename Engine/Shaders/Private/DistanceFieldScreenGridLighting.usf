@@ -217,7 +217,7 @@ void ConeTraceObjectOcclusionCS(
 			float2 ScreenUV = GetScreenUVFromScreenGrid(OutputCoordinate);
 			float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 		
-			FLWCVector3 WorldShadingPosition = LWCMultiply(float3(ScreenPosition * SceneDepth, SceneDepth), PrimaryView.ScreenToWorld);
+			FLWCVector3 WorldShadingPosition = LWCMultiply(float3(GetScreenPositionForProjectionType(ScreenPosition, SceneDepth), SceneDepth), PrimaryView.ScreenToWorld);
 
 			HemisphereConeTraceAgainstTileCulledObjects(ObjectIndex, OutputBaseIndex, WorldShadingPosition, SceneDepth, WorldNormal, TangentX, TangentY);
 		}
@@ -344,7 +344,7 @@ void ConeTraceGlobalOcclusionCS(
 		float2 ScreenUV = GetScreenUVFromScreenGrid(OutputCoordinate);
 		float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 		
-		float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
+		float3 TranslatedWorldPosition = mul(float4(GetScreenPositionForProjectionType(ScreenPosition, SceneDepth), SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
 
 		uint OutputBaseIndex = OutputCoordinate.y * ScreenGridConeVisibilitySize.x + OutputCoordinate.x;
 

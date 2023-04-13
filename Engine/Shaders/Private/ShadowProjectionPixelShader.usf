@@ -123,7 +123,7 @@ void Main(
 	bIsSubsurfaceCompatible = false;
 #endif
 
-	float4 ScreenPosition = float4(((ScreenUV.xy - View.ScreenPositionScaleBias.wz ) / View.ScreenPositionScaleBias.xy) * SceneW, SceneW, 1);
+	float4 ScreenPosition = float4(GetScreenPositionForProjectionType(((ScreenUV.xy - View.ScreenPositionScaleBias.wz ) / View.ScreenPositionScaleBias.xy),SceneW), SceneW, 1);
 	float4 ShadowPosition = mul(ScreenPosition, ScreenToShadowMatrix);
 	float3 TranslateWorldPosition = mul(ScreenPosition, View.ScreenToTranslatedWorld).xyz;
 
@@ -414,7 +414,7 @@ void MainOnePassPointLightPS(
 #endif
 
 	float2 ScreenPosition = ( ScreenUV.xy - View.ScreenPositionScaleBias.wz ) / View.ScreenPositionScaleBias.xy;
-	float3 TranslateWorldPosition = mul(float4(ScreenPosition.xy * SceneW, SceneW, 1), View.ScreenToTranslatedWorld).xyz;
+	float3 TranslateWorldPosition = mul(float4(GetScreenPositionForProjectionType(ScreenPosition, SceneW), SceneW, 1), View.ScreenToTranslatedWorld).xyz;
 
 	// For debugging
 #define OUTPUT_CUBE_SHADOW_DEPTH_NO_FILTERING 0

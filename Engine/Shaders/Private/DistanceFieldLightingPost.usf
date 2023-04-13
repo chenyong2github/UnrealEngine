@@ -26,8 +26,8 @@ SamplerState VelocityTextureSampler;
 
 float ComputeHistoryWeightBasedOnPosition(float2 ScreenPosition, float SceneDepth, float2 OldScreenPosition, float HistoryCameraDepth)
 {
-	float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
-	float3 PrevPositionTranslatedWorld = mul(float4(OldScreenPosition * HistoryCameraDepth, HistoryCameraDepth, 1), View.PrevScreenToTranslatedWorld).xyz;
+	float3 TranslatedWorldPosition = mul(float4(GetScreenPositionForProjectionType(ScreenPosition, SceneDepth), SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+	float3 PrevPositionTranslatedWorld = mul(float4(GetScreenPositionForProjectionType(OldScreenPosition, HistoryCameraDepth), HistoryCameraDepth, 1), View.PrevScreenToTranslatedWorld).xyz;
 
 	float DistanceToHistoryValue = length(PrevPositionTranslatedWorld - TranslatedWorldPosition);
 	float RelativeHistoryDistanceThreshold = HistoryDistanceThreshold / 1000.0f;
@@ -79,7 +79,7 @@ float4 GetNormalWeights(float2 Corner00UV, float2 LowResTexelSize, float3 WorldN
 float ComputeSampleWeightBasedOnPosition(float4 ReferencePlane, float2 SampleScreenUV, float SampleDepth)
 {
 	float2 SampleScreenPosition = ApplyScreenTransform(SampleScreenUV, UVToScreenPos);
-	float3 SampleTranslatedWorldPosition = mul(float4(SampleScreenPosition * SampleDepth, SampleDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
+	float3 SampleTranslatedWorldPosition = mul(float4(GetScreenPositionForProjectionType(SampleScreenPosition, SampleDepth), SampleDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
 
 	float PlaneDistance = dot(ReferencePlane, float4(SampleTranslatedWorldPosition, 1));
 
@@ -94,7 +94,7 @@ void GeometryAwareUpsample(float4 UVAndScreenPos, out float4 OutBentNormal)
 	float SceneDepth;
 	GetDownsampledGBuffer(UVAndScreenPos.xy, WorldNormal, SceneDepth);
 
-	float3 TranslatedWorldPosition = mul(float4(UVAndScreenPos.zw * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
+	float3 TranslatedWorldPosition = mul(float4(GetScreenPositionForProjectionType(UVAndScreenPos.zw, SceneDepth), SceneDepth, 1), PrimaryView.ScreenToTranslatedWorld).xyz;
 
 	float4 ReferencePlane = float4(WorldNormal, -dot(TranslatedWorldPosition, WorldNormal));
 

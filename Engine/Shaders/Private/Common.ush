@@ -1201,7 +1201,7 @@ bool IsOrthoProjection()
 float ConvertToDeviceZ(float SceneDepth)
 {
 	FLATTEN
-	if (IsOrthoProjection(View.ViewToClip))
+	if (IsOrthoProjection())
 	{
 		// Ortho
 		return SceneDepth * View.ViewToClip[2][2] + View.ViewToClip[3][2];
