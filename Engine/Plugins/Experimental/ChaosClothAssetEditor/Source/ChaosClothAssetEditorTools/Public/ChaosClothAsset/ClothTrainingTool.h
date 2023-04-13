@@ -122,8 +122,9 @@ public:
 
 private:
 	class FClothSimulationDataGenerationProxy;
-	struct FSimResource;
 	class FLaunchSimsOp;
+	struct FSimResource;
+	struct FTaskResource;
 
 	using FTaskType = UE::Geometry::TModelingOpTask<FLaunchSimsOp>;
 	using FExecuterType = UE::Geometry::FAsyncTaskExecuterWithProgressCancel<FTaskType>;
@@ -140,22 +141,6 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<const UChaosClothComponent> ClothComponent;
-
-	struct FTaskResource
-	{
-		TUniquePtr<FCriticalSection> SimMutex;
-		TArray<FSimResource> SimResources;
-
-		TUniquePtr<FExecuterType> Executer;
-		TUniquePtr<FAsyncTaskNotification> Notification;
-		UChaosCache *Cache = nullptr;
-		TUniquePtr<FCacheUserToken> CacheUserToken;
-		FDateTime StartTime;
-		FDateTime LastUpdateTime;
-
-		bool AllocateSimResources_GameThread(const UChaosClothComponent& ClothComponent, int32 Num);
-		void FreeSimResources_GameThread();
-	};
 
 	TUniquePtr<FTaskResource> TaskResource = nullptr;
 

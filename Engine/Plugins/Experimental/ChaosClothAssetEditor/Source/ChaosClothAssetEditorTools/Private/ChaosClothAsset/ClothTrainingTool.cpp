@@ -186,6 +186,22 @@ private:
 	inline static const FName PositionZName = TEXT("PositionZ");
 };
 
+struct UClothTrainingTool::FTaskResource
+{
+	TUniquePtr<FCriticalSection> SimMutex;
+	TArray<FSimResource> SimResources;
+
+	TUniquePtr<FExecuterType> Executer;
+	TUniquePtr<FAsyncTaskNotification> Notification;
+	UChaosCache *Cache = nullptr;
+	TUniquePtr<FCacheUserToken> CacheUserToken;
+	FDateTime StartTime;
+	FDateTime LastUpdateTime;
+
+	bool AllocateSimResources_GameThread(const UChaosClothComponent& ClothComponent, int32 Num);
+	void FreeSimResources_GameThread();
+};
+
 void UClothTrainingTool::FLaunchSimsOp::PrepareAnimationSequence()
 {
 	TObjectPtr<UAnimSequence> AnimationSequence = ToolProperties->AnimationSequence;
