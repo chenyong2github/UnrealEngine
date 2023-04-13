@@ -116,7 +116,27 @@ static FOpenVDBGridInfo GetOpenVDBGridInfo(openvdb::GridBase::Ptr Grid, uint32 G
 	}
 
 	// Figure out the type/format of the grid
-	if (Grid->isType<FOpenVDBFloat1Grid>())
+	if (Grid->isType<FOpenVDBHalf1Grid>())
+	{
+		GridInfo.NumComponents = 1;
+		GridInfo.Type = EOpenVDBGridType::Half;
+	}
+	else if (Grid->isType<FOpenVDBHalf2Grid>())
+	{
+		GridInfo.NumComponents = 2;
+		GridInfo.Type = EOpenVDBGridType::Half2;
+	}
+	else if (Grid->isType<FOpenVDBHalf3Grid>())
+	{
+		GridInfo.NumComponents = 3;
+		GridInfo.Type = EOpenVDBGridType::Half3;
+	}
+	else if (Grid->isType<FOpenVDBHalf4Grid>())
+	{
+		GridInfo.NumComponents = 4;
+		GridInfo.Type = EOpenVDBGridType::Half4;
+	}
+	else if (Grid->isType<FOpenVDBFloat1Grid>())
 	{
 		GridInfo.NumComponents = 1;
 		GridInfo.Type = EOpenVDBGridType::Float;
@@ -502,6 +522,14 @@ const TCHAR* OpenVDBGridTypeToString(EOpenVDBGridType Type)
 {
 	switch (Type)
 	{
+	case EOpenVDBGridType::Half:
+		return TEXT("Half");
+	case EOpenVDBGridType::Half2:
+		return TEXT("Half2");
+	case EOpenVDBGridType::Half3:
+		return TEXT("Half3");
+	case EOpenVDBGridType::Half4:
+		return TEXT("Half4");
 	case EOpenVDBGridType::Float:
 		return TEXT("Float");
 	case EOpenVDBGridType::Float2:

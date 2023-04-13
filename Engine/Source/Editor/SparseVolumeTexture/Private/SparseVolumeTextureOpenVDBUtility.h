@@ -9,14 +9,18 @@
 enum class EOpenVDBGridType : uint8
 {
 	Unknown = 0,
-	Float = 1,
-	Float2 = 2,
-	Float3 = 3,
-	Float4 = 4,
-	Double = 5,
-	Double2 = 6,
-	Double3 = 7,
-	Double4 = 8,
+	Half,
+	Half2,
+	Half3,
+	Half4,
+	Float,
+	Float2,
+	Float3,
+	Float4,
+	Double,
+	Double2,
+	Double3,
+	Double4,
 };
 
 struct FOpenVDBGridInfo

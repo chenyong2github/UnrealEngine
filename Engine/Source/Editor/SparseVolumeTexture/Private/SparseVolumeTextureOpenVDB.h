@@ -41,6 +41,11 @@ UE_PUSH_MACRO("check")
 #include <openvdb/math/Half.h>
 #include <openvdb/Exceptions.h>
 
+using FOpenVDBHalf = openvdb::math::internal::half;
+using FOpenVDBHalf1Grid = openvdb::Grid<openvdb::tree::Tree4<FOpenVDBHalf, 5, 4, 3>::Type>;
+using FOpenVDBHalf2Grid = openvdb::Grid<openvdb::tree::Tree4<openvdb::math::Vec2<FOpenVDBHalf>, 5, 4, 3>::Type>;
+using FOpenVDBHalf3Grid = openvdb::Grid<openvdb::tree::Tree4<openvdb::math::Vec3<FOpenVDBHalf>, 5, 4, 3>::Type>;
+using FOpenVDBHalf4Grid = openvdb::Grid<openvdb::tree::Tree4<openvdb::math::Vec4<FOpenVDBHalf>, 5, 4, 3>::Type>;
 using FOpenVDBFloat1Grid = openvdb::FloatGrid;
 using FOpenVDBFloat2Grid = openvdb::Grid<openvdb::tree::Tree4<openvdb::Vec2f, 5, 4, 3>::Type>;
 using FOpenVDBFloat3Grid = openvdb::Vec3SGrid;

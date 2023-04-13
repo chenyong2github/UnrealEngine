@@ -17,6 +17,12 @@ constexpr uint32 GetOpenVDBValueNumComponents()
 }
 
 template<>
+constexpr uint32 GetOpenVDBValueNumComponents<FOpenVDBHalf>()
+{
+	return 1;
+}
+
+template<>
 constexpr uint32 GetOpenVDBValueNumComponents<float>()
 {
 	return 1;
@@ -32,6 +38,12 @@ template<typename ValueType>
 float GetOpenVDBValueComponent(const ValueType& Value, uint32 ComponentIndex)
 {
 	return (float)Value[FMath::Min(ComponentIndex, (uint32)ValueType::size)];
+}
+
+template<>
+float GetOpenVDBValueComponent<FOpenVDBHalf>(const FOpenVDBHalf& Value, uint32 ComponentIndex)
+{
+	return (float)Value;
 }
 
 template<>
@@ -53,6 +65,12 @@ ValueType GetOpenVDBMaxComponent(const ValueType& ValueA, const ValueType& Value
 }
 
 template<>
+FOpenVDBHalf GetOpenVDBMaxComponent<FOpenVDBHalf>(const FOpenVDBHalf& ValueA, const FOpenVDBHalf& ValueB)
+{
+	return FOpenVDBHalf(FMath::Max((float)ValueA, (float)ValueB));
+}
+
+template<>
 float GetOpenVDBMaxComponent<float>(const float& ValueA, const float& ValueB)
 {
 	return FMath::Max(ValueA, ValueB);
@@ -68,6 +86,12 @@ template<typename ValueType>
 ValueType GetOpenVDBMinComponent(const ValueType& ValueA, const ValueType& ValueB)
 {
 	return openvdb::math::minComponent(ValueA, ValueB);
+}
+
+template<>
+FOpenVDBHalf GetOpenVDBMinComponent<FOpenVDBHalf>(const FOpenVDBHalf& ValueA, const FOpenVDBHalf& ValueB)
+{
+	return FOpenVDBHalf(FMath::Min((float)ValueA, (float)ValueB));
 }
 
 template<>
@@ -198,7 +222,23 @@ TSharedPtr<IOpenVDBGridAdapterBase> CreateOpenVDBGridAdapterInternal(openvdb::Gr
 // Creates an adapter suitable for the type of the given grid or nullptr if the type is not supported.
 TSharedPtr<IOpenVDBGridAdapterBase> CreateOpenVDBGridAdapter(openvdb::GridBase::Ptr Grid)
 {
-	if (Grid->isType<FOpenVDBFloat1Grid>())
+	if (Grid->isType<FOpenVDBHalf1Grid>())
+	{
+		return CreateOpenVDBGridAdapterInternal<FOpenVDBHalf1Grid>(Grid);
+	}
+	else if (Grid->isType<FOpenVDBHalf2Grid>())
+	{
+		return CreateOpenVDBGridAdapterInternal<FOpenVDBHalf2Grid>(Grid);
+	}
+	else if (Grid->isType<FOpenVDBHalf3Grid>())
+	{
+		return CreateOpenVDBGridAdapterInternal<FOpenVDBHalf3Grid>(Grid);
+	}
+	else if (Grid->isType<FOpenVDBHalf4Grid>())
+	{
+		return CreateOpenVDBGridAdapterInternal<FOpenVDBHalf4Grid>(Grid);
+	}
+	else if (Grid->isType<FOpenVDBFloat1Grid>())
 	{
 		return CreateOpenVDBGridAdapterInternal<FOpenVDBFloat1Grid>(Grid);
 	}
