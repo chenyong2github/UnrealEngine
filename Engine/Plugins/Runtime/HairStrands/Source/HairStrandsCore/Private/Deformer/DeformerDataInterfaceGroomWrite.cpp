@@ -30,7 +30,9 @@ TArray<FOptimusCDIPinDefinition> UOptimusGroomWriteDataInterface::GetPinDefiniti
 	FName Curve(UOptimusGroomComponentSource::Domains::Curve);
 
 	TArray<FOptimusCDIPinDefinition> Defs;
-	Defs.Add({ "Position", "WritePosition", ControlPoint, "ReadNumControlPoints" });
+	Defs.Add({ "Position",         "WritePosition",            ControlPoint, "ReadNumControlPoints" });
+	Defs.Add({ "Radius",           "WriteRadius",              ControlPoint, "ReadNumControlPoints" });
+	Defs.Add({ "PositionAndRadius","WritePositionAndRadius",   ControlPoint, "ReadNumControlPoints" });
 	return Defs;
 }
 
@@ -54,11 +56,20 @@ void UOptimusGroomWriteDataInterface::GetSupportedOutputs(TArray<FShaderFunction
 		.SetName(TEXT("WritePosition"))
 		.AddParam(EShaderFundamentalType::Uint)
 		.AddParam(EShaderFundamentalType::Float, 3);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("WriteRadius"))
+		.AddParam(EShaderFundamentalType::Uint)
+		.AddParam(EShaderFundamentalType::Float);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("WritePositionAndRadius"))
+		.AddParam(EShaderFundamentalType::Uint)
+		.AddParam(EShaderFundamentalType::Float, 4);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FGroomWriteDataInterfaceParameters, )
-	SHADER_PARAMETER(uint32, NumControlPoints)
-	SHADER_PARAMETER(uint32, NumCurves)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceCommonParameters, Common)
 	SHADER_PARAMETER(uint32, OutputStreamStart)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PositionOffsetBufferSRV)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, PositionBufferSRV)
@@ -163,6 +174,7 @@ void FOptimusGroomWriteDataProviderProxy::AllocateResources(FRDGBuilder& GraphBu
 	}
 }
 
+FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(const FHairGroupInstance* Instance, EGroomViewMode ViewMode);
 void FOptimusGroomWriteDataProviderProxy::GatherDispatchData(FDispatchData const& InDispatchData)
 {
 	const TStridedView<FParameters> ParameterArray = MakeStridedParameterView<FParameters>(InDispatchData);
@@ -173,12 +185,11 @@ void FOptimusGroomWriteDataProviderProxy::GatherDispatchData(FDispatchData const
 			FResources& Resource = Resources[InvocationIndex];
 
 			const bool bValid = Resource.PositionBufferUAV != nullptr && Resource.PositionBufferSRV != nullptr && Resource.PositionOffsetBufferSRV != nullptr;
-			const int32 NumCurves = bValid ? GroomInstance->Strands.Data->GetNumCurves() : 0;
-			const int32 NumControlPoints = bValid ? GroomInstance->Strands.Data->GetNumPoints() : 0;
+
+			const FHairGroupPublicData::FVertexFactoryInput VFInput = ComputeHairStrandsVertexInputData(GroomInstance, EGroomViewMode::None);		
 
 			FParameters& Parameters = ParameterArray[InvocationIndex];
-			Parameters.NumControlPoints = NumControlPoints;
-			Parameters.NumCurves = NumCurves;
+			Parameters.Common = VFInput.Strands.Common;
 			Parameters.OutputStreamStart = 0;
 			Parameters.PositionOffsetBufferSRV = bValid ? Resource.PositionOffsetBufferSRV : Resource.PositionBufferSRV_fallback;
 			Parameters.PositionBufferSRV = bValid ? Resource.PositionBufferSRV : Resource.PositionBufferSRV_fallback;

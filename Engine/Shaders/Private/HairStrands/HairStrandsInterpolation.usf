@@ -443,7 +443,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		const FRootTriangleData RenTri = GetRootTriangleData(VertexIndex, false);
 
 		// Manual decoding of the rest position
-		const uint4 PackedRestPosition = RenRestPosePositionBuffer[VertexIndex];
+		uint4 PackedRestPosition = RenRestPosePositionBuffer[VertexIndex];
 		const float3 RestPosition = UnpackHairControlPointPosition(PackedRestPosition, InRenHairPositionOffset);
 
 		float3 OutPosition = 0.0f;
@@ -480,11 +480,11 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 		// 3. Apply deformer
 		#if PERMUTATION_DEFORMER
-		//if (VertexIndex > 10000000)
 		{
 			const uint4 PackedDeformerPosition = RenDeformerPositionBuffer[VertexIndex];
 			const float3 DeformerPosition = UnpackHairControlPointPosition(PackedDeformerPosition, InRenHairPositionOffset);
 			OutPosition = ApplyDeformer(RenTri, RestPosition, DeformerPosition, OutPosition);
+			PackedRestPosition.w = PackedDeformerPosition.w;
 		}
 		#endif
 

@@ -3,8 +3,8 @@
 #include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
 #include "/Engine/Private/HairStrands/HairStrandsVertexFactoryCommon.ush"
 
-uint {DataInterfaceName}_NumControlPoints;
-uint {DataInterfaceName}_NumCurves;
+HAIR_STRANDS_INSTANCE_PARAMETERS({DataInterfaceName})
+
 uint {DataInterfaceName}_OutputStreamStart;
 Buffer<float4>	{DataInterfaceName}_PositionOffsetBufferSRV;
 Buffer<uint4>   {DataInterfaceName}_PositionBufferSRV;
@@ -12,21 +12,45 @@ RWBuffer<uint4> {DataInterfaceName}_PositionBufferUAV;
 
 uint ReadNumControlPoints_{DataInterfaceName}()
 {
-	return {DataInterfaceName}_NumControlPoints;
+	return {DataInterfaceName}_PointCount;
 }
 
 uint ReadNumCurves_{DataInterfaceName}()
 {
-	return {DataInterfaceName}_NumCurves;
+	return {DataInterfaceName}_CurveCount;
 }
 
 void WritePosition_{DataInterfaceName}(uint ControlPointIndex, float3 Position)
 {
 	const uint WriteIndex = {DataInterfaceName}_OutputStreamStart + ControlPointIndex;
-	if (WriteIndex < {DataInterfaceName}_NumControlPoints)
+	if (WriteIndex < {DataInterfaceName}_PointCount)
 	{
 		const uint4 PackedCP = {DataInterfaceName}_PositionBufferSRV[WriteIndex];
-		const uint4 NewPackedCP = PackHairControlPointPosition(PackedCP, Position, {DataInterfaceName}_PositionOffsetBufferSRV[0]);
+		const uint4 NewPackedCP = PackHairControlPointPosition(PackedCP, Position, {DataInterfaceName}_PositionOffsetBufferSRV[0].xyz);
+		{DataInterfaceName}_PositionBufferUAV[WriteIndex] = NewPackedCP;
+	}
+}
+
+void WriteRadius_{DataInterfaceName}(uint ControlPointIndex, float Radius)
+{
+	const uint WriteIndex = {DataInterfaceName}_OutputStreamStart + ControlPointIndex;
+	if (WriteIndex < {DataInterfaceName}_PointCount)
+	{
+		const uint4 PackedCP = {DataInterfaceName}_PositionBufferSRV[WriteIndex];
+		const uint4 NewPackedCP = PackHairControlPointRadius(PackedCP, Radius, {DataInterfaceName}_Radius);
+		{DataInterfaceName}_PositionBufferUAV[WriteIndex] = NewPackedCP;
+	}
+}
+
+void WritePositionAndRadius_{DataInterfaceName}(uint ControlPointIndex, float4 PositionAndRadius)
+{
+	const uint WriteIndex = {DataInterfaceName}_OutputStreamStart + ControlPointIndex;
+	if (WriteIndex < {DataInterfaceName}_PointCount)
+	{
+		const uint4 PackedCP = {DataInterfaceName}_PositionBufferSRV[WriteIndex];
+		uint4 NewPackedCP = 0;
+		NewPackedCP = PackHairControlPointPosition(PackedCP, PositionAndRadius.xyz, {DataInterfaceName}_PositionOffsetBufferSRV[0].xyz);
+		NewPackedCP = PackHairControlPointRadius(NewPackedCP, PositionAndRadius.w, {DataInterfaceName}_Radius);
 		{DataInterfaceName}_PositionBufferUAV[WriteIndex] = NewPackedCP;
 	}
 }

@@ -88,7 +88,7 @@ float ReadSeed_{DataInterfaceName}(uint ControlPointIndex)
 
 uint ReadClumpId_{DataInterfaceName}(uint ControlPointIndex)
 {
-	return GetHairStrandsClumpID(ControlPointIndex);
+	return GetHairStrandsClumpID(ControlPointIndex).x;
 }
 
 float3 ReadColor_{DataInterfaceName}(uint ControlPointIndex)

@@ -64,6 +64,12 @@ uint4 PackHairControlPointPosition(uint4 InPackedData, float3 InNewPosition, flo
 	return uint4(f32tof16(InNewPosition.xyz - InPositionOffset), InPackedData.w);
 }
 
+uint4 PackHairControlPointRadius(uint4 InPackedData, float InNewWorldRadius, float InVFRadius)
+{
+	const uint PackedNewRadius = uint(clamp(saturate(InNewWorldRadius / InVFRadius) * 63u, 0u, 63u)) << 2u;	
+	return uint4(InPackedData.xyz, (InPackedData.w & (~0xFC)) | PackedNewRadius);
+}
+
 bool IsValidHairStrandsSegment(const FHairControlPoint CP0, const FHairControlPoint CP1)
 {
 	return !(CP0.Type == HAIR_CONTROLPOINT_END && CP1.Type == HAIR_CONTROLPOINT_START);
