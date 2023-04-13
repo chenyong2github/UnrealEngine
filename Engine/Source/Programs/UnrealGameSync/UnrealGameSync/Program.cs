@@ -157,6 +157,10 @@ namespace UnrealGameSync
 				{
 					Directory.SetCurrentDirectory(Path.GetDirectoryName(updateSpawn)!);
 				}
+				else
+				{
+					updateSpawn = null;
+				}
 			}
 
 			string syncVersionFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location!)!, "SyncVersion.txt");
