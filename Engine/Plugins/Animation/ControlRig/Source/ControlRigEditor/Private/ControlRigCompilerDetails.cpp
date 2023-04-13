@@ -19,6 +19,16 @@
 
 #define LOCTEXT_NAMESPACE "ControlRigCompilerDetails"
 
+#if UE_RIGVM_DEBUG_EXECUTION
+//CVar to specify if we should create a float control for each curve in the curve container
+//By default we don't but it may be useful to do so for debugging
+static TAutoConsoleVariable<int32> CVarControlRigDebugVMExecutionStringEnabled(
+	TEXT("ControlRig.DebugVMExecutionStringEnabled"),
+	0,
+	TEXT("If nonzero we allow to copy the execution of a VM execution."),
+	ECVF_Default);
+#endif
+
 void FRigVMCompileSettingsDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InStructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 	HeaderRow
@@ -92,6 +102,7 @@ void FRigVMCompileSettingsDetails::CustomizeChildren(TSharedRef<IPropertyHandle>
 				]
 			];
 
+		TSharedPtr<SVerticalBox> DebugBox;
 		StructBuilder.AddCustomRow(LOCTEXT("DebuggingTools", "Debugging Tools"))
 			.NameContent()
 			[
@@ -101,7 +112,7 @@ void FRigVMCompileSettingsDetails::CustomizeChildren(TSharedRef<IPropertyHandle>
 			]
 			.ValueContent()
 			[
-				SNew(SVerticalBox)
+				SAssignNew(DebugBox, SVerticalBox)
 				+ SVerticalBox::Slot()
 				[
 					SNew(SButton)
@@ -155,6 +166,23 @@ void FRigVMCompileSettingsDetails::CustomizeChildren(TSharedRef<IPropertyHandle>
 					]
 				]
 			];
+#if UE_RIGVM_DEBUG_EXECUTION
+		if (CVarControlRigDebugVMExecutionStringEnabled->GetBool() == true)
+		{
+			DebugBox->AddSlot()
+			[
+				SNew(SButton)
+				.OnClicked(this, &FRigVMCompileSettingsDetails::OnCopyVMExecutionClicked)
+				.ContentPadding(FMargin(2))
+				.Content()
+				[
+					SNew(STextBlock)
+					.Justification(ETextJustify::Center)
+					.Text(LOCTEXT("CopyVMExecution", "Copy VM Execution"))
+				]
+			];
+		}
+#endif
 	}
 }
 
@@ -250,5 +278,20 @@ FReply FRigVMCompileSettingsDetails::OnCopyGeneratedCodeClicked()
 	}
 	return FReply::Handled();
 }
+
+#if UE_RIGVM_DEBUG_EXECUTION
+FReply FRigVMCompileSettingsDetails::OnCopyVMExecutionClicked()
+{
+	if (BlueprintBeingCustomized)
+	{
+		if (UControlRig* ControlRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
+		{
+			FString DebugString = ControlRig->GetDebugExecutionString();
+			FPlatformApplicationMisc::ClipboardCopy(*DebugString);
+		}
+	}
+	return FReply::Handled();
+}
+#endif
 
 #undef LOCTEXT_NAMESPACE

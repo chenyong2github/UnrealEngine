@@ -443,8 +443,10 @@ protected:
 
 
 #if UE_RIGVM_DEBUG_EXECUTION
+public:
+	bool bDebugExecution = false;
 	FString DebugMemoryString;
-
+protected:
 	TArray<FString> PreviousWorkMemory;
 
 	UEnum* InstanceOpCodeEnum;

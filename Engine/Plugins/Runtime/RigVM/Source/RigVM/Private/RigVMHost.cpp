@@ -420,6 +420,9 @@ bool URigVMHost::Execute(const FName& InEventName)
 	PublicContext.SetAbsoluteTime(AbsoluteTime);
 	PublicContext.SetFramesPerSecond(GetCurrentFramesPerSecond());
 	PublicContext.SetOwningComponent(GetOwningSceneComponent());
+#if UE_RIGVM_DEBUG_EXECUTION
+	PublicContext.bDebugExecution = bDebugExecutionEnabled;
+#endif
 
 	if (VM)
 	{
@@ -819,6 +822,19 @@ void URigVMHost::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstruc
 	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);
 	OutConstructClasses.Add(FTopLevelAssetPath(URigVM::StaticClass()));
 }
+
+#if UE_RIGVM_DEBUG_EXECUTION
+const FString URigVMHost::GetDebugExecutionString()
+{
+	TGuardValue<bool> DebugExecutionGuard(bDebugExecutionEnabled, true);
+	FRigVMExecuteContext& PublicContext = GetVM()->GetPublicData<FRigVMExecuteContext>();
+	PublicContext.DebugMemoryString.Reset();
+	
+	Evaluate_AnyThread();
+
+	return PublicContext.DebugMemoryString;
+}
+#endif
 #endif
 
 void URigVMHost::PostInitInstance(URigVMHost* InCDO)

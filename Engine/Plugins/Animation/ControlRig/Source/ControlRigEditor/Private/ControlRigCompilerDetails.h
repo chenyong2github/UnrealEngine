@@ -29,6 +29,9 @@ protected:
 	FReply OnCopyByteCodeClicked();
 	FReply OnCopyHierarchyGraphClicked();
 	FReply OnCopyGeneratedCodeClicked();
+#if UE_RIGVM_DEBUG_EXECUTION
+	FReply OnCopyVMExecutionClicked();
+#endif
 	
 	UControlRigBlueprint* BlueprintBeingCustomized = nullptr;
 };

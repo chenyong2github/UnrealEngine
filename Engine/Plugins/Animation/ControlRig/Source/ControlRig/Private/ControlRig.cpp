@@ -423,6 +423,9 @@ bool UControlRig::Execute(const FName& InEventName)
 	PublicContext.SetDeltaTime(DeltaTime);
 	PublicContext.SetAbsoluteTime(AbsoluteTime);
 	PublicContext.SetFramesPerSecond(GetCurrentFramesPerSecond());
+#if UE_RIGVM_DEBUG_EXECUTION
+	PublicContext.bDebugExecution = bDebugExecutionEnabled;
+#endif
 
 	if (VM)
 	{

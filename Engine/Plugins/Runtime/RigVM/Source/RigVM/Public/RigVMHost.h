@@ -211,6 +211,11 @@ public:
 	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
 
+#if UE_RIGVM_DEBUG_EXECUTION
+	bool bDebugExecutionEnabled = false;
+	const FString GetDebugExecutionString();
+#endif
+
 protected:
 
 	virtual void PostInitInstance(URigVMHost* InCDO);
