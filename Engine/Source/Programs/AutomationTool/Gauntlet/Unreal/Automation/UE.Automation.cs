@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using UnrealBuildTool;
 using EpicGames.Core;
 using Log = Gauntlet.Log;
+using Microsoft.Extensions.Logging;
 
 namespace UE
 {
@@ -672,17 +673,16 @@ namespace UE
 						}
 						else
 						{
-							ErrorMessage = "Engine encountered a critical failure. \n";
 							if (FatalError != null)
 							{
-								ErrorMessage += FatalError.FormatForLog();
+								ErrorMessage = FatalError.FormatForLog();
 							}
 							else
 							{
-								ErrorMessage += "No callstack found in the log.";
+								ErrorMessage = "No callstack found in the log.";
 							}
 						}
-						Test.AddError(ErrorMessage);
+						Test.AddError(ErrorMessage, !HasTimeout);
 						if (!CanRetry() || JsonTestPassResults.NotRun == 0)
 						{
 							// Setting the test as fail because no retry will be done anymore.
@@ -875,7 +875,7 @@ namespace UE
 				IEnumerable<UnrealAutomatedTestResult> FailedTests = AllTests.Where(T => T.IsComplete && T.HasFailed);
 				IEnumerable<UnrealAutomatedTestResult> TestsWithWarnings = AllTests.Where(T => T.HasSucceeded && T.HasWarnings);
 
-				Func<IEnumerable<string>, IEnumerable<string>> CapErrorOrWarningList = (E) =>
+				Func<IEnumerable<UnrealAutomationEvent>, IEnumerable<UnrealAutomationEvent>> CapErrorOrWarningList = (E) =>
 				{
 					if (E.Count() > kMaxErrorsOrWarningsToDisplay)
 					{
@@ -901,15 +901,16 @@ namespace UE
 							{
 								string Message = !Result.IsComplete ? " * Test '{Name}' did not complete." : " * Test '{Name}' failed.";
 								Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, Message, Result.FullTestPath);
-								var Errors = CapErrorOrWarningList(Result.ErrorEvents.Select(E => E.Message).Distinct());
+								var Errors = CapErrorOrWarningList(Result.ErrorEvents.Distinct());
 								foreach (var Error in Errors)
 								{
-									Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Error);
+									EventId ErrorEventType = Error.IsCriticalFailure ? KnownLogEvents.Gauntlet_FatalEvent : KnownLogEvents.Gauntlet_UnrealEngineTestEvent;
+									Log.Error(ErrorEventType, "    " + Error.FormatToString());
 								}
-								var Warnings = CapErrorOrWarningList(Result.WarningEvents.Select(E => E.Message).Distinct());
+								var Warnings = CapErrorOrWarningList(Result.WarningEvents.Distinct());
 								foreach (var Warning in Warnings)
 								{
-									Log.Warning(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Warning);
+									Log.Warning(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Warning.FormatToString());
 								}
 								Log.Info("");
 							}
@@ -917,8 +918,13 @@ namespace UE
 						var NotRun = IncompleteTests.Where(T => T.State == TestStateType.NotRun);
 						if (NotRun.Any())
 						{
+							int TotalNotRun = NotRun.Count();
 							Log.Info(" ### The following Engine test(s) were not run:");
-							Log.Info(string.Join("\n", NotRun.Select(T => " * "+T.FullTestPath)));
+							Log.Info(string.Join("\n", NotRun.Take(10).Select(T => " * "+T.FullTestPath)));
+							if (TotalNotRun > 10)
+							{
+								Log.Info(" (and {Count} more)", TotalNotRun - 10);
+							}
 							Log.Info("");
 						}
 					}
@@ -929,18 +935,18 @@ namespace UE
 					{
 						Log.Error(KnownLogEvents.Gauntlet_TestEvent, " * No tests were executed.");
 
-						IEnumerable<string> Errors = Events.Where(E => E.IsError).Select(E => E.Message).Distinct();
-						IEnumerable<string> Warnings = Events.Where(E => E.IsWarning).Select(E => E.Message).Distinct();
+						IEnumerable<UnrealAutomationEvent> Errors = Events.Where(E => E.IsError).Distinct();
+						IEnumerable<UnrealAutomationEvent> Warnings = Events.Where(E => E.IsWarning).Distinct();
 						if (Errors.Any() || Warnings.Any())
 						{
 							Log.Info("   See log above for details.");
 							foreach (var Error in CapErrorOrWarningList(Errors))
 							{
-								Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Error);
+								Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Error.FormatToString());
 							}
 							foreach (var Warning in CapErrorOrWarningList(Warnings))
 							{
-								Log.Warning(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Warning);
+								Log.Warning(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Warning.FormatToString());
 							}
 							Log.Info("");
 						}
@@ -959,12 +965,12 @@ namespace UE
 							foreach (UnrealAutomatedTestResult Result in FailedTests)
 							{
 								Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, " * Test '{Name}' failed.", Result.FullTestPath);
-								// only show the last N items
-								IEnumerable<string> Events = Result.ErrorEvents.Select(E => E.Message).Distinct();
+								IEnumerable<UnrealAutomationEvent> Events = Result.ErrorEvents.Distinct();
 								Events = CapErrorOrWarningList(Events);
 								foreach (var Event in Events)
 								{
-									Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Event);
+									EventId ErrorEventType = Event.IsCriticalFailure ? KnownLogEvents.Gauntlet_FatalEvent : KnownLogEvents.Gauntlet_UnrealEngineTestEvent;
+									Log.Error(ErrorEventType, "    " + Event.FormatToString());
 								}
 								Log.Info("");
 							}
@@ -977,12 +983,12 @@ namespace UE
 							foreach (UnrealAutomatedTestResult Result in TestsWithWarnings)
 							{
 								Log.Warning(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, " * Test '{Name}' completed with warnings.", Result.FullTestPath);
-								// only show the last N items
-								IEnumerable<string> WarningEvents = Result.WarningEvents.Select(E => E.Message).Distinct();
+								// only show the first N items
+								IEnumerable<UnrealAutomationEvent> WarningEvents = Result.WarningEvents.Distinct();
 								WarningEvents = CapErrorOrWarningList(WarningEvents);
 								foreach (var Event in WarningEvents)
 								{
-									Log.Warning(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Event);
+									Log.Warning(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Event.FormatToString());
 								}
 								Log.Info("");
 							}
@@ -995,12 +1001,12 @@ namespace UE
 							foreach (UnrealAutomatedTestResult Result in IncompleteTests)
 							{
 								Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, " * Test '{Name}' did not run or complete.", Result.FullTestPath);
-								// only show the last N items
-								IEnumerable<string> ErrorAndWarningEvents = Result.WarningAndErrorEvents.Select(E => E.IsError? E.Message : E.Message).Distinct();
+								// only show the first N items
+								IEnumerable<UnrealAutomationEvent> ErrorAndWarningEvents = Result.WarningAndErrorEvents.Distinct();
 								ErrorAndWarningEvents = CapErrorOrWarningList(ErrorAndWarningEvents);
 								foreach (var Event in ErrorAndWarningEvents)
 								{
-									Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Event);
+									Log.Error(KnownLogEvents.Gauntlet_UnrealEngineTestEvent, "    " + Event.FormatToString());
 								}
 							}
 							Log.Info("");

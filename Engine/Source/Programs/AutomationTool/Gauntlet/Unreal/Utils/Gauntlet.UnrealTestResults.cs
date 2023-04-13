@@ -66,12 +66,18 @@ namespace Gauntlet
 		[JsonPropertyName("artifact")]
 		public string Artifact { get; set; }
 
+		const string CriticalFailureString = "critical failure";
+
 		public UnrealAutomationEvent()
 		{ }
-		public UnrealAutomationEvent(EventType InType, string InMessage)
+		public UnrealAutomationEvent(EventType InType, string InMessage, bool bIsCriticalFailure = false)
 		{
 			Type = InType;
 			Message = InMessage;
+			if(bIsCriticalFailure)
+			{
+				SetAsCriticalFailure();
+			}
 		}
 
 		[JsonIgnore]
@@ -93,6 +99,47 @@ namespace Gauntlet
 			}
 
 		}
+
+		[JsonIgnore]
+		public bool IsCriticalFailure
+		{
+			get
+			{
+				return IsError && Message.Contains(CriticalFailureString);
+			}
+		}
+		public void SetAsCriticalFailure()
+		{
+			if (!IsCriticalFailure)
+			{
+				Type = EventType.Error;
+				Message = $"Engine encountered a {CriticalFailureString}. \n" + Message;
+			}
+		}
+
+		public string FormatToString()
+		{
+			return Message;
+		}
+
+		protected bool Equals(UnrealAutomationEvent other)
+		{
+			return string.Equals(Type, other.Type) && string.Equals(Message, other.Message);
+		}
+
+		public override bool Equals(object obj)
+		{
+			if (ReferenceEquals(null, obj)) return false;
+			if (ReferenceEquals(this, obj)) return true;
+			if (obj.GetType() != this.GetType()) return false;
+			return Equals((UnrealAutomationEvent)obj);
+		}
+
+		public override int GetHashCode()
+		{
+			return Type.GetHashCode() ^ Message.GetHashCode();
+		}
+
 	}
 	public class UnrealAutomationEntry
 	{
@@ -136,15 +183,15 @@ namespace Gauntlet
 			Entries = new List<UnrealAutomationEntry>();
 		}
 
-		public void AddEvent(EventType EventType, string Message)
+		public void AddEvent(EventType EventType, string Message, bool bIsCriticalFailure = false)
 		{
-			var Event = new UnrealAutomationEvent(EventType, Message);
+			var Event = new UnrealAutomationEvent(EventType, Message, bIsCriticalFailure);
 			var Entry = new UnrealAutomationEntry();
 			Entry.Event = Event;
 			Entry.Timestamp = System.DateTime.Now.ToString("yyyy.MM.dd-HH.mm.ss");
 			Entries.Add(Entry);
 
-			switch(EventType)
+			switch(Event.Type)
 			{
 				case EventType.Error:
 					Errors++;
@@ -154,9 +201,9 @@ namespace Gauntlet
 					break;
 			}
 		}
-		public void AddError(string Message)
+		public void AddError(string Message, bool bIsCriticalFailure = false)
 		{
-			AddEvent(EventType.Error, Message);
+			AddEvent(EventType.Error, Message, bIsCriticalFailure);
 		}
 		public void AddWarning(string Message)
 		{

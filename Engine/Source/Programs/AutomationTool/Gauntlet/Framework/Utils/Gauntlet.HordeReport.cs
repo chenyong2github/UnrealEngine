@@ -981,7 +981,7 @@ namespace Gauntlet
 								Context = string.Format("{0} @line:{1}", InTestEntry.Filename, InTestEntry.LineNumber.ToString());
 							}
 							// Tag critical failure as crash
-							if (InTestEntry.Event.Type == EventType.Error && Tag == "entry" && InTestEntry.Event.Message.Contains("critical failure"))
+							if (InTestEntry.Event.Type == EventType.Error && Tag == "entry" && InTestEntry.Event.IsCriticalFailure)
 							{
 								Tag = "crash";
 							}

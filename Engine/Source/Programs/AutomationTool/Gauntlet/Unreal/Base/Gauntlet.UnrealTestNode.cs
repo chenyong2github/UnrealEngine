@@ -2248,15 +2248,8 @@ namespace Gauntlet
 			// Good/Bad news upfront
 			string Prefix = TestFailed ? "Error: " : "";
 			string WarningStatement = (HasWarnings && !TestFailed)  ? " With Warnings" : "";
-			string ResultString = string.Format(" ### {0}{1} {2}{3} ***", Prefix, this.Name, GetTestResult(), WarningStatement);
-			if(TestFailed)
-			{
-				Log.Error(KnownLogEvents.Gauntlet_TestEvent, ResultString);
-			}
-			else
-			{
-				Log.Info(ResultString);
-			}
+			string ResultString = string.Format(" ### {0}{1} {2}{3} ***\n", Prefix, this.Name, GetTestResult(), WarningStatement);
+			Log.Info(ResultString);
 
 			IEnumerable<UnrealRoleResult> SortedRoles = RoleResults.OrderBy(R => R.ProcessResult == UnrealProcessResult.ExitOk);
 
@@ -2266,7 +2259,7 @@ namespace Gauntlet
 			{
 				string RoleName = RoleResult.Artifacts.SessionRole.RoleType.ToString();
 
-				Log.Info(string.Format("\n {0} Role: {1} ({2}, ExitCode {3})\n", RoleName, RoleResult.Summary, RoleResult.ProcessResult, RoleResult.ExitCode));
+				Log.Info(string.Format(" {0} Role: {1} ({2}, ExitCode {3})", RoleName, RoleResult.Summary, RoleResult.ProcessResult, RoleResult.ExitCode));
 
 				FatalErrors += RoleResult.LogSummary.FatalError != null ? 1 : 0;
 				Ensures += RoleResult.LogSummary.Ensures.Count();
@@ -2274,14 +2267,15 @@ namespace Gauntlet
 				Warnings += RoleResult.LogSummary.Warnings.Count();
 			}
 
+			Log.Info("");
 			Log.Info(string.Join("\n", new string[] {
-				string.Format("Context: {0}", Context.ToString()),
-				FatalErrors > 0 ? string.Format("FatalErrors: {0}", FatalErrors) : null,
-				Ensures > 0 ? string.Format("Ensures: {0}", Ensures) : null,
-				Errors > 0 ? string.Format("Log Errors: {0}", Errors) : null,
-				Warnings > 0 ? string.Format("Log Warnings: {0}", Warnings) : null,
-				string.Format("Result: {0}", GetTestResult())
-			}.Where(L=>!string.IsNullOrEmpty(L)).Select(L=>" * "+L)));
+				string.Format(" * Context: {0}", Context.ToString()),
+				FatalErrors > 0 ? string.Format(" * FatalErrors: {0}", FatalErrors) : null,
+				Ensures > 0 ? string.Format(" * Ensures: {0}", Ensures) : null,
+				Errors > 0 ? string.Format(" * Log Errors: {0}", Errors) : null,
+				Warnings > 0 ? string.Format(" * Log Warnings: {0}", Warnings) : null,
+				string.Format(" * Result: {0}", GetTestResult())
+			}.Where(L=>!string.IsNullOrEmpty(L))));
 
 			if (TestFailed && GetRolesThatFailed().Where(R => R.ProcessResult == UnrealProcessResult.Unknown).Any())
 			{
