@@ -76,10 +76,10 @@ URenderGridMoviePipelineRenderJob* URenderGridMoviePipelineRenderJob::Create(URe
 	UMoviePipelineExecutorJob* NewJob = UMoviePipelineEditorBlueprintLibrary::CreateJobFromSequence(RenderJob->PipelineQueue, JobSequence);
 	RenderJob->PipelineExecutorJob = NewJob;
 
-	FSoftObjectPath Map = RenderGrid->GetMap().ToSoftObjectPath();
-	if (Map.IsValid())
+	FSoftObjectPath Level = RenderGrid->GetLevel().ToSoftObjectPath();
+	if (Level.IsValid())
 	{
-		NewJob->Map = Map;
+		NewJob->Map = Level;
 	}
 
 	UMoviePipelinePrimaryConfig* JobRenderPreset = Job->GetRenderPreset();
@@ -466,7 +466,7 @@ void URenderGridQueue::Tick(float DeltaTime)
 URenderGridQueue* URenderGridQueue::Create(const UE::RenderGrid::FRenderGridQueueCreateArgs& Args)
 {
 	URenderGrid* RenderGrid = Args.RenderGrid.Get();
-	if (!IsValid(RenderGrid) || RenderGrid->GetMap().IsNull())
+	if (!IsValid(RenderGrid) || RenderGrid->GetLevel().IsNull())
 	{
 		return nullptr;
 	}
@@ -746,9 +746,9 @@ void URenderGridQueue::OnStart()
 
 	Queue->Add(UE::RenderGrid::Private::FRenderGridGenericExecutionQueueAction::CreateLambda([this]()
 	{
-		if (!RenderGrid->GetMap().IsValid())
+		if (!RenderGrid->GetLevel().IsValid())
 		{
-			FEditorFileUtils::LoadMap(RenderGrid->GetMap().ToString(), false, true);
+			FEditorFileUtils::LoadMap(RenderGrid->GetLevel().ToString(), false, true);
 		}
 	}));
 	Queue->DelayFrames(1);

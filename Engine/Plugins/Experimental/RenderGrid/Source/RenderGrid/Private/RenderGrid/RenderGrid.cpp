@@ -1063,9 +1063,9 @@ URenderGridQueue* URenderGrid::RenderJobsSingleFramePosition(const TArray<URende
 	);
 }
 
-TSoftObjectPtr<UWorld> URenderGrid::GetMap() const
+TSoftObjectPtr<UWorld> URenderGrid::GetLevel() const
 {
-	return Settings->Map;
+	return Settings->Level;
 }
 
 void URenderGrid::SetPropsSource(ERenderGridPropsSourceType InPropsSourceType, UObject* InPropsSourceOrigin)

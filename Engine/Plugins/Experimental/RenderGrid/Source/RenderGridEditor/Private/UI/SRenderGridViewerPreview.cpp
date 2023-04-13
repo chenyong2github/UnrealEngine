@@ -127,13 +127,13 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::Construct(const FArgumen
 							{
 								if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
 								{
-									if (Grid->GetMap().IsNull())
+									if (Grid->GetLevel().IsNull())
 									{
-										return LOCTEXT("PleaseSelectMapForGrid", "Please select a map for this grid");
+										return LOCTEXT("PleaseSelectLevelForGrid", "Please select a level for this grid");
 									}
-									if (!Grid->GetMap().IsValid())
+									if (!Grid->GetLevel().IsValid())
 									{
-										return LOCTEXT("ClickToOpenMapOfGrid", "Click here to open the map of this grid");
+										return LOCTEXT("ClickToOpenLevelOfGrid", "Click here to open the level of this grid");
 									}
 									if (!Grid->HasAnyRenderGridJobs())
 									{
@@ -210,9 +210,9 @@ FReply UE::RenderGrid::Private::SRenderGridViewerPreview::OnClicked()
 	{
 		if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
 		{
-			if (!Grid->GetMap().IsNull() && !Grid->GetMap().IsValid())
+			if (!Grid->GetLevel().IsNull() && !Grid->GetLevel().IsValid())
 			{
-				FEditorFileUtils::LoadMap(Grid->GetMap().ToString(), false, true);
+				FEditorFileUtils::LoadMap(Grid->GetLevel().ToString(), false, true);
 				return FReply::Handled();
 			}
 		}
@@ -345,7 +345,7 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::InternalRenderNewPreview
 	{
 		if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
 		{
-			if (Grid->GetMap().IsNull() || !Grid->GetMap().IsValid())
+			if (Grid->GetLevel().IsNull() || !Grid->GetLevel().IsValid())
 			{
 				// don't render, clear image and try again next frame
 				SetImageTexture(nullptr);
@@ -527,7 +527,7 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::UpdateActionButton()
 	{
 		if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
 		{
-			if (!Grid->GetMap().IsNull() && !Grid->GetMap().IsValid())
+			if (!Grid->GetLevel().IsNull() && !Grid->GetLevel().IsValid())
 			{
 				bIsUsable = true;
 			}

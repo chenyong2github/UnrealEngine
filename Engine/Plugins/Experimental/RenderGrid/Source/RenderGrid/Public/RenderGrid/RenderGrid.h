@@ -54,14 +54,14 @@ public:
 
 	void CopyValuesFrom(URenderGridSettings* From)
 	{
-		Map = From->Map;
+		Level = From->Level;
 		PropsSourceType = From->PropsSourceType;
 		PropsSourceOrigin_RemoteControl = From->PropsSourceOrigin_RemoteControl;
 	}
 
 public:
-	UPROPERTY(EditInstanceOnly, Category="Render Grid", DisplayName="Map", Meta=(AllowedClasses="/Script/Engine.World"))
-	TSoftObjectPtr<UWorld> Map;
+	UPROPERTY(EditInstanceOnly, Category="Render Grid", DisplayName="Level", Meta=(AllowedClasses="/Script/Engine.World"))
+	TSoftObjectPtr<UWorld> Level;
 
 	/** The type of the properties that a job in this grid can have. */
 	UPROPERTY(/*EditInstanceOnly, Category="Render Grid", Meta=(DisplayName="Properties Type")*/)
@@ -620,7 +620,7 @@ public:
 	URenderGridSettings* GetSettingsObject() { return Settings; }
 
 	UFUNCTION(BlueprintPure, Category="Render Grid")
-	TSoftObjectPtr<UWorld> GetMap() const;
+	TSoftObjectPtr<UWorld> GetLevel() const;
 
 	UFUNCTION(BlueprintCallable, Category="Render Grid")
 	void SetPropsSource(ERenderGridPropsSourceType InPropsSourceType, UObject* InPropsSourceOrigin = nullptr);

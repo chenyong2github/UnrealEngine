@@ -76,7 +76,7 @@ void UE::RenderGrid::Private::SRenderGridEditorViewport::Render()
 
 		if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
 		{
-			if (!Grid->GetMap().IsValid() || (Grid->GetMap().Get() != GetWorld()))
+			if (!Grid->GetLevel().IsValid() || (Grid->GetLevel().Get() != GetWorld()))
 			{
 				return;
 			}
@@ -331,15 +331,15 @@ void UE::RenderGrid::Private::SRenderGridViewerLive::Construct(const FArguments&
 								{
 									if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
 									{
-										if (Grid->GetMap().IsNull())
+										if (Grid->GetLevel().IsNull())
 										{
-											return LOCTEXT("PleaseSelectMapForGrid", "Please select a map for this grid");
+											return LOCTEXT("PleaseSelectLevelForGrid", "Please select a level for this grid");
 										}
-										if (!Grid->GetMap().IsValid())
+										if (!Grid->GetLevel().IsValid())
 										{
-											return LOCTEXT("ClickToOpenMapOfGrid", "Click here to open the map of this grid");
+											return LOCTEXT("ClickToOpenLevelOfGrid", "Click here to open the level of this grid");
 										}
-										if (Grid->GetMap().Get() != ViewportWidget->GetWorldPublic())
+										if (Grid->GetLevel().Get() != ViewportWidget->GetWorldPublic())
 										{
 											return LOCTEXT("ViewerWrongWorldPleaseTryReopening", "The viewer is currently trying to view the incorrect world, please try reopening the RenderGrid");
 										}
@@ -383,9 +383,9 @@ FReply UE::RenderGrid::Private::SRenderGridViewerLive::OnClicked()
 	{
 		if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
 		{
-			if (!Grid->GetMap().IsNull() && !Grid->GetMap().IsValid())
+			if (!Grid->GetLevel().IsNull() && !Grid->GetLevel().IsValid())
 			{
-				FEditorFileUtils::LoadMap(Grid->GetMap().ToString(), false, true);
+				FEditorFileUtils::LoadMap(Grid->GetLevel().ToString(), false, true);
 				return FReply::Handled();
 			}
 		}
@@ -477,7 +477,7 @@ void UE::RenderGrid::Private::SRenderGridViewerLive::UpdateActionButton()
 	{
 		if (URenderGrid* Grid = BlueprintEditor->GetInstance(); IsValid(Grid))
 		{
-			if (!Grid->GetMap().IsNull() && !Grid->GetMap().IsValid())
+			if (!Grid->GetLevel().IsNull() && !Grid->GetLevel().IsValid())
 			{
 				bIsUsable = true;
 			}
