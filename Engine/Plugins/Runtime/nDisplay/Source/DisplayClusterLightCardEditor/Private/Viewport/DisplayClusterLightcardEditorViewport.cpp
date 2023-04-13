@@ -10,8 +10,13 @@
 #include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
 #include "LightCardTemplates/DisplayClusterLightCardTemplateDragDropOp.h"
 
+#include "DisplayClusterConfigurationTypes.h"
+
+#include "DisplayClusterRootActor.h"
+
 #include "EditorViewportCommands.h"
 #include "ScopedTransaction.h"
+#include "SEditorViewportToolBarButton.h"
 #include "SEditorViewportToolBarMenu.h"
 #include "STransformViewportToolbar.h"
 #include "Framework/Commands/GenericCommands.h"
@@ -82,6 +87,23 @@ public:
 					.Cursor(EMouseCursor::Default)
 					.Label(LOCTEXT("LightCardEditorShowMenuLabel", "Show"))
 					.OnGetMenuContent(this, &SDisplayClusterLightCardEditorViewportToolBar::GenerateShowMenu)
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2.0f, 2.0f)
+				[
+					SNew(SEditorViewportToolBarButton)	
+					.ButtonType(EUserInterfaceActionType::Button)
+					.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.WarningButton"))
+					.OnClicked(this, &SDisplayClusterLightCardEditorViewportToolBar::OnViewportsFrozenWarningClicked)
+					.Visibility(this, &SDisplayClusterLightCardEditorViewportToolBar::GetViewportsFrozenWarningVisibility)
+					.ToolTipText(LOCTEXT("DisplayClusterViewportsFrozenOff_ToolTip", "The nDisplay viewports are frozen. Click to unfreeze the viewports."))
+					.Content()
+					[
+						SNew(STextBlock)
+						.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("SmallText"))
+						.Text(LOCTEXT("DisplayClusterViewportsFrozen", "nDisplay Viewports Frozen"))
+					]
 				]
 				+ SHorizontalBox::Slot()
 				.Padding(3.0f, 1.0f)
@@ -210,6 +232,39 @@ public:
 		}
 
 		return MenuBuilder.MakeWidget();
+	}
+
+	FReply OnViewportsFrozenWarningClicked()
+	{
+		if (EditorViewport.IsValid())
+		{
+			const TWeakObjectPtr<ADisplayClusterRootActor> RootActor = EditorViewport.Pin()->GetRootActor();
+			if (RootActor.IsValid())
+			{
+				FScopedTransaction Transaction(LOCTEXT("UnfreezeViewports", "Unfreeze viewports"));
+				RootActor->SetFreezeOuterViewports(false);
+			}
+		}
+
+		return FReply::Handled();
+	}
+	
+	EVisibility GetViewportsFrozenWarningVisibility() const
+	{
+		if (EditorViewport.IsValid())
+		{
+			const TWeakObjectPtr<ADisplayClusterRootActor> RootActor = EditorViewport.Pin()->GetRootActor();
+			if (RootActor.IsValid())
+			{
+				const UDisplayClusterConfigurationData* ConfigData = RootActor->GetConfigData();
+				if (ConfigData && ConfigData->StageSettings.bFreezeRenderOuterViewports)
+				{
+					return EVisibility::Visible;
+				}
+			}
+		}
+
+		return EVisibility::Collapsed;
 	}
 	
 	TSharedRef<SWidget> MakeTransformToolBar()
@@ -387,6 +442,16 @@ void SDisplayClusterLightCardEditorViewport::SetRootActor(ADisplayClusterRootAct
 	{
 		ViewportClient->UpdatePreviewActor(NewRootActor);
 	}
+}
+
+TWeakObjectPtr<ADisplayClusterRootActor> SDisplayClusterLightCardEditorViewport::GetRootActor() const
+{
+	if (LightCardEditorPtr.IsValid())
+	{
+		return LightCardEditorPtr.Pin()->GetActiveRootActor();
+	}
+
+	return nullptr;
 }
 
 void SDisplayClusterLightCardEditorViewport::SummonContextMenu()

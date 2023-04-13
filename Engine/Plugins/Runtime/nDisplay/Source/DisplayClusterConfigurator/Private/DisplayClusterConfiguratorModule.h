@@ -42,7 +42,22 @@ private:
 	void RegisterSectionMappings();
 	void UnregisterSectionMappings();
 
+	/** Register any panel extensions used by this module */
+	void RegisterPanelExtensions();
+
+	/** Unregister any active panel extensions used by this module */
+	void UnregisterPanelExtensions();
+
 	static TSharedPtr<FKismetCompilerContext> GetCompilerForDisplayClusterBP(UBlueprint* BP, FCompilerResultsLog& InMessageLog, const FKismetCompilerOptions& InCompileOptions);
+
+	/** Callback when the level editor viewport creates its toolbar */
+	static TSharedRef<SWidget> OnExtendLevelEditorViewportToolbar(FWeakObjectPtr ExtensionContext);
+
+	/** Callback when our viewports frozen button is clicked */
+	static FReply OnViewportsFrozenWarningClicked();
+
+	/** If the viewports frozen warning button should be displayed */
+	static EVisibility GetViewportsFrozenWarningVisibility();
 
 private:
 	TArray<TSharedPtr<IAssetTypeActions>> CreatedAssetTypeActions;

@@ -43,6 +43,9 @@
 #include "HAL/IConsoleManager.h"
 #include "Modules/ModuleManager.h"
 #include "ActorFactories/ActorFactoryBlueprint.h"
+#include "ScopedTransaction.h"
+#include "SEditorViewportToolBarButton.h"
+#include "Subsystems/PanelExtensionSubsystem.h"
 
 #define REGISTER_PROPERTY_LAYOUT(PropertyType, CustomizationType) { \
 	const FName LayoutName = PropertyType::StaticStruct()->GetFName(); \
@@ -59,6 +62,11 @@
 }
 
 #define LOCTEXT_NAMESPACE "DisplayClusterConfigurator"
+
+namespace UE::DisplayClusterConfiguratorModuleConstants
+{
+	const static FName LevelEditorViewportExtensionIdentifier = TEXT("DisplayClusterLevelViewportExtension");
+}
 
 void FDisplayClusterConfiguratorModule::StartupModule()
 {
@@ -135,10 +143,7 @@ void FDisplayClusterConfiguratorModule::ShutdownModule()
 	MenuExtensibilityManager.Reset();
 	ToolBarExtensibilityManager.Reset();
 
-	if (GEditor)
-	{
-		FDisplayClusterConfiguratorBlueprintEditor::UnregisterPanelExtensionFactory();
-	}
+	UnregisterPanelExtensions();
 
 	IKismetCompilerInterface& KismetCompilerModule = FModuleManager::GetModuleChecked<IKismetCompilerInterface>("KismetCompiler");
 	KismetCompilerModule.GetCompilers().Remove(&BlueprintCompiler);
@@ -152,7 +157,7 @@ void FDisplayClusterConfiguratorModule::ShutdownModule()
 
 void FDisplayClusterConfiguratorModule::OnPostEngineInit()
 {
-	FDisplayClusterConfiguratorBlueprintEditor::RegisterPanelExtensionFactory();
+	RegisterPanelExtensions();
 }
 
 const FDisplayClusterConfiguratorCommands& FDisplayClusterConfiguratorModule::GetCommands() const
@@ -314,10 +319,91 @@ void FDisplayClusterConfiguratorModule::UnregisterSectionMappings()
 	}
 }
 
+void FDisplayClusterConfiguratorModule::RegisterPanelExtensions()
+{
+	if (GEditor)
+	{
+		FDisplayClusterConfiguratorBlueprintEditor::RegisterPanelExtensionFactory();
+	
+		if (UPanelExtensionSubsystem* PanelExtensionSubsystem = GEditor->GetEditorSubsystem<UPanelExtensionSubsystem>())
+		{
+			if (!PanelExtensionSubsystem->IsPanelFactoryRegistered(UE::DisplayClusterConfiguratorModuleConstants::LevelEditorViewportExtensionIdentifier))
+			{
+				FPanelExtensionFactory LevelViewportToolbarExtensionWidget;
+				LevelViewportToolbarExtensionWidget.CreateExtensionWidget = FPanelExtensionFactory::FCreateExtensionWidget::CreateStatic(&FDisplayClusterConfiguratorModule::OnExtendLevelEditorViewportToolbar);
+				LevelViewportToolbarExtensionWidget.Identifier = UE::DisplayClusterConfiguratorModuleConstants::LevelEditorViewportExtensionIdentifier;
+
+				PanelExtensionSubsystem->RegisterPanelFactory(TEXT("LevelViewportToolBar.LeftExtension"), LevelViewportToolbarExtensionWidget);
+			}
+		}
+	}
+}
+
+void FDisplayClusterConfiguratorModule::UnregisterPanelExtensions()
+{
+	if (GEditor)
+	{
+		FDisplayClusterConfiguratorBlueprintEditor::UnregisterPanelExtensionFactory();
+
+		if (UPanelExtensionSubsystem* PanelExtensionSubsystem = GEditor->GetEditorSubsystem<UPanelExtensionSubsystem>())
+		{
+			PanelExtensionSubsystem->UnregisterPanelFactory(UE::DisplayClusterConfiguratorModuleConstants::LevelEditorViewportExtensionIdentifier);
+		}
+	}
+}
+
 TSharedPtr<FKismetCompilerContext> FDisplayClusterConfiguratorModule::GetCompilerForDisplayClusterBP(UBlueprint* BP,
                                                                                                      FCompilerResultsLog& InMessageLog, const FKismetCompilerOptions& InCompileOptions)
 {
 	return TSharedPtr<FKismetCompilerContext>(new FDisplayClusterConfiguratorKismetCompilerContext(CastChecked<UDisplayClusterBlueprint>(BP), InMessageLog, InCompileOptions));
+}
+
+TSharedRef<SWidget> FDisplayClusterConfiguratorModule::OnExtendLevelEditorViewportToolbar(FWeakObjectPtr ExtensionContext)
+{
+	return SNew(SEditorViewportToolBarButton)	
+	.ButtonType(EUserInterfaceActionType::Button)
+	.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.WarningButton"))
+	.OnClicked_Static(OnViewportsFrozenWarningClicked)
+	.Visibility_Static(GetViewportsFrozenWarningVisibility)
+	.ToolTipText(LOCTEXT("DisplayClusterViewportsFrozenOff_ToolTip", "nDisplay viewports are frozen. Click to unfreeze the viewports."))
+	.Content()
+	[
+		SNew(STextBlock)
+		.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("SmallText"))
+		.Text(LOCTEXT("DisplayClusterViewportsFrozen", "nDisplay Viewports Frozen"))
+	];
+}
+
+FReply FDisplayClusterConfiguratorModule::OnViewportsFrozenWarningClicked()
+{
+	if (GEditor)
+	{
+		FScopedTransaction Transaction(LOCTEXT("UnfreezeViewports", "Unfreeze viewports"));
+		
+		for (TActorIterator<ADisplayClusterRootActor> It(GEditor->GetEditorWorldContext().World()); It; ++It)
+		{
+			It->SetFreezeOuterViewports(false);
+		}
+	}
+
+	return FReply::Handled();
+}
+
+EVisibility FDisplayClusterConfiguratorModule::GetViewportsFrozenWarningVisibility()
+{
+	if (GEditor)
+	{
+		for (TActorIterator<ADisplayClusterRootActor> It(GEditor->GetEditorWorldContext().World()); It; ++It)
+		{
+			const UDisplayClusterConfigurationData* ConfigData = It->GetConfigData();
+			if (ConfigData && ConfigData->StageSettings.bFreezeRenderOuterViewports)
+			{
+				return EVisibility::Visible;
+			}
+		}
+	}
+
+	return EVisibility::Collapsed;
 }
 
 IMPLEMENT_MODULE(FDisplayClusterConfiguratorModule, DisplayClusterConfigurator);

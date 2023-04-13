@@ -47,6 +47,9 @@ public:
 	TWeakPtr<FDisplayClusterLightCardEditor> GetLightCardEditor() { return LightCardEditorPtr;}
 
 	void SetRootActor(ADisplayClusterRootActor* NewRootActor);
+
+	/** Return the active root actor for this viewport. */
+	TWeakObjectPtr<ADisplayClusterRootActor> GetRootActor() const;
 	
 	TSharedRef<FDisplayClusterLightCardEditorViewportClient> GetLightCardEditorViewportClient() const { return ViewportClient.ToSharedRef(); }
 

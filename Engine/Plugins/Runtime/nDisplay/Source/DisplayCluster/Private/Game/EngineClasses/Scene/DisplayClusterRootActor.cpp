@@ -1392,8 +1392,15 @@ bool ADisplayClusterRootActor::SetFreezeOuterViewports(bool bEnable)
 		UE_LOG(LogDisplayClusterGame, Warning, TEXT("ADisplayClusterRootActor::SetFreezeOuterViewports failed because ConfigData was null"));
 		return false;
 	}
-
-	ConfigData->StageSettings.bFreezeRenderOuterViewports = bEnable;
+	
+	if (ConfigData->StageSettings.bFreezeRenderOuterViewports != bEnable)
+	{
+#if WITH_EDITOR
+		Modify();
+		ConfigData->Modify();
+#endif
+		ConfigData->StageSettings.bFreezeRenderOuterViewports = bEnable;
+	}
 
 	return true;
 }
