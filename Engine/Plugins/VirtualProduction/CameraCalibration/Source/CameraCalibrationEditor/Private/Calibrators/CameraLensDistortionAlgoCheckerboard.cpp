@@ -6,8 +6,10 @@
 #include "AssetEditor/LensDistortionTool.h"
 #include "AssetEditor/SSimulcamViewport.h"
 #include "AssetRegistry/AssetData.h"
+#include "Camera/CameraActor.h"
 #include "CameraCalibrationCheckerboard.h"
 #include "CameraCalibrationEditorLog.h"
+#include "CameraCalibrationSolver.h"
 #include "Dom/JsonObject.h"
 #include "EditorFontGlyphs.h"
 #include "Engine/Texture2D.h"
@@ -15,16 +17,25 @@
 #include "ImageUtils.h"
 #include "JsonObjectConverter.h"
 #include "Misc/MessageDialog.h"
+#include "Models/AnamorphicLensModel.h"
 #include "PropertyCustomizationHelpers.h"
 #include "SphericalLensDistortionModelHandler.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
 
 
 #define LOCTEXT_NAMESPACE "CameraLensDistortionAlgoCheckerboard"
+
+#if WITH_EDITOR
+static TAutoConsoleVariable<float> CVarFixFocalLengthValue(TEXT("CameraCalibration.FocalLengthValue"), 0.0f, TEXT("Fixed focal length value in mm"));
+static TAutoConsoleVariable<float> CVarSensorWidthValue(TEXT("CameraCalibration.SensorWidthValue"), 0.0f, TEXT("Fixed focal length value in mm"));
+static TAutoConsoleVariable<float> CVarImageWidthValue(TEXT("CameraCalibration.ImageWidthValue"), 0, TEXT("Fixed focal length value in pixels"));
+static TAutoConsoleVariable<float> CVarImageHeightValue(TEXT("CameraCalibration.ImageHeightValue"), 0, TEXT("Fixed focal length value in pixels"));
+#endif
 
 const int UCameraLensDistortionAlgoCheckerboard::DATASET_VERSION = 1;
 
@@ -139,7 +150,7 @@ void UCameraLensDistortionAlgoCheckerboard::Shutdown()
 
 bool UCameraLensDistortionAlgoCheckerboard::SupportsModel(const TSubclassOf<ULensModel>& LensModel) const
 {
-	return (LensModel == USphericalLensModel::StaticClass());
+	return ((LensModel == USphericalLensModel::StaticClass()) || (LensModel == UAnamorphicLensModel::StaticClass()));
 }
 
 void UCameraLensDistortionAlgoCheckerboard::Tick(float DeltaTime)
@@ -423,30 +434,48 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildUI()
 		.VAlign(EVerticalAlignment::VAlign_Top)
 		.AutoHeight()
 		.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
-		[ FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("Checkerboard", "Checkerboard"), BuildCalibrationDevicePickerWidget()) ]
+		[FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("Checkerboard", "Checkerboard"), BuildCalibrationDevicePickerWidget())]
 
-		+ SVerticalBox::Slot() // Show Overlay
+	+ SVerticalBox::Slot() // Show Overlay
 		.VAlign(EVerticalAlignment::VAlign_Top)
 		.AutoHeight()
 		.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
 		[FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("ShowOverlay", "Show Coverage Overlay"), BuildShowOverlayWidget())]
 
-		+ SVerticalBox::Slot() // Show Detection
+	+ SVerticalBox::Slot() // Show Detection
 		.VAlign(EVerticalAlignment::VAlign_Top)
 		.AutoHeight()
 		.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
 		[FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("ShowDetection", "Show Detection"), BuildShowDetectionWidget())]
 
-		+ SVerticalBox::Slot() // Calibration Rows
+	+ SVerticalBox::Slot() // Pixel Aspect
+		.VAlign(EVerticalAlignment::VAlign_Top)
+		.AutoHeight()
+		.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
+		[FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("PixelAspect", "Pixel Aspect"), BuildPixelAspectWidget())]
+
+	+ SVerticalBox::Slot() // Fix Focal Length
+		.VAlign(EVerticalAlignment::VAlign_Top)
+		.AutoHeight()
+		.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
+		[FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("FixFocalLength", "Fix Focal Length"), BuildFixFocalLengthWidget())]
+
+	+ SVerticalBox::Slot() // Fix Image Center
+		.VAlign(EVerticalAlignment::VAlign_Top)
+		.AutoHeight()
+		.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
+		[FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("FixImageCenter", "Fix Image Center"), BuildFixImageCenterWidget())]
+
+	+ SVerticalBox::Slot() // Calibration Rows
 		.AutoHeight()
 		.MaxHeight(12 * FCameraCalibrationWidgetHelpers::DefaultRowHeight)
-		[ BuildCalibrationPointsTable() ]
-		
-		+ SVerticalBox::Slot() // Action buttons (e.g. Remove, Clear)
+		[BuildCalibrationPointsTable()]
+
+	+ SVerticalBox::Slot() // Action buttons (e.g. Remove, Clear)
 		.HAlign(EHorizontalAlignment::HAlign_Center)
 		.AutoHeight()
-		.Padding(0,20)
-		[ BuildCalibrationActionButtons() ];
+		.Padding(0, 20)
+		[BuildCalibrationActionButtons()];
 }
 
 bool UCameraLensDistortionAlgoCheckerboard::ValidateNewRow(TSharedPtr<FLensDistortionCheckerboardRowData>& Row, FText& OutErrorMessage) const
@@ -468,7 +497,7 @@ bool UCameraLensDistortionAlgoCheckerboard::ValidateNewRow(TSharedPtr<FLensDisto
 		OutErrorMessage = LOCTEXT("InvalidCameraData", "Invalid CameraData");
 		return false;
 	}
-	
+
 	// Valid image dimensions
 	if ((Row->ImageHeight < 1) || (Row->ImageWidth < 1))
 	{
@@ -561,9 +590,9 @@ bool UCameraLensDistortionAlgoCheckerboard::GetLensDistortion(
 	//
 
 	// Enough points
-	if (CalibrationRows.Num() < 4)
+	if (CalibrationRows.Num() < 1)
 	{
-		OutErrorMessage = LOCTEXT("NotEnoughSamples", "At least 4 calibration rows are required");
+		OutErrorMessage = LOCTEXT("NotEnoughSamples", "At least 1 calibration row is required");
 		return false;
 	}
 
@@ -605,105 +634,95 @@ bool UCameraLensDistortionAlgoCheckerboard::GetLensDistortion(
 		return false;
 	}
 
-	// Only spherical lens distortion is currently supported at the moment.
-
-	const USphericalLensDistortionModelHandler* SphericalHandler = Cast<USphericalLensDistortionModelHandler>(StepsController->GetDistortionHandler());
-
-	if (!SphericalHandler)
-	{
-		OutErrorMessage = LOCTEXT("OnlySphericalDistortionSupported", "Only spherical distortion is currently supported. Please update the distortion model used by the camera.");
-		return false;
-	}
-
 #if WITH_OPENCV
 
-	cv::Mat CameraMatrix = cv::Mat::eye(3, 3, CV_64F);;
-	cv::Mat DistortionCoefficients;
+	// Initialize the camera matrix that will be used in each call to projectPoints()
+	float TestImageWidth = LensFile->CameraFeedInfo.GetDimensions().X;
+	float TestImageHeight = LensFile->CameraFeedInfo.GetDimensions().Y;
 
-	std::vector<cv::Mat> Rvecs;
-	std::vector<cv::Mat> Tvecs;
+	float TestFocalLength = StepsController->GetLensFileEvaluationInputs().Zoom;
+	float TestSensorWidth = StepsController->GetLensFileEvaluationInputs().Filmback.SensorWidth;
 
-	std::vector<std::vector<cv::Point2f>> Samples2d;
-	std::vector<std::vector<cv::Point3f>> Samples3d;
+	if (CVarFixFocalLengthValue.GetValueOnGameThread() > 1.0f)
+	{
+		TestFocalLength = CVarFixFocalLengthValue.GetValueOnGameThread();
+	}
+	if (CVarSensorWidthValue.GetValueOnGameThread() > 1.0f)
+	{
+		TestSensorWidth = CVarSensorWidthValue.GetValueOnGameThread();
+	}
+	if (CVarImageWidthValue.GetValueOnGameThread() > 1)
+	{
+		TestImageWidth = CVarImageWidthValue.GetValueOnGameThread();
+	}
+	if (CVarImageHeightValue.GetValueOnGameThread() > 1)
+	{
+		TestImageHeight = CVarImageHeightValue.GetValueOnGameThread();
+	}
+
+	float Fx = TestImageWidth;
+	if (!FMath::IsNearlyZero(TestSensorWidth))
+	{
+		Fx = (TestFocalLength / TestSensorWidth) * TestImageWidth;
+	}
+
+	FVector2f FocalLength = FVector2f(Fx, Fx);
+	FVector2f ImageCenter = FVector2f(TestImageWidth * 0.5f, TestImageHeight * 0.5f);
+
+	TArray<TArray<FVector2D>> Samples2d;
+	TArray<TArray<FVector>> Samples3d;
 
 	for (const TSharedPtr<FLensDistortionCheckerboardRowData>& Row : CalibrationRows)
 	{
-		// add 2d (image) points
-		{
-			std::vector<cv::Point2f> Points2d;
-
-			for (FVector2D& Point2d : Row->Points2d)
-			{
-				Points2d.push_back(cv::Point2f(Point2d.X, Point2d.Y));
-			}
-
-			Samples2d.push_back(Points2d);
-		}
-
-		// add 3d points
-		{
-			std::vector<cv::Point3f> Points3d;
-
-			for (FVector& Point3d : Row->Points3d)
-			{
-				Points3d.push_back(cv::Point3f(Point3d.X, Point3d.Y, Point3d.Z));
-			}
-
-			Samples3d.push_back(Points3d);
-		}
+		Samples2d.Add(Row->Points2d);
+		Samples3d.Add(Row->Points3d);
 	}
 
-	OutError = cv::calibrateCamera(
+	int flags = cv::CALIB_USE_INTRINSIC_GUESS;
+	if (bFixFocalLength)
+	{
+		flags |= cv::CALIB_USE_INTRINSIC_GUESS;
+		flags |= cv::CALIB_FIX_FOCAL_LENGTH;
+	}
+
+	if (bFixImageCenter)
+	{
+		flags |= cv::CALIB_USE_INTRINSIC_GUESS;
+		flags |= cv::CALIB_FIX_PRINCIPAL_POINT;
+	}
+
+	TArray<float> DistortionCoefficients;
+
+	OutError = FCameraCalibrationSolver::CalibrateCamera(
+		LensFile->LensInfo.LensModel,
 		Samples3d,
 		Samples2d,
-		cv::Size(LastRow->ImageWidth, LastRow->ImageHeight), 
-		CameraMatrix, 
-		DistortionCoefficients, 
-		Rvecs, 
-		Tvecs
+		FIntPoint(LastRow->ImageWidth, LastRow->ImageHeight),
+		FocalLength,
+		ImageCenter,
+		DistortionCoefficients,
+		PixelAspect,
+		flags
 	);
 
-	check(DistortionCoefficients.total() == 5);
-	check((CameraMatrix.rows == 3) && (CameraMatrix.cols == 3));
+	OutLensModel = LensFile->LensInfo.LensModel;
+	OutDistortionInfo.Parameters = DistortionCoefficients;
 
-	// Valid image sizes were verified when adding the calibration rows.
-	checkSlow(LastRow->ImageWidth > 0);
-	checkSlow(LastRow->ImageHeight > 0);
+	// FocalLengthInfo
+	OutFocalLengthInfo.FxFy = FVector2D(
+		float(FocalLength.X / LastRow->ImageWidth),
+		float(FocalLength.Y / LastRow->ImageHeight)
+	);
+
+	// ImageCenterInfo
+	OutImageCenterInfo.PrincipalPoint = FVector2D(
+		float(ImageCenter.X / LastRow->ImageWidth),
+		float(ImageCenter.Y / LastRow->ImageHeight)
+	);
 
 	// FZ inputs to LUT
 	OutFocus = LastRow->CameraData.InputFocus;
 	OutZoom = LastRow->CameraData.InputZoom;
-
-	// FocalLengthInfo
-	OutFocalLengthInfo.FxFy = FVector2D(
-		float(CameraMatrix.at<double>(0, 0) / LastRow->ImageWidth),
-		float(CameraMatrix.at<double>(1, 1) / LastRow->ImageHeight)
-	);
-
-	// DistortionInfo
-	{
-		FSphericalDistortionParameters SphericalParameters;
-
-		SphericalParameters.K1 = DistortionCoefficients.at<double>(0);
-		SphericalParameters.K2 = DistortionCoefficients.at<double>(1);
-		SphericalParameters.P1 = DistortionCoefficients.at<double>(2);
-		SphericalParameters.P2 = DistortionCoefficients.at<double>(3);
-		SphericalParameters.K3 = DistortionCoefficients.at<double>(4);
-
-		USphericalLensModel::StaticClass()->GetDefaultObject<ULensModel>()->ToArray(
-			SphericalParameters, 
-			OutDistortionInfo.Parameters
-		);
-	}
-
-	// ImageCenterInfo
-	OutImageCenterInfo.PrincipalPoint = FVector2D(
-		float(CameraMatrix.at<double>(0, 2) / LastRow->ImageWidth),
-		float(CameraMatrix.at<double>(1, 2) / LastRow->ImageHeight)
-	);
-
-	// Lens Model
-	OutLensModel = USphericalLensModel::StaticClass();
 
 	return true;
 #else
@@ -718,116 +737,151 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildCalibrationDevic
 {
 	return SNew(SHorizontalBox)
 
-		+ SHorizontalBox::Slot() // Picker
-		[
-			SNew(SObjectPropertyEntryBox)
-			.AllowedClass(ACameraCalibrationCheckerboard::StaticClass())
-			.OnObjectChanged_Lambda([&](const FAssetData& AssetData) -> void
+	+ SHorizontalBox::Slot() // Picker
+	[
+		SNew(SObjectPropertyEntryBox)
+		.AllowedClass(ACameraCalibrationCheckerboard::StaticClass())
+		.OnObjectChanged_Lambda([&](const FAssetData& AssetData) -> void
+		{
+			if (AssetData.IsValid())
 			{
-				if (AssetData.IsValid())
-				{
-					SetCalibrator(Cast<ACameraCalibrationCheckerboard>(AssetData.GetAsset()));
-				}
-			})
-			.ObjectPath_Lambda([&]() -> FString
+				SetCalibrator(Cast<ACameraCalibrationCheckerboard>(AssetData.GetAsset()));
+			}
+		})
+		.ObjectPath_Lambda([&]() -> FString
+		{
+			if (AActor* TheCalibrator = GetCalibrator())
 			{
-				if (AActor* TheCalibrator = GetCalibrator())
-				{
-					FAssetData AssetData(TheCalibrator, true);
-					return AssetData.GetObjectPathString();
-				}
+				FAssetData AssetData(TheCalibrator, true);
+				return AssetData.GetObjectPathString();
+			}
 
-				return TEXT("");
-			})
-		]
+			return TEXT("");
+		})
+	]
 
-		+ SHorizontalBox::Slot() // Spawner
-		.AutoWidth()
-		[
-			SNew(SButton)
-			.Text(LOCTEXT("Spawn", "Spawn"))
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
-			.OnClicked_Lambda([&]() -> FReply
+	+ SHorizontalBox::Slot() // Spawner
+	.AutoWidth()
+	[
+		SNew(SButton)
+		.Text(LOCTEXT("Spawn", "Spawn"))
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+		.OnClicked_Lambda([&]() -> FReply
+		{
+			const FCameraCalibrationStepsController* StepsController = GetStepsController();
+
+			if (!ensure(StepsController))
 			{
-				const FCameraCalibrationStepsController* StepsController = GetStepsController();
-
-				if (!ensure(StepsController))
-				{
-					return FReply::Handled();
-				}
-
-				if (UWorld* const World = StepsController->GetWorld())
-				{
-					SetCalibrator(World->SpawnActor<ACameraCalibrationCheckerboard>());
-				}
-
 				return FReply::Handled();
-			})
-			[
-				SNew(STextBlock)
-				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.12"))
-				.Text(FEditorFontGlyphs::Plus)
-				.ColorAndOpacity(FLinearColor::White)
-			]
+			}
+
+			if (UWorld* const World = StepsController->GetWorld())
+			{
+				SetCalibrator(World->SpawnActor<ACameraCalibrationCheckerboard>());
+			}
+
+			return FReply::Handled();
+		})
+		[
+			SNew(STextBlock)
+			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.12"))
+			.Text(FEditorFontGlyphs::Plus)
+			.ColorAndOpacity(FLinearColor::White)
 		]
-		;
+	];
 }
 
 TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildShowOverlayWidget()
 {
 	return SNew(SCheckBox)
-		.IsChecked_Lambda([&]() -> ECheckBoxState
+	.IsChecked_Lambda([&]() -> ECheckBoxState
+	{
+		return bShouldShowOverlay ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	})
+	.OnCheckStateChanged_Lambda([&](ECheckBoxState NewState) -> void
+	{
+		bShouldShowOverlay = (NewState == ECheckBoxState::Checked);
+
+		FCameraCalibrationStepsController* StepsController = Tool->GetCameraCalibrationStepsController();
+		
+		if (!ensure(StepsController))
 		{
-			return bShouldShowOverlay ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-		})
-		.OnCheckStateChanged_Lambda([&](ECheckBoxState NewState) -> void
-		{
-			bShouldShowOverlay = (NewState == ECheckBoxState::Checked);
+			return;
+		}
 
-			FCameraCalibrationStepsController* StepsController = Tool->GetCameraCalibrationStepsController();
-
-			if (!ensure(StepsController))
-			{
-				return;
-			}
-
-			StepsController->SetOverlayEnabled(bShouldShowOverlay);
-		});
+		StepsController->SetOverlayEnabled(bShouldShowOverlay);
+	});
 }
 
 TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildShowDetectionWidget()
 {
 	return SNew(SCheckBox)
-		.IsChecked_Lambda([&]() -> ECheckBoxState
+	.IsChecked_Lambda([&]() -> ECheckBoxState
+	{
+		return bShouldShowDetectionWindow ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	})
+	.OnCheckStateChanged_Lambda([&](ECheckBoxState NewState) -> void
+	{
+		bShouldShowDetectionWindow = (NewState == ECheckBoxState::Checked);
+	});
+}
+
+TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildPixelAspectWidget()
+{
+	return SNew(SNumericEntryBox<float>)
+		.Value_Lambda([&]() { return PixelAspect; })
+		.ToolTipText(LOCTEXT("Pixel Aspect", "Pixel Aspect"))
+		.OnValueChanged_Lambda([&](double InValue)
 		{
-			return bShouldShowDetectionWindow ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-		})
-		.OnCheckStateChanged_Lambda([&](ECheckBoxState NewState) -> void
-		{
-			bShouldShowDetectionWindow = (NewState == ECheckBoxState::Checked);
+			PixelAspect = InValue;
 		});
+}
+
+TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildFixFocalLengthWidget()
+{
+	return SNew(SCheckBox)
+	.IsChecked_Lambda([&]() -> ECheckBoxState
+	{
+		return bFixFocalLength ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	})
+	.OnCheckStateChanged_Lambda([&](ECheckBoxState NewState) -> void
+	{
+		bFixFocalLength = (NewState == ECheckBoxState::Checked);
+	});
+}
+
+TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildFixImageCenterWidget()
+{
+	return SNew(SCheckBox)
+	.IsChecked_Lambda([&]() -> ECheckBoxState
+	{
+		return bFixImageCenter ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	})
+	.OnCheckStateChanged_Lambda([&](ECheckBoxState NewState) -> void
+	{
+		bFixImageCenter = (NewState == ECheckBoxState::Checked);
+	});
 }
 
 TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildCalibrationActionButtons()
 {
 	return SNew(SHorizontalBox)
 
-		+ SHorizontalBox::Slot() // Button to clear all rows
-		.AutoWidth()
-		[ 
-			SNew(SButton)
-			.Text(LOCTEXT("ClearAll", "Clear All"))
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.OnClicked_Lambda([&]() -> FReply
-			{
-				ClearCalibrationRows();
-				return FReply::Handled();
-			})
-		]
-		;
+	+ SHorizontalBox::Slot() // Button to clear all rows
+	.AutoWidth()
+	[
+		SNew(SButton)
+		.Text(LOCTEXT("ClearAll", "Clear All"))
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.OnClicked_Lambda([&]() -> FReply
+		{
+			ClearCalibrationRows();
+			return FReply::Handled();
+		})
+	];
 }
 
 TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildCalibrationPointsTable()
@@ -838,7 +892,7 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildCalibrationPoint
 		.OnGenerateRow_Lambda([&](TSharedPtr<FLensDistortionCheckerboardRowData> InItem, const TSharedRef<STableViewBase>& OwnerTable) -> TSharedRef<ITableRow>
 		{
 			return SNew(CameraLensDistortionAlgoCheckerboard::SCalibrationRowGenerator, OwnerTable)
-				.CalibrationRowData(InItem);
+			.CalibrationRowData(InItem);
 		})
 		.SelectionMode(ESelectionMode::Multi)
 		.OnKeyDownHandler_Lambda([&](const FGeometry& Geometry, const FKeyEvent& KeyEvent) -> FReply

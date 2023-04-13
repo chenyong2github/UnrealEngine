@@ -186,6 +186,15 @@ private:
 	/** True if a detection window should be shown after every capture */
 	bool bShouldShowDetectionWindow = false;
 
+	/** Pixel Aspect value to pass to the solver */
+	float PixelAspect = 1.0f;
+
+	/** If true, the solver will not solve for focal length, and will just use the input value */
+	bool bFixFocalLength = false;
+
+	/** If true, the solver will not solve for image center, and will just use the input value */
+	bool bFixImageCenter = false;
+
 	/** Texture into which detected chessboard corners from each calibration row are drawn */
 	TObjectPtr<UTexture2D> CoverageTexture;
 
@@ -204,6 +213,15 @@ private:
 
 	/** Builds the UI for the user to select if they want a corner detection window to be shown after every capture */
 	TSharedRef<SWidget> BuildShowDetectionWidget();
+
+	/** Builds the UI of the pixel aspect widget */
+	TSharedRef<SWidget> BuildPixelAspectWidget();
+
+	/** Builds the UI of the fix focal length width */
+	TSharedRef<SWidget> BuildFixFocalLengthWidget();
+
+	/** Builds the UI of the fix image center widget */
+	TSharedRef<SWidget> BuildFixImageCenterWidget();
 
 	/** Builds the UI of the calibration points table */
 	TSharedRef<SWidget> BuildCalibrationPointsTable();
