@@ -984,9 +984,9 @@ void FHttpCacheStore::FPutPackageOp::PutRefAsync(
 			TArray<FIoHash> NeededBlobHashes;
 
 			// Useful when debugging issues related to compressed/uncompressed blobs being returned from Jupiter
-			const bool bPutRefBlobsAlways = false;
+			static const bool bHttpCacheAlwaysPut = FParse::Param(FCommandLine::Get(), TEXT("HttpCacheAlwaysPut"));
 
-			if (bPutRefBlobsAlways && !bFinalize)
+			if (bHttpCacheAlwaysPut && !bFinalize)
 			{
 				Object.IterateAttachments([&NeededBlobHashes](FCbFieldView AttachmentFieldView)
 				{
