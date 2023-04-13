@@ -544,7 +544,14 @@ TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FText> FCompiledB
 
 	if (FoundSameBindingIndex != INDEX_NONE)
 	{
-		return MakeError(LOCTEXT("BindingAlreadyAdded", "The binding already exist."));
+		if (!bInIsComplexBinding)
+		{
+			return MakeError(LOCTEXT("BindingAlreadyAdded", "The binding already exist."));
+		}
+		else
+		{
+			return MakeValue(Impl->Bindings[FoundSameBindingIndex].BindingHandle);
+		}
 	}
 	else
 	{
