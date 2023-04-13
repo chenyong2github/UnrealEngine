@@ -170,7 +170,9 @@ void FKCHandler_VariableSet::Transform(FKismetFunctionContext& Context, UEdGraph
 {
 	// Expands node out to include a (local) call to the RepNotify function if necessary
 	UK2Node_VariableSet* SetNotify = Cast<UK2Node_VariableSet>(Node);
-	if ((SetNotify != NULL))
+
+	// If property is HasFieldNotificationBroadcast, then the net code and broadcast will be executed in native code.
+	if (SetNotify && !SetNotify->HasFieldNotificationBroadcast())
 	{
 		if (SetNotify->ShouldFlushDormancyOnSet())
 		{

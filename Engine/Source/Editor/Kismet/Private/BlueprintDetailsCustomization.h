@@ -223,6 +223,9 @@ private:
 	EVisibility ShowReadOnlyCheckboxVisibilty() const;
 	ECheckBoxState OnReadyOnlyCheckboxState() const;
 	void OnReadyOnlyChanged(ECheckBoxState InNewState);
+	
+	ECheckBoxState OnFieldNotifyCheckboxState() const;
+	void OnFieldNotifyChanged(ECheckBoxState InNewState);
 
 	ECheckBoxState OnCreateWidgetCheckboxState() const;
 	void OnCreateWidgetChanged(ECheckBoxState InNewState);

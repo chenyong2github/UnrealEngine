@@ -17,6 +17,8 @@
 #include "Engine/LevelScriptActor.h"
 #include "Engine/SCS_Node.h"
 #include "Engine/InheritableComponentHandler.h"
+#include "IFieldNotificationClassDescriptor.h"
+#include "INotifyFieldValueChanged.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/Package.h" // IWYU pragma: keep
@@ -205,7 +207,26 @@ void UBlueprintGeneratedClass::PostLoad()
 		}
 	}
 
+	InitializeFieldNotifies();
+
 	AssembleReferenceTokenStream(true);
+}
+
+void UBlueprintGeneratedClass::InitializeFieldNotifies()
+{
+	//Initialize the interface with the computed FieldNotifies
+	FieldNotifiesStartBitNumber = 0;
+	if (FieldNotifies.Num() && ImplementsInterface(UNotifyFieldValueChanged::StaticClass()) && ensure(ClassDefaultObject))
+	{
+		int32 NumberOfField = 0;
+		TScriptInterface<INotifyFieldValueChanged>(ClassDefaultObject)->GetFieldNotificationDescriptor().ForEachField(this, [&NumberOfField](::UE::FieldNotification::FFieldId FielId)
+			{
+				++NumberOfField;
+				return true;
+			});
+		FieldNotifiesStartBitNumber = NumberOfField - FieldNotifies.Num();
+		ensureMsgf(FieldNotifiesStartBitNumber >= 0, TEXT("The FieldNotifyStartIndex is negative. The number of field should be positive."));
+	}
 }
 
 void UBlueprintGeneratedClass::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
@@ -2432,6 +2453,25 @@ FGuid UBlueprintGeneratedClass::FindPropertyGuidFromName(const FName InName) con
 	}
 
 	return FGuid();
+}
+
+void UBlueprintGeneratedClass::ForEachFieldNotify(TFunctionRef<bool(::UE::FieldNotification::FFieldId FieldId)> Callback, bool bIncludeSuper) const
+{
+	ensureMsgf(FieldNotifiesStartBitNumber >= 0, TEXT("The FieldNotifyStartIndex is negative. The number of field should be positive."));
+	for (int32 Index = 0; Index < FieldNotifies.Num(); ++Index)
+	{
+		if (!Callback(UE::FieldNotification::FFieldId(FieldNotifies[Index].GetFieldName(), Index + FieldNotifiesStartBitNumber)))
+		{
+			return;
+		}
+	}
+	if (bIncludeSuper)
+	{
+		if (UBlueprintGeneratedClass* ParentClass = Cast<UBlueprintGeneratedClass>(GetSuperClass()))
+		{
+			ParentClass->ForEachFieldNotify(Callback, bIncludeSuper);
+		}
+	}
 }
 
 #if WITH_EDITORONLY_DATA

@@ -1526,6 +1526,14 @@ public:
 	static void FindImplementedInterfaces(const UBlueprint* Blueprint, bool bGetAllInterfaces, TArray<UClass*>& ImplementedInterfaces);
 
 	/**
+	 * Returns true if the interfaces is implemented. It can be implemented directly or inherited.
+	 * @param		Blueprint				The blueprint to check interfaces for
+	 * @param		bIncludeInherited		If true, check in all the implemented and inherited interfaces. False, check in the interfaces implemented directly.
+	 * @param		SomeInterface			The interface to check.
+	*/
+	static bool ImplementsInterface(const UBlueprint* Blueprint, bool bIncludeInherited, UClass* SomeInterface);
+
+	/**
 	 * Finds a unique name with a base of the passed in string, appending numbers as needed
 	 *
 	 * @param InBlueprint		The blueprint the kismet object's name needs to be unique in

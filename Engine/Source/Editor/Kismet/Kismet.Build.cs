@@ -22,13 +22,14 @@ public class Kismet : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-                "AppFramework",
+				"AppFramework",
 				"Core",
 				"CoreUObject",
+				"FieldNotification",
 				"ApplicationCore",
 				"Slate",
 				"SlateCore",
-                "EditorStyle",
+				"EditorStyle",
 				"EditorWidgets",
 				"Engine",
 				"Json",
@@ -44,22 +45,22 @@ public class Kismet : ModuleRules
 				"AnimGraph",
 				"PropertyEditor",
 				"SourceControl",
-                "SharedSettingsWidgets",
-                "InputCore",
+				"SharedSettingsWidgets",
+				"InputCore",
 				"EngineSettings",
-                "Projects",
-                "JsonUtilities",
+				"Projects",
+				"JsonUtilities",
 				"DesktopPlatform",
 				"HotReload",
-                "UMGEditor",
-                "UMG", // for SBlueprintDiff
-                "WorkspaceMenuStructure",
+				"UMGEditor",
+				"UMG", // for SBlueprintDiff
+				"WorkspaceMenuStructure",
 				"DeveloperSettings",
 				"ToolMenus",
 				"SubobjectEditor",
 				"SubobjectDataInterface",
 				"ToolWidgets",
-            }
+			}
 			);
 
         DynamicallyLoadedModuleNames.AddRange(

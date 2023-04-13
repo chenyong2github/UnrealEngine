@@ -54,6 +54,8 @@
 #include "IDetailsView.h"
 #include "IDocumentation.h"
 #include "IDocumentationPage.h"
+#include "IFieldNotificationClassDescriptor.h"
+#include "INotifyFieldValueChanged.h"
 #include "ISequencerModule.h"
 #include "Input/DragAndDrop.h"
 #include "Input/Events.h"
@@ -519,6 +521,30 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 		.IsEnabled(IsVariableInBlueprint())
 		.ToolTip(ReadOnlyTooltip)
 	];
+	
+	if (BlueprintPtr && FBlueprintEditorUtils::ImplementsInterface(BlueprintPtr, true, UNotifyFieldValueChanged::StaticClass()))
+	{
+		// Show the flag if the class implement the interface but only allow the flag to be changed if the variable is defined in BP
+		const FText ToolTip = LOCTEXT("FieldNotifyToolTip", "Generate a field entry for the Field Notification system.");
+		TSharedPtr<SToolTip> FieldNotificationTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("FieldNotifyToolTip", "Generate a field entry for the Field Notification system."), NULL, DocLink, TEXT("FieldNotify"));
+
+		Category.AddCustomRow(LOCTEXT("IsVariableFieldNotifyLabel", "Field Notify"))
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("IsVariableFieldNotifyLabel", "Field Notify"))
+				.ToolTip(FieldNotificationTooltip)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			]
+			.ValueContent()
+			[
+				SNew(SCheckBox)
+				.IsChecked(this, &FBlueprintVarActionDetails::OnFieldNotifyCheckboxState)
+				.OnCheckStateChanged(this, &FBlueprintVarActionDetails::OnFieldNotifyChanged)
+				.IsEnabled(GetPropertyOwnerBlueprint() && IsABlueprintVariable(VariableProperty) && IsAUserVariable(VariableProperty))
+				.ToolTip(FieldNotificationTooltip)
+			];
+	}
 
 	TSharedPtr<SToolTip> Widget3DTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VariableWidget3D_Tooltip", "When true, allows the user to tweak the vector variable by using a 3D transform widget in the viewport (usable when varible is public/enabled)."), NULL, DocLink, TEXT("Widget3D"));
 
@@ -1877,6 +1903,47 @@ void FBlueprintVarActionDetails::OnReadyOnlyChanged(ECheckBoxState InNewState)
 
 	UBlueprint* BlueprintObj = MyBlueprint.Pin()->GetBlueprintObj();
 	FBlueprintEditorUtils::SetBlueprintPropertyReadOnlyFlag(BlueprintObj, VarName, bVariableIsReadOnly);
+}
+
+ECheckBoxState FBlueprintVarActionDetails::OnFieldNotifyCheckboxState() const
+{
+	UBlueprint* const BlueprintObj = GetBlueprintObj();
+	const FName VarName = CachedVariableName;
+
+	if (BlueprintObj && !VarName.IsNone())
+	{
+		const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(BlueprintObj, VarName);
+		if (VarIndex != INDEX_NONE)
+		{
+			return BlueprintObj->NewVariables[VarIndex].HasMetaData(FBlueprintMetadata::MD_FieldNotify) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		}
+		else if (BlueprintObj->GeneratedClass && BlueprintObj->GeneratedClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()) && BlueprintObj->GeneratedClass->GetDefaultObject())
+		{
+			TScriptInterface<INotifyFieldValueChanged> DefaultObject = BlueprintObj->GeneratedClass->GetDefaultObject();
+			return DefaultObject->GetFieldNotificationDescriptor().GetField(BlueprintObj->GeneratedClass, VarName).IsValid() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		}
+	}
+	return ECheckBoxState::Unchecked;
+}
+
+void FBlueprintVarActionDetails::OnFieldNotifyChanged(ECheckBoxState InNewState)
+{
+	FName VarName = CachedVariableName;
+
+	// Toggle the flag on the blueprint's version of the variable description, based on state
+	const bool bVariableIsFieldNotify = InNewState == ECheckBoxState::Checked;
+
+	UBlueprint* BlueprintObj = MyBlueprint.Pin()->GetBlueprintObj();
+	if (bVariableIsFieldNotify)
+	{
+		// todo look through graph and check if the variable is used in a FieldNotify function, add that info to the metadata
+		//maybe do that in PreCompileFunction
+		FBlueprintEditorUtils::SetBlueprintVariableMetaData(BlueprintObj, VarName, GetLocalVariableScope(CachedVariableProperty.Get()), FBlueprintMetadata::MD_FieldNotify, TEXT(""));
+	}
+	else
+	{
+		FBlueprintEditorUtils::RemoveBlueprintVariableMetaData(GetBlueprintObj(), VarName, GetLocalVariableScope(CachedVariableProperty.Get()), FBlueprintMetadata::MD_FieldNotify);
+	}
 }
 
 ECheckBoxState FBlueprintVarActionDetails::OnCreateWidgetCheckboxState() const

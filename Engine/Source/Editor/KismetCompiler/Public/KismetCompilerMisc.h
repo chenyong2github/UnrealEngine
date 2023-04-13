@@ -33,6 +33,7 @@ class UStruct;
 struct FBPTerminal;
 struct FEdGraphPinType;
 struct FKismetFunctionContext;
+struct FMemberReference;
 
 //////////////////////////////////////////////////////////////////////////
 // FKismetCompilerUtilities
@@ -112,6 +113,12 @@ public:
 	/** Create 'set var by name' nodes and hook them up - used to set values when components are added or actor are created at run time. Returns the 'last then' pin of the assignment nodes */
 	static UEdGraphPin* GenerateAssignmentNodes( class FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph, UK2Node_CallFunction* CallBeginSpawnNode, UEdGraphNode* SpawnNode, UEdGraphPin* CallBeginResult, const UClass* ForClass );
 
+	/** Create node that replace regular setter and use the SetPropertyValueAndBroadcast. */
+	static TTuple<UEdGraphPin*, UEdGraphPin*> GenerateFieldNotificationSetNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph, UEdGraphNode* SourceNode, UEdGraphPin* SelfPin, FProperty* VariableProperty, const FMemberReference& VariableReference, bool bHasLocalRepNotify, bool bShouldFlushDormancyOnSet, bool bIsNetProperty);
+	
+	/** Create node to broadcast a FieldNotification value changed */
+	static TTuple<UEdGraphPin*, UEdGraphPin*> GenerateBroadcastFieldNotificationNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph, UEdGraphNode* SourceNode, FProperty* Property);
+
 	/** Create Kismet assignment statement with proper object <-> interface cast */
 	static void CreateObjectAssignmentStatement(FKismetFunctionContext& Context, UEdGraphNode* Node, FBPTerminal* SrcTerm, FBPTerminal* DstTerm, UEdGraphPin* DstPin = nullptr);
 
@@ -120,6 +127,9 @@ public:
 
 	/** Generate an error for non-const output parameters */
 	static void DetectValuesReturnedByRef(const UFunction* Func, const UK2Node * Node, FCompilerResultsLog& MessageLog);
+
+	/** @return true when the property is a BP user variable that should uses UFieldNotificationLibrary::SetPropertyValueAndBroadcast to set its value. */
+	static bool IsPropertyUsesFieldNotificationSetValueAndBroadcast(const FProperty* Property);
 
 	static bool IsStatementReducible(EKismetCompiledStatementType StatementType);
 

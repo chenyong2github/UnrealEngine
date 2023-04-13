@@ -24,6 +24,7 @@
 #include "Engine/UserDefinedStruct.h"
 #include "Blueprint/BlueprintExtension.h"
 #include "EdGraphUtilities.h"
+#include "INotifyFieldValueChanged.h"
 #include "K2Node_AddDelegate.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_Composite.h"
@@ -1195,6 +1196,7 @@ void FKismetCompilerContext::CreateClassVariablesFromBlueprint()
 	BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_CreateClassVariables);
 
 	check(NewClass);
+	check(RepNotifyFunctionMap.IsEmpty());
 
 	// Grab the blueprint variables
 	NewClass->NumReplicatedProperties = 0;	// Keep track of how many replicated variables this blueprint adds
@@ -1205,6 +1207,7 @@ void FKismetCompilerContext::CreateClassVariablesFromBlueprint()
 		// Clear out any existing property guids if there could be local changes. The find code handles inherited variables
 		NewClass->PropertyGuids.Reset();
 	}
+	NewClass->FieldNotifies.Reset();
 
 	for (int32 i = 0; i < Blueprint->NewVariables.Num(); ++i)
 	{
@@ -1228,6 +1231,14 @@ void FKismetCompilerContext::CreateClassVariablesFromBlueprint()
 			NewProperty->SetMetaData(TEXT("Category"), *Variable.Category.ToString());
 			NewProperty->RepNotifyFunc = Variable.RepNotifyFunc;
 			NewProperty->SetBlueprintReplicationCondition(Variable.ReplicationCondition);
+
+			if (!NewProperty->RepNotifyFunc.IsNone())
+			{
+				if (TObjectPtr<UEdGraph>* Graph = Blueprint->FunctionGraphs.FindByPredicate([GraphName = Variable.RepNotifyFunc](UEdGraph* Other) { return Other->GetFName() == GraphName; }))
+				{
+					RepNotifyFunctionMap.Emplace(Variable.RepNotifyFunc, NewProperty);
+				}
+			}
 
 			if(!Variable.DefaultValue.IsEmpty())
 			{
@@ -1263,6 +1274,14 @@ void FKismetCompilerContext::CreateClassVariablesFromBlueprint()
 					}
 				}
 			}
+
+			bool bIsValidFieldNotify = Variable.HasMetaData(FBlueprintMetadata::MD_FieldNotify) && NewClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass());
+			if (bIsValidFieldNotify)
+			{
+				ensure(!NewClass->FieldNotifies.Contains(FFieldNotificationId(NewProperty->GetFName())));
+				NewClass->FieldNotifies.Add(FFieldNotificationId(NewProperty->GetFName()));
+			}
+
 			if (bRebuildPropertyMap)
 			{
 				// Update new class property guid map
@@ -3161,6 +3180,8 @@ void FKismetCompilerContext::FinishCompilingClass(UClass* Class)
 	// Create the default object for this class
 	FKismetCompilerUtilities::CompileDefaultProperties(Class);
 
+	CastChecked<UBlueprintGeneratedClass>(Class)->InitializeFieldNotifies();
+
 	AActor* ActorCDO = Cast<AActor>(Class->GetDefaultObject());
 	if (ActorCDO)
 	{
@@ -4605,6 +4626,7 @@ void FKismetCompilerContext::CompileClassLayout(EInternalCompilerFlags InternalF
 	bIsFullCompile = CompileOptions.DoesRequireBytecodeGeneration() && (Blueprint->BlueprintType != BPTYPE_Interface);
 
 	CallsIntoUbergraph.Empty();
+	RepNotifyFunctionMap.Empty();
 	if (bIsFullCompile)
 	{
 		Blueprint->IntermediateGeneratedGraphs.Empty();

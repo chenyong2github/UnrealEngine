@@ -18,9 +18,12 @@
 #include "Engine/MemberReference.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/UserDefinedStruct.h"
+#include "FieldNotification/FieldNotificationLibrary.h"
+#include "INotifyFieldValueChanged.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "EdGraphUtilities.h"
 #include "EdGraphSchema_K2.h"
+#include "FieldNotificationId.h"
 #include "K2Node.h"
 #include "K2Node_BaseAsyncTask.h"
 #include "K2Node_Event.h"
@@ -31,13 +34,19 @@
 #include "K2Node_ExecutionSequence.h"
 #include "K2Node_FunctionEntry.h"
 #include "K2Node_FunctionResult.h"
+#include "K2Node_MakeArray.h"
+#include "K2Node_MakeStruct.h"
+#include "K2Node_Self.h"
+#include "K2Node_TemporaryVariable.h"
 #include "K2Node_Timeline.h"
 #include "K2Node_Variable.h"
+#include "K2Node_VariableGet.h"
 #include "KismetCastingUtils.h"
 #include "KismetCompiledFunctionContext.h"
 #include "KismetCompiler.h"
 
 #include "K2Node_EnumLiteral.h"
+#include "Kismet/KismetArrayLibrary.h"
 #include "Kismet2/KismetReinstanceUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/StructureEditorUtils.h"
@@ -828,6 +837,24 @@ UEdGraphPin* FKismetCompilerUtilities::GenerateAssignmentNodes(class FKismetComp
 
 				CompilerContext.MovePinLinksToIntermediate(*OrgPin, *SetFunctionValuePin);
 			}
+			else if (FKismetCompilerUtilities::IsPropertyUsesFieldNotificationSetValueAndBroadcast(Property))
+			{
+				// Add a cast node so we can call the Setter function with a pin of the right class
+				//UK2Node_DynamicCast* CastNode = CompilerContext.SpawnIntermediateNode<UK2Node_DynamicCast>(SpawnNode, SourceGraph);
+				//CastNode->TargetType = const_cast<UClass*>(ForClass);
+				//CastNode->SetPurity(true);
+				//CastNode->AllocateDefaultPins();
+				//CastNode->GetCastSourcePin()->MakeLinkTo(CallBeginResult);
+				//CastNode->NotifyPinConnectionListChanged(CastNode->GetCastSourcePin());
+
+				FMemberReference MemberReference;
+				MemberReference.SetFromField<FProperty>(Property, false);
+				TTuple<UEdGraphPin*, UEdGraphPin*> ExecThenPins = GenerateFieldNotificationSetNode(CompilerContext, SourceGraph, SpawnNode, CallBeginResult, Property, MemberReference, false, false, Property->HasAllPropertyFlags(CPF_Net));
+
+				// Connect this node into the exec chain
+				Schema->TryCreateConnection(LastThen, ExecThenPins.Get<0>());
+				LastThen = ExecThenPins.Get<1>();
+			}
 			else if (UFunction* SetByNameFunction = Schema->FindSetVariableByNameFunction(OrgPin->PinType))
 			{
 				UK2Node_CallFunction* SetVarNode = nullptr;
@@ -898,6 +925,220 @@ UEdGraphPin* FKismetCompilerUtilities::GenerateAssignmentNodes(class FKismetComp
 	}
 
 	return LastThen;
+}
+
+namespace UE::KismetCompiler::Private
+{
+	UK2Node_MakeArray* MakeArrayNodeForFieldNotificationId(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph, UEdGraphNode* SourceNode, UEdGraphPin* LinkTo)
+	{
+		UK2Node_MakeArray* MakeArrayNode = CompilerContext.SpawnIntermediateNode<UK2Node_MakeArray>(SourceNode, SourceGraph);
+		MakeArrayNode->AllocateDefaultPins();
+		CompilerContext.MessageLog.NotifyIntermediateObjectCreation(MakeArrayNode, SourceNode);
+
+		// Link the array to the other input pin
+		{
+			UEdGraphPin* ArrayOut = MakeArrayNode->GetOutputPin();
+			ArrayOut->MakeLinkTo(LinkTo);
+			MakeArrayNode->PinConnectionListChanged(ArrayOut);
+		}
+
+		return MakeArrayNode;
+	}
+
+	UK2Node_MakeStruct* MakeFieldNotificationIdStruct(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph, UEdGraphNode* SourceNode, const FString& FieldId)
+	{
+		UK2Node_MakeStruct* MakeStruct = CompilerContext.SpawnIntermediateNode<UK2Node_MakeStruct>(SourceNode, SourceGraph);
+		MakeStruct->StructType = FFieldNotificationId::StaticStruct();;
+		MakeStruct->AllocateDefaultPins();
+		MakeStruct->bMadeAfterOverridePinRemoval = true;
+		CompilerContext.MessageLog.NotifyIntermediateObjectCreation(MakeStruct, SourceNode);
+
+		CompilerContext.GetSchema()->TrySetDefaultValue(*MakeStruct->FindPinChecked(GET_MEMBER_NAME_STRING_CHECKED(FFieldNotificationId, FieldName)), FieldId);
+
+		return MakeStruct;
+	}
+
+	void MakeLinkFromMakeStructTo(UK2Node_MakeStruct* MakeStructNode, UEdGraphPin* InputPin)
+	{
+		UEdGraphPin** MakeStructOutPin = MakeStructNode->Pins.FindByPredicate([](UEdGraphPin* OtherPin) { return OtherPin->Direction == EGPD_Output; });
+		check(MakeStructOutPin);
+		(*MakeStructOutPin)->MakeLinkTo(InputPin);
+	}
+
+	void AddMakeStructToMakeArrayNode(UK2Node_MakeArray* MakeArrayNode, UK2Node_MakeStruct* MakeStructNode, int32 Index)
+	{
+		// Find the input pin on the "Make Array" node by index.
+		if (Index > 0)
+		{
+			MakeArrayNode->AddInputPin();
+		}
+
+		const FString PinName = FString::Printf(TEXT("[%d]"), Index);
+		MakeLinkFromMakeStructTo(MakeStructNode, MakeArrayNode->FindPinChecked(PinName));
+	}
+}
+
+TTuple<UEdGraphPin*, UEdGraphPin*> FKismetCompilerUtilities::GenerateFieldNotificationSetNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph, UEdGraphNode* SourceNode, UEdGraphPin* SelfPin, FProperty* VariableProperty, const FMemberReference& VariableReference, bool bHasLocalRepNotify, bool bShouldFlushDormancyOnSet, bool bIsNetProperty)
+{
+	UClass* OwnerClass = VariableProperty->GetOwnerClass();
+	const FString& FieldNotifyMetaData = VariableProperty->GetMetaData(FBlueprintMetadata::MD_FieldNotify);
+	TArray<FString> OtherFieldNotifyToTrigger;
+	FieldNotifyMetaData.ParseIntoArray(OtherFieldNotifyToTrigger, TEXT("|"), true);
+
+	// Set With Broadcast K2 function
+	UK2Node_CallFunction* CallFuncNode = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(SourceNode, SourceGraph);
+	if (OtherFieldNotifyToTrigger.Num() == 0)
+	{
+		CallFuncNode->SetFromFunction(UFieldNotificationLibrary::StaticClass()->FindFunctionByName(GET_MEMBER_NAME_CHECKED(UFieldNotificationLibrary, SetPropertyValueAndBroadcast)));
+	}
+	else
+	{
+		CallFuncNode->SetFromFunction(UFieldNotificationLibrary::StaticClass()->FindFunctionByName(GET_MEMBER_NAME_CHECKED(UFieldNotificationLibrary, SetPropertyValueAndBroadcastFields)));
+	}
+	CallFuncNode->AllocateDefaultPins();
+
+	const UEdGraphSchema_K2* K2Schema = CompilerContext.GetSchema();
+
+	// Set Self pin connections
+	{
+		if (ensure(SelfPin) && SelfPin->LinkedTo.Num() > 0 && SelfPin->Direction == EEdGraphPinDirection::EGPD_Input)
+		{
+			CompilerContext.CopyPinLinksToIntermediate(*SelfPin, *CallFuncNode->FindPinChecked(FName("Object")));
+			CompilerContext.CopyPinLinksToIntermediate(*SelfPin, *CallFuncNode->FindPinChecked(FName("NetOwner")));
+		}
+		else if (SelfPin && SelfPin->Direction == EEdGraphPinDirection::EGPD_Output)
+		{
+			K2Schema->TryCreateConnection(SelfPin, CallFuncNode->FindPinChecked(FName("Object"), EGPD_Input));
+			K2Schema->TryCreateConnection(SelfPin, CallFuncNode->FindPinChecked(FName("NetOwner"), EGPD_Input));
+		}
+		else
+		{
+			UK2Node_Self* SelfNode = CompilerContext.SpawnIntermediateNode<UK2Node_Self>(SourceNode, SourceGraph);
+			SelfNode->AllocateDefaultPins();
+
+			SelfPin = SelfNode->FindPinChecked(UEdGraphSchema_K2::PN_Self);
+			K2Schema->TryCreateConnection(SelfPin, CallFuncNode->FindPinChecked(FName("Object"), EGPD_Input));
+			K2Schema->TryCreateConnection(SelfPin, CallFuncNode->FindPinChecked(FName("NetOwner"), EGPD_Input));
+		}
+	}
+
+	// OldValue and NewValue pin connections
+	{
+		UK2Node_VariableGet* VariableGetNode = CompilerContext.SpawnIntermediateNode<UK2Node_VariableGet>(SourceNode, SourceGraph);
+		VariableGetNode->VariableReference = VariableReference;
+		VariableGetNode->AllocateDefaultPins();
+		CompilerContext.MessageLog.NotifyIntermediateObjectCreation(VariableGetNode, SourceNode);
+
+		{
+			UEdGraphPin* GetSelfPin = K2Schema->FindSelfPin(*VariableGetNode, EGPD_Input);
+			check(SelfPin && GetSelfPin);
+			if (SelfPin->Direction == EEdGraphPinDirection::EGPD_Output)
+			{
+				K2Schema->TryCreateConnection(SelfPin, GetSelfPin);
+			}
+			else
+			{
+				CompilerContext.CopyPinLinksToIntermediate(*SelfPin, *GetSelfPin);
+			}
+		}
+
+		UEdGraphPin* VariableGetPin = VariableGetNode->FindPinChecked(VariableGetNode->GetVarName(), EGPD_Output);
+		UEdGraphPin* OldValuePin = CallFuncNode->FindPinChecked(FName("OldValue"), EGPD_Input);
+		K2Schema->TryCreateConnection(VariableGetPin, OldValuePin);
+		CallFuncNode->NotifyPinConnectionListChanged(OldValuePin);
+
+		// Force the pin to be the same type (see CustomStructureParam) 
+		UEdGraphPin* NewValuePin = CallFuncNode->FindPinChecked(FName("NewValue"), EGPD_Input);
+		NewValuePin->PinType = OldValuePin->PinType;
+		CompilerContext.CopyPinLinksToIntermediate(*SourceNode->FindPinChecked(VariableReference.GetMemberName(), EGPD_Input), *NewValuePin);
+
+		bool bUseReferenceByRef = NewValuePin->LinkedTo.Num() != 0;
+		K2Schema->TrySetDefaultValue(*CallFuncNode->FindPinChecked(FName("NewValueByRef")), bHasLocalRepNotify ? TEXT("True") : TEXT("False"));
+	}
+
+	// Set Net args pin
+	{
+		K2Schema->TrySetDefaultValue(*CallFuncNode->FindPinChecked(FName("bHasLocalRepNotify")), bHasLocalRepNotify ? TEXT("True") : TEXT("False"));
+		K2Schema->TrySetDefaultValue(*CallFuncNode->FindPinChecked(FName("bShouldFlushDormancyOnSet")), bHasLocalRepNotify ? TEXT("True") : TEXT("False"));
+		K2Schema->TrySetDefaultValue(*CallFuncNode->FindPinChecked(FName("bIsNetProperty")), bHasLocalRepNotify ? TEXT("True") : TEXT("False"));
+	}
+
+	TTuple<UEdGraphPin*, UEdGraphPin*> Result = {CallFuncNode->GetExecPin(), CallFuncNode->GetThenPin()};
+
+	// Assign the other broadcast to generate
+	if (OtherFieldNotifyToTrigger.Num() > 0)
+	{
+		UK2Node_MakeArray*MakeArrayNode = UE::KismetCompiler::Private::MakeArrayNodeForFieldNotificationId(CompilerContext, SourceGraph, SourceNode, CallFuncNode->FindPinChecked(TEXT("ExtraFieldIds")));
+		for (int32 ArgIndex = 0; ArgIndex < OtherFieldNotifyToTrigger.Num(); ++ArgIndex)
+		{
+			const FString& OtherFieldId = OtherFieldNotifyToTrigger[ArgIndex];
+			if (!OtherFieldId.IsEmpty())
+			{
+				// Spawn a "Make Struct" node to create the struct FFieldNotificationId
+				UK2Node_MakeStruct* MakeStuctNode = UE::KismetCompiler::Private::MakeFieldNotificationIdStruct(CompilerContext, SourceGraph, SourceNode, OtherFieldId);
+				UE::KismetCompiler::Private::AddMakeStructToMakeArrayNode(MakeArrayNode, MakeStuctNode, ArgIndex);
+			}
+		}
+	}
+
+	return Result;
+}
+
+TTuple<UEdGraphPin*, UEdGraphPin*> FKismetCompilerUtilities::GenerateBroadcastFieldNotificationNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph, UEdGraphNode* SourceNode, FProperty* Property)
+{
+	UClass* OwnerClass = Property->GetOwnerClass();
+	const FString& FieldNotifyMetaData = Property->GetMetaData(FBlueprintMetadata::MD_FieldNotify);
+	TArray<FString> OtherFieldNotifyToTrigger;
+	FieldNotifyMetaData.ParseIntoArray(OtherFieldNotifyToTrigger, TEXT("|"), true);
+
+	// Broadcast function
+	UK2Node_CallFunction* CallFuncNode = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(SourceNode, SourceGraph);
+	if (OtherFieldNotifyToTrigger.Num() == 0)
+	{
+		CallFuncNode->SetFromFunction(UFieldNotificationLibrary::StaticClass()->FindFunctionByName(GET_MEMBER_NAME_CHECKED(UFieldNotificationLibrary, BroadcastFieldValueChanged)));
+	}
+	else
+	{
+		CallFuncNode->SetFromFunction(UFieldNotificationLibrary::StaticClass()->FindFunctionByName(GET_MEMBER_NAME_CHECKED(UFieldNotificationLibrary, BroadcastFieldsValueChanged)));
+	}
+	CallFuncNode->AllocateDefaultPins();
+
+	const UEdGraphSchema_K2* K2Schema = CompilerContext.GetSchema();
+
+	// Set Self pin connections
+	{
+		UK2Node_Self* SelfNode = CompilerContext.SpawnIntermediateNode<UK2Node_Self>(SourceNode, SourceGraph);
+		SelfNode->AllocateDefaultPins();
+
+		UEdGraphPin* SelfNodePin = SelfNode->FindPinChecked(UEdGraphSchema_K2::PN_Self);
+		K2Schema->TryCreateConnection(SelfNodePin, CallFuncNode->FindPinChecked(FName("Object"), EGPD_Input));
+	}
+
+	TTuple<UEdGraphPin*, UEdGraphPin*> Result = { CallFuncNode->GetExecPin(), CallFuncNode->GetThenPin() };
+
+	// Assign the FieldId
+	if (OtherFieldNotifyToTrigger.Num() == 0)
+	{
+		UK2Node_MakeStruct* MakeStruct = UE::KismetCompiler::Private::MakeFieldNotificationIdStruct(CompilerContext, SourceGraph, SourceNode, Property->GetName());
+		UE::KismetCompiler::Private::MakeLinkFromMakeStructTo(MakeStruct, CallFuncNode->FindPinChecked(TEXT("FieldId")));
+	}
+	else
+	{
+		OtherFieldNotifyToTrigger.Add(Property->GetName());
+		UK2Node_MakeArray* MakeArrayNode = UE::KismetCompiler::Private::MakeArrayNodeForFieldNotificationId(CompilerContext, SourceGraph, SourceNode, CallFuncNode->FindPinChecked(TEXT("FieldIds")));
+		for (int32 ArgIndex = 0; ArgIndex < OtherFieldNotifyToTrigger.Num(); ++ArgIndex)
+		{
+			const FString& OtherFieldId = OtherFieldNotifyToTrigger[ArgIndex];
+			if (!OtherFieldId.IsEmpty())
+			{
+				// Spawn a "Make Struct" node to create the struct FFieldNotificationId
+				UK2Node_MakeStruct* MakeStuctNode = UE::KismetCompiler::Private::MakeFieldNotificationIdStruct(CompilerContext, SourceGraph, SourceNode, OtherFieldId);
+				UE::KismetCompiler::Private::AddMakeStructToMakeArrayNode(MakeArrayNode, MakeStuctNode, ArgIndex);
+			}
+		}
+	}
+
+	return Result;
 }
 
 void FKismetCompilerUtilities::CreateObjectAssignmentStatement(FKismetFunctionContext& Context, UEdGraphNode* Node, FBPTerminal* SrcTerm, FBPTerminal* DstTerm, UEdGraphPin* DstPin)
@@ -1637,6 +1878,15 @@ void FKismetCompilerUtilities::DetectValuesReturnedByRef(const UFunction* Func, 
 			}
 		}
 	}
+}
+
+bool FKismetCompilerUtilities::IsPropertyUsesFieldNotificationSetValueAndBroadcast(const FProperty* Property)
+{
+	return Property->HasMetaData(FBlueprintMetadata::MD_FieldNotify)
+		&& !Property->HasMetaData(FBlueprintMetadata::MD_PropertySetFunction)
+		&& !Property->HasSetter()
+		&& Cast<UBlueprintGeneratedClass>(Property->GetOwnerClass()) != nullptr
+		&& Property->GetOwnerClass()->ImplementsInterface(UNotifyFieldValueChanged::StaticClass());
 }
 
 bool FKismetCompilerUtilities::IsStatementReducible(EKismetCompiledStatementType StatementType)

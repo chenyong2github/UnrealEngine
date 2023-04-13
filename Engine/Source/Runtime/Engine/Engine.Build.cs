@@ -77,6 +77,7 @@ public class Engine : ModuleRules
 				"Core",
 				"CoreOnline",
 				"CoreUObject",
+				"FieldNotification",
 				"NetCore",
 				"ApplicationCore",
 				"ImageCore",

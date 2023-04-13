@@ -5,6 +5,7 @@
 #include "Blueprint/BlueprintPropertyGuidProvider.h"
 #include "CoreMinimal.h"
 #include "Containers/IndirectArray.h"
+#include "FieldNotificationId.h"
 #include "Stats/Stats.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
@@ -673,6 +674,12 @@ public:
 	UPROPERTY()
 	TArray<FBPComponentClassOverride> ComponentClassOverrides;
 
+	/** The name of the properties with FieldNotify */
+	UPROPERTY()
+	TArray<FFieldNotificationId> FieldNotifies;
+
+	int32 FieldNotifiesStartBitNumber = 0;
+
 	/** 'Simple' construction script - graph of components to instance */
 	UPROPERTY()
 	TObjectPtr<class USimpleConstructionScript> SimpleConstructionScript;
@@ -739,6 +746,10 @@ public:
 	static void CreateComponentsForActor(const UClass* ThisClass, AActor* Actor);
 	static void CreateTimelineComponent(AActor* Actor, const UTimelineTemplate* TimelineTemplate);
 
+	/** Called by the UE::FieldNotification::IClassDescriptor. */
+	void ForEachFieldNotify(TFunctionRef<bool(::UE::FieldNotification::FFieldId FieldId)> Callback, bool bIncludeSuper) const;
+	void InitializeFieldNotifies();
+
 #if WITH_EDITOR
 	/**
 	 * Called during serialization to allow the class to stash any sparse class data that needs to 
@@ -753,12 +764,12 @@ public:
 	virtual void ConformSparseClassData(UObject* Object);
 #endif
 
-	// IBlueprintPropertyGuidProvider interface
+	//~ IBlueprintPropertyGuidProvider interface
 	virtual FName FindBlueprintPropertyNameFromGuid(const FGuid& PropertyGuid) const override final;
 	virtual FGuid FindBlueprintPropertyGuidFromName(const FName PropertyName) const override final;
 	// End IBlueprintPropertyGuidProvider interface
 
-	// UObject interface
+	//~ UObject interface
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	virtual void PostInitProperties() override;
@@ -766,7 +777,7 @@ public:
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 #if WITH_EDITOR
 	virtual void PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray<FAssetRegistryTag>& OutTagsAndValuesToUpdate) const;
-#endif // WITH_EDITOR
+#endif //~ WITH_EDITOR
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
 	virtual bool NeedsLoadForServer() const override;
 	virtual bool NeedsLoadForClient() const override;
@@ -776,17 +787,17 @@ public:
 	virtual UClass* RegenerateClass(UClass* ClassToRegenerate, UObject* PreviousCDO) override;
 	virtual void PreSaveRoot(FObjectPreSaveRootContext ObjectSaveContext) override;
 	virtual void PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext) override;
-#endif	//WITH_EDITOR
+#endif	//~ WITH_EDITOR
 	virtual bool IsAsset() const override;
-	// End UObject interface
+	//~ End UObject interface
 
-	// UClass interface
+	//~ UClass interface
 #if WITH_EDITOR
 	virtual UClass* GetAuthoritativeClass() override;
 	virtual void ConditionalRecompileClass(FUObjectSerializeContext* InLoadContext) override;
 	virtual void FlushCompilationQueueForLevel() override;
 	virtual UObject* GetArchetypeForCDO() const override;
-#endif //WITH_EDITOR
+#endif //~ WITH_EDITOR
 	virtual void SerializeDefaultObject(UObject* Object, FStructuredArchive::FSlot Slot) override;
 	virtual void PostLoadDefaultObject(UObject* Object) override;
 	virtual bool IsFunctionImplementedInScript(FName InFunctionName) const override;
@@ -807,7 +818,7 @@ protected:
 	virtual FName FindPropertyNameFromGuid(const FGuid& PropertyGuid) const override;
 	virtual FGuid FindPropertyGuidFromName(const FName InName) const override;
 	virtual bool ArePropertyGuidsAvailable() const override;
-	// End UClass interface
+	//~ End UClass interface
 
 	/**
 	* Returns a linked list of properties with default values that differ from the parent default object. If non-NULL, only these properties will

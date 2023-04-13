@@ -151,17 +151,9 @@ FText UK2Node_VariableSet::GetPropertyTooltip(FProperty const* VariableProperty)
 	FText TextFormat;
 	FFormatNamedArguments Args;
 
-	bool const bHasLocalRepNotify = K2Node_VariableSetImpl::PropertyHasLocalRepNotify(VariableProperty);
-
 	FName VarName = NAME_None;
 	if (VariableProperty != nullptr)
 	{
-		if (bHasLocalRepNotify)
-		{
-			Args.Add(TEXT("ReplicationNotifyName"), FText::FromName(VariableProperty->RepNotifyFunc));
-			TextFormat = LOCTEXT("SetVariableWithRepNotify_Tooltip", "Set the value of variable {VarName} and call {ReplicationNotifyName}");
-		}
-
 		VarName = VariableProperty->GetFName();
 
 		UClass* SourceClass = VariableProperty->GetOwnerClass();
@@ -192,17 +184,43 @@ FText UK2Node_VariableSet::GetPropertyTooltip(FProperty const* VariableProperty)
 			}
 		}
 
+		bool const bHasLocalRepNotify = K2Node_VariableSetImpl::PropertyHasLocalRepNotify(VariableProperty);
+		bool const bFieldNotify = VariableProperty->HasMetaData(FBlueprintMetadata::MD_FieldNotify);
+		if (bHasLocalRepNotify)
+		{
+			Args.Add(TEXT("ReplicationNotifyName"), FText::FromName(VariableProperty->RepNotifyFunc));
+		}
 		if (!SubTooltip.IsEmpty())
 		{
 			Args.Add(TEXT("PropertyTooltip"), SubTooltip);
-			if (bHasLocalRepNotify)
+			if (bHasLocalRepNotify && bFieldNotify)
+			{
+				TextFormat = LOCTEXT("SetVariablePropertyWithRepNotifyWithBroadcast_Tooltip", "Set the value of variable {VarName} and call {ReplicationNotifyName} with broadcast.\n{PropertyTooltip}");
+			}
+			else if (bHasLocalRepNotify)
 			{
 				TextFormat = LOCTEXT("SetVariablePropertyWithRepNotify_Tooltip", "Set the value of variable {VarName} and call {ReplicationNotifyName}\n{PropertyTooltip}");
+			}
+			else if (bFieldNotify)
+			{
+				TextFormat = LOCTEXT("SetVariablePropertyWithBroadcast_Tooltip", "Set the value of variable {VarName} and broadcast.\n{PropertyTooltip}");
 			}
 			else
 			{
 				TextFormat = LOCTEXT("SetVariableProperty_Tooltip", "Set the value of variable {VarName}\n{PropertyTooltip}");
 			}
+		}
+		else if (bHasLocalRepNotify && bFieldNotify)
+		{
+			TextFormat = LOCTEXT("SetVariableWithRepNotifyWithBroadcast_Tooltip", "Set the value of variable {VarName} and call {ReplicationNotifyName} with broadcast.");
+		}
+		else if (bHasLocalRepNotify)
+		{
+			TextFormat = LOCTEXT("SetVariableWithRepNotify_Tooltip", "Set the value of variable {VarName} and call {ReplicationNotifyName}");
+		}
+		else if (bFieldNotify)
+		{
+			TextFormat = LOCTEXT("SetVariableWithBroadcast_Tooltip", "Set the value of variable {VarName} and broadcast");
 		}
 	}
 
@@ -273,10 +291,25 @@ FText UK2Node_VariableSet::GetNodeTitle(ENodeTitleType::Type TitleType) const
 		}
 	}
 
+	const bool bHasLocalRepNotify = HasLocalRepNotify();
+	const bool bIsFieldNotify = IsFieldNotifyProperty();
 	if (NumInputsFound != 1)
 	{
-		return HasLocalRepNotify() ? NSLOCTEXT("K2Node", "SetWithNotify", "Set with Notify") : NSLOCTEXT("K2Node", "Set", "Set");
+		if (bHasLocalRepNotify && bIsFieldNotify)
+		{
+			return NSLOCTEXT("K2Node", "SetWithNotifyWithBroadcast", "Set with Notify and Broadcast");
+		}
+		else if (bHasLocalRepNotify)
+		{
+			return NSLOCTEXT("K2Node", "SetWithNotify", "Set with Notify");
+		}
+		else if (bIsFieldNotify)
+		{
+			return NSLOCTEXT("K2Node", "SetWithBroadcast", "Set with Broadcast");
+		}
+		return NSLOCTEXT("K2Node", "Set", "Set");
 	}
+
 	// @TODO: The variable name mutates as the user makes changes to the 
 	//        underlying property, so until we can catch all those cases, we're
 	//        going to leave this optimization off
@@ -286,9 +319,17 @@ FText UK2Node_VariableSet::GetNodeTitle(ENodeTitleType::Type TitleType) const
 		Args.Add(TEXT("PinName"), FText::FromName(InputPinName));
 
 		// FText::Format() is slow, so we cache this to save on performance
-		if (HasLocalRepNotify())
+		if (bHasLocalRepNotify && bIsFieldNotify)
+		{
+			CachedNodeTitle.SetCachedText(FText::Format(NSLOCTEXT("K2Node", "SetWithNotifyWithBroadcastPinName", "Set with Notify and Broadcast {PinName}"), Args), this);
+		}
+		else if (bHasLocalRepNotify)
 		{
 			CachedNodeTitle.SetCachedText(FText::Format(NSLOCTEXT("K2Node", "SetWithNotifyPinName", "Set with Notify {PinName}"), Args), this);
+		}
+		else if (bIsFieldNotify)
+		{
+			CachedNodeTitle.SetCachedText(FText::Format(NSLOCTEXT("K2Node", "SetWithBroadcastPinName", "Set with Broadcast {PinName}"), Args), this);
 		}
 		else
 		{
@@ -337,6 +378,17 @@ FName UK2Node_VariableSet::GetRepNotifyName() const
 	return NAME_None;
 }
 
+bool UK2Node_VariableSet::IsFieldNotifyProperty() const
+{
+	FProperty* Property = GetPropertyForVariable();
+	return Property ? Property->HasMetaData(FBlueprintMetadata::MD_FieldNotify) : false;
+}
+
+bool UK2Node_VariableSet::HasFieldNotificationBroadcast() const
+{
+	FProperty* Property = GetPropertyForVariable();
+	return Property ? FKismetCompilerUtilities::IsPropertyUsesFieldNotificationSetValueAndBroadcast(Property) : false;
+}
 
 FNodeHandlingFunctor* UK2Node_VariableSet::CreateNodeHandler(FKismetCompilerContext& CompilerContext) const
 {
@@ -445,6 +497,7 @@ void UK2Node_VariableSet::ExpandNode(class FKismetCompilerContext& CompilerConte
 		// If property has a BlueprintSetter accessor, then replace the variable get node with a call function
 		if (VariableProperty)
 		{
+			// todo check with BP team if we need to test if the variable has native Setter
 			const FString& SetFunctionName = VariableProperty->GetMetaData(FBlueprintMetadata::MD_PropertySetFunction);
 			if (!SetFunctionName.IsEmpty())
 			{
@@ -482,6 +535,16 @@ void UK2Node_VariableSet::ExpandNode(class FKismetCompilerContext& CompilerConte
 				check(SetFunctionValuePin);
 
 				CompilerContext.MovePinLinksToIntermediate(*FindPin(GetVarName(), EGPD_Input), *SetFunctionValuePin);
+			}
+			else if (HasFieldNotificationBroadcast())
+			{
+				TTuple<UEdGraphPin*, UEdGraphPin*> ExecThenPins = FKismetCompilerUtilities::GenerateFieldNotificationSetNode(CompilerContext, SourceGraph, this, FindPinChecked(UEdGraphSchema_K2::PN_Self), VariableProperty, VariableReference, HasLocalRepNotify(), ShouldFlushDormancyOnSet(), IsNetProperty());
+
+				// Move Exec pin connections
+				CompilerContext.MovePinLinksToIntermediate(*GetExecPin(), *ExecThenPins.Get<0>());
+
+				// Move Then pin connections
+				CompilerContext.MovePinLinksToIntermediate(*FindPinChecked(UEdGraphSchema_K2::PN_Then, EGPD_Output), *ExecThenPins.Get<1>());
 			}
 		}
 	}

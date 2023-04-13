@@ -280,6 +280,7 @@ const FName FBlueprintMetadata::MD_Namespace(TEXT("Namespace"));
 
 const FName FBlueprintMetadata::MD_ThreadSafe(TEXT("BlueprintThreadSafe"));
 const FName FBlueprintMetadata::MD_NotThreadSafe(TEXT("NotBlueprintThreadSafe"));
+const FName FBlueprintMetadata::MD_FieldNotify(TEXT("FieldNotify"));
 
 //////////////////////////////////////////////////////////////////////////
 

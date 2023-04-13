@@ -287,6 +287,9 @@ public:
 
 	/** Function marked as explicitly not thread-safe. Opts function out of class-level thread-safety checks. */
 	static const FName MD_NotThreadSafe;
+
+	/** Metadata to add the property or function to the FieldNotification system. */
+	static const FName MD_FieldNotify;
 	
 private:
 	// This class should never be instantiated

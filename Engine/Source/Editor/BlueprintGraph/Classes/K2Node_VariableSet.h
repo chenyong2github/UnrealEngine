@@ -52,6 +52,8 @@ class UK2Node_VariableSet : public UK2Node_Variable
 	BLUEPRINTGRAPH_API FName GetRepNotifyName() const;
 	BLUEPRINTGRAPH_API bool ShouldFlushDormancyOnSet() const;
 	BLUEPRINTGRAPH_API bool IsNetProperty() const;
+	BLUEPRINTGRAPH_API bool IsFieldNotifyProperty() const;
+	BLUEPRINTGRAPH_API bool HasFieldNotificationBroadcast() const;
 
 	static FText GetPropertyTooltip(FProperty const* VariableProperty);
 	static FText GetBlueprintVarTooltip(FBPVariableDescription const& VarDesc);

@@ -724,9 +724,12 @@ UFunction* FKCHandler_CallFunction::FindFunction(FKismetFunctionContext& Context
 	return nullptr;
 }
 
-static bool FindMatchingReferencedNetPropertyAndPin(TArray<UEdGraphPin*>& RemainingPins, FProperty* FunctionProperty, FProperty*& NetProperty, UEdGraphPin*& PropertyObjectPin)
+namespace UE::BlueprintGraph::Private
+{
+static bool FindMatchingReferencedNetOrFieldNotifyPropertyAndPin(TArray<UEdGraphPin*>& RemainingPins, FProperty* FunctionProperty, FProperty*& NetProperty, FProperty*& FieldNotifyProperty, UEdGraphPin*& PropertyObjectPin)
 {
 	NetProperty = nullptr;
+	FieldNotifyProperty = nullptr;
 	PropertyObjectPin = nullptr;
 
 	if (UNLIKELY(FunctionProperty->HasAllPropertyFlags(CPF_OutParm | CPF_ReferenceParm) && !FunctionProperty->HasAnyPropertyFlags(CPF_ReturnParm | CPF_ConstParm)))
@@ -735,6 +738,7 @@ static bool FindMatchingReferencedNetPropertyAndPin(TArray<UEdGraphPin*>& Remain
 		{
 			if (FunctionProperty->GetFName() == RemainingPins[i]->PinName)
 			{
+				bool bResult = false;
 				UEdGraphPin* ParamPin = RemainingPins[i];
 				RemainingPins.RemoveAtSwap(i);
 				if (UEdGraphPin* PinToTry = FEdGraphUtilities::GetNetFromPin(ParamPin))
@@ -745,22 +749,31 @@ static bool FindMatchingReferencedNetPropertyAndPin(TArray<UEdGraphPin*>& Remain
 
 					if (UK2Node_VariableGet* GetPropertyNode = Cast<UK2Node_VariableGet>(PinToTry->GetOwningNode()))
 					{
-						FProperty* ToCheck = GetPropertyNode->GetPropertyForVariable();
-						if (UNLIKELY(ToCheck && ToCheck->HasAnyPropertyFlags(CPF_Net)))
+						if (FProperty* ToCheck = GetPropertyNode->GetPropertyForVariable())
 						{
-							NetProperty = ToCheck;
-							PropertyObjectPin = GetPropertyNode->FindPinChecked(UEdGraphSchema_K2::PN_Self);
-							return true;
+							if (UNLIKELY(FKismetCompilerUtilities::IsPropertyUsesFieldNotificationSetValueAndBroadcast(ToCheck)))
+							{
+								FieldNotifyProperty = ToCheck;
+								PropertyObjectPin = GetPropertyNode->FindPinChecked(UEdGraphSchema_K2::PN_Self);
+								bResult = true;
+							}
+							if (UNLIKELY(ToCheck->HasAnyPropertyFlags(CPF_Net)))
+							{
+								NetProperty = ToCheck;
+								PropertyObjectPin = GetPropertyNode->FindPinChecked(UEdGraphSchema_K2::PN_Self);
+								bResult = true;
+							}
 						}
 					}
 				}
 
-				return false;
+				return bResult;
 			}
 		}
 	}
 
 	return false;
+}
 }
 
 void FKCHandler_CallFunction::Transform(FKismetFunctionContext& Context, UEdGraphNode* Node)
@@ -870,6 +883,7 @@ void FKCHandler_CallFunction::Transform(FKismetFunctionContext& Context, UEdGrap
 			if (RemainingPins.Num() > 0)
 			{
 				FProperty* NetProperty = nullptr;
+				FProperty* FieldNotifyProperty = nullptr;
 				UEdGraphPin* PropertyObjectPin = nullptr;
 				UEdGraphPin* OldThenPin = CallFuncNode->GetThenPin();
 
@@ -880,7 +894,7 @@ void FKCHandler_CallFunction::Transform(FKismetFunctionContext& Context, UEdGrap
 				// This is similar to the loop in CreateCallFunction
 				for (TFieldIterator<FProperty> It(Function); It; ++It)
 				{
-					if (FindMatchingReferencedNetPropertyAndPin(RemainingPins, *It, NetProperty, PropertyObjectPin))
+					if (UE::BlueprintGraph::Private::FindMatchingReferencedNetOrFieldNotifyPropertyAndPin(RemainingPins, *It, NetProperty, FieldNotifyProperty, PropertyObjectPin))
 					{
 						if (bIsPure)
 						{
@@ -890,56 +904,64 @@ void FKCHandler_CallFunction::Transform(FKismetFunctionContext& Context, UEdGrap
 							break;
 						}
 
-						if (UEdGraphNode* MarkPropertyDirtyNode = FKCPushModelHelpers::ConstructMarkDirtyNodeForProperty(Context, NetProperty, PropertyObjectPin))
+						if (FieldNotifyProperty)
 						{
-							// bool bWereNodesAdded = false;
-							UEdGraphPin* NewThenPin = MarkPropertyDirtyNode->FindPinChecked(UEdGraphSchema_K2::PN_Then);
-							UEdGraphPin* NewInPin = MarkPropertyDirtyNode->FindPinChecked(UEdGraphSchema_K2::PN_Execute);
+							CompilerContext.MessageLog.Warning(*NSLOCTEXT("KismetCompiler", "RefFieldNotifyProperty_Warning", "@@ references a Field Notify property. The property may not be Broadcast correctly. Consider using a temporary variable.").ToString(), Node);
+						}
 
-							if (ensure(NewThenPin) && ensure(NewInPin))
+						if (NetProperty)
+						{
+							if (UEdGraphNode* MarkPropertyDirtyNode = FKCPushModelHelpers::ConstructMarkDirtyNodeForProperty(Context, NetProperty, PropertyObjectPin))
 							{
-								if (OldThenPin)
+								// bool bWereNodesAdded = false;
+								UEdGraphPin* NewThenPin = MarkPropertyDirtyNode->FindPinChecked(UEdGraphSchema_K2::PN_Then);
+								UEdGraphPin* NewInPin = MarkPropertyDirtyNode->FindPinChecked(UEdGraphSchema_K2::PN_Execute);
+
+								if (ensure(NewThenPin) && ensure(NewInPin))
 								{
-									NewThenPin->CopyPersistentDataFromOldPin(*OldThenPin);
-									OldThenPin->BreakAllPinLinks();
-									OldThenPin->MakeLinkTo(NewInPin);
-
-									OldThenPin = NewThenPin;
-									// bWereNodesAdded = true;
-								}
-								else
-								{
-									// If there's no then pin, we'll instead insert the dirty nodes before the execution
-									// of function with the reference.
-									// This may do weird things with Latent Nodes, so warn about that.
-
-									if (bIsLatent)
+									if (OldThenPin)
 									{
-										CompilerContext.MessageLog.Warning(*NSLOCTEXT("KismetCompiler", "LatentPushModel_Warning", "@@ is a latent node with references to a net property. The property may not be marked dirty in the correct frame.").ToString(), Node);
-									}
+										NewThenPin->CopyPersistentDataFromOldPin(*OldThenPin);
+										OldThenPin->BreakAllPinLinks();
+										OldThenPin->MakeLinkTo(NewInPin);
 
-									UEdGraphPin* OldInPin = CallFuncNode->FindPin(UEdGraphSchema_K2::PN_Execute);
-									if (OldInPin)
-									{
-										NewInPin->CopyPersistentDataFromOldPin(*OldInPin);
-										OldInPin->BreakAllPinLinks();
-
-										NewThenPin->MakeLinkTo(OldInPin);
 										OldThenPin = NewThenPin;
 										// bWereNodesAdded = true;
 									}
-								}
-							}
+									else
+									{
+										// If there's no then pin, we'll instead insert the dirty nodes before the execution
+										// of function with the reference.
+										// This may do weird things with Latent Nodes, so warn about that.
 
-							/*
-							if (!bWereNodesAdded)
-							{
-								// TODO: JDN - Reenable this once we have other edge cases worked out.
-								// This warning is confusing / not necessarily actionable, and could contribute to spam,
-								// but no one currently relies on these features.
-								// CompilerContext.MessageLog.Warning(*NSLOCTEXT("KismetCompiler", "PushModelNoDirty_Warning", "@@ has reference to net properties, but we were unable to generate dirty nodes.").ToString(), Node);
+										if (bIsLatent)
+										{
+											CompilerContext.MessageLog.Warning(*NSLOCTEXT("KismetCompiler", "LatentPushModel_Warning", "@@ is a latent node with references to a net property. The property may not be marked dirty in the correct frame.").ToString(), Node);
+										}
+
+										UEdGraphPin* OldInPin = CallFuncNode->FindPin(UEdGraphSchema_K2::PN_Execute);
+										if (OldInPin)
+										{
+											NewInPin->CopyPersistentDataFromOldPin(*OldInPin);
+											OldInPin->BreakAllPinLinks();
+
+											NewThenPin->MakeLinkTo(OldInPin);
+											OldThenPin = NewThenPin;
+											// bWereNodesAdded = true;
+										}
+									}
+								}
+
+								/*
+								if (!bWereNodesAdded)
+								{
+									// TODO: JDN - Reenable this once we have other edge cases worked out.
+									// This warning is confusing / not necessarily actionable, and could contribute to spam,
+									// but no one currently relies on these features.
+									// CompilerContext.MessageLog.Warning(*NSLOCTEXT("KismetCompiler", "PushModelNoDirty_Warning", "@@ has reference to net properties, but we were unable to generate dirty nodes.").ToString(), Node);
+								}
+								*/
 							}
-							*/
 						}
 					}
 

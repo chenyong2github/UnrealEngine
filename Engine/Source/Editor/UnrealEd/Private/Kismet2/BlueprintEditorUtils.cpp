@@ -2579,6 +2579,24 @@ void FBlueprintEditorUtils::FindImplementedInterfaces(const UBlueprint* Blueprin
 	}
 }
 
+bool FBlueprintEditorUtils::ImplementsInterface(const UBlueprint* Blueprint, bool bIncludeInherited, UClass* InterfaceClass)
+{
+	// First test this blueprint
+	if (Blueprint->ImplementedInterfaces.ContainsByPredicate([InterfaceClass](const FBPInterfaceDescription& ImplementedInterface){ return ImplementedInterface.Interface->IsChildOf(InterfaceClass); }))
+	{
+		return true;
+	}
+
+	if (bIncludeInherited)
+	{
+		if (UClass* BlueprintParent = Blueprint->ParentClass)
+		{
+			return BlueprintParent->ImplementsInterface(InterfaceClass);
+		}
+	}
+	return false;
+}
+
 UClass* const FBlueprintEditorUtils::GetOverrideFunctionClass(UBlueprint* Blueprint, const FName FuncName, UFunction** OutFunction)
 {
 	if (!Blueprint->SkeletonGeneratedClass)
@@ -3604,8 +3622,9 @@ bool FBlueprintEditorUtils::DoesSupportTimelines(const UBlueprint* Blueprint)
 
 bool FBlueprintEditorUtils::DoesSupportEventGraphs(const UBlueprint* Blueprint)
 {
-	return Blueprint->BlueprintType == BPTYPE_Normal 
-		|| Blueprint->BlueprintType == BPTYPE_LevelScript;
+	return Blueprint->SupportsEventGraphs()
+		&& (Blueprint->BlueprintType == BPTYPE_Normal
+			|| Blueprint->BlueprintType == BPTYPE_LevelScript);
 }
 
 /** Returns whether or not the blueprint supports implementing interfaces */

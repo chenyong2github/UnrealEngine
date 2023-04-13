@@ -902,6 +902,17 @@ int32 UK2Node_FunctionEntry::GetFunctionFlags() const
 	return ReturnFlags | ExtraFlags;
 }
 
+namespace UE::BlueprintGraph::Private
+{
+	bool GGenerateFieldNotifyBroadcastForOnRepFunction = true;
+	static FAutoConsoleVariableRef CVarGenerateFieldNotifyBroadcastForOnRepFunction(
+		TEXT("bp.GenerateFieldNotifyBroadcastForOnRepFunction"),
+		GGenerateFieldNotifyBroadcastForOnRepFunction,
+		TEXT("When needed, generate a Broadcast FieldNotification node when the OnRep function is called."),
+		ECVF_Default
+	);
+}
+
 void UK2Node_FunctionEntry::ExpandNode(class FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph)
 {
 	Super::ExpandNode(CompilerContext, SourceGraph);
@@ -916,6 +927,7 @@ void UK2Node_FunctionEntry::ExpandNode(class FKismetCompilerContext& CompilerCon
 	}
 	
 	UEdGraphPin* LastActiveOutputPin = Pins[0];
+	bool bLinkLastPin = false;
 
 	// Only look for FunctionEntry nodes who were duplicated and have a source object
 	if ( UK2Node_FunctionEntry* OriginalNode = Cast<UK2Node_FunctionEntry>(CompilerContext.MessageLog.FindSourceObject(this)) )
@@ -998,11 +1010,31 @@ void UK2Node_FunctionEntry::ExpandNode(class FKismetCompilerContext& CompilerCon
 			}
 		}
 
-		// Finally, hook up the last node to the old node the function entry node was connected to
-		if(OldStartExecPin)
+		bLinkLastPin = true;
+	}
+
+	if (UE::BlueprintGraph::Private::GGenerateFieldNotifyBroadcastForOnRepFunction)
+	{
+		if (FProperty** RepNotifyProperty = CompilerContext.RepNotifyFunctionMap.Find(FunctionReference.GetMemberName()))
 		{
-			LastActiveOutputPin->MakeLinkTo(OldStartExecPin);
+			if ((*RepNotifyProperty)->HasMetaData(FBlueprintMetadata::MD_FieldNotify))
+			{
+				// Generate node to broadcast when the value is changed from the network
+				TTuple<UEdGraphPin*, UEdGraphPin*> ExecThenPins = FKismetCompilerUtilities::GenerateBroadcastFieldNotificationNode(CompilerContext, SourceGraph, this, *RepNotifyProperty);
+
+				LastActiveOutputPin->BreakAllPinLinks();
+				LastActiveOutputPin->MakeLinkTo(ExecThenPins.Get<0>());
+				LastActiveOutputPin = ExecThenPins.Get<1>();
+
+				bLinkLastPin = true;
+			}
 		}
+	}
+
+	// Finally, hook up the last node to the old node the function entry node was connected to
+	if (bLinkLastPin && OldStartExecPin)
+	{
+		LastActiveOutputPin->MakeLinkTo(OldStartExecPin);
 	}
 }
 

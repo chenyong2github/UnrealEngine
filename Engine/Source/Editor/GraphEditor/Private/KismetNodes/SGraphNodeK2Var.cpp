@@ -106,9 +106,19 @@ void SGraphNodeK2Var::UpdateGraphNode()
 	if (GraphNode->IsA(UK2Node_VariableSet::StaticClass()))
 	{
 		UK2Node_VariableSet *SetNode = Cast<UK2Node_VariableSet>(GraphNode);
-		if(SetNode->HasLocalRepNotify())
+		const bool bHasLocalRepNotify = SetNode->HasLocalRepNotify();
+		const bool bIsFieldNotify = SetNode->IsFieldNotifyProperty();
+		if (bHasLocalRepNotify && bIsFieldNotify)
+		{
+			TitleText = NSLOCTEXT("GraphEditor", "VariableSetWithNotifyWithBroadcast", "SET w/ Notify&Broadcast");
+		}
+		else if (bHasLocalRepNotify)
 		{
 			TitleText = NSLOCTEXT("GraphEditor", "VariableSetWithNotify", "SET w/ Notify");
+		}
+		else if (bIsFieldNotify)
+		{
+			TitleText = NSLOCTEXT("GraphEditor", "VariableSetWithBroadcast", "SET w/ Broadcast");
 		}
 		else
 		{
