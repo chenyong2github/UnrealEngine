@@ -850,6 +850,9 @@ protected:
 		FORCEINLINE ItKeyType&   Key() const { return SetIt->Key; }
 		FORCEINLINE ItValueType& Value() const { return SetIt->Value; }
 
+		FORCEINLINE decltype(auto) operator* () const { return SetIt.operator* (); }
+		FORCEINLINE decltype(auto) operator->() const { return SetIt.operator->(); }
+
 	protected:
 		SetItType SetIt;
 	};

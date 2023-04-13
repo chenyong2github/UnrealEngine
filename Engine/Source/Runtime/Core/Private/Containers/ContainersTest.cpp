@@ -401,6 +401,66 @@ namespace
 			check(Cont.IsEmpty());
 			check(Cont.GetAllocatedSize() == InitialAllocatedSize);
 		}
+
+		// Test key iterators
+		{
+			static_assert(std::is_same_v<decltype((Cont.CreateKeyIterator     (DeclVal<KeyType&>())->Key)),         KeyType&>);
+			static_assert(std::is_same_v<decltype((Cont.CreateKeyIterator     (DeclVal<KeyType&>())->Value)),       FContainerTestValueType&>);
+			static_assert(std::is_same_v<decltype((Cont.CreateConstKeyIterator(DeclVal<KeyType&>())->Key)),   const KeyType&>);
+			static_assert(std::is_same_v<decltype((Cont.CreateConstKeyIterator(DeclVal<KeyType&>())->Value)), const FContainerTestValueType&>);
+
+			const TCHAR* RegularValue  = TEXT("Regular");
+			const TCHAR* ReplacedValue = TEXT("Replaced");
+
+			for (int32 Count = 0; Count < MAX_TEST_OBJECTS - 1; Count += MAX_TEST_OBJECTS_STEP)
+			{
+				Cont.Empty();
+				CheckContainer();
+
+				for (int32 N = 0; N != Count; ++N)
+				{
+					Cont.Add(GenerateTestKey<KeyType>(N), FContainerTestValueType(RegularValue));
+					CheckContainer();
+				}
+
+				// Iterate over all possible keys, and some before/after the range [0, Count) that won't exist
+				for (int32 KeyValue = -2; KeyValue < Count + 2; ++KeyValue)
+				{
+					KeyType Key = GenerateTestKey<KeyType>(KeyValue);
+
+					// Check that at most one key is found by the const key iterator
+					const KeyType* FoundConstKey = nullptr;
+					for (auto It = Cont.CreateConstKeyIterator(Key); It; ++It)
+					{
+						check(!FoundConstKey);
+						check(It->Key == Key);
+						FoundConstKey = &It->Key;
+					}
+
+					// Check that at most one key is found by the key iterator, and that we can mutate the value via one
+					KeyType* FoundKey = nullptr;
+					for (auto It = Cont.CreateKeyIterator(Key); It; ++It)
+					{
+						check(!FoundKey);
+						check(It->Key == Key);
+						FoundKey = &It->Key;
+						It->Value.Str = ReplacedValue;
+					}
+
+					// Check that the key iterators found the right element, if any
+					check(FoundKey == FoundConstKey);
+					if (FoundConstKey)
+					{
+						check(KeyValue >= 0 && KeyValue < Count);
+						check(Cont[Key].Str == ReplacedValue);
+					}
+					else
+					{
+						check(KeyValue < 0 || KeyValue >= Count);
+					}
+				}
+			}
+		}
 	}
 
 	// Test container element address consistency when using SortFreeList 

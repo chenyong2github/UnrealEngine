@@ -504,7 +504,7 @@ private:
 	}
 
 	/** Find index of key */
-	FORCEINLINE int32 FindIndex(KeyConstPointerType Key)
+	FORCEINLINE int32 FindIndex(KeyConstPointerType Key) const
 	{
 		return Algo::BinarySearchBy(Pairs, Key, FKeyForward(), SortPredicate());
 	}
@@ -714,25 +714,27 @@ public:
 	/** Iterates over values associated with a specified key in a const map. This will be at most one value because keys must be unique */
 	class TConstKeyIterator : public TBaseIterator<true>
 	{
+		using Super = TBaseIterator<true>;
+
 	public:
 		FORCEINLINE TConstKeyIterator(const TSortedMap& InMap, KeyInitType InKey)
-			: TBaseIterator<true>(InMap.Pairs.CreateIterator())
+			: Super(InMap.Pairs.CreateConstIterator())
 		{
-			int32 NewIndex = FindIndex(InKey);
+			int32 NewIndex = InMap.FindIndex(InKey);
 		
 			if (NewIndex != INDEX_NONE)
 			{
-				TBaseIterator<true>::PairIt += NewIndex;
+				Super::PairIt += NewIndex;
 			}
 			else
 			{
-				TBaseIterator<true>::PairIt.SetToEnd();
+				Super::PairIt.SetToEnd();
 			}
 		}
 
 		FORCEINLINE TConstKeyIterator& operator++()
 		{
-			TBaseIterator<true>::PairIt.SetToEnd();
+			Super::PairIt.SetToEnd();
 			return *this;
 		}
 	};
@@ -740,33 +742,35 @@ public:
 	/** Iterates over values associated with a specified key in a map. This will be at most one value because keys must be unique */
 	class TKeyIterator : public TBaseIterator<false>
 	{
+		using Super = TBaseIterator<false>;
+
 	public:
 		FORCEINLINE TKeyIterator(TSortedMap& InMap, KeyInitType InKey)
-			: TBaseIterator<false>(InMap.Pairs.CreateConstIterator())
+			: Super(InMap.Pairs.CreateIterator())
 		{
-			int32 NewIndex = FindIndex(InKey);
+			int32 NewIndex = InMap.FindIndex(InKey);
 
 			if (NewIndex != INDEX_NONE)
 			{
-				TBaseIterator<true>::PairIt += NewIndex;
+				Super::PairIt += NewIndex;
 			}
 			else
 			{
-				TBaseIterator<true>::PairIt.SetToEnd();
+				Super::PairIt.SetToEnd();
 			}
 		}
 
 		FORCEINLINE TKeyIterator& operator++()
 		{
-			TBaseIterator<false>::PairIt.SetToEnd();
+			Super::PairIt.SetToEnd();
 			return *this;
 		}
 
 		/** Removes the current key-value pair from the map. */
 		FORCEINLINE void RemoveCurrent()
 		{
-			TBaseIterator<false>::PairIt.RemoveCurrent();
-			TBaseIterator<false>::PairIt.SetToEnd();
+			Super::PairIt.RemoveCurrent();
+			Super::PairIt.SetToEnd();
 		}
 	};
 
