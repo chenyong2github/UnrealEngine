@@ -174,7 +174,10 @@ namespace UnrealBuildTool
 			{
 				// read the special ConfigRemap.ini file into sections
 				FileReference ConfigRemapFile = FileReference.Combine(UnrealBuildBase.Unreal.EngineDirectory, "Config", "ConfigRedirects.ini");
-				ReadIntoSections(ConfigRemapFile, Sections, ConfigLineAction.Set);
+				if (FileReference.Exists(ConfigRemapFile))
+				{
+					ReadIntoSections(ConfigRemapFile, Sections, ConfigLineAction.Set);
+				}
 			}
 			catch (Exception)
 			{
