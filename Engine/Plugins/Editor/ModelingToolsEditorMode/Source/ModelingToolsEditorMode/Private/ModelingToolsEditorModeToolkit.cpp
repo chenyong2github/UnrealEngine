@@ -58,6 +58,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "ModelingWidgets/SToolInputAssetComboPanel.h"
 #include "Fonts/SlateFontInfo.h"
+#include "PresetAssetSubsystem.h"
 
 
 #define LOCTEXT_NAMESPACE "FModelingToolsEditorModeToolkit"
@@ -80,12 +81,42 @@ static TAutoConsoleVariable<int32> CVarEnableToolPresets(
 namespace FModelingToolsEditorModeToolkitLocals
 {
 	typedef TFunction<void(UInteractiveToolsPresetCollectionAsset& Preset, UInteractiveTool& Tool)> PresetAndToolFunc;
+	typedef TFunction<void(UInteractiveToolsPresetCollectionAsset& Preset)> PresetOnlyFunc;
+
+	void ExecuteWithPreset(const FSoftObjectPath& PresetPath, PresetOnlyFunc Function)
+	{
+		UInteractiveToolsPresetCollectionAsset* Preset = nullptr;
+
+		UPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UPresetAssetSubsystem>();
+
+		if (PresetPath.IsNull() && ensure(PresetAssetSubsystem))
+		{
+			Preset = PresetAssetSubsystem->GetDefaultCollection();
+		}
+		if (PresetPath.IsAsset())
+		{
+			Preset = Cast<UInteractiveToolsPresetCollectionAsset>(PresetPath.TryLoad());
+		}
+		if (!Preset)
+		{
+			return;
+		}
+		Function(*Preset);
+
+
+	}
 
 	void ExecuteWithPresetAndTool(UEdMode& EdMode, EToolSide ToolSide, const FSoftObjectPath& PresetPath, PresetAndToolFunc Function)
 	{
 		UInteractiveToolsPresetCollectionAsset* Preset = nullptr;		
 		UInteractiveTool* Tool = EdMode.GetToolManager()->GetActiveTool(EToolSide::Left);
 
+		UPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UPresetAssetSubsystem>();
+
+		if (PresetPath.IsNull() && ensure(PresetAssetSubsystem))
+		{
+			Preset = PresetAssetSubsystem->GetDefaultCollection();
+		}
 		if (PresetPath.IsAsset())
 		{
 			Preset = Cast<UInteractiveToolsPresetCollectionAsset>(PresetPath.TryLoad());
@@ -109,6 +140,19 @@ namespace FModelingToolsEditorModeToolkitLocals
 	}
 }
 
+class FRecentPresetCollectionProvider : public SToolInputAssetComboPanel::IRecentAssetsProvider
+{
+	public:
+		//~ SToolInputAssetComboPanel::IRecentAssetsProvider interface		
+		virtual TArray<FAssetData> GetRecentAssetsList() override { return RecentPresetCollectionList; }		
+		virtual void NotifyNewAsset(const FAssetData& NewAsset) {
+			RecentPresetCollectionList.AddUnique(NewAsset);
+		};
+
+	protected:
+		TArray<FAssetData> RecentPresetCollectionList;
+};
+
 FModelingToolsEditorModeToolkit::FModelingToolsEditorModeToolkit()
 {
 	UModelingModeEditableToolPaletteConfig::Initialize();
@@ -116,6 +160,8 @@ FModelingToolsEditorModeToolkit::FModelingToolsEditorModeToolkit()
 
 	UPresetUserSettings::Initialize();
 	UPresetUserSettings::Get()->LoadEditorConfig();
+
+	RecentPresetCollectionProvider = MakeShared< FRecentPresetCollectionProvider>();
 }
 
 FModelingToolsEditorModeToolkit::~FModelingToolsEditorModeToolkit()
@@ -138,6 +184,8 @@ FModelingToolsEditorModeToolkit::~FModelingToolsEditorModeToolkit()
 	Settings->OnModified.Remove(AssetSettingsModifiedHandle);
 	GetScriptableEditorMode()->GetInteractiveToolsContext(EToolsContextScope::EdMode)->OnToolNotificationMessage.RemoveAll(this);
 	GetScriptableEditorMode()->GetInteractiveToolsContext(EToolsContextScope::EdMode)->OnToolWarningMessage.RemoveAll(this);
+
+	RecentPresetCollectionProvider = nullptr;
 }
 
 
@@ -540,7 +588,7 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 		GetToolkitHost()->AddViewportOverlayWidget(SelectionPaletteOverlayWidget.ToSharedRef());
 	}
 
-	CurrentPreset = FSoftObjectPath(FTopLevelAssetPath("/ToolPresets/Presets/_DefaultCollection", "_DefaultCollection"));
+	CurrentPreset = FSoftObjectPath(); // Default to the default collection by leaving this null.
 }
 
 void FModelingToolsEditorModeToolkit::MakeToolShutdownOverlayWidget()
@@ -954,48 +1002,45 @@ TSharedRef<SWidget> FModelingToolsEditorModeToolkit::GetPresetCreateButtonConten
 			.AutoHeight()
 			.Padding(5.0f)
 			[
-				SNew(SExpandableArea)
-				.AreaTitle(FText::FromString("Advanced"))
-			    .InitiallyCollapsed(true)
-				.BodyContent()
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
 				[
-
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
+					SNew(SToolInputAssetComboPanel)
+					.AssetClassType(UInteractiveToolsPresetCollectionAsset::StaticClass())
+					.OnSelectionChanged(this, &FModelingToolsEditorModeToolkit::HandlePresetAssetChanged)
+					.ToolTipText(LOCTEXT("ToolPresets_CreatePresetCollection_Tooltip", "The asset in which to store this new preset."))
+					//.RecentAssetsProvider(RecentPresetCollectionProvider) // TODO: Improve this widget before enabling this feature
+					.FlyoutTileSize(FVector2D(80, 80))
+					.ComboButtonTileSize(FVector2D(80, 80))
+				]
+				+ SHorizontalBox::Slot()
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(10, 5)
 					[
-						SNew(SToolInputAssetComboPanel)
-						.AssetClassType(UInteractiveToolsPresetCollectionAsset::StaticClass())
-						.OnSelectionChanged(this, &FModelingToolsEditorModeToolkit::HandlePresetAssetChanged)
-						.ToolTipText(LOCTEXT("ToolPresets_CreatePresetCollection_Tooltip", "The asset in which to store this new preset."))
-						.FlyoutTileSize(FVector2D(80, 80))
-						.ComboButtonTileSize(FVector2D(80, 80))
-						.InitiallySelectedAsset( FAssetData(FName("/ToolPresets/Presets/_DefaultCollection"),
-															FName("/ToolPresets/Presets"),
-															FName("_DefaultCollection"),
-															UInteractiveToolsPresetCollectionAsset::StaticClass()->GetClassPathName() ))
+						SNew(STextBlock)
+						.Text(LOCTEXT("ToolPresets_CreatePresetCollection", "Collection"))
+						.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(),12, "Bold"))
 					]
-					+ SHorizontalBox::Slot()
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(10, 5)
 					[
-						SNew(SVerticalBox)
-						+ SVerticalBox::Slot()
-						.AutoHeight()
-						.Padding(10, 5)
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("ToolPresets_CreatePresetCollection", "Collection"))
-							.Font(FSlateFontInfo(FCoreStyle::GetDefaultFont(),12, "Bold"))
-						]
-						+ SVerticalBox::Slot()
-						.AutoHeight()
-						.Padding(10, 5)
-						[
-							SNew(STextBlock)
-							.Text_Lambda([this]() { return CurrentPresetLabel; })
-						]
-
+						SNew(STextBlock)
+						.Text_Lambda([this](){
+						if (CurrentPresetLabel.IsEmpty())
+						{
+							return LOCTEXT("NewPresetNoCollectionSpecifiedMessage", "None - Preset will be added to Editor Presets.");
+						}
+						else {
+							return CurrentPresetLabel;
+						}})
 					]
-				]		
+
+				]					
 			],
 			FolderDialogArguments, true);
 
@@ -1017,15 +1062,10 @@ TSharedRef<SWidget> FModelingToolsEditorModeToolkit::GetPresetCreateButtonConten
 		FPresetsByNameMap PresetsByCollectionName;
 		for (TSharedPtr<FToolPresetOption> ToolPresetOption : AvailablePresetsForTool)
 		{
-			UInteractiveToolsPresetCollectionAsset* Preset = nullptr;
-			if (ToolPresetOption->PresetCollection.IsAsset())
-			{
-				Preset = Cast<UInteractiveToolsPresetCollectionAsset>(ToolPresetOption->PresetCollection.TryLoad());
-			}
-			if (Preset)
-			{
-				PresetsByCollectionName.FindOrAdd(Preset->CollectionLabel.ToString()).Add(ToolPresetOption);
-			}
+			FModelingToolsEditorModeToolkitLocals::ExecuteWithPreset(ToolPresetOption->PresetCollection,
+				[this, &PresetsByCollectionName, &ToolPresetOption](UInteractiveToolsPresetCollectionAsset& Preset) {
+					PresetsByCollectionName.FindOrAdd(Preset.CollectionLabel.ToString()).Add(ToolPresetOption);
+				});
 		}
 
 		for (FPresetsByNameMap::TConstIterator Iterator = PresetsByCollectionName.CreateConstIterator(); Iterator; ++Iterator)
@@ -1151,7 +1191,7 @@ void FModelingToolsEditorModeToolkit::RebuildPresetListForTool(bool bSettingsOpe
 	TSet<FSoftObjectPath> AvailablePresetCollections = UserSettings->EnabledPresetCollections.Intersect( ProjectSettings->LoadedPresetCollections.Union(AllUserPresets));
 	if (UserSettings->bDefaultCollectionEnabled)
 	{
-		AvailablePresetCollections.Add(UserSettings->DefaultCollectionPath);
+		AvailablePresetCollections.Add(FSoftObjectPath());
 	}
 
 
@@ -1257,6 +1297,12 @@ void FModelingToolsEditorModeToolkit::CreateNewPresetInCollection(const FString&
 		AvailablePresetsForTool.Add(NewOption);
 		
 	});
+
+	UPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UPresetAssetSubsystem>();
+	if (CollectionPath.IsNull() && ensure(PresetAssetSubsystem))
+	{
+		ensure(PresetAssetSubsystem->SaveDefaultCollection());
+	}
 }
 
 void FModelingToolsEditorModeToolkit::UpdatePresetInCollection(const FToolPresetOption& PresetToEditIn, bool bUpdateStoredPresetValues)
@@ -1285,6 +1331,12 @@ void FModelingToolsEditorModeToolkit::UpdatePresetInCollection(const FToolPreset
 		});
 
 	RebuildPresetListForTool(false);
+
+	UPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UPresetAssetSubsystem>();
+	if (PresetToEditIn.PresetCollection.IsNull() && ensure(PresetAssetSubsystem))
+	{
+		ensure(PresetAssetSubsystem->SaveDefaultCollection());
+	}
 }
 
 

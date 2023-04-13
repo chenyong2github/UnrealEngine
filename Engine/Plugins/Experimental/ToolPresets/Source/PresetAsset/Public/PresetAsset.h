@@ -7,6 +7,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
 #include "AssetToolsModule.h"
+#include "EditorConfigBase.h"
 
 #include "PresetAsset.generated.h"
 
@@ -17,13 +18,13 @@ struct PRESETASSET_API FInteractiveToolPresetDefintion
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(VisibleAnywhere, Category = "PresetAsset")
+	UPROPERTY(VisibleAnywhere, Category = "PresetAsset", meta = (EditorConfig))
 	FString StoredProperties;
 
-	UPROPERTY(EditAnywhere, Category = "PresetAsset")
+	UPROPERTY(EditAnywhere, Category = "PresetAsset", meta = (EditorConfig))
 	FString Label;
 
-	UPROPERTY(EditAnywhere, Category = "PresetAsset")
+	UPROPERTY(EditAnywhere, Category = "PresetAsset", meta = (EditorConfig))
 	FString Tooltip;
 
 	bool IsValid() const;
@@ -36,22 +37,22 @@ struct PRESETASSET_API FInteractiveToolPresetStore
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(EditAnywhere, Category = "PresetAsset")
+	UPROPERTY(EditAnywhere, Category = "PresetAsset", meta = (EditorConfig))
 	TArray<FInteractiveToolPresetDefintion> NamedPresets;
 
-	UPROPERTY(VisibleAnywhere, Category = "PresetAsset")
+	UPROPERTY(VisibleAnywhere, Category = "PresetAsset", meta = (EditorConfig))
 	FText ToolLabel;
 
-	UPROPERTY(VisibleAnywhere, Category = "PresetAsset")
+	UPROPERTY(VisibleAnywhere, Category = "PresetAsset", meta = (EditorConfig))
 	FSlateBrush ToolIcon;
 };
 
 /**
  * Implements an asset that can be used to store tool settings as a named preset
  */
-UCLASS(BlueprintType, hidecategories=(Object))
-class PRESETASSET_API UInteractiveToolsPresetCollectionAsset
-	: public UObject
+UCLASS(BlueprintType, hidecategories=(Object), EditorConfig = "UInteractiveToolsPresetCollectionAsset_DefaultCollection")
+class PRESETASSET_API UInteractiveToolsPresetCollectionAsset 
+	: public UEditorConfigBase
 {
 	GENERATED_BODY()
 
@@ -64,10 +65,10 @@ public:
 	// Once we are satisifed with the data structure, planned accessors and mutators will include
 	// support for adding, removing, renaming, saving and retrieving presets.
 
-	UPROPERTY(VisibleAnywhere, Category = "PresetAsset")
+	UPROPERTY(VisibleAnywhere, Category = "PresetAsset", meta = (EditorConfig) )
 	TMap<FString, FInteractiveToolPresetStore > PerToolPresets;
 
-	UPROPERTY(EditAnywhere, Category = "PresetAsset")
+	UPROPERTY(EditAnywhere, Category = "PresetAsset", meta = (EditorConfig))
 	FText CollectionLabel;
 };
 

@@ -19,14 +19,13 @@ public:
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "Interactive Tool Presets|Collections", meta = (EditorConfig, AllowedClasses = "/Script/PresetAsset.InteractiveToolsPresetCollectionAsset"))
-	TSet<FSoftObjectPath> EnabledPresetCollections;// = { FSoftObjectPath(FTopLevelAssetPath("/ToolPresets/Presets/_DefaultCollection", "_DefaultCollection")) };
+	TSet<FSoftObjectPath> EnabledPresetCollections;
 
-	// TODO: Ideally the above property would be able to store if the default collection was enabled or not.
-	// However, currently the EditorConfig system has some trouble with defaults and array/set properties.
-	// To overcome this, we store it separately which doesn't seem to break as badly.
-
-	UPROPERTY(VisibleAnywhere, Category = "Interactive Tool Presets|Collections", meta = (EditorConfig, AllowedClasses = "/Script/PresetAsset.InteractiveToolsPresetCollectionAsset"))
-	FSoftObjectPath DefaultCollectionPath = FSoftObjectPath(FTopLevelAssetPath("/ToolPresets/Presets/_DefaultCollection", "_DefaultCollection"));
+	//~ Ideally the above property would be able to store if the default collection was enabled or not.
+	//~ 
+	//~ However, the default collection itself is stored via an alternative JSON representation, accessed through the PresetAssetSubsystem,
+	//~ to avoid issues with automatic asset generation. Therefore it doesn't have a "path" in the traditional sense that the other collections
+	//~ do, requiring a separate tracking of it's enabled/disabled status.
 
 	UPROPERTY(EditAnywhere, Category = "Interactive Tool Presets|Collections", meta = (EditorConfig))
 	bool bDefaultCollectionEnabled = true;
@@ -40,7 +39,7 @@ private:
 
 
 /**
- * Implements the settings for the PresetEditor.
+ * Implements the settings for the Project Preset Collections.
  */
 UCLASS(config = Editor)
 class PRESETEDITOR_API UPresetProjectSettings

@@ -19,7 +19,7 @@ class SVerticalBox;
 class SEditableTextBox;
 template<class ItemType> class STreeView;
 template<class ItemType> class SListView;
-
+class UInteractiveToolsPresetCollectionAsset;
 
 
 /**
@@ -55,6 +55,7 @@ public:
 		// Used for Collections/Tool Entries
 		bool bEnabled = false;
 		FSoftObjectPath CollectionPath;
+		bool bIsDefaultCollection = false;
 		FText EntryLabel;
 		FSlateBrush EntryIcon;
 		int32 Count = 0;
@@ -102,6 +103,7 @@ public:
 			bool bIsEqual = 
 				 EntryType == Other.EntryType &&
 				 CollectionPath == Other.CollectionPath &&
+				 bIsDefaultCollection == Other.bIsDefaultCollection &&
 				 Count == Other.Count &&
 				 ToolName.Equals(Other.ToolName) &&
 				 PresetIndex == Other.PresetIndex &&
@@ -121,6 +123,7 @@ public:
 			bool bIsEqual = bEnabled == Other.bEnabled &&
 				 EntryType == Other.EntryType &&
 				 CollectionPath == Other.CollectionPath &&
+				 bIsDefaultCollection == Other.bIsDefaultCollection && 
 				 Count == Other.Count &&
 				 EntryLabel.EqualTo(Other.EntryLabel) &&
 				 ToolName.Equals(Other.ToolName) &&
@@ -135,6 +138,16 @@ public:
 			}
 
 			return bIsEqual;
+		}
+
+		FPresetViewEntry& Root()
+		{
+			FPresetViewEntry* ActiveNode = this;
+			while (ActiveNode->Parent)
+			{
+				ActiveNode = ActiveNode->Parent.Get();
+			}
+			return *ActiveNode;
 		}
 	};
 
@@ -159,6 +172,8 @@ public:
 protected:
 
 private:
+
+	void RegeneratePresetTrees();
 
 	int32 GetTotalPresetCount() const;
 
@@ -186,6 +201,9 @@ private:
 	const FSlateBrush* GetUserCollectionsExpanderImage() const;
 	const FSlateBrush* GetExpanderImage(TSharedPtr<SWidget> ExpanderWidget, bool bIsUserCollections) const;
 
+	UInteractiveToolsPresetCollectionAsset* GetCollectionFromEntry(TSharedPtr<FPresetViewEntry> Entry);
+	void SaveIfDefaultCollection(TSharedPtr<FPresetViewEntry> Entry);
+
 private:
 
 	TWeakObjectPtr<UPresetUserSettings> UserSettings;
@@ -199,6 +217,10 @@ private:
 	TSharedPtr<SButton> UserCollectionsExpander;
 	TArray< TSharedPtr< FPresetViewEntry > > UserCollectionsDataList;
 	TSharedPtr<STreeView<TSharedPtr<FPresetViewEntry> > > UserPresetCollectionTreeView;
+
+	TArray< TSharedPtr< FPresetViewEntry > > EditorCollectionsDataList;
+	TSharedPtr<STreeView<TSharedPtr<FPresetViewEntry> > > EditorPresetCollectionTreeView;
+
 
 	TArray< TSharedPtr< FPresetViewEntry > > PresetDataList;
 	TSharedPtr<SListView<TSharedPtr<FPresetViewEntry> > > PresetListView;

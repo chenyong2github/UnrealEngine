@@ -59,8 +59,6 @@ public:
 	{
 		// Register slate style overrides
 		FPresetEditorStyle::Initialize();
-
-		GenerateDefaultCollection();
 	}
 
 	virtual bool SupportsDynamicReloading() override
@@ -86,45 +84,7 @@ private:
 		return DockTab;
 	}
 
-	void GenerateDefaultCollection()
-	{
-		// Load necessary modules
-		FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
-		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
-		TArray<FAssetData> AssetData;
-
-		// Find (or create!) the desired package for this object
-		FString PackageName = "/ToolPresets/Presets/_DefaultCollection";
-		FString ObjectName = "_DefaultCollection";
-		const FString PackagePath = FPackageName::GetLongPackagePath(PackageName);
-
-		// Handle fully loading packages before creating new objects.
-		UPackage* Pkg = CreatePackage(*PackageName);
-		TArray<UPackage*> TopLevelPackages;
-		TopLevelPackages.Add(Pkg);
-		UPackageTools::HandleFullyLoadingPackages(TopLevelPackages, LOCTEXT("CreateANewObject", "Create a new object"));
-
-		// Check for an existing object
-		UObject* ExistingObject = StaticFindObject(UObject::StaticClass(), Pkg, *ObjectName);
-
-		if (!ExistingObject)
-		{
-			// Create object and package
-			UInteractiveToolsPresetCollectionAssetFactory* MyFactory = NewObject<UInteractiveToolsPresetCollectionAssetFactory>(UInteractiveToolsPresetCollectionAssetFactory::StaticClass()); // Can omit, and a default factory will be used
-			UObject* NewObject = AssetToolsModule.Get().CreateAsset(ObjectName, PackagePath, UInteractiveToolsPresetCollectionAsset::StaticClass(), MyFactory);
-			UInteractiveToolsPresetCollectionAsset* NewCollection = ExactCast<UInteractiveToolsPresetCollectionAsset>(NewObject);
-			NewCollection->CollectionLabel = FText::FromString("Default Collection");
-			FSavePackageArgs SavePackageArgs;
-			SavePackageArgs.TopLevelFlags = RF_Public | RF_Standalone;
-			UPackage::Save(Pkg, NewObject, *FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension()), SavePackageArgs);
-
-			// Inform asset registry
-			AssetRegistry.AssetCreated(NewObject);
-		}
-	}
 };
 
 #undef LOCTEXT_NAMESPACE

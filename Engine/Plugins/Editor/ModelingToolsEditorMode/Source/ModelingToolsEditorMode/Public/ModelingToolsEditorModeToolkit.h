@@ -18,6 +18,7 @@ class SButton;
 class STextBlock;
 class UGeometrySelectionManager;
 class UInteractiveToolsPresetCollectionAsset;
+class FRecentPresetCollectionProvider;
 
 struct FToolPresetOption
 {
@@ -159,6 +160,7 @@ private:
 
 	TArray<TSharedPtr<FToolPresetOption>> AvailablePresetsForTool;
 	TSharedPtr<SEditableComboBox<TSharedPtr<FString>>> PresetComboBox;
+	TSharedPtr<FRecentPresetCollectionProvider> RecentPresetCollectionProvider;
 
 	TSharedRef<SWidget> GetPresetCreateButtonContent();
 

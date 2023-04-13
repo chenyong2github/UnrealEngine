@@ -25,7 +25,7 @@ public class PresetAsset: ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core",
+				"Core",				
 			}
 			);
 			
@@ -41,6 +41,8 @@ public class PresetAsset: ModuleRules
 				"AssetDefinition",
 				"JsonUtilities",
 				"Json",
+				"EditorSubsystem",
+				"EditorConfig",
 			}
 			);
 		

@@ -31,6 +31,9 @@
 #include "SNegativeActionButton.h"
 #include "SPositiveActionButton.h"
 #include "PresetEditorStyle.h"
+#include "PresetAssetSubsystem.h"
+
+
 
 #define LOCTEXT_NAMESPACE "SPresetManager"
 
@@ -150,6 +153,16 @@ namespace PresetManagerLocals
 						[
 							SNew(STextBlock)
 							.Text(ViewEntry->EntryLabel)
+							.Font_Lambda([this]() {
+								if (ViewEntry->EntryType == EEntryType::Collection && ViewEntry->bIsDefaultCollection)
+								{
+									return FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("Text.Large").Font;
+								}
+								else
+								{
+									return FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText").Font;
+								}
+							})
 						]
 
 
@@ -381,7 +394,35 @@ void SPresetManager::Construct( const FArguments& InArgs )
 					.Value(0.4f)
 					.Resizable(false)
 						[
-							SNew(SVerticalBox)												
+							SNew(SVerticalBox)		
+								+ SVerticalBox::Slot()
+									.FillHeight(1.0f)
+								[
+			
+											SAssignNew(EditorPresetCollectionTreeView, STreeView<TSharedPtr<FPresetViewEntry> >)
+												.ItemHeight(32.0f)
+												.TreeItemsSource(&EditorCollectionsDataList)
+												.SelectionMode(ESelectionMode::Single)
+												.OnGenerateRow(this, &SPresetManager::HandleTreeGenerateRow)
+												.OnGetChildren(this, &SPresetManager::HandleTreeGetChildren)
+												.OnSelectionChanged(this, &SPresetManager::HandleUserTreeSelectionChanged)
+												.HeaderRow
+												(
+													SNew(SHeaderRow)
+													.Visibility(EVisibility::Collapsed)
+
+													+ SHeaderRow::Column("Collection")
+													.FixedWidth(150.0f)
+													.HeaderContent()
+													[
+														SNew(STextBlock)
+														.Text(LOCTEXT("PresetManagerCollectionTitleHeader", "Collection"))
+													]
+
+
+												)											
+								]
+
 								+ SVerticalBox::Slot()
 								.AutoHeight()
 								[
@@ -713,6 +754,16 @@ void SPresetManager::Construct( const FArguments& InArgs )
 		];
 
 		DeleteUserPresetButton->SetEnabled(false);
+		RegeneratePresetTrees();
+		if (UserCollectionsDataList.Num() == 0)
+		{
+			bAreUserCollectionsExpanded = false;
+		}
+		if (ProjectCollectionsDataList.Num() == 0)
+		{
+			bAreProjectCollectionsExpanded = false;
+		}
+
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -721,6 +772,11 @@ SPresetManager::~SPresetManager()
 }
 
 void SPresetManager::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	RegeneratePresetTrees();
+}
+
+void SPresetManager::RegeneratePresetTrees()
 {
 	if (!ensure(UserSettings.IsValid()))
 	{
@@ -734,59 +790,73 @@ void SPresetManager::Tick(const FGeometry& AllottedGeometry, const double InCurr
 
 	TotalPresetCount = 0;
 
-	auto GenerateTreeEntries = [this](TArray<FSoftObjectPath>& AssetList,
+	auto GenerateSubTree = [this](UInteractiveToolsPresetCollectionAsset* PresetCollection, TSharedPtr<FPresetViewEntry> RootEntry)
+	{
+		TMap<FString, FInteractiveToolPresetStore >::TIterator ToolNameIter = PresetCollection->PerToolPresets.CreateIterator();
+		for (; (bool)ToolNameIter; ++ToolNameIter)
+		{
+			int32 ToolCount = 0;
+			for (int32 PresetIndex = 0; PresetIndex < ToolNameIter.Value().NamedPresets.Num(); ++PresetIndex)
+			{
+				ToolCount += ToolNameIter.Value().NamedPresets[PresetIndex].IsValid() ? 1 : 0;
+			}
+			if (ToolCount)
+			{
+				RootEntry->Children.Add(MakeShared<FPresetViewEntry>(
+					ToolNameIter.Value().ToolLabel,
+					ToolNameIter.Value().ToolIcon,
+					RootEntry->CollectionPath,
+					ToolNameIter.Key(),
+					ToolCount));
+				RootEntry->Children.Last()->Parent = RootEntry;
+				RootEntry->Count += ToolCount;
+				TotalPresetCount += ToolCount;
+			}
+		}
+
+	};
+
+	auto GenerateTreeEntries = [this, &GenerateSubTree](TObjectPtr<UInteractiveToolsPresetCollectionAsset> DefaultCollection,
+		TArray<FSoftObjectPath>* AssetList,
 		TArray< TSharedPtr< FPresetViewEntry > >& TreeList,
 		TSharedPtr<STreeView<TSharedPtr<FPresetViewEntry> > >& TreeView)
 	{
-		AssetList.RemoveAll([](const FSoftObjectPath& Path) { return !Path.IsAsset(); });
-		
 		bool bTreeNeedsRefresh = false;
 		TArray< TSharedPtr< FPresetViewEntry > > TempTreeDataList;
-		for (const FSoftObjectPath& Path : AssetList)
-		{
-			UInteractiveToolsPresetCollectionAsset* PresetCollection = nullptr;
 
-			if (Path.IsAsset())
+		if (DefaultCollection)
+		{
+			TSharedPtr<FPresetViewEntry> CollectionEntry = MakeShared<FPresetViewEntry>(
+				UserSettings->bDefaultCollectionEnabled,
+				FSoftObjectPath(),
+				DefaultCollection->CollectionLabel,
+				0);
+			CollectionEntry->bIsDefaultCollection = true;
+			GenerateSubTree(DefaultCollection, CollectionEntry);
+			TempTreeDataList.Add(CollectionEntry);
+		}
+
+		if (AssetList)
+		{
+			AssetList->RemoveAll([](const FSoftObjectPath& Path) { return !Path.IsAsset(); });
+
+			for (const FSoftObjectPath& Path : *AssetList)
 			{
-				PresetCollection = Cast<UInteractiveToolsPresetCollectionAsset>(Path.TryLoad());
-			}
-			if (PresetCollection)
-			{
-				if (Path == UserSettings->DefaultCollectionPath)
+				UInteractiveToolsPresetCollectionAsset* PresetCollection = nullptr;
+
+				if (Path.IsAsset())
 				{
-					TempTreeDataList.Add(MakeShared<FPresetViewEntry>(
-						UserSettings->bDefaultCollectionEnabled,
-						Path,
-						PresetCollection->CollectionLabel,
-						0));
+					PresetCollection = Cast<UInteractiveToolsPresetCollectionAsset>(Path.TryLoad());
 				}
-				else
+				if (PresetCollection)
 				{
-					TempTreeDataList.Add(MakeShared<FPresetViewEntry>(
+					TSharedPtr<FPresetViewEntry> CollectionEntry = MakeShared<FPresetViewEntry>(
 						UserSettings->EnabledPresetCollections.Contains(Path),
 						Path,
 						PresetCollection->CollectionLabel,
-						0));
-				}
-
-				TMap<FString, FInteractiveToolPresetStore >::TIterator ToolNameIter = PresetCollection->PerToolPresets.CreateIterator();
-				for (; (bool)ToolNameIter; ++ToolNameIter)
-				{
-					int32 ToolCount = 0;
-					for (int32 PresetIndex = 0; PresetIndex < ToolNameIter.Value().NamedPresets.Num(); ++PresetIndex)
-					{
-						ToolCount += ToolNameIter.Value().NamedPresets[PresetIndex].IsValid() ? 1 : 0;
-					}
-
-					TempTreeDataList.Last()->Children.Add(MakeShared<FPresetViewEntry>(
-						ToolNameIter.Value().ToolLabel,
-						ToolNameIter.Value().ToolIcon,
-						Path,
-						ToolNameIter.Key(),
-						ToolCount));
-					TempTreeDataList.Last()->Children.Last()->Parent = TempTreeDataList.Last();
-					TempTreeDataList.Last()->Count += ToolCount;
-					TotalPresetCount += ToolCount;
+						0);
+					GenerateSubTree(PresetCollection, CollectionEntry);
+					TempTreeDataList.Add(CollectionEntry);
 				}
 			}
 		}
@@ -816,7 +886,7 @@ void SPresetManager::Tick(const FGeometry& AllottedGeometry, const double InCurr
 		for (TSharedPtr<FPresetViewEntry>& Entry : TreeList)
 		{
 			Entry->bEnabled = UserSettings->EnabledPresetCollections.Contains(Entry->CollectionPath);
-			if (Entry->CollectionPath == UserSettings->DefaultCollectionPath)
+			if (Entry->bIsDefaultCollection)
 			{
 				Entry->bEnabled = UserSettings->bDefaultCollectionEnabled;
 			}
@@ -827,8 +897,17 @@ void SPresetManager::Tick(const FGeometry& AllottedGeometry, const double InCurr
 		}
 	};
 
-	GenerateTreeEntries(AvailablePresetCollections, ProjectCollectionsDataList, ProjectPresetCollectionTreeView);
-	GenerateTreeEntries(AvailableUserPresetCollections, UserCollectionsDataList, UserPresetCollectionTreeView);
+	// Handle the default collection
+	UPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UPresetAssetSubsystem>();
+	TObjectPtr<UInteractiveToolsPresetCollectionAsset> DefaultCollection = nullptr;
+	if (ensure(PresetAssetSubsystem))
+	{
+		DefaultCollection = PresetAssetSubsystem->GetDefaultCollection();
+	}
+
+	GenerateTreeEntries(nullptr, &AvailablePresetCollections, ProjectCollectionsDataList, ProjectPresetCollectionTreeView);
+	GenerateTreeEntries(nullptr, &AvailableUserPresetCollections, UserCollectionsDataList, UserPresetCollectionTreeView);
+	GenerateTreeEntries(DefaultCollection, nullptr, EditorCollectionsDataList, EditorPresetCollectionTreeView);
 
 }
 
@@ -858,6 +937,7 @@ void SPresetManager::GeneratePresetList(TSharedPtr<FPresetViewEntry> TreeEntry)
 	PresetDataList.Empty();
 	PresetListView->RequestListRefresh();
 	bHasActiveCollection = false;
+	ActivePresetToEdit = nullptr;
 
 	if (!TreeEntry)
 	{
@@ -867,12 +947,8 @@ void SPresetManager::GeneratePresetList(TSharedPtr<FPresetViewEntry> TreeEntry)
 	if (TreeEntry->EntryType == FPresetViewEntry::EEntryType::Collection ||
 		TreeEntry->EntryType == FPresetViewEntry::EEntryType::Tool)
 	{
-		UInteractiveToolsPresetCollectionAsset* PresetCollection = nullptr;
+		UInteractiveToolsPresetCollectionAsset* PresetCollection = GetCollectionFromEntry(TreeEntry);
 
-		if (TreeEntry->CollectionPath.IsAsset())
-		{
-			PresetCollection = Cast<UInteractiveToolsPresetCollectionAsset>(TreeEntry->CollectionPath.TryLoad());
-		}
 		if (PresetCollection)
 		{
 			if (TreeEntry->EntryType == FPresetViewEntry::EEntryType::Collection)
@@ -896,6 +972,7 @@ void SPresetManager::GeneratePresetList(TSharedPtr<FPresetViewEntry> TreeEntry)
 								ToolNameIter.Value().NamedPresets[PresetIndex].Tooltip,
 								FText::FromString(ToolNameIter.Value().NamedPresets[PresetIndex].Label)
 								));
+							PresetDataList.Last()->Parent = TreeEntry;
 							PresetDataList.Last()->CollectionPath = TreeEntry->CollectionPath;
 							PresetDataList.Last()->EntryIcon = ToolNameIter.Value().ToolIcon;
 						}
@@ -925,6 +1002,7 @@ void SPresetManager::GeneratePresetList(TSharedPtr<FPresetViewEntry> TreeEntry)
 							ToolData->NamedPresets[PresetIndex].Tooltip,
 							FText::FromString(ToolData->NamedPresets[PresetIndex].Label)
 							));
+						PresetDataList.Last()->Parent = TreeEntry;
 						PresetDataList.Last()->CollectionPath = TreeEntry->CollectionPath;
 						PresetDataList.Last()->EntryIcon = TreeEntry->EntryIcon;
 					}
@@ -954,7 +1032,7 @@ void SPresetManager::HandleUserTreeSelectionChanged(TSharedPtr<FPresetViewEntry>
 	DeleteUserPresetButton->SetEnabled(false);
 	if (TreeEntry)
 	{
-		if (TreeEntry->EntryType == FPresetViewEntry::EEntryType::Collection && TreeEntry->CollectionPath != UserSettings->DefaultCollectionPath)
+		if (TreeEntry->EntryType == FPresetViewEntry::EEntryType::Collection && !TreeEntry->bIsDefaultCollection)
 		{
 			DeleteUserPresetButton->SetEnabled(true);
 		}
@@ -1002,7 +1080,7 @@ void SPresetManager::SetCollectionEnabled(TSharedPtr<FPresetViewEntry> TreeEntry
 	{
 		return;
 	}
-	if (UserSettings->DefaultCollectionPath == TreeEntry->CollectionPath)
+	if (TreeEntry->bIsDefaultCollection)
 	{
 		UserSettings->bDefaultCollectionEnabled = (State == ECheckBoxState::Checked);
 		UserSettings->SaveEditorConfig();
@@ -1024,50 +1102,40 @@ void SPresetManager::SetCollectionEnabled(TSharedPtr<FPresetViewEntry> TreeEntry
 
 void SPresetManager::DeletePresetFromCollection(TSharedPtr< FPresetViewEntry > Entry)
 {
-	UInteractiveToolsPresetCollectionAsset* PresetCollection = nullptr;
-
-	if (Entry->CollectionPath.IsAsset())
-	{
-		PresetCollection = Cast<UInteractiveToolsPresetCollectionAsset>(Entry->CollectionPath.TryLoad());
-	}
+	UInteractiveToolsPresetCollectionAsset* PresetCollection = GetCollectionFromEntry(Entry);
 	if (PresetCollection)
 	{
 		PresetCollection->PerToolPresets[Entry->ToolName].NamedPresets.RemoveAt(Entry->PresetIndex);
 		PresetCollection->MarkPackageDirty();
 
-		PresetDataList.Remove(Entry);
-		PresetListView->RequestListRefresh();
+		GeneratePresetList(Entry->Parent);
 	}
+
+	SaveIfDefaultCollection(Entry);
 }
 
 void SPresetManager::SetPresetLabel(TSharedPtr< FPresetViewEntry > Entry, FText InLabel)
 {
-	UInteractiveToolsPresetCollectionAsset* PresetCollection = nullptr;
-
-	if (Entry->CollectionPath.IsAsset())
-	{
-		PresetCollection = Cast<UInteractiveToolsPresetCollectionAsset>(Entry->CollectionPath.TryLoad());
-	}
+	UInteractiveToolsPresetCollectionAsset* PresetCollection = GetCollectionFromEntry(Entry);
 	if (PresetCollection)
 	{
 		PresetCollection->PerToolPresets[Entry->ToolName].NamedPresets[Entry->PresetIndex].Label = InLabel.ToString();
 		PresetCollection->MarkPackageDirty();
 	}
+
+	SaveIfDefaultCollection(Entry);
 }
 
 void SPresetManager::SetPresetTooltip(TSharedPtr< FPresetViewEntry > Entry, FText InTooltip)
 {
-	UInteractiveToolsPresetCollectionAsset* PresetCollection = nullptr;
-
-	if (Entry->CollectionPath.IsAsset())
-	{
-		PresetCollection = Cast<UInteractiveToolsPresetCollectionAsset>(Entry->CollectionPath.TryLoad());
-	}
+	UInteractiveToolsPresetCollectionAsset* PresetCollection = GetCollectionFromEntry(Entry);
 	if (PresetCollection)
 	{
 		PresetCollection->PerToolPresets[Entry->ToolName].NamedPresets[Entry->PresetIndex].Tooltip = InTooltip.ToString();
 		PresetCollection->MarkPackageDirty();
 	}
+
+	SaveIfDefaultCollection(Entry);
 }
 
 void SPresetManager::DeleteSelectedUserPresetCollection()
@@ -1080,6 +1148,11 @@ void SPresetManager::DeleteSelectedUserPresetCollection()
 	if (SelectedUserCollections.Num() == 1)
 	{
 		TSharedPtr<FPresetViewEntry> Entry = SelectedUserCollections[0];
+		if (Entry->bIsDefaultCollection)
+		{
+			return;
+		}
+
 		FAssetData CollectionAsset;
 		if (AssetRegistryModule.Get().TryGetAssetByObjectPath(Entry->CollectionPath, CollectionAsset) == UE::AssetRegistry::EExists::Exists)
 		{
@@ -1161,5 +1234,36 @@ const FSlateBrush* SPresetManager::GetExpanderImage(TSharedPtr<SWidget> Expander
 
 	return FCoreStyle::Get().GetBrush(ResourceName);
 }
+
+UInteractiveToolsPresetCollectionAsset* SPresetManager::GetCollectionFromEntry(TSharedPtr<FPresetViewEntry> Entry)
+{
+	UInteractiveToolsPresetCollectionAsset* PresetCollection = nullptr;
+	UPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UPresetAssetSubsystem>();
+	
+	if (Entry->Root().bIsDefaultCollection && ensure(PresetAssetSubsystem))
+	{
+		PresetCollection = PresetAssetSubsystem->GetDefaultCollection();
+	}
+	else
+	{
+		if (Entry->CollectionPath.IsAsset())
+		{
+			PresetCollection = Cast<UInteractiveToolsPresetCollectionAsset>(Entry->CollectionPath.TryLoad());
+		}
+	}
+
+	return PresetCollection;
+}
+
+void SPresetManager::SaveIfDefaultCollection(TSharedPtr<FPresetViewEntry> Entry)
+{
+	UPresetAssetSubsystem* PresetAssetSubsystem = GEditor->GetEditorSubsystem<UPresetAssetSubsystem>();
+
+	if (Entry->Root().bIsDefaultCollection && ensure(PresetAssetSubsystem))
+	{
+		ensure(PresetAssetSubsystem->SaveDefaultCollection());
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE

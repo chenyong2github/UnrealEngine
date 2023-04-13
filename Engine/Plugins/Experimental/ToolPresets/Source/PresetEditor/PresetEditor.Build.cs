@@ -8,8 +8,7 @@ namespace UnrealBuildTool.Rules
 		{
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
-					"Core",
-					"EditorConfig",
+					"Core",					
 				}
 			);
 
@@ -30,6 +29,7 @@ namespace UnrealBuildTool.Rules
 					"DeveloperSettings",
 					"ContentBrowser",
 					"ContentBrowserData",
+					"EditorConfig",
 				}
 			);
 		}
