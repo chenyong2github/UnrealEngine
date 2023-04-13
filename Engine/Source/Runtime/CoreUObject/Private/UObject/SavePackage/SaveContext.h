@@ -425,9 +425,9 @@ public:
 		// Assumptions & checks
 		check(InPackage);
 		check(InFilename);
-		// if we are cooking we should be doing it in the editor and with a CookedPackageWriter
+		// if we are cooking we should be doing it in the editor and with a PackageWriter
 		check(!IsCooking() || WITH_EDITOR);
-		checkf(!IsCooking() || (PackageWriter && PackageWriter->AsCookedPackageWriter()), TEXT("Cook saves require an ICookedPackageWriter"));
+		checkf(!IsCooking() || PackageWriter, TEXT("Cook saves require an IPackageWriter"));
 
 		SaveArgs.TopLevelFlags = UE::SavePackageUtilities::NormalizeTopLevelFlags(SaveArgs.TopLevelFlags, IsCooking());
 		if (PackageWriter)
