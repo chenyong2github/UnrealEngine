@@ -506,6 +506,7 @@ void FStoreBrowser::UpdateMetadata(FStoreBrowserTraceInfo& Trace)
 			Trace.ChangeSerial++;
 			Trace.Platform = Analyzer.Platform;
 			Trace.AppName = Analyzer.AppName;
+			Trace.ProjectName = Analyzer.ProjectName;
 			Trace.CommandLine = Analyzer.CommandLine;
 			Trace.Branch = Analyzer.Branch;
 			Trace.BuildVersion = Analyzer.BuildVersion;

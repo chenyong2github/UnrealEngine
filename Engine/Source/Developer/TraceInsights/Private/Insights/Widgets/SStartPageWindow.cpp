@@ -2292,7 +2292,14 @@ void STraceStoreWindow::UpdateTrace(FTraceViewModel& InOutTrace, const Insights:
 	{
 		InOutTrace.bIsMetadataUpdated = true;
 		InOutTrace.Platform = FText::FromString(InSourceTrace.Platform);
-		InOutTrace.AppName = FText::FromString(InSourceTrace.AppName);
+		if (!InSourceTrace.ProjectName.IsEmpty())
+		{
+			InOutTrace.AppName = FText::FromString(InSourceTrace.ProjectName);
+		}
+		else
+		{
+			InOutTrace.AppName = FText::FromString(InSourceTrace.AppName);
+		}
 		InOutTrace.CommandLine = FText::FromString(InSourceTrace.CommandLine);
 		InOutTrace.Branch = FText::FromString(InSourceTrace.Branch);
 		InOutTrace.BuildVersion = FText::FromString(InSourceTrace.BuildVersion);

@@ -54,6 +54,7 @@ bool FDiagnosticsSessionAnalyzer::OnEvent(uint16 RouteId, EStyle, const FOnEvent
 	{
 		EventData.GetString("Platform", Platform);
 		EventData.GetString("AppName", AppName);
+		EventData.GetString("ProjectName", ProjectName);
 		EventData.GetString("CommandLine", CommandLine);
 		EventData.GetString("Branch", Branch);
 		EventData.GetString("BuildVersion", BuildVersion);

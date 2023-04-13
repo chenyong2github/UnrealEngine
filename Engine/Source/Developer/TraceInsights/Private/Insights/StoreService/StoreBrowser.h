@@ -38,6 +38,7 @@ struct FStoreBrowserTraceInfo
 
 	FString Platform;
 	FString AppName;
+	FString ProjectName;
 	FString CommandLine;
 	FString Branch;
 	FString BuildVersion;

@@ -21,6 +21,7 @@ struct FDiagnosticsSessionAnalyzer : public UE::Trace::IAnalyzer
 
 	FString Platform;
 	FString AppName;
+	FString ProjectName;
 	FString CommandLine;
 	FString Branch;
 	FString BuildVersion;
