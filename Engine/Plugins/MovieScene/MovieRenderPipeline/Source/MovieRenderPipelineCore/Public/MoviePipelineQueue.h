@@ -4,6 +4,7 @@
 #include "UObject/Object.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "LevelSequence.h"
+#include "MovieJobVariableAssignmentContainer.h"
 #include "MoviePipelinePrimaryConfig.h"
 #include "MoviePipelineShotConfig.h"
 #include "MoviePipelineConfigBase.h"
@@ -52,6 +53,7 @@ public:
 		: bEnabled(true)
 	{
 		Progress = 0.f;
+		VariableAssignments = CreateDefaultSubobject<UMovieJobVariableAssignmentContainer>("VariableAssignments");
 	}
 
 public:
@@ -170,6 +172,11 @@ public:
 	void SetGraphPreset(const UMovieGraphConfig* InGraphPreset)
 	{
 		GraphPreset = InGraphPreset;
+		VariableAssignments->SetGraphConfig(GraphPreset);
+
+#if WITH_EDITOR
+		VariableAssignments->UpdateGraphVariableOverrides();
+#endif
 	}
 
 	/**
@@ -199,6 +206,12 @@ public:
 		}
 		return InnerName;
 	}
+
+	// UObject Interface
+	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
+	virtual void PostLoad() override;
+	// ~UObject Interface
+	
 protected:
 	// UMoviePipipelineExecutorShot Interface
 	virtual void SetStatusMessage_Implementation(const FString& InMessage) { StatusMessage = InMessage; }
@@ -224,6 +237,11 @@ public:
 	/** List of cameras to render for this shot. Only used if the setting flag is set in the Camera setting. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
 	TArray<FMoviePipelineSidecarCamera> SidecarCameras;
+
+	/** Overrides on the variables in graph preset associated with this job. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Variable Assignments")
+	TObjectPtr<UMovieJobVariableAssignmentContainer> VariableAssignments;
+
 public:
 	/** Transient information used by the active Movie Pipeline working on this shot. */
 	FMoviePipelineCameraCutInfo ShotInfo;
@@ -250,25 +268,6 @@ private:
 	TSoftObjectPtr<UMovieGraphConfig> GraphPreset;
 };
 
-/** An override to a graph variable's value from the job level. */
-USTRUCT(BlueprintType)
-struct FMoviePipelineGraphVariableValueAssignment
-{
-	GENERATED_BODY()
-	
-	/** The GUID of the variable that is having its value changed. */
-	UPROPERTY()
-	FGuid VariableGuid;
-
-	/** The new value of the variable, if one was set. */
-	UPROPERTY()
-	float VariableValue = 0.f;
-
-	/** Whether a value override has been set. */
-	UPROPERTY()
-	bool bIsValueSet = false;
-};
-
 /**
 * A particular job within the Queue
 */
@@ -283,6 +282,7 @@ public:
 		StatusProgress = 0.f;
 		bIsConsumed = false;
 		Configuration = CreateDefaultSubobject<UMoviePipelinePrimaryConfig>("DefaultConfig");
+		VariableAssignments = CreateDefaultSubobject<UMovieJobVariableAssignmentContainer>("VariableAssignments");
 	}
 
 public:	
@@ -481,6 +481,11 @@ public:
 	void SetGraphPreset(const UMovieGraphConfig* InGraphPreset)
 	{
 		GraphPreset = InGraphPreset;
+		VariableAssignments->SetGraphConfig(InGraphPreset);
+
+#if WITH_EDITOR
+		VariableAssignments->UpdateGraphVariableOverrides();
+#endif
 	}
 
 	/**
@@ -494,41 +499,6 @@ public:
 		GraphConfig = InGraphConfig;
 	}
 
-	/**
-	 * Add a variable assignment for the graph. Returns true if the variable was added or it already exists,
-	 * else false.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline|Experimental")
-	bool AddVariableAssignment(const UMovieGraphVariable* InGraphVariable);
-
-	/**
-	 * Updates an existing variable assignment for the provided graph variable to a new value, or adds a new assignment
-	 * and updates its value. Returns true on success, else false.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline|Experimental")
-	bool SetVariableAssignmentValue(const UMovieGraphVariable* InGraphVariable, float NewValue);
-
-	/**
-	 * Updates an existing variable assignment for the provided graph variable to a new enable state, or adds a new
-	 * assignment and updates its enable state. Returns true on success, else false.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline|Experimental")
-	bool SetVariableAssignmentEnableState(const UMovieGraphVariable* InGraphVariable, bool bIsEnabled);
-
-	/**
-	 * Gets the value of the variable assignment for the provided graph variable. The value is provided via OutValue.
-	 * Returns true if a value was set on the variable and OutValue was changed, else false.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline|Experimental")
-	bool GetVariableAssignmentValue(const UMovieGraphVariable* InGraphVariable, float& OutValue);
-
-	/**
-	 * Gets the enable state of the variable assignment for the provided graph variable. The enable state is provided
-	 * via bOutIsEnabled. Returns true if an enable state was set on the variable and bOutIsEnabled was changed, else false.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline|Experimental")
-	bool GetVariableAssignmentEnableState(const UMovieGraphVariable* InGraphVariable, bool& bOutIsEnabled);
-
 	UFUNCTION(BlueprintSetter, Category = "Movie Render Pipeline")
 	void SetSequence(FSoftObjectPath InSequence);
 
@@ -538,6 +508,7 @@ public:
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
 #endif
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
+	virtual void PostLoad() override;
 	// ~UObject Interface
 
 protected:
@@ -558,19 +529,6 @@ protected:
 	}
 	virtual bool IsEnabled_Implementation() const { return bEnabled; }
 	// ~UMoviePipelineExecutorJob Interface
-
-	// Note: This is not exposed to the public API because the underlying struct should remain private.
-	/**
-	 * Finds a variable assignment for the provided variable, or adds one if one does not already exist (and
-	 * bAddIfNotExists is set to true). Returns nullptr if the operation failed. 
-	 */
-	FMoviePipelineGraphVariableValueAssignment* FindOrAddVariableAssignment(const UMovieGraphVariable* InGraphVariable, bool bAddIfNotExists = true);
-
-	/**
-	 * Removes variable assignments for variables which no longer exist on the graph that the job currently uses. Old
-	 * and invalid assignments are not necessarily harmful, but they can bloat the asset.
-	 */
-	void CleanUpInvalidVariableAssignments();
 
 public:
 	/** (Optional) Name of the job. Shown on the default burn-in. */
@@ -604,6 +562,11 @@ public:
 	*/
 	UPROPERTY(BlueprintReadWrite, Category = "Movie Render Pipeline")
 	FString UserData;
+
+	/** Overrides on the variables in graph preset associated with this job. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Instanced, Category = "Variable Assignments")
+	TObjectPtr<UMovieJobVariableAssignmentContainer> VariableAssignments;
+
 private:
 	UPROPERTY(Transient)
 	FString StatusMessage;
@@ -614,7 +577,6 @@ private:
 	UPROPERTY(Transient)
 	bool bIsConsumed;
 
-private:
 	/** 
 	*/
 	UPROPERTY(Instanced)
@@ -636,10 +598,6 @@ private:
 	/** The graph-based configuration preset that this job is using. Can be nullptr. */
 	UPROPERTY()
 	TSoftObjectPtr<UMovieGraphConfig> GraphPreset;
-
-	/** Values that the job has set on variables for the graph it is using (if any). */
-	UPROPERTY()
-	TArray<FMoviePipelineGraphVariableValueAssignment> GraphVariableAssignments;
 };
 
 /**

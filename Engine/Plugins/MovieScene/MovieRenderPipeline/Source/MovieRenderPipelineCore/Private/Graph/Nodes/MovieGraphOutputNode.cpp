@@ -27,7 +27,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphOutputNode::GetInputPinProperties() 
 	{
 		for (const UMovieGraphOutput* Output : ParentGraph->GetOutputs())
 		{
-			Properties.Add(FMovieGraphPinProperties(FName(Output->Name), EMovieGraphMemberType::Branch, false));
+			Properties.Add(FMovieGraphPinProperties(FName(Output->Name), EMovieGraphValueType::Branch, false));
 		}
 	}
 	

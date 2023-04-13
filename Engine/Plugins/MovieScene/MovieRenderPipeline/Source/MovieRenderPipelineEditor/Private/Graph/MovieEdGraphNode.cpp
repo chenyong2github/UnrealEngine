@@ -53,25 +53,23 @@ FEdGraphPinType UMoviePipelineEdGraphNodeBase::GetPinType(const UMovieGraphPin* 
 	EdPinType.PinCategory = NAME_None;
 	EdPinType.PinSubCategory = NAME_None;
 
+	// TODO: This needs to properly fill in the category/subcategory for all types. Also, container type?
 	switch (InPin->Properties.Type)
 	{
-	case EMovieGraphMemberType::Branch:
+	case EMovieGraphValueType::Branch:
 		EdPinType.PinCategory = UMovieGraphSchema::PC_Branch;
 		break;
-	case EMovieGraphMemberType::Float:
+	case EMovieGraphValueType::Float:
 		EdPinType.PinCategory = UMovieGraphSchema::PC_Float;
 		break;
-	case EMovieGraphMemberType::Int:
+	case EMovieGraphValueType::Int32:
 		EdPinType.PinCategory = UMovieGraphSchema::PC_Integer;
 		break;
-	case EMovieGraphMemberType::Bool:
+	case EMovieGraphValueType::Bool:
 		EdPinType.PinCategory = UMovieGraphSchema::PC_Boolean;
 		break;
-	case EMovieGraphMemberType::String:
+	case EMovieGraphValueType::String:
 		EdPinType.PinCategory = UMovieGraphSchema::PC_String;
-		break;
-	case EMovieGraphMemberType::IntPoint:
-		EdPinType.PinCategory = UMovieGraphSchema::PC_IntPoint;
 		break;
 	default:
 		EdPinType.PinCategory = UMovieGraphSchema::PC_Float;

@@ -199,62 +199,30 @@ void UMoviePipelineExecutorJob::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
 	Super::PreSave(ObjectSaveContext);
 
-	CleanUpInvalidVariableAssignments();
+#if WITH_EDITOR
+	VariableAssignments->UpdateGraphVariableOverrides();
+#endif
 }
 
-bool UMoviePipelineExecutorJob::AddVariableAssignment(const UMovieGraphVariable* InGraphVariable)
+void UMoviePipelineExecutorJob::PostLoad()
 {
-	return InGraphVariable && (FindOrAddVariableAssignment(InGraphVariable) != nullptr);
-}
-
-bool UMoviePipelineExecutorJob::SetVariableAssignmentValue(const UMovieGraphVariable* InGraphVariable, float NewValue)
-{
-	const bool bAddIfNotExists = true;
-	if (FMoviePipelineGraphVariableValueAssignment* Assignment = FindOrAddVariableAssignment(InGraphVariable, bAddIfNotExists))
+	Super::PostLoad();
+	
+	if (VariableAssignments)
 	{
-		Modify();
-		Assignment->VariableValue = NewValue;
-		return true;
+		VariableAssignments->SetGraphConfig(GraphPreset.LoadSynchronous());
 	}
 
-	return false;
-}
-
-bool UMoviePipelineExecutorJob::SetVariableAssignmentEnableState(const UMovieGraphVariable* InGraphVariable, bool bIsEnabled)
-{
-	const bool bAddIfNotExists = true;
-	if (FMoviePipelineGraphVariableValueAssignment* Assignment = FindOrAddVariableAssignment(InGraphVariable, bAddIfNotExists))
+	// Update the job's variable overrides whenever the graph's variables change
+	if (UMovieGraphConfig* Config = GraphPreset.LoadSynchronous())
 	{
-		Modify();
-		Assignment->bIsValueSet = bIsEnabled;
-		return true;
+#if WITH_EDITOR
+		Config->OnGraphVariablesChangedDelegate.AddUObject(VariableAssignments, &UMovieJobVariableAssignmentContainer::UpdateGraphVariableOverrides);
+#endif
 	}
 
-	return false;
-}
-
-bool UMoviePipelineExecutorJob::GetVariableAssignmentValue(const UMovieGraphVariable* InGraphVariable, float& OutValue)
-{
-	const bool bAddIfNotExists = false;
-	if (const FMoviePipelineGraphVariableValueAssignment* Assignment = FindOrAddVariableAssignment(InGraphVariable, bAddIfNotExists))
-	{
-		OutValue = Assignment->VariableValue;
-		return true;
-	}
-
-	return false;
-}
-
-bool UMoviePipelineExecutorJob::GetVariableAssignmentEnableState(const UMovieGraphVariable* InGraphVariable, bool& bOutIsEnabled)
-{
-	const bool bAddIfNotExists = false;
-	if (const FMoviePipelineGraphVariableValueAssignment* Assignment = FindOrAddVariableAssignment(InGraphVariable, bAddIfNotExists))
-	{
-		bOutIsEnabled = Assignment->bIsValueSet;
-		return true;
-	}
-
-	return false;
+	// TODO: The variable assignments need to be updated here, but currently GraphPreset.LoadSynchronous() does not
+	// provide a fully-loaded object (ie, GraphPreset will only be partially loaded at this point).
 }
 
 void UMoviePipelineExecutorJob::SetSequence(FSoftObjectPath InSequence)
@@ -303,47 +271,6 @@ void UMoviePipelineExecutorJob::OnDuplicated_Implementation()
 	StatusMessage = FString();
 	StatusProgress = 0.f;
 	SetConsumed(false);
-}
-
-FMoviePipelineGraphVariableValueAssignment* UMoviePipelineExecutorJob::FindOrAddVariableAssignment(const UMovieGraphVariable* InGraphVariable, bool bAddIfNotExists)
-{
-	if (InGraphVariable)
-	{
-		for (FMoviePipelineGraphVariableValueAssignment& Assignment : GraphVariableAssignments)
-		{
-			if (Assignment.VariableGuid == InGraphVariable->GetGuid())
-			{
-				return &Assignment;
-			}
-		}
-
-		// Didn't find an existing one; add a new assignment
-		if (bAddIfNotExists)
-		{
-			Modify();
-			
-			FMoviePipelineGraphVariableValueAssignment NewAssignment;
-			NewAssignment.VariableGuid = InGraphVariable->GetGuid();
-			return &GraphVariableAssignments.Add_GetRef(MoveTemp(NewAssignment));
-		}
-	}
-
-	return nullptr;
-}
-
-void UMoviePipelineExecutorJob::CleanUpInvalidVariableAssignments()
-{
-	// TODO: This should get the graph preset OR config
-	const UMovieGraphConfig* Graph = GetGraphPreset();
-	if (!Graph)
-	{
-		return;
-	}
-	
-	GraphVariableAssignments.RemoveAll([Graph](const FMoviePipelineGraphVariableValueAssignment& Assignment)
-	{
-		return Graph->GetVariableByGuid(Assignment.VariableGuid) == nullptr;
-	});
 }
 
 UMoviePipelineShotConfig* UMoviePipelineExecutorShot::AllocateNewShotOverrideConfig(TSubclassOf<UMoviePipelineShotConfig> InConfigType)
@@ -400,3 +327,32 @@ void UMoviePipelineExecutorShot::SetShotOverridePresetOrigin(UMoviePipelineShotC
 	}
 }
 
+void UMoviePipelineExecutorShot::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
+
+#if WITH_EDITOR
+	VariableAssignments->UpdateGraphVariableOverrides();
+#endif
+}
+
+void UMoviePipelineExecutorShot::PostLoad()
+{
+	Super::PostLoad();
+
+	if (VariableAssignments)
+	{
+		VariableAssignments->SetGraphConfig(GraphPreset.LoadSynchronous());
+	}
+
+	// Update the job's variable overrides whenever the graph's variables change
+	if (UMovieGraphConfig* Config = GraphPreset.LoadSynchronous())
+	{
+#if WITH_EDITOR
+		Config->OnGraphVariablesChangedDelegate.AddUObject(VariableAssignments, &UMovieJobVariableAssignmentContainer::UpdateGraphVariableOverrides);
+#endif
+	}
+
+	// TODO: The variable assignments need to be updated here, but currently GraphPreset.LoadSynchronous() does not
+	// provide a fully-loaded object (ie, GraphPreset will only be partially loaded at this point).
+}

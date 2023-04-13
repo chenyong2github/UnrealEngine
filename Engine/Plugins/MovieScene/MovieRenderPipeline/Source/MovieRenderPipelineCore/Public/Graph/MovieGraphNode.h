@@ -139,7 +139,7 @@ protected:
 	UPROPERTY()
 	TArray<TObjectPtr<UMovieGraphPin>> OutputPins;
 
-	UPROPERTY(EditAnywhere, meta=(FixedLayout), Category = "Node")
+	UPROPERTY(EditAnywhere, meta=(FixedLayout, ShowOnlyInnerProperties), Category = "Node")
 	FInstancedPropertyBag DynamicProperties;
 
 	UPROPERTY()

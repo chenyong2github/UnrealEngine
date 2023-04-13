@@ -5,6 +5,7 @@
 #include "EdGraph/EdGraph.h"
 #include "Graph/MovieGraphNode.h"
 #include "Graph/MovieGraphTraversalContext.h"
+#include "MovieGraphValueContainer.h"
 
 #include "MovieGraphConfig.generated.h"
 
@@ -18,7 +19,7 @@ class UMovieGraphNode;
 #endif
 
 UCLASS(Abstract)
-class MOVIERENDERPIPELINECORE_API UMovieGraphMember : public UObject
+class MOVIERENDERPIPELINECORE_API UMovieGraphMember : public UMovieGraphValueContainer
 {
 	// The graph needs to set private flags during construction time
 	friend class UMovieGraphConfig;
@@ -38,10 +39,6 @@ public:
 	virtual bool IsDeletable() const { return true; }
 
 public:
-	/** The type of data associated with this member. */
-	UPROPERTY(EditAnywhere, Category = "General", meta=(EditCondition="bIsEditable", HideEditConditionToggle))
-	EMovieGraphMemberType Type = EMovieGraphMemberType::Float;
-
 	// TODO: Need a details customization that validates whether or not the name is valid/unique
 	/** The name of this member, which is user-facing. */
 	UPROPERTY(EditAnywhere, Category = "General", meta=(EditCondition="bIsEditable", HideEditConditionToggle))
@@ -50,12 +47,6 @@ public:
 	/** The optional description of this member, which is user-facing. */
 	UPROPERTY(EditAnywhere, Category = "General", meta=(EditCondition="bIsEditable", HideEditConditionToggle))
 	FString Description;
-
-	// TODO: This needs to eventually be capable of storing multiple types. Using TVariant looks promising, but it will
-	// still require extensive details panel customizations
-	/** The default value of this member. */
-	UPROPERTY(EditAnywhere, Category = "General", meta=(EditCondition="bIsEditable", HideEditConditionToggle))
-	float Default = 0.f;
 
 private:
 	/** A GUID that uniquely identifies this member within its graph. */
@@ -197,6 +188,7 @@ public:
 	 * Adds a new variable member with default values to the graph. The new variable will have a base name of
 	 * "Variable" unless specified in InCustomBaseName. Returns the new variable on success, else nullptr.
 	 */
+	UFUNCTION(BlueprintCallable, Category="Experimental")
 	UMovieGraphVariable* AddVariable(const FName InCustomBaseName = NAME_None);
 
 	/** Adds a new input member to the graph. Returns the new input on success, else nullptr. */
@@ -212,6 +204,7 @@ public:
 	 * Gets all variables that are available to be used in the graph. Global variables can optionally be included if
 	 * bIncludeGlobal is set to true.
 	 */
+	UFUNCTION(BlueprintCallable, Category="Experimental")
 	TArray<UMovieGraphVariable*> GetVariables(const bool bIncludeGlobal = false) const;
 
 	/** Gets all inputs that have been defined on the graph. */

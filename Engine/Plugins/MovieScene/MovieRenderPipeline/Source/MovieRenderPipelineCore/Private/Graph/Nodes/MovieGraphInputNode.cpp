@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Graph/Nodes/MovieGraphInputNode.h"
 
@@ -27,7 +27,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphInputNode::GetOutputPinProperties() 
 	{
 		for (const UMovieGraphInput* Input : ParentGraph->GetInputs())
 		{
-			Properties.Add(FMovieGraphPinProperties(FName(Input->Name), EMovieGraphMemberType::Branch, false));
+			Properties.Add(FMovieGraphPinProperties(FName(Input->Name), EMovieGraphValueType::Branch, false));
 		}
 	}
 	

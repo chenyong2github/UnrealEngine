@@ -19,11 +19,11 @@ TArray<FMovieGraphPinProperties> UMovieGraphVariableNode::GetOutputPinProperties
 	
 	if (GraphVariable)
 	{
-		Properties.Add(FMovieGraphPinProperties(FName(GraphVariable->Name), GraphVariable->Type, false));
+		Properties.Add(FMovieGraphPinProperties(FName(GraphVariable->Name), GraphVariable->GetValueType(), false));
 	}
 	else
 	{
-		Properties.Add(FMovieGraphPinProperties(TEXT("Unknown"), EMovieGraphMemberType::Float, false));
+		Properties.Add(FMovieGraphPinProperties(TEXT("Unknown"), EMovieGraphValueType::Unknown, false));
 	}
 	
 	return Properties;
@@ -87,7 +87,7 @@ void UMovieGraphVariableNode::UpdateOutputPin(UMovieGraphMember* ChangedVariable
 	{
 		// Update the output pin to reflect the variable data model
 		OutputPins[0]->Properties.Label = FName(ChangedVariable->Name);
-		OutputPins[0]->Properties.Type = ChangedVariable->Type;
+		OutputPins[0]->Properties.Type = ChangedVariable->GetValueType();
 	}
 
 	OnNodeChangedDelegate.Broadcast(this);

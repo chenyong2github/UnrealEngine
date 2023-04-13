@@ -17,14 +17,14 @@ static const FText NodeCategory_Settings = LOCTEXT("NodeCategory_Settings", "Set
 TArray<FMovieGraphPinProperties> UMoviePipelineCollectionNode::GetInputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
 	return Properties;
 }
 
 TArray<FMovieGraphPinProperties> UMoviePipelineCollectionNode::GetOutputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
 	return Properties;
 }
 
@@ -75,14 +75,14 @@ void UMoviePipelineCollectionNode::PostEditChangeProperty(FPropertyChangedEvent&
 TArray<FMovieGraphPinProperties> UMovieGraphModifierNode::GetInputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
 	return Properties;
 }
 
 TArray<FMovieGraphPinProperties> UMovieGraphModifierNode::GetOutputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
 	return Properties;
 }
 
@@ -134,14 +134,14 @@ void UMovieGraphModifierNode::PostEditChangeProperty(FPropertyChangedEvent& Prop
 TArray<FMovieGraphPinProperties> UMovieGraphGlobalGameOverridesNode::GetInputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
 	return Properties;
 }
 
 TArray<FMovieGraphPinProperties> UMovieGraphGlobalGameOverridesNode::GetOutputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
 	return Properties;
 }
 
@@ -175,14 +175,14 @@ FSlateIcon UMovieGraphGlobalGameOverridesNode::GetIconAndTint(FLinearColor& OutC
 TArray<FMovieGraphPinProperties> UMovieGraphPathTracedRendererNode::GetInputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
 	return Properties;
 }
 
 TArray<FMovieGraphPinProperties> UMovieGraphPathTracedRendererNode::GetOutputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
 	return Properties;
 }
 
@@ -216,14 +216,14 @@ FSlateIcon UMovieGraphPathTracedRendererNode::GetIconAndTint(FLinearColor& OutCo
 TArray<FMovieGraphPinProperties> UMovieGraphEXRSequenceNode::GetInputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
 	return Properties;
 }
 
 TArray<FMovieGraphPinProperties> UMovieGraphEXRSequenceNode::GetOutputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
 	return Properties;
 }
 
@@ -261,16 +261,16 @@ TArray<FMovieGraphPinProperties> UMovieGraphBranchNode::GetInputPinProperties() 
 	static const FName Condition("Condition");
 	
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(TrueBranch, EMovieGraphMemberType::Branch, false));
-	Properties.Add(FMovieGraphPinProperties(FalseBranch, EMovieGraphMemberType::Branch, false));
-	Properties.Add(FMovieGraphPinProperties(Condition, EMovieGraphMemberType::Bool, false));
+	Properties.Add(FMovieGraphPinProperties(TrueBranch, EMovieGraphValueType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties(FalseBranch, EMovieGraphValueType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties(Condition, EMovieGraphValueType::Bool, false));
 	return Properties;
 }
 
 TArray<FMovieGraphPinProperties> UMovieGraphBranchNode::GetOutputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
 	return Properties;
 }
 
@@ -308,10 +308,10 @@ TArray<FMovieGraphPinProperties> UMovieGraphSelectNode::GetInputPinProperties() 
 	// Generate branch pins for each option
 	for (const FString& SelectOption : SelectOptions)
 	{
-		Properties.Add(FMovieGraphPinProperties(FName(SelectOption), EMovieGraphMemberType::Branch, false));
+		Properties.Add(FMovieGraphPinProperties(FName(SelectOption), EMovieGraphValueType::Branch, false));
 	}
 
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::String, false));
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::String, false));
 	
 	return Properties;
 }
@@ -319,7 +319,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphSelectNode::GetInputPinProperties() 
 TArray<FMovieGraphPinProperties> UMovieGraphSelectNode::GetOutputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
 	return Properties;
 }
 
@@ -375,14 +375,14 @@ void UMovieGraphSelectNode::PostEditChangeProperty(FPropertyChangedEvent& Proper
 TArray<FMovieGraphPinProperties> UMovieGraphOutputSettingsNode::GetInputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
 	return Properties;
 }
 
 TArray<FMovieGraphPinProperties> UMovieGraphOutputSettingsNode::GetOutputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
 	return Properties;
 }
 
@@ -416,14 +416,14 @@ FSlateIcon UMovieGraphOutputSettingsNode::GetIconAndTint(FLinearColor& OutColor)
 TArray<FMovieGraphPinProperties> UMovieGraphAntiAliasingNode::GetInputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
 	return Properties;
 }
 
 TArray<FMovieGraphPinProperties> UMovieGraphAntiAliasingNode::GetOutputPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
-	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphMemberType::Branch, false));
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
 	return Properties;
 }
 

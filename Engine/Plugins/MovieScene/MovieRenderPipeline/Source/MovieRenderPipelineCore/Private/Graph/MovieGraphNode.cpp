@@ -17,7 +17,7 @@ TArray<FMovieGraphPinProperties> UMovieGraphNode::GetExposedDynamicPinProperties
 	{
 		// Note: Currently hardcoded to not allow multiple connections, but this may need to change in the future
 		const bool bInAllowMultipleConnections = false;
-		Properties.Add(FMovieGraphPinProperties(PropertyName, EMovieGraphMemberType::Float, bInAllowMultipleConnections));
+		Properties.Add(FMovieGraphPinProperties(PropertyName, EMovieGraphValueType::Float, bInAllowMultipleConnections));
 	}
 
 	return Properties;

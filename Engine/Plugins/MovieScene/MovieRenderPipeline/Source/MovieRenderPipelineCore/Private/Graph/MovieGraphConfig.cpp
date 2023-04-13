@@ -85,6 +85,17 @@ void UMovieGraphConfig::PostLoad()
 		// upgrades/deprecations. For now, we assume that each load of the graph should re-initialize all default
 		// members.
 		AddDefaultMembers();
+
+		// Fire OnGraphVariablesChangedDelegate when the variable changes (name, value, type, etc)
+#if WITH_EDITOR
+		for (const TObjectPtr<UMovieGraphVariable>& Variable : Variables)
+		{
+			Variable->OnMovieGraphVariableChangedDelegate.AddWeakLambda(this, [this](UMovieGraphMember*)
+			{
+				OnGraphVariablesChangedDelegate.Broadcast();
+			});
+		}
+#endif
 	}
 }
 
@@ -424,7 +435,6 @@ T* UMovieGraphConfig::AddMember(TArray<TObjectPtr<T>>& InMemberArray, const FNam
 
 	InMemberArray.Add(NewMember);
 	NewMember->SetFlags(RF_Transactional);
-	NewMember->Type = EMovieGraphMemberType::Float;
 	NewMember->SetGuid(FGuid::NewGuid());
 
 	// Generate and set a unique name
@@ -441,6 +451,17 @@ UMovieGraphVariable* UMovieGraphConfig::AddVariable(const FName InCustomBaseName
 	
 	UMovieGraphVariable* NewVariable = AddMember(
 		Variables, !InCustomBaseName.IsNone() ? InCustomBaseName : FName(*VariableBaseName.ToString()));
+
+	if (NewVariable)
+	{
+		// Fire OnGraphVariablesChangedDelegate when the variable changes (name, value, type, etc)
+#if WITH_EDITOR
+		NewVariable->OnMovieGraphVariableChangedDelegate.AddWeakLambda(this, [this](UMovieGraphMember*)
+		{
+			OnGraphVariablesChangedDelegate.Broadcast();
+		});
+#endif
+	}
 
 #if WITH_EDITOR
 	OnGraphVariablesChangedDelegate.Broadcast();

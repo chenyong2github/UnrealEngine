@@ -15,7 +15,7 @@ struct FMovieGraphPinProperties
 	GENERATED_BODY()
 
 	FMovieGraphPinProperties() = default;
-	explicit FMovieGraphPinProperties(const FName& InLabel, const EMovieGraphMemberType PinType, bool bInAllowMultipleConnections)
+	explicit FMovieGraphPinProperties(const FName& InLabel, const EMovieGraphValueType PinType, bool bInAllowMultipleConnections)
 		: Label(InLabel)
 		, Type(PinType)
 		, bAllowMultipleConnections(bInAllowMultipleConnections)
@@ -25,7 +25,7 @@ struct FMovieGraphPinProperties
 	FName Label = NAME_None;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
-	EMovieGraphMemberType Type = EMovieGraphMemberType::Float;
+	EMovieGraphValueType Type = EMovieGraphValueType::Float;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
 	bool bAllowMultipleConnections = true;
