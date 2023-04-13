@@ -3086,6 +3086,9 @@ void UGeometryCollectionComponent::OnDestroyPhysicsState()
 		DummyBodyInstance.TermBody();
 	}
 
+	// we need to unregister the events because it relies on the proxy internally 
+	EventDispatcher->UnregisterChaosEvents();
+
 	if(PhysicsProxy)
 	{
 		FPhysScene_Chaos* Scene = GetInnerChaosScene();
