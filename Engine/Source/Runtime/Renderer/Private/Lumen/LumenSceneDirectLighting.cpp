@@ -12,13 +12,11 @@
 #include "VolumetricCloudRendering.h"
 #include "LumenTracingUtils.h"
 
-int32 GLumenDirectLighting = 1;
-FAutoConsoleVariableRef CVarLumenDirectLighting(
+static TAutoConsoleVariable<int32> CVarLumenLumenSceneDirectLighting(
 	TEXT("r.LumenScene.DirectLighting"),
-	GLumenDirectLighting,
-	TEXT(""),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-	);
+	1,
+	TEXT("Whether to compute direct ligshting for surface cache."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 int32 GLumenDirectLightingOffscreenShadowingTraceMeshSDFs = 1;
 FAutoConsoleVariableRef CVarLumenDirectLightingOffscreenShadowingTraceMeshSDFs(
@@ -1503,7 +1501,7 @@ void FDeferredShadingSceneRenderer::BeginGatherLumenLights(FLumenDirectLightingT
 		bAnyLumenActive |= ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
 	}
 
-	if (!bAnyLumenActive || !GLumenDirectLighting)
+	if (!bAnyLumenActive || !CVarLumenLumenSceneDirectLighting.GetValueOnRenderThread() != 0)
 	{
 		return;
 	}
@@ -1612,7 +1610,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
-	if (GLumenDirectLighting && CardUpdateContext.MaxUpdateTiles > 0)
+	if (CVarLumenLumenSceneDirectLighting.GetValueOnRenderThread() != 0 && CardUpdateContext.MaxUpdateTiles > 0)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "DirectLighting");
 		QUICK_SCOPE_CYCLE_COUNTER(RenderDirectLightingForLumenScene);
@@ -1816,5 +1814,9 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 			CardUpdateContext,
 			CardTileUpdateContext,
 			ComputePassFlags);
+	}
+	else if (CVarLumenLumenSceneDirectLighting.GetValueOnRenderThread() == 0)
+	{
+		AddClearRenderTargetPass(GraphBuilder, FrameTemporaries.DirectLightingAtlas);
 	}
 }
