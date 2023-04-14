@@ -153,6 +153,86 @@ public:
 #endif // WITH_EDITOR
 
 /**
+* A flattened list of configuration values for a given Graph Branch. For named branches, this incldues the "Globals"
+* branch (for any value not also overridden by the named branch).
+* 
+*/
+USTRUCT()
+struct MOVIERENDERPIPELINECORE_API FMovieGraphEvaluatedBranchConfig
+{
+	GENERATED_BODY()
+public:
+	UMovieGraphNode* GetNodeByClassExactMatch(const TSubclassOf<UMovieGraphNode>& InClass)
+	{
+		for (const TObjectPtr<UMovieGraphNode>& Instance : NodeInstances)
+		{
+			if (Instance && Instance->GetClass() == InClass)
+			{
+				return Instance;
+			}
+		}
+
+		return nullptr;
+	}
+
+	const TArray<TObjectPtr<UMovieGraphNode>>& GetNodes() const
+	{
+		return NodeInstances;
+	}
+
+private:
+	// Allow the config to add nodes to this, but otherwise we don't want the public adding nodes to them
+	// without going through the graph resolving.
+	friend class UMovieGraphConfig;
+	
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMovieGraphNode>> NodeInstances;
+};
+
+/**
+* An evaluated config for the current frame. Each named branch (including Globals) has its own
+* copy of the config, fully resolved (so there is no need to check the Globals branch when
+* looking at a named branch). You can use the functions to fetch a node by type from a given
+* branch and it will return the right object (or the CDO if the node is NOT in the config).
+*/
+UCLASS()
+class MOVIERENDERPIPELINECORE_API UMovieGraphEvaluatedConfig : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	/** Mapping between named branches (at the root of the config) and their evaluated values. */
+	UPROPERTY(Transient)
+	TMap<FName, FMovieGraphEvaluatedBranchConfig> BranchConfigMapping;
+};
+
+/**
+* This stores short-term information needed during traversal of the graph
+* such as disabled nodes, already visited nodes, etc. This information is
+* discarded after traversal.
+*/
+USTRUCT()
+struct FMovieGraphEvaluationContext
+{
+	GENERATED_BODY()
+public:
+	
+	/** 
+	* This is the user provided traversal context which specifies high level user decisions. This is the calling
+	* context such as what frame you're on, or what the shot name is, stuff generally driven by global variables.
+	*/
+	UPROPERTY()
+	FMovieGraphTraversalContext UserContext;
+
+	/**
+	* A list of nodes that have been visited. Used for cycle detection right now.
+	*/
+	UPROPERTY()
+	TSet<TObjectPtr<UMovieGraphNode>> VisitedNodes;
+};
+
+
+/**
 * This is the runtime representation of the UMoviePipelineEdGraph which contains the actual strongly
 * typed graph network that is read by the MoviePipeline. There is an editor-only representation of
 * this graph (UMoviePipelineEdGraph).
@@ -227,6 +307,8 @@ public:
 	void SetEditorOnlyNodes(const TArray<TObjectPtr<const UObject>>& InNodes);
 #endif
 
+	UMovieGraphEvaluatedConfig* CreateFlattenedGraph(const FMovieGraphTraversalContext& InContext);
+
 	template<typename NodeType>
 	static NodeType* IterateGraphForClass(const FMovieGraphTraversalContext& InContext)
 	{
@@ -260,6 +342,15 @@ public:
 
 protected:
 	void TraverseGraphRecursive(UMovieGraphNode* InNode, TSubclassOf<UMovieGraphNode> InClassType, const FMovieGraphTraversalContext& InContext, TArray<UMovieGraphNode*>& OutNodes) const;
+	/** Copies properties in FromNode that are marked for override into ToNode, but only if ToNode doesn't already override that value. */
+	void CopyOverriddenProperties(UMovieGraphNode* FromNode, UMovieGraphNode* ToNode);
+	/** Given a property you want to override (passes IsPropertyOverrideable) look for a matching bOverride_ named bool property. */
+	FBoolProperty* FindOverridePropertyForRealProperty(UClass* InClass, const FProperty* InRealProperty) const;
+	/** Find all "Overrideable" marked properties, then find their edit condition properties, then set those to false. */
+	void InitializeFlattenedNode(UMovieGraphNode* InNode);
+
+	/** Traverse the graph, generating a combined "flatten" graph as it goes. */
+	void CreateFlattenedGraph_Recursive(UMovieGraphEvaluatedConfig* InOwningConfig, FMovieGraphEvaluatedBranchConfig& OutBranchConfig, FMovieGraphEvaluationContext& InEvaluationContext, UMovieGraphPin* InPinToFollow);
 
 public:
 	// Names of global variables that are provided by the graph

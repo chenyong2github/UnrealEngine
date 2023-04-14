@@ -6,6 +6,7 @@
 #include "MovieGraphPin.h"
 #include "InstancedStruct.h"
 #include "PropertyBag.h"
+#include "Graph/MovieGraphValueContainer.h"
 
 #if WITH_EDITOR
 #include "Textures/SlateIcon.h"
@@ -20,6 +21,7 @@ class UMovieGraphMember;
 class UMovieGraphOutput;
 class UMovieGraphPin;
 class UMovieGraphVariable;
+struct FMovieGraphTraversalContext;
 
 #if WITH_EDITOR
 class UEdGraphNode;
@@ -36,6 +38,8 @@ UCLASS(Abstract)
 class MOVIERENDERPIPELINECORE_API UMovieGraphNode : public UObject
 {
 	GENERATED_BODY()
+
+	static FName GlobalsPinName;
 
 	friend class UMovieGraphConfig;
 	friend class UMovieGraphEdge;
@@ -63,6 +67,25 @@ public:
 	virtual TArray<FName> GetExposedDynamicProperties() const
 	{ 
 		return ExposedDynamicPropertyNames;
+	}
+
+	/** 
+	* Used to determine which Branch type pins we should follow when trying to traverse the graph.
+	* By default we will follow any input pin (with Branch type) on the node, but override this in
+	* inherited classes and change that if you need custom logic, such as boolean nodes that want 
+	* to choose one or the other based on the results of a conditional property.
+	*/
+	virtual TArray<UMovieGraphPin*> EvaluatePinsToFollow(const FMovieGraphTraversalContext& InContext) const;
+
+	/**
+	* When a non-branch pin type is being evaluated on a node, the calling node will ask this node
+	* for the value connected to the given pin name. For example, a Branch node will call this
+	* function on whatever node is connected to the Conditional pin, and then will try to get a 
+	* Boolean value out of the returned UMovieGraphValueContainer.
+	*/
+	virtual UMovieGraphValueContainer* GetPropertyValueContainerForPin(const FString& InPinName) const
+	{
+		return nullptr;
 	}
 
 	/** Promotes the property with the given name to a pin on the node via a dynamic property. */
@@ -165,4 +188,18 @@ protected:
 	/** A GUID which uniquely identifies this node. */
 	UPROPERTY()
 	FGuid Guid;
+};
+
+/**
+* Nodes representing user settings should derive from this. This is the only node type copied into flattened eval.
+*/
+UCLASS(Abstract)
+class MOVIERENDERPIPELINECORE_API UMovieGraphSettingNode : public UMovieGraphNode
+{
+	GENERATED_BODY()
+public:
+	// UMovieGraphNode Interface
+	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override;
+	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
+	// ~UMovieGraphNode Interface
 };

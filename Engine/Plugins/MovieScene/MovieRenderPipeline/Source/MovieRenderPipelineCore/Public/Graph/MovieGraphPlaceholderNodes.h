@@ -143,26 +143,6 @@ public:
 #endif
 };
 
-/** A node which creates a branching condition. */
-UCLASS()
-class MOVIERENDERPIPELINECORE_API UMovieGraphBranchNode : public UMovieGraphNode
-{
-	GENERATED_BODY()
-
-public:
-	UMovieGraphBranchNode() = default;
-
-	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override;
-	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
-
-#if WITH_EDITOR
-	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
-	virtual FText GetMenuCategory() const override;
-	virtual FLinearColor GetNodeTitleColor() const override;
-	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
-#endif
-};
-
 // TODO: Currently this node is restricted to just accepting string-based options.
 /** A node which creates a condition that selects from a set of input branches. */
 UCLASS()
@@ -198,26 +178,6 @@ public:
 	/** A description of what this select is doing. */
 	UPROPERTY(EditAnywhere, Category = "General")
 	FString Description;
-};
-
-/** A node which configures output settings. */
-UCLASS()
-class MOVIERENDERPIPELINECORE_API UMovieGraphOutputSettingsNode : public UMovieGraphNode
-{
-	GENERATED_BODY()
-
-public:
-	UMovieGraphOutputSettingsNode() = default;
-
-	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override;
-	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
-
-#if WITH_EDITOR
-	virtual FText GetNodeTitle(const bool bGetDescriptive = false) const override;
-	virtual FText GetMenuCategory() const override;
-	virtual FLinearColor GetNodeTitleColor() const override;
-	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
-#endif
 };
 
 /** A node which configures anti-aliasing settings. */

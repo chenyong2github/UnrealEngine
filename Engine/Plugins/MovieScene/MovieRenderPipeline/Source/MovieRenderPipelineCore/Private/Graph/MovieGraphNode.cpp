@@ -4,6 +4,8 @@
 
 #include "Graph/MovieGraphConfig.h"
 
+FName UMovieGraphNode::GlobalsPinName = FName("Globals");
+
 UMovieGraphNode::UMovieGraphNode()
 {
 }
@@ -204,4 +206,35 @@ void UMovieGraphNode::PostLoad()
 	Super::PostLoad();
 
 	RegisterDelegates();
+}
+
+TArray<UMovieGraphPin*> UMovieGraphNode::EvaluatePinsToFollow(const FMovieGraphTraversalContext& InContext) const
+{
+	TArray<UMovieGraphPin*> PinsToFollow;
+
+	// By default we provide all Input Pins to this node that are the Branch Type.
+	// You should override this in downstream nodes that need custom logic, such
+	// as branch or switch nodes.
+	for (const TObjectPtr<UMovieGraphPin>& InputPin : GetInputPins())
+	{
+		if (InputPin->Properties.Type == EMovieGraphValueType::Branch)
+		{
+			PinsToFollow.Add(InputPin);
+		}
+	}
+	return PinsToFollow;
+}
+
+TArray<FMovieGraphPinProperties> UMovieGraphSettingNode::GetInputPinProperties() const
+{
+	TArray<FMovieGraphPinProperties> Properties;
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
+	return Properties;
+}
+
+TArray<FMovieGraphPinProperties> UMovieGraphSettingNode::GetOutputPinProperties() const
+{
+	TArray<FMovieGraphPinProperties> Properties;
+	Properties.Add(FMovieGraphPinProperties(NAME_None, EMovieGraphValueType::Branch, false));
+	return Properties;
 }

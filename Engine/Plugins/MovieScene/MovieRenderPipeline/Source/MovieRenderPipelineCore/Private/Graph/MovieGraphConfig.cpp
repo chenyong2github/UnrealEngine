@@ -664,4 +664,274 @@ bool UMovieGraphConfig::DeleteOutputMember(UMovieGraphOutput* OutputMemberToDele
 	return false;
 }
 
+FBoolProperty* UMovieGraphConfig::FindOverridePropertyForRealProperty(UClass* InClass, const FProperty* InRealProperty) const
+{
+	static const FName EditConditionKey = FName("EditCondition");
+	if (!ensure(InClass && InRealProperty))
+	{
+		return nullptr;
+	}
+
+	// We can't get access to metadata in shipping builds, so we need to just rely on a naming pattern of bOverride_<PropertyName>
+	const FString DesiredPropertyName = FString::Printf(TEXT("bOverride_%s"), *InRealProperty->GetName());
+
+	for (TFieldIterator<FProperty> PropertyIterator(InClass); PropertyIterator; ++PropertyIterator)
+	{
+		FProperty* CheckProperty = *PropertyIterator;
+		if (CheckProperty && CheckProperty->IsA<FBoolProperty>())
+		{
+			FBoolProperty* PropertyAsBool = CastFieldChecked<FBoolProperty>(CheckProperty);
+			if (PropertyAsBool->GetName() == DesiredPropertyName)
+			{
+				return PropertyAsBool;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+void UMovieGraphConfig::InitializeFlattenedNode(UMovieGraphNode* InNode)
+{
+	static const FName EditConditionKey = FName("EditCondition");
+	
+	// We go through each of the bOverride_ properties on this new instance and set
+	// them all as "not overridden", so that as we traverse the graph, we can only
+	// update the node the first time we hit another property that is overridden.
+	// If they never override the values anywhere in the chain then it's okay, because
+	// it will use the values from the CDO.
+	for (TFieldIterator<FProperty> PropertyIterator(InNode->GetClass()); PropertyIterator; ++PropertyIterator)
+	{
+		FProperty* CheckProperty = *PropertyIterator;
+		FBoolProperty* EditConditionProperty = FindOverridePropertyForRealProperty(InNode->GetClass(), CheckProperty);
+		if (EditConditionProperty)
+		{
+			EditConditionProperty->SetPropertyValue_InContainer(InNode, false);
+		}
+	}
+}
+
+void UMovieGraphConfig::CopyOverriddenProperties(UMovieGraphNode* FromNode, UMovieGraphNode* ToNode)
+{
+	if (!ensure(FromNode && ToNode))
+	{
+		return;
+	}
+
+	if (!ensureMsgf(FromNode->GetClass() == ToNode->GetClass(), TEXT("Cross-Class Property copying is not supported at this time.")))
+	{
+		return;
+	}
+
+	for (TFieldIterator<FProperty> PropertyIterator(ToNode->GetClass()); PropertyIterator; ++PropertyIterator)
+	{
+		// For each property on the destination node, decide if we need to try to update it (we don't update bOverride_ properties)
+		FProperty* PropertyToCheckOnDestNode = *PropertyIterator;
+
+		// We use the existence of a matching edit condition node to signal that this property is overrideable, ie:
+		// float MyFoo would have a bOverride_MyFoo, so FindOverridePropertyForRealProperty would match it. However when
+		// looking at the bOverride_MyFoo property it would look for bOverride_bOverride_MyFoo, which wouldn't exist, successfully
+		// filtering us to only the "real" overrideable properties.
+		FBoolProperty* EditConditionProperty = FindOverridePropertyForRealProperty(ToNode->GetClass(), PropertyToCheckOnDestNode);
+		if (PropertyToCheckOnDestNode && EditConditionProperty)
+		{
+			// The user has indicated that this property should be overrideable in the Graph network.
+			// The first thing we do is check to see if it is exposed, and if it's exposed, we need to get the value from the graph.
+			bool bGetValueFromPin = false;
+			const TArray<FName>& ExposedPins = FromNode->GetExposedDynamicProperties();
+			for (const FName& Name : ExposedPins)
+			{
+				if (Name == PropertyToCheckOnDestNode->GetName())
+				{
+					bGetValueFromPin = true;
+					break;
+				}
+			}
+
+			if (bGetValueFromPin)
+			{
+				UE_LOG(LogMovieRenderPipeline, Error, TEXT("not yet implemented."));
+				continue;
+			}
+
+			// If our destination node already has this property marked as overridden, then some other node in the graph has
+			// taken priority and set the value to something, so we don't want to override it.
+			bool bAlreadyOverridenOnDestNode = EditConditionProperty->GetPropertyValue_InContainer(ToNode);
+			if (bAlreadyOverridenOnDestNode)
+			{
+				continue;
+			}
+
+			// We know it's not already overridden, so now we should check to see if the incoming node wants to override it.
+			bool bSourceNodeOverwrites = EditConditionProperty->GetPropertyValue_InContainer(FromNode);
+			if (!bSourceNodeOverwrites)
+			{
+				// The source node didn't have the override flag checked, so we don't copy the value from it.
+				continue;
+			}
+
+			// Okay at this point we know that on our target node, no one has overridden it yet, and our source node wants to override this property.
+			// First, we update the booleans to say that yes, this property has been overridden on the target node.
+			EditConditionProperty->SetPropertyValue_InContainer(ToNode, true);
+
+			// Now we need to copy the value from the source to the destination
+			PropertyToCheckOnDestNode->CopyCompleteValue_InContainer(ToNode, FromNode);
+		}
+	}
+}
+
+void UMovieGraphConfig::CreateFlattenedGraph_Recursive(UMovieGraphEvaluatedConfig* InOwningConfig, FMovieGraphEvaluatedBranchConfig& OutBranchConfig,
+	FMovieGraphEvaluationContext& InEvaluationContext, UMovieGraphPin* InPinToFollow)
+{
+	if (!InPinToFollow)
+	{
+		return;
+	}
+
+	UMovieGraphNode* Node = InPinToFollow->Node;
+	if (!Node)
+	{
+		return;
+	}
+
+	// We only follow execution pins during traversal.
+	if (!ensureMsgf(InPinToFollow->Properties.Type == EMovieGraphValueType::Branch, TEXT("Only Branch pins should be contained by InPinToFollow!")))
+	{
+		return;
+	}
+
+	// Check to see if our flattened evaluation graph already has a copy of this node.
+	InEvaluationContext.VisitedNodes.Add(Node);
+	const bool bShouldIncludeNode = Node->IsA<UMovieGraphSettingNode>();
+
+	if(bShouldIncludeNode)
+	{
+		UMovieGraphNode* ExistingNode = OutBranchConfig.GetNodeByClassExactMatch(Node->GetClass());
+		if (!ExistingNode)
+		{
+			// Create a new instance of this node inside our flattened eval graph
+			ExistingNode = NewObject<UMovieGraphNode>(InOwningConfig, Node->GetClass());
+			OutBranchConfig.NodeInstances.Add(ExistingNode);
+
+			// Set all of the boolean edit condition values to false, so we can use "true" to indicate
+			// that the value was overridden already during traversal.
+			InitializeFlattenedNode(ExistingNode);
+		}
+
+		// Now do a property-copy from this node onto our flattened one. We don't use the generic property
+		// copy routines in the engine because we have special handling (we want to check if the property
+		// is actually marked for override, and also skip if this has already been overridden.
+
+		// ToDo: Handle "Disable" ndoes that can disable upstream types of nodes, etc. Push disable types into
+		// the currently evaluating context
+		CopyOverriddenProperties(Node, ExistingNode);
+	}
+	
+	// Now that we've potentially resolved the values on this node, continue to travel up-stream along any execution pins,
+	// potentially following re-route nodes, sub-graph nodes, through branches, etc.
+	TArray<UMovieGraphPin*> NewPinsToFollow = Node->EvaluatePinsToFollow(InEvaluationContext.UserContext);
+	
+	for(UMovieGraphPin* Pin : NewPinsToFollow)
+	{
+		for (UMovieGraphEdge* Edge : Pin->Edges)
+		{
+			if (UMovieGraphPin* OtherPin = Edge->GetOtherPin(Pin))
+			{
+				UMovieGraphNode* OtherNode = OtherPin->Node;
+
+				if (InEvaluationContext.VisitedNodes.Contains(OtherNode))
+				{
+					// ToDo: This won't work long term if you have two different branches visiting the same node
+					// also we need to reset this every time we go start from the root.
+					UE_LOG(LogMovieRenderPipeline, Error, TEXT("Circular graph?"));
+					continue;
+				}
+
+				CreateFlattenedGraph_Recursive(InOwningConfig, OutBranchConfig, InEvaluationContext, OtherPin);
+			}
+		}
+	}
+}
+
+UMovieGraphEvaluatedConfig* UMovieGraphConfig::CreateFlattenedGraph(const FMovieGraphTraversalContext& InContext)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(MRQ_CreateFlattenedGraph);
+	LLM_SCOPE_BYNAME(TEXT("MovieGraph/CreateFlattenedGraph"));
+
+	UMovieGraphEvaluatedConfig* NewContext = NewObject<UMovieGraphEvaluatedConfig>(this);
+
+	if (OutputNode)
+	{
+		TArray<UMovieGraphPin*> InputPinsToFollow = OutputNode->GetInputPins();
+		UMovieGraphPin* GlobalsPin = OutputNode->GetInputPin(UMovieGraphNode::GlobalsPinName);
+
+		// For each input pin, we create an instance of the config (including Globals, since some queries are made with no context)
+		// but we also want each named branch to have a complete, resolved set of configs.
+		for (UMovieGraphPin* InputPin : OutputNode->GetInputPins())
+		{
+			const FName BranchName = InputPin->Properties.Label;
+			FMovieGraphEvaluatedBranchConfig& BranchConfig = NewContext->BranchConfigMapping.Add(BranchName);
+			
+			// The stack evaluation context is per-branch
+			FMovieGraphEvaluationContext StackContext;
+			StackContext.UserContext = InContext;
+
+			// Follow the branch connected to this pin
+			for (UMovieGraphEdge* Edge : InputPin->Edges)
+			{
+				UMovieGraphPin* OtherPin = Edge->GetOtherPin(InputPin);
+				if (OtherPin)
+				{
+					CreateFlattenedGraph_Recursive(NewContext, /*InOut*/ BranchConfig, StackContext, OtherPin);
+				}
+			}
+
+			// Now, if this isn't the Globals branch, we apply the Globals branch after the branch settings.
+			// This allows users to override things on a per-branch basis, and if they don't set it, then the Globals
+			// branch has a chance to set "defaults" (which then fall back to CDO values if the Globals branch doesn't 
+			// set it). We skip doing this for the Globals branch because the above loop just did that.
+			if (BranchName != UMovieGraphNode::GlobalsPinName && GlobalsPin)
+			{
+				// We use a new context here as we consider every branch independent.
+				FMovieGraphEvaluationContext GlobalStackContext;
+				GlobalStackContext.UserContext = InContext;
+				for (UMovieGraphEdge* Edge : GlobalsPin->Edges)
+				{
+					UMovieGraphPin* OtherPin = Edge->GetOtherPin(GlobalsPin);
+					if (OtherPin)
+					{
+						CreateFlattenedGraph_Recursive(NewContext, /*InOut*/ BranchConfig, GlobalStackContext, OtherPin);
+					}
+				}
+			}
+		}		
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Traversed Graph:"));
+	for (const TPair<FName, FMovieGraphEvaluatedBranchConfig>& Pair : NewContext->BranchConfigMapping)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("\t Branch: %s"), *Pair.Key.ToString());
+
+		for (UMovieGraphNode* Node : Pair.Value.GetNodes())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("\t\t %s Class:"), *Node->GetClass()->GetName());
+			for (TFieldIterator<FProperty> PropertyIterator(Node->GetClass()); PropertyIterator; ++PropertyIterator)
+			{
+				FProperty* CheckProperty = *PropertyIterator;
+				FBoolProperty* EditConditionProperty = FindOverridePropertyForRealProperty(Node->GetClass(), CheckProperty);
+				if (EditConditionProperty)
+				{
+					FString ExportText;
+					CheckProperty->ExportText_InContainer(0, ExportText, Node, Node, Node, 0);
+					UE_LOG(LogTemp, Warning, TEXT("\t\t\t %s : %s"), *CheckProperty->GetName(), *ExportText);
+				}
+			}
+		}
+
+	}
+
+	return NewContext;
+}
+
+
 #undef LOCTEXT_NAMESPACE
