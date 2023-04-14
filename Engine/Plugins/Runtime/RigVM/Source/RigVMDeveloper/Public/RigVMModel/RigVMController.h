@@ -1353,8 +1353,8 @@ private:
 	UPROPERTY(transient)
 	TArray<TObjectPtr<URigVMGraph>> Graphs;
 
-	TWeakObjectPtr<URigVMActionStack> WeakActionStack;
-	FDelegateHandle ActionStackHandle;
+	mutable TWeakObjectPtr<URigVMActionStack> WeakActionStack;
+	mutable FDelegateHandle ActionStackHandle;
 
 	bool bSuspendNotifications;
 	bool bReportWarningsAndErrors;

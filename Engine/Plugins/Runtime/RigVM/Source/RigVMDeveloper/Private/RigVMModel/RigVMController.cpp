@@ -18586,6 +18586,18 @@ URigVMActionStack* URigVMController::GetActionStack() const
 	{
 		return WeakActionStack.Get();
 	}
+	if (bIsRunningUnitTest)
+	{
+		URigVMActionStack* ActionStack = NewObject<URigVMActionStack>(GetTransientPackage(), TEXT("ActionStack"));
+		WeakActionStack = ActionStack;
+		ActionStackHandle = ActionStack->OnModified().AddLambda([&](ERigVMGraphNotifType NotifType, URigVMGraph* InGraph, UObject* InSubject) -> void {
+			if(InGraph == GetGraph())
+			{
+				Notify(NotifType, InSubject);
+			}
+		});
+		return WeakActionStack.Get();
+	}
 	checkNoEntry();
 	return nullptr;
 }
