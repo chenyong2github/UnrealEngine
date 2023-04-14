@@ -81,7 +81,10 @@ namespace Horde.Server.Telemetry
 			WriteAgentMetadataSql(agentMetadataEvents, sb);
 			WriteAgentCpuSql(agentCpuEvents, sb);
 
-			await SendClickHouseQueryAsync(Encoding.UTF8.GetBytes(sb.ToString()), cancellationToken);
+			if (sb.Length > 0)
+			{
+				await SendClickHouseQueryAsync(Encoding.UTF8.GetBytes(sb.ToString()), cancellationToken);	
+			}
 		}
 
 		private async Task SendClickHouseQueryAsync(byte[] query, CancellationToken cancellationToken)
