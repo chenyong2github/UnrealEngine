@@ -44,6 +44,8 @@ public class DownloadDescription
 	public boolean bIsCancelled = false;
 	public long PreviousDownloadedBytes = 0;
 	public int PreviousDownloadPercent = 0;
+	public long TotalBytesNeeded = 0;
+	public long TotalDownloadedBytes = 0;
 	public DownloadProgressListener ProgressListener = null;
 	public DownloadDescription()
 	{
