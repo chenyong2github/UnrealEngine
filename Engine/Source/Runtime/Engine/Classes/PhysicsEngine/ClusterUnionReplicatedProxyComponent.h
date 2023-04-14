@@ -94,6 +94,9 @@ private:
 	FTimerHandle DeferSetChildToParentHandle;
 	void DeferSetChildToParentChildUntilClusteredComponentInParentUnion();
 
+	FTimerHandle DeferAddComponentToClusterHandle;
+	void DeferAddComponentToClusterHandleUntilInitialTransformUpdate();
+
 	//~ Begin UActorComponent Interface
 public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

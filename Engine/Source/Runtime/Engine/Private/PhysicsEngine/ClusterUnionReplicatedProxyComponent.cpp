@@ -123,7 +123,10 @@ void UClusterUnionReplicatedProxyComponent::PostRepNotifies()
 	const bool bIsInitialReplication = bNetUpdateParentClusterUnion || bNetUpdateChildClusteredComponent || bNetUpdateParticleBoneIds;
 	if (bIsInitialReplication)
 	{
-		ParentClusterUnion->AddComponentToCluster(ChildClusteredComponent, ParticleBoneIds);
+		if (!DeferAddComponentToClusterHandle.IsValid())
+		{
+			DeferAddComponentToClusterHandleUntilInitialTransformUpdate();
+		}
 		bNetUpdateParentClusterUnion = false;
 		bNetUpdateChildClusteredComponent = false;
 		bNetUpdateParticleBoneIds = false;
@@ -138,6 +141,25 @@ void UClusterUnionReplicatedProxyComponent::PostRepNotifies()
 			DeferSetChildToParentChildUntilClusteredComponentInParentUnion();
 		}
 		bNetUpdateParticleChildToParents = false;
+	}
+}
+
+void UClusterUnionReplicatedProxyComponent::DeferAddComponentToClusterHandleUntilInitialTransformUpdate()
+{
+	if (!ParentClusterUnion || !ChildClusteredComponent || IsPendingDeletion())
+	{
+		return;
+	}
+
+	DeferAddComponentToClusterHandle.Invalidate();
+
+	if (ParentClusterUnion->HasReceivedTransform())
+	{
+		ParentClusterUnion->AddComponentToCluster(ChildClusteredComponent, ParticleBoneIds);
+	}
+	else if (AActor* Owner = GetOwner())
+	{
+		DeferAddComponentToClusterHandle = Owner->GetWorldTimerManager().SetTimerForNextTick(this, &UClusterUnionReplicatedProxyComponent::DeferAddComponentToClusterHandleUntilInitialTransformUpdate);
 	}
 }
 

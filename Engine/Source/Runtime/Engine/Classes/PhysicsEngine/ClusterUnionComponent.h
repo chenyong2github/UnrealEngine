@@ -151,6 +151,8 @@ public:
 	UFUNCTION()
 	bool IsComponentAdded(UPrimitiveComponent* Component) { return ComponentToPhysicsObjects.Contains(Component); }
 
+	bool HasReceivedTransform() const { return bHasReceivedTransform; }
+
 	friend class UClusterUnionReplicatedProxyComponent;
 protected:
 
@@ -197,6 +199,7 @@ private:
 	FPhysScene_Chaos* GetChaosScene() const;
 
 	Chaos::FClusterUnionPhysicsProxy* PhysicsProxy;
+	bool bHasReceivedTransform;
 
 	// User data to be able to tie the cluster particle back to this component.
 	FChaosUserData PhysicsUserData;
