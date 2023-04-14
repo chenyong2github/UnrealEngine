@@ -35,6 +35,7 @@
 		<local:VisibilityConverter x:Key="VisConv_Collapsed" FalseState="Collapsed" />
 		<local:VisibilityConverter x:Key="VisConv_Collapsed_Inv" TrueState="Collapsed" FalseState="Visible" />
 		<local:VisibilityConverter x:Key="VisConv_Hidden" FalseState="Hidden" />
+		<local:ObjectToBoolConverter x:Key="IsObjectNotNull"/>	
 		
 	</Application.Resources>
 </Application>

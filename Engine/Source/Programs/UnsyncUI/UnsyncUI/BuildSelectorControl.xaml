@@ -166,8 +166,8 @@
 
 				<local:SelectFolderControl Grid.Row ="0" SelectedPath="{Binding DstPath, UpdateSourceTrigger=PropertyChanged}" Description="Select a destination directory to sync builds to."/>
 
-				<CheckBox Grid.Row ="1" VerticalAlignment="Center" IsChecked="{Binding AppendBuildName}" 
-						  Content="Append Build Name" ToolTip="If a build is selected, its name will be appended to the destination folder." 
+				<CheckBox Grid.Row ="1" VerticalAlignment="Center" IsChecked="{Binding AppendBuildName}" IsEnabled="{Binding SelectedBuild, Converter={StaticResource IsObjectNotNull}}"
+						  Content="Append Build Name" ToolTip="If a build is selected, its name will be appended to the destination folder.&#x0a;Note : using this option will download each build in a different folder, which is useful when you need multiple builds for comparison or whatnot. However, downloading builds over an existing folder yields faster sync times." 
 						  ToolTipService.ShowOnDisabled="True" HorizontalAlignment="Left" Margin="4,0,0,0"/>
 				<TextBlock Margin="4" Grid.Row ="2">
 					<Hyperlink Command="{Binding OpenDestinationClicked}">

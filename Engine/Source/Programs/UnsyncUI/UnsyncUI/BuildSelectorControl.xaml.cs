@@ -302,8 +302,6 @@ namespace UnsyncUI
 				UpdateFinalDstPath();
 
 				App.Current.UserConfig.ProjectDestinationMap[Name] = DstPath;
-
-				ResetDestinationClicked.Enabled = CanResetDestinationToDefault;
 			}
 		}
 
@@ -321,6 +319,8 @@ namespace UnsyncUI
 			{
 				FinalDstPath = finalPath;
 			}
+
+			ResetDestinationClicked.Enabled = CanResetDestinationToDefault;
 		}
 
 		private string finalDstPath = null;
@@ -393,6 +393,8 @@ namespace UnsyncUI
 
 			appendBuildName = App.Current.UserConfig.AppendBuildName;
 
+			ResetDestinationClicked = new Command(ResetDestinationToDefault) { Enabled = CanResetDestinationToDefault };
+
 			string userDstPath = null;
 
 			if (App.Current.UserConfig.ProjectDestinationMap.TryGetValue(Name, out userDstPath))
@@ -404,14 +406,13 @@ namespace UnsyncUI
 				dstPath = defaultDstPath;
 			}
 			UpdateFinalDstPath();
-
-			ResetDestinationClicked = new Command(ResetDestinationToDefault) { Enabled = CanResetDestinationToDefault };
 		}
-		private bool CanResetDestinationToDefault => dstPath != defaultDstPath && defaultDstPath.Length != 0;
+		private bool CanResetDestinationToDefault => finalDstPath != defaultDstPath && defaultDstPath.Length != 0;
 
 		private void ResetDestinationToDefault()
 		{
 			DstPath = defaultDstPath;
+			AppendBuildName = false;
 		}
 
 		private void StopRefreshBuilds()
