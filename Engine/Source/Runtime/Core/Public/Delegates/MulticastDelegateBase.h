@@ -220,7 +220,8 @@ protected:
 	 *
 	 * @param NewDelegateBaseRef The delegate instance to add.
 	 */
-	inline FDelegateHandle AddDelegateInstance(TDelegateBase<UserPolicy>&& NewDelegateBaseRef)
+	template <typename NewDelegateType>
+	inline FDelegateHandle AddDelegateInstance(NewDelegateType&& NewDelegateBaseRef)
 	{
 		UE_DELEGATES_MT_SCOPED_WRITE_ACCESS(AccessDetector);
 
@@ -230,7 +231,7 @@ protected:
 			// compact but obey threshold of when this will trigger
 			CompactInvocationList(true);
 			Result = NewDelegateBaseRef.GetHandle();
-			InvocationList.Add(MoveTemp(NewDelegateBaseRef));
+			InvocationList.Emplace(Forward<NewDelegateType>(NewDelegateBaseRef));
 		}
 		return Result;
 	}

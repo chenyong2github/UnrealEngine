@@ -84,10 +84,11 @@ protected:
 	 *
 	 * @param NewDelegateBaseRef The delegate instance to add.
 	 */
-	inline FDelegateHandle AddDelegateInstance(TDelegateBase<UserPolicy>&& NewDelegateBaseRef)
+	template <typename NewDelegateType>
+	inline FDelegateHandle AddDelegateInstance(NewDelegateType&& NewDelegateBaseRef)
 	{
 		FScopeLock Lock(&CS);
-		return Super::AddDelegateInstance(MoveTemp(NewDelegateBaseRef));
+		return Super::AddDelegateInstance(Forward<NewDelegateType>(NewDelegateBaseRef));
 	}
 
 	/**
