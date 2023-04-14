@@ -20,19 +20,26 @@
 
 class UObject;
 
-FDetailsDiff::FDetailsDiff(const UObject* InObject, FOnDisplayedPropertiesChanged InOnDisplayedPropertiesChanged )
+FDetailsDiff::FDetailsDiff(const UObject* InObject, FOnDisplayedPropertiesChanged InOnDisplayedPropertiesChanged, bool bScrollbarOnLeft )
 	: OnDisplayedPropertiesChanged( InOnDisplayedPropertiesChanged )
 	, DisplayedObject( InObject )
-	, DetailsView()
+{
+	ScrollBar = SNew(SLinkableScrollBar);
+	DetailsView = CreateDetailsView(InObject, ScrollBar, bScrollbarOnLeft);
+	DetailsView->SetOnDisplayedPropertiesChanged( ::FOnDisplayedPropertiesChanged::CreateRaw(this, &FDetailsDiff::HandlePropertiesChanged) );
+	DisplayedProperties = DetailsView->GetPropertiesInOrderDisplayed();
+}
+
+TSharedRef<IDetailsView> FDetailsDiff::CreateDetailsView(const UObject* InObject, TSharedPtr<SScrollBar> ExternalScrollbar, bool bScrollbarOnLeft)
 {
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.bShowDifferingPropertiesOption = true;
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-	ScrollBar = SNew(SLinkableScrollBar);
-	DetailsViewArgs.ExternalScrollbar = ScrollBar;
+	DetailsViewArgs.ExternalScrollbar = ExternalScrollbar;
+	DetailsViewArgs.ScrollbarAlignment = bScrollbarOnLeft ? HAlign_Left : HAlign_Right;
 
 	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	DetailsView = EditModule.CreateDetailView(DetailsViewArgs);
+	TSharedRef<IDetailsView> DetailsView = EditModule.CreateDetailView(DetailsViewArgs);
 	DetailsView->SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateStatic([]{return false; }));
 	if (InObject && InObject->IsA<UBlueprint>())
 	{
@@ -49,9 +56,8 @@ FDetailsDiff::FDetailsDiff(const UObject* InObject, FOnDisplayedPropertiesChange
 	// This is a read only details view (see the property editing delegate), but const correctness at the details view
 	// level would stress the type system a little:
 	DetailsView->SetObject(const_cast<UObject*>(InObject));
-	DetailsView->SetOnDisplayedPropertiesChanged( ::FOnDisplayedPropertiesChanged::CreateRaw(this, &FDetailsDiff::HandlePropertiesChanged) );
 
-	DifferingProperties = DetailsView->GetPropertiesInOrderDisplayed();
+	return DetailsView;
 }
 
 FDetailsDiff::~FDetailsDiff()
@@ -75,7 +81,7 @@ void FDetailsDiff::HandlePropertiesChanged()
 {
 	if( OnDisplayedPropertiesChanged.IsBound() )
 	{
-		DifferingProperties = DetailsView->GetPropertiesInOrderDisplayed();
+		DisplayedProperties = DetailsView->GetPropertiesInOrderDisplayed();
 		OnDisplayedPropertiesChanged.Execute();
 	}
 }
@@ -83,7 +89,7 @@ void FDetailsDiff::HandlePropertiesChanged()
 TArray<FPropertySoftPath> FDetailsDiff::GetDisplayedProperties() const
 {
 	TArray<FPropertySoftPath> Ret;
-	Algo::Copy(DifferingProperties, Ret);
+	Algo::Copy(DisplayedProperties, Ret);
 	return Ret;
 }
 

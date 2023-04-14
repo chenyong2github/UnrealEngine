@@ -329,6 +329,90 @@ void SDetailsViewBase::HighlightProperty(const FPropertyPath& Property)
 	CurrentlyHighlightedNode = TreeNode;
 }
 
+static void ExpandPaintSpacePropertyBoundsRecursive(const TArray<TSharedRef<FDetailTreeNode>>& TreeNodes, TSharedPtr<SDetailTree> DetailTree, FSlateRect& InOutRect)
+{
+	for(const TSharedRef<FDetailTreeNode>& TreeNode : TreeNodes)
+	{
+		if (const TSharedPtr<ITableRow> Row = DetailTree->WidgetFromItem(TreeNode))
+		{
+			if (const TSharedPtr<SWidget> Widget = Row->AsWidget())
+			{
+				FSlateRect ChildRect = Widget->GetPaintSpaceGeometry().GetLayoutBoundingRect();
+				InOutRect = InOutRect.IsValid() ? InOutRect.Expand(ChildRect) : ChildRect;
+			}
+		}
+		
+		if (!TreeNode->IsLeaf() && DetailTree->IsItemExpanded(TreeNode))
+		{
+			TArray<TSharedRef<FDetailTreeNode>> Children;
+			TreeNode->GetChildren(Children);
+			ExpandPaintSpacePropertyBoundsRecursive(Children, DetailTree, InOutRect);
+		}
+	}
+}
+
+FSlateRect SDetailsViewBase::GetPaintSpacePropertyBounds(const TSharedRef<FDetailTreeNode>& InDetailTreeNode, bool bIncludeChildren) const
+{
+	const TSharedRef<FDetailTreeNode> DetailTreeNode = StaticCastSharedRef<FDetailTreeNode>(InDetailTreeNode);
+	FSlateRect Result{-1,-1,-1,-1};
+	if (const TSharedPtr<ITableRow> Row = DetailTree->WidgetFromItem(DetailTreeNode))
+	{
+		if (const TSharedPtr<SWidget> Widget = Row->AsWidget())
+		{
+			Result = Widget->GetPaintSpaceGeometry().GetLayoutBoundingRect();
+		}
+	}
+	if (bIncludeChildren && !DetailTreeNode->IsLeaf() && DetailTree->IsItemExpanded(DetailTreeNode))
+	{
+		TArray<TSharedRef<FDetailTreeNode>> Children;
+		DetailTreeNode->GetChildren(Children);
+		ExpandPaintSpacePropertyBoundsRecursive(Children, DetailTree, Result);
+	}
+	return Result;
+}
+
+static void ExpandTickSpacePropertyBoundsRecursive(const TArray<TSharedRef<FDetailTreeNode>>& TreeNodes, TSharedPtr<SDetailTree> DetailTree, FSlateRect& InOutRect)
+{
+	for(const TSharedRef<FDetailTreeNode>& TreeNode : TreeNodes)
+	{
+		if (const TSharedPtr<ITableRow> Row = DetailTree->WidgetFromItem(TreeNode))
+		{
+			if (const TSharedPtr<SWidget> Widget = Row->AsWidget())
+			{
+				FSlateRect ChildRect = Widget->GetTickSpaceGeometry().GetLayoutBoundingRect();
+				InOutRect = InOutRect.IsValid() ? InOutRect.Expand(ChildRect) : ChildRect;
+			}
+		}
+		
+		if (!TreeNode->IsLeaf() && DetailTree->IsItemExpanded(TreeNode))
+		{
+			TArray<TSharedRef<FDetailTreeNode>> Children;
+			TreeNode->GetChildren(Children);
+			ExpandTickSpacePropertyBoundsRecursive(Children, DetailTree, InOutRect);
+		}
+	}
+}
+
+FSlateRect SDetailsViewBase::GetTickSpacePropertyBounds(const TSharedRef<FDetailTreeNode>& InDetailTreeNode, bool bIncludeChildren) const
+{
+	const TSharedRef<FDetailTreeNode> DetailTreeNode = StaticCastSharedRef<FDetailTreeNode>(InDetailTreeNode);
+	FSlateRect Result{-1,-1,-1,-1};
+	if (const TSharedPtr<ITableRow> Row = DetailTree->WidgetFromItem(DetailTreeNode))
+	{
+		if (const TSharedPtr<SWidget> Widget = Row->AsWidget())
+		{
+			Result = Widget->GetTickSpaceGeometry().GetLayoutBoundingRect();
+		}
+	}
+	if (bIncludeChildren && !DetailTreeNode->IsLeaf() && DetailTree->IsItemExpanded(DetailTreeNode))
+	{
+		TArray<TSharedRef<FDetailTreeNode>> Children;
+		DetailTreeNode->GetChildren(Children);
+		ExpandTickSpacePropertyBoundsRecursive(Children, DetailTree, Result);
+	}
+	return Result;
+}
+
 bool SDetailsViewBase::IsAncestorCollapsed(const TSharedRef<IDetailTreeNode>& Node) const
 {
 	// in order for a node to be expanded, all it's parents have to be expanded

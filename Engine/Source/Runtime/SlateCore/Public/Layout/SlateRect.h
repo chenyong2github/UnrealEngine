@@ -355,6 +355,17 @@ public:
 	* @return	True if initialized successfully
 	*/
 	bool InitFromString(const FString& InSourceString);
+
+	
+	friend FORCEINLINE uint32 GetTypeHash(const FSlateRect& Key)
+	{
+		uint32 Hash = 0;
+		Hash = HashCombine(Hash, GetTypeHash(Key.Left));
+		Hash = HashCombine(Hash, GetTypeHash(Key.Right));
+		Hash = HashCombine(Hash, GetTypeHash(Key.Top));
+		Hash = HashCombine(Hash, GetTypeHash(Key.Bottom));
+		return Hash;
+	}
 };
 
 /**

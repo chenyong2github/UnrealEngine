@@ -12,6 +12,9 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Framework/Application/SlateApplication.h"
+#include "AsyncTreeDifferences.h"
+#include "DetailTreeNode.h"
+#include "AsyncDetailViewDiff.h"
 
 #define LOCTEXT_NAMESPACE "SBlueprintDif"
 
@@ -80,7 +83,26 @@ TSharedRef<SWidget> IDiffControl::GenerateObjectDiffWidget(FSingleObjectDiffEntr
 void IDiffControl::EnableComments(TWeakPtr<STreeView<TSharedPtr<FBlueprintDifferenceTreeEntry>>> TreeView,
 	const UObject* OldObject, const UObject* NewObject)
 {
-	ReviewCommentsDiffControl = MakeShared<FReviewCommentsDiffControl>(OldObject, NewObject, TreeView);
+	const UPackage* Package = OldObject ? OldObject->GetPackage() : NewObject->GetPackage();
+	const FPackagePath PackagePath = FPackagePath::FromPackageNameChecked(Package->GetName());
+	ReviewCommentsDiffControl = MakeShared<FReviewCommentsDiffControl>(PackagePath.GetLocalFullPath(), TreeView);
+}
+
+void IDiffControl::EnableComments(TWeakPtr<STreeView<TSharedPtr<FBlueprintDifferenceTreeEntry>>> TreeView, const TArray<const UObject*>& Objects)
+{
+	for (const UObject* Object : Objects)
+	{
+		if (!ensure(Object))
+		{
+			continue;
+		}
+		if (const UPackage* Package = Object->GetPackage())
+		{
+			const FPackagePath PackagePath = FPackagePath::FromPackageNameChecked(Package->GetName());
+			ReviewCommentsDiffControl = MakeShared<FReviewCommentsDiffControl>(PackagePath.GetLocalFullPath(), TreeView);
+			return;
+		}
+	}
 }
 
 void IDiffControl::GenerateCategoryCommentTreeEntries(TArray<TSharedPtr<FBlueprintDifferenceTreeEntry>>& OutChildrenEntries,
@@ -266,35 +288,30 @@ void FSCSDiffControl::EnableComments(TWeakPtr<STreeView<TSharedPtr<FBlueprintDif
 }
 
 FDetailsDiffControl::FDetailsDiffControl(const UObject* InOldObject, const UObject* InNewObject,
-	FOnDiffEntryFocused InSelectionCallback, bool bPopulateOutTreeEntries): SelectionCallback(InSelectionCallback)
-	                                                                        , OldDetails(InOldObject, FDetailsDiff::FOnDisplayedPropertiesChanged())
-	                                                                        , NewDetails(InNewObject, FDetailsDiff::FOnDisplayedPropertiesChanged())
-	                                                                        , bPopulateOutTreeEntries(bPopulateOutTreeEntries)
+	FOnDiffEntryFocused InSelectionCallback, bool bPopulateOutTreeEntries)
+	: SelectionCallback(InSelectionCallback)
+	, bPopulateOutTreeEntries(bPopulateOutTreeEntries)
 {
-	OldDetails.DiffAgainst(NewDetails, DifferingProperties, true);
+	if (InOldObject)
+	{
+		InsertObject(InOldObject, true);
+	}
+	if (InNewObject)
+	{
+		InsertObject(InNewObject, false);
+	}
+}
 
-	TSet<FPropertyPath> PropertyPaths;
-	Algo::Transform(DifferingProperties, PropertyPaths,
-	                [&InOldObject](const FSingleObjectDiffEntry& DiffEntry)
-	                {
-		                return DiffEntry.Identifier.ResolvePath(InOldObject);
-	                });
-
-	OldDetails.DetailsWidget()->UpdatePropertyAllowList(PropertyPaths);
-
-	PropertyPaths.Reset();
-	Algo::Transform(DifferingProperties, PropertyPaths,
-	                [&InNewObject](const FSingleObjectDiffEntry& DiffEntry)
-	                {
-		                return DiffEntry.Identifier.ResolvePath(InNewObject);
-	                });
-
-	NewDetails.DetailsWidget()->UpdatePropertyAllowList(PropertyPaths);
-		
-	// Sync the scrolling between the left and right panels
-	const TSharedRef<IDetailsView> OldDetailsView = OldDetails.DetailsWidget();
-	const TSharedRef<IDetailsView> NewDetailsView = NewDetails.DetailsWidget();
-	FDetailsDiff::LinkScrolling(OldDetails, NewDetails, GetLinkedScrollRateAttribute(OldDetailsView, NewDetailsView));;
+void FDetailsDiffControl::Tick()
+{
+	for (auto& [Object, PropertyTreeDiffs] : PropertyTreeDifferences)
+	{
+		if (PropertyTreeDiffs.Left)
+		{
+			constexpr float MaxTickTimeMs = 0.01f;
+			PropertyTreeDiffs.Left->Tick(MaxTickTimeMs);
+		}
+	}
 }
 
 void FDetailsDiffControl::GenerateTreeEntries(TArray<TSharedPtr<FBlueprintDifferenceTreeEntry>>& OutTreeEntries, TArray<TSharedPtr<FBlueprintDifferenceTreeEntry>>& OutRealDifferences)
@@ -309,6 +326,31 @@ void FDetailsDiffControl::GenerateTreeEntriesWithoutComments(
 	TArray<TSharedPtr<FBlueprintDifferenceTreeEntry>>& OutTreeEntries,
 	TArray<TSharedPtr<FBlueprintDifferenceTreeEntry>>& OutRealDifferences)
 {
+	TArray<FSingleObjectDiffEntry> DifferingProperties;
+	
+	for (int32 LeftIndex = 0; LeftIndex < ObjectDisplayOrder.Num() - 1; ++LeftIndex)
+	{
+		const UObject* LeftObject = ObjectDisplayOrder[LeftIndex];
+		if (!ensure(LeftObject))
+		{
+			continue;
+		}
+		const TSharedPtr<FAsyncDetailViewDiff> Diff = PropertyTreeDifferences[LeftObject].Right;
+		Diff->FlushQueue(); // make sure differences are fully up to date
+		Diff->GetPropertyDifferences(DifferingProperties);
+	}
+
+	for (auto&[Object, DetailsDiff] : DetailsDiffs)
+	{
+		Algo::Transform(DifferingProperties, PropertyAllowList,
+        [&Object = Object](const FSingleObjectDiffEntry& DiffEntry)
+        {
+        	return DiffEntry.Identifier.ResolvePath(Object);
+        });
+        
+        DetailsDiff.DetailsWidget()->UpdatePropertyAllowList(PropertyAllowList);
+	}
+	
 	for (const FSingleObjectDiffEntry& Difference : DifferingProperties)
 	{
 		TSharedPtr<FBlueprintDifferenceTreeEntry> Entry = MakeShared<FBlueprintDifferenceTreeEntry>(
@@ -325,14 +367,76 @@ void FDetailsDiffControl::GenerateTreeEntriesWithoutComments(
 
 void FDetailsDiffControl::EnableComments(TWeakPtr<STreeView<TSharedPtr<FBlueprintDifferenceTreeEntry>>> TreeView)
 {
-	IDiffControl::EnableComments(TreeView, OldDetails.GetDisplayedObject(), NewDetails.GetDisplayedObject());
+	IDiffControl::EnableComments(TreeView, ObjectDisplayOrder);
+}
+
+TSharedRef<IDetailsView> FDetailsDiffControl::InsertObject(const UObject* Object, bool bScrollbarOnLeft, int32 Index)
+{
+	FDetailsDiff DetailsDiff(Object, FDetailsDiff::FOnDisplayedPropertiesChanged(), bScrollbarOnLeft);
+	const TSharedRef<IDetailsView> DetailsView = DetailsDiff.DetailsWidget();
+	DetailsView->UpdatePropertyAllowList(PropertyAllowList);
+
+	if (Index == INDEX_NONE)
+	{
+		Index = ObjectDisplayOrder.Num();
+	}
+	
+	DetailsDiffs.Add(Object, DetailsDiff);
+	ObjectDisplayOrder.Insert(Object, Index);
+	PropertyTreeDifferences.Add(Object, {});
+	
+	// set up interaction with left panel
+	if (ObjectDisplayOrder.IsValidIndex(Index - 1))
+	{
+		const UObject* OtherObject = ObjectDisplayOrder[Index - 1];
+		FDetailsDiff& OtherDetailsDiff = DetailsDiffs[OtherObject];
+		const TSharedRef<IDetailsView> OtherDetailsView = OtherDetailsDiff.DetailsWidget();
+		const auto ScrollRate = GetLinkedScrollRateAttribute(OtherDetailsView, DetailsView);
+		FDetailsDiff::LinkScrolling(OtherDetailsDiff, DetailsDiff, ScrollRate);
+
+		PropertyTreeDifferences[OtherObject].Right = MakeShared<FAsyncDetailViewDiff>(OtherDetailsView, DetailsView);
+		PropertyTreeDifferences[Object].Left = PropertyTreeDifferences[OtherObject].Right;
+	}
+	// Set up interaction with right panel
+	if (ObjectDisplayOrder.IsValidIndex(Index + 1))
+	{
+		const UObject* OtherObject = ObjectDisplayOrder[Index + 1];
+		FDetailsDiff& OtherDetailsDiff = DetailsDiffs[OtherObject];
+		const TSharedRef<IDetailsView> OtherDetailsView = OtherDetailsDiff.DetailsWidget();
+		const auto ScrollRate = GetLinkedScrollRateAttribute(DetailsView, OtherDetailsView);
+		FDetailsDiff::LinkScrolling(DetailsDiff, OtherDetailsDiff, ScrollRate);
+		
+		const TSharedPtr<FAsyncDetailViewDiff> DifferencesWithRight = MakeShared<FAsyncDetailViewDiff>(OtherDetailsView, DetailsView);
+
+		PropertyTreeDifferences[OtherObject].Left = MakeShared<FAsyncDetailViewDiff>(DetailsView, OtherDetailsView);
+		PropertyTreeDifferences[Object].Right = PropertyTreeDifferences[OtherObject].Left;
+	}
+
+	return DetailsView;
+}
+
+TSharedRef<IDetailsView> FDetailsDiffControl::GetDetailsWidget(const UObject* Object) const
+{
+	return DetailsDiffs[Object].DetailsWidget();
+}
+
+TSharedPtr<FAsyncDetailViewDiff> FDetailsDiffControl::GetDifferencesWithLeft(const UObject* Object) const
+{
+	return PropertyTreeDifferences[Object].Left;
+}
+
+TSharedPtr<FAsyncDetailViewDiff> FDetailsDiffControl::GetDifferencesWithRight(const UObject* Object) const
+{
+	return PropertyTreeDifferences[Object].Right;
 }
 
 void FDetailsDiffControl::OnSelectDiffEntry(FPropertySoftPath PropertyName)
 {
 	SelectionCallback.ExecuteIfBound();
-	OldDetails.HighlightProperty(PropertyName);
-	NewDetails.HighlightProperty(PropertyName);
+	for (auto&[Object, DetailsDiff] : DetailsDiffs)
+	{
+		DetailsDiff.HighlightProperty(PropertyName);
+	}
 }
 
 TAttribute<TArray<FVector2f>> FDetailsDiffControl::GetLinkedScrollRateAttribute(const TSharedRef<IDetailsView>& OldDetailsView, const TSharedRef<IDetailsView>& NewDetailsView)
@@ -340,62 +444,42 @@ TAttribute<TArray<FVector2f>> FDetailsDiffControl::GetLinkedScrollRateAttribute(
 	return TAttribute<TArray<FVector2f>>::CreateRaw(this, &FDetailsDiffControl::GetLinkedScrollRate, OldDetailsView, NewDetailsView);
 }
 
-TArray<FVector2f> FDetailsDiffControl::GetLinkedScrollRate(TSharedRef<IDetailsView> OldDetailsView, TSharedRef<IDetailsView> NewDetailsView) const
+TArray<FVector2f> FDetailsDiffControl::GetLinkedScrollRate(TSharedRef<IDetailsView> LeftDetailsView, TSharedRef<IDetailsView> RightDetailsView) const
 {
-	TArray<TPair<int32, FPropertyPath>> OldProperties = OldDetailsView->GetPropertyRowNumbers();
-	TArray<TPair<int32, FPropertyPath>> NewProperties = NewDetailsView->GetPropertyRowNumbers();
-
-	const int32 OldRowCount = OldDetailsView->CountRows();
-	const int32 NewRowCount = NewDetailsView->CountRows();
-
-	// use caching to avoid O(n^2) LCS calculation every frame
-	if(LinkedScrollRateCache.OldProperties != OldProperties || LinkedScrollRateCache.NewProperties != NewProperties)
-	{
-		const auto PropertyPathsEqual = [](const TPair<int32, FPropertyPath>& A, const TPair<int32, FPropertyPath>& B)
-		{
-			return A.Value == B.Value;
-		};
-		
-		// Find the Longest Common Subsequence between both sets of properties
-		const TArray<TArray<int32>> LCS = CalculateLCSTable(OldProperties, NewProperties, PropertyPathsEqual);
+	const UObject* LeftObject = LeftDetailsView->GetSelectedObjects()[0].Get();
 	
-		// Using the LCS Table, we can determine which lines should match one another while scrolling. For example, an element
-		// of FixedPoints may be {12.f, 5.f} meaning that line 12 of the left panel is the same as line 5 of the right panel
-		TArray<FVector2f> FixedPoints;
+	TArray<FIntVector2> MatchingRows;
 
-		int32 I = OldProperties.Num();
-		int32 J = NewProperties.Num();
-		while (I > 0 && J > 0)
+	// iterate matching rows of both details panels simultaneously
+	auto [LeftRowCount, RightRowCount] = PropertyTreeDifferences[LeftObject].Right->ForEachRow(
+		[&MatchingRows](const TUniquePtr<FAsyncDetailViewDiff::DiffNodeType>& DiffNode, int32 LeftRow, int32 RightRow)->ETreeTraverseControl
 		{
-			if (OldProperties[I - 1].Value == NewProperties[J - 1].Value)
+			// if both trees share this row, sync scrolling here
+			if (DiffNode->ValueA.IsValid() && DiffNode->ValueB.IsValid())
 			{
-				const int32 OldLineNum = OldProperties[I - 1].Key;
-				const int32 NewLineNum = NewProperties[J - 1].Key;
-				// add two endpoints for every matched property because the elements have a width of 1 in the panels
-				FixedPoints.Add(FVector2f((OldLineNum + 1.f) / OldRowCount, (NewLineNum + 1.f) / NewRowCount));
-				FixedPoints.Add(FVector2f((float)OldLineNum / OldRowCount, (float)NewLineNum / NewRowCount));
-				--I;
-				--J;
+				if (MatchingRows.IsEmpty() || (MatchingRows.Last().X != LeftRow && MatchingRows.Last().Y != RightRow))
+				{
+					MatchingRows.Emplace(LeftRow, RightRow);
+				}
 			}
-			else if (LCS[I - 1][J] <= LCS[I][J	 - 1])
-			{
-				--J;
-			}
-			else
-			{
-				--I;
-			}
+			return ETreeTraverseControl::Continue;
 		}
-		FixedPoints.Add({0.f, 0.f});
-		Algo::Reverse(FixedPoints);
-		FixedPoints.Add({1.f, 1.f});
-        	
-		LinkedScrollRateCache.OldProperties = OldProperties;
-		LinkedScrollRateCache.NewProperties = NewProperties;
-		LinkedScrollRateCache.ScrollRate = FixedPoints;
-	}
+	);
+
+	TArray<FVector2f> FixedPoints;
+	FixedPoints.Emplace(0.f, 0.f);
 	
-	return LinkedScrollRateCache.ScrollRate;
+	// normalize fixed points
+	for (FIntVector2& MatchingRow : MatchingRows)
+	{
+		FixedPoints.Emplace(
+			StaticCast<float>(MatchingRow.X) / LeftRowCount,
+			StaticCast<float>(MatchingRow.Y) / RightRowCount
+		);
+	}
+	FixedPoints.Emplace(1.f, 1.f);
+	
+	return FixedPoints;
 }
 
 
@@ -1410,15 +1494,10 @@ FReply FCommentDraftTreeEntry::OnCommentPostClicked()
 	return FReply::Unhandled();
 }
 
-FReviewCommentsDiffControl::FReviewCommentsDiffControl(const UObject* InOldObject, const UObject* InNewObject,
-                                                       TWeakPtr<STreeView<TSharedPtr<FBlueprintDifferenceTreeEntry>>> TreeView)
-	: OldObject(InOldObject)
-	, NewObject(InNewObject)
+FReviewCommentsDiffControl::FReviewCommentsDiffControl(const FString& InCommentFilePath, TWeakPtr<STreeView<TSharedPtr<FBlueprintDifferenceTreeEntry>>> TreeView)
+	: CommentFilePath(InCommentFilePath)
 	, CommentsTreeView(TreeView)
 {
-	const UPackage* Package = NewObject ? NewObject->GetPackage() : OldObject->GetPackage();
-	const FPackagePath PackagePath = FPackagePath::FromPackageNameChecked(Package->GetName());
-	CommentFilePath = PackagePath.GetLocalFullPath();
 }
 
 void FReviewCommentsDiffControl::GenerateCommentThreadRecursive(const FReviewComment& Comment,

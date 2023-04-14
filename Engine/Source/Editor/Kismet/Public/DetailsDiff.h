@@ -20,7 +20,7 @@ class KISMET_API FDetailsDiff
 public:
 	DECLARE_DELEGATE( FOnDisplayedPropertiesChanged );
 
-	FDetailsDiff( const UObject* InObject, FOnDisplayedPropertiesChanged InOnDisplayedPropertiesChanged );
+	FDetailsDiff( const UObject* InObject, FOnDisplayedPropertiesChanged InOnDisplayedPropertiesChanged, bool bScrollbarOnLeft = false );
 	~FDetailsDiff();
 
 	/** Attempt to highlight the property with the given path, may not always succeed */
@@ -41,12 +41,14 @@ public:
 	/** Link the two details panels so they scroll in sync with one another */
 	static void LinkScrolling(FDetailsDiff& LeftPanel, FDetailsDiff& RightPanel, const TAttribute<TArray<FVector2f>>& ScrollRate);
 
+	static TSharedRef<IDetailsView> CreateDetailsView(const UObject* InObject, TSharedPtr<SScrollBar> ExternalScrollbar = nullptr, bool bScrollbarOnLeft = false);
+
 private:
 	void HandlePropertiesChanged();
 
 	FOnDisplayedPropertiesChanged OnDisplayedPropertiesChanged;
 
-	TArray< FPropertyPath > DifferingProperties;
+	TArray< FPropertyPath > DisplayedProperties;
 	const UObject* DisplayedObject;
 
 	TSharedPtr< class IDetailsView > DetailsView;

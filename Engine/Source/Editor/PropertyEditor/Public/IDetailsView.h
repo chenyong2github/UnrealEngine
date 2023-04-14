@@ -197,6 +197,16 @@ public:
 	virtual TArray<TPair<int32, FPropertyPath>> GetPropertyRowNumbers() const  = 0;
 
 	/**
+	 * Returns the boundary (in paint space) of a detail tree node if it's currently visible Otherwise return an invalid boundary
+	 */
+	virtual FSlateRect GetPaintSpacePropertyBounds(const TSharedRef<FDetailTreeNode>& InDetailTreeNode, bool IncludeChildren = true) const {return FSlateRect();}
+	
+	/**
+	 * Returns the boundary (in tick space) of a detail tree node if it's currently visible Otherwise return an invalid boundary
+	 */
+	virtual FSlateRect GetTickSpacePropertyBounds(const TSharedRef<FDetailTreeNode>& InDetailTreeNode, bool IncludeChildren = true) const {return FSlateRect();}
+
+	/**
 	 * Returns true if the provided detail tree node is part of a collapsed/hidden subsection of the details panel
 	 */
 	virtual bool IsAncestorCollapsed(const TSharedRef<IDetailTreeNode>& Node) const { return false; }

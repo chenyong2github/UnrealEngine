@@ -39,5 +39,5 @@ private:
 	TSharedPtr< class SKismetInspector > Inspector;
 
 	/** Blueprint we are inspecting */
-	UBlueprint* Blueprint;
+	UBlueprint* Blueprint = nullptr;
 };

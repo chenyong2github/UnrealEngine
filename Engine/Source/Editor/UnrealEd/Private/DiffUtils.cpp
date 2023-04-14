@@ -127,13 +127,21 @@ FResolvedProperty FPropertySoftPath::Resolve(const UStruct* Struct, const void* 
 			}
 			else if( const FSetProperty* SetProperty = CastField<FSetProperty>(Property) )
 			{
-				checkf(false, TEXT("Set Indexing not supported yet"));
-				// TODO: @jordan.hoffmann: handle indexing for sets
+				FScriptSetHelper SetHelper(SetProperty, Property->ContainerPtrToValuePtr<UObject*>(CurrentBlock));
+				if (SetHelper.IsValidIndex(PropertyIndex))
+				{
+					NextProperty = SetProperty->ElementProp;
+					NextBlock = SetHelper.GetElementPtr(PropertyIndex);
+				}
 			}
 			else if( const FMapProperty* MapProperty = CastField<FMapProperty>(Property) )
 			{
-				checkf(false, TEXT("Map Indexing not supported yet"));
-				// TODO: @jordan.hoffmann: handle indexing for maps
+				FScriptMapHelper MapHelper(MapProperty, Property->ContainerPtrToValuePtr<UObject*>(CurrentBlock));
+				if (MapHelper.IsValidIndex(PropertyIndex))
+				{
+					NextProperty = MapProperty->ValueProp;
+					NextBlock = MapHelper.GetValuePtr(PropertyIndex);
+				}
 			}
 		}
 		

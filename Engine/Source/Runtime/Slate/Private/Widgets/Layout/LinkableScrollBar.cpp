@@ -5,10 +5,22 @@
 #include "Widgets/Layout/SScrollBarTrack.h"
 #include "Framework/FInvertiblePiecewiseLinearFunction.h"
 
+
+
+enum class ELinkId : uint8
+{
+	LeftLink,
+	RightLink,
+	Disabled
+};
+
 void SLinkableScrollBar::SetState(float InOffsetFraction, float InThumbSizeFraction, bool bCallOnUserScrolled)
 {
+	const bool bLinkedRight = LinkedScrollBarRight.IsValid() && ScrollSyncRateRight.IsSet();
+	const bool bLinkedLeft = LinkedScrollBarLeft.IsValid() && ScrollSyncRateLeft.IsSet();
+	
 	// fallback to default behavior if this isn't linked to another scrollbar
-	if (!LinkedScrollBar.IsValid() || !ScrollSyncRate.IsSet())
+	if (!bLinkedRight && !bLinkedLeft)
 	{
 		SScrollBar::SetState(InOffsetFraction, InThumbSizeFraction, bCallOnUserScrolled);
 		return;
@@ -27,46 +39,64 @@ void SLinkableScrollBar::SetState(float InOffsetFraction, float InThumbSizeFract
 	// if another scrollbar is linked to this one, Scroll it aswell
 	if (bDirty)
 	{
-		const TSharedPtr<SScrollBar> OtherScrollbar = LinkedScrollBar.Pin();
-		const FInvertiblePiecewiseLinearFunction ScrollRate = FInvertiblePiecewiseLinearFunction(ScrollSyncRate.Get());
-		
-		float OtherScrollOffset = -1.f;
-		switch(LinkId)
+		auto UpdateLinkedScrollbar = [&](TSharedPtr<SScrollBar> OtherScrollbar, const FInvertiblePiecewiseLinearFunction ScrollRate, ELinkId LinkId)
 		{
-		case ELinkId::LeftLink:
-			OtherScrollOffset = ScrollRate.SolveForY(InOffsetFraction);
-			break;
-		case ELinkId::RightLink:
-			OtherScrollOffset = ScrollRate.SolveForX(InOffsetFraction);
-			break;
+			
+			float OtherScrollOffset = -1.f;
+			switch(LinkId)
+			{
+			case ELinkId::LeftLink:
+				OtherScrollOffset = ScrollRate.SolveForX(InOffsetFraction);
+				break;
+			case ELinkId::RightLink:
+				OtherScrollOffset = ScrollRate.SolveForY(InOffsetFraction);
+				break;
 		
-		case ELinkId::Disabled:;
-		default: ;
+			case ELinkId::Disabled:;
+			default: ;
+			}
+
+			if (NewDistanceFromTop > PrevDistanceFromTop) // scrolling down
+				{
+				if (FMath::IsNearlyZero(OtherScrollbar->DistanceFromBottom(), 0.01f))
+				{
+					return;
+				}
+				}
+		
+			if (OtherScrollOffset <= 1.f && OtherScrollOffset >= 0.f)
+			{
+				OtherScrollbar->SetState(OtherScrollOffset, OtherScrollbar->ThumbSizeFraction(), true);
+			}
+		};
+
+		if (bLinkedLeft)
+		{
+			UpdateLinkedScrollbar(
+				LinkedScrollBarLeft.Pin(),
+				FInvertiblePiecewiseLinearFunction(ScrollSyncRateLeft.Get()),
+				ELinkId::LeftLink
+			);
 		}
 
-		if (NewDistanceFromTop > PrevDistanceFromTop) // scrolling down
+		if (bLinkedRight)
 		{
-			if (FMath::IsNearlyZero(OtherScrollbar->DistanceFromBottom(), 0.01f))
-			{
-				return;
-			}
+			UpdateLinkedScrollbar(
+				LinkedScrollBarRight.Pin(),
+				FInvertiblePiecewiseLinearFunction(ScrollSyncRateRight.Get()),
+				ELinkId::RightLink
+			);
 		}
 		
-		if (OtherScrollOffset <= 1.f && OtherScrollOffset >= 0.f)
-		{
-			OtherScrollbar->SetState(OtherScrollOffset, OtherScrollbar->ThumbSizeFraction(), true);
-		}
 	}
 }
 
 void SLinkableScrollBar::LinkScrollBars(TSharedRef<SLinkableScrollBar> Left, TSharedRef<SLinkableScrollBar> Right,
 	TAttribute<TArray<FVector2f>> ScrollSyncRate)
 {
-	Left->LinkId = ELinkId::LeftLink;
-	Left->LinkedScrollBar = Right.ToWeakPtr();
-	Left->ScrollSyncRate = ScrollSyncRate;
+	Left->LinkedScrollBarRight = Right.ToWeakPtr();
+	Left->ScrollSyncRateRight = ScrollSyncRate;
 	
-	Right->LinkId = ELinkId::RightLink;
-	Right->LinkedScrollBar = Left.ToWeakPtr();
-	Right->ScrollSyncRate = ScrollSyncRate;
+	Right->LinkedScrollBarLeft = Left.ToWeakPtr();
+	Right->ScrollSyncRateLeft = ScrollSyncRate;
 }

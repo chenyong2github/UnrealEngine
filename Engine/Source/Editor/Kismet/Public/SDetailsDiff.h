@@ -12,6 +12,7 @@ class FSpawnTabArgs;
 class FTabManager;
 class IDiffControl;
 class FUICommandList;
+class SDetailsSplitter;
 enum class EAssetEditorCloseReason : uint8;
 
 /** Panel used to display the details */
@@ -19,9 +20,6 @@ struct KISMET_API FDetailsDiffPanel
 {
 	/** The asset that owns the details view we are showing */
 	const UObject*				Object = nullptr;
-
-	/** The details view associated with the asset */
-	TSharedPtr<class IDetailsView>	DetailsView;
 
 	/** Revision information for this asset */
 	FRevisionInfo					RevisionInfo;
@@ -51,6 +49,8 @@ public:
 
 	void Construct(const FArguments& InArgs);
 	virtual ~SDetailsDiff();
+
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	/** Called when user clicks on an entry in the listview of differences */
 	void OnDiffListSelectionChanged(TSharedPtr<struct FDiffResultItem> TheDiff);

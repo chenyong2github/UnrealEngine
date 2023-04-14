@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SDetailsDiff.h"
+#include "AsyncDetailViewDiff.h"
 #include "Editor.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/SOverlay.h"
@@ -12,17 +13,16 @@
 #include "K2Node_MathExpression.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "DetailsDiff.h"
-#include "GraphDiffControl.h"
-#include "WidgetBlueprint.h"
+#include "DetailTreeNode.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Framework/Application/SlateApplication.h"
 #include "SBlueprintDiff.h"
 #include "DiffControl.h"
-#include "PropertyEditorModule.h"
-#include "Modules/ModuleManager.h"
 #include "IDetailsView.h"
+#include "SDetailsSplitter.h"
 
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 #define LOCTEXT_NAMESPACE "SDetailsDif"
 
@@ -43,8 +43,6 @@ void SDetailsDiff::Construct( const FArguments& InArgs)
 	// not the same asset in each panel)
 	PanelOld.bShowAssetName = InArgs._ShowAssetNames;
 	PanelNew.bShowAssetName = InArgs._ShowAssetNames;
-
-	bLockViews = true;
 
 	if (InArgs._ParentWindow.IsValid())
 	{
@@ -182,6 +180,11 @@ SDetailsDiff::~SDetailsDiff()
 	}
 }
 
+void SDetailsDiff::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	ModePanels[CurrentMode].DiffControl->Tick();
+}
+
 void SDetailsDiff::OnCloseAssetEditor(UObject* Asset, EAssetEditorCloseReason CloseReason)
 {
 	if (PanelOld.Object == Asset || PanelNew.Object == Asset || CloseReason == EAssetEditorCloseReason::CloseAllAssetEditors)
@@ -297,26 +300,6 @@ void SDetailsDiff::GenerateDifferencesList()
 	PrimaryDifferencesList.Empty();
 	RealDifferences.Empty();
 	ModePanels.Empty();
-	
-	const auto CreateInspector = [](const UObject* Object) {
-		FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	
-		FNotifyHook* NotifyHook = nullptr;
-	
-		FDetailsViewArgs DetailsViewArgs;
-		DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-		DetailsViewArgs.bHideSelectionTip = true;
-		DetailsViewArgs.NotifyHook = NotifyHook;
-		DetailsViewArgs.ViewIdentifier = FName("ObjectInspector");
-		TSharedRef<IDetailsView> DetailsView = EditModule.CreateDetailView( DetailsViewArgs );
-		DetailsView->SetObject(const_cast<UObject*>(Object)); // TODO: @jordan.hoffmann apologize to the const gods for your sins
-		
-		return DetailsView;
-	};
-
-	// TODO: construct DetailsView of PanelOld and PanelNew
-	PanelOld.DetailsView = CreateInspector(PanelOld.Object);
-	PanelNew.DetailsView = CreateInspector(PanelOld.Object);
 
 	// Now that we have done the diffs, create the panel widgets
 	// (we're currently only generating the details panel but we can add more as needed)
@@ -327,25 +310,36 @@ void SDetailsDiff::GenerateDifferencesList()
 
 SDetailsDiff::FDiffControl SDetailsDiff::GenerateDetailsPanel()
 {
-	TSharedPtr<FDetailsDiffControl> NewDiffControl = MakeShared<FDetailsDiffControl>(PanelOld.Object, PanelNew.Object, FOnDiffEntryFocused::CreateRaw(this, &SDetailsDiff::SetCurrentMode, DetailsMode), true);
+	const TSharedPtr<FDetailsDiffControl> NewDiffControl = MakeShared<FDetailsDiffControl>(PanelOld.Object, PanelNew.Object, FOnDiffEntryFocused::CreateRaw(this, &SDetailsDiff::SetCurrentMode, DetailsMode), true);
 	NewDiffControl->EnableComments(DifferencesTreeView.ToWeakPtr());
 	NewDiffControl->GenerateTreeEntries(PrimaryDifferencesList, RealDifferences);
 
+	
+	TWeakPtr<SDetailsSplitter> DetailsSplitter;
+
+	const TSharedRef<SDetailsSplitter> Splitter = SNew(SDetailsSplitter);
+	if (PanelOld.Object)
+	{
+		Splitter->AddSlot(
+			SDetailsSplitter::Slot()
+			.Value(0.5f)
+			.DetailsView(NewDiffControl->GetDetailsWidget(PanelOld.Object))
+			.DifferencesWithRightPanel(NewDiffControl.ToSharedRef(), &FDetailsDiffControl::GetDifferencesWithRight, Cast<UObject>(PanelOld.Object))
+		);
+	}
+	if (PanelNew.Object)
+	{
+		Splitter->AddSlot(
+			SDetailsSplitter::Slot()
+			.Value(0.5f)
+			.DetailsView(NewDiffControl->GetDetailsWidget(PanelNew.Object))
+			.DifferencesWithRightPanel(NewDiffControl.ToSharedRef(), &FDetailsDiffControl::GetDifferencesWithRight, Cast<UObject>(PanelNew.Object))
+		);
+	}
+
 	SDetailsDiff::FDiffControl Ret;
 	Ret.DiffControl = NewDiffControl;
-	Ret.Widget = SNew(SSplitter)
-		.PhysicalSplitterHandleSize(10.0f)
-		+ SSplitter::Slot()
-		.Value(0.5f)
-		[
-			NewDiffControl->OldDetailsWidget()
-		]
-		+ SSplitter::Slot()
-		.Value(0.5f)
-		[
-			NewDiffControl->NewDetailsWidget()
-		];
-
+	Ret.Widget = Splitter;
 	return Ret;
 }
 
@@ -377,10 +371,6 @@ void SDetailsDiff::SetCurrentMode(FName NewMode)
 
 	if (FoundControl)
 	{
-		// Reset inspector view
-		PanelOld.DetailsView->SetObject(nullptr);
-		PanelNew.DetailsView->SetObject(nullptr);
-
 		ModeContents->SetContent(FoundControl->Widget.ToSharedRef());
 	}
 	else

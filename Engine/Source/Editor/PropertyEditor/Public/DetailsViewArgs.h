@@ -50,6 +50,8 @@ struct FDetailsViewArgs
 	TArray<TSharedRef<IClassViewerFilter>> ClassViewerFilters;
 	/** Externally constructed Scrollbar (internally constructed if not provided) */
 	TSharedPtr<SScrollBar> ExternalScrollbar;
+	/** whether to display scrollbar on the left or the right of the panel */
+	EHorizontalAlignment ScrollbarAlignment;
 
 	/** Identifier for this details view; NAME_None if this view is anonymous */
 	FName ViewIdentifier;
@@ -110,6 +112,7 @@ public:
 
 	FDetailsViewArgs()
 		: DefaultsOnlyVisibility(EEditDefaultsOnlyNodeVisibility::Show)
+		, ScrollbarAlignment(HAlign_Right)
 		, ViewIdentifier(NAME_None)
 		, NotifyHook(nullptr)
 		, NameAreaSettings(ActorsUseNameArea)
