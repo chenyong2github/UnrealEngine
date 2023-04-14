@@ -34,7 +34,7 @@ static bool FilterShaderPlatform_D3D11(const FString& InShaderPlatform)
 
 static bool FilterShaderPlatform_Vulkan(const FString& InShaderPlatform)
 {
-	return InShaderPlatform == TEXT("SF_VULKAN_SM5");
+	return InShaderPlatform == TEXT("SF_VULKAN_SM5") || InShaderPlatform == TEXT("SF_VULKAN_SM6");
 }
 
 template<typename TFilterFunc>

@@ -97,6 +97,7 @@ FString LexToString(EShaderPlatform Platform, bool bError)
 	case SP_VULKAN_ES3_1_ANDROID: return TEXT("VULKAN_ES3_1_ANDROID");
 	case SP_VULKAN_PCES3_1: return TEXT("VULKAN_PCES3_1");
 	case SP_VULKAN_SM5: return TEXT("VULKAN_SM5");
+	case SP_VULKAN_SM6: return TEXT("VULKAN_SM6");
 	case SP_VULKAN_SM5_ANDROID: return TEXT("VULKAN_SM5_ANDROID");
 	case SP_D3D_ES3_1_HOLOLENS: return TEXT("D3D_ES3_1_HOLOLENS");
 	case SP_CUSTOM_PLATFORM_FIRST: return TEXT("SP_CUSTOM_PLATFORM_FIRST");
@@ -202,6 +203,7 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 	case SP_OPENGL_PCES3_1:
 	case SP_VULKAN_PCES3_1:
 	case SP_VULKAN_SM5:
+	case SP_VULKAN_SM6:
 	case SP_D3D_ES3_1_HOLOLENS:
 		return NAME_PLATFORM_WINDOWS;
 	case SP_VULKAN_ES3_1_ANDROID:

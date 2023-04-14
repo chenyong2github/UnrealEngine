@@ -147,6 +147,9 @@ static FText GetFriendlyNameFromRHINameMac(FName InRHIName)
 	case SP_VULKAN_SM5_ANDROID:
 		FriendlyRHIName = LOCTEXT("VulkanSM5", "Vulkan (SM5)");
 		break;
+	case SP_VULKAN_SM6:
+		FriendlyRHIName = LOCTEXT("VulkanSM6", "Vulkan (SM6)");
+		break;
 	case SP_VULKAN_PCES3_1:
 	case SP_VULKAN_ES3_1_ANDROID:
 		FriendlyRHIName = LOCTEXT("VulkanES31", "Vulkan (ES 3.1)");

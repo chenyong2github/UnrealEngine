@@ -49,7 +49,7 @@ inline bool IsVulkanShaderFormat(FName ShaderFormat)
 	return ShaderFormat == NAME_VULKAN_ES3_1_ANDROID
 		|| ShaderFormat == NAME_VULKAN_ES3_1
 		|| ShaderFormat == NAME_VULKAN_SM5
-//		|| ShaderFormat == NAME_VULKAN_SM6 // :todo-jn:
+		|| ShaderFormat == NAME_VULKAN_SM6
 		|| ShaderFormat == NAME_VULKAN_SM5_ANDROID;
 }
 
@@ -2365,10 +2365,13 @@ static bool CompileWithShaderConductor(
 		Options.HlslVersion = 2021;
 	}
 
-	// Ray tracing features require Vulkan 1.2 environment.
+	// Ray tracing features require Vulkan 1.2 environment minimum.
 	if (bIsRayTracingShader || Input.Environment.CompilerFlags.Contains(CFLAG_InlineRayTracing))
 	{
-		Options.TargetEnvironment = CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_2;
+		if (Options.TargetEnvironment < CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_2)
+		{
+			Options.TargetEnvironment = CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_2;
+		}
 	}
 	else
 	{

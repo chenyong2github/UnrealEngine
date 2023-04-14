@@ -27,7 +27,8 @@ FMinHairRadiusAtDepth1 ComputeMinStrandRadiusAtDepth1(const FIntPoint& Resolutio
 
 inline bool IsHairStrandsForwardRasterSupported(EShaderPlatform In) 
 { 
-	return IsFeatureLevelSupported(In, ERHIFeatureLevel::SM6) && IsHairStrandsSupported(EHairStrandsShaderType::Strands, In); 
+	return IsFeatureLevelSupported(In, ERHIFeatureLevel::SM6) && IsHairStrandsSupported(EHairStrandsShaderType::Strands, In) && 
+		!IsVulkanPlatform(In); // :todo-jn: fix SPIR-V error during compilation
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////

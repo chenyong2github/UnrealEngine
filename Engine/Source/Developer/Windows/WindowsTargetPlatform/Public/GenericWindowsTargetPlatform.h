@@ -69,6 +69,7 @@ public:
 		static FName NAME_PCD3D_SM6(TEXT("PCD3D_SM6"));
 		static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));
 		static FName NAME_VULKAN_SM5(TEXT("SF_VULKAN_SM5"));
+		static FName NAME_VULKAN_SM6(TEXT("SF_VULKAN_SM6"));
 		static FName NAME_PCD3D_ES3_1(TEXT("PCD3D_ES31"));
 		static FName NAME_SF_VULKAN_ES31(TEXT("SF_VULKAN_ES31"));
 		static FName NAME_OPENGL_150_ES3_1(TEXT("GLSL_150_ES31"));
@@ -208,6 +209,7 @@ public:
 			static FName NAME_VULKAN_ES31(TEXT("SF_VULKAN_ES31"));
 			static FName NAME_OPENGL_150_ES3_1(TEXT("GLSL_150_ES31"));
 			static FName NAME_VULKAN_SM5(TEXT("SF_VULKAN_SM5"));
+			static FName NAME_VULKAN_SM6(TEXT("SF_VULKAN_SM6"));
 			static FName NAME_PCD3D_ES3_1(TEXT("PCD3D_ES31"));
 
 			OutFormats.AddUnique(NAME_PCD3D_SM5);
@@ -215,6 +217,7 @@ public:
 			OutFormats.AddUnique(NAME_VULKAN_ES31);
 			OutFormats.AddUnique(NAME_OPENGL_150_ES3_1);
 			OutFormats.AddUnique(NAME_VULKAN_SM5);
+			OutFormats.AddUnique(NAME_VULKAN_SM6);
 			OutFormats.AddUnique(NAME_PCD3D_ES3_1);
 		}
 	}

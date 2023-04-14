@@ -19,11 +19,16 @@ class FShaderFormatVulkan : public IShaderFormat
 	{
 		UE_SHADER_VULKAN_ES3_1_VER	= 37,
 		UE_SHADER_VULKAN_SM5_VER 	= 37,
+		UE_SHADER_VULKAN_SM6_VER	= 37,
 	};
 
 	int32 InternalGetVersion(FName Format) const
 	{
-		if (Format == NAME_VULKAN_SM5 || Format == NAME_VULKAN_SM5_ANDROID)
+		if (Format == NAME_VULKAN_SM6)
+		{
+			return UE_SHADER_VULKAN_SM6_VER;
+		}
+		else if (Format == NAME_VULKAN_SM5 || Format == NAME_VULKAN_SM5_ANDROID)
 		{
 			return UE_SHADER_VULKAN_SM5_VER;
 		}
@@ -73,6 +78,7 @@ public:
 		OutFormats.Add(NAME_VULKAN_ES3_1_ANDROID);
 		OutFormats.Add(NAME_VULKAN_ES3_1);
 		OutFormats.Add(NAME_VULKAN_SM5_ANDROID);
+		OutFormats.Add(NAME_VULKAN_SM6);
 	}
 
 	virtual void CompileShader(FName Format, const struct FShaderCompilerInput& Input, struct FShaderCompilerOutput& Output,const FString& WorkingDirectory) const
@@ -93,6 +99,10 @@ public:
 		else if (Format == NAME_VULKAN_SM5)
 		{
 			DoCompileVulkanShader(Input, Output, WorkingDirectory, EVulkanShaderVersion::SM5);
+		}
+		else if (Format == NAME_VULKAN_SM6)
+		{
+			DoCompileVulkanShader(Input, Output, WorkingDirectory, EVulkanShaderVersion::SM6);
 		}
 	}
 

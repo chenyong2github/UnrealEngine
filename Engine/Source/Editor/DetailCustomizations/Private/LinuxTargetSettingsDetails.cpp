@@ -66,6 +66,10 @@ static FText GetFriendlyNameFromLinuxShaderFormat(const FName InShaderFormat)
 	{
 		FriendlyRHIName = LOCTEXT("VulkanSM5", "Vulkan Desktop (SM5)");
 	}
+	else if (InShaderFormat == NAME_VULKAN_SM6)
+	{
+		FriendlyRHIName = LOCTEXT("VulkanSM6", "Vulkan Desktop (SM6)");
+	}
 	else if (InShaderFormat == TEXT("GLSL_430"))
 	{
 		// Explicitly remove these formats as they are obsolete/not quite supported; users can still target them by adding them as +TargetedRHIs in the TargetPlatform ini.
