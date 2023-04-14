@@ -436,6 +436,42 @@ public:
  *
  */
 USTRUCT()
+struct FGetFloatArrayElementDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FGetFloatArrayElementDataflowNode, "GetFloatArrayElement", "Utilities|Array", "")
+
+public:
+	/** Element index */
+	UPROPERTY(EditAnywhere, Category = "Index");
+	int32 Index = 0;
+
+	/** Array to get the element from */
+	UPROPERTY(meta = (DataflowInput))
+	TArray<float> FloatArray;
+
+	/** Specified element */
+	UPROPERTY(meta = (DataflowOutput))
+	float FloatValue = 0;
+
+	FGetFloatArrayElementDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&FloatArray);
+		RegisterInputConnection(&Index);
+		RegisterOutputConnection(&FloatValue);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+/**
+ *
+ * Returns the specified element from an array
+ *
+ */
+USTRUCT()
 struct FGetArrayElementDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
