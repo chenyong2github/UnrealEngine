@@ -6,7 +6,7 @@
 #include "AssetToolsModule.h"
 #include "MessageLogModule.h"
 
-#define LOCTEXT_NAMESPACE "FAnimToTextureEditorModule"
+#define LOCTEXT_NAMESPACE "AnimToTextureEditor"
 
 DEFINE_LOG_CATEGORY(LogAnimToTextureEditor);
 
@@ -35,4 +35,3 @@ void FAnimToTextureEditorModule::ShutdownModule()
 IMPLEMENT_MODULE(FAnimToTextureEditorModule, AnimToTextureEditor)
 
 #undef LOCTEXT_NAMESPACE
-	

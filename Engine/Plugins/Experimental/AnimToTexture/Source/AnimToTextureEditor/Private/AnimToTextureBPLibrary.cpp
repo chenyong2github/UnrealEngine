@@ -20,7 +20,7 @@
 #include "MaterialEditingLibrary.h"
 #include "Misc/ScopedSlowTask.h"
 
-#define LOCTEXT_NAMESPACE "UAnimToTextureBPLibrary"
+#define LOCTEXT_NAMESPACE "AnimToTextureEditor"
 
 using namespace AnimToTexture_Private;
 
@@ -54,7 +54,7 @@ bool UAnimToTextureBPLibrary::AnimationToTexture(UAnimToTextureDataAsset* DataAs
 	//
 	FSourceMeshToDriverMesh Mapping;
 	{
-		FScopedSlowTask ProgressBar(1.f, LOCTEXT("ProcessingAnimSequence", "Processing StaticMesh -> SkeletalMesh Mapping ..."), true /*Enabled*/);
+		FScopedSlowTask ProgressBar(1.f, LOCTEXT("ProcessingMapping", "Processing StaticMesh -> SkeletalMesh Mapping ..."), true /*Enabled*/);
 		ProgressBar.MakeDialog(false /*bShowCancelButton*/, false /*bAllowInPIE*/);
 
 		Mapping.Update(DataAsset->GetStaticMesh(), DataAsset->StaticLODIndex,
