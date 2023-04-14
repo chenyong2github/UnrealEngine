@@ -4,7 +4,7 @@
 
 #include "HAL/Platform.h"
 
-#if WITH_EDITOR && WITH_OCIO
+#if WITH_OCIO
 #include "OpenColorIO/OpenColorIO.h"
 #endif
 
@@ -13,7 +13,7 @@ static constexpr ANSICHAR OpenColorIOInterchangeName[] = "aces_interchange";
 
 class FOpenColorIONativeConfiguration {
 public:
-#if WITH_EDITOR && WITH_OCIO
+#if WITH_OCIO
 	/* Native config object getter. */
 	OCIO_NAMESPACE::ConstConfigRcPtr Get() const;
 
@@ -23,13 +23,13 @@ public:
 private:
 	/* Loaded native config object. */
 	OCIO_NAMESPACE::ConstConfigRcPtr Config;
-#endif //WITH_EDITORONLY_DATA
+#endif
 };
 
 
 class FOpenColorIONativeInterchangeConfiguration {
 public:
-#if WITH_EDITOR && WITH_OCIO
+#if WITH_OCIO
 	FOpenColorIONativeInterchangeConfiguration();
 
 	/* Native config object getter. */

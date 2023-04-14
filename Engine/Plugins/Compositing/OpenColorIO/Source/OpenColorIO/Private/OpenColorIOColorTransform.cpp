@@ -31,7 +31,7 @@
 #endif //WITH_EDITOR
 
 namespace {
-#if WITH_EDITOR && WITH_OCIO
+#if WITH_OCIO
 	/*
 	 * Get the processor optimization flag.
 	 */
@@ -333,7 +333,7 @@ void UOpenColorIOColorTransform::CacheResourceTextures()
 {
 	if (Textures.IsEmpty())
 	{
-#if WITH_EDITOR && WITH_OCIO
+#if WITH_OCIO
 #if !PLATFORM_EXCEPTIONS_DISABLED
 		try
 #endif
@@ -747,7 +747,7 @@ void UOpenColorIOColorTransform::AllColorTransformsCacheResourceShadersForRender
 
 bool UOpenColorIOColorTransform::GenerateColorTransformData(const FString& InSourceColorSpace, const FString& InDestinationColorSpace)
 {
-#if WITH_EDITOR && WITH_OCIO
+#if WITH_OCIO
 	if (InSourceColorSpace.IsEmpty() || InDestinationColorSpace.IsEmpty())
 	{
 		return false;
@@ -767,7 +767,7 @@ bool UOpenColorIOColorTransform::GenerateColorTransformData(const FString& InSou
 
 bool UOpenColorIOColorTransform::GenerateColorTransformData(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection)
 {
-#if WITH_EDITOR && WITH_OCIO
+#if WITH_OCIO
 	if (InSourceColorSpace.IsEmpty() || InDisplay.IsEmpty() || InView.IsEmpty())
 	{
 		return false;
@@ -882,7 +882,7 @@ TObjectPtr<UTexture> UOpenColorIOColorTransform::CreateTexture3DLUT(const FStrin
 {
 	TObjectPtr<UVolumeTexture> OutTexture = nullptr;
 
-#if WITH_EDITOR && WITH_OCIO
+#if WITH_OCIO
 	check(InSourceData);
 	const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
 
@@ -945,7 +945,7 @@ TObjectPtr<UTexture> UOpenColorIOColorTransform::CreateTexture1DLUT(const FStrin
 {
 	TObjectPtr<UTexture2D> OutTexture = nullptr;
 
-#if WITH_EDITOR && WITH_OCIO
+#if WITH_OCIO
 	check(InSourceData);
 	const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
 

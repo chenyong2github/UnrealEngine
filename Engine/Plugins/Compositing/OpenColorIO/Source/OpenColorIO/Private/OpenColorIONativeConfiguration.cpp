@@ -6,7 +6,7 @@
 #include "OpenColorIOConfiguration.h"
 
 
-#if WITH_EDITOR && WITH_OCIO
+#if WITH_OCIO
 OCIO_NAMESPACE::ConstConfigRcPtr FOpenColorIONativeConfiguration::Get() const
 {
 	return Config;

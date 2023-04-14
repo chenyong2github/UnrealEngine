@@ -57,6 +57,10 @@ namespace UnrealBuildTool.Rules
 						"UnrealEd"
 					});
 			}
+			else
+			{
+				PrivateDefinitions.Add("WITH_OCIO=0");
+			}
 		}
 	}
 }

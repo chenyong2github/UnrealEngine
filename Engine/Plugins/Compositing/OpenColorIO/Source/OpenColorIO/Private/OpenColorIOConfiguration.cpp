@@ -30,7 +30,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #endif //WITH_EDITOR
 
-#if WITH_EDITOR && WITH_OCIO
+#if WITH_OCIO
 namespace OCIODirectoryWatcher
 {
 	/** OCIO supported extensions we should be checking for when something changes in the OCIO config folder. */
@@ -166,7 +166,7 @@ bool UOpenColorIOConfiguration::EditorTransformImage(const FOpenColorIOColorConv
 
 void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 {
-#if WITH_EDITOR && WITH_OCIO
+#if WITH_OCIO
 	TArray<FOpenColorIOColorSpace> ColorSpacesToBeReloaded = DesiredColorSpaces;
 	TArray<FOpenColorIODisplayView> DisplayViewsToBeReloaded = DesiredDisplayViews;
 	DesiredColorSpaces.Reset();
@@ -242,7 +242,7 @@ void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 
 void UOpenColorIOConfiguration::ConfigPathChangedEvent(const TArray<FFileChangeData>& InFileChanges, const FString InFileMountPath)
 {
-#if WITH_EDITOR && WITH_OCIO
+#if WITH_OCIO
 	// We want to stop reacting to these events while the message is still up.
 	if (WatchedDirectoryInfo.RawConfigChangedToast.IsValid())
 	{
@@ -296,7 +296,7 @@ FOpenColorIONativeConfiguration* UOpenColorIOConfiguration::GetNativeConfig_Inte
 
 void UOpenColorIOConfiguration::StartDirectoryWatch(const FString& FilePath)
 {
-#if WITH_EDITOR && WITH_OCIO
+#if WITH_OCIO
 	FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::LoadModuleChecked<FDirectoryWatcherModule>(OCIODirectoryWatcher::NAME_DirectoryWatcher);
 	if (IDirectoryWatcher* DirectoryWatcher = DirectoryWatcherModule.Get())
 	{
@@ -319,7 +319,7 @@ void UOpenColorIOConfiguration::StartDirectoryWatch(const FString& FilePath)
 
 void UOpenColorIOConfiguration::StopDirectoryWatch()
 {
-#if WITH_EDITOR && WITH_OCIO
+#if WITH_OCIO
 	FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::LoadModuleChecked<FDirectoryWatcherModule>(OCIODirectoryWatcher::NAME_DirectoryWatcher);
 	if (IDirectoryWatcher* DirectoryWatcher = DirectoryWatcherModule.Get())
 	{
@@ -595,7 +595,7 @@ void UOpenColorIOConfiguration::PostEditChangeProperty(FPropertyChangedEvent& Pr
 
 void UOpenColorIOConfiguration::LoadConfiguration()
 {
-#if WITH_EDITOR && WITH_OCIO
+#if WITH_OCIO
 	NativeConfig->Set(nullptr);
 
 	if (!ConfigurationFile.FilePath.IsEmpty())
