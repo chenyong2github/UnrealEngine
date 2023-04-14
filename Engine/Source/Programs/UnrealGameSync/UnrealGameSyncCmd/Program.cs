@@ -1499,26 +1499,40 @@ namespace UnrealGameSyncCmd
 			{
 				ILogger logger = context.Logger;
 
-				DirectoryReference currentDir = new FileReference(Assembly.GetExecutingAssembly().Location).Directory;
 				if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
 				{
 					DirectoryReference? userDir = DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.UserProfile);
 					if (userDir != null)
 					{
 						FileReference configFile = FileReference.Combine(userDir, ".zshrc");
-
-						List<string> lines = new List<string>();
-						if (FileReference.Exists(configFile))
-						{
-							lines.AddRange(await FileReference.ReadAllLinesAsync(configFile));
-							lines.RemoveAll(x => Regex.IsMatch(x, @"^\s*alias\s+ugs\s*="));
-						}
-						lines.Add($"alias ugs={FileReference.Combine(currentDir, "ugs")}");
-
-						await FileReference.WriteAllLinesAsync(configFile, lines);
-						logger.LogInformation("Added 'ugs' alias to {ConfigFile}", configFile);
+						await AddAliasAsync(configFile, logger);
 					}
 				}
+				else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+				{
+					DirectoryReference? userDir = DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.UserProfile);
+					if (userDir != null)
+					{
+						FileReference configFile = FileReference.Combine(userDir, ".bashrc");
+						await AddAliasAsync(configFile, logger);
+					}
+				}
+			}
+
+			static async Task AddAliasAsync(FileReference configFile, ILogger logger)
+			{
+				DirectoryReference currentDir = new FileReference(Assembly.GetExecutingAssembly().Location).Directory;
+
+				List<string> lines = new List<string>();
+				if (FileReference.Exists(configFile))
+				{
+					lines.AddRange(await FileReference.ReadAllLinesAsync(configFile));
+					lines.RemoveAll(x => Regex.IsMatch(x, @"^\s*alias\s+ugs\s*="));
+				}
+				lines.Add($"alias ugs={FileReference.Combine(currentDir, "ugs")}");
+
+				await FileReference.WriteAllLinesAsync(configFile, lines);
+				logger.LogInformation("Added 'ugs' alias to {ConfigFile}", configFile);
 			}
 		}
 
