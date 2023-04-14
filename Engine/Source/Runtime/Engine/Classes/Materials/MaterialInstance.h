@@ -545,7 +545,7 @@ class UMaterialInstance : public UMaterialInterface
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MaterialInstance, AssetRegistrySearchable)
 	TObjectPtr<class UMaterialInterface> Parent;
 
-	/** An override material which will be used instead of this one when rendering with nanite. */
+	/** An override material which will be used instead of this one when rendering with Nanite. */
 	UPROPERTY(EditAnywhere, Category = MaterialInstance)
 	FMaterialOverrideNanite NaniteOverrideMaterial;
 
@@ -591,6 +591,8 @@ public:
 
 	//Cached copies of the base property overrides or the value from the parent to avoid traversing the parent chain for each access.
 	float OpacityMaskClipValue;
+
+	FDisplacementScaling DisplacementScaling;
 
 	float MaxWorldPositionOffsetDisplacement;
 
@@ -800,6 +802,7 @@ public:
 	ENGINE_API virtual bool IsDitheredLODTransition() const override;
 	ENGINE_API virtual bool IsMasked() const override;
 	ENGINE_API virtual bool WritesToRuntimeVirtualTexture() const override;
+	ENGINE_API virtual FDisplacementScaling GetDisplacementScaling() const override;
 	ENGINE_API virtual float GetMaxWorldPositionOffsetDisplacement() const override;
 	ENGINE_API virtual USubsurfaceProfile* GetSubsurfaceProfile_Internal() const override;
 	ENGINE_API virtual bool CastsRayTracedShadows() const override;

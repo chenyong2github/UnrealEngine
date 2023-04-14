@@ -45,6 +45,10 @@ struct ENGINE_API FMaterialInstanceBasePropertyOverrides
 	UPROPERTY(EditAnywhere, Category = Material)
 	uint8 bOverride_OutputTranslucentVelocity : 1;
 
+	/** Enables override of the displacement magnitude and center property. */
+	UPROPERTY(EditAnywhere, Category = Material)
+	uint8 bOverride_DisplacementScaling : 1;
+
 	/** Enables override of the max world position offset property. */
 	UPROPERTY(EditAnywhere, Category = Material)
 	uint8 bOverride_MaxWorldPositionOffsetDisplacement : 1;
@@ -80,6 +84,9 @@ struct ENGINE_API FMaterialInstanceBasePropertyOverrides
 	/** If BlendMode is BLEND_Masked, the surface is not rendered where OpacityMask < OpacityMaskClipValue. */
 	UPROPERTY(EditAnywhere, Category = Material, meta = (editcondition = "bOverride_OpacityMaskClipValue", NoSpinbox = true))
 	float OpacityMaskClipValue;
+
+	UPROPERTY(EditAnywhere, Category = Material, meta = (editcondition = "bOverride_DisplacementScaling"))
+	FDisplacementScaling DisplacementScaling;
 
 	/** The maximum World Position Offset distance. Zero means no maximum. */
 	UPROPERTY(EditAnywhere, Category = Material, meta = (editcondition = "bOverride_MaxWorldPositionOffsetDisplacement", ClampMin=0.0f, NoSpinbox = true))

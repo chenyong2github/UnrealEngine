@@ -201,6 +201,7 @@ class ENGINE_API UMaterialInstanceDynamic : public UMaterialInstance
 	virtual bool IsTranslucencyWritingVelocity() const override;
 	virtual bool IsDitheredLODTransition() const override;
 	virtual bool IsMasked() const override;
+	virtual FDisplacementScaling GetDisplacementScaling() const override;
 	virtual float GetMaxWorldPositionOffsetDisplacement() const override;
 
 	/**

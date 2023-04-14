@@ -461,9 +461,12 @@ class UMaterial : public UMaterialInterface
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Material, AdvancedDisplay, meta=(DisplayName = "Decal Response (DBuffer)"), AssetRegistrySearchable)
 	TEnumAsByte<EMaterialDecalResponse> MaterialDecalResponse;
 
-	/** An override material which will be used instead of this one when rendering with nanite. */
+	/** An override material which will be used instead of this one when rendering with Nanite. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Nanite, meta = (EditInline, ShowOnlyInnerProperties))
 	FMaterialOverrideNanite NaniteOverrideMaterial;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Nanite, meta = (DisplayName = "Displacement"))
+	FDisplacementScaling DisplacementScaling;
 
 private:
 	/** Determines how inputs are combined to create the material's final color. */
@@ -1123,6 +1126,7 @@ public:
 	ENGINE_API virtual bool IsPostProcessMaterial() const;
 	ENGINE_API virtual USubsurfaceProfile* GetSubsurfaceProfile_Internal() const override;
 	ENGINE_API virtual bool CastsRayTracedShadows() const override;
+	ENGINE_API virtual FDisplacementScaling GetDisplacementScaling() const override;
 	ENGINE_API virtual float GetMaxWorldPositionOffsetDisplacement() const override;
 	ENGINE_API virtual bool WritesToRuntimeVirtualTexture() const override;
 

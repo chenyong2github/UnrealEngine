@@ -6582,6 +6582,11 @@ bool UMaterial::CastsRayTracedShadows() const
 	return bCastRayTracedShadows;
 }
 
+FDisplacementScaling UMaterial::GetDisplacementScaling() const
+{
+	return DisplacementScaling;
+}
+
 float UMaterial::GetMaxWorldPositionOffsetDisplacement() const
 {
 	return MaxWorldPositionOffsetDisplacement;

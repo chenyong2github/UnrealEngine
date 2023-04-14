@@ -1909,6 +1909,7 @@ public:
 	virtual float GetTranslucentSelfShadowSecondDensityScale() const { return 1.0f; }
 	virtual float GetTranslucentSelfShadowSecondOpacity() const { return 1.0f; }
 	virtual float GetTranslucentBackscatteringExponent() const { return 1.0f; }
+	virtual FDisplacementScaling GetDisplacementScaling() const { return FDisplacementScaling(); }
 	virtual bool IsTranslucencyAfterDOFEnabled() const { return false; }
 	virtual bool IsTranslucencyAfterMotionBlurEnabled() const { return false; }
 	virtual bool IsDualBlendingEnabled(EShaderPlatform Platform) const { return false; }
@@ -2650,6 +2651,7 @@ public:
 	ENGINE_API virtual bool IsTranslucencyAfterMotionBlurEnabled() const override;
 	ENGINE_API virtual bool IsDualBlendingEnabled(EShaderPlatform Platform) const override;
 	ENGINE_API virtual bool IsMobileSeparateTranslucencyEnabled() const override;
+	ENGINE_API virtual FDisplacementScaling GetDisplacementScaling() const override;
 	ENGINE_API virtual FLinearColor GetTranslucentMultipleScatteringExtinction() const override;
 	ENGINE_API virtual float GetTranslucentShadowStartOffset() const override;
 	ENGINE_API virtual bool IsMasked() const override;

@@ -945,6 +945,10 @@ void UMaterialEditorInstanceConstant::CopyBasePropertiesFromParent()
 	{
 		BasePropertyOverrides.DitheredLODTransition = SourceInstance->IsDitheredLODTransition();
 	}
+	if (!BasePropertyOverrides.bOverride_DisplacementScaling)
+	{
+		BasePropertyOverrides.DisplacementScaling = SourceInstance->GetDisplacementScaling();
+	}
 	if (!BasePropertyOverrides.bOverride_MaxWorldPositionOffsetDisplacement)
 	{
 		BasePropertyOverrides.MaxWorldPositionOffsetDisplacement = SourceInstance->GetMaxWorldPositionOffsetDisplacement();

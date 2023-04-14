@@ -2919,6 +2919,30 @@ half GetMaterialOpacityMaskClipValue()
 %s;
 }
 
+#if USES_DISPLACEMENT && IS_NANITE_PASS
+float GetMaterialDisplacementMagnitude()
+{
+%s;
+}
+
+float GetMaterialDisplacementCenter()
+{
+%s;
+}
+
+float GetMaterialDisplacement(FPixelMaterialInputs PixelMaterialInputs)
+{
+	return saturate(PixelMaterialInputs.Displacement);
+}
+
+float GetMaterialDisplacementScaled(FPixelMaterialInputs PixelMaterialInputs)
+{
+	const float CenterScaled = GetMaterialDisplacementCenter() * GetMaterialDisplacementMagnitude();
+	const float NormalizedDisplacement = GetMaterialDisplacement(PixelMaterialInputs);
+	return (NormalizedDisplacement * GetMaterialDisplacementMagnitude()) - CenterScaled;
+}
+#endif
+
 // Should only be used by GetMaterialOpacity(), returns the unmodified value generated from the shader expressions of the opacity input.
 // To compute the opacity depending on the material blending GetMaterialOpacity() should be called instead.
 half GetMaterialOpacityRaw(FPixelMaterialInputs PixelMaterialInputs)
@@ -2955,15 +2979,6 @@ half GetMaterialMaskedOpacity(FPixelMaterialInputs PixelMaterialInputs)
 	return GetMaterialOpacity(PixelMaterialInputs) - GetMaterialOpacityMaskClipValue();
 }
 #endif
-
-float GetMaterialDisplacement(FPixelMaterialInputs PixelMaterialInputs)
-{
-#if USES_DISPLACEMENT
-	return PixelMaterialInputs.Displacement;
-#else
-	return 0.0f;
-#endif
-}
 
 bool ShouldEnableWorldPositionOffset(FMaterialVertexParameters Parameters)
 {

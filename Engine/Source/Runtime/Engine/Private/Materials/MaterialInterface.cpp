@@ -1277,6 +1277,11 @@ bool UMaterialInterface::IsMasked() const
 	return false;
 }
 
+FDisplacementScaling UMaterialInterface::GetDisplacementScaling() const
+{
+	return FDisplacementScaling();
+}
+
 float UMaterialInterface::GetMaxWorldPositionOffsetDisplacement() const
 {
 	return 0.0f;

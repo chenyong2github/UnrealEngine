@@ -201,14 +201,7 @@ struct FMaterialShader
 		FPixelMaterialInputs PixelMaterialInputs;
 		CalcMaterialParameters( MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/ );
 
-		float Displacement = GetMaterialDisplacement(PixelMaterialInputs);
-
-		const float DisplacementBase = 0.8;
-		const float DisplacementScale = 5.0;
-
-		Displacement -= DisplacementBase;
-		Displacement *= DisplacementScale;
-
+		const float Displacement = GetMaterialDisplacementScaled(PixelMaterialInputs);
 		PointLocal += Normal * Displacement;
 	#endif
 

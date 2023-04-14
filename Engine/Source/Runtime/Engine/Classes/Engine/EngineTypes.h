@@ -2886,6 +2886,39 @@ struct FMeshNaniteSettings
 	}
 };
 
+USTRUCT(BlueprintType)
+struct ENGINE_API FDisplacementScaling
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Displacement, meta = (NoSpinbox = true, ClampMin = "0.0", UIMin = "0.0"))
+	float Magnitude;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Displacement, meta = (NoSpinbox = true, ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "0.0"))
+	float Center;
+
+public:
+	FDisplacementScaling()
+	: Magnitude(4.0f)
+	, Center(0.0f)
+	{
+	}
+
+	/** Equality operator. */
+	bool operator==(const FDisplacementScaling& Other) const
+	{
+		return
+			FMath::Abs(Magnitude - Other.Magnitude) <= UE_SMALL_NUMBER &&
+			FMath::Abs(Center - Other.Center) <= UE_SMALL_NUMBER;
+	}
+
+	/** Inequality operator. */
+	bool operator!=(const FDisplacementScaling& Other) const
+	{
+		return !(*this == Other);
+	}
+};
+
 /** The network role of an actor on a local/remote network context */
 UENUM()
 enum ENetRole : int
