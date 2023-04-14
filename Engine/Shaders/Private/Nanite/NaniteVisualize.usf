@@ -23,7 +23,7 @@ Texture2D<float>		MaterialZDecoded;
 Texture2D<uint4>		MaterialZLayout;
 Texture2D<uint>			ShadingMask;
 
-StructuredBuffer<uint4>	ShadingBinMeta;
+StructuredBuffer<FNaniteShadingBinMeta> ShadingBinMeta;
 
 ByteAddressBuffer		MaterialSlotTable;
 ByteAddressBuffer		MaterialDepthTable;

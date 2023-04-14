@@ -196,7 +196,7 @@ struct FBinningData
 	uint32 BinCount = 0;
 
 	FRDGBufferRef DataBuffer = nullptr;
-	FRDGBufferRef HeaderBuffer = nullptr;
+	FRDGBufferRef MetaBuffer = nullptr;
 	FRDGBufferRef IndirectArgs = nullptr;
 };
 
@@ -292,6 +292,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, RayTracingDataBuffer)
 
+	// TODO: Use FNaniteShadingBinMeta but need to cleanly expose the type to the generated UB header somehow
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint4>, ShadingBinMeta)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>,  ShadingBinData)
 

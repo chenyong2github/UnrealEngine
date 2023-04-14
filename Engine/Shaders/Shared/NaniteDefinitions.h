@@ -358,6 +358,36 @@ struct FNanitePickingFeedback
 	UINT_TYPE LegacyShadingId;
 };
 
+struct FNaniteRasterBinMeta
+{
+	UINT_TYPE BinSWCount;
+	UINT_TYPE BinHWCount;
+	UINT_TYPE ClusterOffset;
+	UINT_TYPE MaterialFlags;
+};
+
+struct FNaniteShadingBinMeta
+{
+	// Quad count shaded by bin
+	UINT_TYPE QuadCount;
+
+	// Pixel count shaded by bin
+	UINT_TYPE PixelCount;
+
+	// Quad/pixel coord range start
+	UINT_TYPE RangeStart;
+
+	// Material bit flags
+	UINT_TYPE MaterialFlags;
+};
+
+struct FNaniteShadingBinStats
+{
+	UINT_TYPE TotalQuadCount;
+	UINT_TYPE TotalPixelCount;
+	UINT_TYPE TotalHelperCount;
+};
+
 #undef  INT_TYPE
 #undef UINT_TYPE
 #undef INLINE_ATTR

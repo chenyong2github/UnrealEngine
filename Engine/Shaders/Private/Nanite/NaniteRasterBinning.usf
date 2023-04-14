@@ -20,38 +20,32 @@
 	#define RASTER_BIN_RESERVE	1
 #endif
 
-// .x = count of SW clusters in bin
-// .y = count of HW clusters in bin
-// .z = offset of contiguous cluster range in global buffer
-// .w = material bit flags
-RWStructuredBuffer<uint4> OutRasterizerBinHeaders;
+RWStructuredBuffer<FNaniteRasterBinMeta> OutRasterBinMeta;
 
-FNaniteMaterialFlags GetRasterizerBinMaterialFlags(uint BinIndex)
+FNaniteMaterialFlags GetRasterBinMaterialFlags(uint BinIndex)
 {
-	return UnpackNaniteMaterialFlags(OutRasterizerBinHeaders[BinIndex].w);
+	return UnpackNaniteMaterialFlags(OutRasterBinMeta[BinIndex].MaterialFlags);
 }
 
-uint2 GetRasterizerBinCount(uint BinIndex)
+uint2 GetRasterBinCount(uint BinIndex)
 {
-	// .x = SW cluster count in rasterizer bin
-	// .y = HW cluster count in rasterizer bin
-	return OutRasterizerBinHeaders[BinIndex].xy;
+	return uint2(OutRasterBinMeta[BinIndex].BinSWCount, OutRasterBinMeta[BinIndex].BinHWCount);
 }
 
-uint GetRasterizerBinCapacity(uint BinIndex)
+uint GetRasterBinCapacity(uint BinIndex)
 {
-	const uint2 BinCount = GetRasterizerBinCount(BinIndex);
+	const uint2 BinCount = GetRasterBinCount(BinIndex);
 	return (BinCount.x + BinCount.y);
 }
 
-void SetRasterizerBinOffset(uint BinIndex, uint BinOffset)
+void SetRasterBinOffset(uint BinIndex, uint BinOffset)
 {
-	OutRasterizerBinHeaders[BinIndex].z = BinOffset;
+	OutRasterBinMeta[BinIndex].ClusterOffset = BinOffset;
 }
 
-uint GetRasterizerBinOffset(uint BinIndex)
+uint GetRasterBinOffset(uint BinIndex)
 {
-	return OutRasterizerBinHeaders[BinIndex].z;
+	return OutRasterBinMeta[BinIndex].ClusterOffset;
 }
 
 #if RASTER_BIN_RESERVE
@@ -59,9 +53,9 @@ uint GetRasterizerBinOffset(uint BinIndex)
 uint RasterBinCount;
 
 RWStructuredBuffer<uint> OutRangeAllocator;
-RWBuffer<uint> OutRasterizerBinArgsSWHW;
+RWBuffer<uint> OutRasterBinArgsSWHW;
 
-uint AllocateRasterizerBinRange(uint ClusterCount)
+uint AllocateRasterBinRange(uint ClusterCount)
 {
 	uint RangeStart;
 	//InterlockedAdd(OutRangeAllocator[0], ClusterCount, RangeStart);
@@ -74,12 +68,12 @@ void RasterBinReserve(uint RasterBinIndex : SV_DispatchThreadID)
 {
 	if (RasterBinIndex < RasterBinCount)
 	{
-		const uint RasterBinCapacity = GetRasterizerBinCapacity(RasterBinIndex);
-		const uint RasterBinOffset = AllocateRasterizerBinRange(RasterBinCapacity);
-		SetRasterizerBinOffset(RasterBinIndex, RasterBinOffset);
+		const uint RasterBinCapacity = GetRasterBinCapacity(RasterBinIndex);
+		const uint RasterBinOffset = AllocateRasterBinRange(RasterBinCapacity);
+		SetRasterBinOffset(RasterBinIndex, RasterBinOffset);
 
 		const uint ArgsOffset = (RasterBinIndex * NANITE_RASTERIZER_ARG_COUNT);
-		WriteRasterizerArgsSWHW(OutRasterizerBinArgsSWHW, ArgsOffset, 0u, 0u);
+		WriteRasterizerArgsSWHW(OutRasterBinArgsSWHW, ArgsOffset, 0u, 0u);
 	}
 }
 
@@ -96,8 +90,8 @@ uint RegularMaterialRasterBinCount;
 ByteAddressBuffer MaterialSlotTable;
 
 #if RASTER_BIN_SCATTER
-RWBuffer<uint> OutRasterizerBinArgsSWHW;
-RWStructuredBuffer<uint2> OutRasterizerBinData;
+RWBuffer<uint> OutRasterBinArgsSWHW;
+RWStructuredBuffer<uint2> OutRasterBinData;
 #endif
 
 uint ExtractVertReuseBatchInfo(uint2 PackedData, uint BitOffset)
@@ -131,7 +125,7 @@ uint DecodeVertReuseBatchInfo(FCluster Cluster, uint BatchInfoOffset, uint Batch
 }
 
 #if RASTER_BIN_COUNT
-void IncrementRasterizerBinCount(uint BinIndex, bool bSoftware, uint BatchCount)
+void IncrementRasterBinCount(uint BinIndex, bool bSoftware, uint BatchCount)
 {
 	// One atomic per lane causes severe contention that ends up dominating execution time.
 
@@ -150,11 +144,11 @@ void IncrementRasterizerBinCount(uint BinIndex, bool bSoftware, uint BatchCount)
 			{
 				if (bUniformSoftware)
 				{
-					WaveInterlockedAdd(OutRasterizerBinHeaders[UniformBinIndex].x, BatchCount);
+					WaveInterlockedAdd(OutRasterBinMeta[UniformBinIndex].BinSWCount, BatchCount);
 				}
 				else
 				{
-					WaveInterlockedAdd(OutRasterizerBinHeaders[UniformBinIndex].y, BatchCount);
+					WaveInterlockedAdd(OutRasterBinMeta[UniformBinIndex].BinHWCount, BatchCount);
 				}
 				
 				bDone = true;
@@ -163,7 +157,7 @@ void IncrementRasterizerBinCount(uint BinIndex, bool bSoftware, uint BatchCount)
 	}
 }
 #elif RASTER_BIN_SCATTER
-uint AllocateRasterizerBinCluster(uint BinIndex, bool bSoftware, uint BatchCount)
+uint AllocateRasterBinCluster(uint BinIndex, bool bSoftware, uint BatchCount)
 {
 	uint ClusterOffset = 0u;
 	uint Offset = (BinIndex * NANITE_RASTERIZER_ARG_COUNT);
@@ -181,7 +175,7 @@ uint AllocateRasterizerBinCluster(uint BinIndex, bool bSoftware, uint BatchCount
 			const uint UniformOffset = WaveReadLaneFirst(Offset);
 			if (Offset == UniformOffset)
 			{
-				WaveInterlockedAdd_(OutRasterizerBinArgsSWHW[UniformOffset], BatchCount, ClusterOffset);
+				WaveInterlockedAdd_(OutRasterBinArgsSWHW[UniformOffset], BatchCount, ClusterOffset);
 				bDone = true;
 			}
 		}
@@ -189,17 +183,17 @@ uint AllocateRasterizerBinCluster(uint BinIndex, bool bSoftware, uint BatchCount
 
 	if (!bSoftware)
 	{
-		const uint Capacity = GetRasterizerBinCapacity(BinIndex);
+		const uint Capacity = GetRasterBinCapacity(BinIndex);
 		ClusterOffset = (Capacity - ClusterOffset - BatchCount); // HW writes from the top, SW writes from the bottom
 	}
 
-	return GetRasterizerBinOffset(BinIndex) + ClusterOffset;
+	return GetRasterBinOffset(BinIndex) + ClusterOffset;
 }
 #endif
 
-void ExportRasterizerBin(uint RasterizerBin, uint ClusterIndex, uint RangeStart, uint RangeEnd, uint BatchCount, uint BatchInfoOffset, FCluster Cluster, bool bBatchInfoInlined, bool bSoftware)
+void ExportRasterBin(uint RasterBin, uint ClusterIndex, uint RangeStart, uint RangeEnd, uint BatchCount, uint BatchInfoOffset, FCluster Cluster, bool bBatchInfoInlined, bool bSoftware)
 {
-	const FNaniteMaterialFlags BinMaterialFlags = GetRasterizerBinMaterialFlags(RasterizerBin);
+	const FNaniteMaterialFlags BinMaterialFlags = GetRasterBinMaterialFlags(RasterBin);
 	bool bUseBatch = bSoftware ? BinMaterialFlags.bPixelProgrammable : (bUsePrimOrMeshShader && BinMaterialFlags.bVertexProgrammable);
 	if (BinMaterialFlags.bDynamicTessellation)
 	{
@@ -210,9 +204,9 @@ void ExportRasterizerBin(uint RasterizerBin, uint ClusterIndex, uint RangeStart,
 
 	BatchCount = CondMask(bUseBatch, BatchCount, 1u);
 #if RASTER_BIN_COUNT
-	IncrementRasterizerBinCount(RasterizerBin, bSoftware, BatchCount);
+	IncrementRasterBinCount(RasterBin, bSoftware, BatchCount);
 #elif RASTER_BIN_SCATTER
-	const uint BinClusterMapping = AllocateRasterizerBinCluster(RasterizerBin, bSoftware, BatchCount);
+	const uint BinClusterMapping = AllocateRasterBinCluster(RasterBin, bSoftware, BatchCount);
 	for (uint BatchIndex = 0; BatchIndex < BatchCount; ++BatchIndex)
 	{
 		if (bUseBatch)
@@ -220,8 +214,8 @@ void ExportRasterizerBin(uint RasterizerBin, uint ClusterIndex, uint RangeStart,
 			uint BatchTriCount = DecodeVertReuseBatchInfo(Cluster, BatchInfoOffset, BatchIndex, bBatchInfoInlined);
 			RangeEnd = RangeStart + BatchTriCount;
 		}
-		OutRasterizerBinData[BinClusterMapping + BatchIndex].x = ClusterIndex;
-		OutRasterizerBinData[BinClusterMapping + BatchIndex].y = (RangeStart << 16) | RangeEnd;
+		OutRasterBinData[BinClusterMapping + BatchIndex].x = ClusterIndex;
+		OutRasterBinData[BinClusterMapping + BatchIndex].y = (RangeStart << 16) | RangeEnd;
 		RangeStart = RangeEnd;
 	}
 #endif
@@ -277,7 +271,7 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 		FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
 		FCluster Cluster = GetCluster( VisibleCluster.PageIndex, VisibleCluster.ClusterIndex );
 
-		uint RasterizerBin = GetMaterialRasterBin( Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterBinCount, false, MaterialSlotTable );
+		uint RasterBin = GetMaterialRasterBin( Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterBinCount, false, MaterialSlotTable );
 		uint IndexInBin = 0;
 
 		// Scalarize atomics
@@ -286,13 +280,13 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 		{
 			if( !bDone )
 			{
-				const uint UniformBinIndex = WaveReadLaneFirst( RasterizerBin );
-				if( UniformBinIndex == RasterizerBin )
+				const uint UniformBinIndex = WaveReadLaneFirst( RasterBin );
+				if( UniformBinIndex == RasterBin )
 				{
 				#if RASTER_BIN_COUNT
-					WaveInterlockedAddScalar( OutRasterizerBinHeaders[ UniformBinIndex ].x, 1 );
+					WaveInterlockedAddScalar(OutRasterBinMeta[UniformBinIndex].BinSWCount, 1);
 				#elif RASTER_BIN_SCATTER
-					WaveInterlockedAddScalar_( OutRasterizerBinArgsSWHW[ UniformBinIndex * NANITE_RASTERIZER_ARG_COUNT + 3 ], 1, IndexInBin );
+					WaveInterlockedAddScalar_( OutRasterBinArgsSWHW[ UniformBinIndex * NANITE_RASTERIZER_ARG_COUNT + 3 ], 1, IndexInBin );
 				#endif
 					bDone = true;
 				}
@@ -301,12 +295,12 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 
 	#if RASTER_BIN_SCATTER
 		// TODO Do this during RasterBinReserve.
-		OutRasterizerBinArgsSWHW[ RasterizerBin * NANITE_RASTERIZER_ARG_COUNT ] = ( OutRasterizerBinHeaders[ RasterizerBin ].x + 31 ) / 32;
+		OutRasterBinArgsSWHW[ RasterBin * NANITE_RASTERIZER_ARG_COUNT ] = ( OutRasterBinMeta[ RasterBin ].BinSWCount + 31 ) / 32;
 
-		const uint BinMapping = GetRasterizerBinOffset( RasterizerBin ) + IndexInBin;
+		const uint BinMapping = GetRasterBinOffset( RasterBin ) + IndexInBin;
 
-		OutRasterizerBinData[ BinMapping ].x = VisibleIndex;
-		OutRasterizerBinData[ BinMapping ].y = 0;
+		OutRasterBinData[ BinMapping ].x = VisibleIndex;
+		OutRasterBinData[ BinMapping ].y = 0;
 	#endif
 	}
 #else
@@ -351,13 +345,13 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 		BRANCH
 		if (IsMaterialFastPath(Cluster))
 		{
-			uint RasterizerBin0 = 0;
-			uint RasterizerBin1 = 0;
-			uint RasterizerBin2 = 0;
+			uint RasterBin0 = 0;
+			uint RasterBin1 = 0;
+			uint RasterBin2 = 0;
 
-			uint RasterizerLen0 = 0;
-			uint RasterizerLen1 = 0;
-			uint RasterizerLen2 = 0;
+			uint RasterLen0 = 0;
+			uint RasterLen1 = 0;
+			uint RasterLen2 = 0;
 
 			uint BatchCount0 = BitFieldExtractU32(Cluster.VertReuseBatchInfo.x, 4, 0);
 			uint BatchCount1 = BitFieldExtractU32(Cluster.VertReuseBatchInfo.x, 4, 4);
@@ -371,64 +365,64 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 
 			// The 0th material range is always non-zero length
 			{
-				RasterizerBin0 = GetMaterialRasterBinFromIndex(Cluster.Material0Index, InstanceData.PrimitiveId, RegularMaterialRasterBinCount, bSecondaryBin, MaterialSlotTable);
+				RasterBin0 = GetMaterialRasterBinFromIndex(Cluster.Material0Index, InstanceData.PrimitiveId, RegularMaterialRasterBinCount, bSecondaryBin, MaterialSlotTable);
 			}
 
 			BRANCH
 			if (Cluster.Material1Length > 0u)
 			{
-				RasterizerBin1 = GetMaterialRasterBinFromIndex(Cluster.Material1Index, InstanceData.PrimitiveId, RegularMaterialRasterBinCount, bSecondaryBin, MaterialSlotTable);
+				RasterBin1 = GetMaterialRasterBinFromIndex(Cluster.Material1Index, InstanceData.PrimitiveId, RegularMaterialRasterBinCount, bSecondaryBin, MaterialSlotTable);
 			}
 
 			BRANCH
 			if (Material2Length > 0)
 			{
-				RasterizerBin2 = GetMaterialRasterBinFromIndex(Cluster.Material2Index, InstanceData.PrimitiveId, RegularMaterialRasterBinCount, bSecondaryBin, MaterialSlotTable);
+				RasterBin2 = GetMaterialRasterBinFromIndex(Cluster.Material2Index, InstanceData.PrimitiveId, RegularMaterialRasterBinCount, bSecondaryBin, MaterialSlotTable);
 			}
 
-			if (RasterizerBin0 == RasterizerBin1 && RasterizerBin0 == RasterizerBin2)
+			if (RasterBin0 == RasterBin1 && RasterBin0 == RasterBin2)
 			{
-				RasterizerLen0 = Cluster.NumTris;
+				RasterLen0 = Cluster.NumTris;
 				BatchCount0 += BatchCount1 + BatchCount2;
 			}
-			else if (RasterizerBin0 == RasterizerBin1)
+			else if (RasterBin0 == RasterBin1)
 			{
-				RasterizerLen0 = (Cluster.Material0Length + Cluster.Material1Length);
-				RasterizerLen2 = Material2Length;
+				RasterLen0 = (Cluster.Material0Length + Cluster.Material1Length);
+				RasterLen2 = Material2Length;
 				BatchCount0 += BatchCount1;
 			}
-			else if (RasterizerBin1 == RasterizerBin2)
+			else if (RasterBin1 == RasterBin2)
 			{
-				RasterizerLen0 = Cluster.Material0Length;
-				RasterizerLen1 = Cluster.NumTris - Cluster.Material0Length;
+				RasterLen0 = Cluster.Material0Length;
+				RasterLen1 = Cluster.NumTris - Cluster.Material0Length;
 				BatchCount1 += BatchCount2;
 			}
 			else
 			{
-				RasterizerLen0 = Cluster.Material0Length;
-				RasterizerLen1 = Cluster.Material1Length;
-				RasterizerLen2 = Material2Length;
+				RasterLen0 = Cluster.Material0Length;
+				RasterLen1 = Cluster.Material1Length;
+				RasterLen2 = Material2Length;
 			}
 
 			// The 0th material range is always non-zero length
 			{
-				ExportRasterizerBin(RasterizerBin0, VisibleClusterIndex, 0u, RasterizerLen0, BatchCount0, BatchInfoOffset0, Cluster, true, bSoftware);
+				ExportRasterBin(RasterBin0, VisibleClusterIndex, 0u, RasterLen0, BatchCount0, BatchInfoOffset0, Cluster, true, bSoftware);
 			}
 
 			BRANCH
-			if (RasterizerLen1 > 0)
+			if (RasterLen1 > 0)
 			{
-				const uint Range1Start = RasterizerLen0;
-				const uint Range1End   = Range1Start + RasterizerLen1;
-				ExportRasterizerBin(RasterizerBin1, VisibleClusterIndex, Range1Start, Range1End, BatchCount1, BatchInfoOffset1, Cluster, true, bSoftware);
+				const uint Range1Start = RasterLen0;
+				const uint Range1End   = Range1Start + RasterLen1;
+				ExportRasterBin(RasterBin1, VisibleClusterIndex, Range1Start, Range1End, BatchCount1, BatchInfoOffset1, Cluster, true, bSoftware);
 			}
 
 			BRANCH
-			if (RasterizerLen2 > 0)
+			if (RasterLen2 > 0)
 			{
-				const uint Range2Start = (RasterizerLen0 + RasterizerLen1);
-				const uint Range2End   = Range2Start + RasterizerLen2;
-				ExportRasterizerBin(RasterizerBin2, VisibleClusterIndex, Range2Start, Range2End, BatchCount2, BatchInfoOffset2, Cluster, true, bSoftware);
+				const uint Range2Start = (RasterLen0 + RasterLen1);
+				const uint Range2End   = Range2Start + RasterLen2;
+				ExportRasterBin(RasterBin2, VisibleClusterIndex, Range2Start, Range2End, BatchCount2, BatchInfoOffset2, Cluster, true, bSoftware);
 			}
 		}
 		else
@@ -452,12 +446,12 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 				uint MaterialIndex;
 				DecodeMaterialRange(EncodedRange, TriStart, TriLength, MaterialIndex);
 
-				const uint RasterizerBinN = GetMaterialRasterBinFromIndex(MaterialIndex, InstanceData.PrimitiveId, RegularMaterialRasterBinCount, bSecondaryBin, MaterialSlotTable);
+				const uint RasterBinN = GetMaterialRasterBinFromIndex(MaterialIndex, InstanceData.PrimitiveId, RegularMaterialRasterBinCount, bSecondaryBin, MaterialSlotTable);
 
 				const uint BatchCount = BitStreamReader_Read_RO(ClusterPageData, BatchCountStreamState, 4, 4);
 
 				// Check if raster slot matches the current run, and that the triangle range is contiguous.
-				const bool bMergeRange = (RasterizerBinN == CurrentRangeBin);
+				const bool bMergeRange = (RasterBinN == CurrentRangeBin);
 				if (bMergeRange)
 				{
 					// Update current range
@@ -470,10 +464,10 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 					BRANCH
 					if (CurrentRangeEnd > 0)
 					{
-						ExportRasterizerBin(CurrentRangeBin, VisibleClusterIndex, CurrentRangeStart, CurrentRangeEnd, CurrentBatchCount, CurrentBatchInfoOffset, Cluster, false, bSoftware);
+						ExportRasterBin(CurrentRangeBin, VisibleClusterIndex, CurrentRangeStart, CurrentRangeEnd, CurrentBatchCount, CurrentBatchInfoOffset, Cluster, false, bSoftware);
 					}
 
-					CurrentRangeBin   = RasterizerBinN;
+					CurrentRangeBin   = RasterBinN;
 					CurrentRangeStart = TriStart;
 					CurrentRangeEnd   = CurrentRangeStart + TriLength;
 					CurrentBatchInfoOffset += CurrentBatchCount;
@@ -482,7 +476,7 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 			}
 
 			// Need to flush current range
-			ExportRasterizerBin(CurrentRangeBin, VisibleClusterIndex, CurrentRangeStart, CurrentRangeEnd, CurrentBatchCount, CurrentBatchInfoOffset, Cluster, false, bSoftware);
+			ExportRasterBin(CurrentRangeBin, VisibleClusterIndex, CurrentRangeStart, CurrentRangeEnd, CurrentBatchCount, CurrentBatchInfoOffset, Cluster, false, bSoftware);
 		}
 	}
 #endif

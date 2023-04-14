@@ -32,11 +32,7 @@ Texture2D<uint> ShadingMask;
 SamplerState ShadingMaskSampler;
 #endif
 
-// .x = Quad count shaded by bin
-// .y = Pixel count shaded by bin
-// .z = Quad coord range start
-// .w = Material bit flags
-RWStructuredBuffer<uint4> OutShadingBinMeta;
+RWStructuredBuffer<FNaniteShadingBinMeta> OutShadingBinMeta;
 
 #if SHADING_BIN_RESERVE
 RWStructuredBuffer<uint> OutShadingBinAllocator;
@@ -49,7 +45,7 @@ RWStructuredBuffer<uint> OutShadingBinData;
 
 FNaniteMaterialFlags GetShadingBinMaterialFlags(uint BinIndex)
 {
-	return UnpackNaniteMaterialFlags(OutShadingBinMeta[BinIndex].w);
+	return UnpackNaniteMaterialFlags(OutShadingBinMeta[BinIndex].MaterialFlags);
 }
 
 #if SHADING_BIN_COUNT || SHADING_BIN_SCATTER
@@ -231,17 +227,17 @@ void BinShadingQuad(uint2 Coord)
 		#if SHADING_BIN_COUNT
 			if (WaveIsFirstLane())
 			{
-				InterlockedAdd(OutShadingBinMeta[VotedBin].x, WaveQuadCount);
+				InterlockedAdd(OutShadingBinMeta[VotedBin].QuadCount, WaveQuadCount);
 			#if GATHER_STATS
-				InterlockedAdd(OutShadingBinMeta[VotedBin].y, WavePixelCount);
+				InterlockedAdd(OutShadingBinMeta[VotedBin].PixelCount, WavePixelCount);
 			#endif
 			}
 		#elif SHADING_BIN_SCATTER
 			uint WaveWriteOffset = 0u;
 			if (WaveIsFirstLane())
 			{
-				InterlockedAdd(OutShadingBinMeta[VotedBin].x, WaveQuadCount, WaveWriteOffset);
-				WaveWriteOffset += OutShadingBinMeta[VotedBin].z;
+				InterlockedAdd(OutShadingBinMeta[VotedBin].QuadCount, WaveQuadCount, WaveWriteOffset);
+				WaveWriteOffset += OutShadingBinMeta[VotedBin].RangeStart;
 			}
 
 			const uint DataWriteOffset = WaveReadLaneFirst(WaveWriteOffset) + WavePrefixCountBits(BinCoverage != 0u);
@@ -254,14 +250,14 @@ void BinShadingQuad(uint2 Coord)
 		#if SHADING_BIN_COUNT
 			if (WaveIsFirstLane())
 			{
-				InterlockedAdd(OutShadingBinMeta[VotedBin].y, WavePixelCount);
+				InterlockedAdd(OutShadingBinMeta[VotedBin].PixelCount, WavePixelCount);
 			}
 		#elif SHADING_BIN_SCATTER
 			uint WaveWriteOffset = 0u;
 			if (WaveIsFirstLane())
 			{
-				InterlockedAdd(OutShadingBinMeta[VotedBin].y, WavePixelCount, WaveWriteOffset);
-				WaveWriteOffset += OutShadingBinMeta[VotedBin].z;
+				InterlockedAdd(OutShadingBinMeta[VotedBin].PixelCount, WavePixelCount, WaveWriteOffset);
+				WaveWriteOffset += OutShadingBinMeta[VotedBin].RangeStart;
 			}
 
 			const uint DataWriteOffset = WaveReadLaneFirst(WaveWriteOffset) + WavePrefixSum(PixelCount);
@@ -374,11 +370,7 @@ void ShadingBinBuildCS(uint ThreadIndex : SV_GroupIndex, uint2 GroupId : SV_Grou
 #elif SHADING_BIN_RESERVE
 
 #if GATHER_STATS
-// .x = total quad count
-// .y = total pixel count
-// .z = total helper count
-// .w = unused
-RWStructuredBuffer<uint4> OutShadingBinStats;
+RWStructuredBuffer<FNaniteShadingBinStats> OutShadingBinStats;
 #endif
 
 [numthreads(64, 1, 1)]
@@ -387,14 +379,14 @@ void ShadingBinReserveCS(uint ShadingBin : SV_DispatchThreadID)
 	if (ShadingBin < ShadingBinCount)
 	{
 #if QUAD_BINNING
-		const uint BinQuadCount = OutShadingBinMeta[ShadingBin].x;
+		const uint BinQuadCount = OutShadingBinMeta[ShadingBin].QuadCount;
 
 		if (BinQuadCount > 0)
 		{
 			uint RangeStart;
 			InterlockedAdd(OutShadingBinAllocator[0], BinQuadCount, RangeStart);
-			OutShadingBinMeta[ShadingBin].x = 0;
-			OutShadingBinMeta[ShadingBin].z = RangeStart;
+			OutShadingBinMeta[ShadingBin].QuadCount = 0;
+			OutShadingBinMeta[ShadingBin].RangeStart = RangeStart;
 		}
 
 		const uint ArgsOffset = ShadingBin * 4u;
@@ -403,27 +395,27 @@ void ShadingBinReserveCS(uint ShadingBin : SV_DispatchThreadID)
 		const uint BinPixelCount = BinQuadCount * 4u;
 
 	#if GATHER_STATS
-		const uint BinSampleCount		= OutShadingBinMeta[ShadingBin].y;
+		const uint BinSampleCount		= OutShadingBinMeta[ShadingBin].PixelCount;
 		const uint BinHelperCount		= BinPixelCount - BinSampleCount;
 		const uint WaveBinQuadCount		= WaveActiveSum(BinQuadCount);
 		const uint WaveBinPixelCount	= WaveActiveSum(BinPixelCount);
 		const uint WaveBinHelperCount	= WaveActiveSum(BinHelperCount);
 		if (WaveIsFirstLane())
 		{
-			InterlockedAdd(OutShadingBinStats[0].x, WaveBinQuadCount);
-			InterlockedAdd(OutShadingBinStats[0].y, WaveBinPixelCount);
-			InterlockedAdd(OutShadingBinStats[0].z, WaveBinHelperCount);
+			InterlockedAdd(OutShadingBinStats[0].TotalQuadCount, WaveBinQuadCount);
+			InterlockedAdd(OutShadingBinStats[0].TotalPixelCount, WaveBinPixelCount);
+			InterlockedAdd(OutShadingBinStats[0].TotalHelperCount, WaveBinHelperCount);
 		}
 	#endif
 #else // QUAD_BINNING
-		const uint BinPixelCount = OutShadingBinMeta[ShadingBin].y;
+		const uint BinPixelCount = OutShadingBinMeta[ShadingBin].PixelCount;
 
 		if (BinPixelCount > 0)
 		{
 			uint RangeStart;
 			InterlockedAdd(OutShadingBinAllocator[0], BinPixelCount, RangeStart);
-			OutShadingBinMeta[ShadingBin].y = 0;
-			OutShadingBinMeta[ShadingBin].z = RangeStart;
+			OutShadingBinMeta[ShadingBin].PixelCount = 0;
+			OutShadingBinMeta[ShadingBin].RangeStart = RangeStart;
 		}
 
 		const uint ArgsOffset = ShadingBin * 4u;
@@ -432,7 +424,7 @@ void ShadingBinReserveCS(uint ShadingBin : SV_DispatchThreadID)
 		const uint WaveBinPixelCount = WaveActiveSum(BinPixelCount);
 		if (WaveIsFirstLane())
 		{
-			InterlockedAdd(OutShadingBinStats[0].y, WaveBinPixelCount);
+			InterlockedAdd(OutShadingBinStats[0].TotalPixelCount, WaveBinPixelCount);
 		}
 	#endif
 #endif // QUAD_BINNING

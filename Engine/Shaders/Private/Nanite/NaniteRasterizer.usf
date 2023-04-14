@@ -43,45 +43,41 @@ ALLOW_NO_PS_EXPORT
 
 HOIST_DESCRIPTORS
 
-uint ActiveRasterizerBin;
+uint ActiveRasterBin;
 
 float2 HardwareViewportSize;
 
-// .x = count of SW clusters in bin
-// .y = count of HW clusters in bin
-// .z = offset of contiguous cluster range in global buffer
-// .w = material bit flags
-StructuredBuffer<uint4> RasterizerBinHeaders;
+StructuredBuffer<FNaniteRasterBinMeta> RasterBinMeta;
 
-StructuredBuffer<uint2> RasterizerBinData;
+StructuredBuffer<uint2> RasterBinData;
 
 // .x = VisibleIndex
 // .y = RangeStart
 // .z = RangeEnd
 // .w = MaterialFlags
-uint4 FetchSWRasterizerBin(const uint ClusterIndex)
+uint4 FetchSWRasterBin(const uint ClusterIndex)
 {
-	const uint RasterBinOffset		= RasterizerBinHeaders[ActiveRasterizerBin].z;
-	const uint2 PackedData			= RasterizerBinData[RasterBinOffset + ClusterIndex].xy;
+	const uint RasterBinOffset		= RasterBinMeta[ActiveRasterBin].ClusterOffset;
+	const uint2 PackedData			= RasterBinData[RasterBinOffset + ClusterIndex].xy;
 	const uint VisibleIndex			= PackedData.x;
 	const uint RangeStart			= PackedData.y >> 16u;
 	const uint RangeEnd				= PackedData.y & 0xFFFFu;
-	return uint4(VisibleIndex, RangeStart, RangeEnd, RasterizerBinHeaders[ActiveRasterizerBin].w);
+	return uint4(VisibleIndex, RangeStart, RangeEnd, RasterBinMeta[ActiveRasterBin].MaterialFlags);
 }
 
 // .x = VisibleIndex
 // .y = RangeStart
 // .z = RangeEnd
 // .w = MaterialFlags
-uint4 FetchHWRasterizerBin(const uint ClusterIndex)
+uint4 FetchHWRasterBin(const uint ClusterIndex)
 {
-	const uint RasterBinOffset		= RasterizerBinHeaders[ActiveRasterizerBin].z;
-	const uint RasterBinCapacity	= RasterizerBinHeaders[ActiveRasterizerBin].x + RasterizerBinHeaders[ActiveRasterizerBin].y; // SW + HW
-	const uint2 PackedData			= RasterizerBinData[RasterBinOffset + ((RasterBinCapacity - 1) - ClusterIndex)].xy; // HW clusters are written from the top
+	const uint RasterBinOffset		= RasterBinMeta[ActiveRasterBin].ClusterOffset;
+	const uint RasterBinCapacity	= RasterBinMeta[ActiveRasterBin].BinSWCount + RasterBinMeta[ActiveRasterBin].BinHWCount;
+	const uint2 PackedData			= RasterBinData[RasterBinOffset + ((RasterBinCapacity - 1) - ClusterIndex)].xy; // HW clusters are written from the top
 	const uint VisibleIndex			= PackedData.x;
 	const uint RangeStart			= PackedData.y >> 16u;
 	const uint RangeEnd				= PackedData.y & 0xFFFFu;
-	return uint4(VisibleIndex, RangeStart, RangeEnd, RasterizerBinHeaders[ActiveRasterizerBin].w);
+	return uint4(VisibleIndex, RangeStart, RangeEnd, RasterBinMeta[ActiveRasterBin].MaterialFlags);
 }
 
 ViewState ResolveView(FNaniteView NaniteView)
@@ -175,7 +171,7 @@ FTriRange GetIndexAndTriRangeSW( inout uint VisibleIndex )
 	BRANCH
 	if (bHasRasterBin)
 	{
-		uint4 RasterBin = FetchSWRasterizerBin(VisibleIndex);
+		uint4 RasterBin = FetchSWRasterBin(VisibleIndex);
 		VisibleIndex = RasterBin.x;
 		Range.Start = RasterBin.y;
 		Range.Num = RasterBin.z - RasterBin.y;
@@ -208,7 +204,7 @@ FTriRange GetIndexAndTriRangeHW( inout uint VisibleIndex )
 	BRANCH
 	if (bHasRasterBin)
 	{
-		uint4 RasterBin = FetchHWRasterizerBin(VisibleIndex);
+		uint4 RasterBin = FetchHWRasterBin(VisibleIndex);
 		VisibleIndex = RasterBin.x;
 		Range.Start = RasterBin.y;
 		Range.Num = RasterBin.z - RasterBin.y;
@@ -723,7 +719,7 @@ uint MaskedBitCount2( uint2 Bits, uint Index )
 void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex ) 
 {
 #if TESS
-	const uint NumVisiblePatches = RasterizerBinHeaders[ ActiveRasterizerBin ].x;
+	const uint NumVisiblePatches = RasterBinMeta[ ActiveRasterBin ].BinSWCount;
 	
 	bool bPatchPending = VisibleIndex < NumVisiblePatches;
 	
@@ -731,7 +727,7 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 	BRANCH
 	if (bHasRasterBin)
 	{
-		uint4 RasterBin = FetchSWRasterizerBin(VisibleIndex);
+		uint4 RasterBin = FetchSWRasterBin(VisibleIndex);
 		VisibleIndex = RasterBin.x;
 	}
 

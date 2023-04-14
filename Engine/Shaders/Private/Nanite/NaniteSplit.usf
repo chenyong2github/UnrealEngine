@@ -208,15 +208,15 @@ uint FSplitTask::Run()
 			RWVisiblePatches.Store4( WriteOffset * 16, Encoded );
 
 		#if 0
-			uint RasterizerBin = GetMaterialRasterBin( Cluster, InstanceData.PrimitiveId, Patch.TriIndex, RegularMaterialRasterBinCount, false, MaterialSlotTable );
+			uint RasterBin = GetMaterialRasterBin( Cluster, InstanceData.PrimitiveId, Patch.TriIndex, RegularMaterialRasterBinCount, false, MaterialSlotTable );
 
 			// Scalarize atomics
 			while( true )
 			{
-				const uint UniformBinIndex = WaveReadLaneFirst( RasterizerBin );
-				if( UniformBinIndex == RasterizerBin )
+				const uint UniformBinIndex = WaveReadLaneFirst( RasterBin );
+				if( UniformBinIndex == RasterBin )
 				{
-					WaveInterlockedAddScalar( OutRasterizerBinHeaders[ UniformBinIndex ].x, 1 );
+					WaveInterlockedAddScalar( OutRasterBinMeta[ UniformBinIndex ].BinSWCount, 1 );
 					break;
 				}
 			}

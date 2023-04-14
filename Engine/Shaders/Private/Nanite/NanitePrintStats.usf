@@ -18,21 +18,21 @@ uint NumMainPassRasterBins;
 uint NumPostPassRasterBins;
 uint NumShadingBins;
 
-StructuredBuffer<FQueueState>		QueueState;
-Buffer<uint>						MainPassRasterizeArgsSWHW;
-Buffer<uint>						PostPassRasterizeArgsSWHW;
+StructuredBuffer<FQueueState>				QueueState;
+Buffer<uint>								MainPassRasterizeArgsSWHW;
+Buffer<uint>								PostPassRasterizeArgsSWHW;
 
-StructuredBuffer<uint4>				MainPassRasterBinHeaders;
-StructuredBuffer<uint4>				PostPassRasterBinHeaders;
-Buffer<uint>						MaterialIndirectArgs;
+StructuredBuffer<FNaniteRasterBinMeta>		MainPassRasterBinMeta;
+StructuredBuffer<FNaniteRasterBinMeta>		PostPassRasterBinMeta;
+Buffer<uint>								MaterialIndirectArgs;
 
-StructuredBuffer<uint4>				ShadingBinMeta;
-StructuredBuffer<uint4>				ShadingBinStats;
+StructuredBuffer<FNaniteShadingBinMeta>		ShadingBinMeta;
+StructuredBuffer<FNaniteShadingBinStats>	ShadingBinStats;
 
-StructuredBuffer<FNaniteStats>		InStatsBuffer;
-RWStructuredBuffer<FNaniteStats>	OutStatsBuffer;
+StructuredBuffer<FNaniteStats>				InStatsBuffer;
+RWStructuredBuffer<FNaniteStats>			OutStatsBuffer;
 
-RWBuffer<uint>						OutClusterStatsArgs;
+RWBuffer<uint>								OutClusterStatsArgs;
 
 #if SHADER_PRINT_STATS
 
@@ -301,8 +301,8 @@ void CalculateRasterStats()
 	LOOP
 	for (uint RasterBinIndex = 0; RasterBinIndex < NumMainPassRasterBins; ++RasterBinIndex)
 	{
-		const uint BinSWCount = MainPassRasterBinHeaders[RasterBinIndex].x;
-		const uint BinHWCount = MainPassRasterBinHeaders[RasterBinIndex].y;
+		const uint BinSWCount = MainPassRasterBinMeta[RasterBinIndex].BinSWCount;
+		const uint BinHWCount = MainPassRasterBinMeta[RasterBinIndex].BinHWCount;
 
 		const uint BinIndirections = BinSWCount + BinHWCount;
 
@@ -322,8 +322,8 @@ void CalculateRasterStats()
 	LOOP
 	for (uint RasterBinIndex = 0; RasterBinIndex < NumPostPassRasterBins; ++RasterBinIndex)
 	{
-		const uint BinSWCount = PostPassRasterBinHeaders[RasterBinIndex].x;
-		const uint BinHWCount = PostPassRasterBinHeaders[RasterBinIndex].y;
+		const uint BinSWCount = PostPassRasterBinMeta[RasterBinIndex].BinSWCount;
+		const uint BinHWCount = PostPassRasterBinMeta[RasterBinIndex].BinHWCount;
 
 		const uint BinIndirections = BinSWCount + BinHWCount;
 
@@ -372,9 +372,9 @@ void CalculateShadingStats()
 	OutStatsBuffer[0].NumTotalShadingBins = NumShadingBins;
 	OutStatsBuffer[0].NumEmptyShadingBins = NumEmptyShadingBins;
 
-	OutStatsBuffer[0].NumShadedQuads  = ShadingBinStats[0].x;
-	OutStatsBuffer[0].NumShadedPixels = ShadingBinStats[0].y - ShadingBinStats[0].z; // Don't count helper lanes as pixels
-	OutStatsBuffer[0].NumHelperLanes  = ShadingBinStats[0].z;
+	OutStatsBuffer[0].NumShadedQuads  = ShadingBinStats[0].TotalQuadCount;
+	OutStatsBuffer[0].NumShadedPixels = ShadingBinStats[0].TotalPixelCount - ShadingBinStats[0].TotalHelperCount; // Don't count helper lanes as pixels
+	OutStatsBuffer[0].NumHelperLanes  = ShadingBinStats[0].TotalHelperCount;
 }
 
 #endif // SHADER_CALCULATE_STATS
