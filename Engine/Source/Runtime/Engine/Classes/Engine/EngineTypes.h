@@ -2900,7 +2900,7 @@ struct ENGINE_API FDisplacementScaling
 public:
 	FDisplacementScaling()
 	: Magnitude(4.0f)
-	, Center(0.0f)
+	, Center(0.5f)
 	{
 	}
 
