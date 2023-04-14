@@ -329,13 +329,17 @@ namespace Horde.Server
 		public void ConfigureServices(IServiceCollection services)
 		{
 			// IOptionsMonitor pattern for live updating of configuration settings
-			services.Configure<ServerSettings>(Configuration.GetSection("Horde"));
+			services.Configure<ServerSettings>(serverSettings =>
+			{
+				IConfigurationSection hordeSection = Configuration.GetSection("Horde");
+				hordeSection.Bind(serverSettings);
+				BindTelemetrySettings(serverSettings, hordeSection.GetSection("Telemetry"));
+			});
 
 			// Settings used for configuring services
 			IConfigurationSection configSection = Configuration.GetSection("Horde");
 			ServerSettings settings = new ServerSettings();
 			configSection.Bind(settings);
-			BindTelemetrySettings(settings, configSection.GetSection("Telemetry"));
 			settings.Validate();
 
 			if (settings.GlobalThreadPoolMinSize != null)
