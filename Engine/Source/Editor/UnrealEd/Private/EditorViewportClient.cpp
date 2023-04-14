@@ -3333,7 +3333,7 @@ void FEditorViewportClient::ProcessDoubleClickInViewport( const struct FInputEve
 	MouseDeltaTracker->StartTracking( this, HitX, HitY, InputState );
 	bIsTracking = true;
 	GEditor->MouseMovement = FVector::ZeroVector;
-	HHitProxy*	HitProxy = InputStateViewport->GetHitProxy(HitX,HitY);
+	TRefCountPtr<HHitProxy> HitProxy = InputStateViewport->GetHitProxy(HitX,HitY);
 	ProcessClick(View,HitProxy,Key,Event,HitX,HitY);
 	MouseDeltaTracker->EndTracking( this );
 	bIsTracking = false;
