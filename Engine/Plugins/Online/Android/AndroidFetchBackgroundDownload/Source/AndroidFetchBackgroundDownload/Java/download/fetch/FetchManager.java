@@ -110,6 +110,13 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 	//don't match our ActiveDownloadDescriptions entries and thus need to be reconciled (either added or modified in some way)
 	private void ReconcileDownloadDescriptions(DownloadQueueDescription QueueDescription)
 	{
+		//Create reference copy of RequestedDownloads and clear original lists for
+		//RequestedDownloads, CompletedDownloads, and FailedDownloads to allow them to re-populate with new work state
+		HashMap<String,DownloadDescription> TempRequestedDownloadsCopy =  new HashMap<String,DownloadDescription>(RequestedDownloads);
+		RequestedDownloads.clear();
+		CompletedDownloads.clear();
+		FailedDownloads.clear();
+
 		final int NumNewDownloadDescriptions = QueueDescription.DownloadDescriptions.size();
 		for (int DescriptionIndex = 0; DescriptionIndex < NumNewDownloadDescriptions; ++DescriptionIndex)
 		{
@@ -119,28 +126,49 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 			NewDownloadDescription.ProgressListener = QueueDescription.ProgressListener;
 							
 			String RequestIDKey = NewDownloadDescription.RequestID;
-			//Don't even have an entry for this RequestID, so it's completely new
-			if (!RequestedDownloads.containsKey(RequestIDKey))
+			//Don't even have an entry for this RequestID in the old list, so it's completely new
+			if (!TempRequestedDownloadsCopy.containsKey(RequestIDKey))
 			{
 				QueueNewDownloadDescription(NewDownloadDescription);
 			}
 			//Need to update our DownloadDescription
 			else
 			{
-				//don't requeue completed downloads
-				if (NewDownloadDescription.bHasCompleted)
-				{
-					Log.debug("Skipping requeue of " + NewDownloadDescription.RequestID + " as its flagged for bHasCompleted");
-				}
-				else
-				{
-					DownloadDescription ActiveDescription = RequestedDownloads.get(RequestIDKey);
-					HandleChangedDownloadDescription(ActiveDescription, NewDownloadDescription);
-				}
+				DownloadDescription ActiveDescription = TempRequestedDownloadsCopy.get(RequestIDKey);
+				HandleChangedDownloadDescription(ActiveDescription, NewDownloadDescription);
 			}
 		}
 	}
 	
+	public void ResetDownloadCompleteTracking(DownloadDescription Description)
+	{
+		if (CompletedDownloads.containsKey(Description.RequestID))
+		{
+			CompletedDownloads.remove(Description.RequestID);
+		}
+
+		if (FailedDownloads.containsKey(Description.RequestID))
+		{
+			FailedDownloads.remove(Description.RequestID);
+		}
+	}
+
+	public ECompleteReason GetCompleteReasonForDownload(DownloadDescription Description)
+	{
+		if (Description.bIsCancelled)
+		{
+			return ECompleteReason.Cancelled;
+		}
+
+		if (FailedDownloads.containsKey(Description.RequestID))
+		{
+			return ECompleteReason.Error;
+		}
+
+		//Default to success since the download is complete and we have no signs of an error
+		return ECompleteReason.Success;
+	}
+
 	public void QueueNewDownloadDescription(DownloadDescription Description)
 	{
 		//We have hit this code after something else has already invalidated our FetchInstance
@@ -151,47 +179,43 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 		}
 		
 		RequestedDownloads.put(Description.RequestID, Description);
+		ResetDownloadCompleteTracking(Description);
 
 		if (!CheckForPreviouslyCompletedDownload(Description))
 		{	
-			//Make sure this request wasn't previously flagged as completed before beginning new work
-			if (CompletedDownloads.containsKey(Description.RequestID))
-			{
-				CompletedDownloads.remove(Description.RequestID);
-			}
-
 			FetchEnqueueResultListener.FetchEnqueueRequestCallback RequestCallback = new FetchEnqueueResultListener.FetchEnqueueRequestCallback(this, Description.RequestID);
 			FetchEnqueueResultListener.FetchEnqueueErrorCallback ErrorCallback = new FetchEnqueueResultListener.FetchEnqueueErrorCallback(this, Description.RequestID);
 		
-			if (!Description.bIsCancelled)
-			{
-				Request FetchRequest = BuildFetchRequest(Description);
-				Description.CachedFetchID = FetchRequest.getId();
+			Request FetchRequest = BuildFetchRequest(Description);
+			Description.CachedFetchID = FetchRequest.getId();
 
-				//Needed for callbacks
-				DownloadContentLength downContent = new DownloadContentLength();
-				downContent.desc = Description;
-				DownloadContentLengthError downContentError = new DownloadContentLengthError();
-				FetchInstance.getContentLengthForRequest(FetchRequest, true, downContent, downContentError);
+			//Needed for callbacks
+			DownloadContentLength downContent = new DownloadContentLength();
+			downContent.desc = Description;
+			DownloadContentLengthError downContentError = new DownloadContentLengthError();
+			FetchInstance.getContentLengthForRequest(FetchRequest, true, downContent, downContentError);
 			
-				FetchInstance.enqueue(FetchRequest, RequestCallback, ErrorCallback);
+			FetchInstance.enqueue(FetchRequest, RequestCallback, ErrorCallback);
 
-				Log.debug("Enqueue request sent for:" + Description.RequestID);
-			}
+			Log.debug("Enqueue request sent for:" + Description.RequestID);
 		}
 		//if we have previously completed this download, then we just want to compelte it instead of creating a new FetchRequest
 		else
 		{
-			Log.debug("Completed RequestID:" + Description.RequestID + " as the DestinationLocation already is occupied and thus previously completed.");
-			CompleteDownload(Description, ECompleteReason.Success);
+			ECompleteReason CompleteReason = GetCompleteReasonForDownload(Description);
+			Log.debug("Completed RequestID:" + Description.RequestID + " with Reason " + CompleteReason + " as request was previously completed.");
+			CompleteDownload(Description, CompleteReason);
 		}
 	}
 
 	private boolean CheckForPreviouslyCompletedDownload(DownloadDescription Description)
 	{
+		boolean bInCompleteList = CompletedDownloads.containsKey(Description.RequestID);
+		
 		File CompleteLocation = new File(Description.DestinationLocation);
-		return CompleteLocation.exists();
+		boolean bHasFileInCompleteLocation = CompleteLocation.exists();
 
+		return (bInCompleteList || bHasFileInCompleteLocation || Description.bHasCompleted || Description.bIsCancelled);
 	}
 
 	public void PauseDownload(String RequestID, boolean bPause)
@@ -291,12 +315,13 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 	{
 		NewDescription.CurrentRetryCount = OldDescription.CurrentRetryCount;
 		NewDescription.CachedFetchID = OldDescription.CachedFetchID;
-		NewDescription.bIsPaused = OldDescription.bIsPaused;
 		NewDescription.PreviousDownloadedBytes = OldDescription.PreviousDownloadedBytes;
 		NewDescription.PreviousDownloadPercent = OldDescription.PreviousDownloadPercent;
-		
-		//if this has shown back up, we don't want to copy bIsCancelled because we want to re-queue this download
-		NewDescription.bIsCancelled = false;
+		NewDescription.TotalBytesNeeded = OldDescription.TotalBytesNeeded;
+		NewDescription.TotalDownloadedBytes = OldDescription.TotalDownloadedBytes;
+
+		// Purposefully don't copy bIsPaused or bIsCancelled as we want that to come from the new description in case 
+		// this has been set on C++ side but not yet received by our Worker before new work was queued. C++ state should be definitive
 
 		//Purposefully don't copy DownloadProgressListener as we set this based on the new QueueDescription already and likely
 		//don't want to keep the old one (although in current code they match).
@@ -908,12 +933,6 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 		else
 		{
 			FailedDownloads.put(DownloadDesc.RequestID, DownloadDesc);
-		}
-
-		//Flag any successful complete so we don't redownload it on retries
-		if (CompleteReasonToSend == EDownloadCompleteReason.Success)
-		{
-			DownloadDesc.bHasCompleted = true;
 		}
 
 		DownloadDesc.ProgressListener.OnDownloadComplete(DownloadDesc.RequestID, DownloadDesc.DestinationLocation, CompleteReasonToSend);		

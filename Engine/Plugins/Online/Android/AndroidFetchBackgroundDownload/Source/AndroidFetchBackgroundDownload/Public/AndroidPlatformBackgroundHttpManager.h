@@ -64,15 +64,19 @@ protected:
 	FAndroidBackgroundHttpRequestPtr FindRequestByID(FString RequestID);
 	void HandlePendingCompletes();
 
+	void HandleJavaWorkerReconciliation();
+
 	const FString GetFullFileNameForDownloadDescriptionList() const;
 	const FString GetBaseFileNameForDownloadDescriptionListWithAppendedInt(int IntToAppend) const;
 
 	//Handlers for our download progressing in the underlying java implementation so that we can bubble it up to UE code.
+	void Java_OnWorkerStart(FString WorkID, jobject UnderlyingWorker);
 	void Java_OnWorkerStop(FString WorkID, jobject UnderlyingWorker);
 	void Java_OnDownloadProgress(jobject UnderlyingWorker, FString RequestID, int64_t BytesWrittenSinceLastCall, int64_t TotalBytesWritten);
 	void Java_OnDownloadComplete(jobject UnderlyingWorker, FString RequestID, FString CompleteLocation, bool bWasSuccess);
 	void Java_OnAllDownloadsComplete(jobject UnderlyingWorker, bool bDidAllRequestsSucceed);
 	void Java_OnTick(JNIEnv* Env, jobject UnderlyingWorker);
+	void Java_OnNetworkChanged(JNIEnv* Env, bool bNetworkIsConnected);
 
 	//Helper function that completes any un-completed requests in the underlying java tracking layer so that they will
 	//complete on the next Tick. Mostly used to help when the underlying java error hits a failure. Ensures when any
@@ -92,12 +96,6 @@ protected:
 	bool IsValidRequestToEnqueue(FBackgroundHttpRequestPtr Request);
 	bool IsValidRequestToEnqueue(FAndroidBackgroundHttpRequestPtr Request);
 
-	FDelegateHandle Java_OnWorkerStopHandle;
-	FDelegateHandle Java_OnDownloadProgressHandle;
-	FDelegateHandle Java_OnDownloadCompleteHandle;
-	FDelegateHandle Java_OnAllDownloadsCompleteHandle;
-	FDelegateHandle Java_OnTickHandle;
-
 	//Array used to store Pause/Resume/Cancel requests in a thread-safe non-locking way. This way we can utilize the _Java lists in our Java_OnTick
 	//without worrying about blocking the java thread
 	TArray<FString> RequestsToPauseByID_GT;
@@ -116,6 +114,17 @@ protected:
 	volatile int32 bIsModifyingPauseList;
 	volatile int32 bIsModifyingResumeList;
 	volatile int32 bIsModifyingCancelList;
+
+	//Tracks if we are expecting a worker to start
+	volatile int32 bHasPendingExpectedWorkStart;
+
+	//If for some reason we should force requeuing all active work even if there are no current PendingDownloadRequests
+	volatile int32 bShouldForceWorkerRequeue;
+	
+	//If we need to reconcile the state of our underlying requests as
+	//we have terminally finished our work and want to make sure all work is
+	//correctly set to finish.
+	volatile int32 bWorkerHadTerminalFinish;
 
 	//Rechecks any _GT lists to try and move them to _Java lists if its safe to do so
 	void HandleRequestsWaitingOnJavaThreadsafety();
@@ -225,25 +234,6 @@ public:
 	static const FString NOTIFICATION_RESOURCE_SMALL_ICON_TYPE;
 	static const FString NOTIFICATION_RESOURCE_SMALL_ICON_PACKAGE;
 
-};
-//Call backs called by the bellow FBackgroundURLSessionHandler so higher-level systems can respond to task updates.
-class FAndroidBackgroundDownloadDelegates
-{
-public:
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FAndroidBackgroundDownload_OnWorkerStart, FString /*WorkID*/, jobject /*UnderlyingWorker*/);
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FAndroidBackgroundDownload_OnWorkerStop, FString /*WorkID*/, jobject /*UnderlyingWorker*/);
-	DECLARE_MULTICAST_DELEGATE_FourParams(FAndroidBackgroundDownload_OnProgress, jobject /*UnderlyingWorker*/, FString /*RequestID*/, int64_t /*BytesWrittenSinceLastCall*/, int64_t /*TotalBytesWritten*/);
-	DECLARE_MULTICAST_DELEGATE_FourParams(FAndroidBackgroundDownload_OnComplete, jobject /*UnderlyingWorker*/, FString /*RequestID*/, FString /*CompleteLocation*/, bool /*bWasSuccess*/);
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FAndroidBackgroundDownload_OnAllComplete, jobject /*UnderlyingWorker*/, bool /*bDidAllRequestsSucceed*/);
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FAndroidBackgroundDownload_OnTickWorkerThread, JNIEnv*, jobject /*UnderlyingWorker*/);
-
-	//Delegates called by JNI functions to bubble up underlying java work to the manager
-	static FAndroidBackgroundDownload_OnWorkerStart AndroidBackgroundDownload_OnWorkerStart;
-	static FAndroidBackgroundDownload_OnWorkerStop AndroidBackgroundDownload_OnWorkerStop;
-	static FAndroidBackgroundDownload_OnProgress AndroidBackgroundDownload_OnProgress;
-	static FAndroidBackgroundDownload_OnComplete AndroidBackgroundDownload_OnComplete;
-	static FAndroidBackgroundDownload_OnAllComplete AndroidBackgroundDownload_OnAllComplete;
-	static FAndroidBackgroundDownload_OnTickWorkerThread AndroidBackgroundDownload_OnTickWorkerThread;
 };
 
 typedef TSharedPtr<FAndroidPlatformBackgroundHttpManager, ESPMode::ThreadSafe> FAndroidPlatformBackgroundHttpManagerPtr;
