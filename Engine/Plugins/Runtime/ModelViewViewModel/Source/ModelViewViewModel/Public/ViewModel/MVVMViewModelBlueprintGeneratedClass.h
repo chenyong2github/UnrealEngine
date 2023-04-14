@@ -16,11 +16,30 @@ namespace UE::MVVM
 	class FViewModelBlueprintCompilerContext;
 }//namespace
 
-UCLASS(Deprecated)
-class UE_DEPRECATED(5.3, "The prototype viewmodel editor is deprecated. Use the regular Blueprint editor.")
-MODELVIEWVIEWMODEL_API UDEPRECATED_MVVMViewModelBlueprintGeneratedClass : public UBlueprintGeneratedClass
+UCLASS()
+class MODELVIEWVIEWMODEL_API UMVVMViewModelBlueprintGeneratedClass : public UBlueprintGeneratedClass
 {
 	GENERATED_BODY()
+
+	friend UE::MVVM::FViewModelBlueprintCompilerContext;
+
+public:
+	UMVVMViewModelBlueprintGeneratedClass();
+
+	//~ Begin UBlueprintGeneratedClass interface
+	virtual void PostLoadDefaultObject(UObject* Object) override;
+	virtual void PurgeClass(bool bRecompilingOnLoad) override;
+	//~ End UBlueprintGeneratedClass interface
+
+	void InitializeFieldNotification(const UMVVMViewModelBase* ViewModel);
+	void ForEachField(TFunctionRef<bool(::UE::FieldNotification::FFieldId FieldId)> Callback) const;
+
+private:
+	/** List Field Notifies. No index here on purpose to prevent saving them. */
+	UPROPERTY()
+	TArray<FFieldNotificationId> FieldNotifyNames;
+
+	int32 FieldNotifyStartBitNumber;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
