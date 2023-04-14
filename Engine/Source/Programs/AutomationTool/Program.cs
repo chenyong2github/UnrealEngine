@@ -414,7 +414,7 @@ namespace AutomationToolDriver
 			}
 
 			// Enter the main program section
-			ExitCode ReturnCode = ExitCode.Success;
+			ExitCode ReturnCode = ExitCode.Error_Unknown;
 			try
 			{
 				// Set the working directory to the Unreal root directory
