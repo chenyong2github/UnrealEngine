@@ -7,21 +7,7 @@ public class VCamCore : ModuleRules
 	public VCamCore(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-
-		PublicIncludePaths.AddRange(
-			new string[] {
-				// ... add public include paths required here ...
-			}
-			);
-
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				// ... add other private include paths required here ...
-			}
-			);
-
-
+		
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -30,18 +16,13 @@ public class VCamCore : ModuleRules
 				"VPUtilities",
 				"EnhancedInput",
 				"VCamInput"
-				// ... add other public dependencies that you statically link with here ...
-			}
-			);
-
-
+			});
+		
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"CoreUObject",
 				"Engine",
-				"Slate",
-				"SlateCore",
 				"UMG",
 				"CinematicCamera",
 				"GameplayTags",
@@ -49,32 +30,25 @@ public class VCamCore : ModuleRules
 				"MediaIOCore",
 				"RemoteSession",
 				"InputCore",
+				"Slate",
+				"SlateCore",
 				"VPRoles",
 				"VPSettings"
-				// ... add private dependencies that you statically link with here ...
-			}
-			);
+			});
 
-
-		DynamicallyLoadedModuleNames.AddRange(
-			new string[]
-			{
-				// ... add any modules that your module loads dynamically here ...
-			}
-			);
-
-		if (Target.bBuildEditor == true)
+		if (Target.bBuildEditor)
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"EditorFramework",
-					"LevelEditor",
-					"UnrealEd",
 					"Concert",
 					"ConcertSyncClient",
+					"EditorFramework",
+					"InputEditor",
+					"LevelEditor",
 					"MultiUserClient",
-					"InputEditor"
+					"Projects",
+					"UnrealEd"
 				}
 			);
 		}

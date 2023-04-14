@@ -22,6 +22,7 @@
 #include "Roles/LiveLinkCameraRole.h"
 #include "Roles/LiveLinkTransformRole.h"
 #include "VCamSubsystem.h"
+#include "Util/CookingUtils.h"
 
 #if WITH_EDITOR
 #include "Modules/ModuleManager.h"
@@ -272,6 +273,20 @@ void UVCamComponent::AddReferencedObjects(UObject* InThis, FReferenceCollector& 
 
 #if WITH_EDITOR
 
+void UVCamComponent::PreSave(FObjectPreSaveContext SaveContext)
+{
+	Super::PreSave(SaveContext);
+
+	// The goal is to avoid failing LoadPackage warnings in a cooked game for objects that are editor-only
+	if (SaveContext.IsCooking() && !HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
+	{
+		using namespace UE::VCamCore::CookingUtils::Private;
+		RemoveUnsupportedOutputProviders(OutputProviders, SaveContext);
+		RemoveUnsupportedModifiers(ModifierStack, SaveContext);
+		// We could also iterate the output provider's widget connections an warn if there are any connections to a disabled connection point here
+	}
+}
+
 void UVCamComponent::CheckForErrors()
 {
 	Super::CheckForErrors();
@@ -285,9 +300,10 @@ void UVCamComponent::CheckForErrors()
 	}
 }
 
-void UVCamComponent::PreEditChange(FProperty* PropertyThatWillChange)
+void UVCamComponent::PreEditChange(FProperty* PropertyAboutToChange)
 {
-	Super::PreEditChange(PropertyThatWillChange);
+	// This pointless implementation is needed because Linux compiler will complain overloaded PreEditChange being hidden
+	Super::PreEditChange(PropertyAboutToChange);
 }
 
 void UVCamComponent::PreEditChange(FEditPropertyChain& PropertyAboutToChange)

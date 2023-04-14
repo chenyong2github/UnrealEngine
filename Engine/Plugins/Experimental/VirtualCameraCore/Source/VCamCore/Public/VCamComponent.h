@@ -96,8 +96,9 @@ public:
 	//~ End UObject Interface
 
 #if WITH_EDITOR
+	virtual void PreSave(FObjectPreSaveContext SaveContext) override;
 	virtual void CheckForErrors() override;
-	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PreEditChange(FEditPropertyChain& PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
