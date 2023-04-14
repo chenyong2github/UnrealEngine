@@ -39,6 +39,7 @@ TArray<FOptimusCDIPinDefinition> UOptimusGroomDataInterface::GetPinDefinitions()
 	Defs.Add({ "AO",               "ReadAO",                ControlPoint,   "ReadAO" });
 	Defs.Add({ "CurveOffsetPoint", "ReadCurveOffsetPoint",  Curve,          "ReadCurveOffsetPoint" });
 	Defs.Add({ "CurveNumPoint",    "ReadCurveNumPoint",     Curve,          "ReadCurveNumPoint" });
+	Defs.Add({ "GuideIndex",       "ReadGuideIndex",        ControlPoint,   "ReadGuideIndex" });
 	return Defs;
 }
  
@@ -116,11 +117,17 @@ void UOptimusGroomDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefini
 		.SetName(TEXT("ReadCurveNumPoint"))
 		.AddReturnType(EShaderFundamentalType::Uint)
 		.AddParam(EShaderFundamentalType::Uint);
+
+	OutFunctions.AddDefaulted_GetRef()
+		.SetName(TEXT("ReadGuideIndex"))
+		.AddReturnType(EShaderFundamentalType::Uint)
+		.AddParam(EShaderFundamentalType::Uint);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FGroomDataInterfaceParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceCommonParameters, Common)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceResourceParameters, Resources)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceInterpolationParameters, Interpolation)
 END_SHADER_PARAMETER_STRUCT()
 
 void UOptimusGroomDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
@@ -207,13 +214,20 @@ void FOptimusGroomDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder
 	{
 		if (FHairGroupInstance* Instance = GroomComponent->GetGroupInstance(Index))
 		{
-			FHairStrandsInstanceResourceParameters& R = Resources.AddDefaulted_GetRef();
-			R.PositionBuffer		= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PositionBuffer);
-			R.PositionOffsetBuffer 	= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PositionOffsetBuffer);
-			R.CurveBuffer			= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->CurveBuffer);
-			R.PointToCurveBuffer	= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PointToCurveBuffer);
-			R.CurveAttributeBuffer	= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->CurveAttributeBuffer);
-			R.PointAttributeBuffer	= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PointAttributeBuffer);
+			{
+				FHairStrandsInstanceResourceParameters& R = Resources.AddDefaulted_GetRef();
+				R.PositionBuffer		= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PositionBuffer);
+				R.PositionOffsetBuffer 	= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PositionOffsetBuffer);
+				R.CurveBuffer			= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->CurveBuffer);
+				R.PointToCurveBuffer	= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PointToCurveBuffer);
+				R.CurveAttributeBuffer	= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->CurveAttributeBuffer);
+				R.PointAttributeBuffer	= RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PointAttributeBuffer);
+			}
+
+			{
+				FHairStrandsInstanceInterpolationParameters& R = Interpolations.AddDefaulted_GetRef();
+				R.InterpolationBuffer = Instance->Strands.InterpolationResource ? RegisterAsSRV(GraphBuilder, Instance->Strands.InterpolationResource->InterpolationBuffer) : nullptr;
+			}
 
 			if (!FallbackSRV)
 			{
@@ -243,16 +257,20 @@ void FOptimusGroomDataProviderProxy::GatherDispatchData(FDispatchData const& InD
 		Parameters.Resources.PointAttributeBuffer	= FallbackSRV;
 		Parameters.Resources.PointToCurveBuffer		= FallbackSRV;
 		Parameters.Resources.CurveBuffer			= FallbackSRV;
+		Parameters.Interpolation.InterpolationBuffer= FallbackSRV;
 
 		if (FHairGroupInstance* Instance = GroomComponent->GetGroupInstance(InvocationIndex))
 		{
-			const FHairGroupPublicData::FVertexFactoryInput VFInput = ComputeHairStrandsVertexInputData(Instance, EGroomViewMode::None);		
+			const FHairGroupPublicData::FVertexFactoryInput VFInput = ComputeHairStrandsVertexInputData(Instance, EGroomViewMode::None);
 			Parameters.Common = VFInput.Strands.Common;
 
-			const bool bIsSRVValid = Resources[InvocationIndex].PositionBuffer != nullptr;
-			if (bIsSRVValid)
+			if (Resources[InvocationIndex].PositionBuffer != nullptr)
 			{
 				Parameters.Resources = Resources[InvocationIndex];
+			}
+			if (Interpolations[InvocationIndex].InterpolationBuffer != nullptr)
+			{
+				Parameters.Interpolation = Interpolations[InvocationIndex];
 			}
 		}
 	}

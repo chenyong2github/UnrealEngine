@@ -27,6 +27,8 @@
 	float3				Prefix##_PositionOffset; \
 	uint				Prefix##_PointCount; \
 	uint				Prefix##_CurveCount; \
+	uint				Prefix##_bSimulation; \
+	uint				Prefix##_bSingleGuide; \
 	float4x4			Prefix##_LocalToWorldPrimitiveTransform; \
 	float4x4			Prefix##_LocalToTranslatedWorldPrimitiveTransform; \
 	uint4				Prefix##_CurveAttributeOffsets[HAIR_CURVE_ATTRIBUTE_OFFSET_COUNT]; \

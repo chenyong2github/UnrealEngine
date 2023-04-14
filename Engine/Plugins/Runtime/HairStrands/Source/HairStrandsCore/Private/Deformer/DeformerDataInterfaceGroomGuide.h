@@ -6,14 +6,14 @@
 #include "OptimusComputeDataInterface.h"
 #include "HairStrandsInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
-#include "DeformerDataInterfaceGroom.generated.h"
+#include "DeformerDataInterfaceGroomGuide.generated.h"
 
-class FGroomDataInterfaceParameters;
+class FGroomGuideDataInterfaceParameters;
 class UGroomComponent;
 
-/** Compute Framework Data Interface for reading groom. */
+/** Compute Framework Data Interface for reading groom guides. */
 UCLASS(Category = ComputeFramework)
-class HAIRSTRANDSCORE_API UOptimusGroomDataInterface : public UOptimusComputeDataInterface
+class HAIRSTRANDSCORE_API UOptimusGroomGuideDataInterface : public UOptimusComputeDataInterface
 {
 	GENERATED_BODY()
 
@@ -40,7 +40,7 @@ private:
 
 /** Compute Framework Data Provider for reading groom. */
 UCLASS(BlueprintType, editinlinenew, Category = ComputeFramework)
-class UOptimusGroomDataProvider : public UComputeDataProvider
+class UOptimusGroomGuideDataProvider : public UComputeDataProvider
 {
 	GENERATED_BODY()
 
@@ -53,10 +53,10 @@ public:
 	//~ End UComputeDataProvider Interface
 };
 
-class FOptimusGroomDataProviderProxy : public FComputeDataProviderRenderProxy
+class FOptimusGroomGuideDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
-	FOptimusGroomDataProviderProxy(UGroomComponent* InGroomComponent);
+	FOptimusGroomGuideDataProviderProxy(UGroomComponent* InGroomComponent);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
 	bool IsValid(FValidationData const& InValidationData) const override;
@@ -65,11 +65,10 @@ public:
 	//~ End FComputeDataProviderRenderProxy Interface
 
 private:
-	using FParameters = FGroomDataInterfaceParameters;
+	using FParameters = FGroomGuideDataInterfaceParameters;
 
-	UGroomComponent* GroomComponent = nullptr; // Should it be HairInstance instead?
+	UGroomComponent* GroomComponent = nullptr;
 	TArray<FHairStrandsInstanceResourceParameters> Resources;
-	TArray<FHairStrandsInstanceInterpolationParameters> Interpolations;
 	FRDGBufferSRVRef FallbackSRV;
 
 };

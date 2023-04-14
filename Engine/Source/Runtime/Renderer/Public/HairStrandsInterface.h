@@ -40,6 +40,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceCommonParameters, RENDERER_API
 	SHADER_PARAMETER(uint32, bRaytracingGeometry)
 	SHADER_PARAMETER(uint32, bStableRasterization)
 	SHADER_PARAMETER(uint32, bScatterSceneLighting)
+	SHADER_PARAMETER(uint32, bSimulation)
+	SHADER_PARAMETER(uint32, bSingleGuide)
 	SHADER_PARAMETER(FVector3f, PositionOffset)
 	SHADER_PARAMETER(FVector3f, PrevPositionOffset)
 	SHADER_PARAMETER(FMatrix44f, LocalToWorldPrimitiveTransform)
@@ -71,6 +73,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceCullingParameters, RENDERER_AP
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, CullingIndexBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, CullingRadiusScaleBuffer)
 	RDG_BUFFER_ACCESS(CullingIndirectBufferArgs, ERHIAccess::IndirectArgs)
+END_SHADER_PARAMETER_STRUCT()
+
+// Instance interpolation resources (RDG)
+BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceInterpolationParameters, RENDERER_API)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, InterpolationBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
 // Instance resources (Raw)

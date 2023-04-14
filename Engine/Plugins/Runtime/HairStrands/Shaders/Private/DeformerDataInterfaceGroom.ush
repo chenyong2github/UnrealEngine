@@ -12,6 +12,8 @@ HAIR_STRANDS_INSTANCE_PARAMETERS({DataInterfaceName})
 #define HAIR_STRANDS_ATTRIBUTE_ACCESSORS(Name) {DataInterfaceName}_##Name
 #include "/Engine/Private/HairStrands/HairStrandsAttributeTemplate.ush"
 
+ByteAddressBuffer {DataInterfaceName}_InterpolationBuffer;
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Helpers
 
@@ -114,4 +116,19 @@ float ReadCurveOffsetPoint_{DataInterfaceName}(uint CurveIndex)
 float ReadCurveNumPoint_{DataInterfaceName}(uint CurveIndex)
 {
 	return ReadCurveData(CurveIndex).PointCount;
+}
+
+uint ReadGuideIndex_{DataInterfaceName}(uint ControlPointIndex)
+{
+	FGuideData GuideData;
+	if ({DataInterfaceName}_bSingleGuide)
+	{
+		GuideData = UnpackGuideData({DataInterfaceName}_InterpolationBuffer.Load(ControlPointIndex * HAIR_INTERPOLATION_1GUIDE_STRIDE));
+	}
+	else
+	{
+		GuideData = UnpackGuideData({DataInterfaceName}_InterpolationBuffer.Load4(ControlPointIndex * HAIR_INTERPOLATION_3GUIDE_STRIDE));
+	}
+
+	return GuideData.VertexIndices.x;
 }
