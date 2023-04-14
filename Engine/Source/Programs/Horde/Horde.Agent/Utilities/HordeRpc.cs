@@ -203,20 +203,20 @@ namespace HordeCommon.Rpc.Messages.Telemetry
 			using MemoryStream ms = new(200);
 			using BinaryWriter bw = new(ms);
 			
-			bw.Write(Ip);
-			bw.Write(Hostname);
-			bw.Write(Region);
-			bw.Write(AvailabilityZone);
-			bw.Write(Environment);
-			bw.Write(AgentVersion);
-			bw.Write(Os);
-			bw.Write(OsVersion);
-			bw.Write(Architecture);
+			bw.Write(Ip ?? "<empty ip>");
+			bw.Write(Hostname ?? "<empty hostname>");
+			bw.Write(Region ?? "<empty region>");
+			bw.Write(AvailabilityZone ?? "<empty az>");
+			bw.Write(Environment ?? "<empty env>");
+			bw.Write(AgentVersion ?? "<empty version>");
+			bw.Write(Os ?? "<empty os>");
+			bw.Write(OsVersion ?? "<empty os version>");
+			bw.Write(Architecture ?? "<empty os architecture>");
 			
 			foreach (KeyValuePair<string,string> pair in Properties)
 			{
-				bw.Write(pair.Key);
-				bw.Write(pair.Value);
+				bw.Write(pair.Key ?? "<empty key>");
+				bw.Write(pair.Value ?? "<empty value>");
 			}
 			
 			ms.Position = 0;

@@ -23,6 +23,8 @@ namespace Horde.Server.Telemetry
 		/// Name of the HTTP client for writing telemetry data
 		/// </summary>
 		public const string HttpClientName = "ClickHouseTelemetrySink";
+		
+		private const string EmptyObjectId = "000000000000000000000000";
 
 		private readonly IHttpClientFactory _httpClientFactory;
 		private readonly Uri? _uri;
@@ -124,11 +126,13 @@ namespace Horde.Server.Telemetry
 				sb.Append("INSERT INTO agentCpu (time, agentId, leaseId, jobId, jobBatchId, user, system, idle) VALUES \n");
 				foreach (AgentCpuMetricsEvent e in events)
 				{
-					ExecutionMetadata em = e.ExecutionMetadata;
+					ExecutionMetadata? em = e.ExecutionMetadata;
 					sb.AppendFormat("({0}, {1}, '{2}', '{3}', {4}, {5:F3}, {6:F3}, {7:F3}),\n",
-						e.Timestamp.Seconds, e.AgentId,
-						WriteEscapedObjectId(em.LeaseId), WriteEscapedObjectId(em.JobId),
-						SubResourceId.Parse(em.JobBatchId).Value, e.User, e.System, e.Idle);
+						e.Timestamp?.Seconds, e.AgentId,
+						WriteEscapedObjectId(em?.LeaseId ?? EmptyObjectId),
+						WriteEscapedObjectId(em?.JobId ?? EmptyObjectId),
+						SubResourceId.Parse(em?.JobBatchId ?? "0000").Value,
+						e.User, e.System, e.Idle);
 				}
 				sb.Remove(sb.Length - 2, 2); // Remove trailing comma and newline
 				sb.Append(';');

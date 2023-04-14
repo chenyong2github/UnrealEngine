@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Net.Client;
 using HordeCommon.Rpc;
@@ -255,12 +256,26 @@ class TelemetryService : BackgroundService
 		while (!stoppingToken.IsCancellationRequested && _systemMetrics != null)
 		{
 			_logger.LogDebug("Sending telemetry events to server...");
-			AgentCpuMetricsEvent cpuMetricsEvent = _systemMetrics.GetCpu().ToEvent();
-			AgentMemoryMetricsEvent memMetricsEvent = _systemMetrics.GetMemory().ToEvent();
-
+			
 			SendTelemetryEventsRequest request = new();
-			request.Events.Add(new WrappedTelemetryEvent { AgentMetadata = _agentMetadataEvent, Cpu = cpuMetricsEvent });
-			request.Events.Add(new WrappedTelemetryEvent { AgentMetadata = _agentMetadataEvent, Mem = memMetricsEvent });
+			Timestamp utcNow = Timestamp.FromDateTime(DateTime.UtcNow);
+			ExecutionMetadata em = new ();
+			
+			{
+				AgentCpuMetricsEvent cpuMetricsEvent = _systemMetrics.GetCpu().ToEvent();
+				cpuMetricsEvent.AgentId = _agentMetadataEvent.AgentId;
+				cpuMetricsEvent.Timestamp = utcNow;
+				cpuMetricsEvent.ExecutionMetadata = em;
+				request.Events.Add(new WrappedTelemetryEvent { Cpu = cpuMetricsEvent });
+			}
+
+			{
+				AgentMemoryMetricsEvent memMetricsEvent = _systemMetrics.GetMemory().ToEvent();
+				memMetricsEvent.AgentId = _agentMetadataEvent.AgentId;
+				memMetricsEvent.Timestamp = utcNow;
+				memMetricsEvent.ExecutionMetadata = em;
+				request.Events.Add(new WrappedTelemetryEvent { Mem = memMetricsEvent });
+			}
 
 			if (DateTime.UtcNow > _lastTimeAgentMetadataSent + _agentMetadataReportInterval)
 			{
