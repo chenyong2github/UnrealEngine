@@ -767,6 +767,9 @@ namespace UnrealBuildTool
 			// Set the link output file.
 			BinaryLinkEnvironment.OutputFilePaths = OutputFilePaths.ToList();
 
+			// Rembmer the link type
+			BinaryLinkEnvironment.LinkType = Target.LinkType;
+
 			// Set whether the link is allowed to have exports.
 			BinaryLinkEnvironment.bHasExports = bAllowExports;
 

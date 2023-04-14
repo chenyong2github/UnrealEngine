@@ -159,6 +159,11 @@ namespace UnrealBuildTool
 		public bool bIsBuildingDLL = false;
 
 		/// <summary>
+		/// The method of linking the target uses
+		/// </summary>
+		public TargetLinkType LinkType;
+		
+		/// <summary>
 		/// Whether we should compile using the statically-linked CRT. This is not widely supported for the whole engine, but is required for programs that need to run without dependencies.
 		/// </summary>
 		public bool bUseStaticCRT = false;
