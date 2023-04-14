@@ -33,6 +33,7 @@
 #include "EngineModule.h"
 #include "Misc/PackageName.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Null/NullPlatformApplicationMisc.h"
 #include "ShaderPipelineCache.h"
 
 #include "Misc/ConfigCacheIni.h"
@@ -639,8 +640,8 @@ TSharedRef<SWindow> UGameEngine::CreateGameWindow()
 		Window->SetWindowMode(WindowMode);
 	}
 
-	// No need to show window in off-screen rendering mode as it does not render to screen
-	if (FSlateApplication::Get().IsRenderingOffScreen())
+	// No need to show window if rendering off-screen without the null platform as it does not render to screen
+	if (FSlateApplication::Get().IsRenderingOffScreen() && !FNullPlatformApplicationMisc::IsUsingNullApplication())
 	{
 		FSlateApplicationBase::Get().GetRenderer()->CreateViewport(Window);
 	}

@@ -1817,17 +1817,14 @@ TSharedRef<SWindow> FSlateApplication::AddWindow( TSharedRef<SWindow> InSlateWin
 
 TSharedRef< FGenericWindow > FSlateApplication::MakeWindow( TSharedRef<SWindow> InSlateWindow, const bool bShowImmediately )
 {
-	// Windows and Linux support a NullPlatform which is handled in the Windows/LinuxApplication. Other platforms do not.
-#if !(PLATFORM_WINDOWS || PLATFORM_LINUX)
-	// When rendering off-screen don't render to screen, create a dummy generic window
-	if (bRenderOffScreen)
+	// When rendering off-screen without the null platform, don't render to screen. Create a dummy generic window instead
+	if (bRenderOffScreen && !FNullPlatformApplicationMisc::IsUsingNullApplication())
 	{
 		TSharedRef< FGenericWindow > NewWindow = MakeShareable(new FGenericWindow());
 		InSlateWindow->SetNativeWindow(NewWindow);
 		FSlateApplicationBase::Get().GetRenderer()->CreateViewport(InSlateWindow);
 		return NewWindow;
 	}
-#endif
 
 	TSharedPtr<FGenericWindow> NativeParent = nullptr;
 	TSharedPtr<SWindow> ParentWindow = InSlateWindow->GetParentWindow();
