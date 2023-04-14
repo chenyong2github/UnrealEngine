@@ -390,8 +390,9 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 				// Make sure the export is found in the game context as well
 				if (FTaggedExport* GameExport = SaveContext.GetHarvestedRealm(ESaveRealm::Game).GetExports().Find(It->Obj))
 				{
-					// Flag the export in the game context to generate it's public hash
-					GameExport->bGeneratePublicHash = true;
+					// Flagging the export in the game context to generate it's public hash isn't necessary anymore
+					//GameExport->bGeneratePublicHash = true; 
+
 					// Transform the export as an import
 					OptionalContext.AddImport(It->Obj);
 					// Flag the package itself to be an import
