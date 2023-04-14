@@ -59,6 +59,7 @@ void FNetTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	{
 		FAnalysisSessionEditScope _(Session);
 		BunchHeaderNameIndex = NetProfilerProvider.AddNetProfilerName(TEXT("BunchHeader"));
+		PendingNameIndex = NetProfilerProvider.AddNetProfilerName(TEXT("Pending"));
 	}
 }
 
@@ -276,6 +277,23 @@ void FNetTraceAnalyzer::HandlePacketContentEvent(const FOnEventContext& Context,
 					{
 						Event.NameIndex = ActiveObjectState->NameIndex;
 						Event.ObjectInstanceIndex = ActiveObjectState->ObjectIndex;
+					}
+					else if (DecodedNameOrObjectId != 0)
+					{
+						// Sometime we report data for objects that are still pending creation, which we will update as soon as we have more data.
+						FNetProfilerObjectInstance& ObjectInstance = NetProfilerProvider.CreateObject(GameInstanceState->GameInstanceIndex);
+
+						// Fill in the object data we currently have
+						ObjectInstance.LifeTime.Begin = GetLastTimestamp();
+						ObjectInstance.NameIndex = PendingNameIndex;
+						ObjectInstance.NetId = DecodedNameOrObjectId;
+						ObjectInstance.TypeId = 0;
+
+						// Add to active objects
+						GameInstanceState->ActiveObjects.Add(DecodedNameOrObjectId, { ObjectInstance.ObjectIndex, ObjectInstance.NameIndex });
+						
+						Event.NameIndex = ObjectInstance.NameIndex;
+						Event.ObjectInstanceIndex = ObjectInstance.ObjectIndex;
 					}
 				}
 				else if (DecodedEventType == EContentEventType::NameId)
@@ -778,16 +796,20 @@ void FNetTraceAnalyzer::HandleObjectCreatedEvent(const FOnEventContext& Context,
 	const uint32* NetProfilerNameIndex = TracedNameIdToNetProfilerNameIdMap.Find(NameId);
 	const uint32 NameIndex = NetProfilerNameIndex ? *NetProfilerNameIndex : 0u;
 
-	if (GameInstanceState->ActiveObjects.Contains(ObjectId))
+	if (FNetTraceActiveObjectState* ActiveObjectInstance = GameInstanceState->ActiveObjects.Find(ObjectId))
 	{
-		if (FNetProfilerObjectInstance* ExistingInstance = NetProfilerProvider.EditObject(GameInstanceState->GameInstanceIndex, GameInstanceState->ActiveObjects[ObjectId].ObjectIndex))
+		if (FNetProfilerObjectInstance* ExistingInstance = NetProfilerProvider.EditObject(GameInstanceState->GameInstanceIndex, ActiveObjectInstance->ObjectIndex))
 		{
-			if (ExistingInstance->NameIndex == NameIndex)
+			if (ExistingInstance->NameIndex == NameIndex || ExistingInstance->NameIndex == PendingNameIndex)
 			{
 				// Update existing object instance
 				ExistingInstance->LifeTime.Begin = GetLastTimestamp();
 				ExistingInstance->NetObjectId = ObjectId;
 				ExistingInstance->TypeId = TypeId;
+
+				// Update name in both the persistent instance and the active one
+				ExistingInstance->NameIndex = NameIndex;
+				ActiveObjectInstance->NameIndex = NameIndex;
 
 				return;
 			}

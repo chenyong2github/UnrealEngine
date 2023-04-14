@@ -1050,19 +1050,22 @@ void SPacketContentView::UpdateState(float FontScale)
 				NetProfilerProvider->EnumeratePacketContentEventsByPosition(ConnectionIndex, ConnectionMode, PacketIndex, StartPos, EndPos, [this, &Builder, &FilteredDrawStateBuilder, NetProfilerProvider](const TraceServices::FNetProfilerContentEvent& Event)
 				{
 					const TCHAR* Name = nullptr;
-					NetProfilerProvider->ReadName(Event.NameIndex, [&Name](const TraceServices::FNetProfilerName& NetProfilerName)
-					{
-						Name = NetProfilerName.Name;
-					});
 
+					uint32 NameIndex = Event.NameIndex;
 					uint64 NetId = 0;
 					if (Event.ObjectInstanceIndex != 0)
 					{
-						NetProfilerProvider->ReadObject(GameInstanceIndex, Event.ObjectInstanceIndex, [&NetId](const TraceServices::FNetProfilerObjectInstance& ObjectInstance)
+						NetProfilerProvider->ReadObject(GameInstanceIndex, Event.ObjectInstanceIndex, [&NetId, &NameIndex](const TraceServices::FNetProfilerObjectInstance& ObjectInstance)
 						{
+							NameIndex = ObjectInstance.NameIndex;
 							NetId = ObjectInstance.NetObjectId;
 						});
 					}
+
+					NetProfilerProvider->ReadName(NameIndex, [&Name](const TraceServices::FNetProfilerName& NetProfilerName)
+					{
+						Name = NetProfilerName.Name;
+					});
 
 					Builder.AddEvent(Event, Name, NetId);
 

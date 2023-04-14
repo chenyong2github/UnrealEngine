@@ -62,6 +62,7 @@ private:
 
 	// Default names
 	uint32 BunchHeaderNameIndex;
+	uint32 PendingNameIndex;
 
 	// Shared for trace
 	TMap<uint16, uint32> TracedNameIdToNetProfilerNameIdMap;
