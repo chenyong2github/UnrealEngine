@@ -1501,7 +1501,7 @@ void FDeferredShadingSceneRenderer::BeginGatherLumenLights(FLumenDirectLightingT
 		bAnyLumenActive |= ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen;
 	}
 
-	if (!bAnyLumenActive || !CVarLumenLumenSceneDirectLighting.GetValueOnRenderThread() != 0)
+	if (!bAnyLumenActive || CVarLumenLumenSceneDirectLighting.GetValueOnRenderThread() == 0)
 	{
 		return;
 	}
