@@ -18,4 +18,7 @@ public:
 	virtual const TArray<FText>& GetSubMenus() const override;
 	virtual UThumbnailInfo* GetThumbnailInfo(UObject* Asset) const override;
 	// END IAssetTypeActions Implementation
+
+	static void ExtendSkeletalMeshMenuToMakeIKRig();
+	static void CreateNewIKRigFromSkeletalMesh(UObject* InSelectedObject);
 };

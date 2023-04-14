@@ -21,6 +21,9 @@ public:
 	virtual const TArray<FText>& GetSubMenus() const override;
 	virtual UThumbnailInfo* GetThumbnailInfo(UObject* Asset) const override;
 
-	static void ExtendAnimSequenceToolMenu();
+	static void ExtendIKRigMenuToMakeRetargeter();
+	static void CreateNewIKRetargeterFromIKRig(UObject* InSelectedObject);
+	
+	static void ExtendAnimAssetMenusForBatchRetargeting();
 	static void CreateRetargetSubMenu(FToolMenuSection& InSection);
 };

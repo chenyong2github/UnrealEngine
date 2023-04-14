@@ -43,7 +43,9 @@ void FIKRigEditor::StartupModule()
 	ToolsModule.RegisterAssetTypeActions(IKRetargeterAssetAction.ToSharedRef());
 
 	// extend the content browser menu
-	FAssetTypeActions_IKRetargeter::ExtendAnimSequenceToolMenu();
+	FAssetTypeActions_IKRetargeter::ExtendAnimAssetMenusForBatchRetargeting();
+	FAssetTypeActions_IKRetargeter::ExtendIKRigMenuToMakeRetargeter();
+	FAssetTypeActions_IKRigDefinition::ExtendSkeletalMeshMenuToMakeIKRig();
 
 	// register custom editor modes
 	FEditorModeRegistry::Get().RegisterMode<FIKRigEditMode>(FIKRigEditMode::ModeName, LOCTEXT("IKRigEditMode", "IKRig"), FSlateIcon(), false);
