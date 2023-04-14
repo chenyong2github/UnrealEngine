@@ -78,4 +78,6 @@ public:
 #endif
 
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+
+	virtual bool IsHLODRelevant() const override;
 };

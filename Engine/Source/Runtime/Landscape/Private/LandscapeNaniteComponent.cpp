@@ -124,6 +124,12 @@ void ULandscapeNaniteComponent::SetEnabled(bool bValue)
 	}
 }
 
+bool ULandscapeNaniteComponent::IsHLODRelevant() const
+{
+	// This component doesn't need to be included in HLOD, as we're already including the non-nanite LS components
+	return false;
+}
+
 #if WITH_EDITOR
 
 bool ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId)
