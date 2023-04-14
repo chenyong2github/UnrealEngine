@@ -38,14 +38,14 @@ void FLevelInstanceActorImpl::RegisterLevelInstance()
 
 void FLevelInstanceActorImpl::UnregisterLevelInstance()
 {
+	// If LevelInstance has already been unregistered it will have an Invalid LevelInstanceID. Avoid processing it.
+	if (!LevelInstanceID.IsValid())
+	{
+		return;
+	}
+
 	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = LevelInstance->GetLevelInstanceSubsystem())
 	{
-		// If LevelInstance has already been unregistered it will have an Invalid LevelInstanceID. Avoid processing it.
-		if (!LevelInstanceID.IsValid())
-		{
-			return;
-		}
-
 		LevelInstanceSubsystem->UnregisterLevelInstance(LevelInstance);
 
 		LevelInstance->UnloadLevelInstance();
