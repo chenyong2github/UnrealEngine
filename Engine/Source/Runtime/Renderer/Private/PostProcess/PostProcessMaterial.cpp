@@ -654,8 +654,8 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	{
 		AddDrawScreenPass(
 			GraphBuilder,
-#if RDG_EVENTS == RDG_EVENTS_NONE
-			RDG_EVENT_NAME(""),
+#if RDG_EVENTS != RDG_EVENTS_STRING_COPY
+			RDG_EVENT_NAME("PostProcessMaterial"),
 #else
 			FRDGEventName(*Material->GetAssetName()),
 #endif
