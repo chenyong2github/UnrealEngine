@@ -553,13 +553,15 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 
 	if( InArgs._DisplayBrowse )
 	{
+		FSimpleDelegate OnBrowseDelegate = InArgs._OnBrowseOverride.IsBound() ? InArgs._OnBrowseOverride : FSimpleDelegate::CreateSP(this, &SPropertyEditorAsset::OnBrowse);
+
 		ButtonBox->AddSlot()
 		.Padding( 2.0f, 0.0f )
 		.AutoWidth()
 		.VAlign(VAlign_Center)
 		[
 			PropertyCustomizationHelpers::MakeBrowseButton(
-				FSimpleDelegate::CreateSP( this, &SPropertyEditorAsset::OnBrowse ),
+				OnBrowseDelegate,
 				TAttribute<FText>( this, &SPropertyEditorAsset::GetOnBrowseToolTip ),
 				true,
 				bIsActor

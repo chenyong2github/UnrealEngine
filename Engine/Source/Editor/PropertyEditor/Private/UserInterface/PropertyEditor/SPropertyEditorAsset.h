@@ -68,6 +68,7 @@ public:
 		SLATE_ARGUMENT(bool, DisplayThumbnail)
 		SLATE_ARGUMENT(bool, DisplayUseSelected)
 		SLATE_ARGUMENT(bool, DisplayBrowse)
+		SLATE_EVENT(FSimpleDelegate, OnBrowseOverride)
 		SLATE_ARGUMENT(bool, EnableContentPicker)
 		SLATE_ARGUMENT(bool, DisplayCompactSize)
 		SLATE_ARGUMENT(TSharedPtr<FAssetThumbnailPool>, ThumbnailPool)

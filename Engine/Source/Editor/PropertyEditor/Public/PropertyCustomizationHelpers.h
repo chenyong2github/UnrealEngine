@@ -210,6 +210,8 @@ public:
 		SLATE_ARGUMENT(bool, DisplayUseSelected)
 		/** Whether to show the 'Browse' button */
 		SLATE_ARGUMENT(bool, DisplayBrowse)
+		/** Optional delegate called when the 'Browse' button is clicked. Used to override the default editor behavior */
+		SLATE_EVENT(FSimpleDelegate, OnBrowseOverride)
 		/** Whether to enable the content Picker */
 		SLATE_ARGUMENT(bool, EnableContentPicker)
 		/** Whether or not to display a smaller, compact size for the asset thumbnail */ 
