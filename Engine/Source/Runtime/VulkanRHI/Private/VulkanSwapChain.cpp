@@ -883,6 +883,7 @@ void FVulkanSwapChain::CreateQCOMDepthStencil(const FVulkanTexture& InSurface) c
 	const FRHITextureDesc& Desc = InSurface.GetDesc();
 	const ETextureCreateFlags UEFlags = Desc.Flags;
 	check(UEFlags & TexCreate_DepthStencilTargetable);
+	const VkDescriptorType DescriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 
 	const FRHITextureCreateDesc CreateDesc =
 		FRHITextureCreateDesc::Create2D(TEXT("FVulkanSwapChainQCOM"), Desc.Extent.Y, Desc.Extent.X, Desc.Format) // Desc.Extent.X and Desc.Extent.Y are intentionally swapped.
@@ -897,7 +898,7 @@ void FVulkanSwapChain::CreateQCOMDepthStencil(const FVulkanTexture& InSurface) c
 	check(QCOMDepthStencilSurface->GetViewType() == VK_IMAGE_VIEW_TYPE_2D);
 	check(QCOMDepthStencilSurface->Image != VK_NULL_HANDLE);
 
-	QCOMDepthStencilView = new FVulkanView(*QCOMDepthStencilSurface->Device);
+	QCOMDepthStencilView = new FVulkanView(*QCOMDepthStencilSurface->Device, DescriptorType);
 	QCOMDepthStencilView->InitAsTextureView(
 		  QCOMDepthStencilSurface->Image
 		, QCOMDepthStencilSurface->GetViewType()
@@ -917,7 +918,7 @@ void FVulkanSwapChain::CreateQCOMDepthStencil(const FVulkanTexture& InSurface) c
 	}
 	else
 	{
-		QCOMDepthView = new FVulkanView(*QCOMDepthStencilSurface->Device);
+		QCOMDepthView = new FVulkanView(*QCOMDepthStencilSurface->Device, DescriptorType);
 		QCOMDepthView->InitAsTextureView(
 			  QCOMDepthStencilSurface->Image
 			, QCOMDepthStencilSurface->GetViewType()

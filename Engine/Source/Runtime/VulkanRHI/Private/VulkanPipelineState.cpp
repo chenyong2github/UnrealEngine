@@ -476,17 +476,16 @@ void FVulkanGraphicsPipelineDescriptorState::UpdateBindlessDescriptors(FVulkanCo
 					{
 						const FPackedUniformBuffers::FPackedBuffer& StagedUniformBuffer = PackedUniformBuffers[Stage].GetBuffer(PackedUBIndex);
 						const int32 UBSize = StagedUniformBuffer.Num();
-						const int32 PaddedUBSize = Align<int32>(UBSize, 64);  // :todo-jn: work around for NV driver issue
 						const int32 BindingIndex = StageInfo.PackedUBBindingIndices[PackedUBIndex];
 
-						const uint64 RingBufferOffset = UniformBufferUploader->AllocateMemory(PaddedUBSize, UBOffsetAlignment, CmdBuffer);
+						const uint64 RingBufferOffset = UniformBufferUploader->AllocateMemory(UBSize, UBOffsetAlignment, CmdBuffer);
 
 						// Make sure it wasn't written to already
 						VkDescriptorAddressInfoEXT& DescriptorAddressInfo = DescriptorAddressInfos[BindingIndex];
 						check(DescriptorAddressInfo.sType == 0);
 						DescriptorAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 						DescriptorAddressInfo.address = UniformBufferUploader->GetCPUBufferAddress() + RingBufferOffset;
-						DescriptorAddressInfo.range = PaddedUBSize;
+						DescriptorAddressInfo.range = UBSize;
 
 						// get location in the ring buffer to use
 						FMemory::Memcpy(CPURingBufferBase + RingBufferOffset, StagedUniformBuffer.GetData(), UBSize);
@@ -521,7 +520,7 @@ void FVulkanGraphicsPipelineDescriptorState::UpdateBindlessDescriptors(FVulkanCo
 
 				DescriptorAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 				DescriptorAddressInfo.address = BufferAddress + WriteDescriptorSet.pBufferInfo->offset;
-				DescriptorAddressInfo.range = Align<VkDeviceSize>(WriteDescriptorSet.pBufferInfo->range, 64u); // :todo-jn: work around for NV driver issue
+				DescriptorAddressInfo.range = WriteDescriptorSet.pBufferInfo->range;
 			}
 		}
 	}

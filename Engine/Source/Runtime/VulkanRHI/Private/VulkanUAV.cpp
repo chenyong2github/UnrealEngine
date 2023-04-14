@@ -10,13 +10,28 @@
 #include "VulkanRayTracing.h"
 #endif // VULKAN_RHI_RAYTRACING
 
-void FVulkanView::Invalidate()
+
+FVulkanView::FVulkanView(FVulkanDevice& InDevice, VkDescriptorType InDescriptorType)
+	: Device(InDevice)
 {
+	BindlessHandle = Device.GetBindlessDescriptorManager()->ReserveDescriptor(InDescriptorType);
+}
+
+FVulkanView::~FVulkanView()
+{
+	Invalidate();
+
 	if (BindlessHandle.IsValid())
 	{
 		Device.GetDeferredDeletionQueue().EnqueueBindlessHandle(BindlessHandle);
 		BindlessHandle = FRHIDescriptorHandle();
 	}
+}
+
+void FVulkanView::Invalidate()
+{
+	// Carry forward its initialized state
+	const bool bIsInitialized = IsInitialized();
 
 	switch (GetViewType())
 	{
@@ -45,11 +60,15 @@ void FVulkanView::Invalidate()
 #endif
 	}
 
-	Storage.Emplace<FEmptyVariantState>();
+	Storage.Emplace<FInvalidatedState>();
+	Storage.Get<FInvalidatedState>().bInitialized = bIsInitialized;
 }
 
 FVulkanView* FVulkanView::InitAsTypedBufferView(FVulkanResourceMultiBuffer* Buffer, EPixelFormat UEFormat, uint32 InOffset, uint32 InSize)
 {
+	// We will need a deferred update if the descriptor was already in use
+	const bool bDeferredUpdate = IsInitialized();
+
 	check(GetViewType() == EType::Null);
 	Storage.Emplace<FTypedBufferView>();
 	FTypedBufferView& TBV = Storage.Get<FTypedBufferView>();
@@ -86,7 +105,7 @@ FVulkanView* FVulkanView::InitAsTypedBufferView(FVulkanResourceMultiBuffer* Buff
 	INC_DWORD_STAT(STAT_VulkanNumBufferViews);
 	// :todo-jn: the buffer view is actually not needed in bindless anymore
 
-	BindlessHandle = Device.GetBindlessDescriptorManager()->RegisterTexelBuffer(ViewInfo, VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER);
+	Device.GetBindlessDescriptorManager()->UpdateTexelBuffer(BindlessHandle, ViewInfo);
 
 	return this;
 }
@@ -104,6 +123,9 @@ FVulkanView* FVulkanView::InitAsTextureView(
 	, bool bUseIdentitySwizzle
 	, VkImageUsageFlags ImageUsageFlags)
 {
+	// We will need a deferred update if the descriptor was already in use
+	const bool bDeferredUpdate = IsInitialized();
+
 	check(GetViewType() == EType::Null);
 	Storage.Emplace<FTextureView>();
 	FTextureView& TV = Storage.Get<FTextureView>();
@@ -179,15 +201,17 @@ FVulkanView* FVulkanView::InitAsTextureView(
 		TV.ViewId = ++GVulkanImageViewHandleIdCounter;
 	}
 
-	bool bDepthOrStencilAspect = (AspectFlags & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) != 0;
-	BindlessHandle = Device.GetBindlessDescriptorManager()->RegisterImage(TV.View, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, bDepthOrStencilAspect); // @todo sampled or storage for UAVs?
-	//DefaultBindlessHandle = Device->GetBindlessDescriptorManager()->RegisterImage(PartialView->GetTextureView().View, SupportsSampling() ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, IsDepthOrStencilAspect());
+	const bool bDepthOrStencilAspect = (AspectFlags & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) != 0;
+	Device.GetBindlessDescriptorManager()->UpdateImage(BindlessHandle, TV.View, bDepthOrStencilAspect);
 
 	return this;
 }
 
 FVulkanView* FVulkanView::InitAsStructuredBufferView(FVulkanResourceMultiBuffer* Buffer, uint32 InOffset, uint32 InSize)
 {
+	// We will need a deferred update if the descriptor was already in use
+	const bool bDeferredUpdate = IsInitialized();
+
 	check(GetViewType() == EType::Null);
 	Storage.Emplace<FStructuredBufferView>();
 	FStructuredBufferView& SBV = Storage.Get<FStructuredBufferView>();
@@ -199,12 +223,8 @@ FVulkanView* FVulkanView::InitAsStructuredBufferView(FVulkanResourceMultiBuffer*
 	SBV.Offset = TotalOffset;
 	SBV.Size = InSize;
 
-	BindlessHandle = Device.GetBindlessDescriptorManager()->RegisterBuffer(
-		Buffer->GetHandle(),
-		TotalOffset,
-		InSize,
-		VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
-	);
+	Device.GetBindlessDescriptorManager()->UpdateBuffer(
+		BindlessHandle, Buffer->GetHandle(), TotalOffset, InSize);
 
 	return this;
 }
@@ -225,7 +245,7 @@ FVulkanView* FVulkanView::InitAsAccelerationStructureView(FVulkanResourceMultiBu
 
 	VERIFYVULKANRESULT(VulkanDynamicAPI::vkCreateAccelerationStructureKHR(Device.GetInstanceHandle(), &CreateInfo, VULKAN_CPU_ALLOCATOR, &ASV.Handle));
 
-	BindlessHandle = Device.GetBindlessDescriptorManager()->RegisterAccelerationStructure(ASV.Handle);
+	Device.GetBindlessDescriptorManager()->UpdateAccelerationStructure(BindlessHandle, ASV.Handle);
 
 	return this;
 }
@@ -260,11 +280,72 @@ static VkImageViewType GetVkImageViewTypeForDimension(FRHIViewDesc::EDimension D
 	return VK_IMAGE_VIEW_TYPE_MAX_ENUM;
 }
 
+static VkDescriptorType GetDescriptorTypeForViewDesc(FRHIViewDesc const& ViewDesc)
+{
+	if (ViewDesc.IsBuffer())
+	{
+		if (ViewDesc.IsSRV())
+		{
+			switch (ViewDesc.Buffer.SRV.BufferType)
+			{
+			case FRHIViewDesc::EBufferType::Raw:
+			case FRHIViewDesc::EBufferType::Structured:
+				return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+
+			case FRHIViewDesc::EBufferType::Typed:
+				return VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+
+			case FRHIViewDesc::EBufferType::AccelerationStructure:
+				return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+
+			default:
+				checkNoEntry();
+				return VK_DESCRIPTOR_TYPE_MAX_ENUM;
+			}
+		}
+		else
+		{
+			switch (ViewDesc.Buffer.UAV.BufferType)
+			{
+			case FRHIViewDesc::EBufferType::Raw:
+			case FRHIViewDesc::EBufferType::Structured:
+				return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+
+			case FRHIViewDesc::EBufferType::Typed:
+				return VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
+
+			case FRHIViewDesc::EBufferType::AccelerationStructure:
+				return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+
+			default:
+				checkNoEntry();
+				return VK_DESCRIPTOR_TYPE_MAX_ENUM;
+			}
+		}
+	}
+	else
+	{
+		if (ViewDesc.IsSRV())
+		{
+			// Sampled images aren't supported in R64, shadercompiler patches them to storage image
+			if (ViewDesc.Texture.SRV.Format == PF_R64_UINT)
+			{
+				return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+			}
+
+			return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		}
+		else
+		{
+			return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		}
+	}
+}
 
 
 FVulkanShaderResourceView::FVulkanShaderResourceView(FRHICommandListImmediate& RHICmdList, FVulkanDevice& InDevice, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
 	: FRHIShaderResourceView(InResource, InViewDesc)
-	, FVulkanLinkedView(InDevice)
+	, FVulkanLinkedView(InDevice, GetDescriptorTypeForViewDesc(InViewDesc))
 {
 	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate&)
 	{
@@ -352,7 +433,7 @@ void FVulkanShaderResourceView::UpdateView()
 
 FVulkanUnorderedAccessView::FVulkanUnorderedAccessView(FRHICommandListImmediate& RHICmdList, FVulkanDevice& InDevice, FRHIViewableResource* InResource, FRHIViewDesc const& InViewDesc)
 	: FRHIUnorderedAccessView(InResource, InViewDesc)
-	, FVulkanLinkedView(InDevice)
+	, FVulkanLinkedView(InDevice, GetDescriptorTypeForViewDesc(InViewDesc))
 {
 	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate&)
 	{

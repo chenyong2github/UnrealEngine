@@ -1588,9 +1588,10 @@ FVulkanTexture::FVulkanTexture(FVulkanDevice& InDevice, const FRHITextureCreateD
 		checkf(StorageFormat != VK_FORMAT_UNDEFINED, TEXT("Pixel Format %d not defined!"), (int32)InCreateDesc.Format);
 	}
 
+	const VkDescriptorType DescriptorType = SupportsSampling() ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 	if (ViewType != VK_IMAGE_VIEW_TYPE_MAX_ENUM)
 	{
-		DefaultView = (new FVulkanView(InDevice))->InitAsTextureView(
+		DefaultView = (new FVulkanView(InDevice, DescriptorType))->InitAsTextureView(
 			Image
 			, ViewType
 			, GetFullAspectMask()
@@ -1610,7 +1611,7 @@ FVulkanTexture::FVulkanTexture(FVulkanDevice& InDevice, const FRHITextureCreateD
 	}
 	else
 	{
-		PartialView = (new FVulkanView(InDevice))->InitAsTextureView(
+		PartialView = (new FVulkanView(InDevice, DescriptorType))->InitAsTextureView(
 			Image
 			, ViewType
 			, PartialAspectMask
@@ -1771,9 +1772,10 @@ FVulkanTexture::FVulkanTexture(FVulkanDevice& InDevice, const FRHITextureCreateD
 	}
 
 	const VkImageViewType ViewType = GetViewType();
+	const VkDescriptorType DescriptorType = SupportsSampling() ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 	if (Image != VK_NULL_HANDLE)
 	{
-		DefaultView = (new FVulkanView(InDevice))->InitAsTextureView(
+		DefaultView = (new FVulkanView(InDevice, DescriptorType))->InitAsTextureView(
 			Image
 			, ViewType
 			, GetFullAspectMask()
@@ -1793,7 +1795,7 @@ FVulkanTexture::FVulkanTexture(FVulkanDevice& InDevice, const FRHITextureCreateD
 	}
 	else
 	{
-		PartialView = (new FVulkanView(InDevice))->InitAsTextureView(
+		PartialView = (new FVulkanView(InDevice, DescriptorType))->InitAsTextureView(
 			Image
 			, ViewType
 			, PartialAspectMask

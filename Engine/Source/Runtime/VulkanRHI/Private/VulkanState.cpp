@@ -235,7 +235,9 @@ FVulkanSamplerState::FVulkanSamplerState(const VkSamplerCreateInfo& InInfo, FVul
 
 	if (InDevice.SupportsBindless() && (RHIGetRuntimeBindlessSamplersConfiguration(GMaxRHIShaderPlatform) != ERHIBindlessConfiguration::Disabled))
 	{
-		BindlessHandle = InDevice.GetBindlessDescriptorManager()->RegisterSampler(Sampler);
+		FVulkanBindlessDescriptorManager* BindlessDescriptorManager = InDevice.GetBindlessDescriptorManager();
+		BindlessHandle = BindlessDescriptorManager->ReserveDescriptor(VK_DESCRIPTOR_TYPE_SAMPLER);
+		BindlessDescriptorManager->UpdateSampler(BindlessHandle, Sampler);
 	}
 }
 

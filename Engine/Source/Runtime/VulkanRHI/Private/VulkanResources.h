@@ -343,6 +343,12 @@ struct FVulkanCpuReadbackBuffer
 class FVulkanView
 {
 public:
+
+	struct FInvalidatedState
+	{
+		bool bInitialized = false;
+	};
+
 	struct FTypedBufferView
 	{
 		VkBufferView View      = VK_NULL_HANDLE;
@@ -373,7 +379,7 @@ public:
 	};
 
 	typedef TVariant<
-	      FEmptyVariantState
+		  FInvalidatedState
 		, FTypedBufferView
 		, FTextureView
 		, FStructuredBufferView
@@ -384,7 +390,7 @@ public:
 
 	enum EType
 	{
-		Null                  = TStorage::IndexOfType<FEmptyVariantState    >(),
+		Null                  = TStorage::IndexOfType<FInvalidatedState     >(),
 		TypedBuffer           = TStorage::IndexOfType<FTypedBufferView      >(),
 		Texture               = TStorage::IndexOfType<FTextureView          >(),
 		StructuredBuffer      = TStorage::IndexOfType<FStructuredBufferView >(),
@@ -393,20 +399,20 @@ public:
 #endif
 	};
 
-	FVulkanView(FVulkanDevice& Device)
-		: Device(Device)
-	{}
+	FVulkanView(FVulkanDevice& InDevice, VkDescriptorType InDescriptorType);
 
-	~FVulkanView()
-	{
-		Invalidate();
-	}
+	~FVulkanView();
 
 	void Invalidate();
 
 	EType GetViewType() const
 	{
 		return EType(Storage.GetIndex());
+	}
+
+	bool IsInitialized() const
+	{
+		return (GetViewType() != Null) || Storage.Get<FInvalidatedState>().bInitialized;
 	}
 
 	FTypedBufferView           const& GetTypedBufferView          () const { return Storage.Get<FTypedBufferView          >(); }
@@ -469,8 +475,8 @@ private:
 class FVulkanLinkedView : public FVulkanView, public TIntrusiveLinkedList<FVulkanLinkedView>
 {
 protected:
-	FVulkanLinkedView(FVulkanDevice& Device)
-		: FVulkanView(Device)
+	FVulkanLinkedView(FVulkanDevice& Device, VkDescriptorType DescriptorType)
+		: FVulkanView(Device, DescriptorType)
 	{}
 
 	~FVulkanLinkedView()

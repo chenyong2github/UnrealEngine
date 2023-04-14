@@ -102,17 +102,21 @@ DECLARE_STATS_GROUP(TEXT("Vulkan Bindless"), STATGROUP_VulkanBindless, STATCAT_A
 
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Peak Descriptor Count"), STAT_VulkanBindlessPeakDescriptorCount, STATGROUP_VulkanBindless, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Peak Samplers"), STAT_VulkanBindlessPeakSampler, STATGROUP_VulkanBindless, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Peak Images"), STAT_VulkanBindlessPeakImage, STATGROUP_VulkanBindless, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Peak Buffers"), STAT_VulkanBindlessPeakBuffer, STATGROUP_VulkanBindless, );
-DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Peak Texel Buffers"), STAT_VulkanBindlessPeakTexelBuffer, STATGROUP_VulkanBindless, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Peak Sampled Images"), STAT_VulkanBindlessPeakSampledImage, STATGROUP_VulkanBindless, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Peak Storage Images"), STAT_VulkanBindlessPeakStorageImage, STATGROUP_VulkanBindless, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Peak Storage Buffers"), STAT_VulkanBindlessPeakStorageBuffer, STATGROUP_VulkanBindless, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Peak Uniform Texel Buffers"), STAT_VulkanBindlessPeakUniformTexelBuffer, STATGROUP_VulkanBindless, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Peak Storage Texel Buffers"), STAT_VulkanBindlessPeakStorageTexelBuffer, STATGROUP_VulkanBindless, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Peak Acceleration Structures"), STAT_VulkanBindlessPeakAccelerationStructure, STATGROUP_VulkanBindless, );
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Write Per Frame"), STAT_VulkanBindlessWritePerFrame, STATGROUP_VulkanBindless, );
 
 DEFINE_STAT(STAT_VulkanBindlessPeakDescriptorCount);
 DEFINE_STAT(STAT_VulkanBindlessPeakSampler);
-DEFINE_STAT(STAT_VulkanBindlessPeakImage);
-DEFINE_STAT(STAT_VulkanBindlessPeakBuffer);
-DEFINE_STAT(STAT_VulkanBindlessPeakTexelBuffer);
+DEFINE_STAT(STAT_VulkanBindlessPeakSampledImage);
+DEFINE_STAT(STAT_VulkanBindlessPeakStorageImage);
+DEFINE_STAT(STAT_VulkanBindlessPeakStorageBuffer);
+DEFINE_STAT(STAT_VulkanBindlessPeakUniformTexelBuffer);
+DEFINE_STAT(STAT_VulkanBindlessPeakStorageTexelBuffer);
 DEFINE_STAT(STAT_VulkanBindlessPeakAccelerationStructure);
 DEFINE_STAT(STAT_VulkanBindlessWritePerFrame);
 
@@ -684,167 +688,152 @@ void FVulkanBindlessDescriptorManager::RegisterUniformBuffers(VkCommandBuffer Co
 	}
 }
 
-FRHIDescriptorHandle FVulkanBindlessDescriptorManager::RegisterSampler(VkSampler VulkanSampler)
+void FVulkanBindlessDescriptorManager::UpdateStatsForHandle(FRHIDescriptorHandle DescriptorHandle)
 {
-	if (!bIsSupported)
+	const uint8 SetIndex = DescriptorHandle.GetRawType();
+	const BindlessSetState& State = BindlessSetStates[SetIndex];
+
+	switch (DescriptorHandle.GetRawType())
 	{
-		return FRHIDescriptorHandle();
+	case VulkanBindless::BindlessSamplerSet:                SET_DWORD_STAT(STAT_VulkanBindlessPeakSampler, State.PeakDescriptorCount); break;
+	case VulkanBindless::BindlessSampledImageSet:           SET_DWORD_STAT(STAT_VulkanBindlessPeakSampledImage, State.PeakDescriptorCount); break;
+	case VulkanBindless::BindlessStorageImageSet:           SET_DWORD_STAT(STAT_VulkanBindlessPeakStorageImage, State.PeakDescriptorCount); break;
+	case VulkanBindless::BindlessUniformTexelBufferSet:     SET_DWORD_STAT(STAT_VulkanBindlessPeakUniformTexelBuffer, State.PeakDescriptorCount); break;
+	case VulkanBindless::BindlessStorageTexelBufferSet:     SET_DWORD_STAT(STAT_VulkanBindlessPeakStorageTexelBuffer, State.PeakDescriptorCount); break;
+	case VulkanBindless::BindlessStorageBufferSet:          SET_DWORD_STAT(STAT_VulkanBindlessPeakStorageBuffer, State.PeakDescriptorCount); break;
+	case VulkanBindless::BindlessAccelerationStructureSet:  SET_DWORD_STAT(STAT_VulkanBindlessPeakAccelerationStructure, State.PeakDescriptorCount); break;
+
+	case VulkanBindless::BindlessUniformBufferSet:
+	default: checkNoEntry();
 	}
+}
 
-	const uint8 SetIndex = GetIndexForDescriptorType(VK_DESCRIPTOR_TYPE_SAMPLER);
+FRHIDescriptorHandle FVulkanBindlessDescriptorManager::ReserveDescriptor(VkDescriptorType DescriptorType)
+{
+	if (bIsSupported)
+	{
+		const uint8 SetIndex = GetIndexForDescriptorType(DescriptorType);
+		BindlessSetState& State = BindlessSetStates[SetIndex];
+		const uint32 ResourceIndex = GetFreeResourceIndex(State);
+		return FRHIDescriptorHandle(SetIndex, ResourceIndex);
+	}
+	return FRHIDescriptorHandle();
+}
+
+void FVulkanBindlessDescriptorManager::UpdateDescriptor(FRHIDescriptorHandle DescriptorHandle, VkDescriptorDataEXT DescriptorData)
+{
+	checkf(DescriptorHandle.IsValid(), TEXT("Attemping to update invalid descriptor handle!"));
+
+	const uint8 SetIndex = DescriptorHandle.GetRawType();
 	BindlessSetState& State = BindlessSetStates[SetIndex];
-
-	const uint32 SamplerIndex = State.PeakDescriptorCount++;
-	checkf(SamplerIndex < State.MaxDescriptorCount, TEXT("You need to grow the sampler array size!"));
-	const uint32 ByteOffset = SamplerIndex * State.DescriptorSize;
+	const uint32 ByteOffset = DescriptorHandle.GetIndex() * State.DescriptorSize;
 
 	VkDescriptorGetInfoEXT Info;
 	ZeroVulkanStruct(Info, VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT);
 	Info.type = State.DescriptorType;
-	Info.data.pSampler = &VulkanSampler;
+	Info.data = DescriptorData;
 	VulkanRHI::vkGetDescriptorEXT(Device->GetInstanceHandle(), &Info, State.DescriptorSize, &State.DebugDescriptors[ByteOffset]);
 
 	FMemory::Memcpy(&State.MappedPointer[ByteOffset], &State.DebugDescriptors[ByteOffset], State.DescriptorSize);
 
-	SET_DWORD_STAT(STAT_VulkanBindlessPeakSampler, State.PeakDescriptorCount);
-	return FRHIDescriptorHandle(SetIndex, SamplerIndex);
+	UpdateStatsForHandle(DescriptorHandle);
 }
 
-FRHIDescriptorHandle FVulkanBindlessDescriptorManager::RegisterImage(VkImageView ImageView, VkDescriptorType DescriptorType, bool bIsDepthStencil)
+void FVulkanBindlessDescriptorManager::UpdateSampler(FRHIDescriptorHandle DescriptorHandle, VkSampler VulkanSampler)
 {
-	if (!bIsSupported)
+	if (bIsSupported)
 	{
-		return FRHIDescriptorHandle();
+		VkDescriptorDataEXT DescriptorData;
+		DescriptorData.pSampler = &VulkanSampler;
+		UpdateDescriptor(DescriptorHandle, DescriptorData);
 	}
-
-	check((DescriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE) || (DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE));
-
-	const uint8 SetIndex = GetIndexForDescriptorType(DescriptorType);
-	BindlessSetState& State = BindlessSetStates[SetIndex];
-	const uint32 ResourceIndex = GetFreeResourceIndex(State);
-	const uint32 ByteOffset = ResourceIndex * State.DescriptorSize;
-
-	VkDescriptorImageInfo DescriptorImageInfo;
-	FMemory::Memzero(DescriptorImageInfo);
-	DescriptorImageInfo.imageView = ImageView;
-	DescriptorImageInfo.imageLayout = (DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) ? VK_IMAGE_LAYOUT_GENERAL :
-		(bIsDepthStencil ? VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-	VkDescriptorGetInfoEXT Info;
-	ZeroVulkanStruct(Info, VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT);
-	Info.type = State.DescriptorType;
-	Info.data.pSampledImage = &DescriptorImageInfo;  // same pointer for storage, it's a union
-	VulkanRHI::vkGetDescriptorEXT(Device->GetInstanceHandle(), &Info, State.DescriptorSize, &State.DebugDescriptors[ByteOffset]);
-
-	FMemory::Memcpy(&State.MappedPointer[ByteOffset], &State.DebugDescriptors[ByteOffset], State.DescriptorSize);
-
-	SET_DWORD_STAT(STAT_VulkanBindlessPeakImage, State.PeakDescriptorCount);
-	return FRHIDescriptorHandle(SetIndex, ResourceIndex);
 }
 
-FRHIDescriptorHandle FVulkanBindlessDescriptorManager::RegisterBuffer(VkBuffer VulkanBuffer, VkDeviceSize BufferOffset, VkDeviceSize BufferSize, VkDescriptorType DescriptorType)
+void FVulkanBindlessDescriptorManager::UpdateImage(FRHIDescriptorHandle DescriptorHandle, VkImageView ImageView, bool bIsDepthStencil)
 {
-	if (!bIsSupported)
+	if (bIsSupported)
 	{
-		return FRHIDescriptorHandle();
+		const VkDescriptorType DescriptorType = GetDescriptorTypeForSetIndex(DescriptorHandle.GetRawType());
+		check((DescriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE) || (DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE));
+
+		VkDescriptorImageInfo DescriptorImageInfo;
+		DescriptorImageInfo.sampler = VK_NULL_HANDLE;
+		DescriptorImageInfo.imageView = ImageView;
+		DescriptorImageInfo.imageLayout = (DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) ? VK_IMAGE_LAYOUT_GENERAL :
+			(bIsDepthStencil ? VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+		VkDescriptorDataEXT DescriptorData;
+		DescriptorData.pSampledImage = &DescriptorImageInfo;  // same pointer for storage, it's a union
+		UpdateDescriptor(DescriptorHandle, DescriptorData);
 	}
-
-	check(/*(DescriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) ||*/ (DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER));
-
-	const uint8 SetIndex = GetIndexForDescriptorType(DescriptorType);
-	BindlessSetState& State = BindlessSetStates[SetIndex];
-	const uint32 ResourceIndex = GetFreeResourceIndex(State);
-	const uint32 ByteOffset = ResourceIndex * State.DescriptorSize;
-
-	VkBufferDeviceAddressInfo BufferInfo;
-	ZeroVulkanStruct(BufferInfo, VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO);
-	BufferInfo.buffer = VulkanBuffer;
-	VkDeviceAddress BufferAddress = VulkanRHI::vkGetBufferDeviceAddressKHR(Device->GetInstanceHandle(), &BufferInfo);
-
-	VkDescriptorAddressInfoEXT AddressInfo;
-	ZeroVulkanStruct(AddressInfo, VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT);
-	AddressInfo.address = BufferAddress + BufferOffset;
-	AddressInfo.range = BufferSize;
-
-	VkDescriptorGetInfoEXT Info;
-	ZeroVulkanStruct(Info, VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT);
-	Info.type = State.DescriptorType;
-	Info.data.pUniformBuffer = &AddressInfo;  // same pointer for storage, it's a union
-	VulkanRHI::vkGetDescriptorEXT(Device->GetInstanceHandle(), &Info, State.DescriptorSize, &State.DebugDescriptors[ByteOffset]);
-
-	FMemory::Memcpy(&State.MappedPointer[ByteOffset], &State.DebugDescriptors[ByteOffset], State.DescriptorSize);
-
-	SET_DWORD_STAT(STAT_VulkanBindlessPeakBuffer, State.PeakDescriptorCount);
-	return FRHIDescriptorHandle(SetIndex, ResourceIndex);
 }
 
-FRHIDescriptorHandle FVulkanBindlessDescriptorManager::RegisterTexelBuffer(const VkBufferViewCreateInfo& ViewInfo, VkDescriptorType DescriptorType)
+void FVulkanBindlessDescriptorManager::UpdateBuffer(FRHIDescriptorHandle DescriptorHandle, VkBuffer VulkanBuffer, VkDeviceSize BufferOffset, VkDeviceSize BufferSize)
 {
-	if (!bIsSupported)
+	if (bIsSupported)
 	{
-		return FRHIDescriptorHandle();
+		const VkDescriptorType DescriptorType = GetDescriptorTypeForSetIndex(DescriptorHandle.GetRawType());
+		check(/*(DescriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) ||*/ (DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER));
+
+		// :todo-jn: start caching buffer addresses in resources to avoid the extra call
+		VkBufferDeviceAddressInfo BufferInfo;
+		ZeroVulkanStruct(BufferInfo, VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO);
+		BufferInfo.buffer = VulkanBuffer;
+		const VkDeviceAddress BufferAddress = VulkanRHI::vkGetBufferDeviceAddressKHR(Device->GetInstanceHandle(), &BufferInfo);
+
+		VkDescriptorAddressInfoEXT AddressInfo;
+		ZeroVulkanStruct(AddressInfo, VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT);
+		AddressInfo.address = BufferAddress + BufferOffset;
+		AddressInfo.range = BufferSize;
+
+		VkDescriptorDataEXT DescriptorData;
+		DescriptorData.pStorageBuffer = &AddressInfo;  // same pointer for uniform, it's a union
+		UpdateDescriptor(DescriptorHandle, DescriptorData);
 	}
-
-	check((DescriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER) || (DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER));
-
-	const uint8 SetIndex = GetIndexForDescriptorType(DescriptorType);
-	BindlessSetState& State = BindlessSetStates[SetIndex];
-	const uint32 ResourceIndex = GetFreeResourceIndex(State);
-	const uint32 ByteOffset = ResourceIndex * State.DescriptorSize;
-
-	VkBufferDeviceAddressInfo BufferInfo;
-	ZeroVulkanStruct(BufferInfo, VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO);
-	BufferInfo.buffer = ViewInfo.buffer;
-	VkDeviceAddress BufferAddress = VulkanRHI::vkGetBufferDeviceAddressKHR(Device->GetInstanceHandle(), &BufferInfo);
-
-	VkDescriptorAddressInfoEXT AddressInfo;
-	ZeroVulkanStruct(AddressInfo, VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT);
-	AddressInfo.address = BufferAddress + ViewInfo.offset;
-	AddressInfo.range = ViewInfo.range;
-	AddressInfo.format = ViewInfo.format;
-
-	VkDescriptorGetInfoEXT Info;
-	ZeroVulkanStruct(Info, VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT);
-	Info.type = State.DescriptorType;
-	Info.data.pUniformTexelBuffer = &AddressInfo;  // same pointer for storage, it's a union
-	VulkanRHI::vkGetDescriptorEXT(Device->GetInstanceHandle(), &Info, State.DescriptorSize, &State.DebugDescriptors[ByteOffset]);
-
-	FMemory::Memcpy(&State.MappedPointer[ByteOffset], &State.DebugDescriptors[ByteOffset], State.DescriptorSize);
-
-	SET_DWORD_STAT(STAT_VulkanBindlessPeakTexelBuffer, State.PeakDescriptorCount);
-	return FRHIDescriptorHandle(SetIndex, ResourceIndex);
 }
 
-FRHIDescriptorHandle FVulkanBindlessDescriptorManager::RegisterAccelerationStructure(VkAccelerationStructureKHR AccelerationStructure)
+void FVulkanBindlessDescriptorManager::UpdateTexelBuffer(FRHIDescriptorHandle DescriptorHandle, const VkBufferViewCreateInfo& ViewInfo)
+{
+	if (bIsSupported)
+	{
+		const VkDescriptorType DescriptorType = GetDescriptorTypeForSetIndex(DescriptorHandle.GetRawType());
+		check((DescriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER) || (DescriptorType == VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER));
+
+		// :todo-jn: start caching buffer addresses in resources to avoid the extra call
+		VkBufferDeviceAddressInfo BufferInfo;
+		ZeroVulkanStruct(BufferInfo, VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO);
+		BufferInfo.buffer = ViewInfo.buffer;
+		const VkDeviceAddress BufferAddress = VulkanRHI::vkGetBufferDeviceAddressKHR(Device->GetInstanceHandle(), &BufferInfo);
+
+		VkDescriptorAddressInfoEXT AddressInfo;
+		ZeroVulkanStruct(AddressInfo, VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT);
+		AddressInfo.address = BufferAddress + ViewInfo.offset;
+		AddressInfo.range = ViewInfo.range;
+		AddressInfo.format = ViewInfo.format;
+
+		VkDescriptorDataEXT DescriptorData;
+		DescriptorData.pUniformTexelBuffer = &AddressInfo;  // same pointer for storage, it's a union
+		UpdateDescriptor(DescriptorHandle, DescriptorData);
+	}
+}
+
+void FVulkanBindlessDescriptorManager::UpdateAccelerationStructure(FRHIDescriptorHandle DescriptorHandle, VkAccelerationStructureKHR AccelerationStructure)
 {
 #if VULKAN_RHI_RAYTRACING
-	if (!bIsSupported)
+	if (bIsSupported)
 	{
-		return FRHIDescriptorHandle();
+		check(GetDescriptorTypeForSetIndex(DescriptorHandle.GetRawType()) == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);
+
+		// :todo-jn: start caching AccelerationStructure in resources to avoid the extra call
+		VkAccelerationStructureDeviceAddressInfoKHR AccelerationStructureDeviceAddressInfo;
+		ZeroVulkanStruct(AccelerationStructureDeviceAddressInfo, VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR);
+		AccelerationStructureDeviceAddressInfo.accelerationStructure = AccelerationStructure;
+		const VkDeviceAddress BufferAddress = VulkanRHI::vkGetAccelerationStructureDeviceAddressKHR(Device->GetInstanceHandle(), &AccelerationStructureDeviceAddressInfo);
+
+		VkDescriptorDataEXT DescriptorData;
+		DescriptorData.accelerationStructure = BufferAddress;
+		UpdateDescriptor(DescriptorHandle, DescriptorData);
 	}
-
-	const uint8 SetIndex = GetIndexForDescriptorType(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);
-	BindlessSetState& State = BindlessSetStates[SetIndex];
-	const uint32 ResourceIndex = GetFreeResourceIndex(State);
-	const uint32 ByteOffset = ResourceIndex * State.DescriptorSize;
-
-	VkAccelerationStructureDeviceAddressInfoKHR AccelerationStructureDeviceAddressInfo;
-	ZeroVulkanStruct(AccelerationStructureDeviceAddressInfo, VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR);
-	AccelerationStructureDeviceAddressInfo.accelerationStructure = AccelerationStructure;
-	VkDeviceAddress BufferAddress = VulkanRHI::vkGetAccelerationStructureDeviceAddressKHR(Device->GetInstanceHandle(), &AccelerationStructureDeviceAddressInfo);
-
-	VkDescriptorGetInfoEXT Info;
-	ZeroVulkanStruct(Info, VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT);
-	Info.type = State.DescriptorType;
-	Info.data.accelerationStructure = BufferAddress;  // same pointer for storage, it's a union
-	VulkanRHI::vkGetDescriptorEXT(Device->GetInstanceHandle(), &Info, State.DescriptorSize, &State.DebugDescriptors[ByteOffset]);
-
-	FMemory::Memcpy(&State.MappedPointer[ByteOffset], &State.DebugDescriptors[ByteOffset], State.DescriptorSize);
-
-	SET_DWORD_STAT(STAT_VulkanBindlessPeakAccelerationStructure, State.PeakDescriptorCount);
-	return FRHIDescriptorHandle(SetIndex, ResourceIndex);
-#else
-	return FRHIDescriptorHandle();
 #endif
 }
 

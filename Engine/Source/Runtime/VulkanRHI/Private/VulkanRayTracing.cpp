@@ -676,7 +676,7 @@ void FVulkanRayTracingScene::BindBuffer(FRHIBuffer* InBuffer, uint32 InBufferOff
 		const uint32 LayerOffset = InBufferOffset + Layer.BufferOffset;
 		check(LayerOffset % GRHIRayTracingAccelerationStructureAlignment == 0);
 
-		Layer.View = MakeUnique<FVulkanView>(*Device);
+		Layer.View = MakeUnique<FVulkanView>(*Device, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);
 		Layer.View->InitAsAccelerationStructureView(
 			AccelerationStructureBuffer
 			, LayerOffset

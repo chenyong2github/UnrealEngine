@@ -306,7 +306,8 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 
 	auto CreateOwnedView = [&]()
 	{
-		FVulkanView* View = new FVulkanView(Device);
+		const VkDescriptorType DescriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		FVulkanView* View = new FVulkanView(Device, DescriptorType);
 		AttachmentTextureViews.Add(View);
 		OwnedTextureViews.Add(View);
 		return View;
@@ -720,7 +721,9 @@ void FVulkanViewport::CreateSwapchain(FVulkanSwapChainRecreateInfo* RecreateInfo
 		for (int32 Index = 0; Index < Images.Num(); ++Index)
 		{
 			BackBufferImages[Index] = Images[Index];
-			TextureViews.Add((new FVulkanView(*Device))->InitAsTextureView(Images[Index], VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, PixelFormat, UEToVkTextureFormat(PixelFormat, false), 0, 1, 0, 1, false));
+			const VkDescriptorType DescriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+			TextureViews.Add((new FVulkanView(*Device, DescriptorType))->InitAsTextureView(
+				Images[Index], VK_IMAGE_VIEW_TYPE_2D, VK_IMAGE_ASPECT_COLOR_BIT, PixelFormat, UEToVkTextureFormat(PixelFormat, false), 0, 1, 0, 1, false));
 
 			// Clear the swapchain to avoid a validation warning, and transition to ColorAttachment
 			{
