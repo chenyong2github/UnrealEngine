@@ -817,20 +817,20 @@ private:
 						for (int32 i=FirstAddedIndex; i<ArrayHelper.Num(); ++i)
 						{
 #if UE_RIGVM_DEBUG_EXECUTION
-							FString DefaultValue;
-							ElementProperty->ExportText_Direct(
-								DefaultValue,
-								DefaultElementMemory,
-								DefaultElementMemory,
-								nullptr,
-								PPF_None,
-								nullptr);
-
-							UE_LOG(LogRigVM, Display, TEXT("Adding slice %d for Property '%s', defaulting to '%s'."),
-								InSliceIndex,
-								*ArrayProperty->GetName(),
-								*DefaultValue
-							);
+							// FString DefaultValue;
+							// ElementProperty->ExportText_Direct(
+							// 	DefaultValue,
+							// 	DefaultElementMemory,
+							// 	DefaultElementMemory,
+							// 	nullptr,
+							// 	PPF_None,
+							// 	nullptr);
+							//
+							// UE_LOG(LogRigVM, Display, TEXT("Adding slice %d for Property '%s', defaulting to '%s'."),
+							// 	InSliceIndex,
+							// 	*ArrayProperty->GetName(),
+							// 	*DefaultValue
+							// );
 #endif
 
 							uint8* DestMemory = ArrayHelper.GetRawPtr(i);
@@ -841,22 +841,22 @@ private:
 			}
 
 #if UE_RIGVM_DEBUG_EXECUTION
-			const FProperty* ElementProperty = ArrayProperty->Inner;
-			FString DefaultValue;
-			const uint8* DefaultElementMemory = ArrayHelper.GetRawPtr(InSliceIndex);
-			ElementProperty->ExportText_Direct(
-				DefaultValue,
-				DefaultElementMemory,
-				DefaultElementMemory,
-				nullptr,
-				PPF_None,
-				nullptr);
-
-			UE_LOG(LogRigVM, Display, TEXT("Getting slice %d for Property '%s', currently '%s'."),
-				InSliceIndex,
-				*ArrayProperty->GetName(),
-				*DefaultValue
-			);
+			// const FProperty* ElementProperty = ArrayProperty->Inner;
+			// FString DefaultValue;
+			// const uint8* DefaultElementMemory = ArrayHelper.GetRawPtr(InSliceIndex);
+			// ElementProperty->ExportText_Direct(
+			// 	DefaultValue,
+			// 	DefaultElementMemory,
+			// 	DefaultElementMemory,
+			// 	nullptr,
+			// 	PPF_None,
+			// 	nullptr);
+			//
+			// UE_LOG(LogRigVM, Display, TEXT("Getting slice %d for Property '%s', currently '%s'."),
+			// 	InSliceIndex,
+			// 	*ArrayProperty->GetName(),
+			// 	*DefaultValue
+			// );
 #endif
 
 			return ArrayHelper.GetRawPtr(InSliceIndex);
