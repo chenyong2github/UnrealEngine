@@ -63,9 +63,9 @@ const UE::FieldNotification::IClassDescriptor& UMVVMViewModelBase::GetFieldNotif
 
 void UMVVMViewModelBase::FFieldNotificationClassDescriptor::ForEachField(const UClass* Class, TFunctionRef<bool(::UE::FieldNotification::FFieldId FieldId)> Callback) const
 {
-	if (const UBlueprintGeneratedClass* ViewModelBPClass = Cast<const UBlueprintGeneratedClass>(Class))
+	if (const UMVVMViewModelBlueprintGeneratedClass* ViewModelBPClass = Cast<const UMVVMViewModelBlueprintGeneratedClass>(Class))
 	{
-		ViewModelBPClass->ForEachFieldNotify(Callback, true);
+		ViewModelBPClass->ForEachField(Callback);
 	}
 }
 
