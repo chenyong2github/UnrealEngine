@@ -110,7 +110,8 @@ namespace ChaosTest {
 		}
 
 		FClusterCreationParameters ClusterParams;
-		Chaos::FPBDRigidParticleHandle* RootClusterHandle = Evolution.GetRigidClustering().CreateClusterParticle(0, MoveTemp(ClusterHandles), ClusterParams);
+		TArray<Chaos::FPBDRigidParticleHandle* > ClusterHandlesCopy = ClusterHandles;
+		Chaos::FPBDRigidParticleHandle* RootClusterHandle = Evolution.GetRigidClustering().CreateClusterParticle(0, MoveTemp(ClusterHandlesCopy), ClusterParams);
 		FVec3 InitialVelocity((FReal)50, (FReal)20, (FReal)100);
 
 		RootClusterHandle->V() = InitialVelocity;		

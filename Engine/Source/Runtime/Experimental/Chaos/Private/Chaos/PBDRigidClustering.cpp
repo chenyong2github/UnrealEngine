@@ -1110,23 +1110,32 @@ namespace Chaos
 			auto ProcessClusteredParticle = [&ParticlesToProcess, &bPotentialBreak, this](FPBDRigidClusteredParticleHandle* Particle)
 			{
 				TArray<FRigidHandle>& ParentToChildren = MChildren[Particle];
+
+				bool bAddParent = false;
 				for(FRigidHandle Child : ParentToChildren)
 				{
 					if(FClusterHandle ClusteredChild = Child->CastToClustered())
 					{
 						if(ClusteredChild->GetInternalStrains() <= 0.f)
 						{
-							ParticlesToProcess.Add(Particle);
-
+							bAddParent = true;
+							// #TODO remove need to set this here so we can early out as soon as we
+							// find one child that requires processing for breaks
 							ClusteredChild->CollisionImpulse() = FLT_MAX;
 							MCollisionImpulseArrayDirty = true;
 						}
 						else if(ClusteredChild->GetExternalStrain() > 0 || ClusteredChild->CollisionImpulse() > 0)
 						{
-							ParticlesToProcess.Add(Particle);
+							bAddParent = true;
 							bPotentialBreak = true;
 						}
 					}
+				}
+
+				// Ensure we only add the parent once.
+				if(bAddParent)
+				{
+					ParticlesToProcess.Add(Particle);
 				}
 			};
 
@@ -1182,6 +1191,9 @@ namespace Chaos
 
 			ClusterUnionManager.HandleDeferredClusterUnionUpdateProperties();
 
+			// Breaking can populate this again with relevant children - so we clear before running the breaking model
+			TopLevelClusterParentsStrained.Reset();
+
 			if (MCollisionImpulseArrayDirty || bPotentialBreak)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateDirtyImpulses);
@@ -1197,8 +1209,6 @@ namespace Chaos
 					BreakingModel();
 				}
 			} // end if MCollisionImpulseArrayDirty
-
-			TopLevelClusterParentsStrained.Reset();
 		}
 		Timer.Stop();
 		UE_LOG(LogChaos, Verbose, TEXT("Cluster Break Update Time is %f"), Time);
