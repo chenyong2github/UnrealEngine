@@ -25,6 +25,7 @@ int32 GLevelStreamingAllowLevelRequestsWhileAsyncLoadingInMatch = 1;
 int32 GLevelStreamingMaxLevelRequestsAtOnceWhileInMatch = 0;
 int32 GLevelStreamingForceVerifyLevelsGotRemovedByGC = 0;
 int32 GLevelStreamingForceRouteActorInitializeNextFrame = 0;
+int32 GLevelStreamingLowMemoryPendingPurgeCount = MAX_int32;
 
 static FAutoConsoleVariableRef CVarUseBackgroundLevelStreaming(
 	TEXT("s.UseBackgroundLevelStreaming"),
@@ -144,6 +145,14 @@ static FAutoConsoleVariableRef CVarMaxLevelRequestsAtOnceWhileInMatch(
 	TEXT( "When we're already loading this many levels and actively in match, don't allow any more requests until one of those completes.  Set to zero to disable." ),
 	ECVF_Default
 );
+
+static FAutoConsoleVariableRef CVarLevelStreamingLowMemoryPendingPurgeCount(
+	TEXT("s.LevelStreamingLowMemoryPendingPurgeCount"),
+	GLevelStreamingLowMemoryPendingPurgeCount,
+	TEXT("When system is in low memory state, if the number of streaming levels to purge meets or exceeds this value, perform a 'soft' GC."),
+	ECVF_Default
+);
+
 
 UStreamingSettings::UStreamingSettings()
 	: Super()

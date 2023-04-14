@@ -155,6 +155,8 @@ extern ENGINE_API int32 GLevelStreamingMaxLevelRequestsAtOnceWhileInMatch;
 extern ENGINE_API int32 GLevelStreamingForceVerifyLevelsGotRemovedByGC;
 /** Whether to force routing actor initialize phase in its own frame. */
 extern ENGINE_API int32 GLevelStreamingForceRouteActorInitializeNextFrame;
+/** In a low memory situation, will kick off a 'soft' GC if the number of streaming levels pending purge meets or exceeds this count. */
+extern ENGINE_API int32 GLevelStreamingLowMemoryPendingPurgeCount;
 
 /**
 * Implements the settings for garbage collection.

@@ -4153,6 +4153,8 @@ bool UWorld::CanAddLoadedLevelToWorld(ULevel* Level) const
 	return true;
 }
 
+extern ENGINE_API bool GIsLowMemory;
+
 void UWorld::UpdateLevelStreaming()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorld::UpdateLevelStreaming);
@@ -4222,18 +4224,20 @@ void UWorld::UpdateLevelStreaming()
 
 	CSV_CUSTOM_STAT(LevelStreamingPendingPurge, NumlevelsPendingPurge, CurrentNumLevelsPendingPurge, ECsvCustomStatOp::Set);
 
-	if (GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge)
-	{
-		// Figure out whether there are any levels we haven't collected garbage yet.
-		const bool bAreLevelsPendingPurge = CurrentNumLevelsPendingPurge >= GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge;
+	// Are we currently in a low memory situation and number of pending levels to purge meets or exceeds our threshold?
+	const bool bShouldDoLowMemoryGC = GIsLowMemory && CurrentNumLevelsPendingPurge >= GLevelStreamingLowMemoryPendingPurgeCount;
 
+	// Low memory GC takes precedence over Continuous GC condition
+	if (bShouldDoLowMemoryGC)
+	{
+		GEngine->ForceGarbageCollection(false);
+	}
+	else if (GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge && CurrentNumLevelsPendingPurge >= GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurge)
+	{
 		// Request a 'soft' GC if there are levels pending purge and there are levels to be loaded. In the case of a blocking
 		// load this is going to guarantee GC firing first thing afterwards and otherwise it is going to sneak in right before
 		// kicking off the async load.
-		if (bAreLevelsPendingPurge)
-		{
-			GEngine->ForceGarbageCollection(false);
-		}
+		GEngine->ForceGarbageCollection(false);
 	}
 
 	// In case more levels has been requested to unload, force GC on next tick 

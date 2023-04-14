@@ -629,6 +629,7 @@ void FTemporaryPlayInEditorIDOverride::SetID(int32 NewID)
 ENGINE_API float GAverageFPS = 0.0f;
 ENGINE_API float GAverageMS = 0.0f;
 ENGINE_API double GLastMemoryWarningTime = 0.f;
+ENGINE_API bool GIsLowMemory = false;
 
 
 void CalculateFPSTimings()
@@ -1644,17 +1645,13 @@ float GetLowMemoryGCTimer(const float DefaultTimeBetweenGC)
 #if !UE_BUILD_SHIPPING
 	MBFree -= float(FPlatformMemory::GetExtraDevelopmentMemorySize() / 1024 / 1024);
 #endif
-	if (MBFree <= GLowMemoryMemoryThresholdMB)
+
+	GIsLowMemory = (MBFree <= GLowMemoryMemoryThresholdMB);
+	if (GIsLowMemory)
 	{
 		if (GLowMemoryTimeBetweenPurgingPendingKillObjects < DefaultTimeBetweenGC)
 		{
 			return GLowMemoryTimeBetweenPurgingPendingKillObjects;
-		}
-
-		// Go even faster if there are levels that need to be unloaded
-		if (GLowMemoryTimeBetweenPurgingPendingLevels < DefaultTimeBetweenGC && FLevelStreamingGCHelper::GetNumLevelsPendingPurge() > 0)
-		{
-			return GLowMemoryTimeBetweenPurgingPendingLevels;
 		}
 	}
 
