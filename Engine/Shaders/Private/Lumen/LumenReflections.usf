@@ -21,6 +21,7 @@
 #endif
 
 #define FLOAT3_11_11_10_MAX float3(65024.0f, 65024.0f, 64512.0f)
+#define FLOAT_32_MAX float(+3.402823466e+38f)
 
 RWBuffer<uint> RWReflectionResolveTileIndirectArgs;
 RWBuffer<uint> RWReflectionTracingTileIndirectArgs;
@@ -485,7 +486,7 @@ void ReflectionResolveCS(
 			}
 		#endif
 
-			float ClosestHitDepth = 1000000.0f;
+			float ClosestHitDepth = FLOAT_32_MAX;
 
 		#if USE_SPATIAL_RECONSTRUCTION
 			{
@@ -1183,74 +1184,71 @@ void ReflectionBilateralFilterCS(
 
 	float3 OutReflections = 0;
 
-	if (SceneDepth < 1000000.0f)
+	const FLumenMaterialData Material = ApplySmoothBias(ReadMaterialData(Coord, MaxRoughnessToTrace), true /*bTopLayerRoughness*/);
+
+	if (NeedRayTracedReflections(Material.TopLayerRoughness, Material))
 	{
-		const FLumenMaterialData Material = ApplySmoothBias(ReadMaterialData(Coord, MaxRoughnessToTrace), true /*bTopLayerRoughness*/);
+		OutReflections = TonemapLightingForBilateral(SpecularIndirect[Coord.SvPositionFlatten]);
 
-		if (NeedRayTracedReflections(Material.TopLayerRoughness, Material))
+		float VarianceFromSpatialResolve = ResolveVariance[Coord.SvPositionFlatten];
+
+		float StrongBlur = VarianceFromSpatialResolve > BilateralFilterStrongBlurVarianceThreshold ? 1.0f : 0.0f;
+		float DisocclusionBlur = VarianceFromSpatialResolve > DisocclusionVariance - .1f ? 1.0f : 0.0f;
+		float MinKernelRadius = 0.0f;
+		float MaxKernelRadius = BilateralFilterSpatialKernelRadius * View.ViewSizeAndInvSize.x * lerp(1.0f, 2.0f, StrongBlur);
+		float KernelRadius = lerp(MinKernelRadius, MaxKernelRadius, saturate(Material.TopLayerRoughness * 8));
+
+		if (KernelRadius >= .5f && VarianceFromSpatialResolve > .04f)
 		{
-			OutReflections = TonemapLightingForBilateral(SpecularIndirect[Coord.SvPositionFlatten]);
+			float TotalWeight = 1.0f;
+			float GuassianNormalize = 2.0f / (KernelRadius * KernelRadius);
+			float InvSpecularLobeAngleThreshold = 1.0f / (lerp(.0001f * PI, PI, Material.Roughness * Material.Roughness) * BilateralFilterNormalAngleThresholdScale);
+			uint2 RandomSeed = Rand3DPCG16(int3(Coord.SvPosition, SCREEN_TEMPORAL_INDEX)).xy;
 
-			float VarianceFromSpatialResolve = ResolveVariance[Coord.SvPositionFlatten];
+			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+			float4 ScenePlane = float4(Material.WorldNormal, dot(WorldPosition, Material.WorldNormal));
 
-			float StrongBlur = VarianceFromSpatialResolve > BilateralFilterStrongBlurVarianceThreshold ? 1.0f : 0.0f;
-			float DisocclusionBlur = VarianceFromSpatialResolve > DisocclusionVariance - .1f ? 1.0f : 0.0f;
-			float MinKernelRadius = 0.0f;
-			float MaxKernelRadius = BilateralFilterSpatialKernelRadius * View.ViewSizeAndInvSize.x * lerp(1.0f, 2.0f, StrongBlur);
-			float KernelRadius = lerp(MinKernelRadius, MaxKernelRadius, saturate(Material.TopLayerRoughness * 8));
+			uint NumBilateralFilterSamples = min(BilateralFilterNumSamples * lerp(1, 2, StrongBlur), 16u);
 
-			if (KernelRadius >= .5f && VarianceFromSpatialResolve > .04f)
+			for (uint SampleIndex = 0; SampleIndex < NumBilateralFilterSamples; SampleIndex++)
 			{
-				float TotalWeight = 1.0f;
-				float GuassianNormalize = 2.0f / (KernelRadius * KernelRadius);
-				float InvSpecularLobeAngleThreshold = 1.0f / (lerp(.0001f * PI, PI, Material.Roughness * Material.Roughness) * BilateralFilterNormalAngleThresholdScale);
-				uint2 RandomSeed = Rand3DPCG16(int3(Coord.SvPosition, SCREEN_TEMPORAL_INDEX)).xy;
+				float2 Offset = (Hammersley16(SampleIndex, NumBilateralFilterSamples, RandomSeed) - .5f) * 2 * KernelRadius;
+				int2 NeighborSvPosition = (int2)(Coord.SvPosition + Offset);
 
-				float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-				float4 ScenePlane = float4(Material.WorldNormal, dot(WorldPosition, Material.WorldNormal));
-
-				uint NumBilateralFilterSamples = min(BilateralFilterNumSamples * lerp(1, 2, StrongBlur), 16u);
-
-				for (uint SampleIndex = 0; SampleIndex < NumBilateralFilterSamples; SampleIndex++)
+				if (all(and(NeighborSvPosition >= (int2)View.ViewRectMinAndSize.xy, NeighborSvPosition < (int2)(View.ViewRectMinAndSize.xy + View.ViewRectMinAndSize.zw))))
 				{
-					float2 Offset = (Hammersley16(SampleIndex, NumBilateralFilterSamples, RandomSeed) - .5f) * 2 * KernelRadius;
-					int2 NeighborSvPosition = (int2)(Coord.SvPosition + Offset);
+					const FLumenMaterialCoord NeighborCoord = GetLumenMaterialCoord(NeighborSvPosition, Coord.TileBSDFIndex);
 
-					if (all(and(NeighborSvPosition >= (int2)View.ViewRectMinAndSize.xy, NeighborSvPosition < (int2)(View.ViewRectMinAndSize.xy + View.ViewRectMinAndSize.zw))))
+					float2 NeighborScreenUV = (NeighborCoord.SvPosition + 0.5f) * View.BufferSizeAndInvSize.zw;
+					const FLumenMaterialData NeighborMaterial = ApplySmoothBias(ReadMaterialData(NeighborCoord, MaxRoughnessToTrace), true /*bTopLayerRoughness*/);
+					const float3 NeighborWorldPosition = GetWorldPositionFromScreenUV(NeighborScreenUV, NeighborMaterial.SceneDepth);
+
+					// Avoid reading from unprocessed tiles
+					if (NeedRayTracedReflections(NeighborMaterial.TopLayerRoughness, NeighborMaterial))
 					{
-						const FLumenMaterialCoord NeighborCoord = GetLumenMaterialCoord(NeighborSvPosition, Coord.TileBSDFIndex);
+						float PlaneDistance = abs(dot(float4(NeighborWorldPosition, -1), ScenePlane));
+						float RelativeDepthDifference = PlaneDistance / SceneDepth;
+						float DepthWeight = exp2(-BilateralFilterDepthWeightScale * (RelativeDepthDifference * RelativeDepthDifference));
+						float SpatialWeight = exp2(-GuassianNormalize * dot(Offset, Offset));
+						float AngleBetweenNormals = acosFast(saturate(dot(ScenePlane.xyz, NeighborMaterial.WorldNormal)));
+						float NormalWeight = 1.0f - saturate(AngleBetweenNormals * InvSpecularLobeAngleThreshold);
 
-						float2 NeighborScreenUV = (NeighborCoord.SvPosition + 0.5f) * View.BufferSizeAndInvSize.zw;
-						const FLumenMaterialData NeighborMaterial = ApplySmoothBias(ReadMaterialData(NeighborCoord, MaxRoughnessToTrace), true /*bTopLayerRoughness*/);
-						const float3 NeighborWorldPosition = GetWorldPositionFromScreenUV(NeighborScreenUV, NeighborMaterial.SceneDepth);
-
-						// Avoid reading from unprocessed tiles
-						if (NeedRayTracedReflections(NeighborMaterial.TopLayerRoughness, NeighborMaterial))
-						{
-							float PlaneDistance = abs(dot(float4(NeighborWorldPosition, -1), ScenePlane));
-							float RelativeDepthDifference = PlaneDistance / SceneDepth;
-							float DepthWeight = exp2(-BilateralFilterDepthWeightScale * (RelativeDepthDifference * RelativeDepthDifference));
-							float SpatialWeight = exp2(-GuassianNormalize * dot(Offset, Offset));
-							float AngleBetweenNormals = acosFast(saturate(dot(ScenePlane.xyz, NeighborMaterial.WorldNormal)));
-							float NormalWeight = 1.0f - saturate(AngleBetweenNormals * InvSpecularLobeAngleThreshold);
-
-							float SampleWeight = SpatialWeight * DepthWeight * lerp(NormalWeight, 1, DisocclusionBlur);
-							OutReflections += TonemapLightingForBilateral(SpecularIndirect[NeighborCoord.SvPositionFlatten]) * SampleWeight;
-							TotalWeight += SampleWeight;
-						}
+						float SampleWeight = SpatialWeight * DepthWeight * lerp(NormalWeight, 1, DisocclusionBlur);
+						OutReflections += TonemapLightingForBilateral(SpecularIndirect[NeighborCoord.SvPositionFlatten]) * SampleWeight;
+						TotalWeight += SampleWeight;
 					}
-				}
-
-				OutReflections = OutReflections / TotalWeight;
-
-				if (DisocclusionBlur > 0)
-				{
-					//OutReflections = float3(10, 0, 0);
 				}
 			}
 
-			OutReflections = InverseTonemapLightingForBilateral(OutReflections);
+			OutReflections = OutReflections / TotalWeight;
+
+			if (DisocclusionBlur > 0)
+			{
+				//OutReflections = float3(10, 0, 0);
+			}
 		}
+
+		OutReflections = InverseTonemapLightingForBilateral(OutReflections);
 	}
 
 	RWSpecularIndirect[Coord.SvPositionFlatten] = OutReflections;
