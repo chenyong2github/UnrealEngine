@@ -17,6 +17,12 @@ struct FGeometry;
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 
 
+TSharedPtr<SGraphNode> UCustomizableObjectNodeTextureBase::CreateVisualWidget()
+{
+	return SNew(SGraphNodeTexture, this);
+}
+
+
 void UCustomizableObjectNodeTexture::AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins)
 {
 	const UEdGraphSchema_CustomizableObject* Schema = GetDefault<UEdGraphSchema_CustomizableObject>();
@@ -56,16 +62,10 @@ FText UCustomizableObjectNodeTexture::GetTooltipText() const
 }
 
 
-TSharedPtr<SGraphNode> UCustomizableObjectNodeTexture::CreateVisualWidget()
-{
-	return SNew(SGraphNodeTexture, this);
-}
-
-
 void SGraphNodeTexture::Construct(const FArguments& InArgs, UEdGraphNode* InGraphNode)
 {
 	GraphNode = InGraphNode;
-	NodeTexture = Cast< UCustomizableObjectNodeTexture >(GraphNode);
+	NodeTexture = Cast<UCustomizableObjectNodeTextureBase>(GraphNode);
 
 	FPropertyEditorModule& PropPlugin = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 

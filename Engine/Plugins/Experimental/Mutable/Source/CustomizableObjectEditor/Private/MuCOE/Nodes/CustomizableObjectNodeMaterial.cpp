@@ -155,8 +155,15 @@ EPinMode UCustomizableObjectNodeMaterial::NodePinModeToImagePinMode(const ENodeP
 
 EPinMode UCustomizableObjectNodeMaterial::GetImagePinMode(const UEdGraphPin& Pin) const
 {
-	if (FollowInputPin(Pin))
+	const UEdGraphSchema_CustomizableObject* Schema = GetDefault<UEdGraphSchema_CustomizableObject>();
+
+	if (UEdGraphPin *FollowedPin = FollowInputPin(Pin))
 	{
+		if (FollowedPin->PinType.PinCategory == Schema->PC_PassThroughImage)
+		{
+			return EPinMode::Passthrough;
+		}
+
 		return EPinMode::Mutable;
 	}
 	else if (const UEdGraphPin* MaterialAssetPin = GetMaterialAssetPin())
@@ -1201,6 +1208,20 @@ void UCustomizableObjectNodeMaterial::PostPasteNode()
 {
 	Super::PostPasteNode();
 	SetDefaultMaterial();
+}
+
+
+bool UCustomizableObjectNodeMaterial::CanConnect(const UEdGraphPin* InOwnedInputPin, const UEdGraphPin* InOutputPin, bool& bOutIsOtherNodeBlocklisted, bool& bOutArePinsCompatible) const
+{
+	const UEdGraphSchema_CustomizableObject* Schema = GetDefault<UEdGraphSchema_CustomizableObject>();
+
+	if (InOwnedInputPin && InOwnedInputPin->PinType.PinCategory == Schema->PC_Image &&
+		InOutputPin && InOutputPin->PinType.PinCategory == Schema->PC_PassThroughImage)
+	{
+		return true;
+	}
+	
+	return Super::CanConnect(InOwnedInputPin, InOutputPin, bOutIsOtherNodeBlocklisted, bOutArePinsCompatible);
 }
 
 

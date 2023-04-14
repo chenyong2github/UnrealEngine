@@ -53,6 +53,7 @@
 #include "MuCOE/Nodes/CustomizableObjectNodeStaticMesh.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTable.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTexture.h"
+#include "MuCOE/Nodes/CustomizableObjectNodePassThroughTexture.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTextureBinarise.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTextureColourMap.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTextureFromChannels.h"
@@ -64,6 +65,7 @@
 #include "MuCOE/Nodes/CustomizableObjectNodeTextureProject.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTextureSample.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTextureSwitch.h"
+#include "MuCOE/Nodes/CustomizableObjectNodePassThroughTextureSwitch.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTextureToChannels.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTextureTransform.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTextureSaturate.h"
@@ -213,6 +215,7 @@ const FName UEdGraphSchema_CustomizableObject::PC_Material("material");
 const FName UEdGraphSchema_CustomizableObject::PC_Mesh("mesh");
 const FName UEdGraphSchema_CustomizableObject::PC_Layout("layout");
 const FName UEdGraphSchema_CustomizableObject::PC_Image("image");
+const FName UEdGraphSchema_CustomizableObject::PC_PassThroughImage("passThroughImage");
 const FName UEdGraphSchema_CustomizableObject::PC_Projector("projector");
 const FName UEdGraphSchema_CustomizableObject::PC_GroupProjector("groupProjector");
 const FName UEdGraphSchema_CustomizableObject::PC_Color("color");
@@ -415,10 +418,12 @@ void UEdGraphSchema_CustomizableObject::GetGraphContextActions(FGraphContextMenu
 		UCustomizableObjectNode* TextureTemplateNodes[] =
 		{
 			ContextMenuBuilder.CreateTemplateNode<UCustomizableObjectNodeTexture>(),
+			ContextMenuBuilder.CreateTemplateNode<UCustomizableObjectNodePassThroughTexture>(),
 			ContextMenuBuilder.CreateTemplateNode<UCustomizableObjectNodeTextureBinarise>(),
 			ContextMenuBuilder.CreateTemplateNode<UCustomizableObjectNodeTextureInterpolate>(),
 			ContextMenuBuilder.CreateTemplateNode<UCustomizableObjectNodeTextureLayer>(),
 			ContextMenuBuilder.CreateTemplateNode<UCustomizableObjectNodeTextureSwitch>(),
+			ContextMenuBuilder.CreateTemplateNode<UCustomizableObjectNodePassThroughTextureSwitch>(),
 			ContextMenuBuilder.CreateTemplateNode<UCustomizableObjectNodeTextureVariation>(),
 			ContextMenuBuilder.CreateTemplateNode<UCustomizableObjectNodeTextureToChannels>(),
 			ContextMenuBuilder.CreateTemplateNode<UCustomizableObjectNodeTextureFromChannels>(),
@@ -485,7 +490,7 @@ void UEdGraphSchema_CustomizableObject::GetGraphContextActions(FGraphContextMenu
 
 	{
 		// External Pin Nodes
-		TArray<FName> PinTypes({ PC_Material, PC_Mesh, PC_Image, PC_Projector, PC_GroupProjector, PC_Color, PC_Float, PC_Bool, PC_Enum, PC_Stack });
+		TArray<FName> PinTypes({ PC_Material, PC_Mesh, PC_Image, PC_Projector, PC_GroupProjector, PC_Color, PC_Float, PC_Bool, PC_Enum, PC_Stack, PC_PassThroughImage });
 
 		// Add pin types from extensions
 		for (const FRegisteredCustomizableObjectPinType& PinType : ICustomizableObjectModule::Get().GetExtendedPinTypes())
@@ -657,6 +662,10 @@ FLinearColor UEdGraphSchema_CustomizableObject::GetPinTypeColor(const FName& Typ
 	else if (TypeString == PC_Image)
 	{
 		return FLinearColor(0.353393f, 0.454175f, 1.000000f, 1.000000f);
+	}
+	else if (TypeString == PC_PassThroughImage)
+	{
+		return FLinearColor(0.353393f, 0.454175f, 0.353393f, 1.000000f);
 	}
 	else if (TypeString == PC_Material)
 	{
@@ -1051,6 +1060,10 @@ FText UEdGraphSchema_CustomizableObject::GetPinCategoryName(const FName& PinCate
 	else if (PinCategory == UEdGraphSchema_CustomizableObject::PC_Image)
 	{
 		return LOCTEXT("Image_Pin_Category", "Texture");
+	}
+	else if (PinCategory == UEdGraphSchema_CustomizableObject::PC_PassThroughImage)
+	{
+		return LOCTEXT("Image_Pin_Category", "PassThrough Texture");
 	}
 	else if (PinCategory == UEdGraphSchema_CustomizableObject::PC_Projector)
 	{

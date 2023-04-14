@@ -1117,6 +1117,9 @@ public:
 	UPROPERTY()
 	TArray<TSoftObjectPtr<USkeleton>> ReferencedSkeletons;
 
+	UPROPERTY()
+	TArray<TSoftObjectPtr<UTexture2D>> ReferencedPassThroughTextures;
+
 	UPROPERTY(EditAnywhere, Category = CustomizableObject, meta = (DisplayName = "LOD Settings"))
 	FMutableLODSettings LODSettings;
 

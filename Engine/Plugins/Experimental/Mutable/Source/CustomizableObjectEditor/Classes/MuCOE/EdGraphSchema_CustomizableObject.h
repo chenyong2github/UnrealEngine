@@ -94,6 +94,7 @@ public:
 	static const FName PC_Mesh;
 	static const FName PC_Layout;
 	static const FName PC_Image;
+	static const FName PC_PassThroughImage;
 	static const FName PC_Projector;
 	static const FName PC_GroupProjector;
 	static const FName PC_Color;

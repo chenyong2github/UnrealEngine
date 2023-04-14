@@ -48,37 +48,44 @@ public:
 public:
 
 	// Pointer to the NodeTexture that owns this SGraphNode
-	UCustomizableObjectNodeTexture* NodeTexture;
+	UCustomizableObjectNodeTextureBase* NodeTexture;
 
 	// Single property that only draws the combo box widget of the Texture
 	TSharedPtr<class ISinglePropertyView> TextureSelector;
 
 	// Brush to draw the texture to the widget
 	FSlateBrush TextureBrush;
-
 };
 
 
 UCLASS()
-class CUSTOMIZABLEOBJECTEDITOR_API UCustomizableObjectNodeTexture : public UCustomizableObjectNode
+class CUSTOMIZABLEOBJECTEDITOR_API UCustomizableObjectNodeTextureBase : public UCustomizableObjectNode
 {
 public:
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category=CustomizableObject)
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	TObjectPtr<UTexture2D> Texture = nullptr;
+
+	// Determines if the Node is collapsed or not
+	bool bCollapsed = true;
+
+	// Creates the SGraph Node widget for the thumbnail
+	TSharedPtr<SGraphNode> CreateVisualWidget() override;
+};
+
+
+UCLASS()
+class CUSTOMIZABLEOBJECTEDITOR_API UCustomizableObjectNodeTexture : public UCustomizableObjectNodeTextureBase
+{
+public:
+	GENERATED_BODY()
+
+	// UCustomizableObjectNode interface
+	void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
 
 	// Begin EdGraphNode interface
 	FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	FLinearColor GetNodeTitleColor() const override;
 	FText GetTooltipText() const override;
-
-	// UCustomizableObjectNode interface
-	void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
-
-	// Creates the SGraph Node widget for the thumbnail
-	TSharedPtr<SGraphNode> CreateVisualWidget() override;
-	
-	// Determines if the Node is collapsed or not
-	bool bCollapsed = true;
 };

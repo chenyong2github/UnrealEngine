@@ -1172,6 +1172,27 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 			Object->ReferencedSkeletons.Add(Skeleton);
 		}
 
+		// Pass-through textures
+		TArray<TSoftObjectPtr<UTexture2D>> NewReferencedPassThroughTextures;
+
+		for (const TPair<TSoftObjectPtr<UTexture2D>, uint32>& Pair : GenerationContext.PassThroughTextureToIndexMap)
+		{
+			check(Pair.Value == NewReferencedPassThroughTextures.Num());
+			NewReferencedPassThroughTextures.Add(Pair.Key);
+		}
+
+		// Mark the object as modified, used to avoid missing assets in packages.
+		if (Object->ReferencedPassThroughTextures != NewReferencedPassThroughTextures)
+		{
+			Object->ReferencedPassThroughTextures.Empty(NewReferencedPassThroughTextures.Num());
+			Object->ReferencedPassThroughTextures = NewReferencedPassThroughTextures;
+
+			if (!ParamNamesToSelectedOptions.Num()) // Don't mark the objects as modified because of a partial compilation
+			{
+				Object->MarkPackageDirty();
+			}
+		}
+
 		if (bIsRootObject && (GenerationContext.MaskOutMaterialCache.Num() > 0 || GenerationContext.MaskOutTextureCache.Num() > 0))
 		{
 			// Load MaskOutCache, if can't, create it.

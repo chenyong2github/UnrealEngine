@@ -520,6 +520,9 @@ struct FMutableGraphGenerationContext
 	// level cache
 	TMap<FGeneratedImageKey, mu::NodeImageConstantPtr> GeneratedImages;
 
+	// Cache of pass-through images and their IDs used in the core to indentify them
+	TMap<TSoftObjectPtr<UTexture2D>, uint32> PassThroughTextureToIndexMap;
+
     // Global morph selection overrides.
     TArray<FRealTimeMorphSelectionOverride> RealTimeMorphTargetsOverrides;
 
