@@ -229,3 +229,5 @@ DEFINE_FUNCTION(UFieldNotificationLibrary::execSetPropertyValueAndBroadcastField
 		TargetProperty->DestroyValue(SourceValuePtr);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
