@@ -4,6 +4,11 @@
 #include "UObject/UObjectIterator.h"
 #include "Engine/ChildConnection.h"
 
+#if WITH_GAMEPLAY_DEBUGGER
+#include "GameplayDebuggerCategoryReplicator.h"
+#include "GameFramework/PlayerController.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BasicReplicationGraph)
 
 UBasicReplicationGraph::UBasicReplicationGraph()
@@ -48,6 +53,10 @@ void UBasicReplicationGraph::InitGlobalActorClassSettings()
 		
 		GlobalActorReplicationInfoMap.SetClassInfo( Class, ClassInfo );
 	}
+
+#if WITH_GAMEPLAY_DEBUGGER
+	AGameplayDebuggerCategoryReplicator::NotifyDebuggerOwnerChange.AddUObject(this, &ThisClass::OnGameplayDebuggerOwnerChange);
+#endif
 }
 
 void UBasicReplicationGraph::InitGlobalGraphNodes()
@@ -81,6 +90,14 @@ void UBasicReplicationGraph::InitConnectionGraphNodes(UNetReplicationGraphConnec
 
 void UBasicReplicationGraph::RouteAddNetworkActorToNodes(const FNewReplicatedActorInfo& ActorInfo, FGlobalActorReplicationInfo& GlobalInfo)
 {
+#if WITH_GAMEPLAY_DEBUGGER
+	// This is intended as an example and not shipping code, see the Lyra sample for a better way to handle routing with class routing mappings.
+	if (ActorInfo.Actor->IsA(AGameplayDebuggerCategoryReplicator::StaticClass()))
+	{
+		return;
+	}
+#endif
+
 	ensureMsgf((ActorInfo.Actor->bAlwaysRelevant && ActorInfo.Actor->bOnlyRelevantToOwner) == false, TEXT("Replicated actor %s is both bAlwaysRelevant and bOnlyRelevantToOwner. Only one can be supported."), *ActorInfo.Actor->GetName());
 	if (ActorInfo.Actor->bAlwaysRelevant)
 	{
@@ -100,6 +117,14 @@ void UBasicReplicationGraph::RouteAddNetworkActorToNodes(const FNewReplicatedAct
 
 void UBasicReplicationGraph::RouteRemoveNetworkActorToNodes(const FNewReplicatedActorInfo& ActorInfo)
 {
+#if WITH_GAMEPLAY_DEBUGGER
+	// This is intended as an example and not shipping code, see the Lyra sample for a better way to handle routing with class routing mappings.
+	if (ActorInfo.Actor->IsA(AGameplayDebuggerCategoryReplicator::StaticClass()))
+	{
+		return;
+	}
+#endif
+
 	if (ActorInfo.Actor->bAlwaysRelevant)
 	{
 		AlwaysRelevantNode->NotifyRemoveNetworkActor(ActorInfo);
@@ -179,6 +204,34 @@ int32 UBasicReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 
 	return Super::ServerReplicateActors(DeltaSeconds);
 }
+
+#if WITH_GAMEPLAY_DEBUGGER
+void UBasicReplicationGraph::OnGameplayDebuggerOwnerChange(AGameplayDebuggerCategoryReplicator* Debugger, APlayerController* OldOwner)
+{
+	if (!Debugger || (Debugger->GetWorld() != GetWorld()))
+	{
+		return;
+	}
+
+	FNewReplicatedActorInfo ActorInfo(Debugger);
+
+	if (OldOwner)
+	{
+		if (UReplicationGraphNode* Node = OldOwner->GetNetConnection() ? GetAlwaysRelevantNodeForConnection(OldOwner->GetNetConnection()) : nullptr)
+		{
+			Node->NotifyRemoveNetworkActor(ActorInfo);
+		}
+	}
+
+	if (APlayerController* NewOwner = Debugger->GetReplicationOwner())
+	{
+		if (UReplicationGraphNode* Node = NewOwner->GetNetConnection() ? GetAlwaysRelevantNodeForConnection(NewOwner->GetNetConnection()) : nullptr)
+		{
+			Node->NotifyAddNetworkActor(ActorInfo);
+		}
+	}
+}
+#endif // WITH_GAMEPALY_DEBUGGER
 
 bool FConnectionAlwaysRelevantNodePair::operator==(UNetConnection* InConnection) const
 {

@@ -333,7 +333,7 @@ struct GAMEPLAYDEBUGGER_API FGameplayDebuggerDataPack
 	/** get replication progress in (0..1) range */
 	FORCEINLINE float GetProgress() const
 	{
-		return (Header.DataOffset != Header.DataSize) ? ((1.0f * Header.DataOffset) / Header.DataSize) : 1.0f;
+		return (Header.DataOffset != Header.DataSize) ? (static_cast<float>(Header.DataOffset) / static_cast<float>(Header.DataSize)) : 1.0f;
 	}
 
 	/** is replication in progress? */

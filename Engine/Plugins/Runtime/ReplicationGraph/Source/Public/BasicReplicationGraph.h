@@ -6,6 +6,9 @@
 #include "BasicReplicationGraph.generated.h"
 
 struct FNewReplicatedActorInfo;
+#if WITH_GAMEPLAY_DEBUGGER
+class AGameplayDebuggerCategoryReplicator;
+#endif
 
 USTRUCT()
 struct FConnectionAlwaysRelevantNodePair
@@ -62,8 +65,11 @@ public:
 	UPROPERTY()
 	TArray<TObjectPtr<AActor>> ActorsWithoutNetConnection;
 
-
 	UReplicationGraphNode_AlwaysRelevant_ForConnection* GetAlwaysRelevantNodeForConnection(UNetConnection* Connection);
+
+#if WITH_GAMEPLAY_DEBUGGER
+	void OnGameplayDebuggerOwnerChange(AGameplayDebuggerCategoryReplicator* Debugger, APlayerController* OldOwner);
+#endif
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

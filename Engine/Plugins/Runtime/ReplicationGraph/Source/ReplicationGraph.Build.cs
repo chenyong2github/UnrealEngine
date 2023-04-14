@@ -18,5 +18,7 @@ public class ReplicationGraph : ModuleRules
 		);
 
 		UnsafeTypeCastWarningLevel = WarningLevel.Error;
+
+		SetupGameplayDebuggerSupport(Target);
 	}
 }
