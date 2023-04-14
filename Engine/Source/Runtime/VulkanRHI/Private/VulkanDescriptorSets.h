@@ -882,14 +882,14 @@ public:
 		return NumWrites;
 	}
 
-	bool WriteUniformBuffer(uint32 DescriptorIndex, const FVulkanAllocation& Allocation, VkDeviceSize Offset, VkDeviceSize Range)
+	bool WriteUniformBuffer(uint32 DescriptorIndex, VkBuffer BufferHandle, uint32 HandleId, VkDeviceSize Offset, VkDeviceSize Range)
 	{
-		return WriteBuffer<VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER>(DescriptorIndex, Allocation, Offset, Range);
+		return WriteBuffer<VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER>(DescriptorIndex, BufferHandle, HandleId, Offset, Range);
 	}
 
-	bool WriteDynamicUniformBuffer(uint32 DescriptorIndex, const FVulkanAllocation& Allocation, VkDeviceSize Offset, VkDeviceSize Range, uint32 DynamicOffset)
+	bool WriteDynamicUniformBuffer(uint32 DescriptorIndex, VkBuffer BufferHandle, uint32 HandleId, VkDeviceSize Offset, VkDeviceSize Range, uint32 DynamicOffset)
 	{
-		return WriteBuffer<VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC>(DescriptorIndex, Allocation, Offset, Range, DynamicOffset);
+		return WriteBuffer<VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC>(DescriptorIndex, BufferHandle, HandleId, Offset, Range, DynamicOffset);
 	}
 
 	bool WriteSampler(uint32 DescriptorIndex, const FVulkanSamplerState& Sampler)
@@ -942,7 +942,7 @@ public:
 
 	bool WriteStorageBuffer(uint32 DescriptorIndex, const FVulkanView::FStructuredBufferView& View)
 	{
-		return WriteBuffer<VK_DESCRIPTOR_TYPE_STORAGE_BUFFER>(DescriptorIndex, View.Allocation, View.Offset, View.Size);
+		return WriteBuffer<VK_DESCRIPTOR_TYPE_STORAGE_BUFFER>(DescriptorIndex, View.Buffer, View.HandleId, View.Offset, View.Size);
 	}
 
 	bool WriteUniformTexelBuffer(uint32 DescriptorIndex, const FVulkanView::FTypedBufferView& View)
@@ -998,7 +998,7 @@ public:
 
 protected:
 	template <VkDescriptorType DescriptorType>
-	bool WriteBuffer(uint32 DescriptorIndex, const FVulkanAllocation& Allocation, VkDeviceSize Offset, VkDeviceSize Range, uint32 DynamicOffset = 0)
+	bool WriteBuffer(uint32 DescriptorIndex, VkBuffer BufferHandle, uint32 HandleId, VkDeviceSize Offset, VkDeviceSize Range, uint32 DynamicOffset = 0)
 	{
 		check(DescriptorIndex < NumWrites);
 		SetWritten(DescriptorIndex);		
@@ -1021,11 +1021,11 @@ protected:
 		if (UseVulkanDescriptorCache())
 		{
 			FVulkanHashableDescriptorInfo& HashableInfo = HashableDescriptorInfos[DescriptorIndex];
-			check(Allocation.HandleId > 0);
-			if (HashableInfo.Buffer.Id != Allocation.HandleId)
+			check(HandleId > 0);
+			if (HashableInfo.Buffer.Id != HandleId)
 			{
-				HashableInfo.Buffer.Id = Allocation.HandleId;
-				BufferInfo->buffer = (VkBuffer)Allocation.VulkanHandle;
+				HashableInfo.Buffer.Id = HandleId;
+				BufferInfo->buffer = BufferHandle;
 				bChanged = true;
 			}
 			if (HashableInfo.Buffer.Offset != static_cast<uint32>(Offset))
@@ -1044,7 +1044,7 @@ protected:
 		}
 		else
 		{
-			bChanged = CopyAndReturnNotEqual(BufferInfo->buffer, Allocation.GetBufferHandle());
+			bChanged = CopyAndReturnNotEqual(BufferInfo->buffer, BufferHandle);
 			bChanged |= CopyAndReturnNotEqual(BufferInfo->offset, Offset);
 			bChanged |= CopyAndReturnNotEqual(BufferInfo->range, Range);
 		}

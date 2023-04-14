@@ -54,8 +54,7 @@ FVulkanView* FVulkanView::InitAsTypedBufferView(FVulkanResourceMultiBuffer* Buff
 	Storage.Emplace<FTypedBufferView>();
 	FTypedBufferView& TBV = Storage.Get<FTypedBufferView>();
 
-	TBV.Offset = InOffset;
-	TBV.Size = InSize;
+	const uint32 TotalOffset = Buffer->GetOffset() + InOffset;
 
 	check(UEFormat != PF_Unknown);
 	VkFormat Format = GVulkanBufferFormat[UEFormat];
@@ -64,7 +63,7 @@ FVulkanView* FVulkanView::InitAsTypedBufferView(FVulkanResourceMultiBuffer* Buff
 	VkBufferViewCreateInfo ViewInfo;
 	ZeroVulkanStruct(ViewInfo, VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO);
 	ViewInfo.buffer = Buffer->GetHandle();
-	ViewInfo.offset = InOffset;
+	ViewInfo.offset = TotalOffset;
 	ViewInfo.format = Format;
 
 	//#todo-rco: Revisit this if buffer views become VK_BUFFER_USAGE_STORAGE_BUFFER_BIT instead of VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT
@@ -73,8 +72,7 @@ FVulkanView* FVulkanView::InitAsTypedBufferView(FVulkanResourceMultiBuffer* Buff
 	ViewInfo.range = FMath::Min<uint64>(InSize, MaxSize);
 	// TODO: add a check() for exceeding MaxSize, to catch code which blindly makes views without checking the platform limits.
 
-	TBV.Flags = Buffer->GetBufferUsageFlags() & (VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT);
-	check(TBV.Flags);
+	check(Buffer->GetBufferUsageFlags() & (VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT));
 	check(IsAligned(InOffset, Limits.minTexelBufferOffsetAlignment));
 
 	VERIFYVULKANRESULT(VulkanRHI::vkCreateBufferView(Device.GetInstanceHandle(), &ViewInfo, VULKAN_CPU_ALLOCATOR, &TBV.View));
@@ -194,13 +192,16 @@ FVulkanView* FVulkanView::InitAsStructuredBufferView(FVulkanResourceMultiBuffer*
 	Storage.Emplace<FStructuredBufferView>();
 	FStructuredBufferView& SBV = Storage.Get<FStructuredBufferView>();
 
-	SBV.Offset = InOffset;
+	const uint32 TotalOffset = Buffer->GetOffset() + InOffset;
+
+	SBV.Buffer = Buffer->GetHandle();
+	SBV.HandleId = Buffer->GetCurrentAllocation().HandleId;
+	SBV.Offset = TotalOffset;
 	SBV.Size = InSize;
-	SBV.Allocation.Reference(Buffer->GetCurrentAllocation());
 
 	BindlessHandle = Device.GetBindlessDescriptorManager()->RegisterBuffer(
 		Buffer->GetHandle(),
-		Buffer->GetOffset() + InOffset,
+		TotalOffset,
 		InSize,
 		VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
 	);
@@ -298,11 +299,12 @@ void FVulkanShaderResourceView::UpdateView()
 			{
 			case FRHIViewDesc::EBufferType::Raw:
 			case FRHIViewDesc::EBufferType::Structured:
-				InitAsStructuredBufferView(Buffer, Buffer->GetOffset() + Info.OffsetInBytes, Info.SizeInBytes);
+				InitAsStructuredBufferView(Buffer, Info.OffsetInBytes, Info.SizeInBytes);
 				break;
 
 			case FRHIViewDesc::EBufferType::Typed:
-				InitAsTypedBufferView(Buffer, Info.Format, Buffer->GetOffset() + Info.OffsetInBytes, Info.SizeInBytes);
+				check(VKHasAllFlags(Buffer->GetBufferUsageFlags(), VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT));
+				InitAsTypedBufferView(Buffer, Info.Format, Info.OffsetInBytes, Info.SizeInBytes);
 				break;
 
 #if VULKAN_RHI_RAYTRACING
@@ -387,11 +389,12 @@ void FVulkanUnorderedAccessView::UpdateView()
 			{
 			case FRHIViewDesc::EBufferType::Raw:
 			case FRHIViewDesc::EBufferType::Structured:
-				InitAsStructuredBufferView(Buffer, Buffer->GetOffset() + Info.OffsetInBytes, Info.SizeInBytes);
+				InitAsStructuredBufferView(Buffer, Info.OffsetInBytes, Info.SizeInBytes);
 				break;
 
 			case FRHIViewDesc::EBufferType::Typed:
-				InitAsTypedBufferView(Buffer, Info.Format, Buffer->GetOffset() + Info.OffsetInBytes, Info.SizeInBytes);
+				check(VKHasAllFlags(Buffer->GetBufferUsageFlags(), VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT));
+				InitAsTypedBufferView(Buffer, Info.Format, Info.OffsetInBytes, Info.SizeInBytes);
 				break;
 
 #if VULKAN_RHI_RAYTRACING

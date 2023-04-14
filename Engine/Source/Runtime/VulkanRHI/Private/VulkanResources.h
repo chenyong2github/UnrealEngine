@@ -345,20 +345,17 @@ class FVulkanView
 public:
 	struct FTypedBufferView
 	{
-		VkBufferView View   = VK_NULL_HANDLE;
-		uint32       ViewId = 0;
-		VkFlags      Flags  = 0;
-		uint32       Offset = 0;
-		uint32       Size   = 0;
-		// Whether source buffer is volatile
-		bool bVolatile = false;
+		VkBufferView View      = VK_NULL_HANDLE;
+		uint32       ViewId    = 0;
+		bool         bVolatile = false; // Whether source buffer is volatile
 	};
 
 	struct FStructuredBufferView
 	{
-		VulkanRHI::FVulkanAllocation Allocation;
-		uint32 Offset = 0;
-		uint32 Size   = 0;
+		VkBuffer Buffer = VK_NULL_HANDLE;
+		uint32 HandleId = 0;
+		uint32 Offset   = 0;
+		uint32 Size     = 0;
 	};
 
 #if VULKAN_RHI_RAYTRACING
@@ -419,6 +416,7 @@ public:
 	FAccelerationStructureView const& GetAccelerationStructureView() const { return Storage.Get<FAccelerationStructureView>(); }
 #endif
 
+	// NOTE: The InOffset applies to the FVulkanResourceMultiBuffer (it does not include any internal Allocation offsets that may exist)
 	FVulkanView* InitAsTypedBufferView(
 		  FVulkanResourceMultiBuffer* Buffer
 		, EPixelFormat Format
@@ -438,6 +436,7 @@ public:
 		, bool bUseIdentitySwizzle = false
 		, VkImageUsageFlags ImageUsageFlags = 0);
 
+	// NOTE: The InOffset applies to the FVulkanResourceMultiBuffer (it does not include any internal Allocation offsets that may exist)
 	FVulkanView* InitAsStructuredBufferView(
 		  FVulkanResourceMultiBuffer* Buffer
 		, uint32 InOffset
