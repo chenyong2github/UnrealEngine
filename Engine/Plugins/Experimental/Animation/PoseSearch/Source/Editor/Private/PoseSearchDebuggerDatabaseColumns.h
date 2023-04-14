@@ -69,12 +69,17 @@ struct ITextColumn : IColumn
 		return SNew(STextBlock)
             .Font(RowFont)
 			.Text_Lambda([this, RowData]() -> FText { return GetRowText(RowData); })
+			.ToolTipText_Lambda([this, RowData]() -> FText { return GetRowToolTipText(RowData); })
             .Justification(ETextJustify::Center)
 			.ColorAndOpacity_Lambda([this, RowData] { return GetColorAndOpacity(RowData); });
 	}
 
 protected:
 	virtual FText GetRowText(const FRowDataRef& Row) const = 0;
+	virtual FText GetRowToolTipText(const FRowDataRef& Row) const
+	{
+		return FText::GetEmpty();
+	}
 	virtual FSlateColor GetColorAndOpacity(const FRowDataRef& Row) const
 	{
 		return FSlateColor(FLinearColor::White);
@@ -472,40 +477,59 @@ struct FPoseCandidateFlags : ITextColumn
 	{
 		if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::AnyDiscardedMask))
 		{
-			auto AddDelimiter = [](FTextBuilder& TextBuilder, bool& bNeedDelimiter)
-			{
-				if (bNeedDelimiter)
-				{
-					TextBuilder.AppendLine(LOCTEXT("DiscardedBy_Delimiter", " | "));
-				}
-				bNeedDelimiter = true;
-			};
+			FString Sring;
 
-			bool bNeedDelimiter = false;
-
-			FTextBuilder TextBuilder;
 			if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_PoseJumpThresholdTime))
 			{
-				AddDelimiter(TextBuilder, bNeedDelimiter);
-				TextBuilder.AppendLine(LOCTEXT("DiscardedBy_PoseJumpThresholdTime", "JumpThresh"));
+				Sring.Append("J ");
 			}
-				
+
 			if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_PoseReselectHistory))
 			{
-				AddDelimiter(TextBuilder, bNeedDelimiter);
-				TextBuilder.AppendLine(LOCTEXT("DiscardedBy_PoseReselectHistory", "History"));
+				Sring.Append("H ");
+			}
+			
+			if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_BlockTransition))
+			{
+				Sring.Append("B ");
+			}
+			
+			if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_PoseFilter))
+			{
+				Sring.Append("F ");
+			}
+
+			return FText::FromString(Sring);
+		}
+
+		return FText::GetEmpty();
+	}
+
+	virtual FText GetRowToolTipText(const FRowDataRef& Row) const override
+	{
+		if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::AnyDiscardedMask))
+		{
+			FTextBuilder TextBuilder;
+			TextBuilder.AppendLine(LOCTEXT("DiscardedBy_Reason_Tooltip", "Pose discarded because of:"));
+
+			if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_PoseJumpThresholdTime))
+			{
+				TextBuilder.AppendLine(LOCTEXT("DiscardedBy_PoseJumpThresholdTime_Tooltip", "(J) Pose Jump Threshold Time"));
+			}
+
+			if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_PoseReselectHistory))
+			{
+				TextBuilder.AppendLine(LOCTEXT("DiscardedBy_PoseReselectHistory_Tooltip", "(H) Pose Reselect History"));
 			}
 
 			if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_BlockTransition))
 			{
-				AddDelimiter(TextBuilder, bNeedDelimiter);
-				TextBuilder.AppendLine(LOCTEXT("DiscardedBy_BlockTransition", "BlockTrans"));
+				TextBuilder.AppendLine(LOCTEXT("DiscardedBy_BlockTransition_Tooltip", "(B) Block Transition"));
 			}
 
 			if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_PoseFilter))
 			{
-				AddDelimiter(TextBuilder, bNeedDelimiter);
-				TextBuilder.AppendLine(LOCTEXT("DiscardedBy_PoseFilter", "Filter"));
+				TextBuilder.AppendLine(LOCTEXT("DiscardedBy_PoseFilter_Tooltip", "(F) Filter"));
 			}
 
 			return TextBuilder.ToText();

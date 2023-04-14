@@ -202,47 +202,68 @@ private:
 #if UE_POSE_SEARCH_TRACE_ENABLED
 
 public:
-	struct FPoseCandidate
+	struct FPoseCandidateBase
 	{
 		FPoseSearchCost Cost;
 		int32 PoseIdx = 0;
 		const UPoseSearchDatabase* Database = nullptr;
-		EPoseCandidateFlags PoseCandidateFlags = EPoseCandidateFlags::None;
 
-		bool operator<(const FPoseCandidate& Other) const { return Other.Cost < Cost; } // Reverse compare because BestCandidates is a max heap
+		bool operator<(const FPoseCandidateBase& Other) const { return Other.Cost < Cost; } // Reverse compare because BestCandidates is a max heap
 		bool operator==(const FSearchResult& SearchResult) const { return (PoseIdx == SearchResult.PoseIdx) && (Database == SearchResult.Database.Get()); }
 	};
 
-	struct FBestPoseCandidates : private TArray<FPoseCandidate>
+	struct FPoseCandidate : public FPoseCandidateBase
 	{
-		typedef TArray<FPoseCandidate> Super;
-		using Super::IsEmpty;
+		EPoseCandidateFlags PoseCandidateFlags = EPoseCandidateFlags::None;
+	};
 
-		int32 MaxPoseCandidates = 100;
-
+	struct FBestPoseCandidates
+	{
 		void Add(const FPoseSearchCost& Cost, int32 PoseIdx, const UPoseSearchDatabase* Database, EPoseCandidateFlags PoseCandidateFlags)
 		{
-			if (Num() < MaxPoseCandidates || Cost < HeapTop().Cost)
+			if (EPoseCandidateFlags* PoseIdxPoseCandidateFlags = PoseIdxToFlags.Find(PoseIdx))
 			{
-				while (Num() >= MaxPoseCandidates)
+				*PoseIdxPoseCandidateFlags |= PoseCandidateFlags;
+			}
+			else if (PoseCandidateHeap.Num() < MaxPoseCandidates || Cost < PoseCandidateHeap.HeapTop().Cost)
+			{
+				while (PoseCandidateHeap.Num() >= MaxPoseCandidates)
 				{
-					ElementType Unused;
+					FPoseCandidate Unused;
 					Pop(Unused);
 				}
 
-				FSearchContext::FPoseCandidate PoseCandidate;
+				FPoseCandidate PoseCandidate;
 				PoseCandidate.Cost = Cost;
 				PoseCandidate.PoseIdx = PoseIdx;
 				PoseCandidate.Database = Database;
-				PoseCandidate.PoseCandidateFlags = PoseCandidateFlags;
-				HeapPush(PoseCandidate);
+				
+				PoseCandidateHeap.HeapPush(PoseCandidate);
+
+				PoseIdxToFlags.Add(PoseIdx, PoseCandidateFlags);
 			}
 		}
 
 		void Pop(FPoseCandidate& OutItem)
 		{
-			HeapPop(OutItem, false);
+			PoseCandidateHeap.HeapPop(OutItem, false);
+			OutItem.PoseCandidateFlags = PoseIdxToFlags.FindAndRemoveChecked(OutItem.PoseIdx);
 		}
+
+		bool IsEmpty() const
+		{
+			return PoseCandidateHeap.IsEmpty();
+		}
+
+		void SetMaxPoseCandidates(int32 Value)
+		{
+			MaxPoseCandidates = Value;
+		}
+
+	private:
+		TArray<FPoseCandidateBase> PoseCandidateHeap;
+		TMap<int32, EPoseCandidateFlags> PoseIdxToFlags;
+		int32 MaxPoseCandidates = 100;
 	};
 	
 	FBestPoseCandidates BestCandidates;
