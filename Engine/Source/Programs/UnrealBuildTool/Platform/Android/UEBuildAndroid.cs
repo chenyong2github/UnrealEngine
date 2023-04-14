@@ -45,6 +45,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		[CommandLine("-EnableMinUBSan")]
 		public bool bEnableMinimalUndefinedBehaviorSanitizer = false;
+
+		/// <summary>
+		/// Enables runtime ray tracing support.
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Engine, "/Script/AndroidTargetPlatform.AndroidTargetSettings")]
+		public bool bEnableRayTracing = false;
 	}
 
 	/// <summary>
@@ -95,6 +101,11 @@ namespace UnrealBuildTool
 		public bool bEnableMinimalUndefinedBehaviorSanitizer
 		{
 			get { return Inner.bEnableMinimalUndefinedBehaviorSanitizer; }
+		}
+
+		public bool bEnableRayTracing
+		{
+			get { return Inner.bEnableRayTracing; }
 		}
 
 		public AndroidTargetRules TargetRules
@@ -505,6 +516,12 @@ namespace UnrealBuildTool
 
 			CompileEnvironment.Definitions.Add("WITH_EDITOR=0");
 			CompileEnvironment.Definitions.Add("USE_NULL_RHI=0");
+
+			if (Target.AndroidPlatform.bEnableRayTracing)
+			{
+				Logger.LogInformation("Compiling with ray tracing enabled");
+				CompileEnvironment.Definitions.Add("RHI_RAYTRACING=1");
+			}
 
 			if (Target.bPGOOptimize || Target.bPGOProfile)
 			{

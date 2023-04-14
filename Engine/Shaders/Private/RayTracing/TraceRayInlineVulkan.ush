@@ -14,14 +14,30 @@
 
 #define PLATFORM_SUPPORTS_INLINE_RAY_TRACING_TRIANGLE_ATTRIBUTES 1
 
-uint3 VulkanLoadIndices16Bit(uint64_t SourceBufferBaseAddress, uint OffsetInBytes)
+#if EMULATE_VKDEVICEADRESS
+inline uint2 AddEmulated64(uint2 a, uint b)
+{
+    uint2 c;
+    c.x = a.x + b;
+    c.y = a.y + (c.x < a.x); // Add with carry.
+    return c;
+}
+
+#define VK_ADDR_TYPE uint2
+#define VK_RAW_BUFFER_LOAD(Type, Addr, Offs) vk::RawBufferLoad2<Type>(AddEmulated64(Addr,Offs))
+#else
+#define VK_ADDR_TYPE uint64_t
+#define VK_RAW_BUFFER_LOAD(Type, Addr, Offs) vk::RawBufferLoad<Type>(Addr + Offs)
+#endif 
+
+uint3 VulkanLoadIndices16Bit(VK_ADDR_TYPE SourceBufferBaseAddress, uint OffsetInBytes)
 {
 	uint3 Result;
 
 	// ByteAddressBuffer loads must be aligned to DWORD boundary.
 	// We can load 2 DWORDs (4 SHORTs) at a time and extract 3 SHORTs (first 3 or second 3).
 	uint AlignedOffsetInBytes = OffsetInBytes & (~3);
-	const uint2 PackedIndices = vk::RawBufferLoad<uint2>(SourceBufferBaseAddress + AlignedOffsetInBytes);
+	const uint2 PackedIndices = VK_RAW_BUFFER_LOAD(uint2, SourceBufferBaseAddress, AlignedOffsetInBytes);
 
 	if (AlignedOffsetInBytes == OffsetInBytes)
 	{
@@ -41,15 +57,15 @@ uint3 VulkanLoadIndices16Bit(uint64_t SourceBufferBaseAddress, uint OffsetInByte
 	return Result;
 }
 
-uint3 VulkanLoadIndices32Bit(uint64_t SourceBufferBaseAddress, uint OffsetInBytes)
+uint3 VulkanLoadIndices32Bit(VK_ADDR_TYPE SourceBufferBaseAddress, uint OffsetInBytes)
 {
-	return vk::RawBufferLoad<uint3>(SourceBufferBaseAddress + OffsetInBytes);
+	return VK_RAW_BUFFER_LOAD(uint3, SourceBufferBaseAddress, OffsetInBytes);
 }
 
-float3 VulkanLoadVertexPositionFloat3(uint64_t SourceBufferBaseAddress, uint Index, uint StrideInBytes)
+float3 VulkanLoadVertexPositionFloat3(VK_ADDR_TYPE SourceBufferBaseAddress, uint Index, uint StrideInBytes)
 {
 	uint OffsetInBytes = Index * StrideInBytes;
-	return asfloat(vk::RawBufferLoad<uint3>(SourceBufferBaseAddress + OffsetInBytes));
+	return asfloat(VK_RAW_BUFFER_LOAD(uint3, SourceBufferBaseAddress, OffsetInBytes));
 }
 
 // Counterpart of FVulkanRayTracingGeometryParameters in VulkanRayTracing.cpp
@@ -57,8 +73,8 @@ struct FVulkanRayTracingGeometryParameters
 {
 	uint Config;
 	uint IndexBufferOffsetInBytes;
-	uint64_t IndexBuffer;
-	uint64_t VertexBuffer;
+	VK_ADDR_TYPE IndexBuffer;
+	VK_ADDR_TYPE VertexBuffer;
 };
 
 // Create a generic alias for the Vulkan-specific metadata type
@@ -82,8 +98,6 @@ FTriangleBaseAttributes LoadInlineRayTracingTriangleAttributes(
 	const uint IndexBufferStride = Params.Config & 0xFF;
 	const uint BaseIndex = PrimitiveIndex * 3;
 
-	uint64_t IndexBuffer = Params.IndexBuffer;
-
 	if (IndexBufferStride == 0)
 	{
 		// Non-indexed geometry (implicit triangle list indices)
@@ -91,21 +105,20 @@ FTriangleBaseAttributes LoadInlineRayTracingTriangleAttributes(
 	}
 	else if (IndexBufferStride == 2)
 	{
-		Result.Indices = VulkanLoadIndices16Bit(IndexBuffer, IndexBufferOffsetInBytes + BaseIndex * IndexBufferStride);
+		Result.Indices = VulkanLoadIndices16Bit(Params.IndexBuffer, IndexBufferOffsetInBytes + BaseIndex * IndexBufferStride);
 	}
 	else
 	{
-		Result.Indices = VulkanLoadIndices32Bit(IndexBuffer, IndexBufferOffsetInBytes + BaseIndex * IndexBufferStride);
+		Result.Indices = VulkanLoadIndices32Bit(Params.IndexBuffer, IndexBufferOffsetInBytes + BaseIndex * IndexBufferStride);
 	}
 
 	// Fetch vertex positions (in local space)
 	const uint VertexStride = (Params.Config >> 8) & 0xFF;
 
 	// #dxr_todo: UE-72160 handle various vertex formats, for now only supporting float3
-	uint64_t VertexBuffer = Params.VertexBuffer;
-	Result.LocalPositions[0] = VulkanLoadVertexPositionFloat3(VertexBuffer, Result.Indices[0], VertexStride);
-	Result.LocalPositions[1] = VulkanLoadVertexPositionFloat3(VertexBuffer, Result.Indices[1], VertexStride);
-	Result.LocalPositions[2] = VulkanLoadVertexPositionFloat3(VertexBuffer, Result.Indices[2], VertexStride);
+	Result.LocalPositions[0] = VulkanLoadVertexPositionFloat3(Params.VertexBuffer, Result.Indices[0], VertexStride);
+	Result.LocalPositions[1] = VulkanLoadVertexPositionFloat3(Params.VertexBuffer, Result.Indices[1], VertexStride);
+	Result.LocalPositions[2] = VulkanLoadVertexPositionFloat3(Params.VertexBuffer, Result.Indices[2], VertexStride);
 
 	return Result;
 }

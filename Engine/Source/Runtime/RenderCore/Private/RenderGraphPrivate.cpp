@@ -634,7 +634,9 @@ bool IsParallelExecuteEnabled()
 		&& !IsImmediateMode()
 		&& !GRDGDebug
 		&& !GRDGTransitionLog
+		&& !IsMobilePlatform(GMaxRHIShaderPlatform)
 		&& !IsOpenGLPlatform(GMaxRHIShaderPlatform)
+		&& !IsVulkanMobileSM5Platform(GMaxRHIShaderPlatform)
 		&& GRHISupportsMultithreadedShaderCreation
 #if WITH_DUMPGPU
 		&& !IsDumpingRDGResources()
@@ -651,7 +653,9 @@ bool IsParallelSetupEnabled()
 		&& !IsImmediateMode()
 		&& !GRDGDebug
 		&& !GRDGTransitionLog
+		&& !IsMobilePlatform(GMaxRHIShaderPlatform)
 		&& !IsOpenGLPlatform(GMaxRHIShaderPlatform)
+		&& !IsVulkanMobileSM5Platform(GMaxRHIShaderPlatform)
 		&& GRHISupportsMultithreadedShaderCreation
 #if WITH_DUMPGPU
 		&& !IsDumpingRDGResources()

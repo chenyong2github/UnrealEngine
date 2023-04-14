@@ -1856,7 +1856,7 @@ static bool BuildShaderOutputFromSpirv(
 		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
 
 		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
-		CCHeaderWriter.WriteSRV(*ResourceName, UAVBindings++);
+		CCHeaderWriter.WriteSRV(*ResourceName, SRVBindings++);
 
 		Spirv.ReflectionInfo.Add(FVulkanSpirv::FEntry(ResourceName, BindingIndex));
 	}
@@ -1953,7 +1953,7 @@ static bool BuildShaderOutputFromSpirv(
 	// We have to strip out most debug instructions (except OpName) for Vulkan mobile
 	if (bStripReflect)
 	{
-		const char* OptArgs[] = { "--strip-reflect" };
+		const char* OptArgs[] = { "--strip-reflect", "-O"};
 		if (!CompilerContext.OptimizeSpirv(Spirv.Data, OptArgs, UE_ARRAY_COUNT(OptArgs)))
 		{
 			UE_LOG(LogVulkanShaderCompiler, Error, TEXT("Failed to strip debug instructions from SPIR-V module"));
@@ -2624,6 +2624,12 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 
 	AdditionalDefines.SetDefine(TEXT("VULKAN_BINDLESS_SAMPLER_ARRAY_PREFIX"), VulkanBindless::kBindlessSamplerArrayPrefix);
 	AdditionalDefines.SetDefine(TEXT("VULKAN_BINDLESS_RESOURCE_ARRAY_PREFIX"), VulkanBindless::kBindlessResourceArrayPrefix);
+
+	if (IsAndroidShaderFormat(Input.ShaderFormat))
+	{
+		// On most Android devices uint64_t is unsupported so we emulate as 2 uint32_t's 
+		AdditionalDefines.SetDefine(TEXT("EMULATE_VKDEVICEADRESS"), 1);
+	}
 
 	const double StartPreprocessTime = FPlatformTime::Seconds();
 
