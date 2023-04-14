@@ -9,6 +9,7 @@
 
 class SDMXControlConsoleEditorFaderGroupRowView;
 class SDMXControlConsoleEditorFixturePatchVerticalBox;
+class SDMXControlConsoleEditorPortSelector;
 class UDMXControlConsoleFaderGroupRow;
 class UDMXControlConsoleData;
 
@@ -47,7 +48,6 @@ protected:
 	//~ End of SWidget interface
 
 private:
-
 	/** Registers commands for this view */
 	void RegisterCommands();
 
@@ -58,7 +58,7 @@ private:
 	void RestoreGlobalFilter();
 
 	/** Filters children by given search string  */
-	void ApplyGlobalFilter(const FString InSearchString);
+	void ApplyGlobalFilter(const FString& InSearchString);
 
 	/** Requests to update the Details Views on the next tick */
 	void RequestUpdateDetailsViews();
@@ -67,7 +67,7 @@ private:
 	void ForceUpdateDetailsViews();
 
 	/** Updates FixturePatchVerticalBox widget */
-	void UpdateFixturePatchRows();
+	void UpdateFixturePatchVerticalBox();
 
 	/** Should be called when a Fader Group Row was added to the this view displays */
 	void OnFaderGroupRowAdded();
@@ -86,6 +86,9 @@ private:
 
 	/** Called to add first first Fader Group */
 	FReply OnAddFirstFaderGroup();
+
+	/** Called when Port selection changes */
+	void OnSelectedPortsChanged();
 
 	/** Called when the browse to asset button was clicked */
 	void OnBrowseToAssetClicked();
@@ -108,6 +111,9 @@ private:
 	/** Gets add button visibility */
 	EVisibility GetAddButtonVisibility() const;
 
+	/** Gets Details Views section visibility */
+	EVisibility GetDetailViewsSectionVisibility() const;
+
 	/** Reference to the container widget of this DMX Control Console's Fader Group Rows slots */
 	TSharedPtr<SVerticalBox> FaderGroupRowsVerticalBox;
 
@@ -116,6 +122,9 @@ private:
 
 	/** Reference to Control Console searchbox used for global filtering */
 	TSharedPtr<SSearchBox> GlobalFilterSearchBox;
+
+	/** Widget to handle Port selection */
+	TSharedPtr<SDMXControlConsoleEditorPortSelector> PortSelector;
 
 	/** Shows DMX Control Console Data's details */
 	TSharedPtr<IDetailsView> ControlConsoleDataDetailsView;

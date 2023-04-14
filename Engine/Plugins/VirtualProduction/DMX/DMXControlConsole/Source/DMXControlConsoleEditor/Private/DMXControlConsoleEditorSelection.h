@@ -56,13 +56,13 @@ public:
 	TArray<TWeakObjectPtr<UObject>> GetSelectedFaderGroups() const { return SelectedFaderGroups; }
 
 	/** Gets first selected Fader Group sorted by index */
-	UDMXControlConsoleFaderGroup* GetFirstSelectedFaderGroup() const;
-	
+	UDMXControlConsoleFaderGroup* GetFirstSelectedFaderGroup(bool bReverse = false) const;
+
 	/** Gets Selected Faders array */
 	TArray<TWeakObjectPtr<UObject>> GetSelectedFaders() const { return SelectedFaders; }
 
 	/** Gets first selected Fader sorted by index */
-	UDMXControlConsoleFaderBase* GetFirstSelectedFader() const;
+	UDMXControlConsoleFaderBase* GetFirstSelectedFader(bool bReverse = false) const;
 
 	/** Gets all selected Faders from the fiven Fader Group */
 	TArray<UDMXControlConsoleFaderBase*> GetSelectedFadersFromFaderGroup(UDMXControlConsoleFaderGroup* FaderGroup) const;

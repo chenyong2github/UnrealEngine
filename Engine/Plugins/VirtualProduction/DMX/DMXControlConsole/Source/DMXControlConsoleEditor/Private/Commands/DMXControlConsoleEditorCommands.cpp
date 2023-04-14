@@ -28,6 +28,10 @@ void FDMXControlConsoleEditorCommands::RegisterCommands()
 	UI_COMMAND(SendDMX, "Send DMX", "Send DMX.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(StopDMX, "Stop Sending DMX", "Stop Sending DMX.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ClearAll, "Clear All", "Clear All.", EUserInterfaceActionType::Button, FInputChord());
+
+	UI_COMMAND(AddPatchNext, "Next", "Add selected Fixture Patches next.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(AddPatchNextRow, "Next Row", "Add selected Fixture Patches to next row.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(AddPatchToSelection, "To Selection", "Add selected Fixture Patch to selected Fader Group", EUserInterfaceActionType::Button, FInputChord());
 }
 
 #undef LOCTEXT_NAMESPACE 

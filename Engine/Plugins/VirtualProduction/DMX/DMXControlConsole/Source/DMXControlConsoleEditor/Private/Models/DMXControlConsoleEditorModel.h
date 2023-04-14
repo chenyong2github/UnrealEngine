@@ -5,9 +5,11 @@
 #include "DMXControlConsole.h"
 
 #include "UObject/Object.h"
+#include "Widgets/SDMXReadOnlyFixturePatchList.h"
 
 #include "DMXControlConsoleEditorModel.generated.h"
 
+struct FDMXReadOnlyFixturePatchListDescriptor;
 class UDMXControlConsole;
 
 
@@ -21,7 +23,7 @@ class UDMXControlConsoleEditorModel final
 public:
 	/** Returns the edited console */
 	UDMXControlConsole* GetEditorConsole() const { return EditorConsole; }
-	
+
 	/** Loads the console stored in config or creates a transient console if none is stored in config */
 	void LoadConsoleFromConfig();
 
@@ -46,6 +48,12 @@ public:
 	 * @return								The newly created console, or nullptr if no console could be created
 	 */
 	[[nodiscard]] UDMXControlConsole* CreateNewConsoleAsset(const FString& SavePackagePath, const FString& SaveAssetName, UDMXControlConsoleData* SourceControlConsole) const;
+
+	/** Returns the descriptor for Fixture Patch List parameters */
+	const FDMXReadOnlyFixturePatchListDescriptor& GetFixturePatchListDescriptor() const { return FixturePatchListDescriptor; }
+
+	/** Saves to config the given descriptor for Fixture Patch List parameters */
+	void SaveFixturePatchListDescriptorToConfig(const FDMXReadOnlyFixturePatchListDescriptor ListDescriptor);
 
 	/** Returns a delegate broadcast whenever a console is saved */
 	FSimpleMulticastDelegate& GetOnConsoleSaved() { return OnConsoleSavedDelegate; }
@@ -94,4 +102,8 @@ private:
 	/** Control console saved in config */
 	UPROPERTY(Config)
 	FSoftObjectPath DefaultConsolePath;
+
+	/** Fixture Patch List default descriptor saved in config */
+	UPROPERTY(Config)
+	FDMXReadOnlyFixturePatchListDescriptor FixturePatchListDescriptor;
 };

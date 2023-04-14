@@ -49,6 +49,7 @@ FDMXEditorStyle::FDMXEditorStyle()
 	// Border Brushes
 	{
 		Set("DMXEditor.RoundedPropertyBorder", new FSlateRoundedBoxBrush(FLinearColor::Black, 4.f));
+		Set("DMXEditor.WhiteRoundedPropertyBorder", new FSlateRoundedBoxBrush(FLinearColor::White, 2.f));
 
 		Set("FixturePatcher.FragmentBorder.Normal", new BORDER_BRUSH("FixturePatch_Border_Normal_8x", 2.f / 8.f));
 		Set("FixturePatcher.FragmentBorder.L", new BORDER_BRUSH("FixturePatch_Border_L_8x", 2.f / 8.f));
@@ -147,14 +148,18 @@ FDMXEditorStyle::FDMXEditorStyle()
 			.SetArrowsImage(FSlateNoResource()));
 	}
 
-	// Fixture List
+	// MVR Fixture List / Read Only Fixture Patch List 
 	{
-		Set("MVRFixtureList.Row", FTableRowStyle()
-			.SetEvenRowBackgroundBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(1.f, 1.f, 1.f, .2f)))
-			.SetOddRowBackgroundBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(1.f, 1.f, 1.f, .3f)))
-			.SetEvenRowBackgroundHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(1.f, 1.f, 1.f, .4f)))
-			.SetOddRowBackgroundHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(1.f, 1.f, 1.f, .5f)))
-			.SetSelectorFocusedBrush(CORE_BORDER_BRUSH("Common/Selector", FMargin(4.f / 16.f), FLinearColor(1.f, 1.f, 1.f, .8f)))
+		Set("FixturePatchList.Row", FTableRowStyle()
+			.SetEvenRowBackgroundBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(.1f, .1f, .1f, .1f)))
+			.SetOddRowBackgroundBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(.2f, .2f, .2f, .2f)))
+			.SetEvenRowBackgroundHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(.1f, .1f, .1f, .3f)))
+			.SetOddRowBackgroundHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(.2f, .2f, .2f, .3f)))
+			.SetInactiveBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(.3f, .3f, .3f, .5f)))
+			.SetInactiveHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(.3f, .3f, .3f, .7f)))
+			.SetActiveBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(.3f, .3f, .3f, .6f)))
+			.SetActiveHoveredBrush(CORE_IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(.3f, .3f, .3f, .8f)))
+			.SetSelectorFocusedBrush(CORE_BORDER_BRUSH("Common/Selector", FMargin(4.f / 16.f), FLinearColor(1.f, 1.f, 1.f, .7f)))
 		);
 	}
 

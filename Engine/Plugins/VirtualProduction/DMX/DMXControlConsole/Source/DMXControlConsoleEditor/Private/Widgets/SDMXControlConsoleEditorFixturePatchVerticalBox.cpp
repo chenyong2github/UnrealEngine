@@ -7,26 +7,48 @@
 #include "DMXControlConsoleFaderGroupRow.h"
 #include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleEditorSelection.h"
+#include "Commands/DMXControlConsoleEditorCommands.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityReference.h"
 #include "Library/DMXLibrary.h"
-#include "Widgets/SDMXControlConsoleEditorFixturePatchRowWidget.h"
+#include "Models/DMXControlConsoleEditorModel.h"
+#include "Widgets/SDMXReadOnlyFixturePatchList.h"
 
 #include "ScopedTransaction.h"
-#include "Layout/Visibility.h"
+#include "Algo/Find.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/AppStyle.h"
-#include "Styling/SlateBrush.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SSeparator.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Text/STextBlock.h"
 
 
 #define LOCTEXT_NAMESPACE "SDMXControlConsoleEditorFixturePatchVerticalBox"
 
+SDMXControlConsoleEditorFixturePatchVerticalBox::~SDMXControlConsoleEditorFixturePatchVerticalBox()
+{
+	if (FixturePatchList.IsValid())
+	{
+		const FDMXReadOnlyFixturePatchListDescriptor ListDescriptor = FixturePatchList->GetListDescriptor();
+
+		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		EditorConsoleModel->SaveFixturePatchListDescriptorToConfig(ListDescriptor);
+	}
+}
+
 void SDMXControlConsoleEditorFixturePatchVerticalBox::Construct(const FArguments& InArgs)
 {
+	RegisterCommands();
+
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	const FDMXReadOnlyFixturePatchListDescriptor ListDescriptor = EditorConsoleModel->GetFixturePatchListDescriptor();
+
+	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	UDMXLibrary* DMXLibrary = EditorConsoleData ? EditorConsoleData->GetDMXLibrary() : nullptr;
+
 	ChildSlot
 		[
 			SNew(SVerticalBox)
@@ -34,120 +56,159 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::Construct(const FArguments
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			[
-				SNew(SBox)
-				.Padding(5.f)
-				.Visibility(TAttribute<EVisibility>(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::GetAddAllPatchesButtonVisibility))
-				[
-					SNew(SButton)
-					.HAlign(HAlign_Center)
-					.OnClicked(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::OnAddAllPatchesClicked)
-					[
-						SNew(STextBlock)
-						.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-						.Text(LOCTEXT("Add All Patches", "Add All Patches"))
-					]
-				]
+				GenerateFixturePatchListToolbar()
 			]
 
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			[
-				SNew(SSeparator)
-			]
-
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SAssignNew(FixturePatchRowsBoxWidget, SVerticalBox)
+				SAssignNew(FixturePatchList, SDMXReadOnlyFixturePatchList)
+				.ListDescriptor(ListDescriptor)
+				.DMXLibrary(DMXLibrary)
+				.OnContextMenuOpening(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::CreateRowContextMenu)
+				.IsRowEnabled(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::IsFixturePatchListRowEnabled)
 			]
 		];
 }
 
-void SDMXControlConsoleEditorFixturePatchVerticalBox::UpdateFixturePatchRows()
+void SDMXControlConsoleEditorFixturePatchVerticalBox::ForceRefresh()
 {
-	UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
-	if (!EditorConsoleData)
+	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	if (EditorConsoleData && FixturePatchList.IsValid())
 	{
-		return;
-	}
-
-	UDMXLibrary* CurrentDMXLibrary = EditorConsoleData->GetDMXLibrary();
-	if (CurrentDMXLibrary == DMXLibrary)
-	{
-		return;
-	}
-
-	DMXLibrary = CurrentDMXLibrary;
-
-	FixturePatchRowsBoxWidget->ClearChildren();
-	FixturePatchRowWidgets.Reset();
-	FixturePatches.Reset();
-	UpdateFixturePatches();
-
-	for (const FDMXEntityFixturePatchRef FixturePatchRef : FixturePatches)
-	{
-		auto DetailsRowVisibilityLambda = [EditorConsoleData, FixturePatchRef]()
-		{
-			const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = EditorConsoleData->GetAllFaderGroups();
-			for (UDMXControlConsoleFaderGroup* FaderGroup : AllFaderGroups)
-			{
-				if (!FaderGroup)
-				{
-					continue;
-				}
-
-				if (!FaderGroup->HasFixturePatch())
-				{
-					continue;
-				}
-
-				UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
-				if (FixturePatch != FixturePatchRef.GetFixturePatch())
-				{
-					continue;
-				}
-
-				return EVisibility::Collapsed;
-			}
-
-			return EVisibility::Visible;
-		};
-
-		const TSharedRef<SDMXControlConsoleEditorFixturePatchRowWidget> ControlConsoleDetailsRow =
-			SNew(SDMXControlConsoleEditorFixturePatchRowWidget, FixturePatchRef)
-			.Visibility(TAttribute<EVisibility>::CreateLambda(DetailsRowVisibilityLambda))
-			.OnSelectFixturePatchRow(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::OnSelectFixturePatchDetailsRow)
-			.OnGenerateOnLastRow(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatchOnLastRow)
-			.OnGenerateOnNewRow(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatchOnNewRow)
-			.OnGenerateOnSelectedFaderGroup(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateSelectedFaderGroupFromFixturePatch);
-
-		FixturePatchRowsBoxWidget->AddSlot()
-			.AttachWidget(ControlConsoleDetailsRow);
-
-		FixturePatchRowWidgets.Add(ControlConsoleDetailsRow);
+		UDMXLibrary* NewLibrary = EditorConsoleData->GetDMXLibrary();
+		FixturePatchList->SetDMXLibrary(NewLibrary);
 	}
 }
 
-void SDMXControlConsoleEditorFixturePatchVerticalBox::UpdateFixturePatches()
+void SDMXControlConsoleEditorFixturePatchVerticalBox::RegisterCommands()
 {
-	if (!DMXLibrary.IsValid())
+	CommandList = MakeShared<FUICommandList>();
+
+	CommandList->MapAction
+	(
+		FDMXControlConsoleEditorCommands::Get().AddPatchNext,
+		FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatchOnLastRow),
+		FCanExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::CanExecuteAddNext)
+	);
+
+	CommandList->MapAction
+	(
+		FDMXControlConsoleEditorCommands::Get().AddPatchNextRow,
+		FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatchOnNewRow),
+		FCanExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::CanExecuteAddRow)
+	);
+
+	CommandList->MapAction
+	(
+		FDMXControlConsoleEditorCommands::Get().AddPatchToSelection,
+		FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateSelectedFaderGroupFromFixturePatch),
+		FCanExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::CanExecuteAddSelected)
+	);
+}
+
+TSharedRef<SWidget> SDMXControlConsoleEditorFixturePatchVerticalBox::GenerateFixturePatchListToolbar()
+{
+	const auto GenerateAddButtonContentLambda = [](const FText& AddButtonText, const FText& AddButtonToolTip)
 	{
-		return;
-	}
+		return
+			SNew(SHorizontalBox)
 
-	const TArray<UDMXEntityFixturePatch*> FixturePatchesInLibrary = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
-	for (UDMXEntityFixturePatch* FixturePatch : FixturePatchesInLibrary)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FStyleColors::AccentGreen)
+				.Image(FAppStyle::Get().GetBrush("Icons.Plus"))
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(3.f, 0.f, 0.f, 0.f)
+			[
+				SNew(STextBlock)
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Text(AddButtonText)
+				.ToolTipText(AddButtonToolTip)
+				.TextStyle(FAppStyle::Get(), "SmallButtonText")
+			];
+	};
+
+	const TSharedRef<SWidget> FixturePatchListToolbar =
+		SNew(SHorizontalBox)
+
+		// Add All Button
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.MaxWidth(160.f)
+		.HAlign(HAlign_Left)
+		.Padding(8.f, 8.f, 4.f, 8.f)
+		[
+			SNew(SButton)
+			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Button"))
+			.ForegroundColor(FSlateColor::UseStyle())
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.IsEnabled(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::IsAddAllPatchesButtonEnabled)
+			.OnClicked(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::OnAddAllPatchesClicked)
+			[
+				GenerateAddButtonContentLambda
+				(
+					LOCTEXT("AddAllFixturePatchFromList", "Add All Patches"),
+					LOCTEXT("AddAllFixturePatchFromList_ToolTip", "Add all Fixture Patches from the list.")
+				)
+			]
+		]
+
+		// Add Combo Button
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.MaxWidth(160.f)
+		.HAlign(HAlign_Left)
+		.Padding(4.f, 8.f, 8.f, 8.f)
+		[
+			SNew(SComboButton)
+			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Button"))
+			.ForegroundColor(FSlateColor::UseStyle())
+			.HasDownArrow(true)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnGetMenuContent(this, &SDMXControlConsoleEditorFixturePatchVerticalBox::CreateAddPatchMenu)
+			.ButtonContent()
+			[
+				GenerateAddButtonContentLambda
+				(
+					LOCTEXT("AddFixturePatchFromList", "Add Patch"),
+					LOCTEXT("AddFixturePatchFromList_ToolTip", "Add a Fixture Patch from the list.")
+				)
+			]
+		];
+
+	return FixturePatchListToolbar;
+}
+
+TSharedPtr<SWidget> SDMXControlConsoleEditorFixturePatchVerticalBox::CreateRowContextMenu()
+{
+	ensureMsgf(CommandList.IsValid(), TEXT("Invalid command list for control console asset picker."));
+	FMenuBuilder MenuBuilder(true, CommandList);
+
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("AddPatchButtonMainSection", "Add Patch"));
 	{
-		if (!FixturePatch)
-		{
-			continue;
-		}
-
-		FDMXEntityFixturePatchRef FixturePatchRef;
-		FixturePatchRef.SetEntity(FixturePatch);
-
-		FixturePatches.Add(FixturePatchRef);
+		MenuBuilder.AddMenuEntry(FDMXControlConsoleEditorCommands::Get().AddPatchNext);
+		MenuBuilder.AddMenuEntry(FDMXControlConsoleEditorCommands::Get().AddPatchNextRow);
+		MenuBuilder.AddMenuEntry(FDMXControlConsoleEditorCommands::Get().AddPatchToSelection);
 	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> SDMXControlConsoleEditorFixturePatchVerticalBox::CreateAddPatchMenu()
+{
+	return CreateRowContextMenu().ToSharedRef();
 }
 
 void SDMXControlConsoleEditorFixturePatchVerticalBox::GenerateFaderGroupFromFixturePatch(UDMXControlConsoleFaderGroup* FaderGroup, UDMXEntityFixturePatch* FixturePatch)
@@ -168,20 +229,14 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::GenerateFaderGroupFromFixt
 	FaderGroup->PostEditChange();
 }
 
-void SDMXControlConsoleEditorFixturePatchVerticalBox::OnSelectFixturePatchDetailsRow(const TSharedRef<SDMXControlConsoleEditorFixturePatchRowWidget>& FixturePatchRow)
+void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatchOnLastRow()
 {
-	if (SelectedFixturePatchRowWidget.IsValid())
+	if (!FixturePatchList.IsValid())
 	{
-		SelectedFixturePatchRowWidget.Pin()->Unselect();
+		return;
 	}
 
-	SelectedFixturePatchRowWidget = FixturePatchRow;
-	FixturePatchRow->Select();
-}
-
-void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatchOnLastRow(const TSharedRef<SDMXControlConsoleEditorFixturePatchRowWidget>& FixturePatchRow)
-{
-	UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
 	if (!EditorConsoleData)
 	{
 		return;
@@ -197,7 +252,7 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatch
 	int32 Index = -1;
 
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-	TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
+	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
 	if (SelectedFaderGroupsObjects.IsEmpty())
 	{
 		FaderGroupRow = FaderGroupRows.Last();
@@ -210,7 +265,7 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatch
 	}
 	else
 	{
-		UDMXControlConsoleFaderGroup* SelectedFaderGroup = SelectionHandler->GetFirstSelectedFaderGroup();
+		const UDMXControlConsoleFaderGroup* SelectedFaderGroup = SelectionHandler->GetFirstSelectedFaderGroup(true);
 		if (!SelectedFaderGroup)
 		{
 			return;
@@ -219,18 +274,34 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatch
 		FaderGroupRow = &SelectedFaderGroup->GetOwnerFaderGroupRowChecked();
 		Index = SelectedFaderGroup->GetIndex() + 1;
 	}
-	
-	const FScopedTransaction GenerateFromFixturePatchOnLastRowTransaction(LOCTEXT("GenerateFromFixturePatchOnLastRowTransaction", "Generate Fader Group from Fixture Patch"));
-	FaderGroupRow->PreEditChange(nullptr);
-	UDMXControlConsoleFaderGroup* FaderGroup = FaderGroupRow->AddFaderGroup(Index);
-	FaderGroupRow->PostEditChange();
 
-	UDMXEntityFixturePatch* FixturePatch = FixturePatchRow->GetFixturePatchRef().GetFixturePatch();
-	GenerateFaderGroupFromFixturePatch(FaderGroup, FixturePatch);
+	// Add all selected Fixture Patches from Fixture Patch List
+	for (const TSharedPtr<FDMXEntityFixturePatchRef>& FixturePatchRef : FixturePatchList->GetSelectedFixturePatchRefs())
+	{
+		if (!FixturePatchRef.IsValid())
+		{
+			continue;
+		}
+
+		const FScopedTransaction GenerateFromFixturePatchOnLastRowTransaction(LOCTEXT("GenerateFromFixturePatchOnLastRowTransaction", "Generate Fader Group from Fixture Patch"));
+		FaderGroupRow->PreEditChange(nullptr);
+		UDMXControlConsoleFaderGroup* FaderGroup = FaderGroupRow->AddFaderGroup(Index);
+		FaderGroupRow->PostEditChange();
+
+		UDMXEntityFixturePatch* FixturePatch = FixturePatchRef->GetFixturePatch();
+		GenerateFaderGroupFromFixturePatch(FaderGroup, FixturePatch);
+
+		Index++;
+	}
 }
 
-void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatchOnNewRow(const TSharedRef<SDMXControlConsoleEditorFixturePatchRowWidget>& FixturePatchRow)
+void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatchOnNewRow()
 {
+	if (!FixturePatchList.IsValid())
+	{
+		return;
+	}
+
 	UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
 	if (!EditorConsoleData)
 	{
@@ -240,14 +311,14 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatch
 	int32 NewRowIndex = -1;
 
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-	TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
+	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
 	if (SelectedFaderGroupsObjects.IsEmpty())
 	{
 		NewRowIndex = EditorConsoleData->GetFaderGroupRows().Num();
 	}
 	else
 	{
-		UDMXControlConsoleFaderGroup* SelectedFaderGroup = SelectionHandler->GetFirstSelectedFaderGroup();
+		const UDMXControlConsoleFaderGroup* SelectedFaderGroup = SelectionHandler->GetFirstSelectedFaderGroup(true);
 		if (!SelectedFaderGroup)
 		{
 			return;
@@ -262,23 +333,44 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatch
 	UDMXControlConsoleFaderGroupRow* NewRow = EditorConsoleData->AddFaderGroupRow(NewRowIndex);
 	EditorConsoleData->PostEditChange();
 
-	UDMXControlConsoleFaderGroup* FaderGroup = !NewRow->GetFaderGroups().IsEmpty() ? NewRow->GetFaderGroups()[0] : nullptr;
-	UDMXEntityFixturePatch* FixturePatch = FixturePatchRow->GetFixturePatchRef().GetFixturePatch();
+	int32 Index = 0;
+	// Add all selected Fixture Patches from Fixture Patch List
+	for (const TSharedPtr<FDMXEntityFixturePatchRef>& FixturePatchRef : FixturePatchList->GetSelectedFixturePatchRefs())
+	{
+		if (!FixturePatchRef.IsValid())
+		{
+			continue;
+		}
 
-	GenerateFaderGroupFromFixturePatch(FaderGroup, FixturePatch);
+		// New rows should have an already created first Fader Group
+		const bool bIsFirstFaderGroup = Index == 0 && !NewRow->GetFaderGroups().IsEmpty();
+		UDMXControlConsoleFaderGroup* FaderGroup = bIsFirstFaderGroup ? NewRow->GetFaderGroups()[Index] : NewRow->AddFaderGroup(Index);
+		
+		UDMXEntityFixturePatch* FixturePatch = FixturePatchRef->GetFixturePatch();
+		GenerateFaderGroupFromFixturePatch(FaderGroup, FixturePatch);
+
+		Index++;
+	}
 }
 
-void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateSelectedFaderGroupFromFixturePatch(const TSharedRef<SDMXControlConsoleEditorFixturePatchRowWidget>& FixturePatchRow)
+void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateSelectedFaderGroupFromFixturePatch()
 {
+	if (!FixturePatchList.IsValid())
+	{
+		return;
+	}
+
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-	TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
-	if (SelectedFaderGroupsObjects.IsEmpty())
+	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
+	const TArray<TSharedPtr<FDMXEntityFixturePatchRef>> SelectedFixturePatches = FixturePatchList->GetSelectedFixturePatchRefs();
+
+	if (SelectedFaderGroupsObjects.IsEmpty() || SelectedFixturePatches.IsEmpty())
 	{
 		return;
 	}
 	
-	UDMXControlConsoleFaderGroup* FaderGroup = SelectionHandler->GetFirstSelectedFaderGroup();
-	UDMXEntityFixturePatch* FixturePatch = FixturePatchRow->GetFixturePatchRef().GetFixturePatch();
+	UDMXControlConsoleFaderGroup* FaderGroup =  SelectionHandler->GetFirstSelectedFaderGroup();
+	UDMXEntityFixturePatch* FixturePatch = SelectedFixturePatches[0]->GetFixturePatch();
 
 	GenerateFaderGroupFromFixturePatch(FaderGroup, FixturePatch);
 }
@@ -297,15 +389,99 @@ FReply SDMXControlConsoleEditorFixturePatchVerticalBox::OnAddAllPatchesClicked()
 	return FReply::Handled();
 }
 
-EVisibility SDMXControlConsoleEditorFixturePatchVerticalBox::GetAddAllPatchesButtonVisibility() const
+bool SDMXControlConsoleEditorFixturePatchVerticalBox::IsFixturePatchListRowEnabled(const FDMXEntityFixturePatchRef InFixturePatchRef) const
 {
-	UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
-	if (!EditorConsoleData)
+	if (const UDMXEntityFixturePatch* InFixturePatch = InFixturePatchRef.GetFixturePatch())
 	{
-		return EVisibility::Collapsed;
+		if (const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData())
+		{
+			const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = EditorConsoleData->GetAllFaderGroups();
+
+			auto IsFixturePatchInUseLambda = [InFixturePatch](const UDMXControlConsoleFaderGroup* FaderGroup)
+			{
+				if (!FaderGroup)
+				{
+					return false;
+				}
+
+				if (!FaderGroup->HasFixturePatch())
+				{
+					return false;
+				}
+
+				const UDMXEntityFixturePatch* FixturePatch = FaderGroup->GetFixturePatch();
+				if (FixturePatch != InFixturePatch)
+				{
+					return false;
+				}
+
+				return true;
+			};
+
+			return Algo::FindByPredicate(AllFaderGroups, IsFixturePatchInUseLambda) ? false : true;
+		}
 	}
 
-	return DMXLibrary.IsValid() ? EVisibility::Visible : EVisibility::Collapsed;
+	return true;
+}
+
+bool SDMXControlConsoleEditorFixturePatchVerticalBox::IsAddAllPatchesButtonEnabled() const
+{
+	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	if (!EditorConsoleData)
+	{
+		return false;
+	}
+
+	return IsValid(EditorConsoleData->GetDMXLibrary());
+}
+
+bool SDMXControlConsoleEditorFixturePatchVerticalBox::CanExecuteAddNext() const
+{
+	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	if (!EditorConsoleData || !FixturePatchList.IsValid())
+	{
+		return false;
+	}
+
+	const bool bCanExecute =
+		!FixturePatchList->GetSelectedFixturePatchRefs().IsEmpty()
+		&& !EditorConsoleData->GetAllFaderGroups().IsEmpty()
+		&& EditorConsoleData->GetFilterString().IsEmpty();
+
+	return bCanExecute;
+}
+
+bool SDMXControlConsoleEditorFixturePatchVerticalBox::CanExecuteAddRow() const
+{
+	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	if (!EditorConsoleData || !FixturePatchList.IsValid())
+	{
+		return false;
+	}
+
+	const bool bCanExecute = 
+		!FixturePatchList->GetSelectedFixturePatchRefs().IsEmpty()
+		&& EditorConsoleData->GetFilterString().IsEmpty();
+
+	return bCanExecute;
+}
+
+bool SDMXControlConsoleEditorFixturePatchVerticalBox::CanExecuteAddSelected() const
+{
+	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	if (!EditorConsoleData || !FixturePatchList.IsValid())
+	{
+		return false;
+	}
+
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+	const bool bCanExecute =
+		!FixturePatchList->GetSelectedFixturePatchRefs().IsEmpty()
+		&& !SelectionHandler->GetSelectedFaderGroups().IsEmpty()
+		&& EditorConsoleData->GetFilterString().IsEmpty();
+
+	return bCanExecute;
 }
 
 #undef LOCTEXT_NAMESPACE

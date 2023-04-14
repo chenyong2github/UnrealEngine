@@ -21,6 +21,7 @@
 #include "Widgets/SDMXControlConsoleEditorAddButton.h"
 #include "Widgets/SDMXControlConsoleEditorAssetPicker.h"
 #include "Widgets/SDMXControlConsoleEditorFixturePatchVerticalBox.h"
+#include "Widgets/SDMXControlConsoleEditorPortSelector.h"
 
 #include "Editor.h"
 #include "IDetailsView.h"
@@ -83,7 +84,7 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 
 	FOnGetDetailCustomizationInstance ControlConsoleCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXControlConsoleDataDetails::MakeInstance);
 	ControlConsoleDataDetailsView->RegisterInstancedCustomPropertyLayout(UDMXControlConsoleData::StaticClass(), ControlConsoleCustomizationInstance);
-	ControlConsoleDataDetailsView->GetOnDisplayedPropertiesChanged().BindSP(this, &SDMXControlConsoleEditorView::UpdateFixturePatchRows);
+	ControlConsoleDataDetailsView->GetOnDisplayedPropertiesChanged().BindSP(this, &SDMXControlConsoleEditorView::UpdateFixturePatchVerticalBox);
 
 	FOnGetDetailCustomizationInstance FaderGroupsCustomizationInstance = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXControlConsoleFaderGroupDetails::MakeInstance);
 	FaderGroupsDetailsView->RegisterInstancedCustomPropertyLayout(UDMXControlConsoleFaderGroup::StaticClass(), FaderGroupsCustomizationInstance);
@@ -118,9 +119,35 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 				.Orientation(Orient_Horizontal)
 				.ResizeMode(ESplitterResizeMode::FixedSize)
 
+				// Fixture Patches VerticalBox Section
+				+ SSplitter::Slot()
+				.Value(.20)
+				.MinSize(10.f)
+				[
+					SNew(SScrollBox)
+					.Orientation(Orient_Vertical)
+
+					+ SScrollBox::Slot()
+					.AutoSize()
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						[
+							ControlConsoleDataDetailsView.ToSharedRef()
+						]
+
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						[
+							SAssignNew(FixturePatchVerticalBox, SDMXControlConsoleEditorFixturePatchVerticalBox)
+						]
+					]
+				]
+
 				// DMX Control Console Section
 				+ SSplitter::Slot()
-				.Value(.62f)
+				.Value(.60f)
 				.MinSize(10.f)
 				[
 
@@ -189,11 +216,13 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 
 				// Details View Section
 				+ SSplitter::Slot()
-				.Value(.38)
+				.Value(.20)
 				.MinSize(10.f)
 				[
 					SNew(SScrollBox)
 					.Orientation(Orient_Vertical)
+					.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorView::GetDetailViewsSectionVisibility))
+
 					+ SScrollBox::Slot()
 					[
 						SNew(SVerticalBox)
@@ -215,24 +244,6 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 						[
 							FaderGroupsDetailsView.ToSharedRef()
 						]
-
-						+ SVerticalBox::Slot()
-						.AutoHeight()
-						[
-							SNew(SSeparator)
-						]
-
-						+ SVerticalBox::Slot()
-						.AutoHeight()
-						[
-							ControlConsoleDataDetailsView.ToSharedRef()
-						]
-
-						+ SVerticalBox::Slot()
-						.AutoHeight()
-						[
-							SAssignNew(FixturePatchVerticalBox, SDMXControlConsoleEditorFixturePatchVerticalBox)
-						]
 					]
 				]
 			]
@@ -240,6 +251,7 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 	
 	ForceUpdateDetailsViews();
 	RestoreGlobalFilter();
+	OnSelectedPortsChanged();
 
 	FSlateApplication::Get().SetKeyboardFocus(AsShared());
 }
@@ -409,6 +421,15 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 	}
 	ToolbarBuilder.EndSection();
 
+	ToolbarBuilder.BeginSection("PortSelector");
+	{
+		SAssignNew(PortSelector, SDMXControlConsoleEditorPortSelector)
+			.OnPortsSelected(this, &SDMXControlConsoleEditorView::OnSelectedPortsChanged);
+
+		ToolbarBuilder.AddWidget(PortSelector.ToSharedRef());
+	}
+	ToolbarBuilder.EndSection();
+
 	return ToolbarBuilder.MakeWidget();
 }
 
@@ -422,7 +443,7 @@ void SDMXControlConsoleEditorView::RestoreGlobalFilter()
 	}
 }
 
-void SDMXControlConsoleEditorView::ApplyGlobalFilter(const FString InSearchString)
+void SDMXControlConsoleEditorView::ApplyGlobalFilter(const FString& InSearchString)
 {
 	using namespace UE::DMX::ControlConsoleEditor::FilterUtils::Private;
 
@@ -513,14 +534,12 @@ void SDMXControlConsoleEditorView::ForceUpdateDetailsViews()
 	FadersDetailsView->SetObjects(SelectedFaders, bForceRefresh);
 }
 
-void SDMXControlConsoleEditorView::UpdateFixturePatchRows()
+void SDMXControlConsoleEditorView::UpdateFixturePatchVerticalBox()
 {
-	if (!FixturePatchVerticalBox.IsValid())
+	if (FixturePatchVerticalBox.IsValid())
 	{
-		return;
+		FixturePatchVerticalBox->ForceRefresh();
 	}
-
-	FixturePatchVerticalBox->UpdateFixturePatchRows();
 }
 
 void SDMXControlConsoleEditorView::OnFaderGroupRowAdded()
@@ -677,6 +696,18 @@ FReply SDMXControlConsoleEditorView::OnAddFirstFaderGroup()
 	return FReply::Handled();
 }
 
+void SDMXControlConsoleEditorView::OnSelectedPortsChanged()
+{
+	if (UDMXControlConsoleData* ControlConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData())
+	{
+		if (PortSelector.IsValid())
+		{
+			const TArray<FDMXOutputPortSharedRef> SelectedOutputPorts = PortSelector->GetSelectedOutputPorts();
+			ControlConsoleData->UpdateOutputPorts(SelectedOutputPorts);
+		}
+	}
+}
+
 void SDMXControlConsoleEditorView::OnBrowseToAssetClicked()
 {
 	if (UDMXControlConsole* EditorConsole = FDMXControlConsoleEditorManager::Get().GetEditorConsole())
@@ -788,6 +819,13 @@ EVisibility SDMXControlConsoleEditorView::GetAddButtonVisibility() const
 		}
 	}
 
+	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility SDMXControlConsoleEditorView::GetDetailViewsSectionVisibility() const
+{
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+	bool bIsVisible = !SelectionHandler->GetSelectedFaderGroups().IsEmpty() || !SelectionHandler->GetSelectedFaders().IsEmpty();
 	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }
 

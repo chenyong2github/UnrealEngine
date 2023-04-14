@@ -178,6 +178,12 @@ UDMXControlConsole* UDMXControlConsoleEditorModel::CreateNewConsoleAsset(const F
 	return NewConsole;
 }
 
+void UDMXControlConsoleEditorModel::SaveFixturePatchListDescriptorToConfig(const FDMXReadOnlyFixturePatchListDescriptor ListDescriptor)
+{
+	FixturePatchListDescriptor = ListDescriptor;
+	SaveConfig();
+}
+
 void UDMXControlConsoleEditorModel::PostInitProperties()
 {
 	Super::PostInitProperties();

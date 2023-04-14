@@ -276,7 +276,7 @@ void FDMXControlConsoleEditorSelection::ClearSelection()
 	OnSelectionChanged.Broadcast();
 }
 
-UDMXControlConsoleFaderGroup* FDMXControlConsoleEditorSelection::GetFirstSelectedFaderGroup() const
+UDMXControlConsoleFaderGroup* FDMXControlConsoleEditorSelection::GetFirstSelectedFaderGroup(bool bReverse) const
 {
 	TArray<TWeakObjectPtr<UObject>> CurrentSelectedFaderGroups = GetSelectedFaderGroups();
 	if (CurrentSelectedFaderGroups.IsEmpty())
@@ -285,42 +285,43 @@ UDMXControlConsoleFaderGroup* FDMXControlConsoleEditorSelection::GetFirstSelecte
 	}
 
 	auto SortSelectedFaderGroupsLambda = [](TWeakObjectPtr<UObject> FaderGroupObjectA, TWeakObjectPtr<UObject> FaderGroupObjectB)
+	{
+		const UDMXControlConsoleFaderGroup* FaderGroupA = Cast<UDMXControlConsoleFaderGroup>(FaderGroupObjectA);
+		const UDMXControlConsoleFaderGroup* FaderGroupB = Cast<UDMXControlConsoleFaderGroup>(FaderGroupObjectB);
+
+		if (!FaderGroupA || !FaderGroupB)
 		{
-			const UDMXControlConsoleFaderGroup* FaderGroupA = Cast<UDMXControlConsoleFaderGroup>(FaderGroupObjectA);
-			const UDMXControlConsoleFaderGroup* FaderGroupB = Cast<UDMXControlConsoleFaderGroup>(FaderGroupObjectB);
+			return false;
+		}
 
-			if (!FaderGroupA || !FaderGroupB)
-			{
-				return false;
-			}
+		const int32 RowIndexA = FaderGroupA->GetOwnerFaderGroupRowChecked().GetRowIndex();
+		const int32 RowIndexB = FaderGroupB->GetOwnerFaderGroupRowChecked().GetRowIndex();
 
-			const int32 RowIndexA = FaderGroupA->GetOwnerFaderGroupRowChecked().GetRowIndex();
-			const int32 RowIndexB = FaderGroupB->GetOwnerFaderGroupRowChecked().GetRowIndex();
+		if (RowIndexA != RowIndexB)
+		{
+			return RowIndexA < RowIndexB;
+		}
 
-			if (RowIndexA != RowIndexB)
-			{
-				return RowIndexA < RowIndexB;
-			}
+		const int32 IndexA = FaderGroupA->GetIndex();
+		const int32 IndexB = FaderGroupB->GetIndex();
 
-			const int32 IndexA = FaderGroupA->GetIndex();
-			const int32 IndexB = FaderGroupB->GetIndex();
-
-			return IndexA < IndexB;
-		};
+		return IndexA < IndexB;
+	};
 
 	Algo::Sort(CurrentSelectedFaderGroups, SortSelectedFaderGroupsLambda);
-	return Cast<UDMXControlConsoleFaderGroup>(CurrentSelectedFaderGroups[0]);
+	const TWeakObjectPtr<UObject> FirstFaderGroup = bReverse ? CurrentSelectedFaderGroups.Last() : CurrentSelectedFaderGroups[0];
+	return Cast<UDMXControlConsoleFaderGroup>(FirstFaderGroup);
 }
 
-UDMXControlConsoleFaderBase* FDMXControlConsoleEditorSelection::GetFirstSelectedFader() const
+UDMXControlConsoleFaderBase* FDMXControlConsoleEditorSelection::GetFirstSelectedFader(bool bReverse) const
 {
-	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
-	if (!EditorConsoleData)
+	const UDMXControlConsoleData* ControlConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	if (!ControlConsoleData)
 	{
 		return nullptr;
 	}
 
-	const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = EditorConsoleData->GetAllFaderGroups();
+	const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = ControlConsoleData->GetAllFaderGroups();
 	if (AllFaderGroups.IsEmpty())
 	{
 		return nullptr;
@@ -333,34 +334,35 @@ UDMXControlConsoleFaderBase* FDMXControlConsoleEditorSelection::GetFirstSelected
 	}
 
 	auto SortSelectedFadersLambda = [AllFaderGroups](TWeakObjectPtr<UObject> FaderObjectA, TWeakObjectPtr<UObject> FaderObjectB)
+	{
+		const UDMXControlConsoleFaderBase* FaderA = Cast<UDMXControlConsoleFaderBase>(FaderObjectA);
+		const UDMXControlConsoleFaderBase* FaderB = Cast<UDMXControlConsoleFaderBase>(FaderObjectB);
+
+		if (!FaderA || !FaderB)
 		{
-			const UDMXControlConsoleFaderBase* FaderA = Cast<UDMXControlConsoleFaderBase>(FaderObjectA);
-			const UDMXControlConsoleFaderBase* FaderB = Cast<UDMXControlConsoleFaderBase>(FaderObjectB);
+			return false;
+		}
 
-			if (!FaderA || !FaderB)
-			{
-				return false;
-			}
+		const UDMXControlConsoleFaderGroup& FaderGroupA = FaderA->GetOwnerFaderGroupChecked();
+		const UDMXControlConsoleFaderGroup& FaderGroupB = FaderB->GetOwnerFaderGroupChecked();
 
-			const UDMXControlConsoleFaderGroup& FaderGroupA = FaderA->GetOwnerFaderGroupChecked();
-			const UDMXControlConsoleFaderGroup& FaderGroupB = FaderB->GetOwnerFaderGroupChecked();
+		const int32 FaderGroupIndexA = AllFaderGroups.IndexOfByKey(&FaderGroupA);
+		const int32 FaderGroupIndexB = AllFaderGroups.IndexOfByKey(&FaderGroupB);
 
-			const int32 FaderGroupIndexA = AllFaderGroups.IndexOfByKey(&FaderGroupA);
-			const int32 FaderGroupIndexB = AllFaderGroups.IndexOfByKey(&FaderGroupB);
+		if (FaderGroupIndexA != FaderGroupIndexB)
+		{
+			return FaderGroupIndexA < FaderGroupIndexB;
+		}
 
-			if (FaderGroupIndexA != FaderGroupIndexB)
-			{
-				return FaderGroupIndexA < FaderGroupIndexB;
-			}
+		const int32 IndexA = FaderGroupA.GetAllFaders().IndexOfByKey(FaderA);
+		const int32 IndexB = FaderGroupB.GetAllFaders().IndexOfByKey(FaderB);
 
-			const int32 IndexA = FaderGroupA.GetAllFaders().IndexOfByKey(FaderA);
-			const int32 IndexB = FaderGroupB.GetAllFaders().IndexOfByKey(FaderB);
-
-			return IndexA < IndexB;
-		};
+		return IndexA < IndexB;
+	};
 
 	Algo::Sort(CurrentSelectedFaders, SortSelectedFadersLambda);
-	return Cast<UDMXControlConsoleFaderBase>(CurrentSelectedFaders[0]);
+	const TWeakObjectPtr<UObject> FirstFader = bReverse ? CurrentSelectedFaders.Last() : CurrentSelectedFaders[0];
+	return Cast<UDMXControlConsoleFaderBase>(FirstFader);
 }
 
 TArray<UDMXControlConsoleFaderBase*> FDMXControlConsoleEditorSelection::GetSelectedFadersFromFaderGroup(UDMXControlConsoleFaderGroup* FaderGroup) const

@@ -6,14 +6,12 @@
 #include "Widgets/SCompoundWidget.h"
 
 struct FDMXEntityFixturePatchRef;
-class SDMXControlConsoleEditorFixturePatchRowWidget;
+class SDMXReadOnlyFixturePatchList;
 class UDMXControlConsoleFaderGroup;
 class UDMXEntityFixturePatch;
-class UDMXLibrary;
 
-struct EVisibility;
 class FReply;
-class SVerticalBox;
+class FUICommandList;
 
 
 /** A container for FixturePatchRow widgets */
@@ -26,49 +24,61 @@ public:
 
 	SLATE_END_ARGS()
 
+	/** Destructor */
+	~SDMXControlConsoleEditorFixturePatchVerticalBox();
+
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs);
 
-	/** Updates FixturePatchRowsVerticalBox widget */
-	void UpdateFixturePatchRows();
+	/** Refreshes the widget */
+	void ForceRefresh();
 
 private:
-	/** Updates FixturePatches array */
-	void UpdateFixturePatches();
+	/** Registers commands for this widget */
+	void RegisterCommands();
+
+	/** Generates a toolbar for FixturePatchList widget */
+	TSharedRef<SWidget> GenerateFixturePatchListToolbar();
+
+	/** Creates a context menu for a row in the FixturePatchList widget */
+	TSharedPtr<SWidget> CreateRowContextMenu();
+
+	/** Creates a menu for the Add Patch combo button */
+	TSharedRef<SWidget> CreateAddPatchMenu();
 
 	/** Edits the given Fader Group according to the given Fixture Patch */
 	void GenerateFaderGroupFromFixturePatch(UDMXControlConsoleFaderGroup* FaderGroup, UDMXEntityFixturePatch* FixturePatch);
 
-	/** Called when a fixture patch row is selected */
-	void OnSelectFixturePatchDetailsRow(const TSharedRef<SDMXControlConsoleEditorFixturePatchRowWidget>& FixturePatchRow);
+	/** Called to generate fader groups from fixture patches on last row */
+	void OnGenerateFromFixturePatchOnLastRow();
 
-	/** Called to generate the a fader group from a fixture patch on last row */
-	void OnGenerateFromFixturePatchOnLastRow(const TSharedRef<SDMXControlConsoleEditorFixturePatchRowWidget>& FixturePatchRow);
-
-	/** Called to generate the a fader group from a fixture patch on a new row */
-	void OnGenerateFromFixturePatchOnNewRow(const TSharedRef<SDMXControlConsoleEditorFixturePatchRowWidget>& FixturePatchRow);
+	/** Called to generate fader group from fixture patches on a new row */
+	void OnGenerateFromFixturePatchOnNewRow();
 
 	/** Called to generate the selected fader group from a fixture patch */
-	void OnGenerateSelectedFaderGroupFromFixturePatch(const TSharedRef<SDMXControlConsoleEditorFixturePatchRowWidget>& FixturePatchRow);
+	void OnGenerateSelectedFaderGroupFromFixturePatch();
 
 	/** Called on Add All Patches button click to generate Fader Groups form a Library */
 	FReply OnAddAllPatchesClicked();
 
-	/** Gets visibility for Add All Patches button when a DMX Library is selected */
-	EVisibility GetAddAllPatchesButtonVisibility() const;
+	/** Gets for each FixturePatchList row if they should be enabled or not */
+	bool IsFixturePatchListRowEnabled(const FDMXEntityFixturePatchRef InFixturePatchRef) const;
 
-	/** Widget to list all Fixture Patches of Control Console's current DMX Library */
-	TSharedPtr<SVerticalBox> FixturePatchRowsBoxWidget;
+	/** Gets enable state for Add All Patches button when a DMX Library is selected */
+	bool IsAddAllPatchesButtonEnabled() const;
 
-	/** Array of Fixture Patches in the current DMX Library */
-	TArray<FDMXEntityFixturePatchRef> FixturePatches;
+	/** Gets wheter add next action is executable or not */
+	bool CanExecuteAddNext() const;
 
-	/** Array of weak references to fixture patch details rows */
-	TArray<TWeakPtr<SDMXControlConsoleEditorFixturePatchRowWidget>> FixturePatchRowWidgets;
+	/** Gets wheter add row action is executable or not */
+	bool CanExecuteAddRow() const;
 
-	/** Current selected fixture patch details row */
-	TWeakPtr<SDMXControlConsoleEditorFixturePatchRowWidget> SelectedFixturePatchRowWidget;
+	/** Gets wheter add selected action is executable or not */
+	bool CanExecuteAddSelected() const;
 
-	/** Current displayed DMX Library */
-	TWeakObjectPtr<UDMXLibrary> DMXLibrary;
+	/** Reference to FixturePatchList widget */
+	TSharedPtr<SDMXReadOnlyFixturePatchList> FixturePatchList;
+
+	/** Command list for the Asset Combo Button */
+	TSharedPtr<FUICommandList> CommandList;
 };

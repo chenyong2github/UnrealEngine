@@ -3,12 +3,9 @@
 #include "DMXControlConsoleDataDetails.h"
 
 #include "DMXControlConsoleData.h"
-#include "DMXControlConsoleEditorManager.h"
-#include "Widgets/SDMXControlConsoleEditorPortSelector.h"
 
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
-#include "DetailWidgetRow.h"
 #include "IPropertyUtilities.h"
 #include "PropertyHandle.h"
 
@@ -28,22 +25,6 @@ void FDMXControlConsoleDataDetails::CustomizeDetails(IDetailLayoutBuilder& InDet
 	ControlConsoleCategory.AddProperty(DMXLibraryHandle);
 	DMXLibraryHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXControlConsoleDataDetails::ForceRefresh));
 	DMXLibraryHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXControlConsoleDataDetails::ForceRefresh));
-
-	GeneratePortSelectorRow(InDetailLayout);
-}
-
-void FDMXControlConsoleDataDetails::GeneratePortSelectorRow(IDetailLayoutBuilder& InDetailLayout)
-{
-	IDetailCategoryBuilder& ControlConsoleCategory = InDetailLayout.EditCategory("DMX Control Console", FText::GetEmpty());
-
-	ControlConsoleCategory.AddCustomRow(FText::GetEmpty())
-		.WholeRowContent()
-		[
-			SAssignNew(PortSelector, SDMXControlConsoleEditorPortSelector)
-			.OnPortsSelected(this, &FDMXControlConsoleDataDetails::OnSelectedPortsChanged)
-		];
-
-	OnSelectedPortsChanged();
 }
 
 void FDMXControlConsoleDataDetails::ForceRefresh() const
@@ -54,23 +35,6 @@ void FDMXControlConsoleDataDetails::ForceRefresh() const
 	}
 	
 	PropertyUtilities->ForceRefresh();
-}
-
-void FDMXControlConsoleDataDetails::OnSelectedPortsChanged()
-{
-	UDMXControlConsoleData* ConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
-	if (!ConsoleData)
-	{
-		return;
-	}
-
-	if (!PortSelector.IsValid())
-	{
-		return;
-	}
-
-	const TArray<FDMXOutputPortSharedRef> SelectedOutputPorts = PortSelector->GetSelectedOutputPorts();
-	ConsoleData->UpdateOutputPorts(SelectedOutputPorts);
 }
 
 #undef LOCTEXT_NAMESPACE
