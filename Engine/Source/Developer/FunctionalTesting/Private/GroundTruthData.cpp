@@ -111,3 +111,23 @@ void UGroundTruthData::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 }
 
 #endif
+
+void UGroundTruthData::ResetObject()
+{
+	#if WITH_EDITOR
+
+		if (ObjectData)
+		{
+			ObjectData->Rename(nullptr, GetTransientPackage());
+			ObjectData = nullptr;
+
+			MarkPackageDirty();
+		}
+
+	#else
+		FAssetData GroundTruthAssetData(this);
+		FString GroundTruthPackageName = GroundTruthAssetData.PackageName.ToString();
+
+		UE_LOG(GroundTruthLog, Error, TEXT("Can't reset ground truth data outside of the editor, '%s'."), *GroundTruthPackageName);
+	#endif
+}	

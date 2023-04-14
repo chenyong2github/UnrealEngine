@@ -33,6 +33,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Automation")
 	bool CanModify() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Automation")
+	void ResetObject();
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
