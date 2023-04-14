@@ -183,6 +183,8 @@ namespace Horde.Agent
 				});
 
 			services.AddSingleton<GrpcService>();
+			services.AddSingleton<TelemetryService>();
+			services.AddHostedService(sp => sp.GetRequiredService<TelemetryService>());
 
 			services.AddSingleton<IJobExecutorFactory, PerforceExecutorFactory>();
 			services.AddSingleton<IJobExecutorFactory, WorkspaceExecutorFactory>();
