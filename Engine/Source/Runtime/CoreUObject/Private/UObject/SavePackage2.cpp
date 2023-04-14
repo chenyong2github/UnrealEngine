@@ -385,7 +385,7 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 		FHarvestedRealm& OptionalContext = SaveContext.GetHarvestedRealm(ESaveRealm::Optional);
 		for (auto It = OptionalContext.GetExports().CreateIterator(); It; ++It)
 		{
-			if (!It->Obj->GetClass()->HasAnyClassFlags(CLASS_Optional))
+			if (!FPackageHarvester::ShouldObjectBeHarvestedInOptionalRealm(It->Obj, SaveContext))
 			{
 				// Make sure the export is found in the game context as well
 				if (FTaggedExport* GameExport = SaveContext.GetHarvestedRealm(ESaveRealm::Game).GetExports().Find(It->Obj))

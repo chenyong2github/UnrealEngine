@@ -84,6 +84,11 @@ public:
 
 	virtual bool ShouldSkipProperty(const FProperty* InProperty) const;
 
+	/** Return whether the Object and all its Outers are native. */
+	static bool IsObjNative(UObject* InObj);
+	/** Report whether the object should be put in the optional realm even if harvesting realm is non-optional. */
+	static bool ShouldObjectBeHarvestedInOptionalRealm(UObject* InObj, FSaveContext& InSaveContext);
+
 private:
 	/** Dependencies collected for the current export, and scope information about how to collect them. */
 	struct FExportDependencies
@@ -121,10 +126,6 @@ private:
 	};
 
 private:
-	/** Return whether the Object and all its Outers are native. */
-	static bool IsObjNative(UObject* InObj);
-	/** Report whether the object should be put in the optional realm even if harvesting realm is non-optional. */
-	bool ShouldObjectBeHarvestedInOptionalRealm(UObject* InObj) const;
 
 	/** Call void (ESaveRealm HarvestingRealm) on each Realm in CurrentExportHarvestingRealms */
 	template <typename CallbackType>
