@@ -382,7 +382,6 @@ void FCookDirector::AssignRequests(TArray<FWorkerId>&& InWorkers, TArray<TRefCou
 		FWorkerId WorkerIdConstraint = Requests[RequestIndex]->GetWorkerAssignmentConstraint();
 		if (WorkerIdConstraint.IsValid())
 		{
-			check(InWorkers.Contains(WorkerIdConstraint));
 			WorkerId = WorkerIdConstraint;
 		}
 
