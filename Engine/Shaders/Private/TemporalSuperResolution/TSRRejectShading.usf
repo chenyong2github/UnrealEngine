@@ -20,12 +20,6 @@
 /** Size of the entire group loaded into memory including overscan. */
 #define GROUP_TILE_SIZE 16
 
-/** Size of the overscan. */
-#define TILE_OVERSCAN_PADDING 2
-
-/** Size of of the output tile. */
-#define TILE_SIZE (GROUP_TILE_SIZE - 2 * TILE_OVERSCAN_PADDING)
-
 /** Whether should remove firefliers from input and history before comparison to improve stability. */
 #define CONFIG_FIREFLY_REMOVAL 1
 
@@ -103,6 +97,7 @@ float2 TranslucencyTextureUVMax;
 float3 HistoryGuideQuantizationError;
 float FlickeringFramePeriod;
 float TheoricBlendFactor;
+uint TileOverscan;
 
 
 Texture2D<tsr_halfC> InputTexture;
@@ -160,8 +155,8 @@ void MainCS(
 	const uint LaneIndex = GroupThreadIndex;
 	const tsr_short2 GroupPixelOffset = (
 		tsr_short2(InputPixelPosMin) +
-		tsr_short2(GroupId) * tsr_short2(TILE_SIZE, TILE_SIZE) +
-		tsr_short(-TILE_OVERSCAN_PADDING).xx);
+		tsr_short2(GroupId) * tsr_short(GROUP_TILE_SIZE - 2 * TileOverscan).xx +
+		tsr_short(-TileOverscan).xx);
 		
 	// Load
 	tsr_simd_halfC OriginalOpaqueInput;
@@ -561,7 +556,7 @@ void MainCS(
 		for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
 		{
 			tsr_short2 LaneSimdPixelOffset = GetLaneSimdPixelOffset<LANE_STRIDE_X, LANE_STRIDE_Y>(LaneIndex, SimdIndex);
-			bool bIsNonOverscanPixel = all(and(LaneSimdPixelOffset >= TILE_OVERSCAN_PADDING, LaneSimdPixelOffset < TILE_SIZE + TILE_OVERSCAN_PADDING));
+			bool bIsNonOverscanPixel = all(and(LaneSimdPixelOffset >= TileOverscan, LaneSimdPixelOffset < (GROUP_TILE_SIZE - TileOverscan)));
 
 			tsr_short2 OutputPixelPos = InvalidateOutputPixelPos(GroupPixelOffset + LaneSimdPixelOffset, InputInfo_ViewportMax);
 			OutputPixelPos.x = select(bIsNonOverscanPixel, OutputPixelPos.x, ~tsr_short(0));
