@@ -571,6 +571,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 
 			TArray<FPropertyRowExtensionButton> ExtensionButtons;
 
+			UpdateResetToDefault();
 			FPropertyRowExtensionButton& ResetToDefault = ExtensionButtons.AddDefaulted_GetRef();
 			ResetToDefault.Label = NSLOCTEXT("PropertyEditor", "ResetToDefault", "Reset to Default");
 			ResetToDefault.UIAction = FUIAction(
