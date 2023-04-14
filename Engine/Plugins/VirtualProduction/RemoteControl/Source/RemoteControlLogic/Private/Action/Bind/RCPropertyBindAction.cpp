@@ -159,6 +159,10 @@ void URCPropertyBindAction::Execute() const
 				{
 					Handle->SetValue((int32)NumericValue);
 				}
+				else if (RemoteControlProperty->IsA(FDoubleProperty::StaticClass()))
+				{
+					Handle->SetValue((double)NumericValue);
+				}
 			}
 			// Numeric To Boolean
 			else if (RemoteControlProperty->IsA(FBoolProperty::StaticClass()))
