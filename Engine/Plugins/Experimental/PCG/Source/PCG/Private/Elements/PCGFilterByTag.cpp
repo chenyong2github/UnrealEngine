@@ -43,7 +43,7 @@ FName UPCGFilterByTagSettings::AdditionalTaskName() const
 {
 	const TArray<FString> Tags = PCGHelpers::GetStringArrayFromCommaSeparatedString(SelectedTags);
 
-	FString NodeName = PCGFilterByTagConstants::NodeName.ToString();
+	FString NodeName = PCGFilterByTagConstants::NodeTitle.ToString();
 	NodeName += (Operation == EPCGFilterByTagOperation::KeepTagged ? TEXT(" (Keep)") : TEXT(" (Remove)"));
 
 	if (Tags.Num() == 1)

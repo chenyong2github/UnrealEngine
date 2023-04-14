@@ -66,7 +66,7 @@ FName UPCGAttributeFilterSettings::AdditionalTaskName() const
 {
 	TArray<FString> AttributesToKeep = PCGHelpers::GetStringArrayFromCommaSeparatedString(SelectedAttributes);
 
-	FString NodeName = PCGAttributeFilterConstants::NodeName.ToString();
+	FString NodeName = PCGAttributeFilterConstants::NodeTitle.ToString();
 
 	switch (Operation)
 	{

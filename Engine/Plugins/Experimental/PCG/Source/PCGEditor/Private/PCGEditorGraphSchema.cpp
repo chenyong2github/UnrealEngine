@@ -266,7 +266,7 @@ void UPCGEditorGraphSchema::GetBlueprintElementActions(FGraphActionMenuBuilder& 
 		const bool bExposeToLibrary = AssetData.GetTagValueRef<bool>(TEXT("bExposeToLibrary"));
 		if (bExposeToLibrary)
 		{
-			const FText MenuDesc = FText::FromName(AssetData.AssetName);
+			const FText MenuDesc = FText::FromString(FName::NameToDisplayString(AssetData.AssetName.ToString(), false));
 			const FText Category = AssetData.GetTagValueRef<FText>(TEXT("Category"));
 			const FText Description = AssetData.GetTagValueRef<FText>(TEXT("Description"));
 
@@ -288,7 +288,7 @@ void UPCGEditorGraphSchema::GetSettingsElementActions(FGraphActionMenuBuilder& A
 		const bool bExposeToLibrary = AssetData.GetTagValueRef<bool>(TEXT("bExposeToLibrary"));
 		if (bExposeToLibrary)
 		{
-			const FText MenuDesc = FText::FromName(AssetData.AssetName);
+			const FText MenuDesc = FText::FromString(FName::NameToDisplayString(AssetData.AssetName.ToString(), false));
 			const FText Category = AssetData.GetTagValueRef<FText>(TEXT("Category"));
 			const FText Description = AssetData.GetTagValueRef<FText>(TEXT("Description"));
 
@@ -325,7 +325,7 @@ void UPCGEditorGraphSchema::GetSubgraphElementActions(FGraphActionMenuBuilder& A
 		const bool bExposeToLibrary = AssetData.GetTagValueRef<bool>(TEXT("bExposeToLibrary"));
 		if (bExposeToLibrary)
 		{
-			const FText MenuDesc = FText::FromName(AssetData.AssetName);
+			const FText MenuDesc = FText::FromString(FName::NameToDisplayString(AssetData.AssetName.ToString(), false));
 			const FText Category = AssetData.GetTagValueRef<FText>(TEXT("Category"));
 			const FText Description = AssetData.GetTagValueRef<FText>(TEXT("Description"));
 

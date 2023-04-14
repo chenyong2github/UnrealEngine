@@ -240,7 +240,7 @@ FText UPCGNode::GetNodeTitle() const
 {
 	if (NodeTitle != NAME_None)
 	{
-		return FText::FromName(NodeTitle);
+		return FText::FromString(FName::NameToDisplayString(NodeTitle.ToString(), false));
 	}
 	else if (UPCGSettings* Settings = GetSettings())
 	{

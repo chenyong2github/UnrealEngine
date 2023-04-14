@@ -449,11 +449,15 @@ FName UPCGBlueprintSettings::AdditionalTaskName() const
 	}
 	else
 	{
+		FName ElementName = NAME_None;
+
 #if WITH_EDITOR
-		return (BlueprintElementType && BlueprintElementType->ClassGeneratedBy) ? BlueprintElementType->ClassGeneratedBy->GetFName() : Super::AdditionalTaskName();
+		ElementName = (BlueprintElementType && BlueprintElementType->ClassGeneratedBy) ? BlueprintElementType->ClassGeneratedBy->GetFName() : Super::AdditionalTaskName();
 #else
-		return BlueprintElementType ? BlueprintElementType->GetFName() : Super::AdditionalTaskName();
+		ElementName = BlueprintElementType ? BlueprintElementType->GetFName() : Super::AdditionalTaskName();
 #endif
+		// Normalize node name only if not explicitly set in the NodeTitleOverride call
+		return FName(FName::NameToDisplayString(ElementName.ToString(), false));
 	}
 }
 
