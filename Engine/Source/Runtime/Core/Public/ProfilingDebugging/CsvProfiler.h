@@ -445,9 +445,13 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE(FOnCSVProfileEnd);
 	FOnCSVProfileEnd& OnCSVProfileEnd() { return OnCSVProfileEndDelegate; }
-	
+
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnCSVProfileFinished, const FString& /*Filename */);
 	FOnCSVProfileFinished& OnCSVProfileFinished() { return OnCSVProfileFinishedDelegate; }
+
+	/** Called at the end of the frame when capturing, before end frame processing completes */
+	DECLARE_MULTICAST_DELEGATE(FOnCSVProfileEndFrame);
+	FOnCSVProfileEndFrame& OnCSVProfileEndFrame() { return OnCSVProfileEndFrameDelegate; }
 
 	CORE_API void SetRenderThreadId(uint32 InRenderThreadId)
 	{
@@ -509,7 +513,7 @@ private:
 	FOnCSVProfileFirstFrame OnCSVProfileFirstFrameDelegate;
 	FOnCSVProfileEndRequested OnCSVProfileEndRequestedDelegate;
 	FOnCSVProfileEnd OnCSVProfileEndDelegate;
-	
+	FOnCSVProfileEndFrame OnCSVProfileEndFrameDelegate;
 	FOnCSVProfileFinished OnCSVProfileFinishedDelegate;
 
 	std::atomic<uint32> RenderThreadId{ 0 };

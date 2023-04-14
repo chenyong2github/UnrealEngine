@@ -2975,6 +2975,8 @@ void FCsvProfiler::EndFrame()
 	check(IsInGameThread());
 	if (GCsvProfilerIsCapturing)
 	{
+		OnCSVProfileEndFrameDelegate.Broadcast();
+
 		GCsvPersistentCustomStats.RecordStats();
 
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FCsvProfiler_EndFrame_Capturing);
