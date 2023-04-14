@@ -172,9 +172,9 @@ void UWidget::FFieldNotificationClassDescriptor::ForEachField(const UClass* Clas
 			return;
 		}
 	}
-	if (const UWidgetBlueprintGeneratedClass* WidgetBPClass = Cast<const UWidgetBlueprintGeneratedClass>(Class))
+	if (const UBlueprintGeneratedClass* ViewModelBPClass = Cast<const UBlueprintGeneratedClass>(Class))
 	{
-		WidgetBPClass->ForEachField(Callback);
+		ViewModelBPClass->ForEachFieldNotify(Callback, true);
 	}
 }
 UE_FIELD_NOTIFICATION_IMPLEMENT_CLASS_DESCRIPTOR_ThreeFields(UWidget, ToolTipText, Visibility, bIsEnabled);
