@@ -879,6 +879,9 @@ public:
 	/** true if gizmo manipulation was started from a tracking event */
 	bool					bHasBegunGizmoManipulation;
 
+	/** set to true when a gizmo manipulation has produced a non-zero delta */
+	bool					bGizmoDeltaApplied;
+
 	/** Whether this viewport recently received focus. Used to determine whether component selection is permissible. */
 	bool bReceivedFocusRecently;
 

@@ -1913,6 +1913,7 @@ FLevelEditorViewportClient::FLevelEditorViewportClient(const TSharedPtr<SLevelVi
 	, bLockedCameraView(true)
 	, bNeedToRestoreComponentBeingMovedFlag(false)
 	, bHasBegunGizmoManipulation(false)
+	, bGizmoDeltaApplied(false)
 	, bReceivedFocusRecently(false)
 	, bAlwaysShowModeWidgetAfterSelectionChanges(true)
 	, CachedElementsToManipulate(UTypedElementRegistry::GetInstance()->CreateElementList())
@@ -2849,6 +2850,7 @@ bool FLevelEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisLi
 									{
 										ElementsToManipulate = GetElementsToManipulate();
 										ViewportInteraction->BeginGizmoManipulation(ElementsToManipulate, GetWidgetMode());
+										bGizmoDeltaApplied = false;
 									}
 								}
 
@@ -3173,6 +3175,7 @@ void FLevelEditorViewportClient::TrackingStarted( const FInputEventState& InInpu
 		FTypedElementListConstRef ElementsToManipulate = GetElementsToManipulate();
 		ViewportInteraction->BeginGizmoManipulation(ElementsToManipulate, GetWidgetMode());
 		bHasBegunGizmoManipulation = true;
+		bGizmoDeltaApplied = false;
 
 		if (!bDuplicateActorsInProgress)
 		{
@@ -4028,8 +4031,11 @@ void FLevelEditorViewportClient::ApplyDeltaToSelectedElements(const FTransform& 
 	FInputDeviceState InputState;
 	InputState.SetModifierKeyStates(IsShiftPressed(), IsAltPressed(), IsCtrlPressed(), IsCmdPressed());
 
+	ETypedElementViewportInteractionDragMovementType GizmoDeltaType = bGizmoDeltaApplied == false ? ETypedElementViewportInteractionDragMovementType::FirstMove : ETypedElementViewportInteractionDragMovementType::SubsequentMove;
+	bGizmoDeltaApplied = true;
+
 	FTypedElementListConstRef ElementsToManipulate = GetElementsToManipulate();
-	ViewportInteraction->UpdateGizmoManipulation(ElementsToManipulate, GetWidgetMode(), Widget ? Widget->GetCurrentAxis() : EAxisList::None, InputState, ModifiedDeltaTransform);
+	ViewportInteraction->UpdateGizmoManipulation(ElementsToManipulate, GetWidgetMode(), Widget ? Widget->GetCurrentAxis() : EAxisList::None, InputState, ModifiedDeltaTransform, GizmoDeltaType);
 }
 
 void FLevelEditorViewportClient::ApplyDeltaToElement(const FTypedElementHandle& InElementHandle, const FTransform& InDeltaTransform)

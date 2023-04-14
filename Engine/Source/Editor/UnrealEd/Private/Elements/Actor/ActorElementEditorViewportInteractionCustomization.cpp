@@ -13,7 +13,7 @@
 #include "Elements/Interfaces/TypedElementHierarchyInterface.h"
 #include "Elements/Framework/TypedElementRegistry.h"
 
-void FActorElementEditorViewportInteractionCustomization::GizmoManipulationDeltaUpdate(const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform, const FVector& InPivotLocation)
+void FActorElementEditorViewportInteractionCustomization::GizmoManipulationDeltaUpdate(const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform, const FVector& InPivotLocation, ETypedElementViewportInteractionDragMovementType GizmoDeltaType)
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
 
@@ -21,7 +21,7 @@ void FActorElementEditorViewportInteractionCustomization::GizmoManipulationDelta
 	const FRotator DeltaRotation = InDeltaTransform.Rotator();
 	const FVector DeltaScale3D = InDeltaTransform.GetScale3D();
 
-	FActorElementEditorViewportInteractionCustomization::ApplyDeltaToActor(Actor, /*bDelta*/true, &DeltaTranslation, &DeltaRotation, &DeltaScale3D, InPivotLocation, InInputState);
+	FActorElementEditorViewportInteractionCustomization::ApplyDeltaToActor(Actor, /*bDelta*/true, &DeltaTranslation, &DeltaRotation, &DeltaScale3D, InPivotLocation, InInputState, GizmoDeltaType);
 }
 
 void FActorElementEditorViewportInteractionCustomization::MirrorElement(const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle, const FVector& InMirrorScale, const FVector& InPivotLocation)
@@ -132,7 +132,7 @@ bool FActorElementEditorViewportInteractionCustomization::GetFocusBounds( const 
 	return true;
 }
 
-void FActorElementEditorViewportInteractionCustomization::ApplyDeltaToActor(AActor* InActor, const bool InIsDelta, const FVector* InDeltaTranslationPtr, const FRotator* InDeltaRotationPtr, const FVector* InDeltaScalePtr, const FVector& InPivotLocation, const FInputDeviceState& InInputState)
+void FActorElementEditorViewportInteractionCustomization::ApplyDeltaToActor(AActor* InActor, const bool InIsDelta, const FVector* InDeltaTranslationPtr, const FRotator* InDeltaRotationPtr, const FVector* InDeltaScalePtr, const FVector& InPivotLocation, const FInputDeviceState& InInputState, ETypedElementViewportInteractionDragMovementType GizmoDeltaType)
 {
 	const bool bIsSimulatingInEditor = GEditor->IsSimulatingInEditor();
 
@@ -304,7 +304,8 @@ void FActorElementEditorViewportInteractionCustomization::ApplyDeltaToActor(AAct
 		Actor->MarkPackageDirty();
 	}
 	
-	if (!GIsDemoMode)
+	// Don't need to invalidate lighting cache if this is a subsequent delta movement of the same actors
+	if (!GIsDemoMode && GizmoDeltaType != ETypedElementViewportInteractionDragMovementType::SubsequentMove)
 	{
 		for (AActor* Actor : AffectedActors)
 		{
