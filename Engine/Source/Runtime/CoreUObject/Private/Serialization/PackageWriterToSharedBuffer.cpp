@@ -7,14 +7,14 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogPackageWriter, Display, All);
 
-TUniquePtr<FLargeMemoryWriter> IPackageWriter::CreateLinkerArchive(FName PackageName, UObject* Asset)
+TUniquePtr<FLargeMemoryWriter> IPackageWriter::CreateLinkerArchive(FName PackageName, UObject* Asset, uint16 /*MultiOutputIndex*/)
 {
 	// The LargeMemoryWriter does not need to be persistent; the LinkerSave wraps it and reports Persistent=true
 	bool bIsPersistent = false; 
 	return TUniquePtr<FLargeMemoryWriter>(new FLargeMemoryWriter(0, bIsPersistent, *PackageName.ToString()));
 }
 
-TUniquePtr<FLargeMemoryWriter> IPackageWriter::CreateLinkerExportsArchive(FName PackageName, UObject* Asset)
+TUniquePtr<FLargeMemoryWriter> IPackageWriter::CreateLinkerExportsArchive(FName PackageName, UObject* Asset, uint16 /*MultiOutputIndex*/)
 {
 	const bool bPersistent = true;
 	return MakeUnique<FLargeMemoryWriter>(0, bPersistent, *PackageName.ToString());

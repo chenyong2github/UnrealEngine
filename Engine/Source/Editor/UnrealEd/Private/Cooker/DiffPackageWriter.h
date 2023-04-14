@@ -45,8 +45,8 @@ public:
 	{
 		return Inner->GetExportsFooterSize();
 	}
-	virtual TUniquePtr<FLargeMemoryWriter> CreateLinkerArchive(FName PackageName, UObject* Asset) override;
-	virtual TUniquePtr<FLargeMemoryWriter> CreateLinkerExportsArchive(FName PackageName, UObject* Asset) override;
+	virtual TUniquePtr<FLargeMemoryWriter> CreateLinkerArchive(FName PackageName, UObject* Asset, uint16 MultiOutputIndex) override;
+	virtual TUniquePtr<FLargeMemoryWriter> CreateLinkerExportsArchive(FName PackageName, UObject* Asset, uint16 MultiOutputIndex) override;
 	virtual bool IsPreSaveCompleted() const override
 	{
 		return bDiffCallstack;
@@ -95,10 +95,7 @@ public:
 	{
 		Inner->MarkPackagesUpToDate(UpToDatePackages);
 	}
-	virtual void UpdateSaveArguments(FSavePackageArgs& SaveArgs) override
-	{
-		Inner->UpdateSaveArguments(SaveArgs);
-	}
+	virtual void UpdateSaveArguments(FSavePackageArgs& SaveArgs) override;
 	virtual bool IsAnotherSaveNeeded(FSavePackageResultStruct& PreviousResult, FSavePackageArgs& SaveArgs) override;
 	virtual TFuture<FCbObject> WriteMPCookMessageForPackage(FName PackageName) override
 	{
@@ -121,15 +118,16 @@ private:
 	void ConditionallyDumpObjList();
 	void ConditionallyDumpObjects();
 
-	FArchiveDiffMap DiffMap;
+	FArchiveDiffMap DiffMap[2];
 	TUniquePtr<FArchiveCallstacks> ExportsCallstacks;
 	FBeginPackageInfo BeginInfo;
 	TUniquePtr<ICookedPackageWriter> Inner;
 	FString DumpObjListParams;
 	FString PackageFilter;
-	int64 ExportsDiffMapOffset = 0;
+	int64 ExportsDiffMapOffset[2] = {0, 0};
 	int32 MaxDiffsToLog = 5;
 	bool bSaveForDiff = false;
+	bool bDiffOptional = false;
 	bool bIgnoreHeaderDiffs = false;
 	bool bIsDifferent = false;
 	bool bDiffCallstack = false;
@@ -182,9 +180,9 @@ public:
 	{
 		return Inner->GetExportsFooterSize();
 	}
-	virtual TUniquePtr<FLargeMemoryWriter> CreateLinkerArchive(FName PackageName, UObject* Asset) override
+	virtual TUniquePtr<FLargeMemoryWriter> CreateLinkerArchive(FName PackageName, UObject* Asset, uint16 MultiOutputIndex) override
 	{
-		return Inner->CreateLinkerArchive(PackageName, Asset);
+		return Inner->CreateLinkerArchive(PackageName, Asset, MultiOutputIndex);
 	}
 	virtual bool IsPreSaveCompleted() const override
 	{

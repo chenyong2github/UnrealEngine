@@ -935,9 +935,11 @@ ESavePackageResult CreateLinker(FSaveContext& SaveContext)
 		IPackageWriter* PackageWriter = SaveContext.GetPackageWriter();
 		if (PackageWriter || SaveContext.IsSaveToMemory())
 		{
+			const bool bIsOptionalRealm = SaveContext.GetCurrentHarvestingRealm() == ESaveRealm::Optional;
+
 			// Allocate the linker with a memory writer, forcing byte swapping if wanted.
 			TUniquePtr<FLargeMemoryWriter> ExportsArchive = PackageWriter ?
-				PackageWriter->CreateLinkerArchive(SaveContext.GetPackage()->GetFName(), SaveContext.GetAsset()) :
+				PackageWriter->CreateLinkerArchive(SaveContext.GetPackage()->GetFName(), SaveContext.GetAsset(), bIsOptionalRealm ? 1 : 0) :
 				// The LargeMemoryWriter does not need to be persistent; the LinkerSave wraps it and reports Persistent=true
 				TUniquePtr<FLargeMemoryWriter>(new FLargeMemoryWriter(0, false /* bIsPersistent */, *SaveContext.GetPackage()->GetName()));
 			SaveContext.SetLinker(MakePimpl<FLinkerSave>(SaveContext.GetPackage(), ExportsArchive.Release(),
@@ -2735,8 +2737,9 @@ ESavePackageResult SaveHarvestedRealms(FSaveContext& SaveContext, ESaveRealm Har
 		if (Linker.IsCooking())
 		{
 			// Write the exports into a separate archive
+			const bool bIsOptionalRealm = SaveContext.GetCurrentHarvestingRealm() == ESaveRealm::Optional;
 			TUniquePtr<FLargeMemoryWriter> ExportsArchive = SaveContext.GetPackageWriter()->CreateLinkerExportsArchive(
-				SaveContext.GetPackage()->GetFName(), SaveContext.GetAsset());
+				SaveContext.GetPackage()->GetFName(), SaveContext.GetAsset(), bIsOptionalRealm ? 1 : 0);
 			ExportsArchive->SetSerializeContext(SaveContext.GetSerializeContext());
 			SaveContext.Result = WriteCookedExports(*ExportsArchive, SaveContext);
 
