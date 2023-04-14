@@ -220,13 +220,6 @@ float4 LoadNeighborHeightmapScaledPosition(bool2 bInIsMinComponentBorder, bool2 
 	float2 NeighborHeight = LoadNeighborHeightmapUnpackedHeight(bInIsMinComponentBorder, bInIsMaxComponentBorder, InRelativeTextureCoordinates, InNeighborOffset, bSkipDuplicateRowColumn);
 	return float4(((int2) InRelativeTextureCoordinates + InNeighborOffset) * InLandscapeGridScale.xy, ScaleHeight(NeighborHeight.x), NeighborHeight.y);
 }
-
-// Compute the normal of the triangle formed by the 3 points (in winding order). Additionally, the .w component of each point indicates its validity and the result will be 0 if either of the points is invalid :
-float3 ComputeNullableTriangleNormal(float4 InPoint0, float4 InPoint1, float4 InPoint2)
-{
-	float3 Normal = normalize(cross(InPoint0.xyz - InPoint1.xyz, InPoint1.xyz - InPoint2.xyz));
-	return Normal * InPoint0.w * InPoint1.w * InPoint2.w;
-}
 #endif // FINALIZE_HEIGHTMAP
 
 

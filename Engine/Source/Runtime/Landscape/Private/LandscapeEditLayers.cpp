@@ -474,6 +474,7 @@ struct FLandscapeLayersHeightmapShaderParameters
 		, ReadHeightmap2(nullptr)
 		, HeightmapSize(0, 0)
 		, ApplyLayerModifiers(false)
+		, PassthroughHeightmap1BlueAlpha(true)
 		, LayerAlpha(1.0f)
 		, LayerVisible(true)
 		, LayerBlendMode(LSBM_AdditiveBlend)
@@ -488,6 +489,7 @@ struct FLandscapeLayersHeightmapShaderParameters
 	UTexture* ReadHeightmap2;
 	FIntPoint HeightmapSize;
 	bool ApplyLayerModifiers;
+	bool PassthroughHeightmap1BlueAlpha;
 	float LayerAlpha;
 	bool LayerVisible;
 	ELandscapeBlendMode LayerBlendMode;
@@ -536,7 +538,7 @@ public:
 		SetTextureParameter(BatchedParameters, ReadTexture2Param, ReadTexture2SamplerParam, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), InParams.ReadHeightmap2 != nullptr ? InParams.ReadHeightmap2->GetResource()->TextureRHI : GWhiteTexture->TextureRHI);
 
 		FVector4f LayerInfo(InParams.LayerAlpha, InParams.LayerVisible ? 1.0f : 0.0f, InParams.LayerBlendMode == LSBM_AlphaBlend ? 1.0f : 0.f, 0.f);
-		FVector4f OutputConfig(InParams.ApplyLayerModifiers ? 1.0f : 0.0f, 0.0f /*unused*/, InParams.ReadHeightmap2 ? 1.0f : 0.0f, InParams.GenerateNormals ? 1.0f : 0.0f);
+		FVector4f OutputConfig(InParams.ApplyLayerModifiers ? 1.0f : 0.0f, InParams.PassthroughHeightmap1BlueAlpha ? 1.0f : 0.0f, InParams.ReadHeightmap2 ? 1.0f : 0.0f, InParams.GenerateNormals ? 1.0f : 0.0f);
 		FVector2f TextureSize(static_cast<float>(InParams.HeightmapSize.X), static_cast<float>(InParams.HeightmapSize.Y));
 
 		SetShaderValue(BatchedParameters, LayerInfoParam, LayerInfo);
@@ -4851,8 +4853,9 @@ int32 ALandscape::PerformLayersHeightmapsGlobalMerge(const FUpdateLayersContentC
 
 	for (FLandscapeLayer& Layer : LandscapeLayers)
 	{
-		//Draw Layer heightmap to Combined RT Atlas
+		// Draw each Layer's heightmaps to a Combined RT Atlas in LandscapeScratchRT1
 		ShaderParams.ApplyLayerModifiers = false;
+		ShaderParams.PassthroughHeightmap1BlueAlpha = false; // before we calculate normals, don't passthrough (instead mark valid using alpha)
 		ShaderParams.LayerVisible = Layer.bVisible;
 		ShaderParams.GenerateNormals = false;
 		ShaderParams.LayerBlendMode = Layer.BlendMode;
@@ -4886,13 +4889,14 @@ int32 ALandscape::PerformLayersHeightmapsGlobalMerge(const FUpdateLayersContentC
 			ExecuteCopyLayersTexture(MoveTemp(DeferredCopyTextures));
 		}
 
-		// NOTE: From this point on, we always work in non atlas, we'll convert back at the end to atlas only
+		// Convert Atlas LandscapeScratchRT1 to the world-projected NonAtlas in LandscapeScratchRT2
+		// TODO: just use this format from the beginning above...
 		DrawHeightmapComponentsToRenderTarget(FString::Printf(TEXT("LS Height: %s += -> NonAtlas %s"), *Layer.Name.ToString(), *LandscapeScratchRT1->GetName(), *LandscapeScratchRT2->GetName()),
 			InUpdateLayersContentContext.LandscapeComponentsHeightmapsToRender, LandscapeExtent.Min, LandscapeScratchRT1, nullptr, LandscapeScratchRT2, ERTDrawingType::RTAtlasToNonAtlas, true, ShaderParams);
 
 		ShaderParams.ApplyLayerModifiers = true;
 
-		// Combine Current layer with current result
+		// Combine Current layer NonAtlas LandscapeScratchRT2 with current result in LandscapeScratchRT3, writing final result to CombinedHeightmapNonAtlasRT
 		DrawHeightmapComponentsToRenderTarget(FString::Printf(TEXT("LS Height: %s += -> CombinedNonAtlas %s"), *Layer.Name.ToString(), *LandscapeScratchRT2->GetName(), *CombinedHeightmapNonAtlasRT->GetName()),
 			InUpdateLayersContentContext.LandscapeComponentsHeightmapsToRender, LandscapeExtent.Min, LandscapeScratchRT2, FirstLayer ? nullptr : LandscapeScratchRT3, CombinedHeightmapNonAtlasRT, ERTDrawingType::RTNonAtlas, FirstLayer, ShaderParams);
 
@@ -4933,6 +4937,8 @@ int32 ALandscape::PerformLayersHeightmapsGlobalMerge(const FUpdateLayersContentC
 			}
 		}
 
+		// copy CombinedHeightmapNonAtlasRT to LandscapeScratchRT3 (as a source for later layers... this is wasted on the last layer I think...)
+		// TODO: you can get the same effect for much cheaper by swapping these two pointers before the render above...
 		ExecuteCopyLayersTexture({ FLandscapeLayersCopyTextureParams(CombinedHeightmapNonAtlasRT, LandscapeScratchRT3) });
 		PrintLayersDebugRT(FString::Printf(TEXT("LS Height: %s Component %s += -> CombinedNonAtlas %s"), *Layer.Name.ToString(), *CombinedHeightmapNonAtlasRT->GetName(), *LandscapeScratchRT3->GetName()), LandscapeScratchRT3);
 
@@ -4948,14 +4954,18 @@ int32 ALandscape::PerformLayersHeightmapsGlobalMerge(const FUpdateLayersContentC
 		LandscapeFullHeightmapRenderDoneDelegate.Broadcast(LandscapeScratchRT3);
 	}
 
+	// compute Normals into LandscapeScratchRT1
 	DrawHeightmapComponentsToRenderTarget(FString::Printf(TEXT("LS Height: %s = -> CombinedNonAtlasNormals : %s"), *CombinedHeightmapNonAtlasRT->GetName(), *LandscapeScratchRT1->GetName()),
 		InUpdateLayersContentContext.LandscapeComponentsHeightmapsToRender, LandscapeExtent.Min, CombinedHeightmapNonAtlasRT, nullptr, LandscapeScratchRT1, ERTDrawingType::RTNonAtlas, true, ShaderParams);
 
 	ShaderParams.GenerateNormals = false;
+	ShaderParams.PassthroughHeightmap1BlueAlpha = true;		// now that we've generated normals, need to pass through the blue and alpha channels to preserve them
 
+	// convert back to atlas (TODO: we could do this on the first mip downsample instead...)
 	DrawHeightmapComponentsToRenderTarget(FString::Printf(TEXT("LS Height: %s = -> CombinedAtlasFinal : %s"), *LandscapeScratchRT1->GetName(), *CombinedHeightmapAtlasRT->GetName()),
 		InUpdateLayersContentContext.LandscapeComponentsHeightmapsToRender, LandscapeExtent.Min, LandscapeScratchRT1, nullptr, CombinedHeightmapAtlasRT, ERTDrawingType::RTNonAtlasToAtlas, true, ShaderParams);
 
+	// Downsample to generate mips...
 	DrawHeightmapComponentsToRenderTargetMips(InUpdateLayersContentContext.LandscapeComponentsHeightmapsToRender, LandscapeExtent.Min, CombinedHeightmapAtlasRT, true, ShaderParams);
 
 	// List of UTexture2D that we need to kick off readbacks for :
