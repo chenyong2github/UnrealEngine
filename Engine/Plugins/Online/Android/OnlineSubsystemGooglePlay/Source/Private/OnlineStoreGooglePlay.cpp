@@ -6,7 +6,6 @@
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Culture.h"
 #include "Internationalization/FastDecimalFormat.h"
-#include "Misc/ConfigCacheIni.h"
 #include <jni.h>
 #include "Android/AndroidJavaEnv.h"
 
@@ -26,20 +25,6 @@ FOnlineStoreGooglePlayV2::FOnlineStoreGooglePlayV2()
 
 FOnlineStoreGooglePlayV2::~FOnlineStoreGooglePlayV2()
 {
-}
-
-void FOnlineStoreGooglePlayV2::Init()
-{
-	UE_LOG_ONLINE_STOREV2(Verbose, TEXT("FOnlineStoreGooglePlayV2::Init"));
-
-	FString GooglePlayLicenseKey;
-	if (!GConfig->GetString(TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings"), TEXT("GooglePlayLicenseKey"), GooglePlayLicenseKey, GEngineIni) || GooglePlayLicenseKey.IsEmpty())
-	{
-		UE_LOG_ONLINE_STOREV2(Warning, TEXT("Missing GooglePlayLicenseKey key in /Script/AndroidRuntimeSettings.AndroidRuntimeSettings of DefaultEngine.ini"));
-	}
-
-	extern void AndroidThunkCpp_Iap_SetupIapService(const FString&);
-	AndroidThunkCpp_Iap_SetupIapService(GooglePlayLicenseKey);
 }
 
 TSharedRef<FOnlineStoreOffer> ConvertProductToStoreOffer(const FOnlineStoreOffer& Product)
@@ -120,7 +105,10 @@ void FOnlineStoreGooglePlayV2::QueryOffersById(const FUniqueNetId& UserId, const
 		bIsQueryInFlight = true;
 		QueryOnlineStoreOffersCompleteDelegate = Delegate;
 		extern bool AndroidThunkCpp_Iap_QueryInAppPurchases(const TArray<FString>&);
-		AndroidThunkCpp_Iap_QueryInAppPurchases(OfferIds);
+		if (!AndroidThunkCpp_Iap_QueryInAppPurchases(OfferIds))
+		{
+			Delegate.ExecuteIfBound(false, OfferIds, TEXT("Query did not start"));
+		}
 	}
 }
 

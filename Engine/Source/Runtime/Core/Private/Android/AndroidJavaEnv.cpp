@@ -283,7 +283,15 @@ FScopedJavaObject<jobjectArray> FJavaHelper::ToJavaStringArray(JNIEnv* Env, cons
 	jobjectArray ObjectArray = Env->NewObjectArray((jsize)UnrealStrings.Num(), JavaStringClass, NULL);
 	for (int32 Idx = 0; Idx < UnrealStrings.Num(); ++Idx)
 	{
-		Env->SetObjectArrayElement(ObjectArray, Idx, Env->NewStringUTF(TCHAR_TO_UTF8(UnrealStrings[Idx].GetData())));
+		// FStringView of an empty FString contains a null pointer as data
+		if (UnrealStrings[Idx].GetData())
+		{
+			Env->SetObjectArrayElement(ObjectArray, Idx, Env->NewStringUTF(TCHAR_TO_UTF8(UnrealStrings[Idx].GetData())));
+		}
+		else
+		{		
+			Env->SetObjectArrayElement(ObjectArray, Idx, Env->NewStringUTF(""));
+		}
 	}
 	return NewScopedJavaObject(Env, ObjectArray);
 }

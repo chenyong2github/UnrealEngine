@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Interfaces/OnlinePurchaseInterface.h"
+#include "Misc/Optional.h"
 #include "Serialization/JsonSerializerMacros.h"
 #include "OnlineIdentityInterfaceGooglePlay.h"
 
@@ -36,6 +37,8 @@ struct FGoogleTransactionData
 	EGooglePlayPurchaseState GetPurchaseState() const { return PurchaseState; }
 	/** Checks if all items reported in the transaction are present in the request */
 	bool IsMatchingRequest(const FPurchaseCheckoutRequest& Request) const;
+	/** marker found in the receipt data to indicate it refers to a subscription */
+	inline static const TCHAR* SubscriptionReceiptMarker = TEXT("isSubscription");
 private:
 
 	/** Easy access to transmission of data required for backend validation */
@@ -45,11 +48,10 @@ private:
 	public:
 
 		FJsonReceiptData() {}
-		FJsonReceiptData(const FString& InReceiptData, const FString& InSignature)
-			: ReceiptData(InReceiptData)
-			, Signature(InSignature)
-		{ }
+		FJsonReceiptData(const TArray<FString>& InOfferIds, const FString& InReceiptData, const FString& InSignature);
 
+		/** Opaque store receipt data */
+		TOptional<bool> IsSubscription;
 		/** Opaque store receipt data */
 		FString ReceiptData;
 		/** Signature associated with the transaction */
@@ -57,6 +59,7 @@ private:
 
 		// FJsonSerializable
 		BEGIN_JSON_SERIALIZER
+			JSON_SERIALIZE_OPTIONAL("isSubscription", IsSubscription);
 			JSON_SERIALIZE("receiptData", ReceiptData);
 			JSON_SERIALIZE("signature", Signature);
 		END_JSON_SERIALIZER
@@ -90,6 +93,7 @@ public:
 	virtual void Checkout(const FUniqueNetId& UserId, const FPurchaseCheckoutRequest& CheckoutRequest, const FOnPurchaseCheckoutComplete& Delegate) override;
 	virtual void Checkout(const FUniqueNetId& UserId, const FPurchaseCheckoutRequest& CheckoutRequest, const FOnPurchaseReceiptlessCheckoutComplete& Delegate) override;
 	virtual void FinalizePurchase(const FUniqueNetId& UserId, const FString& ReceiptId) override;
+	virtual void FinalizePurchase(const FUniqueNetId& UserId, const FString& ReceiptId, const FString& ReceiptInfo) override;
 	virtual void RedeemCode(const FUniqueNetId& UserId, const FRedeemCodeRequest& RedeemCodeRequest, const FOnPurchaseRedeemCodeComplete& Delegate) override;
 	virtual void QueryReceipts(const FUniqueNetId& UserId, bool bRestoreReceipts, const FOnQueryReceiptsComplete& Delegate) override;
 	virtual void GetReceipts(const FUniqueNetId& UserId, TArray<FPurchaseReceipt>& OutReceipts) const override;
@@ -118,8 +122,13 @@ public:
 	/** Handle Java side query purchases completed notification */
 	void OnQueryExistingPurchasesComplete(EGooglePlayBillingResponseCode InResponseCode, const TArray<FGoogleTransactionData>& InExistingPurchases);
 
+	/** Handle Java side acknowledge purchase completed notification */
+	void OnAcknowledgePurchaseComplete(EGooglePlayBillingResponseCode InResponseCode, const FString& InPurchaseToken);
+
 	/** Handle Java side consume purchase completed notification */
 	void OnConsumePurchaseComplete(EGooglePlayBillingResponseCode InResponseCode, const FString& InPurchaseToken);
+
+	static bool IsSubscriptionProductId(const FString& ProductId);
 private:
 	
 	/**
@@ -132,8 +141,15 @@ private:
 	
 private:
 	
+	/** 
+	 * Acknoledge and consume are not invoked when calling FinishPurchase 
+	 * If this is set to 'true' acknowledge and consume should be invoked using server to server calls
+	 * after validation to avoid refunds
+	*/
+	bool bDisableLocalAcknowledgeAndConsume = false;
+
 	/** Are receipts being queried */
-	bool bQueryingReceipts;
+	bool bQueryingReceipts = false;
 	
 	/** Transient delegate to fire when query receipts has completed */
 	FOnQueryReceiptsComplete QueryReceiptsComplete;
@@ -145,7 +161,7 @@ private:
 	FOnlinePurchasePurchasedTransactions KnownTransactions;
 	
 	/** Reference to the parent subsystem */
-	FOnlineSubsystemGooglePlay* Subsystem;
+	FOnlineSubsystemGooglePlay* Subsystem = nullptr;
 };
 
 typedef TSharedPtr<FOnlinePurchaseGooglePlay, ESPMode::ThreadSafe> FOnlinePurchaseGooglePlayPtr;

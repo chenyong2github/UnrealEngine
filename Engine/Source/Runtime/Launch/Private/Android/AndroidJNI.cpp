@@ -221,6 +221,7 @@ void FJavaWrapper::FindGooglePlayBillingMethods(JNIEnv* Env)
 	AndroidThunkJava_IapQueryInAppPurchases = FindMethod(Env, GoogleServicesClassID, "AndroidThunkJava_IapQueryInAppPurchases", "([Ljava/lang/String;)Z", bIsStoreOptional);
 	AndroidThunkJava_IapBeginPurchase = FindMethod(Env, GoogleServicesClassID, "AndroidThunkJava_IapBeginPurchase", "([Ljava/lang/String;Ljava/lang/String;)Z", bIsStoreOptional);
 	AndroidThunkJava_IapIsAllowedToMakePurchases = FindMethod(Env, GoogleServicesClassID, "AndroidThunkJava_IapIsAllowedToMakePurchases", "()Z", bIsStoreOptional);
+	AndroidThunkJava_IapAcknowledgePurchase = FindMethod(Env, GoogleServicesClassID, "AndroidThunkJava_IapAcknowledgePurchase", "(Ljava/lang/String;)Z", bIsStoreOptional);
 	AndroidThunkJava_IapConsumePurchase = FindMethod(Env, GoogleServicesClassID, "AndroidThunkJava_IapConsumePurchase", "(Ljava/lang/String;)Z", bIsStoreOptional);
 	AndroidThunkJava_IapQueryExistingPurchases = FindMethod(Env, GoogleServicesClassID, "AndroidThunkJava_IapQueryExistingPurchases", "()Z", bIsStoreOptional);
 }
@@ -454,6 +455,7 @@ jmethodID FJavaWrapper::AndroidThunkJava_IapQueryInAppPurchases;
 jmethodID FJavaWrapper::AndroidThunkJava_IapBeginPurchase;
 jmethodID FJavaWrapper::AndroidThunkJava_IapIsAllowedToMakePurchases;
 jmethodID FJavaWrapper::AndroidThunkJava_IapQueryExistingPurchases;
+jmethodID FJavaWrapper::AndroidThunkJava_IapAcknowledgePurchase;
 jmethodID FJavaWrapper::AndroidThunkJava_IapConsumePurchase;
 
 jmethodID FJavaWrapper::AndroidThunkJava_UseSurfaceViewWorkaround;
@@ -1420,6 +1422,27 @@ bool AndroidThunkCpp_Iap_ConsumePurchase(const FString& ProductToken)
 			//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("[JNI] - AndroidThunkCpp_Iap_ConsumePurchase BEGIN"));
 			bResult = FJavaWrapper::CallBooleanMethod(Env, FJavaWrapper::GoogleServicesThis, FJavaWrapper::AndroidThunkJava_IapConsumePurchase, *ProductTokenJava);
 			//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("[JNI] - AndroidThunkCpp_Iap_ConsumePurchase END"));
+		}
+	}
+
+	return bResult;
+}
+
+bool AndroidThunkCpp_Iap_AcknowledgePurchase(const FString& ProductToken)
+{
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("[JNI] - AndroidThunkCpp_Iap_AcknowledgePurchase %s"), *ProductToken);
+	
+	bool bResult = false;
+	if (!ProductToken.IsEmpty())
+	{
+		if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
+		{
+			CHECK_JNI_METHOD(FJavaWrapper::AndroidThunkJava_IapAcknowledgePurchase);
+
+			auto ProductTokenJava = FJavaHelper::ToJavaString(Env, ProductToken);
+			//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("[JNI] - AndroidThunkCpp_Iap_AcknowledgePurchase BEGIN"));
+			bResult = FJavaWrapper::CallBooleanMethod(Env, FJavaWrapper::GoogleServicesThis, FJavaWrapper::AndroidThunkJava_IapAcknowledgePurchase, *ProductTokenJava);
+			//FPlatformMisc::LowLevelOutputDebugStringf(TEXT("[JNI] - AndroidThunkCpp_Iap_AcknowledgePurchase END"));
 		}
 	}
 

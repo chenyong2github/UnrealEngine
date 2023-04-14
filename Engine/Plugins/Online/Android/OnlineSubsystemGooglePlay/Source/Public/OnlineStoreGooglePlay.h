@@ -45,9 +45,6 @@ public:
 	 */
 	virtual ~FOnlineStoreGooglePlayV2();
 
-	/** Initialize the interface */
-	void Init();
-	
 	/** Handle Java side query available iap completed notification */
 	void OnGooglePlayAvailableIAPQueryComplete(EGooglePlayBillingResponseCode InResponse, const TArray<FProvidedProductInformation>& InProvidedProductInformation);
 

@@ -118,6 +118,7 @@ public:
 	static jmethodID AndroidThunkJava_IapBeginPurchase;
 	static jmethodID AndroidThunkJava_IapIsAllowedToMakePurchases;
 	static jmethodID AndroidThunkJava_IapQueryExistingPurchases;
+	static jmethodID AndroidThunkJava_IapAcknowledgePurchase;
 	static jmethodID AndroidThunkJava_IapConsumePurchase;
 
 	// SurfaceView functionality for view scaling on some devices

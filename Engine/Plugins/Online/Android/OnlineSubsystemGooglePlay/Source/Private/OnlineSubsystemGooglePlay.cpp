@@ -141,7 +141,6 @@ bool FOnlineSubsystemGooglePlay::Init()
 	if (IsInAppPurchasingEnabled())
 	{
         StoreV2Interface = MakeShareable(new FOnlineStoreGooglePlayV2(this));
-		StoreV2Interface->Init();
 		PurchaseInterface = MakeShareable(new FOnlinePurchaseGooglePlay(this));
 		PurchaseInterface->Init();
 	}

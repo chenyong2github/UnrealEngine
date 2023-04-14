@@ -4853,6 +4853,20 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		return false;
 	}
 
+	public boolean AndroidThunkJava_IapAcknowledgePurchase(String purchaseToken)
+	{
+		Log.debug("[JAVA] - AndroidThunkJava_IapAcknowledgePurchase " + purchaseToken);
+
+		if( IapStoreHelper != null )
+		{
+			IapStoreHelper.AcknowledgePurchase(purchaseToken);
+			return true;
+		}
+
+		Log.debug("[JAVA] - Store Helper is invalid");
+		return false;
+	}
+
 	public boolean AndroidThunkJava_IapQueryExistingPurchases()
 	{
 		Log.debug("[JAVA] - AndroidThunkJava_IapQueryExistingPurchases");
@@ -6003,10 +6017,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				DecimalFormatSymbols symbols = new DecimalFormatSymbols();
 				symbols.setDecimalSeparator('.');
 				DecimalFormat decimalFormat = new DecimalFormat("###.##", symbols);
-
-				Display displayobj = GetDefaultDisplay();
-				String Test = ExtractFieldsToKVString(displayobj, ";", true);
-
 
 				String screenDPI = decimalFormat.format(metrics.xdpi) + "," + decimalFormat.format(metrics.ydpi) + "," + decimalFormat.format(metrics.densityDpi);
 				return screenDPI;
