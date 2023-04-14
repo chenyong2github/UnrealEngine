@@ -45,13 +45,6 @@ FMassProcessingContext::~FMassProcessingContext()
 //----------------------------------------------------------------------//
 void FMassRuntimePipeline::Reset()
 {
-	for (UMassProcessor* Processor : Processors)
-	{
-		if (Processor)
-		{
-			Processor->MarkAsGarbage();
-		}
-	}
 	Processors.Reset();
 }
 
