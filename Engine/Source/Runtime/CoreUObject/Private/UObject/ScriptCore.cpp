@@ -799,7 +799,10 @@ int32 FScriptInstrumentationSignal::GetScriptCodeOffset() const
 	}
 	else if (StackFramePtr != nullptr)
 	{
-		CodeOffset = StackFramePtr->Code - StackFramePtr->Node->Script.GetData() - 1;
+		// StackFramePtr->Code should never be outside the TArray StackFramePtr->Node->Script
+		// and so the resulting pointer calculation should always fit in a int32 (the max size 
+		// TArray stores) so it is safe to just cast.
+		CodeOffset = static_cast<int32>(StackFramePtr->Code - StackFramePtr->Node->Script.GetData() - 1);
 	}
 	return CodeOffset;
 }
