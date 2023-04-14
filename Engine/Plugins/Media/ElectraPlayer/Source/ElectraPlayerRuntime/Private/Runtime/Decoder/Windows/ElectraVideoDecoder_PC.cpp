@@ -111,15 +111,10 @@ void FElectraPlayerVideoDecoderOutputPC::InitializeWithSharedTexture(const TRefC
 		return;
 	}
 
-	_InitializeWithSharedTexture(InD3D11Device, InDeviceContext, DecoderTexture, ViewIndex, OutputDim, InParamDict);
+	InitializeWithSharedTexture(InD3D11Device, InDeviceContext, DecoderTexture, ViewIndex, OutputDim, InParamDict);
 }
 
-void FElectraPlayerVideoDecoderOutputPC::InitializeWithSharedTexture(const TRefCountPtr<ID3D11Device>& InD3D11Device, const TRefCountPtr<ID3D11DeviceContext> InDeviceContext, const TRefCountPtr<ID3D11Texture2D> DecoderTexture, const FIntPoint& OutputDim, TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict)
-{
-	_InitializeWithSharedTexture(InD3D11Device, InDeviceContext, DecoderTexture, 0, OutputDim, InParamDict);
-}
-
-void FElectraPlayerVideoDecoderOutputPC::_InitializeWithSharedTexture(const TRefCountPtr<ID3D11Device>& InD3D11Device, const TRefCountPtr<ID3D11DeviceContext> InDeviceContext, const TRefCountPtr<ID3D11Texture2D> DecoderTexture, uint32 ViewIndex, const FIntPoint& OutputDim, TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict)
+void FElectraPlayerVideoDecoderOutputPC::InitializeWithSharedTexture(const TRefCountPtr<ID3D11Device>& InD3D11Device, const TRefCountPtr<ID3D11DeviceContext> InDeviceContext, const TRefCountPtr<ID3D11Texture2D> DecoderTexture, uint32 ViewIndex, const FIntPoint& OutputDim, TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict)
 {
 	FVideoDecoderOutput::Initialize(InParamDict);
 

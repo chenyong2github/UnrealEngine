@@ -247,7 +247,13 @@ bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutputFr
 				{
 					return false;
 				}
-				DecoderOutput->InitializeWithSharedTexture(Device, DeviceContext, Texture2D, FIntPoint(InDecoderOutput->GetWidth(), InDecoderOutput->GetHeight()), InOutBufferPropertes);
+
+				uint32 ViewIndex = 0;
+				if (DXGIBuffer->GetSubresourceIndex(&ViewIndex) != S_OK)
+				{
+					return false;
+				}
+				DecoderOutput->InitializeWithSharedTexture(Device, DeviceContext, Texture2D, ViewIndex, FIntPoint(InDecoderOutput->GetWidth(), InDecoderOutput->GetHeight()), InOutBufferPropertes);
 				if (!DecoderOutput->GetTexture())
 				{
 					UE_LOG(LogElectraPlayer, Error, TEXT("ID3D11Device::CreateTexture2D() failed!"));
@@ -364,35 +370,34 @@ bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput(I
 
 	if (DecoderOutput.IsValid())
 	{
-		FElectraVideoDecoderOutputCropValues Crop = InDecoderOutput->GetCropValues();
-		InOutBufferPropertes->Set(TEXT("width"), FVariantValue((int64)InDecoderOutput->GetWidth()));
-		InOutBufferPropertes->Set(TEXT("height"), FVariantValue((int64)InDecoderOutput->GetHeight()));
-		InOutBufferPropertes->Set(TEXT("crop_left"), FVariantValue((int64)Crop.Left));
-		InOutBufferPropertes->Set(TEXT("crop_right"), FVariantValue((int64)Crop.Right));
-		InOutBufferPropertes->Set(TEXT("crop_top"), FVariantValue((int64)Crop.Top));
-		InOutBufferPropertes->Set(TEXT("crop_bottom"), FVariantValue((int64)Crop.Bottom));
-		InOutBufferPropertes->Set(TEXT("aspect_ratio"), FVariantValue((double)InDecoderOutput->GetAspectRatioW() / (double)InDecoderOutput->GetAspectRatioH()));
-		InOutBufferPropertes->Set(TEXT("aspect_w"), FVariantValue((int64)InDecoderOutput->GetAspectRatioW()));
-		InOutBufferPropertes->Set(TEXT("aspect_h"), FVariantValue((int64)InDecoderOutput->GetAspectRatioH()));
-		InOutBufferPropertes->Set(TEXT("fps_num"), FVariantValue((int64)InDecoderOutput->GetFrameRateNumerator()));
-		InOutBufferPropertes->Set(TEXT("fps_denom"), FVariantValue((int64)InDecoderOutput->GetFrameRateDenominator()));
-
-		int32 Width = InDecoderOutput->GetDecodedWidth();
-		int32 Height = InDecoderOutput->GetDecodedHeight();
-
-		InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64)InDecoderOutput->GetNumberOfBits()));
-
 		//
 		// Image buffers?
 		//
 		IElectraDecoderVideoOutputImageBuffers* ImageBuffers = reinterpret_cast<IElectraDecoderVideoOutputImageBuffers*>(InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::ImageBuffers));
 		if (ImageBuffers != nullptr)
 		{
+			FElectraVideoDecoderOutputCropValues Crop = InDecoderOutput->GetCropValues();
+			InOutBufferPropertes->Set(TEXT("width"), FVariantValue((int64)InDecoderOutput->GetWidth()));
+			InOutBufferPropertes->Set(TEXT("height"), FVariantValue((int64)InDecoderOutput->GetHeight()));
+			InOutBufferPropertes->Set(TEXT("crop_left"), FVariantValue((int64)Crop.Left));
+			InOutBufferPropertes->Set(TEXT("crop_right"), FVariantValue((int64)Crop.Right));
+			InOutBufferPropertes->Set(TEXT("crop_top"), FVariantValue((int64)Crop.Top));
+			InOutBufferPropertes->Set(TEXT("crop_bottom"), FVariantValue((int64)Crop.Bottom));
+			InOutBufferPropertes->Set(TEXT("aspect_ratio"), FVariantValue((double)InDecoderOutput->GetAspectRatioW() / (double)InDecoderOutput->GetAspectRatioH()));
+			InOutBufferPropertes->Set(TEXT("aspect_w"), FVariantValue((int64)InDecoderOutput->GetAspectRatioW()));
+			InOutBufferPropertes->Set(TEXT("aspect_h"), FVariantValue((int64)InDecoderOutput->GetAspectRatioH()));
+			InOutBufferPropertes->Set(TEXT("fps_num"), FVariantValue((int64)InDecoderOutput->GetFrameRateNumerator()));
+			InOutBufferPropertes->Set(TEXT("fps_denom"), FVariantValue((int64)InDecoderOutput->GetFrameRateDenominator()));
+
+			int32 Width = InDecoderOutput->GetDecodedWidth();
+			int32 Height = InDecoderOutput->GetDecodedHeight();
+
+			InOutBufferPropertes->Set(TEXT("bits_per"), FVariantValue((int64)InDecoderOutput->GetNumberOfBits()));
+
 			int32 NumImageBuffers = ImageBuffers->GetNumberOfBuffers();
 			check(NumImageBuffers == 1 || NumImageBuffers == 2);
 
 			// Color buffer
-
 			EElectraDecoderPlatformPixelFormat PixFmt = ImageBuffers->GetBufferFormatByIndex(0);
 			EElectraDecoderPlatformPixelEncoding PixEnc = ImageBuffers->GetBufferEncodingByIndex(0);
 
@@ -454,7 +459,7 @@ bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput(I
 			}
 			else
 			{
-				// Note: we assume a DX11 texture at this point, but this could also be interpreted as IUknown and then either DX11 or DX12 resources being derived from it...
+				// Note: we assume a DX11 texture at this point, but this could also be interpreted as IUnknown and then either DX11 or DX12 resources being derived from it...
 				ID3D11Texture2D* Texture = static_cast<ID3D11Texture2D*>(ImageBuffers->GetBufferTextureByIndex(0));
 				if (Texture != nullptr)
 				{
@@ -465,7 +470,8 @@ bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput(I
 					ID3D11DeviceContext* DeviceContext = reinterpret_cast<ID3D11DeviceContext*>(InDecoderOutput->GetPlatformOutputHandle(EElectraDecoderPlatformOutputHandleType::DXDeviceContext));
 					if (Device && DeviceContext)
 					{
-						DecoderOutput->InitializeWithSharedTexture(Device, DeviceContext, Texture, FIntPoint(InDecoderOutput->GetWidth(), InDecoderOutput->GetHeight()), InOutBufferPropertes);
+						uint32 ViewIndex = 0;
+						DecoderOutput->InitializeWithSharedTexture(Device, DeviceContext, Texture, ViewIndex, FIntPoint(InDecoderOutput->GetWidth(), InDecoderOutput->GetHeight()), InOutBufferPropertes);
 						return true;
 					}
 				}
@@ -482,7 +488,6 @@ bool FElectraDecoderResourceManagerWindows::SetupRenderBufferFromDecoderOutput(I
 				return SetupRenderBufferFromDecoderOutputFromMFSample(InOutBufferToSetup, InOutBufferPropertes, InDecoderOutput, InPlatformSpecificResource);
 			}
 		}
-
 	}
 	return false;
 }

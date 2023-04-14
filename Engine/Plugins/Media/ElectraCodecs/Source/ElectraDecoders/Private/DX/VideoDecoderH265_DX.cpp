@@ -50,9 +50,9 @@ public:
 	{ return UserValue; }
 
 	int32 GetWidth() const override
-	{ return Width - Crop.Left - Crop.Right; }
+	{ return Width; }
 	int32 GetHeight() const override
-	{ return Height - Crop.Top - Crop.Bottom; }
+	{ return Height; }
 	int32 GetDecodedWidth() const override
 	{ return DecodedWidth; }
 	int32 GetDecodedHeight() const override
@@ -897,7 +897,7 @@ bool FElectraVideoDecoderH265_DX::ConvertDecoderOutput()
 	// Width and height as "decoded dims" (which are featuring format specific scales & no cropping)
 	NewOutput->DecodedWidth = (int32)dwInputWidth;
 	NewOutput->DecodedHeight = (int32)dwInputHeight;
-	if (DecoderPlatformHandle->IsSoftware() || DecoderPlatformHandle->GetDXVersionTimes1000() >= 12000)
+	if (DecoderPlatformHandle->IsSoftware() || DecoderPlatformHandle->GetDXVersionTimes1000() >= 12000 || DecoderPlatformHandle->GetDXVersionTimes1000() == 0)
 	{
 		// We are returning a CPU side buffer (software decode OR DX12 render device) - adjust the height so it can be interpreted as a single plane texture
 		NewOutput->DecodedHeight = NewOutput->DecodedHeight * 3 / 2;
