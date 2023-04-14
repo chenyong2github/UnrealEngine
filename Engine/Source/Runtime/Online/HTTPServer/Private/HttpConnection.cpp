@@ -13,6 +13,7 @@
 
 #include "Sockets.h"
 #include "SocketSubsystem.h"
+#include "Stats/Stats.h"
 #include "Containers/Array.h"
 
 DEFINE_LOG_CATEGORY(LogHttpConnection)
@@ -35,6 +36,7 @@ FHttpConnection::~FHttpConnection()
 
 void FHttpConnection::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpConnection_Tick);
 	const float AwaitReadTimeout = bKeepAlive ?
 		ConnectionKeepAliveTimeout : ConnectionTimeout;
 
@@ -95,6 +97,7 @@ void FHttpConnection::TransferState(EHttpConnectionState CurrentState, EHttpConn
 
 void FHttpConnection::BeginRead(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpConnection_BeginRead);
 	const FTimespan WaitTime = FTimespan::FromMilliseconds(1);
 	if (!Socket->Wait(ESocketWaitConditions::WaitForRead, WaitTime))
 	{
@@ -105,6 +108,10 @@ void FHttpConnection::BeginRead(float DeltaTime)
 	}
 	else
 	{
+		UE_LOG(LogHttpConnection, Verbose,
+			TEXT("SecondsWaitingForReadableSocket\t [%d][%u]-%u : %f"),
+				OriginPort, ConnectionId, LastRequestNumber, ReadContext.GetSecondsWaitingForReadableSocket());
+
 		ReadContext.ResetSecondsWaitingForReadableSocket();
 
 		// The socket is reachable, however there may not be data in the pipe
@@ -125,6 +132,7 @@ void FHttpConnection::BeginRead(float DeltaTime)
 
 void FHttpConnection::ContinueRead(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpConnection_ContinueRead);
 	check(State == EHttpConnectionState::Reading);
 
 	auto ReaderState = ReadContext.ReadStream(DeltaTime);
@@ -146,6 +154,7 @@ void FHttpConnection::ContinueRead(float DeltaTime)
 
 void FHttpConnection::CompleteRead(const TSharedPtr<FHttpServerRequest>& Request)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpConnection_CompleteRead);
 	TArray<FString>* ConnectionHeaders = Request->Headers.Find(UE_HTTP_SERVER_HEADER_KEYS_CONNECTION);
 	if (ConnectionHeaders)
 	{
@@ -182,6 +191,7 @@ void FHttpConnection::CompleteRead(const TSharedPtr<FHttpServerRequest>& Request
 
 void FHttpConnection::ProcessRequest(const TSharedPtr<FHttpServerRequest>& Request, const FHttpResultCallback& OnProcessingComplete)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpConnection_ProcessRequest);
 	TransferState(EHttpConnectionState::Reading, EHttpConnectionState::AwaitingProcessing);
 
 	UE_LOG(LogHttpConnection, Verbose,
@@ -211,6 +221,7 @@ void FHttpConnection::ProcessRequest(const TSharedPtr<FHttpServerRequest>& Reque
 
 void FHttpConnection::BeginWrite(TUniquePtr<FHttpServerResponse>&& Response, uint32 RequestNumber)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpConnection_BeginWrite);
 	// Ensure the passed-in request number is the one we expect
 	check(RequestNumber == LastRequestNumber);
 
@@ -229,6 +240,7 @@ void FHttpConnection::BeginWrite(TUniquePtr<FHttpServerResponse>&& Response, uin
 
 void FHttpConnection::ContinueWrite(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpConnection_ContinueWrite);
 	check(State == EHttpConnectionState::Writing);
 
 	auto WriterState = WriteContext.WriteStream(DeltaTime);
@@ -249,6 +261,7 @@ void FHttpConnection::ContinueWrite(float DeltaTime)
 
 void FHttpConnection::CompleteWrite()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpConnection_CompleteWrite);
 	check(EHttpConnectionState::Writing == State);
 
 	if (bKeepAlive && !bGracefulDestroyRequested)
