@@ -196,7 +196,11 @@ private:
 	COREUOBJECT_API FWorkBlock* PopFullBlockAsync();
 	COREUOBJECT_API FWorkBlock* PopWipBlock();
 	COREUOBJECT_API FWorkBlock* StealAsyncBlock() const;
-	FORCEINLINE int32 PartialNum() const { return WipIt - Wip->Objects; }
+
+	FORCEINLINE int32 PartialNum() const 
+	{
+		return static_cast<int32>(WipIt - Wip->Objects);
+	}
 };
 
 //////////////////////////////////////////////////////////////////////////
