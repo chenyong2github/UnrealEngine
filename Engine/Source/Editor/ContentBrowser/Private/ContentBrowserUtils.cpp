@@ -776,6 +776,8 @@ void ContentBrowserUtils::RemoveFavoriteFolder(const FContentBrowserItemPath& Fo
 
 	FString InvariantFolder = InvariantPath.ToString();
 
+	FContentBrowserSingleton::Get().FavoriteFolderPaths.Remove(InvariantFolder);
+
 	if (UContentBrowserConfig* EditorConfig = UContentBrowserConfig::Get())
 	{
 		EditorConfig->Favorites.Remove(InvariantFolder);
