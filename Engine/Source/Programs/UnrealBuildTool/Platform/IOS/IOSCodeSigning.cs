@@ -548,7 +548,7 @@ namespace UnrealBuildTool
 				CodeSigningConfig.OverrideBundleName = BundleID;
 			}
 
-			if (FindRequiredFiles(out MobileProvision, out Cert, out _, out _))
+			if (FindRequiredFiles(out MobileProvision, out Cert, out _, out _) && Cert != null)
 			{
 				string? FileName = MobileProvision?.FileName;
 				if (FileName != null)
