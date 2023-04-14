@@ -38,6 +38,7 @@ public class MeshModelingToolsExp : ModuleRules
 				"ModelingComponents",
 				"ModelingOperators",
 				"SkeletalMeshUtilitiesCommon",
+				"SkeletalMeshModifiers",
 				// ... add other public dependencies that you statically link with here ...
 			}
 		);

@@ -35,6 +35,11 @@
 			"Name": "ModelingEditorUI",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "SkeletalMeshModifiers",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [

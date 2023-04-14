@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "BoneWeights.h"
 #include "Templates/UniquePtr.h"
 #include "MeshDescription.h"
 #include "Engine/SkeletalMesh.h"
@@ -60,7 +59,7 @@ weight_modifier.commit_weights_to_skeletal_mesh()
  * Though it may be useful to normalize while editing.
  */
 UCLASS(BlueprintType)
-class SKELETALMESHEDITOR_API USkinWeightModifier : public UObject
+class SKELETALMESHMODIFIERS_API USkinWeightModifier : public UObject
 {
 	GENERATED_BODY()
 

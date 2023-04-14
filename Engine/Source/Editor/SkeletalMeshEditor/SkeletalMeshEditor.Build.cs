@@ -40,10 +40,7 @@ public class SkeletalMeshEditor : ModuleRules
 				"StatusBar",
 				"PhysicsUtilities",
 				"InterchangeCore",
-				"InterchangeEngine",
-				"MeshDescription",
-				"SkeletalMeshDescription",
-				"RenderCore"
+				"InterchangeEngine"
 			}
 		);
 

@@ -21,7 +21,7 @@ struct FTransformComposer;
  */
 
 USTRUCT(BlueprintType)
-struct SKELETALMESHUTILITIESCOMMON_API FMirrorOptions
+struct SKELETALMESHMODIFIERS_API FMirrorOptions
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -49,7 +49,7 @@ struct SKELETALMESHUTILITIESCOMMON_API FMirrorOptions
  */
 
 USTRUCT(BlueprintType)
-struct SKELETALMESHUTILITIESCOMMON_API FOrientOptions
+struct SKELETALMESHMODIFIERS_API FOrientOptions
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -73,7 +73,7 @@ struct SKELETALMESHUTILITIESCOMMON_API FOrientOptions
  */
 
 UCLASS(BlueprintType)
-class SKELETALMESHUTILITIESCOMMON_API USkeletonModifier : public UObject
+class SKELETALMESHMODIFIERS_API USkeletonModifier : public UObject
 {
 	GENERATED_BODY()
 	

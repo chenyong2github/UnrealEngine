@@ -3,7 +3,6 @@
 #include "SkinWeightModifier.h"
 
 #include "MeshDescription.h"
-#include "ScopedTransaction.h"
 #include "SkeletalMeshAttributes.h"
 #include "Rendering/SkeletalMeshModel.h"
 
@@ -14,25 +13,12 @@ bool USkinWeightModifier::SetSkeletalMesh(USkeletalMesh* InMesh)
 	// prepare to load mesh data
 	Reset();
 	
+#if WITH_EDITORONLY_DATA
+	
 	// validate supplied skeletal mesh exists
 	if (!InMesh)
 	{
 		UE_LOG(LogAnimation, Error, TEXT("Skin Weight Modifier: No skeletal mesh supplied to load."));
-		return false;
-	}
-
-	// verify mesh has an imported model
-	const FSkeletalMeshModel* SkeletalMeshModel = InMesh->GetImportedModel();
-	if (!SkeletalMeshModel)
-	{
-		UE_LOG(LogAnimation, Error, TEXT("Skin Weight Modifier: Supplied skeletal mesh does not have an imported model."));
-		return false;
-	}
-
-	// verify that we have a LOD 0 mesh
-	if (SkeletalMeshModel->LODModels.IsEmpty())
-	{
-		UE_LOG(LogAnimation, Error, TEXT("Skin Weight Modifier: Supplied skeletal mesh does not have a LOD 0 mesh."));
 		return false;
 	}
 
@@ -45,7 +31,7 @@ bool USkinWeightModifier::SetSkeletalMesh(USkeletalMesh* InMesh)
 
 	// store pointer to mesh 
 	Mesh = InMesh;
-
+	
 	// store mesh description to edit
 	MeshDescription = MakeUnique<FMeshDescription>();
 	InMesh->GetMeshDescription(LODIndex, *MeshDescription);
@@ -79,8 +65,12 @@ bool USkinWeightModifier::SetSkeletalMesh(USkeletalMesh* InMesh)
 			UE_LOG(LogAnimation, Warning, TEXT("Skin Weight Modifier: Supplied skeletal mesh has a vertex with too many influences."));
 		}
 	}
-
 	return true;
+	
+#else
+	ensureMsgf(false, TEXT("Skin Weight Modifier: is an editor only feature."));
+#endif
+	return false;
 }
 
 bool USkinWeightModifier::CommitWeightsToSkeletalMesh()
@@ -91,6 +81,7 @@ bool USkinWeightModifier::CommitWeightsToSkeletalMesh()
 		return false;
 	}
 
+#if WITH_EDITORONLY_DATA
 	// update weights in the mesh description
 	{
 		FSkeletalMeshAttributes MeshAttribs(*MeshDescription);
@@ -136,15 +127,18 @@ bool USkinWeightModifier::CommitWeightsToSkeletalMesh()
 	{
 		// flush any pending rendering commands, which might touch a component while we are rebuilding it's mesh
 		FlushRenderingCommands();
-		// open an undo transaction on the skeletal mesh
-		FScopedTransaction Transaction(LOCTEXT("ApplySkinWeightModifications", "Apply Skin Weights"));
 		// update skeletal mesh LOD (cf. USkeletalMesh::CommitMeshDescription)
 		Mesh->CommitMeshDescription(LODIndex, *MeshDescription);
 		// rebuilds mesh
 		Mesh->PostEditChange();
 	}
-	
+
 	return true;
+
+#else
+	ensureMsgf(false, TEXT("Skin Weight Modifier: is an editor only feature."));
+#endif
+		return false;
 }
 
 TMap<FName, float> USkinWeightModifier::GetVertexWeights(int32 VertexID)
