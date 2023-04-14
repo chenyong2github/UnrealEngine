@@ -88,18 +88,18 @@ FAutoConsoleVariableRef UWorldPartition::CVarEnableSimulationStreamingSource(
 	ECVF_Default);
 #endif
 
-int32 UWorldPartition::EnableServerStreaming = 0;
+int32 UWorldPartition::GlobalEnableServerStreaming = 0;
 FAutoConsoleVariableRef UWorldPartition::CVarEnableServerStreaming(
 	TEXT("wp.Runtime.EnableServerStreaming"),
-	UWorldPartition::EnableServerStreaming,
+	UWorldPartition::GlobalEnableServerStreaming,
 	TEXT("Set to 1 to enable server streaming, set to 2 to only enable it in PIE.\n")
 	TEXT("Changing the value while the game is running won't be considered."),
 	WorldPartition::ECVF_Runtime_ReadOnly);
 
-bool UWorldPartition::bEnableServerStreamingOut = false;
+bool UWorldPartition::bGlobalEnableServerStreamingOut = false;
 FAutoConsoleVariableRef UWorldPartition::CVarEnableServerStreamingOut(
 	TEXT("wp.Runtime.EnableServerStreamingOut"),
-	UWorldPartition::bEnableServerStreamingOut,
+	UWorldPartition::bGlobalEnableServerStreamingOut,
 	TEXT("Turn on/off to allow or not the server to stream out levels (only relevant when server streaming is enabled)\n")
 	TEXT("Changing the value while the game is running won't be considered."),
 	WorldPartition::ECVF_Runtime_ReadOnly);
@@ -283,6 +283,8 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	, Replay(nullptr)
 {
 	bEnableStreaming = true;
+	ServerStreamingMode = EWorldPartitionServerStreamingMode::ProjectDefault;
+	ServerStreamingOutMode = EWorldPartitionServerStreamingOutMode::ProjectDefault;
 
 #if WITH_EDITOR
 	WorldPartitionStreamingPolicyClass = UWorldPartitionLevelStreamingPolicy::StaticClass();
@@ -406,6 +408,25 @@ void UWorldPartition::OnEndPlay()
 {
 	FlushStreaming();
 	RuntimeHash->OnEndPlay();
+}
+
+bool UWorldPartition::CanEditChange(const FProperty* InProperty) const
+{
+	if (!Super::CanEditChange(InProperty))
+	{
+		return false;
+	}
+
+	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UWorldPartition, ServerStreamingOutMode))
+	{
+		return bEnableStreaming && (ServerStreamingMode != EWorldPartitionServerStreamingMode::Disabled);
+	}
+	else if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UWorldPartition, ServerStreamingMode))
+	{
+		return bEnableStreaming;
+	}
+
+	return true;
 }
 
 FName UWorldPartition::GetWorldPartitionEditorName() const
@@ -1043,13 +1064,28 @@ bool UWorldPartition::IsServerStreamingEnabled() const
 	if (!bCachedIsServerStreamingEnabled.IsSet())
 	{
 		bool bIsEnabled = false;
-		switch (UWorldPartition::EnableServerStreaming)
+		if (ServerStreamingMode == EWorldPartitionServerStreamingMode::ProjectDefault)
 		{
-		case 1:	bIsEnabled = true;
+			switch (UWorldPartition::GlobalEnableServerStreaming)
+			{
+			case 1:	bIsEnabled = true;
 #if WITH_EDITOR
-		case 2: bIsEnabled = bIsPIE;
+			case 2: bIsEnabled = bIsPIE;
 #endif
+			}
 		}
+		else
+		{
+			if ((ServerStreamingMode == EWorldPartitionServerStreamingMode::Enabled)
+#if WITH_EDITOR
+				|| (bIsPIE && (ServerStreamingMode == EWorldPartitionServerStreamingMode::EnabledInPIE))
+#endif
+				)
+			{
+				bIsEnabled = true;
+			}
+		}
+
 		UWorld* OwningWorld = GetWorld();
 		bCachedIsServerStreamingEnabled = (OwningWorld && OwningWorld->IsGameWorld() && bIsEnabled);
 	}
@@ -1063,7 +1099,8 @@ bool UWorldPartition::IsServerStreamingOutEnabled() const
 	if (!bCachedIsServerStreamingOutEnabled.IsSet())
 	{
 		UWorld* OwningWorld = GetWorld();
-		bCachedIsServerStreamingOutEnabled = OwningWorld && OwningWorld->IsGameWorld() && IsServerStreamingEnabled() && UWorldPartition::bEnableServerStreamingOut;
+		const bool bEnableServerStreamingOut = (ServerStreamingOutMode == EWorldPartitionServerStreamingOutMode::ProjectDefault) ? UWorldPartition::bGlobalEnableServerStreamingOut : (ServerStreamingOutMode == EWorldPartitionServerStreamingOutMode::Enabled);
+		bCachedIsServerStreamingOutEnabled = OwningWorld && OwningWorld->IsGameWorld() && IsServerStreamingEnabled() && bEnableServerStreamingOut;
 	}
 
 	return bCachedIsServerStreamingOutEnabled.Get(false);

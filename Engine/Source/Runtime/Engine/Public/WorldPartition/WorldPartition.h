@@ -56,6 +56,23 @@ enum class EWorldPartitionInitState
 	Uninitializing
 };
 
+UENUM()
+enum class EWorldPartitionServerStreamingMode : uint8
+{
+	ProjectDefault = 0 UMETA(ToolTip = "Use project default (wp.Runtime.EnableServerStreaming)"),
+	Disabled = 1 UMETA(ToolTip = "Server streaming is disabled"),
+	Enabled = 2 UMETA(ToolTip = "Server streaming is enabled"),
+	EnabledInPIE = 3 UMETA(ToolTip = "Server streaming is only enabled in PIE"),
+};
+
+UENUM()
+enum class EWorldPartitionServerStreamingOutMode : uint8
+{
+	ProjectDefault = 0 UMETA(ToolTip = "Use project default (wp.Runtime.EnableServerStreamingOut)"),
+	Disabled = 1 UMETA(ToolTip = "Server streaming out is disabled"),
+	Enabled = 2 UMETA(ToolTip = "Server streaming out is enabled"),
+};
+
 #if WITH_EDITOR
 /**
  * Interface for the world partition editor
@@ -138,6 +155,9 @@ public:
 	//~ End UActorDescContainer Interface
 
 	//~ Begin UObject Interface
+#if WITH_EDITOR
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
+#endif //WITH_EDITOR
 	virtual void Serialize(FArchive& Ar) override;
 	virtual UWorld* GetWorld() const override;
 	virtual bool ResolveSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bLoadIfExists) override;
@@ -375,6 +395,12 @@ public:
 	UPROPERTY()
 	bool bEnableStreaming;
 
+	UPROPERTY(EditAnywhere, Category = WorldPartitionSetup, AdvancedDisplay, meta = (EditConditionHides, EditCondition = "bEnableStreaming", HideEditConditionToggle))
+	EWorldPartitionServerStreamingMode ServerStreamingMode;
+
+	UPROPERTY(EditAnywhere, Category = WorldPartitionSetup, AdvancedDisplay, meta = (EditConditionHides, EditCondition = "bEnableStreaming", HideEditConditionToggle))
+	EWorldPartitionServerStreamingOutMode ServerStreamingOutMode;
+
 private:
 	TObjectPtr<UWorld> World;
 
@@ -435,8 +461,8 @@ private:
 	static FAutoConsoleVariableRef CVarDebugDedicatedServerStreaming;
 #endif
 
-	static int32 EnableServerStreaming;
-	static bool bEnableServerStreamingOut;
+	static int32 GlobalEnableServerStreaming;
+	static bool bGlobalEnableServerStreamingOut;
 	static bool bUseMakingVisibleTransactionRequests;
 	static bool bUseMakingInvisibleTransactionRequests;
 	static FAutoConsoleVariableRef CVarEnableServerStreaming;
