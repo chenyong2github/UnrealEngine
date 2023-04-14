@@ -10,6 +10,8 @@
 #include "Sockets.h"
 #include "SocketSubsystem.h"
 
+DEFINE_LOG_CATEGORY(LogHttpConnectionRequestReadContext)
+
 FHttpConnectionRequestReadContext::FHttpConnectionRequestReadContext(FSocket* InSocket)
 	: Socket(InSocket)
 {
@@ -47,6 +49,8 @@ EHttpConnectionContextState FHttpConnectionRequestReadContext::ReadStream(float 
 	}
 	else
 	{
+		UE_LOG(LogHttpConnectionRequestReadContext, Verbose,
+			TEXT("ElapsedIdleTime\t %f"), ElapsedIdleTime);
 		ElapsedIdleTime = 0.0f;
 	}
 

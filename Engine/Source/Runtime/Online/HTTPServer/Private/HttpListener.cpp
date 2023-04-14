@@ -183,6 +183,7 @@ bool FHttpListener::HasPendingConnections() const
 // --------------------------------------------------------------------------------------------
 void FHttpListener::AcceptConnections()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpListener_AcceptConnections);
 	check(ListenSocket);
 
 	for (int32 i = 0; i < Config.MaxConnectionsAcceptPerFrame; ++i)
@@ -226,6 +227,7 @@ void FHttpListener::AcceptConnections()
 
 void FHttpListener::TickConnections(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpListener_TickConnections);
 	for (const auto& Connection : Connections)
 	{
 		check(Connection.IsValid());
@@ -254,6 +256,7 @@ void FHttpListener::TickConnections(float DeltaTime)
 
 void FHttpListener::RemoveDestroyedConnections()
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FHttpListener_RemoveDestroyedConnections);
 	for (auto ConnectionsIter = Connections.CreateIterator(); ConnectionsIter; ++ConnectionsIter)
 	{
 		// Remove any destroyed connections
