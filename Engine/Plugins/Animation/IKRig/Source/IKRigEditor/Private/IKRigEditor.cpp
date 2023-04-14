@@ -14,11 +14,13 @@
 #include "RetargetEditor/IKRetargetDefaultMode.h"
 #include "RetargetEditor/IKRetargetDetails.h"
 #include "RetargetEditor/IKRetargetEditPoseMode.h"
+#include "RetargetEditor/IKRetargeterThumbnailRenderer.h"
 #include "RigEditor/IKRigCommands.h"
 #include "RigEditor/IKRigEditMode.h"
 #include "RigEditor/IKRigSkeletonCommands.h"
 #include "RigEditor/IKRigDetailCustomizations.h"
 #include "RigEditor/IKRigEditorController.h"
+#include "RigEditor/IKRigThumbnailRenderer.h"
 
 DEFINE_LOG_CATEGORY(LogIKRigEditor);
 
@@ -72,6 +74,10 @@ void FIKRigEditor::StartupModule()
 	// custom retargeter global details
 	PropertyEditorModule.RegisterCustomClassLayout(UIKRetargetGlobalSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FRetargetGlobalSettingsCustomization::MakeInstance));
 	ClassesToUnregisterOnShutdown.Add(UIKRetargetGlobalSettings::StaticClass()->GetFName());
+
+	// register a thumbnail renderer for the assets
+	UThumbnailManager::Get().RegisterCustomRenderer(UIKRigDefinition::StaticClass(), UIKRigThumbnailRenderer::StaticClass());
+	UThumbnailManager::Get().RegisterCustomRenderer(UIKRetargeter::StaticClass(), UIKRetargeterThumbnailRenderer::StaticClass());
 }
 
 void FIKRigEditor::ShutdownModule()
@@ -99,6 +105,9 @@ void FIKRigEditor::ShutdownModule()
 			ToolsModule.UnregisterAssetTypeActions(IKRetargeterAssetAction.ToSharedRef());
 		}
 	}
+
+	UThumbnailManager::Get().UnregisterCustomRenderer(UIKRigDefinition::StaticClass());
+	UThumbnailManager::Get().UnregisterCustomRenderer(UIKRetargeter::StaticClass());
 }
 
 #undef LOCTEXT_NAMESPACE
