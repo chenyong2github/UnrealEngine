@@ -41,6 +41,7 @@
 #include "Insights/ViewModels/TimingExporter.h"
 #include "Insights/ViewModels/TimingGraphTrack.h"
 #include "Insights/Widgets/SAsyncOperationStatus.h"
+#include "Insights/Widgets/SFrameTrack.h"
 #include "Insights/Widgets/STimersViewTooltip.h"
 #include "Insights/Widgets/STimerTableRow.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
@@ -874,6 +875,73 @@ void STimersView::TreeView_BuildPlotTimerMenu(FMenuBuilder& MenuBuilder)
 				LOCTEXT("ContextMenu_AddRenderingFrameStatsSeriesToGraphTrack_Desc", "Adds a rendering frame stats series for this timer. Each data entry is computed as the sum of all instances of this timer in a rendering frame."),
 				FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.AddGraphSeries"),
 				Action_ToggleFrameStatsTimerInGraphTrack,
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+	}
+
+	// Add/remove game frame stats series to/from frame track
+	{
+		FUIAction Action_ToggleFrameStatsTimerInFrameTrack;
+		Action_ToggleFrameStatsTimerInFrameTrack.CanExecuteAction = FCanExecuteAction::CreateLambda(CanExecute);
+		Action_ToggleFrameStatsTimerInFrameTrack.ExecuteAction = FExecuteAction::CreateSP(this, &STimersView::ToggleFrameTrackSeries, SelectedNode, ETraceFrameType::TraceFrameType_Game);
+
+		if (SelectedNode.IsValid() &&
+			SelectedNode->GetType() != ETimerNodeType::Group &&
+			IsSeriesInFrameTrack(SelectedNode, ETraceFrameType::TraceFrameType_Game))
+		{
+			MenuBuilder.AddMenuEntry
+			(
+				LOCTEXT("ContextMenu_RemoveGameFrameStatsSeriesFromFrameTrack", "Remove game frame stats series from frame track"),
+				LOCTEXT("ContextMenu_RemoveGameFrameStatsSeriesFromFrameTrack_Desc", "Remove the game frame stats series for this timer from the frame track."),
+				FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.RemoveGraphSeries"),
+				Action_ToggleFrameStatsTimerInFrameTrack,
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+		else
+		{
+			MenuBuilder.AddMenuEntry
+			(
+				LOCTEXT("ContextMenu_AddGameFrameStatsSeriesToFrameTrack", "Add game frame stats series to the frame track"),
+				LOCTEXT("ContextMenu_AddGameFrameStatsSeriesToFrameTrack_Desc", "Adds a game frame stats series for this timer to the frame track. Each data entry is computed as the sum of all instances of this timer in a game frame."),
+				FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.AddGraphSeries"),
+				Action_ToggleFrameStatsTimerInFrameTrack,
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+	}
+	// Add/remove rendering frame stats series to/from frame track
+	{
+		FUIAction Action_ToggleFrameStatsTimerInFrameTrack;
+		Action_ToggleFrameStatsTimerInFrameTrack.CanExecuteAction = FCanExecuteAction::CreateLambda(CanExecute);
+		Action_ToggleFrameStatsTimerInFrameTrack.ExecuteAction = FExecuteAction::CreateSP(this, &STimersView::ToggleFrameTrackSeries, SelectedNode, ETraceFrameType::TraceFrameType_Rendering);
+
+		if (SelectedNode.IsValid() &&
+			SelectedNode->GetType() != ETimerNodeType::Group &&
+			IsSeriesInFrameTrack(SelectedNode, ETraceFrameType::TraceFrameType_Rendering))
+		{
+			MenuBuilder.AddMenuEntry
+			(
+				LOCTEXT("ContextMenu_RemoveRenderingFrameStatsFromFrameTrac", "Remove rendering frame stats series from frame track"),
+				LOCTEXT("ContextMenu_RemoveRenderingFrameStatsFromFrameTrack_Desc", "Remove the rendering frame stats series for this timer from the frame track."),
+				FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.RemoveGraphSeries"),
+				Action_ToggleFrameStatsTimerInFrameTrack,
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+		else
+		{
+			MenuBuilder.AddMenuEntry
+			(
+				LOCTEXT("ContextMenu_AddRenderingFrameStatsSeriesToFrameTrack", "Add rendering frame stats series to the frame track"),
+				LOCTEXT("ContextMenu_AddRenderingFrameStatsSeriesToFrameTrack_Desc", "Adds a rendering frame stats series for this timer to the frame track. Each data entry is computed as the sum of all instances of this timer in a rendering frame."),
+				FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.AddGraphSeries"),
+				Action_ToggleFrameStatsTimerInFrameTrack,
 				NAME_None,
 				EUserInterfaceActionType::Button
 			);
@@ -2414,6 +2482,14 @@ TSharedPtr<FTimingGraphTrack> STimersView::GetTimingViewMainGraphTrack() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+TSharedPtr<SFrameTrack> STimersView::GetFrameTrack() const
+{
+	TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
+	return Wnd.IsValid() ? Wnd->GetFrameView() : nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STimersView::ToggleGraphSeries(TSharedRef<FTimingGraphTrack> GraphTrack, FTimerNodeRef NodePtr) const
 {
 	const uint32 TimerId = NodePtr->GetTimerId();
@@ -2520,6 +2596,42 @@ void STimersView::ToggleTimingViewMainGraphEventFrameStatsSeries(FTimerNodePtr T
 	if (GraphTrack.IsValid())
 	{
 		ToggleGraphFrameStatsSeries(GraphTrack.ToSharedRef(), TimerNode.ToSharedRef(), FrameType);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimersView::IsSeriesInFrameTrack(FTimerNodePtr TimerNode, ETraceFrameType FrameType) const
+{
+	TSharedPtr<SFrameTrack> FrameTrack = GetFrameTrack();
+
+	if (!FrameTrack.IsValid())
+	{
+		return false;
+	}
+
+	return FrameTrack->HasFrameStatSeries(FrameType, TimerNode->GetTimerId());
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::ToggleFrameTrackSeries(FTimerNodePtr TimerNode, ETraceFrameType FrameType) const
+{
+	TSharedPtr<SFrameTrack> FrameTrack = GetFrameTrack();
+
+	if (!FrameTrack.IsValid())
+	{
+		return;
+	}
+
+	if (FrameTrack->HasFrameStatSeries(FrameType, TimerNode->GetTimerId()))
+	{
+		FrameTrack->RemoveTimerFrameStatSeries(FrameType, TimerNode->GetTimerId());
+	}
+	else
+	{
+		TSharedPtr<FTimerFrameStatsTrackSeries> Series = FrameTrack->AddTimerFrameStatSeries(FrameType, TimerNode->GetTimerId());
+		Series->TimerDisplayName = TimerNode->GetDisplayName();
 	}
 }
 

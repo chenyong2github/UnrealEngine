@@ -21,6 +21,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+class SFrameTrack;
 class FMenuBuilder;
 class FTimingGraphTrack;
 class FUICommandList;
@@ -302,6 +303,8 @@ private:
 	void TreeView_BuildPlotTimerMenu(FMenuBuilder& MenuBuilder);
 
 	TSharedPtr<FTimingGraphTrack> GetTimingViewMainGraphTrack() const;
+	TSharedPtr<SFrameTrack> GetFrameTrack() const;
+
 	void ToggleGraphSeries(TSharedRef<FTimingGraphTrack> GraphTrack, FTimerNodeRef NodePtr) const;
 	bool IsSeriesInTimingViewMainGraph(FTimerNodePtr TimerNode) const;
 	void ToggleTimingViewMainGraphEventSeries(FTimerNodePtr TimerNode) const;
@@ -309,6 +312,9 @@ private:
 	void ToggleGraphFrameStatsSeries(TSharedRef<FTimingGraphTrack> GraphTrack, FTimerNodeRef NodePtr, ETraceFrameType FrameType) const;
 	bool IsFrameStatsSeriesInTimingViewMainGraph(FTimerNodePtr TimerNode, ETraceFrameType FrameType) const;
 	void ToggleTimingViewMainGraphEventFrameStatsSeries(FTimerNodePtr TimerNode, ETraceFrameType FrameType) const;
+
+	bool IsSeriesInFrameTrack(FTimerNodePtr TimerNode, ETraceFrameType FrameType) const;
+	void ToggleFrameTrackSeries(FTimerNodePtr TimerNode, ETraceFrameType FrameType) const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -128,9 +128,14 @@ public:
 
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
 
+	bool HasFrameStatSeries(ETraceFrameType FrameType, uint32 TimerId);
+	TSharedPtr<FTimerFrameStatsTrackSeries> AddTimerFrameStatSeries(ETraceFrameType FrameType, uint32 TimerId);
+	bool RemoveTimerFrameStatSeries(ETraceFrameType FrameType, uint32 TimerId);
+
 protected:
-	TSharedRef<FFrameTrackSeries> FindOrAddSeries(int32 FrameType);
-	TSharedPtr<FFrameTrackSeries> FindSeries(int32 FrameType) const;
+	TSharedRef<FFrameTrackSeries> FindOrAddSeries(ETraceFrameType FrameType);
+	TSharedPtr<FFrameTrackSeries> FindSeries(ETraceFrameType FrameType) const;
+	TSharedPtr<FFrameTrackSeries> FindFrameStatsSeries(ETraceFrameType FrameType, uint32 TimerId) const;
 	void UpdateState();
 
 	void DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font, bool bDrawBackgroundLayer) const;
@@ -148,6 +153,10 @@ protected:
 	void ContextMenu_ShowRenderingFrames_Execute();
 	bool ContextMenu_ShowRenderingFrames_CanExecute();
 	bool ContextMenu_ShowRenderingFrames_IsChecked();
+
+	void ContextMenu_ShowFrameStats_Execute(ETraceFrameType FrameType, uint32 TimerId);
+	bool ContextMenu_ShowFrameStats_CanExecute(ETraceFrameType FrameType, uint32 TimerId);
+	bool ContextMenu_ShowFrameStats_IsChecked(ETraceFrameType FrameType, uint32 TimerId);
 
 	void ContextMenu_AutoZoom_Execute();
 	bool ContextMenu_AutoZoom_CanExecute();
@@ -176,13 +185,9 @@ protected:
 	bool bIsViewportDirty;
 
 	/** Cached info for all frame series. */
-	TMap<int32, TSharedPtr<FFrameTrackSeries>> SeriesMap;
-	TArray<int32> SeriesOrder;
+	TArray<TSharedPtr<FFrameTrackSeries>> AllSeries;
 
 	bool bIsStateDirty;
-
-	bool bShowGameFrames;
-	bool bShowRenderingFrames;
 
 	bool bIsAutoZoomEnabled;
 

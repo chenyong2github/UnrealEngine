@@ -11,6 +11,7 @@
 #include "Rendering/DrawElements.h"
 #include "Styling/AppStyle.h"
 #include "TraceServices/Model/Frames.h"
+#include "TraceServices/Model/TimingProfiler.h"
 #include "Widgets/Layout/SScrollBar.h"
 
 // Insights
@@ -22,6 +23,7 @@
 #include "Insights/Log.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/ViewModels/FrameStatsHelper.h"
 #include "Insights/ViewModels/FrameTrackHelper.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
 #include "Insights/Widgets/STimingView.h"
@@ -60,15 +62,7 @@ void SFrameTrack::Reset()
 	ViewportY.SetScale(1500.0);
 	bIsViewportDirty = true;
 
-	SeriesMap.Reset();
-	SeriesOrder.Reset();
-	SeriesOrder.Add(TraceFrameType_Game);
-	SeriesOrder.Add(TraceFrameType_Rendering);
-
 	bIsStateDirty = true;
-
-	bShowGameFrames = true;
-	bShowRenderingFrames = true;
 
 	bIsAutoZoomEnabled = true;
 	AutoZoomViewportPos = ViewportX.GetPos();
@@ -106,6 +100,8 @@ void SFrameTrack::Reset()
 	DrawDurationHistory.Reset();
 	OnPaintDurationHistory.Reset();
 	LastOnPaintTime = FPlatformTime::Cycles64();
+
+	AllSeries.Empty();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -187,7 +183,7 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 			for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
 			{
-				TSharedPtr<FFrameTrackSeries> SeriesPtr = FindOrAddSeries(FrameType);
+				TSharedPtr<FFrameTrackSeries> SeriesPtr = FindOrAddSeries(static_cast<ETraceFrameType>(FrameType));
 
 				int32 NumFrames = static_cast<int32>(FramesProvider.GetFrameCount(static_cast<ETraceFrameType>(FrameType)));
 				if (NumFrames > ViewportX.GetMaxValue())
@@ -219,37 +215,60 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<FFrameTrackSeries> SFrameTrack::FindOrAddSeries(int32 FrameType)
+TSharedRef<FFrameTrackSeries> SFrameTrack::FindOrAddSeries(ETraceFrameType FrameType)
 {
-	TSharedPtr<FFrameTrackSeries>* SeriesPtrPtr = SeriesMap.Find(FrameType);
-	if (SeriesPtrPtr)
+	TSharedPtr<FFrameTrackSeries>* ExistingSeries = AllSeries.FindByPredicate([FrameType](TSharedPtr<FFrameTrackSeries> Series)
+		{
+			return Series->Type == EFrameTrackSeriesType::Frame &&
+				Series->FrameType == FrameType;
+		});
+
+	if (ExistingSeries != nullptr)
 	{
-		ensure((**SeriesPtrPtr).FrameType == FrameType);
-		return (*SeriesPtrPtr).ToSharedRef();
+		return ExistingSeries->ToSharedRef();
 	}
-	else
-	{
-		LLM_SCOPE_BYTAG(Insights);
-		TSharedRef<FFrameTrackSeries> SeriesRef = MakeShared<FFrameTrackSeries>(FrameType);
-		SeriesMap.Add(FrameType, SeriesRef);
-		return SeriesRef;
-	}
+
+	LLM_SCOPE_BYTAG(Insights);
+	TSharedRef<FFrameTrackSeries> SeriesRef = MakeShared<FFrameTrackSeries>(FrameType, EFrameTrackSeriesType::Frame);
+	AllSeries.Add(SeriesRef);
+	return SeriesRef;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<FFrameTrackSeries> SFrameTrack::FindSeries(int32 FrameType) const
+TSharedPtr<FFrameTrackSeries> SFrameTrack::FindSeries(ETraceFrameType FrameType) const
 {
-	const TSharedPtr<FFrameTrackSeries>* SeriesPtrPtr = SeriesMap.Find(FrameType);
-	if (SeriesPtrPtr)
+	const TSharedPtr<FFrameTrackSeries>* ExistingSeries = AllSeries.FindByPredicate([FrameType](TSharedPtr<FFrameTrackSeries> Series)
+		{
+			return Series->Type == EFrameTrackSeriesType::Frame &&
+				Series->FrameType == FrameType;
+		});
+
+	if (ExistingSeries != nullptr)
 	{
-		ensure((**SeriesPtrPtr).FrameType == FrameType);
-		return *SeriesPtrPtr;
+		return *ExistingSeries;
 	}
-	else
+
+	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<FFrameTrackSeries> SFrameTrack::FindFrameStatsSeries(ETraceFrameType FrameType, uint32 TimerId) const
+{
+	const TSharedPtr<FFrameTrackSeries>* ExistingSeries = AllSeries.FindByPredicate([FrameType, TimerId](TSharedPtr<FFrameTrackSeries> Series)
+		{
+			return Series->Type == EFrameTrackSeriesType::TimerFrameStats &&
+				Series->FrameType == FrameType &&
+				StaticCastSharedPtr<FTimerFrameStatsTrackSeries>(Series)->TimerId == TimerId;
+		});
+
+	if (ExistingSeries)
 	{
-		return nullptr;
+		return *ExistingSeries;
 	}
+
+	return nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -260,10 +279,9 @@ void SFrameTrack::UpdateState()
 	Stopwatch.Start();
 
 	// Reset stats.
-	for (TPair<int32, TSharedPtr<FFrameTrackSeries>>& KeyValuePair : SeriesMap)
+	for (TSharedPtr<FFrameTrackSeries> Series : AllSeries)
 	{
-		TSharedPtr<FFrameTrackSeries>& SeriesPtr = KeyValuePair.Value;
-		SeriesPtr->NumAggregatedFrames = 0;
+		Series->NumAggregatedFrames = 0;
 	}
 	NumUpdatedFrames = 0;
 
@@ -281,7 +299,7 @@ void SFrameTrack::UpdateState()
 
 		for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
 		{
-			TSharedPtr<FFrameTrackSeries> SeriesPtr = FindOrAddSeries(FrameType);
+			TSharedPtr<FFrameTrackSeries> SeriesPtr = FindOrAddSeries(static_cast<ETraceFrameType>(FrameType));
 
 			LLM_SCOPE_BYTAG(Insights);
 			FFrameTrackSeriesBuilder Builder(*SeriesPtr, Viewport);
@@ -290,6 +308,42 @@ void SFrameTrack::UpdateState()
 			{
 				Builder.AddFrame(Frame);
 			});
+
+			NumUpdatedFrames += Builder.GetNumAddedFrames();
+		}
+
+		for (int32 Index = 0; Index < AllSeries.Num(); ++Index)
+		{
+			TSharedPtr<FFrameTrackSeries> Series = AllSeries[Index];
+			if (Series->Type != EFrameTrackSeriesType::TimerFrameStats)
+			{
+				continue;
+			}
+
+			TSharedPtr<FTimerFrameStatsTrackSeries> TimerSeries = StaticCastSharedPtr<FTimerFrameStatsTrackSeries>(Series);
+			TArray<Insights::FFrameStatsCachedEvent> Frames;
+			FramesProvider.EnumerateFrames(static_cast<ETraceFrameType>(Series->FrameType), StartIndex, EndIndex, [&Frames](const TraceServices::FFrame& Frame)
+				{
+					Insights::FFrameStatsCachedEvent Event;
+					Event.FrameStartTime = Frame.StartTime;
+					Event.FrameEndTime = Frame.EndTime;
+					Event.Duration.store(0.0f);
+					Frames.Add(Event);
+				});
+
+			FFrameTrackSeriesBuilder Builder(*Series, Viewport);
+
+			Insights::FFrameStatsHelper::ComputeFrameStatsForTimer(Frames, TimerSeries->TimerId);
+
+			int32 CurrentIndex = StartIndex;
+			for (Insights::FFrameStatsCachedEvent& Event : Frames)
+			{
+				TraceServices::FFrame NewFrame;
+				NewFrame.StartTime = Event.FrameStartTime;
+				NewFrame.EndTime = Event.FrameStartTime + Event.Duration.load();
+				NewFrame.Index = CurrentIndex++;
+				Builder.AddFrame(NewFrame);
+			}
 
 			NumUpdatedFrames += Builder.GetNumAddedFrames();
 		}
@@ -312,17 +366,15 @@ FFrameTrackSampleRef SFrameTrack::GetSampleAtMousePosition(double X, double Y)
 			const float MY = static_cast<float>(Y);
 
 			// Search in reverse paint order.
-			for (int32 SeriesIndex = SeriesOrder.Num() - 1; SeriesIndex >= 0; --SeriesIndex)
+			for (int32 SeriesIndex = AllSeries.Num() - 1; SeriesIndex >= 0; --SeriesIndex)
 			{
-				int32 FrameType = SeriesOrder[SeriesIndex];
+				TSharedPtr<FFrameTrackSeries> SeriesPtr = AllSeries[SeriesIndex];
 
-				if ((FrameType == TraceFrameType_Rendering && !bShowRenderingFrames) ||
-					(FrameType == TraceFrameType_Game && !bShowGameFrames))
+				if (!SeriesPtr->bIsVisible)
 				{
 					continue;
 				}
 
-				const TSharedPtr<FFrameTrackSeries> SeriesPtr = FindSeries(FrameType);
 				if (SeriesPtr.IsValid())
 				{
 					if (SeriesPtr->NumAggregatedFrames > 0 &&
@@ -447,20 +499,16 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		DrawHorizontalAxisGrid(DrawContext, WhiteBrush, SummaryFont, true);
 
 		// Draw frames, for each visible Series.
-		for (int32 SeriesIndex = 0; SeriesIndex < SeriesOrder.Num(); ++SeriesIndex)
+		for (TSharedPtr<FFrameTrackSeries> Series : AllSeries)
 		{
-			int32 FrameType = SeriesOrder[SeriesIndex];
-
-			if ((FrameType == TraceFrameType_Rendering && !bShowRenderingFrames) ||
-				(FrameType == TraceFrameType_Game && !bShowGameFrames))
+			if (!Series->bIsVisible)
 			{
 				continue;
 			}
 
-			const TSharedPtr<FFrameTrackSeries> SeriesPtr = FindSeries(FrameType);
-			if (SeriesPtr.IsValid())
+			if (Series.IsValid())
 			{
-				Helper.DrawCached(*SeriesPtr);
+				Helper.DrawCached(*Series);
 			}
 		}
 
@@ -472,12 +520,8 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			TSharedPtr<STimingView> TimingView = Window->GetTimingView();
 			if (TimingView)
 			{
-				TSharedPtr<FFrameTrackSeries> SeriesPtr = nullptr;
-				for (const TPair<int32, TSharedPtr<FFrameTrackSeries>>& KeyValuePair : SeriesMap)
-				{
-					SeriesPtr = KeyValuePair.Value;
-					break; // stop at first enumerated Series
-				}
+				TSharedPtr<FFrameTrackSeries> SeriesPtr = AllSeries[0];
+				
 				if (SeriesPtr.IsValid())
 				{
 					// Highlight the area corresponding to viewport of Timing View.
@@ -517,7 +561,18 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 			// First line: "Rendering Frame 1,234"
 			TStringBuilder<512> StringBuilder;
-			StringBuilder.Append(FFrameTrackDrawHelper::FrameTypeToString(HoveredSample.Series->FrameType));
+
+			if (HoveredSample.Series->Type == EFrameTrackSeriesType::TimerFrameStats)
+			{
+				StringBuilder.Append(StaticCastSharedPtr<FTimerFrameStatsTrackSeries>(HoveredSample.Series)->TimerDisplayName.ToString());
+				StringBuilder.Append(TEXT(" "));
+				StringBuilder.Append(FFrameTrackDrawHelper::FrameTypeToString(HoveredSample.Series->FrameType));
+			}
+			else
+			{
+				StringBuilder.Append(FFrameTrackDrawHelper::FrameTypeToString(HoveredSample.Series->FrameType));
+			}
+
 			StringBuilder.Append(TEXT(" Frame "));
 			StringBuilder.Append(FText::AsNumber(HoveredSample.Sample->LargestFrameIndex).ToString());
 			const FString Text1(StringBuilder);
@@ -1194,6 +1249,37 @@ void SFrameTrack::ShowContextMenu(const FPointerEvent& MouseEvent)
 	}
 	MenuBuilder.EndSection();
 
+	MenuBuilder.BeginSection("FrameStats", LOCTEXT("ContextMenu_Section_Stats", "Frame Stats"));
+
+	for (TSharedPtr<FFrameTrackSeries> Series : AllSeries)
+	{
+		if (Series->Type != EFrameTrackSeriesType::TimerFrameStats)
+		{
+			continue;
+		}
+
+		TSharedPtr<FTimerFrameStatsTrackSeries> FrameStatSeries = StaticCastSharedPtr<FTimerFrameStatsTrackSeries>(Series);
+
+		ETraceFrameType FrameType = static_cast<ETraceFrameType>(FrameStatSeries->FrameType);
+		FUIAction Action_ShowRenderingFrames
+		(
+			FExecuteAction::CreateSP(this, &SFrameTrack::ContextMenu_ShowFrameStats_Execute, FrameType, FrameStatSeries->TimerId),
+			FCanExecuteAction::CreateSP(this, &SFrameTrack::ContextMenu_ShowFrameStats_CanExecute, FrameType, FrameStatSeries->TimerId),
+			FIsActionChecked::CreateSP(this, &SFrameTrack::ContextMenu_ShowFrameStats_IsChecked, FrameType, FrameStatSeries->TimerId)
+		);
+		MenuBuilder.AddMenuEntry
+		(
+			FrameStatSeries->TimerDisplayName,
+			FText::Format(LOCTEXT("ContextMenu_ShowRenderingFrames_Desc", "Shows/hides the {0} series."), FrameStatSeries->TimerDisplayName),
+			FSlateIcon(),
+			Action_ShowRenderingFrames,
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+
+	MenuBuilder.EndSection();
+
 	MenuBuilder.BeginSection("Zoom", LOCTEXT("ContextMenu_Section_Zoom", "Zoom"));
 	{
 		FUIAction Action_AutoZoom
@@ -1241,7 +1327,8 @@ void SFrameTrack::ShowContextMenu(const FPointerEvent& MouseEvent)
 
 void SFrameTrack::ContextMenu_ShowGameFrames_Execute()
 {
-	bShowGameFrames = !bShowGameFrames;
+	TSharedPtr<FFrameTrackSeries> Series = FindSeries(ETraceFrameType::TraceFrameType_Game);
+	Series->bIsVisible = !Series->bIsVisible;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1255,14 +1342,16 @@ bool SFrameTrack::ContextMenu_ShowGameFrames_CanExecute()
 
 bool SFrameTrack::ContextMenu_ShowGameFrames_IsChecked()
 {
-	return bShowGameFrames;
+	TSharedPtr<FFrameTrackSeries> Series = FindSeries(ETraceFrameType::TraceFrameType_Game);
+	return Series.IsValid() ? Series->bIsVisible : false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SFrameTrack::ContextMenu_ShowRenderingFrames_Execute()
 {
-	bShowRenderingFrames = !bShowRenderingFrames;
+	TSharedPtr<FFrameTrackSeries> Series = FindSeries(ETraceFrameType::TraceFrameType_Rendering);
+	Series->bIsVisible = !Series->bIsVisible;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1276,7 +1365,38 @@ bool SFrameTrack::ContextMenu_ShowRenderingFrames_CanExecute()
 
 bool SFrameTrack::ContextMenu_ShowRenderingFrames_IsChecked()
 {
-	return bShowRenderingFrames;
+	TSharedPtr<FFrameTrackSeries> Series = FindSeries(ETraceFrameType::TraceFrameType_Rendering);
+	return Series.IsValid() ? Series->bIsVisible : false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SFrameTrack::ContextMenu_ShowFrameStats_Execute(ETraceFrameType FrameType, uint32 TimerId)
+{
+	TSharedPtr<FFrameTrackSeries> Series = FindFrameStatsSeries(FrameType, TimerId);
+
+	if (!Series.IsValid())
+	{
+		return;
+	}
+
+	Series->bIsVisible = !Series->bIsVisible;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SFrameTrack::ContextMenu_ShowFrameStats_CanExecute(ETraceFrameType FrameType, uint32 TimerId)
+{
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SFrameTrack::ContextMenu_ShowFrameStats_IsChecked(ETraceFrameType FrameType, uint32 TimerId)
+{
+	TSharedPtr<FFrameTrackSeries> Series = FindFrameStatsSeries(FrameType, TimerId);
+
+	return Series.IsValid() ? Series->bIsVisible : false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1398,6 +1518,58 @@ void SFrameTrack::HorizontalScrollBar_OnUserScrolled(float ScrollOffset)
 void SFrameTrack::UpdateHorizontalScrollBar()
 {
 	Viewport.GetHorizontalAxisViewport().UpdateScrollBar(HorizontalScrollBar);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SFrameTrack::HasFrameStatSeries(ETraceFrameType FrameType, uint32 TimerId)
+{
+	TSharedPtr<FFrameTrackSeries>* ExistingSeries = AllSeries.FindByPredicate([FrameType, TimerId](TSharedPtr<FFrameTrackSeries> Series)
+		{
+			return Series->Type == EFrameTrackSeriesType::TimerFrameStats &&
+				Series->FrameType == FrameType &&
+				StaticCastSharedPtr<FTimerFrameStatsTrackSeries>(Series)->TimerId == TimerId;
+		});
+
+	return ExistingSeries != nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<FTimerFrameStatsTrackSeries> SFrameTrack::AddTimerFrameStatSeries(ETraceFrameType FrameType, uint32 TimerId)
+{
+	TSharedPtr<FFrameTrackSeries> ExistingSeries = FindFrameStatsSeries(FrameType, TimerId);
+
+	if (ExistingSeries.IsValid())
+	{
+		return StaticCastSharedPtr<FTimerFrameStatsTrackSeries>(ExistingSeries);
+	}
+
+	TSharedRef<FTimerFrameStatsTrackSeries> SeriesRef = MakeShared<FTimerFrameStatsTrackSeries>(FrameType, TimerId);
+	SeriesRef->TimerId = TimerId;
+	AllSeries.Add(SeriesRef);
+
+	bIsStateDirty = true;
+
+	return SeriesRef;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SFrameTrack::RemoveTimerFrameStatSeries(ETraceFrameType FrameType, uint32 TimerId)
+{
+	int32 NumRemoved = AllSeries.RemoveAll([FrameType, TimerId](TSharedPtr<FFrameTrackSeries> Series)
+		{
+			return Series->Type == EFrameTrackSeriesType::TimerFrameStats &&
+				Series->FrameType == FrameType &&
+				StaticCastSharedPtr<FTimerFrameStatsTrackSeries>(Series)->TimerId == TimerId;
+		});
+
+	ensure(NumRemoved == 1);
+
+	bIsStateDirty = true;
+
+	return NumRemoved >= 1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -8,6 +8,11 @@
 #include "Insights/ViewModels/GraphSeries.h"
 #include "Insights/ViewModels/GraphTrack.h"
 
+namespace Insights
+{
+	struct FFrameStatsCachedEvent;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FTimingGraphSeries : public FGraphSeries
@@ -25,27 +30,6 @@ public:
 	{
 		double StartTime;
 		double Duration;
-	};
-
-	struct FAtomicTimingEvent
-	{
-		FAtomicTimingEvent()
-		{
-			FrameStartTime = 0.0f;
-			FrameEndTime = 0.0f;
-			Duration.store(0.0f);
-		}
-
-		FAtomicTimingEvent(const FAtomicTimingEvent& Other)
-		{
-			FrameStartTime = Other.FrameStartTime;
-			FrameEndTime = Other.FrameEndTime;
-			Duration.store(Other.Duration.load());
-		}
-
-		double FrameEndTime;
-		double FrameStartTime;
-		std::atomic<double> Duration;
 	};
 
 public:
@@ -70,7 +54,7 @@ public:
 	ETraceFrameType FrameType;
 	double CachedSessionDuration;
 	TArray<FSimpleTimingEvent> CachedEvents; // used by Timer series
-	TArray<FAtomicTimingEvent> FrameStatsCachedEvents; // used by Frame Stats Timer series
+	TArray<Insights::FFrameStatsCachedEvent> FrameStatsCachedEvents; // used by Frame Stats Timer series
 
 	bool bIsTime; // the unit for values is [second]
 	bool bIsMemory; // the unit for value is [byte]

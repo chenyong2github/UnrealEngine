@@ -13,6 +13,7 @@
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/ViewModels/AxisViewportDouble.h"
+#include "Insights/ViewModels/FrameStatsHelper.h"
 #include "Insights/ViewModels/GraphTrackBuilder.h"
 #include "Insights/ViewModels/ITimingViewDrawHelper.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
@@ -481,96 +482,29 @@ void FTimingGraphTrack::UpdateFrameStatsTimerSeries(FTimingGraphSeries& Series, 
 
 			FramesProvider.EnumerateFrames(Series.FrameType, (uint64) 0, (uint64) FrameCount, [&Series](const TraceServices::FFrame& Frame)
 				{
-					FTimingGraphSeries::FAtomicTimingEvent Event;
+					Insights::FFrameStatsCachedEvent Event;
 					Event.FrameStartTime = Frame.StartTime;
 					Event.FrameEndTime = Frame.EndTime;
 					Event.Duration.store(0.0f);
 					Series.FrameStatsCachedEvents.Add(Event);
 				});
 
-			const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
-
-			const TraceServices::ITimingProfilerTimerReader* TimerReader;
-			TimingProfilerProvider.ReadTimers([&TimerReader](const TraceServices::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
-
-			const uint32 TimelineCount = TimingProfilerProvider.GetTimelineCount();
-			for (uint32 TimelineIndex = 0; TimelineIndex < TimelineCount; ++TimelineIndex)
-			{
-				TimingProfilerProvider.ReadTimeline(TimelineIndex,
-					[SessionDuration, &Series, TimerReader](const TraceServices::ITimingProfilerProvider::Timeline& Timeline)
-					{
-						TArray<TArray<FTimingGraphSeries::FSimpleTimingEvent>> Events;
-						TraceServices::ITimeline<TraceServices::FTimingProfilerEvent>::EnumerateAsyncParams Params;
-						Params.IntervalStart = 0;
-						Params.IntervalEnd = SessionDuration;
-						Params.Resolution = 0.0;
-						Params.SetupCallback = [&Events](uint32 NumTasks) {};
-						Params.Callback = [&Events, TimerReader, &Series, SessionDuration](double StartTime, double EndTime, uint32 Depth, const TraceServices::FTimingProfilerEvent& Event, uint32 TaskIndex)
-						{
-							const TraceServices::FTimingProfilerTimer* Timer = TimerReader->GetTimer(Event.TimerIndex);
-							if (ensure(Timer != nullptr))
-							{
-								if (Timer->Id == Series.TimerId)
-								{
-									int32 Index = Algo::UpperBoundBy(Series.FrameStatsCachedEvents, StartTime, &FTimingGraphSeries::FAtomicTimingEvent::FrameStartTime);
-									if (Index > 0)
-									{
-										--Index;
-									}
-
-									// This can can happen when the event is between frames.
-									if (StartTime > Series.FrameStatsCachedEvents[Index].FrameEndTime)
-									{
-										Index++;
-										if (Index >= Series.FrameStatsCachedEvents.Num())
-										{
-											return TraceServices::EEventEnumerate::Continue;
-										}
-									}
-
-									do
-									{
-										FTimingGraphSeries::FAtomicTimingEvent& Entry = Series.FrameStatsCachedEvents[Index];
-
-										if (EndTime < Entry.FrameStartTime)
-										{
-											return TraceServices::EEventEnumerate::Continue;
-										}
-
-										if (StartTime < Entry.FrameStartTime)
-										{
-											StartTime = Entry.FrameStartTime;
-										}
-
-										const double Duration = FMath::Min(EndTime, Entry.FrameEndTime) - StartTime;
-										ensure(Duration >= 0.0f);
-										for (double Value = Entry.Duration.load(); !Entry.Duration.compare_exchange_strong(Value, Value + Duration););
-
-										Index++;
-									} while (Index < Series.FrameStatsCachedEvents.Num());
-								}
-							}
-							return TraceServices::EEventEnumerate::Continue;
-						};
-
-						Timeline.EnumerateEventsDownSampledAsync(Params);
-					});
-			}
+			Insights::FFrameStatsHelper::ComputeFrameStatsForTimer(Series.FrameStatsCachedEvents, Series.TimerId);
 		}
 
-		int32 StartIndex = Algo::UpperBoundBy(Series.FrameStatsCachedEvents, Viewport.GetStartTime(), &FTimingGraphSeries::FAtomicTimingEvent::FrameStartTime);
+		int32 StartIndex = Algo::UpperBoundBy(Series.FrameStatsCachedEvents, Viewport.GetStartTime(), &Insights::FFrameStatsCachedEvent::FrameStartTime);
 		if (StartIndex > 0)
 		{
 			StartIndex--;
 		}
-		int32 EndIndex = Algo::UpperBoundBy(Series.FrameStatsCachedEvents, Viewport.GetEndTime(), &FTimingGraphSeries::FAtomicTimingEvent::FrameStartTime);
+		int32 EndIndex = Algo::UpperBoundBy(Series.FrameStatsCachedEvents, Viewport.GetEndTime(), &Insights::FFrameStatsCachedEvent::FrameStartTime);
 		if (EndIndex < Series.FrameStatsCachedEvents.Num())
 		{
 			EndIndex++;
 		}
 		for (int32 Index = StartIndex; Index < EndIndex; ++Index)
 		{
-			const FTimingGraphSeries::FAtomicTimingEvent& Entry = Series.FrameStatsCachedEvents[Index];
+			const Insights::FFrameStatsCachedEvent& Entry = Series.FrameStatsCachedEvents[Index];
 			Builder.AddEvent(Entry.FrameStartTime, Entry.Duration.load(), Entry.Duration.load());
 		}
 	}

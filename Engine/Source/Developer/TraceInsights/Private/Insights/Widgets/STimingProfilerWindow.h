@@ -43,6 +43,7 @@ public:
 	TSharedPtr<STimerTreeView> GetCalleesTreeView() const { return CalleesTreeView; }
 	TSharedPtr<SStatsView> GetStatsView() const { return StatsView; }
 	TSharedPtr<SLogView> GetLogView() const { return LogView; }
+	TSharedPtr<SFrameTrack> GetFrameView() const { return FrameTrack; }
 
 protected:
 	virtual const TCHAR* GetAnalyticsEventName() const override;

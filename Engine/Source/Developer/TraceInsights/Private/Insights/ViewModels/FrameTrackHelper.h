@@ -66,15 +66,25 @@ struct FFrameTrackSample
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+enum class EFrameTrackSeriesType : uint32
+{
+	Frame,
+	TimerFrameStats
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 struct FFrameTrackSeries
 {
 	int32 FrameType;
+	EFrameTrackSeriesType Type;
 	bool bIsVisible;
 	int32 NumAggregatedFrames; // total number of frames aggregated in samples; i.e. sum of all Sample.NumFrames
 	TArray<FFrameTrackSample> Samples; // the aggregated samples
 
-	explicit FFrameTrackSeries(int32 InFrameType)
+	explicit FFrameTrackSeries(int32 InFrameType, EFrameTrackSeriesType InType)
 		: FrameType(InFrameType)
+		, Type(InType)
 		, bIsVisible(true)
 		, NumAggregatedFrames(0)
 		, Samples()
@@ -86,6 +96,20 @@ struct FFrameTrackSeries
 		NumAggregatedFrames = 0;
 		Samples.Reset();
 	}
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct FTimerFrameStatsTrackSeries : public FFrameTrackSeries
+{
+	FTimerFrameStatsTrackSeries(int32 InFrameType, uint32 InTimerId)
+		: FFrameTrackSeries(InFrameType, EFrameTrackSeriesType::TimerFrameStats)
+		, TimerId(InTimerId)
+	{
+	}
+
+	uint32 TimerId;
+	FText TimerDisplayName;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
