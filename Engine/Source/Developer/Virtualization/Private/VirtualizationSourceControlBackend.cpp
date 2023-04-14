@@ -403,7 +403,7 @@ IVirtualizationBackend::EConnectionStatus FSourceControlBackend::OnConnect()
 	return IVirtualizationBackend::EConnectionStatus::Connected;
 }
 
-bool FSourceControlBackend::PullData(TArrayView<FPullRequest> Requests)
+bool FSourceControlBackend::PullData(TArrayView<FPullRequest> Requests, EPullFlags Flags)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FSourceControlBackend::PullData);
 
@@ -484,7 +484,7 @@ bool FSourceControlBackend::DoesPayloadExist(const FIoHash& Id)
 	}
 }
 
-bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
+bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests, EPushFlags Flags)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FSourceControlBackend::PushData);
 

@@ -68,7 +68,7 @@ IVirtualizationBackend::EConnectionStatus FFileSystemBackend::OnConnect()
 	return IVirtualizationBackend::EConnectionStatus::Connected;
 }
 
-bool FFileSystemBackend::PushData(TArrayView<FPushRequest> Requests)
+bool FFileSystemBackend::PushData(TArrayView<FPushRequest> Requests, EPushFlags Flags)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FFileSystemBackend::PushData);
 
@@ -177,7 +177,7 @@ bool FFileSystemBackend::PushData(TArrayView<FPushRequest> Requests)
 	return ErrorCount == 0;
 }
 
-bool FFileSystemBackend::PullData(TArrayView<FPullRequest> Requests)
+bool FFileSystemBackend::PullData(TArrayView<FPullRequest> Requests, EPullFlags Flags)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FFileSystemBackend::PullData);
 

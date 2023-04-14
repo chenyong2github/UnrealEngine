@@ -13,7 +13,6 @@ struct FIoHash;
 
 namespace UE::Virtualization
 {
-
 /**
  * The interface to derive from to create a new backend implementation.
  * 
@@ -50,6 +49,22 @@ public:
 		/** The connection has been made successfully */
 		Connected,
 	};
+
+	/** Specialize pushing behavior, @See IVirtualizationBackend::PushData */
+	enum class EPushFlags
+	{
+		None = 0
+	};
+
+	FRIEND_ENUM_CLASS_FLAGS(EPushFlags);
+
+	/** Specialize pulling behavior, @See IVirtualizationBackend::PullData */
+	enum class EPullFlags
+	{
+		None = 0
+	};
+
+	FRIEND_ENUM_CLASS_FLAGS(EPullFlags);
 
 protected:
 
@@ -103,7 +118,7 @@ public:
 	/**
 	 * @return True if all of the requests succeeded, false if one of more failed
 	 */
-	virtual bool PushData(TArrayView<FPushRequest> Requests) = 0;
+	virtual bool PushData(TArrayView<FPushRequest> Requests, EPushFlags Flags) = 0;
 
 	/** 
 	 * The backend will attempt to retrieve the given payloads by what ever method the backend uses.
@@ -125,7 +140,7 @@ public:
 	// Assume that the array only has unique requests
 	// Will set request error value if there is a problem with loading it
 	// Returns false on critical error, otherwise true
-	virtual bool PullData(TArrayView<FPullRequest> Requests) = 0;
+	virtual bool PullData(TArrayView<FPullRequest> Requests, EPullFlags Flags) = 0;
 	
 	/**
 	 * Checks if a payload exists in the backends storage.
@@ -224,6 +239,25 @@ private:
 
 	/** Override to implement the backends connection code */
 	virtual EConnectionStatus OnConnect() = 0;
+
+private:
+	// Deprecated methods, will cause compiler errors if anyone has actually overridden IVirtualizationBackend
+	// pre 5.3 but there is currently no good compiler support for invoking compiler warnings when overriding
+	// a deprecated base method.
+
+	UE_DEPRECATED(5.2, "Use the overload that also takes EPushFlags")
+	virtual bool PushData(TArrayView<FPushRequest> Requests) final
+	{
+		checkNoEntry();
+		return false;
+	}
+
+	UE_DEPRECATED(5.3, "Use the overload that also takes EPullFlags")
+	virtual bool PullData(TArrayView<FPullRequest> Requests) final
+	{
+		checkNoEntry();
+		return false;
+	}
 
 private:
 

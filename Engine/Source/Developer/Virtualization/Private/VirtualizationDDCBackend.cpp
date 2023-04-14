@@ -74,7 +74,7 @@ IVirtualizationBackend::EConnectionStatus FDDCBackend::OnConnect()
 	return IVirtualizationBackend::EConnectionStatus::Connected;
 }
 
-bool FDDCBackend::PushData(TArrayView<FPushRequest> Requests)
+bool FDDCBackend::PushData(TArrayView<FPushRequest> Requests, EPushFlags Flags)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDDCBackend::PushData);
 
@@ -131,7 +131,7 @@ bool FDDCBackend::PushData(TArrayView<FPushRequest> Requests)
 	return bWasSuccess;
 }
 
-bool FDDCBackend::PullData(TArrayView<FPullRequest> Requests)
+bool FDDCBackend::PullData(TArrayView<FPullRequest> Requests, EPullFlags Flags)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDDCBackend::PullData);
 

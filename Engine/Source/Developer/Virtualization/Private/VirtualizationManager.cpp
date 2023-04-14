@@ -1776,7 +1776,7 @@ bool FVirtualizationManager::TryCacheDataToBackend(IVirtualizationBackend& Backe
 	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Stats));
 	COOK_STAT(Timer.TrackCyclesOnly());
 	
-	if (Backend.PushData(Requests))
+	if (Backend.PushData(Requests, IVirtualizationBackend::EPushFlags::None))
 	{
 #if ENABLE_COOK_STATS
 		Timer.AddHit(0);
@@ -1807,7 +1807,7 @@ bool FVirtualizationManager::TryPushDataToBackend(IVirtualizationBackend& Backen
 	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Stats));
 	COOK_STAT(Timer.TrackCyclesOnly());
 
-	const bool bPushResult = Backend.PushData(Requests);
+	const bool bPushResult = Backend.PushData(Requests, IVirtualizationBackend::EPushFlags::None);
 
 #if ENABLE_COOK_STATS
 	if (bPushResult)
@@ -1892,7 +1892,7 @@ void FVirtualizationManager::PullDataFromBackend(IVirtualizationBackend& Backend
 	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Stats));
 	COOK_STAT(Timer.TrackCyclesOnly());
 	
-	Backend.PullData(Requests);
+	Backend.PullData(Requests, IVirtualizationBackend::EPullFlags::None);
 	
 #if ENABLE_COOK_STATS
 	const bool bIsInGameThread = IsInGameThread();

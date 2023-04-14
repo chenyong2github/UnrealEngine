@@ -38,8 +38,8 @@ private:
 
 	virtual EConnectionStatus OnConnect() override;
 
-	virtual bool PushData(TArrayView<FPushRequest> Requests) override;
-	virtual bool PullData(TArrayView<FPullRequest> Requests) override;
+	virtual bool PushData(TArrayView<FPushRequest> Requests, EPushFlags Flags) override;
+	virtual bool PullData(TArrayView<FPullRequest> Requests, EPullFlags Flags) override;
 	
 	virtual bool DoesPayloadExist(const FIoHash& Id) override;
 
