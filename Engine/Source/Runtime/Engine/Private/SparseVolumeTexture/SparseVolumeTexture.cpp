@@ -308,6 +308,50 @@ UE::Shader::EValueType USparseVolumeTexture::GetUniformParameterType(int32 Index
 	return UE::Shader::EValueType::Float4;
 }
 
+#if WITH_EDITOR
+void USparseVolumeTexture::NotifyMaterials(const ENotifyMaterialsEffectOnShaders EffectOnShaders)
+{
+	// Create a material update context to safely update materials.
+	{
+		FMaterialUpdateContext UpdateContext;
+
+		// Notify any material that uses this texture
+		TSet<UMaterial*> BaseMaterialsThatUseThisTexture;
+		for (TObjectIterator<UMaterialInterface> It; It; ++It)
+		{
+			UMaterialInterface* MaterialInterface = *It;
+			if (!FPlatformProperties::IsServerOnly() && MaterialInterface->GetReferencedTextures().Contains(this))
+			{
+				UpdateContext.AddMaterialInterface(MaterialInterface);
+				// This is a bit tricky. We want to make sure all materials using this texture are
+				// updated. Materials are always updated. Material instances may also have to be
+				// updated and if they have static permutations their children must be updated
+				// whether they use the texture or not! The safe thing to do is to add the instance's
+				// base material to the update context causing all materials in the tree to update.
+				BaseMaterialsThatUseThisTexture.Add(MaterialInterface->GetMaterial());
+			}
+		}
+
+		// Go ahead and update any base materials that need to be.
+		if (EffectOnShaders == ENotifyMaterialsEffectOnShaders::Default)
+		{
+			for (TSet<UMaterial*>::TConstIterator It(BaseMaterialsThatUseThisTexture); It; ++It)
+			{
+				(*It)->PostEditChange();
+			}
+		}
+		else
+		{
+			FPropertyChangedEvent EmptyPropertyUpdateStruct(nullptr);
+			for (TSet<UMaterial*>::TConstIterator It(BaseMaterialsThatUseThisTexture); It; ++It)
+			{
+				(*It)->PostEditChangePropertyInternal(EmptyPropertyUpdateStruct, UMaterial::EPostEditChangeEffectOnShaders::DoesNotInvalidate);
+			}
+		}
+	}
+}
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 UStreamableSparseVolumeTexture::UStreamableSparseVolumeTexture(const FObjectInitializer& ObjectInitializer)
@@ -315,7 +359,108 @@ UStreamableSparseVolumeTexture::UStreamableSparseVolumeTexture(const FObjectInit
 {
 }
 
-bool UStreamableSparseVolumeTexture::InitializeFromUncooked(const TArrayView<FSparseVolumeTextureData>& InUncookedData, int32 InNumMipLevels)
+bool UStreamableSparseVolumeTexture::BeginInitialize(int32 NumExpectedFrames)
+{
+#if WITH_EDITORONLY_DATA
+	if (InitState != EInitState::Uninitialized)
+	{
+		UE_LOG(LogSparseVolumeTexture, Error, TEXT("Tried to call UStreamableSparseVolumeTexture::BeginInitialize() while not in the Uninitialized init state."));
+		return false;
+	}
+
+	check(Frames.IsEmpty());
+	Frames.Empty(NumExpectedFrames);
+	VolumeBoundsMin = FIntVector(INT32_MAX, INT32_MAX, INT32_MAX);
+	VolumeBoundsMax = FIntVector(INT32_MIN, INT32_MIN, INT32_MIN);
+
+	InitState = EInitState::Pending;
+
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool UStreamableSparseVolumeTexture::AppendFrame(FSparseVolumeTextureData& UncookedFrame)
+{
+#if WITH_EDITORONLY_DATA
+	if (InitState != EInitState::Pending)
+	{
+		UE_LOG(LogSparseVolumeTexture, Error, TEXT("Tried to call UStreamableSparseVolumeTexture::AppendFrame() while not in the Pending init state."));
+		return false;
+	}
+
+	// The the minimum of the union of all frame AABBs should ideally be at (0, 0, 0), but it should also be fine if it is greater than that.
+	// A mimimum of less than (0, 0, 0) is not permitted.
+	if (UncookedFrame.Header.VirtualVolumeAABBMin.X < 0 || UncookedFrame.Header.VirtualVolumeAABBMin.Y < 0 || UncookedFrame.Header.VirtualVolumeAABBMin.Z < 0)
+	{
+		UE_LOG(LogSparseVolumeTexture, Error, TEXT("Tried to add a frame to a SparseVolumeTexture with a VirtualVolumeAABBMin < 0 (%i, %i, %i)"),
+			VolumeBoundsMin.X, VolumeBoundsMin.Y, VolumeBoundsMin.Z);
+		return false;
+	}
+
+	// Compute union of all frame AABBs
+	VolumeBoundsMin.X = FMath::Min(VolumeBoundsMin.X, UncookedFrame.Header.VirtualVolumeAABBMin.X);
+	VolumeBoundsMin.Y = FMath::Min(VolumeBoundsMin.Y, UncookedFrame.Header.VirtualVolumeAABBMin.Y);
+	VolumeBoundsMin.Z = FMath::Min(VolumeBoundsMin.Z, UncookedFrame.Header.VirtualVolumeAABBMin.Z);
+	VolumeBoundsMax.X = FMath::Max(VolumeBoundsMax.X, UncookedFrame.Header.VirtualVolumeAABBMax.X);
+	VolumeBoundsMax.Y = FMath::Max(VolumeBoundsMax.Y, UncookedFrame.Header.VirtualVolumeAABBMax.Y);
+	VolumeBoundsMax.Z = FMath::Max(VolumeBoundsMax.Z, UncookedFrame.Header.VirtualVolumeAABBMax.Z);
+
+	VolumeResolution = VolumeBoundsMax;
+	Frames.AddDefaulted();
+	{
+		UE::Serialization::FEditorBulkDataWriter RawDataArchiveWriter(Frames.Last().RawData);
+		UncookedFrame.Serialize(RawDataArchiveWriter);
+	}
+
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool UStreamableSparseVolumeTexture::EndInitialize(int32 InNumMipLevels)
+{
+#if WITH_EDITORONLY_DATA
+	if (InitState != EInitState::Pending)
+	{
+		UE_LOG(LogSparseVolumeTexture, Error, TEXT("Tried to call UStreamableSparseVolumeTexture::EndInitialize() while not in the Pending init state."));
+		return false;
+	}
+
+	// Ensure that at least one frame of data exists
+	if (Frames.IsEmpty())
+	{
+		UE_LOG(LogSparseVolumeTexture, Warning, TEXT("SVT has zero frames! Adding a dummy frame. SVT: %s"), *GetName());
+		FSparseVolumeTextureData DummyFrame;
+		DummyFrame.ConstructDefault();
+		AppendFrame(DummyFrame);
+	}
+
+	check(VolumeResolution.X > 0 && VolumeResolution.Y > 0 && VolumeResolution.Z > 0);
+	check(VolumeBoundsMin.X >= 0 && VolumeBoundsMin.Y >= 0 && VolumeBoundsMin.Z >= 0);
+
+	if (VolumeBoundsMin.X > 0 || VolumeBoundsMin.Y > 0 || VolumeBoundsMin.Z > 0)
+	{
+		UE_LOG(LogSparseVolumeTexture, Warning, TEXT("Initialized a SparseVolumeTexture with a VirtualVolumeAABBMin > 0 (%i, %i, %i). This wastes memory"),
+			VolumeBoundsMin.X, VolumeBoundsMin.Y, VolumeBoundsMin.Z);
+	}
+
+	const int32 NumMipLevelsFullMipChain = SVTComputeNumMipLevels(VolumeResolution);
+	check(NumMipLevelsFullMipChain > 0);
+
+	NumMipLevels = (InNumMipLevels <= INDEX_NONE) ? NumMipLevelsFullMipChain : FMath::Clamp(InNumMipLevels, 1, NumMipLevelsFullMipChain);
+
+	InitState = EInitState::Done;
+
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool UStreamableSparseVolumeTexture::Initialize(const TArrayView<FSparseVolumeTextureData>& InUncookedData, int32 InNumMipLevels)
 {
 	if (InUncookedData.IsEmpty())
 	{
@@ -323,56 +468,56 @@ bool UStreamableSparseVolumeTexture::InitializeFromUncooked(const TArrayView<FSp
 		return false;
 	}
 
-	auto ExpandVolumeBounds = [](const FSparseVolumeTextureHeader& Header, FIntVector3& VolumeBoundsMin, FIntVector3& VolumeBoundsMax)
+	if (!BeginInitialize(InUncookedData.Num()))
 	{
-		VolumeBoundsMin.X = FMath::Min(VolumeBoundsMin.X, Header.VirtualVolumeAABBMin.X);
-		VolumeBoundsMin.Y = FMath::Min(VolumeBoundsMin.Y, Header.VirtualVolumeAABBMin.Y);
-		VolumeBoundsMin.Z = FMath::Min(VolumeBoundsMin.Z, Header.VirtualVolumeAABBMin.Z);
-
-		VolumeBoundsMax.X = FMath::Max(VolumeBoundsMax.X, Header.VirtualVolumeAABBMax.X);
-		VolumeBoundsMax.Y = FMath::Max(VolumeBoundsMax.Y, Header.VirtualVolumeAABBMax.Y);
-		VolumeBoundsMax.Z = FMath::Max(VolumeBoundsMax.Z, Header.VirtualVolumeAABBMax.Z);
-	};
-
-	// Compute union of all frame AABBs
-	FIntVector3 VolumeBoundsMin = FIntVector3(INT32_MAX, INT32_MAX, INT32_MAX);
-	FIntVector3 VolumeBoundsMax = FIntVector3(INT32_MIN, INT32_MIN, INT32_MIN);
-	for (const FSparseVolumeTextureData& Data : InUncookedData)
-	{
-		ExpandVolumeBounds(Data.Header, VolumeBoundsMin, VolumeBoundsMax);
-	}
-
-	// The the minimum of the union of all frame AABBs should ideally be at (0, 0, 0), but it should also be fine if it is greater than that.
-	// A mimimum of less than (0, 0, 0) is not permitted.
-	if (VolumeBoundsMin.X < 0 || VolumeBoundsMin.Y < 0 || VolumeBoundsMin.Z < 0)
-	{
-		UE_LOG(LogSparseVolumeTexture, Error, TEXT("Tried to initialize a SparseVolumeTexture with a VirtualVolumeAABBMin < 0 (%i, %i, %i)"),
-			VolumeBoundsMin.X, VolumeBoundsMin.Y, VolumeBoundsMin.Z);
 		return false;
 	}
-	if (VolumeBoundsMin.X > 0 || VolumeBoundsMin.Y > 0 || VolumeBoundsMin.Z > 0)
+	for (FSparseVolumeTextureData& UncookedFrame : InUncookedData)
 	{
-		UE_LOG(LogSparseVolumeTexture, Warning, TEXT("Initialized a SparseVolumeTexture with a VirtualVolumeAABBMin > 0 (%i, %i, %i). This wastes memory"),
-			VolumeBoundsMin.X, VolumeBoundsMin.Y, VolumeBoundsMin.Z);
+		if (!AppendFrame(UncookedFrame))
+		{
+			return false;
+		}
 	}
-
-	VolumeResolution = VolumeBoundsMax;
-	Frames.SetNum(InUncookedData.Num());
-
-	const int32 NumMipLevelsFullMipChain = SVTComputeNumMipLevels(VolumeResolution);
-	check(NumMipLevelsFullMipChain > 0);
-
-	NumMipLevels = (InNumMipLevels <= INDEX_NONE) ? NumMipLevelsFullMipChain : FMath::Clamp(InNumMipLevels, 1, NumMipLevelsFullMipChain);
-
-#if WITH_EDITORONLY_DATA
-	for (int32 FrameIndex = 0; FrameIndex < Frames.Num(); ++FrameIndex)
+	if (!EndInitialize(InNumMipLevels))
 	{
-		UE::Serialization::FEditorBulkDataWriter RawDataArchiveWriter(Frames[FrameIndex].RawData);
-		InUncookedData[FrameIndex].Serialize(RawDataArchiveWriter);
+		return false;
 	}
-#endif
 
 	return true;
+}
+
+const FSparseVolumeTextureSceneProxy* UStreamableSparseVolumeTexture::GetStreamedFrameProxyOrFallback(int32 FrameIndex, int32 MipLevel) const
+{
+#if WITH_EDITORONLY_DATA
+	if (InitState != EInitState::Done)
+	{
+		UE_LOG(LogSparseVolumeTexture, Warning, TEXT("Tried to call GetStreamedFrameProxyOrFallback() on uninitialized SVT: %s"), *GetName());
+		return nullptr;
+	}
+#endif
+	if (Frames.IsEmpty())
+	{
+		UE_LOG(LogSparseVolumeTexture, Warning, TEXT("SVT is empty and has no frames at all! SVT: %s"), *GetName());
+		return nullptr;
+	}
+	FrameIndex = FMath::Clamp(FrameIndex, 0, Frames.Num() - 1);
+	ISparseVolumeTextureStreamingManager& StreamingManager = IStreamingManager::Get().GetSparseVolumeTextureStreamingManager();
+	const FSparseVolumeTextureSceneProxy* Proxy = StreamingManager.GetSparseVolumeTextureSceneProxy(this, FrameIndex, MipLevel, true);
+
+	int32 FallbackFrameIndex = FrameIndex;
+	while (!Proxy)
+	{
+		FallbackFrameIndex = FallbackFrameIndex > 0 ? (FallbackFrameIndex - 1) : (Frames.Num() - 1);
+		if (FallbackFrameIndex == FrameIndex)
+		{
+			UE_LOG(LogSparseVolumeTexture, Warning, TEXT("Failed to get ANY streamed SparseVolumeTexture frame  SVT: %s, FrameIndex: %i"), *GetName(), FrameIndex);
+			return nullptr;
+		}
+		Proxy = StreamingManager.GetSparseVolumeTextureSceneProxy(this, FallbackFrameIndex, MipLevel, false);
+	}
+
+	return Proxy;
 }
 
 void UStreamableSparseVolumeTexture::PostLoad()
@@ -415,6 +560,32 @@ void UStreamableSparseVolumeTexture::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
+	// To ensure that we keep the same binary format between builds with and without editor-only data, we serialize dummy data if the editor-only data is stripped.
+	// SVT_TODO: Is there a cleaner way of doing this?
+	FIntVector* VolumeBoundsMinPtr = nullptr;
+	FIntVector* VolumeBoundsMaxPtr = nullptr;
+	EInitState* InitStatePtr = nullptr;
+
+#if WITH_EDITORONLY_DATA
+	// Check that we are not trying to cook unitialized data!
+	check(!Ar.IsCooking() || InitState == EInitState::Done);
+
+	VolumeBoundsMinPtr = &VolumeBoundsMin;
+	VolumeBoundsMaxPtr = &VolumeBoundsMax;
+	InitStatePtr = &InitState;
+#else
+	FIntVector VolumeBoundsMinDummy{};
+	FIntVector VolumeBoundsMaxDummy{};
+	EInitState InitStateDummy{};
+	VolumeBoundsMinPtr = &VolumeBoundsMinDummy;
+	VolumeBoundsMaxPtr = &VolumeBoundsMaxDummy;
+	InitStatePtr = &InitStateDummy;
+#endif
+
+	UE::SVT::Private::SerializeEnumAs<uint8>(Ar, *InitStatePtr);
+	Ar << *VolumeBoundsMinPtr;
+	Ar << *VolumeBoundsMaxPtr;
+
 	int32 NumFrames = Frames.Num();
 	Ar << NumFrames;
 
@@ -449,7 +620,7 @@ void UStreamableSparseVolumeTexture::PostEditChangeProperty(FPropertyChangedEven
 void UStreamableSparseVolumeTexture::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {
 	Super::GetResourceSizeEx(CumulativeResourceSize);
-	SIZE_T SizeCPU = sizeof(Frames);
+	SIZE_T SizeCPU = sizeof(*this);
 	SIZE_T SizeGPU = 0;
 	SizeCPU += Frames.GetAllocatedSize();
 	for (const FSparseVolumeTextureFrame& Frame : Frames)
@@ -465,84 +636,16 @@ void UStreamableSparseVolumeTexture::GetResourceSizeEx(FResourceSizeEx& Cumulati
 	CumulativeResourceSize.AddDedicatedVideoMemoryBytes(SizeGPU);
 }
 
-const FSparseVolumeTextureSceneProxy* UStreamableSparseVolumeTexture::GetStreamedFrameProxyOrFallback(int32 FrameIndex, int32 MipLevel) const
-{
-	if (Frames.IsEmpty())
-	{
-		UE_LOG(LogSparseVolumeTexture, Warning, TEXT("SVT is empty and has no frames at all! SVT: %s"), *GetName());
-		return nullptr;
-	}
-	FrameIndex = FMath::Clamp(FrameIndex, 0, Frames.Num() - 1);
-	ISparseVolumeTextureStreamingManager& StreamingManager = IStreamingManager::Get().GetSparseVolumeTextureStreamingManager();
-	const FSparseVolumeTextureSceneProxy* Proxy = StreamingManager.GetSparseVolumeTextureSceneProxy(this, FrameIndex, MipLevel, true);
-
-	int32 FallbackFrameIndex = FrameIndex;
-	while (!Proxy)
-	{
-		FallbackFrameIndex = FallbackFrameIndex > 0 ? (FallbackFrameIndex - 1) : (Frames.Num() - 1);
-		if (FallbackFrameIndex == FrameIndex)
-		{
-			UE_LOG(LogSparseVolumeTexture, Warning, TEXT("Failed to get ANY streamed SparseVolumeTexture frame  SVT: %s, FrameIndex: %i"), *GetName(), FrameIndex);
-			return nullptr;
-		}
-		Proxy = StreamingManager.GetSparseVolumeTextureSceneProxy(this, FallbackFrameIndex, MipLevel, false);
-	}
-
-	return Proxy;
-}
-
-TArrayView<const FSparseVolumeTextureFrame> UStreamableSparseVolumeTexture::GetFrames() const
-{
-	return Frames;
-}
-
-#if WITH_EDITOR
-void UStreamableSparseVolumeTexture::NotifyMaterials(const ENotifyMaterialsEffectOnShaders EffectOnShaders)
-{
-	// Create a material update context to safely update materials.
-	{
-		FMaterialUpdateContext UpdateContext;
-
-		// Notify any material that uses this texture
-		TSet<UMaterial*> BaseMaterialsThatUseThisTexture;
-		for (TObjectIterator<UMaterialInterface> It; It; ++It)
-		{
-			UMaterialInterface* MaterialInterface = *It;
-			if (!FPlatformProperties::IsServerOnly() && MaterialInterface->GetReferencedTextures().Contains(this))
-			{
-				UpdateContext.AddMaterialInterface(MaterialInterface);
-				// This is a bit tricky. We want to make sure all materials using this texture are
-				// updated. Materials are always updated. Material instances may also have to be
-				// updated and if they have static permutations their children must be updated
-				// whether they use the texture or not! The safe thing to do is to add the instance's
-				// base material to the update context causing all materials in the tree to update.
-				BaseMaterialsThatUseThisTexture.Add(MaterialInterface->GetMaterial());
-			}
-		}
-
-		// Go ahead and update any base materials that need to be.
-		if (EffectOnShaders == ENotifyMaterialsEffectOnShaders::Default)
-		{
-			for (TSet<UMaterial*>::TConstIterator It(BaseMaterialsThatUseThisTexture); It; ++It)
-			{
-				(*It)->PostEditChange();
-			}
-		}
-		else
-		{
-			FPropertyChangedEvent EmptyPropertyUpdateStruct(nullptr);
-			for (TSet<UMaterial*>::TConstIterator It(BaseMaterialsThatUseThisTexture); It; ++It)
-			{
-				(*It)->PostEditChangePropertyInternal(EmptyPropertyUpdateStruct, UMaterial::EPostEditChangeEffectOnShaders::DoesNotInvalidate);
-			}
-		}
-	}
-}
-#endif //WITH_EDITOR
-
 void UStreamableSparseVolumeTexture::GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy()
 {
 #if WITH_EDITORONLY_DATA
+
+	if (InitState != EInitState::Done)
+	{
+		UE_LOG(LogSparseVolumeTexture, Warning, TEXT("Tried to cache derived data of an uninitialized SVT: %s"), *GetName());
+		return;
+	}
+
 	UE::DerivedData::FRequestOwner DDCRequestOwner(UE::DerivedData::EPriority::Normal);
 	{
 		UE::DerivedData::FRequestBarrier DDCRequestBarrier(DDCRequestOwner);
@@ -579,6 +682,12 @@ void UStreamableSparseVolumeTexture::GenerateOrLoadDDCRuntimeDataForFrame(FSpars
 {
 #if WITH_EDITORONLY_DATA
 	using namespace UE::DerivedData;
+
+	if (InitState != EInitState::Done)
+	{
+		UE_LOG(LogSparseVolumeTexture, Warning, TEXT("Tried to cache derived data of an uninitialized SVT: %s"), *GetName());
+		return;
+	}
 
 	static const FString SparseVolumeTextureDDCVersion = TEXT("381AE2A9-A903-4C8F-8486-891E24D6EC70");	// Bump this if you want to ignore all cached data so far.
 	const FString DerivedDataKey = Frame.RawData.GetIdentifier().ToString() 
@@ -658,19 +767,14 @@ UStaticSparseVolumeTexture::UStaticSparseVolumeTexture(const FObjectInitializer&
 {
 }
 
-bool UStaticSparseVolumeTexture::InitializeFromUncooked(const TArrayView<FSparseVolumeTextureData>& InUncookedData, int32 InNumMipLevels)
+bool UStaticSparseVolumeTexture::AppendFrame(FSparseVolumeTextureData& UncookedFrame)
 {
-	if (InUncookedData.Num() > 1)
+	if (!Frames.IsEmpty())
 	{
-		UE_LOG(LogSparseVolumeTexture, Error, TEXT("Tried to initialize a UStaticSparseVolumeTexture with more than 1 frame: %i"), InUncookedData.Num());
+		UE_LOG(LogSparseVolumeTexture, Error, TEXT("Tried to initialize a UStaticSparseVolumeTexture with more than 1 frame"));
 		return false;
 	}
-	return Super::InitializeFromUncooked(InUncookedData, InNumMipLevels);
-}
-
-bool UStaticSparseVolumeTexture::InitializeFromUncooked(FSparseVolumeTextureData& InUncookedData, int32 InNumMipLevels)
-{
-	return Super::InitializeFromUncooked(MakeArrayView<FSparseVolumeTextureData>(&InUncookedData, 1), InNumMipLevels);
+	return Super::AppendFrame(UncookedFrame);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////

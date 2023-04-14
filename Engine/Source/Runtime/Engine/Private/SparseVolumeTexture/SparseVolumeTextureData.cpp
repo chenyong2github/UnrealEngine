@@ -237,6 +237,25 @@ bool FSparseVolumeTextureData::Construct(const ISparseVolumeTextureDataConstruct
 	return true;
 }
 
+void FSparseVolumeTextureData::ConstructDefault()
+{
+	// Store a single 1x1x1 mip level with the page table pointing to a (zero-valued) null tile.
+
+	Header.VirtualVolumeResolution = FIntVector3(1, 1, 1);
+	Header.VirtualVolumeAABBMin = FIntVector3::ZeroValue;
+	Header.VirtualVolumeAABBMax = Header.VirtualVolumeResolution;
+	Header.PageTableVolumeResolution = FIntVector3(1, 1, 1);
+	Header.PageTableVolumeAABBMin = FIntVector3::ZeroValue;
+	Header.PageTableVolumeAABBMax = Header.PageTableVolumeResolution;
+	Header.AttributesFormats[0] = PF_R8;
+
+	MipMaps.SetNum(1);
+	MipMaps[0].PageTable.SetNumZeroed(1);
+	MipMaps[0].PhysicalTileDataA.Empty();
+	MipMaps[0].PhysicalTileDataB.Empty();
+	MipMaps[0].NumPhysicalTiles = 0;
+}
+
 uint32 FSparseVolumeTextureData::ReadPageTable(const FIntVector3& PageTableCoord, int32 MipLevel) const
 {
 	if (!MipMaps.IsValidIndex(MipLevel))

@@ -117,7 +117,17 @@ public:
 	/** Getter for the shader uniform parameter type with index as ESparseVolumeTextureShaderUniform. */
 	static UE::Shader::EValueType GetUniformParameterType(int32 Index);
 
-private:
+protected:
+#if WITH_EDITOR
+	enum class ENotifyMaterialsEffectOnShaders
+	{
+		Default,
+		DoesNotInvalidate
+	};
+
+	/** Notify any loaded material instances that the texture has changed. */
+	void NotifyMaterials(const ENotifyMaterialsEffectOnShaders EffectOnShaders = ENotifyMaterialsEffectOnShaders::Default);
+#endif // WITH_EDITOR
 };
 
 UCLASS(ClassGroup = Rendering, BlueprintType)//, hidecategories = (Object))
@@ -126,6 +136,14 @@ class UStreamableSparseVolumeTexture : public USparseVolumeTexture
 	GENERATED_UCLASS_BODY()
 
 public:
+
+	enum class EInitState : uint8
+	{
+		Uninitialized,
+		Pending,
+		Done,
+		Failed,
+	};
 
 	UPROPERTY(VisibleAnywhere, Category = "Texture")
 	FIntVector VolumeResolution;
@@ -148,7 +166,18 @@ public:
 	UStreamableSparseVolumeTexture();
 	virtual ~UStreamableSparseVolumeTexture() = default;
 
-	virtual bool InitializeFromUncooked(const TArrayView<FSparseVolumeTextureData>& UncookedData, int32 NumMipLevels = INDEX_NONE /*Create entire mip chain by default*/);
+	// Multi-phase initialization: Call BeginInitialize(), then call AppendFrame() for each frame to add and then finish initialization with a call to EndInitialize().
+	// The NumExpectedFrames parameter on BeginInitialize() just serves as a potential optimization to reserve memory for the frames to be appended
+	// and doesn't need to match the exact number if it is not known at the time.
+	virtual bool BeginInitialize(int32 NumExpectedFrames);
+	virtual bool AppendFrame(FSparseVolumeTextureData& UncookedFrame);
+	virtual bool EndInitialize(int32 NumMipLevels = INDEX_NONE /*Create entire mip chain by default*/);
+
+	// Convenience function wrapping the multi-phase initialization functions above
+	virtual bool Initialize(const TArrayView<FSparseVolumeTextureData>& UncookedData, int32 NumMipLevels = INDEX_NONE /*Create entire mip chain by default*/);
+
+	const FSparseVolumeTextureSceneProxy* GetStreamedFrameProxyOrFallback(int32 FrameIndex, int32 MipLevel) const;
+	TArrayView<const FSparseVolumeTextureFrame> GetFrames() const { return Frames; };
 
 	//~ Begin UObject Interface.
 	virtual void PostLoad() override;
@@ -171,23 +200,14 @@ public:
 	virtual const FSparseVolumeTextureSceneProxy* GetSparseVolumeTextureSceneProxy() const override { return GetStreamedFrameProxyOrFallback(0 /*FrameIndex*/, 0 /*MipLevel*/); };
 	//~ End USparseVolumeTexture Interface.
 
-	const FSparseVolumeTextureSceneProxy* GetStreamedFrameProxyOrFallback(int32 FrameIndex, int32 MipLevel) const;
-	TArrayView<const FSparseVolumeTextureFrame> GetFrames() const;
-
 protected:
 
 	TArray<FSparseVolumeTextureFrame> Frames;
-
-#if WITH_EDITOR
-	enum class ENotifyMaterialsEffectOnShaders
-	{
-		Default,
-		DoesNotInvalidate
-	};
-
-	/** Notify any loaded material instances that the texture has changed. */
-	void NotifyMaterials(const ENotifyMaterialsEffectOnShaders EffectOnShaders = ENotifyMaterialsEffectOnShaders::Default);
-#endif // WITH_EDITOR
+#if WITH_EDITORONLY_DATA
+	FIntVector VolumeBoundsMin;
+	FIntVector VolumeBoundsMax;
+	EInitState InitState = EInitState::Uninitialized;
+#endif // WITH_EDITORONLY_DATA
 
 	void GenerateOrLoadDDCRuntimeDataAndCreateSceneProxy();
 	void GenerateOrLoadDDCRuntimeDataForFrame(FSparseVolumeTextureFrame& Frame, UE::DerivedData::FRequestOwner& DDCRequestOwner);
@@ -203,8 +223,8 @@ public:
 	UStaticSparseVolumeTexture();
 	virtual ~UStaticSparseVolumeTexture() = default;
 
-	virtual bool InitializeFromUncooked(const TArrayView<FSparseVolumeTextureData>& UncookedData, int32 NumMipLevels = INDEX_NONE /*Create entire mip chain by default*/) override;
-	bool InitializeFromUncooked(FSparseVolumeTextureData& UncookedData, int32 NumMipLevels = INDEX_NONE /*Create entire mip chain by default*/);
+	// Override AppendFrame() to ensure that there is never more than a single frame in a static SVT
+	virtual bool AppendFrame(FSparseVolumeTextureData& UncookedFrame) override;
 
 	//~ Begin USparseVolumeTexture Interface.
 	int32 GetNumFrames() const override { return 1; }

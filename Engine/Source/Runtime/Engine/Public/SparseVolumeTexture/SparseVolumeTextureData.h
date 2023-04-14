@@ -55,6 +55,7 @@ struct ENGINE_API FSparseVolumeTextureData
 	void Serialize(FArchive& Ar);
 	
 	bool Construct(const ISparseVolumeTextureDataConstructionAdapter& Adapter);
+	void ConstructDefault();
 	FVector4f Load(const FIntVector3& VolumeCoord, int32 MipLevel, int32 AttributesIdx, const FSparseVolumeTextureDataAddressingInfo& AddressingInfo) const;
 	bool BuildDerivedData(const FSparseVolumeTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels, bool bMoveMip0FromThis, FSparseVolumeTextureData& OutDerivedData);
 
