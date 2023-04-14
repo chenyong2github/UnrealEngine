@@ -154,6 +154,17 @@ namespace Horde.Server.Jobs.TestData
 		/// Test UID for looking up in test details
 		/// </summary>
 		string UID { get; }
+
+		/// <summary>
+		/// The number of warnings
+		/// </summary>
+		int? WarningCount { get; }
+
+		/// <summary>
+		/// The number of errors
+		/// </summary>
+		int? ErrorCount { get; }
+
 	}
 
 	/// <summary>
@@ -168,6 +179,16 @@ namespace Horde.Server.Jobs.TestData
 		/// The associated stream
 		/// </summary>
 		StreamId StreamId { get; }
+
+		/// <summary>
+		/// The associated job
+		/// </summary>
+		JobId? JobId { get; }
+
+		/// <summary>
+		/// The associated job step
+		/// </summary>
+		SubResourceId? StepId { get; }
 
 		/// <summary>
 		/// How long the test ran

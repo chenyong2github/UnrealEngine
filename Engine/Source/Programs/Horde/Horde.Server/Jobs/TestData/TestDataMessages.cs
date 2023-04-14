@@ -321,6 +321,16 @@ namespace Horde.Server.Jobs.TestData
 		public string UID { get; set; }
 
 		/// <summary>
+		/// The number of test warnings generated
+		/// </summary>
+		public int? WarningCount { get; set; }
+
+		/// <summary>
+		/// The number of test errors generated
+		/// </summary>
+		public int? ErrorCount { get; set; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="data"></param>
@@ -330,6 +340,8 @@ namespace Horde.Server.Jobs.TestData
 			Outcome = data.Outcome;
 			Duration = data.Duration;
 			UID = data.UID;
+			WarningCount = data.WarningCount;
+			ErrorCount = data.ErrorCount;
 		}
 	}
 
@@ -379,6 +391,16 @@ namespace Horde.Server.Jobs.TestData
 		/// The associated stream
 		/// </summary>
 		public string StreamId { get; set; }
+
+		/// <summary>
+		/// The associated job id
+		/// </summary>
+		public string? JobId { get; set; }
+
+		/// <summary>
+		/// The associated step id
+		/// </summary>
+		public string? StepId { get; set; }
 
 		/// <summary>
 		/// How long the test ran
@@ -438,6 +460,8 @@ namespace Horde.Server.Jobs.TestData
 		{
 			Id = testData.Id.ToString();
 			StreamId = testData.StreamId.ToString();
+			JobId = testData.JobId?.ToString();
+			StepId = testData.StepId?.ToString();
 			Duration = testData.Duration;
 			BuildChangeList = testData.BuildChangeList;
 			MetaId = testData.Metadata.ToString();

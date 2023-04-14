@@ -220,12 +220,20 @@ namespace Horde.Server.Jobs.TestData
 			[BsonRequired, BsonElement("uid")]
 			public string UID { get; set; }
 
-			public SuiteTestData(TestId id, TestOutcome outcome, TimeSpan duration, string uid)
+			[BsonIgnoreIfNull, BsonElement("wc")]
+			public int? WarningCount { get; set; }
+
+			[BsonIgnoreIfNull, BsonElement("ec")]
+			public int? ErrorCount { get; set; }
+
+			public SuiteTestData(TestId id, TestOutcome outcome, TimeSpan duration, string uid, int? warningCount, int? errorCount)
 			{
 				TestId = id;
 				Outcome = outcome;
 				Duration = duration;
 				UID = uid;
+				WarningCount = warningCount;
+				ErrorCount = errorCount;
 			}
 		}
 
@@ -268,6 +276,12 @@ namespace Horde.Server.Jobs.TestData
 
 			[BsonIgnoreIfNull, BsonElement("spc")]
 			public int? SuiteSuccessCount { get; set; }
+
+			[BsonIgnoreIfNull, BsonElement("jid")]
+			public JobId? JobId { get; set; }
+
+			[BsonIgnoreIfNull, BsonElement("sid")]
+			public SubResourceId? StepId { get; set; }
 
 			private TestDataRefDocument()
 			{
@@ -1516,6 +1530,8 @@ namespace Horde.Server.Jobs.TestData
 
 				TestDataRefDocument testRef = new TestDataRefDocument(job.StreamId);
 				testRef.StreamId = job.StreamId;
+				testRef.JobId = job.Id;
+				testRef.StepId = step.Id;
 				testRef.Metadata = metaData.Id;
 				testRef.BuildChangeList = testData.BuildChangeList <= 0 ? job.Change : testData.BuildChangeList;
 				testRef.Duration = TimeSpan.FromSeconds(testData.TotalDurationSeconds);
@@ -1650,6 +1666,8 @@ namespace Horde.Server.Jobs.TestData
 
 						TestDataRefDocument testRef = new TestDataRefDocument(job.StreamId);
 						testRef.StreamId = job.StreamId;
+						testRef.JobId = job.Id;
+						testRef.StepId = step.Id;
 						testRef.Metadata = metaData.Id;
 						testRef.BuildChangeList = job.Change;
 						testRef.Duration = TimeSpan.FromSeconds(session.TestSessionInfo!.TimeElapseSec);
@@ -1665,13 +1683,16 @@ namespace Horde.Server.Jobs.TestData
 						List<SuiteTestData> suiteTestData = new List<SuiteTestData>();
 						foreach (AutomatedTestSessionData.SessionTest test in suiteTests)
 						{
+							bool counted = false;
 							if (test.WarningCount > 0)
 							{
+								counted = true;
 								warningCount++;
 							}
 
 							if (test.ErrorCount > 0)
 							{
+								counted = true;
 								errorCount++;
 							}
 
@@ -1682,18 +1703,28 @@ namespace Horde.Server.Jobs.TestData
 							{
 								case "Success":
 									outcome = TestOutcome.Success;
-									successCount++;
+									if (!counted)
+									{
+										successCount++;
+									}
 									break;
 								case "Skipped":
 									outcome = TestOutcome.Skipped;
-									skipCount++;
+									if (!counted)
+									{
+										skipCount++;
+									}										
 									break;
 								case "Fail":
 									outcome = TestOutcome.Failure;
+									if (!counted)
+									{
+										errorCount++;
+									}
 									break;
 							}
 
-							suiteTestData.Add(new SuiteTestData(document.Id, outcome, TimeSpan.FromSeconds(test.TimeElapseSec), test.TestUID));
+							suiteTestData.Add(new SuiteTestData(document.Id, outcome, TimeSpan.FromSeconds(test.TimeElapseSec), test.TestUID, test.WarningCount != 0 ? test.WarningCount : null , test.ErrorCount != 0 ? test.ErrorCount : null));
 						}
 
 						testRef.SuiteSkipCount = skipCount;
