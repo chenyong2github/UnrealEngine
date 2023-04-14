@@ -29,10 +29,6 @@
 		{
 			"Name": "UdpMessaging",
 			"Enabled": true
-		},
-		{
-			"Name": "DatasmithGLTFImporter",
-			"Enabled": true
 		}
 	]
 }

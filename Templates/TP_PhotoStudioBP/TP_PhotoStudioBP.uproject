@@ -41,7 +41,7 @@
 			]
 		},
 		{
-			"Name": "DatasmithGLTFImporter",
+			"Name": "InterchangeEditor",
 			"Enabled": true
 		},
 		{

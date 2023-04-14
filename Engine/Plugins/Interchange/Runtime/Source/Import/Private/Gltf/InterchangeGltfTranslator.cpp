@@ -45,13 +45,6 @@
 
 #define LOCTEXT_NAMESPACE "InterchangeGltfTranslator"
 
-static bool GInterchangeEnableGLTFImport = true;
-static FAutoConsoleVariableRef CCvarInterchangeEnableGLTFImport(
-	TEXT("Interchange.FeatureFlags.Import.GLTF"),
-	GInterchangeEnableGLTFImport,
-	TEXT("Whether glTF support is enabled."),
-	ECVF_Default);
-
 static int GInterchangeGLTFUseMaterialInstancing = 0;
 static FAutoConsoleVariableRef CCvarInterchangeGLTFUseMaterialInstancing(
 	TEXT("Interchange.FeatureFlags.Import.GLTF.UseMaterialInstancing"),
@@ -968,12 +961,9 @@ TArray<FString> UInterchangeGltfTranslator::GetSupportedFormats() const
 {
 	TArray<FString> GltfExtensions;
 
-	if ( GInterchangeEnableGLTFImport || GIsAutomationTesting )
-	{
-		GltfExtensions.Reserve(2);
-		GltfExtensions.Add(TEXT("gltf;GL Transmission Format"));
-		GltfExtensions.Add(TEXT("glb;GL Transmission Format (Binary)"));
-	}
+	GltfExtensions.Reserve(2);
+	GltfExtensions.Add(TEXT("gltf;GL Transmission Format"));
+	GltfExtensions.Add(TEXT("glb;GL Transmission Format (Binary)"));
 
 	return GltfExtensions;
 }

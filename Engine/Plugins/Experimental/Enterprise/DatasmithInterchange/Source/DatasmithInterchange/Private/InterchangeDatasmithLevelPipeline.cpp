@@ -119,7 +119,7 @@ void UInterchangeDatasmithLevelPipeline::ExecutePostImportPipeline(const UInterc
 						FString ActorNodeUid;
 						if (TransformTrackNode->GetCustomActorDependencyUid(ActorNodeUid))
 						{
-							const FString ActorFactoryNodeUid = TEXT("Factory_") + ActorNodeUid;
+							const FString ActorFactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(ActorNodeUid);
 							const UInterchangeFactoryBaseNode* ActorFactoryNode = Cast<UInterchangeFactoryBaseNode>(NodeContainer->GetNode(ActorFactoryNodeUid));
 
 							if (ActorFactoryNode)

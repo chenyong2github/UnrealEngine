@@ -17,6 +17,11 @@
 	"IsHidden": true,
 	"Modules": [
 		{
+			"Name": "GLTFCore",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "InterchangeNodes",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
@@ -72,10 +77,6 @@
 		}
 	],
 	"Plugins": [
-		{
-			"Name": "GLTFImporter",
-			"Enabled": true
-		},
 		{
 			"Name": "VariantManagerContent",
 			"Enabled": true

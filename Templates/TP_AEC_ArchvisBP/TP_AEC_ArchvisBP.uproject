@@ -9,7 +9,7 @@
 			"Enabled": true
 		},
 		{
-			"Name": "DatasmithGLTFImporter",
+			"Name": "InterchangeEditor",
 			"Enabled": true
 		},
 		{
