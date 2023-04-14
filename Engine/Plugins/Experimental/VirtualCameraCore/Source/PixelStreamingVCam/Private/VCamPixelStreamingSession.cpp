@@ -71,11 +71,7 @@ void UVCamPixelStreamingSession::OnActivate()
 	if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get())
 	{
 		PixelStreamingSubsystem->RegisterActiveOutputProvider(this);
-		UVCamComponent* VCamComponent = GetTypedOuter<UVCamComponent>();
-		if (bAutoSetLiveLinkSubject && IsValid(VCamComponent))
-		{
-			VCamComponent->SetLiveLinkSubobject(GetFName());
-		}
+		ConditionallySetLiveLinkSubjectToThis();
 	}
 
 	// If we don't have a UMG assigned, we still need to create an empty 'dummy' UMG in order to properly route the input back from the RemoteSession device
@@ -184,6 +180,15 @@ void UVCamPixelStreamingSession::OnRemoteResolutionChanged(const FIntPoint& Remo
 	// Set the override resolution on the output provider base, this will trigger a resize
 	OverrideResolution = RemoteResolution;
 	ApplyOverrideResolutionForViewport(GetTargetViewport());
+}
+
+void UVCamPixelStreamingSession::ConditionallySetLiveLinkSubjectToThis() const
+{
+	UVCamComponent* VCamComponent = GetTypedOuter<UVCamComponent>();
+	if (bAutoSetLiveLinkSubject && IsValid(VCamComponent) && IsActive())
+	{
+		VCamComponent->SetLiveLinkSubobject(GetFName());
+	}
 }
 
 void UVCamPixelStreamingSession::SetupCustomInputHandling()
@@ -379,11 +384,14 @@ void UVCamPixelStreamingSession::PostEditChangeProperty(FPropertyChangedEvent& P
 	FProperty* Property = PropertyChangedEvent.MemberProperty;
 	if (Property && PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
-		static FName NAME_FromComposureOutputProviderIndex = GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, FromComposureOutputProviderIndex);
 		const FName PropertyName = Property->GetFName();
-		if (PropertyName == NAME_FromComposureOutputProviderIndex)
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, FromComposureOutputProviderIndex))
 		{
 			SetActive(false);
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UVCamPixelStreamingSession, bAutoSetLiveLinkSubject))
+		{
+			ConditionallySetLiveLinkSubjectToThis();
 		}
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);

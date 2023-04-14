@@ -64,12 +64,17 @@ protected:
 private:
 	void SetupSignallingServer();
 	void StopSignallingServer();
+	
 	void SetupCapture();
 	void StartCapture();
 	void SetupCustomInputHandling();
+	
 	void OnCaptureStateChanged();
-	void OnARKitTransformReceived(FPixelStreamingPlayerId PlayerId, uint8 Type, TArray<uint8> Data);
 	void OnRemoteResolutionChanged(const FIntPoint& RemoteResolution);
+
+	/** Sets the owning VCam's live link subject to this the subject created by this session, if this behaviour is enabled. */
+	void ConditionallySetLiveLinkSubjectToThis() const;
+	
 private:
 	FHitResult 	LastViewportTouchResult;
 	bool 		bUsingDummyUMG = false;
