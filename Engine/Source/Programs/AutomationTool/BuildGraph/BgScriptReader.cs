@@ -472,6 +472,9 @@ namespace AutomationTool
 					case "Aggregate":
 						await ReadAggregateAsync(childElement);
 						break;
+					case "Artifact":
+						await ReadArtifactAsync(childElement);
+						break;
 					case "Report":
 						await ReadReportAsync(childElement);
 						break;
@@ -1003,6 +1006,9 @@ namespace AutomationTool
 					case "Aggregate":
 						await ReadAggregateAsync(childElement);
 						break;
+					case "Artifact":
+						await ReadArtifactAsync(childElement);
+						break;
 					case "Trace":
 						await ReadDiagnosticAsync(childElement, LogLevel.Information);
 						break;
@@ -1095,6 +1101,35 @@ namespace AutomationTool
 					}
 
 					_graph.Labels.Add(label);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Reads the definition for an artifact
+		/// </summary>
+		/// <param name="element">Xml element to read the definition from</param>
+		async Task ReadArtifactAsync(BgScriptElement element)
+		{
+			string? name;
+			if (await EvaluateConditionAsync(element) && TryReadObjectName(element, out name))
+			{
+				if (_graph.NameToArtifact.ContainsKey(name))
+				{
+					LogError(element, "'{0}' is already defined; cannot add a second time", name);
+				}
+				else
+				{
+					string tag = ReadAttribute(element, "Tag");
+					if (String.IsNullOrEmpty(tag))
+					{
+						tag = $"#{name}";
+					}
+
+					string[] keys = ReadListAttribute(element, "Keys");
+
+					BgArtifactDef newArtifact = new BgArtifactDef(name, tag, keys);
+					_graph.NameToArtifact.Add(name, newArtifact);
 				}
 			}
 		}

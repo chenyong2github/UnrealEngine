@@ -139,6 +139,7 @@ namespace AutomationTool
 		Node,
 		NodeBody,
 		Aggregate,
+		Artifact,
 		Report,
 		Badge,
 		Label,
@@ -322,6 +323,7 @@ namespace AutomationTool
 			newSchema.Items.Add(CreateNodeType());
 			newSchema.Items.Add(CreateNodeBodyType(taskNameToType));
 			newSchema.Items.Add(CreateAggregateType());
+			newSchema.Items.Add(CreateArtifactType());
 			newSchema.Items.Add(CreateReportType());
 			newSchema.Items.Add(CreateBadgeType());
 			newSchema.Items.Add(CreateLabelType());
@@ -478,6 +480,7 @@ namespace AutomationTool
 			graphChoice.Items.Add(CreateSchemaElement("Extend", ScriptSchemaStandardType.Extend));
 			graphChoice.Items.Add(CreateSchemaElement("Agent", ScriptSchemaStandardType.Agent));
 			graphChoice.Items.Add(CreateSchemaElement("Aggregate", ScriptSchemaStandardType.Aggregate));
+			graphChoice.Items.Add(CreateSchemaElement("Artifact", ScriptSchemaStandardType.Artifact));
 			graphChoice.Items.Add(CreateSchemaElement("Report", ScriptSchemaStandardType.Report));
 			graphChoice.Items.Add(CreateSchemaElement("Badge", ScriptSchemaStandardType.Badge));
 			graphChoice.Items.Add(CreateSchemaElement("Label", ScriptSchemaStandardType.Label));
@@ -534,6 +537,7 @@ namespace AutomationTool
 			agentChoice.Items.Add(CreateSchemaElement("Trace", ScriptSchemaStandardType.Trace));
 			agentChoice.Items.Add(CreateSchemaElement("Label", ScriptSchemaStandardType.Label));
 			agentChoice.Items.Add(CreateSchemaElement("Annotate", ScriptSchemaStandardType.Annotate));
+			agentChoice.Items.Add(CreateSchemaElement("Artifact", ScriptSchemaStandardType.Artifact));
 			agentChoice.Items.Add(CreateSchemaElement("Warning", ScriptSchemaStandardType.Warning));
 			agentChoice.Items.Add(CreateSchemaElement("Error", ScriptSchemaStandardType.Error));
 			agentChoice.Items.Add(CreateSchemaElement("Expand", ScriptSchemaStandardType.Expand));
@@ -627,6 +631,21 @@ namespace AutomationTool
 			aggregateType.Attributes.Add(CreateSchemaAttribute("Exclude", ScriptSchemaStandardType.NameOrTagList, XmlSchemaUse.Optional));
 			aggregateType.Attributes.Add(CreateSchemaAttribute("If", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
 			return aggregateType;
+		}
+
+		/// <summary>
+		/// Creates the schema type representing the artifact type
+		/// </summary>
+		/// <returns>Type definition for an artifact</returns>
+		static XmlSchemaType CreateArtifactType()
+		{
+			XmlSchemaComplexType artifactType = new XmlSchemaComplexType();
+			artifactType.Name = GetTypeName(ScriptSchemaStandardType.Artifact);
+			artifactType.Attributes.Add(CreateSchemaAttribute("Name", ScriptSchemaStandardType.Name, XmlSchemaUse.Required));
+			artifactType.Attributes.Add(CreateSchemaAttribute("Tag", ScriptSchemaStandardType.Tag, XmlSchemaUse.Optional));
+			artifactType.Attributes.Add(CreateSchemaAttribute("Keys", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
+			artifactType.Attributes.Add(CreateSchemaAttribute("If", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
+			return artifactType;
 		}
 
 		/// <summary>

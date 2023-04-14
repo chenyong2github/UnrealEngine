@@ -81,6 +81,11 @@ namespace EpicGames.BuildGraph
 		public Dictionary<string, BgAggregateDef> NameToAggregate { get; private set; } = new Dictionary<string, BgAggregateDef>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
+		/// Mapping of artifact names to their definitions. Artifacts will be produced from matching tag names.
+		/// </summary>
+		public Dictionary<string, BgArtifactDef> NameToArtifact { get; private set; } = new Dictionary<string, BgArtifactDef>(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>
 		/// List of badges that can be displayed for this build
 		/// </summary>
 		public List<BgBadgeDef> Badges { get; } = new List<BgBadgeDef>();
@@ -422,6 +427,18 @@ namespace EpicGames.BuildGraph
 			using (JsonWriter jsonWriter = new JsonWriter(file.FullName))
 			{
 				jsonWriter.WriteObjectStart();
+
+				jsonWriter.WriteArrayStart("Artifacts");
+				foreach (BgArtifactDef artifact in NameToArtifact.Values)
+				{
+					jsonWriter.WriteObjectStart();
+					jsonWriter.WriteValue("Name", artifact.Name);
+					jsonWriter.WriteValue("Tag", artifact.Tag);
+					jsonWriter.WriteStringArrayField("Keys", artifact.Keys);
+					jsonWriter.WriteObjectEnd();
+				}
+				jsonWriter.WriteArrayEnd();
+
 				jsonWriter.WriteArrayStart("Groups");
 				foreach (BgAgentDef agent in Agents)
 				{
