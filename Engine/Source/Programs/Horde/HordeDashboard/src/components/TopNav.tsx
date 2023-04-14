@@ -438,24 +438,24 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
          }
       });
 
+      const softwareItems: IContextualMenuItem[] = [];
+      softwareItems.push({
+         key: "software_tools",
+         text: "Tools",
+         link: `/tools`
+      });
+
+      subItems.push({
+         itemType: ContextualMenuItemType.Section,
+         key: `server_software`,
+         sectionProps: {
+            title: "Software",
+            items: softwareItems,
+            bottomDivider: true
+         }
+      });
+
       if (getSiteConfig().environment !== "production") {
-
-         const softwareItems: IContextualMenuItem[] = [];
-         softwareItems.push({
-            key: "software_tools",
-            text: "Tools",
-            link: `/tools`
-         });
-
-         subItems.push({
-            itemType: ContextualMenuItemType.Section,
-            key: `server_software`,
-            sectionProps: {
-               title: "Software",
-               items: softwareItems,
-               bottomDivider: true
-            }
-         });
 
          const docsItems: IContextualMenuItem[] = [];
          docsItems.push({
