@@ -142,7 +142,7 @@ private:
 	UPROPERTY()
 	TObjectPtr<const UChaosClothComponent> ClothComponent;
 
-	TUniquePtr<FTaskResource> TaskResource = nullptr;
+	TUniquePtr<FTaskResource> TaskResource;
 
 	void RequestAction(EClothTrainingToolActions ActionType);
 	void StartTraining();
