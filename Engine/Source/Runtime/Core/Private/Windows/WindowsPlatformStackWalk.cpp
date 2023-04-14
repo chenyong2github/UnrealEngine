@@ -210,7 +210,10 @@ uint32 FWindowsPlatformStackWalk::CaptureThreadStackBackTrace(uint64 ThreadId, u
 	}
 
 	// Suspend the thread before grabbing its context
-	SuspendThread(ThreadHandle);
+	if (SuspendThread(ThreadHandle) < 0)
+	{
+		return 0;
+	}
 
 	uint32 Depth = 0;
 	if (Context)
