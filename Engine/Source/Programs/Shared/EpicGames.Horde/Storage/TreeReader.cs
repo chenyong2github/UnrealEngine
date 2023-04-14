@@ -13,6 +13,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using Microsoft.CodeAnalysis;
+using Blake3;
 
 namespace EpicGames.Horde.Storage
 {
@@ -75,6 +76,13 @@ namespace EpicGames.Horde.Storage
 			Types.AddRange(types);
 		}
 	}
+
+	/// <summary>
+	/// Callback parameters for ReadNodeAsync calls. 
+	/// </summary>
+	/// <param name="Type">TreeNode type being read</param>
+	/// <param name="Deserialize">Deserialization function commonly </param>
+	public record struct ReadNodeAsyncCallbackParams(Type Type, Func<ITreeNodeReader, TreeNode> Deserialize);
 
 	/// <summary>
 	/// Writes nodes from bundles in an <see cref="IStorageClient"/> instance.
@@ -266,6 +274,9 @@ namespace EpicGames.Horde.Storage
 		// Size of data to fetch by default. This is larger than the minimum request size to reduce number of reads.
 		const int DefaultFetchSize = 15 * 1024 * 1024;
 
+		// When reader is uncached, use a smaller default fetch size
+		const int DefaultUncachedFetchSize = 1 * 1024 * 1024;
+
 		readonly IStorageClient _store;
 		readonly IMemoryCache? _cache;
 		readonly Dictionary<Guid, TypeInfo> _types;
@@ -432,7 +443,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		async Task PerformHeaderReadAsync(QueuedHeader queuedHeader, CancellationToken cancellationToken)
 		{
-			int prefetchSize = DefaultFetchSize;
+			int prefetchSize = _cache != null ? DefaultFetchSize : DefaultUncachedFetchSize;
 			for (; ; )
 			{
 				using (IMemoryOwner<byte> owner = MemoryPool<byte>.Shared.Rent(prefetchSize))
@@ -462,27 +473,30 @@ namespace EpicGames.Horde.Storage
 					// Construct the bundle info
 					BundleInfo bundleInfo = new BundleInfo(queuedHeader.Blob, header, headerSize, types);
 
-					// Also add any encoded packets we prefetched
-					List<ReadOnlyMemory<byte>> packets = new List<ReadOnlyMemory<byte>>();
-					for (int packetOffset = headerSize; packets.Count < header.Packets.Count;)
+					if (_cache != null)
 					{
-						int packetIdx = packets.Count;
-
-						int packetLength = header.Packets[packetIdx].EncodedLength;
-						if (packetOffset + packetLength > memory.Length)
+						// Also add any encoded packets we prefetched
+						List<ReadOnlyMemory<byte>> packets = new List<ReadOnlyMemory<byte>>();
+						for (int packetOffset = headerSize; packets.Count < header.Packets.Count;)
 						{
-							break;
+							int packetIdx = packets.Count;
+
+							int packetLength = header.Packets[packetIdx].EncodedLength;
+							if (packetOffset + packetLength > memory.Length)
+							{
+								break;
+							}
+
+							ReadOnlyMemory<byte> packetData = memory.Slice(packetOffset, packetLength).ToArray();
+							AddToCache(GetEncodedPacketCacheKey(queuedHeader.Blob.BlobId, packetIdx), packetData, packetData.Length);
+							packets.Add(packetData);
+							packetOffset += packetLength;
 						}
 
-						ReadOnlyMemory<byte> packetData = memory.Slice(packetOffset, packetLength).ToArray();
-						AddToCache(GetEncodedPacketCacheKey(queuedHeader.Blob.BlobId, packetIdx), packetData, packetData.Length);
-						packets.Add(packetData);
-						packetOffset += packetLength;
+						// Add the info to the cache
+						string cacheKey = GetBundleInfoCacheKey(queuedHeader.Blob.BlobId);
+						AddToCache(cacheKey, bundleInfo, headerSize);
 					}
-
-					// Add the info to the cache
-					string cacheKey = GetBundleInfoCacheKey(queuedHeader.Blob.BlobId);
-					AddToCache(cacheKey, bundleInfo, headerSize);
 
 					// Update the task
 					queuedHeader.CompletionSource.SetResult(bundleInfo);
@@ -544,13 +558,16 @@ namespace EpicGames.Horde.Storage
 				buffer = await _store.ReadBlobRangeAsync(bundleInfo.Locator, bundleInfo.PacketOffsets[minPacketIdx], buffer, cancellationToken);
 
 				// Copy all the packets that have been read into separate buffers, so we can cache them individually.
-				List<ReadOnlyMemory<byte>> packets = new List<ReadOnlyMemory<byte>>();
-				for (int idx = minPacketIdx; idx < maxPacketIdx; idx++)
+				ReadOnlyMemory<byte>?[] packets = new ReadOnlyMemory<byte>?[maxPacketIdx - minPacketIdx];
+				if (_cache != null)
 				{
-					string cacheKey = GetEncodedPacketCacheKey(bundleInfo.Locator.BlobId, idx);
-					ReadOnlyMemory<byte> data = buffer.Slice(bundleInfo.PacketOffsets[idx] - bundleInfo.PacketOffsets[minPacketIdx], bundleInfo.Header.Packets[idx].EncodedLength).ToArray();
-					packets.Add(data);
-					AddToCache(cacheKey, data, data.Length);
+					for (int idx = minPacketIdx; idx < maxPacketIdx; idx++)
+					{
+						string cacheKey = GetEncodedPacketCacheKey(bundleInfo.Locator.BlobId, idx);
+						ReadOnlyMemory<byte> data = buffer.Slice(bundleInfo.PacketOffsets[idx] - bundleInfo.PacketOffsets[minPacketIdx], bundleInfo.Header.Packets[idx].EncodedLength).ToArray();
+						packets[idx - minPacketIdx] = data;
+						AddToCache(cacheKey, data, data.Length);
+					}
 				}
 
 				// Find all the packets we can mark as complete
@@ -563,8 +580,12 @@ namespace EpicGames.Horde.Storage
 				// Mark them all as complete
 				foreach (QueuedPacket updatePacket in updatePackets)
 				{
-					ReadOnlyMemory<byte> data = packets[updatePacket.PacketIdx - minPacketIdx];
-					updatePacket.CompletionSource.SetResult(data);
+					ReadOnlyMemory<byte>? data = packets[updatePacket.PacketIdx - minPacketIdx];
+					if (data == null)
+					{
+						data = buffer.Slice(bundleInfo.PacketOffsets[updatePacket.PacketIdx] - bundleInfo.PacketOffsets[minPacketIdx], bundleInfo.Header.Packets[updatePacket.PacketIdx].EncodedLength).ToArray();
+					}
+					updatePacket.CompletionSource.SetResult((ReadOnlyMemory<byte>)data);
 				}
 
 				// Remove all the completed packets from the queue
@@ -737,6 +758,24 @@ namespace EpicGames.Horde.Storage
 		/// <returns>Node data read from the given bundle</returns>
 		public async ValueTask<TreeNode> ReadNodeAsync(NodeLocator locator, CancellationToken cancellationToken = default)
 		{
+			TreeNode? treeNode = null;
+			await ReadNodeAsync(locator, (ReadNodeAsyncCallbackParams parms, ITreeNodeReader reader) =>
+			{
+				treeNode = parms.Deserialize(reader);
+				return Task.CompletedTask;
+			}, cancellationToken);
+			return treeNode!;
+		}
+
+		/// <summary>
+		/// Reads a node from a bundle
+		/// </summary>
+		/// <param name="locator">Locator for the node</param>
+		/// <param name="readFunc">Action to be invoked</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Node data read from the given bundle</returns>
+		public async ValueTask ReadNodeAsync(NodeLocator locator, Func<ReadNodeAsyncCallbackParams /*parms*/, ITreeNodeReader /*reader*/, Task> readFunc, CancellationToken cancellationToken = default)
+		{
 			BundleInfo bundleInfo = await GetBundleInfoAsync(locator.Blob, cancellationToken);
 			BundleExport export = bundleInfo.Header.Exports[locator.ExportIdx];
 
@@ -762,7 +801,7 @@ namespace EpicGames.Horde.Storage
 				throw new InvalidOperationException($"No registered serializer for type {bundleInfo.Header.Types[export.TypeIdx].Guid}");
 			}
 
-			return typeInfo.Deserialize(new NodeReader(nodeData, export.Hash, refs, typeInfo.BundleType));
+			await readFunc(new ReadNodeAsyncCallbackParams(typeInfo.Type, typeInfo.Deserialize), new NodeReader(nodeData, export.Hash, refs, typeInfo.BundleType));
 		}
 
 		/// <summary>

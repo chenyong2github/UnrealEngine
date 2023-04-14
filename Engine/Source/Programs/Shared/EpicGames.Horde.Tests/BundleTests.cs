@@ -9,7 +9,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -76,31 +78,58 @@ namespace EpicGames.Horde.Tests
 
 			NodeHandle handle;
 			FileNode node;
+			byte[] data = CreateBuffer(1024);
 
-			handle = await fileNodeWriter.CreateAsync(new byte[7], CancellationToken.None);
+			handle = await fileNodeWriter.CreateAsync(data.AsMemory(0, 7), CancellationToken.None);
 			node = await reader.ReadNodeAsync<FileNode>(handle.Locator);
 			Assert.IsTrue(node is LeafFileNode);
 			Assert.AreEqual(7, ((LeafFileNode)node).Data.Length);
+			await TestBufferlessReadsAsync(reader, handle.Locator, data.AsMemory(0, 7));
 
-			handle = await fileNodeWriter.CreateAsync(new byte[8], CancellationToken.None);
+			handle = await fileNodeWriter.CreateAsync(data.AsMemory(0, 8), CancellationToken.None);
 			node = await reader.ReadNodeAsync<FileNode>(handle.Locator);
 			Assert.IsTrue(node is LeafFileNode);
 			Assert.AreEqual(8, ((LeafFileNode)node).Data.Length);
+			await TestBufferlessReadsAsync(reader, handle.Locator, data.AsMemory(0, 8));
 
-			handle = await fileNodeWriter.CreateAsync(new byte[9], CancellationToken.None);
+			handle = await fileNodeWriter.CreateAsync(data.AsMemory(0, 9), CancellationToken.None);
 			node = await reader.ReadNodeAsync<FileNode>(handle.Locator);
 			Assert.IsTrue(node is InteriorFileNode);
 			Assert.AreEqual(2, ((InteriorFileNode)node).Children.Count);
+			await TestBufferlessReadsAsync(reader, handle.Locator, data.AsMemory(0, 9));
 
-			FileNode? childNode1 = await ((TreeNodeRef<FileNode>)((InteriorFileNode)node).Children[0]).ExpandAsync(reader);
+			FileNode? childNode1 = await ((InteriorFileNode)node).Children[0].ExpandAsync(reader);
 			Assert.IsNotNull(childNode1);
 			Assert.IsTrue(childNode1 is LeafFileNode);
 			Assert.AreEqual(8, ((LeafFileNode)childNode1!).Data.Length);
 
-			FileNode? childNode2 = await ((TreeNodeRef<FileNode>)((InteriorFileNode)node).Children[1]).ExpandAsync(reader);
+			FileNode? childNode2 = await ((InteriorFileNode)node).Children[1].ExpandAsync(reader);
 			Assert.IsNotNull(childNode2);
 			Assert.IsTrue(childNode2 is LeafFileNode);
 			Assert.AreEqual(1, ((LeafFileNode)childNode2!).Data.Length);
+
+			handle = await fileNodeWriter.CreateAsync(data, CancellationToken.None);
+			node = await reader.ReadNodeAsync<FileNode>(handle.Locator);
+			Assert.IsTrue(node is InteriorFileNode);
+			await TestBufferlessReadsAsync(reader, handle.Locator, data);
+		}
+
+		private static byte[] CreateBuffer(int length)
+		{
+			byte[] output = GC.AllocateUninitializedArray<byte>(length);
+			for (int i = 0; i < length; i++)
+			{
+				output[i] = (byte)i;
+			}
+			return output;
+		}
+
+		private static async Task TestBufferlessReadsAsync(TreeReader reader, NodeLocator locator, ReadOnlyMemory<byte> expected)
+		{
+			MemoryStream memoryStream = new MemoryStream();
+			await FileNode.CopyToStreamAsync(reader, locator, memoryStream, default);
+			ReadOnlyMemory<byte> read = memoryStream.ToArray().AsMemory();
+			Assert.IsTrue(read.Span.SequenceEqual(expected.Span));			
 		}
 
 		[TestMethod]

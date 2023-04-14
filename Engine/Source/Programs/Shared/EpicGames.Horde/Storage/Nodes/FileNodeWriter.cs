@@ -15,6 +15,12 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// </summary>
 	public class FileNodeWriter
 	{
+
+		/// <summary>
+		/// Default buffer length when calling CreateAsync/AppendAsync
+		/// </summary>
+		public const int DefaultBufferLength = 32 * 1024;
+
 		class InteriorNodeState
 		{
 			public InteriorNodeState? _parent;
@@ -127,9 +133,20 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public async Task<NodeHandle> CreateAsync(FileInfo fileInfo, CancellationToken cancellationToken)
 		{
+			return await CreateAsync(fileInfo, DefaultBufferLength, cancellationToken);
+		}
+
+		/// <summary>
+		/// Creates data for the given file
+		/// </summary>
+		/// <param name="fileInfo">File to append</param>
+		/// <param name="bufferLength">Size of the read buffer</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public async Task<NodeHandle> CreateAsync(FileInfo fileInfo, int bufferLength, CancellationToken cancellationToken)
+		{
 			using (FileStream stream = fileInfo.OpenRead())
 			{
-				return await CreateAsync(stream, cancellationToken);
+				return await CreateAsync(stream, bufferLength, cancellationToken);
 			}
 		}
 
@@ -140,8 +157,19 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public async Task<NodeHandle> CreateAsync(Stream stream, CancellationToken cancellationToken)
 		{
+			return await CreateAsync(stream, DefaultBufferLength, cancellationToken);
+		}
+
+		/// <summary>
+		/// Creates data from the given stream
+		/// </summary>
+		/// <param name="stream">Stream to append</param>
+		/// <param name="bufferLength">Size of the read buffer</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public async Task<NodeHandle> CreateAsync(Stream stream, int bufferLength, CancellationToken cancellationToken)
+		{
 			Reset();
-			await AppendAsync(stream, cancellationToken);
+			await AppendAsync(stream, bufferLength, cancellationToken);
 			return await CompleteAsync(cancellationToken);
 		}
 
@@ -164,36 +192,18 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public async Task AppendAsync(Stream stream, CancellationToken cancellationToken)
 		{
-			const int BufferLength = 32 * 1024;
+			await AppendAsync(stream, DefaultBufferLength, cancellationToken);
+		}
 
-			using IMemoryOwner<byte> owner = MemoryPool<byte>.Shared.Rent(BufferLength * 2);
-			Memory<byte> buffer = owner.Memory;
-
-			int readBufferOffset = 0;
-			Memory<byte> appendBuffer = Memory<byte>.Empty;
-			for (; ; )
-			{
-				// Start a read into memory
-				Memory<byte> readBuffer = buffer.Slice(readBufferOffset, BufferLength);
-				Task<int> readTask = Task.Run(async () => await stream.ReadAsync(readBuffer, cancellationToken), cancellationToken);
-
-				// In the meantime, append the last data that was read to the tree
-				if (appendBuffer.Length > 0)
-				{
-					await AppendAsync(appendBuffer, cancellationToken);
-				}
-
-				// Wait for the read to finish
-				int numBytes = await readTask;
-				if (numBytes == 0)
-				{
-					break;
-				}
-
-				// Switch the buffers around
-				appendBuffer = readBuffer.Slice(0, numBytes);
-				readBufferOffset ^= BufferLength;
-			}
+		/// <summary>
+		/// Appends data to the current file
+		/// </summary>
+		/// <param name="stream">Stream containing data to append</param>
+		/// <param name="bufferLength">Size of the read buffer</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public async Task AppendAsync(Stream stream, int bufferLength, CancellationToken cancellationToken)
+		{
+			await stream.ReadAllBytesAsync(bufferLength, async (x) => await AppendAsync(x, cancellationToken), cancellationToken);
 		}
 
 		/// <summary>

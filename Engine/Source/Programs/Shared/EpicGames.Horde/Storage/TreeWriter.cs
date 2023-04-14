@@ -398,7 +398,7 @@ namespace EpicGames.Horde.Storage
 				{
 					_currentPacket = MemoryPool<byte>.Shared.Rent(Math.Max(_maxPacketSize, desiredSize));
 				}
-				else if (_currentPacketLength + desiredSize > _maxPacketSize)
+				else if (_currentPacketLength + desiredSize > _currentPacket.Memory.Length)
 				{
 					IMemoryOwner<byte> nextPacket = MemoryPool<byte>.Shared.Rent(Math.Max(_maxPacketSize, desiredSize));
 					if (usedSize > 0)
@@ -407,7 +407,6 @@ namespace EpicGames.Horde.Storage
 					}
 					FlushPacket();
 					_currentPacket = nextPacket;
-					return _currentPacket.Memory.Slice(_currentPacketLength, desiredSize);
 				}
 				return _currentPacket.Memory.Slice(_currentPacketLength, desiredSize);
 			}
