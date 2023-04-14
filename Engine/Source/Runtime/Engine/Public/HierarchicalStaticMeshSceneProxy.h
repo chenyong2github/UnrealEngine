@@ -93,6 +93,6 @@ public:
 
 	void FillDynamicMeshElements(FMeshElementCollector& Collector, const FFoliageElementParams& ElementParams, const FFoliageRenderInstanceParams& Instances) const;
 
-	template<bool TUseVector>
+	template<bool TUseVector, bool THasWPODisplacement>
 	void Traverse(const FFoliageCullInstanceParams& Params, int32 Index, int32 MinLOD, int32 MaxLOD, bool bFullyContained = false) const;
 };
