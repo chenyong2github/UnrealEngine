@@ -868,9 +868,12 @@ bool UEditorLevelUtils::RemoveLevelsFromWorld(TArray<ULevel*> InLevels, bool bCl
 		GEditor->Trans->Reset(TransResetText);
 	}
 
-	if (!UPackageTools::UnloadPackages(PackagesToUnload))
+	UPackageTools::FUnloadPackageParams UnloadParams(PackagesToUnload);
+	UnloadParams.bResetTransBuffer = bResetTransBuffer;
+	const bool bUnloadResult = UPackageTools::UnloadPackages(UnloadParams);
+	if (!bUnloadResult && !UnloadParams.OutErrorMessage.IsEmpty())
 	{
-		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("UnloadPackagesFail", "Unable to unload packages."));
+		FMessageDialog::Open(EAppMsgType::Ok, UnloadParams.OutErrorMessage);
 	}
 
 	// Redraw the main editor viewports.

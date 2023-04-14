@@ -94,6 +94,33 @@ public:
 	static bool UnloadPackages( const TArray<UPackage*>& PackagesToUnload, FText& OutErrorMessage, bool bUnloadDirtyPackages = false);
 
 	/**
+	 * struct containing list of packages to unload and other params.
+	 */
+	struct FUnloadPackageParams
+	{
+		FUnloadPackageParams(const TArray<UPackage*>& PackagesToUnload) : Packages(PackagesToUnload) {}
+
+		/** Packages to unload */
+		const TArray<UPackage*> Packages;
+		/** Whether to unload packages that are dirty (that need to be saved) */
+		bool bUnloadDirtyPackages = false;
+		/** Whether to reset the transaction buffer to allow unloading packages that might be referenced by it */
+		bool bResetTransBuffer = true;
+		
+		/** Result: An error message specifying any problems with unloading packages */
+		FText OutErrorMessage;
+	};
+
+	/**
+	 * Helper function that attemps to unload the specified top-level packages.
+	 * 
+	 * @param struct containg list of packages that should be unloaded and other behavior params.
+	 * 
+	 * @return true if the set of loaded packages was changed
+	 */
+	static bool UnloadPackages(FUnloadPackageParams& Params);
+
+	/**
 	 * Helper function that attempts to reload the specified top-level packages.
 	 *
 	 * @param	PackagesToReload	The list of packages that should be reloaded

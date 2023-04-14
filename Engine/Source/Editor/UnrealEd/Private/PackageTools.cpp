@@ -290,7 +290,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 	bool UPackageTools::UnloadPackages( const TArray<UPackage*>& TopLevelPackages )
 	{
 		FText ErrorMessage;
-		bool bResult = UnloadPackages(TopLevelPackages, ErrorMessage);
+		const bool bResult = UnloadPackages(TopLevelPackages, ErrorMessage);
 		if(!ErrorMessage.IsEmpty())
 		{
 			FMessageDialog::Open( EAppMsgType::Ok, ErrorMessage );
@@ -301,8 +301,17 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 
 	bool UPackageTools::UnloadPackages(const TArray<UPackage*>& TopLevelPackages, FText& OutErrorMessage, bool bUnloadDirtyPackages)
 	{
+		FUnloadPackageParams Params(TopLevelPackages);
+		Params.bUnloadDirtyPackages = bUnloadDirtyPackages;
+		const bool bResult = UnloadPackages(Params);
+		OutErrorMessage = Params.OutErrorMessage;
+		return bResult;
+	}
+
+	bool UPackageTools::UnloadPackages(FUnloadPackageParams& Params)
+	{
 		// Early out if no package is provided
-		if (TopLevelPackages.IsEmpty())
+		if (Params.Packages.IsEmpty())
 		{
 			return true;
 		}
@@ -315,11 +324,11 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 		// Split the set of selected top level packages into packages which are dirty (and thus cannot be unloaded)
 		// and packages that are not dirty (and thus can be unloaded).
 		TArray<UPackage*> DirtyPackages;
-		for (UPackage* TopLevelPackage : TopLevelPackages)
+		for (UPackage* TopLevelPackage : Params.Packages)
 		{
 			if (TopLevelPackage)
 			{
-				if (!bUnloadDirtyPackages && TopLevelPackage->IsDirty())
+				if (!Params.bUnloadDirtyPackages && TopLevelPackage->IsDirty())
 				{
 					DirtyPackages.Add(TopLevelPackage);
 				}
@@ -347,7 +356,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("DirtyPackages"), FText::FromString(DirtyPackagesList));
 
-			OutErrorMessage = FText::Format( NSLOCTEXT("UnrealEd", "UnloadDirtyPackagesList", "The following assets have been modified and cannot be unloaded:{DirtyPackages}\nSaving these assets will allow them to be unloaded."), Args );
+			Params.OutErrorMessage = FText::Format( NSLOCTEXT("UnrealEd", "UnloadDirtyPackagesList", "The following assets have been modified and cannot be unloaded:{DirtyPackages}\nSaving these assets will allow them to be unloaded."), Args );
 		}
 		if (GEditor)
 		{
@@ -393,7 +402,7 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 			GEditor->GetSelectedObjects()->GetElementSelectionSet()->ClearSelection(FTypedElementSelectionOptions());
 
 			// Clear undo history because transaction records can hold onto assets we want to unload
-			if (GEditor->Trans)
+			if (GEditor->Trans && Params.bResetTransBuffer)
 			{
 				GEditor->Trans->Reset(NSLOCTEXT("UnrealEd", "UnloadPackagesResetUndo", "Unload Assets"));
 			}
