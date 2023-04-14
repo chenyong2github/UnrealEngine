@@ -691,6 +691,7 @@ FDecimalNumberFormattingRules ExtractNumberFormattingRulesFromICUDecimalFormatte
 	if (FCStringAnsi::Strcmp(InICULocale.getLanguage(), "es") == 0 && CVarSpanishUsesRAENumberFormat.AsVariable()->GetInt())
 	{
 		NewUEDecimalNumberFormattingRules.GroupingSeparatorCharacter = TEXT('\u00A0'); // No-Break Space
+		NewUEDecimalNumberFormattingRules.DecimalSeparatorCharacter = TEXT(',');
 	}
 
 	return NewUEDecimalNumberFormattingRules;
