@@ -426,6 +426,11 @@ namespace Horde.Server.Jobs.TestData
 		public int? SuiteErrorCount { get; set; }
 
 		/// <summary>
+		/// Suite test successes
+		/// </summary>
+		public int? SuiteSuccessCount { get; set; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="testData"></param>
@@ -445,6 +450,7 @@ namespace Horde.Server.Jobs.TestData
 			SuiteSkipCount = testData.SuiteSkipCount;
 			SuiteWarningCount = testData.SuiteWarningCount;
 			SuiteErrorCount = testData.SuiteErrorCount;
+			SuiteSuccessCount = testData.SuiteSuccessCount;
 		}
 	}
 }

@@ -214,8 +214,13 @@ namespace Horde.Server.Jobs.TestData
 		/// </summary>
 		int? SuiteErrorCount { get; }
 
+		/// <summary>
+		/// Suite test successes
+		/// </summary>
+		int? SuiteSuccessCount { get; }
+
 	}
-	
+
 	/// <summary>
 	/// Test data details
 	/// </summary>

@@ -266,6 +266,9 @@ namespace Horde.Server.Jobs.TestData
 			[BsonIgnoreIfNull, BsonElement("sec")]
 			public int? SuiteErrorCount { get; set; }
 
+			[BsonIgnoreIfNull, BsonElement("spc")]
+			public int? SuiteSuccessCount { get; set; }
+
 			private TestDataRefDocument()
 			{
 
@@ -1656,6 +1659,7 @@ namespace Horde.Server.Jobs.TestData
 						int skipCount = 0;
 						int warningCount = 0;
 						int errorCount = 0;
+						int successCount = 0;
 
 						// populate the suite tests
 						List<SuiteTestData> suiteTestData = new List<SuiteTestData>();
@@ -1678,6 +1682,7 @@ namespace Horde.Server.Jobs.TestData
 							{
 								case "Success":
 									outcome = TestOutcome.Success;
+									successCount++;
 									break;
 								case "Skipped":
 									outcome = TestOutcome.Skipped;
@@ -1693,7 +1698,8 @@ namespace Horde.Server.Jobs.TestData
 
 						testRef.SuiteSkipCount = skipCount;
 						testRef.SuiteErrorCount = errorCount;
-						testRef.SuiteWarningCount =warningCount;
+						testRef.SuiteWarningCount = warningCount;
+						testRef.SuiteSuccessCount = successCount;
 
 						// and add to collections
 						await AddTestRef(testRef);
