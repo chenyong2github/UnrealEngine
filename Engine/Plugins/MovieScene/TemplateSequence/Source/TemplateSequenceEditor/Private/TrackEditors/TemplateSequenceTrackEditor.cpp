@@ -44,12 +44,14 @@ bool FTemplateSequenceTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Ty
 
 bool FTemplateSequenceTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 {
-	if (InSequence && InSequence->IsTrackSupported(UTemplateSequenceTrack::StaticClass()) == ETrackSupport::NotSupported)
+	ETrackSupport TrackSupported = InSequence ? InSequence->IsTrackSupported(UTemplateSequenceTrack::StaticClass()) : ETrackSupport::Default;
+
+	if (TrackSupported == ETrackSupport::NotSupported)
 	{
 		return false;
 	}
 
-	return InSequence && (InSequence->IsA(ULevelSequence::StaticClass()) || InSequence->IsA(UTemplateSequence::StaticClass()));
+	return (InSequence && (InSequence->IsA(ULevelSequence::StaticClass()) || InSequence->IsA(UTemplateSequence::StaticClass()))) || TrackSupported == ETrackSupport::Supported;
 }
 
 void FTemplateSequenceTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)

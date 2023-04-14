@@ -276,12 +276,14 @@ TSharedRef<ISequencerTrackEditor> FGeometryCacheTrackEditor::CreateTrackEditor(T
 
 bool FGeometryCacheTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 {
-	if (InSequence && InSequence->IsTrackSupported(UMovieSceneGeometryCacheTrack::StaticClass()) == ETrackSupport::NotSupported)
+	ETrackSupport TrackSupported = InSequence ? InSequence->IsTrackSupported(UMovieSceneGeometryCacheTrack::StaticClass()) : ETrackSupport::Default;
+
+	if (TrackSupported == ETrackSupport::NotSupported)
 	{
 		return false;
 	}
 
-	return InSequence && InSequence->IsA(ULevelSequence::StaticClass());
+	return (InSequence && InSequence->IsA(ULevelSequence::StaticClass())) || TrackSupported == ETrackSupport::Supported;
 }
 
 bool FGeometryCacheTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type) const

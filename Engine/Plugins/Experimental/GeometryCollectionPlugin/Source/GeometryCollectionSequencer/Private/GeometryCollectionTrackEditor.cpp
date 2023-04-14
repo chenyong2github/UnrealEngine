@@ -277,12 +277,14 @@ TSharedRef<ISequencerTrackEditor> FGeometryCollectionTrackEditor::CreateTrackEdi
 
 bool FGeometryCollectionTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 {
-	if (InSequence && InSequence->IsTrackSupported(UMovieSceneGeometryCollectionTrack::StaticClass()) == ETrackSupport::NotSupported)
+	ETrackSupport TrackSupported = InSequence ? InSequence->IsTrackSupported(UMovieSceneGeometryCollectionTrack::StaticClass()) : ETrackSupport::Default;
+
+	if (TrackSupported == ETrackSupport::NotSupported)
 	{
 		return false;
 	}
 
-	return InSequence && InSequence->IsA(ULevelSequence::StaticClass());
+	return (InSequence && InSequence->IsA(ULevelSequence::StaticClass())) || TrackSupported == ETrackSupport::Supported;
 }
 
 bool FGeometryCollectionTrackEditor::SupportsType( TSubclassOf<UMovieSceneTrack> Type ) const

@@ -12,6 +12,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "SequencerUtilities.h"
 #include "MovieSceneSequenceEditor.h"
+#include "LevelSequence.h"
 
 #define LOCTEXT_NAMESPACE "FGameplayCueTrackEditor"
 
@@ -140,12 +141,14 @@ bool FGameplayCueTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type) c
 
 bool FGameplayCueTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 {
-	if (InSequence && InSequence->IsTrackSupported(UMovieSceneGameplayCueTrack::StaticClass()) == ETrackSupport::NotSupported)
+	ETrackSupport TrackSupported = InSequence ? InSequence->IsTrackSupported(UMovieSceneGameplayCueTrack::StaticClass()) : ETrackSupport::Default;
+
+	if (TrackSupported == ETrackSupport::NotSupported)
 	{
 		return false;
 	}
 
-	return true;
+	return (InSequence && InSequence->IsA(ULevelSequence::StaticClass())) || TrackSupported == ETrackSupport::Supported;
 }
 
 const FSlateBrush* FGameplayCueTrackEditor::GetIconBrush() const
