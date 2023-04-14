@@ -1035,6 +1035,50 @@ bool FStateTreePropertyBindings::ResetObjects(const FStateTreeIndex16 TargetBatc
 	return bResult;
 }
 
+bool FStateTreePropertyBindings::ContainsAnyStruct(const TSet<const UStruct*>& Structs)
+{
+	for (FStateTreeBindableStructDesc& SourceStruct : SourceStructs)
+	{
+		if (Structs.Contains(SourceStruct.Struct))
+		{
+			return true;
+		}
+	}
+
+	for (FStateTreePropertyCopyBatch& CopyBatch : CopyBatches)
+	{
+		if (Structs.Contains(CopyBatch.TargetStruct.Struct))
+		{
+			return true;
+		}
+	}
+
+	auto PathContainsStruct = [&Structs](const FStateTreePropertyPath& PropertyPath)
+	{
+		for (const FStateTreePropertyPathSegment& Segment : PropertyPath.GetSegments())
+		{
+			if (Structs.Contains(Segment.GetInstanceStruct()))
+			{
+				return true;
+			}
+		}
+		return false;
+	};
+	
+	for (FStateTreePropertyPathBinding& PropertyPathBinding : PropertyPathBindings)
+	{
+		if (PathContainsStruct(PropertyPathBinding.GetSourcePath()))
+		{
+			return true;
+		}
+		if (PathContainsStruct(PropertyPathBinding.GetTargetPath()))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void FStateTreePropertyBindings::DebugPrintInternalLayout(FString& OutString) const
 {
 	/** Array of expected source structs. */

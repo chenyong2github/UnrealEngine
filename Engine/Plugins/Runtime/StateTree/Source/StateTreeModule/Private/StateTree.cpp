@@ -109,6 +109,77 @@ void UStateTree::ResetCompiled()
 	ResetLinked();
 }
 
+void UStateTree::OnObjectsReinstanced(const FReplacementObjectMap& ObjectMap)
+{
+	if (ObjectMap.IsEmpty())
+	{
+		return;
+	}
+
+	// If the asset is not linked yet (or has failed), no need to link.
+	if (!bIsLinked)
+	{
+		return;
+	}
+
+	// Relink only if the reinstantiated object belongs to this asset,
+	// or anything from the property binding refers to the classes of the reinstantiated object.
+
+	bool bShouldRelink = false;
+
+	for (TMap<UObject*, UObject*>::TConstIterator It(ObjectMap); It; ++It)
+	{
+		if (UObject* ObjectToBeReplaced = It->Value)
+		{
+			if (ObjectToBeReplaced->IsInOuter(this))
+			{
+				bShouldRelink = true;
+				break;
+			}
+		}			
+	}
+
+	if (!bShouldRelink)
+	{
+		TSet<const UStruct*> Structs;
+		for (TMap<UObject*, UObject*>::TConstIterator It(ObjectMap); It; ++It)
+		{
+			if (UObject* ObjectToBeReplaced = It->Value)
+			{
+				Structs.Add(ObjectToBeReplaced->GetClass());
+			}
+		}
+
+		bShouldRelink |= PropertyBindings.ContainsAnyStruct(Structs);
+	}
+
+	if (bShouldRelink)
+	{
+		if (!Link())
+		{
+			UE_LOG(LogStateTree, Error, TEXT("%s failed to link after Object reinstantiation. Take a look at the asset for any errors. Asset will not be usable at runtime."), *GetFullName());
+		}
+	}
+}
+
+void UStateTree::PostInitProperties()
+{
+	Super::PostInitProperties();
+	
+	OnObjectsReinstancedHandle = FCoreUObjectDelegates::OnObjectsReinstanced.AddUObject(this, &UStateTree::OnObjectsReinstanced);
+}
+
+void UStateTree::BeginDestroy()
+{
+	if (OnObjectsReinstancedHandle.IsValid())
+	{
+		FCoreUObjectDelegates::OnObjectsReinstanced.Remove(OnObjectsReinstancedHandle);
+		OnObjectsReinstancedHandle.Reset();
+	}
+	
+	Super::BeginDestroy();
+}
+
 void UStateTree::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
 	const FString SchemaClassName = Schema ? Schema->GetClass()->GetPathName() : TEXT("");
@@ -267,9 +338,9 @@ bool UStateTree::Link()
 		}
 
 		
-		// Update property bag structs before resolving binding.
 		const TArrayView<FStateTreeBindableStructDesc> SourceStructs = PropertyBindings.SourceStructs;
 		const TArrayView<FStateTreePropertyCopyBatch> CopyBatches = PropertyBindings.CopyBatches;
+		const TArrayView<FStateTreePropertyPathBinding> PropertyPathBindings = PropertyBindings.PropertyPathBindings;
 
 		// Reconcile out of date classes.
 		for (FStateTreeBindableStructDesc& SourceStruct : SourceStructs)
@@ -293,7 +364,27 @@ bool UStateTree::Link()
 			}
 		}
 
+		auto PatchPropertyPath = [](FStateTreePropertyPath& PropertyPath)
+		{
+			for (FStateTreePropertyPathSegment& Segment : PropertyPath.GetMutableSegments())
+			{
+				if (const UClass* InstanceStruct = Cast<UClass>(Segment.GetInstanceStruct()))
+				{
+					if (InstanceStruct->HasAnyClassFlags(CLASS_NewerVersionExists))
+					{
+						Segment.SetInstanceStruct(InstanceStruct->GetAuthoritativeClass());
+					}
+				}
+			}
+		};
+		
+		for (FStateTreePropertyPathBinding& PropertyPathBinding : PropertyPathBindings)
+		{
+			PatchPropertyPath(PropertyPathBinding.GetMutableSourcePath());
+			PatchPropertyPath(PropertyPathBinding.GetMutableTargetPath());
+		}
 
+		// Update property bag structs before resolving binding.
 		if (ParametersDataViewIndex.IsValid() && SourceStructs.IsValidIndex(ParametersDataViewIndex.Get()))
 		{
 			SourceStructs[ParametersDataViewIndex.Get()].Struct = Parameters.GetPropertyBagStruct();

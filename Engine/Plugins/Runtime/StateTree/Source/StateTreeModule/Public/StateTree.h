@@ -81,7 +81,6 @@ class STATETREEMODULE_API UStateTree : public UDataAsset
 	GENERATED_BODY()
 
 public:
-
 	/** @return Shared instance data. */
 	TSharedPtr<FStateTreeInstanceData> GetSharedInstanceData() const;
 
@@ -130,6 +129,8 @@ public:
 	/** Edit time data for the StateTree, instance of UStateTreeEditorData */
 	UPROPERTY()
 	TObjectPtr<UObject> EditorData;
+
+	FDelegateHandle OnObjectsReinstancedHandle;
 #endif
 
 	/** Hash of the editor data from last compile. Also used to detect mismatching events from recorded traces. */
@@ -151,6 +152,10 @@ protected:
 	virtual void Serialize(FStructuredArchiveRecord Record) override;
 	
 #if WITH_EDITOR
+	using FReplacementObjectMap = TMap<UObject*, UObject*>;
+	void OnObjectsReinstanced(const FReplacementObjectMap& ObjectMap);
+	virtual void PostInitProperties() override;
+	virtual void BeginDestroy() override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	virtual void PostLoadAssetRegistryTags(const FAssetData& InAssetData, TArray<FAssetRegistryTag>& OutTagsAndValuesToUpdate) const;
 #endif

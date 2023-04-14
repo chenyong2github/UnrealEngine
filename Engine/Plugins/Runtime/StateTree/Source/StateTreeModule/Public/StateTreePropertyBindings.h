@@ -725,6 +725,11 @@ struct STATETREEMODULE_API FStateTreePropertyBindings
 	 */
 	bool ResetObjects(const FStateTreeIndex16 TargetBatchIndex, FStateTreeDataView TargetStructView) const;
 
+	/**
+	 * @return true if any of the elements in the property bindings contains any of the structs in the set.
+	 */
+	bool ContainsAnyStruct(const TSet<const UStruct*>& Structs);
+	
 	void DebugPrintInternalLayout(FString& OutString) const;
 
 	/** @return how properties are compatible for copying. */
