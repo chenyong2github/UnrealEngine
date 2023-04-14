@@ -292,7 +292,11 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent, pu
 
 	virtual void PostLoad() override;
 	virtual void OnRegister() override;
-	virtual bool SupportsRemoveSwap() const { return false; }
+	
+	/** Sets to use RemoveAtSwap on instance removal. This is an optimization, but will change the resultant instance reordering. */
+	void SetRemoveSwap() { bSupportRemoveAtSwap = true; }
+	/** Returns true if RemoveAtSwap is enabled. Derived classes may always return true regardless of whether SetRemoveSwapEnabled() was called. */
+	virtual bool SupportsRemoveSwap() const;
 
 #if WITH_EDITOR
 	virtual bool ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
@@ -438,6 +442,12 @@ public:
 	// to the instances updates through the primitive component in a generic way.
 	/** Recorded modifications to per-instance data */
 	FInstanceUpdateCmdBuffer InstanceUpdateCmdBuffer;
+
+	/** 
+	 * Flag for using RemoveAtSwap on instance removal. 
+	 * The implementation is free to ignore this flag, but should honor whatever behavior is being returned by SupportsRemoveSwap().
+	 */
+	bool bSupportRemoveAtSwap = false;
 
 private:
 
