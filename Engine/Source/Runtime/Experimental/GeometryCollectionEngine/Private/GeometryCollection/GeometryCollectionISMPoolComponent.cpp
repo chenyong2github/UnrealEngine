@@ -13,7 +13,7 @@
 // slow if called many times in a frame. Disable for now, but can maybe enable
 // if we defer and throttle UnregisterComponent calls.
 static bool GUseComponentFreeList = false;
-FAutoConsoleVariableRef CVarJunoISMPoolMergedMeshHISM(
+FAutoConsoleVariableRef CVarISMPoolUseComponentFreeList(
 	TEXT("r.ISMPool.UseComponentFreeList"),
 	GUseComponentFreeList,
 	TEXT("Recycle ISM components in the Pool."));
