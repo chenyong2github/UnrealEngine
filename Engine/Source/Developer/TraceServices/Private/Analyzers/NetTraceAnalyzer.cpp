@@ -286,7 +286,7 @@ void FNetTraceAnalyzer::HandlePacketContentEvent(const FOnEventContext& Context,
 						// Fill in the object data we currently have
 						ObjectInstance.LifeTime.Begin = GetLastTimestamp();
 						ObjectInstance.NameIndex = PendingNameIndex;
-						ObjectInstance.NetId = DecodedNameOrObjectId;
+						ObjectInstance.NetObjectId = DecodedNameOrObjectId;
 						ObjectInstance.TypeId = 0;
 
 						// Add to active objects
