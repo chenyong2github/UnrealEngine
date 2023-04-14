@@ -45,6 +45,7 @@ public class VPUtilities : ModuleRules
 					"Blutility",
 					"EditorFramework",
 					"LevelEditor",
+					"UMGEditor",
 					"UnrealEd",
 					"ViewportInteraction",
 					"VPBookmarkEditor",

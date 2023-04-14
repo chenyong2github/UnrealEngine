@@ -76,9 +76,7 @@ struct UMGEDITOR_API FAssetThumbnailWidgetSettings
 	FAssetThumbnailConfig ToThumbnailConfig() const;
 };
 
-/**
- * 
- */
+/** This widget can be given an asset and it will render its thumbnail. Editor-only. */
 UCLASS()
 class UMGEDITOR_API UAssetThumbnailWidget : public UWidget
 {
@@ -93,6 +91,14 @@ public:
 	void SetAsset(const FAssetData& AssetData);
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
 	void SetAssetByObject(UObject* Object);
+	
+	/** Sets the resolution for the rendered thumbnail. */
+	UFUNCTION(Blueprintcallable, Category = "Appearance")
+	void SetResolution(const FIntPoint& InResolution);
+
+	/** Gets the resolution of the rendered thumbnail. */
+	UFUNCTION(BlueprintPure, Category = "Appearance")
+	FIntPoint GetResolution() const { return Resolution; }
 
 	//~ Begin UWidget Interface
 	virtual void SynchronizeProperties() override;
@@ -108,7 +114,7 @@ private:
 	FAssetData AssetToShow;
 
 	/** Desired size of the thumbnail */
-	UPROPERTY(EditAnywhere, Category = "Appearance", meta = (ClampMin = "1", ClampMax = "1024"))
+	UPROPERTY(EditAnywhere, BlueprintGetter = "GetResolution", BlueprintSetter = "SetResolution", Category = "Appearance", meta = (ClampMin = "1", ClampMax = "1024"))
 	FIntPoint Resolution = { 64, 64};
 	
 	/** Behaviour and style of the widget */

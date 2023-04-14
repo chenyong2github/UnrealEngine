@@ -48,6 +48,12 @@ void UAssetThumbnailWidget::SetAssetByObject(UObject* Object)
 	UpdateNativeAssetThumbnailWidget();
 }
 
+void UAssetThumbnailWidget::SetResolution(const FIntPoint& InResolution)
+{
+	Resolution = InResolution;
+	UpdateNativeAssetThumbnailWidget();
+}
+
 void UAssetThumbnailWidget::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
@@ -79,17 +85,22 @@ const FText UAssetThumbnailWidget::GetPaletteCategory()
 
 void UAssetThumbnailWidget::UpdateNativeAssetThumbnailWidget()
 {
-	if (ThumbnailRenderer && (AssetToShow.IsValid() && ThumbnailRenderer->GetAssetData() != AssetToShow))
+	if (!DisplayedWidget)
 	{
-		ThumbnailRenderer->SetAsset(AssetToShow);
+		return;
 	}
-	else if (AssetToShow.IsValid() &&
-		(!ThumbnailRenderer || ThumbnailRenderer->GetSize() != Resolution))
+
+	const bool bCreateNewThumbnailRenderer = AssetToShow.IsValid() && (!ThumbnailRenderer || ThumbnailRenderer->GetSize() != Resolution);
+	if (bCreateNewThumbnailRenderer)
 	{
 		ThumbnailRenderer = MakeShared<FAssetThumbnail>(AssetToShow, FMath::Clamp(Resolution.X, 1, 1024), FMath::Clamp(Resolution.Y, 1, 1024), UThumbnailManager::Get().GetSharedThumbnailPool());
 	}
+	else if (ThumbnailRenderer && (AssetToShow.IsValid() && ThumbnailRenderer->GetAssetData() != AssetToShow))
+	{
+		ThumbnailRenderer->SetAsset(AssetToShow);
+	}
 	
-	if (ThumbnailRenderer && ensure(DisplayedWidget))
+	if (ThumbnailRenderer)
 	{
 		DisplayedWidget->SetContent(ThumbnailRenderer->MakeThumbnailWidget(ThumbnailSettings.ToThumbnailConfig()));
 	}
