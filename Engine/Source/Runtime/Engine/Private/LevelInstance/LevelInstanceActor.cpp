@@ -152,6 +152,8 @@ void ALevelInstance::PostLoad()
 
 	LevelInstanceComponent = Cast<ULevelInstanceComponent>(RootComponent);
 	OnLevelInstanceActorPostLoad.Broadcast(this);
+
+	UpdateCookedAsset();
 }
 
 void ALevelInstance::PreEditUndo()
@@ -307,30 +309,24 @@ void ALevelInstance::PushLevelInstanceEditingStateToProxies(bool bInEditingState
 	LevelInstanceActorImpl.PushLevelInstanceEditingStateToProxies(bInEditingState);
 }
 
-void ALevelInstance::PreSave(FObjectPreSaveContext ObjectSaveContext)
-{
-	Super::PreSave(ObjectSaveContext);
-
-	if (IsRunningCookCommandlet())
-	{
-		ResetUnsupportedWorldAsset();
-
-#if WITH_EDITORONLY_DATA
-		if (IsLoadingEnabled())
-		{
-			CookedWorldAsset = WorldAsset;
-		}
-#endif
-	}
-}
-
 void ALevelInstance::ResetUnsupportedWorldAsset()
 {
 	if (!ULevelInstanceSubsystem::CanUsePackage(*WorldAsset.GetLongPackageName()))
 	{
 		UE_LOG(LogLevelInstance, Warning, TEXT("LevelInstance doesn't support partitioned world %s, make sure to flag world partition's 'Can be Used by Level Instance'."), *WorldAsset.GetLongPackageName());
 		WorldAsset.Reset();
+		UpdateCookedAsset();
 	}
+}
+
+void ALevelInstance::UpdateCookedAsset()
+{
+#if WITH_EDITORONLY_DATA
+	if (IsRunningCookCommandlet() && IsLoadingEnabled())
+	{
+		CookedWorldAsset = WorldAsset;
+	}
+#endif
 }
 
 #endif
