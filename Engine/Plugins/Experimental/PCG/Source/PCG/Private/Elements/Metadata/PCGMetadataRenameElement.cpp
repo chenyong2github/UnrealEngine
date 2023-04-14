@@ -12,22 +12,25 @@
 
 #define LOCTEXT_NAMESPACE "PCGMetadataRenameElement"
 
+EPCGDataType UPCGMetadataRenameSettings::GetCurrentPinTypes(const UPCGPin* InPin) const
+{
+	// All pins narrow to union of input types
+	const EPCGDataType InputTypeUnion = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
+	return (InputTypeUnion != EPCGDataType::None) ? InputTypeUnion : EPCGDataType::Any;
+}
+
 TArray<FPCGPinProperties> UPCGMetadataRenameSettings::InputPinProperties() const
 {
-	EPCGDataType InputTypeUnion = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
-
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, (InputTypeUnion != EPCGDataType::None) ? InputTypeUnion : EPCGDataType::Any);
+	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Any);
 
 	return PinProperties;
 }
 
 TArray<FPCGPinProperties> UPCGMetadataRenameSettings::OutputPinProperties() const
 {
-	const EPCGDataType InputTypeUnion = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
-
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, (InputTypeUnion != EPCGDataType::None) ? InputTypeUnion : EPCGDataType::Any);
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Any);
 
 	return PinProperties;
 }

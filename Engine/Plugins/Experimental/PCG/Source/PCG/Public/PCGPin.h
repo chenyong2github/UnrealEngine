@@ -74,13 +74,25 @@ public:
 	bool AllowMultipleConnections() const;
 	bool IsCompatible(const UPCGPin* OtherPin) const;
 	bool CanConnect(const UPCGPin* OtherPin) const;
-	bool AddEdgeTo(UPCGPin* OtherPin);
-	bool BreakEdgeTo(UPCGPin* OtherPin);
-	bool BreakAllEdges();
-	bool BreakAllIncompatibleEdges();
+
+	/** Adds edge to pin if edge does not exist. Optionally returns list of affected nodes (including the pin owner). */
+	bool AddEdgeTo(UPCGPin* OtherPin, TSet<UPCGNode*>* InTouchedNodes = nullptr);
+
+	/** Breaks edge to pin if edge exists. Optionally returns list of affected nodes (including the pin owner). */
+	bool BreakEdgeTo(UPCGPin* OtherPin, TSet<UPCGNode*>* InTouchedNodes = nullptr);
+
+	/** Breaks all connected edges. Optionally returns list of affected nodes (including the pin owner). */
+	bool BreakAllEdges(TSet<UPCGNode*>* InTouchedNodes = nullptr);
+
+	/** Break all edges the connect pins of invalid type. Optionally returns list of affected nodes (including the pin owner). */
+	bool BreakAllIncompatibleEdges(TSet<UPCGNode*>* InTouchedNodes = nullptr);
+
 	bool IsConnected() const;
 	bool IsOutputPin() const;
 	int32 EdgeCount() const;
+
+	/** Returns the current pin types, which can either be the static types from the pin properties, or a dynamic type based on connected edges. */
+	EPCGDataType GetCurrentTypes() const;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

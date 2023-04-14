@@ -42,6 +42,7 @@ public:
 	virtual FText GetNodeTooltipText() const override;
 	virtual bool HasDynamicPins() const override { return true; }
 #endif
+	virtual EPCGDataType GetCurrentPinTypes(const UPCGPin* InPin) const override;
 	virtual FName AdditionalTaskName() const override;
 
 protected:
@@ -49,9 +50,6 @@ protected:
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings interface
-
-	/** Get allowed types for all pins */
-	EPCGDataType GetPinsType() const;
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)

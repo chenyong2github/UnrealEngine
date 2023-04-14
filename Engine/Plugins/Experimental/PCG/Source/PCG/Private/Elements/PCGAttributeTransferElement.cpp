@@ -33,6 +33,15 @@ FText UPCGAttributeTransferSettings::GetNodeTooltipText() const
 }
 #endif
 
+EPCGDataType UPCGAttributeTransferSettings::GetCurrentPinTypes(const UPCGPin* InPin) const
+{
+	// All pins narrow to same type, which is Point if any input is Point, otherwise Spatial
+	const bool bAnyArePoint = (GetTypeUnionOfIncidentEdges(PCGAttributeTransferConstants::TargetLabel) == EPCGDataType::Point)
+		|| (GetTypeUnionOfIncidentEdges(PCGAttributeTransferConstants::SourceLabel) == EPCGDataType::Point);
+
+	return bAnyArePoint ? EPCGDataType::Point : EPCGDataType::Spatial;
+}
+
 FName UPCGAttributeTransferSettings::AdditionalTaskName() const
 {
 	if (SourceAttributeName != TargetAttributeName && TargetAttributeName != NAME_None)
@@ -47,11 +56,9 @@ FName UPCGAttributeTransferSettings::AdditionalTaskName() const
 
 TArray<FPCGPinProperties> UPCGAttributeTransferSettings::InputPinProperties() const
 {
-	const EPCGDataType InputType = GetPinsType();
-
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGAttributeTransferConstants::TargetLabel, InputType, /*bInAllowMultipleConnections=*/ false);
-	PinProperties.Emplace(PCGAttributeTransferConstants::SourceLabel, InputType, /*bInAllowMultipleConnections=*/ false);
+	PinProperties.Emplace(PCGAttributeTransferConstants::TargetLabel, EPCGDataType::Spatial, /*bInAllowMultipleConnections=*/ false);
+	PinProperties.Emplace(PCGAttributeTransferConstants::SourceLabel, EPCGDataType::Spatial, /*bInAllowMultipleConnections=*/ false);
 
 	return PinProperties;
 }
@@ -59,7 +66,7 @@ TArray<FPCGPinProperties> UPCGAttributeTransferSettings::InputPinProperties() co
 TArray<FPCGPinProperties> UPCGAttributeTransferSettings::OutputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, GetPinsType());
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Spatial);
 
 	return PinProperties;
 }
@@ -67,15 +74,6 @@ TArray<FPCGPinProperties> UPCGAttributeTransferSettings::OutputPinProperties() c
 FPCGElementPtr UPCGAttributeTransferSettings::CreateElement() const
 {
 	return MakeShared<FPCGAttributeTransferElement>();
-}
-
-EPCGDataType UPCGAttributeTransferSettings::GetPinsType() const
-{
-	// If either input is type Point then all pins are Point, otherwise Spatial
-	const bool bAnyArePoint = GetTypeUnionOfIncidentEdges(PCGAttributeTransferConstants::TargetLabel) == EPCGDataType::Point
-		|| GetTypeUnionOfIncidentEdges(PCGAttributeTransferConstants::SourceLabel) == EPCGDataType::Point;
-
-	return bAnyArePoint ? EPCGDataType::Point : EPCGDataType::Spatial;
 }
 
 bool FPCGAttributeTransferElement::ExecuteInternal(FPCGContext* Context) const

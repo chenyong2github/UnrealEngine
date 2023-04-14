@@ -1041,19 +1041,20 @@ void FPCGEditor::OnCollapseNodesInSubgraph()
 	}
 
 	// 7. Connect all the edges
+	TSet<UPCGNode*> TouchedNodes;
 	for (EdgePlaceholder& Edge : EdgePlaceholders)
 	{
 		if (Edge.InputPin == nullptr)
 		{
-			SubgraphNode->GetOutputPin(Edge.InputPinLabel)->AddEdgeTo(Edge.OutputPin);
+			SubgraphNode->GetOutputPin(Edge.InputPinLabel)->AddEdgeTo(Edge.OutputPin, &TouchedNodes);
 		}
 		else if (Edge.OutputPin == nullptr)
 		{
-			Edge.InputPin->AddEdgeTo(SubgraphNode->GetInputPin(Edge.OutputPinLabel));
+			Edge.InputPin->AddEdgeTo(SubgraphNode->GetInputPin(Edge.OutputPinLabel), &TouchedNodes);
 		}
 		else
 		{
-			Edge.InputPin->AddEdgeTo(Edge.OutputPin);
+			Edge.InputPin->AddEdgeTo(Edge.OutputPin, &TouchedNodes);
 		}
 	}
 
@@ -1067,6 +1068,10 @@ void FPCGEditor::OnCollapseNodesInSubgraph()
 	GraphEditorWidget->NotifyGraphChanged();
 	PCGGraph->NotifyGraphChanged(EPCGChangeType::Structural);
 	NewPCGGraph->NotifyGraphChanged(EPCGChangeType::Structural);
+	for (UPCGNode* TouchedNode : TouchedNodes)
+	{
+		TouchedNode->OnNodeChangedDelegate.Broadcast(TouchedNode, EPCGChangeType::Node);
+	}
 }
 
 bool FPCGEditor::CanExportNodes() const

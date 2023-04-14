@@ -18,10 +18,11 @@ public:
 	UPCGRerouteSettings();
 	
 	virtual bool HasDynamicPins() const override { return true; }
+	virtual EPCGDataType GetCurrentPinTypes(const UPCGPin* InPin) const override;
+
+protected:
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
-	
-protected:
 	virtual FPCGElementPtr CreateElement() const override;
 	
 #if WITH_EDITOR

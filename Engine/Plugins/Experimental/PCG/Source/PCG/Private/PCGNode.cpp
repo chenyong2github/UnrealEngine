@@ -418,7 +418,7 @@ const UPCGPin* UPCGNode::GetPassThroughInputPin() const
 		return nullptr;
 	}
 
-	const EPCGDataType OutputType = GetOutputPins()[0]->Properties.AllowedTypes;
+	const EPCGDataType OutputType = GetOutputPins()[0]->GetCurrentTypes();
 
 	// We assume a node whose primary output is params is a param processing node.
 	const bool bNodeOutputsParams = (OutputType == EPCGDataType::Param);
@@ -426,7 +426,7 @@ const UPCGPin* UPCGNode::GetPassThroughInputPin() const
 	if (bNodeOutputsParams)
 	{
 		// If this node primarily processes params, then look for a params pin, if we find it then we will pass it through
-		auto FindParams = [](const TObjectPtr<UPCGPin>& InPin) { return InPin->Properties.AllowedTypes == EPCGDataType::Param; };
+		auto FindParams = [](const TObjectPtr<UPCGPin>& InPin) { return InPin->GetCurrentTypes() == EPCGDataType::Param; };
 		const TObjectPtr<UPCGPin>* FirstParamsPinPtr = Algo::FindByPredicate(GetInputPins(), FindParams);
 		return FirstParamsPinPtr ? *FirstParamsPinPtr : nullptr;
 	}
@@ -434,14 +434,14 @@ const UPCGPin* UPCGNode::GetPassThroughInputPin() const
 	{
 		// 'Normal' node. Look for the first pin that is not of type Params to pass through. If the node is disabled, the params are unused.
 		// Params-only pins will be rejected/ignored.
-		auto FindNonParams = [](const TObjectPtr<UPCGPin>& InPin) { return InPin->Properties.AllowedTypes != EPCGDataType::Param; };
+		auto FindNonParams = [](const TObjectPtr<UPCGPin>& InPin) { return InPin->GetCurrentTypes() != EPCGDataType::Param; };
 		const TObjectPtr<UPCGPin>* FirstNonParamsPinPtr = Algo::FindByPredicate(GetInputPins(), FindNonParams);
 
 		if (FirstNonParamsPinPtr)
 		{
 			// Finally in order to be a candidate for passing through, data must be compatible.
 			const UPCGPin* InputPin = *FirstNonParamsPinPtr;
-			const EPCGDataType InputType = InputPin->Properties.AllowedTypes;
+			const EPCGDataType InputType = InputPin->GetCurrentTypes();
 			const bool bTypesOverlap = !!(InputType & OutputType);
 			
 			// Misc note - it would be nice if we could be stricter, like line below this comment. However it would mean it will stop an Any
@@ -632,8 +632,9 @@ void UPCGNode::CreateDefaultPins(TFunctionRef<UPCGPin* (UPCGNode*)> PinAllocator
 	CreatePins(OutputPins, Settings->DefaultOutputPinProperties());
 }
 
-EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocator, const UPCGNode* FromNode /*= nullptr*/)
+EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocator)
 {
+	TSet<UPCGNode*> TouchedNodes;
 	const UPCGSettings* Settings = GetSettings();
 	
 	if (!Settings)
@@ -650,7 +651,7 @@ EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocat
 		{
 			if (Pin)
 			{
-				Pin->BreakAllEdges();
+				Pin->BreakAllEdges(&TouchedNodes);
 			}
 		}
 
@@ -658,7 +659,7 @@ EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocat
 		{
 			if (Pin)
 			{
-				Pin->BreakAllEdges();
+				Pin->BreakAllEdges(&TouchedNodes);
 			}
 		}
 
@@ -670,7 +671,7 @@ EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocat
 	const TArray<FPCGPinProperties> InboundPinProperties = Settings->AllInputPinProperties();
 	const TArray<FPCGPinProperties> OutboundPinProperties = Settings->AllOutputPinProperties();
 
-	auto UpdatePins = [this, &PinAllocator](TArray<UPCGPin*>& Pins, const TArray<FPCGPinProperties>& PinProperties)
+	auto UpdatePins = [this, &PinAllocator, &TouchedNodes](TArray<UPCGPin*>& Pins, const TArray<FPCGPinProperties>& PinProperties)
 	{
 		bool bAppliedEdgeChanges = false;
 		bool bChangedPins = false;
@@ -685,7 +686,8 @@ EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocat
 				{
 					Pin->Modify();
 					Pin->Properties = *MatchingProperties;
-					bAppliedEdgeChanges |= Pin->BreakAllIncompatibleEdges();
+
+					bAppliedEdgeChanges |= Pin->BreakAllIncompatibleEdges(&TouchedNodes);
 					bChangedPins = true;
 				}
 			}
@@ -710,7 +712,8 @@ EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocat
 		{
 			UnmatchedPins[0]->Modify();
 			UnmatchedPins[0]->Properties = UnmatchedProperties[0];
-			bAppliedEdgeChanges |= UnmatchedPins[0]->BreakAllIncompatibleEdges();
+
+			bAppliedEdgeChanges |= UnmatchedPins[0]->BreakAllIncompatibleEdges(&TouchedNodes);
 			bChangedPins = true;
 		}
 		else
@@ -736,7 +739,7 @@ EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocat
 				bChangedPins = true;
 			}
 
-			auto RemovePins = [&Pins, &AllPinNames, &bAppliedEdgeChanges](TArray<UPCGPin*>& PinsToRemove, bool bRemoveFromAllNames)
+			auto RemovePins = [&Pins, &AllPinNames, &bAppliedEdgeChanges, &TouchedNodes](TArray<UPCGPin*>& PinsToRemove, bool bRemoveFromAllNames)
 			{
 				for (int32 RemovedPinIndex = PinsToRemove.Num() - 1; RemovedPinIndex >= 0; --RemovedPinIndex)
 				{
@@ -748,7 +751,7 @@ EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocat
 							AllPinNames.Remove(Pins[PinIndex]->Properties.Label);
 						}
 
-						bAppliedEdgeChanges |= Pins[PinIndex]->BreakAllEdges();
+						bAppliedEdgeChanges |= Pins[PinIndex]->BreakAllEdges(&TouchedNodes);
 						Pins.RemoveAt(PinIndex);
 					}
 				}
@@ -782,13 +785,20 @@ EPCGChangeType UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocat
 	ChangeType |= UpdatePins(OutputPins, OutboundPinProperties);
 
 #if WITH_EDITOR
-	OnNodeChangedDelegate.Broadcast(this, ChangeType);
+	for (UPCGNode* Node : TouchedNodes)
+	{
+		if (Node)
+		{
+			// Only this node gets full change type
+			Node->OnNodeChangedDelegate.Broadcast(Node, (Node == this) ? ChangeType : EPCGChangeType::Node);
+		}
+	}
 #endif // WITH_EDITOR
-		
+
 	return ChangeType;
 }
 
-EPCGChangeType UPCGNode::UpdateDynamicPins(const UPCGNode* FromNode /*= nullptr*/)
+EPCGChangeType UPCGNode::PropagateDynamicPinTypes(const UPCGNode* FromNode /*= nullptr*/)
 {
 	EPCGChangeType ChangeType = EPCGChangeType::None;
 	const UPCGSettings* Settings = GetSettings();
@@ -798,7 +808,12 @@ EPCGChangeType UPCGNode::UpdateDynamicPins(const UPCGNode* FromNode /*= nullptr*
 	}
 
 	ChangeType |= UpdatePins();
-	
+
+#if WITH_EDITOR
+	// Reconstruct in case pin types need to change
+	OnNodeChangedDelegate.Broadcast(this, EPCGChangeType::Node);
+#endif
+
 	for (UPCGPin* OutputPin : OutputPins)
 	{
 		for (UPCGEdge* Edge : OutputPin->Edges)
@@ -818,7 +833,7 @@ EPCGChangeType UPCGNode::UpdateDynamicPins(const UPCGNode* FromNode /*= nullptr*
 			const UPCGSettings* OtherSettings = OtherNode->GetSettings();
 			if (Settings && OtherSettings->HasDynamicPins())
 			{
-				ChangeType |= OtherNode->UpdateDynamicPins(this);
+				ChangeType |= OtherNode->PropagateDynamicPinTypes(this);
 			}
 		}
 	}

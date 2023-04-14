@@ -118,6 +118,9 @@ public:
 	const TArray<TObjectPtr<UPCGPin>>& GetInputPins() const { return InputPins; }
 	const TArray<TObjectPtr<UPCGPin>>& GetOutputPins() const { return OutputPins; }
 
+	/** Recursively follow downstream edges and call UpdatePins on each node that has dynamic pins. */
+	EPCGChangeType PropagateDynamicPinTypes(const UPCGNode* FromNode = nullptr);
+
 #if WITH_EDITOR
 	/** Transfer all editor only properties to the other node */
 	void TransferEditorProperties(UPCGNode* OtherNode) const;
@@ -166,9 +169,10 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 protected:
+	/** Updates pins based on node settings. Attempts to migrate pins via matching. Broadcasts node change events for affected nodes. */
 	EPCGChangeType UpdatePins();
-	EPCGChangeType UpdatePins(TFunctionRef<UPCGPin* (UPCGNode*)> PinAllocator, const UPCGNode* FromNode = nullptr);
-	EPCGChangeType UpdateDynamicPins(const UPCGNode* FromNode = nullptr);
+	/** Updates pins based on node settings PinAllocator creates new pin objects. Attempts to migrate pins via matching. Broadcasts node change events for affected nodes. */
+	EPCGChangeType UpdatePins(TFunctionRef<UPCGPin* (UPCGNode*)> PinAllocator);
 
 	// When we create a new graph, we initialize the input/output nodes as default, with default pins.
 	// Those default pins are not serialized, therefore if we change the default pins, combined with the use

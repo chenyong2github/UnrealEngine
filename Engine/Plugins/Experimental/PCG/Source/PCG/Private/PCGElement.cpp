@@ -247,7 +247,7 @@ void IPCGElement::DisabledPassThroughData(FPCGContext* Context) const
 	// Grab data from pass-through pin
 	Context->OutputData.TaggedData = Context->InputData.GetInputsByPin(PassThroughPin->Properties.Label);
 
-	const EPCGDataType OutputType = Context->Node->GetOutputPins()[0]->Properties.AllowedTypes;
+	const EPCGDataType OutputType = Context->Node->GetOutputPins()[0]->GetCurrentTypes();
 
 	// Pass through input data if it is not params, and if the output type supports it (e.g. if we have a incoming
 	// surface connected to an input pin of type Any, do not pass the surface through to an output pin of type Point).
@@ -364,8 +364,12 @@ void IPCGElement::CleanupAndValidateOutput(FPCGContext* Context) const
 				}
 				else if (TaggedData.Data)
 				{
-					const bool bTypesOverlap = !!(OutputPinProperties[MatchIndex].AllowedTypes & TaggedData.Data->GetDataType());
-					const bool bTypeIsSubset = !(~OutputPinProperties[MatchIndex].AllowedTypes & TaggedData.Data->GetDataType());
+					// Try to get dynamic current pin types, otherwise settle for static types
+					const UPCGPin* OutputPin = Context->Node ? Context->Node->GetOutputPin(OutputPinProperties[MatchIndex].Label) : nullptr;
+					const EPCGDataType PinTypes = OutputPin ? OutputPin->GetCurrentTypes() : OutputPinProperties[MatchIndex].AllowedTypes;
+
+					const bool bTypesOverlap = !!(PinTypes & TaggedData.Data->GetDataType());
+					const bool bTypeIsSubset = !(~PinTypes & TaggedData.Data->GetDataType());
 					// TODO: Temporary fix for Settings directly from InputData (ie. from elements with code and not PCG nodes)
 					if ((!bTypesOverlap || !bTypeIsSubset) && TaggedData.Data->GetDataType() != EPCGDataType::Settings)
 					{

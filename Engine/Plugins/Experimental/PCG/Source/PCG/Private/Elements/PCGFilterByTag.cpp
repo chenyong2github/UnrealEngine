@@ -32,6 +32,13 @@ FText UPCGFilterByTagSettings::GetNodeTooltipText() const
 }
 #endif
 
+EPCGDataType UPCGFilterByTagSettings::GetCurrentPinTypes(const UPCGPin* InPin) const
+{
+	// All pins narrow to input type
+	const EPCGDataType InputTypeUnion = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
+	return InputTypeUnion != EPCGDataType::None ? InputTypeUnion : EPCGDataType::Any;
+}
+
 FName UPCGFilterByTagSettings::AdditionalTaskName() const
 {
 	const TArray<FString> Tags = PCGHelpers::GetStringArrayFromCommaSeparatedString(SelectedTags);
@@ -51,20 +58,16 @@ FName UPCGFilterByTagSettings::AdditionalTaskName() const
 
 TArray<FPCGPinProperties> UPCGFilterByTagSettings::InputPinProperties() const
 {
-	const EPCGDataType InputTypeUnion = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
-
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, (InputTypeUnion != EPCGDataType::None) ? InputTypeUnion : EPCGDataType::Any);
+	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Any);
 
 	return PinProperties;
 }
 
 TArray<FPCGPinProperties> UPCGFilterByTagSettings::OutputPinProperties() const
 {
-	const EPCGDataType InputTypeUnion = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
-
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, (InputTypeUnion != EPCGDataType::None) ? InputTypeUnion : EPCGDataType::Any);
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Any);
 
 	return PinProperties;
 }

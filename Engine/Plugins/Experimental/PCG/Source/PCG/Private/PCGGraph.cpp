@@ -66,6 +66,25 @@ namespace PCGGraphUtils
 
 		InSourcePropertyDesc->CachedProperty->CopyCompleteValue(TargetValueAddress, SourceValueAddress);
 	}
+
+	EPCGChangeType NotifyTouchedNodes(const TSet<UPCGNode*>& InTouchedNodes)
+	{
+		EPCGChangeType ChangeType = EPCGChangeType::None;
+
+		for (UPCGNode* TouchedNode : InTouchedNodes)
+		{
+			if (TouchedNode)
+			{
+				ChangeType |= TouchedNode->PropagateDynamicPinTypes();
+
+#if WITH_EDITOR
+				TouchedNode->OnNodeChangedDelegate.Broadcast(TouchedNode, EPCGChangeType::Node);
+#endif
+			}
+		}
+
+		return ChangeType;
+	}
 }
 
 /****************************
@@ -456,22 +475,23 @@ bool UPCGGraph::AddLabeledEdge(UPCGNode* From, const FName& FromPinLabel, UPCGNo
 		return false;
 	}
 
+	TSet<UPCGNode*> TouchedNodes;
+
 	// Create edge
-	FromPin->AddEdgeTo(ToPin);
+	FromPin->AddEdgeTo(ToPin, &TouchedNodes);
 
 	bool bToPinBrokeOtherEdges = false;
 	
 	// Add an edge to a pin that doesn't allow multiple connections requires to do some cleanup
 	if (!ToPin->AllowMultipleConnections())
 	{
-		bToPinBrokeOtherEdges = ToPin->BreakAllIncompatibleEdges();
+		bToPinBrokeOtherEdges = ToPin->BreakAllIncompatibleEdges(&TouchedNodes);
 	}
 	
-	From->UpdateDynamicPins();
-	To->UpdateDynamicPins();
+	const EPCGChangeType ChangeType = PCGGraphUtils::NotifyTouchedNodes(TouchedNodes);
 
 #if WITH_EDITOR
-	NotifyGraphChanged(EPCGChangeType::Structural);
+	NotifyGraphChanged(ChangeType | EPCGChangeType::Structural);
 #endif
 
 	return bToPinBrokeOtherEdges;
@@ -520,16 +540,23 @@ void UPCGGraph::RemoveNode(UPCGNode* InNode)
 	check(InNode);
 
 	Modify();
+	
+	TSet<UPCGNode*> TouchedNodes;
 
 	for (UPCGPin* InputPin : InNode->InputPins)
 	{
-		InputPin->BreakAllEdges();
+		InputPin->BreakAllEdges(&TouchedNodes);
 	}
 
 	for (UPCGPin* OutputPin : InNode->OutputPins)
 	{
-		OutputPin->BreakAllEdges();
+		OutputPin->BreakAllEdges(&TouchedNodes);
 	}
+
+	// We're about to remove InNode, so don't bother triggering updates
+	TouchedNodes.Remove(InNode);
+
+	PCGGraphUtils::NotifyTouchedNodes(TouchedNodes);
 
 	Nodes.Remove(InNode);
 	OnNodeRemoved(InNode);
@@ -546,19 +573,22 @@ bool UPCGGraph::RemoveEdge(UPCGNode* From, const FName& FromLabel, UPCGNode* To,
 	UPCGPin* OutPin = From->GetOutputPin(FromLabel);
 	UPCGPin* InPin = To->GetInputPin(ToLabel);
 
-	const bool bChanged = OutPin && OutPin->BreakEdgeTo(InPin);
-
-	if (bChanged)
+	TSet<UPCGNode*> TouchedNodes;
+	if (OutPin)
 	{
-		From->UpdateDynamicPins();
-		To->UpdateDynamicPins();
+		OutPin->BreakEdgeTo(InPin, &TouchedNodes);
+	}
 
+	const EPCGChangeType ChangeType = PCGGraphUtils::NotifyTouchedNodes(TouchedNodes);
+
+	if (TouchedNodes.Num() > 0)
+	{
 #if WITH_EDITOR
-		NotifyGraphChanged(EPCGChangeType::Structural);
+		NotifyGraphChanged(ChangeType | EPCGChangeType::Structural);
 #endif
 	}
 
-	return bChanged;
+	return TouchedNodes.Num() > 0;
 }
 
 void UPCGGraph::ForEachNode(const TFunction<void(UPCGNode*)>& Action)
@@ -575,62 +605,46 @@ void UPCGGraph::ForEachNode(const TFunction<void(UPCGNode*)>& Action)
 bool UPCGGraph::RemoveInboundEdges(UPCGNode* InNode, const FName& InboundLabel)
 {
 	check(InNode);
-	bool bChanged = false;
+	TSet<UPCGNode*> TouchedNodes;
 
 	if (UPCGPin* InputPin = InNode->GetInputPin(InboundLabel))
 	{
-		bChanged = InputPin->BreakAllEdges();
+		InputPin->BreakAllEdges(&TouchedNodes);
 	}
 
+	const EPCGChangeType ChangeType = PCGGraphUtils::NotifyTouchedNodes(TouchedNodes);
+
 #if WITH_EDITOR
-	if (bChanged)
+	if (TouchedNodes.Num() > 0)
 	{
-		const EPCGChangeType ChangeType = InNode->UpdateDynamicPins() | EPCGChangeType::Structural;
-		NotifyGraphChanged(ChangeType);
+		NotifyGraphChanged(ChangeType | EPCGChangeType::Structural);
 	}
 #endif
 
-	return bChanged;
+	return TouchedNodes.Num() > 0;
 }
 
 bool UPCGGraph::RemoveOutboundEdges(UPCGNode* InNode, const FName& OutboundLabel)
 {
 	check(InNode);
-	bool bChanged = false;
 	// Make a list of downstream nodes which may need pin updates when the edges change
-	TSet<UPCGNode*> ConnectedNodes;
+	TSet<UPCGNode*> TouchedNodes;
 
 	if (UPCGPin* OutputPin = InNode->GetOutputPin(OutboundLabel))
 	{
-		for (const UPCGEdge* Edge : OutputPin->Edges)
-		{
-			if (Edge && Edge->OutputPin && Edge->OutputPin->Node)
-			{
-				ConnectedNodes.Add(Edge->OutputPin->Node);
-			}
-		}
-
-		bChanged = OutputPin->BreakAllEdges();
+		OutputPin->BreakAllEdges(&TouchedNodes);
 	}
 
+	const EPCGChangeType ChangeType = PCGGraphUtils::NotifyTouchedNodes(TouchedNodes);
+
 #if WITH_EDITOR
-	if (bChanged)
+	if (TouchedNodes.Num() > 0)
 	{
-		EPCGChangeType ChangeType = EPCGChangeType::Structural;
-
-		// Pins may need updating on downstream nodes
-		for (UPCGNode* ConnectedNode : ConnectedNodes)
-		{
-			ChangeType |= ConnectedNode->UpdateDynamicPins();
-		}
-
-		ChangeType |= InNode->UpdateDynamicPins();
-
-		NotifyGraphChanged(ChangeType);
+		NotifyGraphChanged(ChangeType | EPCGChangeType::Structural);
 	}
 #endif
 
-	return bChanged;
+	return TouchedNodes.Num() > 0;
 }
 
 #if WITH_EDITOR

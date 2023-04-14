@@ -49,6 +49,23 @@ void UPCGCreateAttributeSettings::PostLoad()
 #endif // WITH_EDITOR
 }
 
+EPCGDataType UPCGCreateAttributeSettings::GetCurrentPinTypes(const UPCGPin* InPin) const
+{
+	if (!HasDynamicPins())
+	{
+		return Super::GetCurrentPinTypes(InPin);
+	}
+
+	check(InPin);
+	if (InPin->Properties.Label == PCGPinConstants::DefaultInputLabel || InPin->Properties.Label == PCGPinConstants::DefaultOutputLabel)
+	{
+		const EPCGDataType PrimaryInputType = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
+		return (PrimaryInputType != EPCGDataType::None) ? PrimaryInputType : EPCGDataType::Any;
+	}
+
+	return Super::GetCurrentPinTypes(InPin);
+}
+
 FName UPCGCreateAttributeSettings::AdditionalTaskName() const
 {
 	return AdditionalTaskNameInternal(PCGCreateAttributeConstants::NodeNameAddAttribute);
@@ -69,16 +86,7 @@ FText UPCGCreateAttributeSettings::GetDefaultNodeTitle() const
 TArray<FPCGPinProperties> UPCGCreateAttributeSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-
-	EPCGDataType PrimaryInputType = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
-	if (PrimaryInputType == EPCGDataType::None)
-	{
-		// Fall back to Any if no edges, or no overlap in types (which should not normally occur).
-		PrimaryInputType = EPCGDataType::Any;
-	}
-
-	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, PrimaryInputType);
-
+	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Any);
 	if (bFromSourceParam)
 	{
 		PinProperties.Emplace(PCGCreateAttributeConstants::AttributesLabel, EPCGDataType::Param);
@@ -91,13 +99,7 @@ TArray<FPCGPinProperties> UPCGCreateAttributeSettings::OutputPinProperties() con
 {
 	FPCGPinProperties PinProperties;
 	PinProperties.Label = PCGPinConstants::DefaultOutputLabel;
-
-	PinProperties.AllowedTypes = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
-	if (PinProperties.AllowedTypes == EPCGDataType::None)
-	{
-		// Nothing connected or incompatible types - output Param.
-		PinProperties.AllowedTypes = EPCGDataType::Param;
-	}
+	PinProperties.AllowedTypes = EPCGDataType::Any;
 
 	return { PinProperties };
 }
@@ -145,13 +147,17 @@ FText UPCGCreateAttributeSetSettings::GetDefaultNodeTitle() const
 }
 #endif // WITH_EDITOR
 
+TArray<FPCGPinProperties> UPCGCreateAttributeSetSettings::InputPinProperties() const
+{
+	return TArray<FPCGPinProperties>();
+}
+
 TArray<FPCGPinProperties> UPCGCreateAttributeSetSettings::OutputPinProperties() const
 {
-	FPCGPinProperties PinProperties;
-	PinProperties.Label = PCGPinConstants::DefaultOutputLabel;
-	PinProperties.AllowedTypes = EPCGDataType::Param;
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Param);
 
-	return { PinProperties };
+	return PinProperties;
 }
 
 FName UPCGCreateAttributeSetSettings::AdditionalTaskName() const

@@ -28,23 +28,38 @@ void UPCGMetadataSettingsBase::PostLoad()
 #endif // WITH_EDITOR
 }
 
+EPCGDataType UPCGMetadataSettingsBase::GetCurrentPinTypes(const UPCGPin* InPin) const
+{
+	if (GetInputPinNum() == 0)
+	{
+		return EPCGDataType::Any;
+	}
+
+	check(InPin);
+	const FName FirstPinLabel = GetInputPinLabel(0);
+	if (InPin->Properties.Label == FirstPinLabel || InPin->IsOutputPin())
+	{
+		// First input pin, and any output pins, narrow to types connected to first pin
+		const EPCGDataType FirstPinTypeUnion = GetTypeUnionOfIncidentEdges(FirstPinLabel);
+		return FirstPinTypeUnion != EPCGDataType::None ? FirstPinTypeUnion : EPCGDataType::Any;
+	}
+	else
+	{
+		// Other input pins stay at Any
+		return EPCGDataType::Any;
+	}
+}
+
 TArray<FPCGPinProperties> UPCGMetadataSettingsBase::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-
-	EPCGDataType FirstPinInputTypeUnion = EPCGDataType::Any;
-	if (GetInputPinNum() > 0)
-	{
-		const EPCGDataType IncidentTypeUnion = GetTypeUnionOfIncidentEdges(GetInputPinLabel(0));
-		FirstPinInputTypeUnion = (IncidentTypeUnion != EPCGDataType::None) ? IncidentTypeUnion : FirstPinInputTypeUnion;
-	}
 
 	for (uint32 i = 0; i < GetInputPinNum(); ++i)
 	{
 		const FName PinLabel = GetInputPinLabel(i);
 		if (PinLabel != NAME_None)
 		{
-			PinProperties.Emplace(PinLabel, (i == 0) ? FirstPinInputTypeUnion : EPCGDataType::Any, /*bAllowMultipleConnections=*/false);
+			PinProperties.Emplace(PinLabel, EPCGDataType::Any, /*bAllowMultipleConnections=*/false);
 		}
 	}
 
@@ -55,19 +70,12 @@ TArray<FPCGPinProperties> UPCGMetadataSettingsBase::OutputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
 	
-	EPCGDataType OutputType = EPCGDataType::Any;
-	if (GetInputPinNum() > 0)
-	{
-		const EPCGDataType IncidentTypeUnion = GetTypeUnionOfIncidentEdges(GetInputPinLabel(0));
-		OutputType = (IncidentTypeUnion != EPCGDataType::None) ? IncidentTypeUnion : OutputType;
-	}
-
 	for (uint32 i = 0; i < GetOutputPinNum(); ++i)
 	{
 		const FName PinLabel = GetOutputPinLabel(i);
 		if (PinLabel != NAME_None)
 		{
-			PinProperties.Emplace(PinLabel, OutputType);
+			PinProperties.Emplace(PinLabel, EPCGDataType::Any);
 		}
 	}
 

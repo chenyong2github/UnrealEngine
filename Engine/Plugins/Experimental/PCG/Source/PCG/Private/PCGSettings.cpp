@@ -339,7 +339,7 @@ EPCGDataType UPCGSettings::GetTypeUnionOfIncidentEdges(const FName& PinLabel) co
 			const UPCGPin* OtherOutputPin = Edge ? Edge->GetOtherPin(Pin) : nullptr;
 			if (OtherOutputPin)
 			{
-				Result |= OtherOutputPin->Properties.AllowedTypes;
+				Result |= OtherOutputPin->GetCurrentTypes();
 			}
 		}
 	}
@@ -480,6 +480,12 @@ void UPCGSettings::ApplyDeprecationBeforeUpdatePins(UPCGNode* InOutNode, TArray<
 	}
 }
 #endif // WITH_EDITOR
+
+EPCGDataType UPCGSettings::GetCurrentPinTypes(const UPCGPin* InPin) const
+{
+	check(InPin);
+	return InPin->Properties.AllowedTypes;
+}
 
 #if WITH_EDITOR
 TArray<FPCGSettingsOverridableParam> UPCGSettings::GatherOverridableParams() const

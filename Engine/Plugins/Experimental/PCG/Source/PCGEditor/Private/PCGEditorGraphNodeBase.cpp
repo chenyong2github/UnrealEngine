@@ -199,11 +199,12 @@ void UPCGEditorGraphNodeBase::PostPaste()
 		PCGNode->PositionX = NodePosX;
 		PCGNode->PositionY = NodePosY;
 
+		// Refresh the node if it has dynamic pins
 		if (const UPCGSettings* Settings = PCGNode->GetSettings())
 		{
 			if (Settings->HasDynamicPins())
 			{
-				PCGNode->UpdateAfterSettingsChangeDuringCreation();
+				PCGNode->OnNodeChangedDelegate.Broadcast(PCGNode, EPCGChangeType::Node);
 			}
 		}
 	}
@@ -460,7 +461,9 @@ FEdGraphPinType UPCGEditorGraphNodeBase::GetPinType(const UPCGPin* InPin)
 	EdPinType.PinSubCategory = NAME_None;
 	EdPinType.ContainerType = EPinContainerType::None;
 
-	const EPCGDataType PinType = InPin->Properties.AllowedTypes;
+	check(InPin);
+	const EPCGDataType PinType = InPin->GetCurrentTypes();
+
 	auto CheckType = [PinType](EPCGDataType AllowedType)
 	{
 		return !!(PinType & AllowedType) && !(PinType & ~AllowedType);
@@ -562,13 +565,13 @@ void UPCGEditorGraphNodeBase::GetPinHoverText(const UEdGraphPin& Pin, FString& H
 		{
 			return FText::FromName(Category);
 		}
-		else if (MatchingPin && MatchingPin->Properties.AllowedTypes == EPCGDataType::Any)
+		else if (MatchingPin && MatchingPin->GetCurrentTypes() == EPCGDataType::Any)
 		{
 			return FText::FromName(FName("Any"));
 		}
 		else if (MatchingPin)
 		{
-			return PCGDataTypeToText(MatchingPin->Properties.AllowedTypes);
+			return PCGDataTypeToText(MatchingPin->GetCurrentTypes());
 		}
 		else
 		{

@@ -3,6 +3,7 @@
 #include "PCGPin.h"
 #include "PCGEdge.h"
 #include "PCGNode.h"
+#include "PCGSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGPin)
 
@@ -55,7 +56,7 @@ void UPCGPin::SetTooltip(const FText& InTooltip)
 #endif
 }
 
-bool UPCGPin::AddEdgeTo(UPCGPin* OtherPin)
+bool UPCGPin::AddEdgeTo(UPCGPin* OtherPin, TSet<UPCGNode*>* InTouchedNodes/*= nullptr*/)
 {
 	if (!OtherPin)
 	{
@@ -90,10 +91,16 @@ bool UPCGPin::AddEdgeTo(UPCGPin* OtherPin)
 	NewEdge->InputPin = bThisPinIsUpstream ? this : OtherPin;
 	NewEdge->OutputPin = bThisPinIsUpstream ? OtherPin : this;
 
+	if (InTouchedNodes)
+	{
+		InTouchedNodes->Add(Node);
+		InTouchedNodes->Add(OtherPin->Node);
+	}
+
 	return true;
 }
 
-bool UPCGPin::BreakEdgeTo(UPCGPin* OtherPin)
+bool UPCGPin::BreakEdgeTo(UPCGPin* OtherPin, TSet<UPCGNode*>* InTouchedNodes/*= nullptr*/)
 {
 	if (!OtherPin)
 	{
@@ -109,6 +116,13 @@ bool UPCGPin::BreakEdgeTo(UPCGPin* OtherPin)
 
 			ensure(OtherPin->Edges.Remove(Edge));
 			Edges.Remove(Edge);
+
+			if (InTouchedNodes)
+			{
+				InTouchedNodes->Add(Node);
+				InTouchedNodes->Add(OtherPin->Node);
+			}
+
 			return true;
 		}
 	}
@@ -116,12 +130,17 @@ bool UPCGPin::BreakEdgeTo(UPCGPin* OtherPin)
 	return false;
 }
 
-bool UPCGPin::BreakAllEdges()
+bool UPCGPin::BreakAllEdges(TSet<UPCGNode*>* InTouchedNodes/*= nullptr*/)
 {
 	bool bChanged = false;
 
 	if (!Edges.IsEmpty())
 	{
+		if (InTouchedNodes)
+		{
+			InTouchedNodes->Add(Node);
+		}
+
 		Modify();
 	}
 
@@ -132,6 +151,11 @@ bool UPCGPin::BreakAllEdges()
 			OtherPin->Modify();
 			ensure(OtherPin->Edges.Remove(Edge));
 			bChanged = true;
+
+			if (InTouchedNodes)
+			{
+				InTouchedNodes->Add(OtherPin->Node);
+			}
 		}
 	}
 
@@ -140,7 +164,7 @@ bool UPCGPin::BreakAllEdges()
 	return bChanged;
 }
 
-bool UPCGPin::BreakAllIncompatibleEdges()
+bool UPCGPin::BreakAllIncompatibleEdges(TSet<UPCGNode*>* InTouchedNodes/*= nullptr*/)
 {
 	bool bChanged = false;
 	bool bHasAValidEdge = false;
@@ -157,11 +181,18 @@ bool UPCGPin::BreakAllIncompatibleEdges()
 			Modify();
 			Edges.RemoveAtSwap(EdgeIndex);
 
+			InTouchedNodes->Add(Node);
+
 			if (OtherPin)
 			{
 				OtherPin->Modify();
 				ensure(OtherPin->Edges.Remove(Edge));
 				bChanged = true;
+
+				if (InTouchedNodes)
+				{
+					InTouchedNodes->Add(OtherPin->Node);
+				}
 			}
 		}
 		else
@@ -206,6 +237,13 @@ int32 UPCGPin::EdgeCount() const
 	return EdgeNum;
 }
 
+EPCGDataType UPCGPin::GetCurrentTypes() const
+{
+	check(Node);
+	const UPCGSettings* Settings = Node->GetSettings();
+	return Settings ? Settings->GetCurrentPinTypes(this) : Properties.AllowedTypes;
+}
+
 bool UPCGPin::IsCompatible(const UPCGPin* OtherPin) const
 {
 	if (!OtherPin)
@@ -223,18 +261,21 @@ bool UPCGPin::IsCompatible(const UPCGPin* OtherPin) const
 	// Sort pins
 	const UPCGPin* UpstreamPin = bThisPinOutput ? this : OtherPin;
 	const UPCGPin* DownstreamPin = bThisPinOutput ? OtherPin : this;
+	check(UpstreamPin && DownstreamPin);
+	const EPCGDataType UpstreamTypes = UpstreamPin->GetCurrentTypes();
+	const EPCGDataType DownstreamTypes = DownstreamPin->GetCurrentTypes();
 
 	// Concrete can always be used as a composite - allow connections from concrete to composite
-	const bool bUpstreamConcrete = !!(UpstreamPin->Properties.AllowedTypes & EPCGDataType::Concrete);
-	const bool bDownstreamSpatial = !!(DownstreamPin->Properties.AllowedTypes & EPCGDataType::Spatial);
+	const bool bUpstreamConcrete = !!(UpstreamTypes & EPCGDataType::Concrete);
+	const bool bDownstreamSpatial = !!(DownstreamTypes & EPCGDataType::Spatial);
 	if (bUpstreamConcrete && bDownstreamSpatial)
 	{
 		return true;
 	}
 
 	// Catch case when a composite type is being connected to a concrete type - that can require collapse
-	const bool bUpstreamSpatial = !!(UpstreamPin->Properties.AllowedTypes & EPCGDataType::Spatial);
-	const bool bDownstreamConcrete = !!(DownstreamPin->Properties.AllowedTypes & EPCGDataType::Concrete);
+	const bool bUpstreamSpatial = !!(UpstreamTypes & EPCGDataType::Spatial);
+	const bool bDownstreamConcrete = !!(DownstreamTypes & EPCGDataType::Concrete);
 	if (bUpstreamSpatial && bDownstreamConcrete)
 	{
 		// This will trigger a collapse, but let it slide for now.
@@ -242,7 +283,7 @@ bool UPCGPin::IsCompatible(const UPCGPin* OtherPin) const
 		return true;
 	}
 
-	return !!(Properties.AllowedTypes & OtherPin->Properties.AllowedTypes);
+	return !!(UpstreamTypes & DownstreamTypes);
 }
 
 bool UPCGPin::AllowMultipleConnections() const

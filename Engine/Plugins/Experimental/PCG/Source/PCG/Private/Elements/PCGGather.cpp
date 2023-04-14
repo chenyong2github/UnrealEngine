@@ -5,30 +5,25 @@
 #include "PCGContext.h"
 #include "PCGPin.h"
 	
+EPCGDataType UPCGGatherSettings::GetCurrentPinTypes(const UPCGPin* InPin) const
+{
+	// All pins narrow to input type
+	EPCGDataType InputTypeUnion = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
+	return InputTypeUnion != EPCGDataType::None ? InputTypeUnion : EPCGDataType::Any;
+}
+
 TArray<FPCGPinProperties> UPCGGatherSettings::InputPinProperties() const
 {
-	EPCGDataType InputTypeUnion = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
-	if (InputTypeUnion == EPCGDataType::None)
-	{
-		InputTypeUnion = EPCGDataType::Any;
-	}
-
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, InputTypeUnion);
+	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Any);
 
 	return PinProperties;
 }
 
 TArray<FPCGPinProperties> UPCGGatherSettings::OutputPinProperties() const
 {
-	EPCGDataType InputTypeUnion = GetTypeUnionOfIncidentEdges(PCGPinConstants::DefaultInputLabel);
-	if (InputTypeUnion == EPCGDataType::None)
-	{
-		InputTypeUnion = EPCGDataType::Any;
-	}
-
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, InputTypeUnion);
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Any);
 
 	return PinProperties;
 }

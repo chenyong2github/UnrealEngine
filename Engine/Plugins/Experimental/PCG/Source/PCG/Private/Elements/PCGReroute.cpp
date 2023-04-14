@@ -14,56 +14,45 @@ UPCGRerouteSettings::UPCGRerouteSettings()
 #endif
 }
 
+EPCGDataType UPCGRerouteSettings::GetCurrentPinTypes(const UPCGPin* InPin) const
+{
+	// All pins have same type
+	EPCGDataType PinTypes = EPCGDataType::Any;
+	if (UPCGNode* PCGNode = Cast<UPCGNode>(GetOuter()))
+	{
+		if (UPCGPin* InputPin = PCGNode->GetInputPin(PCGPinConstants::DefaultInputLabel))
+		{
+			if (InputPin->EdgeCount() > 0)
+			{
+				if (UPCGEdge* Edge = InputPin->Edges[0])
+				{
+					if (const UPCGPin* OtherOutputPin = Edge->GetOtherPin(InputPin))
+					{
+						PinTypes = OtherOutputPin->GetCurrentTypes();
+					}
+				}
+			}
+		}
+	}
+
+	return PinTypes;
+}
+
 TArray<FPCGPinProperties> UPCGRerouteSettings::InputPinProperties() const
 {
 	FPCGPinProperties PinProperties;
 	PinProperties.Label = PCGPinConstants::DefaultInputLabel;
 	PinProperties.bAllowMultipleConnections = false;
 	PinProperties.AllowedTypes = EPCGDataType::Any;
-	
-	if (UPCGNode* PCGNode = Cast<UPCGNode>(GetOuter()))
-	{
-		if (UPCGPin* InputPin = PCGNode->GetInputPin(PCGPinConstants::DefaultInputLabel))
-		{
-			if (InputPin->EdgeCount() > 0)
-			{
-				if (UPCGEdge* Edge = InputPin->Edges[0])
-				{
-					if (const UPCGPin* OtherOutputPin = Edge->GetOtherPin(InputPin))
-					{
-						PinProperties.AllowedTypes = OtherOutputPin->Properties.AllowedTypes;
-					}
-				}
-			}
-		}
-	}
 
-	return {PinProperties };
+	return { PinProperties };
 }
 
 TArray<FPCGPinProperties> UPCGRerouteSettings::OutputPinProperties() const
 {
 	FPCGPinProperties PinProperties;
 	PinProperties.Label = PCGPinConstants::DefaultOutputLabel;
-	PinProperties.bAllowMultipleConnections = true;
 	PinProperties.AllowedTypes = EPCGDataType::Any;
-	
-	if (UPCGNode* PCGNode = Cast<UPCGNode>(GetOuter()))
-	{
-		if (UPCGPin* InputPin = PCGNode->GetInputPin(PCGPinConstants::DefaultInputLabel))
-		{
-			if (InputPin->EdgeCount() > 0)
-			{
-				if (UPCGEdge* Edge = InputPin->Edges[0])
-				{
-					if (const UPCGPin* OtherOutputPin = Edge->GetOtherPin(InputPin))
-					{
-						PinProperties.AllowedTypes = OtherOutputPin->Properties.AllowedTypes;
-					}
-				}
-			}
-		}
-	}
 
 	return { PinProperties };
 }
