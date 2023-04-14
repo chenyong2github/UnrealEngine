@@ -85,8 +85,6 @@ bool FHttpConnectionResponseWriteContext::WriteBytes(const uint8* Bytes, int32 B
 
 	if (OutBytesWritten > 0)
 	{
-		UE_LOG(LogHttpConnectionResponseWriteContext, Verbose,
-			TEXT("ElapsedIdleTime\t %f"), ElapsedIdleTime);
 		ElapsedIdleTime = 0.0f;
 	}
 

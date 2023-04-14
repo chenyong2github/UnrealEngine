@@ -8,7 +8,6 @@ struct FHttpConnection;
 
 class FSocket;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogHttpConnectionRequestReadContext, Log, All);
 
 struct FHttpConnectionRequestReadContext final : public FHttpConnectionContext
 {
