@@ -97,22 +97,32 @@ FGeometryCollectionISM::FGeometryCollectionISM(AActor* OwmingActor, const FGeome
 	ISMComponent = ISMC;
 }
 
-int32 FGeometryCollectionISM::AddInstanceGroup(int32 InstanceCount, TArrayView<const float> CustomDataFloats)
+FInstanceGroups::FInstanceGroupId FGeometryCollectionISM::AddInstanceGroup(int32 InstanceCount, TArrayView<const float> CustomDataFloats)
 {
-	const int32 InstanceGroupIndex = InstanceGroups.AddGroup(InstanceCount);
-
 	// When adding new group it will always have a single range
-	const FInstanceGroups::FInstanceGroupRange& NewInstanceGroup = InstanceGroups.GetGroup(InstanceGroupIndex);
-
-	ISMComponent->PreAllocateInstancesMemory(InstanceCount);
+	const FInstanceGroups::FInstanceGroupId InstanceGroupIndex = InstanceGroups.AddGroup(InstanceCount);
+	const FInstanceGroups::FInstanceGroupRange& NewInstanceGroup = InstanceGroups.GroupRanges[InstanceGroupIndex];
 
 	FTransform ZeroScaleTransform;
 	ZeroScaleTransform.SetIdentityZeroScale();
 	TArray<FTransform> ZeroScaleTransforms;
 	ZeroScaleTransforms.Init(ZeroScaleTransform, InstanceCount);
 
-	ISMComponent->AddInstances(ZeroScaleTransforms, false, true);
+	ISMComponent->PreAllocateInstancesMemory(InstanceCount);
+	TArray<int32> RenderInstances = ISMComponent->AddInstances(ZeroScaleTransforms, true, true);
 
+	// Ensure that remapping arrays are big enough to hold any new items.
+	InstanceIndexToRenderIndex.SetNum(InstanceGroups.GetMaxInstanceIndex(), false);
+	RenderIndexToInstanceIndex.SetNum(ISMComponent->PerInstanceSMData.Num(), false);
+	// Store mapping between our fixed instance index and the mutable ISM render index.
+	// todo: Improve ISM API so that we don't need to pay the memory overhead here to manage this.
+	for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
+	{
+		InstanceIndexToRenderIndex[NewInstanceGroup.Start + InstanceIndex] = RenderInstances[InstanceIndex];
+		RenderIndexToInstanceIndex[RenderInstances[InstanceIndex]] = NewInstanceGroup.Start + InstanceIndex;
+	}
+
+	// Set any custom data.
 	if (CustomDataFloats.Num())
 	{
 		const int32 NumCustomDataFloats = ISMComponent->NumCustomDataFloats;
@@ -120,7 +130,7 @@ int32 FGeometryCollectionISM::AddInstanceGroup(int32 InstanceCount, TArrayView<c
 		{
 			for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
 			{
-				ISMComponent->SetCustomData(NewInstanceGroup.InstanceIdToIndex[InstanceIndex], CustomDataFloats.Slice(InstanceIndex * NumCustomDataFloats, NumCustomDataFloats));
+				ISMComponent->SetCustomData(RenderInstances[InstanceIndex], CustomDataFloats.Slice(InstanceIndex * NumCustomDataFloats, NumCustomDataFloats));
 			}
 		}
 	}
@@ -137,6 +147,7 @@ FGeometryCollectionMeshInfo FGeometryCollectionISMPool::AddISM(UGeometryCollecti
 	{
 		if (FreeList.Num())
 		{
+			// Take an ISM from the current FreeList instead of allocating a new slot.
 			Info.ISMIndex = FreeList.Last();
 			FreeList.RemoveAt(FreeList.Num() - 1);
 			ISMs[Info.ISMIndex] = FGeometryCollectionISM(OwningComponent->GetOwner(), MeshInstance);
@@ -162,10 +173,10 @@ bool FGeometryCollectionISMPool::BatchUpdateInstancesTransforms(FGeometryCollect
 	if (ISMs.IsValidIndex(MeshInfo.ISMIndex))
 	{
 		FGeometryCollectionISM& ISM = ISMs[MeshInfo.ISMIndex];
-		const FInstanceGroups::FInstanceGroupRange& InstanceGroup = ISM.InstanceGroups.GetGroup(MeshInfo.InstanceGroupIndex);
-		ensure((StartInstanceIndex + NewInstancesTransforms.Num()) <= InstanceGroup.Count());
+		const FInstanceGroups::FInstanceGroupRange& InstanceGroup = ISM.InstanceGroups.GroupRanges[MeshInfo.InstanceGroupIndex];
+		ensure((StartInstanceIndex + NewInstancesTransforms.Num()) <= InstanceGroup.Count);
 
-		int32 StartIndex = InstanceGroup.InstanceIdToIndex[StartInstanceIndex];
+		int32 StartIndex = ISM.InstanceIndexToRenderIndex[InstanceGroup.Start];
 		int32 TransformIndex = 0;
 		int32 BatchCount = 1;
 		TArray<FTransform> BatchTransforms; //< Can't use TArrayView because blueprint function doesn't support that 
@@ -174,10 +185,11 @@ bool FGeometryCollectionISMPool::BatchUpdateInstancesTransforms(FGeometryCollect
 		for (int InstanceIndex = StartInstanceIndex + 1; InstanceIndex < NewInstancesTransforms.Num(); ++InstanceIndex)
 		{
 			// flush batch?
-			if (InstanceGroup.InstanceIdToIndex[InstanceIndex] != (StartIndex + BatchCount))
+			int32 RenderIndex = ISM.InstanceIndexToRenderIndex[InstanceGroup.Start + InstanceIndex];
+			if (RenderIndex != (StartIndex + BatchCount))
 			{
 				ISM.ISMComponent->BatchUpdateInstancesTransforms(StartIndex, BatchTransforms, bWorldSpace, bMarkRenderStateDirty, bTeleport);
-				StartIndex = InstanceGroup.InstanceIdToIndex[InstanceIndex];
+				StartIndex = RenderIndex;
 				BatchTransforms.SetNum(0, false);
 				BatchCount = 0;
 			}
@@ -197,8 +209,16 @@ void FGeometryCollectionISMPool::RemoveISM(const FGeometryCollectionMeshInfo& Me
 	if (ISMs.IsValidIndex(MeshInfo.ISMIndex))
 	{
 		FGeometryCollectionISM& ISM = ISMs[MeshInfo.ISMIndex];
-		const FInstanceGroups::FInstanceGroupRange& InstanceGroup = ISM.InstanceGroups.GetGroup(MeshInfo.InstanceGroupIndex);
-		ISM.ISMComponent->RemoveInstances(InstanceGroup.InstanceIdToIndex);
+		const FInstanceGroups::FInstanceGroupRange& InstanceGroup = ISM.InstanceGroups.GroupRanges[MeshInfo.InstanceGroupIndex];
+		
+		TArray<int32> InstancesToRemove;
+		InstancesToRemove.SetNum(InstanceGroup.Count);
+		for (int32 InstanceIndex = 0; InstanceIndex < InstanceGroup.Count; ++InstanceIndex)
+		{
+			InstancesToRemove[InstanceIndex] = ISM.InstanceIndexToRenderIndex[InstanceGroup.Start + InstanceIndex];
+		}
+		ISM.ISMComponent->RemoveInstances(InstancesToRemove);
+
 		ISM.InstanceGroups.RemoveGroup(MeshInfo.InstanceGroupIndex);
 	
 		if (ISM.InstanceGroups.IsEmpty() && ISM.ISMComponent->PerInstanceSMData.Num() == 0)
@@ -209,6 +229,7 @@ void FGeometryCollectionISMPool::RemoveISM(const FGeometryCollectionMeshInfo& Me
 			ISM.ISMComponent->UnregisterComponent();
 			ISM.ISMComponent->DestroyComponent();
 			
+			ISM.InstanceGroups.Reset();
 			MeshToISMIndex.Remove(ISM.MeshInstance);
 			ISMComponentToISMIndex.Remove(ISM.ISMComponent);
 			FreeList.Add(MeshInfo.ISMIndex);
@@ -233,11 +254,11 @@ void FGeometryCollectionISMPool::OnISMInstanceIndexUpdated(UInstancedStaticMeshC
 	{
 		if (IndexUpdateData.Type == FInstancedStaticMeshDelegates::EInstanceIndexUpdateType::Removed)
 		{
-			ISM.InstanceGroups.IndexRemoved(IndexUpdateData.Index);
+			ISM.IndexRemoved(IndexUpdateData.Index);
 		}
 		else if (IndexUpdateData.Type == FInstancedStaticMeshDelegates::EInstanceIndexUpdateType::Relocated)
 		{
-			ISM.InstanceGroups.IndexReallocated(IndexUpdateData.OldIndex, IndexUpdateData.Index);
+			ISM.IndexReallocated(IndexUpdateData.OldIndex, IndexUpdateData.Index);
 		}
 	}
 }
@@ -313,4 +334,26 @@ bool UGeometryCollectionISMPoolComponent::BatchUpdateInstancesTransforms(FMeshGr
 	}
 	UE_LOG(LogChaos, Warning, TEXT("UGeometryCollectionISMPoolComponent : Trying to update instance with mesh group (%d) that not exists"), MeshGroupId);
 	return false;
+}
+
+void UGeometryCollectionISMPoolComponent::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+
+	int32 SizeBytes =
+		MeshGroups.GetAllocatedSize()
+		+ Pool.MeshToISMIndex.GetAllocatedSize()
+		+ Pool.ISMComponentToISMIndex.GetAllocatedSize()
+		+ Pool.ISMs.GetAllocatedSize()
+		+ Pool.FreeList.GetAllocatedSize();
+	
+	for (FGeometryCollectionISM ISM : Pool.ISMs)
+	{
+		SizeBytes += ISM.InstanceIndexToRenderIndex.GetAllocatedSize()
+			+ ISM.RenderIndexToInstanceIndex.GetAllocatedSize()
+			+ ISM.InstanceGroups.GroupRanges.GetAllocatedSize()
+			+ ISM.InstanceGroups.FreeList.GetAllocatedSize();
+	}
+
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(SizeBytes);
 }
