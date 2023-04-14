@@ -12,9 +12,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using HordeCommon;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Horde.Server.Telemetry
 {
@@ -37,7 +35,7 @@ namespace Horde.Server.Telemetry
 	/// <summary>
 	/// Epic internal telemetry sink using the data router
 	/// </summary>
-	public sealed class EpicTelemetrySink : IHostedService, ITelemetrySink, IDisposable
+	public sealed class EpicTelemetrySink : ITelemetrySinkInternal
 	{
 		// Converter for datetime formats that Tableau can ingest
 		class TableauDateTimeConverter : JsonConverter<DateTime>
@@ -84,7 +82,7 @@ namespace Horde.Server.Telemetry
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public EpicTelemetrySink(IHttpClientFactory httpClientFactory, IClock clock, IOptions<ServerSettings> serverSettings, ILogger<EpicTelemetrySink> logger)
+		public EpicTelemetrySink(IEpicTelemetrySinkConfig config, IHttpClientFactory httpClientFactory, IClock clock, ILogger<EpicTelemetrySink> logger)
 		{
 			_httpClientFactory = httpClientFactory;
 
@@ -102,7 +100,6 @@ namespace Horde.Server.Telemetry
 			_ticker = clock.AddTicker<EpicTelemetrySink>(TimeSpan.FromSeconds(60.0), FlushAsync, logger);
 			_logger = logger;
 
-			IEpicTelemetrySinkConfig config = serverSettings.Value.Telemetry;
 			if (config.Url != null)
 			{
 				Dictionary<string, string?> queryParams = new Dictionary<string, string?>()
@@ -118,25 +115,13 @@ namespace Horde.Server.Telemetry
 		}
 
 		/// <inheritdoc/>
-		public void Dispose()
+		public async ValueTask DisposeAsync()
 		{
-			_packetWriter.Dispose();
-			_eventWriter.Dispose();
+			await _packetWriter.DisposeAsync();
+			await _eventWriter.DisposeAsync();
 			_ticker.Dispose();
 		}
-
-		/// <inheritdoc/>
-		public async Task StartAsync(CancellationToken cancellationToken)
-		{
-			await _ticker.StartAsync();
-		}
-
-		/// <inheritdoc/>
-		public async Task StopAsync(CancellationToken cancellationToken)
-		{
-			await _ticker.StopAsync();
-		}
-
+		
 		/// <inheritdoc/>
 		public async ValueTask FlushAsync(CancellationToken cancellationToken)
 		{

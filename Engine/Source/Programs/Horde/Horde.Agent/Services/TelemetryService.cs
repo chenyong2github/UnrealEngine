@@ -46,9 +46,9 @@ public class CpuMetrics
 	/// Convert to Protobuf-based event
 	/// </summary>
 	/// <returns></returns>
-	public CpuMetricsEvent ToEvent()
+	public AgentCpuMetricsEvent ToEvent()
 	{
-		return new CpuMetricsEvent { User = User, System = System, Idle = Idle };
+		return new AgentCpuMetricsEvent { User = User, System = System, Idle = Idle };
 	}
 }
 
@@ -87,9 +87,9 @@ public class MemoryMetrics
 	/// Convert to Protobuf-based event
 	/// </summary>
 	/// <returns></returns>
-	public MemoryMetricsEvent ToEvent()
+	public AgentMemoryMetricsEvent ToEvent()
 	{
-		return new MemoryMetricsEvent { Total = Total, Free = Available, Used = Used, UsedPercentage = UsedPercentage };
+		return new AgentMemoryMetricsEvent { Total = Total, Free = Available, Used = Used, UsedPercentage = UsedPercentage };
 	}
 }
 
@@ -239,8 +239,8 @@ class TelemetryService : BackgroundService
 		while (!stoppingToken.IsCancellationRequested && _systemMetrics != null)
 		{
 			_logger.LogDebug("Sending telemetry events to server...");
-			CpuMetricsEvent cpuMetricsEvent = _systemMetrics.GetCpu().ToEvent();
-			MemoryMetricsEvent memMetricsEvent = _systemMetrics.GetMemory().ToEvent();
+			AgentCpuMetricsEvent cpuMetricsEvent = _systemMetrics.GetCpu().ToEvent();
+			AgentMemoryMetricsEvent memMetricsEvent = _systemMetrics.GetMemory().ToEvent();
 
 			SendTelemetryEventsRequest request = new();
 			request.Events.Add(new WrappedTelemetryEvent { Cpu = cpuMetricsEvent });

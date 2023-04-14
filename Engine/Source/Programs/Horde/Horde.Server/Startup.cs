@@ -284,6 +284,47 @@ namespace Horde.Server
 
 		public IConfiguration Configuration { get; }
 
+
+		/// <summary>
+		/// Bind config to concrete subclasses of BaseTelemetryConfig
+		/// </summary>
+		/// <param name="settings">Settings object being updated</param>
+		/// <param name="telemetrySection">Telemetry config section</param>
+		/// <exception cref="ConfigurationException"></exception>
+		private static void BindTelemetrySettings(ServerSettings settings, IConfiguration telemetrySection)
+		{
+			List<BaseTelemetryConfig> telemetryConfigs = new();
+			foreach (IConfigurationSection child in telemetrySection.GetChildren())
+			{
+				string typeStr = child.GetValue<string>("Type");
+				if (!Enum.TryParse(typeStr, true, out TelemetrySinkType sinkType))
+				{
+					throw new ConfigurationException($"Unable to parse sink type '{typeStr}'");
+				}
+				
+				switch (sinkType)
+				{
+					case TelemetrySinkType.Epic:
+						EpicTelemetryConfig epic = new ();
+						child.Bind(epic);
+						telemetryConfigs.Add(epic);
+						break;
+						
+					case TelemetrySinkType.ClickHouse:
+						ClickHouseTelemetryConfig clickHouse = new ();
+						child.Bind(clickHouse);
+						telemetryConfigs.Add(clickHouse);
+						break;
+					
+					case TelemetrySinkType.None:
+					default:
+						break;
+				}
+			}
+
+			settings.Telemetry = telemetryConfigs;
+		}
+		
 		// This method gets called *multiple times* by the runtime. Use this method to add services to the container.
 		public void ConfigureServices(IServiceCollection services)
 		{
@@ -294,6 +335,7 @@ namespace Horde.Server
 			IConfigurationSection configSection = Configuration.GetSection("Horde");
 			ServerSettings settings = new ServerSettings();
 			configSection.Bind(settings);
+			BindTelemetrySettings(settings, configSection.GetSection("Telemetry"));
 			settings.Validate();
 
 			if (settings.GlobalThreadPoolMinSize != null)
@@ -613,19 +655,11 @@ namespace Horde.Server
 					throw new ArgumentException($"Invalid auth method {settings.AuthMethod}");
 			}
 
-			TelemetryConfig telemetryConfig = settings.Telemetry;
-			switch (telemetryConfig.Type)
-			{
-				case TelemetrySinkType.None:
-					services.AddSingleton<ITelemetrySink, NullTelemetrySink>();
-					break;
-				case TelemetrySinkType.Epic:
-					services.AddHttpClient(EpicTelemetrySink.HttpClientName, client => { });
-					services.AddSingleton<EpicTelemetrySink>();
-					services.AddSingleton<ITelemetrySink>(sp => sp.GetRequiredService<EpicTelemetrySink>());
-					services.AddHostedService(sp => sp.GetRequiredService<EpicTelemetrySink>());
-					break;
-			}
+			services.AddSingleton<TelemetryManager>();
+			services.AddSingleton<ITelemetrySink>(sp => sp.GetRequiredService<TelemetryManager>());
+			services.AddHostedService(sp => sp.GetRequiredService<TelemetryManager>());
+			services.AddHttpClient(EpicTelemetrySink.HttpClientName, client => { });
+			services.AddHttpClient(ClickHouseTelemetrySink.HttpClientName, client => { });
 
 			authBuilder.AddScheme<JwtBearerOptions, HordeServerJwtBearerHandler>(HordeServerJwtBearerHandler.AuthenticationScheme, options => { });
 			schemes.Add(HordeServerJwtBearerHandler.AuthenticationScheme);

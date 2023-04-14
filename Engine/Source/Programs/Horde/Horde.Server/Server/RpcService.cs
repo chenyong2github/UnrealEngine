@@ -19,9 +19,11 @@ using Horde.Server.Agents.Sessions;
 using Horde.Server.Agents.Software;
 using Horde.Server.Jobs;
 using Horde.Server.Tasks;
+using Horde.Server.Telemetry;
 using Horde.Server.Tools;
 using Horde.Server.Utilities;
 using HordeCommon.Rpc;
+using HordeCommon.Rpc.Messages.Telemetry;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -50,6 +52,7 @@ namespace Horde.Server.Server
 		readonly AgentService _agentService;
 		readonly PoolService _poolService;
 		readonly LifetimeService _lifetimeService;
+		readonly ITelemetrySink _telemetrySink;
 		readonly ConformTaskSource _conformTaskSource;
 		readonly JobRpcCommon _jobRpcCommon;
 		readonly IToolCollection _toolCollection;
@@ -59,11 +62,12 @@ namespace Horde.Server.Server
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public RpcService(AgentService agentService, PoolService poolService, LifetimeService lifetimeService, ConformTaskSource conformTaskSource, JobRpcCommon jobRpcCommon, IToolCollection toolCollection, IOptionsSnapshot<GlobalConfig> globalConfig, ILogger<RpcService> logger)
+		public RpcService(AgentService agentService, PoolService poolService, LifetimeService lifetimeService, ITelemetrySink telemetrySink, ConformTaskSource conformTaskSource, JobRpcCommon jobRpcCommon, IToolCollection toolCollection, IOptionsSnapshot<GlobalConfig> globalConfig, ILogger<RpcService> logger)
 		{
 			_agentService = agentService;
 			_poolService = poolService;
 			_lifetimeService = lifetimeService;
+			_telemetrySink = telemetrySink;
 			_conformTaskSource = conformTaskSource;
 			_jobRpcCommon = jobRpcCommon;
 			_toolCollection = toolCollection;
@@ -459,6 +463,27 @@ namespace Horde.Server.Server
 					await responseStream.WriteAsync(response);
 				}
 			}
+		}
+
+		/// <summary>
+		/// Receives telemetry events from agents
+		/// </summary>
+		/// <param name="request">Request arguments</param>
+		/// <param name="context">Context for the RPC call</param>
+		/// <returns>An empty response</returns>
+		public override Task<Empty> SendTelemetryEvents(SendTelemetryEventsRequest request, ServerCallContext context)
+		{
+			foreach (WrappedTelemetryEvent e in request.Events)
+			{
+				switch (e.EventCase)
+				{
+					case WrappedTelemetryEvent.EventOneofCase.AgentMetadata: _telemetrySink.SendEvent("Agent.Metadata", e.AgentMetadata); break;
+					case WrappedTelemetryEvent.EventOneofCase.Cpu: _telemetrySink.SendEvent("Agent.Cpu", e.Cpu); break;
+					case WrappedTelemetryEvent.EventOneofCase.Mem: _telemetrySink.SendEvent("Agent.Memory", e.Mem); break;
+				}
+			}
+
+			return Task.FromResult(new Empty());
 		}
 
 		/// <inheritdoc/>
