@@ -3,7 +3,7 @@
 #include "LearningAgentsActions.h"
 
 #include "LearningAgentsManager.h"
-#include "LearningAgentsType.h"
+#include "LearningAgentsInteractor.h"
 #include "LearningArray.h"
 #include "LearningArrayMap.h"
 #include "LearningFeatureObject.h"
@@ -14,24 +14,24 @@
 namespace UE::Learning::Agents::Actions::Private
 {
 	template<typename ActionUObject, typename ActionFObject, typename... InArgTypes>
-	ActionUObject* AddAction(ULearningAgentsType* InAgentType, const FName Name, InArgTypes&& ...Args)
+	ActionUObject* AddAction(ULearningAgentsInteractor* InInteractor, const FName Name, InArgTypes&& ...Args)
 	{
-		if (!InAgentType)
+		if (!InInteractor)
 		{
-			UE_LOG(LogLearning, Error, TEXT("InAgentType is nullptr."));
+			UE_LOG(LogLearning, Error, TEXT("InInteractor is nullptr."));
 			return nullptr;
 		}
 
-		ActionUObject* Action = NewObject<ActionUObject>(InAgentType, Name);
+		ActionUObject* Action = NewObject<ActionUObject>(InInteractor, Name);
 
-		Action->AgentType = InAgentType;
+		Action->Interactor = InInteractor;
 		Action->FeatureObject = MakeShared<ActionFObject>(
 			Action->GetFName(),
-			InAgentType->GetAgentManager()->GetInstanceData().ToSharedRef(),
-			InAgentType->GetAgentManager()->GetMaxInstanceNum(),
+			InInteractor->GetAgentManager()->GetInstanceData().ToSharedRef(),
+			InInteractor->GetAgentManager()->GetMaxInstanceNum(),
 			Forward<InArgTypes>(Args)...);
 
-		InAgentType->AddAction(Action, Action->FeatureObject.ToSharedRef());
+		InInteractor->AddAction(Action, Action->FeatureObject.ToSharedRef());
 
 		return Action;
 	}
@@ -39,14 +39,14 @@ namespace UE::Learning::Agents::Actions::Private
 
 //------------------------------------------------------------------
 
-UFloatAction* UFloatAction::AddFloatAction(ULearningAgentsType* InAgentType, const FName Name, const float Scale)
+UFloatAction* UFloatAction::AddFloatAction(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Actions::Private::AddAction<UFloatAction, UE::Learning::FFloatFeature>(InAgentType, Name, 1, Scale);
+	return UE::Learning::Agents::Actions::Private::AddAction<UFloatAction, UE::Learning::FFloatFeature>(InInteractor, Name, 1, Scale);
 }
 
 float UFloatAction::GetFloatAction(const int32 AgentId) const
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return 0.0f;
@@ -57,7 +57,7 @@ float UFloatAction::GetFloatAction(const int32 AgentId) const
 
 void UFloatAction::SetFloatAction(const int32 AgentId, const float Value)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -76,7 +76,7 @@ void UFloatAction::VisualLog(const UE::Learning::FIndexSet Instances) const
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
 				Actor->GetActorLocation(),
@@ -91,7 +91,7 @@ void UFloatAction::VisualLog(const UE::Learning::FIndexSet Instances) const
 }
 #endif
 
-UFloatArrayAction* UFloatArrayAction::AddFloatArrayAction(ULearningAgentsType* InAgentType, const FName Name, const int32 Num, const float Scale)
+UFloatArrayAction* UFloatArrayAction::AddFloatArrayAction(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 Num, const float Scale)
 {
 	if (Num < 1)
 	{
@@ -99,12 +99,12 @@ UFloatArrayAction* UFloatArrayAction::AddFloatArrayAction(ULearningAgentsType* I
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Actions::Private::AddAction<UFloatArrayAction, UE::Learning::FFloatFeature>(InAgentType, Name, Num, Scale);
+	return UE::Learning::Agents::Actions::Private::AddAction<UFloatArrayAction, UE::Learning::FFloatFeature>(InInteractor, Name, Num, Scale);
 }
 
 void UFloatArrayAction::GetFloatArrayAction(const int32 AgentId, TArray<float>& OutValues) const
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		OutValues.Empty();
@@ -119,7 +119,7 @@ void UFloatArrayAction::GetFloatArrayAction(const int32 AgentId, TArray<float>& 
 
 void UFloatArrayAction::SetFloatArrayAction(const int32 AgentId, const TArray<float>& Values)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -146,7 +146,7 @@ void UFloatArrayAction::VisualLog(const UE::Learning::FIndexSet Instances) const
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
 				Actor->GetActorLocation(),
@@ -163,14 +163,14 @@ void UFloatArrayAction::VisualLog(const UE::Learning::FIndexSet Instances) const
 
 //------------------------------------------------------------------
 
-UVectorAction* UVectorAction::AddVectorAction(ULearningAgentsType* InAgentType, const FName Name, const float Scale)
+UVectorAction* UVectorAction::AddVectorAction(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Actions::Private::AddAction<UVectorAction, UE::Learning::FFloatFeature>(InAgentType, Name, 3, Scale);
+	return UE::Learning::Agents::Actions::Private::AddAction<UVectorAction, UE::Learning::FFloatFeature>(InInteractor, Name, 3, Scale);
 }
 
 FVector UVectorAction::GetVectorAction(const int32 AgentId) const
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return FVector::ZeroVector;
@@ -183,7 +183,7 @@ FVector UVectorAction::GetVectorAction(const int32 AgentId) const
 
 void UVectorAction::SetVectorAction(const int32 AgentId, const FVector InAction)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -206,7 +206,7 @@ void UVectorAction::VisualLog(const UE::Learning::FIndexSet Instances) const
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			const FVector Vector(ValueView[Instance][0], ValueView[Instance][1], ValueView[Instance][2]);
 
@@ -234,7 +234,7 @@ void UVectorAction::VisualLog(const UE::Learning::FIndexSet Instances) const
 }
 #endif
 
-UVectorArrayAction* UVectorArrayAction::AddVectorArrayAction(ULearningAgentsType* InAgentType, const FName Name, const int32 Num, const float Scale)
+UVectorArrayAction* UVectorArrayAction::AddVectorArrayAction(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 Num, const float Scale)
 {
 	if (Num < 1)
 	{
@@ -242,12 +242,12 @@ UVectorArrayAction* UVectorArrayAction::AddVectorArrayAction(ULearningAgentsType
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Actions::Private::AddAction<UVectorArrayAction, UE::Learning::FFloatFeature>(InAgentType, Name, Num * 3, Scale);
+	return UE::Learning::Agents::Actions::Private::AddAction<UVectorArrayAction, UE::Learning::FFloatFeature>(InInteractor, Name, Num * 3, Scale);
 }
 
 void UVectorArrayAction::GetVectorArrayAction(const int32 AgentId, TArray<FVector>& OutVectors) const
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		OutVectors.Empty();
@@ -269,7 +269,7 @@ void UVectorArrayAction::GetVectorArrayAction(const int32 AgentId, TArray<FVecto
 
 void UVectorArrayAction::SetVectorArrayAction(const int32 AgentId, const TArray<FVector>& Vectors)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -303,7 +303,7 @@ void UVectorArrayAction::VisualLog(const UE::Learning::FIndexSet Instances) cons
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			for (int32 VectorIdx = 0; VectorIdx < VectorNum; VectorIdx++)
 			{
@@ -338,14 +338,14 @@ void UVectorArrayAction::VisualLog(const UE::Learning::FIndexSet Instances) cons
 
 //------------------------------------------------------------------
 
-URotationAction* URotationAction::AddRotationAction(ULearningAgentsType* InAgentType, const FName Name, const float Scale)
+URotationAction* URotationAction::AddRotationAction(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Actions::Private::AddAction<URotationAction, UE::Learning::FRotationVectorFeature>(InAgentType, Name, 1, Scale);
+	return UE::Learning::Agents::Actions::Private::AddAction<URotationAction, UE::Learning::FRotationVectorFeature>(InInteractor, Name, 1, Scale);
 }
 
 FRotator URotationAction::GetRotationAction(const int32 AgentId) const
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return FRotator::ZeroRotator;
@@ -358,7 +358,7 @@ FRotator URotationAction::GetRotationAction(const int32 AgentId) const
 
 FVector URotationAction::GetRotationActionAsRotationVector(const int32 AgentId) const
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return FVector::ZeroVector;
@@ -369,7 +369,7 @@ FVector URotationAction::GetRotationActionAsRotationVector(const int32 AgentId) 
 
 FQuat URotationAction::GetRotationActionAsQuat(const int32 AgentId) const
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return FQuat::Identity;
@@ -392,7 +392,7 @@ void URotationAction::VisualLog(const UE::Learning::FIndexSet Instances) const
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			const FQuat Rotation = FQuat::MakeFromRotationVector((UE_TWO_PI / 180.0f) * ValueView[Instance][0]);
 			const FRotator Rotator = Rotation.Rotator();
@@ -412,7 +412,7 @@ void URotationAction::VisualLog(const UE::Learning::FIndexSet Instances) const
 #endif
 
 
-URotationArrayAction* URotationArrayAction::AddRotationArrayAction(ULearningAgentsType* InAgentType, const FName Name, const int32 RotationNum, const float Scale)
+URotationArrayAction* URotationArrayAction::AddRotationArrayAction(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 RotationNum, const float Scale)
 {
 	if (RotationNum < 1)
 	{
@@ -420,12 +420,12 @@ URotationArrayAction* URotationArrayAction::AddRotationArrayAction(ULearningAgen
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Actions::Private::AddAction<URotationArrayAction, UE::Learning::FRotationVectorFeature>(InAgentType, Name, RotationNum, Scale);
+	return UE::Learning::Agents::Actions::Private::AddAction<URotationArrayAction, UE::Learning::FRotationVectorFeature>(InInteractor, Name, RotationNum, Scale);
 }
 
 void URotationArrayAction::GetRotationArrayAction(const int32 AgentId, TArray<FRotator>& OutRotations) const
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -442,7 +442,7 @@ void URotationArrayAction::GetRotationArrayAction(const int32 AgentId, TArray<FR
 
 void URotationArrayAction::GetRotationArrayActionAsRotationVectors(const int32 AgentId, TArray<FVector>& OutRotationVectors) const
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -459,7 +459,7 @@ void URotationArrayAction::GetRotationArrayActionAsRotationVectors(const int32 A
 
 void URotationArrayAction::GetRotationArrayActionAsQuats(const int32 AgentId, TArray<FQuat>& OutRotations) const
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -486,7 +486,7 @@ void URotationArrayAction::VisualLog(const UE::Learning::FIndexSet Instances) co
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			for (int32 RotationIdx = 0; RotationIdx < RotationNum; RotationIdx++)
 			{

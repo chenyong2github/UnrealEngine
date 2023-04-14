@@ -3,7 +3,7 @@
 #include "LearningAgentsObservations.h"
 
 #include "LearningAgentsManager.h"
-#include "LearningAgentsType.h"
+#include "LearningAgentsInteractor.h"
 #include "LearningArray.h"
 #include "LearningArrayMap.h"
 #include "LearningFeatureObject.h"
@@ -14,24 +14,24 @@
 namespace UE::Learning::Agents::Observations::Private
 {
 	template<typename ObservationUObject, typename ObservationFObject, typename... InArgTypes>
-	ObservationUObject* AddObservation(ULearningAgentsType* InAgentType, const FName Name, InArgTypes&& ...Args)
+	ObservationUObject* AddObservation(ULearningAgentsInteractor* InInteractor, const FName Name, InArgTypes&& ...Args)
 	{
-		if (!InAgentType)
+		if (!InInteractor)
 		{
-			UE_LOG(LogLearning, Error, TEXT("InAgentType is nullptr."));
+			UE_LOG(LogLearning, Error, TEXT("InInteractor is nullptr."));
 			return nullptr;
 		}
 
-		ObservationUObject* Observation = NewObject<ObservationUObject>(InAgentType, Name);
+		ObservationUObject* Observation = NewObject<ObservationUObject>(InInteractor, Name);
 
-		Observation->AgentType = InAgentType;
+		Observation->Interactor = InInteractor;
 		Observation->FeatureObject = MakeShared<ObservationFObject>(
 			Observation->GetFName(),
-			InAgentType->GetAgentManager()->GetInstanceData().ToSharedRef(),
-			InAgentType->GetAgentManager()->GetMaxInstanceNum(),
+			InInteractor->GetAgentManager()->GetInstanceData().ToSharedRef(),
+			InInteractor->GetAgentManager()->GetMaxInstanceNum(),
 			Forward<InArgTypes>(Args)...);
 
-		InAgentType->AddObservation(Observation, Observation->FeatureObject.ToSharedRef());
+		InInteractor->AddObservation(Observation, Observation->FeatureObject.ToSharedRef());
 
 		return Observation;
 	}
@@ -39,14 +39,14 @@ namespace UE::Learning::Agents::Observations::Private
 
 //------------------------------------------------------------------
 
-UFloatObservation* UFloatObservation::AddFloatObservation(ULearningAgentsType* InAgentType, const FName Name, const float Scale)
+UFloatObservation* UFloatObservation::AddFloatObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UFloatObservation, UE::Learning::FFloatFeature>(InAgentType, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UFloatObservation, UE::Learning::FFloatFeature>(InInteractor, Name, 1, Scale);
 }
 
 void UFloatObservation::SetFloatObservation(const int32 AgentId, const float Value)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -65,7 +65,7 @@ void UFloatObservation::VisualLog(const UE::Learning::FIndexSet Instances) const
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
 				Actor->GetActorLocation(),
@@ -82,7 +82,7 @@ void UFloatObservation::VisualLog(const UE::Learning::FIndexSet Instances) const
 
 //------------------------------------------------------------------
 
-UFloatArrayObservation* UFloatArrayObservation::AddFloatArrayObservation(ULearningAgentsType* InAgentType, const FName Name, const int32 Num, const float Scale)
+UFloatArrayObservation* UFloatArrayObservation::AddFloatArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 Num, const float Scale)
 {
 	if (Num < 1)
 	{
@@ -90,12 +90,12 @@ UFloatArrayObservation* UFloatArrayObservation::AddFloatArrayObservation(ULearni
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UFloatArrayObservation, UE::Learning::FFloatFeature>(InAgentType, Name, Num, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UFloatArrayObservation, UE::Learning::FFloatFeature>(InInteractor, Name, Num, Scale);
 }
 
 void UFloatArrayObservation::SetFloatArrayObservation(const int32 AgentId, const TArray<float>& Values)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -122,7 +122,7 @@ void UFloatArrayObservation::VisualLog(const UE::Learning::FIndexSet Instances) 
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
 				Actor->GetActorLocation(),
@@ -139,14 +139,14 @@ void UFloatArrayObservation::VisualLog(const UE::Learning::FIndexSet Instances) 
 
 //------------------------------------------------------------------
 
-UVectorObservation* UVectorObservation::AddVectorObservation(ULearningAgentsType* InAgentType, const FName Name, const float Scale)
+UVectorObservation* UVectorObservation::AddVectorObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UVectorObservation, UE::Learning::FFloatFeature>(InAgentType, Name, 3, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UVectorObservation, UE::Learning::FFloatFeature>(InInteractor, Name, 3, Scale);
 }
 
 void UVectorObservation::SetVectorObservation(const int32 AgentId, const FVector Vector)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -169,7 +169,7 @@ void UVectorObservation::VisualLog(const UE::Learning::FIndexSet Instances) cons
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			const FVector Vector(ValueView[Instance][0], ValueView[Instance][1], ValueView[Instance][2]);
 
@@ -197,7 +197,7 @@ void UVectorObservation::VisualLog(const UE::Learning::FIndexSet Instances) cons
 }
 #endif
 
-UVectorArrayObservation* UVectorArrayObservation::AddVectorArrayObservation(ULearningAgentsType* InAgentType, const FName Name, const int32 Num, const float Scale)
+UVectorArrayObservation* UVectorArrayObservation::AddVectorArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 Num, const float Scale)
 {
 	if (Num < 1)
 	{
@@ -205,12 +205,12 @@ UVectorArrayObservation* UVectorArrayObservation::AddVectorArrayObservation(ULea
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UVectorArrayObservation, UE::Learning::FFloatFeature>(InAgentType, Name, Num * 3, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UVectorArrayObservation, UE::Learning::FFloatFeature>(InInteractor, Name, Num * 3, Scale);
 }
 
 void UVectorArrayObservation::SetVectorArrayObservation(const int32 AgentId, const TArray<FVector>& Vectors)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -244,7 +244,7 @@ void UVectorArrayObservation::VisualLog(const UE::Learning::FIndexSet Instances)
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			for (int32 VectorIdx = 0; VectorIdx < VectorNum; VectorIdx++)
 			{
@@ -279,7 +279,7 @@ void UVectorArrayObservation::VisualLog(const UE::Learning::FIndexSet Instances)
 
 //------------------------------------------------------------------
 
-UEnumObservation* UEnumObservation::AddEnumObservation(ULearningAgentsType* InAgentType, const UEnum* EnumType, const FName Name)
+UEnumObservation* UEnumObservation::AddEnumObservation(ULearningAgentsInteractor* InInteractor, const UEnum* EnumType, const FName Name)
 {
 	if (!EnumType)
 	{
@@ -293,7 +293,7 @@ UEnumObservation* UEnumObservation::AddEnumObservation(ULearningAgentsType* InAg
 		return nullptr;
 	}
 
-	UEnumObservation* Observation = UE::Learning::Agents::Observations::Private::AddObservation<UEnumObservation, UE::Learning::FFloatFeature>(InAgentType, Name, EnumType->NumEnums());
+	UEnumObservation* Observation = UE::Learning::Agents::Observations::Private::AddObservation<UEnumObservation, UE::Learning::FFloatFeature>(InInteractor, Name, EnumType->NumEnums());
 	if (Observation) { Observation->Enum = EnumType; }
 	
 	return Observation;
@@ -301,7 +301,7 @@ UEnumObservation* UEnumObservation::AddEnumObservation(ULearningAgentsType* InAg
 
 void UEnumObservation::SetEnumObservation(const int32 AgentId, const uint8 EnumValue)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -332,7 +332,7 @@ void UEnumObservation::VisualLog(const UE::Learning::FIndexSet Instances) const
 		
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			int32 EnumEntryIdx = INDEX_NONE;
 
@@ -366,7 +366,7 @@ void UEnumObservation::VisualLog(const UE::Learning::FIndexSet Instances) const
 }
 #endif
 
-UEnumArrayObservation* UEnumArrayObservation::AddEnumArrayObservation(ULearningAgentsType* InAgentType, const UEnum* EnumType, const FName Name, const int32 EnumNum)
+UEnumArrayObservation* UEnumArrayObservation::AddEnumArrayObservation(ULearningAgentsInteractor* InInteractor, const UEnum* EnumType, const FName Name, const int32 EnumNum)
 {
 	if (!EnumType)
 	{
@@ -386,7 +386,7 @@ UEnumArrayObservation* UEnumArrayObservation::AddEnumArrayObservation(ULearningA
 		return nullptr;
 	}
 
-	UEnumArrayObservation* Observation = UE::Learning::Agents::Observations::Private::AddObservation<UEnumArrayObservation, UE::Learning::FFloatFeature>(InAgentType, Name, EnumNum * EnumType->NumEnums());
+	UEnumArrayObservation* Observation = UE::Learning::Agents::Observations::Private::AddObservation<UEnumArrayObservation, UE::Learning::FFloatFeature>(InInteractor, Name, EnumNum * EnumType->NumEnums());
 	if (Observation) { Observation->Enum = EnumType; }
 
 	return Observation;
@@ -394,7 +394,7 @@ UEnumArrayObservation* UEnumArrayObservation::AddEnumArrayObservation(ULearningA
 
 void UEnumArrayObservation::SetEnumArrayObservation(const int32 AgentId, const TArray<uint8>& EnumValues)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -437,7 +437,7 @@ void UEnumArrayObservation::VisualLog(const UE::Learning::FIndexSet Instances) c
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
 				Actor->GetActorLocation(),
@@ -453,14 +453,14 @@ void UEnumArrayObservation::VisualLog(const UE::Learning::FIndexSet Instances) c
 
 //------------------------------------------------------------------
 
-UTimeObservation* UTimeObservation::AddTimeObservation(ULearningAgentsType* InAgentType, const FName Name, const float Scale)
+UTimeObservation* UTimeObservation::AddTimeObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UTimeObservation, UE::Learning::FTimeFeature>(InAgentType, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UTimeObservation, UE::Learning::FTimeFeature>(InInteractor, Name, 1, Scale);
 }
 
 void UTimeObservation::SetTimeObservation(const int32 AgentId, const float Time, const float RelativeTime)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -481,7 +481,7 @@ void UTimeObservation::VisualLog(const UE::Learning::FIndexSet Instances) const
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			const float Time = TimeView[Instance][0];
 			const float RelativeTime = RelativeTimeView[Instance];
@@ -500,7 +500,7 @@ void UTimeObservation::VisualLog(const UE::Learning::FIndexSet Instances) const
 }
 #endif
 
-UTimeArrayObservation* UTimeArrayObservation::AddTimeArrayObservation(ULearningAgentsType* InAgentType, const FName Name, const int32 TimeNum, const float Scale)
+UTimeArrayObservation* UTimeArrayObservation::AddTimeArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 TimeNum, const float Scale)
 {
 	if (TimeNum < 1)
 	{
@@ -508,12 +508,12 @@ UTimeArrayObservation* UTimeArrayObservation::AddTimeArrayObservation(ULearningA
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UTimeArrayObservation, UE::Learning::FTimeFeature>(InAgentType, Name, TimeNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UTimeArrayObservation, UE::Learning::FTimeFeature>(InInteractor, Name, TimeNum, Scale);
 }
 
 void UTimeArrayObservation::SetTimeArrayObservation(const int32 AgentId, const TArray<float>& Times, const float RelativeTime)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -543,7 +543,7 @@ void UTimeArrayObservation::VisualLog(const UE::Learning::FIndexSet Instances) c
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
 				Actor->GetActorLocation(),
@@ -561,14 +561,14 @@ void UTimeArrayObservation::VisualLog(const UE::Learning::FIndexSet Instances) c
 
 //------------------------------------------------------------------
 
-UAngleObservation* UAngleObservation::AddAngleObservation(ULearningAgentsType* InAgentType, const FName Name, const float Scale)
+UAngleObservation* UAngleObservation::AddAngleObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UAngleObservation, UE::Learning::FAngleFeature>(InAgentType, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UAngleObservation, UE::Learning::FAngleFeature>(InInteractor, Name, 1, Scale);
 }
 
 void UAngleObservation::SetAngleObservation(const int32 AgentId, const float Angle, const float RelativeAngle)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -589,7 +589,7 @@ void UAngleObservation::VisualLog(const UE::Learning::FIndexSet Instances) const
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			const float Angle = AngleView[Instance][0];
 			const float RelativeAngle = RelativeAngleView[Instance];
@@ -611,7 +611,7 @@ void UAngleObservation::VisualLog(const UE::Learning::FIndexSet Instances) const
 }
 #endif
 
-UAngleArrayObservation* UAngleArrayObservation::AddAngleArrayObservation(ULearningAgentsType* InAgentType, const FName Name, const int32 AngleNum, const float Scale)
+UAngleArrayObservation* UAngleArrayObservation::AddAngleArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 AngleNum, const float Scale)
 {
 	if (AngleNum < 1)
 	{
@@ -619,12 +619,12 @@ UAngleArrayObservation* UAngleArrayObservation::AddAngleArrayObservation(ULearni
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UAngleArrayObservation, UE::Learning::FAngleFeature>(InAgentType, Name, AngleNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UAngleArrayObservation, UE::Learning::FAngleFeature>(InInteractor, Name, AngleNum, Scale);
 }
 
 void UAngleArrayObservation::SetAngleArrayObservation(const int32 AgentId, const TArray<float>& Angles, const float RelativeAngle)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -660,7 +660,7 @@ void UAngleArrayObservation::VisualLog(const UE::Learning::FIndexSet Instances) 
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			const float RelativeAngle = RelativeAngleView[Instance];
 
@@ -695,9 +695,9 @@ void UAngleArrayObservation::VisualLog(const UE::Learning::FIndexSet Instances) 
 
 //------------------------------------------------------------------
 
-URotationObservation* URotationObservation::AddRotationObservation(ULearningAgentsType* InAgentType, const FName Name, const float Scale)
+URotationObservation* URotationObservation::AddRotationObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<URotationObservation, UE::Learning::FRotationFeature>(InAgentType, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<URotationObservation, UE::Learning::FRotationFeature>(InInteractor, Name, 1, Scale);
 }
 
 void URotationObservation::SetRotationObservation(const int32 AgentId, const FRotator Rotation, const FRotator RelativeRotation)
@@ -707,7 +707,7 @@ void URotationObservation::SetRotationObservation(const int32 AgentId, const FRo
 
 void URotationObservation::SetRotationObservationFromQuat(const int32 AgentId, const FQuat Rotation, const FQuat RelativeRotation)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -728,7 +728,7 @@ void URotationObservation::VisualLog(const UE::Learning::FIndexSet Instances) co
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			const FQuat Rotation = RotationView[Instance][0];
 			const FRotator Rotator = Rotation.Rotator();
@@ -756,7 +756,7 @@ void URotationObservation::VisualLog(const UE::Learning::FIndexSet Instances) co
 }
 #endif
 
-URotationArrayObservation* URotationArrayObservation::AddRotationArrayObservation(ULearningAgentsType* InAgentType, const FName Name, const int32 RotationNum, const float Scale)
+URotationArrayObservation* URotationArrayObservation::AddRotationArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 RotationNum, const float Scale)
 {
 	if (RotationNum < 1)
 	{
@@ -764,12 +764,12 @@ URotationArrayObservation* URotationArrayObservation::AddRotationArrayObservatio
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<URotationArrayObservation, UE::Learning::FRotationFeature>(InAgentType, Name, RotationNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<URotationArrayObservation, UE::Learning::FRotationFeature>(InInteractor, Name, RotationNum, Scale);
 }
 
 void URotationArrayObservation::SetRotationArrayObservation(const int32 AgentId, const TArray<FRotator>& Rotations, const FRotator RelativeRotation)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -794,7 +794,7 @@ void URotationArrayObservation::SetRotationArrayObservation(const int32 AgentId,
 
 void URotationArrayObservation::SetRotationArrayObservationFromQuats(const int32 AgentId, const TArray<FQuat>& Rotations, const FQuat RelativeRotation)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -826,7 +826,7 @@ void URotationArrayObservation::VisualLog(const UE::Learning::FIndexSet Instance
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			const FQuat RelativeRotation = RelativeRotationView[Instance];
 			const FRotator RelativeRotator = RelativeRotation.Rotator();
@@ -863,14 +863,14 @@ void URotationArrayObservation::VisualLog(const UE::Learning::FIndexSet Instance
 
 //------------------------------------------------------------------
 
-UDirectionObservation* UDirectionObservation::AddDirectionObservation(ULearningAgentsType* InAgentType, const FName Name, const float Scale)
+UDirectionObservation* UDirectionObservation::AddDirectionObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UDirectionObservation, UE::Learning::FDirectionFeature>(InAgentType, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UDirectionObservation, UE::Learning::FDirectionFeature>(InInteractor, Name, 1, Scale);
 }
 
 void UDirectionObservation::SetDirectionObservation(const int32 AgentId, const FVector Direction, const FRotator RelativeRotation)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -891,7 +891,7 @@ void UDirectionObservation::VisualLog(const UE::Learning::FIndexSet Instances) c
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			const FVector Direction = DirectionView[Instance][0];
 			const FQuat RelativeRotation = RelativeRotationView[Instance];
@@ -923,7 +923,7 @@ void UDirectionObservation::VisualLog(const UE::Learning::FIndexSet Instances) c
 }
 #endif
 
-UDirectionArrayObservation* UDirectionArrayObservation::AddDirectionArrayObservation(ULearningAgentsType* InAgentType, const FName Name, const int32 DirectionNum, const float Scale)
+UDirectionArrayObservation* UDirectionArrayObservation::AddDirectionArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 DirectionNum, const float Scale)
 {
 	if (DirectionNum < 1)
 	{
@@ -931,12 +931,12 @@ UDirectionArrayObservation* UDirectionArrayObservation::AddDirectionArrayObserva
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UDirectionArrayObservation, UE::Learning::FDirectionFeature>(InAgentType, Name, DirectionNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UDirectionArrayObservation, UE::Learning::FDirectionFeature>(InInteractor, Name, DirectionNum, Scale);
 }
 
 void UDirectionArrayObservation::SetDirectionArrayObservation(const int32 AgentId, const TArray<FVector>& Directions, const FRotator RelativeRotation)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -968,7 +968,7 @@ void UDirectionArrayObservation::VisualLog(const UE::Learning::FIndexSet Instanc
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			const FQuat RelativeRotation = RelativeRotationView[Instance];
 
@@ -1006,14 +1006,14 @@ void UDirectionArrayObservation::VisualLog(const UE::Learning::FIndexSet Instanc
 }
 #endif
 
-UPlanarDirectionObservation* UPlanarDirectionObservation::AddPlanarDirectionObservation(ULearningAgentsType* InAgentType, const FName Name, const float Scale, const FVector Axis0, const FVector Axis1)
+UPlanarDirectionObservation* UPlanarDirectionObservation::AddPlanarDirectionObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale, const FVector Axis0, const FVector Axis1)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarDirectionObservation, UE::Learning::FPlanarDirectionFeature>(InAgentType, Name, 1, Scale, Axis0, Axis1);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarDirectionObservation, UE::Learning::FPlanarDirectionFeature>(InInteractor, Name, 1, Scale, Axis0, Axis1);
 }
 
 void UPlanarDirectionObservation::SetPlanarDirectionObservation(const int32 AgentId, const FVector Direction, const FRotator RelativeRotation)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -1034,7 +1034,7 @@ void UPlanarDirectionObservation::VisualLog(const UE::Learning::FIndexSet Instan
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			const FVector Direction = DirectionView[Instance][0];
 			const FQuat RelativeRotation = RelativeRotationView[Instance];
@@ -1074,14 +1074,14 @@ void UPlanarDirectionObservation::VisualLog(const UE::Learning::FIndexSet Instan
 }
 #endif
 
-UPlanarDirectionArrayObservation* UPlanarDirectionArrayObservation::AddPlanarDirectionArrayObservation(ULearningAgentsType* InAgentType, const FName Name, const int32 DirectionNum, const float Scale, const FVector Axis0, const FVector Axis1)
+UPlanarDirectionArrayObservation* UPlanarDirectionArrayObservation::AddPlanarDirectionArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 DirectionNum, const float Scale, const FVector Axis0, const FVector Axis1)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarDirectionArrayObservation, UE::Learning::FPlanarDirectionFeature>(InAgentType, Name, DirectionNum, Scale, Axis0, Axis1);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarDirectionArrayObservation, UE::Learning::FPlanarDirectionFeature>(InInteractor, Name, DirectionNum, Scale, Axis0, Axis1);
 }
 
 void UPlanarDirectionArrayObservation::SetPlanarDirectionArrayObservation(const int32 AgentId, const TArray<FVector>& Directions, const FRotator RelativeRotation)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -1113,7 +1113,7 @@ void UPlanarDirectionArrayObservation::VisualLog(const UE::Learning::FIndexSet I
 	
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			const FQuat RelativeRotation = RelativeRotationView[Instance];
 
@@ -1163,14 +1163,14 @@ void UPlanarDirectionArrayObservation::VisualLog(const UE::Learning::FIndexSet I
 
 //------------------------------------------------------------------
 
-UPositionObservation* UPositionObservation::AddPositionObservation(ULearningAgentsType* InAgentType, const FName Name, const float Scale)
+UPositionObservation* UPositionObservation::AddPositionObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPositionObservation, UE::Learning::FPositionFeature>(InAgentType, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPositionObservation, UE::Learning::FPositionFeature>(InInteractor, Name, 1, Scale);
 }
 
 void UPositionObservation::SetPositionObservation(const int32 AgentId, const FVector Position, const FVector RelativePosition, const FRotator RelativeRotation)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -1224,7 +1224,7 @@ void UPositionObservation::VisualLog(const UE::Learning::FIndexSet Instances) co
 }
 #endif
 
-UPositionArrayObservation* UPositionArrayObservation::AddPositionArrayObservation(ULearningAgentsType* InAgentType, const FName Name, const int32 PositionNum, const float Scale)
+UPositionArrayObservation* UPositionArrayObservation::AddPositionArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 PositionNum, const float Scale)
 {
 	if (PositionNum < 1)
 	{
@@ -1232,12 +1232,12 @@ UPositionArrayObservation* UPositionArrayObservation::AddPositionArrayObservatio
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPositionArrayObservation, UE::Learning::FPositionFeature>(InAgentType, Name, PositionNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPositionArrayObservation, UE::Learning::FPositionFeature>(InInteractor, Name, PositionNum, Scale);
 }
 
 void UPositionArrayObservation::SetPositionArrayObservation(const int32 AgentId, const TArray<FVector>& Positions, const FVector RelativePosition, const FRotator RelativeRotation)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -1308,14 +1308,14 @@ void UPositionArrayObservation::VisualLog(const UE::Learning::FIndexSet Instance
 }
 #endif
 
-UScalarPositionObservation* UScalarPositionObservation::AddScalarPositionObservation(ULearningAgentsType* InAgentType, const FName Name, const float Scale)
+UScalarPositionObservation* UScalarPositionObservation::AddScalarPositionObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarPositionObservation, UE::Learning::FScalarPositionFeature>(InAgentType, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarPositionObservation, UE::Learning::FScalarPositionFeature>(InInteractor, Name, 1, Scale);
 }
 
 void UScalarPositionObservation::SetScalarPositionObservation(const int32 AgentId, const float Position, const float RelativePosition)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -1341,7 +1341,7 @@ void UScalarPositionObservation::VisualLog(const UE::Learning::FIndexSet Instanc
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
 				Actor->GetActorLocation(),
@@ -1358,7 +1358,7 @@ void UScalarPositionObservation::VisualLog(const UE::Learning::FIndexSet Instanc
 }
 #endif
 
-UScalarPositionArrayObservation* UScalarPositionArrayObservation::AddScalarPositionArrayObservation(ULearningAgentsType* InAgentType, const FName Name, const int32 PositionNum, const float Scale)
+UScalarPositionArrayObservation* UScalarPositionArrayObservation::AddScalarPositionArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 PositionNum, const float Scale)
 {
 	if (PositionNum < 1)
 	{
@@ -1366,12 +1366,12 @@ UScalarPositionArrayObservation* UScalarPositionArrayObservation::AddScalarPosit
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarPositionArrayObservation, UE::Learning::FScalarPositionFeature>(InAgentType, Name, PositionNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarPositionArrayObservation, UE::Learning::FScalarPositionFeature>(InInteractor, Name, PositionNum, Scale);
 }
 
 void UScalarPositionArrayObservation::SetScalarPositionArrayObservation(const int32 AgentId, const TArray<float>& Positions, const float RelativePosition)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -1392,7 +1392,7 @@ void UScalarPositionArrayObservation::SetScalarPositionArrayObservation(const in
 
 void UScalarPositionArrayObservation::SetScalarPositionArrayObservationWithAxis(const int32 AgentId, const TArray<FVector>& Positions, const FVector RelativePosition, const FVector Axis)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -1427,7 +1427,7 @@ void UScalarPositionArrayObservation::VisualLog(const UE::Learning::FIndexSet In
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
 				Actor->GetActorLocation(),
@@ -1443,14 +1443,14 @@ void UScalarPositionArrayObservation::VisualLog(const UE::Learning::FIndexSet In
 }
 #endif
 
-UPlanarPositionObservation* UPlanarPositionObservation::AddPlanarPositionObservation(ULearningAgentsType* InAgentType, const FName Name, const float Scale, const FVector Axis0, const FVector Axis1)
+UPlanarPositionObservation* UPlanarPositionObservation::AddPlanarPositionObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale, const FVector Axis0, const FVector Axis1)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarPositionObservation, UE::Learning::FPlanarPositionFeature>(InAgentType, Name, 1, Scale, Axis0, Axis1);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarPositionObservation, UE::Learning::FPlanarPositionFeature>(InInteractor, Name, 1, Scale, Axis0, Axis1);
 }
 
 void UPlanarPositionObservation::SetPlanarPositionObservation(const int32 AgentId, const FVector Position, const FVector RelativePosition, const FRotator RelativeRotation)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -1512,7 +1512,7 @@ void UPlanarPositionObservation::VisualLog(const UE::Learning::FIndexSet Instanc
 }
 #endif
 
-UPlanarPositionArrayObservation* UPlanarPositionArrayObservation::AddPlanarPositionArrayObservation(ULearningAgentsType* InAgentType, const FName Name, const int32 PositionNum, const float Scale, const FVector Axis0, const FVector Axis1)
+UPlanarPositionArrayObservation* UPlanarPositionArrayObservation::AddPlanarPositionArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 PositionNum, const float Scale, const FVector Axis0, const FVector Axis1)
 {
 	if (PositionNum < 1)
 	{
@@ -1520,12 +1520,12 @@ UPlanarPositionArrayObservation* UPlanarPositionArrayObservation::AddPlanarPosit
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarPositionArrayObservation, UE::Learning::FPlanarPositionFeature>(InAgentType, Name, PositionNum, Scale, Axis0, Axis1);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarPositionArrayObservation, UE::Learning::FPlanarPositionFeature>(InInteractor, Name, PositionNum, Scale, Axis0, Axis1);
 }
 
 void UPlanarPositionArrayObservation::SetPlanarPositionArrayObservation(const int32 AgentId, const TArray<FVector>& Positions, const FVector RelativePosition, const FRotator RelativeRotation)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -1607,14 +1607,14 @@ void UPlanarPositionArrayObservation::VisualLog(const UE::Learning::FIndexSet In
 
 //------------------------------------------------------------------
 
-UVelocityObservation* UVelocityObservation::AddVelocityObservation(ULearningAgentsType* InAgentType, const FName Name, const float Scale)
+UVelocityObservation* UVelocityObservation::AddVelocityObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UVelocityObservation, UE::Learning::FVelocityFeature>(InAgentType, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UVelocityObservation, UE::Learning::FVelocityFeature>(InInteractor, Name, 1, Scale);
 }
 
 void UVelocityObservation::SetVelocityObservation(const int32 AgentId, const FVector Velocity, const FRotator RelativeRotation)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -1635,7 +1635,7 @@ void UVelocityObservation::VisualLog(const UE::Learning::FIndexSet Instances) co
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			const FVector Velocity = VelocityView[Instance][0];
 			const FQuat RelativeRotation = RelativeRotationView[Instance];
@@ -1667,7 +1667,7 @@ void UVelocityObservation::VisualLog(const UE::Learning::FIndexSet Instances) co
 }
 #endif
 
-UVelocityArrayObservation* UVelocityArrayObservation::AddVelocityArrayObservation(ULearningAgentsType* InAgentType, const FName Name, const int32 VelocityNum, const float Scale)
+UVelocityArrayObservation* UVelocityArrayObservation::AddVelocityArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 VelocityNum, const float Scale)
 {
 	if (VelocityNum < 1)
 	{
@@ -1675,12 +1675,12 @@ UVelocityArrayObservation* UVelocityArrayObservation::AddVelocityArrayObservatio
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UVelocityArrayObservation, UE::Learning::FVelocityFeature>(InAgentType, Name, VelocityNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UVelocityArrayObservation, UE::Learning::FVelocityFeature>(InInteractor, Name, VelocityNum, Scale);
 }
 
 void UVelocityArrayObservation::SetVelocityArrayObservation(const int32 AgentId, const TArray<FVector>& Velocities, const FRotator RelativeRotation)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -1712,7 +1712,7 @@ void UVelocityArrayObservation::VisualLog(const UE::Learning::FIndexSet Instance
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			const FQuat RelativeRotation = RelativeRotationView[Instance];
 				
@@ -1750,14 +1750,14 @@ void UVelocityArrayObservation::VisualLog(const UE::Learning::FIndexSet Instance
 }
 #endif
 
-UScalarVelocityObservation* UScalarVelocityObservation::AddScalarVelocityObservation(ULearningAgentsType* InAgentType, const FName Name, const float Scale)
+UScalarVelocityObservation* UScalarVelocityObservation::AddScalarVelocityObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarVelocityObservation, UE::Learning::FScalarVelocityFeature>(InAgentType, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarVelocityObservation, UE::Learning::FScalarVelocityFeature>(InInteractor, Name, 1, Scale);
 }
 
 void UScalarVelocityObservation::SetScalarVelocityObservation(const int32 AgentId, const float Velocity)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -1781,7 +1781,7 @@ void UScalarVelocityObservation::VisualLog(const UE::Learning::FIndexSet Instanc
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
 				Actor->GetActorLocation(),
@@ -1797,7 +1797,7 @@ void UScalarVelocityObservation::VisualLog(const UE::Learning::FIndexSet Instanc
 #endif
 
 
-UScalarVelocityArrayObservation* UScalarVelocityArrayObservation::AddScalarVelocityArrayObservation(ULearningAgentsType* InAgentType, const FName Name, const int32 VelocityNum, const float Scale)
+UScalarVelocityArrayObservation* UScalarVelocityArrayObservation::AddScalarVelocityArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 VelocityNum, const float Scale)
 {
 	if (VelocityNum < 1)
 	{
@@ -1805,12 +1805,12 @@ UScalarVelocityArrayObservation* UScalarVelocityArrayObservation::AddScalarVeloc
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarVelocityArrayObservation, UE::Learning::FScalarVelocityFeature>(InAgentType, Name, VelocityNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarVelocityArrayObservation, UE::Learning::FScalarVelocityFeature>(InInteractor, Name, VelocityNum, Scale);
 }
 
 void UScalarVelocityArrayObservation::SetScalarVelocityArrayObservation(const int32 AgentId, const TArray<float>& Velocities)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -1829,7 +1829,7 @@ void UScalarVelocityArrayObservation::SetScalarVelocityArrayObservation(const in
 
 void UScalarVelocityArrayObservation::SetScalarVelocityArrayObservationWithAxis(const int32 AgentId, const TArray<FVector>& Velocities, const FVector Axis)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -1861,7 +1861,7 @@ void UScalarVelocityArrayObservation::VisualLog(const UE::Learning::FIndexSet In
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
 				Actor->GetActorLocation(),
@@ -1877,14 +1877,14 @@ void UScalarVelocityArrayObservation::VisualLog(const UE::Learning::FIndexSet In
 #endif
 
 
-UPlanarVelocityObservation* UPlanarVelocityObservation::AddPlanarVelocityObservation(ULearningAgentsType* InAgentType, const FName Name, const float Scale, const FVector Axis0, const FVector Axis1)
+UPlanarVelocityObservation* UPlanarVelocityObservation::AddPlanarVelocityObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale, const FVector Axis0, const FVector Axis1)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarVelocityObservation, UE::Learning::FPlanarVelocityFeature>(InAgentType, Name, 1, Scale, Axis0, Axis1);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarVelocityObservation, UE::Learning::FPlanarVelocityFeature>(InInteractor, Name, 1, Scale, Axis0, Axis1);
 }
 
 void UPlanarVelocityObservation::SetPlanarVelocityObservation(const int32 AgentId, const FVector Velocity, const FRotator RelativeRotation)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -1905,7 +1905,7 @@ void UPlanarVelocityObservation::VisualLog(const UE::Learning::FIndexSet Instanc
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			const FVector Velocity = VelocityView[Instance][0];
 			const FQuat RelativeRotation = RelativeRotationView[Instance];
@@ -1946,7 +1946,7 @@ void UPlanarVelocityObservation::VisualLog(const UE::Learning::FIndexSet Instanc
 #endif
 
 
-UPlanarVelocityArrayObservation* UPlanarVelocityArrayObservation::AddPlanarVelocityArrayObservation(ULearningAgentsType* InAgentType, const FName Name, const int32 VelocityNum, const float Scale, const FVector Axis0, const FVector Axis1)
+UPlanarVelocityArrayObservation* UPlanarVelocityArrayObservation::AddPlanarVelocityArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 VelocityNum, const float Scale, const FVector Axis0, const FVector Axis1)
 {
 	if (VelocityNum < 1)
 	{
@@ -1954,12 +1954,12 @@ UPlanarVelocityArrayObservation* UPlanarVelocityArrayObservation::AddPlanarVeloc
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarVelocityArrayObservation, UE::Learning::FPlanarVelocityFeature>(InAgentType, Name, VelocityNum, Scale, Axis0, Axis1);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UPlanarVelocityArrayObservation, UE::Learning::FPlanarVelocityFeature>(InInteractor, Name, VelocityNum, Scale, Axis0, Axis1);
 }
 
 void UPlanarVelocityArrayObservation::SetPlanarVelocityArrayObservation(const int32 AgentId, const TArray<FVector>& Velocities, const FRotator RelativeRotation)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -1991,7 +1991,7 @@ void UPlanarVelocityArrayObservation::VisualLog(const UE::Learning::FIndexSet In
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			const FQuat RelativeRotation = RelativeRotationView[Instance];
 
@@ -2039,14 +2039,14 @@ void UPlanarVelocityArrayObservation::VisualLog(const UE::Learning::FIndexSet In
 
 //------------------------------------------------------------------
 
-UAngularVelocityObservation* UAngularVelocityObservation::AddAngularVelocityObservation(ULearningAgentsType* InAgentType, const FName Name, const float Scale)
+UAngularVelocityObservation* UAngularVelocityObservation::AddAngularVelocityObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UAngularVelocityObservation, UE::Learning::FAngularVelocityFeature>(InAgentType, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UAngularVelocityObservation, UE::Learning::FAngularVelocityFeature>(InInteractor, Name, 1, Scale);
 }
 
 void UAngularVelocityObservation::SetAngularVelocityObservation(const int32 AgentId, const FVector AngularVelocity, const FRotator RelativeRotation)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -2067,7 +2067,7 @@ void UAngularVelocityObservation::VisualLog(const UE::Learning::FIndexSet Instan
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			const FVector AngularVelocity = AngularVelocityView[Instance][0];
 			const FQuat RelativeRotation = RelativeRotationView[Instance];
@@ -2099,7 +2099,7 @@ void UAngularVelocityObservation::VisualLog(const UE::Learning::FIndexSet Instan
 }
 #endif
 
-UAngularVelocityArrayObservation* UAngularVelocityArrayObservation::AddAngularVelocityArrayObservation(ULearningAgentsType* InAgentType, const FName Name, const int32 AngularVelocityNum, const float Scale)
+UAngularVelocityArrayObservation* UAngularVelocityArrayObservation::AddAngularVelocityArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 AngularVelocityNum, const float Scale)
 {
 	if (AngularVelocityNum < 1)
 	{
@@ -2107,12 +2107,12 @@ UAngularVelocityArrayObservation* UAngularVelocityArrayObservation::AddAngularVe
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UAngularVelocityArrayObservation, UE::Learning::FAngularVelocityFeature>(InAgentType, Name, AngularVelocityNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UAngularVelocityArrayObservation, UE::Learning::FAngularVelocityFeature>(InInteractor, Name, AngularVelocityNum, Scale);
 }
 
 void UAngularVelocityArrayObservation::SetAngularVelocityArrayObservation(const int32 AgentId, const TArray<FVector>& AngularVelocities, const FRotator RelativeRotation)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -2144,7 +2144,7 @@ void UAngularVelocityArrayObservation::VisualLog(const UE::Learning::FIndexSet I
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			const FQuat RelativeRotation = RelativeRotationView[Instance];
 
@@ -2182,14 +2182,14 @@ void UAngularVelocityArrayObservation::VisualLog(const UE::Learning::FIndexSet I
 }
 #endif
 
-UScalarAngularVelocityObservation* UScalarAngularVelocityObservation::AddScalarAngularVelocityObservation(ULearningAgentsType* InAgentType, const FName Name, const float Scale)
+UScalarAngularVelocityObservation* UScalarAngularVelocityObservation::AddScalarAngularVelocityObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const float Scale)
 {
-	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarAngularVelocityObservation, UE::Learning::FScalarAngularVelocityFeature>(InAgentType, Name, 1, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarAngularVelocityObservation, UE::Learning::FScalarAngularVelocityFeature>(InInteractor, Name, 1, Scale);
 }
 
 void UScalarAngularVelocityObservation::SetScalarAngularVelocityObservation(const int32 AgentId, const float AngularVelocity)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -2213,7 +2213,7 @@ void UScalarAngularVelocityObservation::VisualLog(const UE::Learning::FIndexSet 
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
 				Actor->GetActorLocation(),
@@ -2229,7 +2229,7 @@ void UScalarAngularVelocityObservation::VisualLog(const UE::Learning::FIndexSet 
 #endif
 
 
-UScalarAngularVelocityArrayObservation* UScalarAngularVelocityArrayObservation::AddScalarAngularVelocityArrayObservation(ULearningAgentsType* InAgentType, const FName Name, const int32 AngularVelocityNum, const float Scale)
+UScalarAngularVelocityArrayObservation* UScalarAngularVelocityArrayObservation::AddScalarAngularVelocityArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name, const int32 AngularVelocityNum, const float Scale)
 {
 	if (AngularVelocityNum < 1)
 	{
@@ -2237,12 +2237,12 @@ UScalarAngularVelocityArrayObservation* UScalarAngularVelocityArrayObservation::
 		return nullptr;
 	}
 
-	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarAngularVelocityArrayObservation, UE::Learning::FScalarAngularVelocityFeature>(InAgentType, Name, AngularVelocityNum, Scale);
+	return UE::Learning::Agents::Observations::Private::AddObservation<UScalarAngularVelocityArrayObservation, UE::Learning::FScalarAngularVelocityFeature>(InInteractor, Name, AngularVelocityNum, Scale);
 }
 
 void UScalarAngularVelocityArrayObservation::SetScalarAngularVelocityArrayObservation(const int32 AgentId, const TArray<float>& AngularVelocities)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -2261,7 +2261,7 @@ void UScalarAngularVelocityArrayObservation::SetScalarAngularVelocityArrayObserv
 
 void UScalarAngularVelocityArrayObservation::SetScalarAngularVelocityArrayObservationWithAxis(const int32 AgentId, const TArray<FVector>& AngularVelocities, const FVector Axis)
 {
-	if (!AgentType->HasAgent(AgentId))
+	if (!Interactor->HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
 		return;
@@ -2291,7 +2291,7 @@ void UScalarAngularVelocityArrayObservation::VisualLog(const UE::Learning::FInde
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
 				Actor->GetActorLocation(),

@@ -54,11 +54,11 @@ public:
 	ULearningAgentsCritic(FVTableHelper& Helper);
 	virtual ~ULearningAgentsCritic();
 
-	/** Initializes this object to be used with the given agent type and critic settings. */
+	/** Initializes this object to be used with the given agent interactor and critic settings. */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void SetupCritic(
 		ALearningAgentsManager* InAgentManager,
-		ULearningAgentsType* InAgentType,
+		ULearningAgentsInteractor* InInteractor,
 		const FLearningAgentsCriticSettings& CriticSettings = FLearningAgentsCriticSettings());
 
 // ----- Load / Save -----
@@ -99,7 +99,7 @@ public:
 
 	/**
 	* Calling this function will run the underlying neural network on the previously buffered observations to populate
-	* the output value buffer. This should be called after the corresponding agent type's EncodeObservations.
+	* the output value buffer. This should be called after the corresponding agent interactor's EncodeObservations.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void EvaluateCritic();
@@ -128,9 +128,9 @@ public:
 // ----- Private Data -----
 private:
 
-	/** The agent type this critic is associated with. */
+	/** The agent interactor this critic is associated with. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
-	TObjectPtr<ULearningAgentsType> AgentType;
+	TObjectPtr<ULearningAgentsInteractor> Interactor;
 
 	/** The underlying neural network. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")

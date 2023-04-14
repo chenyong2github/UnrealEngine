@@ -3,7 +3,7 @@
 #include "LearningAgentsController.h"
 
 #include "LearningAgentsManager.h"
-#include "LearningAgentsType.h"
+#include "LearningAgentsInteractor.h"
 #include "LearningAgentsActions.h"
 #include "LearningFeatureObject.h"
 #include "LearningLog.h"
@@ -19,7 +19,7 @@ void ULearningAgentsController::SetActions_Implementation(const TArray<int32>& A
 	// Can be overridden to get actions without blueprints
 }
 
-void ULearningAgentsController::SetupController(ALearningAgentsManager* InAgentManager, ULearningAgentsType* InAgentType)
+void ULearningAgentsController::SetupController(ALearningAgentsManager* InAgentManager, ULearningAgentsInteractor* InInteractor)
 {
 	if (IsSetup())
 	{
@@ -42,19 +42,19 @@ void ULearningAgentsController::SetupController(ALearningAgentsManager* InAgentM
 	// This manager is not referenced in this class but we need it in blueprints to call GetAgent()
 	AgentManager = InAgentManager;
 
-	if (!InAgentType)
+	if (!InInteractor)
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: InAgentType is nullptr."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: InInteractor is nullptr."), *GetName());
 		return;
 	}
 
-	if (!InAgentType->IsSetup())
+	if (!InInteractor->IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *InAgentType->GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *InInteractor->GetName());
 		return;
 	}
 
-	AgentType = InAgentType;
+	Interactor = InInteractor;
 
 	bIsSetup = true;
 }
@@ -71,10 +71,10 @@ void ULearningAgentsController::EncodeActions()
 
 	SetActions(AddedAgentIds);
 
-	AgentType->GetActionFeature().Encode(AddedAgentSet);
+	Interactor->GetActionFeature().Encode(AddedAgentSet);
 
 #if ENABLE_VISUAL_LOG
-	for (const ULearningAgentsAction* ActionObject : AgentType->GetActionObjects())
+	for (const ULearningAgentsAction* ActionObject : Interactor->GetActionObjects())
 	{
 		if (ActionObject)
 		{
@@ -84,15 +84,15 @@ void ULearningAgentsController::EncodeActions()
 #endif
 }
 
-ULearningAgentsType* ULearningAgentsController::GetAgentType(const TSubclassOf<ULearningAgentsType> AgentTypeClass) const
+ULearningAgentsInteractor* ULearningAgentsController::GetInteractor(const TSubclassOf<ULearningAgentsInteractor> InteractorClass) const
 {
-	if (!AgentType)
+	if (!Interactor)
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: AgentType is nullptr. Did we forget to call Setup on this component?"), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Interactor is nullptr. Did we forget to call Setup on this component?"), *GetName());
 		return nullptr;
 	}
 
-	return AgentType;
+	return Interactor;
 }
 
 void ULearningAgentsController::RunController()
@@ -105,7 +105,7 @@ void ULearningAgentsController::RunController()
 		return;
 	}
 
-	AgentType->EncodeObservations();
+	Interactor->EncodeObservations();
 	EncodeActions();
-	AgentType->DecodeActions();
+	Interactor->DecodeActions();
 }

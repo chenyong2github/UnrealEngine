@@ -23,22 +23,22 @@ public:
 	ULearningAgentsController(FVTableHelper& Helper);
 	virtual ~ULearningAgentsController();
 
-	/** Initializes this object to be used with the given manager and agent type. */
+	/** Initializes this object to be used with the given manager and agent interactor. */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void SetupController(ALearningAgentsManager* InAgentManager, ULearningAgentsType* InAgentType);
+	void SetupController(ALearningAgentsManager* InAgentManager, ULearningAgentsInteractor* InInteractor);
 
 	/**
 	* During this event, you should set the actions of your agents.
 	* @param AgentIds The list of agent ids to set actions for.
 	* @see LearningAgentsActions.h for the list of available actions.
-	* @see ULearningAgentsType::GetAgent to get the agent corresponding to each id.
+	* @see ULearningAgentsInteractor::GetAgent to get the agent corresponding to each id.
 	*/
 	UFUNCTION(BlueprintNativeEvent, Category = "LearningAgents")
 	void SetActions(const TArray<int32>& AgentIds);
 
 	/**
 	* Call this function when it is time to gather all the actions for your agents. This should be called roughly 
-	* whenever you are calling ULearningAgentsType::EncodeObservations. This will call this controller's SetActions event.
+	* whenever you are calling ULearningAgentsInteractor::EncodeObservations. This will call this controller's SetActions event.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void EncodeActions();
@@ -52,15 +52,15 @@ public:
 protected:
 
 	/**
-	* Gets the agent type associated with this component.
-	* @param AgentClass The class to cast the agent type to (in blueprint).
+	* Gets the agent interactor associated with this component.
+	* @param AgentClass The class to cast the agent interactor to (in blueprint).
 	*/
-	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (DeterminesOutputType = "AgentTypeClass"))
-	ULearningAgentsType* GetAgentType(const TSubclassOf<ULearningAgentsType> AgentTypeClass) const;
+	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (DeterminesOutputType = "InteractorClass"))
+	ULearningAgentsInteractor* GetInteractor(const TSubclassOf<ULearningAgentsInteractor> InteractorClass) const;
 
 private:
 
-	/** The agent type this controller is associated with. */
+	/** The agent interactor this controller is associated with. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
-	TObjectPtr<ULearningAgentsType> AgentType;
+	TObjectPtr<ULearningAgentsInteractor> Interactor;
 };

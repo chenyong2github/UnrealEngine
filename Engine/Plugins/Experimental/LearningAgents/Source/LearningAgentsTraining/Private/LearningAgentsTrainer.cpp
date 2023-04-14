@@ -4,7 +4,7 @@
 
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "HAL/FileManager.h"
-#include "LearningAgentsType.h"
+#include "LearningAgentsInteractor.h"
 #include "LearningAgentsManager.h"
 #include "LearningAgentsRewards.h"
 #include "LearningAgentsCompletions.h"
@@ -58,7 +58,7 @@ ULearningAgentsTrainer::~ULearningAgentsTrainer() {}
 
 void ULearningAgentsTrainer::SetupTrainer(
 	ALearningAgentsManager* InAgentManager,
-	ULearningAgentsType* InAgentType,
+	ULearningAgentsInteractor* InInteractor,
 	ULearningAgentsPolicy* InPolicy,
 	ULearningAgentsCritic* InCritic,
 	const FLearningAgentsTrainerSettings& TrainerSettings)
@@ -83,19 +83,19 @@ void ULearningAgentsTrainer::SetupTrainer(
 
 	AgentManager = InAgentManager;
 
-	if (!InAgentType)
+	if (!InInteractor)
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: InAgentType is nullptr."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: InInteractor is nullptr."), *GetName());
 		return;
 	}
 
-	if (!InAgentType->IsSetup())
+	if (!InInteractor->IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *InAgentType->GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *InInteractor->GetName());
 		return;
 	}
 
-	AgentType = InAgentType;
+	Interactor = InInteractor;
 
 	if (!InPolicy)
 	{
@@ -146,16 +146,16 @@ void ULearningAgentsTrainer::SetupTrainer(
 	EpisodeBuffer->Resize(
 		AgentManager->GetMaxInstanceNum(),
 		TrainerSettings.MaxStepNum,
-		AgentType->GetObservationFeature().DimNum(),
-		AgentType->GetActionFeature().DimNum());
+		Interactor->GetObservationFeature().DimNum(),
+		Interactor->GetActionFeature().DimNum());
 
 	MaxStepsCompletion = TrainerSettings.MaxStepsCompletion;
 
 	// Create Replay Buffer
 	ReplayBuffer = MakeUnique<UE::Learning::FReplayBuffer>();
 	ReplayBuffer->Resize(
-		AgentType->GetObservationFeature().DimNum(),
-		AgentType->GetActionFeature().DimNum(),
+		Interactor->GetObservationFeature().DimNum(),
+		Interactor->GetActionFeature().DimNum(),
 		TrainerSettings.MaximumRecordedEpisodesPerIteration,
 		TrainerSettings.MaximumRecordedStepsPerIteration);
 
@@ -369,7 +369,7 @@ void ULearningAgentsTrainer::BeginTraining(
 		PPONetworkSettings.CriticActivationFunction = UE::Learning::Agents::GetActivationFunction(CriticSettings.ActivationFunction);
 	}
 
-	// We assume that if the critic has been setup on the agent type, then
+	// We assume that if the critic has been setup on the agent interactor, then
 	// the user wants the critic network to be synced during training.
 	UE::Learning::EPPOTrainerFlags TrainerFlags = 
 		Critic ?
@@ -552,8 +552,8 @@ void ULearningAgentsTrainer::ProcessExperience()
 		return;
 	}
 
-	UE::Learning::FFeatureObject& Observations = AgentType->GetObservationFeature();
-	UE::Learning::FFeatureObject& Actions = AgentType->GetActionFeature();
+	UE::Learning::FFeatureObject& Observations = Interactor->GetObservationFeature();
+	UE::Learning::FFeatureObject& Actions = Interactor->GetActionFeature();
 
 	// Add Experience to Episode Buffer
 	EpisodeBuffer->Push(
@@ -578,11 +578,11 @@ void ULearningAgentsTrainer::ProcessExperience()
 	if (ResetBuffer->GetResetInstanceNum() > 0)
 	{
 		// Encode Observations for completed Instances
-		AgentType->SetObservations(ResetBuffer->GetResetInstances().ToArray());
+		Interactor->SetObservations(ResetBuffer->GetResetInstances().ToArray());
 		Observations.Encode(ResetBuffer->GetResetInstances());
 		
 #if ENABLE_VISUAL_LOG
-		for (const ULearningAgentsObservation* ObservationObject : AgentType->GetObservationObjects())
+		for (const ULearningAgentsObservation* ObservationObject : Interactor->GetObservationObjects())
 		{
 			if (ObservationObject)
 			{
@@ -664,19 +664,37 @@ void ULearningAgentsTrainer::ResetAllEpisodes()
 	EpisodeBuffer->Reset(AddedAgentSet);
 }
 
-void ULearningAgentsTrainer::RunTraining()
+void ULearningAgentsTrainer::RunTraining(
+	const FLearningAgentsTrainerTrainingSettings& TrainingSettings,
+	const FLearningAgentsTrainerGameSettings& TrainerGameSettings,
+	const FLearningAgentsCriticSettings& CriticSettings,
+	const bool bReinitializePolicyNetwork,
+	const bool bReinitializeCriticNetwork)
 {
-	if (!IsTraining())
+	if (!IsSetup())
 	{
-		BeginTraining();
-	}
-	else
-	{
-		EvaluateCompletions();
-		EvaluateRewards();
-		ProcessExperience();
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not run."), *GetName());
+		return;
 	}
 
+	// If we aren't training yet, then start training and do the first inference step.
+	if (!IsTraining())
+	{
+		BeginTraining(TrainingSettings, TrainerGameSettings, CriticSettings, bReinitializePolicyNetwork, bReinitializeCriticNetwork);
+
+		if (!IsTraining())
+		{
+			// If IsTraining is false, then BeginTraining must have failed and we can't continue.
+			return;
+		}
+
+		Policy->RunInference();
+	}
+
+	// Otherwise, do the regular training process.
+	EvaluateCompletions();
+	EvaluateRewards();
+	ProcessExperience();
 	Policy->RunInference();
 }
 

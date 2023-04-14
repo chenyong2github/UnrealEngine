@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "LearningAgentsType.h"
+#include "LearningAgentsInteractor.h"
 
 #include "LearningAgentsManager.h"
 #include "LearningAgentsObservations.h"
@@ -12,11 +12,11 @@
 #include "LearningLog.h"
 #include "EngineDefines.h"
 
-ULearningAgentsType::ULearningAgentsType() : ULearningAgentsManagerComponent() {}
-ULearningAgentsType::ULearningAgentsType(FVTableHelper& Helper) : ULearningAgentsType() {}
-ULearningAgentsType::~ULearningAgentsType() {}
+ULearningAgentsInteractor::ULearningAgentsInteractor() : ULearningAgentsManagerComponent() {}
+ULearningAgentsInteractor::ULearningAgentsInteractor(FVTableHelper& Helper) : ULearningAgentsInteractor() {}
+ULearningAgentsInteractor::~ULearningAgentsInteractor() {}
 
-void ULearningAgentsType::SetupAgentType(ALearningAgentsManager* InAgentManager)
+void ULearningAgentsInteractor::SetupInteractor(ALearningAgentsManager* InAgentManager)
 {
 	if (IsSetup())
 	{
@@ -59,63 +59,63 @@ void ULearningAgentsType::SetupAgentType(ALearningAgentsManager* InAgentManager)
 	bIsSetup = true;
 }
 
-UE::Learning::FFeatureObject& ULearningAgentsType::GetObservationFeature() const
+UE::Learning::FFeatureObject& ULearningAgentsInteractor::GetObservationFeature() const
 {
 	return *Observations;
 }
 
-UE::Learning::FFeatureObject& ULearningAgentsType::GetActionFeature() const
+UE::Learning::FFeatureObject& ULearningAgentsInteractor::GetActionFeature() const
 {
 	return *Actions;
 }
 
-TConstArrayView<ULearningAgentsObservation*> ULearningAgentsType::GetObservationObjects() const
+TConstArrayView<ULearningAgentsObservation*> ULearningAgentsInteractor::GetObservationObjects() const
 {
 	return ObservationObjects;
 }
 
-TConstArrayView<ULearningAgentsAction*> ULearningAgentsType::GetActionObjects() const
+TConstArrayView<ULearningAgentsAction*> ULearningAgentsInteractor::GetActionObjects() const
 {
 	return ActionObjects;
 }
 
-void ULearningAgentsType::SetupObservations_Implementation(ULearningAgentsType* AgentType)
+void ULearningAgentsInteractor::SetupObservations_Implementation(ULearningAgentsInteractor* Interactor)
 {
 	// Can be overridden to setup observations without blueprints
 }
 
-void ULearningAgentsType::SetObservations_Implementation(const TArray<int32>& AgentIds)
+void ULearningAgentsInteractor::SetObservations_Implementation(const TArray<int32>& AgentIds)
 {
 	// Can be overridden to set observations without blueprints
 }
 
-void ULearningAgentsType::AddObservation(TObjectPtr<ULearningAgentsObservation> Object, const TSharedRef<UE::Learning::FFeatureObject>& Feature)
+void ULearningAgentsInteractor::AddObservation(TObjectPtr<ULearningAgentsObservation> Object, const TSharedRef<UE::Learning::FFeatureObject>& Feature)
 {
 	UE_LEARNING_CHECK(!IsSetup());
 	ObservationObjects.Add(Object);
 	ObservationFeatures.Add(Feature);
 }
 
-void ULearningAgentsType::SetupActions_Implementation(ULearningAgentsType* AgentType)
+void ULearningAgentsInteractor::SetupActions_Implementation(ULearningAgentsInteractor* Interactor)
 {
 	// Can be overridden to setup actions without blueprints
 }
 
-void ULearningAgentsType::GetActions_Implementation(const TArray<int32>& AgentIds)
+void ULearningAgentsInteractor::GetActions_Implementation(const TArray<int32>& AgentIds)
 {
 	// Can be overridden to get actions without blueprints
 }
 
-void ULearningAgentsType::AddAction(TObjectPtr<ULearningAgentsAction> Object, const TSharedRef<UE::Learning::FFeatureObject>& Feature)
+void ULearningAgentsInteractor::AddAction(TObjectPtr<ULearningAgentsAction> Object, const TSharedRef<UE::Learning::FFeatureObject>& Feature)
 {
 	UE_LEARNING_CHECK(!IsSetup());
 	ActionObjects.Add(Object);
 	ActionFeatures.Add(Feature);
 }
 
-void ULearningAgentsType::EncodeObservations()
+void ULearningAgentsInteractor::EncodeObservations()
 {
-	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsType::EncodeObservations);
+	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsInteractor::EncodeObservations);
 
 	if (!IsSetup())
 	{
@@ -138,9 +138,9 @@ void ULearningAgentsType::EncodeObservations()
 #endif
 }
 
-void ULearningAgentsType::DecodeActions()
+void ULearningAgentsInteractor::DecodeActions()
 {
-	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsType::DecodeActions);
+	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsInteractor::DecodeActions);
 
 	if (!IsSetup())
 	{
@@ -162,7 +162,7 @@ void ULearningAgentsType::DecodeActions()
 	}
 #endif
 }
-void ULearningAgentsType::GetObservationVector(const int32 AgentId, TArray<float>& OutObservationVector) const
+void ULearningAgentsInteractor::GetObservationVector(const int32 AgentId, TArray<float>& OutObservationVector) const
 {
 	if (!IsSetup())
 	{
@@ -182,7 +182,7 @@ void ULearningAgentsType::GetObservationVector(const int32 AgentId, TArray<float
 	UE::Learning::Array::Copy<1, float>(OutObservationVector, Observations->FeatureBuffer()[AgentId]);
 }
 
-void ULearningAgentsType::GetActionVector(const int32 AgentId, TArray<float>& OutActionVector) const
+void ULearningAgentsInteractor::GetActionVector(const int32 AgentId, TArray<float>& OutActionVector) const
 {
 	if (!IsSetup())
 	{

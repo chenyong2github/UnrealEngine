@@ -32,10 +32,10 @@ public:
 
 	/**
 	* Initializes this object and runs the setup functions for the underlying data storage.
-	* @param InAgentType The agent type we are recording with.
+	* @param InInteractor The agent interactor we are recording with.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void SetupRecorder(ALearningAgentsManager* InAgentManager, ULearningAgentsType* InAgentType);
+	void SetupRecorder(ALearningAgentsManager* InAgentManager, ULearningAgentsInteractor* InInteractor);
 
 public:
 
@@ -49,9 +49,9 @@ public:
 public:
 
 	/**
-	* Adds experience to the added agents' recordings. Call this after ULearningAgentsType::EncodeObservations and
+	* Adds experience to the added agents' recordings. Call this after ULearningAgentsInteractor::EncodeObservations and
 	* either ULearningAgentsController::EncodeActions (if recording a human/AI demonstration) or
-	* ULearningAgentsType::DecodeActions (if recording another policy).
+	* ULearningAgentsInteractor::DecodeActions (if recording another policy).
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void AddExperience();
@@ -71,9 +71,9 @@ public:
 // ----- Private Data ----- 
 private:
 
-	/** The agent type this recorder is associated with. */
+	/** The agent interactor this recorder is associated with. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
-	TObjectPtr<ULearningAgentsType> AgentType;
+	TObjectPtr<ULearningAgentsInteractor> Interactor;
 
 // ----- Recorder Configuration -----
 private:

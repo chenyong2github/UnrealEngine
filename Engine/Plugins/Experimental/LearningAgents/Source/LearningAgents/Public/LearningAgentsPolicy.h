@@ -70,9 +70,9 @@ public:
 	ULearningAgentsPolicy(FVTableHelper& Helper);
 	virtual ~ULearningAgentsPolicy();
 
-	/** Initializes this object to be used with the given agent type and policy settings. */
+	/** Initializes this object to be used with the given agent interactor and policy settings. */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void SetupPolicy(ALearningAgentsManager* InAgentManager, ULearningAgentsType* InAgentType, const FLearningAgentsPolicySettings& PolicySettings = FLearningAgentsPolicySettings());
+	void SetupPolicy(ALearningAgentsManager* InAgentManager, ULearningAgentsInteractor* InInteractor, const FLearningAgentsPolicySettings& PolicySettings = FLearningAgentsPolicySettings());
 
 public:
 
@@ -118,7 +118,7 @@ public:
 
 	/**
 	* Calling this function will run the underlying neural network on the previously buffered observations to populate
-	* the output action buffer. This should be called after the associated agent type's EncodeObservations and
+	* the output action buffer. This should be called after the associated agent interactor's EncodeObservations and
 	* before its DecodeActions.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
@@ -171,9 +171,9 @@ public:
 // ----- Private Data -----
 private:
 
-	/** The agent type this policy is associated with. */
+	/** The agent interactor this policy is associated with. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
-	TObjectPtr<ULearningAgentsType> AgentType;
+	TObjectPtr<ULearningAgentsInteractor> Interactor;
 
 	/** The underlying neural network. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")

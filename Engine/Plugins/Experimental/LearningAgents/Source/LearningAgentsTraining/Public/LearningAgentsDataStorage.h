@@ -13,7 +13,7 @@
 #include "LearningAgentsDataStorage.generated.h"
 
 struct FDirectoryPath;
-class ULearningAgentsType;
+class ULearningAgentsInteractor;
 
 /** Metadata for an agent record. */
 USTRUCT(BlueprintType)
@@ -21,9 +21,9 @@ struct FRecordMetaData
 {
 	GENERATED_BODY()
 
-	/** The agent type the data was recorded from. Determine the shape of observations and actions. */
+	/** The agent interactor the data was recorded from. Determine the shape of observations and actions. */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "LearningAgents")
-	TObjectPtr<ULearningAgentsType> AgentType;
+	TObjectPtr<ULearningAgentsInteractor> Interactor;
 
 	/** The time the data was recorded (local). */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "LearningAgents")
@@ -104,21 +104,21 @@ public:
 	ULearningAgentsDataStorage(FVTableHelper& Helper);
 	virtual ~ULearningAgentsDataStorage();
 
-	/** Create a new record with the given name for the agent type. */
+	/** Create a new record with the given name for the agent interactor. */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	ULearningAgentsRecord* CreateRecord(const FName RecordName, ULearningAgentsType* AgentType);
+	ULearningAgentsRecord* CreateRecord(const FName RecordName, ULearningAgentsInteractor* Interactor);
 
 	/** Get all currently loaded records. */
 	UFUNCTION(BlueprintPure, Category = "LearningAgents")
 	const TArray<ULearningAgentsRecord*>& GetAllRecords() const;
 
-	/** Load all records from a given directory, ensuring they are valid for the given agent type. */
+	/** Load all records from a given directory, ensuring they are valid for the given agent interactor. */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	int32 LoadAllRecords(ULearningAgentsType* AgentType, const FDirectoryPath& Directory);
+	int32 LoadAllRecords(ULearningAgentsInteractor* Interactor, const FDirectoryPath& Directory);
 
-	/** Load a record from a given directory and filename, ensuring the data is valid for the given agent type. */
+	/** Load a record from a given directory and filename, ensuring the data is valid for the given agent interactor. */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	ULearningAgentsRecord* LoadRecord(ULearningAgentsType* AgentType, const FDirectoryPath& Directory, const FString& Filename);
+	ULearningAgentsRecord* LoadRecord(ULearningAgentsInteractor* Interactor, const FDirectoryPath& Directory, const FString& Filename);
 
 	/** Save all records which have unsaved changes to the given directory. */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")

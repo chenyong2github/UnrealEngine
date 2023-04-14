@@ -3,7 +3,7 @@
 #include "LearningAgentsPolicy.h"
 
 #include "LearningAgentsManager.h"
-#include "LearningAgentsType.h"
+#include "LearningAgentsInteractor.h"
 #include "LearningFeatureObject.h"
 #include "LearningNeuralNetwork.h"
 #include "LearningNeuralNetworkObject.h"
@@ -18,7 +18,7 @@ ULearningAgentsPolicy::ULearningAgentsPolicy() : ULearningAgentsManagerComponent
 ULearningAgentsPolicy::ULearningAgentsPolicy(FVTableHelper& Helper) : ULearningAgentsPolicy() {}
 ULearningAgentsPolicy::~ULearningAgentsPolicy() {}
 
-void ULearningAgentsPolicy::SetupPolicy(ALearningAgentsManager* InAgentManager, ULearningAgentsType* InAgentType, const FLearningAgentsPolicySettings& PolicySettings)
+void ULearningAgentsPolicy::SetupPolicy(ALearningAgentsManager* InAgentManager, ULearningAgentsInteractor* InInteractor, const FLearningAgentsPolicySettings& PolicySettings)
 {
 	if (IsSetup())
 	{
@@ -40,26 +40,26 @@ void ULearningAgentsPolicy::SetupPolicy(ALearningAgentsManager* InAgentManager, 
 
 	AgentManager = InAgentManager;
 
-	if (!InAgentType)
+	if (!InInteractor)
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: InAgentType is nullptr."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: InInteractor is nullptr."), *GetName());
 		return;
 	}
 
-	if (!InAgentType->IsSetup())
+	if (!InInteractor->IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *InAgentType->GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *InInteractor->GetName());
 		return;
 	}
 
-	AgentType = InAgentType;
+	Interactor = InInteractor;
 
 	// Setup Neural Network
 	Network = NewObject<ULearningAgentsNeuralNetwork>(this, TEXT("PolicyNetwork"));
 	Network->NeuralNetwork = MakeShared<UE::Learning::FNeuralNetwork>();
 	Network->NeuralNetwork->Resize(
-		AgentType->GetObservationFeature().DimNum(),
-		2 * AgentType->GetActionFeature().DimNum(),
+		Interactor->GetObservationFeature().DimNum(),
+		2 * Interactor->GetActionFeature().DimNum(),
 		PolicySettings.HiddenLayerSize,
 		PolicySettings.LayerNum);
 	Network->NeuralNetwork->ActivationFunction = UE::Learning::Agents::GetActivationFunction(PolicySettings.ActivationFunction);
@@ -78,7 +78,7 @@ void ULearningAgentsPolicy::SetupPolicy(ALearningAgentsManager* InAgentManager, 
 		PolicySettings.ActionNoiseSeed,
 		PolicyFunctionSettings);
 
-	AgentManager->GetInstanceData()->Link(AgentType->GetObservationFeature().FeatureHandle, PolicyObject->InputHandle);
+	AgentManager->GetInstanceData()->Link(Interactor->GetObservationFeature().FeatureHandle, PolicyObject->InputHandle);
 
 	InitialActionNoiseScale = PolicySettings.InitialActionNoiseScale;
 	
@@ -244,7 +244,7 @@ void ULearningAgentsPolicy::EvaluatePolicy()
 	// there may be multiple writers to the action feature vector handle and so therefore
 	// the handles cannot be linked and we need to do the copy manually
 	UE::Learning::Array::Copy(
-		PolicyObject->InstanceData->View(AgentType->GetActionFeature().FeatureHandle),
+		PolicyObject->InstanceData->View(Interactor->GetActionFeature().FeatureHandle),
 		PolicyObject->InstanceData->ConstView(PolicyObject->OutputHandle),
 		AddedAgentIds);
 
@@ -263,9 +263,9 @@ void ULearningAgentsPolicy::RunInference()
 		return;
 	}
 
-	AgentType->EncodeObservations();
+	Interactor->EncodeObservations();
 	EvaluatePolicy();
-	AgentType->DecodeActions();
+	Interactor->DecodeActions();
 }
 float ULearningAgentsPolicy::GetAgentActionNoiseScale(const int32 AgentId) const
 {
@@ -328,7 +328,7 @@ void ULearningAgentsPolicy::VisualLog(const UE::Learning::FIndexSet Instances) c
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,

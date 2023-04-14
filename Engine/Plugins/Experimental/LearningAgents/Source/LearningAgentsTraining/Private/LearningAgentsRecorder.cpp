@@ -3,7 +3,7 @@
 #include "LearningAgentsRecorder.h"
 
 #include "LearningAgentsManager.h"
-#include "LearningAgentsType.h"
+#include "LearningAgentsInteractor.h"
 #include "LearningAgentsDataStorage.h"
 #include "LearningFeatureObject.h"
 #include "LearningLog.h"
@@ -25,7 +25,7 @@ void ULearningAgentsRecorder::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void ULearningAgentsRecorder::SetupRecorder(ALearningAgentsManager* InAgentManager, ULearningAgentsType* InAgentType)
+void ULearningAgentsRecorder::SetupRecorder(ALearningAgentsManager* InAgentManager, ULearningAgentsInteractor* InInteractor)
 {
 	if (IsSetup())
 	{
@@ -47,19 +47,19 @@ void ULearningAgentsRecorder::SetupRecorder(ALearningAgentsManager* InAgentManag
 
 	AgentManager = InAgentManager;
 
-	if (!InAgentType)
+	if (!InInteractor)
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: InAgentType is nullptr."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: InInteractor is nullptr."), *GetName());
 		return;
 }
 
-	if (!InAgentType->IsSetup())
+	if (!InInteractor->IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *InAgentType->GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *InInteractor->GetName());
 		return;
 	}
 
-	AgentType = InAgentType;
+	Interactor = InInteractor;
 
 	DataStorage = NewObject<ULearningAgentsDataStorage>(this, TEXT("DataStorage"));
 #if WITH_EDITOR
@@ -77,7 +77,7 @@ bool ULearningAgentsRecorder::AddAgent(const int32 AgentId)
 
 	if (bSuccess && IsRecording() && !CurrentRecords.Contains(AgentId))
 	{
-		CurrentRecords.Add(AgentId, DataStorage->CreateRecord(FName(AgentType->GetName() + "_id" + FString::FromInt(AgentId)), AgentType));
+		CurrentRecords.Add(AgentId, DataStorage->CreateRecord(FName(Interactor->GetName() + "_id" + FString::FromInt(AgentId)), Interactor));
 	}
 
 	return bSuccess;
@@ -107,8 +107,8 @@ void ULearningAgentsRecorder::AddExperience()
 	for (const int32 AgentId : AddedAgentSet)
 	{
 		CurrentRecords[AgentId]->AddExperience(
-			AgentType->GetObservationFeature().FeatureBuffer()[AgentId], 
-			AgentType->GetActionFeature().FeatureBuffer()[AgentId]);
+			Interactor->GetObservationFeature().FeatureBuffer()[AgentId], 
+			Interactor->GetActionFeature().FeatureBuffer()[AgentId]);
 	}
 }
 
@@ -156,7 +156,7 @@ void ULearningAgentsRecorder::BeginRecording()
 
 	for (const int32 AgentId : AddedAgentSet)
 	{
-		CurrentRecords.Add(AgentId, DataStorage->CreateRecord(FName(AgentType->GetName() + "_id" + FString::FromInt(AgentId)), AgentType));
+		CurrentRecords.Add(AgentId, DataStorage->CreateRecord(FName(Interactor->GetName() + "_id" + FString::FromInt(AgentId)), Interactor));
 	}
 
 	bIsRecording = true;

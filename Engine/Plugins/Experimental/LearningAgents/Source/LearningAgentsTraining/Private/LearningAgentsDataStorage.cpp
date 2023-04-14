@@ -4,7 +4,7 @@
 
 #include "Engine/EngineTypes.h"
 #include "HAL/FileManager.h"
-#include "LearningAgentsType.h"
+#include "LearningAgentsInteractor.h"
 #include "LearningFeatureObject.h"
 #include "LearningLog.h"
 #include "Misc/FileHelper.h"
@@ -70,27 +70,27 @@ ULearningAgentsDataStorage::ULearningAgentsDataStorage() {}
 ULearningAgentsDataStorage::ULearningAgentsDataStorage(FVTableHelper& Helper) {}
 ULearningAgentsDataStorage::~ULearningAgentsDataStorage() {}
 
-ULearningAgentsRecord* ULearningAgentsDataStorage::CreateRecord(const FName RecordName, ULearningAgentsType* AgentType)
+ULearningAgentsRecord* ULearningAgentsDataStorage::CreateRecord(const FName RecordName, ULearningAgentsInteractor* Interactor)
 {
-	if (!AgentType)
+	if (!Interactor)
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: AgentType is nullptr."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Interactor is nullptr."), *GetName());
 		return nullptr;
 	}
 
-	if (!AgentType->IsSetup())
+	if (!Interactor->IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *AgentType->GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *Interactor->GetName());
 		return nullptr;
 	}
 
 	ULearningAgentsRecord* NewRecord = NewObject<ULearningAgentsRecord>(this, RecordName);
-	NewRecord->MetaData.AgentType = AgentType;
+	NewRecord->MetaData.Interactor = Interactor;
 	NewRecord->MetaData.CreatedOn = FDateTime::Now();
 	NewRecord->MetaData.CreatedOnUtc = FDateTime::UtcNow();
 	NewRecord->MetaData.RecordName = RecordName;
 
-	NewRecord->Init(AgentType->GetObservationFeature().DimNum(), AgentType->GetActionFeature().DimNum());
+	NewRecord->Init(Interactor->GetObservationFeature().DimNum(), Interactor->GetActionFeature().DimNum());
 	Records.Add(NewRecord);
 
 	return NewRecord;
@@ -101,11 +101,11 @@ const TArray<ULearningAgentsRecord*>& ULearningAgentsDataStorage::GetAllRecords(
 	return Records;
 }
 
-int32 ULearningAgentsDataStorage::LoadAllRecords(ULearningAgentsType* AgentType, const FDirectoryPath& Directory)
+int32 ULearningAgentsDataStorage::LoadAllRecords(ULearningAgentsInteractor* Interactor, const FDirectoryPath& Directory)
 {
-	if (!AgentType)
+	if (!Interactor)
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: AgentType is nullptr."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Interactor is nullptr."), *GetName());
 		return 0;
 	}
 
@@ -120,23 +120,23 @@ int32 ULearningAgentsDataStorage::LoadAllRecords(ULearningAgentsType* AgentType,
 
 	for (const FString& DataFile : DataFiles)
 	{
-		LoadRecord(AgentType, Directory, DataFile);
+		LoadRecord(Interactor, Directory, DataFile);
 	}
 
 	return DataFiles.Num();
 }
 
-ULearningAgentsRecord* ULearningAgentsDataStorage::LoadRecord(ULearningAgentsType* AgentType, const FDirectoryPath& Directory, const FString& Filename)
+ULearningAgentsRecord* ULearningAgentsDataStorage::LoadRecord(ULearningAgentsInteractor* Interactor, const FDirectoryPath& Directory, const FString& Filename)
 {
-	if (!AgentType)
+	if (!Interactor)
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: AgentType is nullptr."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Interactor is nullptr."), *GetName());
 		return nullptr;
 	}
 
-	if (!AgentType->IsSetup())
+	if (!Interactor->IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *AgentType->GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *Interactor->GetName());
 		return nullptr;
 	}
 
@@ -169,7 +169,7 @@ ULearningAgentsRecord* ULearningAgentsDataStorage::LoadRecord(ULearningAgentsTyp
 
 	int32 ObsNum = -1;
 	Reader.Serialize(&ObsNum, sizeof(int32));
-	int32 AgentObsNum = AgentType->GetObservationFeature().DimNum();
+	int32 AgentObsNum = Interactor->GetObservationFeature().DimNum();
 	if (AgentObsNum != ObsNum)
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: Observation data dimension size %d incompatible with agent's observation dimension size %d"), *GetName(), ObsNum, AgentObsNum);
@@ -178,7 +178,7 @@ ULearningAgentsRecord* ULearningAgentsDataStorage::LoadRecord(ULearningAgentsTyp
 
 	int32 ActNum = -1;
 	Reader.Serialize(&ActNum, sizeof(int32));
-	int32 AgentActionNum = AgentType->GetActionFeature().DimNum();
+	int32 AgentActionNum = Interactor->GetActionFeature().DimNum();
 	if (AgentActionNum != ActNum)
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: Action data dimension size %d incompatible with agent's action dimension size %d"), *GetName(), ObsNum, AgentObsNum);
@@ -186,7 +186,7 @@ ULearningAgentsRecord* ULearningAgentsDataStorage::LoadRecord(ULearningAgentsTyp
 	}
 
 	// Load all the data into the first chunk
-	ULearningAgentsRecord* Record = CreateRecord(FName(Filename), AgentType);
+	ULearningAgentsRecord* Record = CreateRecord(FName(Filename), Interactor);
 	Reader.Serialize(&Record->MetaData.CreatedOn, sizeof(FDateTime));
 	Reader.Serialize(&Record->MetaData.CreatedOnUtc, sizeof(FDateTime));
 	Record->MetaData.bWasLoadedFromFile = true;
@@ -248,7 +248,7 @@ void ULearningAgentsDataStorage::SaveRecord(const FDirectoryPath& Directory, ULe
 		UE::Learning::Array::Serialize(Writer, Record->Actions[ChunkIndex]);
 	}
 
-	const FString FileName = Record->MetaData.RecordName.IsNone() ? Record->MetaData.AgentType->GetName() : Record->MetaData.RecordName.ToString();
+	const FString FileName = Record->MetaData.RecordName.IsNone() ? Record->MetaData.Interactor->GetName() : Record->MetaData.RecordName.ToString();
 	const FString OutputFilePath = Directory.Path + FGenericPlatformMisc::GetDefaultPathSeparator() +
 		(!Record->MetaData.bWasLoadedFromFile && bPrependUtcTimeStamp ? FDateTime::UtcNow().ToString() + "_" : "") + FileName + "." + FileExtension;
 	const bool bSuccess = FFileHelper::SaveArrayToFile(Bytes, *OutputFilePath, &IFileManager::Get(), EFileWrite::FILEWRITE_Append);

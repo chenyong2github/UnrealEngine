@@ -3,7 +3,7 @@
 #include "LearningAgentsCritic.h"
 
 #include "LearningAgentsManager.h"
-#include "LearningAgentsType.h"
+#include "LearningAgentsInteractor.h"
 #include "LearningFeatureObject.h"
 #include "LearningNeuralNetwork.h"
 #include "LearningNeuralNetworkObject.h"
@@ -18,7 +18,7 @@ ULearningAgentsCritic::ULearningAgentsCritic() : ULearningAgentsManagerComponent
 ULearningAgentsCritic::ULearningAgentsCritic(FVTableHelper& Helper) : ULearningAgentsCritic() {}
 ULearningAgentsCritic::~ULearningAgentsCritic() {}
 
-void ULearningAgentsCritic::SetupCritic(ALearningAgentsManager* InAgentManager, ULearningAgentsType* InAgentType, const FLearningAgentsCriticSettings& CriticSettings)
+void ULearningAgentsCritic::SetupCritic(ALearningAgentsManager* InAgentManager, ULearningAgentsInteractor* InInteractor, const FLearningAgentsCriticSettings& CriticSettings)
 {
 	if (IsSetup())
 	{
@@ -40,25 +40,25 @@ void ULearningAgentsCritic::SetupCritic(ALearningAgentsManager* InAgentManager, 
 
 	AgentManager = InAgentManager;
 
-	if (!InAgentType)
+	if (!InInteractor)
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: InAgentType is nullptr."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: InInteractor is nullptr."), *GetName());
 		return;
 	}
 
-	if (!InAgentType->IsSetup())
+	if (!InInteractor->IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *InAgentType->GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *InInteractor->GetName());
 		return;
 	}
 
-	AgentType = InAgentType;
+	Interactor = InInteractor;
 
 	// Setup Neural Network
 	Network = NewObject<ULearningAgentsNeuralNetwork>(this, TEXT("CriticNetwork"));
 	Network->NeuralNetwork = MakeShared<UE::Learning::FNeuralNetwork>();
 	Network->NeuralNetwork->Resize(
-		AgentType->GetObservationFeature().DimNum(),
+		Interactor->GetObservationFeature().DimNum(),
 		1,
 		CriticSettings.HiddenLayerSize,
 		CriticSettings.LayerNum);
@@ -71,7 +71,7 @@ void ULearningAgentsCritic::SetupCritic(ALearningAgentsManager* InAgentManager, 
 		AgentManager->GetMaxInstanceNum(),
 		Network->NeuralNetwork.ToSharedRef());
 
-	AgentManager->GetInstanceData()->Link(AgentType->GetObservationFeature().FeatureHandle, CriticObject->InputHandle);
+	AgentManager->GetInstanceData()->Link(Interactor->GetObservationFeature().FeatureHandle, CriticObject->InputHandle);
 
 	bIsSetup = true;
 }
@@ -249,7 +249,7 @@ void ULearningAgentsCritic::VisualLog(const UE::Learning::FIndexSet Instances) c
 
 	for (const int32 Instance : Instances)
 	{
-		if (const AActor* Actor = Cast<AActor>(AgentType->GetAgent(Instance)))
+		if (const AActor* Actor = Cast<AActor>(Interactor->GetAgent(Instance)))
 		{
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
 				Actor->GetActorLocation(),

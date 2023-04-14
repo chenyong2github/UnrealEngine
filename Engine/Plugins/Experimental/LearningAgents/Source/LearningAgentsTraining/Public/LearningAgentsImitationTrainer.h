@@ -16,7 +16,7 @@ namespace UE::Learning
 	struct FSharedMemoryImitationTrainer;
 }
 
-class ULearningAgentsType;
+class ULearningAgentsInteractor;
 class ULearningAgentsPolicy;
 
 /** The configurable settings for the training process. */
@@ -71,7 +71,7 @@ public:
 * Imitation training is typically much faster than reinforcement learning, but requires gathering large amounts of
 * data in order to generalize. This can be used to initialize a reinforcement learning policy to speed up initial
 * exploration.
-* @see ULearningAgentsType to understand how observations and actions work.
+* @see ULearningAgentsInteractor to understand how observations and actions work.
 * @see ULearningAgentsRecorder to understand how to make new recordings.
 * @see ULearningAgentsDataStorage to understand how to retrieve previous recordings.
 */

@@ -4,7 +4,7 @@
 
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "HAL/FileManager.h"
-#include "LearningAgentsType.h"
+#include "LearningAgentsInteractor.h"
 #include "LearningArrayMap.h"
 #include "LearningExperience.h"
 #include "LearningFeatureObject.h"

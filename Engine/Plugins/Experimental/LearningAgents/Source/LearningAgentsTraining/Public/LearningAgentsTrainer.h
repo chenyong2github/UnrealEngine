@@ -26,7 +26,7 @@ namespace UE::Learning
 }
 
 class ALearningAgentsManager;
-class ULearningAgentsType;
+class ULearningAgentsInteractor;
 class ULearningAgentsCompletion;
 class ULearningAgentsReward;
 class ULearningAgentsPolicy;
@@ -193,7 +193,7 @@ public:
 * which will initialize the underlying data structures, and you need to call AddAgent for each agent you want to gather
 * training data from.
 *
-* @see ULearningAgentsType to understand how observations and actions work.
+* @see ULearningAgentsInteractor to understand how observations and actions work.
 */
 UCLASS(Abstract, BlueprintType, Blueprintable)
 class LEARNINGAGENTSTRAINING_API ULearningAgentsTrainer : public ULearningAgentsManagerComponent
@@ -214,7 +214,7 @@ public:
 	/**
 	* Initializes this object and runs the setup functions for rewards and completions.
 	* @param InAgentManager The agent manager we are associated with.
-	* @param InAgentType The agent type we are training with.
+	* @param InInteractor The agent interactor we are training with.
 	* @param InPolicy The policy to be trained.
 	* @param InCritic Optional - only needs to be provided if we want the critic to be accessible at runtime.
 	* @param TrainerSettings The trainer settings to use.
@@ -222,7 +222,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void SetupTrainer(
 		ALearningAgentsManager* InAgentManager,
-		ULearningAgentsType* InAgentType,
+		ULearningAgentsInteractor* InInteractor,
 		ULearningAgentsPolicy* InPolicy,
 		ULearningAgentsCritic* InCritic = nullptr,
 		const FLearningAgentsTrainerSettings& TrainerSettings = FLearningAgentsTrainerSettings());
@@ -356,9 +356,19 @@ public:
 	* Convenience function that runs a basic training loop. If training has not been started, it will start it, and 
 	* then call RunInference. On each following call to this function, it will call EvaluateRewards, 
 	* EvaluateCompletions, and ProcessExperience, followed by RunInference.
+	* @param TrainingSettings The settings for this training run.
+	* @param GameSettings The settings that will affect the game's simulation.
+	* @param CriticSettings The settings for the critic (if we are using one).
+	* @param bReinitializePolicyNetwork If true, reinitialize the policy. Set this to false if your policy is pre-trained, e.g. with imitation learning.
+	* @param bReinitializeCriticNetwork If true, reinitialize the critic. Set this to false if your critic is pre-trained.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void RunTraining();
+	void RunTraining(
+		const FLearningAgentsTrainerTrainingSettings& TrainingSettings = FLearningAgentsTrainerTrainingSettings(),
+		const FLearningAgentsTrainerGameSettings& GameSettings = FLearningAgentsTrainerGameSettings(),
+		const FLearningAgentsCriticSettings& CriticSettings = FLearningAgentsCriticSettings(),
+		const bool bReinitializePolicyNetwork = true,
+		const bool bReinitializeCriticNetwork = true);
 
 	/**
 	* Gets the current reward for an agent according to the critic. Should be called only after EvaluateRewards.
@@ -383,9 +393,9 @@ public:
 // ----- Private Data ----- 
 private:
 
-	/** The agent type associated with this component. */
+	/** The agent interactor associated with this component. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
-	TObjectPtr<ULearningAgentsType> AgentType;
+	TObjectPtr<ULearningAgentsInteractor> Interactor;
 
 	/** The current policy for experience gathering. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")

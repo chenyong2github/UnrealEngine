@@ -29,7 +29,7 @@ namespace UE::Learning
 	struct FScalarAngularVelocityFeature;
 }
 
-class ULearningAgentsType;
+class ULearningAgentsInteractor;
 
 // For functions in this file, we are favoring having more verbose names such as "AddFloatObservation" vs simply "Add" in 
 // order to keep it easy to find the correct function in blueprints.
@@ -45,7 +45,7 @@ class LEARNINGAGENTS_API ULearningAgentsObservation : public UObject
 public:
 
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
-	TObjectPtr<ULearningAgentsType> AgentType;
+	TObjectPtr<ULearningAgentsInteractor> Interactor;
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	/** Color used to draw this observation in the visual log */
@@ -67,17 +67,17 @@ class LEARNINGAGENTS_API UFloatObservation : public ULearningAgentsObservation
 public:
 
 	/**
-	* Adds a new float observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new float observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UFloatObservation* AddFloatObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const float Scale = 1.0f);
+	static UFloatObservation* AddFloatObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 1.0f);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Observation The value currently being observed.
 	*/
@@ -101,18 +101,18 @@ class LEARNINGAGENTS_API UFloatArrayObservation : public ULearningAgentsObservat
 public:
 
 	/**
-	* Adds a new float array observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new float array observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param Num The number of floats in the array
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UFloatArrayObservation* AddFloatArrayObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const int32 Num = 1, const float Scale = 1.0f);
+	static UFloatArrayObservation* AddFloatArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const int32 Num = 1, const float Scale = 1.0f);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Observation The value currently being observed.
 	*/
@@ -138,17 +138,17 @@ class LEARNINGAGENTS_API UVectorObservation : public ULearningAgentsObservation
 public:
 
 	/**
-	* Adds a new vector observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new vector observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UVectorObservation* AddVectorObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const float Scale = 1.0f);
+	static UVectorObservation* AddVectorObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 1.0f);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Observation The values currently being observed.
 	*/
@@ -172,18 +172,18 @@ class LEARNINGAGENTS_API UVectorArrayObservation : public ULearningAgentsObserva
 public:
 
 	/**
-	* Adds a new vector array observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new vector array observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param Num The number of vectors in the array
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UVectorArrayObservation* AddVectorArrayObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const int32 Num = 1, const float Scale = 1.0f);
+	static UVectorArrayObservation* AddVectorArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const int32 Num = 1, const float Scale = 1.0f);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Observation The values currently being observed.
 	*/
@@ -209,17 +209,17 @@ class LEARNINGAGENTS_API UEnumObservation : public ULearningAgentsObservation
 public:
 
 	/**
-	* Adds a new enum observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new enum observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param EnumType The type of enum to use
 	* @param Name The name of this new observation. Used for debugging.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UEnumObservation* AddEnumObservation(ULearningAgentsType* InAgentType, const UEnum* EnumType, const FName Name = NAME_None);
+	static UEnumObservation* AddEnumObservation(ULearningAgentsInteractor* InInteractor, const UEnum* EnumType, const FName Name = NAME_None);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Value The enum value currently being observed.
 	*/
@@ -244,18 +244,18 @@ class LEARNINGAGENTS_API UEnumArrayObservation : public ULearningAgentsObservati
 public:
 
 	/**
-	* Adds a new enum array observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new enum array observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param EnumType The type of enum to use
 	* @param Name The name of this new observation. Used for debugging.
 	* @param EnumNum The number of enum observations in the array
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UEnumArrayObservation* AddEnumArrayObservation(ULearningAgentsType* InAgentType, const UEnum* EnumType, const FName Name = NAME_None, const int32 EnumNum = 1);
+	static UEnumArrayObservation* AddEnumArrayObservation(ULearningAgentsInteractor* InInteractor, const UEnum* EnumType, const FName Name = NAME_None, const int32 EnumNum = 1);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Values The enum values currently being observed.
 	*/
@@ -282,17 +282,17 @@ class LEARNINGAGENTS_API UTimeObservation : public ULearningAgentsObservation
 public:
 
 	/**
-	* Adds a new time observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new time observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UTimeObservation* AddTimeObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const float Scale = 1.0f);
+	static UTimeObservation* AddTimeObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 1.0f);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Time The time currently being observed.
 	* @param RelativeTime The time the provided time should be encoded relative to.
@@ -317,18 +317,18 @@ class LEARNINGAGENTS_API UTimeArrayObservation : public ULearningAgentsObservati
 public:
 
 	/**
-	* Adds a new angle observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new angle observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param TimeNum The number of times in the array
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UTimeArrayObservation* AddTimeArrayObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const int32 TimeNum = 1, const float Scale = 1.0f);
+	static UTimeArrayObservation* AddTimeArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const int32 TimeNum = 1, const float Scale = 1.0f);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Time The times currently being observed.
 	* @param RelativeTime The time the provided time should be encoded relative to.
@@ -355,17 +355,17 @@ class LEARNINGAGENTS_API UAngleObservation : public ULearningAgentsObservation
 public:
 
 	/**
-	* Adds a new angle observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new angle observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param Scale Used to normalize the data for the observation. Angle observations are encoded as directions. 
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UAngleObservation* AddAngleObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const float Scale = 1.0f);
+	static UAngleObservation* AddAngleObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 1.0f);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Angle The angle currently being observed.
 	* @param RelativeAngle The frame of reference angle.
@@ -390,18 +390,18 @@ class LEARNINGAGENTS_API UAngleArrayObservation : public ULearningAgentsObservat
 public:
 
 	/**
-	* Adds a new angle observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new angle observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param AngleNum The number of angles in the array
 	* @param Scale Used to normalize the data for the observation. Angle observations are encoded as directions. 
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UAngleArrayObservation* AddAngleArrayObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const int32 AngleNum = 1, const float Scale = 1.0f);
+	static UAngleArrayObservation* AddAngleArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const int32 AngleNum = 1, const float Scale = 1.0f);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Angles The angles currently being observed.
 	* @param RelativeAngle The frame of reference angle.
@@ -426,17 +426,17 @@ class LEARNINGAGENTS_API URotationObservation : public ULearningAgentsObservatio
 public:
 
 	/**
-	* Adds a new rotation observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new rotation observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param Scale Used to normalize the data for the observation. Rotation observations are encoded as directions. 
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static URotationObservation* AddRotationObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const float Scale = 1.0f);
+	static URotationObservation* AddRotationObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 1.0f);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Rotation The rotation currently being observed.
 	* @param RelativeRotation The frame of reference rotation.
@@ -445,7 +445,7 @@ public:
 	void SetRotationObservation(const int32 AgentId, const FRotator Rotation, const FRotator RelativeRotation = FRotator::ZeroRotator);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Rotation The rotation currently being observed.
 	* @param RelativeRotation The frame of reference rotation.
@@ -470,18 +470,18 @@ class LEARNINGAGENTS_API URotationArrayObservation : public ULearningAgentsObser
 public:
 
 	/**
-	* Adds a new rotation observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new rotation observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param RotationNum The number of rotations in the array
 	* @param Scale Used to normalize the data for the observation. Rotation observations are encoded as directions. 
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static URotationArrayObservation* AddRotationArrayObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const int32 RotationNum = 1, const float Scale = 1.0f);
+	static URotationArrayObservation* AddRotationArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const int32 RotationNum = 1, const float Scale = 1.0f);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Rotations The rotations currently being observed.
 	* @param RelativeRotation The frame of reference rotation.
@@ -490,7 +490,7 @@ public:
 	void SetRotationArrayObservation(const int32 AgentId, const TArray<FRotator>& Rotations, const FRotator RelativeRotation = FRotator::ZeroRotator);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Rotations The rotations currently being observed.
 	* @param RelativeRotation The frame of reference rotation.
@@ -517,18 +517,18 @@ class LEARNINGAGENTS_API UDirectionObservation : public ULearningAgentsObservati
 public:
 
 	/**
-	* Adds a new direction observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new direction observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UDirectionObservation* AddDirectionObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const float Scale = 1.0f);
+	static UDirectionObservation* AddDirectionObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 1.0f);
 
 	/**
 	* Sets the data for this observation. The relative rotation can be used to make this observation relative to the
-	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsType::SetObservations event.
+	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Direction The direction currently being observed.
 	* @param RelativeRotation The frame of reference rotation.
@@ -553,19 +553,19 @@ class LEARNINGAGENTS_API UDirectionArrayObservation : public ULearningAgentsObse
 public:
 
 	/**
-	* Adds a new direction array observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new direction array observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param DirectionNum The number of directions in the array
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UDirectionArrayObservation* AddDirectionArrayObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const int32 DirectionNum = 1, const float Scale = 1.0f);
+	static UDirectionArrayObservation* AddDirectionArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const int32 DirectionNum = 1, const float Scale = 1.0f);
 
 	/**
 	* Sets the data for this observation. The relative rotation can be used to make this observation relative to the
-	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsType::SetObservations event.
+	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Directions The directions currently being observed.
 	* @param RelativeRotation The frame of reference rotation.
@@ -590,9 +590,9 @@ class LEARNINGAGENTS_API UPlanarDirectionObservation : public ULearningAgentsObs
 public:
 
 	/**
-	* Adds a new planar direction observation to the given agent type. The axis parameters define the plane. Call
-	* during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new planar direction observation to the given agent interactor. The axis parameters define the plane. Call
+	* during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param Scale Used to normalize the data for the observation.
 	* @param Axis0 The forward axis of the plane.
@@ -600,11 +600,11 @@ public:
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UPlanarDirectionObservation* AddPlanarDirectionObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const float Scale = 1.0f, const FVector Axis0 = FVector::ForwardVector, const FVector Axis1 = FVector::RightVector);
+	static UPlanarDirectionObservation* AddPlanarDirectionObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 1.0f, const FVector Axis0 = FVector::ForwardVector, const FVector Axis1 = FVector::RightVector);
 
 	/**
 	* Sets the data for this observation. The relative rotation can be used to make this observation relative to the
-	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsType::SetObservations event.
+	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Direction The direction currently being observed.
 	* @param RelativeRotation The frame of reference rotation.
@@ -629,9 +629,9 @@ class LEARNINGAGENTS_API UPlanarDirectionArrayObservation : public ULearningAgen
 public:
 
 	/**
-	* Adds a new planar direction observation to the given agent type. The axis parameters define the plane. Call
-	* during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new planar direction observation to the given agent interactor. The axis parameters define the plane. Call
+	* during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param DirectionNum The number of directions in the array
 	* @param Scale Used to normalize the data for the observation.
@@ -640,11 +640,11 @@ public:
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UPlanarDirectionArrayObservation* AddPlanarDirectionArrayObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const int32 DirectionNum = 1, const float Scale = 1.0f, const FVector Axis0 = FVector::ForwardVector, const FVector Axis1 = FVector::RightVector);
+	static UPlanarDirectionArrayObservation* AddPlanarDirectionArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const int32 DirectionNum = 1, const float Scale = 1.0f, const FVector Axis0 = FVector::ForwardVector, const FVector Axis1 = FVector::RightVector);
 
 	/**
 	* Sets the data for this observation. The relative rotation can be used to make this observation relative to the
-	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsType::SetObservations event.
+	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Directions The directions currently being observed.
 	* @param RelativeRotation The frame of reference rotation.
@@ -671,19 +671,19 @@ class LEARNINGAGENTS_API UPositionObservation : public ULearningAgentsObservatio
 public:
 
 	/**
-	* Adds a new position observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new position observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UPositionObservation* AddPositionObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const float Scale = 100.0f);
+	static UPositionObservation* AddPositionObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 100.0f);
 
 	/**
 	* Sets the data for this observation. The relative position & rotation can be used to make this observation
 	* relative to the agent's perspective, e.g. by passing the agent's position & forward rotation. Call during
-	* ULearningAgentsType::SetObservations event.
+	* ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Position The position currently being observed.
 	* @param RelativePosition The vector Position will be offset from.
@@ -709,20 +709,20 @@ class LEARNINGAGENTS_API UPositionArrayObservation : public ULearningAgentsObser
 public:
 
 	/**
-	* Adds a new position array observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new position array observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param PositionNum The number of positions in the array.
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UPositionArrayObservation* AddPositionArrayObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const int32 PositionNum = 1, const float Scale = 100.0f);
+	static UPositionArrayObservation* AddPositionArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const int32 PositionNum = 1, const float Scale = 100.0f);
 
 	/**
 	* Sets the data for this observation. The relative position & rotation can be used to make this observation
 	* relative to the agent's perspective, e.g. by passing the agent's position & forward rotation. Call during
-	* ULearningAgentsType::SetObservations event.
+	* ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Positions The positions currently being observed.
 	* @param RelativePosition The vector Positions will be offset from.
@@ -748,20 +748,20 @@ class LEARNINGAGENTS_API UScalarPositionObservation : public ULearningAgentsObse
 public:
 
 	/**
-	* Adds a new scalar position observation to the given agent type. Call during 
-	* ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new scalar position observation to the given agent interactor. Call during 
+	* ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UScalarPositionObservation* AddScalarPositionObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const float Scale = 100.0f);
+	static UScalarPositionObservation* AddScalarPositionObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 100.0f);
 
 	/**
 	* Sets the data for this observation. The relative position can be used to make this observation
 	* relative to the agent's perspective, e.g. by passing the agent's position. Call during 
-	* ULearningAgentsType::SetObservations event.
+	* ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Position The position currently being observed.
 	* @param RelativePosition The vector Position will be offset from.
@@ -772,7 +772,7 @@ public:
 	/**
 	* Sets the data for this observation. The relative position can be used to make this observation
 	* relative to the agent's perspective, e.g. by passing the agent's position. Call during
-	* ULearningAgentsType::SetObservations event.
+	* ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Position The position currently being observed.
 	* @param RelativePosition The vector Position will be offset from.
@@ -798,21 +798,21 @@ class LEARNINGAGENTS_API UScalarPositionArrayObservation : public ULearningAgent
 public:
 
 	/**
-	* Adds a new scalar position array observation to the given agent type. Call during 
-	* ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new scalar position array observation to the given agent interactor. Call during 
+	* ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param PositionNum The number of positions in the array.
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UScalarPositionArrayObservation* AddScalarPositionArrayObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const int32 PositionNum = 1, const float Scale = 100.0f);
+	static UScalarPositionArrayObservation* AddScalarPositionArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const int32 PositionNum = 1, const float Scale = 100.0f);
 
 	/**
 	* Sets the data for this observation. The relative position can be used to make this observation
 	* relative to the agent's perspective, e.g. by passing the agent's position. Call during
-	* ULearningAgentsType::SetObservations event.
+	* ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Positions The positions currently being observed.
 	* @param RelativePosition The vector Positions will be offset from.
@@ -823,7 +823,7 @@ public:
 	/**
 	* Sets the data for this observation. The relative position can be used to make this observation
 	* relative to the agent's perspective, e.g. by passing the agent's position. Call during
-	* ULearningAgentsType::SetObservations event.
+	* ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Positions The positions currently being observed.
 	* @param RelativePosition The vector Positions will be offset from.
@@ -849,9 +849,9 @@ class LEARNINGAGENTS_API UPlanarPositionObservation : public ULearningAgentsObse
 public:
 
 	/**
-	* Adds a new planar position observation to the given agent type. The axis parameters define the plane. Call
-	* during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new planar position observation to the given agent interactor. The axis parameters define the plane. Call
+	* during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param Scale Used to normalize the data for the observation.
 	* @param Axis0 The forward axis of the plane.
@@ -859,12 +859,12 @@ public:
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UPlanarPositionObservation* AddPlanarPositionObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const float Scale = 100.0f, const FVector Axis0 = FVector::ForwardVector, const FVector Axis1 = FVector::RightVector);
+	static UPlanarPositionObservation* AddPlanarPositionObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 100.0f, const FVector Axis0 = FVector::ForwardVector, const FVector Axis1 = FVector::RightVector);
 
 	/**
 	* Sets the data for this observation. The relative position & rotation can be used to make this observation
 	* relative to the agent's perspective, e.g. by passing the agent's position & forward rotation. Call during
-	* ULearningAgentsType::SetObservations event.
+	* ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Position The position currently being observed.
 	* @param RelativePosition The vector Position will be offset from.
@@ -890,9 +890,9 @@ class LEARNINGAGENTS_API UPlanarPositionArrayObservation : public ULearningAgent
 public:
 
 	/**
-	* Adds a new planar position array observation to the given agent type. The axis parameters define the plane.
-	* Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new planar position array observation to the given agent interactor. The axis parameters define the plane.
+	* Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param PositionNum The number of positions in the array.
 	* @param Scale Used to normalize the data for the observation.
@@ -901,12 +901,12 @@ public:
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UPlanarPositionArrayObservation* AddPlanarPositionArrayObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const int32 PositionNum = 1, const float Scale = 100.0f, const FVector Axis0 = FVector::ForwardVector, const FVector Axis1 = FVector::RightVector);
+	static UPlanarPositionArrayObservation* AddPlanarPositionArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const int32 PositionNum = 1, const float Scale = 100.0f, const FVector Axis0 = FVector::ForwardVector, const FVector Axis1 = FVector::RightVector);
 
 	/**
 	* Sets the data for this observation. The relative position & rotation can be used to make this observation
 	* relative to the agent's perspective, e.g. by passing the agent's position & forward rotation. Call during
-	* ULearningAgentsType::SetObservations event.
+	* ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Positions The positions currently being observed.
 	* @param RelativePosition The vector Positions will be offset from.
@@ -934,18 +934,18 @@ class LEARNINGAGENTS_API UVelocityObservation : public ULearningAgentsObservatio
 public:
 
 	/**
-	* Adds a new velocity observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new velocity observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UVelocityObservation* AddVelocityObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const float Scale = 200.0f);
+	static UVelocityObservation* AddVelocityObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 200.0f);
 
 	/**
 	* Sets the data for this observation. The relative rotation can be used to make this observation relative to the
-	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsType::SetObservations event.
+	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Velocity The velocity currently being observed.
 	* @param RelativeRotation The frame of reference rotation.
@@ -970,19 +970,19 @@ class LEARNINGAGENTS_API UVelocityArrayObservation : public ULearningAgentsObser
 public:
 
 	/**
-	* Adds a new velocity observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new velocity observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param VelocityNum The number of velocities in the array.
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UVelocityArrayObservation* AddVelocityArrayObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const int32 VelocityNum = 1, const float Scale = 200.0f);
+	static UVelocityArrayObservation* AddVelocityArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const int32 VelocityNum = 1, const float Scale = 200.0f);
 
 	/**
 	* Sets the data for this observation. The relative rotation can be used to make this observation relative to the
-	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsType::SetObservations event.
+	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Velocities The velocities currently being observed.
 	* @param RelativeRotation The frame of reference rotation.
@@ -1007,18 +1007,18 @@ class LEARNINGAGENTS_API UScalarVelocityObservation : public ULearningAgentsObse
 public:
 
 	/**
-	* Adds a new scalar velocity observation to the given agent type. 
-	* Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new scalar velocity observation to the given agent interactor. 
+	* Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UScalarVelocityObservation* AddScalarVelocityObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const float Scale = 200.0f);
+	static UScalarVelocityObservation* AddScalarVelocityObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 200.0f);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Velocity The velocity currently being observed.
 	*/
@@ -1026,7 +1026,7 @@ public:
 	void SetScalarVelocityObservation(const int32 AgentId, const float Velocity);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Velocity The velocity currently being observed.
 	* @param Axis The axis to encode the velocity along
@@ -1051,19 +1051,19 @@ class LEARNINGAGENTS_API UScalarVelocityArrayObservation : public ULearningAgent
 public:
 
 	/**
-	* Adds a new scalar velocity observation to the given agent type.
-	* Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new scalar velocity observation to the given agent interactor.
+	* Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param VelocityNum The number of velocities in the array.
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UScalarVelocityArrayObservation* AddScalarVelocityArrayObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const int32 VelocityNum = 1, const float Scale = 200.0f);
+	static UScalarVelocityArrayObservation* AddScalarVelocityArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const int32 VelocityNum = 1, const float Scale = 200.0f);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Velocities The velocities currently being observed.
 	*/
@@ -1071,7 +1071,7 @@ public:
 	void SetScalarVelocityArrayObservation(const int32 AgentId, const TArray<float>& Velocities);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Velocities The velocities currently being observed.
 	* @param Axis The axis to encode the velocity along
@@ -1096,9 +1096,9 @@ class LEARNINGAGENTS_API UPlanarVelocityObservation : public ULearningAgentsObse
 public:
 
 	/**
-	* Adds a new planar velocity observation to the given agent type. The axis parameters define the plane.
-	* Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new planar velocity observation to the given agent interactor. The axis parameters define the plane.
+	* Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param Scale Used to normalize the data for the observation.
 	* @param Axis0 The forward axis of the plane.
@@ -1106,11 +1106,11 @@ public:
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UPlanarVelocityObservation* AddPlanarVelocityObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const float Scale = 200.0f, const FVector Axis0 = FVector::ForwardVector, const FVector Axis1 = FVector::RightVector);
+	static UPlanarVelocityObservation* AddPlanarVelocityObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 200.0f, const FVector Axis0 = FVector::ForwardVector, const FVector Axis1 = FVector::RightVector);
 
 	/**
 	* Sets the data for this observation. The relative rotation can be used to make this observation relative to the
-	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsType::SetObservations event.
+	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Velocity The velocity currently being observed.
 	* @param RelativeRotation The frame of reference rotation.
@@ -1135,9 +1135,9 @@ class LEARNINGAGENTS_API UPlanarVelocityArrayObservation : public ULearningAgent
 public:
 
 	/**
-	* Adds a new planar velocity observation to the given agent type. The axis parameters define the plane.
-	* Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new planar velocity observation to the given agent interactor. The axis parameters define the plane.
+	* Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param VelocityNum The number of velocities in the array.
 	* @param Scale Used to normalize the data for the observation.
@@ -1146,11 +1146,11 @@ public:
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UPlanarVelocityArrayObservation* AddPlanarVelocityArrayObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const int32 VelocityNum = 1, const float Scale = 200.0f, const FVector Axis0 = FVector::ForwardVector, const FVector Axis1 = FVector::RightVector);
+	static UPlanarVelocityArrayObservation* AddPlanarVelocityArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const int32 VelocityNum = 1, const float Scale = 200.0f, const FVector Axis0 = FVector::ForwardVector, const FVector Axis1 = FVector::RightVector);
 
 	/**
 	* Sets the data for this observation. The relative rotation can be used to make this observation relative to the
-	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsType::SetObservations event.
+	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Velocities The velocities currently being observed.
 	* @param RelativeRotation The frame of reference rotation.
@@ -1177,18 +1177,18 @@ class LEARNINGAGENTS_API UAngularVelocityObservation : public ULearningAgentsObs
 public:
 
 	/**
-	* Adds a new angular velocity observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new angular velocity observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UAngularVelocityObservation* AddAngularVelocityObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const float Scale = 180.0f);
+	static UAngularVelocityObservation* AddAngularVelocityObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 180.0f);
 
 	/**
 	* Sets the data for this observation. The relative rotation can be used to make this observation relative to the
-	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsType::SetObservations event.
+	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param AngularVelocity The angular velocity currently being observed.
 	* @param RelativeRotation The frame of reference rotation.
@@ -1213,19 +1213,19 @@ class LEARNINGAGENTS_API UAngularVelocityArrayObservation : public ULearningAgen
 public:
 
 	/**
-	* Adds a new angular velocity array observation to the given agent type. Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new angular velocity array observation to the given agent interactor. Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param AngularVelocityNum The number of angular velocities in the array.
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UAngularVelocityArrayObservation* AddAngularVelocityArrayObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const int32 AngularVelocityNum = 1, const float Scale = 180.0f);
+	static UAngularVelocityArrayObservation* AddAngularVelocityArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const int32 AngularVelocityNum = 1, const float Scale = 180.0f);
 
 	/**
 	* Sets the data for this observation. The relative rotation can be used to make this observation relative to the
-	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsType::SetObservations event.
+	* agent's perspective, e.g. by passing the agent's forward rotation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param Velocities The angular velocities currently being observed.
 	* @param RelativeRotation The frame of reference rotation.
@@ -1250,18 +1250,18 @@ class LEARNINGAGENTS_API UScalarAngularVelocityObservation : public ULearningAge
 public:
 
 	/**
-	* Adds a new scalar angular velocity observation to the given agent type.
-	* Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new scalar angular velocity observation to the given agent interactor.
+	* Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UScalarAngularVelocityObservation* AddScalarAngularVelocityObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const float Scale = 180.0f);
+	static UScalarAngularVelocityObservation* AddScalarAngularVelocityObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 180.0f);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param AngularVelocity The angular velocity currently being observed.
 	*/
@@ -1269,7 +1269,7 @@ public:
 	void SetScalarAngularVelocityObservation(const int32 AgentId, const float AngularVelocity);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param AngularVelocity The angular velocity currently being observed.
 	* @param Axis The axis to encode the angular velocity around
@@ -1294,19 +1294,19 @@ class LEARNINGAGENTS_API UScalarAngularVelocityArrayObservation : public ULearni
 public:
 
 	/**
-	* Adds a new scalar angular velocity array observation to the given agent type.
-	* Call during ULearningAgentsType::SetupObservations event.
-	* @param InAgentType The agent type to add this observation to.
+	* Adds a new scalar angular velocity array observation to the given agent interactor.
+	* Call during ULearningAgentsInteractor::SetupObservations event.
+	* @param InInteractor The agent interactor to add this observation to.
 	* @param Name The name of this new observation. Used for debugging.
 	* @param AngularVelocityNum The number of angular velocities in the array.
 	* @param Scale Used to normalize the data for the observation.
 	* @return The newly created observation.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	static UScalarAngularVelocityArrayObservation* AddScalarAngularVelocityArrayObservation(ULearningAgentsType* InAgentType, const FName Name = NAME_None, const int32 AngularVelocityNum = 1, const float Scale = 180.0f);
+	static UScalarAngularVelocityArrayObservation* AddScalarAngularVelocityArrayObservation(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const int32 AngularVelocityNum = 1, const float Scale = 180.0f);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param AngularVelocities The angular velocities currently being observed.
 	*/
@@ -1314,7 +1314,7 @@ public:
 	void SetScalarAngularVelocityArrayObservation(const int32 AgentId, const TArray<float>& AngularVelocities);
 
 	/**
-	* Sets the data for this observation. Call during ULearningAgentsType::SetObservations event.
+	* Sets the data for this observation. Call during ULearningAgentsInteractor::SetObservations event.
 	* @param AgentId The agent id this data corresponds to.
 	* @param AngularVelocities The angular velocities currently being observed.
 	* @param Axis The axis to encode the angular velocity around

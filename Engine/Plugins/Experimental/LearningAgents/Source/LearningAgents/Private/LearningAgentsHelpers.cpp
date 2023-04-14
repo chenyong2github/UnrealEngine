@@ -448,7 +448,7 @@ URayCastHelper* URayCastHelper::AddRayCastHelper(ULearningAgentsManagerComponent
 {
 	if (!InManagerComponent)
 	{
-		UE_LOG(LogLearning, Error, TEXT("InAgentType is nullptr."));
+		UE_LOG(LogLearning, Error, TEXT("InInteractor is nullptr."));
 		return nullptr;
 	}
 
