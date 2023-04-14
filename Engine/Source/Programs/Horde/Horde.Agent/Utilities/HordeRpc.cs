@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using Google.Protobuf;
 using Google.Protobuf.Collections;
 
@@ -185,5 +188,43 @@ namespace HordeCommon.Rpc
 		}
 	}
 }
+
+namespace HordeCommon.Rpc.Messages.Telemetry
+{
+	partial class AgentMetadataEvent
+	{
+		/// <summary>
+		/// Calculate an agent ID
+		/// </summary>
+		/// <returns>A unique hash for all fields</returns>
+		public ulong CalculateAgentId()
+		{
+			using SHA256 sha256 = SHA256.Create();
+			using MemoryStream ms = new(200);
+			using BinaryWriter bw = new(ms);
+			
+			bw.Write(Ip);
+			bw.Write(Hostname);
+			bw.Write(Region);
+			bw.Write(AvailabilityZone);
+			bw.Write(Environment);
+			bw.Write(AgentVersion);
+			bw.Write(Os);
+			bw.Write(OsVersion);
+			bw.Write(Architecture);
+			
+			foreach (KeyValuePair<string,string> pair in Properties)
+			{
+				bw.Write(pair.Key);
+				bw.Write(pair.Value);
+			}
+			
+			ms.Position = 0;
+			byte[] hash = sha256.ComputeHash(ms);
+			return BitConverter.ToUInt64(hash, 0);
+		}
+	}
+}
+
 #pragma warning restore CA1716
 #pragma warning restore CS1591

@@ -243,8 +243,8 @@ class TelemetryService : BackgroundService
 			AgentMemoryMetricsEvent memMetricsEvent = _systemMetrics.GetMemory().ToEvent();
 
 			SendTelemetryEventsRequest request = new();
-			request.Events.Add(new WrappedTelemetryEvent { Cpu = cpuMetricsEvent });
-			request.Events.Add(new WrappedTelemetryEvent { Mem = memMetricsEvent });
+			request.Events.Add(new WrappedTelemetryEvent { AgentMetadata = _agentMetadataEvent, Cpu = cpuMetricsEvent });
+			request.Events.Add(new WrappedTelemetryEvent { AgentMetadata = _agentMetadataEvent, Mem = memMetricsEvent });
 
 			if (DateTime.UtcNow > _lastTimeAgentMetadataSent + _agentMetadataReportInterval)
 			{
@@ -261,7 +261,7 @@ class TelemetryService : BackgroundService
 
 	AgentMetadataEvent GetAgentMetadataEvent()
 	{
-		return new AgentMetadataEvent
+		AgentMetadataEvent e = new()
 		{
 			Ip = null,
 			Hostname = _agentSettings.GetAgentName(),
@@ -273,6 +273,8 @@ class TelemetryService : BackgroundService
 			OsVersion = Environment.OSVersion.Version.ToString(),
 			Architecture = RuntimeInformation.OSArchitecture.ToString()
 		};
+		e.AgentId = e.CalculateAgentId();
+		return e;
 	}
 
 	private static string GetOs()
