@@ -219,21 +219,6 @@ struct FGeometryCollectionISM
 	/** Add a group to the ISM. Returns the group index. */
 	FInstanceGroups::FInstanceGroupId AddInstanceGroup(int32 InstanceCount, TArrayView<const float> CustomDataFloats);
 
-	/** Handle removal of a render instance by the ISM component. Our instance mapping needs to be updated. */
-	void IndexRemoved(int32 IndexToRemove)
-	{
-		const int32 InstanceIndex = RenderIndexToInstanceIndex[IndexToRemove];
-		InstanceIndexToRenderIndex[InstanceIndex] = -1;
-	}
-
-	/** Handle move of a render instance by the ISM component. Our instance mapping needs to be updated. */
-	void IndexReallocated(int32 OldIndex, int32 NewIndex)
-	{
-		const int32 InstanceIndex = RenderIndexToInstanceIndex[OldIndex];
-		InstanceIndexToRenderIndex[InstanceIndex] = NewIndex;
-		RenderIndexToInstanceIndex[NewIndex] = InstanceIndex;
-	}
-
 	/** Unique description of ISM component settings. */
 	FGeometryCollectionStaticMeshInstance MeshInstance;
 	/** Created ISM component. Will be nullptr when this slot has been recycled to FGeometryCollectionISMPool FreeList. */
@@ -255,9 +240,6 @@ struct FGeometryCollectionISMPool
 	bool BatchUpdateInstancesTransforms(FGeometryCollectionMeshInfo& MeshInfo, int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport);
 	void RemoveISM(const FGeometryCollectionMeshInfo& MeshInfo);
 	
-	/** Handle ISM instance updating. */
-	void OnISMInstanceIndexUpdated(UInstancedStaticMeshComponent* InComponent, TArrayView<const FInstancedStaticMeshDelegates::FInstanceIndexUpdateData> InIndexUpdates);
-
 	/** Clear all ISM components and associated data */
 	void Clear();
 
@@ -282,8 +264,6 @@ public:
 	using FMeshId = int32;
 
 	//~ Begin UActorComponent Interface
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	//~ End UActorComponent Interface
 
@@ -303,19 +283,10 @@ public:
 	/** Add a static mesh for a mesh group */
 	bool BatchUpdateInstancesTransforms(FMeshGroupId MeshGroupId, FMeshId MeshId, int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false);
 
-	/** Instance Index updated on the InstancedStaticMeshComponent which might need to be handled by the pool instance groups */
-	void OnISMInstanceIndexUpdated(UInstancedStaticMeshComponent* InComponent, TArrayView<const FInstancedStaticMeshDelegates::FInstanceIndexUpdateData> InIndexUpdates)
-	{
-		// forward to the Pool
-		Pool.OnISMInstanceIndexUpdated(InComponent, InIndexUpdates);
-	}
-
 private:
 	uint32 NextMeshGroupId = 0;
 	TMap<FMeshGroupId, FGeometryCollectionMeshGroup> MeshGroups;
 	FGeometryCollectionISMPool Pool;
-
-	FDelegateHandle OnISMInstanceIndexUpdatedHandle;
 
 	// Expose internals for debug draw support.
 	friend class UGeometryCollectionISMPoolDebugDrawComponent;

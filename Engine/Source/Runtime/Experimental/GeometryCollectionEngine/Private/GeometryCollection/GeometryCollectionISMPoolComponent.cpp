@@ -5,10 +5,19 @@
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
-
 #include "GeometryCollection/GeometryCollectionComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionISMPoolComponent)
+
+// Using a FreeList forces the calling of UnregisterComponent which can be 
+// slow if called many times in a frame. Disable for now, but can maybe enable
+// if we defer and throttle UnregisterComponent calls.
+static bool GUseComponentFreeList = false;
+FAutoConsoleVariableRef CVarJunoISMPoolMergedMeshHISM(
+	TEXT("r.ISMPool.UseComponentFreeList"),
+	GUseComponentFreeList,
+	TEXT("Recycle ISM components in the Pool."));
+
 
 FGeometryCollectionMeshGroup::FMeshId FGeometryCollectionMeshGroup::AddMesh(const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, const FGeometryCollectionMeshInfo& ISMInstanceInfo)
 {
@@ -75,6 +84,7 @@ FGeometryCollectionISM::FGeometryCollectionISM(AActor* OwmingActor, const FGeome
 		ISMC->SetMaterial(MaterialIndex, MeshInstance.MaterialsOverrides[MaterialIndex]);
 	}
 
+	ISMC->SetRemoveSwap();
 	ISMC->NumCustomDataFloats = MeshInstance.Desc.NumCustomDataFloats;
 	ISMC->SetReverseCulling(MeshInstance.Desc.bReverseCulling);
 	ISMC->SetMobility(MeshInstance.Desc.bIsStaticMobility ? EComponentMobility::Static : EComponentMobility::Stationary);
@@ -215,50 +225,47 @@ void FGeometryCollectionISMPool::RemoveISM(const FGeometryCollectionMeshInfo& Me
 		InstancesToRemove.SetNum(InstanceGroup.Count);
 		for (int32 InstanceIndex = 0; InstanceIndex < InstanceGroup.Count; ++InstanceIndex)
 		{
+			// We need render index to pass to the ISMComponent.
 			InstancesToRemove[InstanceIndex] = ISM.InstanceIndexToRenderIndex[InstanceGroup.Start + InstanceIndex];
+			// Clear the stored render index since we're about to remove it.
+			ISM.InstanceIndexToRenderIndex[InstanceGroup.Start + InstanceIndex] = -1;
 		}
 		ISM.ISMComponent->RemoveInstances(InstancesToRemove);
+
+		// Fix up instance index remapping to match what will have happened in our ISM component in RemoveInstances()
+		check(ISM.ISMComponent->SupportsRemoveSwap());
+		InstancesToRemove.Sort(TGreater<int32>());
+		for (int32 RenderIndex : InstancesToRemove)
+		{
+			ISM.RenderIndexToInstanceIndex.RemoveAtSwap(RenderIndex, 1, false);
+			if (RenderIndex < ISM.RenderIndexToInstanceIndex.Num())
+			{
+				const int32 MovedInstanceIndex = ISM.RenderIndexToInstanceIndex[RenderIndex];
+				ISM.InstanceIndexToRenderIndex[MovedInstanceIndex] = RenderIndex;
+			}
+		}
 
 		ISM.InstanceGroups.RemoveGroup(MeshInfo.InstanceGroupIndex);
 	
 		if (ISM.InstanceGroups.IsEmpty() && ISM.ISMComponent->PerInstanceSMData.Num() == 0)
 		{
-			// Remove component and push this ISM slot to the free list.
-			// todo: profile if it is better to push component into a free pool and recycle it.
-			ISM.ISMComponent->GetOwner()->RemoveInstanceComponent(ISM.ISMComponent);
-			ISM.ISMComponent->UnregisterComponent();
-			ISM.ISMComponent->DestroyComponent();
-			
 			ISM.InstanceGroups.Reset();
-			MeshToISMIndex.Remove(ISM.MeshInstance);
-			ISMComponentToISMIndex.Remove(ISM.ISMComponent);
-			FreeList.Add(MeshInfo.ISMIndex);
-
-			ISM.ISMComponent = nullptr;
-		}
-	}
-}
-
-void FGeometryCollectionISMPool::OnISMInstanceIndexUpdated(UInstancedStaticMeshComponent* InComponent, TArrayView<const FInstancedStaticMeshDelegates::FInstanceIndexUpdateData> InIndexUpdates)
-{
-	FISMIndex* ISMIndex = ISMComponentToISMIndex.Find(InComponent);
-	if (!ISMIndex)
-	{
-		return;
-	}
-
-	FGeometryCollectionISM& ISM = ISMs[*ISMIndex];
-	check(ISM.ISMComponent == InComponent);
-
-	for (const FInstancedStaticMeshDelegates::FInstanceIndexUpdateData& IndexUpdateData : InIndexUpdates)
-	{
-		if (IndexUpdateData.Type == FInstancedStaticMeshDelegates::EInstanceIndexUpdateType::Removed)
-		{
-			ISM.IndexRemoved(IndexUpdateData.Index);
-		}
-		else if (IndexUpdateData.Type == FInstancedStaticMeshDelegates::EInstanceIndexUpdateType::Relocated)
-		{
-			ISM.IndexReallocated(IndexUpdateData.OldIndex, IndexUpdateData.Index);
+			ISM.InstanceIndexToRenderIndex.Reset();
+			ISM.RenderIndexToInstanceIndex.Reset();
+			
+			if (GUseComponentFreeList)
+			{
+				// Remove component and push this ISM slot to the free list.
+				// todo: profile if it is better to push component into a free pool and recycle it.
+				ISM.ISMComponent->GetOwner()->RemoveInstanceComponent(ISM.ISMComponent);
+				ISM.ISMComponent->UnregisterComponent();
+				ISM.ISMComponent->DestroyComponent();
+			
+				MeshToISMIndex.Remove(ISM.MeshInstance);
+				ISMComponentToISMIndex.Remove(ISM.ISMComponent);
+				FreeList.Add(MeshInfo.ISMIndex);
+				ISM.ISMComponent = nullptr;
+			}
 		}
 	}
 }
@@ -286,18 +293,6 @@ void FGeometryCollectionISMPool::Clear()
 UGeometryCollectionISMPoolComponent::UGeometryCollectionISMPoolComponent(const FObjectInitializer& ObjectInitializer)
 	: NextMeshGroupId(0)
 {
-}
-
-void UGeometryCollectionISMPoolComponent::OnRegister()
-{
-	FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.AddUObject(this, &UGeometryCollectionISMPoolComponent::OnISMInstanceIndexUpdated);
-	Super::OnRegister();
-}
-
-void UGeometryCollectionISMPoolComponent::OnUnregister()
-{
-	FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.RemoveAll(this);
-	Super::OnUnregister();
 }
 
 UGeometryCollectionISMPoolComponent::FMeshGroupId  UGeometryCollectionISMPoolComponent::CreateMeshGroup()
