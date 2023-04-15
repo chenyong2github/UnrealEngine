@@ -142,7 +142,7 @@ namespace UE::NearestNeighborModel
 			if (WeightByte > 0)
 			{
 				const int32 RealBoneIndex = LODData.RenderSections[SectionIndex].BoneMap[BoneIndex];
-				const FQuat4f R(BoneMatrices[RealBoneIndex]);
+				const FQuat4f R(BoneMatrices[RealBoneIndex].GetMatrixWithoutScale());
 				if (InfluenceIndex == 0)
 				{
 					R0 = R; Sign = 1;

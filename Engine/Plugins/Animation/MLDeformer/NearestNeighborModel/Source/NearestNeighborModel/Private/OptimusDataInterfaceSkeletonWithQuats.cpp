@@ -316,7 +316,7 @@ void FOptimusSkeletonWithQuatsDataProviderProxy::CacheRefToLocalQuats(TArray<FQu
 	 */
 	for (int32 QuatIdx = 0; QuatIdx < NumQuats; ++QuatIdx)
 	{
-		OutRefToLocalQuats[QuatIdx] = RefToLocalMatrices[QuatIdx].ToQuat();
+		OutRefToLocalQuats[QuatIdx] = RefToLocalMatrices[QuatIdx].GetMatrixWithoutScale().ToQuat();
 	}
 }
 
