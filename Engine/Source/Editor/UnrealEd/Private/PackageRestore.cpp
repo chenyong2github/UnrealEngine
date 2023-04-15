@@ -725,7 +725,7 @@ FEditorFileUtils::EPromptReturnCode PackageRestore::PromptToRestorePackages(cons
 		const FText Message = FText::Format(FText::FromString("{FailedRestoreMessage}:\n{FailedPackages}"), Args);
 		const FText Title = LOCTEXT("FailedRestoreDlgTitle", "Failed to restore packages!");
 
-		FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
+		FMessageDialog::Open(EAppMsgType::Ok, Message, Title);
 
 		return FEditorFileUtils::PR_Failure;
 	}

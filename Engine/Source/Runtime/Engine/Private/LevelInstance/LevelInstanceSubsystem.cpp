@@ -597,9 +597,10 @@ bool ULevelInstanceSubsystem::OnExitEditorModeInternal(bool bForceExit)
 		bool bIsDirty = IsLevelInstanceEditDirty(LevelInstanceEdit.Get());
 		if (bIsDirty && CanCommitLevelInstance(LevelInstance, /*bDiscardEdits=*/true))
 		{
-			FText Title = LOCTEXT("CommitOrDiscardChangesTitle", "Save changes?");
 			// if bForceExit we can't cancel the exiting of the mode so the user needs to decide between saving or discarding
-			EAppReturnType::Type Ret = FMessageDialog::Open(bForceExit ? EAppMsgType::YesNo : EAppMsgType::YesNoCancel, LOCTEXT("CommitOrDiscardChangesMsg", "Unsaved Level changes will get discarded. Do you want to save them now?"), &Title);
+			EAppReturnType::Type Ret = FMessageDialog::Open(
+				bForceExit ? EAppMsgType::YesNo : EAppMsgType::YesNoCancel, LOCTEXT("CommitOrDiscardChangesMsg", "Unsaved Level changes will get discarded. Do you want to save them now?"), 
+				LOCTEXT("CommitOrDiscardChangesTitle", "Save changes?"));
 			if (Ret == EAppReturnType::Cancel && !bForceExit)
 			{
 				return false;

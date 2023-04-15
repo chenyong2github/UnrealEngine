@@ -363,7 +363,7 @@ private:
 	// Show a warning that the editor will require a restart and return its result
 	EAppReturnType::Type ShowRestartWarning(const FText& Title) const
 	{
-		return FMessageDialog::Open(EAppMsgType::OkCancel, LOCTEXT("ActionRestartMsg", "Imported settings won't be applied until the editor is restarted. Do you wish to restart now (you will be prompted to save any changes)?"), &Title);
+		return FMessageDialog::Open(EAppMsgType::OkCancel, LOCTEXT("ActionRestartMsg", "Imported settings won't be applied until the editor is restarted. Do you wish to restart now (you will be prompted to save any changes)?"), Title);
 	}
 
 	// Backup a file

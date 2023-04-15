@@ -55,10 +55,9 @@ bool UNiagaraEmitterFactoryNew::ConfigureProperties()
 		bUseInheritance = NewEmitterDialog->GetUseInheritance();
 		if (EmitterToCopy == nullptr)
 		{
-			FText Title = LOCTEXT("FailedToLoadTitle", "Create Default?");
 			EAppReturnType::Type DialogResult = FMessageDialog::Open(EAppMsgType::OkCancel, EAppReturnType::Cancel,
 				LOCTEXT("FailedToLoadMessage", "The selected emitter failed to load\nWould you like to create a default emitter?"),
-				&Title);
+				LOCTEXT("FailedToLoadTitle", "Create Default?"));
 			if (DialogResult == EAppReturnType::Cancel)
 			{
 				return false;

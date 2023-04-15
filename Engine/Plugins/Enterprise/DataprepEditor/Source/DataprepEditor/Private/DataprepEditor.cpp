@@ -902,7 +902,7 @@ void FDataprepEditor::OnCommitWorld()
 		const FText Title( LOCTEXT( "DataprepEditor_ProceedWithCommit", "Proceed with commit" ) );
 		const FText Message( LOCTEXT( "DataprepEditor_ConfirmCommitPipelineNotExecuted", "The action pipeline has not been executed.\nDo you want to proceed with the commit anyway?" ) );
 
-		if( FMessageDialog::Open( EAppMsgType::YesNo, Message, &Title ) != EAppReturnType::Yes )
+		if( FMessageDialog::Open( EAppMsgType::YesNo, Message, Title ) != EAppReturnType::Yes )
 		{
 			return;
 		}
@@ -913,7 +913,7 @@ void FDataprepEditor::OnCommitWorld()
 		const FText Title( LOCTEXT( "DataprepEditor_ProceedWithCommit", "Proceed with commit" ) );
 		const FText Message( LOCTEXT( "DataprepEditor_ConfirmCommitPipelineChanged", "The action pipeline has changed since last execution.\nDo you want to proceed with the commit anyway?" ) );
 
-		if( FMessageDialog::Open( EAppMsgType::YesNo, Message, &Title ) != EAppReturnType::Yes )
+		if( FMessageDialog::Open( EAppMsgType::YesNo, Message, Title ) != EAppReturnType::Yes )
 		{
 			return;
 		}
@@ -1537,7 +1537,7 @@ bool FDataprepEditor::OnRequestClose()
 		const FText Title( LOCTEXT( "DataprepEditor_ProceedWithClose", "Proceed with close") );
 		const FText Message( LOCTEXT( "DataprepEditor_ConfirmClose", "Imported data was not committed! Closing the editor will discard imported data.\nDo you want to close anyway?" ) );
 
-		if (FMessageDialog::Open(EAppMsgType::YesNo, Message, &Title) == EAppReturnType::Yes)
+		if (FMessageDialog::Open(EAppMsgType::YesNo, Message, Title) == EAppReturnType::Yes)
 		{
 			ResetBuildWorld();
 			return true;

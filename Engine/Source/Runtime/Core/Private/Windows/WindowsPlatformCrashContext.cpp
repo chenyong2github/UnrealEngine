@@ -940,7 +940,7 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 					FText::FromString(AppName),
 					FText::FromString(FPlatformMisc::GetEngineMode())
 					));
-				FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(GErrorHist), &MessageTitle);
+				FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(GErrorHist), MessageTitle);
 			}
 		}
 	}

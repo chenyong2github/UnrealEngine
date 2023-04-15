@@ -33,7 +33,7 @@ static void TestMessageDialog()
 		   RetVal == EAppReturnType::Retry || 
 		   RetVal == EAppReturnType::Continue)
 	{
-		RetVal = FMessageDialog::Open(MsgTypes[currentType], Message, &DialogTitle);
+		RetVal = FMessageDialog::Open(MsgTypes[currentType], Message, DialogTitle);
 		currentType = (currentType + 1) % MsgTypes.Num();
 	}
 }

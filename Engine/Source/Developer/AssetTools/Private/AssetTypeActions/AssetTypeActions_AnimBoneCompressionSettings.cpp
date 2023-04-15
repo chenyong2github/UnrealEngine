@@ -95,7 +95,7 @@ void FAssetTypeActions_AnimBoneCompressionSettings::ExecuteCompression(TWeakObje
 	Arguments.Add(TEXT("NumAnimSequences"), FText::AsNumber(AnimSeqsToRecompress.Num()));
 	FText DialogText = FText::Format(LOCTEXT("AnimBoneCompressionSettings_CompressWarningText", "{NumAnimSequences} animation sequences are about to compress."), Arguments);
 	FText DialogTitle = LOCTEXT("AnimBoneCompressionSettings_CompressWarning", "Warning");
-	const EAppReturnType::Type DlgResult = FMessageDialog::Open(EAppMsgType::OkCancel, DialogText, &DialogTitle);
+	const EAppReturnType::Type DlgResult = FMessageDialog::Open(EAppMsgType::OkCancel, DialogText, DialogTitle);
 	if (DlgResult != EAppReturnType::Ok)
 	{
 		return;

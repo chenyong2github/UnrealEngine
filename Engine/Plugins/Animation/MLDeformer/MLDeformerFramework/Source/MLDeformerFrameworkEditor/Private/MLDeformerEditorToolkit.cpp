@@ -129,11 +129,10 @@ namespace UE::MLDeformer
 		const FMLDeformerEditorModelRegistry& ModelRegistry = EditorModule.GetModelRegistry();	
 		if (ModelRegistry.GetNumRegisteredModels() == 0)
 		{
-			const FText Title(LOCTEXT("NoModelsFoundWarningTitle", "No ML Deformer Models Found"));
 			const EAppReturnType::Type ReturnType = FMessageDialog::Open(
 				EAppMsgType::Ok, 
-				FText(LOCTEXT("NoModelsFoundWarningMessage", "No ML Deformer models have been registered.\nPlease load a model plugin.\n\nThere is nothing to do inside this editor, until you load a model plugin.")),
-				&Title);
+				LOCTEXT("NoModelsFoundWarningMessage", "No ML Deformer models have been registered.\nPlease load a model plugin.\n\nThere is nothing to do inside this editor, until you load a model plugin."),
+				LOCTEXT("NoModelsFoundWarningTitle", "No ML Deformer Models Found"));
 		}
 	}
 
@@ -244,11 +243,10 @@ namespace UE::MLDeformer
 	{
 		if (ActiveModel)
 		{
-			const FText Title(LOCTEXT("SwitchModelConfirmTitle", "Switch current model?"));
 			const EAppReturnType::Type ReturnType = FMessageDialog::Open(
 				EAppMsgType::YesNo, 
-				FText(LOCTEXT("SwitchModelConfirmMessage", "Are you sure you want to switch the current model?\nYou will lose your current setup.")),
-				&Title);
+				LOCTEXT("SwitchModelConfirmMessage", "Are you sure you want to switch the current model?\nYou will lose your current setup."),
+				LOCTEXT("SwitchModelConfirmTitle", "Switch current model?"));
 
 			if (ReturnType == EAppReturnType::No)
 			{
@@ -365,11 +363,10 @@ namespace UE::MLDeformer
 						UMLDeformerModel* Model = ActiveModel->GetModel();
 						if (ActiveModel->IsTrained())
 						{
-							const FText ConfirmTitle(LOCTEXT("RetrainConfirmationTitle", "Re-train the network?"));
 							const EAppReturnType::Type ConfirmReturnType = FMessageDialog::Open(
 								EAppMsgType::YesNo, 
-								FText(LOCTEXT("RetrainConfirmationMessage", "This asset already has been trained.\n\nAre you sure you would like to re-train the network with your current settings?")),
-								&ConfirmTitle);
+								LOCTEXT("RetrainConfirmationMessage", "This asset already has been trained.\n\nAre you sure you would like to re-train the network with your current settings?"),
+								LOCTEXT("RetrainConfirmationTitle", "Re-train the network?"));
 
 							if (ConfirmReturnType == EAppReturnType::No || ConfirmReturnType == EAppReturnType::Cancel)
 							{
@@ -502,11 +499,10 @@ namespace UE::MLDeformer
 			case ETrainingResult::Aborted:
 			{
 				ActiveModel->SetResamplingInputOutputsNeeded(false);
-				const FText Title(LOCTEXT("TrainingAbortedMessageTitle", "Use partially trained network?"));
 				const EAppReturnType::Type ReturnType = FMessageDialog::Open(
 					EAppMsgType::YesNo, 
-					FText(LOCTEXT("TrainingAbortedMessage", "Training has been aborted.\nThe neural network has only been partially trained.\nWould you like to use this partially trained network?")),
-					&Title);
+					LOCTEXT("TrainingAbortedMessage", "Training has been aborted.\nThe neural network has only been partially trained.\nWould you like to use this partially trained network?"),
+					LOCTEXT("TrainingAbortedMessageTitle", "Use partially trained network?"));
 
 				if (ReturnType == EAppReturnType::Yes)
 				{
@@ -561,7 +557,7 @@ namespace UE::MLDeformer
 		// Show a message window.
 		if (!WindowMessage.IsEmpty())
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, WindowMessage, &WindowTitle);
+			FMessageDialog::Open(EAppMsgType::Ok, WindowMessage, WindowTitle);
 		}
 
 		ActiveModel->UpdateDeformerGraph();

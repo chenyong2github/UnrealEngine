@@ -331,8 +331,7 @@ namespace LevelInstanceMenuUtils
 
 				if (!LevelInstanceSubsystem->CreateLevelInstanceFrom(ActorsToMove, CreationParams))
 				{
-					FText FailedTitle = LOCTEXT("CreateFromSelectionFailTitle", "Create from selection failed");
-					FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("CreateFromSelectionFailMsg", "Failed to create from selection. Check log for details."), &FailedTitle);
+					FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("CreateFromSelectionFailMsg", "Failed to create from selection. Check log for details."), LOCTEXT("CreateFromSelectionFailTitle", "Create from selection failed"));
 				}
 			}
 		}

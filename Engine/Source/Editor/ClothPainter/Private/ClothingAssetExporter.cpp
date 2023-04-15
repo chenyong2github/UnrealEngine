@@ -118,7 +118,7 @@ void ExportClothingAsset(const UClothingAssetBase* ClothingAsset, UClass* Export
 	{
 		const FText TitleMessage = LOCTEXT("ClothingAssetExporterTitleMessage", "Error Exporting Clothing Asset");
 		const FText ErrorMessage = FText::Format(LOCTEXT("ClothingAssetExporterErrorMessage", "The Asset's exporter for type {0} cannot be found anymore. Check that the plugin hasn't been unloaded."), FText::FromName(ExportedType->GetFName()));
-		FMessageDialog::Open(EAppMsgType::Ok, EAppReturnType::Ok, ErrorMessage, &TitleMessage);
+		FMessageDialog::Open(EAppMsgType::Ok, EAppReturnType::Ok, ErrorMessage, TitleMessage);
 		return;
 	}
 

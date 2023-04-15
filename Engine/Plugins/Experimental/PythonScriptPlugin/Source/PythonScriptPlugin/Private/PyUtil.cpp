@@ -1513,8 +1513,7 @@ bool LogPythonError(FString* OutError, const bool bInteractive)
 		// Also display the error if this was an interactive request
 		if (bInteractive)
 		{
-			const FText DlgTitle = LOCTEXT("PythonErrorTitle", "Python Error");
-			FMessageDialog::Open(EAppMsgType::Ok, FText::AsCultureInvariant(ErrorStr), &DlgTitle);
+			FMessageDialog::Open(EAppMsgType::Ok, FText::AsCultureInvariant(ErrorStr), LOCTEXT("PythonErrorTitle", "Python Error"));
 		}
 	}
 

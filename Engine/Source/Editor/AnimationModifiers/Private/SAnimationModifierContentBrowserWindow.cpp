@@ -247,7 +247,7 @@ FReply SAnimationModifierContentBrowserWindow::OnApply()
 			{
 				FText MessageFormat = LOCTEXT("AnimationModifierWindow_AlreadyContainsModifierDialogText", "{0} already contains Animation Modifier {1}, are you sure you want to add another instance?");
 				FText MessageTitle = LOCTEXT("AnimationModifierWindow_AlreadyContainsModifierTitle", "Already contains Animation Modifier!");
-				bUserInputResult = FMessageDialog::Open(EAppMsgType::YesNo, FText::FormatOrdered(MessageFormat, FText::FromString(UserData->GetOuter()->GetName()), FText::FromString(Modifier->GetClass()->GetName())), &MessageTitle) == EAppReturnType::Yes;
+				bUserInputResult = FMessageDialog::Open(EAppMsgType::YesNo, FText::FormatOrdered(MessageFormat, FText::FromString(UserData->GetOuter()->GetName()), FText::FromString(Modifier->GetClass()->GetName())), MessageTitle) == EAppReturnType::Yes;
 			}
 			
 			bCloseWindow = bUserInputResult;

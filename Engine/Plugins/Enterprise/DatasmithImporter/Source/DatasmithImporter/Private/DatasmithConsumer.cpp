@@ -630,7 +630,7 @@ bool UDatasmithConsumer::CreateWorld()
 								const FText WarningMessage = FText::Format( Format, FText::FromString(LevelName) );
 								const FText DialogTitle( LOCTEXT("DatasmithConsumerAlreadyLoaded_DlgTitle", "Warning - Level already loaded") );
 
-								if(FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage, &DialogTitle) != EAppReturnType::Yes)
+								if(FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage, DialogTitle) != EAppReturnType::Yes)
 								{
 									bUnloadLevel = false;
 								}
@@ -876,7 +876,7 @@ bool UDatasmithConsumer::CanCreateLevel(const FString& RequestedFolder, const FS
 							const FText WarningMessage = FText::Format( Format, FText::FromString(RequestedName), FText::FromString(RequestedFolder));
 							const FText DialogTitle( LOCTEXT("DatasmithConsumer_Update_DlgTitle", "Warning - Level already exists") );
 
-							EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::No, WarningMessage, &DialogTitle);
+							EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::No, WarningMessage, DialogTitle);
 
 							if(Result != EAppReturnType::Yes)
 							{
@@ -905,7 +905,7 @@ bool UDatasmithConsumer::CanCreateLevel(const FString& RequestedFolder, const FS
 			{
 				const FText DialogTitle( LOCTEXT("DatasmithConsumer_CantCreateFile_DlgTitle", "Warning - Cannot create level") );
 
-				FMessageDialog::Open(EAppMsgType::Ok, Message, &DialogTitle);
+				FMessageDialog::Open(EAppMsgType::Ok, Message, DialogTitle);
 			}
 			else
 			{
@@ -924,7 +924,7 @@ bool UDatasmithConsumer::CanCreateLevel(const FString& RequestedFolder, const FS
 		{
 			const FText DialogTitle( LOCTEXT("DatasmithConsumer_CantCreate_DlgTitle", "Warning - Cannot create level") );
 
-			FMessageDialog::Open(EAppMsgType::Ok, Message, &DialogTitle);
+			FMessageDialog::Open(EAppMsgType::Ok, Message, DialogTitle);
 		}
 		else
 		{
@@ -1315,7 +1315,7 @@ bool UDatasmithConsumer::ValidateAssets()
 			const FText Title( LOCTEXT( "DatasmithConsumer_SavingIssues", "Some assets may not be saved properly..." ) );
 			const FText Message = FText::Format( LOCTEXT( "DatasmithConsumer_AssetsWithIssues", "All assets cannot be created in their destination folder.\nBelow is the list of assets with issues. See output log for details.\nClick \'Yes\' to continue with the commit.\n\n{0}{1}\n" ), AssetsToBeSkippedText, AssetsNotMovedText);
 
-			if(FMessageDialog::Open(EAppMsgType::YesNo, Message, &Title) != EAppReturnType::Yes)
+			if(FMessageDialog::Open(EAppMsgType::YesNo, Message, Title) != EAppReturnType::Yes)
 			{
 				return false;
 			}

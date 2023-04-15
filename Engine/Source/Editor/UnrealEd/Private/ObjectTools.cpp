@@ -1035,7 +1035,7 @@ namespace ObjectTools
 				FText Title = NSLOCTEXT("ObjectTools", "ConsolidateAssetsRootSetDlg_Title", "Failed to Consolidate Assets");
 
 				// Prompt the user to see if they'd like to remove the root set flag from the assets and attempt to replace them
-				EAppReturnType::Type UserResponse = FMessageDialog::Open( EAppMsgType::YesNo, EAppReturnType::No, Message, &Title );
+				EAppReturnType::Type UserResponse = FMessageDialog::Open( EAppMsgType::YesNo, EAppReturnType::No, Message, Title );
 
 				// The user elected to not remove the root set flag, so cancel the replacement
 				if (UserResponse == EAppReturnType::No )
@@ -1813,7 +1813,7 @@ namespace ObjectTools
 
 			if (bShouldShowDialogs)
 			{
-				FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
+				FMessageDialog::Open(EAppMsgType::Ok, Message, Title);
 			}
 			else
 			{
@@ -1847,7 +1847,7 @@ namespace ObjectTools
 
 			if (bShouldShowDialogs)
 			{
-				FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
+				FMessageDialog::Open(EAppMsgType::Ok, Message, Title);
 			}
 			else
 			{
@@ -2786,11 +2786,10 @@ namespace ObjectTools
 
 		if (ContainsWorldInUse(ObjectsToDelete))
 		{
-			FText Title = NSLOCTEXT("UnrealEd", "DeleteFailedWorldInUseTitle", "Unable to delete level");
 			FMessageDialog::Open(
 				EAppMsgType::Ok,
 				NSLOCTEXT("UnrealEd", "DeleteFailedWorldInUse", "Unable to delete level while it is open"),
-				&Title
+				NSLOCTEXT("UnrealEd", "DeleteFailedWorldInUseTitle", "Unable to delete level")
 			);
 
 			return 0;

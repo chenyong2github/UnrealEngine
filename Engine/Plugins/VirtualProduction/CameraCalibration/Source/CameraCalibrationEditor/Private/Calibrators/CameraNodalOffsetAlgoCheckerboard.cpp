@@ -39,12 +39,11 @@ bool UCameraNodalOffsetAlgoCheckerboard::OnViewportClicked(const FGeometry& MyGe
 	}
 
 	{
-		const FText TitleError = LOCTEXT("CalibrationError", "CalibrationError");
 		FText ErrorMessage;
 
 		if (!PopulatePoints(ErrorMessage))
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, LOCTEXT("CalibrationError", "CalibrationError"));
 		}
 	}
 

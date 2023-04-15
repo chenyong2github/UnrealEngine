@@ -1653,7 +1653,7 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 		if (bIsBeingRecreated)
 		{
 			const FText TextTitle = LOCTEXT("LevelEditorVersionErrorTitle", "Unreal Level Editor Layout Version Mismatch");
-			FMessageDialog::Open(EAppMsgType::Ok, WarningText, &TextTitle);
+			FMessageDialog::Open(EAppMsgType::Ok, WarningText, TextTitle);
 		}
 	}
 	bIsBeingRecreated = true; // For future loads

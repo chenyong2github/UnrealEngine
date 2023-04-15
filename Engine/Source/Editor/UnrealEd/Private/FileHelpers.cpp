@@ -332,7 +332,7 @@ static bool ConfirmPackageBranchCheckOutStatus(const TArray<UPackage*>& Packages
 
 				const FText Title = SourceControlState->IsModifiedInOtherBranch() ? FText::FromString("Package Branch Modifications") : FText::FromString("Package Branch Checkouts");
 
-				return FMessageDialog::Open(EAppMsgType::YesNo, Message, &Title) == EAppReturnType::Yes;
+				return FMessageDialog::Open(EAppMsgType::YesNo, Message, Title) == EAppReturnType::Yes;
 			}
 		}
 	}
@@ -2017,7 +2017,7 @@ void FEditorFileUtils::MakePackagesWritable(const TArray<UPackage*>& PackagesToM
 		FText Message = FText::Format(MessageFormatting, Arguments);
 		FText Title = NSLOCTEXT("FileHelper", "FailedMakingWritableDlg_Title", "Unable to make assets writable");
 
-		FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
+		FMessageDialog::Open(EAppMsgType::Ok, Message, Title);
 	}
 
 	if (OutPackagesMadeWritable)
@@ -2221,7 +2221,7 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<UPackage*>&
 		FText Message = FText::Format( MessageFormat, Arguments );
 
 		FText Title = NSLOCTEXT("FileHelper", "FailedCheckoutDlg_Title", "Unable to Check Out From Revision Control!");
-		FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
+		FMessageDialog::Open(EAppMsgType::Ok, Message, Title);
 	}
 
 	return CheckOutResult;
@@ -2402,7 +2402,7 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<FString>& P
 		FText Message = FText::Format( MessageFormat, Arguments );
 
 		FText Title = NSLOCTEXT("FileHelper", "FailedCheckoutDlg_Title", "Unable to Check Out From Revision Control!");
-		FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
+		FMessageDialog::Open(EAppMsgType::Ok, Message, Title);
 	}
 
 	return CheckOutResult;
@@ -3631,7 +3631,7 @@ static void InternalWarnUserAboutFailedSave( const TArray<UPackage*>& InFailedPa
 
 		// Display warning
 		FText Title = NSLOCTEXT("FileHelper", "FailedSavePrompt_Title", "Packages Failed To Save");
-		FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
+		FMessageDialog::Open(EAppMsgType::Ok, Message, Title);
 	}
 }
 

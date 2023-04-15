@@ -393,8 +393,7 @@ bool SAnimationModifiersTab::OnCanRevertModifier(const TArray<TWeakObjectPtr<UAn
 
 void SAnimationModifiersTab::OnRemoveModifier(const TArray<TWeakObjectPtr<UAnimationModifier>>& Instances)
 {
-	const FText Title = FText::FromString("Revert before Removing");
-	const bool bShouldRevert = FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("RemoveAndRevertPopupText", "Should the Modifiers be reverted before removing them?"), &Title) == EAppReturnType::Yes;
+	const bool bShouldRevert = FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("RemoveAndRevertPopupText", "Should the Modifiers be reverted before removing them?"), LOCTEXT("RemoveAndRevertPopupTitle", "Revert before Removing")) == EAppReturnType::Yes;
 
 	FScopedTransaction Transaction(LOCTEXT("RemoveModifiersTransaction", "Removing Animation Modifier(s)"));	
 	AssetUserData->Modify();
@@ -492,8 +491,7 @@ void SAnimationModifiersTab::ApplyModifiers(const TArray<UAnimationModifier*>& M
 	else if (Skeleton != nullptr)
 	{
 		// Double check with the user for applying all modifiers to referenced animation sequences for the skeleton
-		const FText Title = FText::FromString("Are you sure?");
-		bApply = FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("ApplyingSkeletonModifierPopupText", "Are you sure you want to apply the modifiers to all animation sequences referenced by the current skeleton?"), &Title) == EAppReturnType::Yes;
+		bApply = FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("ApplyingSkeletonModifierPopupText", "Are you sure you want to apply the modifiers to all animation sequences referenced by the current skeleton?"), LOCTEXT("ApplyingSkeletonModifierPopupTitle", "Are you sure?")) == EAppReturnType::Yes;
 		
 		if (bApply)
 		{
@@ -534,8 +532,7 @@ void SAnimationModifiersTab::RevertModifiers(const TArray<UAnimationModifier*>& 
 	else if (Skeleton != nullptr)
 	{
 		// Double check with the user for reverting all modifiers from referenced animation sequences for the skeleton
-		const FText Title = FText::FromString("Are you sure?");
-		bRevert = FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("RevertingSkeletonModifierPopupText", "Are you sure you want to revert the modifiers from all animation sequences referenced by the current skeleton?"), &Title) == EAppReturnType::Yes;
+		bRevert = FMessageDialog::Open(EAppMsgType::YesNo, LOCTEXT("RevertingSkeletonModifierPopupText", "Are you sure you want to revert the modifiers from all animation sequences referenced by the current skeleton?"), LOCTEXT("RevertingSkeletonModifierPopupTitle", "Are you sure?")) == EAppReturnType::Yes;
 
 		if ( bRevert)
 		{

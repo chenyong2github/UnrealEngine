@@ -392,8 +392,7 @@ FReply SDisasterRecoveryHub::OnImportClicked()
 		}
 		else // Show an error message.
 		{
-			FText Title = LOCTEXT("FailedToImportTitle", "Import Failed");
-			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("FailedToImportMsg", "Failed to import the session. {0}"), ImportResult.Get<FText>()), &Title);
+			FMessageDialog::Open(EAppMsgType::Ok, FText::Format(LOCTEXT("FailedToImportMsg", "Failed to import the session. {0}"), ImportResult.Get<FText>()), LOCTEXT("FailedToImportTitle", "Import Failed"));
 		}
 	}
 

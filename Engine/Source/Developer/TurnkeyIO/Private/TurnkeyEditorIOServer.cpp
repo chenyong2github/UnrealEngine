@@ -175,8 +175,7 @@ private:
 
 			// display the message box
 			FString Prompt = Message.IsEmpty() ? *LOCTEXT("ReadyToContinue", "Click OK To Continue").ToString() : Message;
-			FText Title = LOCTEXT("Turnkey","Turnkey");
-			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Prompt), &Title );
+			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Prompt), LOCTEXT("Turnkey", "Turnkey") );
 
 			// send empty response
 			TSharedPtr<FJsonObject> Result = MakeShared<FJsonObject>();
@@ -248,9 +247,8 @@ private:
 			JsonObject->TryGetBoolField(TEXT("DefaultValue"), bDefaultValue );
 
 			// display the message box
-			FText Title = LOCTEXT("Turnkey","Turnkey");
 			EAppReturnType::Type Result = (bDefaultValue ? EAppReturnType::Yes : EAppReturnType::No );
-			Result = FMessageDialog::Open(EAppMsgType::YesNo, Result, FText::FromString(Message), &Title );
+			Result = FMessageDialog::Open(EAppMsgType::YesNo, Result, FText::FromString(Message), LOCTEXT("Turnkey", "Turnkey") );
 
 			// send empty response
 			TSharedPtr<FJsonObject> JsonResult = MakeShared<FJsonObject>();

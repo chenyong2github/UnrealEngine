@@ -209,7 +209,7 @@ void UNodalOffsetTool::OnSaveCurrentNodalOffset()
 	if (!Algo)
 	{
 		FText ErrorMessage = LOCTEXT("NoAlgoFound", "No algo found");
-		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, TitleError);
 		return;
 	}
 
@@ -222,7 +222,7 @@ void UNodalOffsetTool::OnSaveCurrentNodalOffset()
 
 	if (!Algo->GetNodalOffset(NodalOffset, Focus, Zoom, ReprojectionError, ErrorMessage))
 	{
-		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, TitleError);
 		return;
 	}
 
@@ -234,7 +234,7 @@ void UNodalOffsetTool::OnSaveCurrentNodalOffset()
 		const FText Message = FText::Format(LOCTEXT("ReprojectionError", "RMS Reprojection Error: {0} pixels"), Arguments);
 
 		// Allow the user to cancel adding to the LUT if the reprojection error is unacceptable.
-		if (FMessageDialog::Open(EAppMsgType::OkCancel, Message, &TitleInfo) != EAppReturnType::Ok)
+		if (FMessageDialog::Open(EAppMsgType::OkCancel, Message, TitleInfo) != EAppReturnType::Ok)
 		{
 			return;
 		}
@@ -245,7 +245,7 @@ void UNodalOffsetTool::OnSaveCurrentNodalOffset()
 	if (!LensFile)
 	{
 		ErrorMessage = LOCTEXT("NoLensFile", "No Lens File");
-		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, TitleError);
 		return;
 	}
 

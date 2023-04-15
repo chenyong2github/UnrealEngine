@@ -577,7 +577,7 @@ void SPluginTile::OnEnablePluginCheckboxChanged(ECheckBoxState NewCheckedState)
 			{
 				FText Caption = LOCTEXT("DisableDependenciesCaption", "Disable Dependencies");
 				FText Message = FText::Format(LOCTEXT("DisableDependenciesMessage", "This plugin is required by {0}. Would you like to disable it as well?"), FText::FromString(EnabledPluginName));
-				if (FMessageDialog::Open(EAppMsgType::YesNo, Message, &Caption) == EAppReturnType::No)
+				if (FMessageDialog::Open(EAppMsgType::YesNo, Message, Caption) == EAppReturnType::No)
 				{
 					return;
 				}

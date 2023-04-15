@@ -1730,7 +1730,7 @@ bool SConcertClientSessionBrowser::ConfirmDeleteSessionWithDialog(const TArray<T
 		FText::FromString(FString::Join(UniqueServers, TEXT(", ")))
 		);
 	const FText ConfirmationTitle = LOCTEXT("DeleteSessionConfirmationTitle", "Delete Session Confirmation");
-	return FMessageDialog::Open(EAppMsgType::YesNo, ConfirmationMessage, &ConfirmationTitle) == EAppReturnType::Yes;
+	return FMessageDialog::Open(EAppMsgType::YesNo, ConfirmationMessage, ConfirmationTitle) == EAppReturnType::Yes;
 }
 
 bool SConcertClientSessionBrowser::IsLaunchServerButtonEnabled() const

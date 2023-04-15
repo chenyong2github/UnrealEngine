@@ -691,8 +691,7 @@ FReply SNewPluginWizard::OnCreatePluginClicked()
 	}
 	else
 	{
-		const FText Title = LOCTEXT("UnableToCreatePlugin", "Unable to create plugin");
-		FMessageDialog::Open(EAppMsgType::Ok, FailReason, &Title);
+		FMessageDialog::Open(EAppMsgType::Ok, FailReason, LOCTEXT("UnableToCreatePlugin", "Unable to create plugin"));
 		return FReply::Unhandled();
 	}
 }

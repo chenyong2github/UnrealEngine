@@ -284,8 +284,7 @@ bool UCameraLensDistortionAlgoPoints::OnViewportClicked(const FGeometry& MyGeome
  
  		if (!ValidateNewRow(Row, ErrorMessage))
  		{
- 			const FText TitleError = LOCTEXT("NewRowError", "New Row Error");
- 			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+ 			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, LOCTEXT("NewRowError", "New Row Error"));
  			return true;
  		}
  	}

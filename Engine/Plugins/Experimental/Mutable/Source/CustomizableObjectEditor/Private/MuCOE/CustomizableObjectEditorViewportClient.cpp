@@ -2796,7 +2796,7 @@ bool FCustomizableObjectEditorViewportClient::ManageBakingAction(const FString& 
 					FText Caption = LOCTEXT("OpenExisitngFile", "Open File");
 					FText Message = FText::Format(LOCTEXT("CantCloseAsset", "This Obejct \"{0}\" is open in an editor and can't be closed automatically. Please close the editor and try to bake it again"), FText::FromString(ObjName));
 
-					FMessageDialog::Open(EAppMsgType::Ok, Message, &Caption);
+					FMessageDialog::Open(EAppMsgType::Ok, Message, Caption);
 
 					return false;
 				}
@@ -2808,7 +2808,7 @@ bool FCustomizableObjectEditorViewportClient::ManageBakingAction(const FString& 
 			FText Caption = LOCTEXT("Already existing baked files", "Already existing baked files");
 			FText Message = FText::Format(LOCTEXT("OverwriteBakedInstance", "Instance baked files already exist in selected destination \"{0}\", this action will overwrite them."), FText::AsCultureInvariant(Path));
 			
-			if (FMessageDialog::Open(EAppMsgType::OkCancel, Message, &Caption) == EAppReturnType::Cancel)
+			if (FMessageDialog::Open(EAppMsgType::OkCancel, Message, Caption) == EAppReturnType::Cancel)
 			{
 				return false;
 			}

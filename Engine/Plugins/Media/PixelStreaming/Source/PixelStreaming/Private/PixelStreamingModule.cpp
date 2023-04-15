@@ -440,7 +440,7 @@ namespace UE::PixelStreaming
 			FString ErrorString(TEXT("Failed to initialize Pixel Streaming plugin because minimum requirement is Windows 8"));
 			FText ErrorText = FText::FromString(ErrorString);
 			FText TitleText = FText::FromString(TEXT("Pixel Streaming Plugin"));
-			FMessageDialog::Open(EAppMsgType::Ok, ErrorText, &TitleText);
+			FMessageDialog::Open(EAppMsgType::Ok, ErrorText, TitleText);
 			UE_LOG(LogPixelStreaming, Error, TEXT("%s"), *ErrorString);
 			bCompatible = false;
 		}

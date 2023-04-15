@@ -281,7 +281,7 @@ void SLocalizationTargetEditorCultureRow::OnNativeCultureCheckStateChanged( cons
 		const FText MessageText = FText::Format(FormatPattern, Arguments);
 		const FText TitleText = LOCTEXT("ChangingNativeCultureWarningDialogTitle", "Change Native Culture");
 
-		switch(FMessageDialog::Open(EAppMsgType::YesNo, MessageText, &TitleText))
+		switch(FMessageDialog::Open(EAppMsgType::YesNo, MessageText, TitleText))
 		{
 		case EAppReturnType::Yes:
 			{
@@ -701,7 +701,7 @@ void SLocalizationTargetEditorCultureRow::Delete()
 			MessageText = FText::Format(FormatPattern, Arguments);
 			TitleText = LOCTEXT("DeleteCultureConfirmationDialogTitle", "Confirm Culture Deletion");
 
-			switch(FMessageDialog::Open(EAppMsgType::OkCancel, MessageText, &TitleText))
+			switch(FMessageDialog::Open(EAppMsgType::OkCancel, MessageText, TitleText))
 			{
 			case EAppReturnType::Ok:
 				{

@@ -1360,7 +1360,7 @@ void SBindingsList::OnDeleteSelected()
 
 			const FText Title = LOCTEXT("DeleteBindings", "Delete Bindings?");
 
-			if (FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::Yes, Message, &Title) == EAppReturnType::Yes)
+			if (FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::Yes, Message, Title) == EAppReturnType::Yes)
 			{
 				FScopedTransaction Transaction(LOCTEXT("DeleteBindingsTransaction", "Delete Bindings"));
 

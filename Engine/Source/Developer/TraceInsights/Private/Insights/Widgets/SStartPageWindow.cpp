@@ -2001,7 +2001,7 @@ void STraceStoreWindow::DeleteTraceFile()
 	FText Title = LOCTEXT("ConfirmToDeleteTraceFile_Title", "Unreal Insights");
 	FText ConfirmMessage = FText::Format(LOCTEXT("ConfirmToDeleteTraceFile", "You are about to delete the utrace file:\n{0}\n\nPress Ok to continue."),
 		FText::FromString(TraceFile));
-	EAppReturnType::Type OkToDelete = FMessageDialog::Open(EAppMsgType::OkCancel, ConfirmMessage, &Title);
+	EAppReturnType::Type OkToDelete = FMessageDialog::Open(EAppMsgType::OkCancel, ConfirmMessage, Title);
 	if (OkToDelete == EAppReturnType::Cancel)
 	{
 		return;

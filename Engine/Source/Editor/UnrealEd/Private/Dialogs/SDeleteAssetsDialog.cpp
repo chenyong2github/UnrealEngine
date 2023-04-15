@@ -749,7 +749,7 @@ FReply SDeleteAssetsDialog::ReplaceReferences()
 	FText Message = FText::Format( LOCTEXT( "ReplaceMessage", "This will replace any reference to the pending deleted assets with {0}; and then delete them.\n\nAre you sure?" ), FText::FromName( ConsolidationAsset.AssetName ) );
 	FText Title = LOCTEXT( "ReplaceTitle", "Replace References?" );
 
-	if ( EAppReturnType::Ok == FMessageDialog::Open( EAppMsgType::OkCancel, Message, &Title ) )
+	if ( EAppReturnType::Ok == FMessageDialog::Open( EAppMsgType::OkCancel, Message, Title ) )
 	{
 		if (TSharedPtr<SWindow> OwningWindow = ParentWindow.Pin())
 		{

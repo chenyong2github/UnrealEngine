@@ -896,8 +896,7 @@ FReply SEditToolMenuDialog::HandleResetClicked()
 
 FReply SEditToolMenuDialog::HandleResetAllClicked()
 {
-	FText Title = LOCTEXT("ResetAllQuestion_Question", "Question");
-	if (FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::No, LOCTEXT("ResetAllQuestion", "Remove all menu customizations for all menus?"), &Title) == EAppReturnType::Yes)
+	if (FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::No, LOCTEXT("ResetAllQuestion", "Remove all menu customizations for all menus?"), LOCTEXT("ResetAllQuestion_Question", "Question")) == EAppReturnType::Yes)
 	{
 		UToolMenus::Get()->RemoveAllCustomizations();
 		OriginalSettings.Reset();

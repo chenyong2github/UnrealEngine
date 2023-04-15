@@ -639,7 +639,7 @@ FReply FEditorStyleSettingsCustomization::OnDeleteThemeClicked()
 	const FText TextTitle = FText::Format(LOCTEXT("RemoveTheme_Title", "Remove Theme \"{0}\"?"), FileNameToRemove);
 
 	// If user select "OK"...
-	if (EAppReturnType::Ok == FMessageDialog::Open(EAppMsgType::OkCancel, TextBody, &TextTitle))
+	if (EAppReturnType::Ok == FMessageDialog::Open(EAppMsgType::OkCancel, TextBody, TextTitle))
 	{
 		// apply default theme
 		USlateThemeManager::Get().ApplyDefaultTheme();

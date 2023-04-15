@@ -915,8 +915,7 @@ static void ModalErrorOrLog(const FString& Title, const FString& Text, int64 Cur
 		if (!bModalReported.AtomicSet(true))
 		{
 			// Show dialog box with error message and request exit
-			FText TitleText = FText::FromString(Title);
-			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Text), &TitleText);
+			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Text), FText::FromString(Title));
 			FPlatformMisc::RequestExit(false, TEXT("ShaderCompiler.ModalErrorOrLog"));
 		}
 		else

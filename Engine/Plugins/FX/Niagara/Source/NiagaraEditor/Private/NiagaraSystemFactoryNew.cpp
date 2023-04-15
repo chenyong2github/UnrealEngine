@@ -53,10 +53,9 @@ bool UNiagaraSystemFactoryNew::ConfigureProperties()
 		SystemToCopy = Cast<UNiagaraSystem>(SelectedSystemAsset.GetValue().GetAsset());
 		if (SystemToCopy == nullptr)
 		{
-			FText Title = LOCTEXT("FailedToLoadSystemTitle", "Create Default?");
 			EAppReturnType::Type DialogResult = FMessageDialog::Open(EAppMsgType::OkCancel, EAppReturnType::Cancel,
 				LOCTEXT("FailedToLoadEmitterMessage", "The selected system failed to load.\nWould you like to create an empty system?"),
-				&Title);
+				LOCTEXT("FailedToLoadSystemTitle", "Create Default?"));
 			if (DialogResult == EAppReturnType::Cancel)
 			{
 				return false;
@@ -87,10 +86,9 @@ bool UNiagaraSystemFactoryNew::ConfigureProperties()
 
 		if(bAllEmittersLoaded == false)
 		{
-			FText Title = LOCTEXT("FailedToLoadEmitterTitle", "Create Default?");
 			EAppReturnType::Type DialogResult = FMessageDialog::Open(EAppMsgType::OkCancel, EAppReturnType::Cancel,
 				LOCTEXT("FailedToLoadMessage", "A selected emitter failed to load.\nWould you like to create an empty system system?"),
-				&Title);
+				LOCTEXT("FailedToLoadEmitterTitle", "Create Default?"));
 			if (DialogResult == EAppReturnType::Cancel)
 			{
 				return false;

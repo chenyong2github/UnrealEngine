@@ -1706,7 +1706,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 								FText FailureMessage = FText::Format(LOCTEXT("PluginOverrideFailureFormat", "Plugin '{0}' cannot override config file: '{1}'"), FText::FromString(Plugin.GetName()), FText::FromString(BaseConfigFile));
 								FText DialogTitle = LOCTEXT("PluginConfigFileOverride", "Plugin config file override");
 								UE_LOG(LogPluginManager, Error, TEXT("%s"), *FailureMessage.ToString());
-								FMessageDialog::Open(EAppMsgType::Ok, FailureMessage, &DialogTitle);
+								FMessageDialog::Open(EAppMsgType::Ok, FailureMessage, DialogTitle);
 								continue;
 							}
 
@@ -2124,7 +2124,7 @@ bool FPluginManager::PromptToDownloadPlugin(const FString& PluginName, const FSt
 	{
 		FText Caption = FText::Format(LOCTEXT("DownloadPluginCaption", "Missing {0} Plugin"), FText::FromString(PluginName));
 		FText Message = FText::Format(LOCTEXT("DownloadPluginMessage", "This project requires the {0} plugin.\n\nWould you like to download it from the Unreal Engine Marketplace?"), FText::FromString(PluginName));
-		if(FMessageDialog::Open(EAppMsgType::YesNo, Message, &Caption) == EAppReturnType::Yes)
+		if(FMessageDialog::Open(EAppMsgType::YesNo, Message, Caption) == EAppReturnType::Yes)
 		{
 			FString Error;
 			FPlatformProcess::LaunchURL(*MarketplaceURL, nullptr, &Error);
@@ -2175,7 +2175,7 @@ bool FPluginManager::PromptToDisablePlugin(const FText& Caption, const FText& Me
 	// Check we have a project file. If this is a missing engine/program plugin referenced by something, we can't disable it through this method.
 	if (IProjectManager::Get().GetCurrentProject() != nullptr)
 	{
-		if (FMessageDialog::Open(EAppMsgType::YesNo, Message, &Caption) == EAppReturnType::Yes)
+		if (FMessageDialog::Open(EAppMsgType::YesNo, Message, Caption) == EAppReturnType::Yes)
 		{
 			FText FailReason;
 			if (IProjectManager::Get().SetPluginEnabled(*PluginName, false, FailReason))
@@ -2214,7 +2214,7 @@ bool FPluginManager::PromptToLoadIncompatiblePlugin(const FPlugin& Plugin)
 	// Format the message dependning on whether the plugin is referenced directly, or as a dependency
 	FText Message = FText::Format(LOCTEXT("LoadIncompatiblePlugin", "The '{0}' plugin was designed for build {1}. Attempt to load it anyway?"), FText::FromString(Plugin.Name), FText::FromString(Plugin.Descriptor.EngineVersion));
 	FText Caption = FText::Format(LOCTEXT("IncompatiblePluginCaption", "'{0}' is Incompatible"), FText::FromString(Plugin.Name));
-	return FMessageDialog::Open(EAppMsgType::YesNo, Message, &Caption) == EAppReturnType::Yes;
+	return FMessageDialog::Open(EAppMsgType::YesNo, Message, Caption) == EAppReturnType::Yes;
 }
 
 TSharedPtr<FPlugin> FPluginManager::FindPluginInstance(const FString& Name)

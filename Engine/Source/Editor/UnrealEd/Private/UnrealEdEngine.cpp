@@ -1654,6 +1654,6 @@ void UUnrealEdEngine::ValidateFreeDiskSpace() const
 
 		const FText Title = NSLOCTEXT("DriveSpaceDialog", "LowHardDriveSpaceMsgTitle", "Warning: Low Drive Space");
 
-		FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
+		FMessageDialog::Open(EAppMsgType::Ok, Message, Title);
 	}
 }

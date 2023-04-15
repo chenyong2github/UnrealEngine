@@ -478,9 +478,9 @@ void URemoveOccludedTrianglesTool::GenerateAsset(const TArray<FDynamicMeshOpResu
 	// if so ask user what to do
 	if (bWantDestroy)
 	{
-		FText Title = LOCTEXT("RemoveOccludedDestroyTitle", "Delete mesh components?");
 		EAppReturnType::Type Ret = FMessageDialog::Open(EAppMsgType::YesNo,
-			LOCTEXT("RemoveOccludedDestroyQuestion", "Jacketing has removed all triangles from at least one mesh. Do you actually want to delete these mesh components? Note that either way all actors will remain, and meshes that would not have all triangles removed will still be jacketed as normal."), &Title);
+			LOCTEXT("RemoveOccludedDestroyQuestion", "Jacketing has removed all triangles from at least one mesh. Do you actually want to delete these mesh components? Note that either way all actors will remain, and meshes that would not have all triangles removed will still be jacketed as normal."), 
+			LOCTEXT("RemoveOccludedDestroyTitle", "Delete mesh components?"));
 		if (Ret == EAppReturnType::No || Ret == EAppReturnType::Cancel)
 		{
 			bWantDestroy = false;

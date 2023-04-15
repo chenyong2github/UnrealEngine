@@ -462,11 +462,10 @@ void FFontEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyChanged
 	if(PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == FontCacheTypePropertyName)
 	{
 		// Show a warning message, as what we're about to do will destroy any existing data in this font object
-		const FText Title = LOCTEXT("ChangeCacheTypeWarningTitle", "Really change the font cache type?");
 		const EAppReturnType::Type DlgResult = FMessageDialog::Open(
 			EAppMsgType::YesNo, 
 			LOCTEXT("ChangeCacheTypeWarningMsg", "Changing the cache type will cause this font to be reinitialized (discarding any existing data).\n\nAre you sure you want to proceed?"), 
-			&Title
+			LOCTEXT("ChangeCacheTypeWarningTitle", "Really change the font cache type?")
 			);
 
 		bool bSuccessfullyChangedCacheType = false;

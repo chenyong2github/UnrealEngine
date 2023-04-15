@@ -133,7 +133,7 @@ void FCalibrationPointArucosForWallDetailsRow::CreateArucos(
 
 		const FText Title = LOCTEXT("ArucoGenerationError", "Aruco Generation Error");
 
-		FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
+		FMessageDialog::Open(EAppMsgType::Ok, Message, Title);
 
 		return;
 	}
@@ -222,7 +222,7 @@ void FCalibrationPointArucosForWallDetailsRow::CreateArucos(
 			{
 				const FText Message = LOCTEXT("ErrorWhenSavingArucoTexture", "There was an error when saving the texture with the Aruco markers.");
 				const FText Title = LOCTEXT("ArucoTextureGenerationError", "Aruco Texture Generation Error");
-				FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
+				FMessageDialog::Open(EAppMsgType::Ok, Message, Title);
 
 				return;
 			}
@@ -241,7 +241,7 @@ void FCalibrationPointArucosForWallDetailsRow::CreateArucos(
 	);
 
 	const FText Title = LOCTEXT("ArucosGenerated", "Arucos Generated");
-	FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Message), &Title);
+	FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(Message), Title);
 
 #endif //WITH_OPENCV
 }

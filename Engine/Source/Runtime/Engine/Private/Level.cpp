@@ -3752,7 +3752,7 @@ bool ULevel::SetUseActorFolders(bool bInEnabled, bool bInInteractiveMode)
 	{
 		FText MessageTitle(LOCTEXT("ConvertActorFolderDialog", "Convert Actor Folders"));
 		FText Message(LOCTEXT("ConvertActorFoldersToActorFoldersMsg", "Do you want to convert all actors with a folder to use a actor folder objects?"));
-		EAppReturnType::Type ConvertAnswer = FMessageDialog::Open(EAppMsgType::YesNo, Message, &MessageTitle);
+		EAppReturnType::Type ConvertAnswer = FMessageDialog::Open(EAppMsgType::YesNo, Message, MessageTitle);
 		if (ConvertAnswer != EAppReturnType::Yes)
 		{
 			return false;

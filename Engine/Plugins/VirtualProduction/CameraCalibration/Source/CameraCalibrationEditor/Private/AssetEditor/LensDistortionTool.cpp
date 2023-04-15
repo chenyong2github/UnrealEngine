@@ -284,7 +284,7 @@ void ULensDistortionTool::OnSaveCurrentCalibrationData()
 
 		if (!Algo->GetLensDistortion(Focus, Zoom, DistortionInfo, FocalLengthInfo, ImageCenterInfo, LensModel, Error, ErrorMessage))
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, TitleError);
 			return;
 		}
 	}
@@ -297,7 +297,7 @@ void ULensDistortionTool::OnSaveCurrentCalibrationData()
 		const FText Message = FText::Format(LOCTEXT("ReprojectionError", "RMS Reprojection Error: {0} pixels"), Arguments);
 
 		// Allow the user to cancel adding to the LUT if the reprojection error is unacceptable.
-		if (FMessageDialog::Open(EAppMsgType::OkCancel, Message, &TitleInfo) != EAppReturnType::Ok)
+		if (FMessageDialog::Open(EAppMsgType::OkCancel, Message, TitleInfo) != EAppReturnType::Ok)
 		{
 			return;
 		}
@@ -306,7 +306,7 @@ void ULensDistortionTool::OnSaveCurrentCalibrationData()
 	if (LensFile->HasSamples(ELensDataCategory::Distortion) && LensFile->LensInfo.LensModel != LensModel)
 	{
 		const FText ErrorMessage = LOCTEXT("LensDistortionModelMismatch", "There is a distortion model mismatch between the new and existing samples");
-		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, TitleError);
 		return;
 	}
 

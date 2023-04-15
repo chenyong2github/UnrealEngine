@@ -8432,7 +8432,7 @@ void FAsyncArchive::Serialize(void* Data, int64 Count)
 			ErrorCaption,
 			GEngineIni);
 
-		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &ErrorCaption);
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, ErrorCaption);
 	}
 #endif
 	// Ensure we aren't reading beyond the end of the file

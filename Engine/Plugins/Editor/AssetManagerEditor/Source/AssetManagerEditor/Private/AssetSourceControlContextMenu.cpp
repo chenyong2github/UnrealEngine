@@ -586,7 +586,7 @@ FExecuteAction FAssetSourceControlContextMenuState::ExecutionCheck(FExecuteActio
 			{
 				FText Message = FText::Format(LOCTEXT("SCCLargeOperationWarningMessage", "You are about to perform this operation on a large amount of files ({0}), are you sure you want to continue?\n\nUnreal Editor may become unresponsive."), SelectedAssets.Num());
 				FText Title = LOCTEXT("SCCLargeOperationWarningTitle", "Continue Operation?");
-				EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNo, Message, &Title);
+				EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNo, Message, Title);
 
 				if (Result != EAppReturnType::Yes)
 				{

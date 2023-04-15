@@ -49,7 +49,7 @@ void FHLMediaModule::StartupModule()
 	{
 		FText Message = FText::Format(LOCTEXT("HLMediaModule", "Failed to load native library:\n\t{0}"), FText::FromString(ThirdPartyDir));
 		FText DialogTitle = FText::FromString(TEXT("Cannot find dll"));
-		FMessageDialog::Open(EAppMsgType::Ok, Message, &DialogTitle);
+		FMessageDialog::Open(EAppMsgType::Ok, Message, DialogTitle);
 	}
 }
 

@@ -1130,7 +1130,7 @@ bool UGameplayCueManager::VerifyNotifyAssetIsInValidPath(FString Path)
 
 		const FText MessageText = FText::FromString(MessageTry);
 		const FText TitleText = NSLOCTEXT("GameplayCuePathWarning", "GameplayCuePathWarningTitle", "Invalid GameplayCue Path");
-		FMessageDialog::Open(EAppMsgType::Ok, MessageText, &TitleText);
+		FMessageDialog::Open(EAppMsgType::Ok, MessageText, TitleText);
 	}
 
 	return ValidPath;

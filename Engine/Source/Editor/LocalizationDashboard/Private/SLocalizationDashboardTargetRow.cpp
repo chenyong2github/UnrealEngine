@@ -277,7 +277,7 @@ FReply SLocalizationDashboardTargetRow::GatherText()
 			// Give warning dialog.
 			const FText MessageText = NSLOCTEXT("LocalizationCultureActions", "UnsavedPackagesWarningDialogMessage", "There are unsaved changes. These changes may not be gathered from correctly.");
 			const FText TitleText = NSLOCTEXT("LocalizationCultureActions", "UnsavedPackagesWarningDialogTitle", "Unsaved Changes Before Gather");
-			switch(FMessageDialog::Open(EAppMsgType::OkCancel, MessageText, &TitleText))
+			switch(FMessageDialog::Open(EAppMsgType::OkCancel, MessageText, TitleText))
 			{
 			case EAppReturnType::Cancel:
 				{
@@ -549,7 +549,7 @@ void SLocalizationDashboardTargetRow::Delete()
 			const FText MessageText = FText::Format(FormatPattern, Arguments);
 			const FText TitleText = NSLOCTEXT("LocalizationDashboard", "DeleteTargetConfirmationDialogTitle", "Confirm Target Deletion");
 
-			switch(FMessageDialog::Open(EAppMsgType::OkCancel, MessageText, &TitleText))
+			switch(FMessageDialog::Open(EAppMsgType::OkCancel, MessageText, TitleText))
 			{
 			case EAppReturnType::Ok:
 				{

@@ -334,7 +334,7 @@ const TArray64<uint8>& FDMXMVRExporter::RefreshSourceDataAndFixtureType(UDMXEnti
 	{
 		static const FText MessageTitle = LOCTEXT("NoGDTFSourceAvailableTitle", "Trying to use old GDTF asset.");
 		static const FText Message = FText::Format(LOCTEXT("NoGDTFSourceAvailableMessage", "Insufficient data to export '{0}' to MVR file. The GDTF asset was created prior to UE5.1. Do you want to reload the source GDTF?"), FText::FromString(GDTF->GetName()));
-		MessageDialogResult = FMessageDialog::Open(EAppMsgType::YesNoYesAllNoAll, Message, &MessageTitle);
+		MessageDialogResult = FMessageDialog::Open(EAppMsgType::YesNoYesAllNoAll, Message, MessageTitle);
 
 		if (MessageDialogResult == EAppReturnType::YesAll || MessageDialogResult == EAppReturnType::NoAll)
 		{

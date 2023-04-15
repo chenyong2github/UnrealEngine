@@ -274,8 +274,7 @@ bool FPrivateLayoutsMenu::TrySaveLayoutOrWarnInternal(const FString& InSourceFil
 		EditorErrors.Notify(LOCTEXT("LoadUnsuccessful_Title", "Load Unsuccessful!"));
 
 		// Show reason
-		const FText TextTitle = LOCTEXT("UnsuccessfulCopyHeader", "Unsuccessful copy!");
-		FMessageDialog::Open(EAppMsgType::Ok, TextBody, &TextTitle);
+		FMessageDialog::Open(EAppMsgType::Ok, TextBody, LOCTEXT("UnsuccessfulCopyHeader", "Unsuccessful copy!"));
 
 		// Return
 		return false;
@@ -567,7 +566,7 @@ bool FPrivateLayoutsMenu::CheckAskUserToClosePIESIE(const FText& InitialMessage)
 	const FText IfNoText = LOCTEXT("CheckAskUserToClosePIESIEIfNoBody", "If \"No\", you can manually reload the layout from the \"User Layouts\" section later.");
 	const FText TextBody = FText::Format(LOCTEXT("ClosePIESIEAssetEditorsBody", "{0}\n\n{1}\n\n{2}"), InitialMessage, IfYesText, IfNoText);
 	// Return if the user did not want to close them
-	if (EAppReturnType::Yes != FMessageDialog::Open(EAppMsgType::YesNo, TextBody, &TextTitle))
+	if (EAppReturnType::Yes != FMessageDialog::Open(EAppMsgType::YesNo, TextBody, TextTitle))
 	{
 		return false;
 	}
@@ -701,13 +700,12 @@ void FPrivateLayoutsMenu::SaveExportLayoutCommon(const FString& InDefaultDirecto
 				else
 				{
 					// Warn the user that the file will not be copied in there
-					const FText Title = LOCTEXT("SaveAsFailedMsg_Title", "Save As Failed");
 					FMessageDialog::Open(
 						EAppMsgType::Ok,
 						FText::Format(
 							LOCTEXT("SaveAsFailedMsg", "In order to save the layout and allow Unreal to use it, you must save it in the predefined folder:\n{0}\n\nNevertheless, you tried to save it in:\n{1}\n\nIf you simply wish to export a copy of the current configuration in {1} (e.g., to later copy it into a different machine), you could use the \"Export Layout...\" functionality. However, Unreal would not be able to load it until you import it with \"Import Layout...\"."),
 							FText::FromString(DefaultDirectoryAbsolute), FText::FromString(LayoutFilePathAbsolute)),
-						&Title);
+						LOCTEXT("SaveAsFailedMsg_Title", "Save As Failed"));
 				}
 			}
 		}
@@ -903,7 +901,7 @@ void FLayoutsMenuLoad::ImportLayout()
 					Arguments.Add(TEXT("FileName"), FText::FromString(FPaths::ConvertRelativePathToFull(LayoutFilePath)));
 					const FText TextBody = FText::Format(LOCTEXT("UnsuccessfulImportBody", "Unsuccessful import, {FileName} is not a layout configuration file!"), Arguments);
 					const FText TextTitle = LOCTEXT("UnsuccessfulImportHeader", "Unsuccessful Import!");
-					FMessageDialog::Open(EAppMsgType::Ok, TextBody, &TextTitle);
+					FMessageDialog::Open(EAppMsgType::Ok, TextBody, TextTitle);
 				}
 			}
 			// If PIE, SIE, or any Asset Editors are opened, ask the user whether they wants to automatically close them and continue loading the layout
@@ -1082,7 +1080,7 @@ void FLayoutsMenuRemove::RemoveLayout(const int32 InLayoutIndex, const FLayoutsM
 	const FText TextFileNameToRemove = FText::FromString(FPaths::GetBaseFilename(LayoutIniFileNames[InLayoutIndex]));
 	const FText TextBody = FText::Format(LOCTEXT("ActionRemoveMsg", "Are you sure you want to permanently delete the layout profile \"{0}\"? This action cannot be undone."), TextFileNameToRemove);
 	const FText TextTitle = FText::Format(LOCTEXT("RemoveUILayout_Title", "Remove UI Layout \"{0}\"?"), TextFileNameToRemove);
-	if (EAppReturnType::Ok != FMessageDialog::Open(EAppMsgType::OkCancel, TextBody, &TextTitle))
+	if (EAppReturnType::Ok != FMessageDialog::Open(EAppMsgType::OkCancel, TextBody, TextTitle))
 	{
 		return;
 	}
@@ -1102,7 +1100,7 @@ void FLayoutsMenuRemove::RemoveUserLayouts()
 		// Are you sure you want to do this?
 		const FText TextBody = FText::Format(LOCTEXT("ActionRemoveAllUserLayoutMsg", "Are you sure you want to permanently remove {0} layout {0}|plural(one=profile,other=profiles)? This action cannot be undone."), NumberUserLayoutFiles);
 		const FText TextTitle = LOCTEXT("RemoveAllUserLayouts_Title", "Remove All User-Created Layouts?");
-		if (EAppReturnType::Ok != FMessageDialog::Open(EAppMsgType::OkCancel, TextBody, &TextTitle))
+		if (EAppReturnType::Ok != FMessageDialog::Open(EAppMsgType::OkCancel, TextBody, TextTitle))
 		{
 			return;
 		}
@@ -1126,7 +1124,7 @@ void FLayoutsMenuRemove::RemoveUserLayouts()
 		// Show reason
 		const FText TextBody = LOCTEXT("UnsuccessfulRemoveLayoutBody", "There are no layout profile files created by the user, so none could be removed.");
 		const FText TextTitle = LOCTEXT("UnsuccessfulRemoveLayoutHeader", "Unsuccessful Remove All User Layouts!");
-		FMessageDialog::Open(EAppMsgType::Ok, TextBody, &TextTitle);
+		FMessageDialog::Open(EAppMsgType::Ok, TextBody, TextTitle);
 	}
 }
 

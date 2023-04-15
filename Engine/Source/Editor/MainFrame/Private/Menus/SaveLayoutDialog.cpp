@@ -142,7 +142,7 @@ bool FSaveLayoutDialogUtils::OverrideLayoutDialog(const FString& LayoutIniFileNa
 	const FText TextBody = FText::Format(
 		LOCTEXT("ActionOverrideLayoutMsg", "Are you sure you want to permanently override the layout profile \"{0}\" with the current layout profile? This action cannot be undone."), TextFileNameToRemove);
 	const FText TextTitle = FText::Format(LOCTEXT("OverrideUILayout_Title", "Override UI Layout \"{0}\"?"), TextFileNameToRemove);
-	return (EAppReturnType::Ok == FMessageDialog::Open(EAppMsgType::OkCancel, TextBody, &TextTitle));
+	return (EAppReturnType::Ok == FMessageDialog::Open(EAppMsgType::OkCancel, TextBody, TextTitle));
 }
 
 bool FSaveLayoutDialogUtils::CreateSaveLayoutAsDialogInStandaloneWindow(const TSharedRef<FSaveLayoutDialogParams>& InSaveLayoutDialogParams)

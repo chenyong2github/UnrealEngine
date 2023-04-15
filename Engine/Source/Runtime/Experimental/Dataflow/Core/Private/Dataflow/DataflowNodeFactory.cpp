@@ -24,7 +24,7 @@ namespace Dataflow
 			const FText ErrorTitle = FText::FromString("Node Factory");
 			const FString ErrorMessageString = FString::Printf(TEXT("Cannot create Node %s. Node Type %s is not well defined."), *Node->GetName().ToString(), *Node->GetDisplayName().ToString());
 			const FText ErrorMessage = FText::FromString(ErrorMessageString);
-			FMessageDialog::Debugf(ErrorMessage, &ErrorTitle);
+			FMessageDialog::Debugf(ErrorMessage, ErrorTitle);
 		}
 		return TSharedPtr<FDataflowNode>(nullptr);
 	}

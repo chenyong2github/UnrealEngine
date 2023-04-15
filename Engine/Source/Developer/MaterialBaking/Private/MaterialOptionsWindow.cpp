@@ -80,8 +80,7 @@ FReply SMaterialOptions::OnConfirm()
 	// Ensure the user has selected at least one LOD index
 	if (GetMutableDefault<UMaterialOptions>()->LODIndices.Num() == 0)
 	{
-		FText Title = LOCTEXT("MaterialBake_SelectLODErrorTitle", "Invalid options");
-		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("MaterialBake_SelectLODError", "Ensure that atleast one LOD index is selected."), &Title);
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("MaterialBake_SelectLODError", "Ensure that atleast one LOD index is selected."), LOCTEXT("MaterialBake_SelectLODErrorTitle", "Invalid options"));
 	}
 	else
 	{

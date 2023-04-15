@@ -252,7 +252,7 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 			}
 
 			FText Title = NSLOCTEXT("MessageDialog", "TitleVideoCardDriverIssue", "WARNING: Known issues with graphics driver");
-			EAppReturnType::Type Response = FMessageDialog::Open(EAppMsgType::YesNo, LocalizedMsg, &Title);
+			EAppReturnType::Type Response = FMessageDialog::Open(EAppMsgType::YesNo, LocalizedMsg, Title);
 			if (Response == EAppReturnType::Yes)
 			{
 				FPlatformProcess::LaunchURL(*HyperlinkText.ToString(), nullptr, nullptr);

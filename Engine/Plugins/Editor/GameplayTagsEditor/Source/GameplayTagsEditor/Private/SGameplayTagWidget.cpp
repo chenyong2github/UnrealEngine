@@ -1479,7 +1479,7 @@ void SGameplayTagWidget::VerifyAssetTagValidity()
 				Arguments.Add(TEXT("Objects"), FText::FromString(InvalidTagNames));
 				FText DialogText = FText::Format(LOCTEXT("GameplayTagWidget_InvalidTags", "Invalid Tags that have been removed: \n\n{Objects}"), Arguments);
 				FText DialogTitle = LOCTEXT("GameplayTagWidget_Warning", "Warning");
-				FMessageDialog::Open(EAppMsgType::Ok, DialogText, &DialogTitle);
+				FMessageDialog::Open(EAppMsgType::Ok, DialogText, DialogTitle);
 			}
 		}
 	}

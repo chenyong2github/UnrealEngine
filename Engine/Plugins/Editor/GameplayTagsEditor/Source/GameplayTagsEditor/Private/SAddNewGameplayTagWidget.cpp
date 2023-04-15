@@ -323,8 +323,7 @@ void SAddNewGameplayTagWidget::CreateNewGameplayTag()
 		(IsValidTag.IsBound() && !IsValidTag.Execute(TagName, &ErrorMsg))
 		)
 	{
-		FText MessageTitle(LOCTEXT("InvalidTag", "Invalid Tag"));
-		FMessageDialog::Open(EAppMsgType::Ok, ErrorMsg, &MessageTitle);
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMsg, LOCTEXT("InvalidTag", "Invalid Tag"));
 		return;
 	}
 

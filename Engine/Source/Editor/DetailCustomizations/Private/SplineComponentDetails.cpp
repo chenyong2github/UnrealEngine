@@ -889,7 +889,7 @@ void FSplinePointDetails::OnSetInputKey(float NewValue, ETextCommit::Type Commit
 		const FText Message(LOCTEXT("InputKeyMessage", "Spline input keys must be numerically ascending. Would you like to modify other input keys in the spline in order to be able to set this value?"));
 
 		// Ensure input keys remain ascending
-		if (FMessageDialog::Open(EAppMsgType::YesNo, Message, &Title) == EAppReturnType::No)
+		if (FMessageDialog::Open(EAppMsgType::YesNo, Message, Title) == EAppReturnType::No)
 		{
 			return;
 		}

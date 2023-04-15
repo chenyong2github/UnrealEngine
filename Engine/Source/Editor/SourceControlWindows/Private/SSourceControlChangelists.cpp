@@ -1871,7 +1871,7 @@ FReply SSourceControlChangelistsWidget::OnKeyDown(const FGeometry& MyGeometry, c
 		else
 		{
 			FText Title(LOCTEXT("Cannot_Submit_Changelist_From_Key_Title", "Cannot Submit Changelist"));
-			FMessageDialog::Open(EAppMsgType::Ok, EAppReturnType::Ok, FailureMessage, &Title);
+			FMessageDialog::Open(EAppMsgType::Ok, EAppReturnType::Ok, FailureMessage, Title);
 		}
 
 		return FReply::Handled();
@@ -1886,7 +1886,7 @@ FReply SSourceControlChangelistsWidget::OnKeyDown(const FGeometry& MyGeometry, c
 		else
 		{
 			FText Title(LOCTEXT("Cannot_Delete_Changelist_From_Key_Title", "Cannot Delete Changelist"));
-			FMessageDialog::Open(EAppMsgType::Ok, EAppReturnType::Ok, FailureMessage, &Title);
+			FMessageDialog::Open(EAppMsgType::Ok, EAppReturnType::Ok, FailureMessage, Title);
 		}
 
 		return FReply::Handled();
@@ -2056,7 +2056,7 @@ void SSourceControlChangelistsWidget::OnRevert()
 		DialogTitle = LOCTEXT("SourceControl_ConfirmReverFiles_Title", "Confirm files revert");
 	}
 	
-	EAppReturnType::Type UserConfirmation = FMessageDialog::Open(EAppMsgType::OkCancel, EAppReturnType::Ok, DialogText, &DialogTitle);
+	EAppReturnType::Type UserConfirmation = FMessageDialog::Open(EAppMsgType::OkCancel, EAppReturnType::Ok, DialogText, DialogTitle);
 
 	if (UserConfirmation != EAppReturnType::Ok)
 	{
@@ -3417,8 +3417,7 @@ void SSourceControlChangelistsWidget::OnItemDoubleClicked(TSharedPtr<IChangelist
 		}
 		else
 		{
-			FText Title(LOCTEXT("Cannot_Submit_Changelist_Title", "Cannot Submit Changelist"));
-			FMessageDialog::Open(EAppMsgType::Ok, EAppReturnType::Ok, FailureMessage, &Title);
+			FMessageDialog::Open(EAppMsgType::Ok, EAppReturnType::Ok, FailureMessage, LOCTEXT("Cannot_Submit_Changelist_Title", "Cannot Submit Changelist"));
 		}
 	}
 }

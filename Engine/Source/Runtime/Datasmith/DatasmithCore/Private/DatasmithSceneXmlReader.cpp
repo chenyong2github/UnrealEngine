@@ -1116,7 +1116,7 @@ bool FDatasmithSceneXmlReader::LoadFromBuffer(const FString& XmlBuffer)
 	if (SceneNode->GetTag() != TEXT("DatasmithUnrealScene"))
 	{
 		FText DialogTitle = FText::FromString( TEXT("Error parsing file") );
-		FMessageDialog::Open(EAppMsgType::Ok, FText::FromString( SceneNode->GetTag() ), &DialogTitle);
+		FMessageDialog::Open(EAppMsgType::Ok, FText::FromString( SceneNode->GetTag() ), DialogTitle);
 		XmlFile.Reset();
 	}
 

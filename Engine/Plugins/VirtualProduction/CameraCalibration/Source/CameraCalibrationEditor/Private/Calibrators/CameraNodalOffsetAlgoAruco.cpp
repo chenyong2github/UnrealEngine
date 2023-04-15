@@ -44,7 +44,7 @@ bool UCameraNodalOffsetAlgoAruco::OnViewportClicked(const FGeometry& MyGeometry,
 
 		if (!PopulatePoints(ErrorMessage))
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, TitleError);
 		}
 	}
 

@@ -266,7 +266,7 @@ void FWorldSettingsDetails::OnUseExternalActorsChanged(ECheckBoxState BoxState, 
 		FText MessageTitle(LOCTEXT("ConvertActorPackagingDialog", "Convert Actors Packaging"));
 		FText PackagingMode = !Level->IsUsingExternalActors() ? LOCTEXT("ExternalActors", "External") : LOCTEXT("InternalActors", "Internal");
 		FText Message = FText::Format(LOCTEXT("ConvertActorPackagingMsg", "Do you want to convert all actors to {0} packaging as well?"), PackagingMode);
-		EAppReturnType::Type ConvertAnswer = FMessageDialog::Open(EAppMsgType::YesNo, Message, &MessageTitle);
+		EAppReturnType::Type ConvertAnswer = FMessageDialog::Open(EAppMsgType::YesNo, Message, MessageTitle);
 		// if the user accepts, convert all actors to what the new packaging mode will be
 		if (ConvertAnswer == EAppReturnType::Yes)
 		{

@@ -827,8 +827,7 @@ public:
 			const FAndroidDeviceInfo* DeviceInfo = GetDeviceMap().Find(DeviceName);
 			if (DeviceInfo == nullptr)
 			{
-				FText TitleMessage = LOCTEXT("loc_ExportError_Title", "File export error.");
-				FMessageDialog::Open(EAppMsgType::Ok, EAppReturnType::Ok, LOCTEXT("loc_ExportError_Message", "Device disconnected!"), &TitleMessage);
+				FMessageDialog::Open(EAppMsgType::Ok, EAppReturnType::Ok, LOCTEXT("loc_ExportError_Message", "Device disconnected!"), LOCTEXT("loc_ExportError_Title", "File export error."));
 				return;
 			}
 

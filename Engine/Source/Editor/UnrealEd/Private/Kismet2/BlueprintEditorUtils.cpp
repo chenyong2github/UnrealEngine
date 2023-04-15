@@ -6436,7 +6436,7 @@ void FBlueprintEditorUtils::MarkBlueprintChildrenAsModified(UBlueprint* InBluepr
 		{
 			FText Message = FText::Format(LOCTEXT("LoadChildrenPopupMessage", "Load {0} unloaded child blueprints to fix up phantom references?"), FText::FromString(LexToString(Unloaded)));
 			FText Title = LOCTEXT("LoadChildrenPopupTitle", "Load Unloaded Children?");
-			DialogResponse = FMessageDialog::Open(EAppMsgType::YesNo, Message, &Title);
+			DialogResponse = FMessageDialog::Open(EAppMsgType::YesNo, Message, Title);
 		}
 
 		// Conditionally Load Children and mark as modified 

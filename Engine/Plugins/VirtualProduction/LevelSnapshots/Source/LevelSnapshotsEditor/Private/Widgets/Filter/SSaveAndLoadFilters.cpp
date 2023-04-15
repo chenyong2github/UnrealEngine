@@ -37,7 +37,7 @@ namespace
 			const FText Text = FText::Format(LOCTEXT("ConfirmOverwriteText", "This replaces the filters in asset {0} with ones set up in the editor. Are you sure?"), Arguments);
 			const FText Title = LOCTEXT("ConfirmOverwriteTitle", "Confirm save");
 			
-			const EAppReturnType::Type Answer = FMessageDialog::Open(EAppMsgType::OkCancel, Text, &Title);
+			const EAppReturnType::Type Answer = FMessageDialog::Open(EAppMsgType::OkCancel, Text, Title);
 			if (Answer == EAppReturnType::Cancel)
 			{
 				return;
@@ -64,8 +64,7 @@ namespace
 		TWeakObjectPtr<UFilterLoader> FilterLoader = EditorData->GetFilterLoader();
 		const TOptional<FAssetData> PreviousSelection = FilterLoader->GetAssetLastSavedOrLoaded();
 
-		const FText Title = LOCTEXT("LoseChangesDialogTitle", "Lose changes");
-		const EAppReturnType::Type Answer = FMessageDialog::Open(EAppMsgType::OkCancel, LOCTEXT("LoseChangesDialogText", "Are you sure you want to load another preset? Any changes you made will be lost."), &Title);
+		const EAppReturnType::Type Answer = FMessageDialog::Open(EAppMsgType::OkCancel, LOCTEXT("LoseChangesDialogText", "Are you sure you want to load another preset? Any changes you made will be lost."), LOCTEXT("LoseChangesDialogTitle", "Lose changes"));
 		if (Answer == EAppReturnType::Cancel)
 		{
 			return;

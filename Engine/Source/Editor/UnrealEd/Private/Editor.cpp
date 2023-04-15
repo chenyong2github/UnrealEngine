@@ -621,7 +621,7 @@ void FReimportManager::ValidateAllSourceFileAndReimport(TArray<UObject*> &ToImpo
 			FText DialogText = FText::Format(LOCTEXT("ReimportMissingFileChoiceDialogMessage", "There is {MissingNumber} assets with missing source file path. Do you want to specify a new source file path for each asset?\n \"No\" will skip the reimport of all asset with a missing source file path.\n \"Cancel\" will cancel the whole reimport.\n{AssetToFileList}"), Arguments);
 			const FText Title = LOCTEXT("ReimportMissingFileChoiceDialogMessageTitle", "Reimport missing files");
 
-			UserChoice = FMessageDialog::Open(EAppMsgType::YesNoCancel, DialogText, &Title);
+			UserChoice = FMessageDialog::Open(EAppMsgType::YesNoCancel, DialogText, Title);
 		}
 
 		//Ask missing file locations

@@ -424,7 +424,7 @@ void SDMXFixtureTypeTree::OnDeleteNodes()
 
 			const FText DialogTitleText = LOCTEXT("DeleteFixtureTypesDialogTitle", "Delete Fixture Types");
 
-			EAppReturnType::Type DialogResult = FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::No, ConfirmDeleteText, &DialogTitleText);
+			EAppReturnType::Type DialogResult = FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::No, ConfirmDeleteText, DialogTitleText);
 			if (DialogResult == EAppReturnType::No)
 			{
 				return false;

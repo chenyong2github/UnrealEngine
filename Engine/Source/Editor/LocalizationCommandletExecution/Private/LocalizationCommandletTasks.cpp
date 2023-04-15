@@ -607,8 +607,7 @@ bool LocalizationCommandletTasks::ReportLoadedAudioAssets(const TArray<ULocaliza
 			MsgBuilder.Unindent();
 		}
 
-		const FText MsgTitle = LOCTEXT("Warning_LoadedAudioAssetsTitle", "Warning - Loaded Audio Assets");
-		return FMessageDialog::Open(EAppMsgType::YesNo, MsgBuilder.ToText(), &MsgTitle) == EAppReturnType::Yes;
+		return FMessageDialog::Open(EAppMsgType::YesNo, MsgBuilder.ToText(), LOCTEXT("Warning_LoadedAudioAssetsTitle", "Warning - Loaded Audio Assets")) == EAppReturnType::Yes;
 	}
 
 	return true;
