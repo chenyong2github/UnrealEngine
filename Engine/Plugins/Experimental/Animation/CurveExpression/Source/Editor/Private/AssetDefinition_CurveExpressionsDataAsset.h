@@ -24,4 +24,7 @@ public:
 		return Categories;
 	}
 	virtual EAssetCommandResult PerformAssetDiff(const FAssetDiffArgs& DiffArgs) const override;
+	virtual bool CanMerge() const override;
+	virtual EAssetCommandResult Merge(const FAssetAutomaticMergeArgs& MergeArgs) const override;
+	virtual EAssetCommandResult Merge(const FAssetManualMergeArgs& MergeArgs) const override;
 };

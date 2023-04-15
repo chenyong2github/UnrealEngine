@@ -130,10 +130,18 @@ struct FAssetMergeResults
 
 DECLARE_DELEGATE_OneParam(FOnAssetMergeResolved, const FAssetMergeResults& Results);
 
+enum EMergeFlags : uint8
+{
+	MF_NONE                    = 0x00,
+	MF_NO_GUI                  = 0x01,
+	MF_HANDLE_SOURCE_CONTROL   = 0x02,
+};
+
 struct FAssetAutomaticMergeArgs
 {
 	UObject* LocalAsset = nullptr;
 	FOnAssetMergeResolved ResolutionCallback;
+	EMergeFlags Flags = MF_HANDLE_SOURCE_CONTROL;
 };
 
 struct FAssetManualMergeArgs
@@ -142,6 +150,7 @@ struct FAssetManualMergeArgs
 	UObject* BaseAsset = nullptr;
 	UObject* RemoteAsset = nullptr;
 	FOnAssetMergeResolved ResolutionCallback;
+	EMergeFlags Flags = MF_HANDLE_SOURCE_CONTROL;
 };
 
 struct FAssetSupportResponse

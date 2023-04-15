@@ -393,12 +393,28 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 		SNew(SOverlay)
 		+ SOverlay::Slot()
 		[
-			ConstructTreeView(ExternalScrollbar)
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.AutoWidth()
+			[
+				SNew(SBox)
+				.Visibility(DetailsViewArgs.ScrollbarAlignment == HAlign_Left ? EVisibility::Visible : EVisibility::Collapsed)
+				.WidthOverride(16.0f)
+				[
+					ExternalScrollbar
+				]
+			]
+			+SHorizontalBox::Slot()
+			[
+				ConstructTreeView(ExternalScrollbar)
+			]
 		]
 		+ SOverlay::Slot()
-		.HAlign(HAlign_Right)
+		.HAlign(DetailsViewArgs.ScrollbarAlignment)
 		[
 			SNew(SBox)
+			.Visibility(DetailsViewArgs.ScrollbarAlignment == HAlign_Left ? EVisibility::Collapsed : EVisibility::Visible)
 			.WidthOverride(16.0f)
 			[
 				ExternalScrollbar

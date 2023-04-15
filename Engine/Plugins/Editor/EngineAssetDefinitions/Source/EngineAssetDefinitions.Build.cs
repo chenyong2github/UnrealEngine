@@ -37,6 +37,8 @@ public class EngineAssetDefinitions : ModuleRules
 				"Kismet",
 				"GameProjectGeneration",
 				"AnimationBlueprintEditor",
+				"ToolWidgets",
+                "SourceControl",
 				"Blutility",
 				"UMGEditor",
 				"ToolWidgets"

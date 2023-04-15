@@ -59,11 +59,25 @@ public:
 	static TSharedRef<SWidget> DefaultEmptyPanel();
 
 	/** Helper function to create a window that holds a diff widget */
-	static TSharedPtr<SWindow> CreateDiffWindow(FText WindowTitle, const UObject* OldObject, const UObject* NewObject, const struct FRevisionInfo& OldRevision, const struct FRevisionInfo& NewRevision);
+	static TSharedRef<SDetailsDiff> CreateDiffWindow(FText WindowTitle, const UObject* OldObject, const UObject* NewObject, const struct FRevisionInfo& OldRevision, const struct FRevisionInfo& NewRevision);
 
 	/** Helper function to create a window that holds a diff widget (default window title) */
-	static TSharedPtr<SWindow> CreateDiffWindow(const UObject* OldObject, const UObject* NewObject, const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision, const UClass* ObjectClass);
+	static TSharedRef<SDetailsDiff> CreateDiffWindow(const UObject* OldObject, const UObject* NewObject, const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision, const UClass* ObjectClass);
 
+	/** Enables actions like "Choose Left" and "Choose Right" which will modify the OutputObject */
+	void SetOutputObject(const UObject* OutputObject);
+	
+	/** Return a serialized buffer of change requests made by the user */
+	void GetModifications(FArchive& Archive) const;
+	
+	/** submit an archive with change requests to make to OutputObject */
+	void RequestModifications(FArchive& Archive) const;
+
+	/** Returns whether SetOutputObject was called with a valid object */
+	bool IsOutputEnabled() const;
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnWindowClosedEvent, TSharedRef<SDetailsDiff>)
+	FOnWindowClosedEvent OnWindowClosedEvent;
 protected:
 	/** Called when user clicks button to go to next difference */
 	void NextDiff();
@@ -110,8 +124,12 @@ protected:
 	FDetailsDiffPanel PanelOld;
 	FDetailsDiffPanel PanelNew;
 	
-	/** If the two views should be locked */
-	bool bLockViews;
+	/** If set, actions like "Choose Left" and "Choose Right" will be enabled and modify the OutputObject */
+	const UObject* OutputObjectUnmodified = nullptr;
+	UObject* OutputObjectModified = nullptr; // clone that can be mutated by user actions
+
+	DECLARE_MULTICAST_DELEGATE(FOnSetOutputObjectEvent)
+	FOnSetOutputObjectEvent OnOutputObjectSetEvent;
 
 	/** Contents widget that we swap when mode changes (defaults, components, etc) */
 	TSharedPtr<SBox> ModeContents;

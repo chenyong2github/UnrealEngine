@@ -70,6 +70,11 @@ bool FPerforceSourceControlState::GetOtherBranchHeadModification(FString& HeadBr
 	return !HeadBranchOut.IsEmpty();
 }
 
+FSourceControlChangelistPtr FPerforceSourceControlState::GetCheckInIdentifier() const
+{
+	return MakeShared<FPerforceSourceControlChangelist>(Changelist);
+}
+
 TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPerforceSourceControlState::GetBaseRevForMerge() const
 {
 	if (PendingResolveRevNumber == INVALID_REVISION)

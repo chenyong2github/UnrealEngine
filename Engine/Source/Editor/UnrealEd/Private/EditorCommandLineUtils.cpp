@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorCommandLineUtils.h"
+
+#include "AssetDefinitionRegistry.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Stats/Stats.h"
@@ -21,6 +23,7 @@
 #include "IAssetTypeActions.h"
 #include "AssetToolsModule.h"
 #include "ProjectDescriptor.h"
+#include "UObject/SavePackage.h"
 
 #define LOCTEXT_NAMESPACE "EditorCommandLineUtils"
 
@@ -235,6 +238,8 @@ public:
 	/**  */
 	const FString& GetAssetFilePath() const;
 
+	UPackage* GetPackage() const;
+
 private:
 	UPackage* Package;
 	UObject*  AssetObj;
@@ -345,6 +350,11 @@ const FString& FMergeAsset::GetSourceFilePath() const
 const FString& FMergeAsset::GetAssetFilePath() const
 {
 	return DestFilePath;
+}
+
+UPackage* FMergeAsset::GetPackage() const
+{
+	return Package;
 }
 
 /*******************************************************************************
@@ -608,84 +618,78 @@ static void EditorCommandLineUtilsImpl::RunAssetMerge(FMergeAsset const& Base, F
 	class FMergeResolutionHandler : public TSharedFromThis<FMergeResolutionHandler>
 	{
 	public:
-		FMergeResolutionHandler(UPackage* MergingPkgIn, const FString& DstFilePathIn)
-			: MergingPackage(MergingPkgIn)
-			, Resolution(EMergeResult::Unknown)
+		FMergeResolutionHandler(FMergeAsset const& LocalIn, const FString& DstFilePathIn)
+			: MergingAsset(LocalIn)
+			, Resolution(EAssetMergeResult::Unknown)
 			, DstFilePath(DstFilePathIn)
 		{
 			// force the user to save the result file (so we know if they "accepted" the merge)
-			MergingPkgIn->SetDirtyFlag(true);
+			MergingAsset.GetPackage()->SetDirtyFlag(true);
 		}
 
 		/** Records the user's selected resolution, and closes the editor. */
-		void HandleMergeResolution(UPackage* MergedPackageIn, EMergeResult::Type ResolutionIn)
+		void HandleMergeResolution(UPackage* MergedPackageIn, EAssetMergeResult ResolutionIn)
 		{
-			if (MergedPackageIn == MergingPackage)
+			if (MergedPackageIn == MergingAsset.GetPackage())
 			{
-				if (ResolutionIn == EMergeResult::Cancelled)
+				if (ResolutionIn == EAssetMergeResult::Cancelled)
 				{
 					// they don't want to save any changes, so clear the flag
-					MergingPackage->SetDirtyFlag(false);
+					MergingAsset.GetPackage()->SetDirtyFlag(false);
 				}
 				
-				if (Resolution == EMergeResult::Unknown)
+				if (Resolution == EAssetMergeResult::Unknown)
 				{
 					Resolution = ResolutionIn;
 					EditorCommandLineUtilsImpl::ForceCloseEditor();
 				}
-			}
-		}
 
-		/** Copies the modified file if the user saved changes (and didn't cancel). */
-		void HandleEditorClose()
-		{
-			if ((Resolution != EMergeResult::Cancelled) && !MergingPackage->IsDirty())
-			{
-				FString SrcFilePath = MergingPackage->GetLoadedPath().GetLocalFullPath();
-				IFileManager::Get().Copy(*DstFilePath, *SrcFilePath);
+				if (ResolutionIn == EAssetMergeResult::Completed)
+				{
+					FSavePackageArgs SaveArgs;
+					SaveArgs.TopLevelFlags = RF_Standalone;
+					SaveArgs.Error = GLog;
+					UPackage::SavePackage(MergingAsset.GetPackage(), MergingAsset.GetAssetObj(), *DstFilePath, SaveArgs);
+				}
 			}
 		}
 
 	private:
-		UPackage* MergingPackage;
-		EMergeResult::Type Resolution;
+		FMergeAsset MergingAsset;
+		EAssetMergeResult Resolution;
 		FString DstFilePath;
 	};
 	
-	UPackage* MergeResultPkg = Local.GetAssetObj()->GetOutermost();
 	const FString& ResultFilePath = (!Result.GetSourceFilePath().IsEmpty()) ? Result.GetSourceFilePath() : Local.GetSourceFilePath();
-	TSharedRef<FMergeResolutionHandler> MergeHandler = MakeShareable(new FMergeResolutionHandler(MergeResultPkg, ResultFilePath));
+	TSharedRef<FMergeResolutionHandler> MergeHandler = MakeShareable(new FMergeResolutionHandler(Local, ResultFilePath));
 
 	// we use a lambda delegate to route the call into MergeHandler (we require 
 	// this intermediate to hold onto a MergeHandler ref, so it doesn't get 
 	// prematurely destroyed at the end of this function)
-	auto HandleMergeResolution = [MergeHandler](UPackage* MergedPackageIn, EMergeResult::Type ResolutionIn)
+	auto HandleMergeResolution = [MergeHandler](const FAssetMergeResults& Results)
 	{
-		MergeHandler->HandleMergeResolution(MergedPackageIn, ResolutionIn);
+		MergeHandler->HandleMergeResolution(Results.MergedPackage, Results.Result);
 	};
-	const FOnMergeResolved MergeResolutionDelegate = FOnMergeResolved::CreateLambda(HandleMergeResolution);
+	const FOnAssetMergeResolved MergeResolutionDelegate = FOnAssetMergeResolved::CreateLambda(HandleMergeResolution);
 
 	// have to mount the save directory so that the BP-editor can save
 	// the merged asset packages
 	FPackageName::RegisterMountPoint(TEXT("/Temp/"), FPaths::ProjectSavedDir());
 	
-	IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	UClass* AssetClass = Local.GetClass();
+	const UClass* AssetClass = Local.GetClass();
 	check(AssetClass != nullptr);
-	TWeakPtr<IAssetTypeActions> AssetActions = AssetTools.GetAssetTypeActionsForClass(AssetClass);
-	check(AssetActions.IsValid());
 	// bring up the merge tool...
-	AssetActions.Pin()->Merge(Base.GetAssetObj(), Remote.GetAssetObj(), Local.GetAssetObj(), MergeResolutionDelegate);
-
-	// we use a lambda delegate to route the call into MergeHandler (we require 
-	// this intermediate to hold onto a MergeHandler ref, so it doesn't get 
-	// prematurely destroyed at the end of this function)
-	auto HandleEditorClose = [](TSharedRef<FMergeResolutionHandler> InMergeHandler)
+	const UAssetDefinition* AssetDefinition = UAssetDefinitionRegistry::Get()->GetAssetDefinitionForClass(AssetClass);
+	if (AssetDefinition->CanMerge())
 	{
-		InMergeHandler->HandleEditorClose();
-	};	
-	// have to copy the file into the expected result file when we're done
-	FEditorDelegates::OnShutdownPostPackagesSaved.AddStatic(HandleEditorClose, MergeHandler);
+		FAssetManualMergeArgs MergeArgs;
+		MergeArgs.BaseAsset = Base.GetAssetObj();
+		MergeArgs.RemoteAsset = Remote.GetAssetObj();
+		MergeArgs.LocalAsset = Local.GetAssetObj();
+		MergeArgs.ResolutionCallback = MergeResolutionDelegate;
+		MergeArgs.Flags = MF_NO_GUI;
+		AssetDefinition->Merge(MergeArgs);
+	}
 }
 
 //------------------------------------------------------------------------------

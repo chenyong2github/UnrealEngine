@@ -4,13 +4,19 @@
 
 #include "ClassViewerFilter.h"
 #include "ContentBrowserMenuContexts.h"
+#include "ISourceControlModule.h"
+#include "ISourceControlProvider.h"
 #include "ObjectTools.h"
 #include "SDetailsDiff.h"
+#include "SourceControlHelpers.h"
+#include "SourceControlOperations.h"
 #include "ToolMenu.h"
 #include "ToolMenus.h"
 #include "Kismet2/SClassPickerDialog.h"
 #include "Engine/Engine.h"
 #include "ToolMenuSection.h"
+#include "Serialization/ObjectReader.h"
+#include "Serialization/ObjectWriter.h"
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_DataAsset"
 
@@ -174,6 +180,297 @@ EAssetCommandResult UAssetDefinition_DataAsset::PerformAssetDiff(const FAssetDif
 	
 	SDetailsDiff::CreateDiffWindow(DiffArgs.OldAsset, DiffArgs.NewAsset, DiffArgs.OldRevision, DiffArgs.NewRevision, UDataAsset::StaticClass());
 	return EAssetCommandResult::Handled;
+}
+
+bool UAssetDefinition_DataAsset::CanMerge() const
+{
+	return true;
+}
+
+struct ScopedMergeResolveTransaction
+{
+	ScopedMergeResolveTransaction(UObject* InManagedObject, EMergeFlags InFlags)
+		: ManagedObject(InManagedObject)
+		, Flags(InFlags)
+	{
+		if (Flags & MF_HANDLE_SOURCE_CONTROL)
+		{
+			UndoHandler = NewObject<UUndoableResolveHandler>();
+			UndoHandler->SetFlags(RF_Transactional);
+			UndoHandler->SetManagedObject(ManagedObject);
+			
+			TransactionNum = GEditor->BeginTransaction(LOCTEXT("ResolveMerge", "ResolveAutoMerge"));
+			ensure(UndoHandler->Modify());
+			ensure(ManagedObject->Modify());
+		}
+	}
+
+	void Cancel()
+	{
+		bCanceled = true;
+	}
+	
+	~ScopedMergeResolveTransaction()
+	{
+		if (Flags & MF_HANDLE_SOURCE_CONTROL)
+		{
+			if (!bCanceled)
+			{
+				UndoHandler->MarkResolved();
+				GEditor->EndTransaction();
+			}
+			else
+			{
+				ManagedObject->GetPackage()->SetDirtyFlag(false);
+				GEditor->CancelTransaction(TransactionNum);
+			}
+		}
+	}
+
+	UObject* ManagedObject;
+	UUndoableResolveHandler* UndoHandler = nullptr;
+	EMergeFlags Flags;
+	int TransactionNum = 0;
+	bool bCanceled = false;
+};
+
+EAssetCommandResult UAssetDefinition_DataAsset::Merge(const FAssetAutomaticMergeArgs& MergeArgs) const
+{
+	FAssetManualMergeArgs ManualMergeArgs;
+	ManualMergeArgs.LocalAsset = MergeArgs.LocalAsset;
+	ManualMergeArgs.ResolutionCallback = MergeArgs.ResolutionCallback;
+	ManualMergeArgs.Flags = MergeArgs.Flags;
+	const UPackage* LocalPackage = ManualMergeArgs.LocalAsset->GetPackage();
+	
+	
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	const TSharedRef<FUpdateStatus, ESPMode::ThreadSafe> UpdateStatusOperation = ISourceControlOperation::Create<FUpdateStatus>();
+	UpdateStatusOperation->SetUpdateHistory(true);
+	SourceControlProvider.Execute(UpdateStatusOperation, LocalPackage);
+	
+	// Get the SCC state
+	const FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(LocalPackage, EStateCacheUsage::Use);
+
+	// If we have an asset and its in SCC..
+	if( SourceControlState.IsValid() && SourceControlState->IsSourceControlled() )
+	{
+		const TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> RemoteRevision = SourceControlState->GetHistoryItem(0);
+		check(RemoteRevision.IsValid());
+		if(UPackage* TempPackage = DiffUtils::LoadPackageForDiff(RemoteRevision))
+		{
+			// Grab the old asset from that old package
+			ManualMergeArgs.RemoteAsset = FindObject<UObject>(TempPackage, *ManualMergeArgs.LocalAsset->GetName());
+
+			// Recovery for package names that don't match
+			if (ManualMergeArgs.RemoteAsset == nullptr)
+			{
+				ManualMergeArgs.RemoteAsset = TempPackage->FindAssetInPackage();
+			}
+		}
+		
+		const TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> BaseRevision = SourceControlState->GetBaseRevForMerge();
+		check(BaseRevision.IsValid());
+		if(UPackage* TempPackage = DiffUtils::LoadPackageForDiff(BaseRevision))
+		{
+			// Grab the old asset from that old package
+			ManualMergeArgs.BaseAsset = FindObject<UObject>(TempPackage, *ManualMergeArgs.LocalAsset->GetName());
+
+			// Recovery for package names that don't match
+			if (ManualMergeArgs.BaseAsset == nullptr)
+			{
+				ManualMergeArgs.BaseAsset = TempPackage->FindAssetInPackage();
+			}
+		}
+	}
+
+	// single asset merging is only supported for assets in a conflicted state in source control
+	if (!ensure(ManualMergeArgs.BaseAsset && ManualMergeArgs.RemoteAsset && ManualMergeArgs.LocalAsset))
+	{
+		return Super::Merge(MergeArgs);
+	}
+	
+	return Merge(ManualMergeArgs);
+}
+
+
+	
+static TArray<uint8> SerializeToBinary(UObject* Object, UObject* Default = nullptr)
+{
+	TArray<uint8> Result;
+	FObjectWriter ObjectWriter(Result);
+	ObjectWriter.SetIsPersistent(true);
+	Default = Default ? Default : Object->GetClass()->ClassDefaultObject;
+	Object->GetClass()->SerializeTaggedProperties( ObjectWriter, reinterpret_cast<uint8*>(Object), Default->GetClass(), reinterpret_cast<uint8*>(Default));
+	return Result;
+};
+
+static void DeserializeFromBinary(UObject* Object, const TArray<uint8>& Data, UObject* Default = nullptr)
+{
+	FObjectReader ObjectReader(Data);
+	ObjectReader.SetIsPersistent(true);
+	Default = Default ? Default : Object->GetClass()->ClassDefaultObject;
+	Object->GetClass()->SerializeTaggedProperties(ObjectReader, reinterpret_cast<uint8*>(Object), Default->GetClass(), reinterpret_cast<uint8*>(Default));
+};
+
+EAssetCommandResult UAssetDefinition_DataAsset::Merge(const FAssetManualMergeArgs& MergeArgs) const
+{
+	auto NotifyResolution = [&MergeArgs](EAssetMergeResult Result)
+	{
+		FAssetMergeResults Results;
+		Results.Result = Result;
+		Results.MergedPackage = MergeArgs.LocalAsset->GetPackage();
+		MergeArgs.ResolutionCallback.ExecuteIfBound(Results);
+		return EAssetCommandResult::Handled;
+	};
+	
+	TArray<UObject*> SubObjects;
+	GetObjectsWithOuter(MergeArgs.LocalAsset, SubObjects);
+	if (!ensure(SubObjects.IsEmpty()))
+	{
+		TArray<FString> SubObjectNames;
+		for (const UObject* SubObject : SubObjects)
+		{
+			SubObjectNames.Add(SubObject->GetName());
+		}
+		UE_LOG(LogEngine, Warning, TEXT("Merge is not currently supported with sub-objects: [{0}]"), *FString::Join(SubObjectNames, TEXT(",")));
+		
+		FAssetMergeResults Results;
+		Results.Result = EAssetMergeResult::Cancelled;
+		Results.MergedPackage = MergeArgs.LocalAsset->GetPackage();
+		MergeArgs.ResolutionCallback.ExecuteIfBound(Results);
+		
+		return NotifyResolution(EAssetMergeResult::Cancelled);
+	}
+
+	auto AutoMerge = [](UObject* HeadRevision, UObject* BranchA, UObject* BranchB, FName Name) -> UObject*
+	{
+		// get delta of BranchB relative to HeadRevision
+		const TArray<uint8> Delta = SerializeToBinary(BranchB, HeadRevision);
+		
+		// apply delta on top of BranchA
+		Name = MakeUniqueObjectName(nullptr, BranchA->GetClass(), Name, EUniqueObjectNameOptions::GloballyUnique);
+		UObject* Merged = DuplicateObject(BranchA, nullptr, Name);
+		DeserializeFromBinary(Merged, Delta, BranchA);
+		return Merged;
+	};
+
+	// apply changes in different orders to come up with two possible merge options
+	UObject* FavorRemote = AutoMerge(MergeArgs.BaseAsset,MergeArgs.LocalAsset, MergeArgs.RemoteAsset, TEXT("FavorRemote"));
+	UObject* FavorLocal = AutoMerge(MergeArgs.BaseAsset,MergeArgs.RemoteAsset,MergeArgs.LocalAsset, TEXT("FavorLocal"));
+	const TArray<uint8> FavorRemoteBinary = SerializeToBinary(FavorRemote, MergeArgs.BaseAsset);
+	const TArray<uint8> FavorLocalBinary = SerializeToBinary(FavorLocal, MergeArgs.BaseAsset);
+
+	// if both merge options are the same, we have no conflicts
+	if (FavorRemoteBinary == FavorLocalBinary)
+	{
+		// copy changes over to the local asset
+		ScopedMergeResolveTransaction(MergeArgs.LocalAsset, MergeArgs.Flags);
+		DeserializeFromBinary(MergeArgs.LocalAsset, FavorLocalBinary);
+		return NotifyResolution(EAssetMergeResult::Completed);
+	}
+	
+	// conflicts detected. We need to ask the user to manually resolve them
+	
+	if (!(MergeArgs.Flags & MF_NO_GUI))
+	{
+		const TSharedRef<SDetailsDiff> DiffView = SDetailsDiff::CreateDiffWindow(FavorRemote, FavorLocal, {}, {}, UDataAsset::StaticClass());
+		DiffView->SetOutputObject(MergeArgs.LocalAsset);
+
+		FObjectReader ObjectReader(FavorLocalBinary);
+		DiffView->RequestModifications(ObjectReader);
+		DiffView->OnWindowClosedEvent.AddLambda([MergeArgs](TSharedRef<SDetailsDiff> DiffView)
+		{
+			// serialize the changes made by the user while the diff view was open
+			TArray<uint8> DiffViewModifications;
+			FObjectWriter ObjectWriter(DiffViewModifications);
+			DiffView->GetModifications(ObjectWriter);
+			
+			// begin undoable transaction
+			ScopedMergeResolveTransaction(MergeArgs.LocalAsset, MergeArgs.Flags);
+			
+			// apply manual changes made within the diff tool
+			DeserializeFromBinary(MergeArgs.LocalAsset, DiffViewModifications);
+			
+			// notify caller that merge is complete
+			FAssetMergeResults Results;
+			Results.Result = EAssetMergeResult::Completed;
+			Results.MergedPackage = MergeArgs.LocalAsset->GetPackage();
+			MergeArgs.ResolutionCallback.ExecuteIfBound(Results);
+		});
+		
+		return EAssetCommandResult::Handled;
+	}
+	
+	return NotifyResolution(EAssetMergeResult::Cancelled);
+}
+
+void UUndoableResolveHandler::SetManagedObject(UObject* Object)
+{
+	ManagedObject = Object;
+	const UPackage* Package = ManagedObject->GetPackage();
+	const FString Filepath = FPaths::ConvertRelativePathToFull(Package->GetLoadedPath().GetLocalFullPath());
+	
+	ISourceControlProvider& Provider = ISourceControlModule::Get().GetProvider();
+	const FSourceControlStatePtr SourceControlState = Provider.GetState(Package, EStateCacheUsage::Use);
+	BaseRevisionNumber = FString::FromInt(SourceControlState->GetBaseRevForMerge()->GetRevisionNumber());
+	CurrentRevisionNumber = FString::FromInt(SourceControlState->GetCurrentRevision()->GetRevisionNumber());
+	CheckinIdentifier = SourceControlState->GetCheckInIdentifier();
+
+	// save package and copy the package to a temp file so it can be reverted
+	const FString BaseFilename = FPaths::GetBaseFilename(Filepath);
+	BackupFilepath = FPaths::CreateTempFilename(*(FPaths::ProjectSavedDir()/TEXT("Temp")), *BaseFilename.Left(32));
+	ensure(FPlatformFileManager::Get().GetPlatformFile().CopyFile(*BackupFilepath, *Filepath));
+}
+
+void UUndoableResolveHandler::MarkResolved()
+{
+	const UPackage* Package = ManagedObject->GetPackage();
+	const FString Filepath = FPaths::ConvertRelativePathToFull(Package->GetLoadedPath().GetLocalFullPath());
+	
+	ISourceControlProvider& Provider = ISourceControlModule::Get().GetProvider();
+	Provider.Execute(ISourceControlOperation::Create<FResolve>(), TArray{Filepath}, EConcurrency::Synchronous);
+	bShouldBeResolved = true;
+}
+
+void UUndoableResolveHandler::PostEditUndo()
+{
+	if (bShouldBeResolved) // undo resolution
+	{
+		MarkResolved();
+	}
+	else // redo resolution
+	{
+		UPackage* Package = ManagedObject->GetPackage();
+		const FString Filepath = FPaths::ConvertRelativePathToFull(Package->GetLoadedPath().GetLocalFullPath());
+		
+		// to force the file to revert to it's pre-resolved state, we must revert, sync back to base revision,
+		// apply the conflicting changes, then sync forward again.
+		ISourceControlProvider& Provider = ISourceControlModule::Get().GetProvider();
+		{
+			const TSharedRef<FSync> SyncOperation = ISourceControlOperation::Create<FSync>();
+			SyncOperation->SetRevision(BaseRevisionNumber);
+			Provider.Execute(SyncOperation, Filepath, EConcurrency::Synchronous);
+		}
+		
+		ResetLoaders(Package);
+		Provider.Execute( ISourceControlOperation::Create<FRevert>(), Filepath, EConcurrency::Synchronous);
+
+		{
+			const TSharedRef<FCheckOut> CheckoutOperation = ISourceControlOperation::Create<FCheckOut>();
+			Provider.Execute(CheckoutOperation, CheckinIdentifier, {Filepath}, EConcurrency::Synchronous);
+		}
+
+		ensure(FPlatformFileManager::Get().GetPlatformFile().CopyFile(*Filepath, *BackupFilepath));
+		
+		{
+			const TSharedRef<FSync> SyncOperation = ISourceControlOperation::Create<FSync>();
+			SyncOperation->SetRevision(CurrentRevisionNumber);
+			Provider.Execute(SyncOperation, Filepath, EConcurrency::Synchronous);
+		}
+
+		Provider.Execute(ISourceControlOperation::Create<FUpdateStatus>(), {Filepath}, EConcurrency::Asynchronous);
+	}
+	UObject::PostEditUndo();
 }
 
 #undef LOCTEXT_NAMESPACE

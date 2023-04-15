@@ -11,6 +11,11 @@ class ISourceControlState;
 typedef TSharedRef<class ISourceControlState, ESPMode::ThreadSafe> FSourceControlStateRef;
 typedef TSharedPtr<class ISourceControlState, ESPMode::ThreadSafe> FSourceControlStatePtr;
 
+class ISourceControlChangelist;
+
+typedef TSharedRef<class ISourceControlChangelist, ESPMode::ThreadSafe> FSourceControlChangelistRef;
+typedef TSharedPtr<class ISourceControlChangelist, ESPMode::ThreadSafe> FSourceControlChangelistPtr;
+
 /**
  * An abstraction of the state of a file under source control
  */
@@ -140,6 +145,8 @@ public:
 	*/
 	virtual bool GetOtherBranchHeadModification(FString& HeadBranchOut, FString& ActionOut, int32& HeadChangeListOut) const = 0;
 
+	virtual FSourceControlChangelistPtr GetCheckInIdentifier() const;
+
 	/** Get whether this file is up-to-date with the version in source control */
 	virtual bool IsCurrent() const = 0;
 
@@ -210,4 +217,9 @@ public:
 		return StatusText;
 	}
 };
+
+inline FSourceControlChangelistPtr ISourceControlState::GetCheckInIdentifier() const
+{
+	return {};
+}
 

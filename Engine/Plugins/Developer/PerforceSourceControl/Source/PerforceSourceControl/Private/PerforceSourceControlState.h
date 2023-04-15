@@ -86,6 +86,7 @@ public:
 	virtual TArray<FString> GetCheckedOutBranches() const override { return CheckedOutBranches; }
 	virtual FString GetOtherUserBranchCheckedOuts() const override { return OtherUserBranchCheckedOuts; }
 	virtual bool GetOtherBranchHeadModification(FString& HeadBranchOut, FString& ActionOut, int32& HeadChangeListOut) const override;
+	virtual FSourceControlChangelistPtr GetCheckInIdentifier() const override;
 	virtual bool IsCurrent() const override;
 	virtual bool IsSourceControlled() const override;
 	virtual bool IsAdded() const override;

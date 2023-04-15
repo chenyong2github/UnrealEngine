@@ -216,26 +216,28 @@ TSharedRef<SWidget> SDetailsDiff::DefaultEmptyPanel()
 		];
 }
 
-TSharedPtr<SWindow> SDetailsDiff::CreateDiffWindow(FText WindowTitle, const UObject* OldObject, const UObject* NewObject, const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision)
+TSharedRef<SDetailsDiff> SDetailsDiff::CreateDiffWindow(FText WindowTitle, const UObject* OldObject, const UObject* NewObject, const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision)
 {
 	// sometimes we're comparing different revisions of one single asset (other 
 	// times we're comparing two completely separate assets altogether)
-	bool bIsSingleAsset = !NewObject || !OldObject || (NewObject->GetName() == OldObject->GetName());
+	const bool bIsSingleAsset = !NewObject || !OldObject || (NewObject->GetName() == OldObject->GetName());
 
 	TSharedPtr<SWindow> Window = SNew(SWindow)
 		.Title(WindowTitle)
 		.ClientSize(FVector2D(1000.f, 800.f));
 
-	Window->SetContent(SNew(SDetailsDiff)
+	TSharedRef<SDetailsDiff> DetailsDiff = SNew(SDetailsDiff)
 		.AssetOld(OldObject)
 		.AssetNew(NewObject)
 		.OldRevision(OldRevision)
 		.NewRevision(NewRevision)
 		.ShowAssetNames(!bIsSingleAsset)
-		.ParentWindow(Window));
+		.ParentWindow(Window);
+	
+	Window->SetContent(DetailsDiff);
 
 	// Make this window a child of the modal window if we've been spawned while one is active.
-	const TSharedPtr<SWindow> ActiveModal = FSlateApplication::Get().GetActiveModalWindow();
+	const TSharedPtr<SWindow> ActiveModal = FSlateApplication::Get().GetActiveTopLevelWindow();
 	if (ActiveModal.IsValid())
 	{
 		FSlateApplication::Get().AddWindowAsNativeChild(Window.ToSharedRef(), ActiveModal.ToSharedRef());
@@ -245,10 +247,19 @@ TSharedPtr<SWindow> SDetailsDiff::CreateDiffWindow(FText WindowTitle, const UObj
 		FSlateApplication::Get().AddWindow(Window.ToSharedRef());
 	}
 
-	return Window;
+	TWeakPtr<SDetailsDiff> SelfWeak = DetailsDiff.ToWeakPtr();
+	Window->SetOnWindowClosed(::FOnWindowClosed::CreateLambda([SelfWeak](const TSharedRef<SWindow>&)
+	{
+		if (const TSharedPtr<SDetailsDiff> Self = SelfWeak.Pin())
+		{
+			Self->OnWindowClosedEvent.Broadcast(Self.ToSharedRef());
+		}
+	}));
+
+	return DetailsDiff;
 }
 
-TSharedPtr<SWindow> SDetailsDiff::CreateDiffWindow(const UObject* OldObject, const UObject* NewObject,
+TSharedRef<SDetailsDiff> SDetailsDiff::CreateDiffWindow(const UObject* OldObject, const UObject* NewObject,
                                                    const FRevisionInfo& OldRevision, const FRevisionInfo& NewRevision, const UClass* ObjectClass)
 {
 	check(OldObject || NewObject);
@@ -267,6 +278,34 @@ TSharedPtr<SWindow> SDetailsDiff::CreateDiffWindow(const UObject* OldObject, con
 	}
 
 	return CreateDiffWindow(WindowTitle, OldObject, NewObject, OldRevision, NewRevision);
+}
+
+void SDetailsDiff::SetOutputObject(const UObject* InOutputObject)
+{
+	OutputObjectUnmodified = InOutputObject;
+	OutputObjectModified = InOutputObject ? DuplicateObject(InOutputObject, nullptr) : nullptr;
+	OnOutputObjectSetEvent.Broadcast();
+}
+
+void SDetailsDiff::GetModifications(FArchive& Archive) const
+{
+	OutputObjectModified->GetClass()->SerializeTaggedProperties(
+		Archive, reinterpret_cast<uint8*>(OutputObjectModified),
+		OutputObjectUnmodified->GetClass(), (uint8*)OutputObjectUnmodified
+	);
+}
+
+void SDetailsDiff::RequestModifications(FArchive& Archive) const
+{
+	OutputObjectModified->GetClass()->SerializeTaggedProperties(
+		Archive, reinterpret_cast<uint8*>(OutputObjectModified),
+		OutputObjectModified->GetClass(), reinterpret_cast<uint8*>(OutputObjectModified->GetClass()->ClassDefaultObject)
+	);
+}
+
+bool SDetailsDiff::IsOutputEnabled() const
+{
+	return OutputObjectUnmodified && OutputObjectModified;
 }
 
 void SDetailsDiff::NextDiff()
@@ -313,10 +352,7 @@ SDetailsDiff::FDiffControl SDetailsDiff::GenerateDetailsPanel()
 	const TSharedPtr<FDetailsDiffControl> NewDiffControl = MakeShared<FDetailsDiffControl>(PanelOld.Object, PanelNew.Object, FOnDiffEntryFocused::CreateRaw(this, &SDetailsDiff::SetCurrentMode, DetailsMode), true);
 	NewDiffControl->EnableComments(DifferencesTreeView.ToWeakPtr());
 	NewDiffControl->GenerateTreeEntries(PrimaryDifferencesList, RealDifferences);
-
 	
-	TWeakPtr<SDetailsSplitter> DetailsSplitter;
-
 	const TSharedRef<SDetailsSplitter> Splitter = SNew(SDetailsSplitter);
 	if (PanelOld.Object)
 	{
@@ -336,6 +372,32 @@ SDetailsDiff::FDiffControl SDetailsDiff::GenerateDetailsPanel()
 			.DifferencesWithRightPanel(NewDiffControl.ToSharedRef(), &FDetailsDiffControl::GetDifferencesWithRight, Cast<UObject>(PanelNew.Object))
 		);
 	}
+
+	
+	const TWeakPtr<SDetailsSplitter> WeakSplitter = Splitter;
+	const TWeakPtr<FDetailsDiffControl> WeakDiffControl = NewDiffControl;
+	OnOutputObjectSetEvent.AddLambda([WeakSplitter, WeakDiffControl, this]()
+	{
+		const TSharedPtr<SDetailsSplitter> Splitter = WeakSplitter.Pin();
+		const TSharedPtr<FDetailsDiffControl> DiffControl = WeakDiffControl.Pin();
+		if (Splitter && DiffControl)
+		{
+			TSharedRef<IDetailsView> DetailsView = DiffControl->InsertObject(OutputObjectModified, false, 1);
+
+			// allow user to edit the output panel
+			DetailsView->SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateStatic([]{return true; }));
+			
+			// insert the output object as a central panel
+			Splitter->AddSlot(
+				SDetailsSplitter::Slot()
+					.DetailsView(DiffControl->GetDetailsWidget(OutputObjectModified))
+					.Value(0.5f)
+					.IsReadonly(false)
+					.DifferencesWithRightPanel(DiffControl.ToSharedRef(), &FDetailsDiffControl::GetDifferencesWithRight, (const UObject*)OutputObjectModified),
+				1 // insert between left and right panel (index 1)
+			);
+		}
+	});
 
 	SDetailsDiff::FDiffControl Ret;
 	Ret.DiffControl = NewDiffControl;
