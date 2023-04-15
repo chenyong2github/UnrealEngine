@@ -110,7 +110,7 @@ void UClusterUnionComponent::AddComponentToCluster(UPrimitiveComponent* InCompon
 
 void UClusterUnionComponent::RemoveComponentFromCluster(UPrimitiveComponent* InComponent)
 {
-	if (!InComponent || !PhysicsProxy)
+	if (!InComponent || !PhysicsProxy || !InComponent->HasValidPhysicsState())
 	{
 		return;
 	}
