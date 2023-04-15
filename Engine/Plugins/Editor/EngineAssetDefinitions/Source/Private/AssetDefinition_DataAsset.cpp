@@ -18,6 +18,8 @@
 #include "ToolMenuSection.h"
 #include "Serialization/ObjectReader.h"
 #include "Serialization/ObjectWriter.h"
+#include "HAL/PlatformFileManager.h"
+#include "UObject/Linker.h"
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_DataAsset"
 
