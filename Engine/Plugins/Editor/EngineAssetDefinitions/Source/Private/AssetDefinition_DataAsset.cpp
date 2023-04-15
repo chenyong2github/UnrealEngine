@@ -2,6 +2,7 @@
 
 #include "AssetDefinition_DataAsset.h"
 
+#include "Editor.h"
 #include "ClassViewerFilter.h"
 #include "ContentBrowserMenuContexts.h"
 #include "ISourceControlModule.h"
