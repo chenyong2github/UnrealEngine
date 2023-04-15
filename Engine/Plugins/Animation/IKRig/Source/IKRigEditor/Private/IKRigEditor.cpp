@@ -106,8 +106,11 @@ void FIKRigEditor::ShutdownModule()
 		}
 	}
 
-	UThumbnailManager::Get().UnregisterCustomRenderer(UIKRigDefinition::StaticClass());
-	UThumbnailManager::Get().UnregisterCustomRenderer(UIKRetargeter::StaticClass());
+	if (UObjectInitialized())
+	{
+		UThumbnailManager::Get().UnregisterCustomRenderer(UIKRigDefinition::StaticClass());
+		UThumbnailManager::Get().UnregisterCustomRenderer(UIKRetargeter::StaticClass());
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
