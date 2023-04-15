@@ -5,6 +5,7 @@
 #include "MeshDescription.h"
 #include "SkeletalMeshAttributes.h"
 #include "Rendering/SkeletalMeshModel.h"
+#include "EngineLogs.h"
 
 #define LOCTEXT_NAMESPACE "SkinWeightModifier"
 
