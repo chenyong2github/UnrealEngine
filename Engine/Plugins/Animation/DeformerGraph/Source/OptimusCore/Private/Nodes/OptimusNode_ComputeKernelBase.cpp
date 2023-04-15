@@ -269,7 +269,8 @@ TOptional<FText> UOptimusNode_ComputeKernelBase::ValidateForCompile() const
 			{
 				if (InCollectedBindings.Num() != PinBindings.Num() || !InCollectedBindings.Includes(PinBindings))
 				{
-					return FText::Format(LOCTEXT("IncompatibleBindingsPinGroup", "Component binding for pin '{0}' is different from the component bindings of the other pins in its group"), FText::FromName(InPin->GetUniqueName()));			}
+					return FText::Format(LOCTEXT("IncompatibleBindingsPinGroup", "Component binding for pin '{0}' is different from the component bindings of the other pins in its group"), FText::FromName(InPin->GetUniqueName()));
+				}
 			}
 		}
 		return {};
@@ -334,11 +335,18 @@ FString UOptimusNode_ComputeKernelBase::GetCookedKernelSource(
 	Optimus::ConvertObjectPathToShaderFilePath(ShaderPathName);
 
 	const bool bHasKernelKeyword = Source.Contains(TEXT("KERNEL"));
+
+	const FString ComputeShaderUtilsInclude = TEXT("#include \"/Engine/Private/ComputeShaderUtils.ush\"");
 	
 	const FString KernelFunc = FString::Printf(
-		TEXT("[numthreads(%d,%d,%d)]\nvoid %s(uint3 DTid : SV_DispatchThreadID)"), 
+		TEXT("[numthreads(%d,%d,%d)]\nvoid %s(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_GroupIndex)"), 
 		InGroupSize.X, InGroupSize.Y, InGroupSize.Z, *InKernelName);
 	
+	const FString UnWrappedDispatchThreadId = FString::Printf(
+	TEXT("GetUnWrappedDispatchThreadId(GroupId, GroupIndex, %d)"),
+		InGroupSize.X * InGroupSize.Y * InGroupSize.Z
+	);
+
 	if (bHasKernelKeyword)
 	{
 		Source.ReplaceInline(TEXT("KERNEL"), TEXT("void __kernel_func(uint Index)"));
@@ -347,20 +355,22 @@ FString UOptimusNode_ComputeKernelBase::GetCookedKernelSource(
 			TEXT(
 				"#line 1 \"%s\"\n"
 				"%s\n\n"
-				"%s { __kernel_func(DTid.x); }\n"
-				), *ShaderPathName, *Source, *KernelFunc);
+				"%s\n\n"
+				"%s { __kernel_func(%s); }\n"
+				), *ShaderPathName, *Source, *ComputeShaderUtilsInclude,*KernelFunc, *UnWrappedDispatchThreadId);
 	}
 	else
 	{
 		return FString::Printf(
 		TEXT(
 			"%s\n"
+			"%s\n"
 			"{\n"
-			"uint Index = DTid.x;\n"
+			"uint Index = %s;\n"
 			"#line 1 \"%s\"\n"
 			"%s\n"
 			"}\n"
-			), *KernelFunc, *ShaderPathName, *Source);
+			), *ComputeShaderUtilsInclude,*KernelFunc, *UnWrappedDispatchThreadId, *ShaderPathName, *Source);
 	}
 }
 
@@ -450,6 +460,11 @@ TOptional<FText> UOptimusNode_ComputeKernelBase::ProcessInputPinForComputeKernel
 		// If we are connected from a data interface, set the input binding up now.
 		if (DataInterface && ensure(ComponentBinding))
 		{
+			if (!DataInterface->CanSupportUnifiedDispatch() && !InGroupName.IsEmpty())
+			{
+				return FText::Format(LOCTEXT("SecondaryGroupOnlySupportsDataInterfaceUnifiedDispatch", "Cannot connect Secondary group input binding pin '{0}' to a data interface that does not support unified dispatch, consider inserting a kernel inbetween"), FText::FromName(InInputPin->GetUniqueName()));
+			}
+
 			// The shader function definition that exposes the function that we use to
 			// read values to input into the kernel.
 			FShaderFunctionDefinition FuncDef;

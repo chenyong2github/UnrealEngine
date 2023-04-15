@@ -234,28 +234,47 @@ bool UOptimusRawBufferDataProvider::GetLodAndInvocationElementCounts(
 					{
 						Count *= FMath::Max(1, DataDomain.Multiplier);
 					}
+					return true;
 				}
-				return true;
 			}
+
+			return false;
 			break;
 		}
 	case EOptimusDataDomainType::Expression:
 		{
 			TMap<FName, int32> EngineConstants;
 			TMap<FName, TArray<int32>> ElementCountsPerDomain;
-			int32 NumInvocations = 0;
 
+			int32 NumInvocations = -1;
 			for(FName ExecutionDomain: ComponentSource->GetExecutionDomains())
 			{
 				EngineConstants.Add(ExecutionDomain, 0);
 
 				TArray<int32>& ElementCounts = ElementCountsPerDomain.FindOrAdd(ExecutionDomain);
-				if (!ComponentSourcePtr->GetComponentElementCountsForExecutionDomain(ExecutionDomain, ComponentPtr, OutLodIndex, ElementCounts))
+				if (!ComponentSourcePtr->GetComponentElementCountsForExecutionDomain(
+						ExecutionDomain,
+						ComponentPtr,
+						OutLodIndex,
+						ElementCounts))
 				{
 					return false;
 				}
 
-				NumInvocations = FMath::Max(NumInvocations, ElementCounts.Num());
+				if (NumInvocations == -1)
+				{
+					NumInvocations = ElementCounts.Num();
+				}
+				else if (NumInvocations != ElementCounts.Num())
+				{
+					// Component source needs to provide as many values for each of its execution domains as there are invocations
+					return false;
+				}
+			}
+
+			if (NumInvocations < 1)
+			{
+				return false;
 			}
 			
 			using namespace Optimus::Expression;
@@ -270,16 +289,56 @@ bool UOptimusRawBufferDataProvider::GetLodAndInvocationElementCounts(
 			OutInvocationElementCounts.Reset(NumInvocations);
 			for (int32 Index = 0; Index < NumInvocations; Index++)
 			{
-				for (auto& [ConstantName, Value]: EngineConstants)
+				for (TPair<FName, int32>& Constant: EngineConstants)
 				{
+					const FName ConstantName = Constant.Key;
+					int32& Value = Constant.Value;
+					
 					const TArray<int32>& ElementCounts = ElementCountsPerDomain[ConstantName]; 
 					Value = ElementCounts.IsValidIndex(Index) ? ElementCounts[Index] : 1;
 				}
 				Engine.UpdateConstantValues(EngineConstants);
 				const int32 Count = Engine.Execute(ParseResult.Get<FExpressionObject>());
+
+				if (Count < 0)
+				{
+					return false;
+				}
+				
 				OutInvocationElementCounts.Add(Count);
 			}
+
+			int32 TotalElementCount = 0;
+			for (int32 Count : OutInvocationElementCounts)
+			{
+				TotalElementCount += Count;
+			}
+
+			// Extra validation for unified dispatch
+
+			// We want to make sure the results are the same for unified and non-unified
+			// Do the sum across invocations first and then evaluate the expression
+			for (auto& [ConstantName, Value]: EngineConstants)
+			{
+				Value = 0;
+				const TArray<int32>& ElementCounts = ElementCountsPerDomain[ConstantName];
+				
+				for (int32 Count : ElementCounts )
+				{
+					Value += Count;
+				}
+			}
+			
+			Engine.UpdateConstantValues(EngineConstants);
+			const int32 TotalElementCountForUnifiedDispatch = Engine.Execute(ParseResult.Get<FExpressionObject>());
+			
+			if (TotalElementCount != TotalElementCountForUnifiedDispatch)
+			{
+				return false;
+			}
+
 			return true;
+			break;
 		}
 	}
 	return false;
@@ -290,7 +349,10 @@ FComputeDataProviderRenderProxy* UOptimusTransientBufferDataProvider::GetRenderP
 {
 	int32 LodIndex;
 	TArray<int32> InvocationCounts;
-	GetLodAndInvocationElementCounts(LodIndex, InvocationCounts);
+	if (!GetLodAndInvocationElementCounts(LodIndex, InvocationCounts))
+	{
+		InvocationCounts.Reset();
+	}
 	
 	return new FOptimusTransientBufferDataProviderProxy(InvocationCounts, ElementStride, RawStride);
 }
@@ -300,7 +362,10 @@ FComputeDataProviderRenderProxy* UOptimusPersistentBufferDataProvider::GetRender
 {
 	int32 LodIndex = 0;
 	TArray<int32> InvocationCounts;
-	GetLodAndInvocationElementCounts(LodIndex, InvocationCounts);
+	if (!GetLodAndInvocationElementCounts(LodIndex, InvocationCounts))
+	{
+		InvocationCounts.Reset();
+	}
 	
 	return new FOptimusPersistentBufferDataProviderProxy(InvocationCounts, ElementStride, RawStride, BufferPool, ResourceName, LodIndex);
 }
@@ -309,11 +374,12 @@ FComputeDataProviderRenderProxy* UOptimusPersistentBufferDataProvider::GetRender
 FOptimusTransientBufferDataProviderProxy::FOptimusTransientBufferDataProviderProxy(
 	TArray<int32> InInvocationElementCounts,
 	int32 InElementStride,
-	int32 InRawStride) 
-	: InvocationElementCounts(InInvocationElementCounts)
-	, TotalElementCount(0)
-	, ElementStride(InElementStride)
-	, RawStride(InRawStride)
+	int32 InRawStride
+	) :
+	InvocationElementCounts(InInvocationElementCounts),
+	TotalElementCount(0),
+	ElementStride(InElementStride),
+	RawStride(InRawStride)
 {
 	for (int32 NumElements : InvocationElementCounts)
 	{
@@ -327,7 +393,8 @@ bool FOptimusTransientBufferDataProviderProxy::IsValid(FValidationData const& In
 	{
 		return false;
 	}
-	if (InValidationData.NumInvocations != InvocationElementCounts.Num())
+	
+	if (TotalElementCount <= 0)
 	{
 		return false;
 	}
@@ -369,14 +436,15 @@ FOptimusPersistentBufferDataProviderProxy::FOptimusPersistentBufferDataProviderP
 	int32 InRawStride,
 	TSharedPtr<FOptimusPersistentBufferPool> InBufferPool,
 	FName InResourceName,
-	int32 InLODIndex)
-	: InvocationElementCounts(InInvocationElementCounts)
-	, TotalElementCount(0)
-	, ElementStride(InElementStride)
-	, RawStride(InRawStride)
-	, BufferPool(InBufferPool)
-	, ResourceName(InResourceName)
-	, LODIndex(InLODIndex)
+	int32 InLODIndex
+	) : 
+	InvocationElementCounts(InInvocationElementCounts),
+	TotalElementCount(0),
+	ElementStride(InElementStride),
+	RawStride(InRawStride),
+	BufferPool(InBufferPool),
+	ResourceName(InResourceName),
+	LODIndex(InLODIndex)
 {
 	for (int32 NumElements : InvocationElementCounts)
 	{
@@ -390,7 +458,8 @@ bool FOptimusPersistentBufferDataProviderProxy::IsValid(FValidationData const& I
 	{
 		return false;
 	}
-	if (InValidationData.NumInvocations != InvocationElementCounts.Num())
+	
+	if (TotalElementCount <= 0)
 	{
 		return false;
 	}

@@ -1704,6 +1704,27 @@ UOptimusComputeGraph* UOptimusDeformer::CompileNodeGraphToComputeGraph(
 					ConnectedNode.Node);
 				return nullptr;
 			}
+
+			bool bHasExecution = false;
+			for (const TPair<int32, FOptimus_InterfaceBinding>& DataBinding: BoundKernel.InputDataBindings)
+			{
+				const int32 KernelBindingIndex = DataBinding.Key;
+				const FOptimus_InterfaceBinding& InterfaceBinding = DataBinding.Value;
+				const UComputeDataInterface* DataInterface = InterfaceBinding.DataInterface;
+				if (DataInterface->IsExecutionInterface())
+				{
+					bHasExecution = true;
+					break;
+				}
+			}
+			
+			if (!bHasExecution)
+			{
+				AddDiagnostic(EOptimusDiagnosticLevel::Error,
+				LOCTEXT("KernelHasNoExecutionDataInterface", "Kernel has no execution data interface connected. Compilation aborted."),
+					ConnectedNode.Node);
+				return nullptr;
+			}
 			
 			BoundKernel.Kernel->KernelSource = KernelSourceResult.Get<UOptimusKernelSource*>();
 

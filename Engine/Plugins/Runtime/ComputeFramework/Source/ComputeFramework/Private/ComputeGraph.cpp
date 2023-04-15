@@ -315,23 +315,63 @@ FComputeGraphRenderProxy* UComputeGraph::CreateRenderProxy() const
 			Invocation.ShaderParameterMetadata = BuildKernelShaderMetadata(KernelIndex, *Proxy->ShaderParameterMetadataAllocations);
 			Invocation.bSupportsUnifiedDispatch = true;
 
+			// 1. Figure out which data interface is the execution data interface
 			for (FComputeGraphEdge const& GraphEdge : GraphEdges)
 			{
 				if (GraphEdge.KernelIndex == KernelIndex)
 				{
-					Invocation.BoundProviderIndices.AddUnique(GraphEdge.DataInterfaceIndex);
-
 					UComputeDataInterface const* DataInterface = DataInterfaces[GraphEdge.DataInterfaceIndex];
 					if (ensure(DataInterface != nullptr))
 					{
 						if (DataInterface->IsExecutionInterface())
 						{
 							Invocation.ExecutionProviderIndex = GraphEdge.DataInterfaceIndex;
+							break;
 						}
-						
-						Invocation.bSupportsUnifiedDispatch &= DataInterface->CanSupportUnifiedDispatch();
 					}
 				}
+			}
+
+			// 1. Data interfaces sharing the same binding (primary) as the kernel should present its data in a way that
+			// matches the kernel dispatch method, which can be either unified(full buffer) or non-unified (per invocation window into the full buffer)
+			// 2. Data interfaces not sharing the same binding (secondary) should always provide a full view to its data (unified)
+			// Note: In case of non-unified kernel, extra work maybe needed to read from secondary buffers.
+			// When kernel is non-unified, index = 0...section.max for each invocation/section, 
+			// so user may want to consider using a dummy buffer that maps section index to the indices of secondary buffers
+			// for example, given a non-unified kernel, primary and secondary components sharing the same vertex count, we might want to create a buffer
+			// in the primary group that is simply [0,1,2...,NumVerts-1], which we can then index into to map section vert index to the global vert index
+			if (ensure(DataInterfaceToBinding.IsValidIndex(Invocation.ExecutionProviderIndex)))
+			{
+				int32 ExecutionComponentBindingIndex = DataInterfaceToBinding[Invocation.ExecutionProviderIndex];
+
+				for (FComputeGraphEdge const& GraphEdge : GraphEdges)
+				{
+					if (GraphEdge.KernelIndex == KernelIndex)
+					{
+						UComputeDataInterface const* DataInterface = DataInterfaces[GraphEdge.DataInterfaceIndex];
+						if (ensure(DataInterface != nullptr))
+						{
+							const int32 DataInterfaceComponentBindingIndex = DataInterfaceToBinding[GraphEdge.DataInterfaceIndex];
+							const bool bIsPrimary = DataInterfaceComponentBindingIndex == ExecutionComponentBindingIndex;
+							
+							const int32 IndexOfIndex = Invocation.BoundProviderIndices.AddUnique(GraphEdge.DataInterfaceIndex);
+
+							// Added a new provider, store whether it is primary or secondary
+							if (IndexOfIndex == Invocation.BoundProviderIsPrimary.Num())
+							{
+								Invocation.BoundProviderIsPrimary.Add( bIsPrimary );
+							}	
+
+							// Only Data Interfaces in the primary group should determine the kernel dispatch type
+							if (bIsPrimary)
+							{
+								Invocation.bSupportsUnifiedDispatch &= DataInterface->CanSupportUnifiedDispatch();
+							}
+						}
+					}
+				}
+
+				check(Invocation.BoundProviderIndices.Num() == Invocation.BoundProviderIsPrimary.Num());
 			}
 		}
 	}

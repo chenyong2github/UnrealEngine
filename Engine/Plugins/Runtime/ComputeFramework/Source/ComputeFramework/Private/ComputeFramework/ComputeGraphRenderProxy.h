@@ -30,6 +30,8 @@ public:
 		FShaderParametersMetadata* ShaderParameterMetadata = nullptr;
 		/** Array of indices into the full graph data provider array. Contains only the indices to data providers that this kernel references. */
 		TArray<int32> BoundProviderIndices;
+		/** Same size as BoundProviderIndices, non-primary data providers will be forced to present a full view to its data (unified)*/
+		TArray<bool> BoundProviderIsPrimary;
 		/** The index of the special execution data provider in the full graph data provider array. */
 		int32 ExecutionProviderIndex = -1;
 		/** Whether the kernel can combine multiple supports combinined sub-invocations. */
