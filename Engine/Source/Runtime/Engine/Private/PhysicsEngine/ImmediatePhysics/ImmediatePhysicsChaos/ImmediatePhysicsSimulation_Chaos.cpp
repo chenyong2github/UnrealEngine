@@ -271,7 +271,7 @@ namespace ImmediatePhysics_Chaos
 		~FSimpleParticleUniqueIndices() = default;
 
 	private:
-		int32 NextUniqueIndex; // this includes all valid and freed indices
+		int32 NextUniqueIndex = 0; // this includes all valid and freed indices
 		TArray<int32> FreeIndices;
 	};
 
