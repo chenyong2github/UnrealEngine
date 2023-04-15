@@ -310,6 +310,8 @@ namespace
 			}
 		}
 
+		UE_LOG(LogPortableObjectPipeline, Log, TEXT("Imported file %s"), *InPOFilePath);
+
 		if (bModifiedArchive)
 		{
 			// Trim any dead entries out of the archive
@@ -439,6 +441,8 @@ namespace
 			UE_LOG(LogPortableObjectPipeline, Error, TEXT("Could not write file %s"), *InPOFilePath);
 			return false;
 		}
+
+		UE_LOG(LogPortableObjectPipeline, Log, TEXT("Exported file %s"), *InPOFilePath);
 
 		return true;
 	}
