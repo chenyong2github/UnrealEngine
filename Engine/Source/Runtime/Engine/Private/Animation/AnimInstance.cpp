@@ -2106,6 +2106,11 @@ bool UAnimInstance::IsSlotActive(FName SlotNodeName) const
    return false;
 }
 
+float UAnimInstance::Blueprint_GetSlotMontageLocalWeight(FName SlotNodeName) const
+{
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().GetSlotMontageLocalWeight(SlotNodeName);
+}
+
 float UAnimInstance::Montage_PlayInternal(UAnimMontage* MontageToPlay, const FMontageBlendSettings& BlendInSettings, float InPlayRate /*= 1.f*/, EMontagePlayReturnType ReturnValueType /*= EMontagePlayReturnType::MontageLength*/, float InTimeToStartMontageAt /*= 0.f*/, bool bStopAllMontages /*= true*/)
 {
 	LLM_SCOPE(ELLMTag::Animation);

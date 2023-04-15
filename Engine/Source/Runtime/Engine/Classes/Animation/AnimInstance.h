@@ -553,6 +553,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="Animation|Montage", meta=(BlueprintThreadSafe))
 	bool IsSlotActive(FName SlotNodeName) const;
 	
+	/** Get local weight of any montages this slot node is playing. If this slot is not currently playing a montage, it will return 0. */
+	UFUNCTION(BlueprintPure, Category="Animation|Montage", meta=(BlueprintThreadSafe, DisplayName="GetSlotLocalWeight"))
+	float Blueprint_GetSlotMontageLocalWeight(FName SlotNodeName) const;
+	
 	/*********************************************************************************************
 	 * AnimMontage
 	 ********************************************************************************************* */
