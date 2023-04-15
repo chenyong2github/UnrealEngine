@@ -115,7 +115,9 @@ namespace Chaos
 
 			if (Child->Geometry())
 			{
-				Objects.Add(TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<FReal, 3>(Child->Geometry(), Frame)));
+				FImplicitObjectTransformed* TransformedChildGeometry = new TImplicitObjectTransformed<FReal, 3>(Child->Geometry(), Frame);
+				TransformedChildGeometry->SetSharedObject(Child->SharedGeometry());
+				Objects.Add(TUniquePtr<FImplicitObject>(TransformedChildGeometry));
 			}
 		}
 

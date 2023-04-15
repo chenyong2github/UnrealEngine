@@ -345,6 +345,8 @@ public:
 		TImplicitObjectTransformSerializeHelper(Ar, MObject);
 		Ar << MTransform;
 		TBox<T, d>::SerializeAsAABB(Ar, MLocalBoundingBox);
+
+		// NOTE: Not serializing SharedObject which is a temp fix and only used in the runtime
 	}
 
 	virtual uint32 GetTypeHash() const override
@@ -406,9 +408,20 @@ protected:
 
 private:
 	ObjectType MObject;
-	TUniquePtr<Chaos::FImplicitObject> MObjectOwner;
+	TUniquePtr<FImplicitObject> MObjectOwner;
 	TRigidTransform<T, d> MTransform;
 	TAABB<T, d> MLocalBoundingBox;
+
+	// TEMP: workaround for a clustering issue when a geometry collection in a cluster is destroyed 
+	// after the cluster's geometry has been shared between game and physics thread
+	// @todo(chaos): remove this when FImplicitObject is ref counted
+	FConstImplicitObjectPtr SharedObject;
+
+	friend class FClusterUnionManager;
+	void SetSharedObject(const FConstImplicitObjectPtr& InSharedObject)
+	{
+		SharedObject = InSharedObject;
+	}
 
 	//needed for serialization
 	TImplicitObjectTransformed() : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::Transformed) {}
