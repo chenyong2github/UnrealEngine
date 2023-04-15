@@ -13,13 +13,13 @@
  * need to be copied out the Data Storage and into the original object. This tag
  * will automatically be removed at the end of a tick.
  */
-USTRUCT()
+USTRUCT(meta = (DisplayName = "Sync back to world"))
 struct FTypedElementSyncBackToWorldTag final : public FTypedElementDataStorageTag
 {
 	GENERATED_BODY()
 };
 
-USTRUCT()
+USTRUCT(meta = (DisplayName = "Row reference"))
 struct FTypedElementRowReferenceColumn final : public FTypedElementDataStorageColumn
 {
 	GENERATED_BODY()

@@ -12,7 +12,7 @@
 /**
  * Column that stores a local transform. 
  */
-USTRUCT()
+USTRUCT(meta = (DisplayName = "Local Transform"))
 struct FTypedElementLocalTransformColumn final : public FTypedElementDataStorageColumn
 {
 	GENERATED_BODY()

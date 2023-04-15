@@ -11,7 +11,7 @@
 /**
  * Column that can be used to cache an unsigned 32-bit value in.
  */
-USTRUCT()
+USTRUCT(meta = (DisplayName = "Uint32 value cache"))
 struct FTypedElementU32IntValueCacheColumn final : public FTypedElementDataStorageColumn
 {
 	GENERATED_BODY()
@@ -23,7 +23,7 @@ struct FTypedElementU32IntValueCacheColumn final : public FTypedElementDataStora
 /**
  * Column that can be used to cache a signed 32-bit value in.
  */
-USTRUCT()
+USTRUCT(meta = (DisplayName = "Int32 value cache"))
 struct FTypedElementI32IntValueCacheColumn final : public FTypedElementDataStorageColumn
 {
 	GENERATED_BODY()
@@ -35,7 +35,7 @@ struct FTypedElementI32IntValueCacheColumn final : public FTypedElementDataStora
 /**
  * Column that can be used to cache a 32-bit floating point value in.
  */
-USTRUCT()
+USTRUCT(meta = (DisplayName = "float value cache"))
 struct FTypedElementFloatValueCacheColumn final : public FTypedElementDataStorageColumn
 {
 	GENERATED_BODY()

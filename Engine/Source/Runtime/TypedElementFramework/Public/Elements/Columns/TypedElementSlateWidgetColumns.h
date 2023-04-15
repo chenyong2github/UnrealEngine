@@ -16,7 +16,7 @@ class SWidget;
  * FTypedElementSlateWidgetDeletesRowTag is found then the entire row will
  * be deleted.
  */
-USTRUCT()
+USTRUCT(meta = (DisplayName = "Slate widget reference"))
 struct FTypedElementSlateWidgetReferenceColumn final : public FTypedElementDataStorageColumn
 {
 	GENERATED_BODY()
@@ -29,7 +29,7 @@ struct FTypedElementSlateWidgetReferenceColumn final : public FTypedElementDataS
  * FTypedElementSlateWidgetReferenceColumn is no longer valid, otherwise only
  * the column will be removed.
  */
-USTRUCT()
+USTRUCT(meta = (DisplayName = "Slate widget reference deletes row"))
 struct FTypedElementSlateWidgetReferenceDeletesRowTag final : public FTypedElementDataStorageTag
 {
 	GENERATED_BODY()
