@@ -158,51 +158,54 @@ namespace Chaos
 	void FClusterUnionManager::FlushPendingOperations()
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FlushPendingOperations);
-		if (PendingExplicitIndexOperations.IsEmpty() && PendingClusterIndexOperations.IsEmpty())
+		if (!PendingExplicitIndexOperations.IsEmpty())
 		{
-			return;
-		}
-
-		// Go through every explicit index operation and convert them into a normal cluster index operation.
-		// This could be made more efficient but shouldn't happen enough for it to really matter.
-		for (const TPair<FClusterUnionExplicitIndex, FClusterOpMap>& OpMap : PendingExplicitIndexOperations)
-		{
-			const FClusterUnionIndex UnionIndex = GetOrCreateClusterUnionIndexFromExplicitIndex(OpMap.Key);
-			for (const TPair<EClusterUnionOperation, TArray<FPBDRigidParticleHandle*>>& Op : OpMap.Value)
+			// Go through every explicit index operation and convert them into a normal cluster index operation.
+			// This could be made more efficient but shouldn't happen enough for it to really matter.
+			for (const TPair<FClusterUnionExplicitIndex, FClusterOpMap>& OpMap : PendingExplicitIndexOperations)
 			{
-				AddPendingClusterIndexOperation(UnionIndex, Op.Key, Op.Value);
-			}
-		}
-		PendingExplicitIndexOperations.Empty();
-
-		for (TPair<FClusterUnionIndex, FClusterOpMap>& OpMap : PendingClusterIndexOperations)
-		{
-			// Is this sort necessary? Better to be safe than sorry. Since we need to guarantee that the UpdateChildToParent happens after add.
-			OpMap.Value.KeyStableSort(
-				[](EClusterUnionOperation A, EClusterUnionOperation B)
+				const FClusterUnionIndex UnionIndex = GetOrCreateClusterUnionIndexFromExplicitIndex(OpMap.Key);
+				for (const TPair<EClusterUnionOperation, TArray<FPBDRigidParticleHandle*>>& Op : OpMap.Value)
 				{
-					return static_cast<int32>(A) < static_cast<int32>(B);
-				}
-			);
-
-			for (TPair<EClusterUnionOperation, TArray<FPBDRigidParticleHandle*>>& Op : OpMap.Value)
-			{
-				switch (Op.Key)
-				{
-				case EClusterUnionOperation::Add:
-				case EClusterUnionOperation::AddReleased:
-					HandleAddOperation(OpMap.Key, Op.Value, Op.Key == EClusterUnionOperation::AddReleased);
-					break;
-				case EClusterUnionOperation::Remove:
-					HandleRemoveOperation(OpMap.Key, Op.Value, EClusterUnionOperationTiming::Immediate);
-					break;
-				case EClusterUnionOperation::UpdateChildToParent:
-					HandleUpdateChildToParentOperation(OpMap.Key, Op.Value);
-					break;
+					AddPendingClusterIndexOperation(UnionIndex, Op.Key, Op.Value);
 				}
 			}
+			PendingExplicitIndexOperations.Empty();
 		}
-		PendingClusterIndexOperations.Empty();
+
+		if (!PendingClusterIndexOperations.IsEmpty())
+		{
+			for (TPair<FClusterUnionIndex, FClusterOpMap>& OpMap : PendingClusterIndexOperations)
+			{
+				// Is this sort necessary? Better to be safe than sorry. Since we need to guarantee that the UpdateChildToParent happens after add.
+				OpMap.Value.KeyStableSort(
+					[](EClusterUnionOperation A, EClusterUnionOperation B)
+					{
+						return static_cast<int32>(A) < static_cast<int32>(B);
+					}
+				);
+
+				for (TPair<EClusterUnionOperation, TArray<FPBDRigidParticleHandle*>>& Op : OpMap.Value)
+				{
+					switch (Op.Key)
+					{
+					case EClusterUnionOperation::Add:
+					case EClusterUnionOperation::AddReleased:
+						HandleAddOperation(OpMap.Key, Op.Value, Op.Key == EClusterUnionOperation::AddReleased);
+						break;
+					case EClusterUnionOperation::Remove:
+						HandleRemoveOperation(OpMap.Key, Op.Value, EClusterUnionOperationTiming::Immediate);
+						break;
+					case EClusterUnionOperation::UpdateChildToParent:
+						HandleUpdateChildToParentOperation(OpMap.Key, Op.Value);
+						break;
+					}
+				}
+			}
+			PendingClusterIndexOperations.Empty();
+		}
+
+		HandleDeferredClusterUnionUpdateProperties();
 	}
 
 	FClusterUnion* FClusterUnionManager::FindClusterUnionFromExplicitIndex(FClusterUnionExplicitIndex Index)

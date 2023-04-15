@@ -743,11 +743,17 @@ namespace Chaos
 
 		EnqueueCommandImmediate([InProxy, this]()
 			{
+				FClusterUnionManager& ClusterUnionManager = MEvolution->GetRigidClustering().GetClusterUnionManager();
 				for (FPBDRigidClusteredParticleHandle* Handle : InProxy->GetSolverParticleHandles())
 				{
 					if (Handle)
 					{
 						MEvolution->DisableParticle(Handle);
+
+						// It should be safe to defer here without an immediate call to HandleDeferredClusterUnionUpdateProperties.
+						// This change doesn't really have to go through until FClusterUnionManager::FlushPendingOperations which happens
+						// prior to trying to advance the frame.
+						ClusterUnionManager.HandleRemoveOperationWithClusterLookup({ Handle }, EClusterUnionOperationTiming::Defer);
 					}
 				}
 
