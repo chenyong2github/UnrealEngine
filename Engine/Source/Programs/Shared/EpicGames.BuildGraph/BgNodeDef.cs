@@ -30,12 +30,12 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="inProducingNode">Node which produces the given output</param>
-		/// <param name="inTagName">Name of the tag</param>
-		public BgNodeOutput(BgNodeDef inProducingNode, string inTagName)
+		/// <param name="producingNode">Node which produces the given output</param>
+		/// <param name="tagName">Name of the tag</param>
+		public BgNodeOutput(BgNodeDef producingNode, string tagName)
 		{
-			ProducingNode = inProducingNode;
-			TagName = inTagName;
+			ProducingNode = producingNode;
+			TagName = tagName;
 		}
 
 		/// <summary>

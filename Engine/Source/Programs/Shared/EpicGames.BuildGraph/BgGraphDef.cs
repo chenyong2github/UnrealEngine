@@ -83,7 +83,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Mapping of artifact names to their definitions. Artifacts will be produced from matching tag names.
 		/// </summary>
-		public Dictionary<string, BgArtifactDef> NameToArtifact { get; private set; } = new Dictionary<string, BgArtifactDef>(StringComparer.OrdinalIgnoreCase);
+		public List<BgArtifactDef> Artifacts { get; } = new List<BgArtifactDef>();
 
 		/// <summary>
 		/// List of badges that can be displayed for this build
@@ -429,12 +429,11 @@ namespace EpicGames.BuildGraph
 				jsonWriter.WriteObjectStart();
 
 				jsonWriter.WriteArrayStart("Artifacts");
-				foreach (BgArtifactDef artifact in NameToArtifact.Values)
+				foreach (BgArtifactDef artifact in Artifacts)
 				{
 					jsonWriter.WriteObjectStart();
 					jsonWriter.WriteValue("Name", artifact.Name);
 					jsonWriter.WriteValue("Tag", artifact.Tag);
-					jsonWriter.WriteStringArrayField("Keys", artifact.Keys);
 					jsonWriter.WriteObjectEnd();
 				}
 				jsonWriter.WriteArrayEnd();

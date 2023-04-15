@@ -975,7 +975,7 @@ namespace AutomationTool
 			HashSet<TempStorageBlock> InputStorageBlocks = new HashSet<TempStorageBlock>();
 			foreach(BgNodeOutput Input in Node.Inputs)
 			{
-				TempStorageFileList FileList = Storage.ReadFileList(Input.ProducingNode.Name, Input.TagName);
+				TempStorageTagManifest FileList = Storage.ReadFileList(Input.ProducingNode.Name, Input.TagName);
 				TagNameToFileSet[Input.TagName] = FileList.ToFileSet(RootDir);
 				InputStorageBlocks.UnionWith(FileList.Blocks);
 			}
@@ -1140,6 +1140,9 @@ namespace AutomationTool
 					Storage.Archive(Node.Name, Pair.Key, Pair.Value.ToArray(), Pair.Value.Any(x => ReferencedOutputFiles.Contains(x)));
 				}
 
+				// Find all the output tags that are published artifacts
+				Dictionary<string, BgArtifactDef> outputNameToArtifact = Graph.Artifacts.ToDictionary(x => x.Tag, x => x);
+
 				// Publish all the output tags
 				foreach (BgNodeOutput Output in Node.Outputs)
 				{
@@ -1154,8 +1157,14 @@ namespace AutomationTool
 							StorageBlocks.Add(StorageBlock);
 						}
 					}
+					
+					IEnumerable<string> Keys = Enumerable.Empty<string>();
+					if (outputNameToArtifact.TryGetValue(Output.TagName, out BgArtifactDef artifact))
+					{
+						Keys = artifact.Keys;
+					}
 
-					Storage.WriteFileList(Node.Name, Output.TagName, Files, StorageBlocks.ToArray());
+					Storage.WriteFileList(Node.Name, Output.TagName, Files, StorageBlocks.ToArray(), Keys);
 				}
 			}
 

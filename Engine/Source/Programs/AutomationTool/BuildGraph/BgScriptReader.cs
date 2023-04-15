@@ -1114,23 +1114,16 @@ namespace AutomationTool
 			string? name;
 			if (await EvaluateConditionAsync(element) && TryReadObjectName(element, out name))
 			{
-				if (_graph.NameToArtifact.ContainsKey(name))
+				string tag = ReadAttribute(element, "Tag");
+				if (String.IsNullOrEmpty(tag))
 				{
-					LogError(element, "'{0}' is already defined; cannot add a second time", name);
+					tag = $"#{name}";
 				}
-				else
-				{
-					string tag = ReadAttribute(element, "Tag");
-					if (String.IsNullOrEmpty(tag))
-					{
-						tag = $"#{name}";
-					}
 
-					string[] keys = ReadListAttribute(element, "Keys");
+				string[] keys = ReadListAttribute(element, "Keys");
 
-					BgArtifactDef newArtifact = new BgArtifactDef(name, tag, keys);
-					_graph.NameToArtifact.Add(name, newArtifact);
-				}
+				BgArtifactDef newArtifact = new BgArtifactDef(name, tag, keys);
+				_graph.Artifacts.Add(newArtifact);
 			}
 		}
 

@@ -411,7 +411,8 @@ namespace AutomationTool
 	/// <summary>
 	/// Stores the contents of a tagged file set
 	/// </summary>
-	public class TempStorageFileList
+	[XmlRoot(ElementName = "TempStorageFileList")]
+	public class TempStorageTagManifest
 	{
 		/// <summary>
 		/// List of files that are in this tag set, relative to the root directory
@@ -435,14 +436,21 @@ namespace AutomationTool
 		public TempStorageBlock[] Blocks;
 
 		/// <summary>
+		/// List of keys for published artifacts
+		/// </summary>
+		[XmlArray]
+		[XmlArrayItem("ArtifactKey")]
+		public string[] ArtifactKeys;
+
+		/// <summary>
 		/// Construct a static Xml serializer to avoid throwing an exception searching for the reflection info at runtime
 		/// </summary>
-		static XmlSerializer Serializer = XmlSerializer.FromTypes(new Type[]{ typeof(TempStorageFileList) })[0];
+		static XmlSerializer Serializer = XmlSerializer.FromTypes(new Type[]{ typeof(TempStorageTagManifest) })[0];
 
 		/// <summary>
 		/// Construct an empty file list for deserialization
 		/// </summary>
-		private TempStorageFileList()
+		private TempStorageTagManifest()
 		{
 		}
 
@@ -452,7 +460,8 @@ namespace AutomationTool
 		/// <param name="InFiles">List of full file paths</param>
 		/// <param name="RootDir">Root folder for all the files. All files must be relative to this RootDir.</param>
 		/// <param name="InBlocks">Referenced storage blocks required for these files</param>
-		public TempStorageFileList(IEnumerable<FileReference> InFiles, DirectoryReference RootDir, IEnumerable<TempStorageBlock> InBlocks)
+		/// <param name="InArtifactKeys">Keys for published artifacts</param>
+		public TempStorageTagManifest(IEnumerable<FileReference> InFiles, DirectoryReference RootDir, IEnumerable<TempStorageBlock> InBlocks, IEnumerable<string> InArtifactKeys)
 		{
 			List<string> NewLocalFiles = new List<string>();
 			List<string> NewExternalFiles = new List<string>();
@@ -471,17 +480,18 @@ namespace AutomationTool
 			ExternalFiles = NewExternalFiles.ToArray();
 
 			Blocks = InBlocks.ToArray();
+			ArtifactKeys = InArtifactKeys.ToArray();
 		}
 
 		/// <summary>
 		/// Load this list of files from disk
 		/// </summary>
 		/// <param name="File">File to load</param>
-		static public TempStorageFileList Load(FileReference File)
+		static public TempStorageTagManifest Load(FileReference File)
 		{
 			using(StreamReader Reader = new StreamReader(File.FullName))
 			{
-				return (TempStorageFileList)Serializer.Deserialize(Reader);
+				return (TempStorageTagManifest)Serializer.Deserialize(Reader);
 			}
 		}
 
@@ -679,7 +689,7 @@ namespace AutomationTool
 				}
 
 				// Read the manifest and add the referenced blocks to be checked
-				TempStorageFileList LocalFileList = TempStorageFileList.Load(LocalFileListLocation);
+				TempStorageTagManifest LocalFileList = TempStorageTagManifest.Load(LocalFileListLocation);
 				Blocks.UnionWith(LocalFileList.Blocks);
 			}
 
@@ -729,16 +739,16 @@ namespace AutomationTool
 		/// <param name="NodeName">Name of the node which produced the tag set</param>
 		/// <param name="TagName">Name of the tag, with a '#' prefix</param>
 		/// <returns>The set of files</returns>
-		public TempStorageFileList ReadFileList(string NodeName, string TagName)
+		public TempStorageTagManifest ReadFileList(string NodeName, string TagName)
 		{
-			TempStorageFileList FileList = null;
+			TempStorageTagManifest FileList = null;
 
 			// Try to read the tag set from the local directory
 			FileReference LocalFileListLocation = GetTaggedFileListLocation(LocalDir, NodeName, TagName);
 			if(FileReference.Exists(LocalFileListLocation))
 			{
 				Logger.LogInformation("Reading local file list from {Arg0}", LocalFileListLocation.FullName);
-				FileList = TempStorageFileList.Load(LocalFileListLocation);
+				FileList = TempStorageTagManifest.Load(LocalFileListLocation);
 			}
 			else
 			{
@@ -766,7 +776,7 @@ namespace AutomationTool
 					{
 						// Read the shared manifest
 						Logger.LogInformation("Copying shared tag set from {Arg0} to {Arg1}", SharedFileListLocation.FullName, LocalFileListLocation.FullName);
-						FileList = TempStorageFileList.Load(SharedFileListLocation);
+						FileList = TempStorageTagManifest.Load(SharedFileListLocation);
 					}, Attempts, TimeSpan.FromSeconds(5));
 				}
 				catch
@@ -788,11 +798,12 @@ namespace AutomationTool
 		/// <param name="TagName">Name of the tag, with a '#' prefix</param>
 		/// <param name="Files">List of files in this set</param>
 		/// <param name="Blocks">List of referenced storage blocks</param>
+		/// <param name="ArtifactKeys">Keys for published artifacts</param>
 		/// <returns>The set of files</returns>
-		public void WriteFileList(string NodeName, string TagName, IEnumerable<FileReference> Files, IEnumerable<TempStorageBlock> Blocks)
+		public void WriteFileList(string NodeName, string TagName, IEnumerable<FileReference> Files, IEnumerable<TempStorageBlock> Blocks, IEnumerable<string> ArtifactKeys)
 		{
 			// Create the file list
-			TempStorageFileList FileList = new TempStorageFileList(Files, RootDir, Blocks);
+			TempStorageTagManifest FileList = new TempStorageTagManifest(Files, RootDir, Blocks, ArtifactKeys);
 
 			// Save the set of files to the local and shared locations
 			FileReference LocalFileListLocation = GetTaggedFileListLocation(LocalDir, NodeName, TagName);
