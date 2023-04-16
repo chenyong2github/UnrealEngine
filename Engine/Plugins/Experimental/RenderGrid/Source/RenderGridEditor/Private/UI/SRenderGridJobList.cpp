@@ -533,11 +533,10 @@ TSharedRef<SWidget> UE::RenderGrid::Private::SRenderGridJobListTableRow::Generat
 							{
 								if (Grid->DoesJobIdExist(NewJobId))
 								{
-									const FText TitleText = LOCTEXT("JobIdNotUniqueTitle", "Duplicate Job IDs");
 									FMessageDialog::Open(
 										EAppMsgType::Ok,
 										FText::Format(LOCTEXT("JobIdNotUniqueMessage", "Job ID \"{0}\" is not unique."), FText::FromString(NewJobId)),
-										&TitleText);
+										LOCTEXT("JobIdNotUniqueTitle", "Duplicate Job IDs"));
 									return FText::FromString(OldJobId);
 								}
 

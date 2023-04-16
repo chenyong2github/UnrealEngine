@@ -192,10 +192,10 @@ namespace UE
 			static bool IsScopePending() { return !ScopeModeStack.IsEmpty(); }
 protected:
 			/** Determine how to handle an Animation Modifier error, and execute accordingly */
-			static void HandleError(const UAnimationModifier* Modifier, const FText& Message, const FText* OptTitle = nullptr);
+			static void HandleError(const UAnimationModifier* Modifier, const FText& Message, const FText& Title);
 
 			/** Determine how to handle an Animation Modifier warning, and execute accordingly. Returns whether or not the warning was handled (true) or warrants reverting the applied Animation Modifier (false) */
-			static bool HandleWarning(const UAnimationModifier* Modifier, const FText& Message, const FText* OptTitle = nullptr);
+			static bool HandleWarning(const UAnimationModifier* Modifier, const FText& Message, const FText& Title);
 
 private:
 			// Open a scope to control error handling when batch applying animation modifiers

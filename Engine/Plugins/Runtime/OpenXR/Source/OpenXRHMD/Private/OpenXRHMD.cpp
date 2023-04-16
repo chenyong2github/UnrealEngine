@@ -1682,7 +1682,7 @@ void ShowRestartWarning(const FText& Title)
 {
 	if (EAppReturnType::Ok == FMessageDialog::Open(EAppMsgType::OkCancel,
 		LOCTEXT("EditorRestartMsg", "The OpenXR runtime requires switching to a different GPU adapter, this requires an editor restart. Do you wish to restart now (you will be prompted to save any changes)?"),
-		&Title))
+		Title))
 	{
 		FUnrealEdMisc::Get().RestartEditor(false);
 	}

@@ -106,7 +106,7 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* AnimSeque
 			FText::FromString(GetClass()->GetPathName()),
 			FText::FromString(CurrentAnimSequence->GetPathName()),
 			FText::FromString(OutputLog));
-		UE::Anim::FApplyModifiersScope::HandleError(this, ErrorMessage, &MessageTitle);
+		UE::Anim::FApplyModifiersScope::HandleError(this, ErrorMessage, MessageTitle);
 	}
 
 	// If _only_ warnings have occured - check if user has previously said YesAll / NoAll and process the result
@@ -116,7 +116,7 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* AnimSeque
 			FText::FromString(GetClass()->GetPathName()),
 			FText::FromString(CurrentAnimSequence->GetPathName()),
 			FText::FromString(OutputLog));
-		bShouldRevert = !UE::Anim::FApplyModifiersScope::HandleWarning(this, WarningMessage, &MessageTitle);
+		bShouldRevert = !UE::Anim::FApplyModifiersScope::HandleWarning(this, WarningMessage, MessageTitle);
 	}
 
 	// Revert changes if necessary, otherwise post edit and refresh animation data
@@ -577,7 +577,7 @@ namespace UE::Anim
 		}
 	}
 
-	void FApplyModifiersScope::HandleError(const UAnimationModifier* Modifier, const FText& Message, const FText* OptTitle)
+	void FApplyModifiersScope::HandleError(const UAnimationModifier* Modifier, const FText& Message, const FText& Title)
 	{
 		ESuppressionMode Mode = CurrentMode();
 		if (Mode > SuppressWarningAndError && Mode < RevertAtWarning)
@@ -585,14 +585,14 @@ namespace UE::Anim
 			// Show the dialog if this error was not shown before, or when forced
 			if (Mode == ForceDialog || !ErrorResponse.Contains(Modifier->GetClass()))
 			{
-				FMessageDialog::Open(EAppMsgType::Ok, Message, OptTitle);
+				FMessageDialog::Open(EAppMsgType::Ok, Message, Title);
 			}
 		}
 		// Record the error to avoid same error dialog
 		ErrorResponse.Add(Modifier->GetClass());
 	}
 
-	bool FApplyModifiersScope::HandleWarning(const UAnimationModifier* Modifier, const FText& Message, const FText* OptTitle)
+	bool FApplyModifiersScope::HandleWarning(const UAnimationModifier* Modifier, const FText& Message, const FText& Title)
 	{
 		auto IsYesAllNoAll = [](EAppReturnType::Type Value) { return Value == EAppReturnType::YesAll || Value == EAppReturnType::NoAll; };
 		auto PtrValueOr = [](auto* Ptr, auto Default) { return Ptr ? *Ptr : Default; };
@@ -619,7 +619,7 @@ namespace UE::Anim
 		// Don't show the dialog if the previous response is YesToAll or NoToAll
 		if (Response == EAppReturnType::Retry)
 		{
-			Response = FMessageDialog::Open(EAppMsgType::YesNoYesAllNoAll, Message, OptTitle);
+			Response = FMessageDialog::Open(EAppMsgType::YesNoYesAllNoAll, Message, Title);
 			// Record the YesAll NoAll response to avoid same the warning dialog
 			if (IsYesAllNoAll(Response))
 			{
