@@ -36,6 +36,11 @@ void FMessageDialog::Debugf( const FText& Message, const FText* OptTitle )
 	Debugf(Message, OptTitle ? *OptTitle : GetDefaultMessageTitle());
 }
 
+void FMessageDialog::Debugf( const FText& Message )
+{
+	Debugf(Message, GetDefaultMessageTitle());
+}
+
 void FMessageDialog::Debugf( const FText& Message, const FText& Title )
 {
 	if( FApp::IsUnattended() == true )
@@ -74,6 +79,11 @@ void FMessageDialog::ShowLastError()
 EAppReturnType::Type FMessageDialog::Open( EAppMsgType::Type MessageType, const FText& Message, const FText* OptTitle )
 {
 	return Open(MessageType, Message, OptTitle ? *OptTitle : GetDefaultMessageTitle());
+}
+
+EAppReturnType::Type FMessageDialog::Open( EAppMsgType::Type MessageType, const FText& Message )
+{
+	return Open(MessageType, Message, GetDefaultMessageTitle());
 }
 
 EAppReturnType::Type FMessageDialog::Open(EAppMsgType::Type MessageType, const FText& Message, const FText& Title)
@@ -128,6 +138,11 @@ EAppReturnType::Type FMessageDialog::Open(EAppMsgType::Type MessageType, const F
 EAppReturnType::Type FMessageDialog::Open(EAppMsgType::Type MessageType, EAppReturnType::Type DefaultValue, const FText& Message, const FText* OptTitle)
 {
 	return Open(MessageType, DefaultValue, Message, OptTitle ? *OptTitle : GetDefaultMessageTitle());
+}
+
+EAppReturnType::Type FMessageDialog::Open(EAppMsgType::Type MessageType, EAppReturnType::Type DefaultValue, const FText& Message)
+{
+	return Open(MessageType, DefaultValue, Message, GetDefaultMessageTitle());
 }
 
 EAppReturnType::Type FMessageDialog::Open(EAppMsgType::Type MessageType, EAppReturnType::Type DefaultValue, const FText& Message, const FText& Title)

@@ -17,10 +17,12 @@ struct CORE_API FMessageDialog
 {
 	/** Pops up a message dialog box containing the input string.
 	 * @param Message Text of message to show
-	 * @param OptTitle Optional title to use (defaults to "Message")
+	 * @param Title Optional title to use (defaults to "Message")
 	*/
-	static void Debugf( const FText& Message, const FText* OptTitle = nullptr );
+	static void Debugf( const FText& Message );
 	static void Debugf( const FText& Message, const FText& Title );
+	// TODO: UE_DEPRECATED(5.3, "Use the overload of Debugf that takes the Title by-value")
+	static void Debugf( const FText& Message, const FText* OptTitle );
 
 	/** Pops up a message dialog box containing the last system error code in string form. */
 	static void ShowLastError();
@@ -29,18 +31,22 @@ struct CORE_API FMessageDialog
 	 * Open a modal message box dialog
 	 * @param MessageType Controls buttons dialog should have
 	 * @param Message Text of message to show
-	 * @param OptTitle Optional title to use (defaults to "Message")
+	 * @param Title Optional title to use (defaults to "Message")
 	*/
-	static EAppReturnType::Type Open( EAppMsgType::Type MessageType, const FText& Message, const FText* OptTitle = nullptr);
+	static EAppReturnType::Type Open( EAppMsgType::Type MessageType, const FText& Message);
 	static EAppReturnType::Type Open( EAppMsgType::Type MessageType, const FText& Message, const FText& Title);
+	// TODO: UE_DEPRECATED(5.3, "Use the overload of Open that takes the Title by-value")
+	static EAppReturnType::Type Open( EAppMsgType::Type MessageType, const FText& Message, const FText* OptTitle);
 
 	/**
 	 * Open a modal message box dialog
 	 * @param MessageType Controls buttons dialog should have
 	 * @param DefaultValue If the application is Unattended, the function will log and return DefaultValue
 	 * @param Message Text of message to show
-	 * @param OptTitle Optional title to use (defaults to "Message")
+	 * @param Title Optional title to use (defaults to "Message")
 	*/
-	static EAppReturnType::Type Open(EAppMsgType::Type MessageType, EAppReturnType::Type DefaultValue, const FText& Message, const FText* OptTitle = nullptr);
+	static EAppReturnType::Type Open(EAppMsgType::Type MessageType, EAppReturnType::Type DefaultValue, const FText& Message);
 	static EAppReturnType::Type Open(EAppMsgType::Type MessageType, EAppReturnType::Type DefaultValue, const FText& Message, const FText& Title);
+	// TODO: UE_DEPRECATED(5.3, "Use the overload of Open that takes the Title by-value")
+	static EAppReturnType::Type Open(EAppMsgType::Type MessageType, EAppReturnType::Type DefaultValue, const FText& Message, const FText* OptTitle);
 };
