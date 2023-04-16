@@ -86,7 +86,7 @@ void UPLUGIN_NAMESimpleTool::OnClicked(const FInputDeviceRay& ClickPos)
 
 			FText Title = LOCTEXT("ActorInfoDialogTitle", "Actor Info");
 			// JAH TODO: consider if we can highlight the actor prior to opening the dialog box or make it non-modal
-			FMessageDialog::Open(EAppMsgType::Ok, ActorInfoMsg, &Title);
+			FMessageDialog::Open(EAppMsgType::Ok, ActorInfoMsg, Title);
 		}
 	}
 }

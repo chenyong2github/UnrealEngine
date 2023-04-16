@@ -75,7 +75,7 @@ static void ValidateTargetedRHIFeatureLevelExists(EShaderPlatform Platform)
 		FText LocalizedMsg = FText::Format(NSLOCTEXT("MetalRHI", "ShaderPlatformUnavailable","Shader platform: {ShaderPlatform} was not cooked! Please enable this shader platform in the project's target settings."),Args);
 		
 		FText Title = NSLOCTEXT("MetalRHI", "ShaderPlatformUnavailableTitle","Shader Platform Unavailable");
-		FMessageDialog::Open(EAppMsgType::Ok, LocalizedMsg, &Title);
+		FMessageDialog::Open(EAppMsgType::Ok, LocalizedMsg, Title);
 		FPlatformMisc::RequestExit(true);
 		
 		METAL_FATAL_ERROR(TEXT("Shader platform: %s was not cooked! Please enable this shader platform in the project's target settings."), *LegacyShaderPlatformToShaderFormat(Platform).ToString());

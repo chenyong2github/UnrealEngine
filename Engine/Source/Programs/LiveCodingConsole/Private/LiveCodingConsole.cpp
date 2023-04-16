@@ -370,7 +370,7 @@ private:
 				const FText Message = LOCTEXT("LimitText", "Live Coding action limit reached.  Do you wish to compile anyway?\n\n"
 				"The limit can be permanently changed or disabled by setting the ActionLimit or DisableActionLimit setting for the LiveCodingConsole program.");
 				const FText Title = LOCTEXT("LimitTitle", "Live Coding Action Limit Reached");
-				EAppReturnType::Type ReturnType = FMessageDialog::Open(EAppMsgType::YesNo, Message, &Title);
+				EAppReturnType::Type ReturnType = FMessageDialog::Open(EAppMsgType::YesNo, Message, Title);
 				CompileResult = ReturnType == EAppReturnType::Yes ? ELiveCodingCompileResult::Retry : ELiveCodingCompileResult::Canceled;
 			}
 
@@ -432,7 +432,7 @@ private:
 		{
 			const FText Message = LOCTEXT("RestartWarningText", "Restarting after patching while re-instancing was enabled can lead to unexpected results.\r\n\r\nDo you wish to continue?");
 			const FText Title = LOCTEXT("RestartWarningTitle", "Restarting after patching while re-instancing was enabled?");
-			EAppReturnType::Type ReturnType = FMessageDialog::Open(EAppMsgType::YesNo, Message, &Title);
+			EAppReturnType::Type ReturnType = FMessageDialog::Open(EAppMsgType::YesNo, Message, Title);
 			if (ReturnType != EAppReturnType::Yes)
 			{
 				return FReply::Handled();

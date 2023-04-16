@@ -167,8 +167,7 @@ void FBridgeUIManagerImpl::CreateWindow()
 // 	{
 // 		if (!WebBrowserPlugin->IsEnabled())
 // 		{
-// 			const FText Title = FText::FromString(TEXT("Enable Web Browser Plugin"));
-// 			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(TEXT("Quixel Bridge requires the “Web Browser” plugin, which is disabled. Go to Edit > Plugins and search for “Web Browser” to enable it.")), &Title);
+// 			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(TEXT("Quixel Bridge requires the “Web Browser” plugin, which is disabled. Go to Edit > Plugins and search for “Web Browser” to enable it.")), FText::FromString(TEXT("Enable Web Browser Plugin")));
 // 			return;
 // 		}
 // 	}
