@@ -180,7 +180,7 @@ void FAvfMediaCapturePlayer::HandleAuthStatusError(EAvfMediaCaptureAuthStatus Au
 		ErrorString += FString(TEXT(" (")) + URL + FString(TEXT(")"));
 		FText Msg = FText::FromString(ErrorString);
 		FText Title = NSLOCTEXT("AvfMediaCapture", "AvfMediaCapture_DeviceFail", "Capture Device Start Failed");
-		FMessageDialog::Open(EAppMsgType::Ok, Msg, &Title);
+		FMessageDialog::Open(EAppMsgType::Ok, Msg, Title);
 	}
 }
 

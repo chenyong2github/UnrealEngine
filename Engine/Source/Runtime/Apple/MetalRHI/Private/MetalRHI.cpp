@@ -115,8 +115,9 @@ static void VerifyMetalCompiler()
 		
 		if(!bFoundXCode)
 		{
-			const FText Title = NSLOCTEXT("MetalRHI", "XCodeMissingInstallTitle", "Xcode Not Found");
-			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("MetalRHI", "XCodeMissingInstall", "Unreal Engine requires Xcode to compile shaders for Metal. To continue, install Xcode and open it to accept the license agreement. If you install Xcode to any location other than Applications/Xcode, also run the xcode-select command-line tool to specify its location."), &Title);
+			FMessageDialog::Open(EAppMsgType::Ok, 
+				NSLOCTEXT("MetalRHI", "XCodeMissingInstall", "Unreal Engine requires Xcode to compile shaders for Metal. To continue, install Xcode and open it to accept the license agreement. If you install Xcode to any location other than Applications/Xcode, also run the xcode-select command-line tool to specify its location."), 
+				NSLOCTEXT("MetalRHI", "XCodeMissingInstallTitle", "Xcode Not Found"));
 			FPlatformMisc::RequestExit(true);
 			return;
 		}
