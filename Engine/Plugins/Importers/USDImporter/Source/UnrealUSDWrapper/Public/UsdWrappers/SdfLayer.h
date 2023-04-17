@@ -7,10 +7,10 @@
 #include "Containers/UnrealString.h"
 
 #include "UsdWrappers/ForwardDeclarations.h"
+#include "UsdWrappers/SdfPath.h"
 
 namespace UE
 {
-	class FSdfPath;
 	class FSdfPrimSpec;
 
 	namespace Internal
@@ -29,6 +29,23 @@ namespace UE
 
 		double Offset = 0.0;
 		double Scale = 1.0;
+	};
+
+	struct UNREALUSDWRAPPER_API FSdfReference
+	{
+		FSdfReference(
+				const FString& InAssetPath = {},
+				const FSdfPath& InPrimPath = {},
+				const FSdfLayerOffset& InLayerOffset = {})
+			: AssetPath( InAssetPath )
+			, PrimPath( InPrimPath )
+			, LayerOffset ( InLayerOffset )
+		{
+		}
+
+		FString AssetPath;
+		FSdfPath PrimPath;
+		FSdfLayerOffset LayerOffset;
 	};
 
 	/**

@@ -135,6 +135,35 @@ enum class EUsdRootMotionHandling
 	UseMotionFromSkeleton
 };
 
+/** Corresponds to pxr::UsdListPosition, refer to the USD SDK documentation */
+UENUM()
+enum class EUsdListPosition : uint8
+{
+	// The position at the front of the prepend list.
+	// An item added at this position will, after composition is applied,
+	// be stronger than other items prepended in this layer, and stronger
+	// than items added by weaker layers.
+	FrontOfPrependList,
+
+	// The position at the back of the prepend list.
+	// An item added at this position will, after composition is applied,
+	// be weaker than other items prepended in this layer, but stronger
+	// than items added by weaker layers.
+	BackOfPrependList,
+
+	// The position at the front of the append list.
+	// An item added at this position will, after composition is applied,
+	// be stronger than other items appended in this layer, and stronger
+	// than items added by weaker layers.
+	FrontOfAppendList,
+
+	// The position at the back of the append list.
+	// An item added at this position will, after composition is applied,
+	// be weaker than other items appended in this layer, but stronger
+	// than items added by weaker layers.
+	BackOfAppendList
+};
+
 class IUnrealUSDWrapperModule : public IModuleInterface
 {
 };

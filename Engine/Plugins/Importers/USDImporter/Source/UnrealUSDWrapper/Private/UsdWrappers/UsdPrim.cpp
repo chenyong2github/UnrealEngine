@@ -6,6 +6,7 @@
 
 #include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdAttribute.h"
+#include "UsdWrappers/UsdReferences.h"
 #include "UsdWrappers/UsdStage.h"
 
 #if USE_USD_SDK
@@ -549,6 +550,15 @@ namespace UE
 #endif // #if USE_USD_SDK
 
 		return Attributes;
+	}
+
+	FUsdReferences FUsdPrim::GetReferences() const
+	{
+#if USE_USD_SDK
+		return FUsdReferences( Impl->PxrUsdPrim.Get() );
+#else
+		return FUsdReferences{};
+#endif // #if USE_USD_SDK
 	}
 
 	FUsdAttribute FUsdPrim::GetAttribute(const TCHAR* AttrName) const

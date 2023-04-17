@@ -26,6 +26,7 @@ namespace UE
 {
 	class FSdfPath;
 	class FUsdAttribute;
+	class FUsdReferences;
 
 	namespace Internal
 	{
@@ -121,6 +122,8 @@ namespace UE
 		bool IsLoaded() const;
 		void Load( EUsdLoadPolicy Policy = EUsdLoadPolicy::UsdLoadWithDescendants );
 		void Unload();
+
+		FUsdReferences GetReferences() const;
 
 		bool RemoveProperty( FName PropName ) const;
 
