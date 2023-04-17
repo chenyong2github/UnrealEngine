@@ -65,6 +65,11 @@ namespace Chaos::Facades
 		return ChildrenArray;
 	}
 
+	int32 FCollectionHierarchyFacade::GetParent(int32 TransformIndex) const
+	{
+		return ParentAttribute[TransformIndex];
+	}
+
 	int32 FCollectionHierarchyFacade::GetInitialLevel(int32 TransformIndex) const
 	{
 		if (HasLevelAttribute())

@@ -1359,6 +1359,32 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 			}
 		}
 
+		if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::ChaosGeometryCollectionConnectionEdgeGroup)
+		{
+			// Migrate old Connections TSet<int32> data to arrays of edge data
+			// Note we intentionally do *not* use the facade here, as the migration is specific to how the data is at the current moment, and the facade may change w/ future data changes.
+			if (TManagedArray<TSet<int32>>* Connections = FindAttribute<TSet<int32>>("Connections", TransformGroup))
+			{
+				const FName ConnectionGroupName = "ConnectionEdge";
+				AddGroup(ConnectionGroupName);
+				TManagedArray<int32>& Starts = AddAttribute<int32>("ConnectionEdgeStarts", ConnectionGroupName, FConstructionParameters(FTransformCollection::TransformGroup, true));
+				TManagedArray<int32>& Ends = AddAttribute<int32>("ConnectionEdgeEnds", ConnectionGroupName, FConstructionParameters(FTransformCollection::TransformGroup, true));
+				for (int32 TransformIdx = 0; TransformIdx < NumElements(TransformGroup); ++TransformIdx)
+				{
+					for (int32 NbrIdx : (*Connections)[TransformIdx])
+					{
+						if (TransformIdx < NbrIdx)
+						{
+							int32 EdgeIdx = AddElements(1, ConnectionGroupName);
+							Starts[EdgeIdx] = TransformIdx;
+							Ends[EdgeIdx] = NbrIdx;
+						}
+					}
+				}
+				RemoveAttribute("Connections", TransformGroup);
+			}
+		}
+
 		// Finally, make sure expected interfaces are initialized
 		InitializeInterfaces();
 	}

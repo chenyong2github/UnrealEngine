@@ -1013,7 +1013,8 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 	//for all versions loaded, make sure loaded content is built
  	if (Ar.IsLoading())
 	{
-		EnsureDataIsCooked(true /*bInitResourcs*/, Ar.IsTransacting(), Ar.IsPersistent());
+		// note: don't allow copy from DDC here, since we've already loaded the data above, and the DDC data does not include any data migrations performed by the load
+		EnsureDataIsCooked(true /*bInitResources*/, Ar.IsTransacting(), Ar.IsPersistent(), false /*bAllowCopyFromDDC*/);
 	}
 #endif
 }

@@ -36,6 +36,7 @@
 #include "Chaos/PhysicsObjectInternal.h"
 #include "Chaos/PhysicsObjectInterface.h"
 #include "GeometryCollection/Facades/CollectionAnchoringFacade.h"
+#include "GeometryCollection/Facades/CollectionConnectionGraphFacade.h"
 
 #ifndef TODO_REIMPLEMENT_INIT_COMMANDS
 #define TODO_REIMPLEMENT_INIT_COMMANDS 0
@@ -1215,8 +1216,8 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 				}
 			}
 
-			const TManagedArray<TSet<int32>>* Connections = RestCollection->FindAttribute<TSet<int32>>("Connections", FGeometryCollection::TransformGroup);
-			const bool bGenerateConnectionGraph = (!Connections) || (Connections->Num() != RestCollection->Transform.Num()) || bGeometryCollectionAlwaysGenerateConnectionGraph;
+			const GeometryCollection::Facades::FCollectionConnectionGraphFacade ConnectionFacade(*RestCollection);
+			const bool bGenerateConnectionGraph = !ConnectionFacade.IsValid() || bGeometryCollectionAlwaysGenerateConnectionGraph || !ConnectionFacade.HasValidConnections();
 			if (bGenerateConnectionGraph)
 			{
 				// Set cluster connectivity.  TPBDRigidClustering::CreateClusterParticle() 
@@ -1240,44 +1241,32 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 			}
 			else
 			{
-				if (Connections)
+				if (ConnectionFacade.IsValid())
 				{
-					// first reserve memory for the connection so we alolocate just the right amount of memory 
-					for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
-					{
-						if (FClusterHandle* ClusteredParticle = SolverParticleHandles[TransformGroupIndex])
-						{
-							const TSet<int32>& Siblings = (*Connections)[TransformGroupIndex];
-							if (Siblings.Num())
-							{
-								ClusteredParticle->ConnectivityEdges().Reserve(Siblings.Num());
-							}
-						}
-					}
+					// TODO: is it worth computing the valence of each edge to Reserve() the particle edge arrays?
 
-					// now set the connections
-					for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
+					// Transfer connections from the Collection's ConnectionFacade over to the clustered particles
+					int32 NumConnections = ConnectionFacade.NumConnections();
+					for (int32 ConnectionIdx = 0; ConnectionIdx < NumConnections; ++ConnectionIdx)
 					{
-						if (FClusterHandle* ClusteredParticle = SolverParticleHandles[TransformGroupIndex]) 
+						TPair<int32,int32> Connection = ConnectionFacade.GetConnection(ConnectionIdx);
+						checkSlow(Connection.Key != Connection.Value); // Graph should never contain self-loops
+
+						bool bHasContactAreas = ConnectionFacade.HasContactAreas();
+						float ContactArea = 0.0f; // Note: this default value should be unused
+						if (bHasContactAreas)
 						{
-							const TSet<int32>& Siblings = (*Connections)[TransformGroupIndex];
-							for (const int32 SiblingTransformIndex: Siblings)
+							ContactArea = ConnectionFacade.GetConnectionContactArea(ConnectionIdx);
+						}
+
+						if (FClusterHandle* ClusteredParticle = SolverParticleHandles[Connection.Key])
+						{
+							if (FClusterHandle* OtherClusteredParticle = SolverParticleHandles[Connection.Value])
 							{
-								if (FClusterHandle* OtherClusteredParticle = SolverParticleHandles[SiblingTransformIndex])
-								{
-									// we add both connection for integrity so let use the index order as a way to filter out the symmetrical part 
-									if (SiblingTransformIndex > TransformGroupIndex)
-									{
-										Chaos::TConnectivityEdge<Chaos::FReal> Edge;
-										Edge.Strain = (ClusteredParticle->GetInternalStrains() + OtherClusteredParticle->GetInternalStrains()) * 0.5f;
-									
-										Edge.Sibling = OtherClusteredParticle;
-										ClusteredParticle->ConnectivityEdges().Add(Edge);
-									
-										Edge.Sibling = ClusteredParticle;
-										OtherClusteredParticle->ConnectivityEdges().Add(Edge);
-									}
-								}
+								float EdgeStrain = bHasContactAreas ? ContactArea : (ClusteredParticle->GetInternalStrains() + OtherClusteredParticle->GetInternalStrains()) * 0.5f;
+								// Add symmetric Chaos::TConnectivityEdge<Chaos::FReal> edges to each particle
+								ClusteredParticle->ConnectivityEdges().Emplace(OtherClusteredParticle, EdgeStrain);
+								OtherClusteredParticle->ConnectivityEdges().Emplace(ClusteredParticle, EdgeStrain);
 							}
 						}
 					}

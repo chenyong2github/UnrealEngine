@@ -34,6 +34,16 @@ enum class EProximityContactMethod : uint8
 	//~ TODO: Add other methods for filtering overlaps, e.g. based on approximate surface area of the contact
 };
 
+// How contact is computed on the connection graph
+UENUM()
+enum class EConnectionContactMethod : uint8
+{
+	// Do not compute contact areas
+	None,
+	// Define contact based on the surface area of the intersection of the convex hulls, allowing for optional offset
+	ConvexHullContactArea
+};
+
 class CHAOS_API FGeometryCollectionProximityUtility
 {
 public:
@@ -45,10 +55,6 @@ public:
 	void RequireProximity(UE::GeometryCollectionConvexUtility::FConvexHulls* OptionalComputedHulls = nullptr);
 
 	void InvalidateProximity();
-
-	void CopyProximityToConnectionGraph();
-	void ClearConnectionGraph();
-
 
 	// Stores stats about the contact between two geometries
 	struct FGeometryContactEdge
@@ -70,6 +76,10 @@ public:
 	};
 	// Note: This computes connections from lower to higher geometry indices, assuming connections are symmetric
 	static TArray<FGeometryContactEdge> ComputeConvexGeometryContactFromProximity(FGeometryCollection* Collection, float DistanceTolerance, UE::GeometryCollectionConvexUtility::FConvexHulls& LocalHulls);
+
+	// @param ContactEdges	Optional pre-computed proximity contact edges, to be used for computing contact areas on the connection graph edges
+	void CopyProximityToConnectionGraph(const TArray<FGeometryContactEdge>* ContactEdges = nullptr);
+	void ClearConnectionGraph();
 
 private:
 	FGeometryCollection* Collection;

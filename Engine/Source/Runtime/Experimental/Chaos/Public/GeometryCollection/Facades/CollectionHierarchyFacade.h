@@ -44,8 +44,11 @@ namespace Chaos::Facades
 		/** Get the root indicies */
 		TArray<int32> GetRootIndices() const;
 
-		/** Get direct children from a specific transform index */
+		/** Get direct children from a specific transform index. Assumes parent attribute is valid. */
 		TArray<int32> GetChildrenAsArray(int32 TransformIndex) const;
+
+		/** Get parent of a specific transform index */
+		int32 GetParent(int32 TransformIndex) const;
 
 		/** 
 		* Get initial level of a specific transform index 

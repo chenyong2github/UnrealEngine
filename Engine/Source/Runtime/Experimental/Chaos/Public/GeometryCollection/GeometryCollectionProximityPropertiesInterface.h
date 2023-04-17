@@ -23,6 +23,8 @@ public :
 	static const FName ProximityDistanceThreshold;
 	// Attribute: Whether to use the computed proximity graph as a connection graph
 	static const FName ProximityAsConnectionGraph;
+	// Attribute: How to compute contact area for connection graph edges, to be used by the simulation
+	static const FName ProximityConnectionGraphContactAreaMethod;
 	// Attribute: If greater than zero, filter proximity connections by requiring an amount of 'contact' as computed by the Contact Method
 	// This is a second filter applied after initial proximity connections were determined by any Proximity Detection Method,
 	// and can be used to reduce unsupported or spurious/glancing proximities.
@@ -36,6 +38,7 @@ public :
 		float DistanceThreshold = 1.0f;
 		float RequireContactAmount = 0.0f;
 		EProximityContactMethod ContactMethod = EProximityContactMethod::MinOverlapInProjectionToMajorAxes;
+		EConnectionContactMethod ContactAreaMethod = EConnectionContactMethod::None;
 		bool bUseAsConnectionGraph = false;
 	};
 

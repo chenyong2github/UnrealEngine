@@ -1114,6 +1114,19 @@ enum class EProximityContactFilteringMethodEnum : uint8
 	Dataflow_Max                UMETA(Hidden)
 };
 
+UENUM(BlueprintType)
+enum class EConnectionContactAreaMethodEnum : uint8
+{
+	/** Do not compute contact areas */
+	Dataflow_ConnectionContactAreaMethod_None UMETA(DisplayName = "None"),
+	/** Compute approximate contact surface area via the intersection of convex hulls (allowing for optional offset) */
+	Dataflow_ProximityContactFilteringMethod_ConvexHullArea UMETA(DisplayName = "Convex Hull Area Contact"),
+	//~~~
+	//256th entry
+	Dataflow_Max                UMETA(Hidden)
+};
+
+
 /**
  *
  * Update the proximity (contact) graph for the bones in a Collection
@@ -1132,7 +1145,7 @@ public:
 
 	/** If hull-based proximity detection is enabled, amount to expand hulls when searching for overlapping neighbors */
 	UPROPERTY(EditAnywhere, Category = "Proximity", meta = (ClampMin = "0", 
-		EditCondition = "ProximityMethod == EProximityMethodEnum::Dataflow_ProximityMethod_ConvexHull || FilterContactMethod == EProximityContactFilteringMethodEnum::Dataflow_ProximityContactFilteringMethod_ConvexHullSharp || FilterContactMethod == EProximityContactFilteringMethodEnum::Dataflow_ProximityContactFilteringMethod_ConvexHullArea"))
+		EditCondition = "ProximityMethod == EProximityMethodEnum::Dataflow_ProximityMethod_ConvexHull || FilterContactMethod == EProximityContactFilteringMethodEnum::Dataflow_ProximityContactFilteringMethod_ConvexHullSharp || FilterContactMethod == EProximityContactFilteringMethodEnum::Dataflow_ProximityContactFilteringMethod_ConvexHullArea || ContactAreaMethod = EConnectionContactAreaMethodEnum::Dataflow_ProximityContactFilteringMethod_ConvexHullArea"))
 	float DistanceThreshold = 1;
 
 	// If greater than zero, proximity will be additionally filtered by a 'contact' threshold, in cm, to exclude grazing / corner proximity
@@ -1146,6 +1159,10 @@ public:
 	/** Whether to automatically transform the proximity graph into a connection graph to be used for simulation */
 	UPROPERTY(EditAnywhere, Category = "Proximity")
 	bool bUseAsConnectionGraph = false;
+
+	/** The method used to compute contact areas for simulation purposes (only when 'Use As Connection Graph' is enabled) */
+	UPROPERTY(EditAnywhere, Category = "Proximity")
+	EConnectionContactAreaMethodEnum ContactAreaMethod = EConnectionContactAreaMethodEnum::Dataflow_ConnectionContactAreaMethod_None;
 
 	/** GeometryCollection to update the proximity graph on */
 	UPROPERTY(meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection", DataflowIntrinsic))

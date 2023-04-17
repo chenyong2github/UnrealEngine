@@ -7,6 +7,7 @@ const FName FGeometryCollectionProximityPropertiesInterface::ProximityProperties
 const FName FGeometryCollectionProximityPropertiesInterface::ProximityDistanceThreshold = "DistanceThreshold";
 const FName FGeometryCollectionProximityPropertiesInterface::ProximityDetectionMethod = "DetectionMethod";
 const FName FGeometryCollectionProximityPropertiesInterface::ProximityAsConnectionGraph = "AsConnectionGraph";
+const FName FGeometryCollectionProximityPropertiesInterface::ProximityConnectionGraphContactAreaMethod = "ConnectionGraphContactAmount";
 const FName FGeometryCollectionProximityPropertiesInterface::ProximityRequireContactAmount = "RequireContactAmount";
 const FName FGeometryCollectionProximityPropertiesInterface::ProximityContactMethod = "ContactMethod";
 
@@ -46,6 +47,11 @@ FGeometryCollectionProximityPropertiesInterface::InitializeInterface()
 	{
 		ManagedCollection->AddAttribute<float>(ProximityRequireContactAmount, ProximityPropertiesGroup);
 	}
+
+	if (!ManagedCollection->HasAttribute(ProximityConnectionGraphContactAreaMethod, ProximityPropertiesGroup))
+	{
+		ManagedCollection->AddAttribute<uint8>(ProximityConnectionGraphContactAreaMethod, ProximityPropertiesGroup);
+	}
 }
 
 void 
@@ -68,6 +74,7 @@ FGeometryCollectionProximityPropertiesInterface::GetProximityProperties() const
 	if (bHasProximityProperties)
 	{
 		const TManagedArray<bool>& AsConnectionGraph = ManagedCollection->GetAttribute<bool>(ProximityAsConnectionGraph, ProximityPropertiesGroup);
+		const TManagedArray<uint8>& ConnectionContactMethod = ManagedCollection->GetAttribute<uint8>(ProximityConnectionGraphContactAreaMethod, ProximityPropertiesGroup);
 		const TManagedArray<int32>& DetectionMethod = ManagedCollection->GetAttribute<int32>(ProximityDetectionMethod, ProximityPropertiesGroup);
 		const TManagedArray<float>& DistanceThreshold = ManagedCollection->GetAttribute<float>(ProximityDistanceThreshold, ProximityPropertiesGroup);
 		const TManagedArray<uint8>& ContactMethod = ManagedCollection->GetAttribute<uint8>(ProximityContactMethod, ProximityPropertiesGroup);
@@ -75,6 +82,7 @@ FGeometryCollectionProximityPropertiesInterface::GetProximityProperties() const
 
 		constexpr int32 DefaultIndex = 0;
 		Properties.bUseAsConnectionGraph = AsConnectionGraph[DefaultIndex];
+		Properties.ContactAreaMethod = (EConnectionContactMethod)ConnectionContactMethod[DefaultIndex];
 		Properties.DistanceThreshold = DistanceThreshold[DefaultIndex];
 		Properties.Method = (EProximityMethod)DetectionMethod[DefaultIndex];
 		Properties.ContactMethod = (EProximityContactMethod)ContactMethod[DefaultIndex];
@@ -98,12 +106,14 @@ FGeometryCollectionProximityPropertiesInterface::SetProximityProperties(const FP
 	}
 
 	TManagedArray<bool>& AsConnectionGraph = ManagedCollection->ModifyAttribute<bool>(ProximityAsConnectionGraph, ProximityPropertiesGroup);
+	TManagedArray<uint8>& ConnectionContactMethod = ManagedCollection->ModifyAttribute<uint8>(ProximityConnectionGraphContactAreaMethod, ProximityPropertiesGroup);
 	TManagedArray<int32>& Method = ManagedCollection->ModifyAttribute<int32>(ProximityDetectionMethod, ProximityPropertiesGroup);
 	TManagedArray<float>& DistanceThreshold = ManagedCollection->ModifyAttribute<float>(ProximityDistanceThreshold, ProximityPropertiesGroup);
 	TManagedArray<uint8>& ContactMethod = ManagedCollection->ModifyAttribute<uint8>(ProximityContactMethod, ProximityPropertiesGroup);
 	TManagedArray<float>& ContactAmount = ManagedCollection->ModifyAttribute<float>(ProximityRequireContactAmount, ProximityPropertiesGroup);
 
 	AsConnectionGraph[AttributeIndex] = InProximityAttributes.bUseAsConnectionGraph;
+	ConnectionContactMethod[AttributeIndex] = (uint8)InProximityAttributes.ContactAreaMethod;
 	DistanceThreshold[AttributeIndex] = InProximityAttributes.DistanceThreshold;
 	Method[AttributeIndex] = (int32)InProximityAttributes.Method;
 	ContactMethod[AttributeIndex] = (uint8)InProximityAttributes.ContactMethod;

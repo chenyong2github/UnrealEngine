@@ -295,6 +295,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Fix the Nanite landscape mesh non-deterministic DDC keys
 		FixNaniteLandscapeMeshDDCKey,
 
+		// Change how connection graphs are stored on Geometry Collections to an edge-array representation
+		ChaosGeometryCollectionConnectionEdgeGroup,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

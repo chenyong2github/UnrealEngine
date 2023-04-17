@@ -2,6 +2,7 @@
 
 #include "GeometryCollection/GeometryCollectionConnectionGraphUtility.h"
 #include "GeometryCollection/GeometryCollection.h"
+#include "GeometryCollection/Facades/CollectionConnectionGraphFacade.h"
 #include "Containers/Set.h"
 #include "Voronoi/Voronoi.h"
 
@@ -310,13 +311,15 @@ void FGeometryCollectionConnectionGraphGenerator::UpdateConnectivityGraphUsingPo
 
 void FGeometryCollectionConnectionGraphGenerator::CommitToCollection(FConnectionGraph& Graph, FGeometryCollection& Collection, int32 ClusterTransformIndex) 
 {
-	// first make sure we have the connection array
-	TManagedArray<FConnections>& ConnectionsArray = Collection.AddAttribute<FConnections>("Connections", FGeometryCollection::TransformGroup);
+	GeometryCollection::Facades::FCollectionConnectionGraphFacade ConnectionFacade(Collection);
+	ConnectionFacade.DefineSchema();
 
-	const TSet<int32>& Children = Collection.Children[ClusterTransformIndex];
-	for (int ChildIndex=0; ChildIndex<Children.Num(); ++ChildIndex)
+	for (int32 ChildTransformIndex : Collection.Children[ClusterTransformIndex])
 	{
-		const int32 ChildTransformIndex = Children[FSetElementId::FromInteger(ChildIndex)]; 
-		ConnectionsArray[ChildTransformIndex] = MoveTemp(Graph[ChildIndex]); 
+		ConnectionFacade.ReserveAdditionalConnections(Graph[ChildTransformIndex].Num());
+		for (int32 ChildNbr : Graph[ChildTransformIndex])
+		{
+			ConnectionFacade.Connect(ChildTransformIndex, ChildNbr);
+		}
 	}
 }

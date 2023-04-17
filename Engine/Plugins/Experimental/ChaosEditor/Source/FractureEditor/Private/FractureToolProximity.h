@@ -28,7 +28,7 @@ public:
 
 	// If hull-based proximity detection is enabled, amount to expand hulls when searching for overlapping neighbors
 	UPROPERTY(EditAnywhere, Category = Automatic, meta = (ClampMin = "0", 
-		EditCondition = "Method == EProximityMethod::ConvexHull || ContactMethod == EProximityContactMethod::ConvexHullSharpContact || ContactMethod == EProximityContactMethod::ConvexHullAreaContact"))
+		EditCondition = "Method == EProximityMethod::ConvexHull || ContactMethod == EProximityContactMethod::ConvexHullSharpContact || ContactMethod == EProximityContactMethod::ConvexHullAreaContact || ContactAreaMethod == EConnectionContactMethod::ConvexHullContactArea"))
 	double DistanceThreshold = 1;
 
 	// Method to use to determine the contact between two pieces, if the Contact Threshold is greater than 0
@@ -42,6 +42,10 @@ public:
 	// Whether to automatically transform the proximity graph into a connection graph to be used for simulation
 	UPROPERTY(EditAnywhere, Category = Automatic)
 	bool bUseAsConnectionGraph = false;
+
+	// Method to use for determining contact areas that define the strength of connections for destruction simulation
+	UPROPERTY(EditAnywhere, Category = Automatic)
+	EConnectionContactMethod ContactAreaMethod = EConnectionContactMethod::None;
 
 	// Whether to display the proximity graph edges
 	UPROPERTY(EditAnywhere, Category = Visualization)
