@@ -360,7 +360,6 @@ public:
 	TObjectPtr<UWorldPartitionEditorHash> EditorHash;
 
 	FLoaderAdapterAlwaysLoadedActors* AlwaysLoadedActors;
-	FLoaderAdapterActorList* ForceLoadedActors;
 	FLoaderAdapterActorList* PinnedActors;
 
 	IWorldPartitionEditor* WorldPartitionEditor;

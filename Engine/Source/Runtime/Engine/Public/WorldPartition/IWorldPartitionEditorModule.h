@@ -36,9 +36,6 @@ public:
 	virtual int32 GetInstancedFoliageGridSize() const = 0;
 	virtual int32 GetMinimapLowQualityWorldUnitsPerPixelThreshold() const = 0;
 	
-	virtual bool GetDisableLoadingInEditor() const = 0;
-	virtual void SetDisableLoadingInEditor(bool bInDisableLoadingInEditor) = 0;
-
 	virtual bool GetDisablePIE() const = 0;
 	virtual void SetDisablePIE(bool bInDisablePIE) = 0;
 

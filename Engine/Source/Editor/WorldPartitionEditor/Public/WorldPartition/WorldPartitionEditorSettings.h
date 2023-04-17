@@ -24,7 +24,6 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = MiniMap, Meta = (ClampMin = 100, ToolTip = "Threshold from which minimap generates a warning if its WorldUnitsPerPixel is above this value"))
 	int32 MinimapLowQualityWorldUnitsPerPixelThreshold;
 
-	bool bDisableLoadingInEditor;
 	bool bDisableBugIt;
 	bool bDisablePIE;
 	bool bAdvancedMode;

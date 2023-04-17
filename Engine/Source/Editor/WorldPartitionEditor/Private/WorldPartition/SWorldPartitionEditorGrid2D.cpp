@@ -361,7 +361,7 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 			ToolbarBuilder.AddWidget(SNew(SCheckBox)
 				.ForegroundColor(FSlateColor::UseForeground())
 				.IsChecked(GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetBugItGoLoadRegion() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
-				.Visibility_Lambda([this]() { return GetDefault<UWorldPartitionEditorSettings>()->bDisableLoadingInEditor ? EVisibility::Hidden : EVisibility::Visible; })
+				.Visibility_Lambda([this]() { return GetDefault<UWorldPartitionEditorSettings>()->bDisableBugIt ? EVisibility::Hidden : EVisibility::Visible; })
 				.OnCheckStateChanged(FOnCheckStateChanged::CreateLambda([=](ECheckBoxState State) { GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetBugItGoLoadRegion(State == ECheckBoxState::Checked); }))
 				[
 					SNew(SBox)
@@ -407,8 +407,7 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 				.ForegroundColor(FSlateColor::UseForeground())
 				.Text(LOCTEXT("FocusLoadedRegions", "Focus Loaded Regions"))
 				.OnClicked(this, &SWorldPartitionEditorGrid2D::FocusLoadedRegions)
-				.IsEnabled_Lambda([this]() { return IsInteractive() && GetWorldPartition() && GetWorldPartition()->HasLoadedUserCreatedRegions(); })
-				.Visibility_Lambda([this]() { return GetDefault<UWorldPartitionEditorSettings>()->bDisableLoadingInEditor ? EVisibility::Hidden : EVisibility::Visible; }));
+				.IsEnabled_Lambda([this]() { return IsInteractive() && GetWorldPartition() && GetWorldPartition()->HasLoadedUserCreatedRegions(); }));
 		}
 
 		return ToolbarBuilder.MakeWidget();
@@ -767,17 +766,14 @@ FReply SWorldPartitionEditorGrid2D::OnMouseButtonUp(const FGeometry& MyGeometry,
 
 			const FEditorCommands& Commands = FEditorCommands::Get();
 
-			if (!GetDefault<UWorldPartitionEditorSettings>()->bDisableLoadingInEditor)
-			{
-				MenuBuilder.BeginSection(NAME_None, LOCTEXT("WorldPartitionSelection", "Selection"));
-					MenuBuilder.AddMenuEntry(Commands.CreateRegionFromSelection);
-					MenuBuilder.AddMenuSeparator();
-					MenuBuilder.AddMenuEntry(Commands.LoadSelectedRegions);
-					MenuBuilder.AddMenuEntry(Commands.UnloadSelectedRegions);
-					MenuBuilder.AddMenuSeparator();
-					MenuBuilder.AddMenuEntry(Commands.ConvertSelectedRegionsToActors);
-				MenuBuilder.EndSection();
-			}
+			MenuBuilder.BeginSection(NAME_None, LOCTEXT("WorldPartitionSelection", "Selection"));
+				MenuBuilder.AddMenuEntry(Commands.CreateRegionFromSelection);
+				MenuBuilder.AddMenuSeparator();
+				MenuBuilder.AddMenuEntry(Commands.LoadSelectedRegions);
+				MenuBuilder.AddMenuEntry(Commands.UnloadSelectedRegions);
+				MenuBuilder.AddMenuSeparator();
+				MenuBuilder.AddMenuEntry(Commands.ConvertSelectedRegionsToActors);
+			MenuBuilder.EndSection();
 
 			MenuBuilder.BeginSection(NAME_None, LOCTEXT("WorldPartitionMisc", "Misc"));
 				MenuBuilder.AddMenuEntry(Commands.MoveCameraHere);
@@ -792,10 +788,7 @@ FReply SWorldPartitionEditorGrid2D::OnMouseButtonUp(const FGeometry& MyGeometry,
 					MenuBuilder.AddMenuEntry(Commands.PlayFromHere);
 				}
 				
-				if (!GetDefault<UWorldPartitionEditorSettings>()->bDisableLoadingInEditor)
-				{
-					MenuBuilder.AddMenuEntry(Commands.LoadFromHere);
-				}
+				MenuBuilder.AddMenuEntry(Commands.LoadFromHere);
 			MenuBuilder.EndSection();			
 
 			FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
@@ -875,7 +868,7 @@ FReply SWorldPartitionEditorGrid2D::OnMouseButtonDoubleClick(const FGeometry& In
 		{
 			MoveCameraHere();
 
-			if (InMouseEvent.IsControlDown() && !GetDefault<UWorldPartitionEditorSettings>()->bDisableLoadingInEditor)
+			if (InMouseEvent.IsControlDown())
 			{
 				LoadFromHere();
 			}
