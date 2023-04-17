@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreTypes.h"
+#include "HAL/Platform.h"
 #include "UObject/NameTypes.h"
 #include "Math/Vector.h"
 #include <cinttypes>
@@ -10,6 +10,7 @@
 namespace UE::Net
 {
 	class FNetHandle;
+	class FNetRefHandle;
 }
 
 namespace UE::Net
@@ -118,7 +119,7 @@ inline FTestMessage& operator<<(FTestMessage& Message, nullptr_t)
 
 inline FTestMessage& operator<<(FTestMessage& Message, const char* String)
 {
-	return Message << (String != nullptr ? StringCast<TCHAR>(String).Get() : TEXT("(null)"));
+	return Message << TStringBuilder<256>().Appendf(TEXT("%hs"), (String ? String : "(nullptr)"));
 }
 
 inline FTestMessage& operator<<(FTestMessage& Message, const FName& Name)
@@ -137,6 +138,8 @@ inline FTestMessage& operator<<(FTestMessage& Message, const FVector3f& Vector)
 }
 
 FTestMessage& operator<<(FTestMessage& Message, const FNetHandle& NetHandle);
+
+FTestMessage& operator<<(FTestMessage& Message, const FNetRefHandle& NetRefHandle);
 
 #if defined(_WIN32) && !defined(_WIN64)
 inline FTestMessage& operator<<(FTestMessage& Message, SIZE_T Value)
