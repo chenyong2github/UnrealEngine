@@ -123,8 +123,6 @@ FDataTableRowHandle UCommonInputSettings::GetDefaultClickAction() const
 
 FDataTableRowHandle UCommonInputSettings::GetDefaultBackAction() const
 {
-	ensure(bInputDataLoaded);
-
 	if (InputDataClass)
 	{
 		if (const UCommonUIInputData* InputDataPtr = InputDataClass.GetDefaultObject())
