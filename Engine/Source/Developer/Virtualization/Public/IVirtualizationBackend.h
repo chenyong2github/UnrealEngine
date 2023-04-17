@@ -51,15 +51,17 @@ public:
 	};
 
 	/** Specialize pushing behavior, @See IVirtualizationBackend::PushData */
-	enum class EPushFlags
+	enum class EPushFlags : uint32
 	{
-		None = 0
+		None = 0,
+		/** Backends should not test payloads for existence and just assume that they need re-uploading */
+		Force = 1 << 0
 	};
 
 	FRIEND_ENUM_CLASS_FLAGS(EPushFlags);
 
 	/** Specialize pulling behavior, @See IVirtualizationBackend::PullData */
-	enum class EPullFlags
+	enum class EPullFlags : uint32
 	{
 		None = 0
 	};

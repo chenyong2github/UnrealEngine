@@ -4,10 +4,9 @@
 
 #include "Compression/CompressedBuffer.h"
 #include "HAL/CriticalSection.h"
+#include "IVirtualizationBackend.h"
 #include "Logging/LogMacros.h"
 #include "Templates/UniquePtr.h"
-
-
 #include "Virtualization/VirtualizationSystem.h"
 
 class IConsoleObject;
@@ -123,12 +122,15 @@ struct FAnalyticsEventAttribute;
  *												This allows you to add custom information, such as links to internal help docs without editing
  *												code. Note that this additional message only works with the error dialog and will do nothing
  *												if 'UseLegacyErrorHandling' is true. [Default=""]
+ * ForceCachingOnPull [bool]:					When true backends will be told to always upload the payload when a caching as a result of 
+ *												a payload pull as in this scenario we already know that the backend failed to pull the payload
+ *												before it was pulled from a backend later in the hierarchy. Can be used to try and skip
+ *												expensive existence checks, or if a backend is in a bad state where it believes it has the payload
+ *												but is unable to actually return the data. [Default=false]
  */
 
 namespace UE::Virtualization
 {
-class IVirtualizationBackend;
-class IVirtualizationBackendFactory;
 class FPullRequestCollection;
 
 /** The default mode of filtering to use with package paths that do not match entries in UVirtualizationFilterSettings */
@@ -215,9 +217,9 @@ private:
 
 	void EnsureBackendConnections();
 
-	void CachePayloads(TArrayView<FPushRequest> Requests, const IVirtualizationBackend* BackendSource);
+	void CachePayloads(TArrayView<FPushRequest> Requests, const IVirtualizationBackend* BackendSource, IVirtualizationBackend::EPushFlags Flags);
 
-	bool TryCacheDataToBackend(IVirtualizationBackend& Backend, TArrayView<FPushRequest> Requests);
+	bool TryCacheDataToBackend(IVirtualizationBackend& Backend, TArrayView<FPushRequest> Requests, IVirtualizationBackend::EPushFlags Flags);
 	bool TryPushDataToBackend(IVirtualizationBackend& Backend, TArrayView<FPushRequest> Requests);
 
 	void PullDataFromAllBackends(TArrayView<FPullRequest> Requests);
@@ -310,6 +312,9 @@ private:
 
 	/** When true we do not display an error dialog on failed payload pulling and rely on the caller handling it */
 	bool bUseLegacyErrorHandling;
+
+	/** When true IVirtualizationBackend::EPushFlags::Force will be passed to backends that need to cache payloads when pulling */
+	bool bForceCachingOnPull;
 
 	/** An additional error message to display when pulling payloads fails */
 	FString PullErrorAdditionalMsg;

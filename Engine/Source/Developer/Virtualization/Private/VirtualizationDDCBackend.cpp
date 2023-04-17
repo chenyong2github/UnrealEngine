@@ -84,12 +84,14 @@ bool FDDCBackend::PushData(TArrayView<FPushRequest> Requests, EPushFlags Flags)
 
 	bool bWasSuccess = true;
 
+	const bool bEnableExistenceCheck = !EnumHasAllFlags(Flags, EPushFlags::Force);
+
 	// TODO: We tend not to memory bloat too much on large batches as the requests complete quite quickly
 	// however we might want to consider adding better control on how much total memory we can dedicate to
 	// loading payloads before we wait for requests to complete?
 	for (FPushRequest& Request : Requests)
 	{
-		if (DoesPayloadExist(Request.GetIdentifier()))
+		if (bEnableExistenceCheck && DoesPayloadExist(Request.GetIdentifier()))
 		{
 			Request.SetResult(FPushResult::GetAsAlreadyExists());
 		}
@@ -134,7 +136,7 @@ bool FDDCBackend::PushData(TArrayView<FPushRequest> Requests, EPushFlags Flags)
 bool FDDCBackend::PullData(TArrayView<FPullRequest> Requests, EPullFlags Flags)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDDCBackend::PullData);
-
+#if 0
 	UE::DerivedData::ICache& Cache = UE::DerivedData::GetCache();
 
 	UE::DerivedData::FRequestOwner Owner(UE::DerivedData::EPriority::Normal);
@@ -161,7 +163,7 @@ bool FDDCBackend::PullData(TArrayView<FPullRequest> Requests, EPullFlags Flags)
 	}
 
 	Owner.Wait();
-
+#endif
 	return true;
 }
 

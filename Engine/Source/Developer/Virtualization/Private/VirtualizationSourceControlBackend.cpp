@@ -522,6 +522,11 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests, EPushFla
 	TArray<const FPushRequest*> RequestsToPush;
 	RequestsToPush.Reserve(UniqueRequests.Num());
 
+	// Note that we do not check EPushFlags::Force here and always check if the payloads are already in
+	// source control as we do not want multiple revisions.
+	// This might change at some point if we want to try changing the compression codec of the stored
+	// payloads.
+
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSourceControlBackend::PushData::CheckIfPayloadsAlreadyExist);
 

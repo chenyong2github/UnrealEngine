@@ -74,11 +74,13 @@ bool FFileSystemBackend::PushData(TArrayView<FPushRequest> Requests, EPushFlags 
 
 	int32 ErrorCount = 0;
 
+	const bool bEnableExistenceCheck = !EnumHasAllFlags(Flags, EPushFlags::Force);
+
 	for (FPushRequest& Request : Requests)
 	{
 		const FIoHash& PayloadId = Request.GetIdentifier();
-
-		if (DoesPayloadExist(PayloadId))
+	
+		if (bEnableExistenceCheck && DoesPayloadExist(PayloadId))
 		{
 			UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugName(), *LexToString(PayloadId));
 			Request.SetResult(FPushResult::GetAsAlreadyExists());

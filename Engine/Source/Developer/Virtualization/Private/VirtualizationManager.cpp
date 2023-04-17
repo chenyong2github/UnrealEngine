@@ -4,7 +4,6 @@
 
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformTime.h"
-#include "IVirtualizationBackend.h"
 #include "Logging/MessageLog.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
@@ -493,6 +492,7 @@ FVirtualizationManager::FVirtualizationManager()
 	, bAllowSubmitIfVirtualizationFailed(false)
 	, bLazyInitConnections(false)
 	, bUseLegacyErrorHandling(true)
+	, bForceCachingOnPull(false)
 	, bPendingBackendConnections(false)
 {
 }
@@ -1134,6 +1134,11 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 		// This value is not echoed to the log file, as seeing an error string there might confuse users
 	}
 
+	{
+		ConfigFile.GetBool(ConfigSection, TEXT("ForceCachingOnPull"), bForceCachingOnPull);
+		UE_LOG(LogVirtualization, Display, TEXT("\tForceCachingOnPull : %s"), bForceCachingOnPull ? TEXT("true") : TEXT("false"));
+	}
+
 	// Deprecated
 	{
 		bool bDummyValue = true;
@@ -1728,7 +1733,7 @@ void FVirtualizationManager::EnsureBackendConnections()
 	}
 }
 
-void FVirtualizationManager::CachePayloads(TArrayView<FPushRequest> Requests, const IVirtualizationBackend* BackendSource)
+void FVirtualizationManager::CachePayloads(TArrayView<FPushRequest> Requests, const IVirtualizationBackend* BackendSource, IVirtualizationBackend::EPushFlags Flags)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::CachePayload);
 
@@ -1743,7 +1748,7 @@ void FVirtualizationManager::CachePayloads(TArrayView<FPushRequest> Requests, co
 			return;
 		}
 
-		const bool bResult = TryCacheDataToBackend(*BackendToCache, Requests);
+		const bool bResult = TryCacheDataToBackend(*BackendToCache, Requests, Flags);
 
 		if (!bResult)
 		{
@@ -1770,13 +1775,13 @@ void FVirtualizationManager::CachePayloads(TArrayView<FPushRequest> Requests, co
 	}
 }
 
-bool FVirtualizationManager::TryCacheDataToBackend(IVirtualizationBackend& Backend, TArrayView<FPushRequest> Requests)
+bool FVirtualizationManager::TryCacheDataToBackend(IVirtualizationBackend& Backend, TArrayView<FPushRequest> Requests, IVirtualizationBackend::EPushFlags Flags)
 {
 	COOK_STAT(FCookStats::CallStats & Stats = Profiling::GetCacheStats(Backend));
 	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Stats));
 	COOK_STAT(Timer.TrackCyclesOnly());
 	
-	if (Backend.PushData(Requests, IVirtualizationBackend::EPushFlags::None))
+	if (Backend.PushData(Requests, Flags))
 	{
 #if ENABLE_COOK_STATS
 		Timer.AddHit(0);
@@ -1865,7 +1870,10 @@ void FVirtualizationManager::PullDataFromAllBackends(TArrayView<FPullRequest> Re
 			TArray<FPushRequest> PayloadsToCache = RequestsCollection.OnPullCompleted(*Backend, bShouldCache);
 			if (!PayloadsToCache.IsEmpty())
 			{
-				CachePayloads(PayloadsToCache, Backend);
+				const IVirtualizationBackend::EPushFlags CacheOnPullFlags = bForceCachingOnPull	? IVirtualizationBackend::EPushFlags::Force
+																								: IVirtualizationBackend::EPushFlags::None;
+
+				CachePayloads(PayloadsToCache, Backend, CacheOnPullFlags);
 			}
 
 			// We can early out if there is no more requests to make
