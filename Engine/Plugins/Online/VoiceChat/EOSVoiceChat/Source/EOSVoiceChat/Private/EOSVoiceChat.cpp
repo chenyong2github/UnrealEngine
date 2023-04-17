@@ -374,7 +374,7 @@ bool FEOSVoiceChat::GetAudioOutputDeviceMuted() const
 
 TArray<FVoiceChatDeviceInfo> FEOSVoiceChat::GetAvailableInputDeviceInfos() const
 {
-	return GetVoiceChatUser().GetAvailableOutputDeviceInfos();
+	return GetVoiceChatUser().GetAvailableInputDeviceInfos();
 }
 
 TArray<FVoiceChatDeviceInfo> FEOSVoiceChat::GetAvailableOutputDeviceInfos() const
