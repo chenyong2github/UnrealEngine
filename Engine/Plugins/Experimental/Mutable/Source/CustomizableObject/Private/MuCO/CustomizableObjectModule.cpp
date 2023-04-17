@@ -2,9 +2,12 @@
 
 #include "Algo/Find.h"
 #include "Interfaces/IPluginManager.h"
+#include "Kismet/GameplayStatics.h"
 #include "Misc/ConfigCacheIni.h"
 #include "MuCO/CustomizableObject.h"
+#include "MuCO/CustomizableObjectDGGUI.h"
 #include "MuCO/CustomizableObjectExtension.h"
+#include "MuCO/CustomizableSkeletalComponent.h"
 #include "MuCO/ICustomizableObjectModule.h"
 #include "UObject/StrongObjectPtr.h"
 
@@ -31,6 +34,10 @@ public:
 private:
 	void RefreshExtensionData();
 
+	// Command to look for Customizable Object Instance in the player pawn of the current world and open a DGGUI to edit its parameters
+	IConsoleCommand* LaunchDGGUICommand;
+	static void ToggleDGGUI(const TArray<FString>& Arguments);
+
 	// Ensure extensions aren't garbage collected
 	TArray<TStrongObjectPtr<const UCustomizableObjectExtension>> StrongExtensions;
 	// For returning from GetRegisteredExtensions
@@ -45,6 +52,10 @@ IMPLEMENT_MODULE( FCustomizableObjectModule, CustomizableObject );
 
 void FCustomizableObjectModule::StartupModule()
 {
+	LaunchDGGUICommand = IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("mutable.ToggleDGGUI"),
+		TEXT("Looks for a Customizable Object Instance within the player pawn and opens a UI to modify its parameters, or closes it if it's open. Specify slot ID to control which component is modified."),
+		FConsoleCommandWithArgsDelegate::CreateStatic(&FCustomizableObjectModule::ToggleDGGUI));
 }
 
 
@@ -164,5 +175,93 @@ void FCustomizableObjectModule::RefreshExtensionData()
 
 			AdditionalObjectNodePins.Add(RegisteredPin);
 		}
+	}
+}
+
+
+UCustomizableSkeletalComponent* GetPlayerCustomizableSkeletalComponent(const int32 SlotID, const UWorld* CurrentWorld, const int32 PlayerIndex)
+{
+	// Get customizable skeletal component attached to player pawn
+	UCustomizableSkeletalComponent* SelectedCustomizableSkeletalComponent = nullptr;
+	{
+		APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(CurrentWorld, PlayerIndex);
+		int32 IndexFound = INDEX_NONE;
+		for (TObjectIterator<UCustomizableSkeletalComponent> CustomizableSkeletalComponent; CustomizableSkeletalComponent; ++CustomizableSkeletalComponent)
+		{
+			if (CustomizableSkeletalComponent->IsValidLowLevel() && !CustomizableSkeletalComponent->IsTemplate())
+			{
+				AActor* CustomizableActor = CustomizableSkeletalComponent->GetAttachmentRootActor();
+				if (CustomizableActor && PlayerPawn == CustomizableActor)
+				{
+					++IndexFound;
+					SelectedCustomizableSkeletalComponent = *CustomizableSkeletalComponent;
+					if (IndexFound == SlotID)
+					{
+						break;
+					}
+				}
+			}
+		}
+	}
+
+
+	// If none found, try getting a component without caring about the actor
+	if (!SelectedCustomizableSkeletalComponent)
+	{
+		APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(CurrentWorld, PlayerIndex);
+		int32 IndexFound = INDEX_NONE;
+		for (TObjectIterator<UCustomizableSkeletalComponent> CustomizableSkeletalComponent; CustomizableSkeletalComponent; ++CustomizableSkeletalComponent)
+		{
+			if (CustomizableSkeletalComponent->IsValidLowLevel() && !CustomizableSkeletalComponent->IsTemplate())
+			{
+				++IndexFound;
+				SelectedCustomizableSkeletalComponent = *CustomizableSkeletalComponent;
+				if (IndexFound == SlotID)
+				{
+					break;
+				}
+			}
+		}
+	}
+
+	return SelectedCustomizableSkeletalComponent;
+}
+
+
+void FCustomizableObjectModule::ToggleDGGUI(const TArray<FString>& Arguments)
+{
+	int32 SlotID = INDEX_NONE;
+	if (Arguments.Num() >= 1)
+	{
+		SlotID = FCString::Atoi(*Arguments[0]);
+	}
+
+	const UWorld* CurrentWorld = []() -> const UWorld*
+	{
+		UWorld* WorldForCurrentCOI = nullptr;
+		const TIndirectArray<FWorldContext>& WorldContexts = GEngine->GetWorldContexts();
+		for (const FWorldContext& Context : WorldContexts)
+		{
+			if ((Context.WorldType == EWorldType::Game) && (Context.World() != NULL))
+			{
+				WorldForCurrentCOI = Context.World();
+			}
+		}
+		// Fall back to GWorld if we don't actually have a world.
+		if (WorldForCurrentCOI == nullptr)
+		{
+			WorldForCurrentCOI = GWorld;
+		}
+		return WorldForCurrentCOI;
+	}();
+
+	const int32 PlayerIndex = 0;
+	if (UDGGUI::CloseExistingDGGUI(CurrentWorld))
+	{
+		return;
+	}
+	else if (UCustomizableSkeletalComponent* SelectedCustomizableSkeletalComponent = GetPlayerCustomizableSkeletalComponent(SlotID, CurrentWorld, PlayerIndex))
+	{
+		UDGGUI::OpenDGGUI(SlotID, SelectedCustomizableSkeletalComponent, CurrentWorld, PlayerIndex);
 	}
 }
