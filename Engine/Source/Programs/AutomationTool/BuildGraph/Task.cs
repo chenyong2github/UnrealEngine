@@ -14,6 +14,7 @@ using OpenTracing;
 using UnrealBuildBase;
 using UnrealBuildTool;
 using Microsoft.Extensions.Logging;
+using System.Runtime.InteropServices;
 
 using static AutomationTool.CommandUtils;
 
@@ -431,6 +432,20 @@ namespace AutomationTool
 		public static List<string> SplitDelimitedList(string Text)
 		{
 			return Text.Split(';').Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
+		}
+
+		/// <summary>
+		/// Add cleanup commands to run after the job completes
+		/// </summary>
+		/// <param name="NewLines">Lines to add to the cleanup script</param>
+		public static async Task AddCleanupCommandsAsync(IEnumerable<string> NewLines)
+		{
+			string CleanupScriptEnvVar = Environment.GetEnvironmentVariable("UE_HORDE_CLEANUP");
+			if (!String.IsNullOrEmpty(CleanupScriptEnvVar))
+			{
+				FileReference CleanupScript = new FileReference(CleanupScriptEnvVar);
+				await FileReference.AppendAllLinesAsync(CleanupScript, NewLines);
+			}
 		}
 	}
 

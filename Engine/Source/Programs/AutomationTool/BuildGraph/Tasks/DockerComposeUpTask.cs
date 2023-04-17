@@ -60,6 +60,14 @@ namespace AutomationTool.Tasks
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
 		public override async Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
+			FileReference LogFile = FileReference.Combine(Unreal.RootDirectory, "Engine/Programs/AutomationTool/Saved/Logs/docker-compose-logs.txt");
+			string[] Lines =
+			{
+				$"docker-compose -f {Parameters.File.QuoteArgument()} logs --no-color > {LogFile.FullName.QuoteArgument()}",
+				$"docker-compose -f {Parameters.File.QuoteArgument()} down"
+			};
+			await AddCleanupCommandsAsync(Lines);
+
 			StringBuilder Arguments = new StringBuilder("--ansi never ");
 			if (!String.IsNullOrEmpty(Parameters.File))
 			{
