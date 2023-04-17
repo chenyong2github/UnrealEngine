@@ -450,7 +450,14 @@ extern CORE_API bool GIsCookerLoadingPackage;
 /** Whether GWorld points to the play in editor world */
 extern CORE_API bool GIsPlayInEditorWorld;
 
-extern CORE_API int32 GPlayInEditorID;
+class CORE_API FPlayInEditorID
+{
+public:
+	FPlayInEditorID& operator= (int32 InOther);
+	operator int32() const;
+};
+/** In the editor, this is set to the specific world context PIEInstance that is being currently processed */
+extern CORE_API FPlayInEditorID GPlayInEditorID;
 
 /** Whether or not PIE was attempting to play from PlayerStart */
 UE_DEPRECATED(4.25, "This variable is no longer set. Use !GEditor->GetPlayInEditorSessionInfo()->OriginalRequestParams.HasPlayWorldPlacement() instead.")

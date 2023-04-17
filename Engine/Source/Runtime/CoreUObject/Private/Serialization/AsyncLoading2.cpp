@@ -30,6 +30,7 @@
 #include "Serialization/DeferredMessageLog.h"
 #include "UObject/UObjectThreadContext.h"
 #include "Misc/Paths.h"
+#include "Misc/PlayInEditorLoadingScope.h"
 #include "Misc/ExclusiveLoadPackageTimeTracker.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "HAL/ThreadHeartBeat.h"
@@ -5449,6 +5450,10 @@ EEventLoadNodeExecutionResult FAsyncPackage2::PostLoadLinkerLoadPackageExports(F
 
 	FAsyncLoadingTickScope2 InAsyncLoadingTick(AsyncLoadingThread);
 
+#if WITH_EDITOR
+	UE::Core::Private::FPlayInEditorLoadingScope PlayInEditorIDScope(Desc.PIEInstanceID);
+#endif
+
 	const int32 ObjectCount = ConstructedObjects.Num();
 	while (LinkerLoadState->PostLoadExportIndex < ObjectCount)
 	{
@@ -5462,7 +5467,7 @@ EEventLoadNodeExecutionResult FAsyncPackage2::PostLoadLinkerLoadPackageExports(F
 
 	AsyncPackageLoadingState = EAsyncPackageLoadingState2::DeferredPostLoadDone;
 	ConditionalFinishLoading(ThreadState);
-	return EEventLoadNodeExecutionResult::Complete;;
+	return EEventLoadNodeExecutionResult::Complete;
 }
 #endif
 
@@ -5635,6 +5640,9 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_ProcessExportBundle(FAsyncLo
 	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ProcessExportBundles);
 
 	FAsyncPackageScope2 Scope(Package);
+#if WITH_EDITOR
+	UE::Core::Private::FPlayInEditorLoadingScope PlayInEditorIDScope(Package->Desc.PIEInstanceID);
+#endif
 
 #if ALT2_ENABLE_LINKERLOAD_SUPPORT
 	if (Package->LinkerLoadState.IsSet())

@@ -10,6 +10,7 @@
 #include "Misc/TrackedActivity.h"
 #include "Misc/Compression.h"
 #include "Misc/LazySingleton.h"
+#include "Misc/PlayInEditorLoadingScope.h"
 #include "Misc/CommandLine.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
@@ -336,7 +337,7 @@ bool					GIsCookerLoadingPackage = false;
 /** Whether GWorld points to the play in editor world														*/
 bool					GIsPlayInEditorWorld			= false;
 /** Unique ID for multiple PIE instances running in one process */
-int32					GPlayInEditorID					= -1;
+FPlayInEditorID			GPlayInEditorID;
 /** Whether or not PIE was attempting to play from PlayerStart							*/
 bool					GIsPIEUsingPlayerStart			= false;
 /** true if the runtime needs textures to be powers of two													*/
@@ -737,6 +738,88 @@ FIsDuplicatingClassForReinstancing& FIsDuplicatingClassForReinstancing::operator
 FIsDuplicatingClassForReinstancing::operator bool() const
 {
 	return PRIVATE_GIsDuplicatingClassForReinstancing;
+}
+
+namespace PlayInEditorIDImpl
+{
+	int32 PRIVATE_GPlayInEditorID_GameThread = -1;
+	// We need to differentiate between the game-thread being identified as the loading thread during postload 
+	// and the actual loading thread to avoid scopes to overlap and race between both threads.
+	int32 PRIVATE_GPlayInEditorID_GameThreadAsLoadingThread = -2;
+	int32 PRIVATE_GPlayInEditorID_ActualLoadingThread = -2;
+
+	static int32* GetPointer()
+	{
+		if (IsInAsyncLoadingThread())
+		{
+			if (IsInGameThread())
+			{
+				return &PRIVATE_GPlayInEditorID_GameThreadAsLoadingThread;
+			}
+			else
+			{
+				return &PRIVATE_GPlayInEditorID_ActualLoadingThread;
+			}
+		}
+		else if (IsInGameThread())
+		{
+			return &PRIVATE_GPlayInEditorID_GameThread;
+		}
+
+		return nullptr;
+	}
+};
+
+int32 PRIVATE_GetGPlayInEditorID()
+{
+	if (int32* Pointer = PlayInEditorIDImpl::GetPointer())
+	{
+		return *Pointer;
+	}
+	else
+	{
+		//ensureMsgf(false, TEXT("GPlayInEditorID can only be read by the game-thread or loading-thread, returning -1."));
+		return -1;
+	}
+}
+
+void PRIVATE_SetGPlayInEditorID(int32 InValue)
+{
+	if (int32* Pointer = PlayInEditorIDImpl::GetPointer())
+	{
+		*Pointer = InValue;
+	}
+	else
+	{
+		checkf(false, TEXT("GPlayInEditorID can only be set by the game-thread or loading-thread."));
+	}
+}
+
+namespace UE::Core::Private
+{
+	FPlayInEditorLoadingScope::FPlayInEditorLoadingScope(int32 PlayInEditorID)
+		: OldValue(PRIVATE_GetGPlayInEditorID())
+	{
+		PRIVATE_SetGPlayInEditorID(PlayInEditorID);
+	}
+
+	FPlayInEditorLoadingScope::~FPlayInEditorLoadingScope()
+	{
+		PRIVATE_SetGPlayInEditorID(OldValue);
+	}
+}
+
+FPlayInEditorID& FPlayInEditorID::operator= (int32 InOther)
+{
+	PRIVATE_SetGPlayInEditorID(InOther);
+	return *this;
+}
+
+FPlayInEditorID::operator int32() const
+{
+	int32 Value = PRIVATE_GetGPlayInEditorID();
+	checkf(Value != -2, TEXT("GPlayInEditorID has not been properly forwarded by the loading-thread."));
+	return Value;
 }
 
 #undef LOCTEXT_NAMESPACE

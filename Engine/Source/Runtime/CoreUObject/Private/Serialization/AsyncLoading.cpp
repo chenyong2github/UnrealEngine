@@ -34,6 +34,7 @@
 #include "UObject/ObjectSerializeAccessScope.h"
 #include "UObject/LinkerManager.h"
 #include "Misc/Paths.h"
+#include "Misc/PlayInEditorLoadingScope.h"
 #include "Serialization/AsyncLoadingThread.h"
 #include "Misc/ExclusiveLoadPackageTimeTracker.h"
 #include "ProfilingDebugging/CookStats.h"
@@ -5964,102 +5965,106 @@ EAsyncPackageState::Type FAsyncPackage::TickAsyncPackage(bool InbUseTimeLimit, b
 
 		// Begin async loading, simulates BeginLoad
 		BeginAsyncLoad();
-
-		// We have begun loading a package that we know the name of. Let the package time tracker know.
-		FExclusiveLoadPackageTimeTracker::PushLoadPackage(Desc.PackagePath.GetPackageFName());
-
-		if (!GEventDrivenLoaderEnabled)
 		{
-			// Create raw linker. Needs to be async created via ticking before it can be used.
-			if (LoadingState == EAsyncPackageState::Complete) //-V547
-			{
-				SCOPED_LOADTIMER(Package_CreateLinker);
-				LoadingState = CreateLinker();
-			}
+#if WITH_EDITOR
+			UE::Core::Private::FPlayInEditorLoadingScope PlayInEditorIDScope(Desc.PIEInstanceID);
+#endif
+			// We have begun loading a package that we know the name of. Let the package time tracker know.
+			FExclusiveLoadPackageTimeTracker::PushLoadPackage(Desc.PackagePath.GetPackageFName());
 
-			// Async create linker.
-			if (LoadingState == EAsyncPackageState::Complete)
+			if (!GEventDrivenLoaderEnabled)
 			{
-				SCOPED_LOADTIMER(Package_FinishLinker);
-				LoadingState = FinishLinker();
-			}
+				// Create raw linker. Needs to be async created via ticking before it can be used.
+				if (LoadingState == EAsyncPackageState::Complete) //-V547
+				{
+					SCOPED_LOADTIMER(Package_CreateLinker);
+					LoadingState = CreateLinker();
+				}
 
-			// Load imports from linker import table asynchronously.
-			if (LoadingState == EAsyncPackageState::Complete && !bLoadHasFinished)
-			{
-				SCOPED_LOADTIMER(Package_LoadImports);
-				LoadingState = LoadImports();
-			}
+				// Async create linker.
+				if (LoadingState == EAsyncPackageState::Complete)
+				{
+					SCOPED_LOADTIMER(Package_FinishLinker);
+					LoadingState = FinishLinker();
+				}
 
-			// Create imports from linker import table.
-			if (LoadingState == EAsyncPackageState::Complete && !bLoadHasFinished)
-			{
-				SCOPED_LOADTIMER(Package_CreateImports);
-				LoadingState = CreateImports();
-			}
+				// Load imports from linker import table asynchronously.
+				if (LoadingState == EAsyncPackageState::Complete && !bLoadHasFinished)
+				{
+					SCOPED_LOADTIMER(Package_LoadImports);
+					LoadingState = LoadImports();
+				}
+
+				// Create imports from linker import table.
+				if (LoadingState == EAsyncPackageState::Complete && !bLoadHasFinished)
+				{
+					SCOPED_LOADTIMER(Package_CreateImports);
+					LoadingState = CreateImports();
+				}
 
 #if WITH_EDITORONLY_DATA
-			// Create and preload the package meta-data
-			if (LoadingState == EAsyncPackageState::Complete && !bLoadHasFinished)
-			{
-				SCOPED_LOADTIMER(Package_CreateMetaData);
-				LoadingState = CreateMetaData();
-			}
+				// Create and preload the package meta-data
+				if (LoadingState == EAsyncPackageState::Complete && !bLoadHasFinished)
+				{
+					SCOPED_LOADTIMER(Package_CreateMetaData);
+					LoadingState = CreateMetaData();
+				}
 #endif // WITH_EDITORONLY_DATA
 
-			// Create exports from linker export table and also preload them.
-			if (LoadingState == EAsyncPackageState::Complete && !bLoadHasFinished)
-			{
-				SCOPED_LOADTIMER(Package_CreateExports);
-				LoadingState = CreateExports();
-			}
-
-			// Call Preload on the linker for all loaded objects which causes actual serialization.
-			if (LoadingState == EAsyncPackageState::Complete && !bLoadHasFinished)
-			{
-				SCOPED_LOADTIMER(Package_PreLoadObjects);
-				LoadingState = PreLoadObjects();
-			}
-
-			if ((LoadingState == EAsyncPackageState::Complete || bLoadHasFailed) && !bLoadHasFinished)
-			{
-				const bool bInternalCallbacks = true;
-				CallCompletionCallbacks(bInternalCallbacks, bLoadHasFailed ? EAsyncLoadingResult::Failed : EAsyncLoadingResult::Succeeded);
-			}
-
-			if (LoadingState == EAsyncPackageState::Complete)
-			{
-				// We can only continue to PostLoad if all imported packages finished serializing their exports
-				for (UPackage* ImportedPackage : ImportedPackages)
+				// Create exports from linker export table and also preload them.
+				if (LoadingState == EAsyncPackageState::Complete && !bLoadHasFinished)
 				{
-					if (ImportedPackage && ImportedPackage->GetLinker() && ImportedPackage->GetLinker()->AsyncRoot && !static_cast<FAsyncPackage*>(ImportedPackage->GetLinker()->AsyncRoot)->bAllExportsSerialized)
+					SCOPED_LOADTIMER(Package_CreateExports);
+					LoadingState = CreateExports();
+				}
+
+				// Call Preload on the linker for all loaded objects which causes actual serialization.
+				if (LoadingState == EAsyncPackageState::Complete && !bLoadHasFinished)
+				{
+					SCOPED_LOADTIMER(Package_PreLoadObjects);
+					LoadingState = PreLoadObjects();
+				}
+
+				if ((LoadingState == EAsyncPackageState::Complete || bLoadHasFailed) && !bLoadHasFinished)
+				{
+					const bool bInternalCallbacks = true;
+					CallCompletionCallbacks(bInternalCallbacks, bLoadHasFailed ? EAsyncLoadingResult::Failed : EAsyncLoadingResult::Succeeded);
+				}
+
+				if (LoadingState == EAsyncPackageState::Complete)
+				{
+					// We can only continue to PostLoad if all imported packages finished serializing their exports
+					for (UPackage* ImportedPackage : ImportedPackages)
 					{
-						LoadingState = EAsyncPackageState::PendingImports;
-						break;
+						if (ImportedPackage && ImportedPackage->GetLinker() && ImportedPackage->GetLinker()->AsyncRoot && !static_cast<FAsyncPackage*>(ImportedPackage->GetLinker()->AsyncRoot)->bAllExportsSerialized)
+						{
+							LoadingState = EAsyncPackageState::PendingImports;
+							break;
+						}
 					}
 				}
+			} // !GEventDrivenLoaderEnabled
+
+			if (LoadingState == EAsyncPackageState::Complete && !bLoadHasFailed && !bLoadHasFinished)
+			{
+				SCOPED_LOADTIMER(Package_ExternalReadDependencies);
+				LoadingState = FinishExternalReadDependencies();
 			}
-		} // !GEventDrivenLoaderEnabled
 
-		if (LoadingState == EAsyncPackageState::Complete && !bLoadHasFailed && !bLoadHasFinished)
-		{
-			SCOPED_LOADTIMER(Package_ExternalReadDependencies);
-			LoadingState = FinishExternalReadDependencies();
+			// Call PostLoad on objects, this could cause new objects to be loaded that require
+			// another iteration of the PreLoad loop.
+			if (LoadingState == EAsyncPackageState::Complete && !bLoadHasFailed && !bLoadHasFinished)
+			{
+				SCOPED_LOADTIMER(Package_PostLoadObjects);
+				LoadingState = PostLoadObjects();
+			}
+
+			// We are done loading the package for now. Whether it is done or not, let the package time tracker know.
+			FExclusiveLoadPackageTimeTracker::PopLoadPackage(Linker ? Linker->LinkerRoot : nullptr);
+
+			// End async loading, simulates EndLoad
+			EndAsyncLoad();
 		}
-
-		// Call PostLoad on objects, this could cause new objects to be loaded that require
-		// another iteration of the PreLoad loop.
-		if (LoadingState == EAsyncPackageState::Complete && !bLoadHasFailed && !bLoadHasFinished)
-		{
-			SCOPED_LOADTIMER(Package_PostLoadObjects);
-			LoadingState = PostLoadObjects();
-		}
-
-		// We are done loading the package for now. Whether it is done or not, let the package time tracker know.
-		FExclusiveLoadPackageTimeTracker::PopLoadPackage(Linker ? Linker->LinkerRoot : nullptr);
-
-		// End async loading, simulates EndLoad
-		EndAsyncLoad();
 
 		// Finish objects (removing EInternalObjectFlags::AsyncLoading, dissociate imports and forced exports, 
 		// call completion callback, ...
@@ -6966,6 +6971,10 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadDeferredObjects(double InTickSta
 
 	EAsyncPackageState::Type Result = EAsyncPackageState::Complete;
 	FAsyncLoadingTickScope InAsyncLoadingTick(AsyncLoadingThread);
+
+#if WITH_EDITOR
+	UE::Core::Private::FPlayInEditorLoadingScope PlayInEditorIDScope(Desc.PIEInstanceID);
+#endif
 
 	FUObjectSerializeContext* LoadContext = GetSerializeContext();
 	TArray<UObject*>& ObjLoadedInPostLoad = LoadContext->PRIVATE_GetObjectsLoadedInternalUseOnly();

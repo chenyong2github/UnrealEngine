@@ -89,7 +89,7 @@ UObject* FLevelSequenceBindingReference::Resolve(UObject* InContext, const FTopL
 		// scope. Since ResolveObject will always call FixupForPIE in editor based on GPlayInEditorID, we always override the current
 		// GPlayInEditorID to be the current PIE instance of the provided context.
 		const int32 ContextPlayInEditorID = InContext ? InContext->GetOutermost()->GetPIEInstanceID() : INDEX_NONE;
-		TGuardValue<int32> PIEGuard(GPlayInEditorID, ContextPlayInEditorID);
+		FTemporaryPlayInEditorIDOverride PIEGuard(ContextPlayInEditorID);
 	#endif
 
 		return TempPath.ResolveObject();

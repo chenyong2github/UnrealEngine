@@ -794,7 +794,7 @@ void FKismetDebugUtilities::AttemptToBreakExecution(UBlueprint* BlueprintObj, co
 	// Now enter within-the-frame debugging mode
 	if (bShouldInStackDebug)
 	{
-		TGuardValue<int32> GuardDisablePIE(GPlayInEditorID, INDEX_NONE);
+		FTemporaryPlayInEditorIDOverride GuardDisablePIE(INDEX_NONE);
 		TArrayView<const FFrame* const> ScriptStack = FBlueprintContextTracker::Get().GetCurrentScriptStack();
 		Data.LastExceptionMessage = Info.GetDescription();
 		FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(NodeStoppedAt);
