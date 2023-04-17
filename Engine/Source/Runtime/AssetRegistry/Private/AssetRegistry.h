@@ -161,6 +161,12 @@ public:
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FInMemoryAssetDeletedEvent, FInMemoryAssetDeletedEvent );
 	virtual FInMemoryAssetDeletedEvent& OnInMemoryAssetDeleted() override;
 
+	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FVerseAddedEvent, FVerseAddedEvent);
+	virtual FVerseAddedEvent& OnVerseAdded() override;
+
+	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FVerseRemovedEvent, FVerseRemovedEvent);
+	virtual FVerseRemovedEvent& OnVerseRemoved() override;
+
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FFilesLoadedEvent, FFilesLoadedEvent );
 	virtual FFilesLoadedEvent& OnFilesLoaded() override;
 
@@ -308,6 +314,12 @@ private:
 
 	/** The delegate to execute when an in-memory asset was just deleted */
 	FInMemoryAssetDeletedEvent InMemoryAssetDeletedEvent;
+
+	/** The delegate to execute when a Verse file is added to the registry */
+	FVerseAddedEvent VerseAddedEvent;
+
+	/** The delegate to execute when a Verse file is removed from the registry */
+	FVerseRemovedEvent VerseRemovedEvent;
 
 	/** The delegate to execute when finished loading files */
 	FFilesLoadedEvent FileLoadedEvent;

@@ -3961,7 +3961,7 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 	if (BackgroundResults.VerseFiles.Num())
 	{
 		LazyStartTimer();
-		VerseFilesGathered(TickStartTime, BackgroundResults.VerseFiles);
+		VerseFilesGathered(EventContext, TickStartTime, BackgroundResults.VerseFiles);
 	}
 
 	// Store blocked files to be reported
@@ -5077,7 +5077,7 @@ void FAssetRegistryImpl::CookedPackageNamesWithoutAssetDataGathered(Impl::FEvent
 	}
 }
 
-void FAssetRegistryImpl::VerseFilesGathered(const double TickStartTime, TRingBuffer<FName>& VerseResults)
+void FAssetRegistryImpl::VerseFilesGathered(Impl::FEventContext& EventContext, const double TickStartTime, TRingBuffer<FName>& VerseResults)
 {
 	while (VerseResults.Num() > 0)
 	{
@@ -5090,6 +5090,7 @@ void FAssetRegistryImpl::VerseFilesGathered(const double TickStartTime, TRingBuf
 			FName VerseDirectoryPath(FPathViews::GetPath(WriteToString<256>(VerseFilePath)));
 			TArray<FName>& FilePathsArray = CachedVerseFilesByPath.FindOrAdd(VerseDirectoryPath);
 			FilePathsArray.Add(VerseFilePath);
+			EventContext.VerseEvents.Emplace(VerseFilePath, Impl::FEventContext::EEvent::Added);
 		}
 
 		// Check to see if we have run out of time in this tick
@@ -5345,7 +5346,7 @@ void FAssetRegistryImpl::RemovePackageData(Impl::FEventContext& EventContext, co
 	}
 }
 
-void FAssetRegistryImpl::RemoveVerseFile(FName VerseFilePathToRemove)
+void FAssetRegistryImpl::RemoveVerseFile(Impl::FEventContext& EventContext, FName VerseFilePathToRemove)
 {
 	if (CachedVerseFiles.Remove(VerseFilePathToRemove))
 	{
@@ -5359,6 +5360,7 @@ void FAssetRegistryImpl::RemoveVerseFile(FName VerseFilePathToRemove)
 				CachedVerseFilesByPath.Remove(VerseDirectoryPath);
 			}
 		}
+		EventContext.VerseEvents.Emplace(VerseFilePathToRemove, Impl::FEventContext::EEvent::Removed);
 	}
 }
 
@@ -5487,7 +5489,7 @@ void FAssetRegistryImpl::OnDirectoryChanged(Impl::FEventContext& EventContext,
 					break;
 
 				case FFileChangeData::FCA_Removed:
-					RemoveVerseFile(FName(WriteToString<256>(LongPackageName, FPathViews::GetExtension(File, /*bIncludeDot*/ true))));
+					RemoveVerseFile(EventContext, FName(WriteToString<256>(LongPackageName, FPathViews::GetExtension(File, /*bIncludeDot*/ true))));
 					UE_LOG(LogAssetRegistry, Verbose, TEXT("Verse file was removed from content directory: %s"), *File);
 					break;
 				}
@@ -6962,6 +6964,31 @@ void UAssetRegistryImpl::Broadcast(UE::AssetRegistry::Impl::FEventContext& Event
 		}
 		EventContext.AssetEvents.Empty();
 	}
+	if (EventContext.VerseEvents.Num())
+	{
+		for (const TPair<FName, FEventContext::EEvent>& VerseEvent : EventContext.VerseEvents)
+		{
+			const FName& VerseFilepath = VerseEvent.Get<0>();
+			switch (VerseEvent.Get<1>())
+			{
+			case FEventContext::EEvent::Added:
+				VerseAddedEvent.Broadcast(VerseFilepath);
+				break;
+			case FEventContext::EEvent::Removed:
+				VerseRemovedEvent.Broadcast(VerseFilepath);
+				break;
+			// (jcotton) We are not yet broadcasting Verse updating events as the only use case for VerseEvent broadcasts currently is to trigger a Verse-build
+			// and triggering a build on every change would be far too expensive.
+			case FEventContext::EEvent::Updated:
+				[[fallthrough]];
+			case FEventContext::EEvent::UpdatedOnDisk:
+				[[fallthrough]];
+			default:
+				break;
+			}
+		}
+		EventContext.VerseEvents.Empty();
+	}
 	if (EventContext.RequiredLoads.Num())
 	{
 		for (const FString& RequiredLoad : EventContext.RequiredLoads)
@@ -7026,6 +7053,16 @@ UAssetRegistryImpl::FInMemoryAssetCreatedEvent& UAssetRegistryImpl::OnInMemoryAs
 UAssetRegistryImpl::FInMemoryAssetDeletedEvent& UAssetRegistryImpl::OnInMemoryAssetDeleted()
 {
 	return InMemoryAssetDeletedEvent;
+}
+
+UAssetRegistryImpl::FVerseAddedEvent& UAssetRegistryImpl::OnVerseAdded()
+{
+	return VerseAddedEvent;
+}
+
+UAssetRegistryImpl::FVerseRemovedEvent& UAssetRegistryImpl::OnVerseRemoved()
+{
+	return VerseRemovedEvent;
 }
 
 UAssetRegistryImpl::FFilesLoadedEvent& UAssetRegistryImpl::OnFilesLoaded()

@@ -226,7 +226,7 @@ public:
 	/** Removes the asset data associated with this package from the look-up maps */
 	void RemovePackageData(Impl::FEventContext& EventContext, const FName PackageName);
 	/** Removes the Verse file from the look-up maps */
-	void RemoveVerseFile(FName VerseFilePathToRemove);
+	void RemoveVerseFile(Impl::FEventContext& EventContext, FName VerseFilePathToRemove);
 
 	/** Returns the names of all subclasses of the class whose name is ClassName */
 	void GetSubClasses(Impl::FClassInheritanceContext& InheritanceContext, const TArray<FTopLevelAssetPath>& InClassNames,
@@ -297,7 +297,7 @@ private:
 		TRingBuffer<FString>& CookedPackageNamesWithoutAssetDataResults, bool& bOutInterrupted);
 
 	/** Called every tick when data is retrieved by the background dependency search */
-	void VerseFilesGathered(const double TickStartTime, TRingBuffer<FName>& VerseResults);
+	void VerseFilesGathered(Impl::FEventContext& EventContext, const double TickStartTime, TRingBuffer<FName>& VerseResults);
 
 	/** Adds the asset data to the lookup maps */
 	void AddAssetData(Impl::FEventContext& EventContext, FAssetData* AssetData);
@@ -483,6 +483,7 @@ struct FEventContext
 	TOptional<IAssetRegistry::FFileLoadProgressUpdateData> ProgressUpdateData;
 	TArray<TPair<FString, EEvent>> PathEvents;
 	TArray<TPair<FAssetData, EEvent>> AssetEvents;
+	TArray<TPair<FName, EEvent>> VerseEvents;
 	TArray<FString> RequiredLoads;
 	TArray<FString> BlockedFiles;
 	bool bFileLoadedEventBroadcast = false;
