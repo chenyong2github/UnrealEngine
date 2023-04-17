@@ -13,7 +13,7 @@ public class DerivedDataToolTarget : TargetRules
 		LaunchModuleName = "DerivedDataTool";
 
 		bBuildDeveloperTools = false;
-		bCompileAgainstApplicationCore = false;
+		bCompileAgainstApplicationCore = true;
 		bCompileAgainstCoreUObject = false;
 		bCompileAgainstEngine = false;
 		bCompileICU = false;

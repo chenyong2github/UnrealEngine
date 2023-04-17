@@ -21,6 +21,15 @@ public:
 		return DesktopPlatformModule.GetSingleton();
 	}
 
+	static IDesktopPlatform* TryGet()
+	{
+		if (FDesktopPlatformModule* DesktopPlatformModule = FModuleManager::Get().LoadModulePtr<FDesktopPlatformModule>("DesktopPlatform"))
+		{
+			return DesktopPlatformModule->GetSingleton();
+		}
+		return nullptr;
+	}
+
 private:
 	virtual IDesktopPlatform* GetSingleton() const { return DesktopPlatform; }
 

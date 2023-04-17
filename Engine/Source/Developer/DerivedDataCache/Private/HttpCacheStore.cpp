@@ -1751,9 +1751,10 @@ bool FHttpCacheStore::AcquireAccessToken(IHttpClient* Client)
 	{
 		FString AccessTokenString;
 		FDateTime TokenExpiresAt;
-		bool bWasInteractiveLogin;
+		bool bWasInteractiveLogin = false;
 
-		if (FDesktopPlatformModule::Get()->GetOidcAccessToken(FPaths::RootDir(), FPaths::GetProjectFilePath(), OAuthProviderIdentifier, FApp::IsUnattended(), GWarn, AccessTokenString, TokenExpiresAt, bWasInteractiveLogin))
+		IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::TryGet();
+		if (DesktopPlatform && DesktopPlatform->GetOidcAccessToken(FPaths::RootDir(), FPaths::GetProjectFilePath(), OAuthProviderIdentifier, FApp::IsUnattended(), GWarn, AccessTokenString, TokenExpiresAt, bWasInteractiveLogin))
 		{
 			if (bWasInteractiveLogin)
 			{
@@ -1767,13 +1768,22 @@ bool FHttpCacheStore::AcquireAccessToken(IHttpClient* Client)
 			SetAccessTokenAndUnlock(Lock, AccessTokenString, ExpiryTimeSeconds);
 			return true;
 		}
-
-		UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: OidcToken: Failed to log in to HTTP services."), *Domain);
-		FailedLoginAttempts++;
-		return false;
+		else if (DesktopPlatform)
+		{
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: OidcToken: Failed to log in to HTTP services."), *Domain);
+			FailedLoginAttempts++;
+			return false;
+		}
+		else
+		{
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: OidcToken: Use of OAuthProviderIdentifier requires that the target depend on DesktopPlatform."), *Domain);
+			FailedLoginAttempts++;
+			return false;
+		}
 	}
 
 	UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: No available configuration to acquire an access token."), *Domain);
+	FailedLoginAttempts++;
 	return false;
 }
 
