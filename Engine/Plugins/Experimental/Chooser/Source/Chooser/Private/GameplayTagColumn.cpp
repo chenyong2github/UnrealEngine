@@ -24,11 +24,18 @@ FGameplayTagColumn::FGameplayTagColumn()
 	InputValue.InitializeAs(FGameplayTagContextProperty::StaticStruct());
 }
 
-void FGameplayTagColumn::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
+void FGameplayTagColumn::Filter(FChooserDebuggingInfo& DebugInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
 {
 	const FGameplayTagContainer* Result = nullptr;
 	if (ContextObject && InputValue.IsValid() && InputValue.Get<FChooserParameterGameplayTagBase>().GetValue(ContextObject,Result))
 	{
+#if WITH_EDITOR
+		if (DebugInfo.bCurrentDebugTarget)
+		{
+			TestValue = *Result;
+		}
+#endif
+
 		for (uint32 Index : IndexListIn)
 		{
 		 

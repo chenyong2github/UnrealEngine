@@ -16,10 +16,14 @@ struct CHOOSER_API FOutputBoolColumn : public FChooserColumnBase
 	FOutputBoolColumn();
 	virtual bool HasFilters() const override { return false; }
 	virtual bool HasOutputs() const override { return true; }
-	virtual void SetOutputs(UObject* ContextObject, int RowIndex) const override;
+	virtual void SetOutputs(FChooserDebuggingInfo& DebugInfo, UObject* ContextObject, int RowIndex) const override;
 	
 	UPROPERTY(EditAnywhere, Meta = (ExcludeBaseStruct, BaseStruct = "/Script/Chooser.ChooserParameterBoolBase"), Category = "Hidden")
 	FInstancedStruct InputValue;
+
+#if WITH_EDITOR
+	mutable bool TestValue=false;
+#endif
 	
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category=Runtime);

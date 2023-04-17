@@ -12,8 +12,8 @@
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FChooserOutputObjectTypeChanged, const UClass* OutputObjectType);
 
-UCLASS(MinimalAPI, BlueprintType)
-class UChooserTable : public UObject, public IHasContextClass
+UCLASS(BlueprintType)
+class CHOOSER_API UChooserTable : public UObject, public IHasContextClass
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -25,12 +25,35 @@ public:
 	virtual void PostEditUndo() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostLoad() override;
+	
+	void SetDebugSelectedRow(int32 Index) const { DebugSelectedRow = Index; }
+	int32 GetDebugSelectedRow() const { return DebugSelectedRow; }
+	bool HasDebugTarget() const { return DebugTarget != nullptr; }
+	const UObject* GetDebugTarget() const { return DebugTarget.Get(); }
+	void SetDebugTarget(TWeakObjectPtr<const UObject> Target) { DebugTarget = Target; }
+	void ResetDebugTarget() { DebugTarget.Reset(); }
+	void IterateRecentContextObjects(TFunction<void(const UObject*)> Callback) const;
+	bool UpdateDebugging(const UObject* ContextObject) const;
+	
+	// enable display of which cells pass/fail based on current TestValue for each column
+	bool bEnableDebugTesting = false;
+	mutable bool bDebugTestValuesValid = false;
 
+private: 
 	// caching the OutputObjectType and ContextObjectType so that on Undo, we can tell if we should fire the changed delegate
 	UClass* CachedPreviousOutputObjectType;
 	UClass* CachedPreviousContextObjectType;
-#endif
 	
+	// objects this chooser has been recently evaluated on
+	mutable TSet<TWeakObjectPtr<const UObject>> RecentContextObjects;
+	mutable FCriticalSection DebugLock;
+	// reference to the UObject in PIE  which we want to get debug info for
+	TWeakObjectPtr<const UObject> DebugTarget;
+	// Row which was selected last time this chooser was evaluated on DebugTarget
+	mutable int32 DebugSelectedRow = -1;
+#endif
+
+public:
 #if WITH_EDITORONLY_DATA
 	// deprecated UObject Results
 	UPROPERTY()

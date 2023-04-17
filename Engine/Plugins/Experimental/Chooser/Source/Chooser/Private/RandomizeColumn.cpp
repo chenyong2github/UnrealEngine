@@ -25,7 +25,7 @@ FRandomizeColumn::FRandomizeColumn()
 	InputValue.InitializeAs(FRandomizeContextProperty::StaticStruct());
 }
 
-void FRandomizeColumn::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
+void FRandomizeColumn::Filter(FChooserDebuggingInfo& DebuggingInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
 {
 	int Count = IndexListIn.Num();
 	int Selection = 0;
@@ -99,7 +99,7 @@ void FRandomizeColumn::Filter(const UObject* ContextObject, const TArray<uint32>
 	}
 }
 
-void FRandomizeColumn::SetOutputs(UObject* ContextObject, int RowIndex) const
+void FRandomizeColumn::SetOutputs(FChooserDebuggingInfo& DebugInfo, UObject* ContextObject, int RowIndex) const
 {
 	if (ContextObject && InputValue.IsValid())
 	{

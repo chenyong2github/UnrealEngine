@@ -71,6 +71,7 @@ struct CHOOSER_API FGameplayTagColumn : public FChooserColumnBase
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category=Runtime)
 	FGameplayTagContainer DefaultRowValue;
+
 #endif
 	
 	UPROPERTY(EditAnywhere, Category=Runtime)
@@ -78,7 +79,26 @@ struct CHOOSER_API FGameplayTagColumn : public FChooserColumnBase
 	// should match the length of the Results array 
 	TArray<FGameplayTagContainer> RowValues;
 	
-	virtual void Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
+	virtual void Filter(FChooserDebuggingInfo& DebugInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
+
+#if WITH_EDITOR
+	mutable FGameplayTagContainer TestValue;
+	virtual bool EditorTestFilter(int32 RowIndex) const override
+	{
+		if(RowValues.IsValidIndex(RowIndex))
+		{
+			if (TagMatchType == EGameplayContainerMatchType::All)
+			{
+				return TestValue.HasAll(RowValues[RowIndex]);
+			}
+			else
+			{
+				return TestValue.HasAny(RowValues[RowIndex]);
+			}
+		}
+		return false;
+	}
+#endif
 
 	virtual void PostLoad() override
 	{

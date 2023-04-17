@@ -39,6 +39,7 @@ public:
 	int Column;
 };
 
+
 namespace UE::ChooserEditor
 {
 	class FChooserTableEditor : public FAssetEditorToolkit, public FSelfRegisteringEditorUndoClient, public FNotifyHook
@@ -73,6 +74,7 @@ namespace UE::ChooserEditor
 		virtual FLinearColor GetWorldCentricTabColorScale() const override;
 		virtual bool IsPrimaryEditor() const override { return true; }
 		virtual bool IsSimpleAssetEditor() const override { return false; }
+		virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
 		
 		/** FEditorUndoClient Interface */
 		virtual void PostUndo(bool bSuccess) override;
@@ -83,6 +85,7 @@ namespace UE::ChooserEditor
 		virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 
 		UChooserTable* GetChooser() { return Cast<UChooserTable>(EditingObjects[0]); }
+		const UChooserTable* GetChooser() const { return Cast<UChooserTable>(EditingObjects[0]); }
 	
 		/** Used to show or hide certain properties */
 		void SetPropertyVisibilityDelegate(FIsPropertyVisible InVisibilityDelegate);
@@ -105,6 +108,7 @@ namespace UE::ChooserEditor
 		void SelectRootProperties();
 		void RegisterToolbar();
 		void BindCommands();
+		void MakeDebugTargetMenu(UToolMenu* InToolMenu);
 	
 		/** Create the properties tab and its content */
 		TSharedRef<SDockTab> SpawnPropertiesTab( const FSpawnTabArgs& Args );
@@ -129,7 +133,7 @@ namespace UE::ChooserEditor
 		/** The objects open within this editor */
 		TArray<UObject*> EditingObjects;
 
-		TObjectPtr<UChooserColumnDetails> SelectedColumn;
+		UChooserColumnDetails* SelectedColumn = nullptr;
 		TArray<TObjectPtr<UChooserRowDetails>> SelectedRows;
 
 		void UpdateTableColumns();
@@ -140,7 +144,6 @@ namespace UE::ChooserEditor
 		
 		TSharedPtr<SHeaderRow> HeaderRow;
 		TSharedPtr<SListView<TSharedPtr<FChooserTableRow>>> TableView;
-		
 	public:
 		TSharedPtr<SComboButton>& GetCreateRowComboButton() { return CreateRowComboButton; };
 
@@ -154,3 +157,12 @@ namespace UE::ChooserEditor
 		static void RegisterWidgets();
 	};
 }
+
+UCLASS()
+class UChooserEditorToolMenuContext : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	TWeakPtr<UE::ChooserEditor::FChooserTableEditor> ChooserEditor;
+};

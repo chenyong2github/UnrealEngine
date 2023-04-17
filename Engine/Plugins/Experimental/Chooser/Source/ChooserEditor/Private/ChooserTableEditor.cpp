@@ -75,9 +75,103 @@ const FName FChooserTableEditor::ChooserEditorAppIdentifier( TEXT( "ChooserEdito
 
 FChooserTableEditor::~FChooserTableEditor()
 {
+	if (SelectedColumn)
+	{
+		SelectedColumn->ClearFlags(RF_Standalone);
+	}
+	for (UObject* SelectedRow : SelectedRows)
+	{
+		SelectedRow->ClearFlags(RF_Standalone);
+	}
+	
 	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 
 	DetailsView.Reset();
+}
+	
+void FChooserTableEditor::MakeDebugTargetMenu(UToolMenu* InToolMenu) 
+{
+	static FName SectionName = "Select Debug Target";
+		
+	InToolMenu->AddMenuEntry(
+			SectionName,
+			FToolMenuEntry::InitMenuEntry(
+				"None",
+				LOCTEXT("None", "None"),
+				LOCTEXT("None Tooltip", "Clear selected debug target"),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateLambda([this]()
+					{
+						UChooserTable* Chooser = GetChooser();
+						Chooser->ResetDebugTarget();
+						if (Chooser->bEnableDebugTesting)
+						{
+							Chooser->bEnableDebugTesting = false;
+							Chooser->bDebugTestValuesValid = false;
+							UpdateTableColumns();
+						}
+					}),
+					FCanExecuteAction()
+				)
+			));
+	
+	InToolMenu->AddMenuEntry(
+			SectionName,
+			FToolMenuEntry::InitMenuEntry(
+				"Manual",
+				LOCTEXT("Manual Testing", "Manual Testing"),
+				LOCTEXT("Manual Tooltip", "Test the chooser by manually entering values for each column"),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateLambda([this]()
+					{
+						UChooserTable* Chooser = GetChooser();
+						Chooser->ResetDebugTarget();
+						if (!Chooser->bEnableDebugTesting)
+						{
+							Chooser->bEnableDebugTesting = true;
+							Chooser->bDebugTestValuesValid = true;
+							UpdateTableColumns();
+						}
+					}),
+					FCanExecuteAction()
+				)
+			));
+
+	const UChooserTable* Chooser = GetChooser();
+
+	Chooser->IterateRecentContextObjects([this, InToolMenu](const UObject* Object)
+		{
+			InToolMenu->AddMenuEntry(
+						SectionName,
+						FToolMenuEntry::InitMenuEntry(
+							Object->GetFName(),
+							FText::FromString(Object->GetName()),
+							LOCTEXT("Select Object ToolTip", "Select this object as the debug target"),
+							FSlateIcon(),
+							FUIAction(
+								FExecuteAction::CreateLambda([this, ObjectPtr = MakeWeakObjectPtr(Object)]()
+								{
+									if(ObjectPtr.IsValid())
+									{
+										UChooserTable* Chooser = GetChooser();
+										Chooser->SetDebugTarget(ObjectPtr);
+										Chooser->bDebugTestValuesValid = false;
+										if (!Chooser->bEnableDebugTesting)
+										{
+											Chooser->bEnableDebugTesting = true;
+											UpdateTableColumns();
+										}
+									}
+								}),
+								FCanExecuteAction()
+							)
+						));
+		}
+	);
+	
+
 }
 
 void FChooserTableEditor::RegisterToolbar()
@@ -104,8 +198,46 @@ void FChooserTableEditor::RegisterToolbar()
 			TAttribute<FText>(),
 			TAttribute<FText>(),
 			FSlateIcon("EditorStyle", "FullBlueprintEditor.EditGlobalOptions")));
+
+
+		Section.AddDynamicEntry("DebuggingCommands", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		{
+			UChooserEditorToolMenuContext* Context = InSection.FindContext<UChooserEditorToolMenuContext>();
+
+			if (Context)
+			{
+				if (TSharedPtr<FChooserTableEditor> ChooserEditor = Context->ChooserEditor.Pin())
+				{
+					InSection.AddEntry(FToolMenuEntry::InitComboButton( "SelectDebugTarget",
+						FToolUIActionChoice(),
+					  FNewToolMenuDelegate::CreateSP(ChooserEditor.Get(), &FChooserTableEditor::MakeDebugTargetMenu),
+						TAttribute<FText>::CreateLambda([Chooser = ChooserEditor->GetChooser()]
+						{
+							if (Chooser->HasDebugTarget())
+							{
+								return  FText::FromString(Chooser->GetDebugTarget()->GetName());
+							}
+							else
+							{
+								return Chooser->bEnableDebugTesting ? LOCTEXT("Manual Testing", "Manual Testing") : LOCTEXT("Debug Target", "Debug Target");
+							}
+						}),
+						LOCTEXT("Debug Target Tooltip", "Select an object that has recently been the context object for this chooser to visualize the selection results")));
+				}
+			}
+		}));
+
 	}
 
+}
+
+void FChooserTableEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
+{
+	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
+
+	UChooserEditorToolMenuContext* Context = NewObject<UChooserEditorToolMenuContext>();
+	Context->ChooserEditor = SharedThis(this);
+	MenuContext.AddObject(Context);
 }
 
 void FChooserTableEditor::BindCommands()
@@ -369,10 +501,26 @@ public:
 
 		ChildSlot
 		[
-			SNew(SBox) .Padding(0.0f) .HAlign(HAlign_Center) .VAlign(VAlign_Center) .WidthOverride(16.0f)
+			SNew(SOverlay)
+			+ SOverlay::Slot()
 			[
-				SNew(SImage)
-				.Image(FCoreStyle::Get().GetBrush("VerticalBoxDragIndicatorShort"))
+				SNew(SBox) .Padding(0.0f) .HAlign(HAlign_Center) .VAlign(VAlign_Center) .WidthOverride(16.0f)
+				[
+					SNew(SImage)
+					.Image(FCoreStyle::Get().GetBrush("VerticalBoxDragIndicatorShort"))
+				]
+			]
+			+ SOverlay::Slot()
+			[
+				SNew(SBox).Padding(0.0f) .HAlign(HAlign_Center) .VAlign(VAlign_Center) .WidthOverride(16.0f)
+				[
+					SNew(SImage)
+					.Visibility_Lambda([this]()
+					{
+						return ChooserEditor->GetChooser()->bDebugTestValuesValid && RowIndex == ChooserEditor->GetChooser()->GetDebugSelectedRow() ? EVisibility::HitTestInvisible : EVisibility::Hidden;
+					})
+					.Image(FAppStyle::Get().GetBrush("Icons.ArrowRight"))
+				]
 			]
 		];
 	}
@@ -472,7 +620,30 @@ public:
 				
 					if (ColumnWidget.IsValid())
 					{
-						return ColumnWidget.ToSharedRef();
+						return SNew(SOverlay)
+						+ SOverlay::Slot()
+						[
+							ColumnWidget.ToSharedRef()
+						]
+						+ SOverlay::Slot()
+						[
+							SNew(SColorBlock).Visibility(EVisibility::HitTestInvisible).Color_Lambda(
+									[this,Column]()
+									{
+										if (Chooser->bDebugTestValuesValid && Column->HasFilters())
+										{
+											if (Column->EditorTestFilter(RowIndex->RowIndex))
+											{
+												return FLinearColor(0.0,1.0,0.0,0.30);
+											}
+											else
+											{
+												return FLinearColor(1.0,0.0,0.0,0.20);
+											}
+										}
+										return FLinearColor::Transparent;
+									})
+						];
 					}
 				}
 			}
@@ -606,28 +777,13 @@ void FChooserTableEditor::UpdateTableColumns()
 	for(int ColumnIndex = 0; ColumnIndex < NumColumns; ColumnIndex++)
 	{
 		FChooserColumnBase& Column = Chooser->ColumnsStructs[ColumnIndex].GetMutable<FChooserColumnBase>();
-		TSharedPtr<SWidget> HeaderWidget = nullptr;
-		if (FChooserParameterBase* InputValue = Column.GetInputValue())
-		{
-			HeaderWidget = FObjectChooserWidgetFactories::CreateWidget(false, Chooser, InputValue, Column.GetInputType(), Chooser->ContextObjectType, Chooser->OutputObjectType);
-		}
 
-
-		const ISlateStyle& CoreStyle = FCoreStyle::Get();
-		const FSlateBrush* ColumnIcon = nullptr;
-		if (Column.IsRandomizeColumn())
+		TSharedPtr<SWidget> HeaderWidget = FObjectChooserWidgetFactories::CreateColumnWidget(&Column, Chooser->ColumnsStructs[ColumnIndex].GetScriptStruct(), Chooser, -1);
+		if (!HeaderWidget.IsValid())
 		{
-			ColumnIcon = FAppStyle::Get().GetBrush("Icons.Help");
+			HeaderWidget = SNullWidget::NullWidget;
 		}
-		else if (Column.HasOutputs())
-		{
-			ColumnIcon = CoreStyle.GetBrush("Icons.ArrowRight");
-		}
-		else
-		{
-			ColumnIcon = CoreStyle.GetBrush("Icons.Filter");
-		}
-
+		
 		HeaderRow->AddColumn(SHeaderRow::FColumn::FArguments()
 			.ColumnId(ColumnId)
 			.ManualWidth(200)
@@ -676,7 +832,6 @@ void FChooserTableEditor::UpdateTableColumns()
 							));
 				}
 
-				// if (ColumnIndex < Chooser->ColumnsStructs.Num() - 1)
 
 				MenuBuilder.AddMenuEntry(LOCTEXT("Delete Column","Delete"),LOCTEXT("Delete Column ToolTip", "Remove this column and all its data from the table"),FSlateIcon(),
 					FUIAction(
@@ -712,8 +867,8 @@ void FChooserTableEditor::UpdateTableColumns()
 					}));
 			
 				return MenuBuilder.MakeWidget();
-			
 			})
+			.HeaderComboVisibility(EHeaderComboVisibility::Ghosted)
 			.HeaderContent()
 			[
 				SNew(SBorder)
@@ -733,20 +888,7 @@ void FChooserTableEditor::UpdateTableColumns()
 					return FReply::Handled();
 				})
 				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().AutoWidth()
-					[
-						SNew(SBorder)
-						.BorderBackgroundColor(FLinearColor(0,0,0,0))
-						.Content()
-						[
-							SNew(SImage).Image(ColumnIcon)
-						]
-					]
-					+ SHorizontalBox::Slot()
-					[
-						HeaderWidget ? HeaderWidget.ToSharedRef() : SNullWidget::NullWidget
-					]
+					HeaderWidget.ToSharedRef()
 				]
 			
 			]);
@@ -915,16 +1057,25 @@ TSharedRef<SDockTab> FChooserTableEditor::SpawnTableTab( const FSpawnTabArgs& Ar
 				)
 				.OnSelectionChanged_Lambda([this](TSharedPtr<FChooserTableRow> SelectedItem,  ESelectInfo::Type SelectInfo)
 				{
-					SelectedColumn = nullptr;
+					if (SelectedColumn)
+					{
+						// deselect any selected column
+						SelectedColumn->Column = -1;
+					}
+					
 					if (SelectedItem)
 					{
+						for (UObject* SelectedRow : SelectedRows)
+						{
+							SelectedRow->ClearFlags(RF_Standalone);
+						}
 						SelectedRows.SetNum(0);
 						UChooserTable* Chooser = Cast<UChooserTable>(EditingObjects[0]);
 						// Get the list of objects to edit the details of
 						TObjectPtr<UChooserRowDetails> Selection = NewObject<UChooserRowDetails>();
 						Selection->Chooser = Chooser;
 						Selection->Row = SelectedItem->RowIndex;
-						Selection->SetFlags(RF_Transactional);
+						Selection->SetFlags(RF_Standalone);
 						SelectedRows.Add(Selection);
 											
 						TArray<UObject*> DetailsObjects;
@@ -1039,8 +1190,10 @@ void FChooserTableEditor::SelectColumn(int Index)
 		if (SelectedColumn == nullptr)
 		{
 			SelectedColumn = NewObject<UChooserColumnDetails>();
+			SelectedColumn->SetFlags(RF_Standalone);
 			SelectedColumn->Chooser = Chooser;
 		}
+
 		SelectedColumn->Column = Index;
 		DetailsView->SetObject(SelectedColumn, true);
 	}

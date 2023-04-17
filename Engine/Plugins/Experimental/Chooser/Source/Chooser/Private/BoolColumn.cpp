@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "BoolColumn.h"
 #include "ChooserPropertyAccess.h"
+#include "Chooser.h"
 
 bool FBoolContextProperty::GetValue(const UObject* ContextObject, bool& OutResult) const
 {
@@ -60,12 +61,19 @@ FBoolColumn::FBoolColumn()
 	InputValue.InitializeAs(FBoolContextProperty::StaticStruct());
 }
 
-void FBoolColumn::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
+void FBoolColumn::Filter(FChooserDebuggingInfo& DebugInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
 {
 	if (ContextObject && InputValue.IsValid())
 	{
 		bool Result = false;
 		InputValue.Get<FChooserParameterBoolBase>().GetValue(ContextObject,Result);
+
+	#if WITH_EDITOR
+		if (DebugInfo.bCurrentDebugTarget)
+		{
+			TestValue = Result;
+		}
+	#endif
 		
 		for (uint32 Index : IndexListIn)
 		{

@@ -52,7 +52,7 @@ struct CHOOSER_API FRandomizeColumn : public FChooserColumnBase
 	FInstancedStruct InputValue;
 	
 	
-	UPROPERTY(EditAnywhere, Category= "Data", meta=(Tooltip="Multiplies the weight of the previous chosen result (set to 0 to never pick the same result twice in a row)"));
+	UPROPERTY(EditAnywhere, Category= "Data", meta=(ClampMin="0.0",Tooltip="Multiplies the weight of the previous chosen result (set to 0 to never pick the same result twice in a row)"));
 	float RepeatProbabilityMultiplier = 1.0f;
 
 #if WITH_EDITORONLY_DATA
@@ -63,11 +63,18 @@ struct CHOOSER_API FRandomizeColumn : public FChooserColumnBase
 	UPROPERTY(EditAnywhere, Category= "Data", DisplayName="RowValues");
 	TArray<float> RowValues; 
 	
-	virtual void Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
-	virtual void SetOutputs(UObject* ContextObject, int RowIndex) const override;
+	virtual void Filter(FChooserDebuggingInfo& DebugInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
+	virtual void SetOutputs(FChooserDebuggingInfo& DebugInfo, UObject* ContextObject, int RowIndex) const override;
 	
 	virtual bool HasFilters() const override { return true; }
 	virtual bool HasOutputs() const override { return true; }
+
+	#if WITH_EDITOR
+    	virtual bool EditorTestFilter(int32 RowIndex) const override
+    	{
+    		return true;
+    	}
+    #endif
 
 	virtual void PostLoad() override
 	{

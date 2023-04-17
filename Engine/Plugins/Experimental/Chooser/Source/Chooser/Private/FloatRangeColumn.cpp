@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "FloatRangeColumn.h"
+
 #include "ChooserPropertyAccess.h"
 
 bool FFloatContextProperty::GetValue(const UObject* ContextObject, float& OutResult) const
@@ -68,12 +69,19 @@ FFloatRangeColumn::FFloatRangeColumn()
 	InputValue.InitializeAs(FFloatContextProperty::StaticStruct());
 }
 
-void FFloatRangeColumn::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
+void FFloatRangeColumn::Filter(FChooserDebuggingInfo& DebugInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
 {
 	if (ContextObject && InputValue.IsValid())
 	{
 		float Result = 0.0f;
 		InputValue.Get<FChooserParameterFloatBase>().GetValue(ContextObject, Result);
+
+#if WITH_EDITOR
+		if (DebugInfo.bCurrentDebugTarget)
+		{
+			TestValue = Result;
+		}
+#endif
 
 		for(uint32 Index : IndexListIn)
 		{

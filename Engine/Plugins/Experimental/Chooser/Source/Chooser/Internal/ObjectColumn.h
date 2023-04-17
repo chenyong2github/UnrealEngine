@@ -21,7 +21,6 @@ struct CHOOSER_API FObjectContextProperty : public FChooserParameterObjectBase
 	virtual bool GetValue(const UObject* ContextObject, FSoftObjectPath& OutResult) const override;
 
 #if WITH_EDITOR
-
 	static bool CanBind(const FProperty& Property)
 	{
 		return Property.IsA<FObjectPropertyBase>() && !(Property.IsA<FClassProperty>() || Property.IsA<FSoftClassProperty>());
@@ -38,7 +37,6 @@ struct CHOOSER_API FObjectContextProperty : public FChooserParameterObjectBase
 	}
 
 	virtual UClass* GetAllowedClass() const override { return Binding.AllowedClass; }
-
 #endif
 };
 
@@ -86,7 +84,15 @@ struct CHOOSER_API FObjectColumn : public FChooserColumnBase
 	// should match the length of the Results array
 	TArray<FChooserObjectRowData> RowValues;
 
-	virtual void Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
+	virtual void Filter(FChooserDebuggingInfo& DebugInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const override;
+
+#if WITH_EDITOR
+	mutable FSoftObjectPath TestValue;
+	virtual bool EditorTestFilter(int32 RowIndex) const override
+	{
+		return RowValues.IsValidIndex(RowIndex) && RowValues[RowIndex].Evaluate(TestValue);
+	}
+#endif
 
 	CHOOSER_COLUMN_BOILERPLATE(FChooserParameterObjectBase);
 

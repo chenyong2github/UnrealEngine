@@ -15,21 +15,18 @@ bool FObjectContextProperty::GetValue(const UObject* ContextObject, FSoftObjectP
 	{
 		if (const FObjectPropertyBase* ObjectProperty = FindFProperty<FObjectPropertyBase>(StructType, Binding.PropertyBindingChain.Last()))
 		{
-			// If the property has a value, then create a soft object path from it;
-			// otherwise, it could be a weak pointer to something that is not loaded.
-			const UObject* LoadedObject = ObjectProperty->GetObjectPropertyValue_InContainer(Container);
-			if (LoadedObject != nullptr)
-			{
-				OutResult = LoadedObject;
-				return true;
-			}
-
+			// if the property is a soft object property, get the path directly
 			if (ObjectProperty->IsA<FSoftObjectProperty>())
 			{
 				const FSoftObjectPtr& SoftObjectPtr = *ObjectProperty->ContainerPtrToValuePtr<FSoftObjectPtr>(Container);
 				OutResult = SoftObjectPtr.ToSoftObjectPath();
 				return true;
 			}
+			
+			// otherwise get the value from the object property and convert to a soft object path
+			const UObject* LoadedObject = ObjectProperty->GetObjectPropertyValue_InContainer(Container);
+			OutResult = LoadedObject;
+			return true;
 		}
 	}
 
@@ -79,13 +76,21 @@ bool FChooserObjectRowData::Evaluate(const FSoftObjectPath& LeftHandSide) const
 	}
 }
 
-void FObjectColumn::Filter(const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
+void FObjectColumn::Filter(FChooserDebuggingInfo& DebugInfo, const UObject* ContextObject, const TArray<uint32>& IndexListIn, TArray<uint32>& IndexListOut) const
 {
 	FSoftObjectPath Result;
 	if (ContextObject != nullptr &&
 		InputValue.IsValid() &&
 		InputValue.Get<FChooserParameterObjectBase>().GetValue(ContextObject, Result))
 	{
+		
+#if WITH_EDITOR
+		if (DebugInfo.bCurrentDebugTarget)
+		{
+			TestValue = Result;
+		}
+#endif
+		
 		for (const uint32 Index : IndexListIn)
 		{
 			if (RowValues.IsValidIndex(Index))

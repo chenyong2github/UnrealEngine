@@ -101,6 +101,31 @@ void UChooserTable::PostLoad()
 	}
 		
 }
+
+void UChooserTable::IterateRecentContextObjects(TFunction<void(const UObject*)> Callback) const
+{
+	FScopeLock Lock(&DebugLock);
+	for(TWeakObjectPtr<const UObject>& Object : RecentContextObjects)
+	{
+		if (Object.IsValid())
+		{
+			Callback(Object.Get());
+		}
+	}
+}
+
+bool UChooserTable::UpdateDebugging(const UObject* ContextObject) const
+{
+	FScopeLock Lock(&DebugLock);
+	RecentContextObjects.Add(MakeWeakObjectPtr(ContextObject));
+	if (ContextObject == DebugTarget)
+	{
+		bDebugTestValuesValid = true;
+		return true;
+	}
+	return false;
+}
+
 #endif
 
 static FObjectChooserBase::EIteratorStatus StaticEvaluateChooser(const UObject* ContextObject, const UChooserTable* Chooser, FObjectChooserBase::FObjectChooserIteratorCallback Callback)
@@ -109,6 +134,12 @@ static FObjectChooserBase::EIteratorStatus StaticEvaluateChooser(const UObject* 
 	{
 		return FObjectChooserBase::EIteratorStatus::Continue;
 	}
+	
+	FChooserDebuggingInfo DebugInfo;
+
+#if WITH_EDITOR
+	DebugInfo.bCurrentDebugTarget = Chooser->UpdateDebugging(ContextObject);
+#endif
 
 	TArray<uint32> Indices1;
 	TArray<uint32> Indices2;
@@ -129,7 +160,7 @@ static FObjectChooserBase::EIteratorStatus StaticEvaluateChooser(const UObject* 
 		{
 			Swap(IndicesIn, IndicesOut);
 			IndicesOut->SetNum(0, false);
-			Column.Filter(ContextObject, *IndicesIn, *IndicesOut);
+			Column.Filter(DebugInfo, ContextObject, *IndicesIn, *IndicesOut);
 		}
 	}
 	
@@ -145,8 +176,14 @@ static FObjectChooserBase::EIteratorStatus StaticEvaluateChooser(const UObject* 
 				for (const FInstancedStruct& ColumnData : Chooser->ColumnsStructs)
 				{
 					const FChooserColumnBase& Column = ColumnData.Get<FChooserColumnBase>();
-					Column.SetOutputs(const_cast<UObject*>(ContextObject), SelectedIndex);
+					Column.SetOutputs(DebugInfo, const_cast<UObject*>(ContextObject), SelectedIndex);
 				}
+#if WITH_EDITOR
+				if (DebugInfo.bCurrentDebugTarget)
+				{
+					Chooser->SetDebugSelectedRow(SelectedIndex);
+				}
+#endif
 				return FObjectChooserBase::EIteratorStatus::Stop;
 			}
 		}

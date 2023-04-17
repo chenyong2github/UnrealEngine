@@ -6,6 +6,7 @@
 #include "ObjectChooserWidgetFactories.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "GraphEditorSettings.h"
 
@@ -17,7 +18,33 @@ namespace UE::ChooserEditor
 TSharedRef<SWidget> CreateRandomizeColumnWidget(UChooserTable* Chooser, FChooserColumnBase* Column, int Row)
 {
 	FRandomizeColumn* RandomizeColumn = static_cast<FRandomizeColumn*>(Column);
-	
+	if (Row < 0)
+	{
+		const FSlateBrush* ColumnIcon = ColumnIcon = FAppStyle::Get().GetBrush("Icons.Help");
+		
+		TSharedRef<SWidget> ColumnHeaderWidget = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth()
+			[
+				SNew(SBorder)
+				.BorderBackgroundColor(FLinearColor(0,0,0,0))
+				.Content()
+				[
+					SNew(SImage).Image(ColumnIcon)
+				]
+			]
+			+ SHorizontalBox::Slot().AutoWidth()
+			[
+				SNew(SSpacer).Size(FVector2D(10,10))
+			]
+			+ SHorizontalBox::Slot().VAlign(VAlign_Center)
+			[
+				SNew(STextBlock).Text(LOCTEXT("Randomize","Randomize"))
+			];
+
+		return ColumnHeaderWidget;
+	}
+
+	// create cell widget
 	return
 	SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot().FillWidth(1)
@@ -40,7 +67,7 @@ TSharedRef<SWidget> CreateRandomizeColumnWidget(UChooserTable* Chooser, FChooser
     					{
     						const FScopedTransaction Transaction(LOCTEXT("Edit Randomize Cell Data", "Edit Randomize Cell Data"));
     						Chooser->Modify(true);
-    						RandomizeColumn->RowValues[Row] = Value;
+    						RandomizeColumn->RowValues[Row] = FMath::Max(Value, 0.0);
     					}
     				})
     		]
