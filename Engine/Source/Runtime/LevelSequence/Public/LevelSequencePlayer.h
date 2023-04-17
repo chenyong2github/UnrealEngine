@@ -178,6 +178,9 @@ private:
 	/** The last view target to reset to when updating camera cuts to null */
 	TWeakObjectPtr<AActor> LastViewTarget;
 
+	/** The last player on which to reset the aspect ratio axis constraint in case the level is changing */
+	TWeakObjectPtr<ULocalPlayer> LastLocalPlayer;
+
 	/** The last aspect ratio axis constraint to reset to when the camera cut is null */
 	TOptional<EAspectRatioAxisConstraint> LastAspectRatioAxisConstraint;
 

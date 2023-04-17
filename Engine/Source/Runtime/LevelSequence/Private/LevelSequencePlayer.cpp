@@ -173,6 +173,8 @@ void ULevelSequencePlayer::OnStopped()
 
 	LastCameraObject = nullptr;
 	LastViewTarget.Reset();
+	LastLocalPlayer.Reset();
+	LastAspectRatioAxisConstraint.Reset();
 }
 
 void ULevelSequencePlayer::UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, const FMovieSceneUpdateArgs& Args)
@@ -266,6 +268,17 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, const EMovieSc
 
 	if (PC == nullptr)
 	{
+		// If we are releasing view target control but can't actually do it because game state has been
+		// torn down, see if we can at least restore aspect ratio axis constraint. This fixes a bug
+		// where the wrong constraint carries over to a new level if the level change was executed
+		// while we were playing the sequence.
+		if (CameraObject == nullptr && LastAspectRatioAxisConstraint.IsSet())
+		{
+			if (ULocalPlayer* LocalPlayer = LastLocalPlayer.Get())
+			{
+				LocalPlayer->AspectRatioAxisConstraint = LastAspectRatioAxisConstraint.GetValue();
+			}
+		}
 		return;
 	}
 
@@ -334,6 +347,10 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, const EMovieSc
 	if (!LastViewTarget.IsValid() || (ViewTarget != CameraObject && ViewTarget != LastCameraObject))
 	{
 		LastViewTarget = ViewTarget;
+	}
+	if (!LastLocalPlayer.IsValid() || (LocalPlayer != LastLocalPlayer))
+	{
+		LastLocalPlayer = LocalPlayer;
 	}
 	if (!LastAspectRatioAxisConstraint.IsSet())
 	{
