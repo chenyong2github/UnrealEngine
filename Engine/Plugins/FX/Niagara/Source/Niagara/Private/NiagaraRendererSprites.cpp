@@ -251,6 +251,7 @@ void FNiagaraRendererSprites::PrepareParticleSpriteRenderData(FParticleSpriteRen
 		ParticleSpriteRenderData.bHasTranslucentMaterials &&
 		bGpuLowLatencyTranslucency &&
 		GpuReadyTickStage >= CurrentParticleData->GetGPUDataReadyStage() &&
+		Material.IsTranslucencyWritingCustomDepth() &&
 		!SceneProxy->CastsVolumetricTranslucentShadow() &&
 		ViewFamilySupportLowLatencyTranslucency(ViewFamily);
 
