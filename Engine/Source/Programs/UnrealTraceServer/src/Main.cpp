@@ -874,6 +874,9 @@ static int MainDaemon(int ArgC, char** ArgV)
 		InstanceInfo->Set();
 	}
 
+	// Set locale for std function application wide.
+	std::setlocale(LC_ALL, ".UTF-8");
+
 	// Fire up the store
 	FStoreSettings* Settings = new FStoreSettings();
 	FStoreService* StoreService = nullptr;
